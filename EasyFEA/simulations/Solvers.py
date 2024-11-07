@@ -229,20 +229,20 @@ def _Solve_Axb(simu, problemType: str,
 
     return np.array(x)
 
-def __Check_solverLibrary(solveur: str) -> str:
+def __Check_solverLibrary(solver: str) -> str:
     """Checks whether the selected solver library is available
     If not, returns the solver usable in all cases (scipy)."""
     solveurDeBase="scipy"
-    if solveur == "pypardiso":
-        return solveur if __canUsePypardiso else solveurDeBase
-    elif solveur == "umfpack":
-        return solveur if __canUseUmfpack else solveurDeBase
-    elif solveur == "mumps":
-        return solveur if __canUseMumps else solveurDeBase
-    elif solveur == "petsc":
-        return solveur if __canUsePetsc else solveurDeBase
+    if solver == "pypardiso":
+        return solver if __canUsePypardiso else solveurDeBase
+    elif solver == "umfpack":
+        return solver if __canUseUmfpack else solveurDeBase
+    elif solver == "mumps":
+        return solver if __canUseMumps else solveurDeBase
+    elif solver == "petsc":
+        return solver if __canUsePetsc else solveurDeBase
     else:
-        return solveur
+        return solver
 
 def _Solve(simu, problemType: str, resol: ResolType):
     """Solving the problem according to the resolution type"""
@@ -262,11 +262,11 @@ def __Solver_1(simu, problemType: str) -> np.ndarray:
 
     simu = __Cast_Simu(simu)
 
-    # Builds the matrix system
+    # Build the matrix system
     b = simu._Solver_Apply_Neumann(problemType)
     A, x = simu._Solver_Apply_Dirichlet(problemType, b, ResolType.r1)
 
-    # Recovers dofs
+    # Recover dofs
     dofsKnown, dofsUnknown = simu.Bc_dofs_known_unknow(problemType)
 
     tic = Tic()
@@ -301,7 +301,7 @@ def __Solver_2(simu, problemType: str):
     simu = __Cast_Simu(simu)
     size = simu.mesh.Nn * simu.Get_dof_n(problemType)
 
-    # Builds the penalized matrix system
+    # Build the penalized matrix system
     b = simu._Solver_Apply_Neumann(problemType)
     A, x = simu._Solver_Apply_Dirichlet(problemType, b, ResolType.r2)
     alpha = A.data.max()
