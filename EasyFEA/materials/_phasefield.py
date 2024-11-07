@@ -159,8 +159,7 @@ class PhaseField(_IModel):
     @staticmethod
     def Get_solvers() -> list[SolverType]:
         """Returns available solvers used to manage crack irreversibility"""
-        __solveurs = list(PhaseField.SolverType)
-        return __solveurs
+        return list(PhaseField.SolverType)
 
     @property
     def k(self) -> float:
@@ -177,8 +176,8 @@ class PhaseField(_IModel):
 
         return k
 
-    def get_r_e_pg(self, PsiP_e_pg: np.ndarray) -> np.ndarray:
-        """get reaction therm"""
+    def Get_r_e_pg(self, PsiP_e_pg: np.ndarray) -> np.ndarray:
+        """Returns reaction therm"""
 
         Gc = Reshape_variable(self.__Gc, PsiP_e_pg.shape[0], PsiP_e_pg.shape[1])
         l0 = self.__l0
@@ -191,8 +190,8 @@ class PhaseField(_IModel):
         
         return r
 
-    def get_f_e_pg(self, PsiP_e_pg: np.ndarray) -> np.ndarray:
-        """get source therm"""
+    def Get_f_e_pg(self, PsiP_e_pg: np.ndarray) -> np.ndarray:
+        """Returns source therm"""
 
         Gc = Reshape_variable(self.__Gc, PsiP_e_pg.shape[0], PsiP_e_pg.shape[1])
         l0 = self.__l0
@@ -207,8 +206,8 @@ class PhaseField(_IModel):
         
         return f
 
-    def get_g_e_pg(self, d_n: np.ndarray, mesh: Mesh, matrixType: str, k_residu=1e-12) -> np.ndarray:
-        """get degradation function"""
+    def Get_g_e_pg(self, d_n: np.ndarray, mesh: Mesh, matrixType: str, k_residu=1e-12) -> np.ndarray:
+        """Returns degradation function"""
 
         d_e_n = mesh.Locates_sol_e(d_n)
         Nd_pg = mesh.Get_N_pg(matrixType)
@@ -392,7 +391,7 @@ class PhaseField(_IModel):
             cP_e_pg, cM_e_pg = self.__Split_Amor(Epsilon_e_pg)
 
         elif self.__split == self.SplitType.Miehe or "Strain" in self.__split:
-            cP_e_pg, cM_e_pg = self.__Split_Miehe(Epsilon_e_pg, verif=verif)
+            cP_e_pg, cM_e_pg = self.__Split_Strain(Epsilon_e_pg, verif=verif)
         
         elif self.__split == self.SplitType.Zhang or "Stress" in self.__split:
             cP_e_pg, cM_e_pg = self.__Split_Stress(Epsilon_e_pg, verif=verif)
@@ -487,8 +486,8 @@ class PhaseField(_IModel):
 
         return Rp_e_pg, Rm_e_pg
     
-    def __Split_Miehe(self, Epsilon_e_pg: np.ndarray, verif=False):
-        """[Miehe 2010] DOI : 10.1016/j.cma.2010.04.011"""
+    def __Split_Strain(self, Epsilon_e_pg: np.ndarray, verif=False):
+        """Computes the stifness matrices for strain based splits."""
 
         dim = self.__material.dim
         useNumba = self.useNumba
@@ -502,24 +501,25 @@ class PhaseField(_IModel):
         tic = Tic()
 
         if self.__split == self.SplitType.Miehe:
+            # [Miehe 2010] DOI : 10.1016/j.cma.2010.04.011
             
             assert isinstance(self.__material, Elas_Isot), f"Implemented only for Elas_Isot material"
 
-            # Computes Rp and Rm
+            # Compute Rp and Rm
             Rp_e_pg, Rm_e_pg = self.__Rp_Rm(Epsilon_e_pg)
             
-            # Computes IxI
+            # Compute IxI
             if dim == 2:
                 I = np.array([1,1,0]).reshape((3,1))
             elif dim == 3:
                 I = np.array([1,1,1,0,0,0]).reshape((6,1))
             IxI = I @ I.T
 
-            # Computes spherical part
+            # Compute spherical part
             spherP_e_pg = np.einsum('ep,ij->epij', Rp_e_pg, IxI, optimize='optimal')
             spherM_e_pg = np.einsum('ep,ij->epij', Rm_e_pg, IxI, optimize='optimal')
 
-            # Computes stifness matrices
+            # Compute stifness matrices
             lamb = self.__material.get_lambda()
             mu = self.__material.get_mu()
 
@@ -587,7 +587,7 @@ class PhaseField(_IModel):
     def __Split_Stress(self, Epsilon_e_pg: np.ndarray, verif=False):
         """Computes the stifness matrices for stress based splits."""
 
-        # Recovers stresses        
+        # Recover stresses        
         material = self.__material
         c = material.C
 
@@ -606,7 +606,7 @@ class PhaseField(_IModel):
 
         Sigma_e_pg = np.einsum(f'{indices}ij,epj->epi', c, Epsilon_e_pg, optimize='optimal')
 
-        # Computes projectors such that SigmaP = Pp : Sigma and SigmaM = Pm : Sigma
+        # Compute projectors such that SigmaP = Pp : Sigma and SigmaM = Pm : Sigma
         projP_e_pg, projM_e_pg = self.__Spectral_Decomposition(Sigma_e_pg, verif)
 
         tic = Tic()
@@ -622,10 +622,10 @@ class PhaseField(_IModel):
 
             dim = self.dim
 
-            # Computes Rp and Rm
+            # Compute Rp and Rm
             Rp_e_pg, Rm_e_pg = self.__Rp_Rm(Sigma_e_pg)
             
-            # Computes IxI
+            # Compute IxI
             if dim == 2:
                 I = np.array([1,1,0]).reshape((3,1))
             else:
@@ -685,7 +685,7 @@ class PhaseField(_IModel):
                 cM_e_pg = Cm_e_pg
             
             else:
-                # Computes Cp and Cm
+                # Compute Cp and Cm
                 S = material.S
                 if self.useNumba and not isHeterogene:
                     # Faster
@@ -743,12 +743,12 @@ class PhaseField(_IModel):
         tic.Tac("Split",f"sqrt C and S", False)
         
         if verif:
-            # checks that C^1/2 * C^1/2 = C
+            # check that C^1/2 * C^1/2 = C
             diff_C = sqrtC @ sqrtC - C
             test_C = np.linalg.norm(diff_C, axis=(-2,-1))/np.linalg.norm(C, axis=(-2,-1))
             assert np.max(test_C) < 1e-12
 
-        # computes new "strain" field
+        # compute new "strain" field
         
         ind = ""
         if len(C.shape) == 3:
@@ -758,7 +758,7 @@ class PhaseField(_IModel):
 
         Epsilont_e_pg = np.einsum(f'{ind}ij,epj->epi', sqrtC, Epsilon_e_pg, optimize='optimal')
 
-        # Computes projectors
+        # Compute projectors
         projPt_e_pg, projMt_e_pg = self.__Spectral_Decomposition(Epsilont_e_pg, verif)
 
         tic = Tic()
@@ -794,7 +794,7 @@ class PhaseField(_IModel):
             vectorP = np.einsum('epij,epj->epi', projP_e_pg, vector_e_pg, optimize='optimal')
             vectorM = np.einsum('epij,epj->epi', projM_e_pg, vector_e_pg, optimize='optimal')
 
-            # Checks orthogonality E+:C:E-
+            # Check orthogonality E+:C:E-
             ortho_vP_vM = np.abs(np.einsum('epi,ij,epj->ep',vectorP, mat, vectorM, optimize='optimal'))
             ortho_vM_vP = np.abs(np.einsum('epi,ij,epj->ep',vectorM, mat, vectorP, optimize='optimal'))
             ortho_v_v = np.abs(np.einsum('epi,ij,epj->ep', vector_e_pg, mat, vector_e_pg, optimize='optimal'))
@@ -808,7 +808,7 @@ class PhaseField(_IModel):
             # Rounding errors in the construction of 3D eigen projectors see [Remark M]
             tol = 1e-12 if self.dim == 2 else 1e-10
             
-            # Checks that vector_e_pg = vectorP_e_pg + vectorM_e_pg
+            # Check that vector_e_pg = vectorP_e_pg + vectorM_e_pg
             diff_vect = vector_e_pg - (vectorP + vectorM)
             if np.min(np.linalg.norm(vector_e_pg, axis=-1)) > 0:
                 test_vect = np.linalg.norm(diff_vect, axis=-1) / np.linalg.norm(vector_e_pg, axis=-1)
@@ -826,7 +826,7 @@ class PhaseField(_IModel):
 
         tic = Tic()
 
-        # Initializes the second-order tensor [e,pg,dim,dim]
+        # Initialize the second-order tensor [e,pg,dim,dim]
         matrix_e_pg = np.zeros((Ne,nPg,dim,dim))
         for d in range(dim):
             matrix_e_pg[:,:,d,d] = vector_e_pg[:,:,d]
@@ -1068,7 +1068,7 @@ class PhaseField(_IModel):
 
                 tic.Tac("Split", "Eigenprojectors", False)
 
-        # transforms eigenbases in the form of a vector [e,pg,3] or [e,pg,6].
+        # transform eigenbases in the form of a vector [e,pg,3] or [e,pg,6].
         if dim == 2:
             # [x, y, xy]
             m1 = np.zeros((Ne,nPg,3)); m2 = np.zeros_like(m1)
@@ -1115,13 +1115,13 @@ class PhaseField(_IModel):
                 matrix += func_ep_epij(eigs_e_pg[:,:,2], M3)
                 matrix_eig += func_ep_epij(valnum[:,:,2], M3_num)
 
-            # checks if the eigen values are correct
+            # check if the eigen values are correct
             if valnum.max() > 0:
                 diff_val = eigs_e_pg - valnum                    
                 test_val = np.linalg.norm(diff_val, axis=-1)/np.linalg.norm(valnum, axis=-1)
                 assert np.max(test_val) < 1e-12, f"Error in eigenvalues ({np.max(test_val):.3e})."
 
-            # Checks that: E1*M1 + E2*M2 + E3*M3
+            # Check that: E1*M1 + E2*M2 + E3*M3
             if matrix_e_pg.max() > 0:
                 # matrix
                 diff_matrix = matrix - matrix_e_pg
@@ -1154,15 +1154,15 @@ class PhaseField(_IModel):
             if dim == 3:
                 Checks_Ma(M3, M3_num, 1e-12)
 
-            # checks orthogonality between M1 and M2
+            # check orthogonality between M1 and M2
             test_M1_M2 = np.abs(np.einsum('epij,epij->ep', M1, M2, optimize='optimal'))
             assert np.max(test_M1_M2) < tol, f"Orthogonality M1 : M2 not verified -> {np.max(test_M1_M2):.3e}"
 
             if dim == 3:
-                # checks orthogonality between M1 and M3
+                # check orthogonality between M1 and M3
                 test_M1_M3 = np.abs(np.einsum('epij,epij->ep', M1, M3, optimize='optimal'))
                 assert np.max(test_M1_M3) < 1e-12, f"Orthogonality M1 : M3 not verified -> {np.max(test_M1_M3):.3e}"
-                # checks orthogonality between M2 and M3
+                # check orthogonality between M2 and M3
                 test_M2_M3 = np.abs(np.einsum('epij,epij->ep', M2, M3, optimize='optimal'))
                 assert np.max(test_M2_M3) < 1e-12, f"Orthogonality M2 : M3 not verified -> {np.max(test_M2_M3):.3e}"
 
@@ -1196,16 +1196,16 @@ class PhaseField(_IModel):
 
         Ne, nPg = vector_e_pg.shape[:2]
         
-        # computes eigenvalues, eigenvectors and eigenprojectors
+        # compute eigenvalues, eigenvectors and eigenprojectors
         val_e_pg, list_m, list_M = self._Eigen_values_vectors_projectors(vector_e_pg, verif)
 
         tic = Tic()
         
-        # computes positive and negative parts of the eigenvalues [e,pg,2].
+        # compute positive and negative parts of the eigenvalues [e,pg,2].
         valp = (val_e_pg+np.abs(val_e_pg))/2
         valm = (val_e_pg-np.abs(val_e_pg))/2
         
-        # computes of di [e,pg,2].
+        # compute of di [e,pg,2].
         dvalp = np.heaviside(val_e_pg, 0.5)
         dvalm = np.heaviside(-val_e_pg, 0.5)
 
@@ -1218,16 +1218,16 @@ class PhaseField(_IModel):
 
             v1_m_v2 = val_e_pg[:,:,0] - val_e_pg[:,:,1] # val1 - val2
 
-            # computes BetaP [e,pg,1].
+            # compute BetaP [e,pg,1].
             # Caution: make sure you put a copy here, otherwise the Beta modification will change dvalp at the same time!
             BetaP = dvalp[:,:,0].copy()
             BetaP[elems,pdgs] = (valp[elems,pdgs,0]-valp[elems,pdgs,1])/v1_m_v2[elems,pdgs]
             
-            # computes BetaM [e,pg,1].
+            # compute BetaM [e,pg,1].
             BetaM = dvalm[:,:,0].copy()
             BetaM[elems,pdgs] = (valm[elems,pdgs,0]-valm[elems,pdgs,1])/v1_m_v2[elems,pdgs]
             
-            # computes gammap and gammam
+            # compute gammap and gammam
             gammap = dvalp - np.repeat(BetaP.reshape((Ne,nPg,1)),2, axis=2)
             gammam = dvalm - np.repeat(BetaM.reshape((Ne,nPg,1)), 2, axis=2)
 
@@ -1238,7 +1238,7 @@ class PhaseField(_IModel):
                 projP, projM = Numba_Interface.Get_projP_projM_2D(BetaP, gammap, BetaM, gammam, m1, m2)
 
             else:
-                # computes mixmi [e,pg,3,3] or [e,pg,6,6].
+                # compute mixmi [e,pg,3,3] or [e,pg,6,6].
                 m1xm1 = np.einsum('epi,epj->epij', m1, m1, optimize='optimal')
                 m2xm2 = np.einsum('epi,epj->epij', m2, m2, optimize='optimal')
 
@@ -1357,7 +1357,7 @@ class PhaseField(_IModel):
             vectorP = np.einsum('epij,epj->epi', projP, vector_e_pg, optimize='optimal')
             vectorM = np.einsum('epij,epj->epi', projM, vector_e_pg, optimize='optimal')
 
-            # checks orthogonality
+            # check orthogonality
             ortho_vP_vM = np.abs(np.einsum('epi,epi->ep', vectorP, vectorM, optimize='optimal'))
             ortho_vM_vP = np.abs(np.einsum('epi,epi->ep', vectorM, vectorP, optimize='optimal'))
             ortho_v_v = np.abs(np.einsum('epi,epi->ep', vector_e_pg, vector_e_pg, optimize='optimal'))
@@ -1367,7 +1367,7 @@ class PhaseField(_IModel):
                 verif_MP = np.max(ortho_vM_vP/ortho_v_v)
                 assert verif_MP <= 1e-12, f"{verif_MP:.3e}"
 
-            # checks that: vector_e_pg = vectorP_e_pg + vectorM_e_pg            
+            # check that: vector_e_pg = vectorP_e_pg + vectorM_e_pg            
             diff_vect = vector_e_pg - (vectorP + vectorM)
 
             # Rounding errors in the construction of 3D eigen projectors see [Remark M]

@@ -345,7 +345,7 @@ class PhaseFieldSimu(_Simu):
         tic = Tic()
         
         # comutes c such that: c = g(d) * cP + cM
-        g_e_pg = phaseFieldModel.get_g_e_pg(d, mesh, matrixType)
+        g_e_pg = phaseFieldModel.Get_g_e_pg(d, mesh, matrixType)
         cP_e_pg = np.einsum('ep,epij->epij', g_e_pg, cP_e_pg, optimize='optimal')
         c_e_pg = cP_e_pg + cM_e_pg
         
@@ -457,8 +457,8 @@ class PhaseFieldSimu(_Simu):
         k = pfm.k
         A = pfm.A
         PsiP_e_pg = self.__Calc_psiPlus_e_pg()
-        r_e_pg = pfm.get_r_e_pg(PsiP_e_pg)
-        f_e_pg = pfm.get_f_e_pg(PsiP_e_pg)
+        r_e_pg = pfm.Get_r_e_pg(PsiP_e_pg)
+        f_e_pg = pfm.Get_f_e_pg(PsiP_e_pg)
 
         matrixType = MatrixType.mass
 
@@ -765,7 +765,7 @@ class PhaseFieldSimu(_Simu):
         tic = Tic()
         
         # computes Sig such that: Sig = g(d) * SigP + SigM
-        g_e_pg = phaseFieldModel.get_g_e_pg(d, self.mesh, matrixType)        
+        g_e_pg = phaseFieldModel.Get_g_e_pg(d, self.mesh, matrixType)        
         SigmaP_e_pg = np.einsum('ep,epi->epi', g_e_pg, SigmaP_e_pg, optimize='optimal')
         Sigma_e_pg = SigmaP_e_pg + SigmaM_e_pg
             
