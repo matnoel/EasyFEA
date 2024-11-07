@@ -55,7 +55,7 @@ class DIC(_IObserver):
         assert isinstance(imgRef, np.ndarray), "Must be a numpy array."
         self.__imgRef = imgRef
 
-        # solutions
+        # data
         self._forces = forces
         """forces measured during the tests."""
         self._displacements = displacements
@@ -87,14 +87,14 @@ class DIC(_IObserver):
     
     @property
     def ldic(self) -> float:
-        """8 * mean(meshSize) (set Get_ldic())"""
+        """8 * mean(meshSize) (see Get_ldic())"""
         return self.Get_ldic()
     
-    def Get_scaled_mesh(self, imgScale: float=1.0) -> Mesh:
-        assert imgScale != 0.0
+    def Get_scaled_mesh(self, scale: float=1.0) -> Mesh:
+        assert scale != 0.0
         meshC = self.__mesh.copy()
         [meshC._Remove_observer(observer) for observer in meshC.observers.copy()]
-        meshC.coordGlob = meshC.coordGlob * imgScale
+        meshC.coordGlob = meshC.coordGlob * scale
         return meshC
     
     # image properties
@@ -178,7 +178,7 @@ class DIC(_IObserver):
         self.__coordPixelInElem: np.ndarray = coordPixelInElem
         """pixel coordinates in the reference element (xi, eta)."""
         
-        # creates roi (as a vector)
+        # create roi (as a vector)
         roi: np.ndarray = np.zeros(coordPx.shape[0])
         roi[pixels] = 1
         self.__roi = np.asarray(roi == 1, dtype=bool)
@@ -203,20 +203,18 @@ class DIC(_IObserver):
         Ndof = self.__mesh.Nn * dim
 
         connectPixel = self.__connectPixel
-        coordInElem = self.__coordPixelInElem        
-        
-        # Initializes shape functions and the Laplacian operator
-        Ntild = mesh.groupElem._Ntild()        
+        coordInElem = self.__coordPixelInElem
+        Ntild = mesh.groupElem._Ntild()
 
         # ----------------------------------------------
-        # Builds the shape function matrix for pixels (N)
+        # Build the shape function matrix for pixels (N)
         # ----------------------------------------------
         lines_x = []
         lines_y = []
         columns_Phi = []
         values_phi = []
 
-        # Evaluates shape functions for each pixels' coordinates
+        # Evaluate shape functions for each pixels' coordinates
         x_p, y_p = coordInElem[:,0], coordInElem[:,1]
         phi_n_pixels = np.array([np.reshape([Ntild[n,0](x_p, y_p)], -1) for n in range(mesh.nPe)])
          
@@ -227,10 +225,10 @@ class DIC(_IObserver):
         # In addition, if you remove it, you'll have to make several list comprehension.
         for e in range(mesh.Ne):
 
-            # get the nodes and pixels used by the element
+            # Get the nodes and pixels used by the element
             nodes = mesh.connect[e]            
             pixels: np.ndarray = connectPixel[e]
-            # Retrieves evaluated functions
+            # Retrieve evaluated functions
             phi = phi_n_pixels[:,pixels]
 
             # line construction
@@ -258,7 +256,7 @@ class DIC(_IObserver):
         tic.Tac("DIC", "N_x and N_y", self._verbosity)
 
         # ----------------------------------------------
-        # Builds the Laplacian operator (R)
+        # Build the Laplacian operator (R)
         # ----------------------------------------------
         matrixType = "mass"
         jacobian_e_pg = mesh.Get_jacobian_e_pg(matrixType) # (e, p)
@@ -297,9 +295,9 @@ class DIC(_IObserver):
 
         assert coef > 0
         # Calculation of average element size
-        ldic = coef * self.__mesh.Get_meshSize(False).mean()
+        l_dic = coef * self.__mesh.Get_meshSize(False).mean()
 
-        return ldic
+        return l_dic
 
     def Get_w(self) -> np.ndarray:
         """Returns the 2D periodic vector field."""
@@ -357,9 +355,9 @@ class DIC(_IObserver):
         Flow = DIS.calc(IMG1_uint8,IMG2_uint8,None)
 
         # Project these displacements onto the pixels
-        ux_p = Flow[:,:,0]
-        uy_p = Flow[:,:,1]
-        b =  self._N_x @ ux_p.ravel() + self._N_y @ uy_p.ravel()
+        vx = Flow[:,:,0]
+        vy = Flow[:,:,1]
+        b =  self._N_x @ vx.ravel() + self._N_y @ vy.ravel()
 
         u0 = self.__Op_LU.solve(b)
 
@@ -424,7 +422,7 @@ class DIC(_IObserver):
         roi = self.roi 
         f = imgRef.ravel()[roi] # reference image as a vector within the roi
         
-        # Assumes both images have identical gradients
+        # Assume both images have identical gradients
         R_reg = self.alpha * self._R / self.__w_R
         Lcoef = self._L[:,roi] / self.__w_M
 
@@ -442,11 +440,8 @@ class DIC(_IObserver):
             norm_b = np.linalg.norm(b)
 
             if verbosity:
-                print(f"Iter {iter+1:2d} ||b|| {norm_b:.1e}     ", end='\r')             
+                print(f"Iter {iter+1:2d} ||b|| {norm_b:.1e}     ", end='\r')
             
-            # if iter == 0:
-            #     b0 = norm_b.copy()
-            # if norm_b < b0*tolConv:            
             if norm_b < tolConv:
                 break
 
@@ -478,7 +473,7 @@ class DIC(_IObserver):
 
         imgRef = self.__Get_imgRef(imgRef)
 
-        # Recover image pixel coordinates
+        # Get pixel coordinates
         gridX, gridY = np.meshgrid(np.arange(imgRef.shape[1]),np.arange(imgRef.shape[0]))
         coordX, coordY = gridX.ravel(), gridY.ravel()
 
