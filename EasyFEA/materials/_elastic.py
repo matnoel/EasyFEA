@@ -515,10 +515,9 @@ class Elas_IsotTrans(_Elas):
 
     @vl.setter
     def vl(self, value: Union[float,np.ndarray]):
-        # -1<vt<1
         # -1<vl<0.5
         # Torquato 328
-        self._Test_In(value, -1, 1)
+        self._Test_In(value, -1, 0.5)
         self.Need_Update()
         self.__vl = value
     
@@ -530,9 +529,8 @@ class Elas_IsotTrans(_Elas):
     @vt.setter
     def vt(self, value: Union[float,np.ndarray]):
         # -1<vt<1
-        # -1<vl<0.5
         # Torquato 328
-        self._Test_In(value)
+        self._Test_In(value, -1, 1)
         self.Need_Update()
         self.__vt = value
 
@@ -639,13 +637,13 @@ class Elas_IsotTrans(_Elas):
             diff_C = np.linalg.norm(material_cM - np.linalg.inv(material_sM), axis=(-2,-1))/np.linalg.norm(material_cM, axis=(-2,-1))
             assert np.max(diff_C) < 1e-12
 
-        # Performs a basis transformation from the material's (L,T,R) coordinate system
+        # Perform a basis transformation from the material's (L,T,R) coordinate system
         # to the (x,y,z) coordinate system to orient the material in space.
         global_sM = Apply_Pmat(P, material_sM)
         global_cM = Apply_Pmat(P, material_cM)
         
         if useSameAxis:
-            # checks that if the axes does not change, the same constitutive law is obtained
+            # check that if the axes does not change, the same constitutive law is obtained
             test_diff_c = np.linalg.norm(global_cM - material_cM, axis=(-2,-1))/np.linalg.norm(material_cM, axis=(-2,-1))
             assert np.max(test_diff_c) < 1e-12
             
