@@ -47,16 +47,16 @@ if __name__ == '__main__':
     # ----------------------------------------------
     meshSize = h/5
 
-    interfaceGmsh = Mesher(False)
+    mesher = Mesher(False)
     if dim == 2:
         elemType = ElemType.QUAD4 # TRI3, TRI6, TRI10, TRI15, QUAD4, QUAD8
         domain = Domain(Point(y=-h/2), Point(x=L, y=h/2), meshSize)
-        mesh = interfaceGmsh.Mesh_2D(domain, elemType=elemType, isOrganised=True)
+        mesh = mesher.Mesh_2D(domain, elemType=elemType, isOrganised=True)
         area = mesh.area - L*h
     elif dim == 3:
         elemType = ElemType.HEXA8 # TETRA4, TETRA10, HEXA8, HEXA20, PRISM6, PRISM15
         domain = Domain(Point(y=-h/2,z=-b/2), Point(x=L, y=h/2,z=-b/2), meshSize=meshSize)
-        mesh = interfaceGmsh.Mesh_Extrude(domain, [], [0,0,b], elemType=elemType, layers=[3], isOrganised=True)
+        mesh = mesher.Mesh_Extrude(domain, [], [0,0,b], elemType=elemType, layers=[3], isOrganised=True)
 
         volume = mesh.volume - L*b*h
         area = mesh.area - (L*h*4 + 2*b*h)

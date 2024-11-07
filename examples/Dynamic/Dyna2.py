@@ -50,8 +50,8 @@ if __name__ == '__main__':
     domain = Domain(Point(x=-a / 2, y=-a / 2), Point(x=a / 2, y=a / 2), meshSize)
     circle = Circle(Point(), diam, meshSize, isHollow=False)
     line = Line(Point(), Point(diam / 4))
-    interfaceGmsh = Mesher(False)
-    mesh = interfaceGmsh.Mesh_2D(domain, [circle], ElemType.TRI3, cracks=[line])
+    mesher = Mesher(False)
+    mesh = mesher.Mesh_2D(domain, [circle], ElemType.TRI3, cracks=[line])
 
     # Plot the model if specified
     if plotModel:
