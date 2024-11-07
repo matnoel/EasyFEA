@@ -599,7 +599,7 @@ class Circle(_Geom):
         name = f"Circle{Circle.__nbCircle}"
         _Geom.__init__(self, [center, self.pt1, self.pt2, self.pt3, self.pt4], meshSize, name, isHollow, isOpen)
 
-        # rotatate if necessary
+        # rotate if necessary
         zAxis = np.array([0,0,1])
         n = Normalize_vect(As_Coordinates(n))
         rotAxis = np.cross(n, zAxis)
@@ -699,7 +699,7 @@ class CircleArc(_Geom):
         assert isinstance(pt1, Point), "must be a point"
         assert isinstance(pt2, Point), "must be a point"
 
-        # checks that pt1 and pt2 dont share the same coordinates
+        # check that pt1 and pt2 dont share the same coordinates
         assert not pt1.Check(pt2), 'pt1 and pt2 are on the same coordinates'
 
         if P != None:
@@ -843,13 +843,13 @@ class Contour(_Geom):
 
                 assert ecart <= tol, "The contour must form a closed loop."
             else:
-                # checks that the end point of the last geometric object is the first point created.
+                # check that the end point of the last geometric object is the first point created.
                 ecart1 = np.linalg.norm(geom.points[0].coord - points[-1].coord)
                 ecart2 = np.linalg.norm(geom.points[-1].coord - points[0].coord)
 
                 assert ecart1 <= tol and ecart2 <= tol, "The contour must form a closed loop."
 
-            # Adds the first and last points
+            # Add the first and last points
             points.extend([p for p in geom.points if p not in points])
 
         self.geoms = geoms
