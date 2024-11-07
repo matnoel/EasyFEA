@@ -2,6 +2,13 @@
 
 This document describes the changes made to the project.
 
+## 1.2.6 (November 7, 2024):
+
+- Enhanced the Digital Image Correlation (DIC) analysis module.
+- Enhanced examples.
+- Updated docstrings.
+- Updated Display functions.
+
 ## 1.2.5 (September 27, 2024):
 
 - Updated phase field solver.
