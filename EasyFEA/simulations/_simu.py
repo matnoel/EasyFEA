@@ -192,9 +192,9 @@ class _Simu(_IObserver, ABC):
 
     def _Check_dofs(self, problemType: ModelType, directions: list) -> None:
         """Checks whether the specified directions are available for the problem."""
-        listDirections = self.Get_dofs(problemType)
+        dofs = self.Get_dofs(problemType)
         for d in directions:
-            assert d in listDirections, f"{d} is not in {listDirections}"
+            assert d in dofs, f"{d} is not in {dofs}"
 
     def __Check_problemTypes(self, problemType: ModelType) -> None:
         """Checks whether this type of problem is available through the simulation."""
@@ -299,7 +299,7 @@ class _Simu(_IObserver, ABC):
 
         self.__useIterativeSolvers: bool = useIterativeSolvers
 
-        # Initializes Boundary conditions
+        # Initialize Boundary conditions
         self.Bc_Init()
         
         # simulation will look for material and mesh modifications
@@ -476,7 +476,7 @@ class _Simu(_IObserver, ABC):
 
             # The mesh changes, so the matrices must be reconstructed
             self.Need_Update()
-            # Initializes boundary conditions
+            # Initialize boundary conditions
             self.Bc_Init()
             # initialize the solutions
             self.__Init_Sols_n()
@@ -729,7 +729,7 @@ class _Simu(_IObserver, ABC):
             # Accel formulation
 
             if len(self.results) == 0 and (b.max() != 0 or b.min() != 0):
-                # Initializes accel
+                # Initialize accel
                 __, dofsUnknown = self.Bc_dofs_known_unknow(problemType)
 
                 # don't change
@@ -944,12 +944,12 @@ class _Simu(_IObserver, ABC):
         """Returns known and unknown dofs."""
         tic = Tic()
 
-        # Builds known dofs
+        # Build known dofs
         dofsKnown = []
 
         dofsKnown = set(self.Bc_dofs_Dirichlet(problemType))
 
-        # Builds unknown dofs
+        # Build unknown dofs
         nDof = self.mesh.Nn * self.Get_dof_n(problemType)
 
         dofsUnknown = set(range(nDof)) - dofsKnown
@@ -1003,7 +1003,7 @@ class _Simu(_IObserver, ABC):
             values_eval = np.zeros((coordo.shape[0],coordo.shape[1]))
         
         if callable(values):
-            # Evaluates function at coordinates   
+            # Evaluate function at coordinates   
             if option == "nodes":
                 values_eval[:] = values(coordo[:,0], coordo[:,1], coordo[:,2])
             elif option == "gauss":
@@ -1051,7 +1051,7 @@ class _Simu(_IObserver, ABC):
         coordo = self.mesh.coord
         coordo_n = coordo[nodes]
 
-        # initializes the value vector for each nodes
+        # initialize the value vector for each nodes
         dofsValues_dir = np.zeros((Nn, len(directions)))        
 
         for d, dir in enumerate(directions):
@@ -1239,7 +1239,7 @@ class _Simu(_IObserver, ABC):
         coordo = self.mesh.coordGlob
         coordo_n = coordo[nodes]
 
-        # initializes the value vector for each node
+        # initialize the value vector for each node
         valeurs_ddl_dir = np.zeros((Nn, len(directions)))
 
         for d, dir in enumerate(directions):
@@ -1269,14 +1269,14 @@ class _Simu(_IObserver, ABC):
         # For each group element
         for groupElem in self.mesh.Get_list_groupElem(dim):
 
-            # Retrieves elements that exclusively use nodes
+            # Retrieve elements that exclusively use nodes
             elements = groupElem.Get_Elements_Nodes(nodes, exclusively=True)
             if elements.shape[0] == 0: continue
             connect = groupElem.connect[elements]
             Ne = elements.shape[0]
             Nodes = np.append(Nodes, np.reshape(connect, -1))
 
-            # get the coordinates of the Gauss points if you need to devaluate the function
+            # Get the coordinates of the Gauss points if you need to devaluate the function
             matrixType = MatrixType.mass
             coordo_e_p = groupElem.Get_GaussCoordinates_e_p(matrixType, elements)
 
@@ -1287,18 +1287,18 @@ class _Simu(_IObserver, ABC):
             gauss = groupElem.Get_gauss(matrixType)
             weight_pg = gauss.weights
 
-            # initializes the matrix of values for each node used by the elements and each gauss point (Ne*nPe, dir)
+            # initialize the matrix of values for each node used by the elements and each gauss point (Ne*nPe, dir)
             values_dofs_dir = np.zeros((Ne*groupElem.nPe, len(directions)))
-            # initializes the dofs vector
+            # initialize the dofs vector
             new_dofs = np.zeros_like(values_dofs_dir, dtype=int)
 
             # Integrated in every direction
             for d, dir in enumerate(directions):
 
                 if isinstance(values[d], (int, float)) or callable(values[d]):
-                    # evaluates values on gauss points
+                    # evaluate on gauss points
                     eval_e_p = self.__Bc_evaluate(coordo_e_p, values[d], option="gauss")
-                    # integrates the elements
+                    # integrate the elements
                     values_e_p = np.einsum('ep,p,ep,pij->epij', jacobian_e_pg, weight_pg, eval_e_p, N_pg, optimize='optimal')
 
                 else:
@@ -1306,12 +1306,12 @@ class _Simu(_IObserver, ABC):
                     eval_n[nodes] = values[d]
                     eval_e = eval_n[groupElem.connect[elements]]
 
-                    # integrates the elements
+                    # integrate the elements
                     values_e_p = np.einsum('ep,p,ej,pij->epij', jacobian_e_pg, weight_pg, eval_e, N_pg, optimize='optimal')
 
                 # sum over integration points
                 values_e = np.sum(values_e_p, axis=1)
-                # sets calculated values and dofs
+                # set calculated values and dofs
                 values_dofs_dir[:,d] = values_e.ravel()
                 new_dofs[:,d] = self.Bc_dofs_nodes(connect.ravel(), [dir], problemType)
 
@@ -1447,7 +1447,7 @@ class _Simu(_IObserver, ABC):
 
         # Here the first element group is selected. Regardless of whether there are several group of the same dimension.
         masterGroup = masterMesh.Get_list_groupElem(masterMesh.dim-1)[0]
-        # retrieves bounndary elements
+        # retrieve bounndary elements
         if masterNodes is None:
             elements = masterMesh.Elements_Nodes(masterGroup.nodes, False)
         else:
@@ -1457,7 +1457,7 @@ class _Simu(_IObserver, ABC):
             slaveGroup = self.mesh.Get_list_groupElem(masterMesh.dim-1)[0]
             slaveNodes = slaveGroup.nodes
 
-        # updates nodes coordinates
+        # update nodes coordinates
         newCoord = self.Results_displacement_matrix() + self.mesh.coord
         
         # get nodes in master mesh
@@ -1613,7 +1613,7 @@ class _Simu(_IObserver, ABC):
             pickle.dump(self, file)
         Display.MyPrint(f'Saved:\n{path_simu.replace(folder_EasyFEA,"")}\n', 'green')
         
-        # Saves simulation summary
+        # Save simulation summary
         path_summary = Folder.New_File("summary.txt", folder)
         summary = f"Simulation completed on: {datetime.now()}\n"
         summary += f"version: {__version__}"
