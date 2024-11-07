@@ -360,7 +360,6 @@ def Plot_BoundaryConditions(simu, deformFactor=0.0, plotter: pv.Plotter=None):
         description = bc.description
         nDir = len(directions)
 
-
         availableDirections = simu.Get_dofs(problemType)
         nDof = mesh.Nn * simu.Get_dof_n(problemType)
 
