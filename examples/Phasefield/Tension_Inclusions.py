@@ -4,6 +4,8 @@
 
 """Performs a damage simulation for a plate with a rigid inclusion in tension."""
 
+# WARNING : This code is not validated
+
 from EasyFEA import (Display, plt, np,
                      Mesher, ElemType,
                      Materials, Simulations)
@@ -66,7 +68,7 @@ if __name__ == '__main__':
 
     comp = Materials.Elas_Isot(2, E, v, False, 1)
 
-    pfm = Materials.PhaseField(comp, "AnisotStress", "AT2", Gc, l0)
+    pfm = Materials.PhaseField(comp, "He", "AT2", Gc, l0)
 
     # ----------------------------------------------
     # Simulation

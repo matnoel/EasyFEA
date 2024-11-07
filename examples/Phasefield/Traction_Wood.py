@@ -117,7 +117,7 @@ if __name__ == '__main__':
     Betha = 50
     A = np.eye(2) + Betha * (np.eye(2) - M1)
 
-    pfm = Materials.PhaseField(material, "AnisotStress", "AT1", Gc, l0, A=A)
+    pfm = Materials.PhaseField(material, "He", "AT1", Gc, l0, A=A)
 
     # ----------------------------------------------
     # Simulation

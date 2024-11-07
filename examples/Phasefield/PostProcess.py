@@ -13,7 +13,7 @@ if __name__ == '__main__':
     # ----------------------------------------------
     # Configuration
     # ----------------------------------------------
-    # "PlateWithHole_Benchmark", "PlateWithHole_FCBA", "Shear_Benchmark", "Tension_Benchmark" "L_Shape_Benchmark"
+    # "PlateWithHole_Benchmark", "Shear_Benchmark", "Tension_Benchmark" "L_Shape_Benchmark"
     simulation = "Shear_Benchmark"
     # simulation = "PlateWithHole_Benchmark"
 
@@ -182,7 +182,6 @@ if __name__ == '__main__':
             if pltCrack:
                 ax_load.scatter(displacement[i_crack]*1e6, np.abs(force[i_crack])*1e-6, c=c, marker='+', s=80, label=f"{fc:.2f} N/mm")
 
-
         else:
             if nomSimu not in missingSimulations: missingSimulations.append(nomSimu)
             Display.MyPrintError("Data are not available:\n"+fileForceDep)
@@ -190,8 +189,7 @@ if __name__ == '__main__':
 
         # ----------------------------------------------
         # Plot loads
-        # ----------------------------------------------    
-
+        # ----------------------------------------------
         if plotDamage and Folder.Exists(fileSimu):
 
             # Display.Plot_Mesh(simu.mesh)
@@ -247,7 +245,6 @@ if __name__ == '__main__':
                 # plt.figure(ax_load_2.figure)
                 # Display.Save_fig(folder_save, f"load displacement {filename}")
                 
-        
         # text = text.replace("AnisotStrain","Spectral")
         tic.Tac("PostProcessing", split, False)
 
