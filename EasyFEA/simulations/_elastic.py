@@ -95,8 +95,7 @@ class ElasticSimu(_Simu):
         """Computes the elementary stiffness matrices for the elastic problem."""
 
         matrixType=MatrixType.rigi
-
-        # Recovers matrices to work with
+        
         mesh = self.mesh; Ne = mesh.Ne
         jacobian_e_pg = mesh.Get_jacobian_e_pg(matrixType)
         weight_pg = mesh.Get_weight_pg(matrixType)
@@ -271,7 +270,7 @@ class ElasticSimu(_Simu):
             return self._Calc_ZZ1()[0]
 
         elif result == "ZZ1_e":
-            error, values = self._Calc_ZZ1()
+            values = self._Calc_ZZ1()[1]
 
         elif result in ["ux", "uy", "uz"]:
             values_n = self.displacement.reshape(Nn, -1)
@@ -394,11 +393,11 @@ class ElasticSimu(_Simu):
         Welas = np.sum(W_e)
 
         Ws_e: np.ndarray = self._Calc_Psi_Elas(False, True)
-        WdefLisse: float = np.sum(Ws_e)
+        Ws = np.sum(Ws_e)
 
         error_e: np.ndarray = np.abs(Ws_e-W_e).ravel()/Welas
 
-        error: float = np.abs(Welas-WdefLisse)/Welas
+        error: float = np.abs(Welas-Ws)/Welas
 
         return error, error_e
 
@@ -473,10 +472,10 @@ class ElasticSimu(_Simu):
                 return 2
 
     def Results_dict_Energy(self) -> dict[str, float]:
-        dict_Energie = {
+        dict_energy = {
             r"$\Psi_{elas}$": self._Calc_Psi_Elas()
             }
-        return dict_Energie
+        return dict_energy
 
     def Results_Get_Iteration_Summary(self) -> str:        
 
@@ -562,7 +561,7 @@ def Mesh_Optim_ZZ1(DoSimu: Callable[[str], ElasticSimu], folder: str, threshold:
 
         i += 1
 
-        # performs the simulation
+        # perform the simulation
         simu = DoSimu(optimGeom)
         assert isinstance(simu, ElasticSimu), 'DoSimu function must return a Displacement simulation'
         # get the current mesh
@@ -572,15 +571,15 @@ def Mesh_Optim_ZZ1(DoSimu: Callable[[str], ElasticSimu], folder: str, threshold:
             # remove previous *.pos file
             Folder.os.remove(optimGeom)
         
-        # Calculating the error with the ZZ1 method
+        # Calculate the error with the ZZ1 method
         error, error_e = simu._Calc_ZZ1()
 
         print(f'error = {error*100:.3f} %')
 
-        # calculates the new mesh size for the associated error
+        # calculate the new mesh size for the associated error
         meshSize_n = mesh.Get_New_meshSize_n(error_e, coef)
 
-        # builds the *.pos file that will be used to refine the mesh
+        # build the *.pos file that will be used to refine the mesh
         optimGeom = Mesher().Create_posFile(mesh.coord, meshSize_n, folder, f"pos{i}")
         
     if Folder.Exists(optimGeom):
