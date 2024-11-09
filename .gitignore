@@ -5,6 +5,7 @@ results/
 *.egg-info/
 build/
 dist/
+_build/
 
 # extensions to ignore
 *.pyc
