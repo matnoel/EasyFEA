@@ -9,135 +9,137 @@ from EasyFEA import (Display, Folder, np, plt,
                      Materials, Simulations)
 from EasyFEA.Geoms import Point, Line, Domain, Circle
 
-Display.Clear()
+if __name__ == "__main__":
 
-# ----------------------------------------------
-# Config
-# ----------------------------------------------
+    Display.Clear()
 
-L = 1
-elemType = ElemType.TRI3
-meshSize = L/40
+    # ----------------------------------------------
+    # Config
+    # ----------------------------------------------
 
-# ----------------------------------------------
-# Functions
-# ----------------------------------------------
+    L = 1
+    elemType = ElemType.TRI3
+    meshSize = L/40
 
-def Create_Crack(pt1: tuple[float, float], pt2: tuple[float, float], isOpen=True) -> Line:
-    """Creates a crack.
+    # ----------------------------------------------
+    # Functions
+    # ----------------------------------------------
 
-    Parameters
-    ----------
-    pt1 : tuple[float, float]
-        Point 1 (x, y)
-    pt2 : tuple[float, float]
-        Point 2 (x, y)
-    isOpen : bool, optional
-        The crack is open, by default True
+    def Create_Crack(pt1: tuple[float, float], pt2: tuple[float, float], isOpen=True) -> Line:
+        """Creates a crack.
 
-    Returns
-    -------
-    Line
-        The crack
-    """
+        Parameters
+        ----------
+        pt1 : tuple[float, float]
+            Point 1 (x, y)
+        pt2 : tuple[float, float]
+            Point 2 (x, y)
+        isOpen : bool, optional
+            The crack is open, by default True
 
-    assert len(pt1) == 2, "Must give 2 coordinates"
-    assert len(pt2) == 2, "Must give 2 coordinates"
+        Returns
+        -------
+        Line
+            The crack
+        """
 
-    pt1 = Point(*pt1)
-    pt2 = Point(*pt2)
+        assert len(pt1) == 2, "Must give 2 coordinates"
+        assert len(pt2) == 2, "Must give 2 coordinates"
 
-    return Line(pt1, pt2, meshSize, isOpen)
+        pt1 = Point(*pt1)
+        pt2 = Point(*pt2)
 
-def Create_Circle(pt: tuple[float, float], diam: float, isHollow=False) -> Circle:
-    """Creates a circle.
+        return Line(pt1, pt2, meshSize, isOpen)
 
-    Parameters
-    ----------
-    pt : tuple[float, float]
-        center point (x, y)
-    diam : float
-        diameter
-    isHollow : bool, optional
-        circle is hollow/empty, by default True
+    def Create_Circle(pt: tuple[float, float], diam: float, isHollow=False) -> Circle:
+        """Creates a circle.
 
-    Returns
-    -------
-    Circle
-        The circle
-    """
-    
-    assert len(pt) == 2, "Must give 2 coordinates"
+        Parameters
+        ----------
+        pt : tuple[float, float]
+            center point (x, y)
+        diam : float
+            diameter
+        isHollow : bool, optional
+            circle is hollow/empty, by default True
 
-    center = Point(*pt)
+        Returns
+        -------
+        Circle
+            The circle
+        """
+        
+        assert len(pt) == 2, "Must give 2 coordinates"
 
-    return Circle(center, diam, meshSize/2, isHollow)
+        center = Point(*pt)
 
-# ----------------------------------------------
-# Mesh
-# ----------------------------------------------
+        return Circle(center, diam, meshSize/2, isHollow)
 
-# contour
-contour = Domain(Point(), Point(L, L), meshSize)
+    # ----------------------------------------------
+    # Mesh
+    # ----------------------------------------------
 
-# circles
-circle1 = Create_Circle((L/4, L/4), L/10)
-circle2 = Create_Circle((3*L/4, L/4), L/8)
-circle3 = Create_Circle((3*L/4, 3*L/4), L/6)
-circle4 = Create_Circle((L/4, 3*L/4), L/5)
-circle5 = Create_Circle((L/2, L/2), L/3, isHollow=True)
-circle6 = Create_Circle((L, L), L/6, isHollow=True)
+    # contour
+    contour = Domain(Point(), Point(L, L), meshSize)
 
-inclusions = [circle1, circle2, circle3, circle4, circle5]
+    # circles
+    circle1 = Create_Circle((L/4, L/4), L/10)
+    circle2 = Create_Circle((3*L/4, L/4), L/8)
+    circle3 = Create_Circle((3*L/4, 3*L/4), L/6)
+    circle4 = Create_Circle((L/4, 3*L/4), L/5)
+    circle5 = Create_Circle((L/2, L/2), L/3, isHollow=True)
+    circle6 = Create_Circle((L, L), L/6, isHollow=True)
 
-# cracks
-crack1 = Create_Crack((3*L/5, L/10), (4*L/5, L/10))
-crack2 = Create_Crack((L/10, L/2), (2*L/10, L/2-L/10))
-crack3 = Create_Crack((8*L/10, 5*L/10), (8*L/10+L/20, 5*L/10+L/20))
+    inclusions = [circle1, circle2, circle3, circle4, circle5]
 
-cracks = [crack1, crack2, crack3]
+    # cracks
+    crack1 = Create_Crack((3*L/5, L/10), (4*L/5, L/10))
+    crack2 = Create_Crack((L/10, L/2), (2*L/10, L/2-L/10))
+    crack3 = Create_Crack((8*L/10, 5*L/10), (8*L/10+L/20, 5*L/10+L/20))
 
-# mesh
-mesh = Mesher().Mesh_2D(contour, inclusions, elemType, cracks, additionalSurfaces=[circle6])
+    cracks = [crack1, crack2, crack3]
 
-# ----------------------------------------------
-# Simu
-# ----------------------------------------------
+    # mesh
+    mesh = Mesher().Mesh_2D(contour, inclusions, elemType, cracks, additionalSurfaces=[circle6])
 
-E = np.ones(mesh.Ne) * 10 # Mpa
-v = np.ones(mesh.Ne) * 0.45
+    # ----------------------------------------------
+    # Simu
+    # ----------------------------------------------
 
-elements = list(set(range(mesh.Ne)) - set(mesh.Elements_Tags("S0")))
-E[elements] = 50
-v[elements] = 0.3
+    E = np.ones(mesh.Ne) * 10 # Mpa
+    v = np.ones(mesh.Ne) * 0.45
 
-mat = Materials.Elas_Isot(2, E, v, planeStress=False)
+    elements = list(set(range(mesh.Ne)) - set(mesh.Elements_Tags("S0")))
+    E[elements] = 50
+    v[elements] = 0.3
 
-simu = Simulations.ElasticSimu(mesh, mat)
+    mat = Materials.Elas_Isot(2, E, v, planeStress=False)
 
-nodes_y0 = mesh.Nodes_Conditions(lambda x,y,z: y==0)
-nodes_yL = mesh.Nodes_Conditions(lambda x,y,z: y==L)
+    simu = Simulations.ElasticSimu(mesh, mat)
 
-simu.add_dirichlet(nodes_y0, [0, 0], ["x", "y"])
-simu.add_dirichlet(nodes_yL, [-.1, .2], ["x", "y"])
+    nodes_y0 = mesh.Nodes_Conditions(lambda x,y,z: y==0)
+    nodes_yL = mesh.Nodes_Conditions(lambda x,y,z: y==L)
 
-simu.Solve()
+    simu.add_dirichlet(nodes_y0, [0, 0], ["x", "y"])
+    simu.add_dirichlet(nodes_yL, [-.1, .2], ["x", "y"])
 
-deformFactor = L/10 / simu.Result("displacement_norm").max()
+    simu.Solve()
 
-# ----------------------------------------------
-# Display
-# ----------------------------------------------
+    deformFactor = L/10 / simu.Result("displacement_norm").max()
 
-# geoms = [contour]; geoms.extend(inclusions)
-# contour.Plot_Geoms(geoms)
+    # ----------------------------------------------
+    # Display
+    # ----------------------------------------------
 
-ax = Display.Plot_Result(simu, E, plotMesh=True, nodeValues=False, title="E")
+    # geoms = [contour]; geoms.extend(inclusions)
+    # contour.Plot_Geoms(geoms)
 
-# Display.Plot_Mesh(mesh)
-Display.Plot_Tags(mesh, True)
+    ax = Display.Plot_Result(simu, E, plotMesh=True, nodeValues=False, title="E")
 
-Display.Plot_Result(simu, "uy", deformFactor)
-Display.Plot_Result(simu, "Svm", deformFactor, plotMesh=True)
+    # Display.Plot_Mesh(mesh)
+    Display.Plot_Tags(mesh, True)
 
-plt.show()
+    Display.Plot_Result(simu, "uy", deformFactor)
+    Display.Plot_Result(simu, "Svm", deformFactor, plotMesh=True)
+
+    Display.plt.show()
