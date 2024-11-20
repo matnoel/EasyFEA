@@ -126,7 +126,7 @@ class Point:
     def __add__(self, value):
         coord = As_Coordinates(value)        
         newCoord: np.ndarray = self.coord + coord
-        return Point(*newCoord, self.isOpen, self.r)
+        return Point(*newCoord)
 
     def __rsub__(self, value):
         return self.__add__(value)
@@ -134,7 +134,7 @@ class Point:
     def __sub__(self, value):
         coord = As_Coordinates(value)        
         newCoord: np.ndarray = self.coord - coord
-        return Point(*newCoord, self.isOpen, self.r)
+        return Point(*newCoord)
     
     def __rmul__(self, value):
         return self.__mul__(value)
@@ -142,7 +142,7 @@ class Point:
     def __mul__(self, value):
         coord = As_Coordinates(value)
         newCoord: np.ndarray = self.coord * coord
-        return Point(*newCoord, self.isOpen, self.r)
+        return Point(*newCoord)
     
     def __rtruediv__(self, value):
         return self.__truediv__(value)
@@ -150,7 +150,7 @@ class Point:
     def __truediv__(self, value):
         coord = As_Coordinates(value)
         newCoord: np.ndarray = self.coord / coord
-        return Point(*newCoord, self.isOpen, self.r)
+        return Point(*newCoord)
     
     def __rfloordiv__(self, value):
         return self.__floordiv__(value)
@@ -158,7 +158,7 @@ class Point:
     def __floordiv__(self, value):
         coord = As_Coordinates(value)
         newCoord: np.ndarray = self.coord // coord
-        return Point(*newCoord, self.isOpen, self.r)
+        return Point(*newCoord)
     
     def copy(self):
         return copy.deepcopy(self)
