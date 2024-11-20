@@ -604,6 +604,68 @@ class Mesher:
 
         return revolEntities
     
+    def __Link_Lines_Points(self,
+                            lines1: list[int], points1: list[int],
+                            lines2: list[int], points2: list[int],
+                            elemType: ElemType, nLayers:int=0):
+        """Creates linking lines and surfaces based on lines and points.\n
+        return linkingSurfaces, linkingLines.
+        """
+
+        # check that the given entities are linkable
+        assert len(lines1) == len(lines2), "Must provide same number of lines."
+        nP, nL = len(points1), len(lines1)
+        assert nP == nL, "Must provide the same number of points as lines."
+
+        nLayers = int(nLayers)
+
+        factory = self._factory
+
+        # create link between every points belonging to points1 and points2
+        linkingLines: list[int] = [factory.addLine(pi, pj) for pi, pj in zip(points1, points2)]
+        
+        linkingSurfaces: list[int] = []
+        list_corners: list[tuple[int, int, int, int]] = []
+
+        for i in range(nP):
+            j = i+1 if i+1 < nP else 0
+            
+            # get the lines to construct the surfaces
+            l1 = lines1[i]
+            l2 = linkingLines[j]
+            l3 = lines2[i]
+            l4 = linkingLines[i]
+            # get the points of the surface
+            p1, p2 = points1[i], points1[j]
+            p3, p4 = points2[i], points2[j]
+            list_corners.append((p1,p2,p3,p4))
+            # loop to create the surface (- are optionnal)
+            loop = factory.addCurveLoop([l1,l2,-l3,-l4])
+            # create the surface and add it to linking surfaces
+            surf = factory.addSurfaceFilling(loop)
+            linkingSurfaces.append(surf)
+            
+        assert len(list_corners) == len(linkingSurfaces)
+
+        if nLayers > 0:
+
+            self._Synchronize()
+
+            useRecombine = 'HEXA' in elemType or 'PRISM' in elemType
+            
+            # organize the transfinite lines
+            [gmsh.model.mesh.setTransfiniteCurve(l, nLayers+1) for l in linkingLines]
+            
+            # surf must be transfinite to have a strucutred surfaces during the extrusion
+            for surf, corners in zip(linkingSurfaces, list_corners):
+                gmsh.model.mesh.setTransfiniteSurface(surf, cornerTags=corners)                    
+
+                if useRecombine:
+                    # must recombine the surface in case we use PRISM or HEXA elements
+                    gmsh.model.mesh.setRecombine(2, surf)
+
+        return linkingSurfaces, linkingLines
+    
     def _Link_Contours(self, contour1: Contour, contour2: Contour, elemType: ElemType,
                       nLayers:int=0, numElems:list[int]=[]) -> list[tuple[int, int]]:
         """Links 2 contours and create a volume.\n
@@ -634,58 +696,18 @@ class Mesher:
         
         # specify whether contour surfaces can be organized
         canBeOrganised = len(contour1.geoms) == 4
+        if not canBeOrganised:
+            Display.MyPrintError("Caution! We recommend handling surfaces with 3 or 4 corners.")
         # specify if it is necessary to recombine bonding surfaces
-        recombineLinkingSurf = 'HEXA' in elemType or 'PRISM' in elemType
-        # useTransfinite = canBeOrganised and recombineLinkingSurf
-        useTransfinite = recombineLinkingSurf
+        useTransfinite = ('HEXA' in elemType or 'PRISM' in elemType) and len(contour1.geoms) in [3, 4]
         
+        # construct loops, lines and points for contour1 and contour2
         loop1, lines1, points1 = self._Loop_From_Geom(contour1)
         loop2, lines2, points2 = self._Loop_From_Geom(contour2)
 
         surf1 = factory.addSurfaceFilling(loop1) # here we dont use self._Surfaces()
         surf2 = factory.addSurfaceFilling(loop2)
-
-        # append entities together
-        points = points1.copy(); points.extend(points2)
-        lines = lines1.copy(); lines.extend(lines2)
-        surfaces = [surf1, surf2]
-
-        # check that the given entities are linkable
-        assert len(lines1) == len(lines2), "Must provide same number of lines."
-        nP, nL = len(points1), len(lines1)
-        assert nP == nL, "Must provide the same number of points as lines."
-
-        nLayers = int(nLayers)
-
-        # create link between every points belonging to points1 and points2
-        linkingLines = [factory.addLine(pi,pj) for pi, pj in zip(points1, points2)]
-
-        lines.extend(linkingLines)
-
-        corners: list[tuple[int, int, int, int]] = []
-
-        for i in range(nP):
-            j = i+1 if i+1 < nP else 0
-            
-            # get the lines to construct the surfaces
-            l1 = lines1[i]
-            l2 = linkingLines[j]
-            l3 = lines2[i]
-            l4 = linkingLines[i]
-            # get the points of the surface
-            p1, p2 = points1[i], points1[j]
-            p3, p4 = points2[i], points2[j]
-            # loop to create the surface (- are optionnal)
-            loop = factory.addCurveLoop([l1,l2,-l3,-l4])
-            # create the surface and add it to linking surfaces
-            surf = factory.addSurfaceFilling(loop)
-            surfaces.append(surf)
-
-            corners.append((p1,p2,p3,p4))
         
-        vol = factory.addSurfaceLoop(surfaces)
-        factory.addVolume([vol])
-
         # organize the mesh generation
         if useTransfinite:
             if len(numElems) == 0:                
@@ -694,26 +716,26 @@ class Mesher:
         # Here, the following function will synchronize the created entities
         self._Surfaces_Organize([surf1, surf2], elemType, canBeOrganised, numElems)
 
-        if nLayers > 0:
-            # organize the transfinite lines
-            [gmsh.model.mesh.setTransfiniteCurve(l, nLayers+1) for l in linkingLines]
-            
-            # surf must be transfinite to have a strucutred surfaces during the extrusion
-            for s, surf in enumerate(surfaces[2:]):
-                p1,p2,p3,p4 = corners[s]
-                gmsh.model.mesh.setTransfiniteSurface(surf, cornerTags=[p1,p2,p3,p4])
+        linkingSurfaces, linkingLines = self.__Link_Lines_Points(lines1, points1,
+                                                                 lines2, points2,
+                                                                 elemType, nLayers)
 
-                if recombineLinkingSurf:                    
-                    # must recombine the surface in case we use PRISM or HEXA elements
-                    gmsh.model.mesh.setRecombine(2, surf)
+        # append entities together
+        points = [*points1, *points2]
+        lines = [*lines1, *lines2, *linkingLines]
+        surfaces = [surf1, surf2, *linkingSurfaces]        
+        
+        shell = factory.addSurfaceLoop(surfaces)
+        factory.addVolume([shell])
 
         if useTransfinite:
-            gmsh.model.mesh.setTransfiniteVolume(vol, points)
+            self._Synchronize()
+            gmsh.model.mesh.setTransfiniteVolume(shell, points)
 
-        tic.Tac("Mesh","Link contours", self.__verbosity)
+        tic.Tac("Mesh","Link contours", self.__verbosity)        
 
         # get entities
-        entities = self.Get_Entities(points, lines, surfaces, [vol])
+        entities = self.Get_Entities(points, lines, surfaces, [shell])
 
         return entities
     
