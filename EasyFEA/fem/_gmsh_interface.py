@@ -402,7 +402,7 @@ class Mesher:
 
         for surface in surfaces:
             # get old entities
-            ents = factory.getEntities(dim)
+            oldEntities = factory.getEntities(dim)
             # Create new surfaces
             if isinstance(surface, Union[Iterable, tuple]):
                 # surface is a combination of a contour + inclusions
@@ -411,10 +411,11 @@ class Mesher:
                 # surface is just a contour
                 newSurfaces = self._Surfaces(surface, [], elemType, isOrganised)[0]
             # Delete or add created entities to the current geometry.
+            newEntities = [(2, surf) for surf in newSurfaces]
             if surface.isHollow:
-                factory.cut(ents, [(2, surf) for surf in newSurfaces])
+                factory.cut(oldEntities, newEntities)
             else:
-                factory.fragment(ents, [(2, surf) for surf in newSurfaces], removeTool=False)
+                factory.fragment(oldEntities, newEntities, removeTool=False, removeObject=False)
 
     def _Additional_Lines(self, dim: int, lines:list[Union[Line, CircleArc]]) -> None:
         """Adds lines to existing dim entities.
@@ -432,7 +433,7 @@ class Mesher:
         factory = self._factory
 
         for line in lines:
-            ents = factory.getEntities(dim)
+            oldEntities = factory.getEntities(dim)
             if isinstance(line, Line):
                 p1 = factory.addPoint(*line.pt1.coord, line.meshSize)
                 p2 = factory.addPoint(*line.pt2.coord, line.meshSize)
@@ -444,7 +445,7 @@ class Mesher:
                 geom_line = factory.addCircleArc(p1, p3, p2, center=False)
             else:
                 raise Exception("You need to give lines or arcs.")
-            factory.fragment(ents, [(1, geom_line)], removeTool=False)
+            factory.fragment(oldEntities, [(1, geom_line)], removeTool=False, removeObject=False)
 
     def _Additional_Points(self, dim: int, points:list[Point], meshSize: float=0.0) -> None:
         """Adds points to existing dim entities.
@@ -464,12 +465,12 @@ class Mesher:
         factory = self._factory
 
         for point in points:
-            ents = factory.getEntities(dim)
+            oldEntities = factory.getEntities(dim)
             if isinstance(point, Point):
                 p = factory.addPoint(*point.coord, meshSize)
             else:
                 raise Exception("You need to give a list of point.")
-            factory.fragment(ents, [(0, p)], removeTool=False)
+            factory.fragment(oldEntities, [(0, p)], removeTool=False, removeObject=False)
 
     def _Spline_From_Points(self, points: Points) -> tuple[int, list[int]]:
         """Creates a gmsh spline from points.\n
