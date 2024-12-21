@@ -197,7 +197,7 @@ class BeamSimu(_Simu):
         groupElem = mesh.groupElem
 
         # Recovering the beam model
-        beamModel = self.structure
+        beamStructure = self.structure
         
         matrixType=MatrixType.beam
         
@@ -206,9 +206,9 @@ class BeamSimu(_Simu):
         jacobian_e_pg = mesh.Get_jacobian_e_pg(matrixType)
         weight_pg = mesh.Get_weight_pg(matrixType)
 
-        D_e_pg = beamModel.Calc_D_e_pg(groupElem)        
+        D_e_pg = beamStructure.Calc_D_e_pg(groupElem)        
 
-        B_beam_e_pg = self._Get_B_beam_e_pg()
+        B_beam_e_pg = groupElem.Get_EulerBernoulli_B_e_pg(beamStructure)
         
         Kbeam_e = np.einsum('ep,p,epji,epjk,epkl->eil', jacobian_e_pg, weight_pg, B_beam_e_pg, D_e_pg, B_beam_e_pg, optimize='optimal')
             
@@ -273,214 +273,6 @@ class BeamSimu(_Simu):
             assert diff <= 1e-12
 
         return center
-
-    def _Get_N_beam_e_pg(self):
-        """Euleur-Bernoulli BEAM shape functions"""
-
-        # Example matlab : FEMOBJECT/BASIC/MODEL/ELEMENTS/@BEAM/calc_N.m
-        
-        tic = Tic()
-
-        matrixType = MatrixType.beam
-
-        # get the beam model
-        struct = self.structure
-        dim = struct.dim
-        dof_n = struct.dof_n
-
-        # Data
-        mesh = self.mesh
-        jacobian_e_pg = mesh.Get_jacobian_e_pg(matrixType)
-        groupElem = mesh.groupElem
-        nPe = groupElem.nPe
-        Ne = jacobian_e_pg.shape[0]
-        nPg = jacobian_e_pg.shape[1]
-
-        # get matrices to work with
-        N_pg = mesh.Get_N_pg(matrixType)        
-        if struct.dim > 1:
-            Nv_e_pg = mesh.groupElem.Get_Nv_e_pg()
-            dNv_e_pg = mesh.groupElem.Get_dNv_e_pg()
-
-        if dim == 1:
-            # u = [u1, . . . , un]
-            
-            # N = [N_i, . . . , N_n]
-
-            idx_ux = np.arange(dof_n*nPe)
-
-            Nbeam_e_pg = np.zeros((Ne, nPg, 1, dof_n*nPe))
-            Nbeam_e_pg[:,:,0, idx_ux] = N_pg[:,:,0]
-                
-        elif dim == 2:
-            # u = [u1, v1, rz1, . . . , un, vn, rzn]
-            
-            # N = [N_i, 0, 0, ... , N_n, 0, 0,]
-            #     [0, Phi_i, Psi_i, ... , 0, Phi_i, Psi_i]
-            #     [0, dPhi_i, dPsi_i, ... , 0, dPhi_i, dPsi_i]
-
-            idx = np.arange(dof_n*nPe).reshape(nPe,-1)
-            
-            idx_ux = idx[:,0] # [0,3] (SEG2) [0,3,6] (SEG3)
-            idx_uy = np.reshape(idx[:,1:], -1) # [1,2,4,5] (SEG2) [1,2,4,5,7,8] (SEG3)
-
-            Nbeam_e_pg = np.zeros((Ne, nPg, 3, dof_n*nPe))
-            
-            Nbeam_e_pg[:,:,0, idx_ux] = N_pg[:,:,0] # traction / compression to get u
-            Nbeam_e_pg[:,:,1, idx_uy] = Nv_e_pg[:,:,0] # flexion z to get v
-            Nbeam_e_pg[:,:,2, idx_uy] = dNv_e_pg[:,:,0] # flexion z to get rz
-
-        elif dim == 3:
-            # u = [u1, v1, w1, rx1, ry1, rz1, . . . , un, vn, wn, rxn, ryn, rzn]
-
-            # N = [N_i, 0, 0, 0, 0, 0, ... , N_n, 0, 0, 0, 0, 0]
-            #     [0, Phi_i, 0, 0, 0, Psi_i, ... , 0, Phi_n, 0, 0, 0, Psi_n]
-            #     [0, 0, dPhi_i, 0, -dPsi_i, 0, ... , 0, 0, dPhi_n, 0, -dPsi_n, 0]
-            #     [0, 0, 0, N_i, 0, 0, ... , 0, 0, 0, N_n, 0, 0]
-            #     [0, 0, -dPhi_i, 0, dPsi_i, 0, ... , 0, 0, -dPhi_n, 0, dPsi_n, 0]
-            #     [0, dPhi_i, 0, 0, 0, dPsi_i, ... , 0, dPhi_i, 0, 0, 0, dPsi_n]
-
-            idx = np.arange(dof_n*nPe).reshape(nPe,-1)
-            idx_ux = idx[:,0] # [0,6] (SEG2) [0,6,12] (SEG3)
-            idx_uy = np.reshape(idx[:,[1,5]], -1) # [1,5,7,11] (SEG2) [1,5,7,11,13,17] (SEG3)
-            idx_uz = np.reshape(idx[:,[2,4]], -1) # [2,4,8,10] (SEG2) [2,4,8,10,14,16] (SEG3)
-            idx_rx = idx[:,3] # [3,9] (SEG2) [3,9,15] (SEG3)
-            idPsi = np.arange(1, nPe*2, 2) # [1,3] (SEG2) [1,3,5] (SEG3)
-
-            Nvz_e_pg = Nv_e_pg.copy()
-            Nvz_e_pg[:,:,0,idPsi] *= -1
-
-            dNvz_e_pg = dNv_e_pg.copy()
-            dNvz_e_pg[:,:,0,idPsi] *= -1
-
-            Nbeam_e_pg = np.zeros((Ne, nPg, 6, dof_n*nPe))
-            
-            Nbeam_e_pg[:,:,0, idx_ux] = N_pg[:,:,0]
-            Nbeam_e_pg[:,:,1, idx_uy] = Nv_e_pg[:,:,0]
-            Nbeam_e_pg[:,:,2, idx_uz] = Nvz_e_pg[:,:,0]
-            Nbeam_e_pg[:,:,3, idx_rx] = N_pg[:,:,0]
-            Nbeam_e_pg[:,:,4, idx_uz] = -dNvz_e_pg[:,:,0] # ry = -uz'
-            Nbeam_e_pg[:,:,5, idx_uy] = dNv_e_pg[:,:,0] # rz = uy'
-        
-        if dim > 1:
-            # Construct the matrix used to change the matrix coordinates 
-            P = np.zeros((self.mesh.Ne, 3, 3), dtype=float)
-            for beam in struct.beams:
-                elems = self.mesh.Elements_Tags([beam.name])
-                P[elems] = beam._Calc_P()
-
-            Pglob_e = np.zeros((Ne, dof_n*nPe, dof_n*nPe))            
-            N = P.shape[1]
-            lines = np.repeat(range(N), N)
-            columns = np.array(list(range(N))*N)
-            for n in range(dof_n*nPe//3):
-                # apply P on the diagonal
-                Pglob_e[:, lines + n*N, columns + n*N] = P[:,lines,columns]
-
-            N_beam_e_pg = np.einsum('epij,ejk->epik', Nbeam_e_pg, Pglob_e, optimize='optimal')
-
-        tic.Tac("Matrix","Construct N_beam_e_pg", False)
-
-        return N_beam_e_pg
-
-    def _Get_B_beam_e_pg(self):
-        """Euleur-Bernoulli BEAM shape functions derivatives"""
-
-        # Exemple matlab : FEMOBJECT/BASIC/MODEL/ELEMENTS/@BEAM/calc_B.m
-        
-        tic = Tic()
-
-        matrixType = MatrixType.beam
-
-        # Recovering the beam model
-        struct = self.structure
-        dim = struct.dim
-        dof_n = struct.dof_n
-
-        # Data
-        mesh = self.mesh
-        jacobian_e_pg = mesh.Get_jacobian_e_pg(matrixType)
-        groupElem = mesh.groupElem
-        nPe = groupElem.nPe
-        Ne = jacobian_e_pg.shape[0]
-        nPg = jacobian_e_pg.shape[1]
-
-        # Recover matrices to work with
-        dN_e_pg = mesh.Get_dN_e_pg(matrixType)
-        if struct.dim > 1:
-            ddNv_e_pg = mesh.groupElem.Get_ddNv_e_pg()
-
-        if dim == 1:
-            # u = [u1, . . . , un]
-            
-            # B = [dN_i, . . . , dN_n]
-
-            idx_ux = np.arange(dof_n*nPe)
-
-            B_beam_e_pg = np.zeros((Ne, nPg, 1, dof_n*nPe))
-            B_beam_e_pg[:,:,0, idx_ux] = dN_e_pg[:,:,0]
-                
-        elif dim == 2:
-            # u = [u1, v1, rz1, . . . , un, vn, rzn]
-            
-            # B = [dN_i, 0, 0, ... , dN_n, 0, 0,]
-            #     [0, ddPhi_i, ddPsi_i, ... , 0, ddPhi_i, ddPsi_i]
-
-            idx = np.arange(dof_n*nPe).reshape(nPe,-1)
-            
-            idx_ux = idx[:,0] # [0,3] (SEG2) [0,3,6] (SEG3)
-            idx_uy = np.reshape(idx[:,1:], -1) # [1,2,4,5] (SEG2) [1,2,4,5,7,8] (SEG3)
-
-            B_beam_e_pg = np.zeros((Ne, nPg, 2, dof_n*nPe))
-            
-            B_beam_e_pg[:,:,0, idx_ux] = dN_e_pg[:,:,0] # traction / compression
-            B_beam_e_pg[:,:,1, idx_uy] = ddNv_e_pg[:,:,0] # flexion along z
-
-        elif dim == 3:
-            # u = [u1, v1, w1, rx1, ry1, rz1, . . . , un, vn, wn, rxn, ryn, rzn]
-
-            # B = [dN_i, 0, 0, 0, 0, 0, ... , dN_n, 0, 0, 0, 0, 0]
-            #     [0, 0, 0, dN_i, 0, 0, ... , 0, 0, 0, dN_n, 0, 0]
-            #     [0, 0, ddPhi_i, 0, -ddPsi_i, 0, ... , 0, 0, ddPhi_n, 0, -ddPsi_n, 0]
-            #     [0, ddPhi_i, 0, 0, 0, ddPsi_i, ... , 0, ddPhi_i, 0, 0, 0, ddPsi_n]
-
-            idx = np.arange(dof_n*nPe).reshape(nPe,-1)
-            idx_ux = idx[:,0] # [0,6] (SEG2) [0,6,12] (SEG3)
-            idx_uy = np.reshape(idx[:,[1,5]], -1) # [1,5,7,11] (SEG2) [1,5,7,11,13,17] (SEG3)
-            idx_uz = np.reshape(idx[:,[2,4]], -1) # [2,4,8,10] (SEG2) [2,4,8,10,14,16] (SEG3)
-            idx_rx = idx[:,3] # [3,9] (SEG2) [3,9,15] (SEG3)
-            
-            idPsi = np.arange(1, nPe*2, 2) # [1,3] (SEG2) [1,3,5] (SEG3)
-            ddNvz_e_pg = ddNv_e_pg.copy()
-            ddNvz_e_pg[:,:,0,idPsi] *= -1 # RY = -UZ'
-
-            B_beam_e_pg = np.zeros((Ne, nPg, 4, dof_n*nPe))
-            
-            B_beam_e_pg[:,:,0, idx_ux] = dN_e_pg[:,:,0] # traction / compression
-            B_beam_e_pg[:,:,1, idx_rx] = dN_e_pg[:,:,0] # torsion
-            B_beam_e_pg[:,:,2, idx_uz] = ddNvz_e_pg[:,:,0] # flexion along y
-            B_beam_e_pg[:,:,3, idx_uy] = ddNv_e_pg[:,:,0] # flexion along z        
-
-        if dim > 1:
-            # Construct the matrix used to change the matrix coordinates 
-            P = np.zeros((self.mesh.Ne, 3, 3), dtype=float)
-            for beam in struct.beams:
-                elems = self.mesh.Elements_Tags([beam.name])
-                P[elems] = beam._Calc_P()
-
-            Pglob_e = np.zeros((Ne, dof_n*nPe, dof_n*nPe))            
-            N = P.shape[1]
-            lines = np.repeat(range(N), N)
-            columns = np.array(list(range(N))*N)
-            for n in range(dof_n*nPe//3):
-                # apply P on the diagonal
-                Pglob_e[:, lines + n*N, columns + n*N] = P[:,lines,columns]
-
-            B_beam_e_pg = np.einsum('epij,ejk->epik', B_beam_e_pg, Pglob_e, optimize='optimal')
-
-        tic.Tac("Matrix","Construct B_beam_e_pg", False)
-
-        return B_beam_e_pg
 
     def Assembly(self) -> None:
 
@@ -719,7 +511,7 @@ class BeamSimu(_Simu):
         dof_n = self.structure.dof_n
         assembly_e = self.mesh.groupElem.Get_assembly_e(dof_n)
         sol_e = sol[assembly_e]
-        B_beam_e_pg = self._Get_B_beam_e_pg()
+        B_beam_e_pg = self.mesh.groupElem.Get_EulerBernoulli_B_e_pg()
         Epsilon_e_pg = np.einsum('epij,ej->epi', B_beam_e_pg, sol_e, optimize='optimal')
         
         tic.Tac("Matrix", "Epsilon_e_pg", False)
