@@ -6,6 +6,15 @@
 A mesh uses several element groups.
 For instance, a TRI3 mesh uses POINT, SEG2 and TRI3 elements."""
 
+# Sections :
+# Gauss
+# Properties
+# Isoparametric elements
+# Finite element shape functions
+# Finite element matrices
+# Nodes & Elements
+# Factory
+
 from abc import ABC, abstractmethod
 
 from scipy.optimize import least_squares
@@ -76,7 +85,9 @@ class _GroupElem(ABC):
         self.__dict_DiffusePart_e_pg: dict[MatrixType, np.ndarray] = {}
         self.__dict_SourcePart_e_pg: dict[MatrixType, np.ndarray] = {}
 
-    ################################################ METHODS ##################################################
+    # --------------------------------------------------------------------------------------------
+    # Properties
+    # --------------------------------------------------------------------------------------------
     
     @property
     def gmshId(self) -> int:
@@ -226,524 +237,6 @@ class _GroupElem(ABC):
             assembly[:, columns] = np.array(connect) * dof_n + d
 
         return assembly
-    
-    ################################################ Gauss ##################################################
-
-    def Get_gauss(self, matrixType: MatrixType) -> Gauss:
-        """Returns integration points according to the matrix type."""
-        return Gauss(self.elemType, matrixType)
-    
-    def Get_weight_pg(self, matrixType: MatrixType) -> np.ndarray:
-        """Returns integration point weights according to the matrix type."""
-        return Gauss(self.elemType, matrixType).weights
-    
-    def Get_GaussCoordinates_e_p(self, matrixType: MatrixType, elements=np.array([])) -> np.ndarray:
-        """Returns integration point coordinates for each element (Ne, p, 3) in the (x,y,z) coordinates."""
-
-        N_scalar = self.Get_N_pg(matrixType)
-
-        # retrieve node coordinates
-        coordo = self.coordGlob
-
-        # nodes coordinates for each element
-        if elements.size == 0:
-            coordo_e = coordo[self.__connect]
-        else:
-            coordo_e = coordo[self.__connect[elements]]
-
-        # localize coordinates on Gauss points
-        coordo_e_p = np.einsum('pij,ejn->epn', N_scalar, coordo_e, optimize='optimal')
-
-        return np.array(coordo_e_p)
-    
-    ################################################ FEM matrix ##################################################
-    
-    def Get_N_pg_rep(self, matrixType: MatrixType, repeat=1) -> np.ndarray:
-        """Repeats shape functions in the (ξ,η,ζ) coordinates.
-
-        Parameters
-        ----------
-        matrixType : MatrixType
-            matrix type
-        repeat : int, optional
-            number of repetitions, by default 1
-        
-        Returns:
-        -------
-        • Vector shape functions (pg, rep=2, rep=2*dim)\n
-            [Ni 0 . . . Nn 0 \n
-            0 Ni . . . 0 Nn]
-
-        • Scalar shape functions (pg, rep=1, nPe)\n
-            [Ni . . . Nn]
-        """
-        if self.dim == 0: return
-
-        assert isinstance(repeat, int)
-        assert repeat >= 1
-
-        N_pg = self.Get_N_pg(matrixType)
-
-        if not isinstance(N_pg, np.ndarray): return
-
-        if repeat <= 1:
-            return N_pg
-        else:
-            size = N_pg.shape[2]*repeat
-            N_vect_pg = np.zeros((N_pg.shape[0] ,repeat , size))
-
-            for r in range(repeat):
-                N_vect_pg[:, r, np.arange(r, size, repeat)] = N_pg[:,0,:]
-            
-            return N_vect_pg
-    
-    def Get_dN_e_pg(self, matrixType: MatrixType) -> np.ndarray:
-        """Evaluates the first-order derivatives of shape functions in (x,y,z) coordinates.\n
-        [Ni,x . . . Nn,x\n
-        Ni,y ... Nn,y]\n
-        (e, pg, dim, nPe)\n
-        """
-        assert matrixType in MatrixType.Get_types()
-
-        if matrixType not in self.__dict_dN_e_pg.keys():
-
-            invF_e_pg = self.Get_invF_e_pg(matrixType)
-
-            dN_pg = self.Get_dN_pg(matrixType)
-
-            # Derivation of shape functions in the (x,y,z) coordinates
-            dN_e_pg: np.ndarray = np.einsum('epdk,pkn->epdn', invF_e_pg, dN_pg, optimize='optimal')
-            self.__dict_dN_e_pg[matrixType] = dN_e_pg
-
-        return self.__dict_dN_e_pg[matrixType].copy()
-    
-    def Get_ddN_e_pg(self, matrixType: MatrixType) -> np.ndarray:
-        """Evaluates the second-order derivatives of shape functions in (x,y,z) coordinates.\n
-        [Ni,xx . . . Nn,xx\n
-        Ni,yy ... Nn,yy]\n
-        (e, pg, dim, nPe)\n
-        """
-        assert matrixType in MatrixType.Get_types()
-
-        if matrixType not in self.__dict_ddN_e_pg.keys():
-
-            invF_e_pg = self.Get_invF_e_pg(matrixType)
-
-            invF_e_pg = invF_e_pg @ invF_e_pg
-
-            ddN_pg = self.Get_ddN_pg(matrixType)
-            
-            ddN_e_pg = np.array(np.einsum('epdk,pkn->epdn', invF_e_pg, ddN_pg, optimize='optimal'))
-            self.__dict_ddN_e_pg[matrixType] = ddN_e_pg
-
-        return self.__dict_ddN_e_pg[matrixType].copy()
-    
-    def Get_EulerBernoulli_N_e_pg(self) -> np.ndarray:
-        """Evaluates Euler-Bernoulli beam shape functions in (x,y,z) coordinates.\n
-        [phi_i psi_i . . . phi_n psi_n]\n
-        (e, pg, 1, nPe*2)
-        """
-        if self.dim != 1: return
-
-        matrixType = MatrixType.beam
-
-        invF_e_pg = self.Get_invF_e_pg(matrixType)
-        N_pg = self.Get_EulerBernoulli_N_pg(matrixType)
-        nPe = self.nPe
-        
-        N_e_pg = invF_e_pg @ N_pg
-        
-        # multiply by the beam length on psi_i,xx functions
-        l_e = self.length_e
-        columns = np.arange(1, nPe*2, 2)
-        for column in columns:
-            N_e_pg[:,:,0,column] = np.einsum('ep,e->ep', N_e_pg[:,:,0,column], l_e, optimize='optimal')    
-
-        return N_e_pg
-
-    def Get_EulerBernoulli_dN_e_pg(self) -> np.ndarray:
-        """Evaluates the first-order derivatives of Euler-Bernoulli beam shape functions in (x,y,z) coordinates.\n
-        [phi_i,x psi_i,x . . . phi_n,x psi_n,x]\n
-        (e, pg, 1, nPe*2)
-        """
-        if self.dim != 1: return
-
-        matrixType = MatrixType.beam
-
-        invF_e_pg = self.Get_invF_e_pg(matrixType)
-        dN_pg = self.Get_EulerBernoulli_dN_pg(matrixType)
-        nPe = self.nPe
-        
-        dN_e_pg = invF_e_pg @ dN_pg
-        
-        # multiply by the beam length on psi_i,xx functions
-        l_e = self.length_e
-        columns = np.arange(1, nPe*2, 2)
-        for column in columns:
-            dN_e_pg[:,:,0,column] = np.einsum('ep,e->ep', dN_e_pg[:,:,0,column], l_e, optimize='optimal')
-
-        return dN_e_pg
-
-    def Get_EulerBernoulli_ddN_e_pg(self) -> np.ndarray:
-        """Evaluates the second-order derivatives of Euler-Bernoulli beam shape functions in (x,y,z) coordinates.\n
-        [phi_i,xx psi_i,xx . . . phi_n,xx psi_n,xx]\n
-        (e, pg, 1, nPe*2)
-        """
-        if self.dim != 1: return
-        
-        matrixType = MatrixType.beam        
-
-        invF_e_pg = self.Get_invF_e_pg(matrixType)
-        ddN_pg = self.Get_EulerBernoulli_ddN_pg(matrixType)
-        nPe = self.nPe
-        
-        ddN_e_pg = invF_e_pg @ invF_e_pg @ ddN_pg
-        
-        # multiply by the beam length on psi_i,xx functions
-        l_e = self.length_e
-        columns = np.arange(1, nPe*2, 2)
-        for column in columns:
-            ddN_e_pg[:,:,0,column] = np.einsum('ep,e->ep', ddN_e_pg[:,:,0,column], l_e, optimize='optimal')
-
-        return ddN_e_pg
-
-    def Get_B_e_pg(self, matrixType: MatrixType) -> np.ndarray:
-        """Get the matrix used to calculate deformations from displacements.\n
-        WARNING: Use Kelvin Mandel Notation\n
-        [N1,x 0 N2,x 0 Nn,x 0\n
-        0 N1,y 0 N2,y 0 Nn,y\n
-        N1,y N1,x N2,y N2,x N3,y N3,x]\n
-        (e, pg, (3 or 6), nPe*dim)        
-        """
-        assert matrixType in MatrixType.Get_types()
-
-        if matrixType not in self.__dict_B_e_pg.keys():
-
-            dN_e_pg = self.Get_dN_e_pg(matrixType)
-
-            Ne = self.Ne
-            nPg = self.Get_gauss(matrixType).nPg
-            nPe = self.nPe
-            dim = self.dim
-
-            cM = 1/np.sqrt(2)
-            
-            columnsX = np.arange(0, nPe*dim, dim)
-            columnsY = np.arange(1, nPe*dim, dim)
-            columnsZ = np.arange(2, nPe*dim, dim)
-
-            if self.dim == 2:                
-                B_e_pg = np.zeros((Ne, nPg, 3, nPe*dim))                
-                
-                dNdx = dN_e_pg[:,:,0]
-                dNdy = dN_e_pg[:,:,1]
-
-                B_e_pg[:,:,0,columnsX] = dNdx
-                B_e_pg[:,:,1,columnsY] = dNdy
-                B_e_pg[:,:,2,columnsX] = dNdy*cM; B_e_pg[:,:,2,columnsY] = dNdx*cM
-            else:
-                B_e_pg = np.zeros((Ne, nPg, 6, nPe*dim))
-
-                dNdx = dN_e_pg[:,:,0]
-                dNdy = dN_e_pg[:,:,1]
-                dNdz = dN_e_pg[:,:,2]
-
-                B_e_pg[:,:,0,columnsX] = dNdx
-                B_e_pg[:,:,1,columnsY] = dNdy
-                B_e_pg[:,:,2,columnsZ] = dNdz
-                B_e_pg[:,:,3,columnsY] = dNdz*cM; B_e_pg[:,:,3,columnsZ] = dNdy*cM
-                B_e_pg[:,:,4,columnsX] = dNdz*cM; B_e_pg[:,:,4,columnsZ] = dNdx*cM
-                B_e_pg[:,:,5,columnsX] = dNdy*cM; B_e_pg[:,:,5,columnsY] = dNdx*cM
-
-            self.__dict_B_e_pg[matrixType] = B_e_pg
-        
-        return self.__dict_B_e_pg[matrixType].copy()
-
-    def Get_leftDispPart(self, matrixType: MatrixType) -> np.ndarray:
-        """Get the left side of local displacement matrices.\n
-        Ku_e = jacobian_e_pg * weight_pg * B_e_pg' * c_e_pg * B_e_pg\n
-        
-        Returns (epij) -> jacobian_e_pg * weight_pg * B_e_pg'.
-        """
-
-        assert matrixType in MatrixType.Get_types()
-
-        if matrixType not in self.__dict_leftDispPart.keys():
-            
-            jacobian_e_pg = self.Get_jacobian_e_pg(matrixType)
-            weight_pg = self.Get_gauss(matrixType).weights
-            B_e_pg = self.Get_B_e_pg(matrixType)
-
-            leftDispPart = np.einsum('ep,p,epij->epji', jacobian_e_pg, weight_pg, B_e_pg, optimize='optimal')
-
-            self.__dict_leftDispPart[matrixType] = leftDispPart
-
-        return self.__dict_leftDispPart[matrixType].copy()
-    
-    def Get_EulerBernoulli_N_e_pg(self, beamStructure):
-        """Euler-Bernoulli beam shape functions."""
-
-        from ..materials._beam import BeamStructure
-
-        # Example in matlab :
-        # https://github.com/fpled/FEMObject/blob/master/BASIC/MODEL/ELEMENTS/%40BEAM/calc_N.m
-
-        matrixType = MatrixType.beam
-
-        # get the beam model
-        beamStructure: BeamStructure = beamStructure
-        dim = beamStructure.dim
-        dof_n = beamStructure.dof_n
-
-        # Data
-        jacobian_e_pg = self.Get_jacobian_e_pg(matrixType)
-        nPe = self.nPe
-        Ne = jacobian_e_pg.shape[0]
-        nPg = jacobian_e_pg.shape[1]
-
-        # get matrices to work with
-        N_pg = self.Get_N_pg(matrixType)        
-        if beamStructure.dim > 1:
-            N_e_pg = self.Get_EulerBernoulli_N_e_pg()
-            dN_e_pg = self.Get_EulerBernoulli_dN_e_pg()
-
-        if dim == 1:
-            # u = [u1, . . . , un]
-            
-            # N = [N_i, . . . , N_n]
-
-            idx_ux = np.arange(dof_n*nPe)
-
-            N_e_pg = np.zeros((Ne, nPg, 1, dof_n*nPe))
-            N_e_pg[:,:,0, idx_ux] = N_pg[:,:,0]
-                
-        elif dim == 2:
-            # u = [u1, v1, rz1, . . . , un, vn, rzn]
-            
-            # N = [N_i, 0, 0, ... , N_n, 0, 0,]
-            #     [0, Phi_i, Psi_i, ... , 0, Phi_i, Psi_i]
-            #     [0, dPhi_i, dPsi_i, ... , 0, dPhi_i, dPsi_i]
-
-            idx = np.arange(dof_n*nPe).reshape(nPe,-1)
-            
-            idx_ux = idx[:,0] # [0,3] (SEG2) [0,3,6] (SEG3)
-            idx_uy = np.reshape(idx[:,1:], -1) # [1,2,4,5] (SEG2) [1,2,4,5,7,8] (SEG3)
-
-            N_e_pg = np.zeros((Ne, nPg, 3, dof_n*nPe))
-            
-            N_e_pg[:,:,0, idx_ux] = N_pg[:,:,0] # traction / compression to get u
-            N_e_pg[:,:,1, idx_uy] = N_e_pg[:,:,0] # flexion z to get v
-            N_e_pg[:,:,2, idx_uy] = dN_e_pg[:,:,0] # flexion z to get rz
-
-        elif dim == 3:
-            # u = [u1, v1, w1, rx1, ry1, rz1, . . . , un, vn, wn, rxn, ryn, rzn]
-
-            # N = [N_i, 0, 0, 0, 0, 0, ... , N_n, 0, 0, 0, 0, 0]
-            #     [0, Phi_i, 0, 0, 0, Psi_i, ... , 0, Phi_n, 0, 0, 0, Psi_n]
-            #     [0, 0, dPhi_i, 0, -dPsi_i, 0, ... , 0, 0, dPhi_n, 0, -dPsi_n, 0]
-            #     [0, 0, 0, N_i, 0, 0, ... , 0, 0, 0, N_n, 0, 0]
-            #     [0, 0, -dPhi_i, 0, dPsi_i, 0, ... , 0, 0, -dPhi_n, 0, dPsi_n, 0]
-            #     [0, dPhi_i, 0, 0, 0, dPsi_i, ... , 0, dPhi_i, 0, 0, 0, dPsi_n]
-
-            idx = np.arange(dof_n*nPe).reshape(nPe,-1)
-            idx_ux = idx[:,0] # [0,6] (SEG2) [0,6,12] (SEG3)
-            idx_uy = np.reshape(idx[:,[1,5]], -1) # [1,5,7,11] (SEG2) [1,5,7,11,13,17] (SEG3)
-            idx_uz = np.reshape(idx[:,[2,4]], -1) # [2,4,8,10] (SEG2) [2,4,8,10,14,16] (SEG3)
-            idx_rx = idx[:,3] # [3,9] (SEG2) [3,9,15] (SEG3)
-            idPsi = np.arange(1, nPe*2, 2) # [1,3] (SEG2) [1,3,5] (SEG3)
-
-            Nvz_e_pg = N_e_pg.copy()
-            Nvz_e_pg[:,:,0,idPsi] *= -1
-
-            dNvz_e_pg = dN_e_pg.copy()
-            dNvz_e_pg[:,:,0,idPsi] *= -1
-
-            N_e_pg = np.zeros((Ne, nPg, 6, dof_n*nPe))
-            
-            N_e_pg[:,:,0, idx_ux] = N_pg[:,:,0]
-            N_e_pg[:,:,1, idx_uy] = N_e_pg[:,:,0]
-            N_e_pg[:,:,2, idx_uz] = Nvz_e_pg[:,:,0]
-            N_e_pg[:,:,3, idx_rx] = N_pg[:,:,0]
-            N_e_pg[:,:,4, idx_uz] = -dNvz_e_pg[:,:,0] # ry = -uz'
-            N_e_pg[:,:,5, idx_uy] = dN_e_pg[:,:,0] # rz = uy'
-        
-        if dim > 1:
-            # Construct the matrix used to change the matrix coordinates 
-            P = np.zeros((self.Ne, 3, 3), dtype=float)
-            for beam in beamStructure.beams:
-                elems = self.Get_Elements_Tag(beam.name)
-                P[elems] = beam._Calc_P()
-
-            Pglob_e = np.zeros((Ne, dof_n*nPe, dof_n*nPe))            
-            N = P.shape[1]
-            lines = np.repeat(range(N), N)
-            columns = np.array(list(range(N))*N)
-            for n in range(dof_n*nPe//3):
-                # apply P on the diagonal
-                Pglob_e[:, lines + n*N, columns + n*N] = P[:,lines,columns]
-
-            N_e_pg = np.einsum('epij,ejk->epik', N_e_pg, Pglob_e, optimize='optimal')
-
-        return N_e_pg
-    
-    def Get_EulerBernoulli_B_e_pg(self, beamStructure):
-        """Get Euler-Bernoulli beam shape functions derivatives"""
-
-        from ..materials._beam import BeamStructure
-
-        # Example in matlab :
-        # https://github.com/fpled/FEMObject/blob/master/BASIC/MODEL/ELEMENTS/%40BEAM/calc_B.m
-
-        matrixType = MatrixType.beam
-
-        # Recovering the beam model
-        beamStructure: BeamStructure = beamStructure
-        dim = beamStructure.dim
-        dof_n = beamStructure.dof_n
-
-        # Data
-        jacobian_e_pg = self.Get_jacobian_e_pg(matrixType)
-        nPe = self.nPe
-        Ne = jacobian_e_pg.shape[0]
-        nPg = jacobian_e_pg.shape[1]
-
-        # Recover matrices to work with
-        dN_e_pg = self.Get_dN_e_pg(matrixType)
-        if beamStructure.dim > 1:
-            ddNv_e_pg = self.Get_EulerBernoulli_ddN_e_pg()
-
-        if dim == 1:
-            # u = [u1, . . . , un]
-            
-            # B = [dN_i, . . . , dN_n]
-
-            idx_ux = np.arange(dof_n*nPe)
-
-            B_e_pg = np.zeros((Ne, nPg, 1, dof_n*nPe))
-            B_e_pg[:,:,0, idx_ux] = dN_e_pg[:,:,0]
-                
-        elif dim == 2:
-            # u = [u1, v1, rz1, . . . , un, vn, rzn]
-            
-            # B = [dN_i, 0, 0, ... , dN_n, 0, 0,]
-            #     [0, ddPhi_i, ddPsi_i, ... , 0, ddPhi_i, ddPsi_i]
-
-            idx = np.arange(dof_n*nPe).reshape(nPe,-1)
-            
-            idx_ux = idx[:,0] # [0,3] (SEG2) [0,3,6] (SEG3)
-            idx_uy = np.reshape(idx[:,1:], -1) # [1,2,4,5] (SEG2) [1,2,4,5,7,8] (SEG3)
-
-            B_e_pg = np.zeros((Ne, nPg, 2, dof_n*nPe))
-            
-            B_e_pg[:,:,0, idx_ux] = dN_e_pg[:,:,0] # traction / compression
-            B_e_pg[:,:,1, idx_uy] = ddNv_e_pg[:,:,0] # flexion along z
-
-        elif dim == 3:
-            # u = [u1, v1, w1, rx1, ry1, rz1, . . . , un, vn, wn, rxn, ryn, rzn]
-
-            # B = [dN_i, 0, 0, 0, 0, 0, ... , dN_n, 0, 0, 0, 0, 0]
-            #     [0, 0, 0, dN_i, 0, 0, ... , 0, 0, 0, dN_n, 0, 0]
-            #     [0, 0, ddPhi_i, 0, -ddPsi_i, 0, ... , 0, 0, ddPhi_n, 0, -ddPsi_n, 0]
-            #     [0, ddPhi_i, 0, 0, 0, ddPsi_i, ... , 0, ddPhi_i, 0, 0, 0, ddPsi_n]
-
-            idx = np.arange(dof_n*nPe).reshape(nPe,-1)
-            idx_ux = idx[:,0] # [0,6] (SEG2) [0,6,12] (SEG3)
-            idx_uy = np.reshape(idx[:,[1,5]], -1) # [1,5,7,11] (SEG2) [1,5,7,11,13,17] (SEG3)
-            idx_uz = np.reshape(idx[:,[2,4]], -1) # [2,4,8,10] (SEG2) [2,4,8,10,14,16] (SEG3)
-            idx_rx = idx[:,3] # [3,9] (SEG2) [3,9,15] (SEG3)
-            
-            idPsi = np.arange(1, nPe*2, 2) # [1,3] (SEG2) [1,3,5] (SEG3)
-            ddNvz_e_pg = ddNv_e_pg.copy()
-            ddNvz_e_pg[:,:,0,idPsi] *= -1 # RY = -UZ'
-
-            B_e_pg = np.zeros((Ne, nPg, 4, dof_n*nPe))
-            
-            B_e_pg[:,:,0, idx_ux] = dN_e_pg[:,:,0] # traction / compression
-            B_e_pg[:,:,1, idx_rx] = dN_e_pg[:,:,0] # torsion
-            B_e_pg[:,:,2, idx_uz] = ddNvz_e_pg[:,:,0] # flexion along y
-            B_e_pg[:,:,3, idx_uy] = ddNv_e_pg[:,:,0] # flexion along z        
-
-        if dim > 1:
-            # Construct the matrix used to change the matrix coordinates 
-            P = np.zeros((self.Ne, 3, 3), dtype=float)
-            for beam in beamStructure.beams:
-                elems = self.Get_Elements_Tag(beam.name)
-                P[elems] = beam._Calc_P()
-
-            Pglob_e = np.zeros((Ne, dof_n*nPe, dof_n*nPe))            
-            N = P.shape[1]
-            lines = np.repeat(range(N), N)
-            columns = np.array(list(range(N))*N)
-            for n in range(dof_n*nPe//3):
-                # apply P on the diagonal
-                Pglob_e[:, lines + n*N, columns + n*N] = P[:,lines,columns]
-
-            B_e_pg = np.einsum('epij,ejk->epik', B_e_pg, Pglob_e, optimize='optimal')
-
-        return B_e_pg
-    
-    def Get_ReactionPart_e_pg(self, matrixType: MatrixType) -> np.ndarray:
-        """Get the part that builds the reaction term (scalar).\n
-        ReactionPart_e_pg = r_e_pg * jacobian_e_pg * weight_pg * N_pg' * N_pg\n
-        
-        Returns -> jacobian_e_pg * weight_pg * N_pg' * N_pg
-        """
-
-        assert matrixType in MatrixType.Get_types()
-
-        if matrixType not in self.__dict_phaseField_ReactionPart_e_pg.keys():
-
-            jacobian_e_pg = self.Get_jacobian_e_pg(matrixType)
-            weight_pg = self.Get_gauss(matrixType).weights
-            N_pg = self.Get_N_pg_rep(matrixType, 1)
-
-            ReactionPart_e_pg = np.einsum('ep,p,pki,pkj->epij', jacobian_e_pg, weight_pg, N_pg, N_pg, optimize='optimal')
-
-            self.__dict_phaseField_ReactionPart_e_pg[matrixType] = ReactionPart_e_pg
-        
-        return self.__dict_phaseField_ReactionPart_e_pg[matrixType].copy()
-    
-    def Get_DiffusePart_e_pg(self, matrixType: MatrixType) -> np.ndarray:
-        """Get the part that builds the diffusion term (scalar).\n
-        DiffusePart_e_pg = k_e_pg * jacobian_e_pg * weight_pg * dN_e_pg' * A * dN_e_pg\n
-        
-        Returns -> jacobian_e_pg * weight_pg * dN_e_pg'
-        """
-
-        assert matrixType in MatrixType.Get_types()
-
-        if matrixType not in self.__dict_DiffusePart_e_pg.keys():
-
-            jacobian_e_pg = self.Get_jacobian_e_pg(matrixType)
-            weight_pg = self.Get_gauss(matrixType).weights
-            dN_e_pg = self.Get_dN_e_pg(matrixType)
-
-            DiffusePart_e_pg = np.einsum('ep,p,epij->epji', jacobian_e_pg, weight_pg, dN_e_pg, optimize='optimal')
-
-            self.__dict_DiffusePart_e_pg[matrixType] = DiffusePart_e_pg
-        
-        return self.__dict_DiffusePart_e_pg[matrixType].copy()
-
-    def Get_SourcePart_e_pg(self, matrixType: MatrixType) -> np.ndarray:
-        """Get the part that builds the source term (scalar).\n
-        SourcePart_e_pg = f_e_pg * jacobian_e_pg, weight_pg, N_pg'\n
-        
-        Returns -> jacobian_e_pg, weight_pg, N_pg'
-        """
-
-        assert matrixType in MatrixType.Get_types()
-
-        if matrixType not in self.__dict_SourcePart_e_pg.keys():
-
-            jacobian_e_pg = self.Get_jacobian_e_pg(matrixType)
-            weight_pg = self.Get_gauss(matrixType).weights
-            N_pg = self.Get_N_pg_rep(matrixType, 1)
-
-            SourcePart_e_pg = np.einsum('ep,p,pij->epji', jacobian_e_pg, weight_pg, N_pg, optimize='optimal') # the ji is important for the transposition
-
-            self.__dict_SourcePart_e_pg[matrixType] = SourcePart_e_pg
-        
-        return self.__dict_SourcePart_e_pg[matrixType].copy()
     
     def _Get_sysCoord_e(self, displacementMatrix:np.ndarray=None):
         """Get the basis transformation matrix (Ne,3,3).\n
@@ -933,6 +426,72 @@ class _GroupElem(ABC):
         center: np.ndarray = np.einsum('ep,p,epi->i', jacobian_e_p, weight_p, coordo_e_p, optimize='optimal') / size
 
         return center
+    
+    @property  
+    @abstractmethod
+    def origin(self) -> list[int]:
+        """reference element origin coordinates"""
+        return [0]
+
+    @property  
+    @abstractmethod
+    def triangles(self) -> list[int]:
+        """list of indexes to form the triangles of an element that will be used for the 2D trisurf function"""
+        pass
+
+    @property
+    def segments(self) -> np.ndarray:
+        """list of indexes used to construct segments"""
+        if self.__dim == 1:
+            return np.array([[0, 1]], dtype=int)
+        elif self.__dim == 2:
+            segments = np.zeros((self.nbCorners, 2), dtype=int)
+            segments[:,0] = np.arange(self.nbCorners)
+            segments[:,1] = np.append(np.arange(1, self.nbCorners, 1), 0)
+            return segments
+        elif self.__dim == 3:
+            raise Exception("To be defined for 3D element groups.")
+    
+    @property  
+    @abstractmethod
+    def faces(self) -> list[int]:
+        """list of indexes to form the faces that make up the element"""
+        pass
+    
+    # --------------------------------------------------------------------------------------------
+    # Gauss
+    # --------------------------------------------------------------------------------------------
+
+    def Get_gauss(self, matrixType: MatrixType) -> Gauss:
+        """Returns integration points according to the matrix type."""
+        return Gauss(self.elemType, matrixType)
+    
+    def Get_weight_pg(self, matrixType: MatrixType) -> np.ndarray:
+        """Returns integration point weights according to the matrix type."""
+        return Gauss(self.elemType, matrixType).weights
+    
+    def Get_GaussCoordinates_e_p(self, matrixType: MatrixType, elements=np.array([])) -> np.ndarray:
+        """Returns integration point coordinates for each element (Ne, p, 3) in the (x,y,z) coordinates."""
+
+        N_scalar = self.Get_N_pg(matrixType)
+
+        # retrieve node coordinates
+        coordo = self.coordGlob
+
+        # nodes coordinates for each element
+        if elements.size == 0:
+            coordo_e = coordo[self.__connect]
+        else:
+            coordo_e = coordo[self.__connect[elements]]
+
+        # localize coordinates on Gauss points
+        coordo_e_p = np.einsum('pij,ejn->epn', N_scalar, coordo_e, optimize='optimal')
+
+        return np.array(coordo_e_p)
+    
+    # --------------------------------------------------------------------------------------------
+    # Isoparametric elements
+    # --------------------------------------------------------------------------------------------
 
     def Get_F_e_pg(self, matrixType: MatrixType) -> np.ndarray:
         """Returns the Jacobian matrix.\n        
@@ -1058,8 +617,10 @@ class _GroupElem(ABC):
             self.__dict_invF_e_pg[matrixType] = invF_e_pg
 
         return self.__dict_invF_e_pg[matrixType].copy()
-
-    ################################################ Shape functions ##################################################
+    
+    # --------------------------------------------------------------------------------------------
+    # Finite element shape functions
+    # --------------------------------------------------------------------------------------------
 
     @staticmethod
     def _Evaluates_Functions(functions: np.ndarray, coord: np.ndarray) -> np.ndarray:
@@ -1108,7 +669,7 @@ class _GroupElem(ABC):
         functions = np.reshape(functions, (self.nPe, -1))
         return functions
 
-    # Here we use lagrange polynomials
+    # N
 
     @abstractmethod
     def _N(self) -> np.ndarray:
@@ -1131,6 +692,47 @@ class _GroupElem(ABC):
 
         return N_pg
 
+    def Get_N_pg_rep(self, matrixType: MatrixType, repeat=1) -> np.ndarray:
+        """Repeats shape functions in the (ξ,η,ζ) coordinates.
+
+        Parameters
+        ----------
+        matrixType : MatrixType
+            matrix type
+        repeat : int, optional
+            number of repetitions, by default 1
+        
+        Returns:
+        -------
+        • Vector shape functions (pg, rep=2, rep=2*dim)\n
+            [Ni 0 . . . Nn 0 \n
+            0 Ni . . . 0 Nn]
+
+        • Scalar shape functions (pg, rep=1, nPe)\n
+            [Ni . . . Nn]
+        """
+        if self.dim == 0: return
+
+        assert isinstance(repeat, int)
+        assert repeat >= 1
+
+        N_pg = self.Get_N_pg(matrixType)
+
+        if not isinstance(N_pg, np.ndarray): return
+
+        if repeat <= 1:
+            return N_pg
+        else:
+            size = N_pg.shape[2]*repeat
+            N_vect_pg = np.zeros((N_pg.shape[0] ,repeat , size))
+
+            for r in range(repeat):
+                N_vect_pg[:, r, np.arange(r, size, repeat)] = N_pg[:,0,:]
+            
+            return N_vect_pg
+
+    # dN
+    
     @abstractmethod
     def _dN(self) -> np.ndarray:
         """Shape functions first derivatives in the (ξ,η,ζ) coordinates.\n
@@ -1155,6 +757,28 @@ class _GroupElem(ABC):
 
         return dN_pg    
 
+    def Get_dN_e_pg(self, matrixType: MatrixType) -> np.ndarray:
+        """Evaluates the first-order derivatives of shape functions in (x,y,z) coordinates.\n
+        [Ni,x . . . Nn,x\n
+        Ni,y ... Nn,y]\n
+        (e, pg, dim, nPe)\n
+        """
+        assert matrixType in MatrixType.Get_types()
+
+        if matrixType not in self.__dict_dN_e_pg.keys():
+
+            invF_e_pg = self.Get_invF_e_pg(matrixType)
+
+            dN_pg = self.Get_dN_pg(matrixType)
+
+            # Derivation of shape functions in the (x,y,z) coordinates
+            dN_e_pg: np.ndarray = np.einsum('epdk,pkn->epdn', invF_e_pg, dN_pg, optimize='optimal')
+            self.__dict_dN_e_pg[matrixType] = dN_e_pg
+
+        return self.__dict_dN_e_pg[matrixType].copy()
+    
+    # ddN
+    
     @abstractmethod
     def _ddN(self) -> np.ndarray:
         """Shape functions second derivatives in the (ξ,η,ζ) coordinates.\n
@@ -1164,6 +788,27 @@ class _GroupElem(ABC):
         """
         return self.__Init_Functions(2)
 
+    def Get_ddN_e_pg(self, matrixType: MatrixType) -> np.ndarray:
+        """Evaluates the second-order derivatives of shape functions in (x,y,z) coordinates.\n
+        [Ni,xx . . . Nn,xx\n
+        Ni,yy ... Nn,yy]\n
+        (e, pg, dim, nPe)\n
+        """
+        assert matrixType in MatrixType.Get_types()
+
+        if matrixType not in self.__dict_ddN_e_pg.keys():
+
+            invF_e_pg = self.Get_invF_e_pg(matrixType)
+
+            invF_e_pg = invF_e_pg @ invF_e_pg
+
+            ddN_pg = self.Get_ddN_pg(matrixType)
+            
+            ddN_e_pg = np.array(np.einsum('epdk,pkn->epdn', invF_e_pg, ddN_pg, optimize='optimal'))
+            self.__dict_ddN_e_pg[matrixType] = ddN_e_pg
+
+        return self.__dict_ddN_e_pg[matrixType].copy()
+    
     def Get_ddN_pg(self, matrixType: MatrixType) -> np.ndarray:
         """Evaluates shape functions second derivatives in the (ξ,η,ζ) coordinates.\n
         [Ni,xi2 . . . Nn,xi2\n
@@ -1178,6 +823,8 @@ class _GroupElem(ABC):
         ddN_pg = _GroupElem._Evaluates_Functions(ddN, gauss.coord)
 
         return ddN_pg
+
+    # dddN
 
     @abstractmethod
     def _dddN(self) -> np.ndarray:
@@ -1203,6 +850,8 @@ class _GroupElem(ABC):
 
         return dddN_pg
 
+    # ddddN
+    
     @abstractmethod
     def _ddddN(self) -> np.ndarray:
         """Shape functions fourth derivatives in the (ξ,η,ζ) coordinates.\n
@@ -1228,9 +877,11 @@ class _GroupElem(ABC):
         ddddN_pg = _GroupElem._Evaluates_Functions(ddddN, gauss.coord)
 
         return ddddN_pg
-
+        
     # Beams shapes functions
     # Use hermitian shape functions
+
+    # N
     
     def _EulerBernoulli_N(self) -> np.ndarray:
         """Euler-Bernoulli beam shape functions in the (ξ,η,ζ) coordinates.\n
@@ -1239,12 +890,14 @@ class _GroupElem(ABC):
         """
         pass
 
-    def Get_EulerBernoulli_N_pg(self, matrixType: MatrixType) -> np.ndarray:
+    def Get_EulerBernoulli_N_pg(self) -> np.ndarray:
         """Evaluates Euler-Bernoulli beam shape functions in the (ξ,η,ζ) coordinates.\n
         [phi_i psi_i . . . phi_n psi_n]\n        
         (pg, nPe*2)
         """
         if self.dim != 1: return
+
+        matrixType = MatrixType.beam
 
         N = self._EulerBernoulli_N()
 
@@ -1253,6 +906,31 @@ class _GroupElem(ABC):
 
         return N_pg
     
+    def Get_EulerBernoulli_N_e_pg(self) -> np.ndarray:
+        """Evaluates Euler-Bernoulli beam shape functions in (x,y,z) coordinates.\n
+        [phi_i psi_i . . . phi_n psi_n]\n
+        (e, pg, 1, nPe*2)
+        """
+        if self.dim != 1: return
+
+        matrixType = MatrixType.beam
+
+        invF_e_pg = self.Get_invF_e_pg(matrixType)
+        N_pg = self.Get_EulerBernoulli_N_pg(matrixType)
+        nPe = self.nPe
+        
+        N_e_pg = invF_e_pg @ N_pg
+        
+        # multiply by the beam length on psi_i,xx functions
+        l_e = self.length_e
+        columns = np.arange(1, nPe*2, 2)
+        for column in columns:
+            N_e_pg[:,:,0,column] = np.einsum('ep,e->ep', N_e_pg[:,:,0,column], l_e, optimize='optimal')    
+
+        return N_e_pg
+    
+    # dN
+    
     def _EulerBernoulli_dN(self) -> np.ndarray:
         """Euler-Bernoulli beam shape functions first derivatives in the (ξ,η,ζ) coordinates.\n
         [phi_i,xi psi_i,xi . . . phi_n,xi psi_n,xi]\n
@@ -1260,19 +938,46 @@ class _GroupElem(ABC):
         """
         pass
 
-    def Get_EulerBernoulli_dN_pg(self, matrixType: MatrixType) -> np.ndarray:
+    def Get_EulerBernoulli_dN_pg(self) -> np.ndarray:
         """Evaluates Euler-Bernoulli beam shape functions first derivatives in the (ξ,η,ζ) coordinates.\n
         [phi_i,xi psi_i,xi . . . phi_n,xi psi_n,xi]\n
         (pg, nPe*2)
         """
         if self.dim != 1: return
 
-        dNvtild = self._EulerBernoulli_dN()
+        matrixType = MatrixType.beam
+
+        dN = self._EulerBernoulli_dN()
 
         gauss = self.Get_gauss(matrixType)
-        dNv_pg = _GroupElem._Evaluates_Functions(dNvtild, gauss.coord)
+        dN_pg = _GroupElem._Evaluates_Functions(dN, gauss.coord)
 
-        return dNv_pg
+        return dN_pg
+    
+    def Get_EulerBernoulli_dN_e_pg(self) -> np.ndarray:
+        """Evaluates the first-order derivatives of Euler-Bernoulli beam shape functions in (x,y,z) coordinates.\n
+        [phi_i,x psi_i,x . . . phi_n,x psi_n,x]\n
+        (e, pg, 1, nPe*2)
+        """
+        if self.dim != 1: return
+
+        matrixType = MatrixType.beam
+
+        invF_e_pg = self.Get_invF_e_pg(matrixType)
+        dN_pg = self.Get_EulerBernoulli_dN_pg(matrixType)
+        nPe = self.nPe
+        
+        dN_e_pg = invF_e_pg @ dN_pg
+        
+        # multiply by the beam length on psi_i,xx functions
+        l_e = self.length_e
+        columns = np.arange(1, nPe*2, 2)
+        for column in columns:
+            dN_e_pg[:,:,0,column] = np.einsum('ep,e->ep', dN_e_pg[:,:,0,column], l_e, optimize='optimal')
+
+        return dN_e_pg
+    
+    # ddN
     
     def _EulerBernoulli_ddN(self) -> np.ndarray:
         """Euler-Bernoulli beam shape functions second derivatives in the (ξ,η,ζ) coordinates.\n
@@ -1281,22 +986,396 @@ class _GroupElem(ABC):
         """
         return 
     
-    def Get_EulerBernoulli_ddN_pg(self, matrixType: MatrixType) -> np.ndarray:
+    def Get_EulerBernoulli_ddN_pg(self) -> np.ndarray:
         """Evaluates Euler-Bernoulli beam shape functions second derivatives in the (ξ,η,ζ) coordinates.\n
         [phi_i,xi2 psi_i,xi2 . . . phi_n,xi2 x psi_n,xi2]\n
         (pg, nPe*2)
         """
         if self.dim != 1: return
 
-        ddNvtild = self._EulerBernoulli_ddN()
+        matrixType = MatrixType.beam
+
+        ddN = self._EulerBernoulli_ddN()
 
         gauss = self.Get_gauss(matrixType)
-        ddNv_pg = _GroupElem._Evaluates_Functions(ddNvtild, gauss.coord)
+        ddN_pg = _GroupElem._Evaluates_Functions(ddN, gauss.coord)
 
-        return ddNv_pg
+        return ddN_pg
+    
+    def Get_EulerBernoulli_ddN_e_pg(self) -> np.ndarray:
+        """Evaluates the second-order derivatives of Euler-Bernoulli beam shape functions in (x,y,z) coordinates.\n
+        [phi_i,xx psi_i,xx . . . phi_n,xx psi_n,xx]\n
+        (e, pg, 1, nPe*2)
+        """
+        if self.dim != 1: return
+        
+        matrixType = MatrixType.beam        
 
-    ################################################ Nodes & Elements ##################################################
+        invF_e_pg = self.Get_invF_e_pg(matrixType)
+        ddN_pg = self.Get_EulerBernoulli_ddN_pg(matrixType)
+        nPe = self.nPe
+        
+        ddN_e_pg = invF_e_pg @ invF_e_pg @ ddN_pg
+        
+        # multiply by the beam length on psi_i,xx functions
+        l_e = self.length_e
+        columns = np.arange(1, nPe*2, 2)
+        for column in columns:
+            ddN_e_pg[:,:,0,column] = np.einsum('ep,e->ep', ddN_e_pg[:,:,0,column], l_e, optimize='optimal')
 
+        return ddN_e_pg
+    
+    # --------------------------------------------------------------------------------------------
+    # Finite element matrices
+    # --------------------------------------------------------------------------------------------
+    
+    # Linear elastic problem
+
+    def Get_B_e_pg(self, matrixType: MatrixType) -> np.ndarray:
+        """Get the matrix used to calculate deformations from displacements.\n
+        WARNING: Use Kelvin Mandel Notation\n
+        [N1,x 0 N2,x 0 Nn,x 0\n
+        0 N1,y 0 N2,y 0 Nn,y\n
+        N1,y N1,x N2,y N2,x N3,y N3,x]\n
+        (e, pg, (3 or 6), nPe*dim)        
+        """
+        assert matrixType in MatrixType.Get_types()
+
+        if matrixType not in self.__dict_B_e_pg.keys():
+
+            dN_e_pg = self.Get_dN_e_pg(matrixType)
+
+            Ne = self.Ne
+            nPg = self.Get_gauss(matrixType).nPg
+            nPe = self.nPe
+            dim = self.dim
+
+            cM = 1/np.sqrt(2)
+            
+            columnsX = np.arange(0, nPe*dim, dim)
+            columnsY = np.arange(1, nPe*dim, dim)
+            columnsZ = np.arange(2, nPe*dim, dim)
+
+            if self.dim == 2:                
+                B_e_pg = np.zeros((Ne, nPg, 3, nPe*dim))                
+                
+                dNdx = dN_e_pg[:,:,0]
+                dNdy = dN_e_pg[:,:,1]
+
+                B_e_pg[:,:,0,columnsX] = dNdx
+                B_e_pg[:,:,1,columnsY] = dNdy
+                B_e_pg[:,:,2,columnsX] = dNdy*cM; B_e_pg[:,:,2,columnsY] = dNdx*cM
+            else:
+                B_e_pg = np.zeros((Ne, nPg, 6, nPe*dim))
+
+                dNdx = dN_e_pg[:,:,0]
+                dNdy = dN_e_pg[:,:,1]
+                dNdz = dN_e_pg[:,:,2]
+
+                B_e_pg[:,:,0,columnsX] = dNdx
+                B_e_pg[:,:,1,columnsY] = dNdy
+                B_e_pg[:,:,2,columnsZ] = dNdz
+                B_e_pg[:,:,3,columnsY] = dNdz*cM; B_e_pg[:,:,3,columnsZ] = dNdy*cM
+                B_e_pg[:,:,4,columnsX] = dNdz*cM; B_e_pg[:,:,4,columnsZ] = dNdx*cM
+                B_e_pg[:,:,5,columnsX] = dNdy*cM; B_e_pg[:,:,5,columnsY] = dNdx*cM
+
+            self.__dict_B_e_pg[matrixType] = B_e_pg
+        
+        return self.__dict_B_e_pg[matrixType].copy()
+
+    def Get_leftDispPart(self, matrixType: MatrixType) -> np.ndarray:
+        """Get the left side of local displacement matrices.\n
+        Ku_e = jacobian_e_pg * weight_pg * B_e_pg' * c_e_pg * B_e_pg\n
+        
+        Returns (epij) -> jacobian_e_pg * weight_pg * B_e_pg'.
+        """
+
+        assert matrixType in MatrixType.Get_types()
+
+        if matrixType not in self.__dict_leftDispPart.keys():
+            
+            jacobian_e_pg = self.Get_jacobian_e_pg(matrixType)
+            weight_pg = self.Get_gauss(matrixType).weights
+            B_e_pg = self.Get_B_e_pg(matrixType)
+
+            leftDispPart = np.einsum('ep,p,epij->epji', jacobian_e_pg, weight_pg, B_e_pg, optimize='optimal')
+
+            self.__dict_leftDispPart[matrixType] = leftDispPart
+
+        return self.__dict_leftDispPart[matrixType].copy()
+
+    # Euler Bernoulli problem
+
+    def Get_EulerBernoulli_N_e_pg(self, beamStructure) -> np.ndarray:
+        """Euler-Bernoulli beam shape functions."""
+
+        from ..materials._beam import BeamStructure
+
+        # Example in matlab :
+        # https://github.com/fpled/FEMObject/blob/master/BASIC/MODEL/ELEMENTS/%40BEAM/calc_N.m
+
+        matrixType = MatrixType.beam
+
+        # get the beam model
+        beamStructure: BeamStructure = beamStructure
+        dim = beamStructure.dim
+        dof_n = beamStructure.dof_n
+
+        # Data
+        jacobian_e_pg = self.Get_jacobian_e_pg(matrixType)
+        nPe = self.nPe
+        Ne = jacobian_e_pg.shape[0]
+        nPg = jacobian_e_pg.shape[1]
+
+        # get matrices to work with
+        N_pg = self.Get_N_pg(matrixType)        
+        if beamStructure.dim > 1:
+            N_e_pg = self.Get_EulerBernoulli_N_e_pg()
+            dN_e_pg = self.Get_EulerBernoulli_dN_e_pg()
+
+        if dim == 1:
+            # u = [u1, . . . , un]
+            
+            # N = [N_i, . . . , N_n]
+
+            idx_ux = np.arange(dof_n*nPe)
+
+            N_e_pg = np.zeros((Ne, nPg, 1, dof_n*nPe))
+            N_e_pg[:,:,0, idx_ux] = N_pg[:,:,0]
+                
+        elif dim == 2:
+            # u = [u1, v1, rz1, . . . , un, vn, rzn]
+            
+            # N = [N_i, 0, 0, ... , N_n, 0, 0,]
+            #     [0, Phi_i, Psi_i, ... , 0, Phi_i, Psi_i]
+            #     [0, dPhi_i, dPsi_i, ... , 0, dPhi_i, dPsi_i]
+
+            idx = np.arange(dof_n*nPe).reshape(nPe,-1)
+            
+            idx_ux = idx[:,0] # [0,3] (SEG2) [0,3,6] (SEG3)
+            idx_uy = np.reshape(idx[:,1:], -1) # [1,2,4,5] (SEG2) [1,2,4,5,7,8] (SEG3)
+
+            N_e_pg = np.zeros((Ne, nPg, 3, dof_n*nPe))
+            
+            N_e_pg[:,:,0, idx_ux] = N_pg[:,:,0] # traction / compression to get u
+            N_e_pg[:,:,1, idx_uy] = N_e_pg[:,:,0] # flexion z to get v
+            N_e_pg[:,:,2, idx_uy] = dN_e_pg[:,:,0] # flexion z to get rz
+
+        elif dim == 3:
+            # u = [u1, v1, w1, rx1, ry1, rz1, . . . , un, vn, wn, rxn, ryn, rzn]
+
+            # N = [N_i, 0, 0, 0, 0, 0, ... , N_n, 0, 0, 0, 0, 0]
+            #     [0, Phi_i, 0, 0, 0, Psi_i, ... , 0, Phi_n, 0, 0, 0, Psi_n]
+            #     [0, 0, dPhi_i, 0, -dPsi_i, 0, ... , 0, 0, dPhi_n, 0, -dPsi_n, 0]
+            #     [0, 0, 0, N_i, 0, 0, ... , 0, 0, 0, N_n, 0, 0]
+            #     [0, 0, -dPhi_i, 0, dPsi_i, 0, ... , 0, 0, -dPhi_n, 0, dPsi_n, 0]
+            #     [0, dPhi_i, 0, 0, 0, dPsi_i, ... , 0, dPhi_i, 0, 0, 0, dPsi_n]
+
+            idx = np.arange(dof_n*nPe).reshape(nPe,-1)
+            idx_ux = idx[:,0] # [0,6] (SEG2) [0,6,12] (SEG3)
+            idx_uy = np.reshape(idx[:,[1,5]], -1) # [1,5,7,11] (SEG2) [1,5,7,11,13,17] (SEG3)
+            idx_uz = np.reshape(idx[:,[2,4]], -1) # [2,4,8,10] (SEG2) [2,4,8,10,14,16] (SEG3)
+            idx_rx = idx[:,3] # [3,9] (SEG2) [3,9,15] (SEG3)
+            idPsi = np.arange(1, nPe*2, 2) # [1,3] (SEG2) [1,3,5] (SEG3)
+
+            Nvz_e_pg = N_e_pg.copy()
+            Nvz_e_pg[:,:,0,idPsi] *= -1
+
+            dNvz_e_pg = dN_e_pg.copy()
+            dNvz_e_pg[:,:,0,idPsi] *= -1
+
+            N_e_pg = np.zeros((Ne, nPg, 6, dof_n*nPe))
+            
+            N_e_pg[:,:,0, idx_ux] = N_pg[:,:,0]
+            N_e_pg[:,:,1, idx_uy] = N_e_pg[:,:,0]
+            N_e_pg[:,:,2, idx_uz] = Nvz_e_pg[:,:,0]
+            N_e_pg[:,:,3, idx_rx] = N_pg[:,:,0]
+            N_e_pg[:,:,4, idx_uz] = -dNvz_e_pg[:,:,0] # ry = -uz'
+            N_e_pg[:,:,5, idx_uy] = dN_e_pg[:,:,0] # rz = uy'
+        
+        if dim > 1:
+            # Construct the matrix used to change the matrix coordinates 
+            P = np.zeros((self.Ne, 3, 3), dtype=float)
+            for beam in beamStructure.beams:
+                elems = self.Get_Elements_Tag(beam.name)
+                P[elems] = beam._Calc_P()
+
+            Pglob_e = np.zeros((Ne, dof_n*nPe, dof_n*nPe))            
+            N = P.shape[1]
+            lines = np.repeat(range(N), N)
+            columns = np.array(list(range(N))*N)
+            for n in range(dof_n*nPe//3):
+                # apply P on the diagonal
+                Pglob_e[:, lines + n*N, columns + n*N] = P[:,lines,columns]
+
+            N_e_pg = np.einsum('epij,ejk->epik', N_e_pg, Pglob_e, optimize='optimal')
+
+        return N_e_pg
+    
+    def Get_EulerBernoulli_B_e_pg(self, beamStructure) -> np.ndarray:
+        """Get Euler-Bernoulli beam shape functions derivatives"""
+
+        from ..materials._beam import BeamStructure
+
+        # Example in matlab :
+        # https://github.com/fpled/FEMObject/blob/master/BASIC/MODEL/ELEMENTS/%40BEAM/calc_B.m
+
+        matrixType = MatrixType.beam
+
+        # Recovering the beam model
+        beamStructure: BeamStructure = beamStructure
+        dim = beamStructure.dim
+        dof_n = beamStructure.dof_n
+
+        # Data
+        jacobian_e_pg = self.Get_jacobian_e_pg(matrixType)
+        nPe = self.nPe
+        Ne = jacobian_e_pg.shape[0]
+        nPg = jacobian_e_pg.shape[1]
+
+        # Recover matrices to work with
+        dN_e_pg = self.Get_dN_e_pg(matrixType)
+        if beamStructure.dim > 1:
+            ddNv_e_pg = self.Get_EulerBernoulli_ddN_e_pg()
+
+        if dim == 1:
+            # u = [u1, . . . , un]
+            
+            # B = [dN_i, . . . , dN_n]
+
+            idx_ux = np.arange(dof_n*nPe)
+
+            B_e_pg = np.zeros((Ne, nPg, 1, dof_n*nPe))
+            B_e_pg[:,:,0, idx_ux] = dN_e_pg[:,:,0]
+                
+        elif dim == 2:
+            # u = [u1, v1, rz1, . . . , un, vn, rzn]
+            
+            # B = [dN_i, 0, 0, ... , dN_n, 0, 0,]
+            #     [0, ddPhi_i, ddPsi_i, ... , 0, ddPhi_i, ddPsi_i]
+
+            idx = np.arange(dof_n*nPe).reshape(nPe,-1)
+            
+            idx_ux = idx[:,0] # [0,3] (SEG2) [0,3,6] (SEG3)
+            idx_uy = np.reshape(idx[:,1:], -1) # [1,2,4,5] (SEG2) [1,2,4,5,7,8] (SEG3)
+
+            B_e_pg = np.zeros((Ne, nPg, 2, dof_n*nPe))
+            
+            B_e_pg[:,:,0, idx_ux] = dN_e_pg[:,:,0] # traction / compression
+            B_e_pg[:,:,1, idx_uy] = ddNv_e_pg[:,:,0] # flexion along z
+
+        elif dim == 3:
+            # u = [u1, v1, w1, rx1, ry1, rz1, . . . , un, vn, wn, rxn, ryn, rzn]
+
+            # B = [dN_i, 0, 0, 0, 0, 0, ... , dN_n, 0, 0, 0, 0, 0]
+            #     [0, 0, 0, dN_i, 0, 0, ... , 0, 0, 0, dN_n, 0, 0]
+            #     [0, 0, ddPhi_i, 0, -ddPsi_i, 0, ... , 0, 0, ddPhi_n, 0, -ddPsi_n, 0]
+            #     [0, ddPhi_i, 0, 0, 0, ddPsi_i, ... , 0, ddPhi_i, 0, 0, 0, ddPsi_n]
+
+            idx = np.arange(dof_n*nPe).reshape(nPe,-1)
+            idx_ux = idx[:,0] # [0,6] (SEG2) [0,6,12] (SEG3)
+            idx_uy = np.reshape(idx[:,[1,5]], -1) # [1,5,7,11] (SEG2) [1,5,7,11,13,17] (SEG3)
+            idx_uz = np.reshape(idx[:,[2,4]], -1) # [2,4,8,10] (SEG2) [2,4,8,10,14,16] (SEG3)
+            idx_rx = idx[:,3] # [3,9] (SEG2) [3,9,15] (SEG3)
+            
+            idPsi = np.arange(1, nPe*2, 2) # [1,3] (SEG2) [1,3,5] (SEG3)
+            ddNvz_e_pg = ddNv_e_pg.copy()
+            ddNvz_e_pg[:,:,0,idPsi] *= -1 # RY = -UZ'
+
+            B_e_pg = np.zeros((Ne, nPg, 4, dof_n*nPe))
+            
+            B_e_pg[:,:,0, idx_ux] = dN_e_pg[:,:,0] # traction / compression
+            B_e_pg[:,:,1, idx_rx] = dN_e_pg[:,:,0] # torsion
+            B_e_pg[:,:,2, idx_uz] = ddNvz_e_pg[:,:,0] # flexion along y
+            B_e_pg[:,:,3, idx_uy] = ddNv_e_pg[:,:,0] # flexion along z        
+
+        if dim > 1:
+            # Construct the matrix used to change the matrix coordinates 
+            P = np.zeros((self.Ne, 3, 3), dtype=float)
+            for beam in beamStructure.beams:
+                elems = self.Get_Elements_Tag(beam.name)
+                P[elems] = beam._Calc_P()
+
+            Pglob_e = np.zeros((Ne, dof_n*nPe, dof_n*nPe))            
+            N = P.shape[1]
+            lines = np.repeat(range(N), N)
+            columns = np.array(list(range(N))*N)
+            for n in range(dof_n*nPe//3):
+                # apply P on the diagonal
+                Pglob_e[:, lines + n*N, columns + n*N] = P[:,lines,columns]
+
+            B_e_pg = np.einsum('epij,ejk->epik', B_e_pg, Pglob_e, optimize='optimal')
+
+        return B_e_pg
+    
+    # reaction diffusion problem
+
+    def Get_ReactionPart_e_pg(self, matrixType: MatrixType) -> np.ndarray:
+        """Get the part that builds the reaction term (scalar).\n
+        ReactionPart_e_pg = r_e_pg * jacobian_e_pg * weight_pg * N_pg' * N_pg\n
+        
+        Returns -> jacobian_e_pg * weight_pg * N_pg' * N_pg
+        """
+
+        assert matrixType in MatrixType.Get_types()
+
+        if matrixType not in self.__dict_phaseField_ReactionPart_e_pg.keys():
+
+            jacobian_e_pg = self.Get_jacobian_e_pg(matrixType)
+            weight_pg = self.Get_gauss(matrixType).weights
+            N_pg = self.Get_N_pg_rep(matrixType, 1)
+
+            ReactionPart_e_pg = np.einsum('ep,p,pki,pkj->epij', jacobian_e_pg, weight_pg, N_pg, N_pg, optimize='optimal')
+
+            self.__dict_phaseField_ReactionPart_e_pg[matrixType] = ReactionPart_e_pg
+        
+        return self.__dict_phaseField_ReactionPart_e_pg[matrixType].copy()
+    
+    def Get_DiffusePart_e_pg(self, matrixType: MatrixType) -> np.ndarray:
+        """Get the part that builds the diffusion term (scalar).\n
+        DiffusePart_e_pg = k_e_pg * jacobian_e_pg * weight_pg * dN_e_pg' * A * dN_e_pg\n
+        
+        Returns -> jacobian_e_pg * weight_pg * dN_e_pg'
+        """
+
+        assert matrixType in MatrixType.Get_types()
+
+        if matrixType not in self.__dict_DiffusePart_e_pg.keys():
+
+            jacobian_e_pg = self.Get_jacobian_e_pg(matrixType)
+            weight_pg = self.Get_gauss(matrixType).weights
+            dN_e_pg = self.Get_dN_e_pg(matrixType)
+
+            DiffusePart_e_pg = np.einsum('ep,p,epij->epji', jacobian_e_pg, weight_pg, dN_e_pg, optimize='optimal')
+
+            self.__dict_DiffusePart_e_pg[matrixType] = DiffusePart_e_pg
+        
+        return self.__dict_DiffusePart_e_pg[matrixType].copy()
+
+    def Get_SourcePart_e_pg(self, matrixType: MatrixType) -> np.ndarray:
+        """Get the part that builds the source term (scalar).\n
+        SourcePart_e_pg = f_e_pg * jacobian_e_pg, weight_pg, N_pg'\n
+        
+        Returns -> jacobian_e_pg, weight_pg, N_pg'
+        """
+
+        assert matrixType in MatrixType.Get_types()
+
+        if matrixType not in self.__dict_SourcePart_e_pg.keys():
+
+            jacobian_e_pg = self.Get_jacobian_e_pg(matrixType)
+            weight_pg = self.Get_gauss(matrixType).weights
+            N_pg = self.Get_N_pg_rep(matrixType, 1)
+
+            SourcePart_e_pg = np.einsum('ep,p,pij->epji', jacobian_e_pg, weight_pg, N_pg, optimize='optimal') # the ji is important for the transposition
+
+            self.__dict_SourcePart_e_pg[matrixType] = SourcePart_e_pg
+        
+        return self.__dict_SourcePart_e_pg[matrixType].copy()
+
+    # --------------------------------------------------------------------------------------------
+    # Nodes & Elements
+    # --------------------------------------------------------------------------------------------
 
     def Get_Elements_Nodes(self, nodes: np.ndarray, exclusively=True) -> np.ndarray:
         """Returns elements that exclusively or not use the specified nodes."""
@@ -1899,39 +1978,10 @@ class _GroupElem(ABC):
                             (zn >= np.min(ze)) & (zn <= np.max(ze)))[0]
 
         return idx
-    
-    @property  
-    @abstractmethod
-    def origin(self) -> list[int]:
-        """reference element origin coordinates"""
-        return [0]
 
-    @property  
-    @abstractmethod
-    def triangles(self) -> list[int]:
-        """list of indexes to form the triangles of an element that will be used for the 2D trisurf function"""
-        pass
-
-    @property
-    def segments(self) -> np.ndarray:
-        """list of indexes used to construct segments"""
-        if self.__dim == 1:
-            return np.array([[0, 1]], dtype=int)
-        elif self.__dim == 2:
-            segments = np.zeros((self.nbCorners, 2), dtype=int)
-            segments[:,0] = np.arange(self.nbCorners)
-            segments[:,1] = np.append(np.arange(1, self.nbCorners, 1), 0)
-            return segments
-        elif self.__dim == 3:
-            raise Exception("To be defined for 3D element groups.")
-    
-    @property  
-    @abstractmethod
-    def faces(self) -> list[int]:
-        """list of indexes to form the faces that make up the element"""
-        pass
-
-################################################ Factory ##################################################
+# --------------------------------------------------------------------------------------------
+# Factory
+# --------------------------------------------------------------------------------------------
 
 # elems
 from .elems._point import POINT
