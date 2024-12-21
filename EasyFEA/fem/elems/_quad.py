@@ -37,7 +37,7 @@ class QUAD4(_GroupElem):
     def faces(self) -> list[int]:
         return [0,1,2,3,0]
 
-    def _Ntild(self) -> np.ndarray:
+    def _N(self) -> np.ndarray:
 
         N1t = lambda xi,eta: (1-xi)*(1-eta)/4
         N2t = lambda xi,eta: (1+xi)*(1-eta)/4
@@ -48,7 +48,7 @@ class QUAD4(_GroupElem):
 
         return Ntild
 
-    def _dNtild(self) -> np.ndarray:
+    def _dN(self) -> np.ndarray:
 
         dN1t = [lambda xi,eta: (eta-1)/4,  lambda xi,eta: (xi-1)/4]
         dN2t = [lambda xi,eta: (1-eta)/4,  lambda xi,eta: (-xi-1)/4]
@@ -59,14 +59,14 @@ class QUAD4(_GroupElem):
 
         return dNtild
 
-    def _ddNtild(self) -> np.ndarray:
-        return super()._ddNtild()
+    def _ddN(self) -> np.ndarray:
+        return super()._ddN()
     
-    def _dddNtild(self) -> np.ndarray:
-        return super()._dddNtild()
+    def _dddN(self) -> np.ndarray:
+        return super()._dddN()
     
-    def _ddddNtild(self) -> np.ndarray:
-        return super()._ddddNtild()
+    def _ddddN(self) -> np.ndarray:
+        return super()._ddddN()
 
 class QUAD8(_GroupElem):
     #       v
@@ -101,7 +101,7 @@ class QUAD8(_GroupElem):
     def faces(self) -> list[int]:
         return [0,4,1,5,2,6,3,7,0]
 
-    def _Ntild(self) -> np.ndarray:
+    def _N(self) -> np.ndarray:
 
         N1t = lambda xi,eta: (1-xi)*(1-eta)*(-1-xi-eta)/4
         N2t = lambda xi,eta: (1+xi)*(1-eta)*(-1+xi-eta)/4
@@ -116,7 +116,7 @@ class QUAD8(_GroupElem):
 
         return Ntild
     
-    def _dNtild(self) -> np.ndarray:
+    def _dN(self) -> np.ndarray:
 
         dN1t = [lambda xi,eta: (1-eta)*(2*xi+eta)/4,      lambda xi,eta: (1-xi)*(xi+2*eta)/4]
         dN2t = [lambda xi,eta: (1-eta)*(2*xi-eta)/4,      lambda xi,eta: -(1+xi)*(xi-2*eta)/4]
@@ -131,7 +131,7 @@ class QUAD8(_GroupElem):
 
         return dNtild
 
-    def _ddNtild(self) -> np.ndarray:
+    def _ddN(self) -> np.ndarray:
 
         ddN1t = [lambda xi,eta: (1-eta)/2,  lambda xi,eta: (1-xi)/2]
         ddN2t = [lambda xi,eta: (1-eta)/2,  lambda xi,eta: (1+xi)/2]
@@ -146,17 +146,17 @@ class QUAD8(_GroupElem):
 
         return ddNtild
 
-    def _dddNtild(self) -> np.ndarray:
-        return super()._dddNtild()
+    def _dddN(self) -> np.ndarray:
+        return super()._dddN()
 
-    def _ddddNtild(self) -> np.ndarray:
-        return super()._ddddNtild()
+    def _ddddN(self) -> np.ndarray:
+        return super()._ddddN()
 
-    def _Nvtild(self) -> np.ndarray:
-        return super()._Nvtild()
+    def _EulerBernoulli_N(self) -> np.ndarray:
+        return super()._EulerBernoulli_N()
 
-    def dNvtild(self) -> np.ndarray:
-        return super().dNvtild()
+    def _EulerBernoulli_dN(self) -> np.ndarray:
+        return super()._EulerBernoulli_dN()
 
-    def _ddNvtild(self) -> np.ndarray:
-        return super()._ddNvtild()
+    def _EulerBernoulli_ddN(self) -> np.ndarray:
+        return super()._EulerBernoulli_ddN()

@@ -31,7 +31,7 @@ class SEG2(_GroupElem):
     def faces(self) -> list[int]:
         return [0,1]
 
-    def _Ntild(self) -> np.ndarray:
+    def _N(self) -> np.ndarray:
 
         N1t = lambda x: 0.5*(1-x)
         N2t = lambda x: 0.5*(1+x)
@@ -40,7 +40,7 @@ class SEG2(_GroupElem):
 
         return Ntild
     
-    def _dNtild(self) -> np.ndarray:
+    def _dN(self) -> np.ndarray:
 
         dN1t = [lambda x: -0.5]
         dN2t = [lambda x: 0.5]
@@ -49,16 +49,16 @@ class SEG2(_GroupElem):
 
         return dNtild
 
-    def _ddNtild(self) -> np.ndarray:
-        return super()._ddNtild()
+    def _ddN(self) -> np.ndarray:
+        return super()._ddN()
 
-    def _dddNtild(self) -> np.ndarray:
-        return super()._dddNtild()
+    def _dddN(self) -> np.ndarray:
+        return super()._dddN()
     
-    def _ddddNtild(self) -> np.ndarray:
-        return super()._ddddNtild()
+    def _ddddN(self) -> np.ndarray:
+        return super()._ddddN()
 
-    def _Nvtild(self) -> np.ndarray:
+    def _EulerBernoulli_N(self) -> np.ndarray:
 
         phi_1 = lambda x : 0.5 + -0.75*x + 0.0*x**2 + 0.25*x**3
         psi_1 = lambda x : 0.125 + -0.125*x + -0.125*x**2 + 0.125*x**3
@@ -69,7 +69,7 @@ class SEG2(_GroupElem):
 
         return Nvtild
 
-    def dNvtild(self) -> np.ndarray:
+    def _EulerBernoulli_dN(self) -> np.ndarray:
 
         phi_1_x = lambda x : -0.75 + 0.0*x + 0.75*x**2
         psi_1_x = lambda x : -0.125 + -0.25*x + 0.375*x**2
@@ -80,7 +80,7 @@ class SEG2(_GroupElem):
 
         return dNvtild
 
-    def _ddNvtild(self) -> np.ndarray:
+    def _EulerBernoulli_ddN(self) -> np.ndarray:
 
         phi_1_xx = lambda x : 0.0 + 1.5*x
         psi_1_xx = lambda x : -0.25 + 0.75*x
@@ -114,7 +114,7 @@ class SEG3(_GroupElem):
     def faces(self) -> list[int]:
         return [0,2,1]
 
-    def _Ntild(self) -> np.ndarray:
+    def _N(self) -> np.ndarray:
 
         N1t = lambda x: -0.5*(1-x)*x
         N2t = lambda x: 0.5*(1+x)*x
@@ -124,7 +124,7 @@ class SEG3(_GroupElem):
 
         return Ntild
 
-    def _dNtild(self) -> np.ndarray:
+    def _dN(self) -> np.ndarray:
 
         dN1t = [lambda x: x-0.5]
         dN2t = [lambda x: x+0.5]
@@ -134,7 +134,7 @@ class SEG3(_GroupElem):
 
         return dNtild
 
-    def _ddNtild(self) -> np.ndarray:
+    def _ddN(self) -> np.ndarray:
 
         ddN1t = [lambda x: 1]
         ddN2t = [lambda x: 1]
@@ -144,13 +144,13 @@ class SEG3(_GroupElem):
 
         return ddNtild
 
-    def _dddNtild(self) -> np.ndarray:
-        return super()._dddNtild()
+    def _dddN(self) -> np.ndarray:
+        return super()._dddN()
 
-    def _ddddNtild(self) -> np.ndarray:
-        return super()._ddddNtild()
+    def _ddddN(self) -> np.ndarray:
+        return super()._ddddN()
         
-    def _Nvtild(self) -> np.ndarray:
+    def _EulerBernoulli_N(self) -> np.ndarray:
 
         phi_1 = lambda x : 0.0 + 0.0*x + 1.0*x**2 + -1.25*x**3 + -0.5*x**4 + 0.75*x**5
         psi_1 = lambda x : 0.0 + 0.0*x + 0.125*x**2 + -0.125*x**3 + -0.125*x**4 + 0.125*x**5
@@ -163,7 +163,7 @@ class SEG3(_GroupElem):
 
         return Nvtild
 
-    def dNvtild(self) -> np.ndarray:
+    def _EulerBernoulli_dN(self) -> np.ndarray:
 
         phi_1_x = lambda x : 0.0 + 2.0*x + -3.75*x**2 + -2.0*x**3 + 3.75*x**4
         psi_1_x = lambda x : 0.0 + 0.25*x + -0.375*x**2 + -0.5*x**3 + 0.625*x**4
@@ -176,7 +176,7 @@ class SEG3(_GroupElem):
 
         return dNvtild
 
-    def _ddNvtild(self) -> np.ndarray:
+    def _EulerBernoulli_ddN(self) -> np.ndarray:
         
         phi_1_xx = lambda x : 2.0 + -7.5*x + -6.0*x**2 + 15.0*x**3
         psi_1_xx = lambda x : 0.25 + -0.75*x + -1.5*x**2 + 2.5*x**3
@@ -212,7 +212,7 @@ class SEG4(_GroupElem):
     def faces(self) -> list[int]:
         return [0,2,3,1]
 
-    def _Ntild(self) -> np.ndarray:
+    def _N(self) -> np.ndarray:
 
         N1t = lambda x : -0.5625*x**3 + 0.5625*x**2 + 0.0625*x - 0.0625
         N2t = lambda x : 0.5625*x**3 + 0.5625*x**2 - 0.0625*x - 0.0625
@@ -223,7 +223,7 @@ class SEG4(_GroupElem):
 
         return Ntild
 
-    def _dNtild(self) -> np.ndarray:
+    def _dN(self) -> np.ndarray:
 
         dN1t = [lambda x : -1.6875*x**2 + 1.125*x + 0.0625]
         dN2t = [lambda x : 1.6875*x**2 + 1.125*x - 0.0625]
@@ -234,7 +234,7 @@ class SEG4(_GroupElem):
 
         return dNtild
     
-    def _ddNtild(self) -> np.ndarray:
+    def _ddN(self) -> np.ndarray:
 
         ddN1t = [lambda x : -3.375*x + 1.125]
         ddN2t = [lambda x : 3.375*x + 1.125]
@@ -245,7 +245,7 @@ class SEG4(_GroupElem):
 
         return ddNtild
 
-    def _dddNtild(self) -> np.ndarray:
+    def _dddN(self) -> np.ndarray:
         
         dddN1t = [lambda x : -3.375]
         dddN2t = [lambda x : 3.375]
@@ -256,10 +256,10 @@ class SEG4(_GroupElem):
 
         return dddNtild
 
-    def _ddddNtild(self) -> np.ndarray:
-        return super()._ddddNtild()
+    def _ddddN(self) -> np.ndarray:
+        return super()._ddddN()
 
-    def _Nvtild(self) -> np.ndarray:
+    def _EulerBernoulli_N(self) -> np.ndarray:
 
         phi_1 = lambda x : 0.025390624999999556 + -0.029296874999997335*x + -0.4746093750000018*x**2 + 0.548828124999992*x**3 + 2.3730468750000036*x**4 + -2.7597656249999916*x**5 + -1.4238281250000018*x**6 + 1.740234374999997*x**7
         psi_1 = lambda x : 0.0019531250000000555 + -0.0019531249999997224*x + -0.03710937500000017*x**2 + 0.03710937499999917*x**3 + 0.19335937500000028*x**4 + -0.19335937499999917*x**5 + -0.15820312500000014*x**6 + 0.15820312499999972*x**7
@@ -274,7 +274,7 @@ class SEG4(_GroupElem):
 
         return Nvtild
         
-    def dNvtild(self) -> np.ndarray:
+    def _EulerBernoulli_dN(self) -> np.ndarray:
 
         phi_1_x = lambda x : -0.029296874999997335 + -0.9492187500000036*x + 1.646484374999976*x**2 + 9.492187500000014*x**3 + -13.798828124999957*x**4 + -8.54296875000001*x**5 + 12.181640624999979*x**6
         psi_1_x = lambda x : -0.0019531249999997224 + -0.07421875000000033*x + 0.1113281249999975*x**2 + 0.7734375000000011*x**3 + -0.9667968749999958*x**4 + -0.9492187500000009*x**5 + 1.107421874999998*x**6
@@ -289,7 +289,7 @@ class SEG4(_GroupElem):
 
         return dNvtild    
 
-    def _ddNvtild(self) -> np.ndarray:
+    def _EulerBernoulli_ddN(self) -> np.ndarray:
         
         phi_1_xx = lambda x : -0.9492187500000036 + 3.292968749999952*x + 28.476562500000043*x**2 + -55.19531249999983*x**3 + -42.71484375000006*x**4 + 73.08984374999987*x**5
         psi_1_xx = lambda x : -0.07421875000000033 + 0.222656249999995*x + 2.3203125000000036*x**2 + -3.867187499999983*x**3 + -4.746093750000004*x**4 + 6.6445312499999885*x**5

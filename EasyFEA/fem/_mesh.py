@@ -890,7 +890,7 @@ def Calc_projector(oldMesh: Mesh, newMesh: Mesh) -> sp.csr_matrix:
     tic.Tac("Mesh", "Mapping between meshes", False)
 
     # Evaluation of shape functions
-    Ntild = oldMesh.groupElem._Ntild()        
+    Ntild = oldMesh.groupElem._N()        
     nPe = oldMesh.groupElem.nPe
     phi_n_nPe = np.zeros((coordo_n.shape[0], nPe)) # functions evaluated at identified coordinates
     for n in range(nPe):

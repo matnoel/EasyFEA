@@ -36,7 +36,7 @@ class TRI3(_GroupElem):
     def faces(self) -> list[int]:
         return [0,1,2,0]    
 
-    def _Ntild(self) -> np.ndarray:
+    def _N(self) -> np.ndarray:
 
         N1t = lambda xi,eta: 1-xi-eta
         N2t = lambda xi,eta: xi
@@ -46,7 +46,7 @@ class TRI3(_GroupElem):
 
         return Ntild
 
-    def _dNtild(self) -> np.ndarray:
+    def _dN(self) -> np.ndarray:
 
         dN1t = [lambda xi,eta: -1, lambda xi,eta: -1]
         dN2t = [lambda xi,eta: 1,  lambda xi,eta: 0]
@@ -56,14 +56,14 @@ class TRI3(_GroupElem):
 
         return dNtild
 
-    def _ddNtild(self) -> np.ndarray:
-        return super()._ddNtild()
+    def _ddN(self) -> np.ndarray:
+        return super()._ddN()
 
-    def _dddNtild(self) -> np.ndarray:
-        return super()._dddNtild()
+    def _dddN(self) -> np.ndarray:
+        return super()._dddN()
 
-    def _ddddNtild(self) -> np.ndarray:
-        return super()._ddddNtild()
+    def _ddddN(self) -> np.ndarray:
+        return super()._ddddN()
 
 class TRI6(_GroupElem):
     # v
@@ -96,7 +96,7 @@ class TRI6(_GroupElem):
     def faces(self) -> list[int]:
         return [0,3,1,4,2,5,0]
 
-    def _Ntild(self) -> np.ndarray:
+    def _N(self) -> np.ndarray:
 
         N1t = lambda xi,eta: -(1-xi-eta)*(1-2*(1-xi-eta))
         N2t = lambda xi,eta: -xi*(1-2*xi)
@@ -109,7 +109,7 @@ class TRI6(_GroupElem):
 
         return Ntild
 
-    def _dNtild(self) -> np.ndarray:
+    def _dN(self) -> np.ndarray:
 
         dN1t = [lambda xi,eta: 4*xi+4*eta-3,  lambda xi,eta: 4*xi+4*eta-3]
         dN2t = [lambda xi,eta: 4*xi-1,        lambda xi,eta: 0]
@@ -122,7 +122,7 @@ class TRI6(_GroupElem):
 
         return dNtild
 
-    def _ddNtild(self) -> np.ndarray:
+    def _ddN(self) -> np.ndarray:
         ddN1t = [lambda xi,eta: 4,  lambda xi,eta: 4]
         ddN2t = [lambda xi,eta: 4,  lambda xi,eta: 0]
         ddN3t = [lambda xi,eta: 0,  lambda xi,eta: 4]
@@ -134,20 +134,20 @@ class TRI6(_GroupElem):
 
         return ddNtild
 
-    def _dddNtild(self) -> np.ndarray:
-        return super()._dddNtild()
+    def _dddN(self) -> np.ndarray:
+        return super()._dddN()
 
-    def _ddddNtild(self) -> np.ndarray:
-        return super()._ddddNtild()
+    def _ddddN(self) -> np.ndarray:
+        return super()._ddddN()
 
-    def _Nvtild(self) -> np.ndarray:
-        return super()._Nvtild()
+    def _EulerBernoulli_N(self) -> np.ndarray:
+        return super()._EulerBernoulli_N()
 
-    def dNvtild(self) -> np.ndarray:
-        return super().dNvtild()
+    def _EulerBernoulli_dN(self) -> np.ndarray:
+        return super()._EulerBernoulli_dN()
 
-    def _ddNvtild(self) -> np.ndarray:
-        return super()._ddNvtild()
+    def _EulerBernoulli_ddN(self) -> np.ndarray:
+        return super()._EulerBernoulli_ddN()
 
 class TRI10(_GroupElem):
     # v
@@ -185,7 +185,7 @@ class TRI10(_GroupElem):
     def faces(self) -> list[int]:
         return [0,3,4,1,5,6,2,7,8,0]
 
-    def _Ntild(self) -> np.ndarray:
+    def _N(self) -> np.ndarray:
 
         N1t = lambda xi, eta : -4.5*xi**3 + -4.5*eta**3 + -13.5*xi**2*eta + -13.5*xi*eta**2 + 9.0*xi**2 + 9.0*eta**2 + 18.0*xi*eta + -5.5*xi + -5.5*eta + 1.0
         N2t = lambda xi, eta : 4.5*xi**3 + 0.0*eta**3 + -1.093e-15*xi**2*eta + -8.119e-16*xi*eta**2 + -4.5*xi**2 + 0.0*eta**2 + 1.124e-15*xi*eta + 1.0*xi + 0.0*eta + 0.0
@@ -202,7 +202,7 @@ class TRI10(_GroupElem):
 
         return Ntild
 
-    def _dNtild(self) -> np.ndarray:
+    def _dN(self) -> np.ndarray:
 
         N1_xi = lambda xi, eta : -13.5*xi**2 + -27.0*xi*eta + -13.5*eta**2 + 18.0*xi + 18.0*eta + -5.5
         N2_xi = lambda xi, eta : 13.5*xi**2 + -2.186e-15*xi*eta + -8.119e-16*eta**2 + -9.0*xi + 1.124e-15*eta + 1.0
@@ -241,7 +241,7 @@ class TRI10(_GroupElem):
 
         return dNtild
 
-    def _ddNtild(self) -> np.ndarray:
+    def _ddN(self) -> np.ndarray:
 
         N1_xi2 = lambda xi, eta : -27.0*xi + -27.0*eta + 18.0
         N2_xi2 = lambda xi, eta : 27.0*xi + -2.186e-15*eta + -9.0
@@ -280,7 +280,7 @@ class TRI10(_GroupElem):
 
         return ddNtild
 
-    def _dddNtild(self) -> np.ndarray:
+    def _dddN(self) -> np.ndarray:
         
         N1_xi3 = lambda xi, eta : -27.0
         N2_xi3 = lambda xi, eta : 27.0
@@ -319,5 +319,5 @@ class TRI10(_GroupElem):
 
         return dddNtild
 
-    def _ddddNtild(self) -> np.ndarray:
-        return super()._ddddNtild()
+    def _ddddN(self) -> np.ndarray:
+        return super()._ddddN()

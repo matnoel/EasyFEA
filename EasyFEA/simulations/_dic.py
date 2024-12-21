@@ -204,7 +204,7 @@ class DIC(_IObserver):
 
         connectPixel = self.__connectPixel
         coordInElem = self.__coordPixelInElem
-        Ntild = mesh.groupElem._Ntild()
+        Ntild = mesh.groupElem._N()
 
         # ----------------------------------------------
         # Build the shape function matrix for pixels (N)

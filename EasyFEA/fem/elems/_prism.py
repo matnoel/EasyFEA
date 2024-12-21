@@ -52,7 +52,7 @@ class PRISM6(_GroupElem):
     def segments(self) -> np.ndarray:
         return np.array([[0,1],[1,2],[2,0],[3,4],[4,5],[5,3],[0,3],[1,4],[2,5]])
 
-    def _Ntild(self) -> np.ndarray:        
+    def _N(self) -> np.ndarray:        
 
         N1t = lambda x,y,z: 0.5*x*z + 0.5*y*z + -0.5*x + -0.5*y + -0.5*z + 0.5
         N2t = lambda x,y,z: -0.5*x*z + 0.0*y*z + 0.5*x + 0.0*y + 0.0*z + 0.0
@@ -65,7 +65,7 @@ class PRISM6(_GroupElem):
 
         return Ntild
     
-    def _dNtild(self) -> np.ndarray:        
+    def _dN(self) -> np.ndarray:        
 
         dN1t = [lambda x,y,z: 0.5*z + -0.5, lambda x,y,z: 0.5*z + -0.5, lambda x,y,z: 0.5*x + 0.5*y + -0.5]
         dN2t = [lambda x,y,z: -0.5*z + 0.5, lambda x,y,z: 0.0*z + 0.0, lambda x,y,z: -0.5*x + 0.0*y + 0.0]
@@ -78,14 +78,14 @@ class PRISM6(_GroupElem):
 
         return dNtild
 
-    def _ddNtild(self) -> np.ndarray:
-        return super()._ddNtild()
+    def _ddN(self) -> np.ndarray:
+        return super()._ddN()
 
-    def _dddNtild(self) -> np.ndarray:
-        return super()._dddNtild()
+    def _dddN(self) -> np.ndarray:
+        return super()._dddN()
     
-    def _ddddNtild(self) -> np.ndarray:
-        return super()._ddddNtild()
+    def _ddddN(self) -> np.ndarray:
+        return super()._ddddN()
 
 class PRISM15(_GroupElem):
     #            w
@@ -131,7 +131,7 @@ class PRISM15(_GroupElem):
     def segments(self) -> np.ndarray:
         return np.array([[0,1],[1,2],[2,0],[3,4],[4,5],[5,3],[0,3],[1,4],[2,5]])
 
-    def _Ntild(self) -> np.ndarray:
+    def _N(self) -> np.ndarray:
 
         N1t = lambda x,y,z: -1.0*x**2*z + -1.0*y**2*z + -0.5*z**2*x + -0.5*z**2*y + -2.0*x*y*z + 1.0*x**2 + 1.0*y**2 + 0.5*z**2 + 1.5*x*z + 1.5*y*z + -1.0*x + -1.0*y + -0.5*z + 2.0*x*y + 0.0
         N2t = lambda x,y,z: -1.0*x**2*z + 0.0*y**2*z + 0.5*z**2*x + 0.0*z**2*y + 0.0*x*y*z + 1.0*x**2 + 0.0*y**2 + 0.0*z**2 + 0.5*x*z + 0.0*y*z + -1.0*x + 0.0*y + 0.0*z + 0.0*x*y + 0.0
@@ -153,7 +153,7 @@ class PRISM15(_GroupElem):
 
         return Ntild
     
-    def _dNtild(self) -> np.ndarray:
+    def _dN(self) -> np.ndarray:
 
         dN1t = [lambda x,y,z: -2.0*x*z + -0.5*z**2 + -2.0*y*z + 2.0*x + 1.5*z + -1.0 + 2.0*y,
                 lambda x,y,z: -2.0*y*z + -0.5*z**2 + -2.0*x*z + 2.0*y + 1.5*z + -1.0 + 2.0*x,
@@ -205,7 +205,7 @@ class PRISM15(_GroupElem):
 
         return dNtild
 
-    def _ddNtild(self) -> np.ndarray:
+    def _ddN(self) -> np.ndarray:
 
         ddN1t = [lambda x,y,z: -2.0*z + 2.0, lambda x,y,z: -2.0*z + 2.0, lambda x,y,z: -1.0*x + -1.0*y + 1.0]
         ddN2t = [lambda x,y,z: -2.0*z + 2.0, lambda x,y,z: 0.0*z + 0.0, lambda x,y,z: 1.0*x + 0.0*y + 0.0]
@@ -227,8 +227,8 @@ class PRISM15(_GroupElem):
 
         return ddNtild
 
-    def _dddNtild(self) -> np.ndarray:
-        return super()._dddNtild()
+    def _dddN(self) -> np.ndarray:
+        return super()._dddN()
     
-    def _ddddNtild(self) -> np.ndarray:
-        return super()._ddddNtild()
+    def _ddddN(self) -> np.ndarray:
+        return super()._ddddN()

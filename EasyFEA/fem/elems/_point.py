@@ -26,17 +26,17 @@ class POINT(_GroupElem):
     def faces(self) -> list[int]:
         return [0]
 
-    def _Ntild(self) -> np.ndarray:
+    def _N(self) -> np.ndarray:
         pass
 
-    def _dNtild(self) -> np.ndarray:
+    def _dN(self) -> np.ndarray:
         pass
 
-    def _ddNtild(self) -> np.ndarray:
+    def _ddN(self) -> np.ndarray:
         pass
     
-    def _dddNtild(self) -> np.ndarray:
+    def _dddN(self) -> np.ndarray:
         pass
 
-    def _ddddNtild(self) -> np.ndarray:
+    def _ddddN(self) -> np.ndarray:
         pass

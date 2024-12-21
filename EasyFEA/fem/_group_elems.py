@@ -335,7 +335,7 @@ class _GroupElem(ABC):
         return self.__dict_ddN_e_pg[matrixType].copy()
     
     def Get_Nv_e_pg(self) -> np.ndarray:
-        """Evaluates beam shape functions in (x,y,z) coordinates.\n
+        """Evaluates Euler-Bernoulli beam shape functions in (x,y,z) coordinates.\n
         [phi_i psi_i . . . phi_n psi_n]\n
         (e, pg, 1, nPe*2)
         """
@@ -344,7 +344,7 @@ class _GroupElem(ABC):
         matrixType = MatrixType.beam
 
         invF_e_pg = self.Get_invF_e_pg(matrixType)
-        Nv_pg = self.Get_Nv_pg(matrixType)
+        Nv_pg = self.Get_EulerBernoulli_N_pg(matrixType)
         nPe = self.nPe
         
         Nv_e_pg = invF_e_pg @ Nv_pg
@@ -367,7 +367,7 @@ class _GroupElem(ABC):
         matrixType = MatrixType.beam
 
         invF_e_pg = self.Get_invF_e_pg(matrixType)
-        dNv_pg = self.Get_dNv_pg(matrixType)
+        dNv_pg = self.Get_EulerBernoulli_dN_pg(matrixType)
         nPe = self.nPe
         
         dNv_e_pg = invF_e_pg @ dNv_pg
@@ -390,7 +390,7 @@ class _GroupElem(ABC):
         matrixType = MatrixType.beam        
 
         invF_e_pg = self.Get_invF_e_pg(matrixType)
-        ddNv_pg = self.Get_ddNv_pg(matrixType)
+        ddNv_pg = self.Get_EulerBernoulli_ddN_pg(matrixType)
         nPe = self.nPe
         
         ddNv_e_pg = invF_e_pg @ invF_e_pg @ ddNv_pg
@@ -905,7 +905,7 @@ class _GroupElem(ABC):
     # Here we use lagrange polynomials
 
     @abstractmethod
-    def _Ntild(self) -> np.ndarray:
+    def _N(self) -> np.ndarray:
         """Shape functions in (ξ,η,ζ) coordinates.\n
         [N1, N2, . . . ,Nn]\n
         (nPe)
@@ -919,14 +919,14 @@ class _GroupElem(ABC):
         """
         if self.dim == 0: return
 
-        Ntild = self._Ntild()
+        N = self._N()
         gauss = self.Get_gauss(matrixType)
-        N_pg = _GroupElem._Evaluates_Functions(Ntild, gauss.coord)
+        N_pg = _GroupElem._Evaluates_Functions(N, gauss.coord)
 
         return N_pg
 
     @abstractmethod
-    def _dNtild(self) -> np.ndarray:
+    def _dN(self) -> np.ndarray:
         """Shape functions first derivatives in the (ξ,η,ζ) coordinates.\n
         [Ni,xi . . . Nn,xi\n
         Ni,eta ... Nn,eta]\n
@@ -942,15 +942,15 @@ class _GroupElem(ABC):
         """
         if self.dim == 0: return
 
-        dNtild = self._dNtild()
+        dN = self._dN()
 
         gauss = self.Get_gauss(matrixType)
-        dN_pg = _GroupElem._Evaluates_Functions(dNtild, gauss.coord)
+        dN_pg = _GroupElem._Evaluates_Functions(dN, gauss.coord)
 
         return dN_pg    
 
     @abstractmethod
-    def _ddNtild(self) -> np.ndarray:
+    def _ddN(self) -> np.ndarray:
         """Shape functions second derivatives in the (ξ,η,ζ) coordinates.\n
         [Ni,xi2 . . . Nn,xi2\n
         Ni,eta2 . . . Nn,eta eta]\n
@@ -966,15 +966,15 @@ class _GroupElem(ABC):
         """
         if self.dim == 0: return
 
-        ddNtild = self._ddNtild()
+        ddN = self._ddN()
 
         gauss = self.Get_gauss(matrixType)
-        ddN_pg = _GroupElem._Evaluates_Functions(ddNtild, gauss.coord)
+        ddN_pg = _GroupElem._Evaluates_Functions(ddN, gauss.coord)
 
         return ddN_pg
 
     @abstractmethod
-    def _dddNtild(self) -> np.ndarray:
+    def _dddN(self) -> np.ndarray:
         """Shape functions third derivatives in the (ξ,η,ζ) coordinates.\n
         [Ni,xi3 . . . Nn,xi3\n
         Ni,eta3 . . . Nn,eta3]\n
@@ -990,15 +990,15 @@ class _GroupElem(ABC):
         """
         if self.elemType == 0: return
 
-        dddNtild = self._dddNtild()
+        dddN = self._dddN()
 
         gauss = self.Get_gauss(matrixType)
-        dddN_pg = _GroupElem._Evaluates_Functions(dddNtild, gauss.coord)
+        dddN_pg = _GroupElem._Evaluates_Functions(dddN, gauss.coord)
 
         return dddN_pg
 
     @abstractmethod
-    def _ddddNtild(self) -> np.ndarray:
+    def _ddddN(self) -> np.ndarray:
         """Shape functions fourth derivatives in the (ξ,η,ζ) coordinates.\n
         [Ni,xi4 . . . Nn,xi4\n
         Ni,eta4 . . . Nn,eta4]
@@ -1016,73 +1016,73 @@ class _GroupElem(ABC):
         """
         if self.elemType == 0: return
 
-        ddddNtild = self._ddddNtild()
+        ddddN = self._ddddN()
 
         gauss = self.Get_gauss(matrixType)
-        ddddN_pg = _GroupElem._Evaluates_Functions(ddddNtild, gauss.coord)
+        ddddN_pg = _GroupElem._Evaluates_Functions(ddddN, gauss.coord)
 
         return ddddN_pg
 
     # Beams shapes functions
     # Use hermitian shape functions
     
-    def _Nvtild(self) -> np.ndarray:
-        """Beam shape functions in the (ξ,η,ζ) coordinates.\n
+    def _EulerBernoulli_N(self) -> np.ndarray:
+        """Euler-Bernoulli beam shape functions in the (ξ,η,ζ) coordinates.\n
         [phi_i psi_i . . . phi_n psi_n]\n
         (nPe*2)
         """
         pass
 
-    def Get_Nv_pg(self, matrixType: MatrixType) -> np.ndarray:
-        """Evaluates beam shape functions in the (ξ,η,ζ) coordinates.\n
+    def Get_EulerBernoulli_N_pg(self, matrixType: MatrixType) -> np.ndarray:
+        """Evaluates Euler-Bernoulli beam shape functions in the (ξ,η,ζ) coordinates.\n
         [phi_i psi_i . . . phi_n psi_n]\n        
         (pg, nPe*2)
         """
         if self.dim != 1: return
 
-        Nvtild = self._Nvtild()
+        N = self._EulerBernoulli_N()
 
         gauss = self.Get_gauss(matrixType)
-        Nv_pg = _GroupElem._Evaluates_Functions(Nvtild, gauss.coord)
+        N_pg = _GroupElem._Evaluates_Functions(N, gauss.coord)
 
-        return Nv_pg
+        return N_pg
     
-    def dNvtild(self) -> np.ndarray:
-        """Beam shape functions first derivatives in the (ξ,η,ζ) coordinates.\n
+    def _EulerBernoulli_dN(self) -> np.ndarray:
+        """Euler-Bernoulli beam shape functions first derivatives in the (ξ,η,ζ) coordinates.\n
         [phi_i,xi psi_i,xi . . . phi_n,xi psi_n,xi]\n
         (nPe*2)
         """
         pass
 
-    def Get_dNv_pg(self, matrixType: MatrixType) -> np.ndarray:
-        """Evaluates beam shape functions first derivatives in the (ξ,η,ζ) coordinates.\n
+    def Get_EulerBernoulli_dN_pg(self, matrixType: MatrixType) -> np.ndarray:
+        """Evaluates Euler-Bernoulli beam shape functions first derivatives in the (ξ,η,ζ) coordinates.\n
         [phi_i,xi psi_i,xi . . . phi_n,xi psi_n,xi]\n
         (pg, nPe*2)
         """
         if self.dim != 1: return
 
-        dNvtild = self.dNvtild()
+        dNvtild = self._EulerBernoulli_dN()
 
         gauss = self.Get_gauss(matrixType)
         dNv_pg = _GroupElem._Evaluates_Functions(dNvtild, gauss.coord)
 
         return dNv_pg
     
-    def _ddNvtild(self) -> np.ndarray:
-        """Beam shape functions second derivatives in the (ξ,η,ζ) coordinates.\n
+    def _EulerBernoulli_ddN(self) -> np.ndarray:
+        """Euler-Bernoulli beam shape functions second derivatives in the (ξ,η,ζ) coordinates.\n
         [phi_i,xi2 psi_i,xi2 . . . phi_n,xi2 psi_n,xi2]\n
         (nPe*2)
         """
         return 
     
-    def Get_ddNv_pg(self, matrixType: MatrixType) -> np.ndarray:
-        """Evaluates beam shape functions second derivatives in the (ξ,η,ζ) coordinates.\n
+    def Get_EulerBernoulli_ddN_pg(self, matrixType: MatrixType) -> np.ndarray:
+        """Evaluates Euler-Bernoulli beam shape functions second derivatives in the (ξ,η,ζ) coordinates.\n
         [phi_i,xi2 psi_i,xi2 . . . phi_n,xi2 x psi_n,xi2]\n
         (pg, nPe*2)
         """
         if self.dim != 1: return
 
-        ddNvtild = self._ddNvtild()
+        ddNvtild = self._EulerBernoulli_ddN()
 
         gauss = self.Get_gauss(matrixType)
         ddNv_pg = _GroupElem._Evaluates_Functions(ddNvtild, gauss.coord)
@@ -1560,7 +1560,7 @@ class _GroupElem(ABC):
             matrixType = MatrixType.mass
             jacobian_e_pg = self.Get_jacobian_e_pg(matrixType, absoluteValues=False)
             invF_e_pg = self.Get_invF_e_pg(matrixType)
-            dN_tild = self._dNtild()
+            dN_tild = self._dN()
             xiOrigin = self.origin # origin of the reference element (ξ0,η0)
             
             # Check whether iterative resolution is required

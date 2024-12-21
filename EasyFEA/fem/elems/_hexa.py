@@ -47,7 +47,7 @@ class HEXA8(_GroupElem):
     def segments(self) -> np.ndarray:
         return np.array([[0,1],[1,5],[5,4],[4,0],[3,2],[2,6],[6,7],[7,3],[0,3],[1,2],[5,6],[4,7]])
 
-    def _Ntild(self) -> np.ndarray:
+    def _N(self) -> np.ndarray:
 
         N1t = lambda x,y,z: 1/8 * (1-x) * (1-y) * (1-z)
         N2t = lambda x,y,z: 1/8 * (1+x) * (1-y) * (1-z)
@@ -62,7 +62,7 @@ class HEXA8(_GroupElem):
 
         return Ntild
     
-    def _dNtild(self) -> np.ndarray:
+    def _dN(self) -> np.ndarray:
 
         dN1t = [lambda x,y,z: -1/8 * (1-y) * (1-z),   lambda x,y,z: -1/8 * (1-x) * (1-z),   lambda x,y,z: -1/8 * (1-x) * (1-y)]
         dN2t = [lambda x,y,z: 1/8 * (1-y) * (1-z),    lambda x,y,z: -1/8 * (1+x) * (1-z),    lambda x,y,z: -1/8 * (1+x) * (1-y)]
@@ -77,14 +77,14 @@ class HEXA8(_GroupElem):
 
         return dNtild
 
-    def _ddNtild(self) -> np.ndarray:
-        return super()._ddNtild()
+    def _ddN(self) -> np.ndarray:
+        return super()._ddN()
 
-    def _dddNtild(self) -> np.ndarray:
-        return super()._dddNtild()
+    def _dddN(self) -> np.ndarray:
+        return super()._dddN()
     
-    def _ddddNtild(self) -> np.ndarray:
-        return super()._ddddNtild()
+    def _ddddN(self) -> np.ndarray:
+        return super()._ddddN()
 
 class HEXA20(_GroupElem):
     #        v
@@ -125,7 +125,7 @@ class HEXA20(_GroupElem):
     def segments(self) -> np.ndarray:
         return np.array([[0,1],[1,5],[5,4],[4,0],[3,2],[2,6],[6,7],[7,3],[0,3],[1,2],[5,6],[4,7]])
 
-    def _Ntild(self) -> np.ndarray:
+    def _N(self) -> np.ndarray:
 
         N1t = lambda x,y,z: 0.125*x**2*y*z + 0.125*y**2*x*z + 0.125*z**2*x*y + -0.125*x**2*y + -0.125*y**2*x + -0.125*z**2*x + -0.125*x**2*z + -0.125*y**2*z + -0.125*z**2*y + 0.125*x**2 + 0.125*y**2 + 0.125*z**2 + 0.0*x*y + 0.0*x*z + 0.0*y*z + 0.125*x + 0.125*y + 0.125*z + -0.125*x*y*z + -0.25
         N2t = lambda x,y,z: 0.125*x**2*y*z + -0.125*y**2*x*z + -0.125*z**2*x*y + -0.125*x**2*y + 0.125*y**2*x + 0.125*z**2*x + -0.125*x**2*z + -0.125*y**2*z + -0.125*z**2*y + 0.125*x**2 + 0.125*y**2 + 0.125*z**2 + 0.0*x*y + 0.0*x*z + 0.0*y*z + -0.125*x + 0.125*y + 0.125*z + 0.125*x*y*z + -0.25
@@ -152,7 +152,7 @@ class HEXA20(_GroupElem):
 
         return Ntild
     
-    def _dNtild(self) -> np.ndarray:
+    def _dN(self) -> np.ndarray:
 
         dN1t = [lambda x,y,z: 0.25*x*y*z + 0.125*y**2*z + 0.125*z**2*y + -0.25*x*y + -0.125*y**2 + -0.125*z**2 + -0.25*x*z + 0.25*x + 0.0*y + 0.0*z + 0.125 + -0.125*y*z,
             lambda x,y,z: 0.125*x**2*z + 0.25*y*x*z + 0.125*z**2*x + -0.125*x**2 + -0.25*y*x + -0.25*y*z + -0.125*z**2 + 0.25*y + 0.0*x + 0.0*z + 0.125 + -0.125*x*z,
@@ -219,7 +219,7 @@ class HEXA20(_GroupElem):
 
         return dNtild
 
-    def _ddNtild(self) -> np.ndarray:
+    def _ddN(self) -> np.ndarray:
 
         ddN1t = [lambda x,y,z: 0.25*y*z + -0.25*y + -0.25*z + 0.25, lambda x,y,z: 0.25*x*z + -0.25*x + -0.25*z + 0.25, lambda x,y,z: 0.25*x*y + -0.25*x + -0.25*y + 0.25]
         ddN2t = [lambda x,y,z: 0.25*y*z + -0.25*y + -0.25*z + 0.25,lambda x,y,z: -0.25*x*z + 0.25*x + -0.25*z + 0.25, lambda x,y,z: -0.25*x*y + 0.25*x + -0.25*y + 0.25]
@@ -246,8 +246,8 @@ class HEXA20(_GroupElem):
 
         return ddNtild
 
-    def _dddNtild(self) -> np.ndarray:
-        return super()._dddNtild()
+    def _dddN(self) -> np.ndarray:
+        return super()._dddN()
     
-    def _ddddNtild(self) -> np.ndarray:
-        return super()._ddddNtild()
+    def _ddddN(self) -> np.ndarray:
+        return super()._ddddN()
