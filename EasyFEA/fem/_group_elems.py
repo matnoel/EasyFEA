@@ -913,10 +913,8 @@ class _GroupElem(ABC):
         """
         if self.dim != 1: return
 
-        matrixType = MatrixType.beam
-
-        invF_e_pg = self.Get_invF_e_pg(matrixType)
-        N_pg = self.Get_EulerBernoulli_N_pg(matrixType)
+        invF_e_pg = self.Get_invF_e_pg(MatrixType.beam)
+        N_pg = self.Get_EulerBernoulli_N_pg()
         nPe = self.nPe
         
         N_e_pg = invF_e_pg @ N_pg
@@ -961,10 +959,8 @@ class _GroupElem(ABC):
         """
         if self.dim != 1: return
 
-        matrixType = MatrixType.beam
-
-        invF_e_pg = self.Get_invF_e_pg(matrixType)
-        dN_pg = self.Get_EulerBernoulli_dN_pg(matrixType)
+        invF_e_pg = self.Get_invF_e_pg(MatrixType.beam)
+        dN_pg = self.Get_EulerBernoulli_dN_pg()
         nPe = self.nPe
         
         dN_e_pg = invF_e_pg @ dN_pg
@@ -1008,11 +1004,9 @@ class _GroupElem(ABC):
         (e, pg, 1, nPe*2)
         """
         if self.dim != 1: return
-        
-        matrixType = MatrixType.beam        
 
-        invF_e_pg = self.Get_invF_e_pg(matrixType)
-        ddN_pg = self.Get_EulerBernoulli_ddN_pg(matrixType)
+        invF_e_pg = self.Get_invF_e_pg(MatrixType.beam)
+        ddN_pg = self.Get_EulerBernoulli_ddN_pg()
         nPe = self.nPe
         
         ddN_e_pg = invF_e_pg @ invF_e_pg @ ddN_pg
