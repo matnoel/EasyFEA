@@ -208,9 +208,9 @@ class BeamSimu(_Simu):
 
         D_e_pg = beamStructure.Calc_D_e_pg(groupElem)        
 
-        B_beam_e_pg = groupElem.Get_EulerBernoulli_B_e_pg(beamStructure)
+        B_e_pg = groupElem.Get_EulerBernoulli_B_e_pg(beamStructure)
         
-        Kbeam_e = np.einsum('ep,p,epji,epjk,epkl->eil', jacobian_e_pg, weight_pg, B_beam_e_pg, D_e_pg, B_beam_e_pg, optimize='optimal')
+        Kbeam_e = np.einsum('ep,p,epji,epjk,epkl->eil', jacobian_e_pg, weight_pg, B_e_pg, D_e_pg, B_e_pg, optimize='optimal')
             
         tic.Tac("Matrix","Construct Kbeam_e", self._verbosity)
 
