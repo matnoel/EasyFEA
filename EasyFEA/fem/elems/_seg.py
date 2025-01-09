@@ -33,21 +33,21 @@ class SEG2(_GroupElem):
 
     def _N(self) -> np.ndarray:
 
-        N1t = lambda x: 0.5*(1-x)
-        N2t = lambda x: 0.5*(1+x)
+        N1 = lambda x: 0.5*(1-x)
+        N2 = lambda x: 0.5*(1+x)
 
-        Ntild = np.array([N1t, N2t]).reshape(-1, 1)
+        N = np.array([N1, N2]).reshape(-1, 1)
 
-        return Ntild
+        return N
     
     def _dN(self) -> np.ndarray:
 
-        dN1t = [lambda x: -0.5]
-        dN2t = [lambda x: 0.5]
+        dN1 = [lambda x: -0.5]
+        dN2 = [lambda x: 0.5]
 
-        dNtild = np.array([dN1t, dN2t]).reshape(-1,1)
+        dN = np.array([dN1, dN2]).reshape(-1,1)
 
-        return dNtild
+        return dN
 
     def _ddN(self) -> np.ndarray:
         return super()._ddN()
@@ -65,9 +65,9 @@ class SEG2(_GroupElem):
         phi_2 = lambda x : 0.5 + 0.75*x + 0.0*x**2 + -0.25*x**3
         psi_2 = lambda x : -0.125 + -0.125*x + 0.125*x**2 + 0.125*x**3
 
-        Nvtild = np.array([phi_1, psi_1, phi_2, psi_2]).reshape(-1,1)
+        Nv = np.array([phi_1, psi_1, phi_2, psi_2]).reshape(-1,1)
 
-        return Nvtild
+        return Nv
 
     def _EulerBernoulli_dN(self) -> np.ndarray:
 
@@ -76,9 +76,9 @@ class SEG2(_GroupElem):
         phi_2_x = lambda x : 0.75 + 0.0*x + -0.75*x**2
         psi_2_x = lambda x : -0.125 + 0.25*x + 0.375*x**2
 
-        dNvtild = np.array([phi_1_x, psi_1_x, phi_2_x, psi_2_x]).reshape(-1,1)
+        dNv = np.array([phi_1_x, psi_1_x, phi_2_x, psi_2_x]).reshape(-1,1)
 
-        return dNvtild
+        return dNv
 
     def _EulerBernoulli_ddN(self) -> np.ndarray:
 
@@ -116,33 +116,33 @@ class SEG3(_GroupElem):
 
     def _N(self) -> np.ndarray:
 
-        N1t = lambda x: -0.5*(1-x)*x
-        N2t = lambda x: 0.5*(1+x)*x
-        N3t = lambda x: (1+x)*(1-x)
+        N1 = lambda x: -0.5*(1-x)*x
+        N2 = lambda x: 0.5*(1+x)*x
+        N3 = lambda x: (1+x)*(1-x)
 
-        Ntild = np.array([N1t, N2t, N3t]).reshape(-1, 1)
+        N = np.array([N1, N2, N3]).reshape(-1, 1)
 
-        return Ntild
+        return N
 
     def _dN(self) -> np.ndarray:
 
-        dN1t = [lambda x: x-0.5]
-        dN2t = [lambda x: x+0.5]
-        dN3t = [lambda x: -2*x]
+        dN1 = [lambda x: x-0.5]
+        dN2 = [lambda x: x+0.5]
+        dN3 = [lambda x: -2*x]
 
-        dNtild = np.array([dN1t, dN2t, dN3t]).reshape(-1,1)
+        dN = np.array([dN1, dN2, dN3]).reshape(-1,1)
 
-        return dNtild
+        return dN
 
     def _ddN(self) -> np.ndarray:
 
-        ddN1t = [lambda x: 1]
-        ddN2t = [lambda x: 1]
-        ddN3t = [lambda x: -2]
+        ddN1 = [lambda x: 1]
+        ddN2 = [lambda x: 1]
+        ddN3 = [lambda x: -2]
 
-        ddNtild = np.array([ddN1t, ddN2t, ddN3t])
+        ddN = np.array([ddN1, ddN2, ddN3])
 
-        return ddNtild
+        return ddN
 
     def _dddN(self) -> np.ndarray:
         return super()._dddN()
@@ -159,9 +159,9 @@ class SEG3(_GroupElem):
         phi_3 = lambda x : 1.0 + 0.0*x + -2.0*x**2 + 0.0*x**3 + 1.0*x**4 + 0.0*x**5
         psi_3 = lambda x : 0.0 + 0.5*x + 0.0*x**2 + -1.0*x**3 + 0.0*x**4 + 0.5*x**5
 
-        Nvtild = np.array([phi_1, psi_1, phi_2, psi_2, phi_3, psi_3]).reshape(-1,1)
+        Nv = np.array([phi_1, psi_1, phi_2, psi_2, phi_3, psi_3]).reshape(-1,1)
 
-        return Nvtild
+        return Nv
 
     def _EulerBernoulli_dN(self) -> np.ndarray:
 
@@ -172,9 +172,9 @@ class SEG3(_GroupElem):
         phi_3_x = lambda x : 0.0 + -4.0*x + 0.0*x**2 + 4.0*x**3 + 0.0*x**4
         psi_3_x = lambda x : 0.5 + 0.0*x + -3.0*x**2 + 0.0*x**3 + 2.5*x**4
 
-        dNvtild = np.array([phi_1_x, psi_1_x, phi_2_x, psi_2_x, phi_3_x, psi_3_x]).reshape(-1,1)
+        dNv = np.array([phi_1_x, psi_1_x, phi_2_x, psi_2_x, phi_3_x, psi_3_x]).reshape(-1,1)
 
-        return dNvtild
+        return dNv
 
     def _EulerBernoulli_ddN(self) -> np.ndarray:
         
@@ -185,9 +185,9 @@ class SEG3(_GroupElem):
         phi_3_xx = lambda x : -4.0 + 0.0*x + 12.0*x**2 + 0.0*x**3
         psi_3_xx = lambda x : 0.0 + -6.0*x + 0.0*x**2 + 10.0*x**3
 
-        ddNvtild = np.array([phi_1_xx, psi_1_xx, phi_2_xx, psi_2_xx, phi_3_xx, psi_3_xx]).reshape(-1,1)
+        ddNv = np.array([phi_1_xx, psi_1_xx, phi_2_xx, psi_2_xx, phi_3_xx, psi_3_xx]).reshape(-1,1)
 
-        return ddNvtild
+        return ddNv
 
 class SEG4(_GroupElem):
     #       v
@@ -214,47 +214,47 @@ class SEG4(_GroupElem):
 
     def _N(self) -> np.ndarray:
 
-        N1t = lambda x : -0.5625*x**3 + 0.5625*x**2 + 0.0625*x - 0.0625
-        N2t = lambda x : 0.5625*x**3 + 0.5625*x**2 - 0.0625*x - 0.0625
-        N3t = lambda x : 1.6875*x**3 - 0.5625*x**2 - 1.6875*x + 0.5625
-        N4t = lambda x : -1.6875*x**3 - 0.5625*x**2 + 1.6875*x + 0.5625
+        N1 = lambda x : -0.5625*x**3 + 0.5625*x**2 + 0.0625*x - 0.0625
+        N2 = lambda x : 0.5625*x**3 + 0.5625*x**2 - 0.0625*x - 0.0625
+        N3 = lambda x : 1.6875*x**3 - 0.5625*x**2 - 1.6875*x + 0.5625
+        N4 = lambda x : -1.6875*x**3 - 0.5625*x**2 + 1.6875*x + 0.5625
 
-        Ntild = np.array([N1t, N2t, N3t, N4t]).reshape(-1, 1)
+        N = np.array([N1, N2, N3, N4]).reshape(-1, 1)
 
-        return Ntild
+        return N
 
     def _dN(self) -> np.ndarray:
 
-        dN1t = [lambda x : -1.6875*x**2 + 1.125*x + 0.0625]
-        dN2t = [lambda x : 1.6875*x**2 + 1.125*x - 0.0625]
-        dN3t = [lambda x : 5.0625*x**2 - 1.125*x - 1.6875]
-        dN4t = [lambda x : -5.0625*x**2 - 1.125*x + 1.6875]
+        dN1 = [lambda x : -1.6875*x**2 + 1.125*x + 0.0625]
+        dN2 = [lambda x : 1.6875*x**2 + 1.125*x - 0.0625]
+        dN3 = [lambda x : 5.0625*x**2 - 1.125*x - 1.6875]
+        dN4 = [lambda x : -5.0625*x**2 - 1.125*x + 1.6875]
 
-        dNtild = np.array([dN1t, dN2t, dN3t, dN4t])
+        dN = np.array([dN1, dN2, dN3, dN4])
 
-        return dNtild
+        return dN
     
     def _ddN(self) -> np.ndarray:
 
-        ddN1t = [lambda x : -3.375*x + 1.125]
-        ddN2t = [lambda x : 3.375*x + 1.125]
-        ddN3t = [lambda x : 10.125*x - 1.125]
-        ddN4t = [lambda x : -10.125*x - 1.125]
+        ddN1 = [lambda x : -3.375*x + 1.125]
+        ddN2 = [lambda x : 3.375*x + 1.125]
+        ddN3 = [lambda x : 10.125*x - 1.125]
+        ddN4 = [lambda x : -10.125*x - 1.125]
 
-        ddNtild = np.array([ddN1t, ddN2t, ddN3t, ddN4t])
+        ddN = np.array([ddN1, ddN2, ddN3, ddN4])
 
-        return ddNtild
+        return ddN
 
     def _dddN(self) -> np.ndarray:
         
-        dddN1t = [lambda x : -3.375]
-        dddN2t = [lambda x : 3.375]
-        dddN3t = [lambda x : 10.125]
-        dddN4t = [lambda x : -10.125]
+        dddN1 = [lambda x : -3.375]
+        dddN2 = [lambda x : 3.375]
+        dddN3 = [lambda x : 10.125]
+        dddN4 = [lambda x : -10.125]
 
-        dddNtild = np.array([dddN1t, dddN2t, dddN3t, dddN4t])
+        dddN = np.array([dddN1, dddN2, dddN3, dddN4])
 
-        return dddNtild
+        return dddN
 
     def _ddddN(self) -> np.ndarray:
         return super()._ddddN()
@@ -270,9 +270,9 @@ class SEG4(_GroupElem):
         phi_4 = lambda x : 0.4746093749999991 + 2.3730468749999902*x + 0.4746093750000089*x**2 + -9.017578124999972*x**3 + -2.373046875000015*x**4 + 10.916015624999972*x**5 + 1.423828125000007*x**6 + -4.27148437499999*x**7
         psi_4 = lambda x : -0.05273437500000022 + -0.15820312499999734*x + 0.5800781249999978*x**2 + 1.7402343749999911*x**3 + -1.0019531249999953*x**4 + -3.0058593749999902*x**5 + 0.47460937499999767*x**6 + 1.4238281249999964*x**7
 
-        Nvtild = np.array([phi_1, psi_1, phi_2, psi_2, phi_3, psi_3, phi_4, psi_4]).reshape(-1,1)
+        Nv = np.array([phi_1, psi_1, phi_2, psi_2, phi_3, psi_3, phi_4, psi_4]).reshape(-1,1)
 
-        return Nvtild
+        return Nv
         
     def _EulerBernoulli_dN(self) -> np.ndarray:
 
@@ -285,9 +285,9 @@ class SEG4(_GroupElem):
         phi_4_x = lambda x : 2.3730468749999902 + 0.9492187500000178*x + -27.052734374999915*x**2 + -9.49218750000006*x**3 + 54.58007812499986*x**4 + 8.542968750000043*x**5 + -29.900390624999932*x**6
         psi_4_x = lambda x : -0.15820312499999734 + 1.1601562499999956*x + 5.220703124999973*x**2 + -4.007812499999981*x**3 + -15.02929687499995*x**4 + 2.847656249999986*x**5 + 9.966796874999975*x**6
 
-        dNvtild = np.array([phi_1_x, psi_1_x, phi_2_x, psi_2_x, phi_3_x, psi_3_x, phi_4_x, psi_4_x]).reshape(-1,1)
+        dNv = np.array([phi_1_x, psi_1_x, phi_2_x, psi_2_x, phi_3_x, psi_3_x, phi_4_x, psi_4_x]).reshape(-1,1)
 
-        return dNvtild    
+        return dNv    
 
     def _EulerBernoulli_ddN(self) -> np.ndarray:
         
@@ -300,6 +300,6 @@ class SEG4(_GroupElem):
         phi_4_xx = lambda x : 0.9492187500000178 + -54.10546874999983*x + -28.47656250000018*x**2 + 218.32031249999943*x**3 + 42.71484375000021*x**4 + -179.4023437499996*x**5
         psi_4_xx = lambda x : 1.1601562499999956 + 10.441406249999947*x + -12.023437499999943*x**2 + -60.1171874999998*x**3 + 14.23828124999993*x**4 + 59.80078124999985*x**5
 
-        ddNvtild = np.array([phi_1_xx, psi_1_xx, phi_2_xx, psi_2_xx, phi_3_xx, psi_3_xx, phi_4_xx, psi_4_xx]).reshape(-1,1)
+        ddNv = np.array([phi_1_xx, psi_1_xx, phi_2_xx, psi_2_xx, phi_3_xx, psi_3_xx, phi_4_xx, psi_4_xx]).reshape(-1,1)
 
-        return ddNvtild
+        return ddNv

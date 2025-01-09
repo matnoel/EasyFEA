@@ -38,23 +38,23 @@ class TRI3(_GroupElem):
 
     def _N(self) -> np.ndarray:
 
-        N1t = lambda xi,eta: 1-xi-eta
-        N2t = lambda xi,eta: xi
-        N3t = lambda xi,eta: eta
+        N1 = lambda xi,eta: 1-xi-eta
+        N2 = lambda xi,eta: xi
+        N3 = lambda xi,eta: eta
         
-        Ntild = np.array([N1t, N2t, N3t]).reshape(-1,1)
+        N = np.array([N1, N2, N3]).reshape(-1,1)
 
-        return Ntild
+        return N
 
     def _dN(self) -> np.ndarray:
 
-        dN1t = [lambda xi,eta: -1, lambda xi,eta: -1]
-        dN2t = [lambda xi,eta: 1,  lambda xi,eta: 0]
-        dN3t = [lambda xi,eta: 0,  lambda xi,eta: 1]
+        dN1 = [lambda xi,eta: -1, lambda xi,eta: -1]
+        dN2 = [lambda xi,eta: 1,  lambda xi,eta: 0]
+        dN3 = [lambda xi,eta: 0,  lambda xi,eta: 1]
 
-        dNtild = np.array([dN1t, dN2t, dN3t])
+        dN = np.array([dN1, dN2, dN3])
 
-        return dNtild
+        return dN
 
     def _ddN(self) -> np.ndarray:
         return super()._ddN()
@@ -98,39 +98,39 @@ class TRI6(_GroupElem):
 
     def _N(self) -> np.ndarray:
 
-        N1t = lambda xi,eta: -(1-xi-eta)*(1-2*(1-xi-eta))
-        N2t = lambda xi,eta: -xi*(1-2*xi)
-        N3t = lambda xi,eta: -eta*(1-2*eta)
-        N4t = lambda xi,eta: 4*xi*(1-xi-eta)
-        N5t = lambda xi,eta: 4*xi*eta
-        N6t = lambda xi,eta: 4*eta*(1-xi-eta)
+        N1 = lambda xi,eta: -(1-xi-eta)*(1-2*(1-xi-eta))
+        N2 = lambda xi,eta: -xi*(1-2*xi)
+        N3 = lambda xi,eta: -eta*(1-2*eta)
+        N4 = lambda xi,eta: 4*xi*(1-xi-eta)
+        N5 = lambda xi,eta: 4*xi*eta
+        N6 = lambda xi,eta: 4*eta*(1-xi-eta)
         
-        Ntild = np.array([N1t, N2t, N3t, N4t, N5t, N6t]).reshape(-1, 1)
+        N = np.array([N1, N2, N3, N4, N5, N6]).reshape(-1, 1)
 
-        return Ntild
+        return N
 
     def _dN(self) -> np.ndarray:
 
-        dN1t = [lambda xi,eta: 4*xi+4*eta-3,  lambda xi,eta: 4*xi+4*eta-3]
-        dN2t = [lambda xi,eta: 4*xi-1,        lambda xi,eta: 0]
-        dN3t = [lambda xi,eta: 0,              lambda xi,eta: 4*eta-1]
-        dN4t = [lambda xi,eta: 4-8*xi-4*eta,  lambda xi,eta: -4*xi]
-        dN5t = [lambda xi,eta: 4*eta,          lambda xi,eta: 4*xi]
-        dN6t = [lambda xi,eta: -4*eta,         lambda xi,eta: 4-4*xi-8*eta]
+        dN1 = [lambda xi,eta: 4*xi+4*eta-3,  lambda xi,eta: 4*xi+4*eta-3]
+        dN2 = [lambda xi,eta: 4*xi-1,        lambda xi,eta: 0]
+        dN3 = [lambda xi,eta: 0,              lambda xi,eta: 4*eta-1]
+        dN4 = [lambda xi,eta: 4-8*xi-4*eta,  lambda xi,eta: -4*xi]
+        dN5 = [lambda xi,eta: 4*eta,          lambda xi,eta: 4*xi]
+        dN6 = [lambda xi,eta: -4*eta,         lambda xi,eta: 4-4*xi-8*eta]
         
-        dNtild = np.array([dN1t, dN2t, dN3t, dN4t, dN5t, dN6t])
+        dN = np.array([dN1, dN2, dN3, dN4, dN5, dN6])
 
-        return dNtild
+        return dN
 
     def _ddN(self) -> np.ndarray:
-        ddN1t = [lambda xi,eta: 4,  lambda xi,eta: 4]
-        ddN2t = [lambda xi,eta: 4,  lambda xi,eta: 0]
-        ddN3t = [lambda xi,eta: 0,  lambda xi,eta: 4]
-        ddN4t = [lambda xi,eta: -8, lambda xi,eta: 0]
-        ddN5t = [lambda xi,eta: 0,  lambda xi,eta: 0]
-        ddN6t = [lambda xi,eta: 0,  lambda xi,eta: -8]
+        ddN1 = [lambda xi,eta: 4,  lambda xi,eta: 4]
+        ddN2 = [lambda xi,eta: 4,  lambda xi,eta: 0]
+        ddN3 = [lambda xi,eta: 0,  lambda xi,eta: 4]
+        ddN4 = [lambda xi,eta: -8, lambda xi,eta: 0]
+        ddN5 = [lambda xi,eta: 0,  lambda xi,eta: 0]
+        ddN6 = [lambda xi,eta: 0,  lambda xi,eta: -8]
         
-        ddNtild = np.array([ddN1t, ddN2t, ddN3t, ddN4t, ddN5t, ddN6t])
+        ddNtild = np.array([ddN1, ddN2, ddN3, ddN4, ddN5, ddN6])
 
         return ddNtild
 
@@ -187,20 +187,20 @@ class TRI10(_GroupElem):
 
     def _N(self) -> np.ndarray:
 
-        N1t = lambda xi, eta : -4.5*xi**3 + -4.5*eta**3 + -13.5*xi**2*eta + -13.5*xi*eta**2 + 9.0*xi**2 + 9.0*eta**2 + 18.0*xi*eta + -5.5*xi + -5.5*eta + 1.0
-        N2t = lambda xi, eta : 4.5*xi**3 + 0.0*eta**3 + -1.093e-15*xi**2*eta + -8.119e-16*xi*eta**2 + -4.5*xi**2 + 0.0*eta**2 + 1.124e-15*xi*eta + 1.0*xi + 0.0*eta + 0.0
-        N3t = lambda xi, eta : 0.0*xi**3 + 4.5*eta**3 + -3.747e-16*xi**2*eta + 2.998e-15*xi*eta**2 + 0.0*xi**2 + -4.5*eta**2 + -7.494e-16*xi*eta + 0.0*xi + 1.0*eta + 0.0
-        N4t = lambda xi, eta : 13.5*xi**3 + 0.0*eta**3 + 27.0*xi**2*eta + 13.5*xi*eta**2 + -22.5*xi**2 + 0.0*eta**2 + -22.5*xi*eta + 9.0*xi + 0.0*eta + 0.0
-        N5t = lambda xi, eta : -13.5*xi**3 + 0.0*eta**3 + -13.5*xi**2*eta + -4.247e-15*xi*eta**2 + 18.0*xi**2 + 0.0*eta**2 + 4.5*xi*eta + -4.5*xi + 0.0*eta + 0.0
-        N6t = lambda xi, eta : 0.0*xi**3 + 0.0*eta**3 + 13.5*xi**2*eta + 1.049e-14*xi*eta**2 + 0.0*xi**2 + 0.0*eta**2 + -4.5*xi*eta + 0.0*xi + 0.0*eta + 0.0
-        N7t = lambda xi, eta : 0.0*xi**3 + 0.0*eta**3 + 0.0*xi**2*eta + 13.5*xi*eta**2 + 0.0*xi**2 + 0.0*eta**2 + -4.5*xi*eta + 0.0*xi + 0.0*eta + 0.0
-        N8t = lambda xi, eta : 0.0*xi**3 + -13.5*eta**3 + -1.499e-15*xi**2*eta + -13.5*xi*eta**2 + 0.0*xi**2 + 18.0*eta**2 + 4.5*xi*eta + 0.0*xi + -4.5*eta + 0.0
-        N9t = lambda xi, eta : 0.0*xi**3 + 13.5*eta**3 + 13.5*xi**2*eta + 27.0*xi*eta**2 + 0.0*xi**2 + -22.5*eta**2 + -22.5*xi*eta + 0.0*xi + 9.0*eta + 0.0
-        N10t = lambda xi, eta : 0.0*xi**3 + 0.0*eta**3 + -27.0*xi**2*eta + -27.0*xi*eta**2 + 0.0*xi**2 + 0.0*eta**2 + 27.0*xi*eta + 0.0*xi + 0.0*eta + 0.0
+        N1 = lambda xi, eta : -4.5*xi**3 + -4.5*eta**3 + -13.5*xi**2*eta + -13.5*xi*eta**2 + 9.0*xi**2 + 9.0*eta**2 + 18.0*xi*eta + -5.5*xi + -5.5*eta + 1.0
+        N2 = lambda xi, eta : 4.5*xi**3 + 0.0*eta**3 + -1.093e-15*xi**2*eta + -8.119e-16*xi*eta**2 + -4.5*xi**2 + 0.0*eta**2 + 1.124e-15*xi*eta + 1.0*xi + 0.0*eta + 0.0
+        N3 = lambda xi, eta : 0.0*xi**3 + 4.5*eta**3 + -3.747e-16*xi**2*eta + 2.998e-15*xi*eta**2 + 0.0*xi**2 + -4.5*eta**2 + -7.494e-16*xi*eta + 0.0*xi + 1.0*eta + 0.0
+        N4 = lambda xi, eta : 13.5*xi**3 + 0.0*eta**3 + 27.0*xi**2*eta + 13.5*xi*eta**2 + -22.5*xi**2 + 0.0*eta**2 + -22.5*xi*eta + 9.0*xi + 0.0*eta + 0.0
+        N5 = lambda xi, eta : -13.5*xi**3 + 0.0*eta**3 + -13.5*xi**2*eta + -4.247e-15*xi*eta**2 + 18.0*xi**2 + 0.0*eta**2 + 4.5*xi*eta + -4.5*xi + 0.0*eta + 0.0
+        N6 = lambda xi, eta : 0.0*xi**3 + 0.0*eta**3 + 13.5*xi**2*eta + 1.049e-14*xi*eta**2 + 0.0*xi**2 + 0.0*eta**2 + -4.5*xi*eta + 0.0*xi + 0.0*eta + 0.0
+        N7 = lambda xi, eta : 0.0*xi**3 + 0.0*eta**3 + 0.0*xi**2*eta + 13.5*xi*eta**2 + 0.0*xi**2 + 0.0*eta**2 + -4.5*xi*eta + 0.0*xi + 0.0*eta + 0.0
+        N8 = lambda xi, eta : 0.0*xi**3 + -13.5*eta**3 + -1.499e-15*xi**2*eta + -13.5*xi*eta**2 + 0.0*xi**2 + 18.0*eta**2 + 4.5*xi*eta + 0.0*xi + -4.5*eta + 0.0
+        N9 = lambda xi, eta : 0.0*xi**3 + 13.5*eta**3 + 13.5*xi**2*eta + 27.0*xi*eta**2 + 0.0*xi**2 + -22.5*eta**2 + -22.5*xi*eta + 0.0*xi + 9.0*eta + 0.0
+        N10 = lambda xi, eta : 0.0*xi**3 + 0.0*eta**3 + -27.0*xi**2*eta + -27.0*xi*eta**2 + 0.0*xi**2 + 0.0*eta**2 + 27.0*xi*eta + 0.0*xi + 0.0*eta + 0.0
         
-        Ntild = np.array([N1t, N2t, N3t, N4t, N5t, N6t, N7t, N8t, N9t, N10t]).reshape(-1, 1)
+        N = np.array([N1, N2, N3, N4, N5, N6, N7, N8, N9, N10]).reshape(-1, 1)
 
-        return Ntild
+        return N
 
     def _dN(self) -> np.ndarray:
 
@@ -226,20 +226,20 @@ class TRI10(_GroupElem):
         N9_eta = lambda xi, eta : 40.5*eta**2 + 13.5*xi**2 + 54.0*xi*eta + -45.0*eta + -22.5*xi + 9.0
         N10_eta = lambda xi, eta : 0.0*eta**2 + -27.0*xi**2 + -54.0*xi*eta + 0.0*eta + 27.0*xi + 0.0
 
-        dN1t = [N1_xi, N1_eta]
-        dN2t = [N2_xi, N2_eta]
-        dN3t = [N3_xi, N3_eta]
-        dN4t = [N4_xi, N4_eta]
-        dN5t = [N5_xi, N5_eta]
-        dN6t = [N6_xi, N6_eta]
-        dN7t = [N7_xi, N7_eta]
-        dN8t = [N8_xi, N8_eta]
-        dN9t = [N9_xi, N9_eta]
-        dN10t = [N10_xi, N10_eta]
+        dN1 = [N1_xi, N1_eta]
+        dN2 = [N2_xi, N2_eta]
+        dN3 = [N3_xi, N3_eta]
+        dN4 = [N4_xi, N4_eta]
+        dN5 = [N5_xi, N5_eta]
+        dN6 = [N6_xi, N6_eta]
+        dN7 = [N7_xi, N7_eta]
+        dN8 = [N8_xi, N8_eta]
+        dN9 = [N9_xi, N9_eta]
+        dN10 = [N10_xi, N10_eta]
 
-        dNtild = np.array([dN1t, dN2t, dN3t, dN4t, dN5t, dN6t, dN7t, dN8t, dN9t, dN10t])
+        dN = np.array([dN1, dN2, dN3, dN4, dN5, dN6, dN7, dN8, dN9, dN10])
 
-        return dNtild
+        return dN
 
     def _ddN(self) -> np.ndarray:
 
@@ -265,20 +265,20 @@ class TRI10(_GroupElem):
         N9_eta2 = lambda xi, eta : 81.0*eta + 54.0*xi + -45.0
         N10_eta2 = lambda xi, eta : 0.0*eta + -54.0*xi + 0.0
 
-        ddN1t = [N1_xi2, N1_eta2]
-        ddN2t = [N2_xi2, N2_eta2]
-        ddN3t = [N3_xi2, N3_eta2]
-        ddN4t = [N4_xi2, N4_eta2]
-        ddN5t = [N5_xi2, N5_eta2]
-        ddN6t = [N6_xi2, N6_eta2]
-        ddN7t = [N7_xi2, N7_eta2]
-        ddN8t = [N8_xi2, N8_eta2]
-        ddN9t = [N9_xi2, N9_eta2]
-        ddN10t = [N10_xi2, N10_eta2]
+        ddN1 = [N1_xi2, N1_eta2]
+        ddN2 = [N2_xi2, N2_eta2]
+        ddN3 = [N3_xi2, N3_eta2]
+        ddN4 = [N4_xi2, N4_eta2]
+        ddN5 = [N5_xi2, N5_eta2]
+        ddN6 = [N6_xi2, N6_eta2]
+        ddN7 = [N7_xi2, N7_eta2]
+        ddN8 = [N8_xi2, N8_eta2]
+        ddN9 = [N9_xi2, N9_eta2]
+        ddN10 = [N10_xi2, N10_eta2]
 
-        ddNtild = np.array([ddN1t, ddN2t, ddN3t, ddN4t, ddN5t, ddN6t, ddN7t, ddN8t, ddN9t, ddN10t])
+        ddN = np.array([ddN1, ddN2, ddN3, ddN4, ddN5, ddN6, ddN7, ddN8, ddN9, ddN10])
 
-        return ddNtild
+        return ddN
 
     def _dddN(self) -> np.ndarray:
         
@@ -304,20 +304,20 @@ class TRI10(_GroupElem):
         N9_eta3 = lambda xi, eta : 81.0
         N10_eta3 = lambda xi, eta : 0.0
 
-        dddN1t = [N1_xi3, N1_eta3]
-        dddN2t = [N2_xi3, N2_eta3]
-        dddN3t = [N3_xi3, N3_eta3]
-        dddN4t = [N4_xi3, N4_eta3]
-        dddN5t = [N5_xi3, N5_eta3]
-        dddN6t = [N6_xi3, N6_eta3]
-        dddN7t = [N7_xi3, N7_eta3]
-        dddN8t = [N8_xi3, N8_eta3]
-        dddN9t = [N9_xi3, N9_eta3]
-        dddN10t = [N10_xi3, N10_eta3]
+        dddN1 = [N1_xi3, N1_eta3]
+        dddN2 = [N2_xi3, N2_eta3]
+        dddN3 = [N3_xi3, N3_eta3]
+        dddN4 = [N4_xi3, N4_eta3]
+        dddN5 = [N5_xi3, N5_eta3]
+        dddN6 = [N6_xi3, N6_eta3]
+        dddN7 = [N7_xi3, N7_eta3]
+        dddN8 = [N8_xi3, N8_eta3]
+        dddN9 = [N9_xi3, N9_eta3]
+        dddN10 = [N10_xi3, N10_eta3]
 
-        dddNtild = np.array([dddN1t, dddN2t, dddN3t, dddN4t, dddN5t, dddN6t, dddN7t, dddN8t, dddN9t, dddN10t])
+        dddN = np.array([dddN1, dddN2, dddN3, dddN4, dddN5, dddN6, dddN7, dddN8, dddN9, dddN10])
 
-        return dddNtild
+        return dddN
 
     def _ddddN(self) -> np.ndarray:
         return super()._ddddN()
