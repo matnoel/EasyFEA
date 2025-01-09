@@ -1460,8 +1460,7 @@ class _GroupElem(ABC):
             decZ = np.abs(zn.min()) + dec
             x = point.x + decX
             y = point.y + decY
-            z = point.z + decZ
-            coordo = coordo + [decX, decY, decZ]
+            z = point.z + decZ            
             
             # get errors between coordinates
             errorX = np.abs((xn-x)/xn)
