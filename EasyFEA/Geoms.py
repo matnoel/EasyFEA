@@ -239,7 +239,7 @@ class _Geom(ABC):
         return self.__isHollow
     
     @isHollow.setter
-    def isOpen(self, value: bool) -> None:
+    def isHollow(self, value: bool) -> None:
         assert isinstance(value, bool), "must be a boolean"
         self.__isHollow = value
     
