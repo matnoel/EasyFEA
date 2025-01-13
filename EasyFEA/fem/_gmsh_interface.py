@@ -380,7 +380,7 @@ class Mesher:
                 gmsh.model.mesh.setRecombine(2, surf)
     
     def _Additional_Surfaces(self, dim: int, surfaces:list[_Geom], elemType, isOrganised) -> None:
-        """Adds surfaces to existing dim entities.
+        """Adds surfaces to existing dim entities. Tip: if the mesh is not well generated, you can also give the inclusions.
 
         Parameters
         ----------
@@ -399,26 +399,36 @@ class Mesher:
         assert dim >= 2
 
         factory = self._factory
-
+                
+        list_surface: list[_Geom] = []
         for surface in surfaces:
+            assert isinstance(surface, _Geom)
+            if not surface.isHollow:
+                # first create an hollow surface with cut
+                # then add the surface
+                newSurf = surface.copy()
+                newSurf.isHollow = True
+                list_surface.append(newSurf)
+            list_surface.append(surface)
+
+        for surface in list_surface:            
             # get old entities
             oldEntities = factory.getEntities(dim)
+
             # Create new surfaces
-            if isinstance(surface, Union[Iterable, tuple]):
-                # surface is a combination of a contour + inclusions
-                newSurfaces = self._Surfaces(surface[0], surface[1], elemType, isOrganised)[0]
-            else:
-                # surface is just a contour
-                newSurfaces = self._Surfaces(surface, [], elemType, isOrganised)[0]
+            newSurfaces = self._Surfaces(surface, [], elemType, isOrganised)[0]
+
             # Delete or add created entities to the current geometry.
             newEntities = [(2, surf) for surf in newSurfaces]
+
             if surface.isHollow:
                 factory.cut(oldEntities, newEntities)
             else:
-                factory.fragment(oldEntities, newEntities, removeTool=False, removeObject=False)
+                factory.fragment(oldEntities, newEntities, False, True)
+
 
     def _Additional_Lines(self, dim: int, lines:list[Union[Line, CircleArc]]) -> None:
-        """Adds lines to existing dim entities.
+        """Adds lines to existing dim entities. WARNING: lines must be within the domain.
 
         Parameters
         ----------
@@ -445,10 +455,10 @@ class Mesher:
                 geom_line = factory.addCircleArc(p1, p3, p2, center=False)
             else:
                 raise Exception("You need to give lines or arcs.")
-            factory.fragment(oldEntities, [(1, geom_line)], removeTool=False, removeObject=False)
-
+            factory.fragment(oldEntities, [(1, geom_line)], False, True)
+            
     def _Additional_Points(self, dim: int, points:list[Point], meshSize: float=0.0) -> None:
-        """Adds points to existing dim entities.
+        """Adds points to existing dim entities. WARNING points must be within the domain.
 
         Parameters
         ----------
@@ -464,13 +474,20 @@ class Mesher:
 
         factory = self._factory
 
+        oldEntities = factory.getEntities(dim)
+        
+        list_point: list[int] = []
         for point in points:
-            oldEntities = factory.getEntities(dim)
             if isinstance(point, Point):
                 p = factory.addPoint(*point.coord, meshSize)
             else:
                 raise Exception("You need to give a list of point.")
-            factory.fragment(oldEntities, [(0, p)], removeTool=False, removeObject=False)
+            list_point.append(p)
+
+        self._Synchronize()
+        for entity in oldEntities:
+            gmsh.model.mesh.embed(0, list_point, entity[0], entity[1])
+
 
     def _Spline_From_Points(self, points: Points) -> tuple[int, list[int]]:
         """Creates a gmsh spline from points.\n
@@ -973,7 +990,7 @@ class Mesher:
         folder : str, optional
             default mesh.msh folder, by default "" does not save the mesh
         additionalPoints : list[Point]
-            additional points that will be added to the mesh.
+            additional points that will be added to the mesh. WARNING: points must be within the domain.
 
         Returns
         -------
@@ -1083,11 +1100,11 @@ class Mesher:
         isOrganised : bool, optional
             mesh is organized, by default False
         additionalSurfaces : list[_Geom]
-            additional surfaces that will be added to or removed from the surfaces created by the contour and the inclusions. (e.g Domain, Circle, Contour, Points)
+            additional surfaces that will be added to or removed from the surfaces created by the contour and the inclusions. (e.g Domain, Circle, Contour, Points). Tip: if the mesh is not well generated, you can also give the inclusions.
         additionalLines : list[Union[Line,CircleArc]]
-            additional lines that will be added to the surfaces created by the contour and the inclusions. (e.g Domain, Circle, Contour, Points)
+            additional lines that will be added to the surfaces created by the contour and the inclusions. (e.g Domain, Circle, Contour, Points). WARNING: lines must be within the domain.
         additionalPoints : list[Point]
-            additional points that will be added to the surfaces created by the contour and the inclusions.
+            additional points that will be added to the surfaces created by the contour and the inclusions. WARNING: points must be within the domain.
         folder : str, optional
             default mesh.msh folder, by default "" does not save the mesh
 
@@ -1106,7 +1123,7 @@ class Mesher:
         factory = self._factory
 
         self._Surfaces(contour, inclusions, elemType, isOrganised)
-        self._Additional_Surfaces(2, additionalSurfaces, elemType, isOrganised)        
+        self._Additional_Surfaces(2, additionalSurfaces, elemType, isOrganised)
         self._Additional_Lines(2, additionalLines)
         self._Additional_Points(2, additionalPoints)
         # TODO: add contour to refineGeoms by default when adding surfaces, lines or points
@@ -1160,11 +1177,11 @@ class Mesher:
         isOrganised : bool, optional
             mesh is organized, by default False
         additionalSurfaces : list[_Geom]
-            additional surfaces that will be added to or removed from the surfaces created by the contour and the inclusions. (e.g Domain, Circle, Contour, Points)
+            additional surfaces that will be added to or removed from the surfaces created by the contour and the inclusions. (e.g Domain, Circle, Contour, Points). Tip: if the mesh is not well generated, you can also give the inclusions.
         additionalLines : list[Union[Line,CircleArc]]
-            additional lines that will be added to the surfaces created by the contour and the inclusions. (e.g Domain, Circle, Contour, Points)
+            additional lines that will be added to the surfaces created by the contour and the inclusions. (e.g Domain, Circle, Contour, Points). WARNING: lines must be within the domain.
         additionalPoints : list[Point]
-            additional points that will be added to the surfaces created by the contour and the inclusions.
+            additional points that will be added to the surfaces created by the contour and the inclusions. WARNING: points must be within the domain.
         folder : str, optional
             default mesh.msh folder, by default "" does not save the mesh
 
@@ -1237,11 +1254,11 @@ class Mesher:
         isOrganised : bool, optional
             mesh is organized, by default False
         additionalSurfaces : list[_Geom]
-            additional surfaces that will be added to or removed from the surfaces created by the contour and the inclusions. (e.g Domain, Circle, Contour, Points)
+            additional surfaces that will be added to or removed from the surfaces created by the contour and the inclusions. (e.g Domain, Circle, Contour, Points). Tip: if the mesh is not well generated, you can also give the inclusions.
         additionalLines : list[Union[Line,CircleArc]]
-            additional lines that will be added to the surfaces created by the contour and the inclusions. (e.g Domain, Circle, Contour, Points)
+            additional lines that will be added to the surfaces created by the contour and the inclusions. (e.g Domain, Circle, Contour, Points). WARNING: lines must be within the domain.
         additionalPoints : list[Point]
-            additional points that will be added to the surfaces created by the contour and the inclusions.
+            additional points that will be added to the surfaces created by the contour and the inclusions. WARNING: points must be within the domain.
         folder : str, optional
             default mesh.msh folder, by default "" does not save the mesh
 
