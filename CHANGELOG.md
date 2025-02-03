@@ -2,6 +2,12 @@
 
 This document describes the changes made to the project.
 
+## 1.2.7 (February 7, 2025):
+
+- Enhanced Gmsh_Interface.
+- Finite element shape functions were renamed to improve code readability.
+- NEW YEAR.
+
 ## 1.2.6 (November 7, 2024):
 
 - Enhanced the Digital Image Correlation (DIC) analysis module.

@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "EasyFEA"
-version = "1.2.6"
+version = "1.2.7"
 description = "User-friendly Python library that simplifies finite element analysis."
 authors = [
     {name = "Matthieu Noel", email = "matthieu.noel7@gmail.com"}
@@ -26,12 +26,12 @@ classifiers = [
     "Programming Language :: Python :: 3.12",
 ]
 dependencies = [
+    "numba",
     "numpy",
     "gmsh>=4.12",
     "scipy",
     "matplotlib",
     "pyvista",
-    "numba",
     "pandas",
     "imageio",
     "imageio[ffmpeg]",
