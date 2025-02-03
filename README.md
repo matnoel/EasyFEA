@@ -66,7 +66,7 @@ Display.plt.show()
 
 ## License
 
-Copyright (C) 2021-2024 Université Gustave Eiffel.
+Copyright (C) 2021-2025 Université Gustave Eiffel.
 
 EasyFEA is distributed under the terms of the [GNU General Public License v3.0 or later](https://spdx.org/licenses/GPL-3.0-or-later.html), see [LICENSE.txt](https://github.com/matnoel/EasyFEA/blob/main/LICENSE.txt) and [CREDITS.md](https://github.com/matnoel/EasyFEA/blob/main/CREDITS.md) for more information.
 
