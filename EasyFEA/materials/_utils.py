@@ -8,7 +8,7 @@ from enum import Enum
 
 # utilities
 from ..utilities._observers import Observable
-from .. import np
+import numpy as np
 
 # ----------------------------------------------
 # Types

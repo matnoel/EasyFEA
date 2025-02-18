@@ -6,7 +6,7 @@ from abc import abstractmethod
 from typing import Union
 
 # utilities
-from .. import np
+import numpy as np
 # others
 from ..Geoms import Line, Normalize_vect, As_Coordinates
 # fem

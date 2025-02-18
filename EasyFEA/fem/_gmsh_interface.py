@@ -5,17 +5,13 @@
 """Module providing an interface with Gmsh (https://gmsh.info/).\n
 This module handles geometric objects (_Geom) to facilitate the creation of meshes on Gmsh."""
 
-import gmsh
-import sys
-import os
+import sys, os, matplotlib, gmsh
 import numpy as np
-import matplotlib
 
 # utilities
 from ..utilities import Display, Folder, Tic
 # geom
-from ..Geoms import *
-from ..Geoms import _Geom
+from ..Geoms import _Geom, Point, Points, Line, Circle, CircleArc, Domain, Contour, Union, Iterable, Normalize_vect
 # fem
 from ._mesh import Mesh, ElemType
 from ._group_elems import _GroupElem, GroupElemFactory

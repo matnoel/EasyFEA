@@ -9,7 +9,6 @@ from enum import Enum
 import numpy as np
 import scipy.sparse as sparse
 import scipy.optimize as optimize
-import scipy.sparse as sparse
 import scipy.sparse.linalg as sla
 
 # utilities

@@ -6,7 +6,7 @@ from typing import Union
 from enum import Enum
 
 # utilities
-from .. import np
+import numpy as np
 from ..utilities import Tic, Numba_Interface
 # fem
 from ..fem import Mesh

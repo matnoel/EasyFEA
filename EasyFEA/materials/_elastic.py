@@ -7,7 +7,7 @@ from typing import Union
 from scipy.linalg import sqrtm
 
 # utilities
-from .. import np
+import numpy as np
 # others
 from ..Geoms import As_Coordinates, Normalize_vect
 from ._utils import (_IModel, ModelType,

@@ -17,14 +17,14 @@ import copy
 from typing import Callable
 
 # utilities
-from ..utilities import Display
-from ..utilities import Tic
+from ..utilities import Display, Tic
 from ..utilities._observers import Observable
 # fem
 from ._utils import ElemType, MatrixType
 from ._group_elems import _GroupElem
 # others
-from ..Geoms import *
+from ..Geoms import (Point, Line, Domain, Circle,
+                     Rotate_coord, Symmetry_coord, Normalize_vect, AngleBetween_a_b)
 
 class Mesh(Observable):
     """Mesh class."""

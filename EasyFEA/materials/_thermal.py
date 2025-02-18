@@ -5,7 +5,7 @@
 from typing import Union
 
 # utilities
-from .. import np
+import numpy as np
 
 from ._utils import _IModel, ModelType
 
