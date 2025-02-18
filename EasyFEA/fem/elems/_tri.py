@@ -140,15 +140,6 @@ class TRI6(_GroupElem):
     def _ddddN(self) -> np.ndarray:
         return super()._ddddN()
 
-    def _EulerBernoulli_N(self) -> np.ndarray:
-        return super()._EulerBernoulli_N()
-
-    def _EulerBernoulli_dN(self) -> np.ndarray:
-        return super()._EulerBernoulli_dN()
-
-    def _EulerBernoulli_ddN(self) -> np.ndarray:
-        return super()._EulerBernoulli_ddN()
-
 class TRI10(_GroupElem):
     # v
     # ^
