@@ -100,6 +100,7 @@ __dictParaviewTypes = {
         "TRI15" : 69,
         "QUAD4" : 9,
         "QUAD8" : 23,
+        "QUAD9" : 28,
         "TETRA4" : 10,
         "TETRA10" : 24,
         "TETRA10" : 10,

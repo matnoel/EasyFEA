@@ -616,6 +616,7 @@ __dictCellTypes: dict[str, pv.CellType] = {
     "TRI10": pv.CellType.TRIANGLE, # there is no TRI10 elements available
     "QUAD4": pv.CellType.QUAD,
     "QUAD8": pv.CellType.QUADRATIC_QUAD,
+    "QUAD9": pv.CellType.BIQUADRATIC_QUAD,
     "TETRA4": pv.CellType.TETRA,
     "TETRA10": pv.CellType.QUADRATIC_TETRA,
     "HEXA8": pv.CellType.HEXAHEDRON,
