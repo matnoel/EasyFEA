@@ -8,6 +8,7 @@ import numpy as np
 
 # utilities
 from . import Display, Folder, Tic
+from .PyVista_Interface import DICT_VTK_INDEXES, DICT_CELL_TYPES
 
 # ----------------------------------------------
 # Paraview
@@ -90,28 +91,6 @@ def Make_Paraview(simu, folder: str, N=200, details=False, nodesField=[], elemen
 
     tic.Tac("Paraview","Make pvd", False)
 
-__dictParaviewTypes = {
-        "SEG2" : 3,
-        "SEG3" : 21,
-        "SEG4" : 35,        
-        "TRI3" : 5,
-        "TRI6" : 22,
-        "TRI10" : 69,
-        "TRI15" : 69,
-        "QUAD4" : 9,
-        "QUAD8" : 23,
-        "QUAD9" : 28,
-        "TETRA4" : 10,
-        "TETRA10" : 24,
-        "TETRA10" : 10,
-        "HEXA8": 12,
-        # "HEXA20": 29,
-        "HEXA20": 12,
-        "PRISM6": 13,
-        # "PRISM15": 15
-        "PRISM15": 13
-    } # look https://github.com/Kitware/VTK/blob/master/Common/DataModel/vtkCellType.h    
-
 # ----------------------------------------------
 # Functions
 # ----------------------------------------------
@@ -132,12 +111,19 @@ def __Make_vtu(simu, iter: int, filename: str, nodesField: list[str], elementsFi
             return
 
     connect = simu.mesh.connect
+        
+    vtkIndexes = DICT_VTK_INDEXES[simu.mesh.elemType] \
+    if simu.mesh.elemType in DICT_VTK_INDEXES.keys() else np.arange(simu.mesh.nPe)    
+    
+    connect = connect[:, vtkIndexes]    
+    connect = np.reshape(connect, (-1, np.shape(vtkIndexes)[-1]))
+
     coord = simu.mesh.coord
     Ne = simu.mesh.Ne
     Nn = simu.mesh.Nn
     nPe = simu.mesh.groupElem.nPe    
 
-    paraviewType = __dictParaviewTypes[simu.mesh.elemType]
+    paraviewType = DICT_CELL_TYPES[simu.mesh.elemType][1]
     
     types = np.ones(Ne, dtype=int)*paraviewType
 
@@ -241,7 +227,7 @@ def __Make_vtu(simu, iter: int, filename: str, nodesField: list[str], elementsFi
         __WriteBinary(bitSize*Ne, "uint32", file)
         __WriteBinary(offsets+3, "int32", file)
 
-        # Element tyoes
+        # Element types
         __WriteBinary(types.size, "uint32", file)
         __WriteBinary(types, "int8", file)
 

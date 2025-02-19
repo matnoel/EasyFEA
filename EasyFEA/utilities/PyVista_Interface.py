@@ -604,26 +604,53 @@ def Movie_func(func: Callable[[pv.Plotter, int], None], N: int, folder: str, fil
     plotter.close()    
 
 # ----------------------------------------------
-# Functions
+# Types
 # ----------------------------------------------
 
-__dictCellTypes: dict[str, pv.CellType] = {
-    "SEG2": pv.CellType.LINE,
-    "SEG3": pv.CellType.QUADRATIC_EDGE,
-    "SEG4": pv.CellType.CUBIC_LINE,
-    "TRI3": pv.CellType.TRIANGLE,
-    "TRI6": pv.CellType.QUADRATIC_TRIANGLE,
-    "TRI10": pv.CellType.TRIANGLE, # there is no TRI10 elements available
-    "QUAD4": pv.CellType.QUAD,
-    "QUAD8": pv.CellType.QUADRATIC_QUAD,
-    "QUAD9": pv.CellType.BIQUADRATIC_QUAD,
-    "TETRA4": pv.CellType.TETRA,
-    "TETRA10": pv.CellType.QUADRATIC_TETRA,
-    "HEXA8": pv.CellType.HEXAHEDRON,
-    "HEXA20": pv.CellType.QUADRATIC_HEXAHEDRON,
-    "PRISM6": pv.CellType.WEDGE,
-    "PRISM15": pv.CellType.QUADRATIC_WEDGE,
+DICT_CELL_TYPES: dict[str, tuple[pv.CellType, int]] = {
+    # (to Pyvista, to Paraview)
+    # see https://dev.pyvista.org/api/utilities/_autosummary/pyvista.celltype#pyvista.CellType
+    "SEG2": (pv.CellType.LINE, 3),
+    "SEG3": (pv.CellType.QUADRATIC_EDGE, 21),
+    "SEG4": (pv.CellType.CUBIC_LINE, 35),
+    "TRI3": (pv.CellType.TRIANGLE, 5),
+    "TRI6": (pv.CellType.QUADRATIC_TRIANGLE, 22),
+    "TRI10": (pv.CellType.LAGRANGE_TRIANGLE, 69),
+    "QUAD4": (pv.CellType.QUAD, 9),
+    "QUAD8": (pv.CellType.QUADRATIC_QUAD, 23),
+    "QUAD9": (pv.CellType.BIQUADRATIC_QUAD, 28),
+    "TETRA4": (pv.CellType.TETRA, 10),
+    "TETRA10": (pv.CellType.QUADRATIC_TETRA, 24),
+    "HEXA8": (pv.CellType.HEXAHEDRON, 12),
+    "HEXA20": (pv.CellType.QUADRATIC_HEXAHEDRON, 25),
+    "HEXA27": (pv.CellType.TRIQUADRATIC_HEXAHEDRON, 29),
+    "PRISM6": (pv.CellType.WEDGE, 13),
+    "PRISM15": (pv.CellType.QUADRATIC_WEDGE, 26),
 }
+
+# reorganize the connectivity order 
+# because some elements in gmsh don't have the same numbering order as in vtk
+# pyvista -> https://docs.pyvista.org/version/stable/api/core/_autosummary/pyvista.UnstructuredGrid.celltypes.html
+# vtk -> https://vtk.org/doc/nightly/html/vtkCellType_8h_source.html
+# https://dev.pyvista.org/api/utilities/_autosummary/pyvista.celltype
+# you can search for vtk elements on the internet
+DICT_VTK_INDEXES: dict[str, np.ndarray] = {
+    # https://dev.pyvista.org/api/examples/_autosummary/pyvista.examples.cells.quadratichexahedron#pyvista.examples.cells.QuadraticHexahedron
+    "HEXA20": [0,1,2,3,4,5,6,7,
+              8,11,13,9,16,18,19,17,10,12,14,15],
+    # https://dev.pyvista.org/api/examples/_autosummary/pyvista.examples.cells.triquadratichexahedron#pyvista.examples.cells.TriQuadraticHexahedron
+    "HEXA27": [0,1,2,3,4,5,6,7,
+               8,11,13,9,16,18,19,17,10,12,14,15,
+               22,23,21,24,20,25,26],
+    "PRISM15": [0,1,2,3,4,5,
+                6,9,7,12,14,13,8,10,11],
+    # nodes 8 and 9 are switch
+    "TETRA10": [0,1,2,3,4,5,6,7,9,8]
+    }
+
+# ----------------------------------------------
+# Functions
+# ----------------------------------------------
 
 def _Plotter(off_screen=False, add_axes=True, shape=(1,1), linkViews=True):
     plotter = pv.Plotter(off_screen=off_screen, shape=shape)
@@ -654,31 +681,22 @@ def _pvGrid(obj, result: Union[str, np.ndarray]=None, deformFactor=0.0, nodeValu
     Nn = mesh.Nn
     Ne = mesh.Ne
 
-    if elemType not in __dictCellTypes.keys():
+    if elemType not in DICT_CELL_TYPES.keys():
         MyPrintError(f"{elemType} is not implemented yet.")
         return
-    
-    cellType = __dictCellTypes[elemType]
-    
-    # reorganize the connectivity order 
-    # because some elements in gmsh don't have the same numbering order as in vtk
-    # pyvista -> https://docs.pyvista.org/version/stable/api/core/_autosummary/pyvista.UnstructuredGrid.celltypes.html
-    # vtk -> https://vtk.org/doc/nightly/html/vtkCellType_8h_source.html
-    # you can search for vtk elements on the internet
-    if elemType == "TRI10":
-        # there is cellType available for TRI10 so i juste use the TRI10 corners
-        order = np.arange(3)
-    elif elemType == "HEXA20":
-        order = [0,1,2,3,4,5,6,7,8,11,13,9,16,18,19,17,10,12,14,15] # dont change here
-    elif elemType == "PRISM15":
-        order = [0,1,2,3,4,5,6,9,7,12,14,13,8,10,11]  # dont change here
-    elif elemType == "TETRA10":
-        order = [0,1,2,3,4,5,6,7,9,8]  # nodes 8 and 9 are switch
-    else:
-        order = np.arange(mesh.nPe)
-    
-    connect = mesh.connect[:, order]
 
+    vtkIndexes = DICT_VTK_INDEXES[elemType] \
+    if elemType in DICT_VTK_INDEXES.keys() else np.arange(mesh.nPe)
+    if mesh.elemType == "TRI10":
+        # forced to do this because pyvista simply does not LAGRANGE_TRIANGLE
+        # do not put in DICT_VTK_INDEXES because paraview can read
+        # LAGRANGE_TRIANGLE without changing the indices
+        vtkIndexes = np.reshape(mesh.groupElem.triangles, (-1, 3))
+    
+    connect = mesh.connect[:, vtkIndexes]    
+    connect = np.reshape(connect, (-1, np.shape(vtkIndexes)[-1]))
+
+    cellType = DICT_CELL_TYPES[elemType][0]
     pvMesh = pv.UnstructuredGrid({cellType: connect}, coordo)
 
     # Add the result    
