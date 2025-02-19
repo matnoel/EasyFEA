@@ -39,10 +39,10 @@ class QUAD4(_GroupElem):
 
     def _N(self) -> np.ndarray:
 
-        N1 = lambda xi,eta: (1-xi)*(1-eta)/4
-        N2 = lambda xi,eta: (1+xi)*(1-eta)/4
-        N3 = lambda xi,eta: (1+xi)*(1+eta)/4
-        N4 = lambda xi,eta: (1-xi)*(1+eta)/4
+        N1 = lambda r, s : (r - 1)*(s - 1)/4
+        N2 = lambda r, s : -(r + 1)*(s - 1)/4
+        N3 = lambda r, s : (r + 1)*(s + 1)/4
+        N4 = lambda r, s : -(r - 1)*(s + 1)/4
         
         N = np.array([N1, N2, N3, N4]).reshape(-1, 1)
 
@@ -50,10 +50,10 @@ class QUAD4(_GroupElem):
 
     def _dN(self) -> np.ndarray:
 
-        dN1 = [lambda xi,eta: (eta-1)/4,  lambda xi,eta: (xi-1)/4]
-        dN2 = [lambda xi,eta: (1-eta)/4,  lambda xi,eta: (-xi-1)/4]
-        dN3 = [lambda xi,eta: (1+eta)/4,  lambda xi,eta: (1+xi)/4]
-        dN4 = [lambda xi,eta: (-eta-1)/4, lambda xi,eta: (1-xi)/4]
+        dN1 = [lambda r, s : s/4 - 1/4,  lambda r, s : r/4 - 1/4]
+        dN2 = [lambda r, s : 1/4 - s/4,  lambda r, s : -r/4 - 1/4]
+        dN3 = [lambda r, s : s/4 + 1/4,  lambda r, s : r/4 + 1/4]
+        dN4 = [lambda r, s : -s/4 - 1/4, lambda r, s : 1/4 - r/4]
         
         dN = np.array([dN1, dN2, dN3, dN4])
 
@@ -103,14 +103,14 @@ class QUAD8(_GroupElem):
 
     def _N(self) -> np.ndarray:
 
-        N1 = lambda xi,eta: (1-xi)*(1-eta)*(-1-xi-eta)/4
-        N2 = lambda xi,eta: (1+xi)*(1-eta)*(-1+xi-eta)/4
-        N3 = lambda xi,eta: (1+xi)*(1+eta)*(-1+xi+eta)/4
-        N4 = lambda xi,eta: (1-xi)*(1+eta)*(-1-xi+eta)/4
-        N5 = lambda xi,eta: (1-xi**2)*(1-eta)/2
-        N6 = lambda xi,eta: (1+xi)*(1-eta**2)/2
-        N7 = lambda xi,eta: (1-xi**2)*(1+eta)/2
-        N8 = lambda xi,eta: (1-xi)*(1-eta**2)/2
+        N1 = lambda r, s : -(r - 1)*(s - 1)*(r + s + 1)/4
+        N2 = lambda r, s : -(r + 1)*(s - 1)*(r - s - 1)/4
+        N3 = lambda r, s : (r + 1)*(s + 1)*(r + s - 1)/4
+        N4 = lambda r, s : (r - 1)*(s + 1)*(r - s + 1)/4
+        N5 = lambda r, s : (r - 1)*(r + 1)*(s - 1)/2
+        N6 = lambda r, s : -(r + 1)*(s - 1)*(s + 1)/2
+        N7 = lambda r, s : -(r - 1)*(r + 1)*(s + 1)/2
+        N8 = lambda r, s : (r - 1)*(s - 1)*(s + 1)/2
         
         N =  np.array([N1, N2, N3, N4, N5, N6, N7, N8]).reshape(-1, 1)
 
@@ -118,14 +118,22 @@ class QUAD8(_GroupElem):
     
     def _dN(self) -> np.ndarray:
 
-        dN1 = [lambda xi,eta: (1-eta)*(2*xi+eta)/4,      lambda xi,eta: (1-xi)*(xi+2*eta)/4]
-        dN2 = [lambda xi,eta: (1-eta)*(2*xi-eta)/4,      lambda xi,eta: -(1+xi)*(xi-2*eta)/4]
-        dN3 = [lambda xi,eta: (1+eta)*(2*xi+eta)/4,      lambda xi,eta: (1+xi)*(xi+2*eta)/4]
-        dN4 = [lambda xi,eta: -(1+eta)*(-2*xi+eta)/4,    lambda xi,eta: (1-xi)*(-xi+2*eta)/4]
-        dN5 = [lambda xi,eta: -xi*(1-eta),               lambda xi,eta: -(1-xi**2)/2]
-        dN6 = [lambda xi,eta: (1-eta**2)/2,               lambda xi,eta: -eta*(1+xi)]
-        dN7 = [lambda xi,eta: -xi*(1+eta),               lambda xi,eta: (1-xi**2)/2]
-        dN8 = [lambda xi,eta: -(1-eta**2)/2,              lambda xi,eta: -eta*(1-xi)]
+        dN1 = [lambda r, s : -(r - 1)*(s - 1)/4 - (s - 1)*(r + s + 1)/4,
+               lambda r, s : -(r - 1)*(s - 1)/4 - (r - 1)*(r + s + 1)/4]
+        dN2 = [lambda r, s : -(r + 1)*(s - 1)/4 - (s - 1)*(r - s - 1)/4,
+               lambda r, s : (r + 1)*(s - 1)/4 - (r + 1)*(r - s - 1)/4]
+        dN3 = [lambda r, s : (r + 1)*(s + 1)/4 + (s + 1)*(r + s - 1)/4,
+               lambda r, s : (r + 1)*(s + 1)/4 + (r + 1)*(r + s - 1)/4]
+        dN4 = [lambda r, s : (r - 1)*(s + 1)/4 + (s + 1)*(r - s + 1)/4,
+               lambda r, s : -(r - 1)*(s + 1)/4 + (r - 1)*(r - s + 1)/4]
+        dN5 = [lambda r, s : (r - 1)*(s - 1)/2 + (r + 1)*(s - 1)/2,
+               lambda r, s : (r - 1)*(r + 1)/2]
+        dN6 = [lambda r, s : -(s - 1)*(s + 1)/2,
+               lambda r, s : -(r + 1)*(s - 1)/2 - (r + 1)*(s + 1)/2]
+        dN7 = [lambda r, s : -(r - 1)*(s + 1)/2 - (r + 1)*(s + 1)/2,
+               lambda r, s : -(r - 1)*(r + 1)/2]
+        dN8 = [lambda r, s : (s - 1)*(s + 1)/2,
+               lambda r, s : (r - 1)*(s - 1)/2 + (r - 1)*(s + 1)/2]
                         
         dN = np.array([dN1, dN2, dN3, dN4, dN5, dN6, dN7, dN8])
 
@@ -133,14 +141,14 @@ class QUAD8(_GroupElem):
 
     def _ddN(self) -> np.ndarray:
 
-        ddN1 = [lambda xi,eta: (1-eta)/2,  lambda xi,eta: (1-xi)/2]
-        ddN2 = [lambda xi,eta: (1-eta)/2,  lambda xi,eta: (1+xi)/2]
-        ddN3 = [lambda xi,eta: (1+eta)/2,  lambda xi,eta: (1+xi)/2]
-        ddN4 = [lambda xi,eta: (1+eta)/2,  lambda xi,eta: (1-xi)/2]
-        ddN5 = [lambda xi,eta: -1+eta,     lambda xi,eta: 0]
-        ddN6 = [lambda xi,eta: 0,          lambda xi,eta: -1-xi]
-        ddN7 = [lambda xi,eta: -1-eta,     lambda xi,eta: 0]
-        ddN8 = [lambda xi,eta: 0,          lambda xi,eta: -1+xi]
+        ddN1 = [lambda r, s : 1/2 - s/2, lambda r, s : 1/2 - r/2]
+        ddN2 = [lambda r, s : 1/2 - s/2, lambda r, s : r/2 + 1/2]
+        ddN3 = [lambda r, s : s/2 + 1/2, lambda r, s : r/2 + 1/2]
+        ddN4 = [lambda r, s : s/2 + 1/2, lambda r, s : 1/2 - r/2]
+        ddN5 = [lambda r, s : s - 1,     lambda r, s : 0]
+        ddN6 = [lambda r, s : 0,         lambda r, s : -r - 1]
+        ddN7 = [lambda r, s : -s - 1,    lambda r, s : 0]
+        ddN8 = [lambda r, s : 0,         lambda r, s : r - 1]
                         
         ddN = np.array([ddN1, ddN2, ddN3, ddN4, ddN5, ddN6, ddN7, ddN8])
 

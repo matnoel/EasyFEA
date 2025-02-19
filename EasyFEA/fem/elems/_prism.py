@@ -54,12 +54,12 @@ class PRISM6(_GroupElem):
 
     def _N(self) -> np.ndarray:        
 
-        N1 = lambda x,y,z: 0.5*x*z + 0.5*y*z + -0.5*x + -0.5*y + -0.5*z + 0.5
-        N2 = lambda x,y,z: -0.5*x*z + 0.0*y*z + 0.5*x + 0.0*y + 0.0*z + 0.0
-        N3 = lambda x,y,z: 0.0*x*z + -0.5*y*z + 0.0*x + 0.5*y + 0.0*z + 0.0
-        N4 = lambda x,y,z: -0.5*x*z + -0.5*y*z + -0.5*x + -0.5*y + 0.5*z + 0.5
-        N5 = lambda x,y,z: 0.5*x*z + 0.0*y*z + 0.5*x + 0.0*y + 0.0*z + 0.0
-        N6 = lambda x,y,z: 0.0*x*z + 0.5*y*z + 0.0*x + 0.5*y + 0.0*z + 0.0        
+        N1 = lambda r, s, t : (t - 1)*(r + s - 1)/2
+        N2 = lambda r, s, t : -r*(t - 1)/2
+        N3 = lambda r, s, t : -s*(t - 1)/2
+        N4 = lambda r, s, t : -(t + 1)*(r + s - 1)/2
+        N5 = lambda r, s, t : r*(t + 1)/2
+        N6 = lambda r, s, t : s*(t + 1)/2
 
         N = np.array([N1, N2, N3, N4, N5, N6]).reshape(-1, 1)
 
@@ -67,12 +67,24 @@ class PRISM6(_GroupElem):
     
     def _dN(self) -> np.ndarray:        
 
-        dN1 = [lambda x,y,z: 0.5*z + -0.5, lambda x,y,z: 0.5*z + -0.5, lambda x,y,z: 0.5*x + 0.5*y + -0.5]
-        dN2 = [lambda x,y,z: -0.5*z + 0.5, lambda x,y,z: 0.0*z + 0.0, lambda x,y,z: -0.5*x + 0.0*y + 0.0]
-        dN3 = [lambda x,y,z: 0.0*z + 0.0, lambda x,y,z: -0.5*z + 0.5, lambda x,y,z: 0.0*x + -0.5*y + 0.0]
-        dN4 = [lambda x,y,z: -0.5*z + -0.5, lambda x,y,z: -0.5*z + -0.5, lambda x,y,z: -0.5*x + -0.5*y + 0.5]
-        dN5 = [lambda x,y,z: 0.5*z + 0.5, lambda x,y,z: 0.0*z + 0.0, lambda x,y,z: 0.5*x + 0.0*y + 0.0]
-        dN6 = [lambda x,y,z: 0.0*z + 0.0, lambda x,y,z: 0.5*z + 0.5, lambda x,y,z: 0.0*x + 0.5*y + 0.0]
+        dN1 = [lambda r, s, t : t/2 - 1/2,
+               lambda r, s, t : t/2 - 1/2,
+               lambda r, s, t : r/2 + s/2 - 1/2]
+        dN2 = [lambda r, s, t : 1/2 - t/2,
+               lambda r, s, t : 0,
+               lambda r, s, t : -r/2]
+        dN3 = [lambda r, s, t : 0,
+               lambda r, s, t : 1/2 - t/2,
+               lambda r, s, t : -s/2]
+        dN4 = [lambda r, s, t : -t/2 - 1/2,
+               lambda r, s, t : -t/2 - 1/2,
+               lambda r, s, t : -r/2 - s/2 + 1/2]
+        dN5 = [lambda r, s, t : t/2 + 1/2,
+               lambda r, s, t : 0,
+               lambda r, s, t : r/2]
+        dN6 = [lambda r, s, t : 0,
+               lambda r, s, t : t/2 + 1/2,
+               lambda r, s, t : s/2]
 
         dN = np.array([dN1, dN2, dN3, dN4, dN5, dN6])        
 
@@ -133,21 +145,21 @@ class PRISM15(_GroupElem):
 
     def _N(self) -> np.ndarray:
 
-        N1 = lambda x,y,z: -1.0*x**2*z + -1.0*y**2*z + -0.5*z**2*x + -0.5*z**2*y + -2.0*x*y*z + 1.0*x**2 + 1.0*y**2 + 0.5*z**2 + 1.5*x*z + 1.5*y*z + -1.0*x + -1.0*y + -0.5*z + 2.0*x*y + 0.0
-        N2 = lambda x,y,z: -1.0*x**2*z + 0.0*y**2*z + 0.5*z**2*x + 0.0*z**2*y + 0.0*x*y*z + 1.0*x**2 + 0.0*y**2 + 0.0*z**2 + 0.5*x*z + 0.0*y*z + -1.0*x + 0.0*y + 0.0*z + 0.0*x*y + 0.0
-        N3 = lambda x,y,z: 0.0*x**2*z + -1.0*y**2*z + 0.0*z**2*x + 0.5*z**2*y + 0.0*x*y*z + 0.0*x**2 + 1.0*y**2 + 0.0*z**2 + 0.0*x*z + 0.5*y*z + 0.0*x + -1.0*y + 0.0*z + 0.0*x*y + 0.0
-        N4 = lambda x,y,z: 1.0*x**2*z + 1.0*y**2*z + -0.5*z**2*x + -0.5*z**2*y + 2.0*x*y*z + 1.0*x**2 + 1.0*y**2 + 0.5*z**2 + -1.5*x*z + -1.5*y*z + -1.0*x + -1.0*y + 0.5*z + 2.0*x*y + 0.0
-        N5 = lambda x,y,z: 1.0*x**2*z + 0.0*y**2*z + 0.5*z**2*x + 0.0*z**2*y + 0.0*x*y*z + 1.0*x**2 + 0.0*y**2 + 0.0*z**2 + -0.5*x*z + 0.0*y*z + -1.0*x + 0.0*y + 0.0*z + 0.0*x*y + 0.0
-        N6 = lambda x,y,z: 0.0*x**2*z + 1.0*y**2*z + 0.0*z**2*x + 0.5*z**2*y + 0.0*x*y*z + 0.0*x**2 + 1.0*y**2 + 0.0*z**2 + 0.0*x*z + -0.5*y*z + 0.0*x + -1.0*y + 0.0*z + 0.0*x*y + 0.0
-        N7 = lambda x,y,z: 2.0*x**2*z + 0.0*y**2*z + 0.0*z**2*x + 0.0*z**2*y + 2.0*x*y*z + -2.0*x**2 + 0.0*y**2 + 0.0*z**2 + -2.0*x*z + 0.0*y*z + 2.0*x + 0.0*y + 0.0*z + -2.0*x*y + 0.0
-        N8 = lambda x,y,z: 0.0*x**2*z + 2.0*y**2*z + 0.0*z**2*x + 0.0*z**2*y + 2.0*x*y*z + 0.0*x**2 + -2.0*y**2 + 0.0*z**2 + 0.0*x*z + -2.0*y*z + 0.0*x + 2.0*y + 0.0*z + -2.0*x*y + 0.0
-        N9 = lambda x,y,z: 0.0*x**2*z + 0.0*y**2*z + 1.0*z**2*x + 1.0*z**2*y + 0.0*x*y*z + 0.0*x**2 + 0.0*y**2 + -1.0*z**2 + 0.0*x*z + 0.0*y*z + -1.0*x + -1.0*y + 0.0*z + 0.0*x*y + 1.0
-        N10 = lambda x,y,z: 0.0*x**2*z + 0.0*y**2*z + 0.0*z**2*x + 0.0*z**2*y + -2.0*x*y*z + 0.0*x**2 + 0.0*y**2 + 0.0*z**2 + 0.0*x*z + 0.0*y*z + 0.0*x + 0.0*y + 0.0*z + 2.0*x*y + 0.0
-        N11 = lambda x,y,z: 0.0*x**2*z + 0.0*y**2*z + -1.0*z**2*x + 0.0*z**2*y + 0.0*x*y*z + 0.0*x**2 + 0.0*y**2 + 0.0*z**2 + 0.0*x*z + 0.0*y*z + 1.0*x + 0.0*y + 0.0*z + 0.0*x*y + 0.0
-        N12 = lambda x,y,z: 0.0*x**2*z + 0.0*y**2*z + 0.0*z**2*x + -1.0*z**2*y + 0.0*x*y*z + 0.0*x**2 + 0.0*y**2 + 0.0*z**2 + 0.0*x*z + 0.0*y*z + 0.0*x + 1.0*y + 0.0*z + 0.0*x*y + 0.0
-        N13 = lambda x,y,z: -2.0*x**2*z + 0.0*y**2*z + 0.0*z**2*x + 0.0*z**2*y + -2.0*x*y*z + -2.0*x**2 + 0.0*y**2 + 0.0*z**2 + 2.0*x*z + 0.0*y*z + 2.0*x + 0.0*y + 0.0*z + -2.0*x*y + 0.0
-        N14 = lambda x,y,z: 0.0*x**2*z + -2.0*y**2*z + 0.0*z**2*x + 0.0*z**2*y + -2.0*x*y*z + 0.0*x**2 + -2.0*y**2 + 0.0*z**2 + 0.0*x*z + 2.0*y*z + 0.0*x + 2.0*y + 0.0*z + -2.0*x*y + 0.0
-        N15 = lambda x,y,z: 0.0*x**2*z + 0.0*y**2*z + 0.0*z**2*x + 0.0*z**2*y + 2.0*x*y*z + 0.0*x**2 + 0.0*y**2 + 0.0*z**2 + 0.0*x*z + 0.0*y*z + 0.0*x + 0.0*y + 0.0*z + 2.0*x*y + 0.0
+        N1 = lambda r, s, t : -(t - 1)*(r + s - 1)*(2*r + 2*s + t)/2
+        N2 = lambda r, s, t : -r*(t - 1)*(2*r - t - 2)/2
+        N3 = lambda r, s, t : -s*(t - 1)*(2*s - t - 2)/2
+        N4 = lambda r, s, t : (t + 1)*(r + s - 1)*(2*r + 2*s - t)/2
+        N5 = lambda r, s, t : r*(t + 1)*(2*r + t - 2)/2
+        N6 = lambda r, s, t : s*(t + 1)*(2*s + t - 2)/2
+        N7 = lambda r, s, t : 2*r*(t - 1)*(r + s - 1)
+        N8 = lambda r, s, t : 2*s*(t - 1)*(r + s - 1)
+        N9 = lambda r, s, t : (t - 1)*(t + 1)*(r + s - 1)
+        N10 = lambda r, s, t : -2*r*s*(t - 1)
+        N11 = lambda r, s, t : -r*(t - 1)*(t + 1)
+        N12 = lambda r, s, t : -s*(t - 1)*(t + 1)
+        N13 = lambda r, s, t : -2*r*(t + 1)*(r + s - 1)
+        N14 = lambda r, s, t : -2*s*(t + 1)*(r + s - 1)
+        N15 = lambda r, s, t : 2*r*s*(t + 1)
 
         N = np.array([N1, N2, N3, N4, N5, N6, N7, N8, N9, N10, N11, N12, N13, N14, N15]).reshape(-1, 1)
 
@@ -155,51 +167,51 @@ class PRISM15(_GroupElem):
     
     def _dN(self) -> np.ndarray:
 
-        dN1 = [lambda x,y,z: -2.0*x*z + -0.5*z**2 + -2.0*y*z + 2.0*x + 1.5*z + -1.0 + 2.0*y,
-                lambda x,y,z: -2.0*y*z + -0.5*z**2 + -2.0*x*z + 2.0*y + 1.5*z + -1.0 + 2.0*x,
-                lambda x,y,z: -1.0*x**2 + -1.0*y**2 + -1.0*z*x + -1.0*z*y + -2.0*x*y + 1.0*z + 1.5*x + 1.5*y + -0.5]
-        dN2 = [lambda x,y,z: -2.0*x*z + 0.5*z**2 + 0.0*y*z + 2.0*x + 0.5*z + -1.0 + 0.0*y,
-                lambda x,y,z: 0.0*y*z + 0.0*z**2 + 0.0*x*z + 0.0*y + 0.0*z + 0.0 + 0.0*x,
-                lambda x,y,z: -1.0*x**2 + 0.0*y**2 + 1.0*z*x + 0.0*z*y + 0.0*x*y + 0.0*z + 0.5*x + 0.0*y + 0.0]
-        dN3 = [lambda x,y,z: 0.0*x*z + 0.0*z**2 + 0.0*y*z + 0.0*x + 0.0*z + 0.0 + 0.0*y,
-                lambda x,y,z: -2.0*y*z + 0.5*z**2 + 0.0*x*z + 2.0*y + 0.5*z + -1.0 + 0.0*x,
-                lambda x,y,z: 0.0*x**2 + -1.0*y**2 + 0.0*z*x + 1.0*z*y + 0.0*x*y + 0.0*z + 0.0*x + 0.5*y + 0.0]
-        dN4 = [lambda x,y,z: 2.0*x*z + -0.5*z**2 + 2.0*y*z + 2.0*x + -1.5*z + -1.0 + 2.0*y,
-                lambda x,y,z: 2.0*y*z + -0.5*z**2 + 2.0*x*z + 2.0*y + -1.5*z + -1.0 + 2.0*x,
-                lambda x,y,z: 1.0*x**2 + 1.0*y**2 + -1.0*z*x + -1.0*z*y + 2.0*x*y + 1.0*z + -1.5*x + -1.5*y + 0.5]
-        dN5 = [lambda x,y,z: 2.0*x*z + 0.5*z**2 + 0.0*y*z + 2.0*x + -0.5*z + -1.0 + 0.0*y,
-                lambda x,y,z: 0.0*y*z + 0.0*z**2 + 0.0*x*z + 0.0*y + 0.0*z + 0.0 + 0.0*x,
-                lambda x,y,z: 1.0*x**2 + 0.0*y**2 + 1.0*z*x + 0.0*z*y + 0.0*x*y + 0.0*z + -0.5*x + 0.0*y + 0.0]
-        dN6 = [lambda x,y,z: 0.0*x*z + 0.0*z**2 + 0.0*y*z + 0.0*x + 0.0*z + 0.0 + 0.0*y,
-                lambda x,y,z: 2.0*y*z + 0.5*z**2 + 0.0*x*z + 2.0*y + -0.5*z + -1.0 + 0.0*x,
-                lambda x,y,z: 0.0*x**2 + 1.0*y**2 + 0.0*z*x + 1.0*z*y + 0.0*x*y + 0.0*z + 0.0*x + -0.5*y + 0.0]
-        dN7 = [lambda x,y,z: 4.0*x*z + 0.0*z**2 + 2.0*y*z + -4.0*x + -2.0*z + 2.0 + -2.0*y,
-                lambda x,y,z: 0.0*y*z + 0.0*z**2 + 2.0*x*z + 0.0*y + 0.0*z + 0.0 + -2.0*x,
-                lambda x,y,z: 2.0*x**2 + 0.0*y**2 + 0.0*z*x + 0.0*z*y + 2.0*x*y + 0.0*z + -2.0*x + 0.0*y + 0.0]
-        dN8 = [lambda x,y,z: 0.0*x*z + 0.0*z**2 + 2.0*y*z + 0.0*x + 0.0*z + 0.0 + -2.0*y,
-                lambda x,y,z: 4.0*y*z + 0.0*z**2 + 2.0*x*z + -4.0*y + -2.0*z + 2.0 + -2.0*x,
-                lambda x,y,z: 0.0*x**2 + 2.0*y**2 + 0.0*z*x + 0.0*z*y + 2.0*x*y + 0.0*z + 0.0*x + -2.0*y + 0.0]
-        dN9 = [lambda x,y,z: 0.0*x*z + 1.0*z**2 + 0.0*y*z + 0.0*x + 0.0*z + -1.0 + 0.0*y,
-                lambda x,y,z: 0.0*y*z + 1.0*z**2 + 0.0*x*z + 0.0*y + 0.0*z + -1.0 + 0.0*x,
-                lambda x,y,z: 0.0*x**2 + 0.0*y**2 + 2.0*z*x + 2.0*z*y + 0.0*x*y + -2.0*z + 0.0*x + 0.0*y + 0.0]
-        dN10 = [lambda x,y,z: 0.0*x*z + 0.0*z**2 + -2.0*y*z + 0.0*x + 0.0*z + 0.0 + 2.0*y,
-                lambda x,y,z: 0.0*y*z + 0.0*z**2 + -2.0*x*z + 0.0*y + 0.0*z + 0.0 + 2.0*x,
-                lambda x,y,z: 0.0*x**2 + 0.0*y**2 + 0.0*z*x + 0.0*z*y + -2.0*x*y + 0.0*z + 0.0*x + 0.0*y + 0.0]
-        dN11 = [lambda x,y,z: 0.0*x*z + -1.0*z**2 + 0.0*y*z + 0.0*x + 0.0*z + 1.0 + 0.0*y,
-                lambda x,y,z: 0.0*y*z + 0.0*z**2 + 0.0*x*z + 0.0*y + 0.0*z + 0.0 + 0.0*x,
-                lambda x,y,z: 0.0*x**2 + 0.0*y**2 + -2.0*z*x + 0.0*z*y + 0.0*x*y + 0.0*z + 0.0*x + 0.0*y + 0.0]
-        dN12 = [lambda x,y,z: 0.0*x*z + 0.0*z**2 + 0.0*y*z + 0.0*x + 0.0*z + 0.0 + 0.0*y,
-                lambda x,y,z: 0.0*y*z + -1.0*z**2 + 0.0*x*z + 0.0*y + 0.0*z + 1.0 + 0.0*x,
-                lambda x,y,z: 0.0*x**2 + 0.0*y**2 + 0.0*z*x + -2.0*z*y + 0.0*x*y + 0.0*z + 0.0*x + 0.0*y + 0.0]
-        dN13 = [lambda x,y,z: -4.0*x*z + 0.0*z**2 + -2.0*y*z + -4.0*x + 2.0*z + 2.0 + -2.0*y,
-                lambda x,y,z: 0.0*y*z + 0.0*z**2 + -2.0*x*z + 0.0*y + 0.0*z + 0.0 + -2.0*x,
-                lambda x,y,z: -2.0*x**2 + 0.0*y**2 + 0.0*z*x + 0.0*z*y + -2.0*x*y + 0.0*z + 2.0*x + 0.0*y + 0.0]
-        dN14 = [lambda x,y,z: 0.0*x*z + 0.0*z**2 + -2.0*y*z + 0.0*x + 0.0*z + 0.0 + -2.0*y,
-                lambda x,y,z: -4.0*y*z + 0.0*z**2 + -2.0*x*z + -4.0*y + 2.0*z + 2.0 + -2.0*x,
-                lambda x,y,z: 0.0*x**2 + -2.0*y**2 + 0.0*z*x + 0.0*z*y + -2.0*x*y + 0.0*z + 0.0*x + 2.0*y + 0.0]
-        dN15 = [lambda x,y,z: 0.0*x*z + 0.0*z**2 + 2.0*y*z + 0.0*x + 0.0*z + 0.0 + 2.0*y,
-                lambda x,y,z: 0.0*y*z + 0.0*z**2 + 2.0*x*z + 0.0*y + 0.0*z + 0.0 + 2.0*x,
-                lambda x,y,z: 0.0*x**2 + 0.0*y**2 + 0.0*z*x + 0.0*z*y + 2.0*x*y + 0.0*z + 0.0*x + 0.0*y + 0.0]
+        dN1 = [lambda r, s, t : -(t - 1)*(r + s - 1) - (t - 1)*(2*r + 2*s + t)/2,
+               lambda r, s, t : -(t - 1)*(r + s - 1) - (t - 1)*(2*r + 2*s + t)/2,
+               lambda r, s, t : -(t - 1)*(r + s - 1)/2 - (r + s - 1)*(2*r + 2*s + t)/2]
+        dN2 = [lambda r, s, t : -r*(t - 1) - (t - 1)*(2*r - t - 2)/2,
+               lambda r, s, t : 0,
+               lambda r, s, t : r*(t - 1)/2 - r*(2*r - t - 2)/2]
+        dN3 = [lambda r, s, t : 0,
+               lambda r, s, t : -s*(t - 1) - (t - 1)*(2*s - t - 2)/2,
+               lambda r, s, t : s*(t - 1)/2 - s*(2*s - t - 2)/2]
+        dN4 = [lambda r, s, t : (t + 1)*(r + s - 1) + (t + 1)*(2*r + 2*s - t)/2,
+               lambda r, s, t : (t + 1)*(r + s - 1) + (t + 1)*(2*r + 2*s - t)/2,
+               lambda r, s, t : -(t + 1)*(r + s - 1)/2 + (r + s - 1)*(2*r + 2*s - t)/2]
+        dN5 = [lambda r, s, t : r*(t + 1) + (t + 1)*(2*r + t - 2)/2,
+               lambda r, s, t : 0,
+               lambda r, s, t : r*(t + 1)/2 + r*(2*r + t - 2)/2]
+        dN6 = [lambda r, s, t : 0,
+               lambda r, s, t : s*(t + 1) + (t + 1)*(2*s + t - 2)/2,
+               lambda r, s, t : s*(t + 1)/2 + s*(2*s + t - 2)/2]
+        dN7 = [lambda r, s, t : 2*r*(t - 1) + 2*(t - 1)*(r + s - 1),
+               lambda r, s, t : 2*r*(t - 1),
+               lambda r, s, t : 2*r*(r + s - 1)]
+        dN8 = [lambda r, s, t : 2*s*(t - 1),
+               lambda r, s, t : 2*s*(t - 1) + 2*(t - 1)*(r + s - 1),
+               lambda r, s, t : 2*s*(r + s - 1)]
+        dN9 = [lambda r, s, t : (t - 1)*(t + 1),
+               lambda r, s, t : (t - 1)*(t + 1),
+               lambda r, s, t : (t - 1)*(r + s - 1) + (t + 1)*(r + s - 1)]
+        dN10 = [lambda r, s, t : -2*s*(t - 1),
+               lambda r, s, t : -2*r*(t - 1),
+               lambda r, s, t : -2*r*s]
+        dN11 = [lambda r, s, t : -(t - 1)*(t + 1),
+               lambda r, s, t : 0,
+               lambda r, s, t : -r*(t - 1) - r*(t + 1)]
+        dN12 = [lambda r, s, t : 0,
+               lambda r, s, t : -(t - 1)*(t + 1),
+               lambda r, s, t : -s*(t - 1) - s*(t + 1)]
+        dN13 = [lambda r, s, t : -2*r*(t + 1) - 2*(t + 1)*(r + s - 1),
+               lambda r, s, t : -2*r*(t + 1),
+               lambda r, s, t : -2*r*(r + s - 1)]
+        dN14 = [lambda r, s, t : -2*s*(t + 1),
+               lambda r, s, t : -2*s*(t + 1) - 2*(t + 1)*(r + s - 1),
+               lambda r, s, t : -2*s*(r + s - 1)]
+        dN15 = [lambda r, s, t : 2*s*(t + 1),
+               lambda r, s, t : 2*r*(t + 1),
+               lambda r, s, t : 2*r*s]
         
         dN = np.array([dN1, dN2, dN3, dN4, dN5, dN6, dN7, dN8, dN9, dN10, dN11, dN12, dN13, dN14, dN15])
 
@@ -207,21 +219,21 @@ class PRISM15(_GroupElem):
 
     def _ddN(self) -> np.ndarray:
 
-        ddN1 = [lambda x,y,z: -2.0*z + 2.0, lambda x,y,z: -2.0*z + 2.0, lambda x,y,z: -1.0*x + -1.0*y + 1.0]
-        ddN2 = [lambda x,y,z: -2.0*z + 2.0, lambda x,y,z: 0.0*z + 0.0, lambda x,y,z: 1.0*x + 0.0*y + 0.0]
-        ddN3 = [lambda x,y,z: 0.0*z + 0.0, lambda x,y,z: -2.0*z + 2.0, lambda x,y,z: 0.0*x + 1.0*y + 0.0]
-        ddN4 = [lambda x,y,z: 2.0*z + 2.0, lambda x,y,z: 2.0*z + 2.0, lambda x,y,z: -1.0*x + -1.0*y + 1.0]
-        ddN5 = [lambda x,y,z: 2.0*z + 2.0, lambda x,y,z: 0.0*z + 0.0, lambda x,y,z: 1.0*x + 0.0*y + 0.0]
-        ddN6 = [lambda x,y,z: 0.0*z + 0.0, lambda x,y,z: 2.0*z + 2.0, lambda x,y,z: 0.0*x + 1.0*y + 0.0]
-        ddN7 = [lambda x,y,z: 4.0*z + -4.0, lambda x,y,z: 0.0*z + 0.0, lambda x,y,z: 0.0*x + 0.0*y + 0.0]
-        ddN8 = [lambda x,y,z: 0.0*z + 0.0, lambda x,y,z: 4.0*z + -4.0, lambda x,y,z: 0.0*x + 0.0*y + 0.0]
-        ddN9 = [lambda x,y,z: 0.0*z + 0.0, lambda x,y,z: 0.0*z + 0.0, lambda x,y,z: 2.0*x + 2.0*y + -2.0]
-        ddN10 = [lambda x,y,z: 0.0*z + 0.0, lambda x,y,z: 0.0*z + 0.0, lambda x,y,z: 0.0*x + 0.0*y + 0.0]
-        ddN11 = [lambda x,y,z: 0.0*z + 0.0, lambda x,y,z: 0.0*z + 0.0, lambda x,y,z: -2.0*x + 0.0*y + 0.0]
-        ddN12 = [lambda x,y,z: 0.0*z + 0.0, lambda x,y,z: 0.0*z + 0.0, lambda x,y,z: 0.0*x + -2.0*y + 0.0]
-        ddN13 = [lambda x,y,z: -4.0*z + -4.0, lambda x,y,z: 0.0*z + 0.0, lambda x,y,z: 0.0*x + 0.0*y + 0.0]
-        ddN14 = [lambda x,y,z: 0.0*z + 0.0, lambda x,y,z: -4.0*z + -4.0, lambda x,y,z: 0.0*x + 0.0*y + 0.0]
-        ddN15 = [lambda x,y,z: 0.0*z + 0.0, lambda x,y,z: 0.0*z + 0.0, lambda x,y,z: 0.0*x + 0.0*y + 0.0]
+        ddN1 = [lambda r, s, t : 2 - 2*t, lambda r, s, t : 2 - 2*t, lambda r, s, t : -r - s + 1]
+        ddN2 = [lambda r, s, t : 2 - 2*t, lambda r, s, t : 0, lambda r, s, t : r]
+        ddN3 = [lambda r, s, t : 0, lambda r, s, t : 2 - 2*t, lambda r, s, t : s]
+        ddN4 = [lambda r, s, t : 2*t + 2, lambda r, s, t : 2*t + 2, lambda r, s, t : -r - s + 1]
+        ddN5 = [lambda r, s, t : 2*t + 2, lambda r, s, t : 0, lambda r, s, t : r]
+        ddN6 = [lambda r, s, t : 0, lambda r, s, t : 2*t + 2, lambda r, s, t : s]
+        ddN7 = [lambda r, s, t : 4*t - 4, lambda r, s, t : 0, lambda r, s, t : 0]
+        ddN8 = [lambda r, s, t : 0, lambda r, s, t : 4*t - 4, lambda r, s, t : 0]
+        ddN9 = [lambda r, s, t : 0, lambda r, s, t : 0, lambda r, s, t : 2*r + 2*s - 2]
+        ddN10 = [lambda r, s, t : 0, lambda r, s, t : 0, lambda r, s, t : 0]
+        ddN11 = [lambda r, s, t : 0, lambda r, s, t : 0, lambda r, s, t : -2*r]
+        ddN12 = [lambda r, s, t : 0, lambda r, s, t : 0, lambda r, s, t : -2*s]
+        ddN13 = [lambda r, s, t : -4*t - 4, lambda r, s, t : 0, lambda r, s, t : 0]
+        ddN14 = [lambda r, s, t : 0, lambda r, s, t : -4*t - 4, lambda r, s, t : 0]
+        ddN15 = [lambda r, s, t : 0, lambda r, s, t : 0, lambda r, s, t : 0]
 
         ddN = np.array([ddN1, ddN2, ddN3, ddN4, ddN5, ddN6, ddN7, ddN8, ddN9, ddN10, ddN11, ddN12, ddN13, ddN14, ddN15])
 

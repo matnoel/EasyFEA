@@ -53,10 +53,10 @@ class TETRA4(_GroupElem):
 
     def _N(self) -> np.ndarray:
 
-        N1 = lambda x,y,z: 1-x-y-z
-        N2 = lambda x,y,z: x
-        N3 = lambda x,y,z: y
-        N4 = lambda x,y,z: z
+        N1 = lambda r, s, t : -r - s - t + 1
+        N2 = lambda r, s, t : r
+        N3 = lambda r, s, t : s
+        N4 = lambda r, s, t : t
 
         N = np.array([N1, N2, N3, N4]).reshape(-1, 1)
 
@@ -64,10 +64,10 @@ class TETRA4(_GroupElem):
     
     def _dN(self) -> np.ndarray:
 
-        dN1 = [lambda x,y,z: -1,   lambda x,y,z: -1,   lambda x,y,z: -1]
-        dN2 = [lambda x,y,z: 1,    lambda x,y,z: 0,    lambda x,y,z: 0]
-        dN3 = [lambda x,y,z: 0,    lambda x,y,z: 1,    lambda x,y,z: 0]
-        dN4 = [lambda x,y,z: 0,    lambda x,y,z: 0,    lambda x,y,z: 1]
+        dN1 = [lambda r, s, t : -1, lambda r, s, t : -1, lambda r, s, t : -1]
+        dN2 = [lambda r, s, t : 1,  lambda r, s, t : 0,  lambda r, s, t : 0]
+        dN3 = [lambda r, s, t : 0,  lambda r, s, t : 1,  lambda r, s, t : 0]
+        dN4 = [lambda r, s, t : 0,  lambda r, s, t : 0,  lambda r, s, t : 1]
 
         dN = np.array([dN1, dN2, dN3, dN4])
 
@@ -127,16 +127,16 @@ class TETRA10(_GroupElem):
 
     def _N(self) -> np.ndarray:
 
-        N1 = lambda x,y,z: 2.0*x**2 + 2.0*y**2 + 2.0*z**2 + 4.0*x*y + 4.0*x*z + 4.0*y*z + -3.0*x + -3.0*y + -3.0*z + 1.0
-        N2 = lambda x,y,z: 2.0*x**2 + 0.0*y**2 + 0.0*z**2 + 0.0*x*y + 0.0*x*z + 0.0*y*z + -1.0*x + 0.0*y + 0.0*z + 0.0
-        N3 = lambda x,y,z: 0.0*x**2 + 2.0*y**2 + 0.0*z**2 + 0.0*x*y + 0.0*x*z + 0.0*y*z + 0.0*x + -1.0*y + 0.0*z + 0.0
-        N4 = lambda x,y,z: 0.0*x**2 + 0.0*y**2 + 2.0*z**2 + 0.0*x*y + 0.0*x*z + 0.0*y*z + 0.0*x + 0.0*y + -1.0*z + 0.0
-        N5 = lambda x,y,z: -4.0*x**2 + 0.0*y**2 + 0.0*z**2 + -4.0*x*y + -4.0*x*z + 0.0*y*z + 4.0*x + 0.0*y + 0.0*z + 0.0
-        N6 = lambda x,y,z: 0.0*x**2 + 0.0*y**2 + 0.0*z**2 + 4.0*x*y + 0.0*x*z + 0.0*y*z + 0.0*x + 0.0*y + 0.0*z + 0.0
-        N7 = lambda x,y,z: 0.0*x**2 + -4.0*y**2 + 0.0*z**2 + -4.0*x*y + 0.0*x*z + -4.0*y*z + 0.0*x + 4.0*y + 0.0*z + 0.0
-        N8 = lambda x,y,z: 0.0*x**2 + 0.0*y**2 + -4.0*z**2 + 0.0*x*y + -4.0*x*z + -4.0*y*z + 0.0*x + 0.0*y + 4.0*z + 0.0
-        N9 = lambda x,y,z: 0.0*x**2 + 0.0*y**2 + 0.0*z**2 + 0.0*x*y + 0.0*x*z + 4.0*y*z + 0.0*x + 0.0*y + 0.0*z + 0.0
-        N10 = lambda x,y,z: 0.0*x**2 + 0.0*y**2 + 0.0*z**2 + 0.0*x*y + 4.0*x*z + 0.0*y*z + 0.0*x + 0.0*y + 0.0*z + 0.0
+        N1 = lambda r, s, t : (r + s + t - 1)*(2*r + 2*s + 2*t - 1)
+        N2 = lambda r, s, t : r*(2*r - 1)
+        N3 = lambda r, s, t : s*(2*s - 1)
+        N4 = lambda r, s, t : t*(2*t - 1)
+        N5 = lambda r, s, t : -4*r*(r + s + t - 1)
+        N6 = lambda r, s, t : 4*r*s
+        N7 = lambda r, s, t : -4*s*(r + s + t - 1)
+        N8 = lambda r, s, t : -4*t*(r + s + t - 1)
+        N9 = lambda r, s, t : 4*s*t
+        N10 = lambda r, s, t : 4*r*t
 
         N = np.array([N1, N2, N3, N4, N5, N6, N7, N8, N9, N10]).reshape(-1, 1)
 
@@ -144,16 +144,16 @@ class TETRA10(_GroupElem):
     
     def _dN(self) -> np.ndarray:
 
-        dN1 = [lambda x,y,z: 4.0*x + 4.0*y + 4.0*z + -3.0,   lambda x,y,z: 4.0*y + 4.0*x + 4.0*z + -3.0,   lambda x,y,z: 4.0*z + 4.0*x + 4.0*y + -3.0]
-        dN2 = [lambda x,y,z: 4.0*x + 0.0*y + 0.0*z + -1.0,   lambda x,y,z: 0.0*y + 0.0*x + 0.0*z + 0.0,   lambda x,y,z: 0.0*z + 0.0*x + 0.0*y + 0.0]
-        dN3 = [lambda x,y,z: 0.0*x + 0.0*y + 0.0*z + 0.0,   lambda x,y,z: 4.0*y + 0.0*x + 0.0*z + -1.0,   lambda x,y,z: 0.0*z + 0.0*x + 0.0*y + 0.0]
-        dN4 = [lambda x,y,z: 0.0*x + 0.0*y + 0.0*z + 0.0,   lambda x,y,z: 0.0*y + 0.0*x + 0.0*z + 0.0,   lambda x,y,z: 4.0*z + 0.0*x + 0.0*y + -1.0]
-        dN5 = [lambda x,y,z: -8.0*x + -4.0*y + -4.0*z + 4.0,   lambda x,y,z: 0.0*y + -4.0*x + 0.0*z + 0.0,   lambda x,y,z: 0.0*z + -4.0*x + 0.0*y + 0.0]
-        dN6 = [lambda x,y,z: 0.0*x + 4.0*y + 0.0*z + 0.0,   lambda x,y,z: 0.0*y + 4.0*x + 0.0*z + 0.0,   lambda x,y,z: 0.0*z + 0.0*x + 0.0*y + 0.0]
-        dN7 = [lambda x,y,z: 0.0*x + -4.0*y + 0.0*z + 0.0,   lambda x,y,z: -8.0*y + -4.0*x + -4.0*z + 4.0,   lambda x,y,z: 0.0*z + 0.0*x + -4.0*y + 0.0]
-        dN8 = [lambda x,y,z: 0.0*x + 0.0*y + -4.0*z + 0.0,   lambda x,y,z: 0.0*y + 0.0*x + -4.0*z + 0.0,   lambda x,y,z: -8.0*z + -4.0*x + -4.0*y + 4.0]
-        dN9 = [lambda x,y,z: 0.0*x + 0.0*y + 0.0*z + 0.0,   lambda x,y,z: 0.0*y + 0.0*x + 4.0*z + 0.0,   lambda x,y,z: 0.0*z + 0.0*x + 4.0*y + 0.0]
-        dN10 = [lambda x,y,z: 0.0*x + 0.0*y + 4.0*z + 0.0,   lambda x,y,z: 0.0*y + 0.0*x + 0.0*z + 0.0,   lambda x,y,z: 0.0*z + 4.0*x + 0.0*y + 0.0]
+        dN1 = [lambda r, s, t : 4*r + 4*s + 4*t - 3, lambda r, s, t : 4*r + 4*s + 4*t - 3, lambda r, s, t : 4*r + 4*s + 4*t - 3]
+        dN2 = [lambda r, s, t : 4*r - 1, lambda r, s, t : 0, lambda r, s, t : 0]
+        dN3 = [lambda r, s, t : 0, lambda r, s, t : 4*s - 1, lambda r, s, t : 0]
+        dN4 = [lambda r, s, t : 0, lambda r, s, t : 0, lambda r, s, t : 4*t - 1]
+        dN5 = [lambda r, s, t : -8*r - 4*s - 4*t + 4, lambda r, s, t : -4*r, lambda r, s, t : -4*r]
+        dN6 = [lambda r, s, t : 4*s, lambda r, s, t : 4*r, lambda r, s, t : 0]
+        dN7 = [lambda r, s, t : -4*s, lambda r, s, t : -4*r - 8*s - 4*t + 4, lambda r, s, t : -4*s]
+        dN8 = [lambda r, s, t : -4*t, lambda r, s, t : -4*t, lambda r, s, t : -4*r - 4*s - 8*t + 4]
+        dN9 = [lambda r, s, t : 0, lambda r, s, t : 4*t, lambda r, s, t : 4*s]
+        dN10 = [lambda r, s, t : 4*t, lambda r, s, t : 0, lambda r, s, t : 4*r]
 
         dN = np.array([dN1, dN2, dN3, dN4, dN5, dN6, dN7, dN8, dN9, dN10])
 
@@ -161,16 +161,16 @@ class TETRA10(_GroupElem):
 
     def _ddN(self) -> np.ndarray:
 
-        ddN1 = [lambda x,y,z: 4.0,   lambda x,y,z: 4.0,   lambda x,y,z: 4.0]
-        ddN2 = [lambda x,y,z: 4.0,   lambda x,y,z: 0.0,   lambda x,y,z: 0.0]
-        ddN3 = [lambda x,y,z: 0.0,   lambda x,y,z: 4.0,   lambda x,y,z: 0.0]
-        ddN4 = [lambda x,y,z: 0.0,   lambda x,y,z: 0.0,   lambda x,y,z: 4.0]
-        ddN5 = [lambda x,y,z: -8.0,   lambda x,y,z: 0.0,   lambda x,y,z: 0.0]
-        ddN6 = [lambda x,y,z: 0.0,   lambda x,y,z: 0.0,   lambda x,y,z: 0.0]
-        ddN7 = [lambda x,y,z: 0.0,   lambda x,y,z: -8.0,   lambda x,y,z: 0.0]
-        ddN8 = [lambda x,y,z: 0.0,   lambda x,y,z: 0.0,   lambda x,y,z: -8.0]
-        ddN9 = [lambda x,y,z: 0.0,   lambda x,y,z: 0.0,   lambda x,y,z: 0.0]
-        ddN10 = [lambda x,y,z: 0.0,   lambda x,y,z: 0.0,   lambda x,y,z: 0.0]
+        ddN1 = [lambda r, s, t : 4,  lambda r, s, t : 4,  lambda r, s, t : 4]
+        ddN2 = [lambda r, s, t : 4,  lambda r, s, t : 0,  lambda r, s, t : 0]
+        ddN3 = [lambda r, s, t : 0,  lambda r, s, t : 4,  lambda r, s, t : 0]
+        ddN4 = [lambda r, s, t : 0,  lambda r, s, t : 0,  lambda r, s, t : 4]
+        ddN5 = [lambda r, s, t : -8, lambda r, s, t : 0,  lambda r, s, t : 0]
+        ddN6 = [lambda r, s, t : 0,  lambda r, s, t : 0,  lambda r, s, t : 0]
+        ddN7 = [lambda r, s, t : 0,  lambda r, s, t : -8, lambda r, s, t : 0]
+        ddN8 = [lambda r, s, t : 0,  lambda r, s, t : 0,  lambda r, s, t : -8]
+        ddN9 = [lambda r, s, t : 0,  lambda r, s, t : 0,  lambda r, s, t : 0]
+        ddN10 = [lambda r, s, t : 0, lambda r, s, t : 0,  lambda r, s, t : 0]
 
         ddN = np.array([ddN1, ddN2, ddN3, ddN4, ddN5, ddN6, ddN7, ddN8, ddN9, ddN10])
 

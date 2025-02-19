@@ -33,8 +33,8 @@ class SEG2(_GroupElem):
 
     def _N(self) -> np.ndarray:
 
-        N1 = lambda x: 0.5*(1-x)
-        N2 = lambda x: 0.5*(1+x)
+        N1 = lambda r : -(r - 1)/2
+        N2 = lambda r : (r + 1)/2
 
         N = np.array([N1, N2]).reshape(-1, 1)
 
@@ -42,8 +42,8 @@ class SEG2(_GroupElem):
     
     def _dN(self) -> np.ndarray:
 
-        dN1 = [lambda x: -0.5]
-        dN2 = [lambda x: 0.5]
+        dN1 = [lambda r : -1/2]
+        dN2 = [lambda r : 1/2]
 
         dN = np.array([dN1, dN2]).reshape(-1,1)
 
@@ -116,9 +116,9 @@ class SEG3(_GroupElem):
 
     def _N(self) -> np.ndarray:
 
-        N1 = lambda x: -0.5*(1-x)*x
-        N2 = lambda x: 0.5*(1+x)*x
-        N3 = lambda x: (1+x)*(1-x)
+        N1 = lambda r : r*(r - 1)/2
+        N2 = lambda r : r*(r + 1)/2
+        N3 = lambda r : -(r - 1)*(r + 1)
 
         N = np.array([N1, N2, N3]).reshape(-1, 1)
 
@@ -126,9 +126,9 @@ class SEG3(_GroupElem):
 
     def _dN(self) -> np.ndarray:
 
-        dN1 = [lambda x: x-0.5]
-        dN2 = [lambda x: x+0.5]
-        dN3 = [lambda x: -2*x]
+        dN1 = [lambda r : r - 1/2]
+        dN2 = [lambda r : r + 1/2]
+        dN3 = [lambda r : -2*r]
 
         dN = np.array([dN1, dN2, dN3]).reshape(-1,1)
 
@@ -136,9 +136,9 @@ class SEG3(_GroupElem):
 
     def _ddN(self) -> np.ndarray:
 
-        ddN1 = [lambda x: 1]
-        ddN2 = [lambda x: 1]
-        ddN3 = [lambda x: -2]
+        ddN1 = [lambda r : 1]
+        ddN2 = [lambda r : 1]
+        ddN3 = [lambda r : -2]
 
         ddN = np.array([ddN1, ddN2, ddN3])
 
@@ -214,10 +214,10 @@ class SEG4(_GroupElem):
 
     def _N(self) -> np.ndarray:
 
-        N1 = lambda x : -0.5625*x**3 + 0.5625*x**2 + 0.0625*x - 0.0625
-        N2 = lambda x : 0.5625*x**3 + 0.5625*x**2 - 0.0625*x - 0.0625
-        N3 = lambda x : 1.6875*x**3 - 0.5625*x**2 - 1.6875*x + 0.5625
-        N4 = lambda x : -1.6875*x**3 - 0.5625*x**2 + 1.6875*x + 0.5625
+        N1 = lambda r : -9*r**3/16 + 9*r**2/16 + r/16 - 1/16
+        N2 = lambda r : 9*r**3/16 + 9*r**2/16 - r/16 - 1/16
+        N3 = lambda r : 27*r**3/16 - 9*r**2/16 - 27*r/16 + 9/16
+        N4 = lambda r : -27*r**3/16 - 9*r**2/16 + 27*r/16 + 9/16
 
         N = np.array([N1, N2, N3, N4]).reshape(-1, 1)
 
@@ -225,10 +225,10 @@ class SEG4(_GroupElem):
 
     def _dN(self) -> np.ndarray:
 
-        dN1 = [lambda x : -1.6875*x**2 + 1.125*x + 0.0625]
-        dN2 = [lambda x : 1.6875*x**2 + 1.125*x - 0.0625]
-        dN3 = [lambda x : 5.0625*x**2 - 1.125*x - 1.6875]
-        dN4 = [lambda x : -5.0625*x**2 - 1.125*x + 1.6875]
+        dN1 = [lambda r : -27*r**2/16 + 9*r/8 + 1/16]
+        dN2 = [lambda r : 27*r**2/16 + 9*r/8 - 1/16]
+        dN3 = [lambda r : 81*r**2/16 - 9*r/8 - 27/16]
+        dN4 = [lambda r : -81*r**2/16 - 9*r/8 + 27/16]
 
         dN = np.array([dN1, dN2, dN3, dN4])
 
@@ -236,10 +236,10 @@ class SEG4(_GroupElem):
     
     def _ddN(self) -> np.ndarray:
 
-        ddN1 = [lambda x : -3.375*x + 1.125]
-        ddN2 = [lambda x : 3.375*x + 1.125]
-        ddN3 = [lambda x : 10.125*x - 1.125]
-        ddN4 = [lambda x : -10.125*x - 1.125]
+        ddN1 = [lambda r : 9/8 - 27*r/8]
+        ddN2 = [lambda r : 27*r/8 + 9/8]
+        ddN3 = [lambda r : 81*r/8 - 9/8]
+        ddN4 = [lambda r : -81*r/8 - 9/8]
 
         ddN = np.array([ddN1, ddN2, ddN3, ddN4])
 
@@ -247,10 +247,10 @@ class SEG4(_GroupElem):
 
     def _dddN(self) -> np.ndarray:
         
-        dddN1 = [lambda x : -3.375]
-        dddN2 = [lambda x : 3.375]
-        dddN3 = [lambda x : 10.125]
-        dddN4 = [lambda x : -10.125]
+        dddN1 = [lambda r : -27/8]
+        dddN2 = [lambda r : 27/8]
+        dddN3 = [lambda r : 81/8]
+        dddN4 = [lambda r : -81/8]
 
         dddN = np.array([dddN1, dddN2, dddN3, dddN4])
 
