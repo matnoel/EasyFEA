@@ -155,8 +155,8 @@ if __name__ == '__main__':
 
         # Error in deformation energy
         Wdef = np.array(wDef_elem_N[e])
-        erreur = (WdefRef - Wdef) / WdefRef * 100
-        ax_error.loglog(dofs_elem_N[e], erreur)
+        error = (WdefRef - Wdef) / WdefRef * 100
+        ax_error.loglog(dofs_elem_N[e], error)
 
         # Computation time
         ax_times.loglog(dofs_elem_N[e], times_elem_N[e])
@@ -164,8 +164,8 @@ if __name__ == '__main__':
         # ax_Times.set_xscale('log')
 
         # ZZ1
-        if elemType in [ElemType.TRI3, ElemType.TRI6, ElemType.QUAD4]:
-            last = ax_zz1.loglog(dofs_elem_N[e], erreur, label=f'{elemType}')
+        if elemType == elemTypes[0]:
+            last = ax_zz1.loglog(dofs_elem_N[e], error, label=f'{elemType}')
             ax_zz1.loglog(dofs_elem_N[e], zz1_elem_N[e], ls='--', color=last[0]._color, label=f'{elemType} (ZZ1)')
 
     WdefRefArray = np.ones_like(dofs_elem_N[0]) * WdefRef
