@@ -359,7 +359,11 @@ class Gauss:
             dim = 3
             if matrixType in [MatrixType.rigi, MatrixType.mass]:
                 nPg = 8
-                # nPg = 27
+                x, y, z, weights = Gauss._Hexahedron(nPg)
+        elif elemType == ElemType.HEXA27:
+            dim = 3
+            if matrixType in [MatrixType.rigi, MatrixType.mass]:
+                nPg = 27
                 x, y, z, weights = Gauss._Hexahedron(nPg)
 
         elif elemType == ElemType.PRISM6:

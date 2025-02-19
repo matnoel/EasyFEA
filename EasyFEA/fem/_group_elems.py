@@ -457,7 +457,7 @@ class _GroupElem(ABC):
     def faces(self) -> list[int]:
         """list of indexes to form the faces that make up the element"""
         pass
-    
+
     # --------------------------------------------------------------------------------------------
     # Gauss
     # --------------------------------------------------------------------------------------------
@@ -1982,7 +1982,7 @@ from .elems._seg import SEG2, SEG3, SEG4
 from .elems._tri import TRI3, TRI6, TRI10
 from .elems._quad import QUAD4, QUAD8, QUAD9
 from .elems._tetra import TETRA4, TETRA10
-from .elems._hexa import HEXA8, HEXA20
+from .elems._hexa import HEXA8, HEXA20, HEXA27
 from .elems._prism import PRISM6, PRISM15
 
 class GroupElemFactory:
@@ -2025,6 +2025,8 @@ class GroupElemFactory:
             elemType = ElemType.HEXA8; nPe = 8; dim = 3; order = 1; nbFaces = 6; nbCorners = 8
         elif gmshId == 17:
             elemType = ElemType.HEXA20; nPe = 20; dim = 3; order = 2; nbFaces = 6; nbCorners = 8
+        elif gmshId == 12:
+            elemType = ElemType.HEXA27; nPe = 27; dim = 3; order = 3; nbFaces = 6; nbCorners = 8
         elif gmshId == 6:
             elemType = ElemType.PRISM6; nPe = 6; dim = 3; order = 1; nbFaces = 5; nbCorners = 6
         elif gmshId == 18:
@@ -2095,6 +2097,8 @@ class GroupElemFactory:
             return HEXA8(*params)
         elif elemType == ElemType.HEXA20:
             return HEXA20(*params)
+        elif elemType == ElemType.HEXA27:
+            return HEXA27(*params)
         elif elemType == ElemType.PRISM6:
             return PRISM6(*params)
         elif elemType == ElemType.PRISM15:
