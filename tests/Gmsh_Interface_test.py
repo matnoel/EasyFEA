@@ -14,7 +14,7 @@ class Test_Gmsh_Interface(unittest.TestCase):
         """Builds all 2D meshes"""
         list_mesh2D = Mesher._Construct_2D_meshes()
         nbMesh = len(list_mesh2D)
-        nrows = 3
+        nrows = 4
         ncols = 10
         # assert nbMesh == nrows*ncols , "Not enough space"
         fig, axs = plt.subplots(nrows, ncols)

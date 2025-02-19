@@ -1436,7 +1436,7 @@ class Mesher:
         """Sets the mesh order"""
         if elemType in ["TRI3","QUAD4"]:
             gmsh.model.mesh.set_order(1)
-        elif elemType in ["SEG3", "TRI6", "QUAD8", "TETRA10", "HEXA20", "PRISM15"]:
+        elif elemType in ["SEG3", "TRI6", "QUAD8", "QUAD9", "TETRA10", "HEXA20", "PRISM15"]:
             if elemType in ["QUAD8", "HEXA20", "PRISM15"]:
                 gmsh.option.setNumber('Mesh.SecondOrderIncomplete', 1)
             gmsh.model.mesh.set_order(2)
@@ -1471,7 +1471,7 @@ class Mesher:
         gmsh.option.setNumber("Mesh.Algorithm", meshAlgorithm)
 
         recombineAlgorithm = 1
-        if elemType in [ElemType.QUAD4, ElemType.QUAD8]:
+        if elemType in [ElemType.QUAD4, ElemType.QUAD8, ElemType.QUAD9]:
             subdivisionAlgorithm = 1
         else:
             subdivisionAlgorithm = 0        

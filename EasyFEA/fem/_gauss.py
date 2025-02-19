@@ -331,6 +331,10 @@ class Gauss:
             elif matrixType == MatrixType.mass:
                 nPg = 9
             xis, etas, weights = Gauss._Quadrangle(nPg)
+        elif elemType == ElemType.QUAD9:
+            dim = 2            
+            nPg = 9
+            xis, etas, weights = Gauss._Quadrangle(nPg)
                     
         elif elemType == ElemType.TETRA4:
             dim = 3            

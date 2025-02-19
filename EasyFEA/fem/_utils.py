@@ -18,7 +18,7 @@ class ElemType(str, Enum):
     # TRI15 = "TRI15"
     QUAD4 = "QUAD4"
     QUAD8 = "QUAD8"
-    # QUAD9 = "QUAD9"
+    QUAD9 = "QUAD9"
     TETRA4 = "TETRA4"
     TETRA10 = "TETRA10"
     HEXA8 = "HEXA8"
@@ -42,7 +42,7 @@ class ElemType(str, Enum):
     @staticmethod
     def Get_2D() -> list[str]:
         """Returns 2D element types."""
-        elems_2D = [ElemType.TRI3, ElemType.TRI6, ElemType.TRI10, ElemType.QUAD4, ElemType.QUAD8]
+        elems_2D = [ElemType.TRI3, ElemType.TRI6, ElemType.TRI10, ElemType.QUAD4, ElemType.QUAD8, ElemType.QUAD9]
         return elems_2D
     
     @staticmethod
