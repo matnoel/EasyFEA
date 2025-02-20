@@ -322,10 +322,21 @@ class Mesher:
                 geoms = contour.Get_Contour().geoms
             N = len(geoms) # number of geom in contour
             if N % 2 == 0: # N is odd
-                numElems = [int(geom.length / geom.meshSize) for geom in geoms[:N//2]]
+                coef = 2 if elemType.startswith(("QUAD")) else 1
+                numElems = [(int(geom.length/geom.meshSize/coef)) for geom in geoms[:N//2]]
                 numElems = numElems*2
             else:
                 numElems = [int(geom.length / geom.meshSize) for geom in geoms]
+                
+        if elemType.startswith(("QUAD", "HEXA")):
+            # simply multiplies the mesh size by 2 because
+            # setRecombine recombines triangles into quadrangles
+            self._Synchronize()
+            points = np.asarray(gmsh.model.getEntities(0))
+            sizes = gmsh.model.mesh.getSizes(points)
+            if sizes.max() > 0:
+                unique = list(set(sizes))
+                [gmsh.model.mesh.setSize(points[np.where(sizes==val)[0]], val*2) for val in unique]
 
         self._Surfaces_Organize(surfaces, elemType, isOrganised, numElems)
 
@@ -350,14 +361,6 @@ class Mesher:
         self._Synchronize() # mandatory
 
         setRecombine = elemType.startswith(("QUAD","HEXA"))
-        if setRecombine:
-            # simply multiplies the mesh size by 2 because
-            # setRecombine recombines triangles into quadrangles
-            points = np.asarray(gmsh.model.getEntities(0))
-            sizes = gmsh.model.mesh.getSizes(points)
-            if sizes.max() > 0:
-                unique = list(set(sizes))
-                [gmsh.model.mesh.setSize(points[np.where(sizes==val)[0]], val*2) for val in unique]
         
         for surf in surfaces:
 
@@ -1195,7 +1198,7 @@ class Mesher:
 
         factory = self._factory
 
-        self._Surfaces(contour, inclusions, elemType)
+        self._Surfaces(contour, inclusions, elemType, isOrganised)
         self._Additional_Surfaces(2, additionalSurfaces, elemType, isOrganised)
         self._Additional_Lines(2, additionalLines)
         self._Additional_Points(2, additionalPoints)
@@ -1272,7 +1275,7 @@ class Mesher:
         
         factory = self._factory
 
-        self._Surfaces(contour, inclusions, elemType)
+        self._Surfaces(contour, inclusions, elemType, isOrganised)
         self._Additional_Surfaces(2, additionalSurfaces, elemType, isOrganised)
         self._Additional_Lines(2, additionalLines)
         self._Additional_Points(2, additionalPoints)
