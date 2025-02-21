@@ -42,16 +42,28 @@ class Point:
     def x(self) -> float:
         """x coordinate"""
         return self.__coord[0]
+    
+    @x.setter
+    def x(self, value) -> None:
+        self.__coord[0] = value
 
     @property
     def y(self) -> float:
         """y coordinate"""
         return self.__coord[1]
+    
+    @y.setter
+    def y(self, value) -> None:
+        self.__coord[1] = value
 
     @property
     def z(self) -> float:
         """z coordinate"""
         return self.__coord[2]
+    
+    @z.setter
+    def z(self, value) -> None:
+        self.__coord[2] = value
 
     @property
     def r(self) -> float:
