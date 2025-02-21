@@ -310,23 +310,37 @@ class Mesher:
         [surfaces.append(factory.addPlaneSurface([loop])) for loop in filledLoops] # Adds filled surfaces
 
         # The number of elements per line is calculated here to organize the surface if it can be.
-        if not isOrganised or isinstance(contour, (Domain, Circle)) or len(inclusions) > 0:
+        if not isOrganised or isinstance(contour, Circle) or len(inclusions) > 0:
             # Cannot be organized if there are inclusions.
             # It is not necessary to impose a number of elements for circles and domains!
             numElems = []
         else:
-            # geom objects from contour or points
-            if isinstance(contour, Contour):
+            # geom objects from Domain, contour or points
+            if isinstance(contour, Domain):
+                # construct points
+                p1 = contour.pt1
+                p3 = contour.pt2
+                p2 = p1.copy(); p2.x = p3.x
+                p4 = p1.copy(); p4.y = p3.y
+                # construct points
+                l1 = Line(p1, p2, contour.meshSize)
+                l2 = Line(p2, p3, contour.meshSize)
+                l3 = Line(p3, p4, contour.meshSize)
+                l4 = Line(p4, p1, contour.meshSize)
+                # construct geoms
+                geoms = Contour([l1, l2, l3, l4]).geoms
+            elif isinstance(contour, Contour):
                 geoms = contour.geoms
             elif isinstance(contour, Points):
                 geoms = contour.Get_Contour().geoms
+            
             N = len(geoms) # number of geom in contour
+            coef = 2 if elemType.startswith(("QUAD")) else 1
             if N % 2 == 0: # N is odd
-                coef = 2 if elemType.startswith(("QUAD")) else 1
-                numElems = [(int(geom.length/geom.meshSize/coef)) for geom in geoms[:N//2]]
+                numElems = [geom.length/geom.meshSize/coef for geom in geoms[:N//2]]
                 numElems = numElems*2
             else:
-                numElems = [int(geom.length / geom.meshSize) for geom in geoms]
+                numElems = [geom.length/geom.meshSize/coef for geom in geoms]
                 
         if elemType.startswith(("QUAD", "HEXA")):
             # simply multiplies the mesh size by 2 because
