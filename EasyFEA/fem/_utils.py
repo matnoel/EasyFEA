@@ -11,7 +11,7 @@ class ElemType(str, Enum):
     SEG2 = "SEG2"
     SEG3 = "SEG3"
     SEG4 = "SEG4"
-    # SEG5 = "SEG5"
+    SEG5 = "SEG5"
     TRI3 = "TRI3"
     TRI6 = "TRI6"
     TRI10 = "TRI10"
@@ -37,7 +37,7 @@ class ElemType(str, Enum):
     @staticmethod
     def Get_1D() -> list[str]:
         """Returns 1D element types."""        
-        elems_1D = [ElemType.SEG2, ElemType.SEG3, ElemType.SEG4]
+        elems_1D = [ElemType.SEG2, ElemType.SEG3, ElemType.SEG4, ElemType.SEG5]
         return elems_1D
     
     @staticmethod

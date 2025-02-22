@@ -16,7 +16,7 @@ class Test_Simu(unittest.TestCase):
         interfaceGmsh = Mesher()
 
         listProblem = ["Flexion","Traction","BiEnca"]
-        listElemType = ["SEG2","SEG3","SEG4"]
+        listElemType = ["SEG2","SEG3","SEG4","SEG5"]
         listBeamDim = [1,2,3]
 
         # Generating configs

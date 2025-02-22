@@ -613,6 +613,7 @@ DICT_CELL_TYPES: dict[str, tuple[pv.CellType, int]] = {
     "SEG2": (pv.CellType.LINE, 3),
     "SEG3": (pv.CellType.QUADRATIC_EDGE, 21),
     "SEG4": (pv.CellType.CUBIC_LINE, 35),
+    "SEG5": (pv.CellType.HIGHER_ORDER_EDGE, 60),
     "TRI3": (pv.CellType.TRIANGLE, 5),
     "TRI6": (pv.CellType.QUADRATIC_TRIANGLE, 22),
     "TRI10": (pv.CellType.LAGRANGE_TRIANGLE, 69),

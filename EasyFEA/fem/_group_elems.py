@@ -1978,7 +1978,7 @@ class _GroupElem(ABC):
 
 # elems
 from .elems._point import POINT
-from .elems._seg import SEG2, SEG3, SEG4
+from .elems._seg import SEG2, SEG3, SEG4, SEG5
 from .elems._tri import TRI3, TRI6, TRI10
 from .elems._quad import QUAD4, QUAD8, QUAD9
 from .elems._tetra import TETRA4, TETRA10
@@ -2001,8 +2001,8 @@ class GroupElemFactory:
             elemType = ElemType.SEG3; nPe = 3; dim = 1; order = 2; nbFaces = 0; nbCorners = 2
         elif gmshId == 26:
             elemType = ElemType.SEG4; nPe = 4; dim = 1; order = 3; nbFaces = 0; nbCorners = 2
-        # elif gmshId == 27:
-        #     elemType = ElemType.SEG5; nPe = 5; dim = 1; order = 4; nbFaces = 0; nbCorners = 2
+        elif gmshId == 27:
+            elemType = ElemType.SEG5; nPe = 5; dim = 1; order = 4; nbFaces = 0; nbCorners = 2
         elif gmshId == 2:
             elemType = ElemType.TRI3; nPe = 3; dim = 2; order = 1; nbFaces = 1; nbCorners = 3
         elif gmshId == 9:
@@ -2077,6 +2077,8 @@ class GroupElemFactory:
             return SEG3(*params)
         elif elemType == ElemType.SEG4:
             return SEG4(*params)
+        elif elemType == ElemType.SEG5:
+            return SEG5(*params)
         elif elemType == ElemType.TRI3:
             return TRI3(*params)
         elif elemType == ElemType.TRI6:
