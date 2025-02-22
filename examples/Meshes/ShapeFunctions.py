@@ -26,14 +26,6 @@ Display.Clear()
 # Options
 # ----------------------------------------------
 
-useChop = False
-useRound = False
-round = 15
-# round = 12
-# round = 6
-tol = 1e-12
-
-plot_N = True
 plot_dN = True
 plot_ddN = True
 plot_dddN = False
@@ -47,7 +39,7 @@ coords = sympy.symbols("r, s, t")
 # Public functions
 # ----------------------------------------------
 
-def Compute(polynom, *args, useSimplify=True, useFactor=True):
+def Compute_and_Print(polynom, *args, useSimplify=True, useFactor=True):
     """Compute and print shape functions and their derivatives for a given polynom.
     
     Parameters
@@ -66,8 +58,7 @@ def Compute(polynom, *args, useSimplify=True, useFactor=True):
 
     shape_functions = __Get_shape_functions(polynom, local_coords, dim, useSimplify, useFactor)
 
-    if plot_N:
-        __Print_functions(shape_functions, dim, "N")
+    __Print_functions(shape_functions, dim, "N")
     
     # derivative_shape_functions
     if plot_dN:
@@ -76,15 +67,15 @@ def Compute(polynom, *args, useSimplify=True, useFactor=True):
     
     if plot_ddN:
         ddN_functions = __Get_derivative_functions(shape_functions, dim, 2)
-        __Print_functions(dN_functions, dim, "ddN")
+        __Print_functions(ddN_functions, dim, "ddN")
 
     if plot_dddN:
         dddN_functions = __Get_derivative_functions(shape_functions, dim, 3)
-        __Print_functions(dN_functions, dim, "dddN")
+        __Print_functions(dddN_functions, dim, "dddN")
 
     if plot_ddddN:
         ddddN_functions = __Get_derivative_functions(shape_functions, dim, 4)
-        __Print_functions(dN_functions, dim, "ddddN")
+        __Print_functions(ddddN_functions, dim, "ddddN")
 
 def Plot_Nodes(title: str, *args):
 
@@ -170,8 +161,6 @@ def __Get_shape_functions(polynom, local_coords: np.ndarray, dim: int,
         
         # apply function display properties
         function = __chop(function)
-        if useRound:
-            function = sympy.N(function, round)
         if useSimplify:
             function = function.nsimplify()            
         if useFactor:
@@ -180,6 +169,7 @@ def __Get_shape_functions(polynom, local_coords: np.ndarray, dim: int,
         functions.append(function)
 
     # check functions
+    tol = 1e-12
     for f, function in enumerate(functions):
 
         for node in range(nPe):
@@ -259,17 +249,17 @@ def __Print_functions(functions: list, dim: int, name="", printArray=False):
         nF = len(functions)
         print(f"{name} = np.array([{', '.join(f'{name}{i+1}' for i in range(nF))}]){end}\n")
 
-def __chop(expr):
+def __chop(expr, tol=1e-12):
     """Recursive function that replaces small values in the sympy expression with zero."""
     tol = 1e-12
     if isinstance(expr, sympy.Float) and abs(expr) < tol:
         return sympy.S.Zero
     elif isinstance(expr, sympy.Add):
-        return sympy.Add(*[__chop(arg) for arg in expr.args])
+        return sympy.Add(*[__chop(arg, tol) for arg in expr.args])
     elif isinstance(expr, sympy.Mul):
-        return sympy.Mul(*[__chop(arg) for arg in expr.args])
+        return sympy.Mul(*[__chop(arg, tol) for arg in expr.args])
     elif isinstance(expr, sympy.Pow):
-        return sympy.Pow(__chop(expr.base), expr.exp)
+        return sympy.Pow(__chop(expr.base, tol), expr.exp)
     else:
         return expr
 
@@ -296,7 +286,7 @@ def Do_Segments():
     polynom = lambda x : [x, 1]
     
     Display.Section(name)
-    Compute(polynom, list_x)
+    Compute_and_Print(polynom, list_x)
     Plot_Nodes(name, list_x)
 
     # ----------------------------------------------
@@ -316,7 +306,7 @@ def Do_Segments():
     polynom = lambda x : [x**2, x, 1]
 
     Display.Section(name)
-    Compute(polynom, list_x)
+    Compute_and_Print(polynom, list_x)
     Plot_Nodes(name, list_x)
 
     # ----------------------------------------------
@@ -336,7 +326,7 @@ def Do_Segments():
     polynom = lambda x : [x**3, x**2, x, 1]
 
     Display.Section(name)
-    Compute(polynom, list_x, useFactor=False)
+    Compute_and_Print(polynom, list_x, useFactor=False)
     Plot_Nodes(name, list_x)
 
     # ----------------------------------------------
@@ -356,7 +346,7 @@ def Do_Segments():
     polynom = lambda x : [x**4, x**3, x**2, x, 1]
 
     Display.Section(name)
-    Compute(polynom, list_x, useFactor=False)
+    Compute_and_Print(polynom, list_x, useFactor=False)
     Plot_Nodes(name, list_x)
 
 # ----------------------------------------------
@@ -388,7 +378,7 @@ def Do_Triangles():
     polynom = lambda x, y : [x, y, 1]
 
     Display.Section(name)
-    Compute(polynom, list_x, list_y)
+    Compute_and_Print(polynom, list_x, list_y)
     Plot_Nodes(name, list_x, list_y)
 
     # ----------------------------------------------
@@ -414,7 +404,7 @@ def Do_Triangles():
     polynom = lambda x, y : [x**2, y**2, x*y, x, y, 1]
 
     Display.Section(name)
-    Compute(polynom, list_x, list_y)
+    Compute_and_Print(polynom, list_x, list_y)
     Plot_Nodes(name, list_x, list_y)
 
     # ----------------------------------------------
@@ -450,7 +440,7 @@ def Do_Triangles():
     polynom = lambda x, y : [x**3, y**3, x**2*y, x*y**2, x**2, y**2, x*y, x, y, 1]
 
     Display.Section(name)
-    Compute(polynom, list_x, list_y, useFactor=False)
+    Compute_and_Print(polynom, list_x, list_y, useFactor=False)
     Plot_Nodes(name, list_x, list_y)
 
     # ----------------------------------------------
@@ -489,7 +479,7 @@ def Do_Triangles():
                              x, y, 1]
 
     Display.Section(name)
-    Compute(polynom, list_x, list_y, useFactor=False)
+    Compute_and_Print(polynom, list_x, list_y, useFactor=False)
     Plot_Nodes(name, list_x, list_y)
 
 # ----------------------------------------------
@@ -521,7 +511,7 @@ def Do_Quadrangles():
     polynom = lambda x, y : [x*y, x, y, 1]
 
     Display.Section(name)
-    Compute(polynom, list_xi, list_eta)
+    Compute_and_Print(polynom, list_xi, list_eta)
     Plot_Nodes(name, list_xi, list_eta)
 
     # ----------------------------------------------
@@ -548,7 +538,7 @@ def Do_Quadrangles():
     # function = lambda x, y : [x**2*y**2, x**2*y, y**2*x, x**2, y**2, x, y, 1] # singular matrix
 
     Display.Section(name)
-    Compute(polynom, list_xi, list_eta, useFactor=True)
+    Compute_and_Print(polynom, list_xi, list_eta, useFactor=True)
     Plot_Nodes(name, list_xi, list_eta)
 
     # ----------------------------------------------
@@ -574,7 +564,7 @@ def Do_Quadrangles():
     polynom = lambda x, y : [x**2*y**2, x**2*y, y**2*x, x**2, y**2, x*y, x, y, 1]    
 
     Display.Section(name)
-    Compute(polynom, list_xi, list_eta, useFactor=True)
+    Compute_and_Print(polynom, list_xi, list_eta, useFactor=True)
     Plot_Nodes(name, list_xi, list_eta)
 
 # ----------------------------------------------
@@ -615,7 +605,7 @@ def Do_Tetrahedron():
     polynom = lambda x, y, z : [x, y, z, 1]
 
     Display.Section(name)
-    Compute(polynom, list_x, list_y, list_z)
+    Compute_and_Print(polynom, list_x, list_y, list_z)
     Plot_Nodes(name, list_x, list_y, list_z)
 
     # ----------------------------------------------
@@ -650,7 +640,7 @@ def Do_Tetrahedron():
     polynom = lambda x, y, z : [x**2, y**2, z**2, x*y, x*z, y*z, x, y, z, 1]
 
     Display.Section(name)
-    Compute(polynom, list_x, list_y, list_z)
+    Compute_and_Print(polynom, list_x, list_y, list_z)
     Plot_Nodes(name, list_x, list_y, list_z)
 
 # ----------------------------------------------
@@ -685,7 +675,7 @@ def Do_Hexahedron():
     polynom = lambda x, y, z : [x*y*z, x*y, x*z, y*z, x, y, z, 1]
 
     Display.Section(name)
-    Compute(polynom, list_x, list_y, list_z)
+    Compute_and_Print(polynom, list_x, list_y, list_z)
     Plot_Nodes(name, list_x, list_y, list_z)
 
     # ----------------------------------------------
@@ -732,7 +722,7 @@ def Do_Hexahedron():
                                 x, y, z, x*y*z ,1]
 
     Display.Section(name)
-    Compute(polynom, list_x, list_y, list_z,
+    Compute_and_Print(polynom, list_x, list_y, list_z,
                            useSimplify=True, useFactor=True)
     Plot_Nodes(name, list_x, list_y, list_z)
 
@@ -788,7 +778,7 @@ def Do_Hexahedron():
                                 x, y, z, x*y*z ,1]
 
     Display.Section(name)
-    Compute(polynom, list_x, list_y, list_z,
+    Compute_and_Print(polynom, list_x, list_y, list_z,
                            useSimplify=True, useFactor=True)
     Plot_Nodes(name, list_x, list_y, list_z)
 
@@ -830,7 +820,7 @@ def Do_Prism():
     polynom = lambda x, y, z : [x*z, y*z, x, y, z, 1]
 
     Display.Section(name)
-    Compute(polynom, list_x, list_y, list_z)
+    Compute_and_Print(polynom, list_x, list_y, list_z)
     Plot_Nodes(name, list_x, list_y, list_z)
 
     # ----------------------------------------------
@@ -867,7 +857,7 @@ def Do_Prism():
                                 x, y, z, x*y, 1]
 
     Display.Section(name)
-    Compute(polynom, list_x, list_y, list_z)
+    Compute_and_Print(polynom, list_x, list_y, list_z)
     Plot_Nodes(name, list_x, list_y, list_z)
 
 # ----------------------------------------------
