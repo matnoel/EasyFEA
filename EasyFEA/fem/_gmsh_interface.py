@@ -335,12 +335,11 @@ class Mesher:
                 geoms = contour.Get_Contour().geoms
             
             N = len(geoms) # number of geom in contour
-            coef = 2 if elemType.startswith(("QUAD")) else 1
             if N % 2 == 0: # N is odd
-                numElems = [geom.length/geom.meshSize/coef for geom in geoms[:N//2]]
+                numElems = [geom.length/geom.meshSize for geom in geoms[:N//2]]
                 numElems = numElems*2
             else:
-                numElems = [geom.length/geom.meshSize/coef for geom in geoms]
+                numElems = [geom.length/geom.meshSize for geom in geoms]
                 
         if elemType.startswith(("QUAD", "HEXA")):
             # simply multiplies the mesh size by 2 because
@@ -350,7 +349,8 @@ class Mesher:
             sizes = gmsh.model.mesh.getSizes(points)
             if sizes.max() > 0:
                 unique = list(set(sizes))
-                [gmsh.model.mesh.setSize(points[np.where(sizes==val)[0]], val*2) for val in unique]
+                [gmsh.model.mesh.setSize(points[np.where(sizes==val)[0]], val*2)
+                 for val in unique]
 
         self._Surfaces_Organize(surfaces, elemType, isOrganised, numElems)
 
@@ -1482,19 +1482,15 @@ class Mesher:
         """
 
         if elemType in ElemType.Get_1D() or elemType in ElemType.Get_2D():
+            meshOption = "Mesh.Algorithm"
             meshAlgorithm = 6 # 6: Frontal-Delaunay
         elif elemType in ElemType.Get_3D():
+            meshOption = "Mesh.Algorithm3D"
             meshAlgorithm = 1 # 1: Delaunay
-        gmsh.option.setNumber("Mesh.Algorithm", meshAlgorithm)
-
-        recombineAlgorithm = 1
-        if elemType in [ElemType.QUAD4, ElemType.QUAD8, ElemType.QUAD9]:
-            subdivisionAlgorithm = 1
-        else:
-            subdivisionAlgorithm = 0        
-
-        gmsh.option.setNumber("Mesh.RecombinationAlgorithm", recombineAlgorithm)
-        gmsh.option.setNumber("Mesh.SubdivisionAlgorithm", subdivisionAlgorithm)
+        
+        gmsh.option.setNumber(meshOption, meshAlgorithm)
+        gmsh.option.setNumber("Mesh.RecombinationAlgorithm", 1)
+        gmsh.option.setNumber("Mesh.SubdivisionAlgorithm", 0)
 
     def _Mesh_Generate(self, dim: int, elemType: str,
                  crackLines:int=None, crackSurfaces:int=None, openPoints:int=None, openLines:int=None,
