@@ -44,240 +44,47 @@ coords = sympy.symbols("r, s, t")
 # coords = sympy.symbols("xi, eta, zeta")
 
 # ----------------------------------------------
-# Functions
+# Public functions
 # ----------------------------------------------
 
-def __Get_mat(polynom, *args):
-    """
-    Construct a matrix by evaluating a polynomial at given points.
-
+def Compute(polynom, *args, useSimplify=True, useFactor=True):
+    """Compute and print shape functions and their derivatives for a given polynom.
+    
     Parameters
     ----------
     polynom : function
         Polynomial basis function taking 1, 2, or 3 arguments.
-    args : tuple
-        Coordinates (1, 2, or 3 lists of x, y, z).
-
-    Returns
-    -------
-    mat : numpy.ndarray
-        A 2D NumPy array of shape (nPe, nPe) where each row corresponds to the
-        evaluation of the polynomial at the corresponding point in the input lists.
-
-    Raises
-    ------
-    AssertionError
-        If the number of lists in args is not 1, 2, or 3.
-        If the lengths of the lists in args are not all equal.
-    """
-
-    dim = len(args)
-    assert dim in [1, 2, 3], "The number of lists in args must be 1, 2, or 3."
-
-    list_x = args[0]
-    nPe = len(list_x)
-    list_y = args[1] if dim > 1 else [0] * nPe
-    list_z = args[2] if dim > 2 else [0] * nPe
-
-    assert len(list_y) == nPe, "The length of list_y must be equal to the length of list_x."
-    assert len(list_z) == nPe, "The length of list_z must be equal to the length of list_x."
-
-    mat = np.zeros((nPe, nPe))
-
-    if dim == 1:
-        # e.g. polynom = lambda x : [x, 1] for SEG2
-        for n in range(nPe):
-            mat[n,:] = polynom(list_x[n])
-    elif dim == 2:
-        # e.g. polynom = lambda x, y : [x, y, 1] for TRI3
-        for n in range(nPe):
-            mat[n,:] = polynom(list_x[n], list_y[n])
-    else:
-        # e.g. polynom = lambda x, y, z : [x, y, z, 1] for TETRA4
-        for n in range(nPe):
-            mat[n,:] = polynom(list_x[n], list_y[n], list_z[n])
-
-    return mat
-
-def __Get_ShapeFunctions(polynom, order, *args,
-                         useSimplify = True, useFactor = False):
-    """Construct shape functions and their derivatives for given polynomial basis functions.
-
-    Parameters
-    ----------
-    polynom : function
-        Polynomial basis function taking 1, 2, or 3 arguments.
-    order : int
-        Derivative order (0 for the function itself).
     args : tuple
         Coordinates (1, 2, or 3 lists of x, y, z).
     useSimplify : bool, optional
         Simplify the shape functions. Default is True.
     useFactor : bool, optional
-        Factor the shape functions. Default is False.
-
-    Returns
-    -------
-    list of lists
-        Shape functions and their derivatives at each node.
-
-    Raises
-    ------
-    AssertionError
-        If input dimensions or lengths are incorrect, or if shape functions do not satisfy required properties.
+        Factor the shape functions. Default is True.
     """
 
-    # Get dim
-    dim = len(args)
-    assert dim in [1, 2, 3]
+    local_coords, dim = __Get_local_coords_and_dim(*args)
 
-    # Get coordinates
-    list_x = args[0]
-    nPe = len(list_x)
-    
-    list_y = args[1] if dim > 1 else [0] * nPe
-    assert len(list_y) == nPe
-
-    list_z = args[2] if dim > 2 else [0] * nPe
-    assert len(list_z) == nPe
-
-    assert order >= 0
-
-    local_coords = np.array([list_x, list_y, list_z]).T
-    
-    mat = __Get_mat(polynom, *args)
-    
-    # Get symbols and coords symbols
-    symbols = sympy.symbols(f"x1:{nPe+1}")
-
-    functions_on_nodes_per_dim = []
-    functions_on_nodes = []
-
-    for node in range(nPe):
-        
-        # construct vect
-        vect = np.zeros_like(list_x)
-        vect[node] = 1
-        
-        # eval function at coordinates
-        coefs = polynom(*coords[:dim])
-
-        # eval solution
-        # sol = np.linalg.inv(mat) @ vect
-        sol = np.linalg.solve(mat, vect)
-        
-        # check solution
-        assert np.linalg.norm(mat @ sol - vect) <= 1e-12, "Solution does not satisfy the equation."    
-
-        # construct function
-        function = sum(coeff * term for coeff, term in zip(symbols, coefs))
-
-        # apply values
-        function = function.subs({key: value for key, value in zip(symbols, sol)})
-
-        # set properties
-        function = __chop(function)
-        if useRound:
-            function = sympy.N(function, round)
-        if useSimplify:
-            function = function.nsimplify()            
-        if useFactor:
-            function = function.factor()
-            # function = function.simplify()
-        
-        # save shape function
-        functions_on_nodes.append(function)
-        functions_on_coord = []
-
-        # loop over coordinates
-        for coord in coords[:dim]:
-            # get the function
-            function = functions_on_nodes[-1]
-            if order == 0:
-                # save it
-                functions_on_coord.append(function)
-            else:
-                # derivate
-                for i in range(order):
-                    function = function.diff(coord)
-                functions_on_coord.append(function)
-
-        # save function on coord in 
-        functions_on_nodes_per_dim.append(functions_on_coord)
-
-    # check every shape function on each node
-    for f, function in enumerate(functions_on_nodes):
-
-        for node in range(nPe):
-
-            eval = function.subs({key: value
-                                  for key, value in zip(coords[:dim], local_coords[node, :dim])})
-
-            assert eval >= -tol, "Must be > 0"
-            if node == f:
-                assert eval - 1 <= tol, "Must be equal to 1"
-            else:
-                assert eval <= tol , "Must be equal to 0"
-
-    return functions_on_nodes_per_dim
-
-def __Print_ShapeFunctions(functions_on_nodes, order, printArray=False):
-    """
-    Print shape functions and their derivatives.
-
-    Parameters
-    ----------
-    functions_on_nodes : list of lists
-        List of shape functions and their derivatives at each node.
-    order : int
-        Derivative order (0 for the function itself).
-    """
-
-    # check input data
-    nPe = len(functions_on_nodes)
-    dim = len(functions_on_nodes[0])
-    assert dim in [1, 2, 3]
-    assert order >= 0
-
-    # construct string
-    name = "N" if order == 0 else f"{'d'*order}N"
-    lambda_str = f"lambda {', '.join(str(coord) for coord in coords[:dim])}"
-    end = ".reshape(-1, 1)" if order == 0 else ''
-    
-    # print each functions
-    for node in range(nPe):
-        if order == 0:
-            print(f"{name}{node+1} = {lambda_str} : {functions_on_nodes[node][0]}")
-        else:
-            print(f"{name}{node+1} = [{', '.join(f'{lambda_str} : {f}' for f in functions_on_nodes[node])}]")
-    
-    print()
-    if printArray:
-        print(f"{name} = np.array([{', '.join(f'{name}{i+1}' for i in range(nPe))}]){end}\n")
-
-def Compute_ShapeFunctions(function, *args,
-                           useSimplify = True, useFactor = True):
-    """Compute and optionally print shape functions and their derivatives."""
+    shape_functions = __Get_shape_functions(polynom, local_coords, dim, useSimplify, useFactor)
 
     if plot_N:
-        __Print_ShapeFunctions(__Get_ShapeFunctions(function, 0, *args,
-                                                    useSimplify=useSimplify, useFactor=useFactor), 0)
-
+        __Print_functions(shape_functions, dim, "N")
+    
+    # derivative_shape_functions
     if plot_dN:
-        __Print_ShapeFunctions(__Get_ShapeFunctions(function, 1, *args,
-                                                    useSimplify=useSimplify, useFactor=useFactor), 1)
+        dN_functions = __Get_derivative_functions(shape_functions, dim, 1)
+        __Print_functions(dN_functions, dim, "dN")
     
     if plot_ddN:
-        __Print_ShapeFunctions(__Get_ShapeFunctions(function, 2, *args,
-                                                    useSimplify=useSimplify, useFactor=useFactor), 2)
+        ddN_functions = __Get_derivative_functions(shape_functions, dim, 2)
+        __Print_functions(dN_functions, dim, "ddN")
 
     if plot_dddN:
-        __Print_ShapeFunctions(__Get_ShapeFunctions(function, 3, *args,
-                                                    useSimplify=useSimplify, useFactor=useFactor), 3)
+        dddN_functions = __Get_derivative_functions(shape_functions, dim, 3)
+        __Print_functions(dN_functions, dim, "dddN")
 
     if plot_ddddN:
-        __Print_ShapeFunctions(__Get_ShapeFunctions(function, 4, *args,
-                                                    useSimplify=useSimplify, useFactor=useFactor), 4)
+        ddddN_functions = __Get_derivative_functions(shape_functions, dim, 4)
+        __Print_functions(dN_functions, dim, "ddddN")
 
 def Plot_Nodes(title: str, *args):
 
@@ -303,6 +110,154 @@ def Plot_Nodes(title: str, *args):
 
         ax.scatter(list_x,list_y)
         [ax.text(list_x[i], list_y[i], i+1) for i in range(nPe)]
+
+# ----------------------------------------------
+# Private functions do not touch
+# ----------------------------------------------
+
+def __Get_local_coords_and_dim(*args):
+
+    # Get dim
+    dim = len(args)
+    assert dim in [1, 2, 3], "The number of lists in args must be 1, 2, or 3."
+
+    # Get coordinates
+    list_x = args[0]
+    nPe = len(list_x)
+    
+    list_y = args[1] if dim > 1 else [0] * nPe
+    assert len(list_y) == nPe, "The length of list_y must be equal to the length of list_x."
+
+    list_z = args[2] if dim > 2 else [0] * nPe
+    assert len(list_z) == nPe, "The length of list_z must be equal to the length of list_x."
+
+    local_coords = np.array([list_x, list_y, list_z]).T
+
+    return local_coords, dim
+
+def __Get_shape_functions(polynom, local_coords: np.ndarray, dim: int,
+                         useSimplify=True, useFactor=True) -> list:
+    
+    nPe = local_coords.shape[0]
+    
+    # construct matrix a
+    matrix_A = __Get_matrix_A(polynom, local_coords, dim)
+    
+    # Get symbols and coords symbols
+    symbols = sympy.symbols(f"x0:{nPe}")
+    
+    functions = []
+
+    for node in range(nPe):
+        
+        # construct vector b
+        vector_b = np.zeros(nPe)
+        vector_b[node] = 1
+        
+        # eval function at coordinates
+        coefs = polynom(*coords[:dim])
+        # solve x from A x = b
+        vector_x = np.linalg.solve(matrix_A, vector_b)        
+        # check that A x = b
+        assert np.linalg.norm(matrix_A @ vector_x - vector_b) <= 1e-12
+
+        # construct shape function
+        function = sum(coeff * term 
+                       for coeff, term in zip(symbols, coefs))
+        # apply values
+        function = function.subs({key: value 
+                                  for key, value in zip(symbols, vector_x)})
+        
+        # apply function display properties
+        function = __chop(function)
+        if useRound:
+            function = sympy.N(function, round)
+        if useSimplify:
+            function = function.nsimplify()            
+        if useFactor:
+            function = function.factor()
+
+        functions.append(function)
+
+    # check functions
+    for f, function in enumerate(functions):
+
+        for node in range(nPe):
+
+            eval = function.subs({key: value
+                                  for key, value in zip(coords[:dim], local_coords[node, :dim])})
+
+            assert eval >= -tol, "Must be > 0"
+            if node == f:
+                assert eval - 1 <= tol, "Must be equal to 1"
+            else:
+                assert eval <= tol , "Must be equal to 0"
+
+    return functions    
+
+def __Get_matrix_A(polynom, local_coords: np.ndarray, dim: int):
+
+    list_x, list_y, list_z = tuple(local_coords.T)
+    nPe = len(list_x)
+
+    matrix_A = np.zeros((nPe, nPe))
+
+    if dim == 1:
+        # e.g. polynom = lambda x : [x, 1] for SEG2
+        for n in range(nPe):
+            matrix_A[n,:] = polynom(list_x[n])
+    elif dim == 2:
+        # e.g. polynom = lambda x, y : [x, y, 1] for TRI3
+        for n in range(nPe):
+            matrix_A[n,:] = polynom(list_x[n], list_y[n])
+    else:
+        # e.g. polynom = lambda x, y, z : [x, y, z, 1] for TETRA4
+        for n in range(nPe):
+            matrix_A[n,:] = polynom(list_x[n], list_y[n], list_z[n])
+
+    return matrix_A
+
+def __Get_derivative_functions(functions, dim, order):
+
+    assert isinstance(functions, list), "functions must be a list"
+    assert dim in [1, 2, 3]
+    assert order >= 1 and isinstance(order, int), "order must be >= 1"
+
+    derivative_functions = []
+
+    for function in functions:
+
+        functions_per_dim = []
+               
+        # loop on dimensions
+        for coord in coords[:dim]:
+            func = function # copy of `function`
+            # loop to derive the func function
+            for _ in range(order):
+                func = func.diff(coord)
+            functions_per_dim.append(func)
+
+        derivative_functions.append(functions_per_dim)
+
+    return derivative_functions
+
+def __Print_functions(functions: list, dim: int, name="", printArray=False):
+
+    # lamba string (e.g. lamda r, s)
+    lambda_str = f"lambda {', '.join(str(coord) for coord in coords[:dim])}"    
+    
+    # print each functions
+    for i, function in enumerate(functions):
+        if isinstance(function, list):
+            print(f"{name}{i+1} = [{', '.join(f'{lambda_str} : {func}' for func in function)}]")
+        else:
+            print(f"{name}{i+1} = {lambda_str} : {function}")            
+    
+    print()
+    if printArray:
+        end = ".reshape(-1, 1)" if np.shape(functions) == 0 else ''
+        nF = len(functions)
+        print(f"{name} = np.array([{', '.join(f'{name}{i+1}' for i in range(nF))}]){end}\n")
 
 def __chop(expr):
     """Recursive function that replaces small values in the sympy expression with zero."""
@@ -341,7 +296,7 @@ def Do_Segments():
     polynom = lambda x : [x, 1]
     
     Display.Section(name)
-    Compute_ShapeFunctions(polynom, list_x)
+    Compute(polynom, list_x)
     Plot_Nodes(name, list_x)
 
     # ----------------------------------------------
@@ -361,7 +316,7 @@ def Do_Segments():
     polynom = lambda x : [x**2, x, 1]
 
     Display.Section(name)
-    Compute_ShapeFunctions(polynom, list_x)
+    Compute(polynom, list_x)
     Plot_Nodes(name, list_x)
 
     # ----------------------------------------------
@@ -381,7 +336,7 @@ def Do_Segments():
     polynom = lambda x : [x**3, x**2, x, 1]
 
     Display.Section(name)
-    Compute_ShapeFunctions(polynom, list_x, useFactor=False)
+    Compute(polynom, list_x, useFactor=False)
     Plot_Nodes(name, list_x)
 
     # ----------------------------------------------
@@ -401,7 +356,7 @@ def Do_Segments():
     polynom = lambda x : [x**4, x**3, x**2, x, 1]
 
     Display.Section(name)
-    Compute_ShapeFunctions(polynom, list_x, useFactor=False)
+    Compute(polynom, list_x, useFactor=False)
     Plot_Nodes(name, list_x)
 
 # ----------------------------------------------
@@ -433,7 +388,7 @@ def Do_Triangles():
     polynom = lambda x, y : [x, y, 1]
 
     Display.Section(name)
-    Compute_ShapeFunctions(polynom, list_x, list_y)
+    Compute(polynom, list_x, list_y)
     Plot_Nodes(name, list_x, list_y)
 
     # ----------------------------------------------
@@ -459,7 +414,7 @@ def Do_Triangles():
     polynom = lambda x, y : [x**2, y**2, x*y, x, y, 1]
 
     Display.Section(name)
-    Compute_ShapeFunctions(polynom, list_x, list_y)
+    Compute(polynom, list_x, list_y)
     Plot_Nodes(name, list_x, list_y)
 
     # ----------------------------------------------
@@ -495,7 +450,7 @@ def Do_Triangles():
     polynom = lambda x, y : [x**3, y**3, x**2*y, x*y**2, x**2, y**2, x*y, x, y, 1]
 
     Display.Section(name)
-    Compute_ShapeFunctions(polynom, list_x, list_y, useFactor=False)
+    Compute(polynom, list_x, list_y, useFactor=False)
     Plot_Nodes(name, list_x, list_y)
 
     # ----------------------------------------------
@@ -534,7 +489,7 @@ def Do_Triangles():
                              x, y, 1]
 
     Display.Section(name)
-    Compute_ShapeFunctions(polynom, list_x, list_y, useFactor=False)
+    Compute(polynom, list_x, list_y, useFactor=False)
     Plot_Nodes(name, list_x, list_y)
 
 # ----------------------------------------------
@@ -566,7 +521,7 @@ def Do_Quadrangles():
     polynom = lambda x, y : [x*y, x, y, 1]
 
     Display.Section(name)
-    Compute_ShapeFunctions(polynom, list_xi, list_eta)
+    Compute(polynom, list_xi, list_eta)
     Plot_Nodes(name, list_xi, list_eta)
 
     # ----------------------------------------------
@@ -593,7 +548,7 @@ def Do_Quadrangles():
     # function = lambda x, y : [x**2*y**2, x**2*y, y**2*x, x**2, y**2, x, y, 1] # singular matrix
 
     Display.Section(name)
-    Compute_ShapeFunctions(polynom, list_xi, list_eta, useFactor=True)
+    Compute(polynom, list_xi, list_eta, useFactor=True)
     Plot_Nodes(name, list_xi, list_eta)
 
     # ----------------------------------------------
@@ -619,7 +574,7 @@ def Do_Quadrangles():
     polynom = lambda x, y : [x**2*y**2, x**2*y, y**2*x, x**2, y**2, x*y, x, y, 1]    
 
     Display.Section(name)
-    Compute_ShapeFunctions(polynom, list_xi, list_eta, useFactor=True)
+    Compute(polynom, list_xi, list_eta, useFactor=True)
     Plot_Nodes(name, list_xi, list_eta)
 
 # ----------------------------------------------
@@ -660,7 +615,7 @@ def Do_Tetrahedron():
     polynom = lambda x, y, z : [x, y, z, 1]
 
     Display.Section(name)
-    Compute_ShapeFunctions(polynom, list_x, list_y, list_z)
+    Compute(polynom, list_x, list_y, list_z)
     Plot_Nodes(name, list_x, list_y, list_z)
 
     # ----------------------------------------------
@@ -695,7 +650,7 @@ def Do_Tetrahedron():
     polynom = lambda x, y, z : [x**2, y**2, z**2, x*y, x*z, y*z, x, y, z, 1]
 
     Display.Section(name)
-    Compute_ShapeFunctions(polynom, list_x, list_y, list_z)
+    Compute(polynom, list_x, list_y, list_z)
     Plot_Nodes(name, list_x, list_y, list_z)
 
 # ----------------------------------------------
@@ -730,7 +685,7 @@ def Do_Hexahedron():
     polynom = lambda x, y, z : [x*y*z, x*y, x*z, y*z, x, y, z, 1]
 
     Display.Section(name)
-    Compute_ShapeFunctions(polynom, list_x, list_y, list_z)
+    Compute(polynom, list_x, list_y, list_z)
     Plot_Nodes(name, list_x, list_y, list_z)
 
     # ----------------------------------------------
@@ -777,7 +732,7 @@ def Do_Hexahedron():
                                 x, y, z, x*y*z ,1]
 
     Display.Section(name)
-    Compute_ShapeFunctions(polynom, list_x, list_y, list_z,
+    Compute(polynom, list_x, list_y, list_z,
                            useSimplify=True, useFactor=True)
     Plot_Nodes(name, list_x, list_y, list_z)
 
@@ -833,7 +788,7 @@ def Do_Hexahedron():
                                 x, y, z, x*y*z ,1]
 
     Display.Section(name)
-    Compute_ShapeFunctions(polynom, list_x, list_y, list_z,
+    Compute(polynom, list_x, list_y, list_z,
                            useSimplify=True, useFactor=True)
     Plot_Nodes(name, list_x, list_y, list_z)
 
@@ -875,7 +830,7 @@ def Do_Prism():
     polynom = lambda x, y, z : [x*z, y*z, x, y, z, 1]
 
     Display.Section(name)
-    Compute_ShapeFunctions(polynom, list_x, list_y, list_z)
+    Compute(polynom, list_x, list_y, list_z)
     Plot_Nodes(name, list_x, list_y, list_z)
 
     # ----------------------------------------------
@@ -912,7 +867,7 @@ def Do_Prism():
                                 x, y, z, x*y, 1]
 
     Display.Section(name)
-    Compute_ShapeFunctions(polynom, list_x, list_y, list_z)
+    Compute(polynom, list_x, list_y, list_z)
     Plot_Nodes(name, list_x, list_y, list_z)
 
 # ----------------------------------------------
@@ -933,4 +888,4 @@ if __name__ == '__main__':
 
     # Do_Prism()
     
-    plt.show()
+    # plt.show()
