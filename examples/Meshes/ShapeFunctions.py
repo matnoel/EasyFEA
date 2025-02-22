@@ -39,7 +39,8 @@ coords = sympy.symbols("r, s, t")
 # Public functions
 # ----------------------------------------------
 
-def Compute_and_Print(polynom, *args, useSimplify=True, useFactor=True):
+def Compute_and_Print(polynom, *args, useSimplify=True, useFactor=True,
+                      useEulerBernoulli=False):
     """Compute and print shape functions and their derivatives for a given polynom.
     
     Parameters
@@ -52,11 +53,14 @@ def Compute_and_Print(polynom, *args, useSimplify=True, useFactor=True):
         Simplify the shape functions. Default is True.
     useFactor : bool, optional
         Factor the shape functions. Default is True.
+    useEulerBernoulli : bool, optional
+        useEulerBernoulli shape functions. Default is False.
     """
 
     local_coords, dim = __Get_local_coords_and_dim(*args)
 
-    shape_functions = __Get_shape_functions(polynom, local_coords, dim, useSimplify, useFactor)
+    shape_functions = __Get_shape_functions(polynom, local_coords, dim,
+                                            useSimplify, useFactor, useEulerBernoulli)
 
     __Print_functions(shape_functions, dim, "N")
     
@@ -127,37 +131,46 @@ def __Get_local_coords_and_dim(*args):
     return local_coords, dim
 
 def __Get_shape_functions(polynom, local_coords: np.ndarray, dim: int,
-                         useSimplify=True, useFactor=True) -> list:
+                         useSimplify=True, useFactor=True, 
+                         useEulerBernoulli=False) -> list:
     
     nPe = local_coords.shape[0]
+
+    nF = __Get_functions_per_node(polynom, local_coords, dim)
     
+    if useEulerBernoulli:
+        assert nF == 2, "euler bernoulli shape functions use 2 functions per node!"
+
     # construct matrix a
     matrix_A = __Get_matrix_A(polynom, local_coords, dim)
     
     # Get symbols and coords symbols
-    symbols = sympy.symbols(f"x0:{nPe}")
+    symbols = sympy.symbols(f"x0:{nPe*nF}")
     
     functions = []
 
-    for node in range(nPe):
+    for i in range(nPe*nF):
         
         # construct vector b
-        vector_b = np.zeros(nPe)
-        vector_b[node] = 1
+        vector_b = np.zeros(nPe*nF)
+        if useEulerBernoulli:
+            vector_b[i] = 1 if i%2 == 0 else 1/2
+            coefs = polynom(*coords[:dim])[0]
+        else:
+            vector_b[i] = 1
+            coefs = polynom(*coords[:dim])
         
-        # eval function at coordinates
-        coefs = polynom(*coords[:dim])
         # solve x from A x = b
         vector_x = np.linalg.solve(matrix_A, vector_b)        
         # check that A x = b
         assert np.linalg.norm(matrix_A @ vector_x - vector_b) <= 1e-12
 
         # construct shape function
-        function = sum(coeff * term 
-                       for coeff, term in zip(symbols, coefs))
+        function = sum(coef * term 
+                    for coef, term in zip(symbols, coefs))
         # apply values
         function = function.subs({key: value 
-                                  for key, value in zip(symbols, vector_x)})
+                                for key, value in zip(symbols, vector_x)})
         
         # apply function display properties
         function = __chop(function)
@@ -168,44 +181,33 @@ def __Get_shape_functions(polynom, local_coords: np.ndarray, dim: int,
 
         functions.append(function)
 
-    # check functions
-    tol = 1e-12
-    for f, function in enumerate(functions):
-
-        for node in range(nPe):
-
-            eval = function.subs({key: value
-                                  for key, value in zip(coords[:dim], local_coords[node, :dim])})
-
-            assert eval >= -tol, "Must be > 0"
-            if node == f:
-                assert eval - 1 <= tol, "Must be equal to 1"
-            else:
-                assert eval <= tol , "Must be equal to 0"
-
     return functions    
 
 def __Get_matrix_A(polynom, local_coords: np.ndarray, dim: int):
+    
+    nPe = local_coords.shape[0]
+    
+    nF = __Get_functions_per_node(polynom, local_coords, dim)
+    indexes = np.arange(nPe*nF)
+    if nF > 1:
+        indexes = indexes.reshape(-1, 2)
 
-    list_x, list_y, list_z = tuple(local_coords.T)
-    nPe = len(list_x)
+    matrix_A = np.zeros((nPe*nF, nPe*nF))
 
-    matrix_A = np.zeros((nPe, nPe))
-
-    if dim == 1:
-        # e.g. polynom = lambda x : [x, 1] for SEG2
-        for n in range(nPe):
-            matrix_A[n,:] = polynom(list_x[n])
-    elif dim == 2:
-        # e.g. polynom = lambda x, y : [x, y, 1] for TRI3
-        for n in range(nPe):
-            matrix_A[n,:] = polynom(list_x[n], list_y[n])
-    else:
-        # e.g. polynom = lambda x, y, z : [x, y, z, 1] for TETRA4
-        for n in range(nPe):
-            matrix_A[n,:] = polynom(list_x[n], list_y[n], list_z[n])
+    for n in range(nPe):
+        matrix_A[indexes[n],:] = polynom(*local_coords[n, :dim])
 
     return matrix_A
+
+def __Get_functions_per_node(polynom, local_coords: np.ndarray, dim: int) -> int:
+
+    eval = np.array(polynom(*local_coords[0,:dim]))
+    if len(eval.shape) == 2:
+        return eval.shape[0]
+    elif len(eval.shape) == 1:
+        return 1
+    else:
+        raise Exception("polynom must be a function or a list of functions.")
 
 def __Get_derivative_functions(functions, dim, order):
 
@@ -231,7 +233,7 @@ def __Get_derivative_functions(functions, dim, order):
 
     return derivative_functions
 
-def __Print_functions(functions: list, dim: int, name="", printArray=False):
+def __Print_functions(functions: list, dim: int, name="", printArray=True):
 
     # lamba string (e.g. lamda r, s)
     lambda_str = f"lambda {', '.join(str(coord) for coord in coords[:dim])}"    
@@ -245,7 +247,7 @@ def __Print_functions(functions: list, dim: int, name="", printArray=False):
     
     print()
     if printArray:
-        end = ".reshape(-1, 1)" if np.shape(functions) == 0 else ''
+        end = ".reshape(-1, 1)" if len(np.shape(functions)) == 1 else ''
         nF = len(functions)
         print(f"{name} = np.array([{', '.join(f'{name}{i+1}' for i in range(nF))}]){end}\n")
 
@@ -287,6 +289,14 @@ def Do_Segments():
     
     Display.Section(name)
     Compute_and_Print(polynom, list_x)
+
+    Display.Section(name+" EulerBernoulli")
+    polynom = lambda x : [
+        [1, x, x**2, x**3],
+        [0, 1, 2*x, 3*x**2]
+    ]
+    Compute_and_Print(polynom, list_x, useEulerBernoulli=True)
+
     Plot_Nodes(name, list_x)
 
     # ----------------------------------------------
@@ -307,7 +317,16 @@ def Do_Segments():
 
     Display.Section(name)
     Compute_and_Print(polynom, list_x)
+
+    Display.Section(name+" EulerBernoulli")
+    polynom = lambda x : [
+        [1, x, x**2, x**3, x**4, x**5],
+        [0, 1, 2*x, 3*x**2, 4*x**3, 5*x**4]
+    ]
+    Compute_and_Print(polynom, list_x, useEulerBernoulli=True)
+    
     Plot_Nodes(name, list_x)
+
 
     # ----------------------------------------------
     # SEG 4
@@ -327,6 +346,15 @@ def Do_Segments():
 
     Display.Section(name)
     Compute_and_Print(polynom, list_x, useFactor=False)
+
+    Display.Section(name+" EulerBernoulli")
+    polynom = lambda x : [
+        [1, x, x**2, x**3, x**4, x**5, x**6, x**7],
+        [0, 1, 2*x, 3*x**2, 4*x**3, 5*x**4, 6*x**5, 7*x**6]
+    ]
+    # Compute_and_Print(polynom, list_x, useEulerBernoulli=True, useFactor=False, useSimplify=False)
+    Compute_and_Print(polynom, list_x, useEulerBernoulli=True, useFactor=False)
+
     Plot_Nodes(name, list_x)
 
     # ----------------------------------------------
@@ -347,6 +375,14 @@ def Do_Segments():
 
     Display.Section(name)
     Compute_and_Print(polynom, list_x, useFactor=False)
+
+    Display.Section(name+" EulerBernoulli")
+    polynom = lambda x : [
+        [1, x, x**2, x**3, x**4, x**5, x**6, x**7, x**8, x**9],
+        [0, 1, 2*x, 3*x**2, 4*x**3, 5*x**4, 6*x**5, 7*x**6, 8*x**7, 9*x**8]
+    ]
+    Compute_and_Print(polynom, list_x, useEulerBernoulli=True, useFactor=False)
+
     Plot_Nodes(name, list_x)
 
 # ----------------------------------------------
@@ -866,9 +902,9 @@ def Do_Prism():
 
 if __name__ == '__main__':
 
-    # Do_Segments()
+    Do_Segments()
 
-    Do_Triangles()
+    # Do_Triangles()
 
     # Do_Quadrangles()
 
