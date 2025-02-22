@@ -15,7 +15,7 @@ if __name__ == '__main__':
     circle = Circle(Point(1/2, 1/2), 1/3, 1/10, isHollow=True)
     contour.Plot()
 
-    # "TETRA4", "TETRA10", "HEXA8", "HEXA20", "PRISM6", "PRISM15"
+    # "TETRA4", "TETRA10", "HEXA8", "HEXA20", "HEXA27", "PRISM6", "PRISM15"
     elemType = "PRISM15"
     mesh = Mesher().Mesh_Extrude(contour, [circle], [0,0,0.5], 3, elemType, isOrganised=True)
     Display.Plot_Mesh(mesh)

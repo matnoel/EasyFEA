@@ -14,7 +14,7 @@ if __name__ == '__main__':
     contour = Domain(Point(), Point(1,1))
     contour.Plot()
 
-    # "TRI3", "TRI6", "TRI10", "QUAD4", "QUAD8"
+    # "TRI3", "TRI6", "TRI10", "QUAD4", "QUAD8",  "QUAD9"
     elemType = "TRI3"
     mesh = Mesher().Mesh_2D(contour, [], elemType, isOrganised=True)
     Display.Plot_Mesh(mesh)

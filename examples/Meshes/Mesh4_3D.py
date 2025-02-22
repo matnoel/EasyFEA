@@ -26,7 +26,7 @@ if __name__ == '__main__':
     contour = Points([pt1, pt2, pt3, pt4, pt5, pt6], h/N)
     contour.Get_Contour().Plot()
 
-    # "TETRA4", "TETRA10", "HEXA8", "HEXA20", "PRISM6", "PRISM15"
+    # "TETRA4", "TETRA10", "HEXA8", "HEXA20", "HEXA27", "PRISM6", "PRISM15"
     elemType = "PRISM15"
     mesh = Mesher().Mesh_Extrude(contour, [], [0,0,-h], 3, elemType)
     Display.Plot_Mesh(mesh)
