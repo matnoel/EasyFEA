@@ -1979,7 +1979,7 @@ class _GroupElem(ABC):
 # elems
 from .elems._point import POINT
 from .elems._seg import SEG2, SEG3, SEG4, SEG5
-from .elems._tri import TRI3, TRI6, TRI10
+from .elems._tri import TRI3, TRI6, TRI10, TRI15
 from .elems._quad import QUAD4, QUAD8, QUAD9
 from .elems._tetra import TETRA4, TETRA10
 from .elems._hexa import HEXA8, HEXA20, HEXA27
@@ -2009,8 +2009,8 @@ class GroupElemFactory:
             elemType = ElemType.TRI6; nPe = 6; dim = 2; order = 2; nbFaces = 1; nbCorners = 3
         elif gmshId == 21:
             elemType = ElemType.TRI10; nPe = 10; dim = 2; order = 3; nbFaces = 1; nbCorners = 3
-        # elif gmshId == 23:
-        #     elemType = ElemType.TRI15; nPe = 15; dim = 2; order = 4; nbFaces = 1; nbCorners = 3
+        elif gmshId == 23:
+            elemType = ElemType.TRI15; nPe = 15; dim = 2; order = 4; nbFaces = 1; nbCorners = 3
         elif gmshId == 3:
             elemType = ElemType.QUAD4; nPe = 4; dim = 2; order = 1; nbFaces = 1; nbCorners = 4
         elif gmshId == 16:
@@ -2085,6 +2085,8 @@ class GroupElemFactory:
             return TRI6(*params)
         elif elemType == ElemType.TRI10:
             return TRI10(*params)
+        elif elemType == ElemType.TRI15:
+            return TRI15(*params)
         elif elemType == ElemType.QUAD4:
             return QUAD4(*params)
         elif elemType == ElemType.QUAD8:

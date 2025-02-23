@@ -15,7 +15,7 @@ class ElemType(str, Enum):
     TRI3 = "TRI3"
     TRI6 = "TRI6"
     TRI10 = "TRI10"
-    # TRI15 = "TRI15"
+    TRI15 = "TRI15"
     QUAD4 = "QUAD4"
     QUAD8 = "QUAD8"
     QUAD9 = "QUAD9"
@@ -43,13 +43,16 @@ class ElemType(str, Enum):
     @staticmethod
     def Get_2D() -> list[str]:
         """Returns 2D element types."""
-        elems_2D = [ElemType.TRI3, ElemType.TRI6, ElemType.TRI10, ElemType.QUAD4, ElemType.QUAD8, ElemType.QUAD9]
+        elems_2D = [ElemType.TRI3, ElemType.TRI6, ElemType.TRI10, ElemType.TRI15,
+                    ElemType.QUAD4, ElemType.QUAD8, ElemType.QUAD9]
         return elems_2D
     
     @staticmethod
     def Get_3D() -> list[str]:
         """Returns 3D element types."""
-        elems_3D = [ElemType.TETRA4, ElemType.TETRA10, ElemType.HEXA8, ElemType.HEXA20, ElemType.HEXA27, ElemType.PRISM6, ElemType.PRISM15]
+        elems_3D = [ElemType.TETRA4, ElemType.TETRA10,
+                    ElemType.HEXA8, ElemType.HEXA20, ElemType.HEXA27,
+                    ElemType.PRISM6, ElemType.PRISM15]
         return elems_3D
 
 class MatrixType(str, Enum):

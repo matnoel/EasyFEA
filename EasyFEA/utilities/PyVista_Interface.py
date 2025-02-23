@@ -617,6 +617,7 @@ DICT_CELL_TYPES: dict[str, tuple[pv.CellType, int]] = {
     "TRI3": (pv.CellType.TRIANGLE, 5),
     "TRI6": (pv.CellType.QUADRATIC_TRIANGLE, 22),
     "TRI10": (pv.CellType.LAGRANGE_TRIANGLE, 69),
+    "TRI15": (pv.CellType.LAGRANGE_TRIANGLE, 69),
     "QUAD4": (pv.CellType.QUAD, 9),
     "QUAD8": (pv.CellType.QUADRATIC_QUAD, 23),
     "QUAD9": (pv.CellType.BIQUADRATIC_QUAD, 28),

@@ -291,7 +291,7 @@ class Gauss:
             x, weights =  np.polynomial.legendre.leggauss(nPg)
 
         elif elemType == ElemType.TRI3:
-            dim = 2            
+            dim = 2
             if matrixType == MatrixType.rigi:
                 nPg = 1
             elif matrixType == MatrixType.mass:
@@ -299,7 +299,7 @@ class Gauss:
             xis, etas, weights = Gauss._Triangle(nPg)
 
         elif elemType == ElemType.TRI6:
-            dim = 2            
+            dim = 2
             if matrixType == MatrixType.rigi:
                 nPg = 3
             elif matrixType == MatrixType.mass:
@@ -307,17 +307,14 @@ class Gauss:
             xis, etas, weights = Gauss._Triangle(nPg)
 
         elif elemType == ElemType.TRI10:
-            dim = 2            
+            dim = 2
             nPg = 6
             xis, etas, weights = Gauss._Triangle(nPg)
 
-        # elif elemType == ElemType.TRI15:
-        #     dim = 2            
-        #     if matrixType == MatrixType.rigi:
-        #         nPg = 6
-        #     elif matrixType == MatrixType.masse:
-        #         nPg = 12
-        #     ksis, etas, weights = Gauss.__CoordoPoidsGaussTriangle(nPg)
+        elif elemType == ElemType.TRI15:
+            dim = 2
+            nPg = 12
+            xis, etas, weights = Gauss._Triangle(nPg)
 
         elif elemType == ElemType.QUAD4:
             dim = 2            
@@ -360,6 +357,7 @@ class Gauss:
             if matrixType in [MatrixType.rigi, MatrixType.mass]:
                 nPg = 8
                 x, y, z, weights = Gauss._Hexahedron(nPg)
+
         elif elemType == ElemType.HEXA27:
             dim = 3
             if matrixType in [MatrixType.rigi, MatrixType.mass]:
