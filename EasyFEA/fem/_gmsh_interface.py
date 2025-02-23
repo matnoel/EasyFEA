@@ -335,11 +335,12 @@ class Mesher:
                 geoms = contour.Get_Contour().geoms
             
             N = len(geoms) # number of geom in contour
+            get_mS = lambda geom: np.max([geom.meshSize, 1])
             if N % 2 == 0: # N is odd
-                numElems = [geom.length/geom.meshSize for geom in geoms[:N//2]]
+                numElems = [geom.length/get_mS(geom) for geom in geoms[:N//2]]
                 numElems = numElems*2
             else:
-                numElems = [geom.length/geom.meshSize for geom in geoms]
+                numElems = [geom.length/get_mS(geom) for geom in geoms]
                 
         if elemType.startswith(("QUAD", "HEXA")):
             # simply multiplies the mesh size by 2 because
