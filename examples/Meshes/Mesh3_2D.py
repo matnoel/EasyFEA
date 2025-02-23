@@ -15,7 +15,7 @@ if __name__ == '__main__':
     circle = Circle(Point(1/2, 1/2), 1/3, 1/10, isHollow=True)
     contour.Plot()
 
-    # "TRI3", "TRI6", "TRI10", "QUAD4", "QUAD8",  "QUAD9"
+    # "TRI3", "TRI6", "TRI10", "TRI15", "QUAD4", "QUAD8",  "QUAD9"
     elemType = "TRI6"
     mesh = Mesher().Mesh_2D(contour, [circle], elemType)
     Display.Plot_Mesh(mesh)
