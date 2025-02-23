@@ -213,10 +213,6 @@ class Gauss:
         orderX = [3, 3]\n
         orderYZ = [2, 3]"""
 
-        # X, Y, Z -> base code aster
-        # z, x, y -> gmsh        
-        # Y -> x, Z -> y, X -> z  
-
         if nPg == 6:
             
             a = 1/np.sqrt(3)
@@ -236,7 +232,10 @@ class Gauss:
             Z = [1/3, 0.2, 0.6, 0.2]*2
 
             weights = [-27/96, 25/96, 25/96, 25/96]*2
-    
+        
+        # X, Y, Z -> base code aster
+        # z, x, y -> gmsh        
+        # Y -> x, Z -> y, X -> z  
         x = np.array(Y)
         y = np.array(Z)
         z = np.array(X)
@@ -322,23 +321,23 @@ class Gauss:
             xis, etas, weights = Gauss._Quadrangle(nPg)
             
         elif elemType == ElemType.QUAD8:
-            dim = 2            
+            dim = 2
             if matrixType == MatrixType.rigi:
                 nPg = 4
             elif matrixType == MatrixType.mass:
                 nPg = 9
             xis, etas, weights = Gauss._Quadrangle(nPg)
         elif elemType == ElemType.QUAD9:
-            dim = 2            
+            dim = 2
             nPg = 9
             xis, etas, weights = Gauss._Quadrangle(nPg)
                     
         elif elemType == ElemType.TETRA4:
-            dim = 3            
+            dim = 3
             if matrixType == MatrixType.rigi:
                 nPg = 1
             elif matrixType == MatrixType.mass:
-                nPg = 4            
+                nPg = 4
             x, y, z, weights = Gauss._Tetrahedron(nPg)
 
         elif elemType == ElemType.TETRA10:
@@ -347,36 +346,29 @@ class Gauss:
             x, y, z, weights = Gauss._Tetrahedron(nPg)
 
         elif elemType == ElemType.HEXA8:
-            dim = 3            
-            if matrixType in [MatrixType.rigi, MatrixType.mass]:
-                nPg = 8
-                x, y, z, weights = Gauss._Hexahedron(nPg)
+            dim = 3
+            nPg = 8
+            x, y, z, weights = Gauss._Hexahedron(nPg)
 
         elif elemType == ElemType.HEXA20:
             dim = 3
-            if matrixType in [MatrixType.rigi, MatrixType.mass]:
-                nPg = 8
-                x, y, z, weights = Gauss._Hexahedron(nPg)
+            nPg = 27
+            x, y, z, weights = Gauss._Hexahedron(nPg)
 
         elif elemType == ElemType.HEXA27:
             dim = 3
-            if matrixType in [MatrixType.rigi, MatrixType.mass]:
-                nPg = 27
-                x, y, z, weights = Gauss._Hexahedron(nPg)
+            nPg = 27
+            x, y, z, weights = Gauss._Hexahedron(nPg)
 
         elif elemType == ElemType.PRISM6:
-            dim = 3            
-            if matrixType in [MatrixType.rigi, MatrixType.mass]:
-                nPg = 6
-
-                x, y, z, weights = Gauss._Prism(nPg)
+            dim = 3
+            nPg = 6
+            x, y, z, weights = Gauss._Prism(nPg)
 
         elif elemType == ElemType.PRISM15:
-            dim = 3            
-            if matrixType in [MatrixType.rigi, MatrixType.mass]:
-                nPg = 6
-
-                x, y, z, weights = Gauss._Prism(nPg)
+            dim = 3
+            nPg = 6
+            x, y, z, weights = Gauss._Prism(nPg)
 
         else:
             raise Exception("Element not implemented.")
