@@ -1381,7 +1381,7 @@ class _GroupElem(ABC):
 
         # Check that there are no excess nodes
         # It is possible that the nodes entered do not belong to the group
-        if connect_n_e.shape[0] < nodes.max():
+        if connect_n_e.shape[0] <= nodes.max():
             # Remove all excess nodes
             availableNodes = np.where(nodes < self.Nn)[0]
             nodes = nodes[availableNodes]
