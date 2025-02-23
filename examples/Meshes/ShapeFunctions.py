@@ -28,8 +28,8 @@ Display.Clear()
 
 plot_dN = True
 plot_ddN = True
-plot_dddN = False
-plot_ddddN = False
+plot_dddN = True
+plot_ddddN = True
 
 # coords = sympy.symbols("x, y, z")
 coords = sympy.symbols("r, s, t")
@@ -902,9 +902,9 @@ def Do_Prism():
 
 if __name__ == '__main__':
 
-    Do_Segments()
+    # Do_Segments()
 
-    # Do_Triangles()
+    Do_Triangles()
 
     # Do_Quadrangles()
 
