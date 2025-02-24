@@ -688,7 +688,7 @@ class PhaseFieldSimu(_Simu):
         tic = Tic()
 
         u = self.displacement.reshape(-1,1)
-        Psi_Elas = 1/2 * float(u.T @ Ku @ u)
+        Psi_Elas = 1/2 * (u.T @ Ku @ u)[0,0]
 
         tic.Tac("PostProcessing", "Calc Psi Elas", False)
         
@@ -702,7 +702,7 @@ class PhaseFieldSimu(_Simu):
         tic = Tic()
 
         d = self.damage.reshape(-1,1)
-        Psi_Crack = 1/2 * float(d.T @ Kd @ d)
+        Psi_Crack = 1/2 * (d.T @ Kd @ d)[0,0]
 
         tic.Tac("PostProcessing", "Calc Psi Crack", False)
 
