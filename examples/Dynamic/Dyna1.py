@@ -54,7 +54,7 @@ if __name__ == '__main__':
         mesh = mesher.Mesh_2D(domain, elemType=elemType, isOrganised=True)
         area = mesh.area - L*h
     elif dim == 3:
-        elemType = ElemType.HEXA8 # TETRA4, TETRA10, HEXA8, HEXA20, PRISM6, PRISM15
+        elemType = ElemType.HEXA8 # TETRA4, TETRA10, HEXA8, HEXA20, HEXA27, PRISM6, PRISM15, PRISM18
         domain = Domain(Point(y=-h/2,z=-b/2), Point(x=L, y=h/2,z=-b/2), meshSize=meshSize)
         mesh = mesher.Mesh_Extrude(domain, [], [0,0,b], elemType=elemType, layers=[3], isOrganised=True)
 
