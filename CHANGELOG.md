@@ -2,6 +2,16 @@
 
 This document describes the changes made to the project.
 
+## 1.3.0 (February 24, 2025):
+
+- Implemented new element types: QUAD9, SEG5, TRI15, HEXA27, PRISM18.
+- Enhanced Gmsh_Interface for QUAD and HEXA elements.
+- Standardized shape functions.
+- Updated Paraview_Interface and PyVista_Interface.
+- Updated Gauss points quadrature.
+- Migrated from unittest to pytest.
+- Enhanced examples.
+
 ## 1.2.7 (February 7, 2025):
 
 - Enhanced Gmsh_Interface.
