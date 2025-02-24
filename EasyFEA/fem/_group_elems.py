@@ -2026,7 +2026,7 @@ class GroupElemFactory:
         elif gmshId == 17:
             elemType = ElemType.HEXA20; nPe = 20; dim = 3; order = 2; nbFaces = 6; nbCorners = 8
         elif gmshId == 12:
-            elemType = ElemType.HEXA27; nPe = 27; dim = 3; order = 3; nbFaces = 6; nbCorners = 8
+            elemType = ElemType.HEXA27; nPe = 27; dim = 3; order = 2; nbFaces = 6; nbCorners = 8
         elif gmshId == 6:
             elemType = ElemType.PRISM6; nPe = 6; dim = 3; order = 1; nbFaces = 5; nbCorners = 6
         elif gmshId == 18:
