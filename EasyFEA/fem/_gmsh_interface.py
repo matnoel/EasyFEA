@@ -335,7 +335,9 @@ class Mesher:
                 geoms = contour.Get_Contour().geoms
             
             N = len(geoms) # number of geom in contour
-            get_numElem = lambda geom: np.max([geom.length/geom.meshSize, 1])
+            def get_numElem(geom: Union[Line,CircleArc,Points]):
+                meshSize = geom.length if geom.meshSize == 0 else geom.meshSize                
+                return geom.length/meshSize            
             if N % 2 == 0: # N is odd
                 numElems = [get_numElem(geom) for geom in geoms[:N//2]]
                 numElems = numElems*2
