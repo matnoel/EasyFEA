@@ -33,7 +33,6 @@ plot_ddddN = True
 
 # coords = sympy.symbols("x, y, z")
 coords = sympy.symbols("r, s, t")
-# coords = sympy.symbols("xi, eta, zeta")
 
 # ----------------------------------------------
 # Public functions
