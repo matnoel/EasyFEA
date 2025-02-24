@@ -23,7 +23,7 @@ if __name__ == '__main__':
     # ----------------------------------------------
     # Mesh
     # ----------------------------------------------
-    contour = Domain(Point(), Point(1,1))
+    contour = Domain(Point(), Point(1,1), 1/10)
     thickness = 1/10
 
     if dim == 2:
