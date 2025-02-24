@@ -16,7 +16,7 @@ if __name__ == '__main__':
 
     # "TRI3", "TRI6", "TRI10", "TRI15", "QUAD4", "QUAD8",  "QUAD9"
     elemType = "TRI3"
-    mesh = Mesher().Mesh_2D(contour, [], elemType, isOrganised=True)
+    mesh = Mesher().Mesh_2D(contour, [], elemType)
     Display.Plot_Mesh(mesh)
 
     Display.plt.show()

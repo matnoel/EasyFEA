@@ -11,7 +11,7 @@ if __name__ == '__main__':
 
     Display.Clear()
 
-    contour = Domain(Point(), Point(1,1))
+    contour = Domain(Point(), Point(1,1), 1/10)
     circle = Circle(Point(1/2, 1/2), 1/3, 1/10, isHollow=True)
     contour.Plot()
 
