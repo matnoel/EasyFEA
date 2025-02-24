@@ -49,7 +49,7 @@ if __name__ == '__main__':
 
     mesher = Mesher(False)
     if dim == 2:
-        elemType = ElemType.QUAD4 # TRI3, TRI6, TRI10, TRI15, QUAD4, QUAD8
+        elemType = ElemType.QUAD4 # TRI3, TRI6, TRI10, TRI15, QUAD4, QUAD8, QUAD9
         domain = Domain(Point(y=-h/2), Point(x=L, y=h/2), meshSize)
         mesh = mesher.Mesh_2D(domain, elemType=elemType, isOrganised=True)
         area = mesh.area - L*h
