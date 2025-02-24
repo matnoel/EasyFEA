@@ -123,7 +123,7 @@ class TETRA10(_GroupElem):
     
     @property
     def segments(self) -> np.ndarray:
-        return np.array([[0,1],[0,3],[3,1],[2,0],[2,3],[2,1]])
+        return np.array([[0,4,1],[0,7,3],[3,9,1],[2,6,0],[2,8,3],[2,5,1]])
 
     def _N(self) -> np.ndarray:
 

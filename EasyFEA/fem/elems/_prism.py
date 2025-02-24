@@ -141,7 +141,7 @@ class PRISM15(_GroupElem):
     
     @property
     def segments(self) -> np.ndarray:
-        return np.array([[0,1],[1,2],[2,0],[3,4],[4,5],[5,3],[0,3],[1,4],[2,5]])
+        return np.array([[0,6,1],[1,9,2],[2,7,0],[3,12,4],[4,14,5],[5,13,3],[0,8,3],[1,10,4],[2,11,5]])
 
     def _N(self) -> np.ndarray:
 
@@ -287,7 +287,7 @@ class PRISM18(_GroupElem):
     
     @property
     def segments(self) -> np.ndarray:
-        return np.array([[0,1],[1,2],[2,0],[3,4],[4,5],[5,3],[0,3],[1,4],[2,5]])
+        return np.array([[0,6,1],[1,9,2],[2,7,0],[3,12,4],[4,14,5],[5,13,3],[0,8,3],[1,10,4],[2,11,5]])
 
     def _N(self) -> np.ndarray:
 
