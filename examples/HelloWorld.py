@@ -29,7 +29,7 @@ simu = Simulations.ElasticSimu(mesh, mat)
 nodesX0 = mesh.Nodes_Conditions(lambda x,y,z: x==0)
 nodesXL = mesh.Nodes_Conditions(lambda x,y,z: x==L)
 
-simu.add_dirichlet(nodesX0, [0, 0], ["x","y"])
+simu.add_dirichlet(nodesX0, [0,0], ["x","y"])
 simu.add_surfLoad(nodesXL, [F/h/h], ["y"])
 
 simu.Solve()
