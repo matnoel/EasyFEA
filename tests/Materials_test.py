@@ -2,93 +2,99 @@
 # This file is part of the EasyFEA project.
 # EasyFEA is distributed under the terms of the GNU General Public License v3 or later, see LICENSE.txt and CREDITS.md for more information.
 
-import unittest
+import pytest
 
-from EasyFEA import np
-from EasyFEA import Geoms, Mesher, Simulations
+from EasyFEA import Geoms, Mesher, Simulations, np
 # materials
 from EasyFEA.Materials import _Elas, Elas_Isot, Elas_IsotTrans, Elas_Anisot,  PhaseField
 from EasyFEA.materials import Get_Pmat, Apply_Pmat, KelvinMandel_Matrix
 
-class Test_Materials(unittest.TestCase):
+@pytest.fixture
+def setup_elastic_materials() -> list[_Elas]:
+
+    elasticMaterials: list[_Elas] = []
     
-    def setUp(self):
-        
-        elasticMaterials: list[_Elas] = []
-        
-        for comp in _Elas.Available_Laws():
-            if comp == Elas_Isot:
-                elasticMaterials.append(
-                    Elas_Isot(2, E=210e9, v=0.3, planeStress=True)
-                    )
-                elasticMaterials.append(
-                    Elas_Isot(2, E=210e9, v=0.3, planeStress=False)
-                    )
-                elasticMaterials.append(
-                    Elas_Isot(3, E=210e9, v=0.3)
-                    )
-            elif comp == Elas_IsotTrans:
-                c = np.sqrt(2)/2
-                elasticMaterials.append(
-                    Elas_IsotTrans(3, El=11580, Et=500, Gl=450, vl=0.02, vt=0.44, axis_l=[c,c,0], axis_t=[c,-c,0])
-                    )
-                elasticMaterials.append(
-                    Elas_IsotTrans(3, El=11580, Et=500, Gl=450, vl=0.02, vt=0.44,axis_l=[0,1,0], axis_t=[1,0,0])
-                    )
-                elasticMaterials.append(
-                    Elas_IsotTrans(2, El=11580, Et=500, Gl=450, vl=0.02, vt=0.44, planeStress=True)
-                    )
-                elasticMaterials.append(
-                    Elas_IsotTrans(2, El=11580, Et=500, Gl=450, vl=0.02, vt=0.44, planeStress=False))
-
-            elif comp == Elas_Anisot:
-                C_voigt2D = np.array([  [60, 20, 0],
-                                        [20, 120, 0],
-                                        [0, 0, 30]])
-
-                axis1_1 = np.array([1,0,0])
-                axis2_1 = np.array([0,1,0])
-
-                tetha = 30*np.pi/130
-                axis1_2 = np.array([np.cos(tetha),np.sin(tetha),0])
-                axis2_2 = np.array([-np.sin(tetha),np.cos(tetha),0])
-
-                elasticMaterials.append(
-                    Elas_Anisot(2, C_voigt2D, True, axis1_1, axis2_1)
-                    )
-
-                elasticMaterials.append(
-                    Elas_Anisot(2, C_voigt2D, True, axis1_1, axis2_1)
+    for comp in _Elas.Available_Laws():
+        if comp == Elas_Isot:
+            elasticMaterials.append(
+                Elas_Isot(2, E=210e9, v=0.3, planeStress=True)
                 )
-                elasticMaterials.append(
-                    Elas_Anisot(2, C_voigt2D, True, axis1_2, axis2_2)
-                    )
-                elasticMaterials.append(
-                    Elas_Anisot(2, C_voigt2D, True, axis1_2, axis2_2)
-                    )
-        
-        self.splits = PhaseField.Get_splits()
-        self.regularizations = PhaseField.Get_regularisations()
-        self.phaseFieldModels: list[PhaseField] = []
+            elasticMaterials.append(
+                Elas_Isot(2, E=210e9, v=0.3, planeStress=False)
+                )
+            elasticMaterials.append(
+                Elas_Isot(3, E=210e9, v=0.3)
+                )
+        elif comp == Elas_IsotTrans:
+            c = np.sqrt(2)/2
+            elasticMaterials.append(
+                Elas_IsotTrans(3, El=11580, Et=500, Gl=450, vl=0.02, vt=0.44, axis_l=[c,c,0], axis_t=[c,-c,0])
+                )
+            elasticMaterials.append(
+                Elas_IsotTrans(3, El=11580, Et=500, Gl=450, vl=0.02, vt=0.44,axis_l=[0,1,0], axis_t=[1,0,0])
+                )
+            elasticMaterials.append(
+                Elas_IsotTrans(2, El=11580, Et=500, Gl=450, vl=0.02, vt=0.44, planeStress=True)
+                )
+            elasticMaterials.append(
+                Elas_IsotTrans(2, El=11580, Et=500, Gl=450, vl=0.02, vt=0.44, planeStress=False))
 
-        splits_Isot = [PhaseField.SplitType.Amor, PhaseField.SplitType.Miehe, PhaseField.SplitType.Stress]
+        elif comp == Elas_Anisot:
+            C_voigt2D = np.array([  [60, 20, 0],
+                                    [20, 120, 0],
+                                    [0, 0, 30]])
 
-        self.elasticMaterials = elasticMaterials
+            axis1_1 = np.array([1,0,0])
+            axis2_1 = np.array([0,1,0])
 
-        for c in elasticMaterials:
-            for s in self.splits:
-                for r in self.regularizations:
-                        
-                    if (isinstance(c, Elas_IsotTrans) or isinstance(c, Elas_Anisot)) and s in splits_Isot:
-                        continue
+            tetha = 30*np.pi/130
+            axis1_2 = np.array([np.cos(tetha),np.sin(tetha),0])
+            axis2_2 = np.array([-np.sin(tetha),np.cos(tetha),0])
 
-                    pfm = PhaseField(c,s,r,1,1)
-                    self.phaseFieldModels.append(pfm)
+            elasticMaterials.append(
+                Elas_Anisot(2, C_voigt2D, True, axis1_1, axis2_1)
+                )
 
-    def test_Elas_Isot(self):
+            elasticMaterials.append(
+                Elas_Anisot(2, C_voigt2D, True, axis1_1, axis2_1)
+            )
+            elasticMaterials.append(
+                Elas_Anisot(2, C_voigt2D, True, axis1_2, axis2_2)
+                )
+            elasticMaterials.append(
+                Elas_Anisot(2, C_voigt2D, True, axis1_2, axis2_2)
+                )
 
-        for mat in self.elasticMaterials:
-            self.assertIsInstance(mat, _Elas)
+    return elasticMaterials
+
+@pytest.fixture
+def setup_pfm_materials(setup_elastic_materials) -> list[PhaseField]:
+
+    splits = PhaseField.Get_splits()
+    regularizations = PhaseField.Get_regularisations()
+    phaseFieldModels: list[PhaseField] = []
+
+    splits_Isot = [PhaseField.SplitType.Amor, PhaseField.SplitType.Miehe, PhaseField.SplitType.Stress]
+
+    for c in setup_elastic_materials:
+        for s in splits:
+            for r in regularizations:
+                    
+                if (isinstance(c, Elas_IsotTrans) or isinstance(c, Elas_Anisot)) and s in splits_Isot:
+                    continue
+
+                pfm = PhaseField(c,s,r,1,1)
+                phaseFieldModels.append(pfm)
+
+    return phaseFieldModels
+
+
+class TestMaterials:
+
+    def test_Elas_Isot(self, setup_elastic_materials):
+
+        for mat in setup_elastic_materials:
+            assert isinstance(mat, _Elas)
             if isinstance(mat, Elas_Isot):
                 E = mat.E
                 v = mat.v
@@ -112,7 +118,7 @@ class Test_Materials(unittest.TestCase):
                 c = KelvinMandel_Matrix(mat.dim, C_voigt)
                     
                 test_C = np.linalg.norm(c-mat.C)/np.linalg.norm(c)
-                self.assertTrue(test_C < 1e-12, f"test_C = {test_C:.3e}")
+                assert test_C < 1e-12
 
     def test_Elas_Anisot(self):
 
@@ -179,7 +185,7 @@ class Test_Materials(unittest.TestCase):
                       [0, 0, 2*Gl]])
 
         test_c1 = np.linalg.norm(c1 - mat1.C)/np.linalg.norm(c1)
-        self.assertTrue(test_c1 < 1e-12, f"test_c1 = {test_c1:.3e}")
+        assert test_c1 < 1e-12
 
         # axis_l = [0, 1, 0] et axis_t = [1, 0, 0]
         mat2 = Elas_IsotTrans(2,
@@ -192,7 +198,7 @@ class Test_Materials(unittest.TestCase):
                       [0, 0, 2*Gl]])
 
         test_c2 = np.linalg.norm(c2 - mat2.C)/np.linalg.norm(c2)
-        self.assertTrue(test_c2 < 1e-12, f"test_c2 = {test_c2:.3e}")
+        assert test_c2 < 1e-12
 
         # axis_l = [0, 0, 1] et axis_t = [1, 0, 0]
         mat = Elas_IsotTrans(2,
@@ -205,7 +211,7 @@ class Test_Materials(unittest.TestCase):
                       [0, 0, 2*Gt]])
 
         test_c3 = np.linalg.norm(c3 - mat.C)/np.linalg.norm(c3)
-        self.assertTrue(test_c3 < 1e-12, f"test_c3 = {test_c3:.3e}")
+        assert test_c3 < 1e-12
 
         mat.Walpole_Decomposition()
 
@@ -334,7 +340,9 @@ class Test_Materials(unittest.TestCase):
 
         return Epsilon_e_pg
 
-    def test_split_phaseField(self):
+    def test_split_phaseField(self, setup_pfm_materials):
+
+        phaseFieldModels: list[PhaseField] = setup_pfm_materials
         
         print()
 
@@ -343,7 +351,7 @@ class Test_Materials(unittest.TestCase):
         # comutes 3D strain field
         Epsilon3D_e_pg = self.__cal_eps(3)
 
-        for pfm in self.phaseFieldModels:
+        for pfm in phaseFieldModels:
 
             mat: _Elas = pfm.material
             c = mat.C
@@ -364,7 +372,7 @@ class Test_Materials(unittest.TestCase):
             cpm = cP_e_pg + cM_e_pg
             decomp_C = c - cpm
             test_C = np.linalg.norm(decomp_C, axis=(-2,-1))/np.linalg.norm(c, axis=(-2,-1))
-            self.assertTrue(np.max(test_C) <= tol, f"test_C = {np.max(test_C):.3e}")
+            assert np.max(test_C) <= tol, f"test_C = {np.max(test_C):.3e}"
 
             # Checks that SigP + SigM = Sig
             Sig_e_pg = np.einsum('ij,epj->epi', c, Epsilon_e_pg, optimize='optimal')
@@ -373,7 +381,7 @@ class Test_Materials(unittest.TestCase):
             decomp_Sig = Sig_e_pg - (SigP+SigM)           
             test_Sig = np.linalg.norm(decomp_Sig, axis=-1)/np.linalg.norm(Sig_e_pg, axis=-1)
             if np.min(np.linalg.norm(Sig_e_pg, axis=-1)) > 0:
-                self.assertTrue(np.max(test_Sig) < tol, f"test_Sig = {np.max(test_Sig):.3e}")
+                assert np.max(test_Sig) < tol, f"test_Sig = {np.max(test_Sig):.3e}"
                 
             # Checks that Eps:C:Eps = Eps:(cP+cM):Eps
             psi = 1/2 * np.einsum('epi,epi->', Sig_e_pg, Epsilon_e_pg, optimize='optimal')
@@ -381,7 +389,4 @@ class Test_Materials(unittest.TestCase):
             psi_M = 1/2 * np.einsum('epi,epi->', SigM, Epsilon_e_pg, optimize='optimal')
             test_psi = np.abs(psi-(psi_P+psi_M))/psi
             if psi > 0:
-                self.assertTrue(test_psi < tol, f"test_psi = {test_psi:.3e}")
-
-if __name__ == '__main__':
-    unittest.main(verbosity=2)
+                assert test_psi < tol, f"test_psi = {test_psi:.3e}"

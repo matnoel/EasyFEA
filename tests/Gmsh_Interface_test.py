@@ -2,13 +2,13 @@
 # This file is part of the EasyFEA project.
 # EasyFEA is distributed under the terms of the GNU General Public License v3 or later, see LICENSE.txt and CREDITS.md for more information.
 
-import unittest
+import pytest
 
 from EasyFEA import Mesher, Mesh, plt, np
-from EasyFEA.Geoms import *
+from EasyFEA.Geoms import Rotate_coord
 from EasyFEA import Display as Display
 
-class Test_Gmsh_Interface(unittest.TestCase):
+class TestGmshInterface:
 
     def test_Plot_2D(self):
         """Builds all 2D meshes"""
@@ -16,7 +16,7 @@ class Test_Gmsh_Interface(unittest.TestCase):
         nbMesh = len(list_mesh2D)
         nrows = 5
         ncols = 10
-        # assert nbMesh == nrows*ncols , "Not enough space"
+        assert nbMesh < nrows*ncols , "Not enough space"
         fig, axs = plt.subplots(nrows, ncols)
         axs: list[Display.Axes] = np.ravel(axs)
         
@@ -67,8 +67,8 @@ class Test_Gmsh_Interface(unittest.TestCase):
             testSame(mesh1.length, mesh2.length) # same length
             testSame(mesh1.area, mesh2.area) # same area
             if mesh1.dim == 2:
-                self.assertIs(mesh1.volume, None)
-                self.assertIs(mesh2.volume, None)
+                assert mesh1.volume is None
+                assert mesh2.volume is None
             else:                
                 testSame(mesh1.volume, mesh2.volume) # same volume
 
@@ -78,7 +78,7 @@ class Test_Gmsh_Interface(unittest.TestCase):
                 test = np.linalg.norm(val1-val2)/np.linalg.norm(val2)
             else:
                 test = np.abs((val1-val2)/val2)
-            self.assertTrue(test <= 1e-12)
+            assert test <= 1e-12
 
         for mesh in meshes:
 
@@ -101,7 +101,3 @@ class Test_Gmsh_Interface(unittest.TestCase):
             meshRotate.Rotate(rot, meshRotate.center, axis)
             testSame(meshRotate.center, newCenter) # same center
             testSameMesh(meshRotate, mesh)
-
-
-if __name__ == '__main__':
-    unittest.main(verbosity=2)
