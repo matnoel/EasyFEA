@@ -209,9 +209,9 @@ class Gauss:
     
     @staticmethod
     def _Prism(nPg: int) -> tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
-        """available [6, 8]\n
-        orderX = [3, 3]\n
-        orderYZ = [2, 3]"""
+        """available [6, 8, 21]\n
+        order X = [3, 3, 5]\n
+        order Y & Z = [2, 3, 5]"""
 
         if nPg == 6:
             
@@ -232,6 +232,28 @@ class Gauss:
             Z = [1/3, 0.2, 0.6, 0.2]*2
 
             weights = [-27/96, 25/96, 25/96, 25/96]*2
+
+        elif nPg == 21:
+            
+            al = np.sqrt(3/5)
+            c1 = 5/9
+            c2 = 8/9
+            a = (6+np.sqrt(15))/21
+            b = (6-np.sqrt(15))/21
+            cp = (155+np.sqrt(15))/2400
+            cm = (155-np.sqrt(15))/2400
+            
+            X = [-al,-al,-al,-al,-al,-al,-al,
+                 0,0,0,0,0,0,0,
+                 al,al,al,al,al,al,al]
+            Y = [1/3,a,1-2*a,a,b,1-2*b,b,
+                 1/3,a,1-2*a,a,b,1-2*b,b,
+                 1/3,b,1-2*a,a,b,1-2*b,b]
+            Z = [1/3,a,a,1-2*a,b,b,1-2*b]*3
+
+            weights = [c1*9/80,c1*cp,c1*cm,
+                       c2*9/80,c2*cp,c2*cm,
+                       c1*9/80,c1*cp,c1*cm]
         
         # X, Y, Z -> base code aster
         # z, x, y -> gmsh        
@@ -366,6 +388,11 @@ class Gauss:
             x, y, z, weights = Gauss._Prism(nPg)
 
         elif elemType == ElemType.PRISM15:
+            dim = 3
+            nPg = 6
+            x, y, z, weights = Gauss._Prism(nPg)
+
+        elif elemType == ElemType.PRISM18:
             dim = 3
             nPg = 6
             x, y, z, weights = Gauss._Prism(nPg)

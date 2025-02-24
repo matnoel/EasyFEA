@@ -161,7 +161,7 @@ def __Get_shape_functions(polynom, local_coords: np.ndarray, dim: int,
             coefs = polynom(*coords[:dim])
         
         # solve x from A x = b
-        vector_x = np.linalg.solve(matrix_A, vector_b)        
+        vector_x = np.linalg.solve(matrix_A, vector_b)
         # check that A x = b
         assert np.linalg.norm(matrix_A @ vector_x - vector_b) <= 1e-12
 
@@ -233,7 +233,7 @@ def __Get_derivative_functions(functions, dim, order):
 
     return derivative_functions
 
-def __Print_functions(functions: list, dim: int, name="", printArray=True):
+def __Print_functions(functions: list, dim: int, name="", printArray=False):
 
     # lamba string (e.g. lamda r, s)
     lambda_str = f"lambda {', '.join(str(coord) for coord in coords[:dim])}"    
@@ -282,12 +282,12 @@ def Do_Segments():
     # ----------------------------------------------
 
     name = "SEG2"
+    Display.Section(name)
 
     list_x = [-1, 1]
-
-    polynom = lambda x : [x, 1]
+    Plot_Nodes(name, list_x)
     
-    Display.Section(name)
+    polynom = lambda x : [x, 1]
     Compute_and_Print(polynom, list_x)
 
     Display.Section(name+" EulerBernoulli")
@@ -296,8 +296,6 @@ def Do_Segments():
         [0, 1, 2*x, 3*x**2]
     ]
     Compute_and_Print(polynom, list_x, useEulerBernoulli=True)
-
-    Plot_Nodes(name, list_x)
 
     # ----------------------------------------------
     # SEG 3
@@ -310,12 +308,12 @@ def Do_Segments():
     # ----------------------------------------------
 
     name = "SEG3"
+    Display.Section(name)
 
     list_x = [-1,1,0]
+    Plot_Nodes(name, list_x)
 
     polynom = lambda x : [x**2, x, 1]
-
-    Display.Section(name)
     Compute_and_Print(polynom, list_x)
 
     Display.Section(name+" EulerBernoulli")
@@ -324,9 +322,6 @@ def Do_Segments():
         [0, 1, 2*x, 3*x**2, 4*x**3, 5*x**4]
     ]
     Compute_and_Print(polynom, list_x, useEulerBernoulli=True)
-    
-    Plot_Nodes(name, list_x)
-
 
     # ----------------------------------------------
     # SEG 4
@@ -339,12 +334,12 @@ def Do_Segments():
     # ----------------------------------------------
 
     name = "SEG4"
+    Display.Section(name)
 
     list_x = [-1,1,-1/3,1/3]
+    Plot_Nodes(name, list_x)
 
     polynom = lambda x : [x**3, x**2, x, 1]
-
-    Display.Section(name)
     Compute_and_Print(polynom, list_x, useFactor=False)
 
     Display.Section(name+" EulerBernoulli")
@@ -352,10 +347,7 @@ def Do_Segments():
         [1, x, x**2, x**3, x**4, x**5, x**6, x**7],
         [0, 1, 2*x, 3*x**2, 4*x**3, 5*x**4, 6*x**5, 7*x**6]
     ]
-    # Compute_and_Print(polynom, list_x, useEulerBernoulli=True, useFactor=False, useSimplify=False)
     Compute_and_Print(polynom, list_x, useEulerBernoulli=True, useFactor=False)
-
-    Plot_Nodes(name, list_x)
 
     # ----------------------------------------------
     # SEG 5
@@ -368,12 +360,13 @@ def Do_Segments():
     # ----------------------------------------------
 
     name = "SEG5"
+    Display.Section(name)
 
     list_x = [-1,1,-1/2,0,1/2]
+    Plot_Nodes(name, list_x)
 
     polynom = lambda x : [x**4, x**3, x**2, x, 1]
 
-    Display.Section(name)
     Compute_and_Print(polynom, list_x, useFactor=False)
 
     Display.Section(name+" EulerBernoulli")
@@ -382,8 +375,6 @@ def Do_Segments():
         [0, 1, 2*x, 3*x**2, 4*x**3, 5*x**4, 6*x**5, 7*x**6, 8*x**7, 9*x**8]
     ]
     Compute_and_Print(polynom, list_x, useEulerBernoulli=True, useFactor=False)
-
-    Plot_Nodes(name, list_x)
 
 # ----------------------------------------------
 # TRIANGLES
@@ -407,15 +398,15 @@ def Do_Triangles():
     # ----------------------------------------------
 
     name = "TRI3"
+    Display.Section(name)
 
     list_x = [0,1,0]
     list_y = [0,0,1]
-
+    Plot_Nodes(name, list_x, list_y)
+    
     polynom = lambda x, y : [x, y, 1]
 
-    Display.Section(name)
     Compute_and_Print(polynom, list_x, list_y)
-    Plot_Nodes(name, list_x, list_y)
 
     # ----------------------------------------------
     # TRI6
@@ -433,15 +424,15 @@ def Do_Triangles():
     # ----------------------------------------------
 
     name = "TRI6"
+    Display.Section(name)
 
     list_x = [0,1,0,0.5,0.5,0]
     list_y = [0,0,1,0,0.5,0.5]
+    Plot_Nodes(name, list_x, list_y)
 
     polynom = lambda x, y : [x**2, y**2, x*y, x, y, 1]
 
-    Display.Section(name)
     Compute_and_Print(polynom, list_x, list_y)
-    Plot_Nodes(name, list_x, list_y)
 
     # ----------------------------------------------
     # TRI10
@@ -459,25 +450,23 @@ def Do_Triangles():
     # ----------------------------------------------
 
     name = "TRI10"
+    Display.Section(name)
 
-    cos = np.cos(45*np.pi/180)
-    sin = np.sin(45*np.pi/180)
     list_x = [0,1,0,
-               1/3,2/3,
-               1-np.sqrt(2)*cos/3, 1-2*np.sqrt(2)*cos/3,
-               0,0,
-               1/3]
+              1/3,2/3,
+              2/3, 1/3,
+              0,0,
+              1/3]
     list_y = [0,0,1,
-               0,0,
-               np.sqrt(2)*sin/3, 2*np.sqrt(2)*sin/3,
-               2/3,1/3,
-               1/3]
+              0,0,
+              1/3, 2/3,
+              2/3,1/3,
+              1/3]
+    Plot_Nodes(name, list_x, list_y)
     
     polynom = lambda x, y : [x**3, y**3, x**2*y, x*y**2, x**2, y**2, x*y, x, y, 1]
 
-    Display.Section(name)
     Compute_and_Print(polynom, list_x, list_y, useFactor=False)
-    Plot_Nodes(name, list_x, list_y)
 
     # ----------------------------------------------
     # TRI15
@@ -495,28 +484,26 @@ def Do_Triangles():
     # ----------------------------------------------
 
     name = "TRI15"
+    Display.Section(name)
 
-    cos = np.cos(45*np.pi/180)
-    sin = np.sin(45*np.pi/180)
     list_x = [0,1,0,
-            1/4,1/2,3/4,
-            1-np.sqrt(2)*cos/4, 1-np.sqrt(2)*cos/2, 1-3*np.sqrt(2)*cos/4,
-            0,0,0,
-            1/4,1/2,1/4]
+              1/4,1/2,3/4,
+              3/4,1/2,1/4,
+              0,0,0,
+              1/4,1/2,1/4]
     list_y = [0,0,1,
-            0,0,0,
-            np.sqrt(2)*sin/4, np.sqrt(2)*sin/2, 3*np.sqrt(2)*sin/4,
-            3/4,1/2,1/4,
-            1/4,1/4,1/2]
+              0,0,0,
+              1/4,1/2,3/4,
+              3/4,1/2,1/4,
+              1/4,1/4,1/2]
+    Plot_Nodes(name, list_x, list_y)
     
     polynom = lambda x, y : [x**4, x**3*y, x**2*y**2, x*y**3, y**4,
                              x**3, x**2*y, x*y**2, y**3,
                              x**2, x*y, y**2,
                              x, y, 1]
 
-    Display.Section(name)
     Compute_and_Print(polynom, list_x, list_y, useFactor=False)
-    Plot_Nodes(name, list_x, list_y)
 
 # ----------------------------------------------
 # QUADRANGLES
@@ -540,15 +527,15 @@ def Do_Quadrangles():
     # ----------------------------------------------
 
     name = "QUAD4"
+    Display.Section(name)
 
-    list_xi = [-1,1,1,-1]
-    list_eta = [-1,-1,1,1]
+    list_x = [-1,1,1,-1]
+    list_y = [-1,-1,1,1]
+    Plot_Nodes(name, list_x, list_y)
     
     polynom = lambda x, y : [x*y, x, y, 1]
 
-    Display.Section(name)
-    Compute_and_Print(polynom, list_xi, list_eta)
-    Plot_Nodes(name, list_xi, list_eta)
+    Compute_and_Print(polynom, list_x, list_y)
 
     # ----------------------------------------------
     # QUAD8
@@ -566,16 +553,15 @@ def Do_Quadrangles():
     # ----------------------------------------------
 
     name = "QUAD8"
+    Display.Section(name)
 
-    list_xi = [-1,1,1,-1,0,1,0,-1]
-    list_eta = [-1,-1,1,1,-1,0,1,0]
+    list_x = [-1,1,1,-1,0,1,0,-1]
+    list_y = [-1,-1,1,1,-1,0,1,0]
+    Plot_Nodes(name, list_x, list_y)
 
     polynom = lambda x, y : [x**2*y, y**2*x, x**2, y**2, x*y, x, y, 1]
-    # function = lambda x, y : [x**2*y**2, x**2*y, y**2*x, x**2, y**2, x, y, 1] # singular matrix
 
-    Display.Section(name)
-    Compute_and_Print(polynom, list_xi, list_eta, useFactor=True)
-    Plot_Nodes(name, list_xi, list_eta)
+    Compute_and_Print(polynom, list_x, list_y, useFactor=True)
 
     # ----------------------------------------------
     # QUAD9
@@ -593,15 +579,15 @@ def Do_Quadrangles():
     # ----------------------------------------------
 
     name = "QUAD9"
+    Display.Section(name)
 
-    list_xi = [-1,1,1,-1,0,1,0,-1,0]
-    list_eta = [-1,-1,1,1,-1,0,1,0,0]
+    list_x = [-1,1,1,-1,0,1,0,-1,0]
+    list_y = [-1,-1,1,1,-1,0,1,0,0]
+    Plot_Nodes(name, list_x, list_y)
 
     polynom = lambda x, y : [x**2*y**2, x**2*y, y**2*x, x**2, y**2, x*y, x, y, 1]    
 
-    Display.Section(name)
-    Compute_and_Print(polynom, list_xi, list_eta, useFactor=True)
-    Plot_Nodes(name, list_xi, list_eta)
+    Compute_and_Print(polynom, list_x, list_y, useFactor=True)
 
 # ----------------------------------------------
 # TETRAHEDRON
@@ -633,16 +619,16 @@ def Do_Tetrahedron():
     # ----------------------------------------------
 
     name = "TETRA4"
+    Display.Section(name)
 
     list_x = [0,1,0,0]
     list_y = [0,0,1,0]
     list_z = [0,0,0,1]
+    Plot_Nodes(name, list_x, list_y, list_z)
 
     polynom = lambda x, y, z : [x, y, z, 1]
 
-    Display.Section(name)
     Compute_and_Print(polynom, list_x, list_y, list_z)
-    Plot_Nodes(name, list_x, list_y, list_z)
 
     # ----------------------------------------------
     # TETRA10
@@ -668,16 +654,16 @@ def Do_Tetrahedron():
     # ----------------------------------------------
 
     name = "TETRA10"
+    Display.Section(name)
 
     list_x = [0,1,0,0,0.5,0.5,0,0,0,0.5]
     list_y = [0,0,1,0,0,0.5,0.5,0,0.5,0]
     list_z = [0,0,0,1,0,0,0,0.5,0.5,0.5]
+    Plot_Nodes(name, list_x, list_y, list_z)
 
     polynom = lambda x, y, z : [x**2, y**2, z**2, x*y, x*z, y*z, x, y, z, 1]
 
-    Display.Section(name)
     Compute_and_Print(polynom, list_x, list_y, list_z)
-    Plot_Nodes(name, list_x, list_y, list_z)
 
 # ----------------------------------------------
 # HEXAHEDRON
@@ -703,16 +689,16 @@ def Do_Hexahedron():
     # ----------------------------------------------
 
     name = "HEXA8"
+    Display.Section(name)
 
     list_x = [-1,1,1,-1,-1,1,1,-1]
     list_y = [-1,-1,1,1,-1,-1,1,1]
     list_z = [-1,-1,-1,-1,1,1,1,1]
+    Plot_Nodes(name, list_x, list_y, list_z)
 
     polynom = lambda x, y, z : [x*y*z, x*y, x*z, y*z, x, y, z, 1]
 
-    Display.Section(name)
     Compute_and_Print(polynom, list_x, list_y, list_z)
-    Plot_Nodes(name, list_x, list_y, list_z)
 
     # ----------------------------------------------
     # HEXA20
@@ -732,13 +718,13 @@ def Do_Hexahedron():
     # ----------------------------------------------
 
     name = "HEXA20"
+    Display.Section(name)
 
     list_x = [-1,1,1,-1,
               -1,1,1,-1,
               0,-1,-1,1,
               1,0,1,-1,
               0,-1,1,0]
-    # list_x = np.array(list_x) + 1
     list_y = [-1,-1,1,1,
               -1,-1,1,1,
               -1,0,-1,0,
@@ -749,6 +735,7 @@ def Do_Hexahedron():
               -1,-1,0,-1,
               0,-1,0,0,
               1,1,1,1]
+    Plot_Nodes(name, list_x, list_y, list_z)
 
     polynom = lambda x, y, z : [x**2*y*z, y**2*x*z, z**2*x*y,
                                 x**2*y, y**2*x, z**2*x,
@@ -757,10 +744,8 @@ def Do_Hexahedron():
                                 x*y, x*z, y*z,
                                 x, y, z, x*y*z ,1]
 
-    Display.Section(name)
     Compute_and_Print(polynom, list_x, list_y, list_z,
                            useSimplify=True, useFactor=True)
-    Plot_Nodes(name, list_x, list_y, list_z)
 
     # ----------------------------------------------
     # HEXA27
@@ -780,6 +765,7 @@ def Do_Hexahedron():
     # ----------------------------------------------
 
     name = "HEXA27"
+    Display.Section(name)
 
     list_x = [-1,1,1,-1,
               -1,1,1,-1,
@@ -788,7 +774,6 @@ def Do_Hexahedron():
               0,-1,1,0,
               0,0,-1,1,
               0,0,0]
-    # list_x = np.array(list_x) + 1
     list_y = [-1,-1,1,1,
               -1,-1,1,1,
               -1,0,-1,0,
@@ -803,6 +788,7 @@ def Do_Hexahedron():
               1,1,1,1,
               -1,0,0,0,
               0,1,0]
+    Plot_Nodes(name, list_x, list_y, list_z)
 
     polynom = lambda x, y, z : [x**2*z**2*y, x**2*y**2*z, y**2*z**2*x, x**2*z**2*y**2,
                                 x**2*y**2, x**2*z**2, y**2*z**2,
@@ -813,10 +799,8 @@ def Do_Hexahedron():
                                 x*y, x*z, y*z,
                                 x, y, z, x*y*z ,1]
 
-    Display.Section(name)
     Compute_and_Print(polynom, list_x, list_y, list_z,
                            useSimplify=True, useFactor=True)
-    Plot_Nodes(name, list_x, list_y, list_z)
 
 # ----------------------------------------------
 # PRISM
@@ -848,16 +832,16 @@ def Do_Prism():
     # ----------------------------------------------
 
     name = "PRISM6"
+    Display.Section(name)
 
     list_x = [0,1,0, 0,1,0]
     list_y = [0,0,1, 0,0,1]
     list_z = [-1,-1,-1, 1,1,1]
+    Plot_Nodes(name, list_x, list_y, list_z)
 
     polynom = lambda x, y, z : [x*z, y*z, x, y, z, 1]
 
-    Display.Section(name)
     Compute_and_Print(polynom, list_x, list_y, list_z)
-    Plot_Nodes(name, list_x, list_y, list_z)
 
     # ----------------------------------------------
     # PRISM15
@@ -883,18 +867,55 @@ def Do_Prism():
     # ----------------------------------------------
 
     name = "PRISM15"
-
-    list_x = [0,1,0, 0,1,0, 0.5,0,0 ,0.5,1,0, 0.5,0,0.5]
-    list_y = [0,0,1, 0,0,1, 0,0.5,0, 0.5,0,1, 0,0.5,0.5]
-    list_z = [-1,-1,-1, 1,1,1, -1,-1,0, -1,0,0, 1,1,1]
-
-    polynom = lambda x, y, z : [x**2*z, y**2*z, z**2*x, z**2*y, x*y*z,                             
-                                x**2, y**2, z**2, x*z, y*z,
-                                x, y, z, x*y, 1]
-
     Display.Section(name)
-    Compute_and_Print(polynom, list_x, list_y, list_z)
+
+    list_x = [0,1,0, 0,1,0, .5,0,0 ,.5,1,0, .5,0,.5]
+    list_y = [0,0,1, 0,0,1, 0,.5,0, .5,0,1, 0,.5,.5]
+    list_z = [-1,-1,-1, 1,1,1, -1,-1,0, -1,0,0, 1,1,1]
     Plot_Nodes(name, list_x, list_y, list_z)
+
+    polynom = lambda x, y, z : [x**2*z, y**2*z, z**2*x, z**2*y, x*y*z,
+                                x**2, y**2, z**2, x*y, x*z, y*z,
+                                x, y, z, 1]
+
+    Compute_and_Print(polynom, list_x, list_y, list_z)
+
+    # ----------------------------------------------
+    # PRISM18
+    # ----------------------------------------------
+    #            w
+    #            ^
+    #            |
+    #            3
+    #          ,/|`\
+    #        12  |  13
+    #      ,/    |    `\
+    #     4------14-----5
+    #     |      8      |
+    #     |    ,/|`\    |
+    #     |  15  |  16  |
+    #     |,/    |    `\|
+    #    ,10-----17-----11
+    #  ,/ |      0      | \
+    # u   |    ,/ `\    |   v
+    #     |  ,6     `7  |
+    #     |,/         `\|
+    #     1------9------2
+    # ----------------------------------------------
+
+    name = "PRISM18"
+    Display.Section(name)
+
+    list_x = [0,1,0, 0,1,0, .5,0,0 ,.5,1,0, .5,0,.5, .5,0,.5]
+    list_y = [0,0,1, 0,0,1, 0,.5,0, .5,0,1, 0,.5,.5, 0,.5,.5]
+    list_z = [-1,-1,-1, 1,1,1, -1,-1,0, -1,0,0, 1,1,1, 0,0,0]
+    Plot_Nodes(name, list_x, list_y, list_z)
+
+    polynom = lambda x, y, z : [x**2, y**2, x*y, x, y, 1,
+                                x**2*z, y**2*z, x*y*z, x*z, y*z, z,
+                                x**2*z**2, y**2*z**2, x*y*z**2, x*z**2, y*z**2, z**2]    
+    
+    Compute_and_Print(polynom, list_x, list_y, list_z)
 
 # ----------------------------------------------
 # MAIN
@@ -902,16 +923,16 @@ def Do_Prism():
 
 if __name__ == '__main__':
 
-    # Do_Segments()
+    Do_Segments()
 
     Do_Triangles()
 
-    # Do_Quadrangles()
+    Do_Quadrangles()
 
-    # Do_Tetrahedron()
+    Do_Tetrahedron()
 
-    # Do_Hexahedron()
+    Do_Hexahedron()
 
-    # Do_Prism()
+    Do_Prism()
     
-    # plt.show()
+    plt.show()

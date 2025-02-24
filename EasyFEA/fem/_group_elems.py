@@ -1983,7 +1983,7 @@ from .elems._tri import TRI3, TRI6, TRI10, TRI15
 from .elems._quad import QUAD4, QUAD8, QUAD9
 from .elems._tetra import TETRA4, TETRA10
 from .elems._hexa import HEXA8, HEXA20, HEXA27
-from .elems._prism import PRISM6, PRISM15
+from .elems._prism import PRISM6, PRISM15, PRISM18
 
 class GroupElemFactory:
 
@@ -2031,8 +2031,8 @@ class GroupElemFactory:
             elemType = ElemType.PRISM6; nPe = 6; dim = 3; order = 1; nbFaces = 5; nbCorners = 6
         elif gmshId == 18:
             elemType = ElemType.PRISM15; nPe = 15; dim = 3; order = 2; nbFaces = 5; nbCorners = 6
-        # elif gmshId == 13:
-        #     elemType = ElemType.PRISM18; nPe = 18; dim = 3; order = 2; nbFaces = 5; nbCorners = 6
+        elif gmshId == 13:
+            elemType = ElemType.PRISM18; nPe = 18; dim = 3; order = 2; nbFaces = 5; nbCorners = 6
         # elif gmshId == 7:
         #     elemType = ElemType.PYRA5; nPe = 5; dim = 3; order = 1; nbFaces = 5; nbCorners = 5
         # elif gmshId == 19:
@@ -2107,5 +2107,7 @@ class GroupElemFactory:
             return PRISM6(*params)
         elif elemType == ElemType.PRISM15:
             return PRISM15(*params)
+        elif elemType == ElemType.PRISM18:
+            return PRISM18(*params)
         else:
             raise Exception("Element type unknown.")

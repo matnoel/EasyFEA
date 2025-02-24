@@ -1454,7 +1454,7 @@ class Mesher:
         """Sets the mesh order"""
         if elemType in ["TRI3","QUAD4"]:
             gmsh.model.mesh.set_order(1)
-        elif elemType in ["SEG3", "TRI6", "QUAD8", "QUAD9", "TETRA10", "HEXA20", "HEXA27", "PRISM15"]:
+        elif elemType in ["SEG3", "TRI6", "QUAD8", "QUAD9", "TETRA10", "HEXA20", "HEXA27", "PRISM15", "PRISM18"]:
             if elemType in ["QUAD8", "HEXA20", "PRISM15"]:
                 gmsh.option.setNumber('Mesh.SecondOrderIncomplete', 1)
             gmsh.model.mesh.set_order(2)

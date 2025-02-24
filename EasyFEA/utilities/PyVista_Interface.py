@@ -628,6 +628,7 @@ DICT_CELL_TYPES: dict[str, tuple[pv.CellType, int]] = {
     "HEXA27": (pv.CellType.TRIQUADRATIC_HEXAHEDRON, 29),
     "PRISM6": (pv.CellType.WEDGE, 13),
     "PRISM15": (pv.CellType.QUADRATIC_WEDGE, 26),
+    "PRISM18": (pv.CellType.BIQUADRATIC_QUADRATIC_WEDGE, 32)
 }
 
 # reorganize the connectivity order 
@@ -646,6 +647,9 @@ DICT_VTK_INDEXES: dict[str, np.ndarray] = {
                22,23,21,24,20,25,26],
     "PRISM15": [0,1,2,3,4,5,
                 6,9,7,12,14,13,8,10,11],
+    "PRISM18": [0,1,2,3,4,5,
+                6,9,7,12,14,13,8,10,11,
+                15,17,16],
     # nodes 8 and 9 are switch
     "TETRA10": [0,1,2,3,4,5,6,7,9,8]
     }
@@ -687,15 +691,18 @@ def _pvGrid(obj, result: Union[str, np.ndarray]=None, deformFactor=0.0, nodeValu
         MyPrintError(f"{elemType} is not implemented yet.")
         return
 
-    vtkIndexes = DICT_VTK_INDEXES[elemType] \
-    if elemType in DICT_VTK_INDEXES.keys() else np.arange(mesh.nPe)
-    if mesh.elemType == "TRI10":
-        # forced to do this because pyvista simply does not LAGRANGE_TRIANGLE
-        # do not put in DICT_VTK_INDEXES because paraview can read
-        # LAGRANGE_TRIANGLE without changing the indices
+    # reorder gmsh idx to vtk indexes
+    if mesh.elemType in DICT_VTK_INDEXES.keys():
+        vtkIndexes = DICT_VTK_INDEXES[mesh.elemType]
+    else:
+        vtkIndexes = np.arange(mesh.nPe)
+    
+    if mesh.elemType in ["TRI10", "TRI15"]:
+        # forced to do this because pyvista simply does not have LAGRANGE_TRIANGLE
+        # do not put in DICT_VTK_INDEXES because paraview can read LAGRANGE_TRIANGLE without changing the indices
         vtkIndexes = np.reshape(mesh.groupElem.triangles, (-1, 3))
     
-    connect = mesh.connect[:, vtkIndexes]    
+    connect = mesh.connect[:, vtkIndexes]
     connect = np.reshape(connect, (-1, np.shape(vtkIndexes)[-1]))
 
     cellType = DICT_CELL_TYPES[elemType][0]

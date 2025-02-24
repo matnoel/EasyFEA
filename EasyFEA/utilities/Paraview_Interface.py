@@ -111,18 +111,22 @@ def __Make_vtu(simu, iter: int, filename: str, nodesField: list[str], elementsFi
             return
 
     connect = simu.mesh.connect
-        
-    vtkIndexes = DICT_VTK_INDEXES[simu.mesh.elemType] \
-    if simu.mesh.elemType in DICT_VTK_INDEXES.keys() else np.arange(simu.mesh.nPe)    
     
-    connect = connect[:, vtkIndexes]    
-    connect = np.reshape(connect, (-1, np.shape(vtkIndexes)[-1]))
+    # reorder gmsh idx to vtk indexes
+    if simu.mesh.elemType in DICT_VTK_INDEXES.keys():
+        vtkIndexes = DICT_VTK_INDEXES[simu.mesh.elemType]
+    else:
+        vtkIndexes = np.arange(simu.mesh.nPe)    
+    connect = connect[:, vtkIndexes]
 
     coord = simu.mesh.coord
     Ne = simu.mesh.Ne
     Nn = simu.mesh.Nn
     nPe = simu.mesh.groupElem.nPe    
 
+    # TODO: The display of PRISM18 elements does not seem to work correctly in ParaView.
+    # The indices and VTK type seem to be correct because the display in PyVista works fine.
+    # The values on the faces seem strange.
     paraviewType = DICT_CELL_TYPES[simu.mesh.elemType][1]
     
     types = np.ones(Ne, dtype=int)*paraviewType

@@ -26,7 +26,7 @@ class ElemType(str, Enum):
     HEXA27 = "HEXA27"
     PRISM6 = "PRISM6"
     PRISM15 = "PRISM15"
-    # PRISM18 = "PRISM18"
+    PRISM18 = "PRISM18"
     # PYRA5 = "PYRA5"
     # PYRA13 = "PYRA13"
     # PYRA14 = "PYRA14"
@@ -52,7 +52,7 @@ class ElemType(str, Enum):
         """Returns 3D element types."""
         elems_3D = [ElemType.TETRA4, ElemType.TETRA10,
                     ElemType.HEXA8, ElemType.HEXA20, ElemType.HEXA27,
-                    ElemType.PRISM6, ElemType.PRISM15]
+                    ElemType.PRISM6, ElemType.PRISM15, ElemType.PRISM18]
         return elems_3D
 
 class MatrixType(str, Enum):
