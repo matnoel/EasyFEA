@@ -14,7 +14,7 @@ if __name__ == '__main__':
     contour = Domain(Point(), Point(1,1))
     contour.Plot()
 
-    # "TETRA4", "TETRA10", "HEXA8", "HEXA20", "HEXA27", "PRISM6", "PRISM15"
+    # "TETRA4", "TETRA10", "HEXA8", "HEXA20", "HEXA27", "PRISM6", "PRISM15", "PRISM18"
     elemType = "HEXA8"
     mesh = Mesher().Mesh_Extrude(contour, [], [0,0,0.5], 3, elemType, isOrganised=True)
     Display.Plot_Mesh(mesh)
