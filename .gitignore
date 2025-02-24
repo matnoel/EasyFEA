@@ -6,6 +6,7 @@ results/
 build/
 dist/
 _build/
+.pytest_cache/
 
 # extensions to ignore
 *.pyc
