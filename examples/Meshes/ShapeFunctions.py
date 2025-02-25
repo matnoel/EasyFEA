@@ -91,18 +91,18 @@ def Plot_Nodes(title: str, *args):
     list_z = args[2] if dim > 2 else [0] * nPe
 
     if dim == 3:        
-        _, ax = plt.subplots(subplot_kw=dict(projection='3d'))
+        ax = Display.Init_Axes(3, elev=16, azim=37)
         ax.set_xlabel("x"); ax.set_ylabel("y"); ax.set_zlabel("z")
         ax.set_title(title)
 
         ax.scatter(list_x,list_y, list_z)
         [ax.text(list_x[i], list_y[i], list_z[i], i) for i in range(nPe)]
     else:
-        ax = Display.Init_Axes()
+        ax = Display.Init_Axes(2)
         ax.set_xlabel("x"); ax.set_ylabel("y")
         ax.set_title(title)
 
-        ax.scatter(list_x,list_y)
+        ax.scatter(list_x, list_y)
         [ax.text(list_x[i], list_y[i], i+1) for i in range(nPe)]
 
 # ----------------------------------------------
@@ -250,17 +250,16 @@ def __Print_functions(functions: list, dim: int, name="", printArray=False):
         nF = len(functions)
         print(f"{name} = np.array([{', '.join(f'{name}{i+1}' for i in range(nF))}]){end}\n")
 
-def __chop(expr, tol=1e-12):
+def __chop(expr):
     """Recursive function that replaces small values in the sympy expression with zero."""
-    tol = 1e-12
-    if isinstance(expr, sympy.Float) and abs(expr) < tol:
+    if isinstance(expr, sympy.Float) and abs(expr) < 1e-12:
         return sympy.S.Zero
     elif isinstance(expr, sympy.Add):
-        return sympy.Add(*[__chop(arg, tol) for arg in expr.args])
+        return sympy.Add(*[__chop(arg) for arg in expr.args])
     elif isinstance(expr, sympy.Mul):
-        return sympy.Mul(*[__chop(arg, tol) for arg in expr.args])
+        return sympy.Mul(*[__chop(arg) for arg in expr.args])
     elif isinstance(expr, sympy.Pow):
-        return sympy.Pow(__chop(expr.base, tol), expr.exp)
+        return sympy.Pow(__chop(expr.base), expr.exp)
     else:
         return expr
 
@@ -445,7 +444,7 @@ def Do_Triangles():
     # |     \
     # 8  (9)  5
     # |         \
-    # 0---3---4---1
+    # 0---3---4---1 --> u
     # ----------------------------------------------
 
     name = "TRI10"
