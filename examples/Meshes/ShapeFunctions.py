@@ -174,7 +174,7 @@ def __Get_shape_functions(polynom, local_coords: np.ndarray, dim: int,
         # apply function display properties
         function = __chop(function)
         if useSimplify:
-            function = function.nsimplify()            
+            function = function.nsimplify()
         if useFactor:
             function = function.factor()
 
