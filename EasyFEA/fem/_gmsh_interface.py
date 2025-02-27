@@ -80,7 +80,7 @@ class Mesher:
         if factory == gmsh.model.occ:
             # If occ is used, checks whether objects have already been synchronized.
             ents1 = factory.getEntities()
-            ents2 = gmsh.model.getEntities()            
+            ents2 = gmsh.model.getEntities()    
             if len(ents1) != len(ents2):
                 # Entities are not up to date
                 factory.synchronize()
@@ -96,7 +96,7 @@ class Mesher:
         elif isinstance(geom, Domain):
             loop, lines, points = self._Loop_From_Domain(geom)[:3]
         elif isinstance(geom, Points):
-            contour = geom.Get_Contour()            
+            contour = geom.Get_Contour()    
             loop, lines, points = self._Loop_From_Contour(contour)[:3]
         elif isinstance(geom, Contour):
             loop, lines, points = self._Loop_From_Contour(geom)[:3]
@@ -175,13 +175,13 @@ class Mesher:
             elif isinstance(geom, Points):
                 
                 # get points to construct the spline
-                splinePoints = [factory.addPoint(*p.coord, geom.meshSize) for p in geom.points[1:-1]]                
+                splinePoints = [factory.addPoint(*p.coord, geom.meshSize) for p in geom.points[1:-1]]        
                 splinePoints.insert(0,p1)
-                splinePoints.append(p2)                
+                splinePoints.append(p2)
                 
                 # list_line = []
                 # for p in range(len(splinePoints)-1):
-                #     list_line.append(factory.addLine(splinePoints[p], splinePoints[p+1]))                
+                #     list_line.append(factory.addLine(splinePoints[p], splinePoints[p+1]))
                 # lines.extend(list_line)
                 # if geom.isOpen:
                 #     openLines.extend(list_line)
@@ -344,17 +344,6 @@ class Mesher:
             else:
                 numElems = [get_numElem(geom) for geom in geoms]
                 
-        if elemType.startswith(("QUAD", "HEXA")):
-            # simply multiplies the mesh size by 2 because
-            # setRecombine recombines triangles into quadrangles
-            self._Synchronize()
-            points = np.asarray(gmsh.model.getEntities(0))
-            sizes = gmsh.model.mesh.getSizes(points)
-            if sizes.max() > 0:
-                unique = list(set(sizes))
-                [gmsh.model.mesh.setSize(points[np.where(sizes==val)[0]], val*2)
-                 for val in unique]
-
         self._Surfaces_Organize(surfaces, elemType, isOrganised, numElems)
 
         return surfaces, lines, points
@@ -538,9 +527,9 @@ class Mesher:
         if entities.size == 0: return
         
         listDim = []
-        if setPoints: listDim.append(0)            
-        if setLines: listDim.append(1)            
-        if setSurfaces: listDim.append(2)            
+        if setPoints: listDim.append(0)    
+        if setLines: listDim.append(1)    
+        if setSurfaces: listDim.append(2)    
         if setVolumes: listDim.append(3)
 
         def _addPhysicalGroup(dim: int, tag: int, t:int) -> None:
@@ -692,7 +681,7 @@ class Mesher:
             
             # surf must be transfinite to have a strucutred surfaces during the extrusion
             for surf, corners in zip(linkingSurfaces, list_corners):
-                gmsh.model.mesh.setTransfiniteSurface(surf, cornerTags=corners)                    
+                gmsh.model.mesh.setTransfiniteSurface(surf, cornerTags=corners)    
 
                 if useRecombine:
                     # must recombine the surface in case we use PRISM or HEXA elements
@@ -745,7 +734,7 @@ class Mesher:
         # organize the mesh generation
         if useTransfinite:
             if len(numElems) == 0:                
-                numElems = [int(geom.length / geom.meshSize) for geom in contour1.geoms]            
+                numElems = [int(geom.length / geom.meshSize) for geom in contour1.geoms]    
                 assert len(numElems) == len(lines1)
         # Here, the following function will synchronize the created entities
         self._Surfaces_Organize([surf1, surf2], elemType, canBeOrganised, numElems)
@@ -757,7 +746,7 @@ class Mesher:
         # append entities together
         points = [*points1, *points2]
         lines = [*lines1, *lines2, *linkingLines]
-        surfaces = [surf1, surf2, *linkingSurfaces]        
+        surfaces = [surf1, surf2, *linkingSurfaces]
         
         shell = factory.addSurfaceLoop(surfaces)
         factory.addVolume([shell])
@@ -766,7 +755,7 @@ class Mesher:
             self._Synchronize()
             gmsh.model.mesh.setTransfiniteVolume(shell, points)
 
-        tic.Tac("Mesh","Link contours", self.__verbosity)        
+        tic.Tac("Mesh","Link contours", self.__verbosity)
 
         # get entities
         entities = self.Get_Entities(points, lines, surfaces, [shell])
@@ -914,8 +903,8 @@ class Mesher:
                 entities_1D.append(line)
 
                 if crack.isOpen:
-                    cracks_1D.append(line)                
-                    if pt1.isOpen: openPoints.append(p1)                        
+                    cracks_1D.append(line)
+                    if pt1.isOpen: openPoints.append(p1)
                     if pt2.isOpen: openPoints.append(p2)
 
             elif isinstance(crack, Points):  # 1D CRACK
@@ -925,11 +914,11 @@ class Mesher:
                 self._factory.remove([(1,loop),(1,lines[-1])])
                 
                 entities_0D.extend(points)
-                entities_1D.extend(lines[:-1])                
+                entities_1D.extend(lines[:-1])
 
                 if crack.isOpen:
                     cracks_1D.extend(lines[:-1])
-                    openLines.extend(openLns)                    
+                    openLines.extend(openLns)    
                     openPoints.extend(openPts)
 
             elif isinstance(crack, Contour):  # 2D CRACK
@@ -947,7 +936,7 @@ class Mesher:
 
                 if crack.isOpen:
                     cracks_2D.append(surf)
-                    openLines.extend(openLns)                    
+                    openLines.extend(openLns)    
                     openPoints.extend(openPts)
 
             elif isinstance(crack, CircleArc): # 1D CRACK
@@ -975,7 +964,7 @@ class Mesher:
 
             else:
 
-                raise Exception("Cracks must be Line, Points, Contour or CircleArc")            
+                raise Exception("Cracks must be Line, Points, Contour or CircleArc")    
 
         newEntities = [(0, point) for point in entities_0D]
         newEntities.extend([(1, line) for line in entities_1D])
@@ -1410,7 +1399,7 @@ class Mesher:
                 gmsh.model.mesh.field.setNumber(field, "Radius", geom.diam/2)
                 gmsh.model.mesh.field.setNumber(field, "XCenter", pC.x)
                 gmsh.model.mesh.field.setNumber(field, "YCenter", pC.y)
-                gmsh.model.mesh.field.setNumber(field, "ZCenter", pC.z)                
+                gmsh.model.mesh.field.setNumber(field, "ZCenter", pC.z)
                 gmsh.model.mesh.field.setNumber(field, "XAxis", extrude[0])
                 gmsh.model.mesh.field.setNumber(field, "YAxis", extrude[1])
                 gmsh.model.mesh.field.setNumber(field, "ZAxis", extrude[2])
@@ -1598,10 +1587,10 @@ class Mesher:
         # diff = [0 0 0 0 0 0 0 1]
         diff = sortedNodes - np.arange(Nn)
 
-        # Array that stores the changes        
+        # Array that stores the changes
         # For example below -> Changes = [0 1 2 3 4 5 6 0 7]
         # changes is used such correctedNodes = changes[nodes]
-        changes = np.zeros(nodes.max()+1, dtype=int)        
+        changes = np.zeros(nodes.max()+1, dtype=int)
         changes[sortedNodes] = sortedNodes - diff
 
         # The coordinate matrix of all nodes used in the mesh is constructed        
@@ -1740,7 +1729,7 @@ class Mesher:
         def testVolume(val):
             assert np.abs(volume-val)/volume <= 1e-10, "Incorrect volume"
 
-        folder = Folder.Get_Path()        
+        folder = Folder.Get_Path()
         partPath = Folder.Join(folder,"examples","_parts","beam.stp")
 
         mesher = Mesher()
