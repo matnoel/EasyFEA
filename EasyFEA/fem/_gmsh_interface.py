@@ -179,17 +179,6 @@ class Mesher:
                 splinePoints.insert(0,p1)
                 splinePoints.append(p2)
                 
-                # list_line = []
-                # for p in range(len(splinePoints)-1):
-                #     list_line.append(factory.addLine(splinePoints[p], splinePoints[p+1]))
-                # lines.extend(list_line)
-                # if geom.isOpen:
-                #     openLines.extend(list_line)
-
-                # last = points[-1]
-                # points.pop(-1)
-                # points.extend(splinePoints[1:])
-                
                 line = factory.addSpline(splinePoints)
                 lines.append(line)
                 if geom.isOpen:
