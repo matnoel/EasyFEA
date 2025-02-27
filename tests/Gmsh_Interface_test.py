@@ -4,8 +4,8 @@
 
 import pytest
 
-from EasyFEA import Mesher, Mesh, plt, np
-from EasyFEA.Geoms import Rotate_coord
+from EasyFEA import Mesher, ElemType, Mesh, plt, np
+from EasyFEA.Geoms import Rotate_coord, Domain, Point
 from EasyFEA import Display as Display
 
 class TestGmshInterface:
@@ -101,3 +101,30 @@ class TestGmshInterface:
             meshRotate.Rotate(rot, meshRotate.center, axis)
             testSame(meshRotate.center, newCenter) # same center
             testSameMesh(meshRotate, mesh)
+
+    def test_mesh_isOrganised(self):
+
+        contour = Domain(Point(), Point(1,1), 1/2)
+
+        elemTypes = ElemType.Get_2D()
+        elemTypes.extend(ElemType.Get_3D())
+        elemTypes.remove("TETRA4"); elemTypes.remove("TETRA10")
+
+        for elemType in elemTypes:
+
+            print(elemType)
+
+            dim = 2 if elemType in ElemType.Get_2D() else 3
+
+            if dim == 2:
+                mesh = Mesher().Mesh_2D(contour, [], elemType, isOrganised=True)
+            else:
+                mesh = Mesher().Mesh_Extrude(contour, [], [0,0,1], 2, elemType, isOrganised=True)
+
+            Ne = mesh.Ne
+            
+            coef_recombine = 1 if elemType.startswith(("QUAD","HEXA")) else 2
+            coef_dim = 1 if dim == 2 else 2
+            assert Ne == 4 * coef_recombine * coef_dim
+                
+
