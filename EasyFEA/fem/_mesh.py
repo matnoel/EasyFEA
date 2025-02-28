@@ -564,6 +564,8 @@ class Mesh(Observable):
         assert isinstance(tag, str), 'tag must be a string'
 
         for elemType, groupElem in self.__dict_groupElem.items():
+            if groupElem.dim == 0:
+                continue
             groupElem._Set_Nodes_Tag(nodes, tag)
             # The elements used by the nodes are automatically defined using the function
             # Get_Elements_Nodes(nodes, exclusively=True) in the following function.
