@@ -146,7 +146,7 @@ class _GroupElem(ABC):
 
     @property
     def Nn(self) -> int:
-        """number of nodes"""
+        """number of nodes used by the element group"""
         return self.__nodes.size
 
     @property
@@ -185,17 +185,19 @@ class _GroupElem(ABC):
         """Sparse matrix (Nn, Ne) of zeros and ones with ones when the node has the element such that:
         values_n = connect_n_e * values_e\n
         (Nn,1) = (Nn,Ne) * (Ne,1)"""
+
         # Here, the aim is to construct a matrix which, when multiplied by a values_e vector of size ( Ne x 1 ), will give
         # values_n_e(Nn,1) = connecNoeud(Nn,Ne) values_n_e(Ne,1)
         # where connecNoeud(Nn,:) is a row vector composed of 0 and 1, which will be used to sum values_e[nodes].
         # Then just divide by the number of times the node appears in the line        
+        
         Ne = self.Ne
         nPe = self.nPe
-        elems = np.arange(Ne)
+        elems = self.elements
 
         lines = self.connect.ravel()
 
-        Nn = int(lines.max()+1)
+        Nn = lines.max()+1 # Do not use either self.Nn or self.__coordGlob.shape[0].
         columns = np.repeat(elems, nPe)
 
         return sparse.csr_matrix((np.ones(nPe*Ne),(lines, columns)),shape=(Nn,Ne))
@@ -1558,7 +1560,7 @@ class _GroupElem(ABC):
     # Line -> Plane equation
     # CircleArc -> Cylinder do something like Get_Nodes_Cylinder
 
-    def Set_Nodes_Tag(self, nodes: np.ndarray, tag: str):
+    def _Set_Nodes_Tag(self, nodes: np.ndarray, tag: str):
         """Adds a tag to the nodes.
 
         Parameters
@@ -1569,7 +1571,11 @@ class _GroupElem(ABC):
             tag used
         """
         if nodes.size == 0: return
-        assert isinstance(tag, str), 'must be a string'
+        assert isinstance(tag, str), 'tag must be a string'
+
+        if np.min(nodes) < 0 or np.max(nodes) >= self.__coordGlob.shape[0]:
+            raise Exception(f"nodes must be within the range [0, {self.__coordGlob.shape[0]-1}].")
+
         self.__dict_nodes_tags[tag] = nodes
 
     @property
@@ -1582,7 +1588,7 @@ class _GroupElem(ABC):
         """Dictionary associating tags with nodes."""
         return self.__dict_nodes_tags.copy()
 
-    def Set_Elements_Tag(self, nodes: np.ndarray, tag: str):
+    def _Set_Elements_Tag(self, nodes: np.ndarray, tag: str):
         """Adds a tag to elements associated with nodes
 
         Parameters
@@ -1594,9 +1600,14 @@ class _GroupElem(ABC):
         """
 
         if nodes.size == 0: return
+        assert isinstance(tag, str), 'tag must be a string'
 
         # Retrieve elements associated with nodes
         elements = self.Get_Elements_Nodes(nodes=nodes, exclusively=True)
+        if elements.size == 0: return
+
+        if np.min(elements) < 0 or np.max(elements) >= self.Ne:
+            raise Exception(f"elements must be within the range [0, {self.Ne-1}].")
 
         self.__dict_elements_tags[tag] = elements
 

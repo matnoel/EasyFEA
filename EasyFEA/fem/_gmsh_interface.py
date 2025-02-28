@@ -1040,8 +1040,8 @@ class Mesher:
         def FuncAddTags(beam: _Beam):
             nodes = mesh.Nodes_Line(beam.line)
             for grp in mesh.Get_list_groupElem():
-                grp.Set_Nodes_Tag(nodes, beam.name)
-                grp.Set_Elements_Tag(nodes, beam.name)
+                grp._Set_Nodes_Tag(nodes, beam.name)
+                grp._Set_Elements_Tag(nodes, beam.name)
 
         [FuncAddTags(beam) for beam in beams]
 
@@ -1644,8 +1644,8 @@ class Mesher:
                 nodesGroup = changes[nodeTags] # Apply change
 
                 # add the group for notes and elements
-                groupElem.Set_Nodes_Tag(nodesGroup, name)
-                groupElem.Set_Elements_Tag(nodesGroup, name)
+                groupElem._Set_Nodes_Tag(nodesGroup, name)
+                groupElem._Set_Elements_Tag(nodesGroup, name)
 
             [__addPysicalGroup(group) for group in physicalGroups]
         

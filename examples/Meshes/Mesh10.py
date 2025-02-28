@@ -288,8 +288,8 @@ if __name__ == '__main__':
     nodesBlades = mesh.Nodes_Conditions(lambda x,y,z: np.sqrt(x**2+z**2)>=R+e+1e-1)
     nodesCyl = mesh.Nodes_Conditions(lambda x,y,z: np.sqrt(x**2+z**2)<=R+e)
 
-    mesh.groupElem.Set_Nodes_Tag(nodesCircle, 'blades')
-    mesh.groupElem.Set_Nodes_Tag(nodesCyl, 'cylindre')
+    mesh.Set_Tag(nodesCircle, 'blades')
+    mesh.Set_Tag(nodesCyl, 'cylindre')
 
     if saveToMatlab:
         matFile = Folder.Join(folder, 'blade.mat')

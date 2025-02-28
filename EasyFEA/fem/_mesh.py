@@ -14,7 +14,7 @@ A hexahedral mesh (HEXA8) uses :\n
 import numpy as np
 import scipy.sparse as sp
 import copy
-from typing import Callable
+from typing import Callable # add Iterable ?
 
 # utilities
 from ..utilities import Display, Tic
@@ -554,6 +554,20 @@ class Mesh(Observable):
         elements = np.asarray(list(set(elements)), dtype=int)
 
         return elements
+    
+    # TODO: def Set_Tag(self, func: Callable, tag: Any)
+    # must add tags to the groupElems
+
+    def Set_Tag(self, nodes: np.ndarray, tag: str):
+        """Set a tag on the nodes and elements belonging to each group of elements in the mesh."""
+        
+        assert isinstance(tag, str), 'tag must be a string'
+
+        for elemType, groupElem in self.__dict_groupElem.items():
+            groupElem._Set_Nodes_Tag(nodes, tag)
+            # The elements used by the nodes are automatically defined using the function
+            # Get_Elements_Nodes(nodes, exclusively=True) in the following function.
+            groupElem._Set_Elements_Tag(nodes, tag)
 
     def Locates_sol_e(self, sol: np.ndarray) -> np.ndarray:
         """Locates solution on elements."""
