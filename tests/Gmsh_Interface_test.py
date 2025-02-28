@@ -18,7 +18,7 @@ class TestGmshInterface:
         ncols = 10
         assert nbMesh < nrows*ncols , "Not enough space"
         fig, axs = plt.subplots(nrows, ncols)
-        axs: list[Display.Axes] = np.ravel(axs)
+        axs: list[Display.plt.Axes] = np.ravel(axs)
         
         for m, mesh2D in enumerate(list_mesh2D):
             ax = axs[m]
