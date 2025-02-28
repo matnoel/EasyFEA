@@ -2,6 +2,15 @@
 
 This document describes the changes made to the project.
 
+## 1.3.1 (February 28, 2025):
+
+- Updated Folder functions (New_File -> Join(mkdir=True), Get_Path() -> Dir())
+- Removed colors in Display.Plot_Tags()
+- Updated the method for setting up a tag in a mesh (_Set_Nodes_Tag and _Set_Elements_Tag).
+- Removed the old trick to generate the mesh with gmsh recombine
+- Updated Gmsh_Interface tests (test_mesh_isOrganised).
+- Enhanced examples.
+
 ## 1.3.0 (February 24, 2025):
 
 - Implemented new element types: QUAD9, SEG5, TRI15, HEXA27, PRISM18.
