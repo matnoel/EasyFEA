@@ -67,8 +67,8 @@ class _GroupElem(ABC):
         self.__coordGlob = coordGlob
 
         # dictionnary associated with tags on elements or nodes
-        self.__dict_nodes_tags = {}
-        self.__dict_elements_tags = {}        
+        self.__dict_nodes_tags: dict[str, np.ndarray] = {}
+        self.__dict_elements_tags: dict[str, np.ndarray] = {}        
         self._InitMatrix()
     
     def _InitMatrix(self) -> None:
