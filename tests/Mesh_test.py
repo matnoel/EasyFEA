@@ -42,3 +42,5 @@ class TestMesh:
                 mesh.Get_dN_e_pg(matrixType)
                 mesh.Get_ddN_e_pg(matrixType)                
                 mesh.Get_B_e_pg(matrixType)
+
+    # TODO: def test_shape_functions
