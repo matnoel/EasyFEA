@@ -82,25 +82,22 @@ def Compute_and_Print(polynom, *args, useSimplify=True, useFactor=True,
 
 def Plot_Nodes(title: str, *args):
 
-    dim = len(args)
-    assert dim in [1, 2, 3]
-    
-    list_x = args[0]
-    nPe = len(list_x)
-    list_y = args[1] if dim > 1 else [0] * nPe
-    list_z = args[2] if dim > 2 else [0] * nPe
+    local_coords, dim = __Get_local_coords_and_dim(*args)
+    nPe = local_coords.shape[0]    
+
+    list_x, list_y, list_z = local_coords.T
 
     if dim == 3:        
         ax = Display.Init_Axes(3, elev=16, azim=37)
         ax.set_xlabel("x"); ax.set_ylabel("y"); ax.set_zlabel("z")
-        ax.set_title(title)
+        ax.set_title(title); ax.axis("equal")
 
-        ax.scatter(list_x,list_y, list_z)
+        ax.scatter(list_x, list_y, list_z)
         [ax.text(list_x[i], list_y[i], list_z[i], i) for i in range(nPe)]
     else:
         ax = Display.Init_Axes(2)
         ax.set_xlabel("x"); ax.set_ylabel("y")
-        ax.set_title(title)
+        ax.set_title(title); ax.axis("equal")
 
         ax.scatter(list_x, list_y)
         [ax.text(list_x[i], list_y[i], i+1) for i in range(nPe)]
