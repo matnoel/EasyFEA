@@ -10,6 +10,8 @@ def Get_Path(filename="") -> str:
     """Returns the folder containing the file.\n
     Otherwise returns the EasyFEA directory.
     """
+
+    assert isinstance(filename, str), "filename must be str"
     
     if filename == "":
         # Return the path to EasyFEA
