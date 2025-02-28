@@ -687,19 +687,6 @@ def Plot_BoundaryConditions(simu: _Simu, ax: plt.Axes=None) -> plt.Axes:
 
     return ax
 
-__colors = {
-    1 : 'tab:blue',
-    2 : 'tab:orange',
-    3 : 'tab:green',
-    4 : 'tab:red',
-    5 : 'tab:purple',
-    6 : 'tab:brown',
-    7 : 'tab:pink',
-    8 : 'tab:gray',
-    9 : 'tab:olive',
-    10 : 'tab:cyan'
-}
-
 def Plot_Tags(obj, showId=False, folder="", alpha=1.0, ax: plt.Axes=None) -> plt.Axes:
     """Plots the mesh's elements tags (from 2d elements to points) but do not plot the 3d elements tags.
 
@@ -760,8 +747,10 @@ def Plot_Tags(obj, showId=False, folder="", alpha=1.0, ax: plt.Axes=None) -> plt
         center_e: np.ndarray = np.mean(coordo[groupElem.connect], axis=1) # center of each elements
         faces_coordinates = coordo[groupElem.connect[:,groupElem.faces]]
 
-        nColor = 0
         for tag_e in tags_e:
+
+            if "nodes" in tag_e:
+                pass
 
             nodes = groupElem.Get_Nodes_Tag(tag_e)
             elements = groupElem.Get_Elements_Tag(tag_e)
@@ -769,19 +758,11 @@ def Plot_Tags(obj, showId=False, folder="", alpha=1.0, ax: plt.Axes=None) -> plt
 
             coord_faces = faces_coordinates[elements]
             
-            # Assigns color
-            if 'L' in tag_e:
-                color = 'black'
-            elif 'P' in tag_e:
-                color = 'black'
-            elif 'S' in tag_e:
-                nColor = 1
-                # nColor += 1
-                if nColor > len(__colors):
-                    nColor = 1
-                color = __colors[nColor]
+            # Assign color
+            if groupElem.dim in [0,1]:
+                color = "black"
             else:
-                color = (np.random.random(), np.random.random(), np.random.random())
+                color = "tab:blue"
             
             x_e = np.mean(center_e[elements,0])
             y_e = np.mean(center_e[elements,1])
