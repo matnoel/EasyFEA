@@ -8,8 +8,8 @@ from EasyFEA import Display, Folder, Mesher, ElemType
 
 if __name__ == "__main__":
 
-    folder = Folder.Get_Path(__file__) # Meshes folder
-    examples_folder = Folder.Get_Path(folder)
+    folder = Folder.Dir(__file__) # Meshes folder
+    examples_folder = Folder.Dir(folder)
 
     stp = Folder.Join(examples_folder, "_parts", "beam.stp")
     mesh_stp = Mesher().Mesh_Import_part(stp, 3, 13/5, ElemType.TETRA4)

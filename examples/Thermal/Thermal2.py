@@ -14,7 +14,7 @@ if __name__ == '__main__':
 
     Display.Clear()
     
-    folder = Folder.New_File(Folder.Join("Thermal",f"Revolve"), results=True)
+    folder = Folder.Join(Folder.RESULTS_DIR, "Thermal", "Revolve", mkdir=True)
 
     # ----------------------------------------------
     # Configuration

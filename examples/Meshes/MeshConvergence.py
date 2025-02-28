@@ -29,7 +29,7 @@ if __name__ == '__main__':
         list_N = np.arange(1, 8, 2)
 
     # Create a folder to store the simulation results
-    folder = Folder.New_File(Folder.Join("Meshes",f"Convergence{dim}D"), results=True)
+    folder = Folder.Join(Folder.RESULTS_DIR, "Meshes", f"Convergence{dim}D", mkdir=True)
 
     # Define whether to plot the results
     plotResult = True

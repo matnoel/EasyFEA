@@ -16,7 +16,7 @@ if __name__ == '__main__':
 
     dim = 3 # Set the simulation dimension (2D or 3D)
     
-    folder = Folder.New_File(Folder.Join("Thermal",f"{dim}D"), results=True)
+    folder = Folder.Join(Folder.RESULTS_DIR, "Thermal", f"{dim}D", mkdir=True)
 
     # ----------------------------------------------
     # Configuration

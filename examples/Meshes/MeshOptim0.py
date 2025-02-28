@@ -28,9 +28,7 @@ if __name__ == '__main__':
     elemType = ElemType.TRI3 # TRI3, TRI6, TRI10, QUAD4, QUAD8
 
     # Creating a folder to store the results
-    folder = Folder.New_File(Folder.Join('Meshes', f'Optim2D'), results=True)
-    if not Folder.Exists(folder):
-        Folder.os.makedirs(folder)
+    folder = Folder.Join(Folder.RESULTS_DIR ,'Meshes', f'Optim2D', mkdir=True)
 
     # ----------------------------------------------
     # Meshing

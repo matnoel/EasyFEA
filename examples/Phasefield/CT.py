@@ -13,7 +13,7 @@ from EasyFEA import Paraview_Interface
 
 Display.Clear()
 
-folder = Folder.Get_Path(__file__)
+folder = Folder.Dir(__file__)
 
 # ----------------------------------------------
 # Config

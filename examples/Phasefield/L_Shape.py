@@ -71,7 +71,7 @@ if __name__ == '__main__':
     name = "L_Shape_Benchmark"
     if dim == 3:
         name += '_3D'
-    folder = Folder.New_File(name, results=True)
+    folder = Folder.Join(Folder.RESULTS_DIR, name, mkdir=True)
 
     # ----------------------------------------------
     # Mesh

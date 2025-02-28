@@ -527,7 +527,7 @@ class DIC(_IObserver):
 
     def Save(self, folder: str, filename: str="dic") -> None:
         """Saves the dic analysis in folder as 'filename.pickle'."""
-        path_dic = Folder.New_File(f"{filename}.pickle", folder)
+        path_dic = Folder.Join(folder, f"{filename}.pickle", mkdir=True)
         with open(path_dic, 'wb') as file:
             # don't remove
             self.__Op_LU = None

@@ -16,7 +16,7 @@ if __name__ == '__main__':
 
     Display.Clear()
 
-    folder = Folder.New_File("TractionWood", results=True)
+    folder = Folder.Join(Folder.RESULTS_DIR, "TractionWood", mkdir=True)
 
     # ----------------------------------------------
     # Configuration

@@ -37,9 +37,7 @@ if __name__ == '__main__':
         elemType = ElemType.TETRA4 # TETRA4, TETRA10, HEXA8, HEXA20, PRISM6, PRISM15
 
     # Creating a folder to store the results
-    folder = Folder.New_File(Folder.Join('Meshes', f'Optim{dim}D'), results=True)
-    if not Folder.Exists(folder):
-        Folder.os.makedirs(folder)
+    folder = Folder.Join(Folder.RESULTS_DIR, 'Meshes', f'Optim{dim}D', mkdir=True)    
 
     # ----------------------------------------------
     # Meshing

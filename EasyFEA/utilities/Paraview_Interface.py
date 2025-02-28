@@ -243,7 +243,7 @@ def __Make_vtu(simu, iter: int, filename: str, nodesField: list[str], elementsFi
         # End of vtk
         file.write('</VTKFile> \n')
     
-    path = Folder.Get_Path(filename)
+    path = Folder.Dir(filename)
     vtuFile = str(filename).replace(path+'\\', '')
 
     return vtuFile

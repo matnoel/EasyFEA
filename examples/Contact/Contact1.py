@@ -14,7 +14,7 @@ from EasyFEA import (Display, Folder, Tic, plt, np,
                      PyVista_Interface as pvi)
 from EasyFEA.Geoms import Point, Domain, Points
 
-folder = Folder.New_File('Contact', results=True)
+folder = Folder.Join(Folder.RESULTS_DIR, 'Contact', mkdir=True)
 
 if __name__ == '__main__':
 
@@ -25,7 +25,7 @@ if __name__ == '__main__':
     # ----------------------------------------------
     dim = 2
     pltIter = True; result = 'uy'
-    makeMovie = False
+    makeMovie = True
 
     R = 10
     height = R

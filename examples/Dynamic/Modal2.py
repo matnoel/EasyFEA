@@ -57,7 +57,7 @@ if __name__ == '__main__':
 
     Display.Clear()
 
-    folder = Folder.Get_Path(__file__)
+    folder = Folder.Dir(__file__)
 
     isFixed = True
 

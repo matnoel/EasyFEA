@@ -14,7 +14,6 @@ import pickle
 def Save_Force_Displacement(force: np.ndarray, displacement: np.ndarray, folder:str):
     """Saves the values of force and displacement in the folder"""
     
-    folder_PythonEF = Folder.Get_Path(Folder.Get_Path())
     filename = Folder.Join(folder, "force-displacement.pickle")
 
     if not Folder.os.path.exists(folder):
@@ -28,7 +27,7 @@ def Save_Force_Displacement(force: np.ndarray, displacement: np.ndarray, folder:
     with open(filename, "wb") as file:
         pickle.dump(values, file)    
     
-    Display.MyPrint(f'Saved:\n{filename.replace(folder_PythonEF,"")}\n','green')
+    Display.MyPrint(f'Saved:\n{filename.replace(Folder.EASYFEA_DIR,"")}\n','green')
     
 def Load_Force_Displacement(folder:str):
     """Loads force and displacement.
@@ -41,10 +40,8 @@ def Load_Force_Displacement(folder:str):
     return force, displacement
     """
 
-    folder_PythonEF = Folder.Get_Path(Folder.Get_Path())
-
     filename = Folder.Join(folder, "force-displacement.pickle")
-    shortName = filename.replace(folder_PythonEF,'') 
+    shortName = filename.replace(Folder.EASYFEA_DIR,'') 
     error = f"{shortName} does not exist"
     assert Folder.Exists(filename), error
 
@@ -65,8 +62,6 @@ def Load_Force_Displacement(folder:str):
 def Save_pickle(obj, folder: str, filename: str) -> None:
     """Saves the object in folder/filename.pickle."""
     
-    folder_PythonEF = Folder.Get_Path(Folder.Get_Path())
-    
     file = Folder.Join(folder, f"{filename}.pickle")
 
     if not Folder.os.path.exists(folder):
@@ -75,16 +70,14 @@ def Save_pickle(obj, folder: str, filename: str) -> None:
     with open(file, "wb") as f:
         pickle.dump(obj, f)
     
-    Display.MyPrint(f'Saved:\n{file.replace(folder_PythonEF,"")}\n','green')
+    Display.MyPrint(f'Saved:\n{file.replace(Folder.EASYFEA_DIR,"")}\n','green')
 
 def Load_pickle(folder:str, filename: str):
     """Returns folder/filename.pickle object."""
 
-    folder_PythonEF = Folder.Get_Path(Folder.Get_Path())
-
     file = Folder.Join(folder, f"{filename}.pickle")
 
-    shortName = file.replace(folder_PythonEF,'') 
+    shortName = file.replace(Folder.EASYFEA_DIR,'') 
     error = f"{shortName} does not exist"
     assert Folder.Exists(file), error
 

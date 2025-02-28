@@ -72,7 +72,7 @@ def DoMesh(L: float, h: float, diam: float, thickness: float, l0: float, split: 
     domain = Domain(point, Point(L, h), clD)
     circle = Circle(Point(L/2, h/2), diam, clD, isHollow=True)
 
-    folder = Folder.New_File("",results=True)
+    folder = Folder.RESULTS_DIR
     ax = Display.Init_Axes()
     domain.Plot(ax, color='k', plotPoints=False)
     circle.Plot(ax, color='k', plotPoints=False)
@@ -80,7 +80,7 @@ def DoMesh(L: float, h: float, diam: float, thickness: float, l0: float, split: 
     #     refineGeom.Plot(ax, color='k', plotPoints=False)
     # ax.scatter(((L+diam)/2, L/2), (h/2, (h+diam)/2), c='k')
     ax.axis('off')
-    Display.Save_fig(folder,"sample",True)
+    Display.Save_fig(folder, "sample",True)
 
     mesh = Mesher().Mesh_2D(domain, [circle], ElemType.TRI3, refineGeoms=[refineGeom])
 

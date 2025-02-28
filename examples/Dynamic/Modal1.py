@@ -11,7 +11,7 @@ from EasyFEA.Geoms import Point, Domain
 
 from scipy.sparse import linalg, eye
 
-folder = Folder.Get_Path(__file__)
+folder = Folder.Dir(__file__)
 
 if __name__ == '__main__':
 

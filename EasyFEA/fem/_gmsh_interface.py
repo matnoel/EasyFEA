@@ -1330,7 +1330,7 @@ class Mesher:
 
         gmsh.view.addListData(view, "SP", coord.shape[0], data.ravel())
 
-        path = Folder.New_File(f"{filename}.pos", folder)
+        path = Folder.Join(folder, f"{filename}.pos", mkdir=True)
 
         gmsh.view.write(view, path)
 
@@ -1717,9 +1717,8 @@ class Mesher:
 
         def testVolume(val):
             assert np.abs(volume-val)/volume <= 1e-10, "Incorrect volume"
-
-        folder = Folder.Get_Path()
-        partPath = Folder.Join(folder,"examples","_parts","beam.stp")
+        
+        partPath = Folder.Join(Folder.EASYFEA_DIR, "examples","_parts","beam.stp")
 
         mesher = Mesher()
 

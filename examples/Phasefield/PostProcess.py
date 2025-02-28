@@ -22,7 +22,7 @@ if __name__ == '__main__':
     plotDamage = False
     savefig = True
 
-    folder_results = Folder.New_File(simulation, results=True)
+    folder_results = Folder.Join(Folder.RESULTS_DIR, simulation, mkdir=True)
 
     if savefig:
         if meshTest:
@@ -200,7 +200,7 @@ if __name__ == '__main__':
                 colorBarIsClose = False
 
             # Displays last damage
-            filename = foldername.replace(Folder.Get_Path(foldername), "")[1:]
+            filename = foldername.replace(Folder.Dir(foldername), "")[1:]
 
             ax = Display.Plot_Result(simu, "damage", ncolors=21, colorbarIsClose=True)
             ax.axis('off'); ax.set_title("")            
@@ -237,7 +237,7 @@ if __name__ == '__main__':
                     ax = Display.Plot_Result(simu, "damage", ncolors=21, colorbarIsClose=True)
                     ax.axis('off'); ax.set_title("")
                     # Display._Remove_colorbar(ax)
-                    filename = foldername.replace(Folder.Get_Path(foldername), "")[1:]
+                    filename = foldername.replace(Folder.Dir(foldername), "")[1:]
                     Display.Save_fig(folder_save, f"{filename} snap={dep}", True) # , "png", 200
                     
                     # ax_load_2.scatter(displacement[i]*1e3, force[i]*1e-6, c='k', marker='+', zorder=2)

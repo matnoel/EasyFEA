@@ -25,7 +25,7 @@ if __name__ == '__main__':
     useHyperElastic = True # eulerian approch
     calcE = dim == 2  # calculate green lagrange deformation if dim == s2
 
-    folder = Folder.New_File(f"HyperElasticity{dim}D", results=True)
+    folder = Folder.Join(Folder.RESULTS_DIR, f"HyperElasticity{dim}D", mkdir=True)
 
     L = 250
     thickness = 50

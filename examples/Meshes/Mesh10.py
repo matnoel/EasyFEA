@@ -13,7 +13,7 @@ import scipy.io
 
 if __name__ == '__main__':
 
-    folder = Folder.New_File(Folder.Join('Meshes', 'Blade'), results=True)
+    folder = Folder.Join(Folder.RESULTS_DIR, 'Meshes', 'Blade', mkdir=True)
 
     N=20 # elements in the blade lenght l
     addCylinder = True

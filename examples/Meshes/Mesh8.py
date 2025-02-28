@@ -9,7 +9,7 @@ from EasyFEA import (Display, Folder, np,
                      PyVista_Interface as pvi,)
 from EasyFEA.Geoms import Point, Circle, Points
 
-folder = Folder.Get_Path(__file__)
+folder = Folder.Dir(__file__)
 
 if __name__ == '__main__':
 

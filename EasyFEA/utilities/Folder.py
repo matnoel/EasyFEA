@@ -6,62 +6,41 @@
 
 import os
 
-def Get_Path(filename="") -> str:
-    """Returns the folder containing the file.\n
-    Otherwise returns the EasyFEA directory.
+def Dir(path="") -> str:
+    """Returns the directory of the specified path.\n
+    If no path is specified, returns the EasyFEA directory path.
     """
 
-    assert isinstance(filename, str), "filename must be str"
+    assert isinstance(path, str), "filename must be str"
     
-    if filename == "":
-        # Return the path to EasyFEA
-        normPath = os.path.normpath(__file__)
-        path = os.path.dirname(normPath) # utilities
-        # path = os.getcwd() # utilities
-        path = os.path.dirname(path) # EasyFEA (modules)
-        path = os.path.dirname(path) # EasyFEA (folder)
+    if path == "":
+        dir = EASYFEA_DIR
     else:
-        normPath = os.path.normpath(filename)
-        # Return the path to the file
-        path = os.path.dirname(normPath)
+        normPath = os.path.normpath(path)
+        dir = os.path.dirname(normPath)
+
+    return dir
+
+EASYFEA_DIR = Dir(Dir(Dir(__file__)))
+RESULTS_DIR = os.path.join(EASYFEA_DIR, "results")
+"""EASYFEA_DIR/results"""
+
+def Join(*args: str, mkdir=False) -> str:
+    """Joins two or more pathname components and create (or not) the path."""
+    
+    path = os.path.join(*args)
+
+    if not Exists(path) and mkdir:        
+        if "." in path:
+            dir = Dir(path)
+            os.makedirs(dir, exist_ok=True)
+        else:
+            os.makedirs(path)
 
     return path
 
-PATH_EASYFEA = Get_Path()
-
-def New_File(filename: str, folder=Get_Path(), results=False) -> str:
-    """Returns the path to the file/folder (filename can be a file or a folder).\n
-    The function will create the path if it does not exist.
-
-    Parameters
-    ----------
-    filename : str
-        file or folder name
-    folder : str, optional
-        folder to use, default Get_Path() -> EasyFEA
-    results : bool, optional
-        saves in folder/results/filename or folder/filename, default False
-    """
-    
-    if results:
-        folder = Join(folder, "results")
-    filename = Join(folder, filename)
-
-    if not os.path.exists(filename):
-        if "." in filename:
-            os.makedirs(folder, exist_ok=True)
-        else:
-            os.makedirs(filename)
-            
-    return filename
-
-def Join(*args: str) -> str:
-    """Joins two or more pathname components."""
-    return os.path.join(*args)
-
 def Exists(path: str) -> bool:
-    """Checks whether a path exists.\n
-    Returns False for broken symbolic links."""
+    """Test whether a path exists. Returns False for broken symbolic links"""
     return os.path.exists(path)
 
 def PhaseField_Folder(folder: str, material: str,
@@ -111,7 +90,7 @@ def PhaseField_Folder(folder: str, material: str,
         else:
             name = f"{name} nL={nL}"
 
-    workFolder = New_File(folder, results=True)
+    workFolder = Join(RESULTS_DIR, folder, mkdir=True)
     path = workFolder.split(folder)[0]
 
     if test:
