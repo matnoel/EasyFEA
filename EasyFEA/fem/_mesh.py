@@ -555,15 +555,12 @@ class Mesh(Observable):
 
         return elements
     
-    # TODO: def Set_Tag(self, func: Callable, tag: Any)
-    # must add tags to the groupElems
-
     def Set_Tag(self, nodes: np.ndarray, tag: str):
         """Set a tag on the nodes and elements belonging to each group of elements in the mesh."""
         
         assert isinstance(tag, str), 'tag must be a string'
 
-        for elemType, groupElem in self.__dict_groupElem.items():
+        for _, groupElem in self.__dict_groupElem.items():
             if groupElem.dim == 0:
                 continue
             groupElem._Set_Nodes_Tag(nodes, tag)
