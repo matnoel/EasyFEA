@@ -460,8 +460,6 @@ class Elas_IsotTrans(_Elas):
         self.__axis_l = Normalize_vect(axis_l)
         self.__axis_t = Normalize_vect(axis_t)
 
-        # TODO: Check vt = vl * Et/El
-
         _Elas.__init__(self, dim, thickness, planeStress)
 
     @property
