@@ -2,6 +2,10 @@
 
 This document describes the changes made to the project.
 
+## 1.3.2 (_ _, 2025):
+
+- Updated (name = "easyfea") in pyproject.toml to comply with the pypi distribution format specification.
+
 ## 1.3.1 (February 28, 2025):
 
 - Updated Folder functions (New_File -> Join(mkdir=True), Get_Path() -> Dir())
