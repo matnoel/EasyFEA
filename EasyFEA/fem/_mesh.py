@@ -541,8 +541,7 @@ class Mesh(Observable):
             tags = [tags]
 
         # get dictionnary linking tags to elements
-        dict_elements = {}
-        [dict_elements.update(grp._dict_elements_tags) for grp in self.dict_groupElem.values()]
+        dict_elements = self.__groupElem._dict_elements_tags
 
         if len(dict_elements) == 0:            
             Display.MyPrintError("There is no tags available in the mesh, so don't forget to use the '_Set_PhysicalGroups()' function before meshing your geometry with '_Meshing()' in the gmsh interface 'Gmsh_Interface'.")
