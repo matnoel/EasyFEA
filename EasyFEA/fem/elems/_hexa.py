@@ -253,7 +253,7 @@ class HEXA20(_GroupElem):
         return super()._ddddN()
     
 class HEXA27(_GroupElem):
-    #        v
+    #        
     # 3----13----2
     # |\         |\
     # |15    24  | 14
