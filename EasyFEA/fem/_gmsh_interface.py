@@ -616,12 +616,13 @@ class Mesher:
 
         return revolEntities
     
-    def __Link_Lines_Points(self,
-                            lines1: list[int], points1: list[int],
-                            lines2: list[int], points2: list[int],
-                            elemType: ElemType, nLayers:int=0):
-        """Creates linking lines and surfaces based on lines and points.\n
-        return linkingSurfaces, linkingLines.
+    def _Linking_Surfaces(self,
+                           lines1: list[int], points1: list[int],
+                           lines2: list[int], points2: list[int],
+                           linkingLines: list[int],
+                           elemType: ElemType, nLayers:int=0):
+        """Creates linking surfaces based on lines and linkingLines.\n
+        return linkingSurfaces.
         """
 
         # check that the given entities are linkable
@@ -631,10 +632,7 @@ class Mesher:
 
         nLayers = int(nLayers)
 
-        factory = self._factory
-
-        # create link between every points belonging to points1 and points2
-        linkingLines: list[int] = [factory.addLine(pi, pj) for pi, pj in zip(points1, points2)]
+        factory = self._factory        
         
         linkingSurfaces: list[int] = []
         list_corners: list[tuple[int, int, int, int]] = []
@@ -676,7 +674,7 @@ class Mesher:
                     # must recombine the surface in case we use PRISM or HEXA elements
                     gmsh.model.mesh.setRecombine(2, surf)
 
-        return linkingSurfaces, linkingLines
+        return linkingSurfaces
     
     def _Link_Contours(self, contour1: Contour, contour2: Contour, elemType: ElemType,
                       nLayers:int=0, numElems:list[int]=[]) -> list[tuple[int, int]]:
@@ -728,9 +726,13 @@ class Mesher:
         # Here, the following function will synchronize the created entities
         self._Surfaces_Organize([surf1, surf2], elemType, canBeOrganised, numElems)
 
-        linkingSurfaces, linkingLines = self.__Link_Lines_Points(lines1, points1,
-                                                                 lines2, points2,
-                                                                 elemType, nLayers)
+        # create link between every points belonging to points1 and points2
+        linkingLines: list[int] = [factory.addLine(pi, pj) for pi, pj in zip(points1, points2)]
+
+        linkingSurfaces = self._Linking_Surfaces(lines1, points1,
+                                                  lines2, points2,
+                                                  linkingLines,
+                                                  elemType, nLayers)
 
         # append entities together
         points = [*points1, *points2]
