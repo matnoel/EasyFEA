@@ -201,6 +201,9 @@ def Plot_Nodes(obj, nodes: np.ndarray=None, showId=False, deformFactor=0, color=
         nodes = np.asarray(nodes)
 
         if nodes.ndim == 1:
+            if nodes.size == 0:
+                MyPrintError("The list of nodes is empty.")
+                return
             if nodes.size > mesh.Nn:
                 MyPrintError("The list of nodes must be of size <= mesh.Nn")
                 return
