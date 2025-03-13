@@ -458,9 +458,9 @@ class Points(_Geom):
     @property
     def length(self) -> float:
         coord = self.coord
-        lenght = np.linalg.norm(coord[1:]-coord[:-1], axis=1)
-        lenght = np.sum(lenght)
-        return lenght
+        length = np.linalg.norm(coord[1:]-coord[:-1], axis=1)
+        length = np.sum(length)
+        return length
 
 class Line(_Geom):
 
