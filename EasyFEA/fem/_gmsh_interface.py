@@ -620,7 +620,8 @@ class Mesher:
                            lines1: list[int], points1: list[int],
                            lines2: list[int], points2: list[int],
                            linkingLines: list[int],
-                           elemType: ElemType, nLayers:int=0):
+                           elemType: ElemType, nLayers:int=0,
+                           listPoints: list[list[Point]]=[]):
         """Creates linking surfaces based on lines and linkingLines.\n
         return linkingSurfaces.
         """
@@ -652,7 +653,12 @@ class Mesher:
             # loop to create the surface (- are optionnal)
             loop = factory.addCurveLoop([l1,l2,-l3,-l4])
             # create the surface and add it to linking surfaces
-            surf = factory.addSurfaceFilling(loop)
+            if len(listPoints) == 0:
+                surf = factory.addSurfaceFilling(loop)
+            else:
+                pointTags = [factory.addPoint(*p.coord) for p in listPoints[i]]
+                surf = factory.addSurfaceFilling(loop, pointTags=pointTags)
+                factory.remove([(0, p) for p in pointTags]) 
             linkingSurfaces.append(surf)
             
         assert len(list_corners) == len(linkingSurfaces)
