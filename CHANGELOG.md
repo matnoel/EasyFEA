@@ -2,9 +2,10 @@
 
 This document describes the changes made to the project.
 
-## 1.3.2 (_ _, 2025):
+## 1.3.2 (March 16, 2025):
 
-- Updated (name = "easyfea") in pyproject.toml to comply with the pypi distribution format specification.
+- Updated pyproject.toml (name = "easyfea") to comply with PyPI distribution format specifications.
+- Enhanced Gmsh_Interface to support linked surface creation by adding pointTags to the addSurfaceFilling function in Gmsh.
 
 ## 1.3.1 (February 28, 2025):
 
