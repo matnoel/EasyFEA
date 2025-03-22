@@ -2,6 +2,12 @@
 
 This document describes the changes made to the project.
 
+## 1.3.3 (March 22, 2025):
+
+- Created the MeshIO interface.
+- Updated the Geoms module.
+- Created the params check functions.
+
 ## 1.3.2 (March 16, 2025):
 
 - Updated pyproject.toml (name = "easyfea") to comply with PyPI distribution format specifications.

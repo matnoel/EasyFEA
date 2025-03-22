@@ -35,6 +35,7 @@ dependencies = [
     "pandas",
     "imageio",
     "imageio[ffmpeg]",
+    "meshio"
 ]
 
 [project.optional-dependencies]
