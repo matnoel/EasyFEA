@@ -6,7 +6,7 @@ from typing import Union
 from collections.abc import Iterable
 import numpy as np
 
-def IsPositive(value: Union[float, int, Iterable]) -> None:
+def CheckIsPositive(value: Union[float, int, Iterable]) -> None:
     """Checks whether the value is positive"""
     errorText = "Must be > 0!"
     if isinstance(value, (float, int)):
@@ -16,7 +16,7 @@ def IsPositive(value: Union[float, int, Iterable]) -> None:
     else:
         raise TypeError("Unknown type.")
 
-def IsNegative(value: Union[float, int, Iterable]) -> None:
+def CheckIsNegative(value: Union[float, int, Iterable]) -> None:
     """Checks whether the value is negative"""
     errorText = "Must be < 0!"
     if isinstance(value, (float, int)):
@@ -26,7 +26,7 @@ def IsNegative(value: Union[float, int, Iterable]) -> None:
     else:
         raise TypeError("Unknown type.")
 
-def IsInIntervalcc(value: Union[float, int, Iterable], inf, sup) -> None:
+def CheckIsInIntervalcc(value: Union[float, int, Iterable], inf, sup) -> None:
     """Checks whether the value is in ]inf, sup["""
     errorText = f"Must be in ]{inf}, {sup}["
     if isinstance(value, (float, int)):
@@ -36,7 +36,7 @@ def IsInIntervalcc(value: Union[float, int, Iterable], inf, sup) -> None:
     else:
         raise TypeError("Unknown type.")
     
-def IsInIntervaloo(value: Union[float, int, Iterable], inf, sup) -> None:
+def CheckIsInIntervaloo(value: Union[float, int, Iterable], inf, sup) -> None:
     """Checks whether the value is in [inf, sup]"""
     errorText = f"Must be in [{inf}, {sup}]"
     if isinstance(value, (float, int)):

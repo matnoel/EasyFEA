@@ -60,7 +60,7 @@ class Thermal(_IModel):
 
         self.c = c
         
-        _params.IsPositive(thickness)
+        _params.CheckIsPositive(thickness)
         self.__thickness = thickness
 
         self.Need_Update()
@@ -74,7 +74,7 @@ class Thermal(_IModel):
     
     @k.setter
     def k(self, value: Union[float,np.ndarray]) -> None:
-        _params.IsPositive(value)
+        _params.CheckIsPositive(value)
         self.Need_Update()
         self.__k = value
 
@@ -85,7 +85,7 @@ class Thermal(_IModel):
     
     @c.setter
     def c(self, value: Union[float,np.ndarray]) -> None:
-        _params.IsPositive(value)
+        _params.CheckIsPositive(value)
         self.Need_Update()
         self.__c = value
     

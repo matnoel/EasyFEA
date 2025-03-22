@@ -8,6 +8,7 @@ import numpy as np
 
 from ._utils import Point, AsCoords, AsPoint, Normalize, Jacobian_Matrix, Angle_Between, Circle_Triangle, Circle_Coords
 from ._geom import _Geom
+from ..utilities import _params
 
 class Circle(_Geom):
 
@@ -32,7 +33,7 @@ class Circle(_Geom):
             normal direction to the circle, by default (0,0,1)
         """
         
-        assert diam > 0.0
+        _params.CheckIsPositive(diam)
         
         center = AsPoint(center)
 
@@ -213,7 +214,7 @@ class CircleArc(_Geom):
         mat = np.array([i,j,k]).T
 
         # midpoint coordinates
-        assert coef in [-1, 1], 'coef must be in [-1, 1]'
+        _params.CheckIsInIntervaloo(coef, -1, 1)
         pt3 = center.coord + mat @ [coef*r1,0,0]
 
         self.pt3 = Point(*pt3)

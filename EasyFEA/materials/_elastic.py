@@ -59,10 +59,10 @@ class _Elas(_IModel, ABC):
     
     @planeStress.setter
     def planeStress(self, value: bool) -> None:
-        if isinstance(value, bool):
-            if self.__planeStress != value:
-                self.Need_Update()
-            self.__planeStress = value
+        assert isinstance(value, bool)
+        if self.__planeStress != value:
+            self.Need_Update()
+        self.__planeStress = value
 
     @property
     def simplification(self) -> str:
@@ -248,7 +248,7 @@ class Elas_Isot(_Elas):
     
     @E.setter
     def E(self, value):
-        _params.IsPositive(value)
+        _params.CheckIsPositive(value)
         self.Need_Update()
         self.__E = value
 
@@ -259,7 +259,7 @@ class Elas_Isot(_Elas):
     
     @v.setter
     def v(self, value: float):
-        _params.IsInIntervalcc(value, -1, 0.5)
+        _params.CheckIsInIntervalcc(value, -1, 0.5)
         self.Need_Update()
         self.__v = value
 
@@ -479,7 +479,7 @@ class Elas_IsotTrans(_Elas):
 
     @El.setter
     def El(self, value: Union[float,np.ndarray]):
-        _params.IsPositive(value)
+        _params.CheckIsPositive(value)
         self.Need_Update()
         self.__El = value
 
@@ -490,7 +490,7 @@ class Elas_IsotTrans(_Elas):
     
     @Et.setter
     def Et(self, value: Union[float,np.ndarray]):
-        _params.IsPositive(value)
+        _params.CheckIsPositive(value)
         self.Need_Update()
         self.__Et = value
 
@@ -501,7 +501,7 @@ class Elas_IsotTrans(_Elas):
 
     @Gl.setter
     def Gl(self, value: Union[float,np.ndarray]):
-        _params.IsPositive(value)
+        _params.CheckIsPositive(value)
         self.Need_Update()
         self.__Gl = value
 
@@ -514,7 +514,7 @@ class Elas_IsotTrans(_Elas):
     def vl(self, value: Union[float,np.ndarray]):
         # -1<vl<0.5
         # Torquato 328
-        _params.IsInIntervalcc(value, -1, 0.5)
+        _params.CheckIsInIntervalcc(value, -1, 0.5)
         self.Need_Update()
         self.__vl = value
     
@@ -527,7 +527,7 @@ class Elas_IsotTrans(_Elas):
     def vt(self, value: Union[float,np.ndarray]):
         # -1<vt<1
         # Torquato 328
-        _params.IsInIntervalcc(value, -1, 1)
+        _params.CheckIsInIntervalcc(value, -1, 1)
         self.Need_Update()
         self.__vt = value
 

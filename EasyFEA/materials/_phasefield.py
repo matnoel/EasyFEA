@@ -286,7 +286,7 @@ class PhaseField(_IModel):
     
     @Gc.setter
     def Gc(self, value: Union[float, np.ndarray]):
-        _params.IsPositive(value)
+        _params.CheckIsPositive(value)
         self.Need_Update()
         self.__Gc = value
 
@@ -297,7 +297,7 @@ class PhaseField(_IModel):
     
     @l0.setter
     def l0(self, value: float):
-        _params.IsPositive(value)
+        _params.CheckIsPositive(value)
         assert isinstance(value, (int, float)), 'l0 must be a homogeneous parameter'
         self.Need_Update()
         self.__l0 = value

@@ -318,7 +318,7 @@ class _Simu(_IObserver, ABC):
 
     @rho.setter
     def rho(self, value: Union[float, np.ndarray]):
-        _params.IsPositive(value)
+        _params.CheckIsPositive(value)
         self.__rho = value
         """mass density"""
 
