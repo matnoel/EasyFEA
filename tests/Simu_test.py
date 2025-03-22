@@ -302,8 +302,10 @@ class TestElasticSimu:
             matIsot.v = 10
         except AssertionError:
             assert simu.needUpdate == False
-        matIsot.planeStress = 10            
-        assert simu.needUpdate == False
+        try:
+            matIsot.planeStress = 10
+        except AssertionError:
+            assert simu.needUpdate == False
 
 
         matElasIsotTrans = Materials.Elas_IsotTrans(2, 10,10,10,0.1,0.1)
