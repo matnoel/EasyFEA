@@ -10,11 +10,9 @@ from scipy.linalg import sqrtm
 import numpy as np
 # others
 from ..geoms import AsCoords, Normalize
-from ._utils import (_IModel, ModelType,
-                     Reshape_variable, Heterogeneous_Array,
+from ._utils import (_IModel, ModelType, Heterogeneous_Array,
                      Tensor_Product,
                      KelvinMandel_Matrix, Project_Kelvin,
-                     Result_in_Strain_or_Stress_field,
                      Get_Pmat, Apply_Pmat)
 
 # ----------------------------------------------
