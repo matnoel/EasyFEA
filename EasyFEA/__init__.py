@@ -12,7 +12,8 @@ import pandas as pd
 from .utilities import (Display, Folder, Tic,
                         Numba_Interface,
                         Paraview_Interface,
-                        PyVista_Interface)
+                        PyVista_Interface,
+                        meshio_Interface)
 
 # ----------------------------------------------
 # geometry
