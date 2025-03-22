@@ -7,16 +7,11 @@ from enum import Enum
 
 # utilities
 import numpy as np
-from ..utilities import Tic, Numba_Interface
+from ..utilities import Numba, Tic
 # fem
 from ..fem import Mesh
 # others
-from ._utils import (_IModel, ModelType,
-                     Reshape_variable, Heterogeneous_Array,
-                     Tensor_Product,
-                     KelvinMandel_Matrix, Project_Kelvin,
-                     Result_in_Strain_or_Stress_field,
-                     Get_Pmat, Apply_Pmat)
+from ._utils import _IModel, ModelType, Reshape_variable
 
 # ----------------------------------------------
 # Elasticity
@@ -543,7 +538,7 @@ class PhaseField(_IModel):
             # here don't use numba if behavior is heterogeneous
             if useNumba and not isHeterogene:
                 # Faster (x2) but not available for heterogeneous material (memory issues)
-                Cpp, Cpm, Cmp, Cmm = Numba_Interface.Get_Anisot_C(projP_e_pg, c, projM_e_pg)
+                Cpp, Cpm, Cmp, Cmm = Numba.Get_Anisot_C(projP_e_pg, c, projM_e_pg)
 
             else:
                 # Here we don't use einsum, otherwise it's much longer
@@ -661,7 +656,7 @@ class PhaseField(_IModel):
             useNumba = self.useNumba
             if useNumba and not isHeterogene:
                 # Faster
-                cP_e_pg, cM_e_pg = Numba_Interface.Get_Cp_Cm_Stress(c, sP_e_pg, sM_e_pg)
+                cP_e_pg, cM_e_pg = Numba.Get_Cp_Cm_Stress(c, sP_e_pg, sM_e_pg)
             else:
                 if isHeterogene:
                     c_e_pg = Reshape_variable(c, Ne, nPg)
@@ -689,7 +684,7 @@ class PhaseField(_IModel):
                 S = material.S
                 if self.useNumba and not isHeterogene:
                     # Faster
-                    Cpp, Cpm, Cmp, Cmm = Numba_Interface.Get_Anisot_C(Cp_e_pg, S, Cm_e_pg)
+                    Cpp, Cpm, Cmp, Cmm = Numba.Get_Anisot_C(Cp_e_pg, S, Cm_e_pg)
                 else:
                     # Here we don't use einsum, otherwise it's much longer
                     s_e_pg = Reshape_variable(S, Ne, nPg)
@@ -1235,7 +1230,7 @@ class PhaseField(_IModel):
 
             if useNumba:
                 # Faster
-                projP, projM = Numba_Interface.Get_projP_projM_2D(BetaP, gammap, BetaM, gammam, m1, m2)
+                projP, projM = Numba.Get_projP_projM_2D(BetaP, gammap, BetaM, gammam, m1, m2)
 
             else:
                 # compute mixmi [e,pg,3,3] or [e,pg,6,6].
@@ -1289,14 +1284,14 @@ class PhaseField(_IModel):
             if useNumba:
                 # Much faster (approx. 2x faster)
 
-                G12_ij, G13_ij, G23_ij = Numba_Interface.Get_G12_G13_G23(M1, M2, M3)
+                G12_ij, G13_ij, G23_ij = Numba.Get_G12_G13_G23(M1, M2, M3)
 
                 tic.Tac("Split", "Gab", False)
 
                 list_mi = [m1, m2, m3]
                 list_Gab = [G12_ij, G13_ij, G23_ij]
 
-                projP, projM = Numba_Interface.Get_projP_projM_3D(dvalp, dvalm, thetap, thetam, list_mi, list_Gab)
+                projP, projM = Numba.Get_projP_projM_3D(dvalp, dvalm, thetap, thetam, list_mi, list_Gab)
             
             else:
 
