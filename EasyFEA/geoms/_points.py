@@ -2,7 +2,7 @@
 # This file is part of the EasyFEA project.
 # EasyFEA is distributed under the terms of the GNU General Public License v3 or later, see LICENSE.txt and CREDITS.md for more information.
 
-"""Module containing the Points class used to construct geometry."""
+"""Module containing the Points class."""
 
 from collections.abc import Iterable
 import numpy as np
