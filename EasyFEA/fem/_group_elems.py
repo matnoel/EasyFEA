@@ -28,7 +28,8 @@ from ._gauss import Gauss
 from ._utils import ElemType, MatrixType
 
 # # others
-from ..Geoms import Point, Domain, Line, Circle, Jacobian_Matrix
+from ..Geoms import Point, Domain, Line, Circle
+from ..geoms._utils import Jacobian_Matrix
 
 class _GroupElem(ABC):
 

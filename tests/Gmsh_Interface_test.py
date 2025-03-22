@@ -5,7 +5,8 @@
 import pytest
 
 from EasyFEA import Mesher, ElemType, Mesh, plt, np
-from EasyFEA.Geoms import Rotate, Domain, Point
+from EasyFEA.Geoms import Domain, Point
+from EasyFEA.geoms._utils import Rotate
 from EasyFEA import Display as Display
 
 class TestGmshInterface:

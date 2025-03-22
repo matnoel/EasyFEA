@@ -8,7 +8,8 @@ from typing import Union
 # utilities
 import numpy as np
 # others
-from ..Geoms import Line, Normalize, AsCoords
+from ..Geoms import Line
+from ..geoms._utils import AsCoords, Normalize
 # fem
 from ..fem import Mesh, _GroupElem
 # materials

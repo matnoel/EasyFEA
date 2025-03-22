@@ -296,8 +296,6 @@ def Symmetry(coord: np.ndarray, point=(0,0,0), n=(1,0,0)) -> np.ndarray:
 
 # circles
 
-
-
 def Circle_Triangle(p1, p2, p3) -> np.ndarray:
     """Returns triangle's center for the circumcicular arc formed by 3 points.\n
     returns center
@@ -324,7 +322,7 @@ def Circle_Triangle(p1, p2, p3) -> np.ndarray:
 
     return center
 
-def Circle_Coord(coord: np.ndarray, R: float, n: np.ndarray) -> np.ndarray:
+def Circle_Coords(coord: np.ndarray, R: float, n: np.ndarray) -> np.ndarray:
     """Returns center from coordinates a radius and and a vector normal to the circle.\n
     return center
     """
@@ -410,11 +408,6 @@ def Points_Intersect_Circles(circle1, circle2) -> np.ndarray:
     
 # others 
 
-    
-
-
-
-
 def Angle_Between(a: np.ndarray, b: np.ndarray) -> float:
     """Computes the angle between vectors a and b (rad).
     https://math.stackexchange.com/questions/878785/how-to-find-an-angle-in-range0-360-between-2-vectors"""
@@ -439,8 +432,6 @@ def Angle_Between(a: np.ndarray, b: np.ndarray) -> float:
         angle = np.arccos(proj/(norm_a*norm_b))
     
     return angle
-
-
 
 def Jacobian_Matrix(i: np.ndarray, k: np.ndarray) -> np.ndarray:
     """Computes the Jacobian matrix to transform local coordinates (i,j,k) to global (x,y,z) coordinates.\n
@@ -472,7 +463,7 @@ def Jacobian_Matrix(i: np.ndarray, k: np.ndarray) -> np.ndarray:
 
     return F
 
-def Points_Rayon(P0: np.ndarray, P1: np.ndarray, P2: np.ndarray, r: float) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
+def Fillet(P0: np.ndarray, P1: np.ndarray, P2: np.ndarray, r: float) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
     """Computes fillet in a corner P0.\n
     returns A, B, C
 
@@ -517,4 +508,3 @@ def Points_Rayon(P0: np.ndarray, P1: np.ndarray, P2: np.ndarray, r: float) -> tu
         C = P0
 
     return A, B, C
-

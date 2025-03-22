@@ -4,8 +4,7 @@
 
 """Module containing the geometric classes and functions used to build meshes."""
 
-from .geoms._utils import (Point, AsCoords, Normalize,
-                           Rotate, Symmetry, Angle_Between, Jacobian_Matrix)
+from .geoms._utils import Point
 
 from .geoms._geom import _Geom
 

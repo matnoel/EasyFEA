@@ -7,7 +7,7 @@
 from collections.abc import Iterable
 import numpy as np
 
-from ._utils import Point, Points_Rayon
+from ._utils import Point, Fillet
 from ._geom import _Geom
 from ._line import Line
 from ._circle import CircleArc
@@ -92,7 +92,7 @@ class Points(_Geom):
                 corners.append(point)
 
             else:
-                A, B, C = Points_Rayon(point.coord, coordinates[prev], coordinates[next], point.r)
+                A, B, C = Fillet(point.coord, coordinates[prev], coordinates[next], point.r)
 
                 pA = Point(*A, isOpen)
                 pB = Point(*B, isOpen)

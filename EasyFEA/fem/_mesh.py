@@ -23,8 +23,9 @@ from ..utilities._observers import Observable
 from ._utils import ElemType, MatrixType
 from ._group_elems import _GroupElem
 # others
-from ..Geoms import (Point, Line, Domain, Circle,
-                     Rotate, Symmetry, Normalize, Angle_Between)
+from ..Geoms import Point, Line, Domain, Circle
+from ..geoms._utils import Rotate, Symmetry, Normalize, Angle_Between
+
 
 class Mesh(Observable):
     """Mesh class."""

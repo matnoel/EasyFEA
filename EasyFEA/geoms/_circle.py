@@ -6,7 +6,7 @@
 
 import numpy as np
 
-from ._utils import Point, AsCoords, AsPoint, Normalize, Jacobian_Matrix, Angle_Between, Circle_Triangle, Circle_Coord
+from ._utils import Point, AsCoords, AsPoint, Normalize, Jacobian_Matrix, Angle_Between, Circle_Triangle, Circle_Coords
 from ._geom import _Geom
 
 class Circle(_Geom):
@@ -179,7 +179,7 @@ class CircleArc(_Geom):
 
         elif R != None:            
             coord = np.array([pt1.coord, pt2.coord])
-            center = Circle_Coord(coord, R, n)
+            center = Circle_Coords(coord, R, n)
             center = Point(*center)            
         else:
             raise Exception('must give P, center or R')
