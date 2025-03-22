@@ -8,7 +8,11 @@ from . import Folder, Display
 from ..fem import Mesher, Mesh, ElemType
 from .PyVista import DICT_VTK_INDEXES, np
 
-import meshio
+try:
+    import meshio
+except ImportError:
+    raise ImportError("To use this module, you need meshio. For greater functionality with higher-order medit meshes, you need to install meshio using the following meshio fork (https://github.com/matnoel/meshio).")
+
 from typing import Any
 
 # ----------------------------------------------
@@ -90,7 +94,10 @@ def _EasyFEA_to_Meshio(mesh: Mesh, cell_name: str,
 
     cell_data = {cell_name: list_elements}
 
-    meshio_mesh = meshio.Mesh(mesh.coordGlob, cells_dict, None, cell_data)
+    try:
+        meshio_mesh = meshio.Mesh(mesh.coordGlob, cells_dict, None, cell_data)
+    except KeyError:
+        raise KeyError(f"To support {mesh.elemType} elements, you need to install meshio using the following meshio fork (https://github.com/matnoel/meshio).")
 
     return meshio_mesh
 
