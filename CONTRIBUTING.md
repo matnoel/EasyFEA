@@ -4,7 +4,7 @@ Contributors are welcome! To contribute please use the following steps.
 
 2. On your machine, clone the repository and install EasyFEA in editable mode with:
 
-    ```
+    ```bash
     git clone https://github.com/YOURNAME/EasyFEA.git
     cd EasyFEA
     python -m pip install -e .
