@@ -9,7 +9,7 @@ import pandas as pd
 # ----------------------------------------------
 # utilities
 # ----------------------------------------------
-from .utilities import (Display, Folder, MeshIO, Numba, Paraview, PyVista, Tic)
+from .utilities import Display, Folder, MeshIO, Numba, Paraview, PyVista, Tic
 
 # ----------------------------------------------
 # geometry
@@ -19,8 +19,7 @@ from . import Geoms
 # ----------------------------------------------
 # fem
 # ----------------------------------------------
-from .fem import (Mesher, gmsh,
-                  Mesh, MatrixType, ElemType)
+from .fem import Mesher, ElemType, Mesh, gmsh, MatrixType
 
 # ----------------------------------------------
 # materials
@@ -31,3 +30,8 @@ from . import Materials
 # simulations
 # ----------------------------------------------
 from . import Simulations
+
+# ----------------------------------------------
+# version
+# ----------------------------------------------
+from .__about__ import __version__
