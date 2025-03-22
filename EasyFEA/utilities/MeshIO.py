@@ -8,11 +8,7 @@ from . import Folder, Display
 from ..fem import Mesher, Mesh, ElemType
 from .PyVista import DICT_VTK_INDEXES, np
 
-try:
-    import meshio
-except ModuleNotFoundError:
-    raise ModuleNotFoundError("To use this module, you need meshio. For greater functionality with higher-order medit meshes, you need to install meshio using the following meshio fork (https://github.com/matnoel/meshio).")
-
+import meshio
 from typing import Any
 
 # ----------------------------------------------
