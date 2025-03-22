@@ -7,7 +7,7 @@
 from EasyFEA import (Display, Folder, plt, np, Tic,
                      Mesher, ElemType, Mesh,
                      Materials, Simulations,
-                     Paraview_Interface,
+                     Paraview,
                      PyVista_Interface as pvi)
 from EasyFEA.Geoms import Point, Points, Domain, Line, Contour
 
@@ -259,7 +259,7 @@ def DoSimu(split: str, regu: str):
         
             
     if saveParaview:
-        Paraview_Interface.Make_Paraview(simu, folder_save, Nparaview)
+        Paraview.Make_Paraview(simu, folder_save, Nparaview)
 
     if makeMovie:
         # pvi.Plot_Mesh(simu.mesh).show()

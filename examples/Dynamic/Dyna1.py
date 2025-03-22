@@ -7,7 +7,7 @@
 from EasyFEA import (Display, Folder, Tic, plt,
                      Mesher, ElemType,
                      Materials, Simulations,
-                     Paraview_Interface)
+                     Paraview)
 from EasyFEA.Geoms import Point, Domain
 
 if __name__ == '__main__':
@@ -124,7 +124,7 @@ if __name__ == '__main__':
     # folder=""
 
     if makeParaview:
-        Paraview_Interface.Make_Paraview(simu, folder)
+        Paraview.Make_Paraview(simu, folder)
 
     if makeMovie:
         Display.Movie_Simu(simu, resultToPlot, folder, f"{resultToPlot}.mp4", deformFactor=1, plotMesh=True, N=400, nodeValues=True)

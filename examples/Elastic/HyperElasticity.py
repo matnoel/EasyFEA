@@ -10,7 +10,7 @@ WARNING: Implementation not validated.
 from EasyFEA import (Display, Folder, np,
                      Mesher, ElemType,
                      Materials, Simulations,
-                     Paraview_Interface)
+                     Paraview)
 from EasyFEA.Geoms import Point, Points
 
 if __name__ == '__main__':
@@ -142,6 +142,6 @@ if __name__ == '__main__':
     print(simu)
 
     if makeParaview:
-        Paraview_Interface.Make_Paraview(simu, folder, elementsField=['Strain'])
+        Paraview.Make_Paraview(simu, folder, elementsField=['Strain'])
 
     Display.plt.show()

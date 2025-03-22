@@ -7,7 +7,7 @@
 from EasyFEA import (Display, Folder, plt, np, Tic,
                      Mesher, ElemType, Mesh,
                      Materials, Simulations,
-                     Paraview_Interface)
+                     Paraview)
 from EasyFEA.Geoms import Point, Points, Domain, Line, Contour
 
 import multiprocessing
@@ -327,7 +327,7 @@ def DoSimu(split: str, regu: str):
         Display.Plot_Result(simu, "damage", nodeValues=True, plotMesh=False, folder=folder_save, filename="damage")
             
     if saveParaview:
-        Paraview_Interface.Make_Paraview(simu, folder_save, Nparaview)
+        Paraview.Make_Paraview(simu, folder_save, Nparaview)
 
     if makeMovie:
         Display.Movie_Simu(simu, "damage", folder_save, "damage.mp4", N=200)

@@ -7,7 +7,7 @@
 from EasyFEA import (Display, Folder, plt, np, Tic,
                      Mesher, ElemType,
                      Materials, Simulations,
-                     Paraview_Interface,
+                     Paraview,
                      PyVista_Interface as pvi)
 from EasyFEA.Geoms import Point, Points, Domain, Circle
 
@@ -228,6 +228,6 @@ if __name__ == '__main__':
         pvi.Movie_simu(simu, 'damage', folder_save, 'damage.mp4', show_edges=True, deformFactor=deformFactor, clim=(0,1))
 
     if makeParaview:
-        Paraview_Interface.Make_Paraview(simu, folder_save)
+        Paraview.Make_Paraview(simu, folder_save)
 
     plt.show()

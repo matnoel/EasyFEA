@@ -6,7 +6,7 @@
 
 from EasyFEA import (Display, Folder, Tic, plt, np,
                      Mesher, ElemType, Mesh,
-                     Paraview_Interface,
+                     Paraview,
                      PyVista_Interface as pvi)
 from EasyFEA.Geoms import Point, Circle, CircleArc, Contour
 from EasyFEA.fem import Mesh_Optim

@@ -7,7 +7,7 @@
 from EasyFEA import (Display, Folder, Tic, plt, np,
                      Mesher, ElemType,
                      Materials, Simulations,
-                     Paraview_Interface)
+                     Paraview)
 from EasyFEA.Geoms import Domain, Point
 
 if __name__ == '__main__':
@@ -212,7 +212,7 @@ if __name__ == '__main__':
 
     if makeParaview:
         # Generate Paraview files for visualization
-        Paraview_Interface.Make_Paraview(simu, folder, details=True)
+        Paraview.Make_Paraview(simu, folder, details=True)
 
     # Show the total computation time
     print()

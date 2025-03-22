@@ -9,7 +9,7 @@
 from EasyFEA import (Display, Folder, plt, np, pd,
                      Mesher, ElemType,
                      Materials, Simulations,
-                     Paraview_Interface)
+                     Paraview)
 from EasyFEA.Geoms import Point, Points, Circle, Line
 
 if __name__ == '__main__':
@@ -191,6 +191,6 @@ if __name__ == '__main__':
         if np.max(simu.damage[nodes_edges]) >= 1:
             break
     if makeParaview:
-        Paraview_Interface.Make_Paraview(simu, folder)
+        Paraview.Make_Paraview(simu, folder)
 
     plt.show()

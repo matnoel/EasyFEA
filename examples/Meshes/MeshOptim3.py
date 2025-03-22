@@ -7,7 +7,7 @@
 from EasyFEA import (Display, Folder, Tic, plt, np,
                      Mesher, ElemType, Mesh,
                      Materials, Simulations,
-                     Paraview_Interface,
+                     Paraview,
                      PyVista_Interface as pvi)
 from EasyFEA.Geoms import Point, Points
 from EasyFEA.fem import Mesh, Calc_projector
@@ -153,7 +153,7 @@ if __name__ == '__main__':
 
 
     if makeParaview:
-        Paraview_Interface.Make_Paraview(simu, folder, nodesField=["ZZ1_e"])
+        Paraview.Make_Paraview(simu, folder, nodesField=["ZZ1_e"])
     
     if makeMovie:
         def func(plotter, n):

@@ -9,9 +9,8 @@ import pandas as pd
 # ----------------------------------------------
 # utilities
 # ----------------------------------------------
-from .utilities import (Display, Folder, Tic,
+from .utilities import (Display, Folder, Paraview, Tic,
                         Numba_Interface,
-                        Paraview_Interface,
                         PyVista_Interface,
                         meshio_Interface)
 

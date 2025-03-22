@@ -9,7 +9,7 @@ from EasyFEA import (Display, Folder, plt, np,
                      Materials, Simulations)
 from EasyFEA.Geoms import Point, Points, Circle, Line, Contour, Domain
 from EasyFEA import PyVista_Interface as pvi
-from EasyFEA import Paraview_Interface
+from EasyFEA import Paraview
 
 Display.Clear()
 
@@ -190,7 +190,7 @@ else:
 # ----------------------------------------------
 
 if makeParaview:
-    Paraview_Interface.Make_Paraview(simu, folder)
+    Paraview.Make_Paraview(simu, folder)
 
 if makeMovie:
     pvi.Movie_simu(simu, "damage", folder_save, f"damage.mp4", show_edges=True, clim=(0,1), deformFactor=1, n_colors=11)
