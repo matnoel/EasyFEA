@@ -8,6 +8,7 @@ from typing import Union
 import numpy as np
 
 from ._utils import _IModel, ModelType
+from ..utilities import _params
 
 # ----------------------------------------------
 # Thermal
@@ -59,7 +60,7 @@ class Thermal(_IModel):
 
         self.c = c
         
-        assert thickness > 0, "Must be greater than 0"
+        _params.IsPositive(thickness)
         self.__thickness = thickness
 
         self.Need_Update()
@@ -73,7 +74,7 @@ class Thermal(_IModel):
     
     @k.setter
     def k(self, value: Union[float,np.ndarray]) -> None:
-        self._Test_Sup0(value)
+        _params.IsPositive(value)
         self.Need_Update()
         self.__k = value
 
@@ -84,7 +85,7 @@ class Thermal(_IModel):
     
     @c.setter
     def c(self, value: Union[float,np.ndarray]) -> None:
-        self._Test_Sup0(value)
+        _params.IsPositive(value)
         self.Need_Update()
         self.__c = value
     

@@ -12,7 +12,7 @@ import textwrap
 
 from ..__about__ import __version__
 # utilities
-from ..utilities import Folder, Display, Tic
+from ..utilities import Folder, Display, Tic, _params
 from ..utilities._observers import Observable, _IObserver
 # fem
 from ..fem import Mesh, MatrixType, BoundaryCondition, LagrangeCondition
@@ -318,7 +318,7 @@ class _Simu(_IObserver, ABC):
 
     @rho.setter
     def rho(self, value: Union[float, np.ndarray]):
-        _IModel._Test_Sup0(value)
+        _params.IsPositive(value)
         self.__rho = value
         """mass density"""
 

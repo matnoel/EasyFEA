@@ -12,6 +12,7 @@ from ..utilities import Numba, Tic
 from ..fem import Mesh
 # others
 from ._utils import _IModel, ModelType, Reshape_variable
+from ..utilities import _params
 
 # ----------------------------------------------
 # Elasticity
@@ -285,7 +286,7 @@ class PhaseField(_IModel):
     
     @Gc.setter
     def Gc(self, value: Union[float, np.ndarray]):
-        self._Test_Sup0(value)
+        _params.IsPositive(value)
         self.Need_Update()
         self.__Gc = value
 
@@ -296,7 +297,7 @@ class PhaseField(_IModel):
     
     @l0.setter
     def l0(self, value: float):
-        self._Test_Sup0(value)
+        _params.IsPositive(value)
         assert isinstance(value, (int, float)), 'l0 must be a homogeneous parameter'
         self.Need_Update()
         self.__l0 = value

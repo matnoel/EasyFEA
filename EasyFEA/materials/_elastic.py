@@ -14,6 +14,7 @@ from ._utils import (_IModel, ModelType, Heterogeneous_Array,
                      Tensor_Product,
                      KelvinMandel_Matrix, Project_Kelvin,
                      Get_Pmat, Apply_Pmat)
+from ..utilities import _params
 
 # ----------------------------------------------
 # Elasticity
@@ -247,7 +248,7 @@ class Elas_Isot(_Elas):
     
     @E.setter
     def E(self, value):
-        self._Test_Sup0(value)
+        _params.IsPositive(value)
         self.Need_Update()
         self.__E = value
 
@@ -258,7 +259,7 @@ class Elas_Isot(_Elas):
     
     @v.setter
     def v(self, value: float):
-        self._Test_In(value)
+        _params.IsInIntervalcc(value, -1, 0.5)
         self.Need_Update()
         self.__v = value
 
@@ -478,7 +479,7 @@ class Elas_IsotTrans(_Elas):
 
     @El.setter
     def El(self, value: Union[float,np.ndarray]):
-        self._Test_Sup0(value)
+        _params.IsPositive(value)
         self.Need_Update()
         self.__El = value
 
@@ -489,7 +490,7 @@ class Elas_IsotTrans(_Elas):
     
     @Et.setter
     def Et(self, value: Union[float,np.ndarray]):
-        self._Test_Sup0(value)
+        _params.IsPositive(value)
         self.Need_Update()
         self.__Et = value
 
@@ -500,7 +501,7 @@ class Elas_IsotTrans(_Elas):
 
     @Gl.setter
     def Gl(self, value: Union[float,np.ndarray]):
-        self._Test_Sup0(value)
+        _params.IsPositive(value)
         self.Need_Update()
         self.__Gl = value
 
@@ -513,7 +514,7 @@ class Elas_IsotTrans(_Elas):
     def vl(self, value: Union[float,np.ndarray]):
         # -1<vl<0.5
         # Torquato 328
-        self._Test_In(value, -1, 0.5)
+        _params.IsInIntervalcc(value, -1, 0.5)
         self.Need_Update()
         self.__vl = value
     
@@ -526,7 +527,7 @@ class Elas_IsotTrans(_Elas):
     def vt(self, value: Union[float,np.ndarray]):
         # -1<vt<1
         # Torquato 328
-        self._Test_In(value, -1, 1)
+        _params.IsInIntervalcc(value, -1, 1)
         self.Need_Update()
         self.__vt = value
 

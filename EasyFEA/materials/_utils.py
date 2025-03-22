@@ -70,22 +70,6 @@ class _IModel(ABC, Observable):
     def isHeterogeneous(self) -> bool:
         """indicates whether the model has heterogeneous parameters"""
         return False
-    
-    @staticmethod
-    def _Test_Sup0(value: Union[float,np.ndarray]) -> None:
-        errorText = "Must be > 0!"
-        if isinstance(value, (float, int)):
-            assert value > 0.0, errorText
-        if isinstance(value, np.ndarray):
-            assert value.min() > 0.0, errorText
-
-    @staticmethod
-    def _Test_In(value: Union[float,np.ndarray], bInf=-1, bSup=0.5) -> None:
-        errorText = f"Must be between ]{bInf};{bSup}["
-        if isinstance(value, (float, int)):
-            assert value > bInf and value < bSup, errorText
-        if isinstance(value, np.ndarray):
-            assert value.min() > bInf and value.max() < bSup, errorText
 
 # ----------------------------------------------
 # Functions

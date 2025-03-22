@@ -7,13 +7,14 @@ from typing import Union
 
 # utilities
 import numpy as np
-# others
+# geom
 from ..Geoms import Line
 from ..geoms import AsCoords, Normalize
 # fem
 from ..fem import Mesh, _GroupElem
 # materials
 from ._utils import _IModel, ModelType
+from ..utilities import _params
 
 # ----------------------------------------------
 # Beam
@@ -232,7 +233,7 @@ class Beam_Elas_Isot(_Beam):
     
     @E.setter
     def E(self, value: float) -> None:
-        self._Test_Sup0(value)
+        _params.IsPositive(value)
         self.Need_Update()
         self.__E = value
 
@@ -243,7 +244,7 @@ class Beam_Elas_Isot(_Beam):
     
     @v.setter
     def v(self, value: float):
-        self._Test_In(value)
+        _params.IsInIntervalcc(value, -1, 0.5)
         self.Need_Update()
         self.__v = value
     
