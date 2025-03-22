@@ -5,7 +5,7 @@
 import pytest
 
 from EasyFEA import Mesher, ElemType, Mesh, plt, np
-from EasyFEA.Geoms import Rotate_coord, Domain, Point
+from EasyFEA.Geoms import Rotate, Domain, Point
 from EasyFEA import Display as Display
 
 class TestGmshInterface:
@@ -92,12 +92,12 @@ class TestGmshInterface:
             # Rotate
             rot = np.random.rand() * 360
             meshRotate = mesh.copy()
-            newCenter = Rotate_coord(mesh.center, rot, mesh.center, (1,0))            
+            newCenter = Rotate(mesh.center, rot, mesh.center, (1,0))            
             meshRotate.Rotate(rot, meshRotate.center, (1,0))
             testSame(meshRotate.center, newCenter)  # same center
             testSameMesh(meshRotate, mesh)
             axis = (1,3,-1)
-            newCenter = Rotate_coord(newCenter, rot, newCenter, axis)
+            newCenter = Rotate(newCenter, rot, newCenter, axis)
             meshRotate.Rotate(rot, meshRotate.center, axis)
             testSame(meshRotate.center, newCenter) # same center
             testSameMesh(meshRotate, mesh)

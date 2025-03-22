@@ -8,7 +8,7 @@ from typing import Union
 # utilities
 import numpy as np
 # others
-from ..Geoms import Line, Normalize_vect, As_Coordinates
+from ..Geoms import Line, Normalize, AsCoords
 # fem
 from ..fem import Mesh, _GroupElem
 # materials
@@ -132,19 +132,19 @@ class _Beam(_IModel):
 
         # set y axis
         xAxis = self.xAxis
-        yAxis = Normalize_vect(As_Coordinates(value))
+        yAxis = Normalize(AsCoords(value))
 
         # check that the yaxis is not colinear to the fiber axis
         crossProd = np.cross(xAxis, yAxis)
         if np.linalg.norm(crossProd) <= 1e-12:
             # create a new y-axis
-            yAxis = Normalize_vect(np.cross([0,0,1], xAxis))
+            yAxis = Normalize(np.cross([0,0,1], xAxis))
             print(f"The beam's vertical axis has been selected incorrectly (collinear with the beam x-axis).\nAxis {np.array_str(yAxis, precision=3)} has been assigned for {self.name}.")
         else:
             # get the horizontal direction of the beam
-            zAxis = Normalize_vect(np.cross(xAxis, yAxis))
+            zAxis = Normalize(np.cross(xAxis, yAxis))
             # make sure that x,y,z are orthogonal
-            yAxis = Normalize_vect(np.cross(zAxis, xAxis))
+            yAxis = Normalize(np.cross(zAxis, xAxis))
 
         self.Need_Update()
 
@@ -192,7 +192,7 @@ class _Beam(_IModel):
         
         i = line.unitVector
         j = self.yAxis
-        k = Normalize_vect(np.cross(i,j))
+        k = Normalize(np.cross(i,j))
 
         J = np.array([i,j,k]).T
         return J

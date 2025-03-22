@@ -7,14 +7,21 @@ This module handles geometric objects (_Geom) to facilitate the creation of mesh
 
 import sys, os, matplotlib, gmsh
 import numpy as np
+from typing import Union
+from collections.abc import Iterable
 
 # utilities
 from ..utilities import Display, Folder, Tic
 # geom
-from ..Geoms import _Geom, Point, Points, Line, Circle, CircleArc, Domain, Contour, Union, Iterable, Normalize_vect
+from ..Geoms import _Geom, Point, Points, Line, Circle, CircleArc, Domain, Contour, Normalize
 # fem
 from ._mesh import Mesh, ElemType
 from ._group_elems import _GroupElem, GroupElemFactory
+
+# types
+LoopCompatible = Union[Circle, Domain, Points, Contour]
+ContourCompatible = Union[Line, CircleArc, Points]
+CrackCompatible = Union[Line, Points, Contour, CircleArc]
 
 class Mesher:
     """Mesher class used to construct and generate the mesh via gmsh."""
@@ -87,7 +94,7 @@ class Mesher:
         else:
             factory.synchronize()
         
-    def _Loop_From_Geom(self, geom: Union[Circle, Domain, Points, Contour]) -> tuple[int, list[int], list[int]]:
+    def _Loop_From_Geom(self, geom: LoopCompatible) -> tuple[int, list[int], list[int]]:
         """Creates a loop based on the geometric object.\n
         returns loop, lines, points"""
 
@@ -122,7 +129,7 @@ class Mesher:
 
         for i, geom in enumerate(contour.geoms):
 
-            assert isinstance(geom, (Line, CircleArc, Points)), "Must be a Line, CircleArc or Points"
+            assert isinstance(geom, ContourCompatible), "Must be a Line, CircleArc or Points"
 
             if i == 0:
                 p1 = factory.addPoint(*geom.pt1.coord, geom.meshSize)
@@ -324,7 +331,7 @@ class Mesher:
                 geoms = contour.Get_Contour().geoms
             
             N = len(geoms) # number of geom in contour
-            def get_numElem(geom: Union[Line,CircleArc,Points]):
+            def get_numElem(geom: ContourCompatible):
                 meshSize = geom.length if geom.meshSize == 0 else geom.meshSize                
                 return geom.length/meshSize            
             if N % 2 == 0: # N is odd
@@ -604,7 +611,7 @@ class Mesher:
         entities = [(2,s) for s in surfaces]
 
         p0 = axis.pt1.coord
-        a0 = Normalize_vect(axis.pt2.coord - p0)
+        a0 = Normalize(axis.pt2.coord - p0)
 
         # Create new entites
         revol = factory.revolve(entities, *p0, *a0, angle, layers, recombine=recombine)
@@ -866,7 +873,7 @@ class Mesher:
 
         return self._Mesh_Get_Mesh()
 
-    def _Cracks_SetPhysicalGroups(self, cracks: list[Union[Line,Points,Contour,CircleArc]], entities: list[tuple]) -> tuple[int, int, int, int]:
+    def _Cracks_SetPhysicalGroups(self, cracks: list[CrackCompatible], entities: list[tuple]) -> tuple[int, int, int, int]:
         """Creates physical groups for cracks embeded in existing gmsh entities.\n
         returns crackLines, crackSurfaces, openPoints, openLines
         """

@@ -24,7 +24,7 @@ from ._utils import ElemType, MatrixType
 from ._group_elems import _GroupElem
 # others
 from ..Geoms import (Point, Line, Domain, Circle,
-                     Rotate_coord, Symmetry_coord, Normalize_vect, AngleBetween_a_b)
+                     Rotate, Symmetry, Normalize, Angle_Between)
 
 class Mesh(Observable):
     """Mesh class."""
@@ -175,7 +175,7 @@ class Mesh(Observable):
         """
 
         oldCoord = self.coord
-        newCoord = Rotate_coord(oldCoord, theta, center, direction)
+        newCoord = Rotate(oldCoord, theta, center, direction)
         for grp in self.dict_groupElem.values():
             grp.coordGlob = newCoord
         self._Notify('The mesh has been modified')
@@ -192,7 +192,7 @@ class Mesh(Observable):
         """
 
         oldCoord = self.coord
-        newCoord = Symmetry_coord(oldCoord, point, n)
+        newCoord = Symmetry(oldCoord, point, n)
         for grp in self.dict_groupElem.values():
             grp.coordGlob = newCoord
         self._Notify('The mesh has been modified')
@@ -667,7 +667,7 @@ class Mesh(Observable):
 
             line = next_corner - corner # constructs line between 2 corners
             lineLength = np.linalg.norm(line) # length of the line
-            vect = Normalize_vect(line) # normalized vector between the edge corners
+            vect = Normalize(line) # normalized vector between the edge corners
             vect_i = coordo - corner # vector coordinates from the first corner of the edge
             scalarProduct = np.einsum('ni,i', vect_i, vect, optimize="optimal")
             crossProduct = np.cross(vect_i, vect)
@@ -793,7 +793,7 @@ class Mesh(Observable):
                 p1_e = coordo[connect[:, next]]
                 p2_e = coordo[connect[:, prev]]
 
-                angle_e = AngleBetween_a_b(p1_e-p0_e, p2_e-p0_e)
+                angle_e = Angle_Between(p1_e-p0_e, p2_e-p0_e)
 
                 angle_e_s[:,c] = np.abs(angle_e)
 

@@ -58,9 +58,10 @@ if __name__ == '__main__':
     for c in range(4):
 
         pc = circle.center
-        pc1 = circle.contour.geoms[c].pt1
-        pc2 = circle.contour.geoms[c].pt2
-        pc3 = circle.contour.geoms[c].pt3
+        contour = circle.Get_Contour()
+        pc1 = contour.geoms[c].pt1
+        pc2 = contour.geoms[c].pt2
+        pc3 = contour.geoms[c].pt3
         
         p1,p2,p3 = contour1.points[c*2:c*2+3]
 

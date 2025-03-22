@@ -9,7 +9,7 @@ from scipy.linalg import sqrtm
 # utilities
 import numpy as np
 # others
-from ..Geoms import As_Coordinates, Normalize_vect
+from ..Geoms import AsCoords, Normalize
 from ._utils import (_IModel, ModelType,
                      Reshape_variable, Heterogeneous_Array,
                      Tensor_Product,
@@ -452,13 +452,13 @@ class Elas_IsotTrans(_Elas):
         self.vl=vl
         self.vt=vt
 
-        axis_l = As_Coordinates(axis_l)
-        axis_t = As_Coordinates(axis_t)
+        axis_l = AsCoords(axis_l)
+        axis_t = AsCoords(axis_t)
         assert axis_l.size == 3 and len(axis_l.shape) == 1, 'axis_l must be a 3D vector'
         assert axis_t.size == 3 and len(axis_t.shape) == 1, 'axis_t must be a 3D vector'
         assert axis_l @ axis_t <= 1e-12, 'axis1 and axis2 must be perpendicular'
-        self.__axis_l = Normalize_vect(axis_l)
-        self.__axis_t = Normalize_vect(axis_t)
+        self.__axis_l = Normalize(axis_l)
+        self.__axis_t = Normalize(axis_t)
 
         _Elas.__init__(self, dim, thickness, planeStress)
 
@@ -760,13 +760,13 @@ class Elas_Anisot(_Elas):
         assert dim in [2,3], "Must be dimension 2 or 3"
         self.__dim = dim
 
-        axis1 = As_Coordinates(axis1)
-        axis2 = As_Coordinates(axis2)
+        axis1 = AsCoords(axis1)
+        axis2 = AsCoords(axis2)
         assert axis1.size == 3 and len(axis1.shape) == 1, 'axis1 must be a 3D vector'
         assert axis2.size == 3 and len(axis2.shape) == 1, 'axis2 must be a 3D vector'
         assert axis1 @ axis2 <= 1e-12, 'axis1 and axis2 must be perpendicular'
-        self.__axis1 = Normalize_vect(axis1)
-        self.__axis2 = Normalize_vect(axis2)
+        self.__axis1 = Normalize(axis1)
+        self.__axis2 = Normalize(axis2)
 
         # here planeStress is set to False because we just know the C matrix
         _Elas.__init__(self, dim, thickness, False)
