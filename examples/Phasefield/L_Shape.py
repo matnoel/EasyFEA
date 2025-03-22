@@ -192,7 +192,7 @@ if __name__ == '__main__':
         # saves load and displacement
         displacement = np.asarray(displacement)
         force = np.asarray(force)
-        Simulations.Save_Force_Displacement(force, displacement, folder_save)
+        Simulations.Save_pickle((force, displacement), folder_save, "force-displacement")
 
         # saves the simulation
         simu.Save(folder_save)
@@ -204,7 +204,7 @@ if __name__ == '__main__':
         simu = Simulations.Load_Simu(folder_save)
         mesh = simu.mesh
 
-    force, displacement = Simulations.Load_Force_Displacement(folder_save)
+    force, displacement = Simulations.Load_pickle(folder_save, "force-displacement")
 
     # ----------------------------------------------
     # PostProcessing

@@ -227,14 +227,14 @@ def DoSimu(split: str, regu: str):
         # Saving
         # ----------------------------------------------
         print()
-        Simulations.Save_Force_Displacement(force, displacement, folder_save)
+        Simulations.Save_pickle((force, displacement), folder_save, "force-displacement")
         simu.Save(folder_save)        
 
         force = np.asarray(force)
         displacement = np.asarray(displacement)
     else:
         simu: Simulations.PhaseFieldSimu = Simulations.Load_Simu(folder_save)
-        force, displacement = Simulations.Load_Force_Displacement(folder_save)
+        force, displacement = Simulations.Load_pickle(folder_save, "force-displacement")
 
     # ----------------------------------------------
     # PostProcessing
