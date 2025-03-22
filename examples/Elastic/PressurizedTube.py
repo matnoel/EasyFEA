@@ -7,7 +7,7 @@
 from EasyFEA import (Display, np,
                      Mesher, ElemType,
                      Materials, Simulations,
-                     PyVista_Interface as pvi)
+                     PyVista)
 from EasyFEA.Geoms import Point, Line, Circle, CircleArc, Contour
 
 if __name__ == '__main__':
@@ -106,6 +106,6 @@ if __name__ == '__main__':
 
     print(simu)
 
-    pvi.Plot_BoundaryConditions(simu).show()
+    PyVista.Plot_BoundaryConditions(simu).show()
 
     Display.plt.show()

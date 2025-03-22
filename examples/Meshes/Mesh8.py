@@ -6,7 +6,7 @@
 
 from EasyFEA import (Display, Folder, np,
                      Mesher, ElemType, gmsh,
-                     PyVista_Interface as pvi,)
+                     PyVista,)
 from EasyFEA.Geoms import Point, Circle, Points
 
 folder = Folder.Dir(__file__)
@@ -96,12 +96,12 @@ if __name__ == '__main__':
     if dim == 3:
         print(f'volume = {mesh.volume:.3f}')
 
-    plotter = pvi._Plotter(shape=(1,2))
+    plotter = PyVista._Plotter(shape=(1,2))
 
-    pvi.Plot_Mesh(mesh, plotter=plotter)
+    PyVista.Plot_Mesh(mesh, plotter=plotter)
 
     plotter.subplot(0,1)
     plotter.add_title('aspect ratio')
     qual = mesh.Get_Quality()
-    pvi.Plot_Elements(mesh, dimElem=1, plotter=plotter, color='k')
-    pvi.Plot(mesh, qual, nodeValues=False, cmap='viridis', clim=(0,1), show_edges=True, plotter=plotter).show()
+    PyVista.Plot_Elements(mesh, dimElem=1, plotter=plotter, color='k')
+    PyVista.Plot(mesh, qual, nodeValues=False, cmap='viridis', clim=(0,1), show_edges=True, plotter=plotter).show()

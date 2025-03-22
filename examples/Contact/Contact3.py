@@ -10,7 +10,7 @@ WARNING: The assumption of small displacements is highly questionable for this s
 from EasyFEA import (Display, Folder, Tic, plt, np,
                      Mesher, ElemType,
                      Materials, Simulations,
-                     PyVista_Interface as pvi)
+                     PyVista)
 from EasyFEA.Geoms import Point, Domain, Points
 
 folder = Folder.Join(Folder.RESULTS_DIR, 'Contact', mkdir=True)
@@ -132,10 +132,10 @@ if __name__ == '__main__':
 
         def DoAnim(plotter, n):
             simu.Set_Iter(n)
-            pvi.Plot(simu, "Svm", 1, style='surface', color='k', plotter=plotter,
+            PyVista.Plot(simu, "Svm", 1, style='surface', color='k', plotter=plotter,
                  show_grid=True, verticalColobar=False)
-            pvi.Plot(master_mesh, plotter=plotter, show_edges=True, opacity=.8)
+            PyVista.Plot(master_mesh, plotter=plotter, show_edges=True, opacity=.8)
 
-        pvi.Movie_func(DoAnim, N, folder=folder, filename='Contact3.mp4')
+        PyVista.Movie_func(DoAnim, N, folder=folder, filename='Contact3.mp4')
 
     plt.show()

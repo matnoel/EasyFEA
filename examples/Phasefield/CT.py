@@ -6,10 +6,8 @@
 
 from EasyFEA import (Display, Folder, plt, np,
                      Mesher, ElemType,
-                     Materials, Simulations)
+                     Materials, Simulations, PyVista, Paraview)
 from EasyFEA.Geoms import Point, Points, Circle, Line, Contour, Domain
-from EasyFEA import PyVista_Interface as pvi
-from EasyFEA import Paraview
 
 Display.Clear()
 
@@ -113,8 +111,8 @@ else:
 
     mesh = Mesher().Mesh_Extrude(contour, [circle1, circle2], [0,0,thickness], [4], elemType, cracks=cracks, additionalLines=[line1], refineGeoms=[refineGeom])
 
-# pvi.Plot_Mesh(mesh).show()
-# pvi.Plot_Nodes(mesh, mesh.orphanNodes).show()
+# PyVista.Plot_Mesh(mesh).show()
+# PyVista.Plot_Nodes(mesh, mesh.orphanNodes).show()
 
 nodes_1 = mesh.Nodes_Cylinder(circle1)
 nodes_2 = mesh.Nodes_Cylinder(circle2)
@@ -163,7 +161,7 @@ if doSimu:
             simu.add_dirichlet(nodes_1, [0,-dep, 0], ["x", "y", "z"])
             simu.add_dirichlet(nodes_2, [0,dep, 0], ["x", "y", "z"])
 
-        # pvi.Plot_BoundaryConditions(simu).show()
+        # PyVista.Plot_BoundaryConditions(simu).show()
 
         u, d, K, converg = simu.Solve()
         
@@ -193,7 +191,7 @@ if makeParaview:
     Paraview.Make_Paraview(simu, folder)
 
 if makeMovie:
-    pvi.Movie_simu(simu, "damage", folder_save, f"damage.mp4", show_edges=True, clim=(0,1), deformFactor=1, n_colors=11)
+    PyVista.Movie_simu(simu, "damage", folder_save, f"damage.mp4", show_edges=True, clim=(0,1), deformFactor=1, n_colors=11)
 
 Display.Plot_Mesh(mesh)
 Display.Plot_Tags(mesh, folder=folder_save)
@@ -201,6 +199,6 @@ Display.Plot_Tags(mesh, folder=folder_save)
 Display.Plot_Result(simu, "damage", folder=folder_save)
 Display.Plot_Result(simu, "uy", deformFactor=1)
 
-pvi.Plot(simu, "damage", 1, show_edges=True).show()
+PyVista.Plot(simu, "damage", 1, show_edges=True).show()
 
 plt.show()

@@ -4,10 +4,8 @@
 
 """Optimization of a happy mesh with quality criteria."""
 
-from EasyFEA import (Display, Folder, Tic, plt, np,
-                     Mesher, ElemType, Mesh,
-                     Paraview,
-                     PyVista_Interface as pvi)
+from EasyFEA import (Display, Folder, plt, np,
+                     Mesher, ElemType, Mesh)
 from EasyFEA.Geoms import Point, Circle, CircleArc, Contour
 from EasyFEA.fem import Mesh_Optim
 

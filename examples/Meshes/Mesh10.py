@@ -6,7 +6,7 @@
 
 from EasyFEA import (Display, Folder, np,
                      Mesher, ElemType, 
-                     PyVista_Interface as pvi)
+                     PyVista)
 from EasyFEA.Geoms import Point, Points, Contour, CircleArc, Line
 
 import scipy.io
@@ -307,9 +307,9 @@ if __name__ == '__main__':
     # Plot
     # ----------------------------------------------
         
-    pvi.Plot_Mesh(mesh).show()
+    PyVista.Plot_Mesh(mesh).show()
 
     qual = mesh.Get_Quality('aspect')
-    pvi.Plot(mesh, qual, nodeValues=False, show_edges=True, cmap='viridis', clim=(0,1), n_colors=11).show()
+    PyVista.Plot(mesh, qual, nodeValues=False, show_edges=True, cmap='viridis', clim=(0,1), n_colors=11).show()
 
     Display.plt.show()

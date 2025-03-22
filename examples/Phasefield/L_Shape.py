@@ -7,8 +7,7 @@
 from EasyFEA import (Display, Folder, plt, np, Tic,
                      Mesher, ElemType,
                      Materials, Simulations,
-                     Paraview,
-                     PyVista_Interface as pvi)
+                     Paraview, PyVista)
 from EasyFEA.Geoms import Point, Points, Domain, Circle
 
 if __name__ == '__main__':
@@ -111,8 +110,8 @@ if __name__ == '__main__':
 
     # Display.Plot_Mesh(mesh)
     # Display.Plot_Tags(mesh)
-    # from EasyFEA import PyVista_Interface as pvi
-    # pvi.Plot_Mesh(mesh).show()
+    # from EasyFEA import PyVista
+    # PyVista.Plot_Mesh(mesh).show()
 
     nodes_y0 = mesh.Nodes_Conditions(lambda x,y,z: y==0)
     nodes_load = mesh.Nodes_Conditions(lambda x,y,z: (y==L) & (x>=2*L-30))
@@ -225,7 +224,7 @@ if __name__ == '__main__':
     if makeMovie:
         depMax = simu.Result("displacement_norm").max()
         deformFactor = L*.1/depMax
-        pvi.Movie_simu(simu, 'damage', folder_save, 'damage.mp4', show_edges=True, deformFactor=deformFactor, clim=(0,1))
+        PyVista.Movie_simu(simu, 'damage', folder_save, 'damage.mp4', show_edges=True, deformFactor=deformFactor, clim=(0,1))
 
     if makeParaview:
         Paraview.Make_Paraview(simu, folder_save)

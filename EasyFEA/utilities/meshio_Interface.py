@@ -1,6 +1,6 @@
 from . import Folder, Display
 from ..fem import Mesher, Mesh, ElemType
-from .PyVista_Interface import DICT_VTK_INDEXES, np
+from .PyVista import DICT_VTK_INDEXES, np
 
 import meshio
 from typing import Any

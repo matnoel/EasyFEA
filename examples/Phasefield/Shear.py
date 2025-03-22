@@ -7,8 +7,7 @@
 from EasyFEA import (Display, Folder, plt, np, Tic,
                      Mesher, ElemType, Mesh,
                      Materials, Simulations,
-                     Paraview,
-                     PyVista_Interface as pvi)
+                     Paraview, PyVista)
 from EasyFEA.Geoms import Point, Points, Domain, Line, Contour
 
 import multiprocessing
@@ -251,8 +250,8 @@ def DoSimu(split: str, regu: str):
         # Display.Save_fig(folder, "deform damage")
 
     if plotMesh:
-        # pvi.Plot_Mesh(simu.mesh).show()
-        # pvi.Plot(simu, "ux", show_edges=True).show()
+        # PyVista.Plot_Mesh(simu.mesh).show()
+        # PyVista.Plot(simu, "ux", show_edges=True).show()
         ax = Display.Plot_Mesh(simu.mesh, lw=0.3, facecolors='white')
         ax.axis('off'); ax.set_title("")
         Display.Save_fig(folder_save, "mesh", transparent=True)
@@ -262,7 +261,7 @@ def DoSimu(split: str, regu: str):
         Paraview.Make_Paraview(simu, folder_save, Nparaview)
 
     if makeMovie:
-        # pvi.Plot_Mesh(simu.mesh).show()
+        # PyVista.Plot_Mesh(simu.mesh).show()
         simu.Set_Iter(-1)
         nodes_upper = simu.mesh.Nodes_Conditions(lambda x,y,z: y==L)
         depMax = simu.Result('displacement_norm')[nodes_upper].max()
@@ -272,13 +271,13 @@ def DoSimu(split: str, regu: str):
 
             simu.Set_Iter(n)
 
-            grid = pvi._pvGrid(simu, 'damage', deformFactor)
+            grid = PyVista._pvGrid(simu, 'damage', deformFactor)
 
             tresh = grid.threshold((0,0.8))
         
-            pvi.Plot(tresh, 'damage', deformFactor, show_edges=True, plotter=plotter, clim=(0,1))
+            PyVista.Plot(tresh, 'damage', deformFactor, show_edges=True, plotter=plotter, clim=(0,1))
         
-        pvi.Movie_func(Func, len(simu.results), folder_save, 'damage.mp4')
+        PyVista.Movie_func(Func, len(simu.results), folder_save, 'damage.mp4')
         
             
     if plotEnergy:

@@ -7,7 +7,7 @@
 from EasyFEA import (Display, Folder, plt, np,
                      Mesher, ElemType, 
                      Materials, Simulations,
-                     PyVista_Interface as pvi)
+                     PyVista)
 from EasyFEA.Geoms import Circle, Domain, Point
 
 if __name__ == '__main__':
@@ -101,7 +101,7 @@ if __name__ == '__main__':
 
     # Create a movie of the simulation if pltMovie is True
     if makeMovie:
-        pvi.Movie_simu(simu, "thermal", folder, f"thermal{dim}D.mp4", show_edges=True)
+        PyVista.Movie_simu(simu, "thermal", folder, f"thermal{dim}D.mp4", show_edges=True)
 
     # Print the minimum temperature achieved in the simulation
     print(simu)

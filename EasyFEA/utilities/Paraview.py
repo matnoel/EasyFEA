@@ -8,7 +8,7 @@ import numpy as np
 
 # utilities
 from . import Display, Folder, Tic
-from .PyVista_Interface import DICT_VTK_INDEXES, DICT_CELL_TYPES
+from .PyVista import DICT_VTK_INDEXES, DICT_CELL_TYPES
 
 # ----------------------------------------------
 # Paraview

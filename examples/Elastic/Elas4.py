@@ -7,7 +7,7 @@
 from EasyFEA import (Display, Tic, plt, np,
                      Mesher, ElemType,
                      Materials, Simulations,
-                     PyVista_Interface as pvi)
+                     PyVista)
 from EasyFEA.Geoms import Point, Points, Line
 
 if __name__ == '__main__':
@@ -119,11 +119,11 @@ if __name__ == '__main__':
     # Results
     # ----------------------------------------------
 
-    plotter = pvi._Plotter(shape=(2,1))
-    pvi.Plot(simu, 'ux', coef=1/coef, n_colors=20, show_edges=True, plotter=plotter, verticalColobar=False)
-    pvi.Plot_BoundaryConditions(simu, plotter=plotter)
+    plotter = PyVista._Plotter(shape=(2,1))
+    PyVista.Plot(simu, 'ux', coef=1/coef, n_colors=20, show_edges=True, plotter=plotter, verticalColobar=False)
+    PyVista.Plot_BoundaryConditions(simu, plotter=plotter)
     plotter.subplot(1,0)    
-    pvi.Plot(simu, 'uy', coef=1/coef, n_colors=20, plotter=plotter, verticalColobar=False)
+    PyVista.Plot(simu, 'uy', coef=1/coef, n_colors=20, plotter=plotter, verticalColobar=False)
     plotter.show()
 
     Tic.Plot_History(details=False)

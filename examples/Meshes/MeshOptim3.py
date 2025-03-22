@@ -7,8 +7,7 @@
 from EasyFEA import (Display, Folder, Tic, plt, np,
                      Mesher, ElemType, Mesh,
                      Materials, Simulations,
-                     Paraview,
-                     PyVista_Interface as pvi)
+                     Paraview, PyVista)
 from EasyFEA.Geoms import Point, Points
 from EasyFEA.fem import Mesh, Calc_projector
 
@@ -160,14 +159,14 @@ if __name__ == '__main__':
 
             simu.Set_Iter(n)
 
-            pvi.Plot(simu, 'ZZ1_e', show_edges=True, edge_color='grey', plotter=plotter, clim=(0, 1), verticalColobar=False)
-            # pvi.Plot_BoundaryConditions(simu, plotter=plotter)
+            PyVista.Plot(simu, 'ZZ1_e', show_edges=True, edge_color='grey', plotter=plotter, clim=(0, 1), verticalColobar=False)
+            # PyVista.Plot_BoundaryConditions(simu, plotter=plotter)
 
             zz1 = simu._Calc_ZZ1()[0]
 
             plotter.add_title(f'ZZ1 = {zz1*100:.2f} %')
 
-        pvi.Movie_func(func, len(simu.results), folder, f'letterWeigher.gif')
+        PyVista.Movie_func(func, len(simu.results), folder, f'letterWeigher.gif')
 
     Tic.Plot_History(details=False)
     plt.show()
