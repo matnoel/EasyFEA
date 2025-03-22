@@ -24,7 +24,7 @@ from ._utils import ElemType, MatrixType
 from ._group_elems import _GroupElem
 # others
 from ..Geoms import Point, Line, Domain, Circle
-from ..geoms._utils import Rotate, Symmetry, Normalize, Angle_Between
+from ..geoms import Rotate, Symmetry, Normalize, Angle_Between
 
 
 class Mesh(Observable):

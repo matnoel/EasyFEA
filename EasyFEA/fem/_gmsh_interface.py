@@ -14,7 +14,7 @@ from collections.abc import Iterable
 from ..utilities import Display, Folder, Tic
 # geom
 from ..Geoms import _Geom, Point, Points, Line, Circle, CircleArc, Domain, Contour
-from ..geoms._utils import Normalize
+from ..geoms import Normalize
 # fem
 from ._mesh import Mesh, ElemType
 from ._group_elems import _GroupElem, GroupElemFactory

@@ -9,7 +9,7 @@ from scipy.linalg import sqrtm
 # utilities
 import numpy as np
 # others
-from ..geoms._utils import AsCoords, Normalize
+from ..geoms import AsCoords, Normalize
 from ._utils import (_IModel, ModelType,
                      Reshape_variable, Heterogeneous_Array,
                      Tensor_Product,

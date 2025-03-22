@@ -9,7 +9,7 @@ from typing import Union
 import numpy as np
 # others
 from ..Geoms import Line
-from ..geoms._utils import AsCoords, Normalize
+from ..geoms import AsCoords, Normalize
 # fem
 from ..fem import Mesh, _GroupElem
 # materials

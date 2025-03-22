@@ -29,7 +29,7 @@ from ._utils import ElemType, MatrixType
 
 # # others
 from ..Geoms import Point, Domain, Line, Circle
-from ..geoms._utils import Jacobian_Matrix
+from ..geoms import Jacobian_Matrix
 
 class _GroupElem(ABC):
 
