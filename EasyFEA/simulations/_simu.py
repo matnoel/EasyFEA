@@ -1631,7 +1631,7 @@ class _Simu(_IObserver, ABC):
 # ----------------------------------------------
 
 def _Init_obj(obj, deformFactor: float=0.0):
-    """Returns (simu, mesh, coordo, inDim) from an ojbect that could be either a _Simu or a Mesh object.
+    """Returns (simu, mesh, coordo, inDim) from an ojbect that could be either a _Simu, a Mhes or a _GroupElem object.
     
     Parameters
     ----------

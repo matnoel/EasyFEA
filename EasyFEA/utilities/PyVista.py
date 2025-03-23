@@ -12,7 +12,8 @@ import pyvista as pv
 import numpy as np
 
 # utilities
-from .Display import MyPrintError, _Init_obj, MyPrint
+from .Display import MyPrintError, MyPrint
+from ..simulations._simu import _Init_obj
 from . import Folder, Tic
 from .. import Geoms
 # fem
