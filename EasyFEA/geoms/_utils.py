@@ -36,6 +36,7 @@ class Point:
     
     @x.setter
     def x(self, value) -> None:
+        assert isinstance(value, (float, int))
         self.__coord[0] = value
 
     @property
@@ -45,6 +46,7 @@ class Point:
     
     @y.setter
     def y(self, value) -> None:
+        assert isinstance(value, (float, int))
         self.__coord[1] = value
 
     @property
@@ -54,6 +56,7 @@ class Point:
     
     @z.setter
     def z(self, value) -> None:
+        assert isinstance(value, (float, int))
         self.__coord[2] = value
 
     @property
@@ -181,7 +184,7 @@ def AsCoords(value) -> np.ndarray:
     elif isinstance(value, Iterable):
         val = np.asarray(value, dtype=float)
         if len(val.shape) == 2:
-            assert val.shape[-1] <= 3, 'must be 3d vector or vectors'
+            assert val.shape[-1] <= 3, 'must be 3d vector or 3d vectors'
             coord = val
         else:
             coord = np.zeros(3)

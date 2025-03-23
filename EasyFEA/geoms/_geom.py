@@ -34,10 +34,10 @@ class _Geom(ABC):
         assert isinstance(points, Iterable) and isinstance(points[0], Point), "points must be a list of points."
         self.__points: list[Point] = points
 
-        self.meshSize: float = meshSize
+        self.meshSize = meshSize
         self.name = name
         self.isHollow = isHollow
-        self.isOpen: bool = isOpen
+        self.isOpen = isOpen
 
     @property
     def meshSize(self) -> float:
