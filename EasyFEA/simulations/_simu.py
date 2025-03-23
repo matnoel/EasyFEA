@@ -15,7 +15,7 @@ from ..__about__ import __version__
 from ..utilities import Folder, Display, Tic, _params
 from ..utilities._observers import Observable, _IObserver
 # fem
-from ..fem import Mesh, MatrixType, BoundaryCondition, LagrangeCondition
+from ..fem import Mesh, _GroupElem, MatrixType, BoundaryCondition, LagrangeCondition
 # materials
 from ..materials import ModelType, _IModel, Reshape_variable
 # simu
@@ -1629,6 +1629,44 @@ class _Simu(_IObserver, ABC):
 # ----------------------------------------------
 # _Simu Functions
 # ----------------------------------------------
+
+def _Init_obj(obj, deformFactor: float=0.0):
+    """Returns (simu, mesh, coordo, inDim) from an ojbect that could be either a _Simu or a Mesh object.
+    
+    Parameters
+    ----------
+    obj : _Simu | Mesh | _GroupElem
+        An object that contain the mesh
+    deformFactor : float, optional
+        the factor used to deform the mesh, by default 0.0
+
+    Returns
+    -------
+    tuple[_Simu|None, Mesh, ndarray, int]
+        (simu, mesh, coordo, inDim)
+    """
+
+    # here we detect the nature of the object
+    if isinstance(obj, _Simu):
+        simu = obj
+        mesh = simu.mesh
+        u = simu.Results_displacement_matrix()
+        coordo: np.ndarray = mesh.coordGlob + u * np.abs(deformFactor)
+        inDim: int = np.max([simu.model.dim, mesh.inDim])
+    elif isinstance(obj, Mesh):
+        simu = None
+        mesh = obj
+        coordo = mesh.coordGlob
+        inDim = mesh.inDim
+    elif isinstance(obj, _GroupElem):
+        simu = None
+        mesh = Mesh({obj.elemType: obj})
+        coordo = mesh.coordGlob
+        inDim = mesh.inDim
+    else:
+        raise TypeError("Must be a simulation or a mesh.")
+    
+    return simu, mesh, coordo, inDim
 
 def Load_Simu(folder: str, filename: str="simulation") -> _Simu:
     """Loads the simulation from the specified folder.

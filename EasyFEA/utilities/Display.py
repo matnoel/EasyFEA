@@ -22,16 +22,14 @@ import matplotlib.animation as animation
 # utilities
 from . import Folder, Tic
 # simulations
-from ..simulations._simu import _Simu
-# fem
-from ..fem import Mesh, _GroupElem
+from ..simulations._simu import _Init_obj
 
 # Ideas: https://www.python-graph-gallery.com/
 
 # ----------------------------------------------
 # Plot Simu or Mesh 
 # ----------------------------------------------
-def Plot_Result(obj, result: Union[str,np.ndarray], deformFactor=0.0, coef=1.0,
+def Plot_Result(simu, result: Union[str,np.ndarray], deformFactor=0.0, coef=1.0,
                 nodeValues=True, plotMesh=False, edgecolor='black', title="",
                 cmap="jet", ncolors=256, clim=(None, None), colorbarIsClose=False, colorbarLabel="",
                 ax: plt.Axes=None, folder="", filename="") -> plt.Axes:
@@ -39,8 +37,8 @@ def Plot_Result(obj, result: Union[str,np.ndarray], deformFactor=0.0, coef=1.0,
 
     Parameters
     ----------
-    obj : Simu or Mesh
-        object containing the mesh
+    obj : _Simu
+        simulation
     result : str or np.ndarray
         result you want to display.\n
         Must be included in simu.Get_Results() or be a numpy array of size of (Nn, Ne).
@@ -82,7 +80,7 @@ def Plot_Result(obj, result: Union[str,np.ndarray], deformFactor=0.0, coef=1.0,
     
     tic = Tic()
 
-    simu, mesh, coordo, inDim = _Init_obj(obj, deformFactor)
+    simu, mesh, coordo, inDim = _Init_obj(simu, deformFactor)
     plotDim = mesh.dim # plot dimension
 
     # don't know how to display nodal values on lines
@@ -311,7 +309,7 @@ def Plot_Mesh(obj, deformFactor=0.0,
 
     Parameters
     ----------
-    obj : Simu or Mesh
+    obj : _Simu | Mesh | _GroupElem
         object containing the mesh    
     deformFactor : float, optional
         Factor used to display the deformed solution (0 means no deformations), default 0.0
@@ -452,14 +450,14 @@ def Plot_Mesh(obj, deformFactor=0.0,
 
     return ax
 
-def Plot_Nodes(mesh, nodes=[],
+def Plot_Nodes(obj, nodes=[],
                showId=False, marker='.', c='red', ax: plt.Axes=None) -> plt.Axes:
     """Plots the mesh's nodes.
 
     Parameters
     ----------
-    mesh : Mesh
-        mesh    
+    obj : _Simu | Mesh | _GroupElem
+        object containing the mesh
     nodes : list[np.ndarray], optional
         nodes to display, default []
     showId : bool, optional
@@ -478,7 +476,7 @@ def Plot_Nodes(mesh, nodes=[],
     
     tic = Tic()
     
-    mesh = _Init_obj(mesh)[1]
+    mesh = _Init_obj(obj)[1]
 
     inDim = mesh.inDim
 
@@ -510,14 +508,14 @@ def Plot_Nodes(mesh, nodes=[],
 
     return ax
 
-def Plot_Elements(mesh: Mesh, nodes=[], dimElem: int=None,
+def Plot_Elements(obj, nodes=[], dimElem: int=None,
                   showId=False, alpha=1.0, c='red', edgecolor='black', ax: plt.Axes=None) -> plt.Axes:
     """Plots the mesh's elements corresponding to the given nodes.
 
     Parameters
     ----------
-    mesh : Mesh
-        mesh
+    obj : _Simu | Mesh | _GroupElem
+        object containing the mesh
     nodes : list, optional
         node numbers, by default []
     dimElem : int, optional
@@ -539,6 +537,8 @@ def Plot_Elements(mesh: Mesh, nodes=[], dimElem: int=None,
     """
 
     tic = Tic()
+
+    mesh = _Init_obj(obj)[1]
 
     inDim = mesh.inDim
 
@@ -601,12 +601,12 @@ def Plot_Elements(mesh: Mesh, nodes=[], dimElem: int=None,
 
     return ax
 
-def Plot_BoundaryConditions(simu: _Simu, ax: plt.Axes=None) -> plt.Axes:
+def Plot_BoundaryConditions(simu, ax: plt.Axes=None) -> plt.Axes:
     """Plots simulation's boundary conditions.
 
     Parameters
     ----------
-    simu : Simu
+    simu : _Simu
         simulation
     ax : plt.Axes, optional
         Axis to use, default None
@@ -618,6 +618,8 @@ def Plot_BoundaryConditions(simu: _Simu, ax: plt.Axes=None) -> plt.Axes:
 
     tic = Tic()
     
+    simu = _Init_obj(simu)[0]
+
     coord = simu.mesh.coordGlob
 
     # get Dirichlet and Neumann boundary conditions
@@ -692,7 +694,7 @@ def Plot_Tags(obj, showId=False, folder="", alpha=1.0, ax: plt.Axes=None) -> plt
 
     Parameters
     ----------    
-    obj : Simu or Mesh
+    obj : _Simu | Mesh | _GroupElem
         object containing the mesh
     showId : bool, optional
         shows tags, by default False
@@ -710,7 +712,7 @@ def Plot_Tags(obj, showId=False, folder="", alpha=1.0, ax: plt.Axes=None) -> plt
 
     tic = Tic()
 
-    __, mesh, coordo, inDim = _Init_obj(obj, 0.0)
+    __, mesh, coordo, inDim = _Init_obj(obj)
 
     # check if there is available tags in the mesh
     nTtags = [np.max([len(groupElem.nodeTags), len(groupElem.elementTags)]) for groupElem in mesh.dict_groupElem.values()]
@@ -905,7 +907,7 @@ def Plot_Energy(simu, load=np.array([]), displacement=np.array([]), plotSolMax=T
 
     Parameters
     ----------
-    simu : Simu
+    simu : _Simu
         simulation
     load : np.ndarray, optional
         array of values, by default np.array([])
@@ -919,7 +921,7 @@ def Plot_Energy(simu, load=np.array([]), displacement=np.array([]), plotSolMax=T
         save folder, by default ""
     """
 
-    assert isinstance(simu, _Simu)
+    simu = _Init_obj(simu)[0]
 
     # First we check whether the simulation can calculate energies
     if len(simu.Results_dict_Energy()) == 0:
@@ -1015,7 +1017,7 @@ def Plot_Energy(simu, load=np.array([]), displacement=np.array([]), plotSolMax=T
 
     tic.Tac("PostProcessing","Calc Energy", False)
 
-def Plot_Iter_Summary(simu: _Simu, folder="", iterMin=None, iterMax=None) -> None:
+def Plot_Iter_Summary(simu, folder="", iterMin=None, iterMax=None) -> None:
     """Plots a summary of iterations between iterMin and iterMax.
 
     Parameters
@@ -1030,6 +1032,8 @@ def Plot_Iter_Summary(simu: _Simu, folder="", iterMin=None, iterMax=None) -> Non
         upper bound, by default None
     """
 
+    simu = _Init_obj(simu)[0]
+    
     # Recover simulation results
     iterations, list_label_values = simu.Results_Iter_Summary()
 
@@ -1202,50 +1206,12 @@ def Save_fig(folder:str, filename: str, transparent=False, extension='pdf', dpi=
 
     tic.Tac("Display","Save figure")
 
-def _Init_obj(obj, deformFactor: float=0.0):
-    """Returns (simu, mesh, coordo, inDim) from an ojbect that could be either a _Simu or a Mesh object.
-    
-    Parameters
-    ----------
-    obj : _Simu | Mesh | _GroupElem
-        An object that contain the mesh
-    deformFactor : float, optional
-        the factor used to deform the mesh, by default 0.0
-
-    Returns
-    -------
-    tuple[_Simu|None, Mesh, ndarray, int]
-        (simu, mesh, coordo, inDim)
-    """
-
-    # here we detect the nature of the object
-    if isinstance(obj, _Simu):
-        simu = obj
-        mesh = simu.mesh
-        u = simu.Results_displacement_matrix()
-        coordo: np.ndarray = mesh.coordGlob + u * np.abs(deformFactor)
-        inDim: int = np.max([simu.model.dim, mesh.inDim])
-    elif isinstance(obj, Mesh):
-        simu = None
-        mesh = obj
-        coordo = mesh.coordGlob
-        inDim = mesh.inDim
-    elif isinstance(obj, _GroupElem):
-        simu = None
-        mesh = Mesh({obj.elemType: obj})
-        coordo = mesh.coordGlob
-        inDim = mesh.inDim
-    else:
-        raise Exception("Must be a simulation or a mesh.")
-    
-    return simu, mesh, coordo, inDim
-
-def _Get_list_faces(mesh: Mesh, dimElem:int) -> list[list[int]]:
+def _Get_list_faces(mesh, dimElem:int) -> list[list[int]]:
     """Returns a list of faces for each element group of dimension dimElem.\n
     Faces is a list of index used to construct/plot a faces.\n
     You can go check their values for each groupElem in `EasyFEA/fem/elems/` folder"""
     
-    assert isinstance(mesh, Mesh), "mesh must be a Mesh object"
+    mesh = _Init_obj(mesh)[1]
 
     list_faces: list[list[int]] = [] # list of faces
     list_len: list[int] = [] # list that store the size for each faces    
