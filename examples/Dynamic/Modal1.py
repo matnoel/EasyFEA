@@ -6,7 +6,7 @@
 
 from EasyFEA import (Display, Folder, np,
                      Mesher, ElemType,
-                     Materials, Simulations)
+                     Materials, Simulations, PyVista)
 from EasyFEA.Geoms import Point, Domain
 
 from scipy.sparse import linalg, eye
@@ -19,6 +19,7 @@ if __name__ == '__main__':
     
     dim = 3
     isFixed = True
+    Nmode = 10
 
     # ----------------------------------------------
     # Mesh
@@ -27,9 +28,9 @@ if __name__ == '__main__':
     thickness = 1/10
 
     if dim == 2:
-        mesh = Mesher().Mesh_2D(contour, [], ElemType.QUAD4, isOrganised=True)
+        mesh = Mesher().Mesh_2D(contour, [], ElemType.QUAD9, isOrganised=True)
     else:
-        mesh = Mesher().Mesh_Extrude(contour, [], [0,0,-thickness], [2], ElemType.HEXA8, isOrganised=True)
+        mesh = Mesher().Mesh_Extrude(contour, [], [0,0,-thickness], [2], ElemType.HEXA27, isOrganised=True)
     nodesY0 = mesh.Nodes_Conditions(lambda x,y,z: y==0)
     nodesSupY0 = mesh.Nodes_Conditions(lambda x,y,z: y>0)
 
@@ -56,12 +57,10 @@ if __name__ == '__main__':
         K_t = K + K.min() * eye(K.shape[0]) * 1e-12
         M_t = M
 
-    eigenValues, eigenVectors = linalg.eigs(K_t, 10, M_t, which="SM")
+    # eigenValues, eigenVectors = linalg.eigs(K_t, Nmode, M_t, which="SR")
+    eigenValues, eigenVectors = linalg.eigs(K_t, Nmode, M_t, sigma=0, which="LR")
 
-    eigenValues = np.array(eigenValues.real, dtype=float)
-    eigenVectors = np.array(eigenVectors.real, dtype=float)
-
-    freq_t = np.sqrt(eigenValues.real)/2/np.pi
+    freq_t = np.sqrt(eigenValues)/2/np.pi
 
     # ----------------------------------------------
     # Plot modes
@@ -78,10 +77,12 @@ if __name__ == '__main__':
         simu.Save_Iter()        
 
         sol = np.linalg.norm(mode, axis=1)
-        deformFactor = 1/5/np.abs(sol).max() 
-        Display.Plot_Mesh(simu, deformFactor, title=f'mode {n+1}')
-        # Display.Plot_Result(simu, sol, deformFactor, title=f"mode {n}", plotMesh=True)
-        pass
+        deformFactor = 1/5/np.abs(sol).max()
+
+        plotter = PyVista.Plot(simu, opacity=.5)
+        PyVista.Plot(simu, None, deformFactor, opacity=.8, color="r", plotter=plotter)
+        plotter.add_title(f'mode {n+1}')
+        plotter.show()
 
     axModes = Display.Init_Axes()
     axModes.plot(np.arange(eigenValues.size), freq_t, ls='', marker='.')

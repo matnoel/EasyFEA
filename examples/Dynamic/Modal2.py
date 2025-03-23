@@ -8,10 +8,9 @@
 
 from EasyFEA import (Display, Folder, np,
                      Mesher, ElemType, Mesh,
-                     Materials, Simulations)
+                     Materials, Simulations, PyVista)
 
 from scipy.sparse import linalg, eye
-from scipy.linalg import eig
 
 def Construct_struct(L: float,e: float,t: float, meshSize: float = 0.0, openGmsh=False, verbosity=False) -> Mesh:
 
@@ -47,11 +46,11 @@ def Construct_struct(L: float,e: float,t: float, meshSize: float = 0.0, openGmsh
     
     mesher._Set_PhysicalGroups()
 
-    mesher._Mesh_Generate(3, 'TETRA4')
+    mesher._Mesh_Generate(3, ElemType.TETRA10)
     
     mesh = mesher._Mesh_Get_Mesh()
 
-    return mesh    
+    return mesh
 
 if __name__ == '__main__':
 
@@ -60,6 +59,7 @@ if __name__ == '__main__':
     folder = Folder.Dir(__file__)
 
     isFixed = True
+    Nmode = 3
 
     # ----------------------------------------------
     # Mesh
@@ -79,9 +79,10 @@ if __name__ == '__main__':
     nodesZ0 = mesh.Nodes_Conditions(lambda x,y,z: z==0)
     nodesSupZ0 = mesh.Nodes_Conditions(lambda x,y,z: z>0)
 
-    ax = Display.Plot_Nodes(mesh, nodes_pilars, c='red')
-    Display.Plot_Nodes(mesh, nodes_plate, c='blue', ax=ax)
-    Display.Plot_Nodes(mesh, nodes_cuve, c='green', ax=ax)
+    ax = Display.Plot_Elements(mesh, nodes_pilars, c='red', alpha=.5)
+    Display.Plot_Elements(mesh, nodes_plate, c='blue', ax=ax, alpha=.5)
+    Display.Plot_Elements(mesh, nodes_cuve, c='green', ax=ax, alpha=.5)
+    ax.legend(labels=["Pilars","Plate","Cuve"])
 
     Display.Plot_Mesh(mesh, alpha=0.5)
 
@@ -111,80 +112,44 @@ if __name__ == '__main__':
 
     Display.Plot_BoundaryConditions(simu)
 
-    # K, C, M, F = simu.Get_K_C_M_F()    
+    K, C, M, F = simu.Get_K_C_M_F()    
 
-    # if isFixed:
-    #     K_t = K[unknown, :].tocsc()[:, unknown].tocsr()
-    #     M_t = M[unknown, :].tocsc()[:, unknown].tocsr()
-    # else:
-    #     K_t = K + K.min() * eye(K.shape[0]) * 1e-12
-    #     M_t = M
+    if isFixed:
+        K_t = K[unknown, :].tocsc()[:, unknown].tocsr()
+        M_t = M[unknown, :].tocsc()[:, unknown].tocsr()
+    else:
+        K_t = K + K.min() * eye(K.shape[0]) * 1e-12
+        M_t = M
 
+    eigenValues, eigenVectors = linalg.eigs(K_t, Nmode, M_t, sigma=0, which="LR")
 
-    # eigenValues, eigenVectors = linalg.eigs(K_t, mesh.Nn, M_t)
-    # cov = np.cov(M_t.toarray())
-    
-    # # eigenValues, eigenVectors = linalg.eigs(K_t, mesh.Nn)
-    # # cov = np.cov(K_t.toarray())
+    freq_t = np.sqrt(eigenValues)/2/np.pi
 
-    # # eigenValues = np.real(eigenValues)
+    # ----------------------------------------------
+    # Plot modes
+    # ----------------------------------------------
+    for n, eigenValue in enumerate(eigenValues):    
 
+        if isFixed:
+            mode = np.zeros((mesh.Nn, 3))
+            mode[nodesSupZ0,:] = np.reshape(eigenVectors[:,n], (-1, 3))
+        else:
+            mode = np.reshape(eigenVectors[:,n], (-1, 3))
 
-    # # cov = np.cov(M_t.toarray())
-    # tt = np.trace(cov)
-    # # print(np.max(eigenValues))
-    # # print(np.min(eigenValues))
+        simu._Set_u_n(simu.problemType, mode.ravel())
+        simu.Save_Iter()        
 
-    # err = [1 - np.sum(eigenValues[:i])/np.trace(cov) for i in range(mesh.Nn)]
-
-    # # err = lambda m:  1 - np.sum(eigenValues[:m])/np.trace(cov)
-
-    # ax = Display.init_Axes()
-
-    # ax.plot(range(mesh.Nn), err)
-
-    # # TODO this is very slow !!!!
+        sol = np.linalg.norm(mode, axis=1)
+        deformFactor = L/5/np.abs(sol).max()        
         
-    # linalg.eigsh
+        plotter = PyVista.Plot(simu, opacity=.5)
+        PyVista.Plot(simu, None, deformFactor, opacity=.8, color="r", plotter=plotter)
+        plotter.add_title(f'mode {n+1}')
+        plotter.show()
 
-    # eigenValues, eigenVectors = eig(K_t.toarray(), M_t.toarray())
-    
-    # M_t = (M_t.T+M_t)/2
-
-    # eigenValues, eigenVectors = linalg.eigsh(K_t, 3, M_t, which="SM")
-    # # eigenValues, eigenVectors = linalg.eigs(K_t, mesh.Nn, M_t)
-    # # eigenValues, eigenVectors = eig(K_t.toarray(), M_t.toarray())
-    
-    # pass
-
-    # # eigenValues = np.array(eigenValues, dtype=float)
-    # # eigenVectors = np.array(eigenVectors, dtype=float)
-
-    # freq_t = np.sqrt(eigenValues.real)/2/np.pi
-
-    # # ----------------------------------------------
-    # # Plot modes
-    # # ----------------------------------------------
-    # for n, eigenValue in enumerate(eigenValues[:3]):    
-
-    #     if isFixed:
-    #         mode = np.zeros((mesh.Nn, 3))
-    #         mode[nodesSupZ0,:] = np.reshape(eigenVectors[:,n], (-1, 3))
-    #     else:
-    #         mode = np.reshape(eigenVectors[:,n], (-1, 3))
-
-    #     simu.set_u_n(simu.problemType, mode.ravel())
-    #     simu.Save_Iter()        
-
-    #     sol = np.linalg.norm(mode, axis=1)
-    #     deformFactor = L/5/np.abs(sol).max() 
-    #     Display.Plot_Mesh(simu, deformFactor, title=f'mode {n+1}')
-    #     # Display.Plot_Result(simu, sol, deformFactor, title=f"mode {n}", plotMesh=True)
-    #     pass
-
-    # axModes = Display.init_Axes()
-    # axModes.plot(np.arange(eigenValues.size), freq_t, ls='', marker='.')
-    # axModes.set_xlabel('modes')
-    # axModes.set_ylabel('freq [Hz]')
+    axModes = Display.Init_Axes()
+    axModes.plot(np.arange(eigenValues.size), freq_t, ls='', marker='.')
+    axModes.set_xlabel('modes')
+    axModes.set_ylabel('freq [Hz]')
 
     Display.plt.show()
