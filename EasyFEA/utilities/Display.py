@@ -99,15 +99,16 @@ def Plot_Result(simu, result: Union[str,np.ndarray], deformFactor=0.0, coef=1.0,
     
     elif isinstance(result, np.ndarray):
         values = result
-        size = result.size
+        size = result.shape[0]
         if size not in [mesh.Ne, mesh.Nn]:
             raise Exception("Must be an array of dimension Nn or Ne")
-        if size == mesh.Ne and nodeValues:
-            # calculate nodal values for element values
-            values = mesh.Get_Node_Values(result)
-        elif size == mesh.Nn and not nodeValues:
-            values_e = mesh.Locates_sol_e(result)
-            values = np.mean(values_e, 1)        
+        else:
+            if size == mesh.Ne and nodeValues:
+                # calculate nodal values for element values
+                values = mesh.Get_Node_Values(result)
+            elif size == mesh.Nn and not nodeValues:
+                values_e = mesh.Locates_sol_e(result)
+                values = np.mean(values_e, 1)        
     else:
         raise Exception("result must be a string or an array")
     

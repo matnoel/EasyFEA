@@ -735,20 +735,18 @@ def _pvGrid(obj, result: Union[str, np.ndarray]=None, deformFactor=0.0, nodeValu
 
     elif isinstance(result, np.ndarray):
         values = result
-        size = result.size
-        name = 'array' # here result is an array
-
-        if size % Nn == 1 or size % Ne == 1:
-            MyPrintError("Must be nodes or elements values")
+        size = result.shape[0]
+        if size not in [mesh.Ne, mesh.Nn]:
+            raise Exception("Must be an array of dimension Nn or Ne")
         else:
-            if size % Ne == 0 and nodeValues:
-                # elements values that we want to plot on nodes
-                values = mesh.Get_Node_Values(values)
-                
-            elif size % Nn == 0 and not nodeValues:
-                # nodes values that we want to plot on elements
-                values: np.ndarray = np.mean(values[connect], 1)
-            
+            if size == mesh.Ne and nodeValues:
+                # calculate nodal values for element values
+                values = mesh.Get_Node_Values(result)
+            elif size == mesh.Nn and not nodeValues:
+                values_e = mesh.Locates_sol_e(result)
+                values = np.mean(values_e, 1)
+
+            name = 'array' # here result is an array
             pvMesh[name] = values
             pvMesh.set_active_scalars(name)
 
