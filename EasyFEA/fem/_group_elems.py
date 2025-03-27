@@ -497,25 +497,36 @@ class _GroupElem(ABC):
     # --------------------------------------------------------------------------------------------
 
     def Get_F_e_pg(self, matrixType: MatrixType) -> np.ndarray:
-        """Returns the Jacobian matrix.\n        
+        """Returns the transposed Jacobian matrix.\n        
         This matrix describes the transformation of the (ξ,η,ζ) axes from the reference element to the (x,y,z) coordinate system of the actual element.\n
         """
         if self.dim == 0: return
         if matrixType not in self.__dict_F_e_pg.keys():
 
-            coordo_e: np.ndarray = self.coordGlob[self.__connect]
+            coordo_e = self.coordGlob[self.__connect]
+            # Node coordinates in the (X, Y, Z) coordinate system of each element
 
-            nodesBase = coordo_e.copy()
+            rebased_coord_e = coordo_e.copy()
             if self.dim != self.inDim:
-                sysCoord_e = self.sysCoord_e # basis transformation matrix for each element
-                # This matrix can be used to project points with (x, y, z) coordinates into the element's (i, j, k) coordinate system.
-                nodesBase = coordo_e @ sysCoord_e # nodes coordinates in the element's (i, j, k) coordinate system.
+                P_e = self.sysCoord_e # transformation matrix for each element
+                # matrix used to project element's points with (x, y, z) coordinates
+                # into the (X, Y, Z) coordinate system.
 
-            nodesBaseDim = nodesBase[:,:,range(self.dim)]
+                # check whether P_e is orthogonal
+                isOrth_e = np.trace(P_e.transpose(0,2,1) @ P_e, axis1=1, axis2=2) == 3
+                
+                # (x, y, z) = (X, Y, Z) * P_e  <==>  aj = bi Pij
+                rebased_coord_e[isOrth_e] = coordo_e[isOrth_e] @ P_e[isOrth_e]
+                
+                # (x, y, z) = (X, Y, Z) * P_e^(-T)  <==>  aj = bi inv(P)ji
+                rebased_coord_e[~isOrth_e] = coordo_e[~isOrth_e] @ np.linalg.inv(P_e[~isOrth_e]).transpose(0,2,1)
+
+            rebased_coord_e = rebased_coord_e[:,:,:self.dim]
+            # (Ne, nPe, dim)
 
             dN_pg = self.Get_dN_pg(matrixType)
 
-            F_e_pg: np.ndarray = np.einsum('pik,ekj->epij', dN_pg, nodesBaseDim, optimize='optimal')
+            F_e_pg: np.ndarray = np.einsum('pik,ekj->epij', dN_pg, rebased_coord_e, optimize='optimal')
             
             self.__dict_F_e_pg[matrixType] = F_e_pg
 
