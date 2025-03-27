@@ -571,7 +571,7 @@ class _GroupElem(ABC):
         return jacobian_e_pg
     
     def Get_invF_e_pg(self, matrixType: MatrixType) -> np.ndarray:
-        """Returns the inverse of the Jacobian matrix.\n
+        """Returns the inverse of the transposed Jacobian matrix.\n
         Used to obtain the derivative of the dN_e_pg shape functions in the actual element
         dN_e_pg = invF_e_pg • dN_pg
         """
