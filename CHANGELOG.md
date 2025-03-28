@@ -2,6 +2,13 @@
 
 This document describes the changes made to the project.
 
+## 1.3.4 (March 28, 2025):
+
+- Moved `Display._Init_obj()` to `_simu._Init_obj()`.
+- Updated the `Display.Plot_Result()` and `PyVista.Plot()` functions.
+- Updated the `Modal1.py` and `Modal2.py` examples.
+- Clarified the `_GroupElem.Get_F_e_pg()` and `_GroupElem.Get_invF_e_pg()` functions.
+
 ## 1.3.3 (March 22, 2025):
 
 - Created the MeshIO interface.
