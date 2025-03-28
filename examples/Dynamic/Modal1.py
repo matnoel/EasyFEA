@@ -60,6 +60,7 @@ if __name__ == '__main__':
     # eigenValues, eigenVectors = linalg.eigs(K_t, Nmode, M_t, which="SR")
     eigenValues, eigenVectors = linalg.eigs(K_t, Nmode, M_t, sigma=0, which="LR")
 
+    eigenVectors = eigenVectors.real
     freq_t = np.sqrt(eigenValues)/2/np.pi
 
     # ----------------------------------------------
