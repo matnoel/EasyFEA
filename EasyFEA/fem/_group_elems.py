@@ -2010,62 +2010,48 @@ from .elems._prism import PRISM6, PRISM15, PRISM18
 
 class GroupElemFactory:
 
+    DICT_GMSHID: dict[int, tuple[ElemType, int, int, int, int, int]] = {
+    #  key:            ElemType,   nPe, dim, order, nbFaces, nbCorners 
+        15:     (ElemType.POINT,     1,   0,     0,       0,         0),
+        1:      (ElemType.SEG2,      2,   1,     1,       0,         2),
+        8:      (ElemType.SEG3,      3,   1,     2,       0,         2),
+        26:     (ElemType.SEG4,      4,   1,     3,       0,         2),
+        27:     (ElemType.SEG5,      5,   1,     4,       0,         2),
+        2:      (ElemType.TRI3,      3,   2,     1,       1,         3),
+        9:      (ElemType.TRI6,      6,   2,     2,       1,         3),
+        21:     (ElemType.TRI10,    10,   2,     3,       1,         3),
+        23:     (ElemType.TRI15,    15,   2,     4,       1,         3),
+        3:      (ElemType.QUAD4,     4,   2,     1,       1,         4),
+        16:     (ElemType.QUAD8,     8,   2,     2,       1,         4),
+        10:     (ElemType.QUAD9,     9,   2,     2,       1,         4),
+        4:      (ElemType.TETRA4,    4,   3,     1,       4,         4),
+        11:     (ElemType.TETRA10,  10,   3,     2,       4,         4),
+        5:      (ElemType.HEXA8,     8,   3,     1,       6,         8),
+        17:     (ElemType.HEXA20,   20,   3,     2,       6,         8),
+        12:     (ElemType.HEXA27,   27,   3,     2,       6,         8),
+        6:      (ElemType.PRISM6,    6,   3,     1,       5,         6),
+        18:     (ElemType.PRISM15,  15,   3,     2,       5,         6),
+        13:     (ElemType.PRISM18,  18,   3,     2,       5,         6),
+        # 7:      (ElemType.PYRA5,     5,   3,     1,       5,         5),
+        # 19:     (ElemType.PYRA13,   13,   3,     2,       5,         5),
+        # 14:     (ElemType.PYRA14,   14,   3,     2,       5,         5),
+    }
+    """gmshId: (ElemType, nPe, dim, order, nbFaces, nCorners)"""
+
+    DICT_ELEMTYPE: dict[ElemType, tuple[int, int, int, int, int, int]] = {
+        values[0]: (key, *values[1:]) for key, values in DICT_GMSHID.items()
+    }
+
     @staticmethod
     def Get_ElemInFos(gmshId: int) -> tuple[ElemType, int, int, int, int, int]:
         """return elemType, nPe, dim, order, nbFaces, nbCorners\n
         associated with the gmsh id.
         """
-        # could be clearer with match but only available with python 3.10
-        if gmshId == 15:
-            elemType = ElemType.POINT; nPe = 1; dim = 0; order = 0; nbFaces = 0; nbCorners = 0
-        elif gmshId == 1:
-            elemType = ElemType.SEG2; nPe = 2; dim = 1; order = 1; nbFaces = 0; nbCorners = 2
-        elif gmshId == 8:
-            elemType = ElemType.SEG3; nPe = 3; dim = 1; order = 2; nbFaces = 0; nbCorners = 2
-        elif gmshId == 26:
-            elemType = ElemType.SEG4; nPe = 4; dim = 1; order = 3; nbFaces = 0; nbCorners = 2
-        elif gmshId == 27:
-            elemType = ElemType.SEG5; nPe = 5; dim = 1; order = 4; nbFaces = 0; nbCorners = 2
-        elif gmshId == 2:
-            elemType = ElemType.TRI3; nPe = 3; dim = 2; order = 1; nbFaces = 1; nbCorners = 3
-        elif gmshId == 9:
-            elemType = ElemType.TRI6; nPe = 6; dim = 2; order = 2; nbFaces = 1; nbCorners = 3
-        elif gmshId == 21:
-            elemType = ElemType.TRI10; nPe = 10; dim = 2; order = 3; nbFaces = 1; nbCorners = 3
-        elif gmshId == 23:
-            elemType = ElemType.TRI15; nPe = 15; dim = 2; order = 4; nbFaces = 1; nbCorners = 3
-        elif gmshId == 3:
-            elemType = ElemType.QUAD4; nPe = 4; dim = 2; order = 1; nbFaces = 1; nbCorners = 4
-        elif gmshId == 16:
-            elemType = ElemType.QUAD8; nPe = 8; dim = 2; order = 2; nbFaces = 1; nbCorners = 4
-        elif gmshId == 10:
-            elemType = ElemType.QUAD9; nPe = 9; dim = 2; order = 2; nbFaces = 1; nbCorners = 4
-        elif gmshId == 4:
-            elemType = ElemType.TETRA4; nPe = 4; dim = 3; order = 1; nbFaces = 4; nbCorners = 4
-        elif gmshId == 11:
-            elemType = ElemType.TETRA10; nPe = 10; dim = 3; order = 2; nbFaces = 4; nbCorners = 4
-        elif gmshId == 5:
-            elemType = ElemType.HEXA8; nPe = 8; dim = 3; order = 1; nbFaces = 6; nbCorners = 8
-        elif gmshId == 17:
-            elemType = ElemType.HEXA20; nPe = 20; dim = 3; order = 2; nbFaces = 6; nbCorners = 8
-        elif gmshId == 12:
-            elemType = ElemType.HEXA27; nPe = 27; dim = 3; order = 2; nbFaces = 6; nbCorners = 8
-        elif gmshId == 6:
-            elemType = ElemType.PRISM6; nPe = 6; dim = 3; order = 1; nbFaces = 5; nbCorners = 6
-        elif gmshId == 18:
-            elemType = ElemType.PRISM15; nPe = 15; dim = 3; order = 2; nbFaces = 5; nbCorners = 6
-        elif gmshId == 13:
-            elemType = ElemType.PRISM18; nPe = 18; dim = 3; order = 2; nbFaces = 5; nbCorners = 6
-        # elif gmshId == 7:
-        #     elemType = ElemType.PYRA5; nPe = 5; dim = 3; order = 1; nbFaces = 5; nbCorners = 5
-        # elif gmshId == 19:
-        #     elemType = ElemType.PYRA13; nPe = 13; dim = 3; order = 2; nbFaces = 5; nbCorners = 5
-        # elif gmshId == 14:
-        #     elemType = ElemType.PYRA14; nPe = 14; dim = 3; order = 2; nbFaces = 5; nbCorners = 5
-        else: 
-            raise Exception("Element type unknown.")
+        
+        if gmshId not in GroupElemFactory.DICT_GMSHID.keys():
+            raise KeyError("gmshId is unknown.")
             
-        return elemType, nPe, dim, order, nbFaces, nbCorners
+        return GroupElemFactory.DICT_GMSHID[gmshId]
     
     @staticmethod
     def Create(gmshId: int, connect: np.ndarray, coordGlob: np.ndarray, nodes: np.ndarray) -> _GroupElem:
@@ -2091,7 +2077,7 @@ class GroupElemFactory:
         params = (gmshId, connect, coordGlob, nodes)
 
         elemType = GroupElemFactory.Get_ElemInFos(gmshId)[0]
-        
+
         if elemType == ElemType.POINT:
             return POINT(*params)
         elif elemType == ElemType.SEG2:
@@ -2115,7 +2101,7 @@ class GroupElemFactory:
         elif elemType == ElemType.QUAD8:
             return QUAD8(*params)
         elif elemType == ElemType.QUAD9:
-                return QUAD9(*params)
+            return QUAD9(*params)
         elif elemType == ElemType.TETRA4:
             return TETRA4(*params)
         elif elemType == ElemType.TETRA10:
@@ -2133,4 +2119,32 @@ class GroupElemFactory:
         elif elemType == ElemType.PRISM18:
             return PRISM18(*params)
         else:
-            raise Exception("Element type unknown.")
+            raise KeyError("Element type unknown.")
+        
+    @staticmethod
+    def _Create(elemType: ElemType, connect: np.ndarray, coordGlob: np.ndarray) -> _GroupElem:
+        """Creates an element group
+        
+        Parameters
+        ----------
+        elemType : ElemType
+            element type
+        connect : np.ndarray
+            connection matrix storing nodes for each element (Ne, nPe)
+        coordGlob : np.ndarray
+            nodes coordinates
+       
+        Returns
+        -------
+        GroupeElem
+            the element group
+        """
+
+        if elemType not in GroupElemFactory.DICT_ELEMTYPE:
+            raise KeyError("Element type unknown.")
+        
+        gmshId = GroupElemFactory.DICT_ELEMTYPE[elemType][0]
+
+        nodes = np.asarray(list(set(connect.ravel())), dtype=int)
+
+        return GroupElemFactory.Create(gmshId, connect, coordGlob, nodes)
