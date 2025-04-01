@@ -21,7 +21,7 @@ from ..utilities import _params
 # ----------------------------------------------
 
 class _Elas(_IModel, ABC):
-    """Elastic class model.\n
+    """Linearized Elasticity material.\n
     Elas_Isot, Elas_IsotTrans and Elas_Anisot inherit from _Elas class.
     """
     def __init__(self, dim: int, thickness: float, planeStress: bool):
@@ -32,8 +32,7 @@ class _Elas(_IModel, ABC):
             assert thickness > 0 , "Must be greater than 0"
             self.__thickness = thickness
 
-        self.__planeStress = planeStress if dim == 2 else False
-        """2D simplification type"""
+        self.planeStress = planeStress if dim == 2 else False
 
         self.useNumba = False
 
@@ -200,7 +199,7 @@ class _Elas(_IModel, ABC):
 # ----------------------------------------------
 
 class Elas_Isot(_Elas):
-    """Isotropic Linear Elastic class."""
+    """Isotropic Linearized Elasticity material."""
 
     def __str__(self) -> str:
         text = f"{type(self).__name__}:"
@@ -211,7 +210,7 @@ class Elas_Isot(_Elas):
         return text
 
     def __init__(self, dim: int, E=210000.0, v=0.3, planeStress=True, thickness=1.0):
-        """Creates an Isotropic Linear Elastic material.
+        """Creates an Isotropic Linearized Elasticity material.
 
         Parameters
         ----------
@@ -398,7 +397,7 @@ class Elas_Isot(_Elas):
 # ----------------------------------------------
 
 class Elas_IsotTrans(_Elas):
-    """Transversely Isotropic Linear Elastic class."""
+    """Transversely Isotropic Linearized Elasticity material."""
 
     def __str__(self) -> str:
         text = f"{type(self).__name__}:"
@@ -414,7 +413,7 @@ class Elas_IsotTrans(_Elas):
     def __init__(self, dim: int, El: float, Et: float, Gl: float,
                  vl: float, vt: float,
                  axis_l=[1,0,0], axis_t=[0,1,0], planeStress=True, thickness=1.0):
-        """Creates and Transversely Isotropic Linear Elastic material.\n
+        """Creates and Transversely Isotropic Linearized Elasticity material.\n
         More details Torquato 2002 13.3.2 (iii) http://link.springer.com/10.1007/978-1-4757-6355-3
 
         Parameters
