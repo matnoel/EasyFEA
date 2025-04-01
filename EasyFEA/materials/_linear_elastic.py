@@ -201,7 +201,7 @@ class _Elas(_IModel, ABC):
 # ----------------------------------------------
 
 class Elas_Isot(_Elas):
-    """Isotropic Linearized Elasticity material."""
+    """Isotropic Linearized Elasticit material."""
 
     def __str__(self) -> str:
         text = f"{type(self).__name__}:"
@@ -212,7 +212,7 @@ class Elas_Isot(_Elas):
         return text
 
     def __init__(self, dim: int, E=210000.0, v=0.3, planeStress=True, thickness=1.0):
-        """Creates an Isotropic Linearized Elasticity material.
+        """Creates an Isotropic Linearized Elasticit material.
 
         Parameters
         ----------
@@ -395,7 +395,7 @@ class Elas_Isot(_Elas):
 # ----------------------------------------------
 
 class Elas_IsotTrans(_Elas):
-    """Transversely Isotropic Linearized Elasticity material."""
+    """Transversely Isotropic Linearized Elasticit material."""
 
     def __str__(self) -> str:
         text = f"{type(self).__name__}:"
@@ -411,7 +411,7 @@ class Elas_IsotTrans(_Elas):
     def __init__(self, dim: int, El: float, Et: float, Gl: float,
                  vl: float, vt: float,
                  axis_l=[1,0,0], axis_t=[0,1,0], planeStress=True, thickness=1.0):
-        """Creates and Transversely Isotropic Linearized Elasticity material.\n
+        """Creates and Transversely Isotropic Linearized Elasticit material.\n
         More details Torquato 2002 13.3.2 (iii) http://link.springer.com/10.1007/978-1-4757-6355-3
 
         Parameters
@@ -712,7 +712,7 @@ class Elas_IsotTrans(_Elas):
 # ----------------------------------------------
 
 class Elas_Anisot(_Elas):
-    """Anisotropic Linear Elastic class."""
+    """Anisotropic Linearized Elastic class."""
     
     def __str__(self) -> str:
         text = f"\n{type(self).__name__}):"
@@ -725,7 +725,7 @@ class Elas_Anisot(_Elas):
         return text
 
     def __init__(self, dim: int, C: np.ndarray, useVoigtNotation:bool, axis1: np.ndarray=(1,0,0), axis2: np.ndarray=(0,1,0), thickness=1.0):
-        """Creates an Anisotropic Linear Elastic class.
+        """Creates an Anisotropic Linearized Elastic class.
 
         Parameters
         ----------
