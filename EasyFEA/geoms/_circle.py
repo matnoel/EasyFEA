@@ -48,7 +48,7 @@ class Circle(_Geom):
 
         Circle.__nbCircle += 1
         name = f"Circle{Circle.__nbCircle}"
-        _Geom.__init__(self, [center, self.pt1, self.pt2, self.pt3, self.pt4], meshSize, name, isHollow, isOpen)
+        _Geom.__init__(self, [self.center, self.pt1, self.pt2, self.pt3, self.pt4], meshSize, name, isHollow, isOpen)
 
         # rotate if necessary
         zAxis = np.array([0,0,1])
@@ -171,12 +171,13 @@ class CircleArc(_Geom):
         # check that pt1 and pt2 dont share the same coordinates
         assert not pt1.Check(pt2), 'pt1 and pt2 are on the same coordinates'
 
-        if P != None:
+        if center != None:
+            center = AsPoint(center)
+            assert not pt1.Check(center), 'pt1 and center are on the same coordinates'
+        
+        elif P != None:
             center = Circle_Triangle(pt1, pt2, P)
             center = Point(*center)
-
-        elif center != None:
-            assert not pt1.Check(center), 'pt1 and center are on the same coordinates'
 
         elif R != None:            
             coord = np.array([pt1.coord, pt2.coord])

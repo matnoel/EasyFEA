@@ -173,29 +173,31 @@ def AsPoint(coords) -> Point:
     """Returns coords as a point."""
     if isinstance(coords, Point):
         return coords
-    else:
+    elif isinstance(coords, Iterable):
         coords = AsCoords(coords)
         return Point(*coords)
+    else:
+        raise TypeError("coords must be a Point or an Iterable")
 
 def AsCoords(value) -> np.ndarray:
     """Returns value as a 3D vector"""
     if isinstance(value, Point):
-        coord = value.coord        
+        coords = value.coord        
     elif isinstance(value, Iterable):
         val = np.asarray(value, dtype=float)
         if len(val.shape) == 2:
             assert val.shape[-1] <= 3, 'must be 3d vector or 3d vectors'
-            coord = val
+            coords = val
         else:
-            coord = np.zeros(3)
+            coords = np.zeros(3)
             assert val.size <= 3, 'must not exceed size 3'
-            coord[:val.size] = val
+            coords[:val.size] = val
     elif isinstance(value, (float, int)):            
-        coord = np.asarray([value]*3)
+        coords = np.asarray([value]*3)
     else:
         raise TypeError(f'{type(value)} is not supported. Must be (Point | float | int | Iterable)')
     
-    return coord
+    return coords
 
 def Normalize(array: np.ndarray) -> np.ndarray:
     """Must be a vector or matrix."""

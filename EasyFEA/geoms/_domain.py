@@ -34,7 +34,7 @@ class Domain(_Geom):
         Domain.__nbDomain += 1
         name = f"Domain{Domain.__nbDomain}"
         # a domain can't be open
-        _Geom.__init__(self, [pt1, pt2], meshSize, name, isHollow, False)
+        _Geom.__init__(self, [self.pt1, self.pt2], meshSize, name, isHollow, False)
 
     def Get_coord_for_plot(self) -> tuple[np.ndarray,np.ndarray]:
 

@@ -7,7 +7,7 @@
 from collections.abc import Iterable
 import numpy as np
 
-from ._utils import Point, Fillet
+from ._utils import Point, AsPoint, Fillet
 from ._geom import _Geom
 from ._line import Line
 from ._circle import CircleArc
@@ -30,8 +30,11 @@ class Points(_Geom):
             the formed domain is hollow/empty, by default True
         isOpen : bool, optional
             the spline formed by the points list can be opened (openCrack), by default False
-        """        
-        assert isinstance(points, Iterable) and isinstance(points[0], Point), "points must be a list of points."
+        """
+
+        assert isinstance(points, Iterable), "points must be a list of points."
+
+        points = [AsPoint(point) for point in points]
 
         self.pt1 = points[0]
         """First point"""

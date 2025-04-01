@@ -6,7 +6,7 @@
 
 import numpy as np
 
-from ._utils import Point
+from ._utils import Point, AsPoint
 from ._geom import _Geom
 
 class Line(_Geom):
@@ -27,15 +27,13 @@ class Line(_Geom):
         isOpen : bool, optional
             line can be opened (openCrack), by default False
         """
-
-        assert isinstance(pt1, Point), "must be a point"
-        self.pt1 = pt1
-        assert isinstance(pt2, Point), "must be a point"
-        self.pt2 = pt2
+        
+        self.pt1 = AsPoint(pt1)
+        self.pt2 = AsPoint(pt2)
 
         Line.__nbLine += 1
         name = f"Line{Line.__nbLine}"
-        _Geom.__init__(self, [pt1, pt2], meshSize, name, False, isOpen)
+        _Geom.__init__(self, [self.pt1, self.pt2], meshSize, name, False, isOpen)
     
     @property
     def unitVector(self) -> np.ndarray:

@@ -39,6 +39,8 @@ class _Geom(ABC):
         self.isHollow = isHollow
         self.isOpen = isOpen
 
+    # TODO Add a To_Mesh_Function() ?
+
     @property
     def meshSize(self) -> float:
         """element size used for meshing"""
