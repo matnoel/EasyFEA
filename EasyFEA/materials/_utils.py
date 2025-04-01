@@ -61,6 +61,7 @@ class _IModel(ABC, Observable):
         """the model needs to be updated"""
         return self.__needUpdate
 
+    # TODO Add str as an optional params
     def Need_Update(self, value=True) -> None:
         """Indicates whether the model needs to be updated."""
         self.__needUpdate = value

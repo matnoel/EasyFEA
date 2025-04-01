@@ -26,13 +26,15 @@ class _Elas(_IModel, ABC):
     """
     def __init__(self, dim: int, thickness: float, planeStress: bool):
         
+        assert dim in [2,3], "Must be dimension 2 or 3"
         self.__dim = dim
 
+        # must set the private value here !
+        self.__planeStress = planeStress if dim == 2 else False
+        
         if dim == 2:
             assert thickness > 0 , "Must be greater than 0"
             self.__thickness = thickness
-
-        self.planeStress = planeStress if dim == 2 else False
 
         self.useNumba = False
 
@@ -204,7 +206,7 @@ class Elas_Isot(_Elas):
     def __str__(self) -> str:
         text = f"{type(self).__name__}:"
         text += f"\nE = {self.E:.2e}, v = {self.v}"
-        if self.__dim == 2:
+        if self.dim == 2:
             text += f"\nplaneStress = {self.planeStress}"
             text += f"\nthickness = {self.thickness:.2e}"
         return text
@@ -225,15 +227,11 @@ class Elas_Isot(_Elas):
         thickness : float, optional
             thickness, by default 1.0
         """
-
-        # Checking values
-        assert dim in [2,3], "Must be dimension 2 or 3"
-        self.__dim = dim
+        _Elas.__init__(self, dim, thickness, planeStress)
         
         self.E=E
+        # TODO Add descriptor with Need_Update() function ?
         self.v=v
-
-        _Elas.__init__(self, dim, thickness, planeStress)
 
     def _Update(self) -> None:
         C, S = self._Behavior(self.dim)
@@ -269,7 +267,7 @@ class Elas_Isot(_Elas):
         
         l = E*v/((1+v)*(1-2*v))
 
-        if self.__dim == 2 and self.planeStress:
+        if self.dim == 2 and self.planeStress:
             l = E*v/(1-v**2)
         
         return l
@@ -315,7 +313,7 @@ class Elas_Isot(_Elas):
         """
 
         if dim == None:
-            dim = self.__dim
+            dim = self.dim
         else:
             assert dim in [2,3]
 
@@ -405,7 +403,7 @@ class Elas_IsotTrans(_Elas):
         text += f"\nvl = {self.vl}, vt = {self.vt}"
         text += f"\naxis_l = {np.array_str(self.axis_l, precision=3)}"
         text += f"\naxis_t = {np.array_str(self.axis_t, precision=3)}"
-        if self.__dim == 2:
+        if self.dim == 2:
             text += f"\nplaneStress = {self.planeStress}"
             text += f"\nthickness = {self.thickness:.2e}"
         return text
@@ -439,10 +437,7 @@ class Elas_IsotTrans(_Elas):
         thickness : float, optional
             thickness, by default 1.0
         """
-
-        # Checking values
-        assert dim in [2,3], "Must be dimension 2 or 3"
-        self.__dim = dim
+        _Elas.__init__(self, dim, thickness, planeStress)
 
         self.El=El
         self.Et=Et
@@ -458,7 +453,6 @@ class Elas_IsotTrans(_Elas):
         self.__axis_l = Normalize(axis_l)
         self.__axis_t = Normalize(axis_t)
 
-        _Elas.__init__(self, dim, thickness, planeStress)
 
     @property
     def Gt(self) -> Union[float,np.ndarray]:
@@ -582,8 +576,8 @@ class Elas_IsotTrans(_Elas):
 
         """
 
-        if dim == None:
-            dim = self.__dim
+        if dim is None:
+            dim = self.dim
         
         if not isinstance(P, np.ndarray):
             P = Get_Pmat(self.__axis_l, self.__axis_t)
@@ -725,7 +719,7 @@ class Elas_Anisot(_Elas):
         text += f"\n{self.C}"
         text += f"\naxis1 = {np.array_str(self.__axis1, precision=3)}"
         text += f"\naxis2 = {np.array_str(self.__axis2, precision=3)}"
-        if self.__dim == 2:
+        if self.dim == 2:
             text += f"\nplaneStress = {self.planeStress}"
             text += f"\nthickness = {self.thickness:.2e}"
         return text
@@ -753,10 +747,8 @@ class Elas_Anisot(_Elas):
         Elas_Anisot
             Anisotropic behavior law
         """
-
-        # Checking values
-        assert dim in [2,3], "Must be dimension 2 or 3"
-        self.__dim = dim
+        # here planeStress is set to False because we just know the C matrix
+        _Elas.__init__(self, dim, thickness, False)
 
         axis1 = AsCoords(axis1)
         axis2 = AsCoords(axis2)
@@ -765,9 +757,6 @@ class Elas_Anisot(_Elas):
         assert axis1 @ axis2 <= 1e-12, 'axis1 and axis2 must be perpendicular'
         self.__axis1 = Normalize(axis1)
         self.__axis2 = Normalize(axis2)
-
-        # here planeStress is set to False because we just know the C matrix
-        _Elas.__init__(self, dim, thickness, False)
 
         self.Set_C(C, useVoigtNotation)
 
@@ -844,7 +833,7 @@ class Elas_Anisot(_Elas):
 
         C_mandelP_global = Apply_Pmat(P, C_mandel_global)
 
-        if self.__dim == 2:
+        if self.dim == 2:
             if len(shape)==2:
                 C_mandelP = C_mandelP_global[idx,:][:,idx]
             if len(shape)==3:
