@@ -139,9 +139,9 @@ class HyperElastic:
         Ne, nPg, dim = grad_e_pg.shape[:3]
 
         if dim == 2:
-            D_e_pg = np.zeros((Ne, nPg, 6, 9), dtype=float)
-        else:
             D_e_pg = np.zeros((Ne, nPg, 3, 4), dtype=float)
+        else:
+            D_e_pg = np.zeros((Ne, nPg, 6, 9), dtype=float)
 
         def Add_to_D_e_pg(p: int, line: int, values: list[np.ndarray], coef=1.):
             N = 4 if dim == 2 else 9            
@@ -151,16 +151,27 @@ class HyperElastic:
         cM = 2**(-1/2)
 
         for p in range(nPg):
-            dxux, dyux, dzux = [grad_e_pg[:, p, 0, i] for i in range(3)]
-            dxuy, dyuy, dzuy = [grad_e_pg[:, p, 1, i] for i in range(3)]
-            dxuz, dyuz, dzuz = [grad_e_pg[:, p, 2, i] for i in range(3)]
 
-            Add_to_D_e_pg(p, 0, [1+dxux, 0, 0, dxuy, 0, 0, dxuz, 0, 0]) # xx
-            Add_to_D_e_pg(p, 1, [0, dyux, 0, 0, 1+dyuy, 0, 0, dyuz, 0]) # yy
-            Add_to_D_e_pg(p, 2, [0, 0, dzux, 0, 0, dzuy, 0, 0, 1+dzuz]) # zz
-            Add_to_D_e_pg(p, 3, [dzux, 0, 1 + dxux, dzuy, 0, dxuy, 1 + dzuz, 0, dxuz], cM) # yz
-            Add_to_D_e_pg(p, 4, [0, dzux, dyux, 0, dzuy, 1 + dyuy, 0, 1 + dzuz, dyuz], cM) # xz
-            Add_to_D_e_pg(p, 5, [dyux, 1+dxux, 0, 1+dyuy, dxuy, 0, dyuz, dxuz, 0], cM) # xy
+            if dim == 2:
+                dxux, dyux = [grad_e_pg[:, p, 0, i] for i in range(2)]
+                dxuy, dyuy = [grad_e_pg[:, p, 1, i] for i in range(2)]
+
+                Add_to_D_e_pg(p, 0, [1+dxux, 0, dxuy, 0]) # xx
+                Add_to_D_e_pg(p, 1, [0, dyux, 0, 1+dyuy]) # yy
+                Add_to_D_e_pg(p, 2, [dyux, 1+dxux, 1+dyuy, dxuy], cM) # xy
+            
+            else:
+
+                dxux, dyux, dzux = [grad_e_pg[:, p, 0, i] for i in range(3)]
+                dxuy, dyuy, dzuy = [grad_e_pg[:, p, 1, i] for i in range(3)]
+                dxuz, dyuz, dzuz = [grad_e_pg[:, p, 2, i] for i in range(3)]
+
+                Add_to_D_e_pg(p, 0, [1+dxux, 0, 0, dxuy, 0, 0, dxuz, 0, 0]) # xx
+                Add_to_D_e_pg(p, 1, [0, dyux, 0, 0, 1+dyuy, 0, 0, dyuz, 0]) # yy
+                Add_to_D_e_pg(p, 2, [0, 0, dzux, 0, 0, dzuy, 0, 0, 1+dzuz]) # zz
+                Add_to_D_e_pg(p, 3, [dzux, 0, 1 + dxux, dzuy, 0, dxuy, 1 + dzuz, 0, dxuz], cM) # yz
+                Add_to_D_e_pg(p, 4, [0, dzux, dyux, 0, dzuy, 1 + dyuy, 0, 1 + dzuz, dyuz], cM) # xz
+                Add_to_D_e_pg(p, 5, [dyux, 1+dxux, 0, 1+dyuy, dxuy, 0, dyuz, dxuz, 0], cM) # xy
 
         return D_e_pg
     
