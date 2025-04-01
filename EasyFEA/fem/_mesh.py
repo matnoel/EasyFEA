@@ -450,9 +450,18 @@ class Mesh(Observable):
         """
         return self.groupElem.Get_SourcePart_e_pg(matrixType)
 
-    def Get_Gradient(self, u: np.ndarray, matrixType=MatrixType.rigi) -> np.ndarray:
+    def Get_Gradient_e_pg(self, u: np.ndarray, matrixType=MatrixType.rigi) -> np.ndarray:
         """Returns the gradient of the discretized displacement field u as a matrix
         
+        In 2d
+        -----
+
+        dxux dyux\n
+        dxuy dyuy
+
+        In 3d
+        -----
+
         dxux dyux dzux\n
         dxuy dyuy dzuy\n
         dxuz dyuz dzuz\n
@@ -477,29 +486,27 @@ class Mesh(Observable):
         Nn = self.Nn
         nPe = self.nPe
         dim = u.size // Nn
+        assert dim in [2, 3]
 
         dN_e_pg = self.Get_dN_e_pg(matrixType)
         nPg = dN_e_pg.shape[1]
         # Shape functions (Ne, nPg, nPe)
         dxN_e_pg = dN_e_pg[:,:,0,:]
         dyN_e_pg = dN_e_pg[:,:,1,:]
-        dzN_e_pg = dN_e_pg[:,:,2,:]
+        if dim == 3:
+            dzN_e_pg = dN_e_pg[:,:,2,:]
         
         # u for each elements as (Ne, nPe*dim) array
         u_e = self.Locates_sol_e(u)
         # u for each elements reshaped as (Ne, nPe, dim) array
         u_e_n = np.reshape(u_e, (Ne, nPe, dim))
 
-        # -                -
-        # | dxux dyux dzux |
-        # | dxuy dyuy dzuy |
-        # | dxuz dyuz dzuz |
-        # -                -
         grad_e_pg = np.zeros((Ne, nPg, dim, dim), dtype=float)
         for p in range(nPg):
             grad_e_pg[:,p,:,0] = np.einsum("en,end->ed", dxN_e_pg[:,p], u_e_n)
             grad_e_pg[:,p,:,1] = np.einsum("en,end->ed", dyN_e_pg[:,p], u_e_n)
-            grad_e_pg[:,p,:,2] = np.einsum("en,end->ed", dzN_e_pg[:,p], u_e_n)
+            if dim == 3:
+                grad_e_pg[:,p,:,2] = np.einsum("en,end->ed", dzN_e_pg[:,p], u_e_n)
 
         return grad_e_pg
 
