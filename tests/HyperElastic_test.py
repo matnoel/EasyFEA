@@ -39,7 +39,7 @@ class TestHyperElastic:
         simu2d.Solve()
 
         Eps2d_e_pg = simu2d._Calc_Epsilon_e_pg(simu2d.displacement, MatrixType.rigi)
-        test2d_e_pg = Eps2d_e_pg - HyperElastic.Compute_Epsilon_e_pg(mesh2d, simu2d.displacement, MatrixType.rigi)
+        test2d_e_pg = Eps2d_e_pg - HyperElastic.Compute_Epsilon(mesh2d, simu2d.displacement, MatrixType.rigi)
 
         assert np.linalg.norm(test2d_e_pg) / np.linalg.norm(Eps2d_e_pg) < 1e-12
 
@@ -52,7 +52,7 @@ class TestHyperElastic:
         simu3d.Solve()
 
         Eps3d_e_pg = simu3d._Calc_Epsilon_e_pg(simu3d.displacement, MatrixType.mass)
-        test3d_e_pg = Eps3d_e_pg - HyperElastic.Compute_Epsilon_e_pg(mesh3d, simu3d.displacement, MatrixType.mass)
+        test3d_e_pg = Eps3d_e_pg - HyperElastic.Compute_Epsilon(mesh3d, simu3d.displacement, MatrixType.mass)
 
         assert np.linalg.norm(test3d_e_pg) / np.linalg.norm(Eps3d_e_pg) < 1e-12        
         
