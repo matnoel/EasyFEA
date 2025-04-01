@@ -108,3 +108,53 @@ def Inv(mat: np.ndarray):
         inv = np.linalg.inv(mat)
 
     return inv
+
+def TensorProd(A: np.ndarray, B: np.ndarray, symmetric=False) -> np.ndarray:
+    """Computes tensor product.
+
+    Parameters
+    ----------
+    A : np.ndarray
+        array A
+    B : np.ndarray
+        array B 
+    symmetric : bool, optional
+        do symmetric product, by default False
+
+    Returns
+    -------
+    np.ndarray
+        the calculated tensor product
+    """
+
+    assert isinstance(A, np.ndarray)
+    assert isinstance(B, np.ndarray)
+        
+    sizeA = A.size
+    sizeB = B.size
+    assert sizeA is sizeB, "A and B must have the same dimensions"
+
+    ndim = A.ndim
+
+    assert ndim in [1,2], "A and B must be vectors (i) or matrices (ij)"
+
+    if ndim == 1:
+        # vectors
+        # Ai Bj
+        res = np.einsum('...i,...j->...ij',A,B)
+
+    elif ndim == 2:
+        # matrices
+        if symmetric:
+            # 1/2 * (Aik Bjl + Ail Bjk) = 1/2 (p1 + p2)
+            p1 = np.einsum('...ik,...jl->...ijkl', A, B, optimize='optimal')
+            p2 = np.einsum('...il,...jk->...ijkl', A, B, optimize='optimal')
+            res = 1/2 * (p1 + p2)
+        else:
+            # Aij Bkl
+            res = np.einsum('...ij,...kl->...ijkl', A, B, optimize='optimal')
+            
+    else:
+        raise Exception("Not implemented")
+    
+    return res

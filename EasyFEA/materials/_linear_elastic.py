@@ -11,10 +11,10 @@ import numpy as np
 # others
 from ..geoms import AsCoords, Normalize
 from ._utils import (_IModel, ModelType, Heterogeneous_Array,
-                     Tensor_Product,
                      KelvinMandel_Matrix, Project_Kelvin,
                      Get_Pmat, Apply_Pmat)
 from ..utilities import _params
+from ..utilities._linalg import TensorProd
 
 # ----------------------------------------------
 # Elasticity
@@ -376,7 +376,7 @@ class Elas_Isot(_Elas):
         Ivect = np.array([1,1,1,0,0,0])
         Isym = np.eye(6)
 
-        E1 = 1/3 * Tensor_Product(Ivect, Ivect)
+        E1 = 1/3 * TensorProd(Ivect, Ivect)
         E2 = Isym - E1
 
         if not self.isHeterogeneous:
@@ -685,14 +685,14 @@ class Elas_IsotTrans(_Elas):
         c5 = 2 * Gl
 
         n = self.axis_l
-        p = Tensor_Product(n,n)
+        p = TensorProd(n,n)
         q = np.eye(3) - p
         
-        E1 = Project_Kelvin(Tensor_Product(p,p))
-        E2 = Project_Kelvin(1/2 * Tensor_Product(q,q))
-        E3 = Project_Kelvin(1/np.sqrt(2) * (Tensor_Product(p,q) + Tensor_Product(q,p)))
-        E4 = Project_Kelvin(Tensor_Product(q,q,True) - 1/2*Tensor_Product(q,q))
-        I = Project_Kelvin(Tensor_Product(np.eye(3),np.eye(3),True))
+        E1 = Project_Kelvin(TensorProd(p,p))
+        E2 = Project_Kelvin(1/2 * TensorProd(q,q))
+        E3 = Project_Kelvin(1/np.sqrt(2) * (TensorProd(p,q) + TensorProd(q,p)))
+        E4 = Project_Kelvin(TensorProd(q,q,True) - 1/2*TensorProd(q,q))
+        I = Project_Kelvin(TensorProd(np.eye(3),np.eye(3),True))
         E5 = I - E1 - E2 - E4
 
         if not self.isHeterogeneous:

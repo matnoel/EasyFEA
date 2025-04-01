@@ -146,48 +146,6 @@ def Heterogeneous_Array(array: np.ndarray):
 
     return newArray
 
-def Tensor_Product(A: np.ndarray, B: np.ndarray, symmetric=False) -> np.ndarray:
-    """Computes tensor product.
-
-    Parameters
-    ----------
-    A : np.ndarray
-        array A
-    B : np.ndarray
-        array B 
-    symmetric : bool, optional
-        do symmetric product, by default False
-
-    Returns
-    -------
-    np.ndarray
-        the calculated tensor product
-    """
-        
-    sizeA = A.size
-    sizeB = B.size
-
-    assert sizeA is sizeB, "A and B must have the same dimensions"
-
-    dim = len(A.shape)
-
-    assert dim in [1,2], "A and B must be vectors (i) or matrices (ij)"
-
-    if dim == 1:
-        # Ai Bj
-        res = np.einsum('i,j->ij',A,B)
-    elif dim == 2:
-        if symmetric:
-            # 1/2 * (Aij Bjl + Ail Bjk)
-            res = 1/2 * (np.einsum('ik,jl->ijkl',A,B)+np.einsum('il,jk->ijkl',A,B))
-        else:
-            # Aij Bkl
-            res = np.einsum('ij,kl->ijkl', A, B)
-    else:
-        raise "Not implemented"
-    
-    return res
-
 def KelvinMandel_Matrix(dim: int, M: np.ndarray) -> np.ndarray:
     """Apply Kelvin Mandel coefficient to constitutive laws.
     
