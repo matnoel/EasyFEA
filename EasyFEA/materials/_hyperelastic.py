@@ -7,27 +7,11 @@
 import numpy as np
 
 from ..fem import Mesh, MatrixType
+from ..utilities._linalg import Transpose, Trace, Det
 
 # ------------------------------------------------------------------------------
 # Functions for matrices
 # ------------------------------------------------------------------------------
-
-def __CheckMat(A: np.ndarray) -> None:
-    assert isinstance(A, np.ndarray) and A.ndim == 4 and A.shape[2] == A.shape[3], "must be a (Ne, nPg, dim, dim) array"
-    dim = A.shape[2]
-    assert dim in [2, 3]
-
-def __transpose(A: np.ndarray) -> np.ndarray:
-    __CheckMat(A)
-    return np.transpose(A, (0,1,3,2))
-
-def __trace(A: np.ndarray) -> np.ndarray:
-    __CheckMat(A)
-    return np.trace(A, axis1=2, axis2=3)
-
-def __det(A: np.ndarray) -> np.ndarray:
-    __CheckMat(A)
-    return np.linalg.det(A)
 
 class HyperElastic:
 
@@ -39,6 +23,7 @@ class HyperElastic:
         assert matrixType in MatrixType.Get_types(), f"matrixType must be in {MatrixType.Get_types()}"
 
     def __GetDims(mesh: Mesh, u: np.ndarray, matrixType:MatrixType) -> tuple[int, int, int]:
+        """return Ne, nPg, dim"""
         HyperElastic.__CheckFormat(mesh, u, matrixType)
         Ne = mesh.Ne
         dim = u.size // mesh.Nn
@@ -46,7 +31,7 @@ class HyperElastic:
         return (Ne, nPg, dim)
 
     def Compute_F(mesh: Mesh, u: np.ndarray, matrixType=MatrixType.rigi) -> np.ndarray:
-        """Computes the deformation gradient F(ξ) = I + grad(u)"""
+        """Computes the deformation gradient F = I + grad(u)"""
 
         HyperElastic.__CheckFormat(mesh, u, matrixType)
 
@@ -56,13 +41,22 @@ class HyperElastic:
         F_e_pg = np.eye(dim) + grad_e_pg
 
         return F_e_pg
+    
+    def Compute_J(mesh: Mesh, u: np.ndarray, matrixType=MatrixType.rigi) -> np.ndarray:
+        """Computes the deformation gradient J = det(F)"""
+
+        F_e_pg = HyperElastic.Compute_F(mesh, u, matrixType)
+
+        J_e_pg = Det(F_e_pg)
+
+        return J_e_pg
 
     def Compute_C(mesh: Mesh, u: np.ndarray, matrixType=MatrixType.rigi) -> np.ndarray:
         """Computes the right Cauchy-Green deformation  C = F'.F"""
 
         F_e_pg = HyperElastic.Compute_F(mesh, u, matrixType)
 
-        C_e_pg = __transpose(F_e_pg) @ F_e_pg
+        C_e_pg = Transpose(F_e_pg) @ F_e_pg
 
         return C_e_pg
     
@@ -181,7 +175,7 @@ class HyperElastic:
 
         C_e_pg = HyperElastic.Compute_C(mesh, u, matrixType)
 
-        I1_e_pg = __trace(C_e_pg)
+        I1_e_pg = Trace(C_e_pg)
 
         return I1_e_pg
 
@@ -203,13 +197,35 @@ class HyperElastic:
 
         C_e_pg = HyperElastic.Compute_C(mesh, u, matrixType)
 
-        I2_e_pg = 1/2 * (__trace(C_e_pg)**2 - __trace(C_e_pg @ C_e_pg))
+        I2_e_pg = 1/2 * (Trace(C_e_pg)**2 - Trace(C_e_pg @ C_e_pg))
 
         return I2_e_pg
     
     def Compute_dI2dC(mesh: Mesh, u: np.ndarray, matrixType=MatrixType.rigi) -> np.ndarray:
 
-        Ne, nPg, dim = HyperElastic.__GetDims(mesh, u, matrixType)
+        _, _, dim = HyperElastic.__GetDims(mesh, u, matrixType)
+
+        I1_e_pg = HyperElastic.Compute_I1(mesh, u, matrixType)
+        C_e_pg = HyperElastic.Compute_C(mesh, u, matrixType)
+
+        dI2dC_e_pg = I1_e_pg @ np.eye(dim) - C_e_pg 
+
+        return dI2dC_e_pg
+
+    # -------------------------------------
+    # Compute I3
+    # -------------------------------------
+    def Compute_I2(mesh: Mesh, u: np.ndarray, matrixType=MatrixType.rigi) -> np.ndarray:
+
+        C_e_pg = HyperElastic.Compute_C(mesh, u, matrixType)
+
+        I3_e_pg = Det(C_e_pg)
+
+        return I3_e_pg
+    
+    def Compute_dI2dC(mesh: Mesh, u: np.ndarray, matrixType=MatrixType.rigi) -> np.ndarray:
+
+        _, _, dim = HyperElastic.__GetDims(mesh, u, matrixType)
 
         I1_e_pg = HyperElastic.Compute_I1(mesh, u, matrixType)
         C_e_pg = HyperElastic.Compute_C(mesh, u, matrixType)
