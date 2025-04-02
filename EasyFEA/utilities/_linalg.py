@@ -113,7 +113,7 @@ def Inv(mat: np.ndarray):
 
     return inv
 
-def TensorProd(A: np.ndarray, B: np.ndarray, symmetric=False) -> np.ndarray:
+def TensorProd(A: np.ndarray, B: np.ndarray, symmetric=False, ndim:int=None) -> np.ndarray:
     """Computes tensor product.
 
     Parameters
@@ -124,6 +124,8 @@ def TensorProd(A: np.ndarray, B: np.ndarray, symmetric=False) -> np.ndarray:
         array B 
     symmetric : bool, optional
         do symmetric product, by default False
+    ndim : int, optional
+        ndim=1 -> vect or ndim=2 -> matrix, by default None
 
     Returns
     -------
@@ -136,16 +138,17 @@ def TensorProd(A: np.ndarray, B: np.ndarray, symmetric=False) -> np.ndarray:
         
     sizeA = A.size
     sizeB = B.size
-    assert sizeA is sizeB, "A and B must have the same dimensions"
+    assert sizeA == sizeB, "A and B must have the same dimensions"
 
-    ndim = A.ndim
+    if ndim is None:
+        ndim = A.ndim
 
     assert ndim in [1,2], "A and B must be vectors (i) or matrices (ij)"
 
     if ndim == 1:
         # vectors
         # Ai Bj
-        res = np.einsum('...i,...j->...ij',A,B)
+        res = np.einsum('...i,...j->...ij', A, B)
 
     elif ndim == 2:
         # matrices

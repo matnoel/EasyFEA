@@ -188,13 +188,15 @@ def KelvinMandel_Matrix(dim: int, M: np.ndarray) -> np.ndarray:
 
     return newM
 
-def Project_Kelvin(A: np.ndarray) -> np.ndarray:
+def Project_Kelvin(A: np.ndarray, orderA:int=None) -> np.ndarray:
     """Projects the tensor A in Kelvin Mandel notation.
 
     Parameters
     ----------
     A : np.ndarray
         tensor A (2 or 4 order tensor)
+    orderA : int, optional
+        tensor order, by default None
 
     Returns
     -------
@@ -203,19 +205,21 @@ def Project_Kelvin(A: np.ndarray) -> np.ndarray:
     """
     
     shapeA = A.shape
-    assert np.std(shapeA) == 0, "Must have the same number of indices in all dimensions."
-    orderA = len(shapeA)
+
+    if orderA is None:
+        assert np.std(shapeA) == 0, "Must have the same number of indices in all dimensions."
+        orderA = len(shapeA)
 
     e = np.array([[1,6,5],[6,2,4],[5,4,3]]) - 1
     kron = lambda a,b: 1 if a==b else 0        
 
     if orderA == 2:
         # Aij -> AI
-        assert shapeA == (3,3), "Must be a (3,3) array"
+        assert shapeA[-2:] == (3,3), "Must be a (3,3) array"
         
-        A_I = np.zeros(6)
+        A_I = np.zeros((*shapeA[:-2], 6))
         def add(i,j) -> None:
-            A_I[e[i,j]] = np.sqrt((2-kron(i,j))) * A[i,j]
+            A_I[Ellipsis, e[i,j]] = np.sqrt((2-kron(i,j))) * A[Ellipsis,i,j]
 
         [add(i,j) for i in range(3) for j in range(3)]
 
@@ -223,11 +227,11 @@ def Project_Kelvin(A: np.ndarray) -> np.ndarray:
 
     elif orderA == 4:
         # Aijkl -> AIJ
-        assert shapeA == (3,3,3,3), "Must be a (3,3,3,3) array"
+        assert shapeA[-4:] == (3,3,3,3), "Must be a (3,3,3,3) array"
         
-        A_IJ = np.zeros((6,6))
+        A_IJ = np.zeros((*shapeA[:-4], 6, 6))
         def add(i,j,k,l) -> None:
-            A_IJ[e[i,j],e[k,l]] = np.sqrt((2-kron(i,j))*(2-kron(k,l))) * A[i,j,k,l]
+            A_IJ[Ellipsis, e[i,j],e[k,l]] = np.sqrt((2-kron(i,j))*(2-kron(k,l))) * A[Ellipsis,i,j,k,l]
 
         [add(i,j,k,l) for i in range(3) for j in range(3) for k in range(3) for l in range(3)]
 
