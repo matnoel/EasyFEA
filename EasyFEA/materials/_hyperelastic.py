@@ -8,6 +8,7 @@ import numpy as np
 
 from ..fem import Mesh, MatrixType
 from ..utilities._linalg import Transpose, Trace, Det, Inv, TensorProd
+from ._utils import Project_Kelvin
 
 # ------------------------------------------------------------------------------
 # Functions for matrices
@@ -365,6 +366,26 @@ class HyperElastic:
             dI1dC_e_pg[:,:,d,d] = 1
 
         return dI1dC_e_pg
+    
+    def Compute_d2I1dC(mesh: Mesh, u: np.ndarray, matrixType=MatrixType.rigi) -> np.ndarray:
+        """Computes d2I1dC(u)
+        
+        Parameters
+        ----------
+        mesh : Mesh
+            mesh
+        u : np.ndarray
+            discretized displacement field [ux1, uy1, uz1, . . ., uxN, uyN, uzN] of size Nn * dim
+        matrixType : MatrixType, optional
+            matrix type, by default MatrixType.rigi
+
+        Returns
+        -------
+        np.ndarray
+            d2I1dC_e_pg of shape (Ne, pg, 6, 6)
+        """        
+
+        return 0
 
     # -------------------------------------
     # Compute I2
@@ -420,6 +441,36 @@ class HyperElastic:
 
         return dI2dC_e_pg
 
+    def Compute_d2I2dC(mesh: Mesh, u: np.ndarray, matrixType=MatrixType.rigi) -> np.ndarray:
+        """Computes d2I2dC(u)
+        
+        Parameters
+        ----------
+        mesh : Mesh
+            mesh
+        u : np.ndarray
+            discretized displacement field [ux1, uy1, uz1, . . ., uxN, uyN, uzN] of size Nn * dim
+        matrixType : MatrixType, optional
+            matrix type, by default MatrixType.rigi
+
+        Returns
+        -------
+        np.ndarray
+            d2I2dC_e_pg of shape (Ne, pg, 6, 6)
+        """
+
+        vect1 = np.array([1,1,1,0,0,0])
+        Id_order2 = TensorProd(vect1, vect1)
+        
+        Id_order4 = np.eye(6)
+        # # same as
+        # vect2 = np.eye(3)
+        # Id_order4 = Project_Kelvin(TensorProd(vect2, vect2, True))
+
+        d2I2dC_e_pg = Id_order2 - Id_order4 
+
+        return d2I2dC_e_pg
+
     # -------------------------------------
     # Compute I3
     # -------------------------------------
@@ -468,9 +519,45 @@ class HyperElastic:
         I3_e_pg = HyperElastic.Compute_I3(mesh, u, matrixType)
         C_e_pg = HyperElastic.Compute_C(mesh, u, matrixType)
 
-        dI3dC_e_pg = I3_e_pg @ Inv(C_e_pg)
+        dI3dC_e_pg = np.einsum("...,...ij->...ij", I3_e_pg, Inv(C_e_pg), optimize="optimal")
 
         return dI3dC_e_pg
+    
+    def Compute_d2I3dC(mesh: Mesh, u: np.ndarray, matrixType=MatrixType.rigi) -> np.ndarray:
+        """Computes d2I3dC(u)
+        
+        Parameters
+        ----------
+        mesh : Mesh
+            mesh
+        u : np.ndarray
+            discretized displacement field [ux1, uy1, uz1, . . ., uxN, uyN, uzN] of size Nn * dim
+        matrixType : MatrixType, optional
+            matrix type, by default MatrixType.rigi
+
+        Returns
+        -------
+        np.ndarray
+            d2I3dC_e_pg of shape (Ne, pg, 6, 6)
+        """
+
+        C_e_pg = HyperElastic.Compute_C(mesh, u, matrixType)
+        invC_e_pg = Inv(C_e_pg)
+        I3_e_pg = HyperElastic.Compute_I3(mesh, u, matrixType)
+        dI3dC_e_pg = HyperElastic.Compute_dI3dC(mesh, u, matrixType)
+        
+        p1_e_pg = Project_Kelvin(
+            TensorProd(dI3dC_e_pg, invC_e_pg, ndim=2), orderA=4
+        )
+        p2_e_pg = np.einsum("...,...ij->...ij", I3_e_pg,
+                            Project_Kelvin(
+                                TensorProd(-invC_e_pg, C_e_pg, ndim=2), orderA=4
+                            ), optimize="optimal"
+        ) 
+
+        d2I3dC_e_pg = p1_e_pg + p2_e_pg
+
+        return d2I3dC_e_pg
 
     # -------------------------------------
     # Compute I4

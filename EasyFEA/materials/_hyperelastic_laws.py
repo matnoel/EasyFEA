@@ -111,7 +111,7 @@ class _HyperElas(_IModel, ABC):
 
     @abstractmethod
     def Compute_d2Wede(self, mesh: Mesh, u: np.ndarray, matrixType=MatrixType.rigi) -> np.ndarray:
-        """Computes the second Piola-Kirchhoff tensor dΣde.
+        """Computes dΣde.
         
         Parameters
         ----------
