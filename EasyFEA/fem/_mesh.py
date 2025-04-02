@@ -465,22 +465,22 @@ class Mesh(Observable):
         np.ndarray
             grad(u) of shape (Ne, pg, 3, 3)
 
-        u is in 1D
-        ----------
+        dim = 1
+        -------
 
         dxux 0 0\n
         0 0 0\n
         0 0 0
             
-        u is in 2D
-        ----------
+        dim = 2
+        -------
 
         dxux dyux 0\n
         dxuy dyuy 0\n
-        0    0    0
+        0 0 0
 
-        u is in 3D
-        ----------
+        dim = 3
+        -------
 
         dxux dyux dzux\n
         dxuy dyuy dzuy\n
