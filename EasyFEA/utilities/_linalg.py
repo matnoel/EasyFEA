@@ -12,15 +12,18 @@ def __CheckMat(mat: np.ndarray) -> None:
     assert dim > 0
 
 def Transpose(mat: np.ndarray) -> np.ndarray:
+    """Computes transpose(mat)"""
     __CheckMat(mat)
     return np.einsum("...ij->...ji", mat, optimize="optimal")
 
 def Trace(mat: np.ndarray) -> np.ndarray:
+    """Computes trace(mat)"""
     __CheckMat(mat)
     # same as np.trace(A, axis1=-2, axis2=-1)
     return np.einsum("...ii->...", mat, optimize="optimal")
 
 def Det(mat: np.ndarray) -> np.ndarray:
+    """Computes det(mat)"""
     __CheckMat(mat)
 
     dim = mat.shape[-1]
@@ -49,6 +52,7 @@ def Det(mat: np.ndarray) -> np.ndarray:
     return det
 
 def Inv(mat: np.ndarray):
+    """Computes inv(mat)"""
     __CheckMat(mat)
 
     dim = mat.shape[-1]
@@ -153,7 +157,7 @@ def TensorProd(A: np.ndarray, B: np.ndarray, symmetric=False) -> np.ndarray:
         else:
             # Aij Bkl
             res = np.einsum('...ij,...kl->...ijkl', A, B, optimize='optimal')
-            
+
     else:
         raise Exception("Not implemented")
     
