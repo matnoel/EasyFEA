@@ -47,15 +47,22 @@ class HyperElastic:
         np.ndarray
             F(u) of shape (Ne, pg, 3, 3)
 
-        In 2D
-        -----
+        dim = 1
+        -------
+
+        1+dxux 0 0\n
+        0 1 0\n
+        0 0 1 
+            
+        dim = 2
+        -------
 
         1+dxux dyux 0\n
-        dxuy  1+dyuy 0\n
-        0    0    1
+        dxuy 1+dyuy 0\n
+        0 0 1
 
-        In 3D
-        -----
+        dim = 3
+        -------
 
         1+dxux dyux dzux\n
         dxuy 1+dyuy dzuy\n
@@ -111,15 +118,22 @@ class HyperElastic:
         np.ndarray
             C_e_pg of shape (Ne, pg, 3, 3)
 
-        In 2D
-        -----
+        dim = 1
+        -------
+
+        cxx 0 0\n
+        0 0 0\n
+        0 0 0
+            
+        dim = 2
+        -------
 
         cxx cxy 0\n
         cyx cyy 0\n
-        0   0   0
+        0 0 0
 
-        In 3D
-        -----
+        dim = 3
+        -------
 
         cxx cxy cxz\n
         cyx cyy cyz\n
@@ -168,15 +182,15 @@ class HyperElastic:
         matrixType : MatrixType, optional
             matrix type, by default MatrixType.rigi
 
-        Returns in 2D
-        -------------
+        Returns if dim = 2
+        ------------------
         np.ndarray
             Eps_e_pg of shape (Ne, pg, 3)
 
             [xx, yy, 2**(-1/2) xy]
 
-        Returns in 3D
-        -------------
+        Returns if dim = 3
+        ------------------
         np.ndarray
             Eps_e_pg of shape (Ne, pg, 6)
 
@@ -229,8 +243,8 @@ class HyperElastic:
         matrixType : MatrixType, optional
             matrix type, by default MatrixType.rigi
 
-        Returns in 2D
-        -------------
+        Returns if dim = 2
+        ------------------
         np.ndarray
             D_e_pg of shape (Ne, pg, 3, 4)
 
@@ -238,8 +252,8 @@ class HyperElastic:
             [0, dyux, 0, 1+dyuy] # yy \n
             2**(-1/2) [dyux, 1+dxux, 1+dyuy, dxuy # xy
 
-        Returns in 3D
-        -------------
+        Returns if dim = 3
+        ------------------
         np.ndarray
             D_e_pg of shape (Ne, pg, 6, 9)
 
