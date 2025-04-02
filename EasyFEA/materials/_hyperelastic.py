@@ -31,29 +31,42 @@ class HyperElastic:
         return (Ne, nPg, dim)
 
     def Compute_F(mesh: Mesh, u: np.ndarray, matrixType=MatrixType.rigi) -> np.ndarray:
-        """Computes the deformation gradient F = I + grad(u)
+        """Computes the deformation gradient F(u) = I + grad(u)
         
         Parameters
         ----------
         mesh : Mesh
             mesh
         u : np.ndarray
-            discretized displacement field [u1, v1, w1, . . ., uN, vN, wN] of size Nn * dim
+            discretized displacement field [ux1, uy1, uz1, . . ., uxN, uyN, uzN] of size Nn * dim
         matrixType : MatrixType, optional
             matrix type, by default MatrixType.rigi
-
+        
         Returns
         -------
         np.ndarray
-            F_e_pg of shape (Ne, pg, dim, dim)
+            F(u) of shape (Ne, pg, 3, 3)
+
+        In 2D
+        -----
+
+        1+dxux dyux 0\n
+        dxuy  1+dyuy 0\n
+        0    0    1
+
+        In 3D
+        -----
+
+        1+dxux dyux dzux\n
+        dxuy 1+dyuy dzuy\n
+        dxuz dyuz 1+dzuz
         """
 
         HyperElastic.__CheckFormat(mesh, u, matrixType)
 
         grad_e_pg = mesh.Get_Gradient_e_pg(u, matrixType)
-        dim = grad_e_pg.shape[2]
 
-        F_e_pg = np.eye(dim) + grad_e_pg
+        F_e_pg = np.eye(3) + grad_e_pg
 
         return F_e_pg
     
@@ -65,7 +78,7 @@ class HyperElastic:
         mesh : Mesh
             mesh
         u : np.ndarray
-            discretized displacement field [u1, v1, w1, . . ., uN, vN, wN] of size Nn * dim
+            discretized displacement field [ux1, uy1, uz1, . . ., uxN, uyN, uzN] of size Nn * dim
         matrixType : MatrixType, optional
             matrix type, by default MatrixType.rigi
 
@@ -82,21 +95,35 @@ class HyperElastic:
         return J_e_pg
 
     def Compute_C(mesh: Mesh, u: np.ndarray, matrixType=MatrixType.rigi) -> np.ndarray:
-        """Computes the right Cauchy-Green deformation  C = F'.F
+        """Computes the right Cauchy-Green tensor  C(u) = F(u)'.F(u)
         
         Parameters
         ----------
         mesh : Mesh
             mesh
         u : np.ndarray
-            discretized displacement field [u1, v1, w1, . . ., uN, vN, wN] of size Nn * dim
+            discretized displacement field [ux1, uy1, uz1, . . ., uxN, uyN, uzN] of size Nn * dim
         matrixType : MatrixType, optional
             matrix type, by default MatrixType.rigi
 
         Returns
         -------
         np.ndarray
-            C_e_pg of shape (Ne, pg, dim, dim)
+            C_e_pg of shape (Ne, pg, 3, 3)
+
+        In 2D
+        -----
+
+        cxx cxy 0\n
+        cyx cyy 0\n
+        0   0   0
+
+        In 3D
+        -----
+
+        cxx cxy cxz\n
+        cyx cyy cyz\n
+        czx czy czz
         """
 
         F_e_pg = HyperElastic.Compute_F(mesh, u, matrixType)
@@ -113,7 +140,7 @@ class HyperElastic:
         mesh : Mesh
             mesh
         u : np.ndarray
-            discretized displacement field [u1, v1, w1, . . ., uN, vN, wN] of size Nn * dim
+            discretized displacement field [ux1, uy1, uz1, . . ., uxN, uyN, uzN] of size Nn * dim
         matrixType : MatrixType, optional
             matrix type, by default MatrixType.rigi
 
@@ -124,9 +151,8 @@ class HyperElastic:
         """
 
         C_e_pg = HyperElastic.Compute_C(mesh, u, matrixType)
-        dim = C_e_pg.shape[2]
 
-        e_e_pg = 1/2 * (C_e_pg - np.eye(dim)) 
+        e_e_pg = 1/2 * (C_e_pg - np.eye(3)) 
 
         return e_e_pg
        
@@ -138,7 +164,7 @@ class HyperElastic:
         mesh : Mesh
             mesh
         u : np.ndarray
-            discretized displacement field [u1, v1, w1, . . ., uN, vN, wN] of size Nn * dim
+            discretized displacement field [ux1, uy1, uz1, . . ., uxN, uyN, uzN] of size Nn * dim
         matrixType : MatrixType, optional
             matrix type, by default MatrixType.rigi
 
@@ -158,12 +184,11 @@ class HyperElastic:
         """
 
         HyperElastic.__CheckFormat(mesh, u, matrixType)
+        Ne, nPg, dim = HyperElastic.__GetDims(mesh, u, matrixType)
+        assert dim in [2, 3]
 
         # compute grad
-        grad_e_pg = mesh.Get_Gradient_e_pg(u, matrixType)
-        Ne, nPg, dim = grad_e_pg.shape[:3]
-
-        assert dim in [2, 3]
+        grad_e_pg = mesh.Get_Gradient_e_pg(u, matrixType)[Ellipsis,:dim, :dim]
 
         # 2d: dxux, dyux, dxuy, dyuy
         # 3d: dxux, dyux, dzu, dxuy, dyuy, dzuy, dxuz, dyuz, dzuz
@@ -200,7 +225,7 @@ class HyperElastic:
         mesh : Mesh
             mesh
         u : np.ndarray
-            discretized displacement field [u1, v1, w1, . . ., uN, vN, wN] of size Nn * dim
+            discretized displacement field [ux1, uy1, uz1, . . ., uxN, uyN, uzN] of size Nn * dim
         matrixType : MatrixType, optional
             matrix type, by default MatrixType.rigi
 
@@ -227,9 +252,10 @@ class HyperElastic:
         """
 
         HyperElastic.__CheckFormat(mesh, u, matrixType)
+        Ne, nPg, dim = HyperElastic.__GetDims(mesh, u, matrixType)
+        assert dim in [2, 3]
 
         grad_e_pg = mesh.Get_Gradient_e_pg(u)
-        Ne, nPg, dim = grad_e_pg.shape[:3]
 
         if dim == 2:
             D_e_pg = np.zeros((Ne, nPg, 3, 4), dtype=float)
@@ -283,7 +309,7 @@ class HyperElastic:
         mesh : Mesh
             mesh
         u : np.ndarray
-            discretized displacement field [u1, v1, w1, . . ., uN, vN, wN] of size Nn * dim
+            discretized displacement field [ux1, uy1, uz1, . . ., uxN, uyN, uzN] of size Nn * dim
         matrixType : MatrixType, optional
             matrix type, by default MatrixType.rigi
 
@@ -307,22 +333,22 @@ class HyperElastic:
         mesh : Mesh
             mesh
         u : np.ndarray
-            discretized displacement field [u1, v1, w1, . . ., uN, vN, wN] of size Nn * dim
+            discretized displacement field [ux1, uy1, uz1, . . ., uxN, uyN, uzN] of size Nn * dim
         matrixType : MatrixType, optional
             matrix type, by default MatrixType.rigi
 
         Returns
         -------
         np.ndarray
-            dI1dC_e_pg of shape (Ne, pg, dim, dim)
+            dI1dC_e_pg of shape (Ne, pg, 3, 3)
         """
 
         Ne, nPg, dim = HyperElastic.__GetDims(mesh, u, matrixType)
 
-        dI1dC_e_pg = np.zeros((Ne, nPg, dim, dim), dtype=float)
+        dI1dC_e_pg = np.zeros((Ne, nPg, 3, 3), dtype=float)
 
         for d in range(dim):
-            dI1dC_e_pg[:,:,d,d]=1
+            dI1dC_e_pg[:,:,d,d] = 1
 
         return dI1dC_e_pg
 
@@ -337,7 +363,7 @@ class HyperElastic:
         mesh : Mesh
             mesh
         u : np.ndarray
-            discretized displacement field [u1, v1, w1, . . ., uN, vN, wN] of size Nn * dim
+            discretized displacement field [ux1, uy1, uz1, . . ., uxN, uyN, uzN] of size Nn * dim
         matrixType : MatrixType, optional
             matrix type, by default MatrixType.rigi
 
@@ -361,14 +387,14 @@ class HyperElastic:
         mesh : Mesh
             mesh
         u : np.ndarray
-            discretized displacement field [u1, v1, w1, . . ., uN, vN, wN] of size Nn * dim
+            discretized displacement field [ux1, uy1, uz1, . . ., uxN, uyN, uzN] of size Nn * dim
         matrixType : MatrixType, optional
             matrix type, by default MatrixType.rigi
 
         Returns
         -------
         np.ndarray
-            dI2dC_e_pg of shape (Ne, pg, dim, dim)
+            dI2dC_e_pg of shape (Ne, pg, 3, 3)
         """
 
         _, _, dim = HyperElastic.__GetDims(mesh, u, matrixType)
@@ -391,7 +417,7 @@ class HyperElastic:
         mesh : Mesh
             mesh
         u : np.ndarray
-            discretized displacement field [u1, v1, w1, . . ., uN, vN, wN] of size Nn * dim
+            discretized displacement field [ux1, uy1, uz1, . . ., uxN, uyN, uzN] of size Nn * dim
         matrixType : MatrixType, optional
             matrix type, by default MatrixType.rigi
 
@@ -415,14 +441,14 @@ class HyperElastic:
         mesh : Mesh
             mesh
         u : np.ndarray
-            discretized displacement field [u1, v1, w1, . . ., uN, vN, wN] of size Nn * dim
+            discretized displacement field [ux1, uy1, uz1, . . ., uxN, uyN, uzN] of size Nn * dim
         matrixType : MatrixType, optional
             matrix type, by default MatrixType.rigi
 
         Returns
         -------
         np.ndarray
-            dI3dC_e_pg of shape (Ne, pg, dim, dim)
+            dI3dC_e_pg of shape (Ne, pg, 3, 3)
         """
 
         I3_e_pg = HyperElastic.Compute_I3(mesh, u, matrixType)
@@ -443,7 +469,7 @@ class HyperElastic:
         mesh : Mesh
             mesh
         u : np.ndarray
-            discretized displacement field [u1, v1, w1, . . ., uN, vN, wN] of size Nn * dim
+            discretized displacement field [ux1, uy1, uz1, . . ., uxN, uyN, uzN] of size Nn * dim
         matrixType : MatrixType, optional
             matrix type, by default MatrixType.rigi
 
@@ -454,9 +480,8 @@ class HyperElastic:
         """
 
         C_e_pg = HyperElastic.Compute_C(mesh, u, matrixType)
-        dim = C_e_pg.shape[-1]
 
-        assert isinstance(T, np.ndarray) and C_e_pg.ndim == T.ndim-1 and dim == T.shape[-1], "T must be a (..., dim) array"
+        assert isinstance(T, np.ndarray) and T.shape[-1] == 3, "T must be a (..., 3) array"
 
         I4_e_pg = T @ (C_e_pg @ T)
 
@@ -470,15 +495,17 @@ class HyperElastic:
         mesh : Mesh
             mesh
         u : np.ndarray
-            discretized displacement field [u1, v1, w1, . . ., uN, vN, wN] of size Nn * dim
+            discretized displacement field [ux1, uy1, uz1, . . ., uxN, uyN, uzN] of size Nn * dim
         matrixType : MatrixType, optional
             matrix type, by default MatrixType.rigi
 
         Returns
         -------
         np.ndarray
-            dI4dC_e_pg of shape (Ne, pg, dim, dim)
+            dI4dC_e_pg of shape (Ne, pg, 3, 3)
         """
+
+        assert isinstance(T, np.ndarray) and T.shape[-1] == 3, "T must be a (..., 3) array"
 
         dI4dC_e_pg = TensorProd(T, T)
 
@@ -495,7 +522,7 @@ class HyperElastic:
         mesh : Mesh
             mesh
         u : np.ndarray
-            discretized displacement field [u1, v1, w1, . . ., uN, vN, wN] of size Nn * dim
+            discretized displacement field [ux1, uy1, uz1, . . ., uxN, uyN, uzN] of size Nn * dim
         matrixType : MatrixType, optional
             matrix type, by default MatrixType.rigi
 
@@ -520,20 +547,20 @@ class HyperElastic:
         mesh : Mesh
             mesh
         u : np.ndarray
-            discretized displacement field [u1, v1, w1, . . ., uN, vN, wN] of size Nn * dim
+            discretized displacement field [ux1, uy1, uz1, . . ., uxN, uyN, uzN] of size Nn * dim
         matrixType : MatrixType, optional
             matrix type, by default MatrixType.rigi
 
         Returns
         -------
         np.ndarray
-            dJ1dC_e_pg of shape (Ne, pg, dim, dim)
+            dJ1dC_e_pg of shape (Ne, pg, 3, 3)
         """
 
         I1_e_pg = HyperElastic.Compute_I1(mesh, u, matrixType)
         I3_e_pg = HyperElastic.Compute_I3(mesh, u, matrixType)
-        C_e_pg = HyperElastic.Compute_C(mesh, u, matrixType)
-        I = np.eye(C_e_pg.shape[-1])
+        C_e_pg = HyperElastic.Compute_C(mesh, u, matrixType)        
+        I = np.eye(3)
 
         dJ1dC_e_pg = I3_e_pg**(-1/3) * (I - 1/3 * I1_e_pg * Inv(C_e_pg))
 
@@ -550,7 +577,7 @@ class HyperElastic:
         mesh : Mesh
             mesh
         u : np.ndarray
-            discretized displacement field [u1, v1, w1, . . ., uN, vN, wN] of size Nn * dim
+            discretized displacement field [ux1, uy1, uz1, . . ., uxN, uyN, uzN] of size Nn * dim
         matrixType : MatrixType, optional
             matrix type, by default MatrixType.rigi
 
@@ -575,21 +602,21 @@ class HyperElastic:
         mesh : Mesh
             mesh
         u : np.ndarray
-            discretized displacement field [u1, v1, w1, . . ., uN, vN, wN] of size Nn * dim
+            discretized displacement field [ux1, uy1, uz1, . . ., uxN, uyN, uzN] of size Nn * dim
         matrixType : MatrixType, optional
             matrix type, by default MatrixType.rigi
 
         Returns
         -------
         np.ndarray
-            dJ2dC_e_pg of shape (Ne, pg, dim, dim)
+            dJ2dC_e_pg of shape (Ne, pg, 3, 3)
         """
 
         I1_e_pg = HyperElastic.Compute_I1(mesh, u, matrixType)
         I2_e_pg = HyperElastic.Compute_I2(mesh, u, matrixType)
         I3_e_pg = HyperElastic.Compute_I3(mesh, u, matrixType)
         C_e_pg = HyperElastic.Compute_C(mesh, u, matrixType)
-        I = np.eye(C_e_pg.shape[-1])
+        I = np.eye(3)
 
         dJ2dC_e_pg = I3_e_pg**(-2/3) * (I1_e_pg @ I - C_e_pg - 2/3 * I2_e_pg * Inv(C_e_pg))
 
@@ -606,7 +633,7 @@ class HyperElastic:
         mesh : Mesh
             mesh
         u : np.ndarray
-            discretized displacement field [u1, v1, w1, . . ., uN, vN, wN] of size Nn * dim
+            discretized displacement field [ux1, uy1, uz1, . . ., uxN, uyN, uzN] of size Nn * dim
         matrixType : MatrixType, optional
             matrix type, by default MatrixType.rigi
 
@@ -628,14 +655,14 @@ class HyperElastic:
         mesh : Mesh
             mesh
         u : np.ndarray
-            discretized displacement field [u1, v1, w1, . . ., uN, vN, wN] of size Nn * dim
+            discretized displacement field [ux1, uy1, uz1, . . ., uxN, uyN, uzN] of size Nn * dim
         matrixType : MatrixType, optional
             matrix type, by default MatrixType.rigi
 
         Returns
         -------
         np.ndarray
-            dJ2dC_e_pg of shape (Ne, pg, dim, dim)
+            dJ2dC_e_pg of shape (Ne, pg, 3, 3)
         """
 
         J_e_pg = HyperElastic.Compute_J(mesh, u, matrixType) #  J3 = I3**(1/2) = J
@@ -656,7 +683,7 @@ class HyperElastic:
         mesh : Mesh
             mesh
         u : np.ndarray
-            discretized displacement field [u1, v1, w1, . . ., uN, vN, wN] of size Nn * dim
+            discretized displacement field [ux1, uy1, uz1, . . ., uxN, uyN, uzN] of size Nn * dim
         matrixType : MatrixType, optional
             matrix type, by default MatrixType.rigi
 
@@ -681,14 +708,14 @@ class HyperElastic:
         mesh : Mesh
             mesh
         u : np.ndarray
-            discretized displacement field [u1, v1, w1, . . ., uN, vN, wN] of size Nn * dim
+            discretized displacement field [ux1, uy1, uz1, . . ., uxN, uyN, uzN] of size Nn * dim
         matrixType : MatrixType, optional
             matrix type, by default MatrixType.rigi
 
         Returns
         -------
         np.ndarray
-            dJ4dC_e_pg of shape (Ne, pg, dim, dim)
+            dJ4dC_e_pg of shape (Ne, pg, 3, 3)
         """
 
         I3_e_pg = HyperElastic.Compute_I3(mesh, u, matrixType)

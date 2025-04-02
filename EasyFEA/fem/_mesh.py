@@ -453,30 +453,38 @@ class Mesh(Observable):
     def Get_Gradient_e_pg(self, u: np.ndarray, matrixType=MatrixType.rigi) -> np.ndarray:
         """Returns the gradient of the discretized displacement field u as a matrix
         
-        In 2d
-        -----
-
-        dxux dyux\n
-        dxuy dyuy
-
-        In 3d
-        -----
-
-        dxux dyux dzux\n
-        dxuy dyuy dzuy\n
-        dxuz dyuz dzuz\n
-        
         Parameters
         ----------
         u : np.ndarray
-            discretized displacement field [u1, v1, w1, . . ., uN, vN, wN]
+            discretized displacement field [ux1, uy1, uz1, . . ., uxN, uyN, uzN] of size Nn * dim
         matrixType : MatrixType, optional
             matrix type, by default MatrixType.rigi
 
         Returns
         -------
         np.ndarray
-            grad(u) of shape (e, pg, dim, dim)
+            grad(u) of shape (Ne, pg, 3, 3)
+
+        u is in 1D
+        ----------
+
+        dxux 0 0\n
+        0 0 0\n
+        0 0 0
+            
+        u is in 2D
+        ----------
+
+        dxux dyux 0\n
+        dxuy dyuy 0\n
+        0    0    0
+
+        u is in 3D
+        ----------
+
+        dxux dyux dzux\n
+        dxuy dyuy dzuy\n
+        dxuz dyuz dzuz
         """
 
         assert isinstance(u, np.ndarray) and u.size % self.Nn == 0
@@ -492,8 +500,9 @@ class Mesh(Observable):
         nPg = dN_e_pg.shape[1]
         # Shape functions (Ne, nPg, nPe)
         dxN_e_pg = dN_e_pg[:,:,0,:]
-        dyN_e_pg = dN_e_pg[:,:,1,:]
-        if dim == 3:
+        if dim > 1:
+            dyN_e_pg = dN_e_pg[:,:,1,:]
+        if dim > 2:
             dzN_e_pg = dN_e_pg[:,:,2,:]
         
         # u for each elements as (Ne, nPe*dim) array
@@ -501,11 +510,12 @@ class Mesh(Observable):
         # u for each elements reshaped as (Ne, nPe, dim) array
         u_e_n = np.reshape(u_e, (Ne, nPe, dim))
 
-        grad_e_pg = np.zeros((Ne, nPg, dim, dim), dtype=float)
+        grad_e_pg = np.zeros((Ne, nPg, 3, 3), dtype=float)
         for p in range(nPg):
-            grad_e_pg[:,p,:,0] = np.einsum("en,end->ed", dxN_e_pg[:,p], u_e_n)
-            grad_e_pg[:,p,:,1] = np.einsum("en,end->ed", dyN_e_pg[:,p], u_e_n)
-            if dim == 3:
+            grad_e_pg[:,p,:dim,0] = np.einsum("en,end->ed", dxN_e_pg[:,p], u_e_n)
+            if dim > 1:
+                grad_e_pg[:,p,:dim,1] = np.einsum("en,end->ed", dyN_e_pg[:,p], u_e_n)
+            if dim > 2:
                 grad_e_pg[:,p,:,2] = np.einsum("en,end->ed", dzN_e_pg[:,p], u_e_n)
 
         return grad_e_pg
