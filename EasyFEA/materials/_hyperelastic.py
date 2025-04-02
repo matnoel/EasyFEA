@@ -45,7 +45,7 @@ class HyperElastic:
         Returns
         -------
         np.ndarray
-            F_e_pg of shape (e, pg, dim, dim)
+            F_e_pg of shape (Ne, pg, dim, dim)
         """
 
         HyperElastic.__CheckFormat(mesh, u, matrixType)
@@ -72,7 +72,7 @@ class HyperElastic:
         Returns
         -------
         np.ndarray
-            J_e_pg of shape (e, pg)
+            J_e_pg of shape (Ne, pg)
         """
 
         F_e_pg = HyperElastic.Compute_F(mesh, u, matrixType)
@@ -96,7 +96,7 @@ class HyperElastic:
         Returns
         -------
         np.ndarray
-            C_e_pg of shape (e, pg, dim, dim)
+            C_e_pg of shape (Ne, pg, dim, dim)
         """
 
         F_e_pg = HyperElastic.Compute_F(mesh, u, matrixType)
@@ -120,7 +120,7 @@ class HyperElastic:
         Returns
         -------
         np.ndarray
-            e_e_pg of shape (e, pg, dim, dim)
+            e_e_pg of shape (Ne, pg, dim, dim)
         """
 
         C_e_pg = HyperElastic.Compute_C(mesh, u, matrixType)
@@ -145,14 +145,14 @@ class HyperElastic:
         Returns in 2D
         -------------
         np.ndarray
-            Eps_e_pg of shape (e, pg, 3)
+            Eps_e_pg of shape (Ne, pg, 3)
 
             [xx, yy, 2**(-1/2) xy]
 
         Returns in 3D
         -------------
         np.ndarray
-            Eps_e_pg of shape (e, pg, 6)
+            Eps_e_pg of shape (Ne, pg, 6)
 
             [xx, yy, zz, 2**(-1/2) yz, 2**(-1/2) xz, 2**(-1/2) xy]
         """
@@ -207,7 +207,7 @@ class HyperElastic:
         Returns in 2D
         -------------
         np.ndarray
-            D_e_pg of shape (e, pg, 3, 4)
+            D_e_pg of shape (Ne, pg, 3, 4)
 
             [1+dxux, 0, dxuy, 0] # xx \n
             [0, dyux, 0, 1+dyuy] # yy \n
@@ -216,7 +216,7 @@ class HyperElastic:
         Returns in 3D
         -------------
         np.ndarray
-            D_e_pg of shape (e, pg, 6, 9)
+            D_e_pg of shape (Ne, pg, 6, 9)
 
             [1+dxux, 0, 0, dxuy, 0, 0, dxuz, 0, 0] # xx \n
             [0, dyux, 0, 0, 1+dyuy, 0, 0, dyuz, 0] # yy \n
@@ -290,7 +290,7 @@ class HyperElastic:
         Returns
         -------
         np.ndarray
-            I1_e_pg of shape (e, pg)         
+            I1_e_pg of shape (Ne, pg)         
         """
 
         C_e_pg = HyperElastic.Compute_C(mesh, u, matrixType)
@@ -314,7 +314,7 @@ class HyperElastic:
         Returns
         -------
         np.ndarray
-            dI1dC_e_pg of shape (e, pg, dim, dim)
+            dI1dC_e_pg of shape (Ne, pg, dim, dim)
         """
 
         Ne, nPg, dim = HyperElastic.__GetDims(mesh, u, matrixType)
@@ -344,7 +344,7 @@ class HyperElastic:
         Returns
         -------
         np.ndarray
-            I2_e_pg of shape (e, pg)
+            I2_e_pg of shape (Ne, pg)
         """
 
         C_e_pg = HyperElastic.Compute_C(mesh, u, matrixType)
@@ -368,7 +368,7 @@ class HyperElastic:
         Returns
         -------
         np.ndarray
-            dI2dC_e_pg of shape (e, pg, dim, dim)
+            dI2dC_e_pg of shape (Ne, pg, dim, dim)
         """
 
         _, _, dim = HyperElastic.__GetDims(mesh, u, matrixType)
@@ -398,7 +398,7 @@ class HyperElastic:
         Returns
         -------
         np.ndarray
-            I3_e_pg of shape (e, pg)
+            I3_e_pg of shape (Ne, pg)
         """
 
         C_e_pg = HyperElastic.Compute_C(mesh, u, matrixType)
@@ -422,7 +422,7 @@ class HyperElastic:
         Returns
         -------
         np.ndarray
-            dI3dC_e_pg of shape (e, pg, dim, dim)
+            dI3dC_e_pg of shape (Ne, pg, dim, dim)
         """
 
         I3_e_pg = HyperElastic.Compute_I3(mesh, u, matrixType)
@@ -450,7 +450,7 @@ class HyperElastic:
         Returns
         -------
         np.ndarray
-            I4_e_pg of shape (e, pg)
+            I4_e_pg of shape (Ne, pg)
         """
 
         C_e_pg = HyperElastic.Compute_C(mesh, u, matrixType)
@@ -477,7 +477,7 @@ class HyperElastic:
         Returns
         -------
         np.ndarray
-            dI4dC_e_pg of shape (e, pg, dim, dim)
+            dI4dC_e_pg of shape (Ne, pg, dim, dim)
         """
 
         dI4dC_e_pg = TensorProd(T, T)
@@ -502,7 +502,7 @@ class HyperElastic:
         Returns
         -------
         np.ndarray
-            J1_e_pg of shape (e, pg)
+            J1_e_pg of shape (Ne, pg)
         """
 
         I1_e_pg = HyperElastic.Compute_I1(mesh, u, matrixType)
@@ -527,7 +527,7 @@ class HyperElastic:
         Returns
         -------
         np.ndarray
-            dJ1dC_e_pg of shape (e, pg, dim, dim)
+            dJ1dC_e_pg of shape (Ne, pg, dim, dim)
         """
 
         I1_e_pg = HyperElastic.Compute_I1(mesh, u, matrixType)
@@ -557,7 +557,7 @@ class HyperElastic:
         Returns
         -------
         np.ndarray
-            J2_e_pg of shape (e, pg)
+            J2_e_pg of shape (Ne, pg)
         """
 
         I2_e_pg = HyperElastic.Compute_I2(mesh, u, matrixType)
@@ -582,7 +582,7 @@ class HyperElastic:
         Returns
         -------
         np.ndarray
-            dJ2dC_e_pg of shape (e, pg, dim, dim)
+            dJ2dC_e_pg of shape (Ne, pg, dim, dim)
         """
 
         I1_e_pg = HyperElastic.Compute_I1(mesh, u, matrixType)
@@ -613,7 +613,7 @@ class HyperElastic:
         Returns
         -------
         np.ndarray
-            J3_e_pg of shape (e, pg)
+            J3_e_pg of shape (Ne, pg)
         """
 
         J_e_pg = HyperElastic.Compute_J(mesh, u, matrixType) #  J3 = I3**(1/2) = J
@@ -635,7 +635,7 @@ class HyperElastic:
         Returns
         -------
         np.ndarray
-            dJ2dC_e_pg of shape (e, pg, dim, dim)
+            dJ2dC_e_pg of shape (Ne, pg, dim, dim)
         """
 
         J_e_pg = HyperElastic.Compute_J(mesh, u, matrixType) #  J3 = I3**(1/2) = J
@@ -663,7 +663,7 @@ class HyperElastic:
         Returns
         -------
         np.ndarray
-            J4_e_pg of shape (e, pg)
+            J4_e_pg of shape (Ne, pg)
         """
 
         I3_e_pg = HyperElastic.Compute_I3(mesh, u, matrixType)
@@ -688,7 +688,7 @@ class HyperElastic:
         Returns
         -------
         np.ndarray
-            dJ4dC_e_pg of shape (e, pg, dim, dim)
+            dJ4dC_e_pg of shape (Ne, pg, dim, dim)
         """
 
         I3_e_pg = HyperElastic.Compute_I3(mesh, u, matrixType)
