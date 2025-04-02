@@ -65,7 +65,7 @@ class _Elas(_IModel, ABC):
         assert isinstance(value, bool)
         if self.__planeStress != value:
             self.Need_Update()
-        self.__planeStress = value
+            self.__planeStress = value
 
     @property
     def simplification(self) -> str:
@@ -203,7 +203,7 @@ class _Elas(_IModel, ABC):
 # ----------------------------------------------
 
 class Elas_Isot(_Elas):
-    """Isotropic Linearized Elasticit material."""
+    """Isotropic Linearized Elastic material."""
 
     def __str__(self) -> str:
         text = f"{type(self).__name__}:"
@@ -214,7 +214,7 @@ class Elas_Isot(_Elas):
         return text
 
     def __init__(self, dim: int, E=210000.0, v=0.3, planeStress=True, thickness=1.0):
-        """Creates an Isotropic Linearized Elasticit material.
+        """Creates an Isotropic Linearized Elastici material.
 
         Parameters
         ----------
@@ -397,7 +397,7 @@ class Elas_Isot(_Elas):
 # ----------------------------------------------
 
 class Elas_IsotTrans(_Elas):
-    """Transversely Isotropic Linearized Elasticit material."""
+    """Transversely Isotropic Linearized Elastic material."""
 
     def __str__(self) -> str:
         text = f"{type(self).__name__}:"
@@ -714,7 +714,7 @@ class Elas_IsotTrans(_Elas):
 # ----------------------------------------------
 
 class Elas_Anisot(_Elas):
-    """Anisotropic Linearized Elastic class."""
+    """Anisotropic Linearized Elastic material."""
     
     def __str__(self) -> str:
         text = f"\n{type(self).__name__}):"
