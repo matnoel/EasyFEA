@@ -2,6 +2,8 @@
 # This file is part of the EasyFEA project.
 # EasyFEA is distributed under the terms of the GNU General Public License v3 or later, see LICENSE.txt and CREDITS.md for more information.
 
+"""Linearized elastic laws."""
+
 from abc import ABC, abstractmethod
 from typing import Union
 from scipy.linalg import sqrtm

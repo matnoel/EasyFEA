@@ -10,7 +10,7 @@ from .materials import Reshape_variable
 # Elastic
 # ----------------------------------------------
 
-from .materials._linear_elastic import _Elas, Elas_Isot, Elas_IsotTrans, Elas_Anisot
+from .materials._linear_elastic_laws import _Elas, Elas_Isot, Elas_IsotTrans, Elas_Anisot
 
 # ----------------------------------------------
 # PhaseField

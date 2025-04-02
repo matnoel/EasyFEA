@@ -18,7 +18,7 @@ from ..utilities import _params
 # Elasticity
 # ----------------------------------------------
 
-from ._linear_elastic import _Elas, Elas_Isot, Elas_IsotTrans, Elas_Anisot
+from ._linear_elastic_laws import _Elas, Elas_Isot, Elas_IsotTrans, Elas_Anisot
 
 # ----------------------------------------------
 # Phase field
