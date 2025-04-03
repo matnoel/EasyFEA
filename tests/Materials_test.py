@@ -324,7 +324,7 @@ class TestMaterials:
         L = 200
         H = 100
         domain = Geoms.Domain(Geoms.Point(), Geoms.Point(L, H))
-        circle = Geoms.Circle(Geoms.Point(L/2, H/2), H/4)
+        circle = Geoms.Circle(Geoms.Point(L/2, H/2), H/3)
         
         if dim == 2:
             mesh = Mesher().Mesh_2D(domain, [circle], "TRI3")
