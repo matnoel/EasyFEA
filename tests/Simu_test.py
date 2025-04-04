@@ -267,7 +267,7 @@ class TestElasticSimu:
             plt.close(ax.figure)
 
             # dynamic      
-            simu.Solver_Set_Newton_Raphson_Algorithm(dt=0.1)
+            simu.Solver_Set_Hyperbolic_Algorithm(dt=0.1)
             simu.Solve()
             # don't plot because result is not relevant
 

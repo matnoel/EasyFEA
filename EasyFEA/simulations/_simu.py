@@ -453,7 +453,7 @@ class _Simu(_IObserver, ABC):
         K u = F
         - Solver_Set_Parabolic_Algorithm()\n
         K u + C v = F
-        - Solver_Set_Newton_Raphson_Algorithm()\n
+        - Solver_Set_Hyperbolic_Algorithm()\n
         K u + C v + M a = F
         """        
         return self.__algo
@@ -567,12 +567,15 @@ class _Simu(_IObserver, ABC):
     def Solver_Set_Parabolic_Algorithm(self, dt: float, alpha=1/2) -> None:
         """Sets the algorithm's resolution properties for a parabolic problem.
 
-        Used to solve K u + C v = F.
+        Used to solve K u_np1 + C v_np1 = F_np1 with:
+        
+        u_np1 = u_n + dt v_npa
 
         Parameters
         ----------
         dt : float
             The time increment.
+            
         alpha : float, optional
             The alpha criterion, by default 1/2\n
             - 0 -> Forward Euler
@@ -582,12 +585,12 @@ class _Simu(_IObserver, ABC):
         self.__algo = AlgoType.parabolic
 
         assert dt > 0, "Time increment must be > 0"
+        self.__dt = dt
 
-        self.alpha = alpha
-        self.dt = dt
-
-    def Solver_Set_Newton_Raphson_Algorithm(self, dt: float, betha=1/4, gamma=1/2) -> None:
-        """Sets the algorithm's resolution properties for a Newton-Raphson problem.
+        self.__alpha = alpha
+    
+    def Solver_Set_Hyperbolic_Algorithm(self, dt: float, beta=0.25, gamma=0.5, algo=AlgoType.newmark, alpha=0.5 ) -> None:
+        """Sets the algorithm's resolution properties for a Hyperbolic problem.
 
         Used to solve K u + C v + M a = F.
 
@@ -595,18 +598,29 @@ class _Simu(_IObserver, ABC):
         ----------
         dt : float
             The time increment.
-        betha : float, optional
-            The coefficient betha, by default 1/4.
+        beta : float, optional
+            The coefficient beta, by default 1/4.
         gamma : float, optional
             The coefficient gamma, by default 1/2.
+        algo : AlgoType, optional
+            Algo used to solve K u + C v + M a = F, by default AlgoType.newmark\n
+            K u_np1 + C v_np1 + M a_np1 = F_np1.
+        alpha : float, optional
+            The coefficient alpha, by default 1/2.
         """
-        self.__algo = AlgoType.hyperbolic
+        
+        types = AlgoType.Get_Hyperbolic_Types()
+        assert algo in types, f"algo must be in {types}"
+        self.__algo = algo
 
         assert dt > 0, "Time increment must be > 0"
+        self.__dt = dt
 
-        self.betha = betha
-        self.gamma = gamma
-        self.dt = dt
+        self.__beta = beta
+        self.__gamma = gamma
+
+        assert 0 <= alpha <= 1
+        self.__alpha = alpha
 
     def Solve(self) -> np.ndarray:
         """Computes the solution field for the current boundary conditions.
@@ -645,41 +659,83 @@ class _Simu(_IObserver, ABC):
             u_np1 = x
             self._Set_u_n(problemType, u_np1)
 
-        if algo == AlgoType.parabolic:
-            # See Hughes 1987 Chapter 7
+        elif algo == AlgoType.parabolic:
+            # See Hughes 1987 Chapter 8
 
             u_np1 = x
 
-            alpha = self.alpha
-            dt = self.dt
+            alpha = self.__alpha
+            dt = self.__dt
 
-            v_Tild_np1 = u_n + ((1 - alpha) * dt * v_n)
-            v_np1 = (u_np1 - v_Tild_np1) / (alpha * dt)
+            vt_np1 = u_n + ((1 - alpha) * dt * v_n)
+            v_np1 = (u_np1 - vt_np1) / (alpha * dt)
 
             # New solutions
             self._Set_u_n(problemType, u_np1)
             self._Set_v_n(problemType, v_np1)
 
-        elif algo == AlgoType.hyperbolic:
+        elif algo == AlgoType.newmark:
+
+            dt = self.__dt
+            gamma = self.__gamma
+            beta = self.__beta
+
             # Accel formulation
-            # See Hughes 1987 Chapter 7 or Pled 2020 3.7.3
-
+            # See Hughes 1987 Chapter 9
+            # same as hht with alpha = 0
             a_np1 = x
+            ut_np1 = u_n + (dt * v_n) + dt**2/2 * (1 - 2 * beta) * a_n
+            vt_np1 = v_n + (1 - gamma) * dt * a_n
 
-            dt = self.dt
-            gamma = self.gamma
-            betha = self.betha
-
-            u_Tild_np1 = u_n + (dt * v_n) + dt**2/2 * (1 - 2 * betha) * a_n
-            v_Tild_np1 = v_n + (1 - gamma) * dt * a_n
-
-            u_np1 = u_Tild_np1 + betha * dt**2 * a_np1
-            v_np1 = v_Tild_np1 + gamma * dt * a_np1
+            u_np1 = ut_np1 + beta * dt**2 * a_np1
+            v_np1 = vt_np1 + gamma * dt * a_np1
 
             # New solutions
             self._Set_u_n(problemType, u_np1)
             self._Set_v_n(problemType, v_np1)
             self._Set_a_n(problemType, a_np1)
+
+        elif algo == AlgoType.midpoint:
+
+            dt = self.__dt
+            gamma = self.__gamma
+            beta = self.__beta
+
+            # # U formulation
+            # u_np1 = x
+            # a_np1 = 1/2/beta * (2/dt**2*(u_np1 - u_n - dt*v_n) - (1-2*beta)*a_n)
+            # v_np1 = v_n + dt * ((1-gamma)*a_n + gamma*a_np1)
+
+            # Accel formulation
+            # same as hht with alpha = 1/2
+            a_np1 = x
+            u_np1 = u_n + dt*v_n + dt**2/2 * ((1 - 2*beta)*a_n + 2*beta*a_np1)
+            v_np1 = v_n + dt * ((1-gamma)*a_n + gamma*a_np1)
+
+            # New solutions
+            self._Set_u_n(problemType, u_np1)
+            self._Set_v_n(problemType, v_np1)
+            self._Set_a_n(problemType, a_np1)
+        
+        elif algo == AlgoType.hht:
+
+            dt = self.__dt
+            gamma = self.__gamma
+            beta = self.__beta
+            alpha = self.__alpha
+
+            # Accel formulation
+            a_np1 = x
+            u_np1 = u_n + dt*v_n + dt**2/2 * ((1 - 2*beta)*a_n + 2*beta*a_np1)
+            v_np1 = v_n + dt * ((1-gamma)*a_n + gamma*a_np1)
+
+            # New solutions
+            self._Set_u_n(problemType, u_np1)
+            self._Set_v_n(problemType, v_np1)
+            self._Set_a_n(problemType, a_np1)
+
+        else:
+            raise TypeError(f"Algo {algo} is not implemented here.")
 
     def _Solver_Apply_Neumann(self, problemType: ModelType) -> sparse.csr_matrix:
         """Fill in the Neumann boundary conditions by constructing b from A x = b.
@@ -715,33 +771,38 @@ class _Simu(_IObserver, ABC):
 
         b = b + F
 
-        if algo == AlgoType.parabolic:
+        if algo == AlgoType.elliptic:
+            pass
 
-            alpha = self.alpha
-            dt = self.dt
+        elif algo == AlgoType.parabolic:
+            # U formulation
 
-            v_Tild_np1 = u_n + (1 - alpha) * dt * v_n
-            v_Tild_np1 = sparse.csr_matrix(v_Tild_np1.reshape(-1, 1))
+            alpha = self.__alpha
+            dt = self.__dt
 
-            b = b + C.dot(v_Tild_np1 / (alpha * dt))
+            ut_np1 = u_n + (1 - alpha) * dt * v_n
+            ut_np1 = sparse.csr_matrix(ut_np1.reshape(-1, 1))
 
-        elif algo == AlgoType.hyperbolic:
+            b = b + 1/(alpha * dt) * C @ ut_np1
+
+        elif algo == AlgoType.newmark:
             # Accel formulation
+            # same as hht in accel with alpha = 0
 
             if len(self.results) == 0 and (b.max() != 0 or b.min() != 0):
                 # Initialize accel
-                __, dofsUnknown = self.Bc_dofs_known_unknow(problemType)
+                _, dofsUnknown = self.Bc_dofs_known_unknown(problemType)
 
                 # don't change
-                bb = b - K.dot(sparse.csr_matrix(u_n.reshape(-1, 1)))
-                bb -= C.dot(sparse.csr_matrix(v_n.reshape(-1, 1)))                
+                r = b - K @ u_n.reshape(-1, 1)
+                r -= C @ v_n.reshape(-1, 1)
 
-                bbi = bb[dofsUnknown]
+                ri = r[dofsUnknown]
                 Aii = M[dofsUnknown, :].tocsc()[:, dofsUnknown].tocsr()
 
                 x0 = a_n[dofsUnknown]
 
-                ai_n = _Solve_Axb(self, problemType, Aii, bbi, x0, [], [])
+                ai_n = _Solve_Axb(self, problemType, Aii, ri, x0, [], [])
 
                 a_n[dofsUnknown] = ai_n
 
@@ -749,18 +810,53 @@ class _Simu(_IObserver, ABC):
 
             a_n = self._Get_a_n(problemType)
 
-            dt = self.dt
-            gamma = self.gamma
-            betha = self.betha
+            dt = self.__dt
+            gamma = self.__gamma
+            beta = self.__beta
 
-            uTild_np1 = u_n + (dt * v_n) + dt**2/2 * (1 - 2 * betha) * a_n
-            vTild_np1 = v_n + (1 - gamma) * dt * a_n
+            ut_np1 = u_n + (dt * v_n) + dt**2/2 * (1 - 2 * beta) * a_n
+            vt_np1 = v_n + (1 - gamma) * dt * a_n
+            
+            b -= K @ ut_np1.reshape(-1, 1)
+            b -= C @ vt_np1.reshape(-1, 1)
+        
+        elif algo == AlgoType.midpoint:
 
-            # dont change
-            b -= K.dot(uTild_np1.reshape(-1, 1))
-            b -= C.dot(vTild_np1.reshape(-1, 1))
-            b = sparse.csr_matrix(b)
+            dt = self.__dt
+            gamma = self.__gamma
+            beta = self.__beta
 
+            # # U formulation
+            # b += (M - dt**2/4 * K) @ u_n.reshape(-1,1)
+            # b += dt * M @ v_n.reshape(-1,1)
+
+            # hht in accel with alpha = 1/2
+            mat_an = 1/2 * (M + (1-gamma) * dt * C + (1/2-beta) * dt**2 * K)
+            b -= mat_an @ a_n.reshape(-1,1)
+
+            mat_vn = C + 0.5 * dt * K
+            b -= mat_vn @ v_n.reshape(-1,1)
+
+            b -= K @ u_n.reshape(-1,1)
+
+        elif algo == AlgoType.hht:
+
+            dt = self.__dt
+            gamma = self.__gamma
+            beta = self.__beta
+            alpha = self.__alpha
+            
+            mat_an = alpha * M + (1-alpha)*(1-gamma) * dt * C + (1-alpha)*(1/2-beta) * dt**2 * K
+            b -= mat_an @ a_n.reshape(-1,1) 
+            
+            mat_vn = C + (1-alpha) * dt * K            
+            b -= mat_vn @ v_n.reshape(-1,1)
+
+            b -= K @ u_n.reshape(-1,1)
+
+        else:
+            raise TypeError(f"Algo {algo} is not implemented here.")
+            
         tic.Tac("Solver", f"Neumann ({problemType}, {algo})", self._verbosity)
 
         return b
@@ -793,29 +889,51 @@ class _Simu(_IObserver, ABC):
         if algo == AlgoType.elliptic:
             A = K
 
-        if algo == AlgoType.parabolic:
+        elif algo == AlgoType.parabolic:
 
-            alpha = self.alpha
-            dt = self.dt
-
-            # Resolution in position
+            alpha = self.__alpha
+            dt = self.__dt
+            
+            # U formulation
             A = K + C / (alpha * dt)
 
-            # # Speed resolution
-            # A = K * alpha * dt + M
+        elif algo == AlgoType.newmark:
 
-        elif algo == AlgoType.hyperbolic:
-
-            dt = self.dt
-            gamma = self.gamma
-            betha = self.betha
+            dt = self.__dt
+            gamma = self.__gamma
+            beta = self.__beta
 
             # Accel formulation
-            A = M + (K * betha * dt**2)
+            # same as hht in accel with alpha = 0
+            A = M + (beta * dt**2 * K)
             A += (gamma * dt * C)
+            
+            dofsValues = self._Get_a_n(problemType)[dofs]
 
-            solDotDot_n = self._Get_a_n(problemType)
-            dofsValues = solDotDot_n[dofs]
+        elif algo == AlgoType.midpoint:
+
+            dt = self.__dt
+            gamma = self.__gamma
+            beta = self.__beta
+
+            # Accel formulation
+            # hht in accel with alpha = 1/2
+            A = 0.5 * (M + gamma * dt * C + beta * dt**2 * K)
+            dofsValues = self._Get_a_n(problemType)[dofs]
+
+        elif algo == AlgoType.hht:
+
+            dt = self.__dt
+            gamma = self.__gamma
+            beta = self.__beta
+            alpha = self.__alpha
+            
+            # Accel formulation
+            A = (1-alpha) * (M + gamma * dt * C + beta * dt**2 * K) 
+            dofsValues = self._Get_a_n(problemType)[dofs]
+
+        else:
+            raise TypeError(f"Algo {algo} is not implemented here.")
 
         A, x = self.__Solver_Get_Dirichlet_A_x(problemType, resolution, A, b, dofsValues)
 
@@ -940,7 +1058,7 @@ class _Simu(_IObserver, ABC):
             problemType = self.problemType
         return BoundaryCondition.Get_values(problemType, self.__Bc_Dirichlet)
 
-    def Bc_dofs_known_unknow(self, problemType: ModelType) -> tuple[np.ndarray, np.ndarray]:
+    def Bc_dofs_known_unknown(self, problemType: ModelType) -> tuple[np.ndarray, np.ndarray]:
         """Returns known and unknown dofs."""
         tic = Tic()
 

@@ -74,7 +74,7 @@ if __name__ == '__main__':
     # Create the simulation object
     simu = Simulations.ElasticSimu(mesh, material)
     simu.Set_Rayleigh_Damping_Coefs(1e-10, 1e-10)
-    simu.Solver_Set_Newton_Raphson_Algorithm(betha=1 / 4, gamma=1 / 2, dt=dt)
+    simu.Solver_Set_Hyperbolic_Algorithm(beta=1 / 4, gamma=1 / 2, dt=dt)
 
     t = 0
 

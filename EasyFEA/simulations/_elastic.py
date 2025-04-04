@@ -49,7 +49,8 @@ class ElasticSimu(_Simu):
             elementsField = ["Stress", "Strain"]
         else:            
             elementsField = ["Stress"]
-        if self.algo == AlgoType.hyperbolic: nodesField.extend(["speed", "accel"])
+        if self.algo in AlgoType.Get_Hyperbolic_Types():
+            nodesField.extend(["speed", "accel"])
         return nodesField, elementsField
     
     def Get_dofs(self, problemType=None) -> list[str]:
@@ -94,38 +95,44 @@ class ElasticSimu(_Simu):
     def __Construct_Local_Matrix(self) -> tuple[np.ndarray, np.ndarray]:
         """Computes the elementary stiffness matrices for the elastic problem."""
 
-        matrixType=MatrixType.rigi
-        
         mesh = self.mesh; Ne = mesh.Ne
-        jacobian_e_pg = mesh.Get_jacobian_e_pg(matrixType)
-        weight_pg = mesh.Get_weight_pg(matrixType)
-        nPg = weight_pg.size
-
-        N_pg = mesh.Get_N_vector_pg(matrixType)
-        rho = self.rho
-        
-        B_dep_e_pg = mesh.Get_B_e_pg(matrixType)
-        leftDepPart = mesh.Get_leftDispPart(matrixType) # -> jacobian_e_pg * weight_pg * B_dep_e_pg'
-
-        mat = self.material
 
         tic = Tic()
         
-        matC = mat.C
+        # ------------------------------
+        # Compute Stifness
+        # ------------------------------
+        matrixType = MatrixType.rigi
+        jacobian_e_pg = mesh.Get_jacobian_e_pg(matrixType)
+        weight_pg = mesh.Get_weight_pg(matrixType)
+        N_pg = mesh.Get_N_vector_pg(matrixType)        
+        leftDepPart = mesh.Get_leftDispPart(matrixType) 
+        B_dep_e_pg = mesh.Get_B_e_pg(matrixType)
 
-        # Stifness
-        matC = Reshape_variable(matC, Ne, nPg)
+        # TODO try einsumt
+        if self.material.isHeterogeneous:
+            matC = Reshape_variable(self.material.C, Ne, weight_pg.size)
+        else:
+            matC = self.material.C
+
         Ku_e = np.sum(leftDepPart @ matC @ B_dep_e_pg, axis=1)
         
-        # Mass
-        rho_e_pg = Reshape_variable(rho, Ne, nPg)
+        # ------------------------------
+        # Compute Mass
+        # ------------------------------
+        matrixType = MatrixType.mass
+        N_pg = mesh.Get_N_vector_pg(matrixType)
+        jacobian_e_pg = mesh.Get_jacobian_e_pg(matrixType)
+        weight_pg = mesh.Get_weight_pg(matrixType)
+        rho_e_pg = Reshape_variable(self.rho, Ne, weight_pg.size)
+
         Mu_e = np.einsum(f'ep,p,pdi,ep,pdj->eij', jacobian_e_pg, weight_pg, N_pg, rho_e_pg, N_pg, optimize="optimal")
 
         if self.dim == 2:
             thickness = self.material.thickness
             Ku_e *= thickness
             Mu_e *= thickness
-        
+
         tic.Tac("Matrix","Construct Ku_e and Mu_e", self._verbosity)
 
         return Ku_e, Mu_e
@@ -184,15 +191,17 @@ class ElasticSimu(_Simu):
             return np.zeros(self.mesh.Nn*self.dim)
         elif algo == AlgoType.elliptic:
             return self.displacement
-        elif algo == AlgoType.hyperbolic:
+        elif algo in AlgoType.Get_Hyperbolic_Types():
             return self.accel
+        else:
+            raise TypeError(f"Algo {algo} is not implemented here.")
     
     def Save_Iter(self):
         
         iter = super().Save_Iter()
 
         iter['displacement'] = self.displacement
-        if self.algo == AlgoType.hyperbolic:
+        if self.algo in AlgoType.Get_Hyperbolic_Types():
             iter["speed"] = self.speed
             iter["accel"] = self.accel
 
@@ -208,7 +217,7 @@ class ElasticSimu(_Simu):
 
         self._Set_u_n(self.problemType, results["displacement"])
 
-        if self.algo == AlgoType.hyperbolic and "speed" in results and "accel" in results:
+        if self.algo in AlgoType.Get_Hyperbolic_Types() and "speed" in results and "accel" in results:
             self._Set_v_n(problemType, results["speed"])
             self._Set_a_n(problemType, results["accel"])
         else:

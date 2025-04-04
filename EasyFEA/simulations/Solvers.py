@@ -56,12 +56,23 @@ class AlgoType(str, Enum):
     elliptic = "elliptic"
     """Solve K u = F"""
     parabolic = "parabolic"
-    """Solve K u + C v = F"""
-    hyperbolic = "hyperbolic"
-    """Solve K u + C v + M a = F"""
+    """Solve K u_npa + C v_npa = F_npa"""
+    newmark = "newmark"
+    """Solve K u_np1 + C v_np1 + M a_np1 = F_np1 \n
+    u_np1 = u_n + dt v_n + dt^2/2 ((1 - 2 B) a_n + 2 B a_np1) \n
+    v_np1 = v_n + dt ((1 - gamma) a_n + gamma a_np1)
+    """
+    midpoint = "midpoint"
+    """Solve K u_np1/2 + C v_np1/2 + M a_np1/2 = F_np1/2"""
+    hht = "hht"
+    """Solve K u_np1ma + C v_np1ma + M a_np1ma = F_np1ma"""
 
     def __str__(self) -> str:
         return self.name
+    
+    @staticmethod
+    def Get_Hyperbolic_Types() -> list[str]:
+        return [AlgoType.newmark, AlgoType.midpoint, AlgoType.hht]
 
 class ResolType(str, Enum):
     r1 = "1"
@@ -69,7 +80,7 @@ class ResolType(str, Enum):
     r2 = "2"
     """Lagrange multipliers"""
     r3 = "3"
-    """Penalty"""
+    """Penality"""
 
     def __str__(self) -> str:
         return self.name
@@ -122,11 +133,15 @@ def _Solve_Axb(simu, problemType: str,
 
     # checks types
     simu = __Cast_Simu(simu)
-    assert isinstance(A, sparse.csr_matrix)
-    assert isinstance(b, sparse.csr_matrix)
+
+    if not isinstance(A, sparse.csr_matrix):
+        A = sparse.csr_matrix(A)
+    
+    if not isinstance(b, sparse.csr_matrix):
+        b = sparse.csr_matrix(b) 
 
     # Choose the solver
-    if len(lb) > 0 and len(lb) > 0:        
+    if len(lb) > 0 and len(ub) > 0:        
         solver = "BoundConstrain"
     else:
         if len(simu.Bc_Lagrange) > 0:
@@ -223,8 +238,8 @@ def _Solve_Axb(simu, problemType: str,
     tic.Tac("Solver",f"Solve {problemType} ({solver})", simu._verbosity)
 
     # # A x - b = 0
-    # residu = np.linalg.norm(A.dot(x)-b.toarray().ravel())
-    # print(residu/np.linalg.norm(b.toarray().ravel()))
+    # res = np.linalg.norm(A.dot(x)-b.toarray().ravel())
+    # print(res/np.linalg.norm(b.toarray().ravel()))
 
     return np.array(x)
 
@@ -266,7 +281,7 @@ def __Solver_1(simu, problemType: str) -> np.ndarray:
     A, x = simu._Solver_Apply_Dirichlet(problemType, b, ResolType.r1)
 
     # Recover dofs
-    dofsKnown, dofsUnknown = simu.Bc_dofs_known_unknow(problemType)
+    dofsKnown, dofsUnknown = simu.Bc_dofs_known_unknown(problemType)
 
     tic = Tic()
     # split of the matrix system into known and unknown dofs
@@ -280,7 +295,7 @@ def __Solver_1(simu, problemType: str) -> np.ndarray:
     tic.Tac("Solver",f"System-built ({problemType})", simu._verbosity)
 
     x0 = simu.Get_x0(problemType)
-    x0 = x0[dofsUnknown]    
+    x0 = x0[dofsUnknown]
 
     bDirichlet = Aic @ xc
 

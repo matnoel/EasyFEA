@@ -91,7 +91,7 @@ if __name__ == '__main__':
     dt = Tmax/N
     time = -dt
 
-    simu.Solver_Set_Newton_Raphson_Algorithm(dt)
+    simu.Solver_Set_Hyperbolic_Algorithm(dt)
     simu.Set_Rayleigh_Damping_Coefs(coefM=coefM, coefK=coefK)
 
     while time <= Tmax:

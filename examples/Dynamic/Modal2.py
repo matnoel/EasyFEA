@@ -106,13 +106,13 @@ if __name__ == '__main__':
     simu.rho = 7860 # kg/m3
 
     simu.add_dirichlet(nodesZ0, [0]*3, simu.Get_dofs())
-    known, unknown = simu.Bc_dofs_known_unknow(simu.problemType)
+    known, unknown = simu.Bc_dofs_known_unknown(simu.problemType)
 
-    simu.Solver_Set_Newton_Raphson_Algorithm(0.1)
+    simu.Solver_Set_Hyperbolic_Algorithm(0.1)
 
     Display.Plot_BoundaryConditions(simu)
 
-    K, C, M, F = simu.Get_K_C_M_F()    
+    K, C, M, F = simu.Get_K_C_M_F()
 
     if isFixed:
         K_t = K[unknown, :].tocsc()[:, unknown].tocsr()
@@ -123,6 +123,7 @@ if __name__ == '__main__':
 
     eigenValues, eigenVectors = linalg.eigs(K_t, Nmode, M_t, sigma=0, which="LR")
 
+    eigenValues = eigenValues.real
     eigenVectors = eigenVectors.real
     freq_t = np.sqrt(eigenValues)/2/np.pi
 

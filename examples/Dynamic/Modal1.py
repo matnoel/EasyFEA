@@ -43,13 +43,13 @@ if __name__ == '__main__':
 
     simu = Simulations.ElasticSimu(mesh, material)
 
-    simu.Solver_Set_Newton_Raphson_Algorithm(0.1)
+    simu.Solver_Set_Hyperbolic_Algorithm(0.1)
 
     K, C, M, F = simu.Get_K_C_M_F()
     
     if isFixed:
         simu.add_dirichlet(nodesY0, [0]*dim, simu.Get_dofs())
-        known, unknown = simu.Bc_dofs_known_unknow(simu.problemType)
+        known, unknown = simu.Bc_dofs_known_unknown(simu.problemType)
         K_t = K[unknown, :].tocsc()[:, unknown].tocsr()
         M_t = M[unknown, :].tocsc()[:, unknown].tocsr()
 
@@ -60,6 +60,7 @@ if __name__ == '__main__':
     # eigenValues, eigenVectors = linalg.eigs(K_t, Nmode, M_t, which="SR")
     eigenValues, eigenVectors = linalg.eigs(K_t, Nmode, M_t, sigma=0, which="LR")
 
+    eigenValues = eigenValues.real
     eigenVectors = eigenVectors.real
     freq_t = np.sqrt(eigenValues)/2/np.pi
 
