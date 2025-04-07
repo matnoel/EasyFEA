@@ -1725,7 +1725,7 @@ class Mesher:
         """Creates 3D meshes."""        
 
         domain = Domain(Point(y=-h/2,z=-b/2), Point(x=L, y=h/2,z=-b/2), meshSize=meshSize)
-        circleCreux = Circle(Point(x=L/2, y=0,z=-b/2), h*0.7, meshSize=meshSize, isHollow=True)
+        emptyCircle = Circle(Point(x=L/2, y=0,z=-b/2), h*0.7, meshSize=meshSize, isHollow=True)
         circle = Circle(Point(x=L/2, y=0 ,z=-b/2), h*0.7, meshSize=meshSize, isHollow=False)
         axis = Line(domain.pt1+[-1,0], domain.pt1+[-1,h])
 
@@ -1750,7 +1750,7 @@ class Mesher:
             list_mesh3D.append(mesh1)
             testVolume(mesh1.volume)
 
-            mesh2 = mesher.Mesh_Extrude(domain, [circleCreux], [0,0,-b], [3], elemType)
+            mesh2 = mesher.Mesh_Extrude(domain, [emptyCircle], [0,0,-b], [3], elemType)
             list_mesh3D.append(mesh2)
 
             mesh3 = mesher.Mesh_Extrude(domain, [circle], [0,0,-b], [3], elemType)
