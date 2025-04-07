@@ -124,7 +124,7 @@ class TestHyperElastic:
 
         simu = Get_2d_simulation()
 
-        d2I1dC = HyperElastic.Compute_d2I1dC(simu.mesh, simu.displacement)
+        d2I1dC = HyperElastic.Compute_d2I1dC()
 
         d2I1dC_v = np.zeros((6,6))
 
@@ -168,7 +168,7 @@ class TestHyperElastic:
 
         simu = Get_3d_simulation()
 
-        d2I2dC = HyperElastic.Compute_d2I2dC(simu.mesh, simu.displacement)
+        d2I2dC = HyperElastic.Compute_d2I2dC()
 
         mesh, u = simu.mesh, simu.displacement
         vect1 = np.array([1,1,1,0,0,0])
@@ -223,40 +223,46 @@ class TestHyperElastic:
         C_e_pg = HyperElastic.Compute_C(mesh, u)
         invC_e_pg = Inv(C_e_pg)
         I3_e_pg = HyperElastic.Compute_I3(mesh, u)
-        dI3dC_e_pg = np.einsum("...,...ij->...ij", I3_e_pg, Inv(C_e_pg), optimize="optimal")
-        
-        p1_e_pg = Project_Kelvin(
-            TensorProd(dI3dC_e_pg, invC_e_pg, ndim=2), orderA=4
-        )
-        
-        p2_e_pg = np.einsum("...,...ij->...ij", I3_e_pg,
-            Project_Kelvin(
-                TensorProd(invC_e_pg, invC_e_pg, ndim=2), orderA=4
-            ), optimize="optimal"
-        )
 
-        d2I3dC_v = p1_e_pg + p2_e_pg
-
-        diff = d2I3dC - d2I3dC_v
+        p1_e_pg = np.einsum("...,...ij,...kl->...ijkl", I3_e_pg, invC_e_pg, invC_e_pg)
+        p2_e_pg = np.einsum("...,...ijkl->...ijkl", I3_e_pg, TensorProd(invC_e_pg, invC_e_pg, True, 2)) 
+       
+        d2I3dC_v = Project_Kelvin(p1_e_pg - p2_e_pg, orderA=4)
 
         assert np.linalg.norm(d2I3dC - d2I3dC_v)/np.linalg.norm(d2I3dC) < 1e-12
 
+    # --------------------------------------------------------------------------
+    # I4
+    # --------------------------------------------------------------------------
 
+    def test_I4(self):
 
-    # # --------------------------------------------------------------------------
-    # # I4
-    # # --------------------------------------------------------------------------
+        simu = Get_3d_simulation()
 
-    # def test_I4(self):
+        C_e_pg = HyperElastic.Compute_C(simu.mesh, simu.displacement)
 
-    #     simu = Get_3d_simulation()
+        T = np.array([0,1,0])
 
-    #     C_e_pg = HyperElastic.Compute_C(simu.mesh, simu.displacement)
+        I4 = HyperElastic.Compute_I4(simu.mesh, simu.displacement, T)
 
-    #     T = np.array([0,1,0])
+        I4_v = np.einsum("...i,...ij,...j->...", T, C_e_pg, T, optimize="optimal")
 
-    #     I4 = HyperElastic.Compute_I4(simu.mesh, simu.displacement, T)
+        assert np.linalg.norm(I4 - I4_v)/np.linalg.norm(I4) < 1e-12
 
-    #     I4_v = np.einsum("...i,...ij,...j->...", T, C_e_pg, T, optimize="optimal")
+    def test_dI4dC(self):
 
-    #     assert np.linalg.norm(I4 - I4_v)/np.linalg.norm(I4) < 1e-12
+        T = np.array([0,1,0])
+
+        dI4dC = HyperElastic.Compute_dI4dC(T)
+
+        dI4dC_v = Project_Kelvin(TensorProd(T, T), 2)
+
+        assert np.linalg.norm(dI4dC - dI4dC_v)/np.linalg.norm(dI4dC_v) < 1e-12
+
+    def test_d2I4dC(self):
+
+        d2I4dC = HyperElastic.Compute_d2I4dC()
+
+        d2I4dC_v = np.zeros((6, 6))
+
+        assert np.linalg.norm(d2I4dC - d2I4dC_v) < 1e-12
