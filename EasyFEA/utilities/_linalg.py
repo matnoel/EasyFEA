@@ -6,6 +6,8 @@
 
 import numpy as np
 
+# TODO Develop a FEMArray class in either fem._utils.py or utilities_linalg.py to serve as a wrapper for numpy arrays, specifically for (Ne, nPg, ...).
+
 def __CheckMat(mat: np.ndarray) -> None:
     assert isinstance(mat, np.ndarray) and mat.ndim >= 2 and mat.shape[-2] == mat.shape[-1], "must be a (..., dim, dim) array"
     dim = mat.shape[-1]
