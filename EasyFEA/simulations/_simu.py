@@ -43,14 +43,14 @@ class _Simu(_IObserver, ABC):
     
         - def Get_problemTypes(self) -> list[ModelType]:
 
-        - def Get_directions(self, problemType=None) -> list[str]:
+        - def Get_dofs(self, problemType=None) -> list[str]:
 
         - def Get_dof_n(self, problemType=None) -> int:
 
         These functions provides access to the available degrees of freedom (dofs).
 
-    Solvers:
-    --------
+    Solve:
+    ------
 
         - def Get_K_C_M_F(self, problemType=None) -> tuple[sparse.csr_matrix, sparse.csr_matrix, sparse.csr_matrix, sparse.csr_matrix]:
 
