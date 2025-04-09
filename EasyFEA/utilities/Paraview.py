@@ -8,7 +8,7 @@ import numpy as np
 
 # utilities
 from . import Display, Folder, Tic
-from .PyVista import DICT_VTK_INDEXES, DICT_CELL_TYPES
+from .PyVista import DICT_GMSH_TO_VTK_INDEXES, DICT_CELL_TYPES
 
 # ----------------------------------------------
 # Paraview
@@ -113,8 +113,8 @@ def __Make_vtu(simu, iter: int, filename: str, nodesField: list[str], elementsFi
     connect = simu.mesh.connect
     
     # reorder gmsh idx to vtk indexes
-    if simu.mesh.elemType in DICT_VTK_INDEXES.keys():
-        vtkIndexes = DICT_VTK_INDEXES[simu.mesh.elemType]
+    if simu.mesh.elemType in DICT_GMSH_TO_VTK_INDEXES.keys():
+        vtkIndexes = DICT_GMSH_TO_VTK_INDEXES[simu.mesh.elemType]
     else:
         vtkIndexes = np.arange(simu.mesh.nPe)    
     connect = connect[:, vtkIndexes]
