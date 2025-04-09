@@ -360,32 +360,18 @@ class HyperElastic:
         return I1_e_pg
 
     @staticmethod
-    def Compute_dI1dC(mesh: Mesh, u: np.ndarray, matrixType=MatrixType.rigi) -> np.ndarray:
+    def Compute_dI1dC() -> np.ndarray:
         """Computes dI1dC(u)
-        
-        Parameters
-        ----------
-        mesh : Mesh
-            mesh
-        u : np.ndarray
-            discretized displacement field [ux1, uy1, uz1, . . ., uxN, uyN, uzN] of size Nn * dim
-        matrixType : MatrixType, optional
-            matrix type, by default MatrixType.rigi
 
         Returns
         -------
         np.ndarray
-            dI1dC_e_pg of shape (Ne, pg, 6)
-        """
+            dI1dC of shape (6)
+        """        
 
-        Ne, nPg, _ = HyperElastic.__GetDims(mesh, u, matrixType)
+        dI1dC = np.array([1, 1, 1, 0, 0, 0])
 
-        dI1dC_e_pg = np.zeros((Ne, nPg, 6), dtype=float)
-
-        for d in range(3):
-            dI1dC_e_pg[:,:,d] = 1
-
-        return dI1dC_e_pg
+        return dI1dC
     
     @staticmethod
     def Compute_d2I1dC() -> np.ndarray:

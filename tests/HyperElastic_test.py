@@ -74,7 +74,7 @@ class TestHyperElastic:
         
     #     pass
 
-    def test_Epsilon_e_pg(self):
+    def test_Epsilon(self):
 
         # 2d simulation
 
@@ -112,7 +112,7 @@ class TestHyperElastic:
 
                 assert np.linalg.norm(cyz - czy)/np.linalg.norm(cyz) < 1e-12
 
-    def test_Epsilon_vs_e(self):
+    def test_Epsilon_vs_GreenLagrange(self):
 
         for simu in Get_3d_simulations():
 
@@ -145,15 +145,11 @@ class TestHyperElastic:
 
     def test_dI1dC(self):
 
-        for simu in Get_2d_simulations():
+        dI1dC = HyperElastic.Compute_dI1dC()
 
-            for matrixType in [MatrixType.rigi, MatrixType.mass]:
+        dI1dC_v = Project_Kelvin(np.eye(3), 2)
 
-                dI1dC = HyperElastic.Compute_dI1dC(simu.mesh, simu.displacement, matrixType)
-
-                dI1dC_v = Project_Kelvin(np.eye(3), 2)
-
-                assert np.linalg.norm(dI1dC - dI1dC_v)/np.linalg.norm(dI1dC) < 1e-12
+        assert np.linalg.norm(dI1dC - dI1dC_v)/np.linalg.norm(dI1dC) < 1e-12
 
     def test_d2I1dC(self):
 
