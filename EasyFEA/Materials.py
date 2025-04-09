@@ -13,6 +13,12 @@ from .materials import Reshape_variable
 from .materials._linear_elastic_laws import _Elas, Elas_Isot, Elas_IsotTrans, Elas_Anisot
 
 # ----------------------------------------------
+# HyperElastic
+# ----------------------------------------------
+
+from .materials._hyperelastic_laws import NeoHookean, MooneyRivlin, SaintVenantKirchhoff
+
+# ----------------------------------------------
 # PhaseField
 # ----------------------------------------------
 
