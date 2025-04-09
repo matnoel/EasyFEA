@@ -6,7 +6,7 @@
 
 from . import Folder, Display
 from ..fem import Mesher, Mesh, ElemType
-from .PyVista import DICT_VTK_INDEXES, np
+from .PyVista import DICT_GMSH_TO_VTK, np
 
 import meshio
 from typing import Any
@@ -38,7 +38,7 @@ DICT_MESHIO_TYPES = {
     ElemType.PRISM18: 'wedge18'
 }
 
-DICT_MESHIO_INDEXES = DICT_VTK_INDEXES
+DICT_GMSH_TO_MESHIO_INDEXES = DICT_GMSH_TO_VTK
 
 # ----------------------------------------------
 # EasyFEA to Meshio
@@ -70,8 +70,8 @@ def _EasyFEA_to_Meshio(mesh: Mesh, cell_name: str,
         else:
             continue
 
-        if elemType in DICT_MESHIO_INDEXES:
-            vtKindexes = DICT_MESHIO_INDEXES[elemType]
+        if elemType in DICT_GMSH_TO_MESHIO_INDEXES:
+            vtKindexes = DICT_GMSH_TO_MESHIO_INDEXES[elemType]
         else:
             vtKindexes = np.arange(groupElem.nPe)
         
@@ -181,11 +181,6 @@ def _Set_Tags(mesh: Mesh, dict_tags: dict[str, np.ndarray]):
 # Medit
 # ----------------------------------------------
 
-DICT_MEDIT_INDEXES = {
-    "hexahedron27": np.array([1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,
-                     25,26,23,22,24,21,27]) - 1
-}
-
 def EasyFEA_to_Medit(mesh: Mesh, folder: str, name: str,
                      dict_tags_converter: dict[str, int]={},
                      useBinary=False) -> str:
@@ -203,12 +198,6 @@ def EasyFEA_to_Medit(mesh: Mesh, folder: str, name: str,
     """
 
     meshio_mesh = _EasyFEA_to_Meshio(mesh, 'medit.ref', dict_tags_converter)
-
-    # change meshio(vtk) indexes to medit indexes
-    for meshioType, indexes in DICT_MEDIT_INDEXES.items():
-        if meshioType in meshio_mesh.cells_dict.keys():
-            i = list(meshio_mesh.cells_dict.keys()).index(meshioType)
-            meshio_mesh.cells[i].data = meshio_mesh.cells[i].data[:, indexes]
 
     extension = "meshb" if useBinary else "mesh"
     filename = Folder.Join(folder, f'{name}.{extension}', mkdir=True)

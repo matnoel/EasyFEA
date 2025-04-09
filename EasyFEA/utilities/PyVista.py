@@ -641,7 +641,7 @@ DICT_CELL_TYPES: dict[str, tuple[pv.CellType, int]] = {
 # vtk -> https://vtk.org/doc/nightly/html/vtkCellType_8h_source.html
 # https://dev.pyvista.org/api/utilities/_autosummary/pyvista.celltype
 # you can search for vtk elements on the internet
-DICT_GMSH_TO_VTK_INDEXES: dict[str, np.ndarray] = {
+DICT_GMSH_TO_VTK: dict[str, np.ndarray] = {
     # https://dev.pyvista.org/api/examples/_autosummary/pyvista.examples.cells.quadratichexahedron#pyvista.examples.cells.QuadraticHexahedron
     "HEXA20": [0,1,2,3,4,5,6,7,
               8,11,13,9,16,18,19,17,10,12,14,15],
@@ -696,8 +696,8 @@ def _pvGrid(obj, result: Union[str, np.ndarray]=None, deformFactor=0.0, nodeValu
         return
 
     # reorder gmsh idx to vtk indexes
-    if mesh.elemType in DICT_GMSH_TO_VTK_INDEXES.keys():
-        vtkIndexes = DICT_GMSH_TO_VTK_INDEXES[mesh.elemType]
+    if mesh.elemType in DICT_GMSH_TO_VTK.keys():
+        vtkIndexes = DICT_GMSH_TO_VTK[mesh.elemType]
     else:
         vtkIndexes = np.arange(mesh.nPe)
     
