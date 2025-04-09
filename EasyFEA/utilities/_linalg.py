@@ -15,7 +15,7 @@ def __CheckMat(mat: np.ndarray) -> None:
 
 def Transpose(mat: np.ndarray) -> np.ndarray:
     """Computes transpose(mat)"""
-    __CheckMat(mat)
+    assert isinstance(mat, np.ndarray) and mat.ndim >= 2
     return np.einsum("...ij->...ji", mat, optimize="optimal")
 
 def Trace(mat: np.ndarray) -> np.ndarray:
