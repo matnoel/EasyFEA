@@ -10,6 +10,7 @@ def Dir(path="") -> str:
     """Returns the directory of the specified path.\n
     If no path is specified, returns the EasyFEA directory path.
     """
+    # TODO Give by default return folder
 
     assert isinstance(path, str), "filename must be str"
     
