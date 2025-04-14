@@ -514,14 +514,13 @@ class _GroupElem(ABC):
                 # into the (X, Y, Z) coordinate system.
 
                 # check whether P_e is orthogonal
-                
                 isOrth_e = Trace(Transpose(P_e) @ P_e) == 3
                 
                 # (x, y, z) = (X, Y, Z) * P_e  <==>  aj = bi Pij
                 rebased_coord_e[isOrth_e] = coordo_e[isOrth_e] @ P_e[isOrth_e]
                 
                 # (x, y, z) = (X, Y, Z) * P_e^(-T)  <==>  aj = bi inv(P)ji
-                rebased_coord_e[~isOrth_e] = coordo_e[~isOrth_e] @ np.linalg.inv(P_e[~isOrth_e]).transpose(0,2,1)
+                rebased_coord_e[~isOrth_e] = coordo_e[~isOrth_e] @ Transpose(Inv(P_e[~isOrth_e]))
 
             rebased_coord_e = rebased_coord_e[:,:,:self.dim]
             # (Ne, nPe, dim)
