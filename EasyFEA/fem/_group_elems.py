@@ -30,7 +30,7 @@ from ._utils import ElemType, MatrixType
 # # others
 from ..Geoms import Point, Domain, Line, Circle
 from ..geoms import Jacobian_Matrix
-from ..utilities._linalg import Det, Inv
+from ..utilities._linalg import Trace, Transpose, Det, Inv
 
 class _GroupElem(ABC):
 
@@ -514,7 +514,8 @@ class _GroupElem(ABC):
                 # into the (X, Y, Z) coordinate system.
 
                 # check whether P_e is orthogonal
-                isOrth_e = np.trace(P_e.transpose(0,2,1) @ P_e, axis1=1, axis2=2) == 3
+                
+                isOrth_e = Trace(Transpose(P_e) @ P_e) == 3
                 
                 # (x, y, z) = (X, Y, Z) * P_e  <==>  aj = bi Pij
                 rebased_coord_e[isOrth_e] = coordo_e[isOrth_e] @ P_e[isOrth_e]
