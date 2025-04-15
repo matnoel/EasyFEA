@@ -182,3 +182,11 @@ class FeArray(np.ndarray):
     def __truediv__(self, other):
         # Overload the / operator
         return self.__mul__(1/other)
+
+    @property 
+    def T(self):
+        if self._ndim >= 2:
+            idx = self._idx[2:]
+            return np.einsum(f"...{idx}->...{idx[::-1]}", self, optimize="optimal")
+        else:
+            return self.copy()

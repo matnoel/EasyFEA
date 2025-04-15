@@ -510,3 +510,12 @@ class TestFeArray:
         except ValueError:
             pass
         res = tensor_e_pg / tensor_e_pg # / (Ne,nPg,i,j,k,l)
+
+    def test_T(self, FeArrays: list[FeArray]):
+        
+        scalar_e_pg, vector_e_pg, matrix_e_pg, tensor_e_pg = FeArrays
+
+        _check_arrays(scalar_e_pg.T, scalar_e_pg)
+        _check_arrays(vector_e_pg.T, vector_e_pg)
+        _check_arrays(matrix_e_pg.T, matrix_e_pg.transpose((0,1,3,2)))
+        _check_arrays(tensor_e_pg.T, tensor_e_pg.transpose((0,1,5,4,3,2)))
