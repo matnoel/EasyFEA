@@ -108,17 +108,17 @@ class FeArray(np.ndarray):
 
     @property
     def _idx(self) -> str:
-        """einsum indicator (e.g "ep", "epi", "epij") used in `np.einsum()` function.\n
+        """einsum indicator (e.g "", "i", "ij") used in `np.einsum()` function.\n
         see https://numpy.org/doc/stable/reference/generated/numpy.einsum.html
         """
         if self._ndim == 0:
-            return "ep"
+            return ""
         elif self._ndim == 1:
-            return "epi"
+            return "i"
         elif self._ndim == 2:
-            return "epij"
+            return "ij"
         elif self._ndim == 4:
-            return "epijkl"
+            return "ijkl"
     
     @property
     def _type(self) -> str:
@@ -130,6 +130,12 @@ class FeArray(np.ndarray):
             return "matrix"
         elif self._ndim == 4:
             return "tensor"
+        
+    def __check_fe_dim(self, other):
+        if isinstance(other, FeArray):
+            if self.shape[:2] != other.shape[:2]:
+                raise ValueError(f"The FeArray `other` must be defined on {self.Ne} elements and {self.nPg} gauss points.")
+
 
     def __get_array1_array2(self, other) -> tuple[np.ndarray, np.ndarray]:
 
@@ -139,8 +145,7 @@ class FeArray(np.ndarray):
 
         array2 = np.asarray(other)
         if isinstance(other, FeArray):
-            if self.shape[:2] != other.shape[:2]:
-                raise ValueError(f"The FeArray `other` must be defined on {self.Ne} elements and {self.nPg} gauss points.")
+            self.__check_fe_dim(other)
             ndim2 = other._ndim
             shape2 = other._shape
         else:
@@ -156,9 +161,9 @@ class FeArray(np.ndarray):
         elif shape1 == shape2:
             pass
         else:
-            type_str = "FeArray" if isinstance(other, FeArray) else "array"
+            type_str = "FeArray" if isinstance(other, FeArray) else "np.array"
             raise ValueError(
-                f"The {type_str} `other` with shape {shape2} must be either a {self.shape} array or a {shape1} FeArray."
+                f"The {type_str} `other` with shape {shape2} must be either a {self.shape} np.array or a {shape1} FeArray."
                 )
         
         return array1, array2
@@ -186,7 +191,36 @@ class FeArray(np.ndarray):
     @property 
     def T(self):
         if self._ndim >= 2:
-            idx = self._idx[2:]
-            return np.einsum(f"...{idx}->...{idx[::-1]}", self, optimize="optimal")
+            idx = self._idx
+            subscripts = f"...{idx}->...{idx[::-1]}"
+            res = np.einsum(subscripts, np.asarray(self), optimize="optimal")
+            return FeArray(res)
         else:
             return self.copy()
+        
+    def dot(self, other):
+        
+        ndim1 = self._ndim
+        if ndim1 == 0:
+            raise ValueError("Must be at least an finite element vector (Ne, nPg, i).")
+        
+        idx1 = self._idx    
+
+        if isinstance(other, FeArray):
+            idx2 = other._idx
+            ndim2 = other._ndim            
+        elif isinstance(other, np.ndarray):
+            idx2 = "".join([chr(ord(idx1[0])+i) for i in range(other.ndim)])
+            ndim2 = other.ndim
+        else:
+            raise TypeError("`other` must be either a FeArray or np.ndarray")
+        idx2 = "".join([chr(ord(val)+ndim1-1) for val in idx2])
+
+        if ndim2 == 0:
+            raise ValueError("`other` must be at least a finite element vector (Ne, nPg, i).") 
+        
+        end = str(idx1+idx2).replace(idx1[-1],"")
+        subscripts = f"...{idx1},...{idx2}->...{end}"
+
+        res = np.einsum(subscripts, self, other, optimize="optimal")
+        return FeArray(res)

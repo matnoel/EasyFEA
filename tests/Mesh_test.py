@@ -166,9 +166,9 @@ def FeArrays(meshes_2D):
     matrixType = MatrixType.mass
 
     scalar_e_pg = FeArray(mesh.Get_jacobian_e_pg(matrixType))
-    vector_e_pg = FeArray(mesh.Get_dN_e_pg(matrixType)[:,:,0])
-    matrix_e_pg = FeArray(mesh.Get_B_e_pg(matrixType))
-    tensor_e_pg = FeArray(np.random.random((*scalar_e_pg.shape[:2],2,2,2,2)))
+    vector_e_pg = FeArray(mesh.Get_dN_e_pg(matrixType)[:,:,0]) # (...,3)
+    matrix_e_pg = FeArray(mesh.Get_B_e_pg(matrixType)) # (...,3, 6)
+    tensor_e_pg = FeArray(np.random.random((*scalar_e_pg.shape[:2],3,3,3,3))) # (...,3,3,3,3)
 
     return [scalar_e_pg, vector_e_pg, matrix_e_pg, tensor_e_pg]
 
@@ -191,10 +191,10 @@ class TestFeArray:
         
         scalar_e_pg, vector_e_pg, matrix_e_pg, tensor_e_pg = FeArrays
 
-        assert scalar_e_pg._idx == "ep"
-        assert vector_e_pg._idx == "epi"
-        assert matrix_e_pg._idx == "epij"
-        assert tensor_e_pg._idx == "epijkl"
+        assert scalar_e_pg._idx == ""
+        assert vector_e_pg._idx == "i"
+        assert matrix_e_pg._idx == "ij"
+        assert tensor_e_pg._idx == "ijkl"
 
         assert scalar_e_pg._type == "scalar"
         assert vector_e_pg._type == "vector"
@@ -209,9 +209,9 @@ class TestFeArray:
         Ne, nPg = scalar_e_pg.shape[:2]
 
         scalar = 1
-        vector = np.arange(10)
-        matrix = np.eye(10)*.1
-        tensor = np.random.random((2,2,2,2))
+        vector = np.arange(3)
+        matrix = np.eye(3)*.1
+        tensor = np.random.random((3,3,3,3))
 
         # (Ne, nPg) + (...)
         res = scalar_e_pg + scalar # + ()
@@ -285,9 +285,9 @@ class TestFeArray:
         Ne, nPg = scalar_e_pg.shape[:2]
 
         scalar = 1
-        vector = np.arange(10)
-        matrix = np.eye(10)*.1
-        tensor = np.random.random((2,2,2,2))
+        vector = np.arange(3)
+        matrix = np.eye(3)*.1
+        tensor = np.random.random((3,3,3,3))
 
         # (Ne, nPg) - (...)
         res = scalar_e_pg - scalar # - ()
@@ -361,9 +361,9 @@ class TestFeArray:
         Ne, nPg = scalar_e_pg.shape[:2]
 
         scalar = 1
-        vector = np.arange(10)
-        matrix = np.eye(10)*.1
-        tensor = np.random.random((2,2,2,2))
+        vector = np.arange(3)
+        matrix = np.eye(3)*.1
+        tensor = np.random.random((3,3,3,3))
 
         # (Ne, nPg) * (...)
         res = scalar_e_pg * scalar # * ()
@@ -442,9 +442,9 @@ class TestFeArray:
         Ne, nPg = scalar_e_pg.shape[:2]
 
         scalar = 1
-        vector = np.arange(1,11)
-        matrix = np.arange(1,101).reshape(10,10)
-        tensor = np.random.random((2,2,2,2))
+        vector = np.arange(1,4)
+        matrix = np.arange(1,10).reshape(3,3)
+        tensor = np.random.random((3,3,3,3))
 
         # (Ne, nPg) / (...)
         res = scalar_e_pg / scalar # / ()
@@ -519,3 +519,48 @@ class TestFeArray:
         _check_arrays(vector_e_pg.T, vector_e_pg)
         _check_arrays(matrix_e_pg.T, matrix_e_pg.transpose((0,1,3,2)))
         _check_arrays(tensor_e_pg.T, tensor_e_pg.transpose((0,1,5,4,3,2)))
+
+    
+    def test_dot(self, FeArrays: list[FeArray]):
+        
+        scalar_e_pg, vector_e_pg, matrix_e_pg, tensor_e_pg = FeArrays
+        
+        try:
+            _check_arrays(scalar_e_pg.dot(scalar_e_pg), np.einsum("...,...->...", scalar_e_pg, scalar_e_pg))
+        except ValueError:
+            pass
+        
+        try:
+            _check_arrays(vector_e_pg.dot(scalar_e_pg), np.einsum("...,...->...", scalar_e_pg, scalar_e_pg))
+        except ValueError:
+            pass
+        
+        # i i
+        _check_arrays(vector_e_pg.dot(vector_e_pg), np.einsum("...i,...i->...", vector_e_pg, vector_e_pg))
+        # i ij 
+        _check_arrays(vector_e_pg.dot(matrix_e_pg), np.einsum("...i,...ij->...j", vector_e_pg, matrix_e_pg))
+        # i ijkl
+        try:
+            _check_arrays(vector_e_pg.dot(tensor_e_pg), np.einsum("...i,...ijkl->...jkl", vector_e_pg, tensor_e_pg))
+        except ValueError:
+            pass
+
+        # ij j
+        _check_arrays(matrix_e_pg.T.dot(vector_e_pg), np.einsum("...ji,...j->...i", matrix_e_pg, vector_e_pg))
+        # ij jk
+        _check_arrays(matrix_e_pg.T.dot(matrix_e_pg), np.einsum("...ji,...jk->...ik", matrix_e_pg, matrix_e_pg))
+        # ij jklm
+        _check_arrays(matrix_e_pg.T.dot(tensor_e_pg), np.einsum("...ji,...jklm->...iklm", matrix_e_pg, tensor_e_pg))
+
+        # ijkl l
+        try:            
+            _check_arrays(tensor_e_pg.dot(vector_e_pg), np.einsum("...ijkl,...l->...ijk", tensor_e_pg, vector_e_pg))
+        except ValueError:
+            pass
+        # ijkl lm
+        _check_arrays(tensor_e_pg.dot(matrix_e_pg), np.einsum("...ijkl,...lm->...ijkm", tensor_e_pg, matrix_e_pg))
+        # ijkl lmno
+        try:
+            _check_arrays(tensor_e_pg.dot(tensor_e_pg), np.einsum("...ijkl,...lmno->...ijkmno", tensor_e_pg, tensor_e_pg))
+        except ValueError:
+            pass
