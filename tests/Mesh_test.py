@@ -519,21 +519,10 @@ class TestFeArray:
         _check_arrays(vector_e_pg.T, vector_e_pg)
         _check_arrays(matrix_e_pg.T, matrix_e_pg.transpose((0,1,3,2)))
         _check_arrays(tensor_e_pg.T, tensor_e_pg.transpose((0,1,5,4,3,2)))
-
     
     def test_dot(self, FeArrays: list[FeArray]):
         
-        scalar_e_pg, vector_e_pg, matrix_e_pg, tensor_e_pg = FeArrays
-        
-        try:
-            _check_arrays(scalar_e_pg.dot(scalar_e_pg), np.einsum("...,...->...", scalar_e_pg, scalar_e_pg))
-        except ValueError:
-            pass
-        
-        try:
-            _check_arrays(vector_e_pg.dot(scalar_e_pg), np.einsum("...,...->...", scalar_e_pg, scalar_e_pg))
-        except ValueError:
-            pass
+        _, vector_e_pg, matrix_e_pg, tensor_e_pg = FeArrays
         
         # i i
         _check_arrays(vector_e_pg.dot(vector_e_pg), np.einsum("...i,...i->...", vector_e_pg, vector_e_pg))
@@ -562,5 +551,39 @@ class TestFeArray:
         # ijkl lmno
         try:
             _check_arrays(tensor_e_pg.dot(tensor_e_pg), np.einsum("...ijkl,...lmno->...ijkmno", tensor_e_pg, tensor_e_pg))
+        except ValueError:
+            pass
+
+    def test_matmul(self, FeArrays: list[FeArray]):
+        
+        _, vector_e_pg, matrix_e_pg, tensor_e_pg = FeArrays
+        
+        # i i
+        _check_arrays(vector_e_pg @ vector_e_pg, np.einsum("...i,...i->...", vector_e_pg, vector_e_pg))
+        # i ij 
+        _check_arrays(vector_e_pg @ matrix_e_pg, np.einsum("...i,...ij->...j", vector_e_pg, matrix_e_pg))
+        # i ijkli
+        try:
+            _check_arrays(vector_e_pg @ tensor_e_pg, np.einsum("...i,...ijkl->...jkl", vector_e_pg, tensor_e_pg))
+        except ValueError:
+            pass
+
+        # ij j
+        _check_arrays(matrix_e_pg.T @ vector_e_pg, np.einsum("...ji,...j->...i", matrix_e_pg, vector_e_pg))
+        # ij jk
+        _check_arrays(matrix_e_pg.T @ matrix_e_pg, np.einsum("...ji,...jk->...ik", matrix_e_pg, matrix_e_pg))
+        # ij jklm
+        _check_arrays(matrix_e_pg.T @ tensor_e_pg, np.einsum("...ji,...jklm->...iklm", matrix_e_pg, tensor_e_pg))
+
+        # ijkl l
+        try:            
+            _check_arrays(tensor_e_pg @ vector_e_pg, np.einsum("...ijkl,...l->...ijk", tensor_e_pg, vector_e_pg))
+        except ValueError:
+            pass
+        # ijkl lm
+        _check_arrays(tensor_e_pg @ matrix_e_pg, np.einsum("...ijkl,...lm->...ijkm", tensor_e_pg, matrix_e_pg))
+        # ijkl lmno
+        try:
+            _check_arrays(tensor_e_pg @ tensor_e_pg, np.einsum("...ijkl,...lmno->...ijkmno", tensor_e_pg, tensor_e_pg))
         except ValueError:
             pass

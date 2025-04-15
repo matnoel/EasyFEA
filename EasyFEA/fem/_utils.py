@@ -224,3 +224,23 @@ class FeArray(np.ndarray):
 
         res = np.einsum(subscripts, self, other, optimize="optimal")
         return FeArray(res)
+
+    def __matmul__(self, other):
+
+        ndim1 = self._ndim
+
+        if isinstance(other, FeArray):
+            ndim2 = other._ndim
+        elif isinstance(other, np.ndarray):
+            ndim2 = other.ndim
+        else:
+            raise TypeError("`other` must be either a FeArray or np.ndarray")
+        
+        if ndim1 == ndim2 == 1:
+            res = np.vecdot(self, other)
+        elif ndim1 == ndim2 == 2:
+            res = super().__matmul__(other)
+        else:
+            res = self.dot(other)
+
+        return res
