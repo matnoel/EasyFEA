@@ -4,8 +4,8 @@
 
 import pytest
 
-from EasyFEA.fem._utils import MatrixType
-from EasyFEA import Mesher, ElemType, Mesh, np, Materials, Simulations, PyVista, Display
+from EasyFEA.fem._utils import MatrixType, FeArray
+from EasyFEA import Mesher, ElemType, Mesh, np, Materials, Simulations
 from EasyFEA.Geoms import Points
 
 L = 2
@@ -159,3 +159,354 @@ class TestMesh:
             load = np.linalg.norm(rhs.reshape(-1,3), axis=1)
             
             assert (P/area - load.sum())/(P/area) < 1e-12
+
+@pytest.fixture
+def FeArrays(meshes_2D):
+    mesh: Mesh = meshes_2D[0]
+    matrixType = MatrixType.mass
+
+    scalar_e_pg = FeArray(mesh.Get_jacobian_e_pg(matrixType))
+    vector_e_pg = FeArray(mesh.Get_dN_e_pg(matrixType)[:,:,0])
+    matrix_e_pg = FeArray(mesh.Get_B_e_pg(matrixType))
+    tensor_e_pg = FeArray(np.random.random((*scalar_e_pg.shape[:2],2,2,2,2)))
+
+    return [scalar_e_pg, vector_e_pg, matrix_e_pg, tensor_e_pg]
+
+def _check_arrays(array1, array2):
+    if isinstance(array1, FeArray):
+        array1 = np.asarray(array1)
+    if isinstance(array2, FeArray):
+        array2 = np.asarray(array2)
+    norm_diff = np.linalg.norm(array1 - array2)
+    assert norm_diff < 1e-12
+
+class TestFeArray:
+
+    def test_new_array(self, FeArrays: list[FeArray]):
+
+        try:
+            FeArray([0,1])
+        except ValueError:
+            pass
+        
+        scalar_e_pg, vector_e_pg, matrix_e_pg, tensor_e_pg = FeArrays
+
+        assert scalar_e_pg._idx == "ep"
+        assert vector_e_pg._idx == "epi"
+        assert matrix_e_pg._idx == "epij"
+        assert tensor_e_pg._idx == "epijkl"
+
+        assert scalar_e_pg._type == "scalar"
+        assert vector_e_pg._type == "vector"
+        assert matrix_e_pg._type == "matrix"
+        assert tensor_e_pg._type == "tensor"
+
+
+    def test_add_array(self, FeArrays: list[FeArray]):
+        
+        scalar_e_pg, vector_e_pg, matrix_e_pg, tensor_e_pg = FeArrays
+
+        Ne, nPg = scalar_e_pg.shape[:2]
+
+        scalar = 1
+        vector = np.arange(10)
+        matrix = np.eye(10)*.1
+        tensor = np.random.random((2,2,2,2))
+
+        # (Ne, nPg) + (...)
+        res = scalar_e_pg + scalar # + ()
+        _check_arrays(res, scalar_e_pg + scalar)
+        res = scalar_e_pg + vector # + (i)
+        _check_arrays(res, np.asarray(scalar_e_pg).reshape((Ne,nPg,1)) + vector)
+        res = scalar_e_pg + matrix # + (i,j)
+        _check_arrays(res, np.asarray(scalar_e_pg).reshape((Ne,nPg,1,1)) + matrix)
+        res = scalar_e_pg + tensor # + (i,j,k,l)
+        _check_arrays(res, np.asarray(scalar_e_pg).reshape((Ne,nPg,1,1,1,1)) + tensor)
+
+        # (Ne, nPg) + (Ne, nPg, ...)
+        res = scalar_e_pg + scalar_e_pg # + (Ne,nPg)
+        _check_arrays(res, scalar_e_pg + scalar_e_pg)
+        res = scalar_e_pg + vector_e_pg # + (Ne,nPg,i)
+        _check_arrays(res, np.asarray(scalar_e_pg).reshape((Ne,nPg,1)) + vector_e_pg)
+        res = scalar_e_pg + matrix_e_pg # + (Ne,nPg,i,j)
+        _check_arrays(res, np.asarray(scalar_e_pg).reshape((Ne,nPg,1,1)) + matrix_e_pg)
+        res = scalar_e_pg + tensor_e_pg # + (Ne,nPg,i,j,k,l)
+        _check_arrays(res, np.asarray(scalar_e_pg).reshape((Ne,nPg,1,1,1,1)) + tensor_e_pg)
+
+        # (Ne, nPg, i) + (Ne, nPg, ...)
+        try:
+            res = vector_e_pg + scalar_e_pg # + (Ne,nPg)
+        except ValueError: 
+            pass
+        res = vector_e_pg + vector_e_pg # + (Ne,nPg,i)
+        try:
+            res = vector_e_pg + matrix_e_pg # + (Ne,nPg,i,j)
+        except ValueError:
+            pass
+        try:
+            res = vector_e_pg + tensor_e_pg # + (Ne,nPg,i,j,k,l)
+        except ValueError:
+            pass
+
+        # (Ne, nPg, i, j) + (Ne, nPg, ...)
+        try:
+            res = matrix_e_pg + scalar_e_pg # + (Ne,nPg)
+        except ValueError: 
+            pass
+        try:
+            res = matrix_e_pg + vector_e_pg # + (Ne,nPg,i)    
+        except ValueError:
+            pass
+        res = matrix_e_pg + matrix_e_pg # + (Ne,nPg,i,j)
+        try:
+            res = matrix_e_pg + tensor_e_pg # + (Ne,nPg,i,j,k,l)
+        except ValueError:
+            pass
+
+        # (Ne, nPg, i, j, k, l) + (Ne, nPg, ...)
+        try:
+            res = tensor_e_pg + scalar_e_pg # + (Ne,nPg)
+        except ValueError: 
+            pass
+        try:
+            res = tensor_e_pg + vector_e_pg # + (Ne,nPg,i)    
+        except ValueError:
+            pass
+        try:
+            res = tensor_e_pg + matrix_e_pg # + (Ne,nPg,i,j)
+        except ValueError:
+            pass
+        res = tensor_e_pg + tensor_e_pg # + (Ne,nPg,i,j,k,l)
+
+    def test_sub_array(self, FeArrays: list[FeArray]):
+        
+        scalar_e_pg, vector_e_pg, matrix_e_pg, tensor_e_pg = FeArrays
+
+        Ne, nPg = scalar_e_pg.shape[:2]
+
+        scalar = 1
+        vector = np.arange(10)
+        matrix = np.eye(10)*.1
+        tensor = np.random.random((2,2,2,2))
+
+        # (Ne, nPg) - (...)
+        res = scalar_e_pg - scalar # - ()
+        _check_arrays(res, scalar_e_pg - scalar)
+        res = scalar_e_pg - vector # - (i)
+        _check_arrays(res, np.asarray(scalar_e_pg).reshape((Ne,nPg,1)) - vector)
+        res = scalar_e_pg - matrix # - (i,j)
+        _check_arrays(res, np.asarray(scalar_e_pg).reshape((Ne,nPg,1,1)) - matrix)
+        res = scalar_e_pg - tensor # - (i,j,k,l)
+        _check_arrays(res, np.asarray(scalar_e_pg).reshape((Ne,nPg,1,1,1,1)) - tensor)
+
+        # (Ne, nPg) - (Ne, nPg, ...)
+        res = scalar_e_pg - scalar_e_pg # - (Ne,nPg)
+        _check_arrays(res, scalar_e_pg - scalar_e_pg)
+        res = scalar_e_pg - vector_e_pg # - (Ne,nPg,i)
+        _check_arrays(res, np.asarray(scalar_e_pg).reshape((Ne,nPg,1)) - vector_e_pg)
+        res = scalar_e_pg - matrix_e_pg # - (Ne,nPg,i,j)
+        _check_arrays(res, np.asarray(scalar_e_pg).reshape((Ne,nPg,1,1)) - matrix_e_pg)
+        res = scalar_e_pg - tensor_e_pg # - (Ne,nPg,i,j,k,l)
+        _check_arrays(res, np.asarray(scalar_e_pg).reshape((Ne,nPg,1,1,1,1)) - tensor_e_pg)
+
+        # (Ne, nPg, i) - (Ne, nPg, ...)
+        try:
+            res = vector_e_pg - scalar_e_pg # - (Ne,nPg)
+        except ValueError: 
+            pass
+        res = vector_e_pg - vector_e_pg # - (Ne,nPg,i)
+        try:
+            res = vector_e_pg - matrix_e_pg # - (Ne,nPg,i,j)
+        except ValueError:
+            pass
+        try:
+            res = vector_e_pg - tensor_e_pg # - (Ne,nPg,i,j,k,l)
+        except ValueError:
+            pass
+
+        # (Ne, nPg, i, j) - (Ne, nPg, ...)
+        try:
+            res = matrix_e_pg - scalar_e_pg # - (Ne,nPg)
+        except ValueError: 
+            pass
+        try:
+            res = matrix_e_pg - vector_e_pg # - (Ne,nPg,i)    
+        except ValueError:
+            pass
+        res = matrix_e_pg - matrix_e_pg # - (Ne,nPg,i,j)
+        try:
+            res = matrix_e_pg - tensor_e_pg # - (Ne,nPg,i,j,k,l)
+        except ValueError:
+            pass
+
+        # (Ne, nPg, i, j, k, l) - (Ne, nPg, ...)
+        try:
+            res = tensor_e_pg - scalar_e_pg # - (Ne,nPg)
+        except ValueError: 
+            pass
+        try:
+            res = tensor_e_pg - vector_e_pg # - (Ne,nPg,i)    
+        except ValueError:
+            pass
+        try:
+            res = tensor_e_pg - matrix_e_pg # - (Ne,nPg,i,j)
+        except ValueError:
+            pass
+        res = tensor_e_pg - tensor_e_pg # - (Ne,nPg,i,j,k,l)
+
+    def test_mul_array(self, FeArrays: list[FeArray]):
+        
+        scalar_e_pg, vector_e_pg, matrix_e_pg, tensor_e_pg = FeArrays
+
+        Ne, nPg = scalar_e_pg.shape[:2]
+
+        scalar = 1
+        vector = np.arange(10)
+        matrix = np.eye(10)*.1
+        tensor = np.random.random((2,2,2,2))
+
+        # (Ne, nPg) * (...)
+        res = scalar_e_pg * scalar # * ()
+        _check_arrays(res, scalar_e_pg * scalar)
+        res = scalar_e_pg * vector # * (i)
+        _check_arrays(res, np.asarray(scalar_e_pg).reshape((Ne,nPg,1)) * vector)
+        res = scalar_e_pg * matrix # * (i,j)
+        _check_arrays(res, np.asarray(scalar_e_pg).reshape((Ne,nPg,1,1)) * matrix)
+        res = scalar_e_pg * tensor # * (i,j,k,l)
+        _check_arrays(res, np.asarray(scalar_e_pg).reshape((Ne,nPg,1,1,1,1)) * tensor)
+
+        # (Ne, nPg) * (Ne, nPg, ...)
+        res = scalar_e_pg * scalar_e_pg # * (Ne,nPg)
+        _check_arrays(res, scalar_e_pg * scalar_e_pg)
+        res = scalar_e_pg * vector_e_pg # * (Ne,nPg,i)
+        _check_arrays(res, np.asarray(scalar_e_pg).reshape((Ne,nPg,1)) * vector_e_pg)
+        res = scalar_e_pg * matrix_e_pg # * (Ne,nPg,i,j)
+        _check_arrays(res, np.asarray(scalar_e_pg).reshape((Ne,nPg,1,1)) * matrix_e_pg)
+        res = scalar_e_pg * tensor_e_pg # * (Ne,nPg,i,j,k,l)
+        _check_arrays(res, np.asarray(scalar_e_pg).reshape((Ne,nPg,1,1,1,1)) * tensor_e_pg)
+
+        # (Ne, nPg, i) * (Ne, nPg, ...)
+        try:
+            res = vector_e_pg * scalar_e_pg # * (Ne,nPg)
+        except ValueError: 
+            pass
+        res = vector_e_pg * vector_e_pg # * (Ne,nPg,i)
+        try:
+            res = vector_e_pg * matrix_e_pg # * (Ne,nPg,i,j)
+        except ValueError:
+            pass
+        try:
+            res = vector_e_pg * tensor_e_pg # * (Ne,nPg,i,j,k,l)
+        except ValueError:
+            pass
+
+        # (Ne, nPg, i, j) * (Ne, nPg, ...)
+        try:
+            res = matrix_e_pg * scalar_e_pg # * (Ne,nPg)
+        except ValueError: 
+            pass
+        try:
+            res = matrix_e_pg * vector_e_pg # * (Ne,nPg,i)    
+        except ValueError:
+            pass
+        res = matrix_e_pg * matrix_e_pg # * (Ne,nPg,i,j)
+        try:
+            res = matrix_e_pg * tensor_e_pg # * (Ne,nPg,i,j,k,l)
+        except ValueError:
+            pass
+
+        # (Ne, nPg, i, j, k, l) * (Ne, nPg, ...)
+        try:
+            res = tensor_e_pg * scalar_e_pg # * (Ne,nPg)
+        except ValueError: 
+            pass
+        try:
+            res = tensor_e_pg * vector_e_pg # * (Ne,nPg,i)    
+        except ValueError:
+            pass
+        try:
+            res = tensor_e_pg * matrix_e_pg # * (Ne,nPg,i,j)
+        except ValueError:
+            pass
+        res = tensor_e_pg * tensor_e_pg # * (Ne,nPg,i,j,k,l)
+
+    def test_truediv_array(self, FeArrays: list[FeArray]):
+        
+        scalar_e_pg, vector_e_pg, matrix_e_pg, tensor_e_pg = FeArrays
+
+        # make sure there is not 0 values
+        vector_e_pg += 1
+        matrix_e_pg += 1
+        tensor_e_pg += 1
+
+        Ne, nPg = scalar_e_pg.shape[:2]
+
+        scalar = 1
+        vector = np.arange(1,11)
+        matrix = np.arange(1,101).reshape(10,10)
+        tensor = np.random.random((2,2,2,2))
+
+        # (Ne, nPg) / (...)
+        res = scalar_e_pg / scalar # / ()
+        _check_arrays(res, scalar_e_pg / scalar)
+        res = scalar_e_pg / vector # / (i)
+        _check_arrays(res, np.asarray(scalar_e_pg).reshape((Ne,nPg,1)) / vector)
+        res = scalar_e_pg / matrix # / (i,j)
+        _check_arrays(res, np.asarray(scalar_e_pg).reshape((Ne,nPg,1,1)) / matrix)
+        res = scalar_e_pg / tensor # / (i,j,k,l)
+        _check_arrays(res, np.asarray(scalar_e_pg).reshape((Ne,nPg,1,1,1,1)) / tensor)
+
+        # (Ne, nPg) / (Ne, nPg, ...)
+        res = scalar_e_pg / scalar_e_pg # / (Ne,nPg)
+        _check_arrays(res, scalar_e_pg / scalar_e_pg)
+        res = scalar_e_pg / vector_e_pg # / (Ne,nPg,i)
+        _check_arrays(res, np.asarray(scalar_e_pg).reshape((Ne,nPg,1)) / vector_e_pg)
+        res = scalar_e_pg / matrix_e_pg # / (Ne,nPg,i,j)
+        _check_arrays(res, np.asarray(scalar_e_pg).reshape((Ne,nPg,1,1)) / matrix_e_pg)
+        res = scalar_e_pg / tensor_e_pg # / (Ne,nPg,i,j,k,l)
+        _check_arrays(res, np.asarray(scalar_e_pg).reshape((Ne,nPg,1,1,1,1)) / tensor_e_pg)
+
+        # (Ne, nPg, i) / (Ne, nPg, ...)
+        try:
+            res = vector_e_pg / scalar_e_pg # / (Ne,nPg)
+        except ValueError: 
+            pass
+        res = vector_e_pg / vector_e_pg # / (Ne,nPg,i)
+        try:
+            res = vector_e_pg / matrix_e_pg # / (Ne,nPg,i,j)
+        except ValueError:
+            pass
+        try:
+            res = vector_e_pg / tensor_e_pg # / (Ne,nPg,i,j,k,l)
+        except ValueError:
+            pass
+
+        # (Ne, nPg, i, j) / (Ne, nPg, ...)
+        try:
+            res = matrix_e_pg / scalar_e_pg # / (Ne,nPg)
+        except ValueError: 
+            pass
+        try:
+            res = matrix_e_pg / vector_e_pg # / (Ne,nPg,i)    
+        except ValueError:
+            pass
+        res = matrix_e_pg / matrix_e_pg # / (Ne,nPg,i,j)
+        try:
+            res = matrix_e_pg / tensor_e_pg # / (Ne,nPg,i,j,k,l)
+        except ValueError:
+            pass
+
+        # (Ne, nPg, i, j, k, l) / (Ne, nPg, ...)
+        try:
+            res = tensor_e_pg / scalar_e_pg # / (Ne,nPg)
+        except ValueError: 
+            pass
+        try:
+            res = tensor_e_pg / vector_e_pg # / (Ne,nPg,i)    
+        except ValueError:
+            pass
+        try:
+            res = tensor_e_pg / matrix_e_pg # / (Ne,nPg,i,j)
+        except ValueError:
+            pass
+        res = tensor_e_pg / tensor_e_pg # / (Ne,nPg,i,j,k,l)
