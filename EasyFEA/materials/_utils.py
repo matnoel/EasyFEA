@@ -241,6 +241,9 @@ def Project_Kelvin(A: np.ndarray, orderA:int=None) -> np.ndarray:
 
     else:
         raise Exception("Not implemented.")
+    
+    if isinstance(A, FeArray):
+        res = FeArray(res)
 
     return res
 

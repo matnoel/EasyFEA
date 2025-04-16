@@ -9,7 +9,7 @@ from scipy import sparse
 # utilities
 from ..utilities import Folder, Display, Tic
 # fem
-from ..fem import Mesh, MatrixType, Mesher
+from ..fem import Mesh, MatrixType, Mesher, FeArray
 # materials
 from .. import Materials
 from ..materials import ModelType, Reshape_variable, Result_in_Strain_or_Stress_field
@@ -103,30 +103,27 @@ class ElasticSimu(_Simu):
         # Compute Stifness
         # ------------------------------
         matrixType = MatrixType.rigi
-        jacobian_e_pg = mesh.Get_jacobian_e_pg(matrixType)
-        weight_pg = mesh.Get_weight_pg(matrixType)
-        N_pg = mesh.Get_N_vector_pg(matrixType)        
         leftDepPart = mesh.Get_leftDispPart(matrixType) 
         B_dep_e_pg = mesh.Get_B_e_pg(matrixType)
 
         # TODO try einsumt
         if self.material.isHeterogeneous:
-            matC = Reshape_variable(self.material.C, Ne, weight_pg.size)
+            matC = Reshape_variable(self.material.C, *B_dep_e_pg.shape[:2])
         else:
             matC = self.material.C
 
-        Ku_e = np.sum(leftDepPart @ matC @ B_dep_e_pg, axis=1)
+        Ku_e = (leftDepPart @ matC @ B_dep_e_pg)._sum(axis=1)
         
         # ------------------------------
         # Compute Mass
         # ------------------------------
         matrixType = MatrixType.mass
         N_pg = mesh.Get_N_vector_pg(matrixType)
-        jacobian_e_pg = mesh.Get_jacobian_e_pg(matrixType)
-        weight_pg = mesh.Get_weight_pg(matrixType)
-        rho_e_pg = Reshape_variable(self.rho, Ne, weight_pg.size)
+        
+        weightedJacobian_e_pg = mesh.Get_weightedJacobian_e_pg(matrixType)
+        rho_e_pg = Reshape_variable(self.rho, *weightedJacobian_e_pg.shape[:2])
 
-        Mu_e = np.einsum(f'ep,p,pdi,ep,pdj->eij', jacobian_e_pg, weight_pg, N_pg, rho_e_pg, N_pg, optimize="optimal")
+        Mu_e = np.einsum(f'ep,pdi,ep,pdj->eij', weightedJacobian_e_pg, N_pg, rho_e_pg, N_pg, optimize="optimal")
 
         if self.dim == 2:
             thickness = self.material.thickness
@@ -410,7 +407,7 @@ class ElasticSimu(_Simu):
 
         return error, error_e
 
-    def _Calc_Epsilon_e_pg(self, u: np.ndarray, matrixType=MatrixType.rigi) -> np.ndarray:
+    def _Calc_Epsilon_e_pg(self, u: np.ndarray, matrixType=MatrixType.rigi) -> FeArray:
         """Computes strain field from the displacement vector field.\n
         2D : [Exx Eyy sqrt(2)*Exy]\n
         3D : [Exx Eyy Ezz sqrt(2)*Eyz sqrt(2)*Exz sqrt(2)*Exy]
@@ -433,7 +430,7 @@ class ElasticSimu(_Simu):
         
         tic.Tac("Matrix", "Epsilon_e_pg", False)
 
-        return Epsilon_e_pg
+        return FeArray(Epsilon_e_pg)
                     
     def _Calc_Sigma_e_pg(self, Epsilon_e_pg: np.ndarray, matrixType=MatrixType.rigi) -> np.ndarray:
         """Computes stress field from strain field.\n
@@ -450,6 +447,10 @@ class ElasticSimu(_Simu):
         np.ndarray
             Computed stress field (Ne,pg,(3 or 6))
         """
+
+        if not isinstance(Epsilon_e_pg, FeArray):
+            Epsilon_e_pg = FeArray(Epsilon_e_pg)
+
         Ne = Epsilon_e_pg.shape[0]
         nPg = Epsilon_e_pg.shape[1]
 
@@ -458,12 +459,13 @@ class ElasticSimu(_Simu):
 
         tic = Tic()
 
-        c = self.material.C
-        
-        c_e_p = Reshape_variable(c, Ne, nPg)
+        C = self.material.C
+        if self.material.isHeterogeneous:
+            C_e_pg = Reshape_variable(C, Ne, nPg)
+        else:
+            C_e_pg = FeArray(C, True)
 
-        Sigma_e_pg = c_e_p @ Epsilon_e_pg[:,:,:,np.newaxis]
-        Sigma_e_pg: np.ndarray = Sigma_e_pg.reshape((Ne,nPg,-1))
+        Sigma_e_pg = C_e_pg @ Epsilon_e_pg
             
         tic.Tac("Matrix", "Sigma_e_pg", False)
 

@@ -377,6 +377,11 @@ class Mesh(Observable):
         """
         return self.groupElem.Get_jacobian_e_pg(matrixType, absoluteValues)
 
+    def Get_weightedJacobian_e_pg(self, matrixType: MatrixType) -> FeArray:
+        """Returns the jacobian_e_pg * weight_pg.
+        """
+        return self.groupElem.Get_weightedJacobian_e_pg(matrixType)
+
     def Get_N_pg(self, matrixType: MatrixType) -> np.ndarray:
         """Evaluates shape functions in (ξ, η, ζ) coordinates.\n
         [N1, . . . , Nn]\n
@@ -900,7 +905,7 @@ class Mesh(Observable):
 
         elif criteria == "jacobian":
             # jMax / jMin
-            jacobian_e_pg = groupElem.Get_jacobian_e_pg(MatrixType.mass)
+            jacobian_e_pg = groupElem.Get_jacobin_e_pg(MatrixType.mass)
             values_e = np.max(jacobian_e_pg, 1) / np.min(jacobian_e_pg, 1)
 
         else:

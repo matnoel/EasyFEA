@@ -173,12 +173,14 @@ class PhaseField(_IModel):
 
         return k
 
-    def Get_r_e_pg(self, PsiP_e_pg: np.ndarray) -> np.ndarray:
+    def Get_r_e_pg(self, PsiP_e_pg: np.ndarray) -> FeArray:
         """Returns reaction therm"""
 
         Gc = self.Gc
         if self.isHeterogeneous:
             Gc = Reshape_variable(Gc, *PsiP_e_pg.shape[:2])
+        else:
+            FeArray(Gc, True)
         l0 = self.__l0
 
         # J/m3
@@ -189,12 +191,14 @@ class PhaseField(_IModel):
         
         return r
 
-    def Get_f_e_pg(self, PsiP_e_pg: np.ndarray) -> np.ndarray:
+    def Get_f_e_pg(self, PsiP_e_pg: np.ndarray) -> FeArray:
         """Returns source therm"""
 
         Gc = self.Gc
         if self.isHeterogeneous:
             Gc = Reshape_variable(Gc, *PsiP_e_pg.shape[:2])
+        else:
+            Gc = FeArray(Gc, True)
         l0 = self.__l0
         
         # J/m3
@@ -319,7 +323,7 @@ class PhaseField(_IModel):
             c_w = 2
         return c_w
             
-    def Calc_psi_e_pg(self, Epsilon_e_pg: np.ndarray):
+    def Calc_psi_e_pg(self, Epsilon_e_pg: np.ndarray) -> tuple[FeArray, FeArray]:
         """Computes the elastic energy densities.\n
 
         psiP_e_pg = 1/2 SigmaP_e_pg * Epsilon_e_pg\n
@@ -328,6 +332,9 @@ class PhaseField(_IModel):
         SigmaP_e_pg = cP_e_pg * Epsilon_e_pg\n
         SigmaM_e_pg = cM_e_pg * Epsilon_e_pg       
         """
+
+        if not isinstance(Epsilon_e_pg, FeArray):
+            Epsilon_e_pg = FeArray(Epsilon_e_pg)
 
         SigmaP_e_pg, SigmaM_e_pg = self.Calc_Sigma_e_pg(Epsilon_e_pg)
 
@@ -340,7 +347,7 @@ class PhaseField(_IModel):
 
         return psiP_e_pg, psiM_e_pg
 
-    def Calc_Sigma_e_pg(self, Epsilon_e_pg: np.ndarray):
+    def Calc_Sigma_e_pg(self, Epsilon_e_pg: np.ndarray) -> tuple[FeArray, FeArray]:
         """Computes the Stress field using the strains and the split such that:\n
         
         SigmaP_e_pg = cP_e_pg * Epsilon_e_pg\n
@@ -356,6 +363,9 @@ class PhaseField(_IModel):
         FeArray
             SigmaP_e_pg, SigmaM_e_pg: positive and negative stress fields (e, p, D)
         """       
+
+        if not isinstance(Epsilon_e_pg, FeArray):
+            Epsilon_e_pg = FeArray(Epsilon_e_pg)
 
         Ne, nPg, dim = Epsilon_e_pg.shape[:3]
         

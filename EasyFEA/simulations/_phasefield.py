@@ -402,7 +402,7 @@ class PhaseFieldSimu(_Simu):
 
     # ------------------------------------------- Damage problem -------------------------------------------
 
-    def __Calc_psiPlus_e_pg(self):
+    def __Calc_psiPlus_e_pg(self) -> FeArray:
         """Computes the positive energy density psi^+ (e, p)."""
 
         phaseFieldModel = self.phaseFieldModel
@@ -419,7 +419,7 @@ class PhaseFieldSimu(_Simu):
         # here the mass term is important otherwise we under-integrate
 
         # Compute the elastic energy densities.
-        psiP_e_pg, psiM_e_pg = phaseFieldModel.Calc_psi_e_pg(Epsilon_e_pg)
+        psiP_e_pg, _ = phaseFieldModel.Calc_psi_e_pg(Epsilon_e_pg)
 
         if phaseFieldModel.solver == "History":
             # Get the old history field

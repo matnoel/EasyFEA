@@ -553,6 +553,18 @@ class _GroupElem(ABC):
 
         return jacobian_e_pg
     
+    def Get_weightedJacobian_e_pg(self, matrixType: MatrixType) -> FeArray:
+        """Returns the jacobian_e_pg * weight_pg.
+        """
+        if self.dim == 0: return
+
+        jacobian_e_pg = self.Get_jacobian_e_pg(matrixType)
+        weight_pg = self.Get_weight_pg(matrixType)
+
+        weightedJacobian_e_pg = np.asarray(jacobian_e_pg) * weight_pg
+
+        return FeArray(weightedJacobian_e_pg)
+    
     def Get_invF_e_pg(self, matrixType: MatrixType) -> FeArray:
         """Returns the inverse of the transposed Jacobian matrix.\n
         Used to obtain the derivative of the dN_e_pg shape functions in the actual element
@@ -1047,11 +1059,10 @@ class _GroupElem(ABC):
 
         if matrixType not in self.__dict_leftDispPart.keys():
             
-            jacobian_e_pg = self.Get_jacobian_e_pg(matrixType)
-            weight_pg = self.Get_gauss(matrixType).weights
+            weightedJacobian_e_pg = self.Get_weightedJacobian_e_pg(matrixType)
             B_e_pg = self.Get_B_e_pg(matrixType)
 
-            leftDispPart = np.einsum('ep,p,epij->epji', jacobian_e_pg, weight_pg, B_e_pg, optimize='optimal')
+            leftDispPart = weightedJacobian_e_pg * B_e_pg.T
 
             self.__dict_leftDispPart[matrixType] = FeArray(leftDispPart)
 
@@ -1295,11 +1306,10 @@ class _GroupElem(ABC):
 
         if matrixType not in self.__dict_DiffusePart_e_pg.keys():
 
-            jacobian_e_pg = self.Get_jacobian_e_pg(matrixType)
-            weight_pg = self.Get_gauss(matrixType).weights
+            weightedJacobian_e_pg = self.Get_weightedJacobian_e_pg(matrixType)
             dN_e_pg = self.Get_dN_e_pg(matrixType)
 
-            DiffusePart_e_pg = np.einsum('ep,p,epij->epji', jacobian_e_pg, weight_pg, dN_e_pg, optimize='optimal')
+            DiffusePart_e_pg = weightedJacobian_e_pg * dN_e_pg.T
 
             self.__dict_DiffusePart_e_pg[matrixType] = FeArray(DiffusePart_e_pg)
         

@@ -272,3 +272,11 @@ class FeArray(np.ndarray):
 
         res = np.einsum(subscripts, self, other)
         return FeArray(res)
+    
+    def _sum(self, axis=None):
+        """`np.sum()` wrapper."""
+        sum = np.asarray(super().sum(axis))
+        if sum.size == 1:
+            return float(sum)
+        else:
+            return sum

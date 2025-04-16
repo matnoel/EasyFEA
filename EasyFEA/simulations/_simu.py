@@ -331,13 +331,11 @@ class _Simu(_IObserver, ABC):
 
         group = self.mesh.groupElem
 
-        jacobian_e_p = group.Get_jacobian_e_pg(matrixType)
+        weightedJacobian = group.Get_weightedJacobian_e_pg(matrixType)
+
+        rho_e_p = Reshape_variable(self.__rho, *weightedJacobian.shape[:2])
         
-        weight_p = group.Get_weight_pg(matrixType)        
-
-        rho_e_p = Reshape_variable(self.__rho, self.mesh.Ne, weight_p.size)
-
-        mass = float(np.einsum('ep,ep,p->', rho_e_p, jacobian_e_p, weight_p, optimize='optimal'))
+        mass = (rho_e_p * weightedJacobian)._sum((0,1))
 
         if self.dim == 2:
             mass *= self.model.thickness
@@ -356,13 +354,13 @@ class _Simu(_IObserver, ABC):
 
         coord_e_p = group.Get_GaussCoordinates_e_pg(matrixType)
 
-        jacobian_e_p = group.Get_jacobian_e_pg(matrixType)
-        weight_p = group.Get_weight_pg(matrixType)        
+        weightedJacobian = group.Get_weightedJacobian_e_pg(matrixType)
 
-        rho_e_p = Reshape_variable(self.__rho, self.mesh.Ne, weight_p.size)
+        rho_e_p = Reshape_variable(self.__rho, *weightedJacobian.shape[:2])
+        
         mass = self.mass
 
-        center: np.ndarray = np.einsum('ep,ep,p,epi->i', rho_e_p, jacobian_e_p, weight_p, coord_e_p, optimize='optimal') / mass
+        center = (rho_e_p * weightedJacobian * coord_e_p / mass)._sum((0,1))
 
         if self.dim == 2:
             center *= self.model.thickness
