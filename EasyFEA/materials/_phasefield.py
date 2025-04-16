@@ -633,9 +633,11 @@ class PhaseField(_IModel):
             else:
                 # Compute Cp and Cm
                 S = material.S
+                
                 if self.useNumba and not material.isHeterogeneous:
                     # Faster
                     Cpp, Cpm, Cmp, Cmm = Numba.Get_Anisot_C(Cp_e_pg, S, Cm_e_pg)
+                    Cpp, Cpm, Cmp, Cmm = FeArray(Cpp), FeArray(Cpm), FeArray(Cmp), FeArray(Cmm)
                 else:
                     # Here we don't use einsum, otherwise it's much longer
                     S_e_pg = Reshape_variable(S, Ne, nPg)
