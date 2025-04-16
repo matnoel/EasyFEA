@@ -474,7 +474,7 @@ class _GroupElem(ABC):
         """Returns integration point weights according to the matrix type."""
         return Gauss(self.elemType, matrixType).weights
     
-    def Get_GaussCoordinates_e_pg(self, matrixType: MatrixType, elements=np.array([])) -> np.ndarray:
+    def Get_GaussCoordinates_e_pg(self, matrixType: MatrixType, elements=np.array([])) -> FeArray:
         """Returns integration point coordinates for each element (Ne, nPg, 3) in the (x, y, z) coordinates."""
 
         N_scalar = self.Get_N_pg(matrixType)
@@ -491,7 +491,7 @@ class _GroupElem(ABC):
         # localize coordinates on Gauss points
         coordo_e_p = np.einsum('pij,ejn->epn', N_scalar, coordo_e, optimize='optimal')
 
-        return np.array(coordo_e_p)
+        return FeArray(coordo_e_p)
     
     # --------------------------------------------------------------------------------------------
     # Isoparametric elements
@@ -865,18 +865,18 @@ class _GroupElem(ABC):
 
         return N_pg
     
-    def Get_EulerBernoulli_N_e_pg(self) -> np.ndarray:
+    def Get_EulerBernoulli_N_e_pg(self) -> FeArray:
         """Evaluates Euler-Bernoulli beam shape functions in (x, y, z) coordinates.\n
         [phi_i psi_i . . . phi_n psi_n]\n
         (Ne, nPg, 1, nPe*2)
         """
         if self.dim != 1: return
 
-        invF_e_pg = self.Get_invF_e_pg(MatrixType.beam)
+        invF_e_pg = self.Get_invF_e_pg(MatrixType.beam)[:,:,0,0]
         N_pg = self.Get_EulerBernoulli_N_pg()
         nPe = self.nPe
         
-        N_e_pg = invF_e_pg @ N_pg
+        N_e_pg = np.einsum("ep,pij->epij", invF_e_pg, N_pg, optimize='optimal')
         
         # multiply by the beam length on psi_i,xx functions
         l_e = self.length_e
@@ -884,7 +884,7 @@ class _GroupElem(ABC):
         for column in columns:
             N_e_pg[:,:,0,column] = np.einsum('ep,e->ep', N_e_pg[:,:,0,column], l_e, optimize='optimal')    
 
-        return N_e_pg
+        return FeArray(N_e_pg)
     
     # dN
     
@@ -911,18 +911,18 @@ class _GroupElem(ABC):
 
         return dN_pg
     
-    def Get_EulerBernoulli_dN_e_pg(self) -> np.ndarray:
+    def Get_EulerBernoulli_dN_e_pg(self) -> FeArray:
         """Evaluates the first-order derivatives of Euler-Bernoulli beam shape functions in (x, y, z) coordinates.\n
         [phi_i,x psi_i,x . . . phi_n,x psi_n,x]\n
         (Ne, nPg, 1, nPe*2)
         """
         if self.dim != 1: return
 
-        invF_e_pg = self.Get_invF_e_pg(MatrixType.beam)
+        invF_e_pg = self.Get_invF_e_pg(MatrixType.beam)[:,:,0,0]
         dN_pg = self.Get_EulerBernoulli_dN_pg()
         nPe = self.nPe
         
-        dN_e_pg = invF_e_pg @ dN_pg
+        dN_e_pg = np.einsum("ep,pij->epij", invF_e_pg, dN_pg, optimize='optimal')
         
         # multiply by the beam length on psi_i,xx functions
         l_e = self.length_e
@@ -930,7 +930,7 @@ class _GroupElem(ABC):
         for column in columns:
             dN_e_pg[:,:,0,column] = np.einsum('ep,e->ep', dN_e_pg[:,:,0,column], l_e, optimize='optimal')
 
-        return dN_e_pg
+        return FeArray(dN_e_pg)
     
     # ddN
     
@@ -957,7 +957,7 @@ class _GroupElem(ABC):
 
         return ddN_pg
     
-    def Get_EulerBernoulli_ddN_e_pg(self) -> np.ndarray:
+    def Get_EulerBernoulli_ddN_e_pg(self) -> FeArray:
         """Evaluates the second-order derivatives of Euler-Bernoulli beam shape functions in (x, y, z) coordinates.\n
         [phi_i,xx psi_i,xx . . . phi_n,xx psi_n,xx]\n
         (Ne, nPg, 1, nPe*2)
@@ -976,7 +976,7 @@ class _GroupElem(ABC):
         for column in columns:
             ddN_e_pg[:,:,0,column] = np.einsum('ep,e->ep', ddN_e_pg[:,:,0,column], l_e, optimize='optimal')
 
-        return ddN_e_pg
+        return FeArray(ddN_e_pg)
     
     # --------------------------------------------------------------------------------------------
     # Finite element matrices
@@ -1059,7 +1059,7 @@ class _GroupElem(ABC):
 
     # Euler Bernoulli problem
 
-    def Get_EulerBernoulli_N_e_pg(self, beamStructure) -> np.ndarray:
+    def Get_EulerBernoulli_N_e_pg(self, beamStructure) -> FeArray:
         """Euler-Bernoulli beam shape functions."""
 
         from ..materials._beam import BeamStructure
@@ -1083,8 +1083,8 @@ class _GroupElem(ABC):
         # get matrices to work with
         N_pg = self.Get_N_pg(matrixType)        
         if beamStructure.dim > 1:
-            N_e_pg = self.Get_EulerBernoulli_N_e_pg()
-            dN_e_pg = self.Get_EulerBernoulli_dN_e_pg()
+            N_e_pg = self.Get_EulerBernoulli_N_e_pg(beamStructure)
+            dN_e_pg = self.Get_EulerBernoulli_dN_e_pg(beamStructure)
 
         if dim == 1:
             # u = [u1, . . . , un]
@@ -1163,9 +1163,9 @@ class _GroupElem(ABC):
 
             N_e_pg = np.einsum('epij,ejk->epik', N_e_pg, Pglob_e, optimize='optimal')
 
-        return N_e_pg
+        return FeArray(N_e_pg)
     
-    def Get_EulerBernoulli_B_e_pg(self, beamStructure) -> np.ndarray:
+    def Get_EulerBernoulli_B_e_pg(self, beamStructure) -> FeArray:
         """Get Euler-Bernoulli beam shape functions derivatives"""
 
         from ..materials._beam import BeamStructure
@@ -1259,7 +1259,7 @@ class _GroupElem(ABC):
 
             B_e_pg = np.einsum('epij,ejk->epik', B_e_pg, Pglob_e, optimize='optimal')
 
-        return B_e_pg
+        return FeArray(B_e_pg)
     
     # reaction diffusion problem
 
