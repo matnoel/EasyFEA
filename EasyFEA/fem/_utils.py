@@ -202,7 +202,7 @@ class FeArray(np.ndarray):
         
         ndim1 = self._ndim
         if ndim1 == 0:
-            raise ValueError("Must be at least an finite element vector (Ne, nPg, i).")
+            raise ValueError("Must be at least a finite element vector (Ne, nPg, i).")
         
         idx1 = self._idx    
 
@@ -222,7 +222,7 @@ class FeArray(np.ndarray):
         end = str(idx1+idx2).replace(idx1[-1],"")
         subscripts = f"...{idx1},...{idx2}->...{end}"
 
-        res = np.einsum(subscripts, self, other, optimize="optimal")
+        res = np.einsum(subscripts, self, other)
         return FeArray(res)
 
     def __matmul__(self, other):
@@ -240,7 +240,38 @@ class FeArray(np.ndarray):
             res = np.vecdot(self, other)
         elif ndim1 == ndim2 == 2:
             res = super().__matmul__(other)
+        elif ndim1 == 1 and ndim2 == 2:
+            res = (self[:,:,np.newaxis,:] @ other)[:,:,0,:]
+        elif ndim1 == 2 and ndim2 == 1:
+            res = (self @ other[:,:,:,np.newaxis])[:,:,:,0]
         else:
             res = self.dot(other)
 
         return res
+
+    def ddot(self, other):
+        
+        ndim1 = self._ndim
+        if ndim1 < 2:
+            raise ValueError("Must be at least a finite element matrix (Ne, nPg, i, j).")
+        
+        idx1 = self._idx
+
+        if isinstance(other, FeArray):
+            idx2 = other._idx
+            ndim2 = other._ndim            
+        elif isinstance(other, np.ndarray):
+            idx2 = "".join([chr(ord(idx1[0])+i) for i in range(other.ndim)])
+            ndim2 = other.ndim
+        else:
+            raise TypeError("`other` must be either a FeArray or np.ndarray")
+        if ndim2 < 2:
+            raise ValueError("`other` must be at least a finite element matrix (Ne, nPg, i, j).") 
+        idx2 = "".join([chr(ord(val)+ndim1-2) for val in idx2])
+        
+        end = str(idx1+idx2).replace(idx1[-1],"")
+        end = end.replace(idx1[-2],"")
+        subscripts = f"...{idx1},...{idx2}->...{end}"
+
+        res = np.einsum(subscripts, self, other)
+        return FeArray(res)

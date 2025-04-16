@@ -180,6 +180,14 @@ def _check_arrays(array1, array2):
     norm_diff = np.linalg.norm(array1 - array2)
     assert norm_diff < 1e-12
 
+def _check_ValueError(func):
+    valueErrorDetected = False
+    try:
+        func()
+    except ValueError:
+        valueErrorDetected = True
+    assert valueErrorDetected
+
 class TestFeArray:
 
     def test_new_array(self, FeArrays: list[FeArray]):
@@ -234,48 +242,21 @@ class TestFeArray:
         _check_arrays(res, np.asarray(scalar_e_pg).reshape((Ne,nPg,1,1,1,1)) + tensor_e_pg)
 
         # (Ne, nPg, i) + (Ne, nPg, ...)
-        try:
-            res = vector_e_pg + scalar_e_pg # + (Ne,nPg)
-        except ValueError: 
-            pass
+        _check_ValueError(lambda: vector_e_pg + scalar_e_pg) # + (Ne,nPg)        
         res = vector_e_pg + vector_e_pg # + (Ne,nPg,i)
-        try:
-            res = vector_e_pg + matrix_e_pg # + (Ne,nPg,i,j)
-        except ValueError:
-            pass
-        try:
-            res = vector_e_pg + tensor_e_pg # + (Ne,nPg,i,j,k,l)
-        except ValueError:
-            pass
-
+        _check_ValueError(lambda: vector_e_pg + matrix_e_pg) # + (Ne,nPg,i,j)
+        _check_ValueError(lambda: vector_e_pg + tensor_e_pg) # + (Ne,nPg,i,j,k,l)
+        
         # (Ne, nPg, i, j) + (Ne, nPg, ...)
-        try:
-            res = matrix_e_pg + scalar_e_pg # + (Ne,nPg)
-        except ValueError: 
-            pass
-        try:
-            res = matrix_e_pg + vector_e_pg # + (Ne,nPg,i)    
-        except ValueError:
-            pass
+        _check_ValueError(lambda: matrix_e_pg + scalar_e_pg) # + (Ne,nPg)
+        _check_ValueError(lambda: matrix_e_pg + vector_e_pg) # + (Ne,nPg,i)    
         res = matrix_e_pg + matrix_e_pg # + (Ne,nPg,i,j)
-        try:
-            res = matrix_e_pg + tensor_e_pg # + (Ne,nPg,i,j,k,l)
-        except ValueError:
-            pass
+        _check_ValueError(lambda: matrix_e_pg + tensor_e_pg) # + (Ne,nPg,i,j,k,l)
 
         # (Ne, nPg, i, j, k, l) + (Ne, nPg, ...)
-        try:
-            res = tensor_e_pg + scalar_e_pg # + (Ne,nPg)
-        except ValueError: 
-            pass
-        try:
-            res = tensor_e_pg + vector_e_pg # + (Ne,nPg,i)    
-        except ValueError:
-            pass
-        try:
-            res = tensor_e_pg + matrix_e_pg # + (Ne,nPg,i,j)
-        except ValueError:
-            pass
+        _check_ValueError(lambda: tensor_e_pg + scalar_e_pg) # + (Ne,nPg)
+        _check_ValueError(lambda: tensor_e_pg + vector_e_pg) # + (Ne,nPg,i)    
+        _check_ValueError(lambda: tensor_e_pg + matrix_e_pg) # + (Ne,nPg,i,j)
         res = tensor_e_pg + tensor_e_pg # + (Ne,nPg,i,j,k,l)
 
     def test_sub_array(self, FeArrays: list[FeArray]):
@@ -310,48 +291,21 @@ class TestFeArray:
         _check_arrays(res, np.asarray(scalar_e_pg).reshape((Ne,nPg,1,1,1,1)) - tensor_e_pg)
 
         # (Ne, nPg, i) - (Ne, nPg, ...)
-        try:
-            res = vector_e_pg - scalar_e_pg # - (Ne,nPg)
-        except ValueError: 
-            pass
+        _check_ValueError(lambda: vector_e_pg - scalar_e_pg) # - (Ne,nPg)        
         res = vector_e_pg - vector_e_pg # - (Ne,nPg,i)
-        try:
-            res = vector_e_pg - matrix_e_pg # - (Ne,nPg,i,j)
-        except ValueError:
-            pass
-        try:
-            res = vector_e_pg - tensor_e_pg # - (Ne,nPg,i,j,k,l)
-        except ValueError:
-            pass
-
+        _check_ValueError(lambda: vector_e_pg - matrix_e_pg) # - (Ne,nPg,i,j)
+        _check_ValueError(lambda: vector_e_pg - tensor_e_pg) # - (Ne,nPg,i,j,k,l)
+        
         # (Ne, nPg, i, j) - (Ne, nPg, ...)
-        try:
-            res = matrix_e_pg - scalar_e_pg # - (Ne,nPg)
-        except ValueError: 
-            pass
-        try:
-            res = matrix_e_pg - vector_e_pg # - (Ne,nPg,i)    
-        except ValueError:
-            pass
+        _check_ValueError(lambda: matrix_e_pg - scalar_e_pg) # - (Ne,nPg)
+        _check_ValueError(lambda: matrix_e_pg - vector_e_pg) # - (Ne,nPg,i)    
         res = matrix_e_pg - matrix_e_pg # - (Ne,nPg,i,j)
-        try:
-            res = matrix_e_pg - tensor_e_pg # - (Ne,nPg,i,j,k,l)
-        except ValueError:
-            pass
+        _check_ValueError(lambda: matrix_e_pg - tensor_e_pg) # - (Ne,nPg,i,j,k,l)
 
         # (Ne, nPg, i, j, k, l) - (Ne, nPg, ...)
-        try:
-            res = tensor_e_pg - scalar_e_pg # - (Ne,nPg)
-        except ValueError: 
-            pass
-        try:
-            res = tensor_e_pg - vector_e_pg # - (Ne,nPg,i)    
-        except ValueError:
-            pass
-        try:
-            res = tensor_e_pg - matrix_e_pg # - (Ne,nPg,i,j)
-        except ValueError:
-            pass
+        _check_ValueError(lambda: tensor_e_pg - scalar_e_pg) # - (Ne,nPg)
+        _check_ValueError(lambda: tensor_e_pg - vector_e_pg) # - (Ne,nPg,i)    
+        _check_ValueError(lambda: tensor_e_pg - matrix_e_pg) # - (Ne,nPg,i,j)
         res = tensor_e_pg - tensor_e_pg # - (Ne,nPg,i,j,k,l)
 
     def test_mul_array(self, FeArrays: list[FeArray]):
@@ -386,48 +340,21 @@ class TestFeArray:
         _check_arrays(res, np.asarray(scalar_e_pg).reshape((Ne,nPg,1,1,1,1)) * tensor_e_pg)
 
         # (Ne, nPg, i) * (Ne, nPg, ...)
-        try:
-            res = vector_e_pg * scalar_e_pg # * (Ne,nPg)
-        except ValueError: 
-            pass
+        _check_ValueError(lambda: vector_e_pg * scalar_e_pg) # * (Ne,nPg)        
         res = vector_e_pg * vector_e_pg # * (Ne,nPg,i)
-        try:
-            res = vector_e_pg * matrix_e_pg # * (Ne,nPg,i,j)
-        except ValueError:
-            pass
-        try:
-            res = vector_e_pg * tensor_e_pg # * (Ne,nPg,i,j,k,l)
-        except ValueError:
-            pass
-
+        _check_ValueError(lambda: vector_e_pg * matrix_e_pg) # * (Ne,nPg,i,j)
+        _check_ValueError(lambda: vector_e_pg * tensor_e_pg) # * (Ne,nPg,i,j,k,l)
+        
         # (Ne, nPg, i, j) * (Ne, nPg, ...)
-        try:
-            res = matrix_e_pg * scalar_e_pg # * (Ne,nPg)
-        except ValueError: 
-            pass
-        try:
-            res = matrix_e_pg * vector_e_pg # * (Ne,nPg,i)    
-        except ValueError:
-            pass
+        _check_ValueError(lambda: matrix_e_pg * scalar_e_pg) # * (Ne,nPg)
+        _check_ValueError(lambda: matrix_e_pg * vector_e_pg) # * (Ne,nPg,i)    
         res = matrix_e_pg * matrix_e_pg # * (Ne,nPg,i,j)
-        try:
-            res = matrix_e_pg * tensor_e_pg # * (Ne,nPg,i,j,k,l)
-        except ValueError:
-            pass
+        _check_ValueError(lambda: matrix_e_pg * tensor_e_pg) # * (Ne,nPg,i,j,k,l)
 
         # (Ne, nPg, i, j, k, l) * (Ne, nPg, ...)
-        try:
-            res = tensor_e_pg * scalar_e_pg # * (Ne,nPg)
-        except ValueError: 
-            pass
-        try:
-            res = tensor_e_pg * vector_e_pg # * (Ne,nPg,i)    
-        except ValueError:
-            pass
-        try:
-            res = tensor_e_pg * matrix_e_pg # * (Ne,nPg,i,j)
-        except ValueError:
-            pass
+        _check_ValueError(lambda: tensor_e_pg * scalar_e_pg) # * (Ne,nPg)
+        _check_ValueError(lambda: tensor_e_pg * vector_e_pg) # * (Ne,nPg,i)    
+        _check_ValueError(lambda: tensor_e_pg * matrix_e_pg) # * (Ne,nPg,i,j)
         res = tensor_e_pg * tensor_e_pg # * (Ne,nPg,i,j,k,l)
 
     def test_truediv_array(self, FeArrays: list[FeArray]):
@@ -467,48 +394,21 @@ class TestFeArray:
         _check_arrays(res, np.asarray(scalar_e_pg).reshape((Ne,nPg,1,1,1,1)) / tensor_e_pg)
 
         # (Ne, nPg, i) / (Ne, nPg, ...)
-        try:
-            res = vector_e_pg / scalar_e_pg # / (Ne,nPg)
-        except ValueError: 
-            pass
+        _check_ValueError(lambda: vector_e_pg / scalar_e_pg) # / (Ne,nPg)        
         res = vector_e_pg / vector_e_pg # / (Ne,nPg,i)
-        try:
-            res = vector_e_pg / matrix_e_pg # / (Ne,nPg,i,j)
-        except ValueError:
-            pass
-        try:
-            res = vector_e_pg / tensor_e_pg # / (Ne,nPg,i,j,k,l)
-        except ValueError:
-            pass
-
+        _check_ValueError(lambda: vector_e_pg / matrix_e_pg) # / (Ne,nPg,i,j)
+        _check_ValueError(lambda: vector_e_pg / tensor_e_pg) # / (Ne,nPg,i,j,k,l)
+        
         # (Ne, nPg, i, j) / (Ne, nPg, ...)
-        try:
-            res = matrix_e_pg / scalar_e_pg # / (Ne,nPg)
-        except ValueError: 
-            pass
-        try:
-            res = matrix_e_pg / vector_e_pg # / (Ne,nPg,i)    
-        except ValueError:
-            pass
+        _check_ValueError(lambda: matrix_e_pg / scalar_e_pg) # / (Ne,nPg)
+        _check_ValueError(lambda: matrix_e_pg / vector_e_pg) # / (Ne,nPg,i)    
         res = matrix_e_pg / matrix_e_pg # / (Ne,nPg,i,j)
-        try:
-            res = matrix_e_pg / tensor_e_pg # / (Ne,nPg,i,j,k,l)
-        except ValueError:
-            pass
+        _check_ValueError(lambda: matrix_e_pg / tensor_e_pg) # / (Ne,nPg,i,j,k,l)
 
         # (Ne, nPg, i, j, k, l) / (Ne, nPg, ...)
-        try:
-            res = tensor_e_pg / scalar_e_pg # / (Ne,nPg)
-        except ValueError: 
-            pass
-        try:
-            res = tensor_e_pg / vector_e_pg # / (Ne,nPg,i)    
-        except ValueError:
-            pass
-        try:
-            res = tensor_e_pg / matrix_e_pg # / (Ne,nPg,i,j)
-        except ValueError:
-            pass
+        _check_ValueError(lambda: tensor_e_pg / scalar_e_pg) # / (Ne,nPg)
+        _check_ValueError(lambda: tensor_e_pg / vector_e_pg) # / (Ne,nPg,i)    
+        _check_ValueError(lambda: tensor_e_pg / matrix_e_pg) # / (Ne,nPg,i,j)
         res = tensor_e_pg / tensor_e_pg # / (Ne,nPg,i,j,k,l)
 
     def test_T(self, FeArrays: list[FeArray]):
@@ -523,16 +423,15 @@ class TestFeArray:
     def test_dot(self, FeArrays: list[FeArray]):
         
         _, vector_e_pg, matrix_e_pg, tensor_e_pg = FeArrays
+
+        # Avoid testing scalars, as this holds no significance.
         
         # i i
         _check_arrays(vector_e_pg.dot(vector_e_pg), np.einsum("...i,...i->...", vector_e_pg, vector_e_pg))
         # i ij 
         _check_arrays(vector_e_pg.dot(matrix_e_pg), np.einsum("...i,...ij->...j", vector_e_pg, matrix_e_pg))
         # i ijkl
-        try:
-            _check_arrays(vector_e_pg.dot(tensor_e_pg), np.einsum("...i,...ijkl->...jkl", vector_e_pg, tensor_e_pg))
-        except ValueError:
-            pass
+        _check_ValueError(lambda: vector_e_pg.dot(tensor_e_pg)) # because jkl not in [0,1,2,4]
 
         # ij j
         _check_arrays(matrix_e_pg.T.dot(vector_e_pg), np.einsum("...ji,...j->...i", matrix_e_pg, vector_e_pg))
@@ -542,31 +441,24 @@ class TestFeArray:
         _check_arrays(matrix_e_pg.T.dot(tensor_e_pg), np.einsum("...ji,...jklm->...iklm", matrix_e_pg, tensor_e_pg))
 
         # ijkl l
-        try:            
-            _check_arrays(tensor_e_pg.dot(vector_e_pg), np.einsum("...ijkl,...l->...ijk", tensor_e_pg, vector_e_pg))
-        except ValueError:
-            pass
+        _check_ValueError(lambda: tensor_e_pg.dot(vector_e_pg)) # because ijk not in [0,1,2,4]
         # ijkl lm
         _check_arrays(tensor_e_pg.dot(matrix_e_pg), np.einsum("...ijkl,...lm->...ijkm", tensor_e_pg, matrix_e_pg))
         # ijkl lmno
-        try:
-            _check_arrays(tensor_e_pg.dot(tensor_e_pg), np.einsum("...ijkl,...lmno->...ijkmno", tensor_e_pg, tensor_e_pg))
-        except ValueError:
-            pass
+        _check_ValueError(lambda: tensor_e_pg.dot(tensor_e_pg)) # because ijkmno not in [0,1,2,4]
 
     def test_matmul(self, FeArrays: list[FeArray]):
         
         _, vector_e_pg, matrix_e_pg, tensor_e_pg = FeArrays
+
+        # Avoid testing scalars, as this holds no significance.
         
         # i i
         _check_arrays(vector_e_pg @ vector_e_pg, np.einsum("...i,...i->...", vector_e_pg, vector_e_pg))
         # i ij 
         _check_arrays(vector_e_pg @ matrix_e_pg, np.einsum("...i,...ij->...j", vector_e_pg, matrix_e_pg))
-        # i ijkli
-        try:
-            _check_arrays(vector_e_pg @ tensor_e_pg, np.einsum("...i,...ijkl->...jkl", vector_e_pg, tensor_e_pg))
-        except ValueError:
-            pass
+        # i ijkl
+        _check_ValueError(lambda: vector_e_pg @ tensor_e_pg) # because jkl not in [0,1,2,4]
 
         # ij j
         _check_arrays(matrix_e_pg.T @ vector_e_pg, np.einsum("...ji,...j->...i", matrix_e_pg, vector_e_pg))
@@ -576,14 +468,36 @@ class TestFeArray:
         _check_arrays(matrix_e_pg.T @ tensor_e_pg, np.einsum("...ji,...jklm->...iklm", matrix_e_pg, tensor_e_pg))
 
         # ijkl l
-        try:            
-            _check_arrays(tensor_e_pg @ vector_e_pg, np.einsum("...ijkl,...l->...ijk", tensor_e_pg, vector_e_pg))
-        except ValueError:
-            pass
+        _check_ValueError(lambda: tensor_e_pg @ vector_e_pg) # because ijk not in [0,1,2,4]
         # ijkl lm
         _check_arrays(tensor_e_pg @ matrix_e_pg, np.einsum("...ijkl,...lm->...ijkm", tensor_e_pg, matrix_e_pg))
         # ijkl lmno
-        try:
-            _check_arrays(tensor_e_pg @ tensor_e_pg, np.einsum("...ijkl,...lmno->...ijkmno", tensor_e_pg, tensor_e_pg))
-        except ValueError:
-            pass
+        _check_ValueError(lambda: tensor_e_pg @ tensor_e_pg) # because ijkmno not in [0,1,2,4]
+
+    
+    def test_ddot(self, FeArrays: list[FeArray]):
+        
+        _, vector_e_pg, matrix_e_pg, tensor_e_pg = FeArrays
+
+        # Avoid testing scalars, as this holds no significance.
+        
+        # i i
+        _check_ValueError(lambda: vector_e_pg.ddot(vector_e_pg)) # wrong dimensions
+        # i ij 
+        _check_ValueError(lambda: vector_e_pg.ddot(matrix_e_pg)) # wrong dimensions
+        # i ijkl
+        _check_ValueError(lambda: vector_e_pg.ddot(tensor_e_pg)) # wrong dimensions
+
+        # ij i
+        _check_ValueError(lambda: matrix_e_pg.ddot(vector_e_pg))
+        # ij ij
+        _check_arrays(matrix_e_pg.ddot(matrix_e_pg), np.einsum("...ij,...ij->...", matrix_e_pg, matrix_e_pg))
+        # ij ijkl
+        _check_ValueError(lambda: matrix_e_pg.ddot(tensor_e_pg)) # wrong dimensions
+
+        # ijkl l
+        _check_ValueError(lambda: tensor_e_pg.ddot(vector_e_pg)) # wrong dimensions
+        # ijkl kl
+        _check_ValueError(lambda: tensor_e_pg.ddot(matrix_e_pg)) # wrong dimensions
+        # ijkl lmno
+        _check_arrays(tensor_e_pg.ddot(tensor_e_pg), np.einsum("...ijkl,...klmn->...ijmn", tensor_e_pg, tensor_e_pg))
