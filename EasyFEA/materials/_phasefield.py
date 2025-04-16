@@ -522,15 +522,23 @@ class PhaseField(_IModel):
         
         elif "Strain" in self.__split:
 
-            c_e_pg = FeArray(material.C, True)
+            # here don't use numba if behavior is heterogeneous
+            if self.useNumba and not self.isHeterogeneous:
+                # Faster (x2) but not available for heterogeneous material (memory issues)
+                Cpp, Cpm, Cmp, Cmm = Numba.Get_Anisot_C(projP_e_pg, material.C, projM_e_pg)
+                Cpp, Cpm, Cmp, Cmm = FeArray(Cpp), FeArray(Cpm), FeArray(Cmp), FeArray(Cmm)
 
-            projPTC = projP_e_pg.T @ c_e_pg
-            projMTc = projM_e_pg.T @ c_e_pg
-            
-            Cpp = projPTC @ projP_e_pg
-            Cpm = projPTC @ projM_e_pg
-            Cmm = projMTc @ projM_e_pg
-            Cmp = projMTc @ projP_e_pg
+            else:
+                # Here we don't use einsum, otherwise it's much longer
+                C_e_pg = FeArray(material.C, True)
+
+                projPTC = projP_e_pg.T @ C_e_pg
+                projMTc = projM_e_pg.T @ C_e_pg
+                
+                Cpp = projPTC @ projP_e_pg
+                Cpm = projPTC @ projM_e_pg
+                Cmm = projMTc @ projM_e_pg
+                Cmp = projMTc @ projP_e_pg
             
             if self.__split == self.SplitType.AnisotStrain:
 
@@ -617,8 +625,13 @@ class PhaseField(_IModel):
                 sP_e_pg = (1/(2*mu) * projP_e_pg) - (v/E * Rp_e_pg * IxI)
                 sM_e_pg = (1/(2*mu) * projM_e_pg) - (v/E * Rm_e_pg * IxI)
 
-            cP_e_pg = C_e_pg.T @ sP_e_pg @ C_e_pg
-            cM_e_pg = C_e_pg.T @ sM_e_pg @ C_e_pg
+            if self.useNumba and not material.isHeterogeneous:
+                # Faster
+                cP_e_pg, cM_e_pg = Numba.Get_Cp_Cm_Stress(material.C, sP_e_pg, sM_e_pg)
+                cP_e_pg, cM_e_pg = FeArray(cP_e_pg), FeArray(cM_e_pg)
+            else:
+                cP_e_pg = C_e_pg.T @ sP_e_pg @ C_e_pg
+                cM_e_pg = C_e_pg.T @ sM_e_pg @ C_e_pg
         
         elif self.__split == self.SplitType.Zhang or "Stress" in self.__split:
             
@@ -633,7 +646,7 @@ class PhaseField(_IModel):
             else:
                 # Compute Cp and Cm
                 S = material.S
-                
+
                 if self.useNumba and not material.isHeterogeneous:
                     # Faster
                     Cpp, Cpm, Cmp, Cmm = Numba.Get_Anisot_C(Cp_e_pg, S, Cm_e_pg)
@@ -1153,11 +1166,17 @@ class PhaseField(_IModel):
             m1xm1 = TensorProd(m1, m1, ndim=1)
             m2xm2 = TensorProd(m2, m2, ndim=1)
 
-            # Projector P such that EpsP = projP • Eps
-            projP = (BetaP * np.eye(3)) + (gammap[...,0] * m1xm1) + (gammap[...,1] * m2xm2)
+            if useNumba:
+                # Faster
+                projP, projM = Numba.Get_projP_projM_2D(BetaP, gammap, BetaM, gammam, m1, m2)
+                projP, projM = FeArray(projP), FeArray(projM)
+            
+            else:
+                # Projector P such that EpsP = projP • Eps
+                projP = (BetaP * np.eye(3)) + (gammap[...,0] * m1xm1) + (gammap[...,1] * m2xm2)
 
-            # Projector M such that EpsM = projM • Eps
-            projM = (BetaM * np.eye(3)) + (gammam[...,0] * m1xm1) + (gammam[...,1] * m2xm2)
+                # Projector M such that EpsM = projM • Eps
+                projM = (BetaM * np.eye(3)) + (gammam[...,0] * m1xm1) + (gammam[...,1] * m2xm2)
 
             tic.Tac("Split", "projP and projM", False)
 
@@ -1196,6 +1215,7 @@ class PhaseField(_IModel):
                 list_Gab = [G12_ij, G13_ij, G23_ij]
 
                 projP, projM = Numba.Get_projP_projM_3D(dvalp, dvalm, thetap, thetam, list_mi, list_Gab)
+                projP, projM = FeArray(projP), FeArray(projM)
             
             else:
 

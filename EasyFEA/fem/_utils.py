@@ -139,6 +139,8 @@ class FeArray(np.ndarray):
             ndim2 = array2.ndim
             shape2 = array2.shape
 
+
+
         if ndim1 == 0:
             # array1(Ne, nPg)  array2(...) => (Ne, nPg, ...)
             # or

@@ -52,8 +52,6 @@ def Get_G12_G13_G23(M1: np.ndarray, M2: np.ndarray, M3: np.ndarray) -> tuple[np.
     else:
         range = np.arange
 
-    matriceI = np.eye(3)
-
     Ne = M1.shape[0]
     nPg = M1.shape[1]
 
