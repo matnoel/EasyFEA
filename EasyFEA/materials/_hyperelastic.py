@@ -6,7 +6,7 @@
 
 import numpy as np
 
-from ..fem import Mesh, MatrixType
+from ..fem import Mesh, MatrixType, FeArray
 from ..utilities._linalg import Transpose, Trace, Det, Inv, TensorProd
 from ._utils import Project_Kelvin
 
@@ -32,7 +32,7 @@ class HyperElastic:
         return (Ne, nPg, dim)
 
     @staticmethod
-    def Compute_F(mesh: Mesh, u: np.ndarray, matrixType=MatrixType.rigi) -> np.ndarray:
+    def Compute_F(mesh: Mesh, u: np.ndarray, matrixType=MatrixType.rigi) -> FeArray:
         """Computes the deformation gradient F(u) = I + grad(u)
         
         Parameters
@@ -46,7 +46,7 @@ class HyperElastic:
         
         Returns
         -------
-        np.ndarray
+        FeArray
             F(u) of shape (Ne, pg, 3, 3)
 
         dim = 1
@@ -80,7 +80,7 @@ class HyperElastic:
         return F_e_pg
     
     @staticmethod
-    def Compute_J(mesh: Mesh, u: np.ndarray, matrixType=MatrixType.rigi) -> np.ndarray:
+    def Compute_J(mesh: Mesh, u: np.ndarray, matrixType=MatrixType.rigi) -> FeArray:
         """Computes the deformation gradient J = det(F)
         
         Parameters
@@ -94,7 +94,7 @@ class HyperElastic:
 
         Returns
         -------
-        np.ndarray
+        FeArray
             J_e_pg of shape (Ne, pg)
         """
 
@@ -105,7 +105,7 @@ class HyperElastic:
         return J_e_pg
 
     @staticmethod
-    def Compute_C(mesh: Mesh, u: np.ndarray, matrixType=MatrixType.rigi) -> np.ndarray:
+    def Compute_C(mesh: Mesh, u: np.ndarray, matrixType=MatrixType.rigi) -> FeArray:
         """Computes the right Cauchy-Green tensor  C(u) = F(u)'.F(u)
         
         Parameters
@@ -119,7 +119,7 @@ class HyperElastic:
 
         Returns
         -------
-        np.ndarray
+        FeArray
             C_e_pg of shape (Ne, pg, 3, 3)
 
         dim = 1
@@ -151,20 +151,20 @@ class HyperElastic:
         return C_e_pg
 
     @staticmethod    
-    def _Compute_C(mesh: Mesh, u: np.ndarray, matrixType=MatrixType.rigi) -> tuple:
+    def _Compute_C(mesh: Mesh, u: np.ndarray, matrixType=MatrixType.rigi) -> list[FeArray]:
         """Computes the right Cauchy-Green tensor components C(u) = F(u)'.F(u) \n
 
-        returns cxx, cxy, cxz, cyx, cyy, cyz, czx, czy, czz"""
+        returns [cxx, cxy, cxz, cyx, cyy, cyz, czx, czy, czz]"""
     
         C_e_pg = HyperElastic.Compute_C(mesh, u, matrixType)
         vectC_e_pg = np.reshape(C_e_pg, (*C_e_pg.shape[:2], -1))
 
         cxx, cxy, cxz, cyx, cyy, cyz, czx, czy, czz = [vectC_e_pg[:,:,i] for i in range(9)]
 
-        return cxx, cxy, cxz, cyx, cyy, cyz, czx, czy, czz
+        return (cxx, cxy, cxz, cyx, cyy, cyz, czx, czy, czz)
 
     @staticmethod    
-    def Compute_e(mesh: Mesh, u: np.ndarray, matrixType=MatrixType.rigi) -> np.ndarray:
+    def Compute_e(mesh: Mesh, u: np.ndarray, matrixType=MatrixType.rigi) -> FeArray:
         """Computes the Green-Lagrange deformation  e = 1/2 (C - I)
         
         Parameters
@@ -178,7 +178,7 @@ class HyperElastic:
 
         Returns
         -------
-        np.ndarray
+        FeArray
             e_e_pg of shape (Ne, pg, dim, dim)
         """
 
@@ -189,7 +189,7 @@ class HyperElastic:
         return e_e_pg
 
     @staticmethod       
-    def Compute_Epsilon(mesh: Mesh, u: np.ndarray, matrixType=MatrixType.rigi) -> np.ndarray:
+    def Compute_Epsilon(mesh: Mesh, u: np.ndarray, matrixType=MatrixType.rigi) -> FeArray:
         """Computes the linearized deformation Epsilon = 1/2 (grad(u)' + grad(u))
         
         Parameters
@@ -203,14 +203,14 @@ class HyperElastic:
 
         Returns if dim = 2
         ------------------
-        np.ndarray
+        FeArray
             Eps_e_pg of shape (Ne, pg, 3)
 
             [xx, yy, 2**(-1/2) xy]
 
         Returns if dim = 3
         ------------------
-        np.ndarray
+        FeArray
             Eps_e_pg of shape (Ne, pg, 6)
 
             [xx, yy, zz, 2**(-1/2) yz, 2**(-1/2) xz, 2**(-1/2) xy]
@@ -221,7 +221,7 @@ class HyperElastic:
         assert dim in [2, 3]
 
         # compute grad
-        grad_e_pg = mesh.Get_Gradient_e_pg(u, matrixType)[Ellipsis,:dim, :dim]
+        grad_e_pg = mesh.Get_Gradient_e_pg(u, matrixType)[...,:dim, :dim]
 
         # 2d: dxux, dyux, dxuy, dyuy
         # 3d: dxux, dyux, dzu, dxuy, dyuy, dzuy, dxuz, dyuz, dzuz
@@ -245,12 +245,13 @@ class HyperElastic:
                 [0, c, 0, c, 0, 0, 0, 0, 0]  # xy
             ])
 
-        Eps_e_pg = np.einsum("ij,epj->epi", mat, gradAsVect_e_pg)
+        mat = FeArray(mat, True)
+        Eps_e_pg = mat @ gradAsVect_e_pg
 
         return Eps_e_pg
     
     @staticmethod
-    def Compute_De(mesh: Mesh, u: np.ndarray, matrixType=MatrixType.rigi) -> np.ndarray:
+    def Compute_De(mesh: Mesh, u: np.ndarray, matrixType=MatrixType.rigi) -> FeArray:
         """Computes De(u)
 
         Parameters
@@ -273,7 +274,7 @@ class HyperElastic:
 
         Returns if dim = 3
         ------------------
-        np.ndarray
+        FeArray
             D_e_pg of shape (Ne, pg, 6, 9)
 
             [1+dxux, 0, 0, dxuy, 0, 0, dxuz, 0, 0] # xx \n
@@ -294,6 +295,7 @@ class HyperElastic:
             D_e_pg = np.zeros((Ne, nPg, 3, 4), dtype=float)
         else:
             D_e_pg = np.zeros((Ne, nPg, 6, 9), dtype=float)
+        D_e_pg = FeArray(D_e_pg)
 
         def Add_to_D_e_pg(p: int, line: int, values: list[np.ndarray], coef=1.):
             N = 4 if dim == 2 else 9            
@@ -335,7 +337,7 @@ class HyperElastic:
     # Compute I1
     # -------------------------------------
     @staticmethod
-    def Compute_I1(mesh: Mesh, u: np.ndarray, matrixType=MatrixType.rigi) -> np.ndarray:
+    def Compute_I1(mesh: Mesh, u: np.ndarray, matrixType=MatrixType.rigi) -> FeArray:
         """Computes I1(u)
         
         Parameters
@@ -349,7 +351,7 @@ class HyperElastic:
 
         Returns
         -------
-        np.ndarray
+        FeArray
             I1_e_pg of shape (Ne, pg)         
         """
 
@@ -360,36 +362,36 @@ class HyperElastic:
         return I1_e_pg
 
     @staticmethod
-    def Compute_dI1dC() -> np.ndarray:
+    def Compute_dI1dC() -> FeArray:
         """Computes dI1dC(u)
 
         Returns
         -------
-        np.ndarray
+        FeArray
             dI1dC of shape (6)
         """        
 
         dI1dC = np.array([1, 1, 1, 0, 0, 0])
 
-        return dI1dC
+        return FeArray(dI1dC, True)
     
     @staticmethod
-    def Compute_d2I1dC() -> np.ndarray:
+    def Compute_d2I1dC() -> FeArray:
         """Computes d2I1dC(u)
         
         Returns
         -------
-        np.ndarray
+        FeArray
             d2I1dC of shape (6, 6)
         """
 
-        return np.zeros((6, 6))
+        return FeArray(np.zeros((6, 6)), True)
 
     # -------------------------------------
     # Compute I2
     # -------------------------------------
     @staticmethod
-    def Compute_I2(mesh: Mesh, u: np.ndarray, matrixType=MatrixType.rigi) -> np.ndarray:
+    def Compute_I2(mesh: Mesh, u: np.ndarray, matrixType=MatrixType.rigi) -> FeArray:
         """Computes I2(u)
         
         Parameters
@@ -403,7 +405,7 @@ class HyperElastic:
 
         Returns
         -------
-        np.ndarray
+        FeArray
             I2_e_pg of shape (Ne, pg)
         """
 
@@ -414,7 +416,7 @@ class HyperElastic:
         return I2_e_pg
     
     @staticmethod
-    def Compute_dI2dC(mesh: Mesh, u: np.ndarray, matrixType=MatrixType.rigi) -> np.ndarray:
+    def Compute_dI2dC(mesh: Mesh, u: np.ndarray, matrixType=MatrixType.rigi) -> FeArray:
         """Computes dI2dC(u)
         
         Parameters
@@ -428,7 +430,7 @@ class HyperElastic:
 
         Returns
         -------
-        np.ndarray
+        FeArray
             dI2dC_e_pg of shape (Ne, pg, 3, 3)
         """
 
@@ -436,7 +438,7 @@ class HyperElastic:
 
         cxx, cxy, cxz, _, cyy, cyz, _, _, czz = HyperElastic._Compute_C(mesh, u, matrixType)
 
-        dI2dC_e_pg = np.zeros((Ne, nPg, 6), dtype=float)
+        dI2dC_e_pg = FeArray(np.zeros((Ne, nPg, 6), dtype=float))
 
         coef = - np.sqrt(2)
 
@@ -450,12 +452,12 @@ class HyperElastic:
         return dI2dC_e_pg
 
     @staticmethod
-    def Compute_d2I2dC() -> np.ndarray:
+    def Compute_d2I2dC() -> FeArray:
         """Computes d2I2dC(u)
 
         Returns
         -------
-        np.ndarray
+        FeArray
             d2I2dC of shape (6, 6)
         """
 
@@ -468,13 +470,13 @@ class HyperElastic:
             [0, 0, 0, 0, 0, -1]
         ])
 
-        return d2I2dC
+        return FeArray(d2I2dC, True)
 
     # -------------------------------------
     # Compute I3
     # -------------------------------------
     @staticmethod
-    def Compute_I3(mesh: Mesh, u: np.ndarray, matrixType=MatrixType.rigi) -> np.ndarray:
+    def Compute_I3(mesh: Mesh, u: np.ndarray, matrixType=MatrixType.rigi) -> FeArray:
         """Computes I3(u)
         
         Parameters
@@ -488,7 +490,7 @@ class HyperElastic:
 
         Returns
         -------
-        np.ndarray
+        FeArray
             I3_e_pg of shape (Ne, pg)
         """
 
@@ -499,7 +501,7 @@ class HyperElastic:
         return I3_e_pg
     
     @staticmethod
-    def Compute_dI3dC(mesh: Mesh, u: np.ndarray, matrixType=MatrixType.rigi) -> np.ndarray:
+    def Compute_dI3dC(mesh: Mesh, u: np.ndarray, matrixType=MatrixType.rigi) -> FeArray:
         """Computes dI3dC(u)
         
         Parameters
@@ -513,7 +515,7 @@ class HyperElastic:
 
         Returns
         -------
-        np.ndarray
+        FeArray
             dI3dC_e_pg of shape (Ne, pg, 3, 3)
         """
 
@@ -521,7 +523,7 @@ class HyperElastic:
 
         Ne, nPg, _ = HyperElastic.__GetDims(mesh, u, matrixType)
 
-        dI3dC_e_pg = np.zeros((Ne, nPg, 6), dtype=float)
+        dI3dC_e_pg = FeArray(np.zeros((Ne, nPg, 6), dtype=float))
 
         coef = np.sqrt(2)
 
@@ -535,7 +537,7 @@ class HyperElastic:
         return dI3dC_e_pg
     
     @staticmethod
-    def Compute_d2I3dC(mesh: Mesh, u: np.ndarray, matrixType=MatrixType.rigi) -> np.ndarray:
+    def Compute_d2I3dC(mesh: Mesh, u: np.ndarray, matrixType=MatrixType.rigi) -> FeArray:
         """Computes d2I3dC(u)
         
         Parameters
@@ -549,7 +551,7 @@ class HyperElastic:
 
         Returns
         -------
-        np.ndarray
+        FeArray
             d2I3dC_e_pg of shape (Ne, pg, 6, 6)
         """
 
@@ -557,7 +559,7 @@ class HyperElastic:
 
         Ne, nPg, _ = HyperElastic.__GetDims(mesh, u, matrixType)
 
-        d2I3dC_e_pg = np.zeros((Ne, nPg, 6, 6), dtype=float)
+        d2I3dC_e_pg = FeArray(np.zeros((Ne, nPg, 6, 6), dtype=float))
 
         d2I3dC_e_pg[:,:,0,1] = d2I3dC_e_pg[:,:,1,0] = czz
         d2I3dC_e_pg[:,:,0,2] = d2I3dC_e_pg[:,:,2,0] = cyy
@@ -582,7 +584,7 @@ class HyperElastic:
     # Compute I4
     # -------------------------------------
     @staticmethod
-    def Compute_I4(mesh: Mesh, u: np.ndarray, T: np.ndarray, matrixType=MatrixType.rigi) -> np.ndarray:
+    def Compute_I4(mesh: Mesh, u: np.ndarray, T: np.ndarray, matrixType=MatrixType.rigi) -> FeArray:
         """Computes I4(u)
             
         Parameters
@@ -596,15 +598,19 @@ class HyperElastic:
 
         Returns
         -------
-        np.ndarray
+        FeArray
             I4_e_pg of shape (Ne, pg)
         """
 
         C_e_pg = HyperElastic.Compute_C(mesh, u, matrixType)
 
-        assert isinstance(T, np.ndarray) and T.shape[-1] == 3, "T must be a (..., 3) array"
+        if not isinstance(T, FeArray):
+            T = FeArray(T, True)
 
-        I4_e_pg = np.einsum("...i,...ij,...j->...", T, C_e_pg, T, optimize="optimal")
+        assert T._type == "vector", "T must be a (..., 3) array"
+
+        I4_e_pg = T @ C_e_pg @ T
+        # I4_e_pg = np.einsum("...i,...ij,...j->...", T, C_e_pg, T, optimize="optimal")
 
         return I4_e_pg
     

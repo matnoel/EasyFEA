@@ -6,7 +6,7 @@ from EasyFEA import Mesher, ElemType, MatrixType, Materials, Simulations, np
 from EasyFEA.materials._hyperelastic import HyperElastic
 from EasyFEA.Geoms import Domain
 from EasyFEA.utilities._linalg import Trace, Det, Inv, TensorProd
-from EasyFEA.materials._utils import Project_Kelvin
+from EasyFEA.materials._utils import Project_Kelvin, FeArray
 
 def Get_2d_simulations(ud=1e-6) -> list[Simulations.ElasticSimu]:
 
@@ -192,7 +192,7 @@ class TestHyperElastic:
                 C_e_pg = HyperElastic.Compute_C(mesh, u, matrixType)
 
                 # I1 * Id - C
-                dI2dC_v = np.einsum("...,ij->...ij", I1_e_pg, np.eye(3)) - C_e_pg
+                dI2dC_v = (I1_e_pg * np.eye(3)) - C_e_pg
                 dI2dC_v = Project_Kelvin(dI2dC_v, 2)
 
                 assert np.linalg.norm(dI2dC - dI2dC_v)/np.linalg.norm(dI2dC) < 1e-12  
@@ -241,7 +241,7 @@ class TestHyperElastic:
                 I3_e_pg = HyperElastic.Compute_I3(mesh, u, matrixType)
                 C_e_pg = HyperElastic.Compute_C(mesh, u, matrixType)
 
-                dI3dC_v = np.einsum("...,...ij->...ij", I3_e_pg, Inv(C_e_pg), optimize="optimal")
+                dI3dC_v = I3_e_pg * Inv(C_e_pg)
                 dI3dC_v = Project_Kelvin(dI3dC_v, 2)
 
                 assert np.linalg.norm(dI3dC - dI3dC_v)/np.linalg.norm(dI3dC) < 1e-12
@@ -260,8 +260,8 @@ class TestHyperElastic:
                 invC_e_pg = Inv(C_e_pg)
                 I3_e_pg = HyperElastic.Compute_I3(mesh, u, matrixType)
 
-                p1_e_pg = np.einsum("...,...ij,...kl->...ijkl", I3_e_pg, invC_e_pg, invC_e_pg)
-                p2_e_pg = np.einsum("...,...ijkl->...ijkl", I3_e_pg, TensorProd(invC_e_pg, invC_e_pg, True, 2)) 
+                p1_e_pg = np.einsum("...ij,...kl->...ijkl", I3_e_pg * invC_e_pg, invC_e_pg)
+                p2_e_pg = I3_e_pg * TensorProd(invC_e_pg, invC_e_pg, True, 2)
             
                 d2I3dC_v = Project_Kelvin(p1_e_pg - p2_e_pg, orderA=4)
 
@@ -283,9 +283,9 @@ class TestHyperElastic:
 
                 I4 = HyperElastic.Compute_I4(simu.mesh, simu.displacement, T, matrixType)
 
-                I4_v = np.einsum("...i,...ij,...j->...", T, C_e_pg, T, optimize="optimal")
+                I4_v = FeArray(np.einsum("...i,...ij,...j->...", T, C_e_pg, T, optimize="optimal"))
 
-                assert np.linalg.norm(I4 - I4_v)/np.linalg.norm(I4) < 1e-12
+                assert np.linalg.norm(I4 - I4_v)/np.linalg.norm(I4_v) < 1e-12
 
     def test_dI4dC(self):
 
