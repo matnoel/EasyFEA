@@ -253,7 +253,7 @@ class BeamSimu(_Simu):
 
         group = mesh.groupElem
 
-        coordo_e_p = group.Get_GaussCoordinates_e_p(matrixType)
+        coordo_e_p = group.Get_GaussCoordinates_e_pg(matrixType)
 
         jacobian_e_p = group.Get_jacobian_e_pg(matrixType)
         weight_p = group.Get_weight_pg(matrixType)        

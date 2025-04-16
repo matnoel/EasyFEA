@@ -354,7 +354,7 @@ class _Simu(_IObserver, ABC):
 
         group = self.mesh.groupElem
 
-        coord_e_p = group.Get_GaussCoordinates_e_p(matrixType)
+        coord_e_p = group.Get_GaussCoordinates_e_pg(matrixType)
 
         jacobian_e_p = group.Get_jacobian_e_pg(matrixType)
         weight_p = group.Get_weight_pg(matrixType)        
@@ -1396,7 +1396,7 @@ class _Simu(_IObserver, ABC):
 
             # Get the coordinates of the Gauss points if you need to devaluate the function
             matrixType = MatrixType.mass
-            coordo_e_p = groupElem.Get_GaussCoordinates_e_p(matrixType, elements)
+            coordo_e_p = groupElem.Get_GaussCoordinates_e_pg(matrixType, elements)
 
             N_pg = groupElem.Get_N_pg(matrixType)
 
@@ -1591,7 +1591,7 @@ class _Simu(_IObserver, ABC):
             sysCoord_e = masterGroup.sysCoord_e
 
             # get the elemGroup on the interface        
-            gaussCoord_e_p = masterGroup.Get_GaussCoordinates_e_p(MatrixType.rigi)
+            gaussCoord_e_p = masterGroup.Get_GaussCoordinates_e_pg(MatrixType.rigi)
             
             # empty new displacement
             listU: list[np.ndarray] = []

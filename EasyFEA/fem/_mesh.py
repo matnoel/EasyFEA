@@ -378,17 +378,17 @@ class Mesh(Observable):
         return self.groupElem.Get_jacobian_e_pg(matrixType, absoluteValues)
 
     def Get_N_pg(self, matrixType: MatrixType) -> np.ndarray:
-        """Evaluates shape functions in (ξ,η,ζ) coordinates.\n
-        [N1, N2, . . . ,Nn]\n
-        (pg, nPe)
+        """Evaluates shape functions in (ξ, η, ζ) coordinates.\n
+        [N1, . . . , Nn]\n
+        (nPg, nPe)
         """
         return self.groupElem.Get_N_pg(matrixType)
 
     def Get_N_vector_pg(self, matrixType: MatrixType) -> np.ndarray:
-        """Returns shape functions matrix in (ξ,η,ζ) coordinates\n
-        [N1 0 N2 0 Nn 0 \n
-        0 N1 0 N2 0 Nn]\n
-        (pg, dim, npe*dim)
+        """Returns shape functions matrix in (ξ, η, ζ) coordinates\n
+        [N1 0 . . . Nn 0 \n
+        0 N1 . . . 0 Nn]\n
+        (nPg, dim, npe*dim)
         """
         return self.groupElem.Get_N_pg_rep(matrixType, self.__dim)
 
@@ -401,20 +401,21 @@ class Mesh(Observable):
         return self.groupElem.Get_dN_e_pg(matrixType)
 
     def Get_ddN_e_pg(self, matrixType: MatrixType) -> np.ndarray:
-        """Evaluates the second-order derivatives of shape functions in (x,y,z) coordinates.\n
-        [Ni,xx . . . Nn,xx\n
-        Ni,yy ... Nn,yy]\n
-        (e, pg, dim, nPe)\n
+        """Evaluates the first-order derivatives of shape functions in (x, y, z) coordinates.\n
+        [Ni,x . . . Nn,x\n
+        Ni,y . . . Nn,y\n
+        Ni,z . . . Nn,z]\n
+        (Ne, nPg, dim, nPe)\n
         """
         return self.groupElem.Get_ddN_e_pg(matrixType)
 
     def Get_B_e_pg(self, matrixType: MatrixType) -> np.ndarray:
         """Get the matrix used to calculate deformations from displacements.\n
         WARNING: Use Kelvin Mandel Notation\n
-        [N1,x 0 N2,x 0 Nn,x 0\n
-        0 N1,y 0 N2,y 0 Nn,y\n
-        N1,y N1,x N2,y N2,x N3,y N3,x]\n
-        (e, pg, (3 or 6), nPe*dim)        
+        [N1,x 0 . . . Nn,x 0\n
+        0 N1,y . . . 0 Nn,y\n
+        N1,y N1,x . . . N3,y N3,x]\n
+        (Ne, nPg, (3 or 6), nPe*dim)        
         """
         return self.groupElem.Get_B_e_pg(matrixType)
 
@@ -430,7 +431,7 @@ class Mesh(Observable):
         """Get the part that builds the reaction term (scalar).\n
         ReactionPart_e_pg = r_e_pg * jacobian_e_pg * weight_pg * N_pg' * N_pg\n
 
-        Returns -> jacobian_e_pg * weight_pg * N_pg' * N_pg
+        Returns (epij) -> jacobian_e_pg * weight_pg * N_pg' * N_pg
         """
         return self.groupElem.Get_ReactionPart_e_pg(matrixType)
 
@@ -438,7 +439,7 @@ class Mesh(Observable):
         """Get the part that builds the diffusion term (scalar).\n
         DiffusePart_e_pg = k_e_pg * jacobian_e_pg * weight_pg * dN_e_pg' * A * dN_e_pg\n
 
-        Returns -> jacobian_e_pg * weight_pg * dN_e_pg'
+        Returns (epij) -> jacobian_e_pg * weight_pg * dN_e_pg'
         """
         return self.groupElem.Get_DiffusePart_e_pg(matrixType)
 
@@ -446,7 +447,7 @@ class Mesh(Observable):
         """Get the part that builds the source term (scalar).\n
         SourcePart_e_pg = f_e_pg * jacobian_e_pg, weight_pg, N_pg'\n
 
-        Returns -> jacobian_e_pg, weight_pg, N_pg'
+        Returns (epij) -> jacobian_e_pg, weight_pg, N_pg'
         """
         return self.groupElem.Get_SourcePart_e_pg(matrixType)
 
@@ -463,7 +464,7 @@ class Mesh(Observable):
         Returns
         -------
         np.ndarray
-            grad(u) of shape (Ne, pg, 3, 3)
+            grad(u) of shape (Ne, nPg, 3, 3)
 
         dim = 1
         -------

@@ -243,7 +243,7 @@ class _GroupElem(ABC):
         return assembly
     
     def _Get_sysCoord_e(self, displacementMatrix:np.ndarray=None):
-        """Get the basis transformation matrix (Ne,3,3).\n
+        """Get the basis transformation matrix (Ne, 3, 3).\n
         This matrix can be used to project points with (x, y, z) coordinates into the element's (i, j, k) coordinate system."""
 
         coordo = self.coordGlob
@@ -340,7 +340,7 @@ class _GroupElem(ABC):
         """
         return self._Get_sysCoord_e()
     
-    def Integrate_e(self, func=lambda x,y,z: 1) -> np.ndarray:
+    def Integrate_e(self, func=lambda x,y,z: 1, matrixType=MatrixType.mass) -> np.ndarray:
         """Integrates the function over elements.
 
         Parameters
@@ -352,6 +352,8 @@ class _GroupElem(ABC):
             lambda x,y,z: x
             lambda x,y,z: x + y\n
             lambda x,y,z: z**2
+        matrixType : MatrixType, optional
+            matrix type, by default MatrixType.mass
 
         Returns
         -------
@@ -359,11 +361,9 @@ class _GroupElem(ABC):
             integrated values on elements
         """
 
-        matrixType = MatrixType.mass
-
         jacobian_e_pg = self.Get_jacobian_e_pg(matrixType)
         weight_pg = self.Get_weight_pg(matrixType)
-        coord_e_pg = self.Get_GaussCoordinates_e_p(matrixType)
+        coord_e_pg = self.Get_GaussCoordinates_e_pg(matrixType)
         eval_e_pg = func(coord_e_pg[:,:,0],coord_e_pg[:,:,1],coord_e_pg[:,:,2])
 
         if isinstance(eval_e_pg, (float,int)):
@@ -420,7 +420,7 @@ class _GroupElem(ABC):
 
         matrixType = MatrixType.mass
 
-        coordo_e_p = self.Get_GaussCoordinates_e_p(matrixType)
+        coordo_e_p = self.Get_GaussCoordinates_e_pg(matrixType)
 
         jacobian_e_p = self.Get_jacobian_e_pg(matrixType)
         weight_p = self.Get_weight_pg(matrixType)
@@ -474,8 +474,8 @@ class _GroupElem(ABC):
         """Returns integration point weights according to the matrix type."""
         return Gauss(self.elemType, matrixType).weights
     
-    def Get_GaussCoordinates_e_p(self, matrixType: MatrixType, elements=np.array([])) -> np.ndarray:
-        """Returns integration point coordinates for each element (Ne, p, 3) in the (x,y,z) coordinates."""
+    def Get_GaussCoordinates_e_pg(self, matrixType: MatrixType, elements=np.array([])) -> np.ndarray:
+        """Returns integration point coordinates for each element (Ne, nPg, 3) in the (x, y, z) coordinates."""
 
         N_scalar = self.Get_N_pg(matrixType)
 
@@ -499,7 +499,7 @@ class _GroupElem(ABC):
 
     def Get_F_e_pg(self, matrixType: MatrixType) -> np.ndarray:
         """Returns the transposed Jacobian matrix.\n        
-        This matrix describes the transformation of the (ξ,η,ζ) axes from the reference element to the (x,y,z) coordinate system of the actual element.\n
+        This matrix describes the transformation of the (ξ, η, ζ) axes from the reference element to the (x, y, z) coordinate system of the actual element.\n
         """
         if self.dim == 0: return
         if matrixType not in self.__dict_F_e_pg.keys():
@@ -614,7 +614,7 @@ class _GroupElem(ABC):
         if self.dim == 1 and self.order < order:
             functions = np.array([lambda x: 0]*self.nPe)
         elif self.dim == 2 and self.order < order:
-            functions = np.array([lambda xi,eta: 0, lambda xi,eta: 0]*self.nPe)
+            functions = np.array([lambda xi,η: 0, lambda xi,η: 0]*self.nPe)
         elif self.dim == 3 and self.order < order:
             functions = np.array([lambda x,y,z: 0,lambda x,y,z: 0,lambda x,y,z: 0]*self.nPe)
         functions = np.reshape(functions, (self.nPe, -1))
@@ -624,16 +624,16 @@ class _GroupElem(ABC):
 
     @abstractmethod
     def _N(self) -> np.ndarray:
-        """Shape functions in (ξ,η,ζ) coordinates.\n
-        [N1, N2, . . . ,Nn]\n
+        """Shape functions in (ξ, η, ζ) coordinates.\n
+        [N1, . . . ,Nn]\n
         (nPe)
         """
         pass
 
     def Get_N_pg(self, matrixType: MatrixType) -> np.ndarray:
-        """Evaluates shape functions in (ξ,η,ζ) coordinates.\n
-        [N1, N2, . . . ,Nn]\n
-        (pg, nPe)
+        """Evaluates shape functions in (ξ, η, ζ) coordinates.\n
+        [N1, . . . , Nn]\n
+        (nPg, nPe)
         """
         if self.dim == 0: return
 
@@ -644,7 +644,7 @@ class _GroupElem(ABC):
         return N_pg
 
     def Get_N_pg_rep(self, matrixType: MatrixType, repeat=1) -> np.ndarray:
-        """Repeats shape functions in the (ξ,η,ζ) coordinates.
+        """Repeats shape functions in the (ξ, η, ζ) coordinates.
 
         Parameters
         ----------
@@ -655,11 +655,11 @@ class _GroupElem(ABC):
         
         Returns:
         -------
-        • Vector shape functions (pg, rep=2, rep=2*dim)\n
+        • Vector shape functions (nPg, rep=2, rep=2*dim)\n
             [Ni 0 . . . Nn 0 \n
             0 Ni . . . 0 Nn]
 
-        • Scalar shape functions (pg, rep=1, nPe)\n
+        • Scalar shape functions (nPg, rep=1, nPe)\n
             [Ni . . . Nn]
         """
         if self.dim == 0: return
@@ -686,18 +686,20 @@ class _GroupElem(ABC):
     
     @abstractmethod
     def _dN(self) -> np.ndarray:
-        """Shape functions first derivatives in the (ξ,η,ζ) coordinates.\n
-        [Ni,xi . . . Nn,xi\n
-        Ni,eta ... Nn,eta]\n
+        """Shape functions first derivatives in the (ξ, η, ζ) coordinates.\n
+        Ni,ξ . . . Nn,ξ\n
+        Ni,η . . . Nn,η\n
+        Ni,ζ . . . Nn,ζ\n
         (dim, nPe)
         """
         return self.__Init_Functions(1)
     
     def Get_dN_pg(self, matrixType: MatrixType) -> np.ndarray:
-        """Evaluates shape functions first derivatives in the (ξ,η,ζ) coordinates.\n
-        [Ni,xi . . . Nn,xi\n
-        Ni,eta ... Nn,eta]\n
-        (pg, dim, nPe)
+        """Evaluates shape functions first derivatives in the (ξ, η, ζ) coordinates.\n
+        Ni,ξ . . . Nn,ξ\n
+        Ni,η . . . Nn,η\n
+        Ni,ζ . . . Nn,ζ\n
+        (nPg, dim, nPe)
         """
         if self.dim == 0: return
 
@@ -709,10 +711,11 @@ class _GroupElem(ABC):
         return dN_pg    
 
     def Get_dN_e_pg(self, matrixType: MatrixType) -> np.ndarray:
-        """Evaluates the first-order derivatives of shape functions in (x,y,z) coordinates.\n
+        """Evaluates the first-order derivatives of shape functions in (x, y, z) coordinates.\n
         [Ni,x . . . Nn,x\n
-        Ni,y ... Nn,y]\n
-        (e, pg, dim, nPe)\n
+        Ni,y . . . Nn,y\n
+        Ni,z . . . Nn,z]\n
+        (Ne, nPg, dim, nPe)\n
         """
         assert matrixType in MatrixType.Get_types()
 
@@ -722,7 +725,7 @@ class _GroupElem(ABC):
 
             dN_pg = self.Get_dN_pg(matrixType)
 
-            # Derivation of shape functions in the (x,y,z) coordinates
+            # Derivation of shape functions in the (x, y, z) coordinates
             dN_e_pg: np.ndarray = np.einsum('epdk,pkn->epdn', invF_e_pg, dN_pg, optimize='optimal')
             self.__dict_dN_e_pg[matrixType] = dN_e_pg
 
@@ -732,18 +735,20 @@ class _GroupElem(ABC):
     
     @abstractmethod
     def _ddN(self) -> np.ndarray:
-        """Shape functions second derivatives in the (ξ,η,ζ) coordinates.\n
-        [Ni,xi2 . . . Nn,xi2\n
-        Ni,eta2 . . . Nn,eta eta]\n
+        """Shape functions second derivatives in the (ξ, η, ζ) coordinates.\n
+        [Ni,ξ2 . . . Nn,ξ2\n
+        Ni,η2 . . . Nn,η2\n
+        Ni,ζ2 . . . Nn,ζ2]\n
         (dim, nPe)
         """
         return self.__Init_Functions(2)
 
     def Get_ddN_e_pg(self, matrixType: MatrixType) -> np.ndarray:
-        """Evaluates the second-order derivatives of shape functions in (x,y,z) coordinates.\n
-        [Ni,xx . . . Nn,xx\n
-        Ni,yy ... Nn,yy]\n
-        (e, pg, dim, nPe)\n
+        """Evaluates the second-order derivatives of shape functions in (x, y, z) coordinates.\n
+        [Ni,x2 . . . Nn,x2\n
+        Ni,y2 . . . Nn,y2\n
+        Ni,z2 . . . Nn,z2]\n
+        (Ne, nPg, dim, nPe)\n
         """
         assert matrixType in MatrixType.Get_types()
 
@@ -761,10 +766,11 @@ class _GroupElem(ABC):
         return self.__dict_ddN_e_pg[matrixType].copy()
     
     def Get_ddN_pg(self, matrixType: MatrixType) -> np.ndarray:
-        """Evaluates shape functions second derivatives in the (ξ,η,ζ) coordinates.\n
-        [Ni,xi2 . . . Nn,xi2\n
-        Ni,eta2 . . . Nn,eta2]\n
-        (pg, dim, nPe)
+        """Evaluates shape functions second derivatives in the (ξ, η, ζ) coordinates.\n
+        [Ni,ξ2 . . . Nn,ξ2\n
+        Ni,η2 . . . Nn,η2\n
+        Ni,ζ2 . . . Nn,ζ2]\n
+        (nPg, dim, nPe)
         """
         if self.dim == 0: return
 
@@ -779,18 +785,20 @@ class _GroupElem(ABC):
 
     @abstractmethod
     def _dddN(self) -> np.ndarray:
-        """Shape functions third derivatives in the (ξ,η,ζ) coordinates.\n
-        [Ni,xi3 . . . Nn,xi3\n
-        Ni,eta3 . . . Nn,eta3]\n
+        """Shape functions third derivatives in the (ξ, η, ζ) coordinates.\n
+        [Ni,ξ3 . . . Nn,ξ3\n
+        Ni,η3 . . . Nn,η3\n
+        Ni,ζ3 . . . Nn,ζ3]\n
         (dim, nPe)
         """
         return self.__Init_Functions(3)
 
     def Get_dddN_pg(self, matrixType: MatrixType) -> np.ndarray:
-        """Evaluates shape functions third derivatives in the (ξ,η,ζ) coordinates.\n
-        [Ni,xi3 . . . Nn,xi3\n
-        Ni,eta3 . . . Nn,eta3]\n
-        (pg, dim, nPe)
+        """Evaluates shape functions third derivatives in the (ξ, η, ζ) coordinates.\n
+        [Ni,ξ3 . . . Nn,ξ3\n
+        Ni,η3 . . . Nn,η3\n
+        Ni,ζ3 . . . Nn,ζ3]\n
+        (nPg, dim, nPe)
         """
         if self.elemType == 0: return
 
@@ -805,19 +813,19 @@ class _GroupElem(ABC):
     
     @abstractmethod
     def _ddddN(self) -> np.ndarray:
-        """Shape functions fourth derivatives in the (ξ,η,ζ) coordinates.\n
-        [Ni,xi4 . . . Nn,xi4\n
-        Ni,eta4 . . . Nn,eta4]
-        \n
+        """Shape functions fourth derivatives in the (ξ, η, ζ) coordinates.\n
+        [Ni,ξ4 . . . Nn,ξ4\n
+        Ni,η4 . . . Nn,η4\n
+        Ni,ζ4 . . . Nn,ζ4]\n
         (dim, nPe)
         """
         return self.__Init_Functions(4)
 
     def Get_ddddN_pg(self, matrixType: MatrixType) -> np.ndarray:
-        """Evaluates shape functions fourth derivatives in the (ξ,η,ζ) coordinates.\n
-        [Ni,xi4 . . . Nn,xi4\n
-        Ni,eta4 . . . Nn,eta4]
-        \n
+        """Evaluates shape functions fourth derivatives in the (ξ, η, ζ) coordinates.\n
+        [Ni,ξ4 . . . Nn,ξ4\n
+        Ni,η4 . . . Nn,η4\n
+        Ni,ζ4 . . . Nn,ζ4]\n
         (pg, dim, nPe)
         """
         if self.elemType == 0: return
@@ -835,16 +843,16 @@ class _GroupElem(ABC):
     # N
     
     def _EulerBernoulli_N(self) -> np.ndarray:
-        """Euler-Bernoulli beam shape functions in the (ξ,η,ζ) coordinates.\n
+        """Euler-Bernoulli beam shape functions in the (ξ, η, ζ) coordinates.\n
         [phi_i psi_i . . . phi_n psi_n]\n
         (nPe*2)
         """
         pass
 
     def Get_EulerBernoulli_N_pg(self) -> np.ndarray:
-        """Evaluates Euler-Bernoulli beam shape functions in the (ξ,η,ζ) coordinates.\n
+        """Evaluates Euler-Bernoulli beam shape functions in the (ξ, η, ζ) coordinates.\n
         [phi_i psi_i . . . phi_n psi_n]\n        
-        (pg, nPe*2)
+        (nPg, nPe*2)
         """
         if self.dim != 1: return
 
@@ -858,9 +866,9 @@ class _GroupElem(ABC):
         return N_pg
     
     def Get_EulerBernoulli_N_e_pg(self) -> np.ndarray:
-        """Evaluates Euler-Bernoulli beam shape functions in (x,y,z) coordinates.\n
+        """Evaluates Euler-Bernoulli beam shape functions in (x, y, z) coordinates.\n
         [phi_i psi_i . . . phi_n psi_n]\n
-        (e, pg, 1, nPe*2)
+        (Ne, nPg, 1, nPe*2)
         """
         if self.dim != 1: return
 
@@ -881,16 +889,16 @@ class _GroupElem(ABC):
     # dN
     
     def _EulerBernoulli_dN(self) -> np.ndarray:
-        """Euler-Bernoulli beam shape functions first derivatives in the (ξ,η,ζ) coordinates.\n
-        [phi_i,xi psi_i,xi . . . phi_n,xi psi_n,xi]\n
+        """Euler-Bernoulli beam shape functions first derivatives in the (ξ, η, ζ) coordinates.\n
+        [phi_i,ξ psi_i,ξ . . . phi_n,ξ psi_n,ξ]\n
         (nPe*2)
         """
         pass
 
     def Get_EulerBernoulli_dN_pg(self) -> np.ndarray:
-        """Evaluates Euler-Bernoulli beam shape functions first derivatives in the (ξ,η,ζ) coordinates.\n
-        [phi_i,xi psi_i,xi . . . phi_n,xi psi_n,xi]\n
-        (pg, nPe*2)
+        """Evaluates Euler-Bernoulli beam shape functions first derivatives in the (ξ, η, ζ) coordinates.\n
+        [phi_i,ξ psi_i,ξ . . . phi_n,ξ psi_n,ξ]\n
+        (nPg, nPe*2)
         """
         if self.dim != 1: return
 
@@ -904,9 +912,9 @@ class _GroupElem(ABC):
         return dN_pg
     
     def Get_EulerBernoulli_dN_e_pg(self) -> np.ndarray:
-        """Evaluates the first-order derivatives of Euler-Bernoulli beam shape functions in (x,y,z) coordinates.\n
+        """Evaluates the first-order derivatives of Euler-Bernoulli beam shape functions in (x, y, z) coordinates.\n
         [phi_i,x psi_i,x . . . phi_n,x psi_n,x]\n
-        (e, pg, 1, nPe*2)
+        (Ne, nPg, 1, nPe*2)
         """
         if self.dim != 1: return
 
@@ -927,16 +935,16 @@ class _GroupElem(ABC):
     # ddN
     
     def _EulerBernoulli_ddN(self) -> np.ndarray:
-        """Euler-Bernoulli beam shape functions second derivatives in the (ξ,η,ζ) coordinates.\n
-        [phi_i,xi2 psi_i,xi2 . . . phi_n,xi2 psi_n,xi2]\n
+        """Euler-Bernoulli beam shape functions second derivatives in the (ξ, η, ζ) coordinates.\n
+        [phi_i,ξ psi_i,ξ . . . phi_n,ξ psi_n,ξ]\n
         (nPe*2)
         """
         return 
     
     def Get_EulerBernoulli_ddN_pg(self) -> np.ndarray:
-        """Evaluates Euler-Bernoulli beam shape functions second derivatives in the (ξ,η,ζ) coordinates.\n
-        [phi_i,xi2 psi_i,xi2 . . . phi_n,xi2 x psi_n,xi2]\n
-        (pg, nPe*2)
+        """Evaluates Euler-Bernoulli beam shape functions second derivatives in the (ξ, η, ζ) coordinates.\n
+        [phi_i,ξ psi_i,ξ . . . phi_n,ξ x psi_n,ξ]\n
+        (nPg, nPe*2)
         """
         if self.dim != 1: return
 
@@ -950,9 +958,9 @@ class _GroupElem(ABC):
         return ddN_pg
     
     def Get_EulerBernoulli_ddN_e_pg(self) -> np.ndarray:
-        """Evaluates the second-order derivatives of Euler-Bernoulli beam shape functions in (x,y,z) coordinates.\n
+        """Evaluates the second-order derivatives of Euler-Bernoulli beam shape functions in (x, y, z) coordinates.\n
         [phi_i,xx psi_i,xx . . . phi_n,xx psi_n,xx]\n
-        (e, pg, 1, nPe*2)
+        (Ne, nPg, 1, nPe*2)
         """
         if self.dim != 1: return
 
@@ -979,10 +987,10 @@ class _GroupElem(ABC):
     def Get_B_e_pg(self, matrixType: MatrixType) -> np.ndarray:
         """Get the matrix used to calculate deformations from displacements.\n
         WARNING: Use Kelvin Mandel Notation\n
-        [N1,x 0 N2,x 0 Nn,x 0\n
-        0 N1,y 0 N2,y 0 Nn,y\n
-        N1,y N1,x N2,y N2,x N3,y N3,x]\n
-        (e, pg, (3 or 6), nPe*dim)        
+        [N1,x 0 . . . Nn,x 0\n
+        0 N1,y . . . 0 Nn,y\n
+        N1,y N1,x . . . N3,y N3,x]\n
+        (Ne, nPg, (3 or 6), nPe*dim)        
         """
         assert matrixType in MatrixType.Get_types()
 
@@ -1259,7 +1267,7 @@ class _GroupElem(ABC):
         """Get the part that builds the reaction term (scalar).\n
         ReactionPart_e_pg = r_e_pg * jacobian_e_pg * weight_pg * N_pg' * N_pg\n
         
-        Returns -> jacobian_e_pg * weight_pg * N_pg' * N_pg
+        Returns (epij) -> jacobian_e_pg * weight_pg * N_pg' * N_pg
         """
 
         assert matrixType in MatrixType.Get_types()
@@ -1280,7 +1288,7 @@ class _GroupElem(ABC):
         """Get the part that builds the diffusion term (scalar).\n
         DiffusePart_e_pg = k_e_pg * jacobian_e_pg * weight_pg * dN_e_pg' * A * dN_e_pg\n
         
-        Returns -> jacobian_e_pg * weight_pg * dN_e_pg'
+        Returns (epij) -> jacobian_e_pg * weight_pg * dN_e_pg'
         """
 
         assert matrixType in MatrixType.Get_types()
@@ -1301,7 +1309,7 @@ class _GroupElem(ABC):
         """Get the part that builds the source term (scalar).\n
         SourcePart_e_pg = f_e_pg * jacobian_e_pg, weight_pg, N_pg'\n
         
-        Returns -> jacobian_e_pg, weight_pg, N_pg'
+        Returns (epij) -> jacobian_e_pg, weight_pg, N_pg'
         """
 
         assert matrixType in MatrixType.Get_types()
@@ -1745,7 +1753,7 @@ class _GroupElem(ABC):
             - detectedElements_e : The elements in which the nodes have been detected with shape=(Ne,).
             - connect_e_n : The connectivity matrix that includes the nodes identified in each element with shape=(Ne, ?).
                 The "?" indicates that the array may have varying dimensions along axis=1.
-            - coordInElem_n : The coordinates of the identified nodes, expressed in the reference element's (ξ,η,ζ) coordinate system.
+            - coordInElem_n : The coordinates of the identified nodes, expressed in the reference element's (ξ, η, ζ) coordinate system.
                 This is applicable only if needCoordinates is set to True.
         """
         
@@ -1766,7 +1774,7 @@ class _GroupElem(ABC):
             - detectedElements_e : The elements in which the nodes have been detected with shape=(Ne,).
             - connect_e_n : The connectivity matrix that includes the nodes identified in each element with shape=(Ne, ?).
                 The "?" indicates that the array may have varying dimensions along axis=1.
-            - coordInElem_n : The coordinates of the identified nodes, expressed in the reference element's (ξ,η,ζ) coordinate system.
+            - coordInElem_n : The coordinates of the identified nodes, expressed in the reference element's (ξ, η, ζ) coordinate system.
                 This is applicable only if needCoordinates is set to True.
         """
         
@@ -1873,7 +1881,7 @@ class _GroupElem(ABC):
 
                     xiP = np.array(xiP)
 
-                # xiP are the n coordinates of the n points in (ξ,η,ζ).
+                # xiP are the n coordinates of the n points in (ξ, η, ζ).
                 coordInElem_n[nodesInElement,:] = xiP.copy()
 
         [ResearchFunction(e) for e in elements_e]
