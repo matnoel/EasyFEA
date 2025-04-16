@@ -7,7 +7,9 @@ import pytest
 from EasyFEA import Geoms, Mesher, Simulations, np
 # materials
 from EasyFEA.Materials import _Elas, Elas_Isot, Elas_IsotTrans, Elas_Anisot,  PhaseField
-from EasyFEA.materials import Get_Pmat, Apply_Pmat, KelvinMandel_Matrix
+from EasyFEA.materials import Get_Pmat, Apply_Pmat, KelvinMandel_Matrix, Reshape_variable
+from EasyFEA.utilities._linalg import Norm
+from EasyFEA.fem import FeArray
 
 @pytest.fixture
 def setup_elastic_materials() -> list[_Elas]:
@@ -354,15 +356,15 @@ class TestMaterials:
         for pfm in phaseFieldModels:
 
             mat: _Elas = pfm.material
-            c = mat.C
             
             print(f"{type(mat).__name__} {mat.simplification} {pfm.split} {pfm.regularization}")
 
             if mat.dim == 2:
-                Epsilon_e_pg = Epsilon2D_e_pg
+                Epsilon_e_pg = FeArray(Epsilon2D_e_pg)
             elif mat.dim == 3:
-                Epsilon_e_pg = Epsilon3D_e_pg
+                Epsilon_e_pg = FeArray(Epsilon3D_e_pg)
 
+            C_e_pg = Reshape_variable(mat.C, *Epsilon_e_pg.shape[:2])
             cP_e_pg, cM_e_pg = pfm.Calc_C(Epsilon_e_pg.copy(), verif=True)
 
             # Rounding errors in the construction of 3D eigen projectors see [Remark M] in EasyFEA/materials/_phaseField.py
@@ -370,23 +372,23 @@ class TestMaterials:
 
             # Checks that cP + cM = c
             cpm = cP_e_pg + cM_e_pg
-            decomp_C = c - cpm
-            test_C = np.linalg.norm(decomp_C, axis=(-2,-1))/np.linalg.norm(c, axis=(-2,-1))
+            decomp_C = C_e_pg - cpm
+            test_C = Norm(decomp_C, axis=(-2,-1))/Norm(mat.C, axis=(-2,-1))
             assert np.max(test_C) <= tol, f"test_C = {np.max(test_C):.3e}"
 
             # Checks that SigP + SigM = Sig
-            Sig_e_pg = np.einsum('ij,epj->epi', c, Epsilon_e_pg, optimize='optimal')
-            SigP = np.einsum('epij,epj->epi', cP_e_pg, Epsilon_e_pg, optimize='optimal')
-            SigM = np.einsum('epij,epj->epi', cM_e_pg, Epsilon_e_pg, optimize='optimal') 
+            Sig_e_pg = C_e_pg @ Epsilon_e_pg
+            SigP = cP_e_pg @ Epsilon_e_pg
+            SigM = cM_e_pg @ Epsilon_e_pg
             decomp_Sig = Sig_e_pg - (SigP+SigM)           
-            test_Sig = np.linalg.norm(decomp_Sig, axis=-1)/np.linalg.norm(Sig_e_pg, axis=-1)
-            if np.min(np.linalg.norm(Sig_e_pg, axis=-1)) > 0:
+            test_Sig = Norm(decomp_Sig, axis=-1)/Norm(Sig_e_pg, axis=-1)
+            if np.min(Norm(Sig_e_pg, axis=-1)) > 0:
                 assert np.max(test_Sig) < tol, f"test_Sig = {np.max(test_Sig):.3e}"
                 
             # Checks that Eps:C:Eps = Eps:(cP+cM):Eps
-            psi = 1/2 * np.einsum('epi,epi->', Sig_e_pg, Epsilon_e_pg, optimize='optimal')
-            psi_P = 1/2 * np.einsum('epi,epi->', SigP, Epsilon_e_pg, optimize='optimal')
-            psi_M = 1/2 * np.einsum('epi,epi->', SigM, Epsilon_e_pg, optimize='optimal')
+            psi = 1/2 * np.asarray((Sig_e_pg @ Epsilon_e_pg).sum((0,1)))
+            psi_P = 1/2 * np.asarray((SigP @ Epsilon_e_pg).sum((0,1)))
+            psi_M = 1/2 * np.asarray((SigM @ Epsilon_e_pg).sum((0,1)))
             test_psi = np.abs(psi-(psi_P+psi_M))/psi
             if psi > 0:
                 assert test_psi < tol, f"test_psi = {test_psi:.3e}"

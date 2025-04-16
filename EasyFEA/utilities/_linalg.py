@@ -5,6 +5,7 @@
 """Linear algebra functions."""
 
 import numpy as np
+from ..fem import FeArray
 
 def __CheckMat(mat: np.ndarray) -> None:
     assert isinstance(mat, np.ndarray) and mat.ndim >= 2 and mat.shape[-2] == mat.shape[-1], "must be a (..., dim, dim) array"
@@ -14,13 +15,23 @@ def __CheckMat(mat: np.ndarray) -> None:
 def Transpose(mat: np.ndarray) -> np.ndarray:
     """Computes transpose(mat)"""
     assert isinstance(mat, np.ndarray) and mat.ndim >= 2
-    return np.einsum("...ij->...ji", mat, optimize="optimal")
+    res = np.einsum("...ij->...ji", mat, optimize="optimal")
+    
+    if isinstance(mat, FeArray):
+        res = FeArray(res)
+
+    return res
 
 def Trace(mat: np.ndarray) -> np.ndarray:
     """Computes trace(mat)"""
     __CheckMat(mat)
     # same as np.trace(A, axis1=-2, axis2=-1)
-    return np.einsum("...ii->...", mat, optimize="optimal")
+    res = np.einsum("...ii->...", mat, optimize="optimal")
+    
+    if isinstance(mat, FeArray):
+        res = FeArray(res)
+
+    return res
 
 def Det(mat: np.ndarray) -> np.ndarray:
     """Computes det(mat)"""
@@ -48,6 +59,9 @@ def Det(mat: np.ndarray) -> np.ndarray:
 
     else:
         det = np.linalg.det(mat)
+    
+    if isinstance(mat, FeArray):
+        det = FeArray(det)
 
     return det
 
@@ -111,6 +125,9 @@ def Inv(mat: np.ndarray):
 
         inv = np.linalg.inv(mat)
 
+    if isinstance(mat, FeArray):
+        inv = FeArray(inv)
+
     return inv
 
 def TensorProd(A: np.ndarray, B: np.ndarray, symmetric=False, ndim:int=None) -> np.ndarray:
@@ -164,4 +181,18 @@ def TensorProd(A: np.ndarray, B: np.ndarray, symmetric=False, ndim:int=None) -> 
     else:
         raise Exception("Not implemented")
     
+    if isinstance(A, FeArray) or isinstance(B, FeArray):
+        res = FeArray(res)
+    
+    return res
+
+def Norm(array: np.ndarray, **kwargs):
+    """`np.linalg.norm()` wrapper.\n
+    see https://numpy.org/doc/stable/reference/generated/numpy.linalg.norm.html"""
+
+    res = np.linalg.norm(array, **kwargs)
+
+    if isinstance(array, FeArray):
+        res = FeArray(res)
+
     return res

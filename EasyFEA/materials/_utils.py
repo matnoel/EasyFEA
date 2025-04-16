@@ -8,6 +8,8 @@ from enum import Enum
 
 # utilities
 from ..utilities._observers import Observable
+from ..utilities._linalg import Transpose
+from ..fem import FeArray
 import numpy as np
 
 # ----------------------------------------------
@@ -79,40 +81,40 @@ class _IModel(ABC, Observable):
     
 __erroDim = "Pay attention to the dimensions of the material constants.\nIf the material constants are in arrays, these arrays must have the same dimension."
 
-def Reshape_variable(variable: Union[int,float,np.ndarray], Ne: int, nPg: int):
-    """Resizes variable to (Ne, nPg) shape."""
+def Reshape_variable(variable: Union[int,float,np.ndarray], Ne: int, nPg: int) -> FeArray:
+    """Resizes variable to (Ne, nPg, ...) shape."""
 
     if isinstance(variable, (int,float)):
-        return np.ones((Ne, nPg)) * variable
+        return FeArray(np.ones((Ne, nPg)) * variable)
     
     elif isinstance(variable, np.ndarray):
         shape = variable.shape
         if len(shape) == 1:
             if shape[0] == Ne:
                 variable = variable[:,np.newaxis].repeat(nPg, axis=1)
-                return variable
+                return FeArray(variable)
             elif shape[0] == nPg:
                 variable = variable[np.newaxis].repeat(Ne, axis=0)
-                return variable
+                return FeArray(variable)
             else:
                 raise Exception("The variable entered must be of dimension (e) or (p)")
 
         if len(shape) == 2:
             if shape == (Ne, nPg):
-                return variable
+                return FeArray(variable)
             else:
                 variable = variable[np.newaxis, np.newaxis]
                 variable = variable.repeat(Ne, axis=0)
                 variable = variable.repeat(nPg, axis=1)
-                return variable
+                return FeArray(variable)
             
         elif len(shape) == 3:
             if shape[0] == Ne:
                 variable = variable[:, np.newaxis].repeat(nPg, axis=1)
-                return variable
+                return FeArray(variable)
             elif shape[0] == nPg:
                 variable = variable[np.newaxis].repeat(Ne, axis=0)
-                return variable
+                return FeArray(variable)
             else:
                 raise Exception("The variable entered must be of dimension (eij) or (pij)")
 

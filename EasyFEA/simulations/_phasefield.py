@@ -11,7 +11,7 @@ import pandas as pd
 from ..utilities import Display, Tic
 from ..utilities._observers import Observable
 # fem
-from ..fem import Mesh, MatrixType
+from ..fem import Mesh, MatrixType, FeArray
 # materials
 from .. import Materials
 from ..materials import ModelType, _IModel, Reshape_variable, Result_in_Strain_or_Stress_field
@@ -345,7 +345,8 @@ class PhaseFieldSimu(_Simu):
         
         # compute c such that: c = g(d) * cP + cM
         g_e_pg = phaseFieldModel.Get_g_e_pg(d, mesh, matrixType)
-        cP_e_pg = np.einsum('ep,epij->epij', g_e_pg, cP_e_pg, optimize='optimal')
+        cP_e_pg = g_e_pg * cP_e_pg
+        
         c_e_pg = cP_e_pg + cM_e_pg
         
         # stiffness matrix for each element
@@ -708,7 +709,7 @@ class PhaseFieldSimu(_Simu):
 
         return Psi_Crack
 
-    def _Calc_Epsilon_e_pg(self, sol: np.ndarray, matrixType=MatrixType.rigi):
+    def _Calc_Epsilon_e_pg(self, sol: np.ndarray, matrixType=MatrixType.rigi) -> FeArray:
         """Computes strain field (Ne,pg,(3 or 6)).\n
         2D : [Exx Eyy sqrt(2)*Exy]\n
         3D : [Exx Eyy Ezz sqrt(2)*Eyz sqrt(2)*Exz sqrt(2)*Exy]
@@ -720,20 +721,20 @@ class PhaseFieldSimu(_Simu):
 
         Returns
         -------
-        np.ndarray
+        FeArray
             Computed strain field (Ne,pg,(3 or 6))
         """
         
         tic = Tic()        
         u_e = sol[self.mesh.assembly_e]
-        B_dep_e_pg = self.mesh.Get_B_e_pg(matrixType)
-        Epsilon_e_pg = np.einsum('epij,ej->epi', B_dep_e_pg, u_e, optimize='optimal')            
+        B_e_pg = self.mesh.Get_B_e_pg(matrixType)
+        Epsilon_e_pg = np.einsum('epij,ej->epi', B_e_pg, u_e, optimize='optimal')            
         
         tic.Tac("Matrix", "Epsilon_e_pg", False)
 
-        return Epsilon_e_pg
+        return FeArray(Epsilon_e_pg)
 
-    def _Calc_Sigma_e_pg(self, Epsilon_e_pg: np.ndarray, matrixType=MatrixType.rigi) -> np.ndarray:
+    def _Calc_Sigma_e_pg(self, Epsilon_e_pg: np.ndarray, matrixType=MatrixType.rigi) -> FeArray:
         """Computes stress field from strain field.\n
         2D : [Sxx Syy sqrt(2)*Sxy]\n
         3D : [Sxx Syy Szz sqrt(2)*Syz sqrt(2)*Sxz sqrt(2)*Sxy]

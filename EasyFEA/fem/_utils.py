@@ -76,9 +76,11 @@ class MatrixType(str, Enum):
 class FeArray(np.ndarray):
     """Finite Element array"""
 
-    def __new__(cls, input_array):
+    def __new__(cls, input_array, addFeAxis=False):
         obj = np.asarray(input_array).view(cls)
-        if obj.ndim not in [2, 3, 4, 6]:
+        if addFeAxis:
+            obj = obj[np.newaxis, np.newaxis]
+        if obj.ndim not in [2, 3, 4, 6] and obj.size != 0:
             raise ValueError("The input array dimensions must be one of the following: 2, 3, 4, or 6.")
         return obj
 
@@ -87,15 +89,7 @@ class FeArray(np.ndarray):
         # It can be used to initialize additional attributes if necessary.
         if obj is None:
             return
-
-    @property        
-    def Ne(self) -> int:
-        return self.shape[0]
-
-    @property
-    def nPg(self) -> int:
-        return self.shape[1]
-    
+        
     @property
     def _shape(self) -> tuple:
         """finite element shape"""
@@ -131,12 +125,6 @@ class FeArray(np.ndarray):
         elif self._ndim == 4:
             return "tensor"
         
-    def __check_fe_dim(self, other):
-        if isinstance(other, FeArray):
-            if self.shape[:2] != other.shape[:2]:
-                raise ValueError(f"The FeArray `other` must be defined on {self.Ne} elements and {self.nPg} gauss points.")
-
-
     def __get_array1_array2(self, other) -> tuple[np.ndarray, np.ndarray]:
 
         array1 = np.asarray(self)
@@ -145,7 +133,6 @@ class FeArray(np.ndarray):
 
         array2 = np.asarray(other)
         if isinstance(other, FeArray):
-            self.__check_fe_dim(other)
             ndim2 = other._ndim
             shape2 = other._shape
         else:
@@ -155,9 +142,17 @@ class FeArray(np.ndarray):
         if ndim1 == 0:
             # array1(Ne, nPg)  array2(...) => (Ne, nPg, ...)
             # or
-            # array1(Ne, nPg)  array2(Ne, nPg, ...) => (Ne, nPg, ...)
-            new_shape = (self.Ne, self.nPg, *[1]*ndim2)
-            array1 = array1.reshape(new_shape)
+            # array1(Ne, nPg)  array2(Ne, nPg, ...) => (Ne, nPg, ...)            
+            for _ in range(ndim2):
+                array1 = array1[...,np.newaxis]
+        elif ndim2 == 0:
+            if array2.size == 1:
+                # array1(Ne, nPg, ...)  array2() => (Ne, nPg, ...)
+                pass
+            else:
+                # array1(Ne, nPg, ...)  array2(Ne, nPg) => (Ne, nPg, ...)
+                for _ in range(ndim1):
+                    array2 = array2[...,np.newaxis]
         elif shape1 == shape2:
             pass
         else:

@@ -25,7 +25,7 @@ from typing import Callable
 # fem
 from ._gauss import Gauss
 # utils
-from ._utils import ElemType, MatrixType
+from ._utils import ElemType, MatrixType, FeArray
 
 # # others
 from ..Geoms import Point, Domain, Line, Circle
@@ -76,16 +76,16 @@ class _GroupElem(ABC):
     def _InitMatrix(self) -> None:
         """Initializes matrix dictionaries for finite element construction"""
         # Dictionaries for each matrix type
-        self.__dict_dN_e_pg: dict[MatrixType, np.ndarray] = {}
-        self.__dict_ddN_e_pg: dict[MatrixType, np.ndarray] = {}
-        self.__dict_F_e_pg: dict[MatrixType, np.ndarray] = {}
-        self.__dict_invF_e_pg: dict[MatrixType, np.ndarray] = {}
-        self.__dict_jacobian_e_pg: dict[MatrixType, np.ndarray] = {}
-        self.__dict_B_e_pg: dict[MatrixType, np.ndarray] = {}
-        self.__dict_leftDispPart: dict[MatrixType, np.ndarray] = {}
-        self.__dict_phaseField_ReactionPart_e_pg: dict[MatrixType, np.ndarray] = {}
-        self.__dict_DiffusePart_e_pg: dict[MatrixType, np.ndarray] = {}
-        self.__dict_SourcePart_e_pg: dict[MatrixType, np.ndarray] = {}
+        self.__dict_dN_e_pg: dict[MatrixType, FeArray] = {}
+        self.__dict_ddN_e_pg: dict[MatrixType, FeArray] = {}
+        self.__dict_F_e_pg: dict[MatrixType, FeArray] = {}
+        self.__dict_invF_e_pg: dict[MatrixType, FeArray] = {}
+        self.__dict_jacobian_e_pg: dict[MatrixType, FeArray] = {}
+        self.__dict_B_e_pg: dict[MatrixType, FeArray] = {}
+        self.__dict_leftDispPart: dict[MatrixType, FeArray] = {}
+        self.__dict_ReactionPart_e_pg: dict[MatrixType, FeArray] = {}
+        self.__dict_DiffusePart_e_pg: dict[MatrixType, FeArray] = {}
+        self.__dict_SourcePart_e_pg: dict[MatrixType, FeArray] = {}
 
     # --------------------------------------------------------------------------------------------
     # Properties
@@ -497,7 +497,7 @@ class _GroupElem(ABC):
     # Isoparametric elements
     # --------------------------------------------------------------------------------------------
 
-    def Get_F_e_pg(self, matrixType: MatrixType) -> np.ndarray:
+    def Get_F_e_pg(self, matrixType: MatrixType) -> FeArray:
         """Returns the transposed Jacobian matrix.\n        
         This matrix describes the transformation of the (ξ, η, ζ) axes from the reference element to the (x, y, z) coordinate system of the actual element.\n
         """
@@ -529,11 +529,11 @@ class _GroupElem(ABC):
 
             F_e_pg: np.ndarray = np.einsum('pik,ekj->epij', dN_pg, rebased_coord_e, optimize='optimal')
             
-            self.__dict_F_e_pg[matrixType] = F_e_pg
+            self.__dict_F_e_pg[matrixType] = FeArray(F_e_pg)
 
         return self.__dict_F_e_pg[matrixType].copy()
     
-    def Get_jacobian_e_pg(self, matrixType: MatrixType, absoluteValues=True) -> np.ndarray:
+    def Get_jacobian_e_pg(self, matrixType: MatrixType, absoluteValues=True) -> FeArray:
         """Returns the jacobians.\n
         variation in size (length, area or volume) between the reference element and the actual element
         """
@@ -544,7 +544,7 @@ class _GroupElem(ABC):
 
             jacobian_e_pg = Det(F_e_pg)
             
-            self.__dict_jacobian_e_pg[matrixType] = jacobian_e_pg
+            self.__dict_jacobian_e_pg[matrixType] = FeArray(jacobian_e_pg)
 
         jacobian_e_pg = self.__dict_jacobian_e_pg[matrixType].copy()
 
@@ -553,7 +553,7 @@ class _GroupElem(ABC):
 
         return jacobian_e_pg
     
-    def Get_invF_e_pg(self, matrixType: MatrixType) -> np.ndarray:
+    def Get_invF_e_pg(self, matrixType: MatrixType) -> FeArray:
         """Returns the inverse of the transposed Jacobian matrix.\n
         Used to obtain the derivative of the dN_e_pg shape functions in the actual element
         dN_e_pg = invF_e_pg • dN_pg
@@ -565,7 +565,7 @@ class _GroupElem(ABC):
 
             invF_e_pg = Inv(F_e_pg)
 
-            self.__dict_invF_e_pg[matrixType] = invF_e_pg
+            self.__dict_invF_e_pg[matrixType] = FeArray(invF_e_pg)
 
         return self.__dict_invF_e_pg[matrixType].copy()
     
@@ -710,7 +710,7 @@ class _GroupElem(ABC):
 
         return dN_pg    
 
-    def Get_dN_e_pg(self, matrixType: MatrixType) -> np.ndarray:
+    def Get_dN_e_pg(self, matrixType: MatrixType) -> FeArray:
         """Evaluates the first-order derivatives of shape functions in (x, y, z) coordinates.\n
         [Ni,x . . . Nn,x\n
         Ni,y . . . Nn,y\n
@@ -727,7 +727,7 @@ class _GroupElem(ABC):
 
             # Derivation of shape functions in the (x, y, z) coordinates
             dN_e_pg: np.ndarray = np.einsum('epdk,pkn->epdn', invF_e_pg, dN_pg, optimize='optimal')
-            self.__dict_dN_e_pg[matrixType] = dN_e_pg
+            self.__dict_dN_e_pg[matrixType] = FeArray(dN_e_pg)
 
         return self.__dict_dN_e_pg[matrixType].copy()
     
@@ -743,7 +743,7 @@ class _GroupElem(ABC):
         """
         return self.__Init_Functions(2)
 
-    def Get_ddN_e_pg(self, matrixType: MatrixType) -> np.ndarray:
+    def Get_ddN_e_pg(self, matrixType: MatrixType) -> FeArray:
         """Evaluates the second-order derivatives of shape functions in (x, y, z) coordinates.\n
         [Ni,x2 . . . Nn,x2\n
         Ni,y2 . . . Nn,y2\n
@@ -761,7 +761,7 @@ class _GroupElem(ABC):
             ddN_pg = self.Get_ddN_pg(matrixType)
             
             ddN_e_pg = np.array(np.einsum('epdk,pkn->epdn', invF_e_pg, ddN_pg, optimize='optimal'))
-            self.__dict_ddN_e_pg[matrixType] = ddN_e_pg
+            self.__dict_ddN_e_pg[matrixType] = FeArray(ddN_e_pg)
 
         return self.__dict_ddN_e_pg[matrixType].copy()
     
@@ -964,11 +964,11 @@ class _GroupElem(ABC):
         """
         if self.dim != 1: return
 
-        invF_e_pg = self.Get_invF_e_pg(MatrixType.beam)
+        invF_e_pg = self.Get_invF_e_pg(MatrixType.beam)[:,:,0,0]
         ddN_pg = self.Get_EulerBernoulli_ddN_pg()
         nPe = self.nPe
         
-        ddN_e_pg = invF_e_pg @ invF_e_pg @ ddN_pg
+        ddN_e_pg = np.einsum("ep,pij->epij", invF_e_pg*invF_e_pg, ddN_pg, optimize='optimal')
         
         # multiply by the beam length on psi_i,xx functions
         l_e = self.length_e
@@ -984,7 +984,7 @@ class _GroupElem(ABC):
     
     # Linear elastic problem
 
-    def Get_B_e_pg(self, matrixType: MatrixType) -> np.ndarray:
+    def Get_B_e_pg(self, matrixType: MatrixType) -> FeArray:
         """Get the matrix used to calculate deformations from displacements.\n
         WARNING: Use Kelvin Mandel Notation\n
         [N1,x 0 . . . Nn,x 0\n
@@ -1032,11 +1032,11 @@ class _GroupElem(ABC):
                 B_e_pg[:,:,4,columnsX] = dNdz*cM; B_e_pg[:,:,4,columnsZ] = dNdx*cM
                 B_e_pg[:,:,5,columnsX] = dNdy*cM; B_e_pg[:,:,5,columnsY] = dNdx*cM
 
-            self.__dict_B_e_pg[matrixType] = B_e_pg
+            self.__dict_B_e_pg[matrixType] = FeArray(B_e_pg)
         
         return self.__dict_B_e_pg[matrixType].copy()
 
-    def Get_leftDispPart(self, matrixType: MatrixType) -> np.ndarray:
+    def Get_leftDispPart(self, matrixType: MatrixType) -> FeArray:
         """Get the left side of local displacement matrices.\n
         Ku_e = jacobian_e_pg * weight_pg * B_e_pg' * c_e_pg * B_e_pg\n
         
@@ -1053,7 +1053,7 @@ class _GroupElem(ABC):
 
             leftDispPart = np.einsum('ep,p,epij->epji', jacobian_e_pg, weight_pg, B_e_pg, optimize='optimal')
 
-            self.__dict_leftDispPart[matrixType] = leftDispPart
+            self.__dict_leftDispPart[matrixType] = FeArray(leftDispPart)
 
         return self.__dict_leftDispPart[matrixType].copy()
 
@@ -1263,7 +1263,7 @@ class _GroupElem(ABC):
     
     # reaction diffusion problem
 
-    def Get_ReactionPart_e_pg(self, matrixType: MatrixType) -> np.ndarray:
+    def Get_ReactionPart_e_pg(self, matrixType: MatrixType) -> FeArray:
         """Get the part that builds the reaction term (scalar).\n
         ReactionPart_e_pg = r_e_pg * jacobian_e_pg * weight_pg * N_pg' * N_pg\n
         
@@ -1272,7 +1272,7 @@ class _GroupElem(ABC):
 
         assert matrixType in MatrixType.Get_types()
 
-        if matrixType not in self.__dict_phaseField_ReactionPart_e_pg.keys():
+        if matrixType not in self.__dict_ReactionPart_e_pg.keys():
 
             jacobian_e_pg = self.Get_jacobian_e_pg(matrixType)
             weight_pg = self.Get_gauss(matrixType).weights
@@ -1280,11 +1280,11 @@ class _GroupElem(ABC):
 
             ReactionPart_e_pg = np.einsum('ep,p,pki,pkj->epij', jacobian_e_pg, weight_pg, N_pg, N_pg, optimize='optimal')
 
-            self.__dict_phaseField_ReactionPart_e_pg[matrixType] = ReactionPart_e_pg
+            self.__dict_ReactionPart_e_pg[matrixType] = FeArray(ReactionPart_e_pg)
         
-        return self.__dict_phaseField_ReactionPart_e_pg[matrixType].copy()
+        return self.__dict_ReactionPart_e_pg[matrixType].copy()
     
-    def Get_DiffusePart_e_pg(self, matrixType: MatrixType) -> np.ndarray:
+    def Get_DiffusePart_e_pg(self, matrixType: MatrixType) -> FeArray:
         """Get the part that builds the diffusion term (scalar).\n
         DiffusePart_e_pg = k_e_pg * jacobian_e_pg * weight_pg * dN_e_pg' * A * dN_e_pg\n
         
@@ -1301,11 +1301,11 @@ class _GroupElem(ABC):
 
             DiffusePart_e_pg = np.einsum('ep,p,epij->epji', jacobian_e_pg, weight_pg, dN_e_pg, optimize='optimal')
 
-            self.__dict_DiffusePart_e_pg[matrixType] = DiffusePart_e_pg
+            self.__dict_DiffusePart_e_pg[matrixType] = FeArray(DiffusePart_e_pg)
         
         return self.__dict_DiffusePart_e_pg[matrixType].copy()
 
-    def Get_SourcePart_e_pg(self, matrixType: MatrixType) -> np.ndarray:
+    def Get_SourcePart_e_pg(self, matrixType: MatrixType) -> FeArray:
         """Get the part that builds the source term (scalar).\n
         SourcePart_e_pg = f_e_pg * jacobian_e_pg, weight_pg, N_pg'\n
         
@@ -1322,7 +1322,7 @@ class _GroupElem(ABC):
 
             SourcePart_e_pg = np.einsum('ep,p,pij->epji', jacobian_e_pg, weight_pg, N_pg, optimize='optimal') # the ji is important for the transposition
 
-            self.__dict_SourcePart_e_pg[matrixType] = SourcePart_e_pg
+            self.__dict_SourcePart_e_pg[matrixType] = FeArray(SourcePart_e_pg)
         
         return self.__dict_SourcePart_e_pg[matrixType].copy()
 

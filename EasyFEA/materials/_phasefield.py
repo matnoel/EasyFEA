@@ -9,10 +9,11 @@ from enum import Enum
 import numpy as np
 from ..utilities import Numba, Tic
 # fem
-from ..fem import Mesh
+from ..fem import Mesh, FeArray
 # others
 from ._utils import _IModel, ModelType, Reshape_variable
 from ..utilities import _params
+from ..utilities._linalg import Trace, TensorProd, Det, Inv, Norm
 
 # ----------------------------------------------
 # Elasticity
@@ -139,7 +140,7 @@ class PhaseField(_IModel):
     
     @property
     def isHeterogeneous(self) -> bool:
-        return isinstance(self.Gc, np.ndarray)
+        return isinstance(self.__Gc, np.ndarray)
     
     @staticmethod
     def Get_splits() -> list[SplitType]:
@@ -175,7 +176,9 @@ class PhaseField(_IModel):
     def Get_r_e_pg(self, PsiP_e_pg: np.ndarray) -> np.ndarray:
         """Returns reaction therm"""
 
-        Gc = Reshape_variable(self.__Gc, PsiP_e_pg.shape[0], PsiP_e_pg.shape[1])
+        Gc = self.Gc
+        if self.isHeterogeneous:
+            Gc = Reshape_variable(Gc, *PsiP_e_pg.shape[:2])
         l0 = self.__l0
 
         # J/m3
@@ -189,7 +192,9 @@ class PhaseField(_IModel):
     def Get_f_e_pg(self, PsiP_e_pg: np.ndarray) -> np.ndarray:
         """Returns source therm"""
 
-        Gc = Reshape_variable(self.__Gc, PsiP_e_pg.shape[0], PsiP_e_pg.shape[1])
+        Gc = self.Gc
+        if self.isHeterogeneous:
+            Gc = Reshape_variable(Gc, *PsiP_e_pg.shape[:2])
         l0 = self.__l0
         
         # J/m3
@@ -202,7 +207,7 @@ class PhaseField(_IModel):
         
         return f
 
-    def Get_g_e_pg(self, d_n: np.ndarray, mesh: Mesh, matrixType: str, k_residu=1e-12) -> np.ndarray:
+    def Get_g_e_pg(self, d_n: np.ndarray, mesh: Mesh, matrixType: str, k_residu=1e-12) -> FeArray:
         """Returns degradation function"""
 
         d_e_n = mesh.Locates_sol_e(d_n)
@@ -218,7 +223,7 @@ class PhaseField(_IModel):
         assert mesh.Ne == g_e_pg.shape[0]
         assert mesh.Get_nPg(matrixType) == g_e_pg.shape[1]
         
-        return g_e_pg
+        return FeArray(g_e_pg)
     
     @property
     def A(self) -> np.ndarray:
@@ -282,7 +287,10 @@ class PhaseField(_IModel):
     @property
     def Gc(self) -> Union[float, np.ndarray]:
         """critical energy release rate (e.g. J/m^2)"""
-        return self.__Gc
+        if isinstance(self.__Gc, np.ndarray):
+            return self.__Gc.copy()
+        else:
+            return self.__Gc
     
     @Gc.setter
     def Gc(self, value: Union[float, np.ndarray]):
@@ -345,7 +353,7 @@ class PhaseField(_IModel):
 
         Returns
         -------
-        np.ndarray
+        FeArray
             SigmaP_e_pg, SigmaM_e_pg: positive and negative stress fields (e, p, D)
         """       
 
@@ -364,17 +372,17 @@ class PhaseField(_IModel):
 
         return SigmaP_e_pg, SigmaM_e_pg
     
-    def Calc_C(self, Epsilon_e_pg: np.ndarray, verif=False):
+    def Calc_C(self, Epsilon_e_pg: FeArray, verif=False) -> tuple[FeArray, FeArray]:
         """Computes the splited stifness matrices for the given strain field.
 
         Parameters
         ----------
-        Epsilon_e_pg : np.ndarray
+        Epsilon_e_pg : FeArray
             strains field (e, p, D)
 
         Returns
         -------
-        np.ndarray
+        FeArray
             cP_e_pg, cM_e_pg: positive and negative stifness matrices (e, p, D, D)
         """
 
@@ -401,11 +409,16 @@ class PhaseField(_IModel):
         """[Bourdin 2000] DOI : 10.1016/S0022-5096(99)00028-9"""
 
         tic = Tic()
-        c = self.__material.C
-        c_e_pg = Reshape_variable(c, Ne, nPg)
 
-        cP_e_pg = c_e_pg
+        C = self.__material.C
+        if self.isHeterogeneous:
+            C_e_pg = Reshape_variable(C, Ne, nPg)
+        else:
+            C_e_pg = FeArray(C, True)
+
+        cP_e_pg = C_e_pg
         cM_e_pg = np.zeros_like(cP_e_pg)
+
         tic.Tac("Split",f"cP_e_pg and cM_e_pg", False)
 
         return cP_e_pg, cM_e_pg
@@ -419,10 +432,6 @@ class PhaseField(_IModel):
         
         material = self.__material
         
-        Ne, nPg = Epsilon_e_pg.shape[:2]
-
-        bulk = material.get_bulk()
-        mu = material.get_mu()
 
         Rp_e_pg, Rm_e_pg = self.__Rp_Rm(Epsilon_e_pg)
 
@@ -437,62 +446,50 @@ class PhaseField(_IModel):
 
         IxI = I @ I.T
 
-        spherP_e_pg = np.einsum('ep,ij->epij', Rp_e_pg, IxI, optimize='optimal')
-        spherM_e_pg = np.einsum('ep,ij->epij', Rm_e_pg, IxI, optimize='optimal')
+        mu = material.get_mu()
+        bulk = material.get_bulk()
 
-        # Deviatoric projector
-        Pdev = np.eye(size) - 1/dim * IxI
+        if material.isHeterogeneous:        
+            Ne, nPg = Epsilon_e_pg.shape[:2]
+            mu = Reshape_variable(mu, Ne, nPg)
+            bulk = Reshape_variable(bulk, Ne, nPg)
 
-        # einsum faster than with resizing (no need to try with numba)
-        if material.isHeterogeneous:
-            mu_e_pg = Reshape_variable(mu, Ne, nPg)
-            bulk_e_pg = Reshape_variable(bulk, Ne, nPg)
-
-            devPart_e_pg = np.einsum("ep,ij->epij",2*mu_e_pg, Pdev, optimize="optimal")        
-    
-            cP_e_pg = np.einsum('ep,epij->epij', bulk_e_pg, spherP_e_pg, optimize='optimal')  + devPart_e_pg
-            cM_e_pg = np.einsum('ep,epij->epij', bulk_e_pg, spherM_e_pg, optimize='optimal')
-
-        else:
-            devPart = 2*mu * Pdev
-
-            cP_e_pg = bulk * spherP_e_pg  + devPart
-            cM_e_pg = bulk * spherM_e_pg
+        cP_e_pg = bulk * (Rp_e_pg * IxI) + 2*mu * (np.eye(size) - 1/dim * IxI)
+        cM_e_pg = bulk * (Rm_e_pg * IxI)
 
         tic.Tac("Split",f"cP_e_pg and cM_e_pg", False)
 
         return cP_e_pg, cM_e_pg
 
-    def __Rp_Rm(self, vecteur_e_pg: np.ndarray):
+    def __Rp_Rm(self, vector_e_pg: FeArray):
         """Returns Rp_e_pg, Rm_e_pg"""
 
-        Ne, nPg = vecteur_e_pg.shape[:2]
+        Ne, nPg = vector_e_pg.shape[:2]
 
         dim = self.__material.dim
 
         trace = np.zeros((Ne, nPg))
 
-        trace = vecteur_e_pg[:,:,0] + vecteur_e_pg[:,:,1]
+        trace = vector_e_pg[:,:,0] + vector_e_pg[:,:,1]
 
         if dim == 3:
-            trace += vecteur_e_pg[:,:,2]
+            trace += vector_e_pg[:,:,2]
+
+        if not isinstance(trace, FeArray):
+            trace = FeArray(trace)
 
         Rp_e_pg = (1+np.sign(trace))/2
         Rm_e_pg = (1+np.sign(-trace))/2
 
         return Rp_e_pg, Rm_e_pg
     
-    def __Split_Strain(self, Epsilon_e_pg: np.ndarray, verif=False):
+    def __Split_Strain(self, Epsilon_e_pg: FeArray, verif=False):
         """Computes the stifness matrices for strain based splits."""
 
-        dim = self.__material.dim
-        useNumba = self.useNumba
+        material = self.__material
+        dim = material.dim
 
         projP_e_pg, projM_e_pg = self.__Spectral_Decomposition(Epsilon_e_pg, verif)
-
-        Ne, nPg = Epsilon_e_pg.shape[:2]
-
-        isHeterogene = self.__material.isHeterogeneous
 
         tic = Tic()
 
@@ -511,47 +508,29 @@ class PhaseField(_IModel):
                 I = np.array([1,1,1,0,0,0]).reshape((6,1))
             IxI = I @ I.T
 
-            # Compute spherical part
-            spherP_e_pg = np.einsum('ep,ij->epij', Rp_e_pg, IxI, optimize='optimal')
-            spherM_e_pg = np.einsum('ep,ij->epij', Rm_e_pg, IxI, optimize='optimal')
-
             # Compute stifness matrices
-            lamb = self.__material.get_lambda()
             mu = self.__material.get_mu()
+            lamb = self.__material.get_lambda()
 
-            if isHeterogene:
-                lamb_e_pg = Reshape_variable(lamb, Ne, nPg)
-                mu_e_pg = Reshape_variable(mu, Ne, nPg)
+            if material.isHeterogeneous:
+                Ne, nPg = Epsilon_e_pg.shape[:2]
+                mu = Reshape_variable(mu, Ne, nPg)                
+                lamb = Reshape_variable(lamb, Ne, nPg)
 
-                funcMult = lambda ep, epij: np.einsum('ep,epij->epij', ep, epij, optimize='optimal')
-
-                cP_e_pg = funcMult(lamb_e_pg,spherP_e_pg) + funcMult(2*mu_e_pg, projP_e_pg)
-                cM_e_pg = funcMult(lamb_e_pg,spherM_e_pg) + funcMult(2*mu_e_pg, projM_e_pg)
-
-            else:
-                cP_e_pg = lamb*spherP_e_pg + 2*mu*projP_e_pg
-                cM_e_pg = lamb*spherM_e_pg + 2*mu*projM_e_pg
+            cP_e_pg = lamb * (Rp_e_pg * IxI) + 2 * mu * projP_e_pg
+            cM_e_pg = lamb * (Rm_e_pg * IxI) + 2 * mu * projM_e_pg
         
         elif "Strain" in self.__split:
-            
-            c = self.__material.C
-            
-            # here don't use numba if behavior is heterogeneous
-            if useNumba and not isHeterogene:
-                # Faster (x2) but not available for heterogeneous material (memory issues)
-                Cpp, Cpm, Cmp, Cmm = Numba.Get_Anisot_C(projP_e_pg, c, projM_e_pg)
 
-            else:
-                # Here we don't use einsum, otherwise it's much longer
-                c_e_pg = Reshape_variable(c, Ne, nPg)
+            c_e_pg = FeArray(material.C, True)
 
-                pc = np.transpose(projP_e_pg, [0,1,3,2]) @ c_e_pg
-                mc = np.transpose(projM_e_pg, [0,1,3,2]) @ c_e_pg
-                
-                Cpp = pc @ projP_e_pg
-                Cpm = pc @ projM_e_pg
-                Cmm = mc @ projM_e_pg
-                Cmp = mc @ projP_e_pg
+            projPTC = projP_e_pg.T @ c_e_pg
+            projMTc = projM_e_pg.T @ c_e_pg
+            
+            Cpp = projPTC @ projP_e_pg
+            Cpm = projPTC @ projM_e_pg
+            Cmm = projMTc @ projM_e_pg
+            Cmp = projMTc @ projP_e_pg
             
             if self.__split == self.SplitType.AnisotStrain:
 
@@ -585,22 +564,16 @@ class PhaseField(_IModel):
 
         # Recover stresses        
         material = self.__material
-        c = material.C
-
-        shape_c = len(c.shape)
 
         Ne, nPg = Epsilon_e_pg.shape[:2]
 
-        isHeterogene = material.isHeterogeneous
+        C = material.C
+        if self.isHeterogeneous:
+            C_e_pg = Reshape_variable(C, Ne, nPg)
+        else:
+            C_e_pg = FeArray(C, True)
 
-        if shape_c == 2:
-            indices = ''
-        elif shape_c == 3:
-            indices = 'e'
-        elif shape_c == 4:
-            indices = 'ep'
-
-        Sigma_e_pg = np.einsum(f'{indices}ij,epj->epi', c, Epsilon_e_pg, optimize='optimal')
+        Sigma_e_pg = C_e_pg @ Epsilon_e_pg
 
         # Compute projectors such that SigmaP = Pp : Sigma and SigmaM = Pm : Sigma
         projP_e_pg, projM_e_pg = self.__Spectral_Decomposition(Sigma_e_pg, verif)
@@ -613,8 +586,12 @@ class PhaseField(_IModel):
 
             E = material.E
             v = material.v
+            mu = material.get_mu()
 
-            c = material.C
+            if material.isHeterogeneous:
+                E = Reshape_variable(E, Ne, nPg)
+                v = Reshape_variable(v, Ne, nPg)
+                mu = Reshape_variable(mu, Ne, nPg)
 
             dim = self.dim
 
@@ -628,52 +605,25 @@ class PhaseField(_IModel):
                 I = np.array([1,1,1,0,0,0]).reshape((6,1))
             IxI = I.dot(I.T)
 
-            RpIxI_e_pg = np.einsum('ep,ij->epij', Rp_e_pg, IxI, optimize='optimal')
-            RmIxI_e_pg = np.einsum('ep,ij->epij', Rm_e_pg, IxI, optimize='optimal')
-            
-            def funcMult(a, epij: np.ndarray, indices=indices):
-                return np.einsum(f'{indices},epij->epij', a, epij, optimize='optimal')
-
             if dim == 2:
                 if material.planeStress:
-                    sP_e_pg = funcMult((1+v)/E, projP_e_pg) - funcMult(v/E, RpIxI_e_pg)
-                    sM_e_pg = funcMult((1+v)/E, projM_e_pg) - funcMult(v/E, RmIxI_e_pg) 
+                    sP_e_pg = ((1+v)/E * projP_e_pg) - (v/E * Rp_e_pg * IxI)
+                    sM_e_pg = ((1+v)/E * projM_e_pg) - (v/E * Rm_e_pg * IxI) 
                 else:
-                    sP_e_pg = funcMult((1+v)/E, projP_e_pg) - funcMult(v*(1+v)/E, RpIxI_e_pg) 
-                    sM_e_pg = funcMult((1+v)/E, projM_e_pg) - funcMult(v*(1+v)/E, RmIxI_e_pg) 
+                    sP_e_pg = ((1+v)/E * projP_e_pg) - (v*(1+v)/E * Rp_e_pg * IxI) 
+                    sM_e_pg = ((1+v)/E * projM_e_pg) - (v*(1+v)/E * Rm_e_pg * IxI)
+
             elif dim == 3:
-                mu = material.get_mu()
+                sP_e_pg = (1/(2*mu) * projP_e_pg) - (v/E * Rp_e_pg * IxI)
+                sM_e_pg = (1/(2*mu) * projM_e_pg) - (v/E * Rm_e_pg * IxI)
 
-                if isinstance(mu, (float, int)):
-                    ind = ''
-                elif len(mu.shape) == 1:
-                    ind = 'e'
-                elif len(mu.shape) == 2:
-                    ind = 'ep'                    
-
-                sP_e_pg = funcMult(1/(2*mu), projP_e_pg, ind) - funcMult(v/E, RpIxI_e_pg) 
-                sM_e_pg = funcMult(1/(2*mu), projM_e_pg, ind) - funcMult(v/E, RmIxI_e_pg) 
-            
-            useNumba = self.useNumba
-            if useNumba and not isHeterogene:
-                # Faster
-                cP_e_pg, cM_e_pg = Numba.Get_Cp_Cm_Stress(c, sP_e_pg, sM_e_pg)
-            else:
-                if isHeterogene:
-                    c_e_pg = Reshape_variable(c, Ne, nPg)
-                    cT = np.transpose(c_e_pg, [0,1,3,2])
-
-                    cP_e_pg = cT @ sP_e_pg @ c_e_pg
-                    cM_e_pg = cT @ sM_e_pg @ c_e_pg
-                else:
-                    cT = c.T
-                    cP_e_pg = np.einsum('ij,epjk,kl->epil', cT, sP_e_pg, c, optimize='optimal')
-                    cM_e_pg = np.einsum('ij,epjk,kl->epil', cT, sM_e_pg, c, optimize='optimal')
+            cP_e_pg = C_e_pg.T @ sP_e_pg @ C_e_pg
+            cM_e_pg = C_e_pg.T @ sM_e_pg @ C_e_pg
         
         elif self.__split == self.SplitType.Zhang or "Stress" in self.__split:
             
-            Cp_e_pg = np.einsum(f'epij,{indices}jk->epik', projP_e_pg, c, optimize='optimal')
-            Cm_e_pg = np.einsum(f'epij,{indices}jk->epik', projM_e_pg, c, optimize='optimal')
+            Cp_e_pg = projP_e_pg @ C_e_pg
+            Cm_e_pg = projM_e_pg @ C_e_pg
 
             if self.__split == self.SplitType.Zhang:
                 # [Zhang 2020] DOI : 10.1016/j.cma.2019.112643
@@ -683,15 +633,15 @@ class PhaseField(_IModel):
             else:
                 # Compute Cp and Cm
                 S = material.S
-                if self.useNumba and not isHeterogene:
+                if self.useNumba and not material.isHeterogeneous:
                     # Faster
                     Cpp, Cpm, Cmp, Cmm = Numba.Get_Anisot_C(Cp_e_pg, S, Cm_e_pg)
                 else:
                     # Here we don't use einsum, otherwise it's much longer
-                    s_e_pg = Reshape_variable(S, Ne, nPg)
+                    S_e_pg = Reshape_variable(S, Ne, nPg)
 
-                    ps = np.transpose(Cp_e_pg, [0,1,3,2]) @ s_e_pg
-                    ms = np.transpose(Cm_e_pg, [0,1,3,2]) @ s_e_pg
+                    ps = Cp_e_pg.T @ S_e_pg
+                    ms = Cm_e_pg.T @ S_e_pg
                     
                     Cpp = ps @ Cp_e_pg
                     Cpm = ps @ Cm_e_pg
@@ -731,6 +681,8 @@ class PhaseField(_IModel):
         # Here the material is supposed to be homogeneous
         material = self.__material
 
+        Ne, nPg = Epsilon_e_pg.shape[:2]
+
         C = material.C
 
         tic = Tic()
@@ -738,62 +690,49 @@ class PhaseField(_IModel):
         # inv(sqrtC) = sqrtS
         tic.Tac("Split",f"sqrt C and S", False)
         
+        if material.isHeterogeneous:
+            sqrtC = Reshape_variable(sqrtC, Ne, nPg)
+            inv_sqrtC = Reshape_variable(inv_sqrtC, Ne, nPg)
+        else:
+            sqrtC = FeArray(sqrtC, True)
+            inv_sqrtC = FeArray(inv_sqrtC, True)
+        
         if verif:
             # check that C^1/2 * C^1/2 = C
             diff_C = sqrtC @ sqrtC - C
-            test_C = np.linalg.norm(diff_C, axis=(-2,-1))/np.linalg.norm(C, axis=(-2,-1))
+            test_C = Norm(diff_C, axis=(-2,-1))/Norm(C, axis=(-2,-1))
             assert np.max(test_C) < 1e-12
 
-        # compute new "strain" field
-        
-        ind = ""
-        if len(C.shape) == 3:
-            ind = 'e'
-        elif len(C.shape) == 4:
-            ind = 'ep'
-
-        Epsilont_e_pg = np.einsum(f'{ind}ij,epj->epi', sqrtC, Epsilon_e_pg, optimize='optimal')
+        # compute new "strain" field        
+        Epsilont_e_pg = sqrtC @ Epsilon_e_pg
 
         # Compute projectors
         projPt_e_pg, projMt_e_pg = self.__Spectral_Decomposition(Epsilont_e_pg, verif)
 
         tic = Tic()
 
-        # projP_e_pg = inv_sqrtC @ (projPt_e_pg @ sqrtC)
-        # projM_e_pg = inv_sqrtC @ (projMt_e_pg @ sqrtC)
-        
-        # faster
-        projP_e_pg = np.einsum(f'{ind}ij,epjk,{ind}kl->epil', inv_sqrtC, projPt_e_pg, sqrtC, optimize='optimal')
-        projM_e_pg = np.einsum(f'{ind}ij,epjk,{ind}kl->epil', inv_sqrtC, projMt_e_pg, sqrtC, optimize='optimal')
+        projP_e_pg = inv_sqrtC @ projPt_e_pg @ sqrtC
+        projM_e_pg = inv_sqrtC @ projMt_e_pg @ sqrtC
 
         tic.Tac("Split",f"proj Tild to proj", False)
 
-        if material.isHeterogeneous:
-            cP_e_pg = np.einsum(f'{ind}ij,epjk->epik', C, projP_e_pg, optimize='optimal')
-            cM_e_pg = np.einsum(f'{ind}ij,epjk->epik', C, projM_e_pg, optimize='optimal')
-
-        else:
-            # cP_e_pg = sqrtC @ (projPt_e_pg @ sqrtC)
-            # cM_e_pg = sqrtC @ (projMt_e_pg @ sqrtC)
-            cP_e_pg = C @ projP_e_pg
-            cM_e_pg = C @ projM_e_pg
-
-            # test_cP = sqrtC @ (projPt_e_pg @ sqrtC) - C @ projP_e_pg
-            # test_cP = sqrtC @ (projMt_e_pg @ sqrtC) - C @ projM_e_pg
+        cP_e_pg = C @ projP_e_pg
+        cM_e_pg = C @ projM_e_pg
 
         tic.Tac("Split",f"cP_e_pg and cM_e_pg", False)
 
         if verif:
 
             vector_e_pg = Epsilon_e_pg.copy()
-            mat = C.copy()            
-            vectorP = np.einsum('epij,epj->epi', projP_e_pg, vector_e_pg, optimize='optimal')
-            vectorM = np.einsum('epij,epj->epi', projM_e_pg, vector_e_pg, optimize='optimal')
+
+            vectorP = projP_e_pg @ vector_e_pg
+            vectorM = projM_e_pg @ vector_e_pg
 
             # Check orthogonality E+:C:E-
-            ortho_vP_vM = np.abs(np.einsum('epi,ij,epj->ep',vectorP, mat, vectorM, optimize='optimal'))
-            ortho_vM_vP = np.abs(np.einsum('epi,ij,epj->ep',vectorM, mat, vectorP, optimize='optimal'))
-            ortho_v_v = np.abs(np.einsum('epi,ij,epj->ep', vector_e_pg, mat, vector_e_pg, optimize='optimal'))
+            mat = C.copy()
+            ortho_vP_vM = np.abs(vectorP @ mat @ vectorM)
+            ortho_vM_vP = np.abs(vectorM @ mat @ vectorP)
+            ortho_v_v = np.abs(vector_e_pg @ mat @ vector_e_pg)
             if np.min(ortho_v_v) > 0:
                 vertifOrthoEpsPM = np.max(ortho_vP_vM/ortho_v_v)
                 assert vertifOrthoEpsPM < 1e-12
@@ -806,13 +745,13 @@ class PhaseField(_IModel):
             
             # Check that vector_e_pg = vectorP_e_pg + vectorM_e_pg
             diff_vect = vector_e_pg - (vectorP + vectorM)
-            if np.min(np.linalg.norm(vector_e_pg, axis=-1)) > 0:
-                test_vect = np.linalg.norm(diff_vect, axis=-1) / np.linalg.norm(vector_e_pg, axis=-1)
+            if np.min(Norm(vector_e_pg, axis=-1)) > 0:
+                test_vect = Norm(diff_vect, axis=-1) / Norm(vector_e_pg, axis=-1)
                 assert np.max(test_vect) < tol, f"{np.max(test_vect):.3e}"
 
         return cP_e_pg, cM_e_pg
 
-    def _Eigen_values_vectors_projectors(self, vector_e_pg: np.ndarray, verif=False) -> tuple[np.ndarray, list[np.ndarray], list[np.ndarray]]:
+    def _Eigen_values_vectors_projectors(self, vector_e_pg: FeArray, verif=False) -> tuple[FeArray, list[FeArray], list[FeArray]]:
         """Computes the eigen values and eigen projectors of a second-order tensor (as a vector)."""
 
         dim = self.__material.dim
@@ -823,7 +762,7 @@ class PhaseField(_IModel):
         tic = Tic()
 
         # Initialize the second-order tensor [e,pg,dim,dim]
-        matrix_e_pg = np.zeros((Ne,nPg,dim,dim))
+        matrix_e_pg = FeArray(np.zeros((Ne,nPg,dim,dim), dtype=float))
         for d in range(dim):
             matrix_e_pg[:,:,d,d] = vector_e_pg[:,:,d]
 
@@ -844,47 +783,39 @@ class PhaseField(_IModel):
             matrix_e_pg[:,:,0,1] = vector_e_pg[:,:,5]/coef
             matrix_e_pg[:,:,1,0] = vector_e_pg[:,:,5]/coef
 
-            matrix_e_pg = 1/2 * (matrix_e_pg.transpose((0,1,3,2)) + matrix_e_pg)
-
-            pass
+            matrix_e_pg = 1/2 * (matrix_e_pg.T + matrix_e_pg)
 
         tic.Tac("Split", "vector_e_pg -> matrix_e_pg", False)
 
-        normalize = lambda M: np.einsum('epij,ep->epij', M, 1/np.linalg.norm(M, axis=(-2,-1)), optimize='optimal')
+        normalize = lambda M: M / Norm(M, axis=(-2,-1))
 
         if self.dim == 2:
             # invariants of the strain tensor [e,pg]
+            det_e_pg = Det(matrix_e_pg)
 
-            a_e_pg = matrix_e_pg[:,:,0,0]
-            b_e_pg = matrix_e_pg[:,:,0,1]
-            c_e_pg = matrix_e_pg[:,:,1,0]
-            d_e_pg = matrix_e_pg[:,:,1,1]
-            det_e_pg = (a_e_pg*d_e_pg)-(c_e_pg*b_e_pg)
-
-            tr_e_pg = np.trace(matrix_e_pg, axis1=-2, axis2=-1)
+            tr_e_pg = Trace(matrix_e_pg)
 
             # Eigenvalue calculations [e,pg]
             delta = tr_e_pg**2 - (4*det_e_pg)
-            eigs_e_pg = np.zeros((Ne, nPg, 2))
+                        
+            eigs_e_pg = FeArray(np.zeros((Ne, nPg, 2)))
             eigs_e_pg[:,:,0] = (tr_e_pg - np.sqrt(delta))/2
             eigs_e_pg[:,:,1] = (tr_e_pg + np.sqrt(delta))/2
 
             tic.Tac("Split", "Eigenvalues", False)
             
             # m1 = (matrice_e_pg - v2*I)/(v1-v2)
-            v2I = np.einsum('ep,ij->epij', eigs_e_pg[:,:,1], np.eye(2), optimize='optimal')
             v1_m_v2 = eigs_e_pg[:,:,0] - eigs_e_pg[:,:,1]
             
             # element identification and gauss points where vp1 != vp2
-            # elems, pdgs = np.where(v1_m_v2 != 0)
             elems, pdgs = np.where(eigs_e_pg[:,:,0] != eigs_e_pg[:,:,1])
             
             # m1 and m2 [e,pg,dim,dim]
-            M1 = np.zeros((Ne,nPg,2,2))
+            M1 = FeArray(np.zeros((Ne,nPg,2,2)))
             M1[:,:,0,0] = 1
             if elems.size > 0:
                 v1_m_v2[v1_m_v2==0] = 1 # to avoid dividing by 0
-                m1_tot = np.einsum('epij,ep->epij', matrix_e_pg-v2I, 1/v1_m_v2, optimize='optimal')
+                m1_tot = (matrix_e_pg - eigs_e_pg[:,:,1] * np.eye(2) ) / v1_m_v2
                 M1[elems, pdgs] = m1_tot[elems, pdgs]
             M2 = np.eye(2) - M1
 
@@ -900,7 +831,7 @@ class PhaseField(_IModel):
 
                 tic.Tac("Split", "np.linalg.eigh", False)
 
-                func_Mi = lambda mi: np.einsum('epi,epj->epij', mi, mi, optimize='optimal')
+                func_Mi = lambda mi: TensorProd(mi, mi, ndim=1)
 
                 M1 = func_Mi(vectnum[:,:,:,0])
                 M2 = func_Mi(vectnum[:,:,:,1])
@@ -914,17 +845,13 @@ class PhaseField(_IModel):
 
                 # [Q.-C. He Closed-form coordinate-free]
 
-                a11_e_pg = matrix_e_pg[:,:,0,0]; a12_e_pg = matrix_e_pg[:,:,0,1]; a13_e_pg = matrix_e_pg[:,:,0,2]
-                a21_e_pg = matrix_e_pg[:,:,1,0]; a22_e_pg = matrix_e_pg[:,:,1,1]; a23_e_pg = matrix_e_pg[:,:,1,2]
-                a31_e_pg = matrix_e_pg[:,:,2,0]; a32_e_pg = matrix_e_pg[:,:,2,1]; a33_e_pg = matrix_e_pg[:,:,2,2]
-
-                det_e_pg = a11_e_pg * ((a22_e_pg*a33_e_pg)-(a32_e_pg*a23_e_pg)) - a12_e_pg * ((a21_e_pg*a33_e_pg)-(a31_e_pg*a23_e_pg)) + a13_e_pg * ((a21_e_pg*a32_e_pg)-(a31_e_pg*a22_e_pg))
+                det_e_pg = Det(matrix_e_pg)
                 # det_e_pg = np.linalg.det(matrix_e_pg)
                 # test_det = det_e_pg - np.linalg.det(matrix_e_pg) 
 
                 # Invariants
-                I1_e_pg = np.trace(matrix_e_pg, axis1=-2, axis2=-1)
-                trace_mat_mat = np.trace(matrix_e_pg @ matrix_e_pg, axis1=-2, axis2=-1)
+                I1_e_pg = Trace(matrix_e_pg)
+                trace_mat_mat = Trace(matrix_e_pg @ matrix_e_pg)
                 # test_trace = np.einsum('epii->ep', mat_mat, optimize='optimal') - trace_mat_mat
                 I2_e_pg = 1/2 * (I1_e_pg**2 - trace_mat_mat)
                 I3_e_pg = det_e_pg
@@ -964,7 +891,7 @@ class PhaseField(_IModel):
                 I_e_pg = np.zeros_like(matrix_e_pg)
                 I_e_pg[:,:,0,0] = 1; I_e_pg[:,:,1,1] = 1; I_e_pg[:,:,2,2] = 1
 
-                I_rg = 1/3 * np.einsum('ep,ij->epij', I1_e_pg - g_e_pg**(1/2), np.eye(3), optimize='optimal')
+                I_rg = 1/3 * ((I1_e_pg - g_e_pg**(1/2)) * np.eye(3))
 
                 # -------------------------------------
                 # 2. Two maximum eigenvalues
@@ -982,7 +909,7 @@ class PhaseField(_IModel):
                     val2_e_pg[case2,:] += 1/3 * g_e_pg[case2,:]**(1/2) 
                     val3_e_pg[case2,:] += 1/3 * g_e_pg[case2,:]**(1/2)
 
-                    M1[case2,:] = np.einsum('ep,epij->epij', g_e_pg[case2,:]**(-1/2), (I_rg - matrix_e_pg)[case2,:], optimize='optimal')
+                    M1[case2,:] = g_e_pg[case2,:]**(-1/2) * (I_rg - matrix_e_pg)[case2,:]
                     # M2[case2,:] = 1/2 * (I_e_pg - M1)[case2,:]
                     M3[case2,:] = 1/2 * (I_e_pg - M1)[case2,:]
 
@@ -1004,7 +931,7 @@ class PhaseField(_IModel):
                     val2_e_pg[case3,:] += - 1/3 * g_e_pg[case3,:]**(1/2) 
                     val3_e_pg[case3,:] += 2/3 * g_e_pg[case3,:]**(1/2)
 
-                    M3[case3,:] = np.einsum('ep,epij->epij', g_e_pg[case3,:]**(-1/2), (matrix_e_pg - I_rg)[case3,:], optimize='optimal')
+                    M3[case3,:] = g_e_pg[case3,:]**(-1/2) * (matrix_e_pg - I_rg)[case3,:]
                     # M1[case3,:] = 1/2 * (I_e_pg - M3)[case3,:]
                     M2[case3,:] = 1/2 * (I_e_pg - M3)[case3,:]
 
@@ -1027,29 +954,20 @@ class PhaseField(_IModel):
                     val2_e_pg[case1,:] += (2/3 * g_e_pg**(1/2) * np.cos(2*np.pi/3 - theta))[case1,:]
                     val3_e_pg[case1,:] += (2/3 * g_e_pg**(1/2) * np.cos(theta))[case1,:]
 
-                    e1_I = np.einsum('ep,ij->epij', val1_e_pg, np.eye(3), optimize='optimal')
-                    e2_I = np.einsum('ep,ij->epij', val2_e_pg, np.eye(3), optimize='optimal')
-                    e3_I = np.einsum('ep,ij->epij', val3_e_pg, np.eye(3), optimize='optimal')
+                    e1_I = val1_e_pg * np.eye(3)
+                    e2_I = val2_e_pg * np.eye(3)
+                    e3_I = val3_e_pg * np.eye(3)
 
-                    # returns A/a                    
-                    get_Mb = lambda A, a: np.einsum('epij,ep->epij', A[case1,:], 1/a[case1,:], optimize='optimal')
-                    
-                    # M1[case1,:] = get_Mb(matrix_e_pg - e2_I, val1_e_pg - val2_e_pg) @ get_Mb(matrix_e_pg - e3_I, val1_e_pg - val3_e_pg)
-                    # # M2[case1,:] = get_Mb(matrix_e_pg - e1_I, val2_e_pg - val1_e_pg) @ get_Mb(matrix_e_pg - e3_I, val2_e_pg - val3_e_pg)
-                    # M3[case1,:] = get_Mb(matrix_e_pg - e1_I, val3_e_pg - val1_e_pg) @ get_Mb(matrix_e_pg - e2_I, val3_e_pg - val2_e_pg)
-
-                    # same as
-
-                    M1[case1,:] = get_Mb((matrix_e_pg - e2_I) @ (matrix_e_pg - e3_I), (val1_e_pg - val2_e_pg) * (val1_e_pg - val3_e_pg))
-                    # M2[case1,:] = get_Mb((matrix_e_pg - e1_I) @ (matrix_e_pg - e3_I), (val2_e_pg - val1_e_pg) * (val2_e_pg - val3_e_pg))
-                    M3[case1,:] = get_Mb((matrix_e_pg - e1_I) @ (matrix_e_pg - e2_I), (val3_e_pg - val1_e_pg) * (val3_e_pg - val2_e_pg))
+                    M1[case1,:] = ((matrix_e_pg - e2_I) @ (matrix_e_pg - e3_I)) / ((val1_e_pg - val2_e_pg) * (val1_e_pg - val3_e_pg))
+                    # M2[case1,:] = (matrix_e_pg - e1_I) @ (matrix_e_pg - e3_I) / ((val2_e_pg - val1_e_pg) * (val2_e_pg - val3_e_pg))
+                    M3[case1,:] = (matrix_e_pg - e1_I) @ (matrix_e_pg - e2_I) / ((val3_e_pg - val1_e_pg) * (val3_e_pg - val2_e_pg))
 
                     tic.Tac("Split", "proj case 1", False)
 
                 # -------------------------------------
                 # merge values in eigs_e_pg
                 # -------------------------------------
-                eigs_e_pg = np.zeros((Ne, nPg, 3))
+                eigs_e_pg = FeArray(np.zeros((Ne, nPg, 3)))
                 eigs_e_pg[:,:,0] = val1_e_pg
                 eigs_e_pg[:,:,1] = val2_e_pg
                 eigs_e_pg[:,:,2] = val3_e_pg                
@@ -1058,7 +976,7 @@ class PhaseField(_IModel):
                 # M2 = normalize(M2)
                 M3 = normalize(M3)
 
-                M2 = I_e_pg - (M1 + M3)
+                M2 = FeArray(I_e_pg - (M1 + M3))
 
                 # M1 = I_e_pg - (M2 + M3)
 
@@ -1067,7 +985,7 @@ class PhaseField(_IModel):
         # transform eigenbases in the form of a vector [e,pg,3] or [e,pg,6].
         if dim == 2:
             # [x, y, xy]
-            m1 = np.zeros((Ne,nPg,3)); m2 = np.zeros_like(m1)
+            m1 = FeArray(np.zeros((Ne,nPg,3))); m2 = np.zeros_like(m1)
             m1[:,:,0] = M1[:,:,0,0];   m2[:,:,0] = M2[:,:,0,0]
             m1[:,:,1] = M1[:,:,1,1];   m2[:,:,1] = M2[:,:,1,1]            
             m1[:,:,2] = M1[:,:,0,1]*coef;   m2[:,:,2] = M2[:,:,0,1]*coef
@@ -1078,7 +996,7 @@ class PhaseField(_IModel):
 
         elif dim == 3:
             # [x, y, z, yz, xz, xy]
-            m1 = np.zeros((Ne,nPg,6)); m2 = np.zeros_like(m1);  m3 = np.zeros_like(m1)
+            m1 = FeArray(np.zeros((Ne,nPg,6))); m2 = np.zeros_like(m1);  m3 = np.zeros_like(m1)
             m1[:,:,0] = M1[:,:,0,0];   m2[:,:,0] = M2[:,:,0,0]; m3[:,:,0] = M3[:,:,0,0] # x
             m1[:,:,1] = M1[:,:,1,1];   m2[:,:,1] = M2[:,:,1,1]; m3[:,:,1] = M3[:,:,1,1] # y
             m1[:,:,2] = M1[:,:,2,2];   m2[:,:,2] = M2[:,:,2,2]; m3[:,:,2] = M3[:,:,2,2] # z
@@ -1096,40 +1014,41 @@ class PhaseField(_IModel):
         if verif:
             
             valnum, vectnum = np.linalg.eigh(matrix_e_pg)
+            valnum = FeArray(valnum)
+            vectnum = FeArray(vectnum)
 
-            func_Mi = lambda mi: np.einsum('epi,epj->epij', mi, mi, optimize='optimal')
-            func_ep_epij = lambda ep, epij : np.einsum('ep,epij->epij', ep, epij, optimize='optimal')            
+            func_Mi = lambda mi: TensorProd(mi, mi, ndim=1)
 
             M1_num = func_Mi(vectnum[:,:,:,0]); M1_num = normalize(M1_num)
             M2_num = func_Mi(vectnum[:,:,:,1]); M2_num = normalize(M2_num)
 
-            matrix = func_ep_epij(eigs_e_pg[:,:,0], M1) + func_ep_epij(eigs_e_pg[:,:,1], M2)
-            matrix_eig = func_ep_epij(valnum[:,:,0], M1_num) + func_ep_epij(valnum[:,:,1], M2_num)
+            matrix = eigs_e_pg[:,:,0] * M1 + eigs_e_pg[:,:,1] * M2
+            matrix_eig = valnum[:,:,0] * M1_num + valnum[:,:,1] * M2_num
             
             if dim == 3:
                 M3_num = func_Mi(vectnum[:,:,:,2]); M3_num = normalize(M3_num)
-                matrix += func_ep_epij(eigs_e_pg[:,:,2], M3)
-                matrix_eig += func_ep_epij(valnum[:,:,2], M3_num)
+                matrix += eigs_e_pg[:,:,2] * M3
+                matrix_eig += valnum[:,:,2] * M3_num
 
             # check if the eigen values are correct
             if valnum.max() > 0:
                 diff_val = eigs_e_pg - valnum                    
-                test_val = np.linalg.norm(diff_val, axis=-1)/np.linalg.norm(valnum, axis=-1)
+                test_val = Norm(diff_val, axis=-1)/Norm(valnum, axis=-1)
                 assert np.max(test_val) < 1e-12, f"Error in eigenvalues ({np.max(test_val):.3e})."
 
             # Check that: E1*M1 + E2*M2 + E3*M3
             if matrix_e_pg.max() > 0:
                 # matrix
                 diff_matrix = matrix - matrix_e_pg
-                test_diff = np.linalg.norm(diff_matrix, axis=(-2,-1))/np.linalg.norm(matrix_e_pg, axis=(-2,-1))
+                test_diff = Norm(diff_matrix, axis=(-2,-1))/Norm(matrix_e_pg, axis=(-2,-1))
                 assert np.max(test_diff) < 1e-12, f"matrix != matrix_e_pg -> {np.max(test_diff):.3e}"                
                 # matrix_eig
                 diff_matrix_eig = matrix_eig - matrix_e_pg
-                test_diff_eig = np.linalg.norm(diff_matrix_eig, axis=(-2,-1))/np.linalg.norm(matrix_e_pg, axis=(-2,-1))
+                test_diff_eig = Norm(diff_matrix_eig, axis=(-2,-1))/Norm(matrix_e_pg, axis=(-2,-1))
                 assert np.max(test_diff_eig) < 1e-12, f"matrix != matrix_e_pg -> {np.max(test_diff_eig):.3e}"
 
             if np.max(matrix) > 0:
-                test_eig = np.linalg.norm(matrix_eig - matrix, axis=(-2,-1))/np.linalg.norm(matrix, axis=(-2,-1))
+                test_eig = Norm(matrix_eig - matrix, axis=(-2,-1))/Norm(matrix, axis=(-2,-1))
                 assert np.max(test_eig) < 1e-12, f"matrix_eig != matrix -> {np.max(test_eig):.3e}"
 
             # [Remark M]
@@ -1142,7 +1061,7 @@ class PhaseField(_IModel):
             
             def Checks_Ma(Ma, Mb, tol=tol):
                 diff_M = Ma - Mb
-                test_M = np.linalg.norm(diff_M, axis=(-2,-1))/np.linalg.norm(Ma, axis=(-2,-1))
+                test_M = Norm(diff_M, axis=(-2,-1))/Norm(Ma, axis=(-2,-1))
                 assert np.max(test_M) < tol, f"Error in eigenprojectors ({np.max(test_M):.3e})."
 
             Checks_Ma(M1, M1_num)
@@ -1151,20 +1070,20 @@ class PhaseField(_IModel):
                 Checks_Ma(M3, M3_num, 1e-12)
 
             # check orthogonality between M1 and M2
-            test_M1_M2 = np.abs(np.einsum('epij,epij->ep', M1, M2, optimize='optimal'))
+            test_M1_M2 = np.abs(M1.ddot(M2))
             assert np.max(test_M1_M2) < tol, f"Orthogonality M1 : M2 not verified -> {np.max(test_M1_M2):.3e}"
 
             if dim == 3:
                 # check orthogonality between M1 and M3
-                test_M1_M3 = np.abs(np.einsum('epij,epij->ep', M1, M3, optimize='optimal'))
+                test_M1_M3 = np.abs(M1.ddot(M3))
                 assert np.max(test_M1_M3) < 1e-12, f"Orthogonality M1 : M3 not verified -> {np.max(test_M1_M3):.3e}"
                 # check orthogonality between M2 and M3
-                test_M2_M3 = np.abs(np.einsum('epij,epij->ep', M2, M3, optimize='optimal'))
+                test_M2_M3 = np.abs(M2.ddot(M3))
                 assert np.max(test_M2_M3) < 1e-12, f"Orthogonality M2 : M3 not verified -> {np.max(test_M2_M3):.3e}"
 
         return eigs_e_pg, list_m, list_M
     
-    def __Spectral_Decomposition(self, vector_e_pg: np.ndarray, verif=False):
+    def __Spectral_Decomposition(self, vector_e_pg: FeArray, verif=False) -> tuple[FeArray, FeArray]:
         """Computes spectral projectors projP and projM such that:\n
 
         In 2D:
@@ -1210,46 +1129,33 @@ class PhaseField(_IModel):
             m1, m2 = list_m[0], list_m[1]
 
             # elements and pdgs where eigenvalues 1 and 2 are different
-            elems, pdgs = np.where(val_e_pg[:,:,0] != val_e_pg[:,:,1])
-
-            v1_m_v2 = val_e_pg[:,:,0] - val_e_pg[:,:,1] # val1 - val2
+            v1_m_v2 = val_e_pg[...,0] - val_e_pg[...,1] # val1 - val2
+            v1_m_v2[v1_m_v2 == 0] = 1
 
             # compute BetaP [e,pg,1].
             # Caution: make sure you put a copy here, otherwise the Beta modification will change dvalp at the same time!
-            BetaP = dvalp[:,:,0].copy()
-            BetaP[elems,pdgs] = (valp[elems,pdgs,0]-valp[elems,pdgs,1])/v1_m_v2[elems,pdgs]
+            BetaP = dvalp[...,0].copy()
+            BetaP = (valp[...,0] - valp[...,1]) / v1_m_v2
             
             # compute BetaM [e,pg,1].
-            BetaM = dvalm[:,:,0].copy()
-            BetaM[elems,pdgs] = (valm[elems,pdgs,0]-valm[elems,pdgs,1])/v1_m_v2[elems,pdgs]
+            BetaM = dvalm[...,0].copy()
+            BetaM = (valm[...,0] - valm[...,1]) / v1_m_v2
             
             # compute gammap and gammam
-            gammap = dvalp - np.repeat(BetaP.reshape((Ne,nPg,1)),2, axis=2)
-            gammam = dvalm - np.repeat(BetaM.reshape((Ne,nPg,1)), 2, axis=2)
+            gammap = dvalp - BetaP
+            gammam = dvalm - BetaM
 
             tic.Tac("Split", "Betas and gammas", False)
 
-            if useNumba:
-                # Faster
-                projP, projM = Numba.Get_projP_projM_2D(BetaP, gammap, BetaM, gammam, m1, m2)
+            # compute mixmi [e,pg,3,3] or [e,pg,6,6].
+            m1xm1 = TensorProd(m1, m1, ndim=1)
+            m2xm2 = TensorProd(m2, m2, ndim=1)
 
-            else:
-                # compute mixmi [e,pg,3,3] or [e,pg,6,6].
-                m1xm1 = np.einsum('epi,epj->epij', m1, m1, optimize='optimal')
-                m2xm2 = np.einsum('epi,epj->epij', m2, m2, optimize='optimal')
+            # Projector P such that EpsP = projP • Eps
+            projP = (BetaP * np.eye(3)) + (gammap[...,0] * m1xm1) + (gammap[...,1] * m2xm2)
 
-                matriceI = np.eye(3)
-                # Projector P such that EpsP = projP • Eps
-                BetaP_x_matriceI = np.einsum('ep,ij->epij', BetaP, matriceI, optimize='optimal')
-                gamma1P_x_m1xm1 = np.einsum('ep,epij->epij', gammap[:,:,0], m1xm1, optimize='optimal')
-                gamma2P_x_m2xm2 = np.einsum('ep,epij->epij', gammap[:,:,1], m2xm2, optimize='optimal')
-                projP = BetaP_x_matriceI + gamma1P_x_m1xm1 + gamma2P_x_m2xm2
-
-                # Projector M such that EpsM = projM • Eps
-                BetaM_x_matriceI = np.einsum('ep,ij->epij', BetaM, matriceI, optimize='optimal')
-                gamma1M_x_m1xm1 = np.einsum('ep,epij->epij', gammam[:,:,0], m1xm1, optimize='optimal')
-                gamma2M_x_m2xm2 = np.einsum('ep,epij->epij', gammam[:,:,1], m2xm2, optimize='optimal')
-                projM = BetaM_x_matriceI + gamma1M_x_m1xm1 + gamma2M_x_m2xm2
+            # Projector M such that EpsM = projM • Eps
+            projM = (BetaM * np.eye(3)) + (gammam[...,0] * m1xm1) + (gammam[...,1] * m2xm2)
 
             tic.Tac("Split", "projP and projM", False)
 
@@ -1263,22 +1169,17 @@ class PhaseField(_IModel):
             thetap = dvalp.copy()/2
             thetam = dvalm.copy()/2
 
-            funcFiltreComp = lambda vi, vj: vi != vj
-            
-            elems, pdgs = np.where(funcFiltreComp(val_e_pg[:,:,0], val_e_pg[:,:,1]))
-            v1_m_v2 = val_e_pg[elems,pdgs,0]-val_e_pg[elems,pdgs,1]
-            thetap[elems, pdgs, 0] = (valp[elems,pdgs,0]-valp[elems,pdgs,1])/(2*v1_m_v2)
-            thetam[elems, pdgs, 0] = (valm[elems,pdgs,0]-valm[elems,pdgs,1])/(2*v1_m_v2)
+            v1_m_v2 = val_e_pg[...,0] - val_e_pg[...,1]; v1_m_v2[v1_m_v2 == 0]=1
+            thetap[...,0] = (valp[...,0] - valp[...,1]) / (2*v1_m_v2)
+            thetam[...,0] = (valm[...,0] - valm[...,1]) / (2*v1_m_v2)
 
-            elems, pdgs = np.where(funcFiltreComp(val_e_pg[:,:,0], val_e_pg[:,:,2]))
-            v1_m_v3 = val_e_pg[elems,pdgs,0]-val_e_pg[elems,pdgs,2]
-            thetap[elems, pdgs, 1] = (valp[elems,pdgs,0]-valp[elems,pdgs,2])/(2*v1_m_v3)
-            thetam[elems, pdgs, 1] = (valm[elems,pdgs,0]-valm[elems,pdgs,2])/(2*v1_m_v3)
+            v1_m_v3 = val_e_pg[...,0] - val_e_pg[...,2]; v1_m_v3[v1_m_v3 == 0]=1
+            thetap[...,1] = (valp[...,0] - valp[...,2]) / (2*v1_m_v3)
+            thetam[...,1] = (valm[...,0] - valm[...,2]) / (2*v1_m_v3)
 
-            elems, pdgs = np.where(funcFiltreComp(val_e_pg[:,:,1], val_e_pg[:,:,2]))
-            v2_m_v3 = val_e_pg[elems,pdgs,1]-val_e_pg[elems,pdgs,2]
-            thetap[elems, pdgs, 2] = (valp[elems,pdgs,1]-valp[elems,pdgs,2])/(2*v2_m_v3)
-            thetam[elems, pdgs, 2] = (valm[elems,pdgs,1]-valm[elems,pdgs,2])/(2*v2_m_v3)
+            v2_m_v3 = val_e_pg[...,1] - val_e_pg[...,2]; v2_m_v3[v2_m_v3 == 0]=1
+            thetap[...,2] = (valp[...,1] - valp[...,2]) / (2*v2_m_v3)
+            thetam[...,2] = (valm[...,1] - valm[...,2]) / (2*v2_m_v3)
 
             tic.Tac("Split", "thetap and thetam", False)
 
@@ -1300,8 +1201,8 @@ class PhaseField(_IModel):
 
                     Gij = np.zeros((Ne, nPg, 6, 6))
 
-                    part1 = lambda Ma, Mb: np.einsum('epik,epjl->epijkl', Ma, Mb, optimize='optimal')
-                    part2 = lambda Ma, Mb: np.einsum('epil,epjk->epijkl', Ma, Mb, optimize='optimal')
+                    part1 = lambda Ma, Mb: np.einsum('...ik,...jl->...ijkl', Ma, Mb, optimize='optimal')
+                    part2 = lambda Ma, Mb: np.einsum('...il,...jk->...ijkl', Ma, Mb, optimize='optimal')
 
                     Gijkl = part1(Ma, Mb) + part2(Ma, Mb) + part1(Mb, Ma) + part2(Mb, Ma)
 
@@ -1326,7 +1227,7 @@ class PhaseField(_IModel):
                     Gij[:,:,3:6,:3] = Gij[:,:,3:6,:3] * coef
                     Gij[:,:,3:6,3:6] = Gij[:,:,3:6,3:6] * 2
 
-                    return Gij
+                    return FeArray(Gij)
 
                 G12 = __Construction_Gij(M1, M2)
                 G13 = __Construction_Gij(M1, M3)
@@ -1334,29 +1235,29 @@ class PhaseField(_IModel):
 
                 tic.Tac("Split", "Gab", False)
 
-                m1xm1 = np.einsum('epi,epj->epij', m1, m1, optimize='optimal')
-                m2xm2 = np.einsum('epi,epj->epij', m2, m2, optimize='optimal')
-                m3xm3 = np.einsum('epi,epj->epij', m3, m3, optimize='optimal')
+                m1xm1 = TensorProd(m1, m1, ndim=1)
+                m2xm2 = TensorProd(m2, m2, ndim=1)
+                m3xm3 = TensorProd(m3, m3, ndim=1)
 
                 tic.Tac("Split", "mixmi", False)
 
-                func = lambda ep, epij: np.einsum('ep,epij->epij', ep, epij, optimize='optimal')
-                # func = lambda ep, epij: ep[:,:,np.newaxis,np.newaxis].repeat(epij.shape[2], axis=2).repeat(epij.shape[3], axis=3) * epij
-
-                projP = func(dvalp[:,:,0], m1xm1) + func(dvalp[:,:,1], m2xm2) + func(dvalp[:,:,2], m3xm3) + func(thetap[:,:,0], G12) + func(thetap[:,:,1], G13) + func(thetap[:,:,2], G23)
-                projM = func(dvalm[:,:,0], m1xm1) + func(dvalm[:,:,1], m2xm2) + func(dvalm[:,:,2], m3xm3) + func(thetam[:,:,0], G12) + func(thetam[:,:,1], G13) + func(thetam[:,:,2], G23)
+                projP = (dvalp[:,:,0] * m1xm1) + (dvalp[:,:,1] * m2xm2) + (dvalp[:,:,2] * m3xm3) \
+                      + (thetap[:,:,0] * G12) + (thetap[:,:,1] * G13) + (thetap[:,:,2] * G23)
+                
+                projM = (dvalm[:,:,0] * m1xm1) + (dvalm[:,:,1] * m2xm2) + (dvalm[:,:,2] * m3xm3) \
+                      + (thetam[:,:,0] * G12) + (thetam[:,:,1] * G13) + (thetam[:,:,2] * G23)
 
             tic.Tac("Split", "projP and projM", False)
 
         if verif:
 
-            vectorP = np.einsum('epij,epj->epi', projP, vector_e_pg, optimize='optimal')
-            vectorM = np.einsum('epij,epj->epi', projM, vector_e_pg, optimize='optimal')
+            vectorP = projP @ vector_e_pg
+            vectorM = projM @ vector_e_pg
 
             # check orthogonality
-            ortho_vP_vM = np.abs(np.einsum('epi,epi->ep', vectorP, vectorM, optimize='optimal'))
-            ortho_vM_vP = np.abs(np.einsum('epi,epi->ep', vectorM, vectorP, optimize='optimal'))
-            ortho_v_v = np.abs(np.einsum('epi,epi->ep', vector_e_pg, vector_e_pg, optimize='optimal'))
+            ortho_vP_vM = np.abs(vectorP @ vectorM)
+            ortho_vM_vP = np.abs(vectorM @ vectorP)
+            ortho_v_v = np.abs(vector_e_pg @ vector_e_pg)
             if np.min(ortho_v_v) > 0:
                 verif_PM = np.max(ortho_vP_vM/ortho_v_v)
                 assert verif_PM <= 1e-12, f"{verif_PM:.3e}"
@@ -1367,10 +1268,10 @@ class PhaseField(_IModel):
             diff_vect = vector_e_pg - (vectorP + vectorM)
 
             # Rounding errors in the construction of 3D eigen projectors see [Remark M]
-            tol = 1e-12 if dim == 2 else 1e-10
+            tol = 1e-12 if dim == 2 else 1e-11
 
-            if np.max(np.linalg.norm(vector_e_pg, axis=-1)) > 0:                
-                test_vect = np.linalg.norm(diff_vect, axis=-1)/np.linalg.norm(vector_e_pg, axis=-1)
+            if np.max(Norm(vector_e_pg, axis=-1)) > 0:                
+                test_vect = Norm(diff_vect, axis=-1)/Norm(vector_e_pg, axis=-1)
                 assert np.max(test_vect) < tol, f"vector_e_pg != vectorP_e_pg + vectorM_e_pg -> {np.max(test_vect):.3e}"
             
         return projP, projM

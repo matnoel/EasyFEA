@@ -20,7 +20,7 @@ from typing import Callable # add Iterable ?
 from ..utilities import Display, Tic
 from ..utilities._observers import Observable
 # fem
-from ._utils import ElemType, MatrixType
+from ._utils import ElemType, MatrixType, FeArray
 from ._group_elems import _GroupElem
 # others
 from ..Geoms import Point, Line, Domain, Circle
@@ -371,7 +371,7 @@ class Mesh(Observable):
         """Returns integration points according to the matrix type."""
         return self.groupElem.Get_gauss(matrixType).weights
 
-    def Get_jacobian_e_pg(self, matrixType: MatrixType, absoluteValues=True) -> np.ndarray:
+    def Get_jacobian_e_pg(self, matrixType: MatrixType, absoluteValues=True) -> FeArray:
         """Returns the jacobians\n
         variation in size (length, area or volume) between the reference element and the real element
         """
@@ -392,7 +392,7 @@ class Mesh(Observable):
         """
         return self.groupElem.Get_N_pg_rep(matrixType, self.__dim)
 
-    def Get_dN_e_pg(self, matrixType: MatrixType) -> np.ndarray:
+    def Get_dN_e_pg(self, matrixType: MatrixType) -> FeArray:
         """Evaluates the first-order derivatives of shape functions in (x,y,z) coordinates.\n
         [Ni,x . . . Nn,x\n
         Ni,y ... Nn,y]\n
@@ -400,7 +400,7 @@ class Mesh(Observable):
         """
         return self.groupElem.Get_dN_e_pg(matrixType)
 
-    def Get_ddN_e_pg(self, matrixType: MatrixType) -> np.ndarray:
+    def Get_ddN_e_pg(self, matrixType: MatrixType) -> FeArray:
         """Evaluates the first-order derivatives of shape functions in (x, y, z) coordinates.\n
         [Ni,x . . . Nn,x\n
         Ni,y . . . Nn,y\n
@@ -409,7 +409,7 @@ class Mesh(Observable):
         """
         return self.groupElem.Get_ddN_e_pg(matrixType)
 
-    def Get_B_e_pg(self, matrixType: MatrixType) -> np.ndarray:
+    def Get_B_e_pg(self, matrixType: MatrixType) -> FeArray:
         """Get the matrix used to calculate deformations from displacements.\n
         WARNING: Use Kelvin Mandel Notation\n
         [N1,x 0 . . . Nn,x 0\n
@@ -419,7 +419,7 @@ class Mesh(Observable):
         """
         return self.groupElem.Get_B_e_pg(matrixType)
 
-    def Get_leftDispPart(self, matrixType: MatrixType) -> np.ndarray:
+    def Get_leftDispPart(self, matrixType: MatrixType) -> FeArray:
         """Get the left side of local displacement matrices.\n
         Ku_e = jacobian_e_pg * weight_pg * B_e_pg' * c_e_pg * B_e_pg\n
 
@@ -427,7 +427,7 @@ class Mesh(Observable):
         """
         return self.groupElem.Get_leftDispPart(matrixType)
 
-    def Get_ReactionPart_e_pg(self, matrixType: MatrixType) -> np.ndarray:
+    def Get_ReactionPart_e_pg(self, matrixType: MatrixType) -> FeArray:
         """Get the part that builds the reaction term (scalar).\n
         ReactionPart_e_pg = r_e_pg * jacobian_e_pg * weight_pg * N_pg' * N_pg\n
 
@@ -435,7 +435,7 @@ class Mesh(Observable):
         """
         return self.groupElem.Get_ReactionPart_e_pg(matrixType)
 
-    def Get_DiffusePart_e_pg(self, matrixType: MatrixType) -> np.ndarray:
+    def Get_DiffusePart_e_pg(self, matrixType: MatrixType) -> FeArray:
         """Get the part that builds the diffusion term (scalar).\n
         DiffusePart_e_pg = k_e_pg * jacobian_e_pg * weight_pg * dN_e_pg' * A * dN_e_pg\n
 
@@ -443,7 +443,7 @@ class Mesh(Observable):
         """
         return self.groupElem.Get_DiffusePart_e_pg(matrixType)
 
-    def Get_SourcePart_e_pg(self, matrixType: MatrixType) -> np.ndarray:
+    def Get_SourcePart_e_pg(self, matrixType: MatrixType) -> FeArray:
         """Get the part that builds the source term (scalar).\n
         SourcePart_e_pg = f_e_pg * jacobian_e_pg, weight_pg, N_pg'\n
 
@@ -451,7 +451,7 @@ class Mesh(Observable):
         """
         return self.groupElem.Get_SourcePart_e_pg(matrixType)
 
-    def Get_Gradient_e_pg(self, u: np.ndarray, matrixType=MatrixType.rigi) -> np.ndarray:
+    def Get_Gradient_e_pg(self, u: np.ndarray, matrixType=MatrixType.rigi) -> FeArray:
         """Returns the gradient of the discretized displacement field u as a matrix
         
         Parameters
@@ -463,7 +463,7 @@ class Mesh(Observable):
 
         Returns
         -------
-        np.ndarray
+        FeArray
             grad(u) of shape (Ne, nPg, 3, 3)
 
         dim = 1
@@ -519,7 +519,7 @@ class Mesh(Observable):
             if dim > 2:
                 grad_e_pg[:,p,:,2] = np.einsum("en,end->ed", dzN_e_pg[:,p], u_e_n)
 
-        return grad_e_pg
+        return FeArray(grad_e_pg)
 
     # Nodes recovery
 

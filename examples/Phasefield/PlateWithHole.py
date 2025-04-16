@@ -228,12 +228,12 @@ def DoSimu(split: str, regu: str):
                 plt.figure(axLoad.figure)
                 plt.pause(1e-12)
 
-        force = np.asarray(force)
-        displacement = np.asarray(displacement)
 
         # ----------------------------------------------
         # Saving
         # ----------------------------------------------
+        force = np.asarray(force)
+        displacement = np.asarray(displacement)
         print()
         Simulations.Save_pickle((force, displacement), folder_save, "force-displacement")
         simu.Save(folder_save)
