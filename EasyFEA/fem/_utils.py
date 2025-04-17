@@ -4,6 +4,7 @@
 
 from enum import Enum
 import numpy as np
+from typing import Union
 
 class ElemType(str, Enum):
     """Implemented element types."""
@@ -74,18 +75,17 @@ class MatrixType(str, Enum):
         return [MatrixType.rigi, MatrixType.mass, MatrixType.beam]
 
 class FeArray(np.ndarray):
-    """Finite Element array"""
+    """Finite Element array.\n
+    A finite element array has at least two dimensions).
+    """
 
     def __new__(cls, input_array, addFeAxis=False):
         obj = np.asarray(input_array).view(cls)
         if addFeAxis:
             obj = obj[np.newaxis, np.newaxis]
-        if obj.ndim not in [2, 3, 4, 6] and obj.size != 0:
-            print("The input array dimensions must be one of the following: 2, 3, 4, or 6.")
-            raise Exception()
-            return np.asarray(obj)
-        else:
-            return obj
+        if obj.ndim < 2:
+            raise ValueError("The input array must have at least 2 dimensions.")
+        return obj
 
     def __array_finalize__(self, obj: np.ndarray):
         # This method is automatically called when new instances are created.
@@ -160,43 +160,65 @@ class FeArray(np.ndarray):
             pass
         else:
             type_str = "FeArray" if isinstance(other, FeArray) else "np.array"
-            raise ValueError(
-                f"The {type_str} `other` with shape {shape2} must be either a {self.shape} np.array or a {shape1} FeArray."
-                )
+            raise ValueError(f"The {type_str} `other` with shape {shape2} must be either a {self.shape} np.array or a {shape1} FeArray.")
         
         return array1, array2
 
-    def __add__(self, other):
+    def __add__(self, other) -> Union['FeArray', np.ndarray]:
         # Overload the + operator
         array1, array2 = self.__get_array1_array2(other)
         result = array1 + array2
-        return FeArray(result)
+        return FeArray.asfearray(result)
 
-    def __sub__(self, other):
+    def __sub__(self, other) -> Union['FeArray', np.ndarray]:
         # Overload the - operator
         return self.__add__(-other)
 
-    def __mul__(self, other):
+    def __mul__(self, other) -> Union['FeArray', np.ndarray]:
         # Overload the * operator
         array1, array2 = self.__get_array1_array2(other)
         result = array1 * array2
-        return FeArray(result)
+        return FeArray.asfearray(result)
 
-    def __truediv__(self, other):
+    def __truediv__(self, other) -> Union['FeArray', np.ndarray]:
         # Overload the / operator
         return self.__mul__(1/other)
 
     @property 
-    def T(self):
+    def T(self) -> 'FeArray':
         if self._ndim >= 2:
             idx = self._idx
             subscripts = f"...{idx}->...{idx[::-1]}"
-            res = np.einsum(subscripts, np.asarray(self), optimize="optimal")
-            return FeArray(res)
+            result = np.einsum(subscripts, np.asarray(self), optimize="optimal")
+            return FeArray.asfearray(result)
         else:
             return self.copy()
         
-    def dot(self, other):
+    def __matmul__(self, other) -> Union['FeArray', np.ndarray]:
+
+        ndim1 = self._ndim
+
+        if isinstance(other, FeArray):
+            ndim2 = other._ndim
+        elif isinstance(other, np.ndarray):
+            ndim2 = other.ndim
+        else:
+            raise TypeError("`other` must be either a FeArray or np.ndarray")
+        
+        if ndim1 == ndim2 == 1:
+            result = np.vecdot(self, other)
+        elif ndim1 == ndim2 == 2:
+            result = super().__matmul__(other)
+        elif ndim1 == 1 and ndim2 == 2:
+            result = (self[:,:,np.newaxis,:] @ other)[:,:,0,:]
+        elif ndim1 == 2 and ndim2 == 1:
+            result = (self @ other[:,:,:,np.newaxis])[:,:,:,0]
+        else:
+            result = self.dot(other)
+
+        return FeArray.asfearray(result)
+        
+    def dot(self, other) -> Union['FeArray', np.ndarray]:
         
         ndim1 = self._ndim
         if ndim1 == 0:
@@ -220,34 +242,11 @@ class FeArray(np.ndarray):
         end = str(idx1+idx2).replace(idx1[-1],"")
         subscripts = f"...{idx1},...{idx2}->...{end}"
 
-        res = np.einsum(subscripts, self, other)
-        return FeArray(res)
-
-    def __matmul__(self, other):
-
-        ndim1 = self._ndim
-
-        if isinstance(other, FeArray):
-            ndim2 = other._ndim
-        elif isinstance(other, np.ndarray):
-            ndim2 = other.ndim
-        else:
-            raise TypeError("`other` must be either a FeArray or np.ndarray")
+        result = np.einsum(subscripts, self, other)
         
-        if ndim1 == ndim2 == 1:
-            res = np.vecdot(self, other)
-        elif ndim1 == ndim2 == 2:
-            res = super().__matmul__(other)
-        elif ndim1 == 1 and ndim2 == 2:
-            res = (self[:,:,np.newaxis,:] @ other)[:,:,0,:]
-        elif ndim1 == 2 and ndim2 == 1:
-            res = (self @ other[:,:,:,np.newaxis])[:,:,:,0]
-        else:
-            res = self.dot(other)
+        return FeArray.asfearray(result)
 
-        return res
-
-    def ddot(self, other):
+    def ddot(self, other) -> Union['FeArray', np.ndarray]:
         
         ndim1 = self._ndim
         if ndim1 < 2:
@@ -271,36 +270,34 @@ class FeArray(np.ndarray):
         end = end.replace(idx1[-2],"")
         subscripts = f"...{idx1},...{idx2}->...{end}"
 
-        res = np.einsum(subscripts, self, other)
-        return FeArray(res)
+        result = np.einsum(subscripts, self, other)
+        
+        return FeArray.asfearray(result)
     
-    def _sum(self, *args, **kwargs):
+    def sum(self, *args, **kwargs) -> Union['FeArray', np.ndarray]:
         """`np.sum()` wrapper."""
-        sum = np.asarray(super().sum(*args, **kwargs))
-        if sum.size == 1:
-            return float(sum)
-        else:
-            return sum
+        return FeArray.asfearray(super().sum(*args, **kwargs))
     
-    def _max(self, *args, **kwargs):
+    def max(self, *args, **kwargs) -> Union['FeArray', np.ndarray]:
         """`np.max()` wrapper."""
-        max = np.asarray(super().max(*args, **kwargs))
-        if max.size == 1:
-            return float(max)
-        else:
-            return max
+        return FeArray.asfearray(super().max(*args, **kwargs))
     
-    def _min(self, *args, **kwargs):
+    def min(self, *args, **kwargs) -> Union['FeArray', np.ndarray]:
         """`np.min()` wrapper."""
-        min = np.asarray(super().min(*args, **kwargs))
-        if min.size == 1:
-            return float(min)
+        return FeArray.asfearray(super().min(*args, **kwargs))
+
+    @staticmethod
+    def asfearray(array):
+        array = np.asarray(array)
+        if array.ndim >= 2:
+            return FeArray(array)
         else:
-            return min
+            return array
 
     @staticmethod
     def zeros(*args, dtype=None):
+        return FeArray.asfearray(np.zeros(shape=args, dtype=dtype))
 
-        array = np.zeros(shape=args, dtype=dtype)
-
-        return FeArray(array)
+    @staticmethod
+    def ones(*args, dtype=None):
+        return FeArray.asfearray(np.ones(shape=args, dtype=dtype))

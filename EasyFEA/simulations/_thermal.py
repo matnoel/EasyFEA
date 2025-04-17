@@ -102,7 +102,7 @@ class ThermalSimu(_Simu):
         if thermalModel.isHeterogeneous:
             conduction = Reshape_variable(conduction, *weightedJacobian.shape[:2])
 
-        Kt_e = (conduction * weightedJacobian * dN_e_pg.T @ dN_e_pg)._sum(axis=1)
+        Kt_e = (conduction * weightedJacobian * dN_e_pg.T @ dN_e_pg).sum(axis=1)
 
         # reaction part
         rho = self.rho
@@ -115,7 +115,7 @@ class ThermalSimu(_Simu):
             rho = Reshape_variable(rho, *weightedJacobian.shape[:2])
             heatCapacity = Reshape_variable(heatCapacity, *reactionPart.shape[:2])
 
-        Ct_e = (rho * heatCapacity * reactionPart)._sum(axis=1)
+        Ct_e = (rho * heatCapacity * reactionPart).sum(axis=1)
 
         if self.dim == 2:
             thickness = thermalModel.thickness

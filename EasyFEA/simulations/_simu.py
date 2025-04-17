@@ -335,7 +335,7 @@ class _Simu(_IObserver, ABC):
 
         rho_e_p = Reshape_variable(self.__rho, *weightedJacobian.shape[:2])
         
-        mass = (rho_e_p * weightedJacobian)._sum((0,1))
+        mass = (rho_e_p * weightedJacobian).sum((0,1))
 
         if self.dim == 2:
             mass *= self.model.thickness
@@ -360,7 +360,7 @@ class _Simu(_IObserver, ABC):
         
         mass = self.mass
 
-        center = (rho_e_p * weightedJacobian * coord_e_p / mass)._sum((0,1))
+        center = (rho_e_p * weightedJacobian * coord_e_p / mass).sum((0,1))
 
         if self.dim == 2:
             center *= self.model.thickness

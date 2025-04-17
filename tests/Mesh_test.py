@@ -339,7 +339,7 @@ class TestFeArray:
         # i ij 
         _check_arrays(vector_e_pg.dot(matrix_e_pg), np.einsum("...i,...ij->...j", vector_e_pg, matrix_e_pg))
         # i ijkl
-        _check_ValueError(lambda: vector_e_pg.dot(tensor_e_pg)) # because jkl not in [0,1,2,4]
+        _check_arrays(vector_e_pg.dot(tensor_e_pg), np.einsum("...i,...ijkl->...jkl", vector_e_pg, tensor_e_pg))
 
         # ij j
         _check_arrays(matrix_e_pg.T.dot(vector_e_pg), np.einsum("...ji,...j->...i", matrix_e_pg, vector_e_pg))
@@ -349,11 +349,11 @@ class TestFeArray:
         _check_arrays(matrix_e_pg.T.dot(tensor_e_pg), np.einsum("...ji,...jklm->...iklm", matrix_e_pg, tensor_e_pg))
 
         # ijkl l
-        _check_ValueError(lambda: tensor_e_pg.dot(vector_e_pg)) # because ijk not in [0,1,2,4]
+        _check_arrays(tensor_e_pg.dot(vector_e_pg), np.einsum("...ijkl,...l->...ijk", tensor_e_pg, vector_e_pg))
         # ijkl lm
         _check_arrays(tensor_e_pg.dot(matrix_e_pg), np.einsum("...ijkl,...lm->...ijkm", tensor_e_pg, matrix_e_pg))
         # ijkl lmno
-        _check_ValueError(lambda: tensor_e_pg.dot(tensor_e_pg)) # because ijkmno not in [0,1,2,4]
+        _check_arrays(tensor_e_pg.dot(tensor_e_pg), np.einsum("...ijkl,...lmno->...ijkmno", tensor_e_pg, tensor_e_pg))
 
     def test_matmul(self):
         
@@ -366,7 +366,7 @@ class TestFeArray:
         # i ij 
         _check_arrays(vector_e_pg @ matrix_e_pg, np.einsum("...i,...ij->...j", vector_e_pg, matrix_e_pg))
         # i ijkl
-        _check_ValueError(lambda: vector_e_pg @ tensor_e_pg) # because jkl not in [0,1,2,4]
+        _check_arrays(vector_e_pg @ tensor_e_pg, np.einsum("...i,...ijkl->...jkl", vector_e_pg, tensor_e_pg))
 
         # ij j
         _check_arrays(matrix_e_pg.T @ vector_e_pg, np.einsum("...ji,...j->...i", matrix_e_pg, vector_e_pg))
@@ -376,11 +376,11 @@ class TestFeArray:
         _check_arrays(matrix_e_pg.T @ tensor_e_pg, np.einsum("...ji,...jklm->...iklm", matrix_e_pg, tensor_e_pg))
 
         # ijkl l
-        _check_ValueError(lambda: tensor_e_pg @ vector_e_pg) # because ijk not in [0,1,2,4]
+        _check_arrays(tensor_e_pg @ vector_e_pg, np.einsum("...ijkl,...l->...ijk", tensor_e_pg, vector_e_pg))
         # ijkl lm
         _check_arrays(tensor_e_pg @ matrix_e_pg, np.einsum("...ijkl,...lm->...ijkm", tensor_e_pg, matrix_e_pg))
         # ijkl lmno
-        _check_ValueError(lambda: tensor_e_pg @ tensor_e_pg) # because ijkmno not in [0,1,2,4]
+        _check_arrays(tensor_e_pg @ tensor_e_pg, np.einsum("...ijkl,...lmno->...ijkmno", tensor_e_pg, tensor_e_pg))
 
     
     def test_ddot(self):

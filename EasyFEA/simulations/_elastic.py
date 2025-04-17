@@ -111,7 +111,7 @@ class ElasticSimu(_Simu):
         else:
             matC = self.material.C
 
-        Ku_e = (leftDepPart @ matC @ B_dep_e_pg)._sum(axis=1)
+        Ku_e = (leftDepPart @ matC @ B_dep_e_pg).sum(axis=1)
         
         # ------------------------------
         # Compute Mass
@@ -122,7 +122,7 @@ class ElasticSimu(_Simu):
         
         rho_e_pg = Reshape_variable(self.rho, *weightedJacobian.shape[:2])
  
-        Mu_e = (rho_e_pg * weightedJacobian * N_pg.T @ N_pg)._sum(axis=1)
+        Mu_e = (rho_e_pg * weightedJacobian * N_pg.T @ N_pg).sum(axis=1)
 
         if self.dim == 2:
             thickness = self.material.thickness
@@ -371,9 +371,9 @@ class ElasticSimu(_Simu):
             Sigma_e_pg = FeArray(np.einsum('eni,pjn->epi',Sigma_n_e, N_pg))
 
         if returnScalar:
-            Wdef = 1/2 * ep * (weightedJacobian_pg * Sigma_e_pg @ Epsilon_e_pg)._sum()
+            Wdef = 1/2 * ep * (weightedJacobian_pg * Sigma_e_pg @ Epsilon_e_pg).sum()
         else:
-            Wdef = 1/2 * ep * (weightedJacobian_pg * Sigma_e_pg @ Epsilon_e_pg)._sum(1)
+            Wdef = 1/2 * ep * (weightedJacobian_pg * Sigma_e_pg @ Epsilon_e_pg).sum(1)
 
         tic.Tac("PostProcessing","Calc Psi Elas",False)
         

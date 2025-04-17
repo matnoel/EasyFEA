@@ -444,7 +444,7 @@ class PhaseFieldSimu(_Simu):
             # old = np.linalg.norm(self.__old_psiP_e_pg)
             # assert new >= old, "Error"
             
-        self.__psiP_e_pg = psiP_e_pg
+        self.__psiP_e_pg = FeArray(psiP_e_pg)
 
         return self.__psiP_e_pg
     
@@ -468,7 +468,7 @@ class PhaseFieldSimu(_Simu):
         # Reaction part Kr_e = r_e_pg * jacobian_e_pg * weight_pg * N_pg' @ N_pg
         ReactionPart_e_pg = mesh.Get_ReactionPart_e_pg(matrixType)
         r_e_pg = pfm.Get_r_e_pg(PsiP_e_pg)
-        Kr_e = (r_e_pg * ReactionPart_e_pg)._sum(axis=1)
+        Kr_e = (r_e_pg * ReactionPart_e_pg).sum(axis=1)
 
         # Diffusion part Kk_e -> k_e_pg * jacobian_e_pg * weight_pg * dN_e_pg' @ A @ dN_e_pg
         DiffusePart_e_pg = mesh.Get_DiffusePart_e_pg(matrixType)
@@ -477,12 +477,12 @@ class PhaseFieldSimu(_Simu):
         if pfm.isHeterogeneous:
             k = Reshape_variable(k, *PsiP_e_pg.shape[:2])
             A = Reshape_variable(A, *PsiP_e_pg.shape[:2])
-        Kk_e = (k * DiffusePart_e_pg @ A @ dN_e_pg)._sum(axis=1)
+        Kk_e = (k * DiffusePart_e_pg @ A @ dN_e_pg).sum(axis=1)
         
         # Source part Fd_e = f_e_pg * jacobian_e_pg * weight_pg * N_pg' @ N_pg
         SourcePart_e_pg = mesh.Get_SourcePart_e_pg(matrixType)
         f_e_pg = pfm.Get_f_e_pg(PsiP_e_pg)
-        Fd_e = (f_e_pg * SourcePart_e_pg)._sum(axis=1)
+        Fd_e = (f_e_pg * SourcePart_e_pg).sum(axis=1)
     
         Kd_e = Kr_e + Kk_e
 

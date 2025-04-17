@@ -368,7 +368,7 @@ class _GroupElem(ABC):
         if isinstance(eval_e_pg, (float,int)):
             eval_e_pg = FeArray(eval_e_pg, True)
 
-        values_e = (weightedJacobian_e_pg * eval_e_pg)._sum(axis=1)
+        values_e = (weightedJacobian_e_pg * eval_e_pg).sum(axis=1)
 
         return values_e
     
@@ -421,9 +421,9 @@ class _GroupElem(ABC):
 
         weightedJacobian_e_pg = self.Get_weightedJacobian_e_pg(matrixType)
 
-        size = weightedJacobian_e_pg._sum(axis=(0,1))
+        size = weightedJacobian_e_pg.sum(axis=(0,1))
 
-        center = (weightedJacobian_e_pg * coordo_e_p / size)._sum(axis=(0,1))
+        center = (weightedJacobian_e_pg * coordo_e_p / size).sum(axis=(0,1))
 
         return center
     
