@@ -283,7 +283,7 @@ class TestHyperElastic:
 
                 I4 = HyperElastic.Compute_I4(simu.mesh, simu.displacement, T, matrixType)
 
-                I4_v = FeArray(np.einsum("...i,...ij,...j->...", T, C_e_pg, T, optimize="optimal"))
+                I4_v = FeArray.asfearray(np.einsum("...i,...ij,...j->...", T, C_e_pg, T, optimize="optimal"))
 
                 assert np.linalg.norm(I4 - I4_v)/np.linalg.norm(I4_v) < 1e-12
 

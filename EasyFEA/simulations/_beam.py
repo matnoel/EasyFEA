@@ -504,7 +504,7 @@ class BeamSimu(_Simu):
 
         dof_n = self.structure.dof_n
         assembly_e = self.mesh.groupElem.Get_assembly_e(dof_n)
-        sol_e = FeArray(sol[assembly_e][:,np.newaxis])
+        sol_e = FeArray.asfearray(sol[assembly_e][:,np.newaxis])
         B_beam_e_pg = self.mesh.groupElem.Get_EulerBernoulli_B_e_pg(self.structure)
         Epsilon_e_pg = B_beam_e_pg @ sol_e
         
@@ -520,8 +520,7 @@ class BeamSimu(_Simu):
         """ 
         # .../FEMOBJECT/BASIC/MODEL/MATERIALS/@ELAS_BEAM/sigma.m
 
-        if not isinstance(Epsilon_e_pg, FeArray):
-            Epsilon_e_pg = FeArray(Epsilon_e_pg)
+        Epsilon_e_pg = FeArray.asfearray(Epsilon_e_pg)
 
         matrixType = MatrixType.beam
 
@@ -545,8 +544,7 @@ class BeamSimu(_Simu):
         """
         # .../FEMOBJECT/BASIC/MODEL/MATERIALS/@ELAS_BEAM/sigma.m
 
-        if not isinstance(Epsilon_e_pg, FeArray):
-            Epsilon_e_pg = FeArray(Epsilon_e_pg)
+        Epsilon_e_pg = FeArray.asfearray(Epsilon_e_pg)
         
         Ne = self.mesh.Ne
         nPg = self.mesh.Get_nPg(MatrixType.beam)

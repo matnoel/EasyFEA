@@ -117,7 +117,7 @@ class ElasticSimu(_Simu):
         # Compute Mass
         # ------------------------------
         matrixType = MatrixType.mass
-        N_pg = FeArray(mesh.Get_N_vector_pg(matrixType)[np.newaxis])
+        N_pg = FeArray.asfearray(mesh.Get_N_vector_pg(matrixType)[np.newaxis])
         weightedJacobian = mesh.Get_weightedJacobian_e_pg(matrixType)
         
         rho_e_pg = Reshape_variable(self.rho, *weightedJacobian.shape[:2])
@@ -368,7 +368,7 @@ class ElasticSimu(_Simu):
             Sigma_n = mesh.Get_Node_Values(np.mean(Sigma_e_pg, 1))
 
             Sigma_n_e = mesh.Locates_sol_e(Sigma_n)
-            Sigma_e_pg = FeArray(np.einsum('eni,pjn->epi',Sigma_n_e, N_pg))
+            Sigma_e_pg = FeArray.asfearray(np.einsum('eni,pjn->epi',Sigma_n_e, N_pg))
 
         if returnScalar:
             Wdef = 1/2 * ep * (weightedJacobian_pg * Sigma_e_pg @ Epsilon_e_pg).sum()
@@ -418,13 +418,13 @@ class ElasticSimu(_Simu):
         """
 
         tic = Tic()        
-        u_e = u[self.mesh.assembly_e]
+        u_e = FeArray.asfearray(u[self.mesh.assembly_e][:,np.newaxis])
         B_dep_e_pg = self.mesh.Get_B_e_pg(matrixType)
-        Epsilon_e_pg: np.ndarray = np.einsum('epij,ej->epi', B_dep_e_pg, u_e, optimize='optimal')
+        Epsilon_e_pg = B_dep_e_pg @ u_e
         
         tic.Tac("Matrix", "Epsilon_e_pg", False)
 
-        return FeArray(Epsilon_e_pg)
+        return Epsilon_e_pg
                     
     def _Calc_Sigma_e_pg(self, Epsilon_e_pg: np.ndarray, matrixType=MatrixType.rigi) -> FeArray:
         """Computes stress field from strain field.\n
@@ -442,8 +442,7 @@ class ElasticSimu(_Simu):
             Computed stress field (Ne,pg,(3 or 6))
         """
 
-        if not isinstance(Epsilon_e_pg, FeArray):
-            Epsilon_e_pg = FeArray(Epsilon_e_pg)
+        Epsilon_e_pg = FeArray.asfearray(Epsilon_e_pg)
 
         Ne = Epsilon_e_pg.shape[0]
         nPg = Epsilon_e_pg.shape[1]
@@ -457,7 +456,7 @@ class ElasticSimu(_Simu):
         if self.material.isHeterogeneous:
             C_e_pg = Reshape_variable(C, Ne, nPg)
         else:
-            C_e_pg = FeArray(C, True)
+            C_e_pg = FeArray.asfearray(C, True)
 
         Sigma_e_pg = C_e_pg @ Epsilon_e_pg
             

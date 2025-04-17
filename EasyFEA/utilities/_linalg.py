@@ -18,7 +18,7 @@ def Transpose(mat: np.ndarray) -> np.ndarray:
     res = np.einsum("...ij->...ji", mat, optimize="optimal")
     
     if isinstance(mat, FeArray):
-        res = FeArray(res)
+        res = FeArray.asfearray(res)
 
     return res
 
@@ -29,7 +29,7 @@ def Trace(mat: np.ndarray) -> np.ndarray:
     res = np.einsum("...ii->...", mat, optimize="optimal")
     
     if isinstance(mat, FeArray):
-        res = FeArray(res)
+        res = FeArray.asfearray(res)
 
     return res
 
@@ -61,7 +61,7 @@ def Det(mat: np.ndarray) -> np.ndarray:
         det = np.linalg.det(mat)
     
     if isinstance(mat, FeArray):
-        det = FeArray(det)
+        det = FeArray.asfearray(det)
 
     return det
 
@@ -126,7 +126,7 @@ def Inv(mat: np.ndarray):
         inv = np.linalg.inv(mat)
 
     if isinstance(mat, FeArray):
-        inv = FeArray(inv)
+        inv = FeArray.asfearray(inv)
 
     return inv
 
@@ -182,7 +182,7 @@ def TensorProd(A: np.ndarray, B: np.ndarray, symmetric=False, ndim:int=None) -> 
         raise Exception("Not implemented")
     
     if isinstance(A, FeArray) or isinstance(B, FeArray):
-        res = FeArray(res)
+        res = FeArray.asfearray(res)
     
     return res
 
@@ -193,6 +193,6 @@ def Norm(array: np.ndarray, **kwargs):
     res = np.linalg.norm(array, **kwargs)
 
     if isinstance(array, FeArray):
-        res = FeArray(res)
+        res = FeArray.asfearray(res)
 
     return res

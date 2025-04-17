@@ -245,7 +245,7 @@ class HyperElastic:
                 [0, c, 0, c, 0, 0, 0, 0, 0]  # xy
             ])
 
-        mat = FeArray(mat, True)
+        mat = FeArray.asfearray(mat, True)
         Eps_e_pg = mat @ gradAsVect_e_pg
 
         return Eps_e_pg
@@ -295,7 +295,7 @@ class HyperElastic:
             D_e_pg = np.zeros((Ne, nPg, 3, 4), dtype=float)
         else:
             D_e_pg = np.zeros((Ne, nPg, 6, 9), dtype=float)
-        D_e_pg = FeArray(D_e_pg)
+        D_e_pg = FeArray.asfearray(D_e_pg)
 
         def Add_to_D_e_pg(p: int, line: int, values: list[np.ndarray], coef=1.):
             N = 4 if dim == 2 else 9            
@@ -373,7 +373,7 @@ class HyperElastic:
 
         dI1dC = np.array([1, 1, 1, 0, 0, 0])
 
-        return FeArray(dI1dC, True)
+        return FeArray.asfearray(dI1dC, True)
     
     @staticmethod
     def Compute_d2I1dC() -> FeArray:
@@ -385,7 +385,7 @@ class HyperElastic:
             d2I1dC of shape (6, 6)
         """
 
-        return FeArray(np.zeros((6, 6)), True)
+        return FeArray.asfearray(np.zeros((6, 6)), True)
 
     # -------------------------------------
     # Compute I2
@@ -438,7 +438,7 @@ class HyperElastic:
 
         cxx, cxy, cxz, _, cyy, cyz, _, _, czz = HyperElastic._Compute_C(mesh, u, matrixType)
 
-        dI2dC_e_pg = FeArray(np.zeros((Ne, nPg, 6), dtype=float))
+        dI2dC_e_pg = FeArray.asfearray(np.zeros((Ne, nPg, 6), dtype=float))
 
         coef = - np.sqrt(2)
 
@@ -470,7 +470,7 @@ class HyperElastic:
             [0, 0, 0, 0, 0, -1]
         ])
 
-        return FeArray(d2I2dC, True)
+        return FeArray.asfearray(d2I2dC, True)
 
     # -------------------------------------
     # Compute I3
@@ -523,7 +523,7 @@ class HyperElastic:
 
         Ne, nPg, _ = HyperElastic.__GetDims(mesh, u, matrixType)
 
-        dI3dC_e_pg = FeArray(np.zeros((Ne, nPg, 6), dtype=float))
+        dI3dC_e_pg = FeArray.asfearray(np.zeros((Ne, nPg, 6)))
 
         coef = np.sqrt(2)
 
@@ -559,7 +559,7 @@ class HyperElastic:
 
         Ne, nPg, _ = HyperElastic.__GetDims(mesh, u, matrixType)
 
-        d2I3dC_e_pg = FeArray(np.zeros((Ne, nPg, 6, 6), dtype=float))
+        d2I3dC_e_pg = FeArray.asfearray(np.zeros((Ne, nPg, 6, 6)))
 
         d2I3dC_e_pg[:,:,0,1] = d2I3dC_e_pg[:,:,1,0] = czz
         d2I3dC_e_pg[:,:,0,2] = d2I3dC_e_pg[:,:,2,0] = cyy
@@ -605,7 +605,7 @@ class HyperElastic:
         C_e_pg = HyperElastic.Compute_C(mesh, u, matrixType)
 
         if not isinstance(T, FeArray):
-            T = FeArray(T, True)
+            T = FeArray.asfearray(T, True)
 
         assert T._type == "vector", "T must be a (..., 3) array"
 

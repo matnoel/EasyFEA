@@ -524,7 +524,7 @@ class Mesh(Observable):
             if dim > 2:
                 grad_e_pg[:,p,:,2] = np.einsum("en,end->ed", dzN_e_pg[:,p], u_e_n)
 
-        return FeArray(grad_e_pg)
+        return FeArray.asfearray(grad_e_pg)
 
     # Nodes recovery
 

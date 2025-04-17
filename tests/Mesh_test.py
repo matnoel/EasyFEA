@@ -212,10 +212,10 @@ def _check_operation(array1, op, array2, reshape1=(), reshape2=(), willTriggerEr
 def FeArrays():
 
     Ne, nPg = 1000, 4
-    scalar_e_pg = FeArray(np.random.random_integers(1, 10, (Ne, nPg))*.1)
-    vector_e_pg = FeArray(np.random.random_integers(1, 10, (Ne, nPg, 3))*.1)
-    matrix_e_pg = FeArray(np.random.random_integers(1, 10, (Ne, nPg, 3, 3))*.1)
-    tensor_e_pg = FeArray(np.random.random_integers(1, 10, (Ne, nPg, 3, 3, 3, 3))*.1)
+    scalar_e_pg = FeArray.asfearray(np.random.random_integers(1, 10, (Ne, nPg))*.1)
+    vector_e_pg = FeArray.asfearray(np.random.random_integers(1, 10, (Ne, nPg, 3))*.1)
+    matrix_e_pg = FeArray.asfearray(np.random.random_integers(1, 10, (Ne, nPg, 3, 3))*.1)
+    tensor_e_pg = FeArray.asfearray(np.random.random_integers(1, 10, (Ne, nPg, 3, 3, 3, 3))*.1)
 
     return [scalar_e_pg, vector_e_pg, matrix_e_pg, tensor_e_pg]
 
@@ -300,8 +300,8 @@ class TestFeArray:
         assert matrix_e_pg._type == "matrix"
         assert tensor_e_pg._type == "tensor"
 
-        _check_ValueError(lambda: FeArray(0, addFeAxis=False))
-        _check_ValueError(lambda: FeArray([0], addFeAxis=False))
+        _check_ValueError(lambda: FeArray(0, False))
+        _check_ValueError(lambda: FeArray([0], False))
 
     def test_add_array(self):
 

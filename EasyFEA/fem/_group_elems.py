@@ -365,10 +365,9 @@ class _GroupElem(ABC):
         coord_e_pg = self.Get_GaussCoordinates_e_pg(matrixType)
         eval_e_pg = func(coord_e_pg[:,:,0],coord_e_pg[:,:,1],coord_e_pg[:,:,2])
 
-        if isinstance(eval_e_pg, (float,int)):
-            eval_e_pg = FeArray(eval_e_pg, True)
+        eval_e_pg = FeArray.asfearray(eval_e_pg)
 
-        values_e = (weightedJacobian_e_pg * eval_e_pg).sum(axis=1)
+        values_e = (weightedJacobian_e_pg * eval_e_pg).sum(1)
 
         return values_e
     
@@ -487,7 +486,7 @@ class _GroupElem(ABC):
         # localize coordinates on Gauss points
         coordo_e_p = np.einsum('pij,ejn->epn', N_pg, coordo_e, optimize='optimal')
 
-        return FeArray(coordo_e_p)
+        return FeArray.asfearray(coordo_e_p)
     
     # --------------------------------------------------------------------------------------------
     # Isoparametric elements
@@ -521,9 +520,10 @@ class _GroupElem(ABC):
             rebased_coord_e = rebased_coord_e[:,:,:self.dim]
             # (Ne, nPe, dim)
 
-            dN_pg = self.Get_dN_pg(matrixType)
+            dN_pg = FeArray.asfearray(self.Get_dN_pg(matrixType)[np.newaxis])
+            rebased_coord_e = FeArray.asfearray(rebased_coord_e[:,np.newaxis])
 
-            F_e_pg = FeArray(dN_pg[np.newaxis]) @ FeArray(rebased_coord_e[:,np.newaxis])
+            F_e_pg = dN_pg @ rebased_coord_e
             
             self.__dict_F_e_pg[matrixType] = F_e_pg
 
@@ -538,9 +538,9 @@ class _GroupElem(ABC):
 
             F_e_pg = self.Get_F_e_pg(matrixType)
 
-            jacobian_e_pg = Det(F_e_pg)
+            jacobian_e_pg = FeArray.asfearray(Det(F_e_pg))
             
-            self.__dict_jacobian_e_pg[matrixType] = FeArray(jacobian_e_pg)
+            self.__dict_jacobian_e_pg[matrixType] = jacobian_e_pg
 
         jacobian_e_pg = self.__dict_jacobian_e_pg[matrixType].copy()
 
@@ -559,7 +559,7 @@ class _GroupElem(ABC):
 
         weightedJacobian_e_pg = np.asarray(jacobian_e_pg) * weight_pg
 
-        return FeArray(weightedJacobian_e_pg)
+        return FeArray.asfearray(weightedJacobian_e_pg)
     
     def Get_invF_e_pg(self, matrixType: MatrixType) -> FeArray:
         """Returns the inverse of the transposed Jacobian matrix.\n
@@ -571,9 +571,9 @@ class _GroupElem(ABC):
 
             F_e_pg = self.Get_F_e_pg(matrixType)
 
-            invF_e_pg = Inv(F_e_pg)
+            invF_e_pg = FeArray.asfearray(Inv(F_e_pg))
 
-            self.__dict_invF_e_pg[matrixType] = FeArray(invF_e_pg)
+            self.__dict_invF_e_pg[matrixType] = invF_e_pg
 
         return self.__dict_invF_e_pg[matrixType].copy()
     
@@ -734,11 +734,12 @@ class _GroupElem(ABC):
 
             invF_e_pg = self.Get_invF_e_pg(matrixType)
 
-            dN_pg = FeArray(self.Get_dN_pg(matrixType)[np.newaxis])
+            dN_pg = FeArray.asfearray(self.Get_dN_pg(matrixType)[np.newaxis])
 
             # Derivation of shape functions in the (x, y, z) coordinates
             dN_e_pg = invF_e_pg @ dN_pg
-            self.__dict_dN_e_pg[matrixType] = FeArray(dN_e_pg)
+
+            self.__dict_dN_e_pg[matrixType] = dN_e_pg
 
         return self.__dict_dN_e_pg[matrixType].copy()
     
@@ -767,10 +768,11 @@ class _GroupElem(ABC):
 
             invF_e_pg = self.Get_invF_e_pg(matrixType)
 
-            ddN_pg = FeArray(self.Get_ddN_pg(matrixType)[np.newaxis])
+            ddN_pg = FeArray.asfearray(self.Get_ddN_pg(matrixType)[np.newaxis])
             
             ddN_e_pg = invF_e_pg @ invF_e_pg @ ddN_pg
-            self.__dict_ddN_e_pg[matrixType] = FeArray(ddN_e_pg)
+
+            self.__dict_ddN_e_pg[matrixType] = ddN_e_pg
 
         return self.__dict_ddN_e_pg[matrixType].copy()
     
@@ -882,7 +884,7 @@ class _GroupElem(ABC):
         if self.dim != 1: return
 
         invF_e_pg = self.Get_invF_e_pg(MatrixType.beam)[:,:,0,0]
-        N_pg = FeArray(self.Get_EulerBernoulli_N_pg()[np.newaxis])
+        N_pg = FeArray.asfearray(self.Get_EulerBernoulli_N_pg()[np.newaxis])
         nPe = self.nPe
         
         N_e_pg = invF_e_pg * N_pg
@@ -893,7 +895,7 @@ class _GroupElem(ABC):
         for column in columns:
             N_e_pg[:,:,0,column] = np.einsum('ep,e->ep', N_e_pg[:,:,0,column], l_e, optimize='optimal')    
 
-        return FeArray(N_e_pg)
+        return N_e_pg
     
     # dN
     
@@ -928,7 +930,7 @@ class _GroupElem(ABC):
         if self.dim != 1: return
 
         invF_e_pg = self.Get_invF_e_pg(MatrixType.beam)[:,:,0,0]
-        dN_pg = FeArray(self.Get_EulerBernoulli_dN_pg()[np.newaxis])
+        dN_pg = FeArray.asfearray(self.Get_EulerBernoulli_dN_pg()[np.newaxis])
         
         dN_e_pg = invF_e_pg * dN_pg
         
@@ -939,7 +941,7 @@ class _GroupElem(ABC):
         for column in columns:
             dN_e_pg[:,:,0,column] = np.einsum('ep,e->ep', dN_e_pg[:,:,0,column], l_e, optimize='optimal')
 
-        return FeArray(dN_e_pg)
+        return dN_e_pg
     
     # ddN
     
@@ -974,7 +976,7 @@ class _GroupElem(ABC):
         if self.dim != 1: return
 
         invF_e_pg = self.Get_invF_e_pg(MatrixType.beam)[:,:,0,0]
-        ddN_pg = FeArray(self.Get_EulerBernoulli_ddN_pg()[np.newaxis])
+        ddN_pg = FeArray.asfearray(self.Get_EulerBernoulli_ddN_pg()[np.newaxis])
         nPe = self.nPe
         
         ddN_e_pg = invF_e_pg * invF_e_pg * ddN_pg
@@ -985,7 +987,7 @@ class _GroupElem(ABC):
         for column in columns:
             ddN_e_pg[:,:,0,column] = np.einsum('ep,e->ep', ddN_e_pg[:,:,0,column], l_e, optimize='optimal')
 
-        return FeArray(ddN_e_pg)
+        return ddN_e_pg
     
     # --------------------------------------------------------------------------------------------
     # Finite element matrices
@@ -1041,7 +1043,7 @@ class _GroupElem(ABC):
                 B_e_pg[:,:,4,columnsX] = dNdz*cM; B_e_pg[:,:,4,columnsZ] = dNdx*cM
                 B_e_pg[:,:,5,columnsX] = dNdy*cM; B_e_pg[:,:,5,columnsY] = dNdx*cM
 
-            self.__dict_B_e_pg[matrixType] = FeArray(B_e_pg)
+            self.__dict_B_e_pg[matrixType] = FeArray.asfearray(B_e_pg)
         
         return self.__dict_B_e_pg[matrixType].copy()
 
@@ -1154,7 +1156,7 @@ class _GroupElem(ABC):
             N_e_pg[:,:,4, idx_uz] = -dNvz_e_pg[:,:,0] # ry = -uz'
             N_e_pg[:,:,5, idx_uy] = dN_e_pg[:,:,0] # rz = uy'
 
-        N_e_pg = FeArray(N_e_pg)
+        N_e_pg = FeArray.asfearray(N_e_pg)
         
         if dim > 1:
             # Construct the matrix used to change the matrix coordinates 
@@ -1252,7 +1254,7 @@ class _GroupElem(ABC):
             B_e_pg[:,:,2, idx_uz] = ddNvz_e_pg[:,:,0] # flexion along y
             B_e_pg[:,:,3, idx_uy] = ddNv_e_pg[:,:,0] # flexion along z
 
-        B_e_pg = FeArray(B_e_pg)
+        B_e_pg = FeArray.asfearray(B_e_pg)
 
         if dim > 1:
             # Construct the matrix used to change the matrix coordinates 
@@ -1287,7 +1289,7 @@ class _GroupElem(ABC):
         if matrixType not in self.__dict_ReactionPart_e_pg.keys():
 
             weightedJacobian = self.Get_weightedJacobian_e_pg(matrixType)
-            N_pg = FeArray(self.Get_N_pg_rep(matrixType, 1)[np.newaxis])
+            N_pg = FeArray.asfearray(self.Get_N_pg_rep(matrixType, 1)[np.newaxis])
 
             ReactionPart_e_pg = weightedJacobian * N_pg.T @ N_pg
 
@@ -1327,7 +1329,7 @@ class _GroupElem(ABC):
         if matrixType not in self.__dict_SourcePart_e_pg.keys():
 
             weightedJacobian_e_pg = self.Get_weightedJacobian_e_pg(matrixType)
-            N_pg = FeArray(self.Get_N_pg_rep(matrixType, 1)[np.newaxis])
+            N_pg = FeArray.asfearray(self.Get_N_pg_rep(matrixType, 1)[np.newaxis])
 
             SourcePart_e_pg = weightedJacobian_e_pg * N_pg.T
 

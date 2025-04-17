@@ -79,9 +79,9 @@ class FeArray(np.ndarray):
     A finite element array has at least two dimensions).
     """
 
-    def __new__(cls, input_array, addFeAxis=False):
+    def __new__(cls, input_array, broadcastFeArrays=False):
         obj = np.asarray(input_array).view(cls)
-        if addFeAxis:
+        if broadcastFeArrays:
             obj = obj[np.newaxis, np.newaxis]
         if obj.ndim < 2:
             raise ValueError("The input array must have at least 2 dimensions.")
@@ -287,17 +287,22 @@ class FeArray(np.ndarray):
         return FeArray.asfearray(super().min(*args, **kwargs))
 
     @staticmethod
-    def asfearray(array):
+    def asfearray(array, broadcastFeArrays=False) -> Union['FeArray', np.ndarray]:
         array = np.asarray(array)
-        if array.ndim >= 2:
+        if broadcastFeArrays:
+            return FeArray(array, broadcastFeArrays=broadcastFeArrays)
+        elif array.ndim >= 2:
             return FeArray(array)
         else:
             return array
+    
+    def _asfearrays(*arrays, broadcastFeArrays=False) -> list[Union['FeArray', np.ndarray]]:
+        return [FeArray.asfearray(array, broadcastFeArrays=broadcastFeArrays) for array in arrays]
 
     @staticmethod
-    def zeros(*args, dtype=None):
-        return FeArray.asfearray(np.zeros(shape=args, dtype=dtype))
+    def zeros(*shape, dtype=None) -> Union['FeArray', np.ndarray]:
+        return FeArray.asfearray(np.zeros(shape=shape, dtype=dtype))
 
     @staticmethod
-    def ones(*args, dtype=None):
-        return FeArray.asfearray(np.ones(shape=args, dtype=dtype))
+    def ones(*shape, dtype=None) -> Union['FeArray', np.ndarray]:
+        return FeArray.asfearray(np.ones(shape=shape, dtype=dtype))

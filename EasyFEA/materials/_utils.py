@@ -85,36 +85,36 @@ def Reshape_variable(variable: Union[int,float,np.ndarray], Ne: int, nPg: int) -
     """Resizes variable to (Ne, nPg, ...) shape."""
 
     if isinstance(variable, (int,float)):
-        return FeArray(np.ones((Ne, nPg)) * variable)
+        return FeArray.ones(Ne, nPg) * variable
     
     elif isinstance(variable, np.ndarray):
         shape = variable.shape
         if len(shape) == 1:
             if shape[0] == Ne:
                 variable = variable[:,np.newaxis].repeat(nPg, axis=1)
-                return FeArray(variable)
+                return FeArray.asfearray(variable)
             elif shape[0] == nPg:
                 variable = variable[np.newaxis].repeat(Ne, axis=0)
-                return FeArray(variable)
+                return FeArray.asfearray(variable)
             else:
                 raise Exception("The variable entered must be of dimension (e) or (p)")
 
         if len(shape) == 2:
             if shape == (Ne, nPg):
-                return FeArray(variable)
+                return FeArray.asfearray(variable)
             else:
                 variable = variable[np.newaxis, np.newaxis]
                 variable = variable.repeat(Ne, axis=0)
                 variable = variable.repeat(nPg, axis=1)
-                return FeArray(variable)
+                return FeArray.asfearray(variable)
             
         elif len(shape) == 3:
             if shape[0] == Ne:
                 variable = variable[:, np.newaxis].repeat(nPg, axis=1)
-                return FeArray(variable)
+                return FeArray.asfearray(variable)
             elif shape[0] == nPg:
                 variable = variable[np.newaxis].repeat(Ne, axis=0)
-                return FeArray(variable)
+                return FeArray.asfearray(variable)
             else:
                 raise Exception("The variable entered must be of dimension (eij) or (pij)")
 
@@ -242,8 +242,7 @@ def Project_Kelvin(A: np.ndarray, orderA:int=None) -> np.ndarray:
     else:
         raise Exception("Not implemented.")
     
-    if isinstance(A, FeArray):
-        res = FeArray(res)
+    res = FeArray.asfearray(res)
 
     return res
 

@@ -180,7 +180,7 @@ class PhaseField(_IModel):
         if self.isHeterogeneous:
             Gc = Reshape_variable(Gc, *PsiP_e_pg.shape[:2])
         else:
-            FeArray(Gc, True)
+            FeArray.asfearray(Gc, True)
         l0 = self.__l0
 
         # J/m3
@@ -198,7 +198,7 @@ class PhaseField(_IModel):
         if self.isHeterogeneous:
             Gc = Reshape_variable(Gc, *PsiP_e_pg.shape[:2])
         else:
-            Gc = FeArray(Gc, True)
+            Gc = FeArray.asfearray(Gc, True)
         l0 = self.__l0
         
         # J/m3
@@ -227,7 +227,7 @@ class PhaseField(_IModel):
         assert mesh.Ne == g_e_pg.shape[0]
         assert mesh.Get_nPg(matrixType) == g_e_pg.shape[1]
         
-        return FeArray(g_e_pg)
+        return FeArray.asfearray(g_e_pg)
     
     @property
     def A(self) -> np.ndarray:
@@ -333,8 +333,7 @@ class PhaseField(_IModel):
         SigmaM_e_pg = cM_e_pg * Epsilon_e_pg       
         """
 
-        if not isinstance(Epsilon_e_pg, FeArray):
-            Epsilon_e_pg = FeArray(Epsilon_e_pg)
+        Epsilon_e_pg = FeArray.asfearray(Epsilon_e_pg)
 
         SigmaP_e_pg, SigmaM_e_pg = self.Calc_Sigma_e_pg(Epsilon_e_pg)
 
@@ -364,8 +363,7 @@ class PhaseField(_IModel):
             SigmaP_e_pg, SigmaM_e_pg: positive and negative stress fields (e, p, D)
         """       
 
-        if not isinstance(Epsilon_e_pg, FeArray):
-            Epsilon_e_pg = FeArray(Epsilon_e_pg)
+        Epsilon_e_pg = FeArray.asfearray(Epsilon_e_pg)
 
         Ne, nPg, dim = Epsilon_e_pg.shape[:3]
         
@@ -424,7 +422,7 @@ class PhaseField(_IModel):
         if self.isHeterogeneous:
             C_e_pg = Reshape_variable(C, Ne, nPg)
         else:
-            C_e_pg = FeArray(C, True)
+            C_e_pg = FeArray.asfearray(C, True)
 
         cP_e_pg = C_e_pg
         cM_e_pg = np.zeros_like(cP_e_pg)
@@ -486,7 +484,7 @@ class PhaseField(_IModel):
             trace += vector_e_pg[:,:,2]
 
         if not isinstance(trace, FeArray):
-            trace = FeArray(trace)
+            trace = FeArray.asfearray(trace)
 
         Rp_e_pg = (1+np.sign(trace))/2
         Rm_e_pg = (1+np.sign(-trace))/2
@@ -536,10 +534,10 @@ class PhaseField(_IModel):
             if self.useNumba and not self.isHeterogeneous:
                 # Faster (x2) but not available for heterogeneous material (memory issues)
                 Cpp, Cpm, Cmp, Cmm = Numba.Get_Anisot_C(projP_e_pg, material.C, projM_e_pg)
-                Cpp, Cpm, Cmp, Cmm = FeArray(Cpp), FeArray(Cpm), FeArray(Cmp), FeArray(Cmm)
+                Cpp, Cpm, Cmp, Cmm = FeArray._asfearrays(Cpp, Cpm, Cmp, Cmm)
 
             else:
-                C_e_pg = FeArray(material.C, True)
+                C_e_pg = FeArray.asfearray(material.C, True)
 
                 projPTC = projP_e_pg.T @ C_e_pg
                 projMTc = projM_e_pg.T @ C_e_pg
@@ -588,7 +586,7 @@ class PhaseField(_IModel):
         if self.isHeterogeneous:
             C_e_pg = Reshape_variable(C, Ne, nPg)
         else:
-            C_e_pg = FeArray(C, True)
+            C_e_pg = FeArray.asfearray(C, True)
 
         Sigma_e_pg = C_e_pg @ Epsilon_e_pg
 
@@ -637,7 +635,7 @@ class PhaseField(_IModel):
             if self.useNumba and not material.isHeterogeneous:
                 # Faster
                 cP_e_pg, cM_e_pg = Numba.Get_Cp_Cm_Stress(material.C, sP_e_pg, sM_e_pg)
-                cP_e_pg, cM_e_pg = FeArray(cP_e_pg), FeArray(cM_e_pg)
+                cP_e_pg, cM_e_pg = FeArray._asfearrays(cP_e_pg, cM_e_pg)
             else:
                 cP_e_pg = C_e_pg.T @ sP_e_pg @ C_e_pg
                 cM_e_pg = C_e_pg.T @ sM_e_pg @ C_e_pg
@@ -659,7 +657,7 @@ class PhaseField(_IModel):
                 if self.useNumba and not material.isHeterogeneous:
                     # Faster
                     Cpp, Cpm, Cmp, Cmm = Numba.Get_Anisot_C(Cp_e_pg, S, Cm_e_pg)
-                    Cpp, Cpm, Cmp, Cmm = FeArray(Cpp), FeArray(Cpm), FeArray(Cmp), FeArray(Cmm)
+                    Cpp, Cpm, Cmp, Cmm = FeArray._asfearrays(Cpp, Cpm, Cmp, Cmm)
                 else:
                     S_e_pg = Reshape_variable(S, Ne, nPg)
 
@@ -717,8 +715,8 @@ class PhaseField(_IModel):
             sqrtC = Reshape_variable(sqrtC, Ne, nPg)
             inv_sqrtC = Reshape_variable(inv_sqrtC, Ne, nPg)
         else:
-            sqrtC = FeArray(sqrtC, True)
-            inv_sqrtC = FeArray(inv_sqrtC, True)
+            sqrtC = FeArray.asfearray(sqrtC, True)
+            inv_sqrtC = FeArray.asfearray(inv_sqrtC, True)
         
         if verif:
             # check that C^1/2 * C^1/2 = C
@@ -998,7 +996,7 @@ class PhaseField(_IModel):
                 # M2 = normalize(M2)
                 M3 = normalize(M3)
 
-                M2 = FeArray(I_e_pg - (M1 + M3))
+                M2 = FeArray.asfearray(I_e_pg - (M1 + M3))
 
                 # M1 = I_e_pg - (M2 + M3)
 
@@ -1036,8 +1034,7 @@ class PhaseField(_IModel):
         if verif:
             
             valnum, vectnum = np.linalg.eigh(matrix_e_pg)
-            valnum = FeArray(valnum)
-            vectnum = FeArray(vectnum)
+            valnum, vectnum = FeArray._asfearrays(valnum, vectnum)
 
             func_Mi = lambda mi: TensorProd(mi, mi, ndim=1)
 
@@ -1176,7 +1173,7 @@ class PhaseField(_IModel):
             if useNumba:
                 # Faster
                 projP, projM = Numba.Get_projP_projM_2D(BetaP, gammap, BetaM, gammam, m1, m2)
-                projP, projM = FeArray(projP), FeArray(projM)
+                projP, projM = FeArray._asfearrays(projP, projM)
             
             else:
                 # Projector P such that EpsP = projP • Eps
@@ -1222,7 +1219,7 @@ class PhaseField(_IModel):
                 list_Gab = [G12_ij, G13_ij, G23_ij]
 
                 projP, projM = Numba.Get_projP_projM_3D(dvalp, dvalm, thetap, thetam, list_mi, list_Gab)
-                projP, projM = FeArray(projP), FeArray(projM)
+                projP, projM = FeArray._asfearrays(projP, projM)
             
             else:
 
@@ -1256,7 +1253,7 @@ class PhaseField(_IModel):
                     Gij[:,:,3:6,:3] = Gij[:,:,3:6,:3] * coef
                     Gij[:,:,3:6,3:6] = Gij[:,:,3:6,3:6] * 2
 
-                    return FeArray(Gij)
+                    return FeArray.asfearray(Gij)
 
                 G12 = __Construction_Gij(M1, M2)
                 G13 = __Construction_Gij(M1, M3)

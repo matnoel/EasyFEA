@@ -444,7 +444,7 @@ class PhaseFieldSimu(_Simu):
             # old = np.linalg.norm(self.__old_psiP_e_pg)
             # assert new >= old, "Error"
             
-        self.__psiP_e_pg = FeArray(psiP_e_pg)
+        self.__psiP_e_pg = FeArray.asfearray(psiP_e_pg)
 
         return self.__psiP_e_pg
     
@@ -747,13 +747,13 @@ class PhaseFieldSimu(_Simu):
         """
         
         tic = Tic()        
-        u_e = FeArray(sol[self.mesh.assembly_e][:,np.newaxis])
+        u_e = FeArray.asfearray(sol[self.mesh.assembly_e][:,np.newaxis])
         B_e_pg = self.mesh.Get_B_e_pg(matrixType)
         Epsilon_e_pg = B_e_pg @ u_e
         
         tic.Tac("Matrix", "Epsilon_e_pg", False)
 
-        return FeArray(Epsilon_e_pg)
+        return Epsilon_e_pg
 
     def _Calc_Sigma_e_pg(self, Epsilon_e_pg: np.ndarray, matrixType=MatrixType.rigi) -> FeArray:
         """Computes stress field from strain field.\n
@@ -771,8 +771,7 @@ class PhaseFieldSimu(_Simu):
             Computed damaged stress field.
         """
 
-        if not isinstance(Epsilon_e_pg, FeArray):
-            Epsilon_e_pg = FeArray(Epsilon_e_pg)
+        Epsilon_e_pg = FeArray.asfearray(Epsilon_e_pg)
 
         assert Epsilon_e_pg.shape[0] == self.mesh.Ne
         assert Epsilon_e_pg.shape[1] == self.mesh.Get_nPg(matrixType)
