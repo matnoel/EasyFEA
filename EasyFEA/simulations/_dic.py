@@ -14,7 +14,7 @@ import cv2 # need opencv-python library
 from ..utilities import Tic, Folder, Display
 from ..utilities._observers import Observable, _IObserver
 # fem
-from ..fem import Mesh, BoundaryCondition
+from ..fem import Mesh, BoundaryCondition, FeArray
 
 class DIC(_IObserver):
 
@@ -259,9 +259,8 @@ class DIC(_IObserver):
         # Build the Laplacian operator (R)
         # ----------------------------------------------
         matrixType = "mass"
-        jacobian_e_pg = mesh.Get_jacobian_e_pg(matrixType) # (e, p)
-        weight_pg = mesh.Get_weight_pg(matrixType) # (p)
-        dN_e_pg = mesh.groupElem.Get_dN_e_pg(matrixType) # (e, p, dim, nPe)
+        weigthedJacobian_e_pg = mesh.Get_weightedJacobian_e_pg(matrixType) # (Ne, nPg)
+        dN_e_pg = mesh.Get_dN_e_pg(matrixType) # (Ne, nPg, dim, nPe)
 
         dNdx = dN_e_pg[:,:,0]
         dNdy = dN_e_pg[:,:,1]
@@ -269,16 +268,16 @@ class DIC(_IObserver):
         ind_x = np.arange(0, mesh.nPe*dim, dim)
         ind_y = ind_x + 1
 
-        dN_x = np.zeros((mesh.Ne, weight_pg.size, 2, 2*mesh.nPe))
+        dN_x = FeArray(np.zeros((*dN_e_pg.shape[:2], 2, 2*mesh.nPe)))
         dN_y = np.zeros_like(dN_x)
 
         dN_x[:,:,0,ind_x] = dNdx
         dN_x[:,:,1,ind_y] = dNdx
-        Bx_e = np.einsum('ep,p,epdi,epdj->eij', jacobian_e_pg, weight_pg, dN_x, dN_x, optimize='optimal')
+        Bx_e = (weigthedJacobian_e_pg * dN_x.T @ dN_x)._sum(1)
 
         dN_y[:,:,0,ind_x] = dNdy
         dN_y[:,:,1,ind_y] = dNdy
-        By_e = np.einsum('ep,p,epdi,epdj->eij', jacobian_e_pg, weight_pg, dN_y, dN_y, optimize='optimal')
+        By_e = (weigthedJacobian_e_pg * dN_y.T @ dN_y)._sum(1)
 
         B_e = Bx_e + By_e
 

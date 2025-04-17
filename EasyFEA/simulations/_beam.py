@@ -9,7 +9,7 @@ from scipy import sparse
 # utilities
 from ..utilities import Display, Tic
 # fem
-from ..fem import Mesh, MatrixType, LagrangeCondition
+from ..fem import Mesh, MatrixType, LagrangeCondition, FeArray
 # materials
 from .. import Materials
 from ..materials import ModelType, Reshape_variable
@@ -203,14 +203,13 @@ class BeamSimu(_Simu):
         
         tic = Tic()
         
-        jacobian_e_pg = mesh.Get_jacobian_e_pg(matrixType)
-        weight_pg = mesh.Get_weight_pg(matrixType)
+        weightedJacobian_e_pg = mesh.Get_weightedJacobian_e_pg(matrixType)
 
         D_e_pg = beamStructure.Calc_D_e_pg(groupElem)        
 
         B_e_pg = groupElem.Get_EulerBernoulli_B_e_pg(beamStructure)
         
-        Kbeam_e = np.einsum('ep,p,epji,epjk,epkl->eil', jacobian_e_pg, weight_pg, B_e_pg, D_e_pg, B_e_pg, optimize='optimal')
+        Kbeam_e = (weightedJacobian_e_pg * B_e_pg.T @ D_e_pg @ B_e_pg)._sum(axis=1)
             
         tic.Tac("Matrix","Construct Kbeam_e", self._verbosity)
 
@@ -223,23 +222,19 @@ class BeamSimu(_Simu):
 
         mesh = self.mesh
 
-        group = mesh.groupElem
+        weightedJacobian_e_pg = mesh.Get_weightedJacobian_e_pg(matrixType)
 
-        jacobian_e_p = group.Get_jacobian_e_pg(matrixType)
-        
-        weight_p = group.Get_weight_pg(matrixType)        
+        rho_e_pg = Reshape_variable(self.rho, *weightedJacobian_e_pg.shape[:2])
 
-        rho_e_p = Reshape_variable(self.rho, mesh.Ne, weight_p.size)
-
-        area_e = np.zeros(mesh.Ne)
+        area_e_pg = np.zeros_like(rho_e_pg)
 
         for beam in self.structure.beams:
 
             elements = mesh.Elements_Tags(beam.name)
 
-            area_e[elements] = beam.area
+            area_e_pg[elements] = beam.area
 
-        mass = float(np.einsum('ep,ep,p,e->', rho_e_p, jacobian_e_p, weight_p, area_e, optimize='optimal'))
+        mass = (rho_e_pg * area_e_pg * weightedJacobian_e_pg)._sum(axis=(0,1))
 
         return mass
     
@@ -255,22 +250,21 @@ class BeamSimu(_Simu):
 
         coordo_e_p = group.Get_GaussCoordinates_e_pg(matrixType)
 
-        jacobian_e_p = group.Get_jacobian_e_pg(matrixType)
-        weight_p = group.Get_weight_pg(matrixType)        
+        weightedJacobian_e_pg = mesh.Get_weightedJacobian_e_pg(matrixType)
 
-        rho_e_p = Reshape_variable(self.rho, mesh.Ne, weight_p.size)
+        rho_e_p = Reshape_variable(self.rho, *weightedJacobian_e_pg.shape[:2])
         mass = self.mass
 
-        area_e = np.zeros(mesh.Ne)
+        area_e_pg = np.zeros_like(rho_e_p)
         for beam in self.structure.beams:
             elements = mesh.Elements_Tags(beam.name)
-            area_e[elements] = beam.area
+            area_e_pg[elements] = beam.area
 
-        center: np.ndarray = np.einsum('ep,e,ep,p,epi->i', rho_e_p, area_e, jacobian_e_p, weight_p, coordo_e_p, optimize='optimal') / mass
+        center = (rho_e_p * area_e_pg * weightedJacobian_e_pg * coordo_e_p / mass)._sum(axis=(0,1))
 
         if not isinstance(self.rho, np.ndarray):
             diff = np.linalg.norm(center - mesh.center)/np.linalg.norm(center)
-            assert diff <= 1e-12
+            assert diff < 1e-12
 
         return center
 
@@ -498,7 +492,7 @@ class BeamSimu(_Simu):
             elif indices == 'xy':
                 return -1
 
-    def _Calc_Epsilon_e_pg(self, sol: np.ndarray) -> np.ndarray:
+    def _Calc_Epsilon_e_pg(self, sol: np.ndarray) -> FeArray:
         """Construct deformations for each element and each Gauss point.\n
         a' denotes here da/dx \n
         1D -> [ux']\n
@@ -510,21 +504,24 @@ class BeamSimu(_Simu):
 
         dof_n = self.structure.dof_n
         assembly_e = self.mesh.groupElem.Get_assembly_e(dof_n)
-        sol_e = sol[assembly_e]
+        sol_e = FeArray(sol[assembly_e][:,np.newaxis])
         B_beam_e_pg = self.mesh.groupElem.Get_EulerBernoulli_B_e_pg(self.structure)
-        Epsilon_e_pg = np.einsum('epij,ej->epi', B_beam_e_pg, sol_e, optimize='optimal')
+        Epsilon_e_pg = B_beam_e_pg @ sol_e
         
         tic.Tac("Matrix", "Epsilon_e_pg", False)
 
         return Epsilon_e_pg
     
-    def _Calc_InternalForces_e_pg(self, Epsilon_e_pg: np.ndarray) -> np.ndarray:
+    def _Calc_InternalForces_e_pg(self, Epsilon_e_pg: np.ndarray) -> FeArray:
         """Calculation of internal forces.\n
         1D -> [N]\n
         2D -> [N, Mz]\n
         3D -> [N, Mx, My, Mz]
         """ 
         # .../FEMOBJECT/BASIC/MODEL/MATERIALS/@ELAS_BEAM/sigma.m
+
+        if not isinstance(Epsilon_e_pg, FeArray):
+            Epsilon_e_pg = FeArray(Epsilon_e_pg)
 
         matrixType = MatrixType.beam
 
@@ -534,13 +531,13 @@ class BeamSimu(_Simu):
         tic = Tic()
 
         D_e_pg = self.structure.Calc_D_e_pg(self.mesh.groupElem)
-        forces_e_pg: np.ndarray = np.einsum('epij,epj->epi', D_e_pg, Epsilon_e_pg, optimize='optimal')
+        forces_e_pg = D_e_pg @ Epsilon_e_pg
             
         tic.Tac("Matrix", "InternalForces_e_pg", False)
 
         return forces_e_pg
 
-    def _Calc_Sigma_e_pg(self, Epsilon_e_pg: np.ndarray) -> np.ndarray:
+    def _Calc_Sigma_e_pg(self, Epsilon_e_pg: np.ndarray) -> FeArray:
         """Calculates stresses from strains.\n
         1D -> [Sxx]\n
         2D -> [Sxx, Syy, Sxy]\n
@@ -548,7 +545,9 @@ class BeamSimu(_Simu):
         """
         # .../FEMOBJECT/BASIC/MODEL/MATERIALS/@ELAS_BEAM/sigma.m
 
-        Nn = self.mesh.Nn
+        if not isinstance(Epsilon_e_pg, FeArray):
+            Epsilon_e_pg = FeArray(Epsilon_e_pg)
+        
         Ne = self.mesh.Ne
         nPg = self.mesh.Get_nPg(MatrixType.beam)
 

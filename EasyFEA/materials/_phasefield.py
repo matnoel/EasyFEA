@@ -211,7 +211,7 @@ class PhaseField(_IModel):
         
         return f
 
-    def Get_g_e_pg(self, d_n: np.ndarray, mesh: Mesh, matrixType: str, k_residu=1e-12) -> FeArray:
+    def Get_g_e_pg(self, d_n: np.ndarray, mesh: Mesh, matrixType: str, k_res=1e-12) -> FeArray:
         """Returns degradation function"""
 
         d_e_n = mesh.Locates_sol_e(d_n)
@@ -220,7 +220,7 @@ class PhaseField(_IModel):
         d_e_pg = np.einsum('pij,ej->ep', Nd_pg, d_e_n, optimize='optimal')        
 
         if self.__regularization in self.Get_regularisations():
-            g_e_pg: np.ndarray = (1-d_e_pg)**2 + k_residu
+            g_e_pg: np.ndarray = (1-d_e_pg)**2 + k_res
         else:
             raise Exception("Not implemented.")
 
@@ -539,7 +539,6 @@ class PhaseField(_IModel):
                 Cpp, Cpm, Cmp, Cmm = FeArray(Cpp), FeArray(Cpm), FeArray(Cmp), FeArray(Cmm)
 
             else:
-                # Here we don't use einsum, otherwise it's much longer
                 C_e_pg = FeArray(material.C, True)
 
                 projPTC = projP_e_pg.T @ C_e_pg
@@ -662,7 +661,6 @@ class PhaseField(_IModel):
                     Cpp, Cpm, Cmp, Cmm = Numba.Get_Anisot_C(Cp_e_pg, S, Cm_e_pg)
                     Cpp, Cpm, Cmp, Cmm = FeArray(Cpp), FeArray(Cpm), FeArray(Cmp), FeArray(Cmm)
                 else:
-                    # Here we don't use einsum, otherwise it's much longer
                     S_e_pg = Reshape_variable(S, Ne, nPg)
 
                     ps = Cp_e_pg.T @ S_e_pg
@@ -877,7 +875,6 @@ class PhaseField(_IModel):
                 # Invariants
                 I1_e_pg = Trace(matrix_e_pg)
                 trace_mat_mat = Trace(matrix_e_pg @ matrix_e_pg)
-                # test_trace = np.einsum('epii->ep', mat_mat, optimize='optimal') - trace_mat_mat
                 I2_e_pg = 1/2 * (I1_e_pg**2 - trace_mat_mat)
                 I3_e_pg = det_e_pg
 

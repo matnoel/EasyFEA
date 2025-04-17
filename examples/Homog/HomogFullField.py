@@ -167,11 +167,10 @@ if __name__ == '__main__':
     U_e[:,:,0] = u11_e; U_e[:,:,1] = u22_e; U_e[:,:,2] = u12_e
 
     matrixType = "rigi"
-    jacobien_e_pg = mesh_VER.Get_jacobian_e_pg(matrixType)
-    poids_pg = mesh_VER.Get_weight_pg(matrixType)
+    wightedJacobien_e_pg = mesh_VER.Get_weightedJacobian_e_pg(matrixType)
     B_e_pg = mesh_VER.Get_B_e_pg(matrixType)
 
-    C_hom = np.einsum('ep,p,ij,epjk,ekl->il', jacobien_e_pg, poids_pg, CMandel, B_e_pg, U_e, optimize='optimal') * 1/mesh_VER.area
+    C_hom = np.einsum('ep,ij,epjk,ekl->il', wightedJacobien_e_pg, CMandel, B_e_pg, U_e) * 1/area_VER
 
     if isHollow:
         coef = (1 - area_inclusion/area_VER)

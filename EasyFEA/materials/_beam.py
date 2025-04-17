@@ -11,7 +11,7 @@ import numpy as np
 from ..Geoms import Line
 from ..geoms import AsCoords, Normalize
 # fem
-from ..fem import Mesh, _GroupElem
+from ..fem import Mesh, _GroupElem, FeArray
 # materials
 from ._utils import _IModel, ModelType
 from ..utilities import _params
@@ -341,7 +341,7 @@ class BeamStructure(_IModel):
         """
         return self.__dof_n        
 
-    def Calc_D_e_pg(self, groupElem: _GroupElem) -> np.ndarray:
+    def Calc_D_e_pg(self, groupElem: _GroupElem) -> FeArray:
         """Returns a matrix characterizing the beams's stiffness behavior."""
 
         if groupElem.dim != 1: return
@@ -354,7 +354,7 @@ class BeamStructure(_IModel):
         Ne = groupElem.Ne
         nPg = groupElem.Get_gauss(matrixType).nPg
         # Initialize D_e_pg :
-        D_e_pg = np.zeros((Ne, nPg, list_D[0].shape[0], list_D[0].shape[0]))                
+        D_e_pg = FeArray(np.zeros((Ne, nPg, *list_D[0].shape)))
         
         # For each beam, we will construct the law of behavior on the associated nodes.
         for beam, D in zip(listBeam, list_D):

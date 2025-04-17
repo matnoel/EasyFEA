@@ -9,7 +9,7 @@ from scipy import sparse
 # utilities
 from ..utilities import Tic
 # fem
-from ..fem import Mesh, MatrixType
+from ..fem import Mesh, MatrixType, FeArray
 # materials
 from .. import Materials
 from ..materials import ModelType, Reshape_variable
@@ -90,31 +90,32 @@ class ThermalSimu(_Simu):
     def __Construct_Thermal_Matrix(self) -> tuple[np.ndarray, np.ndarray]:
 
         thermalModel = self.thermalModel
-
-        # Data
-        k = thermalModel.k
-        rho = self.rho
-        c = thermalModel.c
-
-        matrixType=MatrixType.rigi
-
         mesh = self.mesh
 
-        jacobian_e_pg = mesh.Get_jacobian_e_pg(matrixType)
-        weight_pg = mesh.Get_weight_pg(matrixType)
-        N_e_pg = mesh.Get_N_pg(matrixType)
-        D_e_pg = mesh.Get_dN_e_pg(matrixType)
-        Ne = mesh.Ne
-        nPg = weight_pg.size
+        # condution part
+        conduction = thermalModel.k
 
-        k_e_pg = Reshape_variable(k, Ne, nPg)
+        matrixType = MatrixType.rigi
+        weightedJacobian = mesh.Get_weightedJacobian_e_pg(matrixType)
+        dN_e_pg = mesh.Get_dN_e_pg(matrixType)
 
-        Kt_e = np.einsum('ep,p,epji,ep,epjk->eik', jacobian_e_pg, weight_pg, D_e_pg, k_e_pg, D_e_pg, optimize="optimal")
+        if thermalModel.isHeterogeneous:
+            conduction = Reshape_variable(conduction, *weightedJacobian.shape[:2])
 
-        rho_e_pg = Reshape_variable(rho, Ne, nPg)
-        c_e_pg = Reshape_variable(c, Ne, nPg)
+        Kt_e = (conduction * weightedJacobian * dN_e_pg.T @ dN_e_pg)._sum(axis=1)
 
-        Ct_e = np.einsum('ep,p,pji,ep,ep,pjk->eik', jacobian_e_pg, weight_pg, N_e_pg, rho_e_pg, c_e_pg, N_e_pg, optimize="optimal")
+        # reaction part
+        rho = self.rho
+        heatCapacity = thermalModel.c
+
+        matrixType = MatrixType.mass
+        reactionPart = mesh.Get_ReactionPart_e_pg(matrixType)
+
+        if thermalModel.isHeterogeneous:
+            rho = Reshape_variable(rho, *weightedJacobian.shape[:2])
+            heatCapacity = Reshape_variable(heatCapacity, *reactionPart.shape[:2])
+
+        Ct_e = (rho * heatCapacity * reactionPart)._sum(axis=1)
 
         if self.dim == 2:
             thickness = thermalModel.thickness

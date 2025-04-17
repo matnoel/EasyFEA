@@ -106,7 +106,6 @@ class ElasticSimu(_Simu):
         leftDepPart = mesh.Get_leftDispPart(matrixType) 
         B_dep_e_pg = mesh.Get_B_e_pg(matrixType)
 
-        # TODO try einsumt
         if self.material.isHeterogeneous:
             matC = Reshape_variable(self.material.C, *B_dep_e_pg.shape[:2])
         else:
@@ -344,7 +343,7 @@ class ElasticSimu(_Simu):
         
         return self.Results_Reshape_values(values, nodeValues)
 
-    def _Calc_Psi_Elas(self, returnScalar=True, smoothedStress=False, matrixType=MatrixType.rigi) -> float:
+    def _Calc_Psi_Elas(self, returnScalar=True, smoothedStress=False, matrixType=MatrixType.rigi):
         """Computes the kinematically admissible deformation energy.
         Wdef = 1/2 int_Ω Sig : Eps dΩ"""
 
@@ -355,8 +354,7 @@ class ElasticSimu(_Simu):
         mesh = self.mesh
         
         Epsilon_e_pg = self._Calc_Epsilon_e_pg(sol_u, matrixType)
-        jacobian_e_pg = mesh.Get_jacobian_e_pg(matrixType)
-        weight_pg = mesh.Get_weight_pg(matrixType)
+        weightedJacobian_pg = mesh.Get_weightedJacobian_e_pg(matrixType)
         N_pg = mesh.Get_N_pg(matrixType)
 
         if self.dim == 2:
@@ -370,16 +368,12 @@ class ElasticSimu(_Simu):
             Sigma_n = mesh.Get_Node_Values(np.mean(Sigma_e_pg, 1))
 
             Sigma_n_e = mesh.Locates_sol_e(Sigma_n)
-            Sigma_e_pg = np.einsum('eni,pjn->epi',Sigma_n_e, N_pg)
+            Sigma_e_pg = FeArray(np.einsum('eni,pjn->epi',Sigma_n_e, N_pg))
 
         if returnScalar:
-
-            Wdef = 1/2 * np.einsum(',ep,p,epi,epi->', ep, jacobian_e_pg, weight_pg, Sigma_e_pg, Epsilon_e_pg, optimize='optimal')
-            Wdef = float(Wdef)
-
+            Wdef = 1/2 * ep * (weightedJacobian_pg * Sigma_e_pg @ Epsilon_e_pg)._sum()
         else:
-
-            Wdef = 1/2 * np.einsum(',ep,p,epi,epi->e', ep, jacobian_e_pg, weight_pg, Sigma_e_pg, Epsilon_e_pg, optimize='optimal')
+            Wdef = 1/2 * ep * (weightedJacobian_pg * Sigma_e_pg @ Epsilon_e_pg)._sum(1)
 
         tic.Tac("PostProcessing","Calc Psi Elas",False)
         
@@ -419,7 +413,7 @@ class ElasticSimu(_Simu):
 
         Returns
         -------
-        np.ndarray
+        FeArray
             Computed strain field (Ne,pg,(3 or 6))
         """
 

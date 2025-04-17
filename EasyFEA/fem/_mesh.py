@@ -426,23 +426,23 @@ class Mesh(Observable):
 
     def Get_leftDispPart(self, matrixType: MatrixType) -> FeArray:
         """Get the left side of local displacement matrices.\n
-        Ku_e = jacobian_e_pg * weight_pg * B_e_pg' * c_e_pg * B_e_pg\n
+        Ku_e = jacobian_e_pg * weight_pg * B_e_pg' @ c_e_pg @ B_e_pg\n
 
-        Returns (epij) -> jacobian_e_pg * weight_pg * B_e_pg'.
+        Returns (epij) -> jacobian_e_pg * weight_pg * B_e_pg'
         """
         return self.groupElem.Get_leftDispPart(matrixType)
 
     def Get_ReactionPart_e_pg(self, matrixType: MatrixType) -> FeArray:
         """Get the part that builds the reaction term (scalar).\n
-        ReactionPart_e_pg = r_e_pg * jacobian_e_pg * weight_pg * N_pg' * N_pg\n
+        ReactionPart_e_pg = r_e_pg * jacobian_e_pg * weight_pg * N_pg' @ N_pg\n
 
-        Returns (epij) -> jacobian_e_pg * weight_pg * N_pg' * N_pg
+        Returns (epij) -> jacobian_e_pg * weight_pg * N_pg' @ N_pg
         """
         return self.groupElem.Get_ReactionPart_e_pg(matrixType)
 
     def Get_DiffusePart_e_pg(self, matrixType: MatrixType) -> FeArray:
         """Get the part that builds the diffusion term (scalar).\n
-        DiffusePart_e_pg = k_e_pg * jacobian_e_pg * weight_pg * dN_e_pg' * A * dN_e_pg\n
+        DiffusePart_e_pg = k_e_pg * jacobian_e_pg * weight_pg * dN_e_pg' @ A @ dN_e_pg\n
 
         Returns (epij) -> jacobian_e_pg * weight_pg * dN_e_pg'
         """
@@ -450,9 +450,9 @@ class Mesh(Observable):
 
     def Get_SourcePart_e_pg(self, matrixType: MatrixType) -> FeArray:
         """Get the part that builds the source term (scalar).\n
-        SourcePart_e_pg = f_e_pg * jacobian_e_pg, weight_pg, N_pg'\n
+        SourcePart_e_pg = f_e_pg * jacobian_e_pg * weight_pg * N_pg'\n
 
-        Returns (epij) -> jacobian_e_pg, weight_pg, N_pg'
+        Returns (epij) -> jacobian_e_pg * weight_pg * N_pg'
         """
         return self.groupElem.Get_SourcePart_e_pg(matrixType)
 
@@ -905,8 +905,8 @@ class Mesh(Observable):
 
         elif criteria == "jacobian":
             # jMax / jMin
-            jacobian_e_pg = groupElem.Get_jacobin_e_pg(MatrixType.mass)
-            values_e = np.max(jacobian_e_pg, 1) / np.min(jacobian_e_pg, 1)
+            jacobian_e_pg = groupElem.Get_jacobian_e_pg(MatrixType.mass)
+            values_e = jacobian_e_pg._max(1) / jacobian_e_pg._min(1)
 
         else:
             Display.MyPrintError(f"The criterion ({criteria}) is not implemented")

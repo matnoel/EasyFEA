@@ -247,7 +247,7 @@ class PhaseFieldSimu(_Simu):
             elif convOption == 2:
                 # eq (39) Ambati 2015 10.1007/s00466-014-1109-y
                 # The work of external body and surface forces are added to remain as general as possible.
-                E_n = self._Calc_Psi_Crack() + self._Calc_Psi_Elas() - u_n @ fu
+                E_n = self._Calc_Psi_Crack() + self._Calc_Psi_Elas() - self._Calc_Psi_Ext(fu)
 
             # Compute damage field
             d_np1 = self.__Solve_damage()
@@ -265,7 +265,7 @@ class PhaseFieldSimu(_Simu):
             elif convOption in [1,2]:
                 E_np1 = self._Calc_Psi_Crack()
                 if convOption == 2:
-                   E_np1 += self._Calc_Psi_Elas() - u_np1 @ fu
+                   E_np1 += self._Calc_Psi_Elas() - self._Calc_Psi_Ext(fu)
 
                 if E_np1 == 0:
                     convIter = np.abs(E_n - E_np1)
@@ -454,37 +454,37 @@ class PhaseFieldSimu(_Simu):
         pfm = self.phaseFieldModel
 
         # Data
-        k = pfm.k
-        A = pfm.A
         PsiP_e_pg = self.__Calc_psiPlus_e_pg()
-        r_e_pg = pfm.Get_r_e_pg(PsiP_e_pg)
-        f_e_pg = pfm.Get_f_e_pg(PsiP_e_pg)
 
         matrixType = MatrixType.mass
 
         mesh = self.mesh
-        Ne = mesh.Ne
-        nPg = r_e_pg.shape[1]
         dN_e_pg = mesh.Get_dN_e_pg(matrixType)
-
-        # K * Laplacien(d) + r * d = F        
-        ReactionPart_e_pg = mesh.Get_ReactionPart_e_pg(matrixType) # -> jacobian_e_pg * weight_pg * N_pg' * N_pg
-        DiffusePart_e_pg = mesh.Get_DiffusePart_e_pg(matrixType) # -> jacobian_e_pg * weight_pg * dN_e_pg'
-        SourcePart_e_pg = mesh.Get_SourcePart_e_pg(matrixType) # -> jacobian_e_pg, weight_pg, N_pg'
         
+        # K * Laplacien(d) + r * d = F
+
         tic = Tic()
 
-        # Part that involves the reaction term r -> r_e_pg * jacobian_e_pg * weight_pg * N_pg' * N_pg
-        K_r_e = np.einsum('ep,epij->eij', r_e_pg, ReactionPart_e_pg, optimize='optimal')
+        # Reaction part Kr_e = r_e_pg * jacobian_e_pg * weight_pg * N_pg' @ N_pg
+        ReactionPart_e_pg = mesh.Get_ReactionPart_e_pg(matrixType)
+        r_e_pg = pfm.Get_r_e_pg(PsiP_e_pg)
+        Kr_e = (r_e_pg * ReactionPart_e_pg)._sum(axis=1)
 
-        # The part that involves diffusion K -> k_e_pg * jacobian_e_pg * weight_pg * dN_e_pg' * A * dN_e_pg
-        k_e_pg = Reshape_variable(k, Ne, nPg)
-        K_K_e = np.einsum('ep,epij,jk,epkl->eil', k_e_pg, DiffusePart_e_pg, A, dN_e_pg, optimize='optimal')
+        # Diffusion part Kk_e -> k_e_pg * jacobian_e_pg * weight_pg * dN_e_pg' @ A @ dN_e_pg
+        DiffusePart_e_pg = mesh.Get_DiffusePart_e_pg(matrixType)
+        k = pfm.k
+        A = pfm.A
+        if pfm.isHeterogeneous:
+            k = Reshape_variable(k, *PsiP_e_pg.shape[:2])
+            A = Reshape_variable(A, *PsiP_e_pg.shape[:2])
+        Kk_e = (k * DiffusePart_e_pg @ A @ dN_e_pg)._sum(axis=1)
         
-        # Source part Fd_e -> f_e_pg * jacobian_e_pg, weight_pg, N_pg'
-        Fd_e = np.einsum('ep,epij->eij', f_e_pg, SourcePart_e_pg, optimize='optimal')
+        # Source part Fd_e = f_e_pg * jacobian_e_pg * weight_pg * N_pg' @ N_pg
+        SourcePart_e_pg = mesh.Get_SourcePart_e_pg(matrixType)
+        f_e_pg = pfm.Get_f_e_pg(PsiP_e_pg)
+        Fd_e = (f_e_pg * SourcePart_e_pg)._sum(axis=1)
     
-        Kd_e = K_r_e + K_K_e
+        Kd_e = Kr_e + Kk_e
 
         if self.dim == 2:
             thickness = pfm.thickness
@@ -689,7 +689,10 @@ class PhaseFieldSimu(_Simu):
         tic = Tic()
 
         u = self.displacement.reshape(-1,1)
-        Psi_Elas = 1/2 * (u.T @ Ku @ u)[0,0]
+        if np.linalg.norm(u) == 0:
+            Psi_Elas = 0
+        else:
+            Psi_Elas = 1/2 * (u.T @ Ku @ u)[0,0]
 
         tic.Tac("PostProcessing", "Calc Psi Elas", False)
         
@@ -703,11 +706,29 @@ class PhaseFieldSimu(_Simu):
         tic = Tic()
 
         d = self.damage.reshape(-1,1)
-        Psi_Crack = 1/2 * (d.T @ Kd @ d)[0,0]
+        if np.linalg.norm(d) == 0:
+            Psi_Crack = 0
+        else:
+            Psi_Crack = 1/2 * (d.T @ Kd @ d)[0,0]
 
         tic.Tac("PostProcessing", "Calc Psi Crack", False)
 
         return Psi_Crack
+    
+    def _Calc_Psi_Ext(self, f_n: np.ndarray) -> float:
+        """Computes external's energy."""
+
+        tic = Tic()
+
+        u_n = self.displacement
+        if np.linalg.norm(u_n) == 0 or np.linalg.norm(f_n) == 0:
+            Psi_Ext = 0
+        else:
+            Psi_Ext = u_n @ f_n
+
+        tic.Tac("PostProcessing", "Calc Psi Ext", False)
+
+        return Psi_Ext
 
     def _Calc_Epsilon_e_pg(self, sol: np.ndarray, matrixType=MatrixType.rigi) -> FeArray:
         """Computes strain field (Ne,pg,(3 or 6)).\n
@@ -726,9 +747,9 @@ class PhaseFieldSimu(_Simu):
         """
         
         tic = Tic()        
-        u_e = sol[self.mesh.assembly_e]
+        u_e = FeArray(sol[self.mesh.assembly_e][:,np.newaxis])
         B_e_pg = self.mesh.Get_B_e_pg(matrixType)
-        Epsilon_e_pg = np.einsum('epij,ej->epi', B_e_pg, u_e, optimize='optimal')            
+        Epsilon_e_pg = B_e_pg @ u_e
         
         tic.Tac("Matrix", "Epsilon_e_pg", False)
 
@@ -746,9 +767,12 @@ class PhaseFieldSimu(_Simu):
 
         Returns
         -------
-        np.ndarray
+        FeArray
             Computed damaged stress field.
         """
+
+        if not isinstance(Epsilon_e_pg, FeArray):
+            Epsilon_e_pg = FeArray(Epsilon_e_pg)
 
         assert Epsilon_e_pg.shape[0] == self.mesh.Ne
         assert Epsilon_e_pg.shape[1] == self.mesh.Get_nPg(matrixType)
@@ -763,7 +787,7 @@ class PhaseFieldSimu(_Simu):
         
         # compute Sig such that: Sig = g(d) * SigP + SigM
         g_e_pg = phaseFieldModel.Get_g_e_pg(d, self.mesh, matrixType)        
-        SigmaP_e_pg = np.einsum('ep,epi->epi', g_e_pg, SigmaP_e_pg, optimize='optimal')
+        SigmaP_e_pg = g_e_pg * SigmaP_e_pg
         Sigma_e_pg = SigmaP_e_pg + SigmaM_e_pg
             
         tic.Tac("Matrix", "Sigma_e_pg", False)

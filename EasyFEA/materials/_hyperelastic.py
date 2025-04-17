@@ -610,7 +610,6 @@ class HyperElastic:
         assert T._type == "vector", "T must be a (..., 3) array"
 
         I4_e_pg = T @ C_e_pg @ T
-        # I4_e_pg = np.einsum("...i,...ij,...j->...", T, C_e_pg, T, optimize="optimal")
 
         return I4_e_pg
     

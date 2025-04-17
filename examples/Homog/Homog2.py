@@ -4,11 +4,11 @@
 
 """Perform homogenization on several RVE."""
 
-from EasyFEA import (Display, Folder, plt, np,
+from EasyFEA import (Display, plt, np,
                      Mesher, ElemType,
                      Materials, Simulations)
 from EasyFEA.Geoms import Point, Points, Line
-from EasyFEA.fem import LagrangeCondition
+from EasyFEA.fem import LagrangeCondition, FeArray
 
 if __name__ == '__main__':
 
@@ -282,21 +282,20 @@ if __name__ == '__main__':
     # ----------------------------------------------------------------------------
     # Effective elasticity tensor (C_hom)
     # ----------------------------------------------------------------------------
-    U_e = np.zeros((u11_e.shape[0],u11_e.shape[1], 3))
+    U_e = FeArray(np.zeros((u11_e.shape[0], 1,u11_e.shape[1], 3)))
 
-    U_e[:,:,0] = u11_e; U_e[:,:,1] = u22_e; U_e[:,:,2] = u12_e
+    U_e[:,0,:,0] = u11_e; U_e[:,0,:,1] = u22_e; U_e[:,0,:,2] = u12_e
 
     matrixType = "mass"
-    jacobian_e_pg = mesh.Get_jacobian_e_pg(matrixType)
-    weight_pg = mesh.Get_weight_pg(matrixType)
+    weightedJacobian_e_pg = mesh.Get_weightedJacobian_e_pg(matrixType)
     B_e_pg = mesh.Get_B_e_pg(matrixType)
 
-    C_Mat = Materials.Reshape_variable(material.C, mesh.Ne, weight_pg.size)
+    C_Mat = Materials.Reshape_variable(material.C, *B_e_pg.shape[:2])
 
-    C_hom = np.einsum('ep,p,epij,epjk,ekl->il', jacobian_e_pg, weight_pg, C_Mat, B_e_pg, U_e, optimize='optimal') * 1 / area
-
+    C_hom = (weightedJacobian_e_pg * C_Mat @ B_e_pg @ U_e)._sum((0,1)) / mesh.area
+    
     print(f"c1111 = {C_hom[0,0]}")
     print(f"c1122 = {C_hom[0,1]}")
     print(f"c1212 = {C_hom[2,2]/2}")
 
-    Display.plt.show()
+    plt.show()

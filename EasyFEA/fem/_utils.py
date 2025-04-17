@@ -273,10 +273,26 @@ class FeArray(np.ndarray):
         res = np.einsum(subscripts, self, other)
         return FeArray(res)
     
-    def _sum(self, axis=None):
+    def _sum(self, *args, **kwargs):
         """`np.sum()` wrapper."""
-        sum = np.asarray(super().sum(axis))
+        sum = np.asarray(super().sum(*args, **kwargs))
         if sum.size == 1:
             return float(sum)
         else:
             return sum
+    
+    def _max(self, *args, **kwargs):
+        """`np.max()` wrapper."""
+        max = np.asarray(super().max(*args, **kwargs))
+        if max.size == 1:
+            return float(max)
+        else:
+            return max
+    
+    def _min(self, *args, **kwargs):
+        """`np.min()` wrapper."""
+        min = np.asarray(super().min(*args, **kwargs))
+        if min.size == 1:
+            return float(min)
+        else:
+            return min
