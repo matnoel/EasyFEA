@@ -81,8 +81,11 @@ class FeArray(np.ndarray):
         if addFeAxis:
             obj = obj[np.newaxis, np.newaxis]
         if obj.ndim not in [2, 3, 4, 6] and obj.size != 0:
-            raise ValueError("The input array dimensions must be one of the following: 2, 3, 4, or 6.")
-        return obj
+            print("The input array dimensions must be one of the following: 2, 3, 4, or 6.")
+            raise Exception()
+            return np.asarray(obj)
+        else:
+            return obj
 
     def __array_finalize__(self, obj: np.ndarray):
         # This method is automatically called when new instances are created.
@@ -138,8 +141,6 @@ class FeArray(np.ndarray):
         else:
             ndim2 = array2.ndim
             shape2 = array2.shape
-
-
 
         if ndim1 == 0:
             # array1(Ne, nPg)  array2(...) => (Ne, nPg, ...)
@@ -296,3 +297,10 @@ class FeArray(np.ndarray):
             return float(min)
         else:
             return min
+
+    @staticmethod
+    def zeros(*args, dtype=None):
+
+        array = np.zeros(shape=args, dtype=dtype)
+
+        return FeArray(array)

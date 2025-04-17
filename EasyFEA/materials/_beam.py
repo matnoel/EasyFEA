@@ -354,7 +354,7 @@ class BeamStructure(_IModel):
         Ne = groupElem.Ne
         nPg = groupElem.Get_gauss(matrixType).nPg
         # Initialize D_e_pg :
-        D_e_pg = FeArray(np.zeros((Ne, nPg, *list_D[0].shape)))
+        D_e_pg = FeArray.zeros(Ne, nPg, *list_D[0].shape)
         
         # For each beam, we will construct the law of behavior on the associated nodes.
         for beam, D in zip(listBeam, list_D):

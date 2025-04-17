@@ -785,7 +785,7 @@ class PhaseField(_IModel):
         tic = Tic()
 
         # Initialize the second-order tensor [e,pg,dim,dim]
-        matrix_e_pg = FeArray(np.zeros((Ne,nPg,dim,dim), dtype=float))
+        matrix_e_pg = FeArray.zeros(Ne, nPg, dim, dim)
         for d in range(dim):
             matrix_e_pg[:,:,d,d] = vector_e_pg[:,:,d]
 
@@ -821,7 +821,7 @@ class PhaseField(_IModel):
             # Eigenvalue calculations [e,pg]
             delta = tr_e_pg**2 - (4*det_e_pg)
                         
-            eigs_e_pg = FeArray(np.zeros((Ne, nPg, 2)))
+            eigs_e_pg = FeArray.zeros(Ne, nPg, 2)
             eigs_e_pg[:,:,0] = (tr_e_pg - np.sqrt(delta))/2
             eigs_e_pg[:,:,1] = (tr_e_pg + np.sqrt(delta))/2
 
@@ -834,7 +834,7 @@ class PhaseField(_IModel):
             elems, pdgs = np.where(eigs_e_pg[:,:,0] != eigs_e_pg[:,:,1])
             
             # m1 and m2 [e,pg,dim,dim]
-            M1 = FeArray(np.zeros((Ne,nPg,2,2)))
+            M1 = FeArray.zeros(Ne,nPg,2,2)
             M1[:,:,0,0] = 1
             if elems.size > 0:
                 v1_m_v2[v1_m_v2==0] = 1 # to avoid dividing by 0
@@ -989,7 +989,7 @@ class PhaseField(_IModel):
                 # -------------------------------------
                 # merge values in eigs_e_pg
                 # -------------------------------------
-                eigs_e_pg = FeArray(np.zeros((Ne, nPg, 3)))
+                eigs_e_pg = FeArray.zeros(Ne, nPg, 3)
                 eigs_e_pg[:,:,0] = val1_e_pg
                 eigs_e_pg[:,:,1] = val2_e_pg
                 eigs_e_pg[:,:,2] = val3_e_pg                
@@ -1007,7 +1007,7 @@ class PhaseField(_IModel):
         # transform eigenbases in the form of a vector [e,pg,3] or [e,pg,6].
         if dim == 2:
             # [x, y, xy]
-            m1 = FeArray(np.zeros((Ne,nPg,3))); m2 = np.zeros_like(m1)
+            m1 = FeArray.zeros(Ne,nPg,3); m2 = np.zeros_like(m1)
             m1[:,:,0] = M1[:,:,0,0];   m2[:,:,0] = M2[:,:,0,0]
             m1[:,:,1] = M1[:,:,1,1];   m2[:,:,1] = M2[:,:,1,1]            
             m1[:,:,2] = M1[:,:,0,1]*coef;   m2[:,:,2] = M2[:,:,0,1]*coef
@@ -1018,7 +1018,7 @@ class PhaseField(_IModel):
 
         elif dim == 3:
             # [x, y, z, yz, xz, xy]
-            m1 = FeArray(np.zeros((Ne,nPg,6))); m2 = np.zeros_like(m1);  m3 = np.zeros_like(m1)
+            m1 = FeArray.zeros(Ne,nPg,6); m2 = np.zeros_like(m1);  m3 = np.zeros_like(m1)
             m1[:,:,0] = M1[:,:,0,0];   m2[:,:,0] = M2[:,:,0,0]; m3[:,:,0] = M3[:,:,0,0] # x
             m1[:,:,1] = M1[:,:,1,1];   m2[:,:,1] = M2[:,:,1,1]; m3[:,:,1] = M3[:,:,1,1] # y
             m1[:,:,2] = M1[:,:,2,2];   m2[:,:,2] = M2[:,:,2,2]; m3[:,:,2] = M3[:,:,2,2] # z

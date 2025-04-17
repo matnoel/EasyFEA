@@ -1163,7 +1163,7 @@ class _GroupElem(ABC):
                 elems = self.Get_Elements_Tag(beam.name)
                 P[elems] = beam._Calc_P()
 
-            Pglob_e_pg = FeArray(np.zeros((Ne, 1, dof_n*nPe, dof_n*nPe)))
+            Pglob_e_pg = FeArray.zeros(Ne, 1, dof_n*nPe, dof_n*nPe)
             N = P.shape[1]
             lines = np.repeat(range(N), N)
             columns = np.array(list(range(N))*N)
@@ -1261,7 +1261,7 @@ class _GroupElem(ABC):
                 elems = self.Get_Elements_Tag(beam.name)
                 P[elems] = beam._Calc_P()
 
-            Pglob_e = FeArray(np.zeros((Ne, 1, dof_n*nPe, dof_n*nPe)))
+            Pglob_e = FeArray.zeros(Ne, 1, dof_n*nPe, dof_n*nPe)
             N = P.shape[-1]
             lines = np.repeat(range(N), N)
             columns = np.array(list(range(N))*N)

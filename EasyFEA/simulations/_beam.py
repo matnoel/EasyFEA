@@ -560,7 +560,7 @@ class BeamSimu(_Simu):
 
         tic = Tic()
         
-        S_e_pg = np.zeros((Ne, nPg))
+        S_e_pg = FeArray.zeros(Ne, nPg)
         Iy_e_pg = np.zeros_like(S_e_pg)
         Iz_e_pg = np.zeros_like(S_e_pg)
         J_e_pg = np.zeros_like(S_e_pg)
@@ -589,7 +589,7 @@ class BeamSimu(_Simu):
             Sigma_e_pg = np.zeros((Ne, nPg, 3))
 
             Mz_e_pg = InternalForces_e_pg[:,:,1]
-            Sigma_e_pg[:,:,0] = N_e_pg/S_e_pg - (Mz_e_pg*y_e_pg/Iz_e_pg)  # Sxx = N/S - Mz*y/Iz
+            Sigma_e_pg[:,:,0] = N_e_pg/S_e_pg - (Mz_e_pg * y_e_pg/Iz_e_pg)  # Sxx = N/S - Mz*y/Iz
             Sigma_e_pg[:,:,1] = 0 # Syy = 0
             # Ty = 0 with euler bernoulli beam because uy' = rz
             Sigma_e_pg[:,:,2] = 0 # Sxy = Ty/S il faut calculer Ty
