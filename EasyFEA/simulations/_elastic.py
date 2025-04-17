@@ -118,12 +118,12 @@ class ElasticSimu(_Simu):
         # Compute Mass
         # ------------------------------
         matrixType = MatrixType.mass
-        N_pg = mesh.Get_N_vector_pg(matrixType)
+        N_pg = FeArray(mesh.Get_N_vector_pg(matrixType)[np.newaxis])
+        weightedJacobian = mesh.Get_weightedJacobian_e_pg(matrixType)
         
-        weightedJacobian_e_pg = mesh.Get_weightedJacobian_e_pg(matrixType)
-        rho_e_pg = Reshape_variable(self.rho, *weightedJacobian_e_pg.shape[:2])
-
-        Mu_e = np.einsum(f'ep,pdi,ep,pdj->eij', weightedJacobian_e_pg, N_pg, rho_e_pg, N_pg, optimize="optimal")
+        rho_e_pg = Reshape_variable(self.rho, *weightedJacobian.shape[:2])
+ 
+        Mu_e = (rho_e_pg * weightedJacobian * N_pg.T @ N_pg)._sum(axis=1)
 
         if self.dim == 2:
             thickness = self.material.thickness
@@ -432,7 +432,7 @@ class ElasticSimu(_Simu):
 
         return FeArray(Epsilon_e_pg)
                     
-    def _Calc_Sigma_e_pg(self, Epsilon_e_pg: np.ndarray, matrixType=MatrixType.rigi) -> np.ndarray:
+    def _Calc_Sigma_e_pg(self, Epsilon_e_pg: np.ndarray, matrixType=MatrixType.rigi) -> FeArray:
         """Computes stress field from strain field.\n
         2D : [Sxx Syy sqrt(2)*Sxy]\n
         3D : [Sxx Syy Szz sqrt(2)*Syz sqrt(2)*Sxz sqrt(2)*Sxy]
@@ -444,7 +444,7 @@ class ElasticSimu(_Simu):
 
         Returns
         -------
-        np.ndarray
+        FeArray
             Computed stress field (Ne,pg,(3 or 6))
         """
 
