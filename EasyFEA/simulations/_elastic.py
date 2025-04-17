@@ -418,7 +418,7 @@ class ElasticSimu(_Simu):
         """
 
         tic = Tic()        
-        u_e = FeArray.asfearray(u[self.mesh.assembly_e][:,np.newaxis])
+        u_e = self.mesh.Locates_sol_e(u)
         B_dep_e_pg = self.mesh.Get_B_e_pg(matrixType)
         Epsilon_e_pg = B_dep_e_pg @ u_e
         

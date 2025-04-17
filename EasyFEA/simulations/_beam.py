@@ -502,9 +502,7 @@ class BeamSimu(_Simu):
         
         tic = Tic()
 
-        dof_n = self.structure.dof_n
-        assembly_e = self.mesh.groupElem.Get_assembly_e(dof_n)
-        sol_e = FeArray.asfearray(sol[assembly_e][:,np.newaxis])
+        sol_e = self.mesh.Locates_sol_e(sol, self.structure.dof_n)
         B_beam_e_pg = self.mesh.groupElem.Get_EulerBernoulli_B_e_pg(self.structure)
         Epsilon_e_pg = B_beam_e_pg @ sol_e
         
