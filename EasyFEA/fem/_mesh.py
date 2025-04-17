@@ -385,7 +385,7 @@ class Mesh(Observable):
     def Get_N_pg(self, matrixType: MatrixType) -> np.ndarray:
         """Evaluates shape functions in (ξ, η, ζ) coordinates.\n
         [N1, . . . , Nn]\n
-        (nPg, nPe)
+        (nPg, 1, nPe)
         """
         return self.groupElem.Get_N_pg(matrixType)
 

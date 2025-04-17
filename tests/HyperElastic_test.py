@@ -207,7 +207,7 @@ class TestHyperElastic:
         # Id_order4 = np.eye(6)
         # same as
         vect2 = np.eye(3)
-        Id_order4 = Project_Kelvin(TensorProd(vect2, vect2, True))
+        Id_order4 = FeArray.asfearray(Project_Kelvin(TensorProd(vect2, vect2, True)), True)
 
         d2I2dC_v = Id_order2 - Id_order4
 

@@ -215,9 +215,9 @@ class PhaseField(_IModel):
         """Returns degradation function"""
 
         d_e_n = mesh.Locates_sol_e(d_n)
-        Nd_pg = mesh.Get_N_pg(matrixType)
+        Nd_pg = FeArray.asfearray(mesh.Get_N_pg(matrixType)[np.newaxis,:,0])
 
-        d_e_pg = np.einsum('pij,ej->ep', Nd_pg, d_e_n, optimize='optimal')        
+        d_e_pg = Nd_pg @ d_e_n
 
         if self.__regularization in self.Get_regularisations():
             g_e_pg: np.ndarray = (1-d_e_pg)**2 + k_res
