@@ -8,7 +8,7 @@ from abc import ABC, abstractmethod
 import numpy as np
 
 # utilities
-from ..fem import Mesh, MatrixType
+from ..fem import Mesh, MatrixType, FeArray
 from ._hyperelastic import HyperElastic
 # others
 from ._utils import _IModel, ModelType
@@ -64,7 +64,7 @@ class _HyperElas(_IModel, ABC):
         return False
 
     @abstractmethod
-    def Compute_W(self, mesh: Mesh, u: np.ndarray, matrixType=MatrixType.rigi) -> np.ndarray:
+    def Compute_W(self, mesh: Mesh, u: np.ndarray, matrixType=MatrixType.rigi) -> FeArray:
         """Computes the quadratic energy W(u).
         
         Parameters
@@ -85,7 +85,7 @@ class _HyperElas(_IModel, ABC):
         return None
 
     @abstractmethod
-    def Compute_dWde(self, mesh: Mesh, u: np.ndarray, matrixType=MatrixType.rigi) -> np.ndarray:
+    def Compute_dWde(self, mesh: Mesh, u: np.ndarray, matrixType=MatrixType.rigi) -> FeArray:
         """Computes the second Piola-Kirchhoff tensor Σ(u).
         
         Parameters
@@ -107,7 +107,7 @@ class _HyperElas(_IModel, ABC):
         return None
 
     @abstractmethod
-    def Compute_d2Wde(self, mesh: Mesh, u: np.ndarray, matrixType=MatrixType.rigi) -> np.ndarray:
+    def Compute_d2Wde(self, mesh: Mesh, u: np.ndarray, matrixType=MatrixType.rigi) -> FeArray:
         """Computes dΣde.
         
         Parameters
@@ -160,7 +160,7 @@ class NeoHookean(_HyperElas):
         self.Need_Update()
         self.__K = value
 
-    def Compute_W(self, mesh, u, matrixType=MatrixType.rigi):
+    def Compute_W(self, mesh, u, matrixType=MatrixType.rigi) -> FeArray:
 
         K = self.K
         I1 = HyperElastic.Compute_I1(mesh, u, matrixType)
@@ -169,7 +169,7 @@ class NeoHookean(_HyperElas):
 
         return W
 
-    def Compute_dWde(self, mesh, u, matrixType=MatrixType.rigi):
+    def Compute_dWde(self, mesh, u, matrixType=MatrixType.rigi) -> FeArray:
         
         K = self.K
         dI1dC = HyperElastic.Compute_dI1dC()
@@ -178,7 +178,7 @@ class NeoHookean(_HyperElas):
 
         return 2 * dW
     
-    def Compute_d2Wde(self, mesh, u, matrixType=MatrixType.rigi):
+    def Compute_d2Wde(self, mesh, u, matrixType=MatrixType.rigi) -> FeArray:
         
         K = self.K
         d2I1dC = HyperElastic.Compute_d2I1dC()
@@ -235,7 +235,7 @@ class MooneyRivlin(_HyperElas):
         self.Need_Update()
         self.__K2 = value
 
-    def Compute_W(self, mesh, u, matrixType=MatrixType.rigi):
+    def Compute_W(self, mesh, u, matrixType=MatrixType.rigi) -> FeArray:
 
         K1 = self.K1
         K2 = self.K2
@@ -246,7 +246,7 @@ class MooneyRivlin(_HyperElas):
 
         return W
 
-    def Compute_dWde(self, mesh, u, matrixType=MatrixType.rigi):
+    def Compute_dWde(self, mesh, u, matrixType=MatrixType.rigi) -> FeArray:
         
         K1 = self.K1
         K2 = self.K2
@@ -257,7 +257,7 @@ class MooneyRivlin(_HyperElas):
 
         return dW
     
-    def Compute_d2Wde(self, mesh, u, matrixType=MatrixType.rigi):
+    def Compute_d2Wde(self, mesh, u, matrixType=MatrixType.rigi) -> FeArray:
 
         K1 = self.K1
         K2 = self.K2
@@ -315,7 +315,7 @@ class SaintVenantKirchhoff(_HyperElas):
         self.Need_Update()
         self.__mu = value
 
-    def Compute_W(self, mesh, u, matrixType=MatrixType.rigi):
+    def Compute_W(self, mesh, u, matrixType=MatrixType.rigi) -> FeArray:
 
         lmbda = self.lmbda
         mu = self.mu
@@ -332,7 +332,7 @@ class SaintVenantKirchhoff(_HyperElas):
 
         return W
 
-    def Compute_dWde(self, mesh, u, matrixType=MatrixType.rigi):
+    def Compute_dWde(self, mesh, u, matrixType=MatrixType.rigi) -> FeArray:
 
         lmbda = self.lmbda
         mu = self.mu
@@ -345,7 +345,7 @@ class SaintVenantKirchhoff(_HyperElas):
         
         return dW
 
-    def Compute_d2Wde(self, mesh, u, matrixType=MatrixType.rigi):
+    def Compute_d2Wde(self, mesh, u, matrixType=MatrixType.rigi) -> FeArray:
 
         lmbda = self.lmbda
         mu = self.mu
@@ -354,7 +354,6 @@ class SaintVenantKirchhoff(_HyperElas):
         d2I1dC = HyperElastic.Compute_d2I1dC()
         d2I2dC = HyperElastic.Compute_d2I2dC()
 
-        I1 = I1[:,:,np.newaxis].repeat(6, -1) 
         d2W = 4 * (lmbda*(2*I1 - 6)/8 + mu*(2*I1 - 2)/4 * d2I1dC - mu/2 * d2I2dC) \
             + 4 * (lmbda/4 + mu/2 * dI1dC.T @ dI1dC)
         
