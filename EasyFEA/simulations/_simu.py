@@ -1213,7 +1213,7 @@ class _Simu(_IObserver, ABC):
         
         dofs = self.Bc_dofs_nodes(nodes, unknowns, problemType)
 
-        self.__Bc_Add_Dirichlet(problemType, nodes, dofsValues, dofs, unknowns, description)
+        self._Bc_Add_Dirichlet(problemType, nodes, dofsValues, dofs, unknowns, description)
 
     def add_neumann(self, nodes: np.ndarray, values: list, unknowns: list[str], problemType=None, description="") -> None:
         """Adds Neumann's boundary conditions.
@@ -1244,7 +1244,7 @@ class _Simu(_IObserver, ABC):
 
         dofsValues, dofs = self.__Bc_pointLoad(problemType, nodes, values, unknowns)
 
-        self.__Bc_Add_Neumann(problemType, nodes, dofsValues, dofs, unknowns, description)
+        self._Bc_Add_Neumann(problemType, nodes, dofsValues, dofs, unknowns, description)
         
     def add_lineLoad(self, nodes: np.ndarray, values: list, unknowns: list[str], problemType=None, description="") -> None:
         """Adds a linear load.
@@ -1275,7 +1275,7 @@ class _Simu(_IObserver, ABC):
 
         dofsValues, dofs, nodes = self.__Bc_lineLoad(problemType, nodes, values, unknowns)
 
-        self.__Bc_Add_Neumann(problemType, nodes, dofsValues, dofs, unknowns, description)
+        self._Bc_Add_Neumann(problemType, nodes, dofsValues, dofs, unknowns, description)
 
     def add_surfLoad(self, nodes: np.ndarray, values: list, unknowns: list[str], problemType=None, description="") -> None:
         """Adds a surface load.
@@ -1311,7 +1311,7 @@ class _Simu(_IObserver, ABC):
         elif self.__dim == 3:
             dofsValues, dofs, nodes = self.__Bc_surfload(problemType, nodes, values, unknowns)
 
-        self.__Bc_Add_Neumann(problemType, nodes, dofsValues, dofs, unknowns, description)
+        self._Bc_Add_Neumann(problemType, nodes, dofsValues, dofs, unknowns, description)
 
     def add_pressureLoad(self, nodes: np.ndarray, magnitude: float, problemType=None, description="") -> None:
         """Adds a pressure.
@@ -1345,7 +1345,7 @@ class _Simu(_IObserver, ABC):
 
         unknowns = self.Get_unknowns(problemType)[:self.mesh.inDim]
 
-        self.__Bc_Add_Neumann(problemType, nodes, dofsValues, dofs, unknowns, description)
+        self._Bc_Add_Neumann(problemType, nodes, dofsValues, dofs, unknowns, description)
 
     def add_volumeLoad(self, nodes: np.ndarray, values: list, unknowns: list[str], problemType=None, description="") -> None:
         """Adds a volumetric load.
@@ -1381,7 +1381,7 @@ class _Simu(_IObserver, ABC):
         elif self.__dim == 3:
             dofsValues, dofs, nodes = self.__Bc_volumeload(problemType, nodes, values, unknowns)
 
-        self.__Bc_Add_Neumann(problemType, nodes, dofsValues, dofs, unknowns, description)
+        self._Bc_Add_Neumann(problemType, nodes, dofsValues, dofs, unknowns, description)
 
     def __Bc_pointLoad(self, problemType: ModelType, nodes: np.ndarray, values: list, unknowns: list) -> tuple[np.ndarray , np.ndarray]:
         """Adds a point load."""
@@ -1524,7 +1524,7 @@ class _Simu(_IObserver, ABC):
 
         return dofsValues, dofs, nodes
     
-    def __Bc_Add_Neumann(self, problemType: ModelType, nodes: np.ndarray, dofsValues: np.ndarray, dofs: np.ndarray, unknowns: list, description="") -> None:
+    def _Bc_Add_Neumann(self, problemType: ModelType, nodes: np.ndarray, dofsValues: np.ndarray, dofs: np.ndarray, unknowns: list, description="") -> None:
         """Adds Neumann's boundary conditions.\n
         If a neumann condition is already applied to the dof, the condition will not be taken into account for the dof."""
 
@@ -1537,7 +1537,7 @@ class _Simu(_IObserver, ABC):
 
         tic.Tac("Boundary Conditions","Add Neumann condition ", self._verbosity)   
      
-    def __Bc_Add_Dirichlet(self, problemType: ModelType, nodes: np.ndarray, dofsValues: np.ndarray, dofs: np.ndarray, unknowns: list, description="") -> None:
+    def _Bc_Add_Dirichlet(self, problemType: ModelType, nodes: np.ndarray, dofsValues: np.ndarray, dofs: np.ndarray, unknowns: list, description="") -> None:
         """Adds Dirichlet's boundary conditions.\n
         If a Dirichlet's dof is entered more than once, the conditions are added together."""
 
