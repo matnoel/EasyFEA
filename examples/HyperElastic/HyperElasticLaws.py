@@ -30,18 +30,21 @@ def Compute(W, params: list):
     d2W1 = ""
     d2W2 = ""
 
-    for i, param_i in enumerate(params):        
+    for i, param_i in enumerate(params):
         dWdIi = sympy.diff(W, param_i)
-        if dWdIi != 0:
-            if i > 0:
-                d2W1 += " + "
-            d2W1 += f"{dWdIi} * d2I{i+1}dC"
+        d2WdIi = sympy.diff(dWdIi, param_i)
+        if dWdIi != 0:            
+            if d2WdIi != 0:
+                if i > 0:
+                    d2W1 += " + "
+                d2W1 += f"{d2WdIi} * d2I{i+1}dC"
         for j, param_j in enumerate(params):             
             d2WdIiIj = sympy.diff(dWdIi, param_j)
             if d2WdIiIj != 0:
-                if j > 0:
-                    d2W2 += " + "
-                d2W2 += f"{d2WdIiIj} * dI{i+1}dC.T @ dI{j+1}dC"
+                if d2WdIiIj != 0:
+                    if j > 0:
+                        d2W2 += " + "
+                    d2W2 += f"{d2WdIiIj} * dI{i+1}dC.T @ dI{j+1}dC"
 
     d2W1 = d2W1.replace("+ -", "- ")
     d2W2 = d2W2.replace("+ -", "- ")
