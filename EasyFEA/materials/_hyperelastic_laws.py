@@ -259,14 +259,7 @@ class MooneyRivlin(_HyperElas):
     
     def Compute_d2Wde(self, mesh, u, matrixType=MatrixType.rigi) -> FeArray:
 
-        K1 = self.K1
-        K2 = self.K2
-        d2I1dC = HyperElastic.Compute_d2I1dC()
-        d2I2dC = HyperElastic.Compute_d2I2dC()
-
-        d2W = 4 * (K1 * d2I1dC + K2 * d2I2dC)
-
-        return d2W
+        return FeArray.zeros(1,1,6,6)
     
 # ----------------------------------------------
 # Saint-Venant-Kirchhoff
@@ -340,7 +333,6 @@ class SaintVenantKirchhoff(_HyperElas):
         dI1dC = HyperElastic.Compute_dI1dC()
         dI2dC = HyperElastic.Compute_dI2dC(mesh, u, matrixType)
 
-        I1 = I1[:,:,np.newaxis].repeat(6, -1)
         dW = 2 * (lmbda*(2*I1 - 6)/8 + mu*(2*I1 - 2)/4 * dI1dC - mu/2 * dI2dC)
         
         return dW
@@ -349,13 +341,10 @@ class SaintVenantKirchhoff(_HyperElas):
 
         lmbda = self.lmbda
         mu = self.mu
-        I1 = HyperElastic.Compute_I1(mesh, u, matrixType)
         dI1dC = HyperElastic.Compute_dI1dC() 
         d2I1dC = HyperElastic.Compute_d2I1dC()
-        d2I2dC = HyperElastic.Compute_d2I2dC()
 
-        d2W = 4 * (lmbda*(2*I1 - 6)/8 + mu*(2*I1 - 2)/4 * d2I1dC - mu/2 * d2I2dC) \
-            + 4 * (lmbda/4 + mu/2 * dI1dC.T @ dI1dC)
+        d2W = 4 * (lmbda/4 + mu/2 * d2I1dC) + 4 * (lmbda/4 + mu/2 * dI1dC.T @ dI1dC)
         
         return d2W
 
