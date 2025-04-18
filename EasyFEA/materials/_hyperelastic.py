@@ -292,10 +292,9 @@ class HyperElastic:
         grad_e_pg = mesh.Get_Gradient_e_pg(u)
 
         if dim == 2:
-            D_e_pg = np.zeros((Ne, nPg, 3, 4), dtype=float)
+            D_e_pg = FeArray.zeros(Ne, nPg, 3, 4)
         else:
-            D_e_pg = np.zeros((Ne, nPg, 6, 9), dtype=float)
-        D_e_pg = FeArray.asfearray(D_e_pg)
+            D_e_pg = FeArray.zeros(Ne, nPg, 6, 9)
 
         def Add_to_D_e_pg(p: int, line: int, values: list[np.ndarray], coef=1.):
             N = 4 if dim == 2 else 9            
@@ -385,7 +384,7 @@ class HyperElastic:
             d2I1dC of shape (6, 6)
         """
 
-        return FeArray.asfearray(np.zeros((6, 6)), True)
+        return FeArray.zeros(1,1,6,6)
 
     # -------------------------------------
     # Compute I2
@@ -559,7 +558,7 @@ class HyperElastic:
 
         Ne, nPg, _ = HyperElastic.__GetDims(mesh, u, matrixType)
 
-        d2I3dC_e_pg = FeArray.asfearray(np.zeros((Ne, nPg, 6, 6)))
+        d2I3dC_e_pg = FeArray.zeros(Ne, nPg, 6, 6)
 
         d2I3dC_e_pg[:,:,0,1] = d2I3dC_e_pg[:,:,1,0] = czz
         d2I3dC_e_pg[:,:,0,2] = d2I3dC_e_pg[:,:,2,0] = cyy
