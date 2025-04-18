@@ -6,6 +6,7 @@ from ._utils import (
     ModelType, _IModel,
     Reshape_variable, Heterogeneous_Array,
     KelvinMandel_Matrix, Project_Kelvin,
+    Project_matrix_to_vector, Project_vector_to_matrix,
     Result_in_Strain_or_Stress_field,
     Get_Pmat, Apply_Pmat
 )
