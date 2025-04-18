@@ -212,20 +212,16 @@ def Project_vector_to_matrix(vector: np.ndarray, coef=np.sqrt(2)) -> Union[FeArr
     if dim == 2:
         # [x, y, xy]
         # xy
-        matrix[...,0,1] = vector[...,2]/coef
-        matrix[...,1,0] = vector[...,2]/coef
+        matrix[...,0,1] = matrix[...,1,0] = vector[...,2]/coef
 
     else:
         # [x, y, z, yz, xz, xy]
         # yz
-        matrix[...,1,2] = vector[...,3]/coef
-        matrix[...,2,1] = vector[...,3]/coef
+        matrix[...,1,2] = matrix[...,2,1] = vector[...,3]/coef
         # xz
-        matrix[...,0,2] = vector[...,4]/coef
-        matrix[...,2,0] = vector[...,4]/coef
+        matrix[...,0,2] = matrix[...,2,0] = vector[...,4]/coef
         # xy
-        matrix[...,0,1] = vector[...,5]/coef
-        matrix[...,1,0] = vector[...,5]/coef
+        matrix[...,0,1] = matrix[...,1,0] = vector[...,5]/coef
 
     return matrix
 
