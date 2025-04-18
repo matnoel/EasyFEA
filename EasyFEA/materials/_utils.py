@@ -190,6 +190,77 @@ def KelvinMandel_Matrix(dim: int, M: np.ndarray) -> np.ndarray:
 
     return newM
 
+def Project_vector_to_matrix(vector: np.ndarray, coef=np.sqrt(2)) -> Union[FeArray, np.ndarray]:
+
+    vectDim = vector.shape[-1]
+
+    assert vectDim in [3, 6], "vector must be a either (...,3) or (...,6) array."
+    
+    dim = 2 if vectDim == 3 else 3
+
+    if isinstance(vector, FeArray):
+        matrix = FeArray.zeros(*vector.shape[:2], dim, dim)
+    elif isinstance(vector, np.ndarray):
+        matrix = np.zeros(*vector.shape[:2], dim, dim)
+    else:
+        raise ValueError("vector must be either a FeArray or a np.ndarray.")
+
+
+    for d in range(dim):
+        matrix[...,d,d] = vector[...,d]
+
+    if dim == 2:
+        # [x, y, xy]
+        # xy
+        matrix[...,0,1] = vector[...,2]/coef
+        matrix[...,1,0] = vector[...,2]/coef
+
+    else:
+        # [x, y, z, yz, xz, xy]
+        # yz
+        matrix[...,1,2] = vector[...,3]/coef
+        matrix[...,2,1] = vector[...,3]/coef
+        # xz
+        matrix[...,0,2] = vector[...,4]/coef
+        matrix[...,2,0] = vector[...,4]/coef
+        # xy
+        matrix[...,0,1] = vector[...,5]/coef
+        matrix[...,1,0] = vector[...,5]/coef
+
+    return matrix
+
+def Project_matrix_to_vector(matrix: np.ndarray, coef=np.sqrt(2)) -> Union[FeArray, np.ndarray]:
+
+    matrixDim = matrix.shape[-1]
+
+    assert matrixDim in [2, 3], "matrix must be a either (...,2,2) or (...,3,3) array."
+    
+    dim = 3 if matrixDim == 2 else 6
+
+    if isinstance(matrix, FeArray):
+        vector = FeArray.zeros(*matrix.shape[:2], dim)
+    elif isinstance(matrix, np.ndarray):
+        vector = np.zeros(*matrix.shape[:2], dim)
+    else:
+        raise ValueError("matrix must be either a FeArray or a np.ndarray.")
+
+    if dim == 3:
+        # [x, y, xy]
+        vector[...,0] = matrix[...,0,0] # x
+        vector[...,1] = matrix[...,1,1] # y
+        vector[...,2] = matrix[...,0,1]*coef # xy
+
+    else:
+        # [x, y, z, yz, xz, xy]
+        vector[...,0] = matrix[...,0,0] # x
+        vector[...,1] = matrix[...,1,1] # y
+        vector[...,2] = matrix[...,2,2] # z
+        vector[...,3] = matrix[...,1,2]*coef # yz
+        vector[...,4] = matrix[...,0,2]*coef # xz
+        vector[...,5] = matrix[...,0,1]*coef # xy
+
+    return vector
+
 def Project_Kelvin(A: np.ndarray, orderA:int=None) -> np.ndarray:
     """Projects the tensor A in Kelvin Mandel notation.
 

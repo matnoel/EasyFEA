@@ -76,7 +76,7 @@ class MatrixType(str, Enum):
 
 class FeArray(np.ndarray):
     """Finite Element array.\n
-    A finite element array has at least two dimensions).
+    A finite element array has at least two dimensions.
     """
 
     def __new__(cls, input_array, broadcastFeArrays=False):

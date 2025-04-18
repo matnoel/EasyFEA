@@ -11,7 +11,7 @@ from ..utilities import Numba, Tic
 # fem
 from ..fem import Mesh, FeArray
 # others
-from ._utils import _IModel, ModelType, Reshape_variable
+from ._utils import _IModel, ModelType, Reshape_variable, Project_vector_to_matrix, Project_matrix_to_vector
 from ..utilities import _params
 from ..utilities._linalg import Trace, TensorProd, Det, Inv, Norm
 
@@ -783,28 +783,7 @@ class PhaseField(_IModel):
         tic = Tic()
 
         # Initialize the second-order tensor [e,pg,dim,dim]
-        matrix_e_pg = FeArray.zeros(Ne, nPg, dim, dim)
-        for d in range(dim):
-            matrix_e_pg[:,:,d,d] = vector_e_pg[:,:,d]
-
-        if dim == 2:
-            # [x, y, xy]
-            # xy
-            matrix_e_pg[:,:,0,1] = vector_e_pg[:,:,2]/coef
-            matrix_e_pg[:,:,1,0] = vector_e_pg[:,:,2]/coef
-        else:
-            # [x, y, z, yz, xz, xy]
-            # yz
-            matrix_e_pg[:,:,1,2] = vector_e_pg[:,:,3]/coef
-            matrix_e_pg[:,:,2,1] = vector_e_pg[:,:,3]/coef
-            # xz
-            matrix_e_pg[:,:,0,2] = vector_e_pg[:,:,4]/coef
-            matrix_e_pg[:,:,2,0] = vector_e_pg[:,:,4]/coef
-            # xy
-            matrix_e_pg[:,:,0,1] = vector_e_pg[:,:,5]/coef
-            matrix_e_pg[:,:,1,0] = vector_e_pg[:,:,5]/coef
-
-            matrix_e_pg = 1/2 * (matrix_e_pg.T + matrix_e_pg)
+        matrix_e_pg = Project_vector_to_matrix(vector_e_pg, coef)
 
         tic.Tac("Split", "vector_e_pg -> matrix_e_pg", False)
 
@@ -888,7 +867,6 @@ class PhaseField(_IModel):
                     arg = 1/2 * (2*I1_e_pg**3 - 9*I1_e_pg*I2_e_pg + 27*I3_e_pg) # -1 <= arg <= 1
                     arg[g_neq_0] =  arg[g_neq_0] / g_e_pg[g_neq_0]**(3/2)
                 else:
-                    # arg = 1/2 * (2*I1_e_pg**3 - 9*I1_e_pg*I2_e_pg + 27*I3_e_pg) * g_e_pg**(-3/2)
                     arg = (2*I1_e_pg**3 - 9*I1_e_pg*I2_e_pg + 27*I3_e_pg) / (2 * g_e_pg**(3/2))
 
                 theta = 1/3 * np.arccos(arg) # Lode's angle such that 0 <= theta <= pi/3
@@ -1005,28 +983,19 @@ class PhaseField(_IModel):
         # transform eigenbases in the form of a vector [e,pg,3] or [e,pg,6].
         if dim == 2:
             # [x, y, xy]
-            m1 = FeArray.zeros(Ne,nPg,3); m2 = np.zeros_like(m1)
-            m1[:,:,0] = M1[:,:,0,0];   m2[:,:,0] = M2[:,:,0,0]
-            m1[:,:,1] = M1[:,:,1,1];   m2[:,:,1] = M2[:,:,1,1]            
-            m1[:,:,2] = M1[:,:,0,1]*coef;   m2[:,:,2] = M2[:,:,0,1]*coef
+            m1 = Project_matrix_to_vector(M1)
+            m2 = Project_matrix_to_vector(M2)
 
             list_m = [m1, m2]
-
             list_M = [M1, M2]
 
         elif dim == 3:
             # [x, y, z, yz, xz, xy]
-            m1 = FeArray.zeros(Ne,nPg,6); m2 = np.zeros_like(m1);  m3 = np.zeros_like(m1)
-            m1[:,:,0] = M1[:,:,0,0];   m2[:,:,0] = M2[:,:,0,0]; m3[:,:,0] = M3[:,:,0,0] # x
-            m1[:,:,1] = M1[:,:,1,1];   m2[:,:,1] = M2[:,:,1,1]; m3[:,:,1] = M3[:,:,1,1] # y
-            m1[:,:,2] = M1[:,:,2,2];   m2[:,:,2] = M2[:,:,2,2]; m3[:,:,2] = M3[:,:,2,2] # z
-            
-            m1[:,:,3] = M1[:,:,1,2]*coef;   m2[:,:,3] = M2[:,:,1,2]*coef;   m3[:,:,3] = M3[:,:,1,2]*coef # yz
-            m1[:,:,4] = M1[:,:,0,2]*coef;   m2[:,:,4] = M2[:,:,0,2]*coef;   m3[:,:,4] = M3[:,:,0,2]*coef # xz
-            m1[:,:,5] = M1[:,:,0,1]*coef;   m2[:,:,5] = M2[:,:,0,1]*coef;   m3[:,:,5] = M3[:,:,0,1]*coef # xy
+            m1 = Project_matrix_to_vector(M1)
+            m2 = Project_matrix_to_vector(M2)
+            m3 = Project_matrix_to_vector(M3)
 
             list_m = [m1, m2, m3]
-
             list_M = [M1, M2, M3]
 
         tic.Tac("Split", "Eigenvectors", False)        
