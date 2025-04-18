@@ -105,7 +105,7 @@ if __name__ == '__main__':
     simu = Simulations.ElasticSimu(mesh, material)
     simu.rho = 7860 # kg/m3
 
-    simu.add_dirichlet(nodesZ0, [0]*3, simu.Get_dofs())
+    simu.add_dirichlet(nodesZ0, [0]*3, simu.Get_unknowns())
     known, unknown = simu.Bc_dofs_known_unknown(simu.problemType)
 
     simu.Solver_Set_Hyperbolic_Algorithm(0.1)

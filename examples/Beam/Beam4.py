@@ -58,7 +58,7 @@ if __name__ == '__main__':
     dof_n = simu.Get_dof_n()
 
     # Apply boundary conditions
-    simu.add_dirichlet(mesh.Nodes_Point(p1), [0]*dof_n, simu.Get_dofs())
+    simu.add_dirichlet(mesh.Nodes_Point(p1), [0]*dof_n, simu.Get_unknowns())
     simu.add_neumann(mesh.Nodes_Point(p3), [-load, load], ["y", "z"])
     if beamStructure.nBeam > 1:
         simu.add_connection_fixed(mesh.Nodes_Point(p2))

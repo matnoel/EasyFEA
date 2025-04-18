@@ -42,7 +42,7 @@ class ThermalSimu(_Simu):
         # init
         self.Solver_Set_Elliptic_Algorithm()
     
-    def Get_dofs(self, problemType=None) -> list[str]:
+    def Get_unknowns(self, problemType=None) -> list[str]:
         return ["t"]
     
     def Get_dof_n(self, problemType=None) -> int:

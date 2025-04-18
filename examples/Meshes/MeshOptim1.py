@@ -90,7 +90,7 @@ if __name__ == '__main__':
         
         # do the simulation
         simu.Bc_Init()
-        simu.add_dirichlet(nodes_Fixed, [0]*dim, simu.Get_dofs(), description="Fixed")
+        simu.add_dirichlet(nodes_Fixed, [0]*dim, simu.Get_unknowns(), description="Fixed")
         simu.add_surfLoad(nodes_Load, [-surfLoad], ["y"])
 
         simu.Solve()

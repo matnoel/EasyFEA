@@ -88,7 +88,7 @@ if __name__ == '__main__':
     simu_beam = Simulations.BeamSimu(mesh_beam, beams)
 
     simu_beam.add_dirichlet(mesh_beam.Nodes_Conditions(lambda x,y,z: (x==-L/2) | (x==L/2)),
-                            [0]*simu_beam.Get_dof_n(), simu_beam.Get_dofs())
+                            [0]*simu_beam.Get_dof_n(), simu_beam.Get_unknowns())
     simu_beam.add_neumann(mesh_beam.Nodes_Conditions(lambda x,y,z: (x==0)), [-load], ['y'])
     simu_beam.Solve()
 
@@ -107,7 +107,7 @@ if __name__ == '__main__':
     material = Materials.Elas_Isot(3, E, v)
     simu = Simulations.ElasticSimu(mesh, material)
 
-    simu.add_dirichlet(nodes_fixed, [0]*3, simu.Get_dofs())
+    simu.add_dirichlet(nodes_fixed, [0]*3, simu.Get_unknowns())
     simu.add_lineLoad(nodes_load, [-load/hx], ["y"])
     sol = simu.Solve()
 

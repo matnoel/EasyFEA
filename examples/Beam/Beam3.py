@@ -80,8 +80,8 @@ if __name__ == '__main__':
     dof_n = simu.Get_dof_n()
 
     # Apply boundary conditions
-    simu.add_dirichlet(mesh.Nodes_Point(p1), [0]*dof_n, simu.Get_dofs())
-    simu.add_dirichlet(mesh.Nodes_Point(p2), [0]*dof_n, simu.Get_dofs())
+    simu.add_dirichlet(mesh.Nodes_Point(p1), [0]*dof_n, simu.Get_unknowns())
+    simu.add_dirichlet(mesh.Nodes_Point(p2), [0]*dof_n, simu.Get_unknowns())
     simu.add_neumann(mesh.Nodes_Point(pL), [-load], ["y"])
 
     # Solve the beam problem and get displacement results

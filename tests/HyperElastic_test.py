@@ -23,7 +23,7 @@ def Get_2d_simulations(ud=1e-6) -> list[Simulations.ElasticSimu]:
         mesh = Mesher().Mesh_2D(contour, [], ElemType.TRI3)
         simu = Simulations.ElasticSimu(mesh, Materials.Elas_Isot(2))
 
-        simu.add_dirichlet(mesh.Nodes_Conditions(lambda x,y,z: x==0), [0,0], simu.Get_dofs())
+        simu.add_dirichlet(mesh.Nodes_Conditions(lambda x,y,z: x==0), [0,0], simu.Get_unknowns())
         simu.add_dirichlet(mesh.Nodes_Conditions(lambda x,y,z: x==L), [ud], ["x"])
         simu.Solve()
 
@@ -46,7 +46,7 @@ def Get_3d_simulations(ud=1e-6) -> list[Simulations.ElasticSimu]:
         mesh = Mesher().Mesh_Extrude(contour, [], [0,0,h], [h/meshSize], elemType)
         simu = Simulations.ElasticSimu(mesh, Materials.Elas_Isot(3))
 
-        simu.add_dirichlet(mesh.Nodes_Conditions(lambda x,y,z: x==0), [0,0,0], simu.Get_dofs())
+        simu.add_dirichlet(mesh.Nodes_Conditions(lambda x,y,z: x==0), [0,0,0], simu.Get_unknowns())
         simu.add_dirichlet(mesh.Nodes_Conditions(lambda x,y,z: x==L), [ud], ["x"])
         simu.Solve()
 

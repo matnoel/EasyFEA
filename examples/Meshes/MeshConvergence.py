@@ -105,7 +105,7 @@ if __name__ == '__main__':
                 simu.mesh = mesh
 
             # Set displacement boundary conditions
-            simu.add_dirichlet(nodes_x0, [0]*dim, simu.Get_dofs())
+            simu.add_dirichlet(nodes_x0, [0]*dim, simu.Get_unknowns())
             # Set surface load on the right boundary (y-direction)
             simu.add_surfLoad(nodes_xL, [-P / h / b], ["y"])
 

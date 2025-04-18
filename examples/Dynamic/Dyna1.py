@@ -77,7 +77,7 @@ if __name__ == '__main__':
 
     if initSimu:
         simu.Bc_Init()
-        simu.add_dirichlet(nodes_0, [0]*dim, simu.Get_dofs(), description="Fixed")
+        simu.add_dirichlet(nodes_0, [0]*dim, simu.Get_unknowns(), description="Fixed")
         simu.add_dirichlet(nodes_L, [depInit], ["y"], description="dep")
         simu.Solve()
         simu.Save_Iter()
@@ -99,7 +99,7 @@ if __name__ == '__main__':
         time += dt
 
         simu.Bc_Init()
-        simu.add_dirichlet(nodes_0, [0]*dim, simu.Get_dofs(), description="Fixed")
+        simu.add_dirichlet(nodes_0, [0]*dim, simu.Get_unknowns(), description="Fixed")
         if not initSimu:            
             simu.add_surfLoad(nodes_L, [load*time/Tmax/(h*b)], ['y'])
         simu.Solve()

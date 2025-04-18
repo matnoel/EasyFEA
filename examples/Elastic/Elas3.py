@@ -54,7 +54,7 @@ if __name__ == '__main__':
     material = Materials.Elas_Isot(dim, E, v, planeStress=False, thickness=thickness)
     simu = Simulations.ElasticSimu(mesh, material)
 
-    simu.add_dirichlet(nodes_y0, [0]*dim, simu.Get_dofs())
+    simu.add_dirichlet(nodes_y0, [0]*dim, simu.Get_unknowns())
     simu.add_surfLoad(nodes_x0, [lambda x, y, z: w*g*(h - y)], ["x"], description="[w*g*(h-y)]")
     simu.add_volumeLoad(mesh.nodes, [-ro*g], ["y"], description="[-ro*g]")
 

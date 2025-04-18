@@ -60,15 +60,15 @@ class PhaseFieldSimu(_Simu):
             elementsField = ["Stress"]
         return nodesField, elementsField
 
-    def Get_dofs(self, problemType=None) -> list[str]:        
+    def Get_unknowns(self, problemType=None) -> list[str]:        
         if problemType == ModelType.damage:
             return ["d"]
         elif problemType in [ModelType.elastic, None]:
-            _dict_dim_directions_displacement = {
+            _dict_unknowns = {
                 2 : ["x", "y"],
                 3 : ["x", "y", "z"]
             }
-            return _dict_dim_directions_displacement[self.dim]
+            return _dict_unknowns[self.dim]
     
     def Get_problemTypes(self) -> list[ModelType]:
         return [ModelType.damage, ModelType.elastic]
@@ -112,23 +112,23 @@ class PhaseFieldSimu(_Simu):
         [di, ...]"""
         return self._Get_u_n(ModelType.damage)
     
-    def Bc_dofs_nodes(self, nodes: np.ndarray, directions: list[str], problemType=ModelType.elastic) -> np.ndarray:
-        return super().Bc_dofs_nodes(nodes, directions, problemType)
+    def Bc_dofs_nodes(self, nodes: np.ndarray, unknowns: list[str], problemType=ModelType.elastic) -> np.ndarray:
+        return super().Bc_dofs_nodes(nodes, unknowns, problemType)
 
-    def add_dirichlet(self, nodes: np.ndarray, values: np.ndarray, directions: list[str], problemType=ModelType.elastic, description=""):        
-        return super().add_dirichlet(nodes, values, directions, problemType, description)
+    def add_dirichlet(self, nodes: np.ndarray, values: np.ndarray, unknowns: list[str], problemType=ModelType.elastic, description=""):        
+        return super().add_dirichlet(nodes, values, unknowns, problemType, description)
     
-    def add_lineLoad(self, nodes: np.ndarray, values: list, directions: list[str], problemType=ModelType.elastic, description=""):
-        return super().add_lineLoad(nodes, values, directions, problemType, description)
+    def add_lineLoad(self, nodes: np.ndarray, values: list, unknowns: list[str], problemType=ModelType.elastic, description=""):
+        return super().add_lineLoad(nodes, values, unknowns, problemType, description)
 
-    def add_surfLoad(self, nodes: np.ndarray, values: list, directions: list[str], problemType=ModelType.elastic, description=""):
-        return super().add_surfLoad(nodes, values, directions, problemType, description)
+    def add_surfLoad(self, nodes: np.ndarray, values: list, unknowns: list[str], problemType=ModelType.elastic, description=""):
+        return super().add_surfLoad(nodes, values, unknowns, problemType, description)
     
     def add_pressureLoad(self, nodes: np.ndarray, magnitude: float, problemType=ModelType.elastic, description="") -> None:
         return super().add_pressureLoad(nodes, magnitude, problemType, description)
         
-    def add_neumann(self, nodes: np.ndarray, values: list, directions: list[str], problemType=ModelType.elastic, description=""):
-        return super().add_neumann(nodes, values, directions, problemType, description)
+    def add_neumann(self, nodes: np.ndarray, values: list, unknowns: list[str], problemType=ModelType.elastic, description=""):
+        return super().add_neumann(nodes, values, unknowns, problemType, description)
 
     def Get_K_C_M_F(self, problemType=None) -> tuple[sparse.csr_matrix, sparse.csr_matrix, sparse.csr_matrix, sparse.csr_matrix]:
         

@@ -158,7 +158,7 @@ if __name__ == '__main__':
             # update boundary conditions
             simu.Bc_Init()
             simu.add_dirichlet(nodes_circle, [0], ['d'], "damage")
-            simu.add_dirichlet(nodes_y0, [0]*dim, simu.Get_dofs())
+            simu.add_dirichlet(nodes_y0, [0]*dim, simu.Get_unknowns())
             simu.add_dirichlet(nodes_load, [ud], ['y'])
 
             # solve

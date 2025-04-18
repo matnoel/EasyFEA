@@ -98,13 +98,13 @@ class _Simu(_IObserver, ABC):
         pass
 
     @abstractmethod
-    def Get_dofs(self, problemType=None) -> list[str]:
-        """Returns a list of the degrees of freedom available in the simulation."""
+    def Get_unknowns(self, problemType=None) -> list[str]:
+        """Returns a list of unknowns available in the simulation."""
         pass
 
     @abstractmethod
     def Get_dof_n(self, problemType=None) -> int:
-        """Returns the degrees of freedom per node."""
+        """Returns the number of unknowns per node."""
         pass
 
     # Solvers
@@ -191,10 +191,10 @@ class _Simu(_IObserver, ABC):
     # core functions
     # ----------------------------------------------
 
-    def _Check_dofs(self, problemType: ModelType, directions: list) -> None:
-        """Checks whether the specified directions are available for the problem."""
-        dofs = self.Get_dofs(problemType)
-        for d in directions:
+    def _Check_dofs(self, problemType: ModelType, unknowns: list) -> None:
+        """Checks whether the specified unknowns are available for the problem."""
+        dofs = self.Get_unknowns(problemType)
+        for d in unknowns:
             assert d in dofs, f"{d} is not in {dofs}"
 
     def __Check_problemTypes(self, problemType: ModelType) -> None:
@@ -969,7 +969,7 @@ class _Simu(_IObserver, ABC):
         if resolution in [ResolType.r1, ResolType.r2]:
 
             # Here we return the solution with the known ddls
-            x = sparse.csr_matrix((dofsValues, (dofs, np.zeros(len(dofs)))), shape=(size, 1), dtype=np.float64)
+            x = sparse.csr_matrix((dofsValues, (dofs, np.zeros_like(dofs))), shape=(size, 1), dtype=np.float64)
 
             return A, x
 
@@ -1045,17 +1045,51 @@ class _Simu(_IObserver, ABC):
         """Returns a copy of the boundary conditions for display."""
         return self.__Bc_Display.copy()
 
-    def Bc_dofs_Dirichlet(self, problemType=None) -> list[int]:
+    def Bc_vector_Dirichlet(self, problemType=None) -> np.ndarray:
+        """Returns a vector filled with Dirichlet boundary conditions values."""
+        if problemType is None:
+            problemType = self.problemType        
+        dofs = self.Bc_dofs_Dirichlet(problemType)
+        dofsValues = self.Bc_values_Dirichlet(problemType)
+        size = self.mesh.Nn * self.Get_dof_n(problemType)        
+        csr_vector = sparse.csr_matrix((dofsValues, (dofs, np.zeros_like(dofs))), shape=(size, 1))
+        vector = csr_vector.toarray().ravel()
+        return vector
+    
+    def Bc_vector_Neumann(self, problemType=None) -> np.ndarray:
+        """Returns a vector filled with Neuman boundary conditions values."""
+        if problemType is None:
+            problemType = self.problemType        
+        dofs = self.Bc_dofs_Neumann(problemType)
+        dofsValues = self.Bc_values_Neumann(problemType)
+        size = self.mesh.Nn * self.Get_dof_n(problemType)        
+        csr_vector = sparse.csr_matrix((dofsValues, (dofs, np.zeros_like(dofs))), shape=(size, 1))
+        vector = csr_vector.toarray().ravel()
+        return vector
+
+    def Bc_dofs_Dirichlet(self, problemType=None) -> np.ndarray:
         """Returns dofs related to Dirichlet conditions."""
         if problemType is None:
             problemType = self.problemType
         return BoundaryCondition.Get_dofs(problemType, self.__Bc_Dirichlet)
 
-    def Bc_values_Dirichlet(self, problemType=None) -> list[float]:
+    def Bc_values_Dirichlet(self, problemType=None) -> np.ndarray:
         """Returns dofs values related to Dirichlet conditions."""
         if problemType is None:
             problemType = self.problemType
         return BoundaryCondition.Get_values(problemType, self.__Bc_Dirichlet)
+    
+    def Bc_dofs_Neumann(self, problemType=None) -> np.ndarray:
+        """Returns dofs related to Neumann conditions."""
+        if problemType is None:
+            problemType = self.problemType
+        return BoundaryCondition.Get_dofs(problemType, self.__Bc_Neumann)
+
+    def Bc_values_Neumann(self, problemType=None) -> np.ndarray:
+        """Returns dofs values related to Neumann conditions."""
+        if problemType is None:
+            problemType = self.problemType
+        return BoundaryCondition.Get_values(problemType, self.__Bc_Neumann)
 
     def Bc_dofs_known_unknown(self, problemType: ModelType) -> tuple[np.ndarray, np.ndarray]:
         """Returns known and unknown dofs."""
@@ -1081,15 +1115,15 @@ class _Simu(_IObserver, ABC):
 
         return dofsKnown, dofsUnknown
 
-    def Bc_dofs_nodes(self, nodes: np.ndarray, directions: list[str], problemType=None) -> np.ndarray:
-        """Returns degrees of freedom associated with the nodes, based on the problem type and directions.
+    def Bc_dofs_nodes(self, nodes: np.ndarray, unknowns: list[str], problemType=None) -> np.ndarray:
+        """Returns degrees of freedom associated with the nodes, based on the problem type and unknowns.
 
         Parameters
         ----------
         nodes : np.ndarray
             nodes.
-        directions : list
-            directions (e.g ["x","y","rz"])
+        unknowns : list
+            unknowns (e.g ["x","y","rz"])
         problemType : str
             Problem type.
 
@@ -1106,9 +1140,9 @@ class _Simu(_IObserver, ABC):
         
         assert len(nodes) > 0, "Empty node list" 
 
-        availableDirections = self.Get_dofs(problemType)
+        availableUnknowns = self.Get_unknowns(problemType)
         
-        return BoundaryCondition.Get_dofs_nodes(availableDirections, nodes, directions)
+        return BoundaryCondition.Get_dofs_nodes(availableUnknowns, nodes, unknowns)
 
     def __Bc_evaluate(self, coordo: np.ndarray, values, option="nodes") -> np.ndarray:
         """Evaluates values at nodes or gauss points."""
@@ -1134,7 +1168,7 @@ class _Simu(_IObserver, ABC):
 
         return values_eval
     
-    def add_dirichlet(self, nodes: np.ndarray, values: list, directions: list[str], problemType=None, description="") -> None:
+    def add_dirichlet(self, nodes: np.ndarray, values: list, unknowns: list[str], problemType=None, description="") -> None:
         """Adds Dirichlet's boundary conditions.
 
         Parameters
@@ -1146,15 +1180,15 @@ class _Simu(_IObserver, ABC):
             e.g [10, lambda x,y,z: 10*x - 20*y + x*z, np.ndarray]\n
             The functions use the x, y and z nodes coordinates.\n
             Please note that the functions must take 3 input parameters in the order x, y, z, whether the problem is 1D, 2D or 3D.
-        directions : list[str]
-            directions where values will be applied (e.g ['y', 'x'])
+        unknowns : list[str]
+            unknowns where values will be applied (e.g ['y', 'x'])
         problemType : ModelType, optional
             problem type, if not specified, we take the basic problem of the problem
         description : str, optional
             Description of the condition, by default "".
         """
 
-        if len(values) == 0 or len(values) != len(directions): return        
+        if len(values) == 0 or len(values) != len(unknowns): return        
 
         if problemType is None:
             problemType = self.problemType
@@ -1169,19 +1203,19 @@ class _Simu(_IObserver, ABC):
         coordo_n = coordo[nodes]
 
         # initialize the value vector for each nodes
-        dofsValues_dir = np.zeros((Nn, len(directions)))        
+        dofsValues_dir = np.zeros((Nn, len(unknowns)))        
 
-        for d, dir in enumerate(directions):
+        for d, _ in enumerate(unknowns):
             eval_n = self.__Bc_evaluate(coordo_n, values[d], option="nodes")
             dofsValues_dir[:,d] = eval_n.ravel()
         
         dofsValues = dofsValues_dir.ravel()
         
-        dofs = self.Bc_dofs_nodes(nodes, directions, problemType)
+        dofs = self.Bc_dofs_nodes(nodes, unknowns, problemType)
 
-        self.__Bc_Add_Dirichlet(problemType, nodes, dofsValues, dofs, directions, description)
+        self.__Bc_Add_Dirichlet(problemType, nodes, dofsValues, dofs, unknowns, description)
 
-    def add_neumann(self, nodes: np.ndarray, values: list, directions: list[str], problemType=None, description="") -> None:
+    def add_neumann(self, nodes: np.ndarray, values: list, unknowns: list[str], problemType=None, description="") -> None:
         """Adds Neumann's boundary conditions.
 
         Parameters
@@ -1193,26 +1227,26 @@ class _Simu(_IObserver, ABC):
             e.g [10, lambda x,y,z: 10*x - 20*y + x*z, np.ndarray]\n
             The functions use the x, y and z nodes coordinates.\n
             Please note that the functions must take 3 input parameters in the order x, y, z, whether the problem is 1D, 2D or 3D.
-        directions : list[str]
-            directions where values will be applied (e.g ['y', 'x'])
+        unknowns : list[str]
+            unknowns where values will be applied (e.g ['y', 'x'])
         problemType : ModelType, optional
             problem type, if not specified, we take the basic problem of the problem
         description : str, optional
             Description of the condition, by default "".
         """
         
-        if len(values) == 0 or len(values) != len(directions): return
+        if len(values) == 0 or len(values) != len(unknowns): return
 
         if problemType is None:
             problemType = self.problemType
 
         self.__Check_problemTypes(problemType)
 
-        dofsValues, dofs = self.__Bc_pointLoad(problemType, nodes, values, directions)
+        dofsValues, dofs = self.__Bc_pointLoad(problemType, nodes, values, unknowns)
 
-        self.__Bc_Add_Neumann(problemType, nodes, dofsValues, dofs, directions, description)
+        self.__Bc_Add_Neumann(problemType, nodes, dofsValues, dofs, unknowns, description)
         
-    def add_lineLoad(self, nodes: np.ndarray, values: list, directions: list[str], problemType=None, description="") -> None:
+    def add_lineLoad(self, nodes: np.ndarray, values: list, unknowns: list[str], problemType=None, description="") -> None:
         """Adds a linear load.
 
         Parameters
@@ -1224,26 +1258,26 @@ class _Simu(_IObserver, ABC):
             e.g = [10, lambda x,y,z: 10*x - 20*y + x*z, np.ndarray] \n
             functions use x, y and z integration points coordinates (x,y,z are in this case arrays of dim (e,p)) \n
             Please note that the functions must take 3 input parameters in the order x, y, z, whether the problem is 1D, 2D or 3D.
-        directions : list[str]
-            directions where values will be applied (e.g ['y', 'x'])
+        unknowns : list[str]
+            unknowns where values will be applied (e.g ['y', 'x'])
         problemType : ModelType, optional
             problem type, if not specified, we take the basic problem of the problem
         description : str, optional
             Description of the condition, by default "".
         """
 
-        if len(values) == 0 or len(values) != len(directions): return
+        if len(values) == 0 or len(values) != len(unknowns): return
 
         if problemType is None:
             problemType = self.problemType
 
         self.__Check_problemTypes(problemType)
 
-        dofsValues, dofs, nodes = self.__Bc_lineLoad(problemType, nodes, values, directions)
+        dofsValues, dofs, nodes = self.__Bc_lineLoad(problemType, nodes, values, unknowns)
 
-        self.__Bc_Add_Neumann(problemType, nodes, dofsValues, dofs, directions, description)
+        self.__Bc_Add_Neumann(problemType, nodes, dofsValues, dofs, unknowns, description)
 
-    def add_surfLoad(self, nodes: np.ndarray, values: list, directions: list[str], problemType=None, description="") -> None:
+    def add_surfLoad(self, nodes: np.ndarray, values: list, unknowns: list[str], problemType=None, description="") -> None:
         """Adds a surface load.
         
         Parameters
@@ -1255,15 +1289,15 @@ class _Simu(_IObserver, ABC):
             e.g = [10, lambda x,y,z: 10*x - 20*y + x*z, np.ndarray] \n
             functions use x, y and z integration points coordinates (x,y,z are in this case arrays of dim (e,p)) \n
             Please note that the functions must take 3 input parameters in the order x, y, z, whether the problem is 1D, 2D or 3D.
-        directions : list[str]
-            directions where values will be applied (e.g ['y', 'x'])
+        unknowns : list[str]
+            unknowns where values will be applied (e.g ['y', 'x'])
         problemType : ModelType, optional
             problem type, if not specified, we take the basic problem of the problem
         description : str, optional
             Description of the condition, by default "".
         """
 
-        if len(values) == 0 or len(values) != len(directions): return
+        if len(values) == 0 or len(values) != len(unknowns): return
 
         if problemType is None:
             problemType = self.problemType
@@ -1271,13 +1305,13 @@ class _Simu(_IObserver, ABC):
         self.__Check_problemTypes(problemType)
             
         if self.__dim == 2:
-            dofsValues, dofs, nodes = self.__Bc_lineLoad(problemType, nodes, values, directions)
+            dofsValues, dofs, nodes = self.__Bc_lineLoad(problemType, nodes, values, unknowns)
             # multiplied by thickness
             dofsValues *= self.model.thickness
         elif self.__dim == 3:
-            dofsValues, dofs, nodes = self.__Bc_surfload(problemType, nodes, values, directions)
+            dofsValues, dofs, nodes = self.__Bc_surfload(problemType, nodes, values, unknowns)
 
-        self.__Bc_Add_Neumann(problemType, nodes, dofsValues, dofs, directions, description)
+        self.__Bc_Add_Neumann(problemType, nodes, dofsValues, dofs, unknowns, description)
 
     def add_pressureLoad(self, nodes: np.ndarray, magnitude: float, problemType=None, description="") -> None:
         """Adds a pressure.
@@ -1303,17 +1337,17 @@ class _Simu(_IObserver, ABC):
             Display.MyPrintError("Cant apply pressure on 1D mesh.")
             return
 
-        if len(self.Get_dofs(problemType)) == 0:
+        if len(self.Get_unknowns(problemType)) == 0:
             Display.MyPrintError("Cant apply pressure on scalar problems.")
             return
 
         dofsValues, dofs, nodes = self.__Bc_pressureload(problemType, nodes, magnitude)
 
-        directions = self.Get_dofs(problemType)[:self.mesh.inDim]
+        unknowns = self.Get_unknowns(problemType)[:self.mesh.inDim]
 
-        self.__Bc_Add_Neumann(problemType, nodes, dofsValues, dofs, directions, description)
+        self.__Bc_Add_Neumann(problemType, nodes, dofsValues, dofs, unknowns, description)
 
-    def add_volumeLoad(self, nodes: np.ndarray, values: list, directions: list[str], problemType=None, description="") -> None:
+    def add_volumeLoad(self, nodes: np.ndarray, values: list, unknowns: list[str], problemType=None, description="") -> None:
         """Adds a volumetric load.
         
         Parameters
@@ -1325,15 +1359,15 @@ class _Simu(_IObserver, ABC):
             e.g = [10, lambda x,y,z: 10*x - 20*y + x*z, np.ndarray] \n
             functions use x, y and z integration points coordinates (x,y,z are in this case arrays of dim (e,p)) \n
             Please note that the functions must take 3 input parameters in the order x, y, z, whether the problem is 1D, 2D or 3D.
-        directions : list[str]
-            directions where values will be applied (e.g ['y', 'x'])
+        unknowns : list[str]
+            unknowns where values will be applied (e.g ['y', 'x'])
         problemType : ModelType, optional
             problem type, if not specified, we take the basic problem of the problem
         description : str, optional
             Description of the condition, by default "".
         """
         
-        if len(values) == 0 or len(values) != len(directions): return
+        if len(values) == 0 or len(values) != len(unknowns): return
 
         if problemType is None:
             problemType = self.problemType
@@ -1341,15 +1375,15 @@ class _Simu(_IObserver, ABC):
         self.__Check_problemTypes(problemType)
         
         if self.__dim == 2:
-            dofsValues, dofs, nodes = self.__Bc_surfload(problemType, nodes, values, directions)
+            dofsValues, dofs, nodes = self.__Bc_surfload(problemType, nodes, values, unknowns)
             # multiplied by thickness
             dofsValues = dofsValues*self.model.thickness
         elif self.__dim == 3:
-            dofsValues, dofs, nodes = self.__Bc_volumeload(problemType, nodes, values, directions)
+            dofsValues, dofs, nodes = self.__Bc_volumeload(problemType, nodes, values, unknowns)
 
-        self.__Bc_Add_Neumann(problemType, nodes, dofsValues, dofs, directions, description)
+        self.__Bc_Add_Neumann(problemType, nodes, dofsValues, dofs, unknowns, description)
 
-    def __Bc_pointLoad(self, problemType: ModelType, nodes: np.ndarray, values: list, directions: list) -> tuple[np.ndarray , np.ndarray]:
+    def __Bc_pointLoad(self, problemType: ModelType, nodes: np.ndarray, values: list, unknowns: list) -> tuple[np.ndarray , np.ndarray]:
         """Adds a point load."""
 
         Nn = nodes.shape[0]
@@ -1357,9 +1391,9 @@ class _Simu(_IObserver, ABC):
         coordo_n = coordo[nodes]
 
         # initialize the value vector for each node
-        valeurs_ddl_dir = np.zeros((Nn, len(directions)))
+        valeurs_ddl_dir = np.zeros((Nn, len(unknowns)))
 
-        for d, dir in enumerate(directions):
+        for d, dir in enumerate(unknowns):
             eval_n = self.__Bc_evaluate(coordo_n, values[d], option="nodes")
             if problemType == ModelType.beam:
                 eval_n /= len(nodes)
@@ -1367,19 +1401,17 @@ class _Simu(_IObserver, ABC):
         
         dofsValues = valeurs_ddl_dir.ravel()
 
-        dofs = self.Bc_dofs_nodes(nodes, directions, problemType)
+        dofs = self.Bc_dofs_nodes(nodes, unknowns, problemType)
 
         return dofsValues, dofs
 
-    def __Bc_Integration_Dim(self, dim: int, problemType: ModelType, nodes: np.ndarray, values: list, directions: list) -> tuple[np.ndarray , np.ndarray]:
+    def __Bc_Integration_Dim(self, dim: int, problemType: ModelType, nodes: np.ndarray, values: list, unknowns: list) -> tuple[np.ndarray , np.ndarray]:
         """Integrates on elements for the specified dimension."""
 
         dofsValues = np.array([])
         dofs = np.array([], dtype=int)
         Nodes = np.array([], dtype=int) # Nodes used by the elements
         # nodes != Nodes dont remove
-
-        dof_n = self.Get_dof_n(problemType)
 
         Nn = self.mesh.Nn
 
@@ -1398,25 +1430,21 @@ class _Simu(_IObserver, ABC):
             coordo_e_p = groupElem.Get_GaussCoordinates_e_pg(matrixType, elements)
 
             N_pg = groupElem.Get_N_pg(matrixType)
-
-            # integration objects
-            jacobian_e_pg = groupElem.Get_jacobian_e_pg(matrixType)[elements]
-            gauss = groupElem.Get_gauss(matrixType)
-            weight_pg = gauss.weights
+            weightedJacobian_e_pg = groupElem.Get_weightedJacobian_e_pg(matrixType)[elements]
 
             # initialize the matrix of values for each node used by the elements and each gauss point (Ne*nPe, dir)
-            values_dofs_dir = np.zeros((Ne*groupElem.nPe, len(directions)))
+            values_dofs_dir = np.zeros((Ne*groupElem.nPe, len(unknowns)))
             # initialize the dofs vector
             new_dofs = np.zeros_like(values_dofs_dir, dtype=int)
 
             # Integrated in every direction
-            for d, dir in enumerate(directions):
+            for d, dir in enumerate(unknowns):
 
                 if isinstance(values[d], (int, float)) or callable(values[d]):
                     # evaluate on gauss points
                     eval_e_p = self.__Bc_evaluate(coordo_e_p, values[d], option="gauss")
                     # integrate the elements
-                    values_e_p = np.einsum('ep,p,ep,pij->epij', jacobian_e_pg, weight_pg, eval_e_p, N_pg, optimize='optimal')
+                    values_e_p = np.einsum('ep,ep,pij->epij', weightedJacobian_e_pg, eval_e_p, N_pg, optimize='optimal')
 
                 else:
                     eval_n = np.zeros(Nn, dtype=float)
@@ -1424,7 +1452,7 @@ class _Simu(_IObserver, ABC):
                     eval_e = eval_n[groupElem.connect[elements]]
 
                     # integrate the elements
-                    values_e_p = np.einsum('ep,p,ej,pij->epij', jacobian_e_pg, weight_pg, eval_e, N_pg, optimize='optimal')
+                    values_e_p = np.einsum('ep,ej,pij->epij', weightedJacobian_e_pg, eval_e, N_pg, optimize='optimal')
 
                 # sum over integration points
                 values_e = np.sum(values_e_p, axis=1)
@@ -1440,33 +1468,33 @@ class _Simu(_IObserver, ABC):
 
         return dofsValues, dofs, Nodes
 
-    def __Bc_lineLoad(self, problemType: ModelType, nodes: np.ndarray, values: list, directions: list) -> tuple[np.ndarray , np.ndarray, np.ndarray]:
+    def __Bc_lineLoad(self, problemType: ModelType, nodes: np.ndarray, values: list, unknowns: list) -> tuple[np.ndarray , np.ndarray, np.ndarray]:
         """Adds a linear load.\n
         returns dofsValues, dofs, nodes"""
         
-        self._Check_dofs(problemType, directions)
+        self._Check_dofs(problemType, unknowns)
 
-        dofsValues, dofs, nodes = self.__Bc_Integration_Dim(dim=1, problemType=problemType, nodes=nodes, values=values, directions=directions)
+        dofsValues, dofs, nodes = self.__Bc_Integration_Dim(dim=1, problemType=problemType, nodes=nodes, values=values, unknowns=unknowns)
 
         return dofsValues, dofs, nodes
     
-    def __Bc_surfload(self, problemType: ModelType, nodes: np.ndarray, values: list, directions: list) -> tuple[np.ndarray , np.ndarray, np.ndarray]:
+    def __Bc_surfload(self, problemType: ModelType, nodes: np.ndarray, values: list, unknowns: list) -> tuple[np.ndarray , np.ndarray, np.ndarray]:
         """Apply a surface force.\n
         returns dofsValues, dofs, nodes"""
         
-        self._Check_dofs(problemType, directions)
+        self._Check_dofs(problemType, unknowns)
 
-        dofsValues, dofs, nodes = self.__Bc_Integration_Dim(dim=2, problemType=problemType, nodes=nodes, values=values, directions=directions)
+        dofsValues, dofs, nodes = self.__Bc_Integration_Dim(dim=2, problemType=problemType, nodes=nodes, values=values, unknowns=unknowns)
 
         return dofsValues, dofs, nodes
 
-    def __Bc_volumeload(self, problemType: ModelType, nodes: np.ndarray, values: list, directions: list) -> tuple[np.ndarray , np.ndarray, np.ndarray]:
+    def __Bc_volumeload(self, problemType: ModelType, nodes: np.ndarray, values: list, unknowns: list) -> tuple[np.ndarray , np.ndarray, np.ndarray]:
         """Adds a volumetric load.\n
         returns dofsValues, dofs, nodes"""
         
-        self._Check_dofs(problemType, directions)
+        self._Check_dofs(problemType, unknowns)
 
-        dofsValues, dofs, nodes = self.__Bc_Integration_Dim(dim=3, problemType=problemType, nodes=nodes, values=values, directions=directions)
+        dofsValues, dofs, nodes = self.__Bc_Integration_Dim(dim=3, problemType=problemType, nodes=nodes, values=values, unknowns=unknowns)
 
         return dofsValues, dofs, nodes
     
@@ -1490,26 +1518,26 @@ class _Simu(_IObserver, ABC):
 
         values = [val*magnitude for val in normals[:,:inDim].T]
 
-        directions = self.Get_dofs(problemType)[:inDim]
+        unknowns = self.Get_unknowns(problemType)[:inDim]
 
-        dofsValues, dofs, nodes = self.__Bc_Integration_Dim(dim-1, problemType=problemType, nodes=nodes, values=values, directions=directions)
+        dofsValues, dofs, nodes = self.__Bc_Integration_Dim(dim-1, problemType=problemType, nodes=nodes, values=values, unknowns=unknowns)
 
         return dofsValues, dofs, nodes
     
-    def __Bc_Add_Neumann(self, problemType: ModelType, nodes: np.ndarray, dofsValues: np.ndarray, dofs: np.ndarray, directions: list, description="") -> None:
+    def __Bc_Add_Neumann(self, problemType: ModelType, nodes: np.ndarray, dofsValues: np.ndarray, dofs: np.ndarray, unknowns: list, description="") -> None:
         """Adds Neumann's boundary conditions.\n
         If a neumann condition is already applied to the dof, the condition will not be taken into account for the dof."""
 
         tic = Tic()
 
-        self._Check_dofs(problemType, directions)
+        self._Check_dofs(problemType, unknowns)
 
-        new_Bc = BoundaryCondition(problemType, nodes, dofs, directions, dofsValues, f'Neumann {description}')
+        new_Bc = BoundaryCondition(problemType, nodes, dofs, unknowns, dofsValues, f'Neumann {description}')
         self.__Bc_Neumann.append(new_Bc)
 
         tic.Tac("Boundary Conditions","Add Neumann condition ", self._verbosity)   
      
-    def __Bc_Add_Dirichlet(self, problemType: ModelType, nodes: np.ndarray, dofsValues: np.ndarray, dofs: np.ndarray, directions: list, description="") -> None:
+    def __Bc_Add_Dirichlet(self, problemType: ModelType, nodes: np.ndarray, dofsValues: np.ndarray, dofs: np.ndarray, unknowns: list, description="") -> None:
         """Adds Dirichlet's boundary conditions.\n
         If a Dirichlet's dof is entered more than once, the conditions are added together."""
 
@@ -1517,7 +1545,7 @@ class _Simu(_IObserver, ABC):
 
         self.__Check_problemTypes(problemType)
 
-        new_Bc = BoundaryCondition(problemType, nodes, dofs, directions, dofsValues, f'Dirichlet {description}')
+        new_Bc = BoundaryCondition(problemType, nodes, dofs, unknowns, dofsValues, f'Dirichlet {description}')
 
         self.__Bc_Dirichlet.append(new_Bc)
 
@@ -1525,7 +1553,7 @@ class _Simu(_IObserver, ABC):
     
     # Functions to create links between degrees of freedom
 
-    def _Bc_Add_Display(self, nodes: np.ndarray, directions: list[str], description: str, problemType=None) -> None:
+    def _Bc_Add_Display(self, nodes: np.ndarray, unknowns: list[str], description: str, problemType=None) -> None:
         """Adds a display condition."""
 
         if problemType is None:
@@ -1533,11 +1561,11 @@ class _Simu(_IObserver, ABC):
 
         self.__Check_problemTypes(problemType)        
 
-        dofs = self.Bc_dofs_nodes(nodes, directions, problemType)
+        dofs = self.Bc_dofs_nodes(nodes, unknowns, problemType)
         
         dofsValues =  np.array([0]*len(dofs))
 
-        new_Bc = BoundaryCondition(problemType, nodes, dofs, directions, dofsValues, description)
+        new_Bc = BoundaryCondition(problemType, nodes, dofs, unknowns, dofsValues, description)
         self.__Bc_Display.append(new_Bc)
 
     def Get_contact(self, masterMesh: Mesh, slaveNodes: np.ndarray=None, masterNodes: np.ndarray=None) -> tuple[np.ndarray, np.ndarray]:

@@ -57,13 +57,13 @@ class BeamSimu(_Simu):
             elementsField = ["Stress"]
         return nodesField, elementsField
 
-    def Get_dofs(self, problemType=None) -> list[str]:
-        dict_nbddl_directions = {
+    def Get_unknowns(self, problemType=None) -> list[str]:
+        dict_unknowns = {
             1 : ["x"],
             3 : ["x","y","rz"],
             6 : ["x","y","z","rx","ry","rz"]
         }
-        return dict_nbddl_directions[self.structure.dof_n]
+        return dict_unknowns[self.structure.dof_n]
     
     def Get_problemTypes(self) -> list[ModelType]:
         return [ModelType.beam]
@@ -88,11 +88,11 @@ class BeamSimu(_Simu):
         3D [uxi, uyi, uzi, rxi, ryi, rzi, ...]"""
         return self._Get_u_n(self.problemType)
 
-    def add_surfLoad(self, nodes: np.ndarray, values: list, directions: list, problemType=None, description=""):
+    def add_surfLoad(self, nodes: np.ndarray, values: list, unknowns: list, problemType=None, description=""):
         Display.MyPrintError("Surface loads cannot be applied in beam problems.")
         return        
 
-    def add_volumeLoad(self, nodes: np.ndarray, values: list, directions: list, problemType=None, description=""):
+    def add_volumeLoad(self, nodes: np.ndarray, values: list, unknowns: list, problemType=None, description=""):
         Display.MyPrintError("Volumetric loads cannot be applied in beam problems.")
         return
 
@@ -110,25 +110,25 @@ class BeamSimu(_Simu):
         beamModel = self.structure
 
         if beamModel.dim == 1:
-            directions = ['x']
+            unknowns = ['x']
         elif beamModel.dim == 2:
-            directions = ['x','y','rz']
+            unknowns = ['x','y','rz']
         elif beamModel.dim == 3:
-            directions = ['x','y','z','rx','ry','rz']
+            unknowns = ['x','y','z','rx','ry','rz']
 
         description = f"Connection {description}"
         
-        self.add_connection(nodes, directions, description)
+        self.add_connection(nodes, unknowns, description)
 
-    def add_connection_hinged(self, nodes: np.ndarray, directions=[''] ,description="Hinged"):
+    def add_connection_hinged(self, nodes: np.ndarray, unknowns=[''] ,description="Hinged"):
         """Adds a hinged connection.
 
         Parameters
         ----------
         nodes : np.ndarray
             nodes
-        directions : list, optional
-            directions, by default ['']
+        unknowns : list, optional
+            unknowns, by default ['']
         description : str, optional
             description, by default "Hinged"
         """
@@ -138,31 +138,30 @@ class BeamSimu(_Simu):
         if beamModel.dim == 1:
             return
         elif beamModel.dim == 2:
-            directions = ['x','y']
+            unknowns = ['x','y']
         elif beamModel.dim == 3:
-            directionsDeBase = ['x','y','z']
-            directions = directionsDeBase
-            if directions != ['']:
-                # We will block rotation ddls that are not in directions.
-                directionsRot = ['rx','ry','rz']
-                for dir in directions:
-                    if dir in directionsRot.copy():
-                        directionsRot.remove(dir)
-                directions.extend(directionsRot)
+            unknowns = ['x','y','z']
+            if unknowns != ['']:
+                # We will block rotation ddls that are not in unknowns.
+                unknowns_rot = ['rx','ry','rz']
+                for dir in unknowns:
+                    if dir in unknowns_rot.copy():
+                        unknowns_rot.remove(dir)
+                unknowns.extend(unknowns_rot)
 
         description = f"Connection {description}"
         
-        self.add_connection(nodes, directions, description)
+        self.add_connection(nodes, unknowns, description)
 
-    def add_connection(self, nodes: np.ndarray, directions: list[str], description: str):
-        """Connects beams together in the specified directions.
+    def add_connection(self, nodes: np.ndarray, unknowns: list[str], description: str):
+        """Connects beams together in the specified unknowns.
 
         Parameters
         ----------
         nodes : np.ndarray
             nodes
-        directions : list[str]
-            directions
+        unknowns : list[str]
+            unknowns
         description : str
             description
         """
@@ -170,23 +169,23 @@ class BeamSimu(_Simu):
         nodes = np.asarray(nodes)
 
         problemType = self.problemType        
-        self._Check_dofs(problemType, directions)
+        self._Check_dofs(problemType, unknowns)
 
         tic = Tic()
         
         if nodes.size > 1:
             # For each direction, we'll apply the conditions
-            for d, dir in enumerate(directions):
+            for d, dir in enumerate(unknowns):
                 dofs = self.Bc_dofs_nodes(nodes, [dir], problemType)
 
                 new_LagrangeBc = LagrangeCondition(problemType, nodes, dofs, [dir], [0], [1,-1], description)
                 self._Bc_Add_Lagrange(new_LagrangeBc)
         else:
-            self.add_dirichlet(nodes, [0]*len(directions), directions)
+            self.add_dirichlet(nodes, [0]*len(unknowns), unknowns)
 
         tic.Tac("Boundary Conditions","Connection", self._verbosity)
 
-        self._Bc_Add_Display(nodes, directions, description, problemType)
+        self._Bc_Add_Display(nodes, unknowns, description, problemType)
 
     def __Construct_Beam_Matrix(self) -> np.ndarray:
         """Constructs the elementary stiffness matrices for the beam problem."""

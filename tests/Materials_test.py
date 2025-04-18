@@ -334,7 +334,7 @@ class TestMaterials:
             mesh = Mesher().Mesh_Extrude(domain, [circle], [0,0,H/3], [4], "PRISM6")
 
         simu = Simulations.ElasticSimu(mesh, mat, useIterativeSolvers=False)
-        simu.add_dirichlet(mesh.Nodes_Conditions(lambda x,y,z: x==0), [0]*simu.Get_dof_n(), simu.Get_dofs())
+        simu.add_dirichlet(mesh.Nodes_Conditions(lambda x,y,z: x==0), [0]*simu.Get_dof_n(), simu.Get_unknowns())
         simu.add_dirichlet(mesh.Nodes_Conditions(lambda x,y,z: x==L), [L*1e-4,-L*1e-4], ["x",'y'])
         u = simu.Solve()
 

@@ -181,7 +181,7 @@ def DoSimu(split: str, regu: str):
             simu.add_dirichlet(nodes_left, [0], ["y"])
             simu.add_dirichlet(nodes_right, [0], ["y"])
             simu.add_dirichlet(nodes_upper, [dep,0], ["x","y"])
-            simu.add_dirichlet(nodes_lower, [0]*dim, simu.Get_dofs())
+            simu.add_dirichlet(nodes_lower, [0]*dim, simu.Get_unknowns())
 
         # ----------------------------------------------
         # Simulation

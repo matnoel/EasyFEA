@@ -329,8 +329,8 @@ def __Solver_2(simu, problemType: str):
     A = A.tolil()
     b = b.tolil()
 
-    dofs_Dirichlet = np.asarray(simu.Bc_dofs_Dirichlet(problemType))
-    values_Dirichlet = np.asarray(simu.Bc_values_Dirichlet(problemType))
+    dofs_Dirichlet = simu.Bc_dofs_Dirichlet(problemType)
+    values_Dirichlet = simu.Bc_values_Dirichlet(problemType)
     
     list_Bc_Lagrange = simu.Bc_Lagrange
 

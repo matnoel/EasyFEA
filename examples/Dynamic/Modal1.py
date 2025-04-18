@@ -48,7 +48,7 @@ if __name__ == '__main__':
     K, C, M, F = simu.Get_K_C_M_F()
     
     if isFixed:
-        simu.add_dirichlet(nodesY0, [0]*dim, simu.Get_dofs())
+        simu.add_dirichlet(nodesY0, [0]*dim, simu.Get_unknowns())
         known, unknown = simu.Bc_dofs_known_unknown(simu.problemType)
         K_t = K[unknown, :].tocsc()[:, unknown].tocsr()
         M_t = M[unknown, :].tocsc()[:, unknown].tocsr()

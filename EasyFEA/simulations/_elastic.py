@@ -53,12 +53,12 @@ class ElasticSimu(_Simu):
             nodesField.extend(["speed", "accel"])
         return nodesField, elementsField
     
-    def Get_dofs(self, problemType=None) -> list[str]:
-        dict_dim_directions = {
+    def Get_unknowns(self, problemType=None) -> list[str]:
+        dict_unknowns = {
             2 : ["x", "y"],
             3 : ["x", "y", "z"]
         }
-        return dict_dim_directions[self.dim]
+        return dict_unknowns[self.dim]
     
     def Get_problemTypes(self) -> list[ModelType]:
         return [ModelType.elastic]

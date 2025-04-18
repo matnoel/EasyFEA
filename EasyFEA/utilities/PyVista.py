@@ -358,22 +358,22 @@ def Plot_BoundaryConditions(simu, deformFactor=0.0, plotter: pv.Plotter=None):
         
         problemType = bc.problemType
         dofsValues = bc.dofsValues
-        directions = bc.directions
+        unknowns = bc.unknowns
         dofs = bc.dofs
         nodes = bc.nodes
         description = bc.description
-        nDir = len(directions)
+        nDir = len(unknowns)
 
-        availableDirections = simu.Get_dofs(problemType)
+        availableUnknowns = simu.Get_unknowns(problemType)
         nDof = mesh.Nn * simu.Get_dof_n(problemType)
 
         # label        
-        directions_str = str(directions).replace("'","")
-        label = f"{description} {directions_str}"
+        unknowns_str = str(unknowns).replace("'","")
+        label = f"{description} {unknowns_str}"
 
         nodes = np.asarray(list(set(nodes)), dtype=int)
 
-        rotDirections = ["rx","ry","rz"]
+        unknowns_rot = ["rx","ry","rz"]
 
         if nDof == mesh.Nn:
             # plot points 
@@ -391,14 +391,14 @@ def Plot_BoundaryConditions(simu, deformFactor=0.0, plotter: pv.Plotter=None):
             vector = np.zeros_like(start)
             vectorRot = np.zeros_like(start)
 
-            for d, direction in enumerate(directions):
+            for d, direction in enumerate(unknowns):
                 lines = simu.Bc_dofs_nodes(nodes, [direction], problemType)
                 values = np.ravel(dofsValues[lines])
-                if direction in rotDirections:
-                    idx = rotDirections.index(direction)
+                if direction in unknowns_rot:
+                    idx = unknowns_rot.index(direction)
                     vectorRot[:,idx] = values
                 else:
-                    idx = availableDirections.index(direction)
+                    idx = availableUnknowns.index(direction)
                     vector[:,idx] = values
 
             normVector = np.linalg.norm(vector, axis=1).max()
@@ -432,7 +432,7 @@ def Plot_BoundaryConditions(simu, deformFactor=0.0, plotter: pv.Plotter=None):
                 # here the arrow will end at the node coordinates
                 plotter.add_arrows(start-vector*factor, vector, factor, label=label, color=color)
 
-            if True in [direction in rotDirections for direction in directions]:
+            if True in [direction in unknowns_rot for direction in unknowns]:
                 # plot vectorRot
                 if normVectorRot == 0:
                     # vectorRot is a matrix of zeros

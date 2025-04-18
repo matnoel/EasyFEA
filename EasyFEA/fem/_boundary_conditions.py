@@ -8,7 +8,7 @@ import numpy as np
 
 class BoundaryCondition:
 
-    def __init__(self, problemType: str, nodes: np.ndarray, dofs: np.ndarray, directions: np.ndarray, dofsValues: np.ndarray, description: str):
+    def __init__(self, problemType: str, nodes: np.ndarray, dofs: np.ndarray, unknowns: np.ndarray, dofsValues: np.ndarray, description: str):
         """Creates a boundary condition object.
 
         Parameters
@@ -18,16 +18,16 @@ class BoundaryCondition:
         nodes : np.ndarray
             Nodes on which the condition is applied.
         dofs : np.ndarray
-            Degrees of freedom (associated with nodes and directions).
-        directions : np.ndarray
-            Dofs directions (e.g. [“x”, “y”], [“rz”]).
+            Degrees of freedom (associated with nodes and unknowns).
+        unknowns : np.ndarray
+            Dofs unknowns (e.g. [“x”, “y”], [“rz”]).
         dofsValues : np.ndarray
             Dofs values.
         description : str
             Description of the boundary condition.
         """
         self.__problemType = problemType
-        self.__directions = directions
+        self.__unknowns = unknowns
         self.__nodes = np.asarray(nodes, dtype=int)
         self.__dofs = np.asarray(dofs, dtype=int)
         assert self.dofs.size % self.nodes.size == 0, f"dofs.size must be a multiple of {self.nodes.size}"
@@ -48,7 +48,7 @@ class BoundaryCondition:
 
     @property
     def dofs(self) -> np.ndarray:
-        """degrees of freedom associated with the nodes and directions"""
+        """degrees of freedom associated with the nodes and unknowns"""
         return self.__dofs.copy()
 
     @property
@@ -57,9 +57,9 @@ class BoundaryCondition:
         return self.__dofsValues.copy()
 
     @property
-    def directions(self) -> np.ndarray:
-        """dofs directions"""
-        return self.__directions.copy()
+    def unknowns(self) -> np.ndarray:
+        """dofs unknowns"""
+        return self.__unknowns.copy()
     
     @staticmethod
     def Get_nBc(problemType: str, list_Bc_Condition: list) -> int:
@@ -81,7 +81,7 @@ class BoundaryCondition:
         return len([1 for bc in list_Bc_Condition if bc.problemType == problemType])
 
     @staticmethod
-    def Get_dofs(problemType: str, list_Bc_Condition: list) -> list[int]:
+    def Get_dofs(problemType: str, list_Bc_Condition: list) -> np.ndarray:
         """Returns the degrees of freedom for the problem type.
 
         Parameters
@@ -99,10 +99,10 @@ class BoundaryCondition:
         list_Bc_Condition: list[BoundaryCondition] = list_Bc_Condition
         dofs: list[int] = []
         [dofs.extend(bc.dofs) for bc in list_Bc_Condition if bc.problemType == problemType]
-        return dofs
+        return np.asarray(dofs)
 
     @staticmethod
-    def Get_values(problemType: str, list_Bc_Condition: list) -> list[float]:
+    def Get_values(problemType: str, list_Bc_Condition: list) -> np.ndarray:
         """Returns the dofs values for problem type.
 
         Parameters
@@ -120,20 +120,41 @@ class BoundaryCondition:
         list_Bc_Condition: list[BoundaryCondition] = list_Bc_Condition
         values: list[float] = []
         [values.extend(bc.dofsValues) for bc in list_Bc_Condition if bc.problemType == problemType]
-        return values
+        return np.asarray(values)
 
     @staticmethod
-    def Get_dofs_nodes(availableDirections: list[str], nodes: np.ndarray, directions: list[str]) -> np.ndarray:
+    def Get_values(problemType: str, list_Bc_Condition: list) -> np.ndarray:
+        """Returns the dofs values for problem type.
+
+        Parameters
+        ----------
+        problemType : str
+            Problem type.
+        list_Bc_Condition : list[BoundaryCondition]
+            List of boundary condition.
+
+        Returns
+        -------
+        list[float]
+            dofs values.
+        """
+        list_Bc_Condition: list[BoundaryCondition] = list_Bc_Condition
+        values: list[float] = []
+        [values.extend(bc.dofsValues) for bc in list_Bc_Condition if bc.problemType == problemType]
+        return np.asarray(values)
+
+    @staticmethod
+    def Get_dofs_nodes(availableUnknowns: list[str], nodes: np.ndarray, unknowns: list[str]) -> np.ndarray:
         """Retrieves degrees of freedom (dofs) associated with the nodes.
 
         Parameters
         ----------
-        availableDirections : list[str]
-            Available directions as a list of strings. Must be a unique string list.
+        availableUnknowns : list[str]
+            Available dofs as a list of strings. Must be a unique string list.
         nodes : np.ndarray
             Nodes for which dofs are calculated.
-        directions : list[str]
-            Directions corresponding to the nodes.
+        unknowns : list[str]
+            unknowns.
 
         Returns
         -------
@@ -142,20 +163,19 @@ class BoundaryCondition:
         """
 
         nodes = np.asarray(nodes, dtype=int).ravel()
-        dim = len(availableDirections)
-        nDir = len(directions)
-        
-        from EasyFEA import Display
+        dim = len(availableUnknowns)
+        nDir = len(unknowns)
 
         dofs_d = np.zeros((nodes.size, nDir), dtype=int)
 
-        for d, direction in enumerate(directions):
+        for d, direction in enumerate(unknowns):
 
-            if direction not in availableDirections:
-                Display.MyPrintError(f"direction ({direction}) must be in {availableDirections}.")
+            if direction not in availableUnknowns:
+                from EasyFEA import Display
+                Display.MyPrintError(f"direction ({direction}) must be in {availableUnknowns}.")
                 continue
             
-            idx = availableDirections.index(direction)
+            idx = availableUnknowns.index(direction)
 
             dofs_d[:,d] = nodes * dim + idx
 
@@ -163,7 +183,7 @@ class BoundaryCondition:
 
 class LagrangeCondition(BoundaryCondition):
 
-    def __init__(self, problemType: str, nodes: np.ndarray, dofs: np.ndarray, directions: np.ndarray, dofsValues: np.ndarray, lagrangeCoefs: np.ndarray, description=""):
+    def __init__(self, problemType: str, nodes: np.ndarray, dofs: np.ndarray, unknowns: np.ndarray, dofsValues: np.ndarray, lagrangeCoefs: np.ndarray, description=""):
         """Creates a Lagrange condition (based on a boundary condition).
 
         Parameters
@@ -173,9 +193,9 @@ class LagrangeCondition(BoundaryCondition):
         nodes : np.ndarray
             Nodes on which the condition is applied.
         dofs : np.ndarray
-            Degrees of freedom (associated with nodes and directions).
-        directions : np.ndarray
-            Dofs directions.
+            Degrees of freedom (associated with nodes and unknowns).
+        unknowns : np.ndarray
+            Dofs unknowns.
         dofsValues : np.ndarray
             Dofs values.
         lagrangeCoefs : np.ndarray
@@ -183,7 +203,7 @@ class LagrangeCondition(BoundaryCondition):
         description : str, optional
             Description of the Lagrange condition, by default "".
         """
-        super().__init__(problemType, nodes, dofs, directions, dofsValues, description)
+        super().__init__(problemType, nodes, dofs, unknowns, dofsValues, description)
         self.__lagrangeCoefs = np.asarray(lagrangeCoefs)
 
     @property

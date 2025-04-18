@@ -112,7 +112,7 @@ if __name__ == '__main__':
     mat = Materials.Elas_Isot(mesh.dim)
     simu = Simulations.ElasticSimu(mesh, mat)
 
-    simu.add_dirichlet(mesh.Nodes_Conditions(lambda x,y,z: y==0), [0]*mesh.dim, simu.Get_dofs())
+    simu.add_dirichlet(mesh.Nodes_Conditions(lambda x,y,z: y==0), [0]*mesh.dim, simu.Get_unknowns())
     simu.add_dirichlet(mesh.Nodes_Conditions(lambda x,y,z: y==H), [4], ['y'])    
     simu.Solve()
         

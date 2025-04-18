@@ -639,8 +639,8 @@ def Plot_BoundaryConditions(simu, ax: plt.Axes=None) -> plt.Axes:
         
         problemType = bc.problemType        
         dofsValues = bc.dofsValues
-        directions = bc.directions
-        nDir = len(directions)
+        unknowns = bc.unknowns
+        nDir = len(unknowns)
         nodes = list(set(list(bc.nodes)))
         description = bc.description
 
@@ -652,31 +652,31 @@ def Plot_BoundaryConditions(simu, ax: plt.Axes=None) -> plt.Axes:
             sum = np.sum(dofsValues.reshape(-1, nDir), axis=0)
             values = np.round(sum, 2)
             # values will be use to choose the marker
-            if len(directions) == 1:
+            if len(unknowns) == 1:
                 sign = np.sign(values[0])
-                if directions[0] == 'x':
+                if unknowns[0] == 'x':
                     if sign == -1:
                         marker = '<'
                     else:
                         marker='>'
-                elif directions[0] == 'y':
+                elif unknowns[0] == 'y':
                     if sign == -1:
                         marker='v'
                     else:
                         marker='^'
-                elif directions[0] == 'z':
+                elif unknowns[0] == 'z':
                     marker='d'
-            elif len(directions) == 2:
+            elif len(unknowns) == 2:
                 if "Connection" in description:
                     marker='o'
                 else:
                     marker='X'
-            elif len(directions) > 2:
+            elif len(unknowns) > 2:
                 marker='s'
 
         # Title        
-        directions_str = str(directions).replace("'","")
-        title = f"{description} {directions_str}"
+        unknowns_str = str(unknowns).replace("'","")
+        title = f"{description} {unknowns_str}"
 
         lw=0
         if len(nodes) == simu.mesh.Nn:
