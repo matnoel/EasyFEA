@@ -516,8 +516,8 @@ class PhaseFieldSimu(_Simu):
         self.__Kd = sparse.csr_matrix((Kd_e.ravel(), (linesScalar_e, columnsScalar_e)), shape = (Ndof, Ndof))
         """Kglob for damage problem (Ndof, Ndof)"""
         
-        lignes = mesh.connect.ravel()
-        self.__Fd = sparse.csr_matrix((Fd_e.ravel(), (lignes, np.zeros(len(lignes)))), shape = (Ndof, 1))
+        rows = mesh.connect.ravel()
+        self.__Fd = sparse.csr_matrix((Fd_e.ravel(), (rows, np.zeros_like(rows))), shape = (Ndof, 1))
         """Fglob for damage problem (Ndof, 1)"""        
 
         tic.Tac("Matrix","Assembly Kd and Fd", self._verbosity)

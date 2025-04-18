@@ -116,7 +116,8 @@ class _Simu(_IObserver, ABC):
     @abstractmethod
     def Get_x0(self, problemType=None) -> np.ndarray:
         """Returns the solution from the previous iteration."""
-        return []
+        size = self.mesh.Nn * self.dim
+        return np.zeros(size)
 
     @abstractmethod
     def Assembly(self) -> None:

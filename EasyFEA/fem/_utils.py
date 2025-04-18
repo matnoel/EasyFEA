@@ -286,7 +286,7 @@ class FeArray(np.ndarray):
         """`np.min()` wrapper."""
         return FeArray.asfearray(super().min(*args, **kwargs))
     
-    def __get_idx(self, *arrays) -> list[np.ndarray]:
+    def _get_idx(self, *arrays) -> list[np.ndarray]:
 
         ndim = len(arrays) + 2
 
@@ -303,7 +303,7 @@ class FeArray(np.ndarray):
     
     def _assemble(self, *arrays, value: Union['FeArray', np.ndarray]):
 
-        idx = self.__get_idx(*arrays)
+        idx = self._get_idx(*arrays)
 
         self[*idx] = value
 
