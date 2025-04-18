@@ -2,13 +2,18 @@
 # This file is part of the EasyFEA project.
 # EasyFEA is distributed under the terms of the GNU General Public License v3 or later, see LICENSE.txt and CREDITS.md for more information
 
+from scipy import sparse
+import numpy as np
+
 # utilities
 from ..utilities import Tic
+from ..utilities._linalg import Transpose
 # fem
-from ..fem import Mesh, MatrixType
+from ..fem import Mesh, MatrixType, FeArray
 # materials
-from ..materials import ModelType, Reshape_variable
+from ..materials import ModelType, Reshape_variable, Project_vector_to_matrix
 from ..materials._hyperelastic_laws import _HyperElas
+from ..materials._hyperelastic import HyperElastic
 # simu
 from ._simu import _Simu
 from .Solvers import AlgoType
@@ -54,18 +59,78 @@ class HyperElasticSimu(_Simu):
     def Get_dof_n(self, problemType=None) -> int:
         return self.dim
     
+    @property
+    def material(self) -> _HyperElas:
+        """hyperelastic material"""
+        return self.model
+    
     # --------------------------------------------------------------------------
     # Solve
     # -------------------------------------------------------------------------- 
 
     def Get_K_C_M_F(self, problemType=None):
-        return super().Get_K_C_M_F(problemType)
+
+        self.Assembly()
+
+        size = self.mesh.Nn * self.dim
+        initcsr = sparse.csr_matrix((size, size))
+        initcsrF = sparse.csr_matrix((size, 1))
+
+        return initcsr, initcsr, initcsr, initcsrF
     
     def Get_x0(self, problemType=None):
         return super().Get_x0(problemType)
     
     def Assembly(self):
-        return super().Assembly()
+
+        u0 = np.zeros(self.mesh.Nn * self.dim)        
+
+        K_e, F_e = self.__Construct_Local_Matrix(u0)
+
+        return ModuleNotFoundError
+    
+    def __Construct_Local_Matrix(self, u: np.ndarray) -> tuple[FeArray, FeArray]:
+
+        # data
+        mat = self.material
+        mesh = self.mesh
+        Ne = mesh.Ne
+        nPe = mesh.nPe
+        dim = self.dim
+
+        # get mesh data
+        matrixType = MatrixType.rigi
+        weightedJacobian_e_pg = mesh.Get_weightedJacobian_e_pg(matrixType)
+        dN_e_pg = mesh.Get_dN_e_pg(matrixType)
+        nPg = weightedJacobian_e_pg.shape[1]
+
+        # get hyperelastic data
+        De_e_pg = HyperElastic.Compute_De(mesh, u, matrixType)
+        dWde_e_pg = mat.Compute_dWde(mesh, u, matrixType) 
+        d2Wde_e_pg = mat.Compute_d2Wde(mesh, u, matrixType)        
+
+        # init matrices
+        grad_e_pg = FeArray.zeros(Ne, nPg, 9, dim*nPe)
+        Sig_e_pg = FeArray.zeros(Ne, nPg, 9, 9)
+        sig_e_pg = Project_vector_to_matrix(dWde_e_pg)
+        
+        rows = np.arange(9).reshape(3, -1)
+        cols = np.arange(dim*nPe).reshape(3, -1)
+        for i in range(dim):
+            grad_e_pg._assemble(rows[i], cols[i], value=dN_e_pg)
+            Sig_e_pg._assemble(rows[i], rows[i], value=sig_e_pg)
+
+        B_e_pg = De_e_pg @ grad_e_pg
+
+        # stiffness
+        K1_e = (weightedJacobian_e_pg * B_e_pg.T @ d2Wde_e_pg @ B_e_pg).sum(1)
+        K2_e = (weightedJacobian_e_pg * grad_e_pg.T @ Sig_e_pg @ grad_e_pg).sum(1)
+        K_e = K1_e + K2_e
+        
+        # source
+        F_e = - (weightedJacobian_e_pg * dWde_e_pg.T @ B_e_pg).sum(1)
+
+        return K_e, F_e
 
     # --------------------------------------------------------------------------
     # Iterations

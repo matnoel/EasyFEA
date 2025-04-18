@@ -285,6 +285,27 @@ class FeArray(np.ndarray):
     def min(self, *args, **kwargs) -> Union['FeArray', np.ndarray]:
         """`np.min()` wrapper."""
         return FeArray.asfearray(super().min(*args, **kwargs))
+    
+    def __get_idx(self, *arrays) -> list[np.ndarray]:
+
+        ndim = len(arrays) + 2
+
+        Ne, nPg = self.shape[:2]
+
+        def get_shape(i: int, array: np.ndarray):
+            shape = np.ones(ndim, dtype=int)
+            shape[i] = array.size
+            return np.reshape(array, shape)
+        
+        idx = [get_shape(i, val) for i, val in enumerate([np.arange(Ne), np.arange(nPg), *arrays])]
+
+        return idx
+    
+    def _assemble(self, *arrays, value: Union['FeArray', np.ndarray]):
+
+        idx = self.__get_idx(*arrays)
+
+        self[*idx] = value
 
     @staticmethod
     def asfearray(array, broadcastFeArrays=False) -> Union['FeArray', np.ndarray]:
