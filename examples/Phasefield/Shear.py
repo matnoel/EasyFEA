@@ -95,7 +95,7 @@ def DoMesh(split: str) -> Mesh:
         l4 = Line(ptC4, ptC1, meshSize, openCrack)            
         cracks = [Contour([l1, l2, l3, l4], isOpen=openCrack)]
 
-    # folder = Folder.New_File("",results=True)
+    # folder = Folder.Join("",results=True)
     # ax = Display.Init_Axes()
     # contour.Get_Contour().Plot(ax, color='k', plotPoints=False)
     # cracks[0].Plot(ax, color='k', plotPoints=False)

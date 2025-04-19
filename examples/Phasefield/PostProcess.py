@@ -123,7 +123,7 @@ if __name__ == '__main__':
         # text = f"{split}_{regu}_tol{tolConv:1.0e}"
         text = f"{tolConv:1.0e}"
         # text = f"{split}_{regu}"        
-        # text = foldername.replace(Folder.Get_Path(foldername), "")[1:]
+        # text = foldername.replace(Folder.Dir(foldername), "")[1:]
 
         # text = f"{split} {regu}"
         # if optimMesh:
