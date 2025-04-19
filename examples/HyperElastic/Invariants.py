@@ -25,12 +25,15 @@ def __Project_Mandel(A, orderA:int=4):
     # The off-diagonal terms are incorrectly weighted and need to be corrected.
     # The following function is used to correct the coefficients.
     def get_coef(I: int, J: int):
-        if I > 2 and J > 2:
-            return 1/4
-        elif I > 2 or J > 2:
-            return 1/2
+        if J == 0:
+            return 1                
         else:
-            return 1
+            if I > 2 and J > 2:
+                return 1/4
+            elif I > 2 or J > 2:
+                return 1/2
+            else:
+                return 1
 
     if orderA == 2:
         # Aij -> AI
@@ -102,6 +105,8 @@ if __name__ == "__main__":
         [cxy, cyy, cyz],
         [cxz, cyz, czz]
     ])
+
+    sympy.pprint(__Project_Mandel(C, 2))
     
     # -------------------------------------
     # I1
