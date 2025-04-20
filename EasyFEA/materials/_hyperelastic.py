@@ -439,7 +439,7 @@ class HyperElastic:
 
         dI2dC_e_pg = FeArray.asfearray(np.zeros((Ne, nPg, 6), dtype=float))
 
-        coef = - 2 * np.sqrt(2)
+        coef = - np.sqrt(2)
 
         dI2dC_e_pg[:,:,0] = cyy + czz
         dI2dC_e_pg[:,:,1] = cxx + czz
@@ -524,7 +524,7 @@ class HyperElastic:
 
         dI3dC_e_pg = FeArray.asfearray(np.zeros((Ne, nPg, 6)))
 
-        coef = 2 * np.sqrt(2)
+        coef = np.sqrt(2)
 
         dI3dC_e_pg[:,:,0] = cyy*czz - cyz**2
         dI3dC_e_pg[:,:,1] = cxx*czz - cxz**2

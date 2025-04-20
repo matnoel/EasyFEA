@@ -26,7 +26,7 @@ def __Project_Mandel(A, orderA:int=4):
     # The following function is used to correct the coefficients.
     def get_coef(I: int, J: int):
         if J == 0:
-            return 1                
+            return 1/2 if I > 2 else 1
         else:
             if I > 2 and J > 2:
                 return 1/4
@@ -106,7 +106,7 @@ if __name__ == "__main__":
         [cxz, cyz, czz]
     ])
 
-    sympy.pprint(__Project_Mandel(C, 2))
+    sympy.pprint(C)
     
     # -------------------------------------
     # I1
