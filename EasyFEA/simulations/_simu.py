@@ -751,8 +751,8 @@ class _Simu(_IObserver, ABC):
         """
         
         algo = self.algo
-        dofs = BoundaryCondition.Get_dofs(problemType, self.__Bc_Neumann)
-        dofsValues = BoundaryCondition.Get_values(problemType, self.__Bc_Neumann)
+        dofs = self.Bc_dofs_Neumann(problemType)
+        dofsValues = self.Bc_values_Neumann(problemType)
         Ndof = self.mesh.Nn * self.Get_dof_n(problemType)
 
         # Additional dimension associated with the lagrangian multipliers
@@ -1618,7 +1618,7 @@ class _Simu(_IObserver, ABC):
             sysCoord_e = masterGroup.sysCoord_e
 
             # get the elemGroup on the interface        
-            gaussCoord_e_p = masterGroup.Get_GaussCoordinates_e_pg(MatrixType.rigi)
+            gaussCoord_e_p = np.asarray(masterGroup.Get_GaussCoordinates_e_pg(MatrixType.rigi))
             
             # empty new displacement
             listU: list[np.ndarray] = []
