@@ -1400,11 +1400,11 @@ class _GroupElem(ABC):
 
         grad_e_pg = np.zeros((Ne, nPg, 3, 3), dtype=float)
         for p in range(nPg):
-            grad_e_pg[:,p,:,0] = np.einsum("en,end->ed", dxN_e_pg[:,p], u_e_n)
+            grad_e_pg[:,p,:dim,0] = np.einsum("en,end->ed", dxN_e_pg[:,p], u_e_n)
             if dim > 1:
-                grad_e_pg[:,p,:,1] = np.einsum("en,end->ed", dyN_e_pg[:,p], u_e_n)
+                grad_e_pg[:,p,:dim,1] = np.einsum("en,end->ed", dyN_e_pg[:,p], u_e_n)
             if dim > 2:
-                grad_e_pg[:,p,:,2] = np.einsum("en,end->ed", dzN_e_pg[:,p], u_e_n)
+                grad_e_pg[:,p,:dim,2] = np.einsum("en,end->ed", dzN_e_pg[:,p], u_e_n)
 
         return FeArray.asfearray(grad_e_pg)
 
