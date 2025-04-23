@@ -212,10 +212,10 @@ def _check_operation(array1, op, array2, reshape1=(), reshape2=(), willTriggerEr
 def FeArrays():
 
     Ne, nPg = 1000, 4
-    scalar_e_pg = FeArray.asfearray(np.random.random_integers(1, 10, (Ne, nPg))*.1)
-    vector_e_pg = FeArray.asfearray(np.random.random_integers(1, 10, (Ne, nPg, 3))*.1)
-    matrix_e_pg = FeArray.asfearray(np.random.random_integers(1, 10, (Ne, nPg, 3, 3))*.1)
-    tensor_e_pg = FeArray.asfearray(np.random.random_integers(1, 10, (Ne, nPg, 3, 3, 3, 3))*.1)
+    scalar_e_pg = FeArray.asfearray(np.random.randint(1, 10, (Ne, nPg))*.1)
+    vector_e_pg = FeArray.asfearray(np.random.randint(1, 10, (Ne, nPg, 3))*.1)
+    matrix_e_pg = FeArray.asfearray(np.random.randint(1, 10, (Ne, nPg, 3, 3))*.1)
+    tensor_e_pg = FeArray.asfearray(np.random.randint(1, 10, (Ne, nPg, 3, 3, 3, 3))*.1)
 
     return [scalar_e_pg, vector_e_pg, matrix_e_pg, tensor_e_pg]
 
@@ -225,10 +225,10 @@ def do_operation(op: str):
 
     Ne, nPg = scalar_e_pg.shape
 
-    scalar = np.random.random_integers(1, 10)
-    vector = np.random.random_integers(1, 10, (3))*.1
-    matrix = np.random.random_integers(1, 10, (3, 3))*.1
-    tensor = np.random.random_integers(1, 10, (3, 3, 3, 3))*.1
+    scalar = np.random.randint(1, 10)
+    vector = np.random.randint(1, 10, (3))*.1
+    matrix = np.random.randint(1, 10, (3, 3))*.1
+    tensor = np.random.randint(1, 10, (3, 3, 3, 3))*.1
 
     # scalar + ...
     _check_operation(scalar_e_pg, op, scalar)
