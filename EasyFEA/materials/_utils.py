@@ -279,7 +279,13 @@ def Project_Kelvin(A: np.ndarray, orderA:int=None) -> np.ndarray:
         assert np.std(shapeA) == 0, "Must have the same number of indices in all dimensions."
         orderA = len(shapeA)
 
-    e = np.array([[1,6,5],[6,2,4],[5,4,3]]) - 1
+    # for xx, yy, zz, yz, xz, zy
+    e = np.array([
+        [0, 5, 4],
+        [5, 1, 3],
+        [4, 3, 2]
+    ])
+
     kron = lambda a,b: 1 if a==b else 0        
 
     if orderA == 2:
@@ -288,7 +294,7 @@ def Project_Kelvin(A: np.ndarray, orderA:int=None) -> np.ndarray:
         
         A_I = np.zeros((*shapeA[:-2], 6))
         def add(i,j) -> None:
-            A_I[Ellipsis, e[i,j]] = np.sqrt((2-kron(i,j))) * A[Ellipsis,i,j]
+            A_I[..., e[i,j]] = np.sqrt((2-kron(i,j))) * A[...,i,j]
 
         [add(i,j) for i in range(3) for j in range(3)]
 
@@ -300,7 +306,7 @@ def Project_Kelvin(A: np.ndarray, orderA:int=None) -> np.ndarray:
         
         A_IJ = np.zeros((*shapeA[:-4], 6, 6))
         def add(i,j,k,l) -> None:
-            A_IJ[Ellipsis, e[i,j],e[k,l]] = np.sqrt((2-kron(i,j))*(2-kron(k,l))) * A[Ellipsis,i,j,k,l]
+            A_IJ[..., e[i,j],e[k,l]] = np.sqrt((2-kron(i,j))*(2-kron(k,l))) * A[...,i,j,k,l]
 
         [add(i,j,k,l) for i in range(3) for j in range(3) for k in range(3) for l in range(3)]
 
@@ -308,8 +314,9 @@ def Project_Kelvin(A: np.ndarray, orderA:int=None) -> np.ndarray:
 
     else:
         raise Exception("Not implemented.")
-    
-    res = FeArray.asfearray(res)
+
+    if isinstance(A, FeArray):
+        res = FeArray.asfearray(res)
 
     return res
 
