@@ -17,17 +17,11 @@ if __name__ == "__main__":
     
     contour = Domain((0,0), (L,h), h/3)
 
-    mesh = Mesher().Mesh_Extrude(contour, [], [0,0,h], [h/meshSize], ElemType.TETRA10)
+    mesh = Mesher().Mesh_Extrude(contour, [], [0,0,h], [h/meshSize], ElemType.TETRA4, isOrganised=True)
     nodesX0 = mesh.Nodes_Conditions(lambda x,y,z: x == 0)
     nodesXL = mesh.Nodes_Conditions(lambda x,y,z: x == L)
 
-    matIsot = Materials.Elas_Isot(3)
-    simuIsot = Simulations.ElasticSimu(mesh, matIsot)
-
-    simuIsot.add_dirichlet(nodesX0, [0,0,0], simuIsot.Get_unknowns())
-    simuIsot.add_dirichlet(nodesXL, [L*1e-6], ["y"])
-    u = simuIsot.Solve()
-    We = simuIsot.Result("Wdef")
+    matIsot = Materials.Elas_Isot(3)    
     
     K = matIsot.get_bulk()
     K1 = 500
@@ -38,17 +32,13 @@ if __name__ == "__main__":
     mat = Materials.SaintVenantKirchhoff(3, matIsot.get_lambda(), matIsot.get_mu())
     
     simuHyper = Simulations.HyperElasticSimu(mesh, mat, useIterativeSolvers=False)
-
-    simuHyper._Set_u_n(simuHyper.problemType, simuIsot.displacement)
     
-    simuHyper.add_dirichlet(nodesX0, [0,0,0], simuIsot.Get_unknowns())
-    simuHyper.add_dirichlet(nodesXL, [L*1e-6], ["y"])
+    simuHyper.add_dirichlet(nodesX0, [0,0,0], simuHyper.Get_unknowns())
+    simuHyper.add_dirichlet(nodesXL, [-L*.5], ["y"])
 
-    simuHyper.Solve(tolConv=1e-5, maxIter=30)
-
-    test = simuIsot.displacement - simuHyper.displacement
+    simuHyper.Solve()
 
     sol = simuHyper.displacement.reshape(-1,3)
-    PyVista.Plot(simuHyper, "Sxx", 1).show()
+    PyVista.Plot(simuHyper, "uy", 1, show_edges=True).show()
 
     pass
