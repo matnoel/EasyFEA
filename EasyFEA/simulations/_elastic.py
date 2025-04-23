@@ -522,15 +522,10 @@ class ElasticSimu(_Simu):
         coord = self.displacement.reshape((Nn,-1))
         dim = coord.shape[1]
 
-        if dim == 1:
-            # Here we add two columns
-            coord = np.append(coord, np.zeros((Nn,1)), axis=1)
-            coord = np.append(coord, np.zeros((Nn,1)), axis=1)
-        elif dim == 2:
-            # Here we add 1 column
-            coord = np.append(coord, np.zeros((Nn,1)), axis=1)
+        displacement_matrix = np.zeros((Nn, 3))
+        displacement_matrix[:,:dim] = coord
 
-        return coord
+        return displacement_matrix
     
 # ----------------------------------------------
 # Other functions
