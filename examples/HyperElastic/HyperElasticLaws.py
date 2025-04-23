@@ -9,9 +9,7 @@ try:
 except ModuleNotFoundError:
     raise Exception("sympy must be installed!")
 
-def Compute(W, params: list):
-
-    W = sympy.sympify(W)
+def Compute(W, params: list, details=True):
 
     print(f"W = {W}\n")
 
@@ -22,7 +20,12 @@ def Compute(W, params: list):
         if dWdIi != 0:
             if i > 0:
                 dW += " + "
-            dW += f"{dWdIi} * dI{i+1}dC"
+            if details:
+                print(f"dWdI{i+1} = {dWdIi}")
+                dW += f"dWdI{i+1} * dI{i+1}dC"
+            else:
+                dW += f"({dWdIi}) * dI{i+1}dC"
+
     dW = dW.replace("+ -", "- ")
     print(f"dW = 2 * ({dW})\n")
 
@@ -32,19 +35,25 @@ def Compute(W, params: list):
 
     for i, param_i in enumerate(params):
         dWdIi = sympy.diff(W, param_i)
-        d2WdIi = sympy.diff(dWdIi, param_i)
-        if dWdIi != 0:            
-            if d2WdIi != 0:
-                if i > 0:
-                    d2W1 += " + "
-                d2W1 += f"{d2WdIi} * d2I{i+1}dC"
-        for j, param_j in enumerate(params):             
+        if dWdIi != 0:
+            if i > 0:
+                d2W1 += " + "
+            if details:
+                print(f"dWdI{i+1} = {dWdIi}")
+                d2W1 += f"dWdI{i+1} * d2I{i+1}dC"
+            else:
+                d2W1 += f"({dWdIi}) * d2I{i+1}dC"
+                    
+        for j, param_j in enumerate(params):
             d2WdIiIj = sympy.diff(dWdIi, param_j)
             if d2WdIiIj != 0:
-                if d2WdIiIj != 0:
-                    if j > 0:
-                        d2W2 += " + "
-                    d2W2 += f"{d2WdIiIj} * dI{i+1}dC.T @ dI{j+1}dC"
+                if j > 0:
+                    d2W2 += " + "
+                if details:
+                    print(f"d2WdI{i+1}I{j+1} = {d2WdIiIj}")
+                    d2W2 += f"d2WdI{i+1}I{j+1} * dI{i+1}dC @ dI{j+1}dC.T"
+                else:
+                    d2W2 += f"({d2WdIiIj}) * dI{i+1}dC @ dI{j+1}dC.T"
 
     d2W1 = d2W1.replace("+ -", "- ")
     d2W2 = d2W2.replace("+ -", "- ")
@@ -92,15 +101,14 @@ if __name__ == "__main__":
 
     lmbda, mu = sympy.symbols("lmbda, mu")
     
-    W = lmbda/8 * (I1**2 - 6*I1 + 9) + mu/4 * (I1**2 - 2*I1 - 2*I2 + 3)
+    # W = lmbda/8 * (I1**2 - 6*I1 + 9) + mu/4 * (I1**2 - 2*I1 - 2*I2 + 3)
+    W = (lmbda/8 + mu/4) * I1**2 - mu*I2/2  - (3*lmbda/4 + mu/2) * I1 + 9*lmbda/8 + 3*mu/4
 
-    Compute(W, [I1, I2, I3])
+    Compute(W, [I1, I2])
 
     # -------------------------------------
     # Ciarlet Geymonat
     # -------------------------------------
-    
-    # seems strange
 
     Display.Section("Ciarlet Geymonat")
 
