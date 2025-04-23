@@ -6,6 +6,7 @@ from scipy import sparse
 import scipy.sparse.linalg as sla
 import numpy as np
 from typing import Union
+import pandas as pd
 
 # utilities
 from ..utilities import Tic, Display
@@ -16,7 +17,7 @@ from ..materials import ModelType, Project_vector_to_matrix, Result_in_Strain_or
 from ..materials._hyperelastic_laws import _HyperElas
 from ..materials._hyperelastic import HyperElastic
 # simu
-from ._simu import _Simu
+from ._simu import _Simu, AlgoType
 
 class HyperElasticSimu(_Simu):
 
@@ -138,7 +139,9 @@ class HyperElasticSimu(_Simu):
         for bc in previous_neumann:
             self._Bc_Add_Neumann(problemType, bc.nodes, bc.dofsValues, bc.dofs, bc.unknowns)
 
-        list_res = []
+        list_res: list[float] = []
+        list_norm: list[float] = []
+        res = 0
 
         while not converged and Niter < maxIter:
                     
@@ -151,29 +154,30 @@ class HyperElasticSimu(_Simu):
             u += delta_u
             self._Set_u_n(problemType, u)
 
-            # check convergence
-            r = self._Solver_Apply_Neumann(problemType)
-            norm_r = sla.norm(r)
+            # compute norm
+            b = self._Solver_Apply_Neumann(problemType)
+            norm_b = sla.norm(b)
+            list_norm.append(norm_b)
 
+            # check convergence
             if Niter == 1:
-                converged = norm_r < tolConv
+                res = 1
             else:
-                res = np.abs(list_res[-1] - norm_r)/list_res[-1]
-                converged = res < tolConv
-            list_res.append(norm_r)
+                res = np.abs(list_norm[-2] - norm_b)/list_norm[-2]
+            list_res.append(res)
+            converged = res < tolConv
 
         timeIter = tic.Tac("Resolution hyperelastic", "Hyperelastic iteration", False)
 
         assert converged, f"Newton raphson algorithm did not converged in {Niter} iterations."
 
-        # # save solve config
-        # self.__tolConv = tolConv
-        # self.__convOption = convOption
-        # self.__maxIter = maxIter
-        # # save iter parameters
-        # self.__Niter = Niter
-        # self.__convIter = convIter
-        # self.__timeIter = timeIter
+        # save solve config
+        self.__tolConv = tolConv
+        self.__maxIter = maxIter
+        # save iter parameters
+        self.__Niter = Niter
+        self.__timeIter = timeIter
+        self.__list_res = list_res
             
         return u
     
@@ -264,10 +268,40 @@ class HyperElasticSimu(_Simu):
     # --------------------------------------------------------------------------
 
     def Save_Iter(self):
-        return super().Save_Iter()
+
+        iter = super().Save_Iter()
+
+        # convergence informations
+        iter["Niter"] = self.__Niter
+        iter["timeIter"] = self.__timeIter
+        iter["list_res"] = self.__list_res
+
+        iter["displacement"] = self.displacement
+        if self.algo in AlgoType.Get_Hyperbolic_Types():
+            iter["speed"] = self.speed
+            iter["accel"] = self.accel
+
+        self._results.append(iter)
     
     def Set_Iter(self, iter = -1, resetAll=False):
-        return super().Set_Iter(iter, resetAll)
+
+        results = super().Set_Iter(iter)
+
+        if results is None: return
+
+        problemType = self.problemType
+
+        self._Set_u_n(self.problemType, results["displacement"])
+
+        if self.algo in AlgoType.Get_Hyperbolic_Types() and "speed" in results and "accel" in results:
+            self._Set_v_n(problemType, results["speed"])
+            self._Set_a_n(problemType, results["accel"])
+        else:
+            initZeros = np.zeros_like(self.displacement)
+            self._Set_v_n(problemType, initZeros)
+            self._Set_a_n(problemType, initZeros)
+
+        return results
 
     # --------------------------------------------------------------------------
     # Results
@@ -413,8 +447,27 @@ class HyperElasticSimu(_Simu):
 
         return self.material.Compute_dWde(self.mesh, self.displacement, matrixType)
     
-    def Results_Iter_Summary(self):
-        return super().Results_Iter_Summary()
+    def Results_Iter_Summary(self) -> list[tuple[str, np.ndarray]]:
+        
+        list_label_values = []
+        
+        resultats = self.results
+        df = pd.DataFrame(resultats)
+        iterations = np.arange(df.shape[0])
+        
+        damageMaxIter = np.array([np.max(damage) for damage in df["damage"].values])
+        list_label_values.append((r"$\phi$", damageMaxIter))
+
+        convIter = df["convIter"].values
+        list_label_values.append(("convIter", convIter))
+
+        nombreIter = df["Niter"].values
+        list_label_values.append(("Niter", nombreIter))
+
+        tempsIter = df["timeIter"].values
+        list_label_values.append(("time", tempsIter))
+        
+        return iterations, list_label_values
     
     def Results_dict_Energy(self):
         return super().Results_dict_Energy()
@@ -436,4 +489,11 @@ class HyperElasticSimu(_Simu):
         return coord
     
     def Results_nodesField_elementsField(self, details=False):
-        return super().Results_nodesField_elementsField(details)
+        nodesField = ["displacement_matrix"]
+        if details:            
+            elementsField = ["Green-Lagrange", "Piola-Kirchhoff"]
+        else:            
+            elementsField = ["Piola-Kirchhoff"]
+        if self.algo in AlgoType.Get_Hyperbolic_Types():
+            nodesField.extend(["speed", "accel"])
+        return nodesField, elementsField
