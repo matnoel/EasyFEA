@@ -76,7 +76,7 @@ if __name__ == '__main__':
         print(f"{iter/N*100:2.2f} %", end='\r')
 
         simu.Bc_Init()
-        simu.add_dirichlet(nodes_y0, [0]*dim, simu.Get_dofs())
+        simu.add_dirichlet(nodes_y0, [0]*dim, simu.Get_unknowns())
         # simu.add_dirichlet(nodes_Load, [uMax*iter/N], ['y'])
         simu.add_surfLoad(nodes_Load, [sigMax*iter/N], ['y'])
 
@@ -121,11 +121,10 @@ if __name__ == '__main__':
                 else:
                     raise Exception('Not implemented')
 
-        sol_e = simu.displacement[mesh.assembly_e]
+        sol_e = simu.mesh.Locates_sol_e(simu.displacement)
 
-        E_e_pg = np.einsum('epij,ej->epi', Bu_e_pg, sol_e, optimize='optimal')
-        E_e_pg += np.einsum('epij,ej->epi', B_e_pg, sol_e**2, optimize='optimal')
-
+        E_e_pg = Bu_e_pg @ sol_e
+        E_e_pg += B_e_pg @ sol_e**2
 
         Epsilon_e_pg = simu._Calc_Epsilon_e_pg(simu.displacement, matrixType)
 
