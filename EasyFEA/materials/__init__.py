@@ -10,3 +10,5 @@ from ._utils import (
     Result_in_Strain_or_Stress_field,
     Get_Pmat, Apply_Pmat
 )
+
+from ._hyperelastic import HyperElastic

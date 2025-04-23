@@ -17,6 +17,7 @@ from .materials._linear_elastic_laws import _Elas, Elas_Isot, Elas_IsotTrans, El
 # ----------------------------------------------
 
 from .materials._hyperelastic_laws import NeoHookean, MooneyRivlin, SaintVenantKirchhoff
+from .materials._hyperelastic import HyperElastic
 
 # ----------------------------------------------
 # PhaseField
