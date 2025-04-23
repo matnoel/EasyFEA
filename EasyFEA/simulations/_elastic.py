@@ -265,19 +265,7 @@ class ElasticSimu(_Simu):
 
         values = None
 
-        if result in ["Wdef"]:
-            return self._Calc_Psi_Elas()
-
-        elif result == "Wdef_e":
-            values = self._Calc_Psi_Elas(returnScalar=False)
-            
-        elif result == "ZZ1":
-            return self._Calc_ZZ1()[0]
-
-        elif result == "ZZ1_e":
-            values = self._Calc_ZZ1()[1]
-
-        elif result in ["ux", "uy", "uz"]:
+        if result in ["ux", "uy", "uz"]:
             values_n = self.displacement.reshape(Nn, -1)
             values = values_n[:,self.__indexResult(result)]
 
@@ -312,6 +300,18 @@ class ElasticSimu(_Simu):
         elif result == "accel_norm":
             val_n = self.accel.reshape(Nn, -1)
             values = np.linalg.norm(val_n, axis=1)
+
+        elif result in ["Wdef"]:
+            return self._Calc_Psi_Elas()
+
+        elif result == "Wdef_e":
+            values = self._Calc_Psi_Elas(returnScalar=False)
+            
+        elif result == "ZZ1":
+            return self._Calc_ZZ1()[0]
+
+        elif result == "ZZ1_e":
+            values = self._Calc_ZZ1()[1]
         
         elif ("S" in result or "E" in result) and (not "_norm" in result):
             # Strain and Stress calculation part
