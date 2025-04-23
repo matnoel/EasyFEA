@@ -1336,6 +1336,77 @@ class _GroupElem(ABC):
             self.__dict_SourcePart_e_pg[matrixType] = SourcePart_e_pg
         
         return self.__dict_SourcePart_e_pg[matrixType].copy()
+    
+    def Get_Gradient_e_pg(self, u: np.ndarray, matrixType=MatrixType.rigi) -> FeArray:
+        """Returns the gradient of the discretized displacement field u as a matrix
+        
+        Parameters
+        ----------
+        u : np.ndarray
+            discretized displacement field [ux1, uy1, uz1, . . ., uxN, uyN, uzN] of size Nn * dim
+        matrixType : MatrixType, optional
+            matrix type, by default MatrixType.rigi
+
+        Returns
+        -------
+        FeArray
+            grad(u) of shape (Ne, nPg, 3, 3)
+
+        dim = 1
+        -------
+
+        dxux 0 0\n
+        0 0 0\n
+        0 0 0
+            
+        dim = 2
+        -------
+
+        dxux dyux 0\n
+        dxuy dyuy 0\n
+        0 0 0
+
+        dim = 3
+        -------
+
+        dxux dyux dzux\n
+        dxuy dyuy dzuy\n
+        dxuz dyuz dzuz
+        """
+
+        Nn = self.coordGlob.shape[0]
+        assert isinstance(u, np.ndarray) and u.size % Nn == 0
+        dof_n = u.size // Nn
+        assert dof_n in [1, 2, 3]
+
+        # properties
+        Ne = self.Ne
+        nPe = self.nPe
+        dim = self.dim
+
+        dN_e_pg = self.Get_dN_e_pg(matrixType)
+        nPg = dN_e_pg.shape[1]
+        # Shape functions (Ne, nPg, nPe)
+        dxN_e_pg = dN_e_pg[:,:,0,:]
+        if dim > 1:
+            dyN_e_pg = dN_e_pg[:,:,1,:]
+        if dim > 2:
+            dzN_e_pg = dN_e_pg[:,:,2,:]
+        
+        # u for each elements as (Ne, nPe*dim) array
+        u_e = self.Locates_sol_e(u, dof_n)
+        # u for each elements reshaped as (Ne, nPe, dof_n) array
+        u_e_n = np.reshape(u_e, (Ne, nPe, dof_n))
+
+        grad_e_pg = np.zeros((Ne, nPg, 3, 3), dtype=float)
+        for p in range(nPg):
+            grad_e_pg[:,p,:,0] = np.einsum("en,end->ed", dxN_e_pg[:,p], u_e_n)
+            if dim > 1:
+                grad_e_pg[:,p,:,1] = np.einsum("en,end->ed", dyN_e_pg[:,p], u_e_n)
+            if dim > 2:
+                grad_e_pg[:,p,:,2] = np.einsum("en,end->ed", dzN_e_pg[:,p], u_e_n)
+
+        return FeArray.asfearray(grad_e_pg)
 
     # --------------------------------------------------------------------------------------------
     # Nodes & Elements
@@ -1609,7 +1680,7 @@ class _GroupElem(ABC):
         """Locates sol on elements"""
 
         if isinstance(dof_n, (int, float)):
-            sol_e = self.Get_assembly_e(dof_n)
+            sol_e = sol[self.Get_assembly_e(dof_n)]
             return FeArray.asfearray(sol_e[:,np.newaxis])            
         
         size = self.Nn * self.dim

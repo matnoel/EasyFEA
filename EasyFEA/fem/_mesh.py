@@ -493,38 +493,7 @@ class Mesh(Observable):
         dxuz dyuz dzuz
         """
 
-        assert isinstance(u, np.ndarray) and u.size % self.Nn == 0
-
-        # properties
-        Ne = self.Ne
-        Nn = self.Nn
-        nPe = self.nPe
-        dim = u.size // Nn
-        assert dim in [2, 3]
-
-        dN_e_pg = self.Get_dN_e_pg(matrixType)
-        nPg = dN_e_pg.shape[1]
-        # Shape functions (Ne, nPg, nPe)
-        dxN_e_pg = dN_e_pg[:,:,0,:]
-        if dim > 1:
-            dyN_e_pg = dN_e_pg[:,:,1,:]
-        if dim > 2:
-            dzN_e_pg = dN_e_pg[:,:,2,:]
-        
-        # u for each elements as (Ne, nPe*dim) array
-        u_e = self.Locates_sol_e(u)
-        # u for each elements reshaped as (Ne, nPe, dim) array
-        u_e_n = np.reshape(u_e, (Ne, nPe, dim))
-
-        grad_e_pg = np.zeros((Ne, nPg, 3, 3), dtype=float)
-        for p in range(nPg):
-            grad_e_pg[:,p,:dim,0] = np.einsum("en,end->ed", dxN_e_pg[:,p], u_e_n)
-            if dim > 1:
-                grad_e_pg[:,p,:dim,1] = np.einsum("en,end->ed", dyN_e_pg[:,p], u_e_n)
-            if dim > 2:
-                grad_e_pg[:,p,:,2] = np.einsum("en,end->ed", dzN_e_pg[:,p], u_e_n)
-
-        return FeArray.asfearray(grad_e_pg)
+        return self.groupElem.Get_Gradient_e_pg(u, matrixType)
 
     # Nodes recovery
 
