@@ -2,7 +2,7 @@
 # This file is part of the EasyFEA project.
 # EasyFEA is distributed under the terms of the GNU General Public License v3 or later, see LICENSE.txt and CREDITS.md for more information.
 
-from EasyFEA import Display, Folder, Mesher, ElemType, np, Materials, Simulations, MeshIO, PyVista
+from EasyFEA import Display, Folder, Mesher, ElemType, np, Materials, Simulations, PyVista
 from EasyFEA.Geoms import Domain
 
 folder = Folder.Dir(__file__)
@@ -10,9 +10,6 @@ folder = Folder.Dir(__file__)
 if __name__ == "__main__":
 
     Display.Clear()
-    
-    # mesh = MeshIO.Medit_to_EasyFEA(Folder.Join(folder, "tetra4.mesh"))
-    # PyVista.Plot(mesh, show_grid=True).show()
 
     L=120
     h=13
@@ -20,7 +17,7 @@ if __name__ == "__main__":
     
     contour = Domain((0,0), (L,h), h/3)
 
-    mesh = Mesher().Mesh_Extrude(contour, [], [0,0,h], [h/meshSize], ElemType.TETRA4)
+    mesh = Mesher().Mesh_Extrude(contour, [], [0,0,h], [h/meshSize], ElemType.TETRA10)
     nodesX0 = mesh.Nodes_Conditions(lambda x,y,z: x == 0)
     nodesXL = mesh.Nodes_Conditions(lambda x,y,z: x == L)
 
@@ -52,6 +49,6 @@ if __name__ == "__main__":
     test = simuIsot.displacement - simuHyper.displacement
 
     sol = simuHyper.displacement.reshape(-1,3)
-    PyVista.Plot(simuHyper, "uy", 1).show()
+    PyVista.Plot(simuHyper, "Sxx", 1).show()
 
     pass

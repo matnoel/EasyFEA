@@ -121,7 +121,7 @@ class TestHyperElastic:
                 u = simu.displacement
                 Epsilon_e_pg = simu._Calc_Epsilon_e_pg(u, matrixType)
 
-                e_e_pg = Project_Kelvin(HyperElastic.Compute_e(simu.mesh, u, matrixType), 2)
+                e_e_pg = Project_Kelvin(HyperElastic.Compute_GreenLagrange(simu.mesh, u, matrixType), 2)
 
                 diff_eps = e_e_pg - Epsilon_e_pg
 

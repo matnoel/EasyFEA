@@ -47,6 +47,11 @@ class _HyperElas(_IModel, ABC):
             return self.__thickness
         else:
             return 1.0
+
+    @property
+    def coef(self) -> float:
+        """kelvin mandel coef -> sqrt(2)"""
+        return np.sqrt(2)
    
     # @abstractmethod
     # def _Update(self) -> None:

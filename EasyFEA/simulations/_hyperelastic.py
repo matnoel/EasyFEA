@@ -12,7 +12,7 @@ from ..utilities import Tic, Display
 # fem
 from ..fem import Mesh, MatrixType, FeArray
 # materials
-from ..materials import ModelType, Project_vector_to_matrix
+from ..materials import ModelType, Project_vector_to_matrix, Result_in_Strain_or_Stress_field, Project_Kelvin
 from ..materials._hyperelastic_laws import _HyperElas
 from ..materials._hyperelastic import HyperElastic
 # simu
@@ -297,19 +297,19 @@ class HyperElasticSimu(_Simu):
             results.extend(["ux", "uy"])
             # results.extend(["vx", "vy"])
             # results.extend(["ax", "ay"])
-            # results.extend(["Sxx", "Syy", "Sxy"])
-            # results.extend(["Exx", "Eyy", "Exy"])
+            results.extend(["Sxx", "Syy", "Sxy"])
+            results.extend(["Exx", "Eyy", "Exy"])
 
         elif dim == 3:
             results.extend(["ux", "uy", "uz"])
             # results.extend(["vx", "vy", "vz"])
             # results.extend(["ax", "ay", "az"])
-            # results.extend(["Sxx", "Syy", "Szz", "Syz", "Sxz", "Sxy"])
-            # results.extend(["Exx", "Eyy", "Ezz", "Eyz", "Exz", "Exy"])
+            results.extend(["Sxx", "Syy", "Szz", "Syz", "Sxz", "Sxy"])
+            results.extend(["Exx", "Eyy", "Ezz", "Eyz", "Exz", "Exy"])
 
-        # results.extend(["Svm", "Stress","Evm", "Strain"])
+        results.extend(["Svm", "Piola-Kirchhoff", "Evm", "Green-Lagrange"])
         
-        # results.extend(["Wdef","Wdef_e","ZZ1","ZZ1_e"])
+        results.extend(["W","W_e"])
 
         return results
     
@@ -362,39 +362,28 @@ class HyperElasticSimu(_Simu):
         #     val_n = self.accel.reshape(Nn, -1)
         #     values = np.linalg.norm(val_n, axis=1)
 
-        # elif result in ["Wdef"]:
-        #     return self._Calc_Psi_Elas()
+        elif result in ["W"]:
+            return self._Calc_W()
 
-        # elif result == "Wdef_e":
-        #     values = self._Calc_Psi_Elas(returnScalar=False)
-            
-        # elif result == "ZZ1":
-        #     return self._Calc_ZZ1()[0]
-
-        # elif result == "ZZ1_e":
-        #     values = self._Calc_ZZ1()[1]
+        elif result == "W_e":
+            values = self._Calc_W(False)
         
-        # elif ("S" in result or "E" in result) and (not "_norm" in result):
-        #     # Strain and Stress calculation part
+        elif ("S" in result or "E" in result) and (not "_norm" in result):
+            # Green-Lagrange and second Piola-Kirchhoff for each element and gauss point
 
-        #     coef = self.material.coef
-
-        #     displacement = self.displacement
-        #     # Strain and stress for each element and gauss point
-        #     Epsilon_e_pg = self._Calc_Epsilon_e_pg(displacement)
-        #     Sigma_e_pg = self._Calc_Sigma_e_pg(Epsilon_e_pg)
-
-        #     # Element average
-        #     if "S" in result and result != "Strain":
-        #         val_e = Sigma_e_pg.mean(1)
-        #     elif "E" in result or result == "Strain":
-        #         val_e = Epsilon_e_pg.mean(1)
-        #     else:
-        #         raise Exception("Wrong option")
+            # Element average
+            if "S" in result:
+                S_e_pg = self._Calc_PiolaKirchhoff()
+                val_e = S_e_pg.mean(1)
+            elif "E" in result:
+                E_e_pg = self._Calc_GreenLagrange()
+                val_e = E_e_pg.mean(1)
+            else:
+                raise Exception("Wrong option")
             
-        #     res = result if result in ["Strain", "Stress"] else result[-2:]
+            res = result if result in ["Green-Lagrange", "Piola-Kirchhoff"] else result[-2:]
             
-        #     values = Result_in_Strain_or_Stress_field(val_e, res, coef)
+            values = Result_in_Strain_or_Stress_field(val_e, res, self.material.coef)
 
         if not isinstance(values, np.ndarray):
             Display.MyPrintError("This result option is not implemented yet.")
@@ -403,6 +392,26 @@ class HyperElasticSimu(_Simu):
         # end cases ----------------------------------------------------
         
         return self.Results_Reshape_values(values, nodeValues)
+    
+    def _Calc_W(self, returnScalar=True, matrixType=MatrixType.rigi):
+
+        weightedJacobian_e_pg = self.mesh.Get_weightedJacobian_e_pg(matrixType)
+        if self.dim == 2:
+            weightedJacobian_e_pg *= self.material.thickness
+        W_e_pg = self.material.Compute_W(self.mesh, self.displacement, matrixType)
+
+        if returnScalar:
+            return (weightedJacobian_e_pg * W_e_pg).sum()
+        else:
+            return (weightedJacobian_e_pg * W_e_pg).sum(1)
+    
+    def _Calc_GreenLagrange(self, matrixType=MatrixType.rigi):
+
+        return Project_Kelvin(HyperElastic.Compute_GreenLagrange(self.mesh, self.displacement), 2)
+
+    def _Calc_PiolaKirchhoff(self, matrixType=MatrixType.rigi):
+
+        return self.material.Compute_dWde(self.mesh, self.displacement, matrixType)
     
     def Results_Iter_Summary(self):
         return super().Results_Iter_Summary()

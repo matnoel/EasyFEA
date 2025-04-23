@@ -164,8 +164,8 @@ class HyperElastic:
         return (cxx, cxy, cxz, cyx, cyy, cyz, czx, czy, czz)
 
     @staticmethod    
-    def Compute_e(mesh: Mesh, u: np.ndarray, matrixType=MatrixType.rigi) -> FeArray:
-        """Computes the Green-Lagrange deformation  e = 1/2 (C - I)
+    def Compute_GreenLagrange(mesh: Mesh, u: np.ndarray, matrixType=MatrixType.rigi) -> FeArray:
+        """Computes the Green-Lagrange deformation E = 1/2 (C - I)
         
         Parameters
         ----------
@@ -179,14 +179,14 @@ class HyperElastic:
         Returns
         -------
         FeArray
-            e_e_pg of shape (Ne, pg, dim, dim)
+            E_e_pg of shape (Ne, pg, dim, dim)
         """
 
         C_e_pg = HyperElastic.Compute_C(mesh, u, matrixType)
 
-        e_e_pg = 1/2 * (C_e_pg - np.eye(3)) 
+        E_e_pg = 1/2 * (C_e_pg - np.eye(3)) 
 
-        return e_e_pg
+        return E_e_pg
 
     @staticmethod       
     def Compute_Epsilon(mesh: Mesh, u: np.ndarray, matrixType=MatrixType.rigi) -> FeArray:
