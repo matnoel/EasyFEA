@@ -18,16 +18,17 @@ def Compute(W, params: list, details=True):
     for i, param_i in enumerate(params):        
         dWdIi = sympy.diff(W, param_i)
         if dWdIi != 0:
-            if i > 0:
-                dW += " + "
+            dW += " + "
             if details:
                 print(f"dWdI{i+1} = {dWdIi}")
                 dW += f"dWdI{i+1} * dI{i+1}dC"
             else:
                 dW += f"({dWdIi}) * dI{i+1}dC"
 
+    dW = f"dW = 2 * ({dW})\n"
     dW = dW.replace("+ -", "- ")
-    print(f"dW = 2 * ({dW})\n")
+    dW = dW.replace("( + ", "(")
+    print(dW)
 
     # d2W
     d2W1 = ""
@@ -36,8 +37,7 @@ def Compute(W, params: list, details=True):
     for i, param_i in enumerate(params):
         dWdIi = sympy.diff(W, param_i)
         if dWdIi != 0:
-            if i > 0:
-                d2W1 += " + "
+            d2W1 += " + "
             if details:
                 print(f"dWdI{i+1} = {dWdIi}")
                 d2W1 += f"dWdI{i+1} * d2I{i+1}dC"
@@ -47,28 +47,31 @@ def Compute(W, params: list, details=True):
         for j, param_j in enumerate(params):
             d2WdIiIj = sympy.diff(dWdIi, param_j)
             if d2WdIiIj != 0:
-                if j > 0:
-                    d2W2 += " + "
+                d2W2 += " + "
                 if details:
                     print(f"d2WdI{i+1}I{j+1} = {d2WdIiIj}")
                     d2W2 += f"d2WdI{i+1}I{j+1} * dI{i+1}dC @ dI{j+1}dC.T"
                 else:
                     d2W2 += f"({d2WdIiIj}) * dI{i+1}dC @ dI{j+1}dC.T"
 
-    d2W1 = d2W1.replace("+ -", "- ")
-    d2W2 = d2W2.replace("+ -", "- ")
-
     if d2W2 == "":
-        print(f"d2W = 4 * ({d2W1})")
+        d2W = f"d2W = 4 * ({d2W1})"
     else:
-        print(f"d2W = 4 * ({d2W1}) + 4 * ({d2W2})")
+        d2W = f"d2W = 4 * ({d2W1}) + 4 * ({d2W2})"
+    d2W = d2W.replace("+ -", "- ")
+    d2W = d2W.replace("( + ", "(")
+    print(d2W)
 
 if __name__ == "__main__":
 
     Display.Clear()
 
     I1, I2, I3, I4 = sympy.symbols("I1, I2, I3, I4")
-    
+
+    J1 = I1 * I3**(sympy.Rational(-1,3))
+    J2 = I2 * I3**(sympy.Rational(-2,3))
+    J = I3**(sympy.Rational(1,2))
+
     # -------------------------------------
     # Neo-Hookean
     # -------------------------------------
@@ -77,9 +80,9 @@ if __name__ == "__main__":
 
     K = sympy.symbols("K")
     
-    W = K * (I1 - 3)
+    W = K * (J1 - 3)
 
-    Compute(W, [I1])
+    Compute(W, [I1, I2, I3])
 
     # -------------------------------------
     # Mooney-Rivlin
@@ -89,9 +92,9 @@ if __name__ == "__main__":
 
     K1, K2 = sympy.symbols("K1, K2")
     
-    W = K1 * (I1 - 3) + K2 * (I2 - 3)
+    W = K1 * (J1 - 3) + K2 * (J2 - 3)
 
-    Compute(W, [I1, I2])
+    Compute(W, [I1, I2, I3])
 
     # -------------------------------------
     # Saint-Venant-Kirchhoff
@@ -103,19 +106,5 @@ if __name__ == "__main__":
     
     # W = lmbda/8 * (I1**2 - 6*I1 + 9) + mu/4 * (I1**2 - 2*I1 - 2*I2 + 3)
     W = (lmbda/8 + mu/4) * I1**2 - mu*I2/2  - (3*lmbda/4 + mu/2) * I1 + 9*lmbda/8 + 3*mu/4
-
-    Compute(W, [I1, I2])
-
-    # -------------------------------------
-    # Ciarlet Geymonat
-    # -------------------------------------
-
-    Display.Section("Ciarlet Geymonat")
-
-    J1 = I1 * I3**(sympy.Rational(-1,3))
-    J2 = I2 * I3**(sympy.Rational(-2,3))
-    J3 = I3**(sympy.Rational(1,2))
-    
-    W = K1 * (J1 - 3) + K2 * (J2 - 3) * K*((J3 - 1) - sympy.ln(J3))
 
     Compute(W, [I1, I2, I3])
