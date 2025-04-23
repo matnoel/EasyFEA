@@ -13,6 +13,12 @@ from .simulations._utils import Save_pickle, Load_pickle
 
 from .simulations._elastic import ElasticSimu, Mesh_Optim_ZZ1
 
+# ----------------------------------------------
+# HyperElastic
+# ----------------------------------------------
+
+from .simulations._hyperelastic import HyperElasticSimu
+
 # ------------------------------------------------------------------------------
 # PhaseField
 # ------------------------------------------------------------------------------

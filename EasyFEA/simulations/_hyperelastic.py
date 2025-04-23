@@ -5,9 +5,10 @@
 from scipy import sparse
 import scipy.sparse.linalg as sla
 import numpy as np
+from typing import Union
 
 # utilities
-from ..utilities import Tic
+from ..utilities import Tic, Display
 # fem
 from ..fem import Mesh, MatrixType, FeArray
 # materials
@@ -16,11 +17,10 @@ from ..materials._hyperelastic_laws import _HyperElas
 from ..materials._hyperelastic import HyperElastic
 # simu
 from ._simu import _Simu
-from .Solvers import AlgoType
 
 class HyperElasticSimu(_Simu):
 
-    def __init__(self, mesh: Mesh, model: _HyperElas, verbosity=True, useNumba=True, useIterativeSolvers=True):
+    def __init__(self, mesh: Mesh, model: _HyperElas, verbosity=False, useNumba=True, useIterativeSolvers=True):
         """Creates a simulation.
 
         Parameters
@@ -30,7 +30,7 @@ class HyperElasticSimu(_Simu):
         model : _HyperElas
             The hyperelatic model used.
         verbosity : bool, optional
-            If True, the simulation can write in the terminal. Defaults to True.
+            If True, the simulation can write in the terminal. Defaults to False.
         useNumba : bool, optional
             If True and numba is installed numba can be used. Defaults to True.
         useIterativeSolvers : bool, optional
@@ -49,12 +49,12 @@ class HyperElasticSimu(_Simu):
     def Get_problemTypes(self):
         return [ModelType.hyperelastic]
     
-    def Get_dofs(self, problemType=None) -> list[str]:
-        dict_dim_directions = {
+    def Get_unknowns(self, problemType=None) -> list[str]:
+        dict_unknowns = {
             2 : ["x", "y"],
             3 : ["x", "y", "z"]
         }
-        return dict_dim_directions[self.dim]
+        return dict_unknowns[self.dim]
     
     def Get_dof_n(self, problemType=None) -> int:
         return self.dim
@@ -89,13 +89,13 @@ class HyperElasticSimu(_Simu):
         return super().Get_x0(problemType)
     
     def _Solve_hyperelastic(self):
-        
+
         self._Solver_Solve(self.problemType)
         self.Need_Update()
 
         return self._Get_u_n(self.problemType)
     
-    def Solve(self, tolConv=1.e-3, maxIter=5) -> tuple[np.ndarray, bool]:
+    def Solve(self, tolConv=1.e-5, maxIter=20) -> tuple[np.ndarray, bool]:
         """Solves the hyperelastic problem using the newton raphson algorithm.
 
         Parameters
@@ -103,7 +103,7 @@ class HyperElasticSimu(_Simu):
         tolConv : float, optional
             threshold used to check convergence, by default 1e-3
         maxIter : int, optional
-            Maximum iterations for convergence, by default 5
+            Maximum iterations for convergence, by default 20
 
         Returns
         -------
@@ -120,10 +120,25 @@ class HyperElasticSimu(_Simu):
 
         Niter = 0
         converged = False
+        problemType = self.problemType
 
         tic = Tic()
 
-        u = self.displacement
+        # init u
+        u = self.Bc_vector_Dirichlet(problemType)
+        self._Set_u_n(problemType, u)
+        # u = self.displacement
+
+        # apply new dirichlet bc conditions
+        previous_dirichlet = self.Bc_Dirichlet
+        previous_neumann = self.Bc_Neuman
+        self.Bc_Init()
+        for bc in previous_dirichlet:
+            self._Bc_Add_Dirichlet(problemType, bc.nodes, bc.dofsValues*0, bc.dofs, bc.unknowns)
+        for bc in previous_neumann:
+            self._Bc_Add_Neumann(problemType, bc.nodes, bc.dofsValues, bc.dofs, bc.unknowns)
+
+        list_res = []
 
         while not converged and Niter < maxIter:
                     
@@ -132,17 +147,24 @@ class HyperElasticSimu(_Simu):
             # solve here
             delta_u = self._Solve_hyperelastic()
 
+            # uptate new displacement
             u += delta_u
-            self._Set_u_n(self.problemType, u)
+            self._Set_u_n(problemType, u)
 
-            r = self._Solver_Apply_Neumann(self.problemType)
+            # check convergence
+            r = self._Solver_Apply_Neumann(problemType)
             norm_r = sla.norm(r)
 
-            converged = norm_r < tolConv
-
-            pass
+            if Niter == 1:
+                converged = norm_r < tolConv
+            else:
+                res = np.abs(list_res[-1] - norm_r)/list_res[-1]
+                converged = res < tolConv
+            list_res.append(norm_r)
 
         timeIter = tic.Tac("Resolution hyperelastic", "Hyperelastic iteration", False)
+
+        assert converged, f"Newton raphson algorithm did not converged in {Niter} iterations."
 
         # # save solve config
         # self.__tolConv = tolConv
@@ -153,7 +175,7 @@ class HyperElasticSimu(_Simu):
         # self.__convIter = convIter
         # self.__timeIter = timeIter
             
-        return u, converged
+        return u
     
     def Assembly(self):
 
@@ -181,7 +203,7 @@ class HyperElasticSimu(_Simu):
 
         # import matplotlib.pyplot as plt
         # plt.figure()
-        # plt.spy(self.__Ku)
+        # plt.spy(self.__K)
         # plt.show()
 
         tic.Tac("Matrix","Assembly Ku and Fu", self._verbosity)
@@ -189,7 +211,6 @@ class HyperElasticSimu(_Simu):
         return self.__K, self.__F
     
     def __Construct_Local_Matrix(self) -> tuple[FeArray, FeArray]:
-
 
         # data
         mat = self.material
@@ -232,9 +253,9 @@ class HyperElasticSimu(_Simu):
         F_e = - (weightedJacobian_e_pg * dWde_e_pg.T @ B_e_pg).sum(1)
 
         # reorder xi,...,xn,yi,...yn,zi,...,zn to xi,yi,zi,...,xn,yx,zn
-        reorder = np.arange(0, nPe*dim).reshape(nPe, -1).T.ravel()
+        reorder = np.arange(0, nPe*dim).reshape(-1, nPe).T.ravel()
         F_e = F_e[:,reorder]
-        K_e = K_e[:,reorder,:][:,:,reorder]
+        K_e = K_e[:,reorder][:,:,reorder]
 
         return K_e, F_e
 
@@ -250,13 +271,138 @@ class HyperElasticSimu(_Simu):
 
     # --------------------------------------------------------------------------
     # Results
-    # -------------------------------------------------------------------------- 
+    # --------------------------------------------------------------------------
 
-    def Results_Available(self):
-        return super().Results_Available()
+    def __indexResult(self, result: str) -> int:
+        
+        if len(result) <= 2:
+            "Case were ui, vi or ai"
+            if "x" in result:
+                return 0
+            elif "y" in result:
+                return 1
+            elif "z" in result:
+                return 2
+
+    def Results_Available(self) -> list[str]:
+
+        results = []
+        dim = self.dim
+
+        results.extend(["displacement", "displacement_norm", "displacement_matrix"])
+        # results.extend(["speed", "speed_norm"])
+        # results.extend(["accel", "accel_norm"])
+        
+        if dim == 2:
+            results.extend(["ux", "uy"])
+            # results.extend(["vx", "vy"])
+            # results.extend(["ax", "ay"])
+            # results.extend(["Sxx", "Syy", "Sxy"])
+            # results.extend(["Exx", "Eyy", "Exy"])
+
+        elif dim == 3:
+            results.extend(["ux", "uy", "uz"])
+            # results.extend(["vx", "vy", "vz"])
+            # results.extend(["ax", "ay", "az"])
+            # results.extend(["Sxx", "Syy", "Szz", "Syz", "Sxz", "Sxy"])
+            # results.extend(["Exx", "Eyy", "Ezz", "Eyz", "Exz", "Exy"])
+
+        # results.extend(["Svm", "Stress","Evm", "Strain"])
+        
+        # results.extend(["Wdef","Wdef_e","ZZ1","ZZ1_e"])
+
+        return results
     
-    def Result(self, option, nodeValues=True, iter=None):
-        return super().Result(option, nodeValues, iter)
+    def Result(self, result: str, nodeValues=True, iter=None) -> Union[np.ndarray, float, None]:
+
+        if iter != None:
+            self.Set_Iter(iter)
+        
+        if not self._Results_Check_Available(result): return None
+
+        # begin cases ----------------------------------------------------
+
+        Nn = self.mesh.Nn
+
+        values = None
+
+        if result in ["ux", "uy", "uz"]:
+            values_n = self.displacement.reshape(Nn, -1)
+            values = values_n[:,self.__indexResult(result)]
+
+        elif result == "displacement":
+            values = self.displacement
+        
+        elif result == "displacement_norm":
+            val_n = self.displacement.reshape(Nn, -1)
+            values = np.linalg.norm(val_n, axis=1)
+
+        elif result == "displacement_matrix":
+            values = self.Results_displacement_matrix()
+
+        # elif result in ["vx", "vy", "vz"]:
+        #     values_n = self.speed.reshape(Nn, -1)
+        #     values = values_n[:,self.__indexResult(result)]
+
+        # elif result == "speed":
+        #     values = self.speed
+        
+        # elif result == "speed_norm":
+        #     val_n = self.speed.reshape(Nn, -1)
+        #     values = np.linalg.norm(val_n, axis=1)
+
+        # elif result in ["ax", "ay", "az"]:
+        #     values_n = self.accel.reshape(Nn, -1)
+        #     values = values_n[:,self.__indexResult(result)]
+        
+        # elif result == "accel":
+        #     values = self.accel
+        
+        # elif result == "accel_norm":
+        #     val_n = self.accel.reshape(Nn, -1)
+        #     values = np.linalg.norm(val_n, axis=1)
+
+        # elif result in ["Wdef"]:
+        #     return self._Calc_Psi_Elas()
+
+        # elif result == "Wdef_e":
+        #     values = self._Calc_Psi_Elas(returnScalar=False)
+            
+        # elif result == "ZZ1":
+        #     return self._Calc_ZZ1()[0]
+
+        # elif result == "ZZ1_e":
+        #     values = self._Calc_ZZ1()[1]
+        
+        # elif ("S" in result or "E" in result) and (not "_norm" in result):
+        #     # Strain and Stress calculation part
+
+        #     coef = self.material.coef
+
+        #     displacement = self.displacement
+        #     # Strain and stress for each element and gauss point
+        #     Epsilon_e_pg = self._Calc_Epsilon_e_pg(displacement)
+        #     Sigma_e_pg = self._Calc_Sigma_e_pg(Epsilon_e_pg)
+
+        #     # Element average
+        #     if "S" in result and result != "Strain":
+        #         val_e = Sigma_e_pg.mean(1)
+        #     elif "E" in result or result == "Strain":
+        #         val_e = Epsilon_e_pg.mean(1)
+        #     else:
+        #         raise Exception("Wrong option")
+            
+        #     res = result if result in ["Strain", "Stress"] else result[-2:]
+            
+        #     values = Result_in_Strain_or_Stress_field(val_e, res, coef)
+
+        if not isinstance(values, np.ndarray):
+            Display.MyPrintError("This result option is not implemented yet.")
+            return
+
+        # end cases ----------------------------------------------------
+        
+        return self.Results_Reshape_values(values, nodeValues)
     
     def Results_Iter_Summary(self):
         return super().Results_Iter_Summary()
@@ -264,8 +410,21 @@ class HyperElasticSimu(_Simu):
     def Results_dict_Energy(self):
         return super().Results_dict_Energy()
     
-    def Results_displacement_matrix(self):
-        return super().Results_displacement_matrix()
+    def Results_displacement_matrix(self) -> np.ndarray:
+
+        Nn = self.mesh.Nn
+        coord = self.displacement.reshape((Nn,-1))
+        dim = coord.shape[1]
+
+        if dim == 1:
+            # Here we add two columns
+            coord = np.append(coord, np.zeros((Nn,1)), axis=1)
+            coord = np.append(coord, np.zeros((Nn,1)), axis=1)
+        elif dim == 2:
+            # Here we add 1 column
+            coord = np.append(coord, np.zeros((Nn,1)), axis=1)
+
+        return coord
     
     def Results_nodesField_elementsField(self, details=False):
         return super().Results_nodesField_elementsField(details)
