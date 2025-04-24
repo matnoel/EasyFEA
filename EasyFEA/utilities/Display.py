@@ -646,7 +646,7 @@ def Plot_BoundaryConditions(simu, ax: plt.Axes=None) -> plt.Axes:
 
         if problemType in ["damage","thermal"]:
             marker='o'
-        elif problemType in ["elastic","beam"]:
+        elif problemType in ["elastic","beam", "hyperelastic"]:
 
             # get values for each direction
             sum = np.sum(dofsValues.reshape(-1, nDir), axis=0)
@@ -673,6 +673,8 @@ def Plot_BoundaryConditions(simu, ax: plt.Axes=None) -> plt.Axes:
                     marker='X'
             elif len(unknowns) > 2:
                 marker='s'
+        else:
+            raise Exception(f"{problemType} is not implemented here")
 
         # Title        
         unknowns_str = str(unknowns).replace("'","")
