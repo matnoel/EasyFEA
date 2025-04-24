@@ -214,7 +214,7 @@ class Elas_Isot(_Elas):
         return text
 
     def __init__(self, dim: int, E=210000.0, v=0.3, planeStress=True, thickness=1.0):
-        """Creates an Isotropic Linearized Elastici material.
+        """Creates an Isotropic Linearized Elastic material.
 
         Parameters
         ----------
@@ -413,7 +413,7 @@ class Elas_IsotTrans(_Elas):
     def __init__(self, dim: int, El: float, Et: float, Gl: float,
                  vl: float, vt: float,
                  axis_l=[1,0,0], axis_t=[0,1,0], planeStress=True, thickness=1.0):
-        """Creates and Transversely Isotropic Linearized Elasticit material.\n
+        """Creates and Transversely Isotropic Linearized Elastic material.\n
         More details Torquato 2002 13.3.2 (iii) http://link.springer.com/10.1007/978-1-4757-6355-3
 
         Parameters
