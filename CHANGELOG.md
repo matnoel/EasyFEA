@@ -2,6 +2,17 @@
 
 This document describes the changes made to the project.
 
+## 1.4.0 (April 24, 2025):
+
+- Fixed issues #6 and #7.
+- Organized the `tests/` directory.
+- Updated hyperbolic solvers (`hht`, `newmark`, `midpoint`).
+- Created a linear algebra module for the `Trace`, `Det`, `Inv`, `TensorProd`, `Transpose`, and `Norm` functions.
+- Updated the `MeshIO` interface. Removed unnecessary node reordering, which is now handled by the https://github.com/matnoel/meshio fork.
+- Replaced `simu.Get_directions()` with `simu.Get_unknowns()`.
+- Clarified the `groupElem.Get_F_e_pg()` function.
+- Created `simu` functions to access Neumann boundary condition values.
+
 ## 1.3.4 (March 28, 2025):
 
 - Moved `Display._Init_obj()` to `_simu._Init_obj()`.
