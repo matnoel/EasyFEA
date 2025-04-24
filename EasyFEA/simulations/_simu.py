@@ -746,7 +746,8 @@ class _Simu(_IObserver, ABC):
         Solve : Callable[[], None]
             Solve function.
         Apply_BC : Callable[[], None]
-            Apply boundary condition function.
+            Apply boundary condition function.\n
+            Warning: The `Apply_BC()` function must call `simu.Bc_Init()` function.
         tolConv : float, optional
             threshold used to check convergence, by default 1e-5
         maxIter : int, optional
@@ -767,7 +768,6 @@ class _Simu(_IObserver, ABC):
 
         tic = Tic()
 
-        self.Bc_Init()
         Apply_BC()
 
         # set u as dirichlet vector
@@ -792,7 +792,6 @@ class _Simu(_IObserver, ABC):
             self._Set_u_n(problemType, u)
 
             # update boundary conditions
-            self.Bc_Init()
             Apply_BC()
 
             # vector = self.Bc_vector_Neumann(problemType)

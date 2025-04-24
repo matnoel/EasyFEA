@@ -134,7 +134,8 @@ class HyperElasticSimu(_Simu):
         Parameters
         ----------
         Apply_BC : Callable[[], None]
-            Apply boundary condition function.
+            Apply boundary condition function.\n
+            Warning: The `Apply_BC()` function must call `simu.Bc_Init()` function.
         tolConv : float, optional
             threshold used to check convergence, by default 1e-5
         maxIter : int, optional

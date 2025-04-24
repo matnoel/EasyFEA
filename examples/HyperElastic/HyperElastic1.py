@@ -30,6 +30,7 @@ if __name__ == "__main__":
     simuHyper = Simulations.HyperElasticSimu(mesh, mat)
 
     def Apply_Bc():
+        simuHyper.Bc_Init()
         simuHyper.add_dirichlet(nodesX0, [0,0,0], simuHyper.Get_unknowns())
         # simuHyper.add_dirichlet(nodesXL, [-10], ["y"])
         simuHyper.add_volumeLoad(mesh.nodes, [-rho*9.81], ["y"])
