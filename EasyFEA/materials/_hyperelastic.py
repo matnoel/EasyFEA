@@ -613,7 +613,7 @@ class HyperElastic:
         return I4_e_pg
     
     @staticmethod
-    def Compute_dI4dC(T: np.ndarray) -> np.ndarray:
+    def Compute_dI4dC(T: np.ndarray) -> FeArray:
         """Computes dI4dC(u)
         
         Parameters
@@ -627,8 +627,8 @@ class HyperElastic:
 
         Returns
         -------
-        np.ndarray
-            dI4dC_e_pg of shape (Ne, pg, 3, 3)
+        FeArray
+            dI4dC_e_pg of shape (Ne, pg, 6)
         """
 
         assert isinstance(T, np.ndarray) and T.shape[-1] == 3, "T must be a (..., 3) array"
@@ -638,13 +638,13 @@ class HyperElastic:
         return dI4dC_e_pg
 
     @staticmethod
-    def Compute_d2I4dC() -> np.ndarray:
+    def Compute_d2I4dC() -> FeArray:
         """Computes d2I4dC(u)
 
         Returns
         -------
-        np.ndarray
+        FeArray
             d2I4dC of shape (6, 6)
         """        
 
-        return np.zeros((6, 6))
+        return FeArray.zeros(1,1,6,6)
