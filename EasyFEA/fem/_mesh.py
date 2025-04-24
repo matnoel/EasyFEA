@@ -875,7 +875,7 @@ class Mesh(Observable):
         elif criteria == "jacobian":
             # jMax / jMin
             jacobian_e_pg = groupElem.Get_jacobian_e_pg(MatrixType.mass)
-            values_e = jacobian_e_pg._max(1) / jacobian_e_pg._min(1)
+            values_e = jacobian_e_pg.max(1) / jacobian_e_pg.min(1)
 
         else:
             Display.MyPrintError(f"The criterion ({criteria}) is not implemented")
