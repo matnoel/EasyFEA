@@ -613,9 +613,9 @@ class Mesh(Observable):
             # Get_Elements_Nodes(nodes, exclusively=True) in the following function.
             groupElem._Set_Elements_Tag(nodes, tag)
 
-    def Locates_sol_e(self, sol: np.ndarray, dof_n:int=None) -> FeArray:
+    def Locates_sol_e(self, sol: np.ndarray, dof_n:int=None, asFeArray=False) -> FeArray:
         """Locates solution on elements."""
-        return self.groupElem.Locates_sol_e(sol, dof_n)
+        return self.groupElem.Locates_sol_e(sol, dof_n, asFeArray)
     
     def Get_Node_Values(self, result_e: np.ndarray) -> np.ndarray:
         """Get node values from element values.\n

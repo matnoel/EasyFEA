@@ -1670,22 +1670,23 @@ class _GroupElem(ABC):
             print(f"The {tag} tag is unknown")
             return np.array([])
     
-    def Locates_sol_e(self, sol: np.ndarray, dof_n:int=None) -> FeArray:
+    def Locates_sol_e(self, sol: np.ndarray, dof_n:int=None, asFeArray=False) -> FeArray:
         """Locates sol on elements"""
 
+        size = self.Nn * self.dim
         if isinstance(dof_n, (int, float)):
             sol_e = sol[self.Get_assembly_e(dof_n)]
-            return FeArray.asfearray(sol_e[:,np.newaxis])            
-        
-        size = self.Nn * self.dim
-        if sol.shape[0] == size:
+        elif sol.shape[0] == size:
             sol_e = sol[self.assembly_e]
         elif sol.shape[0] == self.Nn:
             sol_e = sol[self.__connect]
         else:
             raise Exception('Wrong dimension')
         
-        return FeArray.asfearray(sol_e[:,np.newaxis])
+        if asFeArray:
+            return FeArray.asfearray(sol_e[:,np.newaxis])
+        else:
+            return sol_e
     
     def Get_pointsInElem(self, coordinates_n: np.ndarray, elem: int) -> np.ndarray:
         """Returns the indexes of the coordinates contained in the element.

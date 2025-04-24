@@ -138,16 +138,16 @@ if __name__ == '__main__':
     u22 = Calc_ukl(E22, False)
     u12 = Calc_ukl(E12, True)
 
-    u11_e = mesh.Locates_sol_e(u11)
-    u22_e = mesh.Locates_sol_e(u22)
-    u12_e = mesh.Locates_sol_e(u12)
+    u11_e = mesh.Locates_sol_e(u11, asFeArray=True)
+    u22_e = mesh.Locates_sol_e(u22, asFeArray=True)
+    u12_e = mesh.Locates_sol_e(u12, asFeArray=True)
 
     # ----------------------------------------------------------------------------
     # Effective elasticity tensor (C_hom)
     # ----------------------------------------------------------------------------
-    U_e = FeArray.zeros(u11_e.shape[0], 1,u11_e.shape[1], 3)
+    U_e = FeArray.zeros(*u11_e.shape, 3)
 
-    U_e[:,0,:,0] = u11_e; U_e[:,0,:,1] = u22_e; U_e[:,0,:,2] = u12_e
+    U_e[...,0] = u11_e; U_e[...,1] = u22_e; U_e[...,2] = u12_e
 
     matrixType = "mass"
     weightedJacobian_e_pg = mesh.Get_weightedJacobian_e_pg(matrixType)

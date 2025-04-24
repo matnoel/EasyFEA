@@ -747,7 +747,7 @@ class PhaseFieldSimu(_Simu):
         """
         
         tic = Tic()        
-        sol_e = self.mesh.Locates_sol_e(sol)
+        sol_e = self.mesh.Locates_sol_e(sol, asFeArray=True)
         B_e_pg = self.mesh.Get_B_e_pg(matrixType)
         Epsilon_e_pg = B_e_pg @ sol_e
         

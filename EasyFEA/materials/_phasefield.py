@@ -214,7 +214,7 @@ class PhaseField(_IModel):
     def Get_g_e_pg(self, d_n: np.ndarray, mesh: Mesh, matrixType: str, k_res=1e-12) -> FeArray:
         """Returns degradation function"""
 
-        d_e_n = mesh.Locates_sol_e(d_n)
+        d_e_n = mesh.Locates_sol_e(d_n, asFeArray=True)
         Nd_pg = FeArray.asfearray(mesh.Get_N_pg(matrixType)[np.newaxis,:,0])
 
         d_e_pg = Nd_pg @ d_e_n

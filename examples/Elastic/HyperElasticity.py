@@ -121,7 +121,7 @@ if __name__ == '__main__':
                 else:
                     raise Exception('Not implemented')
 
-        sol_e = simu.mesh.Locates_sol_e(simu.displacement)
+        sol_e = simu.mesh.Locates_sol_e(simu.displacement, asFeArray=True)
 
         E_e_pg = Bu_e_pg @ sol_e
         E_e_pg += B_e_pg @ sol_e**2

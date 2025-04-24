@@ -7,7 +7,7 @@
 from EasyFEA import (Display, Folder, plt, np,
                      Geoms, Mesher, ElemType,
                      Materials, Simulations)
-from EasyFEA.fem import LagrangeCondition
+from EasyFEA.fem import LagrangeCondition, FeArray
 
 if __name__ == '__main__':
 
@@ -158,19 +158,19 @@ if __name__ == '__main__':
     u22 = Calc_ukl(E22)
     u12 = Calc_ukl(E12)
 
-    u11_e = mesh_VER.Locates_sol_e(u11)
-    u22_e = mesh_VER.Locates_sol_e(u22)
-    u12_e = mesh_VER.Locates_sol_e(u12)
+    u11_e = mesh_VER.Locates_sol_e(u11, asFeArray=True)
+    u22_e = mesh_VER.Locates_sol_e(u22, asFeArray=True)
+    u12_e = mesh_VER.Locates_sol_e(u12, asFeArray=True)
 
-    U_e = np.zeros((u11_e.shape[0],u11_e.shape[1], 3))
+    U_e = FeArray.zeros(*u11_e.shape, 3)
 
-    U_e[:,:,0] = u11_e; U_e[:,:,1] = u22_e; U_e[:,:,2] = u12_e
+    U_e[...,0] = u11_e; U_e[...,1] = u22_e; U_e[...,2] = u12_e
 
     matrixType = "rigi"
-    wightedJacobien_e_pg = mesh_VER.Get_weightedJacobian_e_pg(matrixType)
+    weightedJacobian_e_pg = mesh_VER.Get_weightedJacobian_e_pg(matrixType)
     B_e_pg = mesh_VER.Get_B_e_pg(matrixType)
 
-    C_hom = np.einsum('ep,ij,epjk,ekl->il', wightedJacobien_e_pg, CMandel, B_e_pg, U_e) * 1/area_VER
+    C_hom = (weightedJacobian_e_pg * CMandel @ B_e_pg @ U_e).sum((0,1)) / area_VER
 
     if isHollow:
         coef = (1 - area_inclusion/area_VER)
