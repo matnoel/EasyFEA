@@ -1893,7 +1893,7 @@ class _GroupElem(ABC):
             
             # Check whether iterative resolution is required
             # calculate the ratio between jacob max and min to detect if the element is distorted
-            diff_e = jacobian_e_pg._max(1) / jacobian_e_pg._min(1)
+            diff_e = jacobian_e_pg.max(1) / jacobian_e_pg.min(1)
             error_e = np.abs(1 - diff_e) # a perfect element has an error max <= 1e-12
             # A distorted element exhibits a maximum error greater than zero.
             useIterative_e = error_e > 1e-12
