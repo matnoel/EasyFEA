@@ -40,6 +40,8 @@ class HyperElasticSimu(_Simu):
 
         super().__init__(mesh, model, verbosity, useNumba, useIterativeSolvers)
 
+        assert model.dim == 3, "For the moment, the simulation is only available in 3D."
+
         # init
         self.Solver_Set_Elliptic_Algorithm()
 
