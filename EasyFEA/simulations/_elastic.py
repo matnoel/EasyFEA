@@ -367,8 +367,10 @@ class ElasticSimu(_Simu):
         if smoothedStress:
             Sigma_n = mesh.Get_Node_Values(np.mean(Sigma_e_pg, 1))
 
-            Sigma_n_e = mesh.Locates_sol_e(Sigma_n)
-            Sigma_e_pg = FeArray.asfearray(np.einsum('eni,pjn->epi',Sigma_n_e, N_pg))
+            Sigma_n_e = mesh.Locates_sol_e(Sigma_n)[:,0]
+            Sigma_e_pg = FeArray.asfearray(
+                np.einsum('eni,pjn->epi',Sigma_n_e, N_pg)
+            )
 
         if returnScalar:
             Wdef = 1/2 * ep * (weightedJacobian_pg * Sigma_e_pg @ Epsilon_e_pg).sum()
