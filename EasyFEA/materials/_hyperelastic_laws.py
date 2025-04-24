@@ -52,11 +52,6 @@ class _HyperElas(_IModel, ABC):
     def coef(self) -> float:
         """kelvin mandel coef -> sqrt(2)"""
         return np.sqrt(2)
-   
-    # @abstractmethod
-    # def _Update(self) -> None:
-    #     """Updates the constitutives laws by updating the C stiffness and S compliance matrices. in Kelvin Mandel notation"""
-    #     pass
 
     # Model
     @staticmethod
