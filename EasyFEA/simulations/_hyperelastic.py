@@ -3,13 +3,13 @@
 # EasyFEA is distributed under the terms of the GNU General Public License v3 or later, see LICENSE.txt and CREDITS.md for more information
 
 from scipy import sparse
-import scipy.sparse.linalg as sla
 import numpy as np
-from typing import Union
+from typing import Union, Callable
 import pandas as pd
 
 # utilities
 from ..utilities import Tic, Display
+from ..utilities._linalg import Det, Inv, Norm
 # fem
 from ..fem import Mesh, MatrixType, FeArray
 # materials
@@ -71,6 +71,35 @@ class HyperElasticSimu(_Simu):
         [uxi, uyi, uzi, ...]"""
         return self._Get_u_n(self.problemType)
     
+    def _Bc_Integration_scale(self, groupElem, elements, values_e_p, matrixType):
+        
+        # TODO to validate
+        # return values_e_p
+        
+        values_e_p = FeArray.asfearray(values_e_p)
+        u = self.displacement
+
+        if groupElem.dim == 3:
+            # dont scale for 3D elements
+            coef_e_pg = 1
+        else:
+            # 1D or 2D elements
+
+            # compute F and J
+            grad_e_pg = groupElem.Get_Gradient_e_pg(u, matrixType)[elements]            
+            F_e_pg = np.eye(3) + grad_e_pg
+            J_e_pg = Det(F_e_pg)
+            coef_e_pg = J_e_pg
+
+            # displacementMatrix = self.Results_displacement_matrix()
+            # normal_e = groupElem._Get_sysCoord_e(displacementMatrix)[elements,:,groupElem.dim]
+            # normal_e = FeArray.asfearray(normal_e[:,np.newaxis])
+            # coef_e_pg = J_e_pg * Norm(Inv(F_e_pg).T @ normal_e, axis=-1)
+
+        scaled_e_pg = coef_e_pg * values_e_p
+
+        return np.asarray(scaled_e_pg)
+    
     # --------------------------------------------------------------------------
     # Solve
     # -------------------------------------------------------------------------- 
@@ -89,91 +118,38 @@ class HyperElasticSimu(_Simu):
     def Get_x0(self, problemType=None):
         return super().Get_x0(problemType)
     
-    def _Solve_hyperelastic(self):
+    def __Solve_hyperelastic(self):
 
+        # compute delta_u
         self._Solver_Solve(self.problemType)
+        # The new delta_u indicates that u will be updated,
+        # which is why we must update the matrices.
         self.Need_Update()
 
         return self._Get_u_n(self.problemType)
     
-    def Solve(self, tolConv=1.e-5, maxIter=20) -> tuple[np.ndarray, bool]:
+    def Solve(self, Apply_BC: Callable[[], None], tolConv=1.e-5, maxIter=20) -> np.ndarray:
         """Solves the hyperelastic problem using the newton raphson algorithm.
 
         Parameters
         ----------
+        Apply_BC : Callable[[], None]
+            Apply boundary condition function.
         tolConv : float, optional
-            threshold used to check convergence, by default 1e-3
+            threshold used to check convergence, by default 1e-5
         maxIter : int, optional
             Maximum iterations for convergence, by default 20
 
         Returns
         -------
-        np.ndarray, bool
-            u_np1, converged
-
-            such that:\n
-            - u_np1: displacement vector field\n
-            - converged: the solution has converged\n
+        np.ndarray
+            u_np1: displacement vector field
         """
 
-        assert 0 < tolConv < 1 , "tolConv must be between 0 and 1."
-        assert maxIter > 1 , "Must be > 1."
-
-        Niter = 0
-        converged = False
-        problemType = self.problemType
-
-        tic = Tic()
-
-        # init u
-        u = self.Bc_vector_Dirichlet(problemType)
-        self._Set_u_n(problemType, u)
-        # u = self.displacement
-
-        # apply new dirichlet bc conditions
-        previous_dirichlet = self.Bc_Dirichlet
-        previous_neumann = self.Bc_Neuman
-        self.Bc_Init()
-        for bc in previous_dirichlet:
-            self._Bc_Add_Dirichlet(problemType, bc.nodes, bc.dofsValues*0, bc.dofs, bc.unknowns)
-        for bc in previous_neumann:
-            self._Bc_Add_Neumann(problemType, bc.nodes, bc.dofsValues, bc.dofs, bc.unknowns)
-
-        list_res: list[float] = []
-        list_norm: list[float] = []
-        res = 0
-
-        while not converged and Niter < maxIter:
-                    
-            Niter += 1
-
-            # solve here
-            delta_u = self._Solve_hyperelastic()
-
-            # uptate new displacement
-            u += delta_u
-            self._Set_u_n(problemType, u)
-
-            # compute norm
-            b = self._Solver_Apply_Neumann(problemType)
-            norm_b = sla.norm(b)
-            list_norm.append(norm_b)
-
-            # check convergence
-            if Niter == 1:
-                res = 1
-            else:
-                res = np.abs(list_norm[-2] - norm_b)/list_norm[-2]
-            list_res.append(res)
-            converged = res < tolConv
-
-        timeIter = tic.Tac("Resolution hyperelastic", "Hyperelastic iteration", False)
-
-        assert converged, f"Newton raphson algorithm did not converged in {Niter} iterations."
-
-        # save solve config
-        self.__tolConv = tolConv
-        self.__maxIter = maxIter
+        u, Niter, timeIter, list_res = self._Solver_Solve_NewtonRaphson(
+            self.__Solve_hyperelastic, Apply_BC, tolConv, maxIter
+        )
+        
         # save iter parameters
         self.__Niter = Niter
         self.__timeIter = timeIter
@@ -407,7 +383,7 @@ class HyperElasticSimu(_Simu):
 
             # Element average
             if "S" in result:
-                S_e_pg = self._Calc_PiolaKirchhoff()
+                S_e_pg = self._Calc_SecondPiolaKirchhoff()
                 val_e = S_e_pg.mean(1)
             elif "E" in result:
                 E_e_pg = self._Calc_GreenLagrange()
@@ -443,7 +419,7 @@ class HyperElasticSimu(_Simu):
 
         return Project_Kelvin(HyperElastic.Compute_GreenLagrange(self.mesh, self.displacement), 2)
 
-    def _Calc_PiolaKirchhoff(self, matrixType=MatrixType.rigi):
+    def _Calc_SecondPiolaKirchhoff(self, matrixType=MatrixType.rigi):
 
         return self.material.Compute_dWde(self.mesh, self.displacement, matrixType)
     
@@ -478,15 +454,10 @@ class HyperElasticSimu(_Simu):
         coord = self.displacement.reshape((Nn,-1))
         dim = coord.shape[1]
 
-        if dim == 1:
-            # Here we add two columns
-            coord = np.append(coord, np.zeros((Nn,1)), axis=1)
-            coord = np.append(coord, np.zeros((Nn,1)), axis=1)
-        elif dim == 2:
-            # Here we add 1 column
-            coord = np.append(coord, np.zeros((Nn,1)), axis=1)
-
-        return coord
+        displacement_matrix = np.zeros((Nn, 3))
+        displacement_matrix[:,:dim] = coord
+        
+        return displacement_matrix
     
     def Results_nodesField_elementsField(self, details=False):
         nodesField = ["displacement_matrix"]

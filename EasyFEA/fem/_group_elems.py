@@ -244,7 +244,13 @@ class _GroupElem(ABC):
     
     def _Get_sysCoord_e(self, displacementMatrix:np.ndarray=None):
         """Get the basis transformation matrix (Ne, 3, 3).\n
-        This matrix can be used to project points with (x, y, z) coordinates into the element's (i, j, k) coordinate system."""
+        [ix, jx, kx\n
+        iy, jy, ky\n
+        iz, jz, kz]\n
+        
+        This matrix can be used to project points with (x, y, z) coordinates into the element's (i, j, k) coordinate system.\n
+        coordo_e * sysCoord_e -> coordinates in element's (i, j, k) coordinate system.
+        """
 
         coordo = self.coordGlob
 
@@ -327,18 +333,6 @@ class _GroupElem(ABC):
             sysCoord_e[:,:,2] = k
 
         return sysCoord_e
-        
-    @property
-    def sysCoord_e(self) -> np.ndarray:
-        """Basis transformation matrix (Ne, 3, 3)\n
-        [ix, jx, kx\n
-        iy, jy, ky\n
-        iz, jz, kz]\n
-        
-        This matrix can be used to project points with (x, y, z) coordinates into the element's (i, j, k) coordinate system.\n
-        coordo_e * sysCoord_e -> coordinates in element's (i, j, k) coordinate system.
-        """
-        return self._Get_sysCoord_e()
     
     def Integrate_e(self, func=lambda x,y,z: 1, matrixType=MatrixType.mass) -> np.ndarray:
         """Integrates the function over elements.
@@ -504,7 +498,7 @@ class _GroupElem(ABC):
 
             rebased_coord_e = coordo_e.copy()
             if self.dim != self.inDim:
-                P_e = self.sysCoord_e # transformation matrix for each element
+                P_e = self._Get_sysCoord_e() # transformation matrix for each element
                 # matrix used to project element's points with (x, y, z) coordinates
                 # into the (X, Y, Z) coordinate system.
 
@@ -1398,15 +1392,15 @@ class _GroupElem(ABC):
         # u for each elements reshaped as (Ne, nPe, dof_n) array
         u_e_n = np.reshape(u_e, (Ne, nPe, dof_n))
 
-        grad_e_pg = np.zeros((Ne, nPg, 3, 3), dtype=float)
+        grad_e_pg = FeArray.zeros(Ne, nPg, 3, 3)
         for p in range(nPg):
-            grad_e_pg[:,p,:dim,0] = np.einsum("en,end->ed", dxN_e_pg[:,p], u_e_n)
+            grad_e_pg[:,p,:dim,0] = np.einsum("en,end->ed", dxN_e_pg[:,p], u_e_n[...,:dim])
             if dim > 1:
-                grad_e_pg[:,p,:dim,1] = np.einsum("en,end->ed", dyN_e_pg[:,p], u_e_n)
+                grad_e_pg[:,p,:dim,1] = np.einsum("en,end->ed", dyN_e_pg[:,p], u_e_n[...,:dim])
             if dim > 2:
-                grad_e_pg[:,p,:dim,2] = np.einsum("en,end->ed", dzN_e_pg[:,p], u_e_n)
+                grad_e_pg[:,p,:dim,2] = np.einsum("en,end->ed", dzN_e_pg[:,p], u_e_n[...,:dim])
 
-        return FeArray.asfearray(grad_e_pg)
+        return grad_e_pg
 
     # --------------------------------------------------------------------------------------------
     # Nodes & Elements
@@ -1889,7 +1883,7 @@ class _GroupElem(ABC):
             # get coordinates in the reference element
             # get groupElem datas
             inDim = self.inDim
-            sysCoord_e = self.sysCoord_e # basis transformation matrix for each element
+            sysCoord_e = self._Get_sysCoord_e() # basis transformation matrix for each element
             # This matrix can be used to project points with (x, y, z) coordinates into the element's (i, j, k) coordinate system.
             matrixType = MatrixType.mass
             jacobian_e_pg = self.Get_jacobian_e_pg(matrixType, absoluteValues=False)

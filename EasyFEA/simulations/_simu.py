@@ -5,9 +5,10 @@
 from abc import ABC, abstractmethod
 import pickle
 from datetime import datetime
-from typing import Union
+from typing import Union, Callable
 import numpy as np
 from scipy import sparse
+import scipy.sparse.linalg as sla
 import textwrap
 
 from ..__about__ import __version__
@@ -736,6 +737,102 @@ class _Simu(_IObserver, ABC):
         else:
             raise TypeError(f"Algo {algo} is not implemented here.")
 
+    def _Solver_Solve_NewtonRaphson(self, Solve: Callable[[], None], Apply_BC: Callable[[], None],
+                                    tolConv=1.e-5, maxIter=20) -> tuple[np.ndarray, int, float, list[float]]:
+        """Solves the non-linear problem using the newton raphson algorithm.
+
+        Parameters
+        ----------
+        Solve : Callable[[], None]
+            Solve function.
+        Apply_BC : Callable[[], None]
+            Apply boundary condition function.
+        tolConv : float, optional
+            threshold used to check convergence, by default 1e-5
+        maxIter : int, optional
+            Maximum iterations for convergence, by default 20
+
+        Returns
+        -------
+        tuple[np.ndarray, int, float, list[float]]
+            return u, Niter, timeIter, list_res
+        """
+
+        assert 0 < tolConv < 1 , "tolConv must be between 0 and 1."
+        assert maxIter > 1 , "Must be > 1."
+
+        Niter = 0
+        converged = False
+        problemType = self.problemType
+
+        tic = Tic()
+
+        self.Bc_Init()
+        Apply_BC()
+
+        # set u as dirichlet vector
+        u = self.Bc_vector_Dirichlet(problemType)
+        self._Set_u_n(problemType, u)
+
+        self.__Solver_NewtonRaphson_Update_BC()
+
+        list_res: list[float] = []
+        list_norm: list[float] = []
+        res = 0
+
+        while not converged and Niter < maxIter:
+                    
+            Niter += 1
+
+            # compute new delta_u
+            delta_u = Solve()
+
+            # uptate new displacement
+            u += delta_u
+            self._Set_u_n(problemType, u)
+
+            # update boundary conditions
+            self.Bc_Init()
+            Apply_BC()
+
+            # vector = self.Bc_vector_Neumann(problemType)
+            # f = vector.reshape(self.mesh.Nn, -1)[:,1].sum()
+
+            self.__Solver_NewtonRaphson_Update_BC()
+
+            # compute ||b||
+            b = self._Solver_Apply_Neumann(problemType)
+            norm_b = sla.norm(b)
+            list_norm.append(norm_b)
+
+            # check convergence
+            if Niter == 1:
+                res = 1
+            else:
+                res = np.abs(list_norm[-2] - norm_b)/list_norm[-2]
+                # res = norm_b/list_norm[0]
+            list_res.append(res)
+            converged = res < tolConv
+
+        timeIter = tic.Tac(f"Resolution {problemType}", "Newton iterations", False)
+
+        assert converged, f"Newton raphson algorithm did not converged in {Niter} iterations."
+
+        return u, Niter, timeIter, list_res
+    
+    def __Solver_NewtonRaphson_Update_BC(self):
+        """Update the boundary conditions because the problem, previously formulated in `u`, is now formulated in `delta_u`.
+        """
+        problemType = self.problemType
+        # apply new dirichlet bc conditions
+        previous_dirichlet = self.Bc_Dirichlet
+        previous_neumann = self.Bc_Neuman
+        self.Bc_Init()
+        for bc in previous_dirichlet:
+            self._Bc_Add_Dirichlet(problemType, bc.nodes, bc.dofsValues*0, bc.dofs, bc.unknowns)
+        for bc in previous_neumann:
+            self._Bc_Add_Neumann(problemType, bc.nodes, bc.dofsValues, bc.dofs, bc.unknowns)
+
     def _Solver_Apply_Neumann(self, problemType: ModelType) -> sparse.csr_matrix:
         """Fill in the Neumann boundary conditions by constructing b from A x = b.
 
@@ -1404,6 +1501,28 @@ class _Simu(_IObserver, ABC):
         dofs = self.Bc_dofs_nodes(nodes, unknowns, problemType)
 
         return dofsValues, dofs
+    
+    def _Bc_Integration_scale(self, groupElem: _GroupElem, elements: np.ndarray,
+                              values_e_p: np.ndarray, matrixType: MatrixType) -> np.ndarray:
+        """Scales values_e_pg
+
+        Parameters
+        ----------
+        groupElem : _GroupElem
+            group of elements.
+        elements : np.ndarray
+            elements where the values are applied.
+        values_e_p : np.ndarray
+            values applied.
+        matrixType : MatrixType
+            matrix type used.
+
+        Returns
+        -------
+        np.ndarray
+            scaled values
+        """
+        return values_e_p
 
     def __Bc_Integration_Dim(self, dim: int, problemType: ModelType, nodes: np.ndarray, values: list, unknowns: list) -> tuple[np.ndarray , np.ndarray]:
         """Integrates on elements for the specified dimension."""
@@ -1433,34 +1552,37 @@ class _Simu(_IObserver, ABC):
             weightedJacobian_e_pg = groupElem.Get_weightedJacobian_e_pg(matrixType)[elements]
 
             # initialize the matrix of values for each node used by the elements and each gauss point (Ne*nPe, dir)
-            values_dofs_dir = np.zeros((Ne*groupElem.nPe, len(unknowns)))
+            values_dofs_u = np.zeros((Ne*groupElem.nPe, len(unknowns)))
             # initialize the dofs vector
-            new_dofs = np.zeros_like(values_dofs_dir, dtype=int)
+            new_dofs = np.zeros_like(values_dofs_u, dtype=int)
 
-            # Integrated in every direction
-            for d, dir in enumerate(unknowns):
+            # Integrated for all unknowns
+            for u, unknown in enumerate(unknowns):
 
-                if isinstance(values[d], (int, float)) or callable(values[d]):
+                if isinstance(values[u], (int, float)) or callable(values[u]):
                     # evaluate on gauss points
-                    eval_e_p = self.__Bc_evaluate(coordo_e_p, values[d], option="gauss")
+                    eval_e_p = self.__Bc_evaluate(coordo_e_p, values[u], option="gauss")
+                    eval_e_p = self._Bc_Integration_scale(groupElem, elements, eval_e_p, matrixType)
                     # integrate the elements
-                    values_e_p = np.einsum('ep,ep,pij->epij', weightedJacobian_e_pg, eval_e_p, N_pg, optimize='optimal')
+                    values_e_p = np.einsum('ep,ep,pin->epin', weightedJacobian_e_pg, eval_e_p, N_pg, optimize='optimal')
 
                 else:
+                    # evaluate on nodes
                     eval_n = np.zeros(Nn, dtype=float)
-                    eval_n[nodes] = values[d]
+                    eval_n[nodes] = values[u]
                     eval_e = eval_n[groupElem.connect[elements]]
-
+                    eval_e_p = eval_e[:,np.newaxis].repeat(weightedJacobian_e_pg.shape[1], 1)
+                    eval_e_p = self._Bc_Integration_scale(groupElem, elements, eval_e_p, matrixType)
                     # integrate the elements
-                    values_e_p = np.einsum('ep,ej,pij->epij', weightedJacobian_e_pg, eval_e, N_pg, optimize='optimal')
+                    values_e_p = np.einsum('ep,epj,pin->epin', weightedJacobian_e_pg, eval_e_p, N_pg, optimize='optimal')
 
                 # sum over integration points
                 values_e = np.sum(values_e_p, axis=1)
                 # set calculated values and dofs
-                values_dofs_dir[:,d] = values_e.ravel()
-                new_dofs[:,d] = self.Bc_dofs_nodes(connect.ravel(), [dir], problemType)
+                values_dofs_u[:,u] = values_e.ravel()
+                new_dofs[:,u] = self.Bc_dofs_nodes(connect.ravel(), [unknown], problemType)
 
-            new_values_dofs = values_dofs_dir.ravel() # Put in vector form
+            new_values_dofs = values_dofs_u.ravel() # Put in vector form
             dofsValues = np.append(dofsValues, new_values_dofs)
             
             new_dofs = new_dofs.ravel() # Put in vector form
@@ -1615,7 +1737,7 @@ class _Simu(_IObserver, ABC):
             # slave nodes have been detected in the master mesh
             nodes: np.ndarray = slaveNodes[idx]
 
-            sysCoord_e = masterGroup.sysCoord_e
+            sysCoord_e = masterGroup._Get_sysCoord_e()
 
             # get the elemGroup on the interface        
             gaussCoord_e_p = np.asarray(masterGroup.Get_GaussCoordinates_e_pg(MatrixType.rigi))

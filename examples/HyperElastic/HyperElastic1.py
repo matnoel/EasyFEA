@@ -11,34 +11,30 @@ if __name__ == "__main__":
 
     Display.Clear()
 
-    L=120
-    h=13
+    L = 120
+    h = 13
     meshSize = h/3
     
     contour = Domain((0,0), (L,h), h/3)
 
-    mesh = Mesher().Mesh_Extrude(contour, [], [0,0,h], [h/meshSize], ElemType.TETRA4, isOrganised=True)
+    mesh = Mesher().Mesh_Extrude(contour, [], [0,0,h], [h/meshSize], ElemType.HEXA20, isOrganised=True)
     nodesX0 = mesh.Nodes_Conditions(lambda x,y,z: x == 0)
     nodesXL = mesh.Nodes_Conditions(lambda x,y,z: x == L)
-
-    matIsot = Materials.Elas_Isot(3)    
     
-    K = matIsot.get_bulk()
-    K1 = 500
-    K2 = 403346.153846154
+    lmbda = 121153.84615384616 # Mpa
+    mu = 80769.23076923077
+    rho = 7850 * 1e-9 # kg/mm3
 
-    # mat = Materials.NeoHookean(3, K)
-    # mat = Materials.MooneyRivlin(3, K1, K2)
-    mat = Materials.SaintVenantKirchhoff(3, matIsot.get_lambda(), matIsot.get_mu())
+    mat = Materials.SaintVenantKirchhoff(3, lmbda, mu)
     
-    simuHyper = Simulations.HyperElasticSimu(mesh, mat, useIterativeSolvers=False)
-    
-    simuHyper.add_dirichlet(nodesX0, [0,0,0], simuHyper.Get_unknowns())
-    simuHyper.add_dirichlet(nodesXL, [-L*.5], ["y"])
+    simuHyper = Simulations.HyperElasticSimu(mesh, mat)
 
-    simuHyper.Solve()
+    def Apply_Bc():
+        simuHyper.add_dirichlet(nodesX0, [0,0,0], simuHyper.Get_unknowns())
+        # simuHyper.add_dirichlet(nodesXL, [-10], ["y"])
+        simuHyper.add_volumeLoad(mesh.nodes, [-rho*9.81], ["y"])
+        simuHyper.add_surfLoad(nodesXL, [-800/h/h], ["y"])
 
-    sol = simuHyper.displacement.reshape(-1,3)
+    simuHyper.Solve(Apply_Bc, maxIter=50)
+
     PyVista.Plot(simuHyper, "uy", 1, show_edges=True).show()
-
-    pass

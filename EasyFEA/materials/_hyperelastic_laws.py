@@ -19,8 +19,8 @@ from ..utilities import _params
 # ----------------------------------------------
 
 class _HyperElas(_IModel, ABC):
-    """HyperElasticit material.\n
-    _, _ and _ inherit from _HyperElas class.
+    """HyperElastic material.\n
+    NeoHookean, MooneyRivlin and SaintVenantKirchhoff inherit from _HyperElas class.
     """
     def __init__(self, dim: int, thickness: float):
         
