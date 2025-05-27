@@ -36,6 +36,12 @@ class TRI3(_GroupElem):
     def faces(self) -> list[int]:
         return [0,1,2,0]    
 
+    def Get_Local_Coords(self):
+        list_x = [0,1,0]
+        list_y = [0,0,1]
+        local_coords = np.array([list_x, list_y]).T
+        return local_coords
+
     def _N(self) -> np.ndarray:
 
         N1 = lambda r, s : -r - s + 1
@@ -95,6 +101,12 @@ class TRI6(_GroupElem):
     @property
     def faces(self) -> list[int]:
         return [0,3,1,4,2,5,0]
+
+    def Get_Local_Coords(self):
+        list_x = [0,1,0,0.5,0.5,0]
+        list_y = [0,0,1,0,0.5,0.5]
+        local_coords = np.array([list_x, list_y]).T
+        return local_coords
 
     def _N(self) -> np.ndarray:
 
@@ -175,6 +187,20 @@ class TRI10(_GroupElem):
     @property
     def faces(self) -> list[int]:
         return [0,3,4,1,5,6,2,7,8,0]
+
+    def Get_Local_Coords(self):
+        list_x = [0,1,0,
+              1/3,2/3,
+              2/3, 1/3,
+              0,0,
+              1/3]
+        list_y = [0,0,1,
+                0,0,
+                1/3, 2/3,
+                2/3,1/3,
+                1/3]
+        local_coords = np.array([list_x, list_y]).T
+        return local_coords
 
     def _N(self) -> np.ndarray:
 
@@ -300,6 +326,20 @@ class TRI15(_GroupElem):
     @property
     def faces(self) -> list[int]:
         return [0,3,4,5,1,6,7,8,2,9,10,11,0]
+
+    def Get_Local_Coords(self):
+        list_x = [0,1,0,
+            1/4,1/2,3/4,
+            3/4,1/2,1/4,
+            0,0,0,
+            1/4,1/2,1/4]
+        list_y = [0,0,1,
+                0,0,0,
+                1/4,1/2,3/4,
+                3/4,1/2,1/4,
+                1/4,1/4,1/2]
+        local_coords = np.array([list_x, list_y]).T
+        return local_coords
 
     def _N(self) -> np.ndarray:
 

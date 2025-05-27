@@ -451,6 +451,11 @@ class _GroupElem(ABC):
         """list of indexes to form the faces that make up the element"""
         pass
 
+    @abstractmethod
+    def Get_Local_Coords(self) -> np.ndarray:
+        """Get local ξ, η, ζ coordinates as a (nPe, dim) numpy array"""
+        pass
+
     # --------------------------------------------------------------------------------------------
     # Gauss
     # --------------------------------------------------------------------------------------------

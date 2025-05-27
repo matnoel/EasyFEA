@@ -26,6 +26,9 @@ class POINT(_GroupElem):
     def faces(self) -> list[int]:
         return [0]
 
+    def Get_Local_Coords(self):
+        return np.array([0]).reshape(1,1)
+
     def _N(self) -> np.ndarray:
         pass
 

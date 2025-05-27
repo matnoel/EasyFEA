@@ -37,6 +37,12 @@ class QUAD4(_GroupElem):
     def faces(self) -> list[int]:
         return [0,1,2,3,0]
 
+    def Get_Local_Coords(self):
+        list_x = [-1,1,1,-1]
+        list_y = [-1,-1,1,1]
+        local_coords = np.array([list_x, list_y]).T
+        return local_coords
+
     def _N(self) -> np.ndarray:
 
         N1 = lambda r, s : (r - 1)*(s - 1)/4
@@ -100,6 +106,12 @@ class QUAD8(_GroupElem):
     @property
     def faces(self) -> list[int]:
         return [0,4,1,5,2,6,3,7,0]
+
+    def Get_Local_Coords(self):
+        list_x = [-1,1,1,-1,0,1,0,-1]
+        list_y = [-1,-1,1,1,-1,0,1,0]
+        local_coords = np.array([list_x, list_y]).T
+        return local_coords
 
     def _N(self) -> np.ndarray:
 
@@ -194,6 +206,12 @@ class QUAD9(_GroupElem):
     @property
     def faces(self) -> list[int]:
         return [0,4,1,5,2,6,3,7,0]
+
+    def Get_Local_Coords(self):
+        list_x = [-1,1,1,-1,0,1,0,-1,0]
+        list_y = [-1,-1,1,1,-1,0,1,0,0]
+        local_coords = np.array([list_x, list_y]).T
+        return local_coords
 
     def _N(self) -> np.ndarray:
 

@@ -46,6 +46,13 @@ class TETRA4(_GroupElem):
                 0,3,1,
                 0,2,3,
                 1,3,2]
+
+    def Get_Local_Coords(self):
+        list_x = [0,1,0,0]
+        list_y = [0,0,1,0]
+        list_z = [0,0,0,1]
+        local_coords = np.array([list_x, list_y, list_z]).T
+        return local_coords
     
     @property
     def segments(self) -> np.ndarray:
@@ -120,6 +127,13 @@ class TETRA10(_GroupElem):
                 0,7,3,9,1,4,
                 0,6,2,8,3,7,
                 1,9,3,8,2,5]
+
+    def Get_Local_Coords(self):
+        list_x = [0,1,0,0,0.5,0.5,0,0,0,0.5]
+        list_y = [0,0,1,0,0,0.5,0.5,0,0.5,0]
+        list_z = [0,0,0,1,0,0,0,0.5,0.5,0.5]
+        local_coords = np.array([list_x, list_y, list_z]).T
+        return local_coords
     
     @property
     def segments(self) -> np.ndarray:

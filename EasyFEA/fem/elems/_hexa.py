@@ -23,16 +23,15 @@ class HEXA8(_GroupElem):
     #     4----------5
 
     def __init__(self, gmshId: int, connect: np.ndarray, coordoGlob: np.ndarray, nodes: np.ndarray):
-
-        super().__init__(gmshId, connect, coordoGlob, nodes)
+       super().__init__(gmshId, connect, coordoGlob, nodes)
 
     @property
     def origin(self) -> list[int]:
-        return [-1, -1, -1]
+       return [-1, -1, -1]
 
     @property
     def triangles(self) -> list[int]:
-        return super().triangles
+       return super().triangles
 
     @property
     def faces(self) -> list[int]:
@@ -43,9 +42,16 @@ class HEXA8(_GroupElem):
                 6,2,1,5,
                 6,5,4,7]
     
+    def Get_Local_Coords(self):
+       list_x = [-1,1,1,-1,-1,1,1,-1]
+       list_y = [-1,-1,1,1,-1,-1,1,1]
+       list_z = [-1,-1,-1,-1,1,1,1,1]
+       local_coords = np.array([list_x, list_y, list_z]).T
+       return local_coords
+
     @property
     def segments(self) -> np.ndarray:
-        return np.array([[0,1],[1,5],[5,4],[4,0],[3,2],[2,6],[6,7],[7,3],[0,3],[1,2],[5,6],[4,7]])
+       return np.array([[0,1],[1,5],[5,4],[4,0],[3,2],[2,6],[6,7],[7,3],[0,3],[1,2],[5,6],[4,7]])
 
     def _N(self) -> np.ndarray:
 
@@ -120,6 +126,25 @@ class HEXA20(_GroupElem):
                 6,19,7,15,3,13,2,14,
                 6,14,2,11,1,12,5,18,
                 6,18,5,16,4,17,7,19]
+    
+    def Get_Local_Coords(self):
+        list_x = [-1,1,1,-1,
+              -1,1,1,-1,
+              0,-1,-1,1,
+              1,0,1,-1,
+              0,-1,1,0]
+        list_y = [-1,-1,1,1,
+                -1,-1,1,1,
+                -1,0,-1,0,
+                -1,1,1,1,
+                -1,0,0,1]
+        list_z = [-1,-1,-1,-1,
+                1,1,1,1,
+                -1,-1,0,-1,
+                0,-1,0,0,
+                1,1,1,1]
+        local_coords = np.array([list_x, list_y, list_z]).T
+        return local_coords
     
     @property
     def segments(self) -> np.ndarray:
@@ -286,6 +311,31 @@ class HEXA27(_GroupElem):
                 6,19,7,15,3,13,2,14,
                 6,14,2,11,1,12,5,18,
                 6,18,5,16,4,17,7,19]
+    
+    def Get_Local_Coords(self):
+        list_x = [-1,1,1,-1,
+              -1,1,1,-1,
+              0,-1,-1,1,
+              1,0,1,-1,
+              0,-1,1,0,
+              0,0,-1,1,
+              0,0,0]
+        list_y = [-1,-1,1,1,
+                -1,-1,1,1,
+                -1,0,-1,0,
+                -1,1,1,1,
+                -1,0,0,1,
+                0,-1,0,0,
+                1,0,0]
+        list_z = [-1,-1,-1,-1,
+                1,1,1,1,
+                -1,-1,0,-1,
+                0,-1,0,0,
+                1,1,1,1,
+                -1,0,0,0,
+                0,1,0]
+        local_coords = np.array([list_x, list_y, list_z]).T
+        return local_coords
     
     @property
     def segments(self) -> np.ndarray:

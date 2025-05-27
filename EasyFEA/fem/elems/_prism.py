@@ -47,6 +47,13 @@ class PRISM6(_GroupElem):
                 1,4,5,2,
                 3,5,4,3,
                 0,1,2,0]
+
+    def Get_Local_Coords(self):
+        list_x = [0,1,0, 0,1,0]
+        list_y = [0,0,1, 0,0,1]
+        list_z = [-1,-1,-1, 1,1,1]
+        local_coords = np.array([list_x, list_y, list_z]).T
+        return local_coords
     
     @property
     def segments(self) -> np.ndarray:
@@ -138,6 +145,13 @@ class PRISM15(_GroupElem):
                 1,10,4,14,5,11,2,9,
                 3,13,5,14,4,12,3,3,
                 0,6,1,9,2,7,0,0]
+
+    def Get_Local_Coords(self):
+        list_x = [0,1,0, 0,1,0, .5,0,0 ,.5,1,0, .5,0,.5]
+        list_y = [0,0,1, 0,0,1, 0,.5,0, .5,0,1, 0,.5,.5]
+        list_z = [-1,-1,-1, 1,1,1, -1,-1,0, -1,0,0, 1,1,1]
+        local_coords = np.array([list_x, list_y, list_z]).T
+        return local_coords
     
     @property
     def segments(self) -> np.ndarray:
@@ -284,6 +298,13 @@ class PRISM18(_GroupElem):
                 1,10,4,14,5,11,2,9,
                 3,13,5,14,4,12,3,3,
                 0,6,1,9,2,7,0,0]
+
+    def Get_Local_Coords(self):
+        list_x = [0,1,0, 0,1,0, .5,0,0 ,.5,1,0, .5,0,.5, .5,0,.5]
+        list_y = [0,0,1, 0,0,1, 0,.5,0, .5,0,1, 0,.5,.5, 0,.5,.5]
+        list_z = [-1,-1,-1, 1,1,1, -1,-1,0, -1,0,0, 1,1,1, 0,0,0]
+        local_coords = np.array([list_x, list_y, list_z]).T
+        return local_coords
     
     @property
     def segments(self) -> np.ndarray:

@@ -31,6 +31,11 @@ class SEG2(_GroupElem):
     def faces(self) -> list[int]:
         return [0,1]
 
+    def Get_Local_Coords(self):
+        list_x = [-1, 1]
+        local_coords = np.array([list_x]).T
+        return local_coords
+
     def _N(self) -> np.ndarray:
 
         N1 = lambda r : -(r - 1)/2
@@ -113,6 +118,11 @@ class SEG3(_GroupElem):
     @property
     def faces(self) -> list[int]:
         return [0,2,1]
+
+    def Get_Local_Coords(self):
+        list_x = [-1, 1, 0]
+        local_coords = np.array([list_x]).T
+        return local_coords
 
     def _N(self) -> np.ndarray:
 
@@ -211,6 +221,11 @@ class SEG4(_GroupElem):
     @property
     def faces(self) -> list[int]:
         return [0,2,3,1]
+
+    def Get_Local_Coords(self):
+        list_x = [-1,1,-1/3,1/3]
+        local_coords = np.array([list_x]).T
+        return local_coords
 
     def _N(self) -> np.ndarray:
 
@@ -326,6 +341,11 @@ class SEG5(_GroupElem):
     @property
     def faces(self) -> list[int]:
         return [0,2,3,4,1]
+
+    def Get_Local_Coords(self):
+        list_x = [-1,1,-1/2,0,1/2]
+        local_coords = np.array([list_x]).T
+        return local_coords
 
     def _N(self) -> np.ndarray:
 
