@@ -22,7 +22,7 @@ import matplotlib.animation as animation
 # utilities
 from . import Folder, Tic
 # simulations
-from ..simulations._simu import _Init_obj
+from ..simulations._simu import _Init_obj, _Get_values
 
 # Ideas: https://www.python-graph-gallery.com/
 
@@ -40,8 +40,8 @@ def Plot_Result(simu, result: Union[str,np.ndarray], deformFactor=0.0, coef=1.0,
     obj : _Simu
         simulation
     result : str or np.ndarray
-        result you want to display.\n
-        Must be included in simu.Get_Results() or be a numpy array of size of (Nn, Ne).
+        Result you want to display.
+        Must be included in simu.Get_Results() or be a numpy array of size (Nn, Ne).
     deformFactor : float, optional
         factor used to display the deformed solution (0 means no deformations), default 0.0
     coef : float, optional
@@ -89,28 +89,8 @@ def Plot_Result(simu, result: Union[str,np.ndarray], deformFactor=0.0, coef=1.0,
     # When mesh use 3D elements, results are displayed only on 2D elements.
     # To display values on 2D elements, we first need to know the values at 3D nodes.
     nodeValues = True if plotDim == 3 else nodeValues # do not modify
-
-    # Retrieve values that will be displayed
-    if isinstance(result, str):
-        if simu == None:
-            raise Exception("obj is a mesh, so the result must be an array of dimension Nn or Ne")
-        values = simu.Result(result, nodeValues) # Retrieve result from option
-        if not isinstance(values, np.ndarray): return
     
-    elif isinstance(result, np.ndarray):
-        values = result
-        size = result.shape[0]
-        if size not in [mesh.Ne, mesh.Nn]:
-            raise Exception("Must be an array of dimension Nn or Ne")
-        else:
-            if size == mesh.Ne and nodeValues:
-                # calculate nodal values for element values
-                values = mesh.Get_Node_Values(result)
-            elif size == mesh.Nn and not nodeValues:
-                values_e = mesh.Locates_sol_e(result)
-                values = np.mean(values_e, 1)        
-    else:
-        raise Exception("result must be a string or an array")
+    values = _Get_values(simu, mesh, result, nodeValues)
     
     values *= coef # Apply coef to values
 

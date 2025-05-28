@@ -13,7 +13,7 @@ import numpy as np
 
 # utilities
 from .Display import MyPrintError, MyPrint
-from ..simulations._simu import _Init_obj
+from ..simulations._simu import _Init_obj, _Get_values
 from . import Folder, Tic
 from .. import Geoms
 # fem
@@ -712,43 +712,17 @@ def _pvGrid(obj, result: Union[str, np.ndarray]=None, deformFactor=0.0, nodeValu
     cellType = DICT_CELL_TYPES[elemType][0]
     pvMesh = pv.UnstructuredGrid({cellType: connect}, coordo)
 
+    values = _Get_values(simu, mesh, result, nodeValues)
+
     # Add the result    
     if isinstance(result, str) and result != "":
-        if simu != None:
-            values = simu.Result(result, nodeValues)
-            size = values.size
-
-            if values is None:
-                pass
-            elif size % Nn == 0 or size % Ne == 0:
-                if size % Nn == 0:
-                    values = np.reshape(values, (Nn, -1))
-                elif size % Ne == 0:
-                    values = np.reshape(values, (Ne, -1))
-                pvMesh[result] = values
-                pvMesh.set_active_scalars(result)
-            else:
-                MyPrintError("Must return nodes or elements values")
-                
-        else:
-            MyPrintError("obj must be a simulation object or result should be nodes or elements values.")
+        pvMesh[result] = values
+        pvMesh.set_active_scalars(result)
 
     elif isinstance(result, np.ndarray):
-        values = result
-        size = result.shape[0]
-        if size not in [mesh.Ne, mesh.Nn]:
-            raise Exception("Must be an array of dimension Nn or Ne")
-        else:
-            if size == mesh.Ne and nodeValues:
-                # calculate nodal values for element values
-                values = mesh.Get_Node_Values(result)
-            elif size == mesh.Nn and not nodeValues:
-                values_e = mesh.Locates_sol_e(result)
-                values = np.mean(values_e, 1)
-
-            name = 'array' # here result is an array
-            pvMesh[name] = values
-            pvMesh.set_active_scalars(name)
+        name = 'array' # here result is an array
+        pvMesh[name] = values
+        pvMesh.set_active_scalars(name)
 
     return pvMesh
 

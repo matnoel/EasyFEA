@@ -1934,6 +1934,50 @@ def _Init_obj(obj, deformFactor: float=0.0):
     
     return simu, mesh, coordo, inDim
 
+def _Get_values(simu: Union[_Simu, None], mesh: Mesh, result: Union[str, np.ndarray], nodeValues=True) -> np.ndarray:
+    """Retrieves values and ensures compatibility with the mesh.
+
+    Parameters
+    ----------
+    simu : Union[_Simu, None]
+        Simulation (can be set to None).
+    mesh : Mesh
+        Mesh used to display the result.
+    result : Union[str, np.ndarray]
+        Result you want to display.
+        Must be included in simu.Get_Results() or be a numpy array of size (Nn, Ne).
+    nodeValues : bool, optional
+        Displays result on nodes; otherwise, displays it on elements. Default is True.
+
+    Returns
+    -------
+    np.ndarray
+        values
+    """
+    
+    if isinstance(result, str):
+        if simu == None:
+            raise Exception("obj is a mesh, so the result must be an array of dimension Nn or Ne")
+        values = simu.Result(result, nodeValues) # Retrieve result from option
+        if not isinstance(values, np.ndarray): return
+    
+    elif isinstance(result, np.ndarray):
+        values = result
+        size = result.shape[0]
+        if size not in [mesh.Ne, mesh.Nn]:
+            raise Exception("Must be an array of dimension Nn or Ne")
+        else:
+            if size == mesh.Ne and nodeValues:
+                # calculate nodal values for element values
+                values = mesh.Get_Node_Values(result)
+            elif size == mesh.Nn and not nodeValues:
+                values_e = mesh.Locates_sol_e(result)
+                values = np.mean(values_e, 1)        
+    else:
+        raise Exception("result must be a string or an array")
+
+    return values
+
 def Load_Simu(folder: str, filename: str="simulation") -> _Simu:
     """Loads the simulation from the specified folder.
 
