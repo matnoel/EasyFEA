@@ -82,7 +82,7 @@ def __Write_RefGeomElt(file: io.TextIOWrapper, groupElem: _GroupElem, solutionOr
     nodesPositions = __Get_NodesPositions(groupElem)
     np.savetxt(file, nodesPositions)
 
-def __Write_Solution(file: io.TextIOWrapper, groupElem: _GroupElem, dofsValues: np.ndarray, dof_n: int , solutionOrder: int) -> None:
+def __Write_Solution(file: io.TextIOWrapper, groupElem: _GroupElem, dofsValues: np.ndarray, dof_n: int , resultOrder: int) -> None:
     
     # get dofsValues as a (Ne, nPe, dof_n) array
     assembly_e = groupElem.Get_assembly_e(dof_n)
@@ -103,7 +103,7 @@ def __Write_Solution(file: io.TextIOWrapper, groupElem: _GroupElem, dofsValues: 
 
     # write solution
     keyword = __Get_vizir_solution_key(groupElem)
-    file.write(f"\n{keyword}{solutionOrder}\n{groupElem.Ne}\n")
+    file.write(f"\n{keyword}{resultOrder}\n{groupElem.Ne}\n")
     file.write(f"1 {solutionDim}\n")
     file.write(f"{groupElem.order} {groupElem.nPe}\n")
     
@@ -111,29 +111,18 @@ def __Write_Solution(file: io.TextIOWrapper, groupElem: _GroupElem, dofsValues: 
     np.savetxt(file, dofsValues_e)
     file.write("\n")
 
-def Save_result(obj: Union[_Simu, Mesh], result: Union[str,np.ndarray], folder: str, filename: str, deformFactor:float=1.0, solutionOrder:int=None):
-
-    # get mesh and simu fro obj
-    simu, mesh, coord, _ = _Init_obj(obj, deformFactor)
-    mesh.coordGlob = coord    
-    
-    # save the mesh in Medit format
-    meshFile = MeshIO.EasyFEA_to_Medit(mesh, folder, "mesh")
-
-    # initsolution name
-    solutionFile = Folder.Join(folder, f"{filename}.sol", mkdir=True)
+def __Write_solution_file(simu: Union[_Simu, None], mesh: Mesh, result: Union[str, np.ndarray], resultOrder: int, folder: str, filename:str) -> str:
 
     # get solution
     # assume nodesValues is True
     dofsValues = _Get_values(simu, mesh, result, nodeValues=True)
     dof_n = dofsValues.size // mesh.Nn
-    
-    # get solution order
-    if solutionOrder is None:
-        solutionOrder = mesh.groupElem.order
 
     list_groupElem = mesh.Get_list_groupElem()
     list_groupElem.extend(mesh.Get_list_groupElem(mesh.dim - 1))
+
+    # init solution file
+    solutionFile = Folder.Join(folder, f"{filename}.sol", mkdir=True)    
 
     with open(solutionFile, "w") as f:
 
@@ -143,12 +132,66 @@ def Save_result(obj: Union[_Simu, Mesh], result: Union[str,np.ndarray], folder: 
 
         for groupElem in list_groupElem:
 
-            __Write_RefGeomElt(f, groupElem, solutionOrder)
+            __Write_RefGeomElt(f, groupElem, resultOrder)
 
-            __Write_Solution(f, groupElem, dofsValues, dof_n, solutionOrder)
+            __Write_Solution(f, groupElem, dofsValues, dof_n, resultOrder)
+
+        f.write("End\n")
+
+    return solutionFile
+    
+
+def Save_result(obj: Union[_Simu, Mesh], result: Union[str,np.ndarray], folder: str, filename: str, deformFactor:float=1.0, resultOrder:int=None):
+
+    # get mesh and simu fro obj
+    simu, mesh, coord, _ = _Init_obj(obj, deformFactor)
+    mesh.coordGlob = coord    
+    
+    # save the mesh in Medit format
+    meshFile = MeshIO.EasyFEA_to_Medit(mesh, folder, "mesh")
+    
+    # get solution order
+    if resultOrder is None:
+        resultOrder = mesh.groupElem.order
+
+    if simu is not None:
+        Niter = simu.Niter
+
+        solsFile = Folder.Join(folder, filename+".sols", mkdir=True)
+
+        meshFiles: list[str] = []
+        solutionFiles: list[str] = []
+
+        with open(solsFile, "w") as f:
+
+            for iter in range(Niter):
+                simu.Set_Iter(iter)
+                filename_with_iter = f"{filename}.{iter}"
+                solutionFile = __Write_solution_file(simu, mesh, result, resultOrder, folder, filename_with_iter)
+
+                meshFiles.append(meshFile)
+                solutionFiles.append(solutionFile)
+                
+                f.write(f"{solutionFile}\n")
         
+
+        vizirMovie = Folder.Join(folder, f"{filename}.movie", mkdir=True)
         
+        with open(vizirMovie, "w") as f:
 
-    print(f"\nvizir4 -in {meshFile} -sol {solutionFile}\n")
+            for meshFile, solutionFile in zip(meshFiles, solutionFiles):
 
-    pass
+                f.write(f"{meshFile}\t{solutionFile}\n")
+        
+            # within the folder
+            # vizir4 -movie filename.movie
+
+        return f"vizir4 -in {meshFile} -sols {solsFile}"
+
+
+    else:
+        solutionFile = __Write_solution_file(simu, mesh, result, resultOrder, folder, filename)
+    
+        return f"vizir4 -in {meshFile} -sol {solutionFile}"
+    
+# def Make_movie(folder: str, )
