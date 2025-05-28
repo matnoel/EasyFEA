@@ -387,6 +387,7 @@ class _Simu(_IObserver, ABC):
     
     @property
     def Niter(self) -> int:
+        """Number of iterations"""
         return len(self._results)
 
     def __Init_Sols_n(self) -> None:
