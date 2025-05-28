@@ -513,3 +513,152 @@ def Fillet(P0: np.ndarray, P1: np.ndarray, P2: np.ndarray, r: float) -> tuple[np
         C = P0
 
     return A, B, C
+
+def __Get_Triangle_Area(A: np.ndarray, B: np.ndarray, C: np.ndarray):
+    """Computes triangle area with A, B, C coordinates
+
+    Parameters
+    ----------
+    A : np.ndarray
+        A coordinates
+    B : np.ndarray
+        B coordinates
+    C : np.ndarray
+        C coordinates
+
+    Returns
+    -------
+    float
+        triangle area
+    """
+    assert A.ndim == 1 and A.size <= 3
+    assert B.ndim == 1 and B.size <= 3
+    assert C.ndim == 1 and C.size <= 3
+    return np.abs(np.cross(B-A, C-A)) / 2
+
+def __Get_Tetrahedron_Volume(A: np.ndarray, B: np.ndarray, C: np.ndarray, D: np.ndarray):
+    """Computes tetrahedron volune with A, B, C, D coordinates
+
+    Parameters
+    ----------
+    A : np.ndarray
+        A coordinates
+    B : np.ndarray
+        B coordinates
+    C : np.ndarray
+        C coordinates
+    D : np.ndarray
+        D coordinates
+
+    Returns
+    -------
+    float
+        tetrahedron volune
+    """
+    assert A.ndim == 1 and A.size <= 3
+    assert B.ndim == 1 and B.size <= 3
+    assert C.ndim == 1 and C.size <= 3
+    assert D.ndim == 1 and D.size <= 3
+    return np.abs(np.dot(np.cross(B-A, C-A), D - A)) / 6
+
+def _Get_BaryCentric_Coordinates_In_Segment(vertices: np.ndarray, coords: np.ndarray) -> np.ndarray:
+    """Computes barycentrice coordinates within a segment
+
+    Parameters
+    ----------
+    vertices : np.ndarray
+        vertices used to construct de segment
+    coords : np.ndarray
+        coordinates within the segment
+
+    Returns
+    -------
+    np.ndarray
+        barycentric_coords
+    """
+
+    assert isinstance(vertices, np.ndarray) and vertices.shape[0] == 2
+
+    A, B = vertices
+
+    length = np.linalg.norm(B - A)
+
+    barycentric_coords = np.zeros((coords.shape[0], 2), dtype=float)
+
+    for i, P in enumerate(coords):
+
+        a = np.linalg.norm(P - B) / length
+        b = np.linalg.norm(P - A) / length
+
+        barycentric_coords[i] = [a, b]
+
+    return barycentric_coords
+
+def _Get_BaryCentric_Coordinates_In_Triangle(vertices: np.ndarray, coords: np.ndarray) -> np.ndarray:
+    """Computes barycentrice coordinates within a triangle
+
+    Parameters
+    ----------
+    vertices : np.ndarray
+        vertices used to construct de triangle
+    coords : np.ndarray
+        coordinates within the triangle
+
+    Returns
+    -------
+    np.ndarray
+        barycentric_coords
+    """
+
+    assert isinstance(vertices, np.ndarray) and vertices.shape[0] == 3
+
+    A, B, C = vertices
+
+    area = __Get_Triangle_Area(A, B, C)
+
+    barycentric_coords = np.zeros((coords.shape[0], 3), dtype=float)
+
+    for i, P in enumerate(coords):
+
+        a = __Get_Triangle_Area(P, B, C) / area
+        b = __Get_Triangle_Area(P, A, C) / area
+        c = __Get_Triangle_Area(P, A, B) / area
+
+        barycentric_coords[i] = [a, b, c]
+
+    return barycentric_coords
+
+def _Get_BaryCentric_Coordinates_In_Tetrahedron(vertices: np.ndarray, coords: np.ndarray) -> np.ndarray:
+    """Computes barycentrice coordinates within a tetrahedron
+
+    Parameters
+    ----------
+    vertices : np.ndarray
+        vertices used to construct de tetrahedron
+    coords : np.ndarray
+        coordinates within the tetrahedron
+
+    Returns
+    -------
+    np.ndarray
+        barycentric_coords
+    """
+
+    assert isinstance(vertices, np.ndarray) and vertices.shape[0] == 4
+
+    A, B, C, D = vertices
+
+    volume = __Get_Tetrahedron_Volume(A, B, C, D)
+
+    barycentric_coords = np.zeros((coords.shape[0], 4), dtype=float)
+
+    for i, P in enumerate(coords):
+
+        a = __Get_Tetrahedron_Volume(P, B, C, D) / volume
+        b = __Get_Tetrahedron_Volume(P, A, C, D) / volume
+        c = __Get_Tetrahedron_Volume(P, A, B, D) / volume
+        d = __Get_Tetrahedron_Volume(P, A, B, C) / volume
+
+        barycentric_coords[i] = [a, b, c, d]
+
+    return barycentric_coords

@@ -9,7 +9,7 @@ import pandas as pd
 # ----------------------------------------------
 # utilities
 # ----------------------------------------------
-from .utilities import Display, Folder, Paraview, PyVista, MeshIO, Tic
+from .utilities import Display, Folder, Paraview, PyVista, Vizir, MeshIO, Tic
 
 # ----------------------------------------------
 # geometry
