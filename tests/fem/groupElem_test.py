@@ -4,8 +4,7 @@
 
 import pytest
 
-from EasyFEA.fem._utils import MatrixType
-from EasyFEA import Mesher, ElemType, Mesh, np, Materials, Simulations
+from EasyFEA import Mesher, ElemType, Mesh, np
 from EasyFEA.Geoms import Points
 
 L = 2
@@ -17,8 +16,21 @@ def meshes() -> list[Mesh]:
     meshSize = H/3
 
     contour = Points([(0,0), (L,0), (L,H), (0,H)], meshSize)
-
     meshes: list[Mesh] = []
+
+    # 1d meshes
+    for elemType in ElemType.Get_1D():
+
+        mesher = Mesher()
+        factory = mesher._factory
+        
+        p1 = factory.addPoint(0,0,0)
+        p2 = factory.addPoint(1,0,0)
+        factory.addLine(p1, p2)
+
+        mesher._Mesh_Generate(1, elemType)
+
+        meshes.append(mesher._Mesh_Get_Mesh())
 
     # 2d meshes
     for elemType in ElemType.Get_2D():
