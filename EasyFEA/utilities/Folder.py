@@ -6,6 +6,7 @@
 
 import os
 
+
 def Dir(path="") -> str:
     """Returns the directory of the specified path.\n
     If no path is specified, returns the EasyFEA directory path.
@@ -13,7 +14,7 @@ def Dir(path="") -> str:
     # TODO Give by default return folder
 
     assert isinstance(path, str), "filename must be str"
-    
+
     if path == "":
         dir = EASYFEA_DIR
     else:
@@ -22,16 +23,18 @@ def Dir(path="") -> str:
 
     return dir
 
+
 EASYFEA_DIR = Dir(Dir(Dir(__file__)))
 RESULTS_DIR = os.path.join(EASYFEA_DIR, "results")
 """EASYFEA_DIR/results"""
 
+
 def Join(*args: str, mkdir=False) -> str:
     """Joins two or more pathname components and create (or not) the path."""
-    
+
     path = os.path.join(*args)
 
-    if not Exists(path) and mkdir:        
+    if not Exists(path) and mkdir:
         if "." in path:
             dir = Dir(path)
             os.makedirs(dir, exist_ok=True)
@@ -40,47 +43,58 @@ def Join(*args: str, mkdir=False) -> str:
 
     return path
 
+
 def Exists(path: str) -> bool:
     """Test whether a path exists. Returns False for broken symbolic links"""
     return os.path.exists(path)
 
-def PhaseField_Folder(folder: str, material: str,
-                      split: str, regu: str, simpli2D: str,
-                      tolConv: float, solver: str,
-                      test: bool, optimMesh=False, closeCrack=False,
-                      nL=0, theta=0.0) -> str:
+
+def PhaseField_Folder(
+    folder: str,
+    material: str,
+    split: str,
+    regu: str,
+    simpli2D: str,
+    tolConv: float,
+    solver: str,
+    test: bool,
+    optimMesh=False,
+    closeCrack=False,
+    nL=0,
+    theta=0.0,
+) -> str:
     """Creates a phase field folder based on the specified arguments."""
 
-    from EasyFEA import Materials    
+    from EasyFEA import Materials
 
     name = ""
 
     if material != "":
-        name += f"{material}"        
+        name += f"{material}"
 
     if split != "":
         start = "" if name == "" else "_"
         name += f"{start}{split}"
 
-    if regu != "":        
+    if regu != "":
         name += f"_{regu}"
 
     if simpli2D != "":
         name += f"_{simpli2D}"
 
-    if closeCrack: 
-        name += '_closeCrack'
+    if closeCrack:
+        name += "_closeCrack"
 
     if optimMesh:
-        name += '_optimMesh'
+        name += "_optimMesh"
 
     if solver != "History" and solver != "":
         assert solver in Materials.PhaseField.Get_solvers()
-        name += '_' + solver
+        name += "_" + solver
 
     if tolConv < 1:
-        name += f'_conv{tolConv}'        
-    
+        name += f"_conv{tolConv}"
+
     if theta != 0.0:
         name = f"{name} theta={theta}"
 

@@ -10,6 +10,7 @@ import numpy as np
 # utilities
 from ..fem import Mesh, MatrixType, FeArray
 from ._hyperelastic import HyperElastic
+
 # others
 from ._utils import _IModel, ModelType
 from ..utilities import _params
@@ -18,17 +19,19 @@ from ..utilities import _params
 # Hyper Elastic
 # ----------------------------------------------
 
+
 class _HyperElas(_IModel, ABC):
     """HyperElastic material.\n
     NeoHookean, MooneyRivlin and SaintVenantKirchhoff inherit from _HyperElas class.
     """
+
     def __init__(self, dim: int, thickness: float):
-        
-        assert dim in [2,3], "Must be dimension 2 or 3"
+
+        assert dim in [2, 3], "Must be dimension 2 or 3"
         self.__dim = dim
-        
+
         if dim == 2:
-            assert thickness > 0 , "Must be greater than 0"
+            assert thickness > 0, "Must be greater than 0"
             self.__thickness = thickness
 
         self.useNumba = False
@@ -64,9 +67,11 @@ class _HyperElas(_IModel, ABC):
         return False
 
     @abstractmethod
-    def Compute_W(self, mesh: Mesh, u: np.ndarray, matrixType=MatrixType.rigi) -> FeArray:
+    def Compute_W(
+        self, mesh: Mesh, u: np.ndarray, matrixType=MatrixType.rigi
+    ) -> FeArray:
         """Computes the quadratic energy W(u).
-        
+
         Parameters
         ----------
         mesh : Mesh
@@ -75,19 +80,21 @@ class _HyperElas(_IModel, ABC):
             discretized displacement field [u1, v1, w1, . . ., uN, vN, wN] of size Nn * dim
         matrixType : MatrixType, optional
             matrix type, by default MatrixType.rigi
-        
+
         Returns
         -------
         np.ndarray
             We_e_pg of shape (Ne, pg)
         """
-        
+
         return None
 
     @abstractmethod
-    def Compute_dWde(self, mesh: Mesh, u: np.ndarray, matrixType=MatrixType.rigi) -> FeArray:
+    def Compute_dWde(
+        self, mesh: Mesh, u: np.ndarray, matrixType=MatrixType.rigi
+    ) -> FeArray:
         """Computes the second Piola-Kirchhoff tensor Σ(u).
-        
+
         Parameters
         ----------
         mesh : Mesh
@@ -96,7 +103,7 @@ class _HyperElas(_IModel, ABC):
             discretized displacement field [u1, v1, w1, . . ., uN, vN, wN] of size Nn * dim
         matrixType : MatrixType, optional
             matrix type, by default MatrixType.rigi
-        
+
         Returns
         -------
         np.ndarray
@@ -107,9 +114,11 @@ class _HyperElas(_IModel, ABC):
         return None
 
     @abstractmethod
-    def Compute_d2Wde(self, mesh: Mesh, u: np.ndarray, matrixType=MatrixType.rigi) -> FeArray:
+    def Compute_d2Wde(
+        self, mesh: Mesh, u: np.ndarray, matrixType=MatrixType.rigi
+    ) -> FeArray:
         """Computes dΣde.
-        
+
         Parameters
         ----------
         mesh : Mesh
@@ -118,21 +127,23 @@ class _HyperElas(_IModel, ABC):
             discretized displacement field [u1, v1, w1, . . ., uN, vN, wN] of size Nn * dim
         matrixType : MatrixType, optional
             matrix type, by default MatrixType.rigi
-        
+
         Returns
         -------
         np.ndarray
             dΣde_e_pg of shape (Ne, pg, 6, 6)
         """
         return None
-    
+
+
 # ----------------------------------------------
 # Neo-Hookean
 # ----------------------------------------------
 
+
 class NeoHookean(_HyperElas):
 
-    def __init__(self, dim: int, K: float, thickness=1.):
+    def __init__(self, dim: int, K: float, thickness=1.0):
         """Creates an Neo-Hookean material.
 
         Parameters
@@ -165,57 +176,62 @@ class NeoHookean(_HyperElas):
         K = self.K
         I1 = HyperElastic.Compute_I1(mesh, u, matrixType)
         I3 = HyperElastic.Compute_I3(mesh, u, matrixType)
-        
-        W = K*(I1/I3**(1/3) - 3)
+
+        W = K * (I1 / I3 ** (1 / 3) - 3)
 
         return W
 
     def Compute_dWde(self, mesh, u, matrixType=MatrixType.rigi) -> FeArray:
-        
+
         K = self.K
-        I1 = HyperElastic.Compute_I1(mesh, u, matrixType) 
-        I3 = HyperElastic.Compute_I3(mesh, u, matrixType) 
-        
-        dWdI1 = K/I3**(1/3)
-        dWdI3 = -I1*K/(3*I3**(4/3))
+        I1 = HyperElastic.Compute_I1(mesh, u, matrixType)
+        I3 = HyperElastic.Compute_I3(mesh, u, matrixType)
+
+        dWdI1 = K / I3 ** (1 / 3)
+        dWdI3 = -I1 * K / (3 * I3 ** (4 / 3))
         dI1dC = HyperElastic.Compute_dI1dC()
         dI3dC = HyperElastic.Compute_dI3dC(mesh, u, matrixType)
-        
-        dWdI1 = K/I3**(1/3)
-        dWdI3 = -I1*K/(3*I3**(4/3))
+
+        dWdI1 = K / I3 ** (1 / 3)
+        dWdI3 = -I1 * K / (3 * I3 ** (4 / 3))
         dW = 2 * (dWdI1 * dI1dC + dWdI3 * dI3dC)
 
         return dW
-    
+
     def Compute_d2Wde(self, mesh, u, matrixType=MatrixType.rigi) -> FeArray:
 
-        K = self.K        
-        I1 = HyperElastic.Compute_I1(mesh, u, matrixType) 
+        K = self.K
+        I1 = HyperElastic.Compute_I1(mesh, u, matrixType)
         I3 = HyperElastic.Compute_I3(mesh, u, matrixType)
 
-        dI1dC = HyperElastic.Compute_dI1dC()[...,np.newaxis]
-        dI3dC = HyperElastic.Compute_dI3dC(mesh, u, matrixType)[...,np.newaxis]
+        dI1dC = HyperElastic.Compute_dI1dC()[..., np.newaxis]
+        dI3dC = HyperElastic.Compute_dI3dC(mesh, u, matrixType)[..., np.newaxis]
         d2I1dC = HyperElastic.Compute_d2I1dC()
         d2I3dC = HyperElastic.Compute_d2I3dC(mesh, u, matrixType)
 
-        dWdI1 = K/I3**(1/3)
-        d2WdI1I3 = -K/(3*I3**(4/3))
-        dWdI3 = -I1*K/(3*I3**(4/3))
-        d2WdI3I1 = -K/(3*I3**(4/3))
-        d2WdI3I3 = 4*I1*K/(9*I3**(7/3))
+        dWdI1 = K / I3 ** (1 / 3)
+        d2WdI1I3 = -K / (3 * I3 ** (4 / 3))
+        dWdI3 = -I1 * K / (3 * I3 ** (4 / 3))
+        d2WdI3I1 = -K / (3 * I3 ** (4 / 3))
+        d2WdI3I3 = 4 * I1 * K / (9 * I3 ** (7 / 3))
 
-        d2W = 4 * (dWdI1 * d2I1dC + dWdI3 * d2I3dC) \
-            + 4 * (d2WdI1I3 * dI1dC @ dI3dC.T + d2WdI3I1 * dI3dC @ dI1dC.T + d2WdI3I3 * dI3dC @ dI3dC.T)
+        d2W = 4 * (dWdI1 * d2I1dC + dWdI3 * d2I3dC) + 4 * (
+            d2WdI1I3 * dI1dC @ dI3dC.T
+            + d2WdI3I1 * dI3dC @ dI1dC.T
+            + d2WdI3I3 * dI3dC @ dI3dC.T
+        )
 
         return d2W
+
 
 # ----------------------------------------------
 # Mooney-Rivlin
 # ----------------------------------------------
 
+
 class MooneyRivlin(_HyperElas):
 
-    def __init__(self, dim: int, K1: float, K2: float, thickness=1.):
+    def __init__(self, dim: int, K1: float, K2: float, thickness=1.0):
         """Creates an Mooney-Rivlin material.
 
         Parameters
@@ -264,31 +280,31 @@ class MooneyRivlin(_HyperElas):
         I1 = HyperElastic.Compute_I1(mesh, u, matrixType)
         I2 = HyperElastic.Compute_I2(mesh, u, matrixType)
         I3 = HyperElastic.Compute_I3(mesh, u, matrixType)
-        
-        W = K1*(I1/I3**(1/3) - 3) + K2*(I2/I3**(2/3) - 3)
+
+        W = K1 * (I1 / I3 ** (1 / 3) - 3) + K2 * (I2 / I3 ** (2 / 3) - 3)
 
         return W
 
     def Compute_dWde(self, mesh, u, matrixType=MatrixType.rigi) -> FeArray:
-        
+
         K1 = self.K1
         K2 = self.K2
         I1 = HyperElastic.Compute_I1(mesh, u, matrixType)
         I2 = HyperElastic.Compute_I2(mesh, u, matrixType)
         I3 = HyperElastic.Compute_I3(mesh, u, matrixType)
-        
+
         dI1dC = HyperElastic.Compute_dI1dC()
         dI2dC = HyperElastic.Compute_dI2dC(mesh, u, matrixType)
         dI3dC = HyperElastic.Compute_dI3dC(mesh, u, matrixType)
-        
-        dWdI1 = K1/I3**(1/3)
-        dWdI2 = K2/I3**(2/3)
-        dWdI3 = -I1*K1/(3*I3**(4/3)) - 2*I2*K2/(3*I3**(5/3))
+
+        dWdI1 = K1 / I3 ** (1 / 3)
+        dWdI2 = K2 / I3 ** (2 / 3)
+        dWdI3 = -I1 * K1 / (3 * I3 ** (4 / 3)) - 2 * I2 * K2 / (3 * I3 ** (5 / 3))
 
         dW = 2 * (dWdI1 * dI1dC + dWdI2 * dI2dC + dWdI3 * dI3dC)
 
         return dW
-    
+
     def Compute_d2Wde(self, mesh, u, matrixType=MatrixType.rigi) -> FeArray:
 
         K1 = self.K1
@@ -297,35 +313,44 @@ class MooneyRivlin(_HyperElas):
         I2 = HyperElastic.Compute_I2(mesh, u, matrixType)
         I3 = HyperElastic.Compute_I3(mesh, u, matrixType)
 
-        dI1dC = HyperElastic.Compute_dI1dC()[...,np.newaxis]
-        dI2dC = HyperElastic.Compute_dI2dC(mesh, u, matrixType)[...,np.newaxis]
-        dI3dC = HyperElastic.Compute_dI3dC(mesh, u, matrixType)[...,np.newaxis]
+        dI1dC = HyperElastic.Compute_dI1dC()[..., np.newaxis]
+        dI2dC = HyperElastic.Compute_dI2dC(mesh, u, matrixType)[..., np.newaxis]
+        dI3dC = HyperElastic.Compute_dI3dC(mesh, u, matrixType)[..., np.newaxis]
 
         d2I1dC = HyperElastic.Compute_d2I1dC()
         d2I2dC = HyperElastic.Compute_d2I2dC()
         d2I3dC = HyperElastic.Compute_d2I3dC(mesh, u, matrixType)
 
-        dWdI1 = K1/I3**(1/3)
-        d2WdI1I3 = -K1/(3*I3**(4/3))
-        dWdI2 = K2/I3**(2/3)
-        d2WdI2I3 = -2*K2/(3*I3**(5/3))
-        dWdI3 = -I1*K1/(3*I3**(4/3)) - 2*I2*K2/(3*I3**(5/3))
-        d2WdI3I1 = -K1/(3*I3**(4/3))
-        d2WdI3I2 = -2*K2/(3*I3**(5/3))
-        d2WdI3I3 = 4*I1*K1/(9*I3**(7/3)) + 10*I2*K2/(9*I3**(8/3))
-        
-        d2W = 4 * (dWdI1 * d2I1dC + dWdI2 * d2I2dC + dWdI3 * d2I3dC) \
-            + 4 * (d2WdI1I3 * dI1dC @ dI3dC.T + d2WdI2I3 * dI2dC @ dI3dC.T + d2WdI3I1 * dI3dC @ dI1dC.T + d2WdI3I2 * dI3dC @ dI2dC.T + d2WdI3I3 * dI3dC @ dI3dC.T)
+        dWdI1 = K1 / I3 ** (1 / 3)
+        d2WdI1I3 = -K1 / (3 * I3 ** (4 / 3))
+        dWdI2 = K2 / I3 ** (2 / 3)
+        d2WdI2I3 = -2 * K2 / (3 * I3 ** (5 / 3))
+        dWdI3 = -I1 * K1 / (3 * I3 ** (4 / 3)) - 2 * I2 * K2 / (3 * I3 ** (5 / 3))
+        d2WdI3I1 = -K1 / (3 * I3 ** (4 / 3))
+        d2WdI3I2 = -2 * K2 / (3 * I3 ** (5 / 3))
+        d2WdI3I3 = 4 * I1 * K1 / (9 * I3 ** (7 / 3)) + 10 * I2 * K2 / (
+            9 * I3 ** (8 / 3)
+        )
+
+        d2W = 4 * (dWdI1 * d2I1dC + dWdI2 * d2I2dC + dWdI3 * d2I3dC) + 4 * (
+            d2WdI1I3 * dI1dC @ dI3dC.T
+            + d2WdI2I3 * dI2dC @ dI3dC.T
+            + d2WdI3I1 * dI3dC @ dI1dC.T
+            + d2WdI3I2 * dI3dC @ dI2dC.T
+            + d2WdI3I3 * dI3dC @ dI3dC.T
+        )
 
         return d2W
-    
+
+
 # ----------------------------------------------
 # Saint-Venant-Kirchhoff
 # ----------------------------------------------
 
+
 class SaintVenantKirchhoff(_HyperElas):
 
-    def __init__(self, dim: int, lmbda: float, mu: float, thickness=1.):
+    def __init__(self, dim: int, lmbda: float, mu: float, thickness=1.0):
         """Creates Saint-Venant-Kirchhoff material.
 
         Parameters
@@ -372,8 +397,8 @@ class SaintVenantKirchhoff(_HyperElas):
         mu = self.mu
         I1 = HyperElastic.Compute_I1(mesh, u, matrixType)
         I2 = HyperElastic.Compute_I2(mesh, u, matrixType)
-               
-        W = lmbda*(I1**2 - 6*I1 + 9)/8 + mu*(I1**2 - 2*I1 - 2*I2 + 3)/4
+
+        W = lmbda * (I1**2 - 6 * I1 + 9) / 8 + mu * (I1**2 - 2 * I1 - 2 * I2 + 3) / 4
 
         return W
 
@@ -386,11 +411,11 @@ class SaintVenantKirchhoff(_HyperElas):
         dI1dC = HyperElastic.Compute_dI1dC()
         dI2dC = HyperElastic.Compute_dI2dC(mesh, u, matrixType)
 
-        dWdI1 = 2*I1*(lmbda/8 + mu/4) - 3*lmbda/4 - mu/2
-        dWdI2 = -mu/2
-        
-        dW = 2 * (dWdI1 * dI1dC + dWdI2 * dI2dC)        
-        
+        dWdI1 = 2 * I1 * (lmbda / 8 + mu / 4) - 3 * lmbda / 4 - mu / 2
+        dWdI2 = -mu / 2
+
+        dW = 2 * (dWdI1 * dI1dC + dWdI2 * dI2dC)
+
         return dW
 
     def Compute_d2Wde(self, mesh, u, matrixType=MatrixType.rigi) -> FeArray:
@@ -399,15 +424,15 @@ class SaintVenantKirchhoff(_HyperElas):
         mu = self.mu
         I1 = HyperElastic.Compute_I1(mesh, u, matrixType)
 
-        dI1dC = HyperElastic.Compute_dI1dC()[...,np.newaxis]
-        
+        dI1dC = HyperElastic.Compute_dI1dC()[..., np.newaxis]
+
         d2I1dC = HyperElastic.Compute_d2I1dC()
         d2I2dC = HyperElastic.Compute_d2I2dC()
 
-        dWdI1 = 2*I1*(lmbda/8 + mu/4) - 3*lmbda/4 - mu/2
-        d2WdI1I1 = lmbda/4 + mu/2
-        dWdI2 = -mu/2
-        
+        dWdI1 = 2 * I1 * (lmbda / 8 + mu / 4) - 3 * lmbda / 4 - mu / 2
+        d2WdI1I1 = lmbda / 4 + mu / 2
+        dWdI2 = -mu / 2
+
         d2W = 4 * (dWdI1 * d2I1dC + dWdI2 * d2I2dC) + 4 * (d2WdI1I1 * dI1dC @ dI1dC.T)
-        
+
         return d2W

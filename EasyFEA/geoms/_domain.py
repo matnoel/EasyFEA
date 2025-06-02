@@ -9,6 +9,7 @@ import numpy as np
 from ._utils import Point, AsPoint
 from ._geom import _Geom
 
+
 class Domain(_Geom):
 
     __nbDomain = 0
@@ -27,8 +28,8 @@ class Domain(_Geom):
         isHollow : bool, optional
             the formed domain is hollow/empty, by default True
         """
-        
-        self.pt1 = AsPoint(pt1)        
+
+        self.pt1 = AsPoint(pt1)
         self.pt2 = AsPoint(pt2)
 
         Domain.__nbDomain += 1
@@ -36,22 +37,24 @@ class Domain(_Geom):
         # a domain can't be open
         _Geom.__init__(self, [self.pt1, self.pt2], meshSize, name, isHollow, False)
 
-    def Get_coord_for_plot(self) -> tuple[np.ndarray,np.ndarray]:
+    def Get_coord_for_plot(self) -> tuple[np.ndarray, np.ndarray]:
 
         p1 = self.pt1.coord
         p7 = self.pt2.coord
 
         dx, dy, dz = p7 - p1
 
-        p2 = p1 + [dx,0,0]
-        p3 = p1 + [dx,dy,0]
-        p4 = p1 + [0,dy,0]
-        p5 = p1 + [0,0,dz]
-        p6 = p1 + [dx,0,dz]
-        p8 = p1 + [0,dy,dz]
+        p2 = p1 + [dx, 0, 0]
+        p3 = p1 + [dx, dy, 0]
+        p4 = p1 + [0, dy, 0]
+        p5 = p1 + [0, 0, dz]
+        p6 = p1 + [dx, 0, dz]
+        p8 = p1 + [0, dy, dz]
 
-        lines = np.concatenate((p1,p2,p3,p4,p1,p5,p6,p2,p6,p7,p3,p7,p8,p4,p8,p5)).reshape((-1,3))
+        lines = np.concatenate(
+            (p1, p2, p3, p4, p1, p5, p6, p2, p6, p7, p3, p7, p8, p4, p8, p5)
+        ).reshape((-1, 3))
 
-        points = np.concatenate((p1,p7)).reshape((-1,3))
+        points = np.concatenate((p1, p7)).reshape((-1, 3))
 
         return lines, points

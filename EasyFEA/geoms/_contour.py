@@ -15,6 +15,7 @@ from ._points import Points
 
 ContourCompatible = Union[Line, CircleArc, Points]
 
+
 class Contour(_Geom):
 
     __nbContour = 0
@@ -35,15 +36,17 @@ class Contour(_Geom):
         # Check that the points form a closed loop
         points: list[Point] = []
 
-        tol = 1e-12        
+        tol = 1e-12
 
         for i, geom in enumerate(geoms):
 
-            assert isinstance(geom, ContourCompatible), "Must give a list of lines and arcs or points."
+            assert isinstance(
+                geom, ContourCompatible
+            ), "Must give a list of lines and arcs or points."
 
             if i == 0:
                 gap = tol
-            elif i > 0 and i < len(geoms)-1:
+            elif i > 0 and i < len(geoms) - 1:
                 # check that the starting point has the same coordinate as the last point of the previous object
                 gap = np.linalg.norm(geom.points[0].coord - points[-1].coord)
 
@@ -53,7 +56,9 @@ class Contour(_Geom):
                 gap1 = np.linalg.norm(geom.points[0].coord - points[-1].coord)
                 gap2 = np.linalg.norm(geom.points[-1].coord - points[0].coord)
 
-                assert gap1 <= tol and gap2 <= tol, "The contour must form a closed loop."
+                assert (
+                    gap1 <= tol and gap2 <= tol
+                ), "The contour must form a closed loop."
 
             # Add the first and last points
             points.extend([p for p in geom.points if p not in points])
@@ -65,7 +70,7 @@ class Contour(_Geom):
         meshSize = np.mean([geom.meshSize for geom in geoms])
         _Geom.__init__(self, points, meshSize, name, isHollow, isOpen)
 
-    def Get_coord_for_plot(self) -> tuple[np.ndarray,np.ndarray]:
+    def Get_coord_for_plot(self) -> tuple[np.ndarray, np.ndarray]:
 
         lines = []
         points = []
@@ -75,11 +80,11 @@ class Contour(_Geom):
             lines.extend(l.ravel())
             points.extend(p.ravel())
 
-        lines = np.reshape(lines, (-1,3))
-        points = np.reshape(points, (-1,3))
+        lines = np.reshape(lines, (-1, 3))
+        points = np.reshape(points, (-1, 3))
 
         return lines, points
-    
+
     @property
     def length(self) -> float:
         return np.sum([geom.length for geom in self.geoms])

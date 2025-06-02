@@ -13,44 +13,50 @@ import scipy.sparse.linalg as sla
 
 # utilities
 from ..utilities import Tic
+
 # fem
 from ..fem import LagrangeCondition
 
 try:
     import pypardiso
+
     __canUsePypardiso = True
 except ModuleNotFoundError:
     __canUsePypardiso = False
 
 try:
     from sksparse.cholmod import cholesky, cholesky_AAt
+
     __canUseCholesky = True
 except ModuleNotFoundError:
     __canUseCholesky = False
 
 try:
-    from scikits.umfpack import umfpackSpsolve    
+    from scikits.umfpack import umfpackSpsolve
+
     __canUseUmfpack = True
 except (ModuleNotFoundError, ImportError):
     __canUseUmfpack = False
 
 try:
     import mumps
+
     # from mumps import DMumpsContext
     __canUseMumps = True
 except ModuleNotFoundError:
     __canUseMumps = False
 
 try:
-    import petsc4py    
-    from petsc4py import PETSc    
+    import petsc4py
+    from petsc4py import PETSc
     from mpi4py import MPI
-    
+
     __canUsePetsc = True
-    __pc_default = 'ilu'
+    __pc_default = "ilu"
 
 except ModuleNotFoundError:
     __canUsePetsc = False
+
 
 class AlgoType(str, Enum):
     elliptic = "elliptic"
@@ -69,10 +75,11 @@ class AlgoType(str, Enum):
 
     def __str__(self) -> str:
         return self.name
-    
+
     @staticmethod
     def Get_Hyperbolic_Types() -> list[str]:
         return [AlgoType.newmark, AlgoType.midpoint, AlgoType.hht]
+
 
 class ResolType(str, Enum):
     r1 = "1"
@@ -85,27 +92,41 @@ class ResolType(str, Enum):
     def __str__(self) -> str:
         return self.name
 
+
 def _Available_Solvers():
     """Available solvers."""
 
     solvers = ["scipy", "BoundConstrain", "cg", "bicg", "gmres", "lgmres"]
-    
-    if __canUsePypardiso: solvers.insert(0, "pypardiso")
-    if __canUsePetsc: solvers.insert(1, "petsc")
-    if __canUseMumps: solvers.insert(2, "mumps")
-    if __canUseUmfpack: solvers.insert(3, "umfpack")
+
+    if __canUsePypardiso:
+        solvers.insert(0, "pypardiso")
+    if __canUsePetsc:
+        solvers.insert(1, "petsc")
+    if __canUseMumps:
+        solvers.insert(2, "mumps")
+    if __canUseUmfpack:
+        solvers.insert(3, "umfpack")
 
     return solvers
+
 
 def __Cast_Simu(simu):
     """casts the simu as a Simulations.Simu"""
     from ._simu import _Simu
+
     if isinstance(simu, _Simu):
         return simu
 
-def _Solve_Axb(simu, problemType: str,
-               A: sparse.csr_matrix, b: sparse.csr_matrix,
-               x0: np.ndarray, lb: np.ndarray, ub: np.ndarray) -> np.ndarray:
+
+def _Solve_Axb(
+    simu,
+    problemType: str,
+    A: sparse.csr_matrix,
+    b: sparse.csr_matrix,
+    x0: np.ndarray,
+    lb: np.ndarray,
+    ub: np.ndarray,
+) -> np.ndarray:
     """Solves the linear system A x = b
 
     Parameters
@@ -136,12 +157,12 @@ def _Solve_Axb(simu, problemType: str,
 
     if not isinstance(A, sparse.csr_matrix):
         A = sparse.csr_matrix(A)
-    
+
     if not isinstance(b, sparse.csr_matrix):
-        b = sparse.csr_matrix(b) 
+        b = sparse.csr_matrix(b)
 
     # Choose the solver
-    if len(lb) > 0 and len(ub) > 0:        
+    if len(lb) > 0 and len(ub) > 0:
         solver = "BoundConstrain"
     else:
         if len(simu.Bc_Lagrange) > 0:
@@ -155,7 +176,7 @@ def _Solve_Axb(simu, problemType: str,
     # plt.spy(A, marker='.')
 
     if not A.has_canonical_format:
-        # Using sla.norm(A) ensures that A has a cononic format. 
+        # Using sla.norm(A) ensures that A has a cononic format.
         # Canonical Format means:
         # - Within each row, indices are sorted by column.
         # - There are no duplicate entries.
@@ -166,48 +187,50 @@ def _Solve_Axb(simu, problemType: str,
     tic = Tic()
 
     sla.use_solver(useUmfpack=__canUseUmfpack)
-    
+
     if solver == "pypardiso":
         x = pypardiso.spsolve(A, b.toarray())
 
     elif solver == "petsc":
         global __pc_default
         # TODO find the best for damage problem
-        kspType = 'cg'
-        
-        if simu.problemType == 'damage':
-            if problemType == 'damage':
-                pcType = 'ilu'
+        kspType = "cg"
+
+        if simu.problemType == "damage":
+            if problemType == "damage":
+                pcType = "ilu"
             else:
-                pcType = 'none'
+                pcType = "none"
                 # ilu decomposition doesn't seem to work for the displacement problem in a damage simulation
 
-        elif simu.problemType == 'hyperelastic':
+        elif simu.problemType == "hyperelastic":
             pcType = "none"
-                
+
         else:
-            pcType = __pc_default # 'ilu' by default
+            pcType = __pc_default  # 'ilu' by default
             # if mesh.dim = 3, errors may occurs if we use ilu
             # works faster on 2D and 3D
 
         x, option, converg = _PETSc(A, b, x0, kspType, pcType)
 
         if not converg:
-            print(f'\nWarning petsc did not converge with ksp:{kspType} and pc:{pcType} !')
-            print(f'Try out with  ksp:{kspType} and pc:none.\n')
-            __pc_default = 'none'
-            x, option, converg = _PETSc(A, b, x0, kspType, 'none')
-            assert converg, 'petsc didnt converge 2 times. check for kspType and pcType'
+            print(
+                f"\nWarning petsc did not converge with ksp:{kspType} and pc:{pcType} !"
+            )
+            print(f"Try out with  ksp:{kspType} and pc:none.\n")
+            __pc_default = "none"
+            x, option, converg = _PETSc(A, b, x0, kspType, "none")
+            assert converg, "petsc didnt converge 2 times. check for kspType and pcType"
 
         solver += option
-    
+
     elif solver == "scipy":
-        testSymetric = sla.norm(A-A.transpose())/sla.norm(A)
+        testSymetric = sla.norm(A - A.transpose()) / sla.norm(A)
         A_isSymetric = testSymetric <= 1e-12
         x = _ScipyLinearDirect(A, b, A_isSymetric)
-    
+
     elif solver == "BoundConstrain":
-        x = _BoundConstrain(A, b , lb, ub)
+        x = _BoundConstrain(A, b, lb, ub)
 
     elif solver == "cg":
         x, output = sla.cg(A, b.toarray(), x0, maxiter=None)
@@ -236,9 +259,9 @@ def _Solve_Axb(simu, problemType: str,
         #     ctx.set_rhs(x) # Modified in place
         # ctx.run(job=6) # Analysis + Factorization + Solve
         # ctx.destroy() # Cleanup
-        x = mumps.spsolve(A,b)
-            
-    tic.Tac("Solver",f"Solve {problemType} ({solver})", simu._verbosity)
+        x = mumps.spsolve(A, b)
+
+    tic.Tac("Solver", f"Solve {problemType} ({solver})", simu._verbosity)
 
     # # A x - b = 0
     # res = np.linalg.norm(A.dot(x)-b.toarray().ravel())
@@ -246,10 +269,11 @@ def _Solve_Axb(simu, problemType: str,
 
     return np.array(x)
 
+
 def __Check_solverLibrary(solver: str) -> str:
     """Checks whether the selected solver library is available
     If not, returns the solver usable in all cases (scipy)."""
-    solveurDeBase="scipy"
+    solveurDeBase = "scipy"
     if solver == "pypardiso":
         return solver if __canUsePypardiso else solveurDeBase
     elif solver == "umfpack":
@@ -261,6 +285,7 @@ def __Check_solverLibrary(solver: str) -> str:
     else:
         return solver
 
+
 def _Solve(simu, problemType: str, resol: ResolType):
     """Solving the problem according to the resolution type"""
     if resol == ResolType.r1:
@@ -270,10 +295,11 @@ def _Solve(simu, problemType: str, resol: ResolType):
     elif resol == ResolType.r3:
         return __Solver_3(simu, problemType)
 
+
 def __Solver_1(simu, problemType: str) -> np.ndarray:
     # --       --  --  --   --  --
-    # | Aii Aic |  | xi |   | bi |    
-    # | Aci Acc |  | xc | = | bc | 
+    # | Aii Aic |  | xi |   | bi |
+    # | Aci Acc |  | xc | = | bc |
     # --       --  --  --   --  --
     # xi = inv(Aii) * (bi - Aic * xc)
 
@@ -292,10 +318,10 @@ def __Solver_1(simu, problemType: str) -> np.ndarray:
     Ai = A[dofsUnknown, :].tocsc()
     Aii = Ai[:, dofsUnknown].tocsr()
     Aic = Ai[:, dofsKnown].tocsr()
-    bi = b[dofsUnknown,0]
-    xc = x[dofsKnown,0]
+    bi = b[dofsUnknown, 0]
+    xc = x[dofsKnown, 0]
 
-    tic.Tac("Solver",f"System-built ({problemType})", simu._verbosity)
+    tic.Tac("Solver", f"System-built ({problemType})", simu._verbosity)
 
     x0 = simu.Get_x0(problemType)
     x0 = x0[dofsUnknown]
@@ -304,13 +330,14 @@ def __Solver_1(simu, problemType: str) -> np.ndarray:
 
     lb, ub = simu.Get_lb_ub(problemType)
 
-    xi = _Solve_Axb(simu, problemType, Aii, bi-bDirichlet, x0, lb, ub)
+    xi = _Solve_Axb(simu, problemType, Aii, bi - bDirichlet, x0, lb, ub)
 
     # apply result to global vector
     x = x.toarray().reshape(x.shape[0])
     x[dofsUnknown] = xi
 
     return x
+
 
 def __Solver_2(simu, problemType: str):
     # Lagrange multiplier method
@@ -331,7 +358,7 @@ def __Solver_2(simu, problemType: str):
 
     dofs_Dirichlet = simu.Bc_dofs_Dirichlet(problemType)
     values_Dirichlet = simu.Bc_values_Dirichlet(problemType)
-    
+
     list_Bc_Lagrange = simu.Bc_Lagrange
 
     nLagrange = len(list_Bc_Lagrange)
@@ -341,14 +368,14 @@ def __Solver_2(simu, problemType: str):
     x0 = simu.Get_x0(problemType)
     x0 = np.append(x0, np.zeros(nCol))
 
-    linesDirichlet = np.arange(size, size+nDirichlet)
-    
+    linesDirichlet = np.arange(size, size + nDirichlet)
+
     # apply lagrange multiplier
     A[linesDirichlet, dofs_Dirichlet] = alpha
     A[dofs_Dirichlet, linesDirichlet] = alpha
     b[linesDirichlet] = values_Dirichlet * alpha
 
-    tic.Tac("Solver",f"Lagrange ({problemType}) Dirichlet", simu._verbosity)
+    tic.Tac("Solver", f"Lagrange ({problemType}) Dirichlet", simu._verbosity)
 
     # For each lagrange condition we will add a coef to the matrix
     if len(list_Bc_Lagrange) > 0:
@@ -358,14 +385,17 @@ def __Solver_2(simu, problemType: str):
             values = lagrangeBc.dofsValues * alpha
             coefs = lagrangeBc.lagrangeCoefs * alpha
 
-            A[dofs,i] = coefs
-            A[i,dofs] = coefs
+            A[dofs, i] = coefs
+            A[i, dofs] = coefs
             b[i] = values[0]
-        
+
         start = size + nDirichlet
-        [__apply_lagrange(i, lagrangeBc) for i, lagrangeBc in enumerate(list_Bc_Lagrange, start)]
-    
-    tic.Tac("Solver",f"Lagrange ({problemType}) Coupling", simu._verbosity)
+        [
+            __apply_lagrange(i, lagrangeBc)
+            for i, lagrangeBc in enumerate(list_Bc_Lagrange, start)
+        ]
+
+    tic.Tac("Solver", f"Lagrange ({problemType}) Coupling", simu._verbosity)
 
     x = _Solve_Axb(simu, problemType, A.tocsr(), b.tocsr(), x0, [], [])
 
@@ -374,6 +404,7 @@ def __Solver_2(simu, problemType: str):
     lagrange = x[size:]
 
     return sol, lagrange
+
 
 def __Solver_3(simu, problemType: str):
     # Resolution using the penalty method
@@ -394,7 +425,14 @@ def __Solver_3(simu, problemType: str):
 
     return x
 
-def _PETSc(A: sparse.csr_matrix, b: sparse.csr_matrix, x0: np.ndarray, kspType='cg', pcType='ilu') -> np.ndarray:
+
+def _PETSc(
+    A: sparse.csr_matrix,
+    b: sparse.csr_matrix,
+    x0: np.ndarray,
+    kspType="cg",
+    pcType="ilu",
+) -> np.ndarray:
     """PETSc insterface to solve the linear system A x = b
 
     Parameters
@@ -429,12 +467,12 @@ def _PETSc(A: sparse.csr_matrix, b: sparse.csr_matrix, x0: np.ndarray, kspType='
 
     # TODO add bound constrain
     # https://petsc.org/release/petsc4py/reference/petsc4py.PETSc.SNES.html ?
-    
+
     __comm = None
     petsc4py.init(sys.argv, comm=__comm)
 
     dimI = A.shape[0]
-    dimJ = A.shape[1]    
+    dimJ = A.shape[1]
 
     matrix = PETSc.Mat()
     csr = (A.indptr, A.indices, A.data)
@@ -442,7 +480,7 @@ def _PETSc(A: sparse.csr_matrix, b: sparse.csr_matrix, x0: np.ndarray, kspType='
 
     vectb = matrix.createVecLeft()
 
-    lines, _, values = sparse.find(b)    
+    lines, _, values = sparse.find(b)
 
     vectb.array[lines] = values
 
@@ -453,8 +491,8 @@ def _PETSc(A: sparse.csr_matrix, b: sparse.csr_matrix, x0: np.ndarray, kspType='
     ksp = PETSc.KSP().create()
     ksp.setOperators(matrix)
     ksp.setType(kspType)
-    
-    pc = ksp.getPC()    
+
+    pc = ksp.getPC()
     pc.setType(pcType)
 
     # pc.setFactorSolverType("superlu") #"mumps"
@@ -469,15 +507,15 @@ def _PETSc(A: sparse.csr_matrix, b: sparse.csr_matrix, x0: np.ndarray, kspType='
     option = f", {kspType}, {pcType}"
 
     return x, option, converg
-    
+
 
 def _ScipyLinearDirect(A: sparse.csr_matrix, b: sparse.csr_matrix, A_isSymetric: bool):
     # https://docs.scipy.org/doc/scipy/reference/sparse.linalg.html#solving-linear-problems
     # LU decomposition behind https://caam37830.github.io/book/02_linear_algebra/sparse_linalg.html
 
-    hideFacto = False # Hide decomposition
+    hideFacto = False  # Hide decomposition
     # permute = "MMD_AT_PLUS_A", "MMD_ATA", "COLAMD", "NATURAL"
-    
+
     # if A_isSymetric:
     #     permute="MMD_AT_PLUS_A"
     # else:
@@ -486,10 +524,10 @@ def _ScipyLinearDirect(A: sparse.csr_matrix, b: sparse.csr_matrix, A_isSymetric:
 
     permute = "MMD_AT_PLUS_A"
 
-    if hideFacto:                   
+    if hideFacto:
         x = sla.spsolve(A, b, permc_spec=permute)
         # x = sla.spsolve(A, b)
-        
+
     else:
         # superlu : https://portal.nersc.gov/project/sparse/superlu/
         # Users' Guide : https://portal.nersc.gov/project/sparse/superlu/ug.pdf
@@ -498,16 +536,17 @@ def _ScipyLinearDirect(A: sparse.csr_matrix, b: sparse.csr_matrix, A_isSymetric:
 
     return x
 
+
 def _BoundConstrain(A, b, lb: np.ndarray, ub: np.ndarray):
 
     assert len(lb) == len(ub), "Must be the same size"
-    
+
     # constrained minimization : https://docs.scipy.org/doc/scipy/reference/generated/scipy.optimize.lsq_linear.html
 
     b = b.toarray().ravel()
     # x = lsq_linear(A,b,bounds=(lb,ub), verbose=0,tol=1e-6)
     tol = 1e-10
-    x = optimize.lsq_linear(A, b, bounds=(lb,ub), tol=tol, method='trf', verbose=0)                    
-    x = x['x']
+    x = optimize.lsq_linear(A, b, bounds=(lb, ub), tol=tol, method="trf", verbose=0)
+    x = x["x"]
 
     return x

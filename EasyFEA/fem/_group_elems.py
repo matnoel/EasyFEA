@@ -24,6 +24,7 @@ from typing import Callable
 
 # fem
 from ._gauss import Gauss
+
 # utils
 from ._utils import ElemType, MatrixType, FeArray
 
@@ -32,9 +33,12 @@ from ..Geoms import Point, Domain, Line, Circle
 from ..geoms import Jacobian_Matrix
 from ..utilities._linalg import Trace, Transpose, Det, Inv
 
+
 class _GroupElem(ABC):
 
-    def __init__(self, gmshId: int, connect: np.ndarray, coordGlob: np.ndarray, nodes: np.ndarray):
+    def __init__(
+        self, gmshId: int, connect: np.ndarray, coordGlob: np.ndarray, nodes: np.ndarray
+    ):
         """Creates a goup of elements.
 
         Parameters
@@ -51,7 +55,9 @@ class _GroupElem(ABC):
 
         self.__gmshId = gmshId
 
-        elemType, nPe, dim, order, nbFaces, nbCorners = GroupElemFactory.Get_ElemInFos(gmshId)
+        elemType, nPe, dim, order, nbFaces, nbCorners = GroupElemFactory.Get_ElemInFos(
+            gmshId
+        )
         # TODO construct without gmshId and auto detect
 
         self.__elemType = elemType
@@ -59,8 +65,8 @@ class _GroupElem(ABC):
         self.__dim = dim
         self.__order = order
         self.__nbFaces = nbFaces
-        self.__nbCorners = nbCorners 
-        
+        self.__nbCorners = nbCorners
+
         # Elements
         self.__connect = connect
 
@@ -70,9 +76,9 @@ class _GroupElem(ABC):
 
         # dictionnary associated with tags on elements or nodes
         self.__dict_nodes_tags: dict[str, np.ndarray] = {}
-        self.__dict_elements_tags: dict[str, np.ndarray] = {}        
+        self.__dict_elements_tags: dict[str, np.ndarray] = {}
         self._InitMatrix()
-    
+
     def _InitMatrix(self) -> None:
         """Initializes matrix dictionaries for finite element construction"""
         # Dictionaries for each matrix type
@@ -90,7 +96,7 @@ class _GroupElem(ABC):
     # --------------------------------------------------------------------------------------------
     # Properties
     # --------------------------------------------------------------------------------------------
-    
+
     @property
     def gmshId(self) -> int:
         """gmsh Id"""
@@ -105,16 +111,16 @@ class _GroupElem(ABC):
     def nPe(self) -> int:
         """nodes per element"""
         return self.__nPe
-    
+
     @property
     def dim(self) -> int:
         """element dimension"""
         return self.__dim
-    
+
     @property
     def order(self) -> int:
         """element order"""
-        return self.__order    
+        return self.__order
 
     @property
     def inDim(self) -> int:
@@ -122,10 +128,10 @@ class _GroupElem(ABC):
         if self.elemType in ElemType.Get_3D():
             return 3
         else:
-            x,y,z = np.abs(self.coord.T)
-            if np.max(y)==0 and np.max(z)==0:
+            x, y, z = np.abs(self.coord.T)
+            if np.max(y) == 0 and np.max(z) == 0:
                 inDim = 1
-            if np.max(z)==0:
+            if np.max(z) == 0:
                 inDim = 2
             else:
                 inDim = 3
@@ -161,7 +167,7 @@ class _GroupElem(ABC):
     def coordGlob(self) -> np.ndarray:
         """this matrix contains all the mesh coordinates (mesh.Nn, 3)"""
         return self.__coordGlob.copy()
-    
+
     @coordGlob.setter
     def coordGlob(self, coord: np.ndarray) -> None:
         if coord.shape == self.__coordGlob.shape:
@@ -172,17 +178,17 @@ class _GroupElem(ABC):
     def nbFaces(self) -> int:
         """number of faces per element"""
         return self.__nbFaces
-    
+
     @property
     def nbCorners(self) -> int:
         """number of corners per element"""
         return self.__nbCorners
-    
+
     @property
     def connect(self) -> np.ndarray:
         """connectivity matrix (Ne, nPe)"""
         return self.__connect.copy()
-    
+
     def Get_connect_n_e(self) -> sparse.csr_matrix:
         """Sparse matrix (Nn, Ne) of zeros and ones with ones when the node has the element such that:
         values_n = connect_n_e * values_e\n
@@ -191,25 +197,25 @@ class _GroupElem(ABC):
         # Here, the aim is to construct a matrix which, when multiplied by a values_e vector of size ( Ne x 1 ), will give
         # values_n_e(Nn,1) = connecNoeud(Nn,Ne) values_n_e(Ne,1)
         # where connecNoeud(Nn,:) is a row vector composed of 0 and 1, which will be used to sum values_e[nodes].
-        # Then just divide by the number of times the node appears in the line        
-        
+        # Then just divide by the number of times the node appears in the line
+
         Ne = self.Ne
         nPe = self.nPe
         elems = self.elements
 
         lines = self.connect.ravel()
 
-        Nn = lines.max()+1 # Do not use either self.Nn or self.__coordGlob.shape[0].
+        Nn = lines.max() + 1  # Do not use either self.Nn or self.__coordGlob.shape[0].
         columns = np.repeat(elems, nPe)
 
-        return sparse.csr_matrix((np.ones(nPe*Ne),(lines, columns)),shape=(Nn,Ne))
+        return sparse.csr_matrix((np.ones(nPe * Ne), (lines, columns)), shape=(Nn, Ne))
 
     @property
     def assembly_e(self) -> np.ndarray:
         """assembly matrix (Ne, nPe*dim)"""
 
         nPe = self.nPe
-        dim = self.dim        
+        dim = self.dim
         taille = nPe * dim
 
         assembly = np.zeros((self.Ne, taille), dtype=np.int64)
@@ -220,7 +226,7 @@ class _GroupElem(ABC):
             assembly[:, colonnes] = np.array(connect) * dim + d
 
         return assembly
-    
+
     def Get_assembly_e(self, dof_n: int) -> np.ndarray:
         """Get the assembly matrix for the specified dof_n (Ne, nPe*dof_n)
 
@@ -231,7 +237,7 @@ class _GroupElem(ABC):
         """
 
         nPe = self.nPe
-        ndof = dof_n*nPe
+        ndof = dof_n * nPe
 
         assembly = np.zeros((self.Ne, ndof), dtype=np.int64)
         connect = self.connect
@@ -241,13 +247,13 @@ class _GroupElem(ABC):
             assembly[:, columns] = np.array(connect) * dof_n + d
 
         return assembly
-    
-    def _Get_sysCoord_e(self, displacementMatrix:np.ndarray=None):
+
+    def _Get_sysCoord_e(self, displacementMatrix: np.ndarray = None):
         """Get the basis transformation matrix (Ne, 3, 3).\n
         [ix, jx, kx\n
         iy, jy, ky\n
         iz, jz, kz]\n
-        
+
         This matrix can be used to project points with (x, y, z) coordinates into the element's (i, j, k) coordinate system.\n
         coordo_e * sysCoord_e -> coordinates in element's (i, j, k) coordinate system.
         """
@@ -256,22 +262,26 @@ class _GroupElem(ABC):
 
         if displacementMatrix is not None:
             displacementMatrix = np.asarray(displacementMatrix, dtype=float)
-            assert displacementMatrix.shape == coordo.shape, f'displacmentMatrix must be of size {coordo.shape}'
+            assert (
+                displacementMatrix.shape == coordo.shape
+            ), f"displacmentMatrix must be of size {coordo.shape}"
             coordo += displacementMatrix
 
-        if self.dim in [0,3]:
+        if self.dim in [0, 3]:
             sysCoord_e = np.eye(3)
             sysCoord_e = sysCoord_e[np.newaxis, :].repeat(self.Ne, axis=0)
-        
-        elif self.dim in [1,2]:
+
+        elif self.dim in [1, 2]:
             # 2D lines or elements
 
-            points1 = coordo[self.__connect[:,0]]
-            points2 = coordo[self.__connect[:,1]]
+            points1 = coordo[self.__connect[:, 0]]
+            points2 = coordo[self.__connect[:, 1]]
 
-            i = points2-points1
+            i = points2 - points1
             # Normalize
-            i = np.einsum('ei,e->ei',i, 1/np.linalg.norm(i, axis=1), optimize='optimal')
+            i = np.einsum(
+                "ei,e->ei", i, 1 / np.linalg.norm(i, axis=1), optimize="optimal"
+            )
 
             if self.dim == 1:
                 # Segments
@@ -285,13 +295,13 @@ class _GroupElem(ABC):
                     k = e3
 
                 elif self.inDim == 2:
-                    j = np.cross([0,0,1], i)
+                    j = np.cross([0, 0, 1], i)
                     k = np.cross(i, j, axis=1)
 
                 elif self.inDim == 3:
                     j = np.cross(i, e1, axis=1)
 
-                    rep2 = np.where(np.linalg.norm(j, axis=1)<1e-12)
+                    rep2 = np.where(np.linalg.norm(j, axis=1) < 1e-12)
                     rep1 = np.setdiff1d(range(i.shape[0]), rep2)
 
                     k1 = j.copy()
@@ -303,38 +313,50 @@ class _GroupElem(ABC):
                     j = np.zeros_like(i)
                     j[rep1] = j1[rep1]
                     j[rep2] = j2[rep2]
-                    j = np.einsum('ei,e->ei',j, 1/np.linalg.norm(j, axis=1), optimize='optimal')
-                    
+                    j = np.einsum(
+                        "ei,e->ei", j, 1 / np.linalg.norm(j, axis=1), optimize="optimal"
+                    )
+
                     k = np.zeros_like(i)
                     k[rep1] = k1[rep1]
                     k[rep2] = k2[rep2]
-                    k = np.einsum('ei,e->ei',k, 1/np.linalg.norm(k, axis=1), optimize='optimal')
+                    k = np.einsum(
+                        "ei,e->ei", k, 1 / np.linalg.norm(k, axis=1), optimize="optimal"
+                    )
 
             else:
-                
+
                 if "TRI" in self.elemType:
-                    points3 = coordo[self.__connect[:,2]]
+                    points3 = coordo[self.__connect[:, 2]]
                 elif "QUAD" in self.elemType:
-                    points3 = coordo[self.__connect[:,3]]                
+                    points3 = coordo[self.__connect[:, 3]]
 
-                j = points3-points1
-                j = np.einsum('ei,e->ei',j, 1/np.linalg.norm(j, axis=1), optimize='optimal')
-                
+                j = points3 - points1
+                j = np.einsum(
+                    "ei,e->ei", j, 1 / np.linalg.norm(j, axis=1), optimize="optimal"
+                )
+
                 k = np.cross(i, j, axis=1)
-                k = np.einsum('ei,e->ei',k, 1/np.linalg.norm(k, axis=1), optimize='optimal')
+                k = np.einsum(
+                    "ei,e->ei", k, 1 / np.linalg.norm(k, axis=1), optimize="optimal"
+                )
 
-                j = np.cross(k,i)
-                j = np.einsum('ei,e->ei',j, 1/np.linalg.norm(j, axis=1), optimize='optimal')
+                j = np.cross(k, i)
+                j = np.einsum(
+                    "ei,e->ei", j, 1 / np.linalg.norm(j, axis=1), optimize="optimal"
+                )
 
             sysCoord_e = np.zeros((self.Ne, 3, 3))
-            
-            sysCoord_e[:,:,0] = i
-            sysCoord_e[:,:,1] = j
-            sysCoord_e[:,:,2] = k
+
+            sysCoord_e[:, :, 0] = i
+            sysCoord_e[:, :, 1] = j
+            sysCoord_e[:, :, 2] = k
 
         return sysCoord_e
-    
-    def Integrate_e(self, func=lambda x,y,z: 1, matrixType=MatrixType.mass) -> np.ndarray:
+
+    def Integrate_e(
+        self, func=lambda x, y, z: 1, matrixType=MatrixType.mass
+    ) -> np.ndarray:
         """Integrates the function over elements.
 
         Parameters
@@ -357,53 +379,59 @@ class _GroupElem(ABC):
 
         weightedJacobian_e_pg = self.Get_weightedJacobian_e_pg(matrixType)
         coord_e_pg = self.Get_GaussCoordinates_e_pg(matrixType)
-        eval_e_pg = func(coord_e_pg[:,:,0],coord_e_pg[:,:,1],coord_e_pg[:,:,2])
+        eval_e_pg = func(coord_e_pg[:, :, 0], coord_e_pg[:, :, 1], coord_e_pg[:, :, 2])
 
         eval_e_pg = FeArray.asfearray(eval_e_pg)
 
         values_e = (weightedJacobian_e_pg * eval_e_pg).sum(1)
 
         return values_e
-    
+
     @property
     def length_e(self) -> np.ndarray:
         """length covered by each element"""
-        if self.dim != 1: return        
-        length_e = self.Integrate_e(lambda x,y,z: 1)
+        if self.dim != 1:
+            return
+        length_e = self.Integrate_e(lambda x, y, z: 1)
         return length_e
 
     @property
     def length(self) -> float:
         """length covered by elements"""
-        if self.dim != 1: return
+        if self.dim != 1:
+            return
         return self.length_e.sum()
-    
+
     @property
     def area_e(self) -> np.ndarray:
         """area covered by each element"""
-        if self.dim != 2: return
-        area_e = self.Integrate_e(lambda x,y,z: 1)
+        if self.dim != 2:
+            return
+        area_e = self.Integrate_e(lambda x, y, z: 1)
         return area_e
 
     @property
     def area(self) -> float:
         """area covered by elements"""
-        if self.dim != 2: return
+        if self.dim != 2:
+            return
         return self.area_e.sum()
-    
+
     @property
     def volume_e(self) -> np.ndarray:
         """volume covered by each element"""
-        if self.dim != 3: return        
-        volume_e = self.Integrate_e(lambda x,y,z: 1)
+        if self.dim != 3:
+            return
+        volume_e = self.Integrate_e(lambda x, y, z: 1)
         return volume_e
-    
+
     @property
     def volume(self) -> float:
         """volume covered by elements"""
-        if self.dim != 3: return
+        if self.dim != 3:
+            return
         return self.volume_e.sum()
-    
+
     @property
     def center(self) -> np.ndarray:
         """center of mass / barycenter / inertia center"""
@@ -414,19 +442,19 @@ class _GroupElem(ABC):
 
         weightedJacobian_e_pg = self.Get_weightedJacobian_e_pg(matrixType)
 
-        size = weightedJacobian_e_pg.sum(axis=(0,1))
+        size = weightedJacobian_e_pg.sum(axis=(0, 1))
 
-        center = (weightedJacobian_e_pg * coordo_e_p / size).sum(axis=(0,1))
+        center = (weightedJacobian_e_pg * coordo_e_p / size).sum(axis=(0, 1))
 
         return center
-    
-    @property  
+
+    @property
     @abstractmethod
     def origin(self) -> list[int]:
         """reference element origin coordinates"""
         return [0]
 
-    @property  
+    @property
     @abstractmethod
     def triangles(self) -> list[int]:
         """list of indexes to form the triangles of an element that will be used for the 2D trisurf function"""
@@ -439,13 +467,13 @@ class _GroupElem(ABC):
             return np.array([[0, 1]], dtype=int)
         elif self.__dim == 2:
             segments = np.zeros((self.nbCorners, 2), dtype=int)
-            segments[:,0] = np.arange(self.nbCorners)
-            segments[:,1] = np.append(np.arange(1, self.nbCorners, 1), 0)
+            segments[:, 0] = np.arange(self.nbCorners)
+            segments[:, 1] = np.append(np.arange(1, self.nbCorners, 1), 0)
             return segments
         elif self.__dim == 3:
             raise Exception("To be defined for 3D element groups.")
-    
-    @property  
+
+    @property
     @abstractmethod
     def faces(self) -> list[int]:
         """list of indexes to form the faces that make up the element"""
@@ -463,12 +491,14 @@ class _GroupElem(ABC):
     def Get_gauss(self, matrixType: MatrixType) -> Gauss:
         """Returns integration points according to the matrix type."""
         return Gauss(self.elemType, matrixType)
-    
+
     def Get_weight_pg(self, matrixType: MatrixType) -> np.ndarray:
         """Returns integration point weights according to the matrix type."""
         return Gauss(self.elemType, matrixType).weights
-    
-    def Get_GaussCoordinates_e_pg(self, matrixType: MatrixType, elements=np.array([])) -> FeArray:
+
+    def Get_GaussCoordinates_e_pg(
+        self, matrixType: MatrixType, elements=np.array([])
+    ) -> FeArray:
         """Returns integration point coordinates for each element (Ne, nPg, 3) in the (x, y, z) coordinates."""
 
         N_pg = self.Get_N_pg(matrixType)
@@ -483,19 +513,20 @@ class _GroupElem(ABC):
             coordo_e = coordo[self.__connect[elements]]
 
         # localize coordinates on Gauss points
-        coordo_e_p = np.einsum('pij,ejn->epn', N_pg, coordo_e, optimize='optimal')
+        coordo_e_p = np.einsum("pij,ejn->epn", N_pg, coordo_e, optimize="optimal")
 
         return FeArray.asfearray(coordo_e_p)
-    
+
     # --------------------------------------------------------------------------------------------
     # Isoparametric elements
     # --------------------------------------------------------------------------------------------
 
     def Get_F_e_pg(self, matrixType: MatrixType) -> FeArray:
-        """Returns the transposed Jacobian matrix.\n        
+        """Returns the transposed Jacobian matrix.\n
         This matrix describes the transformation of the (ξ, η, ζ) axes from the reference element to the (x, y, z) coordinate system of the actual element.\n
         """
-        if self.dim == 0: return
+        if self.dim == 0:
+            return
         if matrixType not in self.__dict_F_e_pg.keys():
 
             coordo_e = self.coordGlob[self.__connect]
@@ -503,42 +534,45 @@ class _GroupElem(ABC):
 
             rebased_coord_e = coordo_e.copy()
             if self.dim != self.inDim:
-                P_e = self._Get_sysCoord_e() # transformation matrix for each element
+                P_e = self._Get_sysCoord_e()  # transformation matrix for each element
                 # matrix used to project element's points with (x, y, z) coordinates
                 # into the (X, Y, Z) coordinate system.
 
                 # check whether P_e is orthogonal
                 isOrth_e = Trace(Transpose(P_e) @ P_e) == 3
-                
+
                 # (x, y, z) = (X, Y, Z) * P_e  <==>  aj = bi Pij
                 rebased_coord_e[isOrth_e] = coordo_e[isOrth_e] @ P_e[isOrth_e]
-                
-                # (x, y, z) = (X, Y, Z) * P_e^(-T)  <==>  aj = bi inv(P)ji
-                rebased_coord_e[~isOrth_e] = coordo_e[~isOrth_e] @ Transpose(Inv(P_e[~isOrth_e]))
 
-            rebased_coord_e = rebased_coord_e[:,:,:self.dim]
+                # (x, y, z) = (X, Y, Z) * P_e^(-T)  <==>  aj = bi inv(P)ji
+                rebased_coord_e[~isOrth_e] = coordo_e[~isOrth_e] @ Transpose(
+                    Inv(P_e[~isOrth_e])
+                )
+
+            rebased_coord_e = rebased_coord_e[:, :, : self.dim]
             # (Ne, nPe, dim)
 
             dN_pg = FeArray.asfearray(self.Get_dN_pg(matrixType)[np.newaxis])
-            rebased_coord_e = FeArray.asfearray(rebased_coord_e[:,np.newaxis])
+            rebased_coord_e = FeArray.asfearray(rebased_coord_e[:, np.newaxis])
 
             F_e_pg = dN_pg @ rebased_coord_e
-            
+
             self.__dict_F_e_pg[matrixType] = F_e_pg
 
         return self.__dict_F_e_pg[matrixType].copy()
-    
+
     def Get_jacobian_e_pg(self, matrixType: MatrixType, absoluteValues=True) -> FeArray:
         """Returns the jacobians.\n
         variation in size (length, area or volume) between the reference element and the actual element
         """
-        if self.dim == 0: return
+        if self.dim == 0:
+            return
         if matrixType not in self.__dict_jacobian_e_pg.keys():
 
             F_e_pg = self.Get_F_e_pg(matrixType)
 
             jacobian_e_pg = FeArray.asfearray(Det(F_e_pg))
-            
+
             self.__dict_jacobian_e_pg[matrixType] = jacobian_e_pg
 
         jacobian_e_pg = self.__dict_jacobian_e_pg[matrixType].copy()
@@ -547,11 +581,11 @@ class _GroupElem(ABC):
             jacobian_e_pg = np.abs(jacobian_e_pg)
 
         return jacobian_e_pg
-    
+
     def Get_weightedJacobian_e_pg(self, matrixType: MatrixType) -> FeArray:
-        """Returns the jacobian_e_pg * weight_pg.
-        """
-        if self.dim == 0: return
+        """Returns the jacobian_e_pg * weight_pg."""
+        if self.dim == 0:
+            return
 
         jacobian_e_pg = self.Get_jacobian_e_pg(matrixType)
         weight_pg = self.Get_weight_pg(matrixType)
@@ -559,13 +593,14 @@ class _GroupElem(ABC):
         weightedJacobian_e_pg = np.asarray(jacobian_e_pg) * weight_pg
 
         return FeArray.asfearray(weightedJacobian_e_pg)
-    
+
     def Get_invF_e_pg(self, matrixType: MatrixType) -> FeArray:
         """Returns the inverse of the transposed Jacobian matrix.\n
         Used to obtain the derivative of the dN_e_pg shape functions in the actual element
         dN_e_pg = invF_e_pg • dN_pg
         """
-        if self.dim == 0: return 
+        if self.dim == 0:
+            return
         if matrixType not in self.__dict_invF_e_pg.keys():
 
             F_e_pg = self.Get_F_e_pg(matrixType)
@@ -575,7 +610,7 @@ class _GroupElem(ABC):
             self.__dict_invF_e_pg[matrixType] = invF_e_pg
 
         return self.__dict_invF_e_pg[matrixType].copy()
-    
+
     # --------------------------------------------------------------------------------------------
     # Finite element shape functions
     # --------------------------------------------------------------------------------------------
@@ -598,7 +633,7 @@ class _GroupElem(ABC):
         np.ndarray
             Evaluated functions (nPg, dim, nPe)
         """
-        
+
         nPg = gaussPoints.shape[0]
         nPe = functions.shape[0]
         nF = functions.shape[1]
@@ -611,20 +646,22 @@ class _GroupElem(ABC):
             for n, function_nPe in enumerate(functions):
                 # for each dimension
                 for f in range(nF):
-                    # appy the function                     
+                    # appy the function
                     evalFunctions[p, f, n] = function_nPe[f](*gaussPoints[p])
-                    # * means take all the coordinates 
+                    # * means take all the coordinates
 
         return evalFunctions
-    
+
     def __Init_Functions(self, order: int) -> np.ndarray:
         """Initializes functions to be evaluated at Gauss points."""
         if self.dim == 1 and self.order < order:
-            functions = np.array([lambda x: 0]*self.nPe)
+            functions = np.array([lambda x: 0] * self.nPe)
         elif self.dim == 2 and self.order < order:
-            functions = np.array([lambda xi,η: 0, lambda xi,η: 0]*self.nPe)
+            functions = np.array([lambda xi, η: 0, lambda xi, η: 0] * self.nPe)
         elif self.dim == 3 and self.order < order:
-            functions = np.array([lambda x,y,z: 0,lambda x,y,z: 0,lambda x,y,z: 0]*self.nPe)
+            functions = np.array(
+                [lambda x, y, z: 0, lambda x, y, z: 0, lambda x, y, z: 0] * self.nPe
+            )
         functions = np.reshape(functions, (self.nPe, -1))
         return functions
 
@@ -645,7 +682,8 @@ class _GroupElem(ABC):
         [N1, . . . , Nn]\n
         (nPg, 1, nPe)
         """
-        if self.dim == 0: return
+        if self.dim == 0:
+            return
 
         N = self._N()
         gauss = self.Get_gauss(matrixType)
@@ -662,7 +700,7 @@ class _GroupElem(ABC):
             matrix type
         repeat : int, optional
             number of repetitions, by default 1
-        
+
         Returns:
         -------
         • Vector shape functions (nPg, rep=2, rep=2*dim)\n
@@ -672,28 +710,30 @@ class _GroupElem(ABC):
         • Scalar shape functions (nPg, rep=1, nPe)\n
             [Ni . . . Nn]
         """
-        if self.dim == 0: return
+        if self.dim == 0:
+            return
 
         assert isinstance(repeat, int)
         assert repeat >= 1
 
         N_pg = self.Get_N_pg(matrixType)
 
-        if not isinstance(N_pg, np.ndarray): return
+        if not isinstance(N_pg, np.ndarray):
+            return
 
         if repeat <= 1:
             return N_pg
         else:
-            size = N_pg.shape[2]*repeat
-            N_vect_pg = np.zeros((N_pg.shape[0] ,repeat , size))
+            size = N_pg.shape[2] * repeat
+            N_vect_pg = np.zeros((N_pg.shape[0], repeat, size))
 
             for r in range(repeat):
-                N_vect_pg[:, r, np.arange(r, size, repeat)] = N_pg[:,0,:]
-            
+                N_vect_pg[:, r, np.arange(r, size, repeat)] = N_pg[:, 0, :]
+
             return N_vect_pg
 
     # dN
-    
+
     @abstractmethod
     def _dN(self) -> np.ndarray:
         """Shape functions first derivatives in the (ξ, η, ζ) coordinates.\n
@@ -703,7 +743,7 @@ class _GroupElem(ABC):
         (nPe, dim)
         """
         return self.__Init_Functions(1)
-    
+
     def Get_dN_pg(self, matrixType: MatrixType) -> np.ndarray:
         """Evaluates shape functions first derivatives in the (ξ, η, ζ) coordinates.\n
         Ni,ξ . . . Nn,ξ\n
@@ -711,14 +751,15 @@ class _GroupElem(ABC):
         Ni,ζ . . . Nn,ζ\n
         (nPg, dim, nPe)
         """
-        if self.dim == 0: return
+        if self.dim == 0:
+            return
 
         dN = self._dN()
 
         gauss = self.Get_gauss(matrixType)
         dN_pg = _GroupElem._Eval_Functions(dN, gauss.coord)
 
-        return dN_pg    
+        return dN_pg
 
     def Get_dN_e_pg(self, matrixType: MatrixType) -> FeArray:
         """Evaluates the first-order derivatives of shape functions in (x, y, z) coordinates.\n
@@ -741,9 +782,9 @@ class _GroupElem(ABC):
             self.__dict_dN_e_pg[matrixType] = dN_e_pg
 
         return self.__dict_dN_e_pg[matrixType].copy()
-    
+
     # ddN
-    
+
     @abstractmethod
     def _ddN(self) -> np.ndarray:
         """Shape functions second derivatives in the (ξ, η, ζ) coordinates.\n
@@ -768,13 +809,13 @@ class _GroupElem(ABC):
             invF_e_pg = self.Get_invF_e_pg(matrixType)
 
             ddN_pg = FeArray.asfearray(self.Get_ddN_pg(matrixType)[np.newaxis])
-            
+
             ddN_e_pg = invF_e_pg @ invF_e_pg @ ddN_pg
 
             self.__dict_ddN_e_pg[matrixType] = ddN_e_pg
 
         return self.__dict_ddN_e_pg[matrixType].copy()
-    
+
     def Get_ddN_pg(self, matrixType: MatrixType) -> np.ndarray:
         """Evaluates shape functions second derivatives in the (ξ, η, ζ) coordinates.\n
         [Ni,ξ2 . . . Nn,ξ2\n
@@ -782,7 +823,8 @@ class _GroupElem(ABC):
         Ni,ζ2 . . . Nn,ζ2]\n
         (nPg, dim, nPe)
         """
-        if self.dim == 0: return
+        if self.dim == 0:
+            return
 
         ddN = self._ddN()
 
@@ -810,7 +852,8 @@ class _GroupElem(ABC):
         Ni,ζ3 . . . Nn,ζ3]\n
         (nPg, dim, nPe)
         """
-        if self.elemType == 0: return
+        if self.elemType == 0:
+            return
 
         dddN = self._dddN()
 
@@ -820,7 +863,7 @@ class _GroupElem(ABC):
         return dddN_pg
 
     # ddddN
-    
+
     @abstractmethod
     def _ddddN(self) -> np.ndarray:
         """Shape functions fourth derivatives in the (ξ, η, ζ) coordinates.\n
@@ -838,7 +881,8 @@ class _GroupElem(ABC):
         Ni,ζ4 . . . Nn,ζ4]\n
         (pg, dim, nPe)
         """
-        if self.elemType == 0: return
+        if self.elemType == 0:
+            return
 
         ddddN = self._ddddN()
 
@@ -846,12 +890,12 @@ class _GroupElem(ABC):
         ddddN_pg = _GroupElem._Eval_Functions(ddddN, gauss.coord)
 
         return ddddN_pg
-        
+
     # Beams shapes functions
     # Use hermitian shape functions
 
     # N
-    
+
     def _EulerBernoulli_N(self) -> np.ndarray:
         """Euler-Bernoulli beam shape functions in the (ξ, η, ζ) coordinates.\n
         [phi_i psi_i . . . phi_n psi_n]\n
@@ -861,10 +905,11 @@ class _GroupElem(ABC):
 
     def Get_EulerBernoulli_N_pg(self) -> np.ndarray:
         """Evaluates Euler-Bernoulli beam shape functions in the (ξ, η, ζ) coordinates.\n
-        [phi_i psi_i . . . phi_n psi_n]\n        
+        [phi_i psi_i . . . phi_n psi_n]\n
         (nPg, nPe*2)
         """
-        if self.dim != 1: return
+        if self.dim != 1:
+            return
 
         matrixType = MatrixType.beam
 
@@ -874,30 +919,33 @@ class _GroupElem(ABC):
         N_pg = _GroupElem._Eval_Functions(N, gauss.coord)
 
         return N_pg
-    
+
     def Get_EulerBernoulli_N_e_pg(self) -> FeArray:
         """Evaluates Euler-Bernoulli beam shape functions in (x, y, z) coordinates.\n
         [phi_i psi_i . . . phi_n psi_n]\n
         (Ne, nPg, 1, nPe*2)
         """
-        if self.dim != 1: return
+        if self.dim != 1:
+            return
 
-        invF_e_pg = self.Get_invF_e_pg(MatrixType.beam)[:,:,0,0]
+        invF_e_pg = self.Get_invF_e_pg(MatrixType.beam)[:, :, 0, 0]
         N_pg = FeArray.asfearray(self.Get_EulerBernoulli_N_pg()[np.newaxis])
         nPe = self.nPe
-        
+
         N_e_pg = invF_e_pg * N_pg
-        
+
         # multiply by the beam length on psi_i,xx functions
         l_e = self.length_e
-        columns = np.arange(1, nPe*2, 2)
+        columns = np.arange(1, nPe * 2, 2)
         for column in columns:
-            N_e_pg[:,:,0,column] = np.einsum('ep,e->ep', N_e_pg[:,:,0,column], l_e, optimize='optimal')    
+            N_e_pg[:, :, 0, column] = np.einsum(
+                "ep,e->ep", N_e_pg[:, :, 0, column], l_e, optimize="optimal"
+            )
 
         return N_e_pg
-    
+
     # dN
-    
+
     def _EulerBernoulli_dN(self) -> np.ndarray:
         """Euler-Bernoulli beam shape functions first derivatives in the (ξ, η, ζ) coordinates.\n
         [phi_i,ξ psi_i,ξ . . . phi_n,ξ psi_n,ξ]\n
@@ -910,7 +958,8 @@ class _GroupElem(ABC):
         [phi_i,ξ psi_i,ξ . . . phi_n,ξ psi_n,ξ]\n
         (nPg, nPe*2)
         """
-        if self.dim != 1: return
+        if self.dim != 1:
+            return
 
         matrixType = MatrixType.beam
 
@@ -920,43 +969,47 @@ class _GroupElem(ABC):
         dN_pg = _GroupElem._Eval_Functions(dN, gauss.coord)
 
         return dN_pg
-    
+
     def Get_EulerBernoulli_dN_e_pg(self) -> FeArray:
         """Evaluates the first-order derivatives of Euler-Bernoulli beam shape functions in (x, y, z) coordinates.\n
         [phi_i,x psi_i,x . . . phi_n,x psi_n,x]\n
         (Ne, nPg, 1, nPe*2)
         """
-        if self.dim != 1: return
+        if self.dim != 1:
+            return
 
-        invF_e_pg = self.Get_invF_e_pg(MatrixType.beam)[:,:,0,0]
+        invF_e_pg = self.Get_invF_e_pg(MatrixType.beam)[:, :, 0, 0]
         dN_pg = FeArray.asfearray(self.Get_EulerBernoulli_dN_pg()[np.newaxis])
-        
+
         dN_e_pg = invF_e_pg * dN_pg
-        
+
         # multiply by the beam length on psi_i,xx functions
         l_e = self.length_e
         nPe = self.nPe
-        columns = np.arange(1, nPe*2, 2)
+        columns = np.arange(1, nPe * 2, 2)
         for column in columns:
-            dN_e_pg[:,:,0,column] = np.einsum('ep,e->ep', dN_e_pg[:,:,0,column], l_e, optimize='optimal')
+            dN_e_pg[:, :, 0, column] = np.einsum(
+                "ep,e->ep", dN_e_pg[:, :, 0, column], l_e, optimize="optimal"
+            )
 
         return dN_e_pg
-    
+
     # ddN
-    
+
     def _EulerBernoulli_ddN(self) -> np.ndarray:
         """Euler-Bernoulli beam shape functions second derivatives in the (ξ, η, ζ) coordinates.\n
         [phi_i,ξ psi_i,ξ . . . phi_n,ξ psi_n,ξ]\n
         (nPe*2, 2)
         """
-        return 
-    
+        return
+
     def Get_EulerBernoulli_ddN_pg(self) -> np.ndarray:
         """Evaluates Euler-Bernoulli beam shape functions second derivatives in the (ξ, η, ζ) coordinates.\n
         [phi_i,ξ psi_i,ξ . . . phi_n,ξ x psi_n,ξ]\n
         (nPg, nPe*2)
         """
-        if self.dim != 1: return
+        if self.dim != 1:
+            return
 
         matrixType = MatrixType.beam
 
@@ -966,32 +1019,35 @@ class _GroupElem(ABC):
         ddN_pg = _GroupElem._Eval_Functions(ddN, gauss.coord)
 
         return ddN_pg
-    
+
     def Get_EulerBernoulli_ddN_e_pg(self) -> FeArray:
         """Evaluates the second-order derivatives of Euler-Bernoulli beam shape functions in (x, y, z) coordinates.\n
         [phi_i,xx psi_i,xx . . . phi_n,xx psi_n,xx]\n
         (Ne, nPg, 1, nPe*2)
         """
-        if self.dim != 1: return
+        if self.dim != 1:
+            return
 
-        invF_e_pg = self.Get_invF_e_pg(MatrixType.beam)[:,:,0,0]
+        invF_e_pg = self.Get_invF_e_pg(MatrixType.beam)[:, :, 0, 0]
         ddN_pg = FeArray.asfearray(self.Get_EulerBernoulli_ddN_pg()[np.newaxis])
         nPe = self.nPe
-        
+
         ddN_e_pg = invF_e_pg * invF_e_pg * ddN_pg
-        
+
         # multiply by the beam length on psi_i,xx functions
         l_e = self.length_e
-        columns = np.arange(1, nPe*2, 2)
+        columns = np.arange(1, nPe * 2, 2)
         for column in columns:
-            ddN_e_pg[:,:,0,column] = np.einsum('ep,e->ep', ddN_e_pg[:,:,0,column], l_e, optimize='optimal')
+            ddN_e_pg[:, :, 0, column] = np.einsum(
+                "ep,e->ep", ddN_e_pg[:, :, 0, column], l_e, optimize="optimal"
+            )
 
         return ddN_e_pg
-    
+
     # --------------------------------------------------------------------------------------------
     # Finite element matrices
     # --------------------------------------------------------------------------------------------
-    
+
     # Linear elastic problem
 
     def Get_B_e_pg(self, matrixType: MatrixType) -> FeArray:
@@ -1000,7 +1056,7 @@ class _GroupElem(ABC):
         [N1,x 0 . . . Nn,x 0\n
         0 N1,y . . . 0 Nn,y\n
         N1,y N1,x . . . N3,y N3,x]\n
-        (Ne, nPg, (3 or 6), nPe*dim)        
+        (Ne, nPg, (3 or 6), nPe*dim)
         """
         assert matrixType in MatrixType.Get_types()
 
@@ -1013,37 +1069,41 @@ class _GroupElem(ABC):
             nPe = self.nPe
             dim = self.dim
 
-            cM = 1/np.sqrt(2)
-            
-            columnsX = np.arange(0, nPe*dim, dim)
-            columnsY = np.arange(1, nPe*dim, dim)
-            columnsZ = np.arange(2, nPe*dim, dim)
+            cM = 1 / np.sqrt(2)
 
-            if self.dim == 2:                
-                B_e_pg = np.zeros((Ne, nPg, 3, nPe*dim))                
-                
-                dNdx = dN_e_pg[:,:,0]
-                dNdy = dN_e_pg[:,:,1]
+            columnsX = np.arange(0, nPe * dim, dim)
+            columnsY = np.arange(1, nPe * dim, dim)
+            columnsZ = np.arange(2, nPe * dim, dim)
 
-                B_e_pg[:,:,0,columnsX] = dNdx
-                B_e_pg[:,:,1,columnsY] = dNdy
-                B_e_pg[:,:,2,columnsX] = dNdy*cM; B_e_pg[:,:,2,columnsY] = dNdx*cM
+            if self.dim == 2:
+                B_e_pg = np.zeros((Ne, nPg, 3, nPe * dim))
+
+                dNdx = dN_e_pg[:, :, 0]
+                dNdy = dN_e_pg[:, :, 1]
+
+                B_e_pg[:, :, 0, columnsX] = dNdx
+                B_e_pg[:, :, 1, columnsY] = dNdy
+                B_e_pg[:, :, 2, columnsX] = dNdy * cM
+                B_e_pg[:, :, 2, columnsY] = dNdx * cM
             else:
-                B_e_pg = np.zeros((Ne, nPg, 6, nPe*dim))
+                B_e_pg = np.zeros((Ne, nPg, 6, nPe * dim))
 
-                dNdx = dN_e_pg[:,:,0]
-                dNdy = dN_e_pg[:,:,1]
-                dNdz = dN_e_pg[:,:,2]
+                dNdx = dN_e_pg[:, :, 0]
+                dNdy = dN_e_pg[:, :, 1]
+                dNdz = dN_e_pg[:, :, 2]
 
-                B_e_pg[:,:,0,columnsX] = dNdx
-                B_e_pg[:,:,1,columnsY] = dNdy
-                B_e_pg[:,:,2,columnsZ] = dNdz
-                B_e_pg[:,:,3,columnsY] = dNdz*cM; B_e_pg[:,:,3,columnsZ] = dNdy*cM
-                B_e_pg[:,:,4,columnsX] = dNdz*cM; B_e_pg[:,:,4,columnsZ] = dNdx*cM
-                B_e_pg[:,:,5,columnsX] = dNdy*cM; B_e_pg[:,:,5,columnsY] = dNdx*cM
+                B_e_pg[:, :, 0, columnsX] = dNdx
+                B_e_pg[:, :, 1, columnsY] = dNdy
+                B_e_pg[:, :, 2, columnsZ] = dNdz
+                B_e_pg[:, :, 3, columnsY] = dNdz * cM
+                B_e_pg[:, :, 3, columnsZ] = dNdy * cM
+                B_e_pg[:, :, 4, columnsX] = dNdz * cM
+                B_e_pg[:, :, 4, columnsZ] = dNdx * cM
+                B_e_pg[:, :, 5, columnsX] = dNdy * cM
+                B_e_pg[:, :, 5, columnsY] = dNdx * cM
 
             self.__dict_B_e_pg[matrixType] = FeArray.asfearray(B_e_pg)
-        
+
         return self.__dict_B_e_pg[matrixType].copy()
 
     def Get_leftDispPart(self, matrixType: MatrixType) -> FeArray:
@@ -1056,7 +1116,7 @@ class _GroupElem(ABC):
         assert matrixType in MatrixType.Get_types()
 
         if matrixType not in self.__dict_leftDispPart.keys():
-            
+
             weightedJacobian_e_pg = self.Get_weightedJacobian_e_pg(matrixType)
             B_e_pg = self.Get_B_e_pg(matrixType)
 
@@ -1090,38 +1150,38 @@ class _GroupElem(ABC):
         nPg = jacobian_e_pg.shape[1]
 
         # get matrices to work with
-        N_pg = self.Get_N_pg(matrixType)        
+        N_pg = self.Get_N_pg(matrixType)
         if beamStructure.dim > 1:
             N_e_pg = self.Get_EulerBernoulli_N_e_pg(beamStructure)
             dN_e_pg = self.Get_EulerBernoulli_dN_e_pg(beamStructure)
 
         if dim == 1:
             # u = [u1, . . . , un]
-            
+
             # N = [N_i, . . . , N_n]
 
-            idx_ux = np.arange(dof_n*nPe)
+            idx_ux = np.arange(dof_n * nPe)
 
-            N_e_pg = np.zeros((Ne, nPg, 1, dof_n*nPe))
-            N_e_pg[:,:,0, idx_ux] = N_pg[:,:,0]
-                
+            N_e_pg = np.zeros((Ne, nPg, 1, dof_n * nPe))
+            N_e_pg[:, :, 0, idx_ux] = N_pg[:, :, 0]
+
         elif dim == 2:
             # u = [u1, v1, rz1, . . . , un, vn, rzn]
-            
+
             # N = [N_i, 0, 0, ... , N_n, 0, 0,]
             #     [0, Phi_i, Psi_i, ... , 0, Phi_i, Psi_i]
             #     [0, dPhi_i, dPsi_i, ... , 0, dPhi_i, dPsi_i]
 
-            idx = np.arange(dof_n*nPe).reshape(nPe,-1)
-            
-            idx_ux = idx[:,0] # [0,3] (SEG2) [0,3,6] (SEG3)
-            idx_uy = np.reshape(idx[:,1:], -1) # [1,2,4,5] (SEG2) [1,2,4,5,7,8] (SEG3)
+            idx = np.arange(dof_n * nPe).reshape(nPe, -1)
 
-            N_e_pg = np.zeros((Ne, nPg, 3, dof_n*nPe))
-            
-            N_e_pg[:,:,0, idx_ux] = N_pg[:,:,0] # traction / compression to get u
-            N_e_pg[:,:,1, idx_uy] = N_e_pg[:,:,0] # flexion z to get v
-            N_e_pg[:,:,2, idx_uy] = dN_e_pg[:,:,0] # flexion z to get rz
+            idx_ux = idx[:, 0]  # [0,3] (SEG2) [0,3,6] (SEG3)
+            idx_uy = np.reshape(idx[:, 1:], -1)  # [1,2,4,5] (SEG2) [1,2,4,5,7,8] (SEG3)
+
+            N_e_pg = np.zeros((Ne, nPg, 3, dof_n * nPe))
+
+            N_e_pg[:, :, 0, idx_ux] = N_pg[:, :, 0]  # traction / compression to get u
+            N_e_pg[:, :, 1, idx_uy] = N_e_pg[:, :, 0]  # flexion z to get v
+            N_e_pg[:, :, 2, idx_uy] = dN_e_pg[:, :, 0]  # flexion z to get rz
 
         elif dim == 3:
             # u = [u1, v1, w1, rx1, ry1, rz1, . . . , un, vn, wn, rxn, ryn, rzn]
@@ -1133,49 +1193,53 @@ class _GroupElem(ABC):
             #     [0, 0, -dPhi_i, 0, dPsi_i, 0, ... , 0, 0, -dPhi_n, 0, dPsi_n, 0]
             #     [0, dPhi_i, 0, 0, 0, dPsi_i, ... , 0, dPhi_i, 0, 0, 0, dPsi_n]
 
-            idx = np.arange(dof_n*nPe).reshape(nPe,-1)
-            idx_ux = idx[:,0] # [0,6] (SEG2) [0,6,12] (SEG3)
-            idx_uy = np.reshape(idx[:,[1,5]], -1) # [1,5,7,11] (SEG2) [1,5,7,11,13,17] (SEG3)
-            idx_uz = np.reshape(idx[:,[2,4]], -1) # [2,4,8,10] (SEG2) [2,4,8,10,14,16] (SEG3)
-            idx_rx = idx[:,3] # [3,9] (SEG2) [3,9,15] (SEG3)
-            idPsi = np.arange(1, nPe*2, 2) # [1,3] (SEG2) [1,3,5] (SEG3)
+            idx = np.arange(dof_n * nPe).reshape(nPe, -1)
+            idx_ux = idx[:, 0]  # [0,6] (SEG2) [0,6,12] (SEG3)
+            idx_uy = np.reshape(
+                idx[:, [1, 5]], -1
+            )  # [1,5,7,11] (SEG2) [1,5,7,11,13,17] (SEG3)
+            idx_uz = np.reshape(
+                idx[:, [2, 4]], -1
+            )  # [2,4,8,10] (SEG2) [2,4,8,10,14,16] (SEG3)
+            idx_rx = idx[:, 3]  # [3,9] (SEG2) [3,9,15] (SEG3)
+            idPsi = np.arange(1, nPe * 2, 2)  # [1,3] (SEG2) [1,3,5] (SEG3)
 
             Nvz_e_pg = N_e_pg.copy()
-            Nvz_e_pg[:,:,0,idPsi] *= -1
+            Nvz_e_pg[:, :, 0, idPsi] *= -1
 
             dNvz_e_pg = dN_e_pg.copy()
-            dNvz_e_pg[:,:,0,idPsi] *= -1
+            dNvz_e_pg[:, :, 0, idPsi] *= -1
 
-            N_e_pg = np.zeros((Ne, nPg, 6, dof_n*nPe))
-            
-            N_e_pg[:,:,0, idx_ux] = N_pg[:,:,0]
-            N_e_pg[:,:,1, idx_uy] = N_e_pg[:,:,0]
-            N_e_pg[:,:,2, idx_uz] = Nvz_e_pg[:,:,0]
-            N_e_pg[:,:,3, idx_rx] = N_pg[:,:,0]
-            N_e_pg[:,:,4, idx_uz] = -dNvz_e_pg[:,:,0] # ry = -uz'
-            N_e_pg[:,:,5, idx_uy] = dN_e_pg[:,:,0] # rz = uy'
+            N_e_pg = np.zeros((Ne, nPg, 6, dof_n * nPe))
+
+            N_e_pg[:, :, 0, idx_ux] = N_pg[:, :, 0]
+            N_e_pg[:, :, 1, idx_uy] = N_e_pg[:, :, 0]
+            N_e_pg[:, :, 2, idx_uz] = Nvz_e_pg[:, :, 0]
+            N_e_pg[:, :, 3, idx_rx] = N_pg[:, :, 0]
+            N_e_pg[:, :, 4, idx_uz] = -dNvz_e_pg[:, :, 0]  # ry = -uz'
+            N_e_pg[:, :, 5, idx_uy] = dN_e_pg[:, :, 0]  # rz = uy'
 
         N_e_pg = FeArray.asfearray(N_e_pg)
-        
+
         if dim > 1:
-            # Construct the matrix used to change the matrix coordinates 
+            # Construct the matrix used to change the matrix coordinates
             P = np.zeros((self.Ne, 3, 3), dtype=float)
             for beam in beamStructure.beams:
                 elems = self.Get_Elements_Tag(beam.name)
                 P[elems] = beam._Calc_P()
 
-            Pglob_e_pg = FeArray.zeros(Ne, 1, dof_n*nPe, dof_n*nPe)
+            Pglob_e_pg = FeArray.zeros(Ne, 1, dof_n * nPe, dof_n * nPe)
             N = P.shape[1]
             lines = np.repeat(range(N), N)
-            columns = np.array(list(range(N))*N)
-            for n in range(dof_n*nPe//3):
+            columns = np.array(list(range(N)) * N)
+            for n in range(dof_n * nPe // 3):
                 # apply P on the diagonal
-                Pglob_e_pg[:, lines + n*N, columns + n*N] = P[:,lines,columns]
+                Pglob_e_pg[:, lines + n * N, columns + n * N] = P[:, lines, columns]
 
             N_e_pg = N_e_pg @ Pglob_e_pg
 
         return N_e_pg
-    
+
     def Get_EulerBernoulli_B_e_pg(self, beamStructure) -> FeArray:
         """Get Euler-Bernoulli beam shape functions derivatives"""
 
@@ -1204,29 +1268,29 @@ class _GroupElem(ABC):
 
         if dim == 1:
             # u = [u1, . . . , un]
-            
+
             # B = [dN_i, . . . , dN_n]
 
-            idx_ux = np.arange(dof_n*nPe)
+            idx_ux = np.arange(dof_n * nPe)
 
-            B_e_pg = np.zeros((Ne, nPg, 1, dof_n*nPe))
-            B_e_pg[:,:,0, idx_ux] = dN_e_pg[:,:,0]
-                
+            B_e_pg = np.zeros((Ne, nPg, 1, dof_n * nPe))
+            B_e_pg[:, :, 0, idx_ux] = dN_e_pg[:, :, 0]
+
         elif dim == 2:
             # u = [u1, v1, rz1, . . . , un, vn, rzn]
-            
+
             # B = [dN_i, 0, 0, ... , dN_n, 0, 0,]
             #     [0, ddPhi_i, ddPsi_i, ... , 0, ddPhi_i, ddPsi_i]
 
-            idx = np.arange(dof_n*nPe).reshape(nPe,-1)
-            
-            idx_ux = idx[:,0] # [0,3] (SEG2) [0,3,6] (SEG3)
-            idx_uy = np.reshape(idx[:,1:], -1) # [1,2,4,5] (SEG2) [1,2,4,5,7,8] (SEG3)
+            idx = np.arange(dof_n * nPe).reshape(nPe, -1)
 
-            B_e_pg = np.zeros((Ne, nPg, 2, dof_n*nPe))
-            
-            B_e_pg[:,:,0, idx_ux] = dN_e_pg[:,:,0] # traction / compression
-            B_e_pg[:,:,1, idx_uy] = ddNv_e_pg[:,:,0] # flexion along z
+            idx_ux = idx[:, 0]  # [0,3] (SEG2) [0,3,6] (SEG3)
+            idx_uy = np.reshape(idx[:, 1:], -1)  # [1,2,4,5] (SEG2) [1,2,4,5,7,8] (SEG3)
+
+            B_e_pg = np.zeros((Ne, nPg, 2, dof_n * nPe))
+
+            B_e_pg[:, :, 0, idx_ux] = dN_e_pg[:, :, 0]  # traction / compression
+            B_e_pg[:, :, 1, idx_uy] = ddNv_e_pg[:, :, 0]  # flexion along z
 
         elif dim == 3:
             # u = [u1, v1, w1, rx1, ry1, rz1, . . . , un, vn, wn, rxn, ryn, rzn]
@@ -1236,44 +1300,48 @@ class _GroupElem(ABC):
             #     [0, 0, ddPhi_i, 0, -ddPsi_i, 0, ... , 0, 0, ddPhi_n, 0, -ddPsi_n, 0]
             #     [0, ddPhi_i, 0, 0, 0, ddPsi_i, ... , 0, ddPhi_i, 0, 0, 0, ddPsi_n]
 
-            idx = np.arange(dof_n*nPe).reshape(nPe,-1)
-            idx_ux = idx[:,0] # [0,6] (SEG2) [0,6,12] (SEG3)
-            idx_uy = np.reshape(idx[:,[1,5]], -1) # [1,5,7,11] (SEG2) [1,5,7,11,13,17] (SEG3)
-            idx_uz = np.reshape(idx[:,[2,4]], -1) # [2,4,8,10] (SEG2) [2,4,8,10,14,16] (SEG3)
-            idx_rx = idx[:,3] # [3,9] (SEG2) [3,9,15] (SEG3)
-            
-            idPsi = np.arange(1, nPe*2, 2) # [1,3] (SEG2) [1,3,5] (SEG3)
-            ddNvz_e_pg = ddNv_e_pg.copy()
-            ddNvz_e_pg[:,:,0,idPsi] *= -1 # RY = -UZ'
+            idx = np.arange(dof_n * nPe).reshape(nPe, -1)
+            idx_ux = idx[:, 0]  # [0,6] (SEG2) [0,6,12] (SEG3)
+            idx_uy = np.reshape(
+                idx[:, [1, 5]], -1
+            )  # [1,5,7,11] (SEG2) [1,5,7,11,13,17] (SEG3)
+            idx_uz = np.reshape(
+                idx[:, [2, 4]], -1
+            )  # [2,4,8,10] (SEG2) [2,4,8,10,14,16] (SEG3)
+            idx_rx = idx[:, 3]  # [3,9] (SEG2) [3,9,15] (SEG3)
 
-            B_e_pg = np.zeros((Ne, nPg, 4, dof_n*nPe))
-            
-            B_e_pg[:,:,0, idx_ux] = dN_e_pg[:,:,0] # traction / compression
-            B_e_pg[:,:,1, idx_rx] = dN_e_pg[:,:,0] # torsion
-            B_e_pg[:,:,2, idx_uz] = ddNvz_e_pg[:,:,0] # flexion along y
-            B_e_pg[:,:,3, idx_uy] = ddNv_e_pg[:,:,0] # flexion along z
+            idPsi = np.arange(1, nPe * 2, 2)  # [1,3] (SEG2) [1,3,5] (SEG3)
+            ddNvz_e_pg = ddNv_e_pg.copy()
+            ddNvz_e_pg[:, :, 0, idPsi] *= -1  # RY = -UZ'
+
+            B_e_pg = np.zeros((Ne, nPg, 4, dof_n * nPe))
+
+            B_e_pg[:, :, 0, idx_ux] = dN_e_pg[:, :, 0]  # traction / compression
+            B_e_pg[:, :, 1, idx_rx] = dN_e_pg[:, :, 0]  # torsion
+            B_e_pg[:, :, 2, idx_uz] = ddNvz_e_pg[:, :, 0]  # flexion along y
+            B_e_pg[:, :, 3, idx_uy] = ddNv_e_pg[:, :, 0]  # flexion along z
 
         B_e_pg = FeArray.asfearray(B_e_pg)
 
         if dim > 1:
-            # Construct the matrix used to change the matrix coordinates 
+            # Construct the matrix used to change the matrix coordinates
             P = np.zeros((self.Ne, 3, 3))
             for beam in beamStructure.beams:
                 elems = self.Get_Elements_Tag(beam.name)
                 P[elems] = beam._Calc_P()
 
-            Pglob_e = FeArray.zeros(Ne, 1, dof_n*nPe, dof_n*nPe)
+            Pglob_e = FeArray.zeros(Ne, 1, dof_n * nPe, dof_n * nPe)
             N = P.shape[-1]
             lines = np.repeat(range(N), N)
-            columns = np.array(list(range(N))*N)
-            for n in range(dof_n*nPe//3):
+            columns = np.array(list(range(N)) * N)
+            for n in range(dof_n * nPe // 3):
                 # apply P on the diagonal
-                Pglob_e[:, 0, lines+n*N, columns+n*N] = P[:, lines, columns]
+                Pglob_e[:, 0, lines + n * N, columns + n * N] = P[:, lines, columns]
 
             B_e_pg = B_e_pg @ Pglob_e
 
         return B_e_pg
-    
+
     # reaction diffusion problem
 
     def Get_ReactionPart_e_pg(self, matrixType: MatrixType) -> FeArray:
@@ -1293,9 +1361,9 @@ class _GroupElem(ABC):
             ReactionPart_e_pg = weightedJacobian * N_pg.T @ N_pg
 
             self.__dict_ReactionPart_e_pg[matrixType] = ReactionPart_e_pg
-        
+
         return self.__dict_ReactionPart_e_pg[matrixType].copy()
-    
+
     def Get_DiffusePart_e_pg(self, matrixType: MatrixType) -> FeArray:
         """Get the part that builds the diffusion term (scalar).\n
         DiffusePart_e_pg = k_e_pg * jacobian_e_pg * weight_pg * dN_e_pg' @ A @ dN_e_pg\n
@@ -1313,7 +1381,7 @@ class _GroupElem(ABC):
             DiffusePart_e_pg = weightedJacobian_e_pg * dN_e_pg.T
 
             self.__dict_DiffusePart_e_pg[matrixType] = DiffusePart_e_pg
-        
+
         return self.__dict_DiffusePart_e_pg[matrixType].copy()
 
     def Get_SourcePart_e_pg(self, matrixType: MatrixType) -> FeArray:
@@ -1333,12 +1401,12 @@ class _GroupElem(ABC):
             SourcePart_e_pg = weightedJacobian_e_pg * N_pg.T
 
             self.__dict_SourcePart_e_pg[matrixType] = SourcePart_e_pg
-        
+
         return self.__dict_SourcePart_e_pg[matrixType].copy()
-    
+
     def Get_Gradient_e_pg(self, u: np.ndarray, matrixType=MatrixType.rigi) -> FeArray:
         """Returns the gradient of the discretized displacement field u as a matrix
-        
+
         Parameters
         ----------
         u : np.ndarray
@@ -1357,7 +1425,7 @@ class _GroupElem(ABC):
         dxux 0 0\n
         0 0 0\n
         0 0 0
-            
+
         dim = 2
         -------
 
@@ -1386,12 +1454,12 @@ class _GroupElem(ABC):
         dN_e_pg = self.Get_dN_e_pg(matrixType)
         nPg = dN_e_pg.shape[1]
         # Shape functions (Ne, nPg, nPe)
-        dxN_e_pg = dN_e_pg[:,:,0,:]
+        dxN_e_pg = dN_e_pg[:, :, 0, :]
         if dim > 1:
-            dyN_e_pg = dN_e_pg[:,:,1,:]
+            dyN_e_pg = dN_e_pg[:, :, 1, :]
         if dim > 2:
-            dzN_e_pg = dN_e_pg[:,:,2,:]
-        
+            dzN_e_pg = dN_e_pg[:, :, 2, :]
+
         # u for each elements as (Ne, nPe*dim) array
         u_e = self.Locates_sol_e(u, dof_n)
         # u for each elements reshaped as (Ne, nPe, dof_n) array
@@ -1399,11 +1467,17 @@ class _GroupElem(ABC):
 
         grad_e_pg = FeArray.zeros(Ne, nPg, 3, 3)
         for p in range(nPg):
-            grad_e_pg[:,p,:dim,0] = np.einsum("en,end->ed", dxN_e_pg[:,p], u_e_n[...,:dim])
+            grad_e_pg[:, p, :dim, 0] = np.einsum(
+                "en,end->ed", dxN_e_pg[:, p], u_e_n[..., :dim]
+            )
             if dim > 1:
-                grad_e_pg[:,p,:dim,1] = np.einsum("en,end->ed", dyN_e_pg[:,p], u_e_n[...,:dim])
+                grad_e_pg[:, p, :dim, 1] = np.einsum(
+                    "en,end->ed", dyN_e_pg[:, p], u_e_n[..., :dim]
+                )
             if dim > 2:
-                grad_e_pg[:,p,:dim,2] = np.einsum("en,end->ed", dzN_e_pg[:,p], u_e_n[...,:dim])
+                grad_e_pg[:, p, :dim, 2] = np.einsum(
+                    "en,end->ed", dzN_e_pg[:, p], u_e_n[..., :dim]
+                )
 
         return grad_e_pg
 
@@ -1425,14 +1499,14 @@ class _GroupElem(ABC):
             # Remove all excess nodes
             availableNodes = np.where(nodes < self.Nn)[0]
             nodes = nodes[availableNodes]
-        
+
         __, columns, __ = sparse.find(connect_n_e[nodes])
 
-        elements =  list(set(columns))
-        
+        elements = list(set(columns))
+
         if exclusively:
             # Check whether elements use only nodes in the node list
-            
+
             # get nodes used by elements
             nodesElem = set(connect[elements].ravel())
 
@@ -1467,7 +1541,7 @@ class _GroupElem(ABC):
         np.ndarray
             nodes that meet conditions
         """
-        
+
         xn, yn, zn = self.coord.T
 
         try:
@@ -1479,7 +1553,7 @@ class _GroupElem(ABC):
                 print("The function must return a Boolean.")
         except TypeError:
             print("Must provide a 3-parameter function of type lambda x,y,z: ...")
-    
+
     def Get_Nodes_Point(self, point: Point) -> np.ndarray:
         """Returns nodes on the point."""
 
@@ -1487,12 +1561,12 @@ class _GroupElem(ABC):
 
         xn, yn, zn = self.coord.T
 
-        idx = np.where((xn == point.x) & (yn == point.y) & (zn == point.z))[0]        
+        idx = np.where((xn == point.x) & (yn == point.y) & (zn == point.z))[0]
 
         if len(idx) == 0:
             # the previous condition may be too restrictive
             tolerance = 1e-3
-            
+
             # we make sure there is no coordinates = 0
             dec = 10
             decX = np.abs(xn.min()) + dec
@@ -1500,14 +1574,16 @@ class _GroupElem(ABC):
             decZ = np.abs(zn.min()) + dec
             x = point.x + decX
             y = point.y + decY
-            z = point.z + decZ            
-            
+            z = point.z + decZ
+
             # get errors between coordinates
-            errorX = np.abs((xn-x)/xn)
-            errorY = np.abs((yn-y)/yn)
-            errorZ = np.abs((zn-z)/zn)
-            
-            idx = np.where((errorX <= tolerance) & (errorY <= tolerance) & (errorZ <= tolerance))[0]
+            errorX = np.abs((xn - x) / xn)
+            errorY = np.abs((yn - y) / yn)
+            errorZ = np.abs((zn - z) / zn)
+
+            idx = np.where(
+                (errorX <= tolerance) & (errorY <= tolerance) & (errorZ <= tolerance)
+            )[0]
 
         return self.__nodes[idx].copy()
 
@@ -1515,21 +1591,23 @@ class _GroupElem(ABC):
         """Returns nodes on the line."""
 
         assert isinstance(line, Line)
-        
+
         unitVector = line.unitVector
 
-        vect = self.coord-line.coord[0]
+        vect = self.coord - line.coord[0]
 
-        scalarProd = np.einsum('i,ni-> n', unitVector, vect, optimize='optimal')
+        scalarProd = np.einsum("i,ni-> n", unitVector, vect, optimize="optimal")
         crossProd = np.cross(vect, unitVector)
         norm = np.linalg.norm(crossProd, axis=1)
 
         eps = 1e-12
 
-        idx = np.where((norm<eps) & (scalarProd>=-eps) & (scalarProd<=line.length+eps))[0]
+        idx = np.where(
+            (norm < eps) & (scalarProd >= -eps) & (scalarProd <= line.length + eps)
+        )[0]
 
         return self.__nodes[idx].copy()
-    
+
     def Get_Nodes_Domain(self, domain: Domain) -> np.ndarray:
         """Returns nodes in the domain."""
 
@@ -1539,10 +1617,15 @@ class _GroupElem(ABC):
 
         eps = 1e-12
 
-        idx = np.where( (xn >= domain.pt1.x-eps) & (xn <= domain.pt2.x+eps) &
-                        (yn >= domain.pt1.y-eps) & (yn <= domain.pt2.y+eps) &
-                        (zn >= domain.pt1.z-eps) & (zn <= domain.pt2.z+eps))[0]
-        
+        idx = np.where(
+            (xn >= domain.pt1.x - eps)
+            & (xn <= domain.pt2.x + eps)
+            & (yn >= domain.pt1.y - eps)
+            & (yn <= domain.pt2.y + eps)
+            & (zn >= domain.pt1.z - eps)
+            & (zn <= domain.pt2.z + eps)
+        )[0]
+
         return self.__nodes[idx].copy()
 
     def Get_Nodes_Circle(self, circle: Circle, onlyOnEdge=False) -> np.ndarray:
@@ -1555,43 +1638,53 @@ class _GroupElem(ABC):
         vals = np.linalg.norm(self.coord - circle.center.coord, axis=1)
 
         if onlyOnEdge:
-            idx = np.where((vals <= circle.diam/2+eps) & (vals >= circle.diam/2-eps))
+            idx = np.where(
+                (vals <= circle.diam / 2 + eps) & (vals >= circle.diam / 2 - eps)
+            )
         else:
-            idx = np.where(vals <= circle.diam/2+eps)    
+            idx = np.where(vals <= circle.diam / 2 + eps)
 
         return self.__nodes[idx]
 
-    def Get_Nodes_Cylinder(self, circle: Circle, direction=[0,0,1], onlyOnEdge=False) -> np.ndarray:
+    def Get_Nodes_Cylinder(
+        self, circle: Circle, direction=[0, 0, 1], onlyOnEdge=False
+    ) -> np.ndarray:
         """Returns nodes in the cylinder."""
 
         assert isinstance(circle, Circle)
-        
+
         rotAxis = np.cross(circle.n, direction)
         if np.linalg.norm(rotAxis) <= 1e-12:
             # n == direction
             i = (circle.pt1 - circle.center).coord
-            J = Jacobian_Matrix(i,direction)
+            J = Jacobian_Matrix(i, direction)
         else:
             # n != direction
             # (rotAxis, j, direction)
-            R = circle.diam/2
+            R = circle.diam / 2
             J = Jacobian_Matrix(rotAxis, direction)
-            coordN = np.einsum('ij,nj->ni', np.linalg.inv(J), circle.coord - circle.center.coord)
+            coordN = np.einsum(
+                "ij,nj->ni", np.linalg.inv(J), circle.coord - circle.center.coord
+            )
             # (rotAxis, j*cj, direction)
-            cj = (R - coordN[:,1].max())/R
-            J[:,1] *= cj
-        
-        eps = 1e-12
-        coord = np.einsum('ij,nj->ni', np.linalg.inv(J), self.coord - circle.center.coord)
+            cj = (R - coordN[:, 1].max()) / R
+            J[:, 1] *= cj
 
-        vals = np.linalg.norm(coord[:,:2], axis=1)
+        eps = 1e-12
+        coord = np.einsum(
+            "ij,nj->ni", np.linalg.inv(J), self.coord - circle.center.coord
+        )
+
+        vals = np.linalg.norm(coord[:, :2], axis=1)
         if onlyOnEdge:
-            idx = np.where((vals <= circle.diam/2+eps) & (vals >= circle.diam/2-eps))
+            idx = np.where(
+                (vals <= circle.diam / 2 + eps) & (vals >= circle.diam / 2 - eps)
+            )
         else:
-            idx = np.where(vals <= circle.diam/2+eps)    
+            idx = np.where(vals <= circle.diam / 2 + eps)
 
         return self.__nodes[idx]
-    
+
     # TODO Get_Nodes_Points
     # use Points.contour also give a normal
     # get all geom contour exept le last one
@@ -1608,11 +1701,14 @@ class _GroupElem(ABC):
         tag : str
             tag used
         """
-        if nodes.size == 0: return
-        assert isinstance(tag, str), 'tag must be a string'
+        if nodes.size == 0:
+            return
+        assert isinstance(tag, str), "tag must be a string"
 
         if np.min(nodes) < 0 or np.max(nodes) >= self.__coordGlob.shape[0]:
-            raise Exception(f"nodes must be within the range [0, {self.__coordGlob.shape[0]-1}].")
+            raise Exception(
+                f"nodes must be within the range [0, {self.__coordGlob.shape[0]-1}]."
+            )
 
         self.__dict_nodes_tags[tag] = nodes
 
@@ -1620,7 +1716,7 @@ class _GroupElem(ABC):
     def nodeTags(self) -> list[str]:
         """Returns node tags."""
         return list(self.__dict_nodes_tags.keys())
-    
+
     @property
     def _dict_nodes_tags(self) -> dict[str, np.ndarray]:
         """Dictionary associating tags with nodes."""
@@ -1637,12 +1733,14 @@ class _GroupElem(ABC):
             tag used
         """
 
-        if nodes.size == 0: return
-        assert isinstance(tag, str), 'tag must be a string'
+        if nodes.size == 0:
+            return
+        assert isinstance(tag, str), "tag must be a string"
 
         # Retrieve elements associated with nodes
         elements = self.Get_Elements_Nodes(nodes=nodes, exclusively=True)
-        if elements.size == 0: return
+        if elements.size == 0:
+            return
 
         if np.min(elements) < 0 or np.max(elements) >= self.Ne:
             raise Exception(f"elements must be within the range [0, {self.Ne-1}].")
@@ -1653,7 +1751,7 @@ class _GroupElem(ABC):
     def elementTags(self) -> list[str]:
         """returns element tags."""
         return list(self.__dict_elements_tags.keys())
-    
+
     @property
     def _dict_elements_tags(self) -> dict[str, np.ndarray]:
         """dictionary associating tags with elements."""
@@ -1666,7 +1764,7 @@ class _GroupElem(ABC):
         else:
             print(f"The {tag} tag is unknown")
             return np.array([])
-    
+
     def Get_Nodes_Tag(self, tag: str) -> np.ndarray:
         """Returns node associated with the tag."""
         if tag in self.__dict_nodes_tags:
@@ -1674,8 +1772,10 @@ class _GroupElem(ABC):
         else:
             print(f"The {tag} tag is unknown")
             return np.array([])
-    
-    def Locates_sol_e(self, sol: np.ndarray, dof_n:int=None, asFeArray=False) -> FeArray:
+
+    def Locates_sol_e(
+        self, sol: np.ndarray, dof_n: int = None, asFeArray=False
+    ) -> FeArray:
         """Locates sol on elements"""
 
         size = self.Nn * self.dim
@@ -1686,13 +1786,13 @@ class _GroupElem(ABC):
         elif sol.shape[0] == self.Nn:
             sol_e = sol[self.__connect]
         else:
-            raise Exception('Wrong dimension')
-        
+            raise Exception("Wrong dimension")
+
         if asFeArray:
-            return FeArray.asfearray(sol_e[:,np.newaxis])
+            return FeArray.asfearray(sol_e[:, np.newaxis])
         else:
             return sol_e
-    
+
     def Get_pointsInElem(self, coordinates_n: np.ndarray, elem: int) -> np.ndarray:
         """Returns the indexes of the coordinates contained in the element.
 
@@ -1719,9 +1819,13 @@ class _GroupElem(ABC):
 
         if dim == 0:
 
-            coord = self.coord[self.__connect[elem,0]]
+            coord = self.coord[self.__connect[elem, 0]]
 
-            idx = np.where((coordinates_n[:,0] == coord[0]) & (coordinates_n[:,1] == coord[1]) & (coordinates_n[:,2] == coord[2]))[0]
+            idx = np.where(
+                (coordinates_n[:, 0] == coord[0])
+                & (coordinates_n[:, 1] == coord[1])
+                & (coordinates_n[:, 2] == coord[2])
+            )[0]
 
             return idx
 
@@ -1729,8 +1833,8 @@ class _GroupElem(ABC):
 
             coord = self.coord
 
-            p1 = self.__connect[elem,0]
-            p2 = self.__connect[elem,1]
+            p1 = self.__connect[elem, 0]
+            p2 = self.__connect[elem, 1]
 
             # vector between the points of the segment
             vect = coord[p2] - coord[p1]
@@ -1744,26 +1848,30 @@ class _GroupElem(ABC):
             norm_n = np.linalg.norm(cross_n, axis=1)
 
             dot_n = p_n @ vect
-            
-            idx = np.where((norm_n <= tol) & (dot_n >= -tol) & (dot_n <= length+tol))[0]
+
+            idx = np.where((norm_n <= tol) & (dot_n >= -tol) & (dot_n <= length + tol))[
+                0
+            ]
 
             return idx
-        
+
         elif dim == 2:
             # coordinates_n (n,3)
             # points n
             # corners i [1, nPe]
-            
+
             coord = self.coord
             faces = self.faces[:-1]
             nPe = len(faces)
             connect_e = self.connect[elem, faces]
             corners_i = coord[connect_e]
-            
+
             # Vectors e_i for edge segments (nPe, 3)
             indexReord = np.append(np.arange(1, nPe), 0)
             e_i = coord[connect_e[indexReord]] - corners_i
-            e_i = np.einsum("id,i->id", e_i, 1/np.linalg.norm(e_i, axis=1), optimize="optimal")
+            e_i = np.einsum(
+                "id,i->id", e_i, 1 / np.linalg.norm(e_i, axis=1), optimize="optimal"
+            )
 
             # normal vector to element face
             n_i = np.cross(e_i[0], -e_i[-1])
@@ -1773,7 +1881,7 @@ class _GroupElem(ABC):
 
             # Construct p vectors from corners
             p_n_i = coordinates_n_i - corners_i
-            
+
             cross_n_i = np.cross(e_i, p_n_i, axisa=1, axisb=2)
             test_n_i = cross_n_i @ n_i >= -tol
             # Return the index of nodes around the element that meet all conditions
@@ -1781,42 +1889,58 @@ class _GroupElem(ABC):
             idx = np.where(test_n == nPe)[0]
 
             return idx
-        
+
         elif dim == 3:
-        
+
             faces = self.faces
             nbFaces = self.nbFaces
             coord = self.coord[self.__connect[elem]]
 
             if self.elemType is ElemType.PRISM6:
                 faces = np.array(faces)
-                faces = np.array([faces[np.arange(0,4)],
-                                  faces[np.arange(4,8)],
-                                  faces[np.arange(8,12)],
-                                  faces[np.arange(12,15)],
-                                  faces[np.arange(15,18)]], dtype=object)
+                faces = np.array(
+                    [
+                        faces[np.arange(0, 4)],
+                        faces[np.arange(4, 8)],
+                        faces[np.arange(8, 12)],
+                        faces[np.arange(12, 15)],
+                        faces[np.arange(15, 18)],
+                    ],
+                    dtype=object,
+                )
             elif self.elemType is ElemType.PRISM15:
                 faces = np.array(faces)
-                faces = np.array([faces[np.arange(0,8)],
-                                  faces[np.arange(8,16)],
-                                  faces[np.arange(16,24)],
-                                  faces[np.arange(24,30)],
-                                  faces[np.arange(30,36)]], dtype=object)
+                faces = np.array(
+                    [
+                        faces[np.arange(0, 8)],
+                        faces[np.arange(8, 16)],
+                        faces[np.arange(16, 24)],
+                        faces[np.arange(24, 30)],
+                        faces[np.arange(30, 36)],
+                    ],
+                    dtype=object,
+                )
             else:
-                faces = np.reshape(faces, (nbFaces,-1))
+                faces = np.reshape(faces, (nbFaces, -1))
 
             p0_f = [f[0] for f in faces]
             p1_f = [f[1] for f in faces]
             p2_f = [f[-1] for f in faces]
 
-            i_f = coord[p1_f]-coord[p0_f]
-            i_f = np.einsum("ni,n->ni", i_f, 1/np.linalg.norm(i_f, axis=1), optimize="optimal")
+            i_f = coord[p1_f] - coord[p0_f]
+            i_f = np.einsum(
+                "ni,n->ni", i_f, 1 / np.linalg.norm(i_f, axis=1), optimize="optimal"
+            )
 
-            j_f = coord[p2_f]-coord[p0_f]
-            j_f = np.einsum("ni,n->ni", j_f, 1/np.linalg.norm(j_f, axis=1), optimize="optimal")
+            j_f = coord[p2_f] - coord[p0_f]
+            j_f = np.einsum(
+                "ni,n->ni", j_f, 1 / np.linalg.norm(j_f, axis=1), optimize="optimal"
+            )
 
             n_f = np.cross(i_f, j_f, 1, 1)
-            n_f = np.einsum("ni,n->ni", n_f, 1/np.linalg.norm(n_f, axis=1), optimize="optimal")
+            n_f = np.einsum(
+                "ni,n->ni", n_f, 1 / np.linalg.norm(n_f, axis=1), optimize="optimal"
+            )
 
             coordinates_n_i = coordinates_n[:, np.newaxis].repeat(nbFaces, 1)
 
@@ -1830,7 +1954,9 @@ class _GroupElem(ABC):
 
             return idx
 
-    def Get_Mapping(self, coordinates_n: np.ndarray, elements_e=None, needCoordinates=True):
+    def Get_Mapping(
+        self, coordinates_n: np.ndarray, elements_e=None, needCoordinates=True
+    ):
         """Locates coordinates within elements.
 
         Returns
@@ -1843,7 +1969,7 @@ class _GroupElem(ABC):
             - coordInElem_n : The coordinates of the identified nodes, expressed in the reference element's (ξ, η, ζ) coordinate system.
                 This is applicable only if needCoordinates is set to True.
         """
-        
+
         if elements_e is None:
             elements_e = np.arange(self.Ne, dtype=int)
 
@@ -1851,7 +1977,9 @@ class _GroupElem(ABC):
 
         return self.__Get_Mapping(coordinates_n, elements_e, needCoordinates)
 
-    def __Get_Mapping(self, coordinates_n: np.ndarray, elements_e: np.ndarray, needCoordinates=True):
+    def __Get_Mapping(
+        self, coordinates_n: np.ndarray, elements_e: np.ndarray, needCoordinates=True
+    ):
         """Locates coordinates within elements.
 
         Returns
@@ -1864,11 +1992,11 @@ class _GroupElem(ABC):
             - coordInElem_n : The coordinates of the identified nodes, expressed in the reference element's (ξ, η, ζ) coordinate system.
                 This is applicable only if needCoordinates is set to True.
         """
-        
+
         dim = self.dim
         connect = self.connect
         coord = self.coord
-        
+
         # Initialize lists
         detectedNodes: list[int] = []
         # Elements where nodes have been identified
@@ -1884,30 +2012,32 @@ class _GroupElem(ABC):
         if needCoordinates:
             # Here we want to know the coordinates of the nodes in
             # the reference element's (ξ,η) coordinate system.
-            coordInElem_n = np.zeros_like(coordinates_n[:,:dim], dtype=float)
+            coordInElem_n = np.zeros_like(coordinates_n[:, :dim], dtype=float)
 
             # get coordinates in the reference element
             # get groupElem datas
             inDim = self.inDim
-            sysCoord_e = self._Get_sysCoord_e() # basis transformation matrix for each element
+            sysCoord_e = (
+                self._Get_sysCoord_e()
+            )  # basis transformation matrix for each element
             # This matrix can be used to project points with (x, y, z) coordinates into the element's (i, j, k) coordinate system.
             matrixType = MatrixType.mass
             jacobian_e_pg = self.Get_jacobian_e_pg(matrixType, absoluteValues=False)
             invF_e_pg = self.Get_invF_e_pg(matrixType)
             dN_tild = self._dN()
-            xiOrigin = self.origin # origin of the reference element (ξ0,η0)
-            
+            xiOrigin = self.origin  # origin of the reference element (ξ0,η0)
+
             # Check whether iterative resolution is required
             # calculate the ratio between jacob max and min to detect if the element is distorted
             diff_e = jacobian_e_pg.max(1) / jacobian_e_pg.min(1)
-            error_e = np.abs(1 - diff_e) # a perfect element has an error max <= 1e-12
+            error_e = np.abs(1 - diff_e)  # a perfect element has an error max <= 1e-12
             # A distorted element exhibits a maximum error greater than zero.
             useIterative_e = error_e > 1e-12
         else:
             coordInElem_n = None
 
         def ResearchFunction(e: int):
-    
+
             # get element's node coordinates (x, y, z)
             coordElem: np.ndarray = coord[connect[e]]
 
@@ -1920,7 +2050,7 @@ class _GroupElem(ABC):
             if idxInElem.size == 0:
                 # here no nodes have been detected in the element
                 return
-                                
+
             # Nodes contained within element e.
             nodesInElement = idxNearElem[idxInElem]
 
@@ -1942,46 +2072,50 @@ class _GroupElem(ABC):
                 if dim != inDim:
                     coordElemBase = coordElemBase @ sysCoord_e[e]
                     coordinatesBase_n = coordinatesBase_n @ sysCoord_e[e]
-                
+
                 # Origin of the element in (x, y, z) coordinates.
-                x0  = coordElemBase[0,:dim]
+                x0 = coordElemBase[0, :dim]
                 # Coordinates of the n points in (x, y, z).
-                xP_n = coordinatesBase_n[:,:dim]
+                xP_n = coordinatesBase_n[:, :dim]
 
                 if not useIterative_e[e]:
                     # The fastest method, available only for undistorted meshes.
-                    xiP: np.ndarray = xiOrigin + (xP_n - x0) @ invF_e_pg[e,0]
-                         
+                    xiP: np.ndarray = xiOrigin + (xP_n - x0) @ invF_e_pg[e, 0]
+
                 else:
                     # This is the most time-consuming method.
                     # We need to construct the Jacobian matrices here.
                     def Eval(xi: np.ndarray, xP):
                         dN = _GroupElem._Eval_Functions(dN_tild, xi.reshape(1, -1))
-                        F = dN[0] @ coordElemBase[:,:dim] # jacobian matrix [J]                  
-                        J = x0 + (xi - xiOrigin) @ F - xP # cost function
+                        F = dN[0] @ coordElemBase[:, :dim]  # jacobian matrix [J]
+                        J = x0 + (xi - xiOrigin) @ F - xP  # cost function
                         return J
 
                     xiP = []
                     for xP in xP_n:
-                        res = least_squares(Eval, 0*xP, args=(xP,))
+                        res = least_squares(Eval, 0 * xP, args=(xP,))
                         xiP.append(res.x)
 
                     xiP = np.array(xiP)
 
                 # xiP are the n coordinates of the n points in (ξ, η, ζ).
-                coordInElem_n[nodesInElement,:] = xiP.copy()
+                coordInElem_n[nodesInElement, :] = xiP.copy()
 
         [ResearchFunction(e) for e in elements_e]
 
-        assert len(detectedElements_e) == len(connect_e_n), "The number of detected elements must match the number of lines in connect_e_n."
+        assert len(detectedElements_e) == len(
+            connect_e_n
+        ), "The number of detected elements must match the number of lines in connect_e_n."
 
-        ar_detectedNodes = np.asarray(detectedNodes,dtype=int)
-        ar_detectedElements_e = np.asarray(detectedElements_e,dtype=int)
-        ar_connect_e_n = np.asarray(connect_e_n,dtype=object)
+        ar_detectedNodes = np.asarray(detectedNodes, dtype=int)
+        ar_detectedElements_e = np.asarray(detectedElements_e, dtype=int)
+        ar_connect_e_n = np.asarray(connect_e_n, dtype=object)
 
         return ar_detectedNodes, ar_detectedElements_e, ar_connect_e_n, coordInElem_n
-    
-    def __Get_coordoNear(self, coordinates_n: np.ndarray, coordElem: np.ndarray, dims: np.ndarray) -> np.ndarray:
+
+    def __Get_coordoNear(
+        self, coordinates_n: np.ndarray, coordElem: np.ndarray, dims: np.ndarray
+    ) -> np.ndarray:
         """Get indexes in coordinates_n that are within the coordElem's bounds.
 
         Parameters
@@ -1996,36 +2130,50 @@ class _GroupElem(ABC):
         Returns
         -------
         np.ndarray
-            indexes in element's bounds. 
+            indexes in element's bounds.
         """
 
         nX, nY, nZ = dims
-        
+
         # If all the coordinates appear the same number of times and the coordinates are of type int, we are on a grid/image.
         testShape = nX * nY - coordinates_n.shape[0] == 0
-        coordinatesInImage = coordinates_n.dtype==int and testShape and nZ == 1
+        coordinatesInImage = coordinates_n.dtype == int and testShape and nZ == 1
 
         if coordinatesInImage:
             # here coordinates_n are pixels
 
-            xe = np.arange(np.floor(coordElem[:,0].min()), np.ceil(coordElem[:,0].max()), dtype=int)
-            ye = np.arange(np.floor(coordElem[:,1].min()), np.ceil(coordElem[:,1].max()), dtype=int)
-            Xe, Ye = np.meshgrid(xe,ye)
+            xe = np.arange(
+                np.floor(coordElem[:, 0].min()),
+                np.ceil(coordElem[:, 0].max()),
+                dtype=int,
+            )
+            ye = np.arange(
+                np.floor(coordElem[:, 1].min()),
+                np.ceil(coordElem[:, 1].max()),
+                dtype=int,
+            )
+            Xe, Ye = np.meshgrid(xe, ye)
 
-            grid_elements_coordinates = np.concatenate(([Ye.ravel()],[Xe.ravel()]))
+            grid_elements_coordinates = np.concatenate(([Ye.ravel()], [Xe.ravel()]))
             idx = np.ravel_multi_index(grid_elements_coordinates, (nY, nX))
             # if something goes wrong, check that the mesh is correctly positioned in the image
-            
+
         else:
 
             xn, yn, zn = coordinates_n.T
             xe, ye, ze = coordElem.T
-            
-            idx = np.where((xn >= np.min(xe)) & (xn <= np.max(xe)) &
-                            (yn >= np.min(ye)) & (yn <= np.max(ye)) & 
-                            (zn >= np.min(ze)) & (zn <= np.max(ze)))[0]
+
+            idx = np.where(
+                (xn >= np.min(xe))
+                & (xn <= np.max(xe))
+                & (yn >= np.min(ye))
+                & (yn <= np.max(ye))
+                & (zn >= np.min(ze))
+                & (zn <= np.max(ze))
+            )[0]
 
         return idx
+
 
 # --------------------------------------------------------------------------------------------
 # Factory
@@ -2040,30 +2188,31 @@ from .elems._tetra import TETRA4, TETRA10
 from .elems._hexa import HEXA8, HEXA20, HEXA27
 from .elems._prism import PRISM6, PRISM15, PRISM18
 
+
 class GroupElemFactory:
 
     DICT_GMSHID: dict[int, tuple[ElemType, int, int, int, int, int]] = {
-    #  key:            ElemType,   nPe, dim, order, nbFaces, nbCorners 
-        15:     (ElemType.POINT,     1,   0,     0,       0,         0),
-        1:      (ElemType.SEG2,      2,   1,     1,       0,         2),
-        8:      (ElemType.SEG3,      3,   1,     2,       0,         2),
-        26:     (ElemType.SEG4,      4,   1,     3,       0,         2),
-        27:     (ElemType.SEG5,      5,   1,     4,       0,         2),
-        2:      (ElemType.TRI3,      3,   2,     1,       1,         3),
-        9:      (ElemType.TRI6,      6,   2,     2,       1,         3),
-        21:     (ElemType.TRI10,    10,   2,     3,       1,         3),
-        23:     (ElemType.TRI15,    15,   2,     4,       1,         3),
-        3:      (ElemType.QUAD4,     4,   2,     1,       1,         4),
-        16:     (ElemType.QUAD8,     8,   2,     2,       1,         4),
-        10:     (ElemType.QUAD9,     9,   2,     2,       1,         4),
-        4:      (ElemType.TETRA4,    4,   3,     1,       4,         4),
-        11:     (ElemType.TETRA10,  10,   3,     2,       4,         4),
-        5:      (ElemType.HEXA8,     8,   3,     1,       6,         8),
-        17:     (ElemType.HEXA20,   20,   3,     2,       6,         8),
-        12:     (ElemType.HEXA27,   27,   3,     2,       6,         8),
-        6:      (ElemType.PRISM6,    6,   3,     1,       5,         6),
-        18:     (ElemType.PRISM15,  15,   3,     2,       5,         6),
-        13:     (ElemType.PRISM18,  18,   3,     2,       5,         6),
+        #  key:            ElemType,   nPe, dim, order, nbFaces, nbCorners
+        15: (ElemType.POINT, 1, 0, 0, 0, 0),
+        1: (ElemType.SEG2, 2, 1, 1, 0, 2),
+        8: (ElemType.SEG3, 3, 1, 2, 0, 2),
+        26: (ElemType.SEG4, 4, 1, 3, 0, 2),
+        27: (ElemType.SEG5, 5, 1, 4, 0, 2),
+        2: (ElemType.TRI3, 3, 2, 1, 1, 3),
+        9: (ElemType.TRI6, 6, 2, 2, 1, 3),
+        21: (ElemType.TRI10, 10, 2, 3, 1, 3),
+        23: (ElemType.TRI15, 15, 2, 4, 1, 3),
+        3: (ElemType.QUAD4, 4, 2, 1, 1, 4),
+        16: (ElemType.QUAD8, 8, 2, 2, 1, 4),
+        10: (ElemType.QUAD9, 9, 2, 2, 1, 4),
+        4: (ElemType.TETRA4, 4, 3, 1, 4, 4),
+        11: (ElemType.TETRA10, 10, 3, 2, 4, 4),
+        5: (ElemType.HEXA8, 8, 3, 1, 6, 8),
+        17: (ElemType.HEXA20, 20, 3, 2, 6, 8),
+        12: (ElemType.HEXA27, 27, 3, 2, 6, 8),
+        6: (ElemType.PRISM6, 6, 3, 1, 5, 6),
+        18: (ElemType.PRISM15, 15, 3, 2, 5, 6),
+        13: (ElemType.PRISM18, 18, 3, 2, 5, 6),
         # 7:      (ElemType.PYRA5,     5,   3,     1,       5,         5),
         # 19:     (ElemType.PYRA13,   13,   3,     2,       5,         5),
         # 14:     (ElemType.PYRA14,   14,   3,     2,       5,         5),
@@ -2079,16 +2228,18 @@ class GroupElemFactory:
         """return elemType, nPe, dim, order, nbFaces, nbCorners\n
         associated with the gmsh id.
         """
-        
+
         if gmshId not in GroupElemFactory.DICT_GMSHID.keys():
             raise KeyError("gmshId is unknown.")
-            
+
         return GroupElemFactory.DICT_GMSHID[gmshId]
-    
+
     @staticmethod
-    def Create(gmshId: int, connect: np.ndarray, coordGlob: np.ndarray, nodes: np.ndarray) -> _GroupElem:
+    def Create(
+        gmshId: int, connect: np.ndarray, coordGlob: np.ndarray, nodes: np.ndarray
+    ) -> _GroupElem:
         """Creates an element group
-        
+
         Parameters
         ----------
         gmshId : int
@@ -2099,7 +2250,7 @@ class GroupElemFactory:
             nodes coordinates
         nodes : np.ndarray
             nodes used by the element group
-        
+
         Returns
         -------
         GroupeElem
@@ -2152,11 +2303,13 @@ class GroupElemFactory:
             return PRISM18(*params)
         else:
             raise KeyError("Element type unknown.")
-        
+
     @staticmethod
-    def _Create(elemType: ElemType, connect: np.ndarray, coordGlob: np.ndarray) -> _GroupElem:
+    def _Create(
+        elemType: ElemType, connect: np.ndarray, coordGlob: np.ndarray
+    ) -> _GroupElem:
         """Creates an element group
-        
+
         Parameters
         ----------
         elemType : ElemType
@@ -2165,7 +2318,7 @@ class GroupElemFactory:
             connection matrix storing nodes for each element (Ne, nPe)
         coordGlob : np.ndarray
             nodes coordinates
-       
+
         Returns
         -------
         GroupeElem
@@ -2174,7 +2327,7 @@ class GroupElemFactory:
 
         if elemType not in GroupElemFactory.DICT_ELEMTYPE:
             raise KeyError("Element type unknown.")
-        
+
         gmshId = GroupElemFactory.DICT_ELEMTYPE[elemType][0]
 
         nodes = np.asarray(list(set(connect.ravel())), dtype=int)

@@ -7,11 +7,14 @@ from typing import Union
 
 # utilities
 import numpy as np
+
 # geom
 from ..Geoms import Line
 from ..geoms import AsCoords, Normalize
+
 # fem
 from ..fem import Mesh, _GroupElem, FeArray
+
 # materials
 from ._utils import _IModel, ModelType
 from ..utilities import _params
@@ -19,6 +22,7 @@ from ..utilities import _params
 # ----------------------------------------------
 # Beam
 # ----------------------------------------------
+
 
 class _Beam(_IModel):
     """Beam class model."""
@@ -29,48 +33,66 @@ class _Beam(_IModel):
     @property
     def modelType(self) -> ModelType:
         return ModelType.beam
-    
+
     @property
     def dim(self):
         return self.__dim
-    
+
     @property
     def thickness(self) -> float:
         return 1.0
-    
+
     @property
     def area(self) -> float:
         """cross-section area."""
         return self.__section.area
-    
+
     @property
-    def Iy(self) -> float:        
+    def Iy(self) -> float:
         """squared moment of the cross-section around y-axis.\n
         int_S z^2 dS"""
         # here z is the x axis of the section thats why we use x
-        func = lambda x,y,z: x**2
-        Iy: float = np.sum([grp.Integrate_e(func).sum()
-                            for grp in self.__section.Get_list_groupElem(2)])        
+        func = lambda x, y, z: x**2
+        Iy: float = np.sum(
+            [
+                grp.Integrate_e(func).sum()
+                for grp in self.__section.Get_list_groupElem(2)
+            ]
+        )
         return Iy
-    
+
     @property
-    def Iz(self) -> float:        
+    def Iz(self) -> float:
         """squared moment of the cross-section around z-axis.\n
         int_S y^2 dS"""
-        func = lambda x,y,z: y**2
-        Iz: float = np.sum([grp.Integrate_e(func).sum()
-                            for grp in self.__section.Get_list_groupElem(2)])        
+        func = lambda x, y, z: y**2
+        Iz: float = np.sum(
+            [
+                grp.Integrate_e(func).sum()
+                for grp in self.__section.Get_list_groupElem(2)
+            ]
+        )
         return Iz
-    
-    @property    
+
+    @property
     def J(self) -> float:
-        """polar area moment of inertia (Iy + Iz)."""        
-        func = lambda x,y,z: x**2+y**2
-        J: float = np.sum([grp.Integrate_e(func).sum()
-                            for grp in self.__section.Get_list_groupElem(2)])
+        """polar area moment of inertia (Iy + Iz)."""
+        func = lambda x, y, z: x**2 + y**2
+        J: float = np.sum(
+            [
+                grp.Integrate_e(func).sum()
+                for grp in self.__section.Get_list_groupElem(2)
+            ]
+        )
         return J
 
-    def __init__(self, dim: int, line: Line, section: Mesh, yAxis: Union[list,tuple,np.ndarray]=(0,1,0)):
+    def __init__(
+        self,
+        dim: int,
+        line: Line,
+        section: Mesh,
+        yAxis: Union[list, tuple, np.ndarray] = (0, 1, 0),
+    ):
         """Creates a beam.
 
         Parameters
@@ -89,7 +111,7 @@ class _Beam(_IModel):
 
         _Beam.__nBeam += 1
         self.__name = f"beam{_Beam.__nBeam}"
-        
+
         self.__dim: int = dim
         self.__line: Line = line
 
@@ -103,32 +125,34 @@ class _Beam(_IModel):
     def line(self) -> Line:
         """average fiber line of the beam."""
         return self.__line
-    
+
     @property
     def section(self) -> Mesh:
         """beam cross-section in (x,y) plane"""
         return self.__section
-    
+
     @section.setter
-    def section(self, section: Mesh) -> None:        
-        assert section.inDim == 2, 'The cross-beam section must be contained in the (x,y) plane.'
+    def section(self, section: Mesh) -> None:
+        assert (
+            section.inDim == 2
+        ), "The cross-beam section must be contained in the (x,y) plane."
         # make sure that the section is centered in (0,0)
         section.Translate(*-section.center)
-        Iyz = section.groupElem.Integrate_e(lambda x,y,z: x*y).sum()
-        assert np.abs(Iyz) <= 1e-9, 'The section must have at least 1 symetry axis.'
+        Iyz = section.groupElem.Integrate_e(lambda x, y, z: x * y).sum()
+        assert np.abs(Iyz) <= 1e-9, "The section must have at least 1 symetry axis."
         self.Need_Update()
         self.__section: Mesh = section
-    
+
     @property
     def xAxis(self) -> np.ndarray:
         """perpendicular cross-beam axis (fiber)"""
         return self.__line.unitVector
-    
+
     @property
     def yAxis(self) -> np.ndarray:
         """vertical cross-beam axis"""
         return self.__yAxis.copy()
-    
+
     @yAxis.setter
     def yAxis(self, value):
 
@@ -140,8 +164,10 @@ class _Beam(_IModel):
         crossProd = np.cross(xAxis, yAxis)
         if np.linalg.norm(crossProd) <= 1e-12:
             # create a new y-axis
-            yAxis = Normalize(np.cross([0,0,1], xAxis))
-            print(f"The beam's vertical axis has been selected incorrectly (collinear with the beam x-axis).\nAxis {np.array_str(yAxis, precision=3)} has been assigned for {self.name}.")
+            yAxis = Normalize(np.cross([0, 0, 1], xAxis))
+            print(
+                f"The beam's vertical axis has been selected incorrectly (collinear with the beam x-axis).\nAxis {np.array_str(yAxis, precision=3)} has been assigned for {self.name}."
+            )
         else:
             # get the horizontal direction of the beam
             zAxis = Normalize(np.cross(xAxis, yAxis))
@@ -151,7 +177,7 @@ class _Beam(_IModel):
         self.Need_Update()
 
         self.__yAxis: np.ndarray = yAxis
-    
+
     @property
     def name(self) -> str:
         """beam name/tag"""
@@ -164,25 +190,25 @@ class _Beam(_IModel):
         2D -> [u1, v1, rz1, . . ., un, vn, rzn]\n
         3D -> [u1, v1, w1, rx1, ry1, rz1, . . ., u2, v2, w2, rx2, ry2, rz2]"""
         if self.__dim == 1:
-            return 1 # u
+            return 1  # u
         elif self.__dim == 2:
-            return 3 # u v rz
+            return 3  # u v rz
         elif self.__dim == 3:
-            return 6 # u v w rx ry rz
+            return 6  # u v w rx ry rz
         return self.__dim
-    
+
     @abstractmethod
     def Get_D(self) -> np.ndarray:
         """Returns a matrix characterizing the beam's stiffness behavior."""
         return
-    
+
     def __str__(self) -> str:
         text = ""
-        text += f"\n{self.name}:"        
+        text += f"\n{self.name}:"
         text += f"\n  area = {self.__section.area:.2}, Iz = {self.__section.Iz:.2}, Iy = {self.__section.Iy:.2}, J = {self.__section.J:.2}"
 
         return text
-    
+
     def _Calc_P(self) -> np.ndarray:
         """P matrix use to transform beam coordinates to global coordinates.\n
         [ix, jx, kx\n
@@ -191,18 +217,27 @@ class _Beam(_IModel):
         coord(x,y,z) = P • coord(i,j,k)
         """
         line = self.line
-        
+
         i = line.unitVector
         j = self.yAxis
-        k = Normalize(np.cross(i,j))
+        k = Normalize(np.cross(i, j))
 
-        J = np.array([i,j,k]).T
+        J = np.array([i, j, k]).T
         return J
-    
+
+
 class Beam_Elas_Isot(_Beam):
     """Isotropic elastic beam."""
 
-    def __init__(self, dim: int, line: Line, section: Mesh, E: float, v:float, yAxis: Union[list,tuple,np.ndarray]=(0,1,0)):
+    def __init__(
+        self,
+        dim: int,
+        line: Line,
+        section: Mesh,
+        E: float,
+        v: float,
+        yAxis: Union[list, tuple, np.ndarray] = (0, 1, 0),
+    ):
         """Creates an isotropic elastic beam.
 
         Parameters
@@ -222,7 +257,7 @@ class Beam_Elas_Isot(_Beam):
         """
 
         _Beam.__init__(self, dim, line, section, yAxis)
-        
+
         self.E = E
         self.v = v
 
@@ -230,7 +265,7 @@ class Beam_Elas_Isot(_Beam):
     def E(self) -> float:
         """Young's modulus"""
         return self.__E
-    
+
     @E.setter
     def E(self, value: float) -> None:
         _params.CheckIsPositive(value)
@@ -241,18 +276,18 @@ class Beam_Elas_Isot(_Beam):
     def v(self) -> float:
         """Poisson's ratio"""
         return self.__v
-    
+
     @v.setter
     def v(self, value: float):
         _params.CheckIsInIntervalcc(value, -1, 0.5)
         self.Need_Update()
         self.__v = value
-    
+
     @property
     def mu(self) -> float:
         """shear modulus (G)"""
-        return self.E/(2*(1+self.v))
-    
+        return self.E / (2 * (1 + self.v))
+
     def Get_D(self) -> np.ndarray:
 
         dim = self.dim
@@ -261,22 +296,23 @@ class Beam_Elas_Isot(_Beam):
         Iy = self.Iy
         Iz = self.Iz
         J = self.J
-        
+
         E = self.__E
         v = self.__v
-        
+
         if dim == 1:
             # u = [u1, . . . , un]
-            D = np.diag([E*A])
+            D = np.diag([E * A])
         elif dim == 2:
             # u = [u1, v1, rz1, . . . , un, vn, rzn]
-            D = np.diag([E*A, E*Iz])
+            D = np.diag([E * A, E * Iz])
         elif dim == 3:
             # u = [u1, v1, w1, rx1, ry1 rz1, . . . , un, vn, wn, rxn, ryn rzn]
             mu = self.mu
-            D = np.diag([E*A, mu*J, E*Iy, E*Iz])
+            D = np.diag([E * A, mu * J, E * Iy, E * Iz])
 
         return D
+
 
 class BeamStructure(_IModel):
     """Beam structure class."""
@@ -284,7 +320,7 @@ class BeamStructure(_IModel):
     @property
     def modelType(self) -> ModelType:
         return ModelType.beam
-    
+
     @property
     def dim(self) -> int:
         """model dimensions  \n
@@ -293,13 +329,13 @@ class BeamStructure(_IModel):
         3D -> all
         """
         return self.__dim
-    
+
     @property
     def thickness(self) -> float:
         """The beam structure can have several beams and therefore different sections.\n
         You need to look at the section of the beam you are interested in."""
         return None
-    
+
     @property
     def areas(self) -> list[float]:
         """beams areas"""
@@ -313,7 +349,7 @@ class BeamStructure(_IModel):
         beams : list[_Beam_Model]
             Beam list
         """
-        
+
         dims = [beam.dim for beam in beams]
         assert len(set(dims)) == 1, "The structure must use identical beams dimensions."
 
@@ -326,12 +362,12 @@ class BeamStructure(_IModel):
     @property
     def beams(self) -> list[_Beam]:
         return self.__beams
-    
+
     @property
     def nBeam(self) -> int:
         """Number of beams in the structure"""
         return len(self.__beams)
-    
+
     @property
     def dof_n(self) -> int:
         """Degrees of freedom per node.\n
@@ -339,46 +375,48 @@ class BeamStructure(_IModel):
         2D -> [u1, v1, rz1, . . ., un, vn, rzn]\n
         3D -> [u1, v1, w1, rx1, ry1, rz1, . . ., u2, v2, w2, rx2, ry2, rz2]
         """
-        return self.__dof_n        
+        return self.__dof_n
 
     def Calc_D_e_pg(self, groupElem: _GroupElem) -> FeArray:
         """Returns a matrix characterizing the beams's stiffness behavior."""
 
-        if groupElem.dim != 1: return
+        if groupElem.dim != 1:
+            return
 
         listBeam = self.__beams
         list_D = [beam.Get_D() for beam in listBeam]
 
-        matrixType = 'beam'
+        matrixType = "beam"
 
         Ne = groupElem.Ne
         nPg = groupElem.Get_gauss(matrixType).nPg
         # Initialize D_e_pg :
         D_e_pg = FeArray.zeros(Ne, nPg, *list_D[0].shape)
-        
+
         # For each beam, we will construct the law of behavior on the associated nodes.
         for beam, D in zip(listBeam, list_D):
-            
+
             # recover elements
             elems = groupElem.Get_Elements_Tag(beam.name)
             D_e_pg[elems] = D
 
         return D_e_pg
-    
+
     def Get_axis_e(self, groupElem: _GroupElem) -> tuple[np.ndarray, np.ndarray]:
         """Returns the fiber and cross bar vertical axis on every elements.\n
         return xAxis_e, yAxis_e"""
 
-        if groupElem.dim != 1: return
+        if groupElem.dim != 1:
+            return
 
         beams = self.__beams
 
         Ne = groupElem.Ne
 
-        xAxis_e = np.zeros((Ne,3), dtype=float)
-        yAxis_e = np.zeros((Ne,3), dtype=float)
+        xAxis_e = np.zeros((Ne, 3), dtype=float)
+        yAxis_e = np.zeros((Ne, 3), dtype=float)
 
-        for beam in beams:            
+        for beam in beams:
             elems = groupElem.Get_Elements_Tag(beam.name)
             xAxis_e[elems] = beam.xAxis
             yAxis_e[elems] = beam.yAxis

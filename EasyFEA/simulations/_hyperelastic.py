@@ -10,18 +10,34 @@ import pandas as pd
 # utilities
 from ..utilities import Tic, Display
 from ..utilities._linalg import Det, Inv, Norm
+
 # fem
 from ..fem import Mesh, MatrixType, FeArray
+
 # materials
-from ..materials import ModelType, Project_vector_to_matrix, Result_in_Strain_or_Stress_field, Project_Kelvin
+from ..materials import (
+    ModelType,
+    Project_vector_to_matrix,
+    Result_in_Strain_or_Stress_field,
+    Project_Kelvin,
+)
 from ..materials._hyperelastic_laws import _HyperElas
 from ..materials._hyperelastic import HyperElastic
+
 # simu
 from ._simu import _Simu, AlgoType
 
+
 class HyperElasticSimu(_Simu):
 
-    def __init__(self, mesh: Mesh, model: _HyperElas, verbosity=False, useNumba=True, useIterativeSolvers=True):
+    def __init__(
+        self,
+        mesh: Mesh,
+        model: _HyperElas,
+        verbosity=False,
+        useNumba=True,
+        useIterativeSolvers=True,
+    ):
         """Creates a simulation.
 
         Parameters
@@ -51,33 +67,30 @@ class HyperElasticSimu(_Simu):
 
     def Get_problemTypes(self):
         return [ModelType.hyperelastic]
-    
+
     def Get_unknowns(self, problemType=None) -> list[str]:
-        dict_unknowns = {
-            2 : ["x", "y"],
-            3 : ["x", "y", "z"]
-        }
+        dict_unknowns = {2: ["x", "y"], 3: ["x", "y", "z"]}
         return dict_unknowns[self.dim]
-    
+
     def Get_dof_n(self, problemType=None) -> int:
         return self.dim
-    
+
     @property
     def material(self) -> _HyperElas:
         """hyperelastic material"""
         return self.model
-    
+
     @property
     def displacement(self) -> np.ndarray:
-        """Displacement vector field.\n    
+        """Displacement vector field.\n
         [uxi, uyi, uzi, ...]"""
         return self._Get_u_n(self.problemType)
-    
+
     def _Bc_Integration_scale(self, groupElem, elements, values_e_p, matrixType):
-        
+
         # TODO to validate
         # return values_e_p
-        
+
         values_e_p = FeArray.asfearray(values_e_p)
         u = self.displacement
 
@@ -88,7 +101,7 @@ class HyperElasticSimu(_Simu):
             # 1D or 2D elements
 
             # compute F and J
-            grad_e_pg = groupElem.Get_Gradient_e_pg(u, matrixType)[elements]            
+            grad_e_pg = groupElem.Get_Gradient_e_pg(u, matrixType)[elements]
             F_e_pg = np.eye(3) + grad_e_pg
             J_e_pg = Det(F_e_pg)
             coef_e_pg = J_e_pg
@@ -101,10 +114,10 @@ class HyperElasticSimu(_Simu):
         scaled_e_pg = coef_e_pg * values_e_p
 
         return np.asarray(scaled_e_pg)
-    
+
     # --------------------------------------------------------------------------
     # Solve
-    # -------------------------------------------------------------------------- 
+    # --------------------------------------------------------------------------
 
     def Get_K_C_M_F(self, problemType=None):
 
@@ -116,10 +129,10 @@ class HyperElasticSimu(_Simu):
         initcsr = sparse.csr_matrix((size, size))
 
         return self.__K.copy(), initcsr, initcsr, self.__F.copy()
-    
+
     def Get_x0(self, problemType=None):
         return super().Get_x0(problemType)
-    
+
     def __Solve_hyperelastic(self):
 
         # compute delta_u
@@ -129,8 +142,10 @@ class HyperElasticSimu(_Simu):
         self.Need_Update()
 
         return self._Get_u_n(self.problemType)
-    
-    def Solve(self, Apply_BC: Callable[[], None], tolConv=1.e-5, maxIter=20) -> np.ndarray:
+
+    def Solve(
+        self, Apply_BC: Callable[[], None], tolConv=1.0e-5, maxIter=20
+    ) -> np.ndarray:
         """Solves the hyperelastic problem using the newton raphson algorithm.
 
         Parameters
@@ -152,36 +167,40 @@ class HyperElasticSimu(_Simu):
         u, Niter, timeIter, list_res = self._Solver_Solve_NewtonRaphson(
             self.__Solve_hyperelastic, Apply_BC, tolConv, maxIter
         )
-        
+
         # save iter parameters
         self.__Niter = Niter
         self.__timeIter = timeIter
         self.__list_res = list_res
-            
+
         return u
-    
+
     def Assembly(self):
 
         # Data
-        mesh = self.mesh        
-        Ndof = mesh.Nn*self.dim
+        mesh = self.mesh
+        Ndof = mesh.Nn * self.dim
 
         # Additional dimension linked to the use of lagrange coefficients
         Ndof += self._Bc_Lagrange_dim(self.problemType)
-                        
+
         K_e, F_e = self.__Construct_Local_Matrix()
-        
+
         tic = Tic()
 
         linesVector_e = mesh.linesVector_e.ravel()
         columnsVector_e = mesh.columnsVector_e.ravel()
 
         # Assembly
-        self.__K = sparse.csr_matrix((K_e.ravel(), (linesVector_e, columnsVector_e)), shape=(Ndof, Ndof))
+        self.__K = sparse.csr_matrix(
+            (K_e.ravel(), (linesVector_e, columnsVector_e)), shape=(Ndof, Ndof)
+        )
         """Kglob matrix for the displacement problem (Ndof, Ndof)"""
-        
+
         rows = mesh.assembly_e.ravel()
-        self.__F = sparse.csr_matrix((F_e.ravel(), (rows, np.zeros_like(rows))), shape=(Ndof, 1))
+        self.__F = sparse.csr_matrix(
+            (F_e.ravel(), (rows, np.zeros_like(rows))), shape=(Ndof, 1)
+        )
         """Fglob vector for the displacement problem (Ndof, 1)"""
 
         # import matplotlib.pyplot as plt
@@ -189,10 +208,10 @@ class HyperElasticSimu(_Simu):
         # plt.spy(self.__K)
         # plt.show()
 
-        tic.Tac("Matrix","Assembly Ku and Fu", self._verbosity)
+        tic.Tac("Matrix", "Assembly Ku and Fu", self._verbosity)
 
         return self.__K, self.__F
-    
+
     def __Construct_Local_Matrix(self) -> tuple[FeArray, FeArray]:
 
         # data
@@ -211,16 +230,16 @@ class HyperElasticSimu(_Simu):
         # get hyperelastic data
         displacement = self.displacement
         De_e_pg = HyperElastic.Compute_De(mesh, displacement, matrixType)
-        dWde_e_pg = mat.Compute_dWde(mesh, displacement, matrixType) 
-        d2Wde_e_pg = mat.Compute_d2Wde(mesh, displacement, matrixType)        
+        dWde_e_pg = mat.Compute_dWde(mesh, displacement, matrixType)
+        d2Wde_e_pg = mat.Compute_d2Wde(mesh, displacement, matrixType)
 
         # init matrices
-        grad_e_pg = FeArray.zeros(Ne, nPg, 9, dim*nPe)
+        grad_e_pg = FeArray.zeros(Ne, nPg, 9, dim * nPe)
         Sig_e_pg = FeArray.zeros(Ne, nPg, 9, 9)
         sig_e_pg = Project_vector_to_matrix(dWde_e_pg)
-        
+
         rows = np.arange(9).reshape(3, -1)
-        cols = np.arange(dim*nPe).reshape(3, -1)
+        cols = np.arange(dim * nPe).reshape(3, -1)
         for i in range(dim):
             grad_e_pg._assemble(rows[i], cols[i], value=dN_e_pg)
             Sig_e_pg._assemble(rows[i], rows[i], value=sig_e_pg)
@@ -231,14 +250,14 @@ class HyperElasticSimu(_Simu):
         K1_e = (weightedJacobian_e_pg * B_e_pg.T @ d2Wde_e_pg @ B_e_pg).sum(1)
         K2_e = (weightedJacobian_e_pg * grad_e_pg.T @ Sig_e_pg @ grad_e_pg).sum(1)
         K_e = K1_e + K2_e
-        
+
         # source
-        F_e = - (weightedJacobian_e_pg * dWde_e_pg.T @ B_e_pg).sum(1)
+        F_e = -(weightedJacobian_e_pg * dWde_e_pg.T @ B_e_pg).sum(1)
 
         # reorder xi,...,xn,yi,...yn,zi,...,zn to xi,yi,zi,...,xn,yx,zn
-        reorder = np.arange(0, nPe*dim).reshape(-1, nPe).T.ravel()
-        F_e = F_e[:,reorder]
-        K_e = K_e[:,reorder][:,:,reorder]
+        reorder = np.arange(0, nPe * dim).reshape(-1, nPe).T.ravel()
+        F_e = F_e[:, reorder]
+        K_e = K_e[:, reorder][:, :, reorder]
 
         return K_e, F_e
 
@@ -261,18 +280,23 @@ class HyperElasticSimu(_Simu):
             iter["accel"] = self.accel
 
         self._results.append(iter)
-    
-    def Set_Iter(self, iter = -1, resetAll=False):
+
+    def Set_Iter(self, iter=-1, resetAll=False):
 
         results = super().Set_Iter(iter)
 
-        if results is None: return
+        if results is None:
+            return
 
         problemType = self.problemType
 
         self._Set_u_n(self.problemType, results["displacement"])
 
-        if self.algo in AlgoType.Get_Hyperbolic_Types() and "speed" in results and "accel" in results:
+        if (
+            self.algo in AlgoType.Get_Hyperbolic_Types()
+            and "speed" in results
+            and "accel" in results
+        ):
             self._Set_v_n(problemType, results["speed"])
             self._Set_a_n(problemType, results["accel"])
         else:
@@ -287,7 +311,7 @@ class HyperElasticSimu(_Simu):
     # --------------------------------------------------------------------------
 
     def __indexResult(self, result: str) -> int:
-        
+
         if len(result) <= 2:
             "Case were ui, vi or ai"
             if "x" in result:
@@ -305,7 +329,7 @@ class HyperElasticSimu(_Simu):
         results.extend(["displacement", "displacement_norm", "displacement_matrix"])
         # results.extend(["speed", "speed_norm"])
         # results.extend(["accel", "accel_norm"])
-        
+
         if dim == 2:
             results.extend(["ux", "uy"])
             # results.extend(["vx", "vy"])
@@ -321,17 +345,20 @@ class HyperElasticSimu(_Simu):
             results.extend(["Exx", "Eyy", "Ezz", "Eyz", "Exz", "Exy"])
 
         results.extend(["Svm", "Piola-Kirchhoff", "Evm", "Green-Lagrange"])
-        
-        results.extend(["W","W_e"])
+
+        results.extend(["W", "W_e"])
 
         return results
-    
-    def Result(self, result: str, nodeValues=True, iter=None) -> Union[np.ndarray, float, None]:
+
+    def Result(
+        self, result: str, nodeValues=True, iter=None
+    ) -> Union[np.ndarray, float, None]:
 
         if iter != None:
             self.Set_Iter(iter)
-        
-        if not self._Results_Check_Available(result): return None
+
+        if not self._Results_Check_Available(result):
+            return None
 
         # begin cases ----------------------------------------------------
 
@@ -341,11 +368,11 @@ class HyperElasticSimu(_Simu):
 
         if result in ["ux", "uy", "uz"]:
             values_n = self.displacement.reshape(Nn, -1)
-            values = values_n[:,self.__indexResult(result)]
+            values = values_n[:, self.__indexResult(result)]
 
         elif result == "displacement":
             values = self.displacement
-        
+
         elif result == "displacement_norm":
             val_n = self.displacement.reshape(Nn, -1)
             values = np.linalg.norm(val_n, axis=1)
@@ -359,7 +386,7 @@ class HyperElasticSimu(_Simu):
 
         # elif result == "speed":
         #     values = self.speed
-        
+
         # elif result == "speed_norm":
         #     val_n = self.speed.reshape(Nn, -1)
         #     values = np.linalg.norm(val_n, axis=1)
@@ -367,10 +394,10 @@ class HyperElasticSimu(_Simu):
         # elif result in ["ax", "ay", "az"]:
         #     values_n = self.accel.reshape(Nn, -1)
         #     values = values_n[:,self.__indexResult(result)]
-        
+
         # elif result == "accel":
         #     values = self.accel
-        
+
         # elif result == "accel_norm":
         #     val_n = self.accel.reshape(Nn, -1)
         #     values = np.linalg.norm(val_n, axis=1)
@@ -380,7 +407,7 @@ class HyperElasticSimu(_Simu):
 
         elif result == "W_e":
             values = self._Calc_W(False)
-        
+
         elif ("S" in result or "E" in result) and (not "_norm" in result):
             # Green-Lagrange and second Piola-Kirchhoff for each element and gauss point
 
@@ -393,9 +420,13 @@ class HyperElasticSimu(_Simu):
                 val_e = E_e_pg.mean(1)
             else:
                 raise Exception("Wrong option")
-            
-            res = result if result in ["Green-Lagrange", "Piola-Kirchhoff"] else result[-2:]
-            
+
+            res = (
+                result
+                if result in ["Green-Lagrange", "Piola-Kirchhoff"]
+                else result[-2:]
+            )
+
             values = Result_in_Strain_or_Stress_field(val_e, res, self.material.coef)
 
         if not isinstance(values, np.ndarray):
@@ -403,9 +434,9 @@ class HyperElasticSimu(_Simu):
             return
 
         # end cases ----------------------------------------------------
-        
+
         return self.Results_Reshape_values(values, nodeValues)
-    
+
     def _Calc_W(self, returnScalar=True, matrixType=MatrixType.rigi):
 
         weightedJacobian_e_pg = self.mesh.Get_weightedJacobian_e_pg(matrixType)
@@ -417,23 +448,25 @@ class HyperElasticSimu(_Simu):
             return (weightedJacobian_e_pg * W_e_pg).sum()
         else:
             return (weightedJacobian_e_pg * W_e_pg).sum(1)
-    
+
     def _Calc_GreenLagrange(self, matrixType=MatrixType.rigi):
 
-        return Project_Kelvin(HyperElastic.Compute_GreenLagrange(self.mesh, self.displacement), 2)
+        return Project_Kelvin(
+            HyperElastic.Compute_GreenLagrange(self.mesh, self.displacement), 2
+        )
 
     def _Calc_SecondPiolaKirchhoff(self, matrixType=MatrixType.rigi):
 
         return self.material.Compute_dWde(self.mesh, self.displacement, matrixType)
-    
+
     def Results_Iter_Summary(self) -> list[tuple[str, np.ndarray]]:
-        
+
         list_label_values = []
-        
+
         resultats = self.results
         df = pd.DataFrame(resultats)
         iterations = np.arange(df.shape[0])
-        
+
         damageMaxIter = np.array([np.max(damage) for damage in df["damage"].values])
         list_label_values.append((r"$\phi$", damageMaxIter))
 
@@ -445,28 +478,28 @@ class HyperElasticSimu(_Simu):
 
         tempsIter = df["timeIter"].values
         list_label_values.append(("time", tempsIter))
-        
+
         return iterations, list_label_values
-    
+
     def Results_dict_Energy(self):
         return super().Results_dict_Energy()
-    
+
     def Results_displacement_matrix(self) -> np.ndarray:
 
         Nn = self.mesh.Nn
-        coord = self.displacement.reshape((Nn,-1))
+        coord = self.displacement.reshape((Nn, -1))
         dim = coord.shape[1]
 
         displacement_matrix = np.zeros((Nn, 3))
-        displacement_matrix[:,:dim] = coord
-        
+        displacement_matrix[:, :dim] = coord
+
         return displacement_matrix
-    
+
     def Results_nodesField_elementsField(self, details=False):
         nodesField = ["displacement_matrix"]
-        if details:            
+        if details:
             elementsField = ["Green-Lagrange", "Piola-Kirchhoff"]
-        else:            
+        else:
             elementsField = ["Piola-Kirchhoff"]
         if self.algo in AlgoType.Get_Hyperbolic_Types():
             nodesField.extend(["speed", "accel"])

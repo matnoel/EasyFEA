@@ -10,17 +10,33 @@ import pandas as pd
 # utilities
 from ..utilities import Display, Tic
 from ..utilities._observers import Observable
+
 # fem
 from ..fem import Mesh, MatrixType, FeArray
+
 # materials
 from .. import Materials
-from ..materials import ModelType, _IModel, Reshape_variable, Result_in_Strain_or_Stress_field
+from ..materials import (
+    ModelType,
+    _IModel,
+    Reshape_variable,
+    Result_in_Strain_or_Stress_field,
+)
+
 # simu
 from ._simu import _Simu
 
+
 class PhaseFieldSimu(_Simu):
 
-    def __init__(self, mesh: Mesh, model: Materials.PhaseField, verbosity=False, useNumba=True, useIterativeSolvers=True):
+    def __init__(
+        self,
+        mesh: Mesh,
+        model: Materials.PhaseField,
+        verbosity=False,
+        useNumba=True,
+        useIterativeSolvers=True,
+    ):
         """Creates a damage simulation.
 
         Parameters
@@ -37,12 +53,16 @@ class PhaseFieldSimu(_Simu):
             If True, iterative solvers can be used. Defaults to True.
         """
 
-        assert isinstance(model, Materials.PhaseField), "model must be a phase field model"
+        assert isinstance(
+            model, Materials.PhaseField
+        ), "model must be a phase field model"
         super().__init__(mesh, model, verbosity, useNumba, useIterativeSolvers)
-        
+
         # Init internal variable
         self.__psiP_e_pg = []
-        self.__old_psiP_e_pg = [] # old positive elastic energy density psiPlus(e, pg, 1) to use the miehe history field
+        self.__old_psiP_e_pg = (
+            []
+        )  # old positive elastic energy density psiPlus(e, pg, 1) to use the miehe history field
         self.Solver_Set_Elliptic_Algorithm()
 
         self.Need_Update()
@@ -51,7 +71,9 @@ class PhaseFieldSimu(_Simu):
 
         self.__resumeLoading = ""
 
-    def Results_nodesField_elementsField(self, details=False) -> tuple[list[str], list[str]]:
+    def Results_nodesField_elementsField(
+        self, details=False
+    ) -> tuple[list[str], list[str]]:
         if details:
             nodesField = ["displacement_matrix", "damage"]
             elementsField = ["Stress", "Strain", "psiP"]
@@ -60,35 +82,32 @@ class PhaseFieldSimu(_Simu):
             elementsField = ["Stress"]
         return nodesField, elementsField
 
-    def Get_unknowns(self, problemType=None) -> list[str]:        
+    def Get_unknowns(self, problemType=None) -> list[str]:
         if problemType == ModelType.damage:
             return ["d"]
         elif problemType in [ModelType.elastic, None]:
-            _dict_unknowns = {
-                2 : ["x", "y"],
-                3 : ["x", "y", "z"]
-            }
+            _dict_unknowns = {2: ["x", "y"], 3: ["x", "y", "z"]}
             return _dict_unknowns[self.dim]
-    
+
     def Get_problemTypes(self) -> list[ModelType]:
         return [ModelType.damage, ModelType.elastic]
 
     def Get_lb_ub(self, problemType: ModelType) -> tuple[np.ndarray, np.ndarray]:
-        
+
         if problemType == ModelType.damage:
             solveur = self.phaseFieldModel.solver
             if solveur == "BoundConstrain":
                 lb = self.damage
-                lb[np.where(lb>=1)] = 1-np.finfo(float).eps
+                lb[np.where(lb >= 1)] = 1 - np.finfo(float).eps
                 ub = np.ones(lb.shape)
             else:
                 lb, ub = np.array([]), np.array([])
         else:
             lb, ub = np.array([]), np.array([])
-            
+
         return lb, ub
 
-    def Get_dof_n(self, problemType=None) -> int:        
+    def Get_dof_n(self, problemType=None) -> int:
         if problemType == ModelType.damage:
             return 1
         elif problemType in [ModelType.elastic, None]:
@@ -111,28 +130,68 @@ class PhaseFieldSimu(_Simu):
         """Damage scalar field.\n
         [di, ...]"""
         return self._Get_u_n(ModelType.damage)
-    
-    def Bc_dofs_nodes(self, nodes: np.ndarray, unknowns: list[str], problemType=ModelType.elastic) -> np.ndarray:
+
+    def Bc_dofs_nodes(
+        self, nodes: np.ndarray, unknowns: list[str], problemType=ModelType.elastic
+    ) -> np.ndarray:
         return super().Bc_dofs_nodes(nodes, unknowns, problemType)
 
-    def add_dirichlet(self, nodes: np.ndarray, values: np.ndarray, unknowns: list[str], problemType=ModelType.elastic, description=""):        
+    def add_dirichlet(
+        self,
+        nodes: np.ndarray,
+        values: np.ndarray,
+        unknowns: list[str],
+        problemType=ModelType.elastic,
+        description="",
+    ):
         return super().add_dirichlet(nodes, values, unknowns, problemType, description)
-    
-    def add_lineLoad(self, nodes: np.ndarray, values: list, unknowns: list[str], problemType=ModelType.elastic, description=""):
+
+    def add_lineLoad(
+        self,
+        nodes: np.ndarray,
+        values: list,
+        unknowns: list[str],
+        problemType=ModelType.elastic,
+        description="",
+    ):
         return super().add_lineLoad(nodes, values, unknowns, problemType, description)
 
-    def add_surfLoad(self, nodes: np.ndarray, values: list, unknowns: list[str], problemType=ModelType.elastic, description=""):
+    def add_surfLoad(
+        self,
+        nodes: np.ndarray,
+        values: list,
+        unknowns: list[str],
+        problemType=ModelType.elastic,
+        description="",
+    ):
         return super().add_surfLoad(nodes, values, unknowns, problemType, description)
-    
-    def add_pressureLoad(self, nodes: np.ndarray, magnitude: float, problemType=ModelType.elastic, description="") -> None:
+
+    def add_pressureLoad(
+        self,
+        nodes: np.ndarray,
+        magnitude: float,
+        problemType=ModelType.elastic,
+        description="",
+    ) -> None:
         return super().add_pressureLoad(nodes, magnitude, problemType, description)
-        
-    def add_neumann(self, nodes: np.ndarray, values: list, unknowns: list[str], problemType=ModelType.elastic, description=""):
+
+    def add_neumann(
+        self,
+        nodes: np.ndarray,
+        values: list,
+        unknowns: list[str],
+        problemType=ModelType.elastic,
+        description="",
+    ):
         return super().add_neumann(nodes, values, unknowns, problemType, description)
 
-    def Get_K_C_M_F(self, problemType=None) -> tuple[sparse.csr_matrix, sparse.csr_matrix, sparse.csr_matrix, sparse.csr_matrix]:
-        
-        if problemType==None:
+    def Get_K_C_M_F(
+        self, problemType=None
+    ) -> tuple[
+        sparse.csr_matrix, sparse.csr_matrix, sparse.csr_matrix, sparse.csr_matrix
+    ]:
+
+        if problemType == None:
             problemType = ModelType.elastic
 
         # here always update to the last state
@@ -153,10 +212,10 @@ class PhaseFieldSimu(_Simu):
 
     def _Update(self, observable: Observable, event: str) -> None:
         if isinstance(observable, _IModel):
-            if event == 'The model has been modified' and not self.needUpdate:
+            if event == "The model has been modified" and not self.needUpdate:
                 self.Need_Update()
         elif isinstance(observable, Mesh):
-            if event == 'The mesh has been modified':
+            if event == "The mesh has been modified":
                 self._Check_dim_mesh_material()
                 self.Need_Update()
         else:
@@ -166,7 +225,7 @@ class PhaseFieldSimu(_Simu):
     def needUpdate(self) -> bool:
         return not self.__updatedDamage or not self.__updatedDisplacement
 
-    def Need_Update(self, value=True) -> None:        
+    def Need_Update(self, value=True) -> None:
         # the following functions help you avoid having to assemble matrices too often
         self.__updatedDamage = not value
         """The matrix system associated with the damage problem is updated."""
@@ -174,23 +233,25 @@ class PhaseFieldSimu(_Simu):
         """The matrix system associated with the displacement problem is updated."""
 
     def Get_x0(self, problemType=None):
-        
+
         if problemType == ModelType.damage:
             if self.damage.size != self.mesh.Nn:
                 return np.zeros(self.mesh.Nn)
             else:
                 return self.damage
         elif problemType in [ModelType.elastic, None]:
-            if self.displacement.size != self.mesh.Nn*self.dim:
-                return np.zeros(self.mesh.Nn*self.dim)
+            if self.displacement.size != self.mesh.Nn * self.dim:
+                return np.zeros(self.mesh.Nn * self.dim)
             else:
                 return self.displacement
 
     def Assembly(self) -> None:
         self.__Assembly_damage()
         self.__Assembly_elastic()
-    
-    def Solve(self, tolConv=1.0, maxIter=500, convOption=2) -> tuple[np.ndarray, np.ndarray, sparse.csr_matrix, bool]:
+
+    def Solve(
+        self, tolConv=1.0, maxIter=500, convOption=2
+    ) -> tuple[np.ndarray, np.ndarray, sparse.csr_matrix, bool]:
         """Solves the iterative damage problem using the staggered scheme.
 
         Parameters
@@ -219,8 +280,8 @@ class PhaseFieldSimu(_Simu):
             - converged: the solution has converged\n
         """
 
-        assert tolConv > 0 and tolConv <= 1 , "tolConv must be between 0 and 1."
-        assert maxIter > 1 , "Must be > 1."
+        assert tolConv > 0 and tolConv <= 1, "tolConv must be between 0 and 1."
+        assert maxIter > 1, "Must be > 1."
 
         Niter = 0
         converged = False
@@ -235,7 +296,7 @@ class PhaseFieldSimu(_Simu):
         tic = Tic()
 
         while not converged and Niter < maxIter:
-                    
+
             Niter += 1
 
             d_n = self.damage
@@ -247,7 +308,11 @@ class PhaseFieldSimu(_Simu):
             elif convOption == 2:
                 # eq (39) Ambati 2015 10.1007/s00466-014-1109-y
                 # The work of external body and surface forces are added to remain as general as possible.
-                E_n = self._Calc_Psi_Crack() + self._Calc_Psi_Elas() - self._Calc_Psi_Ext(fu)
+                E_n = (
+                    self._Calc_Psi_Crack()
+                    + self._Calc_Psi_Elas()
+                    - self._Calc_Psi_Ext(fu)
+                )
 
             # Compute damage field
             d_np1 = self.__Solve_damage()
@@ -262,20 +327,22 @@ class PhaseFieldSimu(_Simu):
             if convOption == 0:
                 convIter = np.max(np.abs(d_np1 - d_n))
 
-            elif convOption in [1,2]:
+            elif convOption in [1, 2]:
                 E_np1 = self._Calc_Psi_Crack()
                 if convOption == 2:
-                   E_np1 += self._Calc_Psi_Elas() - self._Calc_Psi_Ext(fu)
+                    E_np1 += self._Calc_Psi_Elas() - self._Calc_Psi_Ext(fu)
 
                 if E_np1 == 0:
                     convIter = np.abs(E_n - E_np1)
                 else:
-                    convIter = np.abs((E_n - E_np1)/E_np1)
+                    convIter = np.abs((E_n - E_np1) / E_np1)
 
             elif convOption == 3:
                 # eq (25) Pech 2022 10.1016/j.engfracmech.2022.108591
-                diffU = np.abs(u_np1 - u_n); diffU[u_np1 != 0] *= 1/np.abs(u_np1[u_np1 != 0])
-                diffD = np.abs(d_np1 - d_n); diffD[d_np1 != 0] *= 1/np.abs(d_np1[d_np1 != 0])
+                diffU = np.abs(u_np1 - u_n)
+                diffU[u_np1 != 0] *= 1 / np.abs(u_np1[u_np1 != 0])
+                diffD = np.abs(d_np1 - d_n)
+                diffD[d_np1 != 0] *= 1 / np.abs(d_np1[d_np1 != 0])
                 convU = np.sum(diffU)
                 convD = np.sum(diffD)
                 convIter = np.max([convD, convU])
@@ -284,15 +351,15 @@ class PhaseFieldSimu(_Simu):
             if tolConv == 1 or d_np1.max() == 0:
                 converged = True
             elif convOption == 3:
-                converged = (convD <= tolConv) and (convU <= tolConv*0.999)
+                converged = (convD <= tolConv) and (convU <= tolConv * 0.999)
             else:
                 converged = convIter <= tolConv
-                
+
         solverTypes = Materials.PhaseField.SolverType
 
         if solver in [solverTypes.History, solverTypes.BoundConstrain]:
             d_np1 = d_np1
-            
+
         elif solver == solverTypes.HistoryDamage:
             oldAndNewDamage = np.zeros((d_np1.shape[0], 2))
             oldAndNewDamage[:, 0] = old_damage
@@ -314,7 +381,7 @@ class PhaseFieldSimu(_Simu):
         self.__timeIter = timeIter
 
         Ku = self.__Ku.copy()
-            
+
         return u_np1, d_np1, Ku, converged
 
     # ------------------------------------------- Elastic problem -------------------------------------------
@@ -322,19 +389,21 @@ class PhaseFieldSimu(_Simu):
     def __Construct_Elastic_Matrix(self) -> np.ndarray:
         """Computes the elementary stiffness matrices for the elastic problem."""
 
-        matrixType=MatrixType.rigi
+        matrixType = MatrixType.rigi
 
         # Data
         mesh = self.mesh
-        
+
         B_dep_e_pg = mesh.Get_B_e_pg(matrixType)
-        leftDepPart = mesh.Get_leftDispPart(matrixType) # -> jacobian_e_pg * weight_pg * B_dep_e_pg'
+        leftDepPart = mesh.Get_leftDispPart(
+            matrixType
+        )  # -> jacobian_e_pg * weight_pg * B_dep_e_pg'
 
         d = self.damage
         u = self.displacement
 
         phaseFieldModel = self.phaseFieldModel
-        
+
         # compute strain field
         Epsilon_e_pg = self._Calc_Epsilon_e_pg(u, matrixType)
 
@@ -342,31 +411,31 @@ class PhaseFieldSimu(_Simu):
         cP_e_pg, cM_e_pg = phaseFieldModel.Calc_C(Epsilon_e_pg)
 
         tic = Tic()
-        
+
         # compute c such that: c = g(d) * cP + cM
         g_e_pg = phaseFieldModel.Get_g_e_pg(d, mesh, matrixType)
         cP_e_pg = g_e_pg * cP_e_pg
-        
+
         c_e_pg = cP_e_pg + cM_e_pg
-        
+
         # stiffness matrix for each element
         Ku_e = np.sum(leftDepPart @ c_e_pg @ B_dep_e_pg, axis=1)
 
         if self.dim == 2:
             thickness = self.phaseFieldModel.thickness
             Ku_e *= thickness
-        
-        tic.Tac("Matrix","Construction Ku_e", self._verbosity)
+
+        tic.Tac("Matrix", "Construction Ku_e", self._verbosity)
 
         return Ku_e
- 
+
     def __Assembly_elastic(self) -> sparse.csr_matrix:
         """Assemble the elastic problem."""
 
         # Data
-        mesh = self.mesh        
+        mesh = self.mesh
         Ndof = mesh.Nn * self.dim
-        
+
         Ndof += self._Bc_Lagrange_dim(ModelType.elastic)
 
         Ku_e = self.__Construct_Elastic_Matrix()
@@ -377,27 +446,29 @@ class PhaseFieldSimu(_Simu):
         columnsVector_e = mesh.columnsVector_e.ravel()
 
         # Assembly
-        self.__Ku = sparse.csr_matrix((Ku_e.ravel(), (linesVector_e, columnsVector_e)), shape=(Ndof, Ndof))
+        self.__Ku = sparse.csr_matrix(
+            (Ku_e.ravel(), (linesVector_e, columnsVector_e)), shape=(Ndof, Ndof)
+        )
         """Kglob matrix for the displacement problem (Ndof, Ndof)"""
-        
+
         self.__Fu = sparse.csr_matrix((Ndof, 1))
         """Fglob vector for the displacement problem (Ndof, 1)"""
 
         # import matplotlib.pyplot as plt
         # plt.figure()
         # plt.spy(self.__Ku)
-        # plt.show()        
+        # plt.show()
 
-        tic.Tac("Matrix","Assembly Ku and Fu", self._verbosity)
+        tic.Tac("Matrix", "Assembly Ku and Fu", self._verbosity)
         # We ensure the matrices are always updated with the latest damage or displacement results.
         # Therefore, we don't specify that the matrices have been updated.
         return self.__Ku
 
     def __Solve_elastic(self) -> np.ndarray:
         """Computes the displacement field."""
-            
+
         self._Solver_Solve(ModelType.elastic)
-       
+
         return self.displacement
 
     # ------------------------------------------- Damage problem -------------------------------------------
@@ -406,12 +477,12 @@ class PhaseFieldSimu(_Simu):
         """Computes the positive energy density psi^+ (e, p)."""
 
         phaseFieldModel = self.phaseFieldModel
-        
+
         u = self.displacement
         d = self.damage
 
-        testu = isinstance(u, np.ndarray) and (u.shape[0] == self.mesh.Nn*self.dim )
-        testd = isinstance(d, np.ndarray) and (d.shape[0] == self.mesh.Nn )
+        testu = isinstance(u, np.ndarray) and (u.shape[0] == self.mesh.Nn * self.dim)
+        testd = isinstance(d, np.ndarray) and (d.shape[0] == self.mesh.Nn)
 
         assert testu or testd, "Dimension problem."
 
@@ -424,11 +495,11 @@ class PhaseFieldSimu(_Simu):
         if phaseFieldModel.solver == "History":
             # Get the old history field
             old_psiPlus_e_pg = self.__old_psiP_e_pg.copy()
-            
+
             if isinstance(old_psiPlus_e_pg, list) and len(old_psiPlus_e_pg) == 0:
                 # No damage available yet
                 old_psiPlus_e_pg = np.zeros_like(psiP_e_pg)
-            
+
             if old_psiPlus_e_pg.shape != psiP_e_pg.shape:
                 # the mesh has been changed, the value must be recalculated
                 # here do nothing
@@ -443,11 +514,11 @@ class PhaseFieldSimu(_Simu):
             # new = np.linalg.norm(psiP_e_pg)
             # old = np.linalg.norm(self.__old_psiP_e_pg)
             # assert new >= old, "Error"
-            
+
         self.__psiP_e_pg = FeArray.asfearray(psiP_e_pg)
 
         return self.__psiP_e_pg
-    
+
     def __Construct_Damage_Matrix(self) -> tuple[np.ndarray, np.ndarray]:
         """Computes the elementary matrices for the damage problem."""
 
@@ -460,7 +531,7 @@ class PhaseFieldSimu(_Simu):
 
         mesh = self.mesh
         dN_e_pg = mesh.Get_dN_e_pg(matrixType)
-        
+
         # K * Laplacien(d) + r * d = F
 
         tic = Tic()
@@ -478,56 +549,60 @@ class PhaseFieldSimu(_Simu):
             k = Reshape_variable(k, *PsiP_e_pg.shape[:2])
             A = Reshape_variable(A, *PsiP_e_pg.shape[:2])
         Kk_e = (k * DiffusePart_e_pg @ A @ dN_e_pg).sum(axis=1)
-        
+
         # Source part Fd_e = f_e_pg * jacobian_e_pg * weight_pg * N_pg' @ N_pg
         SourcePart_e_pg = mesh.Get_SourcePart_e_pg(matrixType)
         f_e_pg = pfm.Get_f_e_pg(PsiP_e_pg)
         Fd_e = (f_e_pg * SourcePart_e_pg).sum(axis=1)
-    
+
         Kd_e = Kr_e + Kk_e
 
         if self.dim == 2:
             thickness = pfm.thickness
             Kd_e *= thickness
             Fd_e *= thickness
-        
-        tic.Tac("Matrix","Construct Kd_e and Fd_e", self._verbosity)        
+
+        tic.Tac("Matrix", "Construct Kd_e and Fd_e", self._verbosity)
 
         return Kd_e, Fd_e
 
     def __Assembly_damage(self) -> tuple[sparse.csr_matrix, sparse.csr_matrix]:
         """Assemble the elastic problem."""
-       
+
         # Data
         mesh = self.mesh
         Ndof = mesh.Nn
         linesScalar_e = mesh.linesScalar_e.ravel()
         columnsScalar_e = mesh.columnsScalar_e.ravel()
 
-        # Additional dimension linked to the use of lagrange coefficients        
+        # Additional dimension linked to the use of lagrange coefficients
         Ndof += self._Bc_Lagrange_dim(ModelType.damage)
-        
+
         # Calculate elementary matrix
         Kd_e, Fd_e = self.__Construct_Damage_Matrix()
 
         # Assembly
-        tic = Tic()        
+        tic = Tic()
 
-        self.__Kd = sparse.csr_matrix((Kd_e.ravel(), (linesScalar_e, columnsScalar_e)), shape = (Ndof, Ndof))
+        self.__Kd = sparse.csr_matrix(
+            (Kd_e.ravel(), (linesScalar_e, columnsScalar_e)), shape=(Ndof, Ndof)
+        )
         """Kglob for damage problem (Ndof, Ndof)"""
-        
-        rows = mesh.connect.ravel()
-        self.__Fd = sparse.csr_matrix((Fd_e.ravel(), (rows, np.zeros_like(rows))), shape = (Ndof, 1))
-        """Fglob for damage problem (Ndof, 1)"""        
 
-        tic.Tac("Matrix","Assembly Kd and Fd", self._verbosity)
+        rows = mesh.connect.ravel()
+        self.__Fd = sparse.csr_matrix(
+            (Fd_e.ravel(), (rows, np.zeros_like(rows))), shape=(Ndof, 1)
+        )
+        """Fglob for damage problem (Ndof, 1)"""
+
+        tic.Tac("Matrix", "Assembly Kd and Fd", self._verbosity)
         # We ensure the matrices are always updated with the latest damage or displacement results.
         # Therefore, we don't specify that the matrices have been updated.
         return self.__Kd, self.__Fd
-    
+
     def __Solve_damage(self) -> np.ndarray:
         """Computes the damage field."""
-        
+
         self._Solver_Solve(ModelType.damage)
 
         return self.damage
@@ -540,21 +615,22 @@ class PhaseFieldSimu(_Simu):
         iter["Niter"] = self.__Niter
         iter["timeIter"] = self.__timeIter
         iter["convIter"] = self.__convIter
-        
+
         if self.phaseFieldModel.solver == self.phaseFieldModel.SolverType.History:
             # update old history field for next resolution
             self.__old_psiP_e_pg = self.__psiP_e_pg
-            
+
         iter["displacement"] = self.displacement
         iter["damage"] = self.damage
 
         self._results.append(iter)
 
-    def Set_Iter(self, iter: int=-1, resetAll=False) -> dict:
+    def Set_Iter(self, iter: int = -1, resetAll=False) -> dict:
 
         results = super().Set_Iter(iter)
 
-        if results is None: return
+        if results is None:
+            return
 
         damageType = ModelType.damage
         self._Set_u_n(damageType, results[damageType])
@@ -566,10 +642,15 @@ class PhaseFieldSimu(_Simu):
         self.__updatedDamage = False
         self.__updatedDisplacement = False
 
-        if resetAll and self.phaseFieldModel.solver == self.phaseFieldModel.SolverType.History:
+        if (
+            resetAll
+            and self.phaseFieldModel.solver == self.phaseFieldModel.SolverType.History
+        ):
             # It's really useful to do this otherwise when we calculate psiP there will be a problem
             self.__old_psiP_e_pg = []
-            self.__old_psiP_e_pg = self.__Calc_psiPlus_e_pg() # update psi+ with the current state
+            self.__old_psiP_e_pg = (
+                self.__Calc_psiPlus_e_pg()
+            )  # update psi+ with the current state
 
         return results
 
@@ -579,7 +660,7 @@ class PhaseFieldSimu(_Simu):
         dim = self.dim
 
         results.extend(["displacement", "displacement_norm", "displacement_matrix"])
-        
+
         if dim == 2:
             results.extend(["ux", "uy"])
             results.extend(["Sxx", "Syy", "Sxy"])
@@ -589,20 +670,23 @@ class PhaseFieldSimu(_Simu):
             results.extend(["ux", "uy", "uz"])
             results.extend(["Sxx", "Syy", "Szz", "Syz", "Sxz", "Sxy"])
             results.extend(["Exx", "Eyy", "Ezz", "Eyz", "Exz", "Exy"])
-        
-        results.extend(["Svm","Stress","Evm","Strain"])
 
-        results.extend(["damage","psiP","Psi_Crack"])
+        results.extend(["Svm", "Stress", "Evm", "Strain"])
+
+        results.extend(["damage", "psiP", "Psi_Crack"])
         results.extend(["Wdef"])
 
         return results
-    
-    def Result(self, result: str, nodeValues=True, iter=None) -> Union[np.ndarray, float, None]:
-        
+
+    def Result(
+        self, result: str, nodeValues=True, iter=None
+    ) -> Union[np.ndarray, float, None]:
+
         if iter != None:
             self.Set_Iter(iter)
-        
-        if not self._Results_Check_Available(result): return None
+
+        if not self._Results_Check_Available(result):
+            return None
 
         # begin cases ----------------------------------------------------
 
@@ -628,18 +712,18 @@ class PhaseFieldSimu(_Simu):
 
         elif result in ["ux", "uy", "uz"]:
             values_n = self.displacement.reshape(Nn, -1)
-            values = values_n[:,self.__indexResult(result)]
+            values = values_n[:, self.__indexResult(result)]
 
         elif result == "displacement":
             values = self.displacement
-        
+
         elif result == "displacement_norm":
             val_n = self.displacement.reshape(Nn, -1)
             values = np.linalg.norm(val_n, axis=1)
 
         elif result == "displacement_matrix":
             values = self.Results_displacement_matrix()
-        
+
         elif ("S" in result or "E" in result) and (not "_norm" in result):
             # Strain and Stress calculation part
 
@@ -657,9 +741,9 @@ class PhaseFieldSimu(_Simu):
                 val_e = Epsilon_e_pg.mean(1)
             else:
                 raise Exception("Wrong option")
-            
+
             res = result if result in ["Strain", "Stress"] else result[-2:]
-            
+
             values = Result_in_Strain_or_Stress_field(val_e, res, coef)
 
         if not isinstance(values, np.ndarray):
@@ -667,7 +751,7 @@ class PhaseFieldSimu(_Simu):
             return
 
         # end cases ----------------------------------------------------
-        
+
         return self.Results_Reshape_values(values, nodeValues)
 
     def __indexResult(self, result: str) -> int:
@@ -688,33 +772,33 @@ class PhaseFieldSimu(_Simu):
 
         tic = Tic()
 
-        u = self.displacement.reshape(-1,1)
+        u = self.displacement.reshape(-1, 1)
         if np.linalg.norm(u) == 0:
             Psi_Elas = 0
         else:
-            Psi_Elas = 1/2 * (u.T @ Ku @ u)[0,0]
+            Psi_Elas = 1 / 2 * (u.T @ Ku @ u)[0, 0]
 
         tic.Tac("PostProcessing", "Calc Psi Elas", False)
-        
+
         return Psi_Elas
 
     def _Calc_Psi_Crack(self) -> float:
         """Computes crack's energy."""
 
         Kd = self.Get_K_C_M_F(ModelType.damage)[0]
-        
+
         tic = Tic()
 
-        d = self.damage.reshape(-1,1)
+        d = self.damage.reshape(-1, 1)
         if np.linalg.norm(d) == 0:
             Psi_Crack = 0
         else:
-            Psi_Crack = 1/2 * (d.T @ Kd @ d)[0,0]
+            Psi_Crack = 1 / 2 * (d.T @ Kd @ d)[0, 0]
 
         tic.Tac("PostProcessing", "Calc Psi Crack", False)
 
         return Psi_Crack
-    
+
     def _Calc_Psi_Ext(self, f_n: np.ndarray) -> float:
         """Computes external's energy."""
 
@@ -730,7 +814,9 @@ class PhaseFieldSimu(_Simu):
 
         return Psi_Ext
 
-    def _Calc_Epsilon_e_pg(self, sol: np.ndarray, matrixType=MatrixType.rigi) -> FeArray:
+    def _Calc_Epsilon_e_pg(
+        self, sol: np.ndarray, matrixType=MatrixType.rigi
+    ) -> FeArray:
         """Computes strain field (Ne,pg,(3 or 6)).\n
         2D : [Exx Eyy sqrt(2)*Exy]\n
         3D : [Exx Eyy Ezz sqrt(2)*Eyz sqrt(2)*Exz sqrt(2)*Exy]
@@ -745,17 +831,19 @@ class PhaseFieldSimu(_Simu):
         FeArray
             Computed strain field (Ne,pg,(3 or 6))
         """
-        
-        tic = Tic()        
+
+        tic = Tic()
         sol_e = self.mesh.Locates_sol_e(sol, asFeArray=True)
         B_e_pg = self.mesh.Get_B_e_pg(matrixType)
         Epsilon_e_pg = B_e_pg @ sol_e
-        
+
         tic.Tac("Matrix", "Epsilon_e_pg", False)
 
         return Epsilon_e_pg
 
-    def _Calc_Sigma_e_pg(self, Epsilon_e_pg: np.ndarray, matrixType=MatrixType.rigi) -> FeArray:
+    def _Calc_Sigma_e_pg(
+        self, Epsilon_e_pg: np.ndarray, matrixType=MatrixType.rigi
+    ) -> FeArray:
         """Computes stress field from strain field.\n
         2D : [Sxx Syy sqrt(2)*Sxy]\n
         3D : [Sxx Syy Szz sqrt(2)*Syz sqrt(2)*Sxz sqrt(2)*Sxy]
@@ -781,14 +869,14 @@ class PhaseFieldSimu(_Simu):
         phaseFieldModel = self.phaseFieldModel
 
         SigmaP_e_pg, SigmaM_e_pg = phaseFieldModel.Calc_Sigma_e_pg(Epsilon_e_pg)
-        
+
         tic = Tic()
-        
+
         # compute Sig such that: Sig = g(d) * SigP + SigM
-        g_e_pg = phaseFieldModel.Get_g_e_pg(d, self.mesh, matrixType)        
+        g_e_pg = phaseFieldModel.Get_g_e_pg(d, self.mesh, matrixType)
         SigmaP_e_pg = g_e_pg * SigmaP_e_pg
         Sigma_e_pg = SigmaP_e_pg + SigmaM_e_pg
-            
+
         tic.Tac("Matrix", "Sigma_e_pg", False)
 
         return Sigma_e_pg
@@ -801,7 +889,9 @@ class PhaseFieldSimu(_Simu):
     def Results_Get_Bc_Summary(self) -> str:
         return self.__resumeLoading
 
-    def Results_Set_Iteration_Summary(self, iter: int, load: float, unitLoad: str, percentage=0.0, remove=False) -> str:
+    def Results_Set_Iteration_Summary(
+        self, iter: int, load: float, unitLoad: str, percentage=0.0, remove=False
+    ) -> str:
         """Creates the iteration summary for the damage problem.
 
         Parameters
@@ -827,23 +917,25 @@ class PhaseFieldSimu(_Simu):
         min_d = d.min()
         max_d = d.max()
         summaryIter = f"{iter+1:4d} : {load:4.3f} {unitLoad}, [{min_d:.2e}; {max_d:.2e}], {Niter}:{timeIter:4.3f} s, tol={dincMax:.2e}  "
-        
+
         if remove:
-            end='\r'
+            end = "\r"
         else:
-            end=''
+            end = ""
 
         if percentage > 0:
-            timeLeft = (1/percentage-1)*timeIter*iter            
+            timeLeft = (1 / percentage - 1) * timeIter * iter
             timeCoef, unite = Tic.Get_time_unity(timeLeft)
             # Adds percentage and estimated time remaining
-            summaryIter = summaryIter + f"{percentage*100:3.2f} % -> {timeCoef:3.2f} {unite}  "
+            summaryIter = (
+                summaryIter + f"{percentage*100:3.2f} % -> {timeCoef:3.2f} {unite}  "
+            )
 
         Display.MyPrint(summaryIter, end=end)
 
         self.__resumeIter = summaryIter
 
-    def Results_Get_Iteration_Summary(self) -> str: 
+    def Results_Get_Iteration_Summary(self) -> str:
 
         try:
             resumeIter = f"""
@@ -864,18 +956,18 @@ class PhaseFieldSimu(_Simu):
         dict_energy = {
             r"$\Psi_{elas}$": Psi_Elas,
             r"$\Psi_{crack}$": Psi_Crack,
-            r"$\Psi_{tot}$": Psi_Crack+Psi_Elas
-            }
+            r"$\Psi_{tot}$": Psi_Crack + Psi_Elas,
+        }
         return dict_energy
 
     def Results_Iter_Summary(self) -> list[tuple[str, np.ndarray]]:
-        
+
         list_label_values = []
-        
+
         resultats = self.results
         df = pd.DataFrame(resultats)
         iterations = np.arange(df.shape[0])
-        
+
         damageMaxIter = np.array([np.max(damage) for damage in df["damage"].values])
         list_label_values.append((r"$\phi$", damageMaxIter))
 
@@ -887,21 +979,21 @@ class PhaseFieldSimu(_Simu):
 
         tempsIter = df["timeIter"].values
         list_label_values.append(("time", tempsIter))
-        
+
         return iterations, list_label_values
-    
+
     def Results_displacement_matrix(self) -> np.ndarray:
-        
+
         Nn = self.mesh.Nn
-        coord = self.displacement.reshape((Nn,-1))
+        coord = self.displacement.reshape((Nn, -1))
         dim = coord.shape[1]
 
         if dim == 1:
             # Here we add two columns
-            coord = np.append(coord, np.zeros((Nn,1)), axis=1)
-            coord = np.append(coord, np.zeros((Nn,1)), axis=1)
+            coord = np.append(coord, np.zeros((Nn, 1)), axis=1)
+            coord = np.append(coord, np.zeros((Nn, 1)), axis=1)
         elif dim == 2:
             # Here we add 1 column
-            coord = np.append(coord, np.zeros((Nn,1)), axis=1)
+            coord = np.append(coord, np.zeros((Nn, 1)), axis=1)
 
         return coord

@@ -12,6 +12,7 @@ from ._geom import _Geom
 from ._line import Line
 from ._circle import CircleArc
 
+
 class Points(_Geom):
 
     __nbPoints = 0
@@ -61,7 +62,7 @@ class Points(_Geom):
 
         def Link(idx1: int, idx2: int):
             # this function makes the link between corners[idx1] and corners[idx2]
-            
+
             # get the last point associated with idx1
             if isinstance(corners[idx1], Point):
                 p1 = corners[idx1]
@@ -74,8 +75,8 @@ class Points(_Geom):
                 p2 = corners[idx2]
             else:
                 # get the first coordinates
-                p2 = corners[idx2].points[0]                
-            
+                p2 = corners[idx2].points[0]
+
             if not p1.Check(p2):
                 line = Line(p1, p2, mS, self.isOpen)
                 geoms.append(line)
@@ -85,8 +86,8 @@ class Points(_Geom):
 
         for p, point in enumerate(self.points):
 
-            prev = p-1
-            next = p+1 if p+1 < N else 0
+            prev = p - 1
+            next = p + 1 if p + 1 < N else 0
 
             isOpen = point.isOpen
 
@@ -95,34 +96,37 @@ class Points(_Geom):
                 corners.append(point)
 
             else:
-                A, B, C = Fillet(point.coord, coordinates[prev], coordinates[next], point.r)
+                A, B, C = Fillet(
+                    point.coord, coordinates[prev], coordinates[next], point.r
+                )
 
                 pA = Point(*A, isOpen)
                 pB = Point(*B, isOpen)
                 pC = Point(*C, isOpen)
 
                 corners.append(CircleArc(pA, pB, pC, meshSize=mS))
-            
+
             if p > 0:
                 Link(-2, -1)
             elif isinstance(corners[-1], (CircleArc, Line)):
                 geoms.append(corners[-1])
-                
+
         Link(-1, 0)
 
         from ._contour import Contour
+
         contour = Contour(geoms, self.isHollow, self.isOpen).copy()
-        contour.name = self.name + '_contour'
+        contour.name = self.name + "_contour"
         # do the copy to unlink the points connexion with the list of points
-        
+
         return contour
 
-    def Get_coord_for_plot(self) -> tuple[np.ndarray,np.ndarray]:
+    def Get_coord_for_plot(self) -> tuple[np.ndarray, np.ndarray]:
         return super().Get_coord_for_plot()
-    
+
     @property
     def length(self) -> float:
         coord = self.coord
-        length = np.linalg.norm(coord[1:]-coord[:-1], axis=1)
+        length = np.linalg.norm(coord[1:] - coord[:-1], axis=1)
         length = np.sum(length)
         return length

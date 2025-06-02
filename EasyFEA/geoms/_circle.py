@@ -6,15 +6,33 @@
 
 import numpy as np
 
-from ._utils import Point, AsCoords, AsPoint, Normalize, Jacobian_Matrix, Angle_Between, Circle_Triangle, Circle_Coords
+from ._utils import (
+    Point,
+    AsCoords,
+    AsPoint,
+    Normalize,
+    Jacobian_Matrix,
+    Angle_Between,
+    Circle_Triangle,
+    Circle_Coords,
+)
 from ._geom import _Geom
 from ..utilities import _params
+
 
 class Circle(_Geom):
 
     __nbCircle = 0
 
-    def __init__(self, center: Point, diam: float, meshSize=0.0, isHollow=True, isOpen=False, n=(0,0,1)):
+    def __init__(
+        self,
+        center: Point,
+        diam: float,
+        meshSize=0.0,
+        isHollow=True,
+        isOpen=False,
+        n=(0, 0, 1),
+    ):
         """Creates a circle according to its center, diameter and the normal vector.
 
         Parameters
@@ -32,12 +50,12 @@ class Circle(_Geom):
         n : tuple, optional
             normal direction to the circle, by default (0,0,1)
         """
-        
+
         _params.CheckIsPositive(diam)
-        
+
         center = AsPoint(center)
 
-        r = diam/2        
+        r = diam / 2
 
         # creates points associated with the circle
         self.center = center
@@ -48,24 +66,31 @@ class Circle(_Geom):
 
         Circle.__nbCircle += 1
         name = f"Circle{Circle.__nbCircle}"
-        _Geom.__init__(self, [self.center, self.pt1, self.pt2, self.pt3, self.pt4], meshSize, name, isHollow, isOpen)
+        _Geom.__init__(
+            self,
+            [self.center, self.pt1, self.pt2, self.pt3, self.pt4],
+            meshSize,
+            name,
+            isHollow,
+            isOpen,
+        )
 
         # rotate if necessary
-        zAxis = np.array([0,0,1])
+        zAxis = np.array([0, 0, 1])
         n = Normalize(AsCoords(n))
         rotAxis = np.cross(n, zAxis)
         # theta = AngleBetween_a_b(zAxis, n)
-        
+
         # then we rotate along i
         if np.linalg.norm(rotAxis) == 0:
             # n and zAxis are collinear
-            i = Normalize((self.pt1 - center).coord) # i = p1 - center
+            i = Normalize((self.pt1 - center).coord)  # i = p1 - center
         else:
             i = rotAxis
 
-        mat = Jacobian_Matrix(i,n)
+        mat = Jacobian_Matrix(i, n)
 
-        coord = np.einsum('ij,nj->ni', mat, self.coord - center.coord) + center.coord
+        coord = np.einsum("ij,nj->ni", mat, self.coord - center.coord) + center.coord
 
         for p, point in enumerate(self.points):
             point.coord = coord[p]
@@ -75,67 +100,89 @@ class Circle(_Geom):
         """circle's diameter"""
         p1 = self.pt1.coord
         pC = self.center.coord
-        return np.linalg.norm(p1-pC) * 2
+        return np.linalg.norm(p1 - pC) * 2
 
     @property
     def n(self) -> np.ndarray:
         """axis normal to the circle"""
         i = Normalize((self.pt1 - self.center).coord)
         j = Normalize((self.pt2 - self.center).coord)
-        n: np.ndarray = Normalize(np.cross(i,j))
+        n: np.ndarray = Normalize(np.cross(i, j))
         return n
 
-    def Get_coord_for_plot(self) -> tuple[np.ndarray, np.ndarray]:        
+    def Get_coord_for_plot(self) -> tuple[np.ndarray, np.ndarray]:
 
-        angle = np.linspace(0, np.pi*2, 40)
+        angle = np.linspace(0, np.pi * 2, 40)
 
         pC = self.center
-        R = self.diam/2
+        R = self.diam / 2
 
         points = self.coord
-        
+
         lines = np.zeros((angle.size, 3))
-        lines[:,0] = np.cos(angle)*R
-        lines[:,1] = np.sin(angle)*R
-        
+        lines[:, 0] = np.cos(angle) * R
+        lines[:, 1] = np.sin(angle) * R
+
         # construct jacobian matrix
         i = (self.pt1 - self.center).coord
         n = self.n
         mat = Jacobian_Matrix(i, n)
 
         # change base
-        lines = np.einsum('ij,nj->ni', mat, lines) + pC.coord
+        lines = np.einsum("ij,nj->ni", mat, lines) + pC.coord
 
         return lines, points[1:]
-    
+
     @property
     def length(self) -> float:
         """circle perimeter"""
         return np.pi * self.diam
-    
+
     def Get_Contour(self):
         """Creates the contour object associated with the circle"""
-        
+
         center = self.center
         meshSize = self.meshSize
         isHollow = self.isHollow
         isOpen = self.isOpen
 
         # creates circle arcs associated with the circle
-        circleArc1 = CircleArc(self.pt1, self.pt2, center=center, meshSize=meshSize, isOpen=isOpen)
-        circleArc2 = CircleArc(self.pt2, self.pt3, center=center, meshSize=meshSize, isOpen=isOpen)
-        circleArc3 = CircleArc(self.pt3, self.pt4, center=center, meshSize=meshSize, isOpen=isOpen)
-        circleArc4 = CircleArc(self.pt4, self.pt1, center=center, meshSize=meshSize, isOpen=isOpen)
+        circleArc1 = CircleArc(
+            self.pt1, self.pt2, center=center, meshSize=meshSize, isOpen=isOpen
+        )
+        circleArc2 = CircleArc(
+            self.pt2, self.pt3, center=center, meshSize=meshSize, isOpen=isOpen
+        )
+        circleArc3 = CircleArc(
+            self.pt3, self.pt4, center=center, meshSize=meshSize, isOpen=isOpen
+        )
+        circleArc4 = CircleArc(
+            self.pt4, self.pt1, center=center, meshSize=meshSize, isOpen=isOpen
+        )
 
         from ._contour import Contour
-        return Contour([circleArc1, circleArc2, circleArc3, circleArc4], isHollow, isOpen)
-        
+
+        return Contour(
+            [circleArc1, circleArc2, circleArc3, circleArc4], isHollow, isOpen
+        )
+
 
 class CircleArc(_Geom):
 
     __nbCircleArc = 0
 
-    def __init__(self, pt1: Point, pt2: Point, center:Point=None, R:float=None, P:Point=None, meshSize=0.0, n=(0,0,1), isOpen=False, coef=1):
+    def __init__(
+        self,
+        pt1: Point,
+        pt2: Point,
+        center: Point = None,
+        R: float = None,
+        P: Point = None,
+        meshSize=0.0,
+        n=(0, 0, 1),
+        isOpen=False,
+        coef=1,
+    ):
         """Creates a circular arc using several methods:\n
         - 1: with 2 points, a radius R and a normal vector.\n
         - 2: with 2 points and a center.\n
@@ -144,7 +191,7 @@ class CircleArc(_Geom):
         This means that if you enter P, the other methods will not be used.
 
         Parameters
-        ----------        
+        ----------
         pt1 : Point
             starting point
         pt2: Point
@@ -164,31 +211,33 @@ class CircleArc(_Geom):
         coef: int, optional
             Change direction, by default 1 or -1
         """
-        
+
         pt1 = AsPoint(pt1)
         pt2 = AsPoint(pt2)
 
         # check that pt1 and pt2 dont share the same coordinates
-        assert not pt1.Check(pt2), 'pt1 and pt2 are on the same coordinates'
+        assert not pt1.Check(pt2), "pt1 and pt2 are on the same coordinates"
 
         if center != None:
             center = AsPoint(center)
-            assert not pt1.Check(center), 'pt1 and center are on the same coordinates'
-        
+            assert not pt1.Check(center), "pt1 and center are on the same coordinates"
+
         elif P != None:
             center = Circle_Triangle(pt1, pt2, P)
             center = Point(*center)
 
-        elif R != None:            
+        elif R != None:
             coord = np.array([pt1.coord, pt2.coord])
             center = Circle_Coords(coord, R, n)
-            center = Point(*center)            
+            center = Point(*center)
         else:
-            raise Exception('must give P, center or R')
-        
-        r1 = np.linalg.norm((pt1-center).coord)
-        r2 = np.linalg.norm((pt2-center).coord)
-        assert (r1 - r2)**2/r2**2 <= 1e-12, "The given center doesn't have the right coordinates. If the center coordinate is difficult to identify, you can give:\n - the radius R with the vector normal to the circle n\n - another point belonging to the circle."
+            raise Exception("must give P, center or R")
+
+        r1 = np.linalg.norm((pt1 - center).coord)
+        r2 = np.linalg.norm((pt2 - center).coord)
+        assert (
+            r1 - r2
+        ) ** 2 / r2**2 <= 1e-12, "The given center doesn't have the right coordinates. If the center coordinate is difficult to identify, you can give:\n - the radius R with the vector normal to the circle n\n - another point belonging to the circle."
 
         self.center = center
         """Point at the center of the arc."""
@@ -199,24 +248,24 @@ class CircleArc(_Geom):
 
         # Here we'll create an intermediate point, because in gmsh, circular arcs are limited to an pi angle.
 
-        i1 = (pt1-center).coord
-        i2 = (pt2-center).coord
+        i1 = (pt1 - center).coord
+        i2 = (pt2 - center).coord
 
         # construction of the passage matrix
-        k = np.array([0,0,1])
+        k = np.array([0, 0, 1])
         if np.linalg.norm(np.cross(i1, i2)) <= 1e-12:
-            vect = Normalize(i2-i1)
-            i = np.cross(k,vect)
+            vect = Normalize(i2 - i1)
+            i = np.cross(k, vect)
         else:
-            i = Normalize((i1+i2)/2)
+            i = Normalize((i1 + i2) / 2)
             k = Normalize(np.cross(i1, i2))
         j = np.cross(k, i)
 
-        mat = np.array([i,j,k]).T
+        mat = np.array([i, j, k]).T
 
         # midpoint coordinates
         _params.CheckIsInIntervaloo(coef, -1, 1)
-        pt3 = center.coord + mat @ [coef*r1,0,0]
+        pt3 = center.coord + mat @ [coef * r1, 0, 0]
 
         self.pt3 = Point(*pt3)
         """Midpoint of the circular arc."""
@@ -225,37 +274,39 @@ class CircleArc(_Geom):
 
         CircleArc.__nbCircleArc += 1
         name = f"CircleArc{CircleArc.__nbCircleArc}"
-        _Geom.__init__(self, [pt1, center, self.pt3, pt2], meshSize, name, False, isOpen)
+        _Geom.__init__(
+            self, [pt1, center, self.pt3, pt2], meshSize, name, False, isOpen
+        )
 
     @property
     def n(self) -> np.ndarray:
         """axis normal to the circle arc"""
-        i = Normalize((self.pt1 - self.center).coord)        
-        if self.angle in [0, np.pi]:            
+        i = Normalize((self.pt1 - self.center).coord)
+        if self.angle in [0, np.pi]:
             j = Normalize((self.pt3 - self.center).coord)
         else:
             j = Normalize((self.pt2 - self.center).coord)
-        n = Normalize(np.cross(i,j))
+        n = Normalize(np.cross(i, j))
         return n
-    
+
     @property
     def angle(self):
         """circular arc angle [rad]"""
         i = (self.pt1 - self.center).coord
         j = (self.pt2 - self.center).coord
-        return Angle_Between(i,j)
-    
+        return Angle_Between(i, j)
+
     @property
     def r(self):
         """circular arc radius"""
-        return np.linalg.norm((self.pt1-self.center).coord)
-    
+        return np.linalg.norm((self.pt1 - self.center).coord)
+
     @property
     def length(self) -> float:
         """circular arc length"""
         return np.abs(self.angle * self.r)
 
-    def Get_coord_for_plot(self) -> tuple[np.ndarray,np.ndarray]:
+    def Get_coord_for_plot(self) -> tuple[np.ndarray, np.ndarray]:
 
         points = self.coord
 
@@ -264,17 +315,17 @@ class CircleArc(_Geom):
 
         # plot arc circle in 2D space
         angles = np.linspace(0, np.abs(self.angle), 11)
-        lines = np.zeros((angles.size,3))
-        lines[:,0] = np.cos(angles) * r
-        lines[:,1] = np.sin(angles) * r
+        lines = np.zeros((angles.size, 3))
+        lines[:, 0] = np.cos(angles) * r
+        lines[:, 1] = np.sin(angles) * r
 
         # get the jabobian matrix
-        i = (self.pt1 - self.center).coord        
+        i = (self.pt1 - self.center).coord
         n = self.n
-        
-        mat = Jacobian_Matrix(i,n)
+
+        mat = Jacobian_Matrix(i, n)
 
         # transform coordinates
-        lines = np.einsum('ij,nj->ni', mat, lines) + pC.coord
+        lines = np.einsum("ij,nj->ni", mat, lines) + pC.coord
 
-        return lines, points[[0,-1]]
+        return lines, points[[0, -1]]

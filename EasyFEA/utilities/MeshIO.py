@@ -16,26 +16,26 @@ from typing import Any
 # ----------------------------------------------
 
 DICT_MESHIO_TYPES = {
-    ElemType.POINT: 'vertex',
-    ElemType.SEG2: 'line',
-    ElemType.SEG3: 'line3',
-    ElemType.SEG4: 'line4',
-    ElemType.SEG5: 'line5',
-    ElemType.TRI3: 'triangle',
-    ElemType.TRI6: 'triangle6',
-    ElemType.TRI10: 'triangle10',
-    ElemType.TRI15: 'triangle15',
-    ElemType.QUAD4: 'quad',
-    ElemType.QUAD8: 'quad8',
-    ElemType.QUAD9: 'quad9',
-    ElemType.TETRA4: 'tetra',
-    ElemType.TETRA10: 'tetra10',
-    ElemType.HEXA8: 'hexahedron',
-    ElemType.HEXA20: 'hexahedron20',
-    ElemType.HEXA27: 'hexahedron27',
-    ElemType.PRISM6: 'wedge',
-    ElemType.PRISM15: 'wedge15',
-    ElemType.PRISM18: 'wedge18'
+    ElemType.POINT: "vertex",
+    ElemType.SEG2: "line",
+    ElemType.SEG3: "line3",
+    ElemType.SEG4: "line4",
+    ElemType.SEG5: "line5",
+    ElemType.TRI3: "triangle",
+    ElemType.TRI6: "triangle6",
+    ElemType.TRI10: "triangle10",
+    ElemType.TRI15: "triangle15",
+    ElemType.QUAD4: "quad",
+    ElemType.QUAD8: "quad8",
+    ElemType.QUAD9: "quad9",
+    ElemType.TETRA4: "tetra",
+    ElemType.TETRA10: "tetra10",
+    ElemType.HEXA8: "hexahedron",
+    ElemType.HEXA20: "hexahedron20",
+    ElemType.HEXA27: "hexahedron27",
+    ElemType.PRISM6: "wedge",
+    ElemType.PRISM15: "wedge15",
+    ElemType.PRISM18: "wedge18",
 }
 
 DICT_GMSH_TO_MESHIO_INDEXES = DICT_GMSH_TO_VTK
@@ -44,8 +44,10 @@ DICT_GMSH_TO_MESHIO_INDEXES = DICT_GMSH_TO_VTK
 # EasyFEA to Meshio
 # ----------------------------------------------
 
-def _EasyFEA_to_Meshio(mesh: Mesh, cell_name: str,
-                      dict_tags_converter: dict[Any, int]={}) -> meshio.Mesh:
+
+def _EasyFEA_to_Meshio(
+    mesh: Mesh, cell_name: str, dict_tags_converter: dict[Any, int] = {}
+) -> meshio.Mesh:
     """Convert EasyFEA mesh to meshio format.
 
     Args:
@@ -56,7 +58,7 @@ def _EasyFEA_to_Meshio(mesh: Mesh, cell_name: str,
     Returns:
         meshio.Mesh: Converted meshio mesh object.
     """
-    
+
     assert isinstance(mesh, Mesh), "mesh must be a EasyFEA mesh!"
 
     cells_dict: dict[str, np.ndarray] = {}
@@ -74,7 +76,7 @@ def _EasyFEA_to_Meshio(mesh: Mesh, cell_name: str,
             vtKindexes = DICT_GMSH_TO_MESHIO_INDEXES[elemType]
         else:
             vtKindexes = np.arange(groupElem.nPe)
-        
+
         cells_dict[meshioType] = groupElem.connect[:, vtKindexes]
 
         element_tags = np.zeros(groupElem.Ne, dtype=int)
@@ -93,12 +95,16 @@ def _EasyFEA_to_Meshio(mesh: Mesh, cell_name: str,
     try:
         meshio_mesh = meshio.Mesh(mesh.coordGlob, cells_dict, None, cell_data)
     except KeyError:
-        raise KeyError(f"To support {mesh.elemType} elements, you need to install meshio using the following meshio fork (https://github.com/matnoel/meshio).")
+        raise KeyError(
+            f"To support {mesh.elemType} elements, you need to install meshio using the following meshio fork (https://github.com/matnoel/meshio)."
+        )
 
     return meshio_mesh
 
-def _Meshio_to_EasyFEA(meshio_mesh: meshio.Mesh, mesh_file: str,
-                       dict_tags: dict[str, np.ndarray]) -> Mesh:
+
+def _Meshio_to_EasyFEA(
+    meshio_mesh: meshio.Mesh, mesh_file: str, dict_tags: dict[str, np.ndarray]
+) -> Mesh:
     """Convert meshio mesh to EasyFEA format.
 
     Args:
@@ -109,9 +115,9 @@ def _Meshio_to_EasyFEA(meshio_mesh: meshio.Mesh, mesh_file: str,
     Returns:
         Mesh: Converted EasyFEA mesh object.
     """
-    
+
     assert isinstance(meshio_mesh, meshio.Mesh), "meshio_mesh must be a meshio mesh!"
-    
+
     keys: list[str] = meshio_mesh.cell_data_dict.keys()
     is_gmsh_compatible = any(key.startswith("gmsh") for key in keys)
 
@@ -128,8 +134,9 @@ def _Meshio_to_EasyFEA(meshio_mesh: meshio.Mesh, mesh_file: str,
     print(mesh)
 
     _Set_Tags(mesh, dict_tags)
-    
+
     return mesh
+
 
 def _Set_Tags(mesh: Mesh, dict_tags: dict[str, np.ndarray]):
     """Set tags for nodes and elements in the EasyFEA mesh.
@@ -156,10 +163,10 @@ def _Set_Tags(mesh: Mesh, dict_tags: dict[str, np.ndarray]):
             dim = 3
         else:
             raise Exception(f"elemType {elemType} is unknown.")
-        
+
         uniqueTags = np.unique(tags)
         list_elems = [np.where(tags == tag)[0] for tag in uniqueTags]
-        
+
         for groupElem in mesh.Get_list_groupElem(dim):
 
             for elems, tag in zip(list_elems, uniqueTags):
@@ -172,18 +179,24 @@ def _Set_Tags(mesh: Mesh, dict_tags: dict[str, np.ndarray]):
                 nodes_set = set(groupElem.connect[elems].ravel())
                 nodes = np.array(list(nodes_set))
 
-                groupElem._Set_Nodes_Tag(nodes, str(tag))               
+                groupElem._Set_Nodes_Tag(nodes, str(tag))
                 groupElem._Set_Elements_Tag(nodes, str(tag))
-                
+
             print(f"{groupElem.elemType} -> Ne = {groupElem.Ne}")
+
 
 # ----------------------------------------------
 # Medit
 # ----------------------------------------------
 
-def EasyFEA_to_Medit(mesh: Mesh, folder: str, name: str,
-                     dict_tags_converter: dict[str, int]={},
-                     useBinary=False) -> str:
+
+def EasyFEA_to_Medit(
+    mesh: Mesh,
+    folder: str,
+    name: str,
+    dict_tags_converter: dict[str, int] = {},
+    useBinary=False,
+) -> str:
     """Convert EasyFEA mesh to Medit format.
 
     Args:
@@ -197,15 +210,16 @@ def EasyFEA_to_Medit(mesh: Mesh, folder: str, name: str,
         str: Path to the saved Medit file.
     """
 
-    meshio_mesh = _EasyFEA_to_Meshio(mesh, 'medit.ref', dict_tags_converter)
+    meshio_mesh = _EasyFEA_to_Meshio(mesh, "medit.ref", dict_tags_converter)
 
     extension = "meshb" if useBinary else "mesh"
-    filename = Folder.Join(folder, f'{name}.{extension}', mkdir=True)
-    
-    Display.MyPrint(f'\nCreation of: {filename}', 'green')
+    filename = Folder.Join(folder, f"{name}.{extension}", mkdir=True)
+
+    Display.MyPrint(f"\nCreation of: {filename}", "green")
     meshio.medit.write(filename, meshio_mesh)
 
     return filename
+
 
 def Medit_to_EasyFEA(meditMesh: str) -> Mesh:
     """Convert Medit mesh to EasyFEA format.
@@ -216,12 +230,14 @@ def Medit_to_EasyFEA(meditMesh: str) -> Mesh:
     Returns:
         Mesh: Converted EasyFEA mesh object.
     """
-    
+
     meshio_mesh = meshio.medit.read(meditMesh)
     # Please note that your python's meshio must come from https://github.com/matnoel/meshio
 
     if len(meshio_mesh.cells) == 0:
-        Display.MyPrintError(f"The medit mesh:\n {meditMesh}\n does not contain any elements!")
+        Display.MyPrintError(
+            f"The medit mesh:\n {meditMesh}\n does not contain any elements!"
+        )
         return None
 
     dict_tags = meshio_mesh.cell_data_dict["medit:ref"]
@@ -230,12 +246,13 @@ def Medit_to_EasyFEA(meditMesh: str) -> Mesh:
 
     return mesh
 
+
 # ----------------------------------------------
 # Gmsh
 # ----------------------------------------------
 
-def EasyFEA_to_Gmsh(mesh: Mesh, folder: str, name: str,
-                     useBinary=False) -> str:
+
+def EasyFEA_to_Gmsh(mesh: Mesh, folder: str, name: str, useBinary=False) -> str:
     """Convert EasyFEA mesh to Gmsh format.
 
     Args:
@@ -260,13 +277,14 @@ def EasyFEA_to_Gmsh(mesh: Mesh, folder: str, name: str,
 
     meshio_mesh = _EasyFEA_to_Meshio(mesh, "gmsh:physical", dict_tags)
 
-    filename = Folder.Join(folder, f'{name}.msh', mkdir=True)
-    
-    Display.MyPrint(f'\nCreation of: {filename}', 'green')
+    filename = Folder.Join(folder, f"{name}.msh", mkdir=True)
+
+    Display.MyPrint(f"\nCreation of: {filename}", "green")
     meshio.gmsh.write(filename, meshio_mesh, "2.2", useBinary)
     # Error with 4.1
 
     return filename
+
 
 def Gmsh_to_EasyFEA(gmshMesh: str) -> Mesh:
     """Convert Gmsh mesh to EasyFEA format.
@@ -281,7 +299,9 @@ def Gmsh_to_EasyFEA(gmshMesh: str) -> Mesh:
     meshio_mesh: meshio.Mesh = meshio.gmsh.read(gmshMesh)
 
     if len(meshio_mesh.cells) == 0:
-        Display.MyPrintError(f"The gmsh mesh:\n {gmshMesh}\n does not contain any elements!")
+        Display.MyPrintError(
+            f"The gmsh mesh:\n {gmshMesh}\n does not contain any elements!"
+        )
         return None
 
     dict_tags = meshio_mesh.cell_data_dict["gmsh:physical"]

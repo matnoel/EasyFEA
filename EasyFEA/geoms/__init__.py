@@ -5,9 +5,17 @@
 """Module containing the geometric functions used to build meshes."""
 
 from ._utils import (
-    Point, AsPoint, AsCoords, Normalize,
-    Translate, Rotate, Symmetry,
-    Circle_Triangle, Circle_Coords, Points_Intersect_Circles,
-    Angle_Between, Jacobian_Matrix,
-    Fillet
+    Point,
+    AsPoint,
+    AsCoords,
+    Normalize,
+    Translate,
+    Rotate,
+    Symmetry,
+    Circle_Triangle,
+    Circle_Coords,
+    Points_Intersect_Circles,
+    Angle_Between,
+    Jacobian_Matrix,
+    Fillet,
 )

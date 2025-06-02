@@ -3,12 +3,17 @@
 # EasyFEA is distributed under the terms of the GNU General Public License v3 or later, see LICENSE.txt and CREDITS.md for more information.
 
 from ._utils import (
-    ModelType, _IModel,
-    Reshape_variable, Heterogeneous_Array,
-    KelvinMandel_Matrix, Project_Kelvin,
-    Project_matrix_to_vector, Project_vector_to_matrix,
+    ModelType,
+    _IModel,
+    Reshape_variable,
+    Heterogeneous_Array,
+    KelvinMandel_Matrix,
+    Project_Kelvin,
+    Project_matrix_to_vector,
+    Project_vector_to_matrix,
     Result_in_Strain_or_Stress_field,
-    Get_Pmat, Apply_Pmat
+    Get_Pmat,
+    Apply_Pmat,
 )
 
 from ._hyperelastic import HyperElastic

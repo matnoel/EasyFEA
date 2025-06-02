@@ -12,15 +12,20 @@ import scipy.sparse.linalg as sla
 import textwrap
 
 from ..__about__ import __version__
+
 # utilities
 from ..utilities import Folder, Display, Tic, _params
 from ..utilities._observers import Observable, _IObserver
+
 # fem
 from ..fem import Mesh, _GroupElem, MatrixType, BoundaryCondition, LagrangeCondition
+
 # materials
 from ..materials import ModelType, _IModel, Reshape_variable
+
 # simu
 from .Solvers import _Solve, _Solve_Axb, _Available_Solvers, ResolType, AlgoType
+
 
 # ----------------------------------------------
 # _Simu
@@ -41,7 +46,7 @@ class _Simu(_IObserver, ABC):
 
     General:
     --------
-    
+
         - def Get_problemTypes(self) -> list[ModelType]:
 
         - def Get_dofs(self, problemType=None) -> list[str]:
@@ -110,7 +115,11 @@ class _Simu(_IObserver, ABC):
 
     # Solvers
     @abstractmethod
-    def Get_K_C_M_F(self, problemType=None) -> tuple[sparse.csr_matrix, sparse.csr_matrix, sparse.csr_matrix, sparse.csr_matrix]:
+    def Get_K_C_M_F(
+        self, problemType=None
+    ) -> tuple[
+        sparse.csr_matrix, sparse.csr_matrix, sparse.csr_matrix, sparse.csr_matrix
+    ]:
         """Returns the assembled matrices of K u + C v + M a = F."""
         pass
 
@@ -138,10 +147,10 @@ class _Simu(_IObserver, ABC):
         return iter
 
     @abstractmethod
-    def Set_Iter(self, iter: int=-1, resetAll=False) -> dict:
+    def Set_Iter(self, iter: int = -1, resetAll=False) -> dict:
         """Sets the simulation to the specified iteration (usually the last one) and then reset the required variables if necessary (resetAll).\n
         Returns the simulation results dictionary."""
-        
+
         iter = int(iter)
         assert isinstance(iter, int), "Must provide an integer."
 
@@ -163,7 +172,9 @@ class _Simu(_IObserver, ABC):
         pass
 
     @abstractmethod
-    def Result(self, option: str, nodeValues=True, iter=None) -> Union[np.ndarray, float]:
+    def Result(
+        self, option: str, nodeValues=True, iter=None
+    ) -> Union[np.ndarray, float]:
         """Returns the result. Use Results_Available() to know the available results."""
         pass
 
@@ -184,7 +195,9 @@ class _Simu(_IObserver, ABC):
         return np.zeros((Nn, 3))
 
     @abstractmethod
-    def Results_nodesField_elementsField(self, details=False) -> tuple[list[str], list[str]]:
+    def Results_nodesField_elementsField(
+        self, details=False
+    ) -> tuple[list[str], list[str]]:
         """Returns lists of nodesFields and elementsFields displayed in paraview."""
         return [], []
 
@@ -200,12 +213,16 @@ class _Simu(_IObserver, ABC):
 
     def __Check_problemTypes(self, problemType: ModelType) -> None:
         """Checks whether this type of problem is available through the simulation."""
-        assert problemType in self.Get_problemTypes(), f"This type of problem is not available in this simulation ({self.Get_problemTypes()})"
+        assert (
+            problemType in self.Get_problemTypes()
+        ), f"This type of problem is not available in this simulation ({self.Get_problemTypes()})"
 
     def _Check_dim_mesh_material(self) -> None:
         """Checks that the material dim matches the mesh dim."""
         dim = self.__model.dim
-        assert dim == self.__mesh.dim and dim == self.__mesh.inDim, "Material and mesh must share the same dimensions and belong to the same space."
+        assert (
+            dim == self.__mesh.dim and dim == self.__mesh.inDim
+        ), "Material and mesh must share the same dimensions and belong to the same space."
 
     def __str__(self) -> str:
         """Returns a string representation of the simulation.
@@ -220,24 +237,31 @@ class _Simu(_IObserver, ABC):
         text += str(self.mesh)
 
         text += Display.Section("Model", False)
-        text += '\n' + str(self.model)
-        
-        text += '\n\nsolver : ' + str(self.solver)
+        text += "\n" + str(self.model)
+
+        text += "\n\nsolver : " + str(self.solver)
 
         text += Display.Section("Boundary Conditions", False)
-        text += '\n' + textwrap.dedent(self.Results_Get_Bc_Summary())
+        text += "\n" + textwrap.dedent(self.Results_Get_Bc_Summary())
 
-        text += Display.Section("Results", False)        
-        text += '\n' + textwrap.dedent(self.Results_Get_Iteration_Summary())
-        
+        text += Display.Section("Results", False)
+        text += "\n" + textwrap.dedent(self.Results_Get_Iteration_Summary())
+
         text += Display.Section("TicTac", False)
-        
+
         if Tic.nTic() > 0:
             text += Tic.Resume(False)
 
         return text
 
-    def __init__(self, mesh: Mesh, model: _IModel, verbosity=True, useNumba=True, useIterativeSolvers=True):
+    def __init__(
+        self,
+        mesh: Mesh,
+        model: _IModel,
+        verbosity=True,
+        useNumba=True,
+        useIterativeSolvers=True,
+    ):
         """Creates a simulation.
 
         Parameters
@@ -253,19 +277,21 @@ class _Simu(_IObserver, ABC):
         useIterativeSolvers : bool, optional
             If True, iterative solvers can be used. Defaults to True.
         """
-    
+
         if verbosity:
             Display.Section("Simulation")
 
         if len(mesh.orphanNodes) > 0:
-            raise Exception("The simulation cannot be created because orphan nodes have been detected in the mesh.\n See `Display.Plot_Nodes(mesh, mesh.orphanNodes)`")
+            raise Exception(
+                "The simulation cannot be created because orphan nodes have been detected in the mesh.\n See `Display.Plot_Nodes(mesh, mesh.orphanNodes)`"
+            )
 
         self.__model: _IModel = model
 
         self.__dim: int = model.dim
         """Simulation dimension."""
 
-        self._results:list[dict] = []
+        self._results: list[dict] = []
         """Dictionary list containing the results."""
 
         # Fill in the first mesh
@@ -274,7 +300,7 @@ class _Simu(_IObserver, ABC):
         self.__listMesh: list[Mesh] = []
         self.mesh = mesh
 
-        self.rho = 1.0        
+        self.rho = 1.0
 
         self._Check_dim_mesh_material()
 
@@ -303,7 +329,7 @@ class _Simu(_IObserver, ABC):
 
         # Initialize Boundary conditions
         self.Bc_Init()
-        
+
         # simulation will look for material and mesh modifications
         model._Add_observer(self)
         mesh._Add_observer(self)
@@ -327,7 +353,8 @@ class _Simu(_IObserver, ABC):
     @property
     def mass(self) -> float:
 
-        if self.dim == 1: return None
+        if self.dim == 1:
+            return None
 
         matrixType = MatrixType.mass
 
@@ -336,19 +363,20 @@ class _Simu(_IObserver, ABC):
         weightedJacobian = group.Get_weightedJacobian_e_pg(matrixType)
 
         rho_e_p = Reshape_variable(self.__rho, *weightedJacobian.shape[:2])
-        
-        mass = (rho_e_p * weightedJacobian).sum((0,1))
+
+        mass = (rho_e_p * weightedJacobian).sum((0, 1))
 
         if self.dim == 2:
             mass *= self.model.thickness
 
         return mass
-    
+
     @property
     def center(self) -> np.ndarray:
         """Center of mass / barycenter / inertia center"""
 
-        if self.dim == 1: return None
+        if self.dim == 1:
+            return None
 
         matrixType = MatrixType.mass
 
@@ -359,23 +387,23 @@ class _Simu(_IObserver, ABC):
         weightedJacobian = group.Get_weightedJacobian_e_pg(matrixType)
 
         rho_e_p = Reshape_variable(self.__rho, *weightedJacobian.shape[:2])
-        
+
         mass = self.mass
 
-        center = (rho_e_p * weightedJacobian * coord_e_p / mass).sum((0,1))
+        center = (rho_e_p * weightedJacobian * coord_e_p / mass).sum((0, 1))
 
         if self.dim == 2:
             center *= self.model.thickness
 
         if not isinstance(self.__rho, np.ndarray):
-            diff = np.linalg.norm(center - self.mesh.center)/np.linalg.norm(center)
+            diff = np.linalg.norm(center - self.mesh.center) / np.linalg.norm(center)
             assert diff <= 1e-12
 
         return center
 
     # ----------------------------------------------
     # Solutions
-    # ----------------------------------------------    
+    # ----------------------------------------------
 
     # TODO Enable simulation creation from the variational formulation ?
 
@@ -384,7 +412,7 @@ class _Simu(_IObserver, ABC):
     def results(self) -> list[dict]:
         """Returns a copy of the list of dictionary containing the results from each iteration."""
         return self._results.copy()
-    
+
     @property
     def Niter(self) -> int:
         """Number of iterations"""
@@ -402,7 +430,9 @@ class _Simu(_IObserver, ABC):
             self.__dict_v_n[problemType] = vectInit
             self.__dict_a_n[problemType] = vectInit
 
-    def __Check_New_Sol_Values(self, problemType: ModelType, values: np.ndarray) -> None:
+    def __Check_New_Sol_Values(
+        self, problemType: ModelType, values: np.ndarray
+    ) -> None:
         """Checks that the solution has the right size."""
         self.__Check_problemTypes(problemType)
         size = self.mesh.Nn * self.Get_dof_n(problemType)
@@ -456,7 +486,7 @@ class _Simu(_IObserver, ABC):
         K u + C v = F
         - Solver_Set_Hyperbolic_Algorithm()\n
         K u + C v + M a = F
-        """        
+        """
         return self.__algo
 
     @property
@@ -465,7 +495,7 @@ class _Simu(_IObserver, ABC):
         return self.__mesh
 
     @mesh.setter
-    def mesh(self, mesh: Mesh):        
+    def mesh(self, mesh: Mesh):
         if isinstance(mesh, Mesh):
             # For all old meshes, delete the matrices
             listMesh: list[Mesh] = self.__listMesh
@@ -508,19 +538,19 @@ class _Simu(_IObserver, ABC):
         """
         indexMesh = self.results[iter]["indexMesh"]
         self.__mesh = self.__listMesh[indexMesh]
-        self.Need_Update() # need to reconstruct matrices
+        self.Need_Update()  # need to reconstruct matrices
 
     @property
     def needUpdate(self) -> bool:
         """The simulation needs to reconstruct matrices K, C, and M."""
         return self.__needUpdate
-    
+
     def _Update(self, observable: Observable, event: str) -> None:
         if isinstance(observable, _IModel):
-            if event == 'The model has been modified' and not self.needUpdate:
+            if event == "The model has been modified" and not self.needUpdate:
                 self.Need_Update()
         elif isinstance(observable, Mesh):
-            if event == 'The mesh has been modified':
+            if event == "The mesh has been modified":
                 self._Check_dim_mesh_material()
                 self.Need_Update()
         else:
@@ -556,7 +586,9 @@ class _Simu(_IObserver, ABC):
         if value in solvers:
             self.__solver = value
         else:
-            Display.MyPrintError(f"The solver {value} cannot be used. The solver must be in {solvers}")
+            Display.MyPrintError(
+                f"The solver {value} cannot be used. The solver must be in {solvers}"
+            )
 
     def Solver_Set_Elliptic_Algorithm(self) -> None:
         """Sets the algorithm's resolution properties for an elliptic problem.
@@ -565,18 +597,18 @@ class _Simu(_IObserver, ABC):
         """
         self.__algo = AlgoType.elliptic
 
-    def Solver_Set_Parabolic_Algorithm(self, dt: float, alpha=1/2) -> None:
+    def Solver_Set_Parabolic_Algorithm(self, dt: float, alpha=1 / 2) -> None:
         """Sets the algorithm's resolution properties for a parabolic problem.
 
         Used to solve K u_np1 + C v_np1 = F_np1 with:
-        
+
         u_np1 = u_n + dt v_npa
 
         Parameters
         ----------
         dt : float
             The time increment.
-            
+
         alpha : float, optional
             The alpha criterion, by default 1/2\n
             - 0 -> Forward Euler
@@ -589,8 +621,10 @@ class _Simu(_IObserver, ABC):
         self.__dt = dt
 
         self.__alpha = alpha
-    
-    def Solver_Set_Hyperbolic_Algorithm(self, dt: float, beta=0.25, gamma=0.5, algo=AlgoType.newmark, alpha=0.5 ) -> None:
+
+    def Solver_Set_Hyperbolic_Algorithm(
+        self, dt: float, beta=0.25, gamma=0.5, algo=AlgoType.newmark, alpha=0.5
+    ) -> None:
         """Sets the algorithm's resolution properties for a Hyperbolic problem.
 
         Used to solve K u + C v + M a = F.
@@ -609,7 +643,7 @@ class _Simu(_IObserver, ABC):
         alpha : float, optional
             The coefficient alpha, by default 1/2.
         """
-        
+
         types = AlgoType.Get_Hyperbolic_Types()
         assert algo in types, f"algo must be in {types}"
         self.__algo = algo
@@ -630,7 +664,7 @@ class _Simu(_IObserver, ABC):
         -------
         np.ndarray
             The solution of the simulation.
-        """        
+        """
 
         self._Solver_Solve(self.problemType)
 
@@ -654,7 +688,7 @@ class _Simu(_IObserver, ABC):
             x, lagrange = _Solve(self, problemType, resolution)
         else:
             resolution = ResolType.r1
-            x = _Solve(self, problemType, resolution)            
+            x = _Solve(self, problemType, resolution)
 
         if algo == AlgoType.elliptic:
             u_np1 = x
@@ -685,7 +719,7 @@ class _Simu(_IObserver, ABC):
             # See Hughes 1987 Chapter 9
             # same as hht with alpha = 0
             a_np1 = x
-            ut_np1 = u_n + (dt * v_n) + dt**2/2 * (1 - 2 * beta) * a_n
+            ut_np1 = u_n + (dt * v_n) + dt**2 / 2 * (1 - 2 * beta) * a_n
             vt_np1 = v_n + (1 - gamma) * dt * a_n
 
             u_np1 = ut_np1 + beta * dt**2 * a_np1
@@ -710,14 +744,16 @@ class _Simu(_IObserver, ABC):
             # Accel formulation
             # same as hht with alpha = 1/2
             a_np1 = x
-            u_np1 = u_n + dt*v_n + dt**2/2 * ((1 - 2*beta)*a_n + 2*beta*a_np1)
-            v_np1 = v_n + dt * ((1-gamma)*a_n + gamma*a_np1)
+            u_np1 = (
+                u_n + dt * v_n + dt**2 / 2 * ((1 - 2 * beta) * a_n + 2 * beta * a_np1)
+            )
+            v_np1 = v_n + dt * ((1 - gamma) * a_n + gamma * a_np1)
 
             # New solutions
             self._Set_u_n(problemType, u_np1)
             self._Set_v_n(problemType, v_np1)
             self._Set_a_n(problemType, a_np1)
-        
+
         elif algo == AlgoType.hht:
 
             dt = self.__dt
@@ -727,8 +763,10 @@ class _Simu(_IObserver, ABC):
 
             # Accel formulation
             a_np1 = x
-            u_np1 = u_n + dt*v_n + dt**2/2 * ((1 - 2*beta)*a_n + 2*beta*a_np1)
-            v_np1 = v_n + dt * ((1-gamma)*a_n + gamma*a_np1)
+            u_np1 = (
+                u_n + dt * v_n + dt**2 / 2 * ((1 - 2 * beta) * a_n + 2 * beta * a_np1)
+            )
+            v_np1 = v_n + dt * ((1 - gamma) * a_n + gamma * a_np1)
 
             # New solutions
             self._Set_u_n(problemType, u_np1)
@@ -738,8 +776,13 @@ class _Simu(_IObserver, ABC):
         else:
             raise TypeError(f"Algo {algo} is not implemented here.")
 
-    def _Solver_Solve_NewtonRaphson(self, Solve: Callable[[], None], Apply_BC: Callable[[], None],
-                                    tolConv=1.e-5, maxIter=20) -> tuple[np.ndarray, int, float, list[float]]:
+    def _Solver_Solve_NewtonRaphson(
+        self,
+        Solve: Callable[[], None],
+        Apply_BC: Callable[[], None],
+        tolConv=1.0e-5,
+        maxIter=20,
+    ) -> tuple[np.ndarray, int, float, list[float]]:
         """Solves the non-linear problem using the newton raphson algorithm.
 
         Parameters
@@ -760,8 +803,8 @@ class _Simu(_IObserver, ABC):
             return u, Niter, timeIter, list_res
         """
 
-        assert 0 < tolConv < 1 , "tolConv must be between 0 and 1."
-        assert maxIter > 1 , "Must be > 1."
+        assert 0 < tolConv < 1, "tolConv must be between 0 and 1."
+        assert maxIter > 1, "Must be > 1."
 
         Niter = 0
         converged = False
@@ -782,7 +825,7 @@ class _Simu(_IObserver, ABC):
         res = 0
 
         while not converged and Niter < maxIter:
-                    
+
             Niter += 1
 
             # compute new delta_u
@@ -809,29 +852,34 @@ class _Simu(_IObserver, ABC):
             if Niter == 1:
                 res = 1
             else:
-                res = np.abs(list_norm[-2] - norm_b)/list_norm[-2]
+                res = np.abs(list_norm[-2] - norm_b) / list_norm[-2]
                 # res = norm_b/list_norm[0]
             list_res.append(res)
             converged = res < tolConv
 
         timeIter = tic.Tac(f"Resolution {problemType}", "Newton iterations", False)
 
-        assert converged, f"Newton raphson algorithm did not converged in {Niter} iterations."
+        assert (
+            converged
+        ), f"Newton raphson algorithm did not converged in {Niter} iterations."
 
         return u, Niter, timeIter, list_res
-    
+
     def __Solver_NewtonRaphson_Update_BC(self):
-        """Update the boundary conditions because the problem, previously formulated in `u`, is now formulated in `delta_u`.
-        """
+        """Update the boundary conditions because the problem, previously formulated in `u`, is now formulated in `delta_u`."""
         problemType = self.problemType
         # apply new dirichlet bc conditions
         previous_dirichlet = self.Bc_Dirichlet
         previous_neumann = self.Bc_Neuman
         self.Bc_Init()
         for bc in previous_dirichlet:
-            self._Bc_Add_Dirichlet(problemType, bc.nodes, bc.dofsValues*0, bc.dofs, bc.unknowns)
+            self._Bc_Add_Dirichlet(
+                problemType, bc.nodes, bc.dofsValues * 0, bc.dofs, bc.unknowns
+            )
         for bc in previous_neumann:
-            self._Bc_Add_Neumann(problemType, bc.nodes, bc.dofsValues, bc.dofs, bc.unknowns)
+            self._Bc_Add_Neumann(
+                problemType, bc.nodes, bc.dofsValues, bc.dofs, bc.unknowns
+            )
 
     def _Solver_Apply_Neumann(self, problemType: ModelType) -> sparse.csr_matrix:
         """Fill in the Neumann boundary conditions by constructing b from A x = b.
@@ -846,7 +894,7 @@ class _Simu(_IObserver, ABC):
         sparse.csr_matrix
             The b vector as a csr_matrix.
         """
-        
+
         algo = self.algo
         dofs = self.Bc_dofs_Neumann(problemType)
         dofsValues = self.Bc_values_Neumann(problemType)
@@ -855,7 +903,9 @@ class _Simu(_IObserver, ABC):
         # Additional dimension associated with the lagrangian multipliers
         Ndof += self._Bc_Lagrange_dim(problemType)
 
-        b = sparse.csr_matrix((dofsValues, (dofs, np.zeros(len(dofs)))), shape=(Ndof, 1))
+        b = sparse.csr_matrix(
+            (dofsValues, (dofs, np.zeros(len(dofs)))), shape=(Ndof, 1)
+        )
 
         K, C, M, F = self.Get_K_C_M_F(problemType)
 
@@ -879,7 +929,7 @@ class _Simu(_IObserver, ABC):
             ut_np1 = u_n + (1 - alpha) * dt * v_n
             ut_np1 = sparse.csr_matrix(ut_np1.reshape(-1, 1))
 
-            b = b + 1/(alpha * dt) * C @ ut_np1
+            b = b + 1 / (alpha * dt) * C @ ut_np1
 
         elif algo == AlgoType.newmark:
             # Accel formulation
@@ -910,12 +960,12 @@ class _Simu(_IObserver, ABC):
             gamma = self.__gamma
             beta = self.__beta
 
-            ut_np1 = u_n + (dt * v_n) + dt**2/2 * (1 - 2 * beta) * a_n
+            ut_np1 = u_n + (dt * v_n) + dt**2 / 2 * (1 - 2 * beta) * a_n
             vt_np1 = v_n + (1 - gamma) * dt * a_n
-            
+
             b -= K @ ut_np1.reshape(-1, 1)
             b -= C @ vt_np1.reshape(-1, 1)
-        
+
         elif algo == AlgoType.midpoint:
 
             dt = self.__dt
@@ -927,13 +977,13 @@ class _Simu(_IObserver, ABC):
             # b += dt * M @ v_n.reshape(-1,1)
 
             # hht in accel with alpha = 1/2
-            mat_an = 1/2 * (M + (1-gamma) * dt * C + (1/2-beta) * dt**2 * K)
-            b -= mat_an @ a_n.reshape(-1,1)
+            mat_an = 1 / 2 * (M + (1 - gamma) * dt * C + (1 / 2 - beta) * dt**2 * K)
+            b -= mat_an @ a_n.reshape(-1, 1)
 
             mat_vn = C + 0.5 * dt * K
-            b -= mat_vn @ v_n.reshape(-1,1)
+            b -= mat_vn @ v_n.reshape(-1, 1)
 
-            b -= K @ u_n.reshape(-1,1)
+            b -= K @ u_n.reshape(-1, 1)
 
         elif algo == AlgoType.hht:
 
@@ -941,23 +991,29 @@ class _Simu(_IObserver, ABC):
             gamma = self.__gamma
             beta = self.__beta
             alpha = self.__alpha
-            
-            mat_an = alpha * M + (1-alpha)*(1-gamma) * dt * C + (1-alpha)*(1/2-beta) * dt**2 * K
-            b -= mat_an @ a_n.reshape(-1,1) 
-            
-            mat_vn = C + (1-alpha) * dt * K            
-            b -= mat_vn @ v_n.reshape(-1,1)
 
-            b -= K @ u_n.reshape(-1,1)
+            mat_an = (
+                alpha * M
+                + (1 - alpha) * (1 - gamma) * dt * C
+                + (1 - alpha) * (1 / 2 - beta) * dt**2 * K
+            )
+            b -= mat_an @ a_n.reshape(-1, 1)
+
+            mat_vn = C + (1 - alpha) * dt * K
+            b -= mat_vn @ v_n.reshape(-1, 1)
+
+            b -= K @ u_n.reshape(-1, 1)
 
         else:
             raise TypeError(f"Algo {algo} is not implemented here.")
-            
+
         tic.Tac("Solver", f"Neumann ({problemType}, {algo})", self._verbosity)
 
         return b
 
-    def _Solver_Apply_Dirichlet(self, problemType: ModelType, b: sparse.csr_matrix, resolution: ResolType) -> tuple[sparse.csr_matrix, sparse.csr_matrix]:
+    def _Solver_Apply_Dirichlet(
+        self, problemType: ModelType, b: sparse.csr_matrix, resolution: ResolType
+    ) -> tuple[sparse.csr_matrix, sparse.csr_matrix]:
         """Fill in the Dirichlet conditions by constructing A and x from A x = b.
 
         Parameters
@@ -989,7 +1045,7 @@ class _Simu(_IObserver, ABC):
 
             alpha = self.__alpha
             dt = self.__dt
-            
+
             # U formulation
             A = K + C / (alpha * dt)
 
@@ -1002,8 +1058,8 @@ class _Simu(_IObserver, ABC):
             # Accel formulation
             # same as hht in accel with alpha = 0
             A = M + (beta * dt**2 * K)
-            A += (gamma * dt * C)
-            
+            A += gamma * dt * C
+
             dofsValues = self._Get_a_n(problemType)[dofs]
 
         elif algo == AlgoType.midpoint:
@@ -1023,21 +1079,30 @@ class _Simu(_IObserver, ABC):
             gamma = self.__gamma
             beta = self.__beta
             alpha = self.__alpha
-            
+
             # Accel formulation
-            A = (1-alpha) * (M + gamma * dt * C + beta * dt**2 * K) 
+            A = (1 - alpha) * (M + gamma * dt * C + beta * dt**2 * K)
             dofsValues = self._Get_a_n(problemType)[dofs]
 
         else:
             raise TypeError(f"Algo {algo} is not implemented here.")
 
-        A, x = self.__Solver_Get_Dirichlet_A_x(problemType, resolution, A, b, dofsValues)
+        A, x = self.__Solver_Get_Dirichlet_A_x(
+            problemType, resolution, A, b, dofsValues
+        )
 
         tic.Tac("Solver", f"Dirichlet ({problemType}, {algo})", self._verbosity)
 
         return A, x
 
-    def __Solver_Get_Dirichlet_A_x(self, problemType: ModelType, resolution: ResolType, A: sparse.csr_matrix, b: sparse.csr_matrix, dofsValues: np.ndarray):
+    def __Solver_Get_Dirichlet_A_x(
+        self,
+        problemType: ModelType,
+        resolution: ResolType,
+        A: sparse.csr_matrix,
+        b: sparse.csr_matrix,
+        dofsValues: np.ndarray,
+    ):
         """Resizes the matrix system according to known degrees of freedom and resolution type.
 
         Parameters
@@ -1066,7 +1131,11 @@ class _Simu(_IObserver, ABC):
         if resolution in [ResolType.r1, ResolType.r2]:
 
             # Here we return the solution with the known ddls
-            x = sparse.csr_matrix((dofsValues, (dofs, np.zeros_like(dofs))), shape=(size, 1), dtype=np.float64)
+            x = sparse.csr_matrix(
+                (dofsValues, (dofs, np.zeros_like(dofs))),
+                shape=(size, 1),
+                dtype=np.float64,
+            )
 
             return A, x
 
@@ -1085,11 +1154,11 @@ class _Simu(_IObserver, ABC):
 
             # Here we return A penalized
             return A.tocsr(), b.tocsr()
-    
+
     # ----------------------------------------------
     # Boundary conditions
     # ----------------------------------------------
-    
+
     def Bc_Init(self) -> None:
         """Initializes Dirichlet, Neumann and Lagrange boundary conditions"""
         # DIRICHLET
@@ -1108,7 +1177,7 @@ class _Simu(_IObserver, ABC):
     def Bc_Dirichlet(self) -> list[BoundaryCondition]:
         """Returns a copy of the Dirichlet conditions."""
         return self.__Bc_Dirichlet.copy()
-    
+
     @property
     def Bc_Neuman(self) -> list[BoundaryCondition]:
         """Returns a copy of the Neumann conditions."""
@@ -1118,7 +1187,7 @@ class _Simu(_IObserver, ABC):
     def Bc_Lagrange(self) -> list[LagrangeCondition]:
         """Returns a copy of the Lagrange conditions."""
         return self.__Bc_Lagrange.copy()
-    
+
     def _Bc_Add_Lagrange(self, newBc: LagrangeCondition):
         """Adds Lagrange conditions."""
         assert isinstance(newBc, LagrangeCondition)
@@ -1145,22 +1214,26 @@ class _Simu(_IObserver, ABC):
     def Bc_vector_Dirichlet(self, problemType=None) -> np.ndarray:
         """Returns a vector filled with Dirichlet boundary conditions values."""
         if problemType is None:
-            problemType = self.problemType        
+            problemType = self.problemType
         dofs = self.Bc_dofs_Dirichlet(problemType)
         dofsValues = self.Bc_values_Dirichlet(problemType)
-        size = self.mesh.Nn * self.Get_dof_n(problemType)        
-        csr_vector = sparse.csr_matrix((dofsValues, (dofs, np.zeros_like(dofs))), shape=(size, 1))
+        size = self.mesh.Nn * self.Get_dof_n(problemType)
+        csr_vector = sparse.csr_matrix(
+            (dofsValues, (dofs, np.zeros_like(dofs))), shape=(size, 1)
+        )
         vector = csr_vector.toarray().ravel()
         return vector
-    
+
     def Bc_vector_Neumann(self, problemType=None) -> np.ndarray:
         """Returns a vector filled with Neuman boundary conditions values."""
         if problemType is None:
-            problemType = self.problemType        
+            problemType = self.problemType
         dofs = self.Bc_dofs_Neumann(problemType)
         dofsValues = self.Bc_values_Neumann(problemType)
-        size = self.mesh.Nn * self.Get_dof_n(problemType)        
-        csr_vector = sparse.csr_matrix((dofsValues, (dofs, np.zeros_like(dofs))), shape=(size, 1))
+        size = self.mesh.Nn * self.Get_dof_n(problemType)
+        csr_vector = sparse.csr_matrix(
+            (dofsValues, (dofs, np.zeros_like(dofs))), shape=(size, 1)
+        )
         vector = csr_vector.toarray().ravel()
         return vector
 
@@ -1175,7 +1248,7 @@ class _Simu(_IObserver, ABC):
         if problemType is None:
             problemType = self.problemType
         return BoundaryCondition.Get_values(problemType, self.__Bc_Dirichlet)
-    
+
     def Bc_dofs_Neumann(self, problemType=None) -> np.ndarray:
         """Returns dofs related to Neumann conditions."""
         if problemType is None:
@@ -1188,7 +1261,9 @@ class _Simu(_IObserver, ABC):
             problemType = self.problemType
         return BoundaryCondition.Get_values(problemType, self.__Bc_Neumann)
 
-    def Bc_dofs_known_unknown(self, problemType: ModelType) -> tuple[np.ndarray, np.ndarray]:
+    def Bc_dofs_known_unknown(
+        self, problemType: ModelType
+    ) -> tuple[np.ndarray, np.ndarray]:
         """Returns known and unknown dofs."""
         tic = Tic()
 
@@ -1204,15 +1279,19 @@ class _Simu(_IObserver, ABC):
 
         dofsKnown = np.asarray(list(dofsKnown), dtype=int)
         dofsUnknown = np.asarray(list(dofsUnknown), dtype=int)
-        
-        test = dofsKnown.size + dofsUnknown.size
-        assert test == nDof, f"Problem under conditions dofsKnown + dofsUnknown - nDof = {test-nDof}"
 
-        tic.Tac("Solver",f"Get dofs ({problemType})", self._verbosity)
+        test = dofsKnown.size + dofsUnknown.size
+        assert (
+            test == nDof
+        ), f"Problem under conditions dofsKnown + dofsUnknown - nDof = {test-nDof}"
+
+        tic.Tac("Solver", f"Get dofs ({problemType})", self._verbosity)
 
         return dofsKnown, dofsUnknown
 
-    def Bc_dofs_nodes(self, nodes: np.ndarray, unknowns: list[str], problemType=None) -> np.ndarray:
+    def Bc_dofs_nodes(
+        self, nodes: np.ndarray, unknowns: list[str], problemType=None
+    ) -> np.ndarray:
         """Returns degrees of freedom associated with the nodes, based on the problem type and unknowns.
 
         Parameters
@@ -1234,38 +1313,47 @@ class _Simu(_IObserver, ABC):
             problemType = self.problemType
 
         self.__Check_problemTypes(problemType)
-        
-        assert len(nodes) > 0, "Empty node list" 
+
+        assert len(nodes) > 0, "Empty node list"
 
         availableUnknowns = self.Get_unknowns(problemType)
-        
+
         return BoundaryCondition.Get_dofs_nodes(availableUnknowns, nodes, unknowns)
 
     def __Bc_evaluate(self, coordo: np.ndarray, values, option="nodes") -> np.ndarray:
         """Evaluates values at nodes or gauss points."""
-        
-        assert option in ["nodes","gauss"], f"Must be in ['nodes','gauss']"
+
+        assert option in ["nodes", "gauss"], f"Must be in ['nodes','gauss']"
         if option == "nodes":
             values_eval = np.zeros(coordo.shape[0])
         elif option == "gauss":
-            values_eval = np.zeros((coordo.shape[0],coordo.shape[1]))
-        
+            values_eval = np.zeros((coordo.shape[0], coordo.shape[1]))
+
         if callable(values):
-            # Evaluate function at coordinates   
+            # Evaluate function at coordinates
             if option == "nodes":
-                values_eval[:] = values(coordo[:,0], coordo[:,1], coordo[:,2])
+                values_eval[:] = values(coordo[:, 0], coordo[:, 1], coordo[:, 2])
             elif option == "gauss":
-                values_eval[:,:] = values(coordo[:,:,0], coordo[:,:,1], coordo[:,:,2])
-            
-        else:            
+                values_eval[:, :] = values(
+                    coordo[:, :, 0], coordo[:, :, 1], coordo[:, :, 2]
+                )
+
+        else:
             if option == "nodes":
                 values_eval[:] = values
             elif option == "gauss":
-                values_eval[:,:] = values
+                values_eval[:, :] = values
 
         return values_eval
-    
-    def add_dirichlet(self, nodes: np.ndarray, values: list, unknowns: list[str], problemType=None, description="") -> None:
+
+    def add_dirichlet(
+        self,
+        nodes: np.ndarray,
+        values: list,
+        unknowns: list[str],
+        problemType=None,
+        description="",
+    ) -> None:
         """Adds Dirichlet's boundary conditions.
 
         Parameters
@@ -1285,13 +1373,14 @@ class _Simu(_IObserver, ABC):
             Description of the condition, by default "".
         """
 
-        if len(values) == 0 or len(values) != len(unknowns): return        
+        if len(values) == 0 or len(values) != len(unknowns):
+            return
 
         if problemType is None:
             problemType = self.problemType
 
         self.__Check_problemTypes(problemType)
-        
+
         assert len(nodes) > 0, "Empty node list"
         nodes = np.asarray(nodes)
 
@@ -1300,19 +1389,28 @@ class _Simu(_IObserver, ABC):
         coordo_n = coordo[nodes]
 
         # initialize the value vector for each nodes
-        dofsValues_dir = np.zeros((Nn, len(unknowns)))        
+        dofsValues_dir = np.zeros((Nn, len(unknowns)))
 
         for d, _ in enumerate(unknowns):
             eval_n = self.__Bc_evaluate(coordo_n, values[d], option="nodes")
-            dofsValues_dir[:,d] = eval_n.ravel()
-        
+            dofsValues_dir[:, d] = eval_n.ravel()
+
         dofsValues = dofsValues_dir.ravel()
-        
+
         dofs = self.Bc_dofs_nodes(nodes, unknowns, problemType)
 
-        self._Bc_Add_Dirichlet(problemType, nodes, dofsValues, dofs, unknowns, description)
+        self._Bc_Add_Dirichlet(
+            problemType, nodes, dofsValues, dofs, unknowns, description
+        )
 
-    def add_neumann(self, nodes: np.ndarray, values: list, unknowns: list[str], problemType=None, description="") -> None:
+    def add_neumann(
+        self,
+        nodes: np.ndarray,
+        values: list,
+        unknowns: list[str],
+        problemType=None,
+        description="",
+    ) -> None:
         """Adds Neumann's boundary conditions.
 
         Parameters
@@ -1331,8 +1429,9 @@ class _Simu(_IObserver, ABC):
         description : str, optional
             Description of the condition, by default "".
         """
-        
-        if len(values) == 0 or len(values) != len(unknowns): return
+
+        if len(values) == 0 or len(values) != len(unknowns):
+            return
 
         if problemType is None:
             problemType = self.problemType
@@ -1341,9 +1440,18 @@ class _Simu(_IObserver, ABC):
 
         dofsValues, dofs = self.__Bc_pointLoad(problemType, nodes, values, unknowns)
 
-        self._Bc_Add_Neumann(problemType, nodes, dofsValues, dofs, unknowns, description)
-        
-    def add_lineLoad(self, nodes: np.ndarray, values: list, unknowns: list[str], problemType=None, description="") -> None:
+        self._Bc_Add_Neumann(
+            problemType, nodes, dofsValues, dofs, unknowns, description
+        )
+
+    def add_lineLoad(
+        self,
+        nodes: np.ndarray,
+        values: list,
+        unknowns: list[str],
+        problemType=None,
+        description="",
+    ) -> None:
         """Adds a linear load.
 
         Parameters
@@ -1363,20 +1471,32 @@ class _Simu(_IObserver, ABC):
             Description of the condition, by default "".
         """
 
-        if len(values) == 0 or len(values) != len(unknowns): return
+        if len(values) == 0 or len(values) != len(unknowns):
+            return
 
         if problemType is None:
             problemType = self.problemType
 
         self.__Check_problemTypes(problemType)
 
-        dofsValues, dofs, nodes = self.__Bc_lineLoad(problemType, nodes, values, unknowns)
+        dofsValues, dofs, nodes = self.__Bc_lineLoad(
+            problemType, nodes, values, unknowns
+        )
 
-        self._Bc_Add_Neumann(problemType, nodes, dofsValues, dofs, unknowns, description)
+        self._Bc_Add_Neumann(
+            problemType, nodes, dofsValues, dofs, unknowns, description
+        )
 
-    def add_surfLoad(self, nodes: np.ndarray, values: list, unknowns: list[str], problemType=None, description="") -> None:
+    def add_surfLoad(
+        self,
+        nodes: np.ndarray,
+        values: list,
+        unknowns: list[str],
+        problemType=None,
+        description="",
+    ) -> None:
         """Adds a surface load.
-        
+
         Parameters
         ----------
         nodes : np.ndarray
@@ -1394,23 +1514,32 @@ class _Simu(_IObserver, ABC):
             Description of the condition, by default "".
         """
 
-        if len(values) == 0 or len(values) != len(unknowns): return
+        if len(values) == 0 or len(values) != len(unknowns):
+            return
 
         if problemType is None:
             problemType = self.problemType
 
         self.__Check_problemTypes(problemType)
-            
+
         if self.__dim == 2:
-            dofsValues, dofs, nodes = self.__Bc_lineLoad(problemType, nodes, values, unknowns)
+            dofsValues, dofs, nodes = self.__Bc_lineLoad(
+                problemType, nodes, values, unknowns
+            )
             # multiplied by thickness
             dofsValues *= self.model.thickness
         elif self.__dim == 3:
-            dofsValues, dofs, nodes = self.__Bc_surfload(problemType, nodes, values, unknowns)
+            dofsValues, dofs, nodes = self.__Bc_surfload(
+                problemType, nodes, values, unknowns
+            )
 
-        self._Bc_Add_Neumann(problemType, nodes, dofsValues, dofs, unknowns, description)
+        self._Bc_Add_Neumann(
+            problemType, nodes, dofsValues, dofs, unknowns, description
+        )
 
-    def add_pressureLoad(self, nodes: np.ndarray, magnitude: float, problemType=None, description="") -> None:
+    def add_pressureLoad(
+        self, nodes: np.ndarray, magnitude: float, problemType=None, description=""
+    ) -> None:
         """Adds a pressure.
 
         Parameters
@@ -1440,13 +1569,22 @@ class _Simu(_IObserver, ABC):
 
         dofsValues, dofs, nodes = self.__Bc_pressureload(problemType, nodes, magnitude)
 
-        unknowns = self.Get_unknowns(problemType)[:self.mesh.inDim]
+        unknowns = self.Get_unknowns(problemType)[: self.mesh.inDim]
 
-        self._Bc_Add_Neumann(problemType, nodes, dofsValues, dofs, unknowns, description)
+        self._Bc_Add_Neumann(
+            problemType, nodes, dofsValues, dofs, unknowns, description
+        )
 
-    def add_volumeLoad(self, nodes: np.ndarray, values: list, unknowns: list[str], problemType=None, description="") -> None:
+    def add_volumeLoad(
+        self,
+        nodes: np.ndarray,
+        values: list,
+        unknowns: list[str],
+        problemType=None,
+        description="",
+    ) -> None:
         """Adds a volumetric load.
-        
+
         Parameters
         ----------
         nodes : np.ndarray
@@ -1463,24 +1601,33 @@ class _Simu(_IObserver, ABC):
         description : str, optional
             Description of the condition, by default "".
         """
-        
-        if len(values) == 0 or len(values) != len(unknowns): return
+
+        if len(values) == 0 or len(values) != len(unknowns):
+            return
 
         if problemType is None:
             problemType = self.problemType
 
         self.__Check_problemTypes(problemType)
-        
+
         if self.__dim == 2:
-            dofsValues, dofs, nodes = self.__Bc_surfload(problemType, nodes, values, unknowns)
+            dofsValues, dofs, nodes = self.__Bc_surfload(
+                problemType, nodes, values, unknowns
+            )
             # multiplied by thickness
-            dofsValues = dofsValues*self.model.thickness
+            dofsValues = dofsValues * self.model.thickness
         elif self.__dim == 3:
-            dofsValues, dofs, nodes = self.__Bc_volumeload(problemType, nodes, values, unknowns)
+            dofsValues, dofs, nodes = self.__Bc_volumeload(
+                problemType, nodes, values, unknowns
+            )
 
-        self._Bc_Add_Neumann(problemType, nodes, dofsValues, dofs, unknowns, description)
+        self._Bc_Add_Neumann(
+            problemType, nodes, dofsValues, dofs, unknowns, description
+        )
 
-    def __Bc_pointLoad(self, problemType: ModelType, nodes: np.ndarray, values: list, unknowns: list) -> tuple[np.ndarray , np.ndarray]:
+    def __Bc_pointLoad(
+        self, problemType: ModelType, nodes: np.ndarray, values: list, unknowns: list
+    ) -> tuple[np.ndarray, np.ndarray]:
         """Adds a point load."""
 
         Nn = nodes.shape[0]
@@ -1494,16 +1641,21 @@ class _Simu(_IObserver, ABC):
             eval_n = self.__Bc_evaluate(coordo_n, values[d], option="nodes")
             if problemType == ModelType.beam:
                 eval_n /= len(nodes)
-            valeurs_ddl_dir[:,d] = eval_n.ravel()
-        
+            valeurs_ddl_dir[:, d] = eval_n.ravel()
+
         dofsValues = valeurs_ddl_dir.ravel()
 
         dofs = self.Bc_dofs_nodes(nodes, unknowns, problemType)
 
         return dofsValues, dofs
-    
-    def _Bc_Integration_scale(self, groupElem: _GroupElem, elements: np.ndarray,
-                              values_e_p: np.ndarray, matrixType: MatrixType) -> np.ndarray:
+
+    def _Bc_Integration_scale(
+        self,
+        groupElem: _GroupElem,
+        elements: np.ndarray,
+        values_e_p: np.ndarray,
+        matrixType: MatrixType,
+    ) -> np.ndarray:
         """Scales values_e_pg
 
         Parameters
@@ -1524,12 +1676,19 @@ class _Simu(_IObserver, ABC):
         """
         return values_e_p
 
-    def __Bc_Integration_Dim(self, dim: int, problemType: ModelType, nodes: np.ndarray, values: list, unknowns: list) -> tuple[np.ndarray , np.ndarray]:
+    def __Bc_Integration_Dim(
+        self,
+        dim: int,
+        problemType: ModelType,
+        nodes: np.ndarray,
+        values: list,
+        unknowns: list,
+    ) -> tuple[np.ndarray, np.ndarray]:
         """Integrates on elements for the specified dimension."""
 
         dofsValues = np.array([])
         dofs = np.array([], dtype=int)
-        Nodes = np.array([], dtype=int) # Nodes used by the elements
+        Nodes = np.array([], dtype=int)  # Nodes used by the elements
         # nodes != Nodes dont remove
 
         Nn = self.mesh.Nn
@@ -1539,7 +1698,8 @@ class _Simu(_IObserver, ABC):
 
             # Retrieve elements that exclusively use nodes
             elements = groupElem.Get_Elements_Nodes(nodes, exclusively=True)
-            if elements.shape[0] == 0: continue
+            if elements.shape[0] == 0:
+                continue
             connect = groupElem.connect[elements]
             Ne = elements.shape[0]
             Nodes = np.append(Nodes, np.reshape(connect, -1))
@@ -1549,10 +1709,12 @@ class _Simu(_IObserver, ABC):
             coordo_e_p = groupElem.Get_GaussCoordinates_e_pg(matrixType, elements)
 
             N_pg = groupElem.Get_N_pg(matrixType)
-            weightedJacobian_e_pg = groupElem.Get_weightedJacobian_e_pg(matrixType)[elements]
+            weightedJacobian_e_pg = groupElem.Get_weightedJacobian_e_pg(matrixType)[
+                elements
+            ]
 
             # initialize the matrix of values for each node used by the elements and each gauss point (Ne*nPe, dir)
-            values_dofs_u = np.zeros((Ne*groupElem.nPe, len(unknowns)))
+            values_dofs_u = np.zeros((Ne * groupElem.nPe, len(unknowns)))
             # initialize the dofs vector
             new_dofs = np.zeros_like(values_dofs_u, dtype=int)
 
@@ -1562,68 +1724,114 @@ class _Simu(_IObserver, ABC):
                 if isinstance(values[u], (int, float)) or callable(values[u]):
                     # evaluate on gauss points
                     eval_e_p = self.__Bc_evaluate(coordo_e_p, values[u], option="gauss")
-                    eval_e_p = self._Bc_Integration_scale(groupElem, elements, eval_e_p, matrixType)
+                    eval_e_p = self._Bc_Integration_scale(
+                        groupElem, elements, eval_e_p, matrixType
+                    )
                     # integrate the elements
-                    values_e_p = np.einsum('ep,ep,pin->epin', weightedJacobian_e_pg, eval_e_p, N_pg, optimize='optimal')
+                    values_e_p = np.einsum(
+                        "ep,ep,pin->epin",
+                        weightedJacobian_e_pg,
+                        eval_e_p,
+                        N_pg,
+                        optimize="optimal",
+                    )
 
                 else:
                     # evaluate on nodes
                     eval_n = np.zeros(Nn, dtype=float)
                     eval_n[nodes] = values[u]
                     eval_e = eval_n[groupElem.connect[elements]]
-                    eval_e_p = eval_e[:,np.newaxis].repeat(weightedJacobian_e_pg.shape[1], 1)
-                    eval_e_p = self._Bc_Integration_scale(groupElem, elements, eval_e_p, matrixType)
+                    eval_e_p = eval_e[:, np.newaxis].repeat(
+                        weightedJacobian_e_pg.shape[1], 1
+                    )
+                    eval_e_p = self._Bc_Integration_scale(
+                        groupElem, elements, eval_e_p, matrixType
+                    )
                     # integrate the elements
-                    values_e_p = np.einsum('ep,epj,pin->epin', weightedJacobian_e_pg, eval_e_p, N_pg, optimize='optimal')
+                    values_e_p = np.einsum(
+                        "ep,epj,pin->epin",
+                        weightedJacobian_e_pg,
+                        eval_e_p,
+                        N_pg,
+                        optimize="optimal",
+                    )
 
                 # sum over integration points
                 values_e = np.sum(values_e_p, axis=1)
                 # set calculated values and dofs
-                values_dofs_u[:,u] = values_e.ravel()
-                new_dofs[:,u] = self.Bc_dofs_nodes(connect.ravel(), [unknown], problemType)
+                values_dofs_u[:, u] = values_e.ravel()
+                new_dofs[:, u] = self.Bc_dofs_nodes(
+                    connect.ravel(), [unknown], problemType
+                )
 
-            new_values_dofs = values_dofs_u.ravel() # Put in vector form
+            new_values_dofs = values_dofs_u.ravel()  # Put in vector form
             dofsValues = np.append(dofsValues, new_values_dofs)
-            
-            new_dofs = new_dofs.ravel() # Put in vector form
+
+            new_dofs = new_dofs.ravel()  # Put in vector form
             dofs = np.append(dofs, new_dofs)
 
         return dofsValues, dofs, Nodes
 
-    def __Bc_lineLoad(self, problemType: ModelType, nodes: np.ndarray, values: list, unknowns: list) -> tuple[np.ndarray , np.ndarray, np.ndarray]:
+    def __Bc_lineLoad(
+        self, problemType: ModelType, nodes: np.ndarray, values: list, unknowns: list
+    ) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
         """Adds a linear load.\n
         returns dofsValues, dofs, nodes"""
-        
+
         self._Check_dofs(problemType, unknowns)
 
-        dofsValues, dofs, nodes = self.__Bc_Integration_Dim(dim=1, problemType=problemType, nodes=nodes, values=values, unknowns=unknowns)
+        dofsValues, dofs, nodes = self.__Bc_Integration_Dim(
+            dim=1,
+            problemType=problemType,
+            nodes=nodes,
+            values=values,
+            unknowns=unknowns,
+        )
 
         return dofsValues, dofs, nodes
-    
-    def __Bc_surfload(self, problemType: ModelType, nodes: np.ndarray, values: list, unknowns: list) -> tuple[np.ndarray , np.ndarray, np.ndarray]:
+
+    def __Bc_surfload(
+        self, problemType: ModelType, nodes: np.ndarray, values: list, unknowns: list
+    ) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
         """Apply a surface force.\n
         returns dofsValues, dofs, nodes"""
-        
+
         self._Check_dofs(problemType, unknowns)
 
-        dofsValues, dofs, nodes = self.__Bc_Integration_Dim(dim=2, problemType=problemType, nodes=nodes, values=values, unknowns=unknowns)
+        dofsValues, dofs, nodes = self.__Bc_Integration_Dim(
+            dim=2,
+            problemType=problemType,
+            nodes=nodes,
+            values=values,
+            unknowns=unknowns,
+        )
 
         return dofsValues, dofs, nodes
 
-    def __Bc_volumeload(self, problemType: ModelType, nodes: np.ndarray, values: list, unknowns: list) -> tuple[np.ndarray , np.ndarray, np.ndarray]:
+    def __Bc_volumeload(
+        self, problemType: ModelType, nodes: np.ndarray, values: list, unknowns: list
+    ) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
         """Adds a volumetric load.\n
         returns dofsValues, dofs, nodes"""
-        
+
         self._Check_dofs(problemType, unknowns)
 
-        dofsValues, dofs, nodes = self.__Bc_Integration_Dim(dim=3, problemType=problemType, nodes=nodes, values=values, unknowns=unknowns)
+        dofsValues, dofs, nodes = self.__Bc_Integration_Dim(
+            dim=3,
+            problemType=problemType,
+            nodes=nodes,
+            values=values,
+            unknowns=unknowns,
+        )
 
         return dofsValues, dofs, nodes
-    
-    def __Bc_pressureload(self, problemType: ModelType, nodes: np.ndarray, magnitude: float) -> tuple[np.ndarray , np.ndarray, np.ndarray]:
+
+    def __Bc_pressureload(
+        self, problemType: ModelType, nodes: np.ndarray, magnitude: float
+    ) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
         """Adds a pressure load.\n
         returns dofsValues, dofs, nodes"""
-        
+
         # here we need to get the normal vector
 
         mesh = self.mesh
@@ -1638,59 +1846,96 @@ class _Simu(_IObserver, ABC):
 
         normals, nodes = mesh.Get_normals(nodes)
 
-        values = [val*magnitude for val in normals[:,:inDim].T]
+        values = [val * magnitude for val in normals[:, :inDim].T]
 
         unknowns = self.Get_unknowns(problemType)[:inDim]
 
-        dofsValues, dofs, nodes = self.__Bc_Integration_Dim(dim-1, problemType=problemType, nodes=nodes, values=values, unknowns=unknowns)
+        dofsValues, dofs, nodes = self.__Bc_Integration_Dim(
+            dim - 1,
+            problemType=problemType,
+            nodes=nodes,
+            values=values,
+            unknowns=unknowns,
+        )
 
         return dofsValues, dofs, nodes
-    
-    def _Bc_Add_Neumann(self, problemType: ModelType, nodes: np.ndarray, dofsValues: np.ndarray, dofs: np.ndarray, unknowns: list, description="") -> None:
+
+    def _Bc_Add_Neumann(
+        self,
+        problemType: ModelType,
+        nodes: np.ndarray,
+        dofsValues: np.ndarray,
+        dofs: np.ndarray,
+        unknowns: list,
+        description="",
+    ) -> None:
         """Adds Neumann's boundary conditions.\n
-        If a neumann condition is already applied to the dof, the condition will not be taken into account for the dof."""
+        If a neumann condition is already applied to the dof, the condition will not be taken into account for the dof.
+        """
 
         tic = Tic()
 
         self._Check_dofs(problemType, unknowns)
 
-        new_Bc = BoundaryCondition(problemType, nodes, dofs, unknowns, dofsValues, f'Neumann {description}')
+        new_Bc = BoundaryCondition(
+            problemType, nodes, dofs, unknowns, dofsValues, f"Neumann {description}"
+        )
         self.__Bc_Neumann.append(new_Bc)
 
-        tic.Tac("Boundary Conditions","Add Neumann condition ", self._verbosity)   
-     
-    def _Bc_Add_Dirichlet(self, problemType: ModelType, nodes: np.ndarray, dofsValues: np.ndarray, dofs: np.ndarray, unknowns: list, description="") -> None:
+        tic.Tac("Boundary Conditions", "Add Neumann condition ", self._verbosity)
+
+    def _Bc_Add_Dirichlet(
+        self,
+        problemType: ModelType,
+        nodes: np.ndarray,
+        dofsValues: np.ndarray,
+        dofs: np.ndarray,
+        unknowns: list,
+        description="",
+    ) -> None:
         """Adds Dirichlet's boundary conditions.\n
-        If a Dirichlet's dof is entered more than once, the conditions are added together."""
+        If a Dirichlet's dof is entered more than once, the conditions are added together.
+        """
 
         tic = Tic()
 
         self.__Check_problemTypes(problemType)
 
-        new_Bc = BoundaryCondition(problemType, nodes, dofs, unknowns, dofsValues, f'Dirichlet {description}')
+        new_Bc = BoundaryCondition(
+            problemType, nodes, dofs, unknowns, dofsValues, f"Dirichlet {description}"
+        )
 
         self.__Bc_Dirichlet.append(new_Bc)
 
-        tic.Tac("Boundary Conditions","Add Dirichlet condition", self._verbosity)
-    
+        tic.Tac("Boundary Conditions", "Add Dirichlet condition", self._verbosity)
+
     # Functions to create links between degrees of freedom
 
-    def _Bc_Add_Display(self, nodes: np.ndarray, unknowns: list[str], description: str, problemType=None) -> None:
+    def _Bc_Add_Display(
+        self, nodes: np.ndarray, unknowns: list[str], description: str, problemType=None
+    ) -> None:
         """Adds a display condition."""
 
         if problemType is None:
             problemType = self.problemType
 
-        self.__Check_problemTypes(problemType)        
+        self.__Check_problemTypes(problemType)
 
         dofs = self.Bc_dofs_nodes(nodes, unknowns, problemType)
-        
-        dofsValues =  np.array([0]*len(dofs))
 
-        new_Bc = BoundaryCondition(problemType, nodes, dofs, unknowns, dofsValues, description)
+        dofsValues = np.array([0] * len(dofs))
+
+        new_Bc = BoundaryCondition(
+            problemType, nodes, dofs, unknowns, dofsValues, description
+        )
         self.__Bc_Display.append(new_Bc)
 
-    def Get_contact(self, masterMesh: Mesh, slaveNodes: np.ndarray=None, masterNodes: np.ndarray=None) -> tuple[np.ndarray, np.ndarray]:
+    def Get_contact(
+        self,
+        masterMesh: Mesh,
+        slaveNodes: np.ndarray = None,
+        masterNodes: np.ndarray = None,
+    ) -> tuple[np.ndarray, np.ndarray]:
         """Returns the simulation nodes detected in the master mesh with the associated displacement matrix to the interface.
 
         Parameters
@@ -1713,25 +1958,25 @@ class _Simu(_IObserver, ABC):
         assert self.mesh.dim == masterMesh.dim, "Must be same dimension"
 
         # Here the first element group is selected. Regardless of whether there are several group of the same dimension.
-        masterGroup = masterMesh.Get_list_groupElem(masterMesh.dim-1)[0]
+        masterGroup = masterMesh.Get_list_groupElem(masterMesh.dim - 1)[0]
         # retrieve bounndary elements
         if masterNodes is None:
             elements = masterMesh.Elements_Nodes(masterGroup.nodes, False)
         else:
-            elements = masterMesh.Elements_Nodes(masterNodes, False)        
+            elements = masterMesh.Elements_Nodes(masterNodes, False)
 
         if slaveNodes is None:
-            slaveGroup = self.mesh.Get_list_groupElem(masterMesh.dim-1)[0]
+            slaveGroup = self.mesh.Get_list_groupElem(masterMesh.dim - 1)[0]
             slaveNodes = slaveGroup.nodes
 
         # update nodes coordinates
         newCoord = self.Results_displacement_matrix() + self.mesh.coord
-        
+
         # get nodes in master mesh
-        idx = masterMesh.groupElem.Get_Mapping(newCoord[slaveNodes], elements, False)[0]        
+        idx = masterMesh.groupElem.Get_Mapping(newCoord[slaveNodes], elements, False)[0]
         idx = np.asarray(list(set(idx)), dtype=int)
 
-        tic.Tac("PostProcessing","Get slave nodes in master mesh")
+        tic.Tac("PostProcessing", "Get slave nodes in master mesh")
 
         if idx.size > 0:
             # slave nodes have been detected in the master mesh
@@ -1739,37 +1984,39 @@ class _Simu(_IObserver, ABC):
 
             sysCoord_e = masterGroup._Get_sysCoord_e()
 
-            # get the elemGroup on the interface        
-            gaussCoord_e_p = np.asarray(masterGroup.Get_GaussCoordinates_e_pg(MatrixType.rigi))
-            
+            # get the elemGroup on the interface
+            gaussCoord_e_p = np.asarray(
+                masterGroup.Get_GaussCoordinates_e_pg(MatrixType.rigi)
+            )
+
             # empty new displacement
             listU: list[np.ndarray] = []
             # for each nodes in master mesh we will detects the shortest displacement vector to the interface
             for node in nodes:
                 # vectors between the interface coordinates and the detected node
-                vi_e_pg: np.ndarray  = gaussCoord_e_p - newCoord[node]               
+                vi_e_pg: np.ndarray = gaussCoord_e_p - newCoord[node]
 
                 # distance between the interface coordinates and the detected node
                 d_e_pg: np.ndarray = np.linalg.norm(vi_e_pg, axis=2)
                 e, p = np.unravel_index(np.argmin(d_e_pg), d_e_pg.shape)
                 # retrieves the nearest coordinate
-                closeCoordo = np.reshape(gaussCoord_e_p[e,p], -1)
-                
+                closeCoordo = np.reshape(gaussCoord_e_p[e, p], -1)
+
                 # normal vector
-                if masterGroup.dim == 1: # lines
-                    normal_vect: np.ndarray = - sysCoord_e[e,:,1]
-                elif masterGroup.dim == 2: # surfaces                
-                    normal_vect: np.ndarray = sysCoord_e[e,:,2]
+                if masterGroup.dim == 1:  # lines
+                    normal_vect: np.ndarray = -sysCoord_e[e, :, 1]
+                elif masterGroup.dim == 2:  # surfaces
+                    normal_vect: np.ndarray = sysCoord_e[e, :, 2]
                 else:
                     raise "The master group must be dimension 1 or 2. Must be lines or surfaces."
-                
+
                 # distance to project the node to the element
                 d: float = np.abs((newCoord[node] - closeCoordo) @ normal_vect)
                 # vector to the interface
                 u: np.ndarray = d * normal_vect
                 listU.append(u)
 
-            # Apply the displacement to meet the interface 
+            # Apply the displacement to meet the interface
             oldU: np.ndarray = self.Results_displacement_matrix()[nodes]
             displacementMatrix = np.asarray(listU) + oldU
 
@@ -1777,10 +2024,10 @@ class _Simu(_IObserver, ABC):
             nodes = np.array([])
             displacementMatrix = np.array([])
 
-        tic.Tac("PostProcessing","Get displacement")
-        
+        tic.Tac("PostProcessing", "Get displacement")
+
         return nodes, displacementMatrix
-    
+
     # ----------------------------------------------
     # Results
     # ----------------------------------------------
@@ -1791,7 +2038,9 @@ class _Simu(_IObserver, ABC):
         if result in availableResults:
             return True
         else:
-            Display.MyPrintError(f"\nFor a {self.problemType} problem result must be in : \n {availableResults}")
+            Display.MyPrintError(
+                f"\nFor a {self.problemType} problem result must be in : \n {availableResults}"
+            )
             return False
 
     def Results_Set_Iteration_Summary(self) -> None:
@@ -1809,8 +2058,10 @@ class _Simu(_IObserver, ABC):
     def Results_Get_Bc_Summary(self) -> str:
         """Returns the simulation loading summary."""
         return "Unspecified."
-        
-    def Results_Reshape_values(self, values: np.ndarray, nodeValues: bool) -> np.ndarray:
+
+    def Results_Reshape_values(
+        self, values: np.ndarray, nodeValues: bool
+    ) -> np.ndarray:
         """Reshapes input values based on whether they are stored at nodes or elements.
 
         Parameters
@@ -1835,7 +2086,7 @@ class _Simu(_IObserver, ABC):
         Ne = mesh.Ne
 
         is1d = values.ndim == 1
-        
+
         if nodeValues:
             shape = -1 if is1d else (Nn, -1)
             if values.size % Nn == 0:
@@ -1843,7 +2094,7 @@ class _Simu(_IObserver, ABC):
                 if is1d:
                     return values.ravel()
                 else:
-                    return values.reshape(Nn,-1)
+                    return values.reshape(Nn, -1)
             elif values.size % Ne == 0:
                 # values stored at elements
                 values_e = values.reshape(Ne, -1)
@@ -1865,21 +2116,23 @@ class _Simu(_IObserver, ABC):
 
         # We should never reach this line of code if no unexpected conditions occurs
         raise Exception("Unexpected conditions occurred during the calculation.")
-    
-    def Save(self, folder: str, filename: str="simulation", additionalInfos:str="") -> None:
+
+    def Save(
+        self, folder: str, filename: str = "simulation", additionalInfos: str = ""
+    ) -> None:
         """Saves the simulation and its summary in the folder. Saves the simulation as 'filename.pickle'."""
         # Empty matrices in element groups
         self.mesh._ResetMatrix()
 
-        folder_EasyFEA = Folder.Dir(Folder.Dir()) # path the EasyFEA folder
+        folder_EasyFEA = Folder.Dir(Folder.Dir())  # path the EasyFEA folder
         # this path will be removed in print
 
         # Save simulation
         path_simu = Folder.Join(folder, f"{filename}.pickle", mkdir=True)
         with open(path_simu, "wb") as file:
             pickle.dump(self, file)
-        Display.MyPrint(f'Saved:\n{path_simu.replace(folder_EasyFEA,"")}\n', 'green')
-        
+        Display.MyPrint(f'Saved:\n{path_simu.replace(folder_EasyFEA,"")}\n', "green")
+
         # Save simulation summary
         path_summary = Folder.Join(folder, "summary.txt", mkdir=True)
         summary = f"Simulation completed on: {datetime.now()}\n"
@@ -1887,19 +2140,21 @@ class _Simu(_IObserver, ABC):
         summary += str(self)
         if str(additionalInfos) != "":
             summary += Display.Section("Additional information", False)
-            summary += '\n' + str(additionalInfos)
+            summary += "\n" + str(additionalInfos)
 
-        with open(path_summary, 'w', encoding='utf8') as file:
+        with open(path_summary, "w", encoding="utf8") as file:
             file.write(summary)
-        Display.MyPrint(f'Saved:\n{path_summary.replace(folder_EasyFEA,"")}\n', 'green')
+        Display.MyPrint(f'Saved:\n{path_summary.replace(folder_EasyFEA,"")}\n', "green")
+
 
 # ----------------------------------------------
 # _Simu Functions
 # ----------------------------------------------
 
-def _Init_obj(obj, deformFactor: float=0.0):
+
+def _Init_obj(obj, deformFactor: float = 0.0):
     """Returns (simu, mesh, coordo, inDim) from an ojbect that could be either a _Simu, a Mesh or a _GroupElem object.
-    
+
     Parameters
     ----------
     obj : _Simu | Mesh | _GroupElem
@@ -1932,10 +2187,16 @@ def _Init_obj(obj, deformFactor: float=0.0):
         inDim = mesh.inDim
     else:
         raise TypeError("Must be a simulation or a mesh.")
-    
+
     return simu, mesh, coordo, inDim
 
-def _Get_values(simu: Union[_Simu, None], mesh: Mesh, result: Union[str, np.ndarray], nodeValues=True) -> np.ndarray:
+
+def _Get_values(
+    simu: Union[_Simu, None],
+    mesh: Mesh,
+    result: Union[str, np.ndarray],
+    nodeValues=True,
+) -> np.ndarray:
     """Retrieves values and ensures compatibility with the mesh.
 
     Parameters
@@ -1955,13 +2216,16 @@ def _Get_values(simu: Union[_Simu, None], mesh: Mesh, result: Union[str, np.ndar
     np.ndarray
         values
     """
-    
+
     if isinstance(result, str):
         if simu == None:
-            raise Exception("obj is a mesh, so the result must be an array of dimension Nn or Ne")
-        values = simu.Result(result, nodeValues) # Retrieve result from option
-        if not isinstance(values, np.ndarray): return
-    
+            raise Exception(
+                "obj is a mesh, so the result must be an array of dimension Nn or Ne"
+            )
+        values = simu.Result(result, nodeValues)  # Retrieve result from option
+        if not isinstance(values, np.ndarray):
+            return
+
     elif isinstance(result, np.ndarray):
         values = result
         size = result.shape[0]
@@ -1973,13 +2237,14 @@ def _Get_values(simu: Union[_Simu, None], mesh: Mesh, result: Union[str, np.ndar
                 values = mesh.Get_Node_Values(result)
             elif size == mesh.Nn and not nodeValues:
                 values_e = mesh.Locates_sol_e(result)
-                values = np.mean(values_e, 1)        
+                values = np.mean(values_e, 1)
     else:
         raise Exception("result must be a string or an array")
 
     return values
 
-def Load_Simu(folder: str, filename: str="simulation") -> _Simu:
+
+def Load_Simu(folder: str, filename: str = "simulation") -> _Simu:
     """Loads the simulation from the specified folder.
 
     Parameters
@@ -2000,12 +2265,12 @@ def Load_Simu(folder: str, filename: str="simulation") -> _Simu:
     assert Folder.Exists(path_simu), f"The file {filename}.pickle cannot be found."
 
     try:
-        with open(path_simu, 'rb') as file:
+        with open(path_simu, "rb") as file:
             simu: _Simu = pickle.load(file)
     except EOFError:
         Display.MyPrintError(f"The file:\n{path_simu}\nis empty or corrupted.")
-        return None    
-    
-    Display.MyPrint(f'\nLoaded:\n{path_simu.replace(folder_PythonEF,"")}\n', 'green')
+        return None
+
+    Display.MyPrint(f'\nLoaded:\n{path_simu.replace(folder_PythonEF,"")}\n', "green")
 
     return simu

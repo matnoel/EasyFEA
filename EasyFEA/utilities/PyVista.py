@@ -16,14 +16,34 @@ from .Display import MyPrintError, MyPrint
 from ..simulations._simu import _Init_obj, _Get_values
 from . import Folder, Tic
 from .. import Geoms
+
 # fem
 from ..fem import GroupElemFactory
 
-def Plot(obj, result: Union[str,np.ndarray]=None, deformFactor=0.0, coef=1.0, nodeValues=True, 
-                color=None, show_edges=False, edge_color='k', line_width=None,
-                show_vertices=False, point_size=None, opacity=1.0,
-                style='surface', cmap="jet", n_colors=256, clim=None,
-                plotter: pv.Plotter=None, show_grid=False, colorbarTitle=None, verticalColobar=True, **kwargs):
+
+def Plot(
+    obj,
+    result: Union[str, np.ndarray] = None,
+    deformFactor=0.0,
+    coef=1.0,
+    nodeValues=True,
+    color=None,
+    show_edges=False,
+    edge_color="k",
+    line_width=None,
+    show_vertices=False,
+    point_size=None,
+    opacity=1.0,
+    style="surface",
+    cmap="jet",
+    n_colors=256,
+    clim=None,
+    plotter: pv.Plotter = None,
+    show_grid=False,
+    colorbarTitle=None,
+    verticalColobar=True,
+    **kwargs,
+):
     """Plots the object obj that can be either a simu, mesh, MultiBlock, PolyData.\n
     If you want to plot the solution use plotter.show().
 
@@ -78,13 +98,13 @@ def Plot(obj, result: Union[str,np.ndarray]=None, deformFactor=0.0, coef=1.0, no
     pv.Plotter
         The pyvista plotter
     """
-    
-    tic = Tic()    
-    
+
+    tic = Tic()
+
     # initilize the obj to construct the grid
     if isinstance(obj, (pv.MultiBlock, pv.PolyData, pv.UnstructuredGrid)):
         inDim = 3
-        pvMesh = obj        
+        pvMesh = obj
         result = result if result in pvMesh.array_names else None
     else:
         pvMesh = _pvGrid(obj, result, deformFactor, nodeValues)
@@ -93,26 +113,26 @@ def Plot(obj, result: Union[str,np.ndarray]=None, deformFactor=0.0, coef=1.0, no
     if pvMesh is None:
         # something do not work during the grid creation≠
         return
-    
+
     # apply coef to the array
     name = "array" if isinstance(result, np.ndarray) else result
     name = None if pvMesh.n_arrays == 0 else name
     if name != None:
         pvMesh[name] *= coef
-    
+
     colorbarTitle = name if colorbarTitle is None else colorbarTitle
 
-    if plotter is None:        
+    if plotter is None:
         plotter = _Plotter()
-    
+
     if show_grid:
-        plotter.show_grid()    
+        plotter.show_grid()
 
     if verticalColobar:
-        pos = 'position_x'
+        pos = "position_x"
         val = 0.85
     else:
-        pos = 'position_y'
+        pos = "position_y"
         val = 0.025
 
     # plot the mesh
@@ -120,23 +140,44 @@ def Plot(obj, result: Union[str,np.ndarray]=None, deformFactor=0.0, coef=1.0, no
         pvMeshs = [pvMesh]
 
     for pvMesh in pvMeshs:
-        plotter.add_mesh(pvMesh, scalars=name,
-                        color=color,
-                        show_edges=show_edges, edge_color=edge_color, line_width=line_width,
-                        show_vertices=show_vertices, point_size=point_size,
-                        opacity=opacity,
-                        style=style, cmap=cmap, n_colors=n_colors, clim=clim,
-                        scalar_bar_args={'title': colorbarTitle, 'vertical': verticalColobar, pos: val},
-                        **kwargs)
+        plotter.add_mesh(
+            pvMesh,
+            scalars=name,
+            color=color,
+            show_edges=show_edges,
+            edge_color=edge_color,
+            line_width=line_width,
+            show_vertices=show_vertices,
+            point_size=point_size,
+            opacity=opacity,
+            style=style,
+            cmap=cmap,
+            n_colors=n_colors,
+            clim=clim,
+            scalar_bar_args={
+                "title": colorbarTitle,
+                "vertical": verticalColobar,
+                pos: val,
+            },
+            **kwargs,
+        )
 
     _setCameraPosition(plotter, inDim)
 
-    tic.Tac("PyVista_Interface","Plot")
+    tic.Tac("PyVista_Interface", "Plot")
 
     return plotter
 
-def Plot_Mesh(obj, deformFactor=0.0, opacity=1.0, color='cyan', edge_color='black', line_width=0.5,
-              plotter: pv.Plotter=None):
+
+def Plot_Mesh(
+    obj,
+    deformFactor=0.0,
+    opacity=1.0,
+    color="cyan",
+    edge_color="black",
+    line_width=0.5,
+    plotter: pv.Plotter = None,
+):
     """Plots the mesh.
 
     Parameters
@@ -146,7 +187,7 @@ def Plot_Mesh(obj, deformFactor=0.0, opacity=1.0, color='cyan', edge_color='blac
     deformFactor : float, optional
         Factor used to display the deformed solution (0 means no deformations), default 0.0
     opacity : float, optional
-        face opacity, default 1.0    
+        face opacity, default 1.0
     color: str, optional
         face colors, default 'cyan'
     edge_color: str, optional
@@ -162,12 +203,30 @@ def Plot_Mesh(obj, deformFactor=0.0, opacity=1.0, color='cyan', edge_color='blac
         The pyvista plotter
     """
 
-    plotter = Plot(obj, deformFactor=deformFactor, opacity=opacity, color=color, edge_color=edge_color, line_width=line_width, plotter=plotter, show_edges=True)
+    plotter = Plot(
+        obj,
+        deformFactor=deformFactor,
+        opacity=opacity,
+        color=color,
+        edge_color=edge_color,
+        line_width=line_width,
+        plotter=plotter,
+        show_edges=True,
+    )
 
     return plotter
 
-def Plot_Nodes(obj, nodes: np.ndarray=None, showId=False, deformFactor=0, color='red',
-               folder="", label=None, plotter: pv.Plotter=None):
+
+def Plot_Nodes(
+    obj,
+    nodes: np.ndarray = None,
+    showId=False,
+    deformFactor=0,
+    color="red",
+    folder="",
+    label=None,
+    plotter: pv.Plotter = None,
+):
     """Plots mesh's nodes.
 
     Parameters
@@ -193,7 +252,7 @@ def Plot_Nodes(obj, nodes: np.ndarray=None, showId=False, deformFactor=0, color=
         The pyvista plotter
     """
 
-    _, mesh, coordo, _ = _Init_obj(obj, deformFactor)   
+    _, mesh, coordo, _ = _Init_obj(obj, deformFactor)
 
     if nodes is None:
         nodes = mesh.nodes
@@ -213,26 +272,43 @@ def Plot_Nodes(obj, nodes: np.ndarray=None, showId=False, deformFactor=0, color=
         elif nodes.ndim == 2 and nodes.shape[1] == 3:
             coordo = nodes
         else:
-            MyPrintError("Nodes must be either a list of nodes or a matrix of 3D vectors of dimension (n, 3).")
+            MyPrintError(
+                "Nodes must be either a list of nodes or a matrix of 3D vectors of dimension (n, 3)."
+            )
             return
 
     if plotter == None:
-        plotter = Plot(obj, deformFactor=deformFactor, style='wireframe', color='k')
+        plotter = Plot(obj, deformFactor=deformFactor, style="wireframe", color="k")
 
     pvData = pv.PolyData(coordo)
 
     if showId:
         myLabels = [f"{node}" for node in nodes]
         pvData["myLabels"] = myLabels
-        plotter.add_point_labels(pvData, "myLabels", point_color=color, render_points_as_spheres=True)
+        plotter.add_point_labels(
+            pvData, "myLabels", point_color=color, render_points_as_spheres=True
+        )
     else:
-        plotter.add_mesh(pvData, color=color, label=label, render_points_as_spheres=True)
+        plotter.add_mesh(
+            pvData, color=color, label=label, render_points_as_spheres=True
+        )
 
     return plotter
 
-def Plot_Elements(obj, nodes: np.ndarray=None, dimElem: int=None, showId=False,
-                  deformFactor=0, opacity=1.0, color='red', edge_color='black',
-                  line_width=None, label=None, plotter: pv.Plotter=None):
+
+def Plot_Elements(
+    obj,
+    nodes: np.ndarray = None,
+    dimElem: int = None,
+    showId=False,
+    deformFactor=0,
+    opacity=1.0,
+    color="red",
+    edge_color="black",
+    line_width=None,
+    label=None,
+    plotter: pv.Plotter = None,
+):
     """Plots the mesh elements corresponding to the given nodes.
 
     Parameters
@@ -240,19 +316,19 @@ def Plot_Elements(obj, nodes: np.ndarray=None, dimElem: int=None, showId=False,
     obj : _Simu | Mesh
         object containing the mesh
     nodes : np.ndarray, optional
-        nodes used by elements, default None    
+        nodes used by elements, default None
     dimElem : int, optional
         dimension of elements, by default None (mesh.dim)
     showId : bool, optional
-        display numbers, by default False  
+        display numbers, by default False
     deformFactor : float, optional
-        Factor used to display the deformed solution (0 means no deformations), default 0.0  
+        Factor used to display the deformed solution (0 means no deformations), default 0.0
     opacity : float, optional
         transparency of faces, by default 1.0
     color : str, optional
         color used to display faces, by default 'red
     edge_color : str, optional
-        color used to display segments, by default 'black'    
+        color used to display segments, by default 'black'
     line_width : float, optional
         Thickness of lines, by default None
     label : str, optional
@@ -267,7 +343,7 @@ def Plot_Elements(obj, nodes: np.ndarray=None, dimElem: int=None, showId=False,
     """
 
     _, mesh, coordo, _ = _Init_obj(obj, deformFactor)
-    
+
     dimElem = mesh.dim if dimElem == None else dimElem
 
     if nodes is None:
@@ -281,13 +357,14 @@ def Plot_Elements(obj, nodes: np.ndarray=None, dimElem: int=None, showId=False,
     if plotter == None:
         # plotter = Plot(obj, deformFactor=deformFactor, style='wireframe', color=edge_color, line_width=line_width)
         plotter = _Plotter()
-    
+
     for groupElem in mesh.Get_list_groupElem(dimElem):
 
         # get the elements associated with the nodes
         elements = groupElem.Get_Elements_Nodes(nodes)
 
-        if elements.size == 0: continue
+        if elements.size == 0:
+            continue
 
         # construct the new group element by changing the connectivity matrix
         gmshId = groupElem.gmshId
@@ -297,18 +374,29 @@ def Plot_Elements(obj, nodes: np.ndarray=None, dimElem: int=None, showId=False,
 
         pvGroup = _pvGrid(newGroupElem)
 
-        Plot(pvGroup, opacity=opacity, color=color, edge_color=edge_color, plotter=plotter, line_width=line_width, label=label)
+        Plot(
+            pvGroup,
+            opacity=opacity,
+            color=color,
+            edge_color=edge_color,
+            plotter=plotter,
+            line_width=line_width,
+            label=label,
+        )
 
         if showId:
             centers = np.mean(coordo[groupElem.connect[elements]], axis=1)
             pvData = pv.PolyData(centers)
             myLabels = [f"{element}" for element in elements]
             pvData["myLabels"] = myLabels
-            plotter.add_point_labels(pvData, "myLabels", point_color='k', render_points_as_spheres=True)
+            plotter.add_point_labels(
+                pvData, "myLabels", point_color="k", render_points_as_spheres=True
+            )
 
     return plotter
 
-def Plot_BoundaryConditions(simu, deformFactor=0.0, plotter: pv.Plotter=None):
+
+def Plot_BoundaryConditions(simu, deformFactor=0.0, plotter: pv.Plotter = None):
     """Plots simulation's boundary conditions.
 
     Parameters
@@ -316,7 +404,7 @@ def Plot_BoundaryConditions(simu, deformFactor=0.0, plotter: pv.Plotter=None):
     simu : Simu
         simulation
     deformFactor : float, optional
-        Factor used to display the deformed solution (0 means no deformations), default 0.0  
+        Factor used to display the deformed solution (0 means no deformations), default 0.0
     plotter : pv.Plotter, optional
         The pyvista plotter, by default None and create a new Plotter instance
 
@@ -328,11 +416,10 @@ def Plot_BoundaryConditions(simu, deformFactor=0.0, plotter: pv.Plotter=None):
 
     tic = Tic()
 
-    
     simu, mesh, coordo, inDim = _Init_obj(simu, deformFactor)
 
     if simu is None:
-        MyPrintError('simu must be a _Simu object')
+        MyPrintError("simu must be a _Simu object")
         return
 
     # get dirichlet and neumann boundary conditions
@@ -340,22 +427,24 @@ def Plot_BoundaryConditions(simu, deformFactor=0.0, plotter: pv.Plotter=None):
     BoundaryConditions = dirchlets
     neumanns = simu.Bc_Neuman
     BoundaryConditions.extend(neumanns)
-    displays = simu.Bc_Display # boundary conditions for display used for lagrangian boundary conditions
+    displays = (
+        simu.Bc_Display
+    )  # boundary conditions for display used for lagrangian boundary conditions
     BoundaryConditions.extend(displays)
 
     if plotter == None:
-        plotter = _Plotter()    
-        Plot_Elements(simu, None, 1, False, deformFactor, plotter=plotter, color='k')
+        plotter = _Plotter()
+        Plot_Elements(simu, None, 1, False, deformFactor, plotter=plotter, color="k")
         # Plot(simu, deformFactor=deformFactor, plotter=plotter, color='k', style='wireframe')
-        plotter.add_title('Boundary conditions')
+        plotter.add_title("Boundary conditions")
 
-    pv.global_theme.color_cycler = 'default' # same as matplotlib
+    pv.global_theme.color_cycler = "default"  # same as matplotlib
     color_cycler = pv.global_theme.color_cycler
 
-    for (bc, cycle) in zip(BoundaryConditions, color_cycler):
+    for bc, cycle in zip(BoundaryConditions, color_cycler):
 
-        color = cycle['color']
-        
+        color = cycle["color"]
+
         problemType = bc.problemType
         dofsValues = bc.dofsValues
         unknowns = bc.unknowns
@@ -367,24 +456,31 @@ def Plot_BoundaryConditions(simu, deformFactor=0.0, plotter: pv.Plotter=None):
         availableUnknowns = simu.Get_unknowns(problemType)
         nDof = mesh.Nn * simu.Get_dof_n(problemType)
 
-        # label        
-        unknowns_str = str(unknowns).replace("'","")
+        # label
+        unknowns_str = str(unknowns).replace("'", "")
         label = f"{description} {unknowns_str}"
 
         nodes = np.asarray(list(set(nodes)), dtype=int)
 
-        unknowns_rot = ["rx","ry","rz"]
+        unknowns_rot = ["rx", "ry", "rz"]
 
         if nDof == mesh.Nn:
-            # plot points 
-            plotter.add_mesh(pv.PolyData(coordo[nodes]), render_points_as_spheres=False, label=label, color=color)
+            # plot points
+            plotter.add_mesh(
+                pv.PolyData(coordo[nodes]),
+                render_points_as_spheres=False,
+                label=label,
+                color=color,
+            )
 
         else:
             # will try to display as an arrow
             # if dofsValues are null, will display as points
 
-            summedValues = csr_matrix((dofsValues, (dofs, np.zeros_like(dofs))), (nDof, 1))            
-            dofsValues = summedValues.toarray()            
+            summedValues = csr_matrix(
+                (dofsValues, (dofs, np.zeros_like(dofs))), (nDof, 1)
+            )
+            dofsValues = summedValues.toarray()
 
             # here I want to build two display vectors (translation and rotation)
             start = coordo[nodes]
@@ -396,63 +492,74 @@ def Plot_BoundaryConditions(simu, deformFactor=0.0, plotter: pv.Plotter=None):
                 values = np.ravel(dofsValues[lines])
                 if direction in unknowns_rot:
                     idx = unknowns_rot.index(direction)
-                    vectorRot[:,idx] = values
+                    vectorRot[:, idx] = values
                 else:
                     idx = availableUnknowns.index(direction)
-                    vector[:,idx] = values
+                    vector[:, idx] = values
 
             normVector = np.linalg.norm(vector, axis=1).max()
             if normVector > 0:
-                vector = vector/normVector
+                vector = vector / normVector
 
             normVectorRot = np.linalg.norm(vectorRot, axis=1).max()
             if np.max(vectorRot) > 0:
-                vectorRot = vectorRot/normVectorRot
-            
+                vectorRot = vectorRot / normVectorRot
+
             # here calculate the average distance between the coordinates and the center
             center = np.mean(coordo, 0)
-            dist = np.linalg.norm(coordo-center, axis=1).max()
+            dist = np.linalg.norm(coordo - center, axis=1).max()
             # use thise distance to apply a magnitude to the vectors
-            factor = 1 if dist == 0 else dist*.1
+            factor = 1 if dist == 0 else dist * 0.1
 
-            if dofs.size/nDir > simu.mesh.Nn:
+            if dofs.size / nDir > simu.mesh.Nn:
                 # values are applied on every nodes of the mesh
                 # the plot only one arrow
-                factor = dist*.5
+                factor = dist * 0.5
                 start = mesh.center
                 vector = np.mean(vector, 0)
                 vectorRot = np.mean(vectorRot, 0)
-            
+
             # plot vector
             if normVector == 0:
                 # vector is a matrix of zeros
                 pvData = pv.PolyData(coordo[nodes])
-                plotter.add_mesh(pvData, render_points_as_spheres=True, label=label, color=color)
+                plotter.add_mesh(
+                    pvData, render_points_as_spheres=True, label=label, color=color
+                )
             else:
                 # here the arrow will end at the node coordinates
-                plotter.add_arrows(start-vector*factor, vector, factor, label=label, color=color)
+                plotter.add_arrows(
+                    start - vector * factor, vector, factor, label=label, color=color
+                )
 
             if True in [direction in unknowns_rot for direction in unknowns]:
                 # plot vectorRot
                 if normVectorRot == 0:
                     # vectorRot is a matrix of zeros
                     pvData = pv.PolyData(coordo[nodes])
-                    plotter.add_mesh(pvData, render_points_as_spheres=True, label=label, color=color)
+                    plotter.add_mesh(
+                        pvData, render_points_as_spheres=True, label=label, color=color
+                    )
                 else:
                     # here the arrow will end at the node coordinates
-                    plotter.add_arrows(start, vector, factor/2, label=label, color=color)
-    
-    plotter.add_legend(bcolor='white',face="o")
+                    plotter.add_arrows(
+                        start, vector, factor / 2, label=label, color=color
+                    )
+
+    plotter.add_legend(bcolor="white", face="o")
 
     _setCameraPosition(plotter, inDim)
 
-    pv.global_theme.color_cycler = None # same as matplotlib
+    pv.global_theme.color_cycler = None  # same as matplotlib
 
-    tic.Tac("PyVista_Interface","Plot_BoundaryConditions")    
+    tic.Tac("PyVista_Interface", "Plot_BoundaryConditions")
 
     return plotter
 
-def Plot_Geoms(geoms: list, line_width=2, plotLegend=True, plotter: pv.Plotter=None, **kwargs) -> pv.Plotter:
+
+def Plot_Geoms(
+    geoms: list, line_width=2, plotLegend=True, plotter: pv.Plotter = None, **kwargs
+) -> pv.Plotter:
     """Plots _Geom objects
 
     Parameters
@@ -464,7 +571,7 @@ def Plot_Geoms(geoms: list, line_width=2, plotLegend=True, plotter: pv.Plotter=N
     line_width : float, optional
         Thickness of lines, by default 2
     plotter : pv.Plotter, optional
-        The pyvista plotter, by default None and create a new Plotter instance    
+        The pyvista plotter, by default None and create a new Plotter instance
     **kwargs:
         Everything that can goes in Plot() and add_mesh function https://docs.pyvista.org/version/stable/api/plotting/_autosummary/pyvista.Plotter.add_mesh.html#pyvista.Plotter.add_mesh
 
@@ -483,11 +590,11 @@ def Plot_Geoms(geoms: list, line_width=2, plotLegend=True, plotter: pv.Plotter=N
     geoms: list[Geoms._Geom] = geoms
 
     if not "color" in kwargs.keys():
-        pv.global_theme.color_cycler = 'default' # same as matplotlib
+        pv.global_theme.color_cycler = "default"  # same as matplotlib
         color_cycler = pv.global_theme.color_cycler
-    else:        
-        color_cycler = cycler(color=[kwargs['color']])
-        kwargs.pop('color')
+    else:
+        color_cycler = cycler(color=[kwargs["color"]])
+        kwargs.pop("color")
 
     for geom, cycle in zip(geoms, color_cycler):
 
@@ -501,22 +608,46 @@ def Plot_Geoms(geoms: list, line_width=2, plotLegend=True, plotter: pv.Plotter=N
         if isinstance(dataSet, list):
             for d, data in enumerate(dataSet):
                 label = geom.name if d == 0 else None
-                Plot(data, plotter=plotter, label=label, color=color, line_width=line_width, **kwargs)
+                Plot(
+                    data,
+                    plotter=plotter,
+                    label=label,
+                    color=color,
+                    line_width=line_width,
+                    **kwargs,
+                )
         else:
-            Plot(dataSet, plotter=plotter, label=geom.name, color=color, line_width=line_width, **kwargs)
+            Plot(
+                dataSet,
+                plotter=plotter,
+                label=geom.name,
+                color=color,
+                line_width=line_width,
+                **kwargs,
+            )
 
     pv.global_theme.color_cycler = None
 
     if plotLegend:
-        plotter.add_legend(bcolor='white',face="o")
+        plotter.add_legend(bcolor="white", face="o")
 
     return plotter
+
 
 # ----------------------------------------------
 # Movie
 # ----------------------------------------------
-def Movie_simu(simu, result: str, folder: str, filename='video.gif', N:int=200,
-          deformFactor=0.0, coef=1.0, nodeValues=True, **kwargs) -> None:
+def Movie_simu(
+    simu,
+    result: str,
+    folder: str,
+    filename="video.gif",
+    N: int = 200,
+    deformFactor=0.0,
+    coef=1.0,
+    nodeValues=True,
+    **kwargs,
+) -> None:
     """Generates a movie from a simulation's result.
 
     Parameters
@@ -538,7 +669,7 @@ def Movie_simu(simu, result: str, folder: str, filename='video.gif', N:int=200,
     nodeValues : bool, optional
         Displays result to nodes otherwise displays it to elements, by default True
     """
-    
+
     simu = _Init_obj(simu)[0]
 
     if simu is None:
@@ -546,19 +677,22 @@ def Movie_simu(simu, result: str, folder: str, filename='video.gif', N:int=200,
         return
 
     Niter = len(simu.results)
-    step = np.max([1, Niter//N])
+    step = np.max([1, Niter // N])
     iterations: np.ndarray = np.arange(0, Niter, step)
 
     # activates the first iteration
     simu.Set_Iter(0, resetAll=True)
 
-    def DoAnim(plotter, i):        
+    def DoAnim(plotter, i):
         simu.Set_Iter(iterations[i])
         Plot(simu, result, deformFactor, coef, nodeValues, plotter=plotter, **kwargs)
 
     Movie_func(DoAnim, iterations.size, folder, filename)
 
-def Movie_func(func: Callable[[pv.Plotter, int], None], N: int, folder: str, filename='video.gif'):
+
+def Movie_func(
+    func: Callable[[pv.Plotter, int], None], N: int, folder: str, filename="video.gif"
+):
     """Generates the movie for the specified function.\n
     This function will peform a loop in range(N).
 
@@ -576,13 +710,13 @@ def Movie_func(func: Callable[[pv.Plotter, int], None], N: int, folder: str, fil
     """
 
     plotter = _Plotter(True)
-    
+
     filename = Folder.Join(folder, filename)
 
     if not Folder.Exists(folder):
         Folder.os.makedirs(folder)
 
-    if '.gif' in filename:
+    if ".gif" in filename:
         plotter.open_gif(filename)
     else:
         plotter.open_movie(filename)
@@ -598,14 +732,15 @@ def Movie_func(func: Callable[[pv.Plotter, int], None], N: int, folder: str, fil
 
         plotter.write_frame()
 
-        time = tic.Tac("PyVista_Interface",f"Movie_func", False)        
+        time = tic.Tac("PyVista_Interface", f"Movie_func", False)
 
-        rmTime = Tic.Get_Remaining_Time(i, N-1, time)
+        rmTime = Tic.Get_Remaining_Time(i, N - 1, time)
 
-        MyPrint(f"Movie_func {i}/{N-1} {rmTime}    ", end='\r')
+        MyPrint(f"Movie_func {i}/{N-1} {rmTime}    ", end="\r")
 
     print()
-    plotter.close()    
+    plotter.close()
+
 
 # ----------------------------------------------
 # Types
@@ -632,10 +767,10 @@ DICT_CELL_TYPES: dict[str, tuple[pv.CellType, int]] = {
     "HEXA27": (pv.CellType.TRIQUADRATIC_HEXAHEDRON, 29),
     "PRISM6": (pv.CellType.WEDGE, 13),
     "PRISM15": (pv.CellType.QUADRATIC_WEDGE, 26),
-    "PRISM18": (pv.CellType.BIQUADRATIC_QUADRATIC_WEDGE, 32)
+    "PRISM18": (pv.CellType.BIQUADRATIC_QUADRATIC_WEDGE, 32),
 }
 
-# reorganize the connectivity order 
+# reorganize the connectivity order
 # because some elements in gmsh don't have the same numbering order as in vtk
 # pyvista -> https://docs.pyvista.org/version/stable/api/core/_autosummary/pyvista.UnstructuredGrid.celltypes.html
 # vtk -> https://vtk.org/doc/nightly/html/vtkCellType_8h_source.html
@@ -643,46 +778,73 @@ DICT_CELL_TYPES: dict[str, tuple[pv.CellType, int]] = {
 # you can search for vtk elements on the internet
 DICT_GMSH_TO_VTK: dict[str, np.ndarray] = {
     # https://dev.pyvista.org/api/examples/_autosummary/pyvista.examples.cells.quadratichexahedron#pyvista.examples.cells.QuadraticHexahedron
-    "HEXA20": [0,1,2,3,4,5,6,7,
-              8,11,13,9,16,18,19,17,10,12,14,15],
+    "HEXA20": [0, 1, 2, 3, 4, 5, 6, 7, 8, 11, 13, 9, 16, 18, 19, 17, 10, 12, 14, 15],
     # https://dev.pyvista.org/api/examples/_autosummary/pyvista.examples.cells.triquadratichexahedron#pyvista.examples.cells.TriQuadraticHexahedron
-    "HEXA27": [0,1,2,3,4,5,6,7,
-               8,11,13,9,16,18,19,17,10,12,14,15,
-               22,23,21,24,20,25,26],
-    "PRISM15": [0,1,2,3,4,5,
-                6,9,7,12,14,13,8,10,11],
-    "PRISM18": [0,1,2,3,4,5,
-                6,9,7,12,14,13,8,10,11,
-                15,17,16],
+    "HEXA27": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7,
+        8,
+        11,
+        13,
+        9,
+        16,
+        18,
+        19,
+        17,
+        10,
+        12,
+        14,
+        15,
+        22,
+        23,
+        21,
+        24,
+        20,
+        25,
+        26,
+    ],
+    "PRISM15": [0, 1, 2, 3, 4, 5, 6, 9, 7, 12, 14, 13, 8, 10, 11],
+    "PRISM18": [0, 1, 2, 3, 4, 5, 6, 9, 7, 12, 14, 13, 8, 10, 11, 15, 17, 16],
     # nodes 8 and 9 are switch
-    "TETRA10": [0,1,2,3,4,5,6,7,9,8]
+    "TETRA10": [0, 1, 2, 3, 4, 5, 6, 7, 9, 8],
 }
 
 # ----------------------------------------------
 # Functions
 # ----------------------------------------------
 
-def _Plotter(off_screen=False, add_axes=True, shape=(1,1), linkViews=True):
+
+def _Plotter(off_screen=False, add_axes=True, shape=(1, 1), linkViews=True):
     plotter = pv.Plotter(off_screen=off_screen, shape=shape)
     if add_axes:
         plotter.add_axes()
     if linkViews:
         plotter.link_views()
-    plotter.subplot(0,0)
+    plotter.subplot(0, 0)
     return plotter
 
+
 def _setCameraPosition(plotter: pv.Plotter, inDim: int, elevation=25, azimuth=10):
-    plotter.camera_position = 'xy'
+    plotter.camera_position = "xy"
     if inDim == 3:
         plotter.camera.elevation = elevation
         plotter.camera.azimuth = azimuth
         plotter.camera.reset_clipping_range()
-    # if inDim == 3:        
+    # if inDim == 3:
     #     plotter.camera.elevation += 15
     #     plotter.camera.azimuth += 5
     #     plotter.camera.reset_clipping_range()
 
-def _pvGrid(obj, result: Union[str, np.ndarray]=None, deformFactor=0.0, nodeValues=True) -> pv.UnstructuredGrid:
+
+def _pvGrid(
+    obj, result: Union[str, np.ndarray] = None, deformFactor=0.0, nodeValues=True
+) -> pv.UnstructuredGrid:
     """Creates the pyvista mesh from obj (_Simu, Mesh, _GroupElem and _Geoms object)"""
 
     simu, mesh, coordo, __ = _Init_obj(obj, deformFactor)
@@ -700,12 +862,12 @@ def _pvGrid(obj, result: Union[str, np.ndarray]=None, deformFactor=0.0, nodeValu
         vtkIndexes = DICT_GMSH_TO_VTK[mesh.elemType]
     else:
         vtkIndexes = np.arange(mesh.nPe)
-    
+
     if mesh.elemType in ["TRI10", "TRI15"]:
         # forced to do this because pyvista simply does not have LAGRANGE_TRIANGLE
         # do not put in DICT_VTK_INDEXES because paraview can read LAGRANGE_TRIANGLE without changing the indices
         vtkIndexes = np.reshape(mesh.groupElem.triangles, (-1, 3))
-    
+
     connect = mesh.connect[:, vtkIndexes]
     connect = np.reshape(connect, (-1, np.shape(vtkIndexes)[-1]))
 
@@ -714,32 +876,37 @@ def _pvGrid(obj, result: Union[str, np.ndarray]=None, deformFactor=0.0, nodeValu
 
     values = _Get_values(simu, mesh, result, nodeValues)
 
-    # Add the result    
+    # Add the result
     if isinstance(result, str) and result != "":
         pvMesh[result] = values
         pvMesh.set_active_scalars(result)
 
     elif isinstance(result, np.ndarray):
-        name = 'array' # here result is an array
+        name = "array"  # here result is an array
         pvMesh[name] = values
         pvMesh.set_active_scalars(name)
 
     return pvMesh
+
 
 def _pvGeom(geom) -> Union[pv.DataSet, list[pv.DataSet]]:
 
     if not isinstance(geom, (Geoms.Point, Geoms._Geom)):
         MyPrintError("Must be a point or a geometric object.")
         return None
-    
+
     def __Line(line: Geoms.Line):
-        return pv.Line(line.pt1.coord, line.pt2.coord)        
-    
+        return pv.Line(line.pt1.coord, line.pt2.coord)
+
     def __CircleArc(circleArc: Geoms.CircleArc):
-        dataSet = pv.CircularArc(circleArc.pt1.coord, circleArc.pt2.coord,
-                                 circleArc.center.coord, negative=circleArc.coef==-1)
+        dataSet = pv.CircularArc(
+            circleArc.pt1.coord,
+            circleArc.pt2.coord,
+            circleArc.center.coord,
+            negative=circleArc.coef == -1,
+        )
         return dataSet
-    
+
     def __DoGeoms(geoms: list[Geoms._Geom]):
         dataSets: list[pv.DataSet] = []
         for geom in geoms:
@@ -762,17 +929,19 @@ def _pvGeom(geom) -> Union[pv.DataSet, list[pv.DataSet]]:
         xMin, xMax = geom.pt1.x, geom.pt2.x
         yMin, yMax = geom.pt1.y, geom.pt2.y
         zMin, zMax = geom.pt1.z, geom.pt2.z
-        dataSet = pv.Box((xMin,xMax,yMin,yMax,zMin,zMax)).outline()
+        dataSet = pv.Box((xMin, xMax, yMin, yMax, zMin, zMax)).outline()
 
     elif isinstance(geom, Geoms.Circle):
         arc1 = pv.CircularArc(geom.pt1.coord, geom.pt3.coord, geom.center.coord)
-        arc2 = pv.CircularArc(geom.pt1.coord, geom.pt3.coord, geom.center.coord, negative=True)
+        arc2 = pv.CircularArc(
+            geom.pt1.coord, geom.pt3.coord, geom.center.coord, negative=True
+        )
         dataSet = [arc1, arc2]
 
     elif isinstance(geom, Geoms.CircleArc):
         dataSet = __CircleArc(geom)
 
-    elif isinstance(geom, (Geoms.Points,Geoms.Contour)):
+    elif isinstance(geom, (Geoms.Points, Geoms.Contour)):
         if isinstance(geom, Geoms.Points):
             geoms = geom.Get_Contour().geoms
             if geom.isOpen:
@@ -781,6 +950,8 @@ def _pvGeom(geom) -> Union[pv.DataSet, list[pv.DataSet]]:
             geoms = geom.geoms
         dataSet = __DoGeoms(geoms)
     else:
-        MyPrintError("obj must be in [Point, Line, Domain, Circle, CircleArc, Contour, Points]")
+        MyPrintError(
+            "obj must be in [Point, Line, Domain, Circle, CircleArc, Contour, Points]"
+        )
 
     return dataSet

@@ -14,14 +14,16 @@ A hexahedral mesh (HEXA8) uses :\n
 import numpy as np
 import scipy.sparse as sp
 import copy
-from typing import Callable # add Iterable ?
+from typing import Callable  # add Iterable ?
 
 # utilities
 from ..utilities import Display, Tic
 from ..utilities._observers import Observable
+
 # fem
 from ._utils import ElemType, MatrixType, FeArray
 from ._group_elems import _GroupElem
+
 # others
 from ..Geoms import Point, Line, Domain, Circle
 from ..geoms import Rotate, Symmetry, Normalize, Angle_Between
@@ -41,7 +43,7 @@ class Mesh(Observable):
             the mesh can write in the terminal, by default True
         """
 
-        list_GroupElem = []        
+        list_GroupElem = []
         dim = 0
         for grp in dict_groupElem.values():
             if grp.dim > dim:
@@ -58,14 +60,16 @@ class Mesh(Observable):
 
         if self.__verbosity:
             print(self)
-        
+
         Nn = self.coordGlob.shape[0]
         usedNodes = set(self.connect.ravel())
         nodes = set(range(Nn))
         orphanNodes = list(nodes - usedNodes)
         self.__orphanNodes: list[int] = orphanNodes
-        if len(orphanNodes) > 0 and verbosity:            
-            Display.MyPrintError("WARNING: Orphan nodes have been detected in the mesh (stored in mesh.orphanNodes).")
+        if len(orphanNodes) > 0 and verbosity:
+            Display.MyPrintError(
+                "WARNING: Orphan nodes have been detected in the mesh (stored in mesh.orphanNodes)."
+            )
 
     def _ResetMatrix(self) -> None:
         """Resets matrices for each groupElem"""
@@ -93,11 +97,13 @@ class Mesh(Observable):
         if dim is None:
             dim = self.__dim
 
-        list_groupElem = [grp for grp in self.__dict_groupElem.values() if grp.dim == dim]
-        list_groupElem.reverse() # reverse the list
+        list_groupElem = [
+            grp for grp in self.__dict_groupElem.values() if grp.dim == dim
+        ]
+        list_groupElem.reverse()  # reverse the list
 
         return list_groupElem
-    
+
     @property
     def orphanNodes(self) -> list[int]:
         """nodes not connected to any mesh elements"""
@@ -148,27 +154,28 @@ class Mesh(Observable):
     def coord(self) -> np.ndarray:
         """nodes coordinates matrix (Nn,3) for the main groupElem"""
         return self.groupElem.coord
-    
+
     def copy(self):
         newMesh = copy.deepcopy(self)
         return newMesh
 
-    def Translate(self, dx: float=0.0, dy: float=0.0, dz: float=0.0) -> None:
+    def Translate(self, dx: float = 0.0, dy: float = 0.0, dz: float = 0.0) -> None:
         """Translates the mesh coordinates."""
         oldCoord = self.coordGlob
         newCoord = oldCoord + np.array([dx, dy, dz])
         for grp in self.dict_groupElem.values():
-            grp.coordGlob = newCoord        
-        self._Notify('The mesh has been modified')
+            grp.coordGlob = newCoord
+        self._Notify("The mesh has been modified")
 
-    
-    def Rotate(self, theta: float, center: tuple=(0,0,0), direction: tuple=(0,0,1)) -> None:        
+    def Rotate(
+        self, theta: float, center: tuple = (0, 0, 0), direction: tuple = (0, 0, 1)
+    ) -> None:
         """Rotates the mesh coordinates around an axis.
 
         Parameters
-        ----------        
+        ----------
         theta : float
-            rotation angle [deg] 
+            rotation angle [deg]
         center : tuple, optional
             rotation center, by default (0,0,0)
         direction : tuple, optional
@@ -179,9 +186,9 @@ class Mesh(Observable):
         newCoord = Rotate(oldCoord, theta, center, direction)
         for grp in self.dict_groupElem.values():
             grp.coordGlob = newCoord
-        self._Notify('The mesh has been modified')
+        self._Notify("The mesh has been modified")
 
-    def Symmetry(self, point=(0,0,0), n=(1,0,0)) -> None:
+    def Symmetry(self, point=(0, 0, 0), n=(1, 0, 0)) -> None:
         """Symmetrizes the mesh coordinates with respect to a specified plane.
 
         Parameters
@@ -196,7 +203,7 @@ class Mesh(Observable):
         newCoord = Symmetry(oldCoord, point, n)
         for grp in self.dict_groupElem.values():
             grp.coordGlob = newCoord
-        self._Notify('The mesh has been modified')
+        self._Notify("The mesh has been modified")
 
     @property
     def nodes(self) -> np.ndarray:
@@ -208,7 +215,7 @@ class Mesh(Observable):
         """global nodes coordinates matrix (Nn, 3)\n
         Contains all nodes coordinates"""
         return self.groupElem.coordGlob
-    
+
     @coordGlob.setter
     def coordGlob(self, coordo: np.ndarray) -> None:
         if coordo.shape == self.coordGlob.shape:
@@ -219,7 +226,7 @@ class Mesh(Observable):
     def connect(self) -> np.ndarray:
         """connectivity matrix (Ne, nPe)"""
         return self.groupElem.connect
-    
+
     @property
     def verbosity(self) -> bool:
         """the mesh can write in the terminal"""
@@ -291,7 +298,7 @@ class Mesh(Observable):
             return None
         lengths = [group1D.length for group1D in self.Get_list_groupElem(1)]
         return np.sum(lengths)
-    
+
     @property
     def area(self) -> float:
         """total area of the mesh."""
@@ -307,13 +314,15 @@ class Mesh(Observable):
             return None
         volumes = [group3D.volume for group3D in self.Get_list_groupElem(3)]
         return np.sum(volumes)
-    
+
     @property
     def center(self) -> np.ndarray:
         """center of mass / barycenter / inertia center"""
         return self.groupElem.center
-        
-    def Get_normals(self, nodes: np.ndarray=None, displacementMatrix:np.ndarray=None) -> np.ndarray:
+
+    def Get_normals(
+        self, nodes: np.ndarray = None, displacementMatrix: np.ndarray = None
+    ) -> np.ndarray:
         """Returns normal vectors and nodes belonging to the edge of the mesh.\n
         returns normals, nodes."""
 
@@ -323,34 +332,40 @@ class Mesh(Observable):
         assert nodes.max() <= self.Nn
 
         dim = self.dim
-        idx = 2 if dim == 3 else 1 # normal vectors position in sysCoord_e
+        idx = 2 if dim == 3 else 1  # normal vectors position in sysCoord_e
 
         list_normal = []
-        list_nodes: list[int] = [] # used nodes in nodes
+        list_nodes: list[int] = []  # used nodes in nodes
 
         # for each elements on the boundary
-        for groupElem in self.Get_list_groupElem(dim-1):
+        for groupElem in self.Get_list_groupElem(dim - 1):
 
             elements = groupElem.Get_Elements_Nodes(nodes, True)
 
-            if elements.size == 0: continue
+            if elements.size == 0:
+                continue
 
             elementsNodes = np.ravel(groupElem.connect[elements])
 
             usedNodes = np.asarray(list(set(elementsNodes)), dtype=int)
 
-            if usedNodes.size == 0: continue
+            if usedNodes.size == 0:
+                continue
 
             # get the normal vectors for elements
             n_e = groupElem._Get_sysCoord_e(displacementMatrix)[elements, :, idx]
 
             # here we want to get the normal vector on the nodes
             # need to get the nodes connectivity
-            connect_n_e = groupElem.Get_connect_n_e()[usedNodes, :].tocsc()[:, elements].tocsr()
+            connect_n_e = (
+                groupElem.Get_connect_n_e()[usedNodes, :].tocsc()[:, elements].tocsr()
+            )
             # get the number of elements per nodes
-            sum = np.ravel(connect_n_e.sum(1))            
+            sum = np.ravel(connect_n_e.sum(1))
             # get the normal vector on normal
-            normal_n = np.einsum('ni,n->ni',connect_n_e @ n_e, 1/sum, optimize='optimal')
+            normal_n = np.einsum(
+                "ni,n->ni", connect_n_e @ n_e, 1 / sum, optimize="optimal"
+            )
 
             # append the values on each direction and add nodes
             list_normal.append(normal_n)
@@ -378,8 +393,7 @@ class Mesh(Observable):
         return self.groupElem.Get_jacobian_e_pg(matrixType, absoluteValues)
 
     def Get_weightedJacobian_e_pg(self, matrixType: MatrixType) -> FeArray:
-        """Returns the jacobian_e_pg * weight_pg.
-        """
+        """Returns the jacobian_e_pg * weight_pg."""
         return self.groupElem.Get_weightedJacobian_e_pg(matrixType)
 
     def Get_N_pg(self, matrixType: MatrixType) -> np.ndarray:
@@ -420,7 +434,7 @@ class Mesh(Observable):
         [N1,x 0 . . . Nn,x 0\n
         0 N1,y . . . 0 Nn,y\n
         N1,y N1,x . . . N3,y N3,x]\n
-        (Ne, nPg, (3 or 6), nPe*dim)        
+        (Ne, nPg, (3 or 6), nPe*dim)
         """
         return self.groupElem.Get_B_e_pg(matrixType)
 
@@ -458,7 +472,7 @@ class Mesh(Observable):
 
     def Get_Gradient_e_pg(self, u: np.ndarray, matrixType=MatrixType.rigi) -> FeArray:
         """Returns the gradient of the discretized displacement field u as a matrix
-        
+
         Parameters
         ----------
         u : np.ndarray
@@ -477,7 +491,7 @@ class Mesh(Observable):
         dxux 0 0\n
         0 0 0\n
         0 0 0
-            
+
         dim = 2
         -------
 
@@ -502,7 +516,7 @@ class Mesh(Observable):
 
         Parameters
         ----------
-        func : function 
+        func : function
             Function using the x, y and z nodes coordinates and returning boolean values.
 
             examples :\n
@@ -516,11 +530,11 @@ class Mesh(Observable):
             nodes that meet the specified conditions.
         """
         return self.groupElem.Get_Nodes_Conditions(func)
-    
+
     def Nodes_Point(self, point: Point) -> np.ndarray:
         """Returns nodes on the point."""
         return self.groupElem.Get_Nodes_Point(point)
-    
+
     def Nodes_Points(self, points: list[Point]) -> np.ndarray:
         """Returns nodes on points."""
         nodes = set()
@@ -540,18 +554,24 @@ class Mesh(Observable):
         """Returns the nodes in the circle."""
         return self.groupElem.Get_Nodes_Circle(circle, onlyOnCircle)
 
-    def Nodes_Cylinder(self, circle: Circle, direction=[0, 0, 1], onlyOnEdge=False) -> np.ndarray:
+    def Nodes_Cylinder(
+        self, circle: Circle, direction=[0, 0, 1], onlyOnEdge=False
+    ) -> np.ndarray:
         """Returns the nodes in the cylinder."""
         return self.groupElem.Get_Nodes_Cylinder(circle, direction, onlyOnEdge)
 
-    def Elements_Nodes(self, nodes: np.ndarray, exclusively=True, neighborLayer:int=1):
+    def Elements_Nodes(
+        self, nodes: np.ndarray, exclusively=True, neighborLayer: int = 1
+    ):
         """Returns elements that exclusively or not use the specified nodes."""
-        
+
         for i in range(neighborLayer):
-            elements = self.groupElem.Get_Elements_Nodes(nodes=nodes, exclusively=exclusively)
+            elements = self.groupElem.Get_Elements_Nodes(
+                nodes=nodes, exclusively=exclusively
+            )
             nodes = list(set(np.ravel(self.connect[elements])))
 
-            if neighborLayer > 1 and elements.size == self.Ne:                
+            if neighborLayer > 1 and elements.size == self.Ne:
                 Display.MyPrint("All the neighbors have been found.")
                 break
 
@@ -566,11 +586,16 @@ class Mesh(Observable):
 
         # get dictionnary linking tags to nodes
         dict_nodes = {}
-        [dict_nodes.update(grp._dict_nodes_tags) for grp in self.dict_groupElem.values()]
+        [
+            dict_nodes.update(grp._dict_nodes_tags)
+            for grp in self.dict_groupElem.values()
+        ]
         # add nodes belonging to the tags
 
         if len(dict_nodes) == 0:
-            Display.MyPrintError("There is no tags available in the mesh, so don't forget to use the '_Set_PhysicalGroups()' function before meshing your geometry with '_Meshing()' in the gmsh interface 'Gmsh_Interface'.")
+            Display.MyPrintError(
+                "There is no tags available in the mesh, so don't forget to use the '_Set_PhysicalGroups()' function before meshing your geometry with '_Meshing()' in the gmsh interface 'Gmsh_Interface'."
+            )
             return np.asarray([])
 
         [nodes.extend(dict_nodes[tag]) for tag in tags]
@@ -589,8 +614,10 @@ class Mesh(Observable):
         # get dictionnary linking tags to elements
         dict_elements = self.__groupElem._dict_elements_tags
 
-        if len(dict_elements) == 0:            
-            Display.MyPrintError("There is no tags available in the mesh, so don't forget to use the '_Set_PhysicalGroups()' function before meshing your geometry with '_Meshing()' in the gmsh interface 'Gmsh_Interface'.")
+        if len(dict_elements) == 0:
+            Display.MyPrintError(
+                "There is no tags available in the mesh, so don't forget to use the '_Set_PhysicalGroups()' function before meshing your geometry with '_Meshing()' in the gmsh interface 'Gmsh_Interface'."
+            )
             return np.asarray([])
 
         # add elements belonging to the tags
@@ -599,11 +626,11 @@ class Mesh(Observable):
         elements = np.asarray(list(set(elements)), dtype=int)
 
         return elements
-    
+
     def Set_Tag(self, nodes: np.ndarray, tag: str):
         """Set a tag on the nodes and elements belonging to each group of elements in the mesh."""
-        
-        assert isinstance(tag, str), 'tag must be a string'
+
+        assert isinstance(tag, str), "tag must be a string"
 
         for _, groupElem in self.__dict_groupElem.items():
             if groupElem.dim == 0:
@@ -613,10 +640,12 @@ class Mesh(Observable):
             # Get_Elements_Nodes(nodes, exclusively=True) in the following function.
             groupElem._Set_Elements_Tag(nodes, tag)
 
-    def Locates_sol_e(self, sol: np.ndarray, dof_n:int=None, asFeArray=False) -> FeArray:
+    def Locates_sol_e(
+        self, sol: np.ndarray, dof_n: int = None, asFeArray=False
+    ) -> FeArray:
         """Locates solution on elements."""
         return self.groupElem.Locates_sol_e(sol, dof_n, asFeArray)
-    
+
     def Get_Node_Values(self, result_e: np.ndarray) -> np.ndarray:
         """Get node values from element values.\n
         The value of a node is calculated by averaging the values of the surrounding elements.
@@ -644,11 +673,11 @@ class Mesh(Observable):
         if len(result_e.shape) == 1:
             # In this case it is a 1d vector
             # we need to reshape as
-            result_e = result_e.reshape(Ne,1)
+            result_e = result_e.reshape(Ne, 1)
             isDim1 = True
         else:
             isDim1 = False
-        
+
         nCols = result_e.shape[1]
 
         result_n = np.zeros((Nn, nCols), dtype=float)
@@ -659,17 +688,17 @@ class Mesh(Observable):
         elements_n = np.reshape(np.sum(connect_n_e, axis=1), (Nn, 1))
 
         for c in range(nCols):
-            values_e = result_e[:, c].reshape(Ne,1)
-            values_n = (connect_n_e @ values_e) * 1/elements_n
-            result_n[:,c] = values_n.ravel()
+            values_e = result_e[:, c].reshape(Ne, 1)
+            values_n = (connect_n_e @ values_e) * 1 / elements_n
+            result_n[:, c] = values_n.ravel()
 
-        tic.Tac("PostProcessing","Element to nodes values", False)
+        tic.Tac("PostProcessing", "Element to nodes values", False)
 
         if isDim1:
             return result_n.ravel()
         else:
             return result_n
-        
+
     def Get_Paired_Nodes(self, corners: np.ndarray, plot=False) -> np.ndarray:
         """Get the paired nodes used to construct periodic boundary conditions.
 
@@ -694,8 +723,8 @@ class Mesh(Observable):
             # corners become the corners coordinates
             corners: np.ndarray = self.coordGlob[corners]
 
-        nCorners = len(corners) # number of corners
-        nEdges = nCorners//2 # number of edges
+        nCorners = len(corners)  # number of corners
+        nEdges = nCorners // 2  # number of edges
 
         nodes1: list[int] = []
         nodes2: list[int] = []
@@ -706,21 +735,27 @@ class Mesh(Observable):
         for c, corner in enumerate(corners):
 
             # here corner and next_corner are coordinates
-            if c+1 == nCorners:
-                next_corner = corners[0]                
+            if c + 1 == nCorners:
+                next_corner = corners[0]
             else:
-                next_corner = corners[c+1]
+                next_corner = corners[c + 1]
 
-            line = next_corner - corner # constructs line between 2 corners
-            lineLength = np.linalg.norm(line) # length of the line
-            vect = Normalize(line) # normalized vector between the edge corners
-            vect_i = coordo - corner # vector coordinates from the first corner of the edge
-            scalarProduct = np.einsum('ni,i', vect_i, vect, optimize="optimal")
+            line = next_corner - corner  # constructs line between 2 corners
+            lineLength = np.linalg.norm(line)  # length of the line
+            vect = Normalize(line)  # normalized vector between the edge corners
+            vect_i = (
+                coordo - corner
+            )  # vector coordinates from the first corner of the edge
+            scalarProduct = np.einsum("ni,i", vect_i, vect, optimize="optimal")
             crossProduct = np.cross(vect_i, vect)
             norm = np.linalg.norm(crossProduct, axis=1)
 
-            eps=1e-12
-            nodes = np.where((norm<eps) & (scalarProduct>=-eps) & (scalarProduct<=lineLength+eps))[0]
+            eps = 1e-12
+            nodes = np.where(
+                (norm < eps)
+                & (scalarProduct >= -eps)
+                & (scalarProduct <= lineLength + eps)
+            )[0]
             # norm<eps : must be on the line formed by corner and next corner
             # scalarProduct>=-eps : points must belong to the line
             # scalarProduct<=lineLength+eps : points must belong to the line
@@ -729,7 +764,7 @@ class Mesh(Observable):
             # remove the first and the last nodes with [1:-1]
             nodes: np.ndarray = nodes[np.argsort(scalarProduct[nodes])][1:-1]
 
-            if c+1 > nEdges:
+            if c + 1 > nEdges:
                 # reverses the nodes order
                 nodes = nodes[::-1]
                 nodes2.extend(nodes)
@@ -740,33 +775,46 @@ class Mesh(Observable):
 
         assert len(nodes1) != 0 and len(nodes2) != 0, "No nodes detected"
 
-        assert len(nodes1) == len(nodes2), 'Edges must contain the same number of nodes.'
+        assert len(nodes1) == len(
+            nodes2
+        ), "Edges must contain the same number of nodes."
 
         paired_nodes = np.array([nodes1, nodes2]).T
 
         if plot:
             inDim = self.inDim
 
-            ax = Display.Plot_Mesh(self, alpha=0, title='Periodic boundary conditions')
+            ax = Display.Plot_Mesh(self, alpha=0, title="Periodic boundary conditions")
 
             # nEdges = np.min([len(nNodes)//2, nEdges])
 
             start = 0
-            
+
             for edge in range(len(nNodes)):
 
-                start += 0 if edge == 0 else nNodes[edge-1]
+                start += 0 if edge == 0 else nNodes[edge - 1]
 
-                edge_node = paired_nodes[start:start+nNodes[edge]]
+                edge_node = paired_nodes[start : start + nNodes[edge]]
 
                 lines = coordo[edge_node, :inDim]
                 if inDim == 3:
-                    pc = ax.scatter(lines[:,:,0], lines[:,:,1], lines[:,:,2], label=f'edges{edge}')
-                    ax.add_collection3d(Display.Line3DCollection(lines, edgecolor=pc.get_edgecolor()))
+                    pc = ax.scatter(
+                        lines[:, :, 0],
+                        lines[:, :, 1],
+                        lines[:, :, 2],
+                        label=f"edges{edge}",
+                    )
+                    ax.add_collection3d(
+                        Display.Line3DCollection(lines, edgecolor=pc.get_edgecolor())
+                    )
                 else:
-                    pc = ax.scatter(lines[:,:,0], lines[:,:,1], label=f'edges{edge}')
-                    ax.add_collection(Display.LineCollection(lines, edgecolor=pc.get_edgecolor()))
-                
+                    pc = ax.scatter(
+                        lines[:, :, 0], lines[:, :, 1], label=f"edges{edge}"
+                    )
+                    ax.add_collection(
+                        Display.LineCollection(lines, edgecolor=pc.get_edgecolor())
+                    )
+
             ax.legend()
 
         return paired_nodes
@@ -784,15 +832,17 @@ class Mesh(Observable):
 
         # for each elements (e)
         # calculate the length of each segment (s)
-        h_e_s = np.linalg.norm(coordo[segments_e[:, :, 1]] - coordo[segments_e[:, :, 0]], axis=2)
+        h_e_s = np.linalg.norm(
+            coordo[segments_e[:, :, 1]] - coordo[segments_e[:, :, 0]], axis=2
+        )
 
         if doMean:
             # average segment size per element
             return np.mean(h_e_s, axis=1)
         else:
             return h_e_s
-        
-    def Get_Quality(self, criteria: str ='aspect', nodeValues=False) -> np.ndarray:
+
+    def Get_Quality(self, criteria: str = "aspect", nodeValues=False) -> np.ndarray:
         """Calculates mesh quality [0, 1] (bad, good).
 
         Parameters
@@ -822,42 +872,44 @@ class Mesh(Observable):
 
         # perimeter
         p_e = np.sum(h_e_s, -1)
-        
+
         # area
         area_e = groupElem.area_e
-        
+
         if groupElem.dim == 2:
             # calculate the angle in each corners of 2d elements
             angle_e_s = np.zeros((groupElem.Ne, groupElem.nbCorners), float)
 
             for c in range(groupElem.nbCorners):
-                
-                next = c+1 if c+1 < groupElem.nbCorners else 0
-                prev = -1 if c == 0 else c-1
-                
+
+                next = c + 1 if c + 1 < groupElem.nbCorners else 0
+                prev = -1 if c == 0 else c - 1
+
                 p0_e = coordo[connect[:, c]]
                 p1_e = coordo[connect[:, next]]
                 p2_e = coordo[connect[:, prev]]
 
-                angle_e = Angle_Between(p1_e-p0_e, p2_e-p0_e)
+                angle_e = Angle_Between(p1_e - p0_e, p2_e - p0_e)
 
-                angle_e_s[:,c] = np.abs(angle_e)
+                angle_e_s[:, c] = np.abs(angle_e)
 
-        if criteria == 'gamma':
+        if criteria == "gamma":
             # only available for triangular elements
 
             if groupElem.elemType not in [ElemType.TRI3, ElemType.TRI6, ElemType.TRI10]:
-                Display.MyPrintError("The gamma criterion is only available for triangular elements.")
+                Display.MyPrintError(
+                    "The gamma criterion is only available for triangular elements."
+                )
                 return None
 
             # inscribed circle
             # https://fr.wikipedia.org/wiki/Cercles_inscrit_et_exinscrits_d%27un_triangle
-            rci_e = 2*area_e/p_e
+            rci_e = 2 * area_e / p_e
             # circumscribed circle
             # https://fr.wikipedia.org/wiki/Cercle_circonscrit_%C3%A0_un_triangle
-            rcc_e = p_e/2/np.sum(np.sin(angle_e_s), 1)
+            rcc_e = p_e / 2 / np.sum(np.sin(angle_e_s), 1)
 
-            values_e = rci_e/rcc_e * 2
+            values_e = rci_e / rcc_e * 2
 
         elif criteria == "aspect":
             # hMin / hMax
@@ -866,7 +918,9 @@ class Mesh(Observable):
         elif criteria == "angular":
             # only available for 2d elements
             if groupElem.dim != 2:
-                Display.MyPrintError("The angular criterion is only available for 2D elements.")
+                Display.MyPrintError(
+                    "The angular criterion is only available for 2D elements."
+                )
                 return None
 
             # min(angle) / max(angle)
@@ -885,7 +939,7 @@ class Mesh(Observable):
         else:
             return np.asarray(values_e)
 
-    def Get_New_meshSize_n(self, error_e: np.ndarray, coef=1/2) -> np.ndarray:
+    def Get_New_meshSize_n(self, error_e: np.ndarray, coef=1 / 2) -> np.ndarray:
         """Returns the scalar field (at nodes) used to refine the mesh.\n
 
         meshSize = (coef - 1) / error_e.max() * error_e + 1
@@ -908,10 +962,11 @@ class Mesh(Observable):
         h_e = self.Get_meshSize()
 
         meshSize_e = (coef - 1) / error_e.max() * error_e + 1
-        
+
         meshSize_n = self.Get_Node_Values(meshSize_e * h_e)
 
         return meshSize_n
+
 
 def Calc_projector(oldMesh: Mesh, newMesh: Mesh) -> sp.csr_matrix:
     """Get the matrix used to project the solution from the old mesh to the new mesh such that:\n
@@ -933,11 +988,15 @@ def Calc_projector(oldMesh: Mesh, newMesh: Mesh) -> sp.csr_matrix:
 
     tic = Tic()
 
-    distoredMesh = np.max(np.abs(1 - oldMesh.Get_Quality('jacobian'))) > 1e-12
+    distoredMesh = np.max(np.abs(1 - oldMesh.Get_Quality("jacobian"))) > 1e-12
     if distoredMesh:
-        Display.MyPrintError("Warning: distorted elements have been detected in the mesh.\nThey may lead to projection errors!")
-    
-    detectedNodes, detectedElements_e, connect_e_n, coordo_n = oldMesh.groupElem.Get_Mapping(newMesh.coord)
+        Display.MyPrintError(
+            "Warning: distorted elements have been detected in the mesh.\nThey may lead to projection errors!"
+        )
+
+    detectedNodes, detectedElements_e, connect_e_n, coordo_n = (
+        oldMesh.groupElem.Get_Mapping(newMesh.coord)
+    )
     # - detectedNodes : The nodes that have been identified within the detected elements with shape=(Nn,).
     # - detectedElements_e : The elements in which the nodes have been detected with shape=(Ne,).
     # - connect_e_n : The connectivity matrix that includes the nodes identified in each element with shape=(Ne, ?).
@@ -948,15 +1007,17 @@ def Calc_projector(oldMesh: Mesh, newMesh: Mesh) -> sp.csr_matrix:
     tic.Tac("Mesh", "Mapping between meshes", False)
 
     # Evaluation of shape functions
-    Ntild = oldMesh.groupElem._N()        
+    Ntild = oldMesh.groupElem._N()
     nPe = oldMesh.groupElem.nPe
-    phi_n_nPe = np.zeros((coordo_n.shape[0], nPe)) # functions evaluated at identified coordinates
+    phi_n_nPe = np.zeros(
+        (coordo_n.shape[0], nPe)
+    )  # functions evaluated at identified coordinates
     for n in range(nPe):
         # *coordo_n.T give a list for every direction *(xis, etas, ..)
-        phi_n_nPe[:,n] = Ntild[n,0](*coordo_n.T)
+        phi_n_nPe[:, n] = Ntild[n, 0](*coordo_n.T)
 
-    # Check that the sum of the shape functions is 1  
-    testSum1 = (np.sum(phi_n_nPe) - phi_n_nPe.size)/phi_n_nPe.size <= 1e-12
+    # Check that the sum of the shape functions is 1
+    testSum1 = (np.sum(phi_n_nPe) - phi_n_nPe.size) / phi_n_nPe.size <= 1e-12
     assert testSum1
 
     # Here we detect whether nodes appear more than once
@@ -967,7 +1028,9 @@ def Calc_projector(oldMesh: Mesh, newMesh: Mesh) -> sp.csr_matrix:
     if nodesSup1.size > 0:
         # divide the shape function values by the number of appearances.
         # Its like doing an average on shapes functions
-        phi_n_nPe[nodesSup1] = np.einsum("ni,n->ni", phi_n_nPe[nodesSup1], 1/counts[nodesSup1], optimize="optimal")
+        phi_n_nPe[nodesSup1] = np.einsum(
+            "ni,n->ni", phi_n_nPe[nodesSup1], 1 / counts[nodesSup1], optimize="optimal"
+        )
 
     # Builds the projector
     # This projector is a hollow matrix of dimension (newMesh.Nn, oldMesh.Nn)
@@ -975,36 +1038,43 @@ def Calc_projector(oldMesh: Mesh, newMesh: Mesh) -> sp.csr_matrix:
     lines: list[int] = []
     columns: list[int] = []
     values: list[float] = []
+
     def FuncExtend_Proj(element: int, nodes: np.ndarray):
         values.extend(np.ravel(phi_n_nPe[nodes]))
         lines.extend(np.repeat(nodes, nPe))
         columns.extend(np.asarray(list(connect_e[element]) * nodes.size))
 
-    [FuncExtend_Proj(element, connect) for element, connect in zip(detectedElements_e, connect_e_n)]
+    [
+        FuncExtend_Proj(element, connect)
+        for element, connect in zip(detectedElements_e, connect_e_n)
+    ]
 
-    proj = sp.csr_matrix((values, (lines, columns)), (newMesh.Nn, oldMesh.Nn), dtype=float)
+    proj = sp.csr_matrix(
+        (values, (lines, columns)), (newMesh.Nn, oldMesh.Nn), dtype=float
+    )
 
     # Here we'll impose the exact values of overlapping nodes (which have the same coordinate) on the nodes.
     proj = proj.tolil()
-    
+
     # get back the corners to link nodes
     # here we assume that the points are identical
     newCorners = newMesh.Get_list_groupElem(0)[0].nodes
     oldCorners = oldMesh.Get_list_groupElem(0)[0].nodes
     # link nodes
     for newNode, oldNode in zip(newCorners, oldCorners):
-        proj[newNode,:] = 0
+        proj[newNode, :] = 0
         proj[newNode, oldNode] = 1
 
-    nodesExact = np.where((phi_n_nPe >= 1-1e-12) & (phi_n_nPe <= 1+1e-12))[0]
+    nodesExact = np.where((phi_n_nPe >= 1 - 1e-12) & (phi_n_nPe <= 1 + 1e-12))[0]
     # nodesExact nodes exact are nodes for which a shape function has detected 1.
     #   (nodes detected in an mesh corner).
 
     nodesExact = list(set(nodesExact) - set(newCorners))
     for node in nodesExact:
         oldNode = oldMesh.Nodes_Point(Point(*newMesh.coord[node]))
-        if oldNode.size == 0: continue
-        proj[node,:] = 0
+        if oldNode.size == 0:
+            continue
+        proj[node, :] = 0
         proj[node, oldNode] = 1
 
     # from EasyFEA import Display
@@ -1019,7 +1089,16 @@ def Calc_projector(oldMesh: Mesh, newMesh: Mesh) -> sp.csr_matrix:
 
     return proj.tocsr()
 
-def Mesh_Optim(DoMesh: Callable[[str], Mesh], folder: str, criteria:str='aspect', quality=.8, ratio: float=0.7, iterMax=20, coef:float=1/2) -> tuple[Mesh, float]:
+
+def Mesh_Optim(
+    DoMesh: Callable[[str], Mesh],
+    folder: str,
+    criteria: str = "aspect",
+    quality=0.8,
+    ratio: float = 0.7,
+    iterMax=20,
+    coef: float = 1 / 2,
+) -> tuple[Mesh, float]:
     """Optimize the mesh using the given criterion.
 
     Parameters
@@ -1049,7 +1128,7 @@ def Mesh_Optim(DoMesh: Callable[[str], Mesh], folder: str, criteria:str='aspect'
     tuple[Mesh, float]
         optimized mesh size and ratio
     """
-    
+
     from ..utilities import Folder
     from . import Mesher
 
@@ -1068,8 +1147,8 @@ def Mesh_Optim(DoMesh: Callable[[str], Mesh], folder: str, criteria:str='aspect'
 
         if i > 0:
             # remove previous .pos file
-            Folder.os.remove(optimGeom)        
-        
+            Folder.os.remove(optimGeom)
+
         # mesh quality calculation
         qual_e = mesh.Get_Quality(criteria, False)
 
@@ -1079,13 +1158,13 @@ def Mesh_Optim(DoMesh: Callable[[str], Mesh], folder: str, criteria:str='aspect'
         if ratio == 1:
             return mesh, ratio
 
-        print(f'ratio = {ratio*100:.3f} %')
-        
+        print(f"ratio = {ratio*100:.3f} %")
+
         # # assign max quality for elements that exceed quality
         # qual_e[qual_e >= quality] = quality
-        
+
         # calculate the relative error between element quality and desired quality
-        error_e = np.abs(qual_e-quality)/quality
+        error_e = np.abs(qual_e - quality) / quality
 
         # calculate the new mesh size for the associated error
         meshSize_n = mesh.Get_New_meshSize_n(error_e, coef)

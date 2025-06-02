@@ -9,6 +9,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 import pandas as pd
 
+
 class Tic:
 
     def __init__(self):
@@ -23,13 +24,13 @@ class Tic:
                 coef = 1
             elif time > 60 and time < 3600:
                 unite = "m"
-                coef = 1/60
+                coef = 1 / 60
             elif time > 3600 and time < 86400:
                 unite = "h"
-                coef = 1/3600
+                coef = 1 / 3600
             else:
                 unite = "j"
-                coef = 1/86400
+                coef = 1 / 86400
         elif time < 1 and time > 1e-3:
             coef = 1e3
             unite = "ms"
@@ -40,12 +41,12 @@ class Tic:
             unite = "s"
             coef = 1
 
-        return time*coef, unite
+        return time * coef, unite
 
     @staticmethod
-    def Get_Remaining_Time(i:int, N:int, time:float) -> str:
+    def Get_Remaining_Time(i: int, N: int, time: float) -> str:
         """Returns remaining time asssuming that time is in s."""
-        
+
         if i == 0:
             return ""
         else:
@@ -61,7 +62,7 @@ class Tic:
         tfCoef, unite = Tic.Get_time_unity(tf)
 
         textWithTime = f"{text} ({tfCoef:.3f} {unite})"
-        
+
         value = [text, tf]
 
         if category in Tic.__History:
@@ -70,46 +71,52 @@ class Tic:
             Tic.__History[category] = old
         else:
             Tic.__History[category] = [value]
-        
+
         self.__start = time.time()
 
         if verbosity:
             print(textWithTime)
 
         return tf
-    
+
     @staticmethod
     def Clear() -> None:
         """Deletes history."""
         Tic.__History = {}
-    
+
     __History = {}
     """history = { category: list( [text, time] ) }"""
 
     @staticmethod
     def nTic() -> int:
         return len(Tic.__History)
-       
+
     @staticmethod
     def Resume(verbosity=True) -> str:
         """Returns the TicTac summary"""
 
-        if Tic.__History == {}: return
+        if Tic.__History == {}:
+            return
 
         resume = ""
 
         for categorie in Tic.__History:
-            histCategory = np.array(np.array(Tic.__History[categorie])[:,1] , dtype=np.float64)
+            histCategory = np.array(
+                np.array(Tic.__History[categorie])[:, 1], dtype=np.float64
+            )
             timesCategory = np.sum(histCategory)
             timesCategory, unite = Tic.Get_time_unity(timesCategory)
             resumeCategory = f"{categorie} : {timesCategory:.3f} {unite}"
-            if verbosity: print(resumeCategory)
-            resume += '\n' + resumeCategory
+            if verbosity:
+                print(resumeCategory)
+            resume += "\n" + resumeCategory
 
-        return resume            
+        return resume
 
     @staticmethod
-    def __plotBar(ax: plt.Axes, categories: list, times: list, reps: int, title: str) -> None:        
+    def __plotBar(
+        ax: plt.Axes, categories: list, times: list, reps: int, title: str
+    ) -> None:
 
         # Axis parameters
         ax.xaxis.set_tick_params(labelbottom=False, labeltop=True, length=0)
@@ -121,7 +128,7 @@ class Tic:
         ax.spines["bottom"].set_visible(False)
         ax.spines["left"].set_lw(1.5)
 
-        ax.grid(axis = "x", lw=1.2)
+        ax.grid(axis="x", lw=1.2)
 
         tempsMax = np.max(times)
 
@@ -130,15 +137,14 @@ class Tic:
 
         for i, (texte, time, rep) in enumerate(zip(categories, times, reps)):
             # height=0.55
-            # ax.barh(i, t, height=height, align="center", label=c)            
+            # ax.barh(i, t, height=height, align="center", label=c)
             ax.barh(i, time, align="center", label=texte)
-            
+
             # We add a space at the end of the text
             space = " "
 
-            unitTime, unit = Tic.Get_time_unity(time/rep)
+            unitTime, unit = Tic.Get_time_unity(time / rep)
 
-            
             if rep > 1:
                 repTemps = f" ({rep} x {np.round(unitTime,2)} {unit})"
             else:
@@ -146,17 +152,29 @@ class Tic:
 
             texte = space + texte + repTemps + space
 
-            if time/tempsMax < 0.6:
-                ax.text(time, i, texte, color='black',
-                verticalalignment='center', horizontalalignment='left')
+            if time / tempsMax < 0.6:
+                ax.text(
+                    time,
+                    i,
+                    texte,
+                    color="black",
+                    verticalalignment="center",
+                    horizontalalignment="left",
+                )
             else:
-                ax.text(time, i, texte, color='white',
-                verticalalignment='center', horizontalalignment='right')
+                ax.text(
+                    time,
+                    i,
+                    texte,
+                    color="white",
+                    verticalalignment="center",
+                    horizontalalignment="right",
+                )
 
         # plt.legend()
         ax.set_title(title)
 
-    @staticmethod 
+    @staticmethod
     def Plot_History(folder="", details=False) -> None:
         """Plots history.
 
@@ -170,48 +188,64 @@ class Tic:
 
         from EasyFEA import Display
 
-        if Tic.__History == {}: return
+        if Tic.__History == {}:
+            return
 
-        historique = Tic.__History        
+        historique = Tic.__History
         totalTime = []
         categories = list(historique.keys())
 
         # recovers the time for each category
-        tempsCategorie = [np.sum(np.array(np.array(historique[c])[:,1] , dtype=np.float64)) for c in categories]
+        tempsCategorie = [
+            np.sum(np.array(np.array(historique[c])[:, 1], dtype=np.float64))
+            for c in categories
+        ]
 
         categories = np.array(categories)[np.argsort(tempsCategorie)][::-1]
 
         for i, c in enumerate(categories):
 
             # c subcategory times
-            timeSubCategory = np.array(np.array(historique[c])[:,1] , dtype=np.float64)
-            totalTime.append(np.sum(timeSubCategory)) #somme tout les temps de cette catégorie
+            timeSubCategory = np.array(np.array(historique[c])[:, 1], dtype=np.float64)
+            totalTime.append(
+                np.sum(timeSubCategory)
+            )  # somme tout les temps de cette catégorie
 
-            subCategories = np.array(np.array(historique[c])[:,0] , dtype=str)
+            subCategories = np.array(np.array(historique[c])[:, 0], dtype=str)
 
             # We build a table to sum them over the sub-categories
-            dfSubCategory = pd.DataFrame({'sub-categories' : subCategories, 'time': timeSubCategory, 'rep': 1})
-            dfSubCategory = dfSubCategory.groupby(['sub-categories']).sum()
-            dfSubCategory = dfSubCategory.sort_values(by='time')
+            dfSubCategory = pd.DataFrame(
+                {"sub-categories": subCategories, "time": timeSubCategory, "rep": 1}
+            )
+            dfSubCategory = dfSubCategory.groupby(["sub-categories"]).sum()
+            dfSubCategory = dfSubCategory.sort_values(by="time")
             subCategories = dfSubCategory.index.tolist()
 
             # print(dfSousCategorie)
 
-            if len(subCategories) > 1 and details and totalTime[-1]>0:
+            if len(subCategories) > 1 and details and totalTime[-1] > 0:
                 fig, ax = plt.subplots()
-                Tic.__plotBar(ax, subCategories, dfSubCategory['time'].tolist(), dfSubCategory['rep'].tolist(), c)
-            
-                if folder != "":                        
+                Tic.__plotBar(
+                    ax,
+                    subCategories,
+                    dfSubCategory["time"].tolist(),
+                    dfSubCategory["rep"].tolist(),
+                    c,
+                )
+
+                if folder != "":
                     Display.Save_fig(folder, f"TicTac{i}_{c}")
 
         # We build a table to sum them over the sub-categories
-        dfCategory = pd.DataFrame({'categories' : categories, 'time': totalTime})
-        dfCategory = dfCategory.groupby(['categories']).sum()
-        dfCategory = dfCategory.sort_values(by='time')
+        dfCategory = pd.DataFrame({"categories": categories, "time": totalTime})
+        dfCategory = dfCategory.groupby(["categories"]).sum()
+        dfCategory = dfCategory.sort_values(by="time")
         categories = dfCategory.index.tolist()
-        
-        fig, ax = plt.subplots()
-        Tic.__plotBar(ax, categories, dfCategory['time'], [1]*dfCategory.shape[0], "Summary")
 
-        if folder != "":            
+        fig, ax = plt.subplots()
+        Tic.__plotBar(
+            ax, categories, dfCategory["time"], [1] * dfCategory.shape[0], "Summary"
+        )
+
+        if folder != "":
             Display.Save_fig(folder, "TicTac_Summary")

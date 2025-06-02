@@ -8,9 +8,16 @@ import numpy as np
 
 from .._group_elems import _GroupElem
 
+
 class POINT(_GroupElem):
-    
-    def __init__(self, gmshId: int, connect: np.ndarray, coordoGlob: np.ndarray, nodes: np.ndarray):
+
+    def __init__(
+        self,
+        gmshId: int,
+        connect: np.ndarray,
+        coordoGlob: np.ndarray,
+        nodes: np.ndarray,
+    ):
 
         super().__init__(gmshId, connect, coordoGlob, nodes)
 
@@ -27,7 +34,7 @@ class POINT(_GroupElem):
         return [0]
 
     def Get_Local_Coords(self):
-        return np.array([0]).reshape(1,1)
+        return np.array([0]).reshape(1, 1)
 
     def _N(self) -> np.ndarray:
         pass
@@ -37,7 +44,7 @@ class POINT(_GroupElem):
 
     def _ddN(self) -> np.ndarray:
         pass
-    
+
     def _dddN(self) -> np.ndarray:
         pass
 

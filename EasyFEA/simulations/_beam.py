@@ -8,17 +8,28 @@ from scipy import sparse
 
 # utilities
 from ..utilities import Display, Tic
+
 # fem
 from ..fem import Mesh, MatrixType, LagrangeCondition, FeArray
+
 # materials
 from .. import Materials
 from ..materials import ModelType, Reshape_variable
+
 # simu
 from ._simu import _Simu
 
+
 class BeamSimu(_Simu):
 
-    def __init__(self, mesh: Mesh, model: Materials.BeamStructure, verbosity=False, useNumba=True, useIterativeSolvers=True):
+    def __init__(
+        self,
+        mesh: Mesh,
+        model: Materials.BeamStructure,
+        verbosity=False,
+        useNumba=True,
+        useIterativeSolvers=True,
+    ):
         """Creates a Euler-Bernoulli beam simulation.
 
         Parameters
@@ -39,16 +50,20 @@ class BeamSimu(_Simu):
             # changes the beam model as a beam structure
             model = Materials.BeamStructure([model])
 
-        assert isinstance(model, Materials.BeamStructure), "model must be a beam model or a beam structure"
+        assert isinstance(
+            model, Materials.BeamStructure
+        ), "model must be a beam model or a beam structure"
         super().__init__(mesh, model, verbosity, useNumba, useIterativeSolvers)
 
         # init
         self.Solver_Set_Elliptic_Algorithm()
-        
+
         # turn beams into observable objects
         [beam._Add_observer(self) for beam in model.beams]
-        
-    def Results_nodesField_elementsField(self, details=False) -> tuple[list[str], list[str]]:
+
+    def Results_nodesField_elementsField(
+        self, details=False
+    ) -> tuple[list[str], list[str]]:
         if details:
             nodesField = ["displacement_matrix"]
             elementsField = ["Stress"]
@@ -59,12 +74,12 @@ class BeamSimu(_Simu):
 
     def Get_unknowns(self, problemType=None) -> list[str]:
         dict_unknowns = {
-            1 : ["x"],
-            3 : ["x","y","rz"],
-            6 : ["x","y","z","rx","ry","rz"]
+            1: ["x"],
+            3: ["x", "y", "rz"],
+            6: ["x", "y", "z", "rx", "ry", "rz"],
         }
         return dict_unknowns[self.structure.dof_n]
-    
+
     def Get_problemTypes(self) -> list[ModelType]:
         return [ModelType.beam]
 
@@ -88,11 +103,25 @@ class BeamSimu(_Simu):
         3D [uxi, uyi, uzi, rxi, ryi, rzi, ...]"""
         return self._Get_u_n(self.problemType)
 
-    def add_surfLoad(self, nodes: np.ndarray, values: list, unknowns: list, problemType=None, description=""):
+    def add_surfLoad(
+        self,
+        nodes: np.ndarray,
+        values: list,
+        unknowns: list,
+        problemType=None,
+        description="",
+    ):
         Display.MyPrintError("Surface loads cannot be applied in beam problems.")
-        return        
+        return
 
-    def add_volumeLoad(self, nodes: np.ndarray, values: list, unknowns: list, problemType=None, description=""):
+    def add_volumeLoad(
+        self,
+        nodes: np.ndarray,
+        values: list,
+        unknowns: list,
+        problemType=None,
+        description="",
+    ):
         Display.MyPrintError("Volumetric loads cannot be applied in beam problems.")
         return
 
@@ -110,17 +139,19 @@ class BeamSimu(_Simu):
         beamModel = self.structure
 
         if beamModel.dim == 1:
-            unknowns = ['x']
+            unknowns = ["x"]
         elif beamModel.dim == 2:
-            unknowns = ['x','y','rz']
+            unknowns = ["x", "y", "rz"]
         elif beamModel.dim == 3:
-            unknowns = ['x','y','z','rx','ry','rz']
+            unknowns = ["x", "y", "z", "rx", "ry", "rz"]
 
         description = f"Connection {description}"
-        
+
         self.add_connection(nodes, unknowns, description)
 
-    def add_connection_hinged(self, nodes: np.ndarray, unknowns=[''] ,description="Hinged"):
+    def add_connection_hinged(
+        self, nodes: np.ndarray, unknowns=[""], description="Hinged"
+    ):
         """Adds a hinged connection.
 
         Parameters
@@ -134,23 +165,23 @@ class BeamSimu(_Simu):
         """
 
         beamModel = self.structure
-        
+
         if beamModel.dim == 1:
             return
         elif beamModel.dim == 2:
-            unknowns = ['x','y']
+            unknowns = ["x", "y"]
         elif beamModel.dim == 3:
-            unknowns = ['x','y','z']
-            if unknowns != ['']:
+            unknowns = ["x", "y", "z"]
+            if unknowns != [""]:
                 # We will block rotation ddls that are not in unknowns.
-                unknowns_rot = ['rx','ry','rz']
+                unknowns_rot = ["rx", "ry", "rz"]
                 for dir in unknowns:
                     if dir in unknowns_rot.copy():
                         unknowns_rot.remove(dir)
                 unknowns.extend(unknowns_rot)
 
         description = f"Connection {description}"
-        
+
         self.add_connection(nodes, unknowns, description)
 
     def add_connection(self, nodes: np.ndarray, unknowns: list[str], description: str):
@@ -168,22 +199,24 @@ class BeamSimu(_Simu):
 
         nodes = np.asarray(nodes)
 
-        problemType = self.problemType        
+        problemType = self.problemType
         self._Check_dofs(problemType, unknowns)
 
         tic = Tic()
-        
+
         if nodes.size > 1:
             # For each direction, we'll apply the conditions
             for d, dir in enumerate(unknowns):
                 dofs = self.Bc_dofs_nodes(nodes, [dir], problemType)
 
-                new_LagrangeBc = LagrangeCondition(problemType, nodes, dofs, [dir], [0], [1,-1], description)
+                new_LagrangeBc = LagrangeCondition(
+                    problemType, nodes, dofs, [dir], [0], [1, -1], description
+                )
                 self._Bc_Add_Lagrange(new_LagrangeBc)
         else:
-            self.add_dirichlet(nodes, [0]*len(unknowns), unknowns)
+            self.add_dirichlet(nodes, [0] * len(unknowns), unknowns)
 
-        tic.Tac("Boundary Conditions","Connection", self._verbosity)
+        tic.Tac("Boundary Conditions", "Connection", self._verbosity)
 
         self._Bc_Add_Display(nodes, unknowns, description, problemType)
 
@@ -192,28 +225,29 @@ class BeamSimu(_Simu):
 
         # Data
         mesh = self.mesh
-        if not mesh.groupElem.dim == 1: return
+        if not mesh.groupElem.dim == 1:
+            return
         groupElem = mesh.groupElem
 
         # Recovering the beam model
         beamStructure = self.structure
-        
-        matrixType=MatrixType.beam
-        
+
+        matrixType = MatrixType.beam
+
         tic = Tic()
-        
+
         weightedJacobian_e_pg = mesh.Get_weightedJacobian_e_pg(matrixType)
 
-        D_e_pg = beamStructure.Calc_D_e_pg(groupElem)        
+        D_e_pg = beamStructure.Calc_D_e_pg(groupElem)
 
         B_e_pg = groupElem.Get_EulerBernoulli_B_e_pg(beamStructure)
-        
+
         Kbeam_e = (weightedJacobian_e_pg * B_e_pg.T @ D_e_pg @ B_e_pg).sum(axis=1)
-            
-        tic.Tac("Matrix","Construct Kbeam_e", self._verbosity)
+
+        tic.Tac("Matrix", "Construct Kbeam_e", self._verbosity)
 
         return Kbeam_e
-    
+
     @property
     def mass(self) -> float:
 
@@ -233,10 +267,10 @@ class BeamSimu(_Simu):
 
             area_e_pg[elements] = beam.area
 
-        mass = (rho_e_pg * area_e_pg * weightedJacobian_e_pg).sum(axis=(0,1))
+        mass = (rho_e_pg * area_e_pg * weightedJacobian_e_pg).sum(axis=(0, 1))
 
         return mass
-    
+
     @property
     def center(self) -> np.ndarray:
         """Center of mass / barycenter / inertia center"""
@@ -259,10 +293,12 @@ class BeamSimu(_Simu):
             elements = mesh.Elements_Tags(beam.name)
             area_e_pg[elements] = beam.area
 
-        center = (rho_e_p * area_e_pg * weightedJacobian_e_pg * coordo_e_p / mass).sum(axis=(0,1))
+        center = (rho_e_p * area_e_pg * weightedJacobian_e_pg * coordo_e_p / mass).sum(
+            axis=(0, 1)
+        )
 
         if not isinstance(self.rho, np.ndarray):
-            diff = np.linalg.norm(center - mesh.center)/np.linalg.norm(center)
+            diff = np.linalg.norm(center - mesh.center) / np.linalg.norm(center)
             assert diff < 1e-12
 
         return center
@@ -280,14 +316,16 @@ class BeamSimu(_Simu):
 
         # Additional dimension linked to the use of lagrange coefficients
         nDof += self._Bc_Lagrange_dim(self.problemType)
-        
+
         tic = Tic()
 
         linesVector_e = mesh.Get_linesVector_e(model.dof_n).ravel()
         columnsVector_e = mesh.Get_columnsVector_e(model.dof_n).ravel()
 
         # Assembly
-        self.__Kbeam = sparse.csr_matrix((Ku_beam.ravel(), (linesVector_e, columnsVector_e)), shape=(nDof, nDof))
+        self.__Kbeam = sparse.csr_matrix(
+            (Ku_beam.ravel(), (linesVector_e, columnsVector_e)), shape=(nDof, nDof)
+        )
         """Kglob matrix for beam problem (nDof, nDof)"""
 
         self.__Fbeam = sparse.csr_matrix((nDof, 1))
@@ -298,9 +336,13 @@ class BeamSimu(_Simu):
         # plt.spy(self.__Ku)
         # plt.show()
 
-        tic.Tac("Matrix","Assembly Kbeam and Fbeam", self._verbosity)
+        tic.Tac("Matrix", "Assembly Kbeam and Fbeam", self._verbosity)
 
-    def Get_K_C_M_F(self, problemType=None) -> tuple[sparse.csr_matrix, sparse.csr_matrix, sparse.csr_matrix, sparse.csr_matrix]:
+    def Get_K_C_M_F(
+        self, problemType=None
+    ) -> tuple[
+        sparse.csr_matrix, sparse.csr_matrix, sparse.csr_matrix, sparse.csr_matrix
+    ]:
         if self.needUpdate:
             self.Assembly()
             self.Need_Update(False)
@@ -309,24 +351,25 @@ class BeamSimu(_Simu):
         return self.__Kbeam.copy(), initcsr.copy(), initcsr.copy(), self.__Fbeam.copy()
 
     def Get_x0(self, problemType=None):
-        if self.displacement.size != self.mesh.Nn*self.Get_dof_n(problemType):
-            return np.zeros(self.mesh.Nn*self.Get_dof_n(problemType))
+        if self.displacement.size != self.mesh.Nn * self.Get_dof_n(problemType):
+            return np.zeros(self.mesh.Nn * self.Get_dof_n(problemType))
         else:
             return self.displacement
 
     def Save_Iter(self):
 
         iter = super().Save_Iter()
-        
-        iter['displacement'] = self.displacement
-            
+
+        iter["displacement"] = self.displacement
+
         self._results.append(iter)
 
-    def Set_Iter(self, iter: int=-1, resetAll=False) -> dict:
-        
+    def Set_Iter(self, iter: int = -1, resetAll=False) -> dict:
+
         results = super().Set_Iter(iter)
 
-        if results is None: return
+        if results is None:
+            return
 
         self._Set_u_n(self.problemType, results["displacement"])
 
@@ -338,16 +381,16 @@ class BeamSimu(_Simu):
         dof_n = self.Get_dof_n(self.problemType)
 
         options.extend(["displacement", "displacement_norm", "displacement_matrix"])
-        
+
         if dof_n == 1:
             options.extend(["ux"])
             options.extend(["fx"])
             options.extend(["ux'"])
             options.extend(["N"])
-            options.extend(["Sxx"])            
+            options.extend(["Sxx"])
 
         elif dof_n == 3:
-            options.extend(["ux","uy","rz"])
+            options.extend(["ux", "uy", "rz"])
             options.extend(["fx", "fy", "cz"])
             options.extend(["ux'", "rz'"])
             options.extend(["N", "Ty", "Mz"])
@@ -355,29 +398,32 @@ class BeamSimu(_Simu):
 
         elif dof_n == 6:
             options.extend(["ux", "uy", "uz", "rx", "ry", "rz"])
-            options.extend(["fx","fy","fz","cx","cy","cz"])
+            options.extend(["fx", "fy", "fz", "cx", "cy", "cz"])
             options.extend(["ux'", "rx'", "ry'", "rz'"])
             options.extend(["N", "Ty", "Tz", "Mx", "My", "Mz"])
             options.extend(["Sxx", "Syy", "Szz", "Syz", "Sxz", "Sxy"])
-        
+
         options.extend(["Srain", "Stress"])
 
         return options
 
-    def Result(self, result: str, nodeValues=True, iter=None) -> Union[np.ndarray, float]:
+    def Result(
+        self, result: str, nodeValues=True, iter=None
+    ) -> Union[np.ndarray, float]:
 
         if iter != None:
             self.Set_Iter(iter)
-        
-        if not self._Results_Check_Available(result): return None
+
+        if not self._Results_Check_Available(result):
+            return None
 
         # begin cases ----------------------------------------------------
 
         dof_n = self.structure.dof_n
         Nn = self.mesh.Nn
-        dofs = Nn*dof_n
+        dofs = Nn * dof_n
 
-        if result in ["ux","uy","uz","rx","ry","rz"]:            
+        if result in ["ux", "uy", "uz", "rx", "ry", "rz"]:
             values_n = self.displacement.reshape(Nn, -1)
             index = self.__indexResult(result)
             values = values_n[:, index]
@@ -387,21 +433,21 @@ class BeamSimu(_Simu):
 
         elif result == "displacement_norm":
             values = np.linalg.norm(self.Results_displacement_matrix(), axis=1)
-    
-        elif result == "displacement_matrix":
-            values = self.Results_displacement_matrix()        
 
-        elif result in ["fx","fy","fz","cx","cy","cz"]:
-        
+        elif result == "displacement_matrix":
+            values = self.Results_displacement_matrix()
+
+        elif result in ["fx", "fy", "fz", "cx", "cy", "cz"]:
+
             Kbeam = self.Get_K_C_M_F()[0]
-            Kglob = Kbeam.tocsr()[:dofs].tocsc()[:,:dofs]
+            Kglob = Kbeam.tocsr()[:dofs].tocsc()[:, :dofs]
             force = Kglob @ self.displacement
 
             force_n = force.reshape(self.mesh.Nn, -1)
             index = self.__indexResult(result)
             values = force_n[:, index]
 
-        elif result in ["N","Mx","My","Mz"]:
+        elif result in ["N", "Mx", "My", "Mz"]:
 
             Epsilon_e_pg = self._Calc_Epsilon_e_pg(self.displacement)
 
@@ -415,18 +461,18 @@ class BeamSimu(_Simu):
             Epsilon_e_pg = self._Calc_Epsilon_e_pg(self.displacement)
             Sigma_e = self._Calc_Sigma_e_pg(Epsilon_e_pg).mean(1)
             index = self.__indexResult(result)
-            values = Sigma_e[:,index]
-        
+            values = Sigma_e[:, index]
+
         elif result in ["ux'", "rx'", "ry'", "rz'"]:
 
-            coef = 1 if result == "Exx" else 1/2
+            coef = 1 if result == "Exx" else 1 / 2
 
             Epsilon_e = self._Calc_Epsilon_e_pg(self.displacement).mean(1)
             index = self.__indexResult(result)
-            values = Epsilon_e[:,index] * coef
+            values = Epsilon_e[:, index] * coef
 
         # end cases ----------------------------------------------------
-        
+
         return self.Results_Reshape_values(values, nodeValues)
 
     def __indexResult(self, result: str) -> int:
@@ -463,32 +509,32 @@ class BeamSimu(_Simu):
                 return 1
             elif dim == 3:
                 return 3
-                        
+
         if len(result) == 3 and result[0] == "E":
             # strain case
             indices = result[1:]
-            if indices == 'xx':
+            if indices == "xx":
                 return 0
-            elif indices == 'xy':
+            elif indices == "xy":
                 return -1
-            elif indices == 'xz':
+            elif indices == "xz":
                 return 2
-            elif indices == 'yz':
+            elif indices == "yz":
                 return 1
         if len(result) == 3 and result[0] == "S":
             # stress case
             indices = result[1:]
-            if indices == 'xx':
+            if indices == "xx":
                 return 0
-            elif indices == 'yy':
+            elif indices == "yy":
                 return 1
-            elif indices == 'zz':
+            elif indices == "zz":
                 return 2
-            elif indices == 'yz':
+            elif indices == "yz":
                 return 3
-            elif indices == 'xz':
+            elif indices == "xz":
                 return 4
-            elif indices == 'xy':
+            elif indices == "xy":
                 return -1
 
     def _Calc_Epsilon_e_pg(self, sol: np.ndarray) -> FeArray:
@@ -498,23 +544,23 @@ class BeamSimu(_Simu):
         2D -> [ux', rz']\n
         3D -> [ux', rx', ry', rz']
         """
-        
+
         tic = Tic()
 
         sol_e = self.mesh.Locates_sol_e(sol, self.structure.dof_n, asFeArray=True)
         B_beam_e_pg = self.mesh.groupElem.Get_EulerBernoulli_B_e_pg(self.structure)
         Epsilon_e_pg = B_beam_e_pg @ sol_e
-        
+
         tic.Tac("Matrix", "Epsilon_e_pg", False)
 
         return Epsilon_e_pg
-    
+
     def _Calc_InternalForces_e_pg(self, Epsilon_e_pg: np.ndarray) -> FeArray:
         """Calculation of internal forces.\n
         1D -> [N]\n
         2D -> [N, Mz]\n
         3D -> [N, Mx, My, Mz]
-        """ 
+        """
         # .../FEMOBJECT/BASIC/MODEL/MATERIALS/@ELAS_BEAM/sigma.m
 
         Epsilon_e_pg = FeArray.asfearray(Epsilon_e_pg)
@@ -528,7 +574,7 @@ class BeamSimu(_Simu):
 
         D_e_pg = self.structure.Calc_D_e_pg(self.mesh.groupElem)
         forces_e_pg = D_e_pg @ Epsilon_e_pg
-            
+
         tic.Tac("Matrix", "InternalForces_e_pg", False)
 
         return forces_e_pg
@@ -542,7 +588,7 @@ class BeamSimu(_Simu):
         # .../FEMOBJECT/BASIC/MODEL/MATERIALS/@ELAS_BEAM/sigma.m
 
         Epsilon_e_pg = FeArray.asfearray(Epsilon_e_pg)
-        
+
         Ne = self.mesh.Ne
         nPg = self.mesh.Get_nPg(MatrixType.beam)
 
@@ -554,7 +600,7 @@ class BeamSimu(_Simu):
         InternalForces_e_pg = self._Calc_InternalForces_e_pg(Epsilon_e_pg)
 
         tic = Tic()
-        
+
         S_e_pg = FeArray.zeros(Ne, nPg)
         Iy_e_pg = np.zeros_like(S_e_pg)
         Iz_e_pg = np.zeros_like(S_e_pg)
@@ -572,44 +618,50 @@ class BeamSimu(_Simu):
         y_e_pg = np.sqrt(S_e_pg)
         z_e_pg = np.sqrt(S_e_pg)
 
-        N_e_pg = InternalForces_e_pg[:,:,0]
+        N_e_pg = InternalForces_e_pg[:, :, 0]
 
         if dim == 1:
             # [Sxx]
-            Sigma_e_pg = np.zeros((Ne, nPg, 1))            
-            Sigma_e_pg[:,:,0] = N_e_pg/S_e_pg  # Sxx = N/S
+            Sigma_e_pg = np.zeros((Ne, nPg, 1))
+            Sigma_e_pg[:, :, 0] = N_e_pg / S_e_pg  # Sxx = N/S
         elif dim == 2:
             # [Sxx, Syy, Sxy]
             # [Sxx, 0, 0] for euler bernouilli
             Sigma_e_pg = np.zeros((Ne, nPg, 3))
 
-            Mz_e_pg = InternalForces_e_pg[:,:,1]
-            Sigma_e_pg[:,:,0] = N_e_pg/S_e_pg - (Mz_e_pg * y_e_pg/Iz_e_pg)  # Sxx = N/S - Mz*y/Iz
-            Sigma_e_pg[:,:,1] = 0 # Syy = 0
+            Mz_e_pg = InternalForces_e_pg[:, :, 1]
+            Sigma_e_pg[:, :, 0] = N_e_pg / S_e_pg - (
+                Mz_e_pg * y_e_pg / Iz_e_pg
+            )  # Sxx = N/S - Mz*y/Iz
+            Sigma_e_pg[:, :, 1] = 0  # Syy = 0
             # Ty = 0 with euler bernoulli beam because uy' = rz
-            Sigma_e_pg[:,:,2] = 0 # Sxy = Ty/S il faut calculer Ty
+            Sigma_e_pg[:, :, 2] = 0  # Sxy = Ty/S il faut calculer Ty
         elif dim == 3:
             # [Sxx, Syy, Szz, Syz, Sxz, Sxy]
-            # [Sxx, 0, 0, 0, Sxz, Sxy] for 
+            # [Sxx, 0, 0, 0, Sxz, Sxy] for
             Sigma_e_pg = np.zeros((Ne, nPg, 6))
 
-            Mx_e_pg = InternalForces_e_pg[:,:,1]
-            My_e_pg = InternalForces_e_pg[:,:,2]
-            Mz_e_pg = InternalForces_e_pg[:,:,3]
-            
-            Sigma_e_pg[:,:,0] = N_e_pg/S_e_pg + My_e_pg/Iy_e_pg*z_e_pg - Mz_e_pg/Iz_e_pg*y_e_pg # Sxx = N/S + My/Iy*z - Mz/Iz*y
-            Sigma_e_pg[:,:,1] = 0 # Syy = 0
-            Sigma_e_pg[:,:,2] = 0 # Szz = 0
-            Sigma_e_pg[:,:,3] = 0 # Syz = 0
-            # Ty = Tz = 0 with euler bernoulli beam
-            Sigma_e_pg[:,:,4] = Mx_e_pg/J_e_pg*y_e_pg # Sxz = Tz/S + Mx/Ix*y 
-            Sigma_e_pg[:,:,5] = - Mx_e_pg/J_e_pg*z_e_pg # Sxy = Ty/S - Mx/Ix*z
+            Mx_e_pg = InternalForces_e_pg[:, :, 1]
+            My_e_pg = InternalForces_e_pg[:, :, 2]
+            Mz_e_pg = InternalForces_e_pg[:, :, 3]
 
-        # xAxis_e, yAxis_e = self.structure.Get_axis_e(self.mesh.groupElem)        
+            Sigma_e_pg[:, :, 0] = (
+                N_e_pg / S_e_pg
+                + My_e_pg / Iy_e_pg * z_e_pg
+                - Mz_e_pg / Iz_e_pg * y_e_pg
+            )  # Sxx = N/S + My/Iy*z - Mz/Iz*y
+            Sigma_e_pg[:, :, 1] = 0  # Syy = 0
+            Sigma_e_pg[:, :, 2] = 0  # Szz = 0
+            Sigma_e_pg[:, :, 3] = 0  # Syz = 0
+            # Ty = Tz = 0 with euler bernoulli beam
+            Sigma_e_pg[:, :, 4] = Mx_e_pg / J_e_pg * y_e_pg  # Sxz = Tz/S + Mx/Ix*y
+            Sigma_e_pg[:, :, 5] = -Mx_e_pg / J_e_pg * z_e_pg  # Sxy = Ty/S - Mx/Ix*z
+
+        # xAxis_e, yAxis_e = self.structure.Get_axis_e(self.mesh.groupElem)
         # d = np.max((2,dim))
         # Ps, Pe = Materials.Get_Pmat(xAxis_e[:,:d], yAxis_e[:,:d], False)
         # Sigma_e_pg = np.einsum('eij,epj->epi',Ps, Sigma_e_pg, optimize='optimal')
-            
+
         tic.Tac("Matrix", "Sigma_e_pg", False)
 
         return Sigma_e_pg
@@ -619,24 +671,24 @@ class BeamSimu(_Simu):
 
     def Results_Iter_Summary(self) -> list[tuple[str, np.ndarray]]:
         return super().Results_Iter_Summary()
-    
+
     def Results_displacement_matrix(self) -> np.ndarray:
-        
+
         Nn = self.mesh.Nn
-        dof_n = self.Get_dof_n(self.problemType)        
-        displacementRedim = self.displacement.reshape(Nn,-1)
+        dof_n = self.Get_dof_n(self.problemType)
+        displacementRedim = self.displacement.reshape(Nn, -1)
 
         coordo = np.zeros((Nn, 3))
 
         if dof_n == 1:
-            coordo[:,0] = displacementRedim[:,0]
+            coordo[:, 0] = displacementRedim[:, 0]
         elif dof_n == 3:
-            coordo[:,:2] = displacementRedim[:,:2]
+            coordo[:, :2] = displacementRedim[:, :2]
         elif dof_n == 6:
-            coordo[:,:3] = displacementRedim[:,:3]
+            coordo[:, :3] = displacementRedim[:, :3]
 
         return coordo
-    
+
     def Results_Get_Iteration_Summary(self) -> str:
 
         summary = ""

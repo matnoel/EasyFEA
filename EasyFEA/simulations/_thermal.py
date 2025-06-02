@@ -8,18 +8,29 @@ from scipy import sparse
 
 # utilities
 from ..utilities import Tic
+
 # fem
 from ..fem import Mesh, MatrixType, FeArray
+
 # materials
 from .. import Materials
 from ..materials import ModelType, Reshape_variable
+
 # simu
 from ._simu import _Simu
 from .Solvers import AlgoType
 
+
 class ThermalSimu(_Simu):
 
-    def __init__(self, mesh: Mesh, model: Materials.Thermal, verbosity=False, useNumba=True, useIterativeSolvers=True):
+    def __init__(
+        self,
+        mesh: Mesh,
+        model: Materials.Thermal,
+        verbosity=False,
+        useNumba=True,
+        useIterativeSolvers=True,
+    ):
         """Creates a thermal simulation.
 
         Parameters
@@ -41,18 +52,20 @@ class ThermalSimu(_Simu):
 
         # init
         self.Solver_Set_Elliptic_Algorithm()
-    
+
     def Get_unknowns(self, problemType=None) -> list[str]:
         return ["t"]
-    
+
     def Get_dof_n(self, problemType=None) -> int:
         return 1
 
-    def Results_nodesField_elementsField(self, details=False) -> tuple[list[str], list[str]]:
+    def Results_nodesField_elementsField(
+        self, details=False
+    ) -> tuple[list[str], list[str]]:
         nodesField = ["thermal", "thermalDot"]
         elementsField = []
         return nodesField, elementsField
-    
+
     def Get_problemTypes(self) -> list[ModelType]:
         return [ModelType.thermal]
 
@@ -79,7 +92,11 @@ class ThermalSimu(_Simu):
         else:
             return self.thermal
 
-    def Get_K_C_M_F(self, problemType=None) -> tuple[sparse.csr_matrix, sparse.csr_matrix, sparse.csr_matrix, sparse.csr_matrix]:
+    def Get_K_C_M_F(
+        self, problemType=None
+    ) -> tuple[
+        sparse.csr_matrix, sparse.csr_matrix, sparse.csr_matrix, sparse.csr_matrix
+    ]:
         if self.needUpdate:
             self.Assembly()
             self.Need_Update(False)
@@ -135,39 +152,44 @@ class ThermalSimu(_Simu):
 
         # Additional dimension linked to the use of lagrange coefficients
         Ndof += self._Bc_Lagrange_dim(self.problemType)
-        
+
         # Calculate elementary matrices
         Kt_e, Ct_e = self.__Construct_Thermal_Matrix()
-        
+
         tic = Tic()
 
-        self.__Kt = sparse.csr_matrix((Kt_e.ravel(), (linesScalar_e, columnsScalar_e)), shape = (Ndof, Ndof))
+        self.__Kt = sparse.csr_matrix(
+            (Kt_e.ravel(), (linesScalar_e, columnsScalar_e)), shape=(Ndof, Ndof)
+        )
         """Kglob for thermal problem (Ndof, Ndof)"""
-        
+
         self.__Ft = sparse.csr_matrix((Ndof, 1))
         """Fglob vector for thermal problem (Ndof, 1)."""
 
-        self.__Ct = sparse.csr_matrix((Ct_e.ravel(), (linesScalar_e, columnsScalar_e)), shape = (Ndof, Ndof))
+        self.__Ct = sparse.csr_matrix(
+            (Ct_e.ravel(), (linesScalar_e, columnsScalar_e)), shape=(Ndof, Ndof)
+        )
         """Mglob for thermal problem (Ndof, Ndof)"""
 
-        tic.Tac("Matrix","Assembly Kt, Mt and Ft", self._verbosity)
+        tic.Tac("Matrix", "Assembly Kt, Mt and Ft", self._verbosity)
 
     def Save_Iter(self):
 
         iter = super().Save_Iter()
-        
-        iter['thermal'] = self.thermal
+
+        iter["thermal"] = self.thermal
 
         if self.algo == AlgoType.parabolic:
-            iter['thermalDot'] = self.thermalDot
-            
+            iter["thermalDot"] = self.thermalDot
+
         self._results.append(iter)
 
-    def Set_Iter(self, iter: int=-1, resetAll=False) -> dict:
-        
+    def Set_Iter(self, iter: int = -1, resetAll=False) -> dict:
+
         results = super().Set_Iter(iter)
 
-        if results is None: return
+        if results is None:
+            return
 
         problemType = self.problemType
 
@@ -184,13 +206,16 @@ class ThermalSimu(_Simu):
         options = []
         options.extend(["thermal", "thermalDot", "displacement_matrix"])
         return options
-        
-    def Result(self, result: str, nodeValues=True, iter=None) -> Union[np.ndarray, float, None]:
+
+    def Result(
+        self, result: str, nodeValues=True, iter=None
+    ) -> Union[np.ndarray, float, None]:
 
         if iter != None:
             self.Set_Iter(iter)
-        
-        if not self._Results_Check_Available(result): return None
+
+        if not self._Results_Check_Available(result):
+            return None
 
         # begin cases ----------------------------------------------------
 
@@ -204,7 +229,7 @@ class ThermalSimu(_Simu):
             values = self.Results_displacement_matrix()
 
         # end cases ----------------------------------------------------
-        
+
         return self.Results_Reshape_values(values, nodeValues)
 
     def Results_Iter_Summary(self) -> list[tuple[str, np.ndarray]]:
@@ -212,6 +237,6 @@ class ThermalSimu(_Simu):
 
     def Results_dict_Energy(self) -> list[tuple[str, float]]:
         return super().Results_dict_Energy()
-    
+
     def Results_displacement_matrix(self) -> np.ndarray:
         return super().Results_displacement_matrix()

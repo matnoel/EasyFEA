@@ -8,18 +8,29 @@ from scipy import sparse
 
 # utilities
 from ..utilities import Folder, Display, Tic
+
 # fem
 from ..fem import Mesh, MatrixType, Mesher, FeArray
+
 # materials
 from .. import Materials
 from ..materials import ModelType, Reshape_variable, Result_in_Strain_or_Stress_field
+
 # simu
 from ._simu import _Simu
 from .Solvers import AlgoType
 
+
 class ElasticSimu(_Simu):
 
-    def __init__(self, mesh: Mesh, model: Materials._Elas, verbosity=False, useNumba=True, useIterativeSolvers=True):
+    def __init__(
+        self,
+        mesh: Mesh,
+        model: Materials._Elas,
+        verbosity=False,
+        useNumba=True,
+        useIterativeSolvers=True,
+    ):
         """Creates a elastic simulation.
 
         Parameters
@@ -41,28 +52,27 @@ class ElasticSimu(_Simu):
 
         # init
         self.Set_Rayleigh_Damping_Coefs()
-        self.Solver_Set_Elliptic_Algorithm()    
+        self.Solver_Set_Elliptic_Algorithm()
 
-    def Results_nodesField_elementsField(self, details=False) -> tuple[list[str], list[str]]:
+    def Results_nodesField_elementsField(
+        self, details=False
+    ) -> tuple[list[str], list[str]]:
         nodesField = ["displacement_matrix"]
-        if details:            
+        if details:
             elementsField = ["Stress", "Strain"]
-        else:            
+        else:
             elementsField = ["Stress"]
         if self.algo in AlgoType.Get_Hyperbolic_Types():
             nodesField.extend(["speed", "accel"])
         return nodesField, elementsField
-    
+
     def Get_unknowns(self, problemType=None) -> list[str]:
-        dict_unknowns = {
-            2 : ["x", "y"],
-            3 : ["x", "y", "z"]
-        }
+        dict_unknowns = {2: ["x", "y"], 3: ["x", "y", "z"]}
         return dict_unknowns[self.dim]
-    
+
     def Get_problemTypes(self) -> list[ModelType]:
         return [ModelType.elastic]
-        
+
     def Get_dof_n(self, problemType=None) -> int:
         return self.dim
 
@@ -95,15 +105,16 @@ class ElasticSimu(_Simu):
     def __Construct_Local_Matrix(self) -> tuple[np.ndarray, np.ndarray]:
         """Computes the elementary stiffness matrices for the elastic problem."""
 
-        mesh = self.mesh; Ne = mesh.Ne
+        mesh = self.mesh
+        Ne = mesh.Ne
 
         tic = Tic()
-        
+
         # ------------------------------
         # Compute Stifness
         # ------------------------------
         matrixType = MatrixType.rigi
-        leftDepPart = mesh.Get_leftDispPart(matrixType) 
+        leftDepPart = mesh.Get_leftDispPart(matrixType)
         B_dep_e_pg = mesh.Get_B_e_pg(matrixType)
 
         if self.material.isHeterogeneous:
@@ -112,16 +123,16 @@ class ElasticSimu(_Simu):
             matC = self.material.C
 
         Ku_e = (leftDepPart @ matC @ B_dep_e_pg).sum(axis=1)
-        
+
         # ------------------------------
         # Compute Mass
         # ------------------------------
         matrixType = MatrixType.mass
         N_pg = FeArray.asfearray(mesh.Get_N_vector_pg(matrixType)[np.newaxis])
         weightedJacobian = mesh.Get_weightedJacobian_e_pg(matrixType)
-        
+
         rho_e_pg = Reshape_variable(self.rho, *weightedJacobian.shape[:2])
- 
+
         Mu_e = (rho_e_pg * weightedJacobian * N_pg.T @ N_pg).sum(axis=1)
 
         if self.dim == 2:
@@ -129,37 +140,43 @@ class ElasticSimu(_Simu):
             Ku_e *= thickness
             Mu_e *= thickness
 
-        tic.Tac("Matrix","Construct Ku_e and Mu_e", self._verbosity)
+        tic.Tac("Matrix", "Construct Ku_e and Mu_e", self._verbosity)
 
         return Ku_e, Mu_e
 
-    def Get_K_C_M_F(self, problemType=None) -> tuple[sparse.csr_matrix, sparse.csr_matrix, sparse.csr_matrix, sparse.csr_matrix]:
+    def Get_K_C_M_F(
+        self, problemType=None
+    ) -> tuple[
+        sparse.csr_matrix, sparse.csr_matrix, sparse.csr_matrix, sparse.csr_matrix
+    ]:
         if self.needUpdate:
             self.Assembly()
             self.Need_Update(False)
 
         Cu = self.__coefK * self.__Ku + self.__coefM * self.__Mu
-        
+
         return self.__Ku.copy(), Cu, self.__Mu.copy(), self.__Fu.copy()
- 
+
     def Assembly(self) -> None:
 
         # Data
-        mesh = self.mesh        
-        Ndof = mesh.Nn*self.dim
+        mesh = self.mesh
+        Ndof = mesh.Nn * self.dim
 
         # Additional dimension linked to the use of lagrange coefficients
         Ndof += self._Bc_Lagrange_dim(self.problemType)
-                        
+
         Ku_e, Mu_e = self.__Construct_Local_Matrix()
-        
+
         tic = Tic()
 
         linesVector_e = mesh.linesVector_e.ravel()
         columnsVector_e = mesh.columnsVector_e.ravel()
 
         # Assembly
-        self.__Ku = sparse.csr_matrix((Ku_e.ravel(), (linesVector_e, columnsVector_e)), shape=(Ndof, Ndof))
+        self.__Ku = sparse.csr_matrix(
+            (Ku_e.ravel(), (linesVector_e, columnsVector_e)), shape=(Ndof, Ndof)
+        )
         """Kglob matrix for the displacement problem (Ndof, Ndof)"""
 
         # Here I'm initializing Fu because I'd have to calculate the volumetric forces in __Construct_Local_Matrix.
@@ -171,49 +188,56 @@ class ElasticSimu(_Simu):
         # plt.spy(self.__Ku)
         # plt.show()
 
-        self.__Mu = sparse.csr_matrix((Mu_e.ravel(), (linesVector_e, columnsVector_e)), shape=(Ndof, Ndof))
+        self.__Mu = sparse.csr_matrix(
+            (Mu_e.ravel(), (linesVector_e, columnsVector_e)), shape=(Ndof, Ndof)
+        )
         """Mglob matrix for the displacement problem (Ndof, Ndof)"""
 
-        tic.Tac("Matrix","Assembly Ku, Mu and Fu", self._verbosity)
+        tic.Tac("Matrix", "Assembly Ku, Mu and Fu", self._verbosity)
 
     def Set_Rayleigh_Damping_Coefs(self, coefM=0.0, coefK=0.0):
         """Sets damping coefficients."""
         self.__coefM = coefM
-        self.__coefK = coefK    
+        self.__coefK = coefK
 
     def Get_x0(self, problemType=None):
         algo = self.algo
-        if self.displacement.size != self.mesh.Nn*self.dim:
-            return np.zeros(self.mesh.Nn*self.dim)
+        if self.displacement.size != self.mesh.Nn * self.dim:
+            return np.zeros(self.mesh.Nn * self.dim)
         elif algo == AlgoType.elliptic:
             return self.displacement
         elif algo in AlgoType.Get_Hyperbolic_Types():
             return self.accel
         else:
             raise TypeError(f"Algo {algo} is not implemented here.")
-    
+
     def Save_Iter(self):
-        
+
         iter = super().Save_Iter()
 
-        iter['displacement'] = self.displacement
+        iter["displacement"] = self.displacement
         if self.algo in AlgoType.Get_Hyperbolic_Types():
             iter["speed"] = self.speed
             iter["accel"] = self.accel
 
         self._results.append(iter)
-    
-    def Set_Iter(self, iter: int=-1, resetAll=False) -> dict:
-        
+
+    def Set_Iter(self, iter: int = -1, resetAll=False) -> dict:
+
         results = super().Set_Iter(iter)
 
-        if results is None: return
+        if results is None:
+            return
 
         problemType = self.problemType
 
         self._Set_u_n(self.problemType, results["displacement"])
 
-        if self.algo in AlgoType.Get_Hyperbolic_Types() and "speed" in results and "accel" in results:
+        if (
+            self.algo in AlgoType.Get_Hyperbolic_Types()
+            and "speed" in results
+            and "accel" in results
+        ):
             self._Set_v_n(problemType, results["speed"])
             self._Set_a_n(problemType, results["accel"])
         else:
@@ -231,7 +255,7 @@ class ElasticSimu(_Simu):
         results.extend(["displacement", "displacement_norm", "displacement_matrix"])
         results.extend(["speed", "speed_norm"])
         results.extend(["accel", "accel_norm"])
-        
+
         if dim == 2:
             results.extend(["ux", "uy"])
             results.extend(["vx", "vy"])
@@ -246,18 +270,21 @@ class ElasticSimu(_Simu):
             results.extend(["Sxx", "Syy", "Szz", "Syz", "Sxz", "Sxy"])
             results.extend(["Exx", "Eyy", "Ezz", "Eyz", "Exz", "Exy"])
 
-        results.extend(["Svm", "Stress","Evm", "Strain"])
-        
-        results.extend(["Wdef","Wdef_e","ZZ1","ZZ1_e"])
+        results.extend(["Svm", "Stress", "Evm", "Strain"])
+
+        results.extend(["Wdef", "Wdef_e", "ZZ1", "ZZ1_e"])
 
         return results
 
-    def Result(self, result: str, nodeValues=True, iter=None) -> Union[np.ndarray, float, None]:
+    def Result(
+        self, result: str, nodeValues=True, iter=None
+    ) -> Union[np.ndarray, float, None]:
 
         if iter != None:
             self.Set_Iter(iter)
-        
-        if not self._Results_Check_Available(result): return None
+
+        if not self._Results_Check_Available(result):
+            return None
 
         # begin cases ----------------------------------------------------
 
@@ -267,11 +294,11 @@ class ElasticSimu(_Simu):
 
         if result in ["ux", "uy", "uz"]:
             values_n = self.displacement.reshape(Nn, -1)
-            values = values_n[:,self.__indexResult(result)]
+            values = values_n[:, self.__indexResult(result)]
 
         elif result == "displacement":
             values = self.displacement
-        
+
         elif result == "displacement_norm":
             val_n = self.displacement.reshape(Nn, -1)
             values = np.linalg.norm(val_n, axis=1)
@@ -281,22 +308,22 @@ class ElasticSimu(_Simu):
 
         elif result in ["vx", "vy", "vz"]:
             values_n = self.speed.reshape(Nn, -1)
-            values = values_n[:,self.__indexResult(result)]
+            values = values_n[:, self.__indexResult(result)]
 
         elif result == "speed":
             values = self.speed
-        
+
         elif result == "speed_norm":
             val_n = self.speed.reshape(Nn, -1)
             values = np.linalg.norm(val_n, axis=1)
 
         elif result in ["ax", "ay", "az"]:
             values_n = self.accel.reshape(Nn, -1)
-            values = values_n[:,self.__indexResult(result)]
-        
+            values = values_n[:, self.__indexResult(result)]
+
         elif result == "accel":
             values = self.accel
-        
+
         elif result == "accel_norm":
             val_n = self.accel.reshape(Nn, -1)
             values = np.linalg.norm(val_n, axis=1)
@@ -306,13 +333,13 @@ class ElasticSimu(_Simu):
 
         elif result == "Wdef_e":
             values = self._Calc_Psi_Elas(returnScalar=False)
-            
+
         elif result == "ZZ1":
             return self._Calc_ZZ1()[0]
 
         elif result == "ZZ1_e":
             values = self._Calc_ZZ1()[1]
-        
+
         elif ("S" in result or "E" in result) and (not "_norm" in result):
             # Strain and Stress calculation part
 
@@ -330,9 +357,9 @@ class ElasticSimu(_Simu):
                 val_e = Epsilon_e_pg.mean(1)
             else:
                 raise Exception("Wrong option")
-            
+
             res = result if result in ["Strain", "Stress"] else result[-2:]
-            
+
             values = Result_in_Strain_or_Stress_field(val_e, res, coef)
 
         if not isinstance(values, np.ndarray):
@@ -340,19 +367,21 @@ class ElasticSimu(_Simu):
             return
 
         # end cases ----------------------------------------------------
-        
+
         return self.Results_Reshape_values(values, nodeValues)
 
-    def _Calc_Psi_Elas(self, returnScalar=True, smoothedStress=False, matrixType=MatrixType.rigi):
+    def _Calc_Psi_Elas(
+        self, returnScalar=True, smoothedStress=False, matrixType=MatrixType.rigi
+    ):
         """Computes the kinematically admissible deformation energy.
         Wdef = 1/2 int_Ω Sig : Eps dΩ"""
 
         tic = Tic()
-        
-        sol_u  = self.displacement
+
+        sol_u = self.displacement
 
         mesh = self.mesh
-        
+
         Epsilon_e_pg = self._Calc_Epsilon_e_pg(sol_u, matrixType)
         weightedJacobian_pg = mesh.Get_weightedJacobian_e_pg(matrixType)
         N_pg = mesh.Get_N_pg(matrixType)
@@ -368,19 +397,17 @@ class ElasticSimu(_Simu):
             Sigma_n = mesh.Get_Node_Values(np.mean(Sigma_e_pg, 1))
 
             Sigma_n_e = mesh.Locates_sol_e(Sigma_n)
-            Sigma_e_pg = FeArray.asfearray(
-                np.einsum('eni,pjn->epi',Sigma_n_e, N_pg)
-            )
+            Sigma_e_pg = FeArray.asfearray(np.einsum("eni,pjn->epi", Sigma_n_e, N_pg))
 
         if returnScalar:
-            Wdef = 1/2 * ep * (weightedJacobian_pg * Sigma_e_pg @ Epsilon_e_pg).sum()
+            Wdef = 1 / 2 * ep * (weightedJacobian_pg * Sigma_e_pg @ Epsilon_e_pg).sum()
         else:
-            Wdef = 1/2 * ep * (weightedJacobian_pg * Sigma_e_pg @ Epsilon_e_pg).sum(1)
+            Wdef = 1 / 2 * ep * (weightedJacobian_pg * Sigma_e_pg @ Epsilon_e_pg).sum(1)
 
-        tic.Tac("PostProcessing","Calc Psi Elas",False)
-        
+        tic.Tac("PostProcessing", "Calc Psi Elas", False)
+
         return Wdef
-    
+
     def _Calc_ZZ1(self) -> tuple[float, np.ndarray]:
         """Computes the ZZ1 error.\n
         For more details, [F.Pled, Vers une stratégie robuste ... ingénierie mécanique] page 20/21\n
@@ -397,9 +424,9 @@ class ElasticSimu(_Simu):
         Ws_e: np.ndarray = self._Calc_Psi_Elas(False, True)
         Ws = np.sum(Ws_e)
 
-        error_e: np.ndarray = np.abs(Ws_e-W_e).ravel()/Welas
+        error_e: np.ndarray = np.abs(Ws_e - W_e).ravel() / Welas
 
-        error: float = np.abs(Welas-Ws)/Welas
+        error: float = np.abs(Welas - Ws) / Welas
 
         return error, error_e
 
@@ -419,16 +446,18 @@ class ElasticSimu(_Simu):
             Computed strain field (Ne,pg,(3 or 6))
         """
 
-        tic = Tic()        
+        tic = Tic()
         u_e = self.mesh.Locates_sol_e(u, asFeArray=True)
         B_dep_e_pg = self.mesh.Get_B_e_pg(matrixType)
         Epsilon_e_pg = B_dep_e_pg @ u_e
-        
+
         tic.Tac("Matrix", "Epsilon_e_pg", False)
 
         return Epsilon_e_pg
-                    
-    def _Calc_Sigma_e_pg(self, Epsilon_e_pg: np.ndarray, matrixType=MatrixType.rigi) -> FeArray:
+
+    def _Calc_Sigma_e_pg(
+        self, Epsilon_e_pg: np.ndarray, matrixType=MatrixType.rigi
+    ) -> FeArray:
         """Computes stress field from strain field.\n
         2D : [Sxx Syy sqrt(2)*Sxy]\n
         3D : [Sxx Syy Szz sqrt(2)*Syz sqrt(2)*Sxz sqrt(2)*Sxy]
@@ -461,13 +490,13 @@ class ElasticSimu(_Simu):
             C_e_pg = FeArray.asfearray(C, True)
 
         Sigma_e_pg = C_e_pg @ Epsilon_e_pg
-            
+
         tic.Tac("Matrix", "Sigma_e_pg", False)
 
         return Sigma_e_pg
 
     def __indexResult(self, result: str) -> int:
-        
+
         if len(result) <= 2:
             "Case were ui, vi or ai"
             if "x" in result:
@@ -478,21 +507,19 @@ class ElasticSimu(_Simu):
                 return 2
 
     def Results_dict_Energy(self) -> dict[str, float]:
-        dict_energy = {
-            r"$\Psi_{elas}$": self._Calc_Psi_Elas()
-            }
+        dict_energy = {r"$\Psi_{elas}$": self._Calc_Psi_Elas()}
         return dict_energy
 
-    def Results_Get_Iteration_Summary(self) -> str:        
+    def Results_Get_Iteration_Summary(self) -> str:
 
         summary = ""
 
         if not self._Results_Check_Available("Wdef"):
             return
-        
+
         Wdef = self.Result("Wdef")
         summary += f"\nW def = {Wdef:.2f}"
-        
+
         Svm = self.Result("Svm", nodeValues=False)
         summary += f"\n\nSvm max = {Svm.max():.2f}"
 
@@ -521,18 +548,25 @@ class ElasticSimu(_Simu):
     def Results_displacement_matrix(self) -> np.ndarray:
 
         Nn = self.mesh.Nn
-        coord = self.displacement.reshape((Nn,-1))
+        coord = self.displacement.reshape((Nn, -1))
         dim = coord.shape[1]
 
         displacement_matrix = np.zeros((Nn, 3))
-        displacement_matrix[:,:dim] = coord
+        displacement_matrix[:, :dim] = coord
 
         return displacement_matrix
-    
+
+
 # ----------------------------------------------
 # Other functions
 # ----------------------------------------------
-def Mesh_Optim_ZZ1(DoSimu: Callable[[str], ElasticSimu], folder: str, threshold: float=1e-2, iterMax: int=20, coef: float=1/2) -> ElasticSimu:
+def Mesh_Optim_ZZ1(
+    DoSimu: Callable[[str], ElasticSimu],
+    folder: str,
+    threshold: float = 1e-2,
+    iterMax: int = 20,
+    coef: float = 1 / 2,
+) -> ElasticSimu:
     """Optimizes the mesh using ZZ1 error criterion.
 
     Parameters
@@ -564,25 +598,27 @@ def Mesh_Optim_ZZ1(DoSimu: Callable[[str], ElasticSimu], folder: str, threshold:
 
         # perform the simulation
         simu = DoSimu(optimGeom)
-        assert isinstance(simu, ElasticSimu), 'DoSimu function must return a Displacement simulation'
+        assert isinstance(
+            simu, ElasticSimu
+        ), "DoSimu function must return a Displacement simulation"
         # get the current mesh
         mesh = simu.mesh
 
         if i > 0:
             # remove previous *.pos file
             Folder.os.remove(optimGeom)
-        
+
         # Calculate the error with the ZZ1 method
         error, error_e = simu._Calc_ZZ1()
 
-        print(f'error = {error*100:.3f} %')
+        print(f"error = {error*100:.3f} %")
 
         # calculate the new mesh size for the associated error
         meshSize_n = mesh.Get_New_meshSize_n(error_e, coef)
 
         # build the *.pos file that will be used to refine the mesh
         optimGeom = Mesher().Create_posFile(mesh.coord, meshSize_n, folder, f"pos{i}")
-        
+
     if Folder.Exists(optimGeom):
         # remove last *.pos file
         Folder.os.remove(optimGeom)
