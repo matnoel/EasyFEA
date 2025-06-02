@@ -5,7 +5,7 @@
 """Numba functions to speed up calculations."""
 
 import numpy as np
-from numba import njit, prange, jit
+from numba import njit, prange, jit  # type: ignore
 
 __USE_CACHE = True
 __USE_PARALLEL = True

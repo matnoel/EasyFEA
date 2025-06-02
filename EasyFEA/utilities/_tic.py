@@ -7,7 +7,7 @@
 import time
 import numpy as np
 import matplotlib.pyplot as plt
-import pandas as pd
+import pandas as pd  # type: ignore
 
 
 class Tic:
@@ -21,7 +21,7 @@ class Tic:
         if time > 1:
             if time < 60:
                 unite = "s"
-                coef = 1
+                coef = 1.0
             elif time > 60 and time < 3600:
                 unite = "m"
                 coef = 1 / 60
@@ -39,7 +39,7 @@ class Tic:
             unite = "µs"
         else:
             unite = "s"
-            coef = 1
+            coef = 1.0
 
         return time * coef, unite
 
@@ -63,7 +63,7 @@ class Tic:
 
         textWithTime = f"{text} ({tfCoef:.3f} {unite})"
 
-        value = [text, tf]
+        value = (text, tf)
 
         if category in Tic.__History:
             old = list(Tic.__History[category])
@@ -84,7 +84,7 @@ class Tic:
         """Deletes history."""
         Tic.__History = {}
 
-    __History = {}
+    __History: dict[str, list[tuple[str, float]]] = {}
     """history = { category: list( [text, time] ) }"""
 
     @staticmethod
@@ -96,7 +96,7 @@ class Tic:
         """Returns the TicTac summary"""
 
         if Tic.__History == {}:
-            return
+            return ""
 
         resume = ""
 

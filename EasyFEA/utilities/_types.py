@@ -2,10 +2,10 @@
 # This file is part of the EasyFEA project.
 # EasyFEA is distributed under the terms of the GNU General Public License v3 or later, see LICENSE.txt and CREDITS.md for more information.
 
-try:
-    # Python 3.8+
-    from importlib import metadata
+from typing import Union, Iterable, Any
+import numpy as np
 
-    __version__ = metadata.version("EasyFEA")
-except ImportError:
-    __version__ = "unknown"
+Number = Union[int, float]
+Numbers = Iterable[Number]
+
+ArrayOrNone = Union[np.ndarray[Any, np.dtype[Any]], None]

@@ -8,6 +8,7 @@ import numpy as np
 
 # utils
 from ._utils import ElemType, MatrixType
+from ..utilities._types import Numbers
 
 
 class Gauss:
@@ -44,14 +45,14 @@ class Gauss:
         return self.__weights.size
 
     @staticmethod
-    def _Triangle(nPg: int) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
+    def _Triangle(nPg: int) -> tuple[Numbers, Numbers, Numbers]:
         """available [1, 3, 6, 7, 12]\n
         order = [1, 2, 3, 4, 5]"""
         if nPg == 1:
-            ksis = 1 / 3
-            etas = 1 / 3
+            ksis = [1 / 3]
+            etas = [1 / 3]
 
-            weights = 1 / 2
+            weights = [1 / 2]
 
         elif nPg == 3:
             ksis = [1 / 6, 2 / 3, 1 / 6]
@@ -98,7 +99,7 @@ class Gauss:
         return ksis, etas, weights
 
     @staticmethod
-    def _Quadrangle(nPg: int) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
+    def _Quadrangle(nPg: int) -> tuple[Numbers, Numbers, Numbers]:
         """available [4, 9]\n
         order = [1, 2]"""
         if nPg == 4:
@@ -106,7 +107,7 @@ class Gauss:
             ksis = [-a, a, a, -a]
             etas = [-a, -a, a, a]
 
-            weights = [1] * nPg
+            weights = [1.0] * nPg
         elif nPg == 9:
             a = 0.774596669241483
 
@@ -127,17 +128,17 @@ class Gauss:
         return ksis, etas, weights
 
     @staticmethod
-    def _Tetrahedron(nPg: int) -> tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
+    def _Tetrahedron(nPg: int) -> tuple[Numbers, Numbers, Numbers, Numbers]:
         """available [1, 4, 5, 15]\n
         order = [1, 2, 3, 5]"""
 
         if nPg == 1:
 
-            x = 1 / 4
-            y = 1 / 4
-            z = 1 / 4
+            x = [1 / 4]
+            y = [1 / 4]
+            z = [1 / 4]
 
-            weights = 1 / 6
+            weights = [1 / 6]
 
         elif nPg == 4:
 
@@ -186,7 +187,7 @@ class Gauss:
         return x, y, z, weights
 
     @staticmethod
-    def _Hexahedron(nPg: int) -> tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
+    def _Hexahedron(nPg: int) -> tuple[Numbers, Numbers, Numbers, Numbers]:
         """available [8, 27]\n
         order = [3, 5]"""
 
@@ -198,7 +199,7 @@ class Gauss:
             y = [-a, -a, a, a, -a, -a, a, a]
             z = [-a, a, -a, a, -a, a, -a, a]
 
-            weights = [1] * nPg
+            weights = [1.0] * nPg
 
         if nPg == 27:
 
@@ -251,7 +252,7 @@ class Gauss:
         return x, y, z, weights
 
     @staticmethod
-    def _Prism(nPg: int) -> tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
+    def _Prism(nPg: int) -> tuple[Numbers, Numbers, Numbers, Numbers]:
         """available [6, 8, 21]\n
         order X = [3, 3, 5]\n
         order Y & Z = [2, 3, 5]"""
@@ -397,7 +398,7 @@ class Gauss:
                 nPg = 1
             elif matrixType == MatrixType.mass:
                 nPg = 3
-            xis, etas, weights = Gauss._Triangle(nPg)
+            xis, etas, weights = Gauss._Triangle(nPg)  # type: ignore
 
         elif elemType == ElemType.TRI6:
             dim = 2
@@ -405,22 +406,22 @@ class Gauss:
                 nPg = 3
             elif matrixType == MatrixType.mass:
                 nPg = 6
-            xis, etas, weights = Gauss._Triangle(nPg)
+            xis, etas, weights = Gauss._Triangle(nPg)  # type: ignore
 
         elif elemType == ElemType.TRI10:
             dim = 2
             nPg = 6
-            xis, etas, weights = Gauss._Triangle(nPg)
+            xis, etas, weights = Gauss._Triangle(nPg)  # type: ignore
 
         elif elemType == ElemType.TRI15:
             dim = 2
             nPg = 12
-            xis, etas, weights = Gauss._Triangle(nPg)
+            xis, etas, weights = Gauss._Triangle(nPg)  # type: ignore
 
         elif elemType == ElemType.QUAD4:
             dim = 2
             nPg = 4
-            xis, etas, weights = Gauss._Quadrangle(nPg)
+            xis, etas, weights = Gauss._Quadrangle(nPg)  # type: ignore
 
         elif elemType == ElemType.QUAD8:
             dim = 2
@@ -428,11 +429,11 @@ class Gauss:
                 nPg = 4
             elif matrixType == MatrixType.mass:
                 nPg = 9
-            xis, etas, weights = Gauss._Quadrangle(nPg)
+            xis, etas, weights = Gauss._Quadrangle(nPg)  # type: ignore
         elif elemType == ElemType.QUAD9:
             dim = 2
             nPg = 9
-            xis, etas, weights = Gauss._Quadrangle(nPg)
+            xis, etas, weights = Gauss._Quadrangle(nPg)  # type: ignore
 
         elif elemType == ElemType.TETRA4:
             dim = 3
@@ -440,42 +441,42 @@ class Gauss:
                 nPg = 1
             elif matrixType == MatrixType.mass:
                 nPg = 4
-            x, y, z, weights = Gauss._Tetrahedron(nPg)
+            x, y, z, weights = Gauss._Tetrahedron(nPg)  # type: ignore
 
         elif elemType == ElemType.TETRA10:
             dim = 3
             nPg = 4
-            x, y, z, weights = Gauss._Tetrahedron(nPg)
+            x, y, z, weights = Gauss._Tetrahedron(nPg)  # type: ignore
 
         elif elemType == ElemType.HEXA8:
             dim = 3
             nPg = 8
-            x, y, z, weights = Gauss._Hexahedron(nPg)
+            x, y, z, weights = Gauss._Hexahedron(nPg)  # type: ignore
 
         elif elemType == ElemType.HEXA20:
             dim = 3
             nPg = 27
-            x, y, z, weights = Gauss._Hexahedron(nPg)
+            x, y, z, weights = Gauss._Hexahedron(nPg)  # type: ignore
 
         elif elemType == ElemType.HEXA27:
             dim = 3
             nPg = 27
-            x, y, z, weights = Gauss._Hexahedron(nPg)
+            x, y, z, weights = Gauss._Hexahedron(nPg)  # type: ignore
 
         elif elemType == ElemType.PRISM6:
             dim = 3
             nPg = 6
-            x, y, z, weights = Gauss._Prism(nPg)
+            x, y, z, weights = Gauss._Prism(nPg)  # type: ignore
 
         elif elemType == ElemType.PRISM15:
             dim = 3
             nPg = 6
-            x, y, z, weights = Gauss._Prism(nPg)
+            x, y, z, weights = Gauss._Prism(nPg)  # type: ignore
 
         elif elemType == ElemType.PRISM18:
             dim = 3
             nPg = 21
-            x, y, z, weights = Gauss._Prism(nPg)
+            x, y, z, weights = Gauss._Prism(nPg)  # type: ignore
 
         else:
             raise Exception("Element not implemented.")

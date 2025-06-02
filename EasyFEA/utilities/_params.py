@@ -2,50 +2,53 @@
 # This file is part of the EasyFEA project.
 # EasyFEA is distributed under the terms of the GNU General Public License v3 or later, see LICENSE.txt and CREDITS.md for more information.
 
-from typing import Union
-from collections.abc import Iterable
+from typing import Union, Iterable
 import numpy as np
 
+from ._types import Number, Numbers
 
-def CheckIsPositive(value: Union[float, int, Iterable]) -> None:
+
+def CheckIsPositive(value: Union[Number, Numbers]) -> None:
     """Checks whether the value is positive"""
     errorText = "Must be > 0!"
-    if isinstance(value, (float, int)):
+    if isinstance(value, (int, float)):
         assert value > 0.0, errorText
     elif isinstance(value, Iterable):
-        assert np.min(value) > 0.0, errorText
+        assert np.asarray(value).min() > 0.0, errorText
     else:
         raise TypeError("Unknown type.")
 
 
-def CheckIsNegative(value: Union[float, int, Iterable]) -> None:
+def CheckIsNegative(value: Union[int, float, Iterable]) -> None:
     """Checks whether the value is negative"""
     errorText = "Must be < 0!"
-    if isinstance(value, (float, int)):
-        assert value < 0.0, errorText
+    if isinstance(value, (int, float)):
+        assert value > 0.0, errorText
     elif isinstance(value, Iterable):
-        assert np.max(value) < 0.0, errorText
+        assert np.asarray(value).min() > 0.0, errorText
     else:
         raise TypeError("Unknown type.")
 
 
-def CheckIsInIntervalcc(value: Union[float, int, Iterable], inf, sup) -> None:
+def CheckIsInIntervalcc(value: Union[int, float, Iterable], inf, sup) -> None:
     """Checks whether the value is in ]inf, sup["""
     errorText = f"Must be in ]{inf}, {sup}["
-    if isinstance(value, (float, int)):
+    if isinstance(value, (int, float)):
         assert value > inf and value < sup, errorText
     elif isinstance(value, Iterable):
-        assert np.min(value) > inf and np.max(value) < sup, errorText
+        values = np.asarray(value)
+        assert values.min() > inf and values.max() < sup, errorText
     else:
         raise TypeError("Unknown type.")
 
 
-def CheckIsInIntervaloo(value: Union[float, int, Iterable], inf, sup) -> None:
+def CheckIsInIntervaloo(value: Union[int, float, Iterable], inf, sup) -> None:
     """Checks whether the value is in [inf, sup]"""
     errorText = f"Must be in [{inf}, {sup}]"
-    if isinstance(value, (float, int)):
+    if isinstance(value, (int, float)):
         assert value >= inf and value <= sup, errorText
     elif isinstance(value, Iterable):
-        assert np.min(value) >= inf and np.max(value) <= sup, errorText
+        values = np.asarray(value)
+        assert values.min() >= inf and values.max() <= sup, errorText
     else:
         raise TypeError("Unknown type.")

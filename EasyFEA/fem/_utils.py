@@ -4,7 +4,9 @@
 
 from enum import Enum
 import numpy as np
-from typing import Union
+from typing import Union, Any
+
+from ..utilities._types import ArrayOrNone, Number
 
 
 class ElemType(str, Enum):
@@ -38,13 +40,13 @@ class ElemType(str, Enum):
         return self.name
 
     @staticmethod
-    def Get_1D() -> list[str]:
+    def Get_1D() -> list["ElemType"]:
         """Returns 1D element types."""
         elems_1D = [ElemType.SEG2, ElemType.SEG3, ElemType.SEG4, ElemType.SEG5]
         return elems_1D
 
     @staticmethod
-    def Get_2D() -> list[str]:
+    def Get_2D() -> list["ElemType"]:
         """Returns 2D element types."""
         elems_2D = [
             ElemType.TRI3,
@@ -58,7 +60,7 @@ class ElemType(str, Enum):
         return elems_2D
 
     @staticmethod
-    def Get_3D() -> list[str]:
+    def Get_3D() -> list["ElemType"]:
         """Returns 3D element types."""
         elems_3D = [
             ElemType.TETRA4,
@@ -87,7 +89,7 @@ class MatrixType(str, Enum):
         return self.name
 
     @staticmethod
-    def Get_types() -> list[str]:
+    def Get_types() -> list["MatrixType"]:
         return [MatrixType.rigi, MatrixType.mass, MatrixType.beam]
 
 
@@ -104,7 +106,7 @@ class FeArray(np.ndarray):
             raise ValueError("The input array must have at least 2 dimensions.")
         return obj
 
-    def __array_finalize__(self, obj: np.ndarray):
+    def __array_finalize__(self, obj: ArrayOrNone):
         # This method is automatically called when new instances are created.
         # It can be used to initialize additional attributes if necessary.
         if obj is None:
@@ -133,6 +135,8 @@ class FeArray(np.ndarray):
             return "ij"
         elif self._ndim == 4:
             return "ijkl"
+        else:
+            raise ValueError("wrong dimension")
 
     @property
     def _type(self) -> str:
@@ -144,6 +148,8 @@ class FeArray(np.ndarray):
             return "matrix"
         elif self._ndim == 4:
             return "tensor"
+        else:
+            raise ValueError("wrong dimension")
 
     def __get_array1_array2(self, other) -> tuple[np.ndarray, np.ndarray]:
 
@@ -189,9 +195,11 @@ class FeArray(np.ndarray):
         result = array1 + array2
         return FeArray.asfearray(result)
 
-    def __sub__(self, other) -> Union["FeArray", np.ndarray]:
+    def __sub__(self, other) -> Union["FeArray", np.ndarray]:  # type: ignore
         # Overload the - operator
-        return self.__add__(-other)
+        array1, array2 = self.__get_array1_array2(other)
+        result = array1 - array2
+        return FeArray.asfearray(result)
 
     def __mul__(self, other) -> Union["FeArray", np.ndarray]:
         # Overload the * operator
@@ -199,12 +207,14 @@ class FeArray(np.ndarray):
         result = array1 * array2
         return FeArray.asfearray(result)
 
-    def __truediv__(self, other) -> Union["FeArray", np.ndarray]:
+    def __truediv__(self, other) -> Union["FeArray", np.ndarray]:  # type: ignore
         # Overload the / operator
-        return self.__mul__(1 / other)
+        array1, array2 = self.__get_array1_array2(other)
+        result = array1 / array2
+        return FeArray.asfearray(result)
 
     @property
-    def T(self) -> "FeArray":
+    def T(self) -> Union["FeArray", np.ndarray]:  # type: ignore
         if self._ndim >= 2:
             idx = self._idx
             subscripts = f"...{idx}->...{idx[::-1]}"
@@ -237,7 +247,7 @@ class FeArray(np.ndarray):
 
         return FeArray.asfearray(result)
 
-    def dot(self, other) -> Union["FeArray", np.ndarray]:
+    def dot(self, other) -> Union["FeArray", np.ndarray]:  # type: ignore
 
         ndim1 = self._ndim
         if ndim1 == 0:
@@ -299,15 +309,15 @@ class FeArray(np.ndarray):
 
         return FeArray.asfearray(result)
 
-    def sum(self, *args, **kwargs) -> Union["FeArray", np.ndarray]:
+    def sum(self, *args, **kwargs) -> Union["FeArray", np.ndarray]:  # type: ignore
         """`np.sum()` wrapper."""
         return FeArray.asfearray(super().sum(*args, **kwargs))
 
-    def max(self, *args, **kwargs) -> Union["FeArray", np.ndarray]:
+    def max(self, *args, **kwargs) -> Union["FeArray", np.ndarray]:  # type: ignore
         """`np.max()` wrapper."""
         return FeArray.asfearray(super().max(*args, **kwargs))
 
-    def min(self, *args, **kwargs) -> Union["FeArray", np.ndarray]:
+    def min(self, *args, **kwargs) -> Union["FeArray", np.ndarray]:  # type: ignore
         """`np.min()` wrapper."""
         return FeArray.asfearray(super().min(*args, **kwargs))
 
