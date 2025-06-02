@@ -4,12 +4,10 @@
 
 """Beam subjected to pure tensile loading."""
 
-from EasyFEA import (Display, plt, np,
-                     Mesher, ElemType,
-                     Materials, Simulations)
+from EasyFEA import Display, plt, np, Mesher, ElemType, Materials, Simulations
 from EasyFEA.Geoms import Domain, Line, Point
 
-if __name__ == '__main__':
+if __name__ == "__main__":
 
     Display.Clear()
 
@@ -39,9 +37,9 @@ if __name__ == '__main__':
     mesher = Mesher()
     section = mesher.Mesh_2D(Domain(Point(), Point(b, h)))
 
-    p1 = Point()    
+    p1 = Point()
     p2 = Point(x=L)
-    line = Line(p1, p2, L/nL)
+    line = Line(p1, p2, L / nL)
     beam = Materials.Beam_Elas_Isot(beamDim, line, section, E, v)
 
     mesh = mesher.Mesh_Beams([beam], elemType=elemType)
@@ -58,7 +56,7 @@ if __name__ == '__main__':
     dof_n = simu.Get_dof_n()
 
     # Apply boundary conditions
-    simu.add_dirichlet(mesh.Nodes_Point(p1), [0]*dof_n, simu.Get_unknowns())
+    simu.add_dirichlet(mesh.Nodes_Point(p1), [0] * dof_n, simu.Get_unknowns())
     simu.add_lineLoad(mesh.nodes, [q], ["x"])
     simu.add_neumann(mesh.Nodes_Point(p2), [load], ["x"])
 
@@ -71,21 +69,23 @@ if __name__ == '__main__':
     # ----------------------------------------------
 
     Display.Plot_BoundaryConditions(simu)
-    Display.Plot_Mesh(simu, deformFactor=L/10/sol.max())
+    Display.Plot_Mesh(simu, deformFactor=L / 10 / sol.max())
     Display.Plot_Result(simu, "ux")
 
-    ux = simu.Result('ux')
+    ux = simu.Result("ux")
 
     x_array = np.linspace(0, L, 100)
-    u_x = (load * x_array / (E * (section.area))) + (ro * g * x_array / 2 / E * (2 * L - x_array))
+    u_x = (load * x_array / (E * (section.area))) + (
+        ro * g * x_array / 2 / E * (2 * L - x_array)
+    )
     err_ux = np.abs(u_x[-1] - ux.max()) / ux.max()
     Display.MyPrint(f"err ux: {err_ux*100:.2e} %")
 
     # Plot the analytical and finite element solutions for displacement (u)
     ax = Display.Init_Axes()
-    ax.plot(x_array, u_x, label='Analytical', c='blue')
-    ax.scatter(mesh.coord[:, 0], ux, label='FE', c='red', marker='x', zorder=2)
-    ax.set_title(fr"$u_x(x)$")
+    ax.plot(x_array, u_x, label="Analytical", c="blue")
+    ax.scatter(mesh.coord[:, 0], ux, label="FE", c="red", marker="x", zorder=2)
+    ax.set_title(rf"$u_x(x)$")
     ax.legend()
 
     print(simu)

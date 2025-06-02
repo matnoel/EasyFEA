@@ -4,12 +4,10 @@
 
 """A cantilever beam undergoing bending deformation."""
 
-from EasyFEA import (Display, plt, np,
-                     Mesher, ElemType,
-                     Materials, Simulations)
+from EasyFEA import Display, plt, np, Mesher, ElemType, Materials, Simulations
 from EasyFEA.Geoms import Domain, Line, Point
 
-if __name__ == '__main__':
+if __name__ == "__main__":
 
     Display.Clear()
 
@@ -30,16 +28,16 @@ if __name__ == '__main__':
     # ----------------------------------------------
 
     elemType = ElemType.SEG2
-    beamDim = 2 # must be >= 2
+    beamDim = 2  # must be >= 2
 
     # Create a section object for the beam mesh
     mesher = Mesher()
     section = mesher.Mesh_2D(Domain(Point(), Point(b, h)))
 
-    p1 = Point()    
+    p1 = Point()
     p2 = Point(x=L)
-    line = Line(p1, p2, L/nL)    
-    beam = Materials.Beam_Elas_Isot(beamDim, line, section, E, uy)    
+    line = Line(p1, p2, L / nL)
+    beam = Materials.Beam_Elas_Isot(beamDim, line, section, E, uy)
 
     mesh = mesher.Mesh_Beams([beam], elemType=elemType)
 
@@ -58,7 +56,7 @@ if __name__ == '__main__':
     dof_n = simu.Get_dof_n()
 
     # Apply boundary conditions
-    simu.add_dirichlet(mesh.Nodes_Point(p1), [0]*dof_n, simu.Get_unknowns())
+    simu.add_dirichlet(mesh.Nodes_Point(p1), [0] * dof_n, simu.Get_unknowns())
     simu.add_neumann(mesh.Nodes_Point(p2), [-load], ["y"])
 
     # Solve the beam problem and get displacement results
@@ -70,37 +68,36 @@ if __name__ == '__main__':
     # ----------------------------------------------
 
     Display.Plot_BoundaryConditions(simu)
-    Display.Plot_Mesh(simu, deformFactor=-L/10/sol.min())
+    Display.Plot_Mesh(simu, deformFactor=-L / 10 / sol.min())
     Display.Plot_Result(simu, "uy")
 
-    rz = simu.Result('rz')
-    uy = simu.Result('uy')
+    rz = simu.Result("rz")
+    uy = simu.Result("uy")
 
     x = np.linspace(0, L, 100)
-    uy_x = load / (E * Iz) * (x ** 3 / 6 - (L * x ** 2) / 2)
+    uy_x = load / (E * Iz) * (x**3 / 6 - (L * x**2) / 2)
 
-    flecheanalytique = load * L ** 3 / (3 * E * Iz)
+    flecheanalytique = load * L**3 / (3 * E * Iz)
     err_uy = np.abs(flecheanalytique + uy.min()) / flecheanalytique
     Display.MyPrint(f"err uy: {err_uy*100:.2e} %")
 
     # Plot the analytical and finite element solutions for vertical displacement (v)
     axUy = Display.Init_Axes()
-    axUy.plot(x, uy_x, label='Analytical', c='blue')
-    axUy.scatter(mesh.coord[:, 0], uy, label='FE', c='red', marker='x', zorder=2)
-    axUy.set_title(fr"$u_y(x)$")
+    axUy.plot(x, uy_x, label="Analytical", c="blue")
+    axUy.scatter(mesh.coord[:, 0], uy, label="FE", c="red", marker="x", zorder=2)
+    axUy.set_title(rf"$u_y(x)$")
     axUy.legend()
 
-    rz_x = load / E / Iz * (x ** 2 / 2 - L * x)
-    rotalytique = load * L ** 2 / (2 * E * Iz)
+    rz_x = load / E / Iz * (x**2 / 2 - L * x)
+    rotalytique = load * L**2 / (2 * E * Iz)
     err_rz = np.abs(rotalytique + rz.min()) / rotalytique
     Display.MyPrint(f"err rz: {err_rz*100:.2e} %")
 
-
     # Plot the analytical and finite element solutions for rotation (rz)
     axRz = Display.Init_Axes()
-    axRz.plot(x, rz_x, label='Analytical', c='blue')
-    axRz.scatter(mesh.coord[:, 0], rz, label='FE', c='red', marker='x', zorder=2)
-    axRz.set_title(fr"$r_z(x)$")
+    axRz.plot(x, rz_x, label="Analytical", c="blue")
+    axRz.scatter(mesh.coord[:, 0], rz, label="FE", c="red", marker="x", zorder=2)
+    axRz.set_title(rf"$r_z(x)$")
     axRz.legend()
 
     print(simu)

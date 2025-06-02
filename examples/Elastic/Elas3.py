@@ -4,12 +4,10 @@
 
 """Hydraulic dam subjected to water pressure and its own weight."""
 
-from EasyFEA import (Display, Tic, plt, np,
-                     Mesher, ElemType,
-                     Materials, Simulations)
+from EasyFEA import Display, Tic, plt, np, Mesher, ElemType, Materials, Simulations
 from EasyFEA.Geoms import Point, Points
 
-if __name__ == '__main__':
+if __name__ == "__main__":
 
     Display.Clear()
 
@@ -18,15 +16,15 @@ if __name__ == '__main__':
     N = 50 if dim == 2 else 10
 
     coef = 1e6
-    E = 15000*coef  # Pa (Young's modulus)
-    v = 0.25          # Poisson's ratio
+    E = 15000 * coef  # Pa (Young's modulus)
+    v = 0.25  # Poisson's ratio
 
-    g = 9.81   # m/s^2 (acceleration due to gravity)
+    g = 9.81  # m/s^2 (acceleration due to gravity)
     ro = 2400  # kg/m^3 (density)
-    w = 1000   # kg/m^3 (density)
+    w = 1000  # kg/m^3 (density)
 
     h = 180  # m (thickness)
-    thickness = 2*h
+    thickness = 2 * h
 
     # ----------------------------------------------
     # Mesh
@@ -35,14 +33,18 @@ if __name__ == '__main__':
     pt1 = Point()
     pt2 = Point(x=h)
     pt3 = Point(y=h)
-    contour = Points([pt1, pt2, pt3], h/N)
+    contour = Points([pt1, pt2, pt3], h / N)
 
     if dim == 2:
         mesh = Mesher().Mesh_2D(contour, [], ElemType.TRI6)
         print(f"err area = {np.abs(mesh.area - h**2/2)/mesh.area:.3e}")
     elif dim == 3:
-        mesh = Mesher().Mesh_Extrude(contour, [], [0, 0, -thickness], [3], ElemType.PRISM15)
-        print(f"error volume = {np.abs(mesh.volume - h**2/2 * thickness)/mesh.volume:.3e}")
+        mesh = Mesher().Mesh_Extrude(
+            contour, [], [0, 0, -thickness], [3], ElemType.PRISM15
+        )
+        print(
+            f"error volume = {np.abs(mesh.volume - h**2/2 * thickness)/mesh.volume:.3e}"
+        )
 
     nodes_x0 = mesh.Nodes_Conditions(lambda x, y, z: x == 0)
     nodes_y0 = mesh.Nodes_Conditions(lambda x, y, z: y == 0)
@@ -54,9 +56,11 @@ if __name__ == '__main__':
     material = Materials.Elas_Isot(dim, E, v, planeStress=False, thickness=thickness)
     simu = Simulations.ElasticSimu(mesh, material)
 
-    simu.add_dirichlet(nodes_y0, [0]*dim, simu.Get_unknowns())
-    simu.add_surfLoad(nodes_x0, [lambda x, y, z: w*g*(h - y)], ["x"], description="[w*g*(h-y)]")
-    simu.add_volumeLoad(mesh.nodes, [-ro*g], ["y"], description="[-ro*g]")
+    simu.add_dirichlet(nodes_y0, [0] * dim, simu.Get_unknowns())
+    simu.add_surfLoad(
+        nodes_x0, [lambda x, y, z: w * g * (h - y)], ["x"], description="[w*g*(h-y)]"
+    )
+    simu.add_volumeLoad(mesh.nodes, [-ro * g], ["y"], description="[-ro*g]")
 
     sol = simu.Solve()
     simu.Save_Iter()
@@ -68,8 +72,8 @@ if __name__ == '__main__':
 
     Display.Plot_Tags(mesh)
     Display.Plot_BoundaryConditions(simu)
-    Display.Plot_Mesh(simu, h/10/np.abs(sol.max()))
-    Display.Plot_Result(simu, "Svm", nodeValues=True, coef=1/coef, ncolors=20)
+    Display.Plot_Mesh(simu, h / 10 / np.abs(sol.max()))
+    Display.Plot_Result(simu, "Svm", nodeValues=True, coef=1 / coef, ncolors=20)
 
     Tic.Plot_History(details=False)
 

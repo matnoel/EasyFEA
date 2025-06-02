@@ -6,12 +6,10 @@
 TODO: Compare results with analytical values.
 """
 
-from EasyFEA import (Display, Tic, plt,
-                     Mesher, ElemType,
-                     Materials, Simulations)
+from EasyFEA import Display, Tic, plt, Mesher, ElemType, Materials, Simulations
 from EasyFEA.Geoms import Domain, Point, Circle, Line
 
-if __name__ == '__main__':
+if __name__ == "__main__":
 
     Display.Clear()
 
@@ -26,7 +24,7 @@ if __name__ == '__main__':
     r = diam / 2
 
     # Time parameters
-    tMax = 1e-5 
+    tMax = 1e-5
     Nt = 150
     dt = tMax / Nt
 
@@ -36,8 +34,8 @@ if __name__ == '__main__':
     a0 = 1
     t0 = dt * 4
 
-    plotModel = False # Define whether to plot the model  
-    plotIter = True # Define whether to plot the results at each iteration
+    plotModel = False  # Define whether to plot the model
+    plotIter = True  # Define whether to plot the results at each iteration
 
     # Specify the result to plot (speed_norm in this case)
     result = "speed_norm"

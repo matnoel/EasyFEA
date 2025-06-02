@@ -7,7 +7,7 @@
 from EasyFEA import Display, Mesher, ElemType, Materials, Simulations
 from EasyFEA.Geoms import Point, Line, Points, Domain, Contour
 
-if __name__ == '__main__':
+if __name__ == "__main__":
 
     Display.Clear()
 
@@ -20,20 +20,25 @@ if __name__ == '__main__':
     # CRACK
     # ----------------------------------------------
 
-    line1 = Line(Point(L/4, L/2), Point(3*L/4, L/2), isOpen=openCrack)
-    line2 = Line(line1.pt2, line1.pt2+[0,0.25,L])
-    line3 = Line(line2.pt2, line1.pt1+[0,0.25,L], isOpen=openCrack)
+    line1 = Line(Point(L / 4, L / 2), Point(3 * L / 4, L / 2), isOpen=openCrack)
+    line2 = Line(line1.pt2, line1.pt2 + [0, 0.25, L])
+    line3 = Line(line2.pt2, line1.pt1 + [0, 0.25, L], isOpen=openCrack)
     line4 = Line(line3.pt2, line1.pt1)
-    crack1 = Points([Point(L/2,L/5,L),
-                        Point(2*L/3,L/5,L),
-                        Point(L,L/2,L, isOpen=True)], isOpen=True)
+    crack1 = Points(
+        [
+            Point(L / 2, L / 5, L),
+            Point(2 * L / 3, L / 5, L),
+            Point(L, L / 2, L, isOpen=True),
+        ],
+        isOpen=True,
+    )
 
     cracks = [Contour([line1, line2, line3, line4], isOpen=openCrack), crack1]
 
     # WARNING:
     # only works with TETRA4 and TETRA10
     # only works with nLayers = []
-    mesh = Mesher().Mesh_Extrude(contour, [], [0, 0, L], [], ElemType.TETRA4, cracks)    
+    mesh = Mesher().Mesh_Extrude(contour, [], [0, 0, L], [], ElemType.TETRA4, cracks)
     Display.Plot_Tags(mesh, alpha=0.1, showId=True)
 
     # ----------------------------------------------
@@ -43,9 +48,11 @@ if __name__ == '__main__':
     material = Materials.Elas_Isot(3)
     simu = Simulations.ElasticSimu(mesh, material)
 
-    simu.add_dirichlet(mesh.Nodes_Conditions(lambda x,y,z: y==0), [0]*3, simu.Get_unknowns())
-    simu.add_dirichlet(mesh.Nodes_Conditions(lambda x,y,z: y==L), [L*0.05], ['y'])
+    simu.add_dirichlet(
+        mesh.Nodes_Conditions(lambda x, y, z: y == 0), [0] * 3, simu.Get_unknowns()
+    )
+    simu.add_dirichlet(mesh.Nodes_Conditions(lambda x, y, z: y == L), [L * 0.05], ["y"])
     simu.Solve()
-    Display.Plot_Result(simu, 'uy', 1, plotMesh=True)
+    Display.Plot_Result(simu, "uy", 1, plotMesh=True)
 
     Display.plt.show()

@@ -7,12 +7,12 @@
 from EasyFEA import Display, Mesher
 from EasyFEA.Geoms import Point, Domain, Circle
 
-if __name__ == '__main__':
+if __name__ == "__main__":
 
     Display.Clear()
 
-    contour = Domain(Point(), Point(1,1), 1/10)
-    circle = Circle(Point(1/2, 1/2), 1/3, 1/10, isHollow=True)
+    contour = Domain(Point(), Point(1, 1), 1 / 10)
+    circle = Circle(Point(1 / 2, 1 / 2), 1 / 3, 1 / 10, isHollow=True)
     contour.Plot()
 
     # "TRI3", "TRI6", "TRI10", "TRI15", "QUAD4", "QUAD8",  "QUAD9"

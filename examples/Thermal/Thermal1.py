@@ -4,25 +4,33 @@
 
 """Transient thermal simulation."""
 
-from EasyFEA import (Display, Folder, plt, np,
-                     Mesher, ElemType, 
-                     Materials, Simulations,
-                     PyVista)
+from EasyFEA import (
+    Display,
+    Folder,
+    plt,
+    np,
+    Mesher,
+    ElemType,
+    Materials,
+    Simulations,
+    PyVista,
+)
 from EasyFEA.Geoms import Circle, Domain, Point
 
-if __name__ == '__main__':
+if __name__ == "__main__":
 
     Display.Clear()
 
-    dim = 3 # Set the simulation dimension (2D or 3D)
-    
+    dim = 3  # Set the simulation dimension (2D or 3D)
+
     folder = Folder.Join(Folder.RESULTS_DIR, "Thermal", f"{dim}D", mkdir=True)
 
     # ----------------------------------------------
     # Configuration
     # ----------------------------------------------
 
-    plotIter = True; resultIter = "thermal"
+    plotIter = True
+    resultIter = "thermal"
     makeMovie = False
 
     a = 1
@@ -73,11 +81,11 @@ if __name__ == '__main__':
     print()
     t = 0  # init time
     # Main loop for time-dependent simulation
-    while t < Tmax:        
-        
+    while t < Tmax:
+
         simu.Solve()
         simu.Save_Iter()
-        
+
         # Increment time
         t += dt
 
@@ -87,7 +95,7 @@ if __name__ == '__main__':
             plt.pause(1e-12)
 
         # Print the current simulation time
-        print(f"{t:.3f} s", end='\r')
+        print(f"{t:.3f} s", end="\r")
 
     # ----------------------------------------------
     # PostProcessing
@@ -101,7 +109,9 @@ if __name__ == '__main__':
 
     # Create a movie of the simulation if pltMovie is True
     if makeMovie:
-        PyVista.Movie_simu(simu, "thermal", folder, f"thermal{dim}D.mp4", show_edges=True)
+        PyVista.Movie_simu(
+            simu, "thermal", folder, f"thermal{dim}D.mp4", show_edges=True
+        )
 
     # Print the minimum temperature achieved in the simulation
     print(simu)

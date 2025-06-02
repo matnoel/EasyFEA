@@ -7,7 +7,7 @@
 from EasyFEA import Display, Mesher
 from EasyFEA.Geoms import Point, Points
 
-if __name__ == '__main__':
+if __name__ == "__main__":
 
     Display.Clear()
 
@@ -23,7 +23,7 @@ if __name__ == '__main__':
     pt6 = Point(y=L)
     pt7 = Point(x=h, y=h)
 
-    contour = Points([pt1, pt2, pt3, pt4, pt5, pt6], h/N)
+    contour = Points([pt1, pt2, pt3, pt4, pt5, pt6], h / N)
     contour.Get_Contour().Plot()
 
     # "TRI3", "TRI6", "TRI10", "TRI15", "QUAD4", "QUAD8",  "QUAD9"

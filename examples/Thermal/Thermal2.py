@@ -4,23 +4,31 @@
 
 """Transient thermal simulation."""
 
-from EasyFEA import (Display, Folder, plt, np,
-                     Mesher, ElemType, 
-                     Materials, Simulations,
-                     PyVista)
+from EasyFEA import (
+    Display,
+    Folder,
+    plt,
+    np,
+    Mesher,
+    ElemType,
+    Materials,
+    Simulations,
+    PyVista,
+)
 from EasyFEA.Geoms import Line, Domain, Point
 
-if __name__ == '__main__':
+if __name__ == "__main__":
 
     Display.Clear()
-    
+
     folder = Folder.Join(Folder.RESULTS_DIR, "Thermal", "Revolve", mkdir=True)
 
     # ----------------------------------------------
     # Configuration
     # ----------------------------------------------
 
-    plotIter = True; resultIter = "thermal"
+    plotIter = True
+    resultIter = "thermal"
     makeMovie = False
 
     R = 10
@@ -28,8 +36,8 @@ if __name__ == '__main__':
     h = 10
 
     a = 1
-    domain = Domain(Point(R), Point(R+e, h), e / 4)
-    axis = Line(Point(), Point(0,1,0))
+    domain = Domain(Point(R), Point(R + e, h), e / 4)
+    axis = Line(Point(), Point(0, 1, 0))
 
     # Define simulation time parameters
     Tmax = 5  # Total simulation time
@@ -41,8 +49,16 @@ if __name__ == '__main__':
     # ----------------------------------------------
 
     # Generate the mesh based on the specified dimension
-    angle = 360 * 3/4
-    mesh = Mesher().Mesh_Revolve(domain, [], axis, angle, [angle*np.pi/180*R/domain.meshSize], elemType=ElemType.HEXA8, isOrganised=True)
+    angle = 360 * 3 / 4
+    mesh = Mesher().Mesh_Revolve(
+        domain,
+        [],
+        axis,
+        angle,
+        [angle * np.pi / 180 * R / domain.meshSize],
+        elemType=ElemType.HEXA8,
+        isOrganised=True,
+    )
 
     noeudsY0 = mesh.Nodes_Conditions(lambda x, y, z: y == 0)
     noeudsYH = mesh.Nodes_Conditions(lambda x, y, z: y == h)
@@ -62,7 +78,7 @@ if __name__ == '__main__':
     # Set the parabolic algorithm for the solver
     simu.Solver_Set_Parabolic_Algorithm(alpha=0.5, dt=dt)
 
-    simu._Set_u_n(simu.problemType, np.ones(mesh.Nn)*-10)
+    simu._Set_u_n(simu.problemType, np.ones(mesh.Nn) * -10)
 
     # If plotIter is True, create a figure for result visualization
     if plotIter:
@@ -85,7 +101,7 @@ if __name__ == '__main__':
             plt.pause(1e-12)
 
         # Print the current simulation time
-        print(f"{t:.3f} s", end='\r')
+        print(f"{t:.3f} s", end="\r")
 
     # ----------------------------------------------
     # PostProcessing

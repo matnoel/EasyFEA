@@ -4,12 +4,10 @@
 
 """Frame with two beams."""
 
-from EasyFEA import (Display, plt, np,
-                     Mesher, ElemType,
-                     Materials, Simulations)
+from EasyFEA import Display, plt, np, Mesher, ElemType, Materials, Simulations
 from EasyFEA.Geoms import Domain, Line, Point
 
-if __name__ == '__main__':
+if __name__ == "__main__":
 
     Display.Clear()
 
@@ -37,9 +35,9 @@ if __name__ == '__main__':
 
     p1 = Point()
     p2 = Point(y=L)
-    p3 = Point(y=L, x=L/2)
-    line1 = Line(p1, p2, L/nL)
-    line2 = Line(p2, p3, L/nL)
+    p3 = Point(y=L, x=L / 2)
+    line1 = Line(p1, p2, L / nL)
+    line2 = Line(p2, p3, L / nL)
     beam1 = Materials.Beam_Elas_Isot(3, line1, section, E, v)
     beam2 = Materials.Beam_Elas_Isot(3, line2, section, E, v)
     beams = [beam1, beam2]
@@ -58,7 +56,7 @@ if __name__ == '__main__':
     dof_n = simu.Get_dof_n()
 
     # Apply boundary conditions
-    simu.add_dirichlet(mesh.Nodes_Point(p1), [0]*dof_n, simu.Get_unknowns())
+    simu.add_dirichlet(mesh.Nodes_Point(p1), [0] * dof_n, simu.Get_unknowns())
     simu.add_neumann(mesh.Nodes_Point(p3), [-load, load], ["y", "z"])
     if beamStructure.nBeam > 1:
         simu.add_connection_fixed(mesh.Nodes_Point(p2))
@@ -72,9 +70,9 @@ if __name__ == '__main__':
     # ----------------------------------------------
 
     Display.Plot_BoundaryConditions(simu)
-    Display.Plot_Mesh(simu, L/10/sol.max())
-    Display.Plot_Result(simu, "ux", L/10/sol.max())
-    Display.Plot_Result(simu, "uy", L/10/sol.max())
+    Display.Plot_Mesh(simu, L / 10 / sol.max())
+    Display.Plot_Result(simu, "ux", L / 10 / sol.max())
+    Display.Plot_Result(simu, "uy", L / 10 / sol.max())
 
     print(simu)
 

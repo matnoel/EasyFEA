@@ -4,12 +4,10 @@
 
 """Bending bracket component."""
 
-from EasyFEA import (Display, Tic, plt, np,
-                     Mesher, ElemType,
-                     Materials, Simulations)
+from EasyFEA import Display, Tic, plt, np, Mesher, ElemType, Materials, Simulations
 from EasyFEA.Geoms import Point, Points
 
-if __name__ == '__main__':
+if __name__ == "__main__":
 
     Display.Clear()
 
@@ -19,11 +17,11 @@ if __name__ == '__main__':
 
     # Define material properties
     E = 210000  # MPa (Young's modulus)
-    v = 0.3     # Poisson's ratio
+    v = 0.3  # Poisson's ratio
     coef = 1
 
-    L = 120 # mm
-    h = L*0.3
+    L = 120  # mm
+    h = L * 0.3
     load = 800
 
     # ----------------------------------------------
@@ -38,12 +36,14 @@ if __name__ == '__main__':
     pt5 = Point(x=h, y=L)
     pt6 = Point(y=L)
     pt7 = Point(x=h, y=h)
-    contour = Points([pt1, pt2, pt3, pt4, pt5, pt6], h/N)
+    contour = Points([pt1, pt2, pt3, pt4, pt5, pt6], h / N)
 
     if dim == 2:
         mesh = Mesher().Mesh_2D(contour, [], ElemType.TRI3)
     elif dim == 3:
-        mesh = Mesher().Mesh_Extrude(contour, [], [0, 0, -h], [4], elemType=ElemType.TETRA4)
+        mesh = Mesher().Mesh_Extrude(
+            contour, [], [0, 0, -h], [4], elemType=ElemType.TETRA4
+        )
 
     nodes_x0 = mesh.Nodes_Conditions(lambda x, y, z: x == 0)
     nodes_xL = mesh.Nodes_Conditions(lambda x, y, z: x == L)
@@ -55,8 +55,8 @@ if __name__ == '__main__':
     material = Materials.Elas_Isot(dim, E, v, planeStress=True, thickness=h)
     simu = Simulations.ElasticSimu(mesh, material)
 
-    simu.add_dirichlet(nodes_x0, [0]*dim, simu.Get_unknowns())
-    simu.add_surfLoad(nodes_xL, [-800/(h*h)], ["y"])
+    simu.add_dirichlet(nodes_x0, [0] * dim, simu.Get_unknowns())
+    simu.add_surfLoad(nodes_xL, [-800 / (h * h)], ["y"])
 
     sol = simu.Solve()
     simu.Save_Iter()
@@ -67,8 +67,8 @@ if __name__ == '__main__':
     print(simu)
 
     Display.Plot_BoundaryConditions(simu)
-    Display.Plot_Mesh(simu, h/2/np.abs(sol).max())
-    Display.Plot_Result(simu, "Svm", nodeValues=True, coef=1/coef, ncolors=20)
+    Display.Plot_Mesh(simu, h / 2 / np.abs(sol).max())
+    Display.Plot_Result(simu, "Svm", nodeValues=True, coef=1 / coef, ncolors=20)
 
     Tic.Plot_History(details=False)
 

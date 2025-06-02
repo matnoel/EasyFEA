@@ -7,11 +7,11 @@
 from EasyFEA import Display, Mesher
 from EasyFEA.Geoms import Point, Domain
 
-if __name__ == '__main__':
+if __name__ == "__main__":
 
     Display.Clear()
 
-    contour = Domain(Point(), Point(1,1))
+    contour = Domain(Point(), Point(1, 1))
     contour.Plot()
 
     # "TRI3", "TRI6", "TRI10", "TRI15", "QUAD4", "QUAD8",  "QUAD9"

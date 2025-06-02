@@ -4,9 +4,7 @@
 
 """Mesh a heterogeneous RVE with cracks."""
 
-from EasyFEA import (Display, Folder, np, plt,
-                     Mesher, ElemType,
-                     Materials, Simulations)
+from EasyFEA import Display, Folder, np, plt, Mesher, ElemType, Materials, Simulations
 from EasyFEA.Geoms import Point, Line, Domain, Circle
 
 if __name__ == "__main__":
@@ -19,13 +17,15 @@ if __name__ == "__main__":
 
     L = 1
     elemType = ElemType.TRI3
-    meshSize = L/40
+    meshSize = L / 40
 
     # ----------------------------------------------
     # Functions
     # ----------------------------------------------
 
-    def Create_Crack(pt1: tuple[float, float], pt2: tuple[float, float], isOpen=True) -> Line:
+    def Create_Crack(
+        pt1: tuple[float, float], pt2: tuple[float, float], isOpen=True
+    ) -> Line:
         """Creates a crack.
 
         Parameters
@@ -68,12 +68,12 @@ if __name__ == "__main__":
         Circle
             The circle
         """
-        
+
         assert len(pt) == 2, "Must give 2 coordinates"
 
         center = Point(*pt)
 
-        return Circle(center, diam, meshSize/2, isHollow)
+        return Circle(center, diam, meshSize / 2, isHollow)
 
     # ----------------------------------------------
     # Mesh
@@ -83,30 +83,34 @@ if __name__ == "__main__":
     contour = Domain(Point(), Point(L, L), meshSize)
 
     # circles
-    circle1 = Create_Circle((L/4, L/4), L/10)
-    circle2 = Create_Circle((3*L/4, L/4), L/8)
-    circle3 = Create_Circle((3*L/4, 3*L/4), L/6)
-    circle4 = Create_Circle((L/4, 3*L/4), L/5)
-    circle5 = Create_Circle((L/2, L/2), L/3, isHollow=True)
-    circle6 = Create_Circle((L, L), L/6, isHollow=True)
+    circle1 = Create_Circle((L / 4, L / 4), L / 10)
+    circle2 = Create_Circle((3 * L / 4, L / 4), L / 8)
+    circle3 = Create_Circle((3 * L / 4, 3 * L / 4), L / 6)
+    circle4 = Create_Circle((L / 4, 3 * L / 4), L / 5)
+    circle5 = Create_Circle((L / 2, L / 2), L / 3, isHollow=True)
+    circle6 = Create_Circle((L, L), L / 6, isHollow=True)
 
     inclusions = [circle1, circle2, circle3, circle4, circle5]
 
     # cracks
-    crack1 = Create_Crack((3*L/5, L/10), (4*L/5, L/10))
-    crack2 = Create_Crack((L/10, L/2), (2*L/10, L/2-L/10))
-    crack3 = Create_Crack((8*L/10, 5*L/10), (8*L/10+L/20, 5*L/10+L/20))
+    crack1 = Create_Crack((3 * L / 5, L / 10), (4 * L / 5, L / 10))
+    crack2 = Create_Crack((L / 10, L / 2), (2 * L / 10, L / 2 - L / 10))
+    crack3 = Create_Crack(
+        (8 * L / 10, 5 * L / 10), (8 * L / 10 + L / 20, 5 * L / 10 + L / 20)
+    )
 
     cracks = [crack1, crack2, crack3]
 
     # mesh
-    mesh = Mesher().Mesh_2D(contour, inclusions, elemType, cracks, additionalSurfaces=[circle6])
+    mesh = Mesher().Mesh_2D(
+        contour, inclusions, elemType, cracks, additionalSurfaces=[circle6]
+    )
 
     # ----------------------------------------------
     # Simu
     # ----------------------------------------------
 
-    E = np.ones(mesh.Ne) * 10 # Mpa
+    E = np.ones(mesh.Ne) * 10  # Mpa
     v = np.ones(mesh.Ne) * 0.45
 
     elements = list(set(range(mesh.Ne)) - set(mesh.Elements_Tags("S0")))
@@ -117,15 +121,15 @@ if __name__ == "__main__":
 
     simu = Simulations.ElasticSimu(mesh, mat)
 
-    nodes_y0 = mesh.Nodes_Conditions(lambda x,y,z: y==0)
-    nodes_yL = mesh.Nodes_Conditions(lambda x,y,z: y==L)
+    nodes_y0 = mesh.Nodes_Conditions(lambda x, y, z: y == 0)
+    nodes_yL = mesh.Nodes_Conditions(lambda x, y, z: y == L)
 
     simu.add_dirichlet(nodes_y0, [0, 0], ["x", "y"])
-    simu.add_dirichlet(nodes_yL, [-.1, .2], ["x", "y"])
+    simu.add_dirichlet(nodes_yL, [-0.1, 0.2], ["x", "y"])
 
     simu.Solve()
 
-    deformFactor = L/10 / simu.Result("displacement_norm").max()
+    deformFactor = L / 10 / simu.Result("displacement_norm").max()
 
     # ----------------------------------------------
     # Display

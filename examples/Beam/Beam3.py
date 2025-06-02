@@ -4,12 +4,10 @@
 
 """A bi-fixed beam undergoing bending deformation."""
 
-from EasyFEA import (Display, plt, np,
-                     Mesher, ElemType,
-                     Materials, Simulations)
+from EasyFEA import Display, plt, np, Mesher, ElemType, Materials, Simulations
 from EasyFEA.Geoms import Line, Point, Points
 
-if __name__ == '__main__':
+if __name__ == "__main__":
 
     Display.Clear()
 
@@ -29,41 +27,41 @@ if __name__ == '__main__':
     # ----------------------------------------------
     # Section
     # ----------------------------------------------
-    
+
     def DoSym(p: Point, n: np.ndarray) -> Point:
         pc = p.copy()
         pc.Symmetry(n=n)
         return pc
 
-    p1 = Point(-b/2,-h/2)
-    p2 = Point(b/2,-h/2)
-    p3 = Point(b/2,-h/2+e)
-    p4 = Point(e/2,-h/2+e, r=e)
-    p5 = DoSym(p4,(0,1))
-    p6 = DoSym(p3,(0,1))
-    p7 = DoSym(p2,(0,1))
-    p8 = DoSym(p1,(0,1))
-    p9 = DoSym(p6,(1,0))
-    p10 = DoSym(p5,(1,0))
-    p11 = DoSym(p4,(1,0))
-    p12 = DoSym(p3,(1,0))
-    contour = Points([p1,p2,p3,p4,p5,p6,p7,p8,p9,p10,p11,p12],e/6)    
+    p1 = Point(-b / 2, -h / 2)
+    p2 = Point(b / 2, -h / 2)
+    p3 = Point(b / 2, -h / 2 + e)
+    p4 = Point(e / 2, -h / 2 + e, r=e)
+    p5 = DoSym(p4, (0, 1))
+    p6 = DoSym(p3, (0, 1))
+    p7 = DoSym(p2, (0, 1))
+    p8 = DoSym(p1, (0, 1))
+    p9 = DoSym(p6, (1, 0))
+    p10 = DoSym(p5, (1, 0))
+    p11 = DoSym(p4, (1, 0))
+    p12 = DoSym(p3, (1, 0))
+    contour = Points([p1, p2, p3, p4, p5, p6, p7, p8, p9, p10, p11, p12], e / 6)
     section = Mesher().Mesh_2D(contour)
-    
+
     ax = Display.Plot_Mesh(section)
-    ax.set_title('Section')
+    ax.set_title("Section")
 
     # ----------------------------------------------
     # Mesh
     # ----------------------------------------------
 
     elemType = ElemType.SEG2
-    beamDim = 2 # must be >= 2
+    beamDim = 2  # must be >= 2
 
     p1 = Point()
-    pL = Point(x=L/2)
+    pL = Point(x=L / 2)
     p2 = Point(x=L)
-    line = Line(p1, p2, L/nL)
+    line = Line(p1, p2, L / nL)
     beam = Materials.Beam_Elas_Isot(beamDim, line, section, E, v)
 
     mesh = Mesher().Mesh_Beams([beam], additionalPoints=[pL], elemType=elemType)
@@ -80,8 +78,8 @@ if __name__ == '__main__':
     dof_n = simu.Get_dof_n()
 
     # Apply boundary conditions
-    simu.add_dirichlet(mesh.Nodes_Point(p1), [0]*dof_n, simu.Get_unknowns())
-    simu.add_dirichlet(mesh.Nodes_Point(p2), [0]*dof_n, simu.Get_unknowns())
+    simu.add_dirichlet(mesh.Nodes_Point(p1), [0] * dof_n, simu.Get_unknowns())
+    simu.add_dirichlet(mesh.Nodes_Point(p2), [0] * dof_n, simu.Get_unknowns())
     simu.add_neumann(mesh.Nodes_Point(pL), [-load], ["y"])
 
     # Solve the beam problem and get displacement results
@@ -92,15 +90,15 @@ if __name__ == '__main__':
     # Results
     # ----------------------------------------------
 
-    u_an = load * L**3 / (192*E*beam.Iz)
+    u_an = load * L**3 / (192 * E * beam.Iz)
 
-    uy_1d = np.abs(simu.Result('uy').min())
+    uy_1d = np.abs(simu.Result("uy").min())
 
     Display.MyPrint(f"err uy : {np.abs(u_an-uy_1d)/u_an*100:.2e} %")
 
     Display.Plot_BoundaryConditions(simu)
-    Display.Plot_Mesh(simu, L/20/sol.min())
-    Display.Plot_Result(simu, "uy", L/20/sol.min())    
+    Display.Plot_Mesh(simu, L / 20 / sol.min())
+    Display.Plot_Result(simu, "uy", L / 20 / sol.min())
 
     print(simu)
 

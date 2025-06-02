@@ -4,20 +4,28 @@
 
 """Verification of energy convergence for a bending beam for all available elements."""
 
-from EasyFEA import (Display, Folder, Tic, plt, np,
-                     Mesher, ElemType,
-                     Materials, Simulations,
-                     Paraview)
+from EasyFEA import (
+    Display,
+    Folder,
+    Tic,
+    plt,
+    np,
+    Mesher,
+    ElemType,
+    Materials,
+    Simulations,
+    Paraview,
+)
 from EasyFEA.Geoms import Domain, Point
 
-if __name__ == '__main__':
+if __name__ == "__main__":
 
     Display.Clear()
 
     # ----------------------------------------------
     # Configuration
     # ----------------------------------------------
-    dim = 2 # Define the dimension of the problem (2D or 3D)
+    dim = 2  # Define the dimension of the problem (2D or 3D)
 
     isOrganised = True
 
@@ -37,13 +45,13 @@ if __name__ == '__main__':
 
     # Define geometry parameters
     L = 120  # mm
-    h = 13   # Height
-    b = 13   # Width
+    h = 13  # Height
+    b = 13  # Width
     P = 800  # N
 
     # Material properties
     E = 210000  # MPa (Young's modulus)
-    v = 0.25    # Poisson's ratio
+    v = 0.25  # Poisson's ratio
 
     # Define the material behavior (elasticity with plane stress assumption)
     material = Materials.Elas_Isot(dim, thickness=b, E=E, v=v, planeStress=True)
@@ -52,10 +60,10 @@ if __name__ == '__main__':
     WdefRef = 2 * P**2 * L / E / h / b * (L**2 / h / b + (1 + v) * 3 / 5)
 
     # Lists to store data for plotting
-    times_elem_N = [] # times for element type and N size
-    wDef_elem_N = [] # energy
-    dofs_elem_N = [] # dofs
-    zz1_elem_N = [] # zz1
+    times_elem_N = []  # times for element type and N size
+    wDef_elem_N = []  # energy
+    dofs_elem_N = []  # dofs
+    zz1_elem_N = []  # zz1
 
     # ----------------------------------------------
     # Simulation
@@ -69,7 +77,7 @@ if __name__ == '__main__':
     mesher = Mesher()
 
     for e, elemType in enumerate(elemTypes):
-        
+
         times_N = []
         wDef_N = []
         dofs_N = []
@@ -77,7 +85,7 @@ if __name__ == '__main__':
 
         # Loop over each mesh size (number of elements)
         for N in list_N:
-            
+
             meshSize = b / N
 
             # Define the domain for the mesh
@@ -88,7 +96,14 @@ if __name__ == '__main__':
                 mesh = mesher.Mesh_2D(domain, [], elemType, isOrganised=isOrganised)
                 volume = mesh.area * material.thickness
             else:
-                mesh = mesher.Mesh_Extrude(domain, [], elemType=elemType, extrude=[0, 0, b], layers=[4], isOrganised=isOrganised)
+                mesh = mesher.Mesh_Extrude(
+                    domain,
+                    [],
+                    elemType=elemType,
+                    extrude=[0, 0, b],
+                    layers=[4],
+                    isOrganised=isOrganised,
+                )
                 volume = mesh.volume
             # Ensure that the volume matches the expected value (L * h * b)
             assert np.abs(volume - (L * h * b)) / volume <= 1e-10
@@ -97,15 +112,17 @@ if __name__ == '__main__':
             nodes_x0 = mesh.Nodes_Conditions(lambda x, y, z: x == 0)
             nodes_xL = mesh.Nodes_Conditions(lambda x, y, z: x == L)
 
-            # Create or update the simulation object with the current mesh        
+            # Create or update the simulation object with the current mesh
             if e == 0 and N == list_N[0]:
-                simu = Simulations.ElasticSimu(mesh, material, useIterativeSolvers=False)
+                simu = Simulations.ElasticSimu(
+                    mesh, material, useIterativeSolvers=False
+                )
             else:
                 simu.Bc_Init()
                 simu.mesh = mesh
 
             # Set displacement boundary conditions
-            simu.add_dirichlet(nodes_x0, [0]*dim, simu.Get_unknowns())
+            simu.add_dirichlet(nodes_x0, [0] * dim, simu.Get_unknowns())
             # Set surface load on the right boundary (y-direction)
             simu.add_surfLoad(nodes_xL, [-P / h / b], ["y"])
 
@@ -129,8 +146,10 @@ if __name__ == '__main__':
             if elemType != mesh.elemType:
                 print("Error in mesh generation")
 
-            print(f"Elem: {mesh.elemType}, nby: {N:2}, Wdef = {np.round(Wdef, 3)}, "
-                f"error = {np.abs(WdefRef - Wdef) / WdefRef:.2e}")
+            print(
+                f"Elem: {mesh.elemType}, nby: {N:2}, Wdef = {np.round(Wdef, 3)}, "
+                f"error = {np.abs(WdefRef - Wdef) / WdefRef:.2e}"
+            )
 
         # Store the results for the current element type
         times_elem_N.append(times_N)
@@ -145,7 +164,7 @@ if __name__ == '__main__':
     ax_Wdef = Display.Init_Axes()
     ax_error = Display.Init_Axes()
     ax_times = Display.Init_Axes()
-    ax_zz1 = Display.Init_Axes()    
+    ax_zz1 = Display.Init_Axes()
 
     print(f"\nWSA = {np.round(WdefRef, 4)} mJ")
 
@@ -165,8 +184,14 @@ if __name__ == '__main__':
 
         # ZZ1
         if elemType == elemTypes[0]:
-            last = ax_zz1.loglog(dofs_elem_N[e], error, label=f'{elemType}')
-            ax_zz1.loglog(dofs_elem_N[e], zz1_elem_N[e], ls='--', color=last[0]._color, label=f'{elemType} (ZZ1)')
+            last = ax_zz1.loglog(dofs_elem_N[e], error, label=f"{elemType}")
+            ax_zz1.loglog(
+                dofs_elem_N[e],
+                zz1_elem_N[e],
+                ls="--",
+                color=last[0]._color,
+                label=f"{elemType} (ZZ1)",
+            )
 
     WdefRefArray = np.ones_like(dofs_elem_N[0]) * WdefRef
     WdefRefArray5 = WdefRefArray * 0.95
@@ -175,37 +200,37 @@ if __name__ == '__main__':
     # Deformation energy
     ax_Wdef.grid()
     ax_Wdef.set_xlim([-10, 10000])
-    ax_Wdef.set_xlabel('Degrees of Freedom (DOF)')
-    ax_Wdef.set_ylabel('Strain energy W [mJ]')
+    ax_Wdef.set_xlabel("Degrees of Freedom (DOF)")
+    ax_Wdef.set_ylabel("Strain energy W [mJ]")
     ax_Wdef.legend(elemTypes)
     # ax_Wdef.fill_between(dofs_N, WdefRefArray, WdefRefArray5, alpha=0.5, color='red')
-    ax_Wdef.fill_between(dofs_N, WdefRefArray, WdefRefArray5, alpha=0.5, color='red')
+    ax_Wdef.fill_between(dofs_N, WdefRefArray, WdefRefArray5, alpha=0.5, color="red")
     plt.figure(ax_Wdef.figure)
-    Display.Save_fig(folder, 'Energy')
+    Display.Save_fig(folder, "Energy")
 
     # Error in deformation energy
     ax_error.grid()
-    ax_error.set_xlabel('Degrees of Freedom (DOF)')
-    ax_error.set_ylabel('Error W [%]')
+    ax_error.set_xlabel("Degrees of Freedom (DOF)")
+    ax_error.set_ylabel("Error W [%]")
     ax_error.legend(elemTypes)
     plt.figure(ax_error.figure)
-    Display.Save_fig(folder, 'Error')
+    Display.Save_fig(folder, "Error")
 
     # Error in deformation energy
     ax_zz1.grid()
-    ax_zz1.set_xlabel('Degrees of Freedom (DOF)')
-    ax_zz1.set_ylabel('Error [%]')
+    ax_zz1.set_xlabel("Degrees of Freedom (DOF)")
+    ax_zz1.set_ylabel("Error [%]")
     ax_zz1.legend()
     plt.figure(ax_zz1.figure)
-    Display.Save_fig(folder, 'Error ZZ1')
+    Display.Save_fig(folder, "Error ZZ1")
 
     # Computation time
     ax_times.grid()
-    ax_times.set_xlabel('Degrees of Freedom (DOF)')
-    ax_times.set_ylabel('Computation Time [s]')
+    ax_times.set_xlabel("Degrees of Freedom (DOF)")
+    ax_times.set_ylabel("Computation Time [s]")
     ax_times.legend(elemTypes)
     plt.figure(ax_times.figure)
-    Display.Save_fig(folder, 'Time')
+    Display.Save_fig(folder, "Time")
 
     # Plot the von Mises stress result using 20 color levels
     Display.Plot_Result(simu, "Svm", ncolors=20)
