@@ -51,8 +51,6 @@ def _Get_BaryCentric_Coordinates(groupElem: _GroupElem) -> np.ndarray:
         coordinates = _Get_BaryCentric_Coordinates_In_Segment(
             vertices_coords, local_coords
         )
-    # elif elemType.startswith("PRISM"):
-    #     coordinates = None
     elif elemType.startswith("TETRA"):
         coordinates = _Get_BaryCentric_Coordinates_In_Tetrahedron(
             vertices_coords, local_coords
@@ -70,12 +68,24 @@ def _Get_BaryCentric_Coordinates(groupElem: _GroupElem) -> np.ndarray:
 def __Get_NodesPositions(groupElem: _GroupElem) -> np.ndarray:
 
     elemType = groupElem.elemType
-    local_coords = groupElem.Get_Local_Coords()
+    local_coords = groupElem.Get_Local_Coords().astype(float)
 
-    if elemType.startswith(("SEG", "PRISM", "TETRA", "TRI")):
+    if elemType.startswith(("SEG", "TETRA", "TRI")):
         nodes_positions = _Get_BaryCentric_Coordinates(groupElem)
+    elif elemType.startswith("PRISM"):
+        local_coords2d = local_coords.copy()
+        local_coords2d[:, 2] = 0
+        nodes_positions = _Get_BaryCentric_Coordinates_In_Triangle(
+            local_coords2d[:3], local_coords2d
+        )
+        # get z coords withn 0 and 1
+        z_coords = local_coords[:, 2].reshape(-1, 1)
+        z_coords -= groupElem.origin[2]
+        z_coords /= z_coords.max()
+
+        nodes_positions = np.concatenate((nodes_positions, z_coords), axis=1)
     else:
-        nodes_positions = local_coords.astype(float)
+        nodes_positions = local_coords
         nodes_positions -= groupElem.origin
         nodes_positions /= nodes_positions.max()
 
@@ -169,7 +179,6 @@ def __Write_solution_file(
 
 
 def Save_simu(simu: _Simu, result: str, folder: str, filename: str) -> None:
-    pass
 
     assert isinstance(simu, _Simu)
 
@@ -177,7 +186,7 @@ def Save_simu(simu: _Simu, result: str, folder: str, filename: str) -> None:
 
     for i in range(simu.Niter):
 
-        # Update simulation iteration and compute the new coord
+        # Update simulation iteration
         simu.Set_Iter(i)
 
         values_n = simu.Result(result, nodeValues=True).reshape(simu.mesh.Nn, -1)
@@ -197,7 +206,7 @@ def Save(
     # save the mesh in Medit format
     mesh_file = MeshIO.EasyFEA_to_Medit(mesh, folder, f"mesh", useBinary=True)
 
-    # .sols and .movie file
+    # .sols and .movie files
     sols_file = open(Folder.Join(folder, f"{filename}.sols", mkdir=True), "w")
     movie_file = open(Folder.Join(folder, f"vizir.movie", mkdir=True), "w")
 

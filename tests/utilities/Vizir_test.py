@@ -10,12 +10,13 @@ from EasyFEA.Geoms import Points
 L = 2
 H = 1
 
+
 @pytest.fixture
 def meshes() -> list[Mesh]:
 
-    meshSize = H/3
+    meshSize = H / 3
 
-    contour = Points([(0,0), (L,0), (L,H), (0,H)], meshSize)
+    contour = Points([(0, 0), (L, 0), (L, H), (0, H)], meshSize)
     meshes: list[Mesh] = []
 
     # 1d meshes
@@ -23,9 +24,9 @@ def meshes() -> list[Mesh]:
 
         mesher = Mesher()
         factory = mesher._factory
-        
-        p1 = factory.addPoint(0,0,0)
-        p2 = factory.addPoint(1,0,0)
+
+        p1 = factory.addPoint(0, 0, 0)
+        p2 = factory.addPoint(1, 0, 0)
         factory.addLine(p1, p2)
 
         mesher._Mesh_Generate(1, elemType)
@@ -36,13 +37,16 @@ def meshes() -> list[Mesh]:
     for elemType in ElemType.Get_2D():
         mesh = Mesher().Mesh_2D(contour, [], elemType, isOrganised=True)
         meshes.append(mesh)
-    
+
     # 3d meshes
     for elemType in ElemType.Get_3D():
-        mesh = Mesher().Mesh_Extrude(contour, [], [0,0,L], [3], elemType, isOrganised=True)
+        mesh = Mesher().Mesh_Extrude(
+            contour, [], [0, 0, L], [3], elemType, isOrganised=True
+        )
         meshes.append(mesh)
 
     return meshes
+
 
 class TestVizir:
 
@@ -53,19 +57,21 @@ class TestVizir:
             groupElem = mesh.groupElem
             elemType = groupElem.elemType
             local_coords = groupElem.Get_Local_Coords()
-            vertices = local_coords[:groupElem.nbCorners]
+            vertices = local_coords[: groupElem.nbCorners]
 
-            if elemType.startswith(("SEG", "PRISM", "TETRA", "TRI")):
+            if elemType.startswith(("SEG", "TETRA", "TRI")):
 
                 barycentric_coords = Vizir._Get_BaryCentric_Coordinates(groupElem)
 
                 verif_coords = np.zeros_like(groupElem.Get_Local_Coords())
                 for i, coefs in enumerate(barycentric_coords):
-                    weighted_coords = coefs[:,None] * vertices
+                    weighted_coords = coefs[:, None] * vertices
                     verif_coords[i] = np.sum(weighted_coords, axis=0)
-                    
+
             else:
                 continue
-                
-            test = np.linalg.norm(verif_coords - local_coords)/np.linalg.norm(local_coords)
+
+            test = np.linalg.norm(verif_coords - local_coords) / np.linalg.norm(
+                local_coords
+            )
             assert test < 1e-12

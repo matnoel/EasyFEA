@@ -577,7 +577,7 @@ def __Get_Triangle_Area(A: np.ndarray, B: np.ndarray, C: np.ndarray):
     assert A.ndim == 1 and A.size <= 3
     assert B.ndim == 1 and B.size <= 3
     assert C.ndim == 1 and C.size <= 3
-    return np.abs(np.cross(B - A, C - A)) / 2
+    return np.linalg.norm(np.cross(B - A, C - A)) / 2
 
 
 def __Get_Tetrahedron_Volume(
