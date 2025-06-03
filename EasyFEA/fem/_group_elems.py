@@ -392,7 +392,7 @@ class _GroupElem(ABC):
         """length covered by each element"""
         if self.dim != 1:
             return
-        length_e = self.Integrate_e(lambda x, y, z: 1)
+        length_e = self.Integrate_e(lambda x, y, z: 1, MatrixType.rigi)
         return length_e
 
     @property
@@ -407,7 +407,7 @@ class _GroupElem(ABC):
         """area covered by each element"""
         if self.dim != 2:
             return
-        area_e = self.Integrate_e(lambda x, y, z: 1)
+        area_e = self.Integrate_e(lambda x, y, z: 1, MatrixType.rigi)
         return area_e
 
     @property
@@ -422,7 +422,7 @@ class _GroupElem(ABC):
         """volume covered by each element"""
         if self.dim != 3:
             return
-        volume_e = self.Integrate_e(lambda x, y, z: 1)
+        volume_e = self.Integrate_e(lambda x, y, z: 1, MatrixType.rigi)
         return volume_e
 
     @property
