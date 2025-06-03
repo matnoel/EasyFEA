@@ -108,6 +108,11 @@ class _GroupElem(ABC):
         return self.__elemType
 
     @property
+    def topology(self) -> str:
+        """element topology"""
+        return "".join(char for char in self.__elemType if not char.isdigit())
+
+    @property
     def nPe(self) -> int:
         """nodes per element"""
         return self.__nPe
@@ -236,11 +241,26 @@ class _GroupElem(ABC):
             degree of freedom per node
         """
 
-        nPe = self.nPe
+        return _GroupElem._Get_assembly_e(self.connect, dof_n)
+
+    @staticmethod
+    def _Get_assembly_e(connect: np.ndarray, dof_n: int) -> np.ndarray:
+        """Get the assembly matrix for the specified dof_n (Ne, nPe*dof_n)
+
+        Parameters
+        ----------
+        connect : np.ndarray
+            connectivity matrix (Ne, nPe)
+        dof_n : int
+            degree of freedom per node
+        """
+
+        assert connect.ndim, "connect must be an (Ne, nPe) array of int"
+
+        Ne, nPe = connect.shape
         ndof = dof_n * nPe
 
-        assembly = np.zeros((self.Ne, ndof), dtype=np.int64)
-        connect = self.connect
+        assembly = np.zeros((Ne, ndof), dtype=np.int64)
 
         for d in range(dof_n):
             columns = np.arange(d, ndof, dof_n)
@@ -2222,6 +2242,7 @@ class GroupElemFactory:
     DICT_ELEMTYPE: dict[ElemType, tuple[int, int, int, int, int, int]] = {
         values[0]: (key, *values[1:]) for key, values in DICT_GMSHID.items()
     }
+    """ElemType: (gmshId, nPe, dim, order, nbFaces, nCorners)"""
 
     @staticmethod
     def Get_ElemInFos(gmshId: int) -> tuple[ElemType, int, int, int, int, int]:
