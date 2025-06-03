@@ -337,12 +337,24 @@ class Gauss:
             weights = [
                 c1 * 9 / 80,
                 c1 * cp,
+                c1 * cp,
+                c1 * cp,
+                c1 * cm,
+                c1 * cm,
                 c1 * cm,
                 c2 * 9 / 80,
                 c2 * cp,
+                c2 * cp,
+                c2 * cp,
+                c2 * cm,
+                c2 * cm,
                 c2 * cm,
                 c1 * 9 / 80,
                 c1 * cp,
+                c1 * cp,
+                c1 * cp,
+                c1 * cm,
+                c1 * cm,
                 c1 * cm,
             ]
 
@@ -484,7 +496,7 @@ class Gauss:
 
         elif elemType == ElemType.PRISM18:
             dim = 3
-            nPg = 6
+            nPg = 21
             x, y, z, weights = Gauss._Prism(nPg)
 
         else:
