@@ -2238,6 +2238,8 @@ def _Get_values(
             elif size == mesh.Nn and not nodeValues:
                 values_e = mesh.Locates_sol_e(result)
                 values = np.mean(values_e, 1)
+    elif result is None:
+        return None
     else:
         raise Exception("result must be a string or an array")
 
