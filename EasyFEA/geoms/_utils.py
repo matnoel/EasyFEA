@@ -7,8 +7,8 @@ import copy
 from scipy.optimize import minimize  # type: ignore
 from collections.abc import Iterable
 
-
-from ..utilities._types import Number, Numbers, Union
+from typing import Union
+from ..utilities import _types
 
 
 class Point:
@@ -73,7 +73,7 @@ class Point:
         self.__r = value
 
     @property
-    def coord(self) -> np.ndarray:
+    def coord(self) -> _types.FloatArray:
         """[x,y,z] coordinates"""
         return self.__coord.copy()
 
@@ -137,7 +137,7 @@ class Point:
 
     def __add__(self, value):
         coord = AsCoords(value)
-        newCoord: np.ndarray = self.coord + coord
+        newCoord: _types.AnyArray = self.coord + coord
         return Point(*newCoord)
 
     def __rsub__(self, value):
@@ -145,7 +145,7 @@ class Point:
 
     def __sub__(self, value):
         coord = AsCoords(value)
-        newCoord: np.ndarray = self.coord - coord
+        newCoord: _types.AnyArray = self.coord - coord
         return Point(*newCoord)
 
     def __rmul__(self, value):
@@ -153,7 +153,7 @@ class Point:
 
     def __mul__(self, value):
         coord = AsCoords(value)
-        newCoord: np.ndarray = self.coord * coord
+        newCoord: _types.AnyArray = self.coord * coord
         return Point(*newCoord)
 
     def __rtruediv__(self, value):
@@ -161,7 +161,7 @@ class Point:
 
     def __truediv__(self, value):
         coord = AsCoords(value)
-        newCoord: np.ndarray = self.coord / coord
+        newCoord: _types.AnyArray = self.coord / coord
         return Point(*newCoord)
 
     def __rfloordiv__(self, value):
@@ -169,7 +169,7 @@ class Point:
 
     def __floordiv__(self, value):
         coord = AsCoords(value)
-        newCoord: np.ndarray = self.coord // coord
+        newCoord: _types.AnyArray = self.coord // coord
         return Point(*newCoord)
 
     def copy(self):
@@ -188,8 +188,8 @@ def AsPoint(coords) -> Point:
 
 
 def AsCoords(
-    value: Union[Point, Number, Numbers],
-) -> np.ndarray[float]:
+    value: Union[Point, _types.Number, _types.Numbers],
+) -> _types.FloatArray:
     """Returns value as a 3D vector"""
     if isinstance(value, Point):
         coords = value.coord
@@ -203,7 +203,7 @@ def AsCoords(
             assert val.size <= 3, "must not exceed size 3"
             coords[: val.size] = val
     elif isinstance(value, (float, int)):
-        coords = np.asarray([value] * 3)
+        coords = np.asarray([value] * 3, dtype=float)
     else:
         raise TypeError(
             f"{type(value)} is not supported. Must be (Point | float | int | Iterable)"
@@ -212,7 +212,7 @@ def AsCoords(
     return coords
 
 
-def Normalize(array: np.ndarray) -> np.ndarray:
+def Normalize(array: _types.AnyArray) -> _types.FloatArray:
     """Must be a vector or matrix."""
     array = np.asarray(array)
     if array.ndim == 1:
@@ -226,8 +226,8 @@ def Normalize(array: np.ndarray) -> np.ndarray:
 
 
 def Translate(
-    coord: np.ndarray, dx: float = 0.0, dy: float = 0.0, dz: float = 0.0
-) -> np.ndarray:
+    coord: _types.AnyArray, dx: float = 0.0, dy: float = 0.0, dz: float = 0.0
+) -> _types.FloatArray:
     """Translates the coordinates."""
 
     oldCoord = np.reshape(coord, (-1, 3))
@@ -239,7 +239,7 @@ def Translate(
     return newCoord
 
 
-def __Rotation_matrix(vect: np.ndarray, theta: float) -> np.ndarray:
+def __Rotation_matrix(vect: _types.AnyArray, theta: float) -> _types.FloatArray:
     """Gets the rotation matrix for turning along an axis with theta angle (rad).\n
     p(x,y) = mat • p(i,j)\n
     https://en.wikipedia.org/wiki/Rotation_matrix#Axis_and_angle"""
@@ -261,27 +261,27 @@ def __Rotation_matrix(vect: np.ndarray, theta: float) -> np.ndarray:
 
 
 def Rotate(
-    coord: np.ndarray,
+    coord: _types.AnyArray,
     theta: float,
-    center: tuple = (0, 0, 0),
-    direction: tuple = (0, 0, 1),
-) -> np.ndarray:
+    center: _types.Iterable = (0, 0, 0),
+    direction: _types.Iterable = (0, 0, 1),
+) -> _types.FloatArray:
     """Rotates the coordinates arround a specified center and axis.
 
     Parameters
     ----------
-    coord : np.ndarray
+    coord : _types.AnyArray
         coordinates to rotate (n,3)
     theta : float
         rotation angle [deg]
-    center : tuple, optional
+    center : _types.Iterable, optional
         rotation center, by default (0,0,0)
-    direction : tuple, optional
+    direction : _types.Iterable, optional
         rotation direction, by default (0,0,1)
 
     Returns
     -------
-    np.ndarray
+    _types.FloatArray
         rotated coordinates
     """
 
@@ -295,19 +295,19 @@ def Rotate(
 
     oldCoord = np.reshape(coord, (-1, 3))
 
-    newCoord: np.ndarray = (
+    newCoord: _types.AnyArray = (
         np.einsum("ij,nj->ni", rotMat, oldCoord - center, optimize="optimal") + center
     )
 
     return newCoord
 
 
-def Symmetry(coord: np.ndarray, point=(0, 0, 0), n=(1, 0, 0)) -> np.ndarray:
+def Symmetry(coord: _types.AnyArray, point=(0, 0, 0), n=(1, 0, 0)) -> _types.FloatArray:
     """Symmetrizes coordinates with a plane.
 
     Parameters
     ----------
-    coord : np.ndarray
+    coord : _types.AnyArray
         coordinates that we want to symmetrise
     point : tuple, optional
         a point belonging to the plane, by default (0,0,0)
@@ -316,7 +316,7 @@ def Symmetry(coord: np.ndarray, point=(0, 0, 0), n=(1, 0, 0)) -> np.ndarray:
 
     Returns
     -------
-    np.ndarray
+    _types.FloatArray
         the new coordinates
     """
 
@@ -335,7 +335,7 @@ def Symmetry(coord: np.ndarray, point=(0, 0, 0), n=(1, 0, 0)) -> np.ndarray:
 # circles
 
 
-def Circle_Triangle(p1, p2, p3) -> np.ndarray:
+def Circle_Triangle(p1, p2, p3) -> _types.FloatArray:
     """Returns triangle's center for the circumcicular arc formed by 3 points.\n
     returns center
     """
@@ -362,7 +362,9 @@ def Circle_Triangle(p1, p2, p3) -> np.ndarray:
     return center
 
 
-def Circle_Coords(coord: np.ndarray, R: float, n: np.ndarray) -> np.ndarray:
+def Circle_Coords(
+    coord: _types.AnyArray, R: float, n: _types.AnyArray
+) -> _types.FloatArray:
     """Returns center from coordinates a radius and and a vector normal to the circle.\n
     return center
     """
@@ -389,12 +391,12 @@ def Circle_Coords(coord: np.ndarray, R: float, n: np.ndarray) -> np.ndarray:
     res = minimize(eval, p0, constraints=cons, tol=1e-12)
 
     assert res.success, "the center has not been found"
-    center: np.ndarray = res.x
+    center: _types.AnyArray = res.x
 
     return center
 
 
-def Points_Intersect_Circles(circle1, circle2) -> np.ndarray:
+def Points_Intersect_Circles(circle1, circle2) -> _types.AnyArrayOrNone:
     """Computes the coordinates at the intersection of the two circles (i,3).\n
     This only works if they're on the same plane.
 
@@ -451,7 +453,7 @@ def Points_Intersect_Circles(circle1, circle2) -> np.ndarray:
 # others
 
 
-def Angle_Between(a: np.ndarray, b: np.ndarray) -> float:
+def Angle_Between(a: _types.AnyArray, b: _types.AnyArray) -> float:
     """Computes the angle between vectors a and b (rad).
     https://math.stackexchange.com/questions/878785/how-to-find-an-angle-in-range0-360-between-2-vectors
     """
@@ -480,7 +482,7 @@ def Angle_Between(a: np.ndarray, b: np.ndarray) -> float:
     return angle
 
 
-def Jacobian_Matrix(i: np.ndarray, k: np.ndarray) -> np.ndarray:
+def Jacobian_Matrix(i: _types.AnyArray, k: _types.AnyArray) -> _types.FloatArray:
     """Computes the Jacobian matrix to transform local coordinates (i,j,k) to global (x,y,z) coordinates.\n
     p(x,y,z) = J • p(i,j,k) and p(i,j,k) = inv(J) • p(x,y,z)\n\n
 
@@ -490,9 +492,9 @@ def Jacobian_Matrix(i: np.ndarray, k: np.ndarray) -> np.ndarray:
 
     Parameters
     ----------
-    i : np.ndarray
+    i : _types.AnyArray
         i vector
-    k : np.ndarray
+    k : _types.AnyArray
         k vector
     """
 
@@ -512,25 +514,25 @@ def Jacobian_Matrix(i: np.ndarray, k: np.ndarray) -> np.ndarray:
 
 
 def Fillet(
-    P0: np.ndarray, P1: np.ndarray, P2: np.ndarray, r: float
-) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
+    P0: _types.AnyArray, P1: _types.AnyArray, P2: _types.AnyArray, r: float
+) -> tuple[_types.FloatArray, _types.FloatArray, _types.FloatArray]:
     """Computes fillet in a corner P0.\n
     returns A, B, C
 
     Parameters
     ----------
-    P0 : np.ndarray
+    P0 : _types.AnyArray
         coordinates of point with radius
-    P1 : np.ndarray
+    P1 : _types.AnyArray
         coordinates before P0 coordinates
-    P2 : np.ndarray
+    P2 : _types.AnyArray
         coordinates after P0 coordinates
     r : float
         radius (or fillet) at point P0
 
     Returns
     -------
-    tuple[np.ndarray, np.ndarray, np.ndarray]
+    tuple[_types.FloatArray, _types.FloatArray, _types.FloatArray]
         coordinates calculated to construct the radius
     """
 
@@ -562,16 +564,16 @@ def Fillet(
     return A, B, C
 
 
-def __Get_Triangle_Area(A: np.ndarray, B: np.ndarray, C: np.ndarray):
+def __Get_Triangle_Area(A: _types.AnyArray, B: _types.AnyArray, C: _types.AnyArray):
     """Computes triangle area with A, B, C coordinates
 
     Parameters
     ----------
-    A : np.ndarray
+    A : _types.AnyArray
         A coordinates
-    B : np.ndarray
+    B : _types.AnyArray
         B coordinates
-    C : np.ndarray
+    C : _types.AnyArray
         C coordinates
 
     Returns
@@ -586,19 +588,22 @@ def __Get_Triangle_Area(A: np.ndarray, B: np.ndarray, C: np.ndarray):
 
 
 def __Get_Tetrahedron_Volume(
-    A: np.ndarray, B: np.ndarray, C: np.ndarray, D: np.ndarray
+    A: _types.AnyArray,
+    B: _types.AnyArray,
+    C: _types.AnyArray,
+    D: _types.AnyArray,
 ):
     """Computes tetrahedron volune with A, B, C, D coordinates
 
     Parameters
     ----------
-    A : np.ndarray
+    A : _types.AnyArray
         A coordinates
-    B : np.ndarray
+    B : _types.AnyArray
         B coordinates
-    C : np.ndarray
+    C : _types.AnyArray
         C coordinates
-    D : np.ndarray
+    D : _types.AnyArray
         D coordinates
 
     Returns
@@ -614,24 +619,24 @@ def __Get_Tetrahedron_Volume(
 
 
 def _Get_BaryCentric_Coordinates_In_Segment(
-    vertices: np.ndarray, coords: np.ndarray
-) -> np.ndarray:
+    vertices: _types.AnyArray, coords: _types.AnyArray
+) -> _types.FloatArray:
     """Computes barycentrice coordinates within a segment
 
     Parameters
     ----------
-    vertices : np.ndarray
+    vertices : _types.AnyArray
         vertices used to construct de segment
-    coords : np.ndarray
+    coords : _types.AnyArray
         coordinates within the segment
 
     Returns
     -------
-    np.ndarray
+    _types.FloatArray
         barycentric_coords
     """
 
-    assert isinstance(vertices, np.ndarray) and vertices.shape[0] == 2
+    assert isinstance(vertices, _types.FloatArray) and vertices.shape[0] == 2
 
     A, B = vertices
 
@@ -650,24 +655,24 @@ def _Get_BaryCentric_Coordinates_In_Segment(
 
 
 def _Get_BaryCentric_Coordinates_In_Triangle(
-    vertices: np.ndarray, coords: np.ndarray
-) -> np.ndarray:
+    vertices: _types.AnyArray, coords: _types.AnyArray
+) -> _types.FloatArray:
     """Computes barycentrice coordinates within a triangle
 
     Parameters
     ----------
-    vertices : np.ndarray
+    vertices : _types.AnyArray
         vertices used to construct de triangle
-    coords : np.ndarray
+    coords : _types.AnyArray
         coordinates within the triangle
 
     Returns
     -------
-    np.ndarray
+    _types.FloatArray
         barycentric_coords
     """
 
-    assert isinstance(vertices, np.ndarray) and vertices.shape[0] == 3
+    assert isinstance(vertices, _types.FloatArray) and vertices.shape[0] == 3
 
     A, B, C = vertices
 
@@ -687,24 +692,24 @@ def _Get_BaryCentric_Coordinates_In_Triangle(
 
 
 def _Get_BaryCentric_Coordinates_In_Tetrahedron(
-    vertices: np.ndarray, coords: np.ndarray
-) -> np.ndarray:
+    vertices: _types.AnyArray, coords: _types.AnyArray
+) -> _types.FloatArray:
     """Computes barycentrice coordinates within a tetrahedron
 
     Parameters
     ----------
-    vertices : np.ndarray
+    vertices : _types.AnyArray
         vertices used to construct de tetrahedron
-    coords : np.ndarray
+    coords : _types.AnyArray
         coordinates within the tetrahedron
 
     Returns
     -------
-    np.ndarray
+    _types.FloatArray
         barycentric_coords
     """
 
-    assert isinstance(vertices, np.ndarray) and vertices.shape[0] == 4
+    assert isinstance(vertices, _types.FloatArray) and vertices.shape[0] == 4
 
     A, B, C, D = vertices
 
