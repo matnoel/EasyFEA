@@ -2,7 +2,7 @@
 # This file is part of the EasyFEA project.
 # EasyFEA is distributed under the terms of the GNU General Public License v3 or later, see LICENSE.txt and CREDITS.md for more information.
 
-from typing import Union
+from typing import Union, Optional
 import numpy as np
 from scipy import sparse
 
@@ -408,7 +408,7 @@ class BeamSimu(_Simu):
         return options
 
     def Result(
-        self, result: str, nodeValues=True, iter=None
+        self, result: str, nodeValues: bool = True, iter: Optional[int] = None
     ) -> Union[np.ndarray, float]:
 
         if iter != None:

@@ -5,7 +5,7 @@
 from enum import Enum
 import numpy as np
 
-from typing import Union
+from typing import Union, Optional
 from ..utilities import _types
 
 
@@ -106,7 +106,7 @@ class FeArray(_types.AnyArray):
             raise ValueError("The input array must have at least 2 dimensions.")
         return obj
 
-    def __array_finalize__(self, obj: _types.AnyArrayOrNone):
+    def __array_finalize__(self, obj: Optional[_types.AnyArray]):
         # This method is automatically called when new instances are created.
         # It can be used to initialize additional attributes if necessary.
         if obj is None:

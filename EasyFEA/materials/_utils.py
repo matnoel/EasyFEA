@@ -3,7 +3,7 @@
 # EasyFEA is distributed under the terms of the GNU General Public License v3 or later, see LICENSE.txt and CREDITS.md for more information.
 
 from abc import ABC, abstractmethod
-from typing import Union
+from typing import Union, Optional
 from enum import Enum
 
 # utilities
@@ -285,7 +285,7 @@ def Project_matrix_to_vector(
     return vector
 
 
-def Project_Kelvin(A: np.ndarray, orderA: int = None) -> np.ndarray:
+def Project_Kelvin(A: np.ndarray, orderA: Optional[int] = None) -> np.ndarray:
     """Projects the tensor A in Kelvin Mandel notation.
 
     Parameters

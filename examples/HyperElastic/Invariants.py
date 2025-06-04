@@ -9,6 +9,8 @@ try:
 except ModuleNotFoundError:
     raise Exception("sympy must be installed!")
 
+from typing import Optional
+
 
 def __Project_Mandel(A, orderA: int = 4):
 
@@ -51,7 +53,7 @@ def __Project_Mandel(A, orderA: int = 4):
     return res
 
 
-def __MyDiff(func, list_func: list, order: int = None):
+def __MyDiff(func, list_func: list, order: Optional[int] = None):
 
     assert isinstance(list_func, list)
 

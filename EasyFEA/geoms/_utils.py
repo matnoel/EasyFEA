@@ -7,7 +7,7 @@ import copy
 from scipy.optimize import minimize  # type: ignore
 from collections.abc import Iterable
 
-from typing import Union
+from typing import Union, Optional
 from ..utilities import _types
 
 
@@ -396,7 +396,7 @@ def Circle_Coords(
     return center
 
 
-def Points_Intersect_Circles(circle1, circle2) -> _types.AnyArrayOrNone:
+def Points_Intersect_Circles(circle1, circle2) -> Optional[_types.AnyArray]:
     """Computes the coordinates at the intersection of the two circles (i,3).\n
     This only works if they're on the same plane.
 

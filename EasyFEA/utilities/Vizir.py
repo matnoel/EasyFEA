@@ -4,6 +4,7 @@
 
 """Module providing functions used to save FEM-solutions for vizir (https://pyamg.saclay.inria.fr/vizir4.html)."""
 
+from typing import Union, Optional
 import numpy as np
 import io
 
@@ -214,7 +215,11 @@ def _Write_solution_file(
 
 
 def Save_simu(
-    simu: _Simu, results: list[str], types: list[int], folder: str, N: int = None
+    simu: _Simu,
+    results: list[str],
+    types: list[int],
+    folder: str,
+    N: Optional[int] = None,
 ) -> str:
 
     assert isinstance(simu, _Simu)

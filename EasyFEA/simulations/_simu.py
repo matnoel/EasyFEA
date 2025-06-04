@@ -5,7 +5,7 @@
 from abc import ABC, abstractmethod
 import pickle
 from datetime import datetime
-from typing import Union, Callable
+from typing import Union, Callable, Optional
 import numpy as np
 from scipy import sparse
 import scipy.sparse.linalg as sla
@@ -16,6 +16,7 @@ from ..__about__ import __version__
 # utilities
 from ..utilities import Folder, Display, Tic, _params
 from ..utilities._observers import Observable, _IObserver
+from ..utilities import _types
 
 # fem
 from ..fem import Mesh, _GroupElem, MatrixType, BoundaryCondition, LagrangeCondition
@@ -1933,8 +1934,8 @@ class _Simu(_IObserver, ABC):
     def Get_contact(
         self,
         masterMesh: Mesh,
-        slaveNodes: np.ndarray = None,
-        masterNodes: np.ndarray = None,
+        slaveNodes: Optional[np.ndarray] = None,
+        masterNodes: Optional[np.ndarray] = None,
     ) -> tuple[np.ndarray, np.ndarray]:
         """Returns the simulation nodes detected in the master mesh with the associated displacement matrix to the interface.
 
@@ -2060,20 +2061,20 @@ class _Simu(_IObserver, ABC):
         return "Unspecified."
 
     def Results_Reshape_values(
-        self, values: np.ndarray, nodeValues: bool
-    ) -> np.ndarray:
+        self, values: _types.FloatArray, nodeValues: bool
+    ) -> _types.FloatArray:
         """Reshapes input values based on whether they are stored at nodes or elements.
 
         Parameters
         ----------
-        values : np.ndarray
+        values : _types.FloatArray
             Input values to reshape.
         nodeValues : bool
             If True, the output will represent values at nodes; if False, values on elements will be derived.
 
         Returns
         -------
-        np.ndarray
+        _types.FloatArray
             Reshaped values on nodes or elements.
 
         Raises
@@ -2152,7 +2153,9 @@ class _Simu(_IObserver, ABC):
 # ----------------------------------------------
 
 
-def _Init_obj(obj, deformFactor: float = 0.0):
+def _Init_obj(
+    obj, deformFactor: float = 0.0
+) -> tuple[Optional[_Simu], Mesh, np.ndarray, int]:
     """Returns (simu, mesh, coordo, inDim) from an ojbect that could be either a _Simu, a Mesh or a _GroupElem object.
 
     Parameters

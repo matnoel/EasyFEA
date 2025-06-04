@@ -5,7 +5,7 @@
 """Module containing functions used to display simulations and meshes with matplotlib (https://matplotlib.org/)."""
 
 import platform
-from typing import Union, Callable
+from typing import Union, Callable, Optional
 import numpy as np
 import pandas as pd
 from enum import Enum
@@ -35,21 +35,21 @@ from ..simulations._simu import _Init_obj, _Get_values
 def Plot_Result(
     simu,
     result: Union[str, np.ndarray],
-    deformFactor=0.0,
-    coef=1.0,
-    nodeValues=True,
-    plotMesh=False,
-    edgecolor="black",
-    title="",
-    cmap="jet",
+    deformFactor: _types.Number = 0.0,
+    coef: _types.Number = 1.0,
+    nodeValues: bool = True,
+    plotMesh: bool = False,
+    edgecolor: str = "black",
+    title: str = "",
+    cmap: str = "jet",
     ncolors=256,
     clim=(None, None),
     colorbarIsClose=False,
     colorbarLabel="",
-    ax: plt.Axes = None,
-    folder="",
-    filename="",
-) -> plt.Axes:
+    ax: Optional[_types.Axes] = None,
+    folder: str = "",
+    filename: str = "",
+) -> _types.Axes:
     """Plots a simulation's result.
 
     Parameters
@@ -113,14 +113,14 @@ def Plot_Result(
 
     # Builds boundary markers for the colorbar
     min, max = clim
-    if min == None and max == None:
+    if min == None and max is None:
         if isinstance(result, str) and result == "damage":
             min = values.min() - 1e-12
             max = np.max([values.max() + 1e-12, 1])
             ticks = np.linspace(min, max, 11)
             # ticks = np.linspace(0,1,11) # ticks colorbar
         else:
-            max = np.max(values) + 1e-12 if max == None else max
+            max = np.max(values) + 1e-12 if max is None else max
             min = np.min(values) - 1e-12 if min == None else min
             ticks = np.linspace(min, max, 11)
         levels = np.linspace(min, max, ncolors)
@@ -144,7 +144,7 @@ def Plot_Result(
         # Mesh contained in a 2D plane
         # Only designed for one element group!
 
-        if ax == None:
+        if ax is None:
             ax = Init_Axes()
             fig = ax.figure
             ax.set_xlabel(r"$x$")
@@ -215,7 +215,7 @@ def Plot_Result(
 
         plotDim = 2 if plotDim == 3 else plotDim
 
-        if ax == None:
+        if ax is None:
             ax = Init_Axes(3)
             fig = ax.figure
             ax.set_xlabel(r"$x$")
@@ -396,7 +396,7 @@ def Plot_Mesh(
     if inDim in [1, 2]:
         # in 2d space
 
-        if ax == None:
+        if ax is None:
             ax = Init_Axes()
             ax.set_xlabel(r"$x$")
             ax.set_ylabel(r"$y$")
@@ -442,7 +442,7 @@ def Plot_Mesh(
     elif inDim == 3:
         # in 3d space
 
-        if ax == None:
+        if ax is None:
             ax = Init_Axes(3)
             ax.set_xlabel(r"$x$")
             ax.set_ylabel(r"$y$")
@@ -511,7 +511,12 @@ def Plot_Mesh(
 
 
 def Plot_Nodes(
-    obj, nodes=[], showId=False, marker=".", c="red", ax: plt.Axes = None
+    obj,
+    nodes: _types.IntArray = None,
+    showId=False,
+    marker=".",
+    c="red",
+    ax: Optional[_types.Axes] = None,
 ) -> plt.Axes:
     """Plots the mesh's nodes.
 
@@ -519,7 +524,7 @@ def Plot_Nodes(
     ----------
     obj : _Simu | Mesh | _GroupElem
         object containing the mesh
-    nodes : list[np.ndarray], optional
+    nodes : _types.IntArray, optional
         nodes to display, default []
     showId : bool, optional
         display numbers, default False
@@ -541,7 +546,7 @@ def Plot_Nodes(
 
     inDim = mesh.inDim
 
-    if ax == None:
+    if ax is None:
         ax = Init_Axes(inDim)
         ax.set_title("")
     else:
@@ -620,7 +625,7 @@ def Plot_Elements(
     if len(list_groupElem) == 0:
         return
 
-    if ax == None:
+    if ax is None:
         ax = Init_Axes(inDim)
     else:
         inDim = 3 if ax.name == "3d" else inDim
@@ -724,7 +729,7 @@ def Plot_BoundaryConditions(simu, ax: plt.Axes = None) -> plt.Axes:
     )  # boundary conditions for display used for lagrangian boundary conditions
     BoundaryConditions.extend(displays)
 
-    if ax == None:
+    if ax is None:
         ax = Plot_Elements(simu.mesh, dimElem=1, c="k")
         ax.set_title("Boundary conditions")
 
@@ -836,7 +841,7 @@ def Plot_Tags(obj, showId=False, folder="", alpha=1.0, ax: plt.Axes = None) -> p
         )
         return
 
-    if ax == None:
+    if ax is None:
         if mesh.inDim <= 2:
             ax = Init_Axes()
             ax.set_xlabel(r"$x$")
@@ -1222,7 +1227,7 @@ def Plot_Iter_Summary(simu, folder="", iterMin=None, iterMax=None) -> None:
     # Recover simulation results
     iterations, list_label_values = simu.Results_Iter_Summary()
 
-    if iterMax == None:
+    if iterMax is None:
         iterMax = iterations.max()
 
     if iterMin == None:

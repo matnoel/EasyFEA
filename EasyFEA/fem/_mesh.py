@@ -12,13 +12,14 @@ A hexahedral mesh (HEXA8) uses :\n
 - HEXA8 (dim=3)"""
 
 import numpy as np
-import scipy.sparse as sp
+import scipy.sparse as sp  # type: ignore
 import copy
-from typing import Callable  # add Iterable ?
+from typing import Callable, Optional
 
 # utilities
 from ..utilities import Display, Tic
 from ..utilities._observers import Observable
+from ..utilities import _types
 
 # fem
 from ._utils import ElemType, MatrixType, FeArray
@@ -73,7 +74,7 @@ class Mesh(Observable):
 
     def _ResetMatrix(self) -> None:
         """Resets matrices for each groupElem"""
-        [groupElem._InitMatrix() for groupElem in self.Get_list_groupElem()]
+        [groupElem._InitMatrix() for groupElem in self.Get_list_groupElem()]  # type: ignore
 
     def __str__(self) -> str:
         """Returns a string representation of the mesh."""
@@ -292,27 +293,29 @@ class Mesh(Observable):
         return np.repeat(connect, nPe, axis=0).reshape((Ne, -1))
 
     @property
-    def length(self) -> float:
+    def length(self) -> Optional[float]:
         """total length of the mesh."""
         if self.dim < 1:
             return None
-        lengths = [group1D.length for group1D in self.Get_list_groupElem(1)]
+        lengths = [
+            group1D.length for group1D in self.Get_list_groupElem(1)
+        ]  # type: ignore
         return np.sum(lengths)
 
     @property
-    def area(self) -> float:
+    def area(self) -> Optional[float]:
         """total area of the mesh."""
         if self.dim < 2:
             return None
-        areas = [group2D.area for group2D in self.Get_list_groupElem(2)]
+        areas = [group2D.area for group2D in self.Get_list_groupElem(2)]  # type: ignore
         return np.sum(areas)
 
     @property
-    def volume(self) -> float:
+    def volume(self) -> Optional[float]:
         """total volume of the mesh."""
         if self.dim != 3:
             return None
-        volumes = [group3D.volume for group3D in self.Get_list_groupElem(3)]
+        volumes = [group3D.volume for group3D in self.Get_list_groupElem(3)]  # type: ignore
         return np.sum(volumes)
 
     @property
@@ -321,8 +324,10 @@ class Mesh(Observable):
         return self.groupElem.center
 
     def Get_normals(
-        self, nodes: np.ndarray = None, displacementMatrix: np.ndarray = None
-    ) -> np.ndarray:
+        self,
+        nodes: Optional[_types.IntArray] = None,
+        displacementMatrix: Optional[_types.FloatArray] = None,
+    ) -> tuple[_types.FloatArray, _types.IntArray]:
         """Returns normal vectors and nodes belonging to the edge of the mesh.\n
         returns normals, nodes."""
 
@@ -378,11 +383,11 @@ class Mesh(Observable):
 
     # Construction of elementary matrices used in FEM
 
-    def Get_nPg(self, matrixType: MatrixType) -> np.ndarray:
+    def Get_nPg(self, matrixType: MatrixType) -> int:
         """Returns integration points according to the matrix type."""
         return self.groupElem.Get_gauss(matrixType).nPg
 
-    def Get_weight_pg(self, matrixType: MatrixType) -> np.ndarray:
+    def Get_weight_pg(self, matrixType: MatrixType) -> _types.FloatArray:
         """Returns integration points according to the matrix type."""
         return self.groupElem.Get_gauss(matrixType).weights
 
@@ -537,7 +542,7 @@ class Mesh(Observable):
 
     def Nodes_Points(self, points: list[Point]) -> np.ndarray:
         """Returns nodes on points."""
-        nodes = set()
+        nodes: set[int] = set()
         for point in points:
             nodes = nodes.union(self.groupElem.Get_Nodes_Point(point))
         return np.asarray(list(nodes))
@@ -561,7 +566,7 @@ class Mesh(Observable):
         return self.groupElem.Get_Nodes_Cylinder(circle, direction, onlyOnEdge)
 
     def Elements_Nodes(
-        self, nodes: np.ndarray, exclusively=True, neighborLayer: int = 1
+        self, nodes: _types.IntArray, exclusively=True, neighborLayer: int = 1
     ):
         """Returns elements that exclusively or not use the specified nodes."""
 
@@ -569,7 +574,8 @@ class Mesh(Observable):
             elements = self.groupElem.Get_Elements_Nodes(
                 nodes=nodes, exclusively=exclusively
             )
-            nodes = list(set(np.ravel(self.connect[elements])))
+            nodes_use_by_elements = np.ravel(self.connect[elements])
+            nodes = np.asarray(list(set(nodes_use_by_elements)), dtype=int)
 
             if neighborLayer > 1 and elements.size == self.Ne:
                 Display.MyPrint("All the neighbors have been found.")
@@ -579,7 +585,7 @@ class Mesh(Observable):
 
     def Nodes_Tags(self, tags: list[str]) -> np.ndarray:
         """Returns nodes associated with the tags."""
-        nodes = []
+        list_node: list[int] = []
 
         if isinstance(tags, str):
             tags = [tags]
@@ -598,15 +604,15 @@ class Mesh(Observable):
             )
             return np.asarray([])
 
-        [nodes.extend(dict_nodes[tag]) for tag in tags]
+        [list_node.extend(dict_nodes[tag]) for tag in tags]  # type: ignore
         # make sure that that the list is unique
-        nodes = np.asarray(list(set(nodes)), dtype=int)
+        nodes = np.asarray(list(set(list_node)), dtype=int)
 
         return nodes
 
     def Elements_Tags(self, tags: list[str]) -> np.ndarray:
         """Returns elements associated with the tag."""
-        elements = []
+        list_element: list[int] = []
 
         if isinstance(tags, str):
             tags = [tags]
@@ -621,9 +627,9 @@ class Mesh(Observable):
             return np.asarray([])
 
         # add elements belonging to the tags
-        [elements.extend(dict_elements[tag]) for tag in tags]
+        [list_element.extend(dict_elements[tag]) for tag in tags]  # type: ignore
         # make sure that that the list is unique
-        elements = np.asarray(list(set(elements)), dtype=int)
+        elements = np.asarray(list(set(list_element)), dtype=int)
 
         return elements
 
@@ -641,7 +647,7 @@ class Mesh(Observable):
             groupElem._Set_Elements_Tag(nodes, tag)
 
     def Locates_sol_e(
-        self, sol: np.ndarray, dof_n: int = None, asFeArray=False
+        self, sol: np.ndarray, dof_n: Optional[int] = None, asFeArray=False
     ) -> FeArray:
         """Locates solution on elements."""
         return self.groupElem.Locates_sol_e(sol, dof_n, asFeArray)

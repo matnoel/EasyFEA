@@ -20,7 +20,7 @@ from abc import ABC, abstractmethod
 from scipy.optimize import least_squares
 import numpy as np
 import scipy.sparse as sparse
-from typing import Callable
+from typing import Callable, Optional
 
 # fem
 from ._gauss import Gauss
@@ -32,6 +32,8 @@ from ._utils import ElemType, MatrixType, FeArray
 from ..Geoms import Point, Domain, Line, Circle
 from ..geoms import Jacobian_Matrix
 from ..utilities._linalg import Trace, Transpose, Det, Inv
+
+from ..utilities import _types
 
 
 class _GroupElem(ABC):
@@ -149,12 +151,12 @@ class _GroupElem(ABC):
         return self.__connect.shape[0]
 
     @property
-    def nodes(self) -> int:
+    def nodes(self) -> _types.IntArray:
         """nodes used by the element group. Node 'n' is on line 'n' in coordGlob"""
         return self.__nodes.copy()
 
     @property
-    def elements(self) -> np.ndarray:
+    def elements(self) -> _types.IntArray:
         """elements"""
         return np.arange(self.__connect.shape[0], dtype=int)
 
@@ -277,7 +279,7 @@ class _GroupElem(ABC):
 
         return assembly
 
-    def _Get_sysCoord_e(self, displacementMatrix: np.ndarray = None):
+    def _Get_sysCoord_e(self, displacementMatrix: Optional[_types.AnyArray] = None):
         """Get the basis transformation matrix (Ne, 3, 3).\n
         [ix, jx, kx\n
         iy, jy, ky\n
@@ -1830,7 +1832,7 @@ class _GroupElem(ABC):
             return np.array([])
 
     def Locates_sol_e(
-        self, sol: np.ndarray, dof_n: int = None, asFeArray=False
+        self, sol: np.ndarray, dof_n: Optional[int] = None, asFeArray=False
     ) -> FeArray:
         """Locates sol on elements"""
 

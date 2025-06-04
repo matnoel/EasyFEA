@@ -9,10 +9,12 @@ from scipy import interpolate, sparse
 from scipy.sparse.linalg import splu
 import pickle
 import cv2  # need opencv-python library
+from typing import Optional
 
 # utilities
 from ..utilities import Tic, Folder, Display
 from ..utilities._observers import Observable, _IObserver
+from ..utilities import _types
 
 # fem
 from ..fem import Mesh, BoundaryCondition, FeArray
@@ -26,8 +28,8 @@ class DIC(_IObserver):
         idxImgRef: int,
         imgRef: np.ndarray,
         lr: float = 0.0,
-        forces: np.ndarray = None,
-        displacements: np.ndarray = None,
+        forces: Optional[np.ndarray] = None,
+        displacements: Optional[np.ndarray] = None,
         verbosity=False,
     ):
         """Creates a DIC analysis.
@@ -417,10 +419,10 @@ class DIC(_IObserver):
     def Solve(
         self,
         img: np.ndarray,
-        u0: np.ndarray = None,
+        u0: Optional[np.ndarray] = None,
         iterMax: int = 1000,
         tolConv: float = 1e-6,
-        imgRef: np.ndarray = None,
+        imgRef: Optional[np.ndarray] = None,
         verbosity=True,
     ) -> np.ndarray:
         """Computes the displacement field between the two images.
@@ -500,7 +502,7 @@ class DIC(_IObserver):
         return u
 
     def Calc_r_dic(
-        self, u: np.ndarray, img: np.ndarray, imgRef: np.ndarray = None
+        self, u: np.ndarray, img: np.ndarray, imgRef: Optional[np.ndarray] = None
     ) -> np.ndarray:
         """Computes the dic residual between img and imgRef (as a Np x Np matrix).\n
         r_dic = f(x) - g(x + u(x))

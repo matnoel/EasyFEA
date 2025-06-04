@@ -6,6 +6,8 @@
 
 import numpy as np
 from ..fem import FeArray
+from typing import Optional
+from ..utilities import _types
 
 
 def __CheckMat(mat: np.ndarray) -> None:
@@ -167,7 +169,7 @@ def Inv(mat: np.ndarray):
 
 
 def TensorProd(
-    A: np.ndarray, B: np.ndarray, symmetric=False, ndim: int = None
+    A: np.ndarray, B: np.ndarray, symmetric=False, ndim: Optional[int] = None
 ) -> np.ndarray:
     """Computes tensor product.
 

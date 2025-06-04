@@ -13,6 +13,8 @@ from ._line import Line
 from ._circle import CircleArc
 from ._points import Points
 
+from ..utilities import _types
+
 ContourCompatible = Union[Line, CircleArc, Points]
 
 
@@ -41,14 +43,16 @@ class Contour(_Geom):
         for i, geom in enumerate(geoms):
 
             assert isinstance(
-                geom, ContourCompatible
+                geom, (Line, CircleArc, Points)
             ), "Must give a list of lines and arcs or points."
 
             if i == 0:
                 gap = tol
             elif i > 0 and i < len(geoms) - 1:
                 # check that the starting point has the same coordinate as the last point of the previous object
-                gap = np.linalg.norm(geom.points[0].coord - points[-1].coord)
+                gap = np.linalg.norm(geom.points[0].coord - points[-1].coord).astype(
+                    float
+                )
 
                 assert gap <= tol, "The contour must form a closed loop."
             else:
@@ -67,21 +71,21 @@ class Contour(_Geom):
 
         Contour.__nbContour += 1
         name = f"Contour{Contour.__nbContour}"
-        meshSize = np.mean([geom.meshSize for geom in geoms])
+        meshSize = np.mean([geom.meshSize for geom in geoms]).astype(float)
         _Geom.__init__(self, points, meshSize, name, isHollow, isOpen)
 
     def Get_coord_for_plot(self) -> tuple[np.ndarray, np.ndarray]:
 
-        lines = []
-        points = []
+        list_line: list[_types.FloatArray] = []
+        list_point: list[_types.FloatArray] = []
 
         for geom in self.geoms:
             l, p = geom.Get_coord_for_plot()
-            lines.extend(l.ravel())
-            points.extend(p.ravel())
+            list_line.extend(l.ravel())
+            list_point.extend(p.ravel())
 
-        lines = np.reshape(lines, (-1, 3))
-        points = np.reshape(points, (-1, 3))
+        lines = np.array(list_line, dtype=float).reshape(-1, 3)
+        points = np.array(list_point, dtype=float).reshape(-1, 3)
 
         return lines, points
 

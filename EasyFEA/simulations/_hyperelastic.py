@@ -4,7 +4,7 @@
 
 from scipy import sparse
 import numpy as np
-from typing import Union, Callable
+from typing import Union, Callable, Optional
 import pandas as pd
 
 # utilities
@@ -351,7 +351,7 @@ class HyperElasticSimu(_Simu):
         return results
 
     def Result(
-        self, result: str, nodeValues=True, iter=None
+        self, result: str, nodeValues: Optional[bool] = True, iter: Optional[int] = None
     ) -> Union[np.ndarray, float, None]:
 
         if iter != None:

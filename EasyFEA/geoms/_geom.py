@@ -12,7 +12,7 @@ import matplotlib.pyplot as plt
 
 from ._utils import Point, Rotate, Symmetry
 
-from typing import Union
+from typing import Optional
 from ..utilities import _types
 
 
@@ -21,7 +21,7 @@ class _Geom(ABC):
     def __init__(
         self,
         points: list[Point],
-        meshSize: float,
+        meshSize: _types.Number,
         name: str,
         isHollow: bool,
         isOpen: bool,
@@ -32,7 +32,7 @@ class _Geom(ABC):
         ----------
         points : list[Point]
             list of points to build the geometric object
-        meshSize : float
+        meshSize : _types.Number
             mesh size that will be used to create the mesh >= 0
         name : str
             object name
@@ -160,11 +160,11 @@ class _Geom(ABC):
 
     def Plot(
         self,
-        ax: _types.AxesOrNone = None,
+        ax: Optional[_types.Axes] = None,
         color: str = "",
         name: str = "",
-        lw: _types.NumberOrNone = None,
-        ls: _types.StrOrNone = None,
+        lw: Optional[_types.Number] = None,
+        ls: Optional[str] = None,
         plotPoints: bool = True,
     ) -> _types.Axes:
 
@@ -198,7 +198,7 @@ class _Geom(ABC):
     @staticmethod
     def Plot_Geoms(
         geoms: list["_Geom"],
-        ax: _types.AxesOrNone = None,
+        ax: Optional[_types.Axes] = None,
         color: str = "",
         name: str = "",
         plotPoints: bool = True,

@@ -5,7 +5,7 @@
 """Linearized elastic laws."""
 
 from abc import ABC, abstractmethod
-from typing import Union
+from typing import Union, Optional
 from scipy.linalg import sqrtm
 
 # utilities
@@ -314,7 +314,7 @@ class Elas_Isot(_Elas):
 
         return bulk
 
-    def _Behavior(self, dim: int = None):
+    def _Behavior(self, dim: Optional[int] = None):
         """Updates the constitutives laws by updating the C stiffness and S compliance matrices in Kelvin Mandel notation.\n
 
         In 2D:
@@ -594,7 +594,7 @@ class Elas_IsotTrans(_Elas):
         self.C = C
         self.S = S
 
-    def _Behavior(self, dim: int = None, P: np.ndarray = None):
+    def _Behavior(self, dim: Optional[int] = None, P: Optional[np.ndarray] = None):
         """Updates the constitutives laws by updating the C stiffness and S compliance matrices in Kelvin Mandel notation.\n
 
         In 2D:

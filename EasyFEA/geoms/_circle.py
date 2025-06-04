@@ -5,7 +5,7 @@
 """Module containing the Circle and CircleArc classes."""
 
 import numpy as np
-from typing import Union
+from typing import Union, Optional
 
 from ._utils import (
     Point,
@@ -172,15 +172,13 @@ class CircleArc(_Geom):
 
     __nbCircleArc = 0
 
-    CircleOrNone = Union[Circle, None]
-
     def __init__(
         self,
         pt1: Point,
         pt2: Point,
         center: Union[Point, None] = None,
-        R: _types.NumberOrNone = None,
-        P: _types.CoordsOrNone = None,
+        R: Optional[_types.Number] = None,
+        P: Optional[_types.Coords] = None,
         meshSize: _types.Number = 0.0,
         n: _types.Coords = (0, 0, 1),
         isOpen: bool = False,
@@ -199,11 +197,11 @@ class CircleArc(_Geom):
             starting point
         pt2: Point
             ending point
-        R: _types.NumberOrNone, optional
+        R: _types.Number, optional
             radius of the arc circle, by default None
         center: Point, optional
             center of circular arc, by default None
-        P: _types.CoordsOrNone, optional
+        P: _types.Coords, optional
             a point belonging to the circle, by default None
         meshSize : _types.Number, optional
             size to be used for mesh construction, by default 0.0

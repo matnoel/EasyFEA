@@ -2,7 +2,7 @@
 # This file is part of the EasyFEA project.
 # EasyFEA is distributed under the terms of the GNU General Public License v3 or later, see LICENSE.txt and CREDITS.md for more information.
 
-from typing import Union
+from typing import Union, Optional
 import numpy as np
 from scipy import sparse
 import pandas as pd
@@ -679,7 +679,7 @@ class PhaseFieldSimu(_Simu):
         return results
 
     def Result(
-        self, result: str, nodeValues=True, iter=None
+        self, result: str, nodeValues: Optional[bool] = True, iter: Optional[int] = None
     ) -> Union[np.ndarray, float, None]:
 
         if iter != None:

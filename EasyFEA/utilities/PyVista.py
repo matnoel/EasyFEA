@@ -5,7 +5,7 @@
 """Module providing an interface with PyVista (https://docs.pyvista.org/version/stable/).\n
 https://docs.pyvista.org/api/plotting/plotting.html"""
 
-from typing import Union, Callable
+from typing import Union, Callable, Optional
 from cycler import cycler
 from scipy.sparse import csr_matrix
 import pyvista as pv
@@ -23,7 +23,7 @@ from ..fem import GroupElemFactory
 
 def Plot(
     obj,
-    result: Union[str, np.ndarray] = None,
+    result: Optional[Union[str, np.ndarray]] = None,
     deformFactor=0.0,
     coef=1.0,
     nodeValues=True,
@@ -38,7 +38,7 @@ def Plot(
     cmap="jet",
     n_colors=256,
     clim=None,
-    plotter: pv.Plotter = None,
+    plotter: Optional[pv.Plotter] = None,
     show_grid=False,
     colorbarTitle=None,
     verticalColobar=True,
@@ -176,7 +176,7 @@ def Plot_Mesh(
     color="cyan",
     edge_color="black",
     line_width=0.5,
-    plotter: pv.Plotter = None,
+    plotter: Optional[pv.Plotter] = None,
 ):
     """Plots the mesh.
 
@@ -219,13 +219,13 @@ def Plot_Mesh(
 
 def Plot_Nodes(
     obj,
-    nodes: np.ndarray = None,
+    nodes: Optional[np.ndarray] = None,
     showId=False,
     deformFactor=0,
     color="red",
     folder="",
     label=None,
-    plotter: pv.Plotter = None,
+    plotter: Optional[pv.Plotter] = None,
 ):
     """Plots mesh's nodes.
 
@@ -277,7 +277,7 @@ def Plot_Nodes(
             )
             return
 
-    if plotter == None:
+    if plotter is None:
         plotter = Plot(obj, deformFactor=deformFactor, style="wireframe", color="k")
 
     pvData = pv.PolyData(coordo)
@@ -298,16 +298,16 @@ def Plot_Nodes(
 
 def Plot_Elements(
     obj,
-    nodes: np.ndarray = None,
-    dimElem: int = None,
+    nodes: Optional[np.ndarray] = None,
+    dimElem: Optional[int] = None,
     showId=False,
-    deformFactor=0,
+    deformFactor=0.0,
     opacity=1.0,
     color="red",
     edge_color="black",
-    line_width=None,
-    label=None,
-    plotter: pv.Plotter = None,
+    line_width: Optional[float] = None,
+    label: Optional[str] = None,
+    plotter: Optional[pv.Plotter] = None,
 ):
     """Plots the mesh elements corresponding to the given nodes.
 
@@ -354,7 +354,7 @@ def Plot_Elements(
             MyPrintError("Nodes must be a list of nodes of size <= mesh.Nn.")
             return
 
-    if plotter == None:
+    if plotter is None:
         # plotter = Plot(obj, deformFactor=deformFactor, style='wireframe', color=edge_color, line_width=line_width)
         plotter = _Plotter()
 
@@ -432,7 +432,7 @@ def Plot_BoundaryConditions(simu, deformFactor=0.0, plotter: pv.Plotter = None):
     )  # boundary conditions for display used for lagrangian boundary conditions
     BoundaryConditions.extend(displays)
 
-    if plotter == None:
+    if plotter is None:
         plotter = _Plotter()
         Plot_Elements(simu, None, 1, False, deformFactor, plotter=plotter, color="k")
         # Plot(simu, deformFactor=deformFactor, plotter=plotter, color='k', style='wireframe')

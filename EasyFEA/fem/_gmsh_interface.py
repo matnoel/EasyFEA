@@ -8,7 +8,7 @@ This module handles geometric objects (_Geom) to facilitate the creation of mesh
 
 import sys, os, matplotlib, gmsh
 import numpy as np
-from typing import Union
+from typing import Union, Optional
 from collections.abc import Iterable
 
 # utilities
@@ -889,7 +889,7 @@ class Mesher:
         file: str,
         dim: int,
         meshSize=0.0,
-        elemType: ElemType = None,
+        elemType: Optional[ElemType] = None,
         refineGeoms=[None],
         folder="",
     ) -> Mesh:
@@ -1706,12 +1706,12 @@ class Mesher:
         self,
         dim: int,
         elemType: str,
-        crackLines: int = None,
-        crackSurfaces: int = None,
-        openPoints: int = None,
-        openLines: int = None,
-        folder="",
-        filename="mesh",
+        crackLines: Optional[int] = None,
+        crackSurfaces: Optional[int] = None,
+        openPoints: Optional[int] = None,
+        openLines: Optional[int] = None,
+        folder: str = "",
+        filename: str = "mesh",
     ) -> None:
         """Generates the mesh with the available created entities.
 

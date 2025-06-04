@@ -53,7 +53,7 @@ class Points(_Geom):
 
         Points.__nbPoints += 1
         name = f"Points{Points.__nbPoints}"
-        super().__init__(points, meshSize, name, isHollow, isOpen)
+        super().__init__(points, meshSize, name, isHollow, isOpen)  # type: ignore
 
     def Get_Contour(self):
         """Creates a contour from the points.\n
@@ -66,7 +66,7 @@ class Points(_Geom):
         # TODO Allows the addition of chamfers?
 
         # Get corners
-        corners: list[_Geom] = []
+        corners: list[Union[_Geom, Point]] = []
         geoms: list[_Geom] = []
 
         def Link(idx1: int, idx2: int):
@@ -74,17 +74,17 @@ class Points(_Geom):
 
             # get the last point associated with idx1
             if isinstance(corners[idx1], Point):
-                p1 = corners[idx1]
+                p1 = AsPoint(corners[idx1])
             else:
                 # get the last coordinates
-                p1 = corners[idx1].points[-1]
+                p1 = AsPoint(corners[idx1].points[-1])  # type: ignore
 
             # get the first point associated with idx2
             if isinstance(corners[idx2], Point):
-                p2 = corners[idx2]
+                p2 = AsPoint(corners[idx2])
             else:
                 # get the first coordinates
-                p2 = corners[idx2].points[0]
+                p2 = AsPoint(corners[idx2].points[0])  # type: ignore
 
             if not p1.Check(p2):
                 line = Line(p1, p2, mS, self.isOpen)
