@@ -4,8 +4,25 @@
 
 from typing import Union, Iterable, Any
 import numpy as np
+from numpy.typing import NDArray
+
+# --------------------------------------------------------------------------------------
+# Numbers
+# --------------------------------------------------------------------------------------
 
 Number = Union[int, float]
 Numbers = Iterable[Number]
 
-ArrayOrNone = Union[np.ndarray[Any, np.dtype[Any]], None]
+# --------------------------------------------------------------------------------------
+# Array
+# --------------------------------------------------------------------------------------
+
+FloatArray = NDArray[np.float64]
+
+IntArray = NDArray[np.int64]
+
+NumberArray = Union[FloatArray, IntArray]
+
+AnyArray = NDArray[Any]
+
+AnyArrayOrNone = Union[AnyArray, None]
