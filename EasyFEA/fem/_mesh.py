@@ -727,7 +727,7 @@ class Mesh(Observable):
         if corners.ndim == 1:
             # corners are nodes
             # corners become the corners coordinates
-            corners: np.ndarray = self.coordGlob[corners]
+            corners = self.coordGlob[corners]
 
         nCorners = len(corners)  # number of corners
         nEdges = nCorners // 2  # number of edges
@@ -768,7 +768,7 @@ class Mesh(Observable):
 
             # sort the nodes along the lines and
             # remove the first and the last nodes with [1:-1]
-            nodes: np.ndarray = nodes[np.argsort(scalarProduct[nodes])][1:-1]
+            nodes = nodes[np.argsort(scalarProduct[nodes])][1:-1]
 
             if c + 1 > nEdges:
                 # reverses the nodes order
@@ -810,7 +810,7 @@ class Mesh(Observable):
                         lines[:, :, 2],
                         label=f"edges{edge}",
                     )
-                    ax.add_collection3d(
+                    ax.add_collection3d(  # type: ignore
                         Display.Line3DCollection(lines, edgecolor=pc.get_edgecolor())
                     )
                 else:
@@ -818,7 +818,7 @@ class Mesh(Observable):
                         lines[:, :, 0], lines[:, :, 1], label=f"edges{edge}"
                     )
                     ax.add_collection(
-                        Display.LineCollection(lines, edgecolor=pc.get_edgecolor())
+                        Display.LineCollection(lines, edgecolor=pc.get_edgecolor())  # type: ignore
                     )
 
             ax.legend()
@@ -848,7 +848,9 @@ class Mesh(Observable):
         else:
             return h_e_s
 
-    def Get_Quality(self, criteria: str = "aspect", nodeValues=False) -> np.ndarray:
+    def Get_Quality(
+        self, criteria: str = "aspect", nodeValues=False
+    ) -> Optional[np.ndarray]:
         """Calculates mesh quality [0, 1] (bad, good).
 
         Parameters
@@ -865,7 +867,7 @@ class Mesh(Observable):
 
         Returns
         -------
-        np.ndarray
+        np.ndarray | None
             mesh quality
         """
 

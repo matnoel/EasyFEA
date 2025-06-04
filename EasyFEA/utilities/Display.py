@@ -331,10 +331,10 @@ def Plot_Mesh(
     facecolors="c",
     edgecolor="black",
     lw=0.5,
-    ax: plt.Axes = None,
+    ax: Optional[_types.Axes] = None,
     folder="",
     title="",
-) -> plt.Axes:
+) -> _types.Axes:
     """Plots the mesh.
 
     Parameters
@@ -360,7 +360,7 @@ def Plot_Mesh(
 
     Returns
     -------
-    plt.Axes
+    _types.Axes
     """
 
     tic = Tic()
@@ -512,7 +512,7 @@ def Plot_Mesh(
 
 def Plot_Nodes(
     obj,
-    nodes: _types.IntArray = None,
+    nodes: Optional[_types.IntArray] = None,
     showId=False,
     marker=".",
     c="red",
