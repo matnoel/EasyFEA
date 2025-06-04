@@ -17,6 +17,8 @@ Numbers = Iterable[Number]
 # Array
 # --------------------------------------------------------------------------------------
 
+StrArray = NDArray[np.str_]
+
 FloatArray = NDArray[np.float64]
 
 IntArray = NDArray[np.int64]
