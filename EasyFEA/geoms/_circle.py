@@ -5,6 +5,7 @@
 """Module containing the Circle and CircleArc classes."""
 
 import numpy as np
+from typing import Union
 
 from ._utils import (
     Point,
@@ -17,7 +18,7 @@ from ._utils import (
     Circle_Coords,
 )
 from ._geom import _Geom
-from ..utilities import _params
+from ..utilities import _params, _types
 
 
 class Circle(_Geom):
@@ -100,7 +101,7 @@ class Circle(_Geom):
         """circle's diameter"""
         p1 = self.pt1.coord
         pC = self.center.coord
-        return np.linalg.norm(p1 - pC) * 2
+        return np.linalg.norm(p1 - pC).astype(float) * 2
 
     @property
     def n(self) -> np.ndarray:
@@ -171,17 +172,19 @@ class CircleArc(_Geom):
 
     __nbCircleArc = 0
 
+    CircleOrNone = Union[Circle, None]
+
     def __init__(
         self,
         pt1: Point,
         pt2: Point,
-        center: Point = None,
-        R: float = None,
-        P: Point = None,
-        meshSize=0.0,
-        n=(0, 0, 1),
-        isOpen=False,
-        coef=1,
+        center: Union[Point, None] = None,
+        R: _types.NumberOrNone = None,
+        P: _types.CoordsOrNone = None,
+        meshSize: _types.Number = 0.0,
+        n: _types.Coords = (0, 0, 1),
+        isOpen: bool = False,
+        coef: int = 1,
     ):
         """Creates a circular arc using several methods:\n
         - 1: with 2 points, a radius R and a normal vector.\n
@@ -196,15 +199,15 @@ class CircleArc(_Geom):
             starting point
         pt2: Point
             ending point
-        R: float, optional
+        R: _types.NumberOrNone, optional
             radius of the arc circle, by default None
         center: Point, optional
             center of circular arc, by default None
-        P: Point, optional
+        P: _types.CoordsOrNone, optional
             a point belonging to the circle, by default None
-        meshSize : float, optional
+        meshSize : _types.Number, optional
             size to be used for mesh construction, by default 0.0
-        n: np.ndarray | list | tuple, optional
+        n: _types.Coords, optional
             normal vector to the arc circle, by default (0,0,1)
         isOpen : bool, optional
             arc can be opened, by default False
@@ -223,13 +226,11 @@ class CircleArc(_Geom):
             assert not pt1.Check(center), "pt1 and center are on the same coordinates"
 
         elif P != None:
-            center = Circle_Triangle(pt1, pt2, P)
-            center = Point(*center)
+            center = Point(*Circle_Triangle(pt1, pt2, P))
 
         elif R != None:
             coord = np.array([pt1.coord, pt2.coord])
-            center = Circle_Coords(coord, R, n)
-            center = Point(*center)
+            center = Point(*Circle_Coords(coord, R, n))
         else:
             raise Exception("must give P, center or R")
 

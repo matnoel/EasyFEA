@@ -12,6 +12,9 @@ import matplotlib.pyplot as plt
 
 from ._utils import Point, Rotate, Symmetry
 
+from typing import Union
+from ..utilities import _types
+
 
 class _Geom(ABC):
 
@@ -68,11 +71,11 @@ class _Geom(ABC):
         return self.__points
 
     @property
-    def coord(self) -> np.ndarray:
-        return np.asarray([p.coord for p in self.points])
+    def coord(self) -> _types.FloatArray:
+        return np.asarray([p.coord for p in self.points], dtype=float)
 
     @abstractmethod
-    def Get_coord_for_plot(self) -> tuple[np.ndarray, np.ndarray]:
+    def Get_coord_for_plot(self) -> tuple[_types.FloatArray, _types.FloatArray]:
         """Returns coordinates for constructing lines and points."""
         lines = self.coord
         points = lines[[0, -1]]
@@ -116,7 +119,7 @@ class _Geom(ABC):
     def Translate(self, dx: float = 0.0, dy: float = 0.0, dz: float = 0.0) -> None:
         """Translates the object."""
         # to translate an object, all you have to do is move these points
-        [p.Translate(dx, dy, dz) for p in self.__points]
+        [p.Translate(dx, dy, dz) for p in self.__points]  # type: ignore
 
     def Rotate(
         self, theta: float, center: tuple = (0, 0, 0), direction: tuple = (0, 0, 1)
@@ -136,7 +139,7 @@ class _Geom(ABC):
         newCoord = Rotate(oldCoord, theta, center, direction)
 
         dec = newCoord - oldCoord
-        [point.Translate(*dec[p]) for p, point in enumerate(self.points)]
+        [point.Translate(*dec[p]) for p, point in enumerate(self.points)]  # type: ignore
 
     def Symmetry(self, point=(0, 0, 0), n=(1, 0, 0)) -> None:
         """Symmetrizes the object coordinates with a plane.
@@ -153,17 +156,17 @@ class _Geom(ABC):
         newCoord = Symmetry(oldCoord, point, n)
 
         dec = newCoord - oldCoord
-        [point.Translate(*dec[p]) for p, point in enumerate(self.points)]
+        [point.Translate(*dec[p]) for p, point in enumerate(self.points)]  # type: ignore
 
     def Plot(
         self,
-        ax: plt.Axes = None,
+        ax: _types.AxesOrNone = None,
         color: str = "",
         name: str = "",
-        lw=None,
-        ls=None,
-        plotPoints=True,
-    ) -> plt.Axes:
+        lw: _types.NumberOrNone = None,
+        ls: _types.StrOrNone = None,
+        plotPoints: bool = True,
+    ) -> _types.Axes:
 
         from ..utilities.Display import Init_Axes, _Axis_equal_3D
 
@@ -183,7 +186,7 @@ class _Geom(ABC):
             ax.plot(*points[:, :inDim].T, ls="", marker=".", c="black")
 
         if inDim == 3:
-            xlim, ylim, zlim = ax.get_xlim(), ax.get_ylim(), ax.get_zlim()
+            xlim, ylim, zlim = ax.get_xlim(), ax.get_ylim(), ax.get_zlim()  # type: ignore
             oldBounds = np.array([xlim, ylim, zlim]).T
             lines = np.concatenate((lines, oldBounds), 0)
             _Axis_equal_3D(ax, lines)
@@ -194,14 +197,13 @@ class _Geom(ABC):
 
     @staticmethod
     def Plot_Geoms(
-        geoms: list,
-        ax: plt.Axes = None,
+        geoms: list["_Geom"],
+        ax: _types.AxesOrNone = None,
         color: str = "",
         name: str = "",
-        plotPoints=True,
-        plotLegend=True,
-    ) -> plt.Axes:
-        geoms: list[_Geom] = geoms
+        plotPoints: bool = True,
+        plotLegend: bool = True,
+    ) -> _types.Axes:
         for g, geom in enumerate(geoms):
             if isinstance(geom, Point):
                 continue
@@ -211,6 +213,6 @@ class _Geom(ABC):
                 geom.Plot(ax, color, name, plotPoints=plotPoints)
 
         if plotLegend:
-            ax.legend()
+            ax.legend()  # type: ignore
 
         return ax

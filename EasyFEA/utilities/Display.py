@@ -21,6 +21,7 @@ import matplotlib.animation as animation
 
 # utilities
 from . import Folder, Tic
+from . import _types
 
 # simulations
 from ..simulations._simu import _Init_obj, _Get_values
@@ -1469,7 +1470,7 @@ def _Remove_colorbar(ax: plt.Axes) -> None:
     ]
 
 
-def Init_Axes(dim: int = 2, elev=105, azim=-90) -> Union[plt.Axes, Axes3D]:
+def Init_Axes(dim: int = 2, elev=105, azim=-90) -> _types.Axes:
     """Initialize 2d or 3d axes."""
     if dim == 1 or dim == 2:
         ax = plt.subplots()[1]

@@ -3,15 +3,30 @@
 # EasyFEA is distributed under the terms of the GNU General Public License v3 or later, see LICENSE.txt and CREDITS.md for more information.
 
 from typing import Union, Iterable, Any
+
 import numpy as np
 from numpy.typing import NDArray
+
+import matplotlib.pyplot as plt
+from mpl_toolkits.mplot3d import Axes3D  # type: ignore
 
 # --------------------------------------------------------------------------------------
 # Numbers
 # --------------------------------------------------------------------------------------
 
 Number = Union[int, float]
+NumberOrNone = Union[Number, None]
+
 Numbers = Iterable[Number]
+
+StrOrNone = Union[str, None]
+
+# --------------------------------------------------------------------------------------
+# Matplotlib
+# --------------------------------------------------------------------------------------
+
+Axes = Union[plt.Axes, Axes3D]
+AxesOrNone = Union[Axes, None]
 
 # --------------------------------------------------------------------------------------
 # Array
@@ -28,3 +43,10 @@ NumberArray = Union[FloatArray, IntArray]
 AnyArray = NDArray[Any]
 
 AnyArrayOrNone = Union[AnyArray, None]
+
+# --------------------------------------------------------------------------------------
+# Mesh
+# --------------------------------------------------------------------------------------
+
+Coords = Union[NumberArray, Numbers]
+CoordsOrNone = Union[Coords, None]

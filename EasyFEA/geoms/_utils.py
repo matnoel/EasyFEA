@@ -363,7 +363,7 @@ def Circle_Triangle(p1, p2, p3) -> _types.FloatArray:
 
 
 def Circle_Coords(
-    coord: _types.AnyArray, R: float, n: _types.AnyArray
+    coord: _types.AnyArray, R: float, n: _types.Coords
 ) -> _types.FloatArray:
     """Returns center from coordinates a radius and and a vector normal to the circle.\n
     return center

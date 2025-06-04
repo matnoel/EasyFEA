@@ -12,20 +12,29 @@ from ._geom import _Geom
 from ._line import Line
 from ._circle import CircleArc
 
+from typing import Union
+from ..utilities import _types
+
 
 class Points(_Geom):
 
     __nbPoints = 0
 
-    def __init__(self, points: list[Point], meshSize=0.0, isHollow=True, isOpen=False):
+    def __init__(
+        self,
+        points: list[Union[Point, _types.Coords]],
+        meshSize: _types.Number = 0.0,
+        isHollow: bool = True,
+        isOpen: bool = False,
+    ):
         """Creates points (list of point).\n
         Can be used to construct a closed surface or a spline.
 
         Parameters
         ----------
-        points : list[Point]
+        points : list[Union[Point, _types.Coords]]
             list of points
-        meshSize : float, optional
+        meshSize : _types.Number, optional
             mesh size that will be used to create the mesh >= 0, by default 0.0
         isHollow : bool, optional
             the formed domain is hollow/empty, by default True
@@ -33,7 +42,7 @@ class Points(_Geom):
             the spline formed by the points list can be opened (openCrack), by default False
         """
 
-        assert isinstance(points, Iterable), "points must be a list of points."
+        assert isinstance(points, Iterable), "points must be Iterable."
 
         points = [AsPoint(point) for point in points]
 
