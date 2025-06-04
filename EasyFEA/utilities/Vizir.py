@@ -144,7 +144,7 @@ def __Write_HOSolAt_Solution(
     connect: np.ndarray,
     values_n: np.ndarray,
     types: list[int],
-    resultOrder: int,
+    order: int,
 ) -> None:
 
     # get groupElem informations
@@ -153,7 +153,7 @@ def __Write_HOSolAt_Solution(
         isinstance(connect, np.ndarray) and connect.ndim == 2 and connect.shape[0] == Ne
     ), "connect must be a (Ne, nPe) array"
     nPe = connect.shape[1]
-    if groupElem.order != resultOrder:
+    if groupElem.order != order:
         assert nPe != groupElem.nPe
 
     # get values_n informations
@@ -170,9 +170,9 @@ def __Write_HOSolAt_Solution(
 
     # write solution
     keyword = __Get_vizir_HOSolAt_key(groupElem)
-    file.write(f"\n{keyword}{resultOrder}\n{Ne}\n")
+    file.write(f"\n{keyword}{order}\n{Ne}\n")
     file.write(f"{len(types)} {' '.join([str(type) for type in types])}\n")
-    file.write(f"{resultOrder} {nPe}\n")
+    file.write(f"{order} {nPe}\n")
 
     # write solution array
     np.savetxt(file, values_e)
@@ -186,7 +186,7 @@ def __Write_sol_file(
     dict_groupElem: dict[_GroupElem, np.ndarray],
     values_n: np.ndarray,
     types: list[int],
-    resultOrder: int,
+    order: int,
     folder: str,
     filename: str,
 ) -> str:
@@ -204,9 +204,7 @@ def __Write_sol_file(
 
             __Write_HOSolAt_Element(f, groupElem)
 
-            __Write_HOSolAt_Solution(
-                f, groupElem, connect, values_n, types, resultOrder
-            )
+            __Write_HOSolAt_Solution(f, groupElem, connect, values_n, types, order)
 
         f.write("End\n")
 
@@ -248,6 +246,7 @@ def Save_simu(
         types,
         mesh.groupElem.order,
         folder,
+        "result",
         N,
     )
 
@@ -260,13 +259,14 @@ def Save_sols(
     dict_groupElem: dict[_GroupElem, np.ndarray],
     results_per_iteration: list[list[np.ndarray]],
     types: list[int],
-    resultOrder: int,
+    order: int,
     folder: str,
+    filename: str = "result",
     N: int = None,
 ) -> str:
 
     # .sols and .movie files
-    sols_file = open(Folder.Join(folder, f"vizir.sols", mkdir=True), "w")
+    sols_file = open(Folder.Join(folder, f"{filename}.sols", mkdir=True), "w")
 
     for type in types:
         assert type in SOLUTION_TYPES, f"{type} is not in {SOLUTION_TYPES}"
@@ -288,12 +288,7 @@ def Save_sols(
 
         # save the solution
         solution_file = __Write_sol_file(
-            dict_groupElem,
-            values_n,
-            types,
-            resultOrder,
-            folder,
-            f"solution.{iteration}",
+            dict_groupElem, values_n, types, order, folder, f"solution.{iteration}"
         )
 
         sols_file.write(f"{solution_file}\n")
@@ -302,9 +297,7 @@ def Save_sols(
 
         rmTime = Tic.Get_Remaining_Time(iteration, Niter - 1, time)
 
-        Display.MyPrint(
-            f"Save_sols {iteration}/{Niter-iteration} {rmTime}    ", end="\r"
-        )
+        Display.MyPrint(f"Save_sols {iteration}/{Niter} {rmTime}    ", end="\r")
 
     sols_file.close()
 
