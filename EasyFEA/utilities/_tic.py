@@ -104,7 +104,7 @@ class Tic:
             histCategory = np.array(
                 np.array(Tic.__History[categorie])[:, 1], dtype=np.float64
             )
-            timesCategory = np.sum(histCategory)
+            timesCategory = np.sum(histCategory).astype(float)
             timesCategory, unite = Tic.Get_time_unity(timesCategory)
             resumeCategory = f"{categorie} : {timesCategory:.3f} {unite}"
             if verbosity:
@@ -115,7 +115,7 @@ class Tic:
 
     @staticmethod
     def __plotBar(
-        ax: plt.Axes, categories: list, times: list, reps: int, title: str
+        ax: plt.Axes, categories: list, times: list, reps: list[int], title: str
     ) -> None:
 
         # Axis parameters
@@ -126,7 +126,7 @@ class Tic:
         ax.spines["right"].set_visible(False)
         ax.spines["top"].set_visible(False)
         ax.spines["bottom"].set_visible(False)
-        ax.spines["left"].set_lw(1.5)
+        ax.spines["left"].set_linewidth(1.5)
 
         ax.grid(axis="x", lw=1.2)
 
@@ -193,7 +193,7 @@ class Tic:
 
         historique = Tic.__History
         totalTime = []
-        categories = list(historique.keys())
+        categories: list[str] = list(historique.keys())
 
         # recovers the time for each category
         tempsCategorie = [
@@ -201,7 +201,7 @@ class Tic:
             for c in categories
         ]
 
-        categories = np.array(categories)[np.argsort(tempsCategorie)][::-1]
+        categories = np.asarray(categories)[np.argsort(tempsCategorie)][::-1].tolist()
 
         for i, c in enumerate(categories):
 
