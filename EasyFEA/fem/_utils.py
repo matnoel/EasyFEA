@@ -4,9 +4,9 @@
 
 from enum import Enum
 import numpy as np
-from typing import Union, Any
 
-from ..utilities._types import ArrayOrNone, Number
+from typing import Union
+from ..utilities import _types
 
 
 class ElemType(str, Enum):
@@ -93,7 +93,7 @@ class MatrixType(str, Enum):
         return [MatrixType.rigi, MatrixType.mass, MatrixType.beam]
 
 
-class FeArray(np.ndarray):
+class FeArray(_types.AnyArray):
     """Finite Element array.\n
     A finite element array has at least two dimensions.
     """
@@ -106,7 +106,7 @@ class FeArray(np.ndarray):
             raise ValueError("The input array must have at least 2 dimensions.")
         return obj
 
-    def __array_finalize__(self, obj: ArrayOrNone):
+    def __array_finalize__(self, obj: _types.AnyArrayOrNone):
         # This method is automatically called when new instances are created.
         # It can be used to initialize additional attributes if necessary.
         if obj is None:
@@ -151,7 +151,7 @@ class FeArray(np.ndarray):
         else:
             raise ValueError("wrong dimension")
 
-    def __get_array1_array2(self, other) -> tuple[np.ndarray, np.ndarray]:
+    def __get_array1_array2(self, other) -> tuple[_types.AnyArray, _types.AnyArray]:
 
         array1 = np.asarray(self)
         ndim1 = self._ndim
@@ -189,32 +189,32 @@ class FeArray(np.ndarray):
 
         return array1, array2
 
-    def __add__(self, other) -> Union["FeArray", np.ndarray]:
+    def __add__(self, other) -> Union["FeArray", _types.AnyArray]:
         # Overload the + operator
         array1, array2 = self.__get_array1_array2(other)
         result = array1 + array2
         return FeArray.asfearray(result)
 
-    def __sub__(self, other) -> Union["FeArray", np.ndarray]:  # type: ignore
+    def __sub__(self, other) -> Union["FeArray", _types.AnyArray]:  # type: ignore
         # Overload the - operator
         array1, array2 = self.__get_array1_array2(other)
         result = array1 - array2
         return FeArray.asfearray(result)
 
-    def __mul__(self, other) -> Union["FeArray", np.ndarray]:
+    def __mul__(self, other) -> Union["FeArray", _types.AnyArray]:
         # Overload the * operator
         array1, array2 = self.__get_array1_array2(other)
         result = array1 * array2
         return FeArray.asfearray(result)
 
-    def __truediv__(self, other) -> Union["FeArray", np.ndarray]:  # type: ignore
+    def __truediv__(self, other) -> Union["FeArray", _types.AnyArray]:  # type: ignore
         # Overload the / operator
         array1, array2 = self.__get_array1_array2(other)
         result = array1 / array2
         return FeArray.asfearray(result)
 
     @property
-    def T(self) -> Union["FeArray", np.ndarray]:  # type: ignore
+    def T(self) -> Union["FeArray", _types.AnyArray]:  # type: ignore
         if self._ndim >= 2:
             idx = self._idx
             subscripts = f"...{idx}->...{idx[::-1]}"
@@ -223,16 +223,16 @@ class FeArray(np.ndarray):
         else:
             return self.copy()
 
-    def __matmul__(self, other) -> Union["FeArray", np.ndarray]:
+    def __matmul__(self, other) -> Union["FeArray", _types.AnyArray]:
 
         ndim1 = self._ndim
 
         if isinstance(other, FeArray):
             ndim2 = other._ndim
-        elif isinstance(other, np.ndarray):
+        elif isinstance(other, _types.AnyArray):
             ndim2 = other.ndim
         else:
-            raise TypeError("`other` must be either a FeArray or np.ndarray")
+            raise TypeError("`other` must be either a FeArray or _types.AnyArray")
 
         if ndim1 == ndim2 == 1:
             result = np.vecdot(self, other)
@@ -247,7 +247,7 @@ class FeArray(np.ndarray):
 
         return FeArray.asfearray(result)
 
-    def dot(self, other) -> Union["FeArray", np.ndarray]:  # type: ignore
+    def dot(self, other) -> Union["FeArray", _types.AnyArray]:  # type: ignore
 
         ndim1 = self._ndim
         if ndim1 == 0:
@@ -258,11 +258,11 @@ class FeArray(np.ndarray):
         if isinstance(other, FeArray):
             idx2 = other._idx
             ndim2 = other._ndim
-        elif isinstance(other, np.ndarray):
+        elif isinstance(other, _types.AnyArray):
             idx2 = "".join([chr(ord(idx1[0]) + i) for i in range(other.ndim)])
             ndim2 = other.ndim
         else:
-            raise TypeError("`other` must be either a FeArray or np.ndarray")
+            raise TypeError("`other` must be either a FeArray or _types.AnyArray")
         idx2 = "".join([chr(ord(val) + ndim1 - 1) for val in idx2])
 
         if ndim2 == 0:
@@ -277,7 +277,7 @@ class FeArray(np.ndarray):
 
         return FeArray.asfearray(result)
 
-    def ddot(self, other) -> Union["FeArray", np.ndarray]:
+    def ddot(self, other) -> Union["FeArray", _types.AnyArray]:
 
         ndim1 = self._ndim
         if ndim1 < 2:
@@ -290,11 +290,11 @@ class FeArray(np.ndarray):
         if isinstance(other, FeArray):
             idx2 = other._idx
             ndim2 = other._ndim
-        elif isinstance(other, np.ndarray):
+        elif isinstance(other, _types.AnyArray):
             idx2 = "".join([chr(ord(idx1[0]) + i) for i in range(other.ndim)])
             ndim2 = other.ndim
         else:
-            raise TypeError("`other` must be either a FeArray or np.ndarray")
+            raise TypeError("`other` must be either a FeArray or _types.AnyArray")
         if ndim2 < 2:
             raise ValueError(
                 "`other` must be at least a finite element matrix (Ne, nPg, i, j)."
@@ -309,25 +309,25 @@ class FeArray(np.ndarray):
 
         return FeArray.asfearray(result)
 
-    def sum(self, *args, **kwargs) -> Union["FeArray", np.ndarray]:  # type: ignore
+    def sum(self, *args, **kwargs) -> Union["FeArray", _types.AnyArray]:  # type: ignore
         """`np.sum()` wrapper."""
         return FeArray.asfearray(super().sum(*args, **kwargs))
 
-    def max(self, *args, **kwargs) -> Union["FeArray", np.ndarray]:  # type: ignore
+    def max(self, *args, **kwargs) -> Union["FeArray", _types.AnyArray]:  # type: ignore
         """`np.max()` wrapper."""
         return FeArray.asfearray(super().max(*args, **kwargs))
 
-    def min(self, *args, **kwargs) -> Union["FeArray", np.ndarray]:  # type: ignore
+    def min(self, *args, **kwargs) -> Union["FeArray", _types.AnyArray]:  # type: ignore
         """`np.min()` wrapper."""
         return FeArray.asfearray(super().min(*args, **kwargs))
 
-    def _get_idx(self, *arrays) -> list[np.ndarray]:
+    def _get_idx(self, *arrays) -> list[_types.AnyArray]:
 
         ndim = len(arrays) + 2
 
         Ne, nPg = self.shape[:2]
 
-        def get_shape(i: int, array: np.ndarray):
+        def get_shape(i: int, array: _types.AnyArray):
             shape = np.ones(ndim, dtype=int)
             shape[i] = array.size
             return np.reshape(array, shape)
@@ -339,14 +339,14 @@ class FeArray(np.ndarray):
 
         return idx
 
-    def _assemble(self, *arrays, value: Union["FeArray", np.ndarray]):
+    def _assemble(self, *arrays, value: Union["FeArray", _types.AnyArray]):
 
         idx = self._get_idx(*arrays)
 
         self[*idx] = value
 
     @staticmethod
-    def asfearray(array, broadcastFeArrays=False) -> Union["FeArray", np.ndarray]:
+    def asfearray(array, broadcastFeArrays=False) -> Union["FeArray", _types.AnyArray]:
         array = np.asarray(array)
         if broadcastFeArrays:
             return FeArray(array, broadcastFeArrays=broadcastFeArrays)
@@ -357,16 +357,16 @@ class FeArray(np.ndarray):
 
     def _asfearrays(
         *arrays, broadcastFeArrays=False
-    ) -> list[Union["FeArray", np.ndarray]]:
+    ) -> list[Union["FeArray", _types.AnyArray]]:
         return [
             FeArray.asfearray(array, broadcastFeArrays=broadcastFeArrays)
             for array in arrays
         ]
 
     @staticmethod
-    def zeros(*shape, dtype=None) -> Union["FeArray", np.ndarray]:
+    def zeros(*shape, dtype=None) -> Union["FeArray", _types.AnyArray]:
         return FeArray.asfearray(np.zeros(shape=shape, dtype=dtype))
 
     @staticmethod
-    def ones(*shape, dtype=None) -> Union["FeArray", np.ndarray]:
+    def ones(*shape, dtype=None) -> Union["FeArray", _types.AnyArray]:
         return FeArray.asfearray(np.ones(shape=shape, dtype=dtype))
