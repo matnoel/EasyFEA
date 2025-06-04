@@ -4,8 +4,11 @@
 
 import numpy as np
 import copy
-from scipy.optimize import minimize
+from scipy.optimize import minimize  # type: ignore
 from collections.abc import Iterable
+
+
+from ..utilities._types import Number, Numbers, Union
 
 
 class Point:
@@ -92,10 +95,10 @@ class Point:
     def Check(self, coord) -> bool:
         """Checks if coordinates are identical"""
         coord = AsCoords(coord)
-        n = np.linalg.norm(self.coord)
-        n = 1 if n == 0 else n
+        n = np.linalg.norm(self.coord).astype(float)
+        n = 1.0 if n == 0.0 else n
         diff = np.linalg.norm(self.coord - coord) / n
-        return diff <= 1e-12
+        return diff.astype(float) <= 1e-12
 
     def Translate(self, dx: float = 0.0, dy: float = 0.0, dz: float = 0.0) -> None:
         """Translates the point."""
@@ -184,7 +187,9 @@ def AsPoint(coords) -> Point:
         raise TypeError("coords must be a Point or an Iterable")
 
 
-def AsCoords(value) -> np.ndarray:
+def AsCoords(
+    value: Union[Point, Number, Numbers],
+) -> np.ndarray[float]:
     """Returns value as a 3D vector"""
     if isinstance(value, Point):
         coords = value.coord
