@@ -64,11 +64,12 @@ class _GroupElem(ABC):
         self.__nPe = nPe
         self.__dim = dim
         self.__order = order
-        self.__nbFaces = nbFaces
-        self.__nbCorners = nbCorners
+        self.__Nface = nbFaces
+        self.__Nvertex = nbCorners
 
         # Elements
         self.__connect = connect
+        self.__connect_n_e: sparse.csr_matrix = None
 
         # Nodes
         self.__nodes = nodes
@@ -180,14 +181,14 @@ class _GroupElem(ABC):
             self._InitMatrix()
 
     @property
-    def nbFaces(self) -> int:
+    def Nface(self) -> int:
         """number of faces per element"""
-        return self.__nbFaces
+        return self.__Nface
 
     @property
-    def nbCorners(self) -> int:
-        """number of corners per element"""
-        return self.__nbCorners
+    def Nvertex(self) -> int:
+        """number of vertices/corners per element"""
+        return self.__Nvertex
 
     @property
     def connect(self) -> np.ndarray:
@@ -204,16 +205,24 @@ class _GroupElem(ABC):
         # where connecNoeud(Nn,:) is a row vector composed of 0 and 1, which will be used to sum values_e[nodes].
         # Then just divide by the number of times the node appears in the line
 
-        Ne = self.Ne
-        nPe = self.nPe
-        elems = self.elements
+        if self.__connect_n_e is None:
 
-        lines = self.connect.ravel()
+            Ne = self.Ne
+            nPe = self.nPe
+            elems = self.elements
 
-        Nn = lines.max() + 1  # Do not use either self.Nn or self.__coordGlob.shape[0].
-        columns = np.repeat(elems, nPe)
+            lines = self.connect.ravel()
 
-        return sparse.csr_matrix((np.ones(nPe * Ne), (lines, columns)), shape=(Nn, Ne))
+            Nn = (
+                lines.max() + 1
+            )  # Do not use either self.Nn or self.__coordGlob.shape[0].
+            columns = np.repeat(elems, nPe)
+
+            self.__connect_n_e = sparse.csr_matrix(
+                (np.ones(nPe * Ne), (lines, columns)), shape=(Nn, Ne)
+            )
+
+        return self.__connect_n_e.copy()
 
     @property
     def assembly_e(self) -> np.ndarray:
@@ -486,9 +495,9 @@ class _GroupElem(ABC):
         if self.__dim == 1:
             return np.array([[0, 1]], dtype=int)
         elif self.__dim == 2:
-            segments = np.zeros((self.nbCorners, 2), dtype=int)
-            segments[:, 0] = np.arange(self.nbCorners)
-            segments[:, 1] = np.append(np.arange(1, self.nbCorners, 1), 0)
+            segments = np.zeros((self.Nvertex, 2), dtype=int)
+            segments[:, 0] = np.arange(self.Nvertex)
+            segments[:, 1] = np.append(np.arange(1, self.Nvertex, 1), 0)
             return segments
         elif self.__dim == 3:
             raise Exception("To be defined for 3D element groups.")
@@ -498,6 +507,21 @@ class _GroupElem(ABC):
     def faces(self) -> list[int]:
         """list of indexes to form the faces that make up the element"""
         pass
+
+    def Get_interface(self) -> dict[list[int] : int]:
+
+        dict_interface: dict[list[int] : int] = {}
+
+        idx = self.Nvertex - 1
+        for seg in self.segments:
+            idx += 1
+            dict_interface[np.unique(seg).tolist()] = idx
+
+        for face in self.faces:
+            idx += 1
+            dict_interface[np.unique(face).tolist()] = idx
+
+        return dict_interface
 
     @abstractmethod
     def Get_Local_Coords(self) -> np.ndarray:
@@ -1913,7 +1937,7 @@ class _GroupElem(ABC):
         elif dim == 3:
 
             faces = self.faces
-            nbFaces = self.nbFaces
+            nbFaces = self.Nface
             coord = self.coord[self.__connect[elem]]
 
             if self.elemType is ElemType.PRISM6:
@@ -2212,7 +2236,7 @@ from .elems._prism import PRISM6, PRISM15, PRISM18
 class GroupElemFactory:
 
     DICT_GMSHID: dict[int, tuple[ElemType, int, int, int, int, int]] = {
-        #  key:            ElemType,   nPe, dim, order, nbFaces, nbCorners
+        #  key: ElemType, nPe, dim, order, Nface, Nvertex
         15: (ElemType.POINT, 1, 0, 0, 0, 0),
         1: (ElemType.SEG2, 2, 1, 1, 0, 2),
         8: (ElemType.SEG3, 3, 1, 2, 0, 2),
@@ -2237,16 +2261,16 @@ class GroupElemFactory:
         # 19:     (ElemType.PYRA13,   13,   3,     2,       5,         5),
         # 14:     (ElemType.PYRA14,   14,   3,     2,       5,         5),
     }
-    """gmshId: (ElemType, nPe, dim, order, nbFaces, nCorners)"""
+    """gmshId: (ElemType, nPe, dim, order, Nface, Nvertex)"""
 
     DICT_ELEMTYPE: dict[ElemType, tuple[int, int, int, int, int, int]] = {
         values[0]: (key, *values[1:]) for key, values in DICT_GMSHID.items()
     }
-    """ElemType: (gmshId, nPe, dim, order, nbFaces, nCorners)"""
+    """ElemType: (gmshId, nPe, dim, order, Nface, Nvertex)"""
 
     @staticmethod
     def Get_ElemInFos(gmshId: int) -> tuple[ElemType, int, int, int, int, int]:
-        """return elemType, nPe, dim, order, nbFaces, nbCorners\n
+        """return elemType, nPe, dim, order, Nface, Nvertex\n
         associated with the gmsh id.
         """
 

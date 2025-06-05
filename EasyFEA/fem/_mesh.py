@@ -878,11 +878,11 @@ class Mesh(Observable):
 
         if groupElem.dim == 2:
             # calculate the angle in each corners of 2d elements
-            angle_e_s = np.zeros((groupElem.Ne, groupElem.nbCorners), float)
+            angle_e_s = np.zeros((groupElem.Ne, groupElem.Nvertex), float)
 
-            for c in range(groupElem.nbCorners):
+            for c in range(groupElem.Nvertex):
 
-                next = c + 1 if c + 1 < groupElem.nbCorners else 0
+                next = c + 1 if c + 1 < groupElem.Nvertex else 0
                 prev = -1 if c == 0 else c - 1
 
                 p0_e = coordo[connect[:, c]]

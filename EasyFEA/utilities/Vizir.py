@@ -44,7 +44,7 @@ def _Get_BaryCentric_Coordinates(groupElem: _GroupElem) -> np.ndarray:
 
     elemType = groupElem.elemType
     local_coords = groupElem.Get_Local_Coords()
-    vertices_coords = local_coords[: groupElem.nbCorners]
+    vertices_coords = local_coords[: groupElem.Nvertex]
 
     if elemType.startswith("SEG"):
         coordinates = _Get_BaryCentric_Coordinates_In_Segment(
@@ -236,8 +236,8 @@ def Save_simu(
     mesh_file = MeshIO.EasyFEA_to_Medit(mesh, folder, f"mesh", useBinary=True)
 
     # get dict_groupElem
-    list_groupElem: list[_GroupElem] = [mesh.groupElem]
-    list_groupElem.extend(mesh.Get_list_groupElem(mesh.dim - 1))
+    list_groupElem = mesh.Get_list_groupElem(mesh.dim - 1)
+    list_groupElem.append(mesh.groupElem)
     dict_groupElem = {groupElem: groupElem.connect for groupElem in list_groupElem}
 
     sols_file = Save_sols(
@@ -278,6 +278,9 @@ def Save_sols(
     step = Niter // N
 
     tic = Tic()
+
+    # #9 Add names
+    # #9 Add wrap vector in vertices values
 
     # save meshes and solutions
     for iteration in np.arange(0, Niter, step):

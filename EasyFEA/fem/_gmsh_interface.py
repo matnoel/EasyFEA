@@ -2079,7 +2079,7 @@ class Mesher:
         mesh = simu.mesh
         Ne = mesh.Ne
         nbCorners = (
-            mesh.groupElem.nbCorners
+            mesh.groupElem.Nvertex
         )  # do this because it is not working for quadratic elements
         connect_e = mesh.connect[:, :nbCorners]
         elements_e = reshape(mesh.coord)

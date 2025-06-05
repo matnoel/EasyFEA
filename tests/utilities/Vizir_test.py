@@ -57,7 +57,7 @@ class TestVizir:
             groupElem = mesh.groupElem
             elemType = groupElem.elemType
             local_coords = groupElem.Get_Local_Coords()
-            vertices = local_coords[: groupElem.nbCorners]
+            vertices = local_coords[: groupElem.Nvertex]
 
             if elemType.startswith(("SEG", "TETRA", "TRI")):
 
