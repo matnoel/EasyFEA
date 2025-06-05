@@ -520,7 +520,7 @@ def Plot_Nodes(
     marker=".",
     c="red",
     ax: Optional[_types.Axes] = None,
-) -> plt.Axes:
+) -> _types.Axes:
     """Plots the mesh's nodes.
 
     Parameters
@@ -555,7 +555,7 @@ def Plot_Nodes(
     else:
         inDim = 3 if ax.name == "3d" else inDim
 
-    if len(nodes) == 0:
+    if nodes is None:
         nodes = mesh.nodes
     else:
         nodes = np.asarray(list(set(np.ravel(nodes))))
@@ -565,12 +565,12 @@ def Plot_Nodes(
     if inDim == 2:
         ax.plot(*coordo[nodes, :2].T, ls="", marker=marker, c=c, zorder=2.5)
         if showId:
-            [ax.text(*coordo[noeud, :2].T, str(noeud), c=c) for noeud in nodes]
+            [ax.text(*coordo[node, :2].T, str(node), c=c) for node in nodes]
         ax.axis("equal")
     elif inDim == 3:
         ax.plot(*coordo[nodes].T, ls="", marker=marker, c=c, zorder=2.5)
         if showId:
-            [ax.text(*coordo[noeud].T, str(noeud), c=c) for noeud in nodes]
+            [ax.text(*coordo[node].T, str(node), c=c) for node in nodes]
         _Axis_equal_3D(ax, coordo)
 
     tic.Tac("Display", "Plot_Nodes")
