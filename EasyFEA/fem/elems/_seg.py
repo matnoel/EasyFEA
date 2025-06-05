@@ -7,6 +7,7 @@
 import numpy as np
 
 from .._group_elems import _GroupElem
+from ...utilities import _types
 
 
 class SEG2(_GroupElem):
@@ -19,9 +20,9 @@ class SEG2(_GroupElem):
     def __init__(
         self,
         gmshId: int,
-        connect: np.ndarray,
-        coordoGlob: np.ndarray,
-        nodes: np.ndarray,
+        connect: _types.UIntArray,
+        coordoGlob: _types.FloatArray,
+        nodes: _types.UIntArray,
     ):
 
         super().__init__(gmshId, connect, coordoGlob, nodes)
@@ -43,7 +44,7 @@ class SEG2(_GroupElem):
         local_coords = np.array([list_x]).T
         return local_coords
 
-    def _N(self) -> np.ndarray:
+    def _N(self) -> _types.FloatArray:
 
         N1 = lambda r: -(r - 1) / 2
         N2 = lambda r: (r + 1) / 2
@@ -52,7 +53,7 @@ class SEG2(_GroupElem):
 
         return N
 
-    def _dN(self) -> np.ndarray:
+    def _dN(self) -> _types.FloatArray:
 
         dN1 = [lambda r: -1 / 2]
         dN2 = [lambda r: 1 / 2]
@@ -61,13 +62,13 @@ class SEG2(_GroupElem):
 
         return dN
 
-    def _ddN(self) -> np.ndarray:
+    def _ddN(self) -> _types.FloatArray:
         return super()._ddN()
 
-    def _dddN(self) -> np.ndarray:
+    def _dddN(self) -> _types.FloatArray:
         return super()._dddN()
 
-    def _ddddN(self) -> np.ndarray:
+    def _ddddN(self) -> _types.FloatArray:
         return super()._ddddN()
 
     def _EulerBernoulli_N(self) -> np.ndarray:
@@ -114,9 +115,9 @@ class SEG3(_GroupElem):
     def __init__(
         self,
         gmshId: int,
-        connect: np.ndarray,
-        coordoGlob: np.ndarray,
-        nodes: np.ndarray,
+        connect: _types.UIntArray,
+        coordoGlob: _types.FloatArray,
+        nodes: _types.UIntArray,
     ):
 
         super().__init__(gmshId, connect, coordoGlob, nodes)
@@ -138,7 +139,7 @@ class SEG3(_GroupElem):
         local_coords = np.array([list_x]).T
         return local_coords
 
-    def _N(self) -> np.ndarray:
+    def _N(self) -> _types.FloatArray:
 
         N1 = lambda r: r * (r - 1) / 2
         N2 = lambda r: r * (r + 1) / 2
@@ -148,7 +149,7 @@ class SEG3(_GroupElem):
 
         return N
 
-    def _dN(self) -> np.ndarray:
+    def _dN(self) -> _types.FloatArray:
 
         dN1 = [lambda r: r - 1 / 2]
         dN2 = [lambda r: r + 1 / 2]
@@ -158,7 +159,7 @@ class SEG3(_GroupElem):
 
         return dN
 
-    def _ddN(self) -> np.ndarray:
+    def _ddN(self) -> _types.FloatArray:
 
         ddN1 = [lambda r: 1]
         ddN2 = [lambda r: 1]
@@ -168,10 +169,10 @@ class SEG3(_GroupElem):
 
         return ddN
 
-    def _dddN(self) -> np.ndarray:
+    def _dddN(self) -> _types.FloatArray:
         return super()._dddN()
 
-    def _ddddN(self) -> np.ndarray:
+    def _ddddN(self) -> _types.FloatArray:
         return super()._ddddN()
 
     def _EulerBernoulli_N(self) -> np.ndarray:
@@ -278,9 +279,9 @@ class SEG4(_GroupElem):
     def __init__(
         self,
         gmshId: int,
-        connect: np.ndarray,
-        coordoGlob: np.ndarray,
-        nodes: np.ndarray,
+        connect: _types.UIntArray,
+        coordoGlob: _types.FloatArray,
+        nodes: _types.UIntArray,
     ):
 
         super().__init__(gmshId, connect, coordoGlob, nodes)
@@ -302,7 +303,7 @@ class SEG4(_GroupElem):
         local_coords = np.array([list_x]).T
         return local_coords
 
-    def _N(self) -> np.ndarray:
+    def _N(self) -> _types.FloatArray:
 
         N1 = lambda r: -9 * r**3 / 16 + 9 * r**2 / 16 + r / 16 - 1 / 16
         N2 = lambda r: 9 * r**3 / 16 + 9 * r**2 / 16 - r / 16 - 1 / 16
@@ -313,7 +314,7 @@ class SEG4(_GroupElem):
 
         return N
 
-    def _dN(self) -> np.ndarray:
+    def _dN(self) -> _types.FloatArray:
 
         dN1 = [lambda r: -27 * r**2 / 16 + 9 * r / 8 + 1 / 16]
         dN2 = [lambda r: 27 * r**2 / 16 + 9 * r / 8 - 1 / 16]
@@ -324,7 +325,7 @@ class SEG4(_GroupElem):
 
         return dN
 
-    def _ddN(self) -> np.ndarray:
+    def _ddN(self) -> _types.FloatArray:
 
         ddN1 = [lambda r: 9 / 8 - 27 * r / 8]
         ddN2 = [lambda r: 27 * r / 8 + 9 / 8]
@@ -335,7 +336,7 @@ class SEG4(_GroupElem):
 
         return ddN
 
-    def _dddN(self) -> np.ndarray:
+    def _dddN(self) -> _types.FloatArray:
 
         dddN1 = [lambda r: -27 / 8]
         dddN2 = [lambda r: 27 / 8]
@@ -346,7 +347,7 @@ class SEG4(_GroupElem):
 
         return dddN
 
-    def _ddddN(self) -> np.ndarray:
+    def _ddddN(self) -> _types.FloatArray:
         return super()._ddddN()
 
     def _EulerBernoulli_N(self) -> np.ndarray:
@@ -597,9 +598,9 @@ class SEG5(_GroupElem):
     def __init__(
         self,
         gmshId: int,
-        connect: np.ndarray,
-        coordoGlob: np.ndarray,
-        nodes: np.ndarray,
+        connect: _types.UIntArray,
+        coordoGlob: _types.FloatArray,
+        nodes: _types.UIntArray,
     ):
 
         super().__init__(gmshId, connect, coordoGlob, nodes)
@@ -621,7 +622,7 @@ class SEG5(_GroupElem):
         local_coords = np.array([list_x]).T
         return local_coords
 
-    def _N(self) -> np.ndarray:
+    def _N(self) -> _types.FloatArray:
 
         N1 = lambda r: 2 * r**4 / 3 - 2 * r**3 / 3 - r**2 / 6 + r / 6
         N2 = lambda r: 2 * r**4 / 3 + 2 * r**3 / 3 - r**2 / 6 - r / 6
@@ -633,7 +634,7 @@ class SEG5(_GroupElem):
 
         return N
 
-    def _dN(self) -> np.ndarray:
+    def _dN(self) -> _types.FloatArray:
 
         dN1 = [lambda r: 8 * r**3 / 3 - 2 * r**2 - r / 3 + 1 / 6]
         dN2 = [lambda r: 8 * r**3 / 3 + 2 * r**2 - r / 3 - 1 / 6]
@@ -645,7 +646,7 @@ class SEG5(_GroupElem):
 
         return dN
 
-    def _ddN(self) -> np.ndarray:
+    def _ddN(self) -> _types.FloatArray:
 
         ddN1 = [lambda r: 8 * r**2 - 4 * r - 1 / 3]
         ddN2 = [lambda r: 8 * r**2 + 4 * r - 1 / 3]
@@ -657,7 +658,7 @@ class SEG5(_GroupElem):
 
         return ddN
 
-    def _dddN(self) -> np.ndarray:
+    def _dddN(self) -> _types.FloatArray:
 
         dddN1 = [lambda r: 16 * r - 4]
         dddN2 = [lambda r: 16 * r + 4]
@@ -669,7 +670,7 @@ class SEG5(_GroupElem):
 
         return dddN
 
-    def _ddddN(self) -> np.ndarray:
+    def _ddddN(self) -> _types.FloatArray:
 
         ddddN1 = [lambda r: 16]
         ddddN2 = [lambda r: 16]

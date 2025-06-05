@@ -104,14 +104,14 @@ class Circle(_Geom):
         return np.linalg.norm(p1 - pC).astype(float) * 2
 
     @property
-    def n(self) -> np.ndarray:
+    def n(self) -> _types.Coords:
         """axis normal to the circle"""
         i = Normalize((self.pt1 - self.center).coord)
         j = Normalize((self.pt2 - self.center).coord)
-        n: np.ndarray = Normalize(np.cross(i, j))
+        n: _types.Coords = Normalize(np.cross(i, j))
         return n
 
-    def Get_coord_for_plot(self) -> tuple[np.ndarray, np.ndarray]:
+    def Get_coord_for_plot(self) -> tuple[_types.FloatArray, _types.FloatArray]:
 
         angle = np.linspace(0, np.pi * 2, 40)
 
@@ -278,7 +278,7 @@ class CircleArc(_Geom):
         )
 
     @property
-    def n(self) -> np.ndarray:
+    def n(self) -> _types.Coords:
         """axis normal to the circle arc"""
         i = Normalize((self.pt1 - self.center).coord)
         if self.angle in [0, np.pi]:

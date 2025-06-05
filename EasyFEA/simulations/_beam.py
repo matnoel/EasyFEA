@@ -7,7 +7,7 @@ import numpy as np
 from scipy import sparse
 
 # utilities
-from ..utilities import Display, Tic
+from ..utilities import Display, Tic, _types
 
 # fem
 from ..fem import Mesh, MatrixType, LagrangeCondition, FeArray
@@ -105,7 +105,7 @@ class BeamSimu(_Simu):
 
     def add_surfLoad(
         self,
-        nodes: np.ndarray,
+        nodes: _types.UIntArray,
         values: list,
         unknowns: list,
         problemType=None,
@@ -116,7 +116,7 @@ class BeamSimu(_Simu):
 
     def add_volumeLoad(
         self,
-        nodes: np.ndarray,
+        nodes: _types.UIntArray,
         values: list,
         unknowns: list,
         problemType=None,
@@ -125,12 +125,12 @@ class BeamSimu(_Simu):
         Display.MyPrintError("Volumetric loads cannot be applied in beam problems.")
         return
 
-    def add_connection_fixed(self, nodes: np.ndarray, description="Fixed"):
+    def add_connection_fixed(self, nodes: _types.UIntArray, description="Fixed"):
         """Adds a fixed connection.
 
         Parameters
         ----------
-        nodes : np.ndarray
+        nodes : _types.UIntArray
             nodes
         description : str, optional
             description, by default "Fixed"
@@ -150,13 +150,13 @@ class BeamSimu(_Simu):
         self.add_connection(nodes, unknowns, description)
 
     def add_connection_hinged(
-        self, nodes: np.ndarray, unknowns=[""], description="Hinged"
+        self, nodes: _types.UIntArray, unknowns=[""], description="Hinged"
     ):
         """Adds a hinged connection.
 
         Parameters
         ----------
-        nodes : np.ndarray
+        nodes : _types.UIntArray
             nodes
         unknowns : list, optional
             unknowns, by default ['']
@@ -184,12 +184,14 @@ class BeamSimu(_Simu):
 
         self.add_connection(nodes, unknowns, description)
 
-    def add_connection(self, nodes: np.ndarray, unknowns: list[str], description: str):
+    def add_connection(
+        self, nodes: _types.UIntArray, unknowns: list[str], description: str
+    ):
         """Connects beams together in the specified unknowns.
 
         Parameters
         ----------
-        nodes : np.ndarray
+        nodes : _types.UIntArray
             nodes
         unknowns : list[str]
             unknowns
@@ -537,7 +539,7 @@ class BeamSimu(_Simu):
             elif indices == "xy":
                 return -1
 
-    def _Calc_Epsilon_e_pg(self, sol: np.ndarray) -> FeArray:
+    def _Calc_Epsilon_e_pg(self, sol: _types.FloatArray) -> FeArray.FeArrayALike:
         """Construct deformations for each element and each Gauss point.\n
         a' denotes here da/dx \n
         1D -> [ux']\n
@@ -555,7 +557,9 @@ class BeamSimu(_Simu):
 
         return Epsilon_e_pg
 
-    def _Calc_InternalForces_e_pg(self, Epsilon_e_pg: np.ndarray) -> FeArray:
+    def _Calc_InternalForces_e_pg(
+        self, Epsilon_e_pg: FeArray.FeArrayALike
+    ) -> FeArray.FeArrayALike:
         """Calculation of internal forces.\n
         1D -> [N]\n
         2D -> [N, Mz]\n
@@ -579,7 +583,9 @@ class BeamSimu(_Simu):
 
         return forces_e_pg
 
-    def _Calc_Sigma_e_pg(self, Epsilon_e_pg: np.ndarray) -> FeArray:
+    def _Calc_Sigma_e_pg(
+        self, Epsilon_e_pg: FeArray.FeArrayALike
+    ) -> FeArray.FeArrayALike:
         """Calculates stresses from strains.\n
         1D -> [Sxx]\n
         2D -> [Sxx, Syy, Sxy]\n

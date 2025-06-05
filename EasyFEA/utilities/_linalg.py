@@ -10,7 +10,7 @@ from typing import Optional
 from ..utilities import _types
 
 
-def __CheckMat(mat: np.ndarray) -> None:
+def __CheckMat(mat: FeArray.FeArrayALike) -> None:
     assert (
         isinstance(mat, np.ndarray) and mat.ndim >= 2 and mat.shape[-2] == mat.shape[-1]
     ), "must be a (..., dim, dim) array"
@@ -18,10 +18,10 @@ def __CheckMat(mat: np.ndarray) -> None:
     assert dim > 0
 
 
-def Transpose(mat: np.ndarray) -> np.ndarray:
+def Transpose(mat: FeArray.FeArrayALike) -> FeArray.FeArrayALike:
     """Computes transpose(mat)"""
     assert isinstance(mat, np.ndarray) and mat.ndim >= 2
-    res = np.einsum("...ij->...ji", mat, optimize="optimal")
+    res: FeArray.FeArrayALike = np.einsum("...ij->...ji", mat, optimize="optimal")
 
     if isinstance(mat, FeArray):
         res = FeArray.asfearray(res)
@@ -29,11 +29,11 @@ def Transpose(mat: np.ndarray) -> np.ndarray:
     return res
 
 
-def Trace(mat: np.ndarray) -> np.ndarray:
+def Trace(mat: FeArray.FeArrayALike) -> FeArray.FeArrayALike:
     """Computes trace(mat)"""
     __CheckMat(mat)
     # same as np.trace(A, axis1=-2, axis2=-1)
-    res = np.einsum("...ii->...", mat, optimize="optimal")
+    res: FeArray.FeArrayALike = np.einsum("...ii->...", mat, optimize="optimal")
 
     if isinstance(mat, FeArray):
         res = FeArray.asfearray(res)
@@ -41,7 +41,7 @@ def Trace(mat: np.ndarray) -> np.ndarray:
     return res
 
 
-def Det(mat: np.ndarray) -> np.ndarray:
+def Det(mat: FeArray.FeArrayALike) -> FeArray.FeArrayALike:
     """Computes det(mat)"""
     __CheckMat(mat)
 
@@ -84,7 +84,7 @@ def Det(mat: np.ndarray) -> np.ndarray:
     return det
 
 
-def Inv(mat: np.ndarray):
+def Inv(mat: FeArray.FeArrayALike):
     """Computes inv(mat)"""
     __CheckMat(mat)
 
@@ -169,15 +169,18 @@ def Inv(mat: np.ndarray):
 
 
 def TensorProd(
-    A: np.ndarray, B: np.ndarray, symmetric=False, ndim: Optional[int] = None
-) -> np.ndarray:
+    A: FeArray.FeArrayALike,
+    B: FeArray.FeArrayALike,
+    symmetric=False,
+    ndim: Optional[int] = None,
+) -> FeArray.FeArrayALike:
     """Computes tensor product.
 
     Parameters
     ----------
-    A : np.ndarray
+    A : FeArray.FeArrayALike
         array A
-    B : np.ndarray
+    B : FeArray.FeArrayALike
         array B
     symmetric : bool, optional
         do symmetric product, by default False
@@ -205,7 +208,7 @@ def TensorProd(
     if ndim == 1:
         # vectors
         # Ai Bj
-        res = np.einsum("...i,...j->...ij", A, B)
+        res: FeArray.FeArrayALike = np.einsum("...i,...j->...ij", A, B)
 
     elif ndim == 2:
         # matrices
@@ -216,7 +219,9 @@ def TensorProd(
             res = 1 / 2 * (p1 + p2)
         else:
             # Aij Bkl
-            res = np.einsum("...ij,...kl->...ijkl", A, B, optimize="optimal")
+            res: FeArray.FeArrayALike = np.einsum(
+                "...ij,...kl->...ijkl", A, B, optimize="optimal"
+            )
 
     else:
         raise Exception("Not implemented")
@@ -227,11 +232,11 @@ def TensorProd(
     return res
 
 
-def Norm(array: np.ndarray, **kwargs):
+def Norm(array: _types.FloatArray, **kwargs):
     """`np.linalg.norm()` wrapper.\n
     see https://numpy.org/doc/stable/reference/generated/numpy.linalg.norm.html"""
 
-    res = np.linalg.norm(array, **kwargs)
+    res: FeArray.FeArrayALike = np.linalg.norm(array, **kwargs)
 
     if isinstance(array, FeArray):
         res = FeArray.asfearray(res)

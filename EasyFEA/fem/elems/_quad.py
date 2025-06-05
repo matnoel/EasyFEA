@@ -7,6 +7,7 @@
 import numpy as np
 
 from .._group_elems import _GroupElem
+from ...utilities import _types
 
 
 class QUAD4(_GroupElem):
@@ -24,9 +25,9 @@ class QUAD4(_GroupElem):
     def __init__(
         self,
         gmshId: int,
-        connect: np.ndarray,
-        coordoGlob: np.ndarray,
-        nodes: np.ndarray,
+        connect: _types.UIntArray,
+        coordoGlob: _types.FloatArray,
+        nodes: _types.UIntArray,
     ):
 
         super().__init__(gmshId, connect, coordoGlob, nodes)
@@ -52,7 +53,7 @@ class QUAD4(_GroupElem):
         local_coords = np.array([list_x, list_y]).T
         return local_coords
 
-    def _N(self) -> np.ndarray:
+    def _N(self) -> _types.FloatArray:
 
         N1 = lambda r, s: (r - 1) * (s - 1) / 4
         N2 = lambda r, s: -(r + 1) * (s - 1) / 4
@@ -63,7 +64,7 @@ class QUAD4(_GroupElem):
 
         return N
 
-    def _dN(self) -> np.ndarray:
+    def _dN(self) -> _types.FloatArray:
 
         dN1 = [lambda r, s: s / 4 - 1 / 4, lambda r, s: r / 4 - 1 / 4]
         dN2 = [lambda r, s: 1 / 4 - s / 4, lambda r, s: -r / 4 - 1 / 4]
@@ -74,13 +75,13 @@ class QUAD4(_GroupElem):
 
         return dN
 
-    def _ddN(self) -> np.ndarray:
+    def _ddN(self) -> _types.FloatArray:
         return super()._ddN()
 
-    def _dddN(self) -> np.ndarray:
+    def _dddN(self) -> _types.FloatArray:
         return super()._dddN()
 
-    def _ddddN(self) -> np.ndarray:
+    def _ddddN(self) -> _types.FloatArray:
         return super()._ddddN()
 
 
@@ -99,9 +100,9 @@ class QUAD8(_GroupElem):
     def __init__(
         self,
         gmshId: int,
-        connect: np.ndarray,
-        coordoGlob: np.ndarray,
-        nodes: np.ndarray,
+        connect: _types.UIntArray,
+        coordoGlob: _types.FloatArray,
+        nodes: _types.UIntArray,
     ):
 
         super().__init__(gmshId, connect, coordoGlob, nodes)
@@ -131,7 +132,7 @@ class QUAD8(_GroupElem):
         local_coords = np.array([list_x, list_y]).T
         return local_coords
 
-    def _N(self) -> np.ndarray:
+    def _N(self) -> _types.FloatArray:
 
         N1 = lambda r, s: -(r - 1) * (s - 1) * (r + s + 1) / 4
         N2 = lambda r, s: -(r + 1) * (s - 1) * (r - s - 1) / 4
@@ -146,7 +147,7 @@ class QUAD8(_GroupElem):
 
         return N
 
-    def _dN(self) -> np.ndarray:
+    def _dN(self) -> _types.FloatArray:
 
         dN1 = [
             lambda r, s: -(r - 1) * (s - 1) / 4 - (s - 1) * (r + s + 1) / 4,
@@ -185,7 +186,7 @@ class QUAD8(_GroupElem):
 
         return dN
 
-    def _ddN(self) -> np.ndarray:
+    def _ddN(self) -> _types.FloatArray:
 
         ddN1 = [lambda r, s: 1 / 2 - s / 2, lambda r, s: 1 / 2 - r / 2]
         ddN2 = [lambda r, s: 1 / 2 - s / 2, lambda r, s: r / 2 + 1 / 2]
@@ -200,10 +201,10 @@ class QUAD8(_GroupElem):
 
         return ddN
 
-    def _dddN(self) -> np.ndarray:
+    def _dddN(self) -> _types.FloatArray:
         return super()._dddN()
 
-    def _ddddN(self) -> np.ndarray:
+    def _ddddN(self) -> _types.FloatArray:
         return super()._ddddN()
 
 
@@ -222,9 +223,9 @@ class QUAD9(_GroupElem):
     def __init__(
         self,
         gmshId: int,
-        connect: np.ndarray,
-        coordoGlob: np.ndarray,
-        nodes: np.ndarray,
+        connect: _types.UIntArray,
+        coordoGlob: _types.FloatArray,
+        nodes: _types.UIntArray,
     ):
 
         super().__init__(gmshId, connect, coordoGlob, nodes)
@@ -256,7 +257,7 @@ class QUAD9(_GroupElem):
         local_coords = np.array([list_x, list_y]).T
         return local_coords
 
-    def _N(self) -> np.ndarray:
+    def _N(self) -> _types.FloatArray:
 
         N1 = lambda r, s: r * s * (r - 1) * (s - 1) / 4
         N2 = lambda r, s: r * s * (r + 1) * (s - 1) / 4
@@ -272,7 +273,7 @@ class QUAD9(_GroupElem):
 
         return N
 
-    def _dN(self) -> np.ndarray:
+    def _dN(self) -> _types.FloatArray:
 
         dN1 = [
             lambda r, s: r * s * (s - 1) / 4 + s * (r - 1) * (s - 1) / 4,
@@ -315,7 +316,7 @@ class QUAD9(_GroupElem):
 
         return dN
 
-    def _ddN(self) -> np.ndarray:
+    def _ddN(self) -> _types.FloatArray:
 
         ddN1 = [lambda r, s: s * (s - 1) / 2, lambda r, s: r * (r - 1) / 2]
         ddN2 = [lambda r, s: s * (s - 1) / 2, lambda r, s: r * (r + 1) / 2]
@@ -331,8 +332,8 @@ class QUAD9(_GroupElem):
 
         return ddN
 
-    def _dddN(self) -> np.ndarray:
+    def _dddN(self) -> _types.FloatArray:
         return super()._dddN()
 
-    def _ddddN(self) -> np.ndarray:
+    def _ddddN(self) -> _types.FloatArray:
         return super()._ddddN()

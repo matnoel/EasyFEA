@@ -189,7 +189,7 @@ class _Geom(ABC):
             xlim, ylim, zlim = ax.get_xlim(), ax.get_ylim(), ax.get_zlim()  # type: ignore [union-attr]
             oldBounds = np.array([xlim, ylim, zlim]).T
             lines = np.concatenate((lines, oldBounds), 0)
-            _Axis_equal_3D(ax, lines)
+            _Axis_equal_3D(ax, lines)  # type: ignore
         else:
             ax.axis("equal")
 
@@ -215,4 +215,4 @@ class _Geom(ABC):
         if plotLegend:
             ax.legend()  # type: ignore [union-attr]
 
-        return ax
+        return ax  # type: ignore

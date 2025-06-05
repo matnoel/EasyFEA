@@ -22,7 +22,7 @@ from ._utils import (
     Get_Pmat,
     Apply_Pmat,
 )
-from ..utilities import _params
+from ..utilities import _params, _types
 from ..utilities._linalg import TensorProd
 
 # ----------------------------------------------
@@ -113,7 +113,7 @@ class _Elas(_IModel, ABC):
         return self.__C.copy()
 
     @C.setter
-    def C(self, array: np.ndarray):
+    def C(self, array: _types.FloatArray):
         assert isinstance(array, np.ndarray), "must be an array"
         shape = (3, 3) if self.dim == 2 else (6, 6)
         assert (
@@ -139,7 +139,7 @@ class _Elas(_IModel, ABC):
         return self.__S.copy()
 
     @S.setter
-    def S(self, array: np.ndarray):
+    def S(self, array: _types.FloatArray):
         assert isinstance(array, np.ndarray), "must be an array"
         shape = (3, 3) if self.dim == 2 else (6, 6)
         assert (
@@ -258,7 +258,7 @@ class Elas_Isot(_Elas):
         self.S = S
 
     @property
-    def E(self) -> Union[float, np.ndarray]:
+    def E(self) -> Union[float, _types.FloatArray]:
         """Young's modulus"""
         return self.__E
 
@@ -269,7 +269,7 @@ class Elas_Isot(_Elas):
         self.__E = value
 
     @property
-    def v(self) -> Union[float, np.ndarray]:
+    def v(self) -> Union[float, _types.FloatArray]:
         """Poisson's ratio"""
         return self.__v
 
@@ -442,10 +442,10 @@ class Elas_IsotTrans(_Elas):
         Gl: float,
         vl: float,
         vt: float,
-        axis_l=[1, 0, 0],
-        axis_t=[0, 1, 0],
-        planeStress=True,
-        thickness=1.0,
+        axis_l: _types.Coords = (1, 0, 0),
+        axis_t: _types.Coords = (0, 1, 0),
+        planeStress: bool = True,
+        thickness: float = 1.0,
     ):
         """Creates and Transversely Isotropic Linearized Elastic material.\n
         More details Torquato 2002 13.3.2 (iii) http://link.springer.com/10.1007/978-1-4757-6355-3
@@ -464,9 +464,9 @@ class Elas_IsotTrans(_Elas):
             Longitudinal Poisson ratio
         vt : float
             Transverse Poisson ratio (T, R) plane
-        axis_l : np.ndarray, optional
+        axis_l : _types.Coords, optional
             Longitudinal axis, by default np.array([1,0,0])
-        axis_t : np.ndarray, optional
+        axis_t : _types.Coords, optional
             Transverse axis, by default np.array([0,1,0])
         planeStress : bool, optional
             uses plane stress assumption, by default True
@@ -490,7 +490,7 @@ class Elas_IsotTrans(_Elas):
         self.__axis_t = Normalize(axis_t)
 
     @property
-    def Gt(self) -> Union[float, np.ndarray]:
+    def Gt(self) -> Union[float, _types.FloatArray]:
         """Transverse shear modulus."""
 
         Et = self.Et
@@ -501,45 +501,45 @@ class Elas_IsotTrans(_Elas):
         return Gt
 
     @property
-    def El(self) -> Union[float, np.ndarray]:
+    def El(self) -> Union[float, _types.FloatArray]:
         """Longitudinal Young's modulus."""
         return self.__El
 
     @El.setter
-    def El(self, value: Union[float, np.ndarray]):
+    def El(self, value: Union[float, _types.FloatArray]):
         _params.CheckIsPositive(value)
         self.Need_Update()
         self.__El = value
 
     @property
-    def Et(self) -> Union[float, np.ndarray]:
+    def Et(self) -> Union[float, _types.FloatArray]:
         """Transverse Young's modulus."""
         return self.__Et
 
     @Et.setter
-    def Et(self, value: Union[float, np.ndarray]):
+    def Et(self, value: Union[float, _types.FloatArray]):
         _params.CheckIsPositive(value)
         self.Need_Update()
         self.__Et = value
 
     @property
-    def Gl(self) -> Union[float, np.ndarray]:
+    def Gl(self) -> Union[float, _types.FloatArray]:
         """Longitudinal shear modulus."""
         return self.__Gl
 
     @Gl.setter
-    def Gl(self, value: Union[float, np.ndarray]):
+    def Gl(self, value: Union[float, _types.FloatArray]):
         _params.CheckIsPositive(value)
         self.Need_Update()
         self.__Gl = value
 
     @property
-    def vl(self) -> Union[float, np.ndarray]:
+    def vl(self) -> Union[float, _types.FloatArray]:
         """Longitudinal Poisson's ratio."""
         return self.__vl
 
     @vl.setter
-    def vl(self, value: Union[float, np.ndarray]):
+    def vl(self, value: Union[float, _types.FloatArray]):
         # -1<vl<0.5
         # Torquato 328
         _params.CheckIsInIntervalcc(value, -1, 0.5)
@@ -547,12 +547,12 @@ class Elas_IsotTrans(_Elas):
         self.__vl = value
 
     @property
-    def vt(self) -> Union[float, np.ndarray]:
+    def vt(self) -> Union[float, _types.FloatArray]:
         """Transverse Poisson ratio"""
         return self.__vt
 
     @vt.setter
-    def vt(self, value: Union[float, np.ndarray]):
+    def vt(self, value: Union[float, _types.FloatArray]):
         # -1<vt<1
         # Torquato 328
         _params.CheckIsInIntervalcc(value, -1, 1)
@@ -560,7 +560,7 @@ class Elas_IsotTrans(_Elas):
         self.__vt = value
 
     @property
-    def kt(self) -> Union[float, np.ndarray]:
+    def kt(self) -> Union[float, _types.FloatArray]:
         # Torquato 2002 13.3.2 (iii)
         El = self.El
         Et = self.Et
@@ -784,10 +784,10 @@ class Elas_Anisot(_Elas):
     def __init__(
         self,
         dim: int,
-        C: np.ndarray,
+        C: _types.FloatArray,
         useVoigtNotation: bool,
-        axis1: np.ndarray = (1, 0, 0),
-        axis2: np.ndarray = (0, 1, 0),
+        axis1: _types.Coords = (1, 0, 0),
+        axis2: _types.Coords = (0, 1, 0),
         thickness=1.0,
     ):
         """Creates an Anisotropic Linearized Elastic class.
@@ -796,13 +796,13 @@ class Elas_Anisot(_Elas):
         ----------
         dim : int
             dimension
-        C : np.ndarray
+        C : _types.FloatArray
             stiffness matrix in anisotropy basis
         useVoigtNotation : bool
             behavior law uses voigt notation
-        axis1 : np.ndarray, optional
+        axis1 : _types.Coords, optional
             axis1 vector, by default (1,0,0)
-        axis2 : np.ndarray
+        axis2 : _types.Coords
             axis2 vector, by default (0,1,0)
         thickness: float, optional
             material thickness, by default 1.0
@@ -829,12 +829,12 @@ class Elas_Anisot(_Elas):
         # doesn't do anything here, because we use Set_C to update the laws.
         return super()._Update()
 
-    def Set_C(self, C: np.ndarray, useVoigtNotation=True, update_S=True):
+    def Set_C(self, C: _types.FloatArray, useVoigtNotation=True, update_S=True):
         """Updates the constitutives laws by updating the C stiffness and S compliance matrices in Kelvin Mandel notation.\n
 
         Parameters
         ----------
-        C : np.ndarray
+        C : _types.FloatArray
            Stifness matrix (Lamé's law)
         useVoigtNotation : bool, optional
             uses Kevin Mandel's notation, by default True
@@ -851,7 +851,9 @@ class Elas_Anisot(_Elas):
             S_mandelP = np.linalg.inv(C_mandelP)
             self.S = S_mandelP
 
-    def _Behavior(self, C: np.ndarray, useVoigtNotation: bool) -> np.ndarray:
+    def _Behavior(
+        self, C: _types.FloatArray, useVoigtNotation: bool
+    ) -> _types.FloatArray:
 
         shape = C.shape
         assert (shape[-2], shape[-1]) in [

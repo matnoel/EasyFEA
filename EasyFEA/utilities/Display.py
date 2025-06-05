@@ -5,7 +5,7 @@
 """Module containing functions used to display simulations and meshes with matplotlib (https://matplotlib.org/)."""
 
 import platform
-from typing import Union, Callable, Optional
+from typing import Union, Callable, Optional, TYPE_CHECKING
 import numpy as np
 import pandas as pd
 from enum import Enum
@@ -26,6 +26,9 @@ from . import _types
 # simulations
 from ..simulations._simu import _Init_obj, _Get_values
 
+if TYPE_CHECKING:
+    from ..simulations._simu import _Simu, Mesh
+
 # Ideas: https://www.python-graph-gallery.com/
 
 
@@ -33,7 +36,7 @@ from ..simulations._simu import _Init_obj, _Get_values
 # Plot Simu or Mesh
 # ----------------------------------------------
 def Plot_Result(
-    simu,
+    simu: "_Simu",
     result: Union[str, np.ndarray],
     deformFactor: _types.Number = 0.0,
     coef: _types.Number = 1.0,
@@ -97,7 +100,7 @@ def Plot_Result(
 
     tic = Tic()
 
-    simu, mesh, coordo, inDim = _Init_obj(simu, deformFactor)
+    simu, mesh, coordo, inDim = _Init_obj(simu, deformFactor)  # type: ignore
     plotDim = mesh.dim  # plot dimension
 
     # don't know how to display nodal values on lines
@@ -220,7 +223,7 @@ def Plot_Result(
             fig = ax.figure
             ax.set_xlabel(r"$x$")
             ax.set_ylabel(r"$y$")
-            ax.set_zlabel(r"$z$")
+            ax.set_zlabel(r"$z$")  # type: ignore
 
         # construct the face connection matrix
         connectFaces = []
@@ -230,7 +233,7 @@ def Plot_Result(
             connectFaces.extend(groupElem.connect[:, faces])
         connectFaces = np.asarray(connectFaces, dtype=int)
 
-        elements_coordinates: np.ndarray = coordo[connectFaces, :3]
+        elements_coordinates = coordo[connectFaces, :3]
 
         if nodeValues:
             # If the result is stored at nodes, we'll average the node values over the element.
@@ -325,15 +328,15 @@ def Plot_Result(
 
 
 def Plot_Mesh(
-    obj,
-    deformFactor=0.0,
-    alpha=1.0,
-    facecolors="c",
-    edgecolor="black",
-    lw=0.5,
+    obj: Union["_Simu", "Mesh"],
+    deformFactor: float = 0.0,
+    alpha: float = 1.0,
+    facecolors: str = "c",
+    edgecolor: str = "black",
+    lw: float = 0.5,
     ax: Optional[_types.Axes] = None,
-    folder="",
-    title="",
+    folder: str = "",
+    title: str = "",
 ) -> _types.Axes:
     """Plots the mesh.
 
@@ -387,7 +390,7 @@ def Plot_Mesh(
     connectFaces = np.asarray(connectFaces, dtype=int)
 
     # faces coordinates
-    coordFacesDef: np.ndarray = coordo[connectFaces, :inDim]
+    coordFacesDef = coordo[connectFaces, :inDim]
     coordFaces = mesh.coordGlob[connectFaces, :inDim]
 
     if title == "":
@@ -405,22 +408,22 @@ def Plot_Mesh(
         if deformFactor > 0:
             # Deformed mesh
             pc = LineCollection(
-                coordFacesDef, edgecolor="red", lw=lw, antialiaseds=True, zorder=1
+                coordFacesDef, edgecolor="red", lw=lw, antialiaseds=True, zorder=1  # type: ignore
             )
             ax.add_collection(pc)
             # Overlay undeformed and deformed mesh
             # Undeformed mesh
             pc = LineCollection(
-                coordFaces, edgecolor=edgecolor, lw=lw, antialiaseds=True, zorder=1
+                coordFaces, edgecolor=edgecolor, lw=lw, antialiaseds=True, zorder=1  # type: ignore
             )
             ax.add_collection(pc)
         else:
             # Undeformed mesh
-            pc = LineCollection(coordFaces, edgecolor=edgecolor, lw=lw, zorder=1)
+            pc = LineCollection(coordFaces, edgecolor=edgecolor, lw=lw, zorder=1)  # type: ignore
             ax.add_collection(pc)
             if alpha > 0:
                 pc = PolyCollection(
-                    coordFaces,
+                    coordFaces,  # type: ignore
                     facecolors=facecolors,
                     edgecolor=edgecolor,
                     lw=lw,
@@ -446,7 +449,7 @@ def Plot_Mesh(
             ax = Init_Axes(3)
             ax.set_xlabel(r"$x$")
             ax.set_ylabel(r"$y$")
-            ax.set_zlabel(r"$z$")
+            ax.set_zlabel(r"$z$")  # type: ignore
             ax.set_title(title)
 
         if deformFactor > 0:
@@ -456,27 +459,27 @@ def Plot_Mesh(
                 pcDef = Poly3DCollection(
                     coordFacesDef, edgecolor="red", linewidths=0.5, alpha=0, zorder=0
                 )
-                ax.add_collection3d(pcDef)
+                ax.add_collection3d(pcDef)  # type: ignore
                 # Overlay the two meshes
                 # Undeformed mesh
                 # ax.scatter(x,y,z, linewidth=0, alpha=0)
                 pcNonDef = Poly3DCollection(
                     coordFaces, edgecolor=edgecolor, linewidths=0.5, alpha=0, zorder=0
                 )
-                ax.add_collection3d(pcNonDef)
+                ax.add_collection3d(pcNonDef)  # type: ignore
 
             else:
                 # Deformed mesh
                 pc = Line3DCollection(
                     coordFacesDef, edgecolor="red", lw=lw, antialiaseds=True, zorder=0
                 )
-                ax.add_collection3d(pc)
+                ax.add_collection3d(pc)  # type: ignore
                 # Overlay undeformed and deformed mesh
                 # Undeformed mesh
                 pc = Line3DCollection(
                     coordFaces, edgecolor=edgecolor, lw=lw, antialiaseds=True, zorder=0
                 )
-                ax.add_collection3d(pc)
+                ax.add_collection3d(pc)  # type: ignore
                 # nodes
                 ax.plot(*mesh.coordGlob.T, c="black", lw=lw, marker=".", ls="")
                 ax.plot(*coordo.T, c="red", lw=lw, marker=".", ls="")
@@ -498,21 +501,21 @@ def Plot_Mesh(
                     coordFaces, edgecolor=edgecolor, lw=lw, antialiaseds=True, zorder=0
                 )
                 ax.plot(*coordo.T, c="black", lw=lw, marker=".", ls="")
-            ax.add_collection3d(pc, zs=0, zdir="z")
+            ax.add_collection3d(pc, zs=0, zdir="z")  # type: ignore
 
-        _Axis_equal_3D(ax, coordo)
+        _Axis_equal_3D(ax, coordo)  # type: ignore
 
     tic.Tac("Display", "Plot_Mesh")
 
     if folder != "":
         Save_fig(folder, "mesh")
 
-    return ax
+    return ax  # type: ignore
 
 
 def Plot_Nodes(
     obj,
-    nodes: Optional[_types.IntArray] = None,
+    nodes: Optional[_types.UIntArray] = None,
     showId=False,
     marker=".",
     c="red",
@@ -923,13 +926,13 @@ def Plot_Tags(obj, showId=False, folder="", alpha=1.0, ax: plt.Axes = None) -> p
                     elif dim == 1:
                         # plot lines
                         pc = LineCollection(
-                            coord_faces, lw=1.5, edgecolor="black", alpha=1, label=tag_e
+                            coord_faces, lw=1.5, edgecolor="black", alpha=1, label=tag_e  # type: ignore
                         )
                         collections.append(ax.add_collection(pc))
                     else:
                         # plot surfaces
                         pc = PolyCollection(
-                            coord_faces,
+                            coord_faces,  # type: ignore
                             facecolors=color,
                             label=tag_e,
                             edgecolor=color,
@@ -1034,20 +1037,20 @@ def __Annotation_Event(collections: list, fig: plt.Figure, ax: plt.Axes) -> None
 # Plot 1D
 # ----------------------------------------------
 def Plot_Force_Displacement(
-    force: np.ndarray,
-    displacement: np.ndarray,
+    force: _types.FloatArray,
+    displacement: _types.FloatArray,
     xlabel="u",
     ylabel="f",
     folder="",
-    ax: plt.Axes = None,
-) -> tuple[plt.Figure, plt.Axes]:
+    ax: Optional[_types.Axes] = None,
+) -> tuple[plt.Figure, _types.Axes]:  # type: ignore
     """Plots the force displacement curve.
 
     Parameters
     ----------
-    force : np.ndarray
+    force : _types.FloatArray
         array of values for force
-    displacement : np.ndarray
+    displacement : _types.FloatArray
         array of values for displacements
     xlabel : str, optional
         x-axis title, by default 'u'.
@@ -1064,7 +1067,7 @@ def Plot_Force_Displacement(
         returns figure and ax
     """
 
-    if isinstance(ax, plt.Axes):
+    if isinstance(ax, plt.Axes):  # type: ignore
         fig = ax.figure
         ax.clear()
     else:
@@ -1083,12 +1086,12 @@ def Plot_Force_Displacement(
 
 
 def Plot_Energy(
-    simu,
-    load=np.array([]),
-    displacement=np.array([]),
-    plotSolMax=True,
-    N=200,
-    folder="",
+    simu: "_Simu",
+    load: _types.FloatArray = np.array([]),
+    displacement: _types.Axes = np.array([]),
+    plotSolMax: bool = True,
+    N: int = 200,
+    folder: str = "",
 ) -> None:
     """Plots the energy for each iteration.
 
@@ -1096,9 +1099,9 @@ def Plot_Energy(
     ----------
     simu : _Simu
         simulation
-    load : np.ndarray, optional
+    load : _types.FloatArray, optional
         array of values, by default np.array([])
-    displacement : np.ndarray, optional
+    displacement : _types.FloatArray, optional
         array of values, by default np.array([])
     plotSolMax : bool, optional
         displays the evolution of the maximul solution over iterations. (max damage for damage simulation), by default True
@@ -1128,12 +1131,12 @@ def Plot_Energy(
         if ecart != 0:
             Niter -= ecart
     step = np.max([1, Niter // N])
-    iterations: np.ndarray = np.arange(0, Niter, step)
+    iterations = np.arange(0, Niter, step)
 
     list_dict_Energy: list[dict[str, float]] = []
     times = []
     if plotSolMax:
-        listSolMax = []
+        listSolMax: list[float] = []
 
     # activate the first iteration
     simu.Set_Iter(0, resetAll=True)
@@ -1144,7 +1147,7 @@ def Plot_Energy(
         simu.Set_Iter(iteration)
 
         if plotSolMax:
-            listSolMax.append(simu._Get_u_n(simu.problemType).max())
+            listSolMax.append(simu._Get_u_n(simu.problemType).max())  # type: ignore
 
         list_dict_Energy.append(simu.Results_dict_Energy())
 
@@ -1162,7 +1165,7 @@ def Plot_Energy(
         nrows += 1
     if pltLoad:
         nrows += 1
-    axs: list[plt.Axes] = plt.subplots(nrows, 1, sharex=True)[1]
+    axs: list[_types.Axes] = plt.subplots(nrows, 1, sharex=True)[1]
 
     iter_rows = iter(np.arange(nrows))
 
@@ -1310,7 +1313,7 @@ def Movie_Simu(
 
     Niter = len(simu.results)
     step = np.max([1, Niter // N])
-    iterations: np.ndarray = np.arange(0, Niter, step)
+    iterations = np.arange(0, Niter, step)
 
     ax = Init_Axes(simu.mesh.inDim)
     fig = ax.figure
@@ -1318,7 +1321,7 @@ def Movie_Simu(
     # activate the first iteration
     simu.Set_Iter(0, resetAll=True)
 
-    def DoAnim(fig: plt.Figure, i):
+    def DoAnim(fig: plt.Figure, i):  # type: ignore
         simu.Set_Iter(iterations[i])
         ax = fig.axes[0]
         Plot_Result(
@@ -1486,7 +1489,7 @@ def Init_Axes(dim: int = 2, elev=105, azim=-90) -> _types.Axes:
     return ax
 
 
-def _Axis_equal_3D(ax: Axes3D, coord: np.ndarray) -> None:
+def _Axis_equal_3D(ax: Axes3D, coord: _types.FloatArray) -> None:
     """Changes axis size for 3D display.\n
     Center the part and make the axes the right size.
 
@@ -1494,7 +1497,7 @@ def _Axis_equal_3D(ax: Axes3D, coord: np.ndarray) -> None:
     ----------
     ax : plt.Axes
         Axes in which figure will be created
-    coordo : np.ndarray
+    coord : _types.FloatArray
         mesh coordinates
     """
 

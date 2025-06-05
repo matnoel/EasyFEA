@@ -7,6 +7,7 @@
 import numpy as np
 
 from .._group_elems import _GroupElem
+from ...utilities import _types
 
 
 class POINT(_GroupElem):
@@ -14,9 +15,9 @@ class POINT(_GroupElem):
     def __init__(
         self,
         gmshId: int,
-        connect: np.ndarray,
-        coordoGlob: np.ndarray,
-        nodes: np.ndarray,
+        connect: _types.UIntArray,
+        coordoGlob: _types.FloatArray,
+        nodes: _types.UIntArray,
     ):
 
         super().__init__(gmshId, connect, coordoGlob, nodes)
@@ -36,17 +37,17 @@ class POINT(_GroupElem):
     def Get_Local_Coords(self):
         return np.array([0]).reshape(1, 1)
 
-    def _N(self) -> np.ndarray:
-        pass
+    def _N(self) -> _types.FloatArray:
+        return None  # type: ignore [return-type]
 
-    def _dN(self) -> np.ndarray:
-        pass
+    def _dN(self) -> _types.FloatArray:
+        return None  # type: ignore [return-type]
 
-    def _ddN(self) -> np.ndarray:
-        pass
+    def _ddN(self) -> _types.FloatArray:
+        return None  # type: ignore [return-type]
 
-    def _dddN(self) -> np.ndarray:
-        pass
+    def _dddN(self) -> _types.FloatArray:
+        return None  # type: ignore [return-type]
 
-    def _ddddN(self) -> np.ndarray:
-        pass
+    def _ddddN(self) -> _types.FloatArray:
+        return None  # type: ignore [return-type]

@@ -8,7 +8,7 @@ from typing import Union
 import numpy as np
 
 from ._utils import _IModel, ModelType
-from ..utilities import _params
+from ..utilities import _params, _types
 
 # ----------------------------------------------
 # Thermal
@@ -69,23 +69,23 @@ class Thermal(_IModel):
         self.useNumba = False
 
     @property
-    def k(self) -> Union[float, np.ndarray]:
+    def k(self) -> Union[float, _types.FloatArray]:
         """thermal conduction [W m^-1]"""
         return self.__k
 
     @k.setter
-    def k(self, value: Union[float, np.ndarray]) -> None:
+    def k(self, value: Union[float, _types.FloatArray]) -> None:
         _params.CheckIsPositive(value)
         self.Need_Update()
         self.__k = value
 
     @property
-    def c(self) -> Union[float, np.ndarray]:
+    def c(self) -> Union[float, _types.FloatArray]:
         """mass heat capacity [J K^-1 kg^-1]"""
         return self.__c
 
     @c.setter
-    def c(self, value: Union[float, np.ndarray]) -> None:
+    def c(self, value: Union[float, _types.FloatArray]) -> None:
         _params.CheckIsPositive(value)
         self.Need_Update()
         self.__c = value

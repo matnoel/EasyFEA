@@ -9,8 +9,11 @@ from enum import Enum
 # utilities
 from ..utilities._observers import Observable
 from ..utilities._linalg import Transpose
+from ..utilities import _types
 from ..fem import FeArray
 import numpy as np
+
+# pyright: reportPossiblyUnboundVariable=false
 
 # ----------------------------------------------
 # Types
@@ -86,8 +89,8 @@ __erroDim = "Pay attention to the dimensions of the material constants.\nIf the 
 
 
 def Reshape_variable(
-    variable: Union[int, float, np.ndarray], Ne: int, nPg: int
-) -> FeArray:
+    variable: Union[int, float, _types.AnyArray], Ne: int, nPg: int
+) -> FeArray.FeArrayALike:  # type: ignore
     """Resizes variable to (Ne, nPg, ...) shape."""
 
     if isinstance(variable, (int, float)):
@@ -127,7 +130,7 @@ def Reshape_variable(
                 )
 
 
-def Heterogeneous_Array(array: np.ndarray):
+def Heterogeneous_Array(array: _types.FloatArray):
     """Builds a heterogeneous array."""
 
     dimI, dimJ = array.shape
@@ -169,7 +172,7 @@ def Heterogeneous_Array(array: np.ndarray):
     return newArray
 
 
-def KelvinMandel_Matrix(dim: int, M: np.ndarray) -> np.ndarray:
+def KelvinMandel_Matrix(dim: int, M: _types.FloatArray) -> np.ndarray:
     """Apply Kelvin Mandel coefficient to constitutive laws.
 
     In 2D:
@@ -214,8 +217,8 @@ def KelvinMandel_Matrix(dim: int, M: np.ndarray) -> np.ndarray:
 
 
 def Project_vector_to_matrix(
-    vector: np.ndarray, coef=np.sqrt(2)
-) -> Union[FeArray, np.ndarray]:
+    vector: _types.FloatArray, coef=np.sqrt(2)
+) -> FeArray.FeArrayALike:
 
     vectDim = vector.shape[-1]
 
@@ -226,7 +229,7 @@ def Project_vector_to_matrix(
     if isinstance(vector, FeArray):
         matrix = FeArray.zeros(*vector.shape[:2], dim, dim)
     elif isinstance(vector, np.ndarray):
-        matrix = np.zeros(*vector.shape[:2], dim, dim)
+        matrix = np.zeros((*vector.shape[:2], dim, dim), dtype=float)
     else:
         raise ValueError("vector must be either a FeArray or a np.ndarray.")
 
@@ -251,7 +254,7 @@ def Project_vector_to_matrix(
 
 
 def Project_matrix_to_vector(
-    matrix: np.ndarray, coef=np.sqrt(2)
+    matrix: _types.FloatArray, coef=np.sqrt(2)
 ) -> Union[FeArray, np.ndarray]:
 
     matrixDim = matrix.shape[-1]
@@ -263,7 +266,7 @@ def Project_matrix_to_vector(
     if isinstance(matrix, FeArray):
         vector = FeArray.zeros(*matrix.shape[:2], dim)
     elif isinstance(matrix, np.ndarray):
-        vector = np.zeros(*matrix.shape[:2], dim)
+        vector = np.zeros((*matrix.shape[:2], dim))
     else:
         raise ValueError("matrix must be either a FeArray or a np.ndarray.")
 
@@ -285,12 +288,12 @@ def Project_matrix_to_vector(
     return vector
 
 
-def Project_Kelvin(A: np.ndarray, orderA: Optional[int] = None) -> np.ndarray:
+def Project_Kelvin(A: _types.FloatArray, orderA: Optional[int] = None) -> np.ndarray:
     """Projects the tensor A in Kelvin Mandel notation.
 
     Parameters
     ----------
-    A : np.ndarray
+    A : _types.FloatArray
         tensor A (2 or 4 order tensor)
     orderA : int, optional
         tensor order, by default None
@@ -320,7 +323,7 @@ def Project_Kelvin(A: np.ndarray, orderA: Optional[int] = None) -> np.ndarray:
 
         A_I = np.zeros((*shapeA[:-2], 6))
 
-        def add(i, j) -> None:
+        def add(i: int, j: int) -> None:  # type: ignore
             A_I[..., e[i, j]] = np.sqrt((2 - kron(i, j))) * A[..., i, j]
 
         [add(i, j) for i in range(3) for j in range(3)]
@@ -333,7 +336,7 @@ def Project_Kelvin(A: np.ndarray, orderA: Optional[int] = None) -> np.ndarray:
 
         A_IJ = np.zeros((*shapeA[:-4], 6, 6))
 
-        def add(i, j, k, l) -> None:
+        def add(i: int, j: int, k: int, l: int) -> None:
             A_IJ[..., e[i, j], e[k, l]] = (
                 np.sqrt((2 - kron(i, j)) * (2 - kron(k, l))) * A[..., i, j, k, l]
             )
@@ -358,13 +361,13 @@ def Project_Kelvin(A: np.ndarray, orderA: Optional[int] = None) -> np.ndarray:
 
 
 def Result_in_Strain_or_Stress_field(
-    field_e: np.ndarray, result: str, coef=np.sqrt(2)
+    field_e: _types.FloatArray, result: str, coef=np.sqrt(2)
 ) -> np.ndarray:
     """Extracts a specific result from a 2D or 3D strain or stress field.
 
     Parameters
     ----------
-    field_e : np.ndarray
+    field_e : _types.FloatArray
         Strain or stress field in each element.
     result : str
         Desired result/value to extract:\n
@@ -453,10 +456,10 @@ def Result_in_Strain_or_Stress_field(
                 "result must be in [xx, yy, zz, yz, xz, xy, vm, Strain, Stress]"
             )
 
-    return result_e
+    return result_e  # type: ignore
 
 
-def Get_Pmat(axis_1: np.ndarray, axis_2: np.ndarray, useMandel=True):
+def Get_Pmat(axis_1: _types.FloatArray, axis_2: _types.FloatArray, useMandel=True):
     """Constructs Pmat to pass from the material coordinates (x,y,z) to the global coordinate (X,Y,Z) such that:\n
 
     if useMandel:\n
@@ -513,6 +516,8 @@ def Get_Pmat(axis_1: np.ndarray, axis_2: np.ndarray, useMandel=True):
         axis_1 = axis_1.transpose((2, 0, 1))  # (e,p,dim) -> (dim,e,p)
         axis_2 = axis_2.transpose((2, 0, 1))
         transposeP = (2, 3, 0, 1)  # (dim,dim,e,p) -> (e,p,dim,dim)
+    else:
+        raise TypeError("shape error")
 
     # normalize thoses vectors
     axis_1 = np.einsum(
@@ -523,7 +528,7 @@ def Get_Pmat(axis_1: np.ndarray, axis_2: np.ndarray, useMandel=True):
     )
 
     # Checks whether the two vectors are perpendicular
-    dotProd = np.einsum(f"i{id},i{id}->{id}", axis_1, axis_2, optimize="optimal")
+    dotProd = np.einsum(f"i{id},i{id}->{id}", axis_1, axis_2, optimize="optimal")  # type: ignore
     assert np.linalg.norm(dotProd) <= 1e-12, "Must give perpendicular axes"
 
     if dim == 2:
@@ -535,6 +540,8 @@ def Get_Pmat(axis_1: np.ndarray, axis_2: np.ndarray, useMandel=True):
         p11, p12, p13 = axis_1
         p21, p22, p23 = axis_2
         p31, p32, p33 = axis_3
+    else:
+        raise TypeError("dim error")
 
     if len(shape1) == 1:
         p = np.zeros((dim, dim))
@@ -542,12 +549,14 @@ def Get_Pmat(axis_1: np.ndarray, axis_2: np.ndarray, useMandel=True):
         p = np.zeros((dim, dim, shape1[0]))
     elif len(shape1) == 3:
         p = np.zeros((dim, dim, shape1[0], shape1[1]))
+    else:
+        raise TypeError("shape error")
 
     # apply vectors
     p[:, 0] = axis_1
     p[:, 1] = axis_2
     if dim == 3:
-        p[:, 2] = axis_3
+        p[:, 2] = axis_3  # type: ignore
 
     D1 = p**2
 
@@ -565,22 +574,22 @@ def Get_Pmat(axis_1: np.ndarray, axis_2: np.ndarray, useMandel=True):
             [
                 [p21 * p31, p11 * p31, p11 * p21],
                 [p22 * p32, p12 * p32, p12 * p22],
-                [p23 * p33, p13 * p33, p13 * p23],
+                [p23 * p33, p13 * p33, p13 * p23],  # type: ignore
             ]
         )
 
         B = np.array(
             [
-                [p12 * p13, p22 * p23, p32 * p33],
-                [p11 * p13, p21 * p23, p31 * p33],
-                [p11 * p12, p21 * p22, p31 * p32],
+                [p12 * p13, p22 * p23, p32 * p33],  # type: ignore
+                [p11 * p13, p21 * p23, p31 * p33],  # type: ignore
+                [p11 * p12, p21 * p22, p31 * p32],  # type: ignore
             ]
         )
 
         D2 = np.array(
             [
-                [p22 * p33 + p32 * p23, p12 * p33 + p32 * p13, p12 * p23 + p22 * p13],
-                [p21 * p33 + p31 * p23, p11 * p33 + p31 * p13, p11 * p23 + p21 * p13],
+                [p22 * p33 + p32 * p23, p12 * p33 + p32 * p13, p12 * p23 + p22 * p13],  # type: ignore
+                [p21 * p33 + p31 * p23, p11 * p33 + p31 * p13, p11 * p23 + p21 * p13],  # type: ignore
                 [p21 * p32 + p31 * p22, p11 * p32 + p31 * p12, p11 * p22 + p21 * p12],
             ]
         )
@@ -611,15 +620,15 @@ def Get_Pmat(axis_1: np.ndarray, axis_2: np.ndarray, useMandel=True):
         return Ps, Pe
 
 
-def Apply_Pmat(P: np.ndarray, M: np.ndarray, toGlobal=True) -> np.ndarray:
+def Apply_Pmat(P: _types.FloatArray, M: _types.FloatArray, toGlobal=True) -> np.ndarray:
     """Performs a basis transformation from the material's coordinate system to the (x,y,z) coordinate system to orient the material in space.\n
     Caution: P must be in Kelvin mandel notation
 
     Parameters
     ----------
-    P : np.ndarray
+    P : _types.FloatArray
         P in mandel notation obtained with Get_Pmat
-    M : np.ndarray
+    M : _types.FloatArray
         3x3 or 6x6 matrix
     toGlobal : bool, optional
         sets wheter you want to get matrix in global or material coordinates, by default True\n

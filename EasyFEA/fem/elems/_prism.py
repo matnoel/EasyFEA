@@ -7,6 +7,7 @@
 import numpy as np
 
 from .._group_elems import _GroupElem
+from ...utilities import _types
 
 
 class PRISM6(_GroupElem):
@@ -32,9 +33,9 @@ class PRISM6(_GroupElem):
     def __init__(
         self,
         gmshId: int,
-        connect: np.ndarray,
-        coordoGlob: np.ndarray,
-        nodes: np.ndarray,
+        connect: _types.UIntArray,
+        coordoGlob: _types.FloatArray,
+        nodes: _types.UIntArray,
     ):
 
         super().__init__(gmshId, connect, coordoGlob, nodes)
@@ -68,7 +69,7 @@ class PRISM6(_GroupElem):
         return local_coords
 
     @property
-    def segments(self) -> np.ndarray:
+    def segments(self) -> _types.UIntArray:
         return np.array(
             [
                 [0, 1],
@@ -84,7 +85,7 @@ class PRISM6(_GroupElem):
             dtype=int,
         )
 
-    def _N(self) -> np.ndarray:
+    def _N(self) -> _types.FloatArray:
 
         N1 = lambda r, s, t: (t - 1) * (r + s - 1) / 2
         N2 = lambda r, s, t: -r * (t - 1) / 2
@@ -97,7 +98,7 @@ class PRISM6(_GroupElem):
 
         return N
 
-    def _dN(self) -> np.ndarray:
+    def _dN(self) -> _types.FloatArray:
 
         dN1 = [
             lambda r, s, t: t / 2 - 1 / 2,
@@ -118,13 +119,13 @@ class PRISM6(_GroupElem):
 
         return dN
 
-    def _ddN(self) -> np.ndarray:
+    def _ddN(self) -> _types.FloatArray:
         return super()._ddN()
 
-    def _dddN(self) -> np.ndarray:
+    def _dddN(self) -> _types.FloatArray:
         return super()._dddN()
 
-    def _ddddN(self) -> np.ndarray:
+    def _ddddN(self) -> _types.FloatArray:
         return super()._ddddN()
 
 
@@ -151,9 +152,9 @@ class PRISM15(_GroupElem):
     def __init__(
         self,
         gmshId: int,
-        connect: np.ndarray,
-        coordoGlob: np.ndarray,
-        nodes: np.ndarray,
+        connect: _types.UIntArray,
+        coordoGlob: _types.FloatArray,
+        nodes: _types.UIntArray,
     ):
 
         super().__init__(gmshId, connect, coordoGlob, nodes)
@@ -187,7 +188,7 @@ class PRISM15(_GroupElem):
         return local_coords
 
     @property
-    def segments(self) -> np.ndarray:
+    def segments(self) -> _types.UIntArray:
         return np.array(
             [
                 [0, 6, 1],
@@ -203,7 +204,7 @@ class PRISM15(_GroupElem):
             dtype=int,
         )
 
-    def _N(self) -> np.ndarray:
+    def _N(self) -> _types.FloatArray:
 
         N1 = lambda r, s, t: -(t - 1) * (r + s - 1) * (2 * r + 2 * s + t) / 2
         N2 = lambda r, s, t: -r * (t - 1) * (2 * r - t - 2) / 2
@@ -227,7 +228,7 @@ class PRISM15(_GroupElem):
 
         return N
 
-    def _dN(self) -> np.ndarray:
+    def _dN(self) -> _types.FloatArray:
 
         dN1 = [
             lambda r, s, t: -(t - 1) * (r + s - 1) - (t - 1) * (2 * r + 2 * s + t) / 2,
@@ -329,7 +330,7 @@ class PRISM15(_GroupElem):
 
         return dN
 
-    def _ddN(self) -> np.ndarray:
+    def _ddN(self) -> _types.FloatArray:
 
         ddN1 = [
             lambda r, s, t: 2 - 2 * t,
@@ -377,10 +378,10 @@ class PRISM15(_GroupElem):
 
         return ddN
 
-    def _dddN(self) -> np.ndarray:
+    def _dddN(self) -> _types.FloatArray:
         return super()._dddN()
 
-    def _ddddN(self) -> np.ndarray:
+    def _ddddN(self) -> _types.FloatArray:
         return super()._ddddN()
 
 
@@ -407,9 +408,9 @@ class PRISM18(_GroupElem):
     def __init__(
         self,
         gmshId: int,
-        connect: np.ndarray,
-        coordoGlob: np.ndarray,
-        nodes: np.ndarray,
+        connect: _types.UIntArray,
+        coordoGlob: _types.FloatArray,
+        nodes: _types.UIntArray,
     ):
 
         super().__init__(gmshId, connect, coordoGlob, nodes)
@@ -443,7 +444,7 @@ class PRISM18(_GroupElem):
         return local_coords
 
     @property
-    def segments(self) -> np.ndarray:
+    def segments(self) -> _types.UIntArray:
         return np.array(
             [
                 [0, 6, 1],
@@ -458,7 +459,7 @@ class PRISM18(_GroupElem):
             ]
         )
 
-    def _N(self) -> np.ndarray:
+    def _N(self) -> _types.FloatArray:
 
         N1 = lambda r, s, t: t * (t - 1) * (r + s - 1) * (2 * r + 2 * s - 1) / 2
         N2 = lambda r, s, t: r * t * (2 * r - 1) * (t - 1) / 2
@@ -504,7 +505,7 @@ class PRISM18(_GroupElem):
 
         return N
 
-    def _dN(self) -> np.ndarray:
+    def _dN(self) -> _types.FloatArray:
 
         dN1 = [
             lambda r, s, t: t * (t - 1) * (r + s - 1)
@@ -637,7 +638,7 @@ class PRISM18(_GroupElem):
 
         return dN
 
-    def _ddN(self) -> np.ndarray:
+    def _ddN(self) -> _types.FloatArray:
 
         ddN1 = [
             lambda r, s, t: 2 * t * (t - 1),
@@ -743,8 +744,8 @@ class PRISM18(_GroupElem):
 
         return ddN
 
-    def _dddN(self) -> np.ndarray:
+    def _dddN(self) -> _types.FloatArray:
         return super()._dddN()
 
-    def _ddddN(self) -> np.ndarray:
+    def _ddddN(self) -> _types.FloatArray:
         return super()._ddddN()

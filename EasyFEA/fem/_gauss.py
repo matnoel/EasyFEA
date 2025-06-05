@@ -8,19 +8,19 @@ import numpy as np
 
 # utils
 from ._utils import ElemType, MatrixType
-from ..utilities._types import Numbers
+from ..utilities import _types
 
 
 class Gauss:
 
-    def __init__(self, elemType: str, matrixType: str):
+    def __init__(self, elemType: ElemType, matrixType: MatrixType):
         """Creates integration points.
 
         Parameters
         ----------
-        elemType : str
+        elemType : ElemType
             element type.
-        matrixType : str
+        matrixType : MatrixType
             matrix type (e.g [MatrixType.rigi, MatrixType.mass, MatrixType.beam])
         """
 
@@ -30,12 +30,12 @@ class Gauss:
         self.__weights = weights
 
     @property
-    def coord(self) -> np.ndarray:
+    def coord(self) -> _types.FloatArray:
         """integration point coordinates"""
         return self.__coord
 
     @property
-    def weights(self) -> np.ndarray:
+    def weights(self) -> _types.FloatArray:
         """integration point weights"""
         return self.__weights
 
@@ -45,7 +45,7 @@ class Gauss:
         return self.__weights.size
 
     @staticmethod
-    def _Triangle(nPg: int) -> tuple[Numbers, Numbers, Numbers]:
+    def _Triangle(nPg: int) -> tuple[_types.Numbers, _types.Numbers, _types.Numbers]:
         """available [1, 3, 6, 7, 12]\n
         order = [1, 2, 3, 4, 5]"""
         if nPg == 1:
@@ -95,11 +95,13 @@ class Gauss:
             etas = [a, a, 1 - 2 * a, b, b, 1 - 2 * b, d, c, c, d, 1 - c - d, 1 - c - d]
 
             weights = [p1, p1, p1, p2, p2, p2, p3, p3, p3, p3, p3, p3]
+        else:
+            raise ValueError("unknown nPg")
 
         return ksis, etas, weights
 
     @staticmethod
-    def _Quadrangle(nPg: int) -> tuple[Numbers, Numbers, Numbers]:
+    def _Quadrangle(nPg: int) -> tuple[_types.Numbers, _types.Numbers, _types.Numbers]:
         """available [4, 9]\n
         order = [1, 2]"""
         if nPg == 4:
@@ -111,8 +113,8 @@ class Gauss:
         elif nPg == 9:
             a = 0.774596669241483
 
-            ksis = [-a, a, a, -a, 0, a, 0, -a, 0]
-            etas = [-a, -a, a, a, -a, 0, a, 0, 0]
+            ksis = [-a, a, a, -a, 0.0, a, 0.0, -a, 0.0]
+            etas = [-a, -a, a, a, -a, 0.0, a, 0.0, 0.0]
             weights = [
                 25 / 81,
                 25 / 81,
@@ -124,11 +126,15 @@ class Gauss:
                 40 / 81,
                 64 / 81,
             ]
+        else:
+            raise ValueError("unknown nPg")
 
         return ksis, etas, weights
 
     @staticmethod
-    def _Tetrahedron(nPg: int) -> tuple[Numbers, Numbers, Numbers, Numbers]:
+    def _Tetrahedron(
+        nPg: int,
+    ) -> tuple[_types.Numbers, _types.Numbers, _types.Numbers, _types.Numbers]:
         """available [1, 4, 5, 15]\n
         order = [1, 2, 3, 5]"""
 
@@ -142,8 +148,8 @@ class Gauss:
 
         elif nPg == 4:
 
-            a = (5 - np.sqrt(5)) / 20
-            b = (5 + 3 * np.sqrt(5)) / 20
+            a: float = (5 - np.sqrt(5)) / 20
+            b: float = (5 + 3 * np.sqrt(5)) / 20
 
             x = [a, a, a, b]
             y = [a, a, b, a]
@@ -165,29 +171,33 @@ class Gauss:
 
         elif nPg == 15:
 
-            a = 1 / 4
-            b1 = (7 + np.sqrt(15)) / 34
-            b2 = (7 - np.sqrt(15)) / 34
-            c1 = (13 - 3 * np.sqrt(15)) / 34
-            c2 = (13 + 3 * np.sqrt(15)) / 34
-            d = (5 - np.sqrt(15)) / 20
-            e = (5 + np.sqrt(15)) / 20
+            a: float = 1 / 4
+            b1: float = (7 + np.sqrt(15)) / 34
+            b2: float = (7 - np.sqrt(15)) / 34
+            c1: float = (13 - 3 * np.sqrt(15)) / 34
+            c2: float = (13 + 3 * np.sqrt(15)) / 34
+            d: float = (5 - np.sqrt(15)) / 20
+            e: float = (5 + np.sqrt(15)) / 20
 
             x = [a, b1, b1, b1, c1, b2, b2, b2, c2, d, d, e, d, e, e]
             y = [a, b1, b1, c1, b1, b2, b2, c2, b2, d, e, d, e, d, e]
             z = [a, b1, c1, b1, b1, b2, c2, b2, b2, e, d, d, e, e, d]
 
-            p1 = 8 / 405
-            p2 = (2665 - 14 * np.sqrt(15)) / 226800
-            p3 = (2665 + 14 * np.sqrt(15)) / 226800
-            p4 = 5 / 567
+            p1: float = 8 / 405
+            p2: float = (2665 - 14 * np.sqrt(15)) / 226800
+            p3: float = (2665 + 14 * np.sqrt(15)) / 226800
+            p4: float = 5 / 567
 
             weights = [p1, p2, p2, p2, p2, p3, p3, p3, p3, p4, p4, p4, p4, p4, p4]
+        else:
+            raise ValueError("unknown nPg")
 
         return x, y, z, weights
 
     @staticmethod
-    def _Hexahedron(nPg: int) -> tuple[Numbers, Numbers, Numbers, Numbers]:
+    def _Hexahedron(
+        nPg: int,
+    ) -> tuple[_types.Numbers, _types.Numbers, _types.Numbers, _types.Numbers]:
         """available [8, 27]\n
         order = [3, 5]"""
 
@@ -201,17 +211,17 @@ class Gauss:
 
             weights = [1.0] * nPg
 
-        if nPg == 27:
+        elif nPg == 27:
 
-            a = np.sqrt(3 / 5)
-            c1 = 5 / 9
-            c2 = 8 / 9
+            a: float = np.sqrt(3 / 5)
+            c1: float = 5 / 9
+            c2: float = 8 / 9
 
             x = [-a] * 9
             x.extend([0] * 9)
             x.extend([a] * 9)
-            y = [-a, -a, -a, 0, 0, 0, a, a, a] * 3
-            z = [-a, 0, a] * 9
+            y = [-a, -a, -a, 0.0, 0.0, 0.0, a, a, a] * 3
+            z = [-a, 0.0, a] * 9
 
             c13 = c1**3
             c23 = c2**3
@@ -248,46 +258,50 @@ class Gauss:
                 c12,
                 c13,
             ]
+        else:
+            raise ValueError("unknown nPg")
 
         return x, y, z, weights
 
     @staticmethod
-    def _Prism(nPg: int) -> tuple[Numbers, Numbers, Numbers, Numbers]:
+    def _Prism(
+        nPg: int,
+    ) -> tuple[_types.Numbers, _types.Numbers, _types.Numbers, _types.Numbers]:
         """available [6, 8, 21]\n
         order X = [3, 3, 5]\n
         order Y & Z = [2, 3, 5]"""
 
         if nPg == 6:
 
-            a = 1 / np.sqrt(3)
+            a: float = 1 / np.sqrt(3)
 
-            X = [-a, -a, -a, a, a, a]
-            Y = [0.5, 0, 0.5, 0.5, 0, 0.5]
-            Z = [0.5, 0.5, 0, 0.5, 0.5, 0]
+            xc = [-a, -a, -a, a, a, a]
+            yc = [0.5, 0.0, 0.5, 0.5, 0.0, 0.5]
+            zc = [0.5, 0.5, 0.0, 0.5, 0.5, 0.0]
 
             weights = [1 / 6] * nPg
 
         elif nPg == 8:
 
-            a = 0.577350269189626
+            a: float = 0.577350269189626
 
-            X = [-a, -a, -a, -a, a, a, a, a]
-            Y = [1 / 3, 0.6, 0.2, 0.2] * 2
-            Z = [1 / 3, 0.2, 0.6, 0.2] * 2
+            xc = [-a, -a, -a, -a, a, a, a, a]
+            yc = [1 / 3, 0.6, 0.2, 0.2] * 2
+            zc = [1 / 3, 0.2, 0.6, 0.2] * 2
 
             weights = [-27 / 96, 25 / 96, 25 / 96, 25 / 96] * 2
 
         elif nPg == 21:
 
-            al = np.sqrt(3 / 5)
-            c1 = 5 / 9
-            c2 = 8 / 9
-            a = (6 + np.sqrt(15)) / 21
-            b = (6 - np.sqrt(15)) / 21
-            cp = (155 + np.sqrt(15)) / 2400
-            cm = (155 - np.sqrt(15)) / 2400
+            al: float = np.sqrt(3 / 5)
+            c1: float = 5 / 9
+            c2: float = 8 / 9
+            a: float = (6 + np.sqrt(15)) / 21
+            b: float = (6 - np.sqrt(15)) / 21
+            cp: float = (155 + np.sqrt(15)) / 2400
+            cm: float = (155 - np.sqrt(15)) / 2400
 
-            X = [
+            xc = [
                 -al,
                 -al,
                 -al,
@@ -295,13 +309,13 @@ class Gauss:
                 -al,
                 -al,
                 -al,
-                0,
-                0,
-                0,
-                0,
-                0,
-                0,
-                0,
+                0.0,
+                0.0,
+                0.0,
+                0.0,
+                0.0,
+                0.0,
+                0.0,
                 al,
                 al,
                 al,
@@ -310,8 +324,8 @@ class Gauss:
                 al,
                 al,
             ]
-            Y = [1 / 3, a, 1 - 2 * a, a, b, 1 - 2 * b, b] * 3
-            Z = [1 / 3, a, a, 1 - 2 * a, b, b, 1 - 2 * b] * 3
+            yc = [1 / 3, a, 1 - 2 * a, a, b, 1 - 2 * b, b] * 3
+            zc = [1 / 3, a, a, 1 - 2 * a, b, b, 1 - 2 * b] * 3
 
             weights = [
                 c1 * 9 / 80,
@@ -336,18 +350,22 @@ class Gauss:
                 c1 * cm,
                 c1 * cm,
             ]
+        else:
+            raise ValueError("unknown nPg")
 
-        # X, Y, Z -> base code aster
+        # xc, yc, zc -> base code aster
         # z, x, y -> gmsh
-        # Y -> x, Z -> y, X -> z
-        x = np.array(Y)
-        y = np.array(Z)
-        z = np.array(X)
+        # yc -> x, zc -> y, xc -> z
+        x = np.array(yc)
+        y = np.array(zc)
+        z = np.array(xc)
 
         return x, y, z, weights
 
     @staticmethod
-    def _Gauss_factory(elemType: str, matrixType: str) -> tuple[np.ndarray, np.ndarray]:
+    def _Gauss_factory(
+        elemType: ElemType, matrixType: MatrixType
+    ) -> tuple[_types.FloatArray, _types.FloatArray]:
         """Calculation of integration points according to element and matrix type"""
 
         assert matrixType in MatrixType.Get_types()
@@ -360,6 +378,8 @@ class Gauss:
                 nPg = 1
             elif matrixType in [MatrixType.mass, MatrixType.beam]:
                 nPg = 2
+            else:
+                raise ValueError("unknown matrixType")
             x, weights = np.polynomial.legendre.leggauss(nPg)
 
         elif elemType == ElemType.SEG3:
@@ -370,6 +390,8 @@ class Gauss:
                 nPg = 3
             elif matrixType == MatrixType.beam:
                 nPg = 4
+            else:
+                raise ValueError("unknown matrixType")
             x, weights = np.polynomial.legendre.leggauss(nPg)
 
         elif elemType == ElemType.SEG4:
@@ -380,6 +402,8 @@ class Gauss:
                 nPg = 4
             elif matrixType == MatrixType.beam:
                 nPg = 6
+            else:
+                raise ValueError("unknown matrixType")
             x, weights = np.polynomial.legendre.leggauss(nPg)
 
         elif elemType == ElemType.SEG5:
@@ -390,6 +414,8 @@ class Gauss:
                 nPg = 5
             elif matrixType == MatrixType.beam:
                 nPg = 8
+            else:
+                raise ValueError("unknown matrixType")
             x, weights = np.polynomial.legendre.leggauss(nPg)
 
         elif elemType == ElemType.TRI3:
@@ -398,6 +424,8 @@ class Gauss:
                 nPg = 1
             elif matrixType == MatrixType.mass:
                 nPg = 3
+            else:
+                raise ValueError("unknown matrixType")
             xis, etas, weights = Gauss._Triangle(nPg)  # type: ignore [assignment]
 
         elif elemType == ElemType.TRI6:
@@ -406,6 +434,8 @@ class Gauss:
                 nPg = 3
             elif matrixType == MatrixType.mass:
                 nPg = 6
+            else:
+                raise ValueError("unknown matrixType")
             xis, etas, weights = Gauss._Triangle(nPg)  # type: ignore [assignment]
 
         elif elemType == ElemType.TRI10:
@@ -429,6 +459,8 @@ class Gauss:
                 nPg = 4
             elif matrixType == MatrixType.mass:
                 nPg = 9
+            else:
+                raise ValueError("unknown matrixType")
             xis, etas, weights = Gauss._Quadrangle(nPg)  # type: ignore [assignment]
         elif elemType == ElemType.QUAD9:
             dim = 2
@@ -441,6 +473,8 @@ class Gauss:
                 nPg = 1
             elif matrixType == MatrixType.mass:
                 nPg = 4
+            else:
+                raise ValueError("unknown matrixType")
             x, y, z, weights = Gauss._Tetrahedron(nPg)  # type: ignore [assignment]
 
         elif elemType == ElemType.TETRA10:
@@ -482,11 +516,13 @@ class Gauss:
             raise Exception("Element not implemented.")
 
         if dim == 1:
-            coord = np.asarray([x]).T.reshape((nPg, 1))
+            coord = np.asarray([x]).T.reshape((nPg, 1))  # type: ignore
         elif dim == 2:
-            coord = np.asarray([xis, etas]).T.reshape((nPg, 2))
+            coord = np.asarray([xis, etas]).T.reshape((nPg, 2))  # type: ignore
         elif dim == 3:
-            coord = np.asarray([x, y, z]).T.reshape((nPg, 3))
+            coord = np.asarray([x, y, z]).T.reshape((nPg, 3))  # type: ignore
+        else:
+            raise ValueError("Unknown dimension")
 
         weights = np.asarray(weights).reshape(nPg)
 

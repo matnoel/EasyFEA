@@ -8,7 +8,7 @@ from scipy import sparse
 import pandas as pd
 
 # utilities
-from ..utilities import Display, Tic
+from ..utilities import Display, Tic, _types
 from ..utilities._observers import Observable
 
 # fem
@@ -132,14 +132,17 @@ class PhaseFieldSimu(_Simu):
         return self._Get_u_n(ModelType.damage)
 
     def Bc_dofs_nodes(
-        self, nodes: np.ndarray, unknowns: list[str], problemType=ModelType.elastic
+        self,
+        nodes: _types.UIntArray,
+        unknowns: list[str],
+        problemType=ModelType.elastic,
     ) -> np.ndarray:
         return super().Bc_dofs_nodes(nodes, unknowns, problemType)
 
     def add_dirichlet(
         self,
-        nodes: np.ndarray,
-        values: np.ndarray,
+        nodes: _types.UIntArray,
+        values: _types.FloatArray,
         unknowns: list[str],
         problemType=ModelType.elastic,
         description="",
@@ -148,7 +151,7 @@ class PhaseFieldSimu(_Simu):
 
     def add_lineLoad(
         self,
-        nodes: np.ndarray,
+        nodes: _types.UIntArray,
         values: list,
         unknowns: list[str],
         problemType=ModelType.elastic,
@@ -158,7 +161,7 @@ class PhaseFieldSimu(_Simu):
 
     def add_surfLoad(
         self,
-        nodes: np.ndarray,
+        nodes: _types.UIntArray,
         values: list,
         unknowns: list[str],
         problemType=ModelType.elastic,
@@ -168,7 +171,7 @@ class PhaseFieldSimu(_Simu):
 
     def add_pressureLoad(
         self,
-        nodes: np.ndarray,
+        nodes: _types.UIntArray,
         magnitude: float,
         problemType=ModelType.elastic,
         description="",
@@ -177,7 +180,7 @@ class PhaseFieldSimu(_Simu):
 
     def add_neumann(
         self,
-        nodes: np.ndarray,
+        nodes: _types.UIntArray,
         values: list,
         unknowns: list[str],
         problemType=ModelType.elastic,
@@ -473,7 +476,7 @@ class PhaseFieldSimu(_Simu):
 
     # ------------------------------------------- Damage problem -------------------------------------------
 
-    def __Calc_psiPlus_e_pg(self) -> FeArray:
+    def __Calc_psiPlus_e_pg(self) -> FeArray.FeArrayALike:
         """Computes the positive energy density psi^+ (e, p)."""
 
         phaseFieldModel = self.phaseFieldModel
@@ -799,7 +802,7 @@ class PhaseFieldSimu(_Simu):
 
         return Psi_Crack
 
-    def _Calc_Psi_Ext(self, f_n: np.ndarray) -> float:
+    def _Calc_Psi_Ext(self, f_n: _types.FloatArray) -> float:
         """Computes external's energy."""
 
         tic = Tic()
@@ -815,15 +818,15 @@ class PhaseFieldSimu(_Simu):
         return Psi_Ext
 
     def _Calc_Epsilon_e_pg(
-        self, sol: np.ndarray, matrixType=MatrixType.rigi
-    ) -> FeArray:
+        self, sol: _types.FloatArray, matrixType=MatrixType.rigi
+    ) -> FeArray.FeArrayALike:
         """Computes strain field (Ne,pg,(3 or 6)).\n
         2D : [Exx Eyy sqrt(2)*Exy]\n
         3D : [Exx Eyy Ezz sqrt(2)*Eyz sqrt(2)*Exz sqrt(2)*Exy]
 
         Parameters
         ----------
-        sol : np.ndarray
+        sol : _types.FloatArray
             Displacement vector
 
         Returns
@@ -842,15 +845,15 @@ class PhaseFieldSimu(_Simu):
         return Epsilon_e_pg
 
     def _Calc_Sigma_e_pg(
-        self, Epsilon_e_pg: np.ndarray, matrixType=MatrixType.rigi
-    ) -> FeArray:
+        self, Epsilon_e_pg: FeArray.FeArrayALike, matrixType=MatrixType.rigi
+    ) -> FeArray.FeArrayALike:
         """Computes stress field from strain field.\n
         2D : [Sxx Syy sqrt(2)*Sxy]\n
         3D : [Sxx Syy Szz sqrt(2)*Syz sqrt(2)*Sxz sqrt(2)*Sxy]
 
         Parameters
         ----------
-        Epsilon_e_pg : np.ndarray
+        Epsilon_e_pg : FeArray.FeArrayALike
             Strain field (Ne,pg,(3 or 6))
 
         Returns

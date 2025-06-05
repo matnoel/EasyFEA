@@ -176,7 +176,7 @@ class _Beam(_IModel):
 
         self.Need_Update()
 
-        self.__yAxis: np.ndarray = yAxis
+        self.__yAxis = yAxis
 
     @property
     def name(self) -> str:
@@ -377,7 +377,7 @@ class BeamStructure(_IModel):
         """
         return self.__dof_n
 
-    def Calc_D_e_pg(self, groupElem: _GroupElem) -> FeArray:
+    def Calc_D_e_pg(self, groupElem: _GroupElem) -> FeArray.FeArrayALike:
         """Returns a matrix characterizing the beams's stiffness behavior."""
 
         if groupElem.dim != 1:

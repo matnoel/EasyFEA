@@ -6,21 +6,25 @@
 This module handles geometric objects (_Geom) to facilitate the creation of meshes on Gmsh.
 """
 
-import sys, os, matplotlib, gmsh
+import sys, os, matplotlib, gmsh  # type: ignore  [import-untyped]
 import numpy as np
-from typing import Union, Optional
-from collections.abc import Iterable
+from typing import Union, Optional, Iterable, Collection
+
 
 # utilities
-from ..utilities import Display, Folder, Tic
+from ..utilities import Display, Folder, Tic, _types
+
+# pyright: reportUnknownMemberType=false
+# pyright: reportAttributeAccessIssue=false
+# pyright: reportUnnecessaryIsInstance=false
 
 # geom
-from ..Geoms import _Geom, Point, Points, Line, Circle, CircleArc, Domain, Contour
+from ..Geoms import _Geom, Point, Points, Line, Circle, CircleArc, Domain, Contour  # type: ignore
 from ..geoms import Normalize
 
 # fem
 from ._mesh import Mesh, ElemType
-from ._group_elems import _GroupElem, GroupElemFactory
+from ._group_elems import _GroupElem, GroupElemFactory  # type: ignore
 
 # types
 LoopCompatible = Union[Circle, Domain, Points, Contour]
@@ -31,7 +35,12 @@ CrackCompatible = Union[Line, Points, Contour, CircleArc]
 class Mesher:
     """Mesher class used to construct and generate the mesh via gmsh."""
 
-    def __init__(self, openGmsh=False, gmshVerbosity=False, verbosity=False):
+    def __init__(
+        self,
+        openGmsh: bool = False,
+        gmshVerbosity: bool = False,
+        verbosity: bool = False,
+    ):
         """Creates a gmsh interface that handles _Geom objects.
 
         Parameters
@@ -61,7 +70,7 @@ class Mesher:
         if verbosity:
             Display.Section("Init GMSH interface")
 
-    def __CheckType(self, dim: int, elemType: str) -> None:
+    def __CheckType(self, dim: int, elemType: ElemType) -> None:
         """Checks that the element type is available."""
         if dim == 1:
             assert elemType in ElemType.Get_1D(), f"Must be in {ElemType.Get_1D()}"
@@ -91,9 +100,9 @@ class Mesher:
 
         if factory == gmsh.model.occ:
             # If occ is used, checks whether objects have already been synchronized.
-            ents1 = factory.getEntities()
+            ents1 = factory.getEntities()  # type: ignore
             ents2 = gmsh.model.getEntities()
-            if len(ents1) != len(ents2):
+            if len(ents1) != len(ents2):  # type: ignore
                 # Entities are not up to date
                 factory.synchronize()
         else:
@@ -110,7 +119,7 @@ class Mesher:
         elif isinstance(geom, Points):
             contour = geom.Get_Contour()
             loop, lines, points = self._Loop_From_Contour(contour)[:3]
-        elif isinstance(geom, Contour):
+        elif isinstance(geom, Contour):  # type: ignore
             loop, lines, points = self._Loop_From_Contour(geom)[:3]
         else:
             raise Exception("Must be a circle, a domain, points or a contour.")
@@ -131,8 +140,8 @@ class Mesher:
 
         nGeom = len(contour.geoms)
 
-        openPoints = []
-        openLines = []
+        openPoints: list[int] = []
+        openLines: list[int] = []
 
         for i, geom in enumerate(contour.geoms):
 
@@ -141,22 +150,22 @@ class Mesher:
             ), "Must be a Line, CircleArc or Points"
 
             if i == 0:
-                p1 = factory.addPoint(*geom.pt1.coord, geom.meshSize)
+                p1 = factory.addPoint(*geom.pt1.coord, meshSize=geom.meshSize)
                 if geom.pt1.isOpen:
                     openPoints.append(p1)
-                p2 = factory.addPoint(*geom.pt2.coord, geom.meshSize)
+                p2 = factory.addPoint(*geom.pt2.coord, meshSize=geom.meshSize)
                 if geom.pt2.isOpen:
                     openPoints.append(p2)
                 points.extend([p1, p2])
             elif i > 0 and i + 1 < nGeom:
-                p1 = p2
-                p2 = factory.addPoint(*geom.pt2.coord, geom.meshSize)
+                p1 = p2  # type: ignore
+                p2 = factory.addPoint(*geom.pt2.coord, meshSize=geom.meshSize)
                 if geom.pt2.isOpen:
                     openPoints.append(p2)
                 points.append(p2)
             else:
-                p1 = p2
-                p2 = firstPoint
+                p1 = p2  # type: ignore
+                p2 = firstPoint  # type: ignore
 
             if isinstance(geom, Line):
 
@@ -169,7 +178,7 @@ class Mesher:
 
             elif isinstance(geom, CircleArc):
 
-                pC = factory.addPoint(*geom.center.coord, geom.meshSize)
+                pC = factory.addPoint(*geom.center.coord, meshSize=geom.meshSize)
                 p3 = factory.addPoint(*geom.pt3.coord)
 
                 if np.abs(geom.angle) > np.pi:
@@ -180,11 +189,11 @@ class Mesher:
                         openLines.extend([line1, line2])
                 else:
                     if factory == gmsh.model.occ:
-                        line = factory.addCircleArc(p1, p3, p2, center=False)
+                        line = factory.addCircleArc(p1, p3, p2, center=False)  # type: ignore
                     else:
                         n = geom.n
                         line = factory.addCircleArc(
-                            p1, pC, p2, nx=n[0], ny=n[1], nz=n[2]
+                            p1, pC, p2, nx=n[0], ny=n[1], nz=n[2]  # type: ignore
                         )
                     lines.append(line)
                     if geom.isOpen:
@@ -193,11 +202,12 @@ class Mesher:
                 factory.remove([(0, pC)])
                 factory.remove([(0, p3)])
 
-            elif isinstance(geom, Points):
+            elif isinstance(geom, Points):  # type: ignore
 
                 # get points to construct the spline
                 splinePoints = [
-                    factory.addPoint(*p.coord, geom.meshSize) for p in geom.points[1:-1]
+                    factory.addPoint(*p.coord, meshSize=geom.meshSize)
+                    for p in geom.points[1:-1]
                 ]
                 splinePoints.insert(0, p1)
                 splinePoints.append(p2)
@@ -210,7 +220,7 @@ class Mesher:
                 factory.remove([(0, p) for p in splinePoints[1:-1]])
 
             if i == 0:
-                firstPoint = p1
+                firstPoint = p1  # type: ignore
 
         loop = factory.addCurveLoop(lines)
 
@@ -226,11 +236,11 @@ class Mesher:
         center = circle.center
 
         # Circle points
-        p0 = factory.addPoint(*center.coord, circle.meshSize)  # center
-        p1 = factory.addPoint(*circle.pt1.coord, circle.meshSize)
-        p2 = factory.addPoint(*circle.pt2.coord, circle.meshSize)
-        p3 = factory.addPoint(*circle.pt3.coord, circle.meshSize)
-        p4 = factory.addPoint(*circle.pt4.coord, circle.meshSize)
+        p0 = factory.addPoint(*center.coord, meshSize=circle.meshSize)  # center
+        p1 = factory.addPoint(*circle.pt1.coord, meshSize=circle.meshSize)
+        p2 = factory.addPoint(*circle.pt2.coord, meshSize=circle.meshSize)
+        p3 = factory.addPoint(*circle.pt3.coord, meshSize=circle.meshSize)
+        p4 = factory.addPoint(*circle.pt4.coord, meshSize=circle.meshSize)
         points = [p1, p2, p3, p4]
 
         # Circle arcs
@@ -288,8 +298,8 @@ class Mesher:
         self,
         contour: _Geom,
         inclusions: list[_Geom] = [],
-        elemType=ElemType.TRI3,
-        isOrganised=False,
+        elemType: ElemType = ElemType.TRI3,
+        isOrganised: bool = False,
     ) -> tuple[list[int], list[int], list[int]]:
         """Creates gmsh surfaces.\n
         They must be plane surfaces otherwise you must use 'factory.addSurfaceFilling' function.\n
@@ -316,7 +326,7 @@ class Mesher:
         factory = self._factory
 
         # Create a contour surface
-        loopContour, lines, points = self._Loop_From_Geom(contour)
+        loopContour, lines, points = self._Loop_From_Geom(contour)  # type: ignore
 
         # Create all hollow and filled loops associated with inclusions
         hollowLoops, filledLoops = self.__Get_hollow_And_filled_Loops(inclusions)
@@ -356,6 +366,8 @@ class Mesher:
                 geoms = contour.geoms
             elif isinstance(contour, Points):
                 geoms = contour.Get_Contour().geoms
+            else:
+                raise TypeError("unknown geom type")
 
             N = len(geoms)  # number of geom in contour
 
@@ -377,8 +389,8 @@ class Mesher:
         self,
         surfaces: list[int],
         elemType: ElemType,
-        isOrganised=False,
-        numElems: list[int] = [],
+        isOrganised: bool = False,
+        numElems: _types.Numbers = [],
     ) -> None:
         """Organizes surfaces.
 
@@ -390,7 +402,7 @@ class Mesher:
             element type
         isOrganised : bool, optional
             the mesh is organized, by default False
-        numElems : list[int], optional
+        numElems : _types.Numbers, optional
             number of elements per line, by default []
         """
 
@@ -417,7 +429,7 @@ class Mesher:
                 gmsh.model.mesh.setRecombine(2, surf)
 
     def _Additional_Surfaces(
-        self, dim: int, surfaces: list[_Geom], elemType, isOrganised
+        self, dim: int, surfaces: list[_Geom], elemType: ElemType, isOrganised: bool
     ) -> None:
         """Adds surfaces to existing dim entities. Tip: if the mesh is not well generated, you can also give the inclusions.
 
@@ -454,10 +466,10 @@ class Mesher:
 
         for surface in list_surface:
             # get old entities
-            oldEntities = factory.getEntities(dim)
+            oldEntities = factory.getEntities(dim)  # type: ignore
 
             # Create new surfaces
-            newSurfaces = self._Surfaces(surface, [], elemType, isOrganised)[0]
+            newSurfaces = self._Surfaces(surface, [], elemType, isOrganised)[0]  # type: ignore
 
             # Delete or add created entities to the current geometry.
             newEntities = [(2, surf) for surf in newSurfaces]
@@ -483,16 +495,16 @@ class Mesher:
         factory = self._factory
 
         for line in lines:
-            oldEntities = factory.getEntities(dim)
+            oldEntities = factory.getEntities(dim)  # type: ignore
             if isinstance(line, Line):
-                p1 = factory.addPoint(*line.pt1.coord, line.meshSize)
-                p2 = factory.addPoint(*line.pt2.coord, line.meshSize)
+                p1 = factory.addPoint(*line.pt1.coord, meshSize=line.meshSize)
+                p2 = factory.addPoint(*line.pt2.coord, meshSize=line.meshSize)
                 geom_line = factory.addLine(p1, p2)
             elif isinstance(line, CircleArc):
-                p1 = factory.addPoint(*line.pt1.coord, line.meshSize)  # start
-                p2 = factory.addPoint(*line.pt2.coord, line.meshSize)  # end
-                p3 = factory.addPoint(*line.pt3.coord, line.meshSize)  # mid
-                geom_line = factory.addCircleArc(p1, p3, p2, center=False)
+                p1 = factory.addPoint(*line.pt1.coord, meshSize=line.meshSize)  # start
+                p2 = factory.addPoint(*line.pt2.coord, meshSize=line.meshSize)  # end
+                p3 = factory.addPoint(*line.pt3.coord, meshSize=line.meshSize)  # mid
+                geom_line = factory.addCircleArc(p1, p3, p2, center=False)  # type: ignore
             else:
                 raise Exception("You need to give lines or arcs.")
             factory.fragment(oldEntities, [(1, geom_line)], False, True)
@@ -516,18 +528,18 @@ class Mesher:
 
         factory = self._factory
 
-        oldEntities = factory.getEntities(dim)
+        oldEntities = factory.getEntities(dim)  # type: ignore
 
         list_point: list[int] = []
         for point in points:
-            if isinstance(point, Point):
-                p = factory.addPoint(*point.coord, meshSize)
+            if isinstance(point, Point):  # type: ignore
+                p = factory.addPoint(*point.coord, meshSize=meshSize)
             else:
                 raise Exception("You need to give a list of point.")
             list_point.append(p)
 
         self._Synchronize()
-        for entity in oldEntities:
+        for entity in oldEntities:  # type: ignore
             gmsh.model.mesh.embed(0, list_point, entity[0], entity[1])
 
     def _Spline_From_Points(self, points: Points) -> tuple[int, list[int]]:
@@ -535,32 +547,38 @@ class Mesher:
         returns spline, points"""
 
         meshSize = points.meshSize
-        gmshPoints = [self._factory.addPoint(*p.coord, meshSize) for p in points.points]
+        gmshPoints = [
+            self._factory.addPoint(*p.coord, meshSize=meshSize) for p in points.points
+        ]
 
         spline = self._factory.addSpline(gmshPoints)
         # remove all points except the first and the last points
         self._factory.remove([(0, p) for p in gmshPoints[1:-1]])
 
         # get first and last points
-        points = [gmshPoints[0], gmshPoints[-1]]
+        list_point: list[int] = [gmshPoints[0], gmshPoints[-1]]
 
-        return spline, points
+        return spline, list_point
 
     __dict_name_dim = {0: "P", 1: "L", 2: "S", 3: "V"}
 
     def _Set_PhysicalGroups(
-        self, setPoints=True, setLines=True, setSurfaces=True, setVolumes=True
+        self,
+        setPoints: bool = True,
+        setLines: bool = True,
+        setSurfaces: bool = True,
+        setVolumes: bool = True,
     ) -> None:
         """Creates physical groups based on created entities."""
 
         self._Synchronize()  # mandatory
 
-        entities = np.asarray(self._factory.getEntities(), dtype=int)
+        entities = np.asarray(self._factory.getEntities(), dtype=int)  # type: ignore
 
         if entities.size == 0:
             return
 
-        listDim = []
+        listDim: list[int] = []
         if setPoints:
             listDim.append(0)
         if setLines:
@@ -582,8 +600,8 @@ class Mesher:
     def _Extrude(
         self,
         surfaces: list[int],
-        extrude=[0, 0, 1],
-        elemType=ElemType.TETRA4,
+        extrude: _types.Coords = (0, 0, 1),
+        elemType: ElemType = ElemType.TETRA4,
         layers: list[int] = [],
     ) -> list[tuple[int, int]]:
         """Extrudes gmsh surfaces and returns extruded entities.
@@ -592,7 +610,7 @@ class Mesher:
         ----------
         surfaces : list[int]
             gmsh surfaces
-        extrude : list, optional
+        extrude : _types.Coords, optional
             extrusion vector, by default [0,0,1]
         elemType : ElemType, optional
             element type used, by default "TETRA4"
@@ -671,12 +689,12 @@ class Mesher:
         a0 = Normalize(axis.pt2.coord - p0)
 
         # Create new entites
-        revol = factory.revolve(entities, *p0, *a0, angle, layers, recombine=recombine)
+        revol = factory.revolve(entities, *p0, *a0, angle, layers, recombine=recombine)  # type: ignore
         revolEntities.extend(revol)
 
         if angleIs2PI:
             revol = factory.revolve(
-                entities, *p0, *a0, -angle, layers, recombine=recombine
+                entities, *p0, *a0, -angle, layers, recombine=recombine  # type: ignore
             )
             revolEntities.extend(revol)
 
@@ -728,7 +746,7 @@ class Mesher:
                 surf = factory.addSurfaceFilling(loop)
             else:
                 pointTags = [factory.addPoint(*p.coord) for p in listPoints[i]]
-                surf = factory.addSurfaceFilling(loop, pointTags=pointTags)
+                surf = factory.addSurfaceFilling(loop, pointTags=pointTags)  # type: ignore
                 factory.remove([(0, p) for p in pointTags])
             linkingSurfaces.append(surf)
 
@@ -949,7 +967,7 @@ class Mesher:
         factory = self._factory
 
         if ".stp" in file or ".igs" in file:
-            factory.importShapes(file)
+            factory.importShapes(file)  # type: ignore
         else:
             print("Must be a .stp or .igs file")
 
@@ -973,7 +991,7 @@ class Mesher:
 
     def _Cracks_SetPhysicalGroups(
         self, cracks: list[CrackCompatible], entities: list[tuple]
-    ) -> tuple[int, int, int, int]:
+    ) -> tuple[Optional[int], Optional[int], Optional[int], Optional[int]]:
         """Creates physical groups for cracks embeded in existing gmsh entities.\n
         returns crackLines, crackSurfaces, openPoints, openLines
         """
@@ -989,9 +1007,9 @@ class Mesher:
 
         # lists containing open entities
         cracks_1D = []
-        openPoints = []
+        crack_0D_open = []
         cracks_2D = []
-        openLines = []
+        crack_1D_open = []
 
         entities_0D = []
         entities_1D = []
@@ -1013,9 +1031,9 @@ class Mesher:
                 if crack.isOpen:
                     cracks_1D.append(line)
                     if pt1.isOpen:
-                        openPoints.append(p1)
+                        crack_0D_open.append(p1)
                     if pt2.isOpen:
-                        openPoints.append(p2)
+                        crack_0D_open.append(p2)
 
             elif isinstance(crack, Points):  # 1D CRACK
 
@@ -1030,8 +1048,8 @@ class Mesher:
 
                 if crack.isOpen:
                     cracks_1D.extend(lines[:-1])
-                    openLines.extend(openLns)
-                    openPoints.extend(openPts)
+                    crack_1D_open.extend(openLns)
+                    crack_0D_open.extend(openPts)
 
             elif isinstance(crack, Contour):  # 2D CRACK
 
@@ -1048,16 +1066,16 @@ class Mesher:
 
                 if crack.isOpen:
                     cracks_2D.append(surf)
-                    openLines.extend(openLns)
-                    openPoints.extend(openPts)
+                    crack_1D_open.extend(openLns)
+                    crack_0D_open.extend(openPts)
 
             elif isinstance(crack, CircleArc):  # 1D CRACK
 
                 # add points
-                pC = factory.addPoint(*crack.center.coord, crack.meshSize)
-                p1 = factory.addPoint(*crack.pt1.coord, crack.meshSize)
-                p2 = factory.addPoint(*crack.pt2.coord, crack.meshSize)
-                p3 = factory.addPoint(*crack.pt3.coord, crack.meshSize)
+                pC = factory.addPoint(*crack.center.coord, meshSize=crack.meshSize)
+                p1 = factory.addPoint(*crack.pt1.coord, meshSize=crack.meshSize)
+                p2 = factory.addPoint(*crack.pt2.coord, meshSize=crack.meshSize)
+                p3 = factory.addPoint(*crack.pt3.coord, meshSize=crack.meshSize)
                 entities_0D.extend([p1, p2, p3])
 
                 # add lines
@@ -1069,11 +1087,11 @@ class Mesher:
                 if crack.isOpen:
                     cracks_1D.extend(lines)
                     if crack.pt1.isOpen:
-                        openPoints.append(p1)
+                        crack_0D_open.append(p1)
                     if crack.pt2.isOpen:
-                        openPoints.append(p2)
+                        crack_0D_open.append(p2)
                     if crack.pt3.isOpen:
-                        openPoints.append(p3)
+                        crack_0D_open.append(p3)
 
                 factory.remove([(0, pC)], False)
 
@@ -1090,25 +1108,29 @@ class Mesher:
 
         self._Synchronize()  # mandatory
 
-        crackLines = (
+        crackLines: Optional[int] = (
             gmsh.model.addPhysicalGroup(1, cracks_1D) if len(cracks_1D) > 0 else None
         )
-        crackSurfaces = (
+        crackSurfaces: Optional[int] = (
             gmsh.model.addPhysicalGroup(2, cracks_2D) if len(cracks_2D) > 0 else None
         )
 
-        openPoints = (
-            gmsh.model.addPhysicalGroup(0, openPoints) if len(openPoints) > 0 else None
+        openPoints: Optional[int] = (
+            gmsh.model.addPhysicalGroup(0, crack_0D_open)
+            if len(crack_0D_open) > 0
+            else None
         )
-        openLines = (
-            gmsh.model.addPhysicalGroup(1, openLines) if len(openLines) > 0 else None
+        openLines: Optional[int] = (
+            gmsh.model.addPhysicalGroup(1, crack_1D_open)
+            if len(crack_1D_open) > 0
+            else None
         )
 
         return crackLines, crackSurfaces, openPoints, openLines
 
     def Mesh_Beams(
         self,
-        beams: list,
+        beams: list,  # type: ignore
         elemType=ElemType.SEG2,
         additionalPoints: list[Point] = [],
         folder="",
@@ -1119,7 +1141,7 @@ class Mesher:
         ----------
         beams : list[_Beam]
             list of Beams
-        elemType : str, optional
+        elemType : ElemType, optional
             element type, by default "SEG2" ["SEG2", "SEG3", "SEG4"]
         folder : str, optional
             default mesh.msh folder, by default "" does not save the mesh
@@ -1137,7 +1159,7 @@ class Mesher:
 
         beams: list[_Beam] = beams
 
-        assert isinstance(beams, Iterable), "beams must be a list of beams."
+        assert isinstance(beams, Collection), "beams must be a list of beams."
 
         self._Init_gmsh()
         self.__CheckType(1, elemType)
@@ -1213,7 +1235,7 @@ class Mesher:
         filledLoops = []
         for objetGeom in inclusions:
 
-            loop = self._Loop_From_Geom(objetGeom)[0]
+            loop = self._Loop_From_Geom(objetGeom)[0]  # type: ignore
 
             if objetGeom.isHollow:
                 hollowLoops.append(loop)
@@ -1227,8 +1249,8 @@ class Mesher:
         contour: _Geom,
         inclusions: list[_Geom] = [],
         elemType=ElemType.TRI3,
-        cracks: list[_Geom] = [],
-        refineGeoms: list[Union[_Geom, str]] = [],
+        cracks: list[ContourCompatible] = [],
+        refineGeoms: list[Union[Domain, Circle, str]] = [],
         isOrganised=False,
         additionalSurfaces: list[_Geom] = [],
         additionalLines: list[Union[Line, CircleArc]] = [],
@@ -1243,9 +1265,9 @@ class Mesher:
             geom object
         inclusions : list[Domain, Circle, Points, Contour], optional
             list of hollow and filled geom objects inside the domain
-        elemType : str, optional
+        elemType : ElemType, optional
             element type, by default "TRI3" ["TRI3", "TRI6", "TRI10", "QUAD4", "QUAD8"]
-        cracks : list[Line | Points | Countour]
+        cracks : list[ContourCompatible]
             list of geom object used to create open or closed cracks
         refineGeoms : list[Domain|Circle|str], optional
             list of geom object for mesh refinement, by default []
@@ -1284,15 +1306,15 @@ class Mesher:
         # adding contour to refineGeoms ensures that the mesh size is correct.
 
         # Recover 2D entities
-        entities_2D = factory.getEntities(2)
+        entities_2D = factory.getEntities(2)  # type: ignore
 
         # Crack creation
         crackLines, __, openPoints, __ = self._Cracks_SetPhysicalGroups(
-            cracks, entities_2D
+            cracks, entities_2D  # type: ignore
         )
 
         # get created surfaces
-        surfaces = [entity[1] for entity in factory.getEntities(2)]
+        surfaces = [entity[1] for entity in factory.getEntities(2)]  # type: ignore
         self._Surfaces_Organize(surfaces, elemType, isOrganised)
 
         self._Mesh_Refine(refineGeoms, contour.meshSize)
@@ -1314,8 +1336,8 @@ class Mesher:
         extrude=[0, 0, 1],
         layers: list[int] = [],
         elemType=ElemType.TETRA4,
-        cracks: list[_Geom] = [],
-        refineGeoms: list[Union[_Geom, str]] = [],
+        cracks: list[CrackCompatible] = [],
+        refineGeoms: list[Union[Domain, Circle, str]] = [],
         isOrganised=False,
         additionalSurfaces: list[_Geom] = [],
         additionalLines: list[Union[Line, CircleArc]] = [],
@@ -1334,7 +1356,7 @@ class Mesher:
             extrusion vector, by default [0,0,1]
         layers: list[int], optional
             layers in the extrusion, by default []
-        elemType : str, optional
+        elemType : ElemType, optional
             element type, by default "TETRA4" ["TETRA4", "TETRA10", "HEXA8", "HEXA20", "PRISM6", "PRISM15"]
         cracks : list[Line | Points | Countour]
             list of geom object used to create open or closed cracks
@@ -1371,7 +1393,7 @@ class Mesher:
         self._Additional_Points(2, additionalPoints)
 
         # get created surfaces
-        surfaces = [entity[1] for entity in factory.getEntities(2)]
+        surfaces = [entity[1] for entity in factory.getEntities(2)]  # type: ignore
         self._Surfaces_Organize(surfaces, elemType, isOrganised)
 
         self._Extrude(
@@ -1379,7 +1401,7 @@ class Mesher:
         )
 
         # get 3D entities
-        entities_3D = factory.getEntities(3)
+        entities_3D = factory.getEntities(3)  # type: ignore
 
         # create cracks
         crackLines, crackSurfaces, openPoints, openLines = (
@@ -1412,8 +1434,8 @@ class Mesher:
         angle=360,
         layers: list[int] = [30],
         elemType=ElemType.TETRA4,
-        cracks: list[_Geom] = [],
-        refineGeoms: list[Union[_Geom, str]] = [],
+        cracks: list[ContourCompatible] = [],
+        refineGeoms: list[Union[Domain, Circle, str]] = [],
         isOrganised=False,
         additionalSurfaces: list[_Geom] = [],
         additionalLines: list[Union[Line, CircleArc]] = [],
@@ -1471,7 +1493,7 @@ class Mesher:
         self._Additional_Points(2, additionalPoints)
 
         # get created surfaces
-        surfaces = [entity[1] for entity in factory.getEntities(2)]
+        surfaces = [entity[1] for entity in factory.getEntities(2)]  # type: ignore
         self._Surfaces_Organize(surfaces, elemType, isOrganised)
 
         self._Revolve(
@@ -1479,11 +1501,11 @@ class Mesher:
         )
 
         # get 3D entities
-        entities_3D = factory.getEntities(3)
+        entities_3D = factory.getEntities(3)  # type: ignore
 
         # create crack
         crackLines, crackSurfaces, openPoints, openLines = (
-            self._Cracks_SetPhysicalGroups(cracks, entities_3D)
+            self._Cracks_SetPhysicalGroups(cracks, entities_3D)  # type: ignore
         )
 
         self._Mesh_Refine(refineGeoms, contour.meshSize)
@@ -1505,15 +1527,19 @@ class Mesher:
         return self._Mesh_Get_Mesh()
 
     def Create_posFile(
-        self, coord: np.ndarray, values: np.ndarray, folder: str, filename="data"
+        self,
+        coord: _types.FloatArray,
+        values: _types.FloatArray,
+        folder: str,
+        filename="data",
     ) -> str:
         """Creates of a *.pos file that can be used to refine a mesh in a zone.
 
         Parameters
         ----------
-        coord : np.ndarray
+        coord : _types.FloatArray
             coordinates of values
-        values : np.ndarray
+        values : _types.FloatArray
             scalar nodes values
         folder : str
             save folder
@@ -1550,7 +1576,7 @@ class Mesher:
     def Set_meshSize(self, meshSize: float) -> None:
         """Sets the mesh size"""
         self._Synchronize()  # mandatory
-        gmsh.model.mesh.setSize(self._factory.getEntities(0), meshSize)
+        gmsh.model.mesh.setSize(self._factory.getEntities(0), meshSize)  # type: ignore
 
     def _Mesh_Refine(
         self,
@@ -1635,7 +1661,7 @@ class Mesher:
             else:
                 print("refineGeoms must be of type Domain, Circle, str(.pos file)")
 
-            fields.append(field)
+            fields.append(field)  # type: ignore
 
         # Let's use the minimum of all the fields as the mesh size field:
         minField = gmsh.model.mesh.field.add("Min")
@@ -1649,7 +1675,7 @@ class Mesher:
         gmsh.option.setNumber("Mesh.Algorithm", 5)
 
     @staticmethod
-    def _Set_mesh_order(elemType: str) -> None:
+    def _Set_mesh_order(elemType: ElemType) -> None:
         """Sets the mesh order"""
         if elemType in ["TRI3", "QUAD4"]:
             gmsh.model.mesh.set_order(1)
@@ -1697,6 +1723,8 @@ class Mesher:
         elif elemType in ElemType.Get_3D():
             meshOption = "Mesh.Algorithm3D"
             meshAlgorithm = 1  # 1: Delaunay
+        else:
+            raise ValueError("unknown elemType")
 
         gmsh.option.setNumber(meshOption, meshAlgorithm)
         gmsh.option.setNumber("Mesh.RecombinationAlgorithm", 1)
@@ -1705,7 +1733,7 @@ class Mesher:
     def _Mesh_Generate(
         self,
         dim: int,
-        elemType: str,
+        elemType: ElemType,
         crackLines: Optional[int] = None,
         crackSurfaces: Optional[int] = None,
         openPoints: Optional[int] = None,
@@ -1719,7 +1747,7 @@ class Mesher:
         ----------
         dim : int
             mesh dimension (e.g 1, 2, 3)
-        elemType : str
+        elemType : ElemType
             element type
         crackLines : int, optional
             physical group for crack lines (associated with openPoints), by default None
@@ -1790,7 +1818,7 @@ class Mesher:
             gmsh.write(msh)
             tic.Tac("Mesh", "Saving .msh", self.__verbosity)
 
-    def _Mesh_Get_Mesh(self, coef=1) -> Mesh:
+    def _Mesh_Get_Mesh(self, coef: float = 1.0) -> Mesh:
         """Creates the mesh object from the created gmsh mesh."""
 
         tic = Tic()
@@ -1798,7 +1826,7 @@ class Mesher:
         dict_groupElem: dict[ElemType, _GroupElem] = {}
         meshDim = gmsh.model.getDimension()
         elementTypes = gmsh.model.mesh.getElementTypes()
-        nodes, coord, __ = gmsh.model.mesh.getNodes()
+        nodes, coord, __ = gmsh.model.mesh.getNodes()  # type: ignore
 
         nodes = np.array(nodes, dtype=int) - 1  # node numbers
         Nn = nodes.shape[0]  # Number of nodes
@@ -1826,7 +1854,7 @@ class Mesher:
         changes[sortedNodes] = sortedNodes - diff
 
         # The coordinate matrix of all nodes used in the mesh is constructed
-        coord: np.ndarray = coord.reshape(-1, 3)[sortedIdx, :]
+        coord: _types.FloatArray = coord.reshape(-1, 3)[sortedIdx, :]
 
         # Apply coef to scale the coordinates
         coord = coord * coef
@@ -1836,7 +1864,7 @@ class Mesher:
         for gmshId in elementTypes:
 
             # get element numbers and connection matrix
-            elementTags, nodeTags = gmsh.model.mesh.getElementsByType(gmshId)
+            elementTags, nodeTags = gmsh.model.mesh.getElementsByType(gmshId)  # type: ignore
             elementTags = (
                 np.asarray(elementTags, dtype=int) - 1
             )  # tags for each elements
@@ -1844,14 +1872,14 @@ class Mesher:
                 np.asarray(nodeTags, dtype=int) - 1
             )  # connection matrix in shape (e * nPe)
 
-            nodeTags: np.ndarray = changes[
-                nodeTags
-            ]  # Apply changes to correct jumps in nodes
+            nodeTags = changes[nodeTags]  # Apply changes to correct jumps in nodes
 
             # Elements
             Ne = elementTags.shape[0]  # number of elements
             nPe = GroupElemFactory.Get_ElemInFos(gmshId)[1]  # nodes per element
-            connect: np.ndarray = nodeTags.reshape(Ne, nPe)  # creates connect matrix
+            connect: _types.UIntArraytArray = nodeTags.reshape(
+                Ne, nPe
+            )  # creates connect matrix
 
             # Nodes
             nodes = np.asarray(list(set(nodeTags)), dtype=int)
@@ -1889,7 +1917,7 @@ class Mesher:
                 nodeTags, __ = gmsh.model.mesh.getNodesForPhysicalGroup(dim, tag)
 
                 # If no node has been retrieved, move on to the nextPhysics group.
-                if nodeTags.size == 0:
+                if len(nodeTags) == 0:
                     return
                 nodeTags = np.array(nodeTags, dtype=int) - 1
 
@@ -2064,14 +2092,14 @@ class Mesher:
 
         def getColor(c: str):
             """transform matplotlib color to rgb"""
-            rgb = np.asarray(matplotlib.colors.to_rgb(edgeColor)) * 255
+            rgb = np.asarray(matplotlib.colors.to_rgb(edgeColor)) * 255  # type: ignore
             rgb = np.asarray(rgb, dtype=int)
             return rgb
 
-        def reshape(values: np.ndarray):
+        def reshape(values: _types.FloatArray):
             """reshape values to get them at the corners of the elements"""
-            values_n = np.reshape(values, (mesh.Nn, -1))
-            values_e: np.ndarray = values_n[connect_e]
+            values_n: _types.FloatArray = np.reshape(values, (mesh.Nn, -1))
+            values_e = values_n[connect_e]
             if len(values_e.shape) == 3:
                 values_e = np.transpose(values_e, (0, 2, 1))
             return values_e.reshape((mesh.Ne, -1))
@@ -2084,7 +2112,7 @@ class Mesher:
         connect_e = mesh.connect[:, :nbCorners]
         elements_e = reshape(mesh.coord)
 
-        def types(elemType: str):
+        def types(elemType: ElemType) -> str:
             """get gmsh type associated with elemType"""
             if "POINT" in elemType:
                 return "P"
@@ -2102,6 +2130,8 @@ class Mesher:
                 return "I"
             elif "PYRA" in elemType:
                 return "Y"
+            else:
+                raise ValueError("unknown elemType")
 
         gmshType = types(mesh.elemType)
         colorElems = getColor(edgeColor)
@@ -2125,11 +2155,11 @@ class Mesher:
         for i in range(simu.Niter):
             simu.Set_Iter(i)
             [
-                dict_results[result].append(reshape(simu.Result(result)))
+                dict_results[result].append(reshape(simu.Result(result)))  # type: ignore
                 for result in results
             ]
 
-        def AddView(name: str, values_e: np.ndarray):
+        def AddView(name: str, values_e: _types.FloatArray):
             """Add a view"""
 
             if name == "displacement_matrix_0":

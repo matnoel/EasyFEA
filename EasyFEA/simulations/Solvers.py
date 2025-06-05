@@ -12,7 +12,7 @@ import scipy.optimize as optimize
 import scipy.sparse.linalg as sla
 
 # utilities
-from ..utilities import Tic
+from ..utilities import Tic, _types
 
 # fem
 from ..fem import LagrangeCondition
@@ -123,9 +123,9 @@ def _Solve_Axb(
     problemType: str,
     A: sparse.csr_matrix,
     b: sparse.csr_matrix,
-    x0: np.ndarray,
-    lb: np.ndarray,
-    ub: np.ndarray,
+    x0: _types.FloatArray,
+    lb: _types.FloatArray,
+    ub: _types.FloatArray,
 ) -> np.ndarray:
     """Solves the linear system A x = b
 
@@ -139,11 +139,11 @@ def _Solve_Axb(
         matrix A
     b : sparse.csr_matrix
         vector b
-    x0 : np.ndarray
+    x0 : _types.FloatArray
         initial solution for iterative solvers
-    lb : np.ndarray
+    lb : _types.FloatArray
         lowerBoundary of the solution
-    ub : np.ndarray
+    ub : _types.FloatArray
         upperBoundary of the solution
 
     Returns
@@ -429,7 +429,7 @@ def __Solver_3(simu, problemType: str):
 def _PETSc(
     A: sparse.csr_matrix,
     b: sparse.csr_matrix,
-    x0: np.ndarray,
+    x0: _types.FloatArray,
     kspType="cg",
     pcType="ilu",
 ) -> np.ndarray:
@@ -441,7 +441,7 @@ def _PETSc(
         sparse matrix (N, N)
     b : sparse.csr_matrix
         sparse vector (N, 1)
-    x0 : np.ndarray
+    x0 : _types.FloatArray
         initial guess (N)
     kspType : str, optional
         PETSc Krylov method, by default 'cg'\n
@@ -537,7 +537,7 @@ def _ScipyLinearDirect(A: sparse.csr_matrix, b: sparse.csr_matrix, A_isSymetric:
     return x
 
 
-def _BoundConstrain(A, b, lb: np.ndarray, ub: np.ndarray):
+def _BoundConstrain(A, b, lb: _types.FloatArray, ub: _types.FloatArray):
 
     assert len(lb) == len(ub), "Must be the same size"
 

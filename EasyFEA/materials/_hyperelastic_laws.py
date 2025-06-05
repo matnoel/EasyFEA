@@ -13,7 +13,7 @@ from ._hyperelastic import HyperElastic
 
 # others
 from ._utils import _IModel, ModelType
-from ..utilities import _params
+from ..utilities import _params, _types
 
 # ----------------------------------------------
 # Hyper Elastic
@@ -68,15 +68,15 @@ class _HyperElas(_IModel, ABC):
 
     @abstractmethod
     def Compute_W(
-        self, mesh: Mesh, u: np.ndarray, matrixType=MatrixType.rigi
-    ) -> FeArray:
+        self, mesh: Mesh, u: _types.FloatArray, matrixType=MatrixType.rigi
+    ) -> FeArray.FeArrayALike:
         """Computes the quadratic energy W(u).
 
         Parameters
         ----------
         mesh : Mesh
             mesh
-        u : np.ndarray
+        u : _types.FloatArray
             discretized displacement field [u1, v1, w1, . . ., uN, vN, wN] of size Nn * dim
         matrixType : MatrixType, optional
             matrix type, by default MatrixType.rigi
@@ -91,15 +91,15 @@ class _HyperElas(_IModel, ABC):
 
     @abstractmethod
     def Compute_dWde(
-        self, mesh: Mesh, u: np.ndarray, matrixType=MatrixType.rigi
-    ) -> FeArray:
+        self, mesh: Mesh, u: _types.FloatArray, matrixType=MatrixType.rigi
+    ) -> FeArray.FeArrayALike:
         """Computes the second Piola-Kirchhoff tensor Σ(u).
 
         Parameters
         ----------
         mesh : Mesh
             mesh
-        u : np.ndarray
+        u : _types.FloatArray
             discretized displacement field [u1, v1, w1, . . ., uN, vN, wN] of size Nn * dim
         matrixType : MatrixType, optional
             matrix type, by default MatrixType.rigi
@@ -115,15 +115,15 @@ class _HyperElas(_IModel, ABC):
 
     @abstractmethod
     def Compute_d2Wde(
-        self, mesh: Mesh, u: np.ndarray, matrixType=MatrixType.rigi
-    ) -> FeArray:
+        self, mesh: Mesh, u: _types.FloatArray, matrixType=MatrixType.rigi
+    ) -> FeArray.FeArrayALike:
         """Computes dΣde.
 
         Parameters
         ----------
         mesh : Mesh
             mesh
-        u : np.ndarray
+        u : _types.FloatArray
             discretized displacement field [u1, v1, w1, . . ., uN, vN, wN] of size Nn * dim
         matrixType : MatrixType, optional
             matrix type, by default MatrixType.rigi
@@ -171,7 +171,7 @@ class NeoHookean(_HyperElas):
         self.Need_Update()
         self.__K = value
 
-    def Compute_W(self, mesh, u, matrixType=MatrixType.rigi) -> FeArray:
+    def Compute_W(self, mesh, u, matrixType=MatrixType.rigi) -> FeArray.FeArrayALike:
 
         K = self.K
         I1 = HyperElastic.Compute_I1(mesh, u, matrixType)
@@ -181,7 +181,7 @@ class NeoHookean(_HyperElas):
 
         return W
 
-    def Compute_dWde(self, mesh, u, matrixType=MatrixType.rigi) -> FeArray:
+    def Compute_dWde(self, mesh, u, matrixType=MatrixType.rigi) -> FeArray.FeArrayALike:
 
         K = self.K
         I1 = HyperElastic.Compute_I1(mesh, u, matrixType)
@@ -198,7 +198,9 @@ class NeoHookean(_HyperElas):
 
         return dW
 
-    def Compute_d2Wde(self, mesh, u, matrixType=MatrixType.rigi) -> FeArray:
+    def Compute_d2Wde(
+        self, mesh, u, matrixType=MatrixType.rigi
+    ) -> FeArray.FeArrayALike:
 
         K = self.K
         I1 = HyperElastic.Compute_I1(mesh, u, matrixType)
@@ -273,7 +275,7 @@ class MooneyRivlin(_HyperElas):
         self.Need_Update()
         self.__K2 = value
 
-    def Compute_W(self, mesh, u, matrixType=MatrixType.rigi) -> FeArray:
+    def Compute_W(self, mesh, u, matrixType=MatrixType.rigi) -> FeArray.FeArrayALike:
 
         K1 = self.K1
         K2 = self.K2
@@ -285,7 +287,7 @@ class MooneyRivlin(_HyperElas):
 
         return W
 
-    def Compute_dWde(self, mesh, u, matrixType=MatrixType.rigi) -> FeArray:
+    def Compute_dWde(self, mesh, u, matrixType=MatrixType.rigi) -> FeArray.FeArrayALike:
 
         K1 = self.K1
         K2 = self.K2
@@ -305,7 +307,9 @@ class MooneyRivlin(_HyperElas):
 
         return dW
 
-    def Compute_d2Wde(self, mesh, u, matrixType=MatrixType.rigi) -> FeArray:
+    def Compute_d2Wde(
+        self, mesh, u, matrixType=MatrixType.rigi
+    ) -> FeArray.FeArrayALike:
 
         K1 = self.K1
         K2 = self.K2
@@ -391,7 +395,7 @@ class SaintVenantKirchhoff(_HyperElas):
         self.Need_Update()
         self.__mu = value
 
-    def Compute_W(self, mesh, u, matrixType=MatrixType.rigi) -> FeArray:
+    def Compute_W(self, mesh, u, matrixType=MatrixType.rigi) -> FeArray.FeArrayALike:
 
         lmbda = self.lmbda
         mu = self.mu
@@ -402,7 +406,7 @@ class SaintVenantKirchhoff(_HyperElas):
 
         return W
 
-    def Compute_dWde(self, mesh, u, matrixType=MatrixType.rigi) -> FeArray:
+    def Compute_dWde(self, mesh, u, matrixType=MatrixType.rigi) -> FeArray.FeArrayALike:
 
         lmbda = self.lmbda
         mu = self.mu
@@ -418,7 +422,9 @@ class SaintVenantKirchhoff(_HyperElas):
 
         return dW
 
-    def Compute_d2Wde(self, mesh, u, matrixType=MatrixType.rigi) -> FeArray:
+    def Compute_d2Wde(
+        self, mesh, u, matrixType=MatrixType.rigi
+    ) -> FeArray.FeArrayALike:
 
         lmbda = self.lmbda
         mu = self.mu

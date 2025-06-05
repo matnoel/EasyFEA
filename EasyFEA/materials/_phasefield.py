@@ -2,7 +2,7 @@
 # This file is part of the EasyFEA project.
 # EasyFEA is distributed under the terms of the GNU General Public License v3 or later, see LICENSE.txt and CREDITS.md for more information.
 
-from typing import Union
+from typing import Union, Optional
 from enum import Enum
 
 # utilities
@@ -10,7 +10,7 @@ import numpy as np
 from ..utilities import Numba, Tic
 
 # fem
-from ..fem import Mesh, FeArray
+from ..fem import Mesh, FeArray, MatrixType
 
 # others
 from ._utils import (
@@ -20,7 +20,7 @@ from ._utils import (
     Project_vector_to_matrix,
     Project_matrix_to_vector,
 )
-from ..utilities import _params
+from ..utilities import _params, _types
 from ..utilities._linalg import Trace, TensorProd, Det, Inv, Norm
 
 # ----------------------------------------------
@@ -104,10 +104,10 @@ class PhaseField(_IModel):
         material: _Elas,
         split: SplitType,
         regularization: ReguType,
-        Gc: Union[float, np.ndarray],
+        Gc: Union[float, _types.FloatArray],
         l0: float,
         solver=SolverType.History,
-        A=None,
+        A: Optional[_types.FloatArray] = None,
     ):
         """Creates a phase-field model.
 
@@ -125,7 +125,7 @@ class PhaseField(_IModel):
             half crack width
         solver : SolverType, optional
             solver used to manage crack irreversibility, by default History (see SolverType)
-        A : np.ndarray, optional
+        A : _types.FloatArray, optional
             matrix characterizing the weak anisotropy in the crack surface density function.
         """
 
@@ -145,7 +145,7 @@ class PhaseField(_IModel):
 
         self.solver = solver
 
-        self.A = A
+        self.A = A  # type: ignore
 
         self.useNumba = False
 
@@ -191,7 +191,7 @@ class PhaseField(_IModel):
         return list(PhaseField.SolverType)
 
     @property
-    def k(self) -> float:
+    def k(self) -> Union[float, _types.FloatArray]:
         """get diffusion therm"""
 
         Gc = self.__Gc
@@ -202,10 +202,12 @@ class PhaseField(_IModel):
             k = 3 / 4 * Gc * l0
         elif self.__regularization == self.ReguType.AT2:
             k = Gc * l0
+        else:
+            raise TypeError("regu error")
 
         return k
 
-    def Get_r_e_pg(self, PsiP_e_pg: np.ndarray) -> FeArray:
+    def Get_r_e_pg(self, PsiP_e_pg: _types.FloatArray) -> FeArray.FeArrayALike:
         """Returns reaction therm"""
 
         Gc = self.Gc
@@ -220,10 +222,12 @@ class PhaseField(_IModel):
             r = 2 * PsiP_e_pg
         elif self.__regularization == self.ReguType.AT2:
             r = 2 * PsiP_e_pg + (Gc / l0)
+        else:
+            raise TypeError("regu error")
 
         return r
 
-    def Get_f_e_pg(self, PsiP_e_pg: np.ndarray) -> FeArray:
+    def Get_f_e_pg(self, PsiP_e_pg: _types.FloatArray) -> FeArray.FeArrayALike:
         """Returns source therm"""
 
         Gc = self.Gc
@@ -240,12 +244,14 @@ class PhaseField(_IModel):
             f = (f + absF) / 2
         elif self.__regularization == self.ReguType.AT2:
             f = 2 * PsiP_e_pg
+        else:
+            raise TypeError("regu error")
 
         return f
 
     def Get_g_e_pg(
-        self, d_n: np.ndarray, mesh: Mesh, matrixType: str, k_res=1e-12
-    ) -> FeArray:
+        self, d_n: _types.FloatArray, mesh: Mesh, matrixType: MatrixType, k_res=1e-12
+    ) -> FeArray.FeArrayALike:
         """Returns degradation function"""
 
         d_e_n = mesh.Locates_sol_e(d_n, asFeArray=True)
@@ -254,7 +260,7 @@ class PhaseField(_IModel):
         d_e_pg = Nd_pg @ d_e_n
 
         if self.__regularization in self.Get_regularisations():
-            g_e_pg: np.ndarray = (1 - d_e_pg) ** 2 + k_res
+            g_e_pg: _types.FloatArray = (1 - d_e_pg) ** 2 + k_res
         else:
             raise Exception("Not implemented.")
 
@@ -264,12 +270,12 @@ class PhaseField(_IModel):
         return FeArray.asfearray(g_e_pg)
 
     @property
-    def A(self) -> np.ndarray:
+    def A(self) -> _types.FloatArray:
         """matrix characterizing the weak anisotropy in the crack surface density function"""
         return self.__A.copy()
 
     @A.setter
-    def A(self, array: np.ndarray) -> None:
+    def A(self, array: _types.FloatArray) -> None:
         dim = self.dim
         if not isinstance(array, np.ndarray):
             array = np.eye(dim)
@@ -325,7 +331,7 @@ class PhaseField(_IModel):
         self.__solver = value
 
     @property
-    def Gc(self) -> Union[float, np.ndarray]:
+    def Gc(self) -> Union[float, _types.FloatArray]:
         """critical energy release rate (e.g. J/m^2)"""
         if isinstance(self.__Gc, np.ndarray):
             return self.__Gc.copy()
@@ -333,7 +339,7 @@ class PhaseField(_IModel):
             return self.__Gc
 
     @Gc.setter
-    def Gc(self, value: Union[float, np.ndarray]):
+    def Gc(self, value: Union[float, _types.FloatArray]):
         _params.CheckIsPositive(value)
         self.Need_Update()
         self.__Gc = value
@@ -357,9 +363,13 @@ class PhaseField(_IModel):
             c_w = 8 / 3
         elif self.__regularization == self.ReguType.AT2:
             c_w = 2
+        else:
+            raise TypeError("regu error")
         return c_w
 
-    def Calc_psi_e_pg(self, Epsilon_e_pg: np.ndarray) -> tuple[FeArray, FeArray]:
+    def Calc_psi_e_pg(
+        self, Epsilon_e_pg: FeArray.FeArrayALike
+    ) -> tuple[FeArray.FeArrayALike, FeArray.FeArrayALike]:
         """Computes the elastic energy densities.\n
 
         psiP_e_pg = 1/2 SigmaP_e_pg * Epsilon_e_pg\n
@@ -382,7 +392,9 @@ class PhaseField(_IModel):
 
         return psiP_e_pg, psiM_e_pg
 
-    def Calc_Sigma_e_pg(self, Epsilon_e_pg: np.ndarray) -> tuple[FeArray, FeArray]:
+    def Calc_Sigma_e_pg(
+        self, Epsilon_e_pg: FeArray.FeArrayALike
+    ) -> tuple[FeArray.FeArrayALike, FeArray.FeArrayALike]:
         """Computes the Stress field using the strains and the split such that:\n
 
         SigmaP_e_pg = cP_e_pg * Epsilon_e_pg\n
@@ -390,7 +402,7 @@ class PhaseField(_IModel):
 
         Parameters
         ----------
-        Epsilon_e_pg : np.ndarray
+        Epsilon_e_pg : FeArray.FeArrayALike
             strains field (e, p, D)
 
         Returns
@@ -416,12 +428,14 @@ class PhaseField(_IModel):
 
         return SigmaP_e_pg, SigmaM_e_pg
 
-    def Calc_C(self, Epsilon_e_pg: FeArray, verif=False) -> tuple[FeArray, FeArray]:
+    def Calc_C(
+        self, Epsilon_e_pg: FeArray.FeArrayALike, verif=False
+    ) -> tuple[FeArray.FeArrayALike, FeArray.FeArrayALike]:
         """Computes the splited stifness matrices for the given strain field.
 
         Parameters
         ----------
-        Epsilon_e_pg : FeArray
+        Epsilon_e_pg : FeArray.FeArrayALike
             strains field (e, p, D)
 
         Returns
@@ -446,6 +460,8 @@ class PhaseField(_IModel):
 
         elif self.__split == self.SplitType.He:
             cP_e_pg, cM_e_pg = self.__Split_He(Epsilon_e_pg, verif=verif)
+        else:
+            raise TypeError("split error")
 
         return cP_e_pg, cM_e_pg
 
@@ -467,7 +483,7 @@ class PhaseField(_IModel):
 
         return cP_e_pg, cM_e_pg
 
-    def __Split_Amor(self, Epsilon_e_pg: np.ndarray):
+    def __Split_Amor(self, Epsilon_e_pg: FeArray.FeArrayALike):
         """[Amor 2009] DOI : 10.1016/j.jmps.2009.04.011"""
 
         assert isinstance(
@@ -506,7 +522,7 @@ class PhaseField(_IModel):
 
         return cP_e_pg, cM_e_pg
 
-    def __Rp_Rm(self, vector_e_pg: FeArray):
+    def __Rp_Rm(self, vector_e_pg: FeArray.FeArrayALike):
         """Returns Rp_e_pg, Rm_e_pg"""
 
         Ne, nPg = vector_e_pg.shape[:2]
@@ -528,7 +544,9 @@ class PhaseField(_IModel):
 
         return Rp_e_pg, Rm_e_pg
 
-    def __Split_Strain(self, Epsilon_e_pg: FeArray, verif=False):
+    def __Split_Strain(
+        self, Epsilon_e_pg: FeArray.FeArrayALike, verif=False
+    ) -> tuple[FeArray.FeArrayALike, FeArray.FeArrayALike]:
         """Computes the stifness matrices for strain based splits."""
 
         material = self.__material
@@ -553,6 +571,8 @@ class PhaseField(_IModel):
                 I = np.array([1, 1, 0]).reshape((3, 1))
             elif dim == 3:
                 I = np.array([1, 1, 1, 0, 0, 0]).reshape((6, 1))
+            else:
+                raise TypeError("dim error")
             IxI = I @ I.T
 
             # Compute stifness matrices
@@ -613,9 +633,9 @@ class PhaseField(_IModel):
 
         tic.Tac("Split", f"cP_e_pg and cM_e_pg", False)
 
-        return cP_e_pg, cM_e_pg
+        return cP_e_pg, cM_e_pg  # type: ignore
 
-    def __Split_Stress(self, Epsilon_e_pg: np.ndarray, verif=False):
+    def __Split_Stress(self, Epsilon_e_pg: FeArray.FeArrayALike, verif=False):
         """Computes the stifness matrices for stress based splits."""
 
         # Recover stresses
@@ -676,6 +696,8 @@ class PhaseField(_IModel):
             elif dim == 3:
                 sP_e_pg = (1 / (2 * mu) * projP_e_pg) - (v / E * Rp_e_pg * IxI)
                 sM_e_pg = (1 / (2 * mu) * projM_e_pg) - (v / E * Rm_e_pg * IxI)
+            else:
+                raise TypeError("dim error")
 
             if self.useNumba and not material.isHeterogeneous:
                 # Faster
@@ -739,9 +761,9 @@ class PhaseField(_IModel):
 
         tic.Tac("Split", f"cP_e_pg and cM_e_pg", False)
 
-        return cP_e_pg, cM_e_pg
+        return cP_e_pg, cM_e_pg  # type: ignore
 
-    def __Split_He(self, Epsilon_e_pg: np.ndarray, verif=False):
+    def __Split_He(self, Epsilon_e_pg: FeArray.FeArrayALike, verif=False):
         """[He Shao 2019] DOI : 10.1115/1.4042217"""
 
         # Here the material is supposed to be homogeneous
@@ -818,7 +840,7 @@ class PhaseField(_IModel):
         return cP_e_pg, cM_e_pg
 
     def _Eigen_values_vectors_projectors(
-        self, vector_e_pg: FeArray, verif=False
+        self, vector_e_pg: FeArray.FeArrayALike, verif=False
     ) -> tuple[FeArray, list[FeArray], list[FeArray]]:
         """Computes the eigen values and eigen projectors of a second-order tensor (as a vector)."""
 
@@ -928,9 +950,9 @@ class PhaseField(_IModel):
                 # Init eigenvalues an eigenprojectors for case 4
                 # 𝜖1 = 𝜖2 = 𝜖3 ⇐⇒ 𝑔 = 0.
                 # -------------------------------------
-                val1_e_pg: np.ndarray = I1_e_pg / 3
-                val2_e_pg: np.ndarray = I1_e_pg / 3
-                val3_e_pg: np.ndarray = I1_e_pg / 3
+                val1_e_pg = I1_e_pg / 3
+                val2_e_pg = I1_e_pg / 3
+                val3_e_pg = I1_e_pg / 3
 
                 # Init proj matrices
                 M1 = np.zeros_like(matrix_e_pg)
@@ -1170,8 +1192,8 @@ class PhaseField(_IModel):
         return eigs_e_pg, list_m, list_M
 
     def __Spectral_Decomposition(
-        self, vector_e_pg: FeArray, verif=False
-    ) -> tuple[FeArray, FeArray]:
+        self, vector_e_pg: FeArray.FeArrayALike, verif=False
+    ) -> tuple[FeArray.FeArrayALike, FeArray.FeArrayALike]:
         """Computes spectral projectors projP and projM such that:\n
 
         In 2D:

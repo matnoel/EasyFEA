@@ -10,12 +10,22 @@ import numpy as np
 from . import Display, Folder, Tic
 from .PyVista import DICT_GMSH_TO_VTK, DICT_CELL_TYPES
 
+from typing import TYPE_CHECKING, Union
+
+if TYPE_CHECKING:
+    from ..simulations._simu import _Simu, Mesh
+
 
 # ----------------------------------------------
 # Paraview
 # ----------------------------------------------
 def Make_Paraview(
-    simu, folder: str, N=200, details=False, nodesField=[], elementsField=[]
+    simu: "_Simu",
+    folder: str,
+    N: int = 200,
+    details: bool = False,
+    nodesField: list[str] = [],
+    elementsField: list[str] = [],
 ):
     """Generates the paraview (*.pvd and *.pvu files).
 
@@ -38,13 +48,13 @@ def Make_Paraview(
 
     vtuFiles: list[str] = []
 
-    simu = Display._Init_obj(simu)[0]
+    simu = Display._Init_obj(simu)[0]  # type: ignore
 
     results = simu.results
 
     Niter = len(results)
     step = np.max([1, Niter // N])
-    iterations: np.ndarray = np.arange(0, Niter, step)
+    iterations = np.arange(0, Niter, step)
 
     folder = Folder.Join(folder, "Paraview")
 

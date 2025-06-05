@@ -14,9 +14,9 @@ class BoundaryCondition:
     def __init__(
         self,
         problemType: str,
-        nodes: _types.IntArray,
-        dofs: _types.IntArray,
-        unknowns: _types.StrArray,
+        nodes: _types.UIntArray,
+        dofs: _types.UIntArray,
+        unknowns: list[str],
         dofsValues: _types.FloatArray,
         description: str,
     ):
@@ -26,9 +26,9 @@ class BoundaryCondition:
         ----------
         problemType : str
             Problem type.
-        nodes : _types.IntArray
+        nodes : _types.uIntArray
             Nodes on which the condition is applied.
-        dofs : _types.IntArray
+        dofs : _types.uIntArray
             Degrees of freedom (associated with nodes and unknowns).
         unknowns : _types.StrArray
             Dofs unknowns (e.g. [“x”, “y”], [“rz”]).
@@ -55,12 +55,12 @@ class BoundaryCondition:
         return self.__problemType
 
     @property
-    def nodes(self) -> _types.IntArray:
+    def nodes(self) -> _types.UIntArray:
         """nodes on which the condition is applied"""
         return self.__nodes.copy()
 
     @property
-    def dofs(self) -> _types.IntArray:
+    def dofs(self) -> _types.UIntArray:
         """degrees of freedom associated with the nodes and unknowns"""
         return self.__dofs.copy()
 
@@ -95,7 +95,7 @@ class BoundaryCondition:
     @staticmethod
     def Get_dofs(
         problemType: str, list_Bc_Condition: list["BoundaryCondition"]
-    ) -> _types.IntArray:
+    ) -> _types.UIntArray:
         """Returns the degrees of freedom for the problem type.
 
         Parameters
@@ -107,7 +107,7 @@ class BoundaryCondition:
 
         Returns
         -------
-        _types.IntArray
+        _types.uIntArray
             degrees of freedom.
         """
         dofs: list[int] = []
@@ -146,22 +146,22 @@ class BoundaryCondition:
 
     @staticmethod
     def Get_dofs_nodes(
-        availableUnknowns: list[str], nodes: _types.IntArray, unknowns: list[str]
-    ) -> _types.IntArray:
+        availableUnknowns: list[str], nodes: _types.UIntArray, unknowns: list[str]
+    ) -> _types.UIntArray:
         """Retrieves degrees of freedom (dofs) associated with the nodes.
 
         Parameters
         ----------
         availableUnknowns : list[str]
             Available dofs as a list of strings. Must be a unique string list.
-        nodes : _types.IntArray
+        nodes : _types.uIntArray
             Nodes for which dofs are calculated.
         unknowns : list[str]
             unknowns.
 
         Returns
         -------
-        _types.IntArray
+        _types.uIntArray
             degrees of freedom.
         """
 
@@ -193,12 +193,12 @@ class LagrangeCondition(BoundaryCondition):
     def __init__(
         self,
         problemType: str,
-        nodes: _types.IntArray,
-        dofs: _types.IntArray,
+        nodes: _types.UIntArray,
+        dofs: _types.UIntArray,
         unknowns: _types.StrArray,
         dofsValues: _types.FloatArray,
         lagrangeCoefs: _types.FloatArray,
-        description="",
+        description: str = "",
     ):
         """Creates a Lagrange condition (based on a boundary condition).
 
@@ -206,9 +206,9 @@ class LagrangeCondition(BoundaryCondition):
         ----------
         problemType : str
             Problem type.
-        nodes : _types.IntArray
+        nodes : _types.uIntArray
             Nodes on which the condition is applied.
-        dofs : _types.IntArray
+        dofs : _types.uIntArray
             Degrees of freedom (associated with nodes and unknowns).
         unknowns : _types.StrArray
             Dofs unknowns.

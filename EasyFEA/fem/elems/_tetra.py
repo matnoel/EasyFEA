@@ -7,6 +7,7 @@
 import numpy as np
 
 from .._group_elems import _GroupElem
+from ...utilities import _types
 
 
 class TETRA4(_GroupElem):
@@ -32,9 +33,9 @@ class TETRA4(_GroupElem):
     def __init__(
         self,
         gmshId: int,
-        connect: np.ndarray,
-        coordoGlob: np.ndarray,
-        nodes: np.ndarray,
+        connect: _types.UIntArray,
+        coordoGlob: _types.FloatArray,
+        nodes: _types.UIntArray,
     ):
 
         super().__init__(gmshId, connect, coordoGlob, nodes)
@@ -67,13 +68,13 @@ class TETRA4(_GroupElem):
         return local_coords
 
     @property
-    def segments(self) -> np.ndarray:
+    def segments(self) -> _types.UIntArray:
         return np.array(
             [[0, 1], [2, 1], [2, 0], [0, 3], [2, 3], [3, 1]],
             dtype=int,
         )
 
-    def _N(self) -> np.ndarray:
+    def _N(self) -> _types.FloatArray:
 
         N1 = lambda r, s, t: -r - s - t + 1
         N2 = lambda r, s, t: r
@@ -84,7 +85,7 @@ class TETRA4(_GroupElem):
 
         return N
 
-    def _dN(self) -> np.ndarray:
+    def _dN(self) -> _types.FloatArray:
 
         dN1 = [lambda r, s, t: -1, lambda r, s, t: -1, lambda r, s, t: -1]
         dN2 = [lambda r, s, t: 1, lambda r, s, t: 0, lambda r, s, t: 0]
@@ -95,13 +96,13 @@ class TETRA4(_GroupElem):
 
         return dN
 
-    def _ddN(self) -> np.ndarray:
+    def _ddN(self) -> _types.FloatArray:
         return super()._ddN()
 
-    def _dddN(self) -> np.ndarray:
+    def _dddN(self) -> _types.FloatArray:
         return super()._dddN()
 
-    def _ddddN(self) -> np.ndarray:
+    def _ddddN(self) -> _types.FloatArray:
         return super()._ddddN()
 
 
@@ -128,9 +129,9 @@ class TETRA10(_GroupElem):
     def __init__(
         self,
         gmshId: int,
-        connect: np.ndarray,
-        coordoGlob: np.ndarray,
-        nodes: np.ndarray,
+        connect: _types.UIntArray,
+        coordoGlob: _types.FloatArray,
+        nodes: _types.UIntArray,
     ):
 
         super().__init__(gmshId, connect, coordoGlob, nodes)
@@ -163,13 +164,13 @@ class TETRA10(_GroupElem):
         return local_coords
 
     @property
-    def segments(self) -> np.ndarray:
+    def segments(self) -> _types.UIntArray:
         return np.array(
             [[0, 4, 1], [2, 5, 1], [2, 6, 0], [0, 7, 3], [2, 8, 3], [3, 9, 1]],
             dtype=int,
         )
 
-    def _N(self) -> np.ndarray:
+    def _N(self) -> _types.FloatArray:
 
         N1 = lambda r, s, t: (r + s + t - 1) * (2 * r + 2 * s + 2 * t - 1)
         N2 = lambda r, s, t: r * (2 * r - 1)
@@ -186,7 +187,7 @@ class TETRA10(_GroupElem):
 
         return N
 
-    def _dN(self) -> np.ndarray:
+    def _dN(self) -> _types.FloatArray:
 
         dN1 = [
             lambda r, s, t: 4 * r + 4 * s + 4 * t - 3,
@@ -219,7 +220,7 @@ class TETRA10(_GroupElem):
 
         return dN
 
-    def _ddN(self) -> np.ndarray:
+    def _ddN(self) -> _types.FloatArray:
 
         ddN1 = [lambda r, s, t: 4, lambda r, s, t: 4, lambda r, s, t: 4]
         ddN2 = [lambda r, s, t: 4, lambda r, s, t: 0, lambda r, s, t: 0]
@@ -236,8 +237,8 @@ class TETRA10(_GroupElem):
 
         return ddN
 
-    def _dddN(self) -> np.ndarray:
+    def _dddN(self) -> _types.FloatArray:
         return super()._dddN()
 
-    def _ddddN(self) -> np.ndarray:
+    def _ddddN(self) -> _types.FloatArray:
         return super()._ddddN()

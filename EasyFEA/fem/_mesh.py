@@ -218,7 +218,7 @@ class Mesh(Observable):
         return self.groupElem.coordGlob
 
     @coordGlob.setter
-    def coordGlob(self, coordo: np.ndarray) -> None:
+    def coordGlob(self, coord: _types.FloatArray) -> None:
         if coordo.shape == self.coordGlob.shape:
             for grp in self.dict_groupElem.values():
                 grp.coordGlob = coordo
@@ -323,9 +323,9 @@ class Mesh(Observable):
 
     def Get_normals(
         self,
-        nodes: Optional[_types.IntArray] = None,
+        nodes: Optional[_types.UIntArray] = None,
         displacementMatrix: Optional[_types.FloatArray] = None,
-    ) -> tuple[_types.FloatArray, _types.IntArray]:
+    ) -> tuple[_types.FloatArray, _types.UIntArray]:
         """Returns normal vectors and nodes belonging to the edge of the mesh.\n
         returns normals, nodes."""
 
@@ -389,13 +389,15 @@ class Mesh(Observable):
         """Returns integration points according to the matrix type."""
         return self.groupElem.Get_gauss(matrixType).weights
 
-    def Get_jacobian_e_pg(self, matrixType: MatrixType, absoluteValues=True) -> FeArray:
+    def Get_jacobian_e_pg(
+        self, matrixType: MatrixType, absoluteValues=True
+    ) -> FeArray.FeArrayALike:
         """Returns the jacobians\n
         variation in size (length, area or volume) between the reference element and the real element
         """
         return self.groupElem.Get_jacobian_e_pg(matrixType, absoluteValues)
 
-    def Get_weightedJacobian_e_pg(self, matrixType: MatrixType) -> FeArray:
+    def Get_weightedJacobian_e_pg(self, matrixType: MatrixType) -> FeArray.FeArrayALike:
         """Returns the jacobian_e_pg * weight_pg."""
         return self.groupElem.Get_weightedJacobian_e_pg(matrixType)
 
@@ -414,7 +416,7 @@ class Mesh(Observable):
         """
         return self.groupElem.Get_N_pg_rep(matrixType, self.__dim)
 
-    def Get_dN_e_pg(self, matrixType: MatrixType) -> FeArray:
+    def Get_dN_e_pg(self, matrixType: MatrixType) -> FeArray.FeArrayALike:
         """Evaluates the first-order derivatives of shape functions in (x,y,z) coordinates.\n
         [Ni,x . . . Nn,x\n
         Ni,y ... Nn,y]\n
@@ -422,7 +424,7 @@ class Mesh(Observable):
         """
         return self.groupElem.Get_dN_e_pg(matrixType)
 
-    def Get_ddN_e_pg(self, matrixType: MatrixType) -> FeArray:
+    def Get_ddN_e_pg(self, matrixType: MatrixType) -> FeArray.FeArrayALike:
         """Evaluates the first-order derivatives of shape functions in (x, y, z) coordinates.\n
         [Ni,x . . . Nn,x\n
         Ni,y . . . Nn,y\n
@@ -431,7 +433,7 @@ class Mesh(Observable):
         """
         return self.groupElem.Get_ddN_e_pg(matrixType)
 
-    def Get_B_e_pg(self, matrixType: MatrixType) -> FeArray:
+    def Get_B_e_pg(self, matrixType: MatrixType) -> FeArray.FeArrayALike:
         """Get the matrix used to calculate deformations from displacements.\n
         WARNING: Use Kelvin Mandel Notation\n
         [N1,x 0 . . . Nn,x 0\n
@@ -441,7 +443,7 @@ class Mesh(Observable):
         """
         return self.groupElem.Get_B_e_pg(matrixType)
 
-    def Get_leftDispPart(self, matrixType: MatrixType) -> FeArray:
+    def Get_leftDispPart(self, matrixType: MatrixType) -> FeArray.FeArrayALike:
         """Get the left side of local displacement matrices.\n
         Ku_e = jacobian_e_pg * weight_pg * B_e_pg' @ c_e_pg @ B_e_pg\n
 
@@ -449,7 +451,7 @@ class Mesh(Observable):
         """
         return self.groupElem.Get_leftDispPart(matrixType)
 
-    def Get_ReactionPart_e_pg(self, matrixType: MatrixType) -> FeArray:
+    def Get_ReactionPart_e_pg(self, matrixType: MatrixType) -> FeArray.FeArrayALike:
         """Get the part that builds the reaction term (scalar).\n
         ReactionPart_e_pg = r_e_pg * jacobian_e_pg * weight_pg * N_pg' @ N_pg\n
 
@@ -457,7 +459,7 @@ class Mesh(Observable):
         """
         return self.groupElem.Get_ReactionPart_e_pg(matrixType)
 
-    def Get_DiffusePart_e_pg(self, matrixType: MatrixType) -> FeArray:
+    def Get_DiffusePart_e_pg(self, matrixType: MatrixType) -> FeArray.FeArrayALike:
         """Get the part that builds the diffusion term (scalar).\n
         DiffusePart_e_pg = k_e_pg * jacobian_e_pg * weight_pg * dN_e_pg' @ A @ dN_e_pg\n
 
@@ -465,7 +467,7 @@ class Mesh(Observable):
         """
         return self.groupElem.Get_DiffusePart_e_pg(matrixType)
 
-    def Get_SourcePart_e_pg(self, matrixType: MatrixType) -> FeArray:
+    def Get_SourcePart_e_pg(self, matrixType: MatrixType) -> FeArray.FeArrayALike:
         """Get the part that builds the source term (scalar).\n
         SourcePart_e_pg = f_e_pg * jacobian_e_pg * weight_pg * N_pg'\n
 
@@ -473,12 +475,14 @@ class Mesh(Observable):
         """
         return self.groupElem.Get_SourcePart_e_pg(matrixType)
 
-    def Get_Gradient_e_pg(self, u: np.ndarray, matrixType=MatrixType.rigi) -> FeArray:
+    def Get_Gradient_e_pg(
+        self, u: _types.FloatArray, matrixType=MatrixType.rigi
+    ) -> FeArray.FeArrayALike:
         """Returns the gradient of the discretized displacement field u as a matrix
 
         Parameters
         ----------
-        u : np.ndarray
+        u : _types.FloatArray
             discretized displacement field [ux1, uy1, uz1, . . ., uxN, uyN, uzN] of size Nn * dim
         matrixType : MatrixType, optional
             matrix type, by default MatrixType.rigi
@@ -564,7 +568,7 @@ class Mesh(Observable):
         return self.groupElem.Get_Nodes_Cylinder(circle, direction, onlyOnEdge)
 
     def Elements_Nodes(
-        self, nodes: _types.IntArray, exclusively=True, neighborLayer: int = 1
+        self, nodes: _types.UIntArray, exclusively=True, neighborLayer: int = 1
     ):
         """Returns elements that exclusively or not use the specified nodes."""
 
@@ -631,7 +635,7 @@ class Mesh(Observable):
 
         return elements
 
-    def Set_Tag(self, nodes: np.ndarray, tag: str):
+    def Set_Tag(self, nodes: _types.UIntArray, tag: str):
         """Set a tag on the nodes and elements belonging to each group of elements in the mesh."""
 
         assert isinstance(tag, str), "tag must be a string"
@@ -645,12 +649,12 @@ class Mesh(Observable):
             groupElem._Set_Elements_Tag(nodes, tag)
 
     def Locates_sol_e(
-        self, sol: np.ndarray, dof_n: Optional[int] = None, asFeArray=False
-    ) -> FeArray:
+        self, sol: _types.FloatArray, dof_n: Optional[int] = None, asFeArray=False
+    ) -> FeArray.FeArrayALike:
         """Locates solution on elements."""
         return self.groupElem.Locates_sol_e(sol, dof_n, asFeArray)
 
-    def Get_Node_Values(self, result_e: np.ndarray) -> np.ndarray:
+    def Get_Node_Values(self, result_e: _types.FloatArray) -> np.ndarray:
         """Get node values from element values.\n
         The value of a node is calculated by averaging the values of the surrounding elements.
 
@@ -658,12 +662,12 @@ class Mesh(Observable):
         ----------
         mesh : Mesh
             mesh
-        result_e : np.ndarray
+        result_e : _types.FloatArray
             element values (Ne, i)
 
         Returns
         -------
-        np.ndarray
+        _types.FloatArray
             nodes values (Nn, i)
         """
 
@@ -689,7 +693,7 @@ class Mesh(Observable):
         # connectivity of the nodes
         connect_n_e = self.Get_connect_n_e()
         # get elements per ndoes
-        elements_n = np.reshape(np.sum(connect_n_e, axis=1), (Nn, 1))
+        elements_n = np.reshape(connect_n_e.sum(axis=1), (Nn, 1))
 
         for c in range(nCols):
             values_e = result_e[:, c].reshape(Ne, 1)
@@ -703,12 +707,12 @@ class Mesh(Observable):
         else:
             return result_n
 
-    def Get_Paired_Nodes(self, corners: np.ndarray, plot=False) -> np.ndarray:
+    def Get_Paired_Nodes(self, corners: _types.FloatArray, plot=False) -> np.ndarray:
         """Get the paired nodes used to construct periodic boundary conditions.
 
         Parameters
         ----------
-        corners : np.ndarray
+        corners : _types.FloatArray
             Either nodes or nodes coordinates.
 
         plot : bool, optional
@@ -945,14 +949,16 @@ class Mesh(Observable):
         else:
             return np.asarray(values_e)
 
-    def Get_New_meshSize_n(self, error_e: np.ndarray, coef=1 / 2) -> np.ndarray:
+    def Get_New_meshSize_n(
+        self, error_e: _types.FloatArray, coef: float = 1 / 2
+    ) -> np.ndarray:
         """Returns the scalar field (at nodes) used to refine the mesh.\n
 
         meshSize = (coef - 1) / error_e.max() * error_e + 1
 
         Parameters
         ----------
-        error_e : np.ndarray
+        error_e : _types.FloatArray
             error evaluated on elements
         coef : float, optional
             mesh size division ratio, by default 1/2
@@ -1045,7 +1051,7 @@ def Calc_projector(oldMesh: Mesh, newMesh: Mesh) -> sp.csr_matrix:
     columns: list[int] = []
     values: list[float] = []
 
-    def FuncExtend_Proj(element: int, nodes: np.ndarray):
+    def FuncExtend_Proj(element: int, nodes: _types.UIntArray):
         values.extend(np.ravel(phi_n_nPe[nodes]))
         lines.extend(np.repeat(nodes, nPe))
         columns.extend(np.asarray(list(connect_e[element]) * nodes.size))
@@ -1075,7 +1081,7 @@ def Calc_projector(oldMesh: Mesh, newMesh: Mesh) -> sp.csr_matrix:
     # nodesExact nodes exact are nodes for which a shape function has detected 1.
     #   (nodes detected in an mesh corner).
 
-    nodesExact = list(set(nodesExact.tolist()) - set(newCorners.tolist()))
+    nodesExact = list(set(nodesExact) - set(newCorners))  # type: ignore [assignment]
     for node in nodesExact:
         oldNode = oldMesh.Nodes_Point(Point(*newMesh.coord[node]))
         if oldNode.size == 0:

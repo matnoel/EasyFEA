@@ -12,7 +12,7 @@ from ._geom import _Geom
 from ._line import Line
 from ._circle import CircleArc
 
-from typing import Union
+from typing import Union, Collection
 from ..utilities import _types
 
 
@@ -22,7 +22,7 @@ class Points(_Geom):
 
     def __init__(
         self,
-        points: list[Union[Point, _types.Coords]],
+        points: Collection[_types.Coords],
         meshSize: _types.Number = 0.0,
         isHollow: bool = True,
         isOpen: bool = False,
@@ -65,9 +65,11 @@ class Points(_Geom):
 
         # TODO Allows the addition of chamfers?
 
+        from ._contour import Contour, ContourCompatible
+
         # Get corners
-        corners: list[Union[_Geom, Point]] = []
-        geoms: list[_Geom] = []
+        corners: list[Union[Point, _types.Coords, _Geom]] = []
+        geoms: list[ContourCompatible] = []
 
         def Link(idx1: int, idx2: int):
             # this function makes the link between corners[idx1] and corners[idx2]
@@ -109,11 +111,11 @@ class Points(_Geom):
                     point.coord, coordinates[prev], coordinates[next], point.r
                 )
 
-                pA = Point(*A, isOpen)
-                pB = Point(*B, isOpen)
-                pC = Point(*C, isOpen)
+                pA = Point(*A, isOpen=isOpen)
+                pB = Point(*B, isOpen=isOpen)
+                pC = Point(*C, isOpen=isOpen)
 
-                corners.append(CircleArc(pA, pB, pC, meshSize=mS))
+                corners.append(CircleArc(pA, pB, pC, meshSize=mS).coord)
 
             if p > 0:
                 Link(-2, -1)
@@ -121,8 +123,6 @@ class Points(_Geom):
                 geoms.append(corners[-1])
 
         Link(-1, 0)
-
-        from ._contour import Contour
 
         contour = Contour(geoms, self.isHollow, self.isOpen).copy()
         contour.name = self.name + "_contour"

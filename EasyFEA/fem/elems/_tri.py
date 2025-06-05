@@ -7,6 +7,7 @@
 import numpy as np
 
 from .._group_elems import _GroupElem
+from ...utilities import _types
 
 
 class TRI3(_GroupElem):
@@ -24,9 +25,9 @@ class TRI3(_GroupElem):
     def __init__(
         self,
         gmshId: int,
-        connect: np.ndarray,
-        coordoGlob: np.ndarray,
-        nodes: np.ndarray,
+        connect: _types.UIntArray,
+        coordoGlob: _types.FloatArray,
+        nodes: _types.UIntArray,
     ):
 
         super().__init__(gmshId, connect, coordoGlob, nodes)
@@ -49,7 +50,7 @@ class TRI3(_GroupElem):
         local_coords = np.array([list_x, list_y]).T
         return local_coords
 
-    def _N(self) -> np.ndarray:
+    def _N(self) -> _types.FloatArray:
 
         N1 = lambda r, s: -r - s + 1
         N2 = lambda r, s: r
@@ -59,7 +60,7 @@ class TRI3(_GroupElem):
 
         return N
 
-    def _dN(self) -> np.ndarray:
+    def _dN(self) -> _types.FloatArray:
 
         dN1 = [lambda r, s: -1, lambda r, s: -1]
         dN2 = [lambda r, s: 1, lambda r, s: 0]
@@ -69,13 +70,13 @@ class TRI3(_GroupElem):
 
         return dN
 
-    def _ddN(self) -> np.ndarray:
+    def _ddN(self) -> _types.FloatArray:
         return super()._ddN()
 
-    def _dddN(self) -> np.ndarray:
+    def _dddN(self) -> _types.FloatArray:
         return super()._dddN()
 
-    def _ddddN(self) -> np.ndarray:
+    def _ddddN(self) -> _types.FloatArray:
         return super()._ddddN()
 
 
@@ -94,9 +95,9 @@ class TRI6(_GroupElem):
     def __init__(
         self,
         gmshId: int,
-        connect: np.ndarray,
-        coordoGlob: np.ndarray,
-        nodes: np.ndarray,
+        connect: _types.UIntArray,
+        coordoGlob: _types.FloatArray,
+        nodes: _types.UIntArray,
     ):
 
         super().__init__(gmshId, connect, coordoGlob, nodes)
@@ -124,7 +125,7 @@ class TRI6(_GroupElem):
         local_coords = np.array([list_x, list_y]).T
         return local_coords
 
-    def _N(self) -> np.ndarray:
+    def _N(self) -> _types.FloatArray:
 
         N1 = lambda r, s: (r + s - 1) * (2 * r + 2 * s - 1)
         N2 = lambda r, s: r * (2 * r - 1)
@@ -137,7 +138,7 @@ class TRI6(_GroupElem):
 
         return N
 
-    def _dN(self) -> np.ndarray:
+    def _dN(self) -> _types.FloatArray:
 
         dN1 = [lambda r, s: 4 * r + 4 * s - 3, lambda r, s: 4 * r + 4 * s - 3]
         dN2 = [lambda r, s: 4 * r - 1, lambda r, s: 0]
@@ -150,7 +151,7 @@ class TRI6(_GroupElem):
 
         return dN
 
-    def _ddN(self) -> np.ndarray:
+    def _ddN(self) -> _types.FloatArray:
         ddN1 = [lambda r, s: 4, lambda r, s: 4]
         ddN2 = [lambda r, s: 4, lambda r, s: 0]
         ddN3 = [lambda r, s: 0, lambda r, s: 4]
@@ -162,10 +163,10 @@ class TRI6(_GroupElem):
 
         return ddNtild
 
-    def _dddN(self) -> np.ndarray:
+    def _dddN(self) -> _types.FloatArray:
         return super()._dddN()
 
-    def _ddddN(self) -> np.ndarray:
+    def _ddddN(self) -> _types.FloatArray:
         return super()._ddddN()
 
 
@@ -184,9 +185,9 @@ class TRI10(_GroupElem):
     def __init__(
         self,
         gmshId: int,
-        connect: np.ndarray,
-        coordoGlob: np.ndarray,
-        nodes: np.ndarray,
+        connect: _types.UIntArray,
+        coordoGlob: _types.FloatArray,
+        nodes: _types.UIntArray,
     ):
 
         super().__init__(gmshId, connect, coordoGlob, nodes)
@@ -229,7 +230,7 @@ class TRI10(_GroupElem):
         local_coords = np.array([list_x, list_y]).T
         return local_coords
 
-    def _N(self) -> np.ndarray:
+    def _N(self) -> _types.FloatArray:
 
         N1 = (
             lambda r, s: -9 * r**3 / 2
@@ -283,7 +284,7 @@ class TRI10(_GroupElem):
 
         return N
 
-    def _dN(self) -> np.ndarray:
+    def _dN(self) -> _types.FloatArray:
 
         dN1 = [
             lambda r, s: -27 * r**2 / 2
@@ -344,7 +345,7 @@ class TRI10(_GroupElem):
 
         return dN
 
-    def _ddN(self) -> np.ndarray:
+    def _ddN(self) -> _types.FloatArray:
 
         ddN1 = [lambda r, s: -27 * r - 27 * s + 18, lambda r, s: -27 * r - 27 * s + 18]
         ddN2 = [lambda r, s: 27 * r - 9, lambda r, s: 0]
@@ -361,7 +362,7 @@ class TRI10(_GroupElem):
 
         return ddN
 
-    def _dddN(self) -> np.ndarray:
+    def _dddN(self) -> _types.FloatArray:
 
         dddN1 = [lambda r, s: -27, lambda r, s: -27]
         dddN2 = [lambda r, s: 27, lambda r, s: 0]
@@ -380,7 +381,7 @@ class TRI10(_GroupElem):
 
         return dddN
 
-    def _ddddN(self) -> np.ndarray:
+    def _ddddN(self) -> _types.FloatArray:
         return super()._ddddN()
 
 
@@ -399,9 +400,9 @@ class TRI15(_GroupElem):
     def __init__(
         self,
         gmshId: int,
-        connect: np.ndarray,
-        coordoGlob: np.ndarray,
-        nodes: np.ndarray,
+        connect: _types.UIntArray,
+        coordoGlob: _types.FloatArray,
+        nodes: _types.UIntArray,
     ):
 
         super().__init__(gmshId, connect, coordoGlob, nodes)
@@ -452,7 +453,7 @@ class TRI15(_GroupElem):
         local_coords = np.array([list_x, list_y]).T
         return local_coords
 
-    def _N(self) -> np.ndarray:
+    def _N(self) -> _types.FloatArray:
 
         N1 = (
             lambda r, s: (r + s - 1)
@@ -496,7 +497,7 @@ class TRI15(_GroupElem):
 
         return N
 
-    def _dN(self) -> np.ndarray:
+    def _dN(self) -> _types.FloatArray:
 
         dN1 = [
             lambda r, s: 128 * r**3 / 3
@@ -675,7 +676,7 @@ class TRI15(_GroupElem):
 
         return dN
 
-    def _ddN(self) -> np.ndarray:
+    def _ddN(self) -> _types.FloatArray:
 
         ddN1 = [
             lambda r, s: 128 * r**2
@@ -775,7 +776,7 @@ class TRI15(_GroupElem):
 
         return ddN
 
-    def _dddN(self) -> np.ndarray:
+    def _dddN(self) -> _types.FloatArray:
 
         dddN1 = [
             lambda r, s: 256 * r + 256 * s - 160,
@@ -818,7 +819,7 @@ class TRI15(_GroupElem):
 
         return dddN
 
-    def _ddddN(self) -> np.ndarray:
+    def _ddddN(self) -> _types.FloatArray:
 
         ddddN1 = [lambda r, s: 256, lambda r, s: 256]
         ddddN2 = [lambda r, s: 256, lambda r, s: 0]

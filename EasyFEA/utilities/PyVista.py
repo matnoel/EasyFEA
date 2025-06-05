@@ -233,7 +233,7 @@ def Plot_Nodes(
     ----------
     obj : _Simu | Mesh
         object containing the mesh
-    nodes : np.ndarray, optional
+    nodes : _types.UIntArray, optional
         nodes to display, default None
     showId : bool, optional
         display node numbers, default False
@@ -315,7 +315,7 @@ def Plot_Elements(
     ----------
     obj : _Simu | Mesh
         object containing the mesh
-    nodes : np.ndarray, optional
+    nodes : _types.UIntArray, optional
         nodes used by elements, default None
     dimElem : int, optional
         dimension of elements, by default None (mesh.dim)
@@ -678,7 +678,7 @@ def Movie_simu(
 
     Niter = len(simu.results)
     step = np.max([1, Niter // N])
-    iterations: np.ndarray = np.arange(0, Niter, step)
+    iterations = np.arange(0, Niter, step)
 
     # activates the first iteration
     simu.Set_Iter(0, resetAll=True)

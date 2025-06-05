@@ -7,7 +7,7 @@ import numpy as np
 from scipy import sparse
 
 # utilities
-from ..utilities import Folder, Display, Tic
+from ..utilities import Folder, Display, Tic, _types
 
 # fem
 from ..fem import Mesh, MatrixType, Mesher, FeArray
@@ -79,7 +79,7 @@ class ElasticSimu(_Simu):
     @property
     def material(self) -> Materials._Elas:
         """elastic material"""
-        return self.model
+        return self.model  # type: ignore
 
     @property
     def displacement(self) -> np.ndarray:
@@ -408,7 +408,7 @@ class ElasticSimu(_Simu):
 
         return Wdef
 
-    def _Calc_ZZ1(self) -> tuple[float, np.ndarray]:
+    def _Calc_ZZ1(self) -> tuple[float, _types.FloatArray]:
         """Computes the ZZ1 error.\n
         For more details, [F.Pled, Vers une stratégie robuste ... ingénierie mécanique] page 20/21\n
         Returns the global error and the error on each element.
@@ -421,23 +421,25 @@ class ElasticSimu(_Simu):
         W_e = self._Calc_Psi_Elas(False)
         Welas = np.sum(W_e)
 
-        Ws_e: np.ndarray = self._Calc_Psi_Elas(False, True)
+        Ws_e = self._Calc_Psi_Elas(False, True)
         Ws = np.sum(Ws_e)
 
-        error_e: np.ndarray = np.abs(Ws_e - W_e).ravel() / Welas
+        error_e = np.abs(Ws_e - W_e).ravel() / Welas
 
         error: float = np.abs(Welas - Ws) / Welas
 
         return error, error_e
 
-    def _Calc_Epsilon_e_pg(self, u: np.ndarray, matrixType=MatrixType.rigi) -> FeArray:
+    def _Calc_Epsilon_e_pg(
+        self, u: _types.FloatArray, matrixType=MatrixType.rigi
+    ) -> FeArray.FeArrayALike:
         """Computes strain field from the displacement vector field.\n
         2D : [Exx Eyy sqrt(2)*Exy]\n
         3D : [Exx Eyy Ezz sqrt(2)*Eyz sqrt(2)*Exz sqrt(2)*Exy]
 
         Parameters
         ----------
-        u : np.ndarray
+        u : _types.FloatArray
             displacement vector (Ndof)
 
         Returns
@@ -456,15 +458,15 @@ class ElasticSimu(_Simu):
         return Epsilon_e_pg
 
     def _Calc_Sigma_e_pg(
-        self, Epsilon_e_pg: np.ndarray, matrixType=MatrixType.rigi
-    ) -> FeArray:
+        self, Epsilon_e_pg: FeArray.FeArrayALike, matrixType=MatrixType.rigi
+    ) -> FeArray.FeArrayALike:
         """Computes stress field from strain field.\n
         2D : [Sxx Syy sqrt(2)*Sxy]\n
         3D : [Sxx Syy Szz sqrt(2)*Syz sqrt(2)*Sxz sqrt(2)*Sxy]
 
         Parameters
         ----------
-        Epsilon_e_pg : np.ndarray
+        Epsilon_e_pg : FeArray.FeArrayALike
             Strain field (Ne,pg,(3 or 6))
 
         Returns

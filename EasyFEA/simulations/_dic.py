@@ -17,7 +17,7 @@ from ..utilities._observers import Observable, _IObserver
 from ..utilities import _types
 
 # fem
-from ..fem import Mesh, BoundaryCondition, FeArray
+from ..fem import Mesh, BoundaryCondition, FeArray, MatrixType
 
 
 class DIC(_IObserver):
@@ -26,7 +26,7 @@ class DIC(_IObserver):
         self,
         mesh: Mesh,
         idxImgRef: int,
-        imgRef: np.ndarray,
+        imgRef: _types.FloatArray,
         lr: float = 0.0,
         forces: Optional[np.ndarray] = None,
         displacements: Optional[np.ndarray] = None,
@@ -40,13 +40,13 @@ class DIC(_IObserver):
             pixel-based mesh used for dic.
         idxImgRef : int
             reference image index in _forces (or in the folder).
-        imgRef : np.ndarray
+        imgRef : _types.FloatArray
             reference image (f)
         lr : float | int, optional
             regularization length, by default 0.0
-        forces : np.ndarray, optional
+        forces : _types.FloatArray, optional
             forces measured during the tests, by default None
-        displacements : np.ndarray, optional
+        displacements : _types.FloatArray, optional
             displacements measured during the tests, by default None
         verbosity : bool, optional
             can write in the terminal, by default False
@@ -199,25 +199,25 @@ class DIC(_IObserver):
         )
         # mean_pixels = np.mean([connectPixel[e].size for e in range(mesh.Ne)])
 
-        self.__connectPixel: np.ndarray = connectPixel
+        self.__connectPixel = connectPixel
         """connectivity matrix linking the pixels used for each element."""
-        self.__coordPixelInElem: np.ndarray = coordPixelInElem
+        self.__coordPixelInElem: _types.FloatArray = coordPixelInElem  # type: ignore
         """pixel coordinates in the reference element (xi, eta)."""
 
         # create roi (as a vector)
-        roi: np.ndarray = np.zeros(coordPx.shape[0])
+        roi = np.zeros(coordPx.shape[0], dtype=int)
         roi[pixels] = 1
         self.__roi = np.asarray(roi == 1, dtype=bool)
 
         tic.Tac("DIC", "ROI", self._verbosity)
 
     @property
-    def roi(self) -> np.ndarray:
+    def roi(self) -> _types.UIntArray:
         """roi as a vector."""
         return self.__roi.copy()
 
     @property
-    def ROI(self) -> np.ndarray:
+    def ROI(self) -> _types.UIntArray:
         """roi as a matrix."""
         return self.roi.reshape(self.shape)
 
@@ -255,7 +255,7 @@ class DIC(_IObserver):
 
             # Get the nodes and pixels used by the element
             nodes = mesh.connect[e]
-            pixels: np.ndarray = connectPixel[e]
+            pixels = connectPixel[e]
             # Retrieve evaluated functions
             phi = phi_n_pixels[:, pixels]
 
@@ -294,7 +294,7 @@ class DIC(_IObserver):
         # ----------------------------------------------
         # Build the Laplacian operator (R)
         # ----------------------------------------------
-        matrixType = "mass"
+        matrixType = MatrixType.mass
         weigthedJacobian_e_pg = mesh.Get_weightedJacobian_e_pg(matrixType)  # (Ne, nPg)
         dN_e_pg = mesh.Get_dN_e_pg(matrixType)  # (Ne, nPg, dim, nPe)
 
@@ -348,7 +348,7 @@ class DIC(_IObserver):
 
         return w
 
-    def _Compute_L_M(self, img: np.ndarray) -> None:
+    def _Compute_L_M(self, img: _types.FloatArray) -> None:
         """Computes DIC matrices."""
 
         tic = Tic()
@@ -381,11 +381,13 @@ class DIC(_IObserver):
 
         tic.Tac("DIC", "Construct L and M", self._verbosity)
 
-    def _Get_u_from_images(self, img1: np.ndarray, img2: np.ndarray) -> np.ndarray:
+    def _Get_u_from_images(
+        self, img1: _types.FloatArray, img2: _types.FloatArray
+    ) -> np.ndarray:
         """Use open cv to calculate displacements between images."""
 
         # get the optical flow
-        DIS = cv2.DISOpticalFlow_create()
+        DIS = cv2.DISOpticalFlow_create()  # type: ignore
         IMG1_uint8 = np.uint8(img1 * 2 ** (8 - round(np.log2(img1.max()))))
         IMG2_uint8 = np.uint8(img2 * 2 ** (8 - round(np.log2(img1.max()))))
         # optical flow
@@ -396,11 +398,11 @@ class DIC(_IObserver):
         vy = Flow[:, :, 1]
         b = self._N_x @ vx.ravel() + self._N_y @ vy.ravel()
 
-        u0 = self.__Op_LU.solve(b)
+        u0 = self.__Op_LU.solve(b)  # type: ignore
 
         return u0
 
-    def __Test_img(self, img: np.ndarray) -> None:
+    def __Test_img(self, img: _types.FloatArray) -> None:
         """Checks whether the image is in the right shape."""
 
         assert img.shape == self.shape, f"Wrong shape, must be {self.shape}"
@@ -418,7 +420,7 @@ class DIC(_IObserver):
 
     def Solve(
         self,
-        img: np.ndarray,
+        img: _types.FloatArray,
         u0: Optional[np.ndarray] = None,
         iterMax: int = 1000,
         tolConv: float = 1e-6,
@@ -429,16 +431,16 @@ class DIC(_IObserver):
 
         Parameters
         ----------
-        img : np.ndarray
+        img : _types.FloatArray
             deformed image (g)
-        u0 : np.ndarray, optional
+        u0 : _types.FloatArray, optional
             initial displacement field, by default None\n
             If u0 == None, the field is initialized with _Get_u_from_images(imgRef, img) function
         iterMax : int, optional
             maximum number of iterations, by default 1000
         tolConv : float, optional
             convergence tolerance (converged once ||b|| <= tolConv), by default 1e-6
-        imgRef : np.ndarray, optional
+        imgRef : _types.FloatArray, optional
             reference image (f), by default None
         verbosity : bool, optional
             display iterations, by default True
@@ -485,7 +487,7 @@ class DIC(_IObserver):
             r = f - g
 
             b = Lcoef @ r - R_reg @ u
-            du = self._M_reg_LU.solve(b)
+            du = self._M_reg_LU.solve(b)  # type: ignore
             u += du
 
             norm_b = np.linalg.norm(b)
@@ -496,24 +498,27 @@ class DIC(_IObserver):
             if norm_b < tolConv:
                 break
 
-        if iter + 1 == iterMax:
+        if iter + 1 == iterMax:  # type: ignore
             raise Exception("Image correlation analysis did not converge.")
 
         return u
 
     def Calc_r_dic(
-        self, u: np.ndarray, img: np.ndarray, imgRef: Optional[np.ndarray] = None
+        self,
+        u: _types.FloatArray,
+        img: _types.FloatArray,
+        imgRef: Optional[np.ndarray] = None,
     ) -> np.ndarray:
         """Computes the dic residual between img and imgRef (as a Np x Np matrix).\n
         r_dic = f(x) - g(x + u(x))
 
         Parameters
         ----------
-        u : np.ndarray
+        u : _types.FloatArray
             finite element displacement field (Ndof)
-        img : np.ndarray
+        img : _types.FloatArray
             deformed image
-        imgRef : np.ndarray, optional
+        imgRef : _types.FloatArray, optional
             reference image, by default None
 
         Returns
@@ -547,7 +552,9 @@ class DIC(_IObserver):
 
         return r_dic
 
-    def Calc_pixelDisplacement(self, u: np.ndarray) -> tuple[np.ndarray, np.ndarray]:
+    def Calc_pixelDisplacement(
+        self, u: _types.FloatArray
+    ) -> tuple[np.ndarray, np.ndarray]:
         """Computes pixel displacements based on the finite element displacement field."""
 
         assert (
@@ -559,16 +566,18 @@ class DIC(_IObserver):
 
         return ux_p, uy_p
 
-    def Add_Result(self, idx: int, u_exp: np.ndarray, img: np.ndarray) -> None:
+    def Add_Result(
+        self, idx: int, u_exp: _types.FloatArray, img: _types.FloatArray
+    ) -> None:
         """Adds the computed dic results.
 
         Parameters
         ----------
         idx : int
             image index
-        u_exp : np.ndarray
+        u_exp : _types.FloatArray
             finite element displacement field (Ndof)
-        img : np.ndarray
+        img : _types.FloatArray
             image used
         """
         Ndof = self.__mesh.Nn * 2
@@ -627,13 +636,13 @@ def Load_DIC(folder: str, filename: str = "dic") -> DIC:
 
 
 def Get_Circle(
-    img: np.ndarray, threshold: float, boundary=None, radiusCoef=1.0
+    img: _types.FloatArray, threshold: float, boundary=None, radiusCoef=1.0
 ) -> tuple[float, float, float]:
     """Returns the circle properties in the image.
 
     Parameters
     ----------
-    img : np.ndarray
+    img : _types.FloatArray
         image used
     threshold : float
         threshold for pixel color
@@ -664,12 +673,12 @@ def Get_Circle(
         (xColor >= xMin) & (xColor <= xMax) & (yColor >= yMin) & (yColor <= yMax)
     )[0]
 
-    coordoTresh = np.zeros((filtre.size, 2))
+    coordoTresh = np.zeros((filtre.size, 2), dtype=float)
     coordoTresh[:, 0] = xColor[filtre]
     coordoTresh[:, 1] = yColor[filtre]
 
-    XC: float = np.mean(coordoTresh[:, 0])
-    YC: float = np.mean(coordoTresh[:, 1])
+    XC = np.mean(coordoTresh[:, 0]).astype(float)
+    YC = np.mean(coordoTresh[:, 1]).astype(float)
 
     rays = np.linalg.norm(coordoTresh - [XC, YC], axis=1)
     radius: float = np.max(rays) * radiusCoef

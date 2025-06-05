@@ -7,6 +7,7 @@
 import numpy as np
 
 from .._group_elems import _GroupElem
+from ...utilities import _types
 
 
 class HEXA8(_GroupElem):
@@ -26,9 +27,9 @@ class HEXA8(_GroupElem):
     def __init__(
         self,
         gmshId: int,
-        connect: np.ndarray,
-        coordoGlob: np.ndarray,
-        nodes: np.ndarray,
+        connect: _types.UIntArray,
+        coordoGlob: _types.FloatArray,
+        nodes: _types.UIntArray,
     ):
         super().__init__(gmshId, connect, coordoGlob, nodes)
 
@@ -54,7 +55,7 @@ class HEXA8(_GroupElem):
             dtype=int,
         )
 
-    def Get_Local_Coords(self):
+    def Get_Local_Coords(self) -> _types.FloatArray:
         list_x = [-1, 1, 1, -1, -1, 1, 1, -1]
         list_y = [-1, -1, 1, 1, -1, -1, 1, 1]
         list_z = [-1, -1, -1, -1, 1, 1, 1, 1]
@@ -62,7 +63,7 @@ class HEXA8(_GroupElem):
         return local_coords
 
     @property
-    def segments(self) -> np.ndarray:
+    def segments(self) -> _types.UIntArray:
         return np.array(
             [
                 [0, 1],
@@ -81,7 +82,7 @@ class HEXA8(_GroupElem):
             dtype=int,
         )
 
-    def _N(self) -> np.ndarray:
+    def _N(self) -> _types.FloatArray:
 
         N1 = lambda r, s, t: -(r - 1) * (s - 1) * (t - 1) / 8
         N2 = lambda r, s, t: (r + 1) * (s - 1) * (t - 1) / 8
@@ -96,7 +97,7 @@ class HEXA8(_GroupElem):
 
         return N
 
-    def _dN(self) -> np.ndarray:
+    def _dN(self) -> _types.FloatArray:
 
         dN1 = [
             lambda r, s, t: -(s - 1) * (t - 1) / 8,
@@ -143,13 +144,13 @@ class HEXA8(_GroupElem):
 
         return dN
 
-    def _ddN(self) -> np.ndarray:
+    def _ddN(self) -> _types.FloatArray:
         return super()._ddN()
 
-    def _dddN(self) -> np.ndarray:
+    def _dddN(self) -> _types.FloatArray:
         return super()._dddN()
 
-    def _ddddN(self) -> np.ndarray:
+    def _ddddN(self) -> _types.FloatArray:
         return super()._ddddN()
 
 
@@ -170,9 +171,9 @@ class HEXA20(_GroupElem):
     def __init__(
         self,
         gmshId: int,
-        connect: np.ndarray,
-        coordoGlob: np.ndarray,
-        nodes: np.ndarray,
+        connect: _types.UIntArray,
+        coordoGlob: _types.FloatArray,
+        nodes: _types.UIntArray,
     ):
 
         super().__init__(gmshId, connect, coordoGlob, nodes)
@@ -221,7 +222,7 @@ class HEXA20(_GroupElem):
         return local_coords
 
     @property
-    def segments(self) -> np.ndarray:
+    def segments(self) -> _types.UIntArray:
         return np.array(
             [
                 [0, 8, 1],
@@ -239,7 +240,7 @@ class HEXA20(_GroupElem):
             ]
         )
 
-    def _N(self) -> np.ndarray:
+    def _N(self) -> _types.FloatArray:
 
         N1 = lambda r, s, t: (r - 1) * (s - 1) * (t - 1) * (r + s + t + 2) / 8
         N2 = lambda r, s, t: (r + 1) * (s - 1) * (t - 1) * (r - s - t - 2) / 8
@@ -289,7 +290,7 @@ class HEXA20(_GroupElem):
 
         return N
 
-    def _dN(self) -> np.ndarray:
+    def _dN(self) -> _types.FloatArray:
 
         dN1 = [
             lambda r, s, t: r * s * t / 4
@@ -635,7 +636,7 @@ class HEXA20(_GroupElem):
 
         return dN
 
-    def _ddN(self) -> np.ndarray:
+    def _ddN(self) -> _types.FloatArray:
 
         ddN1 = [
             lambda r, s, t: (s - 1) * (t - 1) / 4,
@@ -765,10 +766,10 @@ class HEXA20(_GroupElem):
 
         return ddN
 
-    def _dddN(self) -> np.ndarray:
+    def _dddN(self) -> _types.FloatArray:
         return super()._dddN()
 
-    def _ddddN(self) -> np.ndarray:
+    def _ddddN(self) -> _types.FloatArray:
         return super()._ddddN()
 
 
@@ -789,9 +790,9 @@ class HEXA27(_GroupElem):
     def __init__(
         self,
         gmshId: int,
-        connect: np.ndarray,
-        coordoGlob: np.ndarray,
-        nodes: np.ndarray,
+        connect: _types.UIntArray,
+        coordoGlob: _types.FloatArray,
+        nodes: _types.UIntArray,
     ):
 
         super().__init__(gmshId, connect, coordoGlob, nodes)
@@ -846,7 +847,7 @@ class HEXA27(_GroupElem):
         return local_coords
 
     @property
-    def segments(self) -> np.ndarray:
+    def segments(self) -> _types.UIntArray:
         return np.array(
             [
                 [0, 8, 1],
@@ -865,7 +866,7 @@ class HEXA27(_GroupElem):
             dtype=int,
         )
 
-    def _N(self) -> np.ndarray:
+    def _N(self) -> _types.FloatArray:
 
         N1 = lambda r, s, t: r * s * t * (r - 1) * (s - 1) * (t - 1) / 8
         N2 = lambda r, s, t: r * s * t * (r + 1) * (s - 1) * (t - 1) / 8
@@ -929,7 +930,7 @@ class HEXA27(_GroupElem):
 
         return N
 
-    def _dN(self) -> np.ndarray:
+    def _dN(self) -> _types.FloatArray:
 
         dN1 = [
             lambda r, s, t: r * s * t * (s - 1) * (t - 1) / 8
@@ -1182,7 +1183,7 @@ class HEXA27(_GroupElem):
 
         return dN
 
-    def _ddN(self) -> np.ndarray:
+    def _ddN(self) -> _types.FloatArray:
 
         ddN1 = [
             lambda r, s, t: s * t * (s - 1) * (t - 1) / 4,
@@ -1354,8 +1355,8 @@ class HEXA27(_GroupElem):
 
         return ddN
 
-    def _dddN(self) -> np.ndarray:
+    def _dddN(self) -> _types.FloatArray:
         return super()._dddN()
 
-    def _ddddN(self) -> np.ndarray:
+    def _ddddN(self) -> _types.FloatArray:
         return super()._ddddN()

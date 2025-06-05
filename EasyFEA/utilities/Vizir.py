@@ -8,7 +8,7 @@ from typing import Union, Optional
 import numpy as np
 import io
 
-from ..utilities import Folder, MeshIO, Tic, Display
+from ..utilities import Folder, MeshIO, _types
 from ..simulations._simu import _Simu, _Init_obj, _Get_values
 from ..fem._group_elems import _GroupElem, GroupElemFactory, ElemType
 from ..fem._mesh import Mesh
@@ -142,8 +142,8 @@ def __Write_HOSolAt_Element(
 def __Write_HOSolAt_Solution(
     file: io.TextIOWrapper,
     groupElem: _GroupElem,
-    dofsValues: np.ndarray,
-    assembly_e: np.ndarray,
+    dofsValues: _types.FloatArray,
+    assembly_e: _types.UIntArray,
     type: int,
     order: int,
 ) -> None:

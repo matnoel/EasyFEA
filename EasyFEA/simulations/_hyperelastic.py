@@ -212,7 +212,9 @@ class HyperElasticSimu(_Simu):
 
         return self.__K, self.__F
 
-    def __Construct_Local_Matrix(self) -> tuple[FeArray, FeArray]:
+    def __Construct_Local_Matrix(
+        self,
+    ) -> tuple[FeArray.FeArrayALike, FeArray.FeArrayALike]:
 
         # data
         mat = self.material
