@@ -333,9 +333,15 @@ class HyperElastic:
                 dxux, dyux = [grad_e_pg[:, p, 0, i] for i in range(2)]
                 dxuy, dyuy = [grad_e_pg[:, p, 1, i] for i in range(2)]
 
-                Add_to_D_e_pg(p, 0, [1 + dxux, 0, dxuy, 0])  # xx
-                Add_to_D_e_pg(p, 1, [0, dyux, 0, 1 + dyuy])  # yy
-                Add_to_D_e_pg(p, 2, [dyux, 1 + dxux, 1 + dyuy, dxuy], cM)  # xy
+                Add_to_D_e_pg(
+                    p, 0, [1 + dxux, 0, dxuy, 0]  # type: ignore [list-item]
+                )  # xx
+                Add_to_D_e_pg(
+                    p, 1, [0, dyux, 0, 1 + dyuy]  # type: ignore [list-item]
+                )  # yy
+                Add_to_D_e_pg(
+                    p, 2, [dyux, 1 + dxux, 1 + dyuy, dxuy], cM  # type: ignore [list-item]
+                )  # xy
 
             else:
 
@@ -343,17 +349,23 @@ class HyperElastic:
                 dxuy, dyuy, dzuy = [grad_e_pg[:, p, 1, i] for i in range(3)]
                 dxuz, dyuz, dzuz = [grad_e_pg[:, p, 2, i] for i in range(3)]
 
-                Add_to_D_e_pg(p, 0, [1 + dxux, 0, 0, dxuy, 0, 0, dxuz, 0, 0])  # xx
-                Add_to_D_e_pg(p, 1, [0, dyux, 0, 0, 1 + dyuy, 0, 0, dyuz, 0])  # yy
-                Add_to_D_e_pg(p, 2, [0, 0, dzux, 0, 0, dzuy, 0, 0, 1 + dzuz])  # zz
                 Add_to_D_e_pg(
-                    p, 3, [0, dzux, dyux, 0, dzuy, 1 + dyuy, 0, 1 + dzuz, dyuz], cM
+                    p, 0, [1 + dxux, 0, 0, dxuy, 0, 0, dxuz, 0, 0]  # type: ignore [list-item]
+                )  # xx
+                Add_to_D_e_pg(
+                    p, 1, [0, dyux, 0, 0, 1 + dyuy, 0, 0, dyuz, 0]  # type: ignore [list-item]
+                )  # yy
+                Add_to_D_e_pg(
+                    p, 2, [0, 0, dzux, 0, 0, dzuy, 0, 0, 1 + dzuz]  # type: ignore [list-item]
+                )  # zz
+                Add_to_D_e_pg(
+                    p, 3, [0, dzux, dyux, 0, dzuy, 1 + dyuy, 0, 1 + dzuz, dyuz], cM  # type: ignore [list-item]
                 )  # yz
                 Add_to_D_e_pg(
-                    p, 4, [dzux, 0, 1 + dxux, dzuy, 0, dxuy, 1 + dzuz, 0, dxuz], cM
+                    p, 4, [dzux, 0, 1 + dxux, dzuy, 0, dxuy, 1 + dzuz, 0, dxuz], cM  # type: ignore [list-item]
                 )  # xz
                 Add_to_D_e_pg(
-                    p, 5, [dyux, 1 + dxux, 0, 1 + dyuy, dxuy, 0, dyuz, dxuz, 0], cM
+                    p, 5, [dyux, 1 + dxux, 0, 1 + dyuy, dxuy, 0, dyuz, dxuz, 0], cM  # type: ignore [list-item]
                 )  # xy
 
         return D_e_pg
