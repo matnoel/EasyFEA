@@ -634,7 +634,7 @@ def _Get_BaryCentric_Coordinates_In_Segment(
         barycentric_coords
     """
 
-    assert isinstance(vertices, _types.FloatArray) and vertices.shape[0] == 2
+    assert isinstance(vertices, np.ndarray) and vertices.shape[0] == 2
 
     A, B = vertices
 
@@ -670,7 +670,7 @@ def _Get_BaryCentric_Coordinates_In_Triangle(
         barycentric_coords
     """
 
-    assert isinstance(vertices, _types.FloatArray) and vertices.shape[0] == 3
+    assert isinstance(vertices, np.ndarray) and vertices.shape[0] == 3
 
     A, B, C = vertices
 
@@ -707,7 +707,7 @@ def _Get_BaryCentric_Coordinates_In_Tetrahedron(
         barycentric_coords
     """
 
-    assert isinstance(vertices, _types.FloatArray) and vertices.shape[0] == 4
+    assert isinstance(vertices, np.ndarray) and vertices.shape[0] == 4
 
     A, B, C, D = vertices
 

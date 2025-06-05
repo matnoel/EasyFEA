@@ -35,12 +35,10 @@ FloatArray = NDArray[np.float64]
 
 IntArray = NDArray[np.int64]
 
-NumberArray = Union[FloatArray, IntArray]
-
-Array = NDArray[Any]
+Array = Union[FloatArray, IntArray]
 
 # --------------------------------------------------------------------------------------
 # Mesh
 # --------------------------------------------------------------------------------------
 
-Coords = Union[NumberArray, Numbers]
+Coords = Union[Array, Numbers]

@@ -44,16 +44,16 @@ class Points(_Geom):
 
         assert isinstance(points, Iterable), "points must be Iterable."
 
-        points = [AsPoint(point) for point in points]
+        list_point: list[Point] = [AsPoint(point) for point in points]
 
-        self.pt1 = points[0]
+        self.pt1 = list_point[0]
         """First point"""
-        self.pt2 = points[-1]
+        self.pt2 = list_point[-1]
         """Last point"""
 
         Points.__nbPoints += 1
         name = f"Points{Points.__nbPoints}"
-        super().__init__(points, meshSize, name, isHollow, isOpen)
+        super().__init__(list_point, meshSize, name, isHollow, isOpen)
 
     def Get_Contour(self):
         """Creates a contour from the points.\n
@@ -77,14 +77,14 @@ class Points(_Geom):
                 p1 = AsPoint(corners[idx1])
             else:
                 # get the last coordinates
-                p1 = AsPoint(corners[idx1].points[-1])
+                p1 = AsPoint(corners[idx1].points[-1])  # type: ignore [union-attr]
 
             # get the first point associated with idx2
             if isinstance(corners[idx2], Point):
                 p2 = AsPoint(corners[idx2])
             else:
                 # get the first coordinates
-                p2 = AsPoint(corners[idx2].points[0])
+                p2 = AsPoint(corners[idx2].points[0])  # type: ignore [union-attr]
 
             if not p1.Check(p2):
                 line = Line(p1, p2, mS, self.isOpen)

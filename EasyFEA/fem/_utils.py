@@ -195,7 +195,7 @@ class FeArray(_types.Array):
         result = array1 + array2
         return FeArray.asfearray(result)
 
-    def __sub__(self, other) -> Union["FeArray", _types.Array]:
+    def __sub__(self, other) -> Union["FeArray", _types.Array]:  # type: ignore [override]
         # Overload the - operator
         array1, array2 = self.__get_array1_array2(other)
         result = array1 - array2
@@ -207,14 +207,14 @@ class FeArray(_types.Array):
         result = array1 * array2
         return FeArray.asfearray(result)
 
-    def __truediv__(self, other) -> Union["FeArray", _types.Array]:
+    def __truediv__(self, other) -> Union["FeArray", _types.Array]:  # type: ignore [override]
         # Overload the / operator
         array1, array2 = self.__get_array1_array2(other)
         result = array1 / array2
         return FeArray.asfearray(result)
 
     @property
-    def T(self) -> Union["FeArray", _types.Array]:
+    def T(self) -> Union["FeArray", _types.Array]:  # type: ignore [override]
         if self._ndim >= 2:
             idx = self._idx
             subscripts = f"...{idx}->...{idx[::-1]}"
@@ -229,7 +229,7 @@ class FeArray(_types.Array):
 
         if isinstance(other, FeArray):
             ndim2 = other._ndim
-        elif isinstance(other, _types.Array):
+        elif isinstance(other, np.ndarray):
             ndim2 = other.ndim
         else:
             raise TypeError("`other` must be either a FeArray or _types.AnyArray")
@@ -247,7 +247,7 @@ class FeArray(_types.Array):
 
         return FeArray.asfearray(result)
 
-    def dot(self, other) -> Union["FeArray", _types.Array]:
+    def dot(self, other) -> Union["FeArray", _types.Array]:  # type: ignore [override]
 
         ndim1 = self._ndim
         if ndim1 == 0:
@@ -258,7 +258,7 @@ class FeArray(_types.Array):
         if isinstance(other, FeArray):
             idx2 = other._idx
             ndim2 = other._ndim
-        elif isinstance(other, _types.Array):
+        elif isinstance(other, np.ndarray):
             idx2 = "".join([chr(ord(idx1[0]) + i) for i in range(other.ndim)])
             ndim2 = other.ndim
         else:
@@ -290,7 +290,7 @@ class FeArray(_types.Array):
         if isinstance(other, FeArray):
             idx2 = other._idx
             ndim2 = other._ndim
-        elif isinstance(other, _types.Array):
+        elif isinstance(other, np.ndarray):
             idx2 = "".join([chr(ord(idx1[0]) + i) for i in range(other.ndim)])
             ndim2 = other.ndim
         else:
@@ -309,15 +309,15 @@ class FeArray(_types.Array):
 
         return FeArray.asfearray(result)
 
-    def sum(self, *args, **kwargs) -> Union["FeArray", _types.Array]:
+    def sum(self, *args, **kwargs) -> Union["FeArray", _types.Array]:  # type: ignore [override]
         """`np.sum()` wrapper."""
         return FeArray.asfearray(super().sum(*args, **kwargs))
 
-    def max(self, *args, **kwargs) -> Union["FeArray", _types.Array]:
+    def max(self, *args, **kwargs) -> Union["FeArray", _types.Array]:  # type: ignore [override]
         """`np.max()` wrapper."""
         return FeArray.asfearray(super().max(*args, **kwargs))
 
-    def min(self, *args, **kwargs) -> Union["FeArray", _types.Array]:
+    def min(self, *args, **kwargs) -> Union["FeArray", _types.Array]:  # type: ignore [override]
         """`np.min()` wrapper."""
         return FeArray.asfearray(super().min(*args, **kwargs))
 

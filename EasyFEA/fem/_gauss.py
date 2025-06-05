@@ -398,7 +398,7 @@ class Gauss:
                 nPg = 1
             elif matrixType == MatrixType.mass:
                 nPg = 3
-            xis, etas, weights = Gauss._Triangle(nPg)  # type: ignore
+            xis, etas, weights = Gauss._Triangle(nPg)  # type: ignore [assignment]
 
         elif elemType == ElemType.TRI6:
             dim = 2
@@ -406,22 +406,22 @@ class Gauss:
                 nPg = 3
             elif matrixType == MatrixType.mass:
                 nPg = 6
-            xis, etas, weights = Gauss._Triangle(nPg)  # type: ignore
+            xis, etas, weights = Gauss._Triangle(nPg)  # type: ignore [assignment]
 
         elif elemType == ElemType.TRI10:
             dim = 2
             nPg = 6
-            xis, etas, weights = Gauss._Triangle(nPg)  # type: ignore
+            xis, etas, weights = Gauss._Triangle(nPg)  # type: ignore [assignment]
 
         elif elemType == ElemType.TRI15:
             dim = 2
             nPg = 12
-            xis, etas, weights = Gauss._Triangle(nPg)  # type: ignore
+            xis, etas, weights = Gauss._Triangle(nPg)  # type: ignore [assignment]
 
         elif elemType == ElemType.QUAD4:
             dim = 2
             nPg = 4
-            xis, etas, weights = Gauss._Quadrangle(nPg)  # type: ignore
+            xis, etas, weights = Gauss._Quadrangle(nPg)  # type: ignore [assignment]
 
         elif elemType == ElemType.QUAD8:
             dim = 2
@@ -429,11 +429,11 @@ class Gauss:
                 nPg = 4
             elif matrixType == MatrixType.mass:
                 nPg = 9
-            xis, etas, weights = Gauss._Quadrangle(nPg)  # type: ignore
+            xis, etas, weights = Gauss._Quadrangle(nPg)  # type: ignore [assignment]
         elif elemType == ElemType.QUAD9:
             dim = 2
             nPg = 9
-            xis, etas, weights = Gauss._Quadrangle(nPg)  # type: ignore
+            xis, etas, weights = Gauss._Quadrangle(nPg)  # type: ignore [assignment]
 
         elif elemType == ElemType.TETRA4:
             dim = 3
@@ -441,42 +441,42 @@ class Gauss:
                 nPg = 1
             elif matrixType == MatrixType.mass:
                 nPg = 4
-            x, y, z, weights = Gauss._Tetrahedron(nPg)  # type: ignore
+            x, y, z, weights = Gauss._Tetrahedron(nPg)  # type: ignore [assignment]
 
         elif elemType == ElemType.TETRA10:
             dim = 3
             nPg = 4
-            x, y, z, weights = Gauss._Tetrahedron(nPg)  # type: ignore
+            x, y, z, weights = Gauss._Tetrahedron(nPg)  # type: ignore [assignment]
 
         elif elemType == ElemType.HEXA8:
             dim = 3
             nPg = 8
-            x, y, z, weights = Gauss._Hexahedron(nPg)  # type: ignore
+            x, y, z, weights = Gauss._Hexahedron(nPg)  # type: ignore [assignment]
 
         elif elemType == ElemType.HEXA20:
             dim = 3
             nPg = 27
-            x, y, z, weights = Gauss._Hexahedron(nPg)  # type: ignore
+            x, y, z, weights = Gauss._Hexahedron(nPg)  # type: ignore [assignment]
 
         elif elemType == ElemType.HEXA27:
             dim = 3
             nPg = 27
-            x, y, z, weights = Gauss._Hexahedron(nPg)  # type: ignore
+            x, y, z, weights = Gauss._Hexahedron(nPg)  # type: ignore [assignment]
 
         elif elemType == ElemType.PRISM6:
             dim = 3
             nPg = 6
-            x, y, z, weights = Gauss._Prism(nPg)  # type: ignore
+            x, y, z, weights = Gauss._Prism(nPg)  # type: ignore [assignment]
 
         elif elemType == ElemType.PRISM15:
             dim = 3
             nPg = 6
-            x, y, z, weights = Gauss._Prism(nPg)  # type: ignore
+            x, y, z, weights = Gauss._Prism(nPg)  # type: ignore [assignment]
 
         elif elemType == ElemType.PRISM18:
             dim = 3
             nPg = 21
-            x, y, z, weights = Gauss._Prism(nPg)  # type: ignore
+            x, y, z, weights = Gauss._Prism(nPg)  # type: ignore [assignment]
 
         else:
             raise Exception("Element not implemented.")

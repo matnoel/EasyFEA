@@ -119,7 +119,7 @@ class _Geom(ABC):
     def Translate(self, dx: float = 0.0, dy: float = 0.0, dz: float = 0.0) -> None:
         """Translates the object."""
         # to translate an object, all you have to do is move these points
-        [p.Translate(dx, dy, dz) for p in self.__points]
+        [p.Translate(dx, dy, dz) for p in self.__points]  # type: ignore [func-returns-value]
 
     def Rotate(
         self, theta: float, center: tuple = (0, 0, 0), direction: tuple = (0, 0, 1)
@@ -139,7 +139,7 @@ class _Geom(ABC):
         newCoord = Rotate(oldCoord, theta, center, direction)
 
         dec = newCoord - oldCoord
-        [point.Translate(*dec[p]) for p, point in enumerate(self.points)]
+        [point.Translate(*dec[p]) for p, point in enumerate(self.points)]  # type: ignore [func-returns-value]
 
     def Symmetry(self, point=(0, 0, 0), n=(1, 0, 0)) -> None:
         """Symmetrizes the object coordinates with a plane.
@@ -156,7 +156,7 @@ class _Geom(ABC):
         newCoord = Symmetry(oldCoord, point, n)
 
         dec = newCoord - oldCoord
-        [point.Translate(*dec[p]) for p, point in enumerate(self.points)]
+        [point.Translate(*dec[p]) for p, point in enumerate(self.points)]  # type: ignore [func-returns-value]
 
     def Plot(
         self,
@@ -186,7 +186,7 @@ class _Geom(ABC):
             ax.plot(*points[:, :inDim].T, ls="", marker=".", c="black")
 
         if inDim == 3:
-            xlim, ylim, zlim = ax.get_xlim(), ax.get_ylim(), ax.get_zlim()
+            xlim, ylim, zlim = ax.get_xlim(), ax.get_ylim(), ax.get_zlim()  # type: ignore [union-attr]
             oldBounds = np.array([xlim, ylim, zlim]).T
             lines = np.concatenate((lines, oldBounds), 0)
             _Axis_equal_3D(ax, lines)
@@ -213,6 +213,6 @@ class _Geom(ABC):
                 geom.Plot(ax, color, name, plotPoints=plotPoints)
 
         if plotLegend:
-            ax.legend()
+            ax.legend()  # type: ignore [union-attr]
 
         return ax

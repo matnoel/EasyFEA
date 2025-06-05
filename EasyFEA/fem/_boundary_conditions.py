@@ -112,7 +112,7 @@ class BoundaryCondition:
         """
         dofs: list[int] = []
         [
-            dofs.extend(bc.dofs)
+            dofs.extend(bc.dofs)  # type: ignore [func-returns-value]
             for bc in list_Bc_Condition
             if bc.problemType == problemType
         ]
@@ -138,7 +138,7 @@ class BoundaryCondition:
         """
         values: list[float] = []
         [
-            values.extend(bc.dofsValues)
+            values.extend(bc.dofsValues)  # type: ignore [func-returns-value]
             for bc in list_Bc_Condition
             if bc.problemType == problemType
         ]

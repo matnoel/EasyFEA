@@ -74,7 +74,7 @@ class Mesh(Observable):
 
     def _ResetMatrix(self) -> None:
         """Resets matrices for each groupElem"""
-        [groupElem._InitMatrix() for groupElem in self.Get_list_groupElem()]
+        [groupElem._InitMatrix() for groupElem in self.Get_list_groupElem()]  # type: ignore [func-returns-value]
 
     def __str__(self) -> str:
         """Returns a string representation of the mesh."""
@@ -602,7 +602,7 @@ class Mesh(Observable):
             )
             return np.asarray([])
 
-        [list_node.extend(dict_nodes[tag]) for tag in tags]
+        [list_node.extend(dict_nodes[tag]) for tag in tags]  # type: ignore [func-returns-value]
         # make sure that that the list is unique
         nodes = np.asarray(list(set(list_node)), dtype=int)
 
@@ -625,7 +625,7 @@ class Mesh(Observable):
             return np.asarray([])
 
         # add elements belonging to the tags
-        [list_element.extend(dict_elements[tag]) for tag in tags]
+        [list_element.extend(dict_elements[tag]) for tag in tags]  # type: ignore [func-returns-value]
         # make sure that that the list is unique
         elements = np.asarray(list(set(list_element)), dtype=int)
 
@@ -808,7 +808,7 @@ class Mesh(Observable):
                         lines[:, :, 2],
                         label=f"edges{edge}",
                     )
-                    ax.add_collection3d(
+                    ax.add_collection3d(  # type: ignore [union-attr]
                         Display.Line3DCollection(lines, edgecolor=pc.get_edgecolor())
                     )
                 else:
@@ -816,7 +816,7 @@ class Mesh(Observable):
                         lines[:, :, 0], lines[:, :, 1], label=f"edges{edge}"
                     )
                     ax.add_collection(
-                        Display.LineCollection(lines, edgecolor=pc.get_edgecolor())
+                        Display.LineCollection(lines, edgecolor=pc.get_edgecolor())  # type: ignore [arg-type]
                     )
 
             ax.legend()
@@ -1075,7 +1075,7 @@ def Calc_projector(oldMesh: Mesh, newMesh: Mesh) -> sp.csr_matrix:
     # nodesExact nodes exact are nodes for which a shape function has detected 1.
     #   (nodes detected in an mesh corner).
 
-    nodesExact = list(set(nodesExact.tolist()) - set(newCorners))
+    nodesExact = list(set(nodesExact.tolist()) - set(newCorners.tolist()))
     for node in nodesExact:
         oldNode = oldMesh.Nodes_Point(Point(*newMesh.coord[node]))
         if oldNode.size == 0:

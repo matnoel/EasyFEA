@@ -278,7 +278,7 @@ class ElasticSimu(_Simu):
 
     def Result(
         self, result: str, nodeValues: Optional[bool] = True, iter: Optional[int] = None
-    ) -> Union[np.ndarray, float, None]:
+    ) -> Union[np.ndarray, float]:
 
         if iter != None:
             self.Set_Iter(iter)
