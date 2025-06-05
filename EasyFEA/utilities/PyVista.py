@@ -893,7 +893,7 @@ def _pvGeom(geom) -> Union[pv.DataSet, list[pv.DataSet]]:
 
     if not isinstance(geom, (Geoms.Point, Geoms._Geom)):
         MyPrintError("Must be a point or a geometric object.")
-        return None
+        return None  # type: ignore [return-value]
 
     def __Line(line: Geoms.Line):
         return pv.Line(line.pt1.coord, line.pt2.coord)

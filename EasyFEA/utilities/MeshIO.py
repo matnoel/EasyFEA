@@ -240,7 +240,7 @@ def Medit_to_EasyFEA(meditMesh: str) -> Mesh:
         Display.MyPrintError(
             f"The medit mesh:\n {meditMesh}\n does not contain any elements!"
         )
-        return None
+        return None  # type: ignore [return-value]
 
     dict_tags = meshio_mesh.cell_data_dict["medit:ref"]
 
@@ -304,7 +304,7 @@ def Gmsh_to_EasyFEA(gmshMesh: str) -> Mesh:
         Display.MyPrintError(
             f"The gmsh mesh:\n {gmshMesh}\n does not contain any elements!"
         )
-        return None
+        return None  # type: ignore [return-value]
 
     dict_tags = meshio_mesh.cell_data_dict["gmsh:physical"]
 

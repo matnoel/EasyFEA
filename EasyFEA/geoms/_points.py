@@ -53,7 +53,7 @@ class Points(_Geom):
 
         Points.__nbPoints += 1
         name = f"Points{Points.__nbPoints}"
-        super().__init__(points, meshSize, name, isHollow, isOpen)  # type: ignore
+        super().__init__(points, meshSize, name, isHollow, isOpen)
 
     def Get_Contour(self):
         """Creates a contour from the points.\n
@@ -77,14 +77,14 @@ class Points(_Geom):
                 p1 = AsPoint(corners[idx1])
             else:
                 # get the last coordinates
-                p1 = AsPoint(corners[idx1].points[-1])  # type: ignore
+                p1 = AsPoint(corners[idx1].points[-1])
 
             # get the first point associated with idx2
             if isinstance(corners[idx2], Point):
                 p2 = AsPoint(corners[idx2])
             else:
                 # get the first coordinates
-                p2 = AsPoint(corners[idx2].points[0])  # type: ignore
+                p2 = AsPoint(corners[idx2].points[0])
 
             if not p1.Check(p2):
                 line = Line(p1, p2, mS, self.isOpen)

@@ -8,7 +8,7 @@ import numpy as np
 from numpy.typing import NDArray
 
 import matplotlib.pyplot as plt
-from mpl_toolkits.mplot3d import Axes3D  # type: ignore
+from mpl_toolkits.mplot3d import Axes3D  # type: ignore [import-untyped]
 
 # --------------------------------------------------------------------------------------
 # Numbers
@@ -37,7 +37,7 @@ IntArray = NDArray[np.int64]
 
 NumberArray = Union[FloatArray, IntArray]
 
-AnyArray = NDArray[Any]
+Array = NDArray[Any]
 
 # --------------------------------------------------------------------------------------
 # Mesh

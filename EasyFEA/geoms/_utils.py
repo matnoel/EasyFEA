@@ -4,7 +4,7 @@
 
 import numpy as np
 import copy
-from scipy.optimize import minimize  # type: ignore
+from scipy.optimize import minimize  # type: ignore [import-untyped]
 from collections.abc import Iterable
 
 from typing import Union, Optional
@@ -137,7 +137,7 @@ class Point:
 
     def __add__(self, value):
         coord = AsCoords(value)
-        newCoord: _types.AnyArray = self.coord + coord
+        newCoord: _types.Array = self.coord + coord
         return Point(*newCoord)
 
     def __rsub__(self, value):
@@ -145,7 +145,7 @@ class Point:
 
     def __sub__(self, value):
         coord = AsCoords(value)
-        newCoord: _types.AnyArray = self.coord - coord
+        newCoord: _types.Array = self.coord - coord
         return Point(*newCoord)
 
     def __rmul__(self, value):
@@ -153,7 +153,7 @@ class Point:
 
     def __mul__(self, value):
         coord = AsCoords(value)
-        newCoord: _types.AnyArray = self.coord * coord
+        newCoord: _types.Array = self.coord * coord
         return Point(*newCoord)
 
     def __rtruediv__(self, value):
@@ -161,7 +161,7 @@ class Point:
 
     def __truediv__(self, value):
         coord = AsCoords(value)
-        newCoord: _types.AnyArray = self.coord / coord
+        newCoord: _types.Array = self.coord / coord
         return Point(*newCoord)
 
     def __rfloordiv__(self, value):
@@ -169,7 +169,7 @@ class Point:
 
     def __floordiv__(self, value):
         coord = AsCoords(value)
-        newCoord: _types.AnyArray = self.coord // coord
+        newCoord: _types.Array = self.coord // coord
         return Point(*newCoord)
 
     def copy(self):
@@ -212,7 +212,7 @@ def AsCoords(
     return coords
 
 
-def Normalize(array: _types.AnyArray) -> _types.FloatArray:
+def Normalize(array: _types.Array) -> _types.FloatArray:
     """Must be a vector or matrix."""
     array = np.asarray(array)
     if array.ndim == 1:
@@ -226,7 +226,7 @@ def Normalize(array: _types.AnyArray) -> _types.FloatArray:
 
 
 def Translate(
-    coord: _types.AnyArray, dx: float = 0.0, dy: float = 0.0, dz: float = 0.0
+    coord: _types.Array, dx: float = 0.0, dy: float = 0.0, dz: float = 0.0
 ) -> _types.FloatArray:
     """Translates the coordinates."""
 
@@ -239,7 +239,7 @@ def Translate(
     return newCoord
 
 
-def __Rotation_matrix(vect: _types.AnyArray, theta: float) -> _types.FloatArray:
+def __Rotation_matrix(vect: _types.Array, theta: float) -> _types.FloatArray:
     """Gets the rotation matrix for turning along an axis with theta angle (rad).\n
     p(x,y) = mat • p(i,j)\n
     https://en.wikipedia.org/wiki/Rotation_matrix#Axis_and_angle"""
@@ -261,7 +261,7 @@ def __Rotation_matrix(vect: _types.AnyArray, theta: float) -> _types.FloatArray:
 
 
 def Rotate(
-    coord: _types.AnyArray,
+    coord: _types.Array,
     theta: float,
     center: _types.Iterable = (0, 0, 0),
     direction: _types.Iterable = (0, 0, 1),
@@ -295,14 +295,14 @@ def Rotate(
 
     oldCoord = np.reshape(coord, (-1, 3))
 
-    newCoord: _types.AnyArray = (
+    newCoord: _types.Array = (
         np.einsum("ij,nj->ni", rotMat, oldCoord - center, optimize="optimal") + center
     )
 
     return newCoord
 
 
-def Symmetry(coord: _types.AnyArray, point=(0, 0, 0), n=(1, 0, 0)) -> _types.FloatArray:
+def Symmetry(coord: _types.Array, point=(0, 0, 0), n=(1, 0, 0)) -> _types.FloatArray:
     """Symmetrizes coordinates with a plane.
 
     Parameters
@@ -362,9 +362,7 @@ def Circle_Triangle(p1, p2, p3) -> _types.FloatArray:
     return center
 
 
-def Circle_Coords(
-    coord: _types.AnyArray, R: float, n: _types.Coords
-) -> _types.FloatArray:
+def Circle_Coords(coord: _types.Array, R: float, n: _types.Coords) -> _types.FloatArray:
     """Returns center from coordinates a radius and and a vector normal to the circle.\n
     return center
     """
@@ -391,12 +389,12 @@ def Circle_Coords(
     res = minimize(eval, p0, constraints=cons, tol=1e-12)
 
     assert res.success, "the center has not been found"
-    center: _types.AnyArray = res.x
+    center: _types.Array = res.x
 
     return center
 
 
-def Points_Intersect_Circles(circle1, circle2) -> Optional[_types.AnyArray]:
+def Points_Intersect_Circles(circle1, circle2) -> _types.Array:
     """Computes the coordinates at the intersection of the two circles (i,3).\n
     This only works if they're on the same plane.
 
@@ -422,13 +420,13 @@ def Points_Intersect_Circles(circle1, circle2) -> Optional[_types.AnyArray]:
 
     if d > r1 + r2:
         print("The circles are separated")
-        return None
+        return None  # type: ignore [return-value]
     elif d < np.abs(r1 - r2):
         print("The circles are concentric")
-        return None
+        return None  # type: ignore [return-value]
     elif d == 0 and r1 == r2:
         print("The circles are the same")
-        return None
+        return None  # type: ignore [return-value]
 
     a = (r1**2 - r2**2 + d**2) / (2 * d)
     h = np.sqrt(r1**2 - a**2)
@@ -453,7 +451,7 @@ def Points_Intersect_Circles(circle1, circle2) -> Optional[_types.AnyArray]:
 # others
 
 
-def Angle_Between(a: _types.AnyArray, b: _types.AnyArray) -> float:
+def Angle_Between(a: _types.Array, b: _types.Array) -> float:
     """Computes the angle between vectors a and b (rad).
     https://math.stackexchange.com/questions/878785/how-to-find-an-angle-in-range0-360-between-2-vectors
     """
@@ -482,7 +480,7 @@ def Angle_Between(a: _types.AnyArray, b: _types.AnyArray) -> float:
     return angle
 
 
-def Jacobian_Matrix(i: _types.AnyArray, k: _types.AnyArray) -> _types.FloatArray:
+def Jacobian_Matrix(i: _types.Array, k: _types.Array) -> _types.FloatArray:
     """Computes the Jacobian matrix to transform local coordinates (i,j,k) to global (x,y,z) coordinates.\n
     p(x,y,z) = J • p(i,j,k) and p(i,j,k) = inv(J) • p(x,y,z)\n\n
 
@@ -514,7 +512,7 @@ def Jacobian_Matrix(i: _types.AnyArray, k: _types.AnyArray) -> _types.FloatArray
 
 
 def Fillet(
-    P0: _types.AnyArray, P1: _types.AnyArray, P2: _types.AnyArray, r: float
+    P0: _types.Array, P1: _types.Array, P2: _types.Array, r: float
 ) -> tuple[_types.FloatArray, _types.FloatArray, _types.FloatArray]:
     """Computes fillet in a corner P0.\n
     returns A, B, C
@@ -564,7 +562,7 @@ def Fillet(
     return A, B, C
 
 
-def __Get_Triangle_Area(A: _types.AnyArray, B: _types.AnyArray, C: _types.AnyArray):
+def __Get_Triangle_Area(A: _types.Array, B: _types.Array, C: _types.Array):
     """Computes triangle area with A, B, C coordinates
 
     Parameters
@@ -588,10 +586,10 @@ def __Get_Triangle_Area(A: _types.AnyArray, B: _types.AnyArray, C: _types.AnyArr
 
 
 def __Get_Tetrahedron_Volume(
-    A: _types.AnyArray,
-    B: _types.AnyArray,
-    C: _types.AnyArray,
-    D: _types.AnyArray,
+    A: _types.Array,
+    B: _types.Array,
+    C: _types.Array,
+    D: _types.Array,
 ):
     """Computes tetrahedron volune with A, B, C, D coordinates
 
@@ -619,7 +617,7 @@ def __Get_Tetrahedron_Volume(
 
 
 def _Get_BaryCentric_Coordinates_In_Segment(
-    vertices: _types.AnyArray, coords: _types.AnyArray
+    vertices: _types.Array, coords: _types.Array
 ) -> _types.FloatArray:
     """Computes barycentrice coordinates within a segment
 
@@ -655,7 +653,7 @@ def _Get_BaryCentric_Coordinates_In_Segment(
 
 
 def _Get_BaryCentric_Coordinates_In_Triangle(
-    vertices: _types.AnyArray, coords: _types.AnyArray
+    vertices: _types.Array, coords: _types.Array
 ) -> _types.FloatArray:
     """Computes barycentrice coordinates within a triangle
 
@@ -692,7 +690,7 @@ def _Get_BaryCentric_Coordinates_In_Triangle(
 
 
 def _Get_BaryCentric_Coordinates_In_Tetrahedron(
-    vertices: _types.AnyArray, coords: _types.AnyArray
+    vertices: _types.Array, coords: _types.Array
 ) -> _types.FloatArray:
     """Computes barycentrice coordinates within a tetrahedron
 

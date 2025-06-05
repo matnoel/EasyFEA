@@ -355,7 +355,7 @@ class _Simu(_IObserver, ABC):
     def mass(self) -> float:
 
         if self.dim == 1:
-            return None
+            return None  # type: ignore [return-value]
 
         matrixType = MatrixType.mass
 
@@ -377,7 +377,7 @@ class _Simu(_IObserver, ABC):
         """Center of mass / barycenter / inertia center"""
 
         if self.dim == 1:
-            return None
+            return None  # type: ignore [return-value]
 
         matrixType = MatrixType.mass
 
@@ -2274,7 +2274,7 @@ def Load_Simu(folder: str, filename: str = "simulation") -> _Simu:
             simu: _Simu = pickle.load(file)
     except EOFError:
         Display.MyPrintError(f"The file:\n{path_simu}\nis empty or corrupted.")
-        return None
+        return None  # type: ignore [return-value]
 
     Display.MyPrint(f'\nLoaded:\n{path_simu.replace(folder_PythonEF,"")}\n', "green")
 

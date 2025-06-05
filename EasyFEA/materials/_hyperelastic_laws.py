@@ -87,7 +87,7 @@ class _HyperElas(_IModel, ABC):
             We_e_pg of shape (Ne, pg)
         """
 
-        return None
+        return None  # type: ignore [return-value]
 
     @abstractmethod
     def Compute_dWde(
@@ -111,7 +111,7 @@ class _HyperElas(_IModel, ABC):
 
         Σxx, Σyy, Σzz, sqrt(2) Σyz, sqrt(2) Σxz, sqrt(2) Σxy
         """
-        return None
+        return None  # type: ignore [return-value]
 
     @abstractmethod
     def Compute_d2Wde(
@@ -133,7 +133,7 @@ class _HyperElas(_IModel, ABC):
         np.ndarray
             dΣde_e_pg of shape (Ne, pg, 6, 6)
         """
-        return None
+        return None  # type: ignore [return-value]
 
 
 # ----------------------------------------------

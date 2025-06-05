@@ -334,7 +334,7 @@ class BeamStructure(_IModel):
     def thickness(self) -> float:
         """The beam structure can have several beams and therefore different sections.\n
         You need to look at the section of the beam you are interested in."""
-        return None
+        return None  # type: ignore [return-value]
 
     @property
     def areas(self) -> list[float]:

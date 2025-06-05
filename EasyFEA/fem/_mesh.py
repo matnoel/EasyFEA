@@ -12,7 +12,7 @@ A hexahedral mesh (HEXA8) uses :\n
 - HEXA8 (dim=3)"""
 
 import numpy as np
-import scipy.sparse as sp  # type: ignore
+import scipy.sparse as sp  # type: ignore  [import-untyped]
 import copy
 from typing import Callable, Optional
 
@@ -74,7 +74,7 @@ class Mesh(Observable):
 
     def _ResetMatrix(self) -> None:
         """Resets matrices for each groupElem"""
-        [groupElem._InitMatrix() for groupElem in self.Get_list_groupElem()]  # type: ignore
+        [groupElem._InitMatrix() for groupElem in self.Get_list_groupElem()]
 
     def __str__(self) -> str:
         """Returns a string representation of the mesh."""
@@ -293,29 +293,27 @@ class Mesh(Observable):
         return np.repeat(connect, nPe, axis=0).reshape((Ne, -1))
 
     @property
-    def length(self) -> Optional[float]:
+    def length(self) -> float:
         """total length of the mesh."""
         if self.dim < 1:
-            return None
-        lengths = [
-            group1D.length for group1D in self.Get_list_groupElem(1)
-        ]  # type: ignore
+            return None  # type: ignore [return-value]
+        lengths = [group1D.length for group1D in self.Get_list_groupElem(1)]
         return np.sum(lengths)
 
     @property
-    def area(self) -> Optional[float]:
+    def area(self) -> float:
         """total area of the mesh."""
         if self.dim < 2:
-            return None
-        areas = [group2D.area for group2D in self.Get_list_groupElem(2)]  # type: ignore
+            return None  # type: ignore [return-value]
+        areas = [group2D.area for group2D in self.Get_list_groupElem(2)]
         return np.sum(areas)
 
     @property
-    def volume(self) -> Optional[float]:
+    def volume(self) -> float:
         """total volume of the mesh."""
         if self.dim != 3:
-            return None
-        volumes = [group3D.volume for group3D in self.Get_list_groupElem(3)]  # type: ignore
+            return None  # type: ignore [return-value]
+        volumes = [group3D.volume for group3D in self.Get_list_groupElem(3)]
         return np.sum(volumes)
 
     @property
@@ -604,7 +602,7 @@ class Mesh(Observable):
             )
             return np.asarray([])
 
-        [list_node.extend(dict_nodes[tag]) for tag in tags]  # type: ignore
+        [list_node.extend(dict_nodes[tag]) for tag in tags]
         # make sure that that the list is unique
         nodes = np.asarray(list(set(list_node)), dtype=int)
 
@@ -627,7 +625,7 @@ class Mesh(Observable):
             return np.asarray([])
 
         # add elements belonging to the tags
-        [list_element.extend(dict_elements[tag]) for tag in tags]  # type: ignore
+        [list_element.extend(dict_elements[tag]) for tag in tags]
         # make sure that that the list is unique
         elements = np.asarray(list(set(list_element)), dtype=int)
 
@@ -810,7 +808,7 @@ class Mesh(Observable):
                         lines[:, :, 2],
                         label=f"edges{edge}",
                     )
-                    ax.add_collection3d(  # type: ignore
+                    ax.add_collection3d(
                         Display.Line3DCollection(lines, edgecolor=pc.get_edgecolor())
                     )
                 else:
@@ -818,7 +816,7 @@ class Mesh(Observable):
                         lines[:, :, 0], lines[:, :, 1], label=f"edges{edge}"
                     )
                     ax.add_collection(
-                        Display.LineCollection(lines, edgecolor=pc.get_edgecolor())  # type: ignore
+                        Display.LineCollection(lines, edgecolor=pc.get_edgecolor())
                     )
 
             ax.legend()
@@ -850,7 +848,7 @@ class Mesh(Observable):
 
     def Get_Quality(
         self, criteria: str = "aspect", nodeValues=False
-    ) -> Optional[np.ndarray]:
+    ) -> _types.FloatArray:
         """Calculates mesh quality [0, 1] (bad, good).
 
         Parameters
@@ -867,7 +865,7 @@ class Mesh(Observable):
 
         Returns
         -------
-        np.ndarray | None
+        _types.FloatArray
             mesh quality
         """
 
@@ -908,7 +906,7 @@ class Mesh(Observable):
                 Display.MyPrintError(
                     "The gamma criterion is only available for triangular elements."
                 )
-                return None
+                return None  # type: ignore [return-value]
 
             # inscribed circle
             # https://fr.wikipedia.org/wiki/Cercles_inscrit_et_exinscrits_d%27un_triangle
@@ -929,7 +927,7 @@ class Mesh(Observable):
                 Display.MyPrintError(
                     "The angular criterion is only available for 2D elements."
                 )
-                return None
+                return None  # type: ignore [return-value]
 
             # min(angle) / max(angle)
             values_e = np.min(angle_e_s, 1) / np.max(angle_e_s, 1)
@@ -996,7 +994,7 @@ def Calc_projector(oldMesh: Mesh, newMesh: Mesh) -> sp.csr_matrix:
 
     tic = Tic()
 
-    distoredMesh = np.max(np.abs(1 - oldMesh.Get_Quality("jacobian"))) > 1e-12
+    distoredMesh = np.max(np.abs(1.0 - oldMesh.Get_Quality("jacobian"))) > 1e-12
     if distoredMesh:
         Display.MyPrintError(
             "Warning: distorted elements have been detected in the mesh.\nThey may lead to projection errors!"
@@ -1077,7 +1075,7 @@ def Calc_projector(oldMesh: Mesh, newMesh: Mesh) -> sp.csr_matrix:
     # nodesExact nodes exact are nodes for which a shape function has detected 1.
     #   (nodes detected in an mesh corner).
 
-    nodesExact = list(set(nodesExact) - set(newCorners))
+    nodesExact = list(set(nodesExact.tolist()) - set(newCorners))
     for node in nodesExact:
         oldNode = oldMesh.Nodes_Point(Point(*newMesh.coord[node]))
         if oldNode.size == 0:
@@ -1145,17 +1143,17 @@ def Mesh_Optim(
 
     i = -1
     ratio = 0
-    optimGeom = None
+    optimGeom: Optional[str] = None
     # max=1
     while ratio <= targetRatio and i <= iterMax:
 
         i += 1
 
-        mesh = DoMesh(optimGeom)
+        mesh = DoMesh(optimGeom)  # type: ignore [arg-type]
 
         if i > 0:
             # remove previous .pos file
-            Folder.os.remove(optimGeom)
+            Folder.os.remove(optimGeom)  # type: ignore [arg-type]
 
         # mesh quality calculation
         qual_e = mesh.Get_Quality(criteria, False)
@@ -1180,8 +1178,8 @@ def Mesh_Optim(
         # build the .pos file that will be used to refine the mesh
         optimGeom = Mesher().Create_posFile(mesh.coord, meshSize_n, folder, f"pos{i}")
 
-    if Folder.Exists(optimGeom):
+    if Folder.Exists(optimGeom):  # type: ignore [arg-type]
         # remove last .pos file
-        Folder.os.remove(optimGeom)
+        Folder.os.remove(optimGeom)  # type: ignore [arg-type]
 
     return mesh, ratio

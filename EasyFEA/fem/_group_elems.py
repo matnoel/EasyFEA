@@ -17,7 +17,7 @@ For instance, a TRI3 mesh uses POINT, SEG2 and TRI3 elements."""
 
 from abc import ABC, abstractmethod
 
-from scipy.optimize import least_squares
+from scipy.optimize import least_squares  # type: ignore [import-untyped]
 import numpy as np
 import scipy.sparse as sparse
 from typing import Callable, Optional
@@ -279,7 +279,7 @@ class _GroupElem(ABC):
 
         return assembly
 
-    def _Get_sysCoord_e(self, displacementMatrix: Optional[_types.AnyArray] = None):
+    def _Get_sysCoord_e(self, displacementMatrix: Optional[_types.Array] = None):
         """Get the basis transformation matrix (Ne, 3, 3).\n
         [ix, jx, kx\n
         iy, jy, ky\n

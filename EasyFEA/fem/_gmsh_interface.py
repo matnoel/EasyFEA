@@ -985,7 +985,7 @@ class Mesher:
         factory = self._factory
 
         if len(cracks) == 0:
-            return None, None, None, None
+            return None, None, None, None  # type: ignore [return-value]
 
         # lists containing open entities
         cracks_1D = []

@@ -686,7 +686,7 @@ class PhaseFieldSimu(_Simu):
             self.Set_Iter(iter)
 
         if not self._Results_Check_Available(result):
-            return None
+            return Non  # type: ignore [return-value]
 
         # begin cases ----------------------------------------------------
 

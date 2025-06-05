@@ -7,7 +7,7 @@
 import time
 import numpy as np
 import matplotlib.pyplot as plt
-import pandas as pd  # type: ignore
+import pandas as pd  # type: ignore [import-untyped]
 
 
 class Tic:
