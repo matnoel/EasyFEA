@@ -93,7 +93,9 @@ def _EasyFEA_to_Meshio(
     cell_data = {cell_name: list_elements}
 
     try:
-        meshio_mesh = meshio.Mesh(mesh.coordGlob, cells_dict, None, cell_data)
+        meshio_mesh = meshio.Mesh(
+            mesh.coordGlob[:, : mesh.inDim], cells_dict, None, cell_data
+        )
     except KeyError:
         raise KeyError(
             f"To support {mesh.elemType} elements, you need to install meshio using the following meshio fork (https://github.com/matnoel/meshio)."

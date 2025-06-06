@@ -9,7 +9,7 @@ import io
 
 from ..utilities import Folder, MeshIO, Tic, Display
 from ..simulations._simu import _Simu, _Init_obj, _Get_values
-from ..fem._group_elems import _GroupElem, GroupElemFactory
+from ..fem._group_elems import _GroupElem, GroupElemFactory, ElemType
 from ..fem._mesh import Mesh
 from ..geoms._utils import (
     _Get_BaryCentric_Coordinates_In_Triangle,
@@ -91,101 +91,92 @@ def __Get_NodesPositions(groupElem: _GroupElem) -> np.ndarray:
     return nodes_positions
 
 
-def __Write_HOSolAt_Element(file: io.TextIOWrapper, groupElem: _GroupElem) -> None:
+def _Get_empty_groupElem(groupElem: _GroupElem, order: int):
 
-    # get keyword
+    unavailable_elemTypes = [ElemType.QUAD8, ElemType.HEXA20, ElemType.PRISM15]
+
+    if groupElem.order != order:
+
+        # get the new elemType
+        filtered_dict = {
+            elemType: values
+            for elemType, values in GroupElemFactory.DICT_ELEMTYPE.items()
+            if elemType.startswith(groupElem.topology)
+            and values[3] == order
+            and elemType not in unavailable_elemTypes
+        }
+        assert len(filtered_dict) == 1
+        elemType = next(iter(filtered_dict))
+
+        # create empty groupElem
+        groupElem = GroupElemFactory.Create(
+            filtered_dict[elemType][0], np.empty((0)), np.empty((0)), np.empty((0))
+        )
+
+    else:
+
+        groupElem = GroupElemFactory._Create(elemType, np.empty((0)), np.empty((0)))
+
+    return groupElem
+
+
+def __Write_HOSolAt_Element(
+    file: io.TextIOWrapper, groupElem: _GroupElem, order: int
+) -> None:
+
+    # set groupElem info
     keyword = __Get_vizir_HOSolAt_key(groupElem)
+    file.write(f"{keyword}{groupElem.order}NodesPositions\n")
+
+    groupElem = _Get_empty_groupElem(groupElem, order)
 
     # write ref geom element
-    file.write(f"{keyword}{groupElem.order}NodesPositions\n{groupElem.nPe}\n")
+    file.write(f"{groupElem.nPe}\n")
     nodesPositions = __Get_NodesPositions(groupElem)
     np.savetxt(file, nodesPositions)
-
-
-def __Concatenate_results(results: list[np.ndarray], types: list[int]) -> np.ndarray:
-
-    # concatenate values_n in results as an (Nn, ...) array
-    assert (
-        isinstance(results[0], np.ndarray) and results[0].ndim == 2
-    ), "results must be (Nn, dof_n) arrays"
-    Nn = results[0].shape[0]
-
-    values_n: np.ndarray = None
-    for result_n, type in zip(results, types, strict=True):
-
-        result_n = np.asarray(result_n, dtype=float).reshape(Nn, -1)
-        dof_n = result_n.shape[1]
-
-        if type == 1:
-            # scalar case
-            assert dof_n == 1
-        elif type == 2:
-            # vector case
-            assert 1 < dof_n <= 3
-            if dof_n < 3:
-                # resize result_n as a (Nn, 3) array
-                zeros_e = np.zeros((Nn, 3 - dof_n), dtype=float)
-                result_n = np.concatenate((result_n, zeros_e), axis=1)
-        else:
-            raise Exception("Symmetric/non-symmetric matrices are not yet implemented.")
-
-        # concatenate result_n in values_n
-        if values_n is None:
-            values_n = result_n
-        else:
-            values_n = np.concatenate((values_n, result_n), axis=1)
-
-    return values_n
 
 
 def __Write_HOSolAt_Solution(
     file: io.TextIOWrapper,
     groupElem: _GroupElem,
-    connect: np.ndarray,
-    values_n: np.ndarray,
-    types: list[int],
+    dofsValues: np.ndarray,
+    assembly_e: np.ndarray,
+    type: int,
     order: int,
 ) -> None:
 
-    # get groupElem informations
-    Ne = groupElem.Ne
+    # dofsValues informations
+    Ndof = dofsValues.size
+    # assembly_e informations
+    Ne = assembly_e.shape[0]
     assert (
-        isinstance(connect, np.ndarray) and connect.ndim == 2 and connect.shape[0] == Ne
-    ), "connect must be a (Ne, nPe) array"
-    nPe = connect.shape[1]
-    if groupElem.order != order:
-        assert nPe != groupElem.nPe
+        assembly_e.ndim == 2 and Ne == groupElem.Ne
+    ), "assembly_e must be a (Ne, nPe*dof_n) array"
+    assert Ndof - 1 == assembly_e.max()
 
-    # get values_n informations
-    assert (
-        isinstance(values_n, np.ndarray) and values_n.ndim == 2
-    ), "values_n must be a (Nn, dof_n) array"
-    Nn, dof_n = values_n.shape
-    assert connect.max() <= Nn
-
-    # get values_n as a (Ne, nPe, dof_n) array
-    values_e = values_n[connect].reshape(Ne, nPe, dof_n)
-    # get values_e as a (Ne, nPe * dof_n) array
-    values_e = values_e.reshape(Ne, -1)
+    # get dofsValues as a (Ne, nPe*dof_n) array
+    dofsValues_e = dofsValues[assembly_e]
 
     # write solution
     keyword = __Get_vizir_HOSolAt_key(groupElem)
-    file.write(f"\n{keyword}{order}\n{Ne}\n")
-    file.write(f"{len(types)} {' '.join([str(type) for type in types])}\n")
-    file.write(f"{order} {nPe}\n")
+    file.write(f"\n{keyword}{groupElem.order}\n{Ne}\n")
+    file.write(f"1 {type}\n")
+    newGroupElem = _Get_empty_groupElem(groupElem, order)
+    file.write(f"{order} {newGroupElem.nPe}\n")
 
     # write solution array
-    np.savetxt(file, values_e)
+    np.savetxt(file, dofsValues_e)
     file.write("\n")
 
 
 SOLUTION_TYPES = [1, 2]
 
 
-def __Write_sol_file(
-    dict_groupElem: dict[_GroupElem, np.ndarray],
-    values_n: np.ndarray,
-    types: list[int],
+def _Write_solution_file(
+    mesh: Mesh,
+    dofsValues: np.ndarray,
+    assembly_e: np.ndarray,
+    type: int,
     order: int,
     folder: str,
     filename: str,
@@ -198,13 +189,11 @@ def __Write_sol_file(
 
         # write first lines
         f.write("MeshVersionFormatted 2\n")
-        f.write(f"Dimension 3\n\n")  # the mesh is always in a 3d space
+        f.write(f"Dimension {mesh.inDim}\n\n")  # the mesh is always in a 3d space
 
-        for groupElem, connect in dict_groupElem.items():
+        __Write_HOSolAt_Element(f, mesh.groupElem, order)
 
-            __Write_HOSolAt_Element(f, groupElem)
-
-            __Write_HOSolAt_Solution(f, groupElem, connect, values_n, types, order)
+        __Write_HOSolAt_Solution(f, mesh.groupElem, dofsValues, assembly_e, type, order)
 
         f.write("End\n")
 
@@ -217,91 +206,49 @@ def Save_simu(
 
     assert isinstance(simu, _Simu)
 
-    results_per_iteration: list[list[np.ndarray]] = []
-
-    for i in range(simu.Niter):
-
-        # Update simulation iteration
-        simu.Set_Iter(i)
-
-        list_values_n: list[np.ndarray] = []
-        for result in results:
-            values_n = simu.Result(result, nodeValues=True).reshape(simu.mesh.Nn, -1)
-            list_values_n.append(values_n)
-
-        results_per_iteration.append(list_values_n)
-
-    # save the mesh in Medit format
-    mesh = simu.mesh
-    mesh_file = MeshIO.EasyFEA_to_Medit(mesh, folder, f"mesh", useBinary=True)
-
-    # get dict_groupElem
-    list_groupElem = mesh.Get_list_groupElem(mesh.dim - 1)
-    list_groupElem.append(mesh.groupElem)
-    dict_groupElem = {groupElem: groupElem.connect for groupElem in list_groupElem}
-
-    sols_file = Save_sols(
-        dict_groupElem,
-        results_per_iteration,
-        types,
-        mesh.groupElem.order,
-        folder,
-        "result",
-        N,
-    )
-
-    command = f"vizir4 -in {mesh_file} -sols {sols_file}"
-
-    return command
-
-
-def Save_sols(
-    dict_groupElem: dict[_GroupElem, np.ndarray],
-    results_per_iteration: list[list[np.ndarray]],
-    types: list[int],
-    order: int,
-    folder: str,
-    filename: str = "result",
-    N: int = None,
-) -> str:
-
-    # .sols and .movie files
-    sols_file = open(Folder.Join(folder, f"{filename}.sols", mkdir=True), "w")
-
-    for type in types:
-        assert type in SOLUTION_TYPES, f"{type} is not in {SOLUTION_TYPES}"
-
     # sample the results
-    Niter = len(results_per_iteration)
+    Niter = simu.Niter
     if N is None:
         N = Niter
     step = Niter // N
 
-    tic = Tic()
+    # init sols files and make checks
+    for result, type in zip(results, types, strict=True):
+        with open(Folder.Join(folder, f"{result}.sols"), "w") as file:
+            # do nothing
+            pass
+        assert type in SOLUTION_TYPES
 
-    # #9 Add names
-    # #9 Add wrap vector in vertices values
+    for i in np.arange(0, Niter, step):
 
-    # save meshes and solutions
-    for iteration in np.arange(0, Niter, step):
+        # Update simulation iteration
+        simu.Set_Iter(i)
 
-        values_n = __Concatenate_results(results_per_iteration[iteration], types)
+        for result, type in zip(results, types):
+            # get dofsValues
+            dofsValues = simu.Result(result, nodeValues=True)
+            dof_n = dofsValues.size // simu.mesh.Nn
+            assembly_e = simu.mesh.Get_assembly_e(dof_n)
 
-        assert len(results_per_iteration[iteration]) == len(types)
+            # init sols file
+            with open(Folder.Join(folder, f"{result}.sols"), "a") as file:
 
-        # save the solution
-        solution_file = __Write_sol_file(
-            dict_groupElem, values_n, types, order, folder, f"solution.{iteration}"
-        )
+                # save the solution
+                solution_file = _Write_solution_file(
+                    simu.mesh,
+                    dofsValues,
+                    assembly_e,
+                    type,
+                    simu.mesh.groupElem.order,
+                    folder,
+                    f"{result}.{i}",
+                )
+                file.write(solution_file + "\n")
 
-        sols_file.write(f"{solution_file}\n")
+    # save the mesh in Medit format
+    mesh_file = MeshIO.EasyFEA_to_Medit(simu.mesh, folder, f"mesh")
 
-        time = tic.Tac("Vizir", f"Save_sols", False)
+    sols_files = " ".join([f"{Folder.Join(folder,result)}.sols" for result in results])
+    command = f"vizir4 -in {mesh_file} -sols {sols_files}"
 
-        rmTime = Tic.Get_Remaining_Time(iteration, Niter - 1, time)
-
-        Display.MyPrint(f"Save_sols {iteration}/{Niter} {rmTime}    ", end="\r")
-
-    sols_file.close()
-
-    return sols_file.name
+    return command

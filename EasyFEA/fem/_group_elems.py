@@ -55,7 +55,7 @@ class _GroupElem(ABC):
 
         self.__gmshId = gmshId
 
-        elemType, nPe, dim, order, nbFaces, nbCorners = GroupElemFactory.Get_ElemInFos(
+        elemType, nPe, dim, order, Nface, Nvertex = GroupElemFactory.Get_ElemInFos(
             gmshId
         )
         # TODO construct without gmshId and auto detect
@@ -64,8 +64,8 @@ class _GroupElem(ABC):
         self.__nPe = nPe
         self.__dim = dim
         self.__order = order
-        self.__Nface = nbFaces
-        self.__Nvertex = nbCorners
+        self.__Nface = Nface
+        self.__Nvertex = Nvertex
 
         # Elements
         self.__connect = connect
@@ -505,21 +505,33 @@ class _GroupElem(ABC):
     @property
     @abstractmethod
     def faces(self) -> np.ndarray:
-        """list of indexes to form the faces that make up the element"""
+        """array of indexes to form the faces that make up the element."""
         pass
 
     def Get_interface(self) -> dict[list[int] : int]:
 
         dict_interface: dict[list[int] : int] = {}
 
+        idx = -1
+        for _ in range(self.Nvertex):
+            idx += 1
+            dict_interface[str([idx])] = idx
+
         idx = self.Nvertex - 1
         for seg in self.segments:
             idx += 1
-            dict_interface[str(np.unique(seg))] = idx
+            dict_interface[str(np.sort(seg))] = idx
 
-        for face in self.faces:
+        for i, face in enumerate(self.faces):
             idx += 1
-            dict_interface[str(np.unique(face))] = idx
+            if self.elemType.startswith("PRISM") and i > 2:
+                # we are on tri face here
+                face = face[:-1]
+            dict_interface[str(np.sort(face))] = idx
+
+        if self.dim == 3:
+            idx += 1
+            dict_interface[str(np.sort(np.arange(self.Nvertex)))] = idx
 
         return dict_interface
 
