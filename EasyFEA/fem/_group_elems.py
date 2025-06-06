@@ -527,7 +527,7 @@ class _GroupElem(ABC):
             if self.elemType.startswith("PRISM") and i > 2:
                 # we are on tri face here
                 face = face[:-1]
-            dict_interface[str(np.sort(face))] = idx
+            dict_interface[str(np.unique(face))] = idx
 
         if self.dim == 3:
             idx += 1

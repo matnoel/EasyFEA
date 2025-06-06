@@ -115,7 +115,9 @@ def _Get_empty_groupElem(groupElem: _GroupElem, order: int):
 
     else:
 
-        groupElem = GroupElemFactory._Create(elemType, np.empty((0)), np.empty((0)))
+        groupElem = GroupElemFactory._Create(
+            groupElem.elemType, np.empty((0)), np.empty((0))
+        )
 
     return groupElem
 
@@ -152,7 +154,6 @@ def __Write_HOSolAt_Solution(
     assert (
         assembly_e.ndim == 2 and Ne == groupElem.Ne
     ), "assembly_e must be a (Ne, nPe*dof_n) array"
-    assert Ndof - 1 == assembly_e.max()
 
     # get dofsValues as a (Ne, nPe*dof_n) array
     dofsValues_e = dofsValues[assembly_e]
@@ -185,15 +186,27 @@ def _Write_solution_file(
     # init solution file
     solutionFile = Folder.Join(folder, f"{filename}.sol", mkdir=True)
 
+    if type == 1:
+        dof_n = 1
+    elif type == 2:
+        dof_n = mesh.inDim
+    else:
+        raise TypeError("type error")
+
     with open(solutionFile, "w") as f:
 
         # write first lines
         f.write("MeshVersionFormatted 2\n")
         f.write(f"Dimension {mesh.inDim}\n\n")  # the mesh is always in a 3d space
 
-        __Write_HOSolAt_Element(f, mesh.groupElem, order)
+        for groupElem in mesh.Get_list_groupElem(2):
 
-        __Write_HOSolAt_Solution(f, mesh.groupElem, dofsValues, assembly_e, type, order)
+            __Write_HOSolAt_Element(f, groupElem, order)
+
+            if assembly_e is None or assembly_e.shape[0] != groupElem.Ne:
+                assembly_e = groupElem.Get_assembly_e(dof_n)
+
+            __Write_HOSolAt_Solution(f, groupElem, dofsValues, assembly_e, type, order)
 
         f.write("End\n")
 
@@ -214,7 +227,7 @@ def Save_simu(
 
     # init sols files and make checks
     for result, type in zip(results, types, strict=True):
-        with open(Folder.Join(folder, f"{result}.sols"), "w") as file:
+        with open(Folder.Join(folder, f"{result}.sols", mkdir=True), "w") as file:
             # do nothing
             pass
         assert type in SOLUTION_TYPES
@@ -233,6 +246,8 @@ def Save_simu(
             # init sols file
             with open(Folder.Join(folder, f"{result}.sols"), "a") as file:
 
+                filename = f"{result}.{i}"
+
                 # save the solution
                 solution_file = _Write_solution_file(
                     simu.mesh,
@@ -241,9 +256,9 @@ def Save_simu(
                     type,
                     simu.mesh.groupElem.order,
                     folder,
-                    f"{result}.{i}",
+                    filename,
                 )
-                file.write(solution_file + "\n")
+                file.write("./" + filename + "\n")
 
     # save the mesh in Medit format
     mesh_file = MeshIO.EasyFEA_to_Medit(simu.mesh, folder, f"mesh")
