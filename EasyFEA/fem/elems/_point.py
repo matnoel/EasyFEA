@@ -30,8 +30,8 @@ class POINT(_GroupElem):
         return super().triangles
 
     @property
-    def faces(self) -> list[int]:
-        return [0]
+    def faces(self) -> np.ndarray:
+        return np.empty((0, 0), dtype=int)
 
     def Get_Local_Coords(self):
         return np.array([0]).reshape(1, 1)

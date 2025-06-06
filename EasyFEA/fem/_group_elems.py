@@ -504,7 +504,7 @@ class _GroupElem(ABC):
 
     @property
     @abstractmethod
-    def faces(self) -> list[int]:
+    def faces(self) -> np.ndarray:
         """list of indexes to form the faces that make up the element"""
         pass
 
@@ -515,11 +515,11 @@ class _GroupElem(ABC):
         idx = self.Nvertex - 1
         for seg in self.segments:
             idx += 1
-            dict_interface[np.unique(seg).tolist()] = idx
+            dict_interface[str(np.unique(seg))] = idx
 
         for face in self.faces:
             idx += 1
-            dict_interface[np.unique(face).tolist()] = idx
+            dict_interface[str(np.unique(face))] = idx
 
         return dict_interface
 
@@ -1905,7 +1905,7 @@ class _GroupElem(ABC):
             # corners i [1, nPe]
 
             coord = self.coord
-            faces = self.faces[:-1]
+            faces = self.faces.ravel().tolist()[:-1]
             nPe = len(faces)
             connect_e = self.connect[elem, faces]
             corners_i = coord[connect_e]
@@ -1937,35 +1937,20 @@ class _GroupElem(ABC):
         elif dim == 3:
 
             faces = self.faces
-            nbFaces = self.Nface
+            Nface = self.Nface
             coord = self.coord[self.__connect[elem]]
 
-            if self.elemType is ElemType.PRISM6:
-                faces = np.array(faces)
+            if self.elemType.startswith("PRISM"):
                 faces = np.array(
                     [
-                        faces[np.arange(0, 4)],
-                        faces[np.arange(4, 8)],
-                        faces[np.arange(8, 12)],
-                        faces[np.arange(12, 15)],
-                        faces[np.arange(15, 18)],
+                        faces[0, :],
+                        faces[1, :],
+                        faces[2, :],
+                        faces[3, :-1],  # tri z=-1
+                        faces[3, :-1],  # tri z=-1
                     ],
                     dtype=object,
                 )
-            elif self.elemType is ElemType.PRISM15:
-                faces = np.array(faces)
-                faces = np.array(
-                    [
-                        faces[np.arange(0, 8)],
-                        faces[np.arange(8, 16)],
-                        faces[np.arange(16, 24)],
-                        faces[np.arange(24, 30)],
-                        faces[np.arange(30, 36)],
-                    ],
-                    dtype=object,
-                )
-            else:
-                faces = np.reshape(faces, (nbFaces, -1))
 
             p0_f = [f[0] for f in faces]
             p1_f = [f[1] for f in faces]
@@ -1986,7 +1971,7 @@ class _GroupElem(ABC):
                 "ni,n->ni", n_f, 1 / np.linalg.norm(n_f, axis=1), optimize="optimal"
             )
 
-            coordinates_n_i = coordinates_n[:, np.newaxis].repeat(nbFaces, 1)
+            coordinates_n_i = coordinates_n[:, np.newaxis].repeat(Nface, 1)
 
             v_f = coordinates_n_i - coord[p0_f]
 
@@ -1994,7 +1979,7 @@ class _GroupElem(ABC):
 
             filtre = np.sum(t_f, 1)
 
-            idx = np.where(filtre == nbFaces)[0]
+            idx = np.where(filtre == Nface)[0]
 
             return idx
 

@@ -35,8 +35,8 @@ class SEG2(_GroupElem):
         return super().triangles
 
     @property
-    def faces(self) -> list[int]:
-        return [0, 1]
+    def faces(self) -> np.ndarray:
+        return np.array([[0, 1]], dtype=int)
 
     def Get_Local_Coords(self):
         list_x = [-1, 1]
@@ -130,8 +130,8 @@ class SEG3(_GroupElem):
         return super().triangles
 
     @property
-    def faces(self) -> list[int]:
-        return [0, 2, 1]
+    def faces(self) -> np.ndarray:
+        return np.array([[0, 2, 1]], dtype=int)
 
     def Get_Local_Coords(self):
         list_x = [-1, 1, 0]
@@ -294,8 +294,8 @@ class SEG4(_GroupElem):
         return super().triangles
 
     @property
-    def faces(self) -> list[int]:
-        return [0, 2, 3, 1]
+    def faces(self) -> np.ndarray:
+        return np.array([[0, 2, 3, 1]], dtype=int)
 
     def Get_Local_Coords(self):
         list_x = [-1, 1, -1 / 3, 1 / 3]
@@ -613,8 +613,8 @@ class SEG5(_GroupElem):
         return super().triangles
 
     @property
-    def faces(self) -> list[int]:
-        return [0, 2, 3, 4, 1]
+    def faces(self) -> np.ndarray:
+        return np.array([[0, 2, 3, 4, 1]], dtype=int)
 
     def Get_Local_Coords(self):
         list_x = [-1, 1, -1 / 2, 0, 1 / 2]

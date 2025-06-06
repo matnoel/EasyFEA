@@ -48,14 +48,17 @@ class PRISM6(_GroupElem):
         return super().triangles
 
     @property
-    def faces(self) -> list[int]:
-        # fmt: off
-        return [0,3,4,1,
-                0,2,5,3,
-                1,4,5,2,
-                3,5,4,3,
-                0,1,2,0]
-        # fmt: on
+    def faces(self) -> np.ndarray:
+        return np.array(
+            [
+                [0, 3, 4, 1],
+                [0, 2, 5, 3],
+                [1, 4, 5, 2],
+                [3, 5, 4, 3],  # tri z=1
+                [0, 1, 2, 0],  # tri z=-1
+            ],
+            dtype=int,
+        )
 
     def Get_Local_Coords(self):
         list_x = [0, 1, 0, 0, 1, 0]
@@ -67,7 +70,18 @@ class PRISM6(_GroupElem):
     @property
     def segments(self) -> np.ndarray:
         return np.array(
-            [[0, 1], [1, 2], [2, 0], [3, 4], [4, 5], [5, 3], [0, 3], [1, 4], [2, 5]]
+            [
+                [0, 1],
+                [2, 0],
+                [0, 3],
+                [1, 2],
+                [1, 4],
+                [2, 5],
+                [3, 4],
+                [5, 3],
+                [4, 5],
+            ],
+            dtype=int,
         )
 
     def _N(self) -> np.ndarray:
@@ -153,14 +167,17 @@ class PRISM15(_GroupElem):
         return super().triangles
 
     @property
-    def faces(self) -> list[int]:
-        # fmt: off
-        return [0,8,3,12,4,10,1,6,
-                0,7,2,11,5,13,3,8,
-                1,10,4,14,5,11,2,9,
-                3,13,5,14,4,12,3,3,
-                0,6,1,9,2,7,0,0]
-        # fmt: on
+    def faces(self) -> np.ndarray:
+        return np.array(
+            [
+                [0, 8, 3, 12, 4, 10, 1, 6],  # 15
+                [0, 7, 2, 11, 5, 13, 3, 8],  # 16
+                [1, 10, 4, 14, 5, 11, 2, 9],  # 17
+                [3, 13, 5, 14, 4, 12, 3, 3],  # tri z=1
+                [0, 6, 1, 9, 2, 7, 0, 0],  # tri z=-1
+            ],
+            dtype=int,
+        )
 
     def Get_Local_Coords(self):
         list_x = [0, 1, 0, 0, 1, 0, 0.5, 0, 0, 0.5, 1, 0, 0.5, 0, 0.5]
@@ -174,15 +191,16 @@ class PRISM15(_GroupElem):
         return np.array(
             [
                 [0, 6, 1],
-                [1, 9, 2],
                 [2, 7, 0],
-                [3, 12, 4],
-                [4, 14, 5],
-                [5, 13, 3],
                 [0, 8, 3],
+                [1, 9, 2],
                 [1, 10, 4],
                 [2, 11, 5],
-            ]
+                [3, 12, 4],
+                [5, 13, 3],
+                [4, 14, 5],
+            ],
+            dtype=int,
         )
 
     def _N(self) -> np.ndarray:
@@ -405,14 +423,17 @@ class PRISM18(_GroupElem):
         return super().triangles
 
     @property
-    def faces(self) -> list[int]:
-        # fmt: off
-        return [0,8,3,12,4,10,1,6,
-                0,7,2,11,5,13,3,8,
-                1,10,4,14,5,11,2,9,
-                3,13,5,14,4,12,3,3,
-                0,6,1,9,2,7,0,0]
-        # fmt: on
+    def faces(self) -> np.ndarray:
+        return np.array(
+            [
+                [0, 8, 3, 12, 4, 10, 1, 6],  # 15
+                [0, 7, 2, 11, 5, 13, 3, 8],  # 16
+                [1, 10, 4, 14, 5, 11, 2, 9],  # 17
+                [3, 13, 5, 14, 4, 12, 3, 3],  # tri z=1
+                [0, 6, 1, 9, 2, 7, 0, 0],  # tri z=-1
+            ],
+            dtype=int,
+        )
 
     def Get_Local_Coords(self):
         list_x = [0, 1, 0, 0, 1, 0, 0.5, 0, 0, 0.5, 1, 0, 0.5, 0, 0.5, 0.5, 0, 0.5]
@@ -426,14 +447,14 @@ class PRISM18(_GroupElem):
         return np.array(
             [
                 [0, 6, 1],
-                [1, 9, 2],
                 [2, 7, 0],
-                [3, 12, 4],
-                [4, 14, 5],
-                [5, 13, 3],
                 [0, 8, 3],
+                [1, 9, 2],
                 [1, 10, 4],
                 [2, 11, 5],
+                [3, 12, 4],
+                [5, 13, 3],
+                [4, 14, 5],
             ]
         )
 

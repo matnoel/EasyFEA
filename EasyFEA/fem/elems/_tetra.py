@@ -48,13 +48,16 @@ class TETRA4(_GroupElem):
         return super().triangles
 
     @property
-    def faces(self) -> list[int]:
-        # fmt: off
-        return [0,1,2,
-                0,3,1,
-                0,2,3,
-                1,3,2]
-        # fmt: on
+    def faces(self) -> np.ndarray:
+        return np.array(
+            [
+                [0, 1, 2],
+                [0, 2, 3],
+                [0, 3, 1],
+                [1, 3, 2],
+            ],
+            dtype=int,
+        )
 
     def Get_Local_Coords(self):
         list_x = [0, 1, 0, 0]
@@ -65,7 +68,10 @@ class TETRA4(_GroupElem):
 
     @property
     def segments(self) -> np.ndarray:
-        return np.array([[0, 1], [0, 3], [3, 1], [2, 0], [2, 3], [2, 1]])
+        return np.array(
+            [[0, 1], [2, 1], [2, 0], [0, 3], [2, 3], [3, 1]],
+            dtype=int,
+        )
 
     def _N(self) -> np.ndarray:
 
@@ -138,13 +144,16 @@ class TETRA10(_GroupElem):
         return super().triangles
 
     @property
-    def faces(self) -> list[int]:
-        # fmt: off
-        return [0,4,1,5,2,6,
-                0,7,3,9,1,4,
-                0,6,2,8,3,7,
-                1,9,3,8,2,5]
-        # fmt: on
+    def faces(self) -> np.ndarray:
+        return np.array(
+            [
+                [0, 4, 1, 5, 2, 6],
+                [0, 6, 2, 8, 3, 7],
+                [0, 7, 3, 9, 1, 4],
+                [1, 9, 3, 8, 2, 5],
+            ],
+            dtype=int,
+        )
 
     def Get_Local_Coords(self):
         list_x = [0, 1, 0, 0, 0.5, 0.5, 0, 0, 0, 0.5]
@@ -156,7 +165,8 @@ class TETRA10(_GroupElem):
     @property
     def segments(self) -> np.ndarray:
         return np.array(
-            [[0, 4, 1], [0, 7, 3], [3, 9, 1], [2, 6, 0], [2, 8, 3], [2, 5, 1]]
+            [[0, 4, 1], [2, 5, 1], [2, 6, 0], [0, 7, 3], [2, 8, 3], [3, 9, 1]],
+            dtype=int,
         )
 
     def _N(self) -> np.ndarray:
