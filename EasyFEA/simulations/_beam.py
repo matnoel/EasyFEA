@@ -105,7 +105,7 @@ class BeamSimu(_Simu):
 
     def add_surfLoad(
         self,
-        nodes: _types.UIntArray,
+        nodes: _types.IntArray,
         values: list,
         unknowns: list,
         problemType=None,
@@ -116,7 +116,7 @@ class BeamSimu(_Simu):
 
     def add_volumeLoad(
         self,
-        nodes: _types.UIntArray,
+        nodes: _types.IntArray,
         values: list,
         unknowns: list,
         problemType=None,
@@ -125,12 +125,12 @@ class BeamSimu(_Simu):
         Display.MyPrintError("Volumetric loads cannot be applied in beam problems.")
         return
 
-    def add_connection_fixed(self, nodes: _types.UIntArray, description="Fixed"):
+    def add_connection_fixed(self, nodes: _types.IntArray, description="Fixed"):
         """Adds a fixed connection.
 
         Parameters
         ----------
-        nodes : _types.UIntArray
+        nodes : _types.IntArray
             nodes
         description : str, optional
             description, by default "Fixed"
@@ -150,13 +150,13 @@ class BeamSimu(_Simu):
         self.add_connection(nodes, unknowns, description)
 
     def add_connection_hinged(
-        self, nodes: _types.UIntArray, unknowns=[""], description="Hinged"
+        self, nodes: _types.IntArray, unknowns=[""], description="Hinged"
     ):
         """Adds a hinged connection.
 
         Parameters
         ----------
-        nodes : _types.UIntArray
+        nodes : _types.IntArray
             nodes
         unknowns : list, optional
             unknowns, by default ['']
@@ -185,13 +185,13 @@ class BeamSimu(_Simu):
         self.add_connection(nodes, unknowns, description)
 
     def add_connection(
-        self, nodes: _types.UIntArray, unknowns: list[str], description: str
+        self, nodes: _types.IntArray, unknowns: list[str], description: str
     ):
         """Connects beams together in the specified unknowns.
 
         Parameters
         ----------
-        nodes : _types.UIntArray
+        nodes : _types.IntArray
             nodes
         unknowns : list[str]
             unknowns

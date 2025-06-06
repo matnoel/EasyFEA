@@ -44,9 +44,9 @@ class _GroupElem(ABC):
     def __init__(
         self,
         gmshId: int,
-        connect: _types.UIntArray,
+        connect: _types.IntArray,
         coordGlob: _types.FloatArray,
-        nodes: _types.UIntArray,
+        nodes: _types.IntArray,
     ):
         """Creates a goup of elements.
 
@@ -54,11 +54,11 @@ class _GroupElem(ABC):
         ----------
         gmshId : int
             gmsh id
-        connect : _types.UIntArray
+        connect : _types.IntArray
             connectivity matrix
         coordGlob : _types.FloatArray
             coordinate matrix (contains all mesh coordinates)
-        nodes : _types.UIntArray
+        nodes : _types.IntArray
             nodes used by element group
         """
 
@@ -158,12 +158,12 @@ class _GroupElem(ABC):
         return self.__connect.shape[0]
 
     @property
-    def nodes(self) -> _types.UIntArray:
+    def nodes(self) -> _types.IntArray:
         """nodes used by the element group. Node 'n' is on line 'n' in coordGlob"""
         return self.__nodes.copy()
 
     @property
-    def elements(self) -> _types.UIntArray:
+    def elements(self) -> _types.IntArray:
         """elements"""
         return np.arange(self.__connect.shape[0], dtype=int)
 
@@ -200,7 +200,7 @@ class _GroupElem(ABC):
         return self.__Nvertex
 
     @property
-    def connect(self) -> _types.UIntArray:
+    def connect(self) -> _types.IntArray:
         """connectivity matrix (Ne, nPe)"""
         return self.__connect.copy()
 
@@ -234,23 +234,23 @@ class _GroupElem(ABC):
         return self.__connect_n_e.copy()
 
     @property
-    def assembly_e(self) -> _types.UIntArray:
+    def assembly_e(self) -> _types.IntArray:
         """assembly matrix (Ne, nPe*dim)"""
 
         nPe = self.nPe
         dim = self.dim
-        taille = nPe * dim
+        size = nPe * dim
 
-        assembly = np.zeros((self.Ne, taille), dtype=np.int64)
+        assembly = np.zeros((self.Ne, size), dtype=int)
         connect = self.connect
 
         for d in range(dim):
-            colonnes = np.arange(d, taille, dim)
-            assembly[:, colonnes] = np.array(connect) * dim + d
+            colonnes = np.arange(d, size, dim, dtype=int)
+            assembly[:, colonnes] = connect * dim + d
 
         return assembly
 
-    def Get_assembly_e(self, dof_n: int) -> _types.UIntArray:
+    def Get_assembly_e(self, dof_n: int) -> _types.IntArray:
         """Get the assembly matrix for the specified dof_n (Ne, nPe*dof_n)
 
         Parameters
@@ -317,7 +317,7 @@ class _GroupElem(ABC):
 
             i = points2 - points1
             # Normalize
-            i: _types.FloatArray = np.einsum(
+            i = np.einsum(
                 "ei,e->ei", i, 1 / np.linalg.norm(i, axis=1), optimize="optimal"
             )
 
@@ -351,7 +351,7 @@ class _GroupElem(ABC):
                     j = np.zeros_like(i)
                     j[rep1] = j1[rep1]
                     j[rep2] = j2[rep2]
-                    j: _types.FloatArray = np.einsum(
+                    j = np.einsum(
                         "ei,e->ei", j, 1 / np.linalg.norm(j, axis=1), optimize="optimal"
                     )
 
@@ -377,7 +377,7 @@ class _GroupElem(ABC):
                 )
 
                 k = np.cross(i, j, axis=1)
-                k: _types.FloatArray = np.einsum(
+                k = np.einsum(
                     "ei,e->ei", k, 1 / np.linalg.norm(k, axis=1), optimize="optimal"
                 )
 
@@ -503,7 +503,7 @@ class _GroupElem(ABC):
         pass
 
     @property
-    def segments(self) -> _types.UIntArray:  # type: ignore [return]
+    def segments(self) -> _types.IntArray:  # type: ignore [return]
         """list of indexes used to construct segments"""
         if self.__dim == 1:
             return np.array([[0, 1]], dtype=int)
@@ -521,9 +521,9 @@ class _GroupElem(ABC):
         """array of indexes to form the faces that make up the element."""
         pass
 
-    def Get_interface(self) -> dict[list[int] : int]:
+    def Get_interface(self) -> dict[str, int]:
 
-        dict_interface: dict[list[int] : int] = {}
+        dict_interface: dict[str, int] = {}
 
         idx = -1
         for _ in range(self.Nvertex):
@@ -1204,7 +1204,7 @@ class _GroupElem(ABC):
     # Euler Bernoulli problem
 
     def Get_EulerBernoulli_N_e_pg(
-        self, beamStructure: "BeamStructure"  # type: ignore
+        self, beamStructure: "BeamStructure"  # type: ignore [no-redef]
     ) -> FeArray.FeArrayALike:
         """Euler-Bernoulli beam shape functions."""
 
@@ -1225,7 +1225,7 @@ class _GroupElem(ABC):
 
         # get matrices to work with
         N_pg = self.Get_N_pg(matrixType)
-        N_e_pg = self.Get_EulerBernoulli_N_e_pg(beamStructure)
+        N_e_pg = self.Get_EulerBernoulli_N_e_pg()
         dN_e_pg = self.Get_EulerBernoulli_dN_e_pg()
 
         if dim == 1:
@@ -1322,7 +1322,6 @@ class _GroupElem(ABC):
         matrixType = MatrixType.beam
 
         # Recovering the beam model
-        beamStructure: BeamStructure = beamStructure
         dim = beamStructure.dim
         dof_n = beamStructure.dof_n
 
@@ -1560,8 +1559,8 @@ class _GroupElem(ABC):
     # --------------------------------------------------------------------------------------------
 
     def Get_Elements_Nodes(
-        self, nodes: _types.UIntArray, exclusively=True
-    ) -> _types.UIntArray:
+        self, nodes: _types.IntArray, exclusively=True
+    ) -> _types.IntArray:
         """Returns elements that exclusively or not use the specified nodes."""
         connect = self.__connect
         connect_n_e = self.Get_connect_n_e()
@@ -1599,7 +1598,7 @@ class _GroupElem(ABC):
 
         return np.asarray(elements, dtype=int)
 
-    def Get_Nodes_Conditions(self, func: Callable) -> _types.UIntArray:  # type: ignore
+    def Get_Nodes_Conditions(self, func: Callable) -> _types.IntArray:  # type: ignore
         """Returns nodes that meet the specified conditions.
 
         Parameters
@@ -1632,7 +1631,7 @@ class _GroupElem(ABC):
 
             return None  # type: ignore [return-value]
 
-    def Get_Nodes_Point(self, point: Point) -> _types.UIntArray:
+    def Get_Nodes_Point(self, point: Point) -> _types.IntArray:
         """Returns nodes on the point."""
 
         assert isinstance(point, Point)
@@ -1665,7 +1664,7 @@ class _GroupElem(ABC):
 
         return self.__nodes[idx].copy()
 
-    def Get_Nodes_Line(self, line: Line) -> _types.UIntArray:
+    def Get_Nodes_Line(self, line: Line) -> _types.IntArray:
         """Returns nodes on the line."""
 
         assert isinstance(line, Line)
@@ -1686,7 +1685,7 @@ class _GroupElem(ABC):
 
         return self.__nodes[idx].copy()
 
-    def Get_Nodes_Domain(self, domain: Domain) -> _types.UIntArray:
+    def Get_Nodes_Domain(self, domain: Domain) -> _types.IntArray:
         """Returns nodes in the domain."""
 
         assert isinstance(domain, Domain)
@@ -1706,7 +1705,7 @@ class _GroupElem(ABC):
 
         return self.__nodes[idx].copy()
 
-    def Get_Nodes_Circle(self, circle: Circle, onlyOnEdge=False) -> _types.UIntArray:
+    def Get_Nodes_Circle(self, circle: Circle, onlyOnEdge=False) -> _types.IntArray:
         """Returns nodes in the circle."""
 
         assert isinstance(circle, Circle)
@@ -1726,12 +1725,12 @@ class _GroupElem(ABC):
 
     def Get_Nodes_Cylinder(
         self, circle: Circle, direction=[0, 0, 1], onlyOnEdge=False
-    ) -> _types.UIntArray:
+    ) -> _types.IntArray:
         """Returns nodes in the cylinder."""
 
         assert isinstance(circle, Circle)
 
-        rotAxis = np.cross(circle.n, direction)
+        rotAxis = np.cross(np.asarray(circle.n), direction)
         if np.linalg.norm(rotAxis) <= 1e-12:
             # n == direction
             i = (circle.pt1 - circle.center).coord
@@ -1769,12 +1768,12 @@ class _GroupElem(ABC):
     # Line -> Plane equation
     # CircleArc -> Cylinder do something like Get_Nodes_Cylinder
 
-    def _Set_Nodes_Tag(self, nodes: _types.UIntArray, tag: str):
+    def _Set_Nodes_Tag(self, nodes: _types.IntArray, tag: str):
         """Adds a tag to the nodes.
 
         Parameters
         ----------
-        nodes : _types.UIntArray
+        nodes : _types.IntArray
             list of nodes
         tag : str
             tag used
@@ -1800,12 +1799,12 @@ class _GroupElem(ABC):
         """Dictionary associating tags with nodes."""
         return self.__dict_nodes_tags.copy()
 
-    def _Set_Elements_Tag(self, nodes: _types.UIntArray, tag: str):
+    def _Set_Elements_Tag(self, nodes: _types.IntArray, tag: str):
         """Adds a tag to elements associated with nodes
 
         Parameters
         ----------
-        nodes : _types.UIntArray
+        nodes : _types.IntArray
             list of nodes
         tag : str
             tag used
@@ -1835,7 +1834,7 @@ class _GroupElem(ABC):
         """dictionary associating tags with elements."""
         return self.__dict_elements_tags.copy()
 
-    def Get_Elements_Tag(self, tag: str) -> _types.UIntArray:
+    def Get_Elements_Tag(self, tag: str) -> _types.IntArray:
         """Returns elements associated with the tag."""
         if tag in self.__dict_elements_tags:
             return self.__dict_elements_tags[tag]
@@ -1843,7 +1842,7 @@ class _GroupElem(ABC):
             print(f"The {tag} tag is unknown")
             return np.array([])
 
-    def Get_Nodes_Tag(self, tag: str) -> _types.UIntArray:
+    def Get_Nodes_Tag(self, tag: str) -> _types.IntArray:
         """Returns node associated with the tag."""
         if tag in self.__dict_nodes_tags:
             return self.__dict_nodes_tags[tag]
@@ -2025,12 +2024,12 @@ class _GroupElem(ABC):
     def Get_Mapping(
         self,
         coordinates_n: _types.FloatArray,
-        elements_e: Optional[_types.UIntArray] = None,
+        elements_e: Optional[_types.IntArray] = None,
         needCoordinates=True,
     ) -> tuple[
-        _types.UIntArray,
-        _types.UIntArray,
-        _types.UIntArray,
+        _types.IntArray,
+        _types.IntArray,
+        _types.IntArray,
         Optional[_types.FloatArray],
     ]:
         """Locates coordinates within elements.
@@ -2056,12 +2055,12 @@ class _GroupElem(ABC):
     def __Get_Mapping(
         self,
         coordinates_n: _types.FloatArray,
-        elements_e: _types.UIntArray,
+        elements_e: _types.IntArray,
         needCoordinates=True,
     ) -> tuple[
-        _types.UIntArray,
-        _types.UIntArray,
-        _types.UIntArray,
+        _types.IntArray,
+        _types.IntArray,
+        _types.IntArray,
         Optional[_types.FloatArray],
     ]:
         """Locates coordinates within elements.
@@ -2164,7 +2163,7 @@ class _GroupElem(ABC):
 
                 if not useIterative_e[e]:
                     # The fastest method, available only for undistorted meshes.
-                    xiP: _types.Numbers = xiOrigin + (xP_n - x0) @ invF_e_pg[e, 0]
+                    xiP = xiOrigin + (xP_n - x0) @ invF_e_pg[e, 0]
 
                 else:
                     # This is the most time-consuming method.
@@ -2175,15 +2174,13 @@ class _GroupElem(ABC):
                         J = x0 + (xi - xiOrigin) @ F - xP  # cost function
                         return J
 
-                    xiP: _types.Numbers = []
+                    xiP = []
                     for xP in xP_n:
                         res = least_squares(Eval, 0 * xP, args=(xP,))
                         xiP.append(res.x)
 
-                    xiP = np.array(xiP)
-
                 # xiP are the n coordinates of the n points in (ξ, η, ζ).
-                coordInElem_n[nodesInElement, :] = xiP.copy()  # type: ignore
+                coordInElem_n[nodesInElement, :] = np.asarray(xiP)  # type: ignore
 
         [ResearchFunction(e) for e in elements_e]
 
@@ -2202,7 +2199,7 @@ class _GroupElem(ABC):
         coordinates_n: _types.FloatArray,
         coordElem: _types.FloatArray,
         dims: _types.FloatArray,
-    ) -> _types.UIntArray:
+    ) -> _types.IntArray:
         """Get indexes in coordinates_n that are within the coordElem's bounds.
 
         Parameters
@@ -2216,7 +2213,7 @@ class _GroupElem(ABC):
 
         Returns
         -------
-        _types.UIntArray
+        _types.IntArray
             indexes in element's bounds.
         """
 
@@ -2325,9 +2322,9 @@ class GroupElemFactory:
     @staticmethod
     def Create(
         gmshId: int,
-        connect: _types.UIntArray,
+        connect: _types.IntArray,
         coordGlob: _types.FloatArray,
-        nodes: _types.UIntArray,
+        nodes: _types.IntArray,
     ) -> _GroupElem:
         """Creates an element group
 
@@ -2335,11 +2332,11 @@ class GroupElemFactory:
         ----------
         gmshId : int
             id gmsh
-        connect : _types.UIntArray
+        connect : _types.IntArray
             connection matrix storing nodes for each element (Ne, nPe)
         coordGlob : _types.FloatArray
             nodes coordinates
-        nodes : _types.UIntArray
+        nodes : _types.IntArray
             nodes used by the element group
 
         Returns
@@ -2397,7 +2394,7 @@ class GroupElemFactory:
 
     @staticmethod
     def _Create(
-        elemType: ElemType, connect: _types.UIntArray, coordGlob: _types.FloatArray
+        elemType: ElemType, connect: _types.IntArray, coordGlob: _types.FloatArray
     ) -> _GroupElem:
         """Creates an element group
 
@@ -2405,7 +2402,7 @@ class GroupElemFactory:
         ----------
         elemType : ElemType
             element type
-        connect : _types.UIntArray
+        connect : _types.IntArray
             connection matrix storing nodes for each element (Ne, nPe)
         coordGlob : _types.FloatArray
             nodes coordinates

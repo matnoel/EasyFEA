@@ -1877,7 +1877,7 @@ class Mesher:
             # Elements
             Ne = elementTags.shape[0]  # number of elements
             nPe = GroupElemFactory.Get_ElemInFos(gmshId)[1]  # nodes per element
-            connect: _types.UIntArraytArray = nodeTags.reshape(
+            connect: _types.IntArraytArray = nodeTags.reshape(
                 Ne, nPe
             )  # creates connect matrix
 

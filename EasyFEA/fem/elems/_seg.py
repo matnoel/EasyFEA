@@ -20,9 +20,9 @@ class SEG2(_GroupElem):
     def __init__(
         self,
         gmshId: int,
-        connect: _types.UIntArray,
+        connect: _types.IntArray,
         coordoGlob: _types.FloatArray,
-        nodes: _types.UIntArray,
+        nodes: _types.IntArray,
     ):
 
         super().__init__(gmshId, connect, coordoGlob, nodes)
@@ -115,9 +115,9 @@ class SEG3(_GroupElem):
     def __init__(
         self,
         gmshId: int,
-        connect: _types.UIntArray,
+        connect: _types.IntArray,
         coordoGlob: _types.FloatArray,
-        nodes: _types.UIntArray,
+        nodes: _types.IntArray,
     ):
 
         super().__init__(gmshId, connect, coordoGlob, nodes)
@@ -279,9 +279,9 @@ class SEG4(_GroupElem):
     def __init__(
         self,
         gmshId: int,
-        connect: _types.UIntArray,
+        connect: _types.IntArray,
         coordoGlob: _types.FloatArray,
-        nodes: _types.UIntArray,
+        nodes: _types.IntArray,
     ):
 
         super().__init__(gmshId, connect, coordoGlob, nodes)
@@ -598,9 +598,9 @@ class SEG5(_GroupElem):
     def __init__(
         self,
         gmshId: int,
-        connect: _types.UIntArray,
+        connect: _types.IntArray,
         coordoGlob: _types.FloatArray,
-        nodes: _types.UIntArray,
+        nodes: _types.IntArray,
     ):
 
         super().__init__(gmshId, connect, coordoGlob, nodes)

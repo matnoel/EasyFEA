@@ -143,7 +143,7 @@ def __Write_HOSolAt_Solution(
     file: io.TextIOWrapper,
     groupElem: _GroupElem,
     dofsValues: _types.FloatArray,
-    assembly_e: _types.UIntArray,
+    assembly_e: _types.IntArray,
     type: int,
     order: int,
 ) -> None:

@@ -33,9 +33,9 @@ class PRISM6(_GroupElem):
     def __init__(
         self,
         gmshId: int,
-        connect: _types.UIntArray,
+        connect: _types.IntArray,
         coordoGlob: _types.FloatArray,
-        nodes: _types.UIntArray,
+        nodes: _types.IntArray,
     ):
 
         super().__init__(gmshId, connect, coordoGlob, nodes)
@@ -69,7 +69,7 @@ class PRISM6(_GroupElem):
         return local_coords
 
     @property
-    def segments(self) -> _types.UIntArray:
+    def segments(self) -> _types.IntArray:
         return np.array(
             [
                 [0, 1],
@@ -152,9 +152,9 @@ class PRISM15(_GroupElem):
     def __init__(
         self,
         gmshId: int,
-        connect: _types.UIntArray,
+        connect: _types.IntArray,
         coordoGlob: _types.FloatArray,
-        nodes: _types.UIntArray,
+        nodes: _types.IntArray,
     ):
 
         super().__init__(gmshId, connect, coordoGlob, nodes)
@@ -188,7 +188,7 @@ class PRISM15(_GroupElem):
         return local_coords
 
     @property
-    def segments(self) -> _types.UIntArray:
+    def segments(self) -> _types.IntArray:
         return np.array(
             [
                 [0, 6, 1],
@@ -408,9 +408,9 @@ class PRISM18(_GroupElem):
     def __init__(
         self,
         gmshId: int,
-        connect: _types.UIntArray,
+        connect: _types.IntArray,
         coordoGlob: _types.FloatArray,
-        nodes: _types.UIntArray,
+        nodes: _types.IntArray,
     ):
 
         super().__init__(gmshId, connect, coordoGlob, nodes)
@@ -444,7 +444,7 @@ class PRISM18(_GroupElem):
         return local_coords
 
     @property
-    def segments(self) -> _types.UIntArray:
+    def segments(self) -> _types.IntArray:
         return np.array(
             [
                 [0, 6, 1],

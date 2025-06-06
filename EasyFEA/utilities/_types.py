@@ -34,7 +34,6 @@ StrArray = NDArray[np.str_]
 FloatArray = NDArray[np.float64]
 
 IntArray = NDArray[np.int64]
-UIntArray = NDArray[np.uint64]
 
 NumberArray = Union[FloatArray, IntArray]
 

@@ -323,9 +323,9 @@ class Mesh(Observable):
 
     def Get_normals(
         self,
-        nodes: Optional[_types.UIntArray] = None,
+        nodes: Optional[_types.IntArray] = None,
         displacementMatrix: Optional[_types.FloatArray] = None,
-    ) -> tuple[_types.FloatArray, _types.UIntArray]:
+    ) -> tuple[_types.FloatArray, _types.IntArray]:
         """Returns normal vectors and nodes belonging to the edge of the mesh.\n
         returns normals, nodes."""
 
@@ -568,7 +568,7 @@ class Mesh(Observable):
         return self.groupElem.Get_Nodes_Cylinder(circle, direction, onlyOnEdge)
 
     def Elements_Nodes(
-        self, nodes: _types.UIntArray, exclusively=True, neighborLayer: int = 1
+        self, nodes: _types.IntArray, exclusively=True, neighborLayer: int = 1
     ):
         """Returns elements that exclusively or not use the specified nodes."""
 
@@ -635,7 +635,7 @@ class Mesh(Observable):
 
         return elements
 
-    def Set_Tag(self, nodes: _types.UIntArray, tag: str):
+    def Set_Tag(self, nodes: _types.IntArray, tag: str):
         """Set a tag on the nodes and elements belonging to each group of elements in the mesh."""
 
         assert isinstance(tag, str), "tag must be a string"
@@ -1051,7 +1051,7 @@ def Calc_projector(oldMesh: Mesh, newMesh: Mesh) -> sp.csr_matrix:
     columns: list[int] = []
     values: list[float] = []
 
-    def FuncExtend_Proj(element: int, nodes: _types.UIntArray):
+    def FuncExtend_Proj(element: int, nodes: _types.IntArray):
         values.extend(np.ravel(phi_n_nPe[nodes]))
         lines.extend(np.repeat(nodes, nPe))
         columns.extend(np.asarray(list(connect_e[element]) * nodes.size))

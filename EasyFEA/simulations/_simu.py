@@ -1291,13 +1291,13 @@ class _Simu(_IObserver, ABC):
         return dofsKnown, dofsUnknown
 
     def Bc_dofs_nodes(
-        self, nodes: _types.UIntArray, unknowns: list[str], problemType=None
+        self, nodes: _types.IntArray, unknowns: list[str], problemType=None
     ) -> np.ndarray:
         """Returns degrees of freedom associated with the nodes, based on the problem type and unknowns.
 
         Parameters
         ----------
-        nodes : _types.UIntArray
+        nodes : _types.IntArray
             nodes.
         unknowns : list
             unknowns (e.g ["x","y","rz"])
@@ -1357,7 +1357,7 @@ class _Simu(_IObserver, ABC):
 
     def add_dirichlet(
         self,
-        nodes: _types.UIntArray,
+        nodes: _types.IntArray,
         values: list,
         unknowns: list[str],
         problemType=None,
@@ -1367,7 +1367,7 @@ class _Simu(_IObserver, ABC):
 
         Parameters
         ----------
-        nodes : _types.UIntArray
+        nodes : _types.IntArray
             nodes
         values : list
             list of values that can contains floats, arrays or functions or functions.\n
@@ -1414,7 +1414,7 @@ class _Simu(_IObserver, ABC):
 
     def add_neumann(
         self,
-        nodes: _types.UIntArray,
+        nodes: _types.IntArray,
         values: list,
         unknowns: list[str],
         problemType=None,
@@ -1424,7 +1424,7 @@ class _Simu(_IObserver, ABC):
 
         Parameters
         ----------
-        nodes : _types.UIntArray
+        nodes : _types.IntArray
             nodes
         values : list
             list of values that can contains floats, arrays or functions or functions.\n
@@ -1455,7 +1455,7 @@ class _Simu(_IObserver, ABC):
 
     def add_lineLoad(
         self,
-        nodes: _types.UIntArray,
+        nodes: _types.IntArray,
         values: list,
         unknowns: list[str],
         problemType=None,
@@ -1465,7 +1465,7 @@ class _Simu(_IObserver, ABC):
 
         Parameters
         ----------
-        nodes : _types.UIntArray
+        nodes : _types.IntArray
             nodes
         values : list
             list of values that can contain floats, arrays or functions or lambda functions.\n
@@ -1498,7 +1498,7 @@ class _Simu(_IObserver, ABC):
 
     def add_surfLoad(
         self,
-        nodes: _types.UIntArray,
+        nodes: _types.IntArray,
         values: list,
         unknowns: list[str],
         problemType=None,
@@ -1508,7 +1508,7 @@ class _Simu(_IObserver, ABC):
 
         Parameters
         ----------
-        nodes : _types.UIntArray
+        nodes : _types.IntArray
             nodes
         values : list
             list of values that can contain floats, arrays or functions or lambda functions.\n
@@ -1548,7 +1548,7 @@ class _Simu(_IObserver, ABC):
 
     def add_pressureLoad(
         self,
-        nodes: _types.UIntArray,
+        nodes: _types.IntArray,
         magnitude: float,
         problemType=None,
         description="",
@@ -1557,7 +1557,7 @@ class _Simu(_IObserver, ABC):
 
         Parameters
         ----------
-        nodes : _types.UIntArray
+        nodes : _types.IntArray
             nodes. (must belong to the edge of the mesh.)
         magnitude : float
             pressure magnitude
@@ -1590,7 +1590,7 @@ class _Simu(_IObserver, ABC):
 
     def add_volumeLoad(
         self,
-        nodes: _types.UIntArray,
+        nodes: _types.IntArray,
         values: list,
         unknowns: list[str],
         problemType=None,
@@ -1600,7 +1600,7 @@ class _Simu(_IObserver, ABC):
 
         Parameters
         ----------
-        nodes : _types.UIntArray
+        nodes : _types.IntArray
             nodes
         values : list
             list of values that can contain floats, arrays or functions or lambda functions.\n
@@ -1641,7 +1641,7 @@ class _Simu(_IObserver, ABC):
     def __Bc_pointLoad(
         self,
         problemType: ModelType,
-        nodes: _types.UIntArray,
+        nodes: _types.IntArray,
         values: list,
         unknowns: list,
     ) -> tuple[np.ndarray, np.ndarray]:
@@ -1669,7 +1669,7 @@ class _Simu(_IObserver, ABC):
     def _Bc_Integration_scale(
         self,
         groupElem: _GroupElem,
-        elements: _types.UIntArray,
+        elements: _types.IntArray,
         values_e_p: _types.FloatArray,
         matrixType: MatrixType,
     ) -> _types.FloatArray:
@@ -1679,7 +1679,7 @@ class _Simu(_IObserver, ABC):
         ----------
         groupElem : _GroupElem
             group of elements.
-        elements : _types.UIntArray
+        elements : _types.IntArray
             elements where the values are applied.
         values_e_p : _types.FloatArray
             values applied.
@@ -1697,10 +1697,10 @@ class _Simu(_IObserver, ABC):
         self,
         dim: int,
         problemType: ModelType,
-        nodes: _types.UIntArray,
+        nodes: _types.IntArray,
         values: list,
         unknowns: list[str],
-    ) -> tuple[_types.FloatArray, _types.UIntArray, _types.UIntArray]:
+    ) -> tuple[_types.FloatArray, _types.IntArray, _types.IntArray]:
         """Integrates on elements for the specified dimension.
         return dofsValues, dofs, Nodes"""
 
@@ -1793,7 +1793,7 @@ class _Simu(_IObserver, ABC):
     def __Bc_lineLoad(
         self,
         problemType: ModelType,
-        nodes: _types.UIntArray,
+        nodes: _types.IntArray,
         values: list,
         unknowns: list,
     ) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
@@ -1815,7 +1815,7 @@ class _Simu(_IObserver, ABC):
     def __Bc_surfload(
         self,
         problemType: ModelType,
-        nodes: _types.UIntArray,
+        nodes: _types.IntArray,
         values: list,
         unknowns: list,
     ) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
@@ -1837,7 +1837,7 @@ class _Simu(_IObserver, ABC):
     def __Bc_volumeload(
         self,
         problemType: ModelType,
-        nodes: _types.UIntArray,
+        nodes: _types.IntArray,
         values: list,
         unknowns: list,
     ) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
@@ -1857,7 +1857,7 @@ class _Simu(_IObserver, ABC):
         return dofsValues, dofs, nodes
 
     def __Bc_pressureload(
-        self, problemType: ModelType, nodes: _types.UIntArray, magnitude: float
+        self, problemType: ModelType, nodes: _types.IntArray, magnitude: float
     ) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
         """Adds a pressure load.\n
         returns dofsValues, dofs, nodes"""
@@ -1893,9 +1893,9 @@ class _Simu(_IObserver, ABC):
     def _Bc_Add_Neumann(
         self,
         problemType: ModelType,
-        nodes: _types.UIntArray,
+        nodes: _types.IntArray,
         dofsValues: _types.FloatArray,
-        dofs: _types.UIntArray,
+        dofs: _types.IntArray,
         unknowns: list[str],
         description="",
     ) -> None:
@@ -1917,9 +1917,9 @@ class _Simu(_IObserver, ABC):
     def _Bc_Add_Dirichlet(
         self,
         problemType: ModelType,
-        nodes: _types.UIntArray,
+        nodes: _types.IntArray,
         dofsValues: _types.FloatArray,
-        dofs: _types.UIntArray,
+        dofs: _types.IntArray,
         unknowns: list,
         description="",
     ) -> None:
@@ -1943,7 +1943,7 @@ class _Simu(_IObserver, ABC):
 
     def _Bc_Add_Display(
         self,
-        nodes: _types.UIntArray,
+        nodes: _types.IntArray,
         unknowns: list[str],
         description: str,
         problemType=None,
@@ -1976,9 +1976,9 @@ class _Simu(_IObserver, ABC):
         ----------
         masterMesh : Mesh
             master mesh
-        slavenodes : _types.UIntArray, optional
+        slavenodes : _types.IntArray, optional
             slave nodes, by default None
-        masternodes : _types.UIntArray, optional
+        masternodes : _types.IntArray, optional
             master nodes, by default None
 
         Returns
@@ -2014,7 +2014,7 @@ class _Simu(_IObserver, ABC):
 
         if idx.size > 0:
             # slave nodes have been detected in the master mesh
-            nodes: _types.UIntArray = slaveNodes[idx]
+            nodes: _types.IntArray = slaveNodes[idx]
 
             sysCoord_e = masterGroup._Get_sysCoord_e()
 

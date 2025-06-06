@@ -25,9 +25,9 @@ class QUAD4(_GroupElem):
     def __init__(
         self,
         gmshId: int,
-        connect: _types.UIntArray,
+        connect: _types.IntArray,
         coordoGlob: _types.FloatArray,
-        nodes: _types.UIntArray,
+        nodes: _types.IntArray,
     ):
 
         super().__init__(gmshId, connect, coordoGlob, nodes)
@@ -100,9 +100,9 @@ class QUAD8(_GroupElem):
     def __init__(
         self,
         gmshId: int,
-        connect: _types.UIntArray,
+        connect: _types.IntArray,
         coordoGlob: _types.FloatArray,
-        nodes: _types.UIntArray,
+        nodes: _types.IntArray,
     ):
 
         super().__init__(gmshId, connect, coordoGlob, nodes)
@@ -223,9 +223,9 @@ class QUAD9(_GroupElem):
     def __init__(
         self,
         gmshId: int,
-        connect: _types.UIntArray,
+        connect: _types.IntArray,
         coordoGlob: _types.FloatArray,
-        nodes: _types.UIntArray,
+        nodes: _types.IntArray,
     ):
 
         super().__init__(gmshId, connect, coordoGlob, nodes)

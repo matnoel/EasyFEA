@@ -133,7 +133,7 @@ class PhaseFieldSimu(_Simu):
 
     def Bc_dofs_nodes(
         self,
-        nodes: _types.UIntArray,
+        nodes: _types.IntArray,
         unknowns: list[str],
         problemType=ModelType.elastic,
     ) -> np.ndarray:
@@ -141,7 +141,7 @@ class PhaseFieldSimu(_Simu):
 
     def add_dirichlet(
         self,
-        nodes: _types.UIntArray,
+        nodes: _types.IntArray,
         values: _types.FloatArray,
         unknowns: list[str],
         problemType=ModelType.elastic,
@@ -151,7 +151,7 @@ class PhaseFieldSimu(_Simu):
 
     def add_lineLoad(
         self,
-        nodes: _types.UIntArray,
+        nodes: _types.IntArray,
         values: list,
         unknowns: list[str],
         problemType=ModelType.elastic,
@@ -161,7 +161,7 @@ class PhaseFieldSimu(_Simu):
 
     def add_surfLoad(
         self,
-        nodes: _types.UIntArray,
+        nodes: _types.IntArray,
         values: list,
         unknowns: list[str],
         problemType=ModelType.elastic,
@@ -171,7 +171,7 @@ class PhaseFieldSimu(_Simu):
 
     def add_pressureLoad(
         self,
-        nodes: _types.UIntArray,
+        nodes: _types.IntArray,
         magnitude: float,
         problemType=ModelType.elastic,
         description="",
@@ -180,7 +180,7 @@ class PhaseFieldSimu(_Simu):
 
     def add_neumann(
         self,
-        nodes: _types.UIntArray,
+        nodes: _types.IntArray,
         values: list,
         unknowns: list[str],
         problemType=ModelType.elastic,

@@ -233,7 +233,7 @@ def Plot_Nodes(
     ----------
     obj : _Simu | Mesh
         object containing the mesh
-    nodes : _types.UIntArray, optional
+    nodes : _types.IntArray, optional
         nodes to display, default None
     showId : bool, optional
         display node numbers, default False
@@ -315,7 +315,7 @@ def Plot_Elements(
     ----------
     obj : _Simu | Mesh
         object containing the mesh
-    nodes : _types.UIntArray, optional
+    nodes : _types.IntArray, optional
         nodes used by elements, default None
     dimElem : int, optional
         dimension of elements, by default None (mesh.dim)

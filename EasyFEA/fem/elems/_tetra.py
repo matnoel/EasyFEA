@@ -33,9 +33,9 @@ class TETRA4(_GroupElem):
     def __init__(
         self,
         gmshId: int,
-        connect: _types.UIntArray,
+        connect: _types.IntArray,
         coordoGlob: _types.FloatArray,
-        nodes: _types.UIntArray,
+        nodes: _types.IntArray,
     ):
 
         super().__init__(gmshId, connect, coordoGlob, nodes)
@@ -68,7 +68,7 @@ class TETRA4(_GroupElem):
         return local_coords
 
     @property
-    def segments(self) -> _types.UIntArray:
+    def segments(self) -> _types.IntArray:
         return np.array(
             [[0, 1], [2, 1], [2, 0], [0, 3], [2, 3], [3, 1]],
             dtype=int,
@@ -129,9 +129,9 @@ class TETRA10(_GroupElem):
     def __init__(
         self,
         gmshId: int,
-        connect: _types.UIntArray,
+        connect: _types.IntArray,
         coordoGlob: _types.FloatArray,
-        nodes: _types.UIntArray,
+        nodes: _types.IntArray,
     ):
 
         super().__init__(gmshId, connect, coordoGlob, nodes)
@@ -164,7 +164,7 @@ class TETRA10(_GroupElem):
         return local_coords
 
     @property
-    def segments(self) -> _types.UIntArray:
+    def segments(self) -> _types.IntArray:
         return np.array(
             [[0, 4, 1], [2, 5, 1], [2, 6, 0], [0, 7, 3], [2, 8, 3], [3, 9, 1]],
             dtype=int,

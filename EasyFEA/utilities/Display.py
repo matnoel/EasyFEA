@@ -515,7 +515,7 @@ def Plot_Mesh(
 
 def Plot_Nodes(
     obj,
-    nodes: Optional[_types.UIntArray] = None,
+    nodes: Optional[_types.IntArray] = None,
     showId=False,
     marker=".",
     c="red",
