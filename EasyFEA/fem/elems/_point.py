@@ -31,7 +31,7 @@ class POINT(_GroupElem):
         return super().triangles
 
     @property
-    def faces(self) -> np.ndarray:
+    def faces(self) -> _types.IntArray:
         return np.empty((0, 0), dtype=int)
 
     def Get_Local_Coords(self):

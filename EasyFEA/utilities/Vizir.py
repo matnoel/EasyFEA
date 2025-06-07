@@ -41,7 +41,7 @@ def __Get_vizir_HOSolAt_key(groupElem: _GroupElem) -> str:
     return keyword
 
 
-def _Get_BaryCentric_Coordinates(groupElem: _GroupElem) -> np.ndarray:
+def _Get_BaryCentric_Coordinates(groupElem: _GroupElem) -> _types.FloatArray:
 
     elemType = groupElem.elemType
     local_coords = groupElem.Get_Local_Coords()
@@ -65,8 +65,7 @@ def _Get_BaryCentric_Coordinates(groupElem: _GroupElem) -> np.ndarray:
     return coordinates
 
 
-def __Get_NodesPositions(groupElem: _GroupElem) -> np.ndarray:
-
+def __Get_NodesPositions(groupElem: _GroupElem) -> _types.FloatArray:
     elemType = groupElem.elemType
     local_coords = groupElem.Get_Local_Coords().astype(float)
 

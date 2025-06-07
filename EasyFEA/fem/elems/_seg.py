@@ -36,7 +36,7 @@ class SEG2(_GroupElem):
         return super().triangles
 
     @property
-    def faces(self) -> np.ndarray:
+    def faces(self) -> _types.IntArray:
         return np.array([[0, 1]], dtype=int)
 
     def Get_Local_Coords(self):
@@ -71,7 +71,7 @@ class SEG2(_GroupElem):
     def _ddddN(self) -> _types.FloatArray:
         return super()._ddddN()
 
-    def _EulerBernoulli_N(self) -> np.ndarray:
+    def _EulerBernoulli_N(self) -> _types.AnyArray:
 
         N1 = lambda r: (r - 1) ** 2 * (r + 2) / 4
         N2 = lambda r: (r - 1) ** 2 * (r + 1) / 8
@@ -82,7 +82,7 @@ class SEG2(_GroupElem):
 
         return N
 
-    def _EulerBernoulli_dN(self) -> np.ndarray:
+    def _EulerBernoulli_dN(self) -> _types.AnyArray:
 
         dN1 = [lambda r: (r - 1) ** 2 / 4 + (r + 2) * (2 * r - 2) / 4]
         dN2 = [lambda r: (r - 1) ** 2 / 8 + (r + 1) * (2 * r - 2) / 8]
@@ -93,7 +93,7 @@ class SEG2(_GroupElem):
 
         return dN
 
-    def _EulerBernoulli_ddN(self) -> np.ndarray:
+    def _EulerBernoulli_ddN(self) -> _types.AnyArray:
 
         ddN1 = [lambda r: 3 * r / 2]
         ddN2 = [lambda r: 3 * r / 4 - 1 / 4]
@@ -131,7 +131,7 @@ class SEG3(_GroupElem):
         return super().triangles
 
     @property
-    def faces(self) -> np.ndarray:
+    def faces(self) -> _types.IntArray:
         return np.array([[0, 2, 1]], dtype=int)
 
     def Get_Local_Coords(self):
@@ -175,7 +175,7 @@ class SEG3(_GroupElem):
     def _ddddN(self) -> _types.FloatArray:
         return super()._ddddN()
 
-    def _EulerBernoulli_N(self) -> np.ndarray:
+    def _EulerBernoulli_N(self) -> _types.AnyArray:
 
         N1 = lambda r: r**2 * (r - 1) ** 2 * (3 * r + 4) / 4
         N2 = lambda r: r**2 * (r - 1) ** 2 * (r + 1) / 8
@@ -188,7 +188,7 @@ class SEG3(_GroupElem):
 
         return N
 
-    def _EulerBernoulli_dN(self) -> np.ndarray:
+    def _EulerBernoulli_dN(self) -> _types.AnyArray:
 
         dN1 = [
             lambda r: 3 * r**2 * (r - 1) ** 2 / 4
@@ -221,7 +221,7 @@ class SEG3(_GroupElem):
 
         return dN
 
-    def _EulerBernoulli_ddN(self) -> np.ndarray:
+    def _EulerBernoulli_ddN(self) -> _types.AnyArray:
 
         ddN1 = [
             lambda r: 3 * r**2 * (2 * r - 2) / 2
@@ -295,7 +295,7 @@ class SEG4(_GroupElem):
         return super().triangles
 
     @property
-    def faces(self) -> np.ndarray:
+    def faces(self) -> _types.IntArray:
         return np.array([[0, 2, 3, 1]], dtype=int)
 
     def Get_Local_Coords(self):
@@ -350,7 +350,7 @@ class SEG4(_GroupElem):
     def _ddddN(self) -> _types.FloatArray:
         return super()._ddddN()
 
-    def _EulerBernoulli_N(self) -> np.ndarray:
+    def _EulerBernoulli_N(self) -> _types.AnyArray:
 
         N1 = (
             lambda r: 891 * r**7 / 512
@@ -437,7 +437,7 @@ class SEG4(_GroupElem):
 
         return N
 
-    def _EulerBernoulli_dN(self) -> np.ndarray:
+    def _EulerBernoulli_dN(self) -> _types.AnyArray:
 
         dN1 = [
             lambda r: 6237 * r**6 / 512
@@ -516,7 +516,7 @@ class SEG4(_GroupElem):
 
         return dN
 
-    def _EulerBernoulli_ddN(self) -> np.ndarray:
+    def _EulerBernoulli_ddN(self) -> _types.AnyArray:
 
         ddN1 = [
             lambda r: 18711 * r**5 / 256
@@ -614,7 +614,7 @@ class SEG5(_GroupElem):
         return super().triangles
 
     @property
-    def faces(self) -> np.ndarray:
+    def faces(self) -> _types.IntArray:
         return np.array([[0, 2, 3, 4, 1]], dtype=int)
 
     def Get_Local_Coords(self):
@@ -682,7 +682,7 @@ class SEG5(_GroupElem):
 
         return ddddN
 
-    def _EulerBernoulli_N(self) -> np.ndarray:
+    def _EulerBernoulli_N(self) -> _types.AnyArray:
 
         N1 = (
             lambda r: 100 * r**9 / 27
@@ -771,7 +771,7 @@ class SEG5(_GroupElem):
 
         return N
 
-    def _EulerBernoulli_dN(self) -> np.ndarray:
+    def _EulerBernoulli_dN(self) -> _types.AnyArray:
 
         dN1 = [
             lambda r: 100 * r**8 / 3
@@ -860,7 +860,7 @@ class SEG5(_GroupElem):
 
         return dN
 
-    def _EulerBernoulli_ddN(self) -> np.ndarray:
+    def _EulerBernoulli_ddN(self) -> _types.AnyArray:
 
         ddN1 = [
             lambda r: 800 * r**7 / 3

@@ -101,7 +101,7 @@ class _Elas(_IModel, ABC):
         return np.sqrt(2)
 
     @property
-    def C(self) -> np.ndarray:
+    def C(self) -> _types.FloatArray:
         """Stifness matrix in Kelvin Mandel notation such that:\n
         In 2D: C -> C: Epsilon = Sigma [Sxx, Syy, sqrt(2)*Sxy]\n
         In 3D: C -> C: Epsilon = Sigma [Sxx, Syy, Szz, sqrt(2)*Syz, sqrt(2)*Sxz, sqrt(2)*Sxy].\n
@@ -127,7 +127,7 @@ class _Elas(_IModel, ABC):
         return len(self.C.shape) > 2
 
     @property
-    def S(self) -> np.ndarray:
+    def S(self) -> _types.FloatArray:
         """Compliance matrix in Kelvin Mandel notation such that:\n
         In 2D: S -> S : Sigma = Epsilon [Exx, Eyy, sqrt(2)*Exy]\n
         In 3D: S -> S: Sigma = Epsilon [Exx, Eyy, Ezz, sqrt(2)*Eyz, sqrt(2)*Exz, sqrt(2)*Exy].\n
@@ -571,12 +571,12 @@ class Elas_IsotTrans(_Elas):
         return kt
 
     @property
-    def axis_l(self) -> np.ndarray:
+    def axis_l(self) -> _types.FloatArray:
         """Longitudinal axis"""
         return self.__axis_l.copy()
 
     @property
-    def axis_t(self) -> np.ndarray:
+    def axis_t(self) -> _types.FloatArray:
         """Transversal axis"""
         return self.__axis_t.copy()
 
@@ -921,12 +921,12 @@ class Elas_Anisot(_Elas):
         return C_mandelP
 
     @property
-    def axis1(self) -> np.ndarray:
+    def axis1(self) -> _types.FloatArray:
         """axis1 vector"""
         return self.__axis1.copy()
 
     @property
-    def axis2(self) -> np.ndarray:
+    def axis2(self) -> _types.FloatArray:
         """axis2 vector"""
         return self.__axis2.copy()
 

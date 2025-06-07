@@ -42,7 +42,7 @@ class HEXA8(_GroupElem):
         return super().triangles
 
     @property
-    def faces(self) -> np.ndarray:
+    def faces(self) -> _types.IntArray:
         return np.array(
             [
                 [0, 1, 2, 3],
@@ -187,7 +187,7 @@ class HEXA20(_GroupElem):
         return super().triangles
 
     @property
-    def faces(self) -> np.ndarray:
+    def faces(self) -> _types.IntArray:
         return np.array(
             [
                 [0, 8, 1, 11, 2, 13, 3, 9],  # 20
@@ -806,7 +806,7 @@ class HEXA27(_GroupElem):
         return super().triangles
 
     @property
-    def faces(self) -> np.ndarray:
+    def faces(self) -> _types.IntArray:
         return np.array(
             [
                 [0, 8, 1, 11, 2, 13, 3, 9],  # 20

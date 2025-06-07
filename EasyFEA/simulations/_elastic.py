@@ -82,21 +82,21 @@ class ElasticSimu(_Simu):
         return self.model  # type: ignore
 
     @property
-    def displacement(self) -> np.ndarray:
+    def displacement(self) -> _types.FloatArray:
         """Displacement vector field.\n
         2D [uxi, uyi, ...]\n
         3D [uxi, uyi, uzi, ...]"""
         return self._Get_u_n(self.problemType)
 
     @property
-    def speed(self) -> np.ndarray:
+    def speed(self) -> _types.FloatArray:
         """Velocity vector field.\n
         2D [vxi, vyi, ...]\n
         3D [vxi, vyi, vzi, ...]"""
         return self._Get_v_n(self.problemType)
 
     @property
-    def accel(self) -> np.ndarray:
+    def accel(self) -> _types.FloatArray:
         """Acceleration vector field.\n
         2D [axi, ayi, ...]\n
         3D [axi, ayi, azi, ...]"""
@@ -551,7 +551,7 @@ class ElasticSimu(_Simu):
     def Results_Iter_Summary(self) -> tuple[list[int], list[tuple[str, np.ndarray]]]:
         return super().Results_Iter_Summary()
 
-    def Results_displacement_matrix(self) -> np.ndarray:
+    def Results_displacement_matrix(self) -> _types.FloatArray:
 
         Nn = self.mesh.Nn
         coord = self.displacement.reshape((Nn, -1))

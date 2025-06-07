@@ -127,7 +127,7 @@ def _Solve_Axb(
     x0: _types.FloatArray,
     lb: Union[_types.AnyArray, _types.Numbers],
     ub: Union[_types.AnyArray, _types.Numbers],
-) -> np.ndarray:
+) -> _types.FloatArray:
     """Solves the linear system A x = b
 
     Parameters
@@ -149,7 +149,7 @@ def _Solve_Axb(
 
     Returns
     -------
-    np.ndarray
+    _types.FloatArray
         comuted x solution of A x = b
     """
 
@@ -297,7 +297,7 @@ def _Solve(simu, problemType: str, resol: ResolType):
         return __Solver_3(simu, problemType)
 
 
-def __Solver_1(simu, problemType: str) -> np.ndarray:
+def __Solver_1(simu, problemType: str) -> _types.FloatArray:
     # --       --  --  --   --  --
     # | Aii Aic |  | xi |   | bi |
     # | Aci Acc |  | xc | = | bc |

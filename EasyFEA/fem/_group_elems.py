@@ -262,12 +262,12 @@ class _GroupElem(ABC):
         return _GroupElem._Get_assembly_e(self.connect, dof_n)
 
     @staticmethod
-    def _Get_assembly_e(connect: np.ndarray, dof_n: int) -> np.ndarray:
+    def _Get_assembly_e(connect: _types.IntArray, dof_n: int) -> _types.IntArray:
         """Get the assembly matrix for the specified dof_n (Ne, nPe*dof_n)
 
         Parameters
         ----------
-        connect : np.ndarray
+        connect : _types.IntArray
             connectivity matrix (Ne, nPe)
         dof_n : int
             degree of freedom per node
@@ -517,7 +517,7 @@ class _GroupElem(ABC):
 
     @property
     @abstractmethod
-    def faces(self) -> np.ndarray:
+    def faces(self) -> _types.IntArray:
         """array of indexes to form the faces that make up the element."""
         pass
 

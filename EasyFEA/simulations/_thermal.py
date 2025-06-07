@@ -75,13 +75,13 @@ class ThermalSimu(_Simu):
         return self.model  # type: ignore [return-value]
 
     @property
-    def thermal(self) -> np.ndarray:
+    def thermal(self) -> _types.FloatArray:
         """Scalar temperature field.\n
         [ti, ....]"""
         return self._Get_u_n(self.problemType)
 
     @property
-    def thermalDot(self) -> np.ndarray:
+    def thermalDot(self) -> _types.FloatArray:
         """Time derivative of the scalar temperature field.\n
         [d(ti)/dt, ....]"""
         return self._Get_v_n(self.problemType)
@@ -238,5 +238,5 @@ class ThermalSimu(_Simu):
     def Results_dict_Energy(self) -> dict[str, float]:
         return super().Results_dict_Energy()
 
-    def Results_displacement_matrix(self) -> np.ndarray:
+    def Results_displacement_matrix(self) -> _types.FloatArray:
         return super().Results_displacement_matrix()

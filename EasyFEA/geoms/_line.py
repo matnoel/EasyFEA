@@ -8,6 +8,7 @@ import numpy as np
 
 from ._utils import Point, AsPoint
 from ._geom import _Geom
+from ..utilities import _types
 
 
 class Line(_Geom):
@@ -37,7 +38,7 @@ class Line(_Geom):
         _Geom.__init__(self, [self.pt1, self.pt2], meshSize, name, False, isOpen)
 
     @property
-    def unitVector(self) -> np.ndarray:
+    def unitVector(self) -> _types.FloatArray:
         """The unit vector for the two points on the line (p2-p1)"""
         return Line.get_unitVector(self.pt1, self.pt2)
 
@@ -46,7 +47,7 @@ class Line(_Geom):
         """distance between the two points of the line"""
         return Line.distance(self.pt1, self.pt2)
 
-    def Get_coord_for_plot(self) -> tuple[np.ndarray, np.ndarray]:
+    def Get_coord_for_plot(self) -> tuple[_types.FloatArray, _types.FloatArray]:
         return super().Get_coord_for_plot()
 
     @staticmethod
@@ -58,7 +59,7 @@ class Line(_Geom):
         return np.abs(length)
 
     @staticmethod
-    def get_unitVector(pt1: Point, pt2: Point) -> np.ndarray:
+    def get_unitVector(pt1: Point, pt2: Point) -> _types.FloatArray:
         """Creates the unit vector between two points."""
         length = Line.distance(pt1, pt2)
         v = np.array([pt2.x - pt1.x, pt2.y - pt1.y, pt2.z - pt1.z]) / length

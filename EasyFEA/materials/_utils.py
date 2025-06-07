@@ -176,7 +176,7 @@ def Heterogeneous_Array(array: _types.FloatArray):
     return newArray
 
 
-def KelvinMandel_Matrix(dim: int, M: _types.FloatArray) -> np.ndarray:
+def KelvinMandel_Matrix(dim: int, M: _types.FloatArray) -> _types.FloatArray:
     """Apply Kelvin Mandel coefficient to constitutive laws.
 
     In 2D:
@@ -292,7 +292,9 @@ def Project_matrix_to_vector(
     return vector
 
 
-def Project_Kelvin(A: _types.FloatArray, orderA: Optional[int] = None) -> np.ndarray:
+def Project_Kelvin(
+    A: _types.FloatArray, orderA: Optional[int] = None
+) -> _types.FloatArray:
     """Projects the tensor A in Kelvin Mandel notation.
 
     Parameters
@@ -366,7 +368,7 @@ def Project_Kelvin(A: _types.FloatArray, orderA: Optional[int] = None) -> np.nda
 
 def Result_in_Strain_or_Stress_field(
     field_e: _types.FloatArray, result: str, coef=np.sqrt(2)
-) -> np.ndarray:
+) -> _types.FloatArray:
     """Extracts a specific result from a 2D or 3D strain or stress field.
 
     Parameters
@@ -624,7 +626,9 @@ def Get_Pmat(axis_1: _types.FloatArray, axis_2: _types.FloatArray, useMandel=Tru
         return Ps, Pe
 
 
-def Apply_Pmat(P: _types.FloatArray, M: _types.FloatArray, toGlobal=True) -> np.ndarray:
+def Apply_Pmat(
+    P: _types.FloatArray, M: _types.FloatArray, toGlobal=True
+) -> _types.FloatArray:
     """Performs a basis transformation from the material's coordinate system to the (x,y,z) coordinate system to orient the material in space.\n
     Caution: P must be in Kelvin mandel notation
 

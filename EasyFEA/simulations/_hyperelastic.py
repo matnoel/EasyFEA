@@ -81,7 +81,7 @@ class HyperElasticSimu(_Simu):
         return self.model  # type: ignore [return-value]
 
     @property
-    def displacement(self) -> np.ndarray:
+    def displacement(self) -> _types.FloatArray:
         """Displacement vector field.\n
         [uxi, uyi, uzi, ...]"""
         return self._Get_u_n(self.problemType)
@@ -145,7 +145,7 @@ class HyperElasticSimu(_Simu):
 
     def Solve(
         self, Apply_BC: Callable[[], None], tolConv=1.0e-5, maxIter=20
-    ) -> np.ndarray:
+    ) -> _types.FloatArray:
         """Solves the hyperelastic problem using the newton raphson algorithm.
 
         Parameters
@@ -490,7 +490,7 @@ class HyperElasticSimu(_Simu):
     def Results_dict_Energy(self):
         return super().Results_dict_Energy()
 
-    def Results_displacement_matrix(self) -> np.ndarray:
+    def Results_displacement_matrix(self) -> _types.FloatArray:
 
         Nn = self.mesh.Nn
         coord = self.displacement.reshape((Nn, -1))

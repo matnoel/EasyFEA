@@ -117,7 +117,7 @@ class DIC(_IObserver):
         return self.__idxImgRef
 
     @property
-    def imgRef(self) -> np.ndarray:
+    def imgRef(self) -> _types.FloatArray:
         """reference image (f)"""
         return self.__imgRef.copy()
 
@@ -334,7 +334,7 @@ class DIC(_IObserver):
 
         return l_dic
 
-    def Get_w(self) -> np.ndarray:
+    def Get_w(self) -> _types.FloatArray:
         """Returns the 2D periodic vector field."""
 
         ldic = self.ldic
@@ -383,7 +383,7 @@ class DIC(_IObserver):
 
     def _Get_u_from_images(
         self, img1: _types.FloatArray, img2: _types.FloatArray
-    ) -> np.ndarray:
+    ) -> _types.FloatArray:
         """Use open cv to calculate displacements between images."""
 
         # get the optical flow
@@ -407,7 +407,7 @@ class DIC(_IObserver):
 
         assert img.shape == self.shape, f"Wrong shape, must be {self.shape}"
 
-    def __Get_imgRef(self, imgRef) -> np.ndarray:
+    def __Get_imgRef(self, imgRef) -> _types.FloatArray:
         """Returns the reference image or checks whether the image entered is the correct shape."""
 
         if imgRef is None:
@@ -426,7 +426,7 @@ class DIC(_IObserver):
         tolConv: float = 1e-6,
         imgRef: Optional[np.ndarray] = None,
         verbosity=True,
-    ) -> np.ndarray:
+    ) -> _types.FloatArray:
         """Computes the displacement field between the two images.
 
         Parameters
@@ -508,7 +508,7 @@ class DIC(_IObserver):
         u: _types.FloatArray,
         img: _types.FloatArray,
         imgRef: Optional[np.ndarray] = None,
-    ) -> np.ndarray:
+    ) -> _types.FloatArray:
         """Computes the dic residual between img and imgRef (as a Np x Np matrix).\n
         r_dic = f(x) - g(x + u(x))
 

@@ -96,7 +96,7 @@ class BeamSimu(_Simu):
         pass
 
     @property
-    def displacement(self) -> np.ndarray:
+    def displacement(self) -> _types.FloatArray:
         """Displacement vector field.\n
         1D [uxi, ...]\n
         2D [uxi, uyi, rzi, ...]\n
@@ -228,7 +228,7 @@ class BeamSimu(_Simu):
 
         self._Bc_Add_Display(nodes, unknowns, description, problemType)
 
-    def __Construct_Beam_Matrix(self) -> np.ndarray:
+    def __Construct_Beam_Matrix(self) -> _types.FloatArray:
         """Constructs the elementary stiffness matrices for the beam problem."""
 
         # Data
@@ -280,7 +280,7 @@ class BeamSimu(_Simu):
         return mass
 
     @property
-    def center(self) -> np.ndarray:
+    def center(self) -> _types.FloatArray:
         """Center of mass / barycenter / inertia center"""
 
         matrixType = MatrixType.mass
@@ -692,7 +692,7 @@ class BeamSimu(_Simu):
     def Results_Iter_Summary(self) -> tuple[list[int], list[tuple[str, np.ndarray]]]:
         return super().Results_Iter_Summary()
 
-    def Results_displacement_matrix(self) -> np.ndarray:
+    def Results_displacement_matrix(self) -> _types.FloatArray:
 
         Nn = self.mesh.Nn
         dof_n = self.Get_dof_n(self.problemType)

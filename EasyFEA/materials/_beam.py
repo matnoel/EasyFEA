@@ -144,12 +144,12 @@ class _Beam(_IModel):
         self.__section: Mesh = section
 
     @property
-    def xAxis(self) -> np.ndarray:
+    def xAxis(self) -> _types.FloatArray:
         """perpendicular cross-beam axis (fiber)"""
         return self.__line.unitVector
 
     @property
-    def yAxis(self) -> np.ndarray:
+    def yAxis(self) -> _types.FloatArray:
         """vertical cross-beam axis"""
         return self.__yAxis.copy()
 
@@ -198,7 +198,7 @@ class _Beam(_IModel):
         return self.__dim
 
     @abstractmethod
-    def Get_D(self) -> np.ndarray:
+    def Get_D(self) -> _types.FloatArray:
         """Returns a matrix characterizing the beam's stiffness behavior."""
         return None  # type: ignore [return-value]
 
@@ -212,7 +212,7 @@ class _Beam(_IModel):
 
         return text
 
-    def _Calc_P(self) -> np.ndarray:
+    def _Calc_P(self) -> _types.FloatArray:
         """P matrix use to transform beam coordinates to global coordinates.\n
         [ix, jx, kx\n
         iy, jy, ky\n
@@ -291,7 +291,7 @@ class Beam_Elas_Isot(_Beam):
         """shear modulus (G)"""
         return self.E / (2 * (1 + self.v))
 
-    def Get_D(self) -> np.ndarray:
+    def Get_D(self) -> _types.FloatArray:
 
         dim = self.dim
         section = self.section

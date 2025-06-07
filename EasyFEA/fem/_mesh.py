@@ -151,7 +151,7 @@ class Mesh(Observable):
         return self.groupElem.nPe
 
     @property
-    def coord(self) -> np.ndarray:
+    def coord(self) -> _types.FloatArray:
         """nodes coordinates matrix (Nn,3) for the main groupElem"""
         return self.groupElem.coord
 
@@ -206,12 +206,12 @@ class Mesh(Observable):
         self._Notify("The mesh has been modified")
 
     @property
-    def nodes(self) -> np.ndarray:
+    def nodes(self) -> _types.IntArray:
         """mesh nodes"""
         return self.groupElem.nodes
 
     @property
-    def coordGlob(self) -> np.ndarray:
+    def coordGlob(self) -> _types.FloatArray:
         """global nodes coordinates matrix (Nn, 3)\n
         Contains all nodes coordinates"""
         return self.groupElem.coordGlob
@@ -223,7 +223,7 @@ class Mesh(Observable):
                 grp.coordGlob = coord
 
     @property
-    def connect(self) -> np.ndarray:
+    def connect(self) -> _types.IntArray:
         """connectivity matrix (Ne, nPe)"""
         return self.groupElem.connect
 
@@ -240,21 +240,21 @@ class Mesh(Observable):
         return self.groupElem.Get_connect_n_e()
 
     @property
-    def assembly_e(self) -> np.ndarray:
+    def assembly_e(self) -> _types.IntArray:
         """assembly matrix (Ne, nPe*dim)\n
         Used to position the rigi matrix in the global matrix."""
         return self.groupElem.assembly_e
 
-    def Get_assembly_e(self, dof_n: int) -> np.ndarray:
+    def Get_assembly_e(self, dof_n: int) -> _types.IntArray:
         """Returns assembly matrix for specified dof_n (Ne, nPe*dof_n)"""
         return self.groupElem.Get_assembly_e(dof_n)
 
     @property
-    def linesVector_e(self) -> np.ndarray:
+    def linesVector_e(self) -> _types.IntArray:
         """lines to fill the assembly matrix in vector (e.g elastic problem)"""
         return self.Get_linesVector_e(self.__dim)
 
-    def Get_linesVector_e(self, dof_n: int) -> np.ndarray:
+    def Get_linesVector_e(self, dof_n: int) -> _types.IntArray:
         """Returns lines to fill the assembly matrix in vector (e.g elastic problem)"""
         assembly_e = self.Get_assembly_e(dof_n)
         nPe = self.nPe
@@ -263,11 +263,11 @@ class Mesh(Observable):
         return linesVector_e
 
     @property
-    def columnsVector_e(self) -> np.ndarray:
+    def columnsVector_e(self) -> _types.IntArray:
         """columns to fill the assembly matrix in vector (e.g elastic problem)"""
         return self.Get_columnsVector_e(self.__dim)
 
-    def Get_columnsVector_e(self, dof_n: int) -> np.ndarray:
+    def Get_columnsVector_e(self, dof_n: int) -> _types.IntArray:
         """Returns columns to fill the vector assembly matrix"""
         assembly_e = self.Get_assembly_e(dof_n)
         nPe = self.nPe
@@ -276,7 +276,7 @@ class Mesh(Observable):
         return columnsVector_e
 
     @property
-    def linesScalar_e(self) -> np.ndarray:
+    def linesScalar_e(self) -> _types.IntArray:
         """lines to fill the assembly matrix in scalar form (damage or thermal problems)"""
         connect = self.connect
         nPe = self.nPe
@@ -284,7 +284,7 @@ class Mesh(Observable):
         return np.repeat(connect, nPe).reshape((Ne, -1))
 
     @property
-    def columnsScalar_e(self) -> np.ndarray:
+    def columnsScalar_e(self) -> _types.IntArray:
         """columns to fill the assembly matrix in scalar form (damage or thermal problems)"""
         connect = self.connect
         nPe = self.nPe
@@ -316,7 +316,7 @@ class Mesh(Observable):
         return np.sum(volumes)
 
     @property
-    def center(self) -> np.ndarray:
+    def center(self) -> _types.FloatArray:
         """center of mass / barycenter / inertia center"""
         return self.groupElem.center
 
@@ -400,14 +400,14 @@ class Mesh(Observable):
         """Returns the jacobian_e_pg * weight_pg."""
         return self.groupElem.Get_weightedJacobian_e_pg(matrixType)
 
-    def Get_N_pg(self, matrixType: MatrixType) -> np.ndarray:
+    def Get_N_pg(self, matrixType: MatrixType) -> _types.FloatArray:
         """Evaluates shape functions in (ξ, η, ζ) coordinates.\n
         [N1, . . . , Nn]\n
         (nPg, 1, nPe)
         """
         return self.groupElem.Get_N_pg(matrixType)
 
-    def Get_N_vector_pg(self, matrixType: MatrixType) -> np.ndarray:
+    def Get_N_vector_pg(self, matrixType: MatrixType) -> _types.FloatArray:
         """Returns shape functions matrix in (ξ, η, ζ) coordinates\n
         [N1 0 . . . Nn 0 \n
         0 N1 . . . 0 Nn]\n
@@ -517,7 +517,7 @@ class Mesh(Observable):
 
     # Nodes recovery
 
-    def Nodes_Conditions(self, func) -> np.ndarray:
+    def Nodes_Conditions(self, func) -> _types.IntArray:
         """Returns nodes that meet the specified conditions.
 
         Parameters
@@ -532,43 +532,43 @@ class Mesh(Observable):
 
         Returns
         -------
-        np.ndarray
+        _types.IntArray
             nodes that meet the specified conditions.
         """
         return self.groupElem.Get_Nodes_Conditions(func)
 
-    def Nodes_Point(self, point: Point) -> np.ndarray:
+    def Nodes_Point(self, point: Point) -> _types.IntArray:
         """Returns nodes on the point."""
         return self.groupElem.Get_Nodes_Point(point)
 
-    def Nodes_Points(self, points: list[Point]) -> np.ndarray:
+    def Nodes_Points(self, points: list[Point]) -> _types.IntArray:
         """Returns nodes on points."""
         nodes: set[int] = set()
         for point in points:
             nodes = nodes.union(self.groupElem.Get_Nodes_Point(point))
         return np.asarray(list(nodes))
 
-    def Nodes_Line(self, line: Line) -> np.ndarray:
+    def Nodes_Line(self, line: Line) -> _types.IntArray:
         """Returns the nodes on the line."""
         return self.groupElem.Get_Nodes_Line(line)
 
-    def Nodes_Domain(self, domain: Domain) -> np.ndarray:
+    def Nodes_Domain(self, domain: Domain) -> _types.IntArray:
         """Returns nodes in the domain."""
         return self.groupElem.Get_Nodes_Domain(domain)
 
-    def Nodes_Circle(self, circle: Circle, onlyOnCircle=False) -> np.ndarray:
+    def Nodes_Circle(self, circle: Circle, onlyOnCircle=False) -> _types.IntArray:
         """Returns the nodes in the circle."""
         return self.groupElem.Get_Nodes_Circle(circle, onlyOnCircle)
 
     def Nodes_Cylinder(
         self, circle: Circle, direction=[0, 0, 1], onlyOnEdge=False
-    ) -> np.ndarray:
+    ) -> _types.IntArray:
         """Returns the nodes in the cylinder."""
         return self.groupElem.Get_Nodes_Cylinder(circle, direction, onlyOnEdge)
 
     def Elements_Nodes(
         self, nodes: _types.IntArray, exclusively=True, neighborLayer: int = 1
-    ):
+    ) -> _types.IntArray:
         """Returns elements that exclusively or not use the specified nodes."""
 
         for i in range(neighborLayer):
@@ -584,7 +584,7 @@ class Mesh(Observable):
 
         return elements
 
-    def Nodes_Tags(self, tags: list[str]) -> np.ndarray:
+    def Nodes_Tags(self, tags: list[str]) -> _types.IntArray:
         """Returns nodes associated with the tags."""
         list_node: list[int] = []
 
@@ -611,7 +611,7 @@ class Mesh(Observable):
 
         return nodes
 
-    def Elements_Tags(self, tags: list[str]) -> np.ndarray:
+    def Elements_Tags(self, tags: list[str]) -> _types.IntArray:
         """Returns elements associated with the tag."""
         list_element: list[int] = []
 
@@ -653,7 +653,7 @@ class Mesh(Observable):
         """Locates solution on elements."""
         return self.groupElem.Locates_sol_e(sol, dof_n, asFeArray)
 
-    def Get_Node_Values(self, result_e: _types.FloatArray) -> np.ndarray:
+    def Get_Node_Values(self, result_e: _types.FloatArray) -> _types.IntArray:
         """Get node values from element values.\n
         The value of a node is calculated by averaging the values of the surrounding elements.
 
@@ -706,7 +706,9 @@ class Mesh(Observable):
         else:
             return result_n
 
-    def Get_Paired_Nodes(self, corners: _types.FloatArray, plot=False) -> np.ndarray:
+    def Get_Paired_Nodes(
+        self, corners: _types.FloatArray, plot=False
+    ) -> _types.IntArray:
         """Get the paired nodes used to construct periodic boundary conditions.
 
         Parameters
@@ -719,7 +721,7 @@ class Mesh(Observable):
 
         Returns
         -------
-        np.ndarray
+        _types.IntArray
             Paired nodes, a 2-column matrix storing the paired nodes (n, 2).
         """
 
@@ -826,7 +828,7 @@ class Mesh(Observable):
 
         return paired_nodes
 
-    def Get_meshSize(self, doMean=True) -> np.ndarray:
+    def Get_meshSize(self, doMean=True) -> _types.FloatArray:
         """Returns the mesh size of the mesh.\n
         returns meshSize_e if doMean else meshSize_e_s"""
         # recover the physical group and coordinates
@@ -950,7 +952,7 @@ class Mesh(Observable):
 
     def Get_New_meshSize_n(
         self, error_e: _types.FloatArray, coef: float = 1 / 2
-    ) -> np.ndarray:
+    ) -> _types.FloatArray:
         """Returns the scalar field (at nodes) used to refine the mesh.\n
 
         meshSize = (coef - 1) / error_e.max() * error_e + 1
@@ -964,7 +966,7 @@ class Mesh(Observable):
 
         Returns
         -------
-        np.ndarray
+        _types.FloatArray
             meshSize_n, new mesh size at nodes (Nn)
         """
 

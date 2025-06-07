@@ -44,7 +44,7 @@ class QUAD4(_GroupElem):
         # fmt: on
 
     @property
-    def faces(self) -> np.ndarray:
+    def faces(self) -> _types.IntArray:
         return np.array([[0, 1, 2, 3, 0]], dtype=int)
 
     def Get_Local_Coords(self):
@@ -123,7 +123,7 @@ class QUAD8(_GroupElem):
         # fmt: on
 
     @property
-    def faces(self) -> np.ndarray:
+    def faces(self) -> _types.IntArray:
         return np.array([[0, 4, 1, 5, 2, 6, 3, 7, 0]], dtype=int)
 
     def Get_Local_Coords(self):
@@ -248,7 +248,7 @@ class QUAD9(_GroupElem):
         # fmt: on
 
     @property
-    def faces(self) -> np.ndarray:
+    def faces(self) -> _types.IntArray:
         return np.array([[0, 4, 1, 5, 2, 6, 3, 7, 0]], dtype=int)
 
     def Get_Local_Coords(self):

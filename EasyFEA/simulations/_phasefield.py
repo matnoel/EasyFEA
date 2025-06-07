@@ -123,7 +123,7 @@ class PhaseFieldSimu(_Simu):
         return self.model  # type: ignore [return-value]
 
     @property
-    def displacement(self) -> np.ndarray:
+    def displacement(self) -> _types.FloatArray:
         """Displacement vector field.\n
         2D [uxi, uyi, ...]\n
         3D [uxi, uyi, uzi, ...]"""
@@ -140,7 +140,7 @@ class PhaseFieldSimu(_Simu):
         nodes: _types.IntArray,
         unknowns: list[str],
         problemType=ModelType.elastic,
-    ) -> np.ndarray:
+    ) -> _types.IntArray:
         return super().Bc_dofs_nodes(nodes, unknowns, problemType)
 
     def add_dirichlet(
@@ -393,7 +393,7 @@ class PhaseFieldSimu(_Simu):
 
     # ------------------------------------------- Elastic problem -------------------------------------------
 
-    def __Construct_Elastic_Matrix(self) -> np.ndarray:
+    def __Construct_Elastic_Matrix(self) -> _types.FloatArray:
         """Computes the elementary stiffness matrices for the elastic problem."""
 
         matrixType = MatrixType.rigi
@@ -471,7 +471,7 @@ class PhaseFieldSimu(_Simu):
         # Therefore, we don't specify that the matrices have been updated.
         return self.__Ku
 
-    def __Solve_elastic(self) -> np.ndarray:
+    def __Solve_elastic(self) -> _types.FloatArray:
         """Computes the displacement field."""
 
         self._Solver_Solve(ModelType.elastic)
@@ -607,7 +607,7 @@ class PhaseFieldSimu(_Simu):
         # Therefore, we don't specify that the matrices have been updated.
         return self.__Kd, self.__Fd
 
-    def __Solve_damage(self) -> np.ndarray:
+    def __Solve_damage(self) -> _types.FloatArray:
         """Computes the damage field."""
 
         self._Solver_Solve(ModelType.damage)
@@ -994,7 +994,7 @@ class PhaseFieldSimu(_Simu):
 
         return iterations, list_label_values
 
-    def Results_displacement_matrix(self) -> np.ndarray:
+    def Results_displacement_matrix(self) -> _types.FloatArray:
 
         Nn = self.mesh.Nn
         coord = self.displacement.reshape((Nn, -1))

@@ -49,7 +49,7 @@ class PRISM6(_GroupElem):
         return super().triangles
 
     @property
-    def faces(self) -> np.ndarray:
+    def faces(self) -> _types.IntArray:
         return np.array(
             [
                 [0, 3, 4, 1],
@@ -168,7 +168,7 @@ class PRISM15(_GroupElem):
         return super().triangles
 
     @property
-    def faces(self) -> np.ndarray:
+    def faces(self) -> _types.IntArray:
         return np.array(
             [
                 [0, 8, 3, 12, 4, 10, 1, 6],  # 15
@@ -424,7 +424,7 @@ class PRISM18(_GroupElem):
         return super().triangles
 
     @property
-    def faces(self) -> np.ndarray:
+    def faces(self) -> _types.IntArray:
         return np.array(
             [
                 [0, 8, 3, 12, 4, 10, 1, 6],  # 15

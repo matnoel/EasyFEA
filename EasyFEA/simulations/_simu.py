@@ -87,7 +87,7 @@ class _Simu(_IObserver, ABC):
 
         - def Results_dict_Energy(self) -> dict[str, float]:
 
-        - def Results_displacement_matrix(self) -> np.ndarray:
+        - def Results_displacement_matrix(self) -> _types.FloatArray:
 
         - def Results_nodesField_elementsField(self, details=False) -> tuple[list[str], list[str]]:
 
@@ -125,7 +125,7 @@ class _Simu(_IObserver, ABC):
         pass
 
     @abstractmethod
-    def Get_x0(self, problemType=None) -> np.ndarray:
+    def Get_x0(self, problemType=None) -> _types.FloatArray:
         """Returns the solution from the previous iteration."""
         size = self.mesh.Nn * self.dim
         return np.zeros(size)
@@ -190,7 +190,7 @@ class _Simu(_IObserver, ABC):
         return {}
 
     @abstractmethod
-    def Results_displacement_matrix(self) -> np.ndarray:
+    def Results_displacement_matrix(self) -> _types.FloatArray:
         """Returns displacements as a matrix [dx, dy, dz] (Nn,3)."""
         Nn = self.mesh.Nn
         return np.zeros((Nn, 3))
@@ -373,7 +373,7 @@ class _Simu(_IObserver, ABC):
         return mass  # type: ignore
 
     @property
-    def center(self) -> np.ndarray:
+    def center(self) -> _types.FloatArray:
         """Center of mass / barycenter / inertia center"""
 
         if self.dim == 1:
@@ -439,7 +439,7 @@ class _Simu(_IObserver, ABC):
         size = self.mesh.Nn * self.Get_dof_n(problemType)
         assert values.shape[0] == size, f"Must be size {size}"
 
-    def _Get_u_n(self, problemType: ModelType) -> np.ndarray:
+    def _Get_u_n(self, problemType: ModelType) -> _types.FloatArray:
         """Returns the solution associated with the given problem."""
         return self.__dict_u_n[problemType].copy()
 
@@ -448,7 +448,7 @@ class _Simu(_IObserver, ABC):
         self.__Check_New_Sol_Values(problemType, values)
         self.__dict_u_n[problemType] = values
 
-    def _Get_v_n(self, problemType: ModelType) -> np.ndarray:
+    def _Get_v_n(self, problemType: ModelType) -> _types.FloatArray:
         """Returns the speed solution associated with the given problem."""
         return self.__dict_v_n[problemType].copy()
 
@@ -457,7 +457,7 @@ class _Simu(_IObserver, ABC):
         self.__Check_New_Sol_Values(problemType, values)
         self.__dict_v_n[problemType] = values
 
-    def _Get_a_n(self, problemType: ModelType) -> np.ndarray:
+    def _Get_a_n(self, problemType: ModelType) -> _types.FloatArray:
         """Returns the acceleration solution associated with the given problem."""
         return self.__dict_a_n[problemType].copy()
 
@@ -658,7 +658,7 @@ class _Simu(_IObserver, ABC):
         assert 0 <= alpha <= 1
         self.__alpha = alpha
 
-    def Solve(self) -> np.ndarray:
+    def Solve(self) -> _types.FloatArray:
         """Computes the solution field for the current boundary conditions.
 
         Returns
@@ -1216,7 +1216,7 @@ class _Simu(_IObserver, ABC):
         """Returns a copy of the boundary conditions for display."""
         return self.__Bc_Display.copy()
 
-    def Bc_vector_Dirichlet(self, problemType=None) -> np.ndarray:
+    def Bc_vector_Dirichlet(self, problemType=None) -> _types.FloatArray:
         """Returns a vector filled with Dirichlet boundary conditions values."""
         if problemType is None:
             problemType = self.problemType
@@ -1229,7 +1229,7 @@ class _Simu(_IObserver, ABC):
         vector = csr_vector.toarray().ravel()
         return vector
 
-    def Bc_vector_Neumann(self, problemType=None) -> np.ndarray:
+    def Bc_vector_Neumann(self, problemType=None) -> _types.FloatArray:
         """Returns a vector filled with Neuman boundary conditions values."""
         if problemType is None:
             problemType = self.problemType
@@ -1248,19 +1248,19 @@ class _Simu(_IObserver, ABC):
             problemType = self.problemType
         return BoundaryCondition.Get_dofs(problemType, self.__Bc_Dirichlet)
 
-    def Bc_values_Dirichlet(self, problemType=None) -> np.ndarray:
+    def Bc_values_Dirichlet(self, problemType=None) -> _types.FloatArray:
         """Returns dofs values related to Dirichlet conditions."""
         if problemType is None:
             problemType = self.problemType
         return BoundaryCondition.Get_values(problemType, self.__Bc_Dirichlet)
 
-    def Bc_dofs_Neumann(self, problemType=None) -> np.ndarray:
+    def Bc_dofs_Neumann(self, problemType=None) -> _types.IntArray:
         """Returns dofs related to Neumann conditions."""
         if problemType is None:
             problemType = self.problemType
         return BoundaryCondition.Get_dofs(problemType, self.__Bc_Neumann)
 
-    def Bc_values_Neumann(self, problemType=None) -> np.ndarray:
+    def Bc_values_Neumann(self, problemType=None) -> _types.FloatArray:
         """Returns dofs values related to Neumann conditions."""
         if problemType is None:
             problemType = self.problemType
@@ -1268,7 +1268,7 @@ class _Simu(_IObserver, ABC):
 
     def Bc_dofs_known_unknown(
         self, problemType: ModelType
-    ) -> tuple[np.ndarray, np.ndarray]:
+    ) -> tuple[_types.IntArray, _types.IntArray]:
         """Returns known and unknown dofs."""
         tic = Tic()
 
@@ -1291,7 +1291,7 @@ class _Simu(_IObserver, ABC):
 
     def Bc_dofs_nodes(
         self, nodes: _types.IntArray, unknowns: list[str], problemType=None
-    ) -> np.ndarray:
+    ) -> _types.IntArray:
         """Returns degrees of freedom associated with the nodes, based on the problem type and unknowns.
 
         Parameters
@@ -1305,7 +1305,7 @@ class _Simu(_IObserver, ABC):
 
         Returns
         -------
-        np.ndarray
+        _types.IntArray
             Degrees of freedom.
         """
 
@@ -1322,7 +1322,7 @@ class _Simu(_IObserver, ABC):
 
     def __Bc_evaluate(
         self, coord: _types.FloatArray, values, option="nodes"
-    ) -> np.ndarray:
+    ) -> _types.FloatArray:
         """Evaluates values at nodes or gauss points."""
 
         assert option in ["nodes", "gauss"], f"Must be in ['nodes','gauss']"

@@ -49,7 +49,7 @@ class TETRA4(_GroupElem):
         return super().triangles
 
     @property
-    def faces(self) -> np.ndarray:
+    def faces(self) -> _types.IntArray:
         return np.array(
             [
                 [0, 1, 2],
@@ -145,7 +145,7 @@ class TETRA10(_GroupElem):
         return super().triangles
 
     @property
-    def faces(self) -> np.ndarray:
+    def faces(self) -> _types.IntArray:
         return np.array(
             [
                 [0, 4, 1, 5, 2, 6],
