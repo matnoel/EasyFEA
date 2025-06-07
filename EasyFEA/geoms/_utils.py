@@ -37,7 +37,7 @@ class Point:
             radius used for fillet
         """
         self.r = r
-        self.coord = (x, y, z)
+        self.coord = np.asarray([x, y, z], dtype=float)
         self.isOpen = isOpen
 
     @property
@@ -224,7 +224,7 @@ def AsCoords(
     return coords
 
 
-def Normalize(array: _types.AnyArray) -> _types.FloatArray:
+def Normalize(array: _types.Coords) -> _types.FloatArray:
     """Must be a vector or matrix."""
     array = np.asarray(array)
     if array.ndim == 1:
@@ -494,7 +494,7 @@ def Angle_Between(a: _types.AnyArray, b: _types.AnyArray) -> float:
     return angle
 
 
-def Jacobian_Matrix(i: _types.AnyArray, k: _types.AnyArray) -> _types.FloatArray:
+def Jacobian_Matrix(i: _types.Coords, k: _types.Coords) -> _types.FloatArray:
     """Computes the Jacobian matrix to transform local coordinates (i,j,k) to global (x,y,z) coordinates.\n
     p(x,y,z) = J • p(i,j,k) and p(i,j,k) = inv(J) • p(x,y,z)\n\n
 
@@ -504,9 +504,9 @@ def Jacobian_Matrix(i: _types.AnyArray, k: _types.AnyArray) -> _types.FloatArray
 
     Parameters
     ----------
-    i : _types.AnyArray
+    i : _types.Coords
         i vector
-    k : _types.AnyArray
+    k : _types.Coords
         k vector
     """
 

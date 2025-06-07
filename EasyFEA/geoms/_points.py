@@ -76,15 +76,15 @@ class Points(_Geom):
 
             # get the last point associated with idx1
             if isinstance(corners[idx1], Point):
-                p1 = AsPoint(corners[idx1])
+                p1 = AsPoint(corners[idx1])  # type: ignore [arg-type]
             else:
-                p1 = AsPoint(corners[idx1].points[-1])
+                p1 = AsPoint(corners[idx1].points[-1])  # type: ignore [union-attr]
 
             # get the first point associated with idx2
             if isinstance(corners[idx2], Point):
-                p2 = AsPoint(corners[idx2])
+                p2 = AsPoint(corners[idx2])  # type: ignore [arg-type]
             else:
-                p2 = AsPoint(corners[idx2].points[0])
+                p2 = AsPoint(corners[idx2].points[0])  # type: ignore [union-attr]
 
             if not p1.Check(p2):
                 line = Line(p1, p2, mS, self.isOpen)

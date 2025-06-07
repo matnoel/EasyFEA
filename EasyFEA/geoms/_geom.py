@@ -7,12 +7,10 @@
 from abc import ABC, abstractmethod
 import numpy as np
 import copy
-from collections.abc import Iterable
-import matplotlib.pyplot as plt
 
 from ._utils import Point, Rotate, Symmetry
 
-from typing import Optional
+from typing import Optional, Iterable
 from ..utilities import _types
 
 
