@@ -236,7 +236,7 @@ def Save_simu(
             pass
         assert type in SOLUTION_TYPES
 
-    for i in np.arange(0, Niter, step):
+    for i in np.arange(0, Niter, step, dtype=int):
 
         # Update simulation iteration
         simu.Set_Iter(i)
@@ -262,7 +262,7 @@ def Save_simu(
                     folder,
                     filename,
                 )
-                file.write("./" + filename + "\n")
+                file.write(solution_file + "\n")
 
     # save the mesh in Medit format
     mesh_file = MeshIO.EasyFEA_to_Medit(simu.mesh, folder, f"mesh")

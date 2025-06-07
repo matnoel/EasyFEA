@@ -4,7 +4,7 @@
 
 import numpy as np
 import copy
-from scipy.optimize import minimize  # type: ignore [import-untyped]
+from scipy.optimize import minimize
 from collections.abc import Iterable
 
 from typing import Union

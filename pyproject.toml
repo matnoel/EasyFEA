@@ -43,6 +43,7 @@ fast = [
     "pypardiso",
     "petsc",
     "petsc4py",
+    "mpi4py",
 ]
 cv = [
     "opencv-python"
@@ -76,4 +77,5 @@ disable_error_code = [
     "override",
     "union-attr",
     "import-not-found",
+    "assignment",
 ]

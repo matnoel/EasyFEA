@@ -17,8 +17,8 @@ For instance, a TRI3 mesh uses POINT, SEG2 and TRI3 elements."""
 
 from abc import ABC, abstractmethod
 
-from scipy.optimize import least_squares  # type: ignore [import-untyped]
-from scipy import sparse  # type: ignore [import-untyped]
+from scipy.optimize import least_squares
+from scipy import sparse
 import numpy as np
 from typing import Callable, Optional, TYPE_CHECKING
 
@@ -539,7 +539,7 @@ class _GroupElem(ABC):
             idx += 1
             if self.elemType.startswith("PRISM") and i > 2:
                 # we are on tri face here
-                face = face[:-1]
+                face = face[:-1]  # type: ignore [index]
             dict_interface[str(np.unique(face))] = idx
 
         if self.dim == 3:
@@ -720,7 +720,7 @@ class _GroupElem(ABC):
                 # for each dimension
                 for f in range(nF):
                     # appy the function
-                    evalFunctions[p, f, n] = function_nPe[f](*gaussPoints[p])
+                    evalFunctions[p, f, n] = function_nPe[f](*gaussPoints[p])  # type: ignore [index]
                     # * means take all the coordinates
 
         return evalFunctions
@@ -1245,7 +1245,7 @@ class _GroupElem(ABC):
             #     [0, Phi_i, Psi_i, ... , 0, Phi_i, Psi_i]
             #     [0, dPhi_i, dPsi_i, ... , 0, dPhi_i, dPsi_i]
 
-            idx = np.arange(dof_n * nPe).reshape(nPe, -1)
+            idx = np.arange(dof_n * nPe, dtype=int).reshape(nPe, -1)
 
             idx_ux = idx[:, 0]  # [0,3] (SEG2) [0,3,6] (SEG3)
             idx_uy = np.reshape(idx[:, 1:], -1)  # [1,2,4,5] (SEG2) [1,2,4,5,7,8] (SEG3)
@@ -1266,7 +1266,7 @@ class _GroupElem(ABC):
             #     [0, 0, -dPhi_i, 0, dPsi_i, 0, ... , 0, 0, -dPhi_n, 0, dPsi_n, 0]
             #     [0, dPhi_i, 0, 0, 0, dPsi_i, ... , 0, dPhi_i, 0, 0, 0, dPsi_n]
 
-            idx = np.arange(dof_n * nPe).reshape(nPe, -1)
+            idx = np.arange(dof_n * nPe, dtype=int).reshape(nPe, -1)
             idx_ux = idx[:, 0]  # [0,6] (SEG2) [0,6,12] (SEG3)
             idx_uy = np.reshape(
                 idx[:, [1, 5]], -1
@@ -1342,7 +1342,7 @@ class _GroupElem(ABC):
 
             idx_ux = np.arange(dof_n * nPe)
 
-            B_e_pg = np.zeros((Ne, nPg, 1, dof_n * nPe))
+            B_e_pg = np.zeros((Ne, nPg, 1, dof_n * nPe), dtype=float)
             B_e_pg[:, :, 0, idx_ux] = dN_e_pg[:, :, 0]
 
         elif dim == 2:
@@ -1351,12 +1351,12 @@ class _GroupElem(ABC):
             # B = [dN_i, 0, 0, ... , dN_n, 0, 0,]
             #     [0, ddPhi_i, ddPsi_i, ... , 0, ddPhi_i, ddPsi_i]
 
-            idx = np.arange(dof_n * nPe).reshape(nPe, -1)
+            idx = np.arange(dof_n * nPe, dtype=int).reshape(nPe, -1)
 
             idx_ux = idx[:, 0]  # [0,3] (SEG2) [0,3,6] (SEG3)
             idx_uy = np.reshape(idx[:, 1:], -1)  # [1,2,4,5] (SEG2) [1,2,4,5,7,8] (SEG3)
 
-            B_e_pg = np.zeros((Ne, nPg, 2, dof_n * nPe))
+            B_e_pg = np.zeros((Ne, nPg, 2, dof_n * nPe), dtype=float)
 
             B_e_pg[:, :, 0, idx_ux] = dN_e_pg[:, :, 0]  # traction / compression
             B_e_pg[:, :, 1, idx_uy] = ddNv_e_pg[:, :, 0]  # flexion along z
@@ -1383,7 +1383,7 @@ class _GroupElem(ABC):
             ddNvz_e_pg = ddNv_e_pg.copy()
             ddNvz_e_pg[:, :, 0, idPsi] *= -1  # RY = -UZ'
 
-            B_e_pg = np.zeros((Ne, nPg, 4, dof_n * nPe))
+            B_e_pg = np.zeros((Ne, nPg, 4, dof_n * nPe), dtype=float)
 
             B_e_pg[:, :, 0, idx_ux] = dN_e_pg[:, :, 0]  # traction / compression
             B_e_pg[:, :, 1, idx_rx] = dN_e_pg[:, :, 0]  # torsion
@@ -1976,13 +1976,13 @@ class _GroupElem(ABC):
             coord = self.coord[self.__connect[elem]]
 
             if self.elemType.startswith("PRISM"):
-                faces = np.array(
+                faces = np.array(  # type: ignore [type-var]
                     [
-                        faces[0, :],
-                        faces[1, :],
-                        faces[2, :],
-                        faces[3, :-1],  # tri z=-1
-                        faces[3, :-1],  # tri z=-1
+                        faces[0, :],  # type: ignore [call-overload]
+                        faces[1, :],  # type: ignore [call-overload]
+                        faces[2, :],  # type: ignore [call-overload]
+                        faces[3, :-1],  # type: ignore [call-overload]
+                        faces[4, :-1],  # type: ignore [call-overload]
                     ],
                     dtype=object,
                 )

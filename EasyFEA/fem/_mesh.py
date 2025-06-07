@@ -62,7 +62,7 @@ class Mesh(Observable):
             print(self)
 
         Nn = self.coordGlob.shape[0]
-        usedNodes = set(self.connect.ravel())
+        usedNodes = set(self.connect.ravel().astype(int))
         nodes = set(range(Nn))
         orphanNodes = list(nodes - usedNodes)
         self.__orphanNodes: list[int] = orphanNodes

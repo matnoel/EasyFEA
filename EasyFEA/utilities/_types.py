@@ -2,13 +2,13 @@
 # This file is part of the EasyFEA project.
 # EasyFEA is distributed under the terms of the GNU General Public License v3 or later, see LICENSE.txt and CREDITS.md for more information.
 
-from typing import Union, Collection, Any
+from typing import Union, Collection, Any, TypeVar
 
 import numpy as np
 from numpy.typing import NDArray
 
 import matplotlib.pyplot as plt
-from mpl_toolkits.mplot3d import Axes3D  # type: ignore [import-untyped]
+from mpl_toolkits.mplot3d import Axes3D
 
 # --------------------------------------------------------------------------------------
 # Numbers
@@ -29,9 +29,13 @@ Axes = Union[plt.Axes, Axes3D]  # type: ignore
 # Array
 # --------------------------------------------------------------------------------------
 
-FloatArray = NDArray[np.float64]
+FloatArray = NDArray[np.floating]
 
-IntArray = NDArray[np.int64]
+IntType = TypeVar(
+    "IntType",
+    bound=Union[np.integer, int],
+)
+IntArray = NDArray[IntType]
 
 NumberArray = Union[FloatArray, IntArray]
 
