@@ -10,12 +10,13 @@ from EasyFEA.Geoms import Points
 L = 2
 H = 1
 
+
 @pytest.fixture
 def meshes() -> list[Mesh]:
 
-    meshSize = H/3
+    meshSize = H / 3
 
-    contour = Points([(0,0), (L,0), (L,H), (0,H)], meshSize)
+    contour = Points([(0, 0), (L, 0), (L, H), (0, H)], meshSize)
     meshes: list[Mesh] = []
 
     # 1d meshes
@@ -23,9 +24,9 @@ def meshes() -> list[Mesh]:
 
         mesher = Mesher()
         factory = mesher._factory
-        
-        p1 = factory.addPoint(0,0,0)
-        p2 = factory.addPoint(1,0,0)
+
+        p1 = factory.addPoint(0, 0, 0)
+        p2 = factory.addPoint(1, 0, 0)
         factory.addLine(p1, p2)
 
         mesher._Mesh_Generate(1, elemType)
@@ -36,13 +37,16 @@ def meshes() -> list[Mesh]:
     for elemType in ElemType.Get_2D():
         mesh = Mesher().Mesh_2D(contour, [], elemType, isOrganised=True)
         meshes.append(mesh)
-    
+
     # 3d meshes
     for elemType in ElemType.Get_3D():
-        mesh = Mesher().Mesh_Extrude(contour, [], [0,0,L], [3], elemType, isOrganised=True)
+        mesh = Mesher().Mesh_Extrude(
+            contour, [], [0, 0, L], [3], elemType, isOrganised=True
+        )
         meshes.append(mesh)
 
     return meshes
+
 
 class TestGroupElem:
 
@@ -53,10 +57,10 @@ class TestGroupElem:
             groupElem = mesh.groupElem
 
             shape_functions = groupElem._N()
-            
+
             local_coords = groupElem.Get_Local_Coords()
 
             for shape_function, coords in zip(shape_functions, local_coords):
-                
+
                 eval = shape_function[0](*coords)
                 assert np.abs(1 - eval) < 1e-12

@@ -7,12 +7,13 @@ import numpy as np
 
 from EasyFEA.utilities._linalg import Transpose, Trace, Det, Inv
 
+
 @pytest.fixture
 def setup_matrices() -> list[np.ndarray]:
 
-    mat0 = np.ones((1,1))
+    mat0 = np.ones((1, 1))
     mat1 = np.eye(3)
-    mat2 = mat1[np.newaxis,:,:].repeat(10, axis=0)
+    mat2 = mat1[np.newaxis, :, :].repeat(10, axis=0)
     mat3 = np.random.random((10, 4, 1, 1))
     mat4 = np.random.random((10, 4, 2, 2))
     mat5 = np.random.random((10, 4, 3, 3))
@@ -22,6 +23,7 @@ def setup_matrices() -> list[np.ndarray]:
 
     return list_Mat
 
+
 def Check(mat: np.ndarray, matVerif: np.ndarray):
 
     diff = mat - matVerif
@@ -29,6 +31,7 @@ def Check(mat: np.ndarray, matVerif: np.ndarray):
     test = np.linalg.norm(diff) / np.linalg.norm(matVerif)
 
     assert test < 1e-12
+
 
 class TestLinalg:
 
@@ -59,7 +62,7 @@ class TestLinalg:
 
         mat0, mat1, mat2, mat3, mat4, mat5, mat6 = setup_matrices
 
-        Check(Det(mat0), mat0[0,0])
+        Check(Det(mat0), mat0[0, 0])
         Check(Det(mat1), np.linalg.det(mat1))
         Check(Det(mat2), np.linalg.det(mat2))
         Check(Det(mat3), np.linalg.det(mat3))
@@ -71,18 +74,11 @@ class TestLinalg:
 
         mat0, mat1, mat2 = setup_matrices[:3]
 
-        mat3 = np.array([
-            [2, 1], 
-            [1, 2]
-        ])
+        mat3 = np.array([[2, 1], [1, 2]])
 
-        mat4 = np.array([
-            [4, 3, 8], 
-            [6, 2, 5],
-            [1, 5, 9]
-        ])        
+        mat4 = np.array([[4, 3, 8], [6, 2, 5], [1, 5, 9]])
 
-        Check(Inv(mat0), 1/mat0)
+        Check(Inv(mat0), 1 / mat0)
         Check(Inv(mat1), np.linalg.inv(mat1))
         Check(Inv(mat2), np.linalg.inv(mat2))
         Check(Inv(mat3), np.linalg.inv(mat3))
