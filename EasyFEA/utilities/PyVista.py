@@ -915,13 +915,13 @@ def _pvGeom(geom) -> Union[pv.DataSet, list[pv.DataSet]]:
         return None  # type: ignore [return-value]
 
     def __Line(line: Geoms.Line):
-        return pv.Line(line.pt1.coord, line.pt2.coord)
+        return pv.Line(line.pt1.coord, line.pt2.coord)  # type: ignore [arg-type]
 
     def __CircleArc(circleArc: Geoms.CircleArc):
         dataSet = pv.CircularArc(
-            circleArc.pt1.coord,
-            circleArc.pt2.coord,
-            circleArc.center.coord,
+            circleArc.pt1.coord,  # type: ignore [arg-type]
+            circleArc.pt2.coord,  # type: ignore [arg-type]
+            circleArc.center.coord,  # type: ignore [arg-type]
             negative=circleArc.coef == -1,
         )
         return dataSet
@@ -951,9 +951,9 @@ def _pvGeom(geom) -> Union[pv.DataSet, list[pv.DataSet]]:
         dataSet = pv.Box((xMin, xMax, yMin, yMax, zMin, zMax)).outline()
 
     elif isinstance(geom, Geoms.Circle):
-        arc1 = pv.CircularArc(geom.pt1.coord, geom.pt3.coord, geom.center.coord)
+        arc1 = pv.CircularArc(geom.pt1.coord, geom.pt3.coord, geom.center.coord)  # type: ignore [arg-type]
         arc2 = pv.CircularArc(
-            geom.pt1.coord, geom.pt3.coord, geom.center.coord, negative=True
+            geom.pt1.coord, geom.pt3.coord, geom.center.coord, negative=True  # type: ignore [arg-type]
         )
         dataSet = [arc1, arc2]  # type: ignore [assignment]
 

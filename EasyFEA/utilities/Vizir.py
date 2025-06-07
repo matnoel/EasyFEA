@@ -230,7 +230,7 @@ def Save_simu(
     step = Niter // N
 
     # init sols files and make checks
-    for result, type in zip(results, types, strict=True):
+    for result, type in zip(results, types, strict=True):  # type: ignore [call-overload]
         with open(Folder.Join(folder, f"{result}.sols", mkdir=True), "w") as file:
             # do nothing
             pass

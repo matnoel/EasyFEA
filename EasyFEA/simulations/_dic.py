@@ -124,7 +124,7 @@ class DIC(_IObserver):
     @property
     def shape(self) -> tuple[int, int]:
         """reference image shape"""
-        return self.__imgRef.shape
+        return self.__imgRef.shape  # type: ignore [return-value]
 
     # regularization properties
 
