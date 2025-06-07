@@ -1058,7 +1058,7 @@ def Calc_projector(oldMesh: Mesh, newMesh: Mesh) -> sp.csr_matrix:
         columns.extend(np.asarray(list(connect_e[element]) * nodes.size))
 
     [
-        FuncExtend_Proj(element, connect)
+        FuncExtend_Proj(element, np.asarray(connect))
         for element, connect in zip(detectedElements_e, connect_e_n)
     ]
 
