@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "easyfea"
-version = "1.4.0"
+version = "1.4.1"
 description = "User-friendly Python library that simplifies finite element analysis."
 authors = [
     {name = "Matthieu Noel", email = "matthieu.noel7@gmail.com"}
@@ -16,7 +16,7 @@ license = {file = "LICENSE.txt"}
 classifiers = [
     "Intended Audience :: Science/Research",
     "Topic :: Scientific/Engineering",
-    "License :: OSI Approved :: GNU General Public License v3 or later (GPLv3+)",
+    "License :: OSI Approved :: GNU General Public License v3 (GPLv3)",
     "Operating System :: MacOS :: MacOS X",
     "Operating System :: Microsoft :: Windows",
     "Operating System :: POSIX :: Linux",
@@ -24,6 +24,7 @@ classifiers = [
     "Programming Language :: Python :: 3.10",
     "Programming Language :: Python :: 3.11",
     "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
 ]
 dependencies = [
     "numba",

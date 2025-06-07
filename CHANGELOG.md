@@ -2,6 +2,16 @@
 
 This document describes the changes made to the project.
 
+## 1.4.1 (June 7, 2025):
+
+- Updated project dependency to https://github.com/matnoel/meshio.git
+- Fixed issue #9: add vizir output format
+- Fixed issue #10: format the code with black
+- Fixed bug in gauss quadrature for prisms
+- Fixed issue #11: add continuous integration with github-actions
+- Fixed issue #14: test types with mypy.
+- Added new badges in the readme file.
+
 ## 1.4.0 (April 24, 2025):
 
 - Fixed issues #6 and #7.
