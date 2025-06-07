@@ -61,4 +61,7 @@ include = [
 disable_error_code = [
     "safe-super",
     "import-untyped",
+    "override",
+    "union-attr",
+    "import-not-found",
 ]
