@@ -653,7 +653,7 @@ class Mesh(Observable):
         """Locates solution on elements."""
         return self.groupElem.Locates_sol_e(sol, dof_n, asFeArray)
 
-    def Get_Node_Values(self, result_e: _types.FloatArray) -> _types.IntArray:
+    def Get_Node_Values(self, result_e: _types.FloatArray) -> _types.FloatArray:
         """Get node values from element values.\n
         The value of a node is calculated by averaging the values of the surrounding elements.
 
