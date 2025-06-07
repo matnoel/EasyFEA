@@ -841,7 +841,9 @@ class PhaseField(_IModel):
 
     def _Eigen_values_vectors_projectors(
         self, vector_e_pg: FeArray.FeArrayALike, verif=False
-    ) -> tuple[FeArray, list[FeArray], list[FeArray]]:
+    ) -> tuple[
+        FeArray.FeArrayALike, list[FeArray.FeArrayALike], list[FeArray.FeArrayALike]
+    ]:
         """Computes the eigen values and eigen projectors of a second-order tensor (as a vector)."""
 
         dim = self.__material.dim
@@ -955,10 +957,11 @@ class PhaseField(_IModel):
                 val3_e_pg = I1_e_pg / 3
 
                 # Init proj matrices
-                M1 = np.zeros_like(matrix_e_pg)
+                M1 = FeArray.zeros(*matrix_e_pg.shape)
                 M1[:, :, 0, 0] = 1
-                # M2 = np.zeros_like(matrix_e_pg); M2[:,:,1,1] = 1
-                M3 = np.zeros_like(matrix_e_pg)
+                M2 = FeArray.zeros(*matrix_e_pg.shape)
+                M2[:, :, 1, 1] = 1
+                M3 = FeArray.zeros(*matrix_e_pg.shape)
                 M3[:, :, 2, 2] = 1
 
                 tic.Tac("Split", "proj case 4", False)
@@ -1027,7 +1030,7 @@ class PhaseField(_IModel):
 
                 case1 = list(set(np.ravel(np.where(test1)[0])))
 
-                case1 = np.setdiff1d(case1, np.union1d(case2, case3))
+                case1 = np.setdiff1d(case1, np.union1d(case2, case3))  # type: ignore [assignment]
 
                 if len(case1) > 0:
 
@@ -1172,19 +1175,19 @@ class PhaseField(_IModel):
                 Checks_Ma(M3, M3_num, 1e-12)
 
             # check orthogonality between M1 and M2
-            test_M1_M2 = np.abs(M1.ddot(M2))
+            test_M1_M2 = np.abs(M1.ddot(M2))  # type: ignore [attr-defined]
             assert (
                 np.max(test_M1_M2) < tol
             ), f"Orthogonality M1 : M2 not verified -> {np.max(test_M1_M2):.3e}"
 
             if dim == 3:
                 # check orthogonality between M1 and M3
-                test_M1_M3 = np.abs(M1.ddot(M3))
+                test_M1_M3 = np.abs(M1.ddot(M3))  # type: ignore [attr-defined]
                 assert (
                     np.max(test_M1_M3) < 1e-12
                 ), f"Orthogonality M1 : M3 not verified -> {np.max(test_M1_M3):.3e}"
                 # check orthogonality between M2 and M3
-                test_M2_M3 = np.abs(M2.ddot(M3))
+                test_M2_M3 = np.abs(M2.ddot(M3))  # type: ignore [attr-defined]
                 assert (
                     np.max(test_M2_M3) < 1e-12
                 ), f"Orthogonality M2 : M3 not verified -> {np.max(test_M2_M3):.3e}"

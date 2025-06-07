@@ -13,11 +13,11 @@ from ..Geoms import Line
 from ..geoms import AsCoords, Normalize
 
 # fem
-from ..fem import Mesh, _GroupElem, FeArray
+from ..fem import Mesh, _GroupElem, FeArray, MatrixType
 
 # materials
 from ._utils import _IModel, ModelType
-from ..utilities import _params
+from ..utilities import _params, _types
 
 # ----------------------------------------------
 # Beam
@@ -91,7 +91,7 @@ class _Beam(_IModel):
         dim: int,
         line: Line,
         section: Mesh,
-        yAxis: Union[list, tuple, np.ndarray] = (0, 1, 0),
+        yAxis: _types.Coords = (0, 1, 0),
     ):
         """Creates a beam.
 
@@ -105,7 +105,7 @@ class _Beam(_IModel):
             beam cross-section.\n
             Must be a 2D mesh belonging to the 2D space.\n
             The cross-section will automatically be centered on its center of gravity.
-        yAxis: tuple|list|array, optional
+        yAxis: _types.Coords, optional
             vertical cross-beam axis, by default (0,1,0)
         """
 
@@ -117,7 +117,7 @@ class _Beam(_IModel):
 
         self.section = section
 
-        self.yAxis = yAxis
+        self.yAxis = yAxis  # type: ignore [assignment]
 
         self.useNumba = False
 
@@ -154,7 +154,7 @@ class _Beam(_IModel):
         return self.__yAxis.copy()
 
     @yAxis.setter
-    def yAxis(self, value):
+    def yAxis(self, value: _types.Coords):
 
         # set y axis
         xAxis = self.xAxis
@@ -200,12 +200,15 @@ class _Beam(_IModel):
     @abstractmethod
     def Get_D(self) -> np.ndarray:
         """Returns a matrix characterizing the beam's stiffness behavior."""
-        return
+        return None  # type: ignore [return-value]
 
     def __str__(self) -> str:
         text = ""
         text += f"\n{self.name}:"
-        text += f"\n  area = {self.__section.area:.2}, Iz = {self.__section.Iz:.2}, Iy = {self.__section.Iy:.2}, J = {self.__section.J:.2}"
+        text += f"\n  area = {self.__section.area:.2},"
+        text += f"\n  Iz = {self.Iz:.2},"
+        text += f"\n  Iy = {self.Iy:.2},"
+        text += f"\n  J = {self.J:.2}"
 
         return text
 
@@ -381,15 +384,13 @@ class BeamStructure(_IModel):
         """Returns a matrix characterizing the beams's stiffness behavior."""
 
         if groupElem.dim != 1:
-            return
+            return None  # type: ignore [return-value]
 
         listBeam = self.__beams
         list_D = [beam.Get_D() for beam in listBeam]
 
-        matrixType = "beam"
-
         Ne = groupElem.Ne
-        nPg = groupElem.Get_gauss(matrixType).nPg
+        nPg = groupElem.Get_gauss(MatrixType.beam).nPg
         # Initialize D_e_pg :
         D_e_pg = FeArray.zeros(Ne, nPg, *list_D[0].shape)
 
@@ -407,7 +408,7 @@ class BeamStructure(_IModel):
         return xAxis_e, yAxis_e"""
 
         if groupElem.dim != 1:
-            return
+            return None  # type: ignore [return-value]
 
         beams = self.__beams
 

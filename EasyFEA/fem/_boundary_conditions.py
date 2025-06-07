@@ -30,7 +30,7 @@ class BoundaryCondition:
             Nodes on which the condition is applied.
         dofs : _types.IntArray
             Degrees of freedom (associated with nodes and unknowns).
-        unknowns : _types.StrArray
+        unknowns : list[str]
             Dofs unknowns (e.g. [“x”, “y”], [“rz”]).
         dofsValues : _types.FloatArray
             Dofs values.
@@ -38,7 +38,7 @@ class BoundaryCondition:
             Description of the boundary condition.
         """
         self.__problemType = problemType
-        self.__unknowns = np.asarray(unknowns, dtype=str)
+        self.__unknowns = unknowns
         self.__nodes = np.asarray(nodes, dtype=int)
         self.__dofs = np.asarray(dofs, dtype=int)
         assert (
@@ -70,7 +70,7 @@ class BoundaryCondition:
         return self.__dofsValues.copy()
 
     @property
-    def unknowns(self) -> _types.StrArray:
+    def unknowns(self) -> list[str]:
         """dofs unknowns"""
         return self.__unknowns.copy()
 

@@ -38,7 +38,7 @@ class Thermal(_IModel):
         text += f"\nthermal mass capacity (c) : {self.__c}"
         return text
 
-    def __init__(self, dim: int, k: float, c=0.0, thickness=1.0):
+    def __init__(self, dim: int, k: float, c=0.0, thickness: float = 1.0):
         """Creates a thermal model.
 
         Parameters
@@ -62,7 +62,7 @@ class Thermal(_IModel):
         self.c = c
 
         _params.CheckIsPositive(thickness)
-        self.__thickness = thickness
+        self.__thickness: float = thickness
 
         self.Need_Update()
 

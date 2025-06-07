@@ -165,8 +165,8 @@ class _Elas(_IModel, ABC):
             self.__sqrt_S is None
         except AttributeError:
             # init
-            self.__sqrt_C = None
-            self.__sqrt_S = None
+            self.__sqrt_C: Optional[_types.FloatArray] = None  # type: ignore [no-redef]
+            self.__sqrt_S: Optional[_types.FloatArray] = None  # type: ignore [no-redef]
 
         if self.__sqrt_C is None:
 
@@ -203,8 +203,8 @@ class _Elas(_IModel, ABC):
                 # test = np.linalg.norm(sqrtS - sqrtm(self.S))/np.linalg.norm(sqrtS)
                 # assert test < 1e-12
 
-            self.__sqrt_C = sqrtC
-            self.__sqrt_S = sqrtS
+            self.__sqrt_C = sqrtC  # type: ignore [assignment]
+            self.__sqrt_S = sqrtS  # type: ignore [assignment]
 
         else:
 

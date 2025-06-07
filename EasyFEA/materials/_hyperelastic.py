@@ -169,7 +169,7 @@ class HyperElastic:
     @staticmethod
     def _Compute_C(
         mesh: Mesh, u: _types.FloatArray, matrixType=MatrixType.rigi
-    ) -> list[FeArray]:
+    ) -> list[FeArray.FeArrayALike]:
         """Computes the right Cauchy-Green tensor components C(u) = F(u)'.F(u) \n
 
         returns [cxx, cxy, cxz, cyx, cyy, cyz, czx, czy, czz]"""
@@ -181,7 +181,7 @@ class HyperElastic:
             vectC_e_pg[:, :, i] for i in range(9)
         ]
 
-        return (cxx, cxy, cxz, cyx, cyy, cyz, czx, czy, czz)
+        return [cxx, cxy, cxz, cyx, cyy, cyz, czx, czy, czz]
 
     @staticmethod
     def Compute_GreenLagrange(

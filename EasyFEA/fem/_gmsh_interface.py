@@ -1206,7 +1206,7 @@ class Mesher:
 
         mesh = self._Mesh_Get_Mesh()
 
-        def FuncAddTags(beam: _Beam):
+        def FuncAddTags(beam: "_Beam"):
             nodes = mesh.Nodes_Line(beam.line)
             for grp in mesh.Get_list_groupElem():
                 grp._Set_Nodes_Tag(nodes, beam.name)
@@ -2052,7 +2052,7 @@ class Mesher:
 
     def Save_Simu(
         self,
-        simu: _Simu,
+        simu: "_Simu",
         results: list[str] = [],
         details: bool = False,
         edgeColor: str = "black",

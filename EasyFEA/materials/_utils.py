@@ -89,8 +89,8 @@ __erroDim = "Pay attention to the dimensions of the material constants.\nIf the 
 
 
 def Reshape_variable(
-    variable: Union[int, float, _types.AnyArray], Ne: int, nPg: int
-) -> FeArray.FeArrayALike:  # type: ignore
+    variable: Union[_types.Number, _types.AnyArray], Ne: int, nPg: int
+) -> FeArray.FeArrayALike:
     """Resizes variable to (Ne, nPg, ...) shape."""
 
     if isinstance(variable, (int, float)):
@@ -128,6 +128,10 @@ def Reshape_variable(
                 raise Exception(
                     "The variable entered must be of dimension (eij) or (pij)"
                 )
+        else:
+            raise ValueError("shape error")
+    else:
+        raise TypeError("type error")
 
 
 def Heterogeneous_Array(array: _types.FloatArray):
@@ -326,7 +330,7 @@ def Project_Kelvin(A: _types.FloatArray, orderA: Optional[int] = None) -> np.nda
         def add(i: int, j: int) -> None:  # type: ignore
             A_I[..., e[i, j]] = np.sqrt((2 - kron(i, j))) * A[..., i, j]
 
-        [add(i, j) for i in range(3) for j in range(3)]
+        [add(i, j) for i in range(3) for j in range(3)]  # type: ignore [func-returns-value]
 
         res = A_I
 
@@ -336,13 +340,13 @@ def Project_Kelvin(A: _types.FloatArray, orderA: Optional[int] = None) -> np.nda
 
         A_IJ = np.zeros((*shapeA[:-4], 6, 6))
 
-        def add(i: int, j: int, k: int, l: int) -> None:
+        def add(i: int, j: int, k: int, l: int) -> None:  # type: ignore [misc]
             A_IJ[..., e[i, j], e[k, l]] = (
                 np.sqrt((2 - kron(i, j)) * (2 - kron(k, l))) * A[..., i, j, k, l]
             )
 
         [
-            add(i, j, k, l)
+            add(i, j, k, l)  # type: ignore [call-arg, func-returns-value]
             for i in range(3)
             for j in range(3)
             for k in range(3)
@@ -505,17 +509,17 @@ def Get_Pmat(axis_1: _types.FloatArray, axis_2: _types.FloatArray, useMandel=Tru
     # get the indices and transpose
     if len(shape1) == 1:
         id = ""
-        transposeP = (0, 1)  # (dim*2,dim*2) -> (dim*2,dim*2)
+        transposeP = [0, 1]  # (dim*2,dim*2) -> (dim*2,dim*2)
     elif len(shape1) == 2:
         id = "e"
         axis_1 = axis_1.transpose((1, 0))  # (e,dim) -> (dim,e)
         axis_2 = axis_2.transpose((1, 0))
-        transposeP = (2, 0, 1)  # (dim,dim,e) -> (e,dim,dim)
+        transposeP = [2, 0, 1]  # (dim,dim,e) -> (e,dim,dim)
     elif len(shape1) == 3:
         id = "ep"
         axis_1 = axis_1.transpose((2, 0, 1))  # (e,p,dim) -> (dim,e,p)
         axis_2 = axis_2.transpose((2, 0, 1))
-        transposeP = (2, 3, 0, 1)  # (dim,dim,e,p) -> (e,p,dim,dim)
+        transposeP = [2, 3, 0, 1]  # (dim,dim,e,p) -> (e,p,dim,dim)
     else:
         raise TypeError("shape error")
 
