@@ -171,7 +171,7 @@ class Gauss:
 
         elif nPg == 15:
 
-            a: float = 1 / 4
+            a = 1 / 4
             b1: float = (7 + np.sqrt(15)) / 34
             b2: float = (7 - np.sqrt(15)) / 34
             c1: float = (13 - 3 * np.sqrt(15)) / 34
@@ -203,7 +203,7 @@ class Gauss:
 
         if nPg == 8:
 
-            a = 1 / np.sqrt(3)
+            a: float = 1 / np.sqrt(3)
 
             x = [-a, -a, -a, -a, a, a, a, a]
             y = [-a, -a, a, a, -a, -a, a, a]
@@ -213,7 +213,7 @@ class Gauss:
 
         elif nPg == 27:
 
-            a: float = np.sqrt(3 / 5)
+            a = np.sqrt(3 / 5)
             c1: float = 5 / 9
             c2: float = 8 / 9
 
@@ -283,7 +283,7 @@ class Gauss:
 
         elif nPg == 8:
 
-            a: float = 0.577350269189626
+            a = 0.577350269189626
 
             xc = [-a, -a, -a, -a, a, a, a, a]
             yc = [1 / 3, 0.6, 0.2, 0.2] * 2
@@ -296,7 +296,7 @@ class Gauss:
             al: float = np.sqrt(3 / 5)
             c1: float = 5 / 9
             c2: float = 8 / 9
-            a: float = (6 + np.sqrt(15)) / 21
+            a = (6 + np.sqrt(15)) / 21
             b: float = (6 - np.sqrt(15)) / 21
             cp: float = (155 + np.sqrt(15)) / 2400
             cm: float = (155 - np.sqrt(15)) / 2400

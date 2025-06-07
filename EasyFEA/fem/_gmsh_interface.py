@@ -6,9 +6,9 @@
 This module handles geometric objects (_Geom) to facilitate the creation of meshes on Gmsh.
 """
 
-import sys, os, matplotlib, gmsh  # type: ignore  [import-untyped]
+import sys, os, matplotlib, gmsh
 import numpy as np
-from typing import Union, Optional, Iterable, Collection
+from typing import Union, Optional, Iterable, Collection, TYPE_CHECKING
 
 
 # utilities
@@ -25,6 +25,11 @@ from ..geoms import Normalize
 # fem
 from ._mesh import Mesh, ElemType
 from ._group_elems import _GroupElem, GroupElemFactory  # type: ignore
+
+if TYPE_CHECKING:
+    # materials
+    from ..materials._beam import _Beam
+    from ..simulations._simu import _Simu
 
 # types
 LoopCompatible = Union[Circle, Domain, Points, Contour]
@@ -146,7 +151,7 @@ class Mesher:
         for i, geom in enumerate(contour.geoms):
 
             assert isinstance(
-                geom, ContourCompatible
+                geom, (Line, CircleArc, Points)
             ), "Must be a Line, CircleArc or Points"
 
             if i == 0:
@@ -337,7 +342,7 @@ class Mesher:
 
         surfaces = [self._Surface_From_Loops(loops)]  # first surface
         [
-            surfaces.append(factory.addPlaneSurface([loop])) for loop in filledLoops
+            surfaces.append(factory.addPlaneSurface([loop])) for loop in filledLoops  # type: ignore [func-returns-value]
         ]  # Adds filled surfaces
 
         # The number of elements per line is calculated here to organize the surface if it can be.
@@ -595,7 +600,7 @@ class Mesher:
         for dim in listDim:
             idx = entities[:, 0] == dim
             tags = entities[idx, 1]
-            [_addPhysicalGroup(dim, tag, t) for t, tag in enumerate(tags)]
+            [_addPhysicalGroup(dim, tag, t) for t, tag in enumerate(tags)]  # type: ignore [func-returns-value]
 
     def _Extrude(
         self,
@@ -1130,10 +1135,10 @@ class Mesher:
 
     def Mesh_Beams(
         self,
-        beams: list,  # type: ignore
+        beams: list["_Beam"],  # type: ignore
         elemType=ElemType.SEG2,
         additionalPoints: list[Point] = [],
-        folder="",
+        folder: str = "",
     ) -> Mesh:
         """Creates a beam mesh.
 
@@ -1153,11 +1158,6 @@ class Mesher:
         Mesh
             Created mesh
         """
-
-        # materials
-        from ..materials._beam import _Beam
-
-        beams: list[_Beam] = beams
 
         assert isinstance(beams, Collection), "beams must be a list of beams."
 
@@ -1850,14 +1850,14 @@ class Mesher:
         # Array that stores the changes
         # For example below -> Changes = [0 1 2 3 4 5 6 0 7]
         # changes is used such correctedNodes = changes[nodes]
-        changes = np.zeros(nodes.max() + 1, dtype=int)
+        changes: _types.IntArray = np.zeros(nodes.max() + 1, dtype=int)
         changes[sortedNodes] = sortedNodes - diff
 
         # The coordinate matrix of all nodes used in the mesh is constructed
-        coord: _types.FloatArray = coord.reshape(-1, 3)[sortedIdx, :]
+        coord = coord.reshape(-1, 3)[sortedIdx, :]
 
         # Apply coef to scale the coordinates
-        coord = coord * coef
+        coord *= coef
 
         knownDims = []  # known dimensions in the mesh
         # For each element type
@@ -1877,9 +1877,7 @@ class Mesher:
             # Elements
             Ne = elementTags.shape[0]  # number of elements
             nPe = GroupElemFactory.Get_ElemInFos(gmshId)[1]  # nodes per element
-            connect: _types.IntArraytArray = nodeTags.reshape(
-                Ne, nPe
-            )  # creates connect matrix
+            connect = nodeTags.reshape(Ne, nPe)  # creates connect matrix
 
             # Nodes
             nodes = np.asarray(list(set(nodeTags)), dtype=int)
@@ -2054,12 +2052,12 @@ class Mesher:
 
     def Save_Simu(
         self,
-        simu,
+        simu: _Simu,
         results: list[str] = [],
-        details=False,
-        edgeColor="black",
-        plotMesh=True,
-        showAxes=False,
+        details: bool = False,
+        edgeColor: str = "black",
+        plotMesh: bool = True,
+        showAxes: bool = False,
         folder: str = "",
     ) -> None:
         """Save the simulation in gmsh.pos format using gmsh.view
@@ -2082,11 +2080,17 @@ class Mesher:
             folder used to save .pos file, by default ""
         """
 
-        from ..Simulations import _Simu
-
         assert isinstance(simu, _Simu), "simu must be a simu object"
 
         assert isinstance(results, list), "results must be a list"
+
+        # get mesh informations
+        mesh = simu.mesh
+        Ne = mesh.Ne
+        nbCorners = (
+            mesh.groupElem.Nvertex
+        )  # do this because it is not working for quadratic elements
+        connect_e = mesh.connect[:, :nbCorners]
 
         self._Init_gmsh()
 
@@ -2104,12 +2108,6 @@ class Mesher:
                 values_e = np.transpose(values_e, (0, 2, 1))
             return values_e.reshape((mesh.Ne, -1))
 
-        mesh = simu.mesh
-        Ne = mesh.Ne
-        nbCorners = (
-            mesh.groupElem.Nvertex
-        )  # do this because it is not working for quadratic elements
-        connect_e = mesh.connect[:, :nbCorners]
         elements_e = reshape(mesh.coord)
 
         def types(elemType: ElemType) -> str:
@@ -2137,9 +2135,9 @@ class Mesher:
         colorElems = getColor(edgeColor)
 
         # get nodes and elements field to plot
-        nodesField, elementsField = simu.Results_nodesField_elementsField()
+        nodesField, elementsField = simu.Results_nodesField_elementsField(details)
         [
-            results.append(result)
+            results.append(result)  # type: ignore [func-returns-value]
             for result in (nodesField + elementsField)
             if result not in results
         ]

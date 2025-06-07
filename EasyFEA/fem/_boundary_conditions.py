@@ -195,7 +195,7 @@ class LagrangeCondition(BoundaryCondition):
         problemType: str,
         nodes: _types.IntArray,
         dofs: _types.IntArray,
-        unknowns: _types.StrArray,
+        unknowns: list[str],
         dofsValues: _types.FloatArray,
         lagrangeCoefs: _types.FloatArray,
         description: str = "",
@@ -210,7 +210,7 @@ class LagrangeCondition(BoundaryCondition):
             Nodes on which the condition is applied.
         dofs : _types.IntArray
             Degrees of freedom (associated with nodes and unknowns).
-        unknowns : _types.StrArray
+        unknowns : list[str]
             Dofs unknowns.
         dofsValues : _types.FloatArray
             Dofs values.

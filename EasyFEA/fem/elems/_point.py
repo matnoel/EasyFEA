@@ -38,16 +38,16 @@ class POINT(_GroupElem):
         return np.array([0]).reshape(1, 1)
 
     def _N(self) -> _types.FloatArray:
-        return None  # type: ignore [return-type]
+        return None  # type: ignore [return-value]
 
     def _dN(self) -> _types.FloatArray:
-        return None  # type: ignore [return-type]
+        return None  # type: ignore [return-value]
 
     def _ddN(self) -> _types.FloatArray:
-        return None  # type: ignore [return-type]
+        return None  # type: ignore [return-value]
 
     def _dddN(self) -> _types.FloatArray:
-        return None  # type: ignore [return-type]
+        return None  # type: ignore [return-value]
 
     def _ddddN(self) -> _types.FloatArray:
-        return None  # type: ignore [return-type]
+        return None  # type: ignore [return-value]

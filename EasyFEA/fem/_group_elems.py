@@ -1203,8 +1203,8 @@ class _GroupElem(ABC):
 
     # Euler Bernoulli problem
 
-    def Get_EulerBernoulli_N_e_pg(
-        self, beamStructure: "BeamStructure"  # type: ignore [no-redef]
+    def Get_EulerBernoulli_N_e_pg_for_beam(
+        self, beamStructure: "BeamStructure"
     ) -> FeArray.FeArrayALike:
         """Euler-Bernoulli beam shape functions."""
 

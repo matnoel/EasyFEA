@@ -12,14 +12,13 @@ A hexahedral mesh (HEXA8) uses :\n
 - HEXA8 (dim=3)"""
 
 import numpy as np
-import scipy.sparse as sp  # type: ignore  [import-untyped]
+import scipy.sparse as sp
 import copy
 from typing import Callable, Optional
 
 # utilities
-from ..utilities import Display, Tic
+from ..utilities import Display, Tic, _types
 from ..utilities._observers import Observable
-from ..utilities import _types
 
 # fem
 from ._utils import ElemType, MatrixType, FeArray
@@ -219,9 +218,9 @@ class Mesh(Observable):
 
     @coordGlob.setter
     def coordGlob(self, coord: _types.FloatArray) -> None:
-        if coordo.shape == self.coordGlob.shape:
+        if coord.shape == self.coordGlob.shape:
             for grp in self.dict_groupElem.values():
-                grp.coordGlob = coordo
+                grp.coordGlob = coord
 
     @property
     def connect(self) -> np.ndarray:
@@ -1022,11 +1021,11 @@ def Calc_projector(oldMesh: Mesh, newMesh: Mesh) -> sp.csr_matrix:
     Ntild = oldMesh.groupElem._N()
     nPe = oldMesh.groupElem.nPe
     phi_n_nPe = np.zeros(
-        (coordo_n.shape[0], nPe)
+        (coordo_n.shape[0], nPe)  # type: ignore [union-attr]
     )  # functions evaluated at identified coordinates
     for n in range(nPe):
         # *coordo_n.T give a list for every direction *(xis, etas, ..)
-        phi_n_nPe[:, n] = Ntild[n, 0](*coordo_n.T)
+        phi_n_nPe[:, n] = Ntild[n, 0](*coordo_n.T)  # type: ignore [union-attr]
 
     # Check that the sum of the shape functions is 1
     testSum1 = (np.sum(phi_n_nPe) - phi_n_nPe.size) / phi_n_nPe.size <= 1e-12
