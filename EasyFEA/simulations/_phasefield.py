@@ -59,9 +59,9 @@ class PhaseFieldSimu(_Simu):
         super().__init__(mesh, model, verbosity, useNumba, useIterativeSolvers)
 
         # Init internal variable
-        self.__psiP_e_pg: Optional[FeArray.FeArrayALike] = None
+        self.__psiP_e_pg: FeArray.FeArrayALike = np.empty(0, dtype=float)
         # old positive elastic energy density psiPlus(e, pg, 1) to use the miehe history field
-        self.__old_psiP_e_pg: Optional[FeArray.FeArrayALike] = None
+        self.__old_psiP_e_pg: FeArray.FeArrayALike = np.empty(0, dtype=float)
 
         self.Solver_Set_Elliptic_Algorithm()
 

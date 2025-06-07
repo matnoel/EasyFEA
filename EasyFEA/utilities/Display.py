@@ -1014,7 +1014,7 @@ def Plot_Tags(
 
 
 def __Annotation_Event(
-    collections: list, fig: Union[plt.Figure, plt.SubFigure, Any], ax: _types.Axes
+    collections: list, fig: Union[plt.Figure, Any], ax: _types.Axes
 ) -> None:
     """Creates an event to display the element tag currently active under the mouse at the bottom of the figure."""
 
@@ -1345,7 +1345,7 @@ def Movie_Simu(
 
 def Movie_func(
     func: Callable[[plt.Figure, int], None],
-    fig: Union[plt.Figure, plt.SubFigure, Any],
+    fig: Union[plt.Figure, Any],
     N: int,
     folder: str,
     filename="video.gif",

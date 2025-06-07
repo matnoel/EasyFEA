@@ -8,7 +8,7 @@ from typing import Union, Callable, Optional
 import pandas as pd
 
 # utilities
-from ..utilities import Tic, Display
+from ..utilities import Tic, Display, _types
 from ..utilities._linalg import Det, Inv, Norm
 
 # fem
