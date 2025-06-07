@@ -47,6 +47,12 @@ fast = [
 cv = [
     "opencv-python"
 ]
+dev = [
+    "mypy",
+    "black",
+    "pytest"
+]
+
 
 [project.urls]
 "Source Code" = "https://github.com/matnoel/EasyFEA"
@@ -55,6 +61,11 @@ cv = [
 include = [
     "EasyFEA",
     "EasyFEA.*"
+]
+
+[tool.pytest.ini_options]
+testpaths = [
+    "tests",
 ]
 
 [tool.mypy]
