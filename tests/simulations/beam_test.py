@@ -29,7 +29,7 @@ class TestBeam:
         ]
 
         def PlotAndDelete():
-            plt.pause(1e-12)
+            # plt.pause(1e-12)
             plt.close("all")
 
         for problem, elemType, beamDim in listConfig:

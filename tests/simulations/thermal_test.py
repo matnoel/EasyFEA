@@ -46,7 +46,7 @@ class TestThermal:
             simu.Save_Iter()
 
             ax = Display.Plot_Result(simu, "thermal", nodeValues=True, plotMesh=True)
-            plt.pause(1e-12)
+            # plt.pause(1e-12)
             plt.close(ax.figure)
 
     def test_Update_Thermal(self):

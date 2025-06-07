@@ -27,10 +27,10 @@ class TestDisplay:
             ax.set_title("")
             ax.get_xaxis().set_visible(False)
             ax.get_yaxis().set_visible(False)
-            plt.pause(1e-12)
+            # plt.pause(1e-12)
 
             Display.Plot_Tags(mesh2D)
-            plt.pause(1e-12)
+            # plt.pause(1e-12)
             plt.close()
 
         # plt.show()
@@ -41,12 +41,12 @@ class TestDisplay:
         for mesh3D in list_mesh3D:
             ax = Display.Plot_Mesh(mesh3D)
             Display.Plot_Nodes(mesh3D, showId=False, ax=ax, c="black")
-            plt.pause(1e-12)
+            # plt.pause(1e-12)
             ax.axis("off")
             plt.close()
 
             Display.Plot_Tags(mesh3D)
-            plt.pause(1e-12)
+            # plt.pause(1e-12)
             plt.close()
 
         # plt.show()

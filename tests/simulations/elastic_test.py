@@ -53,7 +53,7 @@ class TestElastic:
 
             # static
             ax = Display.Plot_Result(simu, "ux", plotMesh=True, nodeValues=True)
-            plt.pause(1e-12)
+            # plt.pause(1e-12)
             plt.close(ax.figure)
 
             # dynamic
