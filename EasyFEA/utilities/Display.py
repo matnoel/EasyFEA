@@ -5,7 +5,7 @@
 """Module containing functions used to display simulations and meshes with matplotlib (https://matplotlib.org/)."""
 
 import platform
-from typing import Union, Callable, Optional, TYPE_CHECKING
+from typing import Union, Callable, Optional, TYPE_CHECKING, Any
 import numpy as np
 import pandas as pd
 from enum import Enum
@@ -20,8 +20,7 @@ from mpl_toolkits.axes_grid1 import make_axes_locatable  # use to do colorbarIsC
 import matplotlib.animation as animation
 
 # utilities
-from . import Folder, Tic
-from . import _types
+from . import Folder, Tic, _types
 
 # simulations
 from ..simulations._simu import _Init_obj, _Get_values
@@ -167,15 +166,15 @@ def Plot_Result(
                 )
             else:
                 # mesh for 2D elements are lines / segments
-                pc = LineCollection(elements_coordinates, edgecolor=edgecolor, lw=0.5)
+                pc = LineCollection(elements_coordinates, edgecolor=edgecolor, lw=0.5)  # type: ignore [arg-type]
                 ax.add_collection(pc)
 
         # Plot element values
         if mesh.Ne == len(values):
             if mesh.dim == 1:
-                pc = LineCollection(elements_coordinates, lw=1.5, cmap=cmap, norm=norm)
+                pc = LineCollection(elements_coordinates, lw=1.5, cmap=cmap, norm=norm)  # type: ignore [arg-type]
             else:
-                pc = PolyCollection(elements_coordinates, lw=0.5, cmap=cmap, norm=norm)
+                pc = PolyCollection(elements_coordinates, lw=0.5, cmap=cmap, norm=norm)  # type: ignore
             pc.set_clim(min, max)
             pc.set_array(values)
             ax.add_collection(pc)
@@ -187,7 +186,7 @@ def Plot_Result(
             triangles = mesh.groupElem.triangles
             connectTri = np.reshape(mesh.connect[:, triangles], (-1, 3))
             # tripcolor, tricontour, tricontourf
-            pc = ax.tricontourf(
+            pc = ax.tricontourf(  # type: ignore [call-overload]
                 coordo[:, 0],
                 coordo[:, 1],
                 connectTri,
@@ -226,11 +225,11 @@ def Plot_Result(
             ax.set_zlabel(r"$z$")  # type: ignore
 
         # construct the face connection matrix
-        connectFaces = []
+        connectFaces = []  # type: ignore [assignment]
         groupElems = mesh.Get_list_groupElem(plotDim)
         list_faces = _Get_list_faces(mesh, plotDim)
         for groupElem, faces in zip(groupElems, list_faces):
-            connectFaces.extend(groupElem.connect[:, faces])
+            connectFaces.extend(groupElem.connect[:, faces])  # type: ignore [attr-defined]
         connectFaces = np.asarray(connectFaces, dtype=int)
 
         elements_coordinates = coordo[connectFaces, :3]
@@ -243,13 +242,13 @@ def Plot_Result(
                 values_loc = values[groupElem.connect]
                 values_e = np.mean(values_loc, axis=1)
                 facesValues.extend(values_e)
-            facesValues = np.array(facesValues)
+            facesValues = np.array(facesValues)  # type: ignore [assignment]
         else:
-            facesValues = values
+            facesValues = values  # type: ignore [assignment]
 
         # update max and min
-        max = np.max([facesValues.max(), max])
-        min = np.min([facesValues.min(), min])
+        max = np.max([facesValues.max(), max])  # type: ignore [attr-defined]
+        min = np.min([facesValues.min(), min])  # type: ignore [attr-defined]
 
         # Display result with or without the mesh
         if plotMesh:
@@ -321,7 +320,7 @@ def Plot_Result(
     # If the folder has been filled in, save the figure.
     if folder != "":
         if filename == "":
-            filename = result
+            filename = result  # type: ignore [assignment]
         Save_fig(folder, filename, transparent=False)
 
     return ax
@@ -354,7 +353,7 @@ def Plot_Mesh(
         edgecolor, default 'black'
     lw: float, optional
         line width, default 0.5
-    ax: plt.Axes, optional
+    ax: _types.Axes, optional
         Axis to use, default None
     folder : str, optional
         save folder, default "".
@@ -384,10 +383,10 @@ def Plot_Mesh(
     # construct the connection matrix for the faces
     list_groupElem = mesh.Get_list_groupElem(dimElem)
     list_faces = _Get_list_faces(mesh, dimElem)
-    connectFaces = []
+    connectFaces: list = []
     for groupElem, faces in zip(list_groupElem, list_faces):
         connectFaces.extend(groupElem.connect[:, faces])
-    connectFaces = np.asarray(connectFaces, dtype=int)
+    connectFaces = np.asarray(connectFaces, dtype=int)  # type: ignore [assignment]
 
     # faces coordinates
     coordFacesDef = coordo[connectFaces, :inDim]
@@ -535,12 +534,12 @@ def Plot_Nodes(
         marker type (matplotlib.markers), default '.'
     c : str, optional
         color, default 'red'
-    ax : plt.Axes, optional
+    ax : _types.Axes, optional
         Axis to use, default None, default None
 
     Returns
     -------
-    plt.Axes
+    _types.Axes
     """
 
     tic = Tic()
@@ -565,12 +564,12 @@ def Plot_Nodes(
     if inDim == 2:
         ax.plot(*coordo[nodes, :2].T, ls="", marker=marker, c=c, zorder=2.5)
         if showId:
-            [ax.text(*coordo[node, :2].T, str(node), c=c) for node in nodes]
+            [ax.text(*coordo[node, :2].T, str(node), c=c) for node in nodes]  # type: ignore [call-arg]
         ax.axis("equal")
     elif inDim == 3:
         ax.plot(*coordo[nodes].T, ls="", marker=marker, c=c, zorder=2.5)
         if showId:
-            [ax.text(*coordo[node].T, str(node), c=c) for node in nodes]
+            [ax.text(*coordo[node].T, str(node), c=c) for node in nodes]  # type: ignore [call-arg]
         _Axis_equal_3D(ax, coordo)
 
     tic.Tac("Display", "Plot_Nodes")
@@ -581,13 +580,13 @@ def Plot_Nodes(
 def Plot_Elements(
     obj,
     nodes=[],
-    dimElem: int = None,
+    dimElem: Optional[int] = None,
     showId=False,
     alpha=1.0,
     c="red",
     edgecolor="black",
-    ax: plt.Axes = None,
-) -> plt.Axes:
+    ax: Optional[_types.Axes] = None,
+) -> _types.Axes:
     """Plots the mesh's elements corresponding to the given nodes.
 
     Parameters
@@ -606,12 +605,12 @@ def Plot_Elements(
         color used to display faces, by default 'red
     edgecolor : str, optional
         color used to display segments, by default 'black'
-    ax : plt.Axes, optional
+    ax : _types.Axes, optional
         Axis to use, default None
 
     Returns
     -------
-    plt.Axes
+    _types.Axes
     """
 
     tic = Tic()
@@ -626,7 +625,7 @@ def Plot_Elements(
     # list of element group associated with the dimension
     list_groupElem = mesh.Get_list_groupElem(dimElem)[:1]
     if len(list_groupElem) == 0:
-        return
+        return None  # type: ignore
 
     if ax is None:
         ax = Init_Axes(inDim)
@@ -662,7 +661,7 @@ def Plot_Elements(
                 pc = LineCollection(coordFaces, edgecolor=c, lw=1, zorder=2)
             else:
                 # 2D elements
-                pc = PolyCollection(
+                pc = PolyCollection(  # type: ignore [assignment]
                     coordFaces,
                     facecolors=c,
                     edgecolor=edgecolor,
@@ -685,7 +684,7 @@ def Plot_Elements(
         if showId:
             # plot elements id's
             [
-                ax.text(
+                ax.text(  # type: ignore [call-arg]
                     *center_e[element], element, zorder=25, ha="center", va="center"
                 )
                 for element in elements
@@ -701,19 +700,19 @@ def Plot_Elements(
     return ax
 
 
-def Plot_BoundaryConditions(simu, ax: plt.Axes = None) -> plt.Axes:
+def Plot_BoundaryConditions(simu, ax: Optional[_types.Axes] = None) -> _types.Axes:
     """Plots simulation's boundary conditions.
 
     Parameters
     ----------
     simu : _Simu
         simulation
-    ax : plt.Axes, optional
+    ax : _types.Axes, optional
         Axis to use, default None
 
     Returns
     -------
-    plt.Axes
+    _types.Axes
     """
 
     tic = Tic()
@@ -808,7 +807,9 @@ def Plot_BoundaryConditions(simu, ax: plt.Axes = None) -> plt.Axes:
     return ax
 
 
-def Plot_Tags(obj, showId=False, folder="", alpha=1.0, ax: plt.Axes = None) -> plt.Axes:
+def Plot_Tags(
+    obj, showId=False, folder="", alpha=1.0, ax: Optional[_types.Axes] = None
+) -> _types.Axes:
     """Plots the mesh's elements tags (from 2d elements to points) but do not plot the 3d elements tags.
 
     Parameters
@@ -821,12 +822,12 @@ def Plot_Tags(obj, showId=False, folder="", alpha=1.0, ax: plt.Axes = None) -> p
         saves folder, by default ""
     alpha : float, optional
         transparency, by default 1.0
-    ax : plt.Axes, optional
+    ax : _types.Axes, optional
         Axis to use, default None
 
     Returns
     -------
-    plt.Axes
+    _types.Axes
     """
 
     tic = Tic()
@@ -842,7 +843,7 @@ def Plot_Tags(obj, showId=False, folder="", alpha=1.0, ax: plt.Axes = None) -> p
         MyPrintError(
             "There is no tags available in the mesh, so don't forget to use the '_Set_PhysicalGroups()' function before meshing your geometry with in the gmsh interface."
         )
-        return
+        return None  # type: ignore [return-value]
 
     if ax is None:
         if mesh.inDim <= 2:
@@ -982,8 +983,8 @@ def Plot_Tags(obj, showId=False, folder="", alpha=1.0, ax: plt.Axes = None) -> p
                             facecolors=color,
                             label=tag_e,
                         )
-                        pc._facecolors2d = color
-                        pc._edgecolors2d = color
+                        pc._facecolors2d = color  # type: ignore [attr-defined]
+                        pc._edgecolors2d = color  # type: ignore [attr-defined]
                         collections.append(ax.add_collection3d(pc, zdir="z"))
                 else:
 
@@ -994,7 +995,7 @@ def Plot_Tags(obj, showId=False, folder="", alpha=1.0, ax: plt.Axes = None) -> p
                     )
 
                 if showId:
-                    ax.text(x_e, y_e, z_e, tag_e, zorder=25)
+                    ax.text(x_e, y_e, z_e, tag_e, zorder=25)  # type: ignore [arg-type]
 
     if inDim in [1, 2]:
         ax.autoscale()
@@ -1012,7 +1013,9 @@ def Plot_Tags(obj, showId=False, folder="", alpha=1.0, ax: plt.Axes = None) -> p
     return ax
 
 
-def __Annotation_Event(collections: list, fig: plt.Figure, ax: plt.Axes) -> None:
+def __Annotation_Event(
+    collections: list, fig: Union[plt.Figure, plt.SubFigure, Any], ax: _types.Axes
+) -> None:
     """Creates an event to display the element tag currently active under the mouse at the bottom of the figure."""
 
     def Set_Message(collection, event):
@@ -1058,16 +1061,16 @@ def Plot_Force_Displacement(
         y-axis title, by default 'f' folder : str, optional
     folder : str, optional
         save folder, by default ""
-    ax : plt.Axes, optional
+    ax : _types.Axes, optional
         ax in which to plot the figure, by default None
 
     Returns
     -------
-    tuple[plt.Figure, plt.Axes]
+    tuple[plt.Figure, _types.Axes]
         returns figure and ax
     """
 
-    if isinstance(ax, plt.Axes):  # type: ignore
+    if isinstance(ax, _types.Axes):  # type: ignore
         fig = ax.figure
         ax.clear()
     else:
@@ -1082,13 +1085,13 @@ def Plot_Force_Displacement(
     if folder != "":
         Save_fig(folder, "force-displacement")
 
-    return fig, ax
+    return fig, ax  # type: ignore [return-value]
 
 
 def Plot_Energy(
     simu: "_Simu",
-    load: _types.FloatArray = np.array([]),
-    displacement: _types.Axes = np.array([]),
+    load: _types.FloatArray = np.empty(0),
+    displacement: _types.FloatArray = np.empty(0),
     plotSolMax: bool = True,
     N: int = 200,
     folder: str = "",
@@ -1111,7 +1114,7 @@ def Plot_Energy(
         save folder, by default ""
     """
 
-    simu = _Init_obj(simu)[0]
+    simu = _Init_obj(simu)[0]  # type: ignore [assignment]
 
     # First we check whether the simulation can calculate energies
     if len(simu.Results_dict_Energy()) == 0:
@@ -1247,7 +1250,7 @@ def Plot_Iter_Summary(simu, folder="", iterMin=None, iterMax=None) -> None:
 
     iterations = iterations[selectionIndex]
 
-    axs: list[plt.Axes] = plt.subplots(nrows=nbGraph, sharex=True)[1]
+    axs: list[_types.Axes] = plt.subplots(nrows=nbGraph, sharex=True)[1]
 
     for ax, label_values in zip(axs, list_label_values):
         ax.grid()
@@ -1342,7 +1345,7 @@ def Movie_Simu(
 
 def Movie_func(
     func: Callable[[plt.Figure, int], None],
-    fig: plt.Figure,
+    fig: Union[plt.Figure, plt.SubFigure, Any],
     N: int,
     folder: str,
     filename="video.gif",
@@ -1381,11 +1384,11 @@ def Movie_func(
         Folder.os.makedirs(folder)
 
     writer = animation.FFMpegWriter(fps)
-    with writer.saving(fig, filename, dpi):
+    with writer.saving(fig, filename, dpi):  # type: ignore [arg-type]
         tic = Tic()
         for i in range(N):
 
-            func(fig, i)
+            func(fig, i)  # type: ignore [arg-type]
 
             if show:
                 plt.pause(1e-12)
@@ -1469,7 +1472,7 @@ def _Get_list_faces(mesh, dimElem: int) -> list[list[int]]:
     return list_faces
 
 
-def _Remove_colorbar(ax: plt.Axes) -> None:
+def _Remove_colorbar(ax: _types.Axes) -> None:
     """Removes the current colorbar from the axis."""
     [
         collection.colorbar.remove()
@@ -1484,8 +1487,10 @@ def Init_Axes(dim: int = 2, elev=105, azim=-90) -> _types.Axes:
         ax = plt.subplots()[1]
     elif dim == 3:
         fig = plt.figure()
-        ax: Axes3D = fig.add_subplot(projection="3d")
-        ax.view_init(elev=elev, azim=azim)
+        ax = fig.add_subplot(projection="3d")
+        ax.view_init(elev=elev, azim=azim)  # type: ignore [attr-defined]
+    else:
+        raise ValueError("dim error")
     return ax
 
 
@@ -1495,7 +1500,7 @@ def _Axis_equal_3D(ax: Axes3D, coord: _types.FloatArray) -> None:
 
     Parameters
     ----------
-    ax : plt.Axes
+    ax : _types.Axes
         Axes in which figure will be created
     coord : _types.FloatArray
         mesh coordinates
@@ -1546,13 +1551,18 @@ class __Sytles(str, Enum):
 
 
 def MyPrint(
-    text: str, color="cyan", bold=False, italic=False, underLine=False, end: str = None
-) -> None:
+    text: str,
+    color="cyan",
+    bold=False,
+    italic=False,
+    underLine=False,
+    end: str = "",
+) -> str:
 
     dct = dict(map(lambda item: (item.name, item.value), __Colors))
 
     if color not in dct:
-        MyPrint(f"Color must be in {dct.keys()}", "red")
+        return MyPrint(f"Color must be in {dct.keys()}", "red")
 
     else:
         formatedText = ""
@@ -1569,6 +1579,7 @@ def MyPrint(
         formatedText += __Sytles.RESET
 
         print(formatedText, end=end)
+        return formatedText
 
 
 def MyPrintError(text: str) -> str:

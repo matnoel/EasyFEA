@@ -135,10 +135,10 @@ class Tic:
         # I want to display the text on the right if the time represents < 0.5 timeTotal
         # Otherwise, we'll display it on the left
 
-        for i, (texte, time, rep) in enumerate(zip(categories, times, reps)):
+        for i, (category, time, rep) in enumerate(zip(categories, times, reps)):
             # height=0.55
             # ax.barh(i, t, height=height, align="center", label=c)
-            ax.barh(i, time, align="center", label=texte)
+            ax.barh(i, time, align="center", label=category)
 
             # We add a space at the end of the text
             space = " "
@@ -150,13 +150,13 @@ class Tic:
             else:
                 repTemps = f" ({np.round(unitTime,2)} {unit})"
 
-            texte = space + texte + repTemps + space
+            category = space + category + repTemps + space
 
             if time / tempsMax < 0.6:
                 ax.text(
                     time,
                     i,
-                    texte,
+                    category,
                     color="black",
                     verticalalignment="center",
                     horizontalalignment="left",
@@ -165,7 +165,7 @@ class Tic:
                 ax.text(
                     time,
                     i,
-                    texte,
+                    category,
                     color="white",
                     verticalalignment="center",
                     horizontalalignment="right",
@@ -211,7 +211,7 @@ class Tic:
                 np.sum(timeSubCategory)
             )  # somme tout les temps de cette catégorie
 
-            subCategories = np.array(np.array(historique[c])[:, 0], dtype=str)
+            subCategories = np.array(np.array(historique[c])[:, 0], dtype=str).tolist()
 
             # We build a table to sum them over the sub-categories
             dfSubCategory = pd.DataFrame(
@@ -219,7 +219,6 @@ class Tic:
             )
             dfSubCategory = dfSubCategory.groupby(["sub-categories"]).sum()
             dfSubCategory = dfSubCategory.sort_values(by="time")
-            subCategories = dfSubCategory.index.tolist()
 
             # print(dfSousCategorie)
 

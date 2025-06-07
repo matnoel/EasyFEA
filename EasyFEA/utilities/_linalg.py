@@ -7,7 +7,7 @@
 import numpy as np
 from ..fem import FeArray
 from typing import Optional
-from ..utilities import _types
+from . import _types
 
 
 def __CheckMat(mat: FeArray.FeArrayALike) -> None:
@@ -219,9 +219,7 @@ def TensorProd(
             res = 1 / 2 * (p1 + p2)
         else:
             # Aij Bkl
-            res: FeArray.FeArrayALike = np.einsum(
-                "...ij,...kl->...ijkl", A, B, optimize="optimal"
-            )
+            res = np.einsum("...ij,...kl->...ijkl", A, B, optimize="optimal")
 
     else:
         raise Exception("Not implemented")

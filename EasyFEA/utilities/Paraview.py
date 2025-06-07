@@ -70,12 +70,12 @@ def Make_Paraview(
     nodesField, elementsField = simu.Results_nodesField_elementsField(details)
 
     [
-        nodesField.append(n)
+        nodesField.append(n)  # type: ignore [func-returns-value]
         for n in additionalNodesField
         if simu._Results_Check_Available(n) and n not in nodesField
     ]
     [
-        elementsField.append(e)
+        elementsField.append(e)  # type: ignore [func-returns-value]
         for e in additionalElementsField
         if simu._Results_Check_Available(e) and e not in elementsField
     ]
@@ -313,7 +313,7 @@ def __Make_pvd(filename: str, vtuFiles=[]):
         file.write("\t</Collection>\n")
         file.write("</VTKFile>\n")
 
-    t = tic.Tac("Paraview", "Make pvd", False)
+    tic.Tac("Paraview", "Make pvd", False)
 
 
 def __WriteBinary(value, type: str, file):

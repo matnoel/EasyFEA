@@ -110,15 +110,15 @@ def _Get_empty_groupElem(groupElem: _GroupElem, order: int):
         elemType = next(iter(filtered_dict))
 
         # create empty groupElem
+        emptyArray = np.empty((0), dtype=int)
         groupElem = GroupElemFactory.Create(
-            filtered_dict[elemType][0], np.empty((0)), np.empty((0)), np.empty((0))
+            filtered_dict[elemType][0], emptyArray, emptyArray, emptyArray
         )
 
     else:
 
-        groupElem = GroupElemFactory._Create(
-            groupElem.elemType, np.empty((0)), np.empty((0))
-        )
+        emptyArray = np.empty((0), dtype=int)
+        groupElem = GroupElemFactory._Create(groupElem.elemType, emptyArray, emptyArray)
 
     return groupElem
 
@@ -176,8 +176,8 @@ SOLUTION_TYPES = [1, 2]
 
 def _Write_solution_file(
     mesh: Mesh,
-    dofsValues: np.ndarray,
-    assembly_e: np.ndarray,
+    dofsValues: _types.FloatArray,
+    assembly_e: _types.IntArray,
     type: int,
     order: int,
     folder: str,
@@ -256,7 +256,7 @@ def Save_simu(
                 # save the solution
                 solution_file = _Write_solution_file(
                     simu.mesh,
-                    dofsValues,
+                    dofsValues,  # type: ignore [arg-type]
                     assembly_e,
                     type,
                     simu.mesh.groupElem.order,

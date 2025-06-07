@@ -5,7 +5,7 @@
 """Module providing an interface with PyVista (https://docs.pyvista.org/version/stable/).\n
 https://docs.pyvista.org/api/plotting/plotting.html"""
 
-from typing import Union, Callable, Optional
+from typing import Union, Callable, Optional, TYPE_CHECKING, Any
 from cycler import cycler
 from scipy.sparse import csr_matrix
 import pyvista as pv
@@ -16,14 +16,22 @@ from .Display import MyPrintError, MyPrint
 from ..simulations._simu import _Init_obj, _Get_values
 from . import Folder, Tic
 from .. import Geoms
+from . import _types
+
+if TYPE_CHECKING:
+    from ..simulations._simu import _Simu, Mesh
 
 # fem
 from ..fem import GroupElemFactory
 
 
 def Plot(
-    obj,
-    result: Optional[Union[str, np.ndarray]] = None,
+    obj: Union[
+        "_Simu",
+        "Mesh",
+        Any,
+    ],
+    result: Optional[Union[str, _types.AnyArray]] = None,
     deformFactor=0.0,
     coef=1.0,
     nodeValues=True,
@@ -126,7 +134,7 @@ def Plot(
         plotter = _Plotter()
 
     if show_grid:
-        plotter.show_grid()
+        plotter.show_grid()  # type: ignore [call-arg]
 
     if verticalColobar:
         pos = "position_x"
@@ -170,7 +178,11 @@ def Plot(
 
 
 def Plot_Mesh(
-    obj,
+    obj: Union[
+        "_Simu",
+        "Mesh",
+        Any,
+    ],
     deformFactor=0.0,
     opacity=1.0,
     color="cyan",
@@ -218,7 +230,7 @@ def Plot_Mesh(
 
 
 def Plot_Nodes(
-    obj,
+    obj: Union["_Simu", "Mesh"],
     nodes: Optional[np.ndarray] = None,
     showId=False,
     deformFactor=0,
@@ -252,11 +264,11 @@ def Plot_Nodes(
         The pyvista plotter
     """
 
-    _, mesh, coordo, _ = _Init_obj(obj, deformFactor)
+    _, mesh, coord, _ = _Init_obj(obj, deformFactor)
 
     if nodes is None:
         nodes = mesh.nodes
-        coordo = coordo[nodes]
+        coord = coord[nodes]
     else:
         nodes = np.asarray(nodes)
 
@@ -268,9 +280,9 @@ def Plot_Nodes(
                 MyPrintError("The list of nodes must be of size <= mesh.Nn")
                 return
             else:
-                coordo = coordo[nodes]
+                coord = coord[nodes]
         elif nodes.ndim == 2 and nodes.shape[1] == 3:
-            coordo = nodes
+            coord = nodes
         else:
             MyPrintError(
                 "Nodes must be either a list of nodes or a matrix of 3D vectors of dimension (n, 3)."
@@ -280,11 +292,11 @@ def Plot_Nodes(
     if plotter is None:
         plotter = Plot(obj, deformFactor=deformFactor, style="wireframe", color="k")
 
-    pvData = pv.PolyData(coordo)
+    pvData = pv.PolyData(coord)  # type: ignore [arg-type]
 
     if showId:
-        myLabels = [f"{node}" for node in nodes]
-        pvData["myLabels"] = myLabels
+        myLabels: list[str] = [f"{node}" for node in nodes]
+        pvData["myLabels"] = myLabels  # type: ignore [assignment]
         plotter.add_point_labels(
             pvData, "myLabels", point_color=color, render_points_as_spheres=True
         )
@@ -297,7 +309,7 @@ def Plot_Nodes(
 
 
 def Plot_Elements(
-    obj,
+    obj: Union["_Simu", "Mesh"],
     nodes: Optional[np.ndarray] = None,
     dimElem: Optional[int] = None,
     showId=False,
@@ -372,7 +384,7 @@ def Plot_Elements(
         nodes = groupElem.nodes
         newGroupElem = GroupElemFactory.Create(gmshId, connect, coordo, nodes)
 
-        pvGroup = _pvGrid(newGroupElem)
+        pvGroup = _pvGrid(newGroupElem)  # type: ignore [arg-type]
 
         Plot(
             pvGroup,
@@ -388,7 +400,7 @@ def Plot_Elements(
             centers = np.mean(coordo[groupElem.connect[elements]], axis=1)
             pvData = pv.PolyData(centers)
             myLabels = [f"{element}" for element in elements]
-            pvData["myLabels"] = myLabels
+            pvData["myLabels"] = myLabels  # type: ignore [assignment]
             plotter.add_point_labels(
                 pvData, "myLabels", point_color="k", render_points_as_spheres=True
             )
@@ -396,7 +408,9 @@ def Plot_Elements(
     return plotter
 
 
-def Plot_BoundaryConditions(simu, deformFactor=0.0, plotter: pv.Plotter = None):
+def Plot_BoundaryConditions(
+    simu: "_Simu", deformFactor=0.0, plotter: Optional[pv.Plotter] = None
+):
     """Plots simulation's boundary conditions.
 
     Parameters
@@ -406,7 +420,7 @@ def Plot_BoundaryConditions(simu, deformFactor=0.0, plotter: pv.Plotter = None):
     deformFactor : float, optional
         Factor used to display the deformed solution (0 means no deformations), default 0.0
     plotter : pv.Plotter, optional
-        The pyvista plotter, by default None and create a new Plotter instance
+        The pyvista plotter, by default None and create a new Plotter instance, default None
 
     Returns
     -------
@@ -416,7 +430,7 @@ def Plot_BoundaryConditions(simu, deformFactor=0.0, plotter: pv.Plotter = None):
 
     tic = Tic()
 
-    simu, mesh, coordo, inDim = _Init_obj(simu, deformFactor)
+    simu, mesh, coord, inDim = _Init_obj(simu, deformFactor)  # type: ignore [assignment]
 
     if simu is None:
         MyPrintError("simu must be a _Simu object")
@@ -443,7 +457,7 @@ def Plot_BoundaryConditions(simu, deformFactor=0.0, plotter: pv.Plotter = None):
 
     for bc, cycle in zip(BoundaryConditions, color_cycler):
 
-        color = cycle["color"]
+        color = cycle["color"]  # type: ignore [index]
 
         problemType = bc.problemType
         dofsValues = bc.dofsValues
@@ -467,7 +481,7 @@ def Plot_BoundaryConditions(simu, deformFactor=0.0, plotter: pv.Plotter = None):
         if nDof == mesh.Nn:
             # plot points
             plotter.add_mesh(
-                pv.PolyData(coordo[nodes]),
+                pv.PolyData(coord[nodes]),  # type: ignore [arg-type]
                 render_points_as_spheres=False,
                 label=label,
                 color=color,
@@ -483,7 +497,7 @@ def Plot_BoundaryConditions(simu, deformFactor=0.0, plotter: pv.Plotter = None):
             dofsValues = summedValues.toarray()
 
             # here I want to build two display vectors (translation and rotation)
-            start = coordo[nodes]
+            start = coord[nodes]
             vector = np.zeros_like(start)
             vectorRot = np.zeros_like(start)
 
@@ -506,8 +520,8 @@ def Plot_BoundaryConditions(simu, deformFactor=0.0, plotter: pv.Plotter = None):
                 vectorRot = vectorRot / normVectorRot
 
             # here calculate the average distance between the coordinates and the center
-            center = np.mean(coordo, 0)
-            dist = np.linalg.norm(coordo - center, axis=1).max()
+            center = np.mean(coord, 0)
+            dist = np.linalg.norm(coord - center, axis=1).max()
             # use thise distance to apply a magnitude to the vectors
             factor = 1 if dist == 0 else dist * 0.1
 
@@ -522,7 +536,7 @@ def Plot_BoundaryConditions(simu, deformFactor=0.0, plotter: pv.Plotter = None):
             # plot vector
             if normVector == 0:
                 # vector is a matrix of zeros
-                pvData = pv.PolyData(coordo[nodes])
+                pvData = pv.PolyData(coord[nodes])  # type: ignore [arg-type]
                 plotter.add_mesh(
                     pvData, render_points_as_spheres=True, label=label, color=color
                 )
@@ -536,7 +550,7 @@ def Plot_BoundaryConditions(simu, deformFactor=0.0, plotter: pv.Plotter = None):
                 # plot vectorRot
                 if normVectorRot == 0:
                     # vectorRot is a matrix of zeros
-                    pvData = pv.PolyData(coordo[nodes])
+                    pvData = pv.PolyData(coord[nodes])  # type: ignore [arg-type]
                     plotter.add_mesh(
                         pvData, render_points_as_spheres=True, label=label, color=color
                     )
@@ -546,7 +560,7 @@ def Plot_BoundaryConditions(simu, deformFactor=0.0, plotter: pv.Plotter = None):
                         start, vector, factor / 2, label=label, color=color
                     )
 
-    plotter.add_legend(bcolor="white", face="o")
+    plotter.add_legend(bcolor="white", face="o")  # type: ignore [call-arg]
 
     _setCameraPosition(plotter, inDim)
 
@@ -558,7 +572,11 @@ def Plot_BoundaryConditions(simu, deformFactor=0.0, plotter: pv.Plotter = None):
 
 
 def Plot_Geoms(
-    geoms: list, line_width=2, plotLegend=True, plotter: pv.Plotter = None, **kwargs
+    geoms: list,
+    line_width=2,
+    plotLegend=True,
+    plotter: Optional[pv.Plotter] = None,
+    **kwargs,
 ) -> pv.Plotter:
     """Plots _Geom objects
 
@@ -587,18 +605,18 @@ def Plot_Geoms(
     if plotter is None:
         plotter = _Plotter()
 
-    geoms: list[Geoms._Geom] = geoms
+    geoms: list[Geoms._Geom] = geoms  # type: ignore [no-redef]
 
     if not "color" in kwargs.keys():
         pv.global_theme.color_cycler = "default"  # same as matplotlib
         color_cycler = pv.global_theme.color_cycler
     else:
-        color_cycler = cycler(color=[kwargs["color"]])
+        color_cycler = cycler(color=[kwargs["color"]])  # type: ignore [assignment]
         kwargs.pop("color")
 
     for geom, cycle in zip(geoms, color_cycler):
 
-        color = cycle["color"]
+        color = cycle["color"]  # type: ignore [index]
 
         dataSet = _pvGeom(geom)
 
@@ -629,7 +647,7 @@ def Plot_Geoms(
     pv.global_theme.color_cycler = None
 
     if plotLegend:
-        plotter.add_legend(bcolor="white", face="o")
+        plotter.add_legend(bcolor="white", face="o")  # type: ignore [call-arg]
 
     return plotter
 
@@ -638,7 +656,7 @@ def Plot_Geoms(
 # Movie
 # ----------------------------------------------
 def Movie_simu(
-    simu,
+    simu: "_Simu",
     result: str,
     folder: str,
     filename="video.gif",
@@ -670,7 +688,7 @@ def Movie_simu(
         Displays result to nodes otherwise displays it to elements, by default True
     """
 
-    simu = _Init_obj(simu)[0]
+    simu = _Init_obj(simu)[0]  # type: ignore [assignment]
 
     if simu is None:
         MyPrintError("Must give a simulation.")
@@ -776,7 +794,7 @@ DICT_CELL_TYPES: dict[str, tuple[pv.CellType, int]] = {
 # vtk -> https://vtk.org/doc/nightly/html/vtkCellType_8h_source.html
 # https://dev.pyvista.org/api/utilities/_autosummary/pyvista.celltype
 # you can search for vtk elements on the internet
-DICT_GMSH_TO_VTK: dict[str, np.ndarray] = {
+DICT_GMSH_TO_VTK: dict[str, list[int]] = {
     # https://dev.pyvista.org/api/examples/_autosummary/pyvista.examples.cells.quadratichexahedron#pyvista.examples.cells.QuadraticHexahedron
     "HEXA20": [0, 1, 2, 3, 4, 5, 6, 7, 8, 11, 13, 9, 16, 18, 19, 17, 10, 12, 14, 15],
     # https://dev.pyvista.org/api/examples/_autosummary/pyvista.examples.cells.triquadratichexahedron#pyvista.examples.cells.TriQuadraticHexahedron
@@ -843,30 +861,31 @@ def _setCameraPosition(plotter: pv.Plotter, inDim: int, elevation=25, azimuth=10
 
 
 def _pvGrid(
-    obj, result: Union[str, np.ndarray] = None, deformFactor=0.0, nodeValues=True
+    obj: Union["_Simu", "Mesh"],
+    result: Optional[Union[str, _types.AnyArray]] = None,
+    deformFactor=0.0,
+    nodeValues=True,
 ) -> pv.UnstructuredGrid:
     """Creates the pyvista mesh from obj (_Simu, Mesh, _GroupElem and _Geoms object)"""
 
     simu, mesh, coordo, __ = _Init_obj(obj, deformFactor)
 
     elemType = mesh.elemType
-    Nn = mesh.Nn
-    Ne = mesh.Ne
 
     if elemType not in DICT_CELL_TYPES.keys():
         MyPrintError(f"{elemType} is not implemented yet.")
-        return
+        return None  # type: ignore [return-value]
 
     # reorder gmsh idx to vtk indexes
     if mesh.elemType in DICT_GMSH_TO_VTK.keys():
         vtkIndexes = DICT_GMSH_TO_VTK[mesh.elemType]
     else:
-        vtkIndexes = np.arange(mesh.nPe)
+        vtkIndexes = np.arange(mesh.nPe).tolist()
 
     if mesh.elemType in ["TRI10", "TRI15"]:
         # forced to do this because pyvista simply does not have LAGRANGE_TRIANGLE
         # do not put in DICT_VTK_INDEXES because paraview can read LAGRANGE_TRIANGLE without changing the indices
-        vtkIndexes = np.reshape(mesh.groupElem.triangles, (-1, 3))
+        vtkIndexes = np.reshape(mesh.groupElem.triangles, (-1, 3)).tolist()
 
     connect = mesh.connect[:, vtkIndexes]
     connect = np.reshape(connect, (-1, np.shape(vtkIndexes)[-1]))
@@ -874,7 +893,7 @@ def _pvGrid(
     cellType = DICT_CELL_TYPES[elemType][0]
     pvMesh = pv.UnstructuredGrid({cellType: connect}, coordo)
 
-    values = _Get_values(simu, mesh, result, nodeValues)
+    values = _Get_values(simu, mesh, result, nodeValues)  # type: ignore [arg-type]
 
     # Add the result
     if isinstance(result, str) and result != "":
@@ -920,7 +939,7 @@ def _pvGeom(geom) -> Union[pv.DataSet, list[pv.DataSet]]:
         return dataSets
 
     if isinstance(geom, Geoms.Point):
-        dataSet = pv.PolyData(geom.coord)
+        dataSet = pv.PolyData(geom.coord)  # type: ignore [arg-type]
 
     elif isinstance(geom, Geoms.Line):
         dataSet = __Line(geom)
@@ -936,7 +955,7 @@ def _pvGeom(geom) -> Union[pv.DataSet, list[pv.DataSet]]:
         arc2 = pv.CircularArc(
             geom.pt1.coord, geom.pt3.coord, geom.center.coord, negative=True
         )
-        dataSet = [arc1, arc2]
+        dataSet = [arc1, arc2]  # type: ignore [assignment]
 
     elif isinstance(geom, Geoms.CircleArc):
         dataSet = __CircleArc(geom)

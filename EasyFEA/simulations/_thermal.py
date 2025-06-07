@@ -7,7 +7,7 @@ import numpy as np
 from scipy import sparse
 
 # utilities
-from ..utilities import Tic
+from ..utilities import Tic, _types
 
 # fem
 from ..fem import Mesh, MatrixType, FeArray
@@ -209,7 +209,7 @@ class ThermalSimu(_Simu):
 
     def Result(
         self, result: str, nodeValues: bool = True, iter: Optional[int] = None
-    ) -> Union[np.ndarray, float]:
+    ) -> Union[_types.FloatArray, float]:
 
         if iter != None:
             self.Set_Iter(iter)

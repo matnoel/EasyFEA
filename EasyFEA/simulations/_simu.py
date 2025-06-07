@@ -175,7 +175,7 @@ class _Simu(_IObserver, ABC):
     @abstractmethod
     def Result(
         self, option: str, nodeValues=True, iter=None
-    ) -> Union[np.ndarray, float]:
+    ) -> Union[_types.FloatArray, float]:
         """Returns the result. Use Results_Available() to know the available results."""
         pass
 
@@ -1277,8 +1277,8 @@ class _Simu(_IObserver, ABC):
         nDof = self.mesh.Nn * self.Get_dof_n(problemType)
         dofsUnknowns_set = set(range(nDof)) - dofsKnown_set
 
-        dofsKnown = np.asarray(list(dofsKnown), dtype=int)  # type: ignore [type-var]
-        dofsUnknown = np.asarray(list(dofsUnknown), dtype=int)  # type: ignore [type-var]
+        dofsKnown = np.asarray(list(dofsKnown_set), dtype=int)  # type: ignore [type-var]
+        dofsUnknown = np.asarray(list(dofsUnknowns_set), dtype=int)  # type: ignore [type-var]
 
         test = dofsKnown.size + dofsUnknown.size  # type: ignore [attr-defined]
         assert (
@@ -2231,7 +2231,7 @@ def _Init_obj(
 def _Get_values(
     simu: Union[_Simu, None],
     mesh: Mesh,
-    result: Union[str, np.ndarray],
+    result: Union[str, _types.AnyArray],
     nodeValues=True,
 ) -> _types.AnyArray:
     """Retrieves values and ensures compatibility with the mesh.
@@ -2242,7 +2242,7 @@ def _Get_values(
         Simulation (can be set to None).
     mesh : Mesh
         Mesh used to display the result.
-    result : Union[str, np.ndarray]
+    result : Union[str, _types.AnyArray]
         Result you want to display.
         Must be included in simu.Get_Results() or be a numpy array of size (Nn, Ne).
     nodeValues : bool, optional
@@ -2250,7 +2250,7 @@ def _Get_values(
 
     Returns
     -------
-    np.ndarray
+    _types.AnyArray
         values
     """
 

@@ -5,10 +5,10 @@
 from typing import Union, Iterable
 import numpy as np
 
-from ._types import Number, Numbers
+from . import _types
 
 
-def CheckIsPositive(value: Union[Number, Numbers]) -> None:
+def CheckIsPositive(value: Union[_types.Number, _types.Numbers]) -> None:
     """Checks whether the value is positive"""
     errorText = "Must be > 0!"
     if isinstance(value, (int, float)):

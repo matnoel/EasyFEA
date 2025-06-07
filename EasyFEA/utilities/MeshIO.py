@@ -4,7 +4,7 @@
 
 """Module providing an interface with meshio (https://pypi.org/project/meshio/)."""
 
-from . import Folder, Display
+from . import Folder, Display, _types
 from ..fem import Mesher, Mesh, ElemType
 from .PyVista import DICT_GMSH_TO_VTK, np
 
@@ -63,7 +63,7 @@ def _EasyFEA_to_Meshio(
 
     cells_dict: dict[str, np.ndarray] = {}
 
-    list_elements: list[np.ndarray[int]] = []
+    list_elements: list[_types.IntArray] = []
 
     for elemType, groupElem in mesh.dict_groupElem.items():
 
@@ -270,7 +270,7 @@ def EasyFEA_to_Gmsh(mesh: Mesh, folder: str, name: str, useBinary=False) -> str:
 
     # Construct dict_tags as a dictionary with string keys and int values.
     tags = []
-    [tags.extend(groupElem.nodeTags) for groupElem in mesh.dict_groupElem.values()]
+    [tags.extend(groupElem.nodeTags) for groupElem in mesh.dict_groupElem.values()]  # type: ignore [func-returns-value]
     tags = np.unique(tags).tolist()
     # change "L1" as 1
     dict_tags = {tag: int(tag[-1]) for tag in tags if len(tag) == 2}

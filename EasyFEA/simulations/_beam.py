@@ -417,7 +417,7 @@ class BeamSimu(_Simu):
 
     def Result(
         self, result: str, nodeValues: bool = True, iter: Optional[int] = None
-    ) -> Union[np.ndarray, float]:
+    ) -> Union[_types.FloatArray, float]:
 
         if iter != None:
             self.Set_Iter(iter)
