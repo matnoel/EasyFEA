@@ -139,7 +139,7 @@ def __Make_vtu(
     if simu.mesh.elemType in DICT_GMSH_TO_VTK.keys():
         vtkIndexes = DICT_GMSH_TO_VTK[simu.mesh.elemType]
     else:
-        vtkIndexes = np.arange(simu.mesh.nPe)
+        vtkIndexes = np.arange(simu.mesh.nPe).tolist()
     connect = connect[:, vtkIndexes]
 
     coord = simu.mesh.coord

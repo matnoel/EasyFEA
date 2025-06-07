@@ -75,7 +75,7 @@ def _EasyFEA_to_Meshio(
         if elemType in DICT_GMSH_TO_MESHIO_INDEXES:
             vtKindexes = DICT_GMSH_TO_MESHIO_INDEXES[elemType]
         else:
-            vtKindexes = np.arange(groupElem.nPe)
+            vtKindexes = np.arange(groupElem.nPe).tolist()
 
         cells_dict[meshioType] = groupElem.connect[:, vtKindexes]
 
