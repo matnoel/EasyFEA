@@ -2,6 +2,10 @@
 
 This document describes the changes made to the project.
 
+## 1.4.2 (June 7, 2025):
+
+- Direct dependency on meshio@ git+https://github.com/matnoel/meshio.git cannot be included in PyPI.
+
 ## 1.4.1 (June 7, 2025):
 
 - Updated project dependency to https://github.com/matnoel/meshio.git
