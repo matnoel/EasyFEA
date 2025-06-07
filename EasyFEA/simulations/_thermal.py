@@ -63,7 +63,7 @@ class ThermalSimu(_Simu):
         self, details=False
     ) -> tuple[list[str], list[str]]:
         nodesField = ["thermal", "thermalDot"]
-        elementsField = []
+        elementsField: list[str] = []
         return nodesField, elementsField
 
     def Get_problemTypes(self) -> list[ModelType]:
@@ -72,7 +72,7 @@ class ThermalSimu(_Simu):
     @property
     def thermalModel(self) -> Materials.Thermal:
         """Thermal simulation model."""
-        return self.model
+        return self.model  # type: ignore [return-value]
 
     @property
     def thermal(self) -> np.ndarray:
@@ -208,7 +208,7 @@ class ThermalSimu(_Simu):
         return options
 
     def Result(
-        self, result: str, nodeValues: Optional[bool] = True, iter: Optional[int] = None
+        self, result: str, nodeValues: bool = True, iter: Optional[int] = None
     ) -> Union[np.ndarray, float]:
 
         if iter != None:
@@ -232,10 +232,10 @@ class ThermalSimu(_Simu):
 
         return self.Results_Reshape_values(values, nodeValues)
 
-    def Results_Iter_Summary(self) -> list[tuple[str, np.ndarray]]:
+    def Results_Iter_Summary(self) -> tuple[list[int], list[tuple[str, np.ndarray]]]:
         return super().Results_Iter_Summary()
 
-    def Results_dict_Energy(self) -> list[tuple[str, float]]:
+    def Results_dict_Energy(self) -> dict[str, float]:
         return super().Results_dict_Energy()
 
     def Results_displacement_matrix(self) -> np.ndarray:

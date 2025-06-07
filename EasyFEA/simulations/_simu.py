@@ -500,7 +500,7 @@ class _Simu(_IObserver, ABC):
         if isinstance(mesh, Mesh):
             # For all old meshes, delete the matrices
             listMesh: list[Mesh] = self.__listMesh
-            [m._ResetMatrix() for m in listMesh]
+            [m._ResetMatrix() for m in listMesh]  # type: ignore [func-returns-value]
 
             self.__indexMesh += 1
             self.__listMesh.append(mesh)
@@ -779,7 +779,7 @@ class _Simu(_IObserver, ABC):
 
     def _Solver_Solve_NewtonRaphson(
         self,
-        Solve: Callable[[], None],
+        Solve: Callable[[], _types.FloatArray],
         Apply_BC: Callable[[], None],
         tolConv=1.0e-5,
         maxIter=20,
@@ -788,7 +788,7 @@ class _Simu(_IObserver, ABC):
 
         Parameters
         ----------
-        Solve : Callable[[], None]
+        Solve : Callable[[], _types.FloatArray]
             Solve function.
         Apply_BC : Callable[[], None]
             Apply boundary condition function.\n
@@ -949,7 +949,9 @@ class _Simu(_IObserver, ABC):
 
                 x0 = a_n[dofsUnknown]
 
-                ai_n = _Solve_Axb(self, problemType, Aii, ri, x0, [], [])
+                ai_n = _Solve_Axb(
+                    self, problemType, Aii, ri, x0, np.empty(0), np.empty(0)
+                )
 
                 a_n[dofsUnknown] = ai_n
 
@@ -1171,7 +1173,7 @@ class _Simu(_IObserver, ABC):
         # LAGRANGE
         self.__Bc_Lagrange: list[LagrangeCondition] = []
         """Lagrange conditions list[BoundaryCondition]"""
-        self.__Bc_Display = []
+        self.__Bc_Display: list[Union[BoundaryCondition, LagrangeCondition]] = []
         """Boundary conditions for display list[BoundaryCondition]"""
 
     @property
@@ -1202,13 +1204,15 @@ class _Simu(_IObserver, ABC):
             problemType = self.problemType
         # get the number of lagrange conditions applied to the problem
         # len(self.Bc_Lagrange) won't work because we need to filter the problemType
-        nBc = BoundaryCondition.Get_nBc(problemType, self.Bc_Lagrange)
+        nBc = BoundaryCondition.Get_nBc(
+            problemType, self.Bc_Lagrange  # type: ignore [arg-type]
+        )
         if nBc > 0:
             nBc += len(self.Bc_dofs_Dirichlet(problemType))
         return nBc
 
     @property
-    def Bc_Display(self) -> list[LagrangeCondition]:
+    def Bc_Display(self) -> list[Union[BoundaryCondition, LagrangeCondition]]:
         """Returns a copy of the boundary conditions for display."""
         return self.__Bc_Display.copy()
 
@@ -1238,7 +1242,7 @@ class _Simu(_IObserver, ABC):
         vector = csr_vector.toarray().ravel()
         return vector
 
-    def Bc_dofs_Dirichlet(self, problemType=None) -> np.ndarray:
+    def Bc_dofs_Dirichlet(self, problemType=None) -> _types.IntArray:
         """Returns dofs related to Dirichlet conditions."""
         if problemType is None:
             problemType = self.problemType
@@ -1268,20 +1272,15 @@ class _Simu(_IObserver, ABC):
         """Returns known and unknown dofs."""
         tic = Tic()
 
-        # Build known dofs
-        dofsKnown = []
-
-        dofsKnown = set(self.Bc_dofs_Dirichlet(problemType))
-
-        # Build unknown dofs
+        # Build unknown and known dofs
+        dofsKnown_set = set(self.Bc_dofs_Dirichlet(problemType))
         nDof = self.mesh.Nn * self.Get_dof_n(problemType)
+        dofsUnknowns_set = set(range(nDof)) - dofsKnown_set
 
-        dofsUnknown = set(range(nDof)) - dofsKnown
+        dofsKnown = np.asarray(list(dofsKnown), dtype=int)  # type: ignore [type-var]
+        dofsUnknown = np.asarray(list(dofsUnknown), dtype=int)  # type: ignore [type-var]
 
-        dofsKnown = np.asarray(list(dofsKnown), dtype=int)
-        dofsUnknown = np.asarray(list(dofsUnknown), dtype=int)
-
-        test = dofsKnown.size + dofsUnknown.size
+        test = dofsKnown.size + dofsUnknown.size  # type: ignore [attr-defined]
         assert (
             test == nDof
         ), f"Problem under conditions dofsKnown + dofsUnknown - nDof = {test-nDof}"
@@ -2147,7 +2146,7 @@ class _Simu(_IObserver, ABC):
                 # get values on every elements and nPe (Ne, nPe, i)
                 values_e_nPe = values_n[mesh.connect]
                 # get values on elements by averaging over the nodes per elements (nPe)
-                values_e: _types.FloatArray = np.mean(values_e_nPe, 1)
+                values_e = np.mean(values_e_nPe, 1)
                 return values_e.reshape(shape)
 
         # We should never reach this line of code if no unexpected conditions occurs
@@ -2234,7 +2233,7 @@ def _Get_values(
     mesh: Mesh,
     result: Union[str, np.ndarray],
     nodeValues=True,
-) -> np.ndarray:
+) -> _types.AnyArray:
     """Retrieves values and ensures compatibility with the mesh.
 
     Parameters
@@ -2262,7 +2261,7 @@ def _Get_values(
             )
         values = simu.Result(result, nodeValues)  # Retrieve result from option
         if not isinstance(values, np.ndarray):
-            return
+            return None  # type: ignore [return-value]
 
     elif isinstance(result, np.ndarray):
         values = result
@@ -2281,7 +2280,7 @@ def _Get_values(
     else:
         raise Exception("result must be a string or an array")
 
-    return values
+    return values  # type: ignore [return-value]
 
 
 def Load_Simu(folder: str, filename: str = "simulation") -> _Simu:

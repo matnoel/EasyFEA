@@ -277,7 +277,7 @@ class ElasticSimu(_Simu):
         return results
 
     def Result(
-        self, result: str, nodeValues: Optional[bool] = True, iter: Optional[int] = None
+        self, result: str, nodeValues: bool = True, iter: Optional[int] = None
     ) -> Union[np.ndarray, float]:
 
         if iter != None:
@@ -364,7 +364,7 @@ class ElasticSimu(_Simu):
 
         if not isinstance(values, np.ndarray):
             Display.MyPrintError("This result option is not implemented yet.")
-            return
+            return None  # type: ignore [return-value]
 
         # end cases ----------------------------------------------------
 
@@ -507,6 +507,10 @@ class ElasticSimu(_Simu):
                 return 1
             elif "z" in result:
                 return 2
+            else:
+                raise ValueError("result error")
+        else:
+            raise ValueError("result error")
 
     def Results_dict_Energy(self) -> dict[str, float]:
         dict_energy = {r"$\Psi_{elas}$": self._Calc_Psi_Elas()}
@@ -517,30 +521,30 @@ class ElasticSimu(_Simu):
         summary = ""
 
         if not self._Results_Check_Available("Wdef"):
-            return
+            return None  # type: ignore [return-value]
 
         Wdef = self.Result("Wdef")
         summary += f"\nW def = {Wdef:.2f}"
 
         Svm = self.Result("Svm", nodeValues=False)
-        summary += f"\n\nSvm max = {Svm.max():.2f}"
+        summary += f"\n\nSvm max = {Svm.max():.2f}"  # type: ignore [union-attr]
 
         Evm = self.Result("Evm", nodeValues=False)
-        summary += f"\n\nEvm max = {Evm.max()*100:3.2f} %"
+        summary += f"\n\nEvm max = {Evm.max()*100:3.2f} %"  # type: ignore [union-attr]
 
         # Affichage des déplacements
         dx = self.Result("ux", nodeValues=True)
-        summary += f"\n\nUx max = {dx.max():.2e}"
-        summary += f"\nUx min = {dx.min():.2e}"
+        summary += f"\n\nUx max = {dx.max():.2e}"  # type: ignore [union-attr]
+        summary += f"\nUx min = {dx.min():.2e}"  # type: ignore [union-attr]
 
         dy = self.Result("uy", nodeValues=True)
-        summary += f"\n\nUy max = {dy.max():.2e}"
-        summary += f"\nUy min = {dy.min():.2e}"
+        summary += f"\n\nUy max = {dy.max():.2e}"  # type: ignore [union-attr]
+        summary += f"\nUy min = {dy.min():.2e}"  # type: ignore [union-attr]
 
         if self.dim == 3:
             dz = self.Result("uz", nodeValues=True)
-            summary += f"\n\nUz max = {dz.max():.2e}"
-            summary += f"\nUz min = {dz.min():.2e}"
+            summary += f"\n\nUz max = {dz.max():.2e}"  # type: ignore [union-attr]
+            summary += f"\nUz min = {dz.min():.2e}"  # type: ignore [union-attr]
 
         return summary
 
@@ -592,14 +596,14 @@ def Mesh_Optim_ZZ1(
 
     i = -1
     error = 1
-    optimGeom = None
+    optimGeom: Optional[str] = None
     # max=1
     while error >= threshold and i <= iterMax:
 
         i += 1
 
         # perform the simulation
-        simu = DoSimu(optimGeom)
+        simu = DoSimu(optimGeom)  # type: ignore [arg-type]
         assert isinstance(
             simu, ElasticSimu
         ), "DoSimu function must return a Displacement simulation"
@@ -608,10 +612,10 @@ def Mesh_Optim_ZZ1(
 
         if i > 0:
             # remove previous *.pos file
-            Folder.os.remove(optimGeom)
+            Folder.os.remove(optimGeom)  # type: ignore [arg-type]
 
         # Calculate the error with the ZZ1 method
-        error, error_e = simu._Calc_ZZ1()
+        error, error_e = simu._Calc_ZZ1()  # type: ignore [assignment]
 
         print(f"error = {error*100:.3f} %")
 
@@ -621,8 +625,8 @@ def Mesh_Optim_ZZ1(
         # build the *.pos file that will be used to refine the mesh
         optimGeom = Mesher().Create_posFile(mesh.coord, meshSize_n, folder, f"pos{i}")
 
-    if Folder.Exists(optimGeom):
+    if Folder.Exists(optimGeom):  # type: ignore [arg-type]
         # remove last *.pos file
-        Folder.os.remove(optimGeom)
+        Folder.os.remove(optimGeom)  # type: ignore [arg-type]
 
     return simu

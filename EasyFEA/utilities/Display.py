@@ -1575,7 +1575,7 @@ def MyPrintError(text: str) -> str:
     return MyPrint(text, "red")
 
 
-def Section(text: str, verbosity=True) -> None:
+def Section(text: str, verbosity=True) -> str:
     """Creates a new section in the terminal."""
     edges = "======================="
 

@@ -13,6 +13,7 @@ import scipy.sparse.linalg as sla
 
 # utilities
 from ..utilities import Tic, _types
+from typing import Union
 
 # fem
 from ..fem import LagrangeCondition
@@ -124,8 +125,8 @@ def _Solve_Axb(
     A: sparse.csr_matrix,
     b: sparse.csr_matrix,
     x0: _types.FloatArray,
-    lb: _types.FloatArray,
-    ub: _types.FloatArray,
+    lb: Union[_types.AnyArray, _types.Numbers],
+    ub: Union[_types.AnyArray, _types.Numbers],
 ) -> np.ndarray:
     """Solves the linear system A x = b
 
@@ -141,9 +142,9 @@ def _Solve_Axb(
         vector b
     x0 : _types.FloatArray
         initial solution for iterative solvers
-    lb : _types.FloatArray
+    lb : Union[_types.AnyArra, _types.Numbers]
         lowerBoundary of the solution
-    ub : _types.FloatArray
+    ub : Union[_types.AnyArra, _types.Numbers]
         upperBoundary of the solution
 
     Returns
@@ -421,7 +422,7 @@ def __Solver_3(simu, problemType: str):
     A, x = simu._Solver_Apply_Dirichlet(problemType, b, ResolType.r3)
 
     # Solving the penalized matrix system
-    x = _Solve_Axb(simu, problemType, A, b, [], [], [])
+    x = _Solve_Axb(simu, problemType, A, b, np.empty(0), np.empty(0), np.empty(0))
 
     return x
 
@@ -430,9 +431,9 @@ def _PETSc(
     A: sparse.csr_matrix,
     b: sparse.csr_matrix,
     x0: _types.FloatArray,
-    kspType="cg",
-    pcType="ilu",
-) -> np.ndarray:
+    kspType: str = "cg",
+    pcType: str = "ilu",
+) -> tuple[_types.FloatArray, str, bool]:
     """PETSc insterface to solve the linear system A x = b
 
     Parameters
@@ -474,7 +475,7 @@ def _PETSc(
     dimI = A.shape[0]
     dimJ = A.shape[1]
 
-    matrix = PETSc.Mat()
+    matrix = PETSc.Mat()  # type: ignore [attr-defined]
     csr = (A.indptr, A.indices, A.data)
     matrix.createAIJ([dimI, dimJ], comm=__comm, csr=csr)
 
@@ -488,7 +489,7 @@ def _PETSc(
     if len(x0) > 0:
         x.array[:] = x0
 
-    ksp = PETSc.KSP().create()
+    ksp = PETSc.KSP().create()  # type: ignore [attr-defined]
     ksp.setOperators(matrix)
     ksp.setType(kspType)
 
@@ -500,7 +501,7 @@ def _PETSc(
     ksp.solve(vectb, x)
     x = x.array
 
-    converg = ksp.is_converged
+    converg: bool = ksp.is_converged
 
     # PETSc._finalize()
 
@@ -537,7 +538,12 @@ def _ScipyLinearDirect(A: sparse.csr_matrix, b: sparse.csr_matrix, A_isSymetric:
     return x
 
 
-def _BoundConstrain(A, b, lb: _types.FloatArray, ub: _types.FloatArray):
+def _BoundConstrain(
+    A,
+    b,
+    lb: Union[_types.AnyArray, _types.Numbers],
+    ub: Union[_types.AnyArray, _types.Numbers],
+):
 
     assert len(lb) == len(ub), "Must be the same size"
 

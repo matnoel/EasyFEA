@@ -235,10 +235,10 @@ class DIC(_IObserver):
         # ----------------------------------------------
         # Build the shape function matrix for pixels (N)
         # ----------------------------------------------
-        lines_x = []
-        lines_y = []
-        columns_Phi = []
-        values_phi = []
+        lines_x: list[int] = []
+        lines_y: list[int] = []
+        columns_Phi: list[int] = []
+        values_phi: list[float] = []
 
         # Evaluate shape functions for each pixels' coordinates
         x_p, y_p = coordInElem[:, 0], coordInElem[:, 1]
@@ -271,10 +271,10 @@ class DIC(_IObserver):
             # get columns in which for placing values
             columns = pixels.reshape(1, -1).repeat(mesh.nPe, 0).ravel()
 
-            lines_x.extend(linesX)
-            lines_y.extend(linesY)
+            lines_x.extend(linesX.tolist())
+            lines_y.extend(linesY.tolist())
             columns_Phi.extend(columns)
-            values_phi.extend(np.reshape(phi, -1))
+            values_phi.extend(phi.ravel().tolist())
 
         self._N_x = sparse.csr_matrix(
             (values_phi, (lines_x, columns_Phi)), (Ndof, coordInElem.shape[0])

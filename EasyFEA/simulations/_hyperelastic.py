@@ -78,7 +78,7 @@ class HyperElasticSimu(_Simu):
     @property
     def material(self) -> _HyperElas:
         """hyperelastic material"""
-        return self.model
+        return self.model  # type: ignore [return-value]
 
     @property
     def displacement(self) -> np.ndarray:
@@ -243,8 +243,8 @@ class HyperElasticSimu(_Simu):
         rows = np.arange(9).reshape(3, -1)
         cols = np.arange(dim * nPe).reshape(3, -1)
         for i in range(dim):
-            grad_e_pg._assemble(rows[i], cols[i], value=dN_e_pg)
-            Sig_e_pg._assemble(rows[i], rows[i], value=sig_e_pg)
+            grad_e_pg._assemble(rows[i], cols[i], value=dN_e_pg)  # type: ignore [attr-defined]
+            Sig_e_pg._assemble(rows[i], rows[i], value=sig_e_pg)  # type: ignore [attr-defined]
 
         B_e_pg = De_e_pg @ grad_e_pg
 
@@ -322,6 +322,10 @@ class HyperElasticSimu(_Simu):
                 return 1
             elif "z" in result:
                 return 2
+            else:
+                raise ValueError("result error")
+        else:
+            raise ValueError("result error")
 
     def Results_Available(self) -> list[str]:
 
@@ -353,7 +357,7 @@ class HyperElasticSimu(_Simu):
         return results
 
     def Result(
-        self, result: str, nodeValues: Optional[bool] = True, iter: Optional[int] = None
+        self, result: str, nodeValues: bool = True, iter: Optional[int] = None
     ) -> Union[np.ndarray, float]:
 
         if iter != None:
@@ -433,7 +437,7 @@ class HyperElasticSimu(_Simu):
 
         if not isinstance(values, np.ndarray):
             Display.MyPrintError("This result option is not implemented yet.")
-            return
+            return None  # type: ignore [return-value]
 
         # end cases ----------------------------------------------------
 
@@ -461,13 +465,13 @@ class HyperElasticSimu(_Simu):
 
         return self.material.Compute_dWde(self.mesh, self.displacement, matrixType)
 
-    def Results_Iter_Summary(self) -> list[tuple[str, np.ndarray]]:
+    def Results_Iter_Summary(self) -> tuple[list[int], list[tuple[str, np.ndarray]]]:
 
         list_label_values = []
 
         resultats = self.results
         df = pd.DataFrame(resultats)
-        iterations = np.arange(df.shape[0])
+        iterations = np.arange(df.shape[0]).tolist()
 
         damageMaxIter = np.array([np.max(damage) for damage in df["damage"].values])
         list_label_values.append((r"$\phi$", damageMaxIter))

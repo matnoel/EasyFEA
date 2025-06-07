@@ -59,7 +59,7 @@ class BeamSimu(_Simu):
         self.Solver_Set_Elliptic_Algorithm()
 
         # turn beams into observable objects
-        [beam._Add_observer(self) for beam in model.beams]
+        [beam._Add_observer(self) for beam in model.beams]  # type: ignore [func-returns-value]
 
     def Results_nodesField_elementsField(
         self, details=False
@@ -86,7 +86,7 @@ class BeamSimu(_Simu):
     @property
     def structure(self) -> Materials.BeamStructure:
         """Beam structure."""
-        return self.model
+        return self.model  # type: ignore [return-value]
 
     def Get_dof_n(self, problemType=None) -> int:
         return self.structure.dof_n
@@ -212,7 +212,13 @@ class BeamSimu(_Simu):
                 dofs = self.Bc_dofs_nodes(nodes, [dir], problemType)
 
                 new_LagrangeBc = LagrangeCondition(
-                    problemType, nodes, dofs, [dir], [0], [1, -1], description
+                    problemType,
+                    nodes,
+                    dofs,
+                    [dir],
+                    np.asarray([0], dtype=float),
+                    np.asarray([1, -1], dtype=float),
+                    description,
                 )
                 self._Bc_Add_Lagrange(new_LagrangeBc)
         else:
@@ -228,7 +234,7 @@ class BeamSimu(_Simu):
         # Data
         mesh = self.mesh
         if not mesh.groupElem.dim == 1:
-            return
+            return None  # type: ignore [return-value]
         groupElem = mesh.groupElem
 
         # Recovering the beam model
@@ -265,7 +271,7 @@ class BeamSimu(_Simu):
 
         for beam in self.structure.beams:
 
-            elements = mesh.Elements_Tags(beam.name)
+            elements = mesh.Elements_Tags([beam.name])
 
             area_e_pg[elements] = beam.area
 
@@ -292,7 +298,7 @@ class BeamSimu(_Simu):
 
         area_e_pg = np.zeros_like(rho_e_p)
         for beam in self.structure.beams:
-            elements = mesh.Elements_Tags(beam.name)
+            elements = mesh.Elements_Tags([beam.name])
             area_e_pg[elements] = beam.area
 
         center = (rho_e_p * area_e_pg * weightedJacobian_e_pg * coordo_e_p / mass).sum(
@@ -500,6 +506,8 @@ class BeamSimu(_Simu):
                 return 2
             elif dim == 3:
                 return 5
+            else:
+                raise ValueError("result error")
         elif result == "N":
             return 0
         elif result == "Mx" and dim == 3:
@@ -511,6 +519,10 @@ class BeamSimu(_Simu):
                 return 1
             elif dim == 3:
                 return 3
+            else:
+                raise ValueError("result error")
+        else:
+            raise ValueError("result error")
 
         if len(result) == 3 and result[0] == "E":
             # strain case
@@ -523,7 +535,7 @@ class BeamSimu(_Simu):
                 return 2
             elif indices == "yz":
                 return 1
-        if len(result) == 3 and result[0] == "S":
+        elif len(result) == 3 and result[0] == "S":
             # stress case
             indices = result[1:]
             if indices == "xx":
@@ -538,6 +550,8 @@ class BeamSimu(_Simu):
                 return 4
             elif indices == "xy":
                 return -1
+        else:
+            raise ValueError("result error")
 
     def _Calc_Epsilon_e_pg(self, sol: _types.FloatArray) -> FeArray.FeArrayALike:
         """Construct deformations for each element and each Gauss point.\n
@@ -675,7 +689,7 @@ class BeamSimu(_Simu):
     def Results_dict_Energy(self) -> dict[str, float]:
         return super().Results_dict_Energy()
 
-    def Results_Iter_Summary(self) -> list[tuple[str, np.ndarray]]:
+    def Results_Iter_Summary(self) -> tuple[list[int], list[tuple[str, np.ndarray]]]:
         return super().Results_Iter_Summary()
 
     def Results_displacement_matrix(self) -> np.ndarray:
@@ -703,17 +717,17 @@ class BeamSimu(_Simu):
 
         # Displacement display
         dx = self.Result("ux", nodeValues=True)
-        summary += f"\n\nUx max = {dx.max():.2e}"
-        summary += f"\nUx min = {dx.min():.2e}"
+        summary += f"\n\nUx max = {dx.max():.2e}"  # type: ignore [union-attr]
+        summary += f"\nUx min = {dx.min():.2e}"  # type: ignore [union-attr]
 
         if self.structure.dim > 1:
             dy = self.Result("uy", nodeValues=True)
-            summary += f"\n\nUy max = {dy.max():.2e}"
-            summary += f"\nUy min = {dy.min():.2e}"
+            summary += f"\n\nUy max = {dy.max():.2e}"  # type: ignore [union-attr]
+            summary += f"\nUy min = {dy.min():.2e}"  # type: ignore [union-attr]
 
         if self.dim == 3:
             dz = self.Result("uz", nodeValues=True)
-            summary += f"\n\nUz max = {dz.max():.2e}"
-            summary += f"\nUz min = {dz.min():.2e}"
+            summary += f"\n\nUz max = {dz.max():.2e}"  # type: ignore [union-attr]
+            summary += f"\nUz min = {dz.min():.2e}"  # type: ignore [union-attr]
 
         return summary
