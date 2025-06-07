@@ -85,8 +85,8 @@ class _GroupElem(ABC):
         self.__coordGlob = coordGlob
 
         # dictionnary associated with tags on elements or nodes
-        self.__dict_nodes_tags: dict[str, np.ndarray] = {}
-        self.__dict_elements_tags: dict[str, np.ndarray] = {}
+        self.__dict_nodes_tags: dict[str, _types.IntArray] = {}
+        self.__dict_elements_tags: dict[str, _types.IntArray] = {}
         self._InitMatrix()
 
     def _InitMatrix(self) -> None:
@@ -413,7 +413,7 @@ class _GroupElem(ABC):
 
         Returns
         -------
-        np.ndarray
+        _types.FloatArray
             integrated values on elements
         """
 
@@ -688,14 +688,14 @@ class _GroupElem(ABC):
 
     @staticmethod
     def _Eval_Functions(
-        functions: np.ndarray, gaussPoints: _types.FloatArray
+        functions: _types.FloatArray, gaussPoints: _types.FloatArray
     ) -> _types.FloatArray:
         """Evaluates functions at coordinates.\n
         Use this function to evaluate shape functions.
 
         Parameters
         ----------
-        functions : np.ndarray
+        functions : _types.FloatArray
             functions to evaluate, (nPe, dim)
         gaussPoints : _types.FloatArray
             gauss coordinates where functions will be evaluated (nPg, dim).\n
@@ -703,7 +703,7 @@ class _GroupElem(ABC):
 
         Returns
         -------
-        np.ndarray
+        _types.FloatArray
             Evaluated functions (nPg, dim, nPe)
         """
 
@@ -1613,7 +1613,7 @@ class _GroupElem(ABC):
 
         Returns
         -------
-        np.ndarray
+        _types.IntArray
             nodes that meet conditions
         """
 
@@ -1795,7 +1795,7 @@ class _GroupElem(ABC):
         return list(self.__dict_nodes_tags.keys())
 
     @property
-    def _dict_nodes_tags(self) -> dict[str, np.ndarray]:
+    def _dict_nodes_tags(self) -> dict[str, _types.IntArray]:
         """Dictionary associating tags with nodes."""
         return self.__dict_nodes_tags.copy()
 
@@ -1830,7 +1830,7 @@ class _GroupElem(ABC):
         return list(self.__dict_elements_tags.keys())
 
     @property
-    def _dict_elements_tags(self) -> dict[str, np.ndarray]:
+    def _dict_elements_tags(self) -> dict[str, _types.IntArray]:
         """dictionary associating tags with elements."""
         return self.__dict_elements_tags.copy()
 
@@ -1884,7 +1884,7 @@ class _GroupElem(ABC):
 
         Returns
         -------
-        np.ndarray
+        _types.IntArray
             indexes of coordinates contained in element
         """
 

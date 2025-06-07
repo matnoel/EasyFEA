@@ -10,7 +10,8 @@ import numpy as np
 from . import Display, Folder, Tic
 from .PyVista import DICT_GMSH_TO_VTK, DICT_CELL_TYPES
 
-from typing import TYPE_CHECKING, Union
+from typing import TYPE_CHECKING
+from ..utilities import _types
 
 if TYPE_CHECKING:
     from ..simulations._simu import _Simu, Mesh
@@ -181,7 +182,7 @@ def __Make_vtu(
         # Specify the nodes values
         file.write('\t\t\t<PointData scalars="scalar"> \n')
         offset = 0
-        list_values_n: list[np.ndarray] = []  # list of nodes values
+        list_values_n: list[_types.FloatArray] = []  # list of nodes values
         for result_n in nodesField:
 
             values_n = simu.Result(result_n, nodeValues=True).ravel()
@@ -199,7 +200,7 @@ def __Make_vtu(
 
         # Specify the elements values
         file.write("\t\t\t<CellData> \n")
-        list_values_e: list[np.ndarray] = []
+        list_values_e: list[_types.FloatArray] = []
         for result_e in elementsField:
 
             values_e = simu.Result(result_e, nodeValues=False).ravel()

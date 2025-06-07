@@ -81,9 +81,9 @@ class _Simu(_IObserver, ABC):
 
         - def Results_Available(self) -> list[str]:
 
-        - def Result(self, result: str, nodeValues=True, iter=None) -> float | np.ndarray:
+        - def Result(self, result: str, nodeValues=True, iter=None) -> float | _types.FloatArray:
 
-        - def Results_Iter_Summary(self) -> tuple[list[int], list[tuple[str, np.ndarray]]]:
+        - def Results_Iter_Summary(self) -> tuple[list[int], list[tuple[str, _types.FloatArray]]]:
 
         - def Results_dict_Energy(self) -> dict[str, float]:
 
@@ -180,7 +180,9 @@ class _Simu(_IObserver, ABC):
         pass
 
     @abstractmethod
-    def Results_Iter_Summary(self) -> tuple[list[int], list[tuple[str, np.ndarray]]]:
+    def Results_Iter_Summary(
+        self,
+    ) -> tuple[list[int], list[tuple[str, _types.FloatArray]]]:
         """Returns the values to be displayed in Plot_Iter_Summary."""
         return [], []
 
@@ -467,7 +469,9 @@ class _Simu(_IObserver, ABC):
         self.__dict_a_n[problemType] = values
 
     # This method is overloaded in PhaseFieldSimu
-    def Get_lb_ub(self, problemType: ModelType) -> tuple[np.ndarray, np.ndarray]:
+    def Get_lb_ub(
+        self, problemType: ModelType
+    ) -> tuple[_types.FloatArray, _types.FloatArray]:
         """Returns the lower bound and upper bound."""
         return np.array([]), np.array([])
 
@@ -663,7 +667,7 @@ class _Simu(_IObserver, ABC):
 
         Returns
         -------
-        np.ndarray
+        _types.FloatArray
             The solution of the simulation.
         """
 
@@ -783,7 +787,7 @@ class _Simu(_IObserver, ABC):
         Apply_BC: Callable[[], None],
         tolConv=1.0e-5,
         maxIter=20,
-    ) -> tuple[np.ndarray, int, float, list[float]]:
+    ) -> tuple[_types.FloatArray, int, float, list[float]]:
         """Solves the non-linear problem using the newton raphson algorithm.
 
         Parameters
@@ -800,7 +804,7 @@ class _Simu(_IObserver, ABC):
 
         Returns
         -------
-        tuple[np.ndarray, int, float, list[float]]
+        tuple[_types.FloatArray, int, float, list[float]]
             return u, Niter, timeIter, list_res
         """
 
@@ -1370,7 +1374,7 @@ class _Simu(_IObserver, ABC):
             nodes
         values : list
             list of values that can contains floats, arrays or functions or functions.\n
-            e.g [10, lambda x,y,z: 10*x - 20*y + x*z, np.ndarray]\n
+            e.g [10, lambda x,y,z: 10*x - 20*y + x*z, _types.FloatArray]\n
             The functions use the x, y and z nodes coordinates.\n
             Please note that the functions must take 3 input parameters in the order x, y, z, whether the problem is 1D, 2D or 3D.
         unknowns : list[str]
@@ -1427,7 +1431,7 @@ class _Simu(_IObserver, ABC):
             nodes
         values : list
             list of values that can contains floats, arrays or functions or functions.\n
-            e.g [10, lambda x,y,z: 10*x - 20*y + x*z, np.ndarray]\n
+            e.g [10, lambda x,y,z: 10*x - 20*y + x*z, _types.FloatArray]\n
             The functions use the x, y and z nodes coordinates.\n
             Please note that the functions must take 3 input parameters in the order x, y, z, whether the problem is 1D, 2D or 3D.
         unknowns : list[str]
@@ -1468,7 +1472,7 @@ class _Simu(_IObserver, ABC):
             nodes
         values : list
             list of values that can contain floats, arrays or functions or lambda functions.\n
-            e.g = [10, lambda x,y,z: 10*x - 20*y + x*z, np.ndarray] \n
+            e.g = [10, lambda x,y,z: 10*x - 20*y + x*z, _types.FloatArray] \n
             functions use x, y and z integration points coordinates (x,y,z are in this case arrays of dim (e,p)) \n
             Please note that the functions must take 3 input parameters in the order x, y, z, whether the problem is 1D, 2D or 3D.
         unknowns : list[str]
@@ -1511,7 +1515,7 @@ class _Simu(_IObserver, ABC):
             nodes
         values : list
             list of values that can contain floats, arrays or functions or lambda functions.\n
-            e.g = [10, lambda x,y,z: 10*x - 20*y + x*z, np.ndarray] \n
+            e.g = [10, lambda x,y,z: 10*x - 20*y + x*z, _types.FloatArray] \n
             functions use x, y and z integration points coordinates (x,y,z are in this case arrays of dim (e,p)) \n
             Please note that the functions must take 3 input parameters in the order x, y, z, whether the problem is 1D, 2D or 3D.
         unknowns : list[str]
@@ -1603,7 +1607,7 @@ class _Simu(_IObserver, ABC):
             nodes
         values : list
             list of values that can contain floats, arrays or functions or lambda functions.\n
-            e.g = [10, lambda x,y,z: 10*x - 20*y + x*z, np.ndarray] \n
+            e.g = [10, lambda x,y,z: 10*x - 20*y + x*z, _types.FloatArray] \n
             functions use x, y and z integration points coordinates (x,y,z are in this case arrays of dim (e,p)) \n
             Please note that the functions must take 3 input parameters in the order x, y, z, whether the problem is 1D, 2D or 3D.
         unknowns : list[str]
@@ -1643,7 +1647,7 @@ class _Simu(_IObserver, ABC):
         nodes: _types.IntArray,
         values: list,
         unknowns: list,
-    ) -> tuple[np.ndarray, np.ndarray]:
+    ) -> tuple[_types.FloatArray, _types.IntArray]:
         """Adds a point load."""
 
         Nn = nodes.shape[0]
@@ -1687,7 +1691,7 @@ class _Simu(_IObserver, ABC):
 
         Returns
         -------
-        np.ndarray
+        _types.FloatArray
             scaled values
         """
         return values_e_p
@@ -1795,7 +1799,7 @@ class _Simu(_IObserver, ABC):
         nodes: _types.IntArray,
         values: list,
         unknowns: list,
-    ) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
+    ) -> tuple[_types.FloatArray, _types.IntArray, _types.IntArray]:
         """Adds a linear load.\n
         returns dofsValues, dofs, nodes"""
 
@@ -1817,7 +1821,7 @@ class _Simu(_IObserver, ABC):
         nodes: _types.IntArray,
         values: list,
         unknowns: list,
-    ) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
+    ) -> tuple[_types.FloatArray, _types.IntArray, _types.IntArray]:
         """Apply a surface force.\n
         returns dofsValues, dofs, nodes"""
 
@@ -1839,7 +1843,7 @@ class _Simu(_IObserver, ABC):
         nodes: _types.IntArray,
         values: list,
         unknowns: list,
-    ) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
+    ) -> tuple[_types.FloatArray, _types.IntArray, _types.IntArray]:
         """Adds a volumetric load.\n
         returns dofsValues, dofs, nodes"""
 
@@ -1857,7 +1861,7 @@ class _Simu(_IObserver, ABC):
 
     def __Bc_pressureload(
         self, problemType: ModelType, nodes: _types.IntArray, magnitude: float
-    ) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
+    ) -> tuple[_types.FloatArray, _types.IntArray, _types.IntArray]:
         """Adds a pressure load.\n
         returns dofsValues, dofs, nodes"""
 
@@ -1966,9 +1970,9 @@ class _Simu(_IObserver, ABC):
     def Get_contact(
         self,
         masterMesh: Mesh,
-        slaveNodes: Optional[np.ndarray] = None,
-        masterNodes: Optional[np.ndarray] = None,
-    ) -> tuple[np.ndarray, np.ndarray]:
+        slaveNodes: Optional[_types.IntArray] = None,
+        masterNodes: Optional[_types.IntArray] = None,
+    ) -> tuple[_types.IntArray, _types.FloatArray]:
         """Returns the simulation nodes detected in the master mesh with the associated displacement matrix to the interface.
 
         Parameters
@@ -1982,7 +1986,7 @@ class _Simu(_IObserver, ABC):
 
         Returns
         -------
-        tuple[np.ndarray, np.ndarray]
+        tuple[_types.IntArray, _types.FloatArray]
             nodes, displacementMatrix
         """
 
@@ -2023,7 +2027,7 @@ class _Simu(_IObserver, ABC):
             )
 
             # empty new displacement
-            listU: list[np.ndarray] = []
+            listU: list[_types.FloatArray] = []
             # for each nodes in master mesh we will detects the shortest displacement vector to the interface
             for node in nodes:
                 # vectors between the interface coordinates and the detected node

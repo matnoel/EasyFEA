@@ -6,6 +6,7 @@
 
 import numpy as np
 from numba import njit, prange, jit  # type: ignore [import-untyped]
+from ..utilities import _types
 
 __USE_CACHE = True
 __USE_PARALLEL = True
@@ -14,8 +15,8 @@ __USE_FASTMATH = False
 
 @njit(cache=__USE_CACHE, parallel=__USE_PARALLEL, fastmath=__USE_FASTMATH)
 def Get_Anisot_C(
-    Cp_e_pg: np.ndarray, mat: np.ndarray, Cm_e_pg: np.ndarray
-) -> tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
+    Cp_e_pg: _types.FloatArray, mat: _types.FloatArray, Cm_e_pg: _types.FloatArray
+) -> tuple[_types.FloatArray, _types.FloatArray, _types.FloatArray, _types.FloatArray]:
 
     # WARNING: There may be a memory problem if mat is heterogeneous (epij). That's why mat is not heterogeneous.
 
@@ -58,8 +59,8 @@ def Get_Anisot_C(
 
 @njit(cache=__USE_CACHE, parallel=__USE_PARALLEL, fastmath=__USE_FASTMATH)
 def Get_G12_G13_G23(
-    M1: np.ndarray, M2: np.ndarray, M3: np.ndarray
-) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
+    M1: _types.FloatArray, M2: _types.FloatArray, M3: _types.FloatArray
+) -> tuple[_types.FloatArray, _types.FloatArray, _types.FloatArray]:
 
     if __USE_PARALLEL:
         range = prange
@@ -390,13 +391,13 @@ def Get_G12_G13_G23(
 
 @njit(cache=__USE_CACHE, parallel=__USE_PARALLEL, fastmath=__USE_FASTMATH)
 def Get_projP_projM_2D(
-    BetaP: np.ndarray,
-    gammap: np.ndarray,
-    BetaM: np.ndarray,
-    gammam: np.ndarray,
-    m1: np.ndarray,
-    m2: np.ndarray,
-) -> tuple[np.ndarray, np.ndarray]:
+    BetaP: _types.FloatArray,
+    gammap: _types.FloatArray,
+    BetaM: _types.FloatArray,
+    gammam: _types.FloatArray,
+    m1: _types.FloatArray,
+    m2: _types.FloatArray,
+) -> tuple[_types.FloatArray, _types.FloatArray]:
 
     if __USE_PARALLEL:
         range = prange
@@ -437,13 +438,13 @@ def Get_projP_projM_2D(
 
 @njit(cache=__USE_CACHE, parallel=__USE_PARALLEL, fastmath=__USE_FASTMATH)
 def Get_projP_projM_3D(
-    dvalp: np.ndarray,
-    dvalm: np.ndarray,
-    thetap: np.ndarray,
-    thetam: np.ndarray,
-    list_mi: list[np.ndarray],
-    list_Gab: list[np.ndarray],
-) -> tuple[np.ndarray, np.ndarray]:
+    dvalp: _types.FloatArray,
+    dvalm: _types.FloatArray,
+    thetap: _types.FloatArray,
+    thetam: _types.FloatArray,
+    list_mi: list[_types.FloatArray],
+    list_Gab: list[_types.FloatArray],
+) -> tuple[_types.FloatArray, _types.FloatArray]:
 
     # ../FEMOBJECT/BASIC/MODEL/MATERIALS/@ELAS_ISOT/calc_proj_Miehe.m
 
@@ -493,8 +494,8 @@ def Get_projP_projM_3D(
 
 @njit(cache=__USE_CACHE, parallel=__USE_PARALLEL, fastmath=__USE_FASTMATH)
 def Get_Cp_Cm_Stress(
-    c: np.ndarray, sP_e_pg: np.ndarray, sM_e_pg: np.ndarray
-) -> tuple[np.ndarray, np.ndarray]:
+    c: _types.FloatArray, sP_e_pg: _types.FloatArray, sM_e_pg: _types.FloatArray
+) -> tuple[_types.FloatArray, _types.FloatArray]:
 
     if __USE_PARALLEL:
         range = prange

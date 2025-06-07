@@ -102,7 +102,7 @@ class ElasticSimu(_Simu):
         3D [axi, ayi, azi, ...]"""
         return self._Get_a_n(self.problemType)
 
-    def __Construct_Local_Matrix(self) -> tuple[np.ndarray, np.ndarray]:
+    def __Construct_Local_Matrix(self) -> tuple[_types.FloatArray, _types.FloatArray]:
         """Computes the elementary stiffness matrices for the elastic problem."""
 
         mesh = self.mesh
@@ -548,7 +548,9 @@ class ElasticSimu(_Simu):
 
         return summary
 
-    def Results_Iter_Summary(self) -> tuple[list[int], list[tuple[str, np.ndarray]]]:
+    def Results_Iter_Summary(
+        self,
+    ) -> tuple[list[int], list[tuple[str, _types.FloatArray]]]:
         return super().Results_Iter_Summary()
 
     def Results_displacement_matrix(self) -> _types.FloatArray:

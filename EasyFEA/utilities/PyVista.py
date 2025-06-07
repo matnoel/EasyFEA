@@ -31,7 +31,7 @@ def Plot(
         "Mesh",
         Any,
     ],
-    result: Optional[Union[str, _types.AnyArray]] = None,
+    result: Optional[Union[str, _types.FloatArray]] = None,
     deformFactor=0.0,
     coef=1.0,
     nodeValues=True,
@@ -59,7 +59,7 @@ def Plot(
     ----------
     obj : _Simu | Mesh | MultiBlock | PolyData | UnstructuredGrid
         The object to plot and will be transformed to a mesh
-    result : Union[str,np.ndarray], optional
+    result : Union[str,_types.FloatArray], optional
         Scalars used to “color” the mesh, by default None
     deformFactor : float, optional
         Factor used to display the deformed solution (0 means no deformations), default 0.0
@@ -231,7 +231,7 @@ def Plot_Mesh(
 
 def Plot_Nodes(
     obj: Union["_Simu", "Mesh"],
-    nodes: Optional[np.ndarray] = None,
+    nodes: Optional[_types.IntArray] = None,
     showId=False,
     deformFactor=0,
     color="red",
@@ -282,7 +282,7 @@ def Plot_Nodes(
             else:
                 coord = coord[nodes]
         elif nodes.ndim == 2 and nodes.shape[1] == 3:
-            coord = nodes
+            coord = nodes  # type: ignore [assignment]
         else:
             MyPrintError(
                 "Nodes must be either a list of nodes or a matrix of 3D vectors of dimension (n, 3)."
@@ -310,7 +310,7 @@ def Plot_Nodes(
 
 def Plot_Elements(
     obj: Union["_Simu", "Mesh"],
-    nodes: Optional[np.ndarray] = None,
+    nodes: Optional[_types.IntArray] = None,
     dimElem: Optional[int] = None,
     showId=False,
     deformFactor=0.0,

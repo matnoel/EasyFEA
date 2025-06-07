@@ -689,7 +689,9 @@ class BeamSimu(_Simu):
     def Results_dict_Energy(self) -> dict[str, float]:
         return super().Results_dict_Energy()
 
-    def Results_Iter_Summary(self) -> tuple[list[int], list[tuple[str, np.ndarray]]]:
+    def Results_Iter_Summary(
+        self,
+    ) -> tuple[list[int], list[tuple[str, _types.FloatArray]]]:
         return super().Results_Iter_Summary()
 
     def Results_displacement_matrix(self) -> _types.FloatArray:

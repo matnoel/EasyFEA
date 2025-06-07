@@ -160,7 +160,7 @@ class HyperElasticSimu(_Simu):
 
         Returns
         -------
-        np.ndarray
+        _types.FloatArray
             u_np1: displacement vector field
         """
 
@@ -465,7 +465,9 @@ class HyperElasticSimu(_Simu):
 
         return self.material.Compute_dWde(self.mesh, self.displacement, matrixType)
 
-    def Results_Iter_Summary(self) -> tuple[list[int], list[tuple[str, np.ndarray]]]:
+    def Results_Iter_Summary(
+        self,
+    ) -> tuple[list[int], list[tuple[str, _types.FloatArray]]]:
 
         list_label_values = []
 

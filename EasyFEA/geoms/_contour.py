@@ -74,7 +74,7 @@ class Contour(_Geom):
         meshSize = np.mean([geom.meshSize for geom in geoms]).astype(float)
         _Geom.__init__(self, points, meshSize, name, isHollow, isOpen)
 
-    def Get_coord_for_plot(self) -> tuple[np.ndarray, np.ndarray]:
+    def Get_coord_for_plot(self) -> tuple[_types.FloatArray, _types.FloatArray]:
 
         list_line: list[_types.FloatArray] = []
         list_point: list[_types.FloatArray] = []

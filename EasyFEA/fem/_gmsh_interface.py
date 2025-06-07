@@ -2142,7 +2142,9 @@ class Mesher:
             if result not in results
         ]
 
-        dict_results: dict[str, list[np.ndarray]] = {result: [] for result in results}
+        dict_results: dict[str, list[_types.FloatArray]] = {
+            result: [] for result in results
+        }
 
         # activates the first iteration
         simu.Set_Iter(0, resetAll=True)

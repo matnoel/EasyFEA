@@ -6,6 +6,7 @@
 
 from abc import ABC, abstractmethod
 import numpy as np
+from typing import Union
 
 # utilities
 from ..fem import Mesh, MatrixType, FeArray
@@ -83,7 +84,7 @@ class _HyperElas(_IModel, ABC):
 
         Returns
         -------
-        np.ndarray
+        FeArray.FeArrayALike
             We_e_pg of shape (Ne, pg)
         """
 
@@ -106,7 +107,7 @@ class _HyperElas(_IModel, ABC):
 
         Returns
         -------
-        np.ndarray
+        FeArray.FeArrayALike
             Σ_e_pg of shape (Ne, pg, 6)
 
         Σxx, Σyy, Σzz, sqrt(2) Σyz, sqrt(2) Σxz, sqrt(2) Σxy
@@ -130,7 +131,7 @@ class _HyperElas(_IModel, ABC):
 
         Returns
         -------
-        np.ndarray
+        FeArray.FeArrayALike
             dΣde_e_pg of shape (Ne, pg, 6, 6)
         """
         return None  # type: ignore [return-value]
@@ -143,14 +144,14 @@ class _HyperElas(_IModel, ABC):
 
 class NeoHookean(_HyperElas):
 
-    def __init__(self, dim: int, K: float, thickness=1.0):
+    def __init__(self, dim: int, K: Union[float, _types.FloatArray], thickness=1.0):
         """Creates an Neo-Hookean material.
 
         Parameters
         ----------
         dim : int
             dimension (e.g 2 or 3)
-        K : float|np.ndarray, optional
+        K : float|_types.FloatArray, optional
             Bulk modulus
         thickness : float, optional
             thickness, by default 1.0
@@ -233,16 +234,22 @@ class NeoHookean(_HyperElas):
 
 class MooneyRivlin(_HyperElas):
 
-    def __init__(self, dim: int, K1: float, K2: float, thickness=1.0):
+    def __init__(
+        self,
+        dim: int,
+        K1: Union[float, _types.FloatArray],
+        K2: Union[float, _types.FloatArray],
+        thickness=1.0,
+    ):
         """Creates an Mooney-Rivlin material.
 
         Parameters
         ----------
         dim : int
             dimension (e.g 2 or 3)
-        K1 : float|np.ndarray, optional
+        K1 : float|_types.FloatArray, optional
             Kappa1
-        K2 : float|np.ndarray, optional
+        K2 : float|_types.FloatArray, optional
             Kappa2 -> Neo-Hoolkean if K2=0
         thickness : float, optional
             thickness, by default 1.0
@@ -354,16 +361,22 @@ class MooneyRivlin(_HyperElas):
 
 class SaintVenantKirchhoff(_HyperElas):
 
-    def __init__(self, dim: int, lmbda: float, mu: float, thickness=1.0):
+    def __init__(
+        self,
+        dim: int,
+        lmbda: Union[float, _types.FloatArray],
+        mu: Union[float, _types.FloatArray],
+        thickness=1.0,
+    ):
         """Creates Saint-Venant-Kirchhoff material.
 
         Parameters
         ----------
         dim : int
             dimension (e.g 2 or 3)
-        lmbda : float|np.ndarray, optional
+        lmbda : float|_types.FloatArray, optional
             Lame's first parameter
-        mu : float|np.ndarray, optional
+        mu : float|_types.FloatArray, optional
             Shear modulus
         thickness : float, optional
             thickness, by default 1.0

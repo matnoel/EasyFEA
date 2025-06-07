@@ -61,7 +61,7 @@ def _EasyFEA_to_Meshio(
 
     assert isinstance(mesh, Mesh), "mesh must be a EasyFEA mesh!"
 
-    cells_dict: dict[str, np.ndarray] = {}
+    cells_dict: dict[str, _types.IntArray] = {}
 
     list_elements: list[_types.IntArray] = []
 
@@ -105,14 +105,14 @@ def _EasyFEA_to_Meshio(
 
 
 def _Meshio_to_EasyFEA(
-    meshio_mesh: meshio.Mesh, mesh_file: str, dict_tags: dict[str, np.ndarray]
+    meshio_mesh: meshio.Mesh, mesh_file: str, dict_tags: dict[str, _types.IntArray]
 ) -> Mesh:
     """Convert meshio mesh to EasyFEA format.
 
     Args:
         meshio_mesh (meshio.Mesh): Meshio mesh object.
         mesh_file (str): Path to the mesh file.
-        dict_tags (dict[str, np.ndarray]): Dictionary of tags that should be contained within `meshio_mesh.cell_data_dict`.
+        dict_tags (dict[str, _types.IntArray]): Dictionary of tags that should be contained within `meshio_mesh.cell_data_dict`.
 
     Returns:
         Mesh: Converted EasyFEA mesh object.
@@ -140,12 +140,12 @@ def _Meshio_to_EasyFEA(
     return mesh
 
 
-def _Set_Tags(mesh: Mesh, dict_tags: dict[str, np.ndarray]):
+def _Set_Tags(mesh: Mesh, dict_tags: dict[str, _types.IntArray]):
     """Set tags for nodes and elements in the EasyFEA mesh.
 
     Args:
         mesh (Mesh): EasyFEA mesh object.
-        dict_tags (dict[str, np.ndarray]): Dictionary of tags for elements.
+        dict_tags (dict[str, _types.IntArray]): Dictionary of tags for elements.
     """
 
     assert isinstance(mesh, Mesh), "mesh must be a EasyFEA mesh!"

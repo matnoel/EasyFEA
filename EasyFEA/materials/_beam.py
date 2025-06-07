@@ -239,7 +239,7 @@ class Beam_Elas_Isot(_Beam):
         section: Mesh,
         E: float,
         v: float,
-        yAxis: Union[list, tuple, np.ndarray] = (0, 1, 0),
+        yAxis: _types.Coords = (0, 1, 0),
     ):
         """Creates an isotropic elastic beam.
 
@@ -255,7 +255,7 @@ class Beam_Elas_Isot(_Beam):
             Young's module
         v : float
             Poisson's ratio
-        yAxis: tuple|list|array, optional
+        yAxis: _types.Coords, optional
             vertical cross-beam axis, by default (0,1,0)
         """
 
@@ -403,7 +403,9 @@ class BeamStructure(_IModel):
 
         return D_e_pg
 
-    def Get_axis_e(self, groupElem: _GroupElem) -> tuple[np.ndarray, np.ndarray]:
+    def Get_axis_e(
+        self, groupElem: _GroupElem
+    ) -> tuple[_types.FloatArray, _types.FloatArray]:
         """Returns the fiber and cross bar vertical axis on every elements.\n
         return xAxis_e, yAxis_e"""
 

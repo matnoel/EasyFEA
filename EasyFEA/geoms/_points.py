@@ -128,7 +128,7 @@ class Points(_Geom):
 
         return contour
 
-    def Get_coord_for_plot(self) -> tuple[np.ndarray, np.ndarray]:
+    def Get_coord_for_plot(self) -> tuple[_types.FloatArray, _types.FloatArray]:
         return super().Get_coord_for_plot()
 
     @property

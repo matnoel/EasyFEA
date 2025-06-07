@@ -94,7 +94,9 @@ class PhaseFieldSimu(_Simu):
     def Get_problemTypes(self) -> list[ModelType]:
         return [ModelType.damage, ModelType.elastic]
 
-    def Get_lb_ub(self, problemType: ModelType) -> tuple[np.ndarray, np.ndarray]:
+    def Get_lb_ub(
+        self, problemType: ModelType
+    ) -> tuple[_types.FloatArray, _types.FloatArray]:
 
         if problemType == ModelType.damage:
             solveur = self.phaseFieldModel.solver
@@ -258,7 +260,7 @@ class PhaseFieldSimu(_Simu):
 
     def Solve(
         self, tolConv=1.0, maxIter=500, convOption=2
-    ) -> tuple[np.ndarray, np.ndarray, sparse.csr_matrix, bool]:
+    ) -> tuple[_types.FloatArray, _types.FloatArray, sparse.csr_matrix, bool]:
         """Solves the iterative damage problem using the staggered scheme.
 
         Parameters
@@ -277,7 +279,7 @@ class PhaseFieldSimu(_Simu):
 
         Returns
         -------
-        np.ndarray, np.ndarray, csr_matrix, bool
+        _types.FloatArray, _types.FloatArray, csr_matrix, bool
             u_np1, d_np1, Ku, converged
 
             such that:\n
@@ -526,7 +528,7 @@ class PhaseFieldSimu(_Simu):
 
         return self.__psiP_e_pg
 
-    def __Construct_Damage_Matrix(self) -> tuple[np.ndarray, np.ndarray]:
+    def __Construct_Damage_Matrix(self) -> tuple[_types.FloatArray, _types.FloatArray]:
         """Computes the elementary matrices for the damage problem."""
 
         pfm = self.phaseFieldModel
@@ -972,7 +974,9 @@ class PhaseFieldSimu(_Simu):
         }
         return dict_energy
 
-    def Results_Iter_Summary(self) -> tuple[list[int], list[tuple[str, np.ndarray]]]:
+    def Results_Iter_Summary(
+        self,
+    ) -> tuple[list[int], list[tuple[str, _types.FloatArray]]]:
 
         list_label_values = []
 

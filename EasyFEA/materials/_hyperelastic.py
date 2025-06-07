@@ -289,7 +289,7 @@ class HyperElastic:
 
         Returns if dim = 2
         ------------------
-        np.ndarray
+        FeArray.FeArrayALike
             D_e_pg of shape (Ne, pg, 3, 4)
 
             [1+dxux, 0, dxuy, 0] # xx \n
@@ -298,7 +298,7 @@ class HyperElastic:
 
         Returns if dim = 3
         ------------------
-        FeArray
+        FeArray.FeArrayALike
             D_e_pg of shape (Ne, pg, 6, 9)
 
             [1+dxux, 0, 0, dxuy, 0, 0, dxuz, 0, 0] # xx \n
@@ -320,7 +320,7 @@ class HyperElastic:
         else:
             D_e_pg = FeArray.zeros(Ne, nPg, 6, 9)
 
-        def Add_to_D_e_pg(p: int, line: int, values: list[np.ndarray], coef=1.0):
+        def Add_to_D_e_pg(p: int, line: int, values: list[_types.FloatArray], coef=1.0):
             N = 4 if dim == 2 else 9
             for column in range(N):
                 D_e_pg[:, p, line, column] = values[column] * coef

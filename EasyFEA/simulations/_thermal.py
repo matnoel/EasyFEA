@@ -104,7 +104,7 @@ class ThermalSimu(_Simu):
         initcsr = sparse.csr_matrix((size, size))
         return self.__Kt.copy(), self.__Ct.copy(), initcsr, self.__Ft.copy()
 
-    def __Construct_Thermal_Matrix(self) -> tuple[np.ndarray, np.ndarray]:
+    def __Construct_Thermal_Matrix(self) -> tuple[_types.FloatArray, _types.FloatArray]:
 
         thermalModel = self.thermalModel
         mesh = self.mesh
@@ -232,7 +232,9 @@ class ThermalSimu(_Simu):
 
         return self.Results_Reshape_values(values, nodeValues)
 
-    def Results_Iter_Summary(self) -> tuple[list[int], list[tuple[str, np.ndarray]]]:
+    def Results_Iter_Summary(
+        self,
+    ) -> tuple[list[int], list[tuple[str, _types.FloatArray]]]:
         return super().Results_Iter_Summary()
 
     def Results_dict_Energy(self) -> dict[str, float]:

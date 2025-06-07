@@ -36,7 +36,7 @@ if TYPE_CHECKING:
 # ----------------------------------------------
 def Plot_Result(
     simu: "_Simu",
-    result: Union[str, np.ndarray],
+    result: Union[str, _types.FloatArray],
     deformFactor: _types.Number = 0.0,
     coef: _types.Number = 1.0,
     nodeValues: bool = True,
@@ -58,7 +58,7 @@ def Plot_Result(
     ----------
     obj : _Simu
         simulation
-    result : str or np.ndarray
+    result : str | _types.FloatArray
         Result you want to display.
         Must be included in simu.Get_Results() or be a numpy array of size (Nn, Ne).
     deformFactor : float, optional
@@ -871,9 +871,7 @@ def Plot_Tags(
         tags_e = groupElem.elementTags
         dim = groupElem.dim
         coordo = groupElem.coordGlob[:, :inDim]
-        center_e: np.ndarray = np.mean(
-            coordo[groupElem.connect], axis=1
-        )  # center of each elements
+        center_e = np.mean(coordo[groupElem.connect], axis=1)  # center of each elements
         faces_coordinates = coordo[
             groupElem.connect[:, groupElem.faces.ravel().tolist()]
         ]

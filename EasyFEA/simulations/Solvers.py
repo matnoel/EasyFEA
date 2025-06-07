@@ -457,7 +457,7 @@ def _PETSc(
 
     Returns
     -------
-    np.ndarray
+    _types.FloatArray
         x solution to A x = b
     """
 

@@ -149,13 +149,13 @@ class _Elas(_IModel, ABC):
         self.__sqrt_S = None  # dont remove
 
     @abstractmethod
-    def Walpole_Decomposition(self) -> tuple[np.ndarray, np.ndarray]:
+    def Walpole_Decomposition(self) -> tuple[_types.FloatArray, _types.FloatArray]:
         """Walpole's decomposition in Kelvin Mandel notation such that:\n
         C = sum(ci * Ei).\n
         returns ci, Ei"""
         return np.array([]), np.array([])
 
-    def Get_sqrt_C_S(self) -> tuple[np.ndarray, np.ndarray]:
+    def Get_sqrt_C_S(self) -> tuple[_types.FloatArray, _types.FloatArray]:
         """Returns the Matrix square root of C and S."""
 
         C = self.C
@@ -392,7 +392,7 @@ class Elas_Isot(_Elas):
 
         return c, s
 
-    def Walpole_Decomposition(self) -> tuple[np.ndarray, np.ndarray]:
+    def Walpole_Decomposition(self) -> tuple[_types.FloatArray, _types.FloatArray]:
 
         c1 = self.get_bulk()
         c2 = self.get_mu()
@@ -594,7 +594,9 @@ class Elas_IsotTrans(_Elas):
         self.C = C
         self.S = S
 
-    def _Behavior(self, dim: Optional[int] = None, P: Optional[np.ndarray] = None):
+    def _Behavior(
+        self, dim: Optional[int] = None, P: Optional[_types.FloatArray] = None
+    ):
         """Updates the constitutives laws by updating the C stiffness and S compliance matrices in Kelvin Mandel notation.\n
 
         In 2D:
@@ -723,7 +725,7 @@ class Elas_IsotTrans(_Elas):
 
         return c, s
 
-    def Walpole_Decomposition(self) -> tuple[np.ndarray, np.ndarray]:
+    def Walpole_Decomposition(self) -> tuple[_types.FloatArray, _types.FloatArray]:
 
         El = self.El
         Gl = self.Gl
@@ -930,5 +932,5 @@ class Elas_Anisot(_Elas):
         """axis2 vector"""
         return self.__axis2.copy()
 
-    def Walpole_Decomposition(self) -> tuple[np.ndarray, np.ndarray]:
+    def Walpole_Decomposition(self) -> tuple[_types.FloatArray, _types.FloatArray]:
         return super().Walpole_Decomposition()

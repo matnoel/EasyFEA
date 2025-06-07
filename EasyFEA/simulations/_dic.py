@@ -28,8 +28,8 @@ class DIC(_IObserver):
         idxImgRef: int,
         imgRef: _types.FloatArray,
         lr: float = 0.0,
-        forces: Optional[np.ndarray] = None,
-        displacements: Optional[np.ndarray] = None,
+        forces: Optional[_types.FloatArray] = None,
+        displacements: Optional[_types.FloatArray] = None,
         verbosity=False,
     ):
         """Creates a DIC analysis.
@@ -75,8 +75,8 @@ class DIC(_IObserver):
 
         # results
         self.__list_idx: list[int] = []
-        self.__list_u: list[np.ndarray] = []
-        self.__list_img: list[np.ndarray] = []
+        self.__list_u: list[_types.FloatArray] = []
+        self.__list_img: list[_types.FloatArray] = []
 
         self._verbosity: bool = verbosity
 
@@ -154,12 +154,12 @@ class DIC(_IObserver):
         return self.__list_idx.copy()
 
     @property
-    def list_u(self) -> list[np.ndarray]:
+    def list_u(self) -> list[_types.FloatArray]:
         """copy of the list containing the calculated displacement fields."""
         return self.__list_u.copy()
 
     @property
-    def list_img(self) -> list[np.ndarray]:
+    def list_img(self) -> list[_types.FloatArray]:
         """copy of the list containing images for which the displacement field has been calculated."""
         return self.__list_img.copy()
 
@@ -421,10 +421,10 @@ class DIC(_IObserver):
     def Solve(
         self,
         img: _types.FloatArray,
-        u0: Optional[np.ndarray] = None,
+        u0: Optional[_types.FloatArray] = None,
         iterMax: int = 1000,
         tolConv: float = 1e-6,
-        imgRef: Optional[np.ndarray] = None,
+        imgRef: Optional[_types.FloatArray] = None,
         verbosity=True,
     ) -> _types.FloatArray:
         """Computes the displacement field between the two images.
@@ -447,7 +447,7 @@ class DIC(_IObserver):
 
         Returns
         -------
-        np.ndarray
+        _types.FloatArray
             computed displacement field (Ndof)
         """
 
@@ -507,7 +507,7 @@ class DIC(_IObserver):
         self,
         u: _types.FloatArray,
         img: _types.FloatArray,
-        imgRef: Optional[np.ndarray] = None,
+        imgRef: Optional[_types.FloatArray] = None,
     ) -> _types.FloatArray:
         """Computes the dic residual between img and imgRef (as a Np x Np matrix).\n
         r_dic = f(x) - g(x + u(x))
@@ -523,7 +523,7 @@ class DIC(_IObserver):
 
         Returns
         -------
-        np.ndarray
+        _types.FloatArray
             the dic residual between images (as a Np x Np matrix)
         """
 
@@ -554,7 +554,7 @@ class DIC(_IObserver):
 
     def Calc_pixelDisplacement(
         self, u: _types.FloatArray
-    ) -> tuple[np.ndarray, np.ndarray]:
+    ) -> tuple[_types.FloatArray, _types.FloatArray]:
         """Computes pixel displacements based on the finite element displacement field."""
 
         assert (

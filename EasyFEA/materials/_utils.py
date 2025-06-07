@@ -259,7 +259,7 @@ def Project_vector_to_matrix(
 
 def Project_matrix_to_vector(
     matrix: _types.FloatArray, coef=np.sqrt(2)
-) -> Union[FeArray, np.ndarray]:
+) -> FeArray.FeArrayALike:
 
     matrixDim = matrix.shape[-1]
 
@@ -306,7 +306,7 @@ def Project_Kelvin(
 
     Returns
     -------
-    np.ndarray
+    _types.FloatArray
         Projected tensor
     """
 
@@ -384,7 +384,7 @@ def Result_in_Strain_or_Stress_field(
 
     Returns
     -------
-    np.ndarray
+    _types.FloatArray
         The extracted field corresponding to the specified result.
     """
 
@@ -647,7 +647,7 @@ def Apply_Pmat(
 
     Returns
     -------
-    np.ndarray
+    _types.FloatArray
         new matrix
     """
     assert isinstance(M, np.ndarray), "Matrix must be an array"

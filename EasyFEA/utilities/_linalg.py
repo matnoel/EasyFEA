@@ -189,7 +189,7 @@ def TensorProd(
 
     Returns
     -------
-    np.ndarray
+    FeArray.FeArrayALike:
         the calculated tensor product
     """
 
