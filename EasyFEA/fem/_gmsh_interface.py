@@ -2029,7 +2029,11 @@ class Mesher:
         # For each type of 3D element
         for elemType in ElemType.Get_3D():
 
-            if useImport3D and elemType in [ElemType.TETRA4, ElemType.TETRA10]:
+            if (
+                Folder.Exists(partPath)
+                and useImport3D
+                and elemType in [ElemType.TETRA4, ElemType.TETRA10]
+            ):
                 meshPart = mesher.Mesh_Import_part(
                     partPath, 3, meshSize=meshSize, elemType=elemType
                 )

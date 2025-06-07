@@ -345,7 +345,7 @@ class FeArray(_types.AnyArray):
 
         idx = self._get_idx(*arrays)
 
-        self[*idx] = value
+        self[idx] = value
 
     @staticmethod
     def asfearray(array, broadcastFeArrays=False) -> FeArrayALike:
