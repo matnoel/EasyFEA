@@ -69,6 +69,7 @@ testpaths = [
 ]
 
 [tool.mypy]
+python_version = "3.11"
 disable_error_code = [
     "safe-super",
     "import-untyped",
