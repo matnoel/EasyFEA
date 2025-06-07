@@ -3,6 +3,8 @@
 <!-- Don't do this otherwise PyPi could lose access to the image -->
 <!-- ![EasyFEA_banner](docs/_static/EasyFEA_banner.jpg?raw=True) -->
 
+![PyPI version shields.io](https://img.shields.io/pypi/v/easyfea.svg) ![PyPI - Python Version](https://img.shields.io/pypi/pyversions/easyfea) ![License: GPL v3](https://img.shields.io/badge/License-GPLv3-blue.svg) ![Codestyle black](https://img.shields.io/badge/code%20style-black-black) ![PyPI - Downloads](https://img.shields.io/pypi/dm/easyfea) ![Tests](https://github.com/matnoel/EasyFEA/actions/workflows/tests.yaml/badge.svg)
+
 ## Overview
 
 **EasyFEA** is a user-friendly Python library that simplifies finite element analysis. It is flexible and supports different types of simulation without requiring users to handle complex PDE formulations. The library currently supports **four** specific simulation types:
@@ -21,35 +23,34 @@ Numerous examples of mesh creation are available in the `examples/Meshes` folder
 The simplest and quickest introduction is shown below and is available in `examples/HelloWorld.py`.
 
 ```python
-from EasyFEA import (Display, Mesher, ElemType,
-                     Materials, Simulations)
+from EasyFEA import Display, Mesher, ElemType, Materials, Simulations
 from EasyFEA.Geoms import Point, Domain
 
 # ----------------------------------------------
 # Mesh
 # ----------------------------------------------
-L = 120 # mm
+L = 120  # mm
 h = 13
 
-domain = Domain(Point(), Point(L,h), h/6)
+domain = Domain(Point(), Point(L, h), h / 6)
 mesh = Mesher().Mesh_2D(domain, [], ElemType.QUAD4, isOrganised=True)
 
 # ----------------------------------------------
 # Simulation
 # ----------------------------------------------
-E = 210000 # MPa
-v = .3
-F = -800 # N
+E = 210000  # MPa
+v = 0.3
+F = -800  # N
 
 mat = Materials.Elas_Isot(2, E, v, planeStress=True, thickness=h)
 
 simu = Simulations.ElasticSimu(mesh, mat)
 
-nodesX0 = mesh.Nodes_Conditions(lambda x,y,z: x==0)
-nodesXL = mesh.Nodes_Conditions(lambda x,y,z: x==L)
+nodesX0 = mesh.Nodes_Conditions(lambda x, y, z: x == 0)
+nodesXL = mesh.Nodes_Conditions(lambda x, y, z: x == L)
 
-simu.add_dirichlet(nodesX0, [0,0], ["x","y"])
-simu.add_surfLoad(nodesXL, [F/h/h], ["y"])
+simu.add_dirichlet(nodesX0, [0, 0], ["x", "y"])
+simu.add_surfLoad(nodesXL, [F / h / h], ["y"])
 
 simu.Solve()
 
@@ -58,8 +59,8 @@ simu.Solve()
 # ----------------------------------------------
 Display.Plot_Mesh(mesh)
 Display.Plot_BoundaryConditions(simu)
-Display.Plot_Result(simu, 'uy', plotMesh=True)
-Display.Plot_Result(simu, 'Svm', plotMesh=True, ncolors=11)
+Display.Plot_Result(simu, "uy", plotMesh=True)
+Display.Plot_Result(simu, "Svm", plotMesh=True, ncolors=11)
 
 Display.plt.show()
 ```
