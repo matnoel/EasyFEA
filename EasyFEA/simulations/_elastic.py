@@ -580,7 +580,7 @@ def Mesh_Optim_ZZ1(
     Parameters
     ----------
     DoSimu : Callable[[str], Displacement]
-        Function that runs a simulation and takes a *.pos file as argument for mesh optimization. The function must return a Displacement simulation.
+        Function that runs a simulation and takes a .pos file as argument for mesh optimization. The function must return a Displacement simulation.
     folder : str
         Folder in which .pos files are created and then deleted.
     threshold : float, optional
@@ -613,7 +613,7 @@ def Mesh_Optim_ZZ1(
         mesh = simu.mesh
 
         if i > 0:
-            # remove previous *.pos file
+            # remove previous .pos file
             Folder.os.remove(optimGeom)  # type: ignore [arg-type]
 
         # Calculate the error with the ZZ1 method
@@ -624,11 +624,11 @@ def Mesh_Optim_ZZ1(
         # calculate the new mesh size for the associated error
         meshSize_n = mesh.Get_New_meshSize_n(error_e, coef)
 
-        # build the *.pos file that will be used to refine the mesh
+        # build the .pos file that will be used to refine the mesh
         optimGeom = Mesher().Create_posFile(mesh.coord, meshSize_n, folder, f"pos{i}")
 
     if Folder.Exists(optimGeom):  # type: ignore [arg-type]
-        # remove last *.pos file
+        # remove last .pos file
         Folder.os.remove(optimGeom)  # type: ignore [arg-type]
 
     return simu

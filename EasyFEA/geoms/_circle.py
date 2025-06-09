@@ -22,6 +22,7 @@ from ..utilities import _params, _types
 
 
 class Circle(_Geom):
+    """Circle class."""
 
     __nbCircle = 0
 
@@ -169,6 +170,7 @@ class Circle(_Geom):
 
 
 class CircleArc(_Geom):
+    """CircleArc class."""
 
     __nbCircleArc = 0
 

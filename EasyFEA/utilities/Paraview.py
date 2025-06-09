@@ -28,7 +28,7 @@ def Make_Paraview(
     nodesField: list[str] = [],
     elementsField: list[str] = [],
 ):
-    """Generates the paraview (*.pvd and *.pvu files).
+    """Generates the paraview (.pvd and .pvu files).
 
     Parameters
     ----------
@@ -39,7 +39,7 @@ def Make_Paraview(
     N : int, optional
         Maximal number of iterations displayed, by default 200
     details: bool, optional
-        details of nodesField and elementsField used in the *.vtu
+        details of nodesField and elementsField used in the .vtu
     nodesField: list, optional
         Additional nodesField, by default []
     elementsField: list, optional
@@ -120,7 +120,7 @@ def Make_Paraview(
 def __Make_vtu(
     simu, iter: int, filename: str, nodesField: list[str], elementsField: list[str]
 ):
-    """Generates the *.vtu files in binary format."""
+    """Generates the .vtu files in binary format."""
 
     simu = Display._Init_obj(simu)[0]
 
@@ -289,7 +289,7 @@ def __Make_vtu(
 
 
 def __Make_pvd(filename: str, vtuFiles=[]):
-    """Makes *.pvd file to link the *.vtu files."""
+    """Makes .pvd file to link the .vtu files."""
 
     tic = Tic()
 

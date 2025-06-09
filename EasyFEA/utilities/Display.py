@@ -1366,7 +1366,7 @@ def Movie_func(
     folder : str
         folder where you want to save the video
     filename : str, optional
-        filename of the video with the extension (eg. *.gif, *.mp4), by default 'video.gif'
+        filename of the video with the extension (eg. .gif, .mp4), by default 'video.gif'
     fps : int, optional
         frames per second, by default 30
     dpi: int, optional

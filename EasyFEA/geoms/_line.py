@@ -12,6 +12,7 @@ from ..utilities import _types
 
 
 class Line(_Geom):
+    """Line class."""
 
     __nbLine = 0
 

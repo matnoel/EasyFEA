@@ -12,6 +12,7 @@ from ..utilities import _types
 
 
 class Domain(_Geom):
+    """Domain (2d or 3d domain) class."""
 
     __nbDomain = 0
 

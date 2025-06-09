@@ -877,12 +877,12 @@ class Mesher:
         return entities
 
     def Mesh_Import_mesh(self, mesh: str, setPhysicalGroups=False, coef=1.0) -> Mesh:
-        """Creates the mesh from an *.msh file.
+        """Creates the mesh from an .msh file.
 
         Parameters
         ----------
         mesh : str
-            *.msh file
+            .msh file
         setPhysicalGroups : bool, optional
             creates physical groups, by default False
         coef : float, optional
@@ -916,13 +916,13 @@ class Mesher:
         refineGeoms=[None],
         folder="",
     ) -> Mesh:
-        """Creates the mesh from *.stp or *.igs files.\n
+        """Creates the mesh from .stp or .igs files.\n
         You can only use triangles or tetrahedrons.
 
         Parameters
         ----------
         file : str
-            *.stp or *.igs files.\n
+            .stp or .igs files.\n
             Note that for igs files, entities cannot be recovered.
         meshSize : float, optional
             mesh size, by default 0.0
@@ -1533,7 +1533,7 @@ class Mesher:
         folder: str,
         filename="data",
     ) -> str:
-        """Creates of a *.pos file that can be used to refine a mesh in a zone.
+        """Creates of a .pos file that can be used to refine a mesh in a zone.
 
         Parameters
         ----------
@@ -1544,12 +1544,12 @@ class Mesher:
         folder : str
             save folder
         filename : str, optional
-            *.pos file name, by default "data".
+            .pos file name, by default "data".
 
         Returns
         -------
         str
-            Returns the path to the created *.pos file
+            Returns the path to the created .pos file
         """
 
         assert isinstance(coord, np.ndarray), "Must be a numpy array"

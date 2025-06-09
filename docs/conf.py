@@ -10,6 +10,7 @@
 # documentation root, use os.path.abspath to make it absolute, like shown here.
 import os
 import sys
+
 sys.path.insert(0, os.path.abspath(".."))
 
 # -- Project information -----------------------------------------------------
@@ -24,23 +25,24 @@ author = "Matthieu Noel"
 # https://www.sphinx-doc.org/en/master/usage/configuration.html#general-configuration
 
 extensions = [
-    "sphinx.ext.duration", # Measure durations of Sphinx processing
+    "sphinx.ext.duration",  # Measure durations of Sphinx processing
     # DOC
     "sphinx.ext.autodoc",
     "sphinx.ext.napoleon",
     "sphinx.ext.viewcode",
     "sphinx.ext.autosummary",
+    "sphinx_autodoc_typehints",
 ]
+autodoc_typehints = "signature"
 
 templates_path = ["_templates"]
 exclude_patterns = ["_build", "Thumbs.db", ".DS_Store"]
 
 
-
 # -- Options for HTML output -------------------------------------------------
 # https://www.sphinx-doc.org/en/master/usage/configuration.html#options-for-html-output
 
-html_theme = "pydata_sphinx_theme" # "furo", "pydata_sphinx_theme"
+html_theme = "pydata_sphinx_theme"  # "furo", "pydata_sphinx_theme"
 html_title = "EasyFEA"
 
 html_static_path = ["_static"]

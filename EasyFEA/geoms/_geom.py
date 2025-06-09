@@ -15,6 +15,7 @@ from ..utilities import _types
 
 
 class _Geom(ABC):
+    """Geometric class."""
 
     def __init__(
         self,

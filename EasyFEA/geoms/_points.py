@@ -17,6 +17,7 @@ from ..utilities import _types
 
 
 class Points(_Geom):
+    """Points class."""
 
     __nbPoints = 0
 

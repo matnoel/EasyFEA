@@ -1117,10 +1117,10 @@ def Mesh_Optim(
     Parameters
     ----------
     DoMesh : Callable[[str], Mesh]
-        Function that constructs the mesh and takes a *.pos file as argument for mesh optimization.\n
+        Function that constructs the mesh and takes a .pos file as argument for mesh optimization.\n
         The function must return a Mesh.
     folder : str
-        Folder in which *.pos files are created and then deleted.
+        Folder in which .pos files are created and then deleted.
     criteria : str, optional
         criterion used, by default 'aspect'\n
         - "aspect": hMin / hMax, ratio between minimum and maximum element length\n

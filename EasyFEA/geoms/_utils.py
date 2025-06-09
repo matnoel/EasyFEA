@@ -12,6 +12,7 @@ from ..utilities import _types
 
 
 class Point:
+    """Point class."""
 
     def __init__(
         self,

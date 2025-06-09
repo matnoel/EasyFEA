@@ -19,11 +19,12 @@ ContourCompatible = Union[Line, CircleArc, Points]
 
 
 class Contour(_Geom):
+    """Contour class."""
 
     __nbContour = 0
 
     def __init__(self, geoms: list[ContourCompatible], isHollow=True, isOpen=False):
-        """Creates a contour from a list of line circleArc and points.
+        """Creates a contour from a list of line CircleArc and points.
 
         Parameters
         ----------
