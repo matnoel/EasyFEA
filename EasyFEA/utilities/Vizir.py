@@ -181,6 +181,8 @@ def _Write_solution_file(
     order: int,
     folder: str,
     filename: str,
+    nodesValues_n: Optional[_types.FloatArray] = None,
+    deformFactor: float = 1.0,
 ) -> str:
 
     # init solution file
@@ -193,11 +195,29 @@ def _Write_solution_file(
     else:
         raise TypeError("type error")
 
+    if nodesValues_n is not None:
+        if nodesValues_n.ndim == 2:
+            with open(Folder.Join(folder, "default.vizir"), "w") as f:
+                # write WarpVec
+                f.write(f"WarpVec\n1\n{deformFactor}\n\n")
+
     with open(solutionFile, "w") as f:
 
         # write first lines
         f.write("MeshVersionFormatted 2\n")
         f.write(f"Dimension {mesh.inDim}\n\n")  # the mesh is always in a 3d space
+
+        if nodesValues_n is not None:
+
+            # write SolAtVertices
+            assert (
+                nodesValues_n.shape[0] == mesh.Nn and nodesValues_n.ndim == 2
+            ), "nodesValues must be a (Nn, ...) array"
+            assert nodesValues_n.shape[1] in [1, mesh.inDim]
+            nodesValues_type = 1 if nodesValues_n.shape[1] == 1 else 2
+            f.write(f"SolAtVertices\n{mesh.Nn}\n1 {nodesValues_type}\n")
+            np.savetxt(f, nodesValues_n)
+            f.write("\n")
 
         for groupElem in mesh.Get_list_groupElem(2):
 
@@ -261,6 +281,8 @@ def Save_simu(
                     simu.mesh.groupElem.order,
                     folder,
                     filename,
+                    simu.Results_displacement_matrix()[:, : simu.mesh.inDim],
+                    100,
                 )
                 file.write(solution_file + "\n")
 
