@@ -3,51 +3,24 @@
 Geoms
 =====
 
-In order to construct a :py:class:`~EasyFEA.fem.Mesh` with the :py:class:`~EasyFEA.fem.Mesher`, you must first create :py:class:`~EasyFEA.geoms._Geom` objects.
+In order to construct a :py:class:`~EasyFEA.fem.Mesh` with the :py:class:`~EasyFEA.fem.Mesher`, you must first create :py:class:`~EasyFEA.Geoms._Geom` objects.
 
-.. autosummary::
+.. autosummary::    
+    ~EasyFEA.Geoms.Point
+    ~EasyFEA.Geoms._Geom
+    ~EasyFEA.Geoms.Points
+    ~EasyFEA.Geoms.Domain
+    ~EasyFEA.Geoms.Line
+    ~EasyFEA.Geoms.Circle
+    ~EasyFEA.Geoms.CircleArc
+    ~EasyFEA.Geoms.Contour 
 
-   ~EasyFEA.Geoms.Point
-   ~EasyFEA.Geoms.Points
-   ~EasyFEA.Geoms.Domain
-   ~EasyFEA.Geoms.Line
-   ~EasyFEA.Geoms.Circle
-   ~EasyFEA.Geoms.CircleArc
-   ~EasyFEA.Geoms.Contour 
+Detailed geoms api
+------------------
 
-**Detailed API Reference**
-
-.. autoclass:: EasyFEA.Geoms.Point
+.. automodule:: EasyFEA.Geoms
    :members:
    :undoc-members:
+   :imported-members:
    :show-inheritance:
-
-.. autoclass:: EasyFEA.Geoms.Points
-   :members:
-   :undoc-members:
-   :show-inheritance:
-
-.. autoclass:: EasyFEA.Geoms.Domain
-   :members:
-   :undoc-members:
-   :show-inheritance:
-
-.. autoclass:: EasyFEA.Geoms.Line
-   :members:
-   :undoc-members:
-   :show-inheritance:
-
-.. autoclass:: EasyFEA.Geoms.Circle
-   :members:
-   :undoc-members:
-   :show-inheritance:
-
-.. autoclass:: EasyFEA.Geoms.CircleArc
-   :members:
-   :undoc-members:
-   :show-inheritance:
-
-.. autoclass:: EasyFEA.Geoms.Contour
-   :members:
-   :undoc-members:
-   :show-inheritance:
+   

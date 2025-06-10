@@ -40,6 +40,7 @@ if TYPE_CHECKING:
 
 
 class _GroupElem(ABC):
+    """The `_GroupElem` class, from which all elements inherit."""
 
     def __init__(
         self,

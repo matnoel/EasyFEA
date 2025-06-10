@@ -1358,7 +1358,7 @@ class Mesher:
             layers in the extrusion, by default []
         elemType : ElemType, optional
             element type, by default "TETRA4" ["TETRA4", "TETRA10", "HEXA8", "HEXA20", "PRISM6", "PRISM15"]
-        cracks : list[Line | Points | Countour]
+        cracks : list[Line | Points | Contour]
             list of geom object used to create open or closed cracks
         refineGeoms : list[Domain|Circle|str], optional
             list of geom object for mesh refinement, by default []
@@ -1458,7 +1458,7 @@ class Mesher:
             layers in extrusion, by default [30]
         elemType : ElemType, optional
             element type, by default "TETRA4" ["TETRA4", "TETRA10", "HEXA8", "HEXA20", "PRISM6", "PRISM15"]
-        cracks : list[Line | Points | Countour]
+        cracks : list[Line | Points | Contour]
             list of geom object used to create open or closed cracks
         refineGeoms : list[Domain|Circle|str], optional
             list of geom object for mesh refinement, by default []
