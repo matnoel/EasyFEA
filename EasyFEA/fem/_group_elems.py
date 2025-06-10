@@ -237,18 +237,7 @@ class _GroupElem(ABC):
     def assembly_e(self) -> _types.IntArray:
         """assembly matrix (Ne, nPe*dim)"""
 
-        nPe = self.nPe
-        dim = self.dim
-        size = nPe * dim
-
-        assembly = np.zeros((self.Ne, size), dtype=int)
-        connect = self.connect
-
-        for d in range(dim):
-            colonnes = np.arange(d, size, dim, dtype=int)
-            assembly[:, colonnes] = connect * dim + d
-
-        return assembly
+        return self.Get_assembly_e(self.dim)
 
     def Get_assembly_e(self, dof_n: int) -> _types.IntArray:
         """Get the assembly matrix for the specified dof_n (Ne, nPe*dof_n)
@@ -505,48 +494,39 @@ class _GroupElem(ABC):
     @property
     def segments(self) -> _types.IntArray:  # type: ignore [return]
         """list of indexes used to construct segments"""
+        nPe = 2 + self.order - 1
         if self.__dim == 1:
-            return np.array([[0, 1]], dtype=int)
+            segments = np.zeros((self.Nvertex, nPe), dtype=int)
+            segments[0, 0] = 0
+            segments[0, -1] = 1
+            if nPe > 2:
+                vertices_on_seg = np.arange(
+                    segments.max() + 1, segments.max() + 1 + self.order - 1
+                )
+                segments[0, 1 : nPe - 1] = vertices_on_seg
+
+            return segments
         elif self.__dim == 2:
-            segments = np.zeros((self.Nvertex, 2), dtype=int)
+            segments = np.zeros((self.Nvertex, nPe), dtype=int)
             segments[:, 0] = np.arange(self.Nvertex)
-            segments[:, 1] = np.append(np.arange(1, self.Nvertex, 1), 0)
+            segments[:, -1] = np.append(np.arange(1, self.Nvertex, 1), 0)
+
+            if nPe > 2:
+                for i in range(self.Nvertex):
+                    vertices_on_seg = np.arange(
+                        segments.max() + 1, segments.max() + 1 + self.order - 1
+                    )
+                    segments[i, 1 : nPe - 1] = vertices_on_seg
+
             return segments
         elif self.__dim == 3:
-            raise Exception("To be defined for 3D element groups.")
+            raise Exception("Needs to be defined for 3D element groups.")
 
     @property
     @abstractmethod
     def faces(self) -> _types.IntArray:
         """array of indexes to form the faces that make up the element."""
         pass
-
-    def Get_interface(self) -> dict[str, int]:
-
-        dict_interface: dict[str, int] = {}
-
-        idx = -1
-        for _ in range(self.Nvertex):
-            idx += 1
-            dict_interface[str([idx])] = idx
-
-        idx = self.Nvertex - 1
-        for seg in self.segments:
-            idx += 1
-            dict_interface[str(np.sort(seg))] = idx
-
-        for i, face in enumerate(self.faces):
-            idx += 1
-            if self.elemType.startswith("PRISM") and i > 2:
-                # we are on tri face here
-                face = face[:-1]  # type: ignore [index]
-            dict_interface[str(np.unique(face))] = idx
-
-        if self.dim == 3:
-            idx += 1
-            dict_interface[str(np.sort(np.arange(self.Nvertex)))] = idx
-
-        return dict_interface
 
     @abstractmethod
     def Get_Local_Coords(self) -> _types.FloatArray:
