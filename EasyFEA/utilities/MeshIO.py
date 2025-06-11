@@ -217,7 +217,7 @@ def EasyFEA_to_Medit(
     extension = "meshb" if useBinary else "mesh"
     filename = Folder.Join(folder, f"{name}.{extension}", mkdir=True)
 
-    Display.MyPrint(f"\nCreation of: {filename}", "green")
+    Display.MyPrint(f"\nCreation of: {filename}\n", "green")
     meshio.medit.write(filename, meshio_mesh)
 
     return filename
