@@ -148,7 +148,7 @@ class Mesher:
         for i, geom in enumerate(contour.geoms):
 
             assert isinstance(
-                geom, (Line, "CircleArc", Points)
+                geom, (Line, CircleArc, Points)
             ), "Must be a Line, CircleArc or Points"
 
             if i == 0:
@@ -542,9 +542,11 @@ class Mesher:
                 raise Exception("You need to give a list of point.")
             list_point.append(p)
 
-        self._Synchronize()
-        for entity in oldEntities:  # type: ignore
-            gmsh.model.mesh.embed(0, list_point, entity[0], entity[1])
+        if len(points) > 0:
+            self._Synchronize()
+            factory.fragment(
+                oldEntities, [(0, point) for point in list_point], False, False
+            )
 
     def _Spline_From_Points(self, points: "Points") -> tuple[int, list[int]]:
         """Creates a gmsh spline from points.\n
