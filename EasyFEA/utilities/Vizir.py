@@ -11,10 +11,11 @@ import io
 from ..utilities import Folder, MeshIO, _types
 from ..fem._group_elems import GroupElemFactory, ElemType
 
+
 if TYPE_CHECKING:
-    from ..simulations._simu import _Simu
     from ..fem._mesh import Mesh
     from ..fem._group_elems import _GroupElem
+from ..simulations._simu import _Simu
 from ..geoms._utils import (
     _Get_BaryCentric_Coordinates_In_Triangle,
     _Get_BaryCentric_Coordinates_In_Tetrahedron,
@@ -237,14 +238,14 @@ def _Write_solution_file(
 
 
 def Save_simu(
-    simu: "_Simu",
+    simu: _Simu,
     results: list[str],
     types: list[int],
     folder: str,
     N: Optional[int] = None,
 ) -> str:
 
-    assert isinstance(simu, "_Simu")
+    assert isinstance(simu, _Simu)
 
     # sample the results
     Niter = simu.Niter

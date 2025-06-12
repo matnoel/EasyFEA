@@ -2,7 +2,7 @@
 # This file is part of the EasyFEA project.
 # EasyFEA is distributed under the terms of the GNU General Public License v3 or later, see LICENSE.txt and CREDITS.md for more information.
 
-from typing import Union, Optional, TYPE_CHECKING
+from typing import Union, Optional
 import numpy as np
 from scipy import sparse
 import pandas as pd
@@ -12,9 +12,7 @@ from ..utilities import Display, Tic, _types
 from ..utilities._observers import Observable
 
 # fem
-if TYPE_CHECKING:
-    from ..fem import Mesh
-from ..fem import MatrixType, FeArray
+from ..fem import Mesh, MatrixType, FeArray
 
 # materials
 from .. import Materials
@@ -33,7 +31,7 @@ class PhaseFieldSimu(_Simu):
 
     def __init__(
         self,
-        mesh: "Mesh",
+        mesh: Mesh,
         model: Materials.PhaseField,
         verbosity=False,
         useNumba=True,
@@ -225,7 +223,7 @@ class PhaseFieldSimu(_Simu):
         if isinstance(observable, _IModel):
             if event == "The model has been modified" and not self.needUpdate:
                 self.Need_Update()
-        elif isinstance(observable, "Mesh"):
+        elif isinstance(observable, Mesh):
             if event == "The mesh has been modified":
                 self._Check_dim_mesh_material()
                 self.Need_Update()

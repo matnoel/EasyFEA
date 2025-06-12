@@ -2245,6 +2245,7 @@ class _GroupElem(ABC):
 
 # elems
 # fmt: off
+# import must be done here to avoid circular imports
 from .elems import (
     POINT,
     SEG2, SEG3, SEG4, SEG5,

@@ -1075,7 +1075,7 @@ class Mesher:
                     crack_1D_open.extend(openLns)
                     crack_0D_open.extend(openPts)
 
-            elif isinstance(crack, "CircleArc"):  # 1D CRACK
+            elif isinstance(crack, CircleArc):  # 1D CRACK
 
                 # add points
                 pC = factory.addPoint(*crack.center.coord, meshSize=crack.meshSize)

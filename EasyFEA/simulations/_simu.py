@@ -263,9 +263,9 @@ class _Simu(_IObserver, ABC):
         self,
         mesh: Mesh,
         model: _IModel,
-        verbosity=True,
-        useNumba=True,
-        useIterativeSolvers=True,
+        verbosity: bool = True,
+        useNumba: bool = True,
+        useIterativeSolvers: bool = True,
     ):
         """Creates a simulation.
 

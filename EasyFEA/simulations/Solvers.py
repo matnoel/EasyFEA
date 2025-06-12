@@ -15,6 +15,7 @@ from typing import Union, TYPE_CHECKING
 
 if TYPE_CHECKING:
     from ._simu import _Simu
+    from ..materials import ModelType
 
 from ..utilities import Tic, _types
 
@@ -116,7 +117,7 @@ def _Available_Solvers():
 
 def _Solve_Axb(
     simu: "_Simu",
-    problemType: str,
+    problemType: "ModelType",
     A: sparse.csr_matrix,
     b: sparse.csr_matrix,
     x0: _types.FloatArray,
@@ -279,7 +280,7 @@ def __Check_solverLibrary(solver: str) -> str:
         return solver
 
 
-def _Solve(simu, problemType: str, resol: ResolType):
+def _Solve(simu, problemType: "ModelType", resol: ResolType):
     """Solving the problem according to the resolution type"""
     if resol == ResolType.r1:
         return __Solver_1(simu, problemType)
@@ -289,7 +290,7 @@ def _Solve(simu, problemType: str, resol: ResolType):
         return __Solver_3(simu, problemType)
 
 
-def __Solver_1(simu: "_Simu", problemType: str) -> _types.FloatArray:
+def __Solver_1(simu: "_Simu", problemType: "ModelType") -> _types.FloatArray:
     # --       --  --  --   --  --
     # | Aii Aic |  | xi |   | bi |
     # | Aci Acc |  | xc | = | bc |
@@ -330,7 +331,7 @@ def __Solver_1(simu: "_Simu", problemType: str) -> _types.FloatArray:
     return x
 
 
-def __Solver_2(simu: "_Simu", problemType: str):
+def __Solver_2(simu: "_Simu", problemType: "ModelType"):
     # Lagrange multiplier method
 
     size = simu.mesh.Nn * simu.Get_dof_n(problemType)
@@ -396,7 +397,7 @@ def __Solver_2(simu: "_Simu", problemType: str):
     return sol, lagrange
 
 
-def __Solver_3(simu: "_Simu", problemType: str):
+def __Solver_3(simu: "_Simu", problemType: "ModelType"):
     # Resolution using the penalty method
 
     # This method does not give preference to dirichlet conditions over neumann conditions.

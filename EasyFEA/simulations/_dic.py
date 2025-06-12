@@ -9,7 +9,7 @@ from scipy import interpolate, sparse
 from scipy.sparse.linalg import splu
 import pickle
 import cv2  # need opencv-python library
-from typing import Optional, TYPE_CHECKING
+from typing import Optional
 
 # utilities
 from ..utilities import Tic, Folder, Display
@@ -17,16 +17,14 @@ from ..utilities._observers import Observable, _IObserver
 from ..utilities import _types
 
 # fem
-if TYPE_CHECKING:
-    from ..fem import Mesh
-from ..fem import BoundaryCondition, FeArray, MatrixType
+from ..fem import Mesh, BoundaryCondition, FeArray, MatrixType
 
 
 class DIC(_IObserver):
 
     def __init__(
         self,
-        mesh: "Mesh",
+        mesh: Mesh,
         idxImgRef: int,
         imgRef: _types.FloatArray,
         lr: float = 0.0,
@@ -95,7 +93,7 @@ class DIC(_IObserver):
     # mesh properties
 
     @property
-    def mesh(self) -> "Mesh":
+    def mesh(self) -> Mesh:
         """pixel-based mesh used for dic."""
         return self.__mesh
 
@@ -104,7 +102,7 @@ class DIC(_IObserver):
         """8 * mean(meshSize) (see Get_ldic())"""
         return self.Get_ldic()
 
-    def Get_scaled_mesh(self, scale: float = 1.0) -> "Mesh":
+    def Get_scaled_mesh(self, scale: float = 1.0) -> Mesh:
         assert scale != 0.0
         meshC = self.__mesh.copy()
         [meshC._Remove_observer(observer) for observer in meshC.observers.copy()]
@@ -166,7 +164,7 @@ class DIC(_IObserver):
         return self.__list_img.copy()
 
     def _Update(self, observable: Observable, event: str) -> None:
-        if isinstance(observable, "Mesh"):
+        if isinstance(observable, Mesh):
             raise Exception(
                 "The current implementation does not allow you to make any modifications to the mesh."
             )
