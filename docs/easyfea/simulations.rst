@@ -1,19 +1,19 @@
 .. _easyfea-api-simulations:
 
-Simulations
+simulations
 ===========
 
 
 Detailed simulations api
 ------------------------
 
-.. automodule:: EasyFEA.Simulations
+.. automodule:: EasyFEA.simulations
    :members:
    :undoc-members:
    :imported-members:
    :show-inheritance:
 
-.. automodule:: EasyFEA.simulations
+.. automodule:: EasyFEA.Simulations
    :members:
    :undoc-members:
    :imported-members:

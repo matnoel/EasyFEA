@@ -1,6 +1,6 @@
 .. _easyfea-api-materials:
 
-Materials
+materials
 =========
 
 

@@ -1,6 +1,6 @@
 .. _easyfea-api-geoms:
 
-Geoms
+geoms
 =====
 
 In order to construct a :py:class:`~EasyFEA.fem.Mesh` with the :py:class:`~EasyFEA.fem.Mesher`, you must first create :py:class:`~EasyFEA.geoms._Geom` objects.
@@ -19,8 +19,7 @@ Detailed geoms api
 ------------------
 
 .. automodule:: EasyFEA.geoms
-   :members:
-   :private-members:
+   :members: _Geom
    :undoc-members:
    :imported-members:
    :show-inheritance:

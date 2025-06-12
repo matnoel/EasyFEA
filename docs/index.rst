@@ -126,3 +126,10 @@ To learn more about contributing to EasyFEA, please consult the `Contributing Gu
    begin
    examples/index
    easyfea
+
+Indices and tables
+==================
+
+* :ref:`genindex`
+* :ref:`modindex`
+* :ref:`search`

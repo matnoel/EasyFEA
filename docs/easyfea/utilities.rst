@@ -1,6 +1,6 @@
 .. _easyfea-api-utilities:
 
-Utilities
+utilities
 =========
 
 Detailed utilities api
