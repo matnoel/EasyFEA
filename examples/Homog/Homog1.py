@@ -1,6 +1,6 @@
 # Copyright (C) 2021-2025 Université Gustave Eiffel.
 # This file is part of the EasyFEA project.
-# EasyFEA is distributed under the terms of the GNU General Public License v3 or later, see LICENSE.txt and CREDITS.md for more information.
+# EasyFEA is distributed under the terms of the GNU General Public License v3, see LICENSE.txt and CREDITS.md for more information.
 
 """Conduct homogenization using an example outlined in 'Computational Homogenization of Heterogeneous Materials with Finite Elements'.
 Reference: http://link.springer.com/10.1007/978-3-030-18383-7

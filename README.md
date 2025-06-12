@@ -69,7 +69,7 @@ Display.plt.show()
 
 Copyright (C) 2021-2025 Université Gustave Eiffel.
 
-EasyFEA is distributed under the terms of the [GNU General Public License v3.0 or later](https://spdx.org/licenses/GPL-3.0-or-later.html), see [LICENSE.txt](https://github.com/matnoel/EasyFEA/blob/main/LICENSE.txt) and [CREDITS.md](https://github.com/matnoel/EasyFEA/blob/main/CREDITS.md) for more information.
+EasyFEA is distributed under the terms of the [GNU General Public License v3.0](https://spdx.org/licenses/GPL-3.0-only.html), see [LICENSE.txt](https://github.com/matnoel/EasyFEA/blob/main/LICENSE.txt) and [CREDITS.md](https://github.com/matnoel/EasyFEA/blob/main/CREDITS.md) for more information.
 
 ## Installation
 
@@ -133,7 +133,7 @@ Bibtex:
   MONTH = Apr,
   SWHID = {swh:1:dir:ffb0e56fe2ce8a344ed27df7baf8f5f1b58700b5;origin=https://github.com/matnoel/EasyFEA;visit=swh:1:snp:88527adbdb363d97ebaee858943a02d98fc5c23c;anchor=swh:1:rev:ee2a09258bfd7fd60886ad9334b0893f4989cf35},
   REPOSITORY = {https://github.com/matnoel/EasyFEA},
-  LICENSE = {GNU General Public License v3.0 or later},
+  LICENSE = {GNU General Public License v3.0},
   KEYWORDS = {Finite element analyses ; Computational Mechanics ; Numerical Simulation ; Phase field modeling of brittle fracture ; Linear elasticity ; Euler-Bernoulli beam ; DIC - Digital Image Correlation ; User friendly ; Object oriented programming ; Mesh Generation},
   HAL_ID = {hal-04571962},
   HAL_VERSION = {v1},
