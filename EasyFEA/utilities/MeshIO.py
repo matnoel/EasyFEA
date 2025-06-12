@@ -4,12 +4,16 @@
 
 """Module providing an interface with meshio (https://pypi.org/project/meshio/)."""
 
+import meshio
+from typing import Any, TYPE_CHECKING
+
 from . import Folder, Display, _types
-from ..fem import Mesher, Mesh, ElemType
+
+if TYPE_CHECKING:
+    from ..fem import Mesh
+from ..fem import Mesher, ElemType
 from .PyVista import DICT_GMSH_TO_VTK, np
 
-import meshio
-from typing import Any
 
 # ----------------------------------------------
 # TYPES
@@ -46,7 +50,7 @@ DICT_GMSH_TO_MESHIO_INDEXES = DICT_GMSH_TO_VTK
 
 
 def _EasyFEA_to_Meshio(
-    mesh: Mesh, cell_name: str, dict_tags_converter: dict[Any, int] = {}
+    mesh: "Mesh", cell_name: str, dict_tags_converter: dict[Any, int] = {}
 ) -> meshio.Mesh:
     """Convert EasyFEA mesh to meshio format.
 
@@ -59,7 +63,7 @@ def _EasyFEA_to_Meshio(
         meshio.Mesh: Converted meshio mesh object.
     """
 
-    assert isinstance(mesh, Mesh), "mesh must be a EasyFEA mesh!"
+    assert isinstance(mesh, "Mesh"), "mesh must be a EasyFEA mesh!"
 
     cells_dict: dict[str, _types.IntArray] = {}
 
@@ -106,7 +110,7 @@ def _EasyFEA_to_Meshio(
 
 def _Meshio_to_EasyFEA(
     meshio_mesh: meshio.Mesh, mesh_file: str, dict_tags: dict[str, _types.IntArray]
-) -> Mesh:
+) -> "Mesh":
     """Convert meshio mesh to EasyFEA format.
 
     Args:
@@ -140,7 +144,7 @@ def _Meshio_to_EasyFEA(
     return mesh
 
 
-def _Set_Tags(mesh: Mesh, dict_tags: dict[str, _types.IntArray]):
+def _Set_Tags(mesh: "Mesh", dict_tags: dict[str, _types.IntArray]):
     """Set tags for nodes and elements in the EasyFEA mesh.
 
     Args:
@@ -148,7 +152,7 @@ def _Set_Tags(mesh: Mesh, dict_tags: dict[str, _types.IntArray]):
         dict_tags (dict[str, _types.IntArray]): Dictionary of tags for elements.
     """
 
-    assert isinstance(mesh, Mesh), "mesh must be a EasyFEA mesh!"
+    assert isinstance(mesh, "Mesh"), "mesh must be a EasyFEA mesh!"
     assert isinstance(dict_tags, dict), "dict_tags must be a dictionnary!"
 
     # retrieve tags
@@ -193,7 +197,7 @@ def _Set_Tags(mesh: Mesh, dict_tags: dict[str, _types.IntArray]):
 
 
 def EasyFEA_to_Medit(
-    mesh: Mesh,
+    mesh: "Mesh",
     folder: str,
     name: str,
     dict_tags_converter: dict[str, int] = {},
@@ -223,7 +227,7 @@ def EasyFEA_to_Medit(
     return filename
 
 
-def Medit_to_EasyFEA(meditMesh: str) -> Mesh:
+def Medit_to_EasyFEA(meditMesh: str) -> "Mesh":
     """Convert Medit mesh to EasyFEA format.
 
     Args:
@@ -254,7 +258,7 @@ def Medit_to_EasyFEA(meditMesh: str) -> Mesh:
 # ----------------------------------------------
 
 
-def EasyFEA_to_Gmsh(mesh: Mesh, folder: str, name: str, useBinary=False) -> str:
+def EasyFEA_to_Gmsh(mesh: "Mesh", folder: str, name: str, useBinary=False) -> str:
     """Convert EasyFEA mesh to Gmsh format.
 
     Args:
@@ -288,7 +292,7 @@ def EasyFEA_to_Gmsh(mesh: Mesh, folder: str, name: str, useBinary=False) -> str:
     return filename
 
 
-def Gmsh_to_EasyFEA(gmshMesh: str) -> Mesh:
+def Gmsh_to_EasyFEA(gmshMesh: str) -> "Mesh":
     """Convert Gmsh mesh to EasyFEA format.
 
     Args:

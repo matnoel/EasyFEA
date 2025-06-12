@@ -14,25 +14,29 @@ A hexahedral mesh (HEXA8) uses :\n
 import numpy as np
 import scipy.sparse as sp
 import copy
-from typing import Callable, Optional
+from typing import Callable, Optional, TYPE_CHECKING
 
 # utilities
 from ..utilities import Display, Tic, _types
 from ..utilities._observers import Observable
 
 # fem
-from ._utils import ElemType, MatrixType, FeArray
-from ._group_elems import _GroupElem
+from ._linalg import FeArray
+from ._utils import ElemType, MatrixType
+
+if TYPE_CHECKING:
+    from ._group_elems import _GroupElem
 
 # others
-from ..Geoms import Point, Line, Domain, Circle
-from ..geoms import Rotate, Symmetry, Normalize, Angle_Between
+if TYPE_CHECKING:
+    from ..geoms import Line, Domain, Circle
+from ..geoms import Point, Rotate, Symmetry, Normalize, Angle_Between
 
 
 class Mesh(Observable):
     """Mesh class."""
 
-    def __init__(self, dict_groupElem: dict[ElemType, _GroupElem], verbosity=False):
+    def __init__(self, dict_groupElem: dict[ElemType, "_GroupElem"], verbosity=False):
         """Creates the mesh.
 
         Parameters
@@ -81,7 +85,7 @@ class Mesh(Observable):
         text += f"\nNe = {self.Ne}, Nn = {self.Nn}, dof = {self.Nn * self.__dim}"
         return text
 
-    def Get_list_groupElem(self, dim=None) -> list[_GroupElem]:
+    def Get_list_groupElem(self, dim=None) -> list["_GroupElem"]:
         """Returns the list of mesh element groups.
 
         Parameters
@@ -110,12 +114,12 @@ class Mesh(Observable):
         return self.__orphanNodes
 
     @property
-    def dict_groupElem(self) -> dict[ElemType, _GroupElem]:
+    def dict_groupElem(self) -> dict[ElemType, "_GroupElem"]:
         """dictionary containing all the element groups in the mesh"""
         return self.__dict_groupElem
 
     @property
-    def groupElem(self) -> _GroupElem:
+    def groupElem(self) -> "_GroupElem":
         """main group element"""
         return self.__groupElem
 
@@ -548,20 +552,20 @@ class Mesh(Observable):
             nodes = nodes.union(self.groupElem.Get_Nodes_Point(point))
         return np.asarray(list(nodes))
 
-    def Nodes_Line(self, line: Line) -> _types.IntArray:
+    def Nodes_Line(self, line: "Line") -> _types.IntArray:
         """Returns the nodes on the line."""
         return self.groupElem.Get_Nodes_Line(line)
 
-    def Nodes_Domain(self, domain: Domain) -> _types.IntArray:
+    def Nodes_Domain(self, domain: "Domain") -> _types.IntArray:
         """Returns nodes in the domain."""
         return self.groupElem.Get_Nodes_Domain(domain)
 
-    def Nodes_Circle(self, circle: Circle, onlyOnCircle=False) -> _types.IntArray:
+    def Nodes_Circle(self, circle: "Circle", onlyOnCircle=False) -> _types.IntArray:
         """Returns the nodes in the circle."""
         return self.groupElem.Get_Nodes_Circle(circle, onlyOnCircle)
 
     def Nodes_Cylinder(
-        self, circle: Circle, direction=[0, 0, 1], onlyOnEdge=False
+        self, circle: "Circle", direction=[0, 0, 1], onlyOnEdge=False
     ) -> _types.IntArray:
         """Returns the nodes in the cylinder."""
         return self.groupElem.Get_Nodes_Cylinder(circle, direction, onlyOnEdge)

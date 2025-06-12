@@ -14,7 +14,7 @@ from typing import TYPE_CHECKING
 from ..utilities import _types
 
 if TYPE_CHECKING:
-    from ..simulations._simu import _Simu, Mesh
+    from ..simulations._simu import _Simu
 
 
 # ----------------------------------------------

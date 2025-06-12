@@ -4,14 +4,17 @@
 
 """Module providing functions used to save FEM-solutions for vizir (https://pyamg.saclay.inria.fr/vizir4.html)."""
 
-from typing import Union, Optional
+from typing import Optional, TYPE_CHECKING
 import numpy as np
 import io
 
 from ..utilities import Folder, MeshIO, _types
-from ..simulations._simu import _Simu, _Init_obj, _Get_values
-from ..fem._group_elems import _GroupElem, GroupElemFactory, ElemType
-from ..fem._mesh import Mesh
+from ..fem._group_elems import GroupElemFactory, ElemType
+
+if TYPE_CHECKING:
+    from ..simulations._simu import _Simu
+    from ..fem._mesh import Mesh
+    from ..fem._group_elems import _GroupElem
 from ..geoms._utils import (
     _Get_BaryCentric_Coordinates_In_Triangle,
     _Get_BaryCentric_Coordinates_In_Tetrahedron,
@@ -19,7 +22,7 @@ from ..geoms._utils import (
 )
 
 
-def __Get_vizir_HOSolAt_key(groupElem: _GroupElem) -> str:
+def __Get_vizir_HOSolAt_key(groupElem: "_GroupElem") -> str:
 
     elemType = groupElem.elemType
 
@@ -41,7 +44,7 @@ def __Get_vizir_HOSolAt_key(groupElem: _GroupElem) -> str:
     return keyword
 
 
-def _Get_BaryCentric_Coordinates(groupElem: _GroupElem) -> _types.FloatArray:
+def _Get_BaryCentric_Coordinates(groupElem: "_GroupElem") -> _types.FloatArray:
 
     elemType = groupElem.elemType
     local_coords = groupElem.Get_Local_Coords()
@@ -65,7 +68,7 @@ def _Get_BaryCentric_Coordinates(groupElem: _GroupElem) -> _types.FloatArray:
     return coordinates
 
 
-def __Get_NodesPositions(groupElem: _GroupElem) -> _types.FloatArray:
+def __Get_NodesPositions(groupElem: "_GroupElem") -> _types.FloatArray:
     elemType = groupElem.elemType
     local_coords = groupElem.Get_Local_Coords().astype(float)
 
@@ -91,7 +94,7 @@ def __Get_NodesPositions(groupElem: _GroupElem) -> _types.FloatArray:
     return nodes_positions
 
 
-def _Get_empty_groupElem(groupElem: _GroupElem, order: int):
+def _Get_empty_groupElem(groupElem: "_GroupElem", order: int):
 
     unavailable_elemTypes = [ElemType.QUAD8, ElemType.HEXA20, ElemType.PRISM15]
 
@@ -123,7 +126,7 @@ def _Get_empty_groupElem(groupElem: _GroupElem, order: int):
 
 
 def __Write_HOSolAt_Element(
-    file: io.TextIOWrapper, groupElem: _GroupElem, order: int
+    file: io.TextIOWrapper, groupElem: "_GroupElem", order: int
 ) -> None:
 
     # set groupElem info
@@ -140,7 +143,7 @@ def __Write_HOSolAt_Element(
 
 def __Write_HOSolAt_Solution(
     file: io.TextIOWrapper,
-    groupElem: _GroupElem,
+    groupElem: "_GroupElem",
     dofsValues: _types.FloatArray,
     assembly_e: _types.IntArray,
     type: int,
@@ -174,7 +177,7 @@ SOLUTION_TYPES = [1, 2]
 
 
 def _Write_solution_file(
-    mesh: Mesh,
+    mesh: "Mesh",
     dofsValues: _types.FloatArray,
     assembly_e: _types.IntArray,
     type: int,
@@ -234,14 +237,14 @@ def _Write_solution_file(
 
 
 def Save_simu(
-    simu: _Simu,
+    simu: "_Simu",
     results: list[str],
     types: list[int],
     folder: str,
     N: Optional[int] = None,
 ) -> str:
 
-    assert isinstance(simu, _Simu)
+    assert isinstance(simu, "_Simu")
 
     # sample the results
     Niter = simu.Niter

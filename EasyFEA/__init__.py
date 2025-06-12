@@ -19,7 +19,7 @@ from . import Geoms
 # ----------------------------------------------
 # fem
 # ----------------------------------------------
-from .fem import Mesher, ElemType, Mesh, gmsh, MatrixType
+from .fem import Mesher, ElemType, Mesh, MatrixType, gmsh
 
 # ----------------------------------------------
 # materials

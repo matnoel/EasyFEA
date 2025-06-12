@@ -5,7 +5,7 @@
 import pytest
 
 from EasyFEA import Mesher, ElemType, Materials, Simulations, np
-from EasyFEA.utilities._linalg import Trace, TensorProd
+from EasyFEA.fem._linalg import Trace, TensorProd
 from EasyFEA.materials import Project_Kelvin, HyperElastic
 from EasyFEA.Geoms import Domain
 

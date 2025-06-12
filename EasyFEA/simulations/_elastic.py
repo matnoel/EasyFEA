@@ -2,7 +2,7 @@
 # This file is part of the EasyFEA project.
 # EasyFEA is distributed under the terms of the GNU General Public License v3 or later, see LICENSE.txt and CREDITS.md for more information.
 
-from typing import Union, Callable, Optional
+from typing import Union, Callable, Optional, TYPE_CHECKING
 import numpy as np
 from scipy import sparse
 
@@ -10,7 +10,9 @@ from scipy import sparse
 from ..utilities import Folder, Display, Tic, _types
 
 # fem
-from ..fem import Mesh, MatrixType, Mesher, FeArray
+if TYPE_CHECKING:
+    from ..fem import Mesh
+from ..fem import MatrixType, Mesher, FeArray
 
 # materials
 from .. import Materials
@@ -25,7 +27,7 @@ class ElasticSimu(_Simu):
 
     def __init__(
         self,
-        mesh: Mesh,
+        mesh: "Mesh",
         model: Materials._Elas,
         verbosity=False,
         useNumba=True,

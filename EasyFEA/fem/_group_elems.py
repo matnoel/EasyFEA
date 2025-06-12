@@ -16,7 +16,6 @@ For instance, a TRI3 mesh uses POINT, SEG2 and TRI3 elements."""
 # Factory
 
 from abc import ABC, abstractmethod
-
 from scipy.optimize import least_squares
 from scipy import sparse
 import numpy as np
@@ -24,14 +23,14 @@ from typing import Callable, Optional, TYPE_CHECKING
 
 # fem
 from ._gauss import Gauss
+from ._linalg import FeArray, Trace, Transpose, Det, Inv
 
 # utils
-from ._utils import ElemType, MatrixType, FeArray
+from ._utils import ElemType, MatrixType
 
 # # others
-from ..Geoms import Point, Domain, Line, Circle
+from ..geoms import Point, Domain, Line, Circle
 from ..geoms import Jacobian_Matrix
-from ..utilities._linalg import Trace, Transpose, Det, Inv
 
 from ..utilities import _types
 
@@ -1645,7 +1644,7 @@ class _GroupElem(ABC):
 
         return self.__nodes[idx].copy()
 
-    def Get_Nodes_Line(self, line: Line) -> _types.IntArray:
+    def Get_Nodes_Line(self, line: "Line") -> _types.IntArray:
         """Returns nodes on the line."""
 
         assert isinstance(line, Line)
@@ -1666,10 +1665,10 @@ class _GroupElem(ABC):
 
         return self.__nodes[idx].copy()
 
-    def Get_Nodes_Domain(self, domain: Domain) -> _types.IntArray:
+    def Get_Nodes_Domain(self, domain: "Domain") -> _types.IntArray:
         """Returns nodes in the domain."""
 
-        assert isinstance(domain, Domain)
+        assert isinstance(domain, Line)
 
         xn, yn, zn = self.coord.T
 
@@ -1686,7 +1685,7 @@ class _GroupElem(ABC):
 
         return self.__nodes[idx].copy()
 
-    def Get_Nodes_Circle(self, circle: Circle, onlyOnEdge=False) -> _types.IntArray:
+    def Get_Nodes_Circle(self, circle: "Circle", onlyOnEdge=False) -> _types.IntArray:
         """Returns nodes in the circle."""
 
         assert isinstance(circle, Circle)
@@ -1705,7 +1704,7 @@ class _GroupElem(ABC):
         return self.__nodes[idx]
 
     def Get_Nodes_Cylinder(
-        self, circle: Circle, direction=[0, 0, 1], onlyOnEdge=False
+        self, circle: "Circle", direction=[0, 0, 1], onlyOnEdge=False
     ) -> _types.IntArray:
         """Returns nodes in the cylinder."""
 
@@ -1746,7 +1745,7 @@ class _GroupElem(ABC):
     # TODO Get_Nodes_Points
     # use Points.contour also give a normal
     # get all geom contour exept le last one
-    # Line -> Plane equation
+    # "Line" -> Plane equation
     # CircleArc -> Cylinder do something like Get_Nodes_Cylinder
 
     def _Set_Nodes_Tag(self, nodes: _types.IntArray, tag: str):
@@ -2245,13 +2244,17 @@ class _GroupElem(ABC):
 # --------------------------------------------------------------------------------------------
 
 # elems
-from .elems._point import POINT
-from .elems._seg import SEG2, SEG3, SEG4, SEG5
-from .elems._tri import TRI3, TRI6, TRI10, TRI15
-from .elems._quad import QUAD4, QUAD8, QUAD9
-from .elems._tetra import TETRA4, TETRA10
-from .elems._hexa import HEXA8, HEXA20, HEXA27
-from .elems._prism import PRISM6, PRISM15, PRISM18
+# fmt: off
+from .elems import (
+    POINT,
+    SEG2, SEG3, SEG4, SEG5,
+    TRI3, TRI6, TRI10, TRI15,
+    QUAD4, QUAD8, QUAD9,
+    TETRA4, TETRA10,
+    HEXA8, HEXA20, HEXA27,
+    PRISM6, PRISM15, PRISM18
+)
+# fmt: on
 
 
 class GroupElemFactory:

@@ -4,15 +4,17 @@
 
 from scipy import sparse
 import numpy as np
-from typing import Union, Callable, Optional
+from typing import Union, Callable, Optional, TYPE_CHECKING
 import pandas as pd
 
 # utilities
 from ..utilities import Tic, Display, _types
-from ..utilities._linalg import Det, Inv, Norm
 
 # fem
-from ..fem import Mesh, MatrixType, FeArray
+if TYPE_CHECKING:
+    from ..fem import Mesh
+from ..fem import MatrixType, FeArray
+from ..fem._linalg import Det, Inv, Norm
 
 # materials
 from ..materials import (
@@ -21,7 +23,9 @@ from ..materials import (
     Result_in_Strain_or_Stress_field,
     Project_Kelvin,
 )
-from ..materials._hyperelastic_laws import _HyperElas
+
+if TYPE_CHECKING:
+    from ..materials._hyperelastic_laws import _HyperElas
 from ..materials._hyperelastic import HyperElastic
 
 # simu
@@ -32,8 +36,8 @@ class HyperElasticSimu(_Simu):
 
     def __init__(
         self,
-        mesh: Mesh,
-        model: _HyperElas,
+        mesh: "Mesh",
+        model: "_HyperElas",
         verbosity=False,
         useNumba=True,
         useIterativeSolvers=True,
@@ -76,7 +80,7 @@ class HyperElasticSimu(_Simu):
         return self.dim
 
     @property
-    def material(self) -> _HyperElas:
+    def material(self) -> "_HyperElas":
         """hyperelastic material"""
         return self.model  # type: ignore [return-value]
 

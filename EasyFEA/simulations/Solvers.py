@@ -10,10 +10,13 @@ import numpy as np
 import scipy.sparse as sparse
 import scipy.optimize as optimize
 import scipy.sparse.linalg as sla
+from typing import Union, TYPE_CHECKING
 
-# utilities
+
+if TYPE_CHECKING:
+    from ._simu import _Simu
+
 from ..utilities import Tic, _types
-from typing import Union
 
 # fem
 from ..fem import LagrangeCondition
@@ -111,16 +114,8 @@ def _Available_Solvers():
     return solvers
 
 
-def __Cast_Simu(simu):
-    """casts the simu as a Simulations.Simu"""
-    from ._simu import _Simu
-
-    if isinstance(simu, _Simu):
-        return simu
-
-
 def _Solve_Axb(
-    simu,
+    simu: "_Simu",
     problemType: str,
     A: sparse.csr_matrix,
     b: sparse.csr_matrix,
@@ -152,9 +147,6 @@ def _Solve_Axb(
     _types.FloatArray
         comuted x solution of A x = b
     """
-
-    # checks types
-    simu = __Cast_Simu(simu)
 
     if not isinstance(A, sparse.csr_matrix):
         A = sparse.csr_matrix(A)
@@ -297,14 +289,12 @@ def _Solve(simu, problemType: str, resol: ResolType):
         return __Solver_3(simu, problemType)
 
 
-def __Solver_1(simu, problemType: str) -> _types.FloatArray:
+def __Solver_1(simu: "_Simu", problemType: str) -> _types.FloatArray:
     # --       --  --  --   --  --
     # | Aii Aic |  | xi |   | bi |
     # | Aci Acc |  | xc | = | bc |
     # --       --  --  --   --  --
     # xi = inv(Aii) * (bi - Aic * xc)
-
-    simu = __Cast_Simu(simu)
 
     # Build the matrix system
     b = simu._Solver_Apply_Neumann(problemType)
@@ -340,10 +330,9 @@ def __Solver_1(simu, problemType: str) -> _types.FloatArray:
     return x
 
 
-def __Solver_2(simu, problemType: str):
+def __Solver_2(simu: "_Simu", problemType: str):
     # Lagrange multiplier method
 
-    simu = __Cast_Simu(simu)
     size = simu.mesh.Nn * simu.Get_dof_n(problemType)
 
     # Build the penalized matrix system
@@ -407,15 +396,13 @@ def __Solver_2(simu, problemType: str):
     return sol, lagrange
 
 
-def __Solver_3(simu, problemType: str):
+def __Solver_3(simu: "_Simu", problemType: str):
     # Resolution using the penalty method
 
     # This method does not give preference to dirichlet conditions over neumann conditions.
     # This means that if a dof is applied in Neumann and in Dirichlet, it will be privileged over the dof applied in Neumann.
 
     # This method is never used. It is just implemented as an example
-
-    simu = __Cast_Simu(simu)
 
     # Builds the penalized matrix system
     b = simu._Solver_Apply_Neumann(problemType)

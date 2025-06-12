@@ -14,17 +14,14 @@ from typing import Union, Optional, Iterable, Collection, TYPE_CHECKING
 # utilities
 from ..utilities import Display, Folder, Tic, _types
 
-# pyright: reportUnknownMemberType=false
-# pyright: reportAttributeAccessIssue=false
-# pyright: reportUnnecessaryIsInstance=false
-
 # geom
-from ..Geoms import _Geom, Point, Points, Line, Circle, CircleArc, Domain, Contour  # type: ignore
-from ..geoms import Normalize
+from ..geoms import _Geom, Points, CircleArc, Point, Line, Circle, Domain, Contour, Normalize  # type: ignore
 
 # fem
+if TYPE_CHECKING:
+    from ._group_elems import _GroupElem
+from ._group_elems import GroupElemFactory  # type: ignore
 from ._mesh import Mesh, ElemType
-from ._group_elems import _GroupElem, GroupElemFactory  # type: ignore
 
 if TYPE_CHECKING:
     # materials
@@ -151,7 +148,7 @@ class Mesher:
         for i, geom in enumerate(contour.geoms):
 
             assert isinstance(
-                geom, (Line, CircleArc, Points)
+                geom, (Line, "CircleArc", Points)
             ), "Must be a Line, CircleArc or Points"
 
             if i == 0:
@@ -301,8 +298,8 @@ class Mesher:
 
     def _Surfaces(
         self,
-        contour: _Geom,
-        inclusions: list[_Geom] = [],
+        contour: "_Geom",
+        inclusions: list["_Geom"] = [],
         elemType: ElemType = ElemType.TRI3,
         isOrganised: bool = False,
     ) -> tuple[list[int], list[int], list[int]]:
@@ -434,7 +431,7 @@ class Mesher:
                 gmsh.model.mesh.setRecombine(2, surf)
 
     def _Additional_Surfaces(
-        self, dim: int, surfaces: list[_Geom], elemType: ElemType, isOrganised: bool
+        self, dim: int, surfaces: list["_Geom"], elemType: ElemType, isOrganised: bool
     ) -> None:
         """Adds surfaces to existing dim entities. Tip: if the mesh is not well generated, you can also give the inclusions.
 
@@ -458,7 +455,7 @@ class Mesher:
 
         factory = self._factory
 
-        list_surface: list[_Geom] = []
+        list_surface: list["_Geom"] = []
         for surface in surfaces:
             assert isinstance(surface, _Geom)
             if not surface.isHollow:
@@ -484,7 +481,9 @@ class Mesher:
             else:
                 factory.fragment(oldEntities, newEntities, False, True)
 
-    def _Additional_Lines(self, dim: int, lines: list[Union[Line, CircleArc]]) -> None:
+    def _Additional_Lines(
+        self, dim: int, lines: list[Union[Line, "CircleArc"]]
+    ) -> None:
         """Adds lines to existing dim entities. WARNING: lines must be within the domain.
 
         Parameters
@@ -547,7 +546,7 @@ class Mesher:
         for entity in oldEntities:  # type: ignore
             gmsh.model.mesh.embed(0, list_point, entity[0], entity[1])
 
-    def _Spline_From_Points(self, points: Points) -> tuple[int, list[int]]:
+    def _Spline_From_Points(self, points: "Points") -> tuple[int, list[int]]:
         """Creates a gmsh spline from points.\n
         returns spline, points"""
 
@@ -1074,7 +1073,7 @@ class Mesher:
                     crack_1D_open.extend(openLns)
                     crack_0D_open.extend(openPts)
 
-            elif isinstance(crack, CircleArc):  # 1D CRACK
+            elif isinstance(crack, "CircleArc"):  # 1D CRACK
 
                 # add points
                 pC = factory.addPoint(*crack.center.coord, meshSize=crack.meshSize)
@@ -1217,7 +1216,7 @@ class Mesher:
         return mesh
 
     def __Get_hollow_And_filled_Loops(
-        self, inclusions: list[_Geom]
+        self, inclusions: list["_Geom"]
     ) -> tuple[list[int], list[int]]:
         """Creates hollow and filled loops.
 
@@ -1246,14 +1245,14 @@ class Mesher:
 
     def Mesh_2D(
         self,
-        contour: _Geom,
-        inclusions: list[_Geom] = [],
+        contour: "_Geom",
+        inclusions: list["_Geom"] = [],
         elemType=ElemType.TRI3,
         cracks: list[ContourCompatible] = [],
         refineGeoms: list[Union[Domain, Circle, str]] = [],
         isOrganised=False,
-        additionalSurfaces: list[_Geom] = [],
-        additionalLines: list[Union[Line, CircleArc]] = [],
+        additionalSurfaces: list["_Geom"] = [],
+        additionalLines: list[Union[Line, "CircleArc"]] = [],
         additionalPoints: list[Point] = [],
         folder="",
     ) -> Mesh:
@@ -1331,16 +1330,16 @@ class Mesher:
 
     def Mesh_Extrude(
         self,
-        contour: _Geom,
-        inclusions: list[_Geom] = [],
+        contour: "_Geom",
+        inclusions: list["_Geom"] = [],
         extrude=[0, 0, 1],
         layers: list[int] = [],
         elemType=ElemType.TETRA4,
         cracks: list[CrackCompatible] = [],
         refineGeoms: list[Union[Domain, Circle, str]] = [],
         isOrganised=False,
-        additionalSurfaces: list[_Geom] = [],
-        additionalLines: list[Union[Line, CircleArc]] = [],
+        additionalSurfaces: list["_Geom"] = [],
+        additionalLines: list[Union[Line, "CircleArc"]] = [],
         additionalPoints: list[Point] = [],
         folder="",
     ) -> Mesh:
@@ -1350,7 +1349,7 @@ class Mesher:
         ----------
         contour : _Geom
             geom object
-        inclusions : list[Domain, Circle, Points, Contour], optional
+        inclusions : list[_Geom], optional
             list of hollow and filled geom objects inside the domain
         extrude : list, optional
             extrusion vector, by default [0,0,1]
@@ -1428,8 +1427,8 @@ class Mesher:
 
     def Mesh_Revolve(
         self,
-        contour: _Geom,
-        inclusions: list[_Geom] = [],
+        contour: "_Geom",
+        inclusions: list["_Geom"] = [],
         axis: Line = Line(Point(), Point(0, 1)),
         angle=360,
         layers: list[int] = [30],
@@ -1437,8 +1436,8 @@ class Mesher:
         cracks: list[ContourCompatible] = [],
         refineGeoms: list[Union[Domain, Circle, str]] = [],
         isOrganised=False,
-        additionalSurfaces: list[_Geom] = [],
-        additionalLines: list[Union[Line, CircleArc]] = [],
+        additionalSurfaces: list["_Geom"] = [],
+        additionalLines: list[Union[Line, "CircleArc"]] = [],
         additionalPoints: list[Point] = [],
         folder="",
     ) -> Mesh:
@@ -1823,7 +1822,7 @@ class Mesher:
 
         tic = Tic()
 
-        dict_groupElem: dict[ElemType, _GroupElem] = {}
+        dict_groupElem: dict[ElemType, "_GroupElem"] = {}
         meshDim = gmsh.model.getDimension()
         elementTypes = gmsh.model.mesh.getElementTypes()
         nodes, coord, __ = gmsh.model.mesh.getNodes()  # type: ignore

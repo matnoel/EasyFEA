@@ -8,9 +8,8 @@ from enum import Enum
 
 # utilities
 from ..utilities._observers import Observable
-from ..utilities._linalg import Transpose
 from ..utilities import _types
-from ..fem import FeArray
+from ..fem._linalg import FeArray, Transpose
 import numpy as np
 
 # pyright: reportPossiblyUnboundVariable=false

@@ -7,15 +7,17 @@
 from typing import Union
 import numpy as np
 
+from ..utilities import _types
+
 from ._utils import Point
-from ._geom import _Geom
 from ._line import Line
 from ._circle import CircleArc
 from ._points import Points
 
-from ..utilities import _types
+from ._geom import _Geom
 
-ContourCompatible = Union[Line, CircleArc, Points]
+
+ContourCompatible = Union["Line", "CircleArc", "Points"]
 
 
 class Contour(_Geom):
@@ -37,7 +39,7 @@ class Contour(_Geom):
         """
 
         # Check that the points form a closed loop
-        points: list[Point] = []
+        points: list["Point"] = []
 
         tol = 1e-12
 

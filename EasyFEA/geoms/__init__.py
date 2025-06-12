@@ -4,6 +4,13 @@
 
 """Module containing the geometric functions used to build meshes."""
 
+from ._circle import Circle, CircleArc
+from ._contour import Contour
+from ._domain import Domain
+from ._geom import _Geom
+from ._line import Line
+from ._points import Points
+
 from ._utils import (
     Point,
     AsPoint,

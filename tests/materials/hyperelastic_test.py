@@ -5,7 +5,7 @@
 from EasyFEA import Mesher, ElemType, MatrixType, Materials, Simulations, np
 from EasyFEA.materials._hyperelastic import HyperElastic
 from EasyFEA.Geoms import Domain
-from EasyFEA.utilities._linalg import Trace, Det, Inv, TensorProd
+from EasyFEA.fem._linalg import Trace, Det, Inv, TensorProd
 from EasyFEA.materials._utils import Project_Kelvin, FeArray
 
 

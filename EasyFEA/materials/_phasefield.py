@@ -2,7 +2,7 @@
 # This file is part of the EasyFEA project.
 # EasyFEA is distributed under the terms of the GNU General Public License v3 or later, see LICENSE.txt and CREDITS.md for more information.
 
-from typing import Union, Optional
+from typing import Union, Optional, TYPE_CHECKING
 from enum import Enum
 
 # utilities
@@ -10,7 +10,9 @@ import numpy as np
 from ..utilities import Numba, Tic
 
 # fem
-from ..fem import Mesh, FeArray, MatrixType
+if TYPE_CHECKING:
+    from ..fem import Mesh, MatrixType
+from ..fem import MatrixType, FeArray, Trace, TensorProd, Det, Inv, Norm
 
 # others
 from ._utils import (
@@ -21,7 +23,6 @@ from ._utils import (
     Project_matrix_to_vector,
 )
 from ..utilities import _params, _types
-from ..utilities._linalg import Trace, TensorProd, Det, Inv, Norm
 
 # ----------------------------------------------
 # Elasticity
@@ -250,7 +251,7 @@ class PhaseField(_IModel):
         return f
 
     def Get_g_e_pg(
-        self, d_n: _types.FloatArray, mesh: Mesh, matrixType: MatrixType, k_res=1e-12
+        self, d_n: _types.FloatArray, mesh: "Mesh", matrixType: MatrixType, k_res=1e-12
     ) -> FeArray.FeArrayALike:
         """Returns degradation function"""
 

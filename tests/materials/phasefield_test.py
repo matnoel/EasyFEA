@@ -9,7 +9,7 @@ from EasyFEA import Geoms, Mesher, Simulations, np
 # materials
 from EasyFEA.Materials import _Elas, Elas_Isot, Elas_IsotTrans, Elas_Anisot, PhaseField
 from EasyFEA.materials import Reshape_variable
-from EasyFEA.utilities._linalg import Norm
+from EasyFEA.fem._linalg import Norm
 from EasyFEA.fem import FeArray
 
 

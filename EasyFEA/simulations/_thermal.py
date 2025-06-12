@@ -2,7 +2,7 @@
 # This file is part of the EasyFEA project.
 # EasyFEA is distributed under the terms of the GNU General Public License v3 or later, see LICENSE.txt and CREDITS.md for more information.
 
-from typing import Union, Optional
+from typing import Union, Optional, TYPE_CHECKING
 import numpy as np
 from scipy import sparse
 
@@ -10,7 +10,9 @@ from scipy import sparse
 from ..utilities import Tic, _types
 
 # fem
-from ..fem import Mesh, MatrixType, FeArray
+if TYPE_CHECKING:
+    from ..fem import Mesh
+from ..fem import MatrixType, FeArray
 
 # materials
 from .. import Materials
@@ -25,7 +27,7 @@ class ThermalSimu(_Simu):
 
     def __init__(
         self,
-        mesh: Mesh,
+        mesh: "Mesh",
         model: Materials.Thermal,
         verbosity=False,
         useNumba=True,
@@ -104,7 +106,9 @@ class ThermalSimu(_Simu):
         initcsr = sparse.csr_matrix((size, size))
         return self.__Kt.copy(), self.__Ct.copy(), initcsr, self.__Ft.copy()
 
-    def __Construct_Thermal_Matrix(self) -> tuple[_types.FloatArray, _types.FloatArray]:
+    def __Construct_Thermal_Matrix(
+        self,
+    ) -> tuple[FeArray.FeArrayALike, FeArray.FeArrayALike]:
 
         thermalModel = self.thermalModel
         mesh = self.mesh

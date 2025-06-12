@@ -23,7 +23,7 @@ from ._utils import (
     Apply_Pmat,
 )
 from ..utilities import _params, _types
-from ..utilities._linalg import TensorProd
+from ..fem._linalg import TensorProd
 
 # ----------------------------------------------
 # Elasticity

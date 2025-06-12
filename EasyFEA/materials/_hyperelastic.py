@@ -6,8 +6,8 @@
 
 import numpy as np
 
-from ..fem import Mesh, MatrixType, FeArray
-from ..utilities._linalg import Transpose, Trace, Det, Inv, TensorProd
+from ..fem import Mesh, MatrixType
+from ..fem._linalg import FeArray, Transpose, Trace, Det, Inv, TensorProd
 from ..utilities import _types
 from ._utils import Project_Kelvin
 

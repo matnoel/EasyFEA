@@ -5,7 +5,7 @@
 from abc import ABC, abstractmethod
 import pickle
 from datetime import datetime
-from typing import Union, Callable, Optional, Any
+from typing import Union, Callable, Optional, Any, TYPE_CHECKING
 import numpy as np
 from scipy import sparse
 import scipy.sparse.linalg as sla
@@ -19,9 +19,13 @@ from ..utilities._observers import Observable, _IObserver
 from ..utilities import _types
 
 # fem
-from ..fem import Mesh, _GroupElem, MatrixType, BoundaryCondition, LagrangeCondition
+if TYPE_CHECKING:
+    from ..fem import _GroupElem
+from ..fem import Mesh, BoundaryCondition, LagrangeCondition, MatrixType
 
 # materials
+from ..materials import Reshape_variable
+
 from ..materials import ModelType, _IModel, Reshape_variable
 
 # simu
@@ -289,7 +293,7 @@ class _Simu(_IObserver, ABC):
                 "The simulation cannot be created because orphan nodes have been detected in the mesh.\n See `Display.Plot_Nodes(mesh, mesh.orphanNodes)`"
             )
 
-        self.__model: _IModel = model
+        self.__model = model
 
         self.__dim: int = model.dim
         """Simulation dimension."""
@@ -1671,7 +1675,7 @@ class _Simu(_IObserver, ABC):
 
     def _Bc_Integration_scale(
         self,
-        groupElem: _GroupElem,
+        groupElem: "_GroupElem",
         elements: _types.IntArray,
         values_e_p: _types.FloatArray,
         matrixType: MatrixType,
@@ -2221,7 +2225,7 @@ def _Init_obj(
         mesh = obj
         coord = mesh.coordGlob
         inDim = mesh.inDim
-    elif isinstance(obj, _GroupElem):
+    elif isinstance(obj, "_GroupElem"):
         simu = None
         mesh = Mesh({obj.elemType: obj})
         coord = mesh.coordGlob

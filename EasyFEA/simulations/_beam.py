@@ -2,7 +2,7 @@
 # This file is part of the EasyFEA project.
 # EasyFEA is distributed under the terms of the GNU General Public License v3 or later, see LICENSE.txt and CREDITS.md for more information.
 
-from typing import Union, Optional
+from typing import Union, Optional, TYPE_CHECKING
 import numpy as np
 from scipy import sparse
 
@@ -10,7 +10,9 @@ from scipy import sparse
 from ..utilities import Display, Tic, _types
 
 # fem
-from ..fem import Mesh, MatrixType, LagrangeCondition, FeArray
+if TYPE_CHECKING:
+    from ..fem import Mesh
+from ..fem import MatrixType, LagrangeCondition, FeArray
 
 # materials
 from .. import Materials
@@ -24,7 +26,7 @@ class BeamSimu(_Simu):
 
     def __init__(
         self,
-        mesh: Mesh,
+        mesh: "Mesh",
         model: Materials.BeamStructure,
         verbosity=False,
         useNumba=True,
