@@ -3,23 +3,24 @@
 Geoms
 =====
 
-In order to construct a :py:class:`~EasyFEA.fem.Mesh` with the :py:class:`~EasyFEA.fem.Mesher`, you must first create :py:class:`~EasyFEA.Geoms._Geom` objects.
+In order to construct a :py:class:`~EasyFEA.fem.Mesh` with the :py:class:`~EasyFEA.fem.Mesher`, you must first create :py:class:`~EasyFEA.geoms._Geom` objects.
 
 .. autosummary::    
-    ~EasyFEA.Geoms.Point
-    ~EasyFEA.Geoms._Geom
-    ~EasyFEA.Geoms.Points
-    ~EasyFEA.Geoms.Domain
-    ~EasyFEA.Geoms.Line
-    ~EasyFEA.Geoms.Circle
-    ~EasyFEA.Geoms.CircleArc
-    ~EasyFEA.Geoms.Contour 
+    ~EasyFEA.geoms.Point
+    ~EasyFEA.geoms._Geom
+    ~EasyFEA.geoms.Points
+    ~EasyFEA.geoms.Domain
+    ~EasyFEA.geoms.Line
+    ~EasyFEA.geoms.Circle
+    ~EasyFEA.geoms.CircleArc
+    ~EasyFEA.geoms.Contour 
 
 Detailed geoms api
 ------------------
 
-.. automodule:: EasyFEA.Geoms
+.. automodule:: EasyFEA.geoms
    :members:
+   :private-members:
    :undoc-members:
    :imported-members:
    :show-inheritance:

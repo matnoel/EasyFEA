@@ -12,4 +12,10 @@ Detailed simulations api
    :undoc-members:
    :imported-members:
    :show-inheritance:
+
+.. automodule:: EasyFEA.simulations
+   :members:
+   :undoc-members:
+   :imported-members:
+   :show-inheritance:
    

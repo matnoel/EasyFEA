@@ -7,7 +7,7 @@ Materials
 Detailed materials api
 ----------------------
 
-.. automodule:: EasyFEA.Materials
+.. automodule:: EasyFEA.materials
    :members:
    :undoc-members:
    :imported-members:

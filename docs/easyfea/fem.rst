@@ -14,9 +14,9 @@ Within the `EasyFEA/fem/ <https://github.com/matnoel/EasyFEA/tree/main/EasyFEA/f
 
 A :py:class:`~EasyFEA.fem.Mesh` object contains multiple :py:class:`~EasyFEA.fem._GroupElem` instances. For example, a :py:class:`~EasyFEA.fem.elems._hexa.HEXA8` mesh includes the following element types:
 
-- :py:class:`~EasyFEA.fem.elems._hexa.POINT` (0D element)
-- :py:class:`~EasyFEA.fem.elems._hexa.SEG2` (1D element)
-- :py:class:`~EasyFEA.fem.elems._hexa.QUAD4` (2D element)
+- :py:class:`~EasyFEA.fem.elems._point.POINT` (0D element)
+- :py:class:`~EasyFEA.fem.elems._seg.SEG2` (1D element)
+- :py:class:`~EasyFEA.fem.elems._quad.QUAD4` (2D element)
 - :py:class:`~EasyFEA.fem.elems._hexa.HEXA8` (3D element)
 
 All implemented element types, along with their shape functions and derivatives, are defined in the `EasyFEA/fem/elems/ <https://github.com/matnoel/EasyFEA/tree/main/EasyFEA/fem/elems>`_ directory. The Gauss point quadratures are implemented in the `EasyFEA/fem/_gauss.py <https://github.com/matnoel/EasyFEA/tree/main/EasyFEA/fem/_gauss.py>`_ module.
@@ -34,16 +34,17 @@ To construct a :py:class:`~EasyFEA.fem.Mesh` using the :py:class:`~EasyFEA.fem.M
 Detailed fem api
 ----------------
 
-.. automodule:: EasyFEA.fem
-   :members:
-   :undoc-members:
-   :imported-members:
-   :show-inheritance:
+.. automodule:: EasyFEA.fem    
+    :members:
+    :private-members:
+    :undoc-members:
+    :imported-members:
+    :show-inheritance:
    
-
 .. automodule:: EasyFEA.fem.elems
-   :members:
-   :undoc-members:
-   :imported-members:
-   :show-inheritance:
+    :members:
+    :private-members:
+    :undoc-members:
+    :imported-members:
+    :show-inheritance:
    
