@@ -5,7 +5,7 @@
 from abc import ABC, abstractmethod
 import pickle
 from datetime import datetime
-from typing import Union, Callable, Optional, Any, TYPE_CHECKING
+from typing import Union, Callable, Optional, Any
 import numpy as np
 from scipy import sparse
 import scipy.sparse.linalg as sla
@@ -19,9 +19,7 @@ from ..utilities._observers import Observable, _IObserver
 from ..utilities import _types
 
 # fem
-if TYPE_CHECKING:
-    from ..fem import _GroupElem
-from ..fem import Mesh, BoundaryCondition, LagrangeCondition, MatrixType
+from ..fem import Mesh, _GroupElem, BoundaryCondition, LagrangeCondition, MatrixType
 
 # materials
 from ..materials import Reshape_variable
@@ -1675,7 +1673,7 @@ class _Simu(_IObserver, ABC):
 
     def _Bc_Integration_scale(
         self,
-        groupElem: "_GroupElem",
+        groupElem: _GroupElem,
         elements: _types.IntArray,
         values_e_p: _types.FloatArray,
         matrixType: MatrixType,
@@ -2225,7 +2223,7 @@ def _Init_obj(
         mesh = obj
         coord = mesh.coordGlob
         inDim = mesh.inDim
-    elif isinstance(obj, "_GroupElem"):
+    elif isinstance(obj, _GroupElem):
         simu = None
         mesh = Mesh({obj.elemType: obj})
         coord = mesh.coordGlob
