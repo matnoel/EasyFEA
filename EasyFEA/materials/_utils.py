@@ -9,7 +9,7 @@ from enum import Enum
 # utilities
 from ..utilities._observers import Observable
 from ..utilities import _types
-from ..fem._linalg import FeArray, Transpose
+from ..fem._linalg import FeArray
 import numpy as np
 
 # pyright: reportPossiblyUnboundVariable=false
@@ -320,7 +320,8 @@ def Project_Kelvin(
     # for xx, yy, zz, yz, xz, zy
     e = np.array([[0, 5, 4], [5, 1, 3], [4, 3, 2]])
 
-    kron = lambda a, b: 1 if a == b else 0
+    def kron(a, b):
+        return 1 if a == b else 0
 
     if orderA == 2:
         # Aij -> AI

@@ -35,7 +35,7 @@ IntType = TypeVar(
     "IntType",
     bound=Union[np.integer, int],
 )
-IntArray = NDArray[IntType]
+IntArray = NDArray[IntType]  # type: ignore
 
 NumberArray = Union[FloatArray, IntArray]
 

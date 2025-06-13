@@ -22,8 +22,6 @@ from ..utilities import _types
 from ..fem import Mesh, _GroupElem, BoundaryCondition, LagrangeCondition, MatrixType
 
 # materials
-from ..materials import Reshape_variable
-
 from ..materials import ModelType, _IModel, Reshape_variable
 
 # simu
@@ -1331,7 +1329,7 @@ class _Simu(_IObserver, ABC):
     ) -> _types.FloatArray:
         """Evaluates values at nodes or gauss points."""
 
-        assert option in ["nodes", "gauss"], f"Must be in ['nodes','gauss']"
+        assert option in ["nodes", "gauss"], "Must be in ['nodes','gauss']"
         if option == "nodes":
             values_eval = np.zeros(coord.shape[0])
         elif option == "gauss":
@@ -2261,7 +2259,7 @@ def _Get_values(
     """
 
     if isinstance(result, str):
-        if simu == None:
+        if simu is None:
             raise Exception(
                 "obj is a mesh, so the result must be an array of dimension Nn or Ne"
             )

@@ -200,7 +200,7 @@ class PhaseFieldSimu(_Simu):
         sparse.csr_matrix, sparse.csr_matrix, sparse.csr_matrix, sparse.csr_matrix
     ]:
 
-        if problemType == None:
+        if problemType is None:
             problemType = ModelType.elastic
 
         # here always update to the last state
@@ -690,7 +690,7 @@ class PhaseFieldSimu(_Simu):
         self, result: str, nodeValues: bool = True, iter: Optional[int] = None
     ) -> Union[_types.FloatArray, float, None]:
 
-        if iter != None:
+        if iter is not None:
             self.Set_Iter(iter)
 
         if not self._Results_Check_Available(result):
@@ -732,7 +732,7 @@ class PhaseFieldSimu(_Simu):
         elif result == "displacement_matrix":
             values = self.Results_displacement_matrix()  # type: ignore [assignment]
 
-        elif ("S" in result or "E" in result) and (not "_norm" in result):
+        elif ("S" in result or "E" in result) and ("_norm" not in result):
             # Strain and Stress calculation part
 
             coef = self.phaseFieldModel.material.coef

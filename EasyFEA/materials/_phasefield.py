@@ -12,7 +12,7 @@ from ..utilities import Numba, Tic
 # fem
 if TYPE_CHECKING:
     from ..fem import Mesh, MatrixType
-from ..fem import MatrixType, FeArray, Trace, TensorProd, Det, Inv, Norm
+from ..fem import MatrixType, FeArray, Trace, TensorProd, Det, Norm
 
 # others
 from ._utils import (
@@ -28,7 +28,7 @@ from ..utilities import _params, _types
 # Elasticity
 # ----------------------------------------------
 
-from ._linear_elastic_laws import _Elas, Elas_Isot, Elas_IsotTrans, Elas_Anisot
+from ._linear_elastic_laws import _Elas, Elas_Isot
 
 # ----------------------------------------------
 # Phase field
@@ -297,7 +297,7 @@ class PhaseField(_IModel):
         if not isinstance(self.material, Elas_Isot):
             # check that if the material is not a isotropic material you cant pick a isotoprpic split
             assert (
-                not value in PhaseField.__SPLITS_ISOT
+                value not in PhaseField.__SPLITS_ISOT
             ), "These splits are only implemented for Elas_Isot material"
         self.Need_Update()
         self.__split = value
@@ -480,7 +480,7 @@ class PhaseField(_IModel):
         cP_e_pg = C_e_pg
         cM_e_pg = np.zeros_like(cP_e_pg)
 
-        tic.Tac("Split", f"cP_e_pg and cM_e_pg", False)
+        tic.Tac("Split", "cP_e_pg and cM_e_pg", False)
 
         return cP_e_pg, cM_e_pg
 
@@ -489,7 +489,7 @@ class PhaseField(_IModel):
 
         assert isinstance(
             self.__material, Elas_Isot
-        ), f"Implemented only for Elas_Isot material."
+        ), "Implemented only for Elas_Isot material."
 
         tic = Tic()
 
@@ -519,7 +519,7 @@ class PhaseField(_IModel):
         cP_e_pg = bulk * (Rp_e_pg * IxI) + 2 * mu * (np.eye(size) - 1 / dim * IxI)
         cM_e_pg = bulk * (Rm_e_pg * IxI)
 
-        tic.Tac("Split", f"cP_e_pg and cM_e_pg", False)
+        tic.Tac("Split", "cP_e_pg and cM_e_pg", False)
 
         return cP_e_pg, cM_e_pg
 
@@ -562,7 +562,7 @@ class PhaseField(_IModel):
 
             assert isinstance(
                 self.__material, Elas_Isot
-            ), f"Implemented only for Elas_Isot material"
+            ), "Implemented only for Elas_Isot material"
 
             # Compute Rp and Rm
             Rp_e_pg, Rm_e_pg = self.__Rp_Rm(Epsilon_e_pg)
@@ -632,7 +632,7 @@ class PhaseField(_IModel):
         else:
             raise Exception("Unknown split.")
 
-        tic.Tac("Split", f"cP_e_pg and cM_e_pg", False)
+        tic.Tac("Split", "cP_e_pg and cM_e_pg", False)
 
         return cP_e_pg, cM_e_pg  # type: ignore
 
@@ -760,7 +760,7 @@ class PhaseField(_IModel):
                 else:
                     raise Exception("Unknown split.")
 
-        tic.Tac("Split", f"cP_e_pg and cM_e_pg", False)
+        tic.Tac("Split", "cP_e_pg and cM_e_pg", False)
 
         return cP_e_pg, cM_e_pg  # type: ignore
 
@@ -777,7 +777,7 @@ class PhaseField(_IModel):
         tic = Tic()
         sqrtC, inv_sqrtC = material.Get_sqrt_C_S()
         # inv(sqrtC) = sqrtS
-        tic.Tac("Split", f"sqrt C and S", False)
+        tic.Tac("Split", "sqrt C and S", False)
 
         if material.isHeterogeneous:
             sqrtC = Reshape_variable(sqrtC, Ne, nPg)
@@ -803,12 +803,12 @@ class PhaseField(_IModel):
         projP_e_pg = inv_sqrtC @ projPt_e_pg @ sqrtC
         projM_e_pg = inv_sqrtC @ projMt_e_pg @ sqrtC
 
-        tic.Tac("Split", f"proj Tild to proj", False)
+        tic.Tac("Split", "proj Tild to proj", False)
 
         cP_e_pg = C @ projP_e_pg
         cM_e_pg = C @ projM_e_pg
 
-        tic.Tac("Split", f"cP_e_pg and cM_e_pg", False)
+        tic.Tac("Split", "cP_e_pg and cM_e_pg", False)
 
         if verif:
 
@@ -859,7 +859,8 @@ class PhaseField(_IModel):
 
         tic.Tac("Split", "vector_e_pg -> matrix_e_pg", False)
 
-        normalize = lambda M: M / Norm(M, axis=(-2, -1))
+        def normalize(M):
+            return M / Norm(M, axis=(-2, -1))
 
         if self.dim == 2:
             # invariants of the strain tensor [e,pg]
@@ -903,7 +904,8 @@ class PhaseField(_IModel):
 
                 tic.Tac("Split", "np.linalg.eigh", False)
 
-                func_Mi = lambda mi: TensorProd(mi, mi, ndim=1)
+                def func_Mi(mi):
+                    return TensorProd(mi, mi, ndim=1)
 
                 M1 = func_Mi(vectnum[:, :, :, 0])
                 M2 = func_Mi(vectnum[:, :, :, 1])
@@ -1104,7 +1106,8 @@ class PhaseField(_IModel):
             valnum, vectnum = np.linalg.eigh(matrix_e_pg)
             valnum, vectnum = FeArray._asfearrays(valnum, vectnum)
 
-            func_Mi = lambda mi: TensorProd(mi, mi, ndim=1)
+            def func_Mi(mi):
+                return TensorProd(mi, mi, ndim=1)
 
             M1_num = func_Mi(vectnum[:, :, :, 0])
             M1_num = normalize(M1_num)
@@ -1339,12 +1342,15 @@ class PhaseField(_IModel):
 
                     Gij = np.zeros((Ne, nPg, 6, 6))
 
-                    part1 = lambda Ma, Mb: np.einsum(
-                        "...ik,...jl->...ijkl", Ma, Mb, optimize="optimal"
-                    )
-                    part2 = lambda Ma, Mb: np.einsum(
-                        "...il,...jk->...ijkl", Ma, Mb, optimize="optimal"
-                    )
+                    def part1(Ma, Mb):
+                        return np.einsum(
+                            "...ik,...jl->...ijkl", Ma, Mb, optimize="optimal"
+                        )
+
+                    def part2(Ma, Mb):
+                        return np.einsum(
+                            "...il,...jk->...ijkl", Ma, Mb, optimize="optimal"
+                        )
 
                     Gijkl = (
                         part1(Ma, Mb) + part2(Ma, Mb) + part1(Mb, Ma) + part2(Mb, Ma)

@@ -3,10 +3,6 @@
 # EasyFEA is distributed under the terms of the GNU General Public License v3, see LICENSE.txt and CREDITS.md for more information.
 
 from enum import Enum
-import numpy as np
-
-from typing import Union, Optional, Iterable
-from ..utilities import _types
 
 
 class ElemType(str, Enum):

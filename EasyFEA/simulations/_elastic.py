@@ -108,7 +108,6 @@ class ElasticSimu(_Simu):
         """Computes the elementary stiffness matrices for the elastic problem."""
 
         mesh = self.mesh
-        Ne = mesh.Ne
 
         tic = Tic()
 
@@ -282,7 +281,7 @@ class ElasticSimu(_Simu):
         self, result: str, nodeValues: bool = True, iter: Optional[int] = None
     ) -> Union[_types.FloatArray, float]:
 
-        if iter != None:
+        if iter is not None:
             self.Set_Iter(iter)
 
         if not self._Results_Check_Available(result):
@@ -342,7 +341,7 @@ class ElasticSimu(_Simu):
         elif result == "ZZ1_e":
             values = self._Calc_ZZ1()[1]
 
-        elif ("S" in result or "E" in result) and (not "_norm" in result):
+        elif ("S" in result or "E" in result) and ("_norm" not in result):
             # Strain and Stress calculation part
 
             coef = self.material.coef

@@ -125,7 +125,7 @@ def Plot(
     # apply coef to the array
     name = "array" if isinstance(result, np.ndarray) else result
     name = None if pvMesh.n_arrays == 0 else name
-    if name != None:
+    if name is not None:
         pvMesh[name] *= coef
 
     colorbarTitle = name if colorbarTitle is None else colorbarTitle
@@ -356,7 +356,7 @@ def Plot_Elements(
 
     _, mesh, coordo, _ = _Init_obj(obj, deformFactor)
 
-    dimElem = mesh.dim if dimElem == None else dimElem
+    dimElem = mesh.dim if dimElem is None else dimElem
 
     if nodes is None:
         nodes = mesh.nodes
@@ -607,7 +607,7 @@ def Plot_Geoms(
 
     geoms: list[Geoms._Geom] = geoms  # type: ignore [no-redef]
 
-    if not "color" in kwargs.keys():
+    if "color" not in kwargs.keys():
         pv.global_theme.color_cycler = "default"  # same as matplotlib
         color_cycler = pv.global_theme.color_cycler
     else:
@@ -750,7 +750,7 @@ def Movie_func(
 
         plotter.write_frame()
 
-        time = tic.Tac("PyVista_Interface", f"Movie_func", False)
+        time = tic.Tac("PyVista_Interface", "Movie_func", False)
 
         rmTime = Tic.Get_Remaining_Time(i, N - 1, time)
 

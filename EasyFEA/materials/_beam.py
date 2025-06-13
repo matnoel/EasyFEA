@@ -3,7 +3,6 @@
 # EasyFEA is distributed under the terms of the GNU General Public License v3, see LICENSE.txt and CREDITS.md for more information.
 
 from abc import abstractmethod
-from typing import Union
 
 # utilities
 import numpy as np
@@ -52,10 +51,9 @@ class _Beam(_IModel):
         """squared moment of the cross-section around y-axis.\n
         int_S z^2 dS"""
         # here z is the x axis of the section thats why we use x
-        func = lambda x, y, z: x**2
         Iy: float = np.sum(
             [
-                grp.Integrate_e(func).sum()
+                grp.Integrate_e(lambda x, y, z: x**2).sum()
                 for grp in self.__section.Get_list_groupElem(2)
             ]
         )
@@ -65,10 +63,9 @@ class _Beam(_IModel):
     def Iz(self) -> float:
         """squared moment of the cross-section around z-axis.\n
         int_S y^2 dS"""
-        func = lambda x, y, z: y**2
         Iz: float = np.sum(
             [
-                grp.Integrate_e(func).sum()
+                grp.Integrate_e(lambda x, y, z: y**2).sum()
                 for grp in self.__section.Get_list_groupElem(2)
             ]
         )
@@ -77,10 +74,9 @@ class _Beam(_IModel):
     @property
     def J(self) -> float:
         """polar area moment of inertia (Iy + Iz)."""
-        func = lambda x, y, z: x**2 + y**2
         J: float = np.sum(
             [
-                grp.Integrate_e(func).sum()
+                grp.Integrate_e(lambda x, y, z: x**2 + y**2).sum()
                 for grp in self.__section.Get_list_groupElem(2)
             ]
         )
@@ -301,7 +297,6 @@ class Beam_Elas_Isot(_Beam):
         J = self.J
 
         E = self.__E
-        v = self.__v
 
         if dim == 1:
             # u = [u1, . . . , un]

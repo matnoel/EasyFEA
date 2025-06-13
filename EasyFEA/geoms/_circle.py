@@ -221,14 +221,14 @@ class CircleArc(_Geom):
         # check that pt1 and pt2 dont share the same coordinates
         assert not pt1.Check(pt2), "pt1 and pt2 are on the same coordinates"
 
-        if center != None:
+        if center is not None:
             center = AsPoint(center)
             assert not pt1.Check(center), "pt1 and center are on the same coordinates"
 
-        elif P != None:
+        elif P is not None:
             center = Point(*Circle_Triangle(pt1, pt2, P))
 
-        elif R != None:
+        elif R is not None:
             coord = np.array([pt1.coord, pt2.coord])
             center = Point(*Circle_Coords(coord, R, n))
         else:

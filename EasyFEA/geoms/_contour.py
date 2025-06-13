@@ -83,9 +83,9 @@ class Contour(_Geom):
         list_point: list[_types.FloatArray] = []
 
         for geom in self.geoms:
-            l, p = geom.Get_coord_for_plot()
-            list_line.extend(l.ravel())
-            list_point.extend(p.ravel())
+            line, point = geom.Get_coord_for_plot()
+            list_line.extend(line.ravel())
+            list_point.extend(point.ravel())
 
         lines = np.array(list_line, dtype=float).reshape(-1, 3)
         points = np.array(list_point, dtype=float).reshape(-1, 3)

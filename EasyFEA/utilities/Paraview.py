@@ -165,7 +165,9 @@ def __Make_vtu(
     endian_paraview = "LittleEndian"  # 'LittleEndian' 'BigEndian'
 
     bitSize = 4  # bit size
-    CalcOffset = lambda offset, size: offset + bitSize + (bitSize * size)
+
+    def CalcOffset(offset, size):
+        return offset + bitSize + (bitSize * size)
 
     with open(filename, "w") as file:
 

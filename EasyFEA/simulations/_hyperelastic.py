@@ -14,7 +14,7 @@ from ..utilities import Tic, Display, _types
 if TYPE_CHECKING:
     from ..fem import Mesh
 from ..fem import MatrixType, FeArray
-from ..fem._linalg import Det, Inv, Norm
+from ..fem._linalg import Det
 
 # materials
 from ..materials import (
@@ -364,7 +364,7 @@ class HyperElasticSimu(_Simu):
         self, result: str, nodeValues: bool = True, iter: Optional[int] = None
     ) -> Union[_types.FloatArray, float]:
 
-        if iter != None:
+        if iter is not None:
             self.Set_Iter(iter)
 
         if not self._Results_Check_Available(result):
@@ -418,7 +418,7 @@ class HyperElasticSimu(_Simu):
         elif result == "W_e":
             values = self._Calc_W(False)
 
-        elif ("S" in result or "E" in result) and (not "_norm" in result):
+        elif ("S" in result or "E" in result) and ("_norm" not in result):
             # Green-Lagrange and second Piola-Kirchhoff for each element and gauss point
 
             # Element average

@@ -9,7 +9,6 @@ from typing import Any
 
 from . import Folder, Display, _types
 
-from ..fem import Mesh
 from ..fem import Mesher, Mesh, ElemType
 from .PyVista import DICT_GMSH_TO_VTK, np
 

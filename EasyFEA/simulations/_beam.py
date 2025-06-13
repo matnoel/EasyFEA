@@ -421,7 +421,7 @@ class BeamSimu(_Simu):
         self, result: str, nodeValues: bool = True, iter: Optional[int] = None
     ) -> Union[_types.FloatArray, float]:
 
-        if iter != None:
+        if iter is not None:
             self.Set_Iter(iter)
 
         if not self._Results_Check_Available(result):

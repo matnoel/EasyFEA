@@ -115,7 +115,11 @@ class Tic:
 
     @staticmethod
     def __plotBar(
-        ax: plt.Axes, categories: list, times: list, reps: list[int], title: str
+        ax: plt.Axes,
+        categories: list[str],
+        times: list[float],
+        reps: list[int],
+        title: str,
     ) -> None:
 
         # Axis parameters
@@ -130,7 +134,7 @@ class Tic:
 
         ax.grid(axis="x", lw=1.2)
 
-        tempsMax = np.max(times)
+        timeMax = np.max(times)
 
         # I want to display the text on the right if the time represents < 0.5 timeTotal
         # Otherwise, we'll display it on the left
@@ -152,7 +156,7 @@ class Tic:
 
             category = space + category + repTemps + space
 
-            if time / tempsMax < 0.6:
+            if time / timeMax < 0.6:
                 ax.text(
                     time,
                     i,

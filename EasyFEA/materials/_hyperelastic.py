@@ -7,7 +7,7 @@
 import numpy as np
 
 from ..fem import Mesh, MatrixType
-from ..fem._linalg import FeArray, Transpose, Trace, Det, Inv, TensorProd
+from ..fem._linalg import FeArray, Transpose, Det, TensorProd
 from ..utilities import _types
 from ._utils import Project_Kelvin
 

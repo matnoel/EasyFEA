@@ -2246,7 +2246,7 @@ class _GroupElem(ABC):
 # elems
 # fmt: off
 # import must be done here to avoid circular imports
-from .elems import (
+from .elems import (  # noqa: E402
     POINT,
     SEG2, SEG3, SEG4, SEG5,
     TRI3, TRI6, TRI10, TRI15,

@@ -6,7 +6,10 @@
 This module handles geometric objects (_Geom) to facilitate the creation of meshes on Gmsh.
 """
 
-import sys, os, matplotlib, gmsh
+import sys
+import os
+import matplotlib
+import gmsh
 import numpy as np
 from typing import Union, Optional, Iterable, Collection, TYPE_CHECKING
 
@@ -85,7 +88,7 @@ class Mesher:
         """Initializes gmsh."""
         if not gmsh.isInitialized():
             gmsh.initialize()
-        if self.__gmshVerbosity == False:
+        if not self.__gmshVerbosity:
             gmsh.option.setNumber("General.Verbosity", 0)
         gmsh.model.add("model")
         if factory == "occ":
@@ -104,7 +107,7 @@ class Mesher:
             # If occ is used, checks whether objects have already been synchronized.
             ents1 = factory.getEntities()  # type: ignore
             ents2 = gmsh.model.getEntities()
-            if len(ents1) != len(ents2):  # type: ignore
+            if len(ents1) is not len(ents2):  # type: ignore
                 # Entities are not up to date
                 factory.synchronize()
         else:
@@ -153,6 +156,7 @@ class Mesher:
 
             if i == 0:
                 p1 = factory.addPoint(*geom.pt1.coord, meshSize=geom.meshSize)
+                firstPoint = p1  # type: ignore
                 if geom.pt1.isOpen:
                     openPoints.append(p1)
                 p2 = factory.addPoint(*geom.pt2.coord, meshSize=geom.meshSize)
@@ -220,9 +224,6 @@ class Mesher:
                     openLines.append(line)
 
                 factory.remove([(0, p) for p in splinePoints[1:-1]])
-
-            if i == 0:
-                firstPoint = p1  # type: ignore
 
         loop = factory.addCurveLoop(lines)
 
@@ -417,8 +418,8 @@ class Mesher:
             lines = gmsh.model.getBoundary([(2, surf)])
             if len(lines) == len(numElems):
                 [
-                    gmsh.model.mesh.setTransfiniteCurve(l[1], int(n + 1))
-                    for l, n in zip(lines, numElems)
+                    gmsh.model.mesh.setTransfiniteCurve(line[1], int(num + 1))
+                    for line, num in zip(lines, numElems)
                 ]
 
             if isOrganised:
@@ -678,7 +679,7 @@ class Mesher:
 
         if angleIs2PI:
             angle = angle / 2
-            layers = [l // 2 for l in layers]
+            layers = [layer // 2 for layer in layers]
 
         revolEntities = []
 
@@ -765,7 +766,10 @@ class Mesher:
             useRecombine = "HEXA" in elemType or "PRISM" in elemType
 
             # organize the transfinite lines
-            [gmsh.model.mesh.setTransfiniteCurve(l, nLayers + 1) for l in linkingLines]
+            [
+                gmsh.model.mesh.setTransfiniteCurve(linkingLine, nLayers + 1)
+                for linkingLine in linkingLines
+            ]
 
             # surf must be transfinite to have a strucutred surfaces during the extrusion
             for surf, corners in zip(linkingSurfaces, list_corners):
@@ -871,10 +875,10 @@ class Mesher:
     ) -> list[tuple[int, int]]:
         """Get entities from from points, lines, surfaces and volumes tags"""
         entities = []
-        entities.extend([(0, p) for p in points])
-        entities.extend([(1, l) for l in lines])
-        entities.extend([(2, s) for s in surfaces])
-        entities.extend([(3, v) for v in volumes])
+        entities.extend([(0, point) for point in points])
+        entities.extend([(1, line) for line in lines])
+        entities.extend([(2, surface) for surface in surfaces])
+        entities.extend([(3, volume) for volume in volumes])
         return entities
 
     def Mesh_Import_mesh(self, mesh: str, setPhysicalGroups=False, coef=1.0) -> Mesh:
@@ -1781,12 +1785,12 @@ class Mesher:
             gmsh.model.mesh.removeDuplicateElements()
 
         # PLUGIN CRACK
-        if crackSurfaces != None or crackLines != None:
+        if crackSurfaces is not None or crackLines is not None:
 
-            if crackLines != None:  # 1D CRACKS
+            if crackLines is not None:  # 1D CRACKS
                 gmsh.plugin.setNumber("Crack", "Dimension", 1)
                 gmsh.plugin.setNumber("Crack", "PhysicalGroup", crackLines)
-                if openPoints != None:
+                if openPoints is not None:
                     gmsh.plugin.setNumber(
                         "Crack", "OpenBoundaryPhysicalGroup", openPoints
                     )
@@ -1794,10 +1798,10 @@ class Mesher:
                     "Crack"
                 )  # DONT DELETE must be called for lines and surfaces
 
-            if crackSurfaces != None:  # 2D CRACKS
+            if crackSurfaces is not None:  # 2D CRACKS
                 gmsh.plugin.setNumber("Crack", "Dimension", 2)
                 gmsh.plugin.setNumber("Crack", "PhysicalGroup", crackSurfaces)
-                if openLines != None:
+                if openLines is not None:
                     gmsh.plugin.setNumber(
                         "Crack", "OpenBoundaryPhysicalGroup", openLines
                     )
@@ -2015,7 +2019,6 @@ class Mesher:
         circle = Circle(
             Point(x=L / 2, y=0, z=-b / 2), h * 0.7, meshSize=meshSize, isHollow=False
         )
-        axis = Line(domain.pt1 + [-1, 0], domain.pt1 + [-1, h])
 
         volume = L * h * b
 
@@ -2224,9 +2227,11 @@ class Mesher:
             )
 
             if dof_n == 1:
-                view = AddView(result, vals_e_i_n[:, :, 0].reshape((Ne, -1)))
+                view = AddView(
+                    result, vals_e_i_n[:, :, 0].reshape((Ne, -1))
+                )  # noqa: F841
             else:
-                views = [
+                views = [  # noqa: F841
                     AddView(result + f"_{n}", vals_e_i_n[:, :, n].reshape(Ne, -1))
                     for n in range(dof_n)
                 ]

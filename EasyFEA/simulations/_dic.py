@@ -435,7 +435,7 @@ class DIC(_IObserver):
             deformed image (g)
         u0 : _types.FloatArray, optional
             initial displacement field, by default None\n
-            If u0 == None, the field is initialized with _Get_u_from_images(imgRef, img) function
+            If u0 is None, the field is initialized with _Get_u_from_images(imgRef, img) function
         iterMax : int, optional
             maximum number of iterations, by default 1000
         tolConv : float, optional

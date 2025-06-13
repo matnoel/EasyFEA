@@ -151,8 +151,6 @@ def __Write_HOSolAt_Solution(
     order: int,
 ) -> None:
 
-    # dofsValues informations
-    Ndof = dofsValues.size
     # assembly_e informations
     Ne = assembly_e.shape[0]
     assert (
@@ -291,7 +289,7 @@ def Save_simu(
                 file.write(solution_file + "\n")
 
     # save the mesh in Medit format
-    mesh_file = MeshIO.EasyFEA_to_Medit(simu.mesh, folder, f"mesh")
+    mesh_file = MeshIO.EasyFEA_to_Medit(simu.mesh, folder, "mesh")
 
     sols_files = " ".join([f"{Folder.Join(folder,result)}.sols" for result in results])
     command = f"vizir4 -in {mesh_file} -sols {sols_files}"

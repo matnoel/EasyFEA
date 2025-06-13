@@ -115,7 +115,7 @@ def Plot_Result(
 
     # Builds boundary markers for the colorbar
     min, max = clim
-    if min == None and max is None:
+    if min is None and max is None:
         if isinstance(result, str) and result == "damage":
             min = values.min() - 1e-12
             max = np.max([values.max() + 1e-12, 1])
@@ -123,7 +123,7 @@ def Plot_Result(
             # ticks = np.linspace(0,1,11) # ticks colorbar
         else:
             max = np.max(values) + 1e-12 if max is None else max
-            min = np.min(values) - 1e-12 if min == None else min
+            min = np.min(values) - 1e-12 if min is None else min
             ticks = np.linspace(min, max, 11)
         levels = np.linspace(min, max, ncolors)
     else:
@@ -297,7 +297,7 @@ def Plot_Result(
                 optionTex = "\phi"
             elif result == "thermal":
                 optionTex = "T"
-            elif "S" in result and (not "_norm" in result):
+            elif "S" in result and ("_norm" not in result):
                 optionFin = result.split("S")[-1]
                 optionTex = f"\sigma_{'{'+optionFin+'}'}"
             elif "E" in result:
@@ -369,10 +369,10 @@ def Plot_Mesh(
 
     simu, mesh, coordo, inDim = _Init_obj(obj, deformFactor)
 
-    if ax != None:
+    if ax is not None:
         inDim = 3 if ax.name == "3d" else inDim
 
-    deformFactor = 0 if simu == None else np.abs(deformFactor)
+    deformFactor = 0 if simu is None else np.abs(deformFactor)
 
     # Dimensions of displayed elements
     dimElem = mesh.dim
@@ -619,7 +619,7 @@ def Plot_Elements(
 
     inDim = mesh.inDim
 
-    if dimElem == None:
+    if dimElem is None:
         dimElem = 2 if mesh.inDim == 3 else mesh.dim
 
     # list of element group associated with the dimension
@@ -1234,7 +1234,7 @@ def Plot_Iter_Summary(simu, folder="", iterMin=None, iterMax=None) -> None:
     if iterMax is None:
         iterMax = iterations.max()
 
-    if iterMin == None:
+    if iterMin is None:
         iterMin = iterations.min()
 
     selectionIndex = list(

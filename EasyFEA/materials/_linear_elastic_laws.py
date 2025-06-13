@@ -284,12 +284,12 @@ class Elas_Isot(_Elas):
         E = self.E
         v = self.v
 
-        l = E * v / ((1 + v) * (1 - 2 * v))
+        lmbda = E * v / ((1 + v) * (1 - 2 * v))
 
         if self.dim == 2 and self.planeStress:
-            l = E * v / (1 - v**2)
+            lmbda = E * v / (1 - v**2)
 
-        return l
+        return lmbda
 
     def get_mu(self):
         """Shear coefficient"""
@@ -304,13 +304,10 @@ class Elas_Isot(_Elas):
     def get_bulk(self):
         """Bulk modulus"""
 
-        E = self.E
-        v = self.v
-
         mu = self.get_mu()
-        l = self.get_lambda()
+        lmbda = self.get_lambda()
 
-        bulk = l + 2 * mu / self.dim
+        bulk = lmbda + 2 * mu / self.dim
 
         return bulk
 
@@ -331,7 +328,7 @@ class Elas_Isot(_Elas):
 
         """
 
-        if dim == None:
+        if dim is None:
             dim = self.dim
         else:
             assert dim in [2, 3]
@@ -340,7 +337,7 @@ class Elas_Isot(_Elas):
         v = self.v
 
         mu = self.get_mu()
-        l = self.get_lambda()
+        lmbda = self.get_lambda()
 
         dtype = object if True in [isinstance(p, np.ndarray) for p in [E, v]] else float
 
@@ -349,7 +346,8 @@ class Elas_Isot(_Elas):
             # Caution: lambda changes according to 2D simplification.
 
             cVoigt = np.array(
-                [[l + 2 * mu, l, 0], [l, l + 2 * mu, 0], [0, 0, mu]], dtype=dtype
+                [[lmbda + 2 * mu, lmbda, 0], [lmbda, lmbda + 2 * mu, 0], [0, 0, mu]],
+                dtype=dtype,
             )
 
             # if self.contraintesPlanes:
@@ -374,9 +372,9 @@ class Elas_Isot(_Elas):
 
             cVoigt = np.array(
                 [
-                    [l + 2 * mu, l, l, 0, 0, 0],
-                    [l, l + 2 * mu, l, 0, 0, 0],
-                    [l, l, l + 2 * mu, 0, 0, 0],
+                    [lmbda + 2 * mu, lmbda, lmbda, 0, 0, 0],
+                    [lmbda, lmbda + 2 * mu, lmbda, 0, 0, 0],
+                    [lmbda, lmbda, lmbda + 2 * mu, 0, 0, 0],
                     [0, 0, 0, mu, 0, 0],
                     [0, 0, 0, 0, mu, 0],
                     [0, 0, 0, 0, 0, mu],
@@ -703,7 +701,7 @@ class Elas_IsotTrans(_Elas):
 
             shape = c.shape
 
-            if self.planeStress == True:
+            if self.planeStress:
                 if len(shape) == 2:
                     s = global_sM[x, :][:, x]
                 elif len(shape) == 3:
