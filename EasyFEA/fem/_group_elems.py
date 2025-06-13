@@ -496,7 +496,7 @@ class _GroupElem(ABC):
         """list of indexes used to construct segments"""
         nPe = 2 + self.order - 1
         if self.__dim == 1:
-            segments = np.zeros((self.Nvertex, nPe), dtype=int)
+            segments = np.zeros((1, nPe), dtype=int)
             segments[0, 0] = 0
             segments[0, -1] = 1
             if nPe > 2:
