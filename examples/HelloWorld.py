@@ -17,7 +17,7 @@ L = 120  # mm
 h = 13
 
 domain = Domain(Point(), Point(L, h), h / 2)
-mesh = Mesher().Mesh_2D(domain, [], ElemType.QUAD4, isOrganised=True)
+mesh = Mesher().Mesh_2D(domain, [], ElemType.QUAD9, isOrganised=True)
 
 # ----------------------------------------------
 # Simulation
