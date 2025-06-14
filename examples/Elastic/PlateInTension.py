@@ -2,7 +2,10 @@
 # This file is part of the EasyFEA project.
 # EasyFEA is distributed under the terms of the GNU General Public License v3, see LICENSE.txt and CREDITS.md for more information.
 
-"""Plate with a hole subjected to uniform tensile loading."""
+"""
+Plate with a hole subjected to uniform tensile loading
+======================================================
+"""
 
 from EasyFEA import Display, Mesher, ElemType, Materials, Simulations
 from EasyFEA.Geoms import Point, Points, Domain, Circle

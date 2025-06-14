@@ -2,6 +2,11 @@
 # This file is part of the EasyFEA project.
 # EasyFEA is distributed under the terms of the GNU General Public License v3, see LICENSE.txt and CREDITS.md for more information.
 
+"""
+Compute Hyperelastic laws
+=========================
+"""
+
 from EasyFEA import Display
 
 try:

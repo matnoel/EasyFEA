@@ -2,8 +2,13 @@
 # This file is part of the EasyFEA project.
 # EasyFEA is distributed under the terms of the GNU General Public License v3, see LICENSE.txt and CREDITS.md for more information.
 
-"""Performing a contact problem simulation with the assumption of frictionless contact.
-The master mesh is presumed to be non-deformable.
+"""
+Contact2
+========
+
+Performing a 'Hertz contact problem' with the assumption of frictionless contact.
+
+The master mesh is considered non-deformable.
 WARNING: The assumption of small displacements is highly questionable for this simulation.
 """
 

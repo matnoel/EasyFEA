@@ -2,7 +2,11 @@
 # This file is part of the EasyFEA project.
 # EasyFEA is distributed under the terms of the GNU General Public License v3, see LICENSE.txt and CREDITS.md for more information.
 
-"""Performs damage simulation on a CT specimen."""
+# sphinx_gallery_no_exec
+"""
+Performs damage simulation on a CT specimen
+===========================================
+"""
 
 from EasyFEA import (
     Display,

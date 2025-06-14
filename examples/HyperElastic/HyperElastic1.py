@@ -2,51 +2,158 @@
 # This file is part of the EasyFEA project.
 # EasyFEA is distributed under the terms of the GNU General Public License v3, see LICENSE.txt and CREDITS.md for more information.
 
+"""
+Attempt to implement hyperelasticity within an Eulerian framework
+=================================================================
+
+Mesh node coordinates are updated at each loading iteration.
+WARNING: Implementation not validated.
+"""
+
 from EasyFEA import (
     Display,
     Folder,
+    np,
     Mesher,
     ElemType,
-    np,
     Materials,
     Simulations,
-    PyVista,
+    Paraview,
 )
-from EasyFEA.Geoms import Domain
-
-folder = Folder.Dir(__file__)
+from EasyFEA.Geoms import Point, Points
 
 if __name__ == "__main__":
 
     Display.Clear()
 
-    L = 120
-    h = 13
-    meshSize = h / 3
+    # ----------------------------------------------
+    # Configuration
+    # ----------------------------------------------
+    dim = 2
+    makeParaview = False
+    useHyperElastic = True  # eulerian approch
+    calcE = dim == 2  # calculate green lagrange deformation if dim == s2
 
-    contour = Domain((0, 0), (L, h), h / 3)
+    folder = Folder.Join(Folder.RESULTS_DIR, f"HyperElasticity{dim}D", mkdir=True)
 
-    mesh = Mesher().Mesh_Extrude(
-        contour, [], [0, 0, h], [h / meshSize], ElemType.HEXA20, isOrganised=True
+    L = 250
+    thickness = 50
+    w = 50
+
+    meshSize = L / 20
+
+    sigMax = 8 * 1e5 / (w * thickness)
+    uMax = 50
+
+    # ----------------------------------------------
+    # Mesh
+    # ----------------------------------------------
+    p1 = Point(0, 0)
+    p2 = Point(L, 0)
+    p3 = Point(L, L, r=50)
+    p4 = Point(2 * L - w, L)
+    p5 = Point(2 * L, L)
+    p6 = Point(2 * L, 2 * L)
+    p7 = Point(2 * L - w, 2 * L)
+    p8 = Point(0, 2 * L)
+
+    contour = Points([p1, p2, p3, p4, p5, p6, p7, p8], meshSize)
+
+    if dim == 2:
+        mesh = Mesher().Mesh_2D(contour, [], ElemType.TRI6)
+    else:
+        mesh = Mesher().Mesh_Extrude(
+            contour, [], [0, 0, -thickness], [3], ElemType.PRISM6
+        )
+
+    nodes_y0 = mesh.Nodes_Conditions(lambda x, y, z: y == 0)
+    # nodes_Load = mesh.Nodes_Conditions(lambda x,y,z: (y==2*L) & (x>=2*L-30))
+    nodes_Load = mesh.Nodes_Conditions(lambda x, y, z: x == 2 * L)
+
+    # ----------------------------------------------
+    # Simulation
+    # ----------------------------------------------
+    material = Materials.Elas_Isot(
+        dim, E=210000, v=0.25, planeStress=True, thickness=thickness
     )
-    nodesX0 = mesh.Nodes_Conditions(lambda x, y, z: x == 0)
-    nodesXL = mesh.Nodes_Conditions(lambda x, y, z: x == L)
 
-    lmbda = 121153.84615384616  # Mpa
-    mu = 80769.23076923077
-    rho = 7850 * 1e-9  # kg/mm3
+    simu = Simulations.ElasticSimu(mesh, material)
 
-    mat = Materials.SaintVenantKirchhoff(3, lmbda, mu)
+    N = 20
+    iter = 0
 
-    simuHyper = Simulations.HyperElasticSimu(mesh, mat)
+    while iter < N:
 
-    def Apply_Bc():
-        simuHyper.Bc_Init()
-        simuHyper.add_dirichlet(nodesX0, [0, 0, 0], simuHyper.Get_unknowns())
-        # simuHyper.add_dirichlet(nodesXL, [-10], ["y"])
-        simuHyper.add_volumeLoad(mesh.nodes, [-rho * 9.81], ["y"])
-        simuHyper.add_surfLoad(nodesXL, [-800 / h / h], ["y"])
+        iter += 1
 
-    simuHyper.Solve(Apply_Bc, maxIter=50)
+        print(f"{iter/N*100:2.2f} %", end="\r")
 
-    PyVista.Plot(simuHyper, "uy", 1, show_edges=True).show()
+        simu.Bc_Init()
+        simu.add_dirichlet(nodes_y0, [0] * dim, simu.Get_unknowns())
+        # simu.add_dirichlet(nodes_Load, [uMax*iter/N], ['y'])
+        simu.add_surfLoad(nodes_Load, [sigMax * iter / N], ["y"])
+
+        simu.Solve()
+
+        simu.Save_Iter()
+
+        if useHyperElastic and iter != N:
+            # update the nodes coordinates
+
+            newMesh = simu.mesh.copy()
+            newMesh.coordGlob += simu.Results_displacement_matrix()
+
+            simu.mesh = newMesh
+
+            pass
+
+    # ----------------------------------------------
+    # Results
+    # ----------------------------------------------
+    if calcE:
+        #  WARNING : unverified implementation
+
+        matrixType = "rigi"
+        dN_e_pg = mesh.Get_dN_e_pg(matrixType)
+        Bu_e_pg = mesh.Get_B_e_pg(matrixType)
+
+        B_e_pg = np.zeros_like(Bu_e_pg)
+
+        pos = np.arange(0, mesh.nPe * dim, 2)
+
+        for n, p in zip(range(mesh.nPe), pos):
+
+            dNx = dN_e_pg[:, :, 0, n]
+            dNy = dN_e_pg[:, :, 1, n]
+
+            for d in range(dim):
+                if dim == 2:
+                    B_e_pg[:, :, 0, p + d] = 1 / 2 * dNx**2
+                    B_e_pg[:, :, 1, p + d] = 1 / 2 * dNy**2
+                    B_e_pg[:, :, 2, p + d] = 1 / 2 * dNy * dNx / np.sqrt(2)
+                else:
+                    raise Exception("Not implemented")
+
+        sol_e = simu.mesh.Locates_sol_e(simu.displacement, asFeArray=True)
+
+        E_e_pg = Bu_e_pg @ sol_e
+        E_e_pg += B_e_pg @ sol_e**2
+
+        Epsilon_e_pg = simu._Calc_Epsilon_e_pg(simu.displacement, matrixType)
+
+        # test = np.linalg.norm(Epsilon_e_pg - E_e_pg)
+        # print(test)
+
+    Display.Plot_Mesh(mesh)
+    Display.Plot_BoundaryConditions(simu)
+    Display.Plot_Result(simu, "ux")
+    Display.Plot_Result(simu, "uy")
+    Display.Plot_Result(simu, "Svm", nodeValues=False)
+    Display.Plot_Result(simu, "Evm", nodeValues=False)
+
+    print(simu)
+
+    if makeParaview:
+        Paraview.Make_Paraview(simu, folder, elementsField=["Strain"])
+
+    Display.plt.show()

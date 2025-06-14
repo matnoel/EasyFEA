@@ -2,7 +2,10 @@
 # This file is part of the EasyFEA project.
 # EasyFEA is distributed under the terms of the GNU General Public License v3, see LICENSE.txt and CREDITS.md for more information.
 
-"""Meshing a 3D part in revolution."""
+"""
+Meshing a 3D part in revolution
+===============================
+"""
 
 from EasyFEA import Display, Mesher, ElemType, np
 from EasyFEA.Geoms import Point, Points, Circle, Line

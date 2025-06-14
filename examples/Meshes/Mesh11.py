@@ -2,7 +2,10 @@
 # This file is part of the EasyFEA project.
 # EasyFEA is distributed under the terms of the GNU General Public License v3, see LICENSE.txt and CREDITS.md for more information.
 
-"""Meshing of a specimen for a spatially oriented tensile test."""
+"""
+Meshing of a specimen for a spatially oriented tensile test
+===========================================================
+"""
 
 from EasyFEA import Display, Mesher, np
 from EasyFEA.Geoms import Point, Line, CircleArc, Contour, Domain

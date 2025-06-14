@@ -2,7 +2,10 @@
 # This file is part of the EasyFEA project.
 # EasyFEA is distributed under the terms of the GNU General Public License v3, see LICENSE.txt and CREDITS.md for more information.
 
-"""Optimization of a happy mesh with quality criteria."""
+"""
+Optimization of a happy mesh with quality criteria
+==================================================
+"""
 
 from EasyFEA import Display, Folder, plt, np, Mesher, ElemType, Mesh
 from EasyFEA.Geoms import Point, Circle, CircleArc, Contour

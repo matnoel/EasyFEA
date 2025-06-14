@@ -2,7 +2,10 @@
 # This file is part of the EasyFEA project.
 # EasyFEA is distributed under the terms of the GNU General Public License v3, see LICENSE.txt and CREDITS.md for more information.
 
-"""A cylindrical conduit exposed to uniform pressure."""
+"""
+A cylindrical conduit exposed to uniform pressure
+=================================================
+"""
 
 from EasyFEA import Display, np, Mesher, ElemType, Materials, Simulations, PyVista
 from EasyFEA.Geoms import Point, Line, Circle, CircleArc, Contour

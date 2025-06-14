@@ -2,7 +2,10 @@
 # This file is part of the EasyFEA project.
 # EasyFEA is distributed under the terms of the GNU General Public License v3, see LICENSE.txt and CREDITS.md for more information.
 
-"""Meshing of a perforated plate with a structured mesh."""
+"""
+Meshing of a perforated plate with a structured mesh
+====================================================
+"""
 
 from EasyFEA import Display, Folder, np, Mesher, ElemType, Materials, Simulations
 from EasyFEA.Geoms import Point, Circle, Points, Line, CircleArc, Contour

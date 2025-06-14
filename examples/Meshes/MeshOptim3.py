@@ -2,7 +2,10 @@
 # This file is part of the EasyFEA project.
 # EasyFEA is distributed under the terms of the GNU General Public License v3, see LICENSE.txt and CREDITS.md for more information.
 
-"""Mesh optimization using the ZZ1 criterion for a letter weigher."""
+"""
+Mesh optimization using the ZZ1 criterion for a letter weigher
+==============================================================
+"""
 
 from EasyFEA import (
     Display,

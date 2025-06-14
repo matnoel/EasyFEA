@@ -2,7 +2,10 @@
 # This file is part of the EasyFEA project.
 # EasyFEA is distributed under the terms of the GNU General Public License v3, see LICENSE.txt and CREDITS.md for more information.
 
-"""Modal analysis of a structure. Currently, only the structure is available due to the slow performance of `scipy.sparse.linalg.eigs`, and the cause is not yet determined."""
+"""
+Modal analysis of a structure
+=============================
+"""
 # TODO: Use https://gitlab.com/slepc/slepc
 
 from EasyFEA import (

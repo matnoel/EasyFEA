@@ -2,7 +2,10 @@
 # This file is part of the EasyFEA project.
 # EasyFEA is distributed under the terms of the GNU General Public License v3, see LICENSE.txt and CREDITS.md for more information.
 
-"""Verification of energy convergence for a bending beam for all available elements."""
+"""
+Verification of energy convergence for a bending beam for all available elements
+================================================================================
+"""
 
 from EasyFEA import (
     Display,

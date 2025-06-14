@@ -2,7 +2,10 @@
 # This file is part of the EasyFEA project.
 # EasyFEA is distributed under the terms of the GNU General Public License v3, see LICENSE.txt and CREDITS.md for more information.
 
-"""Mesh a heterogeneous RVE with cracks."""
+"""
+Mesh a heterogeneous RVE with cracks
+====================================
+"""
 
 from EasyFEA import Display, Folder, np, plt, Mesher, ElemType, Materials, Simulations
 from EasyFEA.Geoms import Point, Line, Domain, Circle

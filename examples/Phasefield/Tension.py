@@ -2,7 +2,11 @@
 # This file is part of the EasyFEA project.
 # EasyFEA is distributed under the terms of the GNU General Public License v3, see LICENSE.txt and CREDITS.md for more information.
 
-"""Performs a damage simulation for a plate subjected to tension."""
+# sphinx_gallery_no_exec
+"""
+Damage simulation for a plate subjected to tension
+==================================================
+"""
 
 from EasyFEA import (
     Display,

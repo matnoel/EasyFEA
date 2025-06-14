@@ -2,7 +2,10 @@
 # This file is part of the EasyFEA project.
 # EasyFEA is distributed under the terms of the GNU General Public License v3, see LICENSE.txt and CREDITS.md for more information.
 
-"""Transient thermal simulation."""
+"""
+Transient thermal simulation
+============================
+"""
 
 from EasyFEA import (
     Display,
@@ -111,7 +114,7 @@ if __name__ == "__main__":
 
     # Create a movie of the simulation if pltMovie is True
     if makeMovie:
-        PyVista.Movie_simu(simu, "thermal", folder, f"thermal.mp4", show_edges=True)
+        PyVista.Movie_simu(simu, "thermal", folder, "thermal.mp4", show_edges=True)
 
     # Print the minimum temperature achieved in the simulation
     print(simu)

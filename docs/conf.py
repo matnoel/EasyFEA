@@ -38,7 +38,6 @@ extensions = [
 ]
 autodoc_typehints = "signature"
 
-
 sphinx_gallery_conf = {
     "examples_dirs": "../examples",
     "gallery_dirs": "gallery",

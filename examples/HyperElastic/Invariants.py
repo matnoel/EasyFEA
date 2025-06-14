@@ -2,6 +2,11 @@
 # This file is part of the EasyFEA project.
 # EasyFEA is distributed under the terms of the GNU General Public License v3, see LICENSE.txt and CREDITS.md for more information.
 
+"""
+Compute invariants used in Hyperelastic laws
+============================================
+"""
+
 from EasyFEA import Display
 
 try:
@@ -19,7 +24,8 @@ def __Project_Mandel(A, orderA: int = 4):
     # for xx, yy, zz, yz, xz, zy
     e = sympy.Array([[0, 5, 4], [5, 1, 3], [4, 3, 2]])
 
-    kron = lambda a, b: 1 if a == b else 0
+    def kron(a, b):
+        return 1 if a == b else 0
 
     if orderA == 2:
         # Aij -> AI

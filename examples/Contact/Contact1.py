@@ -2,9 +2,13 @@
 # This file is part of the EasyFEA project.
 # EasyFEA is distributed under the terms of the GNU General Public License v3, see LICENSE.txt and CREDITS.md for more information.
 
-"""Performing a 'Hertz contact problem' with the assumption of frictionless contact.
+"""
+Contact1
+========
+
+Performing a 'Hertz contact problem' with the assumption of frictionless contact
 The master mesh is considered non-deformable.
-TODO: Compare results with analytical values.
+TODO: Compare results with analytical values ?
 WARNING: The assumption of small displacements is highly questionable for this simulation.
 """
 

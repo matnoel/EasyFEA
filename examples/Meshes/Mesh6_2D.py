@@ -2,7 +2,10 @@
 # This file is part of the EasyFEA project.
 # EasyFEA is distributed under the terms of the GNU General Public License v3, see LICENSE.txt and CREDITS.md for more information.
 
-"""Refined 2D mesh in zones."""
+"""
+Refined 2D mesh in zones
+========================
+"""
 
 from EasyFEA import Display, Mesher, ElemType
 from EasyFEA.Geoms import Point, Circle, Domain

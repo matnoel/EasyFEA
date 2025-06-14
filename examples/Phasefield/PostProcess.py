@@ -2,7 +2,11 @@
 # This file is part of the EasyFEA project.
 # EasyFEA is distributed under the terms of the GNU General Public License v3, see LICENSE.txt and CREDITS.md for more information.
 
-"""Script to compare damage simulations."""
+# sphinx_gallery_no_exec
+"""
+Script to compare damage simulations
+====================================
+"""
 
 from EasyFEA import Display, Folder, Tic, plt, np, pd, Simulations
 

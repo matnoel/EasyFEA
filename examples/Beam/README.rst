@@ -1,4 +1,4 @@
-Beam Examples
-=============
+Euler-Bernoulli beam simulations
+================================
 
-Example scripts demonstrating beam simulations using the **EasyFEA** framework.
+Example scripts demonstrating Euler-Bernoulli beam simulations using the **EasyFEA** framework.
