@@ -3,8 +3,10 @@
 # EasyFEA is distributed under the terms of the GNU General Public License v3, see LICENSE.txt and CREDITS.md for more information.
 
 """
-Attempt to implement hyperelasticity within an Eulerian framework
-=================================================================
+HyperElastic1
+=============
+
+Attempt to implement hyperelasticity within an Eulerian framework.
 
 Mesh node coordinates are updated at each loading iteration.
 WARNING: Implementation not validated.
@@ -144,7 +146,7 @@ if __name__ == "__main__":
         # test = np.linalg.norm(Epsilon_e_pg - E_e_pg)
         # print(test)
 
-    Display.Plot_Mesh(mesh)
+    Display.Plot_Mesh(simu, deformFactor=1)
     Display.Plot_BoundaryConditions(simu)
     Display.Plot_Result(simu, "ux")
     Display.Plot_Result(simu, "uy")

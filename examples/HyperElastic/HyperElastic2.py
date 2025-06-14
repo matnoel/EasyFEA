@@ -3,13 +3,14 @@
 # EasyFEA is distributed under the terms of the GNU General Public License v3, see LICENSE.txt and CREDITS.md for more information.
 
 """
-A cantilever beam undergoing bending deformation
-================================================
+HyperElastic2
+=============
+
+A cantilever beam undergoing bending deformation in a Lagrangian framework.
 """
 
 from EasyFEA import (
     Display,
-    Folder,
     Mesher,
     ElemType,
     Materials,
@@ -17,8 +18,6 @@ from EasyFEA import (
     PyVista,
 )
 from EasyFEA.Geoms import Domain
-
-folder = Folder.Dir(__file__)
 
 if __name__ == "__main__":
 

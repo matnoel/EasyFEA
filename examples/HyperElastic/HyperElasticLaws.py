@@ -3,8 +3,10 @@
 # EasyFEA is distributed under the terms of the GNU General Public License v3, see LICENSE.txt and CREDITS.md for more information.
 
 """
-Compute Hyperelastic laws
-=========================
+HyperElasticLaws
+================
+
+Compute hyperelastic constitutive laws.
 """
 
 from EasyFEA import Display
