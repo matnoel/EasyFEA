@@ -8,14 +8,13 @@ Contact1
 
 Performing a 'Hertz contact problem' with the assumption of frictionless contact
 The master mesh is considered non-deformable.
-TODO: Compare results with analytical values ?
 WARNING: The assumption of small displacements is highly questionable for this simulation.
 """
+# TODO: Compare results with analytical values ?
 
 from EasyFEA import (
     Display,
     Folder,
-    Tic,
     plt,
     np,
     Mesher,
@@ -36,9 +35,9 @@ if __name__ == "__main__":
     # Configuration
     # ----------------------------------------------
     dim = 2
-    pltIter = True
+    pltIter = False
     result = "uy"
-    makeMovie = True
+    makeMovie = False
 
     R = 10
     height = R
@@ -79,35 +78,35 @@ if __name__ == "__main__":
 
     yMax = height + np.abs(r)
     if dim == 2:
-        mesh_master = Mesher().Mesh_2D(contour_master, [], ElemType.TRI3)
+        master_mesh = Mesher().Mesh_2D(contour_master, [], ElemType.TRI3)
     else:
-        mesh_master = Mesher().Mesh_Extrude(
+        master_mesh = Mesher().Mesh_Extrude(
             contour_master, [], [0, 0, -thickness - 2], [4], ElemType.TETRA4
         )
-        groupMaster = mesh_master.Get_list_groupElem(dim - 1)[0]
-        if len(mesh_master.Get_list_groupElem(dim - 1)) > 1:
+        groupMaster = master_mesh.Get_list_groupElem(dim - 1)[0]
+        if len(master_mesh.Get_list_groupElem(dim - 1)) > 1:
             Display.MyPrintError(
                 f"The {groupMaster.elemType.name} element group is used. In 3D, TETRA AND HEXA elements are recommended."
             )
-    mesh_master.Translate(dz=-(mesh_master.center[2] - mesh_slave.center[2]))
+    master_mesh.Translate(dz=-(master_mesh.center[2] - mesh_slave.center[2]))
 
     # Display.Plot_Tags(mesh_master, alpha=0.1, showId=True)
 
     # get master nodes
     # nodes_master = mesh_master.Get_list_groupElem(dim-1)[0].nodes
     if dim == 2:
-        nodes_master = mesh_master.Nodes_Tags(["L0", "L1"])
+        nodes_master = master_mesh.Nodes_Tags(["L0", "L1"])
     else:
-        nodes_master = mesh_master.Nodes_Tags(["S1", "S2"])
+        nodes_master = master_mesh.Nodes_Tags(["S1", "S2"])
 
     # # plot meshes
-    # ax = Display.Plot_Mesh(mesh_master, alpha=0)
+    # ax = Display.Plot_Mesh(master_mesh, alpha=0)
     # Display.Plot_Mesh(mesh_slave, ax=ax, alpha=0)
     # # add nodes interface
-    # ax.scatter(*mesh_slave.coordo[nodes_slave,:dim].T, label='slave nodes')
-    # ax.scatter(*mesh_master.coordo[nodes_master,:dim].T, label='master nodes')
+    # ax.scatter(*mesh_slave.coord[nodes_slave, :dim].T, label="slave nodes")
+    # ax.scatter(*master_mesh.coord[nodes_master, :dim].T, label="master nodes")
     # ax.legend()
-    # ax.set_title('Contact nodes')
+    # ax.set_title("Contact nodes")
 
     # ----------------------------------------------
     # Simulation
@@ -117,17 +116,17 @@ if __name__ == "__main__":
     )
     simu = Simulations.ElasticSimu(mesh_slave, material)
 
-    list_mesh_master = [mesh_master]
+    list_master_mesh = [master_mesh]
 
     if pltIter:
         ax = Display.Plot_Result(simu, result, deformFactor=1)
 
     for i in range(N):
 
-        mesh_master = mesh_master.copy()
-        mesh_master.Translate(cx * inc, cy * inc)
+        master_mesh = master_mesh.copy()
+        master_mesh.Translate(cx * inc, cy * inc)
 
-        list_mesh_master.append(mesh_master)
+        list_master_mesh.append(master_mesh)
 
         convergence = False
 
@@ -139,7 +138,7 @@ if __name__ == "__main__":
             simu.Bc_Init()
             simu.add_dirichlet(nodes_y0, [0] * dim, simu.Get_unknowns())
 
-            nodes, newU = simu.Get_contact(mesh_master, nodes_slave, nodes_master)
+            nodes, newU = simu.Get_contact(master_mesh, nodes_slave, nodes_master)
 
             if nodes.size > 0:
                 simu.add_dirichlet(nodes, [newU[:, 0], newU[:, 1]], ["x", "y"])
@@ -148,7 +147,7 @@ if __name__ == "__main__":
 
             # check if there is no new nodes in the master mesh
             oldSize = nodes.size
-            nodes, __ = simu.Get_contact(mesh_master, nodes_slave, nodes_master)
+            nodes, __ = simu.Get_contact(master_mesh, nodes_slave, nodes_master)
             convergence = oldSize == nodes.size
 
         simu.Save_Iter()
@@ -157,11 +156,11 @@ if __name__ == "__main__":
 
         if pltIter:
             Display.Plot_Result(simu, result, plotMesh=True, deformFactor=1, ax=ax)
-            Display.Plot_Mesh(mesh_master, alpha=0, ax=ax)
+            Display.Plot_Mesh(master_mesh, alpha=0, ax=ax)
             ax.set_title(result)
             if dim == 3:
                 Display._Axis_equal_3D(
-                    ax, np.concatenate((mesh_master.coord, mesh_slave.coord), 0)
+                    ax, np.concatenate((master_mesh.coord, mesh_slave.coord), 0)
                 )
 
             # # Plot arrows
@@ -182,11 +181,10 @@ if __name__ == "__main__":
     # ----------------------------------------------
     # PostProcessing
     # ----------------------------------------------
-    Display.Plot_Result(simu, "Eyy", nodeValues=True)
-    Display.Plot_Result(simu, "ux")
-    Display.Plot_Result(simu, "uy")
-
-    Tic.Plot_History(details=True)
+    if not pltIter:
+        plotter = PyVista.Plot(simu, result, show_edges=True, deformFactor=1)
+        PyVista.Plot_Mesh(master_mesh, opacity=0.4, plotter=plotter)
+        plotter.show()
 
     if makeMovie:
 
@@ -203,11 +201,9 @@ if __name__ == "__main__":
                 show_grid=True,
             )
             PyVista.Plot(
-                list_mesh_master[n], plotter=plotter, show_edges=True, opacity=0.2
+                list_master_mesh[n], plotter=plotter, show_edges=True, opacity=0.2
             )
 
         PyVista.Movie_func(DoAnim, N, folder=folder, filename="Contact1.gif")
 
-    # TODO bending 3 pts
-
-    plt.show()
+    Display.plt.show()

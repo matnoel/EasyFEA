@@ -839,7 +839,7 @@ DICT_GMSH_TO_VTK: dict[str, list[int]] = {
 
 
 def _Plotter(off_screen=False, add_axes=True, shape=(1, 1), linkViews=True):
-    plotter = pv.Plotter(off_screen=off_screen, shape=shape)
+    plotter = pv.Plotter(off_screen=pv.OFF_SCREEN, shape=shape)
     if add_axes:
         plotter.add_axes()
     if linkViews:

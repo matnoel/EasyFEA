@@ -11,6 +11,10 @@
 import os
 import sys
 
+import pyvista
+from pyvista.plotting.utilities.sphinx_gallery import DynamicScraper
+from sphinx_gallery.sorting import FileNameSortKey
+
 sys.path.insert(0, os.path.abspath(".."))
 
 # -- Project information -----------------------------------------------------
@@ -35,22 +39,43 @@ extensions = [
     # plot
     "matplotlib.sphinxext.plot_directive",
     "sphinx_gallery.gen_gallery",
+    "sphinx_design",
+    "pyvista.ext.plot_directive",
+    "pyvista.ext.viewer_directive",
 ]
 autodoc_typehints = "signature"
 
-from sphinx_gallery.sorting import FileNameSortKey
+
+templates_path = ["_templates"]
+exclude_patterns = ["_build", "Thumbs.db", ".DS_Store"]
+
+# -- Gallery configuration ---------------------------------------------------
+
+# Manage errors
+pyvista.set_error_output_file("errors.txt")
+# Ensure that offscreen rendering is used for docs generation
+pyvista.OFF_SCREEN = True  # disables showing figures in a GUI window
+# Preferred plotting style for documentation
+pyvista.set_plot_theme("document")
+
+# necessary when building the sphinx gallery
+pyvista.BUILDING_GALLERY = True
+os.environ["PYVISTA_BUILDING_GALLERY"] = "true"
 
 sphinx_gallery_conf = {
     "examples_dirs": "../examples",
     "gallery_dirs": "gallery",
+    "image_scrapers": (DynamicScraper(), "matplotlib"),
+    "download_all_examples": False,
+    "remove_config_comments": True,
     "filename_pattern": r".*\.py",
     "ignore_pattern": r"__init__\.py",
     "within_subsection_order": FileNameSortKey,
 }
 
-templates_path = ["_templates"]
-exclude_patterns = ["_build", "Thumbs.db", ".DS_Store"]
-
+myst_enable_extensions = [
+    "tabs",  # <- important!
+]
 
 # -- Options for HTML output -------------------------------------------------
 # https://www.sphinx-doc.org/en/master/usage/configuration.html#options-for-html-output
