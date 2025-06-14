@@ -3,8 +3,10 @@
 # EasyFEA is distributed under the terms of the GNU General Public License v3, see LICENSE.txt and CREDITS.md for more information.
 
 """
-A cantilever beam undergoing dynamic bending deformation
-========================================================
+Dyna1
+=====
+
+A cantilever beam undergoing dynamic bending deformation.
 """
 
 from EasyFEA import (
@@ -35,9 +37,9 @@ if __name__ == "__main__":
     depInit = -7
     load = -800  # N
 
-    makeParaview = True
-    makeMovie = True
-    plotIter = True
+    makeParaview = False
+    makeMovie = False
+    plotIter = False
     resultToPlot = "uy"
 
     # Dumping
@@ -79,8 +81,6 @@ if __name__ == "__main__":
         volume = mesh.volume - L * b * h
         area = mesh.area - (L * h * 4 + 2 * b * h)
 
-    Display.Plot_Mesh(mesh)
-
     nodes_0 = mesh.Nodes_Conditions(lambda x, y, z: x == 0)
     nodes_L = mesh.Nodes_Conditions(lambda x, y, z: x == L)
     nodes_h = mesh.Nodes_Conditions(lambda x, y, z: y == h / 2)
@@ -99,6 +99,8 @@ if __name__ == "__main__":
         simu.add_dirichlet(nodes_L, [depInit], ["y"], description="dep")
         simu.Solve()
         simu.Save_Iter()
+
+        Display.Plot_Mesh(simu, deformFactor=1)
 
     factorDef = 1
     if plotIter:
@@ -173,5 +175,4 @@ if __name__ == "__main__":
 
         tic.Tac("Display", "Results", plotResult)
 
-    Tic.Plot_History(details=False)
     plt.show()

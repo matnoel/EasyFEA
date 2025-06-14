@@ -3,11 +3,12 @@
 # EasyFEA is distributed under the terms of the GNU General Public License v3, see LICENSE.txt and CREDITS.md for more information.
 
 """
-Wave propagation
-================
+Dyna2
+=====
 
-TODO: Compare results with analytical values.
+Wave propagation.
 """
+# TODO: Compare results with analytical values.
 
 from EasyFEA import Display, Tic, plt, Mesher, ElemType, Materials, Simulations
 from EasyFEA.Geoms import Domain, Point, Circle, Line
@@ -27,8 +28,8 @@ if __name__ == "__main__":
     r = diam / 2
 
     # Time parameters
-    tMax = 1e-5
-    Nt = 150
+    tMax = 1e-6
+    Nt = 20
     dt = tMax / Nt
 
     # Load parameters
@@ -69,7 +70,7 @@ if __name__ == "__main__":
 
     # Define material properties
     material = Materials.Elas_Isot(2, E=210000e6, v=0.3, planeStress=False, thickness=1)
-    l = material.get_lambda()
+    lmbda = material.get_lambda()
     mu = material.get_mu()
 
     # Create the simulation object

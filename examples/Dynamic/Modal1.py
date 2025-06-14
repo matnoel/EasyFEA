@@ -3,13 +3,14 @@
 # EasyFEA is distributed under the terms of the GNU General Public License v3, see LICENSE.txt and CREDITS.md for more information.
 
 """
-Modal analysis of a wall structure
-==================================
+Modal1
+======
+
+Modal analysis of a wall structure.
 """
 
 from EasyFEA import (
     Display,
-    Folder,
     np,
     Mesher,
     ElemType,
@@ -21,15 +22,13 @@ from EasyFEA.Geoms import Point, Domain
 
 from scipy.sparse import linalg, eye
 
-folder = Folder.Dir(__file__)
-
 if __name__ == "__main__":
 
     Display.Clear()
 
     dim = 3
     isFixed = True
-    Nmode = 10
+    Nmode = 3
 
     # ----------------------------------------------
     # Mesh
@@ -102,5 +101,6 @@ if __name__ == "__main__":
     axModes.plot(np.arange(eigenValues.size), freq_t, ls="", marker=".")
     axModes.set_xlabel("modes")
     axModes.set_ylabel("freq [Hz]")
+    axModes.grid()
 
     Display.plt.show()

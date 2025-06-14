@@ -3,14 +3,14 @@
 # EasyFEA is distributed under the terms of the GNU General Public License v3, see LICENSE.txt and CREDITS.md for more information.
 
 """
-Modal analysis of a structure
-=============================
+Modal2
+======
+
+Modal analysis of a structure.
 """
-# TODO: Use https://gitlab.com/slepc/slepc
 
 from EasyFEA import (
     Display,
-    Folder,
     np,
     Mesher,
     ElemType,
@@ -72,8 +72,6 @@ def Construct_struct(
 if __name__ == "__main__":
 
     Display.Clear()
-
-    folder = Folder.Dir(__file__)
 
     isFixed = True
     Nmode = 3
@@ -170,5 +168,6 @@ if __name__ == "__main__":
     axModes.plot(np.arange(eigenValues.size), freq_t, ls="", marker=".")
     axModes.set_xlabel("modes")
     axModes.set_ylabel("freq [Hz]")
+    axModes.grid()
 
     Display.plt.show()
