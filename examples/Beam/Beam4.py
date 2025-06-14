@@ -3,11 +3,13 @@
 # EasyFEA is distributed under the terms of the GNU General Public License v3, see LICENSE.txt and CREDITS.md for more information.
 
 """
-Frame with two beams
-====================
+Beam4
+=====
+
+Frame with two beams.
 """
 
-from EasyFEA import Display, plt, np, Mesher, ElemType, Materials, Simulations
+from EasyFEA import Display, plt, Mesher, ElemType, Materials, Simulations
 from EasyFEA.Geoms import Domain, Line, Point
 
 if __name__ == "__main__":
@@ -72,8 +74,8 @@ if __name__ == "__main__":
     # Results
     # ----------------------------------------------
 
-    Display.Plot_BoundaryConditions(simu)
     Display.Plot_Mesh(simu, L / 10 / sol.max())
+    Display.Plot_BoundaryConditions(simu)
     Display.Plot_Result(simu, "ux", L / 10 / sol.max())
     Display.Plot_Result(simu, "uy", L / 10 / sol.max())
 

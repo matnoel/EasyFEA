@@ -3,8 +3,10 @@
 # EasyFEA is distributed under the terms of the GNU General Public License v3, see LICENSE.txt and CREDITS.md for more information.
 
 """
-A bi-fixed beam undergoing bending deformation
-==============================================
+Beam3
+=====
+
+A bi-fixed beam undergoing bending deformation.
 """
 
 from EasyFEA import Display, plt, np, Mesher, ElemType, Materials, Simulations
@@ -51,9 +53,6 @@ if __name__ == "__main__":
     contour = Points([p1, p2, p3, p4, p5, p6, p7, p8, p9, p10, p11, p12], e / 6)
     section = Mesher().Mesh_2D(contour)
 
-    ax = Display.Plot_Mesh(section)
-    ax.set_title("Section")
-
     # ----------------------------------------------
     # Mesh
     # ----------------------------------------------
@@ -99,8 +98,10 @@ if __name__ == "__main__":
 
     Display.MyPrint(f"err uy : {np.abs(u_an-uy_1d)/u_an*100:.2e} %")
 
-    Display.Plot_BoundaryConditions(simu)
     Display.Plot_Mesh(simu, L / 20 / sol.min())
+    ax = Display.Plot_Mesh(section)
+    ax.set_title("Section")
+    Display.Plot_BoundaryConditions(simu)
     Display.Plot_Result(simu, "uy", L / 20 / sol.min())
 
     print(simu)

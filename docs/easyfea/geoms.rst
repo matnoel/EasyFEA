@@ -105,7 +105,7 @@ Using an axis normal to the circle
     circle.Plot()
 
 Creating a :py:class:`~EasyFEA.geoms.CircleArc`
---------------------------------------------
+-----------------------------------------------
 
 From 2 :py:class:`~EasyFEA.geoms.Point` and a Center
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^

@@ -3,8 +3,10 @@
 # EasyFEA is distributed under the terms of the GNU General Public License v3, see LICENSE.txt and CREDITS.md for more information.
 
 """
-A cantilever beam undergoing bending deformation
-================================================
+Beam2
+=====
+
+A cantilever beam undergoing bending deformation.
 """
 
 from EasyFEA import Display, plt, np, Mesher, ElemType, Materials, Simulations
@@ -70,8 +72,8 @@ if __name__ == "__main__":
     # Results
     # ----------------------------------------------
 
-    Display.Plot_BoundaryConditions(simu)
     Display.Plot_Mesh(simu, deformFactor=-L / 10 / sol.min())
+    Display.Plot_BoundaryConditions(simu)
     Display.Plot_Result(simu, "uy")
 
     rz = simu.Result("rz")
@@ -88,7 +90,7 @@ if __name__ == "__main__":
     axUy = Display.Init_Axes()
     axUy.plot(x, uy_x, label="Analytical", c="blue")
     axUy.scatter(mesh.coord[:, 0], uy, label="FE", c="red", marker="x", zorder=2)
-    axUy.set_title(rf"$u_y(x)$")
+    axUy.set_title("$u_y(x)$")
     axUy.legend()
 
     rz_x = load / E / Iz * (x**2 / 2 - L * x)
@@ -100,7 +102,7 @@ if __name__ == "__main__":
     axRz = Display.Init_Axes()
     axRz.plot(x, rz_x, label="Analytical", c="blue")
     axRz.scatter(mesh.coord[:, 0], rz, label="FE", c="red", marker="x", zorder=2)
-    axRz.set_title(rf"$r_z(x)$")
+    axRz.set_title("$r_z(x)$")
     axRz.legend()
 
     print(simu)

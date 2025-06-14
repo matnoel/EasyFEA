@@ -3,8 +3,10 @@
 # EasyFEA is distributed under the terms of the GNU General Public License v3, see LICENSE.txt and CREDITS.md for more information.
 
 """
-Beam subjected to pure tensile loading
-======================================
+Beam1
+=====
+
+Beam subjected to pure tensile loading.
 """
 
 from EasyFEA import Display, plt, np, Mesher, ElemType, Materials, Simulations
@@ -71,8 +73,8 @@ if __name__ == "__main__":
     # Results
     # ----------------------------------------------
 
-    Display.Plot_BoundaryConditions(simu)
     Display.Plot_Mesh(simu, deformFactor=L / 10 / sol.max())
+    Display.Plot_BoundaryConditions(simu)
     Display.Plot_Result(simu, "ux")
 
     ux = simu.Result("ux")
@@ -88,7 +90,7 @@ if __name__ == "__main__":
     ax = Display.Init_Axes()
     ax.plot(x_array, u_x, label="Analytical", c="blue")
     ax.scatter(mesh.coord[:, 0], ux, label="FE", c="red", marker="x", zorder=2)
-    ax.set_title(rf"$u_x(x)$")
+    ax.set_title("$u_x(x)$")
     ax.legend()
 
     print(simu)

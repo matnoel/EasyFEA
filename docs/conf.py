@@ -38,11 +38,14 @@ extensions = [
 ]
 autodoc_typehints = "signature"
 
+from sphinx_gallery.sorting import FileNameSortKey
+
 sphinx_gallery_conf = {
     "examples_dirs": "../examples",
     "gallery_dirs": "gallery",
     "filename_pattern": r".*\.py",
     "ignore_pattern": r"__init__\.py",
+    "within_subsection_order": FileNameSortKey,
 }
 
 templates_path = ["_templates"]

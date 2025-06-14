@@ -3,11 +3,13 @@
 # EasyFEA is distributed under the terms of the GNU General Public License v3, see LICENSE.txt and CREDITS.md for more information.
 
 """
+Beam5
+=====
+
 Frame with six beams
-====================
 """
 
-from EasyFEA import Display, plt, np, Mesher, ElemType, Materials, Simulations
+from EasyFEA import Display, np, Mesher, ElemType, Materials, Simulations
 from EasyFEA.Geoms import Domain, Line, Point
 
 if __name__ == "__main__":
@@ -21,13 +23,13 @@ if __name__ == "__main__":
     elemType = ElemType.SEG2
     dim = 2  # must be >= 2
 
-    l = 100  # mm
+    L = 100  # mm
 
-    pA = Point(2 * l, 0)
-    pB = Point(l, 0)
-    pC = Point(l, l)
+    pA = Point(2 * L, 0)
+    pB = Point(L, 0)
+    pC = Point(L, L)
     pD = Point(0, 0)
-    pE = Point(0, l)
+    pE = Point(0, L)
 
     line1 = Line(pA, pC)
     line2 = Line(pA, pB)
@@ -38,7 +40,6 @@ if __name__ == "__main__":
     lines = [line1, line2, line3, line4, line5, line6]
 
     section = Mesher().Mesh_2D(Domain(Point(-4 / 2, -8 / 2), Point(4 / 2, 8 / 2)))
-    Display.Plot_Mesh(section, title="Cross section")
 
     E = 276  # MPa
     v = 0.3
@@ -77,6 +78,8 @@ if __name__ == "__main__":
     matrixDep = simu.Results_displacement_matrix()
     depMax = np.max(np.linalg.norm(matrixDep, axis=1))
 
+    Display.Plot_Mesh(simu, deformFactor=10 / depMax)
+    Display.Plot_Mesh(section, title="Cross section")
     Display.Plot_BoundaryConditions(simu)
     Display.Plot_Result(simu, "ux", deformFactor=5 / depMax)
     Display.Plot_Result(simu, "uy", deformFactor=5 / depMax)
@@ -89,8 +92,6 @@ if __name__ == "__main__":
     Sigma_e = simu._Calc_Sigma_e_pg(Epsilon_e_pg).mean(1)
     Display.Plot_Result(simu, Sigma_e[:, 0], title="Sxx")
     Display.Plot_Result(simu, Internal_e[:, 0], title="N")
-
-    Display.Plot_Mesh(simu, deformFactor=5 / depMax)
 
     ux, uy, rz = simu.Result("ux"), simu.Result("uy"), simu.Result("rz")
     fx, fy, cz = simu.Result("fx"), simu.Result("fy"), simu.Result("cz")
