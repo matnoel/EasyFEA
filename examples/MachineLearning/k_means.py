@@ -3,8 +3,10 @@
 # EasyFEA is distributed under the terms of the GNU General Public License v3, see LICENSE.txt and CREDITS.md for more information.
 
 """
-KMeans using scikit-learn
-=========================
+k_means
+=======
+
+KMeans using scikit-learn according to https://www.youtube.com/watch?v=i-gxm_ofjBo.
 """
 
 from EasyFEA import Display, np, plt
