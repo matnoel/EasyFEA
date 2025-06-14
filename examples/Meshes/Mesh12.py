@@ -3,16 +3,17 @@
 # EasyFEA is distributed under the terms of the GNU General Public License v3, see LICENSE.txt and CREDITS.md for more information.
 
 """
-Meshing of a part designed by cad software
-==========================================
+Mesh12
+======
+
+Meshing of a part designed by cad software.
 """
 
 from EasyFEA import Display, Folder, Mesher, ElemType
 
 if __name__ == "__main__":
 
-    folder = Folder.Dir(__file__)  # Meshes folder
-    examples_folder = Folder.Dir(folder)
+    examples_folder = Folder.Join(Folder.EASYFEA_DIR, "examples")
 
     stp = Folder.Join(examples_folder, "_parts", "beam.stp")
     mesh_stp = Mesher().Mesh_Import_part(stp, 3, 13 / 5, ElemType.TETRA4)

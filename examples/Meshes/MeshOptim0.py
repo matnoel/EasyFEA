@@ -3,8 +3,10 @@
 # EasyFEA is distributed under the terms of the GNU General Public License v3, see LICENSE.txt and CREDITS.md for more information.
 
 """
-Optimization of a happy mesh with quality criteria
-==================================================
+MeshOptim0
+==========
+
+Optimization of a happy mesh with quality criteria.
 """
 
 from EasyFEA import Display, Folder, plt, np, Mesher, ElemType, Mesh
@@ -28,7 +30,7 @@ if __name__ == "__main__":
     elemType = ElemType.TRI3  # TRI3, TRI6, TRI10, QUAD4, QUAD8
 
     # Creating a folder to store the results
-    folder = Folder.Join(Folder.RESULTS_DIR, "Meshes", f"Optim2D", mkdir=True)
+    folder = Folder.Join(Folder.RESULTS_DIR, "Meshes", "Optim2D", mkdir=True)
 
     # ----------------------------------------------
     # Meshing

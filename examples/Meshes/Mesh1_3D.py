@@ -3,8 +3,10 @@
 # EasyFEA is distributed under the terms of the GNU General Public License v3, see LICENSE.txt and CREDITS.md for more information.
 
 """
-Meshing a 3D domain
-===================
+Mesh1_3D
+========
+
+Meshing a 3D domain.
 """
 
 from EasyFEA import Display, Mesher

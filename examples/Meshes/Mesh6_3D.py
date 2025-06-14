@@ -3,8 +3,10 @@
 # EasyFEA is distributed under the terms of the GNU General Public License v3, see LICENSE.txt and CREDITS.md for more information.
 
 """
-Refined 3D mesh in zones
-========================
+Mesh6_3D
+========
+
+Refined 3D mesh in zones.
 """
 
 from EasyFEA import Display, Mesher, ElemType

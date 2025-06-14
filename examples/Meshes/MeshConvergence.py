@@ -3,8 +3,10 @@
 # EasyFEA is distributed under the terms of the GNU General Public License v3, see LICENSE.txt and CREDITS.md for more information.
 
 """
-Verification of energy convergence for a bending beam for all available elements
-================================================================================
+MeshConvergence
+===============
+
+Verification of energy convergence for a bending beam for all available elements.
 """
 
 from EasyFEA import (
@@ -34,8 +36,8 @@ if __name__ == "__main__":
 
     # List of mesh sizes (number of elements) to investigate convergence
     if dim == 2:
-        list_N = np.arange(1, 20, 1)
-        # list_N = np.arange(1, 30, 1)
+        list_N = np.arange(1, 10, 1)
+        # list_N = np.arange(1, 20, 1)
     else:
         list_N = np.arange(1, 8, 2)
 

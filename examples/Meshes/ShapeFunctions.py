@@ -3,8 +3,10 @@
 # EasyFEA is distributed under the terms of the GNU General Public License v3, see LICENSE.txt and CREDITS.md for more information.
 
 """
-Creating Lagrange Finite Element Shape Functions
-================================================
+ShapeFunctions
+==============
+
+Create Lagrange finite element shape functions.
 """
 
 import numpy as np
@@ -110,6 +112,7 @@ def Plot_Nodes(title: str, *args):
         ax.set_ylabel("y")
         ax.set_title(title)
         ax.axis("equal")
+        ax.grid(zorder=-10)
 
         ax.scatter(list_x, list_y)
         [ax.text(list_x[i], list_y[i], i + 1) for i in range(nPe)]

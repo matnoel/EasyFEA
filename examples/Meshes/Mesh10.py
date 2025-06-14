@@ -3,8 +3,10 @@
 # EasyFEA is distributed under the terms of the GNU General Public License v3, see LICENSE.txt and CREDITS.md for more information.
 
 """
-Simplified turbine mesh with data extraction in matlab
-======================================================
+Mesh10
+======
+
+Simplified turbine mesh with data extraction in matlab.
 """
 
 from EasyFEA import Display, Folder, np, Mesher, ElemType, PyVista

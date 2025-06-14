@@ -3,8 +3,10 @@
 # EasyFEA is distributed under the terms of the GNU General Public License v3, see LICENSE.txt and CREDITS.md for more information.
 
 """
-Mesh of a 2D cracked part
-=========================
+Mesh5_2D
+========
+
+Mesh of a 2D cracked part.
 """
 
 from EasyFEA import Display, Mesher, ElemType, Materials, Simulations

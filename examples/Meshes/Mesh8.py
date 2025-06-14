@@ -3,13 +3,14 @@
 # EasyFEA is distributed under the terms of the GNU General Public License v3, see LICENSE.txt and CREDITS.md for more information.
 
 """
-Meshing of a grooved 3D part with calculation of element quality
-================================================================
+Mesh8
+=====
+
+Meshing of a grooved 3D part with calculation of element quality.
 """
 
 from EasyFEA import (
     Display,
-    Folder,
     np,
     Mesher,
     ElemType,
@@ -17,8 +18,6 @@ from EasyFEA import (
     PyVista,
 )
 from EasyFEA.Geoms import Point, Circle, Points
-
-folder = Folder.Dir(__file__)
 
 if __name__ == "__main__":
 

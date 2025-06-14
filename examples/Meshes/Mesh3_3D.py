@@ -3,8 +3,10 @@
 # EasyFEA is distributed under the terms of the GNU General Public License v3, see LICENSE.txt and CREDITS.md for more information.
 
 """
-Meshing a 3D domain with hole
-=============================
+Mesh3_3D
+========
+
+Meshing a 3D domain with hole.
 """
 
 from EasyFEA import Display, Mesher

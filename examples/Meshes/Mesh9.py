@@ -3,14 +3,14 @@
 # EasyFEA is distributed under the terms of the GNU General Public License v3, see LICENSE.txt and CREDITS.md for more information.
 
 """
-Meshing of a perforated plate with a structured mesh
-====================================================
+Mesh9
+=====
+
+Meshing of a perforated plate with a structured mesh.
 """
 
-from EasyFEA import Display, Folder, np, Mesher, ElemType, Materials, Simulations
+from EasyFEA import Display, np, Mesher, ElemType, Materials, Simulations
 from EasyFEA.Geoms import Point, Circle, Points, Line, CircleArc, Contour
-
-folder = Folder.Dir(__file__)
 
 if __name__ == "__main__":
 

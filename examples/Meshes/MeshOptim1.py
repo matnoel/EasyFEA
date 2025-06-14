@@ -3,8 +3,10 @@
 # EasyFEA is distributed under the terms of the GNU General Public License v3, see LICENSE.txt and CREDITS.md for more information.
 
 """
-Mesh optimization using the ZZ1 criterion for a bending bracket
-===============================================================
+MeshOptim1
+==========
+
+Mesh optimization using the ZZ1 criterion for a bending bracket.
 """
 
 from EasyFEA import (
@@ -22,7 +24,7 @@ from EasyFEA import (
     PyVista,
 )
 from EasyFEA.Geoms import Point, Points
-from EasyFEA.fem import Mesh, Calc_projector
+from EasyFEA.fem import Calc_projector
 
 if __name__ == "__main__":
 
@@ -34,7 +36,7 @@ if __name__ == "__main__":
     dim = 2
 
     # Options for plotting the results
-    plotProj = True
+    plotProj = False
     makeMovie = False
     makeParaview = False
 
@@ -173,7 +175,7 @@ if __name__ == "__main__":
 
             plotter.add_title(f"ZZ1 = {zz1*100:.2f} %")
 
-        PyVista.Movie_func(func, len(simu.results), folder, f"bracket.gif")
+        PyVista.Movie_func(func, len(simu.results), folder, "bracket.gif")
 
     Tic.Plot_History(details=False)
     plt.show()
