@@ -30,7 +30,7 @@ if __name__ == "__main__":
     # Configuration
     # ----------------------------------------------
 
-    plotIter = True
+    plotIter = False
     resultIter = "thermal"
     makeMovie = False
 
@@ -39,7 +39,7 @@ if __name__ == "__main__":
     h = 10
 
     a = 1
-    domain = Domain(Point(R), Point(R + e, h), e / 4)
+    domain = Domain(Point(R), Point(R + e, h), e / 2)
     axis = Line(Point(), Point(0, 1, 0))
 
     # Define simulation time parameters

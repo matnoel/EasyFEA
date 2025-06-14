@@ -36,8 +36,8 @@ if __name__ == "__main__":
     makeMovie = False
 
     a = 1
-    domain = Domain(Point(), Point(a, a), a / 20)
-    circle = Circle(Point(a / 2, a / 2), diam=a / 3, isHollow=True, meshSize=a / 50)
+    domain = Domain(Point(), Point(a, a), a / 4)
+    circle = Circle(Point(a / 2, a / 2), diam=a / 3, isHollow=True, meshSize=a / 4)
 
     # Define simulation time parameters
     Tmax = 0.5  # Total simulation time
@@ -52,9 +52,11 @@ if __name__ == "__main__":
 
     # Generate the mesh based on the specified dimension
     if dim == 2:
-        mesh = Mesher().Mesh_2D(domain, [circle], ElemType.TRI3)
+        mesh = Mesher().Mesh_2D(domain, [circle], ElemType.TRI6)
     else:
-        mesh = Mesher().Mesh_Extrude(domain, [circle], [0, 0, -a], [4], ElemType.PRISM6)
+        mesh = Mesher().Mesh_Extrude(
+            domain, [circle], [0, 0, -a], [4], ElemType.PRISM18
+        )
 
     noeudsX0 = mesh.Nodes_Conditions(lambda x, y, z: x == 0)
     noeudsXa = mesh.Nodes_Conditions(lambda x, y, z: x == a)
