@@ -187,5 +187,5 @@ if __name__ == "__main__":
 
         PyVista.Movie_func(func, len(simu.results), folder, "lmt.gif")
 
-    Tic.Plot_History(details=False)
+    # Tic.Plot_History(details=False)
     plt.show()
