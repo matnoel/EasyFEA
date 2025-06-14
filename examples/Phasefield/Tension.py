@@ -2,10 +2,13 @@
 # This file is part of the EasyFEA project.
 # EasyFEA is distributed under the terms of the GNU General Public License v3, see LICENSE.txt and CREDITS.md for more information.
 
-# sphinx_gallery_no_exec
+# sphinx_gallery_thumbnail_number = -2
+
 """
-Damage simulation for a plate subjected to tension
-==================================================
+Tension
+=======
+
+Damage simulation for a plate subjected to tension.
 """
 
 from EasyFEA import (
@@ -52,7 +55,7 @@ pfmSolver = Materials.PhaseField.SolverType.History
 # splits = ["Bourdin","Amor","Miehe","Stress"] # Splits Isotropes
 # splits = ["He","AnisotStrain","AnisotStress","Zhang"] # Splits Anisotropes sans bourdin
 # splits = ["Bourdin","Amor","Miehe","Stress","He","AnisotStrain","AnisotStress","Zhang"]
-splits = ["Miehe"]
+splits = ["Bourdin"]
 
 regus = ["AT1"]  # "AT1", "AT2"
 # regus = ["AT1", "AT2"]
@@ -66,7 +69,6 @@ plotResult = True
 showResult = True
 plotEnergy = False
 saveParaview = False
-Nparaview = 400
 makeMovie = False
 
 # ----------------------------------------------
@@ -81,10 +83,10 @@ thickness = 1 if dim == 2 else 0.1 / 1000
 def DoMesh(materialType: str = "Elas_Isot") -> Mesh:
 
     # meshSize
-    clC = l0 if meshTest else l0 / 2
+    clC = l0 * 2 if meshTest else l0 / 2
     if optimMesh:
         # a coarser mesh can be used outside the refined zone
-        clD = clC * 3
+        clD = clC * 4
         # refines the mesh in the area where the crack will propagate
         gap = L * 0.05
         if materialType == "Elas_Isot":
@@ -166,7 +168,6 @@ def DoSimu(split: str, regu: str):
         # Nodes recovery
         nodes_upper = mesh.Nodes_Conditions(lambda x, y, z: y == L)
         nodes_lower = mesh.Nodes_Conditions(lambda x, y, z: y == 0)
-        nodes_left = mesh.Nodes_Conditions(lambda x, y, z: (x == 0) & (y > 0) & (y < L))
         nodes_right = mesh.Nodes_Conditions(
             lambda x, y, z: (x == L) & (y > 0) & (y < L)
         )
@@ -196,7 +197,6 @@ def DoSimu(split: str, regu: str):
                 c33 = 30
                 c12 = 20
                 C_voigt = np.array([[c11, c12, 0], [c12, c22, 0], [0, 0, c33]]) * 1e9
-                C_mandel = Materials.KelvinMandel_Matrix(dim, C_voigt)
 
                 theta_rad = theta * np.pi / 180
                 axis1 = np.array([np.cos(theta_rad), np.sin(theta_rad), 0])
@@ -366,11 +366,6 @@ def DoSimu(split: str, regu: str):
     # PostProcessing
     # ---------------------------------------------
     if plotResult:
-        Display.Plot_Iter_Summary(simu, folder_save, None, None)
-        Display.Plot_BoundaryConditions(simu)
-        Display.Plot_Force_Displacement(
-            force * 1e-6, displacement * 1e6, "ud [µm]", "f [kN/mm]", folder_save
-        )
         Display.Plot_Result(
             simu,
             "damage",
@@ -379,9 +374,15 @@ def DoSimu(split: str, regu: str):
             folder=folder_save,
             filename="damage",
         )
+        Display.Plot_Mesh(simu)
+        Display.Plot_Iter_Summary(simu, folder_save, None, None)
+        Display.Plot_BoundaryConditions(simu)
+        Display.Plot_Force_Displacement(
+            force * 1e-6, displacement * 1e6, "ud [µm]", "f [kN/mm]", folder_save
+        )
 
     if saveParaview:
-        Paraview.Make_Paraview(simu, folder_save, Nparaview)
+        Paraview.Make_Paraview(simu, folder_save, 400)
 
     if makeMovie:
         Display.Movie_Simu(simu, "damage", folder_save, "damage.mp4", N=200)
@@ -400,8 +401,8 @@ def DoSimu(split: str, regu: str):
     if showResult:
         plt.show()
 
+    # plt.close("all")
     Tic.Clear()
-    plt.close("all")
 
 
 if __name__ == "__main__":

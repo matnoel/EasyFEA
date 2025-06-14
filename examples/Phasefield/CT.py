@@ -2,10 +2,14 @@
 # This file is part of the EasyFEA project.
 # EasyFEA is distributed under the terms of the GNU General Public License v3, see LICENSE.txt and CREDITS.md for more information.
 
-# sphinx_gallery_no_exec
+# sphinx_gallery_skip = True
+# sphinx_gallery_failing_thumbnail = False
+
 """
-Performs damage simulation on a CT specimen
-===========================================
+CT
+==
+
+Performs damage simulation on a CT specimen.
 """
 
 from EasyFEA import (
@@ -24,8 +28,6 @@ from EasyFEA.Geoms import Point, Points, Circle, Line, Contour, Domain
 
 Display.Clear()
 
-folder = Folder.Dir(__file__)
-
 # ----------------------------------------------
 # Config
 # ----------------------------------------------
@@ -39,7 +41,7 @@ plotGeom = False
 plotIter = False
 
 makeParaview = False
-makeMovie = True
+makeMovie = False
 
 L = 60  # mm
 e = 4
@@ -163,7 +165,7 @@ if doSimu:
 
     displacements = np.linspace(0, L / 40, 50)
 
-    config = f"""
+    config = """
     displacements = np.linspace(0, L/40, 50)
 
     for i, dep in enumerate(displacements):
@@ -222,26 +224,23 @@ else:
 # ----------------------------------------------
 
 if makeParaview:
-    Paraview.Make_Paraview(simu, folder)
+    Paraview.Make_Paraview(simu, folder_save)
 
 if makeMovie:
     PyVista.Movie_simu(
         simu,
         "damage",
         folder_save,
-        f"damage.mp4",
+        "damage.mp4",
         show_edges=True,
         clim=(0, 1),
         deformFactor=1,
         n_colors=11,
     )
 
-Display.Plot_Mesh(mesh)
-Display.Plot_Tags(mesh, folder=folder_save)
-
 Display.Plot_Result(simu, "damage", folder=folder_save)
 Display.Plot_Result(simu, "uy", deformFactor=1)
-
-PyVista.Plot(simu, "damage", 1, show_edges=True).show()
+Display.Plot_Mesh(mesh)
+Display.Plot_Tags(mesh, folder=folder_save)
 
 plt.show()

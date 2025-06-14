@@ -2,10 +2,11 @@
 # This file is part of the EasyFEA project.
 # EasyFEA is distributed under the terms of the GNU General Public License v3, see LICENSE.txt and CREDITS.md for more information.
 
-# sphinx_gallery_no_exec
 """
-Damage simulation for a plate with a hole subjected to compression
-==================================================================
+PlateWithHole
+=============
+
+Damage simulation for a plate with a hole subjected to compression.
 """
 
 from EasyFEA import (
@@ -74,7 +75,7 @@ def DoMesh(
     L: float, h: float, diam: float, thickness: float, l0: float, split: str
 ) -> Mesh:
 
-    clC = l0 if meshTest else l0 / 2
+    clC = l0 * 2 if meshTest else l0 / 2
     if optimMesh:
         clD = l0 * 4
         refineZone = diam * 1.5 / 2
@@ -94,22 +95,21 @@ def DoMesh(
     domain = Domain(point, Point(L, h), clD)
     circle = Circle(Point(L / 2, h / 2), diam, clD, isHollow=True)
 
-    folder = Folder.RESULTS_DIR
-    ax = Display.Init_Axes()
-    domain.Plot(ax, color="k", plotPoints=False)
-    circle.Plot(ax, color="k", plotPoints=False)
-    # if refineGeom != None:
-    #     refineGeom.Plot(ax, color='k', plotPoints=False)
-    # ax.scatter(((L+diam)/2, L/2), (h/2, (h+diam)/2), c='k')
-    ax.axis("off")
-    Display.Save_fig(folder, "sample", True)
+    # ax = Display.Init_Axes()
+    # domain.Plot(ax, color="k", plotPoints=False)
+    # circle.Plot(ax, color="k", plotPoints=False)
+    # # if refineGeom != None:
+    # #     refineGeom.Plot(ax, color='k', plotPoints=False)
+    # # ax.scatter(((L+diam)/2, L/2), (h/2, (h+diam)/2), c='k')
+    # ax.axis("off")
+    # Display.Save_fig(Folder.RESULTS_DIR, "sample", True)
 
     mesh = Mesher().Mesh_2D(domain, [circle], ElemType.TRI3, refineGeoms=[refineGeom])
 
-    ax = Display.Plot_Mesh(mesh, lw=0.3, facecolors="white")
-    ax.axis("off")
-    ax.set_title("")
-    Display.Save_fig(folder, "mesh", transparent=True)
+    # ax = Display.Plot_Mesh(mesh, lw=0.3, facecolors="white")
+    # ax.axis("off")
+    # ax.set_title("")
+    # Display.Save_fig(Folder.RESULTS_DIR, "mesh", transparent=True)
 
     return mesh
 
@@ -154,7 +154,6 @@ def DoSimu(split: str, regu: str):
         nodes_lower = mesh.Nodes_Conditions(lambda x, y, z: y == 0)
         nodes_upper = mesh.Nodes_Conditions(lambda x, y, z: y == h)
         nodes_x0y0 = mesh.Nodes_Conditions(lambda x, y, z: (x == 0) & (y == 0))
-        nodes_y0z0 = mesh.Nodes_Conditions(lambda x, y, z: (y == 0) & (z == 0))
         nodes_edges = mesh.Nodes_Tags(["L0", "L1", "L2", "L3"])
         nodes_upper = mesh.Nodes_Conditions(lambda x, y, z: y == h)
 
@@ -163,11 +162,11 @@ def DoSimu(split: str, regu: str):
         # ----------------------------------------------
 
         threshold = 0.6
-        # u_max = 25e-6
-        u_max = 35e-6
+        u_max = 25e-6
+        # u_max = 35e-6
 
-        uinc0 = 8e-8
-        uinc1 = 2e-8
+        uinc0 = 8e-7 if meshTest else 8e-8
+        uinc1 = 2e-7 if meshTest else 2e-8
 
         config = f"""
         while ud <= u_max:
@@ -296,6 +295,15 @@ def DoSimu(split: str, regu: str):
         Display.Plot_Energy(simu, force, displacement, N=400, folder=folder_save)
 
     if plotResult:
+        Display.Plot_Result(
+            simu,
+            "damage",
+            nodeValues=True,
+            colorbarIsClose=True,
+            folder=folder_save,
+            filename="damage",
+        )
+        Display.Plot_Mesh(simu)
         Display.Plot_BoundaryConditions(simu)
         Display.Plot_Iter_Summary(simu, folder_save, None, None)
         Display.Plot_Force_Displacement(
@@ -304,14 +312,6 @@ def DoSimu(split: str, regu: str):
             f"ud [{unitU}]",
             f"f [{unitF}]",
             folder_save,
-        )
-        Display.Plot_Result(
-            simu,
-            "damage",
-            nodeValues=True,
-            colorbarIsClose=True,
-            folder=folder_save,
-            filename="damage",
         )
 
     if plotMesh:
@@ -337,8 +337,8 @@ def DoSimu(split: str, regu: str):
     if showFig:
         plt.show()
 
+    # plt.close("all")
     Tic.Clear()
-    plt.close("all")
 
 
 if __name__ == "__main__":

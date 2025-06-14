@@ -2,10 +2,14 @@
 # This file is part of the EasyFEA project.
 # EasyFEA is distributed under the terms of the GNU General Public License v3, see LICENSE.txt and CREDITS.md for more information.
 
-# sphinx_gallery_no_exec
+# sphinx_gallery_skip = True
+# sphinx_gallery_failing_thumbnail = False
+
 """
-Script to compare damage simulations
-====================================
+PostProcess
+===========
+
+Script to compare damage simulations.
 """
 
 from EasyFEA import Display, Folder, Tic, plt, np, pd, Simulations
@@ -171,7 +175,6 @@ if __name__ == "__main__":
         else:
             if nomSimu not in missingSimulations:
                 missingSimulations.append(nomSimu)
-            Display.MyPrintError("Simu is not available:\n" + fileForceDep)
 
         # ----------------------------------------------
         # Plot loads
@@ -234,7 +237,6 @@ if __name__ == "__main__":
         else:
             if nomSimu not in missingSimulations:
                 missingSimulations.append(nomSimu)
-            Display.MyPrintError("Data are not available:\n" + fileForceDep)
 
         # ----------------------------------------------
         # Plot loads
@@ -327,7 +329,7 @@ if __name__ == "__main__":
     plt.figure(ax_load.figure)
     Display.Save_fig(folder_save, "load displacement")
 
-    print("\n Missing Simulations :")
+    print("\nMissing Simulations :")
     [print(simul) for simul in missingSimulations]
 
     plt.show()

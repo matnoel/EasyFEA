@@ -2,10 +2,11 @@
 # This file is part of the EasyFEA project.
 # EasyFEA is distributed under the terms of the GNU General Public License v3, see LICENSE.txt and CREDITS.md for more information.
 
-# sphinx_gallery_no_exec
 """
-Damage simulation for a L-part
-==============================
+LShape
+======
+
+Damage simulation for a L-part.
 """
 
 from EasyFEA import (
@@ -42,8 +43,8 @@ if __name__ == "__main__":
     # geom
     dim = 2
     L = 250  # mm
+    nL = 50
     ep = 100
-    l0 = 5
 
     # material
     E = 2e4  # MPa
@@ -61,7 +62,7 @@ if __name__ == "__main__":
     # loading
     # uMax = 1.2 # mm
     uMax = 1  # mm
-    inc0 = uMax / 200
+    inc0 = uMax / 25
     inc1 = inc0 / 2
 
     config = f"""
@@ -88,10 +89,10 @@ if __name__ == "__main__":
     # ----------------------------------------------
     # Mesh
     # ----------------------------------------------
-    nL = L // l0
+    l0 = L / nL
 
     if meshTest:
-        hC = l0 / 2
+        hC = l0
     else:
         hC = 0.5
         # hC = 0.25
@@ -225,8 +226,6 @@ if __name__ == "__main__":
         # saves the simulation
         simu.Save(folder_save)
 
-        Tic.Plot_History(folder_save, True)
-
     else:
 
         simu = Simulations.Load_Simu(folder_save)
@@ -237,9 +236,9 @@ if __name__ == "__main__":
     # ----------------------------------------------
     # PostProcessing
     # ----------------------------------------------
-    Display.Plot_BoundaryConditions(simu)
-
     Display.Plot_Result(simu, "damage", folder=folder_save)
+    Display.Plot_Mesh(simu)
+    Display.Plot_BoundaryConditions(simu)
 
     axLoad = Display.Init_Axes()
     axLoad.set_xlabel("displacement [mm]")
@@ -264,5 +263,8 @@ if __name__ == "__main__":
 
     if makeParaview:
         Paraview.Make_Paraview(simu, folder_save)
+
+    if doSimu:
+        Tic.Plot_History(folder_save, False)
 
     plt.show()

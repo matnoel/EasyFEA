@@ -2,10 +2,13 @@
 # This file is part of the EasyFEA project.
 # EasyFEA is distributed under the terms of the GNU General Public License v3, see LICENSE.txt and CREDITS.md for more information.
 
-# sphinx_gallery_no_exec
+# sphinx_gallery_thumbnail_number = -1
+
 """
-Damage simulation for a plate subjected to shear
-================================================
+Shear
+=====
+
+Damage simulation for a plate subjected to shear.
 """
 
 from EasyFEA import (
@@ -52,7 +55,7 @@ pfmSolver = Materials.PhaseField.SolverType.History
 # splits = ["Bourdin","Amor","Miehe","Stress"] # Splits Isotropes
 # splits = ["He","AnisotStrain","AnisotStress","Zhang"] # Splits Anisotropes sans bourdin
 # splits = ["Bourdin","Amor","Miehe","Stress","He","AnisotStrain","AnisotStress","Zhang"]
-splits = ["Amor"]
+splits = ["Miehe"]
 
 # regus = ["AT1", "AT2"]
 regus = ["AT1"]  # "AT1", "AT2"
@@ -63,7 +66,6 @@ showResult = True
 plotMesh = False
 plotEnergy = False
 saveParaview = False
-Nparaview = 400
 makeMovie = False
 
 # ----------------------------------------------
@@ -77,10 +79,10 @@ thickness = 1 if dim == 2 else 0.1 / 1000
 
 def DoMesh(split: str) -> Mesh:
     # meshSize
-    clC = l0 if meshTest else l0 / 2
+    clC = l0 * 2 if meshTest else l0 / 2
     if optimMesh:
         # a coarser mesh can be used outside the refined zone
-        clD = clC * 3
+        clD = clC * 4
         # refines the mesh in the area where the crack will propagate
         gap = L * 0.05
         h = L if split == "Bourdin" else L / 2 + gap
@@ -283,11 +285,6 @@ def DoSimu(split: str, regu: str):
     # PostProcessing
     # ---------------------------------------------
     if plotResult:
-        Display.Plot_Iter_Summary(simu, folder_save, None, None)
-        Display.Plot_BoundaryConditions(simu)
-        Display.Plot_Force_Displacement(
-            force * 1e-6, displacement * 1e6, "ud [µm]", "f [kN/mm]", folder_save
-        )
         ax = Display.Plot_Result(
             simu,
             "damage",
@@ -296,6 +293,12 @@ def DoSimu(split: str, regu: str):
             folder=folder_save,
             filename="damage",
             ncolors=25,
+        )
+        Display.Plot_Mesh(simu)
+        Display.Plot_Iter_Summary(simu, folder_save, None, None)
+        Display.Plot_BoundaryConditions(simu)
+        Display.Plot_Force_Displacement(
+            force * 1e-6, displacement * 1e6, "ud [µm]", "f [kN/mm]", folder_save
         )
 
         # ax = Display.Plot_Result(simu, "damage", 1.5, ncolors=21, clim=(0,0.9))
@@ -311,7 +314,7 @@ def DoSimu(split: str, regu: str):
         Display.Save_fig(folder_save, "mesh", transparent=True)
 
     if saveParaview:
-        Paraview.Make_Paraview(simu, folder_save, Nparaview)
+        Paraview.Make_Paraview(simu, folder_save, 400)
 
     if makeMovie:
         # PyVista.Plot_Mesh(simu.mesh).show()
@@ -350,8 +353,8 @@ def DoSimu(split: str, regu: str):
     if showResult:
         plt.show()
 
+    # plt.close("all")
     Tic.Clear()
-    plt.close("all")
 
 
 if __name__ == "__main__":
