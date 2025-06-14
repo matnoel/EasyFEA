@@ -3,8 +3,8 @@
 # EasyFEA is distributed under the terms of the GNU General Public License v3, see LICENSE.txt and CREDITS.md for more information.
 
 """
-HelloWorld Example
-==================
+HelloWorld
+==========
 """
 
 from EasyFEA import Display, Mesher, ElemType, Materials, Simulations
@@ -16,7 +16,7 @@ from EasyFEA.Geoms import Point, Domain
 L = 120  # mm
 h = 13
 
-domain = Domain(Point(), Point(L, h), h / 6)
+domain = Domain(Point(), Point(L, h), h / 2)
 mesh = Mesher().Mesh_2D(domain, [], ElemType.QUAD4, isOrganised=True)
 
 # ----------------------------------------------
@@ -41,9 +41,9 @@ simu.Solve()
 # ----------------------------------------------
 # Results
 # ----------------------------------------------
-Display.Plot_Mesh(mesh)
-Display.Plot_BoundaryConditions(simu)
+Display.Plot_Mesh(simu, deformFactor=10)
 Display.Plot_Result(simu, "uy", plotMesh=True)
 Display.Plot_Result(simu, "Svm", plotMesh=True, ncolors=11)
+Display.Plot_BoundaryConditions(simu)
 
 Display.plt.show()
