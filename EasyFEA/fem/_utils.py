@@ -6,7 +6,7 @@ from enum import Enum
 
 
 class ElemType(str, Enum):
-    """Implemented element types."""
+    """Implemented Lagrange isoparametric element types."""
 
     POINT = "POINT"
     SEG2 = "SEG2"

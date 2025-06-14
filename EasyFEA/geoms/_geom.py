@@ -169,14 +169,17 @@ class _Geom(ABC):
 
         from ..utilities.Display import Init_Axes, _Axis_equal_3D
 
+        lines, points = self.Get_coord_for_plot()
+
         if ax is None:
-            ax = Init_Axes(3)
+            dimMax = 2 if np.abs(lines[:, 2].max()) == 0 else 3
+            ax = Init_Axes(dimMax)
+            ax.grid()
 
         inDim = 3 if ax.name == "3d" else 2
 
         name = self.name if name == "" else name
 
-        lines, points = self.Get_coord_for_plot()
         if color != "":
             ax.plot(*lines[:, :inDim].T, color=color, label=name, lw=lw, ls=ls)
         else:

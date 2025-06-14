@@ -34,7 +34,7 @@ from ..geoms import Point, Rotate, Symmetry, Normalize, Angle_Between
 
 
 class Mesh(Observable):
-    """Mesh class."""
+    """Mesh class that contains several _GroupElem instances."""
 
     def __init__(self, dict_groupElem: dict[ElemType, "_GroupElem"], verbosity=False):
         """Creates the mesh.

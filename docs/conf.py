@@ -32,6 +32,7 @@ extensions = [
     "sphinx.ext.viewcode",
     "sphinx.ext.autosummary",
     "sphinx_autodoc_typehints",
+    "matplotlib.sphinxext.plot_directive",
 ]
 autodoc_typehints = "signature"
 

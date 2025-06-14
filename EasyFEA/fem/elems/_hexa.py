@@ -28,10 +28,10 @@ class HEXA8(_GroupElem):
         self,
         gmshId: int,
         connect: _types.IntArray,
-        coordoGlob: _types.FloatArray,
+        coordGlob: _types.FloatArray,
         nodes: _types.IntArray,
     ):
-        super().__init__(gmshId, connect, coordoGlob, nodes)
+        super().__init__(gmshId, connect, coordGlob, nodes)
 
     @property
     def origin(self) -> list[int]:
@@ -172,11 +172,11 @@ class HEXA20(_GroupElem):
         self,
         gmshId: int,
         connect: _types.IntArray,
-        coordoGlob: _types.FloatArray,
+        coordGlob: _types.FloatArray,
         nodes: _types.IntArray,
     ):
 
-        super().__init__(gmshId, connect, coordoGlob, nodes)
+        super().__init__(gmshId, connect, coordGlob, nodes)
 
     @property
     def origin(self) -> list[int]:
@@ -791,11 +791,11 @@ class HEXA27(_GroupElem):
         self,
         gmshId: int,
         connect: _types.IntArray,
-        coordoGlob: _types.FloatArray,
+        coordGlob: _types.FloatArray,
         nodes: _types.IntArray,
     ):
 
-        super().__init__(gmshId, connect, coordoGlob, nodes)
+        super().__init__(gmshId, connect, coordGlob, nodes)
 
     @property
     def origin(self) -> list[int]:

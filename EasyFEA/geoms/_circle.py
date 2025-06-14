@@ -283,7 +283,7 @@ class CircleArc(_Geom):
     def n(self) -> _types.Coords:
         """axis normal to the circle arc"""
         i = Normalize((self.pt1 - self.center).coord)
-        if self.angle in [0, np.pi]:
+        if np.any(np.isclose(self.angle, [0, np.pi])):
             j = Normalize((self.pt3 - self.center).coord)
         else:
             j = Normalize((self.pt2 - self.center).coord)

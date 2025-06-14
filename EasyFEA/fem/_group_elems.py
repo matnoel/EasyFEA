@@ -39,7 +39,7 @@ if TYPE_CHECKING:
 
 
 class _GroupElem(ABC):
-    """The `_GroupElem` class, from which all elements inherit."""
+    """The `_GroupElem` base class, from which all element types inherit."""
 
     def __init__(
         self,
@@ -705,7 +705,7 @@ class _GroupElem(ABC):
 
         return evalFunctions
 
-    def __Init_Functions(self, order: int) -> _types.FloatArray:
+    def _Init_Functions(self, order: int) -> _types.FloatArray:
         """Initializes functions to be evaluated at Gauss points."""
         if self.dim == 1 and self.order < order:
             functions = np.array([lambda x: 0] * self.nPe)
@@ -797,7 +797,7 @@ class _GroupElem(ABC):
         Nn,ξ  Nn,η  Nn,ζ \n
         (nPe, dim)
         """
-        return self.__Init_Functions(1)
+        return self._Init_Functions(1)
 
     def Get_dN_pg(self, matrixType: MatrixType) -> _types.FloatArray:
         """Evaluates shape functions first derivatives in the (ξ, η, ζ) coordinates.\n
@@ -848,7 +848,7 @@ class _GroupElem(ABC):
         Nn,ξ2  Nn,η2  Nn,ζ2 \n
         (nPe, dim)
         """
-        return self.__Init_Functions(2)
+        return self._Init_Functions(2)
 
     def Get_ddN_e_pg(self, matrixType: MatrixType) -> FeArray.FeArrayALike:
         """Evaluates the second-order derivatives of shape functions in (x, y, z) coordinates.\n
@@ -898,7 +898,7 @@ class _GroupElem(ABC):
         Nn,ξ3  Nn,η3  Nn,ζ3 \n
         (nPe, dim)
         """
-        return self.__Init_Functions(3)
+        return self._Init_Functions(3)
 
     def Get_dddN_pg(self, matrixType: MatrixType) -> _types.FloatArray:
         """Evaluates shape functions third derivatives in the (ξ, η, ζ) coordinates.\n
@@ -927,7 +927,7 @@ class _GroupElem(ABC):
         Nn,ξ4  Nn,η4  Nn,ζ4 \n
         (nPe, dim)
         """
-        return self.__Init_Functions(4)
+        return self._Init_Functions(4)
 
     def Get_ddddN_pg(self, matrixType: MatrixType) -> _types.FloatArray:
         """Evaluates shape functions fourth derivatives in the (ξ, η, ζ) coordinates.\n
@@ -2030,9 +2030,9 @@ class _GroupElem(ABC):
 
         assert coordinates_n.shape[1] == 3, "Must be of dimension (n, 3)."
 
-        return self.__Get_Mapping(coordinates_n, elements_e, needCoordinates)
+        return self._Get_Mapping(coordinates_n, elements_e, needCoordinates)
 
-    def __Get_Mapping(
+    def _Get_Mapping(
         self,
         coordinates_n: _types.FloatArray,
         elements_e: _types.IntArray,
@@ -2099,13 +2099,13 @@ class _GroupElem(ABC):
         else:
             coordInElem_n = None
 
-        def ResearchFunction(e: int):
+        def Research(e: int):
 
             # get element's node coordinates (x, y, z)
             coordElem = coord[connect[e]]
 
             # Retrieve indexes in coordinates_n that are within the element's bounds
-            idxNearElem = self.__Get_coordoNear(coordinates_n, coordElem, dims)
+            idxNearElem = self._Get_coord_Near(coordinates_n, coordElem, dims)
 
             # Return the index of idxNearElem that satisfies all the specified conditions.
             idxInElem = self.Get_pointsInElem(coordinates_n[idxNearElem], e)
@@ -2162,7 +2162,7 @@ class _GroupElem(ABC):
                 # xiP are the n coordinates of the n points in (ξ, η, ζ).
                 coordInElem_n[nodesInElement, :] = np.asarray(xiP)  # type: ignore
 
-        [ResearchFunction(e) for e in elements_e]
+        [Research(e) for e in elements_e]
 
         assert len(detectedElements_e) == len(
             connect_e_n
@@ -2174,7 +2174,7 @@ class _GroupElem(ABC):
 
         return ar_detectedNodes, ar_detectedElements_e, ar_connect_e_n, coordInElem_n
 
-    def __Get_coordoNear(
+    def _Get_coord_Near(
         self,
         coordinates_n: _types.FloatArray,
         coordElem: _types.FloatArray,

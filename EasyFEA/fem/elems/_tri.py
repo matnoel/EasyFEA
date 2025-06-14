@@ -26,11 +26,11 @@ class TRI3(_GroupElem):
         self,
         gmshId: int,
         connect: _types.IntArray,
-        coordoGlob: _types.FloatArray,
+        coordGlob: _types.FloatArray,
         nodes: _types.IntArray,
     ):
 
-        super().__init__(gmshId, connect, coordoGlob, nodes)
+        super().__init__(gmshId, connect, coordGlob, nodes)
 
     @property
     def origin(self) -> list[int]:
@@ -96,11 +96,11 @@ class TRI6(_GroupElem):
         self,
         gmshId: int,
         connect: _types.IntArray,
-        coordoGlob: _types.FloatArray,
+        coordGlob: _types.FloatArray,
         nodes: _types.IntArray,
     ):
 
-        super().__init__(gmshId, connect, coordoGlob, nodes)
+        super().__init__(gmshId, connect, coordGlob, nodes)
 
     @property
     def origin(self) -> list[int]:
@@ -186,11 +186,11 @@ class TRI10(_GroupElem):
         self,
         gmshId: int,
         connect: _types.IntArray,
-        coordoGlob: _types.FloatArray,
+        coordGlob: _types.FloatArray,
         nodes: _types.IntArray,
     ):
 
-        super().__init__(gmshId, connect, coordoGlob, nodes)
+        super().__init__(gmshId, connect, coordGlob, nodes)
 
     @property
     def origin(self) -> list[int]:
@@ -401,11 +401,11 @@ class TRI15(_GroupElem):
         self,
         gmshId: int,
         connect: _types.IntArray,
-        coordoGlob: _types.FloatArray,
+        coordGlob: _types.FloatArray,
         nodes: _types.IntArray,
     ):
 
-        super().__init__(gmshId, connect, coordoGlob, nodes)
+        super().__init__(gmshId, connect, coordGlob, nodes)
 
     @property
     def origin(self) -> list[int]:
