@@ -788,7 +788,8 @@ class PhaseFieldSimu(_Simu):
         if np.linalg.norm(u) == 0:
             Psi_Elas = 0
         else:
-            Psi_Elas = 1 / 2 * (u.T @ Ku @ u)[0, 0]
+            with np.errstate(divide="ignore", over="ignore", invalid="ignore"):
+                Psi_Elas = 1 / 2 * (u.T @ Ku @ u)[0, 0]
 
         tic.Tac("PostProcessing", "Calc Psi Elas", False)
 
@@ -805,7 +806,8 @@ class PhaseFieldSimu(_Simu):
         if np.linalg.norm(d) == 0:
             Psi_Crack = 0
         else:
-            Psi_Crack = 1 / 2 * (d.T @ Kd @ d)[0, 0]
+            with np.errstate(divide="ignore", over="ignore", invalid="ignore"):
+                Psi_Crack = 1 / 2 * (d.T @ Kd @ d)[0, 0]
 
         tic.Tac("PostProcessing", "Calc Psi Crack", False)
 
@@ -820,7 +822,8 @@ class PhaseFieldSimu(_Simu):
         if np.linalg.norm(u_n) == 0 or np.linalg.norm(f_n) == 0:
             Psi_Ext = 0
         else:
-            Psi_Ext = (u_n @ f_n)[0]
+            with np.errstate(divide="ignore", over="ignore", invalid="ignore"):
+                Psi_Ext = (u_n @ f_n)[0]
 
         tic.Tac("PostProcessing", "Calc Psi Ext", False)
 

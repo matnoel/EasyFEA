@@ -155,7 +155,8 @@ class FeArray(_types.AnyArray):
         if ndim1 == ndim2 == 1:
             result = np.vecdot(self, other)
         elif ndim1 == ndim2 == 2:
-            result = super().__matmul__(other)
+            with np.errstate(divide="ignore", over="ignore", invalid="ignore"):
+                result = super().__matmul__(other)
         elif ndim1 == 1 and ndim2 == 2:
             result = (self[:, :, np.newaxis, :] @ other)[:, :, 0, :]
         elif ndim1 == 2 and ndim2 == 1:
