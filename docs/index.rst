@@ -124,7 +124,7 @@ To learn more about contributing to EasyFEA, please consult the `Contributing Gu
    :caption: Contents:
 
    begin
-   examples/index
+   gallery/index
    easyfea
 
 Indices and tables

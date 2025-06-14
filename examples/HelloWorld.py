@@ -2,6 +2,11 @@
 # This file is part of the EasyFEA project.
 # EasyFEA is distributed under the terms of the GNU General Public License v3, see LICENSE.txt and CREDITS.md for more information.
 
+"""
+HelloWorld Example
+==================
+"""
+
 from EasyFEA import Display, Mesher, ElemType, Materials, Simulations
 from EasyFEA.Geoms import Point, Domain
 

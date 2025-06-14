@@ -32,9 +32,19 @@ extensions = [
     "sphinx.ext.viewcode",
     "sphinx.ext.autosummary",
     "sphinx_autodoc_typehints",
+    # plot
     "matplotlib.sphinxext.plot_directive",
+    "sphinx_gallery.gen_gallery",
 ]
 autodoc_typehints = "signature"
+
+
+sphinx_gallery_conf = {
+    "examples_dirs": "../examples",
+    "gallery_dirs": "gallery",
+    "filename_pattern": r".*\.py",
+    "ignore_pattern": r"__init__\.py",
+}
 
 templates_path = ["_templates"]
 exclude_patterns = ["_build", "Thumbs.db", ".DS_Store"]

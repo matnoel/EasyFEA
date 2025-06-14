@@ -31,6 +31,7 @@ To construct a :py:class:`~EasyFEA.fem.Mesh` using the :py:class:`~EasyFEA.fem.M
 - :py:meth:`~EasyFEA.fem.Mesher.Mesh_Import_mesh`: Imports an existing gmsh mesh. EasyFEA is also linked to meshio and can be used threw the 
 - :py:meth:`~EasyFEA.utilities.MeshIO._Meshio_to_EasyFEA`: Imports any kind of mesh using `meshio <https://pypi.org/project/meshio/>`_.
 
+Several examples are available in 
 
 Detailed fem api
 ----------------
