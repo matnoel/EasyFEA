@@ -3,11 +3,13 @@
 # EasyFEA is distributed under the terms of the GNU General Public License v3, see LICENSE.txt and CREDITS.md for more information.
 
 """
-A cylindrical conduit exposed to uniform pressure
-=================================================
+Elas5
+=====
+
+A cylindrical conduit exposed to uniform pressure.
 """
 
-from EasyFEA import Display, np, Mesher, ElemType, Materials, Simulations, PyVista
+from EasyFEA import Display, np, Mesher, ElemType, Materials, Simulations
 from EasyFEA.Geoms import Point, Line, Circle, CircleArc, Contour
 
 if __name__ == "__main__":
@@ -108,6 +110,7 @@ if __name__ == "__main__":
     factorDef = r / 5 / simu.Result("displacement_norm").max()
     # factorDef = 1
     Display.Plot_Mesh(simu, deformFactor=factorDef)
+    Display.Plot_BoundaryConditions(simu)
     Display.Plot_Result(simu, "ux", ncolors=10, nodeValues=True)
     Display.Plot_Result(simu, "uy", ncolors=10, nodeValues=True)
     Display.Plot_Result(
@@ -116,6 +119,6 @@ if __name__ == "__main__":
 
     print(simu)
 
-    PyVista.Plot_BoundaryConditions(simu).show()
+    # PyVista.Plot_BoundaryConditions(simu).show()
 
     Display.plt.show()

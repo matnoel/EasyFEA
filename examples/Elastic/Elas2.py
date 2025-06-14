@@ -3,11 +3,13 @@
 # EasyFEA is distributed under the terms of the GNU General Public License v3, see LICENSE.txt and CREDITS.md for more information.
 
 """
-Bending bracket component
-=========================
+Elas2
+=====
+
+Bending bracket component.
 """
 
-from EasyFEA import Display, Tic, plt, np, Mesher, ElemType, Materials, Simulations
+from EasyFEA import Display, plt, np, Mesher, ElemType, Materials, Simulations
 from EasyFEA.Geoms import Point, Points
 
 if __name__ == "__main__":
@@ -69,10 +71,8 @@ if __name__ == "__main__":
     # ----------------------------------------------
     print(simu)
 
-    Display.Plot_BoundaryConditions(simu)
     Display.Plot_Mesh(simu, h / 2 / np.abs(sol).max())
+    Display.Plot_BoundaryConditions(simu)
     Display.Plot_Result(simu, "Svm", nodeValues=True, coef=1 / coef, ncolors=20)
-
-    Tic.Plot_History(details=False)
 
     plt.show()
