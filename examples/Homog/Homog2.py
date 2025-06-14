@@ -3,8 +3,10 @@
 # EasyFEA is distributed under the terms of the GNU General Public License v3, see LICENSE.txt and CREDITS.md for more information.
 
 """
-Perform homogenization on several RVE
-=====================================
+Homog2
+======
+
+Perform homogenization on several RVE.
 """
 
 from EasyFEA import Display, plt, np, Mesher, ElemType, Materials, Simulations
@@ -233,8 +235,12 @@ if __name__ == "__main__":
 
         simu.Bc_Init()
 
-        func_ux = lambda x, y, z: Ekl.dot([x, y])[0]
-        func_uy = lambda x, y, z: Ekl.dot([x, y])[1]
+        def func_ux(x, y, z):
+            return Ekl.dot([x, y])[0]
+
+        def func_uy(x, y, z):
+            return Ekl.dot([x, y])[1]
+
         simu.add_dirichlet(nodes_border, [func_ux, func_uy], ["x", "y"])
 
         if usePER:

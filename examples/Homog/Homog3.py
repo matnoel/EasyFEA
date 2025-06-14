@@ -3,13 +3,14 @@
 # EasyFEA is distributed under the terms of the GNU General Public License v3, see LICENSE.txt and CREDITS.md for more information.
 
 """
-Conduct full-field homogenization
-=================================
+Homog3
+======
+
+Conduct full-field homogenization.
 """
 
 from EasyFEA import (
     Display,
-    Folder,
     plt,
     np,
     Geoms,
@@ -147,8 +148,12 @@ if __name__ == "__main__":
 
         simu_VER.Bc_Init()
 
-        func_ux = lambda x, y, z: Ekl.dot([x, y])[0]
-        func_uy = lambda x, y, z: Ekl.dot([x, y])[1]
+        def func_ux(x, y, z):
+            return Ekl.dot([x, y])[0]
+
+        def func_uy(x, y, z):
+            return Ekl.dot([x, y])[1]
+
         simu_VER.add_dirichlet(nodes_border, [func_ux, func_uy], ["x", "y"])
 
         if usePER:
