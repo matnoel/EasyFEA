@@ -1232,10 +1232,10 @@ def Plot_Iter_Summary(simu, folder="", iterMin=None, iterMax=None) -> None:
     iterations, list_label_values = simu.Results_Iter_Summary()
 
     if iterMax is None:
-        iterMax = iterations.max()
+        iterMax = np.max(iterations)
 
     if iterMin is None:
-        iterMin = iterations.min()
+        iterMin = np.min(iterations)
 
     selectionIndex = list(
         filter(
@@ -1243,10 +1243,9 @@ def Plot_Iter_Summary(simu, folder="", iterMin=None, iterMax=None) -> None:
             iterations,
         )
     )
+    iterations = np.asarray(iterations)[selectionIndex]
 
     nbGraph = len(list_label_values)
-
-    iterations = iterations[selectionIndex]
 
     axs: list[_types.Axes] = plt.subplots(nrows=nbGraph, sharex=True)[1]
 
