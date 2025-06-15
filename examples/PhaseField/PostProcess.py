@@ -37,7 +37,7 @@ if __name__ == "__main__":
     else:
         folder_save = ""
 
-    list_mat = ["Elas_Isot"]  # ["Elas_Isot", "Elas_IsotTrans", "Elas_Anisot"]
+    list_mat = ["Elas_Isot"]  # ["Elas_Isot", "Elas_IsotTrans", "ElasAnisot"]
 
     # list_regu = ["AT2", "AT1"] # ["AT1", "AT2"]
     list_regu = ["AT1"]  # ["AT1", "AT2"]

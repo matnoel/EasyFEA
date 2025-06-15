@@ -89,7 +89,7 @@ if __name__ == "__main__":
     # Simulation
     # ----------------------------------------------
 
-    material = Materials.Elas_Isot(dim, thickness=b)
+    material = Materials.ElasIsot(dim, thickness=b)
     simu = Simulations.ElasticSimu(mesh, material, useIterativeSolvers=initSimu)
     simu.rho = 8100 * 1e-9
 

@@ -634,7 +634,7 @@ class BeamSimu(_Simu):
             Iy_e_pg[elems] = beam.Iy
             Iz_e_pg[elems] = beam.Iz
             J_e_pg[elems] = beam.J
-            if isinstance(beam, Materials.Beam_Elas_Isot):
+            if isinstance(beam, Materials.BeamElasIsot):
                 mu_e_pg[elems] = beam.mu
 
         y_e_pg = np.sqrt(S_e_pg)

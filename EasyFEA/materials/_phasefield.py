@@ -28,7 +28,7 @@ from ..utilities import _params, _types
 # Elasticity
 # ----------------------------------------------
 
-from ._linear_elastic_laws import _Elas, Elas_Isot
+from ._linear_elastic_laws import _Elas, ElasIsot
 
 # ----------------------------------------------
 # Phase field
@@ -115,7 +115,7 @@ class PhaseField(_IModel):
         Parameters
         ----------
         material : _Elas
-            Elastic material (Elas_Isot, Elas_IsotTrans, Elas_Anisot)
+            Elastic material (ElasIsot, ElasIsotTrans, ElasAnisot)
         split : SplitType
             split used to decompose the elastic energy density (see PhaseField_Model.get_splits())
         regularization : RegularizationType
@@ -132,7 +132,7 @@ class PhaseField(_IModel):
 
         assert isinstance(
             material, _Elas
-        ), "Must be a displacement model (Elas_Isot, Elas_IsotTrans, Elas_Anisot)"
+        ), "Must be a displacement model (ElasIsot, ElasIsotTrans, ElasAnisot)"
         # Material object cannot be changed by another _Elas object
         self.__material = material
 
@@ -294,11 +294,11 @@ class PhaseField(_IModel):
     def split(self, value: str) -> None:
         splits = self.Get_splits()
         assert value in splits, f"Must be included in {splits}"
-        if not isinstance(self.material, Elas_Isot):
+        if not isinstance(self.material, ElasIsot):
             # check that if the material is not a isotropic material you cant pick a isotoprpic split
             assert (
                 value not in PhaseField.__SPLITS_ISOT
-            ), "These splits are only implemented for Elas_Isot material"
+            ), "These splits are only implemented for ElasIsot material"
         self.Need_Update()
         self.__split = value
 
@@ -488,8 +488,8 @@ class PhaseField(_IModel):
         """[Amor 2009] DOI : 10.1016/j.jmps.2009.04.011"""
 
         assert isinstance(
-            self.__material, Elas_Isot
-        ), "Implemented only for Elas_Isot material."
+            self.__material, ElasIsot
+        ), "Implemented only for ElasIsot material."
 
         tic = Tic()
 
@@ -561,8 +561,8 @@ class PhaseField(_IModel):
             # [Miehe 2010] DOI : 10.1016/j.cma.2010.04.011
 
             assert isinstance(
-                self.__material, Elas_Isot
-            ), "Implemented only for Elas_Isot material"
+                self.__material, ElasIsot
+            ), "Implemented only for ElasIsot material"
 
             # Compute Rp and Rm
             Rp_e_pg, Rm_e_pg = self.__Rp_Rm(Epsilon_e_pg)
@@ -659,7 +659,7 @@ class PhaseField(_IModel):
 
         if self.__split == self.SplitType.Stress:
 
-            assert isinstance(material, Elas_Isot)
+            assert isinstance(material, ElasIsot)
 
             E = material.E
             v = material.v

@@ -75,7 +75,7 @@ if __name__ == "__main__":
     # ----------------------------------------------
     # Simulation
     # ----------------------------------------------
-    material = Materials.Elas_Isot(
+    material = Materials.ElasIsot(
         dim, E=210000, v=0.25, planeStress=True, thickness=thickness
     )
 

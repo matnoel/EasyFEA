@@ -50,7 +50,7 @@ if __name__ == "__main__":
     # ----------------------------------------------
     # Simulation
     # ----------------------------------------------
-    material = Materials.Elas_Isot(dim, planeStress=True, thickness=thickness)
+    material = Materials.ElasIsot(dim, planeStress=True, thickness=thickness)
 
     simu = Simulations.ElasticSimu(mesh, material)
 

@@ -446,7 +446,7 @@ def Get_projP_projM_3D(
     list_Gab: list[_types.FloatArray],
 ) -> tuple[_types.FloatArray, _types.FloatArray]:
 
-    # ../FEMOBJECT/BASIC/MODEL/MATERIALS/@ELAS_ISOT/calc_proj_Miehe.m
+    # ../FEMOBJECT/BASIC/MODEL/MATERIALS/@ElasIsot/calc_proj_Miehe.m
 
     if __USE_PARALLEL:
         range = prange

@@ -7,9 +7,9 @@ The `EasyFEA/materials/ <https://github.com/matnoel/EasyFEA/tree/main/EasyFEA/ma
 
 With this module, you can construct:
 
-+ Linear elastic materials, such as :py:class:`~EasyFEA.materials.Elas_Isot`, :py:class:`~EasyFEA.materials.Elas_IsotTrans`, and :py:class:`~EasyFEA.materials.Elas_Anisot`.
++ Linear elastic materials, such as :py:class:`~EasyFEA.materials.ElasIsot`, :py:class:`~EasyFEA.materials.ElasIsotTrans`, and :py:class:`~EasyFEA.materials.ElasAnisot`.
 + Nonlinear hyperelastic materials, such as :py:class:`~EasyFEA.materials.NeoHookean`, :py:class:`~EasyFEA.materials.MooneyRivlin`, and :py:class:`~EasyFEA.materials.SaintVenantKirchhoff`.
-+ Elastic beams with :py:class:`~EasyFEA.materials.Beam_Elas_Isot`.
++ Elastic beams with :py:class:`~EasyFEA.materials.Beam_ElasIsot`.
 + Phase-field materials with :py:class:`~EasyFEA.materials.PhaseField`.
 + Thermal materials with :py:class:`~EasyFEA.materials.Thermal`.
 

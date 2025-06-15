@@ -32,7 +32,7 @@ from ..fem._linalg import TensorProd
 
 class _Elas(_IModel, ABC):
     """Linearized Elasticity material.\n
-    Elas_Isot, Elas_IsotTrans and Elas_Anisot inherit from _Elas class.
+    ElasIsot, ElasIsotTrans and ElasAnisot inherit from _Elas class.
     """
 
     def __init__(self, dim: int, thickness: float, planeStress: bool):
@@ -92,7 +92,7 @@ class _Elas(_IModel, ABC):
     # Model
     @staticmethod
     def Available_Laws():
-        laws = [Elas_Isot, Elas_IsotTrans, Elas_Anisot]
+        laws = [ElasIsot, ElasIsotTrans, ElasAnisot]
         return laws
 
     @property
@@ -219,7 +219,7 @@ class _Elas(_IModel, ABC):
 # ----------------------------------------------
 
 
-class Elas_Isot(_Elas):
+class ElasIsot(_Elas):
     """Isotropic Linearized Elastic material."""
 
     def __str__(self) -> str:
@@ -418,7 +418,7 @@ class Elas_Isot(_Elas):
 # ----------------------------------------------
 
 
-class Elas_IsotTrans(_Elas):
+class ElasIsotTrans(_Elas):
     """Transversely Isotropic Linearized Elastic material."""
 
     def __str__(self) -> str:
@@ -768,7 +768,7 @@ class Elas_IsotTrans(_Elas):
 # ----------------------------------------------
 
 
-class Elas_Anisot(_Elas):
+class ElasAnisot(_Elas):
     """Anisotropic Linearized Elastic material."""
 
     def __str__(self) -> str:
@@ -809,7 +809,7 @@ class Elas_Anisot(_Elas):
 
         Returns
         -------
-        Elas_Anisot
+        ElasAnisot
             Anisotropic behavior law
         """
         # here planeStress is set to False because we just know the C matrix

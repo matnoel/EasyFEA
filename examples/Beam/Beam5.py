@@ -44,7 +44,7 @@ if __name__ == "__main__":
     E = 276  # MPa
     v = 0.3
 
-    beams = [Materials.Beam_Elas_Isot(dim, line, section, E, v) for line in lines]
+    beams = [Materials.BeamElasIsot(dim, line, section, E, v) for line in lines]
     structure = Materials.BeamStructure(beams)
 
     mesh = Mesher().Mesh_Beams(beams, elemType)

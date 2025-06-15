@@ -112,7 +112,7 @@ if __name__ == "__main__":
     E = np.ones(mesh.Ne) * E_cuve
     E[elems_pilars] = E_pilars
 
-    material = Materials.Elas_Isot(3, E, 0.3)
+    material = Materials.ElasIsot(3, E, 0.3)
 
     # ----------------------------------------------
     # Simulation

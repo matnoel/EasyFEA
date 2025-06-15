@@ -151,7 +151,7 @@ def DoSimu(split: str, regu: str):
         folderName += "_3D"
     folder_save = Folder.PhaseField_Folder(
         folderName,
-        "Elas_Isot",
+        "ElasIsot",
         split,
         regu,
         "DP",
@@ -185,7 +185,7 @@ def DoSimu(split: str, regu: str):
         # ----------------------------------------------
         # Material
         # ----------------------------------------------
-        material = Materials.Elas_Isot(
+        material = Materials.ElasIsot(
             dim, E=210e9, v=0.3, planeStress=False, thickness=thickness
         )
         Gc = 2.7e3  # J/m2

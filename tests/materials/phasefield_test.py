@@ -7,7 +7,7 @@ import pytest
 from EasyFEA import Geoms, Mesher, Simulations, np
 
 # materials
-from EasyFEA.Materials import _Elas, Elas_Isot, Elas_IsotTrans, Elas_Anisot, PhaseField
+from EasyFEA.Materials import _Elas, ElasIsot, ElasIsotTrans, ElasAnisot, PhaseField
 from EasyFEA.materials import Reshape_variable
 from EasyFEA.fem._linalg import Norm
 from EasyFEA.fem import FeArray
@@ -34,7 +34,7 @@ def setup_pfm_materials(setup_elastic_materials) -> list[PhaseField]:
             for r in regularizations:
 
                 if (
-                    isinstance(c, Elas_IsotTrans) or isinstance(c, Elas_Anisot)
+                    isinstance(c, ElasIsotTrans) or isinstance(c, ElasAnisot)
                 ) and s in splits_Isot:
                     continue
 
@@ -48,7 +48,7 @@ class TestPhaseField:
 
     def __cal_eps(self, dim) -> np.ndarray:
 
-        mat = Elas_Isot(dim)
+        mat = ElasIsot(dim)
 
         L = 200
         H = 100

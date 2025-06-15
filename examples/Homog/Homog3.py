@@ -117,10 +117,10 @@ if __name__ == "__main__":
     # ----------------------------------------------
 
     # elastic behavior of the beam
-    material_inclsuion = Materials.Elas_Isot(2, E=E, v=v, planeStress=True, thickness=b)
+    material_inclsuion = Materials.ElasIsot(2, E=E, v=v, planeStress=True, thickness=b)
     CMandel = material_inclsuion.C
 
-    material = Materials.Elas_Anisot(2, CMandel, False)
+    material = Materials.ElasAnisot(2, CMandel, False)
     testC = np.linalg.norm(material_inclsuion.C - material.C) / np.linalg.norm(
         material_inclsuion.C
     )

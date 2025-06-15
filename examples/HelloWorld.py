@@ -26,7 +26,7 @@ E = 210000  # MPa
 v = 0.3
 F = -800  # N
 
-mat = Materials.Elas_Isot(2, E, v, planeStress=True, thickness=h)
+mat = Materials.ElasIsot(2, E, v, planeStress=True, thickness=h)
 
 simu = Simulations.ElasticSimu(mesh, mat)
 

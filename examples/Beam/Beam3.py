@@ -64,7 +64,7 @@ if __name__ == "__main__":
     pL = Point(x=L / 2)
     p2 = Point(x=L)
     line = Line(p1, p2, L / nL)
-    beam = Materials.Beam_Elas_Isot(beamDim, line, section, E, v)
+    beam = Materials.BeamElasIsot(beamDim, line, section, E, v)
 
     mesh = Mesher().Mesh_Beams([beam], additionalPoints=[pL], elemType=elemType)
 

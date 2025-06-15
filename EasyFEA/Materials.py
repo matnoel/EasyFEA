@@ -12,9 +12,9 @@ from .materials import Reshape_variable
 
 from .materials._linear_elastic_laws import (
     _Elas,
-    Elas_Isot,
-    Elas_IsotTrans,
-    Elas_Anisot,
+    ElasIsot,
+    ElasIsotTrans,
+    ElasAnisot,
 )
 
 # ----------------------------------------------
@@ -34,7 +34,7 @@ from .materials._phasefield import PhaseField
 # Beam
 # ----------------------------------------------
 
-from .materials._beam import _Beam, BeamStructure, Beam_Elas_Isot
+from .materials._beam import _Beam, BeamStructure, BeamElasIsot
 
 # ----------------------------------------------
 # Thermal

@@ -78,7 +78,7 @@ class TestBeam:
                 point1 = Point()
                 point2 = Point(x=L)
                 line = Line(point1, point2, L / nL)
-                beam = Materials.Beam_Elas_Isot(beamDim, line, section, E, v)
+                beam = Materials.BeamElasIsot(beamDim, line, section, E, v)
                 listePoutre = [beam]
 
             elif problem in ["Flexion", "BiEnca"]:
@@ -88,7 +88,7 @@ class TestBeam:
                 point3 = Point(x=L)
 
                 line = Line(point1, point3, L / nL)
-                beam = Materials.Beam_Elas_Isot(beamDim, line, section, E, v)
+                beam = Materials.BeamElasIsot(beamDim, line, section, E, v)
                 listePoutre = [beam]
 
             Iz = beam.Iz
@@ -235,10 +235,8 @@ class TestBeam:
         sect3 = sect2.copy()
         sect3.Rotate(30, sect3.center)
 
-        beam1 = Materials.Beam_Elas_Isot(
-            2, Line(Point(), Point(5)), sect1, 210e9, v=0.1
-        )
-        beam2 = Materials.Beam_Elas_Isot(
+        beam1 = Materials.BeamElasIsot(2, Line(Point(), Point(5)), sect1, 210e9, v=0.1)
+        beam2 = Materials.BeamElasIsot(
             2, Line(Point(5), Point(10)), sect2, 210e9, v=0.1
         )
 

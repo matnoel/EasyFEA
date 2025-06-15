@@ -90,7 +90,7 @@ if __name__ == "__main__":
     # Simulation Beam
     # ----------------------------------------------
 
-    beam = Materials.Beam_Elas_Isot(
+    beam = Materials.BeamElasIsot(
         2, Line(Point(-L / 2), Point(L / 2), L / 10), meshSection, E, v
     )
 
@@ -121,7 +121,7 @@ if __name__ == "__main__":
     # Simulation 3D
     # ----------------------------------------------
 
-    material = Materials.Elas_Isot(3, E, v)
+    material = Materials.ElasIsot(3, E, v)
     simu = Simulations.ElasticSimu(mesh, material)
 
     simu.add_dirichlet(nodes_fixed, [0] * 3, simu.Get_unknowns())

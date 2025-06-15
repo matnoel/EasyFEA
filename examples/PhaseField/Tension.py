@@ -45,7 +45,7 @@ openCrack = True
 optimMesh = True
 
 # material
-materialType = "Elas_Isot"  #  "Elas_Isot", "Elas_Anisot"
+materialType = "Elas_Isot"  #  "Elas_Isot", "ElasAnisot"
 
 # phasefield
 maxIter = 1000
@@ -76,7 +76,7 @@ makeMovie = False
 # ----------------------------------------------
 L = 1e-3
 # m
-l0 = 8.5e-6 if materialType == "Elas_Anisot" else 1e-5
+l0 = 8.5e-6 if materialType == "ElasAnisot" else 1e-5
 thickness = 1 if dim == 2 else 0.1 / 1000
 
 
@@ -186,11 +186,11 @@ def DoSimu(split: str, regu: str):
         # Material
         # ----------------------------------------------
         if materialType == "Elas_Isot":
-            material = Materials.Elas_Isot(
+            material = Materials.ElasIsot(
                 dim, E=210e9, v=0.3, planeStress=False, thickness=thickness
             )
             Gc = 2.7e3  # J/m2
-        elif materialType == "Elas_Anisot":
+        elif materialType == "ElasAnisot":
             if dim == 2:
                 c11 = 65
                 c22 = 260
@@ -202,7 +202,7 @@ def DoSimu(split: str, regu: str):
                 axis1 = np.array([np.cos(theta_rad), np.sin(theta_rad), 0])
                 axis2 = np.array([-np.sin(theta_rad), np.cos(theta_rad), 0])
 
-                material = Materials.Elas_Anisot(
+                material = Materials.ElasAnisot(
                     dim,
                     C=C_voigt,
                     useVoigtNotation=True,

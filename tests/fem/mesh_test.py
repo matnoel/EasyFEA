@@ -149,7 +149,7 @@ class TestMesh:
 
     def test_load(self, meshes_3D: list[Mesh]):
 
-        mat = Materials.Elas_Isot(3, 210000 * 1e6, 0.33)
+        mat = Materials.ElasIsot(3, 210000 * 1e6, 0.33)
         rho = 7850  # kg/m3
 
         volume = L * H * L

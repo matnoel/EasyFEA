@@ -58,7 +58,7 @@ if __name__ == "__main__":
     v = 0.25  # Poisson's ratio
 
     # Define the material behavior (elasticity with plane stress assumption)
-    material = Materials.Elas_Isot(dim, thickness=b, E=E, v=v, planeStress=True)
+    material = Materials.ElasIsot(dim, thickness=b, E=E, v=v, planeStress=True)
 
     # Compute the theoretical deformation energy (reference value)
     WdefRef = 2 * P**2 * L / E / h / b * (L**2 / h / b + (1 + v) * 3 / 5)

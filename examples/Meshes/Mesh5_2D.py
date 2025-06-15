@@ -48,7 +48,7 @@ if __name__ == "__main__":
     # SIMU
     # ----------------------------------------------
 
-    material = Materials.Elas_Isot(2)
+    material = Materials.ElasIsot(2)
     simu = Simulations.ElasticSimu(mesh, material)
 
     simu.add_dirichlet(

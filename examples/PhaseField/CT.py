@@ -154,7 +154,7 @@ nodes_xL = mesh.Nodes_Conditions(lambda x, y, z: x == L)
 # Simu
 # ----------------------------------------------
 
-mat = Materials.Elas_Isot(dim, thickness=thickness, planeStress=True)
+mat = Materials.ElasIsot(dim, thickness=thickness, planeStress=True)
 
 pfm = Materials.PhaseField(mat, split, regu, Gc, l0)
 

@@ -2,7 +2,7 @@
 # This file is part of the EasyFEA project.
 # EasyFEA is distributed under the terms of the GNU General Public License v3, see LICENSE.txt and CREDITS.md for more information.
 
-from ._beam import _Beam, Beam_Elas_Isot, BeamStructure
+from ._beam import _Beam, BeamElasIsot, BeamStructure
 from ._hyperelastic_laws import (
     _HyperElas,
     NeoHookean,
@@ -10,7 +10,7 @@ from ._hyperelastic_laws import (
     SaintVenantKirchhoff,
 )
 from ._hyperelastic import HyperElastic
-from ._linear_elastic_laws import _Elas, Elas_Isot, Elas_Anisot, Elas_IsotTrans
+from ._linear_elastic_laws import _Elas, ElasIsot, ElasAnisot, ElasIsotTrans
 from ._phasefield import PhaseField
 from ._thermal import Thermal
 from ._utils import (

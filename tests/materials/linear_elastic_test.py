@@ -7,7 +7,7 @@ import pytest
 from EasyFEA import np
 
 # materials
-from EasyFEA.Materials import _Elas, Elas_Isot, Elas_IsotTrans, Elas_Anisot
+from EasyFEA.Materials import _Elas, ElasIsot, ElasIsotTrans, ElasAnisot
 from EasyFEA.materials import (
     Get_Pmat,
     Apply_Pmat,
@@ -22,14 +22,14 @@ def setup_elastic_materials() -> list[_Elas]:
     elasticMaterials: list[_Elas] = []
 
     for comp in _Elas.Available_Laws():
-        if comp == Elas_Isot:
-            elasticMaterials.append(Elas_Isot(2, E=210e9, v=0.3, planeStress=True))
-            elasticMaterials.append(Elas_Isot(2, E=210e9, v=0.3, planeStress=False))
-            elasticMaterials.append(Elas_Isot(3, E=210e9, v=0.3))
-        elif comp == Elas_IsotTrans:
+        if comp == ElasIsot:
+            elasticMaterials.append(ElasIsot(2, E=210e9, v=0.3, planeStress=True))
+            elasticMaterials.append(ElasIsot(2, E=210e9, v=0.3, planeStress=False))
+            elasticMaterials.append(ElasIsot(3, E=210e9, v=0.3))
+        elif comp == ElasIsotTrans:
             c = np.sqrt(2) / 2
             elasticMaterials.append(
-                Elas_IsotTrans(
+                ElasIsotTrans(
                     3,
                     El=11580,
                     Et=500,
@@ -41,7 +41,7 @@ def setup_elastic_materials() -> list[_Elas]:
                 )
             )
             elasticMaterials.append(
-                Elas_IsotTrans(
+                ElasIsotTrans(
                     3,
                     El=11580,
                     Et=500,
@@ -53,17 +53,17 @@ def setup_elastic_materials() -> list[_Elas]:
                 )
             )
             elasticMaterials.append(
-                Elas_IsotTrans(
+                ElasIsotTrans(
                     2, El=11580, Et=500, Gl=450, vl=0.02, vt=0.44, planeStress=True
                 )
             )
             elasticMaterials.append(
-                Elas_IsotTrans(
+                ElasIsotTrans(
                     2, El=11580, Et=500, Gl=450, vl=0.02, vt=0.44, planeStress=False
                 )
             )
 
-        elif comp == Elas_Anisot:
+        elif comp == ElasAnisot:
             C_voigt2D = np.array([[60, 20, 0], [20, 120, 0], [0, 0, 30]])
 
             axis1_1 = np.array([1, 0, 0])
@@ -73,11 +73,11 @@ def setup_elastic_materials() -> list[_Elas]:
             axis1_2 = np.array([np.cos(tetha), np.sin(tetha), 0])
             axis2_2 = np.array([-np.sin(tetha), np.cos(tetha), 0])
 
-            elasticMaterials.append(Elas_Anisot(2, C_voigt2D, True, axis1_1, axis2_1))
+            elasticMaterials.append(ElasAnisot(2, C_voigt2D, True, axis1_1, axis2_1))
 
-            elasticMaterials.append(Elas_Anisot(2, C_voigt2D, True, axis1_1, axis2_1))
-            elasticMaterials.append(Elas_Anisot(2, C_voigt2D, True, axis1_2, axis2_2))
-            elasticMaterials.append(Elas_Anisot(2, C_voigt2D, True, axis1_2, axis2_2))
+            elasticMaterials.append(ElasAnisot(2, C_voigt2D, True, axis1_1, axis2_1))
+            elasticMaterials.append(ElasAnisot(2, C_voigt2D, True, axis1_2, axis2_2))
+            elasticMaterials.append(ElasAnisot(2, C_voigt2D, True, axis1_2, axis2_2))
 
     return elasticMaterials
 
@@ -88,7 +88,7 @@ class TestLinearElastic:
 
         for mat in setup_elastic_materials:
             assert isinstance(mat, _Elas)
-            if isinstance(mat, Elas_Isot):
+            if isinstance(mat, ElasIsot):
                 E = mat.E
                 v = mat.v
                 if mat.dim == 2:
@@ -127,7 +127,7 @@ class TestLinearElastic:
                 test_C = np.linalg.norm(c - mat.C) / np.linalg.norm(c)
                 assert test_C < 1e-12
 
-    def test_Elas_Anisot(self):
+    def test_ElasAnisot(self):
 
         C_voigt2D = np.array([[60, 20, 0], [20, 120, 0], [0, 0, 30]])
 
@@ -149,14 +149,14 @@ class TestLinearElastic:
         axis1_2 = np.array([np.cos(a), np.sin(a), 0])
         axis2_2 = np.array([-np.sin(a), np.cos(a), 0])
 
-        mat_2D_1 = Elas_Anisot(2, C_voigt2D, True, axis1_1, axis2_1)
+        mat_2D_1 = ElasAnisot(2, C_voigt2D, True, axis1_1, axis2_1)
 
-        mat_2D_2 = Elas_Anisot(2, C_voigt2D, True, axis1_2, axis2_2)
+        mat_2D_2 = ElasAnisot(2, C_voigt2D, True, axis1_2, axis2_2)
 
-        mat_2D_3 = Elas_Anisot(2, C_voigt2D, True)
+        mat_2D_3 = ElasAnisot(2, C_voigt2D, True)
 
-        mat_3D_1 = Elas_Anisot(3, C_voigt3D, True, axis1_1, axis2_1)
-        mat_3D_2 = Elas_Anisot(3, C_voigt3D, True, axis1_2, axis2_2)
+        mat_3D_1 = ElasAnisot(3, C_voigt3D, True, axis1_1, axis2_1)
+        mat_3D_2 = ElasAnisot(3, C_voigt3D, True, axis1_2, axis2_2)
 
         listComp = [mat_2D_1, mat_2D_2, mat_2D_3, mat_3D_1, mat_3D_2]
 
@@ -181,7 +181,7 @@ class TestLinearElastic:
         #               [0, 0, 0, 0, 0, 2*Gl]])
 
         # axis_l = [1, 0, 0] et axis_t = [0, 1, 0]
-        mat1 = Elas_IsotTrans(
+        mat1 = ElasIsotTrans(
             2,
             El=11580,
             Et=500,
@@ -208,7 +208,7 @@ class TestLinearElastic:
         assert test_c1 < 1e-12
 
         # axis_l = [0, 1, 0] et axis_t = [1, 0, 0]
-        mat2 = Elas_IsotTrans(
+        mat2 = ElasIsotTrans(
             2,
             El=11580,
             Et=500,
@@ -232,7 +232,7 @@ class TestLinearElastic:
         assert test_c2 < 1e-12
 
         # axis_l = [0, 0, 1] et axis_t = [1, 0, 0]
-        mat = Elas_IsotTrans(
+        mat = ElasIsotTrans(
             2,
             El=11580,
             Et=500,
@@ -287,7 +287,7 @@ class TestLinearElastic:
 
             for c in [_, _e, _e_pg, _e2]:
 
-                mat = Elas_IsotTrans(dim, El * c, Et * c, Gl * c, vl * c, vt * c)
+                mat = ElasIsotTrans(dim, El * c, Et * c, Gl * c, vl * c, vt * c)
                 C = mat.C
                 S = mat.S
 
