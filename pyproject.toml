@@ -56,7 +56,11 @@ dev = [
 ]
 
 [project.urls]
-"Source Code" = "https://github.com/matnoel/EasyFEA"
+Homepage = "https://easyfea.readthedocs.io/en/latest/"
+Documentation = "https://easyfea.readthedocs.io/en/latest/"
+Repository = "https://github.com/matnoel/EasyFEA"
+Issues = "https://github.com/matnoel/EasyFEA/issues"
+Changelog = "https://github.com/matnoel/EasyFEA/blob/main/CHANGELOG.md"
 
 [tool.setuptools.packages.find]
 include = [

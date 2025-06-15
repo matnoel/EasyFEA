@@ -23,7 +23,6 @@ sys.path.insert(0, os.path.abspath(".."))
 project = "EasyFEA"
 copyright = "2025, Matthieu Noel"
 author = "Matthieu Noel"
-# release = "v1.3.3"
 
 # -- General configuration ---------------------------------------------------
 # https://www.sphinx-doc.org/en/master/usage/configuration.html#general-configuration
@@ -88,14 +87,47 @@ sphinx_gallery_conf = {
     "line_numbers": True,
 }
 
-myst_enable_extensions = [
-    "tabs",  # <- important!
-]
-
 # -- Options for HTML output -------------------------------------------------
 # https://www.sphinx-doc.org/en/master/usage/configuration.html#options-for-html-output
 
 html_theme = "pydata_sphinx_theme"  # "furo", "pydata_sphinx_theme"
+html_theme_options = {
+    "icon_links": [
+        {
+            "name": "GitHub",
+            "url": "https://github.com/matnoel/EasyFEA",
+            "icon": "fa-brands fa-github",
+            "type": "fontawesome",
+        },
+        {
+            "name": "PyPI",
+            "url": "https://pypi.org/project/easyfea/",
+            "icon": "fa-solid fa-box",
+            "type": "fontawesome",
+        },
+        {
+            "name": "Issues",
+            "url": "https://github.com/matnoel/EasyFEA/issues",
+            "icon": "fa-solid fa-issues",
+            "type": "fontawesome",
+        },
+        {
+            "name": "Read the Docs",
+            "url": "https://app.readthedocs.org/projects/easyfea/",
+            "icon": "fa-solid fa-book",
+            "type": "fontawesome",
+        },
+    ],
+    "use_edit_page_button": True,
+}
+
+html_context = {
+    "github_user": "matnoel",
+    "github_repo": "EasyFEA",
+    "github_version": "main",
+    "doc_path": "docs/",
+}
+
 html_title = "EasyFEA"
 
 html_static_path = ["_static"]
