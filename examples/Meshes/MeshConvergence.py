@@ -37,7 +37,6 @@ if __name__ == "__main__":
     # List of mesh sizes (number of elements) to investigate convergence
     if dim == 2:
         list_N = np.arange(1, 10, 1)
-        # list_N = np.arange(1, 20, 1)
     else:
         list_N = np.arange(1, 8, 2)
 
@@ -46,7 +45,7 @@ if __name__ == "__main__":
 
     # Define whether to plot the results
     plotResult = True
-    makeParaview = True
+    makeParaview = False
 
     # Define geometry parameters
     L = 120  # mm
@@ -204,7 +203,7 @@ if __name__ == "__main__":
 
     # Deformation energy
     ax_Wdef.grid()
-    ax_Wdef.set_xlim([-10, 10000])
+    ax_Wdef.set_xlim([-10, np.max(dofs_elem_N[0])])
     ax_Wdef.set_xlabel("Degrees of Freedom (DOF)")
     ax_Wdef.set_ylabel("Strain energy W [mJ]")
     ax_Wdef.legend(elemTypes)

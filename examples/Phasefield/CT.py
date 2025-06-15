@@ -2,9 +2,6 @@
 # This file is part of the EasyFEA project.
 # EasyFEA is distributed under the terms of the GNU General Public License v3, see LICENSE.txt and CREDITS.md for more information.
 
-# sphinx_gallery_skip = True
-# sphinx_gallery_failing_thumbnail = False
-
 """
 CT
 ==

@@ -8,6 +8,7 @@ Mesh11
 
 Meshing of a specimen for a spatially oriented tensile test.
 """
+# sphinx_gallery_thumbnail_number = 2
 
 from EasyFEA import Display, Mesher, np
 from EasyFEA.Geoms import Point, Line, CircleArc, Contour, Domain

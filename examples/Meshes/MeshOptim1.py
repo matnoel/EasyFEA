@@ -8,6 +8,7 @@ MeshOptim1
 
 Mesh optimization using the ZZ1 criterion for a bending bracket.
 """
+# sphinx_gallery_thumbnail_number = 2
 
 from EasyFEA import (
     Display,
@@ -87,6 +88,7 @@ if __name__ == "__main__":
 
     # Construct the initial mesh
     mesh = DoMesh()
+    Display.Plot_Mesh(mesh)
 
     # ----------------------------------------------
     # Material and Simulation
@@ -125,7 +127,7 @@ if __name__ == "__main__":
     # ----------------------------------------------
     # Plot
     # ----------------------------------------------
-
+    Display.Plot_Mesh(simu.mesh)
     Display.Plot_Result(simu, "ZZ1_e", nodeValues=False, title="ZZ1", ncolors=11)
 
     if plotProj:

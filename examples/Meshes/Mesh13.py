@@ -9,7 +9,7 @@ Mesh13
 Mesh a heterogeneous RVE with cracks.
 """
 
-from EasyFEA import Display, np, Mesher, ElemType, Materials, Simulations
+from EasyFEA import Display, Mesher, ElemType
 from EasyFEA.Geoms import Point, Line, Domain, Circle
 
 if __name__ == "__main__":
@@ -112,43 +112,13 @@ if __name__ == "__main__":
     )
 
     # ----------------------------------------------
-    # Simu
-    # ----------------------------------------------
-
-    E = np.ones(mesh.Ne) * 10  # Mpa
-    v = np.ones(mesh.Ne) * 0.45
-
-    elements = list(set(range(mesh.Ne)) - set(mesh.Elements_Tags("S0")))
-    E[elements] = 50
-    v[elements] = 0.3
-
-    mat = Materials.Elas_Isot(2, E, v, planeStress=False)
-
-    simu = Simulations.ElasticSimu(mesh, mat)
-
-    nodes_y0 = mesh.Nodes_Conditions(lambda x, y, z: y == 0)
-    nodes_yL = mesh.Nodes_Conditions(lambda x, y, z: y == L)
-
-    simu.add_dirichlet(nodes_y0, [0, 0], ["x", "y"])
-    simu.add_dirichlet(nodes_yL, [-0.1, 0.2], ["x", "y"])
-
-    simu.Solve()
-
-    deformFactor = L / 10 / simu.Result("displacement_norm").max()
-
-    # ----------------------------------------------
     # Display
     # ----------------------------------------------
 
-    # geoms = [contour]; geoms.extend(inclusions)
-    # contour.Plot_Geoms(geoms)
-
-    ax = Display.Plot_Result(simu, E, plotMesh=True, nodeValues=False, title="E")
-
-    # Display.Plot_Mesh(mesh)
+    Display.Plot_Mesh(mesh)
+    geoms = [contour]
+    geoms.extend(inclusions)
+    contour.Plot_Geoms(geoms)
     Display.Plot_Tags(mesh, True)
-
-    Display.Plot_Result(simu, "uy", deformFactor)
-    Display.Plot_Result(simu, "Svm", deformFactor, plotMesh=True)
 
     Display.plt.show()

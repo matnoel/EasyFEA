@@ -8,6 +8,7 @@ Mesh7
 
 Meshing a 3D part in revolution.
 """
+# sphinx_gallery_thumbnail_number = 2
 
 from EasyFEA import Display, Mesher, ElemType, np
 from EasyFEA.Geoms import Point, Points, Circle, Line

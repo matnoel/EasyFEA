@@ -9,11 +9,11 @@
 # add these directories to sys.path here. If the directory is relative to the
 # documentation root, use os.path.abspath to make it absolute, like shown here.
 import os
+import re
 import sys
 
 import pyvista
 from pyvista.plotting.utilities.sphinx_gallery import DynamicScraper
-from sphinx_gallery.sorting import FileNameSortKey
 
 sys.path.insert(0, os.path.abspath(".."))
 
@@ -61,6 +61,19 @@ pyvista.set_plot_theme("document")
 # necessary when building the sphinx gallery
 pyvista.BUILDING_GALLERY = True
 os.environ["PYVISTA_BUILDING_GALLERY"] = "true"
+
+
+def natural_sort_key(s):
+    """Split string into integers and letters for natural sorting."""
+    return [
+        int(text) if text.isdigit() else text.lower() for text in re.split(r"(\d+)", s)
+    ]
+
+
+def FileNameSortKey(filename):
+    base = os.path.basename(filename)
+    return natural_sort_key(base)
+
 
 sphinx_gallery_conf = {
     "examples_dirs": "../examples",

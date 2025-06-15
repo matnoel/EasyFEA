@@ -8,8 +8,9 @@ Mesh9
 
 Meshing of a perforated plate with a structured mesh.
 """
+# sphinx_gallery_thumbnail_number = 2
 
-from EasyFEA import Display, np, Mesher, ElemType, Materials, Simulations
+from EasyFEA import Display, np, Mesher, ElemType
 from EasyFEA.Geoms import Point, Circle, Points, Line, CircleArc, Contour
 
 if __name__ == "__main__":
@@ -114,25 +115,6 @@ if __name__ == "__main__":
         ax.set_title("Orphan nodes detected")
         Display.plt.show()
 
-    # ----------------------------------------------
-    # Simulation
-    # ----------------------------------------------
-
-    mat = Materials.Elas_Isot(mesh.dim)
-    simu = Simulations.ElasticSimu(mesh, mat)
-
-    simu.add_dirichlet(
-        mesh.Nodes_Conditions(lambda x, y, z: y == 0),
-        [0] * mesh.dim,
-        simu.Get_unknowns(),
-    )
-    simu.add_dirichlet(mesh.Nodes_Conditions(lambda x, y, z: y == H), [4], ["y"])
-    simu.Solve()
-
-    Display.Plot_Tags(mesh, alpha=0.1, showId=False)
-    Display.Plot_Mesh(simu, 1)
-    Display.Plot_Result(simu, "uy", 1, plotMesh=True)
-
-    print(simu)
+    Display.Plot_Mesh(mesh)
 
     Display.plt.show()

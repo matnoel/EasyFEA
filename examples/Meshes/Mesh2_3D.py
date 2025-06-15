@@ -8,6 +8,7 @@ Mesh2_3D
 
 Meshing a hydraulic dam.
 """
+# sphinx_gallery_thumbnail_number = 2
 
 from EasyFEA import Display, Mesher
 from EasyFEA.Geoms import Point, Points

@@ -8,6 +8,7 @@ Mesh6_3D
 
 Refined 3D mesh in zones.
 """
+# sphinx_gallery_thumbnail_number = 2
 
 from EasyFEA import Display, Mesher, ElemType
 from EasyFEA.Geoms import Point, Circle, Domain
@@ -32,7 +33,7 @@ if __name__ == "__main__":
     contour.Plot_Geoms(geoms)
 
     mesh = Mesher().Mesh_Extrude(
-        contour, inclusions, [0, 0, -L], [3], ElemType.PRISM15, refineGeoms=refineGeoms
+        contour, inclusions, [0, 0, -L], [5], ElemType.PRISM15, refineGeoms=refineGeoms
     )
     Display.Plot_Mesh(mesh)
 

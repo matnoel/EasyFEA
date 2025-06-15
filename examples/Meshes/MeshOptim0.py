@@ -8,6 +8,7 @@ MeshOptim0
 
 Optimization of a happy mesh with quality criteria.
 """
+# sphinx_gallery_thumbnail_number = 2
 
 from EasyFEA import Display, Folder, plt, np, Mesher, ElemType, Mesh
 from EasyFEA.Geoms import Point, Circle, CircleArc, Contour
@@ -69,6 +70,7 @@ if __name__ == "__main__":
 
     # Construct the initial mesh
     mesh = DoMesh()
+    Display.Plot_Mesh(mesh, title="first mesh")
 
     mesh, ratio = Mesh_Optim(DoMesh, folder, criteria, quality, ratio)
 
@@ -78,6 +80,7 @@ if __name__ == "__main__":
 
     qual_e = mesh.Get_Quality(criteria, False)
 
+    Display.Plot_Mesh(mesh, title="last mesh")
     Display.Plot_Result(
         mesh,
         qual_e,

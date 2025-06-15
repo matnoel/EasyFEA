@@ -18,7 +18,7 @@ if __name__ == "__main__":
 
     folder = Folder.Join(Folder.RESULTS_DIR, "Meshes", "Blade", mkdir=True)
 
-    N = 20  # elements in the blade lenght l
+    N = 4  # elements in the blade lenght l
     addCylinder = True
     repeat = False
     angleRev = 2 * np.pi / 20  # rad

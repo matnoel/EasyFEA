@@ -8,6 +8,7 @@ Mesh1_2D
 
 Meshing a 2D domain.
 """
+# sphinx_gallery_thumbnail_number = 2
 
 from EasyFEA import Display, Mesher
 from EasyFEA.Geoms import Point, Domain
