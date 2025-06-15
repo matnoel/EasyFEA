@@ -216,16 +216,20 @@ class TRI10(_GroupElem):
 
     def Get_Local_Coords(self):
         # fmt: off
-        list_x = [0,1,0,
-              1/3,2/3,
-              2/3, 1/3,
-              0,0,
-              1/3]
-        list_y = [0,0,1,
-                0,0,
-                1/3, 2/3,
-                2/3,1/3,
-                1/3]
+        list_x = [
+            0,1,0,
+            1/3,2/3,
+            2/3, 1/3,
+            0,0,
+            1/3
+        ]
+        list_y = [
+            0,0,1,
+            0,0,
+            1/3, 2/3,
+            2/3,1/3,
+            1/3
+        ]
         # fmt: off
         local_coords = np.array([list_x, list_y]).T
         return local_coords
@@ -439,16 +443,20 @@ class TRI15(_GroupElem):
 
     def Get_Local_Coords(self):
         # fmt: off
-        list_x = [0,1,0,
+        list_x = [
+            0,1,0,
             1/4,1/2,3/4,
             3/4,1/2,1/4,
             0,0,0,
-            1/4,1/2,1/4]
-        list_y = [0,0,1,
-                0,0,0,
-                1/4,1/2,3/4,
-                3/4,1/2,1/4,
-                1/4,1/4,1/2]
+            1/4,1/2,1/4
+        ]
+        list_y = [
+            0,0,1,
+            0,0,0,
+            1/4,1/2,3/4,
+            3/4,1/2,1/4,
+            1/4,1/4,1/2
+        ]
         # fmt: on
         local_coords = np.array([list_x, list_y]).T
         return local_coords

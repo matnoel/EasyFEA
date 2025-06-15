@@ -399,7 +399,9 @@ def Circle_Coords(
         return f
 
     # point must belong to the plane
-    eqPlane = lambda v: v @ n
+    def eqPlane(v):
+        return v @ n
+
     cons = {"type": "eq", "fun": eqPlane}
     res = minimize(eval, p0, constraints=cons, tol=1e-12)
 
@@ -594,6 +596,9 @@ def __Get_Triangle_Area(A: _types.AnyArray, B: _types.AnyArray, C: _types.AnyArr
     float
         triangle area
     """
+    A = AsCoords(A)
+    B = AsCoords(B)
+    C = AsCoords(C)
     assert A.ndim == 1 and A.size <= 3
     assert B.ndim == 1 and B.size <= 3
     assert C.ndim == 1 and C.size <= 3

@@ -18,7 +18,7 @@ if __name__ == "__main__":
 
     # Define dimension and mesh size parameters
     dim = 2
-    N = 20 if dim == 2 else 10
+    N = 2
 
     # Define material properties
     E = 210000  # MPa (Young's modulus)
@@ -42,10 +42,10 @@ if __name__ == "__main__":
     domain = Domain(Point(), Point(L, h), meshSize)
 
     if dim == 2:
-        mesh = Mesher().Mesh_2D(domain, [], ElemType.QUAD4, isOrganised=True)
+        mesh = Mesher().Mesh_2D(domain, [], ElemType.QUAD9, isOrganised=True)
     else:
         mesh = Mesher().Mesh_Extrude(
-            domain, [], [0, 0, -h], [4], ElemType.HEXA8, isOrganised=True
+            domain, [], [0, 0, -h], [N], ElemType.HEXA27, isOrganised=True
         )
 
     nodes_x0 = mesh.Nodes_Conditions(lambda x, y, z: x == 0)

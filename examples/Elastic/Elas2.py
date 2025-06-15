@@ -18,7 +18,7 @@ if __name__ == "__main__":
 
     # Define dimension and mesh size parameters
     dim = 3
-    N = 20 if dim == 2 else 10
+    N = 4
 
     # Define material properties
     E = 210000  # MPa (Young's modulus)
@@ -47,7 +47,7 @@ if __name__ == "__main__":
         mesh = Mesher().Mesh_2D(contour, [], ElemType.TRI3)
     elif dim == 3:
         mesh = Mesher().Mesh_Extrude(
-            contour, [], [0, 0, -h], [4], elemType=ElemType.TETRA4
+            contour, [], [0, 0, -h], [4], elemType=ElemType.TETRA10
         )
 
     nodes_x0 = mesh.Nodes_Conditions(lambda x, y, z: x == 0)

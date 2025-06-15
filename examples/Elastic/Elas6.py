@@ -39,7 +39,6 @@ if __name__ == "__main__":
     # Section
     # ----------------------------------------------
 
-    meshSize = e / 2
     elemType = ElemType.TETRA4
 
     def DoSym(p: Point, n: np.ndarray) -> Point:
@@ -59,7 +58,7 @@ if __name__ == "__main__":
     p10 = DoSym(p5, (1, 0))
     p11 = DoSym(p4, (1, 0))
     p12 = DoSym(p3, (1, 0))
-    section = Points([p1, p2, p3, p4, p5, p6, p7, p8, p9, p10, p11, p12], meshSize)
+    section = Points([p1, p2, p3, p4, p5, p6, p7, p8, p9, p10, p11, p12], e / 1)
     meshSection = Mesher().Mesh_2D(section)
 
     section.Get_Contour().Plot()

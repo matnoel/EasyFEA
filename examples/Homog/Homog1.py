@@ -7,9 +7,11 @@ Homog1
 ======
 
 Conduct homogenization using an example outlined in 'Computational Homogenization of Heterogeneous Materials with Finite Elements'.
-Reference: http://link.springer.com/10.1007/978-3-030-18383-7
+
+Reference: https://doi.org/10.1007/978-3-030-18383-7
 Section 4.7 with corrected values on page 89 (Erratum).
 """
+# sphinx_gallery_thumbnail_number = 7
 
 from EasyFEA import Display, plt, np, Mesher, ElemType, Materials, Simulations
 from EasyFEA.Geoms import Point, Points, Circle
@@ -31,7 +33,7 @@ if __name__ == "__main__":
     p3 = Point(-1 / 2, 1 / 2)
     pts = [p0, p1, p2, p3]
 
-    meshSize = 1 / 30
+    meshSize = 1 / 15
 
     contour = Points(pts, meshSize)
 
@@ -172,7 +174,7 @@ if __name__ == "__main__":
 
     C_Mat = Materials.Reshape_variable(material.C, *B_e_pg.shape[:2])
 
-    # Be careful here you have to use all the air even if there are holes
+    # Be careful here you have to use all the area even if there are holes
     # if you use the mesh area, multiply C_hom by the porosity (1-f)
     C_hom = (weightedJacobian_e_pg * C_Mat @ B_e_pg @ U_e).sum((0, 1)) / mesh.area
 

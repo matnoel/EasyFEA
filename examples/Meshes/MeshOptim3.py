@@ -3,8 +3,10 @@
 # EasyFEA is distributed under the terms of the GNU General Public License v3, see LICENSE.txt and CREDITS.md for more information.
 
 """
-Mesh optimization using the ZZ1 criterion for a letter weigher
-==============================================================
+MeshOptim3
+==========
+
+Mesh optimization using the ZZ1 criterion for a letter weigher.
 """
 # sphinx_gallery_thumbnail_number = 2
 
@@ -160,7 +162,7 @@ if __name__ == "__main__":
     # ----------------------------------------------
     # Plot
     # ----------------------------------------------
-    Display.Plot_Mesh(mesh)
+    Display.Plot_Mesh(simu.mesh)
     Display.Plot_Result(simu, "ZZ1_e", nodeValues=False, title="ZZ1", ncolors=11)
 
     if plotProj:

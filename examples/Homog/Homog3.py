@@ -8,6 +8,7 @@ Homog3
 
 Conduct full-field homogenization.
 """
+# sphinx_gallery_thumbnail_number = 5
 
 from EasyFEA import (
     Display,
@@ -52,7 +53,7 @@ if __name__ == "__main__":
     # Mesh
     # ----------------------------------------------
     elemType = ElemType.TRI3
-    meshSize = h / 20
+    meshSize = h / 10
 
     pt1 = Geoms.Point()
     pt2 = Geoms.Point(L, 0)
@@ -94,7 +95,7 @@ if __name__ == "__main__":
 
     pointsI = Geoms.Points([ptI1, ptI2, ptI3, ptI4], meshSize / 4)
 
-    mesh_VER = mesher.Mesh_2D(
+    mesh_RVE = mesher.Mesh_2D(
         pointsI,
         [
             Geoms.Domain(
@@ -106,10 +107,9 @@ if __name__ == "__main__":
         ],
         elemType,
     )
-    area_VER = mesh_VER.area
 
     Display.Plot_Mesh(mesh_inclusions, title="non hom")
-    Display.Plot_Mesh(mesh_VER, title="VER")
+    Display.Plot_Mesh(mesh_RVE, title="VER")
     Display.Plot_Mesh(mesh, title="hom")
 
     # ----------------------------------------------
@@ -130,7 +130,7 @@ if __name__ == "__main__":
     # Homogenization
     # ----------------------------------------------
     simu_inclusions = Simulations.ElasticSimu(mesh_inclusions, material_inclsuion)
-    simu_VER = Simulations.ElasticSimu(mesh_VER, material_inclsuion)
+    simu_VER = Simulations.ElasticSimu(mesh_RVE, material_inclsuion)
     simu = Simulations.ElasticSimu(mesh, material)
 
     r2 = np.sqrt(2)
@@ -139,10 +139,10 @@ if __name__ == "__main__":
     E12 = np.array([[0, 1 / r2], [1 / r2, 0]])
 
     if usePER:
-        nodes_border = mesh_VER.Nodes_Tags(["P0", "P1", "P2", "P3"])
-        paired_nodes = mesh_VER.Get_Paired_Nodes(nodes_border, True)
+        nodes_border = mesh_RVE.Nodes_Tags(["P0", "P1", "P2", "P3"])
+        paired_nodes = mesh_RVE.Get_Paired_Nodes(nodes_border, True)
     else:
-        nodes_border = mesh_VER.Nodes_Tags(["L0", "L1", "L2", "L3"])
+        nodes_border = mesh_RVE.Nodes_Tags(["L0", "L1", "L2", "L3"])
 
     def Calc_ukl(Ekl: np.ndarray):
 
@@ -158,7 +158,7 @@ if __name__ == "__main__":
 
         if usePER:
 
-            coordo = mesh_VER.coord
+            coordo = mesh_RVE.coord
 
             for n0, n1 in paired_nodes:
 
@@ -191,9 +191,9 @@ if __name__ == "__main__":
     u22 = Calc_ukl(E22)
     u12 = Calc_ukl(E12)
 
-    u11_e = mesh_VER.Locates_sol_e(u11, asFeArray=True)
-    u22_e = mesh_VER.Locates_sol_e(u22, asFeArray=True)
-    u12_e = mesh_VER.Locates_sol_e(u12, asFeArray=True)
+    u11_e = mesh_RVE.Locates_sol_e(u11, asFeArray=True)
+    u22_e = mesh_RVE.Locates_sol_e(u22, asFeArray=True)
+    u12_e = mesh_RVE.Locates_sol_e(u12, asFeArray=True)
 
     U_e = FeArray.zeros(*u11_e.shape, 3)
 
@@ -202,13 +202,13 @@ if __name__ == "__main__":
     U_e[..., 2] = u12_e
 
     matrixType = "rigi"
-    weightedJacobian_e_pg = mesh_VER.Get_weightedJacobian_e_pg(matrixType)
-    B_e_pg = mesh_VER.Get_B_e_pg(matrixType)
+    weightedJacobian_e_pg = mesh_RVE.Get_weightedJacobian_e_pg(matrixType)
+    B_e_pg = mesh_RVE.Get_B_e_pg(matrixType)
 
-    C_hom = (weightedJacobian_e_pg * CMandel @ B_e_pg @ U_e).sum((0, 1)) / area_VER
+    C_hom = (weightedJacobian_e_pg * CMandel @ B_e_pg @ U_e).sum((0, 1)) / mesh_RVE.area
 
     if isHollow:
-        coef = 1 - area_inclusion / area_VER
+        coef = 1 - area_inclusion / mesh_RVE.area
         C_hom *= coef
 
     # print(np.linalg.eigvals(C_hom))

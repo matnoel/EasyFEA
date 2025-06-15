@@ -20,13 +20,13 @@ if __name__ == "__main__":
     # Configuration
     # ----------------------------------------------
 
-    dim = 3
+    dim = 2
     isSymmetric = True
 
     a = 10
     l = 50
     h = 20
-    meshSize = h / 10
+    meshSize = h / 4
     thickness = 1
 
     # ----------------------------------------------
@@ -46,10 +46,10 @@ if __name__ == "__main__":
         inclusions = [Circle(Point(), 2 * a, meshSize, isHollow=True)]
 
     if dim == 2:
-        mesh = Mesher().Mesh_2D(contour, inclusions, elemType=ElemType.TRI3)
+        mesh = Mesher().Mesh_2D(contour, inclusions, elemType=ElemType.TRI10)
     else:
         mesh = Mesher().Mesh_Extrude(
-            contour, inclusions, [0, 0, thickness], [4], ElemType.PRISM6
+            contour, inclusions, [0, 0, thickness], [1], ElemType.PRISM18
         )
 
     # ----------------------------------------------
@@ -84,9 +84,9 @@ if __name__ == "__main__":
     Display.Plot_Mesh(simu, deformFactor=2 / uxMax)
     Display.Plot_BoundaryConditions(simu)
 
-    Display.Plot_Result(simu, "ux", ncolors=10, nodeValues=True)
-    Display.Plot_Result(simu, "uy", ncolors=10, nodeValues=True)
-    Display.Plot_Result(simu, "Svm", ncolors=10, nodeValues=True)
+    Display.Plot_Result(simu, "ux", ncolors=10)
+    Display.Plot_Result(simu, "uy", ncolors=10)
+    Display.Plot_Result(simu, "Svm", ncolors=10, nodeValues=False, plotMesh=True)
 
     print(simu)
 

@@ -8,6 +8,7 @@ Homog2
 
 Perform homogenization on several RVE.
 """
+# sphinx_gallery_thumbnail_number = 7
 
 from EasyFEA import Display, plt, np, Mesher, ElemType, Materials, Simulations
 from EasyFEA.Geoms import Point, Points, Line
@@ -31,7 +32,7 @@ if __name__ == "__main__":
     # ----------------------------------------------------------------------------
     # Mesh
     # ----------------------------------------------------------------------------
-    N = 10
+    N = 5
 
     if geom == "D666":
 
@@ -184,7 +185,7 @@ if __name__ == "__main__":
 
     mesh = Mesher().Mesh_2D(contour, inclusions, elemType)
 
-    Display.Plot_Mesh(mesh, title="VER")
+    Display.Plot_Mesh(mesh, title="RVE")
     # Display.Plot_Tags(mesh)
     coordo = mesh.coord
 

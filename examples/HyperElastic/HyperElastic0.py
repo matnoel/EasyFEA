@@ -42,7 +42,7 @@ if __name__ == "__main__":
     thickness = 50
     w = 50
 
-    meshSize = L / 20
+    meshSize = L / 10
 
     sigMax = 8 * 1e5 / (w * thickness)
     uMax = 50

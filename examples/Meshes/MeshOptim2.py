@@ -137,7 +137,7 @@ if __name__ == "__main__":
     # ----------------------------------------------
     # Plot
     # ----------------------------------------------
-    Display.Plot_Mesh(mesh)
+    Display.Plot_Mesh(simu.mesh)
     Display.Plot_Result(simu, "ZZ1_e", nodeValues=False, title="ZZ1", ncolors=11)
 
     if plotProj:

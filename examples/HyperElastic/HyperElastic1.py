@@ -25,7 +25,7 @@ if __name__ == "__main__":
 
     L = 120
     h = 13
-    meshSize = h / 3
+    meshSize = h / 2
 
     contour = Domain((0, 0), (L, h), h / 3)
 
