@@ -22,7 +22,7 @@ Most EasyFEA simulations require few modules, this script requires just a few:
     ~EasyFEA.Simulations
     ~EasyFEA.Geoms
 
-Once everything is imported you can know create a :py:class:`~EasyFEA.fem.Mesh`:
+Once everything is imported, you can now create a :py:class:`~EasyFEA.fem.Mesh`:
 
 .. jupyter-execute::
 

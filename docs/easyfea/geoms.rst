@@ -16,7 +16,7 @@ With this module, you can construct:
     ~EasyFEA.geoms.CircleArc
     ~EasyFEA.geoms.Contour
 
-Once the geometric object is created you can either :py:meth:`~EasyFEA.geoms._Geom.copy`, :py:meth:`~EasyFEA.geoms._Geom.Translate`, :py:meth:`~EasyFEA.geoms._Geom.Rotate` or :py:meth:`~EasyFEA.geoms._Geom.Symmetry` the objects. 
+Once the geometric object is created, you can either :py:meth:`~EasyFEA.geoms._Geom.copy`, :py:meth:`~EasyFEA.geoms._Geom.Translate`, :py:meth:`~EasyFEA.geoms._Geom.Rotate` or :py:meth:`~EasyFEA.geoms._Geom.Symmetry` the objects. 
 
 Creating a :py:class:`~EasyFEA.geoms.Line`
 ------------------------------------------

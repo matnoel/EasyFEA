@@ -7,20 +7,29 @@
 
 ## Overview
 
-**EasyFEA** is a user-friendly Python library that simplifies finite element analysis. It is flexible and supports different types of simulation without requiring users to handle complex PDE formulations. The library currently supports **four** specific simulation types:
+**EasyFEA** is a user-friendly Python library that simplifies finite element analysis. It is flexible and supports different types of simulations without requiring users to handle complex PDE formulations. The library currently supports **five** specific simulation types:
 
-1. **ElasticSimu** (static and dynamic): Examples in `/examples/Elastic`, `/examples/Dynamic` and `/examples/Contact`.
-2. **BeamSimu** (static Euler-Bernoulli): Examples in `/examples/Beam`.
-3. **ThermalSimu** (stationary and transient): Examples in `/examples/Thermal`.
-4. **PhaseFieldSimu:** (quasi-static phase field) Examples in `/examples/PhaseField`.
+1. **Linear Elastostatic and Elastodynamics simulations** 
+    - [examples/Elastic](https://easyfea.readthedocs.io/en/latest/examples/Elastic/index.html)
+    - [examples/Dynamic](https://easyfea.readthedocs.io/en/latest/examples/Dynamic/index.html)
+    - [examples/Homog](https://easyfea.readthedocs.io/en/latest/examples/Homog/index.html)
+    - [examples/Contact](https://easyfea.readthedocs.io/en/latest/examples/Contact/index.html)
+2. **Nonlinear Hyperelastic Static simulations**
+    - [examples/HyperElastic](https://easyfea.readthedocs.io/en/latest/examples/HyperElastic/index.html)
+3. **Euler-Bernoulli beam simulations**
+    - [examples/Beam](https://easyfea.readthedocs.io/en/latest/examples/Beam/index.html)
+4. **Thermal simulations**
+    - [examples/Thermal](https://easyfea.readthedocs.io/en/latest/examples/Thermal/index.html)
+5. **PhaseField damage simulations for quasi-static brittle fracture** 
+    - [examples/PhaseField](https://easyfea.readthedocs.io/en/latest/examples/PhaseField/index.html)
 
-All examples are available [here](https://github.com/matnoel/EasyFEA/tree/master/examples).
+All examples are available in this [gallery](https://easyfea.readthedocs.io/en/latest/examples/index.html).
 
-For each simulation, users create a **mesh** and a **model**. Once the simulation has been set up, defining the boundary conditions, solving the problem and visualizing the results is straightforward.
+For each simulation, users create a **mesh** and a **model**. Once the simulation has been set up, defining the boundary conditions, solving the problem and visualizing the results are straightforward.
 
-Numerous examples of mesh creation are available in the `examples/Meshes` folder.
+Numerous examples of mesh creation are available in [Mesh](https://easyfea.readthedocs.io/en/latest/examples/Meshes/index.html) examples.
 
-The simplest and quickest introduction is shown below and is available in `examples/HelloWorld.py`.
+The simplest and quickest introduction is shown below and is available in the [Beginner’s Guide](https://easyfea.readthedocs.io/en/latest/begin.html).
 
 ```python
 from EasyFEA import Display, Mesher, ElemType, Materials, Simulations
@@ -32,8 +41,8 @@ from EasyFEA.Geoms import Point, Domain
 L = 120  # mm
 h = 13
 
-domain = Domain(Point(), Point(L, h), h / 6)
-mesh = Mesher().Mesh_2D(domain, [], ElemType.QUAD4, isOrganised=True)
+domain = Domain(Point(), Point(L, h), h / 3)
+mesh = Mesher().Mesh_2D(domain, [], ElemType.QUAD9, isOrganised=True)
 
 # ----------------------------------------------
 # Simulation
@@ -42,7 +51,7 @@ E = 210000  # MPa
 v = 0.3
 F = -800  # N
 
-mat = Materials.Elas_Isot(2, E, v, planeStress=True, thickness=h)
+mat = Materials.ElasIsot(2, E, v, planeStress=True, thickness=h)
 
 simu = Simulations.ElasticSimu(mesh, mat)
 
@@ -57,10 +66,10 @@ simu.Solve()
 # ----------------------------------------------
 # Results
 # ----------------------------------------------
-Display.Plot_Mesh(mesh)
-Display.Plot_BoundaryConditions(simu)
+Display.Plot_Mesh(simu, deformFactor=10)
 Display.Plot_Result(simu, "uy", plotMesh=True)
 Display.Plot_Result(simu, "Svm", plotMesh=True, ncolors=11)
+Display.Plot_BoundaryConditions(simu)
 
 Display.plt.show()
 ```
@@ -70,6 +79,10 @@ Display.plt.show()
 Copyright (C) 2021-2025 Université Gustave Eiffel.
 
 EasyFEA is distributed under the terms of the [GNU General Public License v3.0](https://spdx.org/licenses/GPL-3.0-only.html), see [LICENSE.txt](https://github.com/matnoel/EasyFEA/blob/main/LICENSE.txt) and [CREDITS.md](https://github.com/matnoel/EasyFEA/blob/main/CREDITS.md) for more information.
+
+## Documentation
+
+Refer to the [documentation](https://easyfea.readthedocs.io/en/latest/index.html) for detailed installation and usage details.
 
 ## Installation
 
@@ -83,7 +96,7 @@ You can also install EasyFEA with the [source code](https://github.com/matnoel/E
 
 ### Dependencies
 
-EasyFEA uses several libraries such as NumPy and Gmsh - as such, the following projects are required dependencies of EasyFEA:
+EasyFEA uses several libraries, such as NumPy and Gmsh - as such, the following projects are required dependencies of EasyFEA:
 
 + [`numpy`](https://pypi.org/project/numpy/) - Fundamental package for scientific computing with Python.
 + [`gmsh`](https://pypi.org/project/gmsh/) (>= 4.12) - Three-dimensional finite element mesh generator.

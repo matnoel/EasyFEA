@@ -8,13 +8,21 @@ EasyFEA documentation
 Overview
 --------
 
-**EasyFEA** is a user-friendly Python library that simplifies finite element analysis. It is flexible and supports different types of simulation without requiring users to handle complex PDE formulations. The library currently supports **four** specific simulation types:
+**EasyFEA** is a user-friendly Python library that simplifies finite element analysis. It is flexible and supports different types of simulations without requiring users to handle complex PDE formulations. The library currently supports **five** specific simulation types:
 
-1. **Linear Elastostatic and Elastodynamics simulations**: See examples in :doc:`examples/Elastic <examples/Elastic/index>`, :doc:`examples/Dynamic <examples/Dynamic/index>`, :doc:`examples/Homog <examples/Homog/index>` and :doc:`examples/Contact <examples/Contact/index>`.
-2. **Nonlinear Hyperelastic Static simulations**: See examples in :doc:`examples/HyperElastic <examples/HyperElastic/index>`.
-3. **Euler-Bernoulli beam simulations**:  See examples in :doc:`/examples/Beam <examples/Beam/index>`.
-4. **Thermal simulations**:  See examples in :doc:`/examples/Thermal <examples/Thermal/index>`.
-5. **PhaseField damage simulations for quasi-static brittle fracture:** See examples in :doc:`/examples/PhaseField <examples/PhaseField/index>`.
+1. **Linear Elastostatic and Elastodynamics simulations**
+    - :doc:`examples/Elastic <examples/Elastic/index>`
+    - :doc:`examples/Dynamic <examples/Dynamic/index>`
+    - :doc:`examples/Homog <examples/Homog/index>`
+    - :doc:`examples/Contact <examples/Contact/index>`
+2. **Nonlinear Hyperelastic Static simulations**
+    - :doc:`examples/HyperElastic <examples/HyperElastic/index>`
+3. **Euler-Bernoulli beam simulations**
+    - :doc:`/examples/Beam <examples/Beam/index>`
+4. **Thermal simulations**:
+    - :doc:`/examples/Thermal <examples/Thermal/index>`
+5. **PhaseField damage simulations for quasi-static brittle fracture**
+    - :doc:`/examples/PhaseField <examples/PhaseField/index>`.
 
 All examples are available in this :doc:`gallery <examples/index>`.
 
@@ -51,7 +59,7 @@ You can also install EasyFEA with the `source code <GitHub_>`_ using the ``pip i
 Dependencies
 ^^^^^^^^^^^^
 
-EasyFEA uses several libraries such as NumPy and Gmsh - as such, the following projects are required dependencies of EasyFEA:
+EasyFEA uses several libraries, such as NumPy and Gmsh - as such, the following projects are required dependencies of EasyFEA:
 
 + `numpy <https://pypi.org/project/numpy/>`_ - Fundamental package for scientific computing with Python.
 + `gmsh <https://pypi.org/project/gmsh/>`_ (>= 4.12) - Three-dimensional finite element mesh generator.
