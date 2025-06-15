@@ -1,0 +1,8 @@
+sphinx
+sphinx-autodoc-typehints
+pydata_sphinx_theme
+sphinx-gallery
+jupyter_sphinx
+sphinx-design
+scikit-learn
+pyvista[all]

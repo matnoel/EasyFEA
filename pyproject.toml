@@ -52,14 +52,7 @@ cv = [
 dev = [
     "mypy",
     "black",
-    "pytest",
-    "sphinx",
-    "pydata_sphinx_theme",
-    "sphinx-gallery",
-    "jupyter_sphinx",
-    "sphinx-design",
-    "scikit-learn",
-    "pyvista[all]",
+    "pytest",    
 ]
 
 [project.urls]
