@@ -9,6 +9,7 @@ Detailed simulations api
 
 .. automodule:: EasyFEA.simulations
    :members:
+   :private-members: _Simu
    :undoc-members:
    :imported-members:
    :show-inheritance:

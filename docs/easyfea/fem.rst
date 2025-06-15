@@ -22,7 +22,7 @@ All implemented element types, along with their shape functions and derivatives,
 Creating or importing a Mesh
 ----------------------------
 
-To construct a :py:class:`~EasyFEA.fem.Mesh` using the :py:class:`~EasyFEA.fem.Mesher`, you must first create :py:class:`~EasyFEA.geoms._Geom` objects. The :py:class:`~EasyFEA.fem.Mesher` class serves as an interface to `Gmsh <https://gmsh.info/>`_, a powerful meshing tool, and includes the following primary functions for mesh generation:
+To construct a :py:class:`~EasyFEA.fem.Mesh` using the :py:class:`~EasyFEA.fem.Mesher`, you must first create :py:class:`~EasyFEA.geoms._Geom` objects (see :ref:`easyfea-api-geoms` for some examples). The :py:class:`~EasyFEA.fem.Mesher` class serves as an interface to `Gmsh <https://gmsh.info/>`_, a powerful meshing tool, and includes the following primary functions for mesh generation:
 
 - :py:meth:`~EasyFEA.fem.Mesher.Mesh_2D`: Generates a 2D mesh.
 - :py:meth:`~EasyFEA.fem.Mesher.Mesh_Extrude`: Creates a mesh by extruding a 2D shape.
