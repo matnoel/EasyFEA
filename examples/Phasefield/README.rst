@@ -1,3 +1,5 @@
+.. _easyfea-examples-phasefield:
+
 PhaseField damage simulations for quasi-static brittle fracture
 ===============================================================
 

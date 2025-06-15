@@ -1,3 +1,5 @@
+.. _easyfea-examples:
+
 Examples
 ========
 

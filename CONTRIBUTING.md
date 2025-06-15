@@ -7,7 +7,7 @@ Contributors are welcome! To contribute please use the following steps.
     ```bash
     git clone https://github.com/YOURNAME/EasyFEA.git
     cd EasyFEA
-    python -m pip install -e .
+    python -m pip install -e .[dev]
     ```
 
     In editable mode (`-e`), code completion functionality may be compromised in your integrated development environment ([IDE](https://fr.wikipedia.org/wiki/Environnement_de_d%C3%A9veloppement)). To enable code completion, it is necessary to include the **EasyFEA** directory path in the additional resolution paths for the import search.

@@ -10,16 +10,17 @@ Overview
 
 **EasyFEA** is a user-friendly Python library that simplifies finite element analysis. It is flexible and supports different types of simulation without requiring users to handle complex PDE formulations. The library currently supports **four** specific simulation types:
 
-1. **ElasticSimu** (static and dynamic): See examples at `/examples/Elastic`, `/examples/Dynamic` and `/examples/Contact`.
-2. **BeamSimu** (static Euler-Bernoulli):  See examples at `/examples/Beam`.
-3. **ThermalSimu** (stationary and transient):  See examples at `/examples/Thermal`.
-4. **PhaseFieldSimu:** (quasi-static phase field) See examples at `/examples/PhaseField`.
+1. **Linear Elastostatic and Elastodynamics simulations**: See examples in :doc:`examples/Elastic <examples/Elastic/index>`, :doc:`examples/Dynamic <examples/Dynamic/index>`, :doc:`examples/Homog <examples/Homog/index>` and :doc:`examples/Contact <examples/Contact/index>`.
+2. **Nonlinear Hyperelastic Static simulations**: See examples in :doc:`examples/HyperElastic <examples/HyperElastic/index>`.
+3. **Euler-Bernoulli beam simulations**:  See examples in :doc:`/examples/Beam <examples/Beam/index>`.
+4. **Thermal simulations**:  See examples in :doc:`/examples/Thermal <examples/Thermal/index>`.
+5. **PhaseField damage simulations for quasi-static brittle fracture:** See examples in :doc:`/examples/PhaseField <examples/PhaseField/index>`.
 
-All examples are available `here <GitHubExamples_>`_.
+All examples are available in this :doc:`gallery <examples/index>`.
 
-For each simulation, users create a **mesh** and a **model**. Once the simulation has been set up, defining the boundary conditions, solving the problem and visualizing the results is straightforward.
+For each simulation, users create a :py:class:`~EasyFEA.fem.Mesh` and a :py:class:`~EasyFEA.materials._IModel`. Once the simulation has been set up, defining the boundary conditions, solving the problem and visualizing the results is straightforward.
 
-Numerous examples of mesh creation are available in the `examples/Meshes` folder.
+Numerous examples of mesh creation are available in the  :doc:`/examples/Meshes <examples/Meshes/index>` folder.
 
 The simplest and quickest introduction is available in the :ref:`begin`.
 
@@ -124,7 +125,7 @@ To learn more about contributing to EasyFEA, please consult the `Contributing Gu
    :caption: Contents:
 
    begin
-   gallery/index
+   examples/index
    easyfea
 
 Indices and tables

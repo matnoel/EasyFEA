@@ -77,7 +77,7 @@ def FileNameSortKey(filename):
 
 sphinx_gallery_conf = {
     "examples_dirs": "../examples",
-    "gallery_dirs": "gallery",
+    "gallery_dirs": "examples",
     "image_scrapers": (DynamicScraper(), "matplotlib"),
     "download_all_examples": False,
     "remove_config_comments": True,
