@@ -533,7 +533,6 @@ class ElasticSimu(_Simu):
         Evm = self.Result("Evm", nodeValues=False)
         summary += f"\n\nEvm max = {Evm.max()*100:3.2f} %"  # type: ignore [union-attr]
 
-        # Affichage des déplacements
         dx = self.Result("ux", nodeValues=True)
         summary += f"\n\nUx max = {dx.max():.2e}"  # type: ignore [union-attr]
         summary += f"\nUx min = {dx.min():.2e}"  # type: ignore [union-attr]

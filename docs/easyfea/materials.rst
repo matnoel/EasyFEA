@@ -17,10 +17,12 @@ With this module, you can construct:
 Detailed materials api
 ----------------------
 
+.. automodule:: EasyFEA.Materials
+    
 .. automodule:: EasyFEA.materials
    :members:
    :private-members: _IModel
    :undoc-members:
    :imported-members:
    :show-inheritance:
-   
+

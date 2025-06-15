@@ -176,6 +176,8 @@ Manipulate a :py:class:`~EasyFEA.geoms._Geom` object using the :py:meth:`~EasyFE
 Detailed geoms api
 ------------------
 
+.. automodule:: EasyFEA.Geoms
+    
 .. automodule:: EasyFEA.geoms
    :members:
    :private-members:
@@ -183,3 +185,4 @@ Detailed geoms api
    :imported-members:
    :show-inheritance:
    
+

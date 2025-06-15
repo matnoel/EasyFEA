@@ -3,7 +3,7 @@
 simulations
 ===========
 
-The `EasyFEA/simulations/ <https://github.com/matnoel/EasyFEA/tree/main/EasyFEA/simulations>`_ module in EasyFEA is designed to provide essential tools for creating and managing simulations. These simulations are constructed based on a :py:class:`~EasyFEA.materials._IMode` (material) and a :py:class:`~EasyFEA.fem.Mesh`.
+The `EasyFEA/simulations/ <https://github.com/matnoel/EasyFEA/tree/main/EasyFEA/simulations>`_ module in EasyFEA is designed to provide essential tools for creating and managing simulations. These simulations are constructed based on a :py:class:`~EasyFEA.materials._IModel` (material) and a :py:class:`~EasyFEA.fem.Mesh`.
 
 With this module, you can construct:
 
@@ -32,8 +32,6 @@ Detailed simulations api
    :show-inheritance:
 
 .. automodule:: EasyFEA.Simulations
-   :members:
-   :undoc-members:
-   :imported-members:
-   :show-inheritance:
+    :members: ElasticSimu, HyperElasticSimu, BeamSimu, PhaseFieldSimu, ThermalSimu
+
    

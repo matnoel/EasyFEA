@@ -37,6 +37,7 @@ extensions = [
     "sphinx.ext.autosummary",
     "sphinx_autodoc_typehints",
     # plot
+    "jupyter_sphinx",
     "matplotlib.sphinxext.plot_directive",
     "sphinx_gallery.gen_gallery",
     "sphinx_design",

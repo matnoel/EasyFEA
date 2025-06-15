@@ -16,7 +16,7 @@ from EasyFEA.Geoms import Point, Domain
 L = 120  # mm
 h = 13
 
-domain = Domain(Point(), Point(L, h), h / 2)
+domain = Domain(Point(), Point(L, h), h / 3)
 mesh = Mesher().Mesh_2D(domain, [], ElemType.QUAD9, isOrganised=True)
 
 # ----------------------------------------------
