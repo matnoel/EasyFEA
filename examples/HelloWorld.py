@@ -42,8 +42,8 @@ simu.Solve()
 # Results
 # ----------------------------------------------
 Display.Plot_Mesh(simu, deformFactor=10)
+Display.Plot_BoundaryConditions(simu)
 Display.Plot_Result(simu, "uy", plotMesh=True)
 Display.Plot_Result(simu, "Svm", plotMesh=True, ncolors=11)
-Display.Plot_BoundaryConditions(simu)
 
 Display.plt.show()

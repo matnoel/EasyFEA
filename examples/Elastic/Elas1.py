@@ -18,7 +18,7 @@ if __name__ == "__main__":
 
     # Define dimension and mesh size parameters
     dim = 2
-    N = 2
+    N = 3
 
     # Define material properties
     E = 210000  # MPa (Young's modulus)
@@ -81,5 +81,6 @@ if __name__ == "__main__":
     Display.Plot_Mesh(simu, h / 2 / np.abs(sol).max())
     Display.Plot_BoundaryConditions(simu)
     Display.Plot_Result(simu, "uy", nodeValues=True, coef=1 / coef, ncolors=20)
+    Display.Plot_Result(simu, "Svm", plotMesh=True, ncolors=11)
 
     plt.show()
