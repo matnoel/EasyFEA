@@ -5,4 +5,5 @@ sphinx-gallery
 jupyter_sphinx
 sphinx-design
 scikit-learn
-pyvista[all]
+sympy
+pyvista[trame, sphinx_gallery]
