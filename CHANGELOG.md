@@ -2,6 +2,13 @@
 
 This document describes the changes made to the project.
 
+## 1.4.3 (June 16, 2025):
+
+- Added an interface to Vizir (see issue #9).
+- Applied `black` code formatting across the codebase (see issue #10).
+- Integrated continuous integration using GitHub Actions (see issues #11, #13, and #14).
+- Added comprehensive documentation (see issue #5).
+
 ## 1.4.2 (June 7, 2025):
 
 - Direct dependency on meshio@ git+https://github.com/matnoel/meshio.git cannot be included in PyPI.
