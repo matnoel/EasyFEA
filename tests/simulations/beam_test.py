@@ -4,6 +4,11 @@
 
 import pytest
 
+import matplotlib
+
+matplotlib.use("Agg")  # fix tkinter issue in CI for py3.12 on windows
+# see: https://github.com/matnoel/EasyFEA/actions/runs/15673958144/job/44150031408
+
 from EasyFEA import Display, plt, np
 from EasyFEA.Geoms import Domain, Circle, Point, Line
 from EasyFEA import Mesher, ElemType
@@ -181,7 +186,7 @@ class TestBeam:
                 ax.scatter(
                     mesh.coord[:, 0], v, label="EF", c="red", marker="x", zorder=2
                 )
-                ax.set_title(rf"$v(x)$")
+                ax.set_title("$v(x)$")
                 ax.legend()
                 PlotAndDelete()
 
@@ -196,7 +201,7 @@ class TestBeam:
                 ax.scatter(
                     mesh.coord[:, 0], rz, label="EF", c="red", marker="x", zorder=2
                 )
-                ax.set_title(rf"$r_z(x)$")
+                ax.set_title("$r_z(x)$")
                 ax.legend()
                 PlotAndDelete()
             elif problem == "Traction":
@@ -211,7 +216,7 @@ class TestBeam:
                 ax.scatter(
                     mesh.coord[:, 0], u, label="EF", c="red", marker="x", zorder=2
                 )
-                ax.set_title(rf"$u(x)$")
+                ax.set_title("$u(x)$")
                 ax.legend()
                 PlotAndDelete()
             elif problem == "BiEnca":
@@ -224,7 +229,7 @@ class TestBeam:
         """Function use to check that modifications on Beam material activate the update of the simulation"""
 
         def DoTest(simu: Simulations._Simu) -> None:
-            assert simu.needUpdate == True  # should trigger the event
+            assert simu.needUpdate  # should trigger the event
             simu.Need_Update(False)  # init
 
         sect1 = Mesher().Mesh_2D(Domain(Point(), Point(0.01, 0.01)))
@@ -249,7 +254,7 @@ class TestBeam:
         simu = Simulations.BeamSimu(mesh, structure)
         simu.Get_K_C_M_F()
         assert (
-            simu.needUpdate == False
+            not simu.needUpdate
         )  # check that need update is now set to false once Get_K_C_M_F() get called
 
         for beam in beams:
