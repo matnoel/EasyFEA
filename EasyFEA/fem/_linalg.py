@@ -153,7 +153,7 @@ class FeArray(_types.AnyArray):
             raise TypeError("`other` must be either a FeArray or _types.AnyArray")
 
         if ndim1 == ndim2 == 1:
-            result = np.vecdot(self, other)
+            result = self.dot(other)
         elif ndim1 == ndim2 == 2:
             with np.errstate(divide="ignore", over="ignore", invalid="ignore"):
                 result = super().__matmul__(other)
