@@ -6,5 +6,5 @@ jupyter_sphinx
 sphinx-design
 scikit-learn
 sympy
-trame_vtk
-# pyvista[trame, sphinx_gallery]
+# trame_vtk
+pyvista[all]

@@ -3,7 +3,7 @@
 geoms
 =====
 
-The `EasyFEA/geoms/ <https://github.com/matnoel/EasyFEA/tree/main/EasyFEA/geoms>`_ module in EasyFEA is designed to provide essential tools for creating and managing :py:class:`~EasyFEA.geoms._Geom` objects. These geometric objects are used to construct :py:class:`~EasyFEA.fem.Mesh` using the :py:class:`~EasyFEA.fem.Mesher`.
+The `EasyFEA/geoms/ <https://github.com/matnoel/EasyFEA/tree/main/EasyFEA/geoms>`_ module in EasyFEA provides essential tools for creating and managing :py:class:`~EasyFEA.geoms._Geom` objects. These geometric objects are used to construct :py:class:`~EasyFEA.fem.Mesh` using the :py:class:`~EasyFEA.fem.Mesher`.
 
 With this module, you can construct:
 
@@ -16,7 +16,8 @@ With this module, you can construct:
     ~EasyFEA.geoms.CircleArc
     ~EasyFEA.geoms.Contour
 
-Once the geometric object is created, you can either :py:meth:`~EasyFEA.geoms._Geom.copy`, :py:meth:`~EasyFEA.geoms._Geom.Translate`, :py:meth:`~EasyFEA.geoms._Geom.Rotate` or :py:meth:`~EasyFEA.geoms._Geom.Symmetry` the objects. 
+Once the geometric objects are created, you can manipulate them using :py:meth:`~EasyFEA.geoms._Geom.copy`, :py:meth:`~EasyFEA.geoms._Geom.Translate`, :py:meth:`~EasyFEA.geoms._Geom.Rotate`, or :py:meth:`~EasyFEA.geoms._Geom.Symmetry` (see the :ref:`example <manipulate-example-section>` for details).
+
 
 Creating a :py:class:`~EasyFEA.geoms.Line`
 ------------------------------------------
@@ -156,6 +157,8 @@ Creating a :py:class:`~EasyFEA.geoms.Contour` with :py:class:`~EasyFEA.geoms.Lin
     contour = Contour([line, points, circleArc])
     contour.Plot()
 
+.. _manipulate-example-section:
+
 Manipulate a :py:class:`~EasyFEA.geoms._Geom` object using the :py:meth:`~EasyFEA.geoms._Geom.copy`, :py:meth:`~EasyFEA.geoms._Geom.Translate`, :py:meth:`~EasyFEA.geoms._Geom.Rotate`, and :py:meth:`~EasyFEA.geoms._Geom.Symmetry` functions
 ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 
@@ -173,7 +176,7 @@ Manipulate a :py:class:`~EasyFEA.geoms._Geom` object using the :py:meth:`~EasyFE
     ax.legend(["contour1", "contour2", "contour3", "contour4"])
 
 
-Detailed geoms api
+Detailed geoms API
 ------------------
 
 .. automodule:: EasyFEA.Geoms

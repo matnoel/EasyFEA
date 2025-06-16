@@ -3,16 +3,16 @@
 Beginner's Guide
 ================
 
-Like every python script, you first start by importing modules contained within the python package.
+Like any Python script, you should start by importing the core modules from the EasyFEA package:
 
 .. jupyter-execute::
 
     from EasyFEA import Display, Mesher, ElemType, Materials, Simulations
-    from EasyFEA.Geoms import Point, Domain
+    from EasyFEA.Geoms import Domain
 
 ----
 
-Most EasyFEA simulations require few modules, this script requires just a few:
+The most commonly used modules in EasyFEA are:
 
 .. autosummary::
     ~EasyFEA.utilities.Display 
@@ -22,7 +22,7 @@ Most EasyFEA simulations require few modules, this script requires just a few:
     ~EasyFEA.Simulations
     ~EasyFEA.Geoms
 
-Once everything is imported, you can now create a :py:class:`~EasyFEA.fem.Mesh`:
+Let's now create a 2D :py:class:`~EasyFEA.fem.Mesh` using a simple rectangular domain:
 
 .. jupyter-execute::
 
@@ -32,13 +32,13 @@ Once everything is imported, you can now create a :py:class:`~EasyFEA.fem.Mesh`:
     L = 120  # mm
     h = 13
 
-    domain = Domain(Point(), Point(L, h), h / 3)
+    domain = Domain((0, 0), (L, h), h / 3)
     mesh = Mesher().Mesh_2D(domain, [], ElemType.QUAD9, isOrganised=True)
     Display.Plot_Mesh(mesh)
     
 ----
 
-Once the :py:class:`~EasyFEA.fem.Mesh` is created you can you can create a Material and Simulation:
+Next, define a linear :py:class:`~EasyFEA.materials.ElasIsot` material and set up the :py:class:`~EasyFEA.Simulations.ElasticSimu`  simulation:
 
 .. jupyter-execute::
 

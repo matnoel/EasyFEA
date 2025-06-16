@@ -5,10 +5,12 @@
 """
 HelloWorld
 ==========
+
+A cantilever beam undergoing bending deformation.
 """
 
 from EasyFEA import Display, Mesher, ElemType, Materials, Simulations
-from EasyFEA.Geoms import Point, Domain
+from EasyFEA.Geoms import Domain
 
 # ----------------------------------------------
 # Mesh
@@ -16,7 +18,7 @@ from EasyFEA.Geoms import Point, Domain
 L = 120  # mm
 h = 13
 
-domain = Domain(Point(), Point(L, h), h / 3)
+domain = Domain((0, 0), (L, h), h / 3)
 mesh = Mesher().Mesh_2D(domain, [], ElemType.QUAD9, isOrganised=True)
 
 # ----------------------------------------------

@@ -3,7 +3,8 @@
 simulations
 ===========
 
-The `EasyFEA/simulations/ <https://github.com/matnoel/EasyFEA/tree/main/EasyFEA/simulations>`_ module in EasyFEA is designed to provide essential tools for creating and managing simulations. These simulations are constructed based on a :py:class:`~EasyFEA.materials._IModel` (material) and a :py:class:`~EasyFEA.fem.Mesh`.
+The `EasyFEA/simulations/ <https://github.com/matnoel/EasyFEA/tree/main/EasyFEA/simulations>`_ module in EasyFEA provides essential tools for creating and managing simulations.
+These simulations are built using a :py:class:`~EasyFEA.fem.Mesh` and a :py:class:`~EasyFEA.materials._IModel` (material).
 
 With this module, you can construct:
 
@@ -21,7 +22,7 @@ Make sure to follow the :py:class:`~EasyFEA.simulations._Simu` interface.
 The :py:class:`~EasyFEA.Simulations.ThermalSimu` class is relatively simple and can serve as a good starting point.  
 See `EasyFEA/simulations/_thermal.py <https://github.com/matnoel/EasyFEA/tree/main/EasyFEA/simulations/_thermal.py>`_ for more details.
 
-Detailed simulations api
+Detailed simulations API
 ------------------------
 
 .. automodule:: EasyFEA.simulations

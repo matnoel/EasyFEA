@@ -3,7 +3,7 @@
 fem
 ===
 
-The `EasyFEA/fem/ <https://github.com/matnoel/EasyFEA/tree/main/EasyFEA/fem>`_ module in EasyFEA is designed to provide essential tools for creating and managing finite element meshes, which are crucial for numerical simulations using the `Finite Element Method <https://en.wikipedia.org/wiki/Finite_element_method>`_ (FEM).
+The `EasyFEA/fem/ <https://github.com/matnoel/EasyFEA/tree/main/EasyFEA/fem>`_ module in EasyFEA provides essential tools for creating and managing finite element meshes, which are crucial for numerical simulations using the `Finite Element Method <https://en.wikipedia.org/wiki/Finite_element_method>`_ (FEM).
 
 What is a mesh in EasyFEA ?
 ---------------------------
@@ -17,7 +17,8 @@ For example, a :py:class:`~EasyFEA.fem.elems._hexa.HEXA8` mesh includes the foll
 - :py:class:`~EasyFEA.fem.elems._quad.QUAD4` (2D element)
 - :py:class:`~EasyFEA.fem.elems._hexa.HEXA8` (3D element)
 
-All implemented element types, along with their shape functions and derivatives, are defined in the `EasyFEA/fem/elems/ <https://github.com/matnoel/EasyFEA/tree/main/EasyFEA/fem/elems>`_ directory. The Gauss point quadratures are implemented in the `EasyFEA/fem/_gauss.py <https://github.com/matnoel/EasyFEA/tree/main/EasyFEA/fem/_gauss.py>`_ module.
+All implemented element types, along with their corresponding shape functions and derivatives, are defined in the `EasyFEA/fem/elems/ <https://github.com/matnoel/EasyFEA/tree/main/EasyFEA/fem/elems>`_ directory.
+The Gauss point quadratures are implemented in the `EasyFEA/fem/_gauss.py <https://github.com/matnoel/EasyFEA/tree/main/EasyFEA/fem/_gauss.py>`_ module.
 
 Creating or importing a Mesh
 ----------------------------
@@ -29,11 +30,11 @@ To construct a :py:class:`~EasyFEA.fem.Mesh` using the :py:class:`~EasyFEA.fem.M
 - :py:meth:`~EasyFEA.fem.Mesher.Mesh_Revolve`: Generates a mesh by revolving a 2D shape around an axis.
 - :py:meth:`~EasyFEA.fem.Mesher.Mesh_Import_part`: Imports a cad (e.g. .stp) part to create a mesh.
 - :py:meth:`~EasyFEA.fem.Mesher.Mesh_Import_mesh`: Imports an existing gmsh mesh. EasyFEA is also linked to meshio and can be used threw the 
-- :py:meth:`~EasyFEA.utilities.MeshIO._Meshio_to_EasyFEA`: Imports any kind of mesh using `meshio <https://pypi.org/project/meshio/>`_.
+.. - :py:meth:`~EasyFEA.utilities.MeshIO._Meshio_to_EasyFEA`: Imports any kind of mesh using `meshio <https://pypi.org/project/meshio/>`_.
 
-Several examples are available in 
+Several examples are available in :doc:`Meshes <../examples/Meshes/index>`.
 
-Detailed fem api
+Detailed fem API
 ----------------
 
 .. automodule:: EasyFEA.fem    

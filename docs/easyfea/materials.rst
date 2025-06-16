@@ -3,7 +3,9 @@
 materials
 =========
 
-The `EasyFEA/materials/ <https://github.com/matnoel/EasyFEA/tree/main/EasyFEA/materials>`_ module in EasyFEA is designed to provide essential tools for creating and managing materials. These material models are used to construct :py:class:`~EasyFEA.simulations._Simu` instances and primarily contain material parameters.
+The `EasyFEA/materials/ <https://github.com/matnoel/EasyFEA/tree/main/EasyFEA/materials>`_ module in EasyFEA provides essential tools for creating and managing materials.
+These models are used to build :py:class:`~EasyFEA.simulations._Simu` instances and mainly contain material parameters.
+
 
 With this module, you can construct:
 
@@ -14,7 +16,7 @@ With this module, you can construct:
 + Thermal materials with :py:class:`~EasyFEA.materials.Thermal`.
 
 
-Detailed materials api
+Detailed materials API
 ----------------------
 
 .. automodule:: EasyFEA.Materials

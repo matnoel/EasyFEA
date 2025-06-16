@@ -3,7 +3,7 @@
 utilities
 =========
 
-The `EasyFEA/utilities/ <https://github.com/matnoel/EasyFEA/tree/main/EasyFEA/utilities>`_ module in EasyFEA is designed to provide essential tools for post processing.
+The `EasyFEA/utilities/ <https://github.com/matnoel/EasyFEA/tree/main/EasyFEA/utilities>`_ module in EasyFEA provides essential tools for post processing.
 
 .. autosummary::
     ~EasyFEA.utilities.Display
@@ -15,7 +15,7 @@ The `EasyFEA/utilities/ <https://github.com/matnoel/EasyFEA/tree/main/EasyFEA/ut
     ~EasyFEA.utilities.Vizir
     
 
-Detailed utilities api
+Detailed utilities API
 ----------------------
 
 .. automodule:: EasyFEA.utilities.Display
