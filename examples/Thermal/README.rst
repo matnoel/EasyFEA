@@ -1,4 +1,4 @@
 .. _easyfea-examples-thermal:
 
-Thermal simulations
+Thermal Simulations
 ===================
