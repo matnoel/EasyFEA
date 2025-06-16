@@ -8,6 +8,7 @@ This document describes the changes made to the project.
 - Applied `black` code formatting across the codebase (see issue #10).
 - Integrated continuous integration using GitHub Actions (see issues #11, #13, and #14).
 - Added comprehensive documentation (see issue #5).
+- Fixed tkinter issue in CI for py3.12 on windows. (see: https://github.com/matnoel/EasyFEA/actions/runs/15673958144/job/44150031408)
 
 ## 1.4.2 (June 7, 2025):
 
