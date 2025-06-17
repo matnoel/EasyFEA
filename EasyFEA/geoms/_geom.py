@@ -10,8 +10,17 @@ import copy
 
 from ._utils import Point, Rotate, Symmetry
 
-from typing import Optional, Iterable
+from ..fem._utils import ElemType
+from typing import Union, Optional, Iterable, TYPE_CHECKING
 from ..utilities import _types
+
+if TYPE_CHECKING:
+    from ..geoms import Point, Line, Domain, Circle, CircleArc, Points, Contour
+    from ..fem._gmsh_interface import (
+        ContourCompatible,
+        CrackCompatible,
+        RefineCompatible,
+    )
 
 
 class _Geom(ABC):
@@ -156,6 +165,63 @@ class _Geom(ABC):
 
         dec = newCoord - oldCoord
         [point.Translate(*dec[p]) for p, point in enumerate(self.points)]  # type: ignore [func-returns-value]
+
+    def Mesh_2D(
+        self,
+        inclusions: list["_Geom"] = [],
+        elemType=ElemType.TRI3,
+        cracks: list["ContourCompatible"] = [],
+        refineGeoms: list["RefineCompatible"] = [],
+        isOrganised=False,
+        additionalSurfaces: list["_Geom"] = [],
+        additionalLines: list[Union["Line", "CircleArc"]] = [],
+        additionalPoints: list["Point"] = [],
+        folder="",
+    ):
+        """Creates a 2D mesh from a contour and inclusions that must form a closed plane surface.
+
+        Parameters
+        ----------
+        inclusions : list[Domain, Circle, Points, Contour], optional
+            list of hollow and filled geom objects inside the domain
+        elemType : ElemType, optional
+            element type, by default "TRI3" ["TRI3", "TRI6", "TRI10", "QUAD4", "QUAD8"]
+        cracks : list[ContourCompatible]
+            list of geom object used to create open or closed cracks
+        refineGeoms : list[Domain|Circle|str], optional
+            list of geom object for mesh refinement, by default []
+        isOrganised : bool, optional
+            mesh is organized, by default False
+        additionalSurfaces : list[_Geom]
+            additional surfaces that will be added to or removed from the surfaces created by the contour and the inclusions. (e.g Domain, Circle, Contour, Points). Tip: if the mesh is not well generated, you can also give the inclusions.
+        additionalLines : list[Union[Line,CircleArc]]
+            additional lines that will be added to the surfaces created by the contour and the inclusions. (e.g Domain, Circle, Contour, Points). WARNING: lines must be within the domain.
+        additionalPoints : list[Point]
+            additional points that will be added to the surfaces created by the contour and the inclusions. WARNING: points must be within the domain.
+        folder : str, optional
+            default mesh.msh folder, by default "" does not save the mesh
+
+        Returns
+        -------
+        Mesh
+            Created mesh
+        """
+        from ..fem._gmsh_interface import Mesher
+
+        mesher = Mesher()
+        mesh = mesher.Mesh_2D(
+            self,
+            inclusions=inclusions,
+            elemType=elemType,
+            cracks=cracks,
+            refineGeoms=refineGeoms,
+            isOrganised=isOrganised,
+            additionalSurfaces=additionalSurfaces,
+            additionalLines=additionalLines,
+            additionalPoints=additionalPoints,
+            folder=folder,
+        )
+        return mesh
 
     def Plot(
         self,

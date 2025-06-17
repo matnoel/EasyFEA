@@ -18,6 +18,10 @@ if __name__ == "__main__":
     Display.Clear()
 
     contour = Domain(Point(), Point(1, 1))
+
+    mesh = contour.Mesh_2D()
+    Display.Plot_Mesh(mesh)
+
     contour.Plot()
 
     # "TRI3", "TRI6", "TRI10", "TRI15", "QUAD4", "QUAD8",  "QUAD9"
