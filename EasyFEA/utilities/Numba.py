@@ -38,8 +38,8 @@ def Get_Anisot_C(
         for p in range(Cp_e_pg.shape[1]):
             for i in range(dimMat):
                 for j in range(dimMat):
-                    for l in range(dimMat):
-                        for k in range(dimMat):
+                    for k in range(dimMat):
+                        for l in range(dimMat):
 
                             Cpp_e_pg[e, p, i, j] += (
                                 Cp_e_pg[e, p, k, i] * mat[k, l] * Cp_e_pg[e, p, l, j]
