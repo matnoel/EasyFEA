@@ -23,7 +23,7 @@ ContourCompatible = Union["Line", "CircleArc", "Points"]
 class Contour(_Geom):
     """Contour class."""
 
-    __nbContour = 0
+    __NContour = 0
 
     def __init__(self, geoms: list[ContourCompatible], isHollow=True, isOpen=False):
         """Creates a contour from a list of line CircleArc and points.
@@ -72,8 +72,8 @@ class Contour(_Geom):
 
         self.geoms = geoms
 
-        Contour.__nbContour += 1
-        name = f"Contour{Contour.__nbContour}"
+        Contour.__NContour += 1
+        name = f"Contour{Contour.__NContour}"
         meshSize = np.mean([geom.meshSize for geom in geoms]).astype(float)
         _Geom.__init__(self, points, meshSize, name, isHollow, isOpen)
 

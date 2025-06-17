@@ -14,7 +14,7 @@ from ..utilities import _types
 class Line(_Geom):
     """Line class."""
 
-    __nbLine = 0
+    __NLine = 0
 
     def __init__(self, pt1: Point, pt2: Point, meshSize=0.0, isOpen=False):
         """Creates a line.
@@ -34,8 +34,8 @@ class Line(_Geom):
         self.pt1 = AsPoint(pt1)
         self.pt2 = AsPoint(pt2)
 
-        Line.__nbLine += 1
-        name = f"Line{Line.__nbLine}"
+        Line.__NLine += 1
+        name = f"Line{Line.__NLine}"
         _Geom.__init__(self, [self.pt1, self.pt2], meshSize, name, False, isOpen)
 
     @property
