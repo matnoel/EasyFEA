@@ -24,6 +24,18 @@ from ..geoms._utils import (
 
 
 def __Get_vizir_HOSolAt_key(groupElem: "_GroupElem") -> str:
+    """Returns the appropriate keyword for a given element type.
+
+    Parameters
+    ----------
+    groupElem : _GroupElem
+        An object representing a group element with an `elemType` attribute.
+
+    Returns
+    -------
+    str
+        The keyword corresponding to the specified element type.
+    """
 
     elemType = groupElem.elemType
 
@@ -46,6 +58,18 @@ def __Get_vizir_HOSolAt_key(groupElem: "_GroupElem") -> str:
 
 
 def _Get_BaryCentric_Coordinates(groupElem: "_GroupElem") -> _types.FloatArray:
+    """Computes the barycentric coordinates for a given group element based on its type.
+
+    Parameters
+    ----------
+    groupElem : _GroupElem
+        An object representing a group element.
+
+    Returns
+    -------
+    _types.FloatArray
+        The barycentric coordinates corresponding to the specified element type.
+    """
 
     elemType = groupElem.elemType
     local_coords = groupElem.Get_Local_Coords()
@@ -70,6 +94,19 @@ def _Get_BaryCentric_Coordinates(groupElem: "_GroupElem") -> _types.FloatArray:
 
 
 def __Get_NodesPositions(groupElem: "_GroupElem") -> _types.FloatArray:
+    """Retrieves the nodes positions for a given group element based on its type.
+
+    Parameters
+    ----------
+    groupElem : _GroupElem
+        An object representing a group element.
+
+    Returns
+    -------
+    _types.FloatArray
+        The nodes positions corresponding to the specified element type.
+    """
+
     elemType = groupElem.elemType
     local_coords = groupElem.Get_Local_Coords().astype(float)
 
@@ -96,6 +133,20 @@ def __Get_NodesPositions(groupElem: "_GroupElem") -> _types.FloatArray:
 
 
 def _Get_empty_groupElem(groupElem: "_GroupElem", order: int):
+    """Generates an empty group element based on the specified order.
+
+    Parameters
+    ----------
+    groupElem : _GroupElem
+        An object representing a group element.
+    order : int
+        The desired order for the new group element.
+
+    Returns
+    -------
+    _GroupElem
+        An empty group element of the specified order.
+    """
 
     unavailable_elemTypes = [ElemType.QUAD8, ElemType.HEXA20, ElemType.PRISM15]
 
@@ -129,6 +180,17 @@ def _Get_empty_groupElem(groupElem: "_GroupElem", order: int):
 def __Write_HOSolAt_Element(
     file: io.TextIOWrapper, groupElem: "_GroupElem", order: int
 ) -> None:
+    """Writes HOSolAt Element data for a given element to a file.
+
+    Parameters
+    ----------
+    file : io.TextIOWrapper
+        The file object where the element data will be written.
+    groupElem : _GroupElem
+        An object representing a group element.
+    order : int
+        The order of the element for which data is being written.
+    """
 
     # set groupElem info
     keyword = __Get_vizir_HOSolAt_key(groupElem)
@@ -150,6 +212,23 @@ def __Write_HOSolAt_Solution(
     type: int,
     order: int,
 ) -> None:
+    """Writes HOSolAt solution data for a given element to a file.
+
+    Parameters
+    ----------
+    file : io.TextIOWrapper
+        The file object where the solution data will be written.
+    groupElem : _GroupElem
+        An object representing a group element.
+    dofsValues : _types.FloatArray
+        Array of degree of freedom values.
+    assembly_e : _types.IntArray
+        Assembly information array.
+    type : int
+        The type of solution being written.
+    order : int
+        The order of the element for which data is being written.
+    """
 
     # assembly_e informations
     Ne = assembly_e.shape[0]
@@ -186,6 +265,34 @@ def _Write_solution_file(
     warpVector_n: Optional[_types.FloatArray] = None,
     deformFactor: float = 1.0,
 ) -> str:
+    """Writes a solution file for a given mesh and solution data.
+
+    Parameters
+    ----------
+    mesh : Mesh
+        The mesh object for which the solution is being written.
+    dofsValues : _types.FloatArray
+        Array of degree of freedom values.
+    assembly_e : _types.IntArray
+        Assembly information array.
+    type : int
+        The type of solution being written.
+    order : int
+        The order of the elements for which data is being written.
+    folder : str
+        The directory where the solution file will be saved.
+    filename : str
+        The name of the solution file.
+    warpVector_n : Optional[_types.FloatArray], optional
+        Warp vector values for mesh deformation.
+    deformFactor : float, optional
+        Deformation factor for the warp vector, default is 1.0.
+
+    Returns
+    -------
+    str
+        The path to the created solution file.
+    """
 
     # init solution file
     solutionFile = Folder.Join(folder, f"{filename}.sol", mkdir=True)
@@ -242,6 +349,26 @@ def Save_simu(
     folder: str,
     N: Optional[int] = None,
 ) -> str:
+    """Saves simulation results to files and prepares a command for visualization.
+
+    Parameters
+    ----------
+    simu : _Simu
+        The simulation object containing the results to be saved.
+    results : list[str]
+        A list of result names to be saved.
+    types : list[int]
+        A list of types corresponding to each result.
+    folder : str
+        The directory where the results will be saved.
+    N : Optional[int], optional
+        The number of iterations to sample from the simulation. If None, all iterations are used.
+
+    Returns
+    -------
+    str
+        A command string for visualizing the saved results using vizir.
+    """
 
     assert isinstance(simu, _Simu)
 
