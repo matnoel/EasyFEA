@@ -35,6 +35,7 @@ if TYPE_CHECKING:
 LoopCompatible = Union[Circle, Domain, Points, Contour]
 ContourCompatible = Union[Line, CircleArc, Points]
 CrackCompatible = Union[Line, Points, Contour, CircleArc]
+RefineCompatible = Union[Point, Circle, str]
 
 
 class Mesher:
@@ -299,8 +300,8 @@ class Mesher:
 
     def _Surfaces(
         self,
-        contour: "_Geom",
-        inclusions: list["_Geom"] = [],
+        contour: _Geom,
+        inclusions: list[_Geom] = [],
         elemType: ElemType = ElemType.TRI3,
         isOrganised: bool = False,
     ) -> tuple[list[int], list[int], list[int]]:
@@ -432,7 +433,7 @@ class Mesher:
                 gmsh.model.mesh.setRecombine(2, surf)
 
     def _Additional_Surfaces(
-        self, dim: int, surfaces: list["_Geom"], elemType: ElemType, isOrganised: bool
+        self, dim: int, surfaces: list[_Geom], elemType: ElemType, isOrganised: bool
     ) -> None:
         """Adds surfaces to existing dim entities. Tip: if the mesh is not well generated, you can also give the inclusions.
 
@@ -456,7 +457,7 @@ class Mesher:
 
         factory = self._factory
 
-        list_surface: list["_Geom"] = []
+        list_surface: list[_Geom] = []
         for surface in surfaces:
             assert isinstance(surface, _Geom)
             if not surface.isHollow:
@@ -482,9 +483,7 @@ class Mesher:
             else:
                 factory.fragment(oldEntities, newEntities, False, True)
 
-    def _Additional_Lines(
-        self, dim: int, lines: list[Union[Line, "CircleArc"]]
-    ) -> None:
+    def _Additional_Lines(self, dim: int, lines: list[Union[Line, CircleArc]]) -> None:
         """Adds lines to existing dim entities. WARNING: lines must be within the domain.
 
         Parameters
@@ -1222,7 +1221,7 @@ class Mesher:
         return mesh
 
     def __Get_hollow_And_filled_Loops(
-        self, inclusions: list["_Geom"]
+        self, inclusions: list[_Geom]
     ) -> tuple[list[int], list[int]]:
         """Creates hollow and filled loops.
 
@@ -1251,14 +1250,14 @@ class Mesher:
 
     def Mesh_2D(
         self,
-        contour: "_Geom",
-        inclusions: list["_Geom"] = [],
+        contour: _Geom,
+        inclusions: list[_Geom] = [],
         elemType=ElemType.TRI3,
         cracks: list[ContourCompatible] = [],
-        refineGeoms: list[Union[Domain, Circle, str]] = [],
+        refineGeoms: list[RefineCompatible] = [],
         isOrganised=False,
-        additionalSurfaces: list["_Geom"] = [],
-        additionalLines: list[Union[Line, "CircleArc"]] = [],
+        additionalSurfaces: list[_Geom] = [],
+        additionalLines: list[Union[Line, CircleArc]] = [],
         additionalPoints: list[Point] = [],
         folder="",
     ) -> Mesh:
@@ -1336,16 +1335,16 @@ class Mesher:
 
     def Mesh_Extrude(
         self,
-        contour: "_Geom",
-        inclusions: list["_Geom"] = [],
+        contour: _Geom,
+        inclusions: list[_Geom] = [],
         extrude=[0, 0, 1],
         layers: list[int] = [],
         elemType=ElemType.TETRA4,
         cracks: list[CrackCompatible] = [],
-        refineGeoms: list[Union[Domain, Circle, str]] = [],
+        refineGeoms: list[RefineCompatible] = [],
         isOrganised=False,
-        additionalSurfaces: list["_Geom"] = [],
-        additionalLines: list[Union[Line, "CircleArc"]] = [],
+        additionalSurfaces: list[_Geom] = [],
+        additionalLines: list[Union[Line, CircleArc]] = [],
         additionalPoints: list[Point] = [],
         folder="",
     ) -> Mesh:
@@ -1433,17 +1432,17 @@ class Mesher:
 
     def Mesh_Revolve(
         self,
-        contour: "_Geom",
-        inclusions: list["_Geom"] = [],
+        contour: _Geom,
+        inclusions: list[_Geom] = [],
         axis: Line = Line(Point(), Point(0, 1)),
         angle=360,
         layers: list[int] = [30],
         elemType=ElemType.TETRA4,
         cracks: list[ContourCompatible] = [],
-        refineGeoms: list[Union[Domain, Circle, str]] = [],
+        refineGeoms: list[RefineCompatible] = [],
         isOrganised=False,
-        additionalSurfaces: list["_Geom"] = [],
-        additionalLines: list[Union[Line, "CircleArc"]] = [],
+        additionalSurfaces: list[_Geom] = [],
+        additionalLines: list[Union[Line, CircleArc]] = [],
         additionalPoints: list[Point] = [],
         folder="",
     ) -> Mesh:
@@ -1585,7 +1584,7 @@ class Mesher:
 
     def _Mesh_Refine(
         self,
-        refineGeoms: list[Union[Domain, Circle, str]],
+        refineGeoms: list[RefineCompatible],
         meshSize: float,
         extrude=[0, 0, 1],
     ) -> None:
