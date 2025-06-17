@@ -1267,7 +1267,7 @@ class Mesher:
         ----------
         contour : _Geom
             geom object
-        inclusions : list[Domain, Circle, Points, Contour], optional
+        inclusions : list[_Geom], optional
             list of hollow and filled geom objects inside the domain
         elemType : ElemType, optional
             element type, by default "TRI3" ["TRI3", "TRI6", "TRI10", "QUAD4", "QUAD8"]
@@ -1452,7 +1452,7 @@ class Mesher:
         ----------
         contour : _Geom
             geometry that builds the contour
-        inclusions : list[Domain, Circle, Points, Contour], optional
+        inclusions : list[_Geom], optional
             list of hollow and filled geom objects inside the domain
         axis : Line, optional
             revolution axis, by default Line(Point(), Point(0,1))
