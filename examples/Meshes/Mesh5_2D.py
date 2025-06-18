@@ -9,7 +9,7 @@ Mesh5_2D
 Mesh of a 2D cracked part.
 """
 
-from EasyFEA import Display, Mesher, ElemType, Materials, Simulations
+from EasyFEA import Display, ElemType, Materials, Simulations
 from EasyFEA.Geoms import Point, Line, Points, Domain
 
 if __name__ == "__main__":
@@ -40,7 +40,7 @@ if __name__ == "__main__":
 
     cracks = [crack1, crack2, crack3, crack4, crack5]
 
-    mesh = Mesher().Mesh_2D(contour, [], ElemType.TRI6, cracks)
+    mesh = contour.Mesh_2D([], ElemType.TRI6, cracks)
 
     Display.Plot_Tags(mesh, alpha=0.1, showId=True)
 

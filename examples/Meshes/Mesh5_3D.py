@@ -9,7 +9,7 @@ Mesh5_3D
 Mesh of a 3D cracked part.
 """
 
-from EasyFEA import Display, Mesher, ElemType, Materials, Simulations
+from EasyFEA import Display, ElemType, Materials, Simulations
 from EasyFEA.Geoms import Point, Line, Points, Domain, Contour
 
 if __name__ == "__main__":
@@ -43,7 +43,7 @@ if __name__ == "__main__":
     # WARNING:
     # only works with TETRA4 and TETRA10
     # only works with nLayers = []
-    mesh = Mesher().Mesh_Extrude(contour, [], [0, 0, L], [], ElemType.TETRA4, cracks)
+    mesh = contour.Mesh_Extrude([], [0, 0, L], [], ElemType.TETRA4, cracks)
     Display.Plot_Tags(mesh, alpha=0.1, showId=True)
 
     # ----------------------------------------------

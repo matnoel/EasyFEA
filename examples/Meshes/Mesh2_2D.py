@@ -10,8 +10,8 @@ Meshing a triangle.
 """
 # sphinx_gallery_thumbnail_number = 2
 
-from EasyFEA import Display, Mesher
-from EasyFEA.Geoms import Point, Points
+from EasyFEA import Display, ElemType
+from EasyFEA.Geoms import Points
 
 if __name__ == "__main__":
 
@@ -20,16 +20,12 @@ if __name__ == "__main__":
     h = 180
     N = 5
 
-    pt1 = Point()
-    pt2 = Point(x=h)
-    pt3 = Point(y=h)
-
-    contour = Points([pt1, pt2, pt3], h / N)
+    contour = Points([(0, 0), (h, 0), (0, h)], h / N)
     contour.Get_Contour().Plot()
 
     # "TRI3", "TRI6", "TRI10", "TRI15"
-    elemType = "TRI3"
-    mesh = Mesher().Mesh_2D(contour, [], elemType)
+    elemType = ElemType.TRI3
+    mesh = contour.Mesh_2D([], elemType)
     Display.Plot_Mesh(mesh)
 
     Display.plt.show()

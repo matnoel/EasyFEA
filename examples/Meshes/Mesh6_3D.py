@@ -10,8 +10,8 @@ Refined 3D mesh in zones.
 """
 # sphinx_gallery_thumbnail_number = 2
 
-from EasyFEA import Display, Mesher, ElemType
-from EasyFEA.Geoms import Point, Circle, Domain
+from EasyFEA import Display, ElemType
+from EasyFEA.Geoms import Circle, Domain
 
 if __name__ == "__main__":
 
@@ -20,20 +20,20 @@ if __name__ == "__main__":
     L = 1
     meshSize = L / 4
 
-    contour = Domain(Point(), Point(L, L), meshSize)
-    circle = Circle(Point(L / 2, L / 2), L / 3, meshSize)
+    contour = Domain((0, 0), (L, L), meshSize)
+    circle = Circle((L / 2, L / 2), L / 3, meshSize)
     inclusions = [circle]
 
-    refine1 = Domain(Point(0, L), Point(L, L * 0.8), meshSize / 8)
+    refine1 = Domain((0, L), (L, L * 0.8), meshSize / 8)
     refine2 = Circle(circle.center, L / 2, meshSize / 8)
-    refine3 = Circle(Point(), L / 2, meshSize / 8)
+    refine3 = Circle((0, 0), L / 2, meshSize / 8)
     refineGeoms = [refine1, refine2, refine3]
 
     geoms = [contour, circle, refine1, refine2, refine3]
     contour.Plot_Geoms(geoms)
 
-    mesh = Mesher().Mesh_Extrude(
-        contour, inclusions, [0, 0, -L], [5], ElemType.PRISM15, refineGeoms=refineGeoms
+    mesh = contour.Mesh_Extrude(
+        inclusions, [0, 0, -L], [5], ElemType.PRISM15, refineGeoms=refineGeoms
     )
     Display.Plot_Mesh(mesh)
 

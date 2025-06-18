@@ -10,8 +10,8 @@ Meshing a hydraulic dam.
 """
 # sphinx_gallery_thumbnail_number = 2
 
-from EasyFEA import Display, Mesher
-from EasyFEA.Geoms import Point, Points
+from EasyFEA import Display, ElemType
+from EasyFEA.Geoms import Points
 
 if __name__ == "__main__":
 
@@ -20,16 +20,12 @@ if __name__ == "__main__":
     h = 180
     N = 5
 
-    pt1 = Point()
-    pt2 = Point(x=h)
-    pt3 = Point(y=h)
-
-    contour = Points([pt1, pt2, pt3], h / N)
+    contour = Points([(0, 0), (h, 0), (0, h)], h / N)
     contour.Get_Contour().Plot()
 
     # "TETRA4", "TETRA10", "PRISM6", "PRISM15", "PRISM18"
-    elemType = "PRISM6"
-    mesh = Mesher().Mesh_Extrude(contour, [], [0, 0, 2 * h], 10, elemType)
+    elemType = ElemType.PRISM6
+    mesh = contour.Mesh_Extrude([], [0, 0, 2 * h], [10], elemType)
     Display.Plot_Mesh(mesh)
 
     Display.plt.show()

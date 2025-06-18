@@ -10,7 +10,7 @@ Meshing of a specimen for a spatially oriented tensile test.
 """
 # sphinx_gallery_thumbnail_number = 2
 
-from EasyFEA import Display, Mesher, np
+from EasyFEA import Display, ElemType, np
 from EasyFEA.Geoms import Point, Line, CircleArc, Contour, Domain
 
 if __name__ == "__main__":
@@ -45,13 +45,12 @@ if __name__ == "__main__":
     contour2.Plot(ax)
     contour3.Plot(ax)
 
-    mesh = Mesher().Mesh_Extrude(
-        contour,
+    mesh = contour.Mesh_Extrude(
         [],
         [0, 0, e],
         [3],
         isOrganised=True,
-        elemType="HEXA20",
+        elemType=ElemType.HEXA20,
         additionalSurfaces=surfaces,
     )
 

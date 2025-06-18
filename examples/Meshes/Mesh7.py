@@ -10,7 +10,7 @@ Meshing a 3D part in revolution.
 """
 # sphinx_gallery_thumbnail_number = 2
 
-from EasyFEA import Display, Mesher, ElemType, np
+from EasyFEA import Display, ElemType, np
 from EasyFEA.Geoms import Point, Points, Circle, Line
 
 if __name__ == "__main__":
@@ -51,9 +51,7 @@ if __name__ == "__main__":
 
     layers = [perimeter // meshSize]
 
-    mesh = Mesher().Mesh_Revolve(
-        contour, inclusions, axis, angle, layers, ElemType.PRISM6
-    )
+    mesh = contour.Mesh_Revolve(inclusions, axis, angle, layers, ElemType.PRISM6)
     Display.Plot_Mesh(mesh)
 
     Display.plt.show()

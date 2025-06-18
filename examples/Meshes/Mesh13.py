@@ -9,7 +9,7 @@ Mesh13
 Mesh a heterogeneous RVE with cracks.
 """
 
-from EasyFEA import Display, Mesher, ElemType
+from EasyFEA import Display, ElemType
 from EasyFEA.Geoms import Point, Line, Domain, Circle
 
 if __name__ == "__main__":
@@ -107,17 +107,16 @@ if __name__ == "__main__":
     cracks = [crack1, crack2, crack3]
 
     # mesh
-    mesh = Mesher().Mesh_2D(
-        contour, inclusions, elemType, cracks, additionalSurfaces=[circle6]
-    )
+    mesh = contour.Mesh_2D(inclusions, elemType, cracks, additionalSurfaces=[circle6])
 
     # ----------------------------------------------
     # Display
     # ----------------------------------------------
 
     Display.Plot_Mesh(mesh)
-    geoms = [contour]
+    geoms = [contour, circle6]
     geoms.extend(inclusions)
+    geoms.extend(cracks)
     contour.Plot_Geoms(geoms)
     Display.Plot_Tags(mesh, True)
 

@@ -10,7 +10,7 @@ Meshing a 3D bracket.
 """
 # sphinx_gallery_thumbnail_number = 2
 
-from EasyFEA import Display, Mesher
+from EasyFEA import Display, ElemType
 from EasyFEA.Geoms import Point, Points
 
 if __name__ == "__main__":
@@ -33,8 +33,8 @@ if __name__ == "__main__":
     contour.Get_Contour().Plot()
 
     # "TETRA4", "TETRA10", "HEXA8", "HEXA20", "HEXA27", "PRISM6", "PRISM15", "PRISM18"
-    elemType = "PRISM15"
-    mesh = Mesher().Mesh_Extrude(contour, [], [0, 0, -h], 3, elemType)
+    elemType = ElemType.PRISM15
+    mesh = contour.Mesh_Extrude([], [0, 0, -h], [3], elemType)
     Display.Plot_Mesh(mesh)
 
     Display.plt.show()

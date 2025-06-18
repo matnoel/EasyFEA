@@ -10,23 +10,19 @@ Meshing a 2D domain.
 """
 # sphinx_gallery_thumbnail_number = 2
 
-from EasyFEA import Display, Mesher
-from EasyFEA.Geoms import Point, Domain
+from EasyFEA import Display, ElemType
+from EasyFEA.Geoms import Domain
 
 if __name__ == "__main__":
 
     Display.Clear()
 
-    contour = Domain(Point(), Point(1, 1))
-
-    mesh = contour.Mesh_2D()
-    Display.Plot_Mesh(mesh)
-
+    contour = Domain((0, 0), (1, 1))
     contour.Plot()
 
     # "TRI3", "TRI6", "TRI10", "TRI15", "QUAD4", "QUAD8",  "QUAD9"
-    elemType = "TRI3"
-    mesh = Mesher().Mesh_2D(contour, [], elemType)
+    elemType = ElemType.TRI3
+    mesh = contour.Mesh_2D([], elemType)
     Display.Plot_Mesh(mesh)
 
     Display.plt.show()
