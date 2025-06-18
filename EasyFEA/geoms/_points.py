@@ -23,7 +23,7 @@ class Points(_Geom):
 
     def __init__(
         self,
-        points: Collection[_types.Coords],
+        points: Collection[Point.PointALike],
         meshSize: _types.Number = 0.0,
         isHollow: bool = True,
         isOpen: bool = False,
@@ -33,7 +33,7 @@ class Points(_Geom):
 
         Parameters
         ----------
-        points : list[Union[Point, _types.Coords]]
+        points : Collection[Point | _types.Coords]
             list of points
         meshSize : _types.Number, optional
             mesh size that will be used to create the mesh >= 0, by default 0.0

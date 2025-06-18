@@ -15,12 +15,11 @@ from typing import Union, Optional, Iterable, TYPE_CHECKING
 from ..utilities import _types
 
 if TYPE_CHECKING:
-    from ..geoms import Point, Line, Domain, Circle, CircleArc, Points, Contour
-    from ..fem._gmsh_interface import (
-        ContourCompatible,
-        CrackCompatible,
-        RefineCompatible,
-    )
+    from ..geoms import Point, Line, Circle, CircleArc, Points, Contour
+
+    ContourCompatible = Union[Line, CircleArc, Points]
+    CrackCompatible = Union[Line, Points, Contour, CircleArc]
+    RefineCompatible = Union[Point, Circle, str]
 
 
 class _Geom(ABC):
@@ -170,7 +169,7 @@ class _Geom(ABC):
         self,
         inclusions: list["_Geom"] = [],
         elemType=ElemType.TRI3,
-        cracks: list["ContourCompatible"] = [],
+        cracks: list["CrackCompatible"] = [],
         refineGeoms: list["RefineCompatible"] = [],
         isOrganised=False,
         additionalSurfaces: list["_Geom"] = [],
@@ -186,7 +185,7 @@ class _Geom(ABC):
             list of hollow and filled geom objects inside the domain
         elemType : ElemType, optional
             element type, by default "TRI3" ["TRI3", "TRI6", "TRI10", "QUAD4", "QUAD8"]
-        cracks : list[ContourCompatible]
+        cracks : list[Line | Points | Contour | CircleArc]
             list of geom object used to create open or closed cracks
         refineGeoms : list[Domain|Circle|str], optional
             list of geom object for mesh refinement, by default []
@@ -212,6 +211,149 @@ class _Geom(ABC):
         mesh = mesher.Mesh_2D(
             self,
             inclusions=inclusions,
+            elemType=elemType,
+            cracks=cracks,
+            refineGeoms=refineGeoms,
+            isOrganised=isOrganised,
+            additionalSurfaces=additionalSurfaces,
+            additionalLines=additionalLines,
+            additionalPoints=additionalPoints,
+            folder=folder,
+        )
+        return mesh
+
+    def Mesh_Extrude(
+        self,
+        inclusions: list["_Geom"] = [],
+        extrude: _types.Coords = (0, 0, 1),
+        layers: list[int] = [],
+        elemType=ElemType.TETRA4,
+        cracks: list["CrackCompatible"] = [],
+        refineGeoms: list["RefineCompatible"] = [],
+        isOrganised=False,
+        additionalSurfaces: list["_Geom"] = [],
+        additionalLines: list[Union["Line", "CircleArc"]] = [],
+        additionalPoints: list["Point"] = [],
+        folder="",
+    ):
+        """Creates a 3D mesh by extruding a surface constructed from a contour and inclusions.
+
+        Parameters
+        ----------
+        contour : _Geom
+            geom object
+        inclusions : list[_Geom], optional
+            list of hollow and filled geom objects inside the domain
+        extrude : Coords, optional
+            extrusion vector, by default [0,0,1]
+        layers: list[int], optional
+            layers in the extrusion, by default []
+        elemType : ElemType, optional
+            element type, by default "TETRA4" ["TETRA4", "TETRA10", "HEXA8", "HEXA20", "PRISM6", "PRISM15"]
+        cracks : list[Line | Points | Contour | CircleArc]
+            list of geom object used to create open or closed cracks
+        refineGeoms : list[Domain|Circle|str], optional
+            list of geom object for mesh refinement, by default []
+        isOrganised : bool, optional
+            mesh is organized, by default False
+        additionalSurfaces : list[_Geom]
+            additional surfaces that will be added to or removed from the surfaces created by the contour and the inclusions. (e.g Domain, Circle, Contour, Points). Tip: if the mesh is not well generated, you can also give the inclusions.
+        additionalLines : list[Union[Line,CircleArc]]
+            additional lines that will be added to the surfaces created by the contour and the inclusions. (e.g Domain, Circle, Contour, Points). WARNING: lines must be within the domain.
+        additionalPoints : list[Point]
+            additional points that will be added to the surfaces created by the contour and the inclusions. WARNING: points must be within the domain.
+        folder : str, optional
+            default mesh.msh folder, by default "" does not save the mesh
+
+        Returns
+        -------
+        Mesh
+            Created mesh
+        """
+        from ..fem._gmsh_interface import Mesher
+
+        mesher = Mesher()
+        mesh = mesher.Mesh_Extrude(
+            self,
+            inclusions=inclusions,
+            extrude=extrude,
+            layers=layers,
+            elemType=elemType,
+            cracks=cracks,
+            refineGeoms=refineGeoms,
+            isOrganised=isOrganised,
+            additionalSurfaces=additionalSurfaces,
+            additionalLines=additionalLines,
+            additionalPoints=additionalPoints,
+            folder=folder,
+        )
+        return mesh
+
+    def Mesh_Revolve(
+        self,
+        inclusions: list["_Geom"] = [],
+        axis: Optional["Line"] = None,
+        angle=360,
+        layers: list[int] = [30],
+        elemType=ElemType.TETRA4,
+        cracks: list["CrackCompatible"] = [],
+        refineGeoms: list["RefineCompatible"] = [],
+        isOrganised=False,
+        additionalSurfaces: list["_Geom"] = [],
+        additionalLines: list[Union["Line", "CircleArc"]] = [],
+        additionalPoints: list["Point"] = [],
+        folder="",
+    ):
+        """Creates a 3D mesh by rotating a surface along an axis.
+
+        Parameters
+        ----------
+        contour : _Geom
+            geometry that builds the contour
+        inclusions : list[_Geom], optional
+            list of hollow and filled geom objects inside the domain
+        axis : Line, optional
+            revolution axis, by default Line((0, 0), (0, 1))
+        angle : float|int, optional
+            revolution angle in [deg], by default 360
+        layers: list[int], optional
+            layers in extrusion, by default [30]
+        elemType : ElemType, optional
+            element type, by default "TETRA4" ["TETRA4", "TETRA10", "HEXA8", "HEXA20", "PRISM6", "PRISM15"]
+        cracks : list[Line | Points | Contour | CircleArc]
+            list of geom object used to create open or closed cracks
+        refineGeoms : list[Domain|Circle|str], optional
+            list of geom object for mesh refinement, by default []
+        isOrganised : bool, optional
+            mesh is organized, by default False
+        additionalSurfaces : list[_Geom]
+            additional surfaces that will be added to or removed from the surfaces created by the contour and the inclusions. (e.g Domain, Circle, Contour, Points). Tip: if the mesh is not well generated, you can also give the inclusions.
+        additionalLines : list[Union[Line,CircleArc]]
+            additional lines that will be added to the surfaces created by the contour and the inclusions. (e.g Domain, Circle, Contour, Points). WARNING: lines must be within the domain.
+        additionalPoints : list[Point]
+            additional points that will be added to the surfaces created by the contour and the inclusions. WARNING: points must be within the domain.
+        folder : str, optional
+            default mesh.msh folder, by default "" does not save the mesh
+
+        Returns
+        -------
+        Mesh
+            Created mesh
+        """
+        from ..fem._gmsh_interface import Mesher
+
+        if axis is None:
+            from ..geoms import Line
+
+            axis = Line((0, 0), (0, 1))
+
+        mesher = Mesher()
+        mesh = mesher.Mesh_Revolve(
+            self,
+            inclusions=inclusions,
+            axis=axis,
+            angle=angle,
+            layers=layers,
             elemType=elemType,
             cracks=cracks,
             refineGeoms=refineGeoms,

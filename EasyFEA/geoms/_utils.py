@@ -14,6 +14,8 @@ from ..utilities import _types
 class Point:
     """Point class."""
 
+    PointALike = Union["Point", _types.Coords]
+
     def __init__(
         self,
         x: _types.Number = 0.0,

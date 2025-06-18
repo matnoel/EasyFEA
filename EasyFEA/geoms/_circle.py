@@ -28,9 +28,9 @@ class Circle(_Geom):
 
     def __init__(
         self,
-        center: Point,
+        center: Point.PointALike,
         diam: float,
-        meshSize=0.0,
+        meshSize: float = 0.0,
         isHollow=True,
         isOpen=False,
         n=(0, 0, 1),
@@ -39,7 +39,7 @@ class Circle(_Geom):
 
         Parameters
         ----------
-        center : Point
+        center : Point | Coords
             center of circle
         diam : float
             diameter
@@ -176,8 +176,8 @@ class CircleArc(_Geom):
 
     def __init__(
         self,
-        pt1: Point,
-        pt2: Point,
+        pt1: Point.PointALike,
+        pt2: Point.PointALike,
         center: Union[Point, None] = None,
         R: Optional[_types.Number] = None,
         P: Optional[_types.Coords] = None,
@@ -195,9 +195,9 @@ class CircleArc(_Geom):
 
         Parameters
         ----------
-        pt1 : Point
+        pt1 : Point | Coords
             starting point
-        pt2: Point
+        pt2: Point | Coords
             ending point
         R: _types.Number, optional
             radius of the arc circle, by default None

@@ -16,14 +16,16 @@ class Line(_Geom):
 
     __NLine = 0
 
-    def __init__(self, pt1: Point, pt2: Point, meshSize=0.0, isOpen=False):
+    def __init__(
+        self, pt1: Point.PointALike, pt2: Point.PointALike, meshSize=0.0, isOpen=False
+    ):
         """Creates a line.
 
         Parameters
         ----------
-        pt1 : Point
+        pt1 : Point | Coords
             first point
-        pt2 : Point
+        pt2 : Point | Coords
             second point
         meshSize : float, optional
             mesh size that will be used to create the mesh >= 0, by default 0.0
