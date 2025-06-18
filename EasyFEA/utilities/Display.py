@@ -35,7 +35,7 @@ if TYPE_CHECKING:
 # Plot Simu or Mesh
 # ----------------------------------------------
 def Plot_Result(
-    simu: "_Simu",
+    simu: Union["_Simu", "Mesh"],
     result: Union[str, _types.FloatArray],
     deformFactor: _types.Number = 0.0,
     coef: _types.Number = 1.0,
