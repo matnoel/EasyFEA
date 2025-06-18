@@ -8,7 +8,7 @@ Homog2
 
 Perform homogenization on several RVE.
 """
-# sphinx_gallery_thumbnail_number = 7
+# sphinx_gallery_thumbnail_number = -1
 
 from EasyFEA import Display, plt, np, ElemType, Materials, Simulations
 from EasyFEA.Geoms import Point, Points, Line
@@ -189,7 +189,6 @@ if __name__ == "__main__":
 
     Display.Plot_Mesh(mesh, title="RVE")
     # Display.Plot_Tags(mesh)
-    coordo = mesh.coord
 
     nodes_matrix = mesh.Nodes_Tags(["S0"])
     elements_matrix = mesh.Elements_Nodes(nodes_matrix)
@@ -203,8 +202,10 @@ if __name__ == "__main__":
 
     if usePER:
         nodes_border = mesh.Nodes_Points(corners)
+        paired_nodes = mesh.Get_Paired_Nodes(nodes_border, True)
     else:
         nodes_border = mesh.Nodes_Tags([f"L{i}" for i in range(6)])
+        paired_nodes = None
 
     # ----------------------------------------------------------------------------
     # Material and simulation
@@ -231,9 +232,9 @@ if __name__ == "__main__":
     E22 = np.array([[0, 0], [0, 1]])
     E12 = np.array([[0, 1 / r2], [1 / r2, 0]])
 
-    u11 = Calc_ukl(simu, nodes_border, E11, usePER)
-    u22 = Calc_ukl(simu, nodes_border, E22, usePER)
-    u12 = Calc_ukl(simu, nodes_border, E12, usePER, True)
+    u11 = Calc_ukl(simu, nodes_border, E11, paired_nodes)
+    u22 = Calc_ukl(simu, nodes_border, E22, paired_nodes)
+    u12 = Calc_ukl(simu, nodes_border, E12, paired_nodes, True)
 
     u11_e = mesh.Locates_sol_e(u11, asFeArray=True)
     u22_e = mesh.Locates_sol_e(u22, asFeArray=True)

@@ -8,7 +8,7 @@ Homog3
 
 Conduct full-field homogenization.
 """
-# sphinx_gallery_thumbnail_number = 5
+# sphinx_gallery_thumbnail_number = -4
 
 from EasyFEA import (
     Display,
@@ -53,7 +53,7 @@ if __name__ == "__main__":
     # ----------------------------------------------
     # Mesh
     # ----------------------------------------------
-    elemType = ElemType.TRI3
+    elemType = ElemType.TRI6
     meshSize = h / 10
 
     pt1 = Geoms.Point()
@@ -107,7 +107,7 @@ if __name__ == "__main__":
     )
 
     Display.Plot_Mesh(mesh_inclusions, title="non hom")
-    Display.Plot_Mesh(mesh_RVE, title="VER")
+    Display.Plot_Mesh(mesh_RVE, title="RVE")
     Display.Plot_Mesh(mesh, title="hom")
 
     # ----------------------------------------------
@@ -138,12 +138,14 @@ if __name__ == "__main__":
 
     if usePER:
         nodes_border = mesh_RVE.Nodes_Tags(["P0", "P1", "P2", "P3"])
+        paired_nodes = mesh_RVE.Get_Paired_Nodes(nodes_border, True)
     else:
         nodes_border = mesh_RVE.Nodes_Tags(["L0", "L1", "L2", "L3"])
+        paired_nodes = None
 
-    u11 = Calc_ukl(simu_VER, nodes_border, E11, usePER)
-    u22 = Calc_ukl(simu_VER, nodes_border, E22, usePER)
-    u12 = Calc_ukl(simu_VER, nodes_border, E12, usePER, True)
+    u11 = Calc_ukl(simu_VER, nodes_border, E11, paired_nodes)
+    u22 = Calc_ukl(simu_VER, nodes_border, E22, paired_nodes)
+    u12 = Calc_ukl(simu_VER, nodes_border, E12, paired_nodes, True)
 
     u11_e = mesh_RVE.Locates_sol_e(u11, asFeArray=True)
     u22_e = mesh_RVE.Locates_sol_e(u22, asFeArray=True)

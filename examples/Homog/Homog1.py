@@ -11,18 +11,19 @@ Conduct homogenization using an example outlined in 'Computational Homogenizatio
 Reference: https://doi.org/10.1007/978-3-030-18383-7
 Section 4.7 with corrected values on page 89 (Erratum).
 """
-# sphinx_gallery_thumbnail_number = 7
+# sphinx_gallery_thumbnail_number = -1
 
 from EasyFEA import Display, plt, np, ElemType, Materials, Simulations
 from EasyFEA.Geoms import Points, Circle
 from EasyFEA.fem import LagrangeCondition, FeArray
+from typing import Optional
 
 
 def Calc_ukl(
     simu: Simulations.ElasticSimu,
     nodes_border: np.ndarray,
     Ekl: np.ndarray,
-    usePER=True,
+    paired_nodes: Optional[np.ndarray] = None,
     pltSol=False,
     useMean0=False,
 ):
@@ -30,6 +31,8 @@ def Calc_ukl(
     simu.Bc_Init()
     mesh = simu.mesh
     coord = mesh.coordGlob
+
+    usePER = paired_nodes is not None
 
     def func_ux(x, y, z):
         return Ekl.dot([x, y])[0]
@@ -40,7 +43,6 @@ def Calc_ukl(
     simu.add_dirichlet(nodes_border, [func_ux, func_uy], ["x", "y"])
 
     if usePER:
-        paired_nodes = mesh.Get_Paired_Nodes(nodes_border, True)
 
         for n0, n1 in paired_nodes:
 
@@ -122,8 +124,10 @@ if __name__ == "__main__":
 
     if usePER:
         nodes_border = mesh.Nodes_Tags(["P0", "P1", "P2", "P3"])
+        paired_nodes = mesh.Get_Paired_Nodes(nodes_border, True)
     else:
         nodes_border = mesh.Nodes_Tags(["L0", "L1", "L2", "L3"])
+        paired_nodes = None
 
     # ----------------------------------------------------------------------------
     # Material and Simulation
@@ -156,9 +160,9 @@ if __name__ == "__main__":
     E22 = np.array([[0, 0], [0, 1]])
     E12 = np.array([[0, 1 / r2], [1 / r2, 0]])
 
-    u11 = Calc_ukl(simu, nodes_border, E11, usePER)
-    u22 = Calc_ukl(simu, nodes_border, E22, usePER)
-    u12 = Calc_ukl(simu, nodes_border, E12, usePER, True)
+    u11 = Calc_ukl(simu, nodes_border, E11, paired_nodes)
+    u22 = Calc_ukl(simu, nodes_border, E22, paired_nodes)
+    u12 = Calc_ukl(simu, nodes_border, E12, paired_nodes, True)
 
     u11_e = mesh.Locates_sol_e(u11, asFeArray=True)
     u22_e = mesh.Locates_sol_e(u22, asFeArray=True)
