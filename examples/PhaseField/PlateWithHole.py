@@ -15,14 +15,13 @@ from EasyFEA import (
     plt,
     np,
     Tic,
-    Mesher,
     ElemType,
     Mesh,
     Materials,
     Simulations,
     Paraview,
 )
-from EasyFEA.Geoms import Point, Domain, Circle
+from EasyFEA.Geoms import Domain, Circle
 
 import multiprocessing
 
@@ -80,20 +79,15 @@ def DoMesh(
         clD = l0 * 4
         refineZone = diam * 1.5 / 2
         if split in ["Bourdin", "Amor"]:
-            refineGeom = Domain(
-                Point(0, h / 2 - refineZone), Point(L, h / 2 + refineZone), clC
-            )
+            refineGeom = Domain((0, h / 2 - refineZone), (L, h / 2 + refineZone), clC)
         else:
-            refineGeom = Domain(
-                Point(L / 2 - refineZone, 0), Point(L / 2 + refineZone, h), clC
-            )
+            refineGeom = Domain((L / 2 - refineZone, 0), (L / 2 + refineZone, h), clC)
     else:
         clD = l0 if meshTest else l0 / 2
         refineGeom = None
 
-    point = Point()
-    domain = Domain(point, Point(L, h), clD)
-    circle = Circle(Point(L / 2, h / 2), diam, clD, isHollow=True)
+    domain = Domain((0, 0), (L, h), clD)
+    circle = Circle((L / 2, h / 2), diam, clD, isHollow=True)
 
     # ax = Display.Init_Axes()
     # domain.Plot(ax, color="k", plotPoints=False)
@@ -104,7 +98,7 @@ def DoMesh(
     # ax.axis("off")
     # Display.Save_fig(Folder.RESULTS_DIR, "sample", True)
 
-    mesh = Mesher().Mesh_2D(domain, [circle], ElemType.TRI3, refineGeoms=[refineGeom])
+    mesh = domain.Mesh_2D([circle], ElemType.TRI3, refineGeoms=[refineGeom])
 
     # ax = Display.Plot_Mesh(mesh, lw=0.3, facecolors="white")
     # ax.axis("off")

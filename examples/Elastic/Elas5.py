@@ -9,7 +9,7 @@ Elas5
 A cylindrical conduit exposed to uniform pressure.
 """
 
-from EasyFEA import Display, np, Mesher, ElemType, Materials, Simulations
+from EasyFEA import Display, np, ElemType, Materials, Simulations
 from EasyFEA.Geoms import Point, Line, Circle, CircleArc, Contour
 
 if __name__ == "__main__":
@@ -63,9 +63,7 @@ if __name__ == "__main__":
 
     if dim == 2:
         crack = Line(pc1, pc2, meshSize / 6, isOpen=openCrack)
-        mesh = Mesher().Mesh_2D(
-            contour, inclusions, elemType=ElemType.TRI6, cracks=[crack]
-        )
+        mesh = contour.Mesh_2D(inclusions, elemType=ElemType.TRI6, cracks=[crack])
     else:
         pc3 = pc2.copy()
         pc3.Translate(*extrude)
@@ -76,8 +74,8 @@ if __name__ == "__main__":
         l3 = Line(pc3, pc4, meshSize / 6, isOpen=openCrack)
         l4 = Line(pc4, pc1, meshSize / 6)
         crack = Contour([l1, l2, l3, l4], isOpen=openCrack)
-        mesh = Mesher().Mesh_Extrude(
-            contour, inclusions, extrude, [], ElemType.TETRA4, cracks=[crack]
+        mesh = contour.Mesh_Extrude(
+            inclusions, extrude, [], ElemType.TETRA4, cracks=[crack]
         )
 
     # ----------------------------------------------

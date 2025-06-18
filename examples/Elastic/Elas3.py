@@ -9,8 +9,8 @@ Elas3
 Hydraulic dam subjected to water pressure and its own weight.
 """
 
-from EasyFEA import Display, plt, np, Mesher, ElemType, Materials, Simulations
-from EasyFEA.Geoms import Point, Points
+from EasyFEA import Display, plt, np, ElemType, Materials, Simulations
+from EasyFEA.Geoms import Points
 
 if __name__ == "__main__":
 
@@ -35,18 +35,13 @@ if __name__ == "__main__":
     # Mesh
     # ----------------------------------------------
 
-    pt1 = Point()
-    pt2 = Point(x=h)
-    pt3 = Point(y=h)
-    contour = Points([pt1, pt2, pt3], h / N)
+    contour = Points([(0, 0), (h, 0), (0, h)], h / N)
 
     if dim == 2:
-        mesh = Mesher().Mesh_2D(contour, [], ElemType.TRI6)
+        mesh = contour.Mesh_2D([], ElemType.TRI6)
         print(f"err area = {np.abs(mesh.area - h**2/2)/mesh.area:.3e}")
     elif dim == 3:
-        mesh = Mesher().Mesh_Extrude(
-            contour, [], [0, 0, -thickness], [3], ElemType.PRISM15
-        )
+        mesh = contour.Mesh_Extrude([], [0, 0, -thickness], [3], ElemType.PRISM15)
         print(
             f"error volume = {np.abs(mesh.volume - h**2/2 * thickness)/mesh.volume:.3e}"
         )

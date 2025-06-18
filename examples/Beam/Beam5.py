@@ -10,7 +10,7 @@ Frame with six beams
 """
 
 from EasyFEA import Display, np, Mesher, ElemType, Materials, Simulations
-from EasyFEA.Geoms import Domain, Line, Point
+from EasyFEA.Geoms import Domain, Line
 
 if __name__ == "__main__":
 
@@ -25,11 +25,11 @@ if __name__ == "__main__":
 
     L = 100  # mm
 
-    pA = Point(2 * L, 0)
-    pB = Point(L, 0)
-    pC = Point(L, L)
-    pD = Point(0, 0)
-    pE = Point(0, L)
+    pA = (2 * L, 0)
+    pB = (L, 0)
+    pC = (L, L)
+    pD = (0, 0)
+    pE = (0, L)
 
     line1 = Line(pA, pC)
     line2 = Line(pA, pB)
@@ -39,7 +39,7 @@ if __name__ == "__main__":
     line6 = Line(pB, pE)
     lines = [line1, line2, line3, line4, line5, line6]
 
-    section = Mesher().Mesh_2D(Domain(Point(-4 / 2, -8 / 2), Point(4 / 2, 8 / 2)))
+    section = Mesher().Mesh_2D(Domain((-4 / 2, -8 / 2), (4 / 2, 8 / 2)))
 
     E = 276  # MPa
     v = 0.3

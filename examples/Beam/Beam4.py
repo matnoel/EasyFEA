@@ -10,7 +10,7 @@ Frame with two beams.
 """
 
 from EasyFEA import Display, plt, Mesher, ElemType, Materials, Simulations
-from EasyFEA.Geoms import Domain, Line, Point
+from EasyFEA.Geoms import Domain, Line
 
 if __name__ == "__main__":
 
@@ -36,11 +36,11 @@ if __name__ == "__main__":
 
     # Create a section object for the beam mesh
     mesher = Mesher()
-    section = mesher.Mesh_2D(Domain(Point(), Point(b, h)))
+    section = mesher.Mesh_2D(Domain((0, 0), (b, h)))
 
-    p1 = Point()
-    p2 = Point(y=L)
-    p3 = Point(y=L, x=L / 2)
+    p1 = (0, 0)
+    p2 = (0, L)
+    p3 = (L / 2, L)
     line1 = Line(p1, p2, L / nL)
     line2 = Line(p2, p3, L / nL)
     beam1 = Materials.BeamElasIsot(3, line1, section, E, v)

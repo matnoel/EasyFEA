@@ -11,7 +11,6 @@ A cantilever beam undergoing bending deformation in a Lagrangian framework.
 
 from EasyFEA import (
     Display,
-    Mesher,
     ElemType,
     Materials,
     Simulations,
@@ -29,8 +28,8 @@ if __name__ == "__main__":
 
     contour = Domain((0, 0), (L, h), h / 3)
 
-    mesh = Mesher().Mesh_Extrude(
-        contour, [], [0, 0, h], [h / meshSize], ElemType.HEXA20, isOrganised=True
+    mesh = contour.Mesh_Extrude(
+        [], [0, 0, h], [h / meshSize], ElemType.HEXA20, isOrganised=True
     )
     nodesX0 = mesh.Nodes_Conditions(lambda x, y, z: x == 0)
     nodesXL = mesh.Nodes_Conditions(lambda x, y, z: x == L)

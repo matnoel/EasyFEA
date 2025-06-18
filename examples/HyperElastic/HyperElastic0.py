@@ -16,7 +16,6 @@ from EasyFEA import (
     Display,
     Folder,
     np,
-    Mesher,
     ElemType,
     Materials,
     Simulations,
@@ -62,11 +61,9 @@ if __name__ == "__main__":
     contour = Points([p1, p2, p3, p4, p5, p6, p7, p8], meshSize)
 
     if dim == 2:
-        mesh = Mesher().Mesh_2D(contour, [], ElemType.TRI6)
+        mesh = contour.Mesh_2D([], ElemType.TRI6)
     else:
-        mesh = Mesher().Mesh_Extrude(
-            contour, [], [0, 0, -thickness], [3], ElemType.PRISM6
-        )
+        mesh = contour.Mesh_Extrude([], [0, 0, -thickness], [3], ElemType.PRISM6)
 
     nodes_y0 = mesh.Nodes_Conditions(lambda x, y, z: y == 0)
     # nodes_Load = mesh.Nodes_Conditions(lambda x,y,z: (y==2*L) & (x>=2*L-30))

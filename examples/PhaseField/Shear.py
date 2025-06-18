@@ -17,7 +17,6 @@ from EasyFEA import (
     plt,
     np,
     Tic,
-    Mesher,
     ElemType,
     Mesh,
     Materials,
@@ -124,10 +123,9 @@ def DoMesh(split: str) -> Mesh:
     # Display.Save_fig(folder,"sample",True)
 
     if dim == 2:
-        mesh = Mesher().Mesh_2D(contour, [], ElemType.TRI3, cracks, [refineDomain])
+        mesh = contour.Mesh_2D([], ElemType.TRI3, cracks, [refineDomain])
     elif dim == 3:
-        mesh = Mesher().Mesh_Extrude(
-            contour,
+        mesh = contour.Mesh_Extrude(
             [],
             [0, 0, thickness],
             [4],

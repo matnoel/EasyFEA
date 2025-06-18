@@ -541,11 +541,11 @@ class Mesh(Observable):
         """
         return self.groupElem.Get_Nodes_Conditions(func)
 
-    def Nodes_Point(self, point: Point) -> _types.IntArray:
+    def Nodes_Point(self, point: Point.PointALike) -> _types.IntArray:
         """Returns nodes on the point."""
         return self.groupElem.Get_Nodes_Point(point)
 
-    def Nodes_Points(self, points: list[Point]) -> _types.IntArray:
+    def Nodes_Points(self, points: list[Point.PointALike]) -> _types.IntArray:
         """Returns nodes on points."""
         nodes: set[int] = set()
         for point in points:

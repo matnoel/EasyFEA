@@ -9,7 +9,7 @@ HelloWorld
 A cantilever beam undergoing bending deformation.
 """
 
-from EasyFEA import Display, Mesher, ElemType, Materials, Simulations
+from EasyFEA import Display, ElemType, Materials, Simulations
 from EasyFEA.Geoms import Domain
 
 # ----------------------------------------------
@@ -19,7 +19,7 @@ L = 120  # mm
 h = 13
 
 domain = Domain((0, 0), (L, h), h / 3)
-mesh = Mesher().Mesh_2D(domain, [], ElemType.QUAD9, isOrganised=True)
+mesh = domain.Mesh_2D([], ElemType.QUAD9, isOrganised=True)
 
 # ----------------------------------------------
 # Simulation

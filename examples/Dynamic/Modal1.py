@@ -12,13 +12,12 @@ Modal analysis of a wall structure.
 from EasyFEA import (
     Display,
     np,
-    Mesher,
     ElemType,
     Materials,
     Simulations,
     PyVista,
 )
-from EasyFEA.Geoms import Point, Domain
+from EasyFEA.Geoms import Domain
 
 from scipy.sparse import linalg, eye
 
@@ -33,14 +32,14 @@ if __name__ == "__main__":
     # ----------------------------------------------
     # Mesh
     # ----------------------------------------------
-    contour = Domain(Point(), Point(1, 1), 1 / 10)
+    contour = Domain((0, 0), (1, 1), 1 / 10)
     thickness = 1 / 10
 
     if dim == 2:
-        mesh = Mesher().Mesh_2D(contour, [], ElemType.QUAD9, isOrganised=True)
+        mesh = contour.Mesh_2D([], ElemType.QUAD9, isOrganised=True)
     else:
-        mesh = Mesher().Mesh_Extrude(
-            contour, [], [0, 0, -thickness], [2], ElemType.HEXA27, isOrganised=True
+        mesh = contour.Mesh_Extrude(
+            [], [0, 0, -thickness], [2], ElemType.HEXA27, isOrganised=True
         )
     nodesY0 = mesh.Nodes_Conditions(lambda x, y, z: y == 0)
     nodesSupY0 = mesh.Nodes_Conditions(lambda x, y, z: y > 0)

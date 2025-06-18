@@ -14,13 +14,12 @@ from EasyFEA import (
     Folder,
     Tic,
     plt,
-    Mesher,
     ElemType,
     Materials,
     Simulations,
     Paraview,
 )
-from EasyFEA.Geoms import Point, Domain
+from EasyFEA.Geoms import Domain
 
 if __name__ == "__main__":
 
@@ -39,7 +38,7 @@ if __name__ == "__main__":
 
     makeParaview = False
     makeMovie = False
-    plotIter = False
+    plotIter = True
     resultToPlot = "uy"
 
     # Dumping
@@ -61,21 +60,18 @@ if __name__ == "__main__":
     # ----------------------------------------------
     meshSize = h / 5
 
-    mesher = Mesher(False)
     if dim == 2:
-        elemType = ElemType.QUAD4  # TRI3, TRI6, TRI10, TRI15, QUAD4, QUAD8, QUAD9
-        domain = Domain(Point(y=-h / 2), Point(x=L, y=h / 2), meshSize)
-        mesh = mesher.Mesh_2D(domain, elemType=elemType, isOrganised=True)
+        # TRI3, TRI6, TRI10, TRI15, QUAD4, QUAD8, QUAD9
+        elemType = ElemType.QUAD4
+        domain = Domain((0, -h / 2), (L, h / 2), meshSize)
+        mesh = domain.Mesh_2D(elemType=elemType, isOrganised=True)
         area = mesh.area - L * h
     elif dim == 3:
-        elemType = (
-            ElemType.HEXA8
-        )  # TETRA4, TETRA10, HEXA8, HEXA20, HEXA27, PRISM6, PRISM15, PRISM18
-        domain = Domain(
-            Point(y=-h / 2, z=-b / 2), Point(x=L, y=h / 2, z=-b / 2), meshSize=meshSize
-        )
-        mesh = mesher.Mesh_Extrude(
-            domain, [], [0, 0, b], elemType=elemType, layers=[3], isOrganised=True
+        # TETRA4, TETRA10, HEXA8, HEXA20, HEXA27, PRISM6, PRISM15, PRISM18
+        elemType = ElemType.HEXA8
+        domain = Domain((0, -h / 2, -b / 2), (L, h / 2, -b / 2), meshSize=meshSize)
+        mesh = domain.Mesh_Extrude(
+            [], [0, 0, b], elemType=elemType, layers=[3], isOrganised=True
         )
 
         volume = mesh.volume - L * b * h

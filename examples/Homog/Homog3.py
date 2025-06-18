@@ -15,12 +15,13 @@ from EasyFEA import (
     plt,
     np,
     Geoms,
-    Mesher,
     ElemType,
     Materials,
     Simulations,
 )
-from EasyFEA.fem import LagrangeCondition, FeArray
+from EasyFEA.fem import FeArray
+
+from Homog1 import Calc_ukl
 
 if __name__ == "__main__":
 
@@ -75,18 +76,16 @@ if __name__ == "__main__":
 
             inclusions.append(inclusion)
 
-    mesher = Mesher(False)
-
     inclusion = Geoms.Domain(ptd1, ptd2, meshSize)
-    area_inclusion = mesher.Mesh_2D(inclusion).area
+    area_inclusion = inclusion.Mesh_2D().area
 
     points = Geoms.Points([pt1, pt2, pt3, pt4], meshSize)
 
     # mesh with inclusions
-    mesh_inclusions = mesher.Mesh_2D(points, inclusions, elemType)
+    mesh_inclusions = points.Mesh_2D(inclusions, elemType)
 
     # mesh without inclusions
-    mesh = mesher.Mesh_2D(points, [], elemType)
+    mesh = points.Mesh_2D([], elemType)
 
     ptI1 = Geoms.Point(-cL, -cH)
     ptI2 = Geoms.Point(cL, -cH)
@@ -95,8 +94,7 @@ if __name__ == "__main__":
 
     pointsI = Geoms.Points([ptI1, ptI2, ptI3, ptI4], meshSize / 4)
 
-    mesh_RVE = mesher.Mesh_2D(
-        pointsI,
+    mesh_RVE = pointsI.Mesh_2D(
         [
             Geoms.Domain(
                 Geoms.Point(-cL / 2, -cH / 2),
@@ -140,56 +138,12 @@ if __name__ == "__main__":
 
     if usePER:
         nodes_border = mesh_RVE.Nodes_Tags(["P0", "P1", "P2", "P3"])
-        paired_nodes = mesh_RVE.Get_Paired_Nodes(nodes_border, True)
     else:
         nodes_border = mesh_RVE.Nodes_Tags(["L0", "L1", "L2", "L3"])
 
-    def Calc_ukl(Ekl: np.ndarray):
-
-        simu_VER.Bc_Init()
-
-        def func_ux(x, y, z):
-            return Ekl.dot([x, y])[0]
-
-        def func_uy(x, y, z):
-            return Ekl.dot([x, y])[1]
-
-        simu_VER.add_dirichlet(nodes_border, [func_ux, func_uy], ["x", "y"])
-
-        if usePER:
-
-            coordo = mesh_RVE.coord
-
-            for n0, n1 in paired_nodes:
-
-                nodes = np.array([n0, n1])
-
-                for direction in ["x", "y"]:
-                    dofs = simu_VER.Bc_dofs_nodes(nodes, [direction])
-
-                    values = Ekl @ [
-                        coordo[n0, 0] - coordo[n1, 0],
-                        coordo[n0, 1] - coordo[n1, 1],
-                    ]
-                    value = values[0] if direction == "x" else values[1]
-
-                    condition = LagrangeCondition(
-                        "elastic", nodes, dofs, [direction], [value], [1, -1]
-                    )
-                    simu_VER._Bc_Add_Lagrange(condition)
-
-        ukl = simu_VER.Solve()
-
-        simu_VER.Save_Iter()
-        # Display.Plot_Result(simu_VER, "Exx")
-        # Display.Plot_Result(simu_VER, "Eyy")
-        # Display.Plot_Result(simu_VER, "Exy")
-
-        return ukl
-
-    u11 = Calc_ukl(E11)
-    u22 = Calc_ukl(E22)
-    u12 = Calc_ukl(E12)
+    u11 = Calc_ukl(simu_VER, nodes_border, E11, usePER)
+    u22 = Calc_ukl(simu_VER, nodes_border, E22, usePER)
+    u12 = Calc_ukl(simu_VER, nodes_border, E12, usePER, True)
 
     u11_e = mesh_RVE.Locates_sol_e(u11, asFeArray=True)
     u22_e = mesh_RVE.Locates_sol_e(u22, asFeArray=True)

@@ -10,8 +10,8 @@ Wave propagation.
 """
 # TODO: Compare results with analytical values.
 
-from EasyFEA import Display, Tic, plt, Mesher, ElemType, Materials, Simulations
-from EasyFEA.Geoms import Domain, Point, Circle, Line
+from EasyFEA import Display, Tic, plt, ElemType, Materials, Simulations
+from EasyFEA.Geoms import Domain, Circle, Line
 
 if __name__ == "__main__":
 
@@ -49,11 +49,10 @@ if __name__ == "__main__":
     # ----------------------------------------------
 
     # Define the domain and create the mesh
-    domain = Domain(Point(x=-a / 2, y=-a / 2), Point(x=a / 2, y=a / 2), meshSize)
-    circle = Circle(Point(), diam, meshSize, isHollow=False)
-    line = Line(Point(), Point(diam / 4))
-    mesher = Mesher(False)
-    mesh = mesher.Mesh_2D(domain, [circle], ElemType.TRI3, cracks=[line])
+    domain = Domain((-a / 2, -a / 2), (a / 2, a / 2), meshSize)
+    circle = Circle((0, 0), diam, meshSize, isHollow=False)
+    line = Line((0, 0), (diam / 4, 0))
+    mesh = domain.Mesh_2D([circle], ElemType.TRI3, cracks=[line])
 
     # Plot the model if specified
     if plotModel:
@@ -62,7 +61,7 @@ if __name__ == "__main__":
 
     # Get nodes for boundary conditions and loading
     nodesBorders = mesh.Nodes_Tags(["L0", "L1", "L2", "L3"])
-    nodesLoad = mesh.Nodes_Point(Point())
+    nodesLoad = mesh.Nodes_Point((0, 0))
 
     # ----------------------------------------------
     # Simulation

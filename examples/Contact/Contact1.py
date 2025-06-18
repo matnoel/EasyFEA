@@ -17,7 +17,6 @@ from EasyFEA import (
     Folder,
     plt,
     np,
-    Mesher,
     ElemType,
     Materials,
     Simulations,
@@ -56,12 +55,10 @@ if __name__ == "__main__":
     # slave mesh
     contour_slave = Domain(Point(-R / 2, 0), Point(R / 2, height), meshSize)
     if dim == 2:
-        mesh_slave = Mesher().Mesh_2D(
-            contour_slave, [], ElemType.QUAD4, isOrganised=True
-        )
+        mesh_slave = contour_slave.Mesh_2D([], ElemType.QUAD4, isOrganised=True)
     else:
-        mesh_slave = Mesher().Mesh_Extrude(
-            contour_slave, [], [0, 0, -thickness], [4], ElemType.HEXA8, isOrganised=True
+        mesh_slave = contour_slave.Mesh_Extrude(
+            [], [0, 0, -thickness], [4], ElemType.HEXA8, isOrganised=True
         )
 
     # nodes_slave = mesh_slave.Get_list_groupElem(dim-1)[0].nodes
@@ -78,10 +75,10 @@ if __name__ == "__main__":
 
     yMax = height + np.abs(r)
     if dim == 2:
-        master_mesh = Mesher().Mesh_2D(contour_master, [], ElemType.TRI3)
+        master_mesh = contour_master.Mesh_2D([], ElemType.TRI3)
     else:
-        master_mesh = Mesher().Mesh_Extrude(
-            contour_master, [], [0, 0, -thickness - 2], [4], ElemType.TETRA4
+        master_mesh = contour_master.Mesh_Extrude(
+            [], [0, 0, -thickness - 2], [4], ElemType.TETRA4
         )
         groupMaster = master_mesh.Get_list_groupElem(dim - 1)[0]
         if len(master_mesh.Get_list_groupElem(dim - 1)) > 1:

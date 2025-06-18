@@ -9,7 +9,7 @@ Elas2
 Bending bracket component.
 """
 
-from EasyFEA import Display, plt, np, Mesher, ElemType, Materials, Simulations
+from EasyFEA import Display, plt, np, ElemType, Materials, Simulations
 from EasyFEA.Geoms import Point, Points
 
 if __name__ == "__main__":
@@ -44,11 +44,9 @@ if __name__ == "__main__":
     contour = Points([pt1, pt2, pt3, pt4, pt5, pt6], h / N)
 
     if dim == 2:
-        mesh = Mesher().Mesh_2D(contour, [], ElemType.TRI3)
+        mesh = contour.Mesh_2D([], ElemType.TRI3)
     elif dim == 3:
-        mesh = Mesher().Mesh_Extrude(
-            contour, [], [0, 0, -h], [4], elemType=ElemType.TETRA10
-        )
+        mesh = contour.Mesh_Extrude([], [0, 0, -h], [4], elemType=ElemType.TETRA10)
 
     nodes_x0 = mesh.Nodes_Conditions(lambda x, y, z: x == 0)
     nodes_xL = mesh.Nodes_Conditions(lambda x, y, z: x == L)

@@ -30,6 +30,7 @@ from ._utils import ElemType, MatrixType
 
 # # others
 from ..geoms import Point, Domain, Line, Circle
+from ..geoms._utils import AsPoint
 from ..geoms import Jacobian_Matrix
 
 from ..utilities import _types
@@ -1611,10 +1612,10 @@ class _GroupElem(ABC):
 
             return None  # type: ignore [return-value]
 
-    def Get_Nodes_Point(self, point: Point) -> _types.IntArray:
+    def Get_Nodes_Point(self, point: Point.PointALike) -> _types.IntArray:
         """Returns nodes on the point."""
 
-        assert isinstance(point, Point)
+        point = AsPoint(point)
 
         xn, yn, zn = self.coord.T
 

@@ -9,8 +9,8 @@ Elas1
 A cantilever beam undergoing bending deformation.
 """
 
-from EasyFEA import Display, plt, np, Mesher, ElemType, Materials, Simulations
-from EasyFEA.Geoms import Point, Domain
+from EasyFEA import Display, plt, np, ElemType, Materials, Simulations
+from EasyFEA.Geoms import Domain
 
 if __name__ == "__main__":
 
@@ -39,13 +39,13 @@ if __name__ == "__main__":
 
     meshSize = h / N
 
-    domain = Domain(Point(), Point(L, h), meshSize)
+    domain = Domain((0, 0), (L, h), meshSize)
 
     if dim == 2:
-        mesh = Mesher().Mesh_2D(domain, [], ElemType.QUAD9, isOrganised=True)
+        mesh = domain.Mesh_2D([], ElemType.QUAD9, isOrganised=True)
     else:
-        mesh = Mesher().Mesh_Extrude(
-            domain, [], [0, 0, -h], [N], ElemType.HEXA27, isOrganised=True
+        mesh = domain.Mesh_Extrude(
+            [], [0, 0, -h], [N], ElemType.HEXA27, isOrganised=True
         )
 
     nodes_x0 = mesh.Nodes_Conditions(lambda x, y, z: x == 0)

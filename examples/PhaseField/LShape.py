@@ -15,7 +15,6 @@ from EasyFEA import (
     plt,
     np,
     Tic,
-    Mesher,
     ElemType,
     Materials,
     Simulations,
@@ -118,10 +117,10 @@ if __name__ == "__main__":
     circle = Circle(p5, 100)
 
     if dim == 2:
-        mesh = Mesher().Mesh_2D(contour, [], ElemType.TRI3, refineGeoms=[refineDomain])
+        mesh = contour.Mesh_2D([], ElemType.TRI3, refineGeoms=[refineDomain])
     else:
-        mesh = Mesher().Mesh_Extrude(
-            contour, [], [0, 0, -ep], [3], ElemType.HEXA8, refineGeoms=[refineDomain]
+        mesh = contour.Mesh_Extrude(
+            [], [0, 0, -ep], [3], ElemType.HEXA8, refineGeoms=[refineDomain]
         )
 
     # Display.Plot_Mesh(mesh)

@@ -10,9 +10,11 @@ Perform homogenization on several RVE.
 """
 # sphinx_gallery_thumbnail_number = 7
 
-from EasyFEA import Display, plt, np, Mesher, ElemType, Materials, Simulations
+from EasyFEA import Display, plt, np, ElemType, Materials, Simulations
 from EasyFEA.Geoms import Point, Points, Line
-from EasyFEA.fem import LagrangeCondition, FeArray
+from EasyFEA.fem import FeArray
+
+from Homog1 import Calc_ukl
 
 if __name__ == "__main__":
 
@@ -183,7 +185,7 @@ if __name__ == "__main__":
     else:
         raise Exception("Unknown geom")
 
-    mesh = Mesher().Mesh_2D(contour, inclusions, elemType)
+    mesh = contour.Mesh_2D(inclusions, elemType)
 
     Display.Plot_Mesh(mesh, title="RVE")
     # Display.Plot_Tags(mesh)
@@ -200,10 +202,7 @@ if __name__ == "__main__":
     nEdges = nCorners // 2
 
     if usePER:
-        nodes_border = list(
-            set(np.ravel([mesh.Nodes_Point(point) for point in corners]))
-        )
-        paired_nodes = mesh.Get_Paired_Nodes(nodes_border, True)
+        nodes_border = mesh.Nodes_Points(corners)
     else:
         nodes_border = mesh.Nodes_Tags([f"L{i}" for i in range(6)])
 
@@ -232,88 +231,9 @@ if __name__ == "__main__":
     E22 = np.array([[0, 0], [0, 1]])
     E12 = np.array([[0, 1 / r2], [1 / r2, 0]])
 
-    def Calc_ukl(Ekl: np.ndarray, pltSol=False):
-
-        simu.Bc_Init()
-
-        def func_ux(x, y, z):
-            return Ekl.dot([x, y])[0]
-
-        def func_uy(x, y, z):
-            return Ekl.dot([x, y])[1]
-
-        simu.add_dirichlet(nodes_border, [func_ux, func_uy], ["x", "y"])
-
-        if usePER:
-
-            # requires the u field to have zero mean
-            useMean0 = True
-
-            for n1, n2 in paired_nodes:
-
-                nodes = np.array([n1, n2])
-
-                # plt.gca().scatter(coordo[nodes, 0],coordo[nodes, 1], marker='+', c='red')
-
-                for direction in ["x", "y"]:
-                    dofs = simu.Bc_dofs_nodes(nodes, [direction])
-
-                    values = Ekl @ [
-                        coordo[n1, 0] - coordo[n2, 0],
-                        coordo[n1, 1] - coordo[n2, 1],
-                    ]
-                    value = values[0] if direction == "x" else values[1]
-
-                    condition = LagrangeCondition(
-                        "elastic", nodes, dofs, [direction], [value], [1, -1]
-                    )
-                    simu._Bc_Add_Lagrange(condition)
-
-            if useMean0:
-
-                nodes = mesh.nodes
-                vect = np.ones(mesh.Nn) * 1 / mesh.Nn
-
-                # sum u_i / Nn = 0
-                dofs = simu.Bc_dofs_nodes(nodes, ["x"])
-                condition = LagrangeCondition(
-                    "elastic", nodes, dofs, ["x"], [0], [vect]
-                )
-                simu._Bc_Add_Lagrange(condition)
-
-                # sum v_i / Nn = 0
-                dofs = simu.Bc_dofs_nodes(nodes, ["y"])
-                condition = LagrangeCondition(
-                    "elastic", nodes, dofs, ["y"], [0], [vect]
-                )
-                simu._Bc_Add_Lagrange(condition)
-
-        ukl = simu.Solve()
-
-        simu.Save_Iter()
-
-        if pltSol:
-            Display.Plot_Result(simu, "ux")
-            Display.Plot_Result(simu, "uy")
-
-            Display.Plot_Result(
-                simu, "Sxx", deformFactor=0.3, nodeValues=True, coef=1e-9
-            )
-            Display.Plot_Result(
-                simu, "Syy", deformFactor=0.3, nodeValues=True, coef=1e-9
-            )
-            Display.Plot_Result(
-                simu, "Sxy", deformFactor=0.3, nodeValues=True, coef=1e-9
-            )
-            # Display.Plot_Result(simu, "Exx", factorDef=0.3, nodeValues=True)
-            # Display.Plot_Result(simu, "Eyy", factorDef=0.3, nodeValues=True)
-            # Display.Plot_Result(simu, "Exy", factorDef=0.3, nodeValues=True)
-
-        return ukl
-
-    u11 = Calc_ukl(E11, False)
-    u22 = Calc_ukl(E22, False)
-    u12 = Calc_ukl(E12, True)
+    u11 = Calc_ukl(simu, nodes_border, E11, usePER)
+    u22 = Calc_ukl(simu, nodes_border, E22, usePER)
+    u12 = Calc_ukl(simu, nodes_border, E12, usePER, True)
 
     u11_e = mesh.Locates_sol_e(u11, asFeArray=True)
     u22_e = mesh.Locates_sol_e(u22, asFeArray=True)

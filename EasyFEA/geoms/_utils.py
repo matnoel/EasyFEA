@@ -191,7 +191,7 @@ class Point:
         return copy.deepcopy(self)
 
 
-def AsPoint(coords: Union[_types.Coords, Point]) -> Point:
+def AsPoint(coords: Point.PointALike) -> Point:
     """Returns coords as a point."""
     if isinstance(coords, Point):
         return coords

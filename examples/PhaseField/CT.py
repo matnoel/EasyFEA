@@ -14,7 +14,6 @@ from EasyFEA import (
     Folder,
     plt,
     np,
-    Mesher,
     ElemType,
     Materials,
     Simulations,
@@ -104,8 +103,7 @@ if plotGeom:
 if dim == 2:
     crack = Line(Point(t + r, 0, isOpen=True), Point(t + r + 6, 0), clC, isOpen=True)
 
-    mesh = Mesher().Mesh_2D(
-        contour,
+    mesh = contour.Mesh_2D(
         [circle1, circle2],
         ElemType.TRI3,
         cracks=[crack],
@@ -131,8 +129,7 @@ else:
     if plotGeom:
         crack.Plot(ax=ax)
 
-    mesh = Mesher().Mesh_Extrude(
-        contour,
+    mesh = contour.Mesh_Extrude(
         [circle1, circle2],
         [0, 0, thickness],
         [4],

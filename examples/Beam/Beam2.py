@@ -10,7 +10,7 @@ A cantilever beam undergoing bending deformation.
 """
 
 from EasyFEA import Display, plt, np, Mesher, ElemType, Materials, Simulations
-from EasyFEA.Geoms import Domain, Line, Point
+from EasyFEA.Geoms import Domain, Line
 
 if __name__ == "__main__":
 
@@ -37,10 +37,10 @@ if __name__ == "__main__":
 
     # Create a section object for the beam mesh
     mesher = Mesher()
-    section = mesher.Mesh_2D(Domain(Point(), Point(b, h)))
+    section = mesher.Mesh_2D(Domain((0, 0), (b, h)))
 
-    p1 = Point()
-    p2 = Point(x=L)
+    p1 = (0, 0)
+    p2 = (L, 0)
     line = Line(p1, p2, L / nL)
     beam = Materials.BeamElasIsot(beamDim, line, section, E, uy)
 
