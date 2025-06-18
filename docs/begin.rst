@@ -7,7 +7,7 @@ Like any Python script, you should start by importing the core modules from the 
 
 .. jupyter-execute::
 
-    from EasyFEA import Display, Mesher, ElemType, Materials, Simulations
+    from EasyFEA import Display, ElemType, Materials, Simulations
     from EasyFEA.Geoms import Domain
 
 ----
@@ -16,7 +16,6 @@ The most commonly used modules in EasyFEA are:
 
 .. autosummary::
     ~EasyFEA.utilities.Display 
-    ~EasyFEA.fem.Mesher 
     ~EasyFEA.fem.ElemType 
     ~EasyFEA.Materials
     ~EasyFEA.Simulations
@@ -33,7 +32,7 @@ Let's now create a 2D :py:class:`~EasyFEA.fem.Mesh` using a simple rectangular d
     h = 13
 
     domain = Domain((0, 0), (L, h), h / 3)
-    mesh = Mesher().Mesh_2D(domain, [], ElemType.QUAD9, isOrganised=True)
+    mesh = domain.Mesh_2D([], ElemType.QUAD9, isOrganised=True)
     Display.Plot_Mesh(mesh)
     
 ----
