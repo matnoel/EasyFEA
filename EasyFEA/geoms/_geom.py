@@ -240,8 +240,6 @@ class _Geom(ABC):
 
         Parameters
         ----------
-        contour : _Geom
-            geom object
         inclusions : list[_Geom], optional
             list of hollow and filled geom objects inside the domain
         extrude : Coords, optional
@@ -308,8 +306,6 @@ class _Geom(ABC):
 
         Parameters
         ----------
-        contour : _Geom
-            geometry that builds the contour
         inclusions : list[_Geom], optional
             list of hollow and filled geom objects inside the domain
         axis : Line, optional
