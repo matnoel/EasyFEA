@@ -44,9 +44,9 @@ class _Geom(ABC):
         name : str
             object name
         isHollow : bool
-            Indicates whether the the formed domain is hollow/empty
+            Indicates whether the formed geometry is hollow (i.e., contains voids).
         isOpen : bool
-            Indicates whether the object can open to represent an open crack (openCrack)
+            Indicates whether the geometry is open, for instance to represent a crack.
         """
 
         assert isinstance(points, Iterable) and isinstance(
@@ -63,7 +63,7 @@ class _Geom(ABC):
 
     @property
     def meshSize(self) -> float:
-        """element size used for meshing"""
+        """Element size used for meshing."""
         return self.__meshSize
 
     @meshSize.setter
@@ -74,16 +74,24 @@ class _Geom(ABC):
     # points doesn't have a public setter for safety
     @property
     def points(self) -> list[Point]:
-        """Points used to build the object."""
+        """The list of points used to build the geometric object."""
         return self.__points
 
     @property
     def coord(self) -> _types.FloatArray:
+        """Returns the coordinates of all points as a NumPy array."""
         return np.asarray([p.coord for p in self.points], dtype=float)
 
     @abstractmethod
     def Get_coord_for_plot(self) -> tuple[_types.FloatArray, _types.FloatArray]:
-        """Returns coordinates for constructing lines and points."""
+        """Returns lines and points coordinates for plotting.
+
+        Returns
+        -------
+        tuple of ndarray
+            Lines and points coordinates as NumPy arrays.
+        """
+
         lines = self.coord
         points = lines[[0, -1]]
         return lines, points
@@ -95,7 +103,7 @@ class _Geom(ABC):
 
     @property
     def name(self) -> str:
-        """object name"""
+        """Name of the geometric object."""
         return self.__name
 
     @name.setter
@@ -105,7 +113,7 @@ class _Geom(ABC):
 
     @property
     def isHollow(self) -> bool:
-        """Indicates whether the the formed domain is hollow/filled."""
+        """Indicates whether the formed geometry is hollow."""
         return self.__isHollow
 
     @isHollow.setter
@@ -115,7 +123,7 @@ class _Geom(ABC):
 
     @property
     def isOpen(self) -> bool:
-        """Indicates whether the object can open to represent an open crack."""
+        """Indicates whether the geometry is open, typically to model cracks."""
         return self.__isOpen
 
     @isOpen.setter
@@ -124,7 +132,18 @@ class _Geom(ABC):
         self.__isOpen = value
 
     def Translate(self, dx: float = 0.0, dy: float = 0.0, dz: float = 0.0) -> None:
-        """Translates the object."""
+        """Translates the geometry in 3D space.
+
+        Parameters
+        ----------
+        dx : float, optional
+            Translation along the x-axis, by default 0.0.
+        dy : float, optional
+            Translation along the y-axis, by default 0.0.
+        dz : float, optional
+            Translation along the z-axis, by default 0.0.
+        """
+
         # to translate an object, all you have to do is move these points
         [p.Translate(dx, dy, dz) for p in self.__points]  # type: ignore [func-returns-value]
 
@@ -148,15 +167,17 @@ class _Geom(ABC):
         dec = newCoord - oldCoord
         [point.Translate(*dec[p]) for p, point in enumerate(self.points)]  # type: ignore [func-returns-value]
 
-    def Symmetry(self, point=(0, 0, 0), n=(1, 0, 0)) -> None:
-        """Symmetrizes the object coordinates with a plane.
+    def Symmetry(
+        self, point: _types.Coords = (0, 0, 0), n: _types.Coords = (1, 0, 0)
+    ) -> None:
+        """Reflects the geometry with respect to a plane.
 
         Parameters
         ----------
-        point : tuple, optional
-            a point belonging to the plane, by default (0,0,0)
-        n : tuple, optional
-            normal to the plane, by default (1,0,0)
+        point : Coords, optional
+            A point on the reflection plane, by default (0, 0, 0).
+        n : Coords, optional
+            Normal vector of the plane, by default (1, 0, 0).
         """
 
         oldCoord = self.coord
@@ -168,7 +189,7 @@ class _Geom(ABC):
     def Mesh_2D(
         self,
         inclusions: list["_Geom"] = [],
-        elemType=ElemType.TRI3,
+        elemType: ElemType = ElemType.TRI3,
         cracks: list["CrackCompatible"] = [],
         refineGeoms: list["RefineCompatible"] = [],
         isOrganised=False,
@@ -184,7 +205,7 @@ class _Geom(ABC):
         inclusions : list[Domain, Circle, Points, Contour], optional
             list of hollow and filled geom objects inside the domain
         elemType : ElemType, optional
-            element type, by default "TRI3" ["TRI3", "TRI6", "TRI10", "QUAD4", "QUAD8"]
+            element type, by default "TRI3" ["TRI3", "TRI6", "TRI10", "TRI15", "QUAD4", "QUAD8", "QUAD9"]
         cracks : list[Line | Points | Contour | CircleArc]
             list of geom object used to create open or closed cracks
         refineGeoms : list[Domain|Circle|str], optional
@@ -227,7 +248,7 @@ class _Geom(ABC):
         inclusions: list["_Geom"] = [],
         extrude: _types.Coords = (0, 0, 1),
         layers: list[int] = [],
-        elemType=ElemType.TETRA4,
+        elemType: ElemType = ElemType.TETRA4,
         cracks: list["CrackCompatible"] = [],
         refineGeoms: list["RefineCompatible"] = [],
         isOrganised=False,
@@ -247,7 +268,7 @@ class _Geom(ABC):
         layers: list[int], optional
             layers in the extrusion, by default []
         elemType : ElemType, optional
-            element type, by default "TETRA4" ["TETRA4", "TETRA10", "HEXA8", "HEXA20", "PRISM6", "PRISM15"]
+            element type, by default "TETRA4" ["TETRA4", "TETRA10", "HEXA8", "HEXA20", "HEXA27", "PRISM6", "PRISM15", "PRISM18"]
         cracks : list[Line | Points | Contour | CircleArc]
             list of geom object used to create open or closed cracks
         refineGeoms : list[Domain|Circle|str], optional
@@ -293,7 +314,7 @@ class _Geom(ABC):
         axis: Optional["Line"] = None,
         angle=360,
         layers: list[int] = [30],
-        elemType=ElemType.TETRA4,
+        elemType: ElemType = ElemType.TETRA4,
         cracks: list["CrackCompatible"] = [],
         refineGeoms: list["RefineCompatible"] = [],
         isOrganised=False,
@@ -315,7 +336,7 @@ class _Geom(ABC):
         layers: list[int], optional
             layers in extrusion, by default [30]
         elemType : ElemType, optional
-            element type, by default "TETRA4" ["TETRA4", "TETRA10", "HEXA8", "HEXA20", "PRISM6", "PRISM15"]
+            element type, by default "TETRA4" ["TETRA4", "TETRA10", "HEXA8", "HEXA20", "HEXA27", "PRISM6", "PRISM15", "PRISM18"]
         cracks : list[Line | Points | Contour | CircleArc]
             list of geom object used to create open or closed cracks
         refineGeoms : list[Domain|Circle|str], optional
@@ -370,6 +391,28 @@ class _Geom(ABC):
         ls: Optional[str] = None,
         plotPoints: bool = True,
     ) -> _types.Axes:
+        """Plots the geometry using Matplotlib.
+
+        Parameters
+        ----------
+        ax : matplotlib axis, optional
+            Axis to plot on. If None, a new one is created.
+        color : str, optional
+            Line color.
+        name : str, optional
+            Label for the object.
+        lw : float, optional
+            Line width.
+        ls : str, optional
+            Line style.
+        plotPoints : bool, optional
+            If True, display the object's defining points.
+
+        Returns
+        -------
+        Axes
+            The axis with the plotted geometry.
+        """
 
         from ..utilities.Display import Init_Axes, _Axis_equal_3D
 
@@ -410,6 +453,29 @@ class _Geom(ABC):
         plotPoints: bool = True,
         plotLegend: bool = True,
     ) -> _types.Axes:
+        """Plots a list of geometric objects on the same axis.
+
+        Parameters
+        ----------
+        geoms : list of _Geom
+            Geometries to plot.
+        ax : matplotlib axis, optional
+            Axis to use. If None, a new one is created.
+        color : str, optional
+            Line color.
+        name : str, optional
+            Label for the geometries.
+        plotPoints : bool, optional
+            Whether to plot defining points.
+        plotLegend : bool, optional
+            Whether to display the legend.
+
+        Returns
+        -------
+        Axes
+            The axis with the plotted geometries.
+        """
+
         for g, geom in enumerate(geoms):
             if isinstance(geom, Point):
                 continue

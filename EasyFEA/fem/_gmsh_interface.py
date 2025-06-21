@@ -1252,7 +1252,7 @@ class Mesher:
         self,
         contour: _Geom,
         inclusions: list[_Geom] = [],
-        elemType=ElemType.TRI3,
+        elemType: ElemType = ElemType.TRI3,
         cracks: list[CrackCompatible] = [],
         refineGeoms: list[RefineCompatible] = [],
         isOrganised=False,
@@ -1270,7 +1270,7 @@ class Mesher:
         inclusions : list[_Geom], optional
             list of hollow and filled geom objects inside the domain
         elemType : ElemType, optional
-            element type, by default "TRI3" ["TRI3", "TRI6", "TRI10", "QUAD4", "QUAD8"]
+            element type, by default "TRI3" ["TRI3", "TRI6", "TRI10", "TRI15", "QUAD4", "QUAD8", "QUAD9"]
         cracks : list[Line | Points | Contour | CircleArc]
             list of geom object used to create open or closed cracks
         refineGeoms : list[Domain|Circle|str], optional
@@ -1339,7 +1339,7 @@ class Mesher:
         inclusions: list[_Geom] = [],
         extrude: _types.Coords = (0, 0, 1),
         layers: list[int] = [],
-        elemType=ElemType.TETRA4,
+        elemType: ElemType = ElemType.TETRA4,
         cracks: list[CrackCompatible] = [],
         refineGeoms: list[RefineCompatible] = [],
         isOrganised=False,
@@ -1361,7 +1361,7 @@ class Mesher:
         layers: list[int], optional
             layers in the extrusion, by default []
         elemType : ElemType, optional
-            element type, by default "TETRA4" ["TETRA4", "TETRA10", "HEXA8", "HEXA20", "PRISM6", "PRISM15"]
+            element type, by default "TETRA4" ["TETRA4", "TETRA10", "HEXA8", "HEXA20", "HEXA27", "PRISM6", "PRISM15", "PRISM18"]
         cracks : list[Line | Points | Contour | CircleArc]
             list of geom object used to create open or closed cracks
         refineGeoms : list[Domain|Circle|str], optional
@@ -1437,7 +1437,7 @@ class Mesher:
         axis: Line = Line(Point(), Point(0, 1)),
         angle=360,
         layers: list[int] = [30],
-        elemType=ElemType.TETRA4,
+        elemType: ElemType = ElemType.TETRA4,
         cracks: list[CrackCompatible] = [],
         refineGeoms: list[RefineCompatible] = [],
         isOrganised=False,
@@ -1461,7 +1461,7 @@ class Mesher:
         layers: list[int], optional
             layers in extrusion, by default [30]
         elemType : ElemType, optional
-            element type, by default "TETRA4" ["TETRA4", "TETRA10", "HEXA8", "HEXA20", "PRISM6", "PRISM15"]
+            element type, by default "TETRA4" ["TETRA4", "TETRA10", "HEXA8", "HEXA20", "HEXA27", "PRISM6", "PRISM15", "PRISM18"]
         cracks : list[Line | Points | Contour | CircleArc]
             list of geom object used to create open or closed cracks
         refineGeoms : list[Domain|Circle|str], optional
