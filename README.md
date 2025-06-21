@@ -5,9 +5,9 @@
 
 ![PyPI version shields.io](https://img.shields.io/pypi/v/easyfea.svg) ![PyPI - Python Version](https://img.shields.io/pypi/pyversions/easyfea) ![License: GPL v3](https://img.shields.io/badge/License-GPLv3-blue.svg) ![Codestyle black](https://img.shields.io/badge/code%20style-black-black) ![PyPI - Downloads](https://img.shields.io/pypi/dm/easyfea) ![Tests](https://github.com/matnoel/EasyFEA/actions/workflows/tests.yaml/badge.svg)
 
-## Overview
+## 🧭 Overview
 
-**EasyFEA** is a user-friendly Python library that simplifies finite element analysis. It is flexible and supports different types of simulations without requiring users to handle complex PDE formulations. The library currently supports **five** specific simulation types:
+**EasyFEA** is a user-friendly Python library that simplifies finite element analysis. It is flexible and supports different types of simulations without requiring users to handle complex PDE formulations. You will find below the finite element analysis that you can conduct using EasyFEA:
 
 1. **Linear Elastostatic and Elastodynamics simulations** 
     - [examples/Elastic](https://easyfea.readthedocs.io/en/latest/examples/Elastic/index.html)
@@ -22,8 +22,10 @@
     - [examples/Thermal](https://easyfea.readthedocs.io/en/latest/examples/Thermal/index.html)
 5. **PhaseField damage simulations for quasi-static brittle fracture** 
     - [examples/PhaseField](https://easyfea.readthedocs.io/en/latest/examples/PhaseField/index.html)
-
-All examples are available in this [gallery](https://easyfea.readthedocs.io/en/latest/examples/index.html).
+6. **Digital Image Correlation (DIC) and Parameter identification** 
+    - [external repository](https://archive.softwareheritage.org/browse/origin/directory/?origin_url=https://gitlab.univ-eiffel.fr/collaboration-msme-fcba/spruce-params)
+7. **Stochastic simulations**
+    - [external repository](https://archive.softwareheritage.org/browse/origin/directory/?origin_url=https://gitlab.univ-eiffel.fr/collaboration-msme-fcba/spruce-stochastic)
 
 For each simulation, users create a **mesh** and a **model**. Once the simulation has been set up, defining the boundary conditions, solving the problem and visualizing the results are straightforward.
 
@@ -32,7 +34,7 @@ Numerous examples of mesh creation are available in [Mesh](https://easyfea.readt
 The simplest and quickest introduction is shown below and is available in the [Beginner’s Guide](https://easyfea.readthedocs.io/en/latest/begin.html).
 
 ```python
-from EasyFEA import Display, Mesher, ElemType, Materials, Simulations
+from EasyFEA import Display, ElemType, Materials, Simulations
 from EasyFEA.Geoms import Domain
 
 # ----------------------------------------------
@@ -42,7 +44,7 @@ L = 120  # mm
 h = 13
 
 domain = Domain((0, 0), (L, h), h / 3)
-mesh = Mesher().Mesh_2D(domain, [], ElemType.QUAD9, isOrganised=True)
+mesh = domain.Mesh_2D([], ElemType.QUAD9, isOrganised=True)
 
 # ----------------------------------------------
 # Simulation
@@ -67,24 +69,24 @@ simu.Solve()
 # Results
 # ----------------------------------------------
 Display.Plot_Mesh(simu, deformFactor=10)
+Display.Plot_BoundaryConditions(simu)
 Display.Plot_Result(simu, "uy", plotMesh=True)
 Display.Plot_Result(simu, "Svm", plotMesh=True, ncolors=11)
-Display.Plot_BoundaryConditions(simu)
 
 Display.plt.show()
 ```
 
-## License
+## 📜 License
 
 Copyright (C) 2021-2025 Université Gustave Eiffel.
 
 EasyFEA is distributed under the terms of the [GNU General Public License v3.0 only](https://spdx.org/licenses/GPL-3.0-only.html), see [LICENSE.txt](https://github.com/matnoel/EasyFEA/blob/main/LICENSE.txt) and [CREDITS.md](https://github.com/matnoel/EasyFEA/blob/main/CREDITS.md) for more information.
 
-## Documentation
+## 📚 Documentation
 
 Refer to the [documentation](https://easyfea.readthedocs.io/en/latest/index.html) for detailed installation and usage details.
 
-## Installation
+## 💻  Installation
 
 EasyFEA can be easily installed from [PyPI](https://pypi.org/project/EasyFEA/) using pip, compatible with Python versions 3.9 through 3.12:
 
@@ -94,7 +96,7 @@ pip install EasyFEA
 
 You can also install EasyFEA with the [source code](https://github.com/matnoel/EasyFEA) using the `pip install .` command in the downloaded or cloned EasyFEA `folder`.
 
-### Dependencies
+### 📦 Dependencies
 
 EasyFEA uses several libraries, such as NumPy and Gmsh - as such, the following projects are required dependencies of EasyFEA:
 
@@ -108,7 +110,7 @@ EasyFEA uses several libraries, such as NumPy and Gmsh - as such, the following 
 + [`imageio`](https://pypi.org/project/imageio/) and [`imageio[ffmpeg]`](https://pypi.org/project/imageio-ffmpeg/) - Library for reading and writing a wide range of image, video, scientific, and volumetric data formats.
 + [`meshio`](https://pypi.org/project/meshio/) - I/O for many mesh formats.
 
-### Optional Dependencies
+### 🧪 Optional Dependencies
 
 EasyFEA includes a few optional dependencies for reducing resolution time or for performing DIC:
 
@@ -116,7 +118,7 @@ EasyFEA includes a few optional dependencies for reducing resolution time or for
 + [`petsc`](https://pypi.org/project/petsc/) and [`petsc4py`](https://pypi.org/project/petsc4py/) - Python bindings for PETSc.
 + [`opencv-python`](https://pypi.org/project/opencv-python/) - Computer Vision package.
 
-## Naming conventions
+## 🔤 Naming conventions
 
 **EasyFEA** uses Object-Oriented Programming ([OOP](https://en.wikipedia.org/wiki/Object-oriented_programming)) with the following naming conventions:
 + `PascalCasing` for classes
@@ -127,11 +129,11 @@ In this library, objects can contain both **public** and **private** properties 
 
 **Private** parameters or functions are designated by a double underscore, such as `__privateParam`. In addition, parameters or functions beginning with an underscore, such as `_My_Function` are accessible to advanced users, but should be used with caution.
 
-## Citing EasyFEA
+## ✍️ Citing EasyFEA
 
 If you are using EasyFEA as part of your scientific research, please contribute to the scientific visibility of the project by citing it as follows.
 
-> Matthieu Noel. EasyFEA: a user-friendly Python library that simplifies finite element analysis. 2024, https://hal.science/hal-04571962
+> Noel M., *EasyFEA: a user-friendly Python library that simplifies finite element analysis*, https://hal.science/hal-04571962
 
 Bibtex:
 
@@ -153,7 +155,18 @@ Bibtex:
 }
 ```
 
-## Contributing
+## 📘 Projects and Publications using EasyFea
+
+### 📝 Scientific Publications
+
+- Noel M. et al.,  *Parameter identification for phase-field modeling of brittle fracture in spruce wood* - Engineering Fracture Mechanics, https://doi.org/10.1016/j.engfracmech.2025.111304
+
+### 🧪 Research Projects
+
+- [Material parameters of a phase field model used to simulate brittle fracture of spruce specimens.](https://archive.softwareheritage.org/browse/origin/directory/?origin_url=https://gitlab.univ-eiffel.fr/collaboration-msme-fcba/spruce-params)
+- [Stochastic phase-field modeling of spruce wood specimens under compression.](https://archive.softwareheritage.org/browse/origin/directory/?origin_url=https://gitlab.univ-eiffel.fr/collaboration-msme-fcba/spruce-stochastic)
+
+## 🤝 Contributing
 
 **EasyFEA** is an emerging project with a strong commitment to growth and improvement. Your input and ideas are invaluable to me. I welcome your comments and advice with open arms, encouraging a culture of respect and kindness in our collaborative journey towards improvement.
 
