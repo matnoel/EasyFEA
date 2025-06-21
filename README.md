@@ -20,11 +20,11 @@
     - [examples/Beam](https://easyfea.readthedocs.io/en/latest/examples/Beam/index.html)
 4. **Thermal simulations**
     - [examples/Thermal](https://easyfea.readthedocs.io/en/latest/examples/Thermal/index.html)
-5. **PhaseField damage simulations for quasi-static brittle fracture** 
+5. **Phase-field damage simulations for quasi-static brittle fracture** 
     - [examples/PhaseField](https://easyfea.readthedocs.io/en/latest/examples/PhaseField/index.html)
 6. **Digital Image Correlation (DIC) and Parameter identification** 
     - [external repository](https://archive.softwareheritage.org/browse/origin/directory/?origin_url=https://gitlab.univ-eiffel.fr/collaboration-msme-fcba/spruce-params)
-7. **Stochastic simulations**
+7. **Stochastic phase-field simulations**
     - [external repository](https://archive.softwareheritage.org/browse/origin/directory/?origin_url=https://gitlab.univ-eiffel.fr/collaboration-msme-fcba/spruce-stochastic)
 
 For each simulation, users create a **mesh** and a **model**. Once the simulation has been set up, defining the boundary conditions, solving the problem and visualizing the results are straightforward.

@@ -21,11 +21,11 @@ EasyFEA documentation
     - :doc:`/examples/Beam <examples/Beam/index>`
 4. **Thermal simulations**:
     - :doc:`/examples/Thermal <examples/Thermal/index>`
-5. **PhaseField damage simulations for quasi-static brittle fracture**
-    - :doc:`/examples/PhaseField <examples/PhaseField/index>`.
+5. **Phase-field damage simulations for quasi-static brittle fracture**
+    - :doc:`/examples/PhaseField <examples/PhaseField/index>`
 6. **Digital Image Correlation (DIC) and Parameter identification** 
     - `external repository <https://archive.softwareheritage.org/browse/origin/directory/?origin_url=https://gitlab.univ-eiffel.fr/collaboration-msme-fcba/spruce-params>`_
-7. **Stochastic simulations**
+7. **Stochastic phase-field simulations**
     - `external repository <https://archive.softwareheritage.org/browse/origin/directory/?origin_url=https://gitlab.univ-eiffel.fr/collaboration-msme-fcba/spruce-stochastic>`_
 
 For each simulation, users create a :py:class:`~EasyFEA.fem.Mesh` and a :py:class:`~EasyFEA.materials._IModel`. Once the simulation has been set up, defining the boundary conditions, solving the problem and visualizing the results is straightforward.
