@@ -155,7 +155,7 @@ Bibtex:
 }
 ```
 
-## 📘 Projects and Publications using EasyFea
+## 📘 Projects and Publications
 
 ### 📝 Scientific Publications
 

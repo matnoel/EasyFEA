@@ -123,8 +123,8 @@ Bibtex:
         HAL_VERSION = {v1},
     }
 
-📘 Projects and Publications using EasyFea
-------------------------------------------
+📘 Projects and Publications
+----------------------------
 
 📝 Scientific Publications
 ^^^^^^^^^^^^^^^^^^^^^^^^^^
