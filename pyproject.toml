@@ -56,7 +56,6 @@ dev = [
 ]
 
 [project.urls]
-Homepage = "https://easyfea.readthedocs.io/en/latest/"
 Documentation = "https://easyfea.readthedocs.io/en/latest/"
 Repository = "https://github.com/matnoel/EasyFEA"
 Issues = "https://github.com/matnoel/EasyFEA/issues"
