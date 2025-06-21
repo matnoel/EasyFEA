@@ -294,7 +294,7 @@ def Plot_Result(
         optionTex = result
         if isinstance(result, str):
             if result == "damage":
-                optionTex = "\phi"
+                optionTex = r"\phi"
             elif result == "thermal":
                 optionTex = "T"
             elif "S" in result and ("_norm" not in result):
