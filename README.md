@@ -76,7 +76,7 @@ Display.Plot_Result(simu, "Svm", plotMesh=True, ncolors=11)
 Display.plt.show()
 ```
 
-## 📜 License
+## ⚖️ License
 
 Copyright (C) 2021-2025 Université Gustave Eiffel.
 

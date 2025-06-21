@@ -34,7 +34,7 @@ Numerous examples of mesh creation are available in the  :doc:`/examples/Meshes 
 
 The simplest and quickest introduction is available in the :ref:`begin`.
 
-📜 License
+⚖️ License
 ----------
 
 Copyright (C) 2021-2025 Université Gustave Eiffel.
