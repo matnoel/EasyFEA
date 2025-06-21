@@ -2,12 +2,17 @@
 
 This document describes the changes made to the project.
 
+## 1.4.4 (June 21, 2025):
+
+- Fixed issue [#15](https://github.com/matnoel/EasyFEA/issues/15): You can now create meshes simply by using geometric objects. 
+- Enhanced docstrings, documentation and examples.
+
 ## 1.4.3 (June 16, 2025):
 
-- Added an interface to Vizir (see issue #9).
+- Added an interface to Vizir (see issue [#9](https://github.com/matnoel/EasyFEA/issues/9)).
 - Applied `black` code formatting across the codebase (see issue #10).
-- Integrated continuous integration using GitHub Actions (see issues #11, #13, and #14).
-- Added comprehensive documentation (see issue #5).
+- Integrated continuous integration using GitHub Actions (see issues [#11](https://github.com/matnoel/EasyFEA/issues/11), [#13](https://github.com/matnoel/EasyFEA/issues/13), and [#14](https://github.com/matnoel/EasyFEA/issues/14)).
+- Added comprehensive documentation (see issue [#5](https://github.com/matnoel/EasyFEA/issues/5)).
 - Fixed tkinter issue in CI for py3.12 on windows. (see: https://github.com/matnoel/EasyFEA/actions/runs/15673958144/job/44150031408)
 
 ## 1.4.2 (June 7, 2025):
@@ -17,16 +22,16 @@ This document describes the changes made to the project.
 ## 1.4.1 (June 7, 2025):
 
 - Updated project dependency to https://github.com/matnoel/meshio.git
-- Fixed issue #9: add vizir output format
-- Fixed issue #10: format the code with black
+- Fixed issue [#9](https://github.com/matnoel/EasyFEA/issues/9): add vizir output format
+- Fixed issue [#10](https://github.com/matnoel/EasyFEA/issues/10): format the code with black
 - Fixed bug in gauss quadrature for prisms
-- Fixed issue #11: add continuous integration with github-actions
-- Fixed issue #14: test types with mypy.
+- Fixed issue [#11](https://github.com/matnoel/EasyFEA/issues/11): add continuous integration with github-actions
+- Fixed issue [#14](https://github.com/matnoel/EasyFEA/issues/14): test types with mypy.
 - Added new badges in the readme file.
 
 ## 1.4.0 (April 24, 2025):
 
-- Fixed issues #6 and #7.
+- Fixed issues [#6](https://github.com/matnoel/EasyFEA/issues/6) and [#7](https://github.com/matnoel/EasyFEA/issues/7).
 - Organized the `tests/` directory.
 - Updated hyperbolic solvers (`hht`, `newmark`, `midpoint`).
 - Created a linear algebra module for the `Trace`, `Det`, `Inv`, `TensorProd`, `Transpose`, and `Norm` functions.
