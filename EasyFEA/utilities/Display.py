@@ -35,7 +35,7 @@ if TYPE_CHECKING:
 # Plot Simu or Mesh
 # ----------------------------------------------
 def Plot_Result(
-    simu: Union["_Simu", "Mesh"],
+    obj: Union["_Simu", "Mesh"],
     result: Union[str, _types.FloatArray],
     deformFactor: _types.Number = 0.0,
     coef: _types.Number = 1.0,
@@ -56,7 +56,7 @@ def Plot_Result(
 
     Parameters
     ----------
-    obj : _Simu
+    obj : _Simu | Mesh
         simulation
     result : str | _types.FloatArray
         Result you want to display.
@@ -99,7 +99,7 @@ def Plot_Result(
 
     tic = Tic()
 
-    simu, mesh, coordo, inDim = _Init_obj(simu, deformFactor)  # type: ignore
+    simu, mesh, coordo, inDim = _Init_obj(obj, deformFactor)  # type: ignore
     plotDim = mesh.dim  # plot dimension
 
     # don't know how to display nodal values on lines
