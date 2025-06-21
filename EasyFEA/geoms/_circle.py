@@ -31,9 +31,9 @@ class Circle(_Geom):
         center: Point.PointALike,
         diam: float,
         meshSize: float = 0.0,
-        isHollow=True,
-        isOpen=False,
-        n=(0, 0, 1),
+        isHollow: bool = True,
+        isOpen: bool = False,
+        n: _types.Coords = (0, 0, 1),
     ):
         """Creates a circle according to its center, diameter and the normal vector.
 
@@ -49,7 +49,7 @@ class Circle(_Geom):
             circle is hollow/empty, by default True
         isOpen : bool, optional
             circle can be opened (openCrack), by default False
-        n : tuple, optional
+        n : Coords, optional
             normal direction to the circle, by default (0,0,1)
         """
 
@@ -207,7 +207,7 @@ class CircleArc(_Geom):
             a point belonging to the circle, by default None
         meshSize : _types.Number, optional
             size to be used for mesh construction, by default 0.0
-        n: _types.Coords, optional
+        n: Coords, optional
             normal vector to the arc circle, by default (0,0,1)
         isOpen : bool, optional
             arc can be opened, by default False

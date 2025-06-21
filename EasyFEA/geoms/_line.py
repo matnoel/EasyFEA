@@ -17,7 +17,11 @@ class Line(_Geom):
     __NLine = 0
 
     def __init__(
-        self, pt1: Point.PointALike, pt2: Point.PointALike, meshSize=0.0, isOpen=False
+        self,
+        pt1: Point.PointALike,
+        pt2: Point.PointALike,
+        meshSize: _types.Number = 0.0,
+        isOpen: bool = False,
     ):
         """Creates a line.
 

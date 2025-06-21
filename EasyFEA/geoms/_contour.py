@@ -25,7 +25,12 @@ class Contour(_Geom):
 
     __NContour = 0
 
-    def __init__(self, geoms: list[ContourCompatible], isHollow=True, isOpen=False):
+    def __init__(
+        self,
+        geoms: list[ContourCompatible],
+        isHollow: bool = True,
+        isOpen: bool = False,
+    ):
         """Creates a contour from a list of line CircleArc and points.
 
         Parameters

@@ -17,7 +17,11 @@ class Domain(_Geom):
     __NDomain = 0
 
     def __init__(
-        self, pt1: Point.PointALike, pt2: Point.PointALike, meshSize=0.0, isHollow=True
+        self,
+        pt1: Point.PointALike,
+        pt2: Point.PointALike,
+        meshSize: _types.Number = 0.0,
+        isHollow: bool = True,
     ):
         """Creates a 2d or 3d domain.
 
