@@ -137,8 +137,8 @@ Bibtex:
 - `Material parameters of a phase field model used to simulate brittle fracture of spruce specimens. <https://archive.softwareheritage.org/browse/origin/directory/?origin_url=https://gitlab.univ-eiffel.fr/collaboration-msme-fcba/spruce-params>`_
 - `Stochastic phase-field modeling of spruce wood specimens under compression. <https://archive.softwareheritage.org/browse/origin/directory/?origin_url=https://gitlab.univ-eiffel.fr/collaboration-msme-fcba/spruce-stochastic>`_
 
-✍ Contributing
---------------
+🤝 Contributing
+---------------
 
 **EasyFEA** is an emerging project with a strong commitment to growth and improvement. Your input and ideas are invaluable to me. I welcome your comments and advice with open arms, encouraging a culture of respect and kindness in our collaborative journey towards improvement.
 
