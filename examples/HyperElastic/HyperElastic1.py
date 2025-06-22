@@ -3,7 +3,7 @@
 # EasyFEA is distributed under the terms of the GNU General Public License v3, see LICENSE.txt and CREDITS.md for more information.
 
 """
-HyperElastic2
+HyperElastic1
 =============
 
 A cantilever beam undergoing bending deformation in a Lagrangian framework.
