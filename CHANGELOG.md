@@ -2,6 +2,11 @@
 
 This document describes the changes made to the project.
 
+## 1.4.5 (June 25, 2025):
+
+- Fixed issue [#16](https://github.com/matnoel/EasyFEA/issues/16): Enabled Paraview functionality without a simulation object.
+- Updated documentation links to reference external research projects.
+
 ## 1.4.4 (June 21, 2025):
 
 - Fixed issue [#15](https://github.com/matnoel/EasyFEA/issues/15): You can now create meshes simply by using geometric objects. 
