@@ -200,7 +200,7 @@ class _Simu(_IObserver, ABC):
         return np.zeros((Nn, 3))
 
     @abstractmethod
-    def Results_nodesField_elementsField(
+    def Results_nodeFields_elementFields(
         self, details=False
     ) -> tuple[list[str], list[str]]:
         """Returns lists of nodesFields and elementsFields displayed in paraview."""

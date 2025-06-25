@@ -71,7 +71,7 @@ class PhaseFieldSimu(_Simu):
 
         self.__resumeLoading = ""
 
-    def Results_nodesField_elementsField(
+    def Results_nodeFields_elementFields(
         self, details=False
     ) -> tuple[list[str], list[str]]:
         if details:

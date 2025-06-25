@@ -2142,7 +2142,7 @@ class Mesher:
         colorElems = getColor(edgeColor)
 
         # get nodes and elements field to plot
-        nodesField, elementsField = simu.Results_nodesField_elementsField(details)
+        nodesField, elementsField = simu.Results_nodeFields_elementFields(details)
         [
             results.append(result)  # type: ignore [func-returns-value]
             for result in (nodesField + elementsField)

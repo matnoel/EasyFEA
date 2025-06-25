@@ -507,7 +507,7 @@ class HyperElasticSimu(_Simu):
 
         return displacement_matrix
 
-    def Results_nodesField_elementsField(self, details=False):
+    def Results_nodeFields_elementFields(self, details=False):
         nodesField = ["displacement_matrix"]
         if details:
             elementsField = ["Green-Lagrange", "Piola-Kirchhoff"]

@@ -63,7 +63,7 @@ class BeamSimu(_Simu):
         # turn beams into observable objects
         [beam._Add_observer(self) for beam in model.beams]  # type: ignore [func-returns-value]
 
-    def Results_nodesField_elementsField(
+    def Results_nodeFields_elementFields(
         self, details=False
     ) -> tuple[list[str], list[str]]:
         if details:

@@ -164,7 +164,7 @@ if __name__ == "__main__":
         )
 
     if makeParaview:
-        Paraview.Make_Paraview(simu, folder, nodesField=["ZZ1_e"])
+        Paraview.Make_Paraview(simu, folder, nodeFields=["ZZ1_e"])
 
     if makeMovie:
 

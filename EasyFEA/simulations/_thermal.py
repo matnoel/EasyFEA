@@ -61,7 +61,7 @@ class ThermalSimu(_Simu):
     def Get_dof_n(self, problemType=None) -> int:
         return 1
 
-    def Results_nodesField_elementsField(
+    def Results_nodeFields_elementFields(
         self, details=False
     ) -> tuple[list[str], list[str]]:
         nodesField = ["thermal", "thermalDot"]

@@ -56,7 +56,7 @@ class ElasticSimu(_Simu):
         self.Set_Rayleigh_Damping_Coefs()
         self.Solver_Set_Elliptic_Algorithm()
 
-    def Results_nodesField_elementsField(
+    def Results_nodeFields_elementFields(
         self, details=False
     ) -> tuple[list[str], list[str]]:
         nodesField = ["displacement_matrix"]

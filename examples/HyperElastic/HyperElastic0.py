@@ -153,6 +153,6 @@ if __name__ == "__main__":
     print(simu)
 
     if makeParaview:
-        Paraview.Make_Paraview(simu, folder, elementsField=["Strain"])
+        Paraview.Make_Paraview(simu, folder, elementFields=["Strain"])
 
     Display.plt.show()
