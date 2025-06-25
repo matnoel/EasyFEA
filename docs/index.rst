@@ -71,7 +71,7 @@ EasyFEA uses several libraries, such as NumPy and Gmsh - as such, the following 
 + `numba <https://pypi.org/project/numba/>`_ - Compiling Python code using LLVM.
 + `pandas <https://pypi.org/project/pandas/>`_ (3.9 <= Python <= 3.12) - Powerful data structures for data analysis.
 + `imageio <https://pypi.org/project/imageio/>`_ and `imageio[ffmpeg] <https://pypi.org/project/imageio-ffmpeg/>`_ - Library for reading and writing a wide range of image, video, scientific, and volumetric data formats.
-+ `meshio <https://pypi.org/project/meshio/>`_ - I/O for many mesh formats.
++ `meshio <https://github.com/matnoel/meshio/tree/medit_higher_order_elements> - I/O for many mesh formats.
 
 🧪 Optional Dependencies
 ^^^^^^^^^^^^^^^^^^^^^^^^

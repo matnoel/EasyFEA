@@ -100,7 +100,7 @@ def _EasyFEA_to_Meshio(
         )
     except KeyError:
         raise KeyError(
-            f"To support {mesh.elemType} elements, you need to install meshio using the following meshio fork (https://github.com/matnoel/meshio)."
+            f"To support {mesh.elemType} elements, you need to install meshio using the following meshio fork (https://github.com/matnoel/meshio/tree/medit_higher_order_elements)."
         )
 
     return meshio_mesh
@@ -236,7 +236,7 @@ def Medit_to_EasyFEA(meditMesh: str) -> Mesh:
     """
 
     meshio_mesh = meshio.medit.read(meditMesh)
-    # Please note that your python's meshio must come from https://github.com/matnoel/meshio
+    # Please note that your python's meshio must come from https://github.com/matnoel/meshio/tree/medit_higher_order_elements
 
     if len(meshio_mesh.cells) == 0:
         Display.MyPrintError(
