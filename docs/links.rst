@@ -6,3 +6,8 @@
 .. _GNU: https://spdx.org/licenses/GPL-3.0-only.html
 .. _LICENSE: https://github.com/matnoel/EasyFEA/blob/main/LICENSE.txt
 .. _CREDITS: https://github.com/matnoel/EasyFEA/blob/main/CREDITS.md
+
+.. Projects 
+
+.. _SpruceParams: https://gitlab.univ-eiffel.fr/collaboration-msme-fcba/spruce-params
+.. _SpruceStochastic: https://gitlab.univ-eiffel.fr/collaboration-msme-fcba/spruce-stochastic

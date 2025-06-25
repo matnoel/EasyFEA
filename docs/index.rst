@@ -24,9 +24,9 @@ EasyFEA documentation
 5. **Phase-field damage simulations for quasi-static brittle fracture**
     - :doc:`/examples/PhaseField <examples/PhaseField/index>`
 6. **Digital Image Correlation (DIC) and Parameter identification** 
-    - `external repository <https://archive.softwareheritage.org/browse/origin/directory/?origin_url=https://gitlab.univ-eiffel.fr/collaboration-msme-fcba/spruce-params>`_
+    - `Material parameters of a phase-field model used to simulate brittle fracture of spruce specimens. <SpruceParams_>`_
 7. **Stochastic phase-field simulations**
-    - `external repository <https://archive.softwareheritage.org/browse/origin/directory/?origin_url=https://gitlab.univ-eiffel.fr/collaboration-msme-fcba/spruce-stochastic>`_
+    - `Stochastic phase-field modeling of spruce wood specimens under compression. <SpruceStochastic_>`_
 
 For each simulation, users create a :py:class:`~EasyFEA.fem.Mesh` and a :py:class:`~EasyFEA.materials._IModel`. Once the simulation has been set up, defining the boundary conditions, solving the problem and visualizing the results is straightforward.
 
@@ -71,7 +71,7 @@ EasyFEA uses several libraries, such as NumPy and Gmsh - as such, the following 
 + `numba <https://pypi.org/project/numba/>`_ - Compiling Python code using LLVM.
 + `pandas <https://pypi.org/project/pandas/>`_ (3.9 <= Python <= 3.12) - Powerful data structures for data analysis.
 + `imageio <https://pypi.org/project/imageio/>`_ and `imageio[ffmpeg] <https://pypi.org/project/imageio-ffmpeg/>`_ - Library for reading and writing a wide range of image, video, scientific, and volumetric data formats.
-+ `meshio <https://github.com/matnoel/meshio/tree/medit_higher_order_elements> - I/O for many mesh formats.
++ `meshio <https://github.com/matnoel/meshio/tree/medit_higher_order_elements>`_ - I/O for many mesh formats.
 
 🧪 Optional Dependencies
 ^^^^^^^^^^^^^^^^^^^^^^^^
@@ -134,8 +134,8 @@ Bibtex:
 🧪 Research Projects
 ^^^^^^^^^^^^^^^^^^^^
 
-- `Material parameters of a phase field model used to simulate brittle fracture of spruce specimens. <https://archive.softwareheritage.org/browse/origin/directory/?origin_url=https://gitlab.univ-eiffel.fr/collaboration-msme-fcba/spruce-params>`_
-- `Stochastic phase-field modeling of spruce wood specimens under compression. <https://archive.softwareheritage.org/browse/origin/directory/?origin_url=https://gitlab.univ-eiffel.fr/collaboration-msme-fcba/spruce-stochastic>`_
+- `Material parameters of a phase-field model used to simulate brittle fracture of spruce specimens. <SpruceParams_>`_
+- `Stochastic phase-field modeling of spruce wood specimens under compression. <SpruceStochastic_>`_
 
 🤝 Contributing
 ---------------
