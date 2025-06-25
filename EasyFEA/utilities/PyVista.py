@@ -787,6 +787,7 @@ DICT_CELL_TYPES: dict[str, tuple[pv.CellType, int]] = {
     "PRISM15": (pv.CellType.QUADRATIC_WEDGE, 26),
     "PRISM18": (pv.CellType.BIQUADRATIC_QUADRATIC_WEDGE, 32),
 }
+"""ElemType: (CellType, id)"""
 
 # reorganize the connectivity order
 # because some elements in gmsh don't have the same numbering order as in vtk
@@ -832,6 +833,7 @@ DICT_GMSH_TO_VTK: dict[str, list[int]] = {
     # nodes 8 and 9 are switch
     "TETRA10": [0, 1, 2, 3, 4, 5, 6, 7, 9, 8],
 }
+"""ElemType: list[int]"""
 
 # ----------------------------------------------
 # Functions
