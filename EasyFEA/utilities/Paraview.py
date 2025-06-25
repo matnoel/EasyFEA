@@ -14,21 +14,21 @@ from typing import TYPE_CHECKING
 from ..utilities import _types
 
 if TYPE_CHECKING:
-    from ..simulations._simu import _Simu
+    from ..simulations._simu import _Simu, Mesh
 
 
 # ----------------------------------------------
 # Paraview
 # ----------------------------------------------
-def Make_Paraview(
+def Save_simu(
     simu: "_Simu",
     folder: str,
     N: int = 200,
     details: bool = False,
-    nodesField: list[str] = [],
-    elementsField: list[str] = [],
+    nodeFields: list[str] = [],
+    elementFields: list[str] = [],
 ):
-    """Generates the paraview (.pvd and .pvu files).
+    """Generates the paraview (.pvd and .pvu files) with a simu.
 
     Parameters
     ----------
@@ -65,23 +65,23 @@ def Make_Paraview(
     times = []
     tic = Tic()
 
-    additionalNodesField = nodesField
-    additionalElementsField = elementsField
+    additionalNodesField = nodeFields
+    additionalElementsField = elementFields
 
-    nodesField, elementsField = simu.Results_nodesField_elementsField(details)
+    nodeFields, elementFields = simu.Results_nodeFields_elementFields(details)
 
     [
-        nodesField.append(n)  # type: ignore [func-returns-value]
+        nodeFields.append(n)  # type: ignore [func-returns-value]
         for n in additionalNodesField
-        if simu._Results_Check_Available(n) and n not in nodesField
+        if simu._Results_Check_Available(n) and n not in nodeFields
     ]
     [
-        elementsField.append(e)  # type: ignore [func-returns-value]
+        elementFields.append(e)  # type: ignore [func-returns-value]
         for e in additionalElementsField
-        if simu._Results_Check_Available(e) and e not in elementsField
+        if simu._Results_Check_Available(e) and e not in elementFields
     ]
 
-    if len(nodesField) == 0 and len(elementsField) == 0:
+    if len(nodeFields) == 0 and len(elementFields) == 0:
         Display.MyPrintError(
             "The simulation has no solution fields to display in paraview."
         )
@@ -91,18 +91,100 @@ def Make_Paraview(
 
     for i, iter in enumerate(iterations):
 
-        f = Folder.Join(folder, f"solution_{iter}.vtu")
+        simu.Set_Iter(iter)
 
-        __Make_vtu(simu, iter, f, nodesField=nodesField, elementsField=elementsField)
+        filename = Folder.Join(folder, f"solution_{iter}.vtu")
+
+        # get nodeResults
+        nodeResults: dict[str, _types.AnyArray] = {}
+        for nodeField in nodeFields:
+            array = simu.Result(nodeField, True)
+            nodeField = nodeField.removesuffix("_matrix")
+            nodeResults[nodeField] = array
+
+        # get elementResults
+        elementResults: dict[str, _types.AnyArray] = {}
+        for elementField in elementFields:
+            array = simu.Result(elementField, False)
+            elementResults[elementField] = array
+
+        __Make_vtu(simu.mesh, filename, nodeResults, elementResults)
 
         # vtuFiles.append(vtuFile)
-        vtuFiles.append(f"solution_{iter}.vtu")
+        vtuFiles.append(filename)
 
         times.append(tic.Tac("Paraview", "Make vtu", False))
 
         rmTime = Tic.Get_Remaining_Time(i, iterations.size - 1, times[-1])
 
-        Display.MyPrint(f"SaveParaview {i}/{iterations.size-1} {rmTime}     ", end="\r")
+        Display.MyPrint(f"Save_simu {i}/{iterations.size-1} {rmTime}     ", end="\r")
+
+    print("\n")
+
+    tic = Tic()
+
+    filenamePvd = Folder.os.path.join(folder, "simulation")
+    __Make_pvd(filenamePvd, vtuFiles)
+
+    tic.Tac("Paraview", "Make pvd", False)
+
+
+def _Save_mesh(
+    mesh: "Mesh",
+    folder: str,
+    N: int,
+    nodeFields: dict[str, list[_types.AnyArray]] = {},
+    elementFields: dict[str, list[_types.AnyArray]] = {},
+):
+    """Generates the paraview (.pvd and .pvu files) with a mesh.
+
+    Parameters
+    ----------
+    mesh : Mesh
+        mesh
+    folder: str
+        folder in which we will create the Paraview folder
+    N : int
+        number of iterations
+    nodeFields: dict[str, list[_types.AnyArray]], optional
+        Additional nodeFields, by default {}
+    elementFields: dict[str, list[_types.AnyArray]], optional
+        Additional elementFields, by default {}
+    """
+    print("\n")
+
+    vtuFiles: list[str] = []
+
+    folder = Folder.Join(folder, "Paraview")
+
+    if not Folder.Exists(folder):
+        Folder.os.makedirs(folder)
+
+    times = []
+    tic = Tic()
+
+    for iter in range(N):
+
+        filename = Folder.Join(folder, f"solution_{iter}.vtu")
+
+        nodeResults = {
+            nodeField: results[iter] for nodeField, results in nodeFields.items()
+        }
+        elementResults = {
+            elementField: results[iter]
+            for elementField, results in elementFields.items()
+        }
+
+        __Make_vtu(mesh, filename, nodeResults, elementResults)
+
+        # vtuFiles.append(vtuFile)
+        vtuFiles.append(filename)
+
+        times.append(tic.Tac("Paraview", "Make vtu", False))
+
+        rmTime = Tic.Get_Remaining_Time(iter, N - 1, times[-1])
+
+        Display.MyPrint(f"Save_mesh {iter}/{N-1} {rmTime}     ", end="\r")
 
     print("\n")
 
@@ -118,49 +200,37 @@ def Make_Paraview(
 # Functions
 # ----------------------------------------------
 def __Make_vtu(
-    simu, iter: int, filename: str, nodesField: list[str], elementsField: list[str]
+    mesh: "Mesh",
+    filename: str,
+    nodeResults: dict[str, _types.AnyArray],
+    elementResults: dict[str, _types.AnyArray],
 ):
     """Generates the .vtu files in binary format."""
 
-    simu = Display._Init_obj(simu)[0]
-
-    options = nodesField + elementsField
-
-    simu.Set_Iter(iter)
-
-    # check the compatibility of the available results
-    for option in options:
-        resultat = simu.Result(option)
-        if not (isinstance(resultat, np.ndarray) or isinstance(resultat, list)):
-            return
-
-    connect = simu.mesh.connect
+    # get mesh data
+    elemType = mesh.elemType
+    Ne = mesh.Ne
+    Nn = mesh.Nn
+    nPe = mesh.groupElem.nPe
+    inDim = mesh.inDim
 
     # reorder gmsh idx to vtk indexes
-    if simu.mesh.elemType in DICT_GMSH_TO_VTK.keys():
-        vtkIndexes = DICT_GMSH_TO_VTK[simu.mesh.elemType]
+    if elemType in DICT_GMSH_TO_VTK.keys():
+        vtkIndexes = DICT_GMSH_TO_VTK[elemType]
     else:
-        vtkIndexes = np.arange(simu.mesh.nPe).tolist()
-    connect = connect[:, vtkIndexes]
+        vtkIndexes = np.arange(nPe).tolist()
+    connect = mesh.connect[:, vtkIndexes]
 
-    coord = simu.mesh.coord
-    Ne = simu.mesh.Ne
-    Nn = simu.mesh.Nn
-    nPe = simu.mesh.groupElem.nPe
-
-    # TODO: The display of PRISM18 elements does not seem to work correctly in ParaView.
-    # The indices and VTK type seem to be correct because the display in PyVista works fine.
-    # The values on the faces seem strange.
-    paraviewType = DICT_CELL_TYPES[simu.mesh.elemType][1]
+    paraviewType = DICT_CELL_TYPES[elemType][1]
 
     types = np.ones(Ne, dtype=int) * paraviewType
 
-    # coordinates as a vector (e.g (x1, y1, y2,..., xn, yn, yn))
-    nodes = coord.ravel()
+    # coordinates as a vector (e.g (x1, y1, z1,..., xn, yn, zn))
+    nodes = mesh.coord.ravel()
     # connect as a vector (e.g (n1^1, n2^1, n3^1, ..., n1^e, n2^e, n3^e))
-    connectivity = connect.ravel()
+    connect = connect.ravel()
 
-    offsets = np.arange(nPe, nPe * Ne + 1, nPe, dtype=np.int32) - 3
+    connect_offsets = np.arange(nPe, nPe * Ne + 1, nPe, dtype=np.int32)
 
     endian_paraview = "LittleEndian"  # 'LittleEndian' 'BigEndian'
 
@@ -185,40 +255,54 @@ def __Make_vtu(
         file.write('\t\t\t<PointData scalars="scalar"> \n')
         offset = 0
         list_values_n: list[_types.FloatArray] = []  # list of nodes values
-        for result_n in nodesField:
+        for nodeField, nodeValues in nodeResults.items():
 
-            values_n = simu.Result(result_n, nodeValues=True).ravel()
-            list_values_n.append(values_n)
+            assert isinstance(
+                nodeValues, np.ndarray
+            ), "nodeValues must be a numpy array."
 
-            dof_n = values_n.size // Nn  # 1 ou 3
-            if result_n == "displacement_matrix":
-                result_n = "displacement"
+            dof_n = nodeValues.size // Nn
+
+            if dof_n == 2 and inDim == 2:
+                # add new array for z values
+                # otherwise we won’t be able to plot the deformed mesh
+                nodeValues = np.concatenate(
+                    (nodeValues.reshape(Nn, 2), np.zeros((Nn, 1))), axis=1
+                )
+                dof_n = 3
+
+            list_values_n.append(nodeValues.ravel())
+
             file.write(
-                f'\t\t\t\t<DataArray type="Float32" Name="{result_n}" NumberOfComponents="{dof_n}" format="appended" offset="{offset}" />\n'
+                f'\t\t\t\t<DataArray type="Float32" Name="{nodeField}" NumberOfComponents="{dof_n}" format="appended" offset="{offset}" />\n'
             )
-            offset = CalcOffset(offset, values_n.size)
+            offset = CalcOffset(offset, nodeValues.size)
 
         file.write("\t\t\t</PointData> \n")
 
         # Specify the elements values
         file.write("\t\t\t<CellData> \n")
         list_values_e: list[_types.FloatArray] = []
-        for result_e in elementsField:
+        for elementField, elementValues in elementResults.items():
 
-            values_e = simu.Result(result_e, nodeValues=False).ravel()
-            list_values_e.append(values_e)
+            assert isinstance(
+                elementValues, np.ndarray
+            ), "elementValues must be a numpy array."
 
-            dof_e = values_e.size // Ne
+            list_values_e.append(elementValues.ravel())
+
+            dof_n = elementValues.size // Ne
 
             file.write(
-                f'\t\t\t\t<DataArray type="Float32" Name="{result_e}" NumberOfComponents="{dof_e}" format="appended" offset="{offset}" />\n'
+                f'\t\t\t\t<DataArray type="Float32" Name="{elementField}" NumberOfComponents="{dof_n}" format="appended" offset="{offset}" />\n'
             )
-            offset = CalcOffset(offset, values_e.size)
+            offset = CalcOffset(offset, elementValues.size)
 
         file.write("\t\t\t</CellData> \n")
 
         # Points / Nodes coordinates
         file.write("\t\t\t<Points>\n")
+        # NumberOfComponents must be "3"
         file.write(
             f'\t\t\t\t<DataArray type="Float32" NumberOfComponents="3" format="appended" offset="{offset}" />\n'
         )
@@ -230,11 +314,11 @@ def __Make_vtu(
         file.write(
             f'\t\t\t\t<DataArray type="Int32" Name="connectivity" format="appended" offset="{offset}" />\n'
         )
-        offset = CalcOffset(offset, connectivity.size)
+        offset = CalcOffset(offset, connect.size)
         file.write(
             f'\t\t\t\t<DataArray type="Int32" Name="offsets" format="appended" offset="{offset}" />\n'
         )
-        offset = CalcOffset(offset, offsets.size)
+        offset = CalcOffset(offset, connect_offsets.size)
         file.write(
             f'\t\t\t\t<DataArray type="Int8" Name="types" format="appended" offset="{offset}" />\n'
         )
@@ -251,26 +335,26 @@ def __Make_vtu(
     with open(filename, "ab") as file:
 
         # Nodes values
-        for values_n in list_values_n:
-            __WriteBinary(bitSize * (values_n.size), "uint32", file)
-            __WriteBinary(values_n, "float32", file)
+        for nodeValues in list_values_n:
+            __WriteBinary(bitSize * (nodeValues.size), "uint32", file)
+            __WriteBinary(nodeValues, "float32", file)
 
         # Elements values
-        for values_e in list_values_e:
-            __WriteBinary(bitSize * (values_e.size), "uint32", file)
-            __WriteBinary(values_e, "float32", file)
+        for elementValues in list_values_e:
+            __WriteBinary(bitSize * (elementValues.size), "uint32", file)
+            __WriteBinary(elementValues, "float32", file)
 
         # Nodes
         __WriteBinary(bitSize * (nodes.size), "uint32", file)
         __WriteBinary(nodes, "float32", file)
 
         # Connectivity
-        __WriteBinary(bitSize * (connectivity.size), "uint32", file)
-        __WriteBinary(connectivity, "int32", file)
+        __WriteBinary(bitSize * (connect.size), "uint32", file)
+        __WriteBinary(connect, "int32", file)
 
         # Offsets
         __WriteBinary(bitSize * Ne, "uint32", file)
-        __WriteBinary(offsets + 3, "int32", file)
+        __WriteBinary(connect_offsets, "int32", file)
 
         # Element types
         __WriteBinary(types.size, "uint32", file)
