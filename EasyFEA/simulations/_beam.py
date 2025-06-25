@@ -66,12 +66,8 @@ class BeamSimu(_Simu):
     def Results_nodeFields_elementFields(
         self, details=False
     ) -> tuple[list[str], list[str]]:
-        if details:
-            nodesField = ["displacement_matrix"]
-            elementsField = ["Stress"]
-        else:
-            nodesField = ["displacement_matrix"]
-            elementsField = ["Stress"]
+        nodesField = ["displacement"]
+        elementsField = ["Stress"]
         return nodesField, elementsField
 
     def Get_unknowns(self, problemType=None) -> list[str]:

@@ -59,11 +59,11 @@ class ElasticSimu(_Simu):
     def Results_nodeFields_elementFields(
         self, details=False
     ) -> tuple[list[str], list[str]]:
-        nodesField = ["displacement_matrix"]
+        nodesField = ["displacement"]
         if details:
-            elementsField = ["Stress", "Strain"]
+            elementsField = ["Svm", "Stress", "Strain"]
         else:
-            elementsField = ["Stress"]
+            elementsField = ["Svm", "Stress"]
         if self.algo in AlgoType.Get_Hyperbolic_Types():
             nodesField.extend(["speed", "accel"])
         return nodesField, elementsField

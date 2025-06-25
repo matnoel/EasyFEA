@@ -74,12 +74,11 @@ class PhaseFieldSimu(_Simu):
     def Results_nodeFields_elementFields(
         self, details=False
     ) -> tuple[list[str], list[str]]:
+        nodesField = ["displacement", "damage"]
         if details:
-            nodesField = ["displacement_matrix", "damage"]
-            elementsField = ["Stress", "Strain", "psiP"]
+            elementsField = ["Svm", "Stress", "Strain", "psiP"]
         else:
-            nodesField = ["displacement_matrix", "damage"]
-            elementsField = ["Stress"]
+            elementsField = ["Svm", "Stress"]
         return nodesField, elementsField
 
     def Get_unknowns(self, problemType=None) -> list[str]:
