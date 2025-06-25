@@ -50,6 +50,8 @@ def Save_simu(
     vtuFiles: list[str] = []
 
     simu = Display._Init_obj(simu)[0]  # type: ignore
+    meshDim = simu.mesh.dim
+    Ne = simu.mesh.Ne
 
     results = simu.results
 
@@ -106,6 +108,9 @@ def Save_simu(
         elementResults: dict[str, _types.AnyArray] = {}
         for elementField in elementFields:
             array = simu.Result(elementField, False)
+            if meshDim == 3 and array.size // Ne == 6:
+                # reorder (xx, yy, zz, yz, xz, xy) to (xx, yy, zz, xy, xz, yz)
+                array = array.reshape(Ne, -1)[:, [0, 1, 2, 5, 4, 3]]
             elementResults[elementField] = array
 
         __Make_vtu(simu.mesh, filename, nodeResults, elementResults)
