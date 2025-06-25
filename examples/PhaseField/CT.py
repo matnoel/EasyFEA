@@ -218,7 +218,7 @@ else:
 # ----------------------------------------------
 
 if makeParaview:
-    Paraview.Make_Paraview(simu, folder_save)
+    Paraview.Save_simu(simu, folder_save)
 
 if makeMovie:
     PyVista.Movie_simu(

@@ -241,7 +241,7 @@ if __name__ == "__main__":
 
     if makeParaview:
         # Generate Paraview files for visualization
-        Paraview.Make_Paraview(simu, folder, details=True)
+        Paraview.Save_simu(simu, folder, details=True)
 
     # Show the total computation time
     print()

@@ -312,7 +312,7 @@ def DoSimu(split: str, regu: str):
         Display.Plot_Mesh(mesh)
 
     if saveParaview:
-        Paraview.Make_Paraview(simu, folder_save)
+        Paraview.Save_simu(simu, folder_save)
 
     if makeMovie:
         Display.Movie_Simu(

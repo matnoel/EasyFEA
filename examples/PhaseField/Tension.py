@@ -381,7 +381,7 @@ def DoSimu(split: str, regu: str):
         )
 
     if saveParaview:
-        Paraview.Make_Paraview(simu, folder_save, 400)
+        Paraview.Save_simu(simu, folder_save, 400)
 
     if makeMovie:
         Display.Movie_Simu(simu, "damage", folder_save, "damage.mp4", N=200)

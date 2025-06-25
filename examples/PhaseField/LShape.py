@@ -261,7 +261,7 @@ if __name__ == "__main__":
         )
 
     if makeParaview:
-        Paraview.Make_Paraview(simu, folder_save)
+        Paraview.Save_simu(simu, folder_save)
 
     if doSimu:
         Tic.Plot_History(folder_save, False)

@@ -312,7 +312,7 @@ def DoSimu(split: str, regu: str):
         Display.Save_fig(folder_save, "mesh", transparent=True)
 
     if saveParaview:
-        Paraview.Make_Paraview(simu, folder_save, 400)
+        Paraview.Save_simu(simu, folder_save, 400)
 
     if makeMovie:
         # PyVista.Plot_Mesh(simu.mesh).show()

@@ -148,7 +148,7 @@ if __name__ == "__main__":
     # folder=""
 
     if makeParaview:
-        Paraview.Make_Paraview(simu, folder)
+        Paraview.Save_simu(simu, folder)
 
     if makeMovie:
         Display.Movie_Simu(
