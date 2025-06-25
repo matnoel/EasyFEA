@@ -405,8 +405,6 @@ def Result_in_Strain_or_Stress_field(
         yy_e = field_e[:, 1]
         xy_e = field_e[:, 2] / coef
 
-        val_vm_e = np.sqrt(xx_e**2 + yy_e**2 - xx_e * yy_e + 3 * xy_e**2)
-
         if "xx" in result:
             result_e = xx_e
         elif "yy" in result:
@@ -414,9 +412,10 @@ def Result_in_Strain_or_Stress_field(
         elif "xy" in result:
             result_e = xy_e
         elif "vm" in result:
+            val_vm_e = np.sqrt(xx_e**2 + yy_e**2 - xx_e * yy_e + 3 * xy_e**2)
             result_e = val_vm_e
         elif result in ("Strain", "Stress", "Green-Lagrange", "Piola-Kirchhoff"):
-            result_e = np.append(field_e, val_vm_e.reshape((Ne, 1)), axis=1)
+            result_e = field_e
         else:
             raise Exception(
                 "result must be in [xx, yy, xy, vm, Strain, Stress, Green-Lagrange, Piola-Kirchhoff]"
@@ -431,16 +430,6 @@ def Result_in_Strain_or_Stress_field(
         xz_e = field_e[:, 4] / coef
         xy_e = field_e[:, 5] / coef
 
-        val_vm_e = np.sqrt(
-            (
-                (xx_e - yy_e) ** 2
-                + (yy_e - zz_e) ** 2
-                + (zz_e - xx_e) ** 2
-                + 6 * (xy_e**2 + yz_e**2 + xz_e**2)
-            )
-            / 2
-        )
-
         if "xx" in result:
             result_e = xx_e
         elif "yy" in result:
@@ -454,12 +443,21 @@ def Result_in_Strain_or_Stress_field(
         elif "xy" in result:
             result_e = xy_e
         elif "vm" in result:
+            val_vm_e = np.sqrt(
+                (
+                    (xx_e - yy_e) ** 2
+                    + (yy_e - zz_e) ** 2
+                    + (zz_e - xx_e) ** 2
+                    + 6 * (xy_e**2 + yz_e**2 + xz_e**2)
+                )
+                / 2
+            )
             result_e = val_vm_e
-        elif result == "Strain" or result == "Stress":
-            result_e = np.append(field_e, val_vm_e.reshape((Ne, 1)), axis=1)
+        elif result in ("Strain", "Stress", "Green-Lagrange", "Piola-Kirchhoff"):
+            result_e = field_e
         else:
             raise Exception(
-                "result must be in [xx, yy, zz, yz, xz, xy, vm, Strain, Stress]"
+                "result must be in [xx, yy, zz, yz, xz, xy, vm, Strain, Stress, Green-Lagrange, Piola-Kirchhoff]"
             )
 
     return result_e  # type: ignore
