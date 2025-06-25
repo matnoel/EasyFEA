@@ -23,9 +23,9 @@
 5. **Phase-field damage simulations for quasi-static brittle fracture** 
     - [examples/PhaseField](https://easyfea.readthedocs.io/en/latest/examples/PhaseField/index.html)
 6. **Digital Image Correlation (DIC) and Parameter identification** 
-    - [external repository](https://archive.softwareheritage.org/browse/origin/directory/?origin_url=https://gitlab.univ-eiffel.fr/collaboration-msme-fcba/spruce-params)
+    - [Material parameters of a phase-field model used to simulate brittle fracture of spruce specimens.](https://gitlab.univ-eiffel.fr/collaboration-msme-fcba/spruce-params)
 7. **Stochastic phase-field simulations**
-    - [external repository](https://archive.softwareheritage.org/browse/origin/directory/?origin_url=https://gitlab.univ-eiffel.fr/collaboration-msme-fcba/spruce-stochastic)
+    - [Stochastic phase-field modeling of spruce wood specimens under compression.](https://gitlab.univ-eiffel.fr/collaboration-msme-fcba/spruce-stochastic)
 
 For each simulation, users create a **mesh** and a **model**. Once the simulation has been set up, defining the boundary conditions, solving the problem and visualizing the results are straightforward.
 
@@ -163,8 +163,8 @@ Bibtex:
 
 ### 🧪 Research Projects
 
-- [Material parameters of a phase field model used to simulate brittle fracture of spruce specimens.](https://archive.softwareheritage.org/browse/origin/directory/?origin_url=https://gitlab.univ-eiffel.fr/collaboration-msme-fcba/spruce-params)
-- [Stochastic phase-field modeling of spruce wood specimens under compression.](https://archive.softwareheritage.org/browse/origin/directory/?origin_url=https://gitlab.univ-eiffel.fr/collaboration-msme-fcba/spruce-stochastic)
+- [Material parameters of a phase-field model used to simulate brittle fracture of spruce specimens.](https://gitlab.univ-eiffel.fr/collaboration-msme-fcba/spruce-params)
+- [Stochastic phase-field modeling of spruce wood specimens under compression.](https://gitlab.univ-eiffel.fr/collaboration-msme-fcba/spruce-stochastic)
 
 ## 🤝 Contributing
 
