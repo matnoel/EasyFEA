@@ -46,7 +46,7 @@ if __name__ == "__main__":
     thickness = 25
     meshSize = 42 / 10
 
-    # load
+    # sinusoidal load
     F = 13000  # N
     area = np.pi * 25 / 2 * thickness
     coefs = np.linspace(0, 1, 5)
