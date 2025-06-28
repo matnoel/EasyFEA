@@ -29,7 +29,7 @@ if __name__ == "__main__":
     # Configuration
     # ----------------------------------------------
     dim = 2
-    folder = Folder.Join(Folder.RESULTS_DIR, "Dynamics", mkdir=True)
+    folder = Folder.Join(Folder.RESULTS_DIR, "Dynamics", "Dyna1", mkdir=True)
     plotResult = True
 
     initSimu = True
