@@ -78,5 +78,5 @@ Once the simulation has been set up, defining the boundary conditions, solving t
 
 This script is available in the :doc:`HelloWorld example <examples/HelloWorld>`.
 
-For additional details, please refer to either the :doc:`EasyFEA API documentation <easyfea>` or the comprehensive collection of :doc:`Examples <examples/index>`.
+For additional details, please refer to either the :doc:`EasyFEA API documentation <api/index>` or the comprehensive collection of :doc:`Examples <examples/index>`.
 

@@ -144,16 +144,18 @@ Bibtex:
 
 To learn more about contributing to EasyFEA, please consult the `Contributing Guide <https://github.com/matnoel/EasyFEA/blob/main/CONTRIBUTING.md>`_.
 
-.. toctree::
-   :maxdepth: 1
-   :caption: Contents:
+Contents
+--------
 
-   begin
-   examples/index
-   easyfea
+.. toctree::
+    :maxdepth: 1
+
+    begin
+    examples/index
+    api/index
 
 Indices and tables
-==================
+------------------
 
 * :ref:`genindex`
 * :ref:`modindex`

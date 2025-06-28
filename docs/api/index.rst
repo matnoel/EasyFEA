@@ -9,8 +9,8 @@ EasyFEA is organized into several sub-modules. While the complete API remains ac
    :maxdepth: 1
    :caption: Modules:
 
-   easyfea/fem
-   easyfea/geoms
-   easyfea/materials
-   easyfea/simulations
-   easyfea/utilities
+   fem
+   geoms
+   materials
+   simulations
+   utilities
