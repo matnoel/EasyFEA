@@ -234,7 +234,7 @@ class HyperElasticSimu(_Simu):
 
         # check if there is any invalid element
         J_e_pg = HyperElastic.Compute_J(mesh, displacement, matrixType)
-        assert J_e_pg.min() > 0, "invalid elements det(F) < 0!"
+        assert J_e_pg.min() > 0, "Warning: det(F) < 0 - reduce load steps"
 
         # get hyper elastic matrices
         De_e_pg = HyperElastic.Compute_De(mesh, displacement, matrixType)
