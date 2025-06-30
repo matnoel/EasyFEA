@@ -641,10 +641,10 @@ class PhaseFieldSimu(_Simu):
             return
 
         damageType = ModelType.damage
-        self._Set_u_n(damageType, results[damageType])
+        self._Set_solutions(damageType, results[damageType])
 
         displacementType = ModelType.elastic
-        self._Set_u_n(displacementType, results["displacement"])
+        self._Set_solutions(displacementType, results["displacement"])
 
         # damage and displacement field will change thats why we need to update the assembled matrices
         self.__updatedDamage = False

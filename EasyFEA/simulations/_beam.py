@@ -377,7 +377,7 @@ class BeamSimu(_Simu):
         if results is None:
             return
 
-        self._Set_u_n(self.problemType, results["displacement"])
+        self._Set_solutions(self.problemType, results["displacement"])
 
         return results
 

@@ -25,7 +25,7 @@ from ..fem import Mesh, _GroupElem, BoundaryCondition, LagrangeCondition, Matrix
 from ..materials import ModelType, _IModel, Reshape_variable
 
 # simu
-from .Solvers import _Solve, _Solve_Axb, _Available_Solvers, ResolType, AlgoType
+from .Solvers import Solve_simu, _Solve_Axb, _Available_Solvers, ResolType, AlgoType
 
 
 # ----------------------------------------------
@@ -127,9 +127,9 @@ class _Simu(_IObserver, ABC):
         pass
 
     @abstractmethod
-    def Get_x0(self, problemType=None) -> _types.FloatArray:
+    def Get_x0(self, problemType: Optional[ModelType] = None) -> _types.FloatArray:
         """Returns the solution from the previous iteration."""
-        size = self.mesh.Nn * self.dim
+        size = self.mesh.Nn * self.Get_dof_n(problemType)
         return np.zeros(size)
 
     @abstractmethod
@@ -309,7 +309,7 @@ class _Simu(_IObserver, ABC):
 
         self._Check_dim_mesh_material()
 
-        self._verbosity = verbosity
+        self._verbosity: bool = verbosity
         """The simulation can write in the terminal"""
 
         self.__algo = AlgoType.elliptic
@@ -447,7 +447,7 @@ class _Simu(_IObserver, ABC):
         """Returns the solution associated with the given problem."""
         return self.__dict_u_n[problemType].copy()
 
-    def _Set_u_n(self, problemType: ModelType, values: _types.FloatArray) -> None:
+    def __Set_u_n(self, problemType: ModelType, values: _types.FloatArray) -> None:
         """Sets the solution associated with the given problem."""
         self.__Check_New_Sol_Values(problemType, values)
         self.__dict_u_n[problemType] = values
@@ -456,7 +456,7 @@ class _Simu(_IObserver, ABC):
         """Returns the speed solution associated with the given problem."""
         return self.__dict_v_n[problemType].copy()
 
-    def _Set_v_n(self, problemType: ModelType, values: _types.FloatArray) -> None:
+    def __Set_v_n(self, problemType: ModelType, values: _types.FloatArray) -> None:
         """Sets the speed solution associated with the given problem."""
         self.__Check_New_Sol_Values(problemType, values)
         self.__dict_v_n[problemType] = values
@@ -465,7 +465,7 @@ class _Simu(_IObserver, ABC):
         """Returns the acceleration solution associated with the given problem."""
         return self.__dict_a_n[problemType].copy()
 
-    def _Set_a_n(self, problemType: ModelType, values: _types.FloatArray) -> None:
+    def __Set_a_n(self, problemType: ModelType, values: _types.FloatArray) -> None:
         """Sets the acceleration solution associated with the given problem."""
         self.__Check_New_Sol_Values(problemType, values)
         self.__dict_a_n[problemType] = values
@@ -673,12 +673,58 @@ class _Simu(_IObserver, ABC):
             The solution of the simulation.
         """
 
-        self._Solver_Solve(self.problemType)
+        u, v, a = self._Solver_Solve(self.problemType)
+
+        self._Set_solutions(self.problemType, u, v, a)
 
         return self._Get_u_n(self.problemType)
 
-    def _Solver_Solve(self, problemType: ModelType) -> None:
+    def _Set_solutions(
+        self,
+        problemType: ModelType,
+        u: _types.FloatArray,
+        v: Optional[_types.FloatArray] = None,
+        a: Optional[_types.FloatArray] = None,
+    ) -> None:
+
+        self.__Set_u_n(problemType, u)
+
+        if isinstance(v, np.ndarray):
+            self.__Set_v_n(problemType, v)
+
+        if isinstance(a, np.ndarray):
+            self.__Set_a_n(problemType, a)
+
+    def _Solver_Solve(
+        self, problemType: ModelType
+    ) -> tuple[
+        _types.FloatArray, Optional[_types.FloatArray], Optional[_types.FloatArray]
+    ]:
         """Solves the problem."""
+
+        x = Solve_simu(self, problemType)
+
+        return self._Solver_Update_solutions(problemType, x)
+
+    def _Solver_Update_solutions(
+        self, problemType: ModelType, x: _types.FloatArray
+    ) -> tuple[
+        _types.FloatArray, Optional[_types.FloatArray], Optional[_types.FloatArray]
+    ]:
+        """Update solutions u, v and a according to x array.
+
+        Parameters
+        ----------
+        problemType : ModelType
+            The type of problem.
+        x : _types.FloatArray
+            computed array in `_Solver_Solve()`
+
+        Returns
+        -------
+        tuple[ _types.FloatArray, Optional[_types.FloatArray], Optional[_types.FloatArray] ]
+            returns u_np1, v_np1, a_np1
+        """
 
         # Here you need to specify the type of problem because a simulation can have several physical models
 
@@ -689,17 +735,9 @@ class _Simu(_IObserver, ABC):
         v_n = self._Get_v_n(problemType)
         a_n = self._Get_a_n(problemType)
 
-        if len(self.Bc_Lagrange) > 0:
-            # Lagrange conditions are applied.
-            resolution = ResolType.r2
-            x, lagrange = _Solve(self, problemType, resolution)
-        else:
-            resolution = ResolType.r1
-            x = _Solve(self, problemType, resolution)
-
         if algo == AlgoType.elliptic:
             u_np1 = x
-            self._Set_u_n(problemType, u_np1)
+            return u_np1, None, None
 
         elif algo == AlgoType.parabolic:
             # See Hughes 1987 Chapter 8
@@ -712,9 +750,7 @@ class _Simu(_IObserver, ABC):
             vt_np1 = u_n + ((1 - alpha) * dt * v_n)
             v_np1 = (u_np1 - vt_np1) / (alpha * dt)
 
-            # New solutions
-            self._Set_u_n(problemType, u_np1)
-            self._Set_v_n(problemType, v_np1)
+            return u_np1, v_np1, None
 
         elif algo == AlgoType.newmark:
 
@@ -732,10 +768,7 @@ class _Simu(_IObserver, ABC):
             u_np1 = ut_np1 + beta * dt**2 * a_np1
             v_np1 = vt_np1 + gamma * dt * a_np1
 
-            # New solutions
-            self._Set_u_n(problemType, u_np1)
-            self._Set_v_n(problemType, v_np1)
-            self._Set_a_n(problemType, a_np1)
+            return u_np1, v_np1, a_np1
 
         elif algo == AlgoType.midpoint:
 
@@ -756,10 +789,7 @@ class _Simu(_IObserver, ABC):
             )
             v_np1 = v_n + dt * ((1 - gamma) * a_n + gamma * a_np1)
 
-            # New solutions
-            self._Set_u_n(problemType, u_np1)
-            self._Set_v_n(problemType, v_np1)
-            self._Set_a_n(problemType, a_np1)
+            return u_np1, v_np1, a_np1
 
         elif algo == AlgoType.hht:
 
@@ -775,10 +805,7 @@ class _Simu(_IObserver, ABC):
             )
             v_np1 = v_n + dt * ((1 - gamma) * a_n + gamma * a_np1)
 
-            # New solutions
-            self._Set_u_n(problemType, u_np1)
-            self._Set_v_n(problemType, v_np1)
-            self._Set_a_n(problemType, a_np1)
+            return u_np1, v_np1, a_np1
 
         else:
             raise TypeError(f"Algo {algo} is not implemented here.")
@@ -786,7 +813,6 @@ class _Simu(_IObserver, ABC):
     def _Solver_Solve_NewtonRaphson(
         self,
         Solve: Callable[[], _types.FloatArray],
-        Apply_BC: Callable[[], None],
         tolConv=1.0e-5,
         maxIter=20,
     ) -> tuple[_types.FloatArray, int, float, list[float]]:
@@ -796,9 +822,6 @@ class _Simu(_IObserver, ABC):
         ----------
         Solve : Callable[[], _types.FloatArray]
             Solve function.
-        Apply_BC : Callable[[], None]
-            Apply boundary condition function.\n
-            Warning: The `Apply_BC()` function must call `simu.Bc_Init()` function.
         tolConv : float, optional
             threshold used to check convergence, by default 1e-5
         maxIter : int, optional
@@ -819,50 +842,38 @@ class _Simu(_IObserver, ABC):
 
         tic = Tic()
 
-        Apply_BC()
+        # init u and du
+        u = self.Get_x0(problemType)
+        delta_u = np.zeros_like(u)
 
-        # set u as dirichlet vector
-        u = self.Bc_vector_Dirichlet(problemType)
-        self._Set_u_n(problemType, u)
-
-        self.__Solver_NewtonRaphson_Update_BC()
-
+        # init convergence list
         list_res: list[float] = []
-        list_norm: list[float] = []
-        res = 0
+        list_norm_b: list[float] = []
 
         while not converged and Niter < maxIter:
 
             Niter += 1
 
-            # compute new delta_u
+            # compute delta_u and ||delta_u||
             delta_u = Solve()
+            norm_delta_u = np.linalg.norm(delta_u)
 
-            # uptate new displacement
+            # uptate displacement
             u += delta_u
-            self._Set_u_n(problemType, u)
-
-            # update boundary conditions
-            Apply_BC()
-
-            # vector = self.Bc_vector_Neumann(problemType)
-            # f = vector.reshape(self.mesh.Nn, -1)[:,1].sum()
-
-            self.__Solver_NewtonRaphson_Update_BC()
+            self.__Set_u_n(problemType, u)
 
             # compute ||b||
             b = self._Solver_Apply_Neumann(problemType)
             norm_b = sla.norm(b)
-            list_norm.append(norm_b)
+            list_norm_b.append(norm_b)
 
-            # check convergence
             if Niter == 1:
                 res = 1
             else:
-                res = np.abs(list_norm[-2] - norm_b) / list_norm[-2]
-                # res = norm_b/list_norm[0]
+                res = np.abs(list_norm_b[-2] - norm_b) / list_norm_b[-2]
             list_res.append(res)
-            converged = res < tolConv
+
+            converged = res < tolConv or norm_delta_u < tolConv
 
         timeIter = tic.Tac(f"Resolution {problemType}", "Newton iterations", False)
 
@@ -871,22 +882,6 @@ class _Simu(_IObserver, ABC):
         ), f"Newton raphson algorithm did not converged in {Niter} iterations."
 
         return u, Niter, timeIter, list_res
-
-    def __Solver_NewtonRaphson_Update_BC(self):
-        """Update the boundary conditions because the problem, previously formulated in `u`, is now formulated in `delta_u`."""
-        problemType = self.problemType
-        # apply new dirichlet bc conditions
-        previous_dirichlet = self.Bc_Dirichlet
-        previous_neumann = self.Bc_Neuman
-        self.Bc_Init()
-        for bc in previous_dirichlet:
-            self._Bc_Add_Dirichlet(
-                problemType, bc.nodes, bc.dofsValues * 0, bc.dofs, bc.unknowns
-            )
-        for bc in previous_neumann:
-            self._Bc_Add_Neumann(
-                problemType, bc.nodes, bc.dofsValues, bc.dofs, bc.unknowns
-            )
 
     def _Solver_Apply_Neumann(self, problemType: ModelType) -> sparse.csr_matrix:
         """Fill in the Neumann boundary conditions by constructing b from A x = b.
@@ -961,7 +956,7 @@ class _Simu(_IObserver, ABC):
 
                 a_n[dofsUnknown] = ai_n
 
-                self._Set_a_n(problemType, a_n)
+                self.__Set_a_n(problemType, a_n)
 
             a_n = self._Get_a_n(problemType)
 
@@ -1044,6 +1039,10 @@ class _Simu(_IObserver, ABC):
         algo = self.algo
         dofs = self.Bc_dofs_Dirichlet(problemType)
         dofsValues = self.Bc_values_Dirichlet(problemType)
+
+        if ModelType.Is_Non_Linear(problemType):
+            # du = du - u
+            dofsValues -= self._Get_u_n(problemType)[dofs]
 
         K, C, M, F = self.Get_K_C_M_F(problemType)
 

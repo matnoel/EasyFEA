@@ -230,21 +230,20 @@ class ElasticSimu(_Simu):
         if results is None:
             return
 
-        problemType = self.problemType
-
-        self._Set_u_n(self.problemType, results["displacement"])
+        u = results["displacement"]
 
         if (
             self.algo in AlgoType.Get_Hyperbolic_Types()
             and "speed" in results
             and "accel" in results
         ):
-            self._Set_v_n(problemType, results["speed"])
-            self._Set_a_n(problemType, results["accel"])
+            v = results["speed"]
+            a = results["accel"]
         else:
-            initZeros = np.zeros_like(self.displacement)
-            self._Set_v_n(problemType, initZeros)
-            self._Set_a_n(problemType, initZeros)
+            v = np.zeros_like(u)
+            a = np.zeros_like(u)
+
+        self._Set_solutions(self.problemType, u, v, a)
 
         return results
 

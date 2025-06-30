@@ -3,20 +3,14 @@
 # EasyFEA is distributed under the terms of the GNU General Public License v3, see LICENSE.txt and CREDITS.md for more information.
 
 """
-HyperElastic1
+HyperElastic2
 =============
 
-A cantilever beam undergoing bending deformation.
+A hyper elastic cube in compression.
 """
 # sphinx_gallery_thumbnail_number = -1
 
-from EasyFEA import (
-    Display,
-    ElemType,
-    Materials,
-    Simulations,
-    PyVista,
-)
+from EasyFEA import Display, ElemType, Materials, Simulations, PyVista
 from EasyFEA.Geoms import Domain
 
 if __name__ == "__main__":
@@ -27,23 +21,20 @@ if __name__ == "__main__":
     # Configuration
     # ----------------------------------------------
 
-    L = 120
-    h = 13
-    meshSize = h / 2
-
-    lmbda = 121153.84615384616  # Mpa
-    mu = 80769.23076923077
-    rho = 7850 * 1e-9  # kg/mm3
+    L = 1
+    h = 1
+    meshSize = h / 10
 
     # ----------------------------------------------
     # Mesh
     # ----------------------------------------------
 
-    contour = Domain((0, 0), (L, h), h / 3)
+    contour = Domain((0, 0), (L, h), h / 10)
 
     mesh = contour.Mesh_Extrude(
-        [], [0, 0, h], [h / meshSize], ElemType.HEXA20, isOrganised=True
+        [], [0, 0, h], [h / meshSize], ElemType.HEXA8, isOrganised=True
     )
+
     nodesX0 = mesh.Nodes_Conditions(lambda x, y, z: x == 0)
     nodesXL = mesh.Nodes_Conditions(lambda x, y, z: x == L)
 
@@ -51,14 +42,17 @@ if __name__ == "__main__":
     # Simulation
     # ----------------------------------------------
 
+    isot = Materials.ElasIsot(3, E=1, v=0.3)
+    lmbda = isot.get_lambda()
+    mu = isot.get_mu()
     mat = Materials.SaintVenantKirchhoff(3, lmbda, mu)
 
     simuHyper = Simulations.HyperElasticSimu(mesh, mat)
 
     simuHyper.Bc_Init()
+    uc = -0.3
     simuHyper.add_dirichlet(nodesX0, [0, 0, 0], simuHyper.Get_unknowns())
-    simuHyper.add_volumeLoad(mesh.nodes, [-rho * 9.81], ["y"])
-    simuHyper.add_surfLoad(nodesXL, [-800 / h / h], ["y"])
+    simuHyper.add_dirichlet(nodesXL, [uc, 0, 0], simuHyper.Get_unknowns())
 
     simuHyper.Solve()
 
@@ -67,4 +61,4 @@ if __name__ == "__main__":
     # ----------------------------------------------
 
     PyVista.Plot_BoundaryConditions(simuHyper).show()
-    PyVista.Plot(simuHyper, "uy", 1, show_edges=True).show()
+    PyVista.Plot(simuHyper, "ux", 1, show_edges=True).show()

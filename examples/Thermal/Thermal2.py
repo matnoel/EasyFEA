@@ -81,7 +81,7 @@ if __name__ == "__main__":
     # Set the parabolic algorithm for the solver
     simu.Solver_Set_Parabolic_Algorithm(alpha=0.5, dt=dt)
 
-    simu._Set_u_n(simu.problemType, np.ones(mesh.Nn) * -10)
+    simu._Set_solutions(simu.problemType, np.ones(mesh.Nn) * -10)
 
     # If plotIter is True, create a figure for result visualization
     if plotIter:

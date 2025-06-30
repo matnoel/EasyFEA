@@ -280,14 +280,19 @@ def __Check_solverLibrary(solver: str) -> str:
         return solver
 
 
-def _Solve(simu, problemType: "ModelType", resol: ResolType):
-    """Solving the problem according to the resolution type"""
-    if resol == ResolType.r1:
+def Solve_simu(simu: "_Simu", problemType: "ModelType"):
+    """Solving the simulation's problem according to the resolution type."""
+
+    resolution = ResolType.r2 if len(simu.Bc_Lagrange) > 0 else ResolType.r1
+
+    if resolution == ResolType.r1:
         return __Solver_1(simu, problemType)
-    elif resol == ResolType.r2:
-        return __Solver_2(simu, problemType)
-    elif resol == ResolType.r3:
+    elif resolution == ResolType.r2:
+        return __Solver_2(simu, problemType)[0]
+    elif resolution == ResolType.r3:
         return __Solver_3(simu, problemType)
+    else:
+        raise ValueError("Unknown resolution.")
 
 
 def __Solver_1(simu: "_Simu", problemType: "ModelType") -> _types.FloatArray:
@@ -410,7 +415,9 @@ def __Solver_3(simu: "_Simu", problemType: "ModelType"):
     A, x = simu._Solver_Apply_Dirichlet(problemType, b, ResolType.r3)
 
     # Solving the penalized matrix system
-    x = _Solve_Axb(simu, problemType, A, b, np.empty(0), np.empty(0), np.empty(0))
+    x0 = simu.Get_x0(problemType)
+    lb, ub = simu.Get_lb_ub(problemType)
+    x = _Solve_Axb(simu, problemType, A, b, x0, lb, ub)
 
     return x
 
