@@ -410,7 +410,9 @@ def __Solver_3(simu: "_Simu", problemType: "ModelType"):
     A, x = simu._Solver_Apply_Dirichlet(problemType, b, ResolType.r3)
 
     # Solving the penalized matrix system
-    x = _Solve_Axb(simu, problemType, A, b, np.empty(0), np.empty(0), np.empty(0))
+    x0 = simu.Get_x0(problemType)
+    lb, ub = simu.Get_lb_ub(problemType)
+    x = _Solve_Axb(simu, problemType, A, b, x0, lb, ub)
 
     return x
 
