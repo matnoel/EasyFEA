@@ -49,7 +49,6 @@ if __name__ == "__main__":
 
     simuHyper = Simulations.HyperElasticSimu(mesh, mat)
 
-    simuHyper.Bc_Init()
     uc = -0.3
     simuHyper.add_dirichlet(nodesX0, [0, 0, 0], simuHyper.Get_unknowns())
     simuHyper.add_dirichlet(nodesXL, [uc, 0, 0], simuHyper.Get_unknowns())

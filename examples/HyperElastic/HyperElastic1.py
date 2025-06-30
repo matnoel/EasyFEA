@@ -55,7 +55,6 @@ if __name__ == "__main__":
 
     simuHyper = Simulations.HyperElasticSimu(mesh, mat)
 
-    simuHyper.Bc_Init()
     simuHyper.add_dirichlet(nodesX0, [0, 0, 0], simuHyper.Get_unknowns())
     simuHyper.add_volumeLoad(mesh.nodes, [-rho * 9.81], ["y"])
     simuHyper.add_surfLoad(nodesXL, [-800 / h / h], ["y"])
