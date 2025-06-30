@@ -31,6 +31,15 @@ class ModelType(str, Enum):
     def __str__(self) -> str:
         return self.name
 
+    @classmethod
+    def Is_Non_Linear(cls, modelType: "ModelType"):
+        assert modelType in cls.types()
+        return modelType in [cls.hyperelastic]
+
+    @classmethod
+    def types(cls):
+        return list(cls)
+
 
 class _IModel(ABC, Observable):
     """Model interface."""
