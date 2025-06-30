@@ -4,11 +4,12 @@
 
 from scipy import sparse
 import numpy as np
-from typing import Union, Callable, Optional, TYPE_CHECKING
+from typing import Union, Optional, TYPE_CHECKING
 import pandas as pd
 
 # utilities
 from ..utilities import Tic, Display, _types
+from ..simulations.Solvers import Solve_simu
 
 # fem
 if TYPE_CHECKING:
@@ -135,17 +136,17 @@ class HyperElasticSimu(_Simu):
         return self.__K.copy(), initcsr, initcsr, self.__F.copy()
 
     def Get_x0(self, problemType=None):
-        return super().Get_x0(problemType)
+        return self.displacement
 
     def __Solve_hyperelastic(self):
 
         # compute delta_u
-        self._Solver_Solve(self.problemType)
+        delta_u = Solve_simu(self, self.problemType)
         # The new delta_u indicates that u will be updated,
         # which is why we must update the matrices.
         self.Need_Update()
 
-        return self._Get_u_n(self.problemType)
+        return delta_u
 
     def Solve(self, tolConv=1.0e-5, maxIter=20) -> _types.FloatArray:
         """Solves the hyperelastic problem using the newton raphson algorithm.

@@ -25,7 +25,7 @@ from ..fem import Mesh, _GroupElem, BoundaryCondition, LagrangeCondition, Matrix
 from ..materials import ModelType, _IModel, Reshape_variable
 
 # simu
-from .Solvers import _Solve, _Solve_Axb, _Available_Solvers, ResolType, AlgoType
+from .Solvers import Solve_simu, _Solve_Axb, _Available_Solvers, ResolType, AlgoType
 
 
 # ----------------------------------------------
@@ -127,7 +127,7 @@ class _Simu(_IObserver, ABC):
         pass
 
     @abstractmethod
-    def Get_x0(self, problemType=None) -> _types.FloatArray:
+    def Get_x0(self, problemType: Optional[ModelType] = None) -> _types.FloatArray:
         """Returns the solution from the previous iteration."""
         size = self.mesh.Nn * self.Get_dof_n(problemType)
         return np.zeros(size)
@@ -702,6 +702,30 @@ class _Simu(_IObserver, ABC):
     ]:
         """Solves the problem."""
 
+        x = Solve_simu(self, problemType)
+
+        return self._Solver_Update_solutions(problemType, x)
+
+    def _Solver_Update_solutions(
+        self, problemType: ModelType, x: _types.FloatArray
+    ) -> tuple[
+        _types.FloatArray, Optional[_types.FloatArray], Optional[_types.FloatArray]
+    ]:
+        """Update solutions u, v and a according to x array.
+
+        Parameters
+        ----------
+        problemType : ModelType
+            The type of problem.
+        x : _types.FloatArray
+            computed array in `_Solver_Solve()`
+
+        Returns
+        -------
+        tuple[ _types.FloatArray, Optional[_types.FloatArray], Optional[_types.FloatArray] ]
+            returns u_np1, v_np1, a_np1
+        """
+
         # Here you need to specify the type of problem because a simulation can have several physical models
 
         algo = self.__algo
@@ -710,14 +734,6 @@ class _Simu(_IObserver, ABC):
         u_n = self._Get_u_n(problemType)
         v_n = self._Get_v_n(problemType)
         a_n = self._Get_a_n(problemType)
-
-        if len(self.Bc_Lagrange) > 0:
-            # Lagrange conditions are applied.
-            resolution = ResolType.r2
-            x, lagrange = _Solve(self, problemType, resolution)
-        else:
-            resolution = ResolType.r1
-            x = _Solve(self, problemType, resolution)
 
         if algo == AlgoType.elliptic:
             u_np1 = x
@@ -827,46 +843,36 @@ class _Simu(_IObserver, ABC):
         tic = Tic()
 
         # init u and du
-        u = self.Bc_vector_Dirichlet(problemType)
+        u = self.Get_x0(problemType)
         delta_u = np.zeros_like(u)
 
         # init convergence list
         list_res: list[float] = []
         list_norm_b: list[float] = []
-        list_norm_delta_u: list[float] = []
-        res = 0
 
         while not converged and Niter < maxIter:
 
             Niter += 1
 
-            # compute new delta_u
+            # compute delta_u and ||delta_u||
             delta_u = Solve()
+            norm_delta_u = np.linalg.norm(delta_u)
 
-            # uptate new displacement
+            # uptate displacement
             u += delta_u
-            self.__Set_u_n(problemType, u.copy())
+            self.__Set_u_n(problemType, u)
 
             # compute ||b||
             b = self._Solver_Apply_Neumann(problemType)
             norm_b = sla.norm(b)
-
-            # known, unknown = self.Bc_dofs_known_unknown(problemType)
-            # norm_b = sla.norm(b[unknown]) / (1e-3 + sla.norm(b[known]))
-
             list_norm_b.append(norm_b)
-            norm_delta_u = np.linalg.norm(delta_u)
-            list_norm_delta_u.append(norm_delta_u)
 
-            # check convergence
             if Niter == 1:
                 res = 1
-                norm_delta_u = 1
             else:
                 res = np.abs(list_norm_b[-2] - norm_b) / list_norm_b[-2]
-                # res = norm_b / list_norm_b[1]
-
             list_res.append(res)
+
             converged = res < tolConv or norm_delta_u < tolConv
 
         timeIter = tic.Tac(f"Resolution {problemType}", "Newton iterations", False)
@@ -1033,6 +1039,10 @@ class _Simu(_IObserver, ABC):
         algo = self.algo
         dofs = self.Bc_dofs_Dirichlet(problemType)
         dofsValues = self.Bc_values_Dirichlet(problemType)
+
+        if ModelType.Is_Non_Linear(problemType):
+            # du = du - u
+            dofsValues -= self._Get_u_n(problemType)[dofs]
 
         K, C, M, F = self.Get_K_C_M_F(problemType)
 
