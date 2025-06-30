@@ -673,9 +673,7 @@ class _Simu(_IObserver, ABC):
             The solution of the simulation.
         """
 
-        u, v, a = self._Solver_Solve(self.problemType)
-
-        self._Set_solutions(self.problemType, u, v, a)
+        self._Solver_Solve(self.problemType)
 
         return self._Get_u_n(self.problemType)
 
@@ -695,16 +693,16 @@ class _Simu(_IObserver, ABC):
         if isinstance(a, np.ndarray):
             self.__Set_a_n(problemType, a)
 
-    def _Solver_Solve(
-        self, problemType: ModelType
-    ) -> tuple[
-        _types.FloatArray, Optional[_types.FloatArray], Optional[_types.FloatArray]
-    ]:
+    def _Solver_Solve(self, problemType: ModelType) -> _types.FloatArray:
         """Solves the problem."""
 
         x = Solve_simu(self, problemType)
 
-        return self._Solver_Update_solutions(problemType, x)
+        solutions = self._Solver_Update_solutions(problemType, x)
+
+        self._Set_solutions(problemType, *solutions)
+
+        return solutions[0]
 
     def _Solver_Update_solutions(
         self, problemType: ModelType, x: _types.FloatArray
