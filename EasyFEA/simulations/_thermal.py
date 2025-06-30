@@ -195,14 +195,14 @@ class ThermalSimu(_Simu):
         if results is None:
             return
 
-        problemType = self.problemType
-
-        self._Set_u_n(problemType, results["thermal"])
+        u = results["thermal"]
 
         if self.algo == AlgoType.parabolic and "thermalDot" in results:
-            self._Set_v_n(problemType, results["thermalDot"])
+            v = results["thermalDot"]
         else:
-            self._Set_v_n(problemType, np.zeros_like(self.thermal))
+            v = np.zeros_like(u)
+
+        self._Set_solutions(self.problemType, u, v)
 
         return results
 

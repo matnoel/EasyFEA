@@ -85,7 +85,7 @@ if __name__ == "__main__":
         else:
             mode = np.reshape(eigenVectors[:, n], (-1, dim))
 
-        simu._Set_u_n(simu.problemType, mode.ravel())
+        simu._Set_solutions(simu.problemType, mode.ravel())
         simu.Save_Iter()
 
         sol = np.linalg.norm(mode, axis=1)

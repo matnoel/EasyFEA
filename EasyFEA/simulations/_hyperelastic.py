@@ -147,16 +147,11 @@ class HyperElasticSimu(_Simu):
 
         return self._Get_u_n(self.problemType)
 
-    def Solve(
-        self, Apply_BC: Callable[[], None], tolConv=1.0e-5, maxIter=20
-    ) -> _types.FloatArray:
+    def Solve(self, tolConv=1.0e-5, maxIter=20) -> _types.FloatArray:
         """Solves the hyperelastic problem using the newton raphson algorithm.
 
         Parameters
         ----------
-        Apply_BC : Callable[[], None]
-            Apply boundary condition function.\n
-            Warning: The `Apply_BC()` function must call `simu.Bc_Init()` function.
         tolConv : float, optional
             threshold used to check convergence, by default 1e-5
         maxIter : int, optional
@@ -169,7 +164,7 @@ class HyperElasticSimu(_Simu):
         """
 
         u, Niter, timeIter, list_res = self._Solver_Solve_NewtonRaphson(
-            self.__Solve_hyperelastic, Apply_BC, tolConv, maxIter
+            self.__Solve_hyperelastic, tolConv, maxIter
         )
 
         # save iter parameters
@@ -229,12 +224,18 @@ class HyperElasticSimu(_Simu):
 
         # get mesh data
         matrixType = MatrixType.rigi
-        weightedJacobian_e_pg = mesh.Get_weightedJacobian_e_pg(matrixType)
+        wJ_e_pg = mesh.Get_weightedJacobian_e_pg(matrixType)
         dN_e_pg = mesh.Get_dN_e_pg(matrixType)
-        nPg = weightedJacobian_e_pg.shape[1]
+        nPg = wJ_e_pg.shape[1]
 
         # get hyperelastic data
         displacement = self.displacement
+
+        # check if there is any invalid element
+        J_e_pg = HyperElastic.Compute_J(mesh, displacement, matrixType)
+        assert J_e_pg.min() > 0, "invalid elements det(F) < 0!"
+
+        # get hyper elastic matrices
         De_e_pg = HyperElastic.Compute_De(mesh, displacement, matrixType)
         dWde_e_pg = mat.Compute_dWde(mesh, displacement, matrixType)
         d2Wde_e_pg = mat.Compute_d2Wde(mesh, displacement, matrixType)
@@ -253,12 +254,12 @@ class HyperElasticSimu(_Simu):
         B_e_pg = De_e_pg @ grad_e_pg
 
         # stiffness
-        K1_e = (weightedJacobian_e_pg * B_e_pg.T @ d2Wde_e_pg @ B_e_pg).sum(1)
-        K2_e = (weightedJacobian_e_pg * grad_e_pg.T @ Sig_e_pg @ grad_e_pg).sum(1)
+        K1_e = (wJ_e_pg * B_e_pg.T @ d2Wde_e_pg @ B_e_pg).sum(1)
+        K2_e = (wJ_e_pg * grad_e_pg.T @ Sig_e_pg @ grad_e_pg).sum(1)
         K_e = K1_e + K2_e
 
         # source
-        F_e = -(weightedJacobian_e_pg * dWde_e_pg.T @ B_e_pg).sum(1)
+        F_e = -(wJ_e_pg * dWde_e_pg.T @ B_e_pg).sum(1)
 
         # reorder xi,...,xn,yi,...yn,zi,...,zn to xi,yi,zi,...,xn,yx,zn
         reorder = np.arange(0, nPe * dim).reshape(-1, nPe).T.ravel()
@@ -294,21 +295,20 @@ class HyperElasticSimu(_Simu):
         if results is None:
             return
 
-        problemType = self.problemType
-
-        self._Set_u_n(self.problemType, results["displacement"])
+        u = results["displacement"]
 
         if (
             self.algo in AlgoType.Get_Hyperbolic_Types()
             and "speed" in results
             and "accel" in results
         ):
-            self._Set_v_n(problemType, results["speed"])
-            self._Set_a_n(problemType, results["accel"])
+            v = results["speed"]
+            a = results["accel"]
         else:
-            initZeros = np.zeros_like(self.displacement)
-            self._Set_v_n(problemType, initZeros)
-            self._Set_a_n(problemType, initZeros)
+            v = np.zeros_like(u)
+            a = np.zeros_like(u)
+
+        self._Set_solutions(self.problemType, u, v, a)
 
         return results
 
