@@ -14,9 +14,8 @@ import numpy as np
 # utilities
 from .Display import MyPrintError, MyPrint
 from ..simulations._simu import _Init_obj, _Get_values
-from . import Folder, Tic
+from . import Folder, Tic, _types, MeshIO
 from .. import Geoms
-from . import _types
 
 if TYPE_CHECKING:
     from ..simulations._simu import _Simu, Mesh
@@ -115,12 +114,12 @@ def Plot(
         pvMesh = obj
         result = result if result in pvMesh.array_names else None
     else:
-        pvMesh = _pvGrid(obj, result, deformFactor, nodeValues)
+        pvMesh = _pyVistaMesh(obj, result, deformFactor, nodeValues)
         inDim = _Init_obj(obj)[-1]
 
     if pvMesh is None:
         # something do not work during the grid creation≠
-        return
+        raise TypeError("Issue during UnstructuredGrid creation process")
 
     # apply coef to the array
     name = "array" if isinstance(result, np.ndarray) else result
@@ -384,7 +383,7 @@ def Plot_Elements(
         nodes = groupElem.nodes
         newGroupElem = GroupElemFactory.Create(gmshId, connect, coordo, nodes)
 
-        pvGroup = _pvGrid(newGroupElem)  # type: ignore [arg-type]
+        pvGroup = _pyVistaMesh(newGroupElem)  # type: ignore [arg-type]
 
         Plot(
             pvGroup,
@@ -764,76 +763,6 @@ def Movie_func(
 # Types
 # ----------------------------------------------
 
-DICT_CELL_TYPES: dict[str, tuple[pv.CellType, int]] = {
-    # (to Pyvista, to Paraview)
-    # see https://dev.pyvista.org/api/utilities/_autosummary/pyvista.celltype#pyvista.CellType
-    "SEG2": (pv.CellType.LINE, 3),
-    "SEG3": (pv.CellType.QUADRATIC_EDGE, 21),
-    "SEG4": (pv.CellType.CUBIC_LINE, 35),
-    "SEG5": (pv.CellType.HIGHER_ORDER_EDGE, 60),
-    "TRI3": (pv.CellType.TRIANGLE, 5),
-    "TRI6": (pv.CellType.QUADRATIC_TRIANGLE, 22),
-    "TRI10": (pv.CellType.LAGRANGE_TRIANGLE, 69),
-    "TRI15": (pv.CellType.LAGRANGE_TRIANGLE, 69),
-    "QUAD4": (pv.CellType.QUAD, 9),
-    "QUAD8": (pv.CellType.QUADRATIC_QUAD, 23),
-    "QUAD9": (pv.CellType.BIQUADRATIC_QUAD, 28),
-    "TETRA4": (pv.CellType.TETRA, 10),
-    "TETRA10": (pv.CellType.QUADRATIC_TETRA, 24),
-    "HEXA8": (pv.CellType.HEXAHEDRON, 12),
-    "HEXA20": (pv.CellType.QUADRATIC_HEXAHEDRON, 25),
-    "HEXA27": (pv.CellType.TRIQUADRATIC_HEXAHEDRON, 29),
-    "PRISM6": (pv.CellType.WEDGE, 13),
-    "PRISM15": (pv.CellType.QUADRATIC_WEDGE, 26),
-    "PRISM18": (pv.CellType.BIQUADRATIC_QUADRATIC_WEDGE, 32),
-}
-"""ElemType: (CellType, id)"""
-
-# reorganize the connectivity order
-# because some elements in gmsh don't have the same numbering order as in vtk
-# pyvista -> https://docs.pyvista.org/version/stable/api/core/_autosummary/pyvista.UnstructuredGrid.celltypes.html
-# vtk -> https://vtk.org/doc/nightly/html/vtkCellType_8h_source.html
-# https://dev.pyvista.org/api/utilities/_autosummary/pyvista.celltype
-# you can search for vtk elements on the internet
-DICT_GMSH_TO_VTK: dict[str, list[int]] = {
-    # https://dev.pyvista.org/api/examples/_autosummary/pyvista.examples.cells.quadratichexahedron#pyvista.examples.cells.QuadraticHexahedron
-    "HEXA20": [0, 1, 2, 3, 4, 5, 6, 7, 8, 11, 13, 9, 16, 18, 19, 17, 10, 12, 14, 15],
-    # https://dev.pyvista.org/api/examples/_autosummary/pyvista.examples.cells.triquadratichexahedron#pyvista.examples.cells.TriQuadraticHexahedron
-    "HEXA27": [
-        0,
-        1,
-        2,
-        3,
-        4,
-        5,
-        6,
-        7,
-        8,
-        11,
-        13,
-        9,
-        16,
-        18,
-        19,
-        17,
-        10,
-        12,
-        14,
-        15,
-        22,
-        23,
-        21,
-        24,
-        20,
-        25,
-        26,
-    ],
-    "PRISM15": [0, 1, 2, 3, 4, 5, 6, 9, 7, 12, 14, 13, 8, 10, 11],
-    "PRISM18": [0, 1, 2, 3, 4, 5, 6, 9, 7, 12, 14, 13, 8, 10, 11, 15, 17, 16],
-    # nodes 8 and 9 are switch
-    "TETRA10": [0, 1, 2, 3, 4, 5, 6, 7, 9, 8],
-}
-"""ElemType: list[int]"""
 
 # ----------------------------------------------
 # Functions
@@ -862,7 +791,7 @@ def _setCameraPosition(plotter: pv.Plotter, inDim: int, elevation=25, azimuth=10
     #     plotter.camera.reset_clipping_range()
 
 
-def _pvGrid(
+def _pyVistaMesh(
     obj: Union["_Simu", "Mesh"],
     result: Optional[Union[str, _types.AnyArray]] = None,
     deformFactor=0.0,
@@ -870,44 +799,23 @@ def _pvGrid(
 ) -> pv.UnstructuredGrid:
     """Creates the pyvista mesh from obj (_Simu, Mesh, _GroupElem and _Geoms object)"""
 
-    simu, mesh, coordo, __ = _Init_obj(obj, deformFactor)
+    simu, mesh, coord, __ = _Init_obj(obj, deformFactor)
 
-    elemType = mesh.elemType
-
-    if elemType not in DICT_CELL_TYPES.keys():
-        MyPrintError(f"{elemType} is not implemented yet.")
-        return None  # type: ignore [return-value]
-
-    # reorder gmsh idx to vtk indexes
-    if mesh.elemType in DICT_GMSH_TO_VTK.keys():
-        vtkIndexes = DICT_GMSH_TO_VTK[mesh.elemType]
-    else:
-        vtkIndexes = np.arange(mesh.nPe).tolist()
-
-    if mesh.elemType in ["TRI10", "TRI15"]:
-        # forced to do this because pyvista simply does not have LAGRANGE_TRIANGLE
-        # do not put in DICT_VTK_INDEXES because paraview can read LAGRANGE_TRIANGLE without changing the indices
-        vtkIndexes = np.reshape(mesh.groupElem.triangles, (-1, 3)).tolist()
-
-    connect = mesh.connect[:, vtkIndexes]
-    connect = np.reshape(connect, (-1, np.shape(vtkIndexes)[-1]))
-
-    cellType = DICT_CELL_TYPES[elemType][0]
-    pvMesh = pv.UnstructuredGrid({cellType: connect}, coordo)
+    pyVistaMesh = MeshIO.EasyFEA_to_PyVista(mesh, coord)
 
     values = _Get_values(simu, mesh, result, nodeValues)  # type: ignore [arg-type]
 
     # Add the result
     if isinstance(result, str) and result != "":
-        pvMesh[result] = values
-        pvMesh.set_active_scalars(result)
+        pyVistaMesh[result] = values
+        pyVistaMesh.set_active_scalars(result)
 
     elif isinstance(result, np.ndarray):
         name = "array"  # here result is an array
-        pvMesh[name] = values
-        pvMesh.set_active_scalars(name)
+        pyVistaMesh[name] = values
+        pyVistaMesh.set_active_scalars(name)
 
-    return pvMesh
+    return pyVistaMesh
 
 
 def _pvGeom(geom) -> Union[pv.DataSet, list[pv.DataSet]]:

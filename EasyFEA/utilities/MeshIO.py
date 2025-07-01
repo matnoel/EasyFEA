@@ -5,19 +5,18 @@
 """Module providing an interface with meshio (https://pypi.org/project/meshio/)."""
 
 import meshio
-from typing import Any
+from typing import Any, Optional
 
 from . import Folder, Display, _types
 
-from ..fem import Mesher, Mesh, ElemType
-from .PyVista import DICT_GMSH_TO_VTK, np
-
+from ..fem import Mesher, Mesh, ElemType, GroupElemFactory, _GroupElem
+from .PyVista import np, pv
 
 # ----------------------------------------------
 # TYPES
 # ----------------------------------------------
 
-DICT_MESHIO_TYPES = {
+DICT_ELEMTYPE_TO_MESHIO = {
     ElemType.POINT: "vertex",
     ElemType.SEG2: "line",
     ElemType.SEG3: "line3",
@@ -39,8 +38,78 @@ DICT_MESHIO_TYPES = {
     ElemType.PRISM15: "wedge15",
     ElemType.PRISM18: "wedge18",
 }
+"""ElemType: meshioType"""
 
-DICT_GMSH_TO_MESHIO_INDEXES = DICT_GMSH_TO_VTK
+DICT_ELEMTYPE_TO_PYVISTA: dict[ElemType, pv.CellType] = {
+    # (to Pyvista, to Paraview)
+    # see https://dev.pyvista.org/api/utilities/_autosummary/pyvista.celltype#pyvista.CellType
+    ElemType.POINT: pv.CellType.VERTEX,
+    ElemType.SEG2: pv.CellType.LINE,
+    ElemType.SEG3: pv.CellType.QUADRATIC_EDGE,
+    ElemType.SEG4: pv.CellType.CUBIC_LINE,
+    ElemType.SEG5: pv.CellType.HIGHER_ORDER_EDGE,
+    ElemType.TRI3: pv.CellType.TRIANGLE,
+    ElemType.TRI6: pv.CellType.QUADRATIC_TRIANGLE,
+    ElemType.TRI10: pv.CellType.LAGRANGE_TRIANGLE,
+    ElemType.TRI15: pv.CellType.LAGRANGE_TRIANGLE,
+    ElemType.QUAD4: pv.CellType.QUAD,
+    ElemType.QUAD8: pv.CellType.QUADRATIC_QUAD,
+    ElemType.QUAD9: pv.CellType.BIQUADRATIC_QUAD,
+    ElemType.TETRA4: pv.CellType.TETRA,
+    ElemType.TETRA10: pv.CellType.QUADRATIC_TETRA,
+    ElemType.HEXA8: pv.CellType.HEXAHEDRON,
+    ElemType.HEXA20: pv.CellType.QUADRATIC_HEXAHEDRON,
+    ElemType.HEXA27: pv.CellType.TRIQUADRATIC_HEXAHEDRON,
+    ElemType.PRISM6: pv.CellType.WEDGE,
+    ElemType.PRISM15: pv.CellType.QUADRATIC_WEDGE,
+    ElemType.PRISM18: pv.CellType.BIQUADRATIC_QUADRATIC_WEDGE,
+}
+"""ElemType: CellType"""
+
+DICT_PYVISTA_TO_ELEMTYPE: dict[pv.CellType, ElemType] = {
+    cellType: elemType for elemType, cellType in DICT_ELEMTYPE_TO_PYVISTA.items()
+}
+"""CellType: ElemType"""
+
+# ----------------------------------------------
+# INDEXES
+# ----------------------------------------------
+
+# reorganize the connectivity order
+# because some elements in gmsh don't have the same numbering order as in vtk
+# pyvista -> https://docs.pyvista.org/version/stable/api/core/_autosummary/pyvista.UnstructuredGrid.celltypes.html
+# vtk -> https://vtk.org/doc/nightly/html/vtkCellType_8h_source.html
+# https://dev.pyvista.org/api/utilities/_autosummary/pyvista.celltype
+# you can search for vtk elements on the internet
+DICT_EASYFEA_TO_VTK_INDEXES: dict[ElemType, list[int]] = {
+    # https://dev.pyvista.org/api/examples/_autosummary/pyvista.examples.cells.quadratichexahedron#pyvista.examples.cells.QuadraticHexahedron
+    # fmt: off
+    ElemType.HEXA20: [
+        0, 1, 2, 3, 4, 5, 6, 7, # vertices
+        8, 11, 13, 9, 16, 18, 19, 17, 10, 12, 14, 15 # edges
+    ],
+    # fmt: on
+    # https://dev.pyvista.org/api/examples/_autosummary/pyvista.examples.cells.triquadratichexahedron#pyvista.examples.cells.TriQuadraticHexahedron
+    # fmt: off
+    ElemType.HEXA27: [
+        0, 1, 2, 3, 4, 5, 6, 7, # vertices
+        8, 11, 13, 9, 16, 18, 19, 17, 10, 12, 14, 15, # edges
+        22, 23, 21, 24, 20, 25, # faces
+        26, # volumes
+    ],
+    # fmt: on
+    ElemType.PRISM15: [0, 1, 2, 3, 4, 5, 6, 9, 7, 12, 14, 13, 8, 10, 11],
+    ElemType.PRISM18: [0, 1, 2, 3, 4, 5, 6, 9, 7, 12, 14, 13, 8, 10, 11, 15, 17, 16],
+    # nodes 8 and 9 are switch
+    ElemType.TETRA10: [0, 1, 2, 3, 4, 5, 6, 7, 9, 8],
+}
+"""ElemType: list[int]"""
+
+DICT_VTK_TO_EASYFEA_INDEXES: dict[pv.CellType, list[int]] = {
+    DICT_ELEMTYPE_TO_PYVISTA[elemType]: [order.index(i) for i in range(len(order))]
+    for elemType, order in DICT_EASYFEA_TO_VTK_INDEXES.items()
+}
+"""CellType: list[int]"""
 
 # ----------------------------------------------
 # EasyFEA to Meshio
@@ -52,13 +121,19 @@ def _EasyFEA_to_Meshio(
 ) -> meshio.Mesh:
     """Convert EasyFEA mesh to meshio format.
 
-    Args:
-        mesh (Mesh): EasyFEA mesh object.
-        cell_name (str): Name of the cell data.
-        dict_tags_converter (dict[Any, int], optional): Dictionary converting tags to integers. Defaults to {}.
+    Parameters
+    ----------
+    mesh : Mesh
+        EasyFEA mesh object.
+    cell_name : str
+        Name of the cell data.
+    dict_tags_converter : dict[Any, int], optional
+        Dictionary converting tags to integers (default is {}).
 
-    Returns:
-        meshio.Mesh: Converted meshio mesh object.
+    Returns
+    -------
+    meshio.Mesh
+        Converted meshio mesh object.
     """
 
     assert isinstance(mesh, Mesh), "mesh must be a EasyFEA mesh!"
@@ -69,13 +144,13 @@ def _EasyFEA_to_Meshio(
 
     for elemType, groupElem in mesh.dict_groupElem.items():
 
-        if elemType in DICT_MESHIO_TYPES.keys():
-            meshioType = DICT_MESHIO_TYPES[elemType]
+        if elemType in DICT_ELEMTYPE_TO_MESHIO.keys():
+            meshioType = DICT_ELEMTYPE_TO_MESHIO[elemType]
         else:
             continue
 
-        if elemType in DICT_GMSH_TO_MESHIO_INDEXES:
-            vtKindexes = DICT_GMSH_TO_MESHIO_INDEXES[elemType]
+        if elemType in DICT_EASYFEA_TO_VTK_INDEXES:
+            vtKindexes = DICT_EASYFEA_TO_VTK_INDEXES[elemType]
         else:
             vtKindexes = np.arange(groupElem.nPe).tolist()
 
@@ -111,13 +186,19 @@ def _Meshio_to_EasyFEA(
 ) -> Mesh:
     """Convert meshio mesh to EasyFEA format.
 
-    Args:
-        meshio_mesh (meshio.Mesh): Meshio mesh object.
-        mesh_file (str): Path to the mesh file.
-        dict_tags (dict[str, _types.IntArray]): Dictionary of tags that should be contained within `meshio_mesh.cell_data_dict`.
+    Parameters
+    ----------
+    meshio_mesh : meshio.Mesh
+        Meshio mesh object.
+    mesh_file : str
+        Path to the mesh file.
+    dict_tags : dict[str, _types.IntArray]
+        Dictionary of tags that should be contained within `meshio_mesh.cell_data_dict`.
 
-    Returns:
-        Mesh: Converted EasyFEA mesh object.
+    Returns
+    -------
+    Mesh
+        Converted EasyFEA mesh object.
     """
 
     assert isinstance(meshio_mesh, meshio.Mesh), "meshio_mesh must be a meshio mesh!"
@@ -145,9 +226,12 @@ def _Meshio_to_EasyFEA(
 def _Set_Tags(mesh: Mesh, dict_tags: dict[str, _types.IntArray]):
     """Set tags for nodes and elements in the EasyFEA mesh.
 
-    Args:
-        mesh (Mesh): EasyFEA mesh object.
-        dict_tags (dict[str, _types.IntArray]): Dictionary of tags for elements.
+    Parameters
+    ----------
+    mesh : Mesh
+        EasyFEA mesh object.
+    dict_tags : dict[str, _types.IntArray]
+        Dictionary of tags for elements.
     """
 
     assert isinstance(mesh, Mesh), "mesh must be a EasyFEA mesh!"
@@ -203,15 +287,23 @@ def EasyFEA_to_Medit(
 ) -> str:
     """Convert EasyFEA mesh to Medit format.
 
-    Args:
-        mesh (Mesh): EasyFEA mesh object.
-        folder (str): Directory to save the Medit file.
-        name (str): The name of the Medit file, without the extension.
-        dict_tags_converter (dict[str, int], optional): Dictionary converting string tags to integers. Defaults to {}.
-        useBinary (bool, optional): Whether to save as binary. Defaults to False.
+    Parameters
+    ----------
+    mesh : Mesh
+        EasyFEA mesh object.
+    folder : str
+        Directory to save the Medit file.
+    name : str
+        The name of the Medit file, without the extension.
+    dict_tags_converter : dict[str, int], optional
+        Dictionary converting string tags to integers (default is {}).
+    useBinary : bool, optional
+        Whether to save as binary (default is False).
 
-    Returns:
-        str: Path to the saved Medit file.
+    Returns
+    -------
+    str
+        Path to the saved Medit file.
     """
 
     meshio_mesh = _EasyFEA_to_Meshio(mesh, "medit.ref", dict_tags_converter)
@@ -228,11 +320,15 @@ def EasyFEA_to_Medit(
 def Medit_to_EasyFEA(meditMesh: str) -> Mesh:
     """Convert Medit mesh to EasyFEA format.
 
-    Args:
-        meditMesh (str): Path to the Medit mesh file.
+    Parameters
+    ----------
+    meditMesh : str
+        Path to the Medit mesh file.
 
-    Returns:
-        Mesh: Converted EasyFEA mesh object.
+    Returns
+    -------
+    Mesh
+        Converted EasyFEA mesh object.
     """
 
     meshio_mesh = meshio.medit.read(meditMesh)
@@ -259,15 +355,23 @@ def Medit_to_EasyFEA(meditMesh: str) -> Mesh:
 def EasyFEA_to_Gmsh(mesh: Mesh, folder: str, name: str, useBinary=False) -> str:
     """Convert EasyFEA mesh to Gmsh format.
 
-    Args:
-        mesh (Mesh): EasyFEA mesh object.
-        folder (str): Directory to save the Gmsh file.
-        name (str): The name of the Gmsh file, without the extension.
-        dict_tags_converter (dict[str, int], optional): Dictionary converting string tags to integers. Defaults to {}.
-        useBinary (bool, optional): Whether to save as binary. Defaults to False.
+    Parameters
+    ----------
+    mesh : Mesh
+        EasyFEA mesh object.
+    folder : str
+        Directory to save the Gmsh file.
+    name : str
+        The name of the Gmsh file, without the extension.
+    dict_tags_converter : dict[str, int], optional
+        Dictionary converting string tags to integers (default is {}).
+    useBinary : bool, optional
+        Whether to save as binary (default is False).
 
-    Returns:
-        str: Path to the saved Gmsh file.
+    Returns
+    -------
+    str
+        Path to the saved Gmsh file.
     """
 
     # Construct dict_tags as a dictionary with string keys and int values.
@@ -313,3 +417,209 @@ def Gmsh_to_EasyFEA(gmshMesh: str) -> Mesh:
     mesh = _Meshio_to_EasyFEA(meshio_mesh, gmshMesh, dict_tags)
 
     return mesh
+
+
+# ----------------------------------------------
+# PyVista
+# ----------------------------------------------
+
+
+def EasyFEA_to_PyVista(
+    mesh: Mesh, coord: Optional[_types.FloatArray] = None, useMainGroupElem=True
+) -> pv.UnstructuredGrid:
+    """Convert EasyFEA mesh to PyVista Multiblock format.
+
+    Parameters
+    ----------
+    mesh : Mesh
+        EasyFEA mesh object.
+    coord : _types.FloatArray, optional
+        mesh coordinates, by default None
+    useMainGroupElem : bool, optional
+        Whether to save every group of elements, by default True
+
+    Returns
+    -------
+    pv.MultiBlock
+        pyvista mesh
+    """
+
+    # init dict of cell data
+    dict_cellData: dict[pv.CellType, np.ndarray] = {}
+
+    for elemType, groupElem in mesh.dict_groupElem.items():
+
+        if useMainGroupElem and groupElem is not mesh.groupElem:
+            continue
+
+        if elemType not in DICT_ELEMTYPE_TO_PYVISTA.keys():
+            Display.MyPrintError(f"{elemType} is not implemented yet.")
+            continue
+
+        # reorder gmsh idx to vtk indexes
+        if elemType in DICT_EASYFEA_TO_VTK_INDEXES.keys():
+            vtkIndexes = DICT_EASYFEA_TO_VTK_INDEXES[elemType]
+        else:
+            vtkIndexes = np.arange(groupElem.nPe).tolist()
+
+        if elemType in ["TRI10", "TRI15"]:
+            # forced to do this because pyvista simply does not have LAGRANGE_TRIANGLE
+            # do not put in DICT_VTK_INDEXES because paraview can read LAGRANGE_TRIANGLE without changing the indices
+            vtkIndexes = np.reshape(groupElem.triangles, (-1, 3)).tolist()
+
+        # get groupelem connectivity
+        connect = groupElem.connect[:, vtkIndexes]
+        connect = np.reshape(connect, (-1, np.shape(vtkIndexes)[-1]))
+
+        # create cellData
+        cellType = DICT_ELEMTYPE_TO_PYVISTA[elemType]
+        dict_cellData[cellType] = connect
+
+    # get mesh coordinates
+    coordinates = coord if isinstance(coord, np.ndarray) else mesh.coord
+
+    # get UnstructuredGrid
+    pyVistaMesh = pv.UnstructuredGrid(dict_cellData, coordinates)
+
+    return pyVistaMesh
+
+
+def PyVista_to_EasyFEA(pyVistaMesh: pv.MultiBlock) -> Mesh:
+    """Convert PyVista mesh to EasyFEA format.
+
+    Parameters
+    ----------
+    pyVistaMesh : pv.MultiBlock
+        PyVista mesh object.
+
+    Returns
+    -------
+    Mesh
+        Converted EasyFEA mesh object.
+    """
+
+    dict_groupElem: dict[ElemType, _GroupElem] = {}
+
+    if isinstance(pyVistaMesh, pv.MultiBlock):
+        pyVistaMesh = pyVistaMesh.as_unstructured_grid_blocks()
+
+        for index in range(pyVistaMesh.n_blocks):
+
+            block = pyVistaMesh.get_block(index)
+
+            if isinstance(block, pv.UnstructuredGrid):
+
+                coordGlob = block.points
+
+                cellTypes = block.celltypes.astype(int)
+
+                for cellTypeId in list(set(cellTypes)):
+
+                    # get cell and element types
+                    cellType = pv.CellType(cellTypeId)
+                    elemType = DICT_PYVISTA_TO_ELEMTYPE[cellType]
+
+                    # get connect
+                    connect = block.cells_dict[cellTypeId].astype(int)
+                    # reorder vtk idx to gmsh/easyfea indexes
+                    if cellType in DICT_VTK_TO_EASYFEA_INDEXES.keys():
+                        indexes = DICT_VTK_TO_EASYFEA_INDEXES[cellType]
+                        connect = connect[:, indexes]
+
+                    groupElem = GroupElemFactory._Create(elemType, connect, coordGlob)
+
+                    dict_groupElem[elemType] = groupElem
+
+    else:
+        raise TypeError("Must be a MultiBlock")
+
+    mesh = Mesh(dict_groupElem)
+
+    return mesh
+
+
+# ----------------------------------------------
+# Ensight
+# ----------------------------------------------
+
+
+def Ensight_to_PyVista(geoFile: str) -> pv.MultiBlock:
+    """Convert Ensight mesh to PyVista format.
+
+    Parameters
+    ----------
+    geoFile : str
+        Path to the Ensight geo file.
+
+    Returns
+    -------
+    Mesh
+        Converted PyVista mesh object.
+    """
+
+    # create case file
+    folder = Folder.Dir(geoFile)
+    name = Folder.os.path.basename(geoFile).split(".geo")[0]
+    caseFile = Folder.Join(folder, f"{name}.case")
+    with open(caseFile, "w") as f:
+        f.write("FORMAT\n")
+        f.write("type: ensight\n")
+        f.write("GEOMETRY\n")
+        f.write(f"model: 1 {name}.geo\n")
+
+    # import case to pyvista
+    reader = pv.EnSightReader(caseFile)
+    # reader.disable_all_cell_arrays()
+    # reader.disable_all_point_arrays()
+
+    # get the pyvista mesh
+    pyVistaMesh = reader.read()
+
+    # remove the created case file
+    Folder.os.remove(caseFile)
+
+    return pyVistaMesh
+
+
+def Ensight_to_EasyFEA(geoFile: str) -> Mesh:
+    """Convert Ensight mesh to EasyFEA format.
+
+    Parameters
+    ----------
+    geoFile : str
+        Path to the Ensight geo file.
+
+    Returns
+    -------
+    Mesh
+        Converted EasyFEA mesh object.
+    """
+
+    pyVistaMesh = Ensight_to_PyVista(geoFile)
+
+    mesh = PyVista_to_EasyFEA(pyVistaMesh)
+
+    return mesh
+
+
+def Ensight_to_Meshio(geoFile: str) -> Mesh:
+    """Convert Ensight mesh to Meshio format.
+
+    Parameters
+    ----------
+    geoFile : str
+        Path to the Ensight geo file.
+
+    Returns
+    -------
+    Mesh
+        Converted EasyFEA mesh object.
+    """
+
+    pyVistaMesh = Ensight_to_PyVista(geoFile)
+
+    mesh = PyVista_to_EasyFEA(pyVistaMesh)
+
+    meshioMesh = _EasyFEA_to_Meshio(mesh, "gmsh:physical", {})
+
+    return meshioMesh

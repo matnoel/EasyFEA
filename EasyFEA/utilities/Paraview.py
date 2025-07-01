@@ -8,7 +8,7 @@ import numpy as np
 
 # utilities
 from . import Display, Folder, Tic
-from .PyVista import DICT_GMSH_TO_VTK, DICT_CELL_TYPES
+from .MeshIO import DICT_EASYFEA_TO_VTK_INDEXES, DICT_ELEMTYPE_TO_PYVISTA
 
 from typing import TYPE_CHECKING
 from ..utilities import _types
@@ -221,13 +221,13 @@ def __Make_vtu(
     inDim = mesh.inDim
 
     # reorder gmsh idx to vtk indexes
-    if elemType in DICT_GMSH_TO_VTK.keys():
-        vtkIndexes = DICT_GMSH_TO_VTK[elemType]
+    if elemType in DICT_EASYFEA_TO_VTK_INDEXES.keys():
+        vtkIndexes = DICT_EASYFEA_TO_VTK_INDEXES[elemType]
     else:
         vtkIndexes = np.arange(nPe).tolist()
     connect = mesh.connect[:, vtkIndexes]
 
-    paraviewType = DICT_CELL_TYPES[elemType][1]
+    paraviewType = DICT_ELEMTYPE_TO_PYVISTA[elemType].value
 
     types = np.ones(Ne, dtype=int) * paraviewType
 
