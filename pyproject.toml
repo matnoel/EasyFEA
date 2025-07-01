@@ -6,13 +6,11 @@ build-backend = "setuptools.build_meta"
 name = "easyfea"
 version = "1.4.5"
 description = "User-friendly Python library that simplifies finite element analysis."
-authors = [
-    {name = "Matthieu Noel", email = "matthieu.noel7@gmail.com"}
-]
+authors = [{ name = "Matthieu Noel", email = "matthieu.noel7@gmail.com" }]
 readme = "README.md"
 requires-python = ">=3.9"
 keywords = ["finite-element-analysis", "phase-field", "python", "easy", "fem"]
-license = {file = "LICENSE.txt"}
+license = { file = "LICENSE.txt" }
 classifiers = [
     "Intended Audience :: Science/Research",
     "Topic :: Scientific/Engineering",
@@ -40,20 +38,9 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
-fast = [
-    "pypardiso",
-    "petsc",
-    "petsc4py",
-    "mpi4py",
-]
-cv = [
-    "opencv-python"
-]
-dev = [
-    "mypy",
-    "black",
-    "pytest",    
-]
+fast = ["pypardiso", "petsc", "petsc4py", "mpi4py"]
+cv = ["opencv-python"]
+dev = ["mypy", "black", "pytest"]
 
 [project.urls]
 Documentation = "https://easyfea.readthedocs.io/en/latest/"
@@ -62,15 +49,10 @@ Issues = "https://github.com/matnoel/EasyFEA/issues"
 Changelog = "https://github.com/matnoel/EasyFEA/blob/main/CHANGELOG.md"
 
 [tool.setuptools.packages.find]
-include = [
-    "EasyFEA",
-    "EasyFEA.*"
-]
+include = ["EasyFEA", "EasyFEA.*"]
 
 [tool.pytest.ini_options]
-testpaths = [
-    "tests",
-]
+testpaths = ["tests"]
 
 [tool.mypy]
 python_version = "3.11"
@@ -85,7 +67,7 @@ disable_error_code = [
 
 [tool.ruff]
 target-version = "py311"
-line-length = 88 # Same as Black.
+line-length = 88
 indent-width = 4
 include = ["pyproject.toml", "EasyFEA/**/*.py", "examples/**/*.py"]
 
