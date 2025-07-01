@@ -401,7 +401,7 @@ class Mesh(Observable):
         return self.groupElem.Get_jacobian_e_pg(matrixType, absoluteValues)
 
     def Get_weightedJacobian_e_pg(self, matrixType: MatrixType) -> FeArray.FeArrayALike:
-        """Returns the jacobian_e_pg * weight_pg."""
+        """Returns jacobian_e_pg * weight_pg."""
         return self.groupElem.Get_weightedJacobian_e_pg(matrixType)
 
     def Get_N_pg(self, matrixType: MatrixType) -> _types.FloatArray:

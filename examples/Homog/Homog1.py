@@ -178,14 +178,14 @@ if __name__ == "__main__":
     U_e[..., 2] = u12_e
 
     matrixType = "mass"
-    weightedJacobian_e_pg = mesh.Get_weightedJacobian_e_pg(matrixType)
+    wJ_e_pg = mesh.Get_weightedJacobian_e_pg(matrixType)
     B_e_pg = mesh.Get_B_e_pg(matrixType)
 
     C_Mat = Materials.Reshape_variable(material.C, *B_e_pg.shape[:2])
 
     # Be careful here you have to use all the area even if there are holes
     # if you use the mesh area, multiply C_hom by the porosity (1-f)
-    C_hom = (weightedJacobian_e_pg * C_Mat @ B_e_pg @ U_e).sum((0, 1)) / mesh.area
+    C_hom = (wJ_e_pg * C_Mat @ B_e_pg @ U_e).sum((0, 1)) / mesh.area
 
     if inclusion.isHollow and mesh.area != 1:
         C_hom *= 1 - f

@@ -130,11 +130,11 @@ class ElasticSimu(_Simu):
         # ------------------------------
         matrixType = MatrixType.mass
         N_pg = FeArray.asfearray(mesh.Get_N_vector_pg(matrixType)[np.newaxis])
-        weightedJacobian = mesh.Get_weightedJacobian_e_pg(matrixType)
+        wJ_e_pg = mesh.Get_weightedJacobian_e_pg(matrixType)
 
-        rho_e_pg = Reshape_variable(self.rho, *weightedJacobian.shape[:2])
+        rho_e_pg = Reshape_variable(self.rho, *wJ_e_pg.shape[:2])
 
-        Mu_e = (rho_e_pg * weightedJacobian * N_pg.T @ N_pg).sum(axis=1)
+        Mu_e = (rho_e_pg * wJ_e_pg * N_pg.T @ N_pg).sum(axis=1)
 
         if self.dim == 2:
             thickness = self.material.thickness

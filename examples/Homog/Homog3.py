@@ -158,10 +158,10 @@ if __name__ == "__main__":
     U_e[..., 2] = u12_e
 
     matrixType = "rigi"
-    weightedJacobian_e_pg = mesh_RVE.Get_weightedJacobian_e_pg(matrixType)
+    wJ_e_pg = mesh_RVE.Get_weightedJacobian_e_pg(matrixType)
     B_e_pg = mesh_RVE.Get_B_e_pg(matrixType)
 
-    C_hom = (weightedJacobian_e_pg * CMandel @ B_e_pg @ U_e).sum((0, 1)) / mesh_RVE.area
+    C_hom = (wJ_e_pg * CMandel @ B_e_pg @ U_e).sum((0, 1)) / mesh_RVE.area
 
     if isHollow:
         coef = 1 - area_inclusion / mesh_RVE.area

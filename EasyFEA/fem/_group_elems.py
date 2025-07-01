@@ -407,7 +407,7 @@ class _GroupElem(ABC):
             integrated values on elements
         """
 
-        weightedJacobian_e_pg = self.Get_weightedJacobian_e_pg(matrixType)
+        wJ_e_pg = self.Get_weightedJacobian_e_pg(matrixType)
         coord_e_pg = self.Get_GaussCoordinates_e_pg(matrixType)
         eval_e_pg: FeArray.FeArrayALike = func(
             coord_e_pg[:, :, 0], coord_e_pg[:, :, 1], coord_e_pg[:, :, 2]
@@ -415,7 +415,7 @@ class _GroupElem(ABC):
 
         eval_e_pg = FeArray.asfearray(eval_e_pg)
 
-        values_e = (weightedJacobian_e_pg * eval_e_pg).sum(1)
+        values_e = (wJ_e_pg * eval_e_pg).sum(1)
 
         return values_e
 
@@ -472,11 +472,11 @@ class _GroupElem(ABC):
 
         coordo_e_p = self.Get_GaussCoordinates_e_pg(matrixType)
 
-        weightedJacobian_e_pg = self.Get_weightedJacobian_e_pg(matrixType)
+        wJ_e_pg = self.Get_weightedJacobian_e_pg(matrixType)
 
-        size = weightedJacobian_e_pg.sum(axis=(0, 1))
+        size = wJ_e_pg.sum(axis=(0, 1))
 
-        center = (weightedJacobian_e_pg * coordo_e_p / size).sum(axis=(0, 1))
+        center = (wJ_e_pg * coordo_e_p / size).sum(axis=(0, 1))
 
         return center
 
@@ -642,9 +642,9 @@ class _GroupElem(ABC):
         jacobian_e_pg = self.Get_jacobian_e_pg(matrixType)
         weight_pg = self.Get_weight_pg(matrixType)
 
-        weightedJacobian_e_pg = np.asarray(jacobian_e_pg) * weight_pg
+        wJ_e_pg = np.asarray(jacobian_e_pg) * weight_pg
 
-        return FeArray.asfearray(weightedJacobian_e_pg)
+        return FeArray.asfearray(wJ_e_pg)
 
     def Get_invF_e_pg(self, matrixType: MatrixType) -> FeArray.FeArrayALike:
         """Returns the inverse of the transposed Jacobian matrix.\n
@@ -1173,10 +1173,10 @@ class _GroupElem(ABC):
 
         if matrixType not in self.__dict_leftDispPart.keys():
 
-            weightedJacobian_e_pg = self.Get_weightedJacobian_e_pg(matrixType)
+            wJ_e_pg = self.Get_weightedJacobian_e_pg(matrixType)
             B_e_pg = self.Get_B_e_pg(matrixType)
 
-            leftDispPart = weightedJacobian_e_pg * B_e_pg.T
+            leftDispPart = wJ_e_pg * B_e_pg.T
 
             self.__dict_leftDispPart[matrixType] = leftDispPart
 
@@ -1427,10 +1427,10 @@ class _GroupElem(ABC):
 
         if matrixType not in self.__dict_DiffusePart_e_pg.keys():
 
-            weightedJacobian_e_pg = self.Get_weightedJacobian_e_pg(matrixType)
+            wJ_e_pg = self.Get_weightedJacobian_e_pg(matrixType)
             dN_e_pg = self.Get_dN_e_pg(matrixType)
 
-            DiffusePart_e_pg = weightedJacobian_e_pg * dN_e_pg.T
+            DiffusePart_e_pg = wJ_e_pg * dN_e_pg.T
 
             self.__dict_DiffusePart_e_pg[matrixType] = DiffusePart_e_pg
 
@@ -1447,10 +1447,10 @@ class _GroupElem(ABC):
 
         if matrixType not in self.__dict_SourcePart_e_pg.keys():
 
-            weightedJacobian_e_pg = self.Get_weightedJacobian_e_pg(matrixType)
+            wJ_e_pg = self.Get_weightedJacobian_e_pg(matrixType)
             N_pg = FeArray.asfearray(self.Get_N_pg_rep(matrixType, 1)[np.newaxis])
 
-            SourcePart_e_pg = weightedJacobian_e_pg * N_pg.T
+            SourcePart_e_pg = wJ_e_pg * N_pg.T
 
             self.__dict_SourcePart_e_pg[matrixType] = SourcePart_e_pg
 

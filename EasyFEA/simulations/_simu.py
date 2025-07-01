@@ -1729,9 +1729,7 @@ class _Simu(_IObserver, ABC):
             coordo_e_p = groupElem.Get_GaussCoordinates_e_pg(matrixType, elements)
 
             N_pg = groupElem.Get_N_pg(matrixType)
-            weightedJacobian_e_pg = groupElem.Get_weightedJacobian_e_pg(matrixType)[
-                elements
-            ]
+            wJ_e_pg = groupElem.Get_weightedJacobian_e_pg(matrixType)[elements]
 
             # initialize the matrix of values for each node used by the elements and each gauss point (Ne*nPe, dir)
             values_dofs_u = np.zeros((Ne * groupElem.nPe, len(unknowns)))
@@ -1750,7 +1748,7 @@ class _Simu(_IObserver, ABC):
                     # integrate the elements
                     values_e_p = np.einsum(
                         "ep,ep,pin->epin",
-                        weightedJacobian_e_pg,
+                        wJ_e_pg,
                         eval_e_p,
                         N_pg,
                         optimize="optimal",
@@ -1761,16 +1759,14 @@ class _Simu(_IObserver, ABC):
                     eval_n = np.zeros(Nn, dtype=float)
                     eval_n[nodes] = values[u]
                     eval_e = eval_n[groupElem.connect[elements]]
-                    eval_e_p = eval_e[:, np.newaxis].repeat(
-                        weightedJacobian_e_pg.shape[1], 1
-                    )
+                    eval_e_p = eval_e[:, np.newaxis].repeat(wJ_e_pg.shape[1], 1)
                     eval_e_p = self._Bc_Integration_scale(
                         groupElem, elements, eval_e_p, matrixType
                     )
                     # integrate the elements
                     values_e_p = np.einsum(
                         "ep,epj,pin->epin",
-                        weightedJacobian_e_pg,
+                        wJ_e_pg,
                         eval_e_p,
                         N_pg,
                         optimize="optimal",

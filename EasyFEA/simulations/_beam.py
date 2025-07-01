@@ -242,13 +242,13 @@ class BeamSimu(_Simu):
 
         tic = Tic()
 
-        weightedJacobian_e_pg = mesh.Get_weightedJacobian_e_pg(matrixType)
+        wJ_e_pg = mesh.Get_weightedJacobian_e_pg(matrixType)
 
         D_e_pg = beamStructure.Calc_D_e_pg(groupElem)
 
         B_e_pg = groupElem.Get_EulerBernoulli_B_e_pg(beamStructure)
 
-        Kbeam_e = (weightedJacobian_e_pg * B_e_pg.T @ D_e_pg @ B_e_pg).sum(axis=1)
+        Kbeam_e = (wJ_e_pg * B_e_pg.T @ D_e_pg @ B_e_pg).sum(axis=1)
 
         tic.Tac("Matrix", "Construct Kbeam_e", self._verbosity)
 
@@ -261,9 +261,9 @@ class BeamSimu(_Simu):
 
         mesh = self.mesh
 
-        weightedJacobian_e_pg = mesh.Get_weightedJacobian_e_pg(matrixType)
+        wJ_e_pg = mesh.Get_weightedJacobian_e_pg(matrixType)
 
-        rho_e_pg = Reshape_variable(self.rho, *weightedJacobian_e_pg.shape[:2])
+        rho_e_pg = Reshape_variable(self.rho, *wJ_e_pg.shape[:2])
 
         area_e_pg = np.zeros_like(rho_e_pg)
 
@@ -273,7 +273,7 @@ class BeamSimu(_Simu):
 
             area_e_pg[elements] = beam.area
 
-        mass = (rho_e_pg * area_e_pg * weightedJacobian_e_pg).sum(axis=(0, 1))
+        mass = (rho_e_pg * area_e_pg * wJ_e_pg).sum(axis=(0, 1))
 
         return mass
 
@@ -289,9 +289,9 @@ class BeamSimu(_Simu):
 
         coordo_e_p = group.Get_GaussCoordinates_e_pg(matrixType)
 
-        weightedJacobian_e_pg = mesh.Get_weightedJacobian_e_pg(matrixType)
+        wJ_e_pg = mesh.Get_weightedJacobian_e_pg(matrixType)
 
-        rho_e_p = Reshape_variable(self.rho, *weightedJacobian_e_pg.shape[:2])
+        rho_e_p = Reshape_variable(self.rho, *wJ_e_pg.shape[:2])
         mass = self.mass
 
         area_e_pg = np.zeros_like(rho_e_p)
@@ -299,9 +299,7 @@ class BeamSimu(_Simu):
             elements = mesh.Elements_Tags([beam.name])
             area_e_pg[elements] = beam.area
 
-        center = (rho_e_p * area_e_pg * weightedJacobian_e_pg * coordo_e_p / mass).sum(
-            axis=(0, 1)
-        )
+        center = (rho_e_p * area_e_pg * wJ_e_pg * coordo_e_p / mass).sum(axis=(0, 1))
 
         if not isinstance(self.rho, np.ndarray):
             diff = np.linalg.norm(center - mesh.center) / np.linalg.norm(center)

@@ -450,15 +450,15 @@ class HyperElasticSimu(_Simu):
 
     def _Calc_W(self, returnScalar=True, matrixType=MatrixType.rigi):
 
-        weightedJacobian_e_pg = self.mesh.Get_weightedJacobian_e_pg(matrixType)
+        wJ_e_pg = self.mesh.Get_weightedJacobian_e_pg(matrixType)
         if self.dim == 2:
-            weightedJacobian_e_pg *= self.material.thickness
+            wJ_e_pg = self.material.thickness
         W_e_pg = self.material.Compute_W(self.mesh, self.displacement, matrixType)
 
         if returnScalar:
-            return (weightedJacobian_e_pg * W_e_pg).sum()
+            return (wJ_e_pg * W_e_pg).sum()
         else:
-            return (weightedJacobian_e_pg * W_e_pg).sum(1)
+            return (wJ_e_pg * W_e_pg).sum(1)
 
     def _Calc_GreenLagrange(self, matrixType=MatrixType.rigi):
 

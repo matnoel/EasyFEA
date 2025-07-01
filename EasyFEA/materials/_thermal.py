@@ -34,7 +34,7 @@ class Thermal(_IModel):
 
     def __str__(self) -> str:
         text = f"\n{type(self).__name__} :"
-        text += f"\nthermal conduction (k)  : {self.__k}"
+        text += f"\nthermal conductivity (k)  : {self.__k}"
         text += f"\nthermal mass capacity (c) : {self.__c}"
         return text
 
@@ -46,7 +46,7 @@ class Thermal(_IModel):
         dim : int
             model dimension
         k : float
-            thermal conduction [W m^-1]
+            thermal conductivity [W m^-1]
         c : float, optional
             mass heat capacity [J K^-1 kg^-1], by default 0.0
         thickness : float, optional
@@ -70,7 +70,7 @@ class Thermal(_IModel):
 
     @property
     def k(self) -> Union[float, _types.FloatArray]:
-        """thermal conduction [W m^-1]"""
+        """thermal conductivity [W m^-1]"""
         return self.__k
 
     @k.setter

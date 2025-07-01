@@ -113,17 +113,16 @@ class ThermalSimu(_Simu):
         thermalModel = self.thermalModel
         mesh = self.mesh
 
-        # condution part
-        conduction = thermalModel.k
-
         matrixType = MatrixType.rigi
-        weightedJacobian = mesh.Get_weightedJacobian_e_pg(matrixType)
+        wJ_e_pg = mesh.Get_weightedJacobian_e_pg(matrixType)
         dN_e_pg = mesh.Get_dN_e_pg(matrixType)
 
+        # conductivity part
+        conductivity = thermalModel.k
         if thermalModel.isHeterogeneous:
-            conduction = Reshape_variable(conduction, *weightedJacobian.shape[:2])
+            conductivity = Reshape_variable(conductivity, *wJ_e_pg.shape[:2])
 
-        Kt_e = (conduction * weightedJacobian * dN_e_pg.T @ dN_e_pg).sum(axis=1)
+        Kt_e = (conductivity * wJ_e_pg * dN_e_pg.T @ dN_e_pg).sum(axis=1)
 
         # reaction part
         rho = self.rho
@@ -133,11 +132,12 @@ class ThermalSimu(_Simu):
         reactionPart = mesh.Get_ReactionPart_e_pg(matrixType)
 
         if thermalModel.isHeterogeneous:
-            rho = Reshape_variable(rho, *weightedJacobian.shape[:2])
+            rho = Reshape_variable(rho, *wJ_e_pg.shape[:2])
             heatCapacity = Reshape_variable(heatCapacity, *reactionPart.shape[:2])
 
         Ct_e = (rho * heatCapacity * reactionPart).sum(axis=1)
 
+        # rescale
         if self.dim == 2:
             thickness = thermalModel.thickness
             Kt_e *= thickness

@@ -295,7 +295,7 @@ class DIC(_IObserver):
         # Build the Laplacian operator (R)
         # ----------------------------------------------
         matrixType = MatrixType.mass
-        weigthedJacobian_e_pg = mesh.Get_weightedJacobian_e_pg(matrixType)  # (Ne, nPg)
+        wJ_e_pg = mesh.Get_weightedJacobian_e_pg(matrixType)  # (Ne, nPg)
         dN_e_pg = mesh.Get_dN_e_pg(matrixType)  # (Ne, nPg, dim, nPe)
 
         dNdx = dN_e_pg[:, :, 0]
@@ -309,11 +309,11 @@ class DIC(_IObserver):
 
         dN_x[:, :, 0, ind_x] = dNdx
         dN_x[:, :, 1, ind_y] = dNdx
-        Bx_e = (weigthedJacobian_e_pg * dN_x.T @ dN_x).sum(1)
+        Bx_e = (wJ_e_pg * dN_x.T @ dN_x).sum(1)
 
         dN_y[:, :, 0, ind_x] = dNdy
         dN_y[:, :, 1, ind_y] = dNdy
-        By_e = (weigthedJacobian_e_pg * dN_y.T @ dN_y).sum(1)
+        By_e = (wJ_e_pg * dN_y.T @ dN_y).sum(1)
 
         B_e = Bx_e + By_e
 
