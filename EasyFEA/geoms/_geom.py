@@ -15,8 +15,9 @@ from typing import Union, Optional, Iterable, TYPE_CHECKING
 from ..utilities import _types
 
 if TYPE_CHECKING:
-    from ..geoms import Point, Line, Circle, CircleArc, Points, Contour
+    from ..geoms import Point, Line, Circle, CircleArc, Points, Contour, Domain
 
+    GeomCompatible = Union[Domain, Circle, Points, Contour]
     ContourCompatible = Union[Line, CircleArc, Points]
     CrackCompatible = Union[Line, Points, Contour, CircleArc]
     RefineCompatible = Union[Point, Circle, str]
@@ -188,12 +189,12 @@ class _Geom(ABC):
 
     def Mesh_2D(
         self,
-        inclusions: list["_Geom"] = [],
+        inclusions: list["GeomCompatible"] = [],
         elemType: ElemType = ElemType.TRI3,
         cracks: list["CrackCompatible"] = [],
         refineGeoms: list["RefineCompatible"] = [],
         isOrganised=False,
-        additionalSurfaces: list["_Geom"] = [],
+        additionalSurfaces: list["GeomCompatible"] = [],
         additionalLines: list[Union["Line", "CircleArc"]] = [],
         additionalPoints: list["Point"] = [],
         folder="",
@@ -212,7 +213,7 @@ class _Geom(ABC):
             list of geom object for mesh refinement, by default []
         isOrganised : bool, optional
             mesh is organized, by default False
-        additionalSurfaces : list[_Geom]
+        additionalSurfaces : list[Domain, Circle, Points, Contour]
             additional surfaces that will be added to or removed from the surfaces created by the contour and the inclusions. (e.g Domain, Circle, Contour, Points). Tip: if the mesh is not well generated, you can also give the inclusions.
         additionalLines : list[Union[Line,CircleArc]]
             additional lines that will be added to the surfaces created by the contour and the inclusions. (e.g Domain, Circle, Contour, Points). WARNING: lines must be within the domain.
@@ -245,14 +246,14 @@ class _Geom(ABC):
 
     def Mesh_Extrude(
         self,
-        inclusions: list["_Geom"] = [],
+        inclusions: list["GeomCompatible"] = [],
         extrude: _types.Coords = (0, 0, 1),
         layers: list[int] = [],
         elemType: ElemType = ElemType.TETRA4,
         cracks: list["CrackCompatible"] = [],
         refineGeoms: list["RefineCompatible"] = [],
         isOrganised=False,
-        additionalSurfaces: list["_Geom"] = [],
+        additionalSurfaces: list["GeomCompatible"] = [],
         additionalLines: list[Union["Line", "CircleArc"]] = [],
         additionalPoints: list["Point"] = [],
         folder="",
@@ -261,7 +262,7 @@ class _Geom(ABC):
 
         Parameters
         ----------
-        inclusions : list[_Geom], optional
+        inclusions : list[Domain, Circle, Points, Contour], optional
             list of hollow and filled geom objects inside the domain
         extrude : Coords, optional
             extrusion vector, by default [0,0,1]
@@ -275,7 +276,7 @@ class _Geom(ABC):
             list of geom object for mesh refinement, by default []
         isOrganised : bool, optional
             mesh is organized, by default False
-        additionalSurfaces : list[_Geom]
+        additionalSurfaces : list[Domain, Circle, Points, Contour]
             additional surfaces that will be added to or removed from the surfaces created by the contour and the inclusions. (e.g Domain, Circle, Contour, Points). Tip: if the mesh is not well generated, you can also give the inclusions.
         additionalLines : list[Union[Line,CircleArc]]
             additional lines that will be added to the surfaces created by the contour and the inclusions. (e.g Domain, Circle, Contour, Points). WARNING: lines must be within the domain.
@@ -310,7 +311,7 @@ class _Geom(ABC):
 
     def Mesh_Revolve(
         self,
-        inclusions: list["_Geom"] = [],
+        inclusions: list["GeomCompatible"] = [],
         axis: Optional["Line"] = None,
         angle=360,
         layers: list[int] = [30],
@@ -318,7 +319,7 @@ class _Geom(ABC):
         cracks: list["CrackCompatible"] = [],
         refineGeoms: list["RefineCompatible"] = [],
         isOrganised=False,
-        additionalSurfaces: list["_Geom"] = [],
+        additionalSurfaces: list["GeomCompatible"] = [],
         additionalLines: list[Union["Line", "CircleArc"]] = [],
         additionalPoints: list["Point"] = [],
         folder="",
@@ -327,7 +328,7 @@ class _Geom(ABC):
 
         Parameters
         ----------
-        inclusions : list[_Geom], optional
+        inclusions : list[Domain, Circle, Points, Contour], optional
             list of hollow and filled geom objects inside the domain
         axis : Line, optional
             revolution axis, by default Line((0, 0), (0, 1))
@@ -343,7 +344,7 @@ class _Geom(ABC):
             list of geom object for mesh refinement, by default []
         isOrganised : bool, optional
             mesh is organized, by default False
-        additionalSurfaces : list[_Geom]
+        additionalSurfaces : list[Domain, Circle, Points, Contour]
             additional surfaces that will be added to or removed from the surfaces created by the contour and the inclusions. (e.g Domain, Circle, Contour, Points). Tip: if the mesh is not well generated, you can also give the inclusions.
         additionalLines : list[Union[Line,CircleArc]]
             additional lines that will be added to the surfaces created by the contour and the inclusions. (e.g Domain, Circle, Contour, Points). WARNING: lines must be within the domain.

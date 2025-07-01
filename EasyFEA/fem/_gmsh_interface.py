@@ -32,7 +32,7 @@ if TYPE_CHECKING:
     from ..simulations._simu import _Simu
 
 # types
-LoopCompatible = Union[Circle, Domain, Points, Contour]
+GeomCompatible = Union[Circle, Domain, Points, Contour]
 ContourCompatible = Union[Line, CircleArc, Points]
 CrackCompatible = Union[Line, Points, Contour, CircleArc]
 RefineCompatible = Union[Point, Circle, str]
@@ -114,7 +114,7 @@ class Mesher:
         else:
             factory.synchronize()
 
-    def _Loop_From_Geom(self, geom: LoopCompatible) -> tuple[int, list[int], list[int]]:
+    def _Loop_From_Geom(self, geom: GeomCompatible) -> tuple[int, list[int], list[int]]:
         """Creates a loop based on the geometric object.\n
         returns loop, lines, points"""
 
@@ -300,8 +300,8 @@ class Mesher:
 
     def _Surfaces(
         self,
-        contour: _Geom,
-        inclusions: list[_Geom] = [],
+        contour: GeomCompatible,
+        inclusions: list[GeomCompatible] = [],
         elemType: ElemType = ElemType.TRI3,
         isOrganised: bool = False,
     ) -> tuple[list[int], list[int], list[int]]:
@@ -311,9 +311,9 @@ class Mesher:
 
         Parameters
         ----------
-        contour : _Geom
+        contour : Domain | Circle | Points | Contour
             the object that creates the surface area
-        inclusions : list[_Geom]
+        inclusions : list[Domain | Circle | Points | Contour]
             hollow or filled objects contained in the contour surface.\n
             CAUTION: all inclusions must be contained within the contour and must not intersect.
         elemType : ElemType, optional
@@ -433,7 +433,11 @@ class Mesher:
                 gmsh.model.mesh.setRecombine(2, surf)
 
     def _Additional_Surfaces(
-        self, dim: int, surfaces: list[_Geom], elemType: ElemType, isOrganised: bool
+        self,
+        dim: int,
+        surfaces: list[GeomCompatible],
+        elemType: ElemType,
+        isOrganised: bool,
     ) -> None:
         """Adds surfaces to existing dim entities. Tip: if the mesh is not well generated, you can also give the inclusions.
 
@@ -441,7 +445,7 @@ class Mesher:
         ----------
         dim : int
             dimension (dim >= 2)
-        surfaces : list[_Geom]
+        surfaces : list[Domain | Circle | Points | Contour]
             surfaces
         elemType : ElemType
             element type used
@@ -1250,13 +1254,13 @@ class Mesher:
 
     def Mesh_2D(
         self,
-        contour: _Geom,
-        inclusions: list[_Geom] = [],
+        contour: GeomCompatible,
+        inclusions: list[GeomCompatible] = [],
         elemType: ElemType = ElemType.TRI3,
         cracks: list[CrackCompatible] = [],
         refineGeoms: list[RefineCompatible] = [],
         isOrganised=False,
-        additionalSurfaces: list[_Geom] = [],
+        additionalSurfaces: list[GeomCompatible] = [],
         additionalLines: list[Union[Line, CircleArc]] = [],
         additionalPoints: list[Point] = [],
         folder="",
@@ -1265,9 +1269,9 @@ class Mesher:
 
         Parameters
         ----------
-        contour : _Geom
+        contour : Domain | Circle | Points | Contour
             geom object
-        inclusions : list[_Geom], optional
+        inclusions : list[Domain | Circle | Points | Contour], optional
             list of hollow and filled geom objects inside the domain
         elemType : ElemType, optional
             element type, by default "TRI3" ["TRI3", "TRI6", "TRI10", "TRI15", "QUAD4", "QUAD8", "QUAD9"]
@@ -1277,7 +1281,7 @@ class Mesher:
             list of geom object for mesh refinement, by default []
         isOrganised : bool, optional
             mesh is organized, by default False
-        additionalSurfaces : list[_Geom]
+        additionalSurfaces : list[Domain | Circle | Points | Contour]
             additional surfaces that will be added to or removed from the surfaces created by the contour and the inclusions. (e.g Domain, Circle, Contour, Points). Tip: if the mesh is not well generated, you can also give the inclusions.
         additionalLines : list[Union[Line,CircleArc]]
             additional lines that will be added to the surfaces created by the contour and the inclusions. (e.g Domain, Circle, Contour, Points). WARNING: lines must be within the domain.
@@ -1335,15 +1339,15 @@ class Mesher:
 
     def Mesh_Extrude(
         self,
-        contour: _Geom,
-        inclusions: list[_Geom] = [],
+        contour: GeomCompatible,
+        inclusions: list[GeomCompatible] = [],
         extrude: _types.Coords = (0, 0, 1),
         layers: list[int] = [],
         elemType: ElemType = ElemType.TETRA4,
         cracks: list[CrackCompatible] = [],
         refineGeoms: list[RefineCompatible] = [],
         isOrganised=False,
-        additionalSurfaces: list[_Geom] = [],
+        additionalSurfaces: list[GeomCompatible] = [],
         additionalLines: list[Union[Line, CircleArc]] = [],
         additionalPoints: list[Point] = [],
         folder="",
@@ -1352,9 +1356,9 @@ class Mesher:
 
         Parameters
         ----------
-        contour : _Geom
+        contour : Domain | Circle | Points | Contour
             geom object
-        inclusions : list[_Geom], optional
+        inclusions : list[Domain | Circle | Points | Contour], optional
             list of hollow and filled geom objects inside the domain
         extrude : Coords, optional
             extrusion vector, by default [0,0,1]
@@ -1368,7 +1372,7 @@ class Mesher:
             list of geom object for mesh refinement, by default []
         isOrganised : bool, optional
             mesh is organized, by default False
-        additionalSurfaces : list[_Geom]
+        additionalSurfaces : list[Domain | Circle | Points | Contour]
             additional surfaces that will be added to or removed from the surfaces created by the contour and the inclusions. (e.g Domain, Circle, Contour, Points). Tip: if the mesh is not well generated, you can also give the inclusions.
         additionalLines : list[Union[Line,CircleArc]]
             additional lines that will be added to the surfaces created by the contour and the inclusions. (e.g Domain, Circle, Contour, Points). WARNING: lines must be within the domain.
@@ -1432,8 +1436,8 @@ class Mesher:
 
     def Mesh_Revolve(
         self,
-        contour: _Geom,
-        inclusions: list[_Geom] = [],
+        contour: GeomCompatible,
+        inclusions: list[GeomCompatible] = [],
         axis: Line = Line(Point(), Point(0, 1)),
         angle=360,
         layers: list[int] = [30],
@@ -1441,7 +1445,7 @@ class Mesher:
         cracks: list[CrackCompatible] = [],
         refineGeoms: list[RefineCompatible] = [],
         isOrganised=False,
-        additionalSurfaces: list[_Geom] = [],
+        additionalSurfaces: list[GeomCompatible] = [],
         additionalLines: list[Union[Line, CircleArc]] = [],
         additionalPoints: list[Point] = [],
         folder="",
@@ -1450,9 +1454,9 @@ class Mesher:
 
         Parameters
         ----------
-        contour : _Geom
+        contour : Domain | Circle | Points | Contour
             geometry that builds the contour
-        inclusions : list[_Geom], optional
+        inclusions : list[Domain | Circle | Points | Contour], optional
             list of hollow and filled geom objects inside the domain
         axis : Line, optional
             revolution axis, by default Line(Point(), Point(0,1))
@@ -1468,7 +1472,7 @@ class Mesher:
             list of geom object for mesh refinement, by default []
         isOrganised : bool, optional
             mesh is organized, by default False
-        additionalSurfaces : list[_Geom]
+        additionalSurfaces : list[Domain | Circle | Points | Contour]
             additional surfaces that will be added to or removed from the surfaces created by the contour and the inclusions. (e.g Domain, Circle, Contour, Points). Tip: if the mesh is not well generated, you can also give the inclusions.
         additionalLines : list[Union[Line,CircleArc]]
             additional lines that will be added to the surfaces created by the contour and the inclusions. (e.g Domain, Circle, Contour, Points). WARNING: lines must be within the domain.
