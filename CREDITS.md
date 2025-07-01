@@ -17,6 +17,4 @@ Third-Party Libraries:
 - [MUMPS](https://mumps-solver.org/index.php) - [CeCILL-C license](https://github.com/cfwen/mumps/blob/master/LICENSE)
 - [PyMUMPS](https://pypi.org/project/PyMUMPS/) - [BSD-3-Clause license](https://github.com/PyMumps/pymumps/blob/master/COPYING)
 - [opencv-python](https://pypi.org/project/opencv-python/) - [MIT License](https://github.com/opencv/opencv-python/blob/4.x/LICENSE.txt)
-- [scikit-sparse](https://pypi.org/project/scikit-sparse/) - [BSD-2-Clause license](https://github.com/scikit-sparse/scikit-sparse/blob/master/LICENSE.txt)
-- [scikit-umfpack](https://pypi.org/project/scikit-umfpack/) - [BSD-3-Clause license](https://github.com/scikit-umfpack/scikit-umfpack/blob/master/LICENSE)
 - [meshio](https://pypi.org/project/meshio/) - [MIT Licensee](https://github.com/nschloe/meshio/blob/main/LICENSE.txt)
