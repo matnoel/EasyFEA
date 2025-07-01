@@ -860,7 +860,7 @@ def _pvGeom(geom) -> Union[pv.DataSet, list[pv.DataSet]]:
         arc2 = pv.CircularArc(
             geom.pt1.coord,
             geom.pt3.coord,
-            geom.center.coord,
+            geom.center.coord,  # type: ignore [arg-type]
             negative=True,  # type: ignore [arg-type]
         )
         dataSet = [arc1, arc2]  # type: ignore [assignment]

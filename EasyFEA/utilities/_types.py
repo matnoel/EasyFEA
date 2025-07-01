@@ -45,4 +45,4 @@ AnyArray = NDArray[Any]
 # Mesh
 # --------------------------------------------------------------------------------------
 
-Coords = Union[AnyArray, Numbers, tuple[int], tuple[float]]
+Coords = Union[AnyArray, Numbers]

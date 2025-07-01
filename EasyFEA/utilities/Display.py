@@ -407,7 +407,7 @@ def Plot_Mesh(
         if deformFactor > 0:
             # Deformed mesh
             pc = LineCollection(
-                coordFacesDef,
+                coordFacesDef,  # type: ignore
                 edgecolor="red",
                 lw=lw,
                 antialiaseds=True,
@@ -417,7 +417,7 @@ def Plot_Mesh(
             # Overlay undeformed and deformed mesh
             # Undeformed mesh
             pc = LineCollection(
-                coordFaces,
+                coordFaces,  # type: ignore
                 edgecolor=edgecolor,
                 lw=lw,
                 antialiaseds=True,

@@ -203,16 +203,16 @@ class Mesher:
                         openLines.extend([line1, line2])
                 else:
                     if factory == gmsh.model.occ:
-                        line = factory.addCircleArc(p1, p3, p2, center=False)  # type: ignore
+                        line = factory.addCircleArc(p1, p3, p2, center=False)
                     else:
                         n = geom.n
                         line = factory.addCircleArc(
                             p1,
                             pC,
                             p2,
-                            nx=n[0],
-                            ny=n[1],
-                            nz=n[2],  # type: ignore
+                            nx=n[0],  # type: ignore[index]
+                            ny=n[1],  # type: ignore[index]
+                            nz=n[2],  # type: ignore[index]
                         )
                     lines.append(line)
                     if geom.isOpen:
@@ -352,8 +352,8 @@ class Mesher:
 
         surfaces = [self._Surface_From_Loops(loops)]  # first surface
         [
-            surfaces.append(factory.addPlaneSurface([loop]))
-            for loop in filledLoops  # type: ignore [func-returns-value]
+            surfaces.append(factory.addPlaneSurface([loop]))  # type: ignore [func-returns-value]
+            for loop in filledLoops
         ]  # Adds filled surfaces
 
         # The number of elements per line is calculated here to organize the surface if it can be.
