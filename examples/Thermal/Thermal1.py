@@ -3,8 +3,10 @@
 # EasyFEA is distributed under the terms of the GNU General Public License v3, see LICENSE.txt and CREDITS.md for more information.
 
 """
-Transient thermal simulation
-============================
+Thermal1
+========
+
+Transient thermal simulation.
 """
 
 from EasyFEA import (
