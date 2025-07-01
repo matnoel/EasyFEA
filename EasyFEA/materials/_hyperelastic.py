@@ -17,18 +17,17 @@ from ._utils import Project_Kelvin
 
 
 class HyperElastic:
-
     @staticmethod
     def __CheckFormat(mesh: Mesh, u: _types.FloatArray, matrixType: MatrixType) -> None:
         assert isinstance(mesh, Mesh), "mesh must be an Mesh object"
-        assert (
-            isinstance(u, np.ndarray) and u.size % mesh.Nn == 0
-        ), "wrong displacement field dimension"
+        assert isinstance(u, np.ndarray) and u.size % mesh.Nn == 0, (
+            "wrong displacement field dimension"
+        )
         dim = u.size // mesh.Nn
         assert dim in [2, 3], "wrong displacement field dimension"
-        assert (
-            matrixType in MatrixType.Get_types()
-        ), f"matrixType must be in {MatrixType.Get_types()}"
+        assert matrixType in MatrixType.Get_types(), (
+            f"matrixType must be in {MatrixType.Get_types()}"
+        )
 
     @staticmethod
     def __GetDims(
@@ -328,44 +327,64 @@ class HyperElastic:
         cM = 2 ** (-1 / 2)
 
         for p in range(nPg):
-
             if dim == 2:
                 dxux, dyux = [grad_e_pg[:, p, 0, i] for i in range(2)]
                 dxuy, dyuy = [grad_e_pg[:, p, 1, i] for i in range(2)]
 
                 Add_to_D_e_pg(
-                    p, 0, [1 + dxux, 0, dxuy, 0]  # type: ignore [list-item]
+                    p,
+                    0,
+                    [1 + dxux, 0, dxuy, 0],  # type: ignore [list-item]
                 )  # xx
                 Add_to_D_e_pg(
-                    p, 1, [0, dyux, 0, 1 + dyuy]  # type: ignore [list-item]
+                    p,
+                    1,
+                    [0, dyux, 0, 1 + dyuy],  # type: ignore [list-item]
                 )  # yy
                 Add_to_D_e_pg(
-                    p, 2, [dyux, 1 + dxux, 1 + dyuy, dxuy], cM  # type: ignore [list-item]
+                    p,
+                    2,
+                    [dyux, 1 + dxux, 1 + dyuy, dxuy],
+                    cM,  # type: ignore [list-item]
                 )  # xy
 
             else:
-
                 dxux, dyux, dzux = [grad_e_pg[:, p, 0, i] for i in range(3)]
                 dxuy, dyuy, dzuy = [grad_e_pg[:, p, 1, i] for i in range(3)]
                 dxuz, dyuz, dzuz = [grad_e_pg[:, p, 2, i] for i in range(3)]
 
                 Add_to_D_e_pg(
-                    p, 0, [1 + dxux, 0, 0, dxuy, 0, 0, dxuz, 0, 0]  # type: ignore [list-item]
+                    p,
+                    0,
+                    [1 + dxux, 0, 0, dxuy, 0, 0, dxuz, 0, 0],  # type: ignore [list-item]
                 )  # xx
                 Add_to_D_e_pg(
-                    p, 1, [0, dyux, 0, 0, 1 + dyuy, 0, 0, dyuz, 0]  # type: ignore [list-item]
+                    p,
+                    1,
+                    [0, dyux, 0, 0, 1 + dyuy, 0, 0, dyuz, 0],  # type: ignore [list-item]
                 )  # yy
                 Add_to_D_e_pg(
-                    p, 2, [0, 0, dzux, 0, 0, dzuy, 0, 0, 1 + dzuz]  # type: ignore [list-item]
+                    p,
+                    2,
+                    [0, 0, dzux, 0, 0, dzuy, 0, 0, 1 + dzuz],  # type: ignore [list-item]
                 )  # zz
                 Add_to_D_e_pg(
-                    p, 3, [0, dzux, dyux, 0, dzuy, 1 + dyuy, 0, 1 + dzuz, dyuz], cM  # type: ignore [list-item]
+                    p,
+                    3,
+                    [0, dzux, dyux, 0, dzuy, 1 + dyuy, 0, 1 + dzuz, dyuz],
+                    cM,  # type: ignore [list-item]
                 )  # yz
                 Add_to_D_e_pg(
-                    p, 4, [dzux, 0, 1 + dxux, dzuy, 0, dxuy, 1 + dzuz, 0, dxuz], cM  # type: ignore [list-item]
+                    p,
+                    4,
+                    [dzux, 0, 1 + dxux, dzuy, 0, dxuy, 1 + dzuz, 0, dxuz],
+                    cM,  # type: ignore [list-item]
                 )  # xz
                 Add_to_D_e_pg(
-                    p, 5, [dyux, 1 + dxux, 0, 1 + dyuy, dxuy, 0, dyuz, dxuz, 0], cM  # type: ignore [list-item]
+                    p,
+                    5,
+                    [dyux, 1 + dxux, 0, 1 + dyuy, dxuy, 0, dyuz, dxuz, 0],
+                    cM,  # type: ignore [list-item]
                 )  # xy
 
         return D_e_pg
@@ -708,9 +727,9 @@ class HyperElastic:
             dI4dC_e_pg of shape (Ne, pg, 6)
         """
 
-        assert (
-            isinstance(T, np.ndarray) and T.shape[-1] == 3
-        ), "T must be a (..., 3) array"
+        assert isinstance(T, np.ndarray) and T.shape[-1] == 3, (
+            "T must be a (..., 3) array"
+        )
 
         dI4dC_e_pg = Project_Kelvin(TensorProd(T, T))
 

@@ -13,7 +13,6 @@ from EasyFEA import Display, plt, np, Mesher, ElemType, Materials, Simulations
 from EasyFEA.Geoms import Domain, Line
 
 if __name__ == "__main__":
-
     Display.Clear()
 
     # ----------------------------------------------
@@ -84,7 +83,7 @@ if __name__ == "__main__":
 
     flecheanalytique = load * L**3 / (3 * E * Iz)
     err_uy = np.abs(flecheanalytique + uy.min()) / flecheanalytique
-    Display.MyPrint(f"err uy: {err_uy*100:.2e} %")
+    Display.MyPrint(f"err uy: {err_uy * 100:.2e} %")
 
     # Plot the analytical and finite element solutions for vertical displacement (v)
     axUy = Display.Init_Axes()
@@ -96,7 +95,7 @@ if __name__ == "__main__":
     rz_x = load / E / Iz * (x**2 / 2 - L * x)
     rotalytique = load * L**2 / (2 * E * Iz)
     err_rz = np.abs(rotalytique + rz.min()) / rotalytique
-    Display.MyPrint(f"err rz: {err_rz*100:.2e} %")
+    Display.MyPrint(f"err rz: {err_rz * 100:.2e} %")
 
     # Plot the analytical and finite element solutions for rotation (rz)
     axRz = Display.Init_Axes()

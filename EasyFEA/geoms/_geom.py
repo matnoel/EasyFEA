@@ -51,9 +51,9 @@ class _Geom(ABC):
             Indicates whether the geometry is open, for instance to represent a crack.
         """
 
-        assert isinstance(points, Iterable) and isinstance(
-            points[0], Point
-        ), "points must be a list of points."
+        assert isinstance(points, Iterable) and isinstance(points[0], Point), (
+            "points must be a list of points."
+        )
         self.__points: list[Point] = points
 
         self.meshSize = meshSize

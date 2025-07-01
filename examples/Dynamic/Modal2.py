@@ -26,7 +26,6 @@ from scipy.sparse import linalg, eye
 def Construct_struct(
     L: float, e: float, t: float, meshSize: float = 0.0, openGmsh=False, verbosity=False
 ) -> Mesh:
-
     mesher = Mesher()
 
     h = L - e - t
@@ -70,7 +69,6 @@ def Construct_struct(
 
 
 if __name__ == "__main__":
-
     Display.Clear()
 
     isFixed = True
@@ -146,7 +144,6 @@ if __name__ == "__main__":
     # Plot modes
     # ----------------------------------------------
     for n, eigenValue in enumerate(eigenValues):
-
         if isFixed:
             mode = np.zeros((mesh.Nn, 3))
             mode[nodesSupZ0, :] = np.reshape(eigenVectors[:, n], (-1, 3))
@@ -161,7 +158,7 @@ if __name__ == "__main__":
 
         plotter = PyVista.Plot(simu, opacity=0.5)
         PyVista.Plot(simu, None, deformFactor, opacity=0.8, color="r", plotter=plotter)
-        plotter.add_title(f"mode {n+1}")
+        plotter.add_title(f"mode {n + 1}")
         plotter.show()
 
     axModes = Display.Init_Axes()

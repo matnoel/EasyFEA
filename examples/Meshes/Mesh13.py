@@ -13,7 +13,6 @@ from EasyFEA import Display, ElemType
 from EasyFEA.Geoms import Point, Line, Domain, Circle
 
 if __name__ == "__main__":
-
     Display.Clear()
 
     # ----------------------------------------------

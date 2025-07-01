@@ -23,7 +23,6 @@ from ._simu import _Simu
 
 
 class BeamSimu(_Simu):
-
     def __init__(
         self,
         mesh: "Mesh",
@@ -52,9 +51,9 @@ class BeamSimu(_Simu):
             # changes the beam model as a beam structure
             model = Materials.BeamStructure([model])
 
-        assert isinstance(
-            model, Materials.BeamStructure
-        ), "model must be a beam model or a beam structure"
+        assert isinstance(model, Materials.BeamStructure), (
+            "model must be a beam model or a beam structure"
+        )
         super().__init__(mesh, model, verbosity, useNumba, useIterativeSolvers)
 
         # init
@@ -256,7 +255,6 @@ class BeamSimu(_Simu):
 
     @property
     def mass(self) -> float:
-
         matrixType = MatrixType.mass
 
         mesh = self.mesh
@@ -268,7 +266,6 @@ class BeamSimu(_Simu):
         area_e_pg = np.zeros_like(rho_e_pg)
 
         for beam in self.structure.beams:
-
             elements = mesh.Elements_Tags([beam.name])
 
             area_e_pg[elements] = beam.area
@@ -308,7 +305,6 @@ class BeamSimu(_Simu):
         return center
 
     def Assembly(self) -> None:
-
         # Data
         mesh = self.mesh
 
@@ -361,7 +357,6 @@ class BeamSimu(_Simu):
             return self.displacement
 
     def Save_Iter(self):
-
         iter = super().Save_Iter()
 
         iter["displacement"] = self.displacement
@@ -369,7 +364,6 @@ class BeamSimu(_Simu):
         self._results.append(iter)
 
     def Set_Iter(self, iter: int = -1, resetAll=False) -> dict:
-
         results = super().Set_Iter(iter)
 
         if results is None:
@@ -380,7 +374,6 @@ class BeamSimu(_Simu):
         return results
 
     def Results_Available(self) -> list[str]:
-
         options = []
         dof_n = self.Get_dof_n(self.problemType)
 
@@ -414,7 +407,6 @@ class BeamSimu(_Simu):
     def Result(
         self, result: str, nodeValues: bool = True, iter: Optional[int] = None
     ) -> Union[_types.FloatArray, float]:
-
         if iter is not None:
             self.Set_Iter(iter)
 
@@ -442,7 +434,6 @@ class BeamSimu(_Simu):
             values = self.Results_displacement_matrix()
 
         elif result in ["fx", "fy", "fz", "cx", "cy", "cz"]:
-
             Kbeam = self.Get_K_C_M_F()[0]
             Kglob = Kbeam.tocsr()[:dofs].tocsc()[:, :dofs]
             force = Kglob @ self.displacement
@@ -452,7 +443,6 @@ class BeamSimu(_Simu):
             values = force_n[:, index]
 
         elif result in ["N", "Mx", "My", "Mz"]:
-
             Epsilon_e_pg = self._Calc_Epsilon_e_pg(self.displacement)
 
             internalForces_e_pg = self._Calc_InternalForces_e_pg(Epsilon_e_pg)
@@ -461,14 +451,12 @@ class BeamSimu(_Simu):
             values = values_e[:, index]
 
         elif result in ["Sxx", "Syy", "Szz", "Syz", "Sxz", "Sxy"]:
-
             Epsilon_e_pg = self._Calc_Epsilon_e_pg(self.displacement)
             Sigma_e = self._Calc_Sigma_e_pg(Epsilon_e_pg).mean(1)
             index = self.__indexResult(result)
             values = Sigma_e[:, index]
 
         elif result in ["ux'", "rx'", "ry'", "rz'"]:
-
             coef = 1 if result == "Exx" else 1 / 2
 
             Epsilon_e = self._Calc_Epsilon_e_pg(self.displacement).mean(1)
@@ -480,7 +468,6 @@ class BeamSimu(_Simu):
         return self.Results_Reshape_values(values, nodeValues)
 
     def __indexResult(self, result: str) -> int:
-
         # "Beam1D" : ["ux" "fx"]
         # "Beam2D : ["ux","uy","rz""fx", "fy", "cz"]
         # "Beam3D" : ["ux", "uy", "uz", "rx", "ry", "rz" "fx","fy","fz","cx","cy"]
@@ -691,7 +678,6 @@ class BeamSimu(_Simu):
         return super().Results_Iter_Summary()
 
     def Results_displacement_matrix(self) -> _types.FloatArray:
-
         Nn = self.mesh.Nn
         dof_n = self.Get_dof_n(self.problemType)
         displacementRedim = self.displacement.reshape(Nn, -1)
@@ -708,7 +694,6 @@ class BeamSimu(_Simu):
         return coordo
 
     def Results_Get_Iteration_Summary(self) -> str:
-
         summary = ""
 
         # TODO to improve

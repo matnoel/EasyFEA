@@ -665,7 +665,6 @@ def _Get_BaryCentric_Coordinates_In_Segment(
     barycentric_coords = np.zeros((coords.shape[0], 2), dtype=float)
 
     for i, P in enumerate(coords):
-
         a = np.linalg.norm(P - B) / length
         b = np.linalg.norm(P - A) / length
 
@@ -701,7 +700,6 @@ def _Get_BaryCentric_Coordinates_In_Triangle(
     barycentric_coords = np.zeros((coords.shape[0], 3), dtype=float)
 
     for i, P in enumerate(coords):
-
         a = __Get_Triangle_Area(P, B, C) / area
         b = __Get_Triangle_Area(P, A, C) / area
         c = __Get_Triangle_Area(P, A, B) / area
@@ -738,7 +736,6 @@ def _Get_BaryCentric_Coordinates_In_Tetrahedron(
     barycentric_coords = np.zeros((coords.shape[0], 4), dtype=float)
 
     for i, P in enumerate(coords):
-
         a = __Get_Tetrahedron_Volume(P, B, C, D) / volume
         b = __Get_Tetrahedron_Volume(P, A, C, D) / volume
         c = __Get_Tetrahedron_Volume(P, A, B, D) / volume

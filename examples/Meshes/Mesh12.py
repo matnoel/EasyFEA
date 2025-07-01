@@ -12,7 +12,6 @@ Meshing of a part designed by cad software.
 from EasyFEA import Display, Folder, Mesher, ElemType
 
 if __name__ == "__main__":
-
     examples_folder = Folder.Join(Folder.EASYFEA_DIR, "examples")
 
     stp = Folder.Join(examples_folder, "_parts", "beam.stp")

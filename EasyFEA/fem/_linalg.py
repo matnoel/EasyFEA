@@ -70,7 +70,6 @@ class FeArray(_types.AnyArray):
             raise ValueError("wrong dimension")
 
     def __get_array1_array2(self, other) -> tuple[_types.AnyArray, _types.AnyArray]:
-
         array1 = np.asarray(self)
         ndim1 = self._ndim
         shape1 = self._shape
@@ -142,7 +141,6 @@ class FeArray(_types.AnyArray):
             return self.copy()
 
     def __matmul__(self, other) -> FeArrayALike:
-
         ndim1 = self._ndim
 
         if isinstance(other, FeArray):
@@ -167,7 +165,6 @@ class FeArray(_types.AnyArray):
         return FeArray.asfearray(result)
 
     def dot(self, other) -> FeArrayALike:  # type: ignore [override]
-
         ndim1 = self._ndim
         if ndim1 == 0:
             raise ValueError("Must be at least a finite element vector (Ne, nPg, i).")
@@ -197,7 +194,6 @@ class FeArray(_types.AnyArray):
         return FeArray.asfearray(result)
 
     def ddot(self, other) -> FeArrayALike:
-
         ndim1 = self._ndim
         if ndim1 < 2:
             raise ValueError(
@@ -241,7 +237,6 @@ class FeArray(_types.AnyArray):
         return FeArray.asfearray(super().min(*args, **kwargs))
 
     def _get_idx(self, *arrays) -> list[_types.AnyArray]:
-
         ndim = len(arrays) + 2
 
         Ne, nPg = self.shape[:2]
@@ -259,7 +254,6 @@ class FeArray(_types.AnyArray):
         return idx
 
     def _assemble(self, *arrays, value: FeArrayALike):
-
         idx = self._get_idx(*arrays)
 
         self[tuple(idx)] = value
@@ -440,7 +434,6 @@ def Inv(mat: FeArray.FeArrayALike):
         inv = np.einsum("...,...ij->...ij", 1 / det, adj, optimize="optimal")
 
     else:
-
         inv = np.linalg.inv(mat)
 
     if isinstance(mat, FeArray):

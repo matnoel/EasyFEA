@@ -28,7 +28,6 @@ from ._simu import _Simu
 
 
 class PhaseFieldSimu(_Simu):
-
     def __init__(
         self,
         mesh: Mesh,
@@ -53,9 +52,9 @@ class PhaseFieldSimu(_Simu):
             If True, iterative solvers can be used. Defaults to True.
         """
 
-        assert isinstance(
-            model, Materials.PhaseField
-        ), "model must be a phase field model"
+        assert isinstance(model, Materials.PhaseField), (
+            "model must be a phase field model"
+        )
         super().__init__(mesh, model, verbosity, useNumba, useIterativeSolvers)
 
         # Init internal variable
@@ -96,7 +95,6 @@ class PhaseFieldSimu(_Simu):
     def Get_lb_ub(
         self, problemType: ModelType
     ) -> tuple[_types.FloatArray, _types.FloatArray]:
-
         if problemType == ModelType.damage:
             solveur = self.phaseFieldModel.solver
             if solveur == "BoundConstrain":
@@ -198,7 +196,6 @@ class PhaseFieldSimu(_Simu):
     ) -> tuple[
         sparse.csr_matrix, sparse.csr_matrix, sparse.csr_matrix, sparse.csr_matrix
     ]:
-
         if problemType is None:
             problemType = ModelType.elastic
 
@@ -241,7 +238,6 @@ class PhaseFieldSimu(_Simu):
         """The matrix system associated with the displacement problem is updated."""
 
     def Get_x0(self, problemType=None):
-
         if problemType == ModelType.damage:
             if self.damage.size != self.mesh.Nn:
                 return np.zeros(self.mesh.Nn)
@@ -304,7 +300,6 @@ class PhaseFieldSimu(_Simu):
         tic = Tic()
 
         while not converged and Niter < maxIter:
-
             Niter += 1
 
             d_n = self.damage
@@ -616,7 +611,6 @@ class PhaseFieldSimu(_Simu):
         return self.damage
 
     def Save_Iter(self):
-
         iter = super().Save_Iter()
 
         # convergence informations
@@ -634,7 +628,6 @@ class PhaseFieldSimu(_Simu):
         self._results.append(iter)
 
     def Set_Iter(self, iter: int = -1, resetAll=False) -> dict:
-
         results = super().Set_Iter(iter)
 
         if results is None:
@@ -662,7 +655,6 @@ class PhaseFieldSimu(_Simu):
         return results
 
     def Results_Available(self) -> list[str]:
-
         results = []
         dim = self.dim
 
@@ -688,7 +680,6 @@ class PhaseFieldSimu(_Simu):
     def Result(
         self, result: str, nodeValues: bool = True, iter: Optional[int] = None
     ) -> Union[_types.FloatArray, float, None]:
-
         if iter is not None:
             self.Set_Iter(iter)
 
@@ -762,7 +753,6 @@ class PhaseFieldSimu(_Simu):
         return self.Results_Reshape_values(values, nodeValues)
 
     def __indexResult(self, result: str) -> int:
-
         if len(result) <= 2:
             if "x" in result:
                 return 0
@@ -930,7 +920,7 @@ class PhaseFieldSimu(_Simu):
 
         min_d = d.min()
         max_d = d.max()
-        summaryIter = f"{iter+1:4d} : {load:4.3f} {unitLoad}, [{min_d:.2e}; {max_d:.2e}], {Niter}:{timeIter:4.3f} s, tol={dincMax:.2e}  "
+        summaryIter = f"{iter + 1:4d} : {load:4.3f} {unitLoad}, [{min_d:.2e}; {max_d:.2e}], {Niter}:{timeIter:4.3f} s, tol={dincMax:.2e}  "
 
         if remove:
             end = "\r"
@@ -942,7 +932,7 @@ class PhaseFieldSimu(_Simu):
             timeCoef, unite = Tic.Get_time_unity(timeLeft)
             # Adds percentage and estimated time remaining
             summaryIter = (
-                summaryIter + f"{percentage*100:3.2f} % -> {timeCoef:3.2f} {unite}  "
+                summaryIter + f"{percentage * 100:3.2f} % -> {timeCoef:3.2f} {unite}  "
             )
 
         Display.MyPrint(summaryIter, end=end)
@@ -952,7 +942,6 @@ class PhaseFieldSimu(_Simu):
         return summaryIter
 
     def Results_Get_Iteration_Summary(self) -> str:
-
         try:
             resumeIter = f"""
             tolConv = {self.__tolConv:.1e}
@@ -979,7 +968,6 @@ class PhaseFieldSimu(_Simu):
     def Results_Iter_Summary(
         self,
     ) -> tuple[list[int], list[tuple[str, _types.FloatArray]]]:
-
         list_label_values = []
 
         resultats = self.results
@@ -1001,7 +989,6 @@ class PhaseFieldSimu(_Simu):
         return iterations, list_label_values
 
     def Results_displacement_matrix(self) -> _types.FloatArray:
-
         Nn = self.mesh.Nn
         coord = self.displacement.reshape((Nn, -1))
         dim = coord.shape[1]

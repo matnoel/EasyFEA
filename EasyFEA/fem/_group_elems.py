@@ -216,7 +216,6 @@ class _GroupElem(ABC):
         # Then just divide by the number of times the node appears in the line
 
         if self.__connect_n_e is None:
-
             Ne = self.Ne
             nPe = self.nPe
             elems = self.elements
@@ -290,9 +289,9 @@ class _GroupElem(ABC):
 
         if displacementMatrix is not None:
             displacementMatrix = np.asarray(displacementMatrix, dtype=float)
-            assert (
-                displacementMatrix.shape == coordo.shape
-            ), f"displacmentMatrix must be of size {coordo.shape}"
+            assert displacementMatrix.shape == coordo.shape, (
+                f"displacmentMatrix must be of size {coordo.shape}"
+            )
             coordo += displacementMatrix
 
         if self.dim in [0, 3]:
@@ -353,7 +352,6 @@ class _GroupElem(ABC):
                     )
 
             else:
-
                 if "TRI" in self.elemType:
                     points3 = coordo[self.__connect[:, 2]]
                 elif "QUAD" in self.elemType:
@@ -578,7 +576,6 @@ class _GroupElem(ABC):
         if self.dim == 0:
             return None  # type: ignore [return-value]
         if matrixType not in self.__dict_F_e_pg.keys():
-
             coordo_e = self.coordGlob[self.__connect]
             # Node coordinates in the (X, Y, Z) coordinate system of each element
 
@@ -620,7 +617,6 @@ class _GroupElem(ABC):
         if self.dim == 0:
             return None  # type: ignore [return-value]
         if matrixType not in self.__dict_jacobian_e_pg.keys():
-
             F_e_pg = self.Get_F_e_pg(matrixType)
 
             jacobian_e_pg = FeArray.asfearray(Det(F_e_pg))
@@ -654,7 +650,6 @@ class _GroupElem(ABC):
         if self.dim == 0:
             return None  # type: ignore [return-value]
         if matrixType not in self.__dict_invF_e_pg.keys():
-
             F_e_pg = self.Get_F_e_pg(matrixType)
 
             invF_e_pg = FeArray.asfearray(Inv(F_e_pg))
@@ -827,7 +822,6 @@ class _GroupElem(ABC):
         assert matrixType in MatrixType.Get_types()
 
         if matrixType not in self.__dict_dN_e_pg.keys():
-
             invF_e_pg = self.Get_invF_e_pg(matrixType)
 
             dN_pg = FeArray.asfearray(self.Get_dN_pg(matrixType)[np.newaxis])
@@ -861,7 +855,6 @@ class _GroupElem(ABC):
         assert matrixType in MatrixType.Get_types()
 
         if matrixType not in self.__dict_ddN_e_pg.keys():
-
             invF_e_pg = self.Get_invF_e_pg(matrixType)
 
             ddN_pg = FeArray.asfearray(self.Get_ddN_pg(matrixType)[np.newaxis])
@@ -1117,7 +1110,6 @@ class _GroupElem(ABC):
         assert matrixType in MatrixType.Get_types()
 
         if matrixType not in self.__dict_B_e_pg.keys():
-
             dN_e_pg = self.Get_dN_e_pg(matrixType)
 
             Ne = self.Ne
@@ -1172,7 +1164,6 @@ class _GroupElem(ABC):
         assert matrixType in MatrixType.Get_types()
 
         if matrixType not in self.__dict_leftDispPart.keys():
-
             wJ_e_pg = self.Get_weightedJacobian_e_pg(matrixType)
             B_e_pg = self.Get_B_e_pg(matrixType)
 
@@ -1294,7 +1285,9 @@ class _GroupElem(ABC):
 
         return N_e_pg
 
-    def Get_EulerBernoulli_B_e_pg(self, beamStructure: "BeamStructure") -> FeArray.FeArrayALike:  # type: ignore
+    def Get_EulerBernoulli_B_e_pg(
+        self, beamStructure: "BeamStructure"
+    ) -> FeArray.FeArrayALike:  # type: ignore
         """Get Euler-Bernoulli beam shape functions derivatives"""
 
         # Example in matlab :
@@ -1406,7 +1399,6 @@ class _GroupElem(ABC):
         assert matrixType in MatrixType.Get_types()
 
         if matrixType not in self.__dict_ReactionPart_e_pg.keys():
-
             weightedJacobian = self.Get_weightedJacobian_e_pg(matrixType)
             N_pg = FeArray.asfearray(self.Get_N_pg_rep(matrixType, 1)[np.newaxis])
 
@@ -1426,7 +1418,6 @@ class _GroupElem(ABC):
         assert matrixType in MatrixType.Get_types()
 
         if matrixType not in self.__dict_DiffusePart_e_pg.keys():
-
             wJ_e_pg = self.Get_weightedJacobian_e_pg(matrixType)
             dN_e_pg = self.Get_dN_e_pg(matrixType)
 
@@ -1446,7 +1437,6 @@ class _GroupElem(ABC):
         assert matrixType in MatrixType.Get_types()
 
         if matrixType not in self.__dict_SourcePart_e_pg.keys():
-
             wJ_e_pg = self.Get_weightedJacobian_e_pg(matrixType)
             N_pg = FeArray.asfearray(self.Get_N_pg_rep(matrixType, 1)[np.newaxis])
 
@@ -1526,11 +1516,15 @@ class _GroupElem(ABC):
             )
             if dim > 1:
                 grad_e_pg[:, p, :dim, 1] = np.einsum(
-                    "en,end->ed", dyN_e_pg[:, p], u_e_n[..., :dim]  # type: ignore
+                    "en,end->ed",
+                    dyN_e_pg[:, p],
+                    u_e_n[..., :dim],  # type: ignore
                 )
             if dim > 2:
                 grad_e_pg[:, p, :dim, 2] = np.einsum(
-                    "en,end->ed", dzN_e_pg[:, p], u_e_n[..., :dim]  # type: ignore
+                    "en,end->ed",
+                    dzN_e_pg[:, p],
+                    u_e_n[..., :dim],  # type: ignore
                 )
 
         return grad_e_pg
@@ -1765,7 +1759,7 @@ class _GroupElem(ABC):
 
         if np.min(nodes) < 0 or np.max(nodes) >= self.__coordGlob.shape[0]:
             raise Exception(
-                f"nodes must be within the range [0, {self.__coordGlob.shape[0]-1}]."
+                f"nodes must be within the range [0, {self.__coordGlob.shape[0] - 1}]."
             )
 
         self.__dict_nodes_tags[tag] = nodes
@@ -1801,7 +1795,7 @@ class _GroupElem(ABC):
             return
 
         if np.min(elements) < 0 or np.max(elements) >= self.Ne:
-            raise Exception(f"elements must be within the range [0, {self.Ne-1}].")
+            raise Exception(f"elements must be within the range [0, {self.Ne - 1}].")
 
         self.__dict_elements_tags[tag] = elements
 
@@ -1878,7 +1872,6 @@ class _GroupElem(ABC):
         # tol = 1e-6
 
         if dim == 0:
-
             coord = self.coord[self.__connect[elem, 0]]
 
             idx = np.where(
@@ -1890,7 +1883,6 @@ class _GroupElem(ABC):
             return idx
 
         elif dim == 1:
-
             coord = self.coord
 
             p1 = self.__connect[elem, 0]
@@ -1951,7 +1943,6 @@ class _GroupElem(ABC):
             return idx
 
         elif dim == 3:
-
             faces = self.faces
             Nface = self.Nface
             coord = self.coord[self.__connect[elem]]
@@ -2101,7 +2092,6 @@ class _GroupElem(ABC):
             coordInElem_n = None
 
         def Research(e: int):
-
             # get element's node coordinates (x, y, z)
             coordElem = coord[connect[e]]
 
@@ -2165,9 +2155,9 @@ class _GroupElem(ABC):
 
         [Research(e) for e in elements_e]
 
-        assert len(detectedElements_e) == len(
-            connect_e_n
-        ), "The number of detected elements must match the number of lines in connect_e_n."
+        assert len(detectedElements_e) == len(connect_e_n), (
+            "The number of detected elements must match the number of lines in connect_e_n."
+        )
 
         ar_detectedNodes = np.asarray(detectedNodes, dtype=int)
         ar_detectedElements_e = np.asarray(detectedElements_e, dtype=int)
@@ -2224,7 +2214,6 @@ class _GroupElem(ABC):
             # if something goes wrong, check that the mesh is correctly positioned in the image
 
         else:
-
             xn, yn, zn = coordinates_n.T
             xe, ye, ze = coordElem.T
 
@@ -2260,7 +2249,6 @@ from .elems import (  # noqa: E402
 
 
 class GroupElemFactory:
-
     DICT_GMSHID: dict[int, tuple[ElemType, int, int, int, int, int]] = {
         #  key: ElemType, nPe, dim, order, Nface, Nvertex
         15: (ElemType.POINT, 1, 0, 0, 0, 0),

@@ -20,7 +20,6 @@ from typing import Optional
 
 
 def __Project_Mandel(A, orderA: int = 4):
-
     assert orderA in [2, 4]
 
     # for xx, yy, zz, yz, xz, zy
@@ -62,7 +61,6 @@ def __Project_Mandel(A, orderA: int = 4):
 
 
 def __MyDiff(func, list_func: list, order: Optional[int] = None):
-
     assert isinstance(list_func, list)
 
     diff = sympy.diff(func, *list_func).as_mutable()
@@ -98,7 +96,6 @@ def __MyDiff(func, list_func: list, order: Optional[int] = None):
 
 
 def Compute(func, name: str, usepprint=True):
-
     Display.Section(name)
 
     myprint = sympy.pprint if usepprint else print
@@ -115,7 +112,6 @@ def Compute(func, name: str, usepprint=True):
 
 
 if __name__ == "__main__":
-
     Display.Clear()
 
     cxx, cyy, czz, cyz, cxz, cxy = sympy.symbols("cxx, cyy, czz, cyz, cxz, cxy")

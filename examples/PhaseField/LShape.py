@@ -24,7 +24,6 @@ from EasyFEA import (
 from EasyFEA.Geoms import Point, Points, Domain, Circle
 
 if __name__ == "__main__":
-
     Display.Clear()
 
     # ----------------------------------------------
@@ -157,7 +156,6 @@ if __name__ == "__main__":
     Display.MyPrint(folder_save, "green")
 
     if doSimu:
-
         simu = Simulations.PhaseFieldSimu(mesh, pfm)
         simu.Results_Set_Bc_Summary(config)
 
@@ -176,7 +174,6 @@ if __name__ == "__main__":
         iter = -1
 
         while ud <= uMax:
-
             # update displacement
             iter += 1
             ud += inc0 if simu.damage.max() < 0.6 else inc1
@@ -226,7 +223,6 @@ if __name__ == "__main__":
         simu.Save(folder_save)
 
     else:
-
         simu = Simulations.Load_Simu(folder_save)
         mesh = simu.mesh
 

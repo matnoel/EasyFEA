@@ -90,7 +90,6 @@ def Compute_and_Print(
 
 
 def Plot_Nodes(title: str, *args):
-
     local_coords, dim = __Get_local_coords_and_dim(*args)
     nPe = local_coords.shape[0]
 
@@ -124,7 +123,6 @@ def Plot_Nodes(title: str, *args):
 
 
 def __Get_local_coords_and_dim(*args):
-
     # Get dim
     dim = len(args)
     assert dim in [1, 2, 3], "The number of lists in args must be 1, 2, or 3."
@@ -134,14 +132,14 @@ def __Get_local_coords_and_dim(*args):
     nPe = len(list_x)
 
     list_y = args[1] if dim > 1 else [0] * nPe
-    assert (
-        len(list_y) == nPe
-    ), "The length of list_y must be equal to the length of list_x."
+    assert len(list_y) == nPe, (
+        "The length of list_y must be equal to the length of list_x."
+    )
 
     list_z = args[2] if dim > 2 else [0] * nPe
-    assert (
-        len(list_z) == nPe
-    ), "The length of list_z must be equal to the length of list_x."
+    assert len(list_z) == nPe, (
+        "The length of list_z must be equal to the length of list_x."
+    )
 
     local_coords = np.array([list_x, list_y, list_z]).T
 
@@ -156,7 +154,6 @@ def __Get_shape_functions(
     useFactor=True,
     useEulerBernoulli=False,
 ) -> list:
-
     nPe = local_coords.shape[0]
 
     nF = __Get_functions_per_node(polynom, local_coords, dim)
@@ -168,12 +165,11 @@ def __Get_shape_functions(
     matrix_A = __Get_matrix_A(polynom, local_coords, dim)
 
     # Get symbols and coords symbols
-    symbols = sympy.symbols(f"x0:{nPe*nF}")
+    symbols = sympy.symbols(f"x0:{nPe * nF}")
 
     functions = []
 
     for i in range(nPe * nF):
-
         # construct vector b
         vector_b = np.zeros(nPe * nF)
         if useEulerBernoulli:
@@ -206,7 +202,6 @@ def __Get_shape_functions(
 
 
 def __Get_matrix_A(polynom, local_coords: np.ndarray, dim: int):
-
     nPe = local_coords.shape[0]
 
     nF = __Get_functions_per_node(polynom, local_coords, dim)
@@ -223,7 +218,6 @@ def __Get_matrix_A(polynom, local_coords: np.ndarray, dim: int):
 
 
 def __Get_functions_per_node(polynom, local_coords: np.ndarray, dim: int) -> int:
-
     eval = np.array(polynom(*local_coords[0, :dim]))
     if len(eval.shape) == 2:
         return eval.shape[0]
@@ -234,7 +228,6 @@ def __Get_functions_per_node(polynom, local_coords: np.ndarray, dim: int) -> int
 
 
 def __Get_derivative_functions(functions, dim, order):
-
     assert isinstance(functions, list), "functions must be a list"
     assert dim in [1, 2, 3]
     assert order >= 1 and isinstance(order, int), "order must be >= 1"
@@ -242,7 +235,6 @@ def __Get_derivative_functions(functions, dim, order):
     derivative_functions = []
 
     for function in functions:
-
         functions_per_dim = []
 
         # loop on dimensions
@@ -259,7 +251,6 @@ def __Get_derivative_functions(functions, dim, order):
 
 
 def __Print_functions(functions: list, dim: int, name="", printArray=False):
-
     # lamba string (e.g. lamda r, s)
     lambda_str = f"lambda {', '.join(str(coord) for coord in coords[:dim])}"
 
@@ -267,17 +258,17 @@ def __Print_functions(functions: list, dim: int, name="", printArray=False):
     for i, function in enumerate(functions):
         if isinstance(function, list):
             print(
-                f"{name}{i+1} = [{', '.join(f'{lambda_str} : {func}' for func in function)}]"
+                f"{name}{i + 1} = [{', '.join(f'{lambda_str} : {func}' for func in function)}]"
             )
         else:
-            print(f"{name}{i+1} = {lambda_str} : {function}")
+            print(f"{name}{i + 1} = {lambda_str} : {function}")
 
     print()
     if printArray:
         end = ".reshape(-1, 1)" if len(np.shape(functions)) == 1 else ""
         nF = len(functions)
         print(
-            f"{name} = np.array([{', '.join(f'{name}{i+1}' for i in range(nF))}]){end}\n"
+            f"{name} = np.array([{', '.join(f'{name}{i + 1}' for i in range(nF))}]){end}\n"
         )
 
 
@@ -301,7 +292,6 @@ def __chop(expr):
 
 
 def Do_Segments():
-
     # ----------------------------------------------
     # SEG 2
     # ----------------------------------------------
@@ -422,7 +412,6 @@ def Do_Segments():
 
 
 def Do_Triangles():
-
     # ----------------------------------------------
     # TRI3
     # ----------------------------------------------
@@ -578,7 +567,6 @@ def Do_Triangles():
 
 
 def Do_Quadrangles():
-
     # ----------------------------------------------
     # QUAD4
     # ----------------------------------------------
@@ -664,7 +652,6 @@ def Do_Quadrangles():
 
 
 def Do_Tetrahedron():
-
     # ----------------------------------------------
     # TETRA4
     # ----------------------------------------------
@@ -742,7 +729,6 @@ def Do_Tetrahedron():
 
 
 def Do_Hexahedron():
-
     # ----------------------------------------------
     # HEXA8
     # ----------------------------------------------
@@ -926,7 +912,6 @@ def Do_Hexahedron():
 
 
 def Do_Prism():
-
     # ----------------------------------------------
     # PRISM6
     # ----------------------------------------------
@@ -1073,7 +1058,6 @@ def Do_Prism():
 # ----------------------------------------------
 
 if __name__ == "__main__":
-
     Do_Segments()
 
     Do_Triangles()

@@ -14,7 +14,6 @@ from EasyFEA import Display, ElemType, np
 from EasyFEA.Geoms import Point, Points, Circle, Line
 
 if __name__ == "__main__":
-
     Display.Clear()
 
     width = 1

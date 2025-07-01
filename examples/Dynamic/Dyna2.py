@@ -14,7 +14,6 @@ from EasyFEA import Display, Tic, plt, ElemType, Materials, Simulations
 from EasyFEA.Geoms import Domain, Circle, Line
 
 if __name__ == "__main__":
-
     Display.Clear()
 
     # ----------------------------------------------

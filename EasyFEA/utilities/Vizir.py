@@ -151,7 +151,6 @@ def _Get_empty_groupElem(groupElem: "_GroupElem", order: int):
     unavailable_elemTypes = [ElemType.QUAD8, ElemType.HEXA20, ElemType.PRISM15]
 
     if groupElem.order != order:
-
         # get the new elemType
         filtered_dict = {
             elemType: values
@@ -170,7 +169,6 @@ def _Get_empty_groupElem(groupElem: "_GroupElem", order: int):
         )
 
     else:
-
         emptyArray = np.empty((0), dtype=int)
         groupElem = GroupElemFactory._Create(groupElem.elemType, emptyArray, emptyArray)
 
@@ -232,9 +230,9 @@ def __Write_HOSolAt_Solution(
 
     # assembly_e informations
     Ne = assembly_e.shape[0]
-    assert (
-        assembly_e.ndim == 2 and Ne == groupElem.Ne
-    ), "assembly_e must be a (Ne, nPe*dof_n) array"
+    assert assembly_e.ndim == 2 and Ne == groupElem.Ne, (
+        "assembly_e must be a (Ne, nPe*dof_n) array"
+    )
 
     # get dofsValues as a (Ne, nPe*dof_n) array
     dofsValues_e = dofsValues[assembly_e]
@@ -311,17 +309,15 @@ def _Write_solution_file(
                 f.write(f"WarpVec\n1\n{deformFactor}\n\n")
 
     with open(solutionFile, "w") as f:
-
         # write first lines
         f.write("MeshVersionFormatted 2\n")
         f.write(f"Dimension {mesh.inDim}\n\n")  # the mesh is always in a 3d space
 
         if warpVector_n is not None:
-
             # write SolAtVertices
-            assert (
-                warpVector_n.shape[0] == mesh.Nn and warpVector_n.ndim == 2
-            ), "nodesValues must be a (Nn, ...) array"
+            assert warpVector_n.shape[0] == mesh.Nn and warpVector_n.ndim == 2, (
+                "nodesValues must be a (Nn, ...) array"
+            )
             assert warpVector_n.shape[1] in [1, mesh.inDim]
             nodesValues_type = 1 if warpVector_n.shape[1] == 1 else 2
             f.write(f"SolAtVertices\n{mesh.Nn}\n1 {nodesValues_type}\n")
@@ -329,7 +325,6 @@ def _Write_solution_file(
             f.write("\n")
 
         for groupElem in mesh.Get_list_groupElem(2):
-
             __Write_HOSolAt_Element(f, groupElem, order)
 
             if assembly_e is None or assembly_e.shape[0] != groupElem.Ne:
@@ -386,7 +381,6 @@ def Save_simu(
         assert type in SOLUTION_TYPES
 
     for i in np.arange(0, Niter, step, dtype=int):
-
         # Update simulation iteration
         simu.Set_Iter(i)
 
@@ -398,7 +392,6 @@ def Save_simu(
 
             # init sols file
             with open(Folder.Join(folder, f"{result}.sols"), "a") as file:
-
                 filename = f"{result}.{i}"
 
                 # save the solution
@@ -418,7 +411,7 @@ def Save_simu(
     # save the mesh in Medit format
     mesh_file = MeshIO.EasyFEA_to_Medit(simu.mesh, folder, "mesh")
 
-    sols_files = " ".join([f"{Folder.Join(folder,result)}.sols" for result in results])
+    sols_files = " ".join([f"{Folder.Join(folder, result)}.sols" for result in results])
     command = f"vizir4 -in {mesh_file} -sols {sols_files}"
 
     return command

@@ -80,7 +80,6 @@ thickness = 1 if dim == 2 else 0.1 / 1000
 
 
 def DoMesh(materialType: str = "Elas_Isot") -> Mesh:
-
     # meshSize
     clC = l0 * 2 if meshTest else l0 / 2
     if optimMesh:
@@ -139,7 +138,6 @@ def DoMesh(materialType: str = "Elas_Isot") -> Mesh:
 
 
 def DoSimu(split: str, regu: str):
-
     # Builds the path to the folder based on the problem data
     folderName = "Tension_Benchmark"
     if dim == 3:
@@ -161,7 +159,6 @@ def DoSimu(split: str, regu: str):
     Display.MyPrint(folder_save, "green")
 
     if doSimu:
-
         mesh = DoMesh(materialType)
 
         # Nodes recovery
@@ -306,7 +303,6 @@ def DoSimu(split: str, regu: str):
         dep = -uinc0
         iter = -1
         while True:  # simu until break
-
             iter += 1
             if materialType == "Elas_Isot":
                 dep += uinc0 if dep < threshold else uinc1
@@ -405,7 +401,6 @@ def DoSimu(split: str, regu: str):
 
 
 if __name__ == "__main__":
-
     # generates configs
     Splits = []
     Regus = []

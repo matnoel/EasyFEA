@@ -11,7 +11,6 @@ from ...utilities import _types
 
 
 class POINT(_GroupElem):
-
     def __init__(
         self,
         gmshId: int,
@@ -19,7 +18,6 @@ class POINT(_GroupElem):
         coordGlob: _types.FloatArray,
         nodes: _types.IntArray,
     ):
-
         super().__init__(gmshId, connect, coordGlob, nodes)
 
     @property

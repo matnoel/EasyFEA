@@ -28,7 +28,6 @@ from EasyFEA.Geoms import Point, Points
 from EasyFEA.fem import Calc_projector
 
 if __name__ == "__main__":
-
     Display.Clear()
 
     # ----------------------------------------------
@@ -102,7 +101,6 @@ if __name__ == "__main__":
     surfLoad = P / h / b  # N/mm2
 
     def DoSimu(refineGeom: str):
-
         simu.mesh = DoMesh(refineGeom)
 
         # get the nodes
@@ -131,7 +129,6 @@ if __name__ == "__main__":
     Display.Plot_Result(simu, "ZZ1_e", nodeValues=False, title="ZZ1", ncolors=11)
 
     if plotProj:
-
         simu.Set_Iter(0)
         mesh0 = simu.mesh
         u0 = np.reshape(simu.displacement, (mesh0.Nn, -1))
@@ -159,7 +156,6 @@ if __name__ == "__main__":
     if makeMovie:
 
         def func(plotter, n):
-
             simu.Set_Iter(n)
 
             PyVista.Plot(
@@ -175,7 +171,7 @@ if __name__ == "__main__":
 
             zz1 = simu._Calc_ZZ1()[0]
 
-            plotter.add_title(f"ZZ1 = {zz1*100:.2f} %")
+            plotter.add_title(f"ZZ1 = {zz1 * 100:.2f} %")
 
         PyVista.Movie_func(func, len(simu.results), folder, "bracket.gif")
 

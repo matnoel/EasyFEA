@@ -21,7 +21,6 @@ from ..fem import Mesh, BoundaryCondition, FeArray, MatrixType
 
 
 class DIC(_IObserver):
-
     def __init__(
         self,
         mesh: Mesh,
@@ -252,7 +251,6 @@ class DIC(_IObserver):
         # No, it is not possible without the loop because connectPixel doesn't have the same number of columns in each row.
         # In addition, if you remove it, you'll have to make several list comprehension.
         for e in range(mesh.Ne):
-
             # Get the nodes and pixels used by the element
             nodes = mesh.connect[e]
             pixels = connectPixel[e]
@@ -458,9 +456,9 @@ class DIC(_IObserver):
         if u0 is None:
             u0 = self._Get_u_from_images(imgRef, img)
         else:
-            assert (
-                u0.size == self.__mesh.Nn * 2
-            ), "u0 must be a vector of dimension (2*Nn, 1)"
+            assert u0.size == self.__mesh.Nn * 2, (
+                "u0 must be a vector of dimension (2*Nn, 1)"
+            )
         u = u0.copy()
 
         # get pixels' coordinates
@@ -480,7 +478,6 @@ class DIC(_IObserver):
         Lcoef = self._L[:, roi] / self.__w_M
 
         for iter in range(iterMax):
-
             ux_p, uy_p = self.Calc_pixelDisplacement(u)
 
             g = img_fct.ev((coordY + uy_p)[roi], (coordX + ux_p)[roi])
@@ -493,7 +490,7 @@ class DIC(_IObserver):
             norm_b = np.linalg.norm(b)
 
             if verbosity:
-                print(f"Iter {iter+1:2d} ||b|| {norm_b:.1e}     ", end="\r")
+                print(f"Iter {iter + 1:2d} ||b|| {norm_b:.1e}     ", end="\r")
 
             if norm_b < tolConv:
                 break
@@ -557,9 +554,9 @@ class DIC(_IObserver):
     ) -> tuple[_types.FloatArray, _types.FloatArray]:
         """Computes pixel displacements based on the finite element displacement field."""
 
-        assert (
-            u.size == self.__mesh.Nn * 2
-        ), f"The displacement vector field has the wrong size. It must be of size {self.__mesh.Nn * 2}"
+        assert u.size == self.__mesh.Nn * 2, (
+            f"The displacement vector field has the wrong size. It must be of size {self.__mesh.Nn * 2}"
+        )
 
         ux_p = u @ self._N_x
         uy_p = u @ self._N_y
@@ -583,7 +580,6 @@ class DIC(_IObserver):
         Ndof = self.__mesh.Nn * 2
 
         if idx not in self.list_idx:
-
             self.__Test_img(img)
             if u_exp.size != Ndof:
                 print(

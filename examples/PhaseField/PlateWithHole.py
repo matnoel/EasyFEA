@@ -73,7 +73,6 @@ l0 = 0.12e-3
 def DoMesh(
     L: float, h: float, diam: float, thickness: float, l0: float, split: str
 ) -> Mesh:
-
     clC = l0 * 2 if meshTest else l0 / 2
     if optimMesh:
         clD = l0 * 4
@@ -112,7 +111,6 @@ def DoMesh(
 # Do Simu
 # ----------------------------------------------
 def DoSimu(split: str, regu: str):
-
     folder_save = Folder.PhaseField_Folder(
         "PlateWithHole_Benchmark",
         "Elas_Isot",
@@ -141,7 +139,6 @@ def DoSimu(split: str, regu: str):
     unit = 1e6
 
     if doSimu:
-
         mesh = DoMesh(L, h, diam, thickness, l0, split)
 
         # Get Nodes
@@ -221,7 +218,6 @@ def DoSimu(split: str, regu: str):
             )
 
         while ud <= u_max:
-
             iter += 1
             ud += uinc0 if simu.damage.max() < threshold else uinc1
 
@@ -336,7 +332,6 @@ def DoSimu(split: str, regu: str):
 
 
 if __name__ == "__main__":
-
     # generates configs
     Splits = []
     Regus = []

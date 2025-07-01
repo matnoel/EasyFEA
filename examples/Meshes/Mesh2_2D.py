@@ -14,7 +14,6 @@ from EasyFEA import Display, ElemType
 from EasyFEA.Geoms import Points
 
 if __name__ == "__main__":
-
     Display.Clear()
 
     h = 180

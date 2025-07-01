@@ -85,17 +85,58 @@ DICT_EASYFEA_TO_VTK_INDEXES: dict[ElemType, list[int]] = {
     # https://dev.pyvista.org/api/examples/_autosummary/pyvista.examples.cells.quadratichexahedron#pyvista.examples.cells.QuadraticHexahedron
     # fmt: off
     ElemType.HEXA20: [
-        0, 1, 2, 3, 4, 5, 6, 7, # vertices
-        8, 11, 13, 9, 16, 18, 19, 17, 10, 12, 14, 15 # edges
+        0,
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7,  # vertices
+        8,
+        11,
+        13,
+        9,
+        16,
+        18,
+        19,
+        17,
+        10,
+        12,
+        14,
+        15,  # edges
     ],
     # fmt: on
     # https://dev.pyvista.org/api/examples/_autosummary/pyvista.examples.cells.triquadratichexahedron#pyvista.examples.cells.TriQuadraticHexahedron
     # fmt: off
     ElemType.HEXA27: [
-        0, 1, 2, 3, 4, 5, 6, 7, # vertices
-        8, 11, 13, 9, 16, 18, 19, 17, 10, 12, 14, 15, # edges
-        22, 23, 21, 24, 20, 25, # faces
-        26, # volumes
+        0,
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7,  # vertices
+        8,
+        11,
+        13,
+        9,
+        16,
+        18,
+        19,
+        17,
+        10,
+        12,
+        14,
+        15,  # edges
+        22,
+        23,
+        21,
+        24,
+        20,
+        25,  # faces
+        26,  # volumes
     ],
     # fmt: on
     ElemType.PRISM15: [0, 1, 2, 3, 4, 5, 6, 9, 7, 12, 14, 13, 8, 10, 11],
@@ -143,7 +184,6 @@ def _EasyFEA_to_Meshio(
     list_elements: list[_types.IntArray] = []
 
     for elemType, groupElem in mesh.dict_groupElem.items():
-
         if elemType in DICT_ELEMTYPE_TO_MESHIO.keys():
             meshioType = DICT_ELEMTYPE_TO_MESHIO[elemType]
         else:
@@ -240,7 +280,6 @@ def _Set_Tags(mesh: Mesh, dict_tags: dict[str, _types.IntArray]):
     # retrieve tags
 
     for elemType, tags in dict_tags.items():
-
         if elemType.startswith(("vertex")):
             dim = 0
         elif elemType.startswith(("line")):
@@ -256,9 +295,7 @@ def _Set_Tags(mesh: Mesh, dict_tags: dict[str, _types.IntArray]):
         list_elems = [np.where(tags == tag)[0] for tag in uniqueTags]
 
         for groupElem in mesh.Get_list_groupElem(dim):
-
             for elems, tag in zip(list_elems, uniqueTags):
-
                 if elems.max() > groupElem.Ne:
                     # We can be here when several elements are the same size.
                     # For example, in the case of a prism, there are triangles and quadrangles at the same time.
@@ -448,7 +485,6 @@ def EasyFEA_to_PyVista(
     dict_cellData: dict[pv.CellType, np.ndarray] = {}
 
     for elemType, groupElem in mesh.dict_groupElem.items():
-
         if useMainGroupElem and groupElem is not mesh.groupElem:
             continue
 
@@ -504,17 +540,14 @@ def PyVista_to_EasyFEA(pyVistaMesh: pv.MultiBlock) -> Mesh:
         pyVistaMesh = pyVistaMesh.as_unstructured_grid_blocks()
 
         for index in range(pyVistaMesh.n_blocks):
-
             block = pyVistaMesh.get_block(index)
 
             if isinstance(block, pv.UnstructuredGrid):
-
                 coordGlob = block.points
 
                 cellTypes = block.celltypes.astype(int)
 
                 for cellTypeId in list(set(cellTypes)):
-
                     # get cell and element types
                     cellType = pv.CellType(cellTypeId)
                     elemType = DICT_PYVISTA_TO_ELEMTYPE[cellType]

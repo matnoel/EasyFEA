@@ -15,7 +15,6 @@ from EasyFEA.Geoms import Point, Points, Contour, CircleArc, Line
 import scipy.io
 
 if __name__ == "__main__":
-
     folder = Folder.Join(Folder.RESULTS_DIR, "Meshes", "Blade", mkdir=True)
 
     N = 4  # elements in the blade lenght l
@@ -136,7 +135,6 @@ if __name__ == "__main__":
     def Cylinder(
         R, angleRev: float, coord: np.ndarray, y1: float
     ) -> tuple[Contour, Contour]:
-
         s = np.sin(angleRev / 2)
         c = np.cos(angleRev / 2)
 
@@ -167,7 +165,6 @@ if __name__ == "__main__":
         return contour_l, contour_r
 
     def CylinderBlade(R, angleRev: float, coord: np.ndarray) -> Contour:
-
         s = np.sin(angleRev / 2)
         c = np.cos(angleRev / 2)
 
@@ -238,7 +235,6 @@ if __name__ == "__main__":
     vols.append((blade2, blade3, H3 / mS, elems))
 
     if addCylinder:
-
         elems = [N, l / 2 / mS] * 2
 
         # cylinder y=-l
@@ -286,11 +282,10 @@ if __name__ == "__main__":
     # parts = factory.getEntities()
 
     if repeat:
-
         na = int(np.pi * 2 / angleRev)
 
         for i in range(na - 1):
-            print(f"{(i+1)/(na-1)*100:2.0f} %")
+            print(f"{(i + 1) / (na - 1) * 100:2.0f} %")
             LinkEveryone(vols, angleRev * (i + 1) * 180 / np.pi)
 
             # # dont work

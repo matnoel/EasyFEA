@@ -24,7 +24,6 @@ from .Solvers import AlgoType
 
 
 class ElasticSimu(_Simu):
-
     def __init__(
         self,
         mesh: "Mesh",
@@ -159,7 +158,6 @@ class ElasticSimu(_Simu):
         return self.__Ku.copy(), Cu, self.__Mu.copy(), self.__Fu.copy()
 
     def Assembly(self) -> None:
-
         # Data
         mesh = self.mesh
         Ndof = mesh.Nn * self.dim
@@ -213,7 +211,6 @@ class ElasticSimu(_Simu):
             raise TypeError(f"Algo {algo} is not implemented here.")
 
     def Save_Iter(self):
-
         iter = super().Save_Iter()
 
         iter["displacement"] = self.displacement
@@ -224,7 +221,6 @@ class ElasticSimu(_Simu):
         self._results.append(iter)
 
     def Set_Iter(self, iter: int = -1, resetAll=False) -> dict:
-
         results = super().Set_Iter(iter)
 
         if results is None:
@@ -248,7 +244,6 @@ class ElasticSimu(_Simu):
         return results
 
     def Results_Available(self) -> list[str]:
-
         results = []
         dim = self.dim
 
@@ -279,7 +274,6 @@ class ElasticSimu(_Simu):
     def Result(
         self, result: str, nodeValues: bool = True, iter: Optional[int] = None
     ) -> Union[_types.FloatArray, float]:
-
         if iter is not None:
             self.Set_Iter(iter)
 
@@ -498,7 +492,6 @@ class ElasticSimu(_Simu):
         return Sigma_e_pg
 
     def __indexResult(self, result: str) -> int:
-
         if len(result) <= 2:
             "Case were ui, vi or ai"
             if "x" in result:
@@ -517,7 +510,6 @@ class ElasticSimu(_Simu):
         return dict_energy
 
     def Results_Get_Iteration_Summary(self) -> str:
-
         summary = ""
 
         if not self._Results_Check_Available("Wdef"):
@@ -530,7 +522,7 @@ class ElasticSimu(_Simu):
         summary += f"\n\nSvm max = {Svm.max():.2f}"  # type: ignore [union-attr]
 
         Evm = self.Result("Evm", nodeValues=False)
-        summary += f"\n\nEvm max = {Evm.max()*100:3.2f} %"  # type: ignore [union-attr]
+        summary += f"\n\nEvm max = {Evm.max() * 100:3.2f} %"  # type: ignore [union-attr]
 
         dx = self.Result("ux", nodeValues=True)
         summary += f"\n\nUx max = {dx.max():.2e}"  # type: ignore [union-attr]
@@ -553,7 +545,6 @@ class ElasticSimu(_Simu):
         return super().Results_Iter_Summary()
 
     def Results_displacement_matrix(self) -> _types.FloatArray:
-
         Nn = self.mesh.Nn
         coord = self.displacement.reshape((Nn, -1))
         dim = coord.shape[1]
@@ -600,14 +591,13 @@ def Mesh_Optim_ZZ1(
     optimGeom: Optional[str] = None
     # max=1
     while error >= threshold and i <= iterMax:
-
         i += 1
 
         # perform the simulation
         simu = DoSimu(optimGeom)  # type: ignore [arg-type]
-        assert isinstance(
-            simu, ElasticSimu
-        ), "DoSimu function must return a Displacement simulation"
+        assert isinstance(simu, ElasticSimu), (
+            "DoSimu function must return a Displacement simulation"
+        )
         # get the current mesh
         mesh = simu.mesh
 
@@ -618,7 +608,7 @@ def Mesh_Optim_ZZ1(
         # Calculate the error with the ZZ1 method
         error, error_e = simu._Calc_ZZ1()  # type: ignore [assignment]
 
-        print(f"error = {error*100:.3f} %")
+        print(f"error = {error * 100:.3f} %")
 
         # calculate the new mesh size for the associated error
         meshSize_n = mesh.Get_New_meshSize_n(error_e, coef)

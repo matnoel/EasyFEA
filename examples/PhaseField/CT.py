@@ -110,7 +110,6 @@ if dim == 2:
         refineGeoms=[refineGeom],
     )
 else:
-
     elemType = ElemType.PRISM6
 
     pc1 = Point(t + r, 0, 0, True)
@@ -156,7 +155,6 @@ mat = Materials.ElasIsot(dim, thickness=thickness, planeStress=True)
 pfm = Materials.PhaseField(mat, split, regu, Gc, l0)
 
 if doSimu:
-
     displacements = np.linspace(0, L / 40, 50)
 
     config = """
@@ -179,7 +177,6 @@ if doSimu:
         ax = Display.Plot_Result(simu, "damage", 1, plotMesh=True)
 
     for i, dep in enumerate(displacements):
-
         simu.Bc_Init()
 
         if dim == 2:

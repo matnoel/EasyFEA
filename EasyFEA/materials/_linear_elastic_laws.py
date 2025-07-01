@@ -36,7 +36,6 @@ class _Elas(_IModel, ABC):
     """
 
     def __init__(self, dim: int, thickness: float, planeStress: bool):
-
         assert dim in [2, 3], "Must be dimension 2 or 3"
         self.__dim = dim
 
@@ -116,9 +115,9 @@ class _Elas(_IModel, ABC):
     def C(self, array: _types.FloatArray):
         assert isinstance(array, np.ndarray), "must be an array"
         shape = (3, 3) if self.dim == 2 else (6, 6)
-        assert (
-            array.shape[-2:] == shape
-        ), f"With dim = {self.dim} array must be a {shape} matrix"
+        assert array.shape[-2:] == shape, (
+            f"With dim = {self.dim} array must be a {shape} matrix"
+        )
         self.__C = array
         self.__sqrt_C = None  # dont remove
 
@@ -142,9 +141,9 @@ class _Elas(_IModel, ABC):
     def S(self, array: _types.FloatArray):
         assert isinstance(array, np.ndarray), "must be an array"
         shape = (3, 3) if self.dim == 2 else (6, 6)
-        assert (
-            array.shape[-2:] == shape
-        ), f"With dim = {self.dim} array must be a {shape} matrix"
+        assert array.shape[-2:] == shape, (
+            f"With dim = {self.dim} array must be a {shape} matrix"
+        )
         self.__S = array
         self.__sqrt_S = None  # dont remove
 
@@ -169,14 +168,12 @@ class _Elas(_IModel, ABC):
             self.__sqrt_S: Optional[_types.FloatArray] = None  # type: ignore [no-redef]
 
         if self.__sqrt_C is None:
-
             if self.isHeterogeneous:
-
                 shape = C.shape
 
-                assert (
-                    len(shape) == 3
-                ), "This function is not currently implemented for heterogeneous matrices where material properties are defined on Gauss points."
+                assert len(shape) == 3, (
+                    "This function is not currently implemented for heterogeneous matrices where material properties are defined on Gauss points."
+                )
 
                 uniq_C, inverse = np.unique(C, return_inverse=True, axis=0)
 
@@ -184,7 +181,6 @@ class _Elas(_IModel, ABC):
                 sqrtS = np.zeros_like(C, dtype=float)
 
                 for i, C in enumerate(uniq_C):
-
                     elems = np.where(inverse == i)[0]
 
                     sqrtmC = sqrtm(C)
@@ -207,7 +203,6 @@ class _Elas(_IModel, ABC):
             self.__sqrt_S = sqrtS  # type: ignore [assignment]
 
         else:
-
             sqrtC = self.__sqrt_C.copy()
             sqrtS = self.__sqrt_S.copy()
 
@@ -280,7 +275,6 @@ class ElasIsot(_Elas):
         self.__v = value
 
     def get_lambda(self):
-
         E = self.E
         v = self.v
 
@@ -342,7 +336,6 @@ class ElasIsot(_Elas):
         dtype = object if True in [isinstance(p, np.ndarray) for p in [E, v]] else float
 
         if dim == 2:
-
             # Caution: lambda changes according to 2D simplification.
 
             cVoigt = np.array(
@@ -369,7 +362,6 @@ class ElasIsot(_Elas):
             #     #                 [0, 0, (1-2*v)/(2*(1-v))]]) * E*(1-v)/((1+v)*(1-2*v))
 
         elif dim == 3:
-
             cVoigt = np.array(
                 [
                     [lmbda + 2 * mu, lmbda, lmbda, 0, 0, 0],
@@ -391,7 +383,6 @@ class ElasIsot(_Elas):
         return c, s
 
     def Walpole_Decomposition(self) -> tuple[_types.FloatArray, _types.FloatArray]:
-
         c1 = self.get_bulk()
         c2 = self.get_mu()
 
@@ -724,7 +715,6 @@ class ElasIsotTrans(_Elas):
         return c, s
 
     def Walpole_Decomposition(self) -> tuple[_types.FloatArray, _types.FloatArray]:
-
         El = self.El
         Gl = self.Gl
         vl = self.vl
@@ -854,7 +844,6 @@ class ElasAnisot(_Elas):
     def _Behavior(
         self, C: _types.FloatArray, useVoigtNotation: bool
     ) -> _types.FloatArray:
-
         shape = C.shape
         assert (shape[-2], shape[-1]) in [
             (3, 3),

@@ -13,7 +13,6 @@ from EasyFEA import Display, plt, np, Mesher, ElemType, Materials, Simulations
 from EasyFEA.Geoms import Line, Point, Points
 
 if __name__ == "__main__":
-
     Display.Clear()
 
     # ----------------------------------------------
@@ -96,7 +95,7 @@ if __name__ == "__main__":
 
     uy_1d = np.abs(simu.Result("uy").min())
 
-    Display.MyPrint(f"err uy : {np.abs(u_an-uy_1d)/u_an*100:.2e} %")
+    Display.MyPrint(f"err uy : {np.abs(u_an - uy_1d) / u_an * 100:.2e} %")
 
     Display.Plot_Mesh(simu, L / 20 / sol.min())
     ax = Display.Plot_Mesh(section)

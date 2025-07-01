@@ -231,7 +231,6 @@ def KelvinMandel_Matrix(dim: int, M: _types.FloatArray) -> _types.FloatArray:
 def Project_vector_to_matrix(
     vector: _types.FloatArray, coef=np.sqrt(2)
 ) -> FeArray.FeArrayALike:
-
     vectDim = vector.shape[-1]
 
     assert vectDim in [3, 6], "vector must be a either (...,3) or (...,6) array."
@@ -268,7 +267,6 @@ def Project_vector_to_matrix(
 def Project_matrix_to_vector(
     matrix: _types.FloatArray, coef=np.sqrt(2)
 ) -> FeArray.FeArrayALike:
-
     matrixDim = matrix.shape[-1]
 
     assert matrixDim in [2, 3], "matrix must be a either (...,2,2) or (...,3,3) array."
@@ -321,9 +319,9 @@ def Project_Kelvin(
     shapeA = A.shape
 
     if orderA is None:
-        assert (
-            np.std(shapeA) == 0
-        ), "Must have the same number of indices in all dimensions."
+        assert np.std(shapeA) == 0, (
+            "Must have the same number of indices in all dimensions."
+        )
         orderA = len(shapeA)
 
     # for xx, yy, zz, yz, xz, zy
@@ -409,7 +407,6 @@ def Result_in_Strain_or_Stress_field(
         raise Exception("field_e must be of shape (Ne, 3) or (Ne, 6)")
 
     if dim == 2:
-
         xx_e = field_e[:, 0]
         yy_e = field_e[:, 1]
         xy_e = field_e[:, 2] / coef
@@ -431,7 +428,6 @@ def Result_in_Strain_or_Stress_field(
             )
 
     elif dim == 3:
-
         xx_e = field_e[:, 0]
         yy_e = field_e[:, 1]
         zz_e = field_e[:, 2]
@@ -574,7 +570,6 @@ def Get_Pmat(axis_1: _types.FloatArray, axis_2: _types.FloatArray, useMandel=Tru
     D1 = p**2
 
     if dim == 2:
-
         A = np.array([[p11 * p21], [p12 * p22]])
 
         B = np.array([[p11 * p12, p21 * p22]])
@@ -582,7 +577,6 @@ def Get_Pmat(axis_1: _types.FloatArray, axis_2: _types.FloatArray, useMandel=Tru
         D2 = np.array([[p11 * p22 + p21 * p12]])
 
     elif dim == 3:
-
         A = np.array(
             [
                 [p21 * p31, p11 * p31, p11 * p21],
@@ -658,9 +652,9 @@ def Apply_Pmat(
         new matrix
     """
     assert isinstance(M, np.ndarray), "Matrix must be an array"
-    assert (
-        M.shape[-2:] == P.shape[-2:]
-    ), "Must give an matrix of shape (e,dim,dim) or (e,p,dim,dim) or (dim,dim)"
+    assert M.shape[-2:] == P.shape[-2:], (
+        "Must give an matrix of shape (e,dim,dim) or (e,p,dim,dim) or (dim,dim)"
+    )
 
     # Get P indices
     pDim = P.ndim

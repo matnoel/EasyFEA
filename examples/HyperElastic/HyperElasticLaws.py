@@ -18,7 +18,6 @@ except ModuleNotFoundError:
 
 
 def Compute(W, params: list, details=True):
-
     print(f"W = {W}\n")
 
     # dW
@@ -28,10 +27,10 @@ def Compute(W, params: list, details=True):
         if dWdIi != 0:
             dW += " + "
             if details:
-                print(f"dWdI{i+1} = {dWdIi}")
-                dW += f"dWdI{i+1} * dI{i+1}dC"
+                print(f"dWdI{i + 1} = {dWdIi}")
+                dW += f"dWdI{i + 1} * dI{i + 1}dC"
             else:
-                dW += f"({dWdIi}) * dI{i+1}dC"
+                dW += f"({dWdIi}) * dI{i + 1}dC"
 
     dW = f"dW = 2 * ({dW})\n"
     dW = dW.replace("+ -", "- ")
@@ -47,20 +46,20 @@ def Compute(W, params: list, details=True):
         if dWdIi != 0:
             d2W1 += " + "
             if details:
-                print(f"dWdI{i+1} = {dWdIi}")
-                d2W1 += f"dWdI{i+1} * d2I{i+1}dC"
+                print(f"dWdI{i + 1} = {dWdIi}")
+                d2W1 += f"dWdI{i + 1} * d2I{i + 1}dC"
             else:
-                d2W1 += f"({dWdIi}) * d2I{i+1}dC"
+                d2W1 += f"({dWdIi}) * d2I{i + 1}dC"
 
         for j, param_j in enumerate(params):
             d2WdIiIj = sympy.diff(dWdIi, param_j)
             if d2WdIiIj != 0:
                 d2W2 += " + "
                 if details:
-                    print(f"d2WdI{i+1}I{j+1} = {d2WdIiIj}")
-                    d2W2 += f"d2WdI{i+1}I{j+1} * dI{i+1}dC @ dI{j+1}dC.T"
+                    print(f"d2WdI{i + 1}I{j + 1} = {d2WdIiIj}")
+                    d2W2 += f"d2WdI{i + 1}I{j + 1} * dI{i + 1}dC @ dI{j + 1}dC.T"
                 else:
-                    d2W2 += f"({d2WdIiIj}) * dI{i+1}dC @ dI{j+1}dC.T"
+                    d2W2 += f"({d2WdIiIj}) * dI{i + 1}dC @ dI{j + 1}dC.T"
 
     if d2W2 == "":
         d2W = f"d2W = 4 * ({d2W1})"
@@ -72,7 +71,6 @@ def Compute(W, params: list, details=True):
 
 
 if __name__ == "__main__":
-
     Display.Clear()
 
     I1, I2, I3, I4 = sympy.symbols("I1, I2, I3, I4")

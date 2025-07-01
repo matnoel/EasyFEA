@@ -13,7 +13,6 @@ from EasyFEA import Display, plt, np, Mesher, ElemType, Materials, Simulations
 from EasyFEA.Geoms import Domain, Line
 
 if __name__ == "__main__":
-
     Display.Clear()
 
     # ----------------------------------------------
@@ -84,7 +83,7 @@ if __name__ == "__main__":
         ro * g * x_array / 2 / E * (2 * L - x_array)
     )
     err_ux = np.abs(u_x[-1] - ux.max()) / ux.max()
-    Display.MyPrint(f"err ux: {err_ux*100:.2e} %")
+    Display.MyPrint(f"err ux: {err_ux * 100:.2e} %")
 
     # Plot the analytical and finite element solutions for displacement (u)
     ax = Display.Init_Axes()

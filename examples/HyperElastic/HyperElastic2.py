@@ -14,7 +14,6 @@ from EasyFEA import Display, ElemType, Materials, Simulations, PyVista
 from EasyFEA.Geoms import Domain
 
 if __name__ == "__main__":
-
     Display.Clear()
 
     # ----------------------------------------------

@@ -13,7 +13,6 @@ from EasyFEA import Display, np, ElemType, Materials, Simulations
 from EasyFEA.Geoms import Point, Line, Circle, CircleArc, Contour
 
 if __name__ == "__main__":
-
     Display.Clear()
 
     # ----------------------------------------------

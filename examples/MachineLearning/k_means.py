@@ -16,7 +16,6 @@ from sklearn.datasets import make_blobs
 from sklearn.metrics import silhouette_score
 
 if __name__ == "__main__":
-
     # https://www.youtube.com/watch?v=i-gxm_ofjBo
 
     Display.Clear()
@@ -47,7 +46,6 @@ if __name__ == "__main__":
     array_k = np.arange(2, 20)
 
     for k in array_k:
-
         kmeans = KMeans(k, n_init="auto")
 
         clusters = kmeans.fit_predict(data)

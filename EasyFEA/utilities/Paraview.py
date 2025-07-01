@@ -92,7 +92,6 @@ def Save_simu(
     simu.Set_Iter(0, resetAll=True)
 
     for i, iter in enumerate(iterations):
-
         simu.Set_Iter(iter)
 
         filename = Folder.Join(folder, f"solution_{iter}.vtu")
@@ -123,7 +122,7 @@ def Save_simu(
 
         rmTime = Tic.Get_Remaining_Time(i, iterations.size - 1, times[-1])
 
-        Display.MyPrint(f"Save_simu {i}/{iterations.size-1} {rmTime}     ", end="\r")
+        Display.MyPrint(f"Save_simu {i}/{iterations.size - 1} {rmTime}     ", end="\r")
 
     print("\n")
 
@@ -170,7 +169,6 @@ def _Save_mesh(
     tic = Tic()
 
     for iter in range(N):
-
         filename = Folder.Join(folder, f"solution_{iter}.vtu")
 
         nodeResults = {
@@ -190,7 +188,7 @@ def _Save_mesh(
 
         rmTime = Tic.Get_Remaining_Time(iter, N - 1, times[-1])
 
-        Display.MyPrint(f"Save_mesh {iter}/{N-1} {rmTime}     ", end="\r")
+        Display.MyPrint(f"Save_mesh {iter}/{N - 1} {rmTime}     ", end="\r")
 
     print("\n")
 
@@ -246,7 +244,6 @@ def __Make_vtu(
         return offset + bitSize + (bitSize * size)
 
     with open(filename, "w") as file:
-
         # Specify the mesh
         file.write('<?pickle version="1.0" ?>\n')
 
@@ -262,10 +259,9 @@ def __Make_vtu(
         offset = 0
         list_values_n: list[_types.FloatArray] = []  # list of nodes values
         for nodeField, nodeValues in nodeResults.items():
-
-            assert isinstance(
-                nodeValues, np.ndarray
-            ), "nodeValues must be a numpy array."
+            assert isinstance(nodeValues, np.ndarray), (
+                "nodeValues must be a numpy array."
+            )
 
             dof_n = nodeValues.size // Nn
 
@@ -290,10 +286,9 @@ def __Make_vtu(
         file.write("\t\t\t<CellData> \n")
         list_values_e: list[_types.FloatArray] = []
         for elementField, elementValues in elementResults.items():
-
-            assert isinstance(
-                elementValues, np.ndarray
-            ), "elementValues must be a numpy array."
+            assert isinstance(elementValues, np.ndarray), (
+                "elementValues must be a numpy array."
+            )
 
             list_values_e.append(elementValues.ravel())
 
@@ -339,7 +334,6 @@ def __Make_vtu(
 
     # Add all values in binary
     with open(filename, "ab") as file:
-
         # Nodes values
         for nodeValues in list_values_n:
             __WriteBinary(bitSize * (nodeValues.size), "uint32", file)
@@ -367,7 +361,6 @@ def __Make_vtu(
         __WriteBinary(types, "int8", file)
 
     with open(filename, "a") as file:
-
         # End of adding data
         file.write("\n\t</AppendedData>\n")
 
@@ -390,7 +383,6 @@ def __Make_pvd(filename: str, vtuFiles=[]):
     filename = filename + ".pvd"
 
     with open(filename, "w") as file:
-
         file.write('<?pickle version="1.0" ?>\n')
 
         file.write(

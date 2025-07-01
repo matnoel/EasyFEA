@@ -24,7 +24,6 @@ from EasyFEA.fem import FeArray
 from Homog1 import Calc_ukl
 
 if __name__ == "__main__":
-
     Display.Clear()
 
     # ----------------------------------------------
@@ -173,7 +172,6 @@ if __name__ == "__main__":
     # Comparison
     # ----------------------------------------------
     def Simulation(simu: Simulations._Simu, title=""):
-
         simu.Bc_Init()
 
         simu.add_dirichlet(simu.mesh.Nodes_Tags(["L3"]), [0, 0], ["x", "y"])
@@ -186,7 +184,7 @@ if __name__ == "__main__":
         # Display.Plot_Result(simu, "Eyy")
 
         print(
-            f"{title}: dy = {np.max(simu.Result('uy')[simu.mesh.Nodes_Point(Geoms.Point(L,0))]):.3f}"
+            f"{title}: dy = {np.max(simu.Result('uy')[simu.mesh.Nodes_Point(Geoms.Point(L, 0))]):.3f}"
         )
 
     Simulation(simu_inclusions, "inclusions")

@@ -37,7 +37,6 @@ class TETRA4(_GroupElem):
         coordGlob: _types.FloatArray,
         nodes: _types.IntArray,
     ):
-
         super().__init__(gmshId, connect, coordGlob, nodes)
 
     @property
@@ -75,7 +74,6 @@ class TETRA4(_GroupElem):
         )
 
     def _N(self) -> _types.FloatArray:
-
         N1 = lambda r, s, t: -r - s - t + 1
         N2 = lambda r, s, t: r
         N3 = lambda r, s, t: s
@@ -86,7 +84,6 @@ class TETRA4(_GroupElem):
         return N
 
     def _dN(self) -> _types.FloatArray:
-
         dN1 = [lambda r, s, t: -1, lambda r, s, t: -1, lambda r, s, t: -1]
         dN2 = [lambda r, s, t: 1, lambda r, s, t: 0, lambda r, s, t: 0]
         dN3 = [lambda r, s, t: 0, lambda r, s, t: 1, lambda r, s, t: 0]
@@ -133,7 +130,6 @@ class TETRA10(_GroupElem):
         coordGlob: _types.FloatArray,
         nodes: _types.IntArray,
     ):
-
         super().__init__(gmshId, connect, coordGlob, nodes)
 
     @property
@@ -171,7 +167,6 @@ class TETRA10(_GroupElem):
         )
 
     def _N(self) -> _types.FloatArray:
-
         N1 = lambda r, s, t: (r + s + t - 1) * (2 * r + 2 * s + 2 * t - 1)
         N2 = lambda r, s, t: r * (2 * r - 1)
         N3 = lambda r, s, t: s * (2 * s - 1)
@@ -188,7 +183,6 @@ class TETRA10(_GroupElem):
         return N
 
     def _dN(self) -> _types.FloatArray:
-
         dN1 = [
             lambda r, s, t: 4 * r + 4 * s + 4 * t - 3,
             lambda r, s, t: 4 * r + 4 * s + 4 * t - 3,
@@ -221,7 +215,6 @@ class TETRA10(_GroupElem):
         return dN
 
     def _ddN(self) -> _types.FloatArray:
-
         ddN1 = [lambda r, s, t: 4, lambda r, s, t: 4, lambda r, s, t: 4]
         ddN2 = [lambda r, s, t: 4, lambda r, s, t: 0, lambda r, s, t: 0]
         ddN3 = [lambda r, s, t: 0, lambda r, s, t: 4, lambda r, s, t: 0]

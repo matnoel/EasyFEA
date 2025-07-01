@@ -27,7 +27,6 @@ from EasyFEA.Geoms import Point, Domain, Points
 folder = Folder.Join(Folder.RESULTS_DIR, "Contact", mkdir=True)
 
 if __name__ == "__main__":
-
     Display.Clear()
 
     # ----------------------------------------------
@@ -119,7 +118,6 @@ if __name__ == "__main__":
         ax = Display.Plot_Result(simu, result, deformFactor=1)
 
     for i in range(N):
-
         master_mesh = master_mesh.copy()
         master_mesh.Translate(cx * inc, cy * inc)
 
@@ -130,7 +128,6 @@ if __name__ == "__main__":
         coordo_old = simu.Results_displacement_matrix() + simu.mesh.coord
 
         while not convergence:
-
             # apply new boundary conditions
             simu.Bc_Init()
             simu.add_dirichlet(nodes_y0, [0] * dim, simu.Get_unknowns())
@@ -149,7 +146,7 @@ if __name__ == "__main__":
 
         simu.Save_Iter()
 
-        print(f"Eps max = {simu.Result('Strain').max()*100:3.2f} %")
+        print(f"Eps max = {simu.Result('Strain').max() * 100:3.2f} %")
 
         if pltIter:
             Display.Plot_Result(simu, result, plotMesh=True, deformFactor=1, ax=ax)

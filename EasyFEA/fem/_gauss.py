@@ -12,7 +12,6 @@ from ..utilities import _types
 
 
 class Gauss:
-
     def __init__(self, elemType: ElemType, matrixType: MatrixType):
         """Creates integration points.
 
@@ -139,7 +138,6 @@ class Gauss:
         order = [1, 2, 3, 5]"""
 
         if nPg == 1:
-
             x = [1 / 4]
             y = [1 / 4]
             z = [1 / 4]
@@ -147,7 +145,6 @@ class Gauss:
             weights = [1 / 6]
 
         elif nPg == 4:
-
             a: float = (5 - np.sqrt(5)) / 20
             b: float = (5 + 3 * np.sqrt(5)) / 20
 
@@ -158,7 +155,6 @@ class Gauss:
             weights = [1 / 24] * nPg
 
         elif nPg == 5:
-
             a = 1 / 4
             b = 1 / 6
             c = 1 / 2
@@ -170,7 +166,6 @@ class Gauss:
             weights = [-2 / 15, 3 / 40, 3 / 40, 3 / 40, 3 / 40]
 
         elif nPg == 15:
-
             a = 1 / 4
             b1: float = (7 + np.sqrt(15)) / 34
             b2: float = (7 - np.sqrt(15)) / 34
@@ -202,7 +197,6 @@ class Gauss:
         order = [3, 5]"""
 
         if nPg == 8:
-
             a: float = 1 / np.sqrt(3)
 
             x = [-a, -a, -a, -a, a, a, a, a]
@@ -212,7 +206,6 @@ class Gauss:
             weights = [1.0] * nPg
 
         elif nPg == 27:
-
             a = np.sqrt(3 / 5)
             c1: float = 5 / 9
             c2: float = 8 / 9
@@ -272,7 +265,6 @@ class Gauss:
         order Y & Z = [2, 3, 5]"""
 
         if nPg == 6:
-
             a: float = 1 / np.sqrt(3)
 
             xc = [-a, -a, -a, a, a, a]
@@ -282,7 +274,6 @@ class Gauss:
             weights = [1 / 6] * nPg
 
         elif nPg == 8:
-
             a = 0.577350269189626
 
             xc = [-a, -a, -a, -a, a, a, a, a]
@@ -292,7 +283,6 @@ class Gauss:
             weights = [-27 / 96, 25 / 96, 25 / 96, 25 / 96] * 2
 
         elif nPg == 21:
-
             al: float = np.sqrt(3 / 5)
             c1: float = 5 / 9
             c2: float = 8 / 9

@@ -20,7 +20,6 @@ from EasyFEA import (
 from EasyFEA.Geoms import Point, Circle, Points
 
 if __name__ == "__main__":
-
     Display.Clear()
 
     # ----------------------------------------------

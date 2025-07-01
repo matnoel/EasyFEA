@@ -34,7 +34,6 @@ from ._simu import _Simu, AlgoType
 
 
 class HyperElasticSimu(_Simu):
-
     def __init__(
         self,
         mesh: "Mesh",
@@ -92,7 +91,6 @@ class HyperElasticSimu(_Simu):
         return self._Get_u_n(self.problemType)
 
     def _Bc_Integration_scale(self, groupElem, elements, values_e_p, matrixType):
-
         # TODO to validate
         # return values_e_p
 
@@ -125,7 +123,6 @@ class HyperElasticSimu(_Simu):
     # --------------------------------------------------------------------------
 
     def Get_K_C_M_F(self, problemType=None):
-
         if self.needUpdate:
             self.Assembly()
             self.Need_Update(False)
@@ -139,7 +136,6 @@ class HyperElasticSimu(_Simu):
         return self.displacement
 
     def __Solve_hyperelastic(self):
-
         # compute delta_u
         delta_u = Solve_simu(self, self.problemType)
         # The new delta_u indicates that u will be updated,
@@ -176,7 +172,6 @@ class HyperElasticSimu(_Simu):
         return u
 
     def Assembly(self):
-
         # Data
         mesh = self.mesh
         Ndof = mesh.Nn * self.dim
@@ -215,7 +210,6 @@ class HyperElasticSimu(_Simu):
     def __Construct_Local_Matrix(
         self,
     ) -> tuple[FeArray.FeArrayALike, FeArray.FeArrayALike]:
-
         # data
         mat = self.material
         mesh = self.mesh
@@ -274,7 +268,6 @@ class HyperElasticSimu(_Simu):
     # --------------------------------------------------------------------------
 
     def Save_Iter(self):
-
         iter = super().Save_Iter()
 
         # convergence informations
@@ -290,7 +283,6 @@ class HyperElasticSimu(_Simu):
         self._results.append(iter)
 
     def Set_Iter(self, iter=-1, resetAll=False):
-
         results = super().Set_Iter(iter)
 
         if results is None:
@@ -318,7 +310,6 @@ class HyperElasticSimu(_Simu):
     # --------------------------------------------------------------------------
 
     def __indexResult(self, result: str) -> int:
-
         if len(result) <= 2:
             "Case were ui, vi or ai"
             if "x" in result:
@@ -333,7 +324,6 @@ class HyperElasticSimu(_Simu):
             raise ValueError("result error")
 
     def Results_Available(self) -> list[str]:
-
         results = []
         dim = self.dim
 
@@ -364,7 +354,6 @@ class HyperElasticSimu(_Simu):
     def Result(
         self, result: str, nodeValues: bool = True, iter: Optional[int] = None
     ) -> Union[_types.FloatArray, float]:
-
         if iter is not None:
             self.Set_Iter(iter)
 
@@ -449,7 +438,6 @@ class HyperElasticSimu(_Simu):
         return self.Results_Reshape_values(values, nodeValues)
 
     def _Calc_W(self, returnScalar=True, matrixType=MatrixType.rigi):
-
         wJ_e_pg = self.mesh.Get_weightedJacobian_e_pg(matrixType)
         if self.dim == 2:
             wJ_e_pg = self.material.thickness
@@ -461,19 +449,16 @@ class HyperElasticSimu(_Simu):
             return (wJ_e_pg * W_e_pg).sum(1)
 
     def _Calc_GreenLagrange(self, matrixType=MatrixType.rigi):
-
         return Project_Kelvin(
             HyperElastic.Compute_GreenLagrange(self.mesh, self.displacement), 2
         )
 
     def _Calc_SecondPiolaKirchhoff(self, matrixType=MatrixType.rigi):
-
         return self.material.Compute_dWde(self.mesh, self.displacement, matrixType)
 
     def Results_Iter_Summary(
         self,
     ) -> tuple[list[int], list[tuple[str, _types.FloatArray]]]:
-
         list_label_values = []
 
         resultats = self.results
@@ -498,7 +483,6 @@ class HyperElasticSimu(_Simu):
         return super().Results_dict_Energy()
 
     def Results_displacement_matrix(self) -> _types.FloatArray:
-
         Nn = self.mesh.Nn
         coord = self.displacement.reshape((Nn, -1))
         dim = coord.shape[1]

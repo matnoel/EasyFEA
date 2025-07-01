@@ -113,7 +113,6 @@ class Circle(_Geom):
         return n
 
     def Get_coord_for_plot(self) -> tuple[_types.FloatArray, _types.FloatArray]:
-
         angle = np.linspace(0, np.pi * 2, 40)
 
         pC = self.center
@@ -236,9 +235,9 @@ class CircleArc(_Geom):
 
         r1 = np.linalg.norm((pt1 - center).coord)
         r2 = np.linalg.norm((pt2 - center).coord)
-        assert (
-            r1 - r2
-        ) ** 2 / r2**2 <= 1e-12, "The given center doesn't have the right coordinates. If the center coordinate is difficult to identify, you can give:\n - the radius R with the vector normal to the circle n\n - another point belonging to the circle."
+        assert (r1 - r2) ** 2 / r2**2 <= 1e-12, (
+            "The given center doesn't have the right coordinates. If the center coordinate is difficult to identify, you can give:\n - the radius R with the vector normal to the circle n\n - another point belonging to the circle."
+        )
 
         self.center = center
         """Point at the center of the arc."""
@@ -308,7 +307,6 @@ class CircleArc(_Geom):
         return np.abs(self.angle * self.r)
 
     def Get_coord_for_plot(self) -> tuple[_types.FloatArray, _types.FloatArray]:
-
         points = self.coord
 
         pC = self.center

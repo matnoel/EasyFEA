@@ -95,14 +95,12 @@ class Points(_Geom):
                 geoms.append(corners[-1])
 
         for p, point in enumerate(self.points):
-
             prev = p - 1
             next = p + 1 if p + 1 < N else 0
 
             isOpen = point.isOpen
 
             if point.r == 0:
-
                 corners.append(point)
 
             else:

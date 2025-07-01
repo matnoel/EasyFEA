@@ -27,7 +27,6 @@ class _HyperElas(_IModel, ABC):
     """
 
     def __init__(self, dim: int, thickness: float):
-
         assert dim in [2, 3], "Must be dimension 2 or 3"
         self.__dim = dim
 
@@ -143,7 +142,6 @@ class _HyperElas(_IModel, ABC):
 
 
 class NeoHookean(_HyperElas):
-
     def __init__(self, dim: int, K: Union[float, _types.FloatArray], thickness=1.0):
         """Creates an Neo-Hookean material.
 
@@ -173,7 +171,6 @@ class NeoHookean(_HyperElas):
         self.__K = value
 
     def Compute_W(self, mesh, u, matrixType=MatrixType.rigi) -> FeArray.FeArrayALike:
-
         K = self.K
         I1 = HyperElastic.Compute_I1(mesh, u, matrixType)
         I3 = HyperElastic.Compute_I3(mesh, u, matrixType)
@@ -183,7 +180,6 @@ class NeoHookean(_HyperElas):
         return W
 
     def Compute_dWde(self, mesh, u, matrixType=MatrixType.rigi) -> FeArray.FeArrayALike:
-
         K = self.K
         I1 = HyperElastic.Compute_I1(mesh, u, matrixType)
         I3 = HyperElastic.Compute_I3(mesh, u, matrixType)
@@ -202,7 +198,6 @@ class NeoHookean(_HyperElas):
     def Compute_d2Wde(
         self, mesh, u, matrixType=MatrixType.rigi
     ) -> FeArray.FeArrayALike:
-
         K = self.K
         I1 = HyperElastic.Compute_I1(mesh, u, matrixType)
         I3 = HyperElastic.Compute_I3(mesh, u, matrixType)
@@ -233,7 +228,6 @@ class NeoHookean(_HyperElas):
 
 
 class MooneyRivlin(_HyperElas):
-
     def __init__(
         self,
         dim: int,
@@ -283,7 +277,6 @@ class MooneyRivlin(_HyperElas):
         self.__K2 = value
 
     def Compute_W(self, mesh, u, matrixType=MatrixType.rigi) -> FeArray.FeArrayALike:
-
         K1 = self.K1
         K2 = self.K2
         I1 = HyperElastic.Compute_I1(mesh, u, matrixType)
@@ -295,7 +288,6 @@ class MooneyRivlin(_HyperElas):
         return W
 
     def Compute_dWde(self, mesh, u, matrixType=MatrixType.rigi) -> FeArray.FeArrayALike:
-
         K1 = self.K1
         K2 = self.K2
         I1 = HyperElastic.Compute_I1(mesh, u, matrixType)
@@ -317,7 +309,6 @@ class MooneyRivlin(_HyperElas):
     def Compute_d2Wde(
         self, mesh, u, matrixType=MatrixType.rigi
     ) -> FeArray.FeArrayALike:
-
         K1 = self.K1
         K2 = self.K2
         I1 = HyperElastic.Compute_I1(mesh, u, matrixType)
@@ -360,7 +351,6 @@ class MooneyRivlin(_HyperElas):
 
 
 class SaintVenantKirchhoff(_HyperElas):
-
     def __init__(
         self,
         dim: int,
@@ -409,7 +399,6 @@ class SaintVenantKirchhoff(_HyperElas):
         self.__mu = value
 
     def Compute_W(self, mesh, u, matrixType=MatrixType.rigi) -> FeArray.FeArrayALike:
-
         lmbda = self.lmbda
         mu = self.mu
         I1 = HyperElastic.Compute_I1(mesh, u, matrixType)
@@ -420,7 +409,6 @@ class SaintVenantKirchhoff(_HyperElas):
         return W
 
     def Compute_dWde(self, mesh, u, matrixType=MatrixType.rigi) -> FeArray.FeArrayALike:
-
         lmbda = self.lmbda
         mu = self.mu
         I1 = HyperElastic.Compute_I1(mesh, u, matrixType)
@@ -438,7 +426,6 @@ class SaintVenantKirchhoff(_HyperElas):
     def Compute_d2Wde(
         self, mesh, u, matrixType=MatrixType.rigi
     ) -> FeArray.FeArrayALike:
-
         lmbda = self.lmbda
         mu = self.mu
         I1 = HyperElastic.Compute_I1(mesh, u, matrixType)

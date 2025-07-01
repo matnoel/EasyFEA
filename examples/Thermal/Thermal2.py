@@ -23,7 +23,6 @@ from EasyFEA import (
 from EasyFEA.Geoms import Line, Domain, Point
 
 if __name__ == "__main__":
-
     Display.Clear()
 
     folder = Folder.Join(Folder.RESULTS_DIR, "Thermal", "Revolve", mkdir=True)

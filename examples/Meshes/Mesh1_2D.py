@@ -14,7 +14,6 @@ from EasyFEA import Display, ElemType
 from EasyFEA.Geoms import Domain
 
 if __name__ == "__main__":
-
     Display.Clear()
 
     contour = Domain((0, 0), (1, 1))

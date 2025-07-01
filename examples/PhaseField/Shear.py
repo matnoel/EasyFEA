@@ -142,7 +142,6 @@ def DoMesh(split: str) -> Mesh:
 # Simu
 # ----------------------------------------------
 def DoSimu(split: str, regu: str):
-
     # Builds the path to the folder based on the problem data
     folderName = "Shear_Benchmark"
     if dim == 3:
@@ -163,7 +162,6 @@ def DoSimu(split: str, regu: str):
     Display.MyPrint(folder_save, "green")
 
     if doSimu:
-
         mesh = DoMesh(split)
 
         # Nodes recovery
@@ -237,7 +235,6 @@ def DoSimu(split: str, regu: str):
         displacement = []
         force = []
         for iter, dep in enumerate(loadings):
-
             # apply new boundary conditions
             Loading(dep)
 
@@ -322,7 +319,6 @@ def DoSimu(split: str, regu: str):
         deformFactor = L * 0.1 / depMax
 
         def Func(plotter, n):
-
             simu.Set_Iter(n)
 
             grid = PyVista._pvGrid(simu, "damage", deformFactor)
@@ -356,7 +352,6 @@ def DoSimu(split: str, regu: str):
 
 
 if __name__ == "__main__":
-
     # generates configs
     Splits = []
     Regus = []

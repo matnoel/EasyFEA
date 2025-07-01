@@ -14,7 +14,6 @@ from EasyFEA import Display, ElemType, np
 from EasyFEA.Geoms import Point, Line, CircleArc, Contour, Domain
 
 if __name__ == "__main__":
-
     Display.Clear()
 
     L = 1

@@ -13,7 +13,6 @@ from EasyFEA import Display, plt, np, ElemType, Materials, Simulations
 from EasyFEA.Geoms import Point, Points
 
 if __name__ == "__main__":
-
     Display.Clear()
 
     # Define dimension and mesh size parameters

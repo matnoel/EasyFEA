@@ -12,7 +12,6 @@ Script to compare damage simulations.
 from EasyFEA import Display, Folder, Tic, plt, np, pd, Simulations
 
 if __name__ == "__main__":
-
     Display.Clear()
 
     # ----------------------------------------------
@@ -114,7 +113,6 @@ if __name__ == "__main__":
     missingSimulations = []
 
     for config in listConfig:
-
         comp = config[0]
         regu = config[1]
         simpli2D = config[2]
@@ -239,7 +237,6 @@ if __name__ == "__main__":
         # Plot loads
         # ----------------------------------------------
         if plotDamage and Folder.Exists(fileSimu):
-
             # Display.Plot_Mesh(simu.mesh)
 
             if simulation == "PlateWithHole_Benchmark":
@@ -268,7 +265,6 @@ if __name__ == "__main__":
                 # ax_load_2.set_ylabel("Force [kN/mm]")
 
                 for d, dep in enumerate(snapshots):
-
                     try:
                         i = np.where(displacement * 1e6 >= dep)[0][0]
                     except IndexError:
@@ -276,7 +272,7 @@ if __name__ == "__main__":
 
                     simu.Set_Iter(i)
                     filenameDamage = (
-                        f"{nomSimu}, ud = {np.round(displacement[i]*1e6,2)}"
+                        f"{nomSimu}, ud = {np.round(displacement[i] * 1e6, 2)}"
                     )
                     # titleDamage = filenameDamage
 

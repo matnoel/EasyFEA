@@ -15,7 +15,6 @@ from EasyFEA.Geoms import Point, Circle, CircleArc, Contour
 from EasyFEA.fem import Mesh_Optim
 
 if __name__ == "__main__":
-
     Display.Clear()
 
     # ----------------------------------------------
@@ -96,7 +95,7 @@ if __name__ == "__main__":
     axHist.hist(qual_e, 11, (0, 1))
     axHist.set_xlabel("quality")
     axHist.set_ylabel("elements")
-    axHist.set_title(f"ratio = {ratio*100:.3f} %")
+    axHist.set_title(f"ratio = {ratio * 100:.3f} %")
     axHist.vlines([quality], [0], [ratio * mesh.Ne], color="red")
 
     plt.show()

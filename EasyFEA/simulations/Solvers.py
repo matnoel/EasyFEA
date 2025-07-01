@@ -513,7 +513,6 @@ def _BoundConstrain(
     lb: Union[_types.AnyArray, _types.Numbers],
     ub: Union[_types.AnyArray, _types.Numbers],
 ):
-
     assert len(lb) == len(ub), "Must be the same size"
 
     # constrained minimization : https://docs.scipy.org/doc/scipy/reference/generated/scipy.optimize.lsq_linear.html

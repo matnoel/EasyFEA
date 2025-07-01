@@ -24,7 +24,6 @@ from EasyFEA import (
 from EasyFEA.Geoms import Domain, Point
 
 if __name__ == "__main__":
-
     Display.Clear()
 
     # ----------------------------------------------
@@ -81,7 +80,6 @@ if __name__ == "__main__":
     mesher = Mesher()
 
     for e, elemType in enumerate(elemTypes):
-
         times_N = []
         wDef_N = []
         dofs_N = []
@@ -89,7 +87,6 @@ if __name__ == "__main__":
 
         # Loop over each mesh size (number of elements)
         for N in list_N:
-
             meshSize = b / N
 
             # Define the domain for the mesh

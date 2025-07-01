@@ -17,7 +17,6 @@ __USE_FASTMATH = False
 def Get_Anisot_C(
     Cp_e_pg: _types.FloatArray, mat: _types.FloatArray, Cm_e_pg: _types.FloatArray
 ) -> tuple[_types.FloatArray, _types.FloatArray, _types.FloatArray, _types.FloatArray]:
-
     # WARNING: There may be a memory problem if mat is heterogeneous (epij). That's why mat is not heterogeneous.
 
     if __USE_PARALLEL:
@@ -40,7 +39,6 @@ def Get_Anisot_C(
                 for j in range(dimMat):
                     for k in range(dimMat):
                         for l in range(dimMat):
-
                             Cpp_e_pg[e, p, i, j] += (
                                 Cp_e_pg[e, p, k, i] * mat[k, l] * Cp_e_pg[e, p, l, j]
                             )
@@ -61,7 +59,6 @@ def Get_Anisot_C(
 def Get_G12_G13_G23(
     M1: _types.FloatArray, M2: _types.FloatArray, M3: _types.FloatArray
 ) -> tuple[_types.FloatArray, _types.FloatArray, _types.FloatArray]:
-
     if __USE_PARALLEL:
         range = prange
     else:
@@ -82,7 +79,6 @@ def Get_G12_G13_G23(
                 for j in range(3):
                     for k in range(3):
                         for l in range(3):
-
                             g12 = (
                                 (M1[e, p, i, k] * M2[e, p, j, l])
                                 + (M1[e, p, i, l] * M2[e, p, j, k])
@@ -373,7 +369,6 @@ def Get_G12_G13_G23(
     coef = np.sqrt(2)
 
     for c in range(9):
-
         G12_ij[:, :, l03[c], c36[c]] *= coef
         G12_ij[:, :, l36[c], c03[c]] *= coef
         G12_ij[:, :, l36[c], c36[c]] *= 2
@@ -398,7 +393,6 @@ def Get_projP_projM_2D(
     m1: _types.FloatArray,
     m2: _types.FloatArray,
 ) -> tuple[_types.FloatArray, _types.FloatArray]:
-
     if __USE_PARALLEL:
         range = prange
     else:
@@ -445,7 +439,6 @@ def Get_projP_projM_3D(
     list_mi: list[_types.FloatArray],
     list_Gab: list[_types.FloatArray],
 ) -> tuple[_types.FloatArray, _types.FloatArray]:
-
     # ../FEMOBJECT/BASIC/MODEL/MATERIALS/@ElasIsot/calc_proj_Miehe.m
 
     if __USE_PARALLEL:
@@ -496,7 +489,6 @@ def Get_projP_projM_3D(
 def Get_Cp_Cm_Stress(
     c: _types.FloatArray, sP_e_pg: _types.FloatArray, sM_e_pg: _types.FloatArray
 ) -> tuple[_types.FloatArray, _types.FloatArray]:
-
     if __USE_PARALLEL:
         range = prange
     else:

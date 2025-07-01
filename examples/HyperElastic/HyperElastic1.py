@@ -20,7 +20,6 @@ from EasyFEA import (
 from EasyFEA.Geoms import Domain
 
 if __name__ == "__main__":
-
     Display.Clear()
 
     # ----------------------------------------------

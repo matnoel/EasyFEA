@@ -13,7 +13,6 @@ from EasyFEA import Display, plt, Mesher, ElemType, Materials, Simulations
 from EasyFEA.Geoms import Domain, Line
 
 if __name__ == "__main__":
-
     Display.Clear()
 
     # ----------------------------------------------

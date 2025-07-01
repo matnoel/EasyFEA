@@ -22,7 +22,6 @@ from EasyFEA.Geoms import Domain
 from scipy.sparse import linalg, eye
 
 if __name__ == "__main__":
-
     Display.Clear()
 
     dim = 3
@@ -78,7 +77,6 @@ if __name__ == "__main__":
     # Plot modes
     # ----------------------------------------------
     for n in range(eigenValues.size):
-
         if isFixed:
             mode = np.zeros((mesh.Nn, dim))
             mode[nodesSupY0, :] = np.reshape(eigenVectors[:, n], (-1, dim))
@@ -93,7 +91,7 @@ if __name__ == "__main__":
 
         plotter = PyVista.Plot(simu, opacity=0.5)
         PyVista.Plot(simu, None, deformFactor, opacity=0.8, color="r", plotter=plotter)
-        plotter.add_title(f"mode {n+1}")
+        plotter.add_title(f"mode {n + 1}")
         plotter.show()
 
     axModes = Display.Init_Axes()

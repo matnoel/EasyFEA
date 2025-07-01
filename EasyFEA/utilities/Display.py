@@ -299,10 +299,10 @@ def Plot_Result(
                 optionTex = "T"
             elif "S" in result and ("_norm" not in result):
                 optionFin = result.split("S")[-1]
-                optionTex = f"\sigma_{'{'+optionFin+'}'}"
+                optionTex = f"\sigma_{'{' + optionFin + '}'}"
             elif "E" in result:
                 optionFin = result.split("E")[-1]
-                optionTex = f"\epsilon_{'{'+optionFin+'}'}"
+                optionTex = f"\epsilon_{'{' + optionFin + '}'}"
 
         # Specify whether values are on nodes or elements
         if nodeValues:
@@ -407,13 +407,21 @@ def Plot_Mesh(
         if deformFactor > 0:
             # Deformed mesh
             pc = LineCollection(
-                coordFacesDef, edgecolor="red", lw=lw, antialiaseds=True, zorder=1  # type: ignore
+                coordFacesDef,
+                edgecolor="red",
+                lw=lw,
+                antialiaseds=True,
+                zorder=1,  # type: ignore
             )
             ax.add_collection(pc)
             # Overlay undeformed and deformed mesh
             # Undeformed mesh
             pc = LineCollection(
-                coordFaces, edgecolor=edgecolor, lw=lw, antialiaseds=True, zorder=1  # type: ignore
+                coordFaces,
+                edgecolor=edgecolor,
+                lw=lw,
+                antialiaseds=True,
+                zorder=1,  # type: ignore
             )
             ax.add_collection(pc)
         else:
@@ -634,7 +642,6 @@ def Plot_Elements(
 
     # for each group elem
     for groupElem in list_groupElem:
-
         # get the elements associated with the nodes
         if len(nodes) > 0:
             elements = groupElem.Get_Elements_Nodes(nodes)
@@ -736,7 +743,6 @@ def Plot_BoundaryConditions(simu, ax: Optional[_types.Axes] = None) -> _types.Ax
         ax.set_title("Boundary conditions")
 
     for bc in BoundaryConditions:
-
         problemType = bc.problemType
         dofsValues = bc.dofsValues
         unknowns = bc.unknowns
@@ -747,7 +753,6 @@ def Plot_BoundaryConditions(simu, ax: Optional[_types.Axes] = None) -> _types.Ax
         if problemType in ["damage", "thermal"]:
             marker = "o"
         elif problemType in ["elastic", "beam", "hyperelastic"]:
-
             # get values for each direction
             sum = np.sum(dofsValues.reshape(-1, nDir), axis=0)
             values = np.round(sum, 2)
@@ -866,7 +871,6 @@ def Plot_Tags(
     # List of collections during creation
     collections = []
     for groupElem in listGroupElem:
-
         # Tags available by element group
         tags_e = groupElem.elementTags
         dim = groupElem.dim
@@ -877,7 +881,6 @@ def Plot_Tags(
         ]
 
         for tag_e in tags_e:
-
             if "nodes" in tag_e:
                 pass
 
@@ -925,7 +928,11 @@ def Plot_Tags(
                     elif dim == 1:
                         # plot lines
                         pc = LineCollection(
-                            coord_faces, lw=1.5, edgecolor="black", alpha=1, label=tag_e  # type: ignore
+                            coord_faces,
+                            lw=1.5,
+                            edgecolor="black",
+                            alpha=1,
+                            label=tag_e,  # type: ignore
                         )
                         collections.append(ax.add_collection(pc))
                     else:
@@ -985,7 +992,6 @@ def Plot_Tags(
                         pc._edgecolors2d = color  # type: ignore [attr-defined]
                         collections.append(ax.add_collection3d(pc, zdir="z"))
                 else:
-
                     collections.append(
                         ax.scatter(
                             x_n, y_n, z_n, c="black", marker=".", zorder=2, label=tag_e
@@ -1143,7 +1149,6 @@ def Plot_Energy(
     simu.Set_Iter(0, resetAll=True)
 
     for i, iteration in enumerate(iterations):
-
         # Update simulation at iteration i
         simu.Set_Iter(iteration)
 
@@ -1157,7 +1162,7 @@ def Plot_Energy(
 
         rmTime = Tic.Get_Remaining_Time(i, iterations.size - 1, time)
 
-        print(f"Calc Energy {i}/{iterations.size-1} {rmTime}     ", end="\r")
+        print(f"Calc Energy {i}/{iterations.size - 1} {rmTime}     ", end="\r")
     print("\n")
 
     # Figure construction
@@ -1335,7 +1340,7 @@ def Movie_Simu(
             ax=ax,
             **kwargs,
         )
-        ax.set_title(f"{result} {iterations[i]:d}/{Niter-1:d}")
+        ax.set_title(f"{result} {iterations[i]:d}/{Niter - 1:d}")
 
     Movie_func(DoAnim, fig, iterations.size, folder, filename, fps)
 
@@ -1384,7 +1389,6 @@ def Movie_func(
     with writer.saving(fig, filename, dpi):  # type: ignore [arg-type]
         tic = Tic()
         for i in range(N):
-
             func(fig, i)  # type: ignore [arg-type]
 
             if show:
@@ -1396,7 +1400,7 @@ def Movie_func(
 
             rmTime = Tic.Get_Remaining_Time(i, N - 1, time)
 
-            print(f"Make_Movie {i}/{N-1} {rmTime}    ", end="\r")
+            print(f"Make_Movie {i}/{N - 1} {rmTime}    ", end="\r")
 
 
 # ----------------------------------------------
@@ -1555,7 +1559,6 @@ def MyPrint(
     underLine=False,
     end: str = "",
 ) -> str:
-
     dct = dict(map(lambda item: (item.name, item.value), __Colors))
 
     if color not in dct:

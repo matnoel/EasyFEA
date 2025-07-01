@@ -22,7 +22,7 @@ def Save_pickle(obj, folder: str, filename: str) -> None:
     with open(file, "wb") as f:
         pickle.dump(obj, f)
 
-    Display.MyPrint(f'Saved:\n{file.replace(Folder.EASYFEA_DIR,"")}\n', "green")
+    Display.MyPrint(f"Saved:\n{file.replace(Folder.EASYFEA_DIR, '')}\n", "green")
 
 
 def Load_pickle(folder: str, filename: str):

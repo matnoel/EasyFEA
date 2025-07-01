@@ -13,7 +13,6 @@ from EasyFEA import Display, plt, np, ElemType, Materials, Simulations
 from EasyFEA.Geoms import Domain
 
 if __name__ == "__main__":
-
     Display.Clear()
 
     # Define dimension and mesh size parameters
@@ -74,9 +73,9 @@ if __name__ == "__main__":
 
     Display.Section("Result")
 
-    print(f"err W : {np.abs(W_an-W_num)/W_an*100:.2f} %")
+    print(f"err W : {np.abs(W_an - W_num) / W_an * 100:.2f} %")
 
-    print(f"err uy : {np.abs(uy_an-uy_num)/uy_an*100:.2f} %")
+    print(f"err uy : {np.abs(uy_an - uy_num) / uy_an * 100:.2f} %")
 
     Display.Plot_Mesh(simu, h / 2 / np.abs(sol).max())
     Display.Plot_BoundaryConditions(simu)

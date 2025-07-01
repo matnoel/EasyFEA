@@ -22,7 +22,6 @@ from EasyFEA import (
 from EasyFEA.Geoms import Point, Points, Line
 
 if __name__ == "__main__":
-
     Display.Clear()
     # Define material properties
     E = 210000  # MPa (Young's modulus)
@@ -115,7 +114,7 @@ if __name__ == "__main__":
 
     uy_1d = np.abs(simu_beam.Result("uy").min())
 
-    print(f"err beam model : {np.abs(u_an-uy_1d)/u_an*100:.2f} %")
+    print(f"err beam model : {np.abs(u_an - uy_1d) / u_an * 100:.2f} %")
 
     # ----------------------------------------------
     # Simulation 3D
@@ -130,7 +129,7 @@ if __name__ == "__main__":
 
     uy_3d = np.abs(simu.Result("uy").min())
 
-    print(f"err 3d model : {np.abs(u_an-uy_3d)/u_an*100:.2f} %")
+    print(f"err 3d model : {np.abs(u_an - uy_3d) / u_an * 100:.2f} %")
 
     # ----------------------------------------------
     # Results

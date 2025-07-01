@@ -218,16 +218,16 @@ class _Simu(_IObserver, ABC):
 
     def __Check_problemTypes(self, problemType: ModelType) -> None:
         """Checks whether this type of problem is available through the simulation."""
-        assert (
-            problemType in self.Get_problemTypes()
-        ), f"This type of problem is not available in this simulation ({self.Get_problemTypes()})"
+        assert problemType in self.Get_problemTypes(), (
+            f"This type of problem is not available in this simulation ({self.Get_problemTypes()})"
+        )
 
     def _Check_dim_mesh_material(self) -> None:
         """Checks that the material dim matches the mesh dim."""
         dim = self.__model.dim
-        assert (
-            dim == self.__mesh.dim and dim == self.__mesh.inDim
-        ), "Material and mesh must share the same dimensions and belong to the same space."
+        assert dim == self.__mesh.dim and dim == self.__mesh.inDim, (
+            "Material and mesh must share the same dimensions and belong to the same space."
+        )
 
     def __str__(self) -> str:
         """Returns a string representation of the simulation.
@@ -357,7 +357,6 @@ class _Simu(_IObserver, ABC):
 
     @property
     def mass(self) -> float:
-
         if self.dim == 1:
             return None  # type: ignore [return-value]
 
@@ -583,7 +582,6 @@ class _Simu(_IObserver, ABC):
 
     @solver.setter
     def solver(self, value: str):
-
         # Retrieve usable solvers
         solvers = _Available_Solvers()
 
@@ -684,7 +682,6 @@ class _Simu(_IObserver, ABC):
         v: Optional[_types.FloatArray] = None,
         a: Optional[_types.FloatArray] = None,
     ) -> None:
-
         self.__Set_u_n(problemType, u)
 
         if isinstance(v, np.ndarray):
@@ -751,7 +748,6 @@ class _Simu(_IObserver, ABC):
             return u_np1, v_np1, None
 
         elif algo == AlgoType.newmark:
-
             dt = self.__dt
             gamma = self.__gamma
             beta = self.__beta
@@ -769,7 +765,6 @@ class _Simu(_IObserver, ABC):
             return u_np1, v_np1, a_np1
 
         elif algo == AlgoType.midpoint:
-
             dt = self.__dt
             gamma = self.__gamma
             beta = self.__beta
@@ -790,7 +785,6 @@ class _Simu(_IObserver, ABC):
             return u_np1, v_np1, a_np1
 
         elif algo == AlgoType.hht:
-
             dt = self.__dt
             gamma = self.__gamma
             beta = self.__beta
@@ -849,7 +843,6 @@ class _Simu(_IObserver, ABC):
         list_norm_b: list[float] = []
 
         while not converged and Niter < maxIter:
-
             Niter += 1
 
             # compute delta_u and ||delta_u||
@@ -875,9 +868,9 @@ class _Simu(_IObserver, ABC):
 
         timeIter = tic.Tac(f"Resolution {problemType}", "Newton iterations", False)
 
-        assert (
-            converged
-        ), f"Newton raphson algorithm did not converged in {Niter} iterations."
+        assert converged, (
+            f"Newton raphson algorithm did not converged in {Niter} iterations."
+        )
 
         return u, Niter, timeIter, list_res
 
@@ -969,7 +962,6 @@ class _Simu(_IObserver, ABC):
             b -= C @ vt_np1.reshape(-1, 1)
 
         elif algo == AlgoType.midpoint:
-
             dt = self.__dt
             gamma = self.__gamma
             beta = self.__beta
@@ -988,7 +980,6 @@ class _Simu(_IObserver, ABC):
             b -= K @ u_n.reshape(-1, 1)
 
         elif algo == AlgoType.hht:
-
             dt = self.__dt
             gamma = self.__gamma
             beta = self.__beta
@@ -1048,7 +1039,6 @@ class _Simu(_IObserver, ABC):
             A = K
 
         elif algo == AlgoType.parabolic:
-
             alpha = self.__alpha
             dt = self.__dt
 
@@ -1056,7 +1046,6 @@ class _Simu(_IObserver, ABC):
             A = K + C / (alpha * dt)
 
         elif algo == AlgoType.newmark:
-
             dt = self.__dt
             gamma = self.__gamma
             beta = self.__beta
@@ -1069,7 +1058,6 @@ class _Simu(_IObserver, ABC):
             dofsValues = self._Get_a_n(problemType)[dofs]
 
         elif algo == AlgoType.midpoint:
-
             dt = self.__dt
             gamma = self.__gamma
             beta = self.__beta
@@ -1080,7 +1068,6 @@ class _Simu(_IObserver, ABC):
             dofsValues = self._Get_a_n(problemType)[dofs]
 
         elif algo == AlgoType.hht:
-
             dt = self.__dt
             gamma = self.__gamma
             beta = self.__beta
@@ -1135,7 +1122,6 @@ class _Simu(_IObserver, ABC):
         size = self.mesh.Nn * self.Get_dof_n(problemType)
 
         if resolution in [ResolType.r1, ResolType.r2]:
-
             # Here we return the solution with the known ddls
             x = sparse.csr_matrix(
                 (dofsValues, (dofs, np.zeros_like(dofs))),
@@ -1208,7 +1194,8 @@ class _Simu(_IObserver, ABC):
         # get the number of lagrange conditions applied to the problem
         # len(self.Bc_Lagrange) won't work because we need to filter the problemType
         nBc = BoundaryCondition.Get_nBc(
-            problemType, self.Bc_Lagrange  # type: ignore [arg-type]
+            problemType,
+            self.Bc_Lagrange,  # type: ignore [arg-type]
         )
         if nBc > 0:
             nBc += len(self.Bc_dofs_Dirichlet(problemType))
@@ -1284,9 +1271,9 @@ class _Simu(_IObserver, ABC):
         dofsUnknown = np.asarray(list(dofsUnknowns_set), dtype=int)  # type: ignore [type-var]
 
         test = dofsKnown.size + dofsUnknown.size  # type: ignore [attr-defined]
-        assert (
-            test == nDof
-        ), f"Problem under conditions dofsKnown + dofsUnknown - nDof = {test-nDof}"
+        assert test == nDof, (
+            f"Problem under conditions dofsKnown + dofsUnknown - nDof = {test - nDof}"
+        )
 
         tic.Tac("Solver", f"Get dofs ({problemType})", self._verbosity)
 
@@ -1715,7 +1702,6 @@ class _Simu(_IObserver, ABC):
 
         # For each group element
         for groupElem in self.mesh.Get_list_groupElem(dim):
-
             # Retrieve elements that exclusively use nodes
             elements = groupElem.Get_Elements_Nodes(nodes, exclusively=True)
             if elements.shape[0] == 0:
@@ -1738,7 +1724,6 @@ class _Simu(_IObserver, ABC):
 
             # Integrated for all unknowns
             for u, unknown in enumerate(unknowns):
-
                 if isinstance(values[u], (int, float)) or callable(values[u]):
                     # evaluate on gauss points
                     eval_e_p = self.__Bc_evaluate(coordo_e_p, values[u], option="gauss")
@@ -2165,7 +2150,7 @@ class _Simu(_IObserver, ABC):
         path_simu = Folder.Join(folder, f"{filename}.pickle", mkdir=True)
         with open(path_simu, "wb") as file:
             pickle.dump(self, file)
-        Display.MyPrint(f'Saved:\n{path_simu.replace(folder_EasyFEA,"")}\n', "green")
+        Display.MyPrint(f"Saved:\n{path_simu.replace(folder_EasyFEA, '')}\n", "green")
 
         # Save simulation summary
         path_summary = Folder.Join(folder, "summary.txt", mkdir=True)
@@ -2178,7 +2163,9 @@ class _Simu(_IObserver, ABC):
 
         with open(path_summary, "w", encoding="utf8") as file:
             file.write(summary)
-        Display.MyPrint(f'Saved:\n{path_summary.replace(folder_EasyFEA,"")}\n', "green")
+        Display.MyPrint(
+            f"Saved:\n{path_summary.replace(folder_EasyFEA, '')}\n", "green"
+        )
 
 
 # ----------------------------------------------
@@ -2309,6 +2296,6 @@ def Load_Simu(folder: str, filename: str = "simulation") -> _Simu:
         Display.MyPrintError(f"The file:\n{path_simu}\nis empty or corrupted.")
         return None  # type: ignore [return-value]
 
-    Display.MyPrint(f'\nLoaded:\n{path_simu.replace(folder_PythonEF,"")}\n', "green")
+    Display.MyPrint(f"\nLoaded:\n{path_simu.replace(folder_PythonEF, '')}\n", "green")
 
     return simu

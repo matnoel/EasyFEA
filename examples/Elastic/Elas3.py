@@ -13,7 +13,6 @@ from EasyFEA import Display, plt, np, ElemType, Materials, Simulations
 from EasyFEA.Geoms import Points
 
 if __name__ == "__main__":
-
     Display.Clear()
 
     # Define dimension and mesh size parameters
@@ -39,11 +38,11 @@ if __name__ == "__main__":
 
     if dim == 2:
         mesh = contour.Mesh_2D([], ElemType.TRI6)
-        print(f"err area = {np.abs(mesh.area - h**2/2)/mesh.area:.3e}")
+        print(f"err area = {np.abs(mesh.area - h**2 / 2) / mesh.area:.3e}")
     elif dim == 3:
         mesh = contour.Mesh_Extrude([], [0, 0, -thickness], [3], ElemType.PRISM15)
         print(
-            f"error volume = {np.abs(mesh.volume - h**2/2 * thickness)/mesh.volume:.3e}"
+            f"error volume = {np.abs(mesh.volume - h**2 / 2 * thickness) / mesh.volume:.3e}"
         )
 
     nodes_x0 = mesh.Nodes_Conditions(lambda x, y, z: x == 0)

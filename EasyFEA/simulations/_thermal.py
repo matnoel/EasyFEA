@@ -24,7 +24,6 @@ from .Solvers import AlgoType
 
 
 class ThermalSimu(_Simu):
-
     def __init__(
         self,
         mesh: "Mesh",
@@ -109,7 +108,6 @@ class ThermalSimu(_Simu):
     def __Construct_Thermal_Matrix(
         self,
     ) -> tuple[FeArray.FeArrayALike, FeArray.FeArrayALike]:
-
         thermalModel = self.thermalModel
         mesh = self.mesh
 
@@ -178,7 +176,6 @@ class ThermalSimu(_Simu):
         tic.Tac("Matrix", "Assembly Kt, Mt and Ft", self._verbosity)
 
     def Save_Iter(self):
-
         iter = super().Save_Iter()
 
         iter["thermal"] = self.thermal
@@ -189,7 +186,6 @@ class ThermalSimu(_Simu):
         self._results.append(iter)
 
     def Set_Iter(self, iter: int = -1, resetAll=False) -> dict:
-
         results = super().Set_Iter(iter)
 
         if results is None:
@@ -214,7 +210,6 @@ class ThermalSimu(_Simu):
     def Result(
         self, result: str, nodeValues: bool = True, iter: Optional[int] = None
     ) -> Union[_types.FloatArray, float]:
-
         if iter is not None:
             self.Set_Iter(iter)
 

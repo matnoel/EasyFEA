@@ -24,7 +24,6 @@ from EasyFEA import (
 from EasyFEA.Geoms import Point, Points
 
 if __name__ == "__main__":
-
     Display.Clear()
 
     # ----------------------------------------------
@@ -82,10 +81,9 @@ if __name__ == "__main__":
     iter = 0
 
     while iter < N:
-
         iter += 1
 
-        print(f"{iter/N*100:2.2f} %", end="\r")
+        print(f"{iter / N * 100:2.2f} %", end="\r")
 
         simu.Bc_Init()
         simu.add_dirichlet(nodes_y0, [0] * dim, simu.Get_unknowns())
@@ -121,7 +119,6 @@ if __name__ == "__main__":
         pos = np.arange(0, mesh.nPe * dim, 2)
 
         for n, p in zip(range(mesh.nPe), pos):
-
             dNx = dN_e_pg[:, :, 0, n]
             dNy = dN_e_pg[:, :, 1, n]
 

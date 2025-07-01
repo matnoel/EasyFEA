@@ -22,7 +22,6 @@ from EasyFEA import (
 from EasyFEA.Geoms import Domain
 
 if __name__ == "__main__":
-
     Display.Clear()
 
     # ----------------------------------------------
@@ -113,7 +112,6 @@ if __name__ == "__main__":
     simu.Set_Rayleigh_Damping_Coefs(coefM=coefM, coefK=coefK)
 
     while time <= Tmax:
-
         time += dt
 
         simu.Bc_Init()
@@ -163,7 +161,6 @@ if __name__ == "__main__":
         )
 
     if plotResult:
-
         tic = Tic()
         print(simu)
         Display.Plot_Result(simu, "uy", deformFactor=factorDef, nodeValues=False)

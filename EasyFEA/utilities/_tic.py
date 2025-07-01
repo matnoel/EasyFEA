@@ -11,7 +11,6 @@ import pandas as pd
 
 
 class Tic:
-
     def __init__(self):
         self.__start = time.time()
 
@@ -52,7 +51,7 @@ class Tic:
         else:
             timeLeft = (N - i) * time
             timeLeft, unit = Tic.Get_time_unity(timeLeft)
-            return f"({i/N*100:3.2f} %) {timeLeft:3.2f} {unit}"
+            return f"({i / N * 100:3.2f} %) {timeLeft:3.2f} {unit}"
 
     def Tac(self, category="", text="", verbosity=False) -> float:
         """Returns the time elapsed since the last `Tic` or `Tac`."""
@@ -121,7 +120,6 @@ class Tic:
         reps: list[int],
         title: str,
     ) -> None:
-
         # Axis parameters
         ax.xaxis.set_tick_params(labelbottom=False, labeltop=True, length=0)
         ax.yaxis.set_visible(False)
@@ -139,9 +137,7 @@ class Tic:
         # I want to display the text on the right if the time represents < 0.5 timeTotal
         # Otherwise, we'll display it on the left
 
-        for i, (category, time, rep) in enumerate(
-            zip(categories, times, reps)
-        ):  # noqa: F402
+        for i, (category, time, rep) in enumerate(zip(categories, times, reps)):  # noqa: F402
             # height=0.55
             # ax.barh(i, t, height=height, align="center", label=c)
             ax.barh(i, time, align="center", label=category)
@@ -152,9 +148,9 @@ class Tic:
             unitTime, unit = Tic.Get_time_unity(time / rep)
 
             if rep > 1:
-                repTemps = f" ({rep} x {np.round(unitTime,2)} {unit})"
+                repTemps = f" ({rep} x {np.round(unitTime, 2)} {unit})"
             else:
-                repTemps = f" ({np.round(unitTime,2)} {unit})"
+                repTemps = f" ({np.round(unitTime, 2)} {unit})"
 
             category = space + category + repTemps + space
 
@@ -210,7 +206,6 @@ class Tic:
         categories = np.asarray(categories)[np.argsort(tempsCategorie)][::-1].tolist()
 
         for i, c in enumerate(categories):
-
             # c subcategory times
             timeSubCategory = np.array(np.array(historique[c])[:, 1], dtype=np.float64)
             totalTime.append(

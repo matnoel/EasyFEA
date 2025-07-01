@@ -27,7 +27,6 @@ def Calc_ukl(
     pltSol=False,
     useMean0=False,
 ):
-
     simu.Bc_Init()
     mesh = simu.mesh
     coord = mesh.coordGlob
@@ -43,9 +42,7 @@ def Calc_ukl(
     simu.add_dirichlet(nodes_border, [func_ux, func_uy], ["x", "y"])
 
     if usePER:
-
         for n0, n1 in paired_nodes:
-
             nodes = np.array([n0, n1])
 
             for direction in ["x", "y"]:
@@ -63,7 +60,6 @@ def Calc_ukl(
                 simu._Bc_Add_Lagrange(condition)
 
     if useMean0:
-
         nodes = mesh.nodes
         vect = np.ones(mesh.Nn) * 1 / mesh.Nn
 
@@ -93,7 +89,6 @@ def Calc_ukl(
 
 
 if __name__ == "__main__":
-
     Display.Clear()
 
     # use Periodic boundary conditions ?
@@ -193,8 +188,8 @@ if __name__ == "__main__":
     # Display.Plot_BoundaryConditions(simu)
 
     print(f"f = {f}")
-    print(f"c1111 = {C_hom[0,0]}")
-    print(f"c1122 = {C_hom[0,1]}")
-    print(f"c1212 = {C_hom[2,2]/2}")
+    print(f"c1111 = {C_hom[0, 0]}")
+    print(f"c1122 = {C_hom[0, 1]}")
+    print(f"c1212 = {C_hom[2, 2] / 2}")
 
     plt.show()

@@ -22,7 +22,6 @@ from EasyFEA import (
 from EasyFEA.Geoms import Circle, Domain, Point
 
 if __name__ == "__main__":
-
     Display.Clear()
 
     dim = 3  # Set the simulation dimension (2D or 3D)
@@ -88,7 +87,6 @@ if __name__ == "__main__":
     t = 0  # init time
     # Main loop for time-dependent simulation
     while t < Tmax:
-
         simu.Solve()
         simu.Save_Iter()
 

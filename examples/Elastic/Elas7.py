@@ -30,7 +30,6 @@ from EasyFEA import (
 from EasyFEA.Geoms import Points, Point, Circle
 
 if __name__ == "__main__":
-
     Display.Clear()
 
     # ----------------------------------------------
@@ -138,7 +137,6 @@ if __name__ == "__main__":
 
     # loop over the load
     for load in loads:
-
         # Apply boundary conditions
         simu.Bc_Init()
         simu.add_dirichlet(fixedNodes, fixed, unknowns)

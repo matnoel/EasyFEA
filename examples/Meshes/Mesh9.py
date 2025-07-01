@@ -14,7 +14,6 @@ from EasyFEA import Display, np, Mesher, ElemType
 from EasyFEA.Geoms import Point, Circle, Points, Line, CircleArc, Contour
 
 if __name__ == "__main__":
-
     dim = 2
 
     if dim == 2:
@@ -68,7 +67,6 @@ if __name__ == "__main__":
     contours1: list[Contour] = []
 
     for c in range(4):
-
         pc = circle.center
         contour = circle.Get_Contour()
         pc1 = contour.geoms[c].pt1
@@ -97,7 +95,6 @@ if __name__ == "__main__":
     cont1.Plot_Geoms(contours1)
 
     if dim == 3:
-
         for cont1 in contours1:
             cont2 = cont1.copy()
             cont2.Translate(dz=e)

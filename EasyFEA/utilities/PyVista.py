@@ -370,7 +370,6 @@ def Plot_Elements(
         plotter = _Plotter()
 
     for groupElem in mesh.Get_list_groupElem(dimElem):
-
         # get the elements associated with the nodes
         elements = groupElem.Get_Elements_Nodes(nodes)
 
@@ -455,7 +454,6 @@ def Plot_BoundaryConditions(
     color_cycler = pv.global_theme.color_cycler
 
     for bc, cycle in zip(BoundaryConditions, color_cycler):
-
         color = cycle["color"]  # type: ignore [index]
 
         problemType = bc.problemType
@@ -614,7 +612,6 @@ def Plot_Geoms(
         kwargs.pop("color")
 
     for geom, cycle in zip(geoms, color_cycler):
-
         color = cycle["color"]  # type: ignore [index]
 
         dataSet = _pvGeom(geom)
@@ -742,7 +739,6 @@ def Movie_func(
     print()
 
     for i in range(N):
-
         plotter.clear()
 
         func(plotter, i)
@@ -753,7 +749,7 @@ def Movie_func(
 
         rmTime = Tic.Get_Remaining_Time(i, N - 1, time)
 
-        MyPrint(f"Movie_func {i}/{N-1} {rmTime}    ", end="\r")
+        MyPrint(f"Movie_func {i}/{N - 1} {rmTime}    ", end="\r")
 
     print()
     plotter.close()
@@ -819,7 +815,6 @@ def _pyVistaMesh(
 
 
 def _pvGeom(geom) -> Union[pv.DataSet, list[pv.DataSet]]:
-
     if not isinstance(geom, (Geoms.Point, Geoms._Geom)):
         MyPrintError("Must be a point or a geometric object.")
         return None  # type: ignore [return-value]
@@ -863,7 +858,10 @@ def _pvGeom(geom) -> Union[pv.DataSet, list[pv.DataSet]]:
     elif isinstance(geom, Geoms.Circle):
         arc1 = pv.CircularArc(geom.pt1.coord, geom.pt3.coord, geom.center.coord)  # type: ignore [arg-type]
         arc2 = pv.CircularArc(
-            geom.pt1.coord, geom.pt3.coord, geom.center.coord, negative=True  # type: ignore [arg-type]
+            geom.pt1.coord,
+            geom.pt3.coord,
+            geom.center.coord,
+            negative=True,  # type: ignore [arg-type]
         )
         dataSet = [arc1, arc2]  # type: ignore [assignment]
 

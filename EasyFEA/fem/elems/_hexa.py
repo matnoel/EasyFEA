@@ -83,7 +83,6 @@ class HEXA8(_GroupElem):
         )
 
     def _N(self) -> _types.FloatArray:
-
         N1 = lambda r, s, t: -(r - 1) * (s - 1) * (t - 1) / 8
         N2 = lambda r, s, t: (r + 1) * (s - 1) * (t - 1) / 8
         N3 = lambda r, s, t: -(r + 1) * (s + 1) * (t - 1) / 8
@@ -98,7 +97,6 @@ class HEXA8(_GroupElem):
         return N
 
     def _dN(self) -> _types.FloatArray:
-
         dN1 = [
             lambda r, s, t: -(s - 1) * (t - 1) / 8,
             lambda r, s, t: -(r - 1) * (t - 1) / 8,
@@ -175,7 +173,6 @@ class HEXA20(_GroupElem):
         coordGlob: _types.FloatArray,
         nodes: _types.IntArray,
     ):
-
         super().__init__(gmshId, connect, coordGlob, nodes)
 
     @property
@@ -247,7 +244,6 @@ class HEXA20(_GroupElem):
         )
 
     def _N(self) -> _types.FloatArray:
-
         N1 = lambda r, s, t: (r - 1) * (s - 1) * (t - 1) * (r + s + t + 2) / 8
         N2 = lambda r, s, t: (r + 1) * (s - 1) * (t - 1) * (r - s - t - 2) / 8
         N3 = lambda r, s, t: -(r + 1) * (s + 1) * (t - 1) * (r + s - t - 2) / 8
@@ -297,7 +293,6 @@ class HEXA20(_GroupElem):
         return N
 
     def _dN(self) -> _types.FloatArray:
-
         dN1 = [
             lambda r, s, t: r * s * t / 4
             - r * s / 4
@@ -643,7 +638,6 @@ class HEXA20(_GroupElem):
         return dN
 
     def _ddN(self) -> _types.FloatArray:
-
         ddN1 = [
             lambda r, s, t: (s - 1) * (t - 1) / 4,
             lambda r, s, t: (r - 1) * (t - 1) / 4,
@@ -800,7 +794,6 @@ class HEXA27(_GroupElem):
         coordGlob: _types.FloatArray,
         nodes: _types.IntArray,
     ):
-
         super().__init__(gmshId, connect, coordGlob, nodes)
 
     @property
@@ -879,7 +872,6 @@ class HEXA27(_GroupElem):
         )
 
     def _N(self) -> _types.FloatArray:
-
         N1 = lambda r, s, t: r * s * t * (r - 1) * (s - 1) * (t - 1) / 8
         N2 = lambda r, s, t: r * s * t * (r + 1) * (s - 1) * (t - 1) / 8
         N3 = lambda r, s, t: r * s * t * (r + 1) * (s + 1) * (t - 1) / 8
@@ -943,7 +935,6 @@ class HEXA27(_GroupElem):
         return N
 
     def _dN(self) -> _types.FloatArray:
-
         dN1 = [
             lambda r, s, t: r * s * t * (s - 1) * (t - 1) / 8
             + s * t * (r - 1) * (s - 1) * (t - 1) / 8,
@@ -1196,7 +1187,6 @@ class HEXA27(_GroupElem):
         return dN
 
     def _ddN(self) -> _types.FloatArray:
-
         ddN1 = [
             lambda r, s, t: s * t * (s - 1) * (t - 1) / 4,
             lambda r, s, t: r * t * (r - 1) * (t - 1) / 4,

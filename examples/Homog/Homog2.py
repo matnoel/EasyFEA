@@ -17,7 +17,6 @@ from EasyFEA.fem import FeArray
 from Homog1 import Calc_ukl
 
 if __name__ == "__main__":
-
     Display.Clear()
 
     # use Periodic boundary conditions ?
@@ -37,7 +36,6 @@ if __name__ == "__main__":
     N = 5
 
     if geom == "D666":
-
         a = 1
         R = 2 * a / np.sqrt(3)
         r = R / np.sqrt(2) / 2
@@ -70,7 +68,6 @@ if __name__ == "__main__":
         inclusions = [Points([p6, p7, p8, p9, p10, p11], s / N, hollowInclusion)]
 
     elif geom == "D2":
-
         a = 1  # width
         b = 1.4  # height
         e = 1 / 10  # thickness
@@ -93,7 +90,6 @@ if __name__ == "__main__":
         inclusions = [Points([p4, p5, p6, p7], meshSize, hollowInclusion)]
 
     elif geom == "D6":
-
         a = 1  # height
         b = 2  # width
         c = np.sqrt(a**2 + b**2)
@@ -164,7 +160,6 @@ if __name__ == "__main__":
         for p, point in enumerate(
             [p0, p1, p2, p3, p4, p5, p6, p7, p8, p9, p10, p11, p12, p13]
         ):
-
             assert isinstance(point, Point)
 
             newCoord = rot @ point.coord
@@ -257,8 +252,8 @@ if __name__ == "__main__":
 
     C_hom = (wJ_e_pg * C_Mat @ B_e_pg @ U_e).sum((0, 1)) / mesh.area
 
-    print(f"c1111 = {C_hom[0,0]}")
-    print(f"c1122 = {C_hom[0,1]}")
-    print(f"c1212 = {C_hom[2,2]/2}")
+    print(f"c1111 = {C_hom[0, 0]}")
+    print(f"c1122 = {C_hom[0, 1]}")
+    print(f"c1212 = {C_hom[2, 2] / 2}")
 
     plt.show()

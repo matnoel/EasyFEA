@@ -130,9 +130,9 @@ class PhaseField(_IModel):
             matrix characterizing the weak anisotropy in the crack surface density function.
         """
 
-        assert isinstance(
-            material, _Elas
-        ), "Must be a displacement model (ElasIsot, ElasIsotTrans, ElasAnisot)"
+        assert isinstance(material, _Elas), (
+            "Must be a displacement model (ElasIsot, ElasIsotTrans, ElasAnisot)"
+        )
         # Material object cannot be changed by another _Elas object
         self.__material = material
 
@@ -296,9 +296,9 @@ class PhaseField(_IModel):
         assert value in splits, f"Must be included in {splits}"
         if not isinstance(self.material, ElasIsot):
             # check that if the material is not a isotropic material you cant pick a isotoprpic split
-            assert (
-                value not in PhaseField.__SPLITS_ISOT
-            ), "These splits are only implemented for ElasIsot material"
+            assert value not in PhaseField.__SPLITS_ISOT, (
+                "These splits are only implemented for ElasIsot material"
+            )
         self.Need_Update()
         self.__split = value
 
@@ -487,9 +487,9 @@ class PhaseField(_IModel):
     def __Split_Amor(self, Epsilon_e_pg: FeArray.FeArrayALike):
         """[Amor 2009] DOI : 10.1016/j.jmps.2009.04.011"""
 
-        assert isinstance(
-            self.__material, ElasIsot
-        ), "Implemented only for ElasIsot material."
+        assert isinstance(self.__material, ElasIsot), (
+            "Implemented only for ElasIsot material."
+        )
 
         tic = Tic()
 
@@ -560,9 +560,9 @@ class PhaseField(_IModel):
         if self.__split == self.SplitType.Miehe:
             # [Miehe 2010] DOI : 10.1016/j.cma.2010.04.011
 
-            assert isinstance(
-                self.__material, ElasIsot
-            ), "Implemented only for ElasIsot material"
+            assert isinstance(self.__material, ElasIsot), (
+                "Implemented only for ElasIsot material"
+            )
 
             # Compute Rp and Rm
             Rp_e_pg, Rm_e_pg = self.__Rp_Rm(Epsilon_e_pg)
@@ -589,7 +589,6 @@ class PhaseField(_IModel):
             cM_e_pg = lamb * (Rm_e_pg * IxI) + 2 * mu * projM_e_pg
 
         elif "Strain" in self.__split:
-
             # here don't use numba if behavior is heterogeneous
             if self.useNumba and not self.isHeterogeneous:
                 # Faster (x2) but not available for heterogeneous material (memory issues)
@@ -610,22 +609,18 @@ class PhaseField(_IModel):
                 Cmp = projMTc @ projP_e_pg
 
             if self.__split == self.SplitType.AnisotStrain:
-
                 cP_e_pg = Cpp + Cpm + Cmp
                 cM_e_pg = Cmm
 
             elif self.__split == self.SplitType.AnisotStrain_PM:
-
                 cP_e_pg = Cpp + Cpm
                 cM_e_pg = Cmm + Cmp
 
             elif self.__split == self.SplitType.AnisotStrain_MP:
-
                 cP_e_pg = Cpp + Cmp
                 cM_e_pg = Cmm + Cpm
 
             elif self.__split == self.SplitType.AnisotStrain_NoCross:
-
                 cP_e_pg = Cpp
                 cM_e_pg = Cmm + Cpm + Cmp
 
@@ -658,7 +653,6 @@ class PhaseField(_IModel):
         tic = Tic()
 
         if self.__split == self.SplitType.Stress:
-
             assert isinstance(material, ElasIsot)
 
             E = material.E
@@ -709,7 +703,6 @@ class PhaseField(_IModel):
                 cM_e_pg = C_e_pg.T @ sM_e_pg @ C_e_pg
 
         elif self.__split == self.SplitType.Zhang or "Stress" in self.__split:
-
             Cp_e_pg = projP_e_pg @ C_e_pg
             Cm_e_pg = projM_e_pg @ C_e_pg
 
@@ -738,22 +731,18 @@ class PhaseField(_IModel):
                     Cmp = ms @ Cp_e_pg
 
                 if self.__split == self.SplitType.AnisotStress:
-
                     cP_e_pg = Cpp + Cpm + Cmp
                     cM_e_pg = Cmm
 
                 elif self.__split == self.SplitType.AnisotStress_PM:
-
                     cP_e_pg = Cpp + Cpm
                     cM_e_pg = Cmm + Cmp
 
                 elif self.__split == self.SplitType.AnisotStress_MP:
-
                     cP_e_pg = Cpp + Cmp
                     cM_e_pg = Cmm + Cpm
 
                 elif self.__split == self.SplitType.AnisotStress_NoCross:
-
                     cP_e_pg = Cpp
                     cM_e_pg = Cmm + Cpm + Cmp
 
@@ -811,7 +800,6 @@ class PhaseField(_IModel):
         tic.Tac("Split", "cP_e_pg and cM_e_pg", False)
 
         if verif:
-
             vector_e_pg = Epsilon_e_pg.copy()
 
             vectorP = projP_e_pg @ vector_e_pg
@@ -895,11 +883,9 @@ class PhaseField(_IModel):
             tic.Tac("Split", "Eigenprojectors", False)
 
         elif self.dim == 3:
-
             version = "invariants"  # 'invariants', 'eigh'
 
             if version == "eigh":
-
                 valnum, vectnum = np.linalg.eigh(matrix_e_pg)
 
                 tic.Tac("Split", "np.linalg.eigh", False)
@@ -916,7 +902,6 @@ class PhaseField(_IModel):
                 tic.Tac("Split", "Eigenvalues and eigenprojectors", False)
 
             elif version == "invariants":
-
                 # [Q.-C. He Closed-form coordinate-free]
 
                 det_e_pg = Det(matrix_e_pg)
@@ -987,7 +972,6 @@ class PhaseField(_IModel):
                 case2 = list(set(np.ravel(np.where(test2)[0])))
 
                 if len(case2) > 0:
-
                     val1_e_pg[case2, :] += -2 / 3 * g_e_pg[case2, :] ** (1 / 2)
                     val2_e_pg[case2, :] += 1 / 3 * g_e_pg[case2, :] ** (1 / 2)
                     val3_e_pg[case2, :] += 1 / 3 * g_e_pg[case2, :] ** (1 / 2)
@@ -1011,7 +995,6 @@ class PhaseField(_IModel):
                 case3 = list(set(np.ravel(np.where(test3)[0])))
 
                 if len(case3) > 0:
-
                     val1_e_pg[case3, :] += -1 / 3 * g_e_pg[case3, :] ** (1 / 2)
                     val2_e_pg[case3, :] += -1 / 3 * g_e_pg[case3, :] ** (1 / 2)
                     val3_e_pg[case3, :] += 2 / 3 * g_e_pg[case3, :] ** (1 / 2)
@@ -1036,7 +1019,6 @@ class PhaseField(_IModel):
                 case1 = np.setdiff1d(case1, np.union1d(case2, case3))  # type: ignore [assignment]
 
                 if len(case1) > 0:
-
                     val1_e_pg[case1, :] += (
                         2 / 3 * g_e_pg ** (1 / 2) * np.cos(2 * np.pi / 3 + theta)
                     )[case1, :]
@@ -1102,7 +1084,6 @@ class PhaseField(_IModel):
         tic.Tac("Split", "Eigenvectors", False)
 
         if verif:
-
             valnum, vectnum = np.linalg.eigh(matrix_e_pg)
             valnum, vectnum = FeArray._asfearrays(valnum, vectnum)
 
@@ -1127,9 +1108,9 @@ class PhaseField(_IModel):
             if valnum.max() > 0:
                 diff_val = eigs_e_pg - valnum
                 test_val = Norm(diff_val, axis=-1) / Norm(valnum, axis=-1)
-                assert (
-                    np.max(test_val) < 1e-12
-                ), f"Error in eigenvalues ({np.max(test_val):.3e})."
+                assert np.max(test_val) < 1e-12, (
+                    f"Error in eigenvalues ({np.max(test_val):.3e})."
+                )
 
             # Check that: E1*M1 + E2*M2 + E3*M3
             if matrix_e_pg.max() > 0:
@@ -1138,25 +1119,25 @@ class PhaseField(_IModel):
                 test_diff = Norm(diff_matrix, axis=(-2, -1)) / Norm(
                     matrix_e_pg, axis=(-2, -1)
                 )
-                assert (
-                    np.max(test_diff) < 1e-12
-                ), f"matrix != matrix_e_pg -> {np.max(test_diff):.3e}"
+                assert np.max(test_diff) < 1e-12, (
+                    f"matrix != matrix_e_pg -> {np.max(test_diff):.3e}"
+                )
                 # matrix_eig
                 diff_matrix_eig = matrix_eig - matrix_e_pg
                 test_diff_eig = Norm(diff_matrix_eig, axis=(-2, -1)) / Norm(
                     matrix_e_pg, axis=(-2, -1)
                 )
-                assert (
-                    np.max(test_diff_eig) < 1e-12
-                ), f"matrix != matrix_e_pg -> {np.max(test_diff_eig):.3e}"
+                assert np.max(test_diff_eig) < 1e-12, (
+                    f"matrix != matrix_e_pg -> {np.max(test_diff_eig):.3e}"
+                )
 
             if np.max(matrix) > 0:
                 test_eig = Norm(matrix_eig - matrix, axis=(-2, -1)) / Norm(
                     matrix, axis=(-2, -1)
                 )
-                assert (
-                    np.max(test_eig) < 1e-12
-                ), f"matrix_eig != matrix -> {np.max(test_eig):.3e}"
+                assert np.max(test_eig) < 1e-12, (
+                    f"matrix_eig != matrix -> {np.max(test_eig):.3e}"
+                )
 
             # [Remark M]
             # Rounding errors in the construction of 3D eigen projectors.
@@ -1169,9 +1150,9 @@ class PhaseField(_IModel):
             def Checks_Ma(Ma, Mb, tol=tol):
                 diff_M = Ma - Mb
                 test_M = Norm(diff_M, axis=(-2, -1)) / Norm(Ma, axis=(-2, -1))
-                assert (
-                    np.max(test_M) < tol
-                ), f"Error in eigenprojectors ({np.max(test_M):.3e})."
+                assert np.max(test_M) < tol, (
+                    f"Error in eigenprojectors ({np.max(test_M):.3e})."
+                )
 
             Checks_Ma(M1, M1_num)
             Checks_Ma(M2, M2_num)
@@ -1180,21 +1161,21 @@ class PhaseField(_IModel):
 
             # check orthogonality between M1 and M2
             test_M1_M2 = np.abs(M1.ddot(M2))  # type: ignore [attr-defined]
-            assert (
-                np.max(test_M1_M2) < tol
-            ), f"Orthogonality M1 : M2 not verified -> {np.max(test_M1_M2):.3e}"
+            assert np.max(test_M1_M2) < tol, (
+                f"Orthogonality M1 : M2 not verified -> {np.max(test_M1_M2):.3e}"
+            )
 
             if dim == 3:
                 # check orthogonality between M1 and M3
                 test_M1_M3 = np.abs(M1.ddot(M3))  # type: ignore [attr-defined]
-                assert (
-                    np.max(test_M1_M3) < 1e-12
-                ), f"Orthogonality M1 : M3 not verified -> {np.max(test_M1_M3):.3e}"
+                assert np.max(test_M1_M3) < 1e-12, (
+                    f"Orthogonality M1 : M3 not verified -> {np.max(test_M1_M3):.3e}"
+                )
                 # check orthogonality between M2 and M3
                 test_M2_M3 = np.abs(M2.ddot(M3))  # type: ignore [attr-defined]
-                assert (
-                    np.max(test_M2_M3) < 1e-12
-                ), f"Orthogonality M2 : M3 not verified -> {np.max(test_M2_M3):.3e}"
+                assert np.max(test_M2_M3) < 1e-12, (
+                    f"Orthogonality M2 : M3 not verified -> {np.max(test_M2_M3):.3e}"
+                )
 
         return eigs_e_pg, list_m, list_M
 
@@ -1339,7 +1320,6 @@ class PhaseField(_IModel):
             else:
 
                 def __Construction_Gij(Ma, Mb):
-
                     Gij = np.zeros((Ne, nPg, 6, 6))
 
                     def part1(Ma, Mb):
@@ -1424,7 +1404,6 @@ class PhaseField(_IModel):
             tic.Tac("Split", "projP and projM", False)
 
         if verif:
-
             vectorP = projP @ vector_e_pg
             vectorM = projM @ vector_e_pg
 
@@ -1446,8 +1425,8 @@ class PhaseField(_IModel):
 
             if np.max(Norm(vector_e_pg, axis=-1)) > 0:
                 test_vect = Norm(diff_vect, axis=-1) / Norm(vector_e_pg, axis=-1)
-                assert (
-                    np.max(test_vect) < tol
-                ), f"vector_e_pg != vectorP_e_pg + vectorM_e_pg -> {np.max(test_vect):.3e}"
+                assert np.max(test_vect) < tol, (
+                    f"vector_e_pg != vectorP_e_pg + vectorM_e_pg -> {np.max(test_vect):.3e}"
+                )
 
         return projP, projM

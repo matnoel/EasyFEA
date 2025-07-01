@@ -345,7 +345,6 @@ class Mesh(Observable):
 
         # for each elements on the boundary
         for groupElem in self.Get_list_groupElem(dim - 1):
-
             elements = groupElem.Get_Elements_Nodes(nodes, True)
 
             if elements.size == 0:
@@ -746,7 +745,6 @@ class Mesh(Observable):
         coordo = self.coord
 
         for c, corner in enumerate(corners):
-
             # here corner and next_corner are coordinates
             if c + 1 == nCorners:
                 next_corner = corners[0]
@@ -788,9 +786,9 @@ class Mesh(Observable):
 
         assert len(nodes1) != 0 and len(nodes2) != 0, "No nodes detected"
 
-        assert len(nodes1) == len(
-            nodes2
-        ), "Edges must contain the same number of nodes."
+        assert len(nodes1) == len(nodes2), (
+            "Edges must contain the same number of nodes."
+        )
 
         paired_nodes = np.array([nodes1, nodes2]).T
 
@@ -804,7 +802,6 @@ class Mesh(Observable):
             start = 0
 
             for edge in range(len(nNodes)):
-
                 start += 0 if edge == 0 else nNodes[edge - 1]
 
                 edge_node = paired_nodes[start : start + nNodes[edge]]
@@ -896,7 +893,6 @@ class Mesh(Observable):
             angle_e_s = np.zeros((groupElem.Ne, groupElem.Nvertex), float)
 
             for c in range(groupElem.Nvertex):
-
                 next = c + 1 if c + 1 < groupElem.Nvertex else 0
                 prev = -1 if c == 0 else c - 1
 
@@ -1157,7 +1153,6 @@ def Mesh_Optim(
     optimGeom: Optional[str] = None
     # max=1
     while ratio <= targetRatio and i <= iterMax:
-
         i += 1
 
         mesh = DoMesh(optimGeom)  # type: ignore [arg-type]
@@ -1175,7 +1170,7 @@ def Mesh_Optim(
         if ratio == 1:
             return mesh, ratio
 
-        print(f"ratio = {ratio*100:.3f} %")
+        print(f"ratio = {ratio * 100:.3f} %")
 
         # # assign max quality for elements that exceed quality
         # qual_e[qual_e >= quality] = quality

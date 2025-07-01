@@ -129,9 +129,9 @@ class _Beam(_IModel):
 
     @section.setter
     def section(self, section: Mesh) -> None:
-        assert (
-            section.inDim == 2
-        ), "The cross-beam section must be contained in the (x,y) plane."
+        assert section.inDim == 2, (
+            "The cross-beam section must be contained in the (x,y) plane."
+        )
         # make sure that the section is centered in (0,0)
         section.Translate(*-section.center)
         Iyz = section.groupElem.Integrate_e(lambda x, y, z: x * y).sum()
@@ -151,7 +151,6 @@ class _Beam(_IModel):
 
     @yAxis.setter
     def yAxis(self, value: _types.Coords):
-
         # set y axis
         xAxis = self.xAxis
         yAxis = Normalize(AsCoords(value))
@@ -288,7 +287,6 @@ class BeamElasIsot(_Beam):
         return self.E / (2 * (1 + self.v))
 
     def Get_D(self) -> _types.FloatArray:
-
         dim = self.dim
         section = self.section
         A = section.area
@@ -391,7 +389,6 @@ class BeamStructure(_IModel):
 
         # For each beam, we will construct the law of behavior on the associated nodes.
         for beam, D in zip(listBeam, list_D):
-
             # recover elements
             elems = groupElem.Get_Elements_Tag(beam.name)
             D_e_pg[elems] = D
