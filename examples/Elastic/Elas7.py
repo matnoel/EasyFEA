@@ -174,4 +174,4 @@ if __name__ == "__main__":
         )
 
     if makeParaview:
-        Paraview.Save_simu(simu, folder)
+        Paraview.Save_simu(simu, folder, elementFields=["Svm", "Stress", "Strain"])
