@@ -32,7 +32,7 @@ if TYPE_CHECKING:
     from ..simulations._simu import _Simu
 
 # types
-GeomCompatible = Union[Circle, Domain, Points, Contour]
+GeomCompatible = Union[_Geom, Circle, Domain, Points, Contour]
 ContourCompatible = Union[Line, CircleArc, Points]
 CrackCompatible = Union[Line, Points, Contour, CircleArc]
 RefineCompatible = Union[Point, Circle, str]

@@ -17,7 +17,6 @@ from ..utilities import _types
 if TYPE_CHECKING:
     from ..geoms import Point, Line, Circle, CircleArc, Points, Contour, Domain
 
-    GeomCompatible = Union[Domain, Circle, Points, Contour]
     ContourCompatible = Union[Line, CircleArc, Points]
     CrackCompatible = Union[Line, Points, Contour, CircleArc]
     RefineCompatible = Union[Point, Circle, str]
@@ -25,6 +24,8 @@ if TYPE_CHECKING:
 
 class _Geom(ABC):
     """Geometric class."""
+
+    GeomCompatible = Union["_Geom", "Domain", "Circle", "Points", "Contour"]
 
     def __init__(
         self,
