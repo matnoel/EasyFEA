@@ -39,7 +39,7 @@ if __name__ == "__main__":
 
     folder = Folder.Join(Folder.RESULTS_DIR, "Elastic", "Elas7", mkdir=True)
     makeMovie = False
-    makeParaview = False
+    makeParaview = True
 
     # geometry
     dim = 3
@@ -174,4 +174,6 @@ if __name__ == "__main__":
         )
 
     if makeParaview:
-        Paraview.Save_simu(simu, folder, elementFields=["Svm", "Stress", "Strain"])
+        Paraview.Save_simu(
+            simu, folder, elementFields=["Svm", "Stress", "Strain", "Wdef_e"]
+        )
