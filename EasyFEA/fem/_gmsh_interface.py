@@ -2230,11 +2230,9 @@ class Mesher:
             )
 
             if dof_n == 1:
-                view = AddView(
-                    result, vals_e_i_n[:, :, 0].reshape((Ne, -1))
-                )  # noqa: F841
+                AddView(result, vals_e_i_n[:, :, 0].reshape((Ne, -1)))  # noqa: F841
             else:
-                views = [  # noqa: F841
+                [
                     AddView(result + f"_{n}", vals_e_i_n[:, :, n].reshape(Ne, -1))
                     for n in range(dof_n)
                 ]

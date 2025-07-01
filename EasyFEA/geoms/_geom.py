@@ -190,12 +190,12 @@ class _Geom(ABC):
 
     def Mesh_2D(
         self,
-        inclusions: list["GeomCompatible"] = [],
+        inclusions: list[GeomCompatible] = [],
         elemType: ElemType = ElemType.TRI3,
         cracks: list["CrackCompatible"] = [],
         refineGeoms: list["RefineCompatible"] = [],
         isOrganised=False,
-        additionalSurfaces: list["GeomCompatible"] = [],
+        additionalSurfaces: list[GeomCompatible] = [],
         additionalLines: list[Union["Line", "CircleArc"]] = [],
         additionalPoints: list["Point"] = [],
         folder="",
@@ -247,14 +247,14 @@ class _Geom(ABC):
 
     def Mesh_Extrude(
         self,
-        inclusions: list["GeomCompatible"] = [],
+        inclusions: list[GeomCompatible] = [],
         extrude: _types.Coords = (0, 0, 1),
         layers: list[int] = [],
         elemType: ElemType = ElemType.TETRA4,
         cracks: list["CrackCompatible"] = [],
         refineGeoms: list["RefineCompatible"] = [],
         isOrganised=False,
-        additionalSurfaces: list["GeomCompatible"] = [],
+        additionalSurfaces: list[GeomCompatible] = [],
         additionalLines: list[Union["Line", "CircleArc"]] = [],
         additionalPoints: list["Point"] = [],
         folder="",
@@ -312,7 +312,7 @@ class _Geom(ABC):
 
     def Mesh_Revolve(
         self,
-        inclusions: list["GeomCompatible"] = [],
+        inclusions: list[GeomCompatible] = [],
         axis: Optional["Line"] = None,
         angle=360,
         layers: list[int] = [30],
@@ -320,7 +320,7 @@ class _Geom(ABC):
         cracks: list["CrackCompatible"] = [],
         refineGeoms: list["RefineCompatible"] = [],
         isOrganised=False,
-        additionalSurfaces: list["GeomCompatible"] = [],
+        additionalSurfaces: list[GeomCompatible] = [],
         additionalLines: list[Union["Line", "CircleArc"]] = [],
         additionalPoints: list["Point"] = [],
         folder="",

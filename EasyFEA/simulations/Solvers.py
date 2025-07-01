@@ -25,42 +25,27 @@ from ..fem import LagrangeCondition
 try:
     import pypardiso
 
-    __canUsePypardiso = True
+    CAN_USE_PYPARDISO = True
 except ModuleNotFoundError:
-    __canUsePypardiso = False
-
-try:
-    from sksparse.cholmod import cholesky, cholesky_AAt
-
-    __canUseCholesky = True
-except ModuleNotFoundError:
-    __canUseCholesky = False
-
-try:
-    from scikits.umfpack import umfpackSpsolve
-
-    __canUseUmfpack = True
-except (ModuleNotFoundError, ImportError):
-    __canUseUmfpack = False
+    CAN_USE_PYPARDISO = False
 
 try:
     import mumps
 
     # from mumps import DMumpsContext
-    __canUseMumps = True
+    CAN_USE_MUMPS = True
 except ModuleNotFoundError:
-    __canUseMumps = False
+    CAN_USE_MUMPS = False
 
 try:
     import petsc4py
     from petsc4py import PETSc
-    from mpi4py import MPI
 
-    __canUsePetsc = True
-    __pc_default = "ilu"
+    CAN_USE_PETSC = True
+    PC_DEFAULT = "ilu"
 
 except ModuleNotFoundError:
-    __canUsePetsc = False
+    CAN_USE_PETSC = False
 
 
 class AlgoType(str, Enum):
@@ -103,14 +88,12 @@ def _Available_Solvers():
 
     solvers = ["scipy", "BoundConstrain", "cg", "bicg", "gmres", "lgmres"]
 
-    if __canUsePypardiso:
+    if CAN_USE_PYPARDISO:
         solvers.insert(0, "pypardiso")
-    if __canUsePetsc:
+    if CAN_USE_PETSC:
         solvers.insert(1, "petsc")
-    if __canUseMumps:
+    if CAN_USE_MUMPS:
         solvers.insert(2, "mumps")
-    if __canUseUmfpack:
-        solvers.insert(3, "umfpack")
 
     return solvers
 
@@ -176,17 +159,15 @@ def _Solve_Axb(
         # - There are no duplicate entries.
         sla.norm(A)
 
-    solver = __Check_solverLibrary(solver)
+    solver = __Get_solver(solver)
 
     tic = Tic()
-
-    sla.use_solver(useUmfpack=__canUseUmfpack)
 
     if solver == "pypardiso":
         x = pypardiso.spsolve(A, b.toarray())
 
     elif solver == "petsc":
-        global __pc_default
+        global PC_DEFAULT
         # TODO find the best for damage problem
         kspType = "cg"
 
@@ -201,7 +182,7 @@ def _Solve_Axb(
             pcType = "none"
 
         else:
-            pcType = __pc_default  # 'ilu' by default
+            pcType = PC_DEFAULT  # 'ilu' by default
             # if mesh.dim = 3, errors may occurs if we use ilu
             # works faster on 2D and 3D
 
@@ -212,7 +193,7 @@ def _Solve_Axb(
                 f"\nWarning petsc did not converge with ksp:{kspType} and pc:{pcType} !"
             )
             print(f"Try out with  ksp:{kspType} and pc:none.\n")
-            __pc_default = "none"
+            PC_DEFAULT = "none"
             x, option, converg = _PETSc(A, b, x0, kspType, "none")
             assert converg, "petsc didnt converge 2 times. check for kspType and pcType"
 
@@ -239,11 +220,6 @@ def _Solve_Axb(
         x, output = sla.lgmres(A, b.toarray(), x0, maxiter=None)
         print(output)
 
-    elif solver == "umfpack":
-        # lu = umfpack.splu(A)
-        # x = lu.solve(b).ravel()
-        x = umfpackSpsolve(A, b)
-
     elif solver == "mumps":
         # # TODO dont work yet
         # ctx = DMumpsContext()
@@ -264,18 +240,16 @@ def _Solve_Axb(
     return np.array(x)
 
 
-def __Check_solverLibrary(solver: str) -> str:
+def __Get_solver(solver: str) -> str:
     """Checks whether the selected solver library is available
     If not, returns the solver usable in all cases (scipy)."""
-    solveurDeBase = "scipy"
+    defaultSolver = "scipy"
     if solver == "pypardiso":
-        return solver if __canUsePypardiso else solveurDeBase
-    elif solver == "umfpack":
-        return solver if __canUseUmfpack else solveurDeBase
+        return solver if CAN_USE_PYPARDISO else defaultSolver
     elif solver == "mumps":
-        return solver if __canUseMumps else solveurDeBase
+        return solver if CAN_USE_MUMPS else defaultSolver
     elif solver == "petsc":
-        return solver if __canUsePetsc else solveurDeBase
+        return solver if CAN_USE_PETSC else defaultSolver
     else:
         return solver
 

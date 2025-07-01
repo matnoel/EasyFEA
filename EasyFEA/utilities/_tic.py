@@ -139,7 +139,9 @@ class Tic:
         # I want to display the text on the right if the time represents < 0.5 timeTotal
         # Otherwise, we'll display it on the left
 
-        for i, (category, time, rep) in enumerate(zip(categories, times, reps)):
+        for i, (category, time, rep) in enumerate(
+            zip(categories, times, reps)
+        ):  # noqa: F402
             # height=0.55
             # ax.barh(i, t, height=height, align="center", label=c)
             ax.barh(i, time, align="center", label=category)
