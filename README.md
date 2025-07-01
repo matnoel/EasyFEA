@@ -3,7 +3,13 @@
 <!-- Don't do this otherwise PyPi could lose access to the image -->
 <!-- ![EasyFEA_banner](docs/_static/EasyFEA_banner.jpg?raw=True) -->
 
-![PyPI version shields.io](https://img.shields.io/pypi/v/easyfea.svg) ![PyPI - Python Version](https://img.shields.io/pypi/pyversions/easyfea) ![License: GPL v3](https://img.shields.io/badge/License-GPLv3-blue.svg) ![Codestyle black](https://img.shields.io/badge/code%20style-black-black) ![PyPI - Downloads](https://img.shields.io/pypi/dm/easyfea) ![Tests](https://github.com/matnoel/EasyFEA/actions/workflows/tests.yaml/badge.svg)
+[![PyPI version shields.io](https://img.shields.io/pypi/v/easyfea.svg)](https://pypi.org/project/easyfea/)
+![PyPI - Python Version](https://img.shields.io/pypi/pyversions/easyfea)
+[![License: GPL v3](https://img.shields.io/badge/License-GPLv3-blue.svg)](https://github.com/matnoel/EasyFEA/blob/main/LICENSE.txt)
+![Codestyle Ruff](https://img.shields.io/badge/code_style-Ruff-black?labelColor=greed)
+![PyPI - Downloads](https://img.shields.io/pypi/dm/easyfea)
+![Tests](https://github.com/matnoel/EasyFEA/actions/workflows/tests.yaml/badge.svg)
+
 
 ## 🧭 Overview
 
