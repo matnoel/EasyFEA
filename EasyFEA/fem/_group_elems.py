@@ -2312,7 +2312,7 @@ class GroupElemFactory:
         coordGlob: _types.FloatArray,
         nodes: _types.IntArray,
     ) -> _GroupElem:
-        """Creates an element group
+        """Creates an element group.
 
         Parameters
         ----------
