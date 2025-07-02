@@ -177,7 +177,7 @@ def _EasyFEA_to_Meshio(
 
     # import in meshio
     try:
-        meshio_mesh = meshio.Mesh(
+        meshioMesh = meshio.Mesh(
             mesh.coordGlob[:, : mesh.inDim], cells_dict, None, cell_data
         )
     except KeyError:
@@ -185,18 +185,16 @@ def _EasyFEA_to_Meshio(
             f"To support {mesh.elemType} elements, you need to install meshio using the following meshio fork (https://github.com/matnoel/meshio/tree/medit_higher_order_elements)."
         )
 
-    return meshio_mesh
+    return meshioMesh
 
 
-def _Meshio_to_EasyFEA(meshio_mesh: meshio.Mesh) -> Mesh:
+def _Meshio_to_EasyFEA(meshioMesh: meshio.Mesh) -> Mesh:
     """Convert meshio mesh to EasyFEA format.
 
     Parameters
     ----------
-    meshio_mesh : meshio.Mesh
+    meshioMesh : meshio.Mesh
         Meshio mesh object.
-    dict_tags : dict[str, _types.IntArray]
-        Dictionary of tags that should be contained within `meshio_mesh.cell_data_dict`.
 
     Returns
     -------
@@ -204,16 +202,16 @@ def _Meshio_to_EasyFEA(meshio_mesh: meshio.Mesh) -> Mesh:
         Converted EasyFEA mesh object.
     """
 
-    assert isinstance(meshio_mesh, meshio.Mesh), "meshio_mesh must be a meshio mesh!"
+    assert isinstance(meshioMesh, meshio.Mesh), "meshioMesh must be a meshio mesh!"
 
     dict_groupElem: dict[ElemType, _GroupElem] = {}
 
     # get coordinates
-    Nn, dim = meshio_mesh.points.shape
+    Nn, dim = meshioMesh.points.shape
     coordinates = np.zeros((Nn, 3))
-    coordinates[:, :dim] = meshio_mesh.points
+    coordinates[:, :dim] = meshioMesh.points
 
-    for meshioType, connect in meshio_mesh.cells_dict.items():
+    for meshioType, connect in meshioMesh.cells_dict.items():
 
         # get associated elemType
         elemType = DICT_MESHIO_TO_ELEMTYPE[meshioType]
@@ -236,7 +234,7 @@ def _Meshio_to_EasyFEA(meshio_mesh: meshio.Mesh) -> Mesh:
     # set tags
     dict_tags: dict[str, _types.IntArray] = {
         meshioType: tags
-        for values in meshio_mesh.cell_data_dict.values()
+        for values in meshioMesh.cell_data_dict.values()
         for meshioType, tags in values.items()
     }
     _Set_Tags(mesh, dict_tags)
@@ -324,13 +322,15 @@ def EasyFEA_to_Medit(
         Path to the saved Medit file.
     """
 
-    meshio_mesh = _EasyFEA_to_Meshio(mesh, dict_tags_converter)
+    assert isinstance(mesh, Mesh), "mesh must be a EasyFEA mesh!"
+
+    meshioMesh = _EasyFEA_to_Meshio(mesh, dict_tags_converter)
 
     extension = "meshb" if useBinary else "mesh"
     filename = Folder.Join(folder, f"{name}.{extension}", mkdir=True)
 
     Display.MyPrint(f"\nCreation of: {filename}\n", "green")
-    meshio.medit.write(filename, meshio_mesh)
+    meshio.medit.write(filename, meshioMesh)
 
     return filename
 
@@ -349,16 +349,16 @@ def Medit_to_EasyFEA(meditMesh: str) -> Mesh:
         Converted EasyFEA mesh object.
     """
 
-    meshio_mesh = meshio.medit.read(meditMesh)
+    meshioMesh = meshio.medit.read(meditMesh)
     # Please note that your python's meshio must come from https://github.com/matnoel/meshio/tree/medit_higher_order_elements
 
-    if len(meshio_mesh.cells) == 0:
+    if len(meshioMesh.cells) == 0:
         Display.MyPrintError(
             f"The medit mesh:\n {meditMesh}\n does not contain any elements!"
         )
         return None  # type: ignore [return-value]
 
-    mesh = _Meshio_to_EasyFEA(meshio_mesh)
+    mesh = _Meshio_to_EasyFEA(meshioMesh)
 
     return mesh
 
@@ -390,6 +390,8 @@ def EasyFEA_to_Gmsh(mesh: Mesh, folder: str, name: str, useBinary=False) -> str:
         Path to the saved Gmsh file.
     """
 
+    assert isinstance(mesh, Mesh), "mesh must be a EasyFEA mesh!"
+
     # Construct dict_tags as a dictionary with string keys and int values.
     tags = []
     [tags.extend(groupElem.nodeTags) for groupElem in mesh.dict_groupElem.values()]  # type: ignore [func-returns-value]
@@ -399,12 +401,12 @@ def EasyFEA_to_Gmsh(mesh: Mesh, folder: str, name: str, useBinary=False) -> str:
     # For now, it does not import strings different from P{i}, L{i}, S{i}, V{i}.
     # It won't work for long strings.
 
-    meshio_mesh = _EasyFEA_to_Meshio(mesh, dict_tags)
+    meshioMesh = _EasyFEA_to_Meshio(mesh, dict_tags)
 
     filename = Folder.Join(folder, f"{name}.msh", mkdir=True)
 
     Display.MyPrint(f"\nCreation of: {filename}", "green")
-    meshio.gmsh.write(filename, meshio_mesh, "2.2", useBinary)
+    meshio.gmsh.write(filename, meshioMesh, "2.2", useBinary)
     # Error with 4.1
 
     return filename
@@ -420,15 +422,15 @@ def Gmsh_to_EasyFEA(gmshMesh: str) -> Mesh:
         Mesh: Converted EasyFEA mesh object.
     """
 
-    meshio_mesh: meshio.Mesh = meshio.gmsh.read(gmshMesh)
+    meshioMesh: meshio.Mesh = meshio.gmsh.read(gmshMesh)
 
-    if len(meshio_mesh.cells) == 0:
+    if len(meshioMesh.cells) == 0:
         Display.MyPrintError(
             f"The gmsh mesh:\n {gmshMesh}\n does not contain any elements!"
         )
         return None  # type: ignore [return-value]
 
-    mesh = _Meshio_to_EasyFEA(meshio_mesh)
+    mesh = _Meshio_to_EasyFEA(meshioMesh)
 
     return mesh
 
@@ -457,6 +459,8 @@ def EasyFEA_to_PyVista(
     pv.MultiBlock
         pyvista mesh
     """
+
+    assert isinstance(mesh, Mesh), "mesh must be a EasyFEA mesh!"
 
     # init dict of cell data
     dict_cellData: dict[pv.CellType, np.ndarray] = {}
@@ -511,7 +515,7 @@ def PyVista_to_EasyFEA(pyVistaMesh: pv.MultiBlock) -> Mesh:
         Converted EasyFEA mesh object.
     """
 
-    assert isinstance(pyVistaMesh, pv.MultiBlock), "Must be a MultiBlock"
+    assert isinstance(pyVistaMesh, pv.MultiBlock), "pyVistaMesh must be a MultiBlock!"
 
     pyVistaMesh = pyVistaMesh.as_unstructured_grid_blocks()
 
