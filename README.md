@@ -3,13 +3,13 @@
 <!-- Don't do this otherwise PyPi could lose access to the image -->
 <!-- ![EasyFEA_banner](docs/_static/EasyFEA_banner.jpg?raw=True) -->
 
-[![PyPI version shields.io](https://img.shields.io/pypi/v/easyfea.svg)](https://pypi.org/project/easyfea/)
-![PyPI - Python Version](https://img.shields.io/pypi/pyversions/easyfea)
+[![PyPI version](https://img.shields.io/pypi/v/easyfea.svg)](https://pypi.org/project/easyfea/)
+[![Python Version](https://img.shields.io/pypi/pyversions/easyfea)](https://pypi.org/project/easyfea/)
+[![Documentation Status](https://readthedocs.org/projects/easyfea/badge/?version=stable)](https://easyfea.readthedocs.io/en/stable/?badge=stable)
 [![License: GPL v3](https://img.shields.io/badge/License-GPLv3-blue.svg)](https://github.com/matnoel/EasyFEA/blob/main/LICENSE.txt)
-![Codestyle Ruff](https://img.shields.io/badge/code_style-Ruff-black?labelColor=greed)
-![PyPI - Downloads](https://img.shields.io/pypi/dm/easyfea)
-![Tests](https://github.com/matnoel/EasyFEA/actions/workflows/tests.yaml/badge.svg)
-
+[![Code style: black](https://img.shields.io/badge/code%20style-black-black)](https://github.com/psf/black)
+[![PyPI Downloads](https://img.shields.io/pypi/dm/easyfea)](https://pypi.org/project/easyfea/)
+[![Tests](https://github.com/matnoel/EasyFEA/actions/workflows/tests.yaml/badge.svg)](https://github.com/matnoel/EasyFEA/actions/workflows/tests.yaml)
 
 ## 🧭 Overview
 
@@ -35,7 +35,7 @@
 
 For each simulation, users create a **mesh** and a **model**. Once the simulation has been set up, defining the boundary conditions, solving the problem and visualizing the results are straightforward.
 
-Numerous examples of mesh creation are available in [Mesh](https://easyfea.readthedocs.io/en/latest/examples/Meshes/index.html) examples.
+Numerous examples of mesh creation are available in the [Meshes](https://easyfea.readthedocs.io/en/latest/examples/Meshes/index.html) gallery.
 
 The simplest and quickest introduction is shown below and is available in the [Beginner’s Guide](https://easyfea.readthedocs.io/en/latest/begin.html).
 

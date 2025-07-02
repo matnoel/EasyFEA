@@ -8,7 +8,7 @@ EasyFEA documentation
 🧭 Overview
 -----------
 
-**EasyFEA** is a user-friendly Python library that simplifies finite element analysis. It is flexible and supports different types of simulations without requiring users to handle complex PDE formulations. The library currently supports **five** specific simulation types:
+**EasyFEA** is a user-friendly Python library that simplifies finite element analysis. It is flexible and supports different types of simulations without requiring users to handle complex PDE formulations. You will find below the finite element analysis that you can conduct using EasyFEA:
 
 1. **Linear Elastostatic and Elastodynamics simulations**
     - :doc:`examples/Elastic <examples/Elastic/index>`
@@ -30,7 +30,7 @@ EasyFEA documentation
 
 For each simulation, users create a :py:class:`~EasyFEA.fem.Mesh` and a :py:class:`~EasyFEA.materials._IModel`. Once the simulation has been set up, defining the boundary conditions, solving the problem and visualizing the results is straightforward.
 
-Numerous examples of mesh creation are available in the  :doc:`/examples/Meshes <examples/Meshes/index>` folder.
+Numerous examples of mesh creation are available in the  :doc:`/examples/Meshes <examples/Meshes/index>` gallery.
 
 The simplest and quickest introduction is available in the :ref:`begin`.
 
@@ -47,10 +47,12 @@ EasyFEA is distributed under the terms of the `GNU General Public License v3.0 o
 EasyFEA can be easily installed from `PyPI`_ using pip, compatible with Python versions 3.9 through 3.13:
 
 .. image:: https://img.shields.io/pypi/v/easyfea.svg
-   :alt: PyPI version
+   :target: https://pypi.org/project/easyfea/
+   :alt: Version PyPI
 
 .. image:: https://img.shields.io/pypi/pyversions/easyfea
-   :alt: PyPI - Python Version
+   :target: https://pypi.org/project/easyfea/
+   :alt: Versions Python
 
 .. code-block:: console
 
