@@ -386,7 +386,7 @@ def Save_simu(
 
         for result, type in zip(results, types):
             # get dofsValues
-            dofsValues = simu.Result(result, nodeValues=True)
+            dofsValues = simu.Result(result, nodeValues=True).ravel()
             dof_n = dofsValues.size // simu.mesh.Nn
             assembly_e = simu.mesh.Get_assembly_e(dof_n)
 
