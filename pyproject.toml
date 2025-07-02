@@ -39,8 +39,8 @@ dependencies = [
 
 [project.optional-dependencies]
 fast = ["pypardiso", "petsc", "petsc4py", "mpi4py"]
-cv = ["opencv-python"]
-dev = ["mypy", "ruff", "pytest"]
+dic = ["opencv-python"]
+dev = ["mypy", "black", "ruff", "pytest"]
 
 [project.urls]
 Documentation = "https://easyfea.readthedocs.io/en/latest/"
