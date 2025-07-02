@@ -2,6 +2,15 @@
 
 This document describes the changes made to the project.
 
+## 1.4.6 (July 2, 2025):
+
+- Updated links in `docs/index.rst` and `README.md`.
+- Renamed `weightedJacobian_e_pg` to `wJ_e_pg` in scripts.
+- Updated `Solvers.py` dependencies.
+- Reordered tensor ordering in `Paraview.py`.
+- Fixed issue [#17](https://github.com/matnoel/EasyFEA/issues/17): Fixed Newton-Raphson algorithm and added a new hyperelastic example.
+- Fixed issue [#18](https://github.com/matnoel/EasyFEA/issues/18): Updated `MeshIO.py` to import `EnSight` meshes.
+
 ## 1.4.5 (June 25, 2025):
 
 - Fixed issue [#16](https://github.com/matnoel/EasyFEA/issues/16): Enabled Paraview functionality without a simulation object.
