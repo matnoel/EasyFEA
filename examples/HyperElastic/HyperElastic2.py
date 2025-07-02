@@ -46,17 +46,17 @@ if __name__ == "__main__":
     mu = isot.get_mu()
     mat = Materials.SaintVenantKirchhoff(3, lmbda, mu)
 
-    simuHyper = Simulations.HyperElasticSimu(mesh, mat)
+    simu = Simulations.HyperElasticSimu(mesh, mat)
 
     uc = -0.3
-    simuHyper.add_dirichlet(nodesX0, [0, 0, 0], simuHyper.Get_unknowns())
-    simuHyper.add_dirichlet(nodesXL, [uc, 0, 0], simuHyper.Get_unknowns())
+    simu.add_dirichlet(nodesX0, [0, 0, 0], simu.Get_unknowns())
+    simu.add_dirichlet(nodesXL, [uc, 0, 0], simu.Get_unknowns())
 
-    simuHyper.Solve()
+    simu.Solve()
 
     # ----------------------------------------------
     # Results
     # ----------------------------------------------
 
-    PyVista.Plot_BoundaryConditions(simuHyper).show()
-    PyVista.Plot(simuHyper, "ux", 1, show_edges=True).show()
+    PyVista.Plot_BoundaryConditions(simu).show()
+    PyVista.Plot(simu, "ux", 1, show_edges=True).show()
