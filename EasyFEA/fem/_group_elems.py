@@ -68,7 +68,6 @@ class _GroupElem(ABC):
         elemType, nPe, dim, order, Nface, Nvertex = GroupElemFactory.Get_ElemInFos(
             gmshId
         )
-        # TODO construct without gmshId and auto detect
 
         self.__elemType = elemType
         self.__nPe = nPe
@@ -78,12 +77,21 @@ class _GroupElem(ABC):
         self.__Nvertex = Nvertex
 
         # Elements
+        if connect.size != 0:  # connect can be empty
+            assert (
+                connect.ndim == 2 and connect.shape[1] == nPe
+            ), "connect must be a (Ne, nPe) array."
         self.__connect = connect
         self.__connect_n_e: sparse.csr_matrix = None
 
         # Nodes
-        self.__nodes = nodes
+        if coordGlob.size != 0:  # coordGlob can be empty
+            assert (
+                coordGlob.ndim == 2 and coordGlob.shape[1] == 3
+            ), "Must be a (Nn, 3) array."
         self.__coordGlob = coordGlob
+        assert nodes.ndim == 1 and nodes.size <= coordGlob.shape[0]
+        self.__nodes = nodes
 
         # dictionnary associated with tags on elements or nodes
         self.__dict_nodes_tags: dict[str, _types.IntArray] = {}
