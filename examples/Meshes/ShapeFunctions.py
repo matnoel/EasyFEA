@@ -132,14 +132,14 @@ def __Get_local_coords_and_dim(*args):
     nPe = len(list_x)
 
     list_y = args[1] if dim > 1 else [0] * nPe
-    assert len(list_y) == nPe, (
-        "The length of list_y must be equal to the length of list_x."
-    )
+    assert (
+        len(list_y) == nPe
+    ), "The length of list_y must be equal to the length of list_x."
 
     list_z = args[2] if dim > 2 else [0] * nPe
-    assert len(list_z) == nPe, (
-        "The length of list_z must be equal to the length of list_x."
-    )
+    assert (
+        len(list_z) == nPe
+    ), "The length of list_z must be equal to the length of list_x."
 
     local_coords = np.array([list_x, list_y, list_z]).T
 

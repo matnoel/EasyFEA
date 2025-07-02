@@ -160,9 +160,9 @@ class Mesher:
         openLines: list[int] = []
 
         for i, geom in enumerate(contour.geoms):
-            assert isinstance(geom, (Line, CircleArc, Points)), (
-                "Must be a Line, CircleArc or Points"
-            )
+            assert isinstance(
+                geom, (Line, CircleArc, Points)
+            ), "Must be a Line, CircleArc or Points"
 
             if i == 0:
                 p1 = factory.addPoint(*geom.pt1.coord, meshSize=geom.meshSize)
@@ -334,9 +334,9 @@ class Mesher:
         """
 
         assert isinstance(contour, _Geom), "The contour must be a geometric object."
-        assert isinstance(inclusions, Iterable), (
-            "inclusions must be a list of geometric objects."
-        )
+        assert isinstance(
+            inclusions, Iterable
+        ), "inclusions must be a list of geometric objects."
 
         factory = self._factory
 
@@ -464,9 +464,9 @@ class Mesher:
             mesh is organized
         """
 
-        assert isinstance(surfaces, Iterable), (
-            "surfaces must be a list of geometric objects."
-        )
+        assert isinstance(
+            surfaces, Iterable
+        ), "surfaces must be a list of geometric objects."
 
         assert dim >= 2
 
@@ -1024,9 +1024,9 @@ class Mesher:
         returns crackLines, crackSurfaces, openPoints, openLines
         """
 
-        assert isinstance(cracks, Iterable), (
-            "cracks must be a list of geometric objects."
-        )
+        assert isinstance(
+            cracks, Iterable
+        ), "cracks must be a list of geometric objects."
 
         factory = self._factory
 
@@ -1574,9 +1574,9 @@ class Mesher:
         assert isinstance(coord, np.ndarray), "Must be a numpy array"
         assert coord.shape[1] == 3, "Must be of dimension (n, 3)"
 
-        assert values.shape[0] == coord.shape[0], (
-            "values and coordo must be get the same number of lines"
-        )
+        assert (
+            values.shape[0] == coord.shape[0]
+        ), "values and coordo must be get the same number of lines"
 
         data = np.append(coord, values.reshape(-1, 1), axis=1)
 
@@ -1618,9 +1618,9 @@ class Mesher:
         # See t10.py in the gmsh tutorials
         # https://gitlab.onelab.info/gmsh/gmsh/blob/master/tutorials/python/t10.py
 
-        assert isinstance(refineGeoms, Iterable), (
-            "refineGeoms must be a list of geometric objects."
-        )
+        assert isinstance(
+            refineGeoms, Iterable
+        ), "refineGeoms must be a list of geometric objects."
 
         if refineGeoms is None or len(refineGeoms) == 0:
             return
@@ -1979,9 +1979,9 @@ class Mesher:
         domain_area = L * h
 
         def testArea(area):
-            assert np.abs(domain_area - area) / domain_area <= 1e-10, (
-                "Incorrect surface"
-            )
+            assert (
+                np.abs(domain_area - area) / domain_area <= 1e-10
+            ), "Incorrect surface"
 
         # For each type of 2D element
         for elemType in ElemType.Get_2D():

@@ -456,9 +456,9 @@ class DIC(_IObserver):
         if u0 is None:
             u0 = self._Get_u_from_images(imgRef, img)
         else:
-            assert u0.size == self.__mesh.Nn * 2, (
-                "u0 must be a vector of dimension (2*Nn, 1)"
-            )
+            assert (
+                u0.size == self.__mesh.Nn * 2
+            ), "u0 must be a vector of dimension (2*Nn, 1)"
         u = u0.copy()
 
         # get pixels' coordinates
@@ -554,9 +554,9 @@ class DIC(_IObserver):
     ) -> tuple[_types.FloatArray, _types.FloatArray]:
         """Computes pixel displacements based on the finite element displacement field."""
 
-        assert u.size == self.__mesh.Nn * 2, (
-            f"The displacement vector field has the wrong size. It must be of size {self.__mesh.Nn * 2}"
-        )
+        assert (
+            u.size == self.__mesh.Nn * 2
+        ), f"The displacement vector field has the wrong size. It must be of size {self.__mesh.Nn * 2}"
 
         ux_p = u @ self._N_x
         uy_p = u @ self._N_y

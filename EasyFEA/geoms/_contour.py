@@ -49,9 +49,9 @@ class Contour(_Geom):
         tol = 1e-12
 
         for i, geom in enumerate(geoms):
-            assert isinstance(geom, (Line, CircleArc, Points)), (
-                "Must give a list of lines and arcs or points."
-            )
+            assert isinstance(
+                geom, (Line, CircleArc, Points)
+            ), "Must give a list of lines and arcs or points."
 
             if i == 0:
                 gap = tol
@@ -67,9 +67,9 @@ class Contour(_Geom):
                 gap1 = np.linalg.norm(geom.points[0].coord - points[-1].coord)
                 gap2 = np.linalg.norm(geom.points[-1].coord - points[0].coord)
 
-                assert gap1 <= tol and gap2 <= tol, (
-                    "The contour must form a closed loop."
-                )
+                assert (
+                    gap1 <= tol and gap2 <= tol
+                ), "The contour must form a closed loop."
 
             # Add the first and last points
             points.extend([p for p in geom.points if p not in points])

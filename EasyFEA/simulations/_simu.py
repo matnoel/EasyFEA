@@ -218,16 +218,16 @@ class _Simu(_IObserver, ABC):
 
     def __Check_problemTypes(self, problemType: ModelType) -> None:
         """Checks whether this type of problem is available through the simulation."""
-        assert problemType in self.Get_problemTypes(), (
-            f"This type of problem is not available in this simulation ({self.Get_problemTypes()})"
-        )
+        assert (
+            problemType in self.Get_problemTypes()
+        ), f"This type of problem is not available in this simulation ({self.Get_problemTypes()})"
 
     def _Check_dim_mesh_material(self) -> None:
         """Checks that the material dim matches the mesh dim."""
         dim = self.__model.dim
-        assert dim == self.__mesh.dim and dim == self.__mesh.inDim, (
-            "Material and mesh must share the same dimensions and belong to the same space."
-        )
+        assert (
+            dim == self.__mesh.dim and dim == self.__mesh.inDim
+        ), "Material and mesh must share the same dimensions and belong to the same space."
 
     def __str__(self) -> str:
         """Returns a string representation of the simulation.
@@ -868,9 +868,9 @@ class _Simu(_IObserver, ABC):
 
         timeIter = tic.Tac(f"Resolution {problemType}", "Newton iterations", False)
 
-        assert converged, (
-            f"Newton raphson algorithm did not converged in {Niter} iterations."
-        )
+        assert (
+            converged
+        ), f"Newton raphson algorithm did not converged in {Niter} iterations."
 
         return u, Niter, timeIter, list_res
 
@@ -1271,9 +1271,9 @@ class _Simu(_IObserver, ABC):
         dofsUnknown = np.asarray(list(dofsUnknowns_set), dtype=int)  # type: ignore [type-var]
 
         test = dofsKnown.size + dofsUnknown.size  # type: ignore [attr-defined]
-        assert test == nDof, (
-            f"Problem under conditions dofsKnown + dofsUnknown - nDof = {test - nDof}"
-        )
+        assert (
+            test == nDof
+        ), f"Problem under conditions dofsKnown + dofsUnknown - nDof = {test - nDof}"
 
         tic.Tac("Solver", f"Get dofs ({problemType})", self._verbosity)
 

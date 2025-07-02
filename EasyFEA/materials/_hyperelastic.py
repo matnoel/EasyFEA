@@ -20,14 +20,14 @@ class HyperElastic:
     @staticmethod
     def __CheckFormat(mesh: Mesh, u: _types.FloatArray, matrixType: MatrixType) -> None:
         assert isinstance(mesh, Mesh), "mesh must be an Mesh object"
-        assert isinstance(u, np.ndarray) and u.size % mesh.Nn == 0, (
-            "wrong displacement field dimension"
-        )
+        assert (
+            isinstance(u, np.ndarray) and u.size % mesh.Nn == 0
+        ), "wrong displacement field dimension"
         dim = u.size // mesh.Nn
         assert dim in [2, 3], "wrong displacement field dimension"
-        assert matrixType in MatrixType.Get_types(), (
-            f"matrixType must be in {MatrixType.Get_types()}"
-        )
+        assert (
+            matrixType in MatrixType.Get_types()
+        ), f"matrixType must be in {MatrixType.Get_types()}"
 
     @staticmethod
     def __GetDims(
@@ -693,9 +693,9 @@ class HyperElastic:
             dI4dC_e_pg of shape (Ne, pg, 6)
         """
 
-        assert isinstance(T, np.ndarray) and T.shape[-1] == 3, (
-            "T must be a (..., 3) array"
-        )
+        assert (
+            isinstance(T, np.ndarray) and T.shape[-1] == 3
+        ), "T must be a (..., 3) array"
 
         dI4dC_e_pg = Project_Kelvin(TensorProd(T, T))
 

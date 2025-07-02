@@ -259,9 +259,9 @@ def __Make_vtu(
         offset = 0
         list_values_n: list[_types.FloatArray] = []  # list of nodes values
         for nodeField, nodeValues in nodeResults.items():
-            assert isinstance(nodeValues, np.ndarray), (
-                "nodeValues must be a numpy array."
-            )
+            assert isinstance(
+                nodeValues, np.ndarray
+            ), "nodeValues must be a numpy array."
 
             dof_n = nodeValues.size // Nn
 
@@ -286,9 +286,9 @@ def __Make_vtu(
         file.write("\t\t\t<CellData> \n")
         list_values_e: list[_types.FloatArray] = []
         for elementField, elementValues in elementResults.items():
-            assert isinstance(elementValues, np.ndarray), (
-                "elementValues must be a numpy array."
-            )
+            assert isinstance(
+                elementValues, np.ndarray
+            ), "elementValues must be a numpy array."
 
             list_values_e.append(elementValues.ravel())
 

@@ -52,9 +52,9 @@ class PhaseFieldSimu(_Simu):
             If True, iterative solvers can be used. Defaults to True.
         """
 
-        assert isinstance(model, Materials.PhaseField), (
-            "model must be a phase field model"
-        )
+        assert isinstance(
+            model, Materials.PhaseField
+        ), "model must be a phase field model"
         super().__init__(mesh, model, verbosity, useNumba, useIterativeSolvers)
 
         # Init internal variable

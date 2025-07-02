@@ -230,9 +230,9 @@ def __Write_HOSolAt_Solution(
 
     # assembly_e informations
     Ne = assembly_e.shape[0]
-    assert assembly_e.ndim == 2 and Ne == groupElem.Ne, (
-        "assembly_e must be a (Ne, nPe*dof_n) array"
-    )
+    assert (
+        assembly_e.ndim == 2 and Ne == groupElem.Ne
+    ), "assembly_e must be a (Ne, nPe*dof_n) array"
 
     # get dofsValues as a (Ne, nPe*dof_n) array
     dofsValues_e = dofsValues[assembly_e]
@@ -315,9 +315,9 @@ def _Write_solution_file(
 
         if warpVector_n is not None:
             # write SolAtVertices
-            assert warpVector_n.shape[0] == mesh.Nn and warpVector_n.ndim == 2, (
-                "nodesValues must be a (Nn, ...) array"
-            )
+            assert (
+                warpVector_n.shape[0] == mesh.Nn and warpVector_n.ndim == 2
+            ), "nodesValues must be a (Nn, ...) array"
             assert warpVector_n.shape[1] in [1, mesh.inDim]
             nodesValues_type = 1 if warpVector_n.shape[1] == 1 else 2
             f.write(f"SolAtVertices\n{mesh.Nn}\n1 {nodesValues_type}\n")

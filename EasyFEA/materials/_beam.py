@@ -129,9 +129,9 @@ class _Beam(_IModel):
 
     @section.setter
     def section(self, section: Mesh) -> None:
-        assert section.inDim == 2, (
-            "The cross-beam section must be contained in the (x,y) plane."
-        )
+        assert (
+            section.inDim == 2
+        ), "The cross-beam section must be contained in the (x,y) plane."
         # make sure that the section is centered in (0,0)
         section.Translate(*-section.center)
         Iyz = section.groupElem.Integrate_e(lambda x, y, z: x * y).sum()

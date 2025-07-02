@@ -115,9 +115,9 @@ class _Elas(_IModel, ABC):
     def C(self, array: _types.FloatArray):
         assert isinstance(array, np.ndarray), "must be an array"
         shape = (3, 3) if self.dim == 2 else (6, 6)
-        assert array.shape[-2:] == shape, (
-            f"With dim = {self.dim} array must be a {shape} matrix"
-        )
+        assert (
+            array.shape[-2:] == shape
+        ), f"With dim = {self.dim} array must be a {shape} matrix"
         self.__C = array
         self.__sqrt_C = None  # dont remove
 
@@ -141,9 +141,9 @@ class _Elas(_IModel, ABC):
     def S(self, array: _types.FloatArray):
         assert isinstance(array, np.ndarray), "must be an array"
         shape = (3, 3) if self.dim == 2 else (6, 6)
-        assert array.shape[-2:] == shape, (
-            f"With dim = {self.dim} array must be a {shape} matrix"
-        )
+        assert (
+            array.shape[-2:] == shape
+        ), f"With dim = {self.dim} array must be a {shape} matrix"
         self.__S = array
         self.__sqrt_S = None  # dont remove
 
@@ -171,9 +171,9 @@ class _Elas(_IModel, ABC):
             if self.isHeterogeneous:
                 shape = C.shape
 
-                assert len(shape) == 3, (
-                    "This function is not currently implemented for heterogeneous matrices where material properties are defined on Gauss points."
-                )
+                assert (
+                    len(shape) == 3
+                ), "This function is not currently implemented for heterogeneous matrices where material properties are defined on Gauss points."
 
                 uniq_C, inverse = np.unique(C, return_inverse=True, axis=0)
 

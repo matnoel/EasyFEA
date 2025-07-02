@@ -51,9 +51,9 @@ class BeamSimu(_Simu):
             # changes the beam model as a beam structure
             model = Materials.BeamStructure([model])
 
-        assert isinstance(model, Materials.BeamStructure), (
-            "model must be a beam model or a beam structure"
-        )
+        assert isinstance(
+            model, Materials.BeamStructure
+        ), "model must be a beam model or a beam structure"
         super().__init__(mesh, model, verbosity, useNumba, useIterativeSolvers)
 
         # init

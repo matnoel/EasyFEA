@@ -85,57 +85,16 @@ DICT_EASYFEA_TO_VTK_INDEXES: dict[ElemType, list[int]] = {
     # https://dev.pyvista.org/api/examples/_autosummary/pyvista.examples.cells.quadratichexahedron#pyvista.examples.cells.QuadraticHexahedron
     # fmt: off
     ElemType.HEXA20: [
-        0,
-        1,
-        2,
-        3,
-        4,
-        5,
-        6,
-        7,  # vertices
-        8,
-        11,
-        13,
-        9,
-        16,
-        18,
-        19,
-        17,
-        10,
-        12,
-        14,
-        15,  # edges
+        0, 1, 2, 3, 4, 5, 6, 7,  # vertices
+        8, 11, 13, 9, 16, 18, 19, 17, 10, 12, 14, 15 # edges
     ],
     # fmt: on
     # https://dev.pyvista.org/api/examples/_autosummary/pyvista.examples.cells.triquadratichexahedron#pyvista.examples.cells.TriQuadraticHexahedron
     # fmt: off
     ElemType.HEXA27: [
-        0,
-        1,
-        2,
-        3,
-        4,
-        5,
-        6,
-        7,  # vertices
-        8,
-        11,
-        13,
-        9,
-        16,
-        18,
-        19,
-        17,
-        10,
-        12,
-        14,
-        15,  # edges
-        22,
-        23,
-        21,
-        24,
-        20,
-        25,  # faces
+        0, 1, 2, 3, 4, 5, 6, 7,  # vertices
+        8, 11, 13, 9, 16, 18, 19, 17, 10, 12, 14, 15,  # edges
+        22, 23, 21, 24, 20, 25,  # faces
         26,  # volumes
     ],
     # fmt: on

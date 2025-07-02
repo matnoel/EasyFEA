@@ -786,9 +786,9 @@ class Mesh(Observable):
 
         assert len(nodes1) != 0 and len(nodes2) != 0, "No nodes detected"
 
-        assert len(nodes1) == len(nodes2), (
-            "Edges must contain the same number of nodes."
-        )
+        assert len(nodes1) == len(
+            nodes2
+        ), "Edges must contain the same number of nodes."
 
         paired_nodes = np.array([nodes1, nodes2]).T
 

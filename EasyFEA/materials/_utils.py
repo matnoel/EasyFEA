@@ -319,9 +319,9 @@ def Project_Kelvin(
     shapeA = A.shape
 
     if orderA is None:
-        assert np.std(shapeA) == 0, (
-            "Must have the same number of indices in all dimensions."
-        )
+        assert (
+            np.std(shapeA) == 0
+        ), "Must have the same number of indices in all dimensions."
         orderA = len(shapeA)
 
     # for xx, yy, zz, yz, xz, zy
@@ -652,9 +652,9 @@ def Apply_Pmat(
         new matrix
     """
     assert isinstance(M, np.ndarray), "Matrix must be an array"
-    assert M.shape[-2:] == P.shape[-2:], (
-        "Must give an matrix of shape (e,dim,dim) or (e,p,dim,dim) or (dim,dim)"
-    )
+    assert (
+        M.shape[-2:] == P.shape[-2:]
+    ), "Must give an matrix of shape (e,dim,dim) or (e,p,dim,dim) or (dim,dim)"
 
     # Get P indices
     pDim = P.ndim

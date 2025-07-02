@@ -289,9 +289,9 @@ class _GroupElem(ABC):
 
         if displacementMatrix is not None:
             displacementMatrix = np.asarray(displacementMatrix, dtype=float)
-            assert displacementMatrix.shape == coordo.shape, (
-                f"displacmentMatrix must be of size {coordo.shape}"
-            )
+            assert (
+                displacementMatrix.shape == coordo.shape
+            ), f"displacmentMatrix must be of size {coordo.shape}"
             coordo += displacementMatrix
 
         if self.dim in [0, 3]:
@@ -2155,9 +2155,9 @@ class _GroupElem(ABC):
 
         [Research(e) for e in elements_e]
 
-        assert len(detectedElements_e) == len(connect_e_n), (
-            "The number of detected elements must match the number of lines in connect_e_n."
-        )
+        assert len(detectedElements_e) == len(
+            connect_e_n
+        ), "The number of detected elements must match the number of lines in connect_e_n."
 
         ar_detectedNodes = np.asarray(detectedNodes, dtype=int)
         ar_detectedElements_e = np.asarray(detectedElements_e, dtype=int)

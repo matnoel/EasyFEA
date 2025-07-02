@@ -40,9 +40,9 @@ class BoundaryCondition:
         self.__unknowns = unknowns
         self.__nodes = np.asarray(nodes, dtype=int)
         self.__dofs = np.asarray(dofs, dtype=int)
-        assert self.dofs.size % self.nodes.size == 0, (
-            f"dofs.size must be a multiple of {self.nodes.size}"
-        )
+        assert (
+            self.dofs.size % self.nodes.size == 0
+        ), f"dofs.size must be a multiple of {self.nodes.size}"
         self.__dofsValues = np.asarray(dofsValues, dtype=float)
         # assert dofs.size == dofsValues.size, "must be the same size." don't uncomment !
         # This assertion is commented out to illustrate that using Lagrange conditions might bypass this size check.
