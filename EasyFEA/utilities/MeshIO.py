@@ -9,7 +9,7 @@ from typing import Any, Optional
 
 from . import Folder, Display, _types
 
-from ..fem import Mesher, Mesh, ElemType, GroupElemFactory, _GroupElem
+from ..fem import Mesh, ElemType, GroupElemFactory, _GroupElem
 from .PyVista import np, pv
 
 # ----------------------------------------------
@@ -40,7 +40,12 @@ DICT_ELEMTYPE_TO_MESHIO = {
 }
 """ElemType: meshioType"""
 
-DICT_ELEMTYPE_TO_PYVISTA: dict[ElemType, pv.CellType] = {
+DICT_MESHIO_TO_ELEMTYPE: dict[str, ElemType] = {
+    meshio: elemType for elemType, meshio in DICT_ELEMTYPE_TO_MESHIO.items()
+}
+"""CellType: ElemType"""
+
+DICT_ELEMTYPE_TO_VTK: dict[ElemType, pv.CellType] = {
     # (to Pyvista, to Paraview)
     # see https://dev.pyvista.org/api/utilities/_autosummary/pyvista.celltype#pyvista.CellType
     ElemType.POINT: pv.CellType.VERTEX,
@@ -67,7 +72,7 @@ DICT_ELEMTYPE_TO_PYVISTA: dict[ElemType, pv.CellType] = {
 """ElemType: CellType"""
 
 DICT_PYVISTA_TO_ELEMTYPE: dict[pv.CellType, ElemType] = {
-    cellType: elemType for elemType, cellType in DICT_ELEMTYPE_TO_PYVISTA.items()
+    cellType: elemType for elemType, cellType in DICT_ELEMTYPE_TO_VTK.items()
 }
 """CellType: ElemType"""
 
@@ -81,7 +86,7 @@ DICT_PYVISTA_TO_ELEMTYPE: dict[pv.CellType, ElemType] = {
 # vtk -> https://vtk.org/doc/nightly/html/vtkCellType_8h_source.html
 # https://dev.pyvista.org/api/utilities/_autosummary/pyvista.celltype
 # you can search for vtk elements on the internet
-DICT_EASYFEA_TO_VTK_INDEXES: dict[ElemType, list[int]] = {
+DICT_GMSH_TO_VTK_INDEXES: dict[ElemType, list[int]] = {
     # https://dev.pyvista.org/api/examples/_autosummary/pyvista.examples.cells.quadratichexahedron#pyvista.examples.cells.QuadraticHexahedron
     # fmt: off
     ElemType.HEXA20: [
@@ -105,9 +110,9 @@ DICT_EASYFEA_TO_VTK_INDEXES: dict[ElemType, list[int]] = {
 }
 """ElemType: list[int]"""
 
-DICT_VTK_TO_EASYFEA_INDEXES: dict[pv.CellType, list[int]] = {
-    DICT_ELEMTYPE_TO_PYVISTA[elemType]: [order.index(i) for i in range(len(order))]
-    for elemType, order in DICT_EASYFEA_TO_VTK_INDEXES.items()
+DICT_VTK_TO_GMSH_INDEXES: dict[pv.CellType, list[int]] = {
+    DICT_ELEMTYPE_TO_VTK[elemType]: [order.index(i) for i in range(len(order))]
+    for elemType, order in DICT_GMSH_TO_VTK_INDEXES.items()
 }
 """CellType: list[int]"""
 
@@ -117,7 +122,7 @@ DICT_VTK_TO_EASYFEA_INDEXES: dict[pv.CellType, list[int]] = {
 
 
 def _EasyFEA_to_Meshio(
-    mesh: Mesh, cell_name: str, dict_tags_converter: dict[Any, int] = {}
+    mesh: Mesh, dict_tags_converter: dict[Any, int] = {}
 ) -> meshio.Mesh:
     """Convert EasyFEA mesh to meshio format.
 
@@ -125,8 +130,6 @@ def _EasyFEA_to_Meshio(
     ----------
     mesh : Mesh
         EasyFEA mesh object.
-    cell_name : str
-        Name of the cell data.
     dict_tags_converter : dict[Any, int], optional
         Dictionary converting tags to integers (default is {}).
 
@@ -142,32 +145,37 @@ def _EasyFEA_to_Meshio(
 
     list_elements: list[_types.IntArray] = []
 
+    # loop over the group elem in the mesh
     for elemType, groupElem in mesh.dict_groupElem.items():
-        if elemType in DICT_ELEMTYPE_TO_MESHIO.keys():
-            meshioType = DICT_ELEMTYPE_TO_MESHIO[elemType]
-        else:
-            continue
 
-        if elemType in DICT_EASYFEA_TO_VTK_INDEXES:
-            vtKindexes = DICT_EASYFEA_TO_VTK_INDEXES[elemType]
-        else:
-            vtKindexes = np.arange(groupElem.nPe).tolist()
+        # get meshio type
+        meshioType = DICT_ELEMTYPE_TO_MESHIO[elemType]
 
-        cells_dict[meshioType] = groupElem.connect[:, vtKindexes]
+        # get connectivity
+        connect = groupElem.connect
 
+        # reorder gmsh/easyfea idx to vtk indexes
+        if elemType in DICT_GMSH_TO_VTK_INDEXES:
+            indexes = DICT_GMSH_TO_VTK_INDEXES[elemType]
+            connect = connect[:, indexes]
+
+        # set cell dict
+        cells_dict[meshioType] = connect
+        # get element tags
         element_tags = np.zeros(groupElem.Ne, dtype=int)
 
+        # convert tags and make sure they are integers
         for tag, val in dict_tags_converter.items():
             assert isinstance(val, int), "dict_tags_converter values must be integers."
             # elements
             elements = groupElem.Get_Elements_Tag(tag)
             if elements.size > 0:
                 element_tags[elements] = val
-
         list_elements.append(element_tags)
 
-    cell_data = {cell_name: list_elements}
+    cell_data = {"tags": list_elements}
 
+    # import in meshio
     try:
         meshio_mesh = meshio.Mesh(
             mesh.coordGlob[:, : mesh.inDim], cells_dict, None, cell_data
@@ -180,17 +188,13 @@ def _EasyFEA_to_Meshio(
     return meshio_mesh
 
 
-def _Meshio_to_EasyFEA(
-    meshio_mesh: meshio.Mesh, mesh_file: str, dict_tags: dict[str, _types.IntArray]
-) -> Mesh:
+def _Meshio_to_EasyFEA(meshio_mesh: meshio.Mesh) -> Mesh:
     """Convert meshio mesh to EasyFEA format.
 
     Parameters
     ----------
     meshio_mesh : meshio.Mesh
         Meshio mesh object.
-    mesh_file : str
-        Path to the mesh file.
     dict_tags : dict[str, _types.IntArray]
         Dictionary of tags that should be contained within `meshio_mesh.cell_data_dict`.
 
@@ -202,21 +206,39 @@ def _Meshio_to_EasyFEA(
 
     assert isinstance(meshio_mesh, meshio.Mesh), "meshio_mesh must be a meshio mesh!"
 
-    keys: list[str] = meshio_mesh.cell_data_dict.keys()
-    is_gmsh_compatible = any(key.startswith("gmsh") for key in keys)
+    dict_groupElem: dict[ElemType, _GroupElem] = {}
 
-    if is_gmsh_compatible:
-        mesh = Mesher().Mesh_Import_mesh(mesh_file)
-    else:
-        gmsh_mesh = Folder.Join(Folder.Dir(mesh_file), "tmp_mesh.msh")
-        meshio.gmsh.write(gmsh_mesh, meshio_mesh, fmt_version="2.2", binary=True)
-        # fmt_version="4.1" does not work!
-        mesh = Mesher().Mesh_Import_mesh(gmsh_mesh)
-        Folder.os.remove(gmsh_mesh)
+    # get coordinates
+    Nn, dim = meshio_mesh.points.shape
+    coordinates = np.zeros((Nn, 3))
+    coordinates[:, :dim] = meshio_mesh.points
+
+    for meshioType, connect in meshio_mesh.cells_dict.items():
+
+        # get associated elemType
+        elemType = DICT_MESHIO_TO_ELEMTYPE[meshioType]
+
+        # reorder vtk idx to gmsh/easyfea indexes
+        cellType = DICT_ELEMTYPE_TO_VTK[elemType]
+        if cellType in DICT_VTK_TO_GMSH_INDEXES.keys():
+            indexes = DICT_VTK_TO_GMSH_INDEXES[cellType]
+            connect = connect[:, indexes]
+
+        # get groupElem
+        groupElem = GroupElemFactory._Create(elemType, connect, coordinates)
+        dict_groupElem[elemType] = groupElem
+
+    mesh = Mesh(dict_groupElem)
 
     Display.MyPrint("Successfully imported the mesh in EasyFEA.")
     print(mesh)
 
+    # set tags
+    dict_tags: dict[str, _types.IntArray] = {
+        meshioType: tags
+        for values in meshio_mesh.cell_data_dict.values()
+        for meshioType, tags in values.items()
+    }
     _Set_Tags(mesh, dict_tags)
 
     return mesh
@@ -302,7 +324,7 @@ def EasyFEA_to_Medit(
         Path to the saved Medit file.
     """
 
-    meshio_mesh = _EasyFEA_to_Meshio(mesh, "medit.ref", dict_tags_converter)
+    meshio_mesh = _EasyFEA_to_Meshio(mesh, dict_tags_converter)
 
     extension = "meshb" if useBinary else "mesh"
     filename = Folder.Join(folder, f"{name}.{extension}", mkdir=True)
@@ -336,9 +358,7 @@ def Medit_to_EasyFEA(meditMesh: str) -> Mesh:
         )
         return None  # type: ignore [return-value]
 
-    dict_tags = meshio_mesh.cell_data_dict["medit:ref"]
-
-    mesh = _Meshio_to_EasyFEA(meshio_mesh, meditMesh, dict_tags)
+    mesh = _Meshio_to_EasyFEA(meshio_mesh)
 
     return mesh
 
@@ -379,7 +399,7 @@ def EasyFEA_to_Gmsh(mesh: Mesh, folder: str, name: str, useBinary=False) -> str:
     # For now, it does not import strings different from P{i}, L{i}, S{i}, V{i}.
     # It won't work for long strings.
 
-    meshio_mesh = _EasyFEA_to_Meshio(mesh, "gmsh:physical", dict_tags)
+    meshio_mesh = _EasyFEA_to_Meshio(mesh, dict_tags)
 
     filename = Folder.Join(folder, f"{name}.msh", mkdir=True)
 
@@ -408,9 +428,7 @@ def Gmsh_to_EasyFEA(gmshMesh: str) -> Mesh:
         )
         return None  # type: ignore [return-value]
 
-    dict_tags = meshio_mesh.cell_data_dict["gmsh:physical"]
-
-    mesh = _Meshio_to_EasyFEA(meshio_mesh, gmshMesh, dict_tags)
+    mesh = _Meshio_to_EasyFEA(meshio_mesh)
 
     return mesh
 
@@ -447,13 +465,13 @@ def EasyFEA_to_PyVista(
         if useMainGroupElem and groupElem is not mesh.groupElem:
             continue
 
-        if elemType not in DICT_ELEMTYPE_TO_PYVISTA.keys():
+        if elemType not in DICT_ELEMTYPE_TO_VTK.keys():
             Display.MyPrintError(f"{elemType} is not implemented yet.")
             continue
 
         # reorder gmsh idx to vtk indexes
-        if elemType in DICT_EASYFEA_TO_VTK_INDEXES.keys():
-            vtkIndexes = DICT_EASYFEA_TO_VTK_INDEXES[elemType]
+        if elemType in DICT_GMSH_TO_VTK_INDEXES.keys():
+            vtkIndexes = DICT_GMSH_TO_VTK_INDEXES[elemType]
         else:
             vtkIndexes = np.arange(groupElem.nPe).tolist()
 
@@ -467,7 +485,7 @@ def EasyFEA_to_PyVista(
         connect = np.reshape(connect, (-1, np.shape(vtkIndexes)[-1]))
 
         # create cellData
-        cellType = DICT_ELEMTYPE_TO_PYVISTA[elemType]
+        cellType = DICT_ELEMTYPE_TO_VTK[elemType]
         dict_cellData[cellType] = connect
 
     # get mesh coordinates
@@ -493,37 +511,35 @@ def PyVista_to_EasyFEA(pyVistaMesh: pv.MultiBlock) -> Mesh:
         Converted EasyFEA mesh object.
     """
 
+    assert isinstance(pyVistaMesh, pv.MultiBlock), "Must be a MultiBlock"
+
+    pyVistaMesh = pyVistaMesh.as_unstructured_grid_blocks()
+
     dict_groupElem: dict[ElemType, _GroupElem] = {}
 
-    if isinstance(pyVistaMesh, pv.MultiBlock):
-        pyVistaMesh = pyVistaMesh.as_unstructured_grid_blocks()
+    for index in range(pyVistaMesh.n_blocks):
+        block = pyVistaMesh.get_block(index)
 
-        for index in range(pyVistaMesh.n_blocks):
-            block = pyVistaMesh.get_block(index)
+        if isinstance(block, pv.UnstructuredGrid):
+            coordGlob = block.points
 
-            if isinstance(block, pv.UnstructuredGrid):
-                coordGlob = block.points
+            cellTypes = block.celltypes.astype(int)
 
-                cellTypes = block.celltypes.astype(int)
+            for cellTypeId in list(set(cellTypes)):
+                # get cell and element types
+                cellType = pv.CellType(cellTypeId)
+                elemType = DICT_PYVISTA_TO_ELEMTYPE[cellType]
 
-                for cellTypeId in list(set(cellTypes)):
-                    # get cell and element types
-                    cellType = pv.CellType(cellTypeId)
-                    elemType = DICT_PYVISTA_TO_ELEMTYPE[cellType]
+                # get connect
+                connect = block.cells_dict[cellTypeId].astype(int)
+                # reorder vtk idx to gmsh/easyfea indexes
+                if cellType in DICT_VTK_TO_GMSH_INDEXES.keys():
+                    indexes = DICT_VTK_TO_GMSH_INDEXES[cellType]
+                    connect = connect[:, indexes]
 
-                    # get connect
-                    connect = block.cells_dict[cellTypeId].astype(int)
-                    # reorder vtk idx to gmsh/easyfea indexes
-                    if cellType in DICT_VTK_TO_EASYFEA_INDEXES.keys():
-                        indexes = DICT_VTK_TO_EASYFEA_INDEXES[cellType]
-                        connect = connect[:, indexes]
+                groupElem = GroupElemFactory._Create(elemType, connect, coordGlob)
 
-                    groupElem = GroupElemFactory._Create(elemType, connect, coordGlob)
-
-                    dict_groupElem[elemType] = groupElem
-
-    else:
-        raise TypeError("Must be a MultiBlock")
+                dict_groupElem[elemType] = groupElem
 
     mesh = Mesh(dict_groupElem)
 
@@ -612,6 +628,6 @@ def Ensight_to_Meshio(geoFile: str) -> Mesh:
 
     mesh = PyVista_to_EasyFEA(pyVistaMesh)
 
-    meshioMesh = _EasyFEA_to_Meshio(mesh, "gmsh:physical", {})
+    meshioMesh = _EasyFEA_to_Meshio(mesh, {})
 
     return meshioMesh
