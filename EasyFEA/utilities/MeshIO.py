@@ -139,7 +139,9 @@ def Surface_reconstruction(mesh: Mesh) -> Mesh:
     connect3D = groupElem3D.connect
     surfaces = groupElem3D.surfaces
     Nface = surfaces.shape[0]
-    coordGlob = groupElem3D.coordGlob
+
+    # get coordinates without orphan nodes
+    coordinates = groupElem3D.coordGlob[groupElem3D.nodes]
 
     # init list
     allSurfaces: list[_types.IntArray] = []
@@ -170,13 +172,10 @@ def Surface_reconstruction(mesh: Mesh) -> Mesh:
     # loop over all group of elements in the mesh
     for elemType, groupElem in mesh.dict_groupElem.items():
 
-        # dont do anything when the group elem is not 2D
         if groupElem.dim != 2:
-            new_dict_groupElem[elemType] = groupElem
-            continue
+            connect = groupElem.connect
 
-        # get the good elements in the mesh
-        if mesh.elemType.startswith("PRISM"):
+        elif mesh.elemType.startswith("PRISM"):
             nPe = groupElem.nPe
             connect = np.asarray(
                 [nodes for nodes in uniqueSurfaces if nodes.size == nPe], dtype=int
@@ -185,7 +184,7 @@ def Surface_reconstruction(mesh: Mesh) -> Mesh:
             connect = np.asarray(uniqueSurfaces, dtype=int)
 
         # create the new group of elements
-        newGroupElem = GroupElemFactory._Create(elemType, connect, coordGlob)
+        newGroupElem = GroupElemFactory._Create(elemType, connect, coordinates)
         new_dict_groupElem[elemType] = newGroupElem
 
     # create the new mesh
