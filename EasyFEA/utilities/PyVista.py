@@ -797,7 +797,7 @@ def _pyVistaMesh(
 
     simu, mesh, coord, __ = _Init_obj(obj, deformFactor)
 
-    pyVistaMesh = MeshIO.EasyFEA_to_PyVista(mesh, coord)
+    pyVistaMesh = MeshIO.EasyFEA_to_PyVista(mesh, coord, useAllElements=False)
 
     values = _Get_values(simu, mesh, result, nodeValues)  # type: ignore [arg-type]
 
