@@ -59,6 +59,10 @@ class TETRA4(_GroupElem):
             dtype=int,
         )
 
+    @property
+    def surfaces(self) -> _types.IntArray:
+        return self.faces
+
     def Get_Local_Coords(self):
         list_x = [0, 1, 0, 0]
         list_y = [0, 0, 1, 0]
@@ -148,6 +152,18 @@ class TETRA10(_GroupElem):
                 [0, 6, 2, 8, 3, 7],
                 [0, 7, 3, 9, 1, 4],
                 [1, 9, 3, 8, 2, 5],
+            ],
+            dtype=int,
+        )
+
+    @property
+    def surfaces(self) -> _types.IntArray:
+        return np.array(
+            [
+                [0, 1, 2, 4, 5, 6],
+                [0, 2, 3, 6, 8, 7],
+                [0, 3, 1, 7, 9, 4],
+                [1, 3, 2, 9, 8, 5],
             ],
             dtype=int,
         )

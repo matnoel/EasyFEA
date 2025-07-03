@@ -46,6 +46,10 @@ class QUAD4(_GroupElem):
     def faces(self) -> _types.IntArray:
         return np.array([[0, 1, 2, 3, 0]], dtype=int)
 
+    @property
+    def surfaces(self) -> _types.IntArray:
+        return np.arange(self.nPe, dtype=int)
+
     def Get_Local_Coords(self):
         list_x = [-1, 1, 1, -1]
         list_y = [-1, -1, 1, 1]
@@ -121,6 +125,10 @@ class QUAD8(_GroupElem):
     @property
     def faces(self) -> _types.IntArray:
         return np.array([[0, 4, 1, 5, 2, 6, 3, 7, 0]], dtype=int)
+
+    @property
+    def surfaces(self) -> _types.IntArray:
+        return np.arange(self.nPe, dtype=int)
 
     def Get_Local_Coords(self):
         list_x = [-1, 1, 1, -1, 0, 1, 0, -1]
@@ -242,6 +250,10 @@ class QUAD9(_GroupElem):
     @property
     def faces(self) -> _types.IntArray:
         return np.array([[0, 4, 1, 5, 2, 6, 3, 7, 0]], dtype=int)
+
+    @property
+    def surfaces(self) -> _types.IntArray:
+        return np.arange(self.nPe, dtype=int)
 
     def Get_Local_Coords(self):
         list_x = [-1, 1, 1, -1, 0, 1, 0, -1, 0]

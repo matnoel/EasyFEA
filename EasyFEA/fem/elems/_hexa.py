@@ -55,6 +55,10 @@ class HEXA8(_GroupElem):
             dtype=int,
         )
 
+    @property
+    def surfaces(self) -> _types.IntArray:
+        return self.faces
+
     def Get_Local_Coords(self) -> _types.FloatArray:
         list_x = [-1, 1, 1, -1, -1, 1, 1, -1]
         list_y = [-1, -1, 1, 1, -1, -1, 1, 1]
@@ -193,6 +197,20 @@ class HEXA20(_GroupElem):
                 [6, 14, 2, 11, 1, 12, 5, 18],  # 23
                 [6, 19, 7, 15, 3, 13, 2, 14],  # 24
                 [6, 18, 5, 16, 4, 17, 7, 19],  # 25
+            ],
+            dtype=int,
+        )
+
+    @property
+    def surfaces(self) -> _types.IntArray:
+        return np.array(
+            [
+                [0, 1, 2, 3, 8, 11, 13, 9],  # 20
+                [0, 4, 5, 1, 10, 16, 12, 8],  # 21
+                [0, 3, 7, 4, 9, 15, 17, 10],  # 22
+                [6, 2, 1, 5, 14, 11, 12, 18],  # 23
+                [6, 7, 3, 2, 19, 15, 13, 14],  # 24
+                [6, 5, 4, 7, 18, 16, 17, 19],  # 25
             ],
             dtype=int,
         )
@@ -814,6 +832,20 @@ class HEXA27(_GroupElem):
                 [6, 14, 2, 11, 1, 12, 5, 18],  # 23
                 [6, 19, 7, 15, 3, 13, 2, 14],  # 24
                 [6, 18, 5, 16, 4, 17, 7, 19],  # 25
+            ],
+            dtype=int,
+        )
+
+    @property
+    def surfaces(self) -> _types.IntArray:
+        return np.array(
+            [
+                [0, 1, 2, 3, 8, 11, 13, 9, 20],
+                [0, 4, 5, 1, 10, 16, 12, 8, 21],
+                [0, 3, 7, 4, 9, 15, 17, 10, 22],
+                [6, 2, 1, 5, 14, 11, 12, 18, 23],
+                [6, 7, 3, 2, 19, 15, 13, 14, 24],
+                [6, 5, 4, 7, 18, 16, 17, 19, 25],
             ],
             dtype=int,
         )

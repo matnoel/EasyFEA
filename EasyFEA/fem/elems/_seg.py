@@ -38,6 +38,10 @@ class SEG2(_GroupElem):
     def faces(self) -> _types.IntArray:
         return np.array([[0, 1]], dtype=int)
 
+    @property
+    def surfaces(self) -> _types.IntArray:
+        return np.empty((0), dtype=int)
+
     def Get_Local_Coords(self):
         list_x = [-1, 1]
         local_coords = np.array([list_x]).T
@@ -126,6 +130,10 @@ class SEG3(_GroupElem):
     @property
     def faces(self) -> _types.IntArray:
         return np.array([[0, 2, 1]], dtype=int)
+
+    @property
+    def surfaces(self) -> _types.IntArray:
+        return np.empty((0), dtype=int)
 
     def Get_Local_Coords(self):
         list_x = [-1, 1, 0]
@@ -283,6 +291,10 @@ class SEG4(_GroupElem):
     @property
     def faces(self) -> _types.IntArray:
         return np.array([[0, 2, 3, 1]], dtype=int)
+
+    @property
+    def surfaces(self) -> _types.IntArray:
+        return np.empty((0), dtype=int)
 
     def Get_Local_Coords(self):
         list_x = [-1, 1, -1 / 3, 1 / 3]
@@ -594,6 +606,10 @@ class SEG5(_GroupElem):
     @property
     def faces(self) -> _types.IntArray:
         return np.array([[0, 2, 3, 4, 1]], dtype=int)
+
+    @property
+    def surfaces(self) -> _types.IntArray:
+        return np.empty((0), dtype=int)
 
     def Get_Local_Coords(self):
         list_x = [-1, 1, -1 / 2, 0, 1 / 2]

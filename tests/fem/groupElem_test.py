@@ -50,6 +50,19 @@ def meshes() -> list[Mesh]:
 
 class TestGroupElem:
 
+    def test_nPe(self, meshes: list[Mesh]):
+
+        for mesh in meshes:
+
+            groupElem = mesh.groupElem
+
+            assert groupElem.nPe == (
+                groupElem.Nvertex
+                + groupElem.Nedge
+                + groupElem.Nface
+                + groupElem.Nvolume
+            )
+
     def test_shape_fucntion(self, meshes: list[Mesh]):
 
         for mesh in meshes:

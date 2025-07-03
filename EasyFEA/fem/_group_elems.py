@@ -65,16 +65,18 @@ class _GroupElem(ABC):
 
         self.__gmshId = gmshId
 
-        elemType, nPe, dim, order, Nface, Nvertex = GroupElemFactory.Get_ElemInFos(
-            gmshId
+        elemType, nPe, dim, order, Nvertex, Nedge, Nface, Nvolume = (
+            GroupElemFactory.Get_ElemInFos(gmshId)
         )
 
         self.__elemType = elemType
         self.__nPe = nPe
         self.__dim = dim
         self.__order = order
-        self.__Nface = Nface
         self.__Nvertex = Nvertex
+        self.__Nedge = Nedge
+        self.__Nface = Nface
+        self.__Nvolume = Nvolume
 
         # Elements
         if connect.size != 0:  # connect can be empty
@@ -199,14 +201,24 @@ class _GroupElem(ABC):
             self._InitMatrix()
 
     @property
+    def Nvertex(self) -> int:
+        """number of vertex nodes per element"""
+        return self.__Nvertex
+
+    @property
+    def Nedge(self) -> int:
+        """number of edge nodes per element"""
+        return self.__Nedge
+
+    @property
     def Nface(self) -> int:
-        """number of faces per element"""
+        """number of face nodes per element"""
         return self.__Nface
 
     @property
-    def Nvertex(self) -> int:
-        """number of vertices/corners per element"""
-        return self.__Nvertex
+    def Nvolume(self) -> int:
+        """number of volume nodes per element"""
+        return self.__Nvolume
 
     @property
     def connect(self) -> _types.IntArray:
@@ -495,12 +507,12 @@ class _GroupElem(ABC):
     @property
     @abstractmethod
     def triangles(self) -> list[int]:
-        """list of indexes to form the triangles of an element that will be used for the 2D trisurf function"""
+        """list of index used to form the triangles of an element that will be used for the 2D trisurf function"""
         pass
 
     @property
     def segments(self) -> _types.IntArray:  # type: ignore [return]
-        """list of indexes used to construct segments"""
+        """array of indices used to construct segments"""
         nPe = 2 + self.order - 1
         if self.__dim == 1:
             segments = np.zeros((1, nPe), dtype=int)
@@ -532,7 +544,13 @@ class _GroupElem(ABC):
     @property
     @abstractmethod
     def faces(self) -> _types.IntArray:
-        """array of indexes to form the faces that make up the element."""
+        """array of indices used to form the contour of the faces that make up the element."""
+        pass
+
+    @property
+    @abstractmethod
+    def surfaces(self) -> _types.IntArray:
+        """array of indices used to form the element surfaces."""
         pass
 
     @abstractmethod
@@ -1952,7 +1970,6 @@ class _GroupElem(ABC):
 
         elif dim == 3:
             faces = self.faces
-            Nface = self.Nface
             coord = self.coord[self.__connect[elem]]
 
             if self.elemType.startswith("PRISM"):
@@ -1966,6 +1983,7 @@ class _GroupElem(ABC):
                     ],
                     dtype=object,
                 )
+            Nface = faces.shape[0]
 
             p0_f = [f[0] for f in faces]
             p1_f = [f[1] for f in faces]
@@ -2257,49 +2275,53 @@ from .elems import (  # noqa: E402
 
 
 class GroupElemFactory:
-    DICT_GMSHID: dict[int, tuple[ElemType, int, int, int, int, int]] = {
-        #  key: ElemType, nPe, dim, order, Nface, Nvertex
-        15: (ElemType.POINT, 1, 0, 0, 0, 0),
-        1: (ElemType.SEG2, 2, 1, 1, 0, 2),
-        8: (ElemType.SEG3, 3, 1, 2, 0, 2),
-        26: (ElemType.SEG4, 4, 1, 3, 0, 2),
-        27: (ElemType.SEG5, 5, 1, 4, 0, 2),
-        2: (ElemType.TRI3, 3, 2, 1, 1, 3),
-        9: (ElemType.TRI6, 6, 2, 2, 1, 3),
-        21: (ElemType.TRI10, 10, 2, 3, 1, 3),
-        23: (ElemType.TRI15, 15, 2, 4, 1, 3),
-        3: (ElemType.QUAD4, 4, 2, 1, 1, 4),
-        16: (ElemType.QUAD8, 8, 2, 2, 1, 4),
-        10: (ElemType.QUAD9, 9, 2, 2, 1, 4),
-        4: (ElemType.TETRA4, 4, 3, 1, 4, 4),
-        11: (ElemType.TETRA10, 10, 3, 2, 4, 4),
-        5: (ElemType.HEXA8, 8, 3, 1, 6, 8),
-        17: (ElemType.HEXA20, 20, 3, 2, 6, 8),
-        12: (ElemType.HEXA27, 27, 3, 2, 6, 8),
-        6: (ElemType.PRISM6, 6, 3, 1, 5, 6),
-        18: (ElemType.PRISM15, 15, 3, 2, 5, 6),
-        13: (ElemType.PRISM18, 18, 3, 2, 5, 6),
-        # 7:      (ElemType.PYRA5,     5,   3,     1,       5,         5),
-        # 19:     (ElemType.PYRA13,   13,   3,     2,       5,         5),
-        # 14:     (ElemType.PYRA14,   14,   3,     2,       5,         5),
+    DICT_GMSH_DATA: dict[int, tuple[ElemType, int, int, int, int, int, int, int]] = {
+        #  key: ElemType, nPe, dim, order,  Nvertex, Nedge, Nface, Nvolume
+        # fmt: off
+        15: (ElemType.POINT, 1, 0, 0,       0, 0, 0, 0),
+        1: (ElemType.SEG2, 2, 1, 1,         2, 0, 0, 0),
+        8: (ElemType.SEG3, 3, 1, 2,         2, 1, 0, 0),
+        26: (ElemType.SEG4, 4, 1, 3,        2, 2, 0, 0),
+        27: (ElemType.SEG5, 5, 1, 4,        2, 3, 0, 0),
+        2: (ElemType.TRI3, 3, 2, 1,         3, 0, 0, 0),
+        9: (ElemType.TRI6, 6, 2, 2,         3, 3, 0, 0),
+        21: (ElemType.TRI10, 10, 2, 3,      3, 6, 1, 0),
+        23: (ElemType.TRI15, 15, 2, 4,      3, 9, 3, 0),
+        3: (ElemType.QUAD4, 4, 2, 1,        4, 0, 0, 0),
+        16: (ElemType.QUAD8, 8, 2, 2,       4, 4, 0, 0),
+        10: (ElemType.QUAD9, 9, 2, 2,       4, 4, 1, 0),
+        4: (ElemType.TETRA4, 4, 3, 1,       4, 0, 0, 0),
+        11: (ElemType.TETRA10, 10, 3, 2,    4, 6, 0, 0),
+        5: (ElemType.HEXA8, 8, 3, 1,        8, 0, 0, 0),
+        17: (ElemType.HEXA20, 20, 3, 2,     8, 12, 0, 0),
+        12: (ElemType.HEXA27, 27, 3, 2,     8, 12, 6, 1),
+        6: (ElemType.PRISM6, 6, 3, 1,       6, 0, 0, 0),
+        18: (ElemType.PRISM15, 15, 3, 2,    6, 9, 0, 0),
+        13: (ElemType.PRISM18, 18, 3, 2,    6, 9, 3, 0),
+        # 7: (ElemType.PYRA5, 5, 3, 1,        5, 0, 0, 0),
+        # 19: (ElemType.PYRA13, 13, 3, 2,     5, 8, 0, 0),
+        # 14: (ElemType.PYRA14, 14, 3, 2,     5, 8, 1, 0),
+        # fmt: on
     }
-    """gmshId: (ElemType, nPe, dim, order, Nface, Nvertex)"""
+    """gmshId: (ElemType, nPe, dim, order, Nvertex, Nedge, Nface, Nvolume)"""
 
-    DICT_ELEMTYPE: dict[ElemType, tuple[int, int, int, int, int, int]] = {
-        values[0]: (key, *values[1:]) for key, values in DICT_GMSHID.items()
+    DICT_ELEMTYPE: dict[ElemType, tuple[int, int, int, int, int, int, int, int]] = {
+        values[0]: (key, *values[1:]) for key, values in DICT_GMSH_DATA.items()
     }
-    """ElemType: (gmshId, nPe, dim, order, Nface, Nvertex)"""
+    """ElemType: (gmshId, nPe, dim, order, Nvertex, Nedge, Nface, Nvolume)"""
 
     @staticmethod
-    def Get_ElemInFos(gmshId: int) -> tuple[ElemType, int, int, int, int, int]:
-        """return elemType, nPe, dim, order, Nface, Nvertex\n
+    def Get_ElemInFos(
+        gmshId: int,
+    ) -> tuple[ElemType, int, int, int, int, int, int, int]:
+        """return elemType, nPe, dim, order, Nvertex, Nedge, Nface, Nvolume\n
         associated with the gmsh id.
         """
 
-        if gmshId not in GroupElemFactory.DICT_GMSHID.keys():
+        if gmshId not in GroupElemFactory.DICT_GMSH_DATA.keys():
             raise KeyError("gmshId is unknown.")
 
-        return GroupElemFactory.DICT_GMSHID[gmshId]
+        return GroupElemFactory.DICT_GMSH_DATA[gmshId]
 
     @staticmethod
     def Create(
