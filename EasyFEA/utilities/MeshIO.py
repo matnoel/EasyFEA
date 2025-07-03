@@ -5,6 +5,7 @@
 """Module providing an interface with meshio (https://pypi.org/project/meshio/)."""
 
 import meshio
+from collections import Counter
 from typing import Any, Optional
 
 from . import Folder, Display, _types
@@ -115,6 +116,100 @@ DICT_VTK_TO_GMSH_INDEXES: dict[pv.CellType, list[int]] = {
     for elemType, order in DICT_GMSH_TO_VTK_INDEXES.items()
 }
 """CellType: list[int]"""
+
+# ----------------------------------------------
+# Tools
+# ----------------------------------------------
+
+
+def Surface_reconstruction(mesh: Mesh) -> Mesh:
+    """Reconstructs the missing surfaces of a mesh."""
+
+    assert isinstance(mesh, Mesh), "mesh must be a EasyFEA mesh!"
+
+    if mesh.dim in [0, 1, 2]:
+        return mesh
+
+    assert (
+        len(mesh.Get_list_groupElem(3)) == 1
+    ), "The mesh must contain only one group of 3D elements."
+
+    # get group elem data
+    groupElem3D = mesh.groupElem
+    connect3D = groupElem3D.connect
+    surfaces = groupElem3D.surfaces
+    Nface = surfaces.shape[0]
+    coordGlob = groupElem3D.coordGlob
+
+    # init list
+    allSurfaces: list[_types.IntArray] = []
+    listId: list[tuple[int]] = []
+
+    # loop over each 3D element's surfaces
+    for surface in surfaces:
+
+        # get connect for the surface
+        connect = connect3D[:, surface]
+        allSurfaces.extend(connect.copy())
+
+        # get unique ids as tuple of int
+        connect = np.sort(connect, axis=1)
+        listId.extend([tuple(face) for face in connect])
+
+    # make sure all surfaces are imported
+    assert len(allSurfaces) == mesh.Ne * Nface
+
+    # counts the number of repetitions of each identifier
+    counts = Counter(listId)
+    # get unique surfaces in all created surfaces
+    uniqueSurfaces = [allSurfaces[i] for i, id in enumerate(listId) if counts[id] == 1]
+
+    # contstruct the new group of elements
+    new_dict_groupElem: dict[ElemType, _GroupElem] = {}
+
+    # loop over all group of elements in the mesh
+    for elemType, groupElem in mesh.dict_groupElem.items():
+
+        # dont do anything when the group elem is not 2D
+        if groupElem.dim != 2:
+            new_dict_groupElem[elemType] = groupElem
+            continue
+
+        # get the good elements in the mesh
+        if mesh.elemType.startswith("PRISM"):
+            nPe = groupElem.nPe
+            connect = np.asarray(
+                [nodes for nodes in uniqueSurfaces if nodes.size == nPe], dtype=int
+            )
+        else:
+            connect = np.asarray(uniqueSurfaces, dtype=int)
+
+        # create the new group of elements
+        newGroupElem = GroupElemFactory._Create(elemType, connect, coordGlob)
+        new_dict_groupElem[elemType] = newGroupElem
+
+    # create the new mesh
+    newMesh = Mesh(new_dict_groupElem)
+
+    return newMesh
+
+
+def __Get_dict_tags_converter(mesh: Mesh) -> dict[Any, int]:
+    """Construct dict_tags as a dictionary with string keys and int values."""
+
+    assert isinstance(mesh, Mesh), "mesh must be a EasyFEA mesh!"
+
+    #
+    tags = []
+    [tags.extend(groupElem.nodeTags) for groupElem in mesh.dict_groupElem.values()]  # type: ignore [func-returns-value]
+    tags = np.unique(tags).tolist()
+    # change "L1" as 1
+    dict_tags = {tag: int(tag[-1]) for tag in tags if len(tag) == 2}
+    # For now, it does not import strings different from P{i}, L{i}, S{i}, V{i}.
+    # It won't work for long strings.
+
+    return dict_tags
+
 
 # ----------------------------------------------
 # EasyFEA to Meshio
@@ -379,8 +474,6 @@ def EasyFEA_to_Gmsh(mesh: Mesh, folder: str, name: str, useBinary=False) -> str:
         Directory to save the Gmsh file.
     name : str
         The name of the Gmsh file, without the extension.
-    dict_tags_converter : dict[str, int], optional
-        Dictionary converting string tags to integers (default is {}).
     useBinary : bool, optional
         Whether to save as binary (default is False).
 
@@ -392,16 +485,9 @@ def EasyFEA_to_Gmsh(mesh: Mesh, folder: str, name: str, useBinary=False) -> str:
 
     assert isinstance(mesh, Mesh), "mesh must be a EasyFEA mesh!"
 
-    # Construct dict_tags as a dictionary with string keys and int values.
-    tags = []
-    [tags.extend(groupElem.nodeTags) for groupElem in mesh.dict_groupElem.values()]  # type: ignore [func-returns-value]
-    tags = np.unique(tags).tolist()
-    # change "L1" as 1
-    dict_tags = {tag: int(tag[-1]) for tag in tags if len(tag) == 2}
-    # For now, it does not import strings different from P{i}, L{i}, S{i}, V{i}.
-    # It won't work for long strings.
+    dict_tags_converter = __Get_dict_tags_converter(mesh)
 
-    meshioMesh = _EasyFEA_to_Meshio(mesh, dict_tags)
+    meshioMesh = _EasyFEA_to_Meshio(mesh, dict_tags_converter)
 
     filename = Folder.Join(folder, f"{name}.msh", mkdir=True)
 
@@ -441,7 +527,7 @@ def Gmsh_to_EasyFEA(gmshMesh: str) -> Mesh:
 
 
 def EasyFEA_to_PyVista(
-    mesh: Mesh, coord: Optional[_types.FloatArray] = None, useMainGroupElem=True
+    mesh: Mesh, coord: Optional[_types.FloatArray] = None, useAllElements=True
 ) -> pv.UnstructuredGrid:
     """Convert EasyFEA mesh to PyVista Multiblock format.
 
@@ -452,11 +538,12 @@ def EasyFEA_to_PyVista(
     coord : _types.FloatArray, optional
         mesh coordinates, by default None
     useMainGroupElem : bool, optional
-        Whether to save every group of elements, by default True
+        Use all group of elements, by default True
+        Uses only the main group of elements if set to False.
 
     Returns
     -------
-    pv.MultiBlock
+    pv.UnstructuredGrid
         pyvista mesh
     """
 
@@ -466,7 +553,7 @@ def EasyFEA_to_PyVista(
     dict_cellData: dict[pv.CellType, np.ndarray] = {}
 
     for elemType, groupElem in mesh.dict_groupElem.items():
-        if useMainGroupElem and groupElem is not mesh.groupElem:
+        if not useAllElements and groupElem is not mesh.groupElem:
             continue
 
         if elemType not in DICT_ELEMTYPE_TO_VTK.keys():
@@ -476,13 +563,12 @@ def EasyFEA_to_PyVista(
         # reorder gmsh idx to vtk indexes
         if elemType in DICT_GMSH_TO_VTK_INDEXES.keys():
             vtkIndexes = DICT_GMSH_TO_VTK_INDEXES[elemType]
-        else:
-            vtkIndexes = np.arange(groupElem.nPe).tolist()
-
-        if elemType in ["TRI10", "TRI15"]:
+        elif elemType in ["TRI10", "TRI15"]:
             # forced to do this because pyvista simply does not have LAGRANGE_TRIANGLE
             # do not put in DICT_VTK_INDEXES because paraview can read LAGRANGE_TRIANGLE without changing the indices
             vtkIndexes = np.reshape(groupElem.triangles, (-1, 3)).tolist()
+        else:
+            vtkIndexes = np.arange(groupElem.nPe).tolist()
 
         # get groupelem connectivity
         connect = groupElem.connect[:, vtkIndexes]
@@ -493,7 +579,12 @@ def EasyFEA_to_PyVista(
         dict_cellData[cellType] = connect
 
     # get mesh coordinates
-    coordinates = coord if isinstance(coord, np.ndarray) else mesh.coord
+    if coord is None:
+        coordinates = mesh.coordGlob
+    else:
+        expectedShape = mesh.coordGlob.shape
+        assert coord.shape == expectedShape, f"coord must be a {expectedShape} array"
+        coordinates = coord
 
     # get UnstructuredGrid
     pyVistaMesh = pv.UnstructuredGrid(dict_cellData, coordinates)
