@@ -62,7 +62,16 @@ class PRISM6(_GroupElem):
 
     @property
     def surfaces(self) -> _types.IntArray:
-        return self.faces
+        return np.array(
+            [
+                [0, 3, 4, 1],
+                [0, 2, 5, 3],
+                [1, 4, 5, 2],
+                [3, 5, 4],  # tri z=1
+                [0, 1, 2],  # tri z=-1
+            ],
+            dtype=object,
+        )
 
     def Get_Local_Coords(self):
         list_x = [0, 1, 0, 0, 1, 0]
@@ -190,7 +199,7 @@ class PRISM15(_GroupElem):
                 [3, 5, 4, 13, 14, 12],  # tri z=1
                 [0, 1, 2, 6, 9, 7],  # tri z=-1
             ],
-            dtype=int,
+            dtype=object,
         )
 
     def Get_Local_Coords(self):
@@ -455,7 +464,7 @@ class PRISM18(_GroupElem):
                 [3, 5, 4, 13, 14, 12],  # tri z=1
                 [0, 1, 2, 6, 9, 7],  # tri z=-1
             ],
-            dtype=int,
+            dtype=object,
         )
 
     def Get_Local_Coords(self):
