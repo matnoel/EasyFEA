@@ -308,6 +308,8 @@ def _Write_solution_file(
                 # write WarpVec
                 f.write(f"WarpVec\n1\n{deformFactor}\n\n")
 
+    Nn = mesh.coordGlob.shape[0]
+
     with open(solutionFile, "w") as f:
         # write first lines
         f.write("MeshVersionFormatted 2\n")
@@ -316,11 +318,11 @@ def _Write_solution_file(
         if warpVector_n is not None:
             # write SolAtVertices
             assert (
-                warpVector_n.shape[0] == mesh.Nn and warpVector_n.ndim == 2
+                warpVector_n.shape[0] == Nn and warpVector_n.ndim == 2
             ), "nodesValues must be a (Nn, ...) array"
             assert warpVector_n.shape[1] in [1, mesh.inDim]
             nodesValues_type = 1 if warpVector_n.shape[1] == 1 else 2
-            f.write(f"SolAtVertices\n{mesh.Nn}\n1 {nodesValues_type}\n")
+            f.write(f"SolAtVertices\n{Nn}\n1 {nodesValues_type}\n")
             np.savetxt(f, warpVector_n)
             f.write("\n")
 
