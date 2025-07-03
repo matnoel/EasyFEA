@@ -1983,7 +1983,7 @@ class _GroupElem(ABC):
                     ],
                     dtype=object,
                 )
-            Nface = faces.shape[0]
+            Nface = faces.shape[0]  # type: ignore [attr-defined]
 
             p0_f = [f[0] for f in faces]
             p1_f = [f[1] for f in faces]
