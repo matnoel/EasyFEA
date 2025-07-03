@@ -4,8 +4,10 @@
 
 import pytest
 
-from EasyFEA import Mesher, ElemType, Mesh, MeshIO, np
+from EasyFEA import Folder, Mesher, ElemType, Mesh, MeshIO, np
 from EasyFEA.Geoms import Points
+
+folder_results = Folder.Join(Folder.Dir(__file__), "results")
 
 L = 2
 H = 1
@@ -48,6 +50,24 @@ def meshes() -> list[Mesh]:
     return meshes
 
 
+def check_mesh(mesh1: Mesh, mesh2: Mesh):
+
+    assert mesh1.Ne == mesh2.Ne
+    assert mesh1.Nn == mesh2.Nn
+
+    if mesh1.dim >= 1:
+        diff_length = mesh1.length - mesh2.length
+        assert diff_length < 1e-12
+
+    if mesh1.dim >= 2:
+        diff_area = mesh1.area - mesh2.area
+        assert diff_area < 1e-12
+
+    if mesh1.dim >= 3:
+        diff_volume = mesh1.volume - mesh2.volume
+        assert diff_volume < 1e-12
+
+
 class TestMeshIO:
 
     def test_surface_reconstruction(self, meshes: list[Mesh]):
@@ -66,14 +86,46 @@ class TestMeshIO:
             diff_Ne = expectedNe - computedNe
             assert diff_Ne == 0
 
-            if mesh.dim >= 1:
-                diff_length = mesh.length - newMesh.length
-                assert diff_length < 1e-12
+            check_mesh(mesh, newMesh)
 
-            if mesh.dim >= 2:
-                diff_area = mesh.area - newMesh.area
-                assert diff_area < 1e-12
+    def test_easyfea_to_meshio(self, meshes: list[Mesh]):
 
-            if mesh.dim >= 3:
-                diff_volume = mesh.volume - newMesh.volume
-                assert diff_volume < 1e-12
+        for mesh in meshes:
+
+            meshio = MeshIO._EasyFEA_to_Meshio(mesh)
+            newMesh = MeshIO._Meshio_to_EasyFEA(meshio)
+
+            check_mesh(mesh, newMesh)
+
+    def test_easyfea_to_gmsh(self, meshes: list[Mesh]):
+
+        for mesh in meshes:
+
+            filename = MeshIO.EasyFEA_to_Gmsh(mesh, folder_results, mesh.elemType.name)
+            newMesh = MeshIO.Gmsh_to_EasyFEA(filename)
+
+            check_mesh(mesh, newMesh)
+
+    def test_easyfea_to_medit(self, meshes: list[Mesh]):
+
+        for mesh in meshes:
+
+            if mesh.elemType in ["QUAD8", "HEXA20", "PRISM15"]:
+                continue
+
+            filename = MeshIO.EasyFEA_to_Medit(mesh, folder_results, mesh.elemType.name)
+            newMesh = MeshIO.Medit_to_EasyFEA(filename)
+
+            check_mesh(mesh, newMesh)
+
+    def test_easyfea_to_pyvista(self, meshes: list[Mesh]):
+
+        for mesh in meshes:
+
+            if mesh.groupElem.order >= 2:
+                continue
+
+            pyVistaMesh = MeshIO.EasyFEA_to_PyVista(mesh)
+            newMesh = MeshIO.PyVista_to_EasyFEA(pyVistaMesh)
+
+            check_mesh(mesh, newMesh)

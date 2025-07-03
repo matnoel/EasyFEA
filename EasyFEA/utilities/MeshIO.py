@@ -6,7 +6,7 @@
 
 import meshio
 from collections import Counter
-from typing import Any, Optional
+from typing import Any, Optional, Union
 
 from . import Folder, Display, _types
 
@@ -216,7 +216,7 @@ def __Get_dict_tags_converter(mesh: Mesh) -> dict[Any, int]:
 
 
 def _EasyFEA_to_Meshio(
-    mesh: Mesh, dict_tags_converter: dict[Any, int] = {}
+    mesh: Mesh, dict_tags_converter: dict[Any, int] = {}, cellType: str = "tags"
 ) -> meshio.Mesh:
     """Convert EasyFEA mesh to meshio format.
 
@@ -225,7 +225,9 @@ def _EasyFEA_to_Meshio(
     mesh : Mesh
         EasyFEA mesh object.
     dict_tags_converter : dict[Any, int], optional
-        Dictionary converting tags to integers (default is {}).
+        Dictionary converting tags to integers, by default {}
+    cellType : str, optional
+        cell type to acces tags, by default "tags"
 
     Returns
     -------
@@ -264,16 +266,15 @@ def _EasyFEA_to_Meshio(
             # elements
             elements = groupElem.Get_Elements_Tag(tag)
             if elements.size > 0:
-                element_tags[elements] = val
+                element_tags[elements] = int(val)
         list_elements.append(element_tags)
 
-    cell_data = {"tags": list_elements}
+    cell_data = {cellType: list_elements}
 
     # import in meshio
     try:
-        meshioMesh = meshio.Mesh(
-            mesh.coordGlob[:, : mesh.inDim], cells_dict, None, cell_data
-        )
+        meshioMesh = meshio.Mesh(mesh.coordGlob, cells_dict, None, cell_data)
+
     except KeyError:
         raise KeyError(
             f"To support {mesh.elemType} elements, you need to install meshio using the following meshio fork (https://github.com/matnoel/meshio/tree/medit_higher_order_elements)."
@@ -355,12 +356,16 @@ def _Set_Tags(mesh: Mesh, dict_tags: dict[str, _types.IntArray]):
     for elemType, tags in dict_tags.items():
         if elemType.startswith(("vertex")):
             dim = 0
+            t = "P"
         elif elemType.startswith(("line")):
             dim = 1
+            t = "L"
         elif elemType.startswith(("triangle", "quad")):
             dim = 2
+            t = "S"
         elif elemType.startswith(("tetra", "hexahedron", "wedge")):
             dim = 3
+            t = "V"
         else:
             raise Exception(f"elemType {elemType} is unknown.")
 
@@ -377,8 +382,8 @@ def _Set_Tags(mesh: Mesh, dict_tags: dict[str, _types.IntArray]):
                 nodes_set = set(groupElem.connect[elems].ravel())
                 nodes = np.array(list(nodes_set))
 
-                groupElem._Set_Nodes_Tag(nodes, str(tag))
-                groupElem._Set_Elements_Tag(nodes, str(tag))
+                groupElem._Set_Nodes_Tag(nodes, t + str(tag))
+                groupElem._Set_Elements_Tag(nodes, t + str(tag))
 
             print(f"{groupElem.elemType} -> Ne = {groupElem.Ne}")
 
@@ -486,11 +491,12 @@ def EasyFEA_to_Gmsh(mesh: Mesh, folder: str, name: str, useBinary=False) -> str:
 
     dict_tags_converter = __Get_dict_tags_converter(mesh)
 
-    meshioMesh = _EasyFEA_to_Meshio(mesh, dict_tags_converter)
+    meshioMesh = _EasyFEA_to_Meshio(mesh, dict_tags_converter, "cell_tags")
 
     filename = Folder.Join(folder, f"{name}.msh", mkdir=True)
 
     Display.MyPrint(f"\nCreation of: {filename}", "green")
+
     meshio.gmsh.write(filename, meshioMesh, "2.2", useBinary)
     # Error with 4.1
 
@@ -591,12 +597,12 @@ def EasyFEA_to_PyVista(
     return pyVistaMesh
 
 
-def PyVista_to_EasyFEA(pyVistaMesh: pv.MultiBlock) -> Mesh:
+def PyVista_to_EasyFEA(pyVistaMesh: Union[pv.UnstructuredGrid, pv.MultiBlock]) -> Mesh:
     """Convert PyVista mesh to EasyFEA format.
 
     Parameters
     ----------
-    pyVistaMesh : pv.MultiBlock
+    pyVistaMesh : pv.UnstructuredGrid | pv.MultiBlock
         PyVista mesh object.
 
     Returns
@@ -605,35 +611,43 @@ def PyVista_to_EasyFEA(pyVistaMesh: pv.MultiBlock) -> Mesh:
         Converted EasyFEA mesh object.
     """
 
-    assert isinstance(pyVistaMesh, pv.MultiBlock), "pyVistaMesh must be a MultiBlock!"
-
-    pyVistaMesh = pyVistaMesh.as_unstructured_grid_blocks()
-
     dict_groupElem: dict[ElemType, _GroupElem] = {}
 
-    for index in range(pyVistaMesh.n_blocks):
-        block = pyVistaMesh.get_block(index)
+    def read_grid(grid: pv.UnstructuredGrid):
 
-        if isinstance(block, pv.UnstructuredGrid):
-            coordGlob = block.points
+        coordGlob = grid.points
 
-            cellTypes = block.celltypes.astype(int)
+        cellTypes = grid.celltypes.astype(int)
 
-            for cellTypeId in list(set(cellTypes)):
-                # get cell and element types
-                cellType = pv.CellType(cellTypeId)
-                elemType = DICT_PYVISTA_TO_ELEMTYPE[cellType]
+        for cellTypeId in list(set(cellTypes)):
+            # get cell and element types
+            cellType = pv.CellType(cellTypeId)
+            elemType = DICT_PYVISTA_TO_ELEMTYPE[cellType]
 
-                # get connect
-                connect = block.cells_dict[cellTypeId].astype(int)
-                # reorder vtk idx to gmsh/easyfea indexes
-                if cellType in DICT_VTK_TO_GMSH_INDEXES.keys():
-                    indexes = DICT_VTK_TO_GMSH_INDEXES[cellType]
-                    connect = connect[:, indexes]
+            # get connect
+            connect = grid.cells_dict[cellTypeId].astype(int)
+            # reorder vtk idx to gmsh/easyfea indexes
+            if cellType in DICT_VTK_TO_GMSH_INDEXES.keys():
+                indexes = DICT_VTK_TO_GMSH_INDEXES[cellType]
+                connect = connect[:, indexes]
 
-                groupElem = GroupElemFactory._Create(elemType, connect, coordGlob)
+            groupElem = GroupElemFactory._Create(elemType, connect, coordGlob)
 
-                dict_groupElem[elemType] = groupElem
+            dict_groupElem[elemType] = groupElem
+
+    if isinstance(pyVistaMesh, pv.MultiBlock):
+        pyVistaMesh = pyVistaMesh.as_unstructured_grid_blocks()
+
+        # loop over blocks
+        for index in range(pyVistaMesh.n_blocks):
+            grid = pyVistaMesh.get_block(index)
+            if isinstance(grid, pv.UnstructuredGrid):
+                read_grid(grid)
+
+    elif isinstance(pyVistaMesh, pv.UnstructuredGrid):
+        read_grid(pyVistaMesh)
+    else:
+        raise TypeError("Wrond type.")
 
     mesh = Mesh(dict_groupElem)
 
