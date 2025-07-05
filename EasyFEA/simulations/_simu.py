@@ -835,12 +835,12 @@ class _Simu(_IObserver, ABC):
         tic = Tic()
 
         # init u and du
-        u = self.Get_x0(problemType)
+        u = self._Get_u_n(problemType)
         delta_u = np.zeros_like(u)
 
         # init convergence list
         list_res: list[float] = []
-        list_norm_b: list[float] = []
+        list_norm_r: list[float] = []
 
         while not converged and Niter < maxIter:
             Niter += 1
@@ -853,15 +853,19 @@ class _Simu(_IObserver, ABC):
             u += delta_u
             self.__Set_u_n(problemType, u)
 
-            # compute ||b||
+            # compute r = b - K u
             b = self._Solver_Apply_Neumann(problemType)
-            norm_b = sla.norm(b)
-            list_norm_b.append(norm_b)
+            K = self.Get_K_C_M_F(problemType)[0]
+            r = b - K @ u.reshape(-1, 1)
+
+            # compute || r ||
+            norm_r = np.linalg.norm(r)
+            list_norm_r.append(norm_r)
 
             if Niter == 1:
                 res = 1
             else:
-                res = np.abs(list_norm_b[-2] - norm_b) / list_norm_b[-2]
+                res = np.abs(list_norm_r[-2] - norm_r) / list_norm_r[-2]
             list_res.append(res)
 
             converged = res < tolConv or norm_delta_u < tolConv
