@@ -123,48 +123,55 @@ DICT_VTK_TO_GMSH_INDEXES: dict[pv.CellType, list[int]] = {
 
 
 def Surface_reconstruction(mesh: Mesh) -> Mesh:
-    """Reconstructs the missing surfaces of a mesh."""
+    """Reconstructs the missing surfaces in a mesh."""
 
     assert isinstance(mesh, Mesh), "mesh must be a EasyFEA mesh!"
 
-    if mesh.dim in [0, 1, 2]:
+    if mesh.dim != 3:
+        # No need to reconstruct elements for 0D, 1D or 2D meshes
         return mesh
 
-    assert (
-        len(mesh.Get_list_groupElem(3)) == 1
-    ), "The mesh must contain only one group of 3D elements."
-
-    # get group elem data
-    groupElem3D = mesh.groupElem
-    connect3D = groupElem3D.connect
-    faces = groupElem3D.faces
-    Nface = faces.shape[0]
+    useMixedElements = mesh.elemType.startswith(("PRISM"))
 
     # get coordinates without orphan nodes
-    coordinates = groupElem3D.coordGlob[groupElem3D.nodes]
+    coordinates = mesh.groupElem.coordGlob[mesh.nodes]
 
-    # init list
-    allSurfaces: list[_types.IntArray] = []
-    listId: list[tuple[int]] = []
+    # get group elem data
+    groupElem = mesh.groupElem
+    connectivity = groupElem.connect
 
-    # loop over each 3D element's surfaces
+    # get faces to access nodes in connectivity
+    faces = groupElem.faces
+    Nface = faces.shape[0]
+
+    allConnect: list[_types.IntArray] = []
+    allIds: list[tuple[int]] = []
+
+    # loop over each indices
     for face in faces:
 
-        # get connect for the surface
-        connect = connect3D[:, face]
-        allSurfaces.extend(connect.copy())
+        # get connect for the idx
+        connect = connectivity[:, face]
+        allConnect.extend(connect.copy())
 
-        # get unique ids as tuple of int
+        # Ensure that generated IDs (tuples in this case) are unique
         connect = np.sort(connect, axis=1)
-        listId.extend([tuple(face) for face in connect])
 
-    # make sure all surfaces are imported
-    assert len(allSurfaces) == mesh.Ne * Nface
+        # add unique ids
+        if useMixedElements:
+            allIds.extend([tuple(nodes) for nodes in connect])
+        else:
+            allIds.extend(list(map(tuple, connect)))
+
+    # make sure all nodes are imported
+    assert len(allConnect) == groupElem.Ne * Nface
 
     # counts the number of repetitions of each identifier
-    counts = Counter(listId)
-    # get unique surfaces in all created surfaces
-    uniqueSurfaces = [allSurfaces[i] for i, id in enumerate(listId) if counts[id] == 1]
+    counts = Counter(allIds)
+    # get unique nodes in all created nodes
+    uniqueNodes: list[_types.IntArray] = [
+        allConnect[i] for i, id in enumerate(allIds) if counts[id] == 1
+    ]
 
     # contstruct the new group of elements
     new_dict_groupElem: dict[ElemType, _GroupElem] = {}
@@ -172,16 +179,13 @@ def Surface_reconstruction(mesh: Mesh) -> Mesh:
     # loop over all group of elements in the mesh
     for elemType, groupElem in mesh.dict_groupElem.items():
 
-        if groupElem.dim != 2:
-            connect = groupElem.connect
-
-        elif mesh.elemType.startswith("PRISM"):
+        if groupElem.dim == 2:
             nPe = groupElem.nPe
             connect = np.asarray(
-                [nodes for nodes in uniqueSurfaces if nodes.size == nPe], dtype=int
+                [nodes for nodes in uniqueNodes if nodes.size == nPe], dtype=int
             )
         else:
-            connect = np.asarray(uniqueSurfaces, dtype=int)
+            connect = groupElem.connect
 
         # create the new group of elements
         newGroupElem = GroupElemFactory._Create(elemType, connect, coordinates)
