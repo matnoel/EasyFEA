@@ -18,7 +18,7 @@ if __name__ == "__main__":
 
     contour = Domain((0, 0), (1, 1), 1 / 10)
     circle = Circle((1 / 2, 1 / 2), 1 / 3, 1 / 10, isHollow=True)
-    contour.Plot()
+    contour.Plot_Geoms([contour, circle])
 
     # "TETRA4", "TETRA10", "HEXA8", "HEXA20", "HEXA27", "PRISM6", "PRISM15", "PRISM18"
     elemType = ElemType.PRISM15
