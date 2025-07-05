@@ -393,7 +393,7 @@ def Plot_Mesh(
     coordFaces = mesh.coordGlob[connectFaces, :inDim]
 
     if title == "":
-        title = f"{mesh.elemType} : Ne = {mesh.Ne}, Nn = {mesh.Nn}"
+        title = f"{mesh.elemType}: Ne = {mesh.Ne}, Nn = {mesh.Nn}"
 
     if inDim in [1, 2]:
         # in 2d space
