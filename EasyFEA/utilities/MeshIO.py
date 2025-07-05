@@ -546,7 +546,7 @@ def EasyFEA_to_PyVista(
         EasyFEA mesh object.
     coord : _types.FloatArray, optional
         mesh coordinates, by default None
-    useMainGroupElem : bool, optional
+    useAllElements : bool, optional
         Use all group of elements, by default True
         Uses only the main group of elements if set to False.
 
