@@ -30,7 +30,10 @@ To construct a :py:class:`~EasyFEA.fem.Mesh` using the :py:class:`~EasyFEA.fem.M
 - :py:meth:`~EasyFEA.fem.Mesher.Mesh_Revolve`: Generates a mesh by revolving a 2D shape around an axis.
 - :py:meth:`~EasyFEA.fem.Mesher.Mesh_Import_part`: Imports a cad (e.g. .stp) part to create a mesh.
 - :py:meth:`~EasyFEA.fem.Mesher.Mesh_Import_mesh`: Imports an existing gmsh mesh. EasyFEA is also linked to meshio and can be used threw the
-- :py:meth:`~EasyFEA.utilities.MeshIO._Meshio_to_EasyFEA`: Imports any kind of mesh using `meshio <https://pypi.org/project/meshio/>`_.
+- :py:meth:`~EasyFEA.utilities.MeshIO.Medit_to_EasyFEA`: Imports medit mesh.
+- :py:meth:`~EasyFEA.utilities.MeshIO.Gmsh_to_EasyFEA`: Imports gmsh mesh.
+- :py:meth:`~EasyFEA.utilities.MeshIO.PyVista_to_EasyFEA`: Imports pyvista mesh (UnstructuredGrid or MultiBlock).
+- :py:meth:`~EasyFEA.utilities.MeshIO.Ensight_to_EasyFEA`: Imports ensight mesh.
 
 Several examples are available in :doc:`Meshes <../examples/Meshes/index>`.
 
