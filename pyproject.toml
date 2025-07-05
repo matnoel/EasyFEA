@@ -40,7 +40,13 @@ dependencies = [
 [project.optional-dependencies]
 fast = ["pypardiso", "petsc", "petsc4py", "mpi4py"]
 dic = ["opencv-python"]
-dev = ["mypy", "black", "ruff", "pytest"]
+dev = [
+    "mypy",
+    "black",
+    "ruff",
+    "pytest",
+    "meshio @ git+https://github.com/matnoel/meshio.git@medit_higher_order_elements",
+]
 
 [project.urls]
 Documentation = "https://easyfea.readthedocs.io/en/latest/"
