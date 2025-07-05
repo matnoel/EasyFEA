@@ -6,5 +6,5 @@ jupyter_sphinx
 sphinx-design
 scikit-learn
 sympy
-# trame_vtk
 pyvista[all]
+meshio @ git+https://github.com/matnoel/meshio.git@medit_higher_order_elements
