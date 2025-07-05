@@ -2,8 +2,7 @@
 # This file is part of the EasyFEA project.
 # EasyFEA is distributed under the terms of the GNU General Public License v3, see LICENSE.txt and CREDITS.md for more information.
 
-
-from EasyFEA.Geoms import Domain, Point
+from EasyFEA.Geoms import Domain
 from EasyFEA import Mesher, np, Materials, Simulations
 
 
@@ -12,11 +11,9 @@ class TestPhaseField:
     def test_PhaseField(self):
 
         a = 1
-        l0 = a / 15
+        l0 = a / 10
         meshSize = l0 / 2
-        mesh = Mesher._Construct_2D_meshes(L=a, h=a, meshSize=meshSize)[
-            5
-        ]  # take the first mesh
+        mesh = Mesher().Mesh_2D(Domain((0, 0), (a, a), meshSize))
 
         nodes_0 = mesh.Nodes_Conditions(lambda x, y, z: x == 0)
         nodes_a = mesh.Nodes_Conditions(lambda x, y, z: x == a)
@@ -48,10 +45,10 @@ class TestPhaseField:
         """Function use to check that modifications on phase field material activate the update of the simulation"""
 
         def DoTest(simu: Simulations._Simu) -> None:
-            assert simu.needUpdate == True  # should trigger the event
+            assert simu.needUpdate  # should trigger the event
             simu.Need_Update(False)  # init
 
-        mesh = Mesher().Mesh_2D(Domain(Point(), Point(1, 1)))
+        mesh = Mesher().Mesh_2D(Domain((0, 0), (1, 1)))
 
         matIsot = Materials.ElasIsot(2)
         # E, v, planeStress
@@ -62,9 +59,9 @@ class TestPhaseField:
         simu = Simulations.PhaseFieldSimu(mesh, pfm)
 
         simu.Get_K_C_M_F("elastic")
-        assert simu.needUpdate == True
+        assert simu.needUpdate
         simu.Get_K_C_M_F("damage")
-        assert simu.needUpdate == False
+        assert not simu.needUpdate
         # matrices are updated once damage and displacement matrices are build
 
         matIsot.E *= 2
