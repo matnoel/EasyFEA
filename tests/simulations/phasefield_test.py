@@ -2,12 +2,9 @@
 # This file is part of the EasyFEA project.
 # EasyFEA is distributed under the terms of the GNU General Public License v3, see LICENSE.txt and CREDITS.md for more information.
 
-import pytest
 
-from EasyFEA import Display, plt, np
-from EasyFEA.Geoms import Domain, Circle, Point, Line
-from EasyFEA import Mesher, ElemType
-from EasyFEA import Materials, Simulations
+from EasyFEA.Geoms import Domain, Point
+from EasyFEA import Mesher, np, Materials, Simulations
 
 
 class TestPhaseField:
@@ -15,7 +12,7 @@ class TestPhaseField:
     def test_PhaseField(self):
 
         a = 1
-        l0 = a / 10
+        l0 = a / 15
         meshSize = l0 / 2
         mesh = Mesher._Construct_2D_meshes(L=a, h=a, meshSize=meshSize)[
             5
