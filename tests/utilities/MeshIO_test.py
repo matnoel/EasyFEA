@@ -70,21 +70,19 @@ def check_mesh(mesh1: Mesh, mesh2: Mesh):
 
 class TestMeshIO:
 
-    def test_surface_reconstruction(self, meshes: list[Mesh]):
+    def test_mesh_reconstruction(self, meshes: list[Mesh]):
 
         for mesh in meshes:
 
             newMesh = MeshIO.Surface_reconstruction(mesh)
 
-            expectedNe = np.sum(
-                [groupElem.Ne for groupElem in mesh.Get_list_groupElem(2)]
-            )
-            computedNe = np.sum(
-                [groupElem.Ne for groupElem in newMesh.Get_list_groupElem(2)]
-            )
+            # check surface reconstruction
 
-            diff_Ne = expectedNe - computedNe
-            assert diff_Ne == 0
+            for groupElem1, groupElem2 in zip(
+                mesh.Get_list_groupElem(2), newMesh.Get_list_groupElem(2)
+            ):
+
+                assert groupElem1.Ne == groupElem2.Ne
 
             check_mesh(mesh, newMesh)
 
