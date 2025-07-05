@@ -542,9 +542,20 @@ class _GroupElem(ABC):
             raise Exception("Needs to be defined for 3D element groups.")
 
     @property
+    def edges(self) -> _types.IntArray:
+        """array of indices used to form the element edges (for FEM purposes)."""
+        segments = self.segments
+        idx = np.arange(segments.shape[1])
+        order = [0, -1] + idx[1:-1].tolist()
+        edges = segments[:, order]
+        return edges
+
+    @property
     @abstractmethod
     def surfaces(self) -> _types.IntArray:
-        """array of indices used to form the contour of the surfaces that make up the element (for display purposes)."""
+        """array of indices used to form the contour of the surfaces that make up the element (for display purposes).
+        WARNING: When adding new 3D elements, ensure that the resulting surface normals point inward the element.
+        """
         pass
 
     @property
