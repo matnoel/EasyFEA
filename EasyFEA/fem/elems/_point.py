@@ -29,12 +29,12 @@ class POINT(_GroupElem):
         return super().triangles
 
     @property
-    def faces(self) -> _types.IntArray:
+    def surfaces(self) -> _types.IntArray:
         return np.empty((0), dtype=int)
 
     @property
-    def surfaces(self) -> _types.IntArray:
-        return self.faces
+    def faces(self) -> _types.IntArray:
+        return self.surfaces
 
     def Get_Local_Coords(self):
         return np.array([0]).reshape(1, 1)

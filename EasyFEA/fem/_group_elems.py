@@ -512,7 +512,7 @@ class _GroupElem(ABC):
 
     @property
     def segments(self) -> _types.IntArray:  # type: ignore [return]
-        """array of indices used to construct segments"""
+        """array of indices used to construct segments (for display purposes)."""
         nPe = 2 + self.order - 1
         if self.__dim == 1:
             segments = np.zeros((1, nPe), dtype=int)
@@ -543,14 +543,14 @@ class _GroupElem(ABC):
 
     @property
     @abstractmethod
-    def faces(self) -> _types.IntArray:
-        """array of indices used to form the contour of the faces that make up the element."""
+    def surfaces(self) -> _types.IntArray:
+        """array of indices used to form the contour of the surfaces that make up the element (for display purposes)."""
         pass
 
     @property
     @abstractmethod
-    def surfaces(self) -> _types.IntArray:
-        """array of indices used to form the element surfaces."""
+    def faces(self) -> _types.IntArray:
+        """array of indices used to form the element faces (for FEM purposes)."""
         pass
 
     @abstractmethod
@@ -1939,9 +1939,9 @@ class _GroupElem(ABC):
             # corners i [1, nPe]
 
             coord = self.coord
-            faces = self.faces.ravel().tolist()[:-1]
-            nPe = len(faces)
-            connect_e = self.connect[elem, faces]
+            surfaces = self.surfaces.ravel().tolist()[:-1]
+            nPe = len(surfaces)
+            connect_e = self.connect[elem, surfaces]
             corners_i = coord[connect_e]
 
             # Vectors e_i for edge segments (nPe, 3)
@@ -1969,25 +1969,25 @@ class _GroupElem(ABC):
             return idx
 
         elif dim == 3:
-            faces = self.faces
+            surfaces = self.surfaces
             coord = self.coord[self.__connect[elem]]
 
             if self.elemType.startswith("PRISM"):
-                faces = np.array(  # type: ignore [type-var]
+                surfaces = np.array(  # type: ignore [type-var]
                     [
-                        faces[0, :],  # type: ignore [call-overload]
-                        faces[1, :],  # type: ignore [call-overload]
-                        faces[2, :],  # type: ignore [call-overload]
-                        faces[3, :-1],  # type: ignore [call-overload]
-                        faces[4, :-1],  # type: ignore [call-overload]
+                        surfaces[0, :],  # type: ignore [call-overload]
+                        surfaces[1, :],  # type: ignore [call-overload]
+                        surfaces[2, :],  # type: ignore [call-overload]
+                        surfaces[3, :-1],  # type: ignore [call-overload]
+                        surfaces[4, :-1],  # type: ignore [call-overload]
                     ],
                     dtype=object,
                 )
-            Nface = faces.shape[0]  # type: ignore [attr-defined]
+            Nface = surfaces.shape[0]  # type: ignore [attr-defined]
 
-            p0_f = [f[0] for f in faces]
-            p1_f = [f[1] for f in faces]
-            p2_f = [f[-1] for f in faces]
+            p0_f = [surface[0] for surface in surfaces]
+            p1_f = [surface[1] for surface in surfaces]
+            p2_f = [surface[-1] for surface in surfaces]
 
             i_f = coord[p1_f] - coord[p0_f]
             i_f = np.einsum(

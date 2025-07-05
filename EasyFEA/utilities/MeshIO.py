@@ -137,8 +137,8 @@ def Surface_reconstruction(mesh: Mesh) -> Mesh:
     # get group elem data
     groupElem3D = mesh.groupElem
     connect3D = groupElem3D.connect
-    surfaces = groupElem3D.surfaces
-    Nface = surfaces.shape[0]
+    faces = groupElem3D.faces
+    Nface = faces.shape[0]
 
     # get coordinates without orphan nodes
     coordinates = groupElem3D.coordGlob[groupElem3D.nodes]
@@ -148,10 +148,10 @@ def Surface_reconstruction(mesh: Mesh) -> Mesh:
     listId: list[tuple[int]] = []
 
     # loop over each 3D element's surfaces
-    for surface in surfaces:
+    for face in faces:
 
         # get connect for the surface
-        connect = connect3D[:, surface]
+        connect = connect3D[:, face]
         allSurfaces.extend(connect.copy())
 
         # get unique ids as tuple of int

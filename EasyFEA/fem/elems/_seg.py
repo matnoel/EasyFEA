@@ -35,11 +35,11 @@ class SEG2(_GroupElem):
         return super().triangles
 
     @property
-    def faces(self) -> _types.IntArray:
+    def surfaces(self) -> _types.IntArray:
         return np.array([[0, 1]], dtype=int)
 
     @property
-    def surfaces(self) -> _types.IntArray:
+    def faces(self) -> _types.IntArray:
         return np.empty((0), dtype=int)
 
     def Get_Local_Coords(self):
@@ -128,11 +128,11 @@ class SEG3(_GroupElem):
         return super().triangles
 
     @property
-    def faces(self) -> _types.IntArray:
+    def surfaces(self) -> _types.IntArray:
         return np.array([[0, 2, 1]], dtype=int)
 
     @property
-    def surfaces(self) -> _types.IntArray:
+    def faces(self) -> _types.IntArray:
         return np.empty((0), dtype=int)
 
     def Get_Local_Coords(self):
@@ -289,11 +289,11 @@ class SEG4(_GroupElem):
         return super().triangles
 
     @property
-    def faces(self) -> _types.IntArray:
+    def surfaces(self) -> _types.IntArray:
         return np.array([[0, 2, 3, 1]], dtype=int)
 
     @property
-    def surfaces(self) -> _types.IntArray:
+    def faces(self) -> _types.IntArray:
         return np.empty((0), dtype=int)
 
     def Get_Local_Coords(self):
@@ -604,11 +604,11 @@ class SEG5(_GroupElem):
         return super().triangles
 
     @property
-    def faces(self) -> _types.IntArray:
+    def surfaces(self) -> _types.IntArray:
         return np.array([[0, 2, 3, 4, 1]], dtype=int)
 
     @property
-    def surfaces(self) -> _types.IntArray:
+    def faces(self) -> _types.IntArray:
         return np.empty((0), dtype=int)
 
     def Get_Local_Coords(self):

@@ -153,7 +153,7 @@ def Plot_Result(
             ax.set_ylabel(r"$y$")
 
         # construct coordinates for each elements
-        faces = mesh.groupElem.faces.ravel().tolist()
+        faces = mesh.groupElem.surfaces.ravel().tolist()
         connectFaces = mesh.connect[:, faces]
         elements_coordinates = coordo[connectFaces, :2]
 
@@ -654,7 +654,7 @@ def Plot_Elements(
         # Construct the faces coordinates
         connect_e = groupElem.connect  # connect
         coord_n = groupElem.coordGlob[:, : mesh.inDim]  # global coordinates
-        faces = groupElem.faces.ravel().tolist()  # faces indexes
+        faces = groupElem.surfaces.ravel().tolist()  # faces indexes
         coordFaces_e = coord_n[connect_e[:, faces]]  # faces coordinates
         coordFaces = coordFaces_e[elements]
 
@@ -877,7 +877,7 @@ def Plot_Tags(
         coordo = groupElem.coordGlob[:, :inDim]
         center_e = np.mean(coordo[groupElem.connect], axis=1)  # center of each elements
         faces_coordinates = coordo[
-            groupElem.connect[:, groupElem.faces.ravel().tolist()]
+            groupElem.connect[:, groupElem.surfaces.ravel().tolist()]
         ]
 
         for tag_e in tags_e:
@@ -1458,8 +1458,8 @@ def _Get_list_faces(mesh, dimElem: int) -> list[list[int]]:
 
     # get faces and nodes per element for each element group
     for groupElem in mesh.Get_list_groupElem(dimElem):
-        list_faces.append(groupElem.faces.ravel().tolist())
-        list_len.append(groupElem.faces.size)
+        list_faces.append(groupElem.surfaces.ravel().tolist())
+        list_len.append(groupElem.surfaces.size)
 
     # make sure that faces in list_faces are at the same length
     max_len = np.max(list_len)

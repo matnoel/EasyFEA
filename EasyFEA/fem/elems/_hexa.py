@@ -42,7 +42,7 @@ class HEXA8(_GroupElem):
         return super().triangles
 
     @property
-    def faces(self) -> _types.IntArray:
+    def surfaces(self) -> _types.IntArray:
         return np.array(
             [
                 [0, 1, 2, 3],
@@ -56,8 +56,8 @@ class HEXA8(_GroupElem):
         )
 
     @property
-    def surfaces(self) -> _types.IntArray:
-        return self.faces
+    def faces(self) -> _types.IntArray:
+        return self.surfaces
 
     def Get_Local_Coords(self) -> _types.FloatArray:
         list_x = [-1, 1, 1, -1, -1, 1, 1, -1]
@@ -188,7 +188,7 @@ class HEXA20(_GroupElem):
         return super().triangles
 
     @property
-    def faces(self) -> _types.IntArray:
+    def surfaces(self) -> _types.IntArray:
         return np.array(
             [
                 [0, 8, 1, 11, 2, 13, 3, 9],  # 20
@@ -202,7 +202,7 @@ class HEXA20(_GroupElem):
         )
 
     @property
-    def surfaces(self) -> _types.IntArray:
+    def faces(self) -> _types.IntArray:
         return np.array(
             [
                 [0, 1, 2, 3, 8, 11, 13, 9],  # 20
@@ -823,7 +823,7 @@ class HEXA27(_GroupElem):
         return super().triangles
 
     @property
-    def faces(self) -> _types.IntArray:
+    def surfaces(self) -> _types.IntArray:
         return np.array(
             [
                 [0, 8, 1, 11, 2, 13, 3, 9],  # 20
@@ -837,7 +837,7 @@ class HEXA27(_GroupElem):
         )
 
     @property
-    def surfaces(self) -> _types.IntArray:
+    def faces(self) -> _types.IntArray:
         return np.array(
             [
                 [0, 1, 2, 3, 8, 11, 13, 9, 20],

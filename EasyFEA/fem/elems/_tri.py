@@ -40,11 +40,11 @@ class TRI3(_GroupElem):
         return [0, 1, 2]
 
     @property
-    def faces(self) -> _types.IntArray:
+    def surfaces(self) -> _types.IntArray:
         return np.array([[0, 1, 2, 0]], dtype=int)
 
     @property
-    def surfaces(self) -> _types.IntArray:
+    def faces(self) -> _types.IntArray:
         return np.arange(self.nPe, dtype=int)
 
     def Get_Local_Coords(self):
@@ -116,11 +116,11 @@ class TRI6(_GroupElem):
         # fmt: on
 
     @property
-    def faces(self) -> _types.IntArray:
+    def surfaces(self) -> _types.IntArray:
         return np.array([[0, 3, 1, 4, 2, 5, 0]], dtype=int)
 
     @property
-    def surfaces(self) -> _types.IntArray:
+    def faces(self) -> _types.IntArray:
         return np.arange(self.nPe, dtype=int)
 
     def Get_Local_Coords(self):
@@ -212,11 +212,11 @@ class TRI10(_GroupElem):
         # fmt: on
 
     @property
-    def faces(self) -> _types.IntArray:
+    def surfaces(self) -> _types.IntArray:
         return np.array([[0, 3, 4, 1, 5, 6, 2, 7, 8, 0]], dtype=int)
 
     @property
-    def surfaces(self) -> _types.IntArray:
+    def faces(self) -> _types.IntArray:
         return np.arange(self.nPe, dtype=int)
 
     def Get_Local_Coords(self):
@@ -438,11 +438,11 @@ class TRI15(_GroupElem):
         # fmt: on
 
     @property
-    def faces(self) -> _types.IntArray:
+    def surfaces(self) -> _types.IntArray:
         return np.array([[0, 3, 4, 5, 1, 6, 7, 8, 2, 9, 10, 11, 0]], dtype=int)
 
     @property
-    def surfaces(self) -> _types.IntArray:
+    def faces(self) -> _types.IntArray:
         return np.arange(self.nPe, dtype=int)
 
     def Get_Local_Coords(self):

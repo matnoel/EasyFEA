@@ -48,7 +48,7 @@ class TETRA4(_GroupElem):
         return super().triangles
 
     @property
-    def faces(self) -> _types.IntArray:
+    def surfaces(self) -> _types.IntArray:
         return np.array(
             [
                 [0, 1, 2],
@@ -60,8 +60,8 @@ class TETRA4(_GroupElem):
         )
 
     @property
-    def surfaces(self) -> _types.IntArray:
-        return self.faces
+    def faces(self) -> _types.IntArray:
+        return self.surfaces
 
     def Get_Local_Coords(self):
         list_x = [0, 1, 0, 0]
@@ -145,7 +145,7 @@ class TETRA10(_GroupElem):
         return super().triangles
 
     @property
-    def faces(self) -> _types.IntArray:
+    def surfaces(self) -> _types.IntArray:
         return np.array(
             [
                 [0, 4, 1, 5, 2, 6],
@@ -157,7 +157,7 @@ class TETRA10(_GroupElem):
         )
 
     @property
-    def surfaces(self) -> _types.IntArray:
+    def faces(self) -> _types.IntArray:
         return np.array(
             [
                 [0, 1, 2, 4, 5, 6],
