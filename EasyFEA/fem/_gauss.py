@@ -517,3 +517,13 @@ class Gauss:
         weights = np.asarray(weights).reshape(nPg)
 
         return coord, weights
+
+    def _MatrixType_factory(elemType: ElemType, nPg: int) -> MatrixType:
+
+        for matrixType in [MatrixType.rigi, MatrixType.mass]:
+
+            _, weights = Gauss._Gauss_factory(elemType, matrixType)
+            if weights.size == nPg:
+                return matrixType
+
+        raise ValueError("Unknown number of gauss points.")
