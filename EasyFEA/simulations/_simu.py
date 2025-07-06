@@ -13,9 +13,8 @@ import textwrap
 from ..__about__ import __version__
 
 # utilities
-from ..utilities import Folder, Display, Tic, _params
+from ..utilities import Folder, Display, Tic, _params, _types
 from ..utilities._observers import Observable, _IObserver
-from ..utilities import _types
 
 # fem
 from ..fem import Mesh, _GroupElem, BoundaryCondition, LagrangeCondition, MatrixType
