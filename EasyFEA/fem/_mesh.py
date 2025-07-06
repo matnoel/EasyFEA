@@ -256,45 +256,23 @@ class Mesh(Observable):
 
     @property
     def rowsVector_e(self) -> _types.IntArray:
-        """lines to fill the assembly matrix in vector (e.g elastic problem)"""
-        return self.Get_rowsVector_e(self.__dim)
-
-    def Get_rowsVector_e(self, dof_n: int) -> _types.IntArray:
-        """Returns lines to fill the assembly matrix in vector (e.g elastic problem)"""
-        assembly_e = self.Get_assembly_e(dof_n)
-        nPe = self.nPe
-        Ne = self.Ne
-        linesVector_e = np.repeat(assembly_e, nPe * dof_n).reshape((Ne, -1))
-        return linesVector_e
+        """rows to fill the assembly matrix in vector (e.g elastic problem)"""
+        return self.groupElem.Get_rowsVector_e(self.__dim)
 
     @property
     def columnsVector_e(self) -> _types.IntArray:
         """columns to fill the assembly matrix in vector (e.g elastic problem)"""
-        return self.Get_columnsVector_e(self.__dim)
-
-    def Get_columnsVector_e(self, dof_n: int) -> _types.IntArray:
-        """Returns columns to fill the vector assembly matrix"""
-        assembly_e = self.Get_assembly_e(dof_n)
-        nPe = self.nPe
-        Ne = self.Ne
-        columnsVector_e = np.repeat(assembly_e, nPe * dof_n, axis=0).reshape((Ne, -1))
-        return columnsVector_e
+        return self.groupElem.Get_columnsVector_e(self.__dim)
 
     @property
     def rowsScalar_e(self) -> _types.IntArray:
-        """lines to fill the assembly matrix in scalar form (damage or thermal problems)"""
-        connect = self.connect
-        nPe = self.nPe
-        Ne = self.Ne
-        return np.repeat(connect, nPe).reshape((Ne, -1))
+        """rows to fill the assembly matrix in scalar form (damage or thermal problems)"""
+        return self.groupElem.Get_rowsVector_e(1)
 
     @property
     def columnsScalar_e(self) -> _types.IntArray:
         """columns to fill the assembly matrix in scalar form (damage or thermal problems)"""
-        connect = self.connect
-        nPe = self.nPe
-        Ne = self.Ne
-        return np.repeat(connect, nPe, axis=0).reshape((Ne, -1))
+        return self.groupElem.Get_columnsVector_e(1)
 
     @property
     def length(self) -> float:

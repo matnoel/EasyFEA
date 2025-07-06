@@ -295,6 +295,22 @@ class _GroupElem(ABC):
 
         return assembly
 
+    def Get_rowsVector_e(self, dof_n: int) -> _types.IntArray:
+        """Returns rows to fill the assembly matrix in vector (e.g. elastic problem)"""
+        assembly_e = self.Get_assembly_e(dof_n)
+        nPe = self.nPe
+        Ne = self.Ne
+        rowsVector_e = np.repeat(assembly_e, nPe * dof_n).reshape((Ne, -1))
+        return rowsVector_e
+
+    def Get_columnsVector_e(self, dof_n: int) -> _types.IntArray:
+        """Returns columns to fill the vector assembly matrix"""
+        assembly_e = self.Get_assembly_e(dof_n)
+        nPe = self.nPe
+        Ne = self.Ne
+        columnsVector_e = np.repeat(assembly_e, nPe * dof_n, axis=0).reshape((Ne, -1))
+        return columnsVector_e
+
     def _Get_sysCoord_e(self, displacementMatrix: Optional[_types.AnyArray] = None):
         """Get the basis transformation matrix (Ne, 3, 3).\n
         [ix, jx, kx\n
