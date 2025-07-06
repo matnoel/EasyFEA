@@ -319,8 +319,8 @@ class BeamSimu(_Simu):
 
         tic = Tic()
 
-        linesVector_e = mesh.Get_rowsVector_e(model.dof_n).ravel()
-        columnsVector_e = mesh.Get_columnsVector_e(model.dof_n).ravel()
+        linesVector_e = mesh.groupElem.Get_rowsVector_e(model.dof_n).ravel()
+        columnsVector_e = mesh.groupElem.Get_columnsVector_e(model.dof_n).ravel()
 
         # Assembly
         self.__Kbeam = sparse.csr_matrix(
