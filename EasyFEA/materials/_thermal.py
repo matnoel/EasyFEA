@@ -86,7 +86,7 @@ class Thermal(_IModel):
 
     @c.setter
     def c(self, value: Union[float, _types.FloatArray]) -> None:
-        _params.CheckIsPositive(value)
+        _params.CheckIsInIntervaloo(value, 0, np.inf)
         self.Need_Update()
         self.__c = value
 
