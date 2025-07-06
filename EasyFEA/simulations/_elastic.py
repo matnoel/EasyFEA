@@ -169,7 +169,7 @@ class ElasticSimu(_Simu):
 
         tic = Tic()
 
-        linesVector_e = mesh.linesVector_e.ravel()
+        linesVector_e = mesh.rowsVector_e.ravel()
         columnsVector_e = mesh.columnsVector_e.ravel()
 
         # Assembly

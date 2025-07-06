@@ -255,11 +255,11 @@ class Mesh(Observable):
         return self.groupElem.Get_assembly_e(dof_n)
 
     @property
-    def linesVector_e(self) -> _types.IntArray:
+    def rowsVector_e(self) -> _types.IntArray:
         """lines to fill the assembly matrix in vector (e.g elastic problem)"""
-        return self.Get_linesVector_e(self.__dim)
+        return self.Get_rowsVector_e(self.__dim)
 
-    def Get_linesVector_e(self, dof_n: int) -> _types.IntArray:
+    def Get_rowsVector_e(self, dof_n: int) -> _types.IntArray:
         """Returns lines to fill the assembly matrix in vector (e.g elastic problem)"""
         assembly_e = self.Get_assembly_e(dof_n)
         nPe = self.nPe
@@ -281,7 +281,7 @@ class Mesh(Observable):
         return columnsVector_e
 
     @property
-    def linesScalar_e(self) -> _types.IntArray:
+    def rowsScalar_e(self) -> _types.IntArray:
         """lines to fill the assembly matrix in scalar form (damage or thermal problems)"""
         connect = self.connect
         nPe = self.nPe

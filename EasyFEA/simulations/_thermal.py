@@ -149,7 +149,7 @@ class ThermalSimu(_Simu):
         # Data
         mesh = self.mesh
         Ndof = mesh.Nn
-        linesScalar_e = mesh.linesScalar_e.ravel()
+        linesScalar_e = mesh.rowsScalar_e.ravel()
         columnsScalar_e = mesh.columnsScalar_e.ravel()
 
         # Additional dimension linked to the use of lagrange coefficients

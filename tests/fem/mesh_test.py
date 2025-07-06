@@ -109,7 +109,7 @@ class TestMesh:
                 ]
             )
             testLines = np.testing.assert_array_almost_equal(
-                lines_e_test, mesh.linesVector_e, verbose=False
+                lines_e_test, mesh.rowsVector_e, verbose=False
             )
             assert testLines is None
 

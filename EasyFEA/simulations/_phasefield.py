@@ -445,7 +445,7 @@ class PhaseFieldSimu(_Simu):
 
         tic = Tic()
 
-        linesVector_e = mesh.linesVector_e.ravel()
+        linesVector_e = mesh.rowsVector_e.ravel()
         columnsVector_e = mesh.columnsVector_e.ravel()
 
         # Assembly
@@ -575,7 +575,7 @@ class PhaseFieldSimu(_Simu):
         # Data
         mesh = self.mesh
         Ndof = mesh.Nn
-        linesScalar_e = mesh.linesScalar_e.ravel()
+        linesScalar_e = mesh.rowsScalar_e.ravel()
         columnsScalar_e = mesh.columnsScalar_e.ravel()
 
         # Additional dimension linked to the use of lagrange coefficients

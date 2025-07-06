@@ -315,7 +315,7 @@ class DIC(_IObserver):
 
         B_e = Bx_e + By_e
 
-        lines = mesh.linesVector_e.ravel()
+        lines = mesh.rowsVector_e.ravel()
         columns = mesh.columnsVector_e.ravel()
 
         self._R = sparse.csr_matrix((B_e.ravel(), (lines, columns)), (Ndof, Ndof))
