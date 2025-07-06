@@ -32,11 +32,6 @@ class ModelType(str, Enum):
         return self.name
 
     @classmethod
-    def Is_Non_Linear(cls, modelType: "ModelType"):
-        assert modelType in cls.types()
-        return modelType in [cls.hyperelastic]
-
-    @classmethod
     def types(cls):
         return list(cls)
 

@@ -8,7 +8,6 @@ from datetime import datetime
 from typing import Union, Callable, Optional, Any
 import numpy as np
 from scipy import sparse
-import scipy.sparse.linalg as sla
 import textwrap
 
 from ..__about__ import __version__
@@ -802,6 +801,9 @@ class _Simu(_IObserver, ABC):
         else:
             raise TypeError(f"Algo {algo} is not implemented here.")
 
+    def _Solver_problemType_is_non_linear(self, problemType: ModelType) -> bool:
+        return False
+
     def _Solver_Solve_NewtonRaphson(
         self,
         Solve: Callable[[], _types.FloatArray],
@@ -1033,7 +1035,7 @@ class _Simu(_IObserver, ABC):
         dofs = self.Bc_dofs_Dirichlet(problemType)
         dofsValues = self.Bc_values_Dirichlet(problemType)
 
-        if ModelType.Is_Non_Linear(problemType):
+        if self._Solver_problemType_is_non_linear(problemType):
             # du = du - u
             dofsValues -= self._Get_u_n(problemType)[dofs]
 
