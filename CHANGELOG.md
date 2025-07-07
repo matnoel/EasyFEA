@@ -2,6 +2,11 @@
 
 This document describes the changes made to the project.
 
+## 1.4.8 (July 7, 2025):
+
+- Updated meshio's fork dependency in `pyproject.toml` [dev].
+- Fixed mypy types.
+
 ## 1.4.7 (July 7, 2025):
 
 - Updated visualization modules: `Vizir.py`, `PyVista`, and `Display.py`.
