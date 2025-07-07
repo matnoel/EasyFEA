@@ -127,7 +127,7 @@ class HyperElasticSimu(_Simu):
             self.Assembly()
             self.Need_Update(False)
 
-        size = self.mesh.Nn * self.dim
+        size = self.__K.shape[0]
         initcsr = sparse.csr_matrix((size, size))
 
         return self.__K.copy(), initcsr, initcsr, self.__F.copy()
