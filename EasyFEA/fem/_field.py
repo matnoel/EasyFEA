@@ -5,9 +5,11 @@
 """Module containing the Field class used to construct arbitrary finite element field."""
 
 import copy
+import numpy as np
 
 # from fem
 from . import FeArray, _GroupElem, MatrixType
+from ..utilities import _types
 
 
 class Field:
@@ -33,9 +35,7 @@ class Field:
         assert 1 <= dof_n <= groupElem.dim
         self.__dof_n = dof_n
 
-        if groupElem.dim == 2:
-            assert thickness > 0, "Must be greater than 0"
-            self.__thickness = thickness
+        self._Set_dofsValues(np.zeros(groupElem.Nn * dof_n))
 
         self._Set_node(0)
 
@@ -60,6 +60,14 @@ class Field:
         """Sets current active node."""
         assert 0 <= node < self.groupElem.nPe
         self.__node = node
+
+    def _Get_dofsValues(self) -> _types.FloatArray:
+        return self.__dofsValues
+
+    def _Set_dofsValues(self, values: _types.FloatArray) -> _types.FloatArray:
+        Ndof = self.__groupElem.Nn * self.__dof_n
+        assert values.ndim == 1 and values.size == Ndof, f"must be a {Ndof} array."
+        return self.__dofsValues
 
     def __call__(self):
         """Returns the field as a finite element array."""
