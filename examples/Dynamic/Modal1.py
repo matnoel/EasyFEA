@@ -11,9 +11,9 @@ Modal analysis of a wall structure.
 
 from EasyFEA import (
     Display,
+    Models,
     np,
     ElemType,
-    Materials,
     Simulations,
     PyVista,
 )
@@ -48,7 +48,7 @@ if __name__ == "__main__":
     # ----------------------------------------------
     # Simulation
     # ----------------------------------------------
-    material = Materials.ElasIsot(dim, planeStress=True, thickness=thickness)
+    material = Models.ElasIsot(dim, planeStress=True, thickness=thickness)
 
     simu = Simulations.ElasticSimu(mesh, material)
 

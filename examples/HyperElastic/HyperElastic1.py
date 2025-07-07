@@ -13,7 +13,7 @@ A cantilever beam undergoing bending deformation.
 from EasyFEA import (
     Display,
     ElemType,
-    Materials,
+    Models,
     Simulations,
     PyVista,
 )
@@ -50,7 +50,7 @@ if __name__ == "__main__":
     # Simulation
     # ----------------------------------------------
 
-    mat = Materials.SaintVenantKirchhoff(3, lmbda, mu)
+    mat = Models.SaintVenantKirchhoff(3, lmbda, mu)
 
     simu = Simulations.HyperElasticSimu(mesh, mat)
 

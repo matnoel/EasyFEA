@@ -10,7 +10,7 @@ A hyper elastic cube in compression.
 """
 # sphinx_gallery_thumbnail_number = -1
 
-from EasyFEA import Display, ElemType, Materials, Simulations, PyVista
+from EasyFEA import Display, ElemType, Models, Simulations, PyVista
 from EasyFEA.Geoms import Domain
 
 if __name__ == "__main__":
@@ -41,10 +41,10 @@ if __name__ == "__main__":
     # Simulation
     # ----------------------------------------------
 
-    isot = Materials.ElasIsot(3, E=1, v=0.3)
+    isot = Models.ElasIsot(3, E=1, v=0.3)
     lmbda = isot.get_lambda()
     mu = isot.get_mu()
-    mat = Materials.SaintVenantKirchhoff(3, lmbda, mu)
+    mat = Models.SaintVenantKirchhoff(3, lmbda, mu)
 
     simu = Simulations.HyperElasticSimu(mesh, mat)
 

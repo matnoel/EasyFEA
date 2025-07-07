@@ -15,8 +15,8 @@ from ..utilities._observers import Observable
 from ..fem import Mesh, MatrixType, FeArray
 
 # materials
-from .. import Materials
-from ..materials import (
+from .. import Models
+from ..models import (
     ModelType,
     _IModel,
     Reshape_variable,
@@ -31,7 +31,7 @@ class PhaseFieldSimu(_Simu):
     def __init__(
         self,
         mesh: Mesh,
-        model: Materials.PhaseField,
+        model: Models.PhaseField,
         verbosity=False,
         useNumba=True,
         useIterativeSolvers=True,
@@ -52,9 +52,7 @@ class PhaseFieldSimu(_Simu):
             If True, iterative solvers can be used. Defaults to True.
         """
 
-        assert isinstance(
-            model, Materials.PhaseField
-        ), "model must be a phase field model"
+        assert isinstance(model, Models.PhaseField), "model must be a phase field model"
         super().__init__(mesh, model, verbosity, useNumba, useIterativeSolvers)
 
         # Init internal variable
@@ -117,7 +115,7 @@ class PhaseFieldSimu(_Simu):
             raise ValueError("problem error")
 
     @property
-    def phaseFieldModel(self) -> Materials.PhaseField:
+    def phaseFieldModel(self) -> Models.PhaseField:
         """damage model"""
         return self.model  # type: ignore [return-value]
 
@@ -358,7 +356,7 @@ class PhaseFieldSimu(_Simu):
             else:
                 converged = convIter <= tolConv
 
-        solverTypes = Materials.PhaseField.SolverType
+        solverTypes = Models.PhaseField.SolverType
 
         if solver in [solverTypes.History, solverTypes.BoundConstrain]:
             d_np1 = d_np1

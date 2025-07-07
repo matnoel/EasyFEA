@@ -15,8 +15,8 @@ if TYPE_CHECKING:
 from ..fem import MatrixType, FeArray
 
 # materials
-from .. import Materials
-from ..materials import ModelType, Reshape_variable
+from .. import Models
+from ..models import ModelType, Reshape_variable
 
 # simu
 from ._simu import _Simu
@@ -27,7 +27,7 @@ class ThermalSimu(_Simu):
     def __init__(
         self,
         mesh: "Mesh",
-        model: Materials.Thermal,
+        model: Models.Thermal,
         verbosity=False,
         useNumba=True,
         useIterativeSolvers=True,
@@ -48,7 +48,7 @@ class ThermalSimu(_Simu):
             If True, iterative solvers can be used. Defaults to True.
         """
 
-        assert isinstance(model, Materials.Thermal), "model must be a thermal model"
+        assert isinstance(model, Models.Thermal), "model must be a thermal model"
         super().__init__(mesh, model, verbosity, useNumba, useIterativeSolvers)
 
         # init
@@ -71,7 +71,7 @@ class ThermalSimu(_Simu):
         return [ModelType.thermal]
 
     @property
-    def thermalModel(self) -> Materials.Thermal:
+    def thermalModel(self) -> Models.Thermal:
         """Thermal simulation model."""
         return self.model  # type: ignore [return-value]
 

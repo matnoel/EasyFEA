@@ -14,12 +14,12 @@ Damage simulation for a plate subjected to shear.
 from EasyFEA import (
     Display,
     Folder,
+    Models,
     plt,
     np,
     Tic,
     ElemType,
     Mesh,
-    Materials,
     Simulations,
     Paraview,
     PyVista,
@@ -49,7 +49,7 @@ maxIter = 1000
 
 tolConv = 1e-0  # 1e-1, 1e-2, 1e-3
 
-pfmSolver = Materials.PhaseField.SolverType.History
+pfmSolver = Models.PhaseField.SolverType.History
 
 # splits = ["Bourdin","Amor","Miehe","Stress"] # Splits Isotropes
 # splits = ["He","AnisotStrain","AnisotStress","Zhang"] # Splits Anisotropes sans bourdin
@@ -181,11 +181,11 @@ def DoSimu(split: str, regu: str):
         # ----------------------------------------------
         # Material
         # ----------------------------------------------
-        material = Materials.ElasIsot(
+        material = Models.ElasIsot(
             dim, E=210e9, v=0.3, planeStress=False, thickness=thickness
         )
         Gc = 2.7e3  # J/m2
-        pfm = Materials.PhaseField(material, split, regu, Gc, l0, pfmSolver)
+        pfm = Models.PhaseField(material, split, regu, Gc, l0, pfmSolver)
 
         # ----------------------------------------------
         # Boundary conditions

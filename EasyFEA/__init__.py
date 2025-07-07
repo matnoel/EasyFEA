@@ -24,7 +24,7 @@ from .fem import Mesher, ElemType, Mesh, MatrixType, gmsh
 # ----------------------------------------------
 # materials
 # ----------------------------------------------
-from . import Materials
+from . import Models
 
 # ----------------------------------------------
 # simulations

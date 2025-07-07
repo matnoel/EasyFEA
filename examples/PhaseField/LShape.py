@@ -12,11 +12,11 @@ Damage simulation for a L-part.
 from EasyFEA import (
     Display,
     Folder,
+    Models,
     plt,
     np,
     Tic,
     ElemType,
-    Materials,
     Simulations,
     Paraview,
     PyVista,
@@ -137,8 +137,8 @@ if __name__ == "__main__":
     # ----------------------------------------------
     # Simulation
     # ----------------------------------------------
-    material = Materials.ElasIsot(dim, E, v, True, ep)
-    pfm = Materials.PhaseField(material, split, regu, Gc, l0)
+    material = Models.ElasIsot(dim, E, v, True, ep)
+    pfm = Models.PhaseField(material, split, regu, Gc, l0)
 
     folder_save = Folder.PhaseField_Folder(
         folder,

@@ -12,4 +12,4 @@ from ._utils import ElemType, MatrixType
 from ._linalg import FeArray, Transpose, Trace, Det, Inv, TensorProd, Norm
 
 # add field model
-from ..materials._field import Field
+from ..models._field import Field

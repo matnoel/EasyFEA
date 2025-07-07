@@ -65,7 +65,7 @@ def PhaseField_Folder(
 ) -> str:
     """Creates a phase field folder based on the specified arguments."""
 
-    from EasyFEA import Materials
+    from EasyFEA import Models
 
     name = ""
 
@@ -89,7 +89,7 @@ def PhaseField_Folder(
         name += "_optimMesh"
 
     if solver != "History" and solver != "":
-        assert solver in Materials.PhaseField.Get_solvers()
+        assert solver in Models.PhaseField.Get_solvers()
         name += "_" + solver
 
     if tolConv < 1:

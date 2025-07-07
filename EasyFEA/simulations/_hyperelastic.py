@@ -18,7 +18,7 @@ from ..fem import MatrixType, FeArray
 from ..fem._linalg import Det
 
 # materials
-from ..materials import (
+from ..models import (
     ModelType,
     Project_vector_to_matrix,
     Result_in_Strain_or_Stress_field,
@@ -26,8 +26,8 @@ from ..materials import (
 )
 
 if TYPE_CHECKING:
-    from ..materials._hyperelastic_laws import _HyperElas
-from ..materials._hyperelastic import HyperElastic
+    from ..models._hyperelastic_laws import _HyperElas
+from ..models._hyperelastic import HyperElastic
 
 # simu
 from ._simu import _Simu, AlgoType

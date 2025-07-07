@@ -4,10 +4,10 @@
 
 import pytest
 
-from EasyFEA import Display, plt, np
+from EasyFEA import Display, Models, plt, np
 from EasyFEA.Geoms import Domain, Circle, Point, Line
 from EasyFEA import Mesher, ElemType
-from EasyFEA import Materials, Simulations
+from EasyFEA import Simulations
 
 
 class TestElastic:
@@ -38,7 +38,7 @@ class TestElastic:
 
             dim = mesh.dim
 
-            comportement = Materials.ElasIsot(dim, thickness=a)
+            comportement = Models.ElasIsot(dim, thickness=a)
 
             simu = Simulations.ElasticSimu(mesh, comportement, verbosity=False)
 
@@ -70,7 +70,7 @@ class TestElastic:
 
         mesh = Mesher().Mesh_2D(Domain(Point(), Point(1, 1)))
 
-        matIsot = Materials.ElasIsot(2)
+        matIsot = Models.ElasIsot(2)
         # E, v, planeStress
 
         simu = Simulations.ElasticSimu(mesh, matIsot)
@@ -99,7 +99,7 @@ class TestElastic:
         except AssertionError:
             assert simu.needUpdate == False
 
-        matElasIsotTrans = Materials.ElasIsotTrans(2, 10, 10, 10, 0.1, 0.1)
+        matElasIsotTrans = Models.ElasIsotTrans(2, 10, 10, 10, 0.1, 0.1)
         # El, Et, Gl, vl, vt, planeStress
         simu = Simulations.ElasticSimu(mesh, matElasIsotTrans)
         simu.Get_K_C_M_F()
@@ -117,7 +117,7 @@ class TestElastic:
         matElasIsotTrans.planeStress = not matElasIsotTrans.planeStress
         DoTest(simu)
 
-        matAnisot = Materials.ElasAnisot(2, matElasIsotTrans.C, False, (0, 1), (-1, 0))
+        matAnisot = Models.ElasAnisot(2, matElasIsotTrans.C, False, (0, 1), (-1, 0))
         # Set_C,
         simu = Simulations.ElasticSimu(mesh, matAnisot)
         simu.Get_K_C_M_F()

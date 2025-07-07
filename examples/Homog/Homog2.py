@@ -10,7 +10,7 @@ Perform homogenization on several RVE.
 """
 # sphinx_gallery_thumbnail_number = -1
 
-from EasyFEA import Display, plt, np, ElemType, Materials, Simulations
+from EasyFEA import Display, Models, plt, np, ElemType, Simulations
 from EasyFEA.Geoms import Point, Points, Line
 from EasyFEA.fem import FeArray
 
@@ -215,7 +215,7 @@ if __name__ == "__main__":
     Display.Plot_Result(mesh, E * 1e-9, nodeValues=False, title="E [GPa]")
     Display.Plot_Result(mesh, v, nodeValues=False, title="v")
 
-    material = Materials.ElasIsot(2, E, v, planeStress=False)
+    material = Models.ElasIsot(2, E, v, planeStress=False)
 
     simu = Simulations.ElasticSimu(mesh, material, useIterativeSolvers=False)
 
@@ -248,7 +248,7 @@ if __name__ == "__main__":
     wJ_e_pg = mesh.Get_weightedJacobian_e_pg(matrixType)
     B_e_pg = mesh.Get_B_e_pg(matrixType)
 
-    C_Mat = Materials.Reshape_variable(material.C, *B_e_pg.shape[:2])
+    C_Mat = Models.Reshape_variable(material.C, *B_e_pg.shape[:2])
 
     C_hom = (wJ_e_pg * C_Mat @ B_e_pg @ U_e).sum((0, 1)) / mesh.area
 

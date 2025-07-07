@@ -9,7 +9,7 @@ Elas2
 Bending bracket component.
 """
 
-from EasyFEA import Display, plt, np, ElemType, Materials, Simulations
+from EasyFEA import Display, Models, plt, np, ElemType, Simulations
 from EasyFEA.Geoms import Point, Points
 
 if __name__ == "__main__":
@@ -54,7 +54,7 @@ if __name__ == "__main__":
     # Simulation
     # ----------------------------------------------
 
-    material = Materials.ElasIsot(dim, E, v, planeStress=True, thickness=h)
+    material = Models.ElasIsot(dim, E, v, planeStress=True, thickness=h)
     simu = Simulations.ElasticSimu(mesh, material)
 
     simu.add_dirichlet(nodes_x0, [0] * dim, simu.Get_unknowns())

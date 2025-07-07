@@ -9,7 +9,7 @@ Mesh5_2D
 Mesh of a 2D cracked part.
 """
 
-from EasyFEA import Display, ElemType, Materials, Simulations
+from EasyFEA import Display, ElemType, Models, Simulations
 from EasyFEA.Geoms import Point, Line, Points, Domain
 
 if __name__ == "__main__":
@@ -47,7 +47,7 @@ if __name__ == "__main__":
     # SIMU
     # ----------------------------------------------
 
-    material = Materials.ElasIsot(2)
+    material = Models.ElasIsot(2)
     simu = Simulations.ElasticSimu(mesh, material)
 
     simu.add_dirichlet(

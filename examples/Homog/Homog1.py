@@ -13,7 +13,7 @@ Section 4.7 with corrected values on page 89 (Erratum).
 """
 # sphinx_gallery_thumbnail_number = -1
 
-from EasyFEA import Display, plt, np, ElemType, Materials, Simulations
+from EasyFEA import Display, Models, plt, np, ElemType, Simulations
 from EasyFEA.Geoms import Points, Circle
 from EasyFEA.fem import LagrangeCondition, FeArray
 from typing import Optional
@@ -140,7 +140,7 @@ if __name__ == "__main__":
         E[elements_inclusion] = 50
         v[elements_inclusion] = 0.3
 
-    material = Materials.ElasIsot(2, E, v, planeStress=False)
+    material = Models.ElasIsot(2, E, v, planeStress=False)
 
     simu = Simulations.ElasticSimu(mesh, material, useNumba=True)
 
@@ -176,7 +176,7 @@ if __name__ == "__main__":
     wJ_e_pg = mesh.Get_weightedJacobian_e_pg(matrixType)
     B_e_pg = mesh.Get_B_e_pg(matrixType)
 
-    C_Mat = Materials.Reshape_variable(material.C, *B_e_pg.shape[:2])
+    C_Mat = Models.Reshape_variable(material.C, *B_e_pg.shape[:2])
 
     # Be careful here you have to use all the area even if there are holes
     # if you use the mesh area, multiply C_hom by the porosity (1-f)

@@ -9,7 +9,7 @@ Beam1
 Beam subjected to pure tensile loading.
 """
 
-from EasyFEA import Display, plt, np, Mesher, ElemType, Materials, Simulations
+from EasyFEA import Display, Models, plt, np, Mesher, ElemType, Simulations
 from EasyFEA.Geoms import Domain, Line
 
 if __name__ == "__main__":
@@ -44,7 +44,7 @@ if __name__ == "__main__":
     p1 = (0, 0)
     p2 = (L, 0)
     line = Line(p1, p2, L / nL)
-    beam = Materials.BeamElasIsot(beamDim, line, section, E, v)
+    beam = Models.BeamElasIsot(beamDim, line, section, E, v)
 
     mesh = mesher.Mesh_Beams([beam], elemType=elemType)
 
@@ -53,7 +53,7 @@ if __name__ == "__main__":
     # ----------------------------------------------
 
     # Initialize the beam structure with the defined beam segments
-    beamStructure = Materials.BeamStructure([beam])
+    beamStructure = Models.BeamStructure([beam])
 
     # Create the beam simulation
     simu = Simulations.BeamSimu(mesh, beamStructure)

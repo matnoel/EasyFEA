@@ -9,10 +9,10 @@ import matplotlib
 matplotlib.use("Agg")  # fix tkinter issue in CI for py3.12 on windows
 # see: https://github.com/matnoel/EasyFEA/actions/runs/15673958144/job/44150031408
 
-from EasyFEA import Display, plt, np
+from EasyFEA import Display, Models, plt, np
 from EasyFEA.Geoms import Domain, Circle, Point, Line
 from EasyFEA import Mesher, ElemType
-from EasyFEA import Materials, Simulations
+from EasyFEA import Simulations
 
 
 class TestBeam:
@@ -83,7 +83,7 @@ class TestBeam:
                 point1 = Point()
                 point2 = Point(x=L)
                 line = Line(point1, point2, L / nL)
-                beam = Materials.BeamElasIsot(beamDim, line, section, E, v)
+                beam = Models.BeamElasIsot(beamDim, line, section, E, v)
                 listePoutre = [beam]
 
             elif problem in ["Flexion", "BiEnca"]:
@@ -93,7 +93,7 @@ class TestBeam:
                 point3 = Point(x=L)
 
                 line = Line(point1, point3, L / nL)
-                beam = Materials.BeamElasIsot(beamDim, line, section, E, v)
+                beam = Models.BeamElasIsot(beamDim, line, section, E, v)
                 listePoutre = [beam]
 
             Iz = beam.Iz
@@ -105,7 +105,7 @@ class TestBeam:
 
             # Modele poutre
 
-            beamStruct = Materials.BeamStructure(listePoutre)
+            beamStruct = Models.BeamStructure(listePoutre)
 
             # Simulation
 
@@ -240,14 +240,12 @@ class TestBeam:
         sect3 = sect2.copy()
         sect3.Rotate(30, sect3.center)
 
-        beam1 = Materials.BeamElasIsot(2, Line(Point(), Point(5)), sect1, 210e9, v=0.1)
-        beam2 = Materials.BeamElasIsot(
-            2, Line(Point(5), Point(10)), sect2, 210e9, v=0.1
-        )
+        beam1 = Models.BeamElasIsot(2, Line(Point(), Point(5)), sect1, 210e9, v=0.1)
+        beam2 = Models.BeamElasIsot(2, Line(Point(5), Point(10)), sect2, 210e9, v=0.1)
 
         beams = [beam1, beam2]
 
-        structure = Materials.BeamStructure(beams)
+        structure = Models.BeamStructure(beams)
 
         mesh = Mesher().Mesh_Beams(beams)
 

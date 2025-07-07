@@ -36,7 +36,7 @@ from ..geoms import Jacobian_Matrix
 from ..utilities import _types
 
 if TYPE_CHECKING:
-    from ..materials._beam import BeamStructure
+    from ..models._beam import BeamStructure
 
 
 class _GroupElem(ABC):

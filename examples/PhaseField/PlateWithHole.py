@@ -12,12 +12,12 @@ Damage simulation for a plate with a hole subjected to compression.
 from EasyFEA import (
     Display,
     Folder,
+    Models,
     plt,
     np,
     Tic,
     ElemType,
     Mesh,
-    Materials,
     Simulations,
     Paraview,
 )
@@ -59,7 +59,7 @@ regus = ["AT1"]  # ["AT1", "AT2"]
 # regus = ["AT1", "AT2"]
 
 solver = (
-    Materials.PhaseField.SolverType.History
+    Models.PhaseField.SolverType.History
 )  # ["History", "HistoryDamage", "BoundConstrain"]
 maxIter = 1000
 tolConv = 1e-0
@@ -181,10 +181,10 @@ def DoSimu(split: str, regu: str):
         E = 12e9
         v = 0.3
         planeStress = False
-        material = Materials.ElasIsot(2, E, v, planeStress, thickness)
+        material = Models.ElasIsot(2, E, v, planeStress, thickness)
 
         gc = 1.4
-        pfm = Materials.PhaseField(material, split, regu, gc, l0, solver=solver)
+        pfm = Models.PhaseField(material, split, regu, gc, l0, solver=solver)
 
         # ----------------------------------------------
         # Simulation

@@ -12,11 +12,11 @@ Conduct full-field homogenization.
 
 from EasyFEA import (
     Display,
+    Models,
     plt,
     np,
     Geoms,
     ElemType,
-    Materials,
     Simulations,
 )
 from EasyFEA.fem import FeArray
@@ -114,10 +114,10 @@ if __name__ == "__main__":
     # ----------------------------------------------
 
     # elastic behavior of the beam
-    material_inclsuion = Materials.ElasIsot(2, E=E, v=v, planeStress=True, thickness=b)
+    material_inclsuion = Models.ElasIsot(2, E=E, v=v, planeStress=True, thickness=b)
     CMandel = material_inclsuion.C
 
-    material = Materials.ElasAnisot(2, CMandel, False)
+    material = Models.ElasAnisot(2, CMandel, False)
     testC = np.linalg.norm(material_inclsuion.C - material.C) / np.linalg.norm(
         material_inclsuion.C
     )

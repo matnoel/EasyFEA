@@ -11,11 +11,11 @@ Modal analysis of a structure.
 
 from EasyFEA import (
     Display,
+    Models,
     np,
     Mesher,
     ElemType,
     Mesh,
-    Materials,
     Simulations,
     PyVista,
 )
@@ -110,7 +110,7 @@ if __name__ == "__main__":
     E = np.ones(mesh.Ne) * E_cuve
     E[elems_pilars] = E_pilars
 
-    material = Materials.ElasIsot(3, E, 0.3)
+    material = Models.ElasIsot(3, E, 0.3)
 
     # ----------------------------------------------
     # Simulation

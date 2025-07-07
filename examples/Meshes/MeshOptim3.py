@@ -13,13 +13,13 @@ Mesh optimization using the ZZ1 criterion for a letter weigher.
 from EasyFEA import (
     Display,
     Folder,
+    Models,
     Tic,
     plt,
     np,
     Mesher,
     ElemType,
     Mesh,
-    Materials,
     Simulations,
     Paraview,
     PyVista,
@@ -127,7 +127,7 @@ if __name__ == "__main__":
     # ----------------------------------------------
     # Material and Simulation
     # ----------------------------------------------
-    material = Materials.ElasIsot(dim, E=210000, v=0.3, thickness=b)
+    material = Models.ElasIsot(dim, E=210000, v=0.3, thickness=b)
     simu = Simulations.ElasticSimu(mesh, material)
     simu.rho = 8100 * 1e-9
 

@@ -9,7 +9,7 @@ Elas3
 Hydraulic dam subjected to water pressure and its own weight.
 """
 
-from EasyFEA import Display, plt, np, ElemType, Materials, Simulations
+from EasyFEA import Display, Models, plt, np, ElemType, Simulations
 from EasyFEA.Geoms import Points
 
 if __name__ == "__main__":
@@ -52,7 +52,7 @@ if __name__ == "__main__":
     # Simulation
     # ----------------------------------------------
 
-    material = Materials.ElasIsot(dim, E, v, planeStress=False, thickness=thickness)
+    material = Models.ElasIsot(dim, E, v, planeStress=False, thickness=thickness)
     simu = Simulations.ElasticSimu(mesh, material)
 
     simu.add_dirichlet(nodes_y0, [0] * dim, simu.Get_unknowns())

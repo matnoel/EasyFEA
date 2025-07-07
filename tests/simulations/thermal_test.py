@@ -4,10 +4,10 @@
 
 import pytest
 
-from EasyFEA import Display, plt, np
+from EasyFEA import Display, Models, plt, np
 from EasyFEA.Geoms import Domain, Circle, Point, Line
 from EasyFEA import Mesher, ElemType
-from EasyFEA import Materials, Simulations
+from EasyFEA import Simulations
 
 
 class TestThermal:
@@ -33,7 +33,7 @@ class TestThermal:
 
             dim = mesh.dim
 
-            thermalModel = Materials.Thermal(dim=dim, k=1, c=1, thickness=a)
+            thermalModel = Models.Thermal(dim=dim, k=1, c=1, thickness=a)
 
             simu = Simulations.ThermalSimu(mesh, thermalModel, False)
 
@@ -58,7 +58,7 @@ class TestThermal:
 
         mesh = Mesher().Mesh_2D(Domain(Point(), Point(1, 1)))
 
-        thermal = Materials.Thermal(2, 1, 1)
+        thermal = Models.Thermal(2, 1, 1)
         # k, c
 
         simu = Simulations.ThermalSimu(mesh, thermal)

@@ -12,10 +12,10 @@ A cantilever beam undergoing dynamic bending deformation.
 from EasyFEA import (
     Display,
     Folder,
+    Models,
     Tic,
     plt,
     ElemType,
-    Materials,
     Simulations,
     Paraview,
 )
@@ -84,7 +84,7 @@ if __name__ == "__main__":
     # Simulation
     # ----------------------------------------------
 
-    material = Materials.ElasIsot(dim, thickness=b)
+    material = Models.ElasIsot(dim, thickness=b)
     simu = Simulations.ElasticSimu(mesh, material, useIterativeSolvers=initSimu)
     simu.rho = 8100 * 1e-9
 

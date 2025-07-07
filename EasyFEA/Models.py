@@ -4,13 +4,13 @@
 
 """Module containing constitutive laws for materials, including elastic, hyperelastic, damage, thermal, and beam materials."""
 
-from .materials import Reshape_variable
+from .models import Reshape_variable
 
 # ----------------------------------------------
 # Elastic
 # ----------------------------------------------
 
-from .materials._linear_elastic_laws import (
+from .models._linear_elastic_laws import (
     _Elas,
     ElasIsot,
     ElasIsotTrans,
@@ -21,23 +21,23 @@ from .materials._linear_elastic_laws import (
 # HyperElastic
 # ----------------------------------------------
 
-from .materials._hyperelastic_laws import NeoHookean, MooneyRivlin, SaintVenantKirchhoff
-from .materials._hyperelastic import HyperElastic
+from .models._hyperelastic_laws import NeoHookean, MooneyRivlin, SaintVenantKirchhoff
+from .models._hyperelastic import HyperElastic
 
 # ----------------------------------------------
 # PhaseField
 # ----------------------------------------------
 
-from .materials._phasefield import PhaseField
+from .models._phasefield import PhaseField
 
 # ----------------------------------------------
 # Beam
 # ----------------------------------------------
 
-from .materials._beam import _Beam, BeamStructure, BeamElasIsot
+from .models._beam import _Beam, BeamStructure, BeamElasIsot
 
 # ----------------------------------------------
 # Thermal
 # ----------------------------------------------
 
-from .materials._thermal import Thermal
+from .models._thermal import Thermal

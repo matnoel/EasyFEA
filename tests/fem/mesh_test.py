@@ -5,7 +5,7 @@
 import pytest
 
 from EasyFEA.fem._utils import MatrixType
-from EasyFEA import Mesher, ElemType, Mesh, np, Materials, Simulations
+from EasyFEA import Mesher, ElemType, Mesh, Models, np, Simulations
 from EasyFEA.Geoms import Points
 
 L = 2
@@ -149,7 +149,7 @@ class TestMesh:
 
     def test_load(self, meshes_3D: list[Mesh]):
 
-        mat = Materials.ElasIsot(3, 210000 * 1e6, 0.33)
+        mat = Models.ElasIsot(3, 210000 * 1e6, 0.33)
         rho = 7850  # kg/m3
 
         volume = L * H * L

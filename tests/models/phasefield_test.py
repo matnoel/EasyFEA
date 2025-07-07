@@ -7,8 +7,8 @@ import pytest
 from EasyFEA import Geoms, Mesher, Simulations, np
 
 # materials
-from EasyFEA.Materials import _Elas, ElasIsot, ElasIsotTrans, ElasAnisot, PhaseField
-from EasyFEA.materials import Reshape_variable
+from EasyFEA.Models import _Elas, ElasIsot, ElasIsotTrans, ElasAnisot, PhaseField
+from EasyFEA.models import Reshape_variable
 from EasyFEA.fem._linalg import Norm
 from EasyFEA.fem import FeArray
 

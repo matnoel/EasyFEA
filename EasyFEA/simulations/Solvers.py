@@ -15,7 +15,7 @@ from typing import Union, TYPE_CHECKING
 
 if TYPE_CHECKING:
     from ._simu import _Simu
-    from ..materials import ModelType
+    from ..models import ModelType
 
 from ..utilities import Tic, _types
 

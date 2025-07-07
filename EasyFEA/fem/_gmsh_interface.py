@@ -38,7 +38,7 @@ from ._mesh import Mesh, ElemType
 
 if TYPE_CHECKING:
     # materials
-    from ..materials._beam import _Beam
+    from ..models._beam import _Beam
     from ..simulations._simu import _Simu
 
 # types

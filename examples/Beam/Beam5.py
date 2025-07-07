@@ -9,7 +9,7 @@ Beam5
 Frame with six beams
 """
 
-from EasyFEA import Display, np, Mesher, ElemType, Materials, Simulations
+from EasyFEA import Display, Models, np, Mesher, ElemType, Simulations
 from EasyFEA.Geoms import Domain, Line
 
 if __name__ == "__main__":
@@ -43,8 +43,8 @@ if __name__ == "__main__":
     E = 276  # MPa
     v = 0.3
 
-    beams = [Materials.BeamElasIsot(dim, line, section, E, v) for line in lines]
-    structure = Materials.BeamStructure(beams)
+    beams = [Models.BeamElasIsot(dim, line, section, E, v) for line in lines]
+    structure = Models.BeamStructure(beams)
 
     mesh = Mesher().Mesh_Beams(beams, elemType)
     # Display.Plot_Mesh(mesh)

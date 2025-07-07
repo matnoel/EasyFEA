@@ -9,7 +9,7 @@ Elas5
 A cylindrical conduit exposed to uniform pressure.
 """
 
-from EasyFEA import Display, np, ElemType, Materials, Simulations
+from EasyFEA import Display, Models, np, ElemType, Simulations
 from EasyFEA.Geoms import Point, Line, Circle, CircleArc, Contour
 
 if __name__ == "__main__":
@@ -80,7 +80,7 @@ if __name__ == "__main__":
     # ----------------------------------------------
     # Simulation
     # ----------------------------------------------
-    material = Materials.ElasIsot(
+    material = Models.ElasIsot(
         dim, E=210000, v=0.3, planeStress=False, thickness=thickness
     )
     simu = Simulations.ElasticSimu(mesh, material)

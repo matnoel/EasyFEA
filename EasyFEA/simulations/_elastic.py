@@ -15,8 +15,8 @@ if TYPE_CHECKING:
 from ..fem import MatrixType, Mesher, FeArray
 
 # materials
-from .. import Materials
-from ..materials import ModelType, Reshape_variable, Result_in_Strain_or_Stress_field
+from .. import Models
+from ..models import ModelType, Reshape_variable, Result_in_Strain_or_Stress_field
 
 # simu
 from ._simu import _Simu
@@ -27,7 +27,7 @@ class ElasticSimu(_Simu):
     def __init__(
         self,
         mesh: "Mesh",
-        model: Materials._Elas,
+        model: Models._Elas,
         verbosity=False,
         useNumba=True,
         useIterativeSolvers=True,
@@ -48,7 +48,7 @@ class ElasticSimu(_Simu):
             If True, iterative solvers can be used. Defaults to True.
         """
 
-        assert isinstance(model, Materials._Elas), "model must be a elastic model"
+        assert isinstance(model, Models._Elas), "model must be a elastic model"
         super().__init__(mesh, model, verbosity, useNumba, useIterativeSolvers)
 
         # init
@@ -78,7 +78,7 @@ class ElasticSimu(_Simu):
         return self.dim
 
     @property
-    def material(self) -> Materials._Elas:
+    def material(self) -> Models._Elas:
         """elastic material"""
         return self.model  # type: ignore
 

@@ -9,7 +9,7 @@ Elas4
 Plate with a hole subjected to uniform tensile loading.
 """
 
-from EasyFEA import Display, ElemType, Materials, Simulations
+from EasyFEA import Display, ElemType, Models, Simulations
 from EasyFEA.Geoms import Point, Points, Domain, Circle
 
 if __name__ == "__main__":
@@ -54,7 +54,7 @@ if __name__ == "__main__":
     # ----------------------------------------------
     # Simu
     # ----------------------------------------------
-    material = Materials.ElasIsot(
+    material = Models.ElasIsot(
         dim, E=210000, v=0.3, planeStress=True, thickness=thickness
     )
     simu = Simulations.ElasticSimu(mesh, material)

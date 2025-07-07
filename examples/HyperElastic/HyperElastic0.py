@@ -15,9 +15,9 @@ WARNING: Implementation not validated.
 from EasyFEA import (
     Display,
     Folder,
+    Models,
     np,
     ElemType,
-    Materials,
     Simulations,
     Paraview,
 )
@@ -71,7 +71,7 @@ if __name__ == "__main__":
     # ----------------------------------------------
     # Simulation
     # ----------------------------------------------
-    material = Materials.ElasIsot(
+    material = Models.ElasIsot(
         dim, E=210000, v=0.25, planeStress=True, thickness=thickness
     )
 

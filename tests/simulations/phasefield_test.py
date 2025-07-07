@@ -3,7 +3,7 @@
 # EasyFEA is distributed under the terms of the GNU General Public License v3, see LICENSE.txt and CREDITS.md for more information.
 
 from EasyFEA.Geoms import Domain
-from EasyFEA import Mesher, np, Materials, Simulations
+from EasyFEA import Mesher, Models, np, Simulations
 
 
 class TestPhaseField:
@@ -18,15 +18,15 @@ class TestPhaseField:
         nodes_0 = mesh.Nodes_Conditions(lambda x, y, z: x == 0)
         nodes_a = mesh.Nodes_Conditions(lambda x, y, z: x == a)
 
-        material = Materials.ElasIsot(2, E=210000, v=0.3, planeStress=True, thickness=1)
+        material = Models.ElasIsot(2, E=210000, v=0.3, planeStress=True, thickness=1)
 
-        splits = list(Materials.PhaseField.SplitType)
-        regularizations = list(Materials.PhaseField.ReguType)
+        splits = list(Models.PhaseField.SplitType)
+        regularizations = list(Models.PhaseField.ReguType)
 
         for split in splits:
             for regu in regularizations:
 
-                pfm = Materials.PhaseField(material, split, regu, 2700, l0)
+                pfm = Models.PhaseField(material, split, regu, 2700, l0)
 
                 print(f"{split} {regu}")
 
@@ -50,10 +50,10 @@ class TestPhaseField:
 
         mesh = Mesher().Mesh_2D(Domain((0, 0), (1, 1)))
 
-        matIsot = Materials.ElasIsot(2)
+        matIsot = Models.ElasIsot(2)
         # E, v, planeStress
 
-        pfm = Materials.PhaseField(matIsot, "He", "AT1", 1, 0.01)
+        pfm = Models.PhaseField(matIsot, "He", "AT1", 1, 0.01)
         # split, regu, split, Gc, l0, solver, A
 
         simu = Simulations.PhaseFieldSimu(mesh, pfm)

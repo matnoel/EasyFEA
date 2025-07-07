@@ -9,7 +9,7 @@ HelloWorld
 A cantilever beam undergoing bending deformation.
 """
 
-from EasyFEA import Display, ElemType, Materials, Simulations
+from EasyFEA import Display, ElemType, Models, Simulations
 from EasyFEA.Geoms import Domain
 
 # ----------------------------------------------
@@ -28,7 +28,7 @@ E = 210000  # MPa
 v = 0.3
 F = -800  # N
 
-mat = Materials.ElasIsot(2, E, v, planeStress=True, thickness=h)
+mat = Models.ElasIsot(2, E, v, planeStress=True, thickness=h)
 
 simu = Simulations.ElasticSimu(mesh, mat)
 

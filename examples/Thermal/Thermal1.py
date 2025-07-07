@@ -12,10 +12,10 @@ Transient thermal simulation.
 from EasyFEA import (
     Display,
     Folder,
+    Models,
     plt,
     Mesher,
     ElemType,
-    Materials,
     Simulations,
     PyVista,
 )
@@ -66,7 +66,7 @@ if __name__ == "__main__":
     # ----------------------------------------------
     # Simulation
     # ----------------------------------------------
-    thermalModel = Materials.Thermal(dim=dim, k=1, c=1, thickness=1)
+    thermalModel = Models.Thermal(dim=dim, k=1, c=1, thickness=1)
     simu = Simulations.ThermalSimu(mesh, thermalModel, False)
 
     # Set the density of the material

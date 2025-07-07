@@ -12,10 +12,10 @@ Performs damage simulation on a CT specimen.
 from EasyFEA import (
     Display,
     Folder,
+    Models,
     plt,
     np,
     ElemType,
-    Materials,
     Simulations,
     PyVista,
     Paraview,
@@ -150,9 +150,9 @@ nodes_xL = mesh.Nodes_Conditions(lambda x, y, z: x == L)
 # Simu
 # ----------------------------------------------
 
-mat = Materials.ElasIsot(dim, thickness=thickness, planeStress=True)
+mat = Models.ElasIsot(dim, thickness=thickness, planeStress=True)
 
-pfm = Materials.PhaseField(mat, split, regu, Gc, l0)
+pfm = Models.PhaseField(mat, split, regu, Gc, l0)
 
 if doSimu:
     displacements = np.linspace(0, L / 40, 50)

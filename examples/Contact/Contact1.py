@@ -15,10 +15,10 @@ WARNING: The assumption of small displacements is highly questionable for this s
 from EasyFEA import (
     Display,
     Folder,
+    Models,
     plt,
     np,
     ElemType,
-    Materials,
     Simulations,
     PyVista,
 )
@@ -107,7 +107,7 @@ if __name__ == "__main__":
     # ----------------------------------------------
     # Simulation
     # ----------------------------------------------
-    material = Materials.ElasIsot(
+    material = Models.ElasIsot(
         dim, E=210000, v=0.3, planeStress=True, thickness=thickness
     )
     simu = Simulations.ElasticSimu(mesh_slave, material)

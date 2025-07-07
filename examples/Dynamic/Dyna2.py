@@ -10,7 +10,7 @@ Wave propagation.
 """
 # TODO: Compare results with analytical values.
 
-from EasyFEA import Display, Tic, plt, ElemType, Materials, Simulations
+from EasyFEA import Display, Models, Tic, plt, ElemType, Simulations
 from EasyFEA.Geoms import Domain, Circle, Line
 
 if __name__ == "__main__":
@@ -67,7 +67,7 @@ if __name__ == "__main__":
     # ----------------------------------------------
 
     # Define material properties
-    material = Materials.ElasIsot(2, E=210000e6, v=0.3, planeStress=False, thickness=1)
+    material = Models.ElasIsot(2, E=210000e6, v=0.3, planeStress=False, thickness=1)
     lmbda = material.get_lambda()
     mu = material.get_mu()
 

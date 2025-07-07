@@ -20,7 +20,7 @@ from ..utilities._observers import Observable, _IObserver
 from ..fem import Mesh, _GroupElem, BoundaryCondition, LagrangeCondition, MatrixType
 
 # materials
-from ..materials import ModelType, _IModel, Reshape_variable
+from ..models import ModelType, _IModel, Reshape_variable
 
 # simu
 from .Solvers import Solve_simu, _Solve_Axb, _Available_Solvers, ResolType, AlgoType

@@ -7,8 +7,8 @@ import pytest
 from EasyFEA import np
 
 # materials
-from EasyFEA.Materials import _Elas, ElasIsot, ElasIsotTrans, ElasAnisot
-from EasyFEA.materials import (
+from EasyFEA.Models import _Elas, ElasIsot, ElasIsotTrans, ElasAnisot
+from EasyFEA.models import (
     Get_Pmat,
     Apply_Pmat,
     KelvinMandel_Matrix,

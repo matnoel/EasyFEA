@@ -9,7 +9,7 @@ Beam3
 A bi-fixed beam undergoing bending deformation.
 """
 
-from EasyFEA import Display, plt, np, Mesher, ElemType, Materials, Simulations
+from EasyFEA import Display, Models, plt, np, Mesher, ElemType, Simulations
 from EasyFEA.Geoms import Line, Point, Points
 
 if __name__ == "__main__":
@@ -63,7 +63,7 @@ if __name__ == "__main__":
     pL = Point(x=L / 2)
     p2 = Point(x=L)
     line = Line(p1, p2, L / nL)
-    beam = Materials.BeamElasIsot(beamDim, line, section, E, v)
+    beam = Models.BeamElasIsot(beamDim, line, section, E, v)
 
     mesh = Mesher().Mesh_Beams([beam], additionalPoints=[pL], elemType=elemType)
 
@@ -72,7 +72,7 @@ if __name__ == "__main__":
     # ----------------------------------------------
 
     # Initialize the beam structure with the defined beam segments
-    beamStructure = Materials.BeamStructure([beam])
+    beamStructure = Models.BeamStructure([beam])
 
     # Create the beam simulation
     simu = Simulations.BeamSimu(mesh, beamStructure)

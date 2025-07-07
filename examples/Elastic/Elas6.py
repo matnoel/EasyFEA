@@ -11,11 +11,11 @@ A bi-fixed beam undergoing bending deformation.
 
 from EasyFEA import (
     Display,
+    Models,
     plt,
     np,
     Mesher,
     ElemType,
-    Materials,
     Simulations,
     PyVista,
 )
@@ -89,13 +89,13 @@ if __name__ == "__main__":
     # Simulation Beam
     # ----------------------------------------------
 
-    beam = Materials.BeamElasIsot(
+    beam = Models.BeamElasIsot(
         2, Line(Point(-L / 2), Point(L / 2), L / 10), meshSection, E, v
     )
 
     mesh_beam = Mesher().Mesh_Beams([beam], ElemType.SEG3)
 
-    beams = Materials.BeamStructure([beam])
+    beams = Models.BeamStructure([beam])
     simu_beam = Simulations.BeamSimu(mesh_beam, beams)
 
     simu_beam.add_dirichlet(
@@ -120,7 +120,7 @@ if __name__ == "__main__":
     # Simulation 3D
     # ----------------------------------------------
 
-    material = Materials.ElasIsot(3, E, v)
+    material = Models.ElasIsot(3, E, v)
     simu = Simulations.ElasticSimu(mesh, material)
 
     simu.add_dirichlet(nodes_fixed, [0] * 3, simu.Get_unknowns())
