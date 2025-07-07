@@ -8,6 +8,7 @@ from datetime import datetime
 from typing import Union, Callable, Optional, Any
 import numpy as np
 from scipy import sparse
+import scipy.sparse.linalg as sla
 import textwrap
 
 from ..__about__ import __version__
@@ -837,11 +838,10 @@ class _Simu(_IObserver, ABC):
 
         # init u and du
         u = self._Get_u_n(problemType)
-        delta_u = np.zeros_like(u)
 
         # init convergence list
         list_res: list[float] = []
-        list_norm_r: list[float] = []
+        list_norm_b: list[float] = []
 
         while not converged and Niter < maxIter:
             Niter += 1
@@ -854,19 +854,15 @@ class _Simu(_IObserver, ABC):
             u += delta_u
             self.__Set_u_n(problemType, u)
 
-            # compute r = b - K u
+            # compute || b ||
             b = self._Solver_Apply_Neumann(problemType)
-            K = self.Get_K_C_M_F(problemType)[0]
-            r = b - K @ u.reshape(-1, 1)
-
-            # compute || r ||
-            norm_r: float = np.linalg.norm(r)
-            list_norm_r.append(norm_r)
+            norm_b: float = sla.norm(b)
+            list_norm_b.append(norm_b)
 
             if Niter == 1:
                 res = 1
             else:
-                res = np.abs(list_norm_r[-2] - norm_r) / list_norm_r[-2]
+                res = np.abs(list_norm_b[-2] - norm_b) / list_norm_b[-2]
             list_res.append(res)
 
             converged = res < tolConv or norm_delta_u < tolConv
