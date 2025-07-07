@@ -238,6 +238,7 @@ class HyperElasticSimu(_Simu):
         dWde_e_pg = mat.Compute_dWde(mesh, displacement, matrixType)
         d2Wde_e_pg = mat.Compute_d2Wde(mesh, displacement, matrixType)
 
+        # TODO Add HyperElastic.Compute_B_e_pg() and HyperElastic.Compute_Sig_e_pg()
         # init matrices
         grad_e_pg = FeArray.zeros(Ne, nPg, 9, dim * nPe)
         Sig_e_pg = FeArray.zeros(Ne, nPg, 9, 9)
