@@ -1,0 +1,90 @@
+# Copyright (C) 2021-2025 Université Gustave Eiffel.
+# This file is part of the EasyFEA project.
+# EasyFEA is distributed under the terms of the GNU General Public License v3, see LICENSE.txt and CREDITS.md for more information.
+
+"""Module containing the WeakFormManager class used to assemble arbitrary finite element matrices."""
+
+from typing import Callable, Optional
+from scipy import sparse
+
+from ..fem import Field
+
+from ._utils import _IModel, ModelType
+
+
+class WeakFormManager(_IModel):
+    """Class responsible for computing the finite element matrices used in the system \( K u + C v + M a = F \)."""
+
+    def __init__(
+        self,
+        field: Field,
+        computeK: Callable[..., sparse.csr_matrix],
+        computeC: Optional[Callable[..., sparse.csr_matrix]] = None,
+        computeM: Optional[Callable[..., sparse.csr_matrix]] = None,
+        computeF: Optional[Callable[..., sparse.csr_matrix]] = None,
+        thickness: float = 1.0,
+    ):
+        """Creates a weak form manager responsible for computing the finite element matrices used in the system \( K u + C v + M a = F \).
+
+        Parameters
+        ----------
+        field : Field
+            Finite element field u.
+        computeK : Callable[..., sparse.csr_matrix]
+            Function used to build stiffness matrix K
+        computeC : Optional[Callable[..., sparse.csr_matrix]], optional
+            Function used to build damping matrix C, by default None
+        computeM : Optional[Callable[..., sparse.csr_matrix]], optional
+            Function used to build mass matrix M, by default None
+        computeF : Optional[Callable[..., sparse.csr_matrix]], optional
+            Function used to build force vector F, by default None
+        thickness : float, optional
+            thickness used in the model, by default 1.0
+        """
+
+        self.__field = field
+
+        self.__computeK = computeK
+        self.__computeC = computeC
+        self.__computeM = computeM
+        self.__computeF = computeF
+
+        assert thickness > 0, "Must be greater than 0"
+        self.__thickness = thickness
+
+    @property
+    def field(self) -> Field:
+        """Finite element field."""
+        return self.__field
+
+    @property
+    def computeK(self) -> Callable[..., sparse.csr_matrix]:
+        """Function used to build stiffness matrix K from \( K u + C v + M a = F \)."""
+        return self.__computeK
+
+    @property
+    def computeC(self) -> Callable[..., sparse.csr_matrix]:
+        """Function used to build damping matrix C from \( K u + C v + M a = F \)."""
+        return self.__computeC
+
+    @property
+    def computeM(self) -> Callable[..., sparse.csr_matrix]:
+        """Function used to build mass matrix M from \( K u + C v + M a = F \)."""
+        return self.__computeM
+
+    @property
+    def computeF(self) -> Callable[..., sparse.csr_matrix]:
+        """Function used to build force vector F from \( K u + C v + M a = F \)."""
+        return self.__computeF
+
+    @property
+    def modelType(self) -> ModelType:
+        return ModelType.weakForm
+
+    @property
+    def dim(self) -> int:
+        return self.__field.dof_n
+
+    @property
+    def thickness(self) -> float:
+        return self.__thickness

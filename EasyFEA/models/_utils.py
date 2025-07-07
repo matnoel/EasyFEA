@@ -27,7 +27,7 @@ class ModelType(str, Enum):
     thermal = "thermal"
     beam = "beam"
     hyperelastic = "hyperelastic"
-    field = "field"
+    weakForm = "weakForm"
 
     def __str__(self) -> str:
         return self.name
