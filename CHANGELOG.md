@@ -2,6 +2,22 @@
 
 This document describes the changes made to the project.
 
+## 1.4.7 (July 7, 2025):
+
+- Updated visualization modules: `Vizir.py`, `PyVista`, and `Display.py`.
+- Added new topological information (`Nedge`, `Nvolume`) for each element group.
+- Added `surfaces` and `edges` data for each element group.
+- Created `MeshIO.Surface_reconstruction()` method.
+- Added meshio tests covering surface reconstruction and import functionality.
+- Updated meshio's fork dependencies in:
+  - `.github/workflows/tests.yaml`
+  - `docs/requirements.txt`
+  - `pyproject.toml` [dev]
+- Added MeshIO import functions in FEM API documentation.
+- Improved convergence criteria in `_Solver_Solve_NewtonRaphson`.
+- Updated mesh used in `test_PhaseField` function.
+- Moved `ModelType.Is_Non_Linear` to `simu._Solver_problemType_is_non_linear`.
+
 ## 1.4.6 (July 2, 2025):
 
 - Updated links in `docs/index.rst` and `README.md`.
