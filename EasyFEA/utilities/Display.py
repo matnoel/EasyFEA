@@ -227,7 +227,7 @@ def Plot_Result(
         # construct the face connection matrix
         connectFaces = []  # type: ignore [assignment]
         groupElems = mesh.Get_list_groupElem(plotDim)
-        list_faces = _Get_list_faces(mesh, plotDim)
+        list_faces = _Get_list_surfaces(mesh, plotDim)
         for groupElem, faces in zip(groupElems, list_faces):
             connectFaces.extend(groupElem.connect[:, faces])  # type: ignore [attr-defined]
         connectFaces = np.asarray(connectFaces, dtype=int)
@@ -382,15 +382,15 @@ def Plot_Mesh(
 
     # construct the connection matrix for the faces
     list_groupElem = mesh.Get_list_groupElem(dimElem)
-    list_faces = _Get_list_faces(mesh, dimElem)
-    connectFaces: list = []
-    for groupElem, faces in zip(list_groupElem, list_faces):
-        connectFaces.extend(groupElem.connect[:, faces])
-    connectFaces = np.asarray(connectFaces, dtype=int)  # type: ignore [assignment]
+    list_surfaces = _Get_list_surfaces(mesh, dimElem)
+    connectSurfaces: list[_types.IntArray] = []
+    for groupElem, surfaces in zip(list_groupElem, list_surfaces):
+        connectSurfaces.extend(groupElem.connect[:, surfaces])
+    connectSurfaces = np.asarray(connectSurfaces, dtype=int)  # type: ignore [assignment]
 
     # faces coordinates
-    coordFacesDef = coordo[connectFaces, :inDim]
-    coordFaces = mesh.coordGlob[connectFaces, :inDim]
+    coordFacesDef = coordo[connectSurfaces, :inDim]
+    coordFaces = mesh.coordGlob[connectSurfaces, :inDim]
 
     if title == "":
         title = f"{mesh.elemType}: Ne = {mesh.Ne}, Nn = {mesh.Nn}"
@@ -1446,31 +1446,31 @@ def Save_fig(
     tic.Tac("Display", "Save figure")
 
 
-def _Get_list_faces(mesh, dimElem: int) -> list[list[int]]:
-    """Returns a list of faces for each element group of dimension dimElem.\n
-    Faces is a list of index used to construct/plot a faces.\n
+def _Get_list_surfaces(mesh, dimElem: int) -> list[list[int]]:
+    """Returns a list of surfaces for each element group of dimension dimElem.\n
+    Surfaces are a list of index used to construct/plot a surface.\n
     You can go check their values for each groupElem in `EasyFEA/fem/elems/` folder"""
 
     mesh = _Init_obj(mesh)[1]
 
-    list_faces: list[list[int]] = []  # list of faces
+    list_surfaces: list[list[int]] = []  # list of faces
     list_len: list[int] = []  # list that store the size for each faces
 
     # get faces and nodes per element for each element group
     for groupElem in mesh.Get_list_groupElem(dimElem):
-        list_faces.append(groupElem.surfaces.ravel().tolist())
+        list_surfaces.append(groupElem.surfaces.ravel().tolist())
         list_len.append(groupElem.surfaces.size)
 
     # make sure that faces in list_faces are at the same length
     max_len = np.max(list_len)
     # this loop make sure that faces in list_faces get the same length
-    for f, faces in enumerate(list_faces.copy()):
-        repeat = max_len - len(faces)
+    for f, surfaces in enumerate(list_surfaces.copy()):
+        repeat = max_len - len(surfaces)
         if repeat > 0:
-            faces.extend([faces[0]] * repeat)
-            list_faces[f] = faces
+            surfaces.extend([surfaces[0]] * repeat)
+            list_surfaces[f] = surfaces
 
-    return list_faces
+    return list_surfaces
 
 
 def _Remove_colorbar(ax: _types.Axes) -> None:
