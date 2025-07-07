@@ -779,7 +779,7 @@ def Plot_BoundaryConditions(simu, ax: Optional[_types.Axes] = None) -> _types.Ax
             elif len(unknowns) > 2:
                 marker = "s"
         else:
-            raise Exception(f"{problemType} is not implemented here")
+            marker = "."
 
         # Title
         unknowns_str = str(unknowns).replace("'", "")
