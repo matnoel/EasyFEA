@@ -11,16 +11,9 @@ Poisson equation with unit load.
 Reference: https://scikit-fem.readthedocs.io/en/latest/listofexamples.html#example-1-poisson-equation-with-unit-load
 """
 
-from EasyFEA import Display, ElemType, Models, np, Simulations
+from EasyFEA import Display, ElemType, Models, Simulations
 from EasyFEA.fem import Field, BiLinearForm, LinearForm
 from EasyFEA.Geoms import Domain
-
-import scipy.sparse.linalg as sla
-
-# ----------------------------------------------
-# Class
-# ----------------------------------------------
-
 
 if __name__ == "__main__":
     Display.Clear()
@@ -32,19 +25,6 @@ if __name__ == "__main__":
     contour = Domain((0, 0), (1, 1), 1 / 2**6)
 
     mesh = contour.Mesh_2D([], ElemType.TRI3, isOrganised=True)
-
-    mat = Models.Thermal(2, 1, 0)
-    simu = Simulations.ThermalSimu(mesh, mat, useIterativeSolvers=False)
-
-    nodes = mesh.Nodes_Tags(["L0", "L1", "L2", "L3"])
-    simu.add_dirichlet(nodes, [0], ["t"])
-    simu.add_neumann(mesh.nodes, [np.ones(mesh.Nn) / mesh.Nn], ["t"])
-
-    simu.Solve()
-
-    # Display.Plot_Result(simu, "thermal")
-
-    # Display.Plot_Mesh(mesh)
 
     # ----------------------------------------------
     # Formulations
@@ -60,30 +40,21 @@ if __name__ == "__main__":
     def linear_form(v: Field):
         return 1.0 * v
 
-    A = bilinear_form.Assemble(field)
+    weakFormManager = Models.WeakFormManager(
+        field, computeK=bilinear_form, computeF=linear_form
+    )
 
-    b = linear_form.Assemble(field)
+    simu = Simulations.WeakFormSimu(mesh, weakFormManager)
 
-    dofsKnown = nodes
+    nodes = mesh.Nodes_Tags(["L0", "L1", "L2", "L3"])
+    simu.add_dirichlet(nodes, [0], ["0"])
 
-    x = np.zeros(mesh.Nn)
-    x[dofsKnown] = 0
+    simu.Solve()
 
-    dofsUnknown = [node for node in mesh.nodes if node not in dofsKnown]
+    # ----------------------------------------------
+    # Formulations
+    # ----------------------------------------------
 
-    Ai = A[dofsUnknown, :].tocsc()
-    Aii = Ai[:, dofsUnknown].tocsr()
-    Aic = Ai[:, dofsKnown].tocsr()
-    bi = b.toarray().ravel()[dofsUnknown]
-    xc = x[dofsKnown]
+    Display.Plot_Result(simu, "u")
 
-    bDirichlet = Aic @ xc
-
-    xi = sla.cg(Aii, bi - bDirichlet)[0]
-
-    # apply result to global vector
-    x[dofsUnknown] = xi
-
-    Display.Plot_Result(mesh, x)
-
-    pass
+    Display.plt.show()

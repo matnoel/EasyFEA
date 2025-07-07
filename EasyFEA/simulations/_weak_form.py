@@ -114,7 +114,8 @@ class WeakFormSimu(_Simu):
         # Data
         weakFormManager = self.weakFormManager
         mesh = self.mesh
-        Ndof = mesh.Nn * weakFormManager.field.dof_n
+        field = weakFormManager.field
+        Ndof = mesh.Nn * field.dof_n
 
         # Additional dimension linked to the use of lagrange coefficients
         NdofLagr = self._Bc_Lagrange_dim(self.problemType)
@@ -130,7 +131,7 @@ class WeakFormSimu(_Simu):
         if computeK is None:
             K = initCsrMatrix
         else:
-            K = computeK()
+            K = computeK._assemble(field)
             if NdofLagr > 0:
                 K = K.tolil()
                 K.resize((Ndof + NdofLagr, Ndof + NdofLagr))
@@ -143,7 +144,7 @@ class WeakFormSimu(_Simu):
         if computeC is None:
             C = initCsrMatrix
         else:
-            C = computeC()
+            C = computeC._assemble(field)
             if NdofLagr > 0:
                 C = C.tolil()
                 C.resize((Ndof + NdofLagr, Ndof + NdofLagr))
@@ -156,7 +157,7 @@ class WeakFormSimu(_Simu):
         if computeM is None:
             M = initCsrMatrix
         else:
-            M = computeC()
+            M = computeC._assemble(field)
             if NdofLagr > 0:
                 M = M.tolil()
                 M.resize((Ndof + NdofLagr, Ndof + NdofLagr))
@@ -169,7 +170,7 @@ class WeakFormSimu(_Simu):
         if computeF is None:
             F = sparse.csr_matrix((Ndof + NdofLagr, 1), dtype=float)
         else:
-            F = computeF()
+            F = computeF._assemble(field)
             if NdofLagr > 0:
                 F = F.tolil()
                 F.resize((Ndof + NdofLagr, Ndof + NdofLagr))

@@ -4,10 +4,9 @@
 
 """Module containing the WeakFormManager class used to assemble arbitrary finite element matrices."""
 
-from typing import Callable, Optional
-from scipy import sparse
+from typing import Optional, Union
 
-from ..fem import Field
+from ..fem import Field, BiLinearForm, LinearForm
 
 from ._utils import _IModel, ModelType
 
@@ -18,10 +17,10 @@ class WeakFormManager(_IModel):
     def __init__(
         self,
         field: Field,
-        computeK: Callable[..., sparse.csr_matrix],
-        computeC: Optional[Callable[..., sparse.csr_matrix]] = None,
-        computeM: Optional[Callable[..., sparse.csr_matrix]] = None,
-        computeF: Optional[Callable[..., sparse.csr_matrix]] = None,
+        computeK: Union[BiLinearForm, LinearForm],
+        computeC: Optional[Union[BiLinearForm, LinearForm]] = None,
+        computeM: Optional[Union[BiLinearForm, LinearForm]] = None,
+        computeF: Optional[Union[BiLinearForm, LinearForm]] = None,
         thickness: float = 1.0,
     ):
         """Creates a weak form manager responsible for computing the finite element matrices used in the system \( K u + C v + M a = F \).
@@ -30,13 +29,13 @@ class WeakFormManager(_IModel):
         ----------
         field : Field
             Finite element field u.
-        computeK : Callable[..., sparse.csr_matrix]
+        computeK : Union[BiLinearForm,LinearForm]
             Function used to build stiffness matrix K
-        computeC : Optional[Callable[..., sparse.csr_matrix]], optional
+        computeC : Optional[Union[BiLinearForm,LinearForm]], optional
             Function used to build damping matrix C, by default None
-        computeM : Optional[Callable[..., sparse.csr_matrix]], optional
+        computeM : Optional[Union[BiLinearForm,LinearForm]], optional
             Function used to build mass matrix M, by default None
-        computeF : Optional[Callable[..., sparse.csr_matrix]], optional
+        computeF : Optional[Union[BiLinearForm,LinearForm]], optional
             Function used to build force vector F, by default None
         thickness : float, optional
             thickness used in the model, by default 1.0
@@ -58,22 +57,22 @@ class WeakFormManager(_IModel):
         return self.__field
 
     @property
-    def computeK(self) -> Callable[..., sparse.csr_matrix]:
+    def computeK(self) -> Union[BiLinearForm, LinearForm]:
         """Function used to build stiffness matrix K from \( K u + C v + M a = F \)."""
         return self.__computeK
 
     @property
-    def computeC(self) -> Callable[..., sparse.csr_matrix]:
+    def computeC(self) -> Union[BiLinearForm, LinearForm]:
         """Function used to build damping matrix C from \( K u + C v + M a = F \)."""
         return self.__computeC
 
     @property
-    def computeM(self) -> Callable[..., sparse.csr_matrix]:
+    def computeM(self) -> Union[BiLinearForm, LinearForm]:
         """Function used to build mass matrix M from \( K u + C v + M a = F \)."""
         return self.__computeM
 
     @property
-    def computeF(self) -> Callable[..., sparse.csr_matrix]:
+    def computeF(self) -> Union[BiLinearForm, LinearForm]:
         """Function used to build force vector F from \( K u + C v + M a = F \)."""
         return self.__computeF
 

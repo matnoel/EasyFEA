@@ -24,7 +24,7 @@ class _Form(ABC):
         self._form = form
 
     @abstractmethod
-    def Assemble(self, field: "Field") -> sparse.csr_matrix:
+    def _assemble(self, field: "Field") -> sparse.csr_matrix:
         """Assemble de form with the field.
 
         Parameters
@@ -42,7 +42,7 @@ class _Form(ABC):
 
 class BiLinearForm(_Form):
 
-    def Assemble(self, field):
+    def _assemble(self, field):
 
         # get field data
         dof_n = field.dof_n
@@ -102,7 +102,7 @@ class BiLinearForm(_Form):
 
 class LinearForm(_Form):
 
-    def Assemble(self, field):
+    def _assemble(self, field):
 
         # get field data
         dof_n = field.dof_n
