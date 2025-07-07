@@ -7,14 +7,10 @@
 import copy
 
 # from fem
-from ..fem import FeArray, _GroupElem, MatrixType
+from . import FeArray, _GroupElem, MatrixType
 
 
-# from materials
-from ._utils import _IModel, ModelType
-
-
-class Field(_IModel):
+class Field:
     """Field class."""
 
     def __init__(self, groupElem: _GroupElem, dof_n: int, thickness: float = 1.0):
@@ -52,21 +48,6 @@ class Field(_IModel):
     def dof_n(self) -> int:
         """degrees of freedom per node."""
         return self.__dof_n
-
-    @property
-    def modelType(self) -> ModelType:
-        return ModelType.field
-
-    @property
-    def dim(self) -> int:
-        return self.__dof_n
-
-    @property
-    def thickness(self) -> float:
-        if self.__groupElem.dim == 2:
-            return self.__thickness
-        else:
-            return 1.0
 
     def copy(self) -> "Field":
         return copy.deepcopy(self)

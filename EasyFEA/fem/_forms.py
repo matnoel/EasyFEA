@@ -14,7 +14,7 @@ from ._linalg import FeArray
 from ._gauss import Gauss
 
 if TYPE_CHECKING:
-    from ..models._field import Field
+    from ._field import Field
 
 
 class _Form(ABC):
