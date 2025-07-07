@@ -11,7 +11,7 @@ Poisson equation with unit load.
 Reference: https://scikit-fem.readthedocs.io/en/latest/listofexamples.html#example-1-poisson-equation-with-unit-load
 """
 
-from EasyFEA import Display, ElemType, np
+from EasyFEA import Display, ElemType, Models, np, Simulations
 from EasyFEA.fem import Field, BiLinearForm, LinearForm
 from EasyFEA.Geoms import Domain
 
@@ -33,9 +33,7 @@ if __name__ == "__main__":
 
     mesh = contour.Mesh_2D([], ElemType.TRI3, isOrganised=True)
 
-    from EasyFEA import Materials, Simulations
-
-    mat = Materials.Thermal(2, 1, 0)
+    mat = Models.Thermal(2, 1, 0)
     simu = Simulations.ThermalSimu(mesh, mat, useIterativeSolvers=False)
 
     nodes = mesh.Nodes_Tags(["L0", "L1", "L2", "L3"])
