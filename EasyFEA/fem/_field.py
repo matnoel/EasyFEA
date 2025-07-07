@@ -67,7 +67,7 @@ class Field:
     def _Set_dofsValues(self, values: _types.FloatArray) -> _types.FloatArray:
         Ndof = self.__groupElem.Nn * self.__dof_n
         assert values.ndim == 1 and values.size == Ndof, f"must be a {Ndof} array."
-        return self.__dofsValues
+        self.__dofsValues = values
 
     def __call__(self):
         """Returns the field as a finite element array."""
