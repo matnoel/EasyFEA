@@ -861,7 +861,7 @@ class _Simu(_IObserver, ABC):
             r = b - K @ u.reshape(-1, 1)
 
             # compute || r ||
-            norm_r = np.linalg.norm(r)
+            norm_r: float = np.linalg.norm(r)
             list_norm_r.append(norm_r)
 
             if Niter == 1:
