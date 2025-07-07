@@ -44,8 +44,7 @@ dev = [
     "mypy",
     "black",
     "ruff",
-    "pytest",
-    "meshio @ git+https://github.com/matnoel/meshio.git@medit_higher_order_elements",
+    "pytest",    
 ]
 
 [project.urls]
