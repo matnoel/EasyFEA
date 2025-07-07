@@ -129,7 +129,7 @@ class LinearForm(_Form):
             v._Set_node(nodes[i])
 
             # get (Ne, nPg) array
-            values_e_pg = form(v())
+            values_e_pg = form(v)
 
             # get dX to integrate
             if i == 0:
