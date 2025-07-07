@@ -148,10 +148,9 @@ def _Get_empty_groupElem(groupElem: "_GroupElem", order: int):
         An empty group element of the specified order.
     """
 
-    unavailable_elemTypes = [ElemType.QUAD8, ElemType.HEXA20, ElemType.PRISM15]
-
-    if groupElem.order != order:
+    if groupElem.order != order and groupElem.elemType is not ElemType.POINT:
         # get the new elemType
+        unavailable_elemTypes = [ElemType.QUAD8, ElemType.HEXA20, ElemType.PRISM15]
         filtered_dict = {
             elemType: values
             for elemType, values in GroupElemFactory.DICT_ELEMTYPE.items()
