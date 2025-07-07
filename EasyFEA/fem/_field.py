@@ -6,6 +6,7 @@
 
 import copy
 import numpy as np
+from typing import Union
 
 # from fem
 from . import FeArray, _GroupElem, MatrixType
@@ -68,6 +69,42 @@ class Field:
         Ndof = self.__groupElem.Nn * self.__dof_n
         assert values.ndim == 1 and values.size == Ndof, f"must be a {Ndof} array."
         self.__dofsValues = values
+
+    def __mul__(self, other: Union["Field", _types.Number]) -> "Field":
+        if isinstance(other, Field):
+            return self() * other()
+        else:
+            return other * self()
+
+    def __rmul__(self, other: _types.Number) -> "Field":
+        return self.__mul__(other)
+
+    def __add__(self, other: Union["Field", _types.Number]) -> "Field":
+        if isinstance(other, Field):
+            return self() + other()
+        else:
+            return other + self()
+
+    def __radd__(self, other: _types.Number) -> "Field":
+        return self.__add__(other)
+
+    def __sub__(self, other: Union["Field", _types.Number]) -> "Field":
+        if isinstance(other, Field):
+            return self() - other()
+        else:
+            return other - self()
+
+    def __rsub__(self, other: _types.Number) -> "Field":
+        return self.__sub__(other)
+
+    def __truediv__(self, other: Union["Field", _types.Number]) -> "Field":
+        if isinstance(other, Field):
+            return self() / other()
+        else:
+            return other / self()
+
+    def __rtruediv__(self, other: _types.Number) -> "Field":
+        return self.__truediv__(other)
 
     def __call__(self):
         """Returns the field as a finite element array."""
