@@ -185,12 +185,12 @@ class WeakFormSimu(_Simu):
 
     def Solve(self):
 
+        # solve u
         self.__isNonLinear = False
-
         u = Solve_simu(self, self.problemType)
 
+        # update and set solutions
         u, v, a = self._Solver_Update_solutions(self.problemType, u)
-
         self._Set_solutions(self.problemType, u, v, a)
 
     def __Solve_delta_u(self):
@@ -218,8 +218,8 @@ class WeakFormSimu(_Simu):
             u_np1: displacement vector field
         """
 
+        # solve u
         self.__isNonLinear = True
-
         u, Niter, timeIter, list_res = self._Solver_Solve_NewtonRaphson(
             self.__Solve_delta_u, tolConv, maxIter
         )
