@@ -3,15 +3,15 @@
 # EasyFEA is distributed under the terms of the GNU General Public License v3, see LICENSE.txt and CREDITS.md for more information.
 
 """
-Poisson
-=======
+Poisson1
+========
 
 Poisson equation with unit load.
 
 Reference: https://scikit-fem.readthedocs.io/en/latest/listofexamples.html#example-1-poisson-equation-with-unit-load
 """
 
-from EasyFEA import Display, ElemType, Models, Simulations, np
+from EasyFEA import Display, ElemType, Models, Simulations
 from EasyFEA.fem import Field, BiLinearForm, LinearForm
 from EasyFEA.Geoms import Domain
 
@@ -22,9 +22,9 @@ if __name__ == "__main__":
     # Mesh
     # ----------------------------------------------
 
-    contour = Domain((0, 0), (1, 1), 1 / 2**2)
+    contour = Domain((0, 0), (1, 1), 1 / 2**6)
 
-    mesh = contour.Mesh_2D([], ElemType.TRI15, isOrganised=True)
+    mesh = contour.Mesh_2D([], ElemType.TRI3, isOrganised=True)
 
     # ----------------------------------------------
     # Formulations
@@ -38,8 +38,6 @@ if __name__ == "__main__":
 
     @LinearForm
     def linear_form(v: Field):
-        x, y, z = v.Get_coords()
-        return np.sin(np.pi * x) * np.sin(np.pi * y) * v
         return 1.0 * v
 
     weakFormManager = Models.WeakFormManager(
@@ -57,11 +55,6 @@ if __name__ == "__main__":
     # Formulations
     # ----------------------------------------------
 
-    Display.Plot_Result(simu, "u", plotMesh=True)
-
-    x, y, z = mesh.coord.T
-    excepted = 1 / 2 / np.pi**2 * np.sin(np.pi * x) * np.sin(np.pi * y)
-
-    diff = np.linalg.norm(excepted - simu.u) / np.linalg.norm(excepted)
+    Display.Plot_Result(simu, "u")
 
     Display.plt.show()
