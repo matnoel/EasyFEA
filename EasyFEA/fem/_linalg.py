@@ -78,7 +78,7 @@ class FeArray(_types.AnyArray):
         if isinstance(other, FeArray):
             ndim2 = other._ndim
             shape2 = other._shape
-        elif isinstance(other, np.ndarray):
+        elif isinstance(other, (np.ndarray, float, int)):
             ndim2 = array2.ndim
             shape2 = array2.shape
         else:
@@ -86,7 +86,7 @@ class FeArray(_types.AnyArray):
 
             assert isinstance(
                 other, Field
-            ), "other must be an array, FeArray or a Field."
+            ), "other must be an float, int, array, FeArray or a Field."
             other = other()
             array2 = np.asarray(other)
             ndim2 = other._ndim
