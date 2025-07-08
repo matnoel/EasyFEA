@@ -222,7 +222,7 @@ def __Get_dict_tags_converter(mesh: Mesh) -> dict[Any, int]:
 def _EasyFEA_to_Meshio(
     mesh: Mesh, dict_tags_converter: dict[Any, int] = {}, cellType: str = "tags"
 ) -> meshio.Mesh:
-    """Convert EasyFEA mesh to meshio format.
+    """Converts EasyFEA mesh to meshio format.
 
     Parameters
     ----------
@@ -264,7 +264,7 @@ def _EasyFEA_to_Meshio(
         # get element tags
         element_tags = np.zeros(groupElem.Ne, dtype=int)
 
-        # convert tags and make sure they are integers
+        # converts tags and make sure they are integers
         for tag, val in dict_tags_converter.items():
             assert isinstance(val, int), "dict_tags_converter values must be integers."
             # elements
@@ -288,7 +288,7 @@ def _EasyFEA_to_Meshio(
 
 
 def _Meshio_to_EasyFEA(meshioMesh: meshio.Mesh) -> Mesh:
-    """Convert meshio mesh to EasyFEA format.
+    """Converts meshio mesh to EasyFEA format.
 
     Parameters
     ----------
@@ -404,7 +404,7 @@ def EasyFEA_to_Medit(
     dict_tags_converter: dict[str, int] = {},
     useBinary=False,
 ) -> str:
-    """Convert EasyFEA mesh to Medit format.
+    """Converts EasyFEA mesh to Medit format.
 
     Parameters
     ----------
@@ -439,7 +439,7 @@ def EasyFEA_to_Medit(
 
 
 def Medit_to_EasyFEA(meditMesh: str) -> Mesh:
-    """Convert Medit mesh to EasyFEA format.
+    """Converts Medit mesh to EasyFEA format.
 
     Parameters
     ----------
@@ -472,7 +472,7 @@ def Medit_to_EasyFEA(meditMesh: str) -> Mesh:
 
 
 def EasyFEA_to_Gmsh(mesh: Mesh, folder: str, name: str, useBinary=False) -> str:
-    """Convert EasyFEA mesh to Gmsh format.
+    """Converts EasyFEA mesh to Gmsh format.
 
     Parameters
     ----------
@@ -508,7 +508,7 @@ def EasyFEA_to_Gmsh(mesh: Mesh, folder: str, name: str, useBinary=False) -> str:
 
 
 def Gmsh_to_EasyFEA(gmshMesh: str) -> Mesh:
-    """Convert Gmsh mesh to EasyFEA format.
+    """Converts Gmsh mesh to EasyFEA format.
 
     Args:
         gmshMesh (str): Path to the Gmsh mesh file.
@@ -538,7 +538,7 @@ def Gmsh_to_EasyFEA(gmshMesh: str) -> Mesh:
 def EasyFEA_to_PyVista(
     mesh: Mesh, coord: Optional[_types.FloatArray] = None, useAllElements=True
 ) -> pv.UnstructuredGrid:
-    """Convert EasyFEA mesh to PyVista Multiblock format.
+    """Converts EasyFEA mesh to PyVista Multiblock format.
 
     Parameters
     ----------
@@ -602,7 +602,7 @@ def EasyFEA_to_PyVista(
 
 
 def PyVista_to_EasyFEA(pyVistaMesh: Union[pv.UnstructuredGrid, pv.MultiBlock]) -> Mesh:
-    """Convert PyVista mesh to EasyFEA format.
+    """Converts PyVista mesh to EasyFEA format.
 
     Parameters
     ----------
@@ -664,7 +664,7 @@ def PyVista_to_EasyFEA(pyVistaMesh: Union[pv.UnstructuredGrid, pv.MultiBlock]) -
 
 
 def Ensight_to_PyVista(geoFile: str) -> pv.MultiBlock:
-    """Convert Ensight mesh to PyVista format.
+    """Converts Ensight mesh to PyVista format.
 
     Parameters
     ----------
@@ -702,7 +702,7 @@ def Ensight_to_PyVista(geoFile: str) -> pv.MultiBlock:
 
 
 def Ensight_to_EasyFEA(geoFile: str) -> Mesh:
-    """Convert Ensight mesh to EasyFEA format.
+    """Converts Ensight mesh to EasyFEA format.
 
     Parameters
     ----------
@@ -723,7 +723,7 @@ def Ensight_to_EasyFEA(geoFile: str) -> Mesh:
 
 
 def Ensight_to_Meshio(geoFile: str) -> Mesh:
-    """Convert Ensight mesh to Meshio format.
+    """Converts Ensight mesh to Meshio format.
 
     Parameters
     ----------
