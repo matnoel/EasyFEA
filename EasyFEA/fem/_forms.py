@@ -11,7 +11,6 @@ import numpy as np
 
 # from fem
 from ._linalg import FeArray
-from ._gauss import Gauss
 
 if TYPE_CHECKING:
     from ._field import Field
@@ -63,6 +62,9 @@ class BiLinearForm(_Form):
         dofs = np.arange(nPe * dof_n)
         nodes = np.arange(nPe).reshape(nPe, 1).repeat(dof_n, axis=1).ravel()
 
+        # get dX to integrate
+        dX_e_pg = groupElem.Get_weightedJacobian_e_pg(field.matrixType)
+
         # loop over u dofs
         for i in dofs:
 
@@ -75,13 +77,6 @@ class BiLinearForm(_Form):
 
                 # get (Ne, nPg) array
                 values_e_pg = form(u, v)
-
-                # get dX to integrate
-                if i == j == 0:
-                    elemType = groupElem.elemType
-                    nPg = values_e_pg.shape[1]
-                    matrixType = Gauss._MatrixType_factory(elemType, nPg)
-                    dX_e_pg = groupElem.Get_weightedJacobian_e_pg(matrixType)
 
                 # sum on gauss points
                 values_e = (values_e_pg * dX_e_pg).sum(axis=1)
@@ -122,6 +117,9 @@ class LinearForm(_Form):
         dofs = np.arange(nPe * dof_n)
         nodes = np.arange(nPe).reshape(nPe, 1).repeat(dof_n, axis=1).ravel()
 
+        # get dX to integrate
+        dX_e_pg = groupElem.Get_weightedJacobian_e_pg(field.matrixType)
+
         # loop over u dofs
         for i in dofs:
 
@@ -131,18 +129,11 @@ class LinearForm(_Form):
             # get (Ne, nPg) array
             values_e_pg = form(v)
 
-            # get dX to integrate
-            if i == 0:
-                elemType = groupElem.elemType
-                nPg = values_e_pg.shape[1]
-                matrixType = Gauss._MatrixType_factory(elemType, nPg)
-                dX_e_pg = groupElem.Get_weightedJacobian_e_pg(matrixType)
-
             # sum on gauss points
             values_e = (values_e_pg * dX_e_pg).sum(axis=1)
 
             # add data
-            data[:, i, 0] = values_e[:, 0]
+            data[:, i] = values_e
 
         # construct sparse matrix
         Ndof = groupElem.Nn * dof_n

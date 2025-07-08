@@ -6,7 +6,6 @@
 
 import copy
 import numpy as np
-from typing import Union
 
 # from fem
 from . import FeArray, _GroupElem, MatrixType
@@ -16,7 +15,13 @@ from ..utilities import _types
 class Field:
     """Field class."""
 
-    def __init__(self, groupElem: _GroupElem, dof_n: int, thickness: float = 1.0):
+    def __init__(
+        self,
+        groupElem: _GroupElem,
+        dof_n: int,
+        thickness: float = 1.0,
+        matrixType: MatrixType = MatrixType.mass,
+    ):
         """
         Initialize a new field.
 
@@ -28,6 +33,8 @@ class Field:
             Degree of freedom number, must be between 1 and the dimension of the groupElem.
         thickness : float, optional
             thickness used in the model, by default 1.0
+        matrixType : MatrixType, optional
+            Determines the number of integration points, by default MatrixType.mass
         """
 
         assert isinstance(groupElem, _GroupElem)
@@ -40,6 +47,8 @@ class Field:
 
         self._Set_node(0)
 
+        self.__matrixType = matrixType
+
     @property
     def groupElem(self) -> _GroupElem:
         """Group of elements."""
@@ -49,6 +58,20 @@ class Field:
     def dof_n(self) -> int:
         """degrees of freedom per node."""
         return self.__dof_n
+
+    @property
+    def matrixType(self) -> MatrixType:
+        return self.__matrixType
+
+    def Get_coords(
+        self,
+    ) -> tuple[_types.FloatArray, _types.FloatArray, _types.FloatArray]:
+        """ "Returns integration point coordinates (x,y,z) for each element."""
+        coords = self.groupElem.Get_GaussCoordinates_e_pg(self.__matrixType)
+        x = FeArray.asfearray(coords[..., 0])
+        y = FeArray.asfearray(coords[..., 1])
+        z = FeArray.asfearray(coords[..., 2])
+        return x, y, z
 
     def copy(self) -> "Field":
         return copy.deepcopy(self)
@@ -70,46 +93,34 @@ class Field:
         assert values.ndim == 1 and values.size == Ndof, f"must be a {Ndof} array."
         self.__dofsValues = values
 
-    def __mul__(self, other: Union["Field", _types.Number]) -> "Field":
-        if isinstance(other, Field):
-            return self() * other()
-        else:
-            return other * self()
+    def __mul__(self, other) -> FeArray.FeArrayALike:
+        return self() * other
 
-    def __rmul__(self, other: _types.Number) -> "Field":
+    def __rmul__(self, other) -> FeArray.FeArrayALike:
         return self.__mul__(other)
 
-    def __add__(self, other: Union["Field", _types.Number]) -> "Field":
-        if isinstance(other, Field):
-            return self() + other()
-        else:
-            return other + self()
+    def __add__(self, other) -> FeArray.FeArrayALike:
+        return self() + other
 
-    def __radd__(self, other: _types.Number) -> "Field":
+    def __radd__(self, other) -> FeArray.FeArrayALike:
         return self.__add__(other)
 
-    def __sub__(self, other: Union["Field", _types.Number]) -> "Field":
-        if isinstance(other, Field):
-            return self() - other()
-        else:
-            return other - self()
+    def __sub__(self, other) -> FeArray.FeArrayALike:
+        return self() - other
 
-    def __rsub__(self, other: _types.Number) -> "Field":
+    def __rsub__(self, other) -> FeArray.FeArrayALike:
         return self.__sub__(other)
 
-    def __truediv__(self, other: Union["Field", _types.Number]) -> "Field":
-        if isinstance(other, Field):
-            return self() / other()
-        else:
-            return other / self()
+    def __truediv__(self, other) -> FeArray.FeArrayALike:
+        return self() / other
 
-    def __rtruediv__(self, other: _types.Number) -> "Field":
+    def __rtruediv__(self, other) -> FeArray.FeArrayALike:
         return self.__truediv__(other)
 
     def __call__(self):
         """Returns the field as a finite element array."""
         node = self._Get_node()
-        N_pg = self.groupElem.Get_N_pg(MatrixType.mass)
+        N_pg = self.groupElem.Get_N_pg(self.__matrixType)
         nPg, dim, _ = N_pg.shape
         array = FeArray.asfearray(N_pg[..., node].reshape(1, nPg, 1))
         return array
@@ -118,6 +129,6 @@ class Field:
     def grad(self):
         """Returns the gradient of the field."""
         node = self._Get_node()
-        dN_e_pg = self.groupElem.Get_dN_e_pg(MatrixType.rigi)
+        dN_e_pg = self.groupElem.Get_dN_e_pg(self.__matrixType)
         array = FeArray.asfearray(dN_e_pg[..., node])
         return array

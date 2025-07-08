@@ -78,9 +78,19 @@ class FeArray(_types.AnyArray):
         if isinstance(other, FeArray):
             ndim2 = other._ndim
             shape2 = other._shape
-        else:
+        elif isinstance(other, np.ndarray):
             ndim2 = array2.ndim
             shape2 = array2.shape
+        else:
+            from ._field import Field
+
+            assert isinstance(
+                other, Field
+            ), "other must be an array, FeArray or a Field."
+            other = other()
+            array2 = np.asarray(other)
+            ndim2 = other._ndim
+            shape2 = other._shape
 
         if ndim1 == 0:
             # array1(Ne, nPg)  array2(...) => (Ne, nPg, ...)
