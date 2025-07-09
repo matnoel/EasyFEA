@@ -13,7 +13,6 @@ from EasyFEA import (
     Display,
     Folder,
     Models,
-    Tic,
     plt,
     ElemType,
     Simulations,
@@ -27,16 +26,12 @@ if __name__ == "__main__":
 
     makeParaview = False
     makeMovie = True
-    plotIter = False
 
     # ----------------------------------------------
     # Configuration
     # ----------------------------------------------
     dim = 2
     folder = Folder.Join(Folder.RESULTS_DIR, "Dynamics", "Dyna1", mkdir=True)
-
-    depInit = -10
-    resultToPlot = "uy"
 
     # geom
     L = 120
@@ -62,7 +57,9 @@ if __name__ == "__main__":
     if dim == 2:
         domain = Domain((0, -h / 2), (L, h / 2), meshSize)
         mesh = domain.Mesh_2D([], ElemType.QUAD4, isOrganised=True)
+
         area = mesh.area - L * h
+
     elif dim == 3:
         domain = Domain((0, -h / 2, -b / 2), (L, h / 2, -b / 2), meshSize=meshSize)
         mesh = domain.Mesh_Extrude([], [0, 0, b], [3], ElemType.HEXA8, isOrganised=True)
@@ -85,40 +82,23 @@ if __name__ == "__main__":
     # static simulation
     simu.Bc_Init()
     simu.add_dirichlet(nodes_0, [0] * dim, simu.Get_unknowns(), description="Fixed")
-    simu.add_dirichlet(nodes_L, [depInit], ["y"], description="dep")
+    simu.add_dirichlet(nodes_L, [-10], ["y"], description="dep")
     simu.Solve()
     simu.Save_Iter()
     Display.Plot_Mesh(simu, deformFactor=1)
 
     # dynamic simulation
-    simu.Bc_Init()
-    simu.add_dirichlet(nodes_0, [0] * dim, simu.Get_unknowns(), description="Fixed")
-
-    factorDef = 1
-    if plotIter:
-        ax = Display.Plot_Result(
-            simu, resultToPlot, nodeValues=True, plotMesh=True, deformFactor=factorDef
-        )
-
     simu.Solver_Set_Hyperbolic_Algorithm(dt)
     simu.Set_Rayleigh_Damping_Coefs(coefM=coefM, coefK=coefK)
+
+    simu.Bc_Init()
+    simu.add_dirichlet(nodes_0, [0] * dim, simu.Get_unknowns(), description="Fixed")
 
     while time <= Tmax:
         time += dt
 
         simu.Solve()
         simu.Save_Iter()
-
-        if plotIter:
-            ax = Display.Plot_Result(
-                simu,
-                resultToPlot,
-                nodeValues=True,
-                plotMesh=True,
-                ax=ax,
-                deformFactor=factorDef,
-            )
-            plt.pause(1e-12)
 
         print(f"{time:.3f} s", end="\r")
 
@@ -134,9 +114,9 @@ if __name__ == "__main__":
     if makeMovie:
         PyVista.Movie_simu(
             simu,
-            resultToPlot,
+            "uy",
             folder,
-            f"{resultToPlot}.gif",
+            "uy.gif",
             deformFactor=1,
             show_edges=True,
             N=400,
@@ -144,7 +124,7 @@ if __name__ == "__main__":
         )
 
     print(simu)
-    Display.Plot_Result(simu, "uy", deformFactor=factorDef, nodeValues=False)
+    Display.Plot_Result(simu, "uy", deformFactor=1, nodeValues=False)
     Display.Plot_Result(simu, "Svm", plotMesh=False, nodeValues=False)
 
     plt.show()
