@@ -47,7 +47,7 @@ if __name__ == "__main__":
     simu = Simulations.WeakFormSimu(mesh, weakFormManager)
 
     nodes = mesh.Nodes_Tags(["L0", "L1", "L2", "L3"])
-    simu.add_dirichlet(nodes, [0], ["0"])
+    simu.add_dirichlet(nodes, [0], ["u"])
 
     simu.Solve()
 

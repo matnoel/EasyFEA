@@ -8,7 +8,7 @@ LinearElasticity1
 
 A cantilever beam undergoing bending deformation.
 
-Note that this simulation is also performed in :doc:`Elas1 <examples/Elastic/Elas1>`
+Note that this simulation is also performed in `examples/Elastic/Elas1.py`.
 """
 
 from EasyFEA import Display, ElemType, Models, Simulations, np
