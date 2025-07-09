@@ -40,12 +40,13 @@ class Field:
         assert isinstance(groupElem, _GroupElem)
         self.__groupElem = groupElem
 
-        assert 1 <= dof_n <= groupElem.dim
+        assert 1 <= dof_n <= groupElem.inDim
         self.__dof_n = dof_n
 
         self._Set_dofsValues(np.zeros(groupElem.Nn * dof_n))
 
         self._Set_node(0)
+        self._Set_dof(0)
 
         self.__matrixType = matrixType
 
@@ -85,6 +86,15 @@ class Field:
         assert 0 <= node < self.groupElem.nPe
         self.__node = node
 
+    def _Get_dof(self) -> int:
+        """Returns current active dof."""
+        return self.__dof
+
+    def _Set_dof(self, dof: int):
+        """Sets current active node."""
+        assert 0 <= dof < self.__dof_n
+        self.__dof = dof
+
     def _Get_dofsValues(self) -> _types.FloatArray:
         return self.__dofsValues
 
@@ -117,18 +127,30 @@ class Field:
     def __rtruediv__(self, other) -> FeArray.FeArrayALike:
         return self.__truediv__(other)
 
-    def __call__(self):
+    def __call__(self) -> FeArray:
         """Returns the field as a finite element array."""
         node = self._Get_node()
         N_pg = self.groupElem.Get_N_pg(self.__matrixType)
-        nPg, dim, _ = N_pg.shape
+        nPg, dim, nPe = N_pg.shape
         array = FeArray.asfearray(N_pg[..., node].reshape(1, nPg, 1))
         return array
 
     @property
-    def grad(self):
+    def grad(self) -> FeArray:
         """Returns the gradient of the field."""
+        dof_n = self.__dof_n
         node = self._Get_node()
+        dof = self._Get_dof()
+
+        # get gem matrices
         dN_e_pg = self.groupElem.Get_dN_e_pg(self.__matrixType)
+        Ne, nPg, dim, nPe = dN_e_pg.shape
+
         array = FeArray.asfearray(dN_e_pg[..., node])
-        return array
+
+        if dof_n == 1:
+            return array
+        else:
+            newArray = FeArray.zeros(Ne, nPg, dim, dof_n, dtype=float)
+            newArray[..., :, dof] = array
+            return newArray
