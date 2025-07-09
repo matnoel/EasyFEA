@@ -81,16 +81,13 @@ class FeArray(_types.AnyArray):
         elif isinstance(other, (np.ndarray, float, int)):
             ndim2 = array2.ndim
             shape2 = array2.shape
-        else:
-            from ._field import Field
-
-            assert isinstance(
-                other, Field
-            ), "other must be an float, int, array, FeArray or a Field."
-            other = other()
+        elif type(other).__name__ == "Field":
+            other: FeArray = other()
             array2 = np.asarray(other)
             ndim2 = other._ndim
             shape2 = other._shape
+        else:
+            raise TypeError("other must be a FeArray, ndarray, float, int or a Field.")
 
         if ndim1 == 0:
             # array1(Ne, nPg)  array2(...) => (Ne, nPg, ...)
@@ -157,8 +154,11 @@ class FeArray(_types.AnyArray):
             ndim2 = other._ndim
         elif isinstance(other, np.ndarray):
             ndim2 = other.ndim
+        elif type(other).__name__ == "Field":
+            other: FeArray = other()
+            ndim2 = other._ndim
         else:
-            raise TypeError("`other` must be either a FeArray or _types.AnyArray")
+            raise TypeError("`other` must be either a FeArray, NDArray or a Field.")
 
         if ndim1 == ndim2 == 1:
             result = self.dot(other)
@@ -187,8 +187,12 @@ class FeArray(_types.AnyArray):
         elif isinstance(other, np.ndarray):
             idx2 = "".join([chr(ord(idx1[0]) + i) for i in range(other.ndim)])
             ndim2 = other.ndim
+        elif type(other).__name__ == "Field":
+            other: FeArray = other()
+            idx2 = other._idx
+            ndim2 = other._ndim
         else:
-            raise TypeError("`other` must be either a FeArray or _types.AnyArray")
+            raise TypeError("`other` must be either a FeArray, NDArray or a Field.")
         idx2 = "".join([chr(ord(val) + ndim1 - 1) for val in idx2])
 
         if ndim2 == 0:
@@ -218,8 +222,13 @@ class FeArray(_types.AnyArray):
         elif isinstance(other, np.ndarray):
             idx2 = "".join([chr(ord(idx1[0]) + i) for i in range(other.ndim)])
             ndim2 = other.ndim
+        elif type(other).__name__ == "Field":
+            other: FeArray = other()
+            idx2 = other._idx
+            ndim2 = other._ndim
         else:
-            raise TypeError("`other` must be either a FeArray or _types.AnyArray")
+            raise TypeError("`other` must be either a FeArray, NDArray or a Field.")
+
         if ndim2 < 2:
             raise ValueError(
                 "`other` must be at least a finite element matrix (Ne, nPg, i, j)."

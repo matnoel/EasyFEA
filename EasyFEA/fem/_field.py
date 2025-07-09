@@ -109,6 +109,12 @@ class Field:
     def __rmul__(self, other) -> FeArray.FeArrayALike:
         return self.__mul__(other)
 
+    def __matmul__(self, other) -> FeArray.FeArrayALike:
+        return self() @ other
+
+    def __rmatmul__(self, other) -> FeArray.FeArrayALike:
+        return self.__matmul__(other)
+
     def __add__(self, other) -> FeArray.FeArrayALike:
         return self() + other
 
@@ -134,6 +140,12 @@ class Field:
         nPg, dim, nPe = N_pg.shape
         array = FeArray.asfearray(N_pg[..., node].reshape(1, nPg, 1))
         return array
+
+    def dot(self, other):
+        return self().dot(other)
+
+    def ddot(self, other):
+        return self().ddot(other)
 
     @property
     def grad(self) -> FeArray:
