@@ -132,9 +132,6 @@ def Plot(
     if plotter is None:
         plotter = _Plotter()
 
-    if show_grid:
-        plotter.show_grid()  # type: ignore [call-arg]
-
     if verticalColobar:
         pos = "position_x"
         val = 0.85
@@ -170,6 +167,9 @@ def Plot(
         )
 
     _setCameraPosition(plotter, inDim)
+
+    if show_grid:
+        plotter.show_grid()  # type: ignore [call-arg]
 
     tic.Tac("PyVista_Interface", "Plot")
 
