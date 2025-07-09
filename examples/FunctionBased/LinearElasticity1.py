@@ -12,11 +12,21 @@ Reference: https://scikit-fem.readthedocs.io/en/latest/listofexamples.html#examp
 """
 
 from EasyFEA import Display, ElemType, Models, Simulations, np
-from EasyFEA.fem import Field, BiLinearForm, LinearForm, Inv, FeArray
+from EasyFEA.fem import Field, BiLinearForm, FeArray, Trace
 from EasyFEA.Geoms import Domain
 
 if __name__ == "__main__":
     Display.Clear()
+
+    # ----------------------------------------------
+    # Configuration
+    # ----------------------------------------------
+
+    dim = 2
+
+    elastic = Models.ElasIsot(2, 1e3, 0.3, planeStress=True)
+    lmbda = elastic.get_lambda()
+    mu = elastic.get_mu()
 
     # ----------------------------------------------
     # Mesh
@@ -24,39 +34,48 @@ if __name__ == "__main__":
 
     contour = Domain((0, 0), (1, 1), 1 / 8)
 
-    mesh = contour.Mesh_Extrude([], [0, 0, 1], [8], ElemType.HEXA8, isOrganised=True)
+    if dim == 2:
+        mesh = contour.Mesh_2D([], ElemType.QUAD4, isOrganised=True)
+    else:
+        mesh = contour.Mesh_Extrude(
+            [], [0, 0, 1], [8], ElemType.HEXA8, isOrganised=True
+        )
 
     # ----------------------------------------------
     # Formulations
     # ----------------------------------------------
 
-    field = Field(mesh.groupElem, 3)
+    field = Field(mesh.groupElem, dim)
 
-    # (Ne, nPg, dim, nPe)
-    dN_e_pg = mesh.groupElem.Get_dN_e_pg(field.matrixType)
+    def E(u: Field) -> FeArray:
+        return 0.5 * (u.grad.T + u.grad)
 
-    grad = FeArray.zeros(*dN_e_pg.shape[:2], 3, 3)
-
-    sym_grad = 0.5 * (field.grad.T + field.grad)
+    def S(u: Field) -> FeArray:
+        Eps = E(u)
+        return 2 * mu * Eps + lmbda * Trace(Eps) * np.eye(dim)
 
     @BiLinearForm
     def bilinear_form(u: Field, v: Field):
-        return u.grad.dot(v.grad)
 
-    @LinearForm
-    def linear_form(v: Field):
-        x, y, _ = v.Get_coords()
-        f = np.sin(np.pi * x) * np.sin(np.pi * y)
-        return f * v
+        Sig = S(u)
+        Eps = E(v)
 
-    weakFormManager = Models.WeakFormManager(
-        field, computeK=bilinear_form, computeF=linear_form
-    )
+        return Sig.ddot(Eps)
 
-    simu = Simulations.WeakFormSimu(mesh, weakFormManager)
+    simu = Simulations.ElasticSimu(mesh, elastic)
 
-    nodes = mesh.Nodes_Tags(["L0", "L1", "L2", "L3"])
-    simu.add_dirichlet(nodes, [0], ["0"])
+    K = bilinear_form._assemble(field)
+
+    diff = K - simu.Get_K_C_M_F()[0]
+
+    weakFormManager = Models.WeakFormManager(field, bilinear_form)
+
+    # simu = Simulations.WeakFormSimu(mesh, weakFormManager)
+
+    nodes_x0 = mesh.Nodes_Conditions(lambda x, y, z: x == 0)
+    nodes_x1 = mesh.Nodes_Conditions(lambda x, y, z: x == 1)
+    simu.add_dirichlet(nodes_x0, [0], ["x"])
+    simu.add_dirichlet(nodes_x1, [1], ["y"])
 
     simu.Solve()
 
@@ -64,7 +83,10 @@ if __name__ == "__main__":
     # Formulations
     # ----------------------------------------------
 
-    Display.Plot_Result(simu, "u", plotMesh=True)
+    # u = simu.u.reshape(-1, dim)[:, 0]
+    u = simu.Result("ux")
+
+    Display.Plot_Result(simu, u, plotMesh=True)
 
     x, y, z = mesh.coord.T
     u_an = 1 / 2 / np.pi**2 * np.sin(np.pi * x) * np.sin(np.pi * y)
