@@ -10,4 +10,9 @@ from ._group_elems import _GroupElem, GroupElemFactory
 from ._mesh import Mesh, Calc_projector, Mesh_Optim
 from ._utils import ElemType, MatrixType
 from ._linalg import FeArray, Transpose, Trace, Det, Inv, TensorProd, Norm
-from ._field import Field  # must be after the import of FeArray, _GroupElem, MatrixType
+
+# must be after the import of FeArray, _GroupElem, MatrixType
+from ._field import (
+    Field,
+    Sym_Grad,
+)

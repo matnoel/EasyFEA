@@ -4,6 +4,7 @@
 
 from typing import Union, Optional, TYPE_CHECKING
 from scipy import sparse
+import numpy as np
 
 # utilities
 from ..utilities import Tic, _types
@@ -59,7 +60,16 @@ class WeakFormSimu(_Simu):
         pass
 
     def Get_unknowns(self, problemType=None) -> list[str]:
-        return [str(d) for d in range(self.Get_dof_n(problemType))]
+
+        dof_n = self.weakFormManager.field.dof_n
+
+        if dof_n == 1:
+            return ["u"]
+        elif 1 < dof_n <= 3:
+            dofs = ["x", "y", "z"]
+            return [dofs[d] for d in range(dof_n)]
+        else:
+            raise ValueError("Unknown dof_n configuration.")
 
     def Get_dof_n(self, problemType=None) -> int:
         return self.weakFormManager.field.dof_n
@@ -289,7 +299,37 @@ class WeakFormSimu(_Simu):
     def Results_Available(self) -> list[str]:
         options = []
         options.extend(["u", "v", "a", "displacement_matrix"])
+
+        dof_n = self.weakFormManager.field.dof_n
+
+        if dof_n == 1:
+            pass
+        elif 1 < dof_n <= 3:
+            sols = ["u", "v", "a"]
+            dofs = ["x", "y", "z"]
+            [
+                options.append(f"{sols[s]}{dofs[d]}")
+                for s in range(3)
+                for d in range(dof_n)
+            ]
+        else:
+            raise ValueError("Unknown dof_n configuration.")
+
         return options
+
+    def __indexResult(self, result: str) -> int:
+        if len(result) <= 2:
+            "Case were ui, vi or ai"
+            if "x" in result:
+                return 0
+            elif "y" in result:
+                return 1
+            elif "z" in result:
+                return 2
+            else:
+                raise ValueError("result error")
+        else:
+            raise ValueError("result error")
 
     def Result(
         self, result: str, nodeValues: bool = True, iter: Optional[int] = None
@@ -302,14 +342,28 @@ class WeakFormSimu(_Simu):
 
         # begin cases ----------------------------------------------------
 
+        Nn = self.mesh.Nn
+
         if result == "u":
             values = self.u
+
+        elif result in ["ux", "uy", "uz"]:
+            values_n = self.u.reshape(Nn, -1)
+            values = values_n[:, self.__indexResult(result)]
 
         elif result == "v":
             values = self.v
 
+        elif result in ["vx", "vy", "vz"]:
+            values_n = self.u.reshape(Nn, -1)
+            values = values_n[:, self.__indexResult(result)]
+
         elif result == "a":
             values = self.a
+
+        elif result in ["ax", "ay", "az"]:
+            values_n = self.u.reshape(Nn, -1)
+            values = values_n[:, self.__indexResult(result)]
 
         elif result == "displacement_matrix":
             values = self.Results_displacement_matrix()
@@ -327,4 +381,18 @@ class WeakFormSimu(_Simu):
         return super().Results_dict_Energy()
 
     def Results_displacement_matrix(self) -> _types.FloatArray:
-        return super().Results_displacement_matrix()
+
+        dof_n = self.weakFormManager.field.dof_n
+        Nn = self.mesh.Nn
+        displacement_matrix = np.zeros((Nn, 3))
+
+        if dof_n == 1:
+            pass
+        elif 1 < dof_n <= 3:
+            coord = self.u.reshape((Nn, -1))
+            dim = coord.shape[1]
+            displacement_matrix[:, :dim] = coord
+        else:
+            raise ValueError("Unknown dof_n configuration.")
+
+        return displacement_matrix

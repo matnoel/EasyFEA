@@ -154,3 +154,7 @@ class Field:
             newArray = FeArray.zeros(Ne, nPg, dim, dof_n, dtype=float)
             newArray[..., :, dof] = array
             return newArray
+
+
+def Sym_Grad(u: Field) -> FeArray:
+    return 0.5 * (u.grad.T + u.grad)

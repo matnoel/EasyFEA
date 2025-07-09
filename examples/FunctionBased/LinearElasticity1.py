@@ -3,16 +3,16 @@
 # EasyFEA is distributed under the terms of the GNU General Public License v3, see LICENSE.txt and CREDITS.md for more information.
 
 """
-LinearElasticity
-================
+LinearElasticity1
+=================
 
-A cantilever beam undergoing bending traction.
+A cantilever beam undergoing bending deformation.
 
-Reference: https://scikit-fem.readthedocs.io/en/latest/listofexamples.html#example-11-three-dimensional-linear-elasticity
+Note that this simulation is also performed in :doc:`Elas1 <examples/Elastic/Elas1>`
 """
 
 from EasyFEA import Display, ElemType, Models, Simulations, np
-from EasyFEA.fem import Field, BiLinearForm, FeArray, Trace
+from EasyFEA.fem import Field, BiLinearForm, FeArray, Sym_Grad, Trace
 from EasyFEA.Geoms import Domain
 
 if __name__ == "__main__":
@@ -24,7 +24,11 @@ if __name__ == "__main__":
 
     dim = 2
 
-    elastic = Models.ElasIsot(2, 1e3, 0.3, planeStress=True)
+    L = 120  # mm
+    h = 13
+    F = -800  # N
+
+    elastic = Models.ElasIsot(dim, 210000, 0.3, planeStress=True, thickness=h)
     lmbda = elastic.get_lambda()
     mu = elastic.get_mu()
 
@@ -32,13 +36,13 @@ if __name__ == "__main__":
     # Mesh
     # ----------------------------------------------
 
-    contour = Domain((0, 0), (1, 1), 1 / 8)
+    contour = Domain((0, 0), (L, h), h / 3)
 
     if dim == 2:
-        mesh = contour.Mesh_2D([], ElemType.QUAD4, isOrganised=True)
+        mesh = contour.Mesh_2D([], ElemType.QUAD9, isOrganised=True)
     else:
         mesh = contour.Mesh_Extrude(
-            [], [0, 0, 1], [8], ElemType.HEXA8, isOrganised=True
+            [], [0, 0, h], [3], ElemType.HEXA27, isOrganised=True
         )
 
     # ----------------------------------------------
@@ -47,49 +51,35 @@ if __name__ == "__main__":
 
     field = Field(mesh.groupElem, dim)
 
-    def E(u: Field) -> FeArray:
-        return 0.5 * (u.grad.T + u.grad)
-
     def S(u: Field) -> FeArray:
-        Eps = E(u)
+        Eps = Sym_Grad(u)
         return 2 * mu * Eps + lmbda * Trace(Eps) * np.eye(dim)
 
     @BiLinearForm
     def bilinear_form(u: Field, v: Field):
-
         Sig = S(u)
-        Eps = E(v)
-
+        Eps = Sym_Grad(v)
         return Sig.ddot(Eps)
-
-    simu = Simulations.ElasticSimu(mesh, elastic)
-
-    K = bilinear_form._assemble(field)
-
-    diff = K - simu.Get_K_C_M_F()[0]
 
     weakFormManager = Models.WeakFormManager(field, bilinear_form)
 
-    # simu = Simulations.WeakFormSimu(mesh, weakFormManager)
+    # ----------------------------------------------
+    # Simulations
+    # ----------------------------------------------
+
+    simu = Simulations.WeakFormSimu(mesh, weakFormManager)
 
     nodes_x0 = mesh.Nodes_Conditions(lambda x, y, z: x == 0)
-    nodes_x1 = mesh.Nodes_Conditions(lambda x, y, z: x == 1)
-    simu.add_dirichlet(nodes_x0, [0], ["x"])
-    simu.add_dirichlet(nodes_x1, [1], ["y"])
+    nodes_xL = mesh.Nodes_Conditions(lambda x, y, z: x == L)
+    simu.add_dirichlet(nodes_x0, [0] * dim, simu.Get_unknowns())
+    simu.add_surfLoad(nodes_xL, [F / h**2], ["y"])
 
     simu.Solve()
 
     # ----------------------------------------------
-    # Formulations
+    # Results
     # ----------------------------------------------
 
-    # u = simu.u.reshape(-1, dim)[:, 0]
-    u = simu.Result("ux")
-
-    Display.Plot_Result(simu, u, plotMesh=True)
-
-    x, y, z = mesh.coord.T
-    u_an = 1 / 2 / np.pi**2 * np.sin(np.pi * x) * np.sin(np.pi * y)
-    error = np.linalg.norm(u_an - simu.u) / np.linalg.norm(u_an)
+    Display.Plot_Result(simu, "uy", 10, plotMesh=True)
 
     Display.plt.show()
