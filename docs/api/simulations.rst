@@ -4,7 +4,7 @@ simulations
 ===========
 
 The `EasyFEA/simulations/ <https://github.com/matnoel/EasyFEA/tree/main/EasyFEA/simulations>`_ module in EasyFEA provides essential tools for creating and managing simulations.
-These simulations are built using a :py:class:`~EasyFEA.fem.Mesh` and a :py:class:`~EasyFEA.materials._IModel` (material).
+These simulations are built using a :py:class:`~EasyFEA.fem.Mesh` and a :py:class:`~EasyFEA.Models._IModel` (material).
 
 With this module, you can construct:
 

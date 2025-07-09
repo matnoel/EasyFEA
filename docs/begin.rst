@@ -7,7 +7,7 @@ Like any Python script, you should start by importing the core modules from the 
 
 .. jupyter-execute::
 
-    from EasyFEA import Display, ElemType, Materials, Simulations
+    from EasyFEA import Display, ElemType, Models, Simulations
     from EasyFEA.Geoms import Domain
 
 ----
@@ -17,7 +17,7 @@ The most commonly used modules in EasyFEA are:
 .. autosummary::
     ~EasyFEA.utilities.Display 
     ~EasyFEA.fem.ElemType 
-    ~EasyFEA.Materials
+    ~EasyFEA.Models
     ~EasyFEA.Simulations
     ~EasyFEA.Geoms
 
@@ -37,7 +37,7 @@ Let's now create a 2D :py:class:`~EasyFEA.fem.Mesh` using a simple rectangular d
     
 ----
 
-Next, define a linear :py:class:`~EasyFEA.materials.ElasIsot` material and set up the :py:class:`~EasyFEA.Simulations.ElasticSimu`  simulation:
+Next, define a linear :py:class:`~EasyFEA.Models.ElasIsot` material and set up the :py:class:`~EasyFEA.Simulations.ElasticSimu`  simulation:
 
 .. jupyter-execute::
 
@@ -48,7 +48,7 @@ Next, define a linear :py:class:`~EasyFEA.materials.ElasIsot` material and set u
     v = 0.3
     F = -800  # N
 
-    mat = Materials.ElasIsot(2, E, v, planeStress=True, thickness=h)
+    mat = Models.ElasIsot(2, E, v, planeStress=True, thickness=h)
 
     simu = Simulations.ElasticSimu(mesh, mat)
     

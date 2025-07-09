@@ -40,7 +40,7 @@ Numerous examples of mesh creation are available in the [Meshes](https://easyfea
 The simplest and quickest introduction is shown below and is available in the [Beginner’s Guide](https://easyfea.readthedocs.io/en/latest/begin.html).
 
 ```python
-from EasyFEA import Display, ElemType, Materials, Simulations
+from EasyFEA import Display, ElemType, Models, Simulations
 from EasyFEA.Geoms import Domain
 
 # ----------------------------------------------
@@ -59,7 +59,7 @@ E = 210000  # MPa
 v = 0.3
 F = -800  # N
 
-mat = Materials.ElasIsot(2, E, v, planeStress=True, thickness=h)
+mat = Models.ElasIsot(2, E, v, planeStress=True, thickness=h)
 
 simu = Simulations.ElasticSimu(mesh, mat)
 
