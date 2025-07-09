@@ -195,7 +195,7 @@ class ElasticSimu(_Simu):
         tic.Tac("Matrix", "Assembly Ku, Mu and Fu", self._verbosity)
 
     def Set_Rayleigh_Damping_Coefs(self, coefM=0.0, coefK=0.0):
-        """Sets damping coefficients."""
+        """Sets damping coefficients \( C = coefK * K + coefM * M \)."""
         self.__coefM = coefM
         self.__coefK = coefK
 
