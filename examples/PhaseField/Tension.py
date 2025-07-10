@@ -37,11 +37,19 @@ nProcs = 4  # number of processes in parallel
 # ----------------------------------------------
 dim = 2
 
+# simu options
 doSimu = True
-# Mesh
 meshTest = True
 openCrack = True
 optimMesh = True
+
+# outputs
+plotMesh = False
+plotResult = True
+showResult = True
+plotEnergy = False
+saveParaview = False
+makeMovie = False
 
 # material
 materialType = "Elas_Isot"  #  "Elas_Isot", "ElasAnisot"
@@ -61,14 +69,6 @@ regus = ["AT1"]  # "AT1", "AT2"
 
 thetas = [-70, -80, -90]  # [-0, -10, -20, -30, -45, -60]
 theta = -0  # default value
-
-# PostProcessing
-plotMesh = False
-plotResult = True
-showResult = True
-plotEnergy = False
-saveParaview = False
-makeMovie = False
 
 # ----------------------------------------------
 # Mesh
@@ -356,7 +356,7 @@ def DoSimu(split: str, regu: str):
         force, displacement = Simulations.Load_pickle(folder_save, "force-displacement")
 
     # ----------------------------------------------
-    # PostProcessing
+    # Results
     # ---------------------------------------------
     if plotResult:
         Display.Plot_Result(

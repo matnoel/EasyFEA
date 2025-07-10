@@ -27,18 +27,19 @@ import multiprocessing
 
 # Display.Clear()
 
-useParallel = False
-nProcs = 4  # number of processes in parallel
 
 # ----------------------------------------------
-# Configurations
+# Configuration
 # ----------------------------------------------
 
+# simu options
 doSimu = True
 meshTest = True
 optimMesh = True
+useParallel = False
+nProcs = 4  # number of processes in parallel
 
-# Post processing
+# outputs
 plotMesh = False
 plotIter = False
 plotResult = True
@@ -47,6 +48,8 @@ showFig = True
 
 saveParaview = False
 makeMovie = False
+
+# models
 
 # splits = ["Bourdin","Amor","Miehe","Stress"] # Splits Isotropes
 # splits = ["He","AnisotStrain","AnisotStress","Zhang"] # Splits Anisotropes
@@ -58,6 +61,9 @@ splits = ["Miehe"]
 regus = ["AT1"]  # ["AT1", "AT2"]
 # regus = ["AT1", "AT2"]
 
+l0 = 0.12e-3
+
+# convergence
 solver = (
     Models.PhaseField.SolverType.History
 )  # ["History", "HistoryDamage", "BoundConstrain"]
@@ -67,7 +73,6 @@ tolConv = 1e-0
 # ----------------------------------------------
 # Mesh
 # ----------------------------------------------
-l0 = 0.12e-3
 
 
 def DoMesh(
@@ -112,7 +117,7 @@ def DoMesh(
 # ----------------------------------------------
 def DoSimu(split: str, regu: str):
     folder_save = Folder.PhaseField_Folder(
-        "PlateWithHole_Benchmark",
+        "PlateWithHole",
         "Elas_Isot",
         split,
         regu,
@@ -134,9 +139,14 @@ def DoSimu(split: str, regu: str):
     thickness = 1
     diam = 6e-3
 
+    # load units
     unitU = "μm"
     unitF = "kN/mm"
     unit = 1e6
+
+    # ----------------------------------------------
+    # Mesh
+    # ----------------------------------------------
 
     if doSimu:
         mesh = DoMesh(L, h, diam, thickness, l0, split)
@@ -279,7 +289,7 @@ def DoSimu(split: str, regu: str):
         force, displacement = Simulations.Load_pickle(folder_save, "force-displacement")
 
     # ----------------------------------------------
-    # Post processing
+    # Results
     # ---------------------------------------------
     if plotEnergy:
         Display.Plot_Energy(simu, force, displacement, N=400, folder=folder_save)

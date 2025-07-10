@@ -38,11 +38,19 @@ nProcs = 4  # number of processes in parallel
 # ----------------------------------------------
 dim = 2
 
+# simu options
 doSimu = True
-# Mesh
 meshTest = True
 openCrack = True
 optimMesh = True
+
+# outputs
+plotResult = True
+showResult = True
+plotMesh = False
+plotEnergy = False
+saveParaview = False
+makeMovie = False
 
 # phasefield
 maxIter = 1000
@@ -58,14 +66,6 @@ splits = ["Miehe"]
 
 # regus = ["AT1", "AT2"]
 regus = ["AT1"]  # "AT1", "AT2"
-
-# PostProcessing
-plotResult = True
-showResult = True
-plotMesh = False
-plotEnergy = False
-saveParaview = False
-makeMovie = False
 
 # ----------------------------------------------
 # Mesh
@@ -143,11 +143,8 @@ def DoMesh(split: str) -> Mesh:
 # ----------------------------------------------
 def DoSimu(split: str, regu: str):
     # Builds the path to the folder based on the problem data
-    folderName = "Shear_Benchmark"
-    if dim == 3:
-        folderName += "_3D"
     folder_save = Folder.PhaseField_Folder(
-        folderName,
+        f"Shear_{dim}D",
         "ElasIsot",
         split,
         regu,
@@ -277,7 +274,7 @@ def DoSimu(split: str, regu: str):
         force, displacement = Simulations.Load_pickle(folder_save, "force-displacement")
 
     # ----------------------------------------------
-    # PostProcessing
+    # Results
     # ---------------------------------------------
     if plotResult:
         ax = Display.Plot_Result(

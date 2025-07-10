@@ -29,10 +29,13 @@ if __name__ == "__main__":
     # ----------------------------------------------
     # Configuration
     # ----------------------------------------------
+
+    # simu options
     doSimu = True
     meshTest = True
     optimMesh = True
 
+    # outputs
     pltIter = False
     pltLoad = False
     makeMovie = False
@@ -44,21 +47,20 @@ if __name__ == "__main__":
     nL = 50
     ep = 100
 
-    # material
+    # model
     E = 2e4  # MPa
     v = 0.18
 
-    # phase field
     split = "Miehe"
-    # split = "AnisotStress"
     regu = "AT1"
     Gc = 130  # J/m2
     Gc *= 1000 / 1e6  # mJ/mm2
+
+    # convergence
     tolConv = 1e-0
     convOption = 2
 
-    # loading
-    # uMax = 1.2 # mm
+    # load
     uMax = 1  # mm
     inc0 = uMax / 25
     inc1 = inc0 / 2
@@ -78,11 +80,18 @@ if __name__ == "__main__":
     simu.add_dirichlet(nodes_load, [ud], ['y'])
     """
 
-    # folder
-    name = "L_Shape_Benchmark"
-    if dim == 3:
-        name += "_3D"
-    folder = Folder.Join(Folder.RESULTS_DIR, name, mkdir=True)
+    folder = Folder.PhaseField_Folder(
+        f"LShape_{dim}D",
+        "Isot",
+        split,
+        regu,
+        "",
+        tolConv,
+        "",
+        meshTest,
+        optimMesh,
+        nL=nL,
+    )
 
     # ----------------------------------------------
     # Mesh
@@ -229,7 +238,7 @@ if __name__ == "__main__":
     force, displacement = Simulations.Load_pickle(folder_save, "force-displacement")
 
     # ----------------------------------------------
-    # PostProcessing
+    # Results
     # ----------------------------------------------
     Display.Plot_Result(simu, "damage", folder=folder_save)
     Display.Plot_Mesh(simu)

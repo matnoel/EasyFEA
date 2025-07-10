@@ -105,7 +105,7 @@ def PhaseField_Folder(
         else:
             name = f"{name} nL={nL}"
 
-    workFolder = Join(RESULTS_DIR, folder, mkdir=True)
+    workFolder = Join(RESULTS_DIR, "PhaseField", folder, mkdir=True)
     path = workFolder.split(folder)[0]
 
     if test:
