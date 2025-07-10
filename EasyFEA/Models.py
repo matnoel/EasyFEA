@@ -46,4 +46,4 @@ from .models._thermal import Thermal
 # WeakFormManager
 # ----------------------------------------------
 
-from .models._weak_form_manager import WeakForms
+from .models._weak_forms import WeakForms
