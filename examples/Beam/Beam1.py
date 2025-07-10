@@ -19,13 +19,18 @@ if __name__ == "__main__":
     # Configuration
     # ----------------------------------------------
 
+    # geom
     L = 10
     nL = 10
     h = 0.1
     b = 0.1
+
+    # model
     E = 200000e6
     ro = 7800
     v = 0.3
+
+    # load
     g = 10
     q = ro * g * (h * b)
     load = 5000

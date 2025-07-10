@@ -16,13 +16,22 @@ if __name__ == "__main__":
     Display.Clear()
 
     # ----------------------------------------------
+    # Configuration
+    # ----------------------------------------------
+
+    # geom
+    L = 100  # mm
+
+    # model
+    E = 276  # MPa
+    v = 0.3
+
+    # ----------------------------------------------
     # Mesh
     # ----------------------------------------------
 
     elemType = ElemType.SEG2
-    dim = 2  # must be >= 2
-
-    L = 100  # mm
+    dim = 3  # must be >= 2
 
     pA = (2 * L, 0)
     pB = (L, 0)
@@ -38,10 +47,8 @@ if __name__ == "__main__":
     line6 = Line(pB, pE)
     lines = [line1, line2, line3, line4, line5, line6]
 
-    section = Mesher().Mesh_2D(Domain((-4 / 2, -8 / 2), (4 / 2, 8 / 2)))
-
-    E = 276  # MPa
-    v = 0.3
+    contour = Domain((-4 / 2, -8 / 2), (4 / 2, 8 / 2))
+    section = Mesher().Mesh_2D(contour)
 
     beams = [Models.BeamElasIsot(dim, line, section, E, v) for line in lines]
     structure = Models.BeamStructure(beams)

@@ -19,13 +19,17 @@ if __name__ == "__main__":
     # Configuration
     # ----------------------------------------------
 
+    # geom
     L = 120
-    nL = 10
     h = 20
     b = 13
     e = 2
+
+    # model
     E = 210000
     v = 0.3
+
+    # load
     load = 800
 
     # ----------------------------------------------
@@ -62,7 +66,7 @@ if __name__ == "__main__":
     p1 = Point()
     pL = Point(x=L / 2)
     p2 = Point(x=L)
-    line = Line(p1, p2, L / nL)
+    line = Line(p1, p2, L / 9)
     beam = Models.BeamElasIsot(beamDim, line, section, E, v)
 
     mesh = Mesher().Mesh_Beams([beam], additionalPoints=[pL], elemType=elemType)
@@ -95,7 +99,7 @@ if __name__ == "__main__":
 
     uy_1d = np.abs(simu.Result("uy").min())
 
-    Display.MyPrint(f"err uy : {np.abs(u_an - uy_1d) / u_an * 100:.2e} %")
+    Display.MyPrint(f"err uy : {np.abs(u_an - uy_1d) / u_an * 100:.2f} %")
 
     Display.Plot_Mesh(simu, L / 20 / sol.min())
     ax = Display.Plot_Mesh(section)

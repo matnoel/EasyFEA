@@ -19,12 +19,17 @@ if __name__ == "__main__":
     # Configuration
     # ----------------------------------------------
 
+    # geom
     L = 120
     nL = 10
     h = 13
     b = 13
+
+    # model
     E = 210000
-    uy = 0.3
+    v = 0.3
+
+    # load
     load = 800
 
     # ----------------------------------------------
@@ -41,7 +46,7 @@ if __name__ == "__main__":
     p1 = (0, 0)
     p2 = (L, 0)
     line = Line(p1, p2, L / nL)
-    beam = Models.BeamElasIsot(beamDim, line, section, E, uy)
+    beam = Models.BeamElasIsot(beamDim, line, section, E, v)
 
     mesh = mesher.Mesh_Beams([beam], elemType=elemType)
 
@@ -76,19 +81,19 @@ if __name__ == "__main__":
     Display.Plot_Result(simu, "uy")
 
     rz = simu.Result("rz")
-    uy = simu.Result("uy")
+    v = simu.Result("uy")
 
     x = np.linspace(0, L, 100)
     uy_x = load / (E * Iz) * (x**3 / 6 - (L * x**2) / 2)
 
     flecheanalytique = load * L**3 / (3 * E * Iz)
-    err_uy = np.abs(flecheanalytique + uy.min()) / flecheanalytique
+    err_uy = np.abs(flecheanalytique + v.min()) / flecheanalytique
     Display.MyPrint(f"err uy: {err_uy * 100:.2e} %")
 
     # Plot the analytical and finite element solutions for vertical displacement (v)
     axUy = Display.Init_Axes()
     axUy.plot(x, uy_x, label="Analytical", c="blue")
-    axUy.scatter(mesh.coord[:, 0], uy, label="FE", c="red", marker="x", zorder=2)
+    axUy.scatter(mesh.coord[:, 0], v, label="FE", c="red", marker="x", zorder=2)
     axUy.set_title("$u_y(x)$")
     axUy.legend()
 

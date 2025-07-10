@@ -19,12 +19,16 @@ if __name__ == "__main__":
     # Configuration
     # ----------------------------------------------
 
+    # geom
     L = 120
-    nL = 10
     h = 13
     b = 13
+
+    # model
     E = 210000
     v = 0.3
+
+    # load
     load = 800
 
     # ----------------------------------------------
@@ -40,8 +44,8 @@ if __name__ == "__main__":
     p1 = (0, 0)
     p2 = (0, L)
     p3 = (L / 2, L)
-    line1 = Line(p1, p2, L / nL)
-    line2 = Line(p2, p3, L / nL)
+    line1 = Line(p1, p2, L / 9)
+    line2 = Line(p2, p3, L / 9)
     beam1 = Models.BeamElasIsot(3, line1, section, E, v)
     beam2 = Models.BeamElasIsot(3, line2, section, E, v)
     beams = [beam1, beam2]
