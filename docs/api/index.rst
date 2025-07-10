@@ -11,6 +11,6 @@ EasyFEA is organized into several sub-modules. While the complete API remains ac
 
    fem
    geoms
-   materials
+   models
    simulations
    utilities

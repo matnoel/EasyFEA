@@ -14,7 +14,7 @@ With this module, you can construct:
 + Elastic beams with :py:class:`~EasyFEA.models.BeamElasIsot`.
 + Phase-field materials with :py:class:`~EasyFEA.models.PhaseField`.
 + Thermal materials with :py:class:`~EasyFEA.models.Thermal`.
-+ Weark form manager with :py:class:`~EasyFEA.models.WeakFormManager`.
++ Weark form manager with :py:class:`~EasyFEA.models.WeakForms`.
 
 
 Detailed materials API
