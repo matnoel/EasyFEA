@@ -18,25 +18,28 @@ from EasyFEA.Geoms import Domain
 if __name__ == "__main__":
     Display.Clear()
 
-    makeMovie = True
-
     # ----------------------------------------------
     # Configuration
     # ----------------------------------------------
-    dim = 2
-    folder = Folder.Join(
-        Folder.RESULTS_DIR, "FunctionBased", "LinearElasticity2", mkdir=True
-    )
 
+    dim = 3
+
+    # outputs
+    makeMovie = True
+    folder = Folder.Join(Folder.RESULTS_DIR, "FunctionBased", "LinearElasticity2")
+
+    # geom
     L = 120  # mm
     h = 13
     F = -800  # N
 
+    # model
     elastic = Models.ElasIsot(dim, 210000, 0.3, planeStress=True, thickness=h)
     lmbda = elastic.get_lambda()
     mu = elastic.get_mu()
-
     rho = 8100 * 1e-9
+
+    # load
     Tmax = 0.5
     N = 50
     dt = Tmax / N
@@ -85,15 +88,13 @@ if __name__ == "__main__":
         C = K * 1e-3 + M * 1e-3
         return C
 
-    weakFormManager = Models.WeakFormManager(
-        field, computeK=computeK, computeC=ComputeC, computeM=ComputeM
-    )
+    weakForms = Models.WeakFormManager(field, computeK, ComputeC, ComputeM)
 
     # ----------------------------------------------
     # Simulations
     # ----------------------------------------------
 
-    simu = Simulations.WeakFormSimu(mesh, weakFormManager)
+    simu = Simulations.WeakFormSimu(mesh, weakForms)
 
     # static simulation
     simu.add_dirichlet(nodes_x0, [0] * dim, simu.Get_unknowns())

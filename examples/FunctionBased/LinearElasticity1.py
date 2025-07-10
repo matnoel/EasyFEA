@@ -24,10 +24,12 @@ if __name__ == "__main__":
 
     dim = 2
 
+    # geom
     L = 120  # mm
     h = 13
     F = -800  # N
 
+    # model
     elastic = Models.ElasIsot(dim, 210000, 0.3, planeStress=True, thickness=h)
     lmbda = elastic.get_lambda()
     mu = elastic.get_mu()
@@ -45,6 +47,9 @@ if __name__ == "__main__":
             [], [0, 0, h], [3], ElemType.HEXA27, isOrganised=True
         )
 
+    nodes_x0 = mesh.Nodes_Conditions(lambda x, y, z: x == 0)
+    nodes_xL = mesh.Nodes_Conditions(lambda x, y, z: x == L)
+
     # ----------------------------------------------
     # Formulations
     # ----------------------------------------------
@@ -56,21 +61,19 @@ if __name__ == "__main__":
         return 2 * mu * Eps + lmbda * Trace(Eps) * np.eye(dim)
 
     @BiLinearForm
-    def bilinear_form(u: Field, v: Field):
+    def ComputeK(u: Field, v: Field):
         Sig = S(u)
         Eps = Sym_Grad(v)
         return Sig.ddot(Eps)
 
-    weakFormManager = Models.WeakFormManager(field, bilinear_form)
+    weakForms = Models.WeakFormManager(field, ComputeK)
 
     # ----------------------------------------------
     # Simulations
     # ----------------------------------------------
 
-    simu = Simulations.WeakFormSimu(mesh, weakFormManager)
+    simu = Simulations.WeakFormSimu(mesh, weakForms)
 
-    nodes_x0 = mesh.Nodes_Conditions(lambda x, y, z: x == 0)
-    nodes_xL = mesh.Nodes_Conditions(lambda x, y, z: x == L)
     simu.add_dirichlet(nodes_x0, [0] * dim, simu.Get_unknowns())
     simu.add_surfLoad(nodes_xL, [F / h**2], ["y"])
 

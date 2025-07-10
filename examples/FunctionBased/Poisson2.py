@@ -26,6 +26,8 @@ if __name__ == "__main__":
 
     mesh = contour.Mesh_2D([], ElemType.TRI15, isOrganised=True)
 
+    nodes = mesh.Nodes_Tags(["L0", "L1", "L2", "L3"])
+
     # ----------------------------------------------
     # Formulations
     # ----------------------------------------------
@@ -42,23 +44,27 @@ if __name__ == "__main__":
         f = np.sin(np.pi * x) * np.sin(np.pi * y)
         return f * v
 
-    weakFormManager = Models.WeakFormManager(
+    weakForms = Models.WeakFormManager(
         field, computeK=bilinear_form, computeF=linear_form
     )
 
-    simu = Simulations.WeakFormSimu(mesh, weakFormManager)
+    # ----------------------------------------------
+    # Simulation
+    # ----------------------------------------------
 
-    nodes = mesh.Nodes_Tags(["L0", "L1", "L2", "L3"])
+    simu = Simulations.WeakFormSimu(mesh, weakForms)
+
     simu.add_dirichlet(nodes, [0], ["u"])
 
     simu.Solve()
 
     # ----------------------------------------------
-    # Formulations
+    # Results
     # ----------------------------------------------
 
     Display.Plot_Result(simu, "u", plotMesh=True)
 
+    # compute error
     x, y, z = mesh.coord.T
     u_an = 1 / 2 / np.pi**2 * np.sin(np.pi * x) * np.sin(np.pi * y)
     error = np.linalg.norm(u_an - simu.u) / np.linalg.norm(u_an)

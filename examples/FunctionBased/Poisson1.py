@@ -26,6 +26,8 @@ if __name__ == "__main__":
 
     mesh = contour.Mesh_2D([], ElemType.TRI3, isOrganised=True)
 
+    nodes = mesh.Nodes_Tags(["L0", "L1", "L2", "L3"])
+
     # ----------------------------------------------
     # Formulations
     # ----------------------------------------------
@@ -40,19 +42,22 @@ if __name__ == "__main__":
     def linear_form(v: Field):
         return 1.0 * v
 
-    weakFormManager = Models.WeakFormManager(
+    weakForms = Models.WeakFormManager(
         field, computeK=bilinear_form, computeF=linear_form
     )
 
-    simu = Simulations.WeakFormSimu(mesh, weakFormManager)
+    # ----------------------------------------------
+    # Simulation
+    # ----------------------------------------------
 
-    nodes = mesh.Nodes_Tags(["L0", "L1", "L2", "L3"])
+    simu = Simulations.WeakFormSimu(mesh, weakForms)
+
     simu.add_dirichlet(nodes, [0], ["u"])
 
     simu.Solve()
 
     # ----------------------------------------------
-    # Formulations
+    # Results
     # ----------------------------------------------
 
     Display.Plot_Result(simu, "u")
