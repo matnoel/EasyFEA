@@ -44,9 +44,7 @@ if __name__ == "__main__":
         f = np.sin(np.pi * x) * np.sin(np.pi * y)
         return f * v
 
-    weakForms = Models.WeakFormManager(
-        field, computeK=bilinear_form, computeF=linear_form
-    )
+    weakForms = Models.WeakForms(field, computeK=bilinear_form, computeF=linear_form)
 
     # ----------------------------------------------
     # Simulation

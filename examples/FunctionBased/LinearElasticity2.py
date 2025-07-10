@@ -87,7 +87,7 @@ if __name__ == "__main__":
         C = K * 1e-3 + M * 1e-3
         return C
 
-    weakForms = Models.WeakFormManager(field, computeK, computeC, computeM)
+    weakForms = Models.WeakForms(field, computeK, computeC, computeM)
 
     # ----------------------------------------------
     # Simulations

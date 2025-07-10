@@ -27,7 +27,7 @@ class WeakFormSimu(_Simu):
     def __init__(
         self,
         mesh: "Mesh",
-        model: Models.WeakFormManager,
+        model: Models.WeakForms,
         verbosity=False,
         useNumba=True,
         useIterativeSolvers=True,
@@ -38,7 +38,7 @@ class WeakFormSimu(_Simu):
         ----------
         mesh : Mesh
             The mesh used.
-        model : WeakFormManager
+        model : WeakForms
             The model used.
         verbosity : bool, optional
             If True, the simulation can write in the terminal. Defaults to False.
@@ -48,9 +48,7 @@ class WeakFormSimu(_Simu):
             If True, iterative solvers can be used. Defaults to True.
         """
 
-        assert isinstance(
-            model, Models.WeakFormManager
-        ), "model must be a weakf form manager"
+        assert isinstance(model, Models.WeakForms), "model must be a weakf form manager"
         super().__init__(mesh, model, verbosity, useNumba, useIterativeSolvers)
 
         # init
@@ -61,7 +59,7 @@ class WeakFormSimu(_Simu):
 
     def Get_unknowns(self, problemType=None) -> list[str]:
 
-        dof_n = self.weakFormManager.field.dof_n
+        dof_n = self.weakForms.field.dof_n
 
         if dof_n == 1:
             return ["u"]
@@ -72,7 +70,7 @@ class WeakFormSimu(_Simu):
             raise ValueError("Unknown dof_n configuration.")
 
     def Get_dof_n(self, problemType=None) -> int:
-        return self.weakFormManager.field.dof_n
+        return self.weakForms.field.dof_n
 
     def Results_nodeFields_elementFields(
         self, details=False
@@ -85,7 +83,7 @@ class WeakFormSimu(_Simu):
         return [ModelType.weakForm]
 
     @property
-    def weakFormManager(self) -> Models.WeakFormManager:
+    def weakForms(self) -> Models.WeakForms:
         """Weak form manager."""
         return self.model  # type: ignore [return-value]
 
@@ -122,7 +120,7 @@ class WeakFormSimu(_Simu):
         """Construct the matrix system for the thermal problem in stationary or transient regime."""
 
         # Data
-        weakFormManager = self.weakFormManager
+        weakFormManager = self.weakForms
         mesh = self.mesh
         field = weakFormManager.field
         Ndof = mesh.Nn * field.dof_n
@@ -300,7 +298,7 @@ class WeakFormSimu(_Simu):
         options = []
         options.extend(["u", "v", "a", "displacement_matrix"])
 
-        dof_n = self.weakFormManager.field.dof_n
+        dof_n = self.weakForms.field.dof_n
 
         if dof_n == 1:
             pass
@@ -382,7 +380,7 @@ class WeakFormSimu(_Simu):
 
     def Results_displacement_matrix(self) -> _types.FloatArray:
 
-        dof_n = self.weakFormManager.field.dof_n
+        dof_n = self.weakForms.field.dof_n
         Nn = self.mesh.Nn
         displacement_matrix = np.zeros((Nn, 3))
 

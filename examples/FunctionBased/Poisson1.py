@@ -42,9 +42,7 @@ if __name__ == "__main__":
     def linear_form(v: Field):
         return 1.0 * v
 
-    weakForms = Models.WeakFormManager(
-        field, computeK=bilinear_form, computeF=linear_form
-    )
+    weakForms = Models.WeakForms(field, computeK=bilinear_form, computeF=linear_form)
 
     # ----------------------------------------------
     # Simulation

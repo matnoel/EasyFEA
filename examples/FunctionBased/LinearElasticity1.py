@@ -68,7 +68,7 @@ if __name__ == "__main__":
         Eps = Sym_Grad(v)
         return Sig.ddot(Eps)
 
-    weakForms = Models.WeakFormManager(field, ComputeK)
+    weakForms = Models.WeakForms(field, ComputeK)
 
     # ----------------------------------------------
     # Simulations

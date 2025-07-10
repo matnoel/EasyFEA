@@ -11,7 +11,7 @@ from ..fem import Field, BiLinearForm, LinearForm
 from ._utils import _IModel, ModelType
 
 
-class WeakFormManager(_IModel):
+class WeakForms(_IModel):
     """Class responsible for computing the finite element matrices used in the system \( K u + C v + M a = F \)."""
 
     def __init__(

@@ -26,4 +26,4 @@ from ._utils import (
     Get_Pmat,
     Apply_Pmat,
 )
-from ._weak_form_manager import WeakFormManager
+from ._weak_form_manager import WeakForms
