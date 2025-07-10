@@ -8,7 +8,7 @@ LinearElasticity2
 
 A cantilever beam undergoing bending deformation in dynamic.
 
-Note that this simulation is also performed in `examples/Elastic/Elas1.py`.
+Note that this simulation is also performed in `examples/Dynamic/Dynamic1.py`.
 """
 
 from EasyFEA import Folder, Display, ElemType, Models, Simulations, PyVista, np
@@ -26,7 +26,7 @@ if __name__ == "__main__":
 
     # outputs
     makeMovie = True
-    folder = Folder.Join(Folder.RESULTS_DIR, "FunctionBased", "LinearElasticity2")
+    folder = Folder.Join(Folder.RESULTS_DIR, "WeakForms", "LinearElasticity2")
 
     # geom
     L = 120  # mm
