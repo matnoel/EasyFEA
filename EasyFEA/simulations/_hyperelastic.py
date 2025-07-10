@@ -144,7 +144,7 @@ class HyperElasticSimu(_Simu):
 
         return delta_u
 
-    def _Solver_problemType_is_non_linear(self, problemType):
+    def _Solver_problemType_is_incremental(self, problemType):
         return True
 
     def Solve(self, tolConv=1.0e-5, maxIter=20) -> _types.FloatArray:

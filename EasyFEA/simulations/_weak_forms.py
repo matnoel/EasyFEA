@@ -54,6 +54,8 @@ class WeakFormSimu(_Simu):
         # init
         self.Solver_Set_Elliptic_Algorithm()
 
+        self.__solverIsIncremental = False
+
     def _Check_dim_mesh_material(self) -> None:
         pass
 
@@ -194,7 +196,6 @@ class WeakFormSimu(_Simu):
     def Solve(self):
 
         # solve u
-        self.__isNonLinear = False
         u = Solve_simu(self, self.problemType)
 
         # update and set solutions
@@ -210,7 +211,9 @@ class WeakFormSimu(_Simu):
 
         return delta_u
 
-    def Solve_NonLinear(self, tolConv=1.0e-5, maxIter=20) -> _types.FloatArray:
+    def Solve_NonLinear(
+        self, tolConv=1.0e-5, maxIter=20, solverIsIncremental: bool = False
+    ) -> _types.FloatArray:
         """Solves the problem using the newton raphson algorithm.
 
         Parameters
@@ -219,6 +222,8 @@ class WeakFormSimu(_Simu):
             threshold used to check convergence, by default 1e-5
         maxIter : int, optional
             Maximum iterations for convergence, by default 20
+        solverIsIncremental : bool, optional
+            Solver is incremental, by default False
 
         Returns
         -------
@@ -227,29 +232,18 @@ class WeakFormSimu(_Simu):
         """
 
         # solve u
-        self.__isNonLinear = True
+        self.__solverIsIncremental = solverIsIncremental
         u, Niter, timeIter, list_res = self._Solver_Solve_NewtonRaphson(
             self.__Solve_delta_u, tolConv, maxIter
         )
 
-        # save iter parameters
-        self.__Niter = Niter
-        self.__timeIter = timeIter
-        self.__list_res = list_res
-
         return u
 
-    def _Solver_problemType_is_non_linear(self, problemType):
-        return self.__isNonLinear
+    def _Solver_problemType_is_incremental(self, problemType):
+        return self.__solverIsIncremental
 
     def Save_Iter(self):
         iter = super().Save_Iter()
-
-        if self.__isNonLinear:
-            # convergence informations
-            iter["Niter"] = self.__Niter
-            iter["timeIter"] = self.__timeIter
-            iter["list_res"] = self.__list_res
 
         if self.algo == AlgoType.elliptic:
             iter["u"] = self.u

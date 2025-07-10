@@ -801,7 +801,7 @@ class _Simu(_IObserver, ABC):
         else:
             raise TypeError(f"Algo {algo} is not implemented here.")
 
-    def _Solver_problemType_is_non_linear(self, problemType: ModelType) -> bool:
+    def _Solver_problemType_is_incremental(self, problemType: ModelType) -> bool:
         return False
 
     def _Solver_Solve_NewtonRaphson(
@@ -836,8 +836,11 @@ class _Simu(_IObserver, ABC):
 
         tic = Tic()
 
-        # init u and du
-        u = self._Get_u_n(problemType)
+        solverIsIncremental = self._Solver_problemType_is_incremental(problemType)
+
+        if solverIsIncremental:
+            # init u
+            u = self._Get_u_n(problemType)
 
         # init convergence list
         list_res: list[float] = []
@@ -846,12 +849,17 @@ class _Simu(_IObserver, ABC):
         while not converged and Niter < maxIter:
             Niter += 1
 
-            # compute delta_u and ||delta_u||
-            delta_u = Solve()
-            norm_delta_u = np.linalg.norm(delta_u)
+            if solverIsIncremental:
+                # compute delta_u and ||delta_u||
+                delta_u = Solve()
+                norm_delta_u = np.linalg.norm(delta_u)
+                # uptate displacement
+                u += delta_u
+            else:
+                # compute u
+                u = Solve()
+                norm_delta_u = 1
 
-            # uptate displacement
-            u += delta_u
             self.__Set_u_n(problemType, u)
 
             # compute || b ||
@@ -1030,7 +1038,7 @@ class _Simu(_IObserver, ABC):
         dofs = self.Bc_dofs_Dirichlet(problemType)
         dofsValues = self.Bc_values_Dirichlet(problemType)
 
-        if self._Solver_problemType_is_non_linear(problemType):
+        if self._Solver_problemType_is_incremental(problemType):
             # du = du - u
             dofsValues -= self._Get_u_n(problemType)[dofs]
 
