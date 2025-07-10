@@ -27,6 +27,8 @@ if __name__ == "__main__":
     # geom
     L = 120  # mm
     h = 13
+
+    # load
     F = -800  # N
 
     # model
@@ -47,8 +49,8 @@ if __name__ == "__main__":
             [], [0, 0, h], [3], ElemType.HEXA27, isOrganised=True
         )
 
-    nodes_x0 = mesh.Nodes_Conditions(lambda x, y, z: x == 0)
-    nodes_xL = mesh.Nodes_Conditions(lambda x, y, z: x == L)
+    nodesX0 = mesh.Nodes_Conditions(lambda x, y, z: x == 0)
+    nodesXL = mesh.Nodes_Conditions(lambda x, y, z: x == L)
 
     # ----------------------------------------------
     # Formulations
@@ -74,8 +76,8 @@ if __name__ == "__main__":
 
     simu = Simulations.WeakFormSimu(mesh, weakForms)
 
-    simu.add_dirichlet(nodes_x0, [0] * dim, simu.Get_unknowns())
-    simu.add_surfLoad(nodes_xL, [F / h**2], ["y"])
+    simu.add_dirichlet(nodesX0, [0] * dim, simu.Get_unknowns())
+    simu.add_surfLoad(nodesXL, [F / h**2], ["y"])
 
     simu.Solve()
 

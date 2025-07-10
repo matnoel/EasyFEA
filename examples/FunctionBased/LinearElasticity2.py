@@ -31,7 +31,6 @@ if __name__ == "__main__":
     # geom
     L = 120  # mm
     h = 13
-    F = -800  # N
 
     # model
     elastic = Models.ElasIsot(dim, 210000, 0.3, planeStress=True, thickness=h)
@@ -58,8 +57,8 @@ if __name__ == "__main__":
             [], [0, 0, h], [3], ElemType.HEXA8, isOrganised=True
         )
 
-    nodes_x0 = mesh.Nodes_Conditions(lambda x, y, z: x == 0)
-    nodes_xL = mesh.Nodes_Conditions(lambda x, y, z: x == L)
+    nodesX0 = mesh.Nodes_Conditions(lambda x, y, z: x == 0)
+    nodesXL = mesh.Nodes_Conditions(lambda x, y, z: x == L)
 
     # ----------------------------------------------
     # Formulations
@@ -78,17 +77,17 @@ if __name__ == "__main__":
         return Sig.ddot(Eps)
 
     @BiLinearForm
-    def ComputeM(u: Field, v: Field):
+    def computeM(u: Field, v: Field):
         return rho * u.dot(v)
 
     @BiLinearForm
-    def ComputeC(u: Field, v: Field):
-        M = rho * u.dot(v)
-        K = S(u).ddot(Sym_Grad(v))
+    def computeC(u: Field, v: Field):
+        K = computeK._form(u, v)
+        M = computeM._form(u, v)
         C = K * 1e-3 + M * 1e-3
         return C
 
-    weakForms = Models.WeakFormManager(field, computeK, ComputeC, ComputeM)
+    weakForms = Models.WeakFormManager(field, computeK, computeC, computeM)
 
     # ----------------------------------------------
     # Simulations
@@ -97,8 +96,8 @@ if __name__ == "__main__":
     simu = Simulations.WeakFormSimu(mesh, weakForms)
 
     # static simulation
-    simu.add_dirichlet(nodes_x0, [0] * dim, simu.Get_unknowns())
-    simu.add_dirichlet(nodes_xL, [-10], ["y"])
+    simu.add_dirichlet(nodesX0, [0] * dim, simu.Get_unknowns())
+    simu.add_dirichlet(nodesXL, [-10], ["y"])
 
     simu.Solve()
 
@@ -107,7 +106,7 @@ if __name__ == "__main__":
     simu.Save_Iter()
 
     simu.Bc_Init()
-    simu.add_dirichlet(nodes_x0, [0] * dim, simu.Get_unknowns())
+    simu.add_dirichlet(nodesX0, [0] * dim, simu.Get_unknowns())
 
     while time <= Tmax:
 
@@ -122,7 +121,8 @@ if __name__ == "__main__":
     # Results
     # ----------------------------------------------
 
-    Display.Plot_Result(simu, "uy", 1, plotMesh=True)
+    simu.Set_Iter(0)
+    PyVista.Plot(simu, "uy", 1, show_edges=True).show()
 
     if makeMovie:
         PyVista.Movie_simu(
