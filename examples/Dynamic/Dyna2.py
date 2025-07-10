@@ -10,7 +10,7 @@ Wave propagation.
 """
 # TODO: Compare results with analytical values.
 
-from EasyFEA import Display, Models, Tic, plt, ElemType, Simulations
+from EasyFEA import Folder, Display, Models, Tic, plt, ElemType, Simulations, PyVista
 from EasyFEA.Geoms import Domain, Circle, Line
 
 if __name__ == "__main__":
@@ -19,6 +19,13 @@ if __name__ == "__main__":
     # ----------------------------------------------
     # Configuration
     # ----------------------------------------------
+
+    # outputs
+    folder = Folder.Join(Folder.RESULTS_DIR, "Dynamics", "Dyna2")
+    plotModel = False
+    plotIter = False
+    makeMovie = True
+    result = "speed_norm"
 
     # Define geometric parameters
     a = 1
@@ -37,12 +44,6 @@ if __name__ == "__main__":
     a0 = 1
     t0 = dt * 4
 
-    plotModel = False  # Define whether to plot the model
-    plotIter = True  # Define whether to plot the results at each iteration
-
-    # Specify the result to plot (speed_norm in this case)
-    result = "speed_norm"
-
     # ----------------------------------------------
     # Mesh
     # ----------------------------------------------
@@ -51,7 +52,7 @@ if __name__ == "__main__":
     domain = Domain((-a / 2, -a / 2), (a / 2, a / 2), meshSize)
     circle = Circle((0, 0), diam, meshSize, isHollow=False)
     line = Line((0, 0), (diam / 4, 0))
-    mesh = domain.Mesh_2D([circle], ElemType.TRI3, cracks=[line])
+    mesh = domain.Mesh_2D([circle], ElemType.TRI6, cracks=[line])
 
     # Plot the model if specified
     if plotModel:
@@ -84,9 +85,7 @@ if __name__ == "__main__":
 
         # Set Neumann boundary conditions (loading) at t = t0
         if t == t0:
-            # simu.add_neumann(nodesLoad, [load, -load], ["x", "y"], description="[load,load]")
             simu.add_neumann(nodesLoad, [load], ["x"])
-            # simu.add_lineLoad(nodesLoad, [load/line.length], ['x'])
 
     # Plot the result at the initial iteration if specified
     if plotIter:
@@ -115,5 +114,17 @@ if __name__ == "__main__":
             plt.pause(1e-12)
 
         t += dt
+
+    # ----------------------------------------------
+    # Results
+    # ----------------------------------------------
+
+    if makeMovie:
+        PyVista.Movie_simu(
+            simu,
+            f"{result}",
+            folder,
+            f"{result}.gif",
+        )
 
     plt.show()

@@ -24,18 +24,19 @@ from EasyFEA.Geoms import Domain
 if __name__ == "__main__":
     Display.Clear()
 
-    makeParaview = False
-    makeMovie = True
-
     # ----------------------------------------------
     # Configuration
     # ----------------------------------------------
     dim = 2
-    folder = Folder.Join(Folder.RESULTS_DIR, "Dynamics", "Dyna1", mkdir=True)
+
+    # outputs
+    folder = Folder.Join(Folder.RESULTS_DIR, "Dynamics", "Dyna1")
+    makeParaview = False
+    makeMovie = True
+    result = "uy"
 
     # geom
-    L = 120
-    # mm
+    L = 120  # mm
     h = 13
     b = 13
 
@@ -114,17 +115,15 @@ if __name__ == "__main__":
     if makeMovie:
         PyVista.Movie_simu(
             simu,
-            "uy",
+            f"{result}",
             folder,
-            "uy.gif",
+            f"{result}.gif",
             deformFactor=1,
             show_edges=True,
-            N=400,
-            nodeValues=True,
         )
 
     print(simu)
-    Display.Plot_Result(simu, "uy", deformFactor=1, nodeValues=False)
+    Display.Plot_Result(simu, f"{result}", deformFactor=1, nodeValues=False)
     Display.Plot_Result(simu, "Svm", plotMesh=False, nodeValues=False)
 
     plt.show()

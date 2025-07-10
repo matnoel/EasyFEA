@@ -71,16 +71,22 @@ def Construct_struct(
 if __name__ == "__main__":
     Display.Clear()
 
+    # ----------------------------------------------
+    # Configuration
+    # ----------------------------------------------
+
+    # geom
+    L = 21  # m
+    e = 1
+    t = 0.5
+
+    # outputs
     isFixed = True
     Nmode = 3
 
     # ----------------------------------------------
     # Mesh
     # ----------------------------------------------
-
-    L = 21  # m
-    e = 1
-    t = 0.5
 
     mesh = Construct_struct(L, e, t, 0, False, False)
 

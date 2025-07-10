@@ -24,7 +24,13 @@ from scipy.sparse import linalg, eye
 if __name__ == "__main__":
     Display.Clear()
 
+    # ----------------------------------------------
+    # Configuration
+    # ----------------------------------------------
+
     dim = 3
+
+    # outputs
     isFixed = True
     Nmode = 3
 
@@ -95,7 +101,7 @@ if __name__ == "__main__":
         plotter.show()
 
     axModes = Display.Init_Axes()
-    axModes.plot(np.arange(eigenValues.size), freq_t, ls="", marker=".")
+    axModes.plot(np.arange(eigenValues.size), freq_t, ls="", marker="+")
     axModes.set_xlabel("modes")
     axModes.set_ylabel("freq [Hz]")
     axModes.grid()
