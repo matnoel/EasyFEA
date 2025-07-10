@@ -14,15 +14,17 @@ from EasyFEA import Display, Models, plt, np, ElemType, Simulations
 from EasyFEA.Geoms import Point, Points, Line
 from EasyFEA.fem import FeArray
 
-from Homog1 import Calc_ukl
+from Homog1 import Compute_ukl
 
 if __name__ == "__main__":
     Display.Clear()
 
+    # ----------------------------------------------
+    # Configuration
+    # ----------------------------------------------
+
     # use Periodic boundary conditions ?
     usePER = True
-
-    elemType = ElemType.TRI6
 
     geom = "D666"  # hexagon
     # geom = 'D2' # rectangle
@@ -30,10 +32,11 @@ if __name__ == "__main__":
 
     hollowInclusion = True
 
-    # ----------------------------------------------------------------------------
+    # ----------------------------------------------
     # Mesh
-    # ----------------------------------------------------------------------------
+    # ----------------------------------------------
     N = 5
+    elemType = ElemType.TRI6
 
     if geom == "D666":
         a = 1
@@ -202,9 +205,9 @@ if __name__ == "__main__":
         nodes_border = mesh.Nodes_Tags([f"L{i}" for i in range(6)])
         paired_nodes = None
 
-    # ----------------------------------------------------------------------------
+    # ----------------------------------------------
     # Material and simulation
-    # ----------------------------------------------------------------------------
+    # ----------------------------------------------
     E = np.ones(mesh.Ne) * 70 * 1e9
     v = np.ones(mesh.Ne) * 0.45
 
@@ -219,25 +222,25 @@ if __name__ == "__main__":
 
     simu = Simulations.ElasticSimu(mesh, material, useIterativeSolvers=False)
 
-    # ----------------------------------------------------------------------------
+    # ----------------------------------------------
     # Homogenization
-    # ----------------------------------------------------------------------------
+    # ----------------------------------------------
     r2 = np.sqrt(2)
     E11 = np.array([[1, 0], [0, 0]])
     E22 = np.array([[0, 0], [0, 1]])
     E12 = np.array([[0, 1 / r2], [1 / r2, 0]])
 
-    u11 = Calc_ukl(simu, nodes_border, E11, paired_nodes)
-    u22 = Calc_ukl(simu, nodes_border, E22, paired_nodes)
-    u12 = Calc_ukl(simu, nodes_border, E12, paired_nodes, True)
+    u11 = Compute_ukl(simu, nodes_border, E11, paired_nodes)
+    u22 = Compute_ukl(simu, nodes_border, E22, paired_nodes)
+    u12 = Compute_ukl(simu, nodes_border, E12, paired_nodes, True)
 
     u11_e = mesh.Locates_sol_e(u11, asFeArray=True)
     u22_e = mesh.Locates_sol_e(u22, asFeArray=True)
     u12_e = mesh.Locates_sol_e(u12, asFeArray=True)
 
-    # ----------------------------------------------------------------------------
+    # ----------------------------------------------
     # Effective elasticity tensor (C_hom)
-    # ----------------------------------------------------------------------------
+    # ----------------------------------------------
     U_e = FeArray.zeros(*u11_e.shape, 3)
 
     U_e[..., 0] = u11_e

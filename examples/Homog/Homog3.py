@@ -21,7 +21,7 @@ from EasyFEA import (
 )
 from EasyFEA.fem import FeArray
 
-from Homog1 import Calc_ukl
+from Homog1 import Compute_ukl
 
 if __name__ == "__main__":
     Display.Clear()
@@ -32,21 +32,23 @@ if __name__ == "__main__":
     # use Periodic boundary conditions ?
     usePER = True
 
+    # geom
     L = 120  # mm
     h = 13
     b = 13
 
+    # inclusions
     nL = 40  # number of inclusions following x
     nH = 4  # number of inclusions following y
-    isHollow = True  # hollow inclusions
-
-    # c = 13/2
     cL = L / (2 * nL)
     cH = h / (2 * nH)
+    isHollow = True  # hollow inclusions
 
+    # model
     E = 210000
     v = 0.3
 
+    # load
     load = 800
 
     # ----------------------------------------------
@@ -142,9 +144,9 @@ if __name__ == "__main__":
         nodes_border = mesh_RVE.Nodes_Tags(["L0", "L1", "L2", "L3"])
         paired_nodes = None
 
-    u11 = Calc_ukl(simu_VER, nodes_border, E11, paired_nodes)
-    u22 = Calc_ukl(simu_VER, nodes_border, E22, paired_nodes)
-    u12 = Calc_ukl(simu_VER, nodes_border, E12, paired_nodes, True)
+    u11 = Compute_ukl(simu_VER, nodes_border, E11, paired_nodes)
+    u22 = Compute_ukl(simu_VER, nodes_border, E22, paired_nodes)
+    u12 = Compute_ukl(simu_VER, nodes_border, E12, paired_nodes, True)
 
     u11_e = mesh_RVE.Locates_sol_e(u11, asFeArray=True)
     u22_e = mesh_RVE.Locates_sol_e(u22, asFeArray=True)
