@@ -176,7 +176,7 @@ if __name__ == "__main__":
     print(simu)
 
     # ----------------------------------------------
-    # PostProcessing
+    # Results
     # ----------------------------------------------
     if not pltIter:
         plotter = PyVista.Plot(simu, result, show_edges=True, deformFactor=1)

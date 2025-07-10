@@ -79,7 +79,7 @@ if __name__ == "__main__":
     simu.Solve()
 
     # ----------------------------------------------
-    # PostProcessing
+    # Results
     # ----------------------------------------------
     matrixDep = simu.Results_displacement_matrix()
     depMax = np.max(np.linalg.norm(matrixDep, axis=1))
