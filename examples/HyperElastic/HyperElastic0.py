@@ -12,15 +12,7 @@ Mesh node coordinates are updated at each loading iteration.
 WARNING: Implementation not validated.
 """
 
-from EasyFEA import (
-    Display,
-    Folder,
-    Models,
-    np,
-    ElemType,
-    Simulations,
-    Paraview,
-)
+from EasyFEA import Display, Folder, Models, ElemType, Simulations, Paraview
 from EasyFEA.Geoms import Point, Points
 
 if __name__ == "__main__":
@@ -30,24 +22,26 @@ if __name__ == "__main__":
     # Configuration
     # ----------------------------------------------
     dim = 2
+
+    # outputs
+    folder = Folder.Join(Folder.RESULTS_DIR, "HyperElastic", "HyperElastic0")
     makeParaview = False
     useHyperElastic = True  # eulerian approch
-    calcE = dim == 2  # calculate green lagrange deformation if dim == s2
 
-    folder = Folder.Join(Folder.RESULTS_DIR, f"HyperElasticity{dim}D", mkdir=True)
-
+    # geom
     L = 250
     thickness = 50
     w = 50
 
-    meshSize = L / 10
-
+    # load
     sigMax = 8 * 1e5 / (w * thickness)
     uMax = 50
 
     # ----------------------------------------------
     # Mesh
     # ----------------------------------------------
+    meshSize = L / 10
+
     p1 = Point(0, 0)
     p2 = Point(L, 0)
     p3 = Point(L, L, r=50)
@@ -65,7 +59,6 @@ if __name__ == "__main__":
         mesh = contour.Mesh_Extrude([], [0, 0, -thickness], [3], ElemType.PRISM6)
 
     nodes_y0 = mesh.Nodes_Conditions(lambda x, y, z: y == 0)
-    # nodes_Load = mesh.Nodes_Conditions(lambda x,y,z: (y==2*L) & (x>=2*L-30))
     nodes_Load = mesh.Nodes_Conditions(lambda x, y, z: x == 2 * L)
 
     # ----------------------------------------------
@@ -107,38 +100,6 @@ if __name__ == "__main__":
     # ----------------------------------------------
     # Results
     # ----------------------------------------------
-    if calcE:
-        #  WARNING : unverified implementation
-
-        matrixType = "rigi"
-        dN_e_pg = mesh.Get_dN_e_pg(matrixType)
-        Bu_e_pg = mesh.Get_B_e_pg(matrixType)
-
-        B_e_pg = np.zeros_like(Bu_e_pg)
-
-        pos = np.arange(0, mesh.nPe * dim, 2)
-
-        for n, p in zip(range(mesh.nPe), pos):
-            dNx = dN_e_pg[:, :, 0, n]
-            dNy = dN_e_pg[:, :, 1, n]
-
-            for d in range(dim):
-                if dim == 2:
-                    B_e_pg[:, :, 0, p + d] = 1 / 2 * dNx**2
-                    B_e_pg[:, :, 1, p + d] = 1 / 2 * dNy**2
-                    B_e_pg[:, :, 2, p + d] = 1 / 2 * dNy * dNx / np.sqrt(2)
-                else:
-                    raise Exception("Not implemented")
-
-        sol_e = simu.mesh.Locates_sol_e(simu.displacement, asFeArray=True)
-
-        E_e_pg = Bu_e_pg @ sol_e
-        E_e_pg += B_e_pg @ sol_e**2
-
-        Epsilon_e_pg = simu._Calc_Epsilon_e_pg(simu.displacement, matrixType)
-
-        # test = np.linalg.norm(Epsilon_e_pg - E_e_pg)
-        # print(test)
 
     Display.Plot_Mesh(simu, deformFactor=1)
     Display.Plot_BoundaryConditions(simu)
