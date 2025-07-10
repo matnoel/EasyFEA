@@ -15,20 +15,25 @@ from EasyFEA.Geoms import Domain
 if __name__ == "__main__":
     Display.Clear()
 
-    # Define dimension and mesh size parameters
-    dim = 2
-    N = 3
+    # ----------------------------------------------
+    # Configuration
+    # ----------------------------------------------
 
-    # Define material properties
+    # geom
+    dim = 2
+    L = 120  # mm
+    h = 13
+    I = h**4 / 12  # mm4
+
+    # model
     E = 210000  # MPa (Young's modulus)
     v = 0.3  # Poisson's ratio
     coef = 1
 
-    L = 120  # mm
-    h = 13
-    I = h**4 / 12  # mm4
+    # load
     load = 800  # N
 
+    # expected results
     W_an = 2 * load**2 * L / E / h**2 * (L**2 / h**2 + (1 + v) * 3 / 5)  # mJ
     uy_an = load * L**3 / (3 * E * I)
 
@@ -36,6 +41,7 @@ if __name__ == "__main__":
     # Mesh
     # ----------------------------------------------
 
+    N = 3
     meshSize = h / N
 
     domain = Domain((0, 0), (L, h), meshSize)

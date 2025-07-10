@@ -15,17 +15,21 @@ from EasyFEA.Geoms import Point, Points
 if __name__ == "__main__":
     Display.Clear()
 
-    # Define dimension and mesh size parameters
-    dim = 3
-    N = 4
+    # ----------------------------------------------
+    # Configuration
+    # ----------------------------------------------
 
-    # Define material properties
+    # geom
+    dim = 3
+    L = 120  # mm
+    h = L * 0.3
+
+    # model
     E = 210000  # MPa (Young's modulus)
     v = 0.3  # Poisson's ratio
     coef = 1
 
-    L = 120  # mm
-    h = L * 0.3
+    # load
     load = 800
 
     # ----------------------------------------------
@@ -40,7 +44,8 @@ if __name__ == "__main__":
     pt5 = Point(x=h, y=L)
     pt6 = Point(y=L)
     pt7 = Point(x=h, y=h)
-    contour = Points([pt1, pt2, pt3, pt4, pt5, pt6], h / N)
+
+    contour = Points([pt1, pt2, pt3, pt4, pt5, pt6], h / 3)
 
     if dim == 2:
         mesh = contour.Mesh_2D([], ElemType.TRI3)

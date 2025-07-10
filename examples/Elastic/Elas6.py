@@ -23,15 +23,23 @@ from EasyFEA.Geoms import Point, Points, Line
 
 if __name__ == "__main__":
     Display.Clear()
-    # Define material properties
-    E = 210000  # MPa (Young's modulus)
-    v = 0.3  # Poisson's ratio
-    coef = 1
 
+    # ----------------------------------------------
+    # Configuration
+    # ----------------------------------------------
+
+    # geom
     L = 500  # mm
     hx = 13
     hy = 20
     e = 2
+
+    # model
+    E = 210000  # MPa (Young's modulus)
+    v = 0.3  # Poisson's ratio
+    coef = 1
+
+    # load
     load = 800  # N
 
     # ----------------------------------------------
@@ -86,7 +94,7 @@ if __name__ == "__main__":
     nodes_load = mesh.Nodes_Line(Line(p7, p8))
 
     # ----------------------------------------------
-    # Simulation Beam
+    # Beam simulation
     # ----------------------------------------------
 
     beam = Models.BeamElasIsot(
@@ -117,7 +125,7 @@ if __name__ == "__main__":
     print(f"err beam model : {np.abs(u_an - uy_1d) / u_an * 100:.2f} %")
 
     # ----------------------------------------------
-    # Simulation 3D
+    # Elastic simulation
     # ----------------------------------------------
 
     material = Models.ElasIsot(3, E, v)

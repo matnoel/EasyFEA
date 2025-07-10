@@ -36,14 +36,14 @@ if __name__ == "__main__":
     # Configuration
     # ----------------------------------------------
 
+    # outputs
     folder = Folder.Join(Folder.RESULTS_DIR, "Elastic", "Elas7", mkdir=True)
     makeMovie = False
     makeParaview = True
 
-    # geometry
+    # geom
     dim = 3
     thickness = 25
-    meshSize = 42 / 10
 
     # sinusoidal load
     F = 13000  # N
@@ -54,6 +54,7 @@ if __name__ == "__main__":
     # ----------------------------------------------
     # Mesh
     # ----------------------------------------------
+    meshSize = 42 / 10
 
     # get the contour
     pt1 = Point(0, 80)
@@ -73,27 +74,14 @@ if __name__ == "__main__":
     pt15 = Point(114 + 13, 80 - 13)
     pt16 = Point(114, 80)
 
-    contour = Points(
-        [
-            pt1,
-            pt2,
-            pt3,
-            pt4,
-            pt5,
-            pt6,
-            pt7,
-            pt8,
-            pt9,
-            pt10,
-            pt11,
-            pt12,
-            pt13,
-            pt14,
-            pt15,
-            pt16,
+    # fmt: off
+    contour = Points([
+            pt1, pt2, pt3, pt4, pt5, pt6, pt7, pt8, pt9, pt10,
+            pt11, pt12, pt13, pt14, pt15, pt16,
         ],
         meshSize,
     )
+    # fmt: on
 
     # get circles
     circle1 = Circle(Point(-220), 25, meshSize, isHollow=True)

@@ -22,15 +22,18 @@ if __name__ == "__main__":
     dim = 2
     isSymmetric = True
 
+    # geom
     a = 10
     l = 50
     h = 20
-    meshSize = h / 4
     thickness = 1
 
     # ----------------------------------------------
     # Mesh
     # ----------------------------------------------
+
+    meshSize = h / 4
+
     if isSymmetric:
         p0 = Point(0, 0, r=-a)
         p1 = Point(l, 0)

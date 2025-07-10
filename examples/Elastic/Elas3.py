@@ -15,26 +15,30 @@ from EasyFEA.Geoms import Points
 if __name__ == "__main__":
     Display.Clear()
 
-    # Define dimension and mesh size parameters
-    dim = 2
-    N = 10
+    # ----------------------------------------------
+    # Configuration
+    # ----------------------------------------------
 
+    # geom
+    dim = 2
+    h = 180  # m (thickness)
+    thickness = 2 * h
+
+    # model
     coef = 1e6
     E = 15000 * coef  # Pa (Young's modulus)
     v = 0.25  # Poisson's ratio
 
+    # load
     g = 9.81  # m/s^2 (acceleration due to gravity)
     ro = 2400  # kg/m^3 (density)
     w = 1000  # kg/m^3 (density)
-
-    h = 180  # m (thickness)
-    thickness = 2 * h
 
     # ----------------------------------------------
     # Mesh
     # ----------------------------------------------
 
-    contour = Points([(0, 0), (h, 0), (0, h)], h / N)
+    contour = Points([(0, 0), (h, 0), (0, h)], h / 10)
 
     if dim == 2:
         mesh = contour.Mesh_2D([], ElemType.TRI6)

@@ -18,22 +18,25 @@ if __name__ == "__main__":
     # ----------------------------------------------
     # Configuration
     # ----------------------------------------------
+
     dim = 2
     isSymmetric = True
     openCrack = True
 
+    # geom
     r = 10
     e = 5
+    thickness = 100
 
+    # load
     sig = 5  # bar
     sig *= 1e-1  # 1 bar = 0.1 MPa
-
-    meshSize = e / 5
-    thickness = 100
 
     # ----------------------------------------------
     # Mesh
     # ----------------------------------------------
+    meshSize = e / 5
+
     center = Point()
     if isSymmetric:
         p1 = Point(r, 0)
@@ -105,7 +108,7 @@ if __name__ == "__main__":
     # Results
     # ----------------------------------------------
     factorDef = r / 5 / simu.Result("displacement_norm").max()
-    # factorDef = 1
+
     Display.Plot_Mesh(simu, deformFactor=factorDef)
     Display.Plot_BoundaryConditions(simu)
     Display.Plot_Result(simu, "ux", ncolors=10, nodeValues=True)
