@@ -24,8 +24,6 @@ from EasyFEA import (
 )
 from EasyFEA.Geoms import Point, Domain, Points
 
-folder = Folder.Join(Folder.RESULTS_DIR, "Contact", mkdir=True)
-
 if __name__ == "__main__":
     Display.Clear()
 
@@ -33,23 +31,28 @@ if __name__ == "__main__":
     # Configuration
     # ----------------------------------------------
     dim = 2
-    pltIter = False
-    result = "uy"
-    makeMovie = False
 
+    # outputs
+    folder = Folder.Join(Folder.RESULTS_DIR, "Contact", "Contact1")
+    pltIter = False
+    makeMovie = False
+    result = "uy"
+
+    # geom
     R = 10
     height = R
-    meshSize = R / 20
     thickness = R / 3
 
+    # load
     N = 30
-
     inc = 1e-0 / N
     cx, cy = 0, -1
 
     # ----------------------------------------------
     # Meshes
     # ----------------------------------------------
+
+    meshSize = R / 20
 
     # slave mesh
     contour_slave = Domain(Point(-R / 2, 0), Point(R / 2, height), meshSize)
@@ -198,6 +201,6 @@ if __name__ == "__main__":
                 list_master_mesh[n], plotter=plotter, show_edges=True, opacity=0.2
             )
 
-        PyVista.Movie_func(DoAnim, N, folder=folder, filename="Contact1.gif")
+        PyVista.Movie_func(DoAnim, N, folder=folder, filename=f"{result}.gif")
 
     Display.plt.show()
