@@ -82,8 +82,8 @@ if __name__ == "__main__":
 
     @BiLinearForm
     def computeC(u: Field, v: Field):
-        K = computeK._form(u, v)
-        M = computeM._form(u, v)
+        K = computeK(u, v)
+        M = computeM(u, v)
         C = K * 1e-3 + M * 1e-3
         return C
 

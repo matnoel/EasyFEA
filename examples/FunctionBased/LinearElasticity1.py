@@ -32,7 +32,10 @@ if __name__ == "__main__":
     F = -800  # N
 
     # model
-    elastic = Models.ElasIsot(dim, 210000, 0.3, planeStress=True, thickness=h)
+    E = 210000  # MPa
+    v = 0.3
+
+    elastic = Models.ElasIsot(dim, E, v, planeStress=True, thickness=h)
     lmbda = elastic.get_lambda()
     mu = elastic.get_mu()
 

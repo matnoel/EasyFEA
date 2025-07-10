@@ -22,6 +22,9 @@ class _Form(ABC):
     def __init__(self, form: Callable[..., FeArray.FeArrayALike]):
         self._form = form
 
+    def __call__(self, *args, **kwds):
+        return self._form(*args, **kwds)
+
     @abstractmethod
     def _assemble(self, field: "Field") -> sparse.csr_matrix:
         """Assemble de form with the field.
