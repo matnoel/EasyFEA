@@ -16,9 +16,18 @@ from EasyFEA.Geoms import Point, Line, CircleArc, Contour, Domain
 if __name__ == "__main__":
     Display.Clear()
 
+    # ----------------------------------------------
+    # Configuration
+    # ----------------------------------------------
+
+    # geom
     L = 1
     H = 2
     e = L * 0.5
+
+    # ----------------------------------------------
+    # Mesh
+    # ----------------------------------------------
 
     p1 = Point(-L / 2)
     p2 = Point(L / 2)
@@ -52,6 +61,10 @@ if __name__ == "__main__":
         elemType=ElemType.HEXA20,
         additionalSurfaces=surfaces,
     )
+
+    # ----------------------------------------------
+    # Update coords
+    # ----------------------------------------------
 
     oldArea = mesh.area
     mesh.Rotate(-45, mesh.center)

@@ -35,36 +35,38 @@ if __name__ == "__main__":
     # ----------------------------------------------
     dim = 2
 
-    # Options for plotting the results
-    plotProj = False
-    makeMovie = False
-    makeParaview = False
-
-    treshold = (
-        1 / 100 if dim == 2 else 0.04
-    )  # Target error for the optimization process
-    iterMax = 20  # Maximum number of iterations
-    coef = 1 / 10  # Scaling coefficient for the optimization process
-
-    # Selecting the element type for the mesh
-    if dim == 2:
-        elemType = ElemType.TRI3  # TRI3, TRI6, TRI10, QUAD4, QUAD8
-    else:
-        elemType = ElemType.TETRA4  # TETRA4, TETRA10, HEXA8, HEXA20, PRISM6, PRISM15
-
-    # Creating a folder to store the results
-    folder = Folder.Join(Folder.RESULTS_DIR, "Meshes", f"Optim{dim}D", mkdir=True)
-
-    # ----------------------------------------------
-    # Meshing
-    # ----------------------------------------------
-
+    # geom
     L = 120
     h = L * 2 / 3
     b = h
     r = h / (2 + 1e-2)
     e = (L - 2 * r) / 2
 
+    # outputs
+    folder = Folder.Join(Folder.RESULTS_DIR, "Meshes", "MeshOptim2")
+    plotProj = False
+    makeMovie = False
+    makeParaview = False
+
+    # load
+    P = 800  # N
+    lineLoad = P / h  # N/mm
+    surfLoad = P / h / b  # N/mm2
+
+    # criteria
+    treshold = (
+        1 / 100 if dim == 2 else 0.04
+    )  # Target error for the optimization process
+    iterMax = 20  # Maximum number of iterations
+    coef = 1 / 10  # Scaling coefficient for the optimization process
+
+    # ----------------------------------------------
+    # Mesh
+    # ----------------------------------------------
+    if dim == 2:
+        elemType = ElemType.TRI3
+    else:
+        elemType = ElemType.TETRA4
     meshSize = h / 10
 
     pt1 = Point()
@@ -106,10 +108,6 @@ if __name__ == "__main__":
     simu = Simulations.ElasticSimu(mesh, material)
     simu.rho = 8100 * 1e-9
 
-    P = 800  # N
-    lineLoad = P / h  # N/mm
-    surfLoad = P / h / b  # N/mm2
-
     def DoSimu(refineGeom: str):
         simu.mesh = DoMesh(refineGeom)
 
@@ -133,7 +131,7 @@ if __name__ == "__main__":
     simu = Simulations.Mesh_Optim_ZZ1(DoSimu, folder, treshold, iterMax, 1 / 10)
 
     # ----------------------------------------------
-    # Plot
+    # Results
     # ----------------------------------------------
     Display.Plot_Mesh(simu.mesh)
     Display.Plot_Result(simu, "ZZ1_e", nodeValues=False, title="ZZ1", ncolors=11)

@@ -15,20 +15,24 @@ from EasyFEA.Geoms import Point, Points, Contour, CircleArc, Line
 import scipy.io
 
 if __name__ == "__main__":
-    folder = Folder.Join(Folder.RESULTS_DIR, "Meshes", "Blade", mkdir=True)
+    Display.Clear()
 
-    N = 4  # elements in the blade lenght l
+    # ----------------------------------------------
+    # Contour
+    # ----------------------------------------------
+
+    # outputs
+    folder = Folder.Join(Folder.RESULTS_DIR, "Meshes", "Mesh10")
     addCylinder = True
     repeat = False
+
+    # geom
     angleRev = 2 * np.pi / 20  # rad
     saveToMatlab = False
 
-    # elemType = ElemType.TETRA4
+    # mesh
+    N = 4  # elements in the blade lenght l
     elemType = ElemType.PRISM6
-    # elemType = ElemType.HEXA8
-
-    Display.Clear()
-
     mesher = Mesher(False, True, True)
     factory = mesher._factory
 

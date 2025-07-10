@@ -20,27 +20,27 @@ if __name__ == "__main__":
     # ----------------------------------------------
     # Configuration
     # ----------------------------------------------
+
+    # outputs
+    folder = Folder.Join(Folder.RESULTS_DIR, "Meshes", "Optim2D", mkdir=True)
+
+    # geom
+    D = 1
+    r = D * 1 / 4
+    e = 0.1
+    b = D * 0.1
+
+    # criteria
     criteria = "aspect"
     quality = 0.8  # lower bound of the target quality
     ratio = 0.6  # the ratio of mesh elements that must satisfy the target
     iterMax = 20  # Maximum number of iterations
     coef = 1 / 2  # Scaling coefficient for the optimization process
 
-    # Selecting the element type for the mesh
-    elemType = ElemType.TRI3  # TRI3, TRI6, TRI10, QUAD4, QUAD8
-
-    # Creating a folder to store the results
-    folder = Folder.Join(Folder.RESULTS_DIR, "Meshes", "Optim2D", mkdir=True)
-
     # ----------------------------------------------
-    # Meshing
+    # Mesh
     # ----------------------------------------------
-
-    D = 1
-    r = D * 1 / 4
-    e = 0.1
-    b = D * 0.1
-
+    elemType = ElemType.TRI3
     mS = e / 3 * 10
 
     # face

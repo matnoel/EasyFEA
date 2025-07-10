@@ -31,6 +31,30 @@ if __name__ == "__main__":
     # ----------------------------------------------
     dim = 2  # Define the dimension of the problem (2D or 3D)
 
+    # outputs
+    folder = Folder.Join(Folder.RESULTS_DIR, "Meshes", f"Convergence{dim}D")
+    plotResult = True
+    makeParaview = False
+
+    # geom
+    L = 120  # mm
+    h = 13  # Height
+    b = 13  # Width
+
+    # model
+    E = 210000  # MPa (Young's modulus)
+    v = 0.25  # Poisson's ratio
+    material = Models.ElasIsot(dim, thickness=b, E=E, v=v, planeStress=True)
+
+    # load
+    P = 800  # N
+
+    # expected energy
+    WdefRef = 2 * P**2 * L / E / h / b * (L**2 / h / b + (1 + v) * 3 / 5)
+
+    # ----------------------------------------------
+    # Mesh
+    # ----------------------------------------------
     isOrganised = True
 
     # List of mesh sizes (number of elements) to investigate convergence
@@ -39,29 +63,6 @@ if __name__ == "__main__":
     else:
         list_N = np.arange(1, 8, 2)
 
-    # Create a folder to store the simulation results
-    folder = Folder.Join(Folder.RESULTS_DIR, "Meshes", f"Convergence{dim}D", mkdir=True)
-
-    # Define whether to plot the results
-    plotResult = True
-    makeParaview = False
-
-    # Define geometry parameters
-    L = 120  # mm
-    h = 13  # Height
-    b = 13  # Width
-    P = 800  # N
-
-    # Material properties
-    E = 210000  # MPa (Young's modulus)
-    v = 0.25  # Poisson's ratio
-
-    # Define the material behavior (elasticity with plane stress assumption)
-    material = Models.ElasIsot(dim, thickness=b, E=E, v=v, planeStress=True)
-
-    # Compute the theoretical deformation energy (reference value)
-    WdefRef = 2 * P**2 * L / E / h / b * (L**2 / h / b + (1 + v) * 3 / 5)
-
     # Lists to store data for plotting
     times_elem_N = []  # times for element type and N size
     wDef_elem_N = []  # energy
@@ -69,7 +70,7 @@ if __name__ == "__main__":
     zz1_elem_N = []  # zz1
 
     # ----------------------------------------------
-    # Simulation
+    # Simulations
     # ----------------------------------------------
 
     # Loop over each element type for both 2D and 3D simulations
@@ -133,7 +134,7 @@ if __name__ == "__main__":
             simu.Solve()
             simu.Save_Iter()
 
-            time = tic.Tac("Resolutions", "Temps total", False)
+            time = tic.Tac("Resolutions", "Total time", False)
 
             # Get the computed deformation energy
             Wdef = simu.Result("Wdef")
@@ -159,7 +160,7 @@ if __name__ == "__main__":
         zz1_elem_N.append(zz1_N)
 
     # ----------------------------------------------
-    # PostProcessing
+    # Results
     # ----------------------------------------------
     # Display the convergence of deformation energy
     ax_Wdef = Display.Init_Axes()

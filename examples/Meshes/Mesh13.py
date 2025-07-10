@@ -16,10 +16,13 @@ if __name__ == "__main__":
     Display.Clear()
 
     # ----------------------------------------------
-    # Config
+    # Configuration
     # ----------------------------------------------
 
+    # geom
     L = 1
+
+    # mesh
     elemType = ElemType.TRI3
     meshSize = L / 40
 

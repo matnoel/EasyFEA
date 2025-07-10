@@ -35,30 +35,13 @@ if __name__ == "__main__":
     # ----------------------------------------------
     dim = 2
 
-    # Options for plotting the results
+    # outputs
+    folder = Folder.Join(Folder.RESULTS_DIR, "Meshes", "MeshOptim3")
     plotProj = False
     makeMovie = False
     makeParaview = False
 
-    treshold = (
-        1 / 100 if dim == 2 else 0.04
-    )  # Target error for the optimization process
-    iterMax = 20  # Maximum number of iterations
-    coef = 1 / 10  # Scaling coefficient for the optimization process
-
-    # Selecting the element type for the mesh
-    if dim == 2:
-        elemType = ElemType.TRI3  # TRI3, TRI6, TRI10, QUAD4, QUAD8
-    else:
-        elemType = ElemType.TETRA4  # TETRA4, TETRA10, HEXA8, HEXA20, PRISM6, PRISM15
-
-    # Creating a folder to store the results
-    folder = Folder.Join(Folder.RESULTS_DIR, "Meshes", f"Optim{dim}D", mkdir=True)
-
-    # ----------------------------------------------
-    # Meshing
-    # ----------------------------------------------
-
+    # geom
     L = 80
     h1 = L / 4
     e1 = h1 * 0.1
@@ -68,10 +51,26 @@ if __name__ == "__main__":
     l = L / 2
     b = h1
 
-    meshSize = r / 3
+    # load
+    P = 800  # N
+    lineLoad = P / h1  # N/mm
+    surfLoad = P / h1 / b  # N/mm2
 
-    F = 1e-3  # 5g
-    surfLoad = F / (h1 - e1) / b  # 1g
+    # criteria
+    treshold = (
+        1 / 100 if dim == 2 else 0.04
+    )  # Target error for the optimization process
+    iterMax = 20  # Maximum number of iterations
+    coef = 1 / 10  # Scaling coefficient for the optimization process
+
+    # ----------------------------------------------
+    # Mesh
+    # ----------------------------------------------
+    if dim == 2:
+        elemType = ElemType.TRI3
+    else:
+        elemType = ElemType.TETRA4
+    meshSize = r / 3
 
     pt1 = Point()
     pt2 = Point(L - h1)
@@ -130,10 +129,6 @@ if __name__ == "__main__":
     material = Models.ElasIsot(dim, E=210000, v=0.3, thickness=b)
     simu = Simulations.ElasticSimu(mesh, material)
     simu.rho = 8100 * 1e-9
-
-    P = 800  # N
-    lineLoad = P / h1  # N/mm
-    surfLoad = P / h1 / b  # N/mm2
 
     def DoSimu(refineGeom: str):
         simu.mesh = DoMesh(refineGeom)
