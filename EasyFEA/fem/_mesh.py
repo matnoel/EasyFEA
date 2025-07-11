@@ -538,9 +538,9 @@ class Mesh(Observable):
         """Returns nodes in the domain."""
         return self.groupElem.Get_Nodes_Domain(domain)
 
-    def Nodes_Circle(self, circle: "Circle", onlyOnCircle=False) -> _types.IntArray:
+    def Nodes_Circle(self, circle: "Circle", onlyOnEdge=True) -> _types.IntArray:
         """Returns the nodes in the circle."""
-        return self.groupElem.Get_Nodes_Circle(circle, onlyOnCircle)
+        return self.groupElem.Get_Nodes_Circle(circle, onlyOnEdge)
 
     def Nodes_Cylinder(
         self, circle: "Circle", direction=[0, 0, 1], onlyOnEdge=False
