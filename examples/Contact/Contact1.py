@@ -178,11 +178,6 @@ if __name__ == "__main__":
     # ----------------------------------------------
     # Results
     # ----------------------------------------------
-    if not pltIter:
-        plotter = PyVista.Plot(simu, result, show_edges=True, deformFactor=1)
-        PyVista.Plot_Mesh(master_mesh, opacity=0.4, plotter=plotter)
-        plotter.show()
-
     if makeMovie:
 
         def DoAnim(plotter, n):
@@ -202,5 +197,10 @@ if __name__ == "__main__":
             )
 
         PyVista.Movie_func(DoAnim, N, folder=folder, filename=f"{result}.gif")
+
+    if not pltIter:
+        plotter = PyVista.Plot(simu, result, show_edges=True, deformFactor=1)
+        PyVista.Plot_Mesh(master_mesh, opacity=0.4, plotter=plotter)
+        plotter.show()
 
     Display.plt.show()

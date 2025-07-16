@@ -38,7 +38,7 @@ if __name__ == "__main__":
 
     # outputs
     folder = Folder.Join(Folder.RESULTS_DIR, "Elastic", "Elas7", mkdir=True)
-    makeMovie = True
+    makeMovie = False
     makeParaview = True
 
     # geom
