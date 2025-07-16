@@ -24,7 +24,7 @@ class TestWeakForms:
         # ----------------------------------------------
         material = Models.Thermal(dim=2, k=1)
 
-        thermalSimu = Simulations.ThermalSimu(mesh, material)
+        thermalSimu = Simulations.ThermalSimu(mesh, material, useIterativeSolvers=False)
 
         thermalSimu.add_dirichlet(nodesX0, [0], ["t"])
         thermalSimu.add_dirichlet(nodesX1, [1], ["t"])
@@ -43,7 +43,7 @@ class TestWeakForms:
 
         weakForms = Models.WeakForms(field, bilinear_form)
 
-        simu = Simulations.WeakFormSimu(mesh, weakForms)
+        simu = Simulations.WeakFormSimu(mesh, weakForms, useIterativeSolvers=False)
 
         simu.add_dirichlet(nodesX0, [0], ["u"])
         simu.add_dirichlet(nodesX1, [1], ["u"])
@@ -54,10 +54,9 @@ class TestWeakForms:
         # Test
         # ----------------------------------------------
 
-        test = np.linalg.norm(simu.u - thermalSimu.thermal) / np.linalg.norm(
-            thermalSimu.thermal
-        )
-        assert test < 1e-12
+        norm_diff = np.linalg.norm(simu.u - thermalSimu.thermal)
+
+        assert norm_diff < 1e-12
 
     def test_linear_elastic(self):
 
@@ -74,7 +73,7 @@ class TestWeakForms:
         lmbda = material.get_lambda()
         mu = material.get_mu()
 
-        elasticSimu = Simulations.ElasticSimu(mesh, material)
+        elasticSimu = Simulations.ElasticSimu(mesh, material, useIterativeSolvers=False)
 
         elasticSimu.add_dirichlet(nodesX0, [0, 0], ["x", "y"])
         elasticSimu.add_dirichlet(nodesX1, [0.1], ["x"])
@@ -99,7 +98,7 @@ class TestWeakForms:
 
         weakForms = Models.WeakForms(field, ComputeK)
 
-        simu = Simulations.WeakFormSimu(mesh, weakForms)
+        simu = Simulations.WeakFormSimu(mesh, weakForms, useIterativeSolvers=False)
 
         simu.add_dirichlet(nodesX0, [0, 0], ["x", "y"])
         simu.add_dirichlet(nodesX1, [0.1], ["x"])
@@ -110,7 +109,5 @@ class TestWeakForms:
         # Test
         # ----------------------------------------------
 
-        test = np.linalg.norm(simu.u - elasticSimu.displacement) / np.linalg.norm(
-            elasticSimu.displacement
-        )
-        assert test < 1e-12
+        norm_diff = np.linalg.norm(simu.u - elasticSimu.displacement)
+        assert norm_diff < 1e-12
