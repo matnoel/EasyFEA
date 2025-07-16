@@ -12,7 +12,7 @@ Note that this simulation is also performed in `examples/Elastic/Elas1.py`.
 """
 
 from EasyFEA import Display, ElemType, Models, Simulations, np
-from EasyFEA.fem import Field, BiLinearForm, Sym_Grad, Trace
+from EasyFEA.fem import Field, BiLinearForm, FeArray, Sym_Grad, Trace
 from EasyFEA.Geoms import Domain
 
 if __name__ == "__main__":
@@ -61,7 +61,7 @@ if __name__ == "__main__":
 
     field = Field(mesh.groupElem, dim)
 
-    def S(u: Field):  # -> FeArray:
+    def S(u: Field) -> FeArray:
         Eps = Sym_Grad(u)
         return 2 * mu * Eps + lmbda * Trace(Eps) * np.eye(dim)
 
