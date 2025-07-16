@@ -121,9 +121,6 @@ if __name__ == "__main__":
     # Results
     # ----------------------------------------------
 
-    simu.Set_Iter(0)
-    PyVista.Plot(simu, "uy", 1, show_edges=True).show()
-
     if makeMovie:
         PyVista.Movie_simu(
             simu,
@@ -135,5 +132,8 @@ if __name__ == "__main__":
             N=400,
             nodeValues=True,
         )
+
+    simu.Set_Iter(0)
+    PyVista.Plot(simu, "uy", 1, show_edges=True).show()
 
     Display.plt.show()

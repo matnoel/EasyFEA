@@ -2,8 +2,6 @@
 # This file is part of the EasyFEA project.
 # EasyFEA is distributed under the terms of the GNU General Public License v3, see LICENSE.txt and CREDITS.md for more information.
 
-# sphinx_gallery_thumbnail_number = -2
-
 """
 Tension
 =======
@@ -21,6 +19,7 @@ from EasyFEA import (
     ElemType,
     Mesh,
     Simulations,
+    PyVista,
     Paraview,
 )
 from EasyFEA.Geoms import Point, Points, Domain, Line, Contour
@@ -49,7 +48,7 @@ plotResult = True
 showResult = True
 plotEnergy = False
 saveParaview = False
-makeMovie = False
+makeMovie = True
 
 # material
 materialType = "Elas_Isot"  #  "Elas_Isot", "ElasAnisot"
@@ -374,17 +373,40 @@ def DoSimu(split: str, regu: str):
             force * 1e-6, displacement * 1e6, "ud [µm]", "f [kN/mm]", folder_save
         )
 
-    if saveParaview:
-        Paraview.Save_simu(simu, folder_save, 400)
-
-    if makeMovie:
-        Display.Movie_Simu(simu, "damage", folder_save, "damage.mp4", N=200)
-
     if plotMesh:
         Display.Plot_Mesh(simu.mesh)
 
     if plotEnergy:
         Display.Plot_Energy(simu, N=400, folder=folder_save)
+
+    if saveParaview:
+        Paraview.Save_simu(simu, folder_save, 400)
+
+    if makeMovie:
+        simu.Set_Iter(-1)
+        nodes_upper = simu.mesh.Nodes_Conditions(lambda x, y, z: y == L)
+        depMax = simu.Result("displacement_norm")[nodes_upper].max()
+        deformFactor = L * 0.05 / depMax
+
+        iterations = np.arange(0, simu.Niter, simu.Niter // 20)
+
+        def Func(plotter, iter):
+            simu.Set_Iter(iterations[iter])
+
+            grid = PyVista._pyVistaMesh(simu, "damage", deformFactor)
+
+            tresh = grid.threshold((0, 0.8))
+
+            PyVista.Plot(
+                tresh,
+                "damage",
+                deformFactor,
+                show_edges=True,
+                plotter=plotter,
+                clim=(0, 1),
+            )
+
+        PyVista.Movie_func(Func, iterations.size, folder_save, "damage.gif")
 
     Tic.Resume()
 

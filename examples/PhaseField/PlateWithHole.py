@@ -19,6 +19,7 @@ from EasyFEA import (
     ElemType,
     Mesh,
     Simulations,
+    PyVista,
     Paraview,
 )
 from EasyFEA.Geoms import Domain, Circle
@@ -47,7 +48,7 @@ plotEnergy = False
 showFig = True
 
 saveParaview = False
-makeMovie = False
+makeMovie = True
 
 # models
 
@@ -321,15 +322,29 @@ def DoSimu(split: str, regu: str):
         Paraview.Save_simu(simu, folder_save)
 
     if makeMovie:
-        Display.Movie_Simu(
-            simu,
-            "damage",
-            folder_save,
-            "damage.mp4",
-            N=200,
-            plotMesh=False,
-            deformFactor=1.5,
-        )
+        simu.Set_Iter(-1)
+        depMax = simu.Result("displacement_norm").max()
+        deformFactor = L * 0.05 / depMax
+
+        iterations = np.arange(0, simu.Niter, simu.Niter // 20)
+
+        def Func(plotter, iter):
+            simu.Set_Iter(iterations[iter])
+
+            grid = PyVista._pyVistaMesh(simu, "damage", deformFactor)
+
+            tresh = grid.threshold((0, 0.8))
+
+            PyVista.Plot(
+                tresh,
+                "damage",
+                deformFactor,
+                show_edges=True,
+                plotter=plotter,
+                clim=(0, 1),
+            )
+
+        PyVista.Movie_func(Func, iterations.size, folder_save, "damage.gif")
 
     if doSimu:
         Tic.Plot_History(folder_save, details=False)

@@ -38,7 +38,7 @@ if __name__ == "__main__":
     # outputs
     pltIter = False
     pltLoad = False
-    makeMovie = False
+    makeMovie = True
     makeParaview = False
 
     # geom
@@ -253,17 +253,29 @@ if __name__ == "__main__":
     Display.Plot_Iter_Summary(simu, folder_save)
 
     if makeMovie:
+        simu.Set_Iter(-1)
         depMax = simu.Result("displacement_norm").max()
-        deformFactor = L * 0.1 / depMax
-        PyVista.Movie_simu(
-            simu,
-            "damage",
-            folder_save,
-            "damage.mp4",
-            show_edges=True,
-            deformFactor=deformFactor,
-            clim=(0, 1),
-        )
+        deformFactor = L * 0.05 / depMax
+
+        iterations = np.arange(0, simu.Niter, simu.Niter // 20)
+
+        def Func(plotter, iter):
+            simu.Set_Iter(iterations[iter])
+
+            grid = PyVista._pyVistaMesh(simu, "damage", deformFactor)
+
+            tresh = grid.threshold((0, 0.8))
+
+            PyVista.Plot(
+                tresh,
+                "damage",
+                deformFactor,
+                show_edges=True,
+                plotter=plotter,
+                clim=(0, 1),
+            )
+
+        PyVista.Movie_func(Func, iterations.size, folder_save, "damage.gif")
 
     if makeParaview:
         Paraview.Save_simu(simu, folder_save)
