@@ -54,9 +54,10 @@ class TestWeakForms:
         # Test
         # ----------------------------------------------
 
-        norm_diff = np.linalg.norm(simu.u - thermalSimu.thermal)
-
-        assert norm_diff < 1e-12
+        test = np.linalg.norm(simu.u - thermalSimu.thermal) / np.linalg.norm(
+            thermalSimu.thermal
+        )
+        assert test < 1e-12
 
     def test_linear_elastic(self):
 
@@ -109,5 +110,7 @@ class TestWeakForms:
         # Test
         # ----------------------------------------------
 
-        norm_diff = np.linalg.norm(simu.u - elasticSimu.displacement)
-        assert norm_diff < 1e-12
+        test = np.linalg.norm(simu.u - elasticSimu.displacement) / np.linalg.norm(
+            elasticSimu.displacement
+        )
+        assert test < 1e-12
