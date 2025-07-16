@@ -35,7 +35,7 @@ if __name__ == "__main__":
     # outputs
     folder = Folder.Join(Folder.RESULTS_DIR, "Contact", "Contact1")
     pltIter = False
-    makeMovie = False
+    makeMovie = True
     result = "uy"
 
     # geom
