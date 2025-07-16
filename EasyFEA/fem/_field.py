@@ -98,7 +98,7 @@ class Field:
     def _Get_dofsValues(self) -> _types.FloatArray:
         return self.__dofsValues
 
-    def _Set_dofsValues(self, values: _types.FloatArray) -> _types.FloatArray:
+    def _Set_dofsValues(self, values: _types.FloatArray):
         Ndof = self.__groupElem.Nn * self.__dof_n
         assert values.ndim == 1 and values.size == Ndof, f"must be a {Ndof} array."
         self.__dofsValues = values
@@ -133,11 +133,11 @@ class Field:
     def __rtruediv__(self, other) -> FeArray.FeArrayALike:
         return self.__truediv__(other)
 
-    def __call__(self) -> FeArray:
+    def __call__(self) -> FeArray.FeArrayALike:
         """Returns the field as a finite element array."""
         node = self._Get_node()
         N_pg = self.groupElem.Get_N_pg(self.__matrixType)
-        nPg, dim, nPe = N_pg.shape
+        nPg, _, _ = N_pg.shape
         array = FeArray.asfearray(N_pg[..., node].reshape(1, nPg, 1))
         return array
 
@@ -148,7 +148,7 @@ class Field:
         return self().ddot(other)
 
     @property
-    def grad(self) -> FeArray:
+    def grad(self) -> FeArray.FeArrayALike:
         """Returns the gradient of the field."""
         dof_n = self.__dof_n
         node = self._Get_node()
@@ -156,7 +156,7 @@ class Field:
 
         # get gem matrices
         dN_e_pg = self.groupElem.Get_dN_e_pg(self.__matrixType)
-        Ne, nPg, dim, nPe = dN_e_pg.shape
+        Ne, nPg, dim, _ = dN_e_pg.shape
 
         array = FeArray.asfearray(dN_e_pg[..., node])
 
@@ -168,5 +168,5 @@ class Field:
             return newArray
 
 
-def Sym_Grad(u: Field) -> FeArray:
+def Sym_Grad(u: Field) -> FeArray.FeArrayALike:
     return 0.5 * (u.grad.T + u.grad)

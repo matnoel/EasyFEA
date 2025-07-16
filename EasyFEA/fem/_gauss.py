@@ -518,6 +518,7 @@ class Gauss:
 
         return coord, weights
 
+    @staticmethod
     def _MatrixType_factory(elemType: ElemType, nPg: int) -> MatrixType:
 
         for matrixType in [MatrixType.rigi, MatrixType.mass]:

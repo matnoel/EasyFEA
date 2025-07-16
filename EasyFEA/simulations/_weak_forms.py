@@ -300,7 +300,7 @@ class WeakFormSimu(_Simu):
             sols = ["u", "v", "a"]
             dofs = ["x", "y", "z"]
             [
-                options.append(f"{sols[s]}{dofs[d]}")
+                options.append(f"{sols[s]}{dofs[d]}")  # type: ignore [func-returns-value]
                 for s in range(3)
                 for d in range(dof_n)
             ]

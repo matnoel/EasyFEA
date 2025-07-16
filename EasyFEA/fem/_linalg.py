@@ -82,7 +82,7 @@ class FeArray(_types.AnyArray):
             ndim2 = array2.ndim
             shape2 = array2.shape
         elif type(other).__name__ == "Field":
-            other: FeArray = other()
+            other: FeArray = other()  # type: ignore [no-redef]
             array2 = np.asarray(other)
             ndim2 = other._ndim
             shape2 = other._shape
@@ -155,7 +155,7 @@ class FeArray(_types.AnyArray):
         elif isinstance(other, np.ndarray):
             ndim2 = other.ndim
         elif type(other).__name__ == "Field":
-            other: FeArray = other()
+            other: FeArray = other()  # type: ignore [no-redef]
             ndim2 = other._ndim
         else:
             raise TypeError("`other` must be either a FeArray, NDArray or a Field.")
@@ -188,7 +188,7 @@ class FeArray(_types.AnyArray):
             idx2 = "".join([chr(ord(idx1[0]) + i) for i in range(other.ndim)])
             ndim2 = other.ndim
         elif type(other).__name__ == "Field":
-            other: FeArray = other()
+            other: FeArray = other()  # type: ignore [no-redef]
             idx2 = other._idx
             ndim2 = other._ndim
         else:
@@ -223,7 +223,7 @@ class FeArray(_types.AnyArray):
             idx2 = "".join([chr(ord(idx1[0]) + i) for i in range(other.ndim)])
             ndim2 = other.ndim
         elif type(other).__name__ == "Field":
-            other: FeArray = other()
+            other: FeArray = other()  # type: ignore [no-redef]
             idx2 = other._idx
             ndim2 = other._ndim
         else:

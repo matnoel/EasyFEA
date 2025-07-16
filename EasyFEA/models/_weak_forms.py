@@ -57,22 +57,22 @@ class WeakForms(_IModel):
         return self.__field
 
     @property
-    def computeK(self) -> Union[BiLinearForm, LinearForm]:
+    def computeK(self) -> Union[BiLinearForm, LinearForm, None]:
         """Function used to build stiffness matrix K from \( K u + C v + M a = F \)."""
         return self.__computeK
 
     @property
-    def computeC(self) -> Union[BiLinearForm, LinearForm]:
+    def computeC(self) -> Union[BiLinearForm, LinearForm, None]:
         """Function used to build damping matrix C from \( K u + C v + M a = F \)."""
         return self.__computeC
 
     @property
-    def computeM(self) -> Union[BiLinearForm, LinearForm]:
+    def computeM(self) -> Union[BiLinearForm, LinearForm, None]:
         """Function used to build mass matrix M from \( K u + C v + M a = F \)."""
         return self.__computeM
 
     @property
-    def computeF(self) -> Union[BiLinearForm, LinearForm]:
+    def computeF(self) -> Union[BiLinearForm, LinearForm, None]:
         """Function used to build force vector F from \( K u + C v + M a = F \)."""
         return self.__computeF
 
