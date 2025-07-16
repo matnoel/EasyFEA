@@ -59,7 +59,7 @@ makeMovie = True
 # splits = ["AnisotStrain","AnisotStress","Zhang"]
 splits = ["Miehe"]
 
-regus = ["AT1"]  # ["AT1", "AT2"]
+regus = ["AT2"]  # ["AT1", "AT2"]
 # regus = ["AT1", "AT2"]
 
 l0 = 0.12e-3
