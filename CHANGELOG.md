@@ -2,6 +2,20 @@
 
 This document describes the changes made to the project.
 
+## 1.5.0 (July 16, 2025):
+
+- Updated Python version in README.md.
+- Updated Display module according to modifications in [#19](https://github.com/matnoel/EasyFEA/issues/19).
+- Updated Vizir module.
+- Updated MeshIO docstrings.
+- Fixed mypy and ruff type issues.
+- Renamed `linesVector_e` to `rowsVector_e` and `linesScalar_e` to `rowsScalar_e` in simulations and group of elements.
+- Fixed issue [#20](https://github.com/matnoel/EasyFEA/issues/20): Users can now perform finite element analysis by simply providing weak form functions.
+  - Renamed Materials to Models.
+  - Created `Field`, `BilinearForm`, `LinearForm`, `Materials.WeakForms`, and `Simulations.WeakFormSimu`.
+  - Created 2 Poisson and 2 linear elasticity examples with tests.
+- Improved the documentation by providing as many animated GIFs as possible.
+
 ## 1.4.8 (July 7, 2025):
 
 - Updated meshio's fork dependency in `pyproject.toml` [dev].
