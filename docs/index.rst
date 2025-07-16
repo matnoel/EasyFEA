@@ -23,9 +23,11 @@ EasyFEA documentation
     - :doc:`/examples/Thermal <examples/Thermal/index>`
 5. **Phase-field damage simulations for quasi-static brittle fracture**
     - :doc:`/examples/PhaseField <examples/PhaseField/index>`
-6. **Digital Image Correlation (DIC) and Parameter identification** 
+6. **Weak forms simulations** 
+    - :doc:`/examples/WeakForms <examples/WeakForms/index>`
+7. **Digital Image Correlation (DIC) and Parameter identification** 
     - `Material parameters of a phase-field model used to simulate brittle fracture of spruce specimens. <SpruceParams_>`_
-7. **Stochastic phase-field simulations**
+8. **Stochastic phase-field simulations**
     - `Stochastic phase-field modeling of spruce wood specimens under compression. <SpruceStochastic_>`_
 
 For each simulation, users create a :py:class:`~EasyFEA.fem.Mesh` and a :py:class:`~EasyFEA.Models._IModel`. Once the simulation has been set up, defining the boundary conditions, solving the problem and visualizing the results is straightforward.
