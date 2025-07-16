@@ -1,4 +1,4 @@
-.. _easyfea-examples-function-based:
+.. _easyfea-examples-weak-forms:
 
-Function Based Simulations
-==========================
+Weak Forms Simulations
+======================
