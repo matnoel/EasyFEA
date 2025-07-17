@@ -37,7 +37,7 @@ Let's now create a 2D :py:class:`~EasyFEA.fem.Mesh` using a simple rectangular d
     
 ----
 
-Next, define a linear :py:class:`~EasyFEA.Models.ElasIsot` material and set up the :py:class:`~EasyFEA.Simulations.ElasticSimu`  simulation:
+Next, define a linear :py:class:`~EasyFEA.models.ElasIsot` material and set up the :py:class:`~EasyFEA.Simulations.ElasticSimu`  simulation:
 
 .. jupyter-execute::
 

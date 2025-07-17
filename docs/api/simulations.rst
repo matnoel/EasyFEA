@@ -4,7 +4,7 @@ simulations
 ===========
 
 The `EasyFEA/simulations/ <https://github.com/matnoel/EasyFEA/tree/main/EasyFEA/simulations>`_ module in EasyFEA provides essential tools for creating and managing simulations.
-These simulations are built using a :py:class:`~EasyFEA.fem.Mesh` and a :py:class:`~EasyFEA.Models._IModel` (material).
+These simulations are built using a :py:class:`~EasyFEA.fem.Mesh` and a :py:class:`~EasyFEA.models._IModel` (material).
 
 With this module, you can construct:
 
@@ -13,6 +13,7 @@ With this module, you can construct:
 + Euler-Bernoulli beam simulations with :py:class:`~EasyFEA.Simulations.BeamSimu`.
 + PhaseField damage simulations for quasi-static brittle fracture with :py:class:`~EasyFEA.Simulations.PhaseFieldSimu`.
 + Thermal simulations with :py:class:`~EasyFEA.Simulations.ThermalSimu`.
++ Weak form simulations with :py:class:`~EasyFEA.Simulations.WeakFormSimu`.
 
 How to create new simulations in EasyFEA ?
 ------------------------------------------
@@ -33,6 +34,6 @@ Detailed simulations API
    :show-inheritance:
 
 .. automodule:: EasyFEA.Simulations
-    :members: ElasticSimu, HyperElasticSimu, BeamSimu, PhaseFieldSimu, ThermalSimu
+    :members: ElasticSimu, HyperElasticSimu, BeamSimu, PhaseFieldSimu, ThermalSimu, WeakFormSimu
 
    

@@ -30,7 +30,7 @@ EasyFEA documentation
 8. **Stochastic phase-field simulations**
     - `Stochastic phase-field modeling of spruce wood specimens under compression. <SpruceStochastic_>`_
 
-For each simulation, users create a :py:class:`~EasyFEA.fem.Mesh` and a :py:class:`~EasyFEA.Models._IModel`. Once the simulation has been set up, defining the boundary conditions, solving the problem and visualizing the results is straightforward.
+For each simulation, users create a :py:class:`~EasyFEA.fem.Mesh` and a :py:class:`~EasyFEA.models._IModel`. Once the simulation has been set up, defining the boundary conditions, solving the problem and visualizing the results is straightforward.
 
 Numerous examples of mesh creation are available in the  :doc:`/examples/Meshes <examples/Meshes/index>` gallery.
 

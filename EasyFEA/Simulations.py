@@ -38,7 +38,7 @@ from .simulations._beam import BeamSimu
 from .simulations._thermal import ThermalSimu
 
 # ------------------------------------------------------------------------------
-# Thermal
+# WeakForm
 # ------------------------------------------------------------------------------
 
 from .simulations._weak_forms import WeakFormSimu
