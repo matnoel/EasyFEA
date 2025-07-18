@@ -173,23 +173,27 @@ def Surface_reconstruction(mesh: Mesh) -> Mesh:
         allConnect[i] for i, id in enumerate(allIds) if counts[id] == 1
     ]
 
-    # contstruct the new group of elements
-    new_dict_groupElem: dict[ElemType, _GroupElem] = {}
+    # contstruct the new group of elements from the existing ones
+    new_dict_groupElem: dict[ElemType, _GroupElem] = {
+        elemType: groupElem
+        for elemType, groupElem in mesh.dict_groupElem.items()
+        if groupElem.dim != 2
+    }
 
-    # loop over all group of elements in the mesh
-    for elemType, groupElem in mesh.dict_groupElem.items():
+    # create new elements 2d elements
+    for elemType in GroupElemFactory._Get_2d_element_types(mesh.elemType):
 
-        if groupElem.dim == 2:
-            nPe = groupElem.nPe
-            connect = np.asarray(
-                [nodes for nodes in uniqueNodes if nodes.size == nPe], dtype=int
-            )
-        else:
-            connect = groupElem.connect
+        # get connect
+        nPe = GroupElemFactory.DICT_ELEMTYPE[elemType][1]
+        connect = np.asarray(
+            [nodes for nodes in uniqueNodes if nodes.size == nPe], dtype=int
+        )
 
         # create the new group of elements
         newGroupElem = GroupElemFactory._Create(elemType, connect, coordinates)
         new_dict_groupElem[elemType] = newGroupElem
+
+        pass
 
     # create the new mesh
     newMesh = Mesh(new_dict_groupElem)

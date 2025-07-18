@@ -2452,3 +2452,39 @@ class GroupElemFactory:
         nodes = np.asarray(list(set(connect.ravel())), dtype=int)
 
         return GroupElemFactory.Create(gmshId, connect, coordGlob, nodes)
+
+    @staticmethod
+    def _Get_2d_element_types(elemType: ElemType) -> list[ElemType]:
+        """Returns 2d element types associated with the elementType.
+
+        Parameters
+        ----------
+        elemType : ElemType
+            element type
+
+        Returns
+        -------
+        list[ElemType]
+            the element types
+        """
+
+        assert elemType in ElemType.Get_3D(), "eleme type must be 3d element"
+
+        if elemType is ElemType.TETRA4:
+            return [ElemType.TRI3]
+        elif elemType is ElemType.TETRA10:
+            return [ElemType.TRI6]
+        elif elemType is ElemType.HEXA8:
+            return [ElemType.QUAD4]
+        elif elemType is ElemType.HEXA20:
+            return [ElemType.QUAD8]
+        elif elemType is ElemType.HEXA27:
+            return [ElemType.QUAD9]
+        elif elemType is ElemType.PRISM6:
+            return [ElemType.TRI3, ElemType.QUAD4]
+        elif elemType is ElemType.PRISM15:
+            return [ElemType.TRI6, ElemType.QUAD8]
+        elif elemType is ElemType.PRISM18:
+            return [ElemType.TRI6, ElemType.QUAD9]
+        else:
+            raise KeyError("Element type unknown.")
