@@ -568,6 +568,86 @@ def Plot_BoundaryConditions(
     return plotter
 
 
+def Plot_Tags(obj, plotter: Optional[pv.Plotter] = None) -> _types.Axes:
+    """Plots the mesh's elements tags (from 2d elements to points) but do not plot the 3d elements tags.
+
+    Parameters
+    ----------
+    obj : _Simu | Mesh | _GroupElem
+        object containing the mesh
+    plotter : pv.Plotter, optional
+        The pyvista plotter, by default None and create a new Plotter instance, default None
+
+    Returns
+    -------
+    pv.Plotter
+        The pyvista plotter
+    """
+
+    tic = Tic()
+
+    __, mesh, coord, inDim = _Init_obj(obj)
+
+    # check if there is available tags in the mesh
+    nTtags = [
+        np.max([len(groupElem.nodeTags), len(groupElem.elementTags)])
+        for groupElem in mesh.dict_groupElem.values()
+    ]
+    if np.max(nTtags) == 0:
+        MyPrintError(
+            "There is no tags available in the mesh, so don't forget to use the '_Set_PhysicalGroups()' function before meshing your geometry with in the gmsh interface."
+        )
+        return None  # type: ignore [return-value]
+
+    if plotter is None:
+        plotter = _Plotter()
+
+    Plot(mesh, opacity=0.2, plotter=plotter)
+
+    for groupElem in mesh.dict_groupElem.values():
+
+        # groupElem's data
+        tags_e = groupElem.elementTags
+        dim = groupElem.dim
+        coord = groupElem.coordGlob
+        center_e = np.mean(coord[groupElem.connect], axis=1)  # center of each elements
+
+        for tag_e in tags_e:
+            if "nodes" in tag_e:
+                pass
+
+            # get nodes and elements
+            nodes = groupElem.Get_Nodes_Tag(tag_e)
+            elements = groupElem.Get_Elements_Tag(tag_e)
+            if len(elements) == 0:
+                continue
+
+            grid = MeshIO._GroupElem_to_PyVista(groupElem, elements)
+
+            if dim == 0:
+                plotter.add_mesh(grid, render_points_as_spheres=True)
+            elif dim == 1:
+                plotter.add_mesh(grid, "k")
+            elif dim == 2:
+                plotter.add_mesh(grid, "c", opacity=0.5)
+            else:
+                pass
+
+            # add tags
+            if dim == 0:
+                grid["labels"] = [tags_e for _ in nodes]
+                plotter.add_point_labels(
+                    grid, "labels", point_color="k", render_points_as_spheres=True
+                )
+            else:
+                center = np.mean(center_e[elements], axis=0)
+                plotter.add_point_labels(np.reshape(center, (1, 3)), [tag_e])
+
+    tic.Tac("PyVista", "Plot_Tags")
+
+    return plotter
+
+
 def Plot_Geoms(
     geoms: list,
     line_width=2,
