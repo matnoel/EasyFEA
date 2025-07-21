@@ -539,6 +539,33 @@ def Gmsh_to_EasyFEA(gmshMesh: str) -> Mesh:
 # ----------------------------------------------
 
 
+def _Get_pyvista_cell(groupElem: _GroupElem) -> tuple[pv.CellType, _types.IntArray]:
+
+    elemType = groupElem.elemType
+
+    if elemType not in DICT_ELEMTYPE_TO_VTK.keys():
+        raise TypeError(f"{elemType} is not implemented yet.")
+
+    # reorder gmsh idx to vtk indexes
+    if elemType in DICT_GMSH_TO_VTK_INDEXES.keys():
+        vtkIndexes = DICT_GMSH_TO_VTK_INDEXES[elemType]
+    elif elemType in ["TRI10", "TRI15"]:
+        # forced to do this because pyvista simply does not have LAGRANGE_TRIANGLE
+        # do not put in DICT_VTK_INDEXES because paraview can read LAGRANGE_TRIANGLE without changing the indices
+        vtkIndexes = np.reshape(groupElem.triangles, (-1, 3)).tolist()
+    else:
+        vtkIndexes = np.arange(groupElem.nPe).tolist()
+
+    # get groupelem connectivity
+    connect = groupElem.connect[:, vtkIndexes]
+    connect = np.reshape(connect, (-1, np.shape(vtkIndexes)[-1]))
+
+    # create cellData
+    cellType = DICT_ELEMTYPE_TO_VTK[elemType]
+
+    return cellType, connect
+
+
 def EasyFEA_to_PyVista(
     mesh: Mesh, coord: Optional[_types.FloatArray] = None, useAllElements=True
 ) -> pv.UnstructuredGrid:
@@ -565,30 +592,12 @@ def EasyFEA_to_PyVista(
     # init dict of cell data
     dict_cellData: dict[pv.CellType, np.ndarray] = {}
 
-    for elemType, groupElem in mesh.dict_groupElem.items():
+    for groupElem in mesh.dict_groupElem.values():
         if not useAllElements and groupElem is not mesh.groupElem:
             continue
 
-        if elemType not in DICT_ELEMTYPE_TO_VTK.keys():
-            Display.MyPrintError(f"{elemType} is not implemented yet.")
-            continue
+        cellType, connect = _Get_pyvista_cell(groupElem)
 
-        # reorder gmsh idx to vtk indexes
-        if elemType in DICT_GMSH_TO_VTK_INDEXES.keys():
-            vtkIndexes = DICT_GMSH_TO_VTK_INDEXES[elemType]
-        elif elemType in ["TRI10", "TRI15"]:
-            # forced to do this because pyvista simply does not have LAGRANGE_TRIANGLE
-            # do not put in DICT_VTK_INDEXES because paraview can read LAGRANGE_TRIANGLE without changing the indices
-            vtkIndexes = np.reshape(groupElem.triangles, (-1, 3)).tolist()
-        else:
-            vtkIndexes = np.arange(groupElem.nPe).tolist()
-
-        # get groupelem connectivity
-        connect = groupElem.connect[:, vtkIndexes]
-        connect = np.reshape(connect, (-1, np.shape(vtkIndexes)[-1]))
-
-        # create cellData
-        cellType = DICT_ELEMTYPE_TO_VTK[elemType]
         dict_cellData[cellType] = connect
 
     # get mesh coordinates
@@ -601,6 +610,38 @@ def EasyFEA_to_PyVista(
 
     # get UnstructuredGrid
     pyVistaMesh = pv.UnstructuredGrid(dict_cellData, coordinates)
+
+    return pyVistaMesh
+
+
+def _GroupElem_to_PyVista(
+    groupElem: _GroupElem, elements: Optional[_types.IntArray] = None
+) -> pv.UnstructuredGrid:
+    """Converts EasyFEA mesh to PyVista Multiblock format.
+
+    Parameters
+    ----------
+    mesh : Mesh
+        EasyFEA mesh object.
+    elements : _types.IntArray, optional
+        mesh coordinates, by default None
+
+    Returns
+    -------
+    pv.UnstructuredGrid
+        pyvista mesh
+    """
+
+    assert isinstance(groupElem, _GroupElem), "groupElem must be a group of elements!"
+
+    cellType, connect = _Get_pyvista_cell(groupElem)
+
+    if isinstance(elements, np.ndarray):
+        assert elements.min() >= 0
+        assert elements.max() < groupElem.Ne
+        connect = connect[elements]
+
+    pyVistaMesh = pv.UnstructuredGrid({cellType: connect}, groupElem.coordGlob)
 
     return pyVistaMesh
 
