@@ -2,7 +2,7 @@
 # This file is part of the EasyFEA project.
 # EasyFEA is distributed under the terms of the GNU General Public License v3, see LICENSE.txt and CREDITS.md for more information.
 
-"""Module containing the WeakFormManager class used to assemble arbitrary finite element matrices."""
+"""Module containing the WeakForms class used to assemble arbitrary finite element matrices."""
 
 from typing import Optional, Union
 
@@ -17,10 +17,10 @@ class WeakForms(_IModel):
     def __init__(
         self,
         field: Field,
-        computeK: Union[BiLinearForm, LinearForm],
-        computeC: Optional[Union[BiLinearForm, LinearForm]] = None,
-        computeM: Optional[Union[BiLinearForm, LinearForm]] = None,
-        computeF: Optional[Union[BiLinearForm, LinearForm]] = None,
+        computeK: BiLinearForm,
+        computeC: Optional[BiLinearForm] = None,
+        computeM: Optional[BiLinearForm] = None,
+        computeF: Optional[LinearForm] = None,
         thickness: float = 1.0,
     ):
         """Creates a weak form manager responsible for computing the finite element matrices used in the system \( K u + C v + M a = F \).
@@ -28,14 +28,14 @@ class WeakForms(_IModel):
         Parameters
         ----------
         field : Field
-            Finite element field u.
-        computeK : Union[BiLinearForm,LinearForm]
+            Finite element field u
+        computeK : BiLinearForm
             Function used to build stiffness matrix K
-        computeC : Optional[Union[BiLinearForm,LinearForm]], optional
+        computeC : Optional[BiLinearForm], optional
             Function used to build damping matrix C, by default None
-        computeM : Optional[Union[BiLinearForm,LinearForm]], optional
+        computeM : Optional[BiLinearForm], optional
             Function used to build mass matrix M, by default None
-        computeF : Optional[Union[BiLinearForm,LinearForm]], optional
+        computeF : Optional[LinearForm], optional
             Function used to build force vector F, by default None
         thickness : float, optional
             thickness used in the model, by default 1.0

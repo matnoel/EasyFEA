@@ -122,9 +122,9 @@ class WeakFormSimu(_Simu):
         """Construct the matrix system for the thermal problem in stationary or transient regime."""
 
         # Data
-        weakFormManager = self.weakForms
+        weakForms = self.weakForms
         mesh = self.mesh
-        field = weakFormManager.field
+        field = weakForms.field
         Ndof = mesh.Nn * field.dof_n
 
         # Additional dimension linked to the use of lagrange coefficients
@@ -136,7 +136,7 @@ class WeakFormSimu(_Simu):
 
         tic = Tic()
 
-        computeK = weakFormManager.computeK
+        computeK = weakForms.computeK
 
         if computeK is None:
             K = initCsrMatrix
@@ -149,7 +149,7 @@ class WeakFormSimu(_Simu):
 
         tic.Tac("Matrix", "Assemble K", self._verbosity)
 
-        computeC = weakFormManager.computeC
+        computeC = weakForms.computeC
 
         if computeC is None:
             C = initCsrMatrix
@@ -162,7 +162,7 @@ class WeakFormSimu(_Simu):
 
         tic.Tac("Matrix", "Assemble C", self._verbosity)
 
-        computeM = weakFormManager.computeM
+        computeM = weakForms.computeM
 
         if computeM is None:
             M = initCsrMatrix
@@ -175,7 +175,7 @@ class WeakFormSimu(_Simu):
 
         tic.Tac("Matrix", "Assemble M", self._verbosity)
 
-        computeF = weakFormManager.computeF
+        computeF = weakForms.computeF
 
         if computeF is None:
             F = sparse.csr_matrix((Ndof + NdofLagr, 1), dtype=float)

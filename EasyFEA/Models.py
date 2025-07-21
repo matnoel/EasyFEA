@@ -43,7 +43,7 @@ from .models._beam import _Beam, BeamStructure, BeamElasIsot
 from .models._thermal import Thermal
 
 # ----------------------------------------------
-# WeakFormManager
+# WeakForms
 # ----------------------------------------------
 
 from .models._weak_forms import WeakForms
