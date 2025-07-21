@@ -602,7 +602,7 @@ def Plot_Tags(obj, plotter: Optional[pv.Plotter] = None) -> _types.Axes:
     if plotter is None:
         plotter = _Plotter()
 
-    Plot(mesh, opacity=0.2, plotter=plotter)
+    Plot(mesh, opacity=0.1, plotter=plotter)
 
     for groupElem in mesh.dict_groupElem.values():
 
@@ -625,23 +625,20 @@ def Plot_Tags(obj, plotter: Optional[pv.Plotter] = None) -> _types.Axes:
             grid = MeshIO._GroupElem_to_PyVista(groupElem, elements)
 
             if dim == 0:
-                plotter.add_mesh(grid, render_points_as_spheres=True)
+                plotter.add_mesh(grid, "k", render_points_as_spheres=True)
             elif dim == 1:
-                plotter.add_mesh(grid, "k")
+                plotter.add_mesh(grid, "k", line_width=2)
             elif dim == 2:
                 plotter.add_mesh(grid, "c", opacity=0.5)
             else:
-                pass
+                plotter.add_mesh(grid, "c", opacity=0.5)
 
             # add tags
             if dim == 0:
-                grid["labels"] = [tags_e for _ in nodes]
-                plotter.add_point_labels(
-                    grid, "labels", point_color="k", render_points_as_spheres=True
-                )
+                center = np.mean(coord[nodes], axis=0)
             else:
                 center = np.mean(center_e[elements], axis=0)
-                plotter.add_point_labels(np.reshape(center, (1, 3)), [tag_e])
+            plotter.add_point_labels(center.reshape(1, 3), [tag_e], always_visible=True)
 
     tic.Tac("PyVista", "Plot_Tags")
 
