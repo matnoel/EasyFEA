@@ -1932,10 +1932,8 @@ class Mesher:
 
                 # nodes associated with the group
                 nodesGroup = changes[nodeTags]  # Apply change
-
-                # add the group for notes and elements
-                groupElem._Set_Nodes_Tag(nodesGroup, name)
-                groupElem._Set_Elements_Tag(nodesGroup, name)
+                # add tag
+                groupElem.Set_Tag(nodesGroup, name)
 
             [__addPysicalGroup(group) for group in physicalGroups]
 
