@@ -98,63 +98,97 @@ def Plot_Result(
 
     tic = Tic()
 
-    simu, mesh, coordo, inDim = _Init_obj(obj, deformFactor)  # type: ignore
+    simu, mesh, coord, inDim = _Init_obj(obj, deformFactor)  # type: ignore
     plotDim = mesh.dim  # plot dimension
+    groupElem = mesh.groupElem
 
-    # don't know how to display nodal values on lines
+    # Don't know how to display nodal values on lines
     nodeValues = False if plotDim == 1 else nodeValues
-
     # When mesh use 3D elements, results are displayed only on 2D elements.
     # To display values on 2D elements, we first need to know the values at 3D nodes.
     nodeValues = True if plotDim == 3 else nodeValues  # do not modify
 
-    values = _Get_values(simu, mesh, result, nodeValues)
-
-    values *= coef  # Apply coef to values
-
     # Builds boundary markers for the colorbar
-    min, max = clim
-    if min is None and max is None:
-        if isinstance(result, str) and result == "damage":
-            min = values.min() - 1e-12
-            max = np.max([values.max() + 1e-12, 1])
-            ticks = np.linspace(min, max, 11)
-            # ticks = np.linspace(0,1,11) # ticks colorbar
-        else:
-            max = np.max(values) + 1e-12 if max is None else max
-            min = np.min(values) - 1e-12 if min is None else min
-            ticks = np.linspace(min, max, 11)
-        levels = np.linspace(min, max, ncolors)
-    else:
-        ticks = np.linspace(min, max, 11)
-        levels = np.linspace(min, max, ncolors)
+    values = _Get_values(simu, mesh, result, nodeValues) * coef
+    ticks, levels, norm, min, max = __Get_colorbar_properties(
+        clim, result, values, ncolors
+    )
 
-    if ncolors != 256:
-        norm = colors.BoundaryNorm(boundaries=levels, ncolors=256)
+    # init Axes
+    if ax is None:
+        ax = Init_Axes(3) if mesh.inDim == 3 else Init_Axes(2)
+        ax.set_xlabel(r"$x$")
+        ax.set_ylabel(r"$y$")
+        if mesh.inDim == 3:
+            ax.set_zlabel(r"$z$")  # type: ignore
     else:
-        norm = None
-
-    if ax is not None:
         _Remove_colorbar(ax)
         ax.clear()
-        fig = ax.figure
         # change the plot dimentsion if the given axes is in 3d
         inDim = 3 if ax.name == "3d" else inDim
 
-    if inDim in [1, 2]:
-        # Mesh contained in a 2D plane
-        # Only designed for one element group!
+    if inDim == 3:
+        # If the mesh is a 3D mesh, only the 2D elements of the mesh will be displayed.
+        # A 3D mesh can contain several types of 2D element.
+        # For example PRISM6 mesh use TRI3 and QUAD4 at the same time
+        plotDim = 2 if plotDim == 3 else plotDim
 
-        if ax is None:
-            ax = Init_Axes()
-            fig = ax.figure
-            ax.set_xlabel(r"$x$")
-            ax.set_ylabel(r"$y$")
+        # construct the surface connection matrix
+        connectSurfaces = []  # type: ignore [assignment]
+        groupElems = mesh.Get_list_groupElem(plotDim)
+        list_surfaces = _Get_list_surfaces(mesh, plotDim)
+        for groupElem, faces in zip(groupElems, list_surfaces):
+            connectSurfaces.extend(groupElem.connect[:, faces])  # type: ignore [attr-defined]
+        connectSurfaces = np.asarray(connectSurfaces, dtype=int)
+        elements_coordinates = coord[connectSurfaces, :3]
 
-        # construct coordinates for each elements
-        faces = mesh.groupElem.surfaces.ravel().tolist()
-        connectFaces = mesh.connect[:, faces]
-        elements_coordinates = coordo[connectFaces, :2]
+        if nodeValues:
+            # If the result is stored at nodes, we'll average the node values over the element.
+            facesValues = []
+            # for each group of elements, we'll calculate the value to be displayed on each element
+            for groupElem in groupElems:
+                values_loc = values[groupElem.connect]
+                values_e = np.mean(values_loc, axis=1)
+                facesValues.extend(values_e)
+            facesValues = np.array(facesValues)  # type: ignore [assignment]
+        else:
+            facesValues = values  # type: ignore [assignment]
+
+        # Display result with or without the mesh
+        edgecolor = edgecolor if plotMesh else None
+        linewidths = 0.5 if plotMesh else None
+
+        if plotDim == 1:
+            ax.plot(*mesh.coordGlob.T, c=edgecolor, lw=0.1, marker=".", ls="")
+            pc = Line3DCollection(elements_coordinates, cmap=cmap, zorder=0, norm=norm)
+        elif plotDim == 2:
+            pc = Poly3DCollection(
+                elements_coordinates,
+                edgecolor=edgecolor,
+                linewidths=linewidths,
+                cmap=cmap,
+                zorder=0,
+                norm=norm,
+            )
+
+        # Colors are applied to the faces
+        pc.set_array(facesValues)
+        pc.set_clim(
+            np.min([facesValues.min(), min]),
+            np.max([facesValues.max(), max]),
+        )
+        ax.add_collection3d(pc)
+        # We set the colorbar limits and display it
+        colorbar = plt.colorbar(pc, ax=ax, ticks=ticks)
+
+        # Change axis scale
+        _Axis_equal_3D(ax, mesh.coordGlob)
+
+    else:
+
+        elements_coordinates = coord[
+            groupElem.connect[:, groupElem.surfaces.ravel()], :2
+        ]
 
         # Plot the mesh
         if plotMesh:
@@ -177,7 +211,6 @@ def Plot_Result(
             pc.set_clim(min, max)
             pc.set_array(values)
             ax.add_collection(pc)
-            # ticks = None if ncolors != 11 else ticks
 
         # Plot node values
         elif mesh.Nn == len(values):
@@ -186,14 +219,13 @@ def Plot_Result(
             connectTri = np.reshape(mesh.connect[:, triangles], (-1, 3))
             # tripcolor, tricontour, tricontourf
             pc = ax.tricontourf(  # type: ignore [call-overload]
-                coordo[:, 0],
-                coordo[:, 1],
+                *coord[:, :2].T,
                 connectTri,
                 values,
                 levels,
                 cmap=cmap,
-                vmin=min,
-                vmax=max,
+                vmin=values.min(),
+                vmax=values.max(),
             )
 
         # scale the axis
@@ -206,113 +238,16 @@ def Plot_Result(
             # # cax = divider.add_auto_adjustable_area(use_axes=ax, pad=0.1, adjust_dirs='right')
         else:
             cax = None
+        colorbar = plt.colorbar(pc, ax=ax, cax=cax, ticks=ticks)
 
-        cb = plt.colorbar(pc, ax=ax, cax=cax, ticks=ticks)
-
-    elif inDim == 3:
-        # If the mesh is a 3D mesh, only the 2D elements of the mesh will be displayed.
-        # A 3D mesh can contain several types of 2D element.
-        # For example, when PRISM6 -> TRI3 and QUAD4 at the same time
-
-        plotDim = 2 if plotDim == 3 else plotDim
-
-        if ax is None:
-            ax = Init_Axes(3)
-            fig = ax.figure
-            ax.set_xlabel(r"$x$")
-            ax.set_ylabel(r"$y$")
-            ax.set_zlabel(r"$z$")  # type: ignore
-
-        # construct the face connection matrix
-        connectFaces = []  # type: ignore [assignment]
-        groupElems = mesh.Get_list_groupElem(plotDim)
-        list_faces = _Get_list_surfaces(mesh, plotDim)
-        for groupElem, faces in zip(groupElems, list_faces):
-            connectFaces.extend(groupElem.connect[:, faces])  # type: ignore [attr-defined]
-        connectFaces = np.asarray(connectFaces, dtype=int)
-
-        elements_coordinates = coordo[connectFaces, :3]
-
-        if nodeValues:
-            # If the result is stored at nodes, we'll average the node values over the element.
-            facesValues = []
-            # for each group of elements, we'll calculate the value to be displayed on each element
-            for groupElem in groupElems:
-                values_loc = values[groupElem.connect]
-                values_e = np.mean(values_loc, axis=1)
-                facesValues.extend(values_e)
-            facesValues = np.array(facesValues)  # type: ignore [assignment]
-        else:
-            facesValues = values  # type: ignore [assignment]
-
-        # update max and min
-        max = np.max([facesValues.max(), max])  # type: ignore [attr-defined]
-        min = np.min([facesValues.min(), min])  # type: ignore [attr-defined]
-
-        # Display result with or without the mesh
-        if plotMesh:
-            if plotDim == 1:
-                ax.plot(*mesh.coordGlob.T, c="black", lw=0.1, marker=".", ls="")
-                pc = Line3DCollection(
-                    elements_coordinates, cmap=cmap, zorder=0, norm=norm
-                )
-            elif plotDim == 2:
-                pc = Poly3DCollection(
-                    elements_coordinates,
-                    edgecolor="black",
-                    linewidths=0.5,
-                    cmap=cmap,
-                    zorder=0,
-                    norm=norm,
-                )
-        else:
-            if plotDim == 1:
-                pc = Line3DCollection(
-                    elements_coordinates, cmap=cmap, zorder=0, norm=norm
-                )
-            if plotDim == 2:
-                pc = Poly3DCollection(
-                    elements_coordinates, cmap=cmap, zorder=0, norm=norm
-                )
-
-        # Colors are applied to the faces
-        pc.set_array(facesValues)
-        pc.set_clim(min, max)
-        ax.add_collection3d(pc)
-        # We set the colorbar limits and display it
-        cb = fig.colorbar(pc, ax=ax, ticks=ticks)
-
-        # Change axis scale
-        _Axis_equal_3D(ax, mesh.coordGlob)
-
-    cb.set_label(colorbarLabel)
+    colorbar.set_label(colorbarLabel)
 
     # Title
     # if no title has been entered, the constructed title is used
     if title == "" and isinstance(result, str):
-        optionTex = result
-        if isinstance(result, str):
-            if result == "damage":
-                optionTex = r"\phi"
-            elif result == "thermal":
-                optionTex = "T"
-            elif "S" in result and ("_norm" not in result):
-                optionFin = result.split("S")[-1]
-                optionTex = f"\sigma_{'{' + optionFin + '}'}"
-            elif "E" in result:
-                optionFin = result.split("E")[-1]
-                optionTex = f"\epsilon_{'{' + optionFin + '}'}"
-
-        # Specify whether values are on nodes or elements
-        if nodeValues:
-            # loc = "^{n}"
-            loc = ""
-        else:
-            loc = "^{e}"
-        title = optionTex + loc
-        ax.set_title(rf"${title}$")
+        ax.set_title(rf"${__Get_latex_title(result, nodeValues)}$")
     else:
-        ax.set_title(f"{title}")
+        ax.set_title(title)
 
     tic.Tac("Display", "Plot_Result")
 
@@ -323,6 +258,61 @@ def Plot_Result(
         Save_fig(folder, filename, transparent=False)
 
     return ax
+
+
+def __Get_colorbar_properties(
+    clim: tuple[int, int],
+    result: Union[str, np.ndarray],
+    values: np.ndarray,
+    ncolors: int,
+):
+    """Returns ticks, levels, norm"""
+    min, max = clim
+    if min is None and max is None:
+        if isinstance(result, str) and result == "damage":
+            min = values.min() - 1e-12
+            max = np.max([values.max() + 1e-12, 1])
+            ticks = np.linspace(min, max, 11)
+            # ticks = np.linspace(0,1,11) # ticks colorbar
+        else:
+            max = np.max(values) + 1e-12 if max is None else max
+            min = np.min(values) - 1e-12 if min is None else min
+            ticks = np.linspace(min, max, 11)
+        levels = np.linspace(min, max, ncolors)
+    else:
+        ticks = np.linspace(min, max, 11)
+        levels = np.linspace(min, max, ncolors)
+
+    if ncolors != 256:
+        norm = colors.BoundaryNorm(boundaries=levels, ncolors=256)
+    else:
+        norm = None
+
+    return ticks, levels, norm, min, max
+
+
+def __Get_latex_title(result, nodeValues=True) -> str:
+    optionTex = result
+    if isinstance(result, str):
+        if result == "damage":
+            optionTex = r"\phi"
+        elif result == "thermal":
+            optionTex = "T"
+        elif "S" in result and ("_norm" not in result):
+            optionFin = result.split("S")[-1]
+            optionTex = f"\sigma_{'{' + optionFin + '}'}"
+        elif "E" in result:
+            optionFin = result.split("E")[-1]
+            optionTex = f"\epsilon_{'{' + optionFin + '}'}"
+
+    # Specify whether values are on nodes or elements
+    if nodeValues:
+        # loc = "^{n}"
+        loc = ""
+    else:
+        loc = "^{e}"
+    title = optionTex + loc
+    return title
 
 
 def Plot_Mesh(
