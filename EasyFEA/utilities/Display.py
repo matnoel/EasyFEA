@@ -93,8 +93,7 @@ def Plot_Result(
 
     Returns
     -------
-    Figure, Axis, colorbar
-        fig, ax, cb
+    _types.Axis
     """
 
     tic = Tic()
