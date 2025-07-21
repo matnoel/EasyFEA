@@ -1796,7 +1796,15 @@ class _GroupElem(ABC):
     # "Line" -> Plane equation
     # CircleArc -> Cylinder do something like Get_Nodes_Cylinder
 
-    def _Set_Nodes_Tag(self, nodes: _types.IntArray, tag: str):
+    def Set_Tag(self, nodes: _types.IntArray, tag: str):
+        """Set a tag on the nodes and elements belonging to the group of elements."""
+        assert isinstance(tag, str), "tag must be a string"
+        self.__Set_Nodes_Tag(nodes, tag)
+        # The elements used by the nodes are automatically defined using the function
+        # Get_Elements_Nodes(nodes, exclusively=True) in the following function.
+        self.__Set_Elements_Tag(nodes, tag)
+
+    def __Set_Nodes_Tag(self, nodes: _types.IntArray, tag: str):
         """Adds a tag to the nodes.
 
         Parameters
@@ -1827,7 +1835,7 @@ class _GroupElem(ABC):
         """Dictionary associating tags with nodes."""
         return self.__dict_nodes_tags.copy()
 
-    def _Set_Elements_Tag(self, nodes: _types.IntArray, tag: str):
+    def __Set_Elements_Tag(self, nodes: _types.IntArray, tag: str):
         """Adds a tag to elements associated with nodes
 
         Parameters

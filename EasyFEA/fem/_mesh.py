@@ -618,16 +618,10 @@ class Mesh(Observable):
 
     def Set_Tag(self, nodes: _types.IntArray, tag: str):
         """Set a tag on the nodes and elements belonging to each group of elements in the mesh."""
-
-        assert isinstance(tag, str), "tag must be a string"
-
-        for _, groupElem in self.__dict_groupElem.items():
+        for groupElem in self.__dict_groupElem.values():
             if groupElem.dim == 0:
                 continue
-            groupElem._Set_Nodes_Tag(nodes, tag)
-            # The elements used by the nodes are automatically defined using the function
-            # Get_Elements_Nodes(nodes, exclusively=True) in the following function.
-            groupElem._Set_Elements_Tag(nodes, tag)
+            groupElem.Set_Tag(nodes, tag)
 
     def Locates_sol_e(
         self, sol: _types.FloatArray, dof_n: Optional[int] = None, asFeArray=False

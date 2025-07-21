@@ -1228,8 +1228,7 @@ class Mesher:
         def FuncAddTags(beam: "_Beam"):
             nodes = mesh.Nodes_Line(beam.line)
             for grp in mesh.Get_list_groupElem():
-                grp._Set_Nodes_Tag(nodes, beam.name)
-                grp._Set_Elements_Tag(nodes, beam.name)
+                grp.Set_Tag(nodes, beam.name)
 
         [FuncAddTags(beam) for beam in beams]
 
