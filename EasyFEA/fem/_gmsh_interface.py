@@ -560,7 +560,7 @@ class Mesher:
         if len(points) > 0:
             self._Synchronize()
             factory.fragment(
-                oldEntities, [(0, point) for point in list_point], False, False
+                oldEntities, [(0, point) for point in list_point], False, True
             )
 
     def _Spline_From_Points(self, points: "Points") -> tuple[int, list[int]]:
