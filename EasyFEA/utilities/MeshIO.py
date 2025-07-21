@@ -662,7 +662,7 @@ def PyVista_to_EasyFEA(pyVistaMesh: Union[pv.UnstructuredGrid, pv.MultiBlock]) -
 
     dict_groupElem: dict[ElemType, _GroupElem] = {}
 
-    def read_grid(grid: pv.UnstructuredGrid):
+    def read_grid(grid: pv.UnstructuredGrid, part: int):
 
         coordGlob = grid.points
 
@@ -680,7 +680,25 @@ def PyVista_to_EasyFEA(pyVistaMesh: Union[pv.UnstructuredGrid, pv.MultiBlock]) -
                 indexes = DICT_VTK_TO_GMSH_INDEXES[cellType]
                 connect = connect[:, indexes]
 
-            groupElem = GroupElemFactory._Create(elemType, connect, coordGlob)
+            if elemType not in dict_groupElem.keys():
+                groupElem = GroupElemFactory._Create(elemType, connect, coordGlob)
+                groupElem.Set_Tag(groupElem.nodes, str(part))
+            else:
+                groupElem = dict_groupElem[elemType]
+                # get previous tags
+                tags = groupElem.nodeTags
+                nodeTags = [groupElem.Get_Nodes_Tag(tag) for tag in tags]
+
+                # concate new data in previous groupElem
+                newNodes = np.array(list(set(connect.ravel())))
+                connect = np.concat((groupElem.connect, connect), axis=0)
+                groupElem = GroupElemFactory._Create(elemType, connect, coordGlob)
+
+                # add previous tags
+                for nodes, tag in zip(nodeTags, tags):
+                    groupElem.Set_Tag(nodes, tag)
+                # add new tags
+                groupElem.Set_Tag(newNodes, str(part))
 
             dict_groupElem[elemType] = groupElem
 
@@ -688,13 +706,13 @@ def PyVista_to_EasyFEA(pyVistaMesh: Union[pv.UnstructuredGrid, pv.MultiBlock]) -
         pyVistaMesh = pyVistaMesh.as_unstructured_grid_blocks()
 
         # loop over blocks
-        for index in range(pyVistaMesh.n_blocks):
-            grid = pyVistaMesh.get_block(index)
+        for part in range(pyVistaMesh.n_blocks):
+            grid = pyVistaMesh.get_block(part)
             if isinstance(grid, pv.UnstructuredGrid):
-                read_grid(grid)
+                read_grid(grid, part)
 
     elif isinstance(pyVistaMesh, pv.UnstructuredGrid):
-        read_grid(pyVistaMesh)
+        read_grid(pyVistaMesh, 0)
     else:
         raise TypeError("Wrond type.")
 
@@ -734,10 +752,10 @@ def Ensight_to_PyVista(geoFile: str) -> pv.MultiBlock:
 
     # import case to pyvista
     reader = pv.EnSightReader(caseFile)
-    # reader.disable_all_cell_arrays()
-    # reader.disable_all_point_arrays()
+    reader.enable_all_cell_arrays()
+    reader.enable_all_point_arrays()
 
-    # get the pyvista mesh
+    # get thepyvista Multi pyvista mesh
     pyVistaMesh = reader.read()
 
     # remove the created case file
