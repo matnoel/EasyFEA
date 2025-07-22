@@ -171,8 +171,8 @@ def Plot_Result(
         # Colors are applied to the faces
         pc.set_array(elementValues)
         pc.set_clim(
-            np.min([elementValues.min(), min]),
-            np.max([elementValues.max(), max]),
+            np.min([elementValues.min(), min]),  # type: ignore [attr-defined]
+            np.max([elementValues.max(), max]),  # type: ignore [attr-defined]
         )
         ax.add_collection3d(pc)
         # We set the colorbar limits and display it
@@ -562,7 +562,7 @@ def _Plot_obj(
             pc = Line3DCollection(vertices, **params)
             ax.add_collection3d(pc)  # type: ignore
         else:
-            pc = LineCollection(vertices, **params)
+            pc = LineCollection(vertices, **params)  # type: ignore [arg-type]
             ax.add_collection(pc)
 
     else:
@@ -583,7 +583,7 @@ def _Plot_obj(
             pc = Poly3DCollection(vertices, **params)
             ax.add_collection3d(pc)  # type: ignore
         else:
-            pc = PolyCollection(vertices, **params)
+            pc = PolyCollection(vertices, **params)  # type: ignore [arg-type]
             ax.add_collection(pc)  # type: ignore
 
     if inDim == 3:
@@ -975,7 +975,7 @@ def Plot_Tags(
                 # plot points
                 points = ax.scatter(
                     *coord[nodes, :inDim].T,
-                    c="black",
+                    c="black",  # type: ignore [misc]
                     marker=".",
                     zorder=2,
                     label=tag_e,
@@ -995,7 +995,7 @@ def Plot_Tags(
                     pc = Line3DCollection(vertices, **params)
                     collections.append(ax.add_collection3d(pc, zdir="z"))
                 else:
-                    pc = LineCollection(vertices, **params)
+                    pc = LineCollection(vertices, **params)  # type: ignore [arg-type]
                     collections.append(ax.add_collection(pc))
 
             elif dim == 2:
@@ -1020,7 +1020,7 @@ def Plot_Tags(
                     collections.append(ax.add_collection(pc))
 
             if showId:
-                ax.text(*center[:inDim], tag_e, zorder=25)  # type: ignore [arg-type]
+                ax.text(*center[:inDim], tag_e, zorder=25)  # type: ignore [arg-type, call-arg]
 
         if inDim == 3:
             _Axis_equal_3D(ax, coord)
