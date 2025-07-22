@@ -92,6 +92,6 @@ if __name__ == "__main__":
     Display.Plot_Result(simu, result, plotMesh=True, nodeValues=True, folder=folder)
 
     if makeMovie:
-        PyVista.Movie_simu(simu, result, folder, f"{result}.gif", show_edges=True)
+        PyVista.Movie_simu(simu, result, folder, f"{result}.gif", plotMesh=True)
 
     plt.show()

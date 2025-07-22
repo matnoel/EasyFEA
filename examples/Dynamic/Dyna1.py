@@ -119,7 +119,7 @@ if __name__ == "__main__":
             folder,
             f"{result}.gif",
             deformFactor=1,
-            show_edges=True,
+            plotMesh=True,
         )
 
     print(simu)

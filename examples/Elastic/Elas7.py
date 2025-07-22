@@ -154,7 +154,7 @@ if __name__ == "__main__":
             "Svm.gif",
             deformFactor=200,
             nodeValues=False,
-            show_edges=True,
+            plotMesh=True,
         )
 
     if makeParaview:

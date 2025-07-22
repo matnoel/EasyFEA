@@ -299,7 +299,6 @@ def DoSimu(split: str, regu: str):
 
     if plotMesh:
         # PyVista.Plot_Mesh(simu.mesh).show()
-        # PyVista.Plot(simu, "ux", show_edges=True).show()
         ax = Display.Plot_Mesh(simu.mesh, lw=0.3, facecolors="white")
         ax.axis("off")
         ax.set_title("")
