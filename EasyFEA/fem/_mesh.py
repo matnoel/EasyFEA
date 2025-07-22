@@ -48,7 +48,7 @@ class Mesh(Observable):
         """
 
         list_GroupElem = []
-        dim = 0
+        dim = -1
         assert len(dict_groupElem) > 0, "dict_groupElem is empty."
         for grp in dict_groupElem.values():
             if grp.dim > dim:
