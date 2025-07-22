@@ -10,7 +10,7 @@ Refined 3D mesh in zones.
 """
 # sphinx_gallery_thumbnail_number = 2
 
-from EasyFEA import Display, ElemType
+from EasyFEA import Display, ElemType, PyVista
 from EasyFEA.Geoms import Circle, Domain
 
 if __name__ == "__main__":
@@ -28,12 +28,9 @@ if __name__ == "__main__":
     refine3 = Circle((0, 0), L / 2, meshSize / 8)
     refineGeoms = [refine1, refine2, refine3]
 
-    geoms = [contour, circle, refine1, refine2, refine3]
-    contour.Plot_Geoms(geoms)
+    PyVista.Plot_Geoms([contour, circle, *refineGeoms]).show()
 
     mesh = contour.Mesh_Extrude(
         inclusions, [0, 0, -L], [5], ElemType.PRISM15, refineGeoms=refineGeoms
     )
-    Display.Plot_Mesh(mesh)
-
-    Display.plt.show()
+    PyVista.Plot_Mesh(mesh).show()

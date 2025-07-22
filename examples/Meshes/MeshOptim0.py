@@ -10,7 +10,7 @@ Optimization of a happy mesh with quality criteria.
 """
 # sphinx_gallery_thumbnail_number = 2
 
-from EasyFEA import Display, Folder, plt, np, Mesher, ElemType, Mesh
+from EasyFEA import Display, Folder, plt, np, Mesher, ElemType, Mesh, PyVista
 from EasyFEA.Geoms import Point, Circle, CircleArc, Contour
 from EasyFEA.fem import Mesh_Optim
 
@@ -69,7 +69,7 @@ if __name__ == "__main__":
 
     # Construct the initial mesh
     mesh = DoMesh()
-    Display.Plot_Mesh(mesh, title="first mesh")
+    PyVista.Plot_Mesh(mesh).show()
 
     mesh, ratio = Mesh_Optim(DoMesh, folder, criteria, quality, ratio)
 
@@ -79,16 +79,15 @@ if __name__ == "__main__":
 
     qual_e = mesh.Get_Quality(criteria, False)
 
-    Display.Plot_Mesh(mesh, title="last mesh")
-    Display.Plot_Result(
+    PyVista.Plot_Mesh(mesh).show()
+    PyVista.Plot(
         mesh,
         qual_e,
         nodeValues=False,
-        plotMesh=True,
+        show_edges=True,
         clim=(0, quality),
         cmap="viridis",
-        title=criteria,
-    )
+    ).show()
 
     axHist = Display.Init_Axes()
 

@@ -10,7 +10,7 @@ Meshing of a specimen for a spatially oriented tensile test.
 """
 # sphinx_gallery_thumbnail_number = 2
 
-from EasyFEA import Display, ElemType, np
+from EasyFEA import Display, ElemType, np, PyVista
 from EasyFEA.Geoms import Point, Line, CircleArc, Contour, Domain
 
 if __name__ == "__main__":
@@ -49,16 +49,14 @@ if __name__ == "__main__":
 
     surfaces = [contour2, contour3]
 
-    ax = contour.Plot()
-    contour2.Plot(ax)
-    contour3.Plot(ax)
+    PyVista.Plot_Geoms([contour, *surfaces]).show()
 
     mesh = contour.Mesh_Extrude(
         [],
         [0, 0, e],
         [3],
         isOrganised=True,
-        elemType=ElemType.HEXA20,
+        elemType=ElemType.HEXA8,
         additionalSurfaces=surfaces,
     )
 
@@ -72,6 +70,4 @@ if __name__ == "__main__":
     mesh.Rotate(45, mesh.center, (1, 0))
     assert np.abs(mesh.area - oldArea) / oldArea <= 1e-12
 
-    Display.Plot_Mesh(mesh)
-
-    Display.plt.show()
+    PyVista.Plot_Mesh(mesh).show()

@@ -10,18 +10,16 @@ Meshing a 3D domain.
 """
 # sphinx_gallery_thumbnail_number = 2
 
-from EasyFEA import Display, ElemType
+from EasyFEA import Display, ElemType, PyVista
 from EasyFEA.Geoms import Point, Domain
 
 if __name__ == "__main__":
     Display.Clear()
 
     contour = Domain((0, 0), Point(1, 1))
-    contour.Plot()
+    PyVista.Plot_Geoms(contour).show()
 
     # "TETRA4", "TETRA10", "HEXA8", "HEXA20", "HEXA27", "PRISM6", "PRISM15", "PRISM18"
     elemType = ElemType.HEXA8
     mesh = contour.Mesh_Extrude([], [0, 0, 0.5], [3], elemType)
-    Display.Plot_Mesh(mesh)
-
-    Display.plt.show()
+    PyVista.Plot_Mesh(mesh).show()

@@ -8,8 +8,9 @@ Mesh5_3D
 
 Mesh of a 3D cracked part.
 """
+# sphinx_gallery_thumbnail_number = 3
 
-from EasyFEA import Display, ElemType, Models, Simulations
+from EasyFEA import Display, ElemType, Models, Simulations, PyVista
 from EasyFEA.Geoms import Point, Line, Points, Domain, Contour
 
 if __name__ == "__main__":
@@ -39,11 +40,14 @@ if __name__ == "__main__":
 
     cracks = [Contour([line1, line2, line3, line4], isOpen=openCrack), crack1]
 
+    PyVista.Plot_Geoms([contour, *cracks]).show()
+
     # WARNING:
     # only works with TETRA4 and TETRA10
     # only works with nLayers = []
     mesh = contour.Mesh_Extrude([], [0, 0, L], [], ElemType.TETRA4, cracks)
-    Display.Plot_Tags(mesh, alpha=0.1, showId=True)
+
+    PyVista.Plot_Tags(mesh).show()
 
     # ----------------------------------------------
     # SIMU
@@ -57,6 +61,6 @@ if __name__ == "__main__":
     )
     simu.add_dirichlet(mesh.Nodes_Conditions(lambda x, y, z: y == L), [L * 0.05], ["y"])
     simu.Solve()
-    Display.Plot_Result(simu, "uy", 1, plotMesh=True)
+    PyVista.Plot(simu, "uy", 1, show_edges=True).show()
 
     Display.plt.show()

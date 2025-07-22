@@ -8,7 +8,7 @@ MeshOptim3
 
 Mesh optimization using the ZZ1 criterion for a letter weigher.
 """
-# sphinx_gallery_thumbnail_number = 2
+# sphinx_gallery_thumbnail_number = -2
 
 from EasyFEA import (
     Display,
@@ -38,7 +38,7 @@ if __name__ == "__main__":
     # outputs
     folder = Folder.Join(Folder.RESULTS_DIR, "Meshes", "MeshOptim3")
     plotProj = False
-    makeMovie = False
+    makeMovie = True
     makeParaview = False
 
     # geom
@@ -110,6 +110,8 @@ if __name__ == "__main__":
     )
     inclusions = [inclusion]
 
+    PyVista.Plot_Geoms([points.Get_Contour(), inclusion.Get_Contour()]).show()
+
     def DoMesh(refineGeom=None) -> Mesh:
         """Function used to generate the mesh."""
         if dim == 2:
@@ -121,7 +123,7 @@ if __name__ == "__main__":
 
     # Construct the initial mesh
     mesh = DoMesh()
-    Display.Plot_Mesh(mesh)
+    PyVista.Plot_Mesh(mesh).show()
 
     # ----------------------------------------------
     # Material and Simulation
@@ -155,8 +157,8 @@ if __name__ == "__main__":
     # ----------------------------------------------
     # Plot
     # ----------------------------------------------
-    Display.Plot_Mesh(simu.mesh)
-    Display.Plot_Result(simu, "ZZ1_e", nodeValues=False, title="ZZ1", ncolors=11)
+    PyVista.Plot_Mesh(simu.mesh).show()
+    PyVista.Plot(simu, "ZZ1_e", nodeValues=False, n_colors=11).show()
 
     if plotProj:
         simu.Set_Iter(0)
@@ -188,15 +190,7 @@ if __name__ == "__main__":
         def func(plotter, n):
             simu.Set_Iter(n)
 
-            PyVista.Plot(
-                simu,
-                "ZZ1_e",
-                show_edges=True,
-                edge_color="grey",
-                plotter=plotter,
-                clim=(0, 1),
-                verticalColobar=False,
-            )
+            PyVista.Plot_Mesh(simu, plotter=plotter)
             # PyVista.Plot_BoundaryConditions(simu, plotter=plotter)
 
             zz1 = simu._Calc_ZZ1()[0]

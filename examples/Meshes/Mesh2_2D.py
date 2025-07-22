@@ -10,7 +10,7 @@ Meshing a triangle.
 """
 # sphinx_gallery_thumbnail_number = 2
 
-from EasyFEA import Display, ElemType
+from EasyFEA import Display, ElemType, PyVista
 from EasyFEA.Geoms import Points
 
 if __name__ == "__main__":
@@ -20,11 +20,9 @@ if __name__ == "__main__":
     N = 5
 
     contour = Points([(0, 0), (h, 0), (0, h)], h / N)
-    contour.Get_Contour().Plot()
+    PyVista.Plot_Geoms(contour).show()
 
     # "TRI3", "TRI6", "TRI10", "TRI15"
     elemType = ElemType.TRI3
     mesh = contour.Mesh_2D([], elemType)
-    Display.Plot_Mesh(mesh)
-
-    Display.plt.show()
+    PyVista.Plot_Mesh(mesh).show()

@@ -8,8 +8,9 @@ Mesh13
 
 Mesh a heterogeneous RVE with cracks.
 """
+# sphinx_gallery_thumbnail_number = 2
 
-from EasyFEA import Display, ElemType
+from EasyFEA import Display, ElemType, PyVista
 from EasyFEA.Geoms import Point, Line, Domain, Circle
 
 if __name__ == "__main__":
@@ -108,6 +109,8 @@ if __name__ == "__main__":
 
     cracks = [crack1, crack2, crack3]
 
+    PyVista.Plot_Geoms([contour, *inclusions, *cracks, circle6]).show()
+
     # mesh
     mesh = contour.Mesh_2D(inclusions, elemType, cracks, additionalSurfaces=[circle6])
 
@@ -115,11 +118,5 @@ if __name__ == "__main__":
     # Display
     # ----------------------------------------------
 
-    Display.Plot_Mesh(mesh)
-    geoms = [contour, circle6]
-    geoms.extend(inclusions)
-    geoms.extend(cracks)
-    contour.Plot_Geoms(geoms)
-    Display.Plot_Tags(mesh, True)
-
-    Display.plt.show()
+    PyVista.Plot_Mesh(mesh).show()
+    PyVista.Plot_Tags(mesh).show()

@@ -10,7 +10,7 @@ Meshing of a perforated plate with a structured mesh.
 """
 # sphinx_gallery_thumbnail_number = 2
 
-from EasyFEA import Display, np, Mesher, ElemType
+from EasyFEA import Display, np, Mesher, ElemType, PyVista
 from EasyFEA.Geoms import Point, Circle, Points, Line, CircleArc, Contour
 
 if __name__ == "__main__":
@@ -92,7 +92,7 @@ if __name__ == "__main__":
 
         contours1.extend([cont1, cont2])
 
-    cont1.Plot_Geoms(contours1)
+    PyVista.Plot_Geoms(contours1).show()
 
     if dim == 3:
         for cont1 in contours1:
@@ -108,10 +108,8 @@ if __name__ == "__main__":
     mesh = mesher._Mesh_Get_Mesh()
 
     if len(mesh.orphanNodes) > 0:
-        ax = Display.Plot_Nodes(mesh, mesh.orphanNodes)
-        ax.set_title("Orphan nodes detected")
-        Display.plt.show()
+        plotter = PyVista.Plot_Nodes(mesh, mesh.orphanNodes)
+        plotter.add_title("Orphan nodes detected")
+        plotter.show()
 
-    Display.Plot_Mesh(mesh)
-
-    Display.plt.show()
+    PyVista.Plot_Mesh(mesh).show()

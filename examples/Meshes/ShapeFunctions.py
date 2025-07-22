@@ -8,6 +8,7 @@ ShapeFunctions
 
 Create Lagrange finite element shape functions.
 """
+# sphinx_gallery_thumbnail_number = 6
 
 import numpy as np
 import matplotlib.pyplot as plt

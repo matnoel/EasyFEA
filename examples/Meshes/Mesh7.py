@@ -10,7 +10,7 @@ Meshing a 3D part in revolution.
 """
 # sphinx_gallery_thumbnail_number = 2
 
-from EasyFEA import Display, ElemType, np
+from EasyFEA import Display, ElemType, np, PyVista
 from EasyFEA.Geoms import Point, Points, Circle, Line
 
 if __name__ == "__main__":
@@ -39,10 +39,7 @@ if __name__ == "__main__":
     axis = Line(Point(), Point(radius / 3, height))
     axis.name = "rot axis"
 
-    geoms = [contour.Get_Contour()]
-    geoms.extend([circle1, circle2, circle3])
-    geoms.append(axis)
-    contour.Plot_Geoms(geoms)
+    plotter = PyVista.Plot_Geoms([contour, *inclusions, axis]).show()
 
     angle = 360 * 4 / 6
 
@@ -51,6 +48,4 @@ if __name__ == "__main__":
     layers = [perimeter // meshSize]
 
     mesh = contour.Mesh_Revolve(inclusions, axis, angle, layers, ElemType.PRISM6)
-    Display.Plot_Mesh(mesh)
-
-    Display.plt.show()
+    PyVista.Plot_Mesh(mesh).show()

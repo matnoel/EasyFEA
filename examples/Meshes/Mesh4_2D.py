@@ -10,7 +10,7 @@ Meshing a 2D bracket.
 """
 # sphinx_gallery_thumbnail_number = 2
 
-from EasyFEA import Display, ElemType
+from EasyFEA import Display, ElemType, PyVista
 from EasyFEA.Geoms import Point, Points
 
 if __name__ == "__main__":
@@ -29,11 +29,9 @@ if __name__ == "__main__":
     pt7 = Point(x=h, y=h)
 
     contour = Points([pt1, pt2, pt3, pt4, pt5, pt6], h / N)
-    contour.Get_Contour().Plot()
+    PyVista.Plot_Geoms(contour).show()
 
     # "TRI3", "TRI6", "TRI10", "TRI15", "QUAD4", "QUAD8",  "QUAD9"
     elemType = ElemType.TRI10
     mesh = contour.Mesh_2D([], elemType)
-    Display.Plot_Mesh(mesh)
-
-    Display.plt.show()
+    PyVista.Plot_Mesh(mesh).show()

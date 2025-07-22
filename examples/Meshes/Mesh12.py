@@ -9,9 +9,11 @@ Mesh12
 Meshing of a part designed by cad software.
 """
 
-from EasyFEA import Display, Folder, Mesher, ElemType
+from EasyFEA import Display, Folder, Mesher, ElemType, PyVista
 
 if __name__ == "__main__":
+    Display.Clear()
+
     examples_folder = Folder.Join(Folder.EASYFEA_DIR, "examples")
 
     stp = Folder.Join(examples_folder, "_parts", "beam.stp")
@@ -21,7 +23,10 @@ if __name__ == "__main__":
     mesh_igs = Mesher().Mesh_Import_part(igs, 3, 13 / 5, ElemType.TETRA10)
     # An igs file will provide a contour mesh only.
 
-    Display.Plot_Mesh(mesh_stp)
-    Display.Plot_Mesh(mesh_igs)
+    pltr1 = PyVista.Plot_Mesh(mesh_stp)
+    pltr1.add_title("beam.stp")
+    pltr1.show()
 
-    Display.plt.show()
+    pltr2 = PyVista.Plot_Mesh(mesh_igs)
+    pltr2.add_title("beam.igs")
+    pltr2.show()
