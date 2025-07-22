@@ -26,7 +26,7 @@ from . import Folder, Tic, _types
 from ..simulations._simu import _Init_obj, _Get_values
 
 if TYPE_CHECKING:
-    from ..simulations._simu import _Simu, Mesh
+    from ..simulations._simu import _Simu, Mesh, _GroupElem
 
 # Ideas: https://www.python-graph-gallery.com/
 
@@ -140,7 +140,7 @@ def Plot_Result(
             for groupElem, surfaces in zip(list_groupElem, list_surfaces):
                 list_connect.extend(groupElem.connect[:, surfaces])  # type: ignore [attr-defined]
             # get surfaces coordinates
-            vertices = coord[list_connect, :3]
+            vertices = coord[list_connect]
 
             # Display result with or without the mesh
             edgecolor = edgecolor if plotMesh else None
@@ -476,18 +476,21 @@ def Plot_Mesh(
             ax.add_collection(pc)
         else:
             # Undeformed mesh
-            pc = LineCollection(vertices, edgecolor=edgecolor, lw=lw, zorder=1)  # type: ignore
-            ax.add_collection(pc)
-            if alpha > 0:
-                pc = PolyCollection(
-                    vertices,  # type: ignore
-                    facecolors=facecolors,
-                    edgecolor=edgecolor,
-                    lw=lw,
-                    zorder=1,
-                    alpha=alpha,
-                )
+            if facecolors != edgecolor:
+                pc = LineCollection(vertices, edgecolor=edgecolor, lw=lw, zorder=1)  # type: ignore
                 ax.add_collection(pc)
+            else:
+                edgecolor = None
+
+            pc = PolyCollection(
+                vertices,  # type: ignore
+                facecolors=facecolors,
+                edgecolor=edgecolor,
+                lw=lw,
+                zorder=1,
+                alpha=alpha,
+            )
+            ax.add_collection(pc)
 
         if mesh.dim == 1:
             # nodes
@@ -503,6 +506,93 @@ def Plot_Mesh(
 
     if folder != "":
         Save_fig(folder, "mesh")
+
+    return ax  # type: ignore
+
+
+def _Plot_obj(
+    obj: Union["_Simu", "Mesh", "_GroupElem"],
+    alpha: float = 1.0,
+    color: str = "gray",
+    ax: Optional[_types.Axes] = None,
+) -> _types.Axes:
+    """Plots the mesh.
+
+    Parameters
+    ----------
+    obj : _Simu | Mesh | _GroupElem
+        object containing the mesh
+    alpha : float, optional
+        face transparency, default 1.0
+    color: str, optional
+        color, default 'gray'
+    ax: _types.Axes, optional
+        Axis to use, default None
+
+    Returns
+    -------
+    _types.Axes
+    """
+
+    tic = Tic()
+
+    _, mesh, coord, inDim = _Init_obj(obj)
+    groupElem = mesh.groupElem
+
+    if ax is not None:
+        inDim = 3 if ax.name == "3d" else inDim
+
+    # Dimension of displayed elements
+    dimElem = mesh.dim
+    # If the mesh is a 3D mesh, only the 2D elements of the mesh will be displayed.
+    if dimElem == 3:
+        dimElem = 2
+
+    # get axis
+    ax, inDim = __Get_axis(ax, inDim)
+    inDim = np.max([inDim, 2])
+
+    if dimElem == 1:
+        segments = groupElem.connect[:, groupElem.segments[0]]
+        vertices = coord[segments, :inDim]
+
+        params = {"edgecolor": color, "lw": 0.5, "alpha": alpha}
+
+        if inDim == 3:
+            pc = Line3DCollection(vertices, **params)
+            ax.add_collection3d(pc)  # type: ignore
+        else:
+            pc = LineCollection(vertices, **params)
+            ax.add_collection(pc)
+
+    else:
+
+        # construct the connection matrix for the surfaces
+        list_connect: list[_types.IntArray] = []
+        list_groupElem = mesh.Get_list_groupElem(dimElem)
+        list_surfaces = _Get_list_surfaces(mesh, dimElem)
+        for groupElem, surfaces in zip(list_groupElem, list_surfaces):
+            list_connect.extend(groupElem.connect[:, surfaces])
+
+        # get faces coordinates / vertices
+        vertices = mesh.coordGlob[list_connect, :inDim]
+
+        params = {"facecolors": color, "alpha": alpha}
+
+        if inDim == 3:
+            pc = Poly3DCollection(vertices, **params)
+            ax.add_collection3d(pc)  # type: ignore
+        else:
+            pc = PolyCollection(vertices, **params)
+            ax.add_collection(pc)  # type: ignore
+
+    if inDim == 3:
+        _Axis_equal_3D(ax, coord)  # type: ignore
+    else:
+        ax.autoscale()
+        ax.axis("equal")
+
+    tic.Tac("Display", "Plot")
 
     return ax  # type: ignore
 
@@ -805,7 +895,7 @@ def Plot_BoundaryConditions(simu, ax: Optional[_types.Axes] = None) -> _types.Ax
 
 
 def Plot_Tags(
-    obj, showId=False, folder="", alpha=1.0, ax: Optional[_types.Axes] = None
+    obj, showId=True, folder="", alpha=1.0, ax: Optional[_types.Axes] = None
 ) -> _types.Axes:
     """Plots the mesh's elements tags (from 2d elements to points) but do not plot the 3d elements tags.
 
@@ -814,7 +904,7 @@ def Plot_Tags(
     obj : _Simu | Mesh | _GroupElem
         object containing the mesh
     showId : bool, optional
-        shows tags, by default False
+        shows tags, by default True
     folder : str, optional
         saves folder, by default ""
     alpha : float, optional
@@ -845,7 +935,7 @@ def Plot_Tags(
     ax, inDim = __Get_axis(ax, inDim)
     inDim = np.max([inDim, 2])
 
-    # Plot_Mesh(mesh, facecolors="gray", alpha=0.1)
+    _Plot_obj(mesh, alpha=0.1, color="gray", ax=ax)
 
     # List of collections during creation
     collections = []
@@ -877,7 +967,7 @@ def Plot_Tags(
             if groupElem.dim in [0, 1]:
                 color = "black"
             else:
-                color = "tab:blue"
+                color = "tab:cyan"
 
             center = np.mean(center_e[elements], axis=0)
 
@@ -910,6 +1000,7 @@ def Plot_Tags(
 
             elif dim == 2:
                 # plot surfaces
+
                 if inDim == 3:
                     pc = Poly3DCollection(
                         vertices,
@@ -918,35 +1009,24 @@ def Plot_Tags(
                         facecolors=color,
                         label=tag_e,
                     )
-                    pc._facecolors2d = color  # type: ignore [attr-defined]
-                    pc._edgecolors2d = color  # type: ignore [attr-defined]
                     collections.append(ax.add_collection3d(pc, zdir="z"))
                 else:
                     pc = PolyCollection(
                         vertices,  # type: ignore
                         facecolors=color,
                         label=tag_e,
-                        edgecolor=color,
                         alpha=alpha,
                     )
-                    pc._facecolors = color  # type: ignore [attr-defined]
-                    pc._edgecolors = color  # type: ignore [attr-defined]
                     collections.append(ax.add_collection(pc))
-            else:
-                collections.append(
-                    ax.scatter(
-                        *coord[nodes].T, c="black", marker=".", zorder=2, label=tag_e
-                    )
-                )
 
             if showId:
                 ax.text(*center[:inDim], tag_e, zorder=25)  # type: ignore [arg-type]
 
-            if inDim == 3:
-                _Axis_equal_3D(ax, coord)
-            else:
-                ax.autoscale()
-                ax.axis("equal")
+        if inDim == 3:
+            _Axis_equal_3D(ax, coord)
+        else:
+            ax.autoscale()
+            ax.axis("equal")
 
     tic.Tac("Display", "Plot_Tags")
 
