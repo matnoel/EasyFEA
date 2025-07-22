@@ -2183,7 +2183,7 @@ class _Simu(_IObserver, ABC):
 
 
 def _Init_obj(
-    obj: Union[_Simu, Mesh], deformFactor: float = 0.0
+    obj: Union[_Simu, Mesh, _GroupElem], deformFactor: float = 0.0
 ) -> tuple[Optional[_Simu], Mesh, _types.FloatArray, int]:
     """Returns (simu, mesh, coord, inDim) from an ojbect that could be either a _Simu, a Mesh or a _GroupElem object.
 
