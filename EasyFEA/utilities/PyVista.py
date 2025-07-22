@@ -36,15 +36,15 @@ def Plot(
     coef=1.0,
     nodeValues=True,
     color=None,
-    show_edges=False,
-    edge_color="k",
-    line_width=None,
-    show_vertices=False,
+    plotMesh=False,
+    edgecolor="k",
+    linewidth=None,
+    plotNodes=False,
     point_size=None,
-    opacity=1.0,
+    alpha=1.0,
     style="surface",
     cmap="jet",
-    n_colors=256,
+    nColors=256,
     clim=None,
     plotter: Optional[pv.Plotter] = None,
     show_grid=False,
@@ -69,24 +69,24 @@ def Plot(
         Displays result to nodes otherwise displays it to elements, by default True
     color : str, optional
         Use to make the entire mesh have a single solid color, by default None
-    show_edges : bool, optional
+    plotMesh : bool, optional
         Shows the edges of a mesh. Does not apply to a wireframe representation, by default False
-    edge_color : str, optional
+    edgecolor : str, optional
         The solid color to give the edges when show_edges=True, by default 'k'
-    line_width : float, optional
+    linewidth : float, optional
         Thickness of lines. Only valid for wireframe and surface representations, by default None
-    show_vertices : bool, optional
+    plotNodes : bool, optional
         Shows the nodes, by default False
     point_size : float, optional
-        Point size of any nodes in the dataset plotted when show_vertices=True, by default None
-    opacity : float | str | ndarray, optional
+        Point size of any nodes in the dataset plotted when plotNodes=True, by default None
+    alpha : float | str | ndarray, optional
         Opacity of the mesh, by default 1.0
     style : str, optional
         Visualization style of the mesh. One of the following: ['surface', 'wireframe', 'points', 'points_gaussian'], by default 'surface'
     cmap : str, optional
         If a string, this is the name of the matplotlib colormap to use when mapping the scalars, by default "jet"\n
         ["jet", "seismic", "binary"] -> https://matplotlib.org/stable/tutorials/colors/colormaps.html
-    n_colors : int, optional
+    nColors : int, optional
         Number of colors to use when displaying scalars, by default 256
     clim : sequence[float], optional
         Two item color bar range for scalars. Defaults to minimum and maximum of scalars array. Example: [-1, 2], by default None
@@ -149,15 +149,15 @@ def Plot(
             pvMesh,
             scalars=name,
             color=color,
-            show_edges=show_edges,
-            edge_color=edge_color,
-            line_width=line_width,
-            show_vertices=show_vertices,
+            show_edges=plotMesh,
+            edge_color=edgecolor,
+            line_width=linewidth,
+            show_vertices=plotNodes,
             point_size=point_size,
-            opacity=opacity,
+            opacity=alpha,
             style=style,
             cmap=cmap,
-            n_colors=n_colors,
+            n_colors=nColors,
             clim=clim,
             scalar_bar_args={
                 "title": colorbarTitle,
@@ -218,12 +218,12 @@ def Plot_Mesh(
     plotter = Plot(
         obj,
         deformFactor=deformFactor,
-        opacity=opacity,
+        alpha=opacity,
         color=color,
-        edge_color=edge_color,
-        line_width=line_width,
+        edgecolor=edge_color,
+        linewidth=line_width,
         plotter=plotter,
-        show_edges=True,
+        plotMesh=True,
     )
 
     return plotter
@@ -385,11 +385,11 @@ def Plot_Elements(
 
         Plot(
             pvGroup,
-            opacity=opacity,
+            alpha=opacity,
             color=color,
-            edge_color=edge_color,
+            edgecolor=edge_color,
             plotter=plotter,
-            line_width=line_width,
+            linewidth=line_width,
             label=label,
         )
 
@@ -601,7 +601,7 @@ def Plot_Tags(obj, plotter: Optional[pv.Plotter] = None) -> pv.Plotter:
     if plotter is None:
         plotter = _Plotter()
 
-    Plot(mesh, opacity=0.1, plotter=plotter)
+    Plot(mesh, alpha=0.1, plotter=plotter)
 
     for groupElem in mesh.dict_groupElem.values():
 
@@ -703,7 +703,7 @@ def Plot_Geoms(
                     plotter=plotter,
                     label=label,
                     color=color,
-                    line_width=line_width,
+                    linewidth=line_width,
                     **kwargs,
                 )
         else:
@@ -712,7 +712,7 @@ def Plot_Geoms(
                 plotter=plotter,
                 label=geom.name,
                 color=color,
-                line_width=line_width,
+                linewidth=line_width,
                 **kwargs,
             )
 

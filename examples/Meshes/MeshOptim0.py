@@ -84,7 +84,7 @@ if __name__ == "__main__":
         mesh,
         qual_e,
         nodeValues=False,
-        show_edges=True,
+        plotMesh=True,
         clim=(0, quality),
         cmap="viridis",
     ).show()

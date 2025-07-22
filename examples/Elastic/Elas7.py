@@ -144,9 +144,7 @@ if __name__ == "__main__":
 
     PyVista.Plot_BoundaryConditions(simu).show()
 
-    PyVista.Plot(
-        simu, "Svm", deformFactor=200, show_edges=True, nodeValues=False
-    ).show()
+    PyVista.Plot(simu, "Svm", deformFactor=200, plotMesh=True, nodeValues=False).show()
 
     if makeMovie:
         PyVista.Movie_simu(

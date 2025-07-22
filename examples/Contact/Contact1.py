@@ -189,17 +189,15 @@ if __name__ == "__main__":
                 style="surface",
                 color="k",
                 plotter=plotter,
-                n_colors=10,
+                nColors=10,
                 show_grid=True,
             )
-            PyVista.Plot(
-                list_master_mesh[n], plotter=plotter, show_edges=True, opacity=0.2
-            )
+            PyVista.Plot(list_master_mesh[n], plotter=plotter, plotMesh=True, alpha=0.2)
 
         PyVista.Movie_func(DoAnim, N, folder=folder, filename=f"{result}.gif")
 
     if not pltIter:
-        plotter = PyVista.Plot(simu, result, show_edges=True, deformFactor=1)
+        plotter = PyVista.Plot(simu, result, plotMesh=True, deformFactor=1)
         PyVista.Plot_Mesh(master_mesh, opacity=0.4, plotter=plotter)
         plotter.show()
 

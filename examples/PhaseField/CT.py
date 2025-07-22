@@ -240,7 +240,7 @@ if __name__ == "__main__":
                 tresh,
                 "damage",
                 deformFactor,
-                show_edges=True,
+                plotMesh=True,
                 plotter=plotter,
                 clim=(0, 1),
             )

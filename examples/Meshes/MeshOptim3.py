@@ -158,7 +158,7 @@ if __name__ == "__main__":
     # Plot
     # ----------------------------------------------
     PyVista.Plot_Mesh(simu.mesh).show()
-    PyVista.Plot(simu, "ZZ1_e", nodeValues=False, n_colors=11).show()
+    PyVista.Plot(simu, "ZZ1_e", nodeValues=False, nColors=11).show()
 
     if plotProj:
         simu.Set_Iter(0)

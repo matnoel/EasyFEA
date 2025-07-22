@@ -340,10 +340,10 @@ if __name__ == "__main__":
         mesh,
         qual,
         nodeValues=False,
-        show_edges=True,
+        plotMesh=True,
         cmap="viridis",
         clim=(0, 1),
-        n_colors=11,
+        nColors=11,
     ).show()
 
     Display.plt.show()

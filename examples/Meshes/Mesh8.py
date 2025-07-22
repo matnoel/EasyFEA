@@ -112,6 +112,6 @@ if __name__ == "__main__":
         nodeValues=False,
         cmap="viridis",
         clim=(0, 1),
-        show_edges=True,
+        plotMesh=True,
         plotter=plotter,
     ).show()

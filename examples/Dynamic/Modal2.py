@@ -162,8 +162,8 @@ if __name__ == "__main__":
         sol = np.linalg.norm(mode, axis=1)
         deformFactor = L / 5 / np.abs(sol).max()
 
-        plotter = PyVista.Plot(simu, opacity=0.5)
-        PyVista.Plot(simu, None, deformFactor, opacity=0.8, color="r", plotter=plotter)
+        plotter = PyVista.Plot(simu, alpha=0.5)
+        PyVista.Plot(simu, None, deformFactor, alpha=0.8, color="r", plotter=plotter)
         plotter.add_title(f"mode {n + 1}")
         plotter.show()
 

@@ -128,12 +128,12 @@ if __name__ == "__main__":
             folder,
             "uy.gif",
             deformFactor=1,
-            show_edges=True,
+            plotMesh=True,
             N=400,
             nodeValues=True,
         )
 
     simu.Set_Iter(0)
-    PyVista.Plot(simu, "uy", 1, show_edges=True).show()
+    PyVista.Plot(simu, "uy", 1, plotMesh=True).show()
 
     Display.plt.show()

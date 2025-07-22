@@ -401,7 +401,7 @@ def DoSimu(split: str, regu: str):
                 tresh,
                 "damage",
                 deformFactor,
-                show_edges=True,
+                plotMesh=True,
                 plotter=plotter,
                 clim=(0, 1),
             )

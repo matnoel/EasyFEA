@@ -60,4 +60,4 @@ if __name__ == "__main__":
     # ----------------------------------------------
 
     PyVista.Plot_BoundaryConditions(simu).show()
-    PyVista.Plot(simu, "ux", 1, show_edges=True).show()
+    PyVista.Plot(simu, "ux", 1, plotMesh=True).show()

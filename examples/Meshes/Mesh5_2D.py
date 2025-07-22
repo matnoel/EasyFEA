@@ -58,4 +58,4 @@ if __name__ == "__main__":
     )
     simu.add_dirichlet(mesh.Nodes_Conditions(lambda x, y, z: y == L), [L * 0.05], ["y"])
     simu.Solve()
-    PyVista.Plot(simu, "uy", 1, show_edges=True).show()
+    PyVista.Plot(simu, "uy", 1, plotMesh=True).show()
