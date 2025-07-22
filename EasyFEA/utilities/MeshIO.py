@@ -386,12 +386,10 @@ def _Set_Tags(mesh: Mesh, dict_tags: dict[str, _types.IntArray]):
                     # We can be here when several elements are the same size.
                     # For example, in the case of a prism, there are triangles and quadrangles at the same time.
                     continue
-
                 nodes_set = set(groupElem.connect[elems].ravel())
                 nodes = np.array(list(nodes_set))
-
-                groupElem._Set_Nodes_Tag(nodes, t + str(tag))
-                groupElem._Set_Elements_Tag(nodes, t + str(tag))
+                # set tag
+                groupElem.Set_Tag(nodes, t + str(tag))
 
             print(f"{groupElem.elemType} -> Ne = {groupElem.Ne}")
 
