@@ -104,19 +104,17 @@ def Plot_Result(
 
     # Don't know how to display nodal values on lines
     nodeValues = False if plotDim == 1 else nodeValues
-    # When mesh use 3D elements, results are displayed only on 2D elements.
-    # To display values on 2D elements, we first need to know the values at 3D nodes.
-    nodeValues = True if plotDim == 3 else nodeValues  # do not modify
 
-    # Builds boundary markers for the colorbar
+    # Get values
     values = _Get_values(simu, mesh, result, nodeValues) * coef
+    # Get colorbar properties
     ticks, levels, norm, min, max = __Get_colorbar_properties(
         clim, result, values, ncolors
     )
 
     # init Axes
     if ax is None:
-        ax = Init_Axes(3) if mesh.inDim == 3 else Init_Axes(2)
+        ax = Init_Axes(3) if inDim == 3 else Init_Axes(2)
         ax.set_xlabel(r"$x$")
         ax.set_ylabel(r"$y$")
         if mesh.inDim == 3:
@@ -128,54 +126,63 @@ def Plot_Result(
         inDim = 3 if ax.name == "3d" else inDim
 
     if inDim == 3:
+        # When mesh use 3D elements, results are displayed only on 2D elements.
+        # To display values on 2D elements, we first need to know the values at 3D nodes.
+        nodeValues = True if plotDim == 3 else nodeValues  # do not modify
+
         # If the mesh is a 3D mesh, only the 2D elements of the mesh will be displayed.
         # A 3D mesh can contain several types of 2D element.
         # For example PRISM6 mesh use TRI3 and QUAD4 at the same time
         plotDim = 2 if plotDim == 3 else plotDim
 
-        # construct the surface connection matrix
-        connectSurfaces = []  # type: ignore [assignment]
-        groupElems = mesh.Get_list_groupElem(plotDim)
-        list_surfaces = _Get_list_surfaces(mesh, plotDim)
-        for groupElem, faces in zip(groupElems, list_surfaces):
-            connectSurfaces.extend(groupElem.connect[:, faces])  # type: ignore [attr-defined]
-        connectSurfaces = np.asarray(connectSurfaces, dtype=int)
-        elements_coordinates = coord[connectSurfaces, :3]
+        if plotDim == 1:
+            if plotMesh:
+                ax.plot(*coord.T, c=edgecolor, lw=0.1, marker=".", ls="")
+            vertices = coord[groupElem.connect[:, groupElem.segments[0]]]
+            pc = Line3DCollection(vertices, cmap=cmap, zorder=0, norm=norm)
 
+        elif plotDim == 2:
+
+            # construct the surface connection matrix
+            list_connect = []  # type: ignore [assignment]
+            list_groupElem = mesh.Get_list_groupElem(2)
+            list_surfaces = _Get_list_surfaces(mesh, 2)
+            for groupElem, surfaces in zip(list_groupElem, list_surfaces):
+                list_connect.extend(groupElem.connect[:, surfaces])  # type: ignore [attr-defined]
+            # get surfaces coordinates
+            vertices = coord[list_connect, :3]
+
+            # Display result with or without the mesh
+            edgecolor = edgecolor if plotMesh else None
+            linewidths = 0.5 if plotMesh else None
+            # concat params
+            params = {
+                "edgecolor": edgecolor,
+                "linewidths": linewidths,
+                "cmap": cmap,
+                "zorder": 0,
+                "norm": norm,
+            }
+            pc = Poly3DCollection(vertices, **params)
+
+        # get elementValues
         if nodeValues:
             # If the result is stored at nodes, we'll average the node values over the element.
-            facesValues = []
+            elementValues = []
             # for each group of elements, we'll calculate the value to be displayed on each element
-            for groupElem in groupElems:
+            for groupElem in mesh.Get_list_groupElem(plotDim):
                 values_loc = values[groupElem.connect]
                 values_e = np.mean(values_loc, axis=1)
-                facesValues.extend(values_e)
-            facesValues = np.array(facesValues)  # type: ignore [assignment]
+                elementValues.extend(values_e)
+            elementValues = np.array(elementValues)  # type: ignore [assignment]
         else:
-            facesValues = values  # type: ignore [assignment]
-
-        # Display result with or without the mesh
-        edgecolor = edgecolor if plotMesh else None
-        linewidths = 0.5 if plotMesh else None
-
-        if plotDim == 1:
-            ax.plot(*mesh.coordGlob.T, c=edgecolor, lw=0.1, marker=".", ls="")
-            pc = Line3DCollection(elements_coordinates, cmap=cmap, zorder=0, norm=norm)
-        elif plotDim == 2:
-            pc = Poly3DCollection(
-                elements_coordinates,
-                edgecolor=edgecolor,
-                linewidths=linewidths,
-                cmap=cmap,
-                zorder=0,
-                norm=norm,
-            )
+            elementValues = values  # type: ignore [assignment]
 
         # Colors are applied to the faces
-        pc.set_array(facesValues)
+        pc.set_array(elementValues)
         pc.set_clim(
-            np.min([facesValues.min(), min]),
-            np.max([facesValues.max(), max]),
+            np.min([elementValues.min(), min]),
+            np.max([elementValues.max(), max]),
         )
         ax.add_collection3d(pc)
         # We set the colorbar limits and display it
@@ -186,28 +193,28 @@ def Plot_Result(
 
     else:
 
-        elements_coordinates = coord[
-            groupElem.connect[:, groupElem.surfaces.ravel()], :2
-        ]
+        # get vertices
+        if mesh.dim == 1:
+            vertices = coord[groupElem.connect[:, groupElem.segments[0]], :2]
+        else:
+            vertices = coord[groupElem.connect[:, groupElem.surfaces[0]], :2]
 
         # Plot the mesh
         if plotMesh:
             if mesh.dim == 1:
                 # mesh for 1D elements are points
-                ax.plot(
-                    *mesh.coord[:, :inDim].T, c=edgecolor, lw=0.1, marker=".", ls=""
-                )
+                ax.plot(*coord[:, :2].T, c=edgecolor, lw=0.1, marker=".", ls="")
             else:
                 # mesh for 2D elements are lines / segments
-                pc = LineCollection(elements_coordinates, edgecolor=edgecolor, lw=0.5)  # type: ignore [arg-type]
+                pc = LineCollection(vertices, edgecolor=edgecolor, lw=0.5)  # type: ignore [arg-type]
                 ax.add_collection(pc)
 
         # Plot element values
         if mesh.Ne == len(values):
             if mesh.dim == 1:
-                pc = LineCollection(elements_coordinates, lw=1.5, cmap=cmap, norm=norm)  # type: ignore [arg-type]
+                pc = LineCollection(vertices, lw=1.5, cmap=cmap, norm=norm)  # type: ignore [arg-type]
             else:
-                pc = PolyCollection(elements_coordinates, lw=0.5, cmap=cmap, norm=norm)  # type: ignore
+                pc = PolyCollection(vertices, lw=0.5, cmap=cmap, norm=norm)  # type: ignore
             pc.set_clim(min, max)
             pc.set_array(values)
             ax.add_collection(pc)
@@ -216,11 +223,11 @@ def Plot_Result(
         elif mesh.Nn == len(values):
             # retrieves triangles from each face to use the trisurf function
             triangles = mesh.groupElem.triangles
-            connectTri = np.reshape(mesh.connect[:, triangles], (-1, 3))
+            triangulation = np.reshape(mesh.connect[:, triangles], (-1, 3))
             # tripcolor, tricontour, tricontourf
             pc = ax.tricontourf(  # type: ignore [call-overload]
                 *coord[:, :2].T,
-                connectTri,
+                triangulation,
                 values,
                 levels,
                 cmap=cmap,
@@ -369,7 +376,7 @@ def Plot_Mesh(
     if dimElem == 3:
         dimElem = 2
 
-    # construct the connection matrix for the faces
+    # construct the connection matrix for the surfaces
     list_groupElem = mesh.Get_list_groupElem(dimElem)
     list_surfaces = _Get_list_surfaces(mesh, dimElem)
     connectSurfaces: list[_types.IntArray] = []
