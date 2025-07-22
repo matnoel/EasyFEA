@@ -190,7 +190,7 @@ def Surface_reconstruction(mesh: Mesh) -> Mesh:
         )
 
         # create the new group of elements
-        newGroupElem = GroupElemFactory._Create(elemType, connect, coordinates)
+        newGroupElem = GroupElemFactory.Create(elemType, connect, coordinates)
         new_dict_groupElem[elemType] = newGroupElem
 
         pass
@@ -326,7 +326,7 @@ def _Meshio_to_EasyFEA(meshioMesh: meshio.Mesh) -> Mesh:
             connect = connect[:, indexes]
 
         # get groupElem
-        groupElem = GroupElemFactory._Create(elemType, connect, coordinates)
+        groupElem = GroupElemFactory.Create(elemType, connect, coordinates)
         dict_groupElem[elemType] = groupElem
 
     mesh = Mesh(dict_groupElem)
@@ -679,7 +679,7 @@ def PyVista_to_EasyFEA(pyVistaMesh: Union[pv.UnstructuredGrid, pv.MultiBlock]) -
                 connect = connect[:, indexes]
 
             if elemType not in dict_groupElem.keys():
-                groupElem = GroupElemFactory._Create(elemType, connect, coordGlob)
+                groupElem = GroupElemFactory.Create(elemType, connect, coordGlob)
                 groupElem.Set_Tag(groupElem.nodes, str(part))
             else:
                 groupElem = dict_groupElem[elemType]
@@ -690,7 +690,7 @@ def PyVista_to_EasyFEA(pyVistaMesh: Union[pv.UnstructuredGrid, pv.MultiBlock]) -
                 # concate new data in previous groupElem
                 newNodes = np.array(list(set(connect.ravel())))
                 connect = np.concat((groupElem.connect, connect), axis=0)
-                groupElem = GroupElemFactory._Create(elemType, connect, coordGlob)
+                groupElem = GroupElemFactory.Create(elemType, connect, coordGlob)
 
                 # add previous tags
                 for nodes, tag in zip(nodeTags, tags):

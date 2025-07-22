@@ -2359,7 +2359,7 @@ class GroupElemFactory:
         return GroupElemFactory.DICT_GMSH_DATA[gmshId]
 
     @staticmethod
-    def Create(
+    def _Create(
         gmshId: int,
         connect: _types.IntArray,
         coordGlob: _types.FloatArray,
@@ -2432,7 +2432,7 @@ class GroupElemFactory:
             raise KeyError("Element type unknown.")
 
     @staticmethod
-    def _Create(
+    def Create(
         elemType: ElemType, connect: _types.IntArray, coordGlob: _types.FloatArray
     ) -> _GroupElem:
         """Creates an element group
@@ -2459,7 +2459,7 @@ class GroupElemFactory:
 
         nodes = np.asarray(list(set(connect.ravel())), dtype=int)
 
-        return GroupElemFactory.Create(gmshId, connect, coordGlob, nodes)
+        return GroupElemFactory._Create(gmshId, connect, coordGlob, nodes)
 
     @staticmethod
     def _Get_2d_element_types(elemType: ElemType) -> list[ElemType]:

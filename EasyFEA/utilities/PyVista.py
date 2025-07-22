@@ -18,7 +18,7 @@ from . import Folder, Tic, _types, MeshIO
 from .. import Geoms
 
 if TYPE_CHECKING:
-    from ..simulations._simu import _Simu, Mesh
+    from ..simulations._simu import _Simu, Mesh, _GroupElem
 
 # fem
 from ..fem import GroupElemFactory
@@ -28,6 +28,7 @@ def Plot(
     obj: Union[
         "_Simu",
         "Mesh",
+        "_GroupElem",
         Any,
     ],
     result: Optional[Union[str, _types.FloatArray]] = None,
@@ -56,7 +57,7 @@ def Plot(
 
     Parameters
     ----------
-    obj : _Simu | Mesh | MultiBlock | PolyData | UnstructuredGrid
+    obj : _Simu | Mesh | _GroupElem | MultiBlock | PolyData | UnstructuredGrid
         The object to plot and will be transformed to a mesh
     result : Union[str,_types.FloatArray], optional
         Scalars used to “color” the mesh, by default None
@@ -377,10 +378,8 @@ def Plot_Elements(
             continue
 
         # construct the new group element by changing the connectivity matrix
-        gmshId = groupElem.gmshId
         connect = groupElem.connect[elements]
-        nodes = groupElem.nodes
-        newGroupElem = GroupElemFactory.Create(gmshId, connect, coordo, nodes)
+        newGroupElem = GroupElemFactory.Create(groupElem.elemType, connect, coordo)
 
         pvGroup = _pyVistaMesh(newGroupElem)  # type: ignore [arg-type]
 
@@ -568,7 +567,7 @@ def Plot_BoundaryConditions(
     return plotter
 
 
-def Plot_Tags(obj, plotter: Optional[pv.Plotter] = None) -> _types.Axes:
+def Plot_Tags(obj, plotter: Optional[pv.Plotter] = None) -> pv.Plotter:
     """Plots the mesh's elements tags (from 2d elements to points) but do not plot the 3d elements tags.
 
     Parameters
@@ -865,7 +864,7 @@ def _setCameraPosition(plotter: pv.Plotter, inDim: int, elevation=25, azimuth=10
 
 
 def _pyVistaMesh(
-    obj: Union["_Simu", "Mesh"],
+    obj: Union["_Simu", "Mesh", "_GroupElem"],
     result: Optional[Union[str, _types.AnyArray]] = None,
     deformFactor=0.0,
     nodeValues=True,

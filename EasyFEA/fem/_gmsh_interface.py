@@ -1897,7 +1897,7 @@ class Mesher:
             assert Nmax <= (coord.shape[0] - 1), f"Nodes {Nmax} doesn't exist in coord"
 
             # Element group creation
-            groupElem = GroupElemFactory.Create(gmshId, connect, coord, nodes)
+            groupElem = GroupElemFactory._Create(gmshId, connect, coord, nodes)
 
             # We add the element group to the dictionary containing all groups
             dict_groupElem[groupElem.elemType] = groupElem
