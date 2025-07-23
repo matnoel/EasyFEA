@@ -52,7 +52,7 @@ if __name__ == "__main__":
     surfLoad = P / h / b  # N/mm2
 
     # criteria
-    treshold = (
+    threshold = (
         1 / 100 if dim == 2 else 0.04
     )  # Target error for the optimization process
     iterMax = 20  # Maximum number of iterations
@@ -119,7 +119,8 @@ if __name__ == "__main__":
 
         return simu
 
-    simu = Simulations.Mesh_Optim_ZZ1(DoSimu, folder, treshold, iterMax, 1 / 10)
+    simu = Simulations.Mesh_Optim_ZZ1(DoSimu, folder, threshold, iterMax, 1 / 10)
+    PyVista.Plot_BoundaryConditions(simu).show()
 
     # ----------------------------------------------
     # Results
@@ -158,7 +159,6 @@ if __name__ == "__main__":
             simu.Set_Iter(n)
 
             PyVista.Plot_Mesh(simu, plotter=plotter)
-            # PyVista.Plot_BoundaryConditions(simu, plotter=plotter)
 
             zz1 = simu._Calc_ZZ1()[0]
 
