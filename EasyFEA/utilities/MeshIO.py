@@ -4,6 +4,7 @@
 
 """Module providing an interface with meshio (https://pypi.org/project/meshio/)."""
 
+import re
 import meshio
 from collections import Counter
 from typing import Any, Optional, Union
@@ -76,6 +77,31 @@ DICT_PYVISTA_TO_ELEMTYPE: dict[pv.CellType, ElemType] = {
     cellType: elemType for elemType, cellType in DICT_ELEMTYPE_TO_VTK.items()
 }
 """CellType: ElemType"""
+
+DICT_ELEMTYPE_TO_ENSIGHT: dict[ElemType, str] = {
+    # (to Ensight)
+    ElemType.POINT: "point",
+    ElemType.SEG2: "bar2",
+    # ElemType.SEG3: "bar3",  # not supported by Ensight
+    # ElemType.SEG4: "bar4",  # not supported by Ensight
+    # ElemType.SEG5: "bar5",  # not supported by Ensight
+    ElemType.TRI3: "tria3",
+    ElemType.TRI6: "tria6",
+    # ElemType.TRI10: "tria10", # not supported by Ensight
+    # ElemType.TRI15: "tria15", # not supported by Ensight
+    ElemType.QUAD4: "quad4",
+    ElemType.QUAD8: "quad8",
+    # ElemType.QUAD9: "quad9", # not supported by Ensight
+    ElemType.TETRA4: "tetra4",
+    ElemType.TETRA10: "tetra10",
+    ElemType.HEXA8: "hexa8",
+    ElemType.HEXA20: "hexa20",
+    # ElemType.HEXA27: "hexa27", # not supported by Ensight
+    ElemType.PRISM6: "wedge6",
+    ElemType.PRISM15: "wedge15",
+    # ElemType.PRISM18: "wedge18", # not supported by Ensight
+}
+"""ElemType: CellType"""
 
 # ----------------------------------------------
 # INDEXES
@@ -211,7 +237,8 @@ def __Get_dict_tags_converter(mesh: Mesh) -> dict[Any, int]:
     [tags.extend(groupElem.nodeTags) for groupElem in mesh.dict_groupElem.values()]  # type: ignore [func-returns-value]
     tags = np.unique(tags).tolist()
     # change "L1" as 1
-    dict_tags = {tag: int(tag[-1]) for tag in tags if len(tag) == 2}
+
+    dict_tags = {tag: int(re.sub(r"\D", "", tag)) for tag in tags}
     # For now, it does not import strings different from P{i}, L{i}, S{i}, V{i}.
     # It won't work for long strings.
 
@@ -804,3 +831,57 @@ def Ensight_to_Meshio(geoFile: str) -> Mesh:
     meshioMesh = _EasyFEA_to_Meshio(mesh, {})
 
     return meshioMesh
+
+
+def EasyFEA_to_Ensight(mesh: Mesh, folder: str, name: str) -> str:
+    """Converts EasyFEA mesh to Gmsh format.
+
+    Parameters
+    ----------
+    mesh : Mesh
+        EasyFEA mesh object.
+    folder : str
+        Directory to save the Ensight .geo file.
+    name : str
+        The name of the Ensight .geo file, without the extension.
+
+    Returns
+    -------
+    str
+        Path to the saved Ensight .geo file.
+    """
+
+    assert isinstance(mesh, Mesh), "mesh must be a EasyFEA mesh!"
+
+    filename = Folder.Join(folder, f"{name}.geo")
+
+    Nn = mesh.coordGlob.shape[0]
+
+    dict_tags_converter = __Get_dict_tags_converter(mesh)
+
+    with open(filename, "w") as file:
+
+        file.write("Geometry ensight6 file\n")
+        file.write(f"{name}\n")
+        file.write("node id assign\n")
+        file.write("element id assign\n")
+        file.write("coordinates\n")
+        file.write(f"{Nn}\n")
+        np.savetxt(file, mesh.coordGlob, fmt="%.5e")
+
+        part = -1
+
+        for elemType, groupElem in mesh.dict_groupElem.items():
+
+            for tag in groupElem.nodeTags:
+
+                part += 1
+                file.write(f"part {part}\n")
+                file.write(
+                    f"{groupElem.elemType}_subdomain {dict_tags_converter[tag]}\n"
+                )
+                file.write(f"{DICT_ELEMTYPE_TO_ENSIGHT[elemType]}\n")
+                file.write(f"{groupElem.Ne}\n")
+                np.savetxt(file, groupElem.connect + 1, fmt="%i")
+
+    return filename
