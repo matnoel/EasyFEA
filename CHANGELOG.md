@@ -2,6 +2,18 @@
 
 This document describes the changes made to the project.
 
+## 1.5.1 (July 23, 2025):
+
+- Improved documentation by adding more animated GIFs
+- Updated `MeshIO.Surface_reconstruction`.
+- Updated `Material.WeakForms` docstrings.
+- Fixed issue [#21](https://github.com/matnoel/EasyFEA/issues/21):
+    - Clarified `Display.py` and `PyVista.py` modules.
+    - Improved `Plot_Tags` functions.
+- Improved mesh and element group tagging.
+- Fixed bug in `_Additional_Points()`.
+- Switched `GroupElemFactory` `_Create` and `Create`.
+
 ## 1.5.0 (July 16, 2025):
 
 - Updated Python version in README.md.
