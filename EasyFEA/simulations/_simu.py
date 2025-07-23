@@ -51,11 +51,11 @@ class _Simu(_IObserver, ABC):
 
         - def Get_problemTypes(self) -> list[ModelType]:
 
-        - def Get_dofs(self, problemType=None) -> list[str]:
+        - def Get_unknowns(self, problemType=None) -> list[str]:
 
         - def Get_dof_n(self, problemType=None) -> int:
 
-        These functions provides access to the available degrees of freedom (dofs).
+        These functions provides access to the available unknowns and degrees of freedom (dofs).
 
     Solve:
     ------
@@ -112,7 +112,7 @@ class _Simu(_IObserver, ABC):
 
     @abstractmethod
     def Get_dof_n(self, problemType=None) -> int:
-        """Returns the number of unknowns per node."""
+        """Returns the number of degrees of freedom per node."""
         pass
 
     # Solvers
