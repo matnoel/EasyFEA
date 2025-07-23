@@ -5,7 +5,7 @@
 
 [![PyPI version](https://img.shields.io/pypi/v/easyfea.svg)](https://pypi.org/project/easyfea/)
 [![Python Version](https://img.shields.io/pypi/pyversions/easyfea)](https://pypi.org/project/easyfea/)
-[![Documentation Status](https://readthedocs.org/projects/easyfea/badge/?version=stable)](https://easyfea.readthedocs.io/en/stable/?badge=stable)
+[![Documentation Status](https://readthedocs.org/projects/easyfea/badge/?version=latest)](https://easyfea.readthedocs.io/en/stable/?badge=stable)
 [![License: GPL v3](https://img.shields.io/badge/License-GPLv3-blue.svg)](https://github.com/matnoel/EasyFEA/blob/main/LICENSE.txt)
 [![Code style: black](https://img.shields.io/badge/code%20style-black-black)](https://github.com/psf/black)
 [![PyPI Downloads](https://img.shields.io/pypi/dm/easyfea)](https://pypi.org/project/easyfea/)
