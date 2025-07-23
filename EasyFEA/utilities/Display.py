@@ -602,7 +602,7 @@ def Plot_Nodes(
     nodes: Optional[_types.IntArray] = None,
     showId=False,
     marker=".",
-    c="red",
+    color="red",
     ax: Optional[_types.Axes] = None,
 ) -> _types.Axes:
     """Plots the mesh's nodes.
@@ -617,7 +617,7 @@ def Plot_Nodes(
         display numbers, default False
     marker : str, optional
         marker type (matplotlib.markers), default '.'
-    c : str, optional
+    color: str, optional
         color, default 'red'
     ax : _types.Axes, optional
         Axis to use, default None, default None
@@ -647,14 +647,14 @@ def Plot_Nodes(
     coordo = mesh.coordGlob
 
     if inDim == 2:
-        ax.plot(*coordo[nodes, :2].T, ls="", marker=marker, c=c, zorder=2.5)
+        ax.plot(*coordo[nodes, :2].T, ls="", marker=marker, c=color, zorder=2.5)
         if showId:
-            [ax.text(*coordo[node, :2].T, str(node), c=c) for node in nodes]  # type: ignore [call-arg]
+            [ax.text(*coordo[node, :2].T, str(node), c=color) for node in nodes]  # type: ignore [call-arg]
         ax.axis("equal")
     elif inDim == 3:
-        ax.plot(*coordo[nodes].T, ls="", marker=marker, c=c, zorder=2.5)
+        ax.plot(*coordo[nodes].T, ls="", marker=marker, c=color, zorder=2.5)
         if showId:
-            [ax.text(*coordo[node].T, str(node), c=c) for node in nodes]  # type: ignore [call-arg]
+            [ax.text(*coordo[node].T, str(node), c=color) for node in nodes]  # type: ignore [call-arg]
         _Axis_equal_3D(ax, coordo)
 
     tic.Tac("Display", "Plot_Nodes")
@@ -668,7 +668,7 @@ def Plot_Elements(
     dimElem: Optional[int] = None,
     showId=False,
     alpha=1.0,
-    c="red",
+    color="red",
     edgecolor="black",
     ax: Optional[_types.Axes] = None,
 ) -> _types.Axes:
@@ -686,7 +686,7 @@ def Plot_Elements(
         display numbers, by default False
     alpha : float, optional
         transparency of faces, by default 1.0
-    c : str, optional
+    color : str, optional
         color used to display faces, by default 'red
     edgecolor : str, optional
         color used to display segments, by default 'black'
@@ -730,13 +730,13 @@ def Plot_Elements(
             # 1D elements
             idx = groupElem.segments.ravel().tolist()
             # get params
-            params = {"edgecolor": c, "lw": 1, "zorder": 2}
+            params = {"edgecolor": color, "lw": 1, "zorder": 2}
         else:
             # 2D elements
             idx = groupElem.surfaces.ravel().tolist()
             # get params
             params = {
-                "facecolors": c,
+                "facecolors": color,
                 "edgecolor": edgecolor,
                 "lw": 0.5,
                 "alpha": alpha,
@@ -821,7 +821,7 @@ def Plot_BoundaryConditions(simu, ax: Optional[_types.Axes] = None) -> _types.Ax
     BoundaryConditions.extend(displays)
 
     if ax is None:
-        ax = Plot_Elements(simu.mesh, dimElem=1, c="k")
+        ax = Plot_Elements(simu.mesh, dimElem=1, color="k")
         ax.set_title("Boundary conditions")
 
     for bc in BoundaryConditions:

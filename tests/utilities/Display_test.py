@@ -23,7 +23,7 @@ class TestDisplay:
             ax = axs[m]
             ax.axis("off")
             Display.Plot_Mesh(mesh2D, ax=ax)
-            Display.Plot_Nodes(mesh2D, showId=False, ax=ax, c="black")
+            Display.Plot_Nodes(mesh2D, showId=False, ax=ax, color="black")
             ax.set_title("")
             ax.get_xaxis().set_visible(False)
             ax.get_yaxis().set_visible(False)
@@ -40,7 +40,7 @@ class TestDisplay:
         list_mesh3D = Mesher._Construct_3D_meshes(useImport3D=True)
         for mesh3D in list_mesh3D:
             ax = Display.Plot_Mesh(mesh3D)
-            Display.Plot_Nodes(mesh3D, showId=False, ax=ax, c="black")
+            Display.Plot_Nodes(mesh3D, showId=False, ax=ax, color="black")
             # plt.pause(1e-12)
             ax.axis("off")
             plt.close()

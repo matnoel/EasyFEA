@@ -8,6 +8,7 @@ Modal1
 
 Modal analysis of a wall structure.
 """
+# sphinx_gallery_thumbnail_number = -3
 
 from EasyFEA import (
     Display,
@@ -49,7 +50,7 @@ if __name__ == "__main__":
     nodesY0 = mesh.Nodes_Conditions(lambda x, y, z: y == 0)
     nodesSupY0 = mesh.Nodes_Conditions(lambda x, y, z: y > 0)
 
-    Display.Plot_Mesh(mesh)
+    PyVista.Plot_Mesh(mesh).show()
 
     # ----------------------------------------------
     # Simulation

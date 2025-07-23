@@ -184,10 +184,10 @@ def Plot_Mesh(
         Any,
     ],
     deformFactor=0.0,
-    opacity=1.0,
+    alpha=1.0,
     color="cyan",
-    edge_color="black",
-    line_width=0.5,
+    edgecolor="black",
+    linewidth=0.5,
     plotter: Optional[pv.Plotter] = None,
 ):
     """Plots the mesh.
@@ -198,11 +198,11 @@ def Plot_Mesh(
         object containing the mesh
     deformFactor : float, optional
         Factor used to display the deformed solution (0 means no deformations), default 0.0
-    opacity : float, optional
+    alpha : float, optional
         face opacity, default 1.0
     color: str, optional
         face colors, default 'cyan'
-    edge_color: str, optional
+    edgecolor: str, optional
         edge color, default 'black'
     line_width: float, optional
         line width, default 0.5
@@ -218,10 +218,10 @@ def Plot_Mesh(
     plotter = Plot(
         obj,
         deformFactor=deformFactor,
-        alpha=opacity,
+        alpha=alpha,
         color=color,
-        edgecolor=edge_color,
-        linewidth=line_width,
+        edgecolor=edgecolor,
+        linewidth=linewidth,
         plotter=plotter,
         plotMesh=True,
     )
@@ -314,10 +314,10 @@ def Plot_Elements(
     dimElem: Optional[int] = None,
     showId=False,
     deformFactor=0.0,
-    opacity=1.0,
+    alpha=1.0,
     color="red",
-    edge_color="black",
-    line_width: Optional[float] = None,
+    edgecolor="black",
+    linewidth: Optional[float] = None,
     label: Optional[str] = None,
     plotter: Optional[pv.Plotter] = None,
 ):
@@ -335,13 +335,13 @@ def Plot_Elements(
         display numbers, by default False
     deformFactor : float, optional
         Factor used to display the deformed solution (0 means no deformations), default 0.0
-    opacity : float, optional
+    alpha : float, optional
         transparency of faces, by default 1.0
     color : str, optional
         color used to display faces, by default 'red
-    edge_color : str, optional
+    edgecolor : str, optional
         color used to display segments, by default 'black'
-    line_width : float, optional
+    linewidth : float, optional
         Thickness of lines, by default None
     label : str, optional
         label, by default None
@@ -385,11 +385,11 @@ def Plot_Elements(
 
         Plot(
             pvGroup,
-            alpha=opacity,
+            alpha=alpha,
             color=color,
-            edgecolor=edge_color,
+            edgecolor=edgecolor,
             plotter=plotter,
-            linewidth=line_width,
+            linewidth=linewidth,
             label=label,
         )
 

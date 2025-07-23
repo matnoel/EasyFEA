@@ -8,6 +8,7 @@ Modal2
 
 Modal analysis of a structure.
 """
+# sphinx_gallery_thumbnail_number = -2
 
 from EasyFEA import (
     Display,
@@ -98,12 +99,19 @@ if __name__ == "__main__":
     nodesZ0 = mesh.Nodes_Conditions(lambda x, y, z: z == 0)
     nodesSupZ0 = mesh.Nodes_Conditions(lambda x, y, z: z > 0)
 
-    ax = Display.Plot_Elements(mesh, nodes_pilars, c="red", alpha=0.5)
-    Display.Plot_Elements(mesh, nodes_plate, c="blue", ax=ax, alpha=0.5)
-    Display.Plot_Elements(mesh, nodes_cuve, c="green", ax=ax, alpha=0.5)
-    ax.legend(labels=["Pilars", "Plate", "Cuve"])
+    plotter = PyVista.Plot_Elements(
+        mesh, nodes_pilars, color="red", alpha=0.5, label="Pilars"
+    )
+    PyVista.Plot_Elements(
+        mesh, nodes_plate, color="blue", alpha=0.5, plotter=plotter, label="Plate"
+    )
+    PyVista.Plot_Elements(
+        mesh, nodes_cuve, color="green", alpha=0.5, plotter=plotter, label="Cuve"
+    )
+    plotter.add_legend()
+    plotter.show()
 
-    Display.Plot_Mesh(mesh, alpha=0.5)
+    PyVista.Plot_Mesh(mesh, alpha=0.5).show()
 
     # ----------------------------------------------
     # Material
@@ -127,9 +135,7 @@ if __name__ == "__main__":
     simu.add_dirichlet(nodesZ0, [0] * 3, simu.Get_unknowns())
     known, unknown = simu.Bc_dofs_known_unknown(simu.problemType)
 
-    simu.Solver_Set_Hyperbolic_Algorithm(0.1)
-
-    Display.Plot_BoundaryConditions(simu)
+    PyVista.Plot_BoundaryConditions(simu).show()
 
     K, C, M, F = simu.Get_K_C_M_F()
 

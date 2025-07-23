@@ -198,7 +198,7 @@ if __name__ == "__main__":
 
     if not pltIter:
         plotter = PyVista.Plot(simu, result, plotMesh=True, deformFactor=1)
-        PyVista.Plot_Mesh(master_mesh, opacity=0.4, plotter=plotter)
+        PyVista.Plot_Mesh(master_mesh, alpha=0.4, plotter=plotter)
         plotter.show()
 
     Display.plt.show()
