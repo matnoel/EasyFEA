@@ -187,7 +187,7 @@ class Mesh(Observable):
             rotation direction, by default (0,0,1)
         """
 
-        oldCoord = self.coord
+        oldCoord = self.coordGlob
         newCoord = Rotate(oldCoord, theta, center, direction)
         for grp in self.dict_groupElem.values():
             grp.coordGlob = newCoord
@@ -204,7 +204,7 @@ class Mesh(Observable):
             normal to the plane, by default (1,0,0)
         """
 
-        oldCoord = self.coord
+        oldCoord = self.coordGlob
         newCoord = Symmetry(oldCoord, point, n)
         for grp in self.dict_groupElem.values():
             grp.coordGlob = newCoord
