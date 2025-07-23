@@ -2249,6 +2249,9 @@ def _Get_values(
         values
     """
 
+    Ne = mesh.Ne
+    Nn = mesh.Nn + len(mesh.orphanNodes)
+
     if isinstance(result, str):
         if simu is None:
             raise Exception(
@@ -2261,7 +2264,7 @@ def _Get_values(
     elif isinstance(result, np.ndarray):
         values = result
         size = result.shape[0]
-        if size not in [mesh.Ne, mesh.Nn]:
+        if size not in [Ne, Nn]:
             raise Exception("Must be an array of dimension Nn or Ne")
         else:
             if size == mesh.Ne and nodeValues:
