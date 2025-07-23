@@ -42,7 +42,6 @@ Detailed fem API
 
 .. automodule:: EasyFEA.fem    
     :members:
-    :private-members:
     :undoc-members:
     :imported-members:
     :show-inheritance:
