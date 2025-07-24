@@ -31,6 +31,7 @@ def meshes() -> list[Mesh]:
         p2 = factory.addPoint(1, 0, 0)
         factory.addLine(p1, p2)
 
+        mesher._Set_PhysicalGroups()
         mesher._Mesh_Generate(1, elemType)
 
         meshes.append(mesher._Mesh_Get_Mesh())
@@ -125,5 +126,19 @@ class TestMeshIO:
 
             pyVistaMesh = MeshIO.EasyFEA_to_PyVista(mesh)
             newMesh = MeshIO.PyVista_to_EasyFEA(pyVistaMesh)
+
+            check_mesh(mesh, newMesh)
+
+    def test_easyfea_to_ensight(self, meshes: list[Mesh]):
+
+        for mesh in meshes:
+
+            if mesh.elemType not in MeshIO.DICT_ELEMTYPE_TO_ENSIGHT.keys():
+                continue
+
+            ensightMesh = MeshIO.EasyFEA_to_Ensight(
+                mesh, folder_results, mesh.elemType.name
+            )
+            newMesh = MeshIO.Ensight_to_EasyFEA(ensightMesh)
 
             check_mesh(mesh, newMesh)

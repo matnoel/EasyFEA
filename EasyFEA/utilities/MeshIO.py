@@ -82,7 +82,7 @@ DICT_ELEMTYPE_TO_ENSIGHT: dict[ElemType, str] = {
     # (to Ensight)
     ElemType.POINT: "point",
     ElemType.SEG2: "bar2",
-    # ElemType.SEG3: "bar3",  # not supported by Ensight
+    ElemType.SEG3: "bar3",
     # ElemType.SEG4: "bar4",  # not supported by Ensight
     # ElemType.SEG5: "bar5",  # not supported by Ensight
     ElemType.TRI3: "tria3",
@@ -101,7 +101,12 @@ DICT_ELEMTYPE_TO_ENSIGHT: dict[ElemType, str] = {
     ElemType.PRISM15: "wedge15",
     # ElemType.PRISM18: "wedge18", # not supported by Ensight
 }
-"""ElemType: CellType"""
+"""ElemType: Ensight"""
+
+DICT_ENSIGHT_TO_ELEMTYPE: dict[str, ElemType] = {
+    ensight: elemType for elemType, ensight in DICT_ELEMTYPE_TO_ENSIGHT.items()
+}
+"""Ensight: ElemType"""
 
 # ----------------------------------------------
 # INDEXES
@@ -119,29 +124,64 @@ DICT_GMSH_TO_VTK_INDEXES: dict[ElemType, list[int]] = {
     ElemType.HEXA20: [
         0, 1, 2, 3, 4, 5, 6, 7,  # vertices
         8, 11, 13, 9, 16, 18, 19, 17, 10, 12, 14, 15 # edges
-    ],
-    # fmt: on
-    # https://dev.pyvista.org/api/examples/_autosummary/pyvista.examples.cells.triquadratichexahedron#pyvista.examples.cells.TriQuadraticHexahedron
-    # fmt: off
+    ],    
+    # https://dev.pyvista.org/api/examples/_autosummary/pyvista.examples.cells.triquadratichexahedron#pyvista.examples.cells.TriQuadraticHexahedron    
     ElemType.HEXA27: [
         0, 1, 2, 3, 4, 5, 6, 7,  # vertices
         8, 11, 13, 9, 16, 18, 19, 17, 10, 12, 14, 15,  # edges
         22, 23, 21, 24, 20, 25,  # faces
-        26,  # volumes
+        26  # volumes
+    ],
+    ElemType.PRISM15: [
+        0, 1, 2, 3, 4, 5, # vertices
+        6, 9, 7, 12, 14, 13, 8, 10, 11 # edges
+    ],
+    ElemType.PRISM18: [
+        0, 1, 2, 3, 4, 5, # vertices
+        6, 9, 7, 12, 14, 13, 8, 10, 11, # edges
+        15, 17, 16 # faces
+    ],
+    # nodes 8 and 9 are switch
+    ElemType.TETRA10: [
+        0, 1, 2, 3, # vertices
+        4, 5, 6, 7, 9, 8 # faces
     ],
     # fmt: on
-    ElemType.PRISM15: [0, 1, 2, 3, 4, 5, 6, 9, 7, 12, 14, 13, 8, 10, 11],
-    ElemType.PRISM18: [0, 1, 2, 3, 4, 5, 6, 9, 7, 12, 14, 13, 8, 10, 11, 15, 17, 16],
-    # nodes 8 and 9 are switch
-    ElemType.TETRA10: [0, 1, 2, 3, 4, 5, 6, 7, 9, 8],
 }
 """ElemType: list[int]"""
 
 DICT_VTK_TO_GMSH_INDEXES: dict[pv.CellType, list[int]] = {
-    DICT_ELEMTYPE_TO_VTK[elemType]: [order.index(i) for i in range(len(order))]
-    for elemType, order in DICT_GMSH_TO_VTK_INDEXES.items()
+    DICT_ELEMTYPE_TO_VTK[elemType]: [indexes.index(i) for i in range(len(indexes))]
+    for elemType, indexes in DICT_GMSH_TO_VTK_INDEXES.items()
 }
 """CellType: list[int]"""
+
+# https://ansyshelp.ansys.com/public/account/secured?returnurl=%2F%2F%2F%2F%2FViews%2FSecured%2Fcorp%2Fv242%2Fen%2Fensight_um%2FUM-C9xmlidEnSightGoldCaseFileFormat.html
+DICT_GMSH_TO_ENSIGHT_INDEXES: dict[ElemType, list[int]] = {
+    # fmt: off
+    ElemType.SEG3: [0, 2, 1],
+    # nodes 8 and 9 are switch
+    ElemType.TETRA10: [
+        0, 1, 2, 3, # vertices
+        4, 5, 6, 7, 9, 8 # edges
+    ],
+    ElemType.PRISM15: [
+        0, 1, 2, 3, 4, 5, # vertices
+        6, 8, 12, 7, 13, 14, 9, 11, 10 # edges
+    ],
+    ElemType.HEXA20: [
+        0, 1, 2, 3, 4, 5, 6, 7,  # vertices
+        8, 11, 16, 9, 17, 10, 18, 19, 12, 15, 13, 14 # edges
+    ],
+    # fmt: on
+}
+"""ElemType: list[int]"""
+
+DICT_ENSIGHT_TO_GMSH_INDEXES: dict[str, list[int]] = {
+    DICT_ELEMTYPE_TO_ENSIGHT[elemType]: [indexes.index(i) for i in range(len(indexes))]
+    for elemType, indexes in DICT_GMSH_TO_ENSIGHT_INDEXES.items()
+}
+"""Ensight: list[int]"""
 
 # ----------------------------------------------
 # Tools
@@ -751,7 +791,7 @@ def PyVista_to_EasyFEA(pyVistaMesh: Union[pv.UnstructuredGrid, pv.MultiBlock]) -
 # ----------------------------------------------
 
 
-def Ensight_to_PyVista(geoFile: str) -> pv.MultiBlock:
+def _Ensight_to_PyVista(geoFile: str) -> pv.MultiBlock:
     """Converts Ensight mesh to PyVista format.
 
     Parameters
@@ -777,8 +817,6 @@ def Ensight_to_PyVista(geoFile: str) -> pv.MultiBlock:
 
     # import case to pyvista
     reader = pv.EnSightReader(caseFile)
-    reader.enable_all_cell_arrays()
-    reader.enable_all_point_arrays()
 
     # get thepyvista Multi pyvista mesh
     pyVistaMesh = reader.read()
@@ -787,6 +825,29 @@ def Ensight_to_PyVista(geoFile: str) -> pv.MultiBlock:
     Folder.os.remove(caseFile)
 
     return pyVistaMesh
+
+
+def _Ensight_to_Meshio(geoFile: str) -> Mesh:
+    """Converts Ensight mesh to Meshio format.
+
+    Parameters
+    ----------
+    geoFile : str
+        Path to the Ensight geo file.
+
+    Returns
+    -------
+    Mesh
+        Converted EasyFEA mesh object.
+    """
+
+    pyVistaMesh = _Ensight_to_PyVista(geoFile)
+
+    mesh = PyVista_to_EasyFEA(pyVistaMesh)
+
+    meshioMesh = _EasyFEA_to_Meshio(mesh, {})
+
+    return meshioMesh
 
 
 def Ensight_to_EasyFEA(geoFile: str) -> Mesh:
@@ -803,34 +864,101 @@ def Ensight_to_EasyFEA(geoFile: str) -> Mesh:
         Converted EasyFEA mesh object.
     """
 
-    pyVistaMesh = Ensight_to_PyVista(geoFile)
+    with open(geoFile, "r") as file:
+        lines = file.readlines()
 
-    mesh = PyVista_to_EasyFEA(pyVistaMesh)
+    dict_ensightType_data: dict[str, list[tuple[str, _types.IntArray]]] = {}
+
+    index = 0
+    while index < len(lines):
+
+        line = lines[index].strip()
+
+        if line == "coordinates":
+            index += 1
+            Nn = int(lines[index].strip())
+
+            coordinates = np.array(
+                [
+                    [
+                        float(value)
+                        # [+-]? (get sign)
+                        # \d+\.\d+ (decimal part of the number)
+                        # e[+-]?\d+ (exponential part of the number)
+                        for value in re.findall(r"[+-]?\d+\.\d+e[+-]?\d+", line)
+                    ]
+                    for line in lines[index + 1 : index + 1 + Nn]
+                ],
+                dtype=float,
+            )
+            index += 1 + Nn  # don't change
+
+        elif line.startswith("part"):
+
+            # get description
+            index += 1
+            description = lines[index].strip()
+            tag = re.sub(r"\D", "", description)
+            # get ensightType
+            index += 1
+            ensight = lines[index].strip()
+            # get Ne
+            index += 1
+            Ne = int(lines[index].strip())
+            # get connect
+            connect = np.array(
+                [
+                    [int(value) for value in line.strip().split()]
+                    for line in lines[index + 1 : index + 1 + Ne]
+                ],
+                dtype=int,
+            )
+            # start connect index from 0
+            connect -= 1
+            index += 1 + Ne  # don't change
+
+            # append data
+            if ensight not in dict_ensightType_data.keys():
+                dict_ensightType_data[ensight] = [(tag, connect)]
+            else:
+                dict_ensightType_data[ensight].append((tag, connect))
+
+        else:
+            index += 1
+
+    # create groups of elements
+    dict_groupElem: dict[ElemType, _GroupElem] = {}
+    for ensight, list_data in dict_ensightType_data.items():
+
+        elemType = DICT_ENSIGHT_TO_ELEMTYPE[ensight]
+
+        # import connect
+        connect = np.concat([data[1] for data in list_data], axis=0, dtype=int)
+
+        # make sur connect is unique
+        unique_rows = set(tuple(row) for row in connect)
+        connect = np.array(list(unique_rows), dtype=int)
+
+        # reorder connect
+        if ensight in DICT_ENSIGHT_TO_GMSH_INDEXES.keys():
+            indexes = DICT_ENSIGHT_TO_GMSH_INDEXES[ensight]
+            connect = connect[:, indexes]
+        # create the group of elements
+        groupElem = GroupElemFactory.Create(elemType, connect, coordinates)
+
+        # Set tags
+        for data in list_data:
+            tag, connect = data
+            nodes = np.array(list(set(connect.ravel())), dtype=int)
+            groupElem.Set_Tag(nodes, tag)
+
+        # add group of elements
+        dict_groupElem[elemType] = groupElem
+
+    # create the mesh
+    mesh = Mesh(dict_groupElem)
 
     return mesh
-
-
-def Ensight_to_Meshio(geoFile: str) -> Mesh:
-    """Converts Ensight mesh to Meshio format.
-
-    Parameters
-    ----------
-    geoFile : str
-        Path to the Ensight geo file.
-
-    Returns
-    -------
-    Mesh
-        Converted EasyFEA mesh object.
-    """
-
-    pyVistaMesh = Ensight_to_PyVista(geoFile)
-
-    mesh = PyVista_to_EasyFEA(pyVistaMesh)
-
-    meshioMesh = _EasyFEA_to_Meshio(mesh, {})
-
-    return meshioMesh
 
 
 def EasyFEA_to_Ensight(mesh: Mesh, folder: str, name: str) -> str:
@@ -869,19 +997,27 @@ def EasyFEA_to_Ensight(mesh: Mesh, folder: str, name: str) -> str:
         file.write(f"{Nn}\n")
         np.savetxt(file, mesh.coordGlob, fmt="%.5e")
 
-        part = -1
+        part = 0
 
         for elemType, groupElem in mesh.dict_groupElem.items():
 
-            for tag in groupElem.nodeTags:
+            for tag in groupElem.elementTags:
 
+                # init part data
                 part += 1
                 file.write(f"part {part}\n")
                 file.write(
-                    f"{groupElem.elemType}_subdomain {dict_tags_converter[tag]}\n"
+                    f"{groupElem.topology}_subdomain {dict_tags_converter[tag]}\n"
                 )
                 file.write(f"{DICT_ELEMTYPE_TO_ENSIGHT[elemType]}\n")
-                file.write(f"{groupElem.Ne}\n")
-                np.savetxt(file, groupElem.connect + 1, fmt="%i")
+                # get elements
+                elements = groupElem.Get_Elements_Tag(tag)
+                file.write(f"{elements.size}\n")
+                # get connect
+                connect = groupElem.connect[elements]
+                if elemType in DICT_GMSH_TO_ENSIGHT_INDEXES.keys():
+                    indexes = DICT_GMSH_TO_ENSIGHT_INDEXES[elemType]
+                    connect = connect[:, indexes]
+                np.savetxt(file, connect + 1, fmt="%i")
 
     return filename
