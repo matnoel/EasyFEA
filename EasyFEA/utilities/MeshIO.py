@@ -981,7 +981,7 @@ def EasyFEA_to_Ensight(mesh: Mesh, folder: str, name: str) -> str:
 
     assert isinstance(mesh, Mesh), "mesh must be a EasyFEA mesh!"
 
-    filename = Folder.Join(folder, f"{name}.geo")
+    filename = Folder.Join(folder, f"{name}.geo", mkdir=True)
 
     Nn = mesh.coordGlob.shape[0]
 
@@ -995,7 +995,7 @@ def EasyFEA_to_Ensight(mesh: Mesh, folder: str, name: str) -> str:
         file.write("element id assign\n")
         file.write("coordinates\n")
         file.write(f"{Nn}\n")
-        np.savetxt(file, mesh.coordGlob, fmt="%.5e")
+        np.savetxt(file, mesh.coordGlob, fmt="%12.5e", delimiter="")
 
         part = 0
 
@@ -1014,10 +1014,10 @@ def EasyFEA_to_Ensight(mesh: Mesh, folder: str, name: str) -> str:
                 elements = groupElem.Get_Elements_Tag(tag)
                 file.write(f"{elements.size}\n")
                 # get connect
-                connect = groupElem.connect[elements]
+                connect = groupElem.connect[elements] + 1
                 if elemType in DICT_GMSH_TO_ENSIGHT_INDEXES.keys():
                     indexes = DICT_GMSH_TO_ENSIGHT_INDEXES[elemType]
                     connect = connect[:, indexes]
-                np.savetxt(file, connect + 1, fmt="%i")
+                np.savetxt(file, connect, fmt="%i")
 
     return filename
