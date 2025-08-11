@@ -2152,14 +2152,14 @@ class _Simu(_IObserver, ABC):
         # Empty matrices in element groups
         self.mesh._ResetMatrix()
 
-        folder_EasyFEA = Folder.Dir(Folder.Dir())  # path the EasyFEA folder
+        easyfea_dir = Folder.EASYFEA_DIR
         # this path will be removed in print
 
         # Save simulation
         path_simu = Folder.Join(folder, f"{filename}.pickle", mkdir=True)
         with open(path_simu, "wb") as file:
             pickle.dump(self, file)
-        Display.MyPrint(f"Saved:\n{path_simu.replace(folder_EasyFEA, '')}\n", "green")
+        Display.MyPrint(f"Saved:\n{path_simu.replace(easyfea_dir, '')}\n", "green")
 
         # Save simulation summary
         path_summary = Folder.Join(folder, "summary.txt", mkdir=True)
@@ -2172,9 +2172,7 @@ class _Simu(_IObserver, ABC):
 
         with open(path_summary, "w", encoding="utf8") as file:
             file.write(summary)
-        Display.MyPrint(
-            f"Saved:\n{path_summary.replace(folder_EasyFEA, '')}\n", "green"
-        )
+        Display.MyPrint(f"Saved:\n{path_summary.replace(easyfea_dir, '')}\n", "green")
 
 
 # ----------------------------------------------
@@ -2297,7 +2295,6 @@ def Load_Simu(folder: str, filename: str = "simulation") -> _Simu:
         The loaded simulation.
     """
 
-    folder_PythonEF = Folder.Dir(Folder.Dir())
     path_simu = Folder.Join(folder, f"{filename}.pickle")
     assert Folder.Exists(path_simu), f"The file {filename}.pickle cannot be found."
 
@@ -2308,6 +2305,8 @@ def Load_Simu(folder: str, filename: str = "simulation") -> _Simu:
         Display.MyPrintError(f"The file:\n{path_simu}\nis empty or corrupted.")
         return None  # type: ignore [return-value]
 
-    Display.MyPrint(f"\nLoaded:\n{path_simu.replace(folder_PythonEF, '')}\n", "green")
+    Display.MyPrint(
+        f"\nLoaded:\n{path_simu.replace(Folder.EASYFEA_DIR, '')}\n", "green"
+    )
 
     return simu

@@ -7,24 +7,22 @@
 import os
 
 
-def Dir(path="") -> str:
-    """Returns the directory of the specified path.\n
-    If no path is specified, returns the EasyFEA directory path.
-    """
-    # TODO Give by default return folder
+def Dir(path: str, depth: int = 1) -> str:
+    """Returns the directory of the specified path."""
 
     assert isinstance(path, str), "filename must be str"
+    assert isinstance(depth, int) and depth > 0, "depth must be a positive integer"
 
-    if path == "":
-        dir = EASYFEA_DIR
-    else:
-        normPath = os.path.normpath(path)
-        dir = os.path.dirname(normPath)
+    normPath = os.path.normpath(path)
+
+    dir = os.path.dirname(normPath)
+    for _ in range(depth - 1):
+        dir = os.path.dirname(dir)
 
     return dir
 
 
-EASYFEA_DIR = Dir(Dir(Dir(__file__)))
+EASYFEA_DIR = Dir(__file__, 3)
 RESULTS_DIR = os.path.join(EASYFEA_DIR, "results")
 """EASYFEA_DIR/results"""
 
