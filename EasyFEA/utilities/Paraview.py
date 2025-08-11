@@ -109,8 +109,10 @@ def Save_simu(
             array = simu.Result(elementField, False)
             if meshDim == 3 and array.size / Ne == 6:
                 # reorder (xx, yy, zz, yz, xz, xy)
-                # to (xx, yy, zz, xy, yz, xz)
+                # to      (xx, yy, zz, xy, yz, xz)
                 array = array.reshape(Ne, -1)[:, [0, 1, 2, 5, 3, 4]]
+                # scale xy, yz and xz values
+                array[:, 3:] *= 1 / np.sqrt(2)
             elementResults[elementField] = array
 
         __Make_vtu(simu.mesh, filename, nodeResults, elementResults)
