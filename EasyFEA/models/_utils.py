@@ -403,9 +403,9 @@ def Result_in_Strain_or_Stress_field(
         raise Exception("field_e must be of shape (Ne, 3) or (Ne, 6)")
 
     if dim == 2:
-        xx_e = field_e[:, 0]
-        yy_e = field_e[:, 1]
-        xy_e = field_e[:, 2] / coef
+        # rescale and get values
+        field_e[:, 2] *= 1 / coef
+        xx_e, yy_e, xy_e = field_e.T
 
         if "xx" in result:
             result_e = xx_e
@@ -424,12 +424,9 @@ def Result_in_Strain_or_Stress_field(
             )
 
     elif dim == 3:
-        xx_e = field_e[:, 0]
-        yy_e = field_e[:, 1]
-        zz_e = field_e[:, 2]
-        yz_e = field_e[:, 3] / coef
-        xz_e = field_e[:, 4] / coef
-        xy_e = field_e[:, 5] / coef
+        # rescale and get values
+        field_e[:, 3:] *= 1 / coef
+        xx_e, yy_e, zz_e, yz_e, xz_e, xy_e = field_e.T
 
         if "xx" in result:
             result_e = xx_e
