@@ -241,7 +241,18 @@ def __Write_HOSolAt_Solution(
     file.write(f"\n{keyword}{groupElem.order}\n{Ne}\n")
     file.write(f"1 {type}\n")
     newGroupElem = _Get_empty_groupElem(groupElem, order)
-    file.write(f"{order} {newGroupElem.nPe}\n")
+    nPe = newGroupElem.nPe
+    file.write(f"{order} {nPe}\n")
+
+    dof_n = dofsValues_e.size // Ne // nPe
+
+    if dof_n == 2:
+        # get dofsValues as a (Ne, nPe, 2) array
+        dofsValues_e = dofsValues_e.reshape(Ne, nPe, dof_n)
+        # reshape dofsValues_e as a (Ne, nPe, 3) array
+        dofsValues_e = np.concat((dofsValues_e, np.zeros((Ne, nPe, 1))), axis=2)
+        # reshape dofsValues_e as a (Ne, nPe*3) array
+        dofsValues_e = dofsValues_e.reshape(Ne, -1)
 
     # write solution array
     np.savetxt(file, dofsValues_e)
@@ -312,7 +323,7 @@ def _Write_solution_file(
     with open(solutionFile, "w") as f:
         # write first lines
         f.write("MeshVersionFormatted 2\n")
-        f.write(f"Dimension {mesh.inDim}\n\n")  # the mesh is always in a 3d space
+        f.write("Dimension 3\n\n")  # the mesh is always in a 3d space
 
         if warpVector_n is not None:
             # write SolAtVertices
