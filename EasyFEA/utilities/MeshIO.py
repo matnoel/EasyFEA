@@ -997,18 +997,16 @@ def EasyFEA_to_Ensight(mesh: Mesh, folder: str, name: str) -> str:
         file.write(f"{Nn}\n")
         np.savetxt(file, mesh.coordGlob, fmt="%12.5e", delimiter="")
 
-        part = 0
-
         for elemType, groupElem in mesh.dict_groupElem.items():
 
             for tag in groupElem.elementTags:
 
-                # init part data
-                part += 1
+                # get tag
+                converted_tag = int(dict_tags_converter[tag])
+                # set description
+                part = converted_tag + 1
                 file.write(f"part {part}\n")
-                file.write(
-                    f"{groupElem.topology}_subdomain {dict_tags_converter[tag]}\n"
-                )
+                file.write(f"{groupElem.topology}_subdomain {converted_tag}\n")
                 file.write(f"{DICT_ELEMTYPE_TO_ENSIGHT[elemType]}\n")
                 # get elements
                 elements = groupElem.Get_Elements_Tag(tag)
