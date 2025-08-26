@@ -64,15 +64,17 @@ class Field:
     def matrixType(self) -> MatrixType:
         return self.__matrixType
 
-    def Get_coords(
-        self,
-    ) -> tuple[_types.FloatArray, _types.FloatArray, _types.FloatArray]:
-        """ "Returns integration point coordinates (x,y,z) for each element."""
+    def Get_coords(self, concatenate=False):
+        """Returns integration point coordinates (x,y,z) for each element."""
+
         coords = self.groupElem.Get_GaussCoordinates_e_pg(self.__matrixType)
-        x = FeArray.asfearray(coords[..., 0])
-        y = FeArray.asfearray(coords[..., 1])
-        z = FeArray.asfearray(coords[..., 2])
-        return x, y, z
+        if concatenate:
+            return coords
+        else:
+            x = FeArray.asfearray(coords[..., 0])
+            y = FeArray.asfearray(coords[..., 1])
+            z = FeArray.asfearray(coords[..., 2])
+            return x, y, z
 
     def copy(self) -> "Field":
         return copy.deepcopy(self)
