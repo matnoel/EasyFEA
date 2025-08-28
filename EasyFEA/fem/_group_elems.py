@@ -418,6 +418,36 @@ class _GroupElem(ABC):
 
         return sysCoord_e
 
+    def Get_normals_e_pg(self, matrixType: MatrixType) -> FeArray:
+        """Returns the normals for each elements and gauss points (Ne, nPg, 3)."""
+
+        dim = self.dim
+        assert dim in [1, 2], "You can't compute normals for 0D or 3D elements."
+
+        # get coords as a (Ne, nPe, 3) array
+        coords_e = self.coordGlob[self.connect]
+
+        # get the first derivatives of the shape functions as a (nPg, dim, nPe) array
+        dN_pg = self.Get_dN_pg(matrixType)
+        dNdr_pg = dN_pg[:, 0]
+
+        dxdr_e_pg = np.einsum("pn,end->epd", dNdr_pg, coords_e, optimize="optimal")
+
+        if dim == 1:
+            normals_e_pg = np.cross((0, 0, 1), dxdr_e_pg)
+            dNds_pg = dN_pg[:, 1]
+            dxds_e_pg = np.einsum("pn,end->epd", dNds_pg, coords_e, optimize="optimal")
+            normals_e_pg = np.cross(dxdr_e_pg, dxds_e_pg)
+
+        normals_e_pg = np.einsum(
+            "epi,ep->epi",
+            normals_e_pg,
+            1 / np.linalg.norm(normals_e_pg, axis=-1),
+            optimize="optimal",
+        )
+
+        return FeArray.asfearray(normals_e_pg)
+
     def Integrate_e(
         self, func=lambda x, y, z: 1, matrixType=MatrixType.mass
     ) -> _types.FloatArray:
@@ -605,16 +635,16 @@ class _GroupElem(ABC):
         N_pg = self.Get_N_pg(matrixType)
 
         # retrieve node coordinates
-        coordo = self.coordGlob
+        coord = self.coordGlob
 
         # nodes coordinates for each element
         if elements.size == 0:
-            coordo_e = coordo[self.__connect]
+            coordo_e = coord[self.__connect]
         else:
-            coordo_e = coordo[self.__connect[elements]]
+            coordo_e = coord[self.__connect[elements]]
 
         # localize coordinates on Gauss points
-        coordo_e_p = np.einsum("pij,ejn->epn", N_pg, coordo_e, optimize="optimal")
+        coordo_e_p = np.einsum("pin,end->epd", N_pg, coordo_e, optimize="optimal")
 
         return FeArray.asfearray(coordo_e_p)
 
