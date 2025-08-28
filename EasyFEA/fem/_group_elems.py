@@ -435,6 +435,7 @@ class _GroupElem(ABC):
 
         if dim == 1:
             normals_e_pg = np.cross((0, 0, 1), dxdr_e_pg)
+        else:
             dNds_pg = dN_pg[:, 1]
             dxds_e_pg = np.einsum("pn,end->epd", dNds_pg, coords_e, optimize="optimal")
             normals_e_pg = np.cross(dxdr_e_pg, dxds_e_pg)
