@@ -418,14 +418,23 @@ class _GroupElem(ABC):
 
         return sysCoord_e
 
-    def Get_normals_e_pg(self, matrixType: MatrixType) -> FeArray:
+    def Get_normals_e_pg(
+        self,
+        matrixType: MatrixType,
+        displacementMatrix: Optional[_types.FloatArray] = None,
+    ) -> FeArray:
         """Returns the normals for each elements and gauss points (Ne, nPg, 3)."""
 
         dim = self.dim
         assert dim in [1, 2], "You can't compute normals for 0D or 3D elements."
 
         # get coords as a (Ne, nPe, 3) array
-        coords_e = self.coordGlob[self.connect]
+
+        coordGlob = self.coordGlob
+        if displacementMatrix is not None:
+            coordGlob += displacementMatrix
+
+        coords_e = coordGlob[self.connect]
 
         # get the first derivatives of the shape functions as a (nPg, dim, nPe) array
         dN_pg = self.Get_dN_pg(matrixType)

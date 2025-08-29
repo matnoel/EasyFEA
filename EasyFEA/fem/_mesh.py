@@ -317,8 +317,6 @@ class Mesh(Observable):
         assert nodes.max() <= self.Nn
 
         dim = self.dim
-        idx = 2 if dim == 3 else 1  # normal vectors position in sysCoord_e
-
         list_normal = []
         list_nodes: list[int] = []  # used nodes in nodes
 
@@ -330,14 +328,16 @@ class Mesh(Observable):
                 continue
 
             elementsNodes = np.ravel(groupElem.connect[elements])
-
             usedNodes = np.asarray(list(set(elementsNodes)), dtype=int)
 
             if usedNodes.size == 0:
                 continue
 
             # get the normal vectors for elements
-            n_e = groupElem._Get_sysCoord_e(displacementMatrix)[elements, :, idx]
+            normal_e_pg = groupElem.Get_normals_e_pg(
+                MatrixType.mass, displacementMatrix
+            )
+            normal_e = normal_e_pg[elements].sum(1)
 
             # here we want to get the normal vector on the nodes
             # need to get the nodes connectivity
@@ -348,7 +348,7 @@ class Mesh(Observable):
             sum = np.ravel(connect_n_e.sum(1))
             # get the normal vector on normal
             normal_n = np.einsum(
-                "ni,n->ni", connect_n_e @ n_e, 1 / sum, optimize="optimal"
+                "ni,n->ni", connect_n_e @ normal_e, 1 / sum, optimize="optimal"
             )
 
             # append the values on each direction and add nodes
