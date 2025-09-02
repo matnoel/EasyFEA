@@ -272,12 +272,12 @@ def __Get_dict_tags_converter(mesh: Mesh) -> dict[Any, int]:
 
     assert isinstance(mesh, Mesh), "mesh must be a EasyFEA mesh!"
 
-    #
+    # get all the tags contained in the mesh
     tags = []
     [tags.extend(groupElem.nodeTags) for groupElem in mesh.dict_groupElem.values()]  # type: ignore [func-returns-value]
     tags = np.unique(tags).tolist()
-    # change "L1" as 1
 
+    # get all int values in each tags
     dict_tags = {tag: int(re.sub(r"\D", "", tag)) for tag in tags}
     # For now, it does not import strings different from P{i}, L{i}, S{i}, V{i}.
     # It won't work for long strings.
@@ -987,6 +987,21 @@ def EasyFEA_to_Ensight(mesh: Mesh, folder: str, name: str) -> str:
 
     dict_tags_converter = __Get_dict_tags_converter(mesh)
 
+    def get_line(number: int, pos: int = 8):
+        return f"{' '*(pos-len(str(number)))}{number}"
+
+    # get converted tags with groupelem and elements
+    dict_convertedTags = {
+        int(dict_tags_converter[tag]): (groupElem, groupElem.Get_Elements_Tag(tag))
+        for groupElem in mesh.dict_groupElem.values()
+        for tag in groupElem.elementTags
+    }
+
+    # make sure that the converted tags are sorted
+    dict_convertedTags = {
+        tag: dict_convertedTags[tag] for tag in sorted(dict_convertedTags.keys())
+    }
+
     with open(filename, "w") as file:
 
         file.write("Geometry ensight6 file\n")
@@ -994,28 +1009,26 @@ def EasyFEA_to_Ensight(mesh: Mesh, folder: str, name: str) -> str:
         file.write("node id assign\n")
         file.write("element id assign\n")
         file.write("coordinates\n")
-        file.write(f"{Nn}\n")
+        file.write(get_line(Nn) + "\n")
         np.savetxt(file, mesh.coordGlob, fmt="%12.5e", delimiter="")
 
-        for elemType, groupElem in mesh.dict_groupElem.items():
+        for convertedTag, (groupElem, elements) in dict_convertedTags.items():
 
-            for tag in groupElem.elementTags:
-
-                # get tag
-                converted_tag = int(dict_tags_converter[tag])
-                # set description
-                part = converted_tag + 1
-                file.write(f"part {part}\n")
-                file.write(f"{groupElem.topology}_subdomain {converted_tag}\n")
-                file.write(f"{DICT_ELEMTYPE_TO_ENSIGHT[elemType]}\n")
-                # get elements
-                elements = groupElem.Get_Elements_Tag(tag)
-                file.write(f"{elements.size}\n")
-                # get connect
-                connect = groupElem.connect[elements] + 1
-                if elemType in DICT_GMSH_TO_ENSIGHT_INDEXES.keys():
-                    indexes = DICT_GMSH_TO_ENSIGHT_INDEXES[elemType]
-                    connect = connect[:, indexes]
-                np.savetxt(file, connect, fmt="%i")
+            # write part
+            part = convertedTag + 1
+            file.write(f"part{get_line(part)}\n")
+            # write description
+            file.write(f"{groupElem.topology}_subdomain {convertedTag}\n")
+            # write ensight name
+            elemType = groupElem.elemType
+            file.write(f"{DICT_ELEMTYPE_TO_ENSIGHT[elemType]}\n")
+            # write elements
+            file.write(get_line(elements.size) + "\n")
+            # write connect
+            connect = groupElem.connect[elements] + 1
+            if elemType in DICT_GMSH_TO_ENSIGHT_INDEXES.keys():
+                indexes = DICT_GMSH_TO_ENSIGHT_INDEXES[elemType]
+                connect = connect[:, indexes]
+            np.savetxt(file, connect, fmt="%8i", delimiter="")
 
     return filename
