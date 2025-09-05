@@ -314,7 +314,8 @@ def _Write_solution_file(
 
     if warpVector_n is not None:
         if warpVector_n.ndim == 2:
-            with open(Folder.Join(folder, "default.vizir"), "w") as f:
+
+            with open(Folder.Join(Folder.Dir(folder), "default.vizir"), "w") as f:
                 # write WarpVec
                 f.write(f"WarpVec\n1\n{deformFactor}\n\n")
 
