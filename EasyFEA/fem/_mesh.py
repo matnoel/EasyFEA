@@ -575,11 +575,13 @@ class Mesh(Observable):
 
         # get dictionnary linking tags to nodes
         dict_nodes = {}
-        [
-            dict_nodes.update(grp._dict_nodes_tags)
-            for grp in self.dict_groupElem.values()
-        ]
-        # add nodes belonging to the tags
+        for groupElem in self.dict_groupElem.values():
+            for tag, nodes in groupElem._dict_nodes_tags.items():
+                if tag not in dict_nodes:
+                    dict_nodes[tag] = nodes
+                else:
+                    concat = np.concatenate((dict_nodes[tag], nodes), axis=0)
+                    dict_nodes[tag] = np.unique(concat)
 
         if len(dict_nodes) == 0:
             Display.MyPrintError(
