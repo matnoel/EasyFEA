@@ -41,8 +41,11 @@ jobs:
 
       - name: Install dependencies
         run: |
-          python -m pip install -e "meshio @ git+https://github.com/matnoel/meshio.git@medit_higher_order_elements"
           python -m pip install pytest .[dev]
+          git clone https://github.com/matnoel/meshio.git --branch medit_higher_order_elements
+          cd meshio
+          python -m pip install -e .
+          cd ../
       
       - name: Run tests
         run: pytest
