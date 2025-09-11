@@ -133,7 +133,7 @@ class TestMeshIO:
 
         for mesh in meshes:
 
-            if mesh.elemType not in MeshIO.DICT_ELEMTYPE_TO_ENSIGHT.keys():
+            if mesh.elemType not in MeshIO.DICT_ELEMTYPE_TO_ENSIGHT:
                 continue
 
             ensightMesh = MeshIO.EasyFEA_to_Ensight(

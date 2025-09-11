@@ -388,7 +388,7 @@ def _Meshio_to_EasyFEA(meshioMesh: meshio.Mesh) -> Mesh:
 
         # reorder vtk idx to gmsh/easyfea indexes
         cellType = DICT_ELEMTYPE_TO_VTK[elemType]
-        if cellType in DICT_VTK_TO_GMSH_INDEXES.keys():
+        if cellType in DICT_VTK_TO_GMSH_INDEXES:
             indexes = DICT_VTK_TO_GMSH_INDEXES[cellType]
             connect = connect[:, indexes]
 
@@ -608,11 +608,11 @@ def _Get_pyvista_cell(groupElem: _GroupElem) -> tuple[pv.CellType, _types.IntArr
 
     elemType = groupElem.elemType
 
-    if elemType not in DICT_ELEMTYPE_TO_VTK.keys():
+    if elemType not in DICT_ELEMTYPE_TO_VTK:
         raise TypeError(f"{elemType} is not implemented yet.")
 
     # reorder gmsh idx to vtk indexes
-    if elemType in DICT_GMSH_TO_VTK_INDEXES.keys():
+    if elemType in DICT_GMSH_TO_VTK_INDEXES:
         vtkIndexes = DICT_GMSH_TO_VTK_INDEXES[elemType]
     elif elemType in ["TRI10", "TRI15"]:
         # forced to do this because pyvista simply does not have LAGRANGE_TRIANGLE
@@ -741,11 +741,11 @@ def PyVista_to_EasyFEA(pyVistaMesh: Union[pv.UnstructuredGrid, pv.MultiBlock]) -
             # get connect
             connect = grid.cells_dict[cellTypeId].astype(int)
             # reorder vtk idx to gmsh/easyfea indexes
-            if cellType in DICT_VTK_TO_GMSH_INDEXES.keys():
+            if cellType in DICT_VTK_TO_GMSH_INDEXES:
                 indexes = DICT_VTK_TO_GMSH_INDEXES[cellType]
                 connect = connect[:, indexes]
 
-            if elemType not in dict_groupElem.keys():
+            if elemType not in dict_groupElem:
                 groupElem = GroupElemFactory.Create(elemType, connect, coordGlob)
                 groupElem.Set_Tag(groupElem.nodes, str(part))
             else:
@@ -918,7 +918,7 @@ def Ensight_to_EasyFEA(geoFile: str) -> Mesh:
             index += 1 + Ne  # don't change
 
             # append data
-            if ensight not in dict_ensightType_data.keys():
+            if ensight not in dict_ensightType_data:
                 dict_ensightType_data[ensight] = [(tag, connect)]
             else:
                 dict_ensightType_data[ensight].append((tag, connect))
@@ -940,7 +940,7 @@ def Ensight_to_EasyFEA(geoFile: str) -> Mesh:
         connect = np.array(list(unique_rows), dtype=int)
 
         # reorder connect
-        if ensight in DICT_ENSIGHT_TO_GMSH_INDEXES.keys():
+        if ensight in DICT_ENSIGHT_TO_GMSH_INDEXES:
             indexes = DICT_ENSIGHT_TO_GMSH_INDEXES[ensight]
             connect = connect[:, indexes]
         # create the group of elements
@@ -1026,7 +1026,7 @@ def EasyFEA_to_Ensight(mesh: Mesh, folder: str, name: str) -> str:
                 file.write(get_line(elements.size) + "\n")
                 # write connect (starts at 1)
                 connect = groupElem.connect[elements] + 1
-                if elemType in DICT_GMSH_TO_ENSIGHT_INDEXES.keys():
+                if elemType in DICT_GMSH_TO_ENSIGHT_INDEXES:
                     indexes = DICT_GMSH_TO_ENSIGHT_INDEXES[elemType]
                     connect = connect[:, indexes]
                 np.savetxt(file, connect, fmt="%8i", delimiter="")

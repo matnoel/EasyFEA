@@ -219,7 +219,7 @@ def __Make_vtu(
     inDim = mesh.inDim
 
     # reorder gmsh idx to vtk indexes
-    if elemType in DICT_GMSH_TO_VTK_INDEXES.keys():
+    if elemType in DICT_GMSH_TO_VTK_INDEXES:
         vtkIndexes = DICT_GMSH_TO_VTK_INDEXES[elemType]
     else:
         vtkIndexes = np.arange(nPe).tolist()

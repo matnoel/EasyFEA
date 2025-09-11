@@ -680,7 +680,7 @@ def Plot_Geoms(
 
     geoms: list[Geoms._Geom] = geoms  # type: ignore [no-redef]
 
-    if "color" not in kwargs.keys():
+    if "color" not in kwargs:
         pv.global_theme.color_cycler = "default"  # same as matplotlib
         color_cycler = pv.global_theme.color_cycler
     else:

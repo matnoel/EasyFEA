@@ -668,7 +668,7 @@ class _GroupElem(ABC):
         """
         if self.dim == 0:
             return None  # type: ignore [return-value]
-        if matrixType not in self.__dict_F_e_pg.keys():
+        if matrixType not in self.__dict_F_e_pg:
             coordo_e = self.coordGlob[self.__connect]
             # Node coordinates in the (X, Y, Z) coordinate system of each element
 
@@ -709,7 +709,7 @@ class _GroupElem(ABC):
         """
         if self.dim == 0:
             return None  # type: ignore [return-value]
-        if matrixType not in self.__dict_jacobian_e_pg.keys():
+        if matrixType not in self.__dict_jacobian_e_pg:
             F_e_pg = self.Get_F_e_pg(matrixType)
 
             jacobian_e_pg = FeArray.asfearray(Det(F_e_pg))
@@ -742,7 +742,7 @@ class _GroupElem(ABC):
         """
         if self.dim == 0:
             return None  # type: ignore [return-value]
-        if matrixType not in self.__dict_invF_e_pg.keys():
+        if matrixType not in self.__dict_invF_e_pg:
             F_e_pg = self.Get_F_e_pg(matrixType)
 
             invF_e_pg = FeArray.asfearray(Inv(F_e_pg))
@@ -914,7 +914,7 @@ class _GroupElem(ABC):
         """
         assert matrixType in MatrixType.Get_types()
 
-        if matrixType not in self.__dict_dN_e_pg.keys():
+        if matrixType not in self.__dict_dN_e_pg:
             invF_e_pg = self.Get_invF_e_pg(matrixType)
 
             dN_pg = FeArray.asfearray(self.Get_dN_pg(matrixType)[np.newaxis])
@@ -947,7 +947,7 @@ class _GroupElem(ABC):
         """
         assert matrixType in MatrixType.Get_types()
 
-        if matrixType not in self.__dict_ddN_e_pg.keys():
+        if matrixType not in self.__dict_ddN_e_pg:
             invF_e_pg = self.Get_invF_e_pg(matrixType)
 
             ddN_pg = FeArray.asfearray(self.Get_ddN_pg(matrixType)[np.newaxis])
@@ -1202,7 +1202,7 @@ class _GroupElem(ABC):
         """
         assert matrixType in MatrixType.Get_types()
 
-        if matrixType not in self.__dict_B_e_pg.keys():
+        if matrixType not in self.__dict_B_e_pg:
             dN_e_pg = self.Get_dN_e_pg(matrixType)
 
             Ne = self.Ne
@@ -1256,7 +1256,7 @@ class _GroupElem(ABC):
 
         assert matrixType in MatrixType.Get_types()
 
-        if matrixType not in self.__dict_leftDispPart.keys():
+        if matrixType not in self.__dict_leftDispPart:
             wJ_e_pg = self.Get_weightedJacobian_e_pg(matrixType)
             B_e_pg = self.Get_B_e_pg(matrixType)
 
@@ -1491,7 +1491,7 @@ class _GroupElem(ABC):
 
         assert matrixType in MatrixType.Get_types()
 
-        if matrixType not in self.__dict_ReactionPart_e_pg.keys():
+        if matrixType not in self.__dict_ReactionPart_e_pg:
             weightedJacobian = self.Get_weightedJacobian_e_pg(matrixType)
             N_pg = FeArray.asfearray(self.Get_N_pg_rep(matrixType, 1)[np.newaxis])
 
@@ -1510,7 +1510,7 @@ class _GroupElem(ABC):
 
         assert matrixType in MatrixType.Get_types()
 
-        if matrixType not in self.__dict_DiffusePart_e_pg.keys():
+        if matrixType not in self.__dict_DiffusePart_e_pg:
             wJ_e_pg = self.Get_weightedJacobian_e_pg(matrixType)
             dN_e_pg = self.Get_dN_e_pg(matrixType)
 
@@ -1529,7 +1529,7 @@ class _GroupElem(ABC):
 
         assert matrixType in MatrixType.Get_types()
 
-        if matrixType not in self.__dict_SourcePart_e_pg.keys():
+        if matrixType not in self.__dict_SourcePart_e_pg:
             wJ_e_pg = self.Get_weightedJacobian_e_pg(matrixType)
             N_pg = FeArray.asfearray(self.Get_N_pg_rep(matrixType, 1)[np.newaxis])
 
@@ -2393,7 +2393,7 @@ class GroupElemFactory:
         associated with the gmsh id.
         """
 
-        if gmshId not in GroupElemFactory.DICT_GMSH_DATA.keys():
+        if gmshId not in GroupElemFactory.DICT_GMSH_DATA:
             raise KeyError("gmshId is unknown.")
 
         return GroupElemFactory.DICT_GMSH_DATA[gmshId]

@@ -195,13 +195,13 @@ class Tic:
         if Tic.__History == {}:
             return
 
-        historique = Tic.__History
+        history = Tic.__History
         totalTime = []
-        categories: list[str] = list(historique.keys())
+        categories: list[str] = list(history.keys())
 
         # recovers the time for each category
         tempsCategorie = [
-            np.sum(np.array(np.array(historique[c])[:, 1], dtype=np.float64))
+            np.sum(np.array(np.array(history[c])[:, 1], dtype=np.float64))
             for c in categories
         ]
 
@@ -209,12 +209,12 @@ class Tic:
 
         for i, c in enumerate(categories):
             # c subcategory times
-            timeSubCategory = np.array(np.array(historique[c])[:, 1], dtype=np.float64)
+            timeSubCategory = np.array(np.array(history[c])[:, 1], dtype=np.float64)
             totalTime.append(
                 np.sum(timeSubCategory)
             )  # somme tout les temps de cette catégorie
 
-            subCategories = np.array(np.array(historique[c])[:, 0], dtype=str).tolist()
+            subCategories = np.array(np.array(history[c])[:, 0], dtype=str).tolist()
 
             # We build a table to sum them over the sub-categories
             dfSubCategory = pd.DataFrame(
