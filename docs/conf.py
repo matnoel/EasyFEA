@@ -15,7 +15,7 @@ import sys
 import pyvista
 from pyvista.plotting.utilities.sphinx_gallery import DynamicScraper
 
-# sys.path.insert(0, os.path.abspath(".."))
+sys.path.insert(0, os.path.abspath("../examples"))
 
 # -- Project information -----------------------------------------------------
 # https://www.sphinx-doc.org/en/master/usage/configuration.html#project-information
