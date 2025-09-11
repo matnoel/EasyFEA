@@ -986,20 +986,16 @@ def EasyFEA_to_Ensight(mesh: Mesh, folder: str, name: str) -> str:
     Nn = mesh.coordGlob.shape[0]
 
     dict_tags_converter = __Get_dict_tags_converter(mesh)
+    parts = np.unique([value for value in dict_tags_converter.values()])
 
     def get_line(number: int, pos: int = 8):
         return f"{' '*(pos-len(str(number)))}{number}"
 
-    # get converted tags with groupelem and elements
-    dict_convertedTags = {
-        int(dict_tags_converter[tag]): (groupElem, groupElem.Get_Elements_Tag(tag))
+    # get tags with groupElem and elements
+    dict_tags = {
+        tag: (groupElem, groupElem.Get_Elements_Tag(tag))
         for groupElem in mesh.dict_groupElem.values()
         for tag in groupElem.elementTags
-    }
-
-    # make sure that the converted tags are sorted
-    dict_convertedTags = {
-        tag: dict_convertedTags[tag] for tag in sorted(dict_convertedTags.keys())
     }
 
     with open(filename, "w") as file:
@@ -1012,23 +1008,27 @@ def EasyFEA_to_Ensight(mesh: Mesh, folder: str, name: str) -> str:
         file.write(get_line(Nn) + "\n")
         np.savetxt(file, mesh.coordGlob, fmt="%12.5e", delimiter="")
 
-        for convertedTag, (groupElem, elements) in dict_convertedTags.items():
+        for part in parts:
 
-            # write part
-            part = convertedTag + 1
-            file.write(f"part{get_line(part)}\n")
-            # write description
-            file.write(f"{groupElem.topology}_subdomain {convertedTag}\n")
-            # write ensight name
-            elemType = groupElem.elemType
-            file.write(f"{DICT_ELEMTYPE_TO_ENSIGHT[elemType]}\n")
-            # write elements
-            file.write(get_line(elements.size) + "\n")
-            # write connect
-            connect = groupElem.connect[elements] + 1
-            if elemType in DICT_GMSH_TO_ENSIGHT_INDEXES.keys():
-                indexes = DICT_GMSH_TO_ENSIGHT_INDEXES[elemType]
-                connect = connect[:, indexes]
-            np.savetxt(file, connect, fmt="%8i", delimiter="")
+            for tag, (groupElem, elements) in dict_tags.items():
+
+                if dict_tags_converter[tag] != part:
+                    continue
+
+                # write part (starts at 1)
+                file.write(f"part{get_line(part+1)}\n")
+                # write description
+                file.write(f"{groupElem.topology}_subdomain {part}\n")
+                # write ensight name
+                elemType = groupElem.elemType
+                file.write(f"{DICT_ELEMTYPE_TO_ENSIGHT[elemType]}\n")
+                # write elements
+                file.write(get_line(elements.size) + "\n")
+                # write connect (starts at 1)
+                connect = groupElem.connect[elements] + 1
+                if elemType in DICT_GMSH_TO_ENSIGHT_INDEXES.keys():
+                    indexes = DICT_GMSH_TO_ENSIGHT_INDEXES[elemType]
+                    connect = connect[:, indexes]
+                np.savetxt(file, connect, fmt="%8i", delimiter="")
 
     return filename
