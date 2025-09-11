@@ -14,7 +14,7 @@ from EasyFEA import Display, Folder, Mesher, ElemType, PyVista
 if __name__ == "__main__":
     Display.Clear()
 
-    examples_dir = Folder.Dir(__file__, 2)
+    examples_dir = Folder.Join(Folder.EASYFEA_DIR, "examples")
 
     stp = Folder.Join(examples_dir, "_parts", "beam.stp")
     mesh_stp = Mesher().Mesh_Import_part(stp, 3, 13 / 5, ElemType.TETRA4)
