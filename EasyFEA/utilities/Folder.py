@@ -23,6 +23,7 @@ def Dir(path: str, depth: int = 1) -> str:
 
 
 EASYFEA_DIR = Dir(__file__, 3)
+DATA_DIR = os.path.join(EASYFEA_DIR, "data")
 RESULTS_DIR = os.path.join(EASYFEA_DIR, "results")
 """EASYFEA_DIR/results"""
 
