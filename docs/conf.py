@@ -10,9 +10,12 @@
 # documentation root, use os.path.abspath to make it absolute, like shown here.
 import os
 import re
+import sys
 
 import pyvista
 from pyvista.plotting.utilities.sphinx_gallery import DynamicScraper
+
+sys.path.append(os.path.abspath("../data"))
 
 # -- Project information -----------------------------------------------------
 # https://www.sphinx-doc.org/en/master/usage/configuration.html#project-information
