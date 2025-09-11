@@ -57,7 +57,7 @@ Changelog = "https://github.com/matnoel/EasyFEA/blob/main/CHANGELOG.md"
 include = ["EasyFEA", "EasyFEA.*"]
 
 [tool.setuptools.package-data]
-morefemtools = ["data/**"]
+easyfea = ["data/**"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
