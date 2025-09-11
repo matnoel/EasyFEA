@@ -2,6 +2,20 @@
 
 This document describes the changes made to the project.
 
+## 1.5.2 (September 11, 2025):
+
+- Fixed a bug in the `Mesh.Translate`, `Mesh.Rotate`, and `Mesh.Symmetry` functions.
+- Added the `MeshIO.EasyFEA_to_Ensight` and `MeshIO.Ensight_to_EasyFEA` functions.
+- Fixed a bug in the matrix order in the `Paraview.Save_simu` function.
+- Added a `depth` option to the `Folder.Dir` function.
+- Updated the docstrings for weak forms.
+- Fixed a bug in the `Vizir.__Write_HOSolAt_Solution` function.
+- Added a `concatenate` option to the `Field.Get_coords` function.
+- Added the `groupElem.Get_normals_e_pg` function.
+- Updated `mesh.Get_normals` to use the `groupElem.Get_normals_e_pg` function.
+- Fixed the path used in the Sphinx documentation.
+- Fixed a bug in `Mesh.Nodes_Tags`.
+
 ## 1.5.1 (July 23, 2025):
 
 - Improved documentation by adding more animated GIFs
