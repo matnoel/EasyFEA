@@ -14,10 +14,12 @@ from EasyFEA import Display, Folder, Mesher, ElemType, PyVista
 if __name__ == "__main__":
     Display.Clear()
 
-    stp = Folder.Join(Folder.DATA_DIR, "parts", "beam.stp")
+    parts_dir = Folder.os.path.abspath("../_parts")
+
+    stp = Folder.Join(parts_dir, "beam.stp")
     mesh_stp = Mesher().Mesh_Import_part(stp, 3, 13 / 5, ElemType.TETRA4)
 
-    igs = Folder.Join(Folder.DATA_DIR, "parts", "beam.igs")
+    igs = Folder.Join(parts_dir, "beam.igs")
     mesh_igs = Mesher().Mesh_Import_part(igs, 3, 13 / 5, ElemType.TETRA10)
     # An igs file will provide a contour mesh only.
 
