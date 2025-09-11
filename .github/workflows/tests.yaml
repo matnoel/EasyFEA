@@ -41,7 +41,6 @@ jobs:
 
       - name: Install dependencies
         run: |
-          python -m pip uninstall meshio
           python -m pip install "meshio @ git+https://github.com/matnoel/meshio.git@medit_higher_order_elements"
           python -m pip install pytest .[dev]
       
