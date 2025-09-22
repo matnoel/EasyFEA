@@ -154,3 +154,14 @@ if __name__ == "__main__":
     I4 = T.transpose() * (C * T)
 
     Compute(I4, "I4")
+
+    # -------------------------------------
+    # I8
+    # -------------------------------------
+
+    f = sympy.MatrixSymbol("f", 3, 1)
+    s = sympy.MatrixSymbol("s", 3, 1)
+
+    I8 = f.transpose() * (C * s)
+
+    Compute(I8, "I8")
