@@ -151,7 +151,7 @@ if __name__ == "__main__":
 
     T = sympy.MatrixSymbol("T", 3, 1)
 
-    I4 = T.transpose() * (C * T)
+    I4 = T.transpose() * C * T
 
     Compute(I4, "I4")
 
