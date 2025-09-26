@@ -12,7 +12,7 @@ import matplotlib
 import gmsh
 import numpy as np
 from typing import Union, Optional, Iterable, Collection, TYPE_CHECKING
-
+from functools import singledispatchmethod
 
 # utilities
 from ..utilities import Display, Folder, Tic, _types
@@ -124,25 +124,94 @@ class Mesher:
         else:
             factory.synchronize()
 
-    def _Loop_From_Geom(self, geom: GeomCompatible) -> tuple[int, list[int], list[int]]:
+    @singledispatchmethod
+    def _Loop_From_Geom(self, geom: _Geom) -> tuple[int, list[int], list[int]]:
         """Creates a loop based on the geometric object.\n
         returns loop, lines, points"""
+        NotImplementedError("Must be a circle, a domain, points or a contour.")
 
-        if isinstance(geom, Circle):
-            loop, lines, points = self._Loop_From_Circle(geom)[:3]
-        elif isinstance(geom, Domain):
-            loop, lines, points = self._Loop_From_Domain(geom)[:3]
-        elif isinstance(geom, Points):
-            contour = geom.Get_Contour()
-            loop, lines, points = self._Loop_From_Contour(contour)[:3]
-        elif isinstance(geom, Contour):  # type: ignore
-            loop, lines, points = self._Loop_From_Contour(geom)[:3]
+    @_Loop_From_Geom.register
+    def _(self, domain: Domain):
+        return self._Create_Domain(domain)[:3]
+
+    @_Loop_From_Geom.register
+    def _(self, circle: Circle):
+        return self._Create_Circle(circle)[:3]
+
+    @_Loop_From_Geom.register
+    def _(self, points: Points):
+        contour = points.Get_Contour()
+        return self._Create_Contour(contour)[:3]
+
+    @_Loop_From_Geom.register
+    def _(self, contour: Contour):
+        return self._Create_Contour(contour)[:3]
+
+    @singledispatchmethod
+    def _Create_Lines(self, geom: _Geom, p1: Point, p2: Point) -> list[int]:
+        """Creates the lines in order to construct the contour object (Line, CircleArc, Points).\n
+        returns lines
+        """
+        NotImplementedError("Must be a Line, CircleArc or Points.")
+
+    @_Create_Lines.register
+    def _(self, line: Line, p1: Point, p2: Point):
+        line = self._factory.addLine(p1, p2)
+        return [line]
+
+    @_Create_Lines.register
+    def _(self, circleArc: CircleArc, p1: Point, p2: Point):
+        factory = self._factory
+
+        pC = factory.addPoint(*circleArc.center.coord, meshSize=circleArc.meshSize)
+        p3 = factory.addPoint(*circleArc.pt3.coord)
+
+        lines = []
+
+        if np.abs(circleArc.angle) > np.pi:
+            line1 = factory.addCircleArc(p1, pC, p3)
+            line2 = factory.addCircleArc(p3, pC, p2)
+
+            lines.extend([line1, line2])
         else:
-            raise Exception("Must be a circle, a domain, points or a contour.")
+            if factory == gmsh.model.occ:
+                line = factory.addCircleArc(p1, p3, p2, center=False)
+            else:
+                n = circleArc.n
+                line = factory.addCircleArc(
+                    p1,
+                    pC,
+                    p2,
+                    nx=n[0],  # type: ignore[index]
+                    ny=n[1],  # type: ignore[index]
+                    nz=n[2],  # type: ignore[index]
+                )
 
-        return loop, lines, points
+            lines.append(line)
 
-    def _Loop_From_Contour(
+        factory.remove([(0, pC)])
+        factory.remove([(0, p3)])
+
+        return lines
+
+    @_Create_Lines.register
+    def _(self, points: Points, p1: Point, p2: Point):
+        factory = self._factory
+        # get points to construct the spline
+        splinePoints = [
+            factory.addPoint(*p.coord, meshSize=points.meshSize)
+            for p in points.points[1:-1]
+        ]
+        splinePoints.insert(0, p1)
+        splinePoints.append(p2)
+
+        line = factory.addSpline(splinePoints)
+
+        factory.remove([(0, p) for p in splinePoints[1:-1]])
+
+        return [line]
+
+    def _Create_Contour(
         self, contour: Contour
     ) -> tuple[int, list[int], list[int], list[int], list[int]]:
         """Creates a loop with a contour object (list of Line, CircleArc, Points).\n
@@ -160,9 +229,6 @@ class Mesher:
         openLines: list[int] = []
 
         for i, geom in enumerate(contour.geoms):
-            assert isinstance(
-                geom, (Line, CircleArc, Points)
-            ), "Must be a Line, CircleArc or Points"
 
             if i == 0:
                 p1 = factory.addPoint(*geom.pt1.coord, meshSize=geom.meshSize)
@@ -183,65 +249,17 @@ class Mesher:
                 p1 = p2  # type: ignore
                 p2 = firstPoint  # type: ignore
 
-            if isinstance(geom, Line):
-                line = factory.addLine(p1, p2)
+            new_lines = self._Create_Lines(geom, p1, p2)
 
-                if geom.isOpen:
-                    openLines.append(line)
-
-                lines.append(line)
-
-            elif isinstance(geom, CircleArc):
-                pC = factory.addPoint(*geom.center.coord, meshSize=geom.meshSize)
-                p3 = factory.addPoint(*geom.pt3.coord)
-
-                if np.abs(geom.angle) > np.pi:
-                    line1 = factory.addCircleArc(p1, pC, p3)
-                    line2 = factory.addCircleArc(p3, pC, p2)
-                    lines.extend([line1, line2])
-                    if geom.isOpen:
-                        openLines.extend([line1, line2])
-                else:
-                    if factory == gmsh.model.occ:
-                        line = factory.addCircleArc(p1, p3, p2, center=False)
-                    else:
-                        n = geom.n
-                        line = factory.addCircleArc(
-                            p1,
-                            pC,
-                            p2,
-                            nx=n[0],  # type: ignore[index]
-                            ny=n[1],  # type: ignore[index]
-                            nz=n[2],  # type: ignore[index]
-                        )
-                    lines.append(line)
-                    if geom.isOpen:
-                        openLines.append(line)
-
-                factory.remove([(0, pC)])
-                factory.remove([(0, p3)])
-
-            elif isinstance(geom, Points):  # type: ignore
-                # get points to construct the spline
-                splinePoints = [
-                    factory.addPoint(*p.coord, meshSize=geom.meshSize)
-                    for p in geom.points[1:-1]
-                ]
-                splinePoints.insert(0, p1)
-                splinePoints.append(p2)
-
-                line = factory.addSpline(splinePoints)
-                lines.append(line)
-                if geom.isOpen:
-                    openLines.append(line)
-
-                factory.remove([(0, p) for p in splinePoints[1:-1]])
+            lines.extend(new_lines)
+            if geom.isOpen:
+                openLines.extend(new_lines)
 
         loop = factory.addCurveLoop(lines)
 
         return loop, lines, points, openLines, openPoints
 
-    def _Loop_From_Circle(self, circle: Circle) -> tuple[int, list[int], list[int]]:
+    def _Create_Circle(self, circle: Circle) -> tuple[int, list[int], list[int]]:
         """Creates a loop with a circle object.\n
         returns loop, lines, points
         """
@@ -274,7 +292,7 @@ class Mesher:
 
         return loop, lines, points
 
-    def _Loop_From_Domain(self, domain: Domain) -> tuple[int, list[int], list[int]]:
+    def _Create_Domain(self, domain: Domain) -> tuple[int, list[int], list[int]]:
         """Creates a loop with a domain object.\n
         returns loop, lines, points
         """
@@ -308,6 +326,37 @@ class Mesher:
         surface = self._factory.addPlaneSurface(loops)
 
         return surface
+
+    @singledispatchmethod
+    def __Create_geoms(self, geom: _Geom) -> list[Union[Line, CircleArc, Points]]:
+        """Creates geometries objects in order to construct a contour object.\n
+        return list[Line | CircleArc | Points]"""
+        NotImplementedError("Must be a Domain, Contour or Points.")
+
+    @__Create_geoms.register
+    def _(self, domain: Domain):
+        # construct points
+        p1 = domain.pt1
+        p3 = domain.pt2
+        p2 = p1.copy()
+        p2.x = p3.x
+        p4 = p1.copy()
+        p4.y = p3.y
+        # construct points
+        l1 = Line(p1, p2, domain.meshSize)
+        l2 = Line(p2, p3, domain.meshSize)
+        l3 = Line(p3, p4, domain.meshSize)
+        l4 = Line(p4, p1, domain.meshSize)
+
+        return [l1, l2, l3, l4]
+
+    @__Create_geoms.register
+    def _(self, contour: Contour):
+        return contour.geoms
+
+    @__Create_geoms.register
+    def _(self, points: Points):
+        return points.Get_Contour().geoms
 
     def _Surfaces(
         self,
@@ -362,28 +411,7 @@ class Mesher:
             # It is not necessary to impose a number of elements for circles and domains!
             numElems = []
         else:
-            # geom objects from Domain, contour or points
-            if isinstance(contour, Domain):
-                # construct points
-                p1 = contour.pt1
-                p3 = contour.pt2
-                p2 = p1.copy()
-                p2.x = p3.x
-                p4 = p1.copy()
-                p4.y = p3.y
-                # construct points
-                l1 = Line(p1, p2, contour.meshSize)
-                l2 = Line(p2, p3, contour.meshSize)
-                l3 = Line(p3, p4, contour.meshSize)
-                l4 = Line(p4, p1, contour.meshSize)
-                # construct geoms
-                geoms = Contour([l1, l2, l3, l4]).geoms
-            elif isinstance(contour, Contour):
-                geoms = contour.geoms
-            elif isinstance(contour, Points):
-                geoms = contour.Get_Contour().geoms
-            else:
-                raise TypeError("unknown geom type")
+            geoms = self.__Create_geoms(contour)
 
             N = len(geoms)  # number of geom in contour
 
@@ -515,17 +543,7 @@ class Mesher:
 
         for line in lines:
             oldEntities = factory.getEntities(dim)  # type: ignore
-            if isinstance(line, Line):
-                p1 = factory.addPoint(*line.pt1.coord, meshSize=line.meshSize)
-                p2 = factory.addPoint(*line.pt2.coord, meshSize=line.meshSize)
-                geom_line = factory.addLine(p1, p2)
-            elif isinstance(line, CircleArc):
-                p1 = factory.addPoint(*line.pt1.coord, meshSize=line.meshSize)  # start
-                p2 = factory.addPoint(*line.pt2.coord, meshSize=line.meshSize)  # end
-                p3 = factory.addPoint(*line.pt3.coord, meshSize=line.meshSize)  # mid
-                geom_line = factory.addCircleArc(p1, p3, p2, center=False)  # type: ignore
-            else:
-                raise Exception("You need to give lines or arcs.")
+            geom_line = self._Create_Lines(line, line.pt1, line.pt2)[0]
             factory.fragment(oldEntities, [(1, geom_line)], False, True)
 
     def _Additional_Points(
@@ -1017,6 +1035,129 @@ class Mesher:
 
         return self._Mesh_Get_Mesh()
 
+    @singledispatchmethod
+    def __Create_crack(
+        self, geom: _Geom
+    ) -> tuple[
+        list[int], list[int], list[int], list[int], list[int], list[int], list[int]
+    ]:
+        """Creates the crack in gmsh.\n
+        returns surfaces, lines, points, cracks_2d, cracks_1d, openLines, openPoints
+        """
+        NotImplementedError("Must be a Line, Contour, Points or CircleArc.")
+
+    @__Create_crack.register
+    def _(self, crack: Line):
+        # 1D CRACK
+        factory = self._factory
+
+        # Create points
+        pt1 = crack.pt1
+        p1 = factory.addPoint(pt1.x, pt1.y, pt1.z, crack.meshSize)
+        pt2 = crack.pt2
+        p2 = factory.addPoint(pt2.x, pt2.y, pt2.z, crack.meshSize)
+        points = [p1, p2]
+
+        # Create lines
+        line = factory.addLine(p1, p2)
+        lines = [line]
+
+        cracks_1d = None
+        openLines = None
+        openPoints = None
+
+        if crack.isOpen:
+            cracks_1d = lines
+            openPoints = []
+            if pt1.isOpen:
+                openPoints.append(p1)
+            if pt2.isOpen:
+                openPoints.append(p2)
+
+        return None, lines, points, None, cracks_1d, openLines, openPoints
+
+    @__Create_crack.register
+    def _(self, crack: Points):
+        # 1D CRACK
+        # create lines and points
+        loop, lines, points, openLns, openPts = self._Create_Contour(
+            crack.Get_Contour()
+        )
+
+        # remove the last line
+        self._factory.remove([(1, loop), (1, lines[-1])])
+        lines = lines[:-1]
+
+        cracks_1d = None
+        openLines = None
+        openPoints = None
+
+        if crack.isOpen:
+            cracks_1d = lines
+            openLines = openLns
+            openPoints = openPts
+
+        return None, lines, points, None, cracks_1d, openLines, openPoints
+
+    @__Create_crack.register
+    def _(self, crack: CircleArc):
+        # 1D CRACK
+        factory = self._factory
+
+        # create points
+        pC = factory.addPoint(*crack.center.coord, meshSize=crack.meshSize)
+        p1 = factory.addPoint(*crack.pt1.coord, meshSize=crack.meshSize)
+        p2 = factory.addPoint(*crack.pt2.coord, meshSize=crack.meshSize)
+        p3 = factory.addPoint(*crack.pt3.coord, meshSize=crack.meshSize)
+        points = [p1, p2, p3]
+
+        # create lines
+        line1 = factory.addCircleArc(p1, pC, p3)
+        line2 = factory.addCircleArc(p3, pC, p2)
+        lines = [line1, line2]
+
+        cracks_1d = None
+        openLines = None
+        openPoints = None
+
+        if crack.isOpen:
+            cracks_1d = lines
+            openPoints = []
+            if crack.pt1.isOpen:
+                openPoints.append(p1)
+            if crack.pt2.isOpen:
+                openPoints.append(p2)
+            if crack.pt3.isOpen:
+                openPoints.append(p3)
+
+        factory.remove([(0, pC)], False)
+
+        return None, lines, points, None, cracks_1d, openLines, openPoints
+
+    @__Create_crack.register
+    def _(self, crack: Contour):
+        # 2D CRACK
+        # get lines and points
+        loop, lines, points, openLns, openPts = self._Create_Contour(crack)
+
+        # create surfaces
+        try:
+            surf = self._Surface_From_Loops([loop])
+        except Exception:
+            surf = self._factory.addSurfaceFilling(loop)
+        surfaces = [surf]
+
+        cracks_2d = None
+        openLines = None
+        openPoints = None
+
+        if crack.isOpen:
+            cracks_2d = surfaces
+            openLines = openLns
+            openPoints = openPts
+
+        return surfaces, lines, points, cracks_2d, None, openLines, openPoints
+
     def _Cracks_SetPhysicalGroups(
         self, cracks: list[CrackCompatible], entities: list[tuple]
     ) -> tuple[Optional[int], Optional[int], Optional[int], Optional[int]]:
@@ -1035,93 +1176,45 @@ class Mesher:
 
         # lists containing open entities
         cracks_1D = []
-        crack_0D_open = []
+        cracks_0D_open = []
         cracks_2D = []
-        crack_1D_open = []
+        cracks_1D_open = []
 
         entities_0D = []
         entities_1D = []
         entities_2D = []
 
         for crack in cracks:
-            if isinstance(crack, Line):  # 1D CRACK
-                # Create points
-                pt1 = crack.pt1
-                p1 = factory.addPoint(pt1.x, pt1.y, pt1.z, crack.meshSize)
-                pt2 = crack.pt2
-                p2 = factory.addPoint(pt2.x, pt2.y, pt2.z, crack.meshSize)
-                entities_0D.extend([p1, p2])
 
-                # Create line
-                line = factory.addLine(p1, p2)
-                entities_1D.append(line)
+            (
+                surfaces,
+                lines,
+                points,
+                new_cracks_2d,
+                new_cracks_1d,
+                openLines,
+                openPoints,
+            ) = self.__Create_crack(crack)
 
-                if crack.isOpen:
-                    cracks_1D.append(line)
-                    if pt1.isOpen:
-                        crack_0D_open.append(p1)
-                    if pt2.isOpen:
-                        crack_0D_open.append(p2)
-
-            elif isinstance(crack, Points):  # 1D CRACK
-                loop, lines, points, openLns, openPts = self._Loop_From_Contour(
-                    crack.Get_Contour()
-                )
-
-                self._factory.remove([(1, loop), (1, lines[-1])])
-
-                entities_0D.extend(points)
-                entities_1D.extend(lines[:-1])
-
-                if crack.isOpen:
-                    cracks_1D.extend(lines[:-1])
-                    crack_1D_open.extend(openLns)
-                    crack_0D_open.extend(openPts)
-
-            elif isinstance(crack, Contour):  # 2D CRACK
-                loop, lines, points, openLns, openPts = self._Loop_From_Contour(crack)
-
-                try:
-                    surf = self._Surface_From_Loops([loop])
-                except Exception:
-                    surf = self._factory.addSurfaceFilling(loop)
-
-                entities_0D.extend(points)
+            # add entities
+            if surfaces is not None:
+                entities_2D.extend(surfaces)
+            if lines is not None:
                 entities_1D.extend(lines)
-                entities_2D.append(surf)
+            if points is not None:
+                entities_0D.extend(points)
 
-                if crack.isOpen:
-                    cracks_2D.append(surf)
-                    crack_1D_open.extend(openLns)
-                    crack_0D_open.extend(openPts)
+            # add cracks
+            if new_cracks_2d is not None:
+                cracks_2D.extend(new_cracks_2d)
+            if new_cracks_1d is not None:
+                cracks_1D.extend(new_cracks_1d)
 
-            elif isinstance(crack, CircleArc):  # 1D CRACK
-                # add points
-                pC = factory.addPoint(*crack.center.coord, meshSize=crack.meshSize)
-                p1 = factory.addPoint(*crack.pt1.coord, meshSize=crack.meshSize)
-                p2 = factory.addPoint(*crack.pt2.coord, meshSize=crack.meshSize)
-                p3 = factory.addPoint(*crack.pt3.coord, meshSize=crack.meshSize)
-                entities_0D.extend([p1, p2, p3])
-
-                # add lines
-                line1 = factory.addCircleArc(p1, pC, p3)
-                line2 = factory.addCircleArc(p3, pC, p2)
-                lines = [line1, line2]
-                entities_1D.extend(lines)
-
-                if crack.isOpen:
-                    cracks_1D.extend(lines)
-                    if crack.pt1.isOpen:
-                        crack_0D_open.append(p1)
-                    if crack.pt2.isOpen:
-                        crack_0D_open.append(p2)
-                    if crack.pt3.isOpen:
-                        crack_0D_open.append(p3)
-
-                factory.remove([(0, pC)], False)
-
-            else:
-                raise Exception("Cracks must be Line, Points, Contour or CircleArc")
+            # add open lines and points
+            if openLines is not None:
+                cracks_1D_open.extend(openLines)
+            if openPoints is not None:
+                cracks_0D_open.extend(openPoints)
 
         newEntities = [(0, point) for point in entities_0D]
         newEntities.extend([(1, line) for line in entities_1D])
@@ -1140,13 +1233,13 @@ class Mesher:
         )
 
         openPoints: Optional[int] = (
-            gmsh.model.addPhysicalGroup(0, crack_0D_open)
-            if len(crack_0D_open) > 0
+            gmsh.model.addPhysicalGroup(0, cracks_0D_open)
+            if len(cracks_0D_open) > 0
             else None
         )
         openLines: Optional[int] = (
-            gmsh.model.addPhysicalGroup(1, crack_1D_open)
-            if len(crack_1D_open) > 0
+            gmsh.model.addPhysicalGroup(1, cracks_1D_open)
+            if len(cracks_1D_open) > 0
             else None
         )
 
@@ -1628,17 +1721,17 @@ class Mesher:
 
         for geom in refineGeoms:
             if isinstance(geom, Domain):
-                coordo = np.array([point.coord for point in geom.points])
+                coord = np.array([point.coord for point in geom.points])
 
                 field = gmsh.model.mesh.field.add("Box")
                 gmsh.model.mesh.field.setNumber(field, "VIn", geom.meshSize)
                 gmsh.model.mesh.field.setNumber(field, "VOut", meshSize)
-                gmsh.model.mesh.field.setNumber(field, "XMin", coordo[:, 0].min())
-                gmsh.model.mesh.field.setNumber(field, "XMax", coordo[:, 0].max())
-                gmsh.model.mesh.field.setNumber(field, "YMin", coordo[:, 1].min())
-                gmsh.model.mesh.field.setNumber(field, "YMax", coordo[:, 1].max())
-                gmsh.model.mesh.field.setNumber(field, "ZMin", coordo[:, 2].min())
-                gmsh.model.mesh.field.setNumber(field, "ZMax", coordo[:, 2].max())
+                gmsh.model.mesh.field.setNumber(field, "XMin", coord[:, 0].min())
+                gmsh.model.mesh.field.setNumber(field, "XMax", coord[:, 0].max())
+                gmsh.model.mesh.field.setNumber(field, "YMin", coord[:, 1].min())
+                gmsh.model.mesh.field.setNumber(field, "YMax", coord[:, 1].max())
+                gmsh.model.mesh.field.setNumber(field, "ZMin", coord[:, 2].min())
+                gmsh.model.mesh.field.setNumber(field, "ZMax", coord[:, 2].max())
 
             elif isinstance(geom, Circle):
                 pC = geom.center
