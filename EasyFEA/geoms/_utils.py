@@ -9,6 +9,7 @@ from collections.abc import Iterable
 
 from typing import Union
 from ..utilities import _types
+from functools import singledispatch
 
 
 class Point:
@@ -191,40 +192,54 @@ class Point:
         return copy.deepcopy(self)
 
 
+@singledispatch
 def AsPoint(coords: Point.PointALike) -> Point:
     """Returns coords as a point."""
-    if isinstance(coords, Point):
-        return coords
-    elif isinstance(coords, Iterable):
-        coords = AsCoords(coords)
-        return Point(*coords)
-    else:
-        raise TypeError("coords must be a Point or an Iterable")
+    NotImplementedError("coords must be a Point or an Iterable")
 
 
+@AsPoint.register
+def _(coords: Point):
+    return coords
+
+
+@AsPoint.register
+def _(coords: Iterable):
+    return Point(*AsCoords(coords))
+
+
+@singledispatch
 def AsCoords(
     value: Union[_types.Coords, _types.Number, Point],
 ) -> _types.FloatArray:
     """Returns value as a 3D vector"""
-    if isinstance(value, Point):
-        coords = value.coord
-    elif isinstance(value, Iterable):
-        val = np.asarray(value, dtype=float)
-        if len(val.shape) == 2:
-            assert val.shape[-1] <= 3, "must be 3d vector or 3d vectors"
-            coords = val
-        else:
-            coords = np.zeros(3)
-            assert val.size <= 3, "must not exceed size 3"
-            coords[: val.size] = val
-    elif isinstance(value, (float, int)):  # type: ignore
-        coords = np.asarray([value] * 3, dtype=float)
-    else:
-        raise TypeError(
-            f"{type(value)} is not supported. Must be (Point | float | int | Iterable)"
-        )
+    NotImplementedError(
+        f"{type(value)} is not supported. Must be (Point | float | int | Iterable)"
+    )
 
+
+@AsCoords.register
+def _(value: Point):
+    return value.coord
+
+
+@AsCoords.register
+def _(value: Iterable):
+    val = np.asarray(value, dtype=float)
+    if len(val.shape) == 2:
+        assert val.shape[-1] <= 3, "must be 3d vector or 3d vectors"
+        coords = val
+    else:
+        coords = np.zeros(3)
+        assert val.size <= 3, "must not exceed size 3"
+        coords[: val.size] = val
     return coords
+
+
+@AsCoords.register(float)
+@AsCoords.register(int)
+def _(value):
+    return np.asarray([value] * 3, dtype=float)
 
 
 def Normalize(array: _types.Coords) -> _types.FloatArray:
