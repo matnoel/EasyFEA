@@ -10,6 +10,7 @@ import numpy as np
 from scipy import sparse
 import scipy.sparse.linalg as sla
 import textwrap
+from functools import singledispatch
 
 from ..__about__ import __version__
 
@@ -2180,6 +2181,7 @@ class _Simu(_IObserver, ABC):
 # ----------------------------------------------
 
 
+@singledispatch
 def _Init_obj(
     obj: Union[_Simu, Mesh, _GroupElem], deformFactor: float = 0.0
 ) -> tuple[Optional[_Simu], Mesh, _types.FloatArray, int]:
@@ -2197,27 +2199,34 @@ def _Init_obj(
     tuple[_Simu|None, Mesh, ndarray, int]
         (simu, mesh, coord, inDim)
     """
+    NotImplementedError("obj must be a simulation, a mesh or a group of elements.")
 
-    # here we detect the nature of the object
-    if isinstance(obj, _Simu):
-        simu = obj
-        mesh = simu.mesh
-        u = simu.Results_displacement_matrix()
-        coord: _types.FloatArray = mesh.coordGlob + u * np.abs(deformFactor)
-        inDim: int = np.max([simu.model.dim, mesh.inDim])
-    elif isinstance(obj, Mesh):
-        simu = None
-        mesh = obj
-        coord = mesh.coordGlob
-        inDim = mesh.inDim
-    elif isinstance(obj, _GroupElem):
-        simu = None
-        mesh = Mesh({obj.elemType: obj})
-        coord = mesh.coordGlob
-        inDim = mesh.inDim
-    else:
-        raise TypeError("Must be a simulation or a mesh.")
 
+@_Init_obj.register
+def _(obj: _Simu, deformFactor: float = 0.0):
+    simu = obj
+    mesh = simu.mesh
+    u = simu.Results_displacement_matrix()
+    coord: _types.FloatArray = mesh.coordGlob + u * np.abs(deformFactor)
+    inDim: int = np.max([simu.model.dim, mesh.inDim])
+    return simu, mesh, coord, inDim
+
+
+@_Init_obj.register
+def _(obj: Mesh, deformFactor: float = 0.0):
+    simu = None
+    mesh = obj
+    coord = mesh.coordGlob
+    inDim = mesh.inDim
+    return simu, mesh, coord, inDim
+
+
+@_Init_obj.register
+def _(obj: _GroupElem, deformFactor: float = 0.0):
+    simu = None
+    mesh = Mesh({obj.elemType: obj})
+    coord = mesh.coordGlob
+    inDim = mesh.inDim
     return simu, mesh, coord, inDim
 
 
