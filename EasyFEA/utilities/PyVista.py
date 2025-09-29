@@ -5,11 +5,12 @@
 """Module providing an interface with PyVista (https://docs.pyvista.org/version/stable/).\n
 https://docs.pyvista.org/api/plotting/plotting.html"""
 
-from typing import Union, Callable, Optional, TYPE_CHECKING, Any
+from typing import Union, Callable, Optional, TYPE_CHECKING, Any, Iterable
 from cycler import cycler
 from scipy.sparse import csr_matrix
 import pyvista as pv
 import numpy as np
+from functools import singledispatch
 
 # utilities
 from .Display import MyPrintError, MyPrint
@@ -890,71 +891,74 @@ def _pyVistaMesh(
     return pyVistaMesh
 
 
+@singledispatch
 def _pvGeom(geom) -> Union[pv.DataSet, list[pv.DataSet]]:
-    if not isinstance(geom, (Geoms.Point, Geoms._Geom)):
-        MyPrintError("Must be a point or a geometric object.")
-        return None  # type: ignore [return-value]
+    MyPrintError(
+        "geom must be in [Point, Line, Domain, Circle, CircleArc, Contour, Points]"
+    )
+    return None  # type: ignore [return-value]
 
-    def __Line(line: Geoms.Line):
-        return pv.Line(line.pt1.coord, line.pt2.coord)  # type: ignore [arg-type]
 
-    def __CircleArc(circleArc: Geoms.CircleArc):
-        dataSet = pv.CircularArc(
-            circleArc.pt1.coord,  # type: ignore [arg-type]
-            circleArc.pt2.coord,  # type: ignore [arg-type]
-            circleArc.center.coord,  # type: ignore [arg-type]
-            negative=circleArc.coef == -1,
-        )
-        return dataSet
+@_pvGeom.register
+def _(line: Geoms.Line):
+    return pv.Line(line.pt1.coord, line.pt2.coord)
 
-    def __DoGeoms(geoms: list[Geoms._Geom]):
-        dataSets: list[pv.DataSet] = []
-        for geom in geoms:
-            if isinstance(geom, Geoms.Line):
-                dataSets.append(__Line(geom))
-            elif isinstance(geom, Geoms.CircleArc):
-                dataSets.append(__CircleArc(geom))
-            elif isinstance(geom, Geoms.Points):
-                dataSets.extend(__DoGeoms(geom.Get_Contour().geoms[:-1]))
 
-        return dataSets
+@_pvGeom.register
+def _(circleArc: Geoms.CircleArc):
+    return pv.CircularArc(
+        circleArc.pt1.coord,
+        circleArc.pt2.coord,
+        circleArc.center.coord,
+        negative=circleArc.coef == -1,
+    )
 
-    if isinstance(geom, Geoms.Point):
-        dataSet = pv.PolyData(geom.coord)  # type: ignore [arg-type]
 
-    elif isinstance(geom, Geoms.Line):
-        dataSet = __Line(geom)
+@_pvGeom.register
+def _(geom: Geoms.Point):
+    return pv.PolyData(geom.coord)
 
-    elif isinstance(geom, Geoms.Domain):
-        xMin, xMax = geom.pt1.x, geom.pt2.x
-        yMin, yMax = geom.pt1.y, geom.pt2.y
-        zMin, zMax = geom.pt1.z, geom.pt2.z
-        dataSet = pv.Box((xMin, xMax, yMin, yMax, zMin, zMax)).outline()
 
-    elif isinstance(geom, Geoms.Circle):
-        arc1 = pv.CircularArc(geom.pt1.coord, geom.pt3.coord, geom.center.coord)  # type: ignore [arg-type]
-        arc2 = pv.CircularArc(
-            geom.pt1.coord,
-            geom.pt3.coord,
-            geom.center.coord,  # type: ignore [arg-type]
-            negative=True,  # type: ignore [arg-type]
-        )
-        dataSet = [arc1, arc2]  # type: ignore [assignment]
+@_pvGeom.register
+def _(geom: Geoms.Domain):
+    xMin, xMax = geom.pt1.x, geom.pt2.x
+    yMin, yMax = geom.pt1.y, geom.pt2.y
+    zMin, zMax = geom.pt1.z, geom.pt2.z
+    return pv.Box((xMin, xMax, yMin, yMax, zMin, zMax)).outline()
 
-    elif isinstance(geom, Geoms.CircleArc):
-        dataSet = __CircleArc(geom)
 
-    elif isinstance(geom, (Geoms.Points, Geoms.Contour)):
-        if isinstance(geom, Geoms.Points):
-            geoms = geom.Get_Contour().geoms
-            if geom.isOpen:
-                geoms = geoms[:-1]
+@_pvGeom.register
+def _(geom: Geoms.Circle):
+    arc1 = pv.CircularArc(geom.pt1.coord, geom.pt3.coord, geom.center.coord)
+    arc2 = pv.CircularArc(
+        geom.pt1.coord, geom.pt3.coord, geom.center.coord, negative=True
+    )
+    return [arc1, arc2]
+
+
+@_pvGeom.register
+def _(geom: Geoms.Points):
+    geoms = geom.Get_Contour().geoms
+    if geom.isOpen:
+        geoms = geoms[:-1]
+    dataSets: list[pv.DataSet] = []
+    for geom in geoms:
+        newData = _pvGeom(geom)
+        if isinstance(newData, Iterable):
+            dataSets.extend(newData)
         else:
-            geoms = geom.geoms
-        dataSet = __DoGeoms(geoms)
-    else:
-        MyPrintError(
-            "obj must be in [Point, Line, Domain, Circle, CircleArc, Contour, Points]"
-        )
+            dataSets.append(newData)
+    return dataSets
 
-    return dataSet
+
+@_pvGeom.register
+def _(geom: Geoms.Contour):
+    geoms = geom.geoms
+    dataSets: list[pv.DataSet] = []
+    for geom in geoms:
+        newData = _pvGeom(geom)
+        if isinstance(newData, Iterable):
+            dataSets.extend(newData)
+        else:
+            dataSets.append(newData)
+    return dataSets
