@@ -2,6 +2,12 @@
 
 This document describes the changes made to the project.
 
+## 1.5.3 (October 1, 2025):
+
+- Added the `I8` invariant to the `examples/HyperElastic/HyperElasticInvariants.py` script.
+- Fixed issue [#22](https://github.com/matnoel/EasyFEA/issues/22): Implemented `singledispatch` methods in `_gmsh_interface.py`, `geoms/_utils.py`, `_simu.py` and `PyVista.py` to improve code readability.
+- Introduced the `BUILDING_GALLERY` option and updated the `Display.Clear` function to ensure the `Tic` history is initialized when `BUILDING_GALLERY = True`.
+
 ## 1.5.2 (September 11, 2025):
 
 - Fixed a bug in the `Mesh.Translate`, `Mesh.Rotate`, and `Mesh.Symmetry` functions.
