@@ -54,6 +54,8 @@ pyvista.set_plot_theme("document")
 pyvista.BUILDING_GALLERY = True
 os.environ["PYVISTA_BUILDING_GALLERY"] = "true"
 
+EasyFEA.BUILDING_GALLERY = True
+
 
 def natural_sort_key(s):
     """Split string into integers and letters for natural sorting."""
