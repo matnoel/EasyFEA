@@ -7,6 +7,7 @@ import os
 import re
 
 import pyvista
+import EasyFEA
 from pyvista.plotting.utilities.sphinx_gallery import DynamicScraper
 
 # -- Project information -----------------------------------------------------
