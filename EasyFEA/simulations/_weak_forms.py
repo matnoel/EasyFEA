@@ -107,91 +107,51 @@ class WeakFormSimu(_Simu):
     def Get_x0(self, problemType=None):
         return self.u
 
-    def Get_K_C_M_F(
-        self, problemType=None
-    ) -> tuple[
-        sparse.csr_matrix, sparse.csr_matrix, sparse.csr_matrix, sparse.csr_matrix
-    ]:
-        if self.needUpdate:
-            self.Assembly()
-            self.Need_Update(False)
-
-        return self.__K.copy(), self.__C.copy(), self.__M.copy(), self.__F.copy()
-
-    def Assembly(self) -> None:
-        """Construct the matrix system for the thermal problem in stationary or transient regime."""
+    def Construct_local_matrix_system(self, problemType):
 
         # Data
         weakForms = self.weakForms
         mesh = self.mesh
         field = weakForms.field
-        Ndof = mesh.Nn * field.dof_n
+        size = mesh.nPe * field.dof_n
 
-        # Additional dimension linked to the use of lagrange coefficients
-        NdofLagr = self._Bc_Lagrange_dim(self.problemType)
-
-        initCsrMatrix = sparse.csr_matrix(
-            (Ndof + NdofLagr, Ndof + NdofLagr), dtype=float
-        )
+        zeros = np.zeros((mesh.Ne, size, size), dtype=float)
 
         tic = Tic()
 
         computeK = weakForms.computeK
-
         if computeK is None:
-            K = initCsrMatrix
+            K_e = zeros
         else:
-            K = computeK._assemble(field)
-            if NdofLagr > 0:
-                K = K.tolil()
-                K.resize((Ndof + NdofLagr, Ndof + NdofLagr))
-                K = K.tocsr()
+            K_e = computeK._assemble(field)
 
-        tic.Tac("Matrix", "Assemble K", self._verbosity)
+        tic.Tac("Matrix", "Compute the local K matrix.", self._verbosity)
 
         computeC = weakForms.computeC
-
         if computeC is None:
-            C = initCsrMatrix
+            C_e = zeros
         else:
-            C = computeC._assemble(field)
-            if NdofLagr > 0:
-                C = C.tolil()
-                C.resize((Ndof + NdofLagr, Ndof + NdofLagr))
-                C = C.tocsr()
+            C_e = computeC._assemble(field)
 
-        tic.Tac("Matrix", "Assemble C", self._verbosity)
+        tic.Tac("Matrix", "Compute the local C matrix.", self._verbosity)
 
         computeM = weakForms.computeM
-
         if computeM is None:
-            M = initCsrMatrix
+            M_e = zeros
         else:
-            M = computeC._assemble(field)
-            if NdofLagr > 0:
-                M = M.tolil()
-                M.resize((Ndof + NdofLagr, Ndof + NdofLagr))
-                M = M.tocsr()
+            M_e = computeM._assemble(field)
 
-        tic.Tac("Matrix", "Assemble M", self._verbosity)
+        tic.Tac("Matrix", "Compute the local M matrix.", self._verbosity)
 
         computeF = weakForms.computeF
-
         if computeF is None:
-            F = sparse.csr_matrix((Ndof + NdofLagr, 1), dtype=float)
+            F_e = np.zeros((mesh.Ne, size, 1), dtype=float)
         else:
-            F = computeF._assemble(field)
-            if NdofLagr > 0:
-                F = F.tolil()
-                F.resize((Ndof + NdofLagr, Ndof + NdofLagr))
-                F = F.tocsr()
+            F_e = computeF._assemble(field)
 
-        tic.Tac("Matrix", "Assemble F", self._verbosity)
+        tic.Tac("Matrix", "Compute the local F vector.", self._verbosity)
 
-        self.__K = K
-        self.__C = C
-        self.__M = M
-        self.__F = F
+        return K_e, C_e, M_e, F_e
 
     def Solve(self):
 

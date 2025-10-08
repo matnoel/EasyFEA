@@ -26,7 +26,7 @@ class _Form(ABC):
         return self._form(*args, **kwds)
 
     @abstractmethod
-    def _assemble(self, field: "Field") -> sparse.csr_matrix:
+    def _assemble(self, field: "Field") -> np.ndarray:
         """Assemble de form with the field.
 
         Parameters
@@ -36,8 +36,8 @@ class _Form(ABC):
 
         Returns
         -------
-        sparse.csr_matrix
-            assembled sparce matrix
+        np.ndarray
+            the integrated numpy array
         """
         pass
 
@@ -91,15 +91,7 @@ class BiLinearForm(_Form):
                 # add data
                 data[:, i, j] = values_e
 
-        # construct sparse matrix
-        Ndof = groupElem.Nn * dof_n
-        rows = groupElem.Get_rowsVector_e(dof_n)
-        columns = groupElem.Get_columnsVector_e(dof_n)
-        matrix = sparse.csr_matrix(
-            (data.ravel(), (rows.ravel(), columns.ravel())), (Ndof, Ndof), dtype=float
-        )
-
-        return matrix
+        return data
 
 
 class LinearForm(_Form):
@@ -143,12 +135,4 @@ class LinearForm(_Form):
             # add data
             data[:, i] = values_e
 
-        # construct sparse matrix
-        Ndof = groupElem.Nn * dof_n
-        rows = groupElem.Get_assembly_e(dof_n)
-        columns = np.zeros_like(rows)
-        matrix = sparse.csr_matrix(
-            (data.ravel(), (rows.ravel(), columns.ravel())), (Ndof, 1), dtype=float
-        )
-
-        return matrix
+        return data

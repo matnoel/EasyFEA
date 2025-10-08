@@ -4,7 +4,6 @@
 
 from typing import Union, Optional, TYPE_CHECKING
 import numpy as np
-from scipy import sparse
 
 # utilities
 from ..utilities import Display, Tic, _types
@@ -225,8 +224,7 @@ class BeamSimu(_Simu):
 
         self._Bc_Add_Display(nodes, unknowns, description, problemType)
 
-    def __Construct_Beam_Matrix(self) -> _types.FloatArray:
-        """Constructs the elementary stiffness matrices for the beam problem."""
+    def Construct_local_matrix_system(self, problemType):
 
         # Data
         mesh = self.mesh
@@ -251,7 +249,7 @@ class BeamSimu(_Simu):
 
         tic.Tac("Matrix", "Construct Kbeam_e", self._verbosity)
 
-        return Kbeam_e
+        return Kbeam_e, None, None, None
 
     @property
     def mass(self) -> float:
@@ -303,52 +301,6 @@ class BeamSimu(_Simu):
             assert diff < 1e-12
 
         return center
-
-    def Assembly(self) -> None:
-        # Data
-        mesh = self.mesh
-
-        model = self.structure
-
-        nDof = mesh.Nn * model.dof_n
-
-        Ku_beam = self.__Construct_Beam_Matrix()
-
-        # Additional dimension linked to the use of lagrange coefficients
-        nDof += self._Bc_Lagrange_dim(self.problemType)
-
-        tic = Tic()
-
-        linesVector_e = mesh.groupElem.Get_rowsVector_e(model.dof_n).ravel()
-        columnsVector_e = mesh.groupElem.Get_columnsVector_e(model.dof_n).ravel()
-
-        # Assembly
-        self.__Kbeam = sparse.csr_matrix(
-            (Ku_beam.ravel(), (linesVector_e, columnsVector_e)), shape=(nDof, nDof)
-        )
-        """Kglob matrix for beam problem (nDof, nDof)"""
-
-        self.__Fbeam = sparse.csr_matrix((nDof, 1))
-        """Fglob vector for beam problem (nDof, 1)"""
-
-        # import matplotlib.pyplot as plt
-        # plt.figure()
-        # plt.spy(self.__Ku)
-        # plt.show()
-
-        tic.Tac("Matrix", "Assembly Kbeam and Fbeam", self._verbosity)
-
-    def Get_K_C_M_F(
-        self, problemType=None
-    ) -> tuple[
-        sparse.csr_matrix, sparse.csr_matrix, sparse.csr_matrix, sparse.csr_matrix
-    ]:
-        if self.needUpdate:
-            self.Assembly()
-            self.Need_Update(False)
-        size = self.__Kbeam.shape[0]
-        initcsr = sparse.csr_matrix((size, size))
-        return self.__Kbeam.copy(), initcsr.copy(), initcsr.copy(), self.__Fbeam.copy()
 
     def Get_x0(self, problemType=None):
         if self.displacement.size != self.mesh.Nn * self.Get_dof_n(problemType):

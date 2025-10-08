@@ -4,7 +4,6 @@
 
 from typing import Union, Callable, Optional, TYPE_CHECKING
 import numpy as np
-from scipy import sparse
 
 # utilities
 from ..utilities import Folder, Display, Tic, _types
@@ -103,11 +102,9 @@ class ElasticSimu(_Simu):
         3D [axi, ayi, azi, ...]"""
         return self._Get_a_n(self.problemType)
 
-    def __Construct_Local_Matrix(self) -> tuple[_types.FloatArray, _types.FloatArray]:
-        """Computes the elementary stiffness matrices for the elastic problem."""
+    def Construct_local_matrix_system(self, problemType):
 
         mesh = self.mesh
-
         tic = Tic()
 
         # ------------------------------
@@ -142,57 +139,9 @@ class ElasticSimu(_Simu):
 
         tic.Tac("Matrix", "Construct Ku_e and Mu_e", self._verbosity)
 
-        return Ku_e, Mu_e
+        Cu_e = self.__coefK * Ku_e + self.__coefM * Mu_e
 
-    def Get_K_C_M_F(
-        self, problemType=None
-    ) -> tuple[
-        sparse.csr_matrix, sparse.csr_matrix, sparse.csr_matrix, sparse.csr_matrix
-    ]:
-        if self.needUpdate:
-            self.Assembly()
-            self.Need_Update(False)
-
-        Cu = self.__coefK * self.__Ku + self.__coefM * self.__Mu
-
-        return self.__Ku.copy(), Cu, self.__Mu.copy(), self.__Fu.copy()
-
-    def Assembly(self) -> None:
-        # Data
-        mesh = self.mesh
-        Ndof = mesh.Nn * self.dim
-
-        # Additional dimension linked to the use of lagrange coefficients
-        Ndof += self._Bc_Lagrange_dim(self.problemType)
-
-        Ku_e, Mu_e = self.__Construct_Local_Matrix()
-
-        tic = Tic()
-
-        linesVector_e = mesh.rowsVector_e.ravel()
-        columnsVector_e = mesh.columnsVector_e.ravel()
-
-        # Assembly
-        self.__Ku = sparse.csr_matrix(
-            (Ku_e.ravel(), (linesVector_e, columnsVector_e)), shape=(Ndof, Ndof)
-        )
-        """Kglob matrix for the displacement problem (Ndof, Ndof)"""
-
-        # Here I'm initializing Fu because I'd have to calculate the volumetric forces in __Construct_Local_Matrix.
-        self.__Fu = sparse.csr_matrix((Ndof, 1))
-        """Fglob vector for the displacement problem (Ndof, 1)"""
-
-        # import matplotlib.pyplot as plt
-        # plt.figure()
-        # plt.spy(self.__Ku)
-        # plt.show()
-
-        self.__Mu = sparse.csr_matrix(
-            (Mu_e.ravel(), (linesVector_e, columnsVector_e)), shape=(Ndof, Ndof)
-        )
-        """Mglob matrix for the displacement problem (Ndof, Ndof)"""
-
-        tic.Tac("Matrix", "Assembly Ku, Mu and Fu", self._verbosity)
+        return Ku_e, Cu_e, Mu_e, None
 
     def Set_Rayleigh_Damping_Coefs(self, coefM=0.0, coefK=0.0):
         """Sets damping coefficients \( C = coefK * K + coefM * M \)."""

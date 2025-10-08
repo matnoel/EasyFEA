@@ -2,13 +2,12 @@
 # This file is part of the EasyFEA project.
 # EasyFEA is distributed under the terms of the GNU General Public License v3, see LICENSE.txt and CREDITS.md for more information
 
-from scipy import sparse
 import numpy as np
 from typing import Union, Optional, TYPE_CHECKING
 import pandas as pd
 
 # utilities
-from ..utilities import Tic, Display, _types
+from ..utilities import Display, _types
 from ..simulations.Solvers import Solve_simu
 
 # fem
@@ -122,16 +121,6 @@ class HyperElasticSimu(_Simu):
     # Solve
     # --------------------------------------------------------------------------
 
-    def Get_K_C_M_F(self, problemType=None):
-        if self.needUpdate:
-            self.Assembly()
-            self.Need_Update(False)
-
-        size = self.__K.shape[0]
-        initcsr = sparse.csr_matrix((size, size))
-
-        return self.__K.copy(), initcsr, initcsr, self.__F.copy()
-
     def Get_x0(self, problemType=None):
         return self.displacement
 
@@ -174,45 +163,7 @@ class HyperElasticSimu(_Simu):
 
         return u
 
-    def Assembly(self):
-        # Data
-        mesh = self.mesh
-        Ndof = mesh.Nn * self.dim
-
-        # Additional dimension linked to the use of lagrange coefficients
-        Ndof += self._Bc_Lagrange_dim(self.problemType)
-
-        K_e, F_e = self.__Construct_Local_Matrix()
-
-        tic = Tic()
-
-        linesVector_e = mesh.rowsVector_e.ravel()
-        columnsVector_e = mesh.columnsVector_e.ravel()
-
-        # Assembly
-        self.__K = sparse.csr_matrix(
-            (K_e.ravel(), (linesVector_e, columnsVector_e)), shape=(Ndof, Ndof)
-        )
-        """Kglob matrix for the displacement problem (Ndof, Ndof)"""
-
-        rows = mesh.assembly_e.ravel()
-        self.__F = sparse.csr_matrix(
-            (F_e.ravel(), (rows, np.zeros_like(rows))), shape=(Ndof, 1)
-        )
-        """Fglob vector for the displacement problem (Ndof, 1)"""
-
-        # import matplotlib.pyplot as plt
-        # plt.figure()
-        # plt.spy(self.__K)
-        # plt.show()
-
-        tic.Tac("Matrix", "Assembly Ku and Fu", self._verbosity)
-
-        return self.__K, self.__F
-
-    def __Construct_Local_Matrix(
-        self,
-    ) -> tuple[FeArray.FeArrayALike, FeArray.FeArrayALike]:
+    def Construct_local_matrix_system(self, problemType):
         # data
         mat = self.material
         mesh = self.mesh
@@ -265,7 +216,7 @@ class HyperElasticSimu(_Simu):
         F_e = F_e[:, reorder]
         K_e = K_e[:, reorder][:, :, reorder]
 
-        return K_e, F_e
+        return K_e, None, None, F_e
 
     # --------------------------------------------------------------------------
     # Iterations

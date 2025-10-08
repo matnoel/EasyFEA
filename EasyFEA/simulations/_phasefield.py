@@ -200,17 +200,16 @@ class PhaseFieldSimu(_Simu):
         # here always update to the last state
         if problemType == ModelType.elastic:
             if not self.__updatedDisplacement:  # type: ignore [has-type]
-                self.__Assembly_elastic()
+                self.__Ku, _, _, _ = self.Assembly(ModelType.elastic)
                 self.__updatedDisplacement = True
-            size = self.__Ku.shape[0]
-            initcsr = sparse.csr_matrix((size, size))
-            return self.__Ku.copy(), initcsr, initcsr, self.__Fu.copy()
+            initcsr = sparse.csr_matrix(self.__Ku.shape)
+            initvec = sparse.csr_matrix((self.__Ku.shape[0], 1))
+            return self.__Ku.copy(), initcsr, initcsr, initvec
         else:
             if not self.__updatedDamage:  # type: ignore [has-type]
-                self.__Assembly_damage()
+                self.__Kd, _, _, self.__Fd = self.Assembly(ModelType.damage)
                 self.__updatedDamage = True
-            size = self.__Kd.shape[0]
-            initcsr = sparse.csr_matrix((size, size))
+            initcsr = sparse.csr_matrix(self.__Kd.shape)
             return self.__Kd.copy(), initcsr, initcsr, self.__Fd.copy()
 
     def _Update(self, observable: Observable, event: str) -> None:
@@ -246,10 +245,6 @@ class PhaseFieldSimu(_Simu):
                 return np.zeros(self.mesh.Nn * self.dim)
             else:
                 return self.displacement
-
-    def Assembly(self) -> None:
-        self.__Assembly_damage()
-        self.__Assembly_elastic()
 
     def Solve(
         self, tolConv=1.0, maxIter=500, convOption=2
@@ -387,8 +382,15 @@ class PhaseFieldSimu(_Simu):
 
     # ------------------------------------------- Elastic problem -------------------------------------------
 
-    def __Construct_Elastic_Matrix(self) -> _types.FloatArray:
-        """Computes the elementary stiffness matrices for the elastic problem."""
+    def Construct_local_matrix_system(self, problemType):
+        if problemType == ModelType.elastic:
+            return self.__Construct_Elastic_Matrix()
+        elif problemType == ModelType.damage:
+            return self.__Construct_Damage_Matrix()
+        else:
+            raise NotImplementedError
+
+    def __Construct_Elastic_Matrix(self):
 
         matrixType = MatrixType.rigi
 
@@ -428,42 +430,7 @@ class PhaseFieldSimu(_Simu):
 
         tic.Tac("Matrix", "Construction Ku_e", self._verbosity)
 
-        return Ku_e
-
-    def __Assembly_elastic(self) -> sparse.csr_matrix:
-        """Assemble the elastic problem."""
-
-        # Data
-        mesh = self.mesh
-        Ndof = mesh.Nn * self.dim
-
-        Ndof += self._Bc_Lagrange_dim(ModelType.elastic)
-
-        Ku_e = self.__Construct_Elastic_Matrix()
-
-        tic = Tic()
-
-        linesVector_e = mesh.rowsVector_e.ravel()
-        columnsVector_e = mesh.columnsVector_e.ravel()
-
-        # Assembly
-        self.__Ku = sparse.csr_matrix(
-            (Ku_e.ravel(), (linesVector_e, columnsVector_e)), shape=(Ndof, Ndof)
-        )
-        """Kglob matrix for the displacement problem (Ndof, Ndof)"""
-
-        self.__Fu = sparse.csr_matrix((Ndof, 1))
-        """Fglob vector for the displacement problem (Ndof, 1)"""
-
-        # import matplotlib.pyplot as plt
-        # plt.figure()
-        # plt.spy(self.__Ku)
-        # plt.show()
-
-        tic.Tac("Matrix", "Assembly Ku and Fu", self._verbosity)
-        # We ensure the matrices are always updated with the latest damage or displacement results.
-        # Therefore, we don't specify that the matrices have been updated.
-        return self.__Ku
+        return Ku_e, None, None, None
 
     def __Solve_elastic(self) -> _types.FloatArray:
         """Computes the displacement field."""
@@ -520,8 +487,7 @@ class PhaseFieldSimu(_Simu):
 
         return self.__psiP_e_pg
 
-    def __Construct_Damage_Matrix(self) -> tuple[_types.FloatArray, _types.FloatArray]:
-        """Computes the elementary matrices for the damage problem."""
+    def __Construct_Damage_Matrix(self):
 
         pfm = self.phaseFieldModel
 
@@ -565,41 +531,7 @@ class PhaseFieldSimu(_Simu):
 
         tic.Tac("Matrix", "Construct Kd_e and Fd_e", self._verbosity)
 
-        return Kd_e, Fd_e
-
-    def __Assembly_damage(self) -> tuple[sparse.csr_matrix, sparse.csr_matrix]:
-        """Assemble the elastic problem."""
-
-        # Data
-        mesh = self.mesh
-        Ndof = mesh.Nn
-        linesScalar_e = mesh.rowsScalar_e.ravel()
-        columnsScalar_e = mesh.columnsScalar_e.ravel()
-
-        # Additional dimension linked to the use of lagrange coefficients
-        Ndof += self._Bc_Lagrange_dim(ModelType.damage)
-
-        # Calculate elementary matrix
-        Kd_e, Fd_e = self.__Construct_Damage_Matrix()
-
-        # Assembly
-        tic = Tic()
-
-        self.__Kd = sparse.csr_matrix(
-            (Kd_e.ravel(), (linesScalar_e, columnsScalar_e)), shape=(Ndof, Ndof)
-        )
-        """Kglob for damage problem (Ndof, Ndof)"""
-
-        rows = mesh.connect.ravel()
-        self.__Fd = sparse.csr_matrix(
-            (Fd_e.ravel(), (rows, np.zeros_like(rows))), shape=(Ndof, 1)
-        )
-        """Fglob for damage problem (Ndof, 1)"""
-
-        tic.Tac("Matrix", "Assembly Kd and Fd", self._verbosity)
-        # We ensure the matrices are always updated with the latest damage or displacement results.
-        # Therefore, we don't specify that the matrices have been updated.
-        return self.__Kd, self.__Fd
+        return Kd_e, None, None, Fd_e
 
     def __Solve_damage(self) -> _types.FloatArray:
         """Computes the damage field."""

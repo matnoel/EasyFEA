@@ -19,7 +19,14 @@ from ..utilities import Folder, Display, Tic, _params, _types
 from ..utilities._observers import Observable, _IObserver
 
 # fem
-from ..fem import Mesh, _GroupElem, BoundaryCondition, LagrangeCondition, MatrixType
+from ..fem import (
+    Mesh,
+    _GroupElem,
+    FeArray,
+    BoundaryCondition,
+    LagrangeCondition,
+    MatrixType,
+)
 
 # materials
 from ..models import ModelType, _IModel, Reshape_variable
@@ -61,11 +68,12 @@ class _Simu(_IObserver, ABC):
     Solve:
     ------
 
+        (for multiphysics simulation only)
         - def Get_K_C_M_F(self, problemType=None) -> tuple[sparse.csr_matrix, sparse.csr_matrix, sparse.csr_matrix, sparse.csr_matrix]:
 
         - def Get_x0(self, problemType=None):
 
-        - def Assembly(self):
+        - def Construct_local_matrix_system(self, problemType):
 
         These functions assemble the matrix system K u + C v + M a = F.
 
@@ -117,14 +125,17 @@ class _Simu(_IObserver, ABC):
         pass
 
     # Solvers
-    @abstractmethod
     def Get_K_C_M_F(
         self, problemType=None
     ) -> tuple[
         sparse.csr_matrix, sparse.csr_matrix, sparse.csr_matrix, sparse.csr_matrix
     ]:
-        """Returns the assembled matrices of K u + C v + M a = F."""
-        pass
+        """Returns the assembled matrices of K u + C v + M a = F for the given problem."""
+        if self.needUpdate:
+            self.__K, self.__C, self.__M, self.__F = self.Assembly(problemType)
+            self.Need_Update(False)
+
+        return self.__K.copy(), self.__C.copy(), self.__M.copy(), self.__F.copy()
 
     @abstractmethod
     def Get_x0(self, problemType: Optional[ModelType] = None) -> _types.FloatArray:
@@ -133,9 +144,14 @@ class _Simu(_IObserver, ABC):
         return np.zeros(size)
 
     @abstractmethod
-    def Assembly(self) -> None:
-        """Assembles the matrix system."""
-        pass
+    def Construct_local_matrix_system(self, problemType) -> tuple[
+        Optional[FeArray],
+        Optional[FeArray],
+        Optional[FeArray],
+        Optional[FeArray],
+    ]:
+        """Construct the local matrix system K u + C v + M a = F for the given problem."""
+        raise NotImplementedError
 
     # Iterations
 
@@ -569,6 +585,91 @@ class _Simu(_IObserver, ABC):
     # ----------------------------------------------
     # Solver
     # ----------------------------------------------
+
+    def Assembly(
+        self, problemType: ModelType
+    ) -> tuple[
+        sparse.csr_matrix, sparse.csr_matrix, sparse.csr_matrix, sparse.csr_matrix
+    ]:
+        """Assembles the matrix system K u + C v + M a = F for the given problemType."""
+        # Data
+        mesh = self.mesh
+        dof_n = self.Get_dof_n(problemType)
+        dofs = mesh.Nn * dof_n
+
+        rows_e = mesh.groupElem.Get_rowsVector_e(dof_n).ravel()
+        columns_e = mesh.groupElem.Get_columnsVector_e(dof_n).ravel()
+
+        # Additional dimension linked to the use of lagrange coefficients
+        Ndof = dofs + self._Bc_Lagrange_dim(self.problemType)
+        shape = (Ndof, Ndof)
+
+        K_e, C_e, M_e, F_e = self.Construct_local_matrix_system(problemType)
+
+        tic = Tic()
+
+        # Assembly K
+        if K_e is None:
+            K = sparse.csr_matrix(shape)
+        else:
+            assert K_e.size == rows_e.size, f"Not enough data to fill a {shape} matrix."
+            K = sparse.csr_matrix((K_e.ravel(), (rows_e, columns_e)), shape=shape)
+
+        # import matplotlib.pyplot as plt
+        # plt.figure()
+        # plt.spy(self.__Ku)
+        # plt.show()
+
+        tic.Tac(
+            "Matrix",
+            f"Assemble the K matrix for the {problemType} problem.",
+            self._verbosity,
+        )
+
+        # Assembly C
+        if C_e is None:
+            C = sparse.csr_matrix(shape)
+        else:
+            assert C_e.size == rows_e.size, f"Not enough data to fill a {shape} matrix."
+            C = sparse.csr_matrix((C_e.ravel(), (rows_e, columns_e)), shape=shape)
+
+        tic.Tac(
+            "Matrix",
+            f"Assemble the C matrix for the {problemType} problem.",
+            self._verbosity,
+        )
+
+        # Assembly M
+        if M_e is None:
+            M = sparse.csr_matrix(shape)
+        else:
+            assert M_e.size == rows_e.size, f"Not enough data to fill a {shape} matrix."
+            M = sparse.csr_matrix((M_e.ravel(), (rows_e, columns_e)), shape=shape)
+
+        tic.Tac(
+            "Matrix",
+            f"Assemble the M matrix for the {problemType} problem.",
+            self._verbosity,
+        )
+
+        # Assembly F
+        if F_e is None:
+            F = sparse.csr_matrix((Ndof, 1))
+        else:
+            rows = mesh.Get_assembly_e(dof_n).ravel()
+            cols = np.zeros_like(rows)
+            assert (
+                F_e.size == rows.size
+            ), f"Not enough data to fill a [{dofs}, 1] vector."
+            F = sparse.csr_matrix((F_e.ravel(), (rows, cols)), shape=(Ndof, 1))
+
+        tic.Tac(
+            "Matrix",
+            f"Assemble the F vector for the {problemType} problem.",
+            self._verbosity,
+        )
+
+        return K, C, M, F
 
     @property
     def useIterativeSolvers(self) -> bool:
