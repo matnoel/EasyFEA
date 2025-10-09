@@ -3,7 +3,6 @@
 # EasyFEA is distributed under the terms of the GNU General Public License v3, see LICENSE.txt and CREDITS.md for more information.
 
 from typing import Union, Optional, TYPE_CHECKING
-from scipy import sparse
 import numpy as np
 
 # utilities
@@ -111,17 +110,13 @@ class WeakFormSimu(_Simu):
 
         # Data
         weakForms = self.weakForms
-        mesh = self.mesh
         field = weakForms.field
-        size = mesh.nPe * field.dof_n
-
-        zeros = np.zeros((mesh.Ne, size, size), dtype=float)
 
         tic = Tic()
 
         computeK = weakForms.computeK
         if computeK is None:
-            K_e = zeros
+            K_e = None
         else:
             K_e = computeK._assemble(field)
 
@@ -129,7 +124,7 @@ class WeakFormSimu(_Simu):
 
         computeC = weakForms.computeC
         if computeC is None:
-            C_e = zeros
+            C_e = None
         else:
             C_e = computeC._assemble(field)
 
@@ -137,7 +132,7 @@ class WeakFormSimu(_Simu):
 
         computeM = weakForms.computeM
         if computeM is None:
-            M_e = zeros
+            M_e = None
         else:
             M_e = computeM._assemble(field)
 
@@ -145,7 +140,7 @@ class WeakFormSimu(_Simu):
 
         computeF = weakForms.computeF
         if computeF is None:
-            F_e = np.zeros((mesh.Ne, size, 1), dtype=float)
+            F_e = None
         else:
             F_e = computeF._assemble(field)
 
