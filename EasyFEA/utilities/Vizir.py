@@ -331,7 +331,7 @@ def _Write_solution_file(
             assert (
                 warpVector_n.shape[0] == Nn and warpVector_n.ndim == 2
             ), "nodesValues must be a (Nn, ...) array"
-            assert warpVector_n.shape[1] in [1, mesh.inDim]
+            assert warpVector_n.shape[1] <= 3
             nodesValues_type = 1 if warpVector_n.shape[1] == 1 else 2
             f.write(f"SolAtVertices\n{Nn}\n1 {nodesValues_type}\n")
             np.savetxt(f, warpVector_n)
