@@ -6,7 +6,6 @@
 
 from abc import ABC, abstractmethod
 from typing import Callable, TYPE_CHECKING
-from scipy import sparse
 import numpy as np
 
 # from fem
