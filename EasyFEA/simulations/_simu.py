@@ -46,6 +46,7 @@ class _Simu(_IObserver, ABC):
         - PhaseFieldSimu
         - BeamSimu
         - ThermalSimu
+        - WeakFormSimu
 
     To create new simulation classes, you can take inspiration from existing implementations.\n
     Make sure to follow this interface.\n
@@ -67,9 +68,6 @@ class _Simu(_IObserver, ABC):
 
     Solve:
     ------
-
-        (for multiphysics simulation only)
-        - def Get_K_C_M_F(self, problemType=None) -> tuple[sparse.csr_matrix, sparse.csr_matrix, sparse.csr_matrix, sparse.csr_matrix]:
 
         - def Get_x0(self, problemType=None):
 
