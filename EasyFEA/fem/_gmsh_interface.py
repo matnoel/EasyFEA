@@ -148,20 +148,29 @@ class Mesher:
         return self._Create_Contour(contour)[:3]
 
     @singledispatchmethod
-    def _Create_Lines(self, geom: _Geom, p1: Point, p2: Point) -> list[int]:
+    def _Create_Lines(self, geom: _Geom, p1, p2) -> list[int]:
         """Creates the lines in order to construct the contour object (Line, CircleArc, Points).\n
         returns lines
         """
         NotImplementedError("Must be a Line, CircleArc or Points.")
 
     @_Create_Lines.register
-    def _(self, line: Line, p1: Point, p2: Point):
+    def _(self, line: Line, p1, p2):
+        if isinstance(p1, Point):
+            p1 = self._factory.addPoint(*p1.coord)
+        if isinstance(p2, Point):
+            p2 = self._factory.addPoint(*p2.coord)
         line = self._factory.addLine(p1, p2)
         return [line]
 
     @_Create_Lines.register
-    def _(self, circleArc: CircleArc, p1: Point, p2: Point):
+    def _(self, circleArc: CircleArc, p1, p2):
         factory = self._factory
+
+        if isinstance(p1, Point):
+            p1 = factory.addPoint(*p1.coord)
+        if isinstance(p2, Point):
+            p2 = factory.addPoint(*p2.coord)
 
         pC = factory.addPoint(*circleArc.center.coord, meshSize=circleArc.meshSize)
         p3 = factory.addPoint(*circleArc.pt3.coord)
@@ -195,8 +204,14 @@ class Mesher:
         return lines
 
     @_Create_Lines.register
-    def _(self, points: Points, p1: Point, p2: Point):
+    def _(self, points: Points, p1, p2):
         factory = self._factory
+
+        if isinstance(p1, Point):
+            p1 = factory.addPoint(*p1.coord)
+        if isinstance(p2, Point):
+            p2 = factory.addPoint(*p2.coord)
+
         # get points to construct the spline
         splinePoints = [
             factory.addPoint(*p.coord, meshSize=points.meshSize)
