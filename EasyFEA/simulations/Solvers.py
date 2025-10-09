@@ -297,11 +297,9 @@ def __Solver_1(simu: "_Simu", problemType: "ModelType") -> _types.FloatArray:
     x0 = simu.Get_x0(problemType)
     x0 = x0[dofsUnknown]
 
-    bDirichlet = Aic @ xc
-
     lb, ub = simu.Get_lb_ub(problemType)
 
-    xi = _Solve_Axb(simu, problemType, Aii, bi - bDirichlet, x0, lb, ub)
+    xi = _Solve_Axb(simu, problemType, Aii, bi - Aic @ xc, x0, lb, ub)
 
     # apply result to global vector
     x = x.toarray().reshape(x.shape[0])
