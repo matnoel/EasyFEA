@@ -53,7 +53,7 @@ class _Simu(_IObserver, ABC):
     The ThermalSimuclass is relatively simple and can serve as a good starting point.\n
     See `simulations/_thermal.py` for more details.
 
-    To use the interface/inheritance, 14 methods need to be defined.
+    To use the interface/inheritance, 13 methods need to be defined.
 
     General:
     --------
