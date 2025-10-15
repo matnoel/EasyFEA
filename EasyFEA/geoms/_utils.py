@@ -246,11 +246,13 @@ def Normalize(array: _types.Coords) -> _types.FloatArray:
     """Must be a vector or matrix."""
     array = np.asarray(array)
     if array.ndim == 1:
-        return array / np.linalg.norm(array)
+        norm = np.linalg.norm(array)
+        norm = 1 if norm == 0 else norm
+        return array / norm
     elif array.ndim == 2:
-        return np.einsum(
-            "ij,i->ij", array, 1 / np.linalg.norm(array, axis=1), optimize="optimal"
-        )
+        norm = np.linalg.norm(array, axis=1)
+        norm[norm == 0] = 1
+        return np.einsum("ij,i->ij", array, 1 / norm, optimize="optimal")
     else:
         raise Exception("The array is the wrong size")
 

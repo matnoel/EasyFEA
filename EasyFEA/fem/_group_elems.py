@@ -31,7 +31,7 @@ from ._utils import ElemType, MatrixType
 # # others
 from ..geoms import Point, Domain, Line, Circle
 from ..geoms._utils import AsPoint
-from ..geoms import Jacobian_Matrix
+from ..geoms import Jacobian_Matrix, Normalize
 
 from ..utilities import _types
 
@@ -2064,20 +2064,11 @@ class _GroupElem(ABC):
             p1_f = [surface[1] for surface in surfaces]
             p2_f = [surface[-1] for surface in surfaces]
 
-            i_f = coord[p1_f] - coord[p0_f]
-            i_f = np.einsum(
-                "ni,n->ni", i_f, 1 / np.linalg.norm(i_f, axis=1), optimize="optimal"
-            )
+            i_f = Normalize(coord[p1_f] - coord[p0_f])
 
-            j_f = coord[p2_f] - coord[p0_f]
-            j_f = np.einsum(
-                "ni,n->ni", j_f, 1 / np.linalg.norm(j_f, axis=1), optimize="optimal"
-            )
+            j_f = Normalize(coord[p2_f] - coord[p0_f])
 
-            n_f = np.cross(i_f, j_f, 1, 1)
-            n_f = np.einsum(
-                "ni,n->ni", n_f, 1 / np.linalg.norm(n_f, axis=1), optimize="optimal"
-            )
+            n_f = Normalize(np.cross(i_f, j_f, 1, 1))
 
             coordinates_n_i = coordinates_n[:, np.newaxis].repeat(Nface, 1)
 
