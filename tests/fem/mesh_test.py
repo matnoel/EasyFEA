@@ -12,6 +12,10 @@ L = 2
 H = 1
 
 
+def equal(val1, val2, tol=1e-12):
+    assert np.abs(val1 - val2) / np.abs(val2) < tol
+
+
 def __move_meshes(list_mesh: list[Mesh]):
 
     for mesh in list_mesh.copy():
@@ -189,3 +193,35 @@ class TestMesh:
             load = np.linalg.norm(rhs.reshape(-1, 3), axis=1)
 
             assert (P / area - load.sum()) / (P / area) < 1e-12
+
+    def test_Evaluate_dofsValues_at_coordinates_2D(self, meshes_2D: list[Mesh]):
+
+        node = 10
+
+        for mesh in meshes_2D:
+
+            coords = mesh.coordGlob[node].reshape(1, 3)
+
+            dofsValues = np.arange(mesh.Nn * 2)
+
+            values = mesh.Evaluate_dofsValues_at_coordinates(coords, dofsValues)
+            equal(dofsValues.reshape(-1, 2)[node, 0], values[0, 0])
+            equal(dofsValues.reshape(-1, 2)[node, 1], values[0, 1])
+
+    def test_Evaluate_dofsValues_at_coordinates_3D(self, meshes_3D: list[Mesh]):
+
+        node = 10
+
+        for mesh in meshes_3D:
+
+            coords = mesh.coordGlob[node].reshape(1, 3)
+
+            dofsValues = np.arange(mesh.Nn * 2)
+
+            from EasyFEA import Display
+
+            Display.Plot_Mesh(mesh)
+
+            values = mesh.Evaluate_dofsValues_at_coordinates(coords, dofsValues)
+            equal(dofsValues.reshape(-1, 2)[node, 0], values[0, 0])
+            equal(dofsValues.reshape(-1, 2)[node, 1], values[0, 1])

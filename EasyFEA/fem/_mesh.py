@@ -684,6 +684,66 @@ class Mesh(Observable):
         else:
             return result_n
 
+    def Evaluate_dofsValues_at_coordinates(
+        self, coordinates_n: _types.FloatArray, dofsValues: _types.FloatArray
+    ) -> _types.FloatArray:
+        """Evaluates dofsValues with shape (Nn*dof_n, ) at the specified coordinates.
+
+        Parameters
+        ----------
+        coordinates_n : _types.FloatArray
+            coordinates that must be a (Nnodes, 3) array.
+        dofsValues : _types.FloatArray
+            dofs values that must be a (Nn * dof_n) array.
+
+        Returns
+        -------
+        _types.FloatArray
+            The interpolated values as a (Nnodes, dof_n) array.
+        """
+
+        Nn = self.Nn + len(self.orphanNodes)
+        groupElem = self.groupElem
+
+        assert dofsValues.size % Nn == 0, "must be a (Nn * dof_n, ) array."
+        dof_n = dofsValues.size // Nn
+
+        # first detect elements with coordinates in elements
+        _, detectedElements_e, connect_e_n, coordInElem_n = groupElem.Get_Mapping(
+            coordinates_n, needCoordinates=True
+        )
+
+        # Get unique elements for each coordinates
+        # Note: A coordinate may belong to multiple elements, but only one will be selected
+        Nnodes = coordinates_n.shape[0]
+        elements_n = np.array([None] * Nnodes)
+        [
+            np.put(elements_n, connect[0], element)
+            for (element, connect) in zip(detectedElements_e, connect_e_n)
+        ]
+
+        # make sure each coordinates get a least one element
+        assert (
+            None not in elements_n
+        ), f"No elements were detected at the given coordinates {coordinates_n[elements_n == None]}."
+        elements_n = elements_n.astype(int)
+
+        # get dofs values for each detected elements as a (Nnodes, nPe, dof_n) array
+        rows_e = self.Get_assembly_e(dof_n)
+        dofsValues_n = dofsValues[rows_e[elements_n]].reshape(Nnodes, self.nPe, dof_n)
+
+        # get the evaluated shape functions as a (Nnodes, nPe) array
+        evaluated_shape_functions = groupElem._Eval_Functions(
+            groupElem._N(), coordInElem_n
+        )[:, 0]
+
+        # get the interpolated values with (Nnodes, dof_n) shape
+        interpolated_values_n = np.einsum(
+            "ni,nid->nd", evaluated_shape_functions, dofsValues_n, optimize="optimal"
+        )
+
+        return interpolated_values_n
+
     def Get_Paired_Nodes(
         self, corners: _types.FloatArray, plot=False
     ) -> _types.IntArray:
