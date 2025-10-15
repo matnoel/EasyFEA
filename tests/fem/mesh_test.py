@@ -196,9 +196,9 @@ class TestMesh:
 
     def test_Evaluate_dofsValues_at_coordinates_2D(self, meshes_2D: list[Mesh]):
 
-        node = 10
-
         for mesh in meshes_2D:
+
+            node = np.random.randint(0, mesh.Nn, 1)
 
             coords = mesh.coordGlob[node].reshape(1, 3)
 
@@ -210,17 +210,13 @@ class TestMesh:
 
     def test_Evaluate_dofsValues_at_coordinates_3D(self, meshes_3D: list[Mesh]):
 
-        node = 10
-
         for mesh in meshes_3D:
+
+            node = np.random.randint(0, mesh.Nn, 1)
 
             coords = mesh.coordGlob[node].reshape(1, 3)
 
             dofsValues = np.arange(mesh.Nn * 2)
-
-            from EasyFEA import Display
-
-            Display.Plot_Mesh(mesh)
 
             values = mesh.Evaluate_dofsValues_at_coordinates(coords, dofsValues)
             equal(dofsValues.reshape(-1, 2)[node, 0], values[0, 0])
