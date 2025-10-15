@@ -685,7 +685,10 @@ class Mesh(Observable):
             return result_n
 
     def Evaluate_dofsValues_at_coordinates(
-        self, coordinates_n: _types.FloatArray, dofsValues: _types.FloatArray
+        self,
+        coordinates_n: _types.FloatArray,
+        dofsValues: _types.FloatArray,
+        elements: Optional[_types.IntArray] = None,
     ) -> _types.FloatArray:
         """Evaluates dofsValues with shape (Nn*dof_n, ) at the specified coordinates.
 
@@ -695,6 +698,8 @@ class Mesh(Observable):
             coordinates that must be a (Nnodes, 3) array.
         dofsValues : _types.FloatArray
             dofs values that must be a (Nn * dof_n) array.
+        elements : Optional[_types.IntArray], optional
+            elements that may contain the specified coordinates to speed up evaluation, by default None
 
         Returns
         -------
@@ -705,12 +710,14 @@ class Mesh(Observable):
         Nn = self.Nn + len(self.orphanNodes)
         groupElem = self.groupElem
 
-        assert dofsValues.size % Nn == 0, "must be a (Nn * dof_n, ) array."
+        assert (
+            dofsValues.size % Nn == 0 and dofsValues.ndim == 1
+        ), "dofsValues must be a (Nn * dof_n, ) array."
         dof_n = dofsValues.size // Nn
 
         # first detect elements with coordinates in elements
         _, detectedElements_e, connect_e_n, coordInElem_n = groupElem.Get_Mapping(
-            coordinates_n, needCoordinates=True
+            coordinates_n, elements, needCoordinates=True
         )
 
         # Get unique elements for each coordinates
@@ -718,8 +725,10 @@ class Mesh(Observable):
         Nnodes = coordinates_n.shape[0]
         elements_n = np.array([None] * Nnodes)
         [
-            np.put(elements_n, connect[0], element)
+            np.put(elements_n, node, element)
             for (element, connect) in zip(detectedElements_e, connect_e_n)
+            for node in connect
+            if elements_n[node] is None
         ]
 
         # make sure each coordinates get a least one element
@@ -736,6 +745,10 @@ class Mesh(Observable):
         evaluated_shape_functions = groupElem._Eval_Functions(
             groupElem._N(), coordInElem_n
         )[:, 0]
+
+        tol = 1e-12
+        min, max = evaluated_shape_functions.min(), evaluated_shape_functions.max()
+        assert min > -tol and max < 1 + tol, "shape functions must be in [0, 1]"
 
         # get the interpolated values with (Nnodes, dof_n) shape
         interpolated_values_n = np.einsum(
