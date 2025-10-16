@@ -77,16 +77,6 @@ if __name__ == "__main__":
     simu.Set_Rayleigh_Damping_Coefs(1e-10, 1e-10)
     simu.Solver_Set_Hyperbolic_Algorithm(beta=1 / 4, gamma=1 / 2, dt=dt)
 
-    t = 0
-
-    def Loading():
-        # Set displacement boundary conditions
-        simu.add_dirichlet(nodesBorders, [0, 0], ["x", "y"], description="[0,0]")
-
-        # Set Neumann boundary conditions (loading) at t = t0
-        if t == t0:
-            simu.add_neumann(nodesLoad, [load], ["x"])
-
     # Plot the result at the initial iteration if specified
     if plotIter:
         ax = Display.Plot_Result(simu, result, nodeValues=True, title=result)
@@ -95,9 +85,17 @@ if __name__ == "__main__":
     tic = Tic()
 
     # Time loop
+    t = 0
     while t <= tMax:
-        # Apply loading conditions
-        Loading()
+
+        simu.Bc_Init()
+
+        # Set displacement boundary conditions
+        simu.add_dirichlet(nodesBorders, [0, 0], ["x", "y"], description="[0,0]")
+
+        # Set Neumann boundary conditions (loading) at t = t0
+        if t == t0:
+            simu.add_neumann(nodesLoad, [load], ["x"])
 
         # Solve the simulation
         simu.Solve()
