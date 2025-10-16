@@ -22,15 +22,16 @@ def Compute(W, params: list, details=True):
 
     # dW
     dW = ""
-    for i, param_i in enumerate(params):
+    for param_i in params:
+        p_i = str(param_i)
         dWdIi = sympy.diff(W, param_i)
         if dWdIi != 0:
             dW += " + "
             if details:
-                print(f"dWdI{i + 1} = {dWdIi}")
-                dW += f"dWdI{i + 1} * dI{i + 1}dC"
+                print(f"dWd{p_i} = {dWdIi}")
+                dW += f"dWd{p_i} * d{p_i}dC"
             else:
-                dW += f"({dWdIi}) * dI{i + 1}dC"
+                dW += f"({dWdIi}) * d{p_i}dC"
 
     dW = f"dW = 2 * ({dW})\n"
     dW = dW.replace("+ -", "- ")
@@ -41,25 +42,27 @@ def Compute(W, params: list, details=True):
     d2W1 = ""
     d2W2 = ""
 
-    for i, param_i in enumerate(params):
+    for param_i in params:
+        p_i = str(param_i)
         dWdIi = sympy.diff(W, param_i)
         if dWdIi != 0:
             d2W1 += " + "
             if details:
-                print(f"dWdI{i + 1} = {dWdIi}")
-                d2W1 += f"dWdI{i + 1} * d2I{i + 1}dC"
+                print(f"dWd{p_i} = {dWdIi}")
+                d2W1 += f"dWd{p_i} * d2{p_i}dC"
             else:
-                d2W1 += f"({dWdIi}) * d2I{i + 1}dC"
+                d2W1 += f"({dWdIi}) * d2{p_i}dC"
 
-        for j, param_j in enumerate(params):
+        for param_j in params:
+            p_j = str(param_j)
             d2WdIiIj = sympy.diff(dWdIi, param_j)
             if d2WdIiIj != 0:
                 d2W2 += " + "
                 if details:
-                    print(f"d2WdI{i + 1}I{j + 1} = {d2WdIiIj}")
-                    d2W2 += f"d2WdI{i + 1}I{j + 1} * dI{i + 1}dC @ dI{j + 1}dC.T"
+                    print(f"d2Wd{p_i}d{p_j} = {d2WdIiIj}")
+                    d2W2 += f"d2Wd{p_i}d{p_j} * d{p_i}dC @ d{p_j}dC.T"
                 else:
-                    d2W2 += f"({d2WdIiIj}) * dI{i + 1}dC @ dI{j + 1}dC.T"
+                    d2W2 += f"({d2WdIiIj}) * d{p_i}dC @ d{p_j}dC.T"
 
     if d2W2 == "":
         d2W = f"d2W = 4 * ({d2W1})"
@@ -73,7 +76,7 @@ def Compute(W, params: list, details=True):
 if __name__ == "__main__":
     Display.Clear()
 
-    I1, I2, I3, I4 = sympy.symbols("I1, I2, I3, I4")
+    I1, I2, I3, I4, I6, I8 = sympy.symbols("I1, I2, I3, I4, I6, I8")
 
     J1 = I1 * I3 ** (sympy.Rational(-1, 3))
     J2 = I2 * I3 ** (sympy.Rational(-2, 3))
@@ -121,3 +124,28 @@ if __name__ == "__main__":
     )
 
     Compute(W, [I1, I2, I3])
+
+    # -------------------------------------
+    # Holzapfel-Ogden
+    # -------------------------------------
+
+    Display.Section("Holzapfel-Ogden")
+
+    C0, C1, C2, C3, C4, C5, C6, C7 = sympy.symbols("C0:8")
+
+    ks = sympy.symbols("ks")
+    bulk, mu1, mu2 = sympy.symbols("bulk, mu1, mu2")
+
+    chi = lambda Ii: 1 / (1 + sympy.exp(-ks * (Ii - 1)))
+
+    W = (
+        C0 * (sympy.exp(C1 * (J1 - 3)) - 1)
+        + C2 * chi(I4) * (sympy.exp(C3 * (I4 - 1) ** 2) - 1)
+        + C4 * chi(I6) * (sympy.exp(C5 * (I6 - 1) ** 2) - 1)
+        + C6 * (sympy.exp(C7 * I8**2) - 1)
+        + bulk / 4 * (J**2 - 1 - 2 * sympy.ln(J))
+        + mu1 * (J1 - 3)
+        + mu2 * (J2 - 3)
+    )
+
+    Compute(W, [I1, I2, I3, I4, I6, I8])
