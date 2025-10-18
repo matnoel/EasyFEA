@@ -20,7 +20,7 @@ class TestSimu:
 
         mesh = Mesher().Mesh_2D(Domain(Point(), Point(1, 1)))
 
-        thermal = Models.Thermal(2, 1, 1)
+        thermal = Models.Thermal(1, 1)
         # k, c
 
         simu = Simulations.ThermalSimu(mesh, thermal)

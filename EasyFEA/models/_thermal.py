@@ -38,13 +38,11 @@ class Thermal(_IModel):
         text += f"\nthermal mass capacity (c) : {self.__c}"
         return text
 
-    def __init__(self, dim: int, k: float, c=0.0, thickness: float = 1.0):
+    def __init__(self, k: float, c=0.0, thickness: float = 1.0):
         """Creates a thermal model.
 
         Parameters
         ----------
-        dim : int
-            model dimension
         k : float
             thermal conductivity [W m^-1]
         c : float, optional
@@ -52,8 +50,7 @@ class Thermal(_IModel):
         thickness : float, optional
             thickness of part, by default 1.0
         """
-        assert dim in [1, 2, 3]
-        self.__dim = dim
+        self.__dim = 1
 
         self.k = k
 

@@ -65,7 +65,7 @@ if __name__ == "__main__":
     # ----------------------------------------------
     # Simulation
     # ----------------------------------------------
-    thermalModel = Models.Thermal(dim=dim, k=1, c=1, thickness=1)
+    thermalModel = Models.Thermal(k=1, c=1, thickness=1)
     simu = Simulations.ThermalSimu(mesh, thermalModel, False)
     simu.rho = 1
 

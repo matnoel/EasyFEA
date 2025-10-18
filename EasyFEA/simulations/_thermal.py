@@ -56,6 +56,10 @@ class ThermalSimu(_Simu):
     def Get_dof_n(self, problemType=None) -> int:
         return 1
 
+    def _Check_dim_mesh_material(self) -> None:
+        # In the case of a beam problem, we don't need to check this condition.
+        pass
+
     def Results_nodeFields_elementFields(
         self, details=False
     ) -> tuple[list[str], list[str]]:

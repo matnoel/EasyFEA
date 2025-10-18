@@ -33,7 +33,7 @@ class TestThermal:
 
             dim = mesh.dim
 
-            thermalModel = Models.Thermal(dim=dim, k=1, c=1, thickness=a)
+            thermalModel = Models.Thermal(k=1, c=1, thickness=a)
 
             simu = Simulations.ThermalSimu(mesh, thermalModel, False)
 
@@ -58,7 +58,7 @@ class TestThermal:
 
         mesh = Mesher().Mesh_2D(Domain(Point(), Point(1, 1)))
 
-        thermal = Models.Thermal(2, 1, 1)
+        thermal = Models.Thermal(1, 1)
         # k, c
 
         simu = Simulations.ThermalSimu(mesh, thermal)

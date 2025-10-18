@@ -22,7 +22,7 @@ class TestWeakForms:
         # ----------------------------------------------
         # thermal simu
         # ----------------------------------------------
-        material = Models.Thermal(dim=2, k=1)
+        material = Models.Thermal(k=1)
 
         thermalSimu = Simulations.ThermalSimu(mesh, material, useIterativeSolvers=False)
 
