@@ -33,7 +33,6 @@ class PhaseFieldSimu(_Simu):
         mesh: Mesh,
         model: Models.PhaseField,
         verbosity=False,
-        useNumba=True,
         useIterativeSolvers=True,
     ):
         """Creates a damage simulation.
@@ -46,14 +45,12 @@ class PhaseFieldSimu(_Simu):
             The model used.
         verbosity : bool, optional
             If True, the simulation can write in the terminal. Defaults to False.
-        useNumba : bool, optional
-            If True, numba can be used. Defaults to True.
         useIterativeSolvers : bool, optional
             If True, iterative solvers can be used. Defaults to True.
         """
 
         assert isinstance(model, Models.PhaseField), "model must be a phase field model"
-        super().__init__(mesh, model, verbosity, useNumba, useIterativeSolvers)
+        super().__init__(mesh, model, verbosity, useIterativeSolvers)
 
         # Init internal variable
         self.__psiP_e_pg: FeArray.FeArrayALike = np.empty(0, dtype=float)

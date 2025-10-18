@@ -59,15 +59,6 @@ class _IModel(ABC, Observable):
         pass
 
     @property
-    def useNumba(self) -> bool:
-        """the model can use numba functions"""
-        return self.__useNumba
-
-    @useNumba.setter
-    def useNumba(self, value: bool):
-        self.__useNumba = value
-
-    @property
     def needUpdate(self) -> bool:
         """the model needs to be updated"""
         return self.__needUpdate

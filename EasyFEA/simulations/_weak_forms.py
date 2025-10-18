@@ -28,7 +28,6 @@ class WeakFormSimu(_Simu):
         mesh: "Mesh",
         model: Models.WeakForms,
         verbosity=False,
-        useNumba=True,
         useIterativeSolvers=True,
     ):
         """Creates a thermal simulation.
@@ -41,14 +40,12 @@ class WeakFormSimu(_Simu):
             The model used.
         verbosity : bool, optional
             If True, the simulation can write in the terminal. Defaults to False.
-        useNumba : bool, optional
-            If True, numba can be used. Defaults to True.
         useIterativeSolvers : bool, optional
             If True, iterative solvers can be used. Defaults to True.
         """
 
         assert isinstance(model, Models.WeakForms), "model must be a weakf form manager"
-        super().__init__(mesh, model, verbosity, useNumba, useIterativeSolvers)
+        super().__init__(mesh, model, verbosity, useIterativeSolvers)
 
         # init
         self.Solver_Set_Elliptic_Algorithm()

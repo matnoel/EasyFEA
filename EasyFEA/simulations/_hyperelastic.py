@@ -38,7 +38,6 @@ class HyperElasticSimu(_Simu):
         mesh: "Mesh",
         model: "_HyperElas",
         verbosity=False,
-        useNumba=True,
         useIterativeSolvers=True,
     ):
         """Creates a simulation.
@@ -51,13 +50,11 @@ class HyperElasticSimu(_Simu):
             The hyperelatic model used.
         verbosity : bool, optional
             If True, the simulation can write in the terminal. Defaults to False.
-        useNumba : bool, optional
-            If True and numba is installed numba can be used. Defaults to True.
         useIterativeSolvers : bool, optional
             If True, iterative solvers can be used. Defaults to True.
         """
 
-        super().__init__(mesh, model, verbosity, useNumba, useIterativeSolvers)
+        super().__init__(mesh, model, verbosity, useIterativeSolvers)
 
         assert model.dim == 3, "For the moment, the simulation is only available in 3D."
 

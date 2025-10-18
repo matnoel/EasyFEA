@@ -27,7 +27,6 @@ class BeamSimu(_Simu):
         mesh: "Mesh",
         model: Models.BeamStructure,
         verbosity=False,
-        useNumba=True,
         useIterativeSolvers=True,
     ):
         """Creates a Euler-Bernoulli beam simulation.
@@ -40,8 +39,6 @@ class BeamSimu(_Simu):
             the model used.
         verbosity : bool, optional
             If True, the simulation can write in the terminal. Defaults to False.
-        useNumba : bool, optional
-            If True, numba can be used. Defaults to True.
         useIterativeSolvers : bool, optional
             If True, iterative solvers can be used. Defaults to True.
         """
@@ -53,7 +50,7 @@ class BeamSimu(_Simu):
         assert isinstance(
             model, Models.BeamStructure
         ), "model must be a beam model or a beam structure"
-        super().__init__(mesh, model, verbosity, useNumba, useIterativeSolvers)
+        super().__init__(mesh, model, verbosity, useIterativeSolvers)
 
         # init
         self.Solver_Set_Elliptic_Algorithm()

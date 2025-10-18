@@ -66,8 +66,6 @@ class Thermal(_IModel):
 
         self.Need_Update()
 
-        self.useNumba = False
-
     @property
     def k(self) -> Union[float, _types.FloatArray]:
         """thermal conductivity [W m^-1]"""

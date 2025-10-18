@@ -115,8 +115,6 @@ class _Beam(_IModel):
 
         self.yAxis = yAxis  # type: ignore [assignment]
 
-        self.useNumba = False
-
     @property
     def line(self) -> Line:
         """average fiber line of the beam."""

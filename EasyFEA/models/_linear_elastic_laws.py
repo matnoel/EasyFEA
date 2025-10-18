@@ -46,8 +46,6 @@ class _Elas(_IModel, ABC):
             assert thickness > 0, "Must be greater than 0"
             self.__thickness = thickness
 
-        self.useNumba = False
-
     @property
     def modelType(self) -> ModelType:
         return ModelType.elastic

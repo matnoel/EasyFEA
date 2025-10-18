@@ -148,7 +148,7 @@ class PhaseField(_IModel):
 
         self.A = A  # type: ignore
 
-        self.useNumba = False
+        self.__useNumba = False
 
     @property
     def modelType(self) -> ModelType:
@@ -590,7 +590,7 @@ class PhaseField(_IModel):
 
         elif "Strain" in self.__split:
             # here don't use numba if behavior is heterogeneous
-            if self.useNumba and not self.isHeterogeneous:
+            if self.__useNumba and not self.isHeterogeneous:
                 # Faster (x2) but not available for heterogeneous material (memory issues)
                 Cpp, Cpm, Cmp, Cmm = Numba.Get_Anisot_C(
                     projP_e_pg, material.C, projM_e_pg
@@ -694,7 +694,7 @@ class PhaseField(_IModel):
             else:
                 raise TypeError("dim error")
 
-            if self.useNumba and not material.isHeterogeneous:
+            if self.__useNumba and not material.isHeterogeneous:
                 # Faster
                 cP_e_pg, cM_e_pg = Numba.Get_Cp_Cm_Stress(material.C, sP_e_pg, sM_e_pg)
                 cP_e_pg, cM_e_pg = FeArray._asfearrays(cP_e_pg, cM_e_pg)
@@ -715,7 +715,7 @@ class PhaseField(_IModel):
                 # Compute Cp and Cm
                 S = material.S
 
-                if self.useNumba and not material.isHeterogeneous:
+                if self.__useNumba and not material.isHeterogeneous:
                     # Faster
                     Cpp, Cpm, Cmp, Cmm = Numba.Get_Anisot_C(Cp_e_pg, S, Cm_e_pg)
                     Cpp, Cpm, Cmp, Cmm = FeArray._asfearrays(Cpp, Cpm, Cmp, Cmm)
@@ -1203,8 +1203,6 @@ class PhaseField(_IModel):
         returns projP, projM
         """
 
-        useNumba = self.useNumba
-
         dim = self.__material.dim
 
         Ne, nPg = vector_e_pg.shape[:2]
@@ -1251,7 +1249,7 @@ class PhaseField(_IModel):
             m1xm1 = TensorProd(m1, m1, ndim=1)
             m2xm2 = TensorProd(m2, m2, ndim=1)
 
-            if useNumba:
+            if self.__useNumba:
                 # Faster
                 projP, projM = Numba.Get_projP_projM_2D(
                     BetaP, gammap, BetaM, gammam, m1, m2
@@ -1302,7 +1300,7 @@ class PhaseField(_IModel):
 
             tic.Tac("Split", "thetap and thetam", False)
 
-            if useNumba:
+            if self.__useNumba:
                 # Much faster (approx. 2x faster)
 
                 G12_ij, G13_ij, G23_ij = Numba.Get_G12_G13_G23(M1, M2, M3)

@@ -278,7 +278,6 @@ class _Simu(_IObserver, ABC):
         mesh: Mesh,
         model: _IModel,
         verbosity: bool = True,
-        useNumba: bool = True,
         useIterativeSolvers: bool = True,
     ):
         """Creates a simulation.
@@ -291,8 +290,6 @@ class _Simu(_IObserver, ABC):
             The model used.
         verbosity : bool, optional
             If True, the simulation can write in the terminal. Defaults to True.
-        useNumba : bool, optional
-            If True and numba is installed numba can be used. Defaults to True.
         useIterativeSolvers : bool, optional
             If True, iterative solvers can be used. Defaults to True.
         """
@@ -341,8 +338,6 @@ class _Simu(_IObserver, ABC):
             self.solver = "cg"
 
         self.__Init_Sols_n()
-
-        self.useNumba = useNumba
 
         self.__useIterativeSolvers: bool = useIterativeSolvers
 
@@ -536,17 +531,6 @@ class _Simu(_IObserver, ABC):
     def dim(self) -> int:
         """simulation's dimension"""
         return self.__dim
-
-    @property
-    def useNumba(self) -> bool:
-        """the simulation can use numba functions"""
-        return self.__useNumba
-
-    @useNumba.setter
-    def useNumba(self, value: bool):
-        value = value
-        self.__model.useNumba = value
-        self.__useNumba = value
 
     def __Update_mesh(self, iter: int) -> None:
         """Updates the mesh for the specified iteration.

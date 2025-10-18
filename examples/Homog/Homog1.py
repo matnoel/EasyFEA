@@ -144,7 +144,7 @@ if __name__ == "__main__":
 
     material = Models.ElasIsot(2, E, v, planeStress=False)
 
-    simu = Simulations.ElasticSimu(mesh, material, useNumba=True)
+    simu = Simulations.ElasticSimu(mesh, material)
 
     Display.Plot_Result(simu, E, nodeValues=False, title="E [MPa]")
     Display.Plot_Result(simu, v, nodeValues=False, title="v")
