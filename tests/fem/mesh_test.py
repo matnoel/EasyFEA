@@ -202,7 +202,7 @@ class TestMesh:
 
             coords = mesh.coordGlob[node].reshape(1, 3)
 
-            dofsValues = np.arange(mesh.Nn * 2)
+            dofsValues = np.arange(mesh.Nn * 2) + 1
 
             values = mesh.Evaluate_dofsValues_at_coordinates(coords, dofsValues)
             equal(dofsValues.reshape(-1, 2)[node, 0], values[0, 0])
@@ -216,7 +216,7 @@ class TestMesh:
 
             coords = mesh.coordGlob[node].reshape(1, 3)
 
-            dofsValues = np.arange(mesh.Nn * 2)
+            dofsValues = np.arange(mesh.Nn * 2) + 1
 
             values = mesh.Evaluate_dofsValues_at_coordinates(coords, dofsValues)
             equal(dofsValues.reshape(-1, 2)[node, 0], values[0, 0])

@@ -726,7 +726,7 @@ class Mesh(Observable):
         elements_n = np.array([None] * Nnodes)
         [
             np.put(elements_n, node, element)
-            for (element, connect) in zip(detectedElements_e, connect_e_n)
+            for (element, connect) in zip(detectedElements_e[::-1], connect_e_n[::-1])
             for node in connect
             if elements_n[node] is None
         ]
