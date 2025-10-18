@@ -551,12 +551,10 @@ class _Simu(_IObserver, ABC):
 
     def _Update(self, observable: Observable, event: str) -> None:
         if isinstance(observable, _IModel):
-            if event == "The model has been modified" and not self.needUpdate:
-                self.Need_Update()
+            self.Need_Update()
         elif isinstance(observable, Mesh):
-            if event == "The mesh has been modified":
-                self._Check_dim_mesh_material()
-                self.Need_Update()
+            self._Check_dim_mesh_material()
+            self.Need_Update()
         else:
             Display.MyPrintError("Notification not yet implemented")
 

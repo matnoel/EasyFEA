@@ -31,8 +31,6 @@ class TestThermal:
 
         for mesh in listMesh:
 
-            dim = mesh.dim
-
             thermalModel = Models.Thermal(k=1, c=1, thickness=a)
 
             simu = Simulations.ThermalSimu(mesh, thermalModel, False)
@@ -53,7 +51,7 @@ class TestThermal:
         """Function use to check that modifications on thermal material activate the update of the simulation"""
 
         def DoTest(simu: Simulations._Simu) -> None:
-            assert simu.needUpdate == True  # should trigger the event
+            assert simu.needUpdate  # should trigger the event
             simu.Need_Update(False)  # init
 
         mesh = Mesher().Mesh_2D(Domain(Point(), Point(1, 1)))
@@ -63,9 +61,8 @@ class TestThermal:
 
         simu = Simulations.ThermalSimu(mesh, thermal)
         simu.Get_K_C_M_F()
-        assert (
-            simu.needUpdate == False
-        )  # check that need update is now set to false once Get_K_C_M_F() get called
+        assert not simu.needUpdate
+        # check that need update is now set to false once Get_K_C_M_F() get called
         thermal.k *= 2
         DoTest(simu)
         thermal.c *= 0.2

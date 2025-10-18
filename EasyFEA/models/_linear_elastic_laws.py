@@ -36,47 +36,27 @@ class _Elas(_IModel, ABC):
     """
 
     def __init__(self, dim: int, thickness: float, planeStress: bool):
-        assert dim in [2, 3], "Must be dimension 2 or 3"
-        self.__dim = dim
+        self.dim = dim
 
-        # must set the private value here !
-        self.__planeStress = planeStress if dim == 2 else False
+        self.planeStress = planeStress
 
-        if dim == 2:
-            assert thickness > 0, "Must be greater than 0"
-            self.__thickness = thickness
+        self.thickness = thickness
 
     @property
     def modelType(self) -> ModelType:
         return ModelType.elastic
 
-    @property
-    def dim(self) -> int:
-        return self.__dim
+    dim: int = _params.ParameterInValues([2, 3])
 
-    @property
-    def thickness(self) -> float:
-        if self.__dim == 2:
-            return self.__thickness
-        else:
-            return 1.0
+    thickness: float = _params.PositiveParameter()
 
-    @property
-    def planeStress(self) -> bool:
-        """the model uses plane stress simplification"""
-        return self.__planeStress
-
-    @planeStress.setter
-    def planeStress(self, value: bool) -> None:
-        assert isinstance(value, bool)
-        if self.__planeStress != value:
-            self.Need_Update()
-            self.__planeStress = value
+    planeStress: bool = _params.BoolParameter()
+    """the model uses plane stress simplification"""
 
     @property
     def simplification(self) -> str:
         """simplification used for the model"""
-        if self.__dim == 2:
+        if self.dim == 2:
             return "Plane Stress" if self.planeStress else "Plane Strain"
         else:
             return "3D"
@@ -242,7 +222,6 @@ class ElasIsot(_Elas):
         _Elas.__init__(self, dim, thickness, planeStress)
 
         self.E = E
-        # TODO Add descriptor with Need_Update() function ?
         self.v = v
 
     def _Update(self) -> None:
@@ -250,27 +229,11 @@ class ElasIsot(_Elas):
         self.C = C
         self.S = S
 
-    @property
-    def E(self) -> Union[float, _types.FloatArray]:
-        """Young's modulus"""
-        return self.__E
+    E: float = _params.PositiveParameter()
+    """Young's modulus"""
 
-    @E.setter
-    def E(self, value):
-        _params._CheckIsPositive(value)
-        self.Need_Update()
-        self.__E = value
-
-    @property
-    def v(self) -> Union[float, _types.FloatArray]:
-        """Poisson's ratio"""
-        return self.__v
-
-    @v.setter
-    def v(self, value: float):
-        _params._CheckIsInIntervalcc(value, -1, 0.5)
-        self.Need_Update()
-        self.__v = value
+    v: float = _params.IntervalccParameter(inf=-1, sup=0.5)
+    """Poisson's ratio"""
 
     def get_lambda(self):
         E = self.E
@@ -487,64 +450,20 @@ class ElasIsotTrans(_Elas):
 
         return Gt
 
-    @property
-    def El(self) -> Union[float, _types.FloatArray]:
-        """Longitudinal Young's modulus."""
-        return self.__El
+    El: float = _params.PositiveParameter()
+    """Longitudinal Young's modulus."""
 
-    @El.setter
-    def El(self, value: Union[float, _types.FloatArray]):
-        _params._CheckIsPositive(value)
-        self.Need_Update()
-        self.__El = value
+    Et: float = _params.PositiveParameter()
+    """Transverse Young's modulus."""
 
-    @property
-    def Et(self) -> Union[float, _types.FloatArray]:
-        """Transverse Young's modulus."""
-        return self.__Et
+    Gl: float = _params.PositiveParameter()
+    """Longitudinal shear modulus."""
 
-    @Et.setter
-    def Et(self, value: Union[float, _types.FloatArray]):
-        _params._CheckIsPositive(value)
-        self.Need_Update()
-        self.__Et = value
+    vl: float = _params.IntervalccParameter(inf=-1, sup=0.5)
+    """Longitudinal Poisson's ratio (-1<vl<0.5)."""
 
-    @property
-    def Gl(self) -> Union[float, _types.FloatArray]:
-        """Longitudinal shear modulus."""
-        return self.__Gl
-
-    @Gl.setter
-    def Gl(self, value: Union[float, _types.FloatArray]):
-        _params._CheckIsPositive(value)
-        self.Need_Update()
-        self.__Gl = value
-
-    @property
-    def vl(self) -> Union[float, _types.FloatArray]:
-        """Longitudinal Poisson's ratio."""
-        return self.__vl
-
-    @vl.setter
-    def vl(self, value: Union[float, _types.FloatArray]):
-        # -1<vl<0.5
-        # Torquato 328
-        _params._CheckIsInIntervalcc(value, -1, 0.5)
-        self.Need_Update()
-        self.__vl = value
-
-    @property
-    def vt(self) -> Union[float, _types.FloatArray]:
-        """Transverse Poisson ratio"""
-        return self.__vt
-
-    @vt.setter
-    def vt(self, value: Union[float, _types.FloatArray]):
-        # -1<vt<1
-        # Torquato 328
-        _params._CheckIsInIntervalcc(value, -1, 1)
-        self.Need_Update()
-        self.__vt = value
+    vt: float = _params.IntervalccParameter(inf=-1, sup=1)
+    """Transverse Poisson ratio (-1<vt<1)"""
 
     @property
     def kt(self) -> Union[float, _types.FloatArray]:

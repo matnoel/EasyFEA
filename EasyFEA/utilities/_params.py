@@ -95,8 +95,8 @@ class Parameter:
         for function in self.__check_functions:
             function(value)
         self.__value = value
-        if isinstance(instance, Observable):
-            instance._Notify(f"The {self.__name} parameter has been updated.")
+        if hasattr(instance, "Need_Update"):
+            instance.Need_Update()
 
 
 class BoolParameter(Parameter):

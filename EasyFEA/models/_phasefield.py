@@ -47,6 +47,11 @@ class PhaseField(_IModel):
         def __str__(self) -> str:
             return self.name
 
+    @staticmethod
+    def Get_regularizations() -> list[ReguType]:
+        """Returns regularizations available"""
+        return list(PhaseField.ReguType)
+
     class SplitType(str, Enum):
         """Split models."""
 
@@ -75,6 +80,11 @@ class PhaseField(_IModel):
         def __str__(self) -> str:
             return self.name
 
+    @staticmethod
+    def Get_splits() -> list[SplitType]:
+        """Returns splits available"""
+        return list(PhaseField.SplitType)
+
     __SPLITS_ISOT = [SplitType.Amor, SplitType.Miehe, SplitType.Stress]
     __SPLITS_ANISOT = [
         SplitType.Bourdin,
@@ -99,6 +109,11 @@ class PhaseField(_IModel):
 
         def __str__(self) -> str:
             return self.name
+
+    @staticmethod
+    def Get_solvers() -> list[SolverType]:
+        """Returns available solvers used to manage crack irreversibility"""
+        return list(PhaseField.SolverType)
 
     def __init__(
         self,
@@ -166,42 +181,26 @@ class PhaseField(_IModel):
         text = str(self.__material)
         text += f"\n\n{type(self).__name__} :"
         text += f"\nsplit : {self.__split}"
-        text += f"\nregularization : {self.__regularization}"
-        text += f"\nGc : {self.__Gc:.4e}"
-        text += f"\nl0 : {self.__l0:.4e}"
+        text += f"\nregularization : {self.regularization}"
+        text += f"\nGc : {self.Gc:.4e}"
+        text += f"\nl0 : {self.l0:.4e}"
         return text
 
     @property
     def isHeterogeneous(self) -> bool:
-        return isinstance(self.__Gc, np.ndarray)
-
-    @staticmethod
-    def Get_splits() -> list[SplitType]:
-        """Returns splits available"""
-        return list(PhaseField.SplitType)
-
-    @staticmethod
-    def Get_regularisations() -> list[ReguType]:
-        """Returns regularizations available"""
-        __regularizations = list(PhaseField.ReguType)
-        return __regularizations
-
-    @staticmethod
-    def Get_solvers() -> list[SolverType]:
-        """Returns available solvers used to manage crack irreversibility"""
-        return list(PhaseField.SolverType)
+        return isinstance(self.Gc, np.ndarray)
 
     @property
     def k(self) -> Union[float, _types.FloatArray]:
         """get diffusion therm"""
 
-        Gc = self.__Gc
-        l0 = self.__l0
+        Gc = self.Gc
+        l0 = self.l0
 
         # J/m
-        if self.__regularization == self.ReguType.AT1:
+        if self.regularization == self.ReguType.AT1:
             k = 3 / 4 * Gc * l0
-        elif self.__regularization == self.ReguType.AT2:
+        elif self.regularization == self.ReguType.AT2:
             k = Gc * l0
         else:
             raise TypeError("regu error")
@@ -216,12 +215,12 @@ class PhaseField(_IModel):
             Gc = Reshape_variable(Gc, *PsiP_e_pg.shape[:2])
         else:
             FeArray.asfearray(Gc, True)
-        l0 = self.__l0
+        l0 = self.l0
 
         # J/m3
-        if self.__regularization == self.ReguType.AT1:
+        if self.regularization == self.ReguType.AT1:
             r = 2 * PsiP_e_pg
-        elif self.__regularization == self.ReguType.AT2:
+        elif self.regularization == self.ReguType.AT2:
             r = 2 * PsiP_e_pg + (Gc / l0)
         else:
             raise TypeError("regu error")
@@ -236,14 +235,14 @@ class PhaseField(_IModel):
             Gc = Reshape_variable(Gc, *PsiP_e_pg.shape[:2])
         else:
             Gc = FeArray.asfearray(Gc, True)
-        l0 = self.__l0
+        l0 = self.l0
 
         # J/m3
-        if self.__regularization == self.ReguType.AT1:
+        if self.regularization == self.ReguType.AT1:
             f = 2 * PsiP_e_pg - ((3 * Gc) / (8 * l0))
             absF = np.abs(f)
             f = (f + absF) / 2
-        elif self.__regularization == self.ReguType.AT2:
+        elif self.regularization == self.ReguType.AT2:
             f = 2 * PsiP_e_pg
         else:
             raise TypeError("regu error")
@@ -260,7 +259,7 @@ class PhaseField(_IModel):
 
         d_e_pg = Nd_pg @ d_e_n
 
-        if self.__regularization in self.Get_regularisations():
+        if self.regularization in self.Get_regularizations():
             g_e_pg: _types.FloatArray = (1 - d_e_pg) ** 2 + k_res
         else:
             raise Exception("Not implemented.")
@@ -302,67 +301,28 @@ class PhaseField(_IModel):
         self.Need_Update()
         self.__split = value
 
-    @property
-    def regularization(self) -> str:
-        """crack regularization model"""
-        return self.__regularization
-
-    @regularization.setter
-    def regularization(self, value: str) -> None:
-        types = self.Get_regularisations()
-        assert value in types, f"Must be included in {types}"
-        self.Need_Update()
-        self.__regularization = value
+    regularization: ReguType = _params.ParameterInValues(list(ReguType))
+    """crack regularization model"""
 
     @property
     def material(self) -> _Elas:
         """elastic material"""
         return self.__material
 
-    @property
-    def solver(self):
-        """solver used to manage crack irreversibility"""
-        return self.__solver
+    solver: SolverType = _params.ParameterInValues(list(SolverType))
+    """solver used to manage crack irreversibility"""
 
-    @solver.setter
-    def solver(self, value: str):
-        solvers = self.Get_solvers()
-        assert value in solvers, f"Must be included in {solvers}"
-        self.Need_Update()
-        self.__solver = value
+    Gc: float = _params.PositiveParameter()
 
-    @property
-    def Gc(self) -> Union[float, _types.FloatArray]:
-        """critical energy release rate (e.g. J/m^2)"""
-        if isinstance(self.__Gc, np.ndarray):
-            return self.__Gc.copy()
-        else:
-            return self.__Gc
-
-    @Gc.setter
-    def Gc(self, value: Union[float, _types.FloatArray]):
-        _params._CheckIsPositive(value)
-        self.Need_Update()
-        self.__Gc = value
-
-    @property
-    def l0(self) -> float:
-        """half crack width"""
-        return self.__l0
-
-    @l0.setter
-    def l0(self, value: float):
-        _params._CheckIsPositive(value)
-        assert isinstance(value, (int, float)), "l0 must be a homogeneous parameter"
-        self.Need_Update()
-        self.__l0 = value
+    l0: float = _params.PositiveScalarParameter()
+    """half crack width"""
 
     @property
     def c_w(self):
         """scaling parameter for accurate dissipation of crack energy"""
-        if self.__regularization == self.ReguType.AT1:
+        if self.regularization == self.ReguType.AT1:
             c_w = 8 / 3
-        elif self.__regularization == self.ReguType.AT2:
+        elif self.regularization == self.ReguType.AT2:
             c_w = 2
         else:
             raise TypeError("regu error")

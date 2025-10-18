@@ -257,27 +257,11 @@ class BeamElasIsot(_Beam):
         self.E = E
         self.v = v
 
-    @property
-    def E(self) -> float:
-        """Young's modulus"""
-        return self.__E
+    E: float = _params.PositiveParameter()
+    """Young's modulus"""
 
-    @E.setter
-    def E(self, value: float) -> None:
-        _params._CheckIsPositive(value)
-        self.Need_Update()
-        self.__E = value
-
-    @property
-    def v(self) -> float:
-        """Poisson's ratio"""
-        return self.__v
-
-    @v.setter
-    def v(self, value: float):
-        _params._CheckIsInIntervalcc(value, -1, 0.5)
-        self.Need_Update()
-        self.__v = value
+    v: float = _params.IntervalccParameter(inf=-1, sup=0.5)
+    """Poisson's ratio"""
 
     @property
     def mu(self) -> float:
@@ -292,7 +276,7 @@ class BeamElasIsot(_Beam):
         Iz = self.Iz
         J = self.J
 
-        E = self.__E
+        E = self.E
 
         if dim == 1:
             # u = [u1, . . . , un]

@@ -2,13 +2,11 @@
 # This file is part of the EasyFEA project.
 # EasyFEA is distributed under the terms of the GNU General Public License v3, see LICENSE.txt and CREDITS.md for more information.
 
-from typing import Union
-
 # utilities
 import numpy as np
 
 from ._utils import _IModel, ModelType
-from ..utilities import _params, _types
+from ..utilities import _params
 
 # ----------------------------------------------
 # Thermal
@@ -24,13 +22,9 @@ class Thermal(_IModel):
     def modelType(self) -> ModelType:
         return Thermal.__modelType
 
-    @property
-    def dim(self) -> int:
-        return self.__dim
+    dim: int = _params.ParameterInValues([1, 2, 3])
 
-    @property
-    def thickness(self) -> float:
-        return self.__thickness
+    thickness: float = _params.PositiveParameter()
 
     def __str__(self) -> str:
         text = f"\n{type(self).__name__} :"
@@ -50,7 +44,7 @@ class Thermal(_IModel):
         thickness : float, optional
             thickness of part, by default 1.0
         """
-        self.__dim = 1
+        self.dim = 1
 
         self.k = k
 
@@ -58,32 +52,13 @@ class Thermal(_IModel):
 
         self.c = c
 
-        _params._CheckIsPositive(thickness)
-        self.__thickness: float = thickness
+        self.thickness: float = thickness
 
-        self.Need_Update()
+    k = _params.PositiveParameter()
+    """thermal conductivity [W m^-1]"""
 
-    @property
-    def k(self) -> Union[float, _types.FloatArray]:
-        """thermal conductivity [W m^-1]"""
-        return self.__k
-
-    @k.setter
-    def k(self, value: Union[float, _types.FloatArray]) -> None:
-        _params._CheckIsPositive(value)
-        self.Need_Update()
-        self.__k = value
-
-    @property
-    def c(self) -> Union[float, _types.FloatArray]:
-        """mass heat capacity [J K^-1 kg^-1]"""
-        return self.__c
-
-    @c.setter
-    def c(self, value: Union[float, _types.FloatArray]) -> None:
-        _params._CheckIsInIntervaloo(value, 0, np.inf)
-        self.Need_Update()
-        self.__c = value
+    c = _params.PositiveParameter()
+    """mass heat capacity [J K^-1 kg^-1]"""
 
     @property
     def isHeterogeneous(self) -> bool:

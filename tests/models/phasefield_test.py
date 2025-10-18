@@ -20,7 +20,7 @@ from .linear_elastic_test import setup_elastic_materials
 def setup_pfm_materials(setup_elastic_materials) -> list[PhaseField]:
 
     splits = PhaseField.Get_splits()
-    regularizations = PhaseField.Get_regularisations()
+    regularizations = PhaseField.Get_regularizations()
     phaseFieldModels: list[PhaseField] = []
 
     splits_Isot = [
