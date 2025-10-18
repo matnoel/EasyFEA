@@ -264,7 +264,7 @@ class BeamElasIsot(_Beam):
 
     @E.setter
     def E(self, value: float) -> None:
-        _params.CheckIsPositive(value)
+        _params._CheckIsPositive(value)
         self.Need_Update()
         self.__E = value
 
@@ -275,7 +275,7 @@ class BeamElasIsot(_Beam):
 
     @v.setter
     def v(self, value: float):
-        _params.CheckIsInIntervalcc(value, -1, 0.5)
+        _params._CheckIsInIntervalcc(value, -1, 0.5)
         self.Need_Update()
         self.__v = value
 

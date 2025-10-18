@@ -4,10 +4,10 @@
 
 from ._observers import Observable, _IObserver
 from ._params import (
-    CheckIsPositive,
-    CheckIsNegative,
-    CheckIsInIntervalcc,
-    CheckIsInIntervaloo,
+    _CheckIsPositive,
+    _CheckIsNegative,
+    _CheckIsInIntervalcc,
+    _CheckIsInIntervaloo,
 )
 from ._tic import Tic
 from ._types import Number, Numbers, Axes, FloatArray, IntArray, AnyArray, Coords

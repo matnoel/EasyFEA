@@ -58,7 +58,7 @@ class Thermal(_IModel):
 
         self.c = c
 
-        _params.CheckIsPositive(thickness)
+        _params._CheckIsPositive(thickness)
         self.__thickness: float = thickness
 
         self.Need_Update()
@@ -70,7 +70,7 @@ class Thermal(_IModel):
 
     @k.setter
     def k(self, value: Union[float, _types.FloatArray]) -> None:
-        _params.CheckIsPositive(value)
+        _params._CheckIsPositive(value)
         self.Need_Update()
         self.__k = value
 
@@ -81,7 +81,7 @@ class Thermal(_IModel):
 
     @c.setter
     def c(self, value: Union[float, _types.FloatArray]) -> None:
-        _params.CheckIsInIntervaloo(value, 0, np.inf)
+        _params._CheckIsInIntervaloo(value, 0, np.inf)
         self.Need_Update()
         self.__c = value
 

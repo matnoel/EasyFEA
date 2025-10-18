@@ -53,7 +53,7 @@ class Circle(_Geom):
             normal direction to the circle, by default (0,0,1)
         """
 
-        _params.CheckIsPositive(diam)
+        _params._CheckIsPositive(diam)
 
         center = AsPoint(center)
 
@@ -264,7 +264,7 @@ class CircleArc(_Geom):
         mat = np.array([i, j, k]).T
 
         # midpoint coordinates
-        _params.CheckIsInIntervaloo(coef, -1, 1)
+        _params._CheckIsInIntervaloo(coef, -1, 1)
         pt3 = center.coord + mat @ [coef * r1, 0, 0]
 
         self.pt3 = Point(*pt3)

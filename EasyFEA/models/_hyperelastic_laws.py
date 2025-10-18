@@ -164,7 +164,7 @@ class NeoHookean(_HyperElas):
 
     @K.setter
     def K(self, value):
-        _params.CheckIsPositive(value)
+        _params._CheckIsPositive(value)
         self.Need_Update()
         self.__K = value
 
@@ -257,7 +257,7 @@ class MooneyRivlin(_HyperElas):
 
     @K1.setter
     def K1(self, value):
-        _params.CheckIsPositive(value)
+        _params._CheckIsPositive(value)
         self.Need_Update()
         self.__K1 = value
 
@@ -388,7 +388,7 @@ class SaintVenantKirchhoff(_HyperElas):
 
     @mu.setter
     def mu(self, value):
-        _params.CheckIsPositive(value)
+        _params._CheckIsPositive(value)
         self.Need_Update()
         self.__mu = value
 
