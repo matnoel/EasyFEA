@@ -74,10 +74,9 @@ def setup_elastic_materials() -> list[_Elas]:
             axis2_2 = np.array([-np.sin(tetha), np.cos(tetha), 0])
 
             elasticMaterials.append(ElasAnisot(2, C_voigt2D, True, axis1_1, axis2_1))
-
-            elasticMaterials.append(ElasAnisot(2, C_voigt2D, True, axis1_1, axis2_1))
+            elasticMaterials.append(ElasAnisot(2, C_voigt2D, False, axis1_1, axis2_1))
             elasticMaterials.append(ElasAnisot(2, C_voigt2D, True, axis1_2, axis2_2))
-            elasticMaterials.append(ElasAnisot(2, C_voigt2D, True, axis1_2, axis2_2))
+            elasticMaterials.append(ElasAnisot(2, C_voigt2D, False, axis1_2, axis2_2))
 
     return elasticMaterials
 
