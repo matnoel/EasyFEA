@@ -8,7 +8,7 @@ from scipy.optimize import minimize
 from collections.abc import Iterable
 
 from typing import Union
-from ..utilities import _types
+from ..utilities import _types, _params
 from functools import singledispatch
 
 
@@ -16,6 +16,12 @@ class Point:
     """Point class."""
 
     PointALike = Union["Point", _types.Coords]
+
+    r: float = _params.ScalarParameter()
+    """radius used for fillet"""
+
+    isOpen: bool = _params.BoolParameter()
+    """point is open"""
 
     def __init__(
         self,
@@ -51,7 +57,7 @@ class Point:
 
     @x.setter
     def x(self, value: _types.Number) -> None:
-        assert isinstance(value, (float, int))
+        _params._CheckIsScalar(value)
         self.__coord[0] = value
 
     @property
@@ -61,7 +67,7 @@ class Point:
 
     @y.setter
     def y(self, value: _types.Number) -> None:
-        assert isinstance(value, (float, int))
+        _params._CheckIsScalar(value)
         self.__coord[1] = value
 
     @property
@@ -71,17 +77,8 @@ class Point:
 
     @z.setter
     def z(self, value: _types.Number) -> None:
-        assert isinstance(value, (float, int))
+        _params._CheckIsScalar(value)
         self.__coord[2] = value
-
-    @property
-    def r(self) -> float:
-        """radius used for fillet"""
-        return self.__r
-
-    @r.setter
-    def r(self, value: _types.Number) -> None:
-        self.__r = value
 
     @property
     def coord(self) -> _types.FloatArray:
@@ -92,16 +89,6 @@ class Point:
     def coord(self, value: _types.Coords) -> None:
         coord = AsCoords(value)
         self.__coord = coord
-
-    @property
-    def isOpen(self) -> bool:
-        """point is open"""
-        return self.__isOpen
-
-    @isOpen.setter
-    def isOpen(self, value: bool) -> None:
-        assert isinstance(value, bool)
-        self.__isOpen = value
 
     def Check(self, coord: Union["Point", _types.Coords]) -> bool:
         """Checks if coordinates are identical"""

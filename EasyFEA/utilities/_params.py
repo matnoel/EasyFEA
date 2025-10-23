@@ -16,6 +16,11 @@ def _CheckIsBool(value: bool) -> None:
     assert isinstance(value, bool), "Must be a boolean."
 
 
+def _CheckIsString(value: str) -> None:
+    """Checks whether the value is a string"""
+    assert isinstance(value, str), "Must be a string."
+
+
 def _CheckIsScalar(value: Union[_types.Number, _types.Numbers]) -> None:
     """Checks whether the value is positive"""
     assert isinstance(value, (int, float)), "must be a scalar value"
@@ -129,6 +134,16 @@ class Parameter:
 class BoolParameter(Parameter):
     def __init__(self):
         super().__init__(check_functions=[_CheckIsBool])
+
+
+class StringParameter(Parameter):
+    def __init__(self):
+        super().__init__(check_functions=[_CheckIsString])
+
+
+class ScalarParameter(Parameter):
+    def __init__(self):
+        super().__init__(check_functions=[partial(_CheckIsScalar)])
 
 
 class PositiveParameter(Parameter):

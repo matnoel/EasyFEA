@@ -12,7 +12,7 @@ from ._utils import Point, Rotate, Symmetry
 
 from ..fem._utils import ElemType
 from typing import Union, Optional, Iterable, TYPE_CHECKING
-from ..utilities import _types
+from ..utilities import _types, _params
 
 if TYPE_CHECKING:
     from ..geoms import Point, Line, Circle, CircleArc, Points, Contour, Domain
@@ -26,6 +26,18 @@ class _Geom(ABC):
     """Geometric class."""
 
     GeomCompatible = Union["_Geom", "Domain", "Circle", "Points", "Contour"]
+
+    meshSize: float = _params.PositiveScalarParameter()
+    """Element size used for meshing."""
+
+    name: str = _params.StringParameter()
+    """Name of the geometric object."""
+
+    isHollow: bool = _params.BoolParameter()
+    """Indicates whether the formed geometry is hollow."""
+
+    isOpen: bool = _params.BoolParameter()
+    """Indicates whether the geometry is open, typically to model cracks."""
 
     def __init__(
         self,
@@ -63,16 +75,6 @@ class _Geom(ABC):
 
     # TODO Add a To_Mesh_Function() ?
 
-    @property
-    def meshSize(self) -> float:
-        """Element size used for meshing."""
-        return self.__meshSize
-
-    @meshSize.setter
-    def meshSize(self, value) -> None:
-        assert value >= 0, "meshSize must be >= 0"
-        self.__meshSize = value
-
     # points doesn't have a public setter for safety
     @property
     def points(self) -> list[Point]:
@@ -102,36 +104,6 @@ class _Geom(ABC):
         new = copy.deepcopy(self)
         new.name = new.name + "_copy"
         return new
-
-    @property
-    def name(self) -> str:
-        """Name of the geometric object."""
-        return self.__name
-
-    @name.setter
-    def name(self, val: str) -> None:
-        assert isinstance(val, str), "must be a string"
-        self.__name = val
-
-    @property
-    def isHollow(self) -> bool:
-        """Indicates whether the formed geometry is hollow."""
-        return self.__isHollow
-
-    @isHollow.setter
-    def isHollow(self, value: bool) -> None:
-        assert isinstance(value, bool), "must be a boolean"
-        self.__isHollow = value
-
-    @property
-    def isOpen(self) -> bool:
-        """Indicates whether the geometry is open, typically to model cracks."""
-        return self.__isOpen
-
-    @isOpen.setter
-    def isOpen(self, value: bool) -> None:
-        assert isinstance(value, bool), "must be a boolean"
-        self.__isOpen = value
 
     def Translate(self, dx: float = 0.0, dy: float = 0.0, dz: float = 0.0) -> None:
         """Translates the geometry in 3D space.
