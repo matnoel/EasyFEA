@@ -2,6 +2,20 @@
 
 This document describes the changes made to the project.
 
+## 1.5.4 (October 23, 2025):
+
+- Fixed issue [#23](https://github.com/matnoel/EasyFEA/issues/23): Descriptors are now used to simplify property creation in classes.
+- Fixed issue [#24](https://github.com/matnoel/EasyFEA/issues/24): Introduced the `Construct_matrix_system` function and removed all `Assembly` functions. This reduces the amount of code required for each simulation.
+- Fixed a bug in the `_Create_Lines` dispatch methods.
+- Updated the `_Write_solution_file` function in `utilities.Vizir.py`.
+- Fixed a bug in `Get_pointsInElem` caused by `nan` values in normalized arrays.
+- Added the `mesh.Evaluate_dofsValues_at_coordinates` function.
+- Added the `HolzapfelOgden` hyperelastic law in the `examples/HyperElastic/HyperElasticLaws.py` script.
+- Removed the `useNumba` property from `simu` and `models`.
+- Removed the `dim` argument from the `Thermal` model.
+- Updated functions in `EasyFEA/utilities/_params.py`.
+- Clarified tests for `phasefield`.
+
 ## 1.5.3 (October 1, 2025):
 
 - Added the `I8` invariant to the `examples/HyperElastic/HyperElasticInvariants.py` script.
