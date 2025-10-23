@@ -136,15 +136,15 @@ class PhaseField(_IModel):
     l0: float = _params.PositiveScalarParameter()
     """half crack width"""
 
+    solver: SolverType = _params.ParameterInValues(list(SolverType))
+    """solver used to manage crack irreversibility"""
+
     def __check_A(self, array: np.ndarray):
         dim = self.dim
         shape = (dim, dim)
         error = f"Must be an array of dimension {shape}"
         assert isinstance(array, np.ndarray)
         assert array.shape[-2:] == shape, error
-
-    solver: SolverType = _params.ParameterInValues(list(SolverType))
-    """solver used to manage crack irreversibility"""
 
     A = _params.Parameter([partialmethod(__check_A)])
     """matrix characterizing the weak anisotropy in the crack surface density function"""
