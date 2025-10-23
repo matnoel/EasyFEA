@@ -2,12 +2,13 @@
 # This file is part of the EasyFEA project.
 # EasyFEA is distributed under the terms of the GNU General Public License v3, see LICENSE.txt and CREDITS.md for more information.
 
+from abc import ABC, abstractmethod
 from typing import Union, Iterable, Callable
 from functools import partial
 import numpy as np
 import copy
 
-from . import _types, Observable
+from . import _types
 
 
 def _CheckIsBool(value: bool) -> None:
@@ -76,13 +77,30 @@ def _CheckIsInValues(value, values: Iterable) -> None:
     assert value in values, errorText
 
 
+class Updatable(ABC):
+
+    @abstractmethod
+    def Need_Update(self, value=True) -> None:
+        """Indicates whether the object needs to be updated."""
+        self.__needUpdate = value
+
+    @property
+    def needUpdate(self) -> bool:
+        """The object needs to be updated."""
+        try:
+            return self.__needUpdate
+        except AttributeError:
+            self.__needUpdate = True
+            return self.__needUpdate
+
+
 class Parameter:
 
     def __set_name__(self, owner, name):
         self.__name = name
 
     def __get__(self, instance, owner):
-        return copy.copy(self.__value)
+        return copy.copy(instance.__dict__[self.__name])
 
     def __init__(self, check_functions: list[Callable] = []):
         error = "check_functions must be a list of function."
@@ -94,8 +112,8 @@ class Parameter:
     def __set__(self, instance, value):
         for function in self.__check_functions:
             function(value)
-        self.__value = value
-        if hasattr(instance, "Need_Update"):
+        instance.__dict__[self.__name] = value
+        if isinstance(instance, Updatable):
             instance.Need_Update()
 
 

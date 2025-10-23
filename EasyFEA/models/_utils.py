@@ -9,6 +9,7 @@ from enum import Enum
 # utilities
 from ..utilities._observers import Observable
 from ..utilities import _types
+from ..utilities._params import Updatable
 from ..fem._linalg import FeArray
 import numpy as np
 
@@ -37,7 +38,7 @@ class ModelType(str, Enum):
         return list(cls)
 
 
-class _IModel(ABC, Observable):
+class _IModel(Observable, Updatable, ABC):
     """Model interface."""
 
     @property
@@ -58,16 +59,10 @@ class _IModel(ABC, Observable):
         """thickness used in the model"""
         pass
 
-    @property
-    def needUpdate(self) -> bool:
-        """the model needs to be updated"""
-        return self.__needUpdate
-
-    def Need_Update(self, value=True) -> None:
-        """Indicates whether the model needs to be updated."""
-        self.__needUpdate = value
+    def Need_Update(self, value=True):
+        super().Need_Update(value)
         if value:
-            self._Notify("The model has been modified")
+            self._Notify("The model has been modified.")
 
     @property
     def isHeterogeneous(self) -> bool:

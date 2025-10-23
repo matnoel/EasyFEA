@@ -38,7 +38,7 @@ from .Solvers import Solve_simu, _Solve_Axb, _Available_Solvers, ResolType, Algo
 # ----------------------------------------------
 # _Simu
 # ----------------------------------------------
-class _Simu(_IObserver, ABC):
+class _Simu(_IObserver, _params.Updatable, ABC):
     """
     The following classes inherit from the parent class _Simu:
         - ElasticSimu
@@ -544,11 +544,6 @@ class _Simu(_IObserver, ABC):
         self.__mesh = self.__listMesh[indexMesh]
         self.Need_Update()  # need to reconstruct matrices
 
-    @property
-    def needUpdate(self) -> bool:
-        """The simulation needs to reconstruct matrices K, C, and M."""
-        return self.__needUpdate
-
     def _Update(self, observable: Observable, event: str) -> None:
         if isinstance(observable, _IModel):
             self.Need_Update()
@@ -558,9 +553,9 @@ class _Simu(_IObserver, ABC):
         else:
             Display.MyPrintError("Notification not yet implemented")
 
-    def Need_Update(self, value=True) -> None:
+    def Need_Update(self, value=True):
         """Sets whether the simulation needs to reconstruct matrices K, C, M and F."""
-        self.__needUpdate = value
+        return super().Need_Update(value)
 
     # ----------------------------------------------
     # Solver
@@ -1611,16 +1606,20 @@ class _Simu(_IObserver, ABC):
 
         self.__Check_problemTypes(problemType)
 
-        if self.__dim == 2:
+        dim = self.mesh.dim
+
+        if dim == 2:
             dofsValues, dofs, nodes = self.__Bc_lineLoad(
                 problemType, nodes, values, unknowns
             )
             # multiplied by thickness
             dofsValues *= self.model.thickness
-        elif self.__dim == 3:
+        elif dim == 3:
             dofsValues, dofs, nodes = self.__Bc_surfload(
                 problemType, nodes, values, unknowns
             )
+        else:
+            raise NotImplementedError("Unknown configuration.")
 
         self._Bc_Add_Neumann(
             problemType, nodes, dofsValues, dofs, unknowns, description
@@ -1703,16 +1702,20 @@ class _Simu(_IObserver, ABC):
 
         self.__Check_problemTypes(problemType)
 
-        if self.__dim == 2:
+        dim = self.mesh.dim
+
+        if dim == 2:
             dofsValues, dofs, nodes = self.__Bc_surfload(
                 problemType, nodes, values, unknowns
             )
             # multiplied by thickness
             dofsValues = dofsValues * self.model.thickness
-        elif self.__dim == 3:
+        elif dim == 3:
             dofsValues, dofs, nodes = self.__Bc_volumeload(
                 problemType, nodes, values, unknowns
             )
+        else:
+            raise NotImplementedError("Unknown configuration.")
 
         self._Bc_Add_Neumann(
             problemType, nodes, dofsValues, dofs, unknowns, description
