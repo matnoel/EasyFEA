@@ -4,6 +4,7 @@
 
 from typing import Union, Optional, TYPE_CHECKING
 from enum import Enum
+from functools import partialmethod
 
 # utilities
 import numpy as np
@@ -115,6 +116,39 @@ class PhaseField(_IModel):
         """Returns available solvers used to manage crack irreversibility"""
         return list(PhaseField.SolverType)
 
+    def __check_split(self, value):
+        splits = self.Get_splits()
+        assert value in splits, f"Must be included in {splits}"
+        if not isinstance(self.material, ElasIsot):
+            # check that if the material is not a isotropic material you cant pick a isotoprpic split
+            error = f"The split {value} are only implemented for ElasIsot material"
+            assert value not in PhaseField.__SPLITS_ISOT, error
+
+    split: SplitType = _params.Parameter([partialmethod(__check_split)])
+    """split used to decompose the elastic energy density"""
+
+    regularization: ReguType = _params.ParameterInValues(list(ReguType))
+    """crack regularization model"""
+
+    Gc: float = _params.PositiveParameter()
+    """critical energy release rate"""
+
+    l0: float = _params.PositiveScalarParameter()
+    """half crack width"""
+
+    def __check_A(self, array: np.ndarray):
+        dim = self.dim
+        shape = (dim, dim)
+        error = f"Must be an array of dimension {shape}"
+        assert isinstance(array, np.ndarray)
+        assert array.shape[-2:] == shape, error
+
+    solver: SolverType = _params.ParameterInValues(list(SolverType))
+    """solver used to manage crack irreversibility"""
+
+    A = _params.Parameter([partialmethod(__check_A)])
+    """matrix characterizing the weak anisotropy in the crack surface density function"""
+
     def __init__(
         self,
         material: _Elas,
@@ -161,6 +195,8 @@ class PhaseField(_IModel):
 
         self.solver = solver
 
+        if A is None:
+            A = np.eye(self.dim)
         self.A = A  # type: ignore
 
         self.__useNumba = False
@@ -180,7 +216,7 @@ class PhaseField(_IModel):
     def __str__(self) -> str:
         text = str(self.__material)
         text += f"\n\n{type(self).__name__} :"
-        text += f"\nsplit : {self.__split}"
+        text += f"\nsplit : {self.split}"
         text += f"\nregularization : {self.regularization}"
         text += f"\nGc : {self.Gc:.4e}"
         text += f"\nl0 : {self.l0:.4e}"
@@ -270,52 +306,9 @@ class PhaseField(_IModel):
         return FeArray.asfearray(g_e_pg)
 
     @property
-    def A(self) -> _types.FloatArray:
-        """matrix characterizing the weak anisotropy in the crack surface density function"""
-        return self.__A.copy()
-
-    @A.setter
-    def A(self, array: _types.FloatArray) -> None:
-        dim = self.dim
-        if not isinstance(array, np.ndarray):
-            array = np.eye(dim)
-        shape = (dim, dim)
-        assert array.shape[-2:] == shape, f"Must an array of dimension {shape}"
-        self.Need_Update()
-        self.__A = array
-
-    @property
-    def split(self) -> str:
-        """split used to decompose the elastic energy density"""
-        return self.__split
-
-    @split.setter
-    def split(self, value: str) -> None:
-        splits = self.Get_splits()
-        assert value in splits, f"Must be included in {splits}"
-        if not isinstance(self.material, ElasIsot):
-            # check that if the material is not a isotropic material you cant pick a isotoprpic split
-            assert (
-                value not in PhaseField.__SPLITS_ISOT
-            ), "These splits are only implemented for ElasIsot material"
-        self.Need_Update()
-        self.__split = value
-
-    regularization: ReguType = _params.ParameterInValues(list(ReguType))
-    """crack regularization model"""
-
-    @property
     def material(self) -> _Elas:
         """elastic material"""
         return self.__material
-
-    solver: SolverType = _params.ParameterInValues(list(SolverType))
-    """solver used to manage crack irreversibility"""
-
-    Gc: float = _params.PositiveParameter()
-
-    l0: float = _params.PositiveScalarParameter()
-    """half crack width"""
 
     @property
     def c_w(self):
@@ -407,19 +400,19 @@ class PhaseField(_IModel):
 
         Ne, nPg = Epsilon_e_pg.shape[:2]
 
-        if self.__split == self.SplitType.Bourdin:
+        if self.split == self.SplitType.Bourdin:
             cP_e_pg, cM_e_pg = self.__Split_Bourdin(Ne, nPg)
 
-        elif self.__split == self.SplitType.Amor:
+        elif self.split == self.SplitType.Amor:
             cP_e_pg, cM_e_pg = self.__Split_Amor(Epsilon_e_pg)
 
-        elif self.__split == self.SplitType.Miehe or "Strain" in self.__split:
+        elif self.split == self.SplitType.Miehe or "Strain" in self.split:
             cP_e_pg, cM_e_pg = self.__Split_Strain(Epsilon_e_pg, verif=verif)
 
-        elif self.__split == self.SplitType.Zhang or "Stress" in self.__split:
+        elif self.split == self.SplitType.Zhang or "Stress" in self.split:
             cP_e_pg, cM_e_pg = self.__Split_Stress(Epsilon_e_pg, verif=verif)
 
-        elif self.__split == self.SplitType.He:
+        elif self.split == self.SplitType.He:
             cP_e_pg, cM_e_pg = self.__Split_He(Epsilon_e_pg, verif=verif)
         else:
             raise TypeError("split error")
@@ -517,7 +510,7 @@ class PhaseField(_IModel):
 
         tic = Tic()
 
-        if self.__split == self.SplitType.Miehe:
+        if self.split == self.SplitType.Miehe:
             # [Miehe 2010] DOI : 10.1016/j.cma.2010.04.011
 
             assert isinstance(
@@ -548,7 +541,7 @@ class PhaseField(_IModel):
             cP_e_pg = lamb * (Rp_e_pg * IxI) + 2 * mu * projP_e_pg
             cM_e_pg = lamb * (Rm_e_pg * IxI) + 2 * mu * projM_e_pg
 
-        elif "Strain" in self.__split:
+        elif "Strain" in self.split:
             # here don't use numba if behavior is heterogeneous
             if self.__useNumba and not self.isHeterogeneous:
                 # Faster (x2) but not available for heterogeneous material (memory issues)
@@ -568,19 +561,19 @@ class PhaseField(_IModel):
                 Cmm = projMTc @ projM_e_pg
                 Cmp = projMTc @ projP_e_pg
 
-            if self.__split == self.SplitType.AnisotStrain:
+            if self.split == self.SplitType.AnisotStrain:
                 cP_e_pg = Cpp + Cpm + Cmp
                 cM_e_pg = Cmm
 
-            elif self.__split == self.SplitType.AnisotStrain_PM:
+            elif self.split == self.SplitType.AnisotStrain_PM:
                 cP_e_pg = Cpp + Cpm
                 cM_e_pg = Cmm + Cmp
 
-            elif self.__split == self.SplitType.AnisotStrain_MP:
+            elif self.split == self.SplitType.AnisotStrain_MP:
                 cP_e_pg = Cpp + Cmp
                 cM_e_pg = Cmm + Cpm
 
-            elif self.__split == self.SplitType.AnisotStrain_NoCross:
+            elif self.split == self.SplitType.AnisotStrain_NoCross:
                 cP_e_pg = Cpp
                 cM_e_pg = Cmm + Cpm + Cmp
 
@@ -612,7 +605,7 @@ class PhaseField(_IModel):
 
         tic = Tic()
 
-        if self.__split == self.SplitType.Stress:
+        if self.split == self.SplitType.Stress:
             assert isinstance(material, ElasIsot)
 
             E = material.E
@@ -662,11 +655,11 @@ class PhaseField(_IModel):
                 cP_e_pg = C_e_pg.T @ sP_e_pg @ C_e_pg
                 cM_e_pg = C_e_pg.T @ sM_e_pg @ C_e_pg
 
-        elif self.__split == self.SplitType.Zhang or "Stress" in self.__split:
+        elif self.split == self.SplitType.Zhang or "Stress" in self.split:
             Cp_e_pg = projP_e_pg @ C_e_pg
             Cm_e_pg = projM_e_pg @ C_e_pg
 
-            if self.__split == self.SplitType.Zhang:
+            if self.split == self.SplitType.Zhang:
                 # [Zhang 2020] DOI : 10.1016/j.cma.2019.112643
                 cP_e_pg = Cp_e_pg
                 cM_e_pg = Cm_e_pg
@@ -690,19 +683,19 @@ class PhaseField(_IModel):
                     Cmm = ms @ Cm_e_pg
                     Cmp = ms @ Cp_e_pg
 
-                if self.__split == self.SplitType.AnisotStress:
+                if self.split == self.SplitType.AnisotStress:
                     cP_e_pg = Cpp + Cpm + Cmp
                     cM_e_pg = Cmm
 
-                elif self.__split == self.SplitType.AnisotStress_PM:
+                elif self.split == self.SplitType.AnisotStress_PM:
                     cP_e_pg = Cpp + Cpm
                     cM_e_pg = Cmm + Cmp
 
-                elif self.__split == self.SplitType.AnisotStress_MP:
+                elif self.split == self.SplitType.AnisotStress_MP:
                     cP_e_pg = Cpp + Cmp
                     cM_e_pg = Cmm + Cpm
 
-                elif self.__split == self.SplitType.AnisotStress_NoCross:
+                elif self.split == self.SplitType.AnisotStress_NoCross:
                     cP_e_pg = Cpp
                     cM_e_pg = Cmm + Cpm + Cmp
 

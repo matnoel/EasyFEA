@@ -4,7 +4,7 @@
 
 from abc import ABC, abstractmethod
 from typing import Union, Iterable, Callable
-from functools import partial
+from functools import partial, partialmethod
 import numpy as np
 import copy
 
@@ -106,12 +106,21 @@ class Parameter:
         error = "check_functions must be a list of function."
         assert isinstance(check_functions, Iterable), error
         for function in check_functions:
-            assert isinstance(function, Callable), error
+            # fmt: off
+            assert (
+                isinstance(function, Callable) or
+                isinstance(function, partialmethod)
+            ), error
+            # fmt: on
         self.__check_functions = check_functions
 
     def __set__(self, instance, value):
         for function in self.__check_functions:
-            function(value)
+            if isinstance(function, partialmethod):
+                function = function.__get__(instance, type(instance))
+                function(value)
+            else:
+                function(value)
         instance.__dict__[self.__name] = value
         if isinstance(instance, Updatable):
             instance.Need_Update()

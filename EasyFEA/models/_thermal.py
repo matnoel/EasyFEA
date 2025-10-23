@@ -16,20 +16,25 @@ from ..utilities import _params
 class Thermal(_IModel):
     """Thermal class."""
 
-    __modelType = ModelType.thermal
-
     @property
     def modelType(self) -> ModelType:
-        return Thermal.__modelType
+        return ModelType.thermal
 
-    dim: int = _params.ParameterInValues([1, 2, 3])
+    dim: int = _params.ParameterInValues([1])
+
+    # ThermalModel Anisot with different diffusion coefficients for each direction! k becomes a matrix
+    k = _params.PositiveParameter()
+    """thermal conductivity [W m^-1]"""
+
+    c = _params.PositiveParameter()
+    """mass heat capacity [J K^-1 kg^-1]"""
 
     thickness: float = _params.PositiveParameter()
 
     def __str__(self) -> str:
         text = f"\n{type(self).__name__} :"
-        text += f"\nthermal conductivity (k)  : {self.__k}"
-        text += f"\nthermal mass capacity (c) : {self.__c}"
+        text += f"\nthermal conductivity (k)  : {self.k}"
+        text += f"\nthermal mass capacity (c) : {self.c}"
         return text
 
     def __init__(self, k: float, c=0.0, thickness: float = 1.0):
@@ -45,20 +50,9 @@ class Thermal(_IModel):
             thickness of part, by default 1.0
         """
         self.dim = 1
-
         self.k = k
-
-        # ThermalModel Anisot with different diffusion coefficients for each direction! k becomes a matrix
-
         self.c = c
-
-        self.thickness: float = thickness
-
-    k = _params.PositiveParameter()
-    """thermal conductivity [W m^-1]"""
-
-    c = _params.PositiveParameter()
-    """mass heat capacity [J K^-1 kg^-1]"""
+        self.thickness = thickness
 
     @property
     def isHeterogeneous(self) -> bool:

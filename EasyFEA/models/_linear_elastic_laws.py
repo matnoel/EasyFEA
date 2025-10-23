@@ -37,9 +37,7 @@ class _Elas(_IModel, ABC):
 
     def __init__(self, dim: int, thickness: float, planeStress: bool):
         self.dim = dim
-
         self.planeStress = planeStress
-
         self.thickness = thickness
 
     @property
@@ -89,6 +87,7 @@ class _Elas(_IModel, ABC):
             self.Need_Update(False)
         return self.__C.copy()
 
+    # 23 Cannot be a descriptor due to conflict with `__sqrt_C`.
     @C.setter
     def C(self, array: _types.FloatArray):
         assert isinstance(array, np.ndarray), "must be an array"
@@ -103,6 +102,7 @@ class _Elas(_IModel, ABC):
     def isHeterogeneous(self) -> bool:
         return len(self.C.shape) > 2
 
+    # 23 Cannot be a descriptor due to conflict with `__sqrt_S`.
     @property
     def S(self) -> _types.FloatArray:
         """Compliance matrix in Kelvin Mandel notation such that:\n
@@ -195,6 +195,12 @@ class _Elas(_IModel, ABC):
 class ElasIsot(_Elas):
     """Isotropic Linearized Elastic material."""
 
+    E: float = _params.PositiveParameter()
+    """Young's modulus"""
+
+    v: float = _params.IntervalccParameter(inf=-1, sup=0.5)
+    """Poisson's ratio (-1<v<0.5)"""
+
     def __str__(self) -> str:
         text = f"{type(self).__name__}:"
         text += f"\nE = {self.E:.2e}, v = {self.v}"
@@ -228,12 +234,6 @@ class ElasIsot(_Elas):
         C, S = self._Behavior(self.dim)
         self.C = C
         self.S = S
-
-    E: float = _params.PositiveParameter()
-    """Young's modulus"""
-
-    v: float = _params.IntervalccParameter(inf=-1, sup=0.5)
-    """Poisson's ratio"""
 
     def get_lambda(self):
         E = self.E
@@ -373,6 +373,21 @@ class ElasIsot(_Elas):
 class ElasIsotTrans(_Elas):
     """Transversely Isotropic Linearized Elastic material."""
 
+    El: float = _params.PositiveParameter()
+    """Longitudinal Young's modulus."""
+
+    Et: float = _params.PositiveParameter()
+    """Transverse Young's modulus."""
+
+    Gl: float = _params.PositiveParameter()
+    """Longitudinal shear modulus."""
+
+    vl: float = _params.IntervalccParameter(inf=-1, sup=0.5)
+    """Longitudinal Poisson's ratio (-1<vl<0.5)."""
+
+    vt: float = _params.IntervalccParameter(inf=-1, sup=1)
+    """Transverse Poisson ratio (-1<vt<1)"""
+
     def __str__(self) -> str:
         text = f"{type(self).__name__}:"
         text += f"\nEl = {self.El:.2e}, Et = {self.Et:.2e}, Gl = {self.Gl:.2e}"
@@ -449,21 +464,6 @@ class ElasIsotTrans(_Elas):
         Gt = Et / (2 * (1 + vt))
 
         return Gt
-
-    El: float = _params.PositiveParameter()
-    """Longitudinal Young's modulus."""
-
-    Et: float = _params.PositiveParameter()
-    """Transverse Young's modulus."""
-
-    Gl: float = _params.PositiveParameter()
-    """Longitudinal shear modulus."""
-
-    vl: float = _params.IntervalccParameter(inf=-1, sup=0.5)
-    """Longitudinal Poisson's ratio (-1<vl<0.5)."""
-
-    vt: float = _params.IntervalccParameter(inf=-1, sup=1)
-    """Transverse Poisson ratio (-1<vt<1)"""
 
     @property
     def kt(self) -> Union[float, _types.FloatArray]:

@@ -26,18 +26,17 @@ class _HyperElas(_IModel, ABC):
     NeoHookean, MooneyRivlin and SaintVenantKirchhoff inherit from _HyperElas class.
     """
 
+    dim: float = _params.ParameterInValues([1, 2, 3])
+
+    thickness: float = _params.PositiveParameter()
+
     def __init__(self, dim: int, thickness: float):
         self.dim = dim
-
         self.thickness = thickness
 
     @property
     def modelType(self) -> ModelType:
         return ModelType.hyperelastic
-
-    dim: float = _params.ParameterInValues([1, 2, 3])
-
-    thickness: float = _params.PositiveParameter()
 
     @property
     def coef(self) -> float:
@@ -130,6 +129,10 @@ class _HyperElas(_IModel, ABC):
 
 
 class NeoHookean(_HyperElas):
+
+    K: float = _params.PositiveParameter()
+    """Bulk modulus"""
+
     def __init__(self, dim: int, K: Union[float, _types.FloatArray], thickness=1.0):
         """Creates an Neo-Hookean material.
 
@@ -146,9 +149,6 @@ class NeoHookean(_HyperElas):
         _HyperElas.__init__(self, dim, thickness)
 
         self.K = K
-
-    K: float = _params.PositiveParameter()
-    """Bulk modulus"""
 
     def Compute_W(self, mesh, u, matrixType=MatrixType.rigi) -> FeArray:
         K = self.K
@@ -206,6 +206,13 @@ class NeoHookean(_HyperElas):
 
 
 class MooneyRivlin(_HyperElas):
+
+    K1: float = _params.PositiveParameter()
+    """Kappa1"""
+
+    K2: float = _params.PositiveParameter()
+    """Kappa2"""
+
     def __init__(
         self,
         dim: int,
@@ -231,12 +238,6 @@ class MooneyRivlin(_HyperElas):
 
         self.K1 = K1
         self.K2 = K2
-
-    K1: float = _params.PositiveParameter()
-    """Kappa1"""
-
-    K2: float = _params.PositiveParameter()
-    """Kappa2"""
 
     def Compute_W(self, mesh, u, matrixType=MatrixType.rigi) -> FeArray:
         K1 = self.K1
@@ -311,6 +312,13 @@ class MooneyRivlin(_HyperElas):
 
 
 class SaintVenantKirchhoff(_HyperElas):
+
+    lmbda: float = _params.Parameter()
+    """Lame's first parameter"""
+
+    mu: float = _params.PositiveParameter()
+    """Shear modulus"""
+
     def __init__(
         self,
         dim: int,
@@ -336,12 +344,6 @@ class SaintVenantKirchhoff(_HyperElas):
 
         self.lmbda = lmbda
         self.mu = mu
-
-    lmbda: float = _params.Parameter()
-    """Lame's first parameter"""
-
-    mu: float = _params.PositiveParameter()
-    """Shear modulus"""
 
     def Compute_W(self, mesh, u, matrixType=MatrixType.rigi) -> FeArray:
         lmbda = self.lmbda

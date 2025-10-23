@@ -9,10 +9,13 @@ from typing import Optional, Union
 from ..fem import Field, BiLinearForm, LinearForm
 
 from ._utils import _IModel, ModelType
+from ..utilities import _params
 
 
 class WeakForms(_IModel):
     """Class responsible for computing the finite element matrices used in the system \( K u + C v + M a = F \)."""
+
+    thickness = _params.PositiveParameter()
 
     def __init__(
         self,
@@ -47,9 +50,7 @@ class WeakForms(_IModel):
         self.__computeC = computeC
         self.__computeM = computeM
         self.__computeF = computeF
-
-        assert thickness > 0, "Must be greater than 0"
-        self.__thickness = thickness
+        self.thickness = thickness
 
     @property
     def field(self) -> Field:
@@ -83,7 +84,3 @@ class WeakForms(_IModel):
     @property
     def dim(self) -> int:
         return self.__field.dof_n
-
-    @property
-    def thickness(self) -> float:
-        return self.__thickness
