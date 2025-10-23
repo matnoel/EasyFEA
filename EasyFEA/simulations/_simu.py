@@ -353,16 +353,8 @@ class _Simu(_IObserver, _params.Updatable, ABC):
         """model used"""
         return self.__model
 
-    @property
-    def rho(self) -> Union[float, _types.FloatArray]:
-        """mass density"""
-        return self.__rho
-
-    @rho.setter
-    def rho(self, value: Union[float, _types.FloatArray]):
-        _params._CheckIsPositive(value)
-        self.__rho = value
-        """mass density"""
+    rho = _params.PositiveParameter()
+    """mass density"""
 
     @property
     def mass(self) -> float:
@@ -375,7 +367,7 @@ class _Simu(_IObserver, _params.Updatable, ABC):
 
         weightedJacobian = group.Get_weightedJacobian_e_pg(matrixType)
 
-        rho_e_p = Reshape_variable(self.__rho, *weightedJacobian.shape[:2])
+        rho_e_p = Reshape_variable(self.rho, *weightedJacobian.shape[:2])
 
         mass = (rho_e_p * weightedJacobian).sum((0, 1)).astype(float)
 
@@ -399,7 +391,7 @@ class _Simu(_IObserver, _params.Updatable, ABC):
 
         weightedJacobian = group.Get_weightedJacobian_e_pg(matrixType)
 
-        rho_e_p = Reshape_variable(self.__rho, *weightedJacobian.shape[:2])
+        rho_e_p = Reshape_variable(self.rho, *weightedJacobian.shape[:2])
 
         mass = self.mass
 
@@ -408,7 +400,7 @@ class _Simu(_IObserver, _params.Updatable, ABC):
         if self.dim == 2:
             center *= self.model.thickness
 
-        if not isinstance(self.__rho, np.ndarray):
+        if not isinstance(self.rho, np.ndarray):
             diff = np.linalg.norm(center - self.mesh.center) / np.linalg.norm(center)
             assert diff <= 1e-12
 
