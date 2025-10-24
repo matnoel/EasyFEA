@@ -15,7 +15,7 @@ from ..utilities import _params
 class WeakForms(_IModel):
     """Class responsible for computing the finite element matrices used in the system \( K u + C v + M a = F \)."""
 
-    thickness = _params.PositiveParameter()
+    thickness: float = _params.PositiveScalarParameter()
 
     def __init__(
         self,

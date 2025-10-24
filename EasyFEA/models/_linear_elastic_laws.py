@@ -46,7 +46,7 @@ class _Elas(_IModel, ABC):
 
     dim: int = _params.ParameterInValues([2, 3])
 
-    thickness: float = _params.PositiveParameter()
+    thickness: float = _params.PositiveScalarParameter()
 
     planeStress: bool = _params.BoolParameter()
     """the model uses plane stress simplification"""

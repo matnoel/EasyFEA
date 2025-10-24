@@ -124,7 +124,7 @@ class PhaseField(_IModel):
             error = f"The split {value} are only implemented for ElasIsot material"
             assert value not in PhaseField.__SPLITS_ISOT, error
 
-    split: SplitType = _params.Parameter([partialmethod(__check_split)])
+    split: SplitType = _params.InstanceParameter([partialmethod(__check_split)])
     """split used to decompose the elastic energy density"""
 
     regularization: ReguType = _params.ParameterInValues(list(ReguType))
@@ -146,7 +146,7 @@ class PhaseField(_IModel):
         assert isinstance(array, np.ndarray)
         assert array.shape[-2:] == shape, error
 
-    A = _params.Parameter([partialmethod(__check_A)])
+    A = _params.InstanceParameter([partialmethod(__check_A)])
     """matrix characterizing the weak anisotropy in the crack surface density function"""
 
     def __init__(

@@ -4,7 +4,7 @@
 
 from abc import ABC, abstractmethod
 from typing import Union, Iterable, Callable
-from functools import partial, partialmethod
+from functools import partialmethod
 import numpy as np
 import copy
 
@@ -99,13 +99,82 @@ class Updatable(ABC):
             return self.__needUpdate
 
 
-class Parameter:
+class _Parameter:
 
     def __set_name__(self, owner, name):
         self.__name = name
 
     def __get__(self, instance, owner):
         return copy.copy(instance.__dict__[self.__name])
+
+    def __set__(self, instance, value):
+        self._checker(value)
+        instance.__dict__[self.__name] = value
+        if isinstance(instance, Updatable):
+            instance.Need_Update()
+
+    def _checker(self, value):
+        raise NotImplementedError(f"Checker not implemented on {type(self)}")
+
+
+class BoolParameter(_Parameter):
+    def _checker(self, value):
+        _CheckIsBool(value)
+
+
+class StringParameter(_Parameter):
+    def _checker(self, value):
+        _CheckIsString(value)
+
+
+class ScalarParameter(_Parameter):
+    def _checker(self, value):
+        _CheckIsScalar(value)
+
+
+class PositiveParameter(_Parameter):
+    def _checker(self, value):
+        _CheckIsPositive(value)
+
+
+class PositiveScalarParameter(_Parameter):
+    def _checker(self, value):
+        _CheckIsScalar(value)
+        _CheckIsPositive(value)
+
+
+class NegativeParameter(_Parameter):
+    def _checker(self, value):
+        _CheckIsNegative(value)
+
+
+class ParameterInValues(_Parameter):
+    def __init__(self, values):
+        self.__values = values
+
+    def _checker(self, value):
+        _CheckIsInValues(value, self.__values)
+
+
+class IntervalccParameter(_Parameter):
+    def __init__(self, inf: float, sup: float):
+        self.__inf = inf
+        self.__sup = sup
+
+    def _checker(self, value):
+        _CheckIsInIntervalcc(value, inf=self.__inf, sup=self.__sup)
+
+
+class IntervalooParameter(_Parameter):
+    def __init__(self, inf: float, sup: float):
+        self.__inf = inf
+        self.__sup = sup
+
+    def _checker(self, value):
+        _CheckIsInIntervaloo(value, inf=self.__inf, sup=self.__sup)
+
+
+class InstanceParameter(_Parameter):
 
     def __init__(self, check_functions: list[Callable] = []):
         error = "check_functions must be a list of function."
@@ -120,63 +189,14 @@ class Parameter:
         self.__check_functions = check_functions
 
     def __set__(self, instance, value):
+        self.__instance = instance
+        return super().__set__(instance, value)
+
+    def _checker(self, value):
+        instance = self.__instance
         for function in self.__check_functions:
             if isinstance(function, partialmethod):
                 function = function.__get__(instance, type(instance))
                 function(value)
             else:
                 function(value)
-        instance.__dict__[self.__name] = value
-        if isinstance(instance, Updatable):
-            instance.Need_Update()
-
-
-class BoolParameter(Parameter):
-    def __init__(self):
-        super().__init__(check_functions=[_CheckIsBool])
-
-
-class StringParameter(Parameter):
-    def __init__(self):
-        super().__init__(check_functions=[_CheckIsString])
-
-
-class ScalarParameter(Parameter):
-    def __init__(self):
-        super().__init__(check_functions=[partial(_CheckIsScalar)])
-
-
-class PositiveParameter(Parameter):
-    def __init__(self):
-        super().__init__(check_functions=[_CheckIsPositive])
-
-
-class PositiveScalarParameter(Parameter):
-    def __init__(self):
-        super().__init__(
-            check_functions=[partial(_CheckIsScalar), partial(_CheckIsPositive)]
-        )
-
-
-class NegativeParameter(Parameter):
-    def __init__(self):
-        super().__init__(check_functions=[_CheckIsNegative])
-
-
-class ParameterInValues(Parameter):
-    def __init__(self, values):
-        super().__init__(check_functions=[partial(_CheckIsInValues, values=values)])
-
-
-class IntervalccParameter(Parameter):
-    def __init__(self, inf: float, sup: float):
-        super().__init__(
-            check_functions=[partial(_CheckIsInIntervalcc, inf=inf, sup=sup)]
-        )
-
-
-class IntervalooParameter(Parameter):
-    def __init__(self, inf: float, sup: float):
-        super().__init__(
-            check_functions=[partial(_CheckIsInIntervaloo, inf=inf, sup=sup)]
-        )

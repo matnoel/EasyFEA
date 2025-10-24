@@ -28,7 +28,7 @@ class _HyperElas(_IModel, ABC):
 
     dim: float = _params.ParameterInValues([1, 2, 3])
 
-    thickness: float = _params.PositiveParameter()
+    thickness: float = _params.PositiveScalarParameter()
 
     def __init__(self, dim: int, thickness: float):
         self.dim = dim
@@ -130,7 +130,7 @@ class _HyperElas(_IModel, ABC):
 
 class NeoHookean(_HyperElas):
 
-    K: float = _params.PositiveParameter()
+    K: float = _params.PositiveScalarParameter()
     """Bulk modulus"""
 
     def __init__(self, dim: int, K: Union[float, _types.FloatArray], thickness=1.0):
@@ -207,10 +207,10 @@ class NeoHookean(_HyperElas):
 
 class MooneyRivlin(_HyperElas):
 
-    K1: float = _params.PositiveParameter()
+    K1: float = _params.PositiveScalarParameter()
     """Kappa1"""
 
-    K2: float = _params.PositiveParameter()
+    K2: float = _params.PositiveScalarParameter()
     """Kappa2"""
 
     def __init__(
@@ -313,10 +313,10 @@ class MooneyRivlin(_HyperElas):
 
 class SaintVenantKirchhoff(_HyperElas):
 
-    lmbda: float = _params.Parameter()
+    lmbda: float = _params.ScalarParameter()
     """Lame's first parameter"""
 
-    mu: float = _params.PositiveParameter()
+    mu: float = _params.PositiveScalarParameter()
     """Shear modulus"""
 
     def __init__(

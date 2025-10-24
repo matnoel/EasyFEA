@@ -29,7 +29,7 @@ class Thermal(_IModel):
     c = _params.PositiveParameter()
     """mass heat capacity [J K^-1 kg^-1]"""
 
-    thickness: float = _params.PositiveParameter()
+    thickness: float = _params.PositiveScalarParameter()
 
     def __str__(self) -> str:
         text = f"\n{type(self).__name__} :"
