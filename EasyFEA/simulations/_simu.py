@@ -131,7 +131,7 @@ class _Simu(_IObserver, _params.Updatable, ABC):
         """Returns the assembled matrices of K u + C v + M a = F for the given problem."""
 
         error = "You must define your own `Get_K_C_M_F` function in your simulation to construct the system matrix, since multiple problem types have been detected. For reference, see the `Get_K_C_M_F` function in `simulations._phasefield`."
-        assert len(self.Get_problemTypes()) == 0, error
+        assert len(self.Get_problemTypes()) == 1, error
 
         if self.needUpdate:
             self.__K, self.__C, self.__M, self.__F = self.Assembly(problemType)
