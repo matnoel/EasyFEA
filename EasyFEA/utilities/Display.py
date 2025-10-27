@@ -1423,7 +1423,7 @@ def Movie_func(
 
             rmTime = Tic.Get_Remaining_Time(i, N - 1, time)
 
-            print(f"Make_Movie {i}/{N - 1} {rmTime}    ", end="\r")
+            print(f"Generate movie {i}/{N - 1} {rmTime}    ", end="\r")
 
 
 # ----------------------------------------------
