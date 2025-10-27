@@ -116,7 +116,7 @@ def Plot(
         pvMesh = obj
         result = result if result in pvMesh.array_names else None
     else:
-        pvMesh = _pyVistaMesh(obj, result, deformFactor, nodeValues)
+        pvMesh = _pvMesh(obj, result, deformFactor, nodeValues)
         inDim = _Init_obj(obj)[-1]
 
     if pvMesh is None:
@@ -382,7 +382,7 @@ def Plot_Elements(
         connect = groupElem.connect[elements]
         newGroupElem = GroupElemFactory.Create(groupElem.elemType, connect, coordo)
 
-        pvGroup = _pyVistaMesh(newGroupElem)  # type: ignore [arg-type]
+        pvGroup = _pvMesh(newGroupElem)  # type: ignore [arg-type]
 
         Plot(
             pvGroup,
@@ -826,7 +826,7 @@ def Movie_func(
 
         rmTime = Tic.Get_Remaining_Time(i, N - 1, time)
 
-        MyPrint(f"Movie_func {i}/{N - 1} {rmTime}    ", end="\r")
+        MyPrint(f"Generate movie {i}/{N - 1} {rmTime}    ", end="\r")
 
     print()
     plotter.close()
@@ -853,6 +853,7 @@ def _Plotter(off_screen=False, add_axes=True, shape=(1, 1), linkViews=True):
 
 
 def _setCameraPosition(plotter: pv.Plotter, inDim: int, elevation=25, azimuth=10):
+    # see https://docs.pyvista.org/api/core/camera.html
     plotter.camera_position = "xy"
     if inDim == 3:
         plotter.camera.elevation = elevation
@@ -864,13 +865,15 @@ def _setCameraPosition(plotter: pv.Plotter, inDim: int, elevation=25, azimuth=10
     #     plotter.camera.reset_clipping_range()
 
 
-def _pyVistaMesh(
+def _pvMesh(
     obj: Union["_Simu", "Mesh", "_GroupElem"],
     result: Optional[Union[str, _types.AnyArray]] = None,
     deformFactor=0.0,
     nodeValues=True,
+    clipAxis=None,
+    clipCenter=None,
 ) -> pv.UnstructuredGrid:
-    """Creates the pyvista mesh from obj (_Simu, Mesh, _GroupElem and _Geoms object)"""
+    """Creates the pyvista mesh from obj (_Simu, Mesh and _GroupElem objects)"""
 
     simu, mesh, coord, __ = _Init_obj(obj, deformFactor)
 
@@ -887,6 +890,10 @@ def _pyVistaMesh(
         name = "array"  # here result is an array
         pyVistaMesh[name] = values
         pyVistaMesh.set_active_scalars(name)
+
+    if clipAxis is not None:
+        clipCenter = mesh.center if clipCenter is None else clipCenter
+        pyVistaMesh = pyVistaMesh.clip(clipAxis, clipCenter)
 
     return pyVistaMesh
 
