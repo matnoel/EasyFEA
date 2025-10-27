@@ -188,7 +188,7 @@ def _Save_mesh(
 
         rmTime = Tic.Get_Remaining_Time(iter, N - 1, times[-1])
 
-        Display.MyPrint(f"Save_mesh {iter}/{N - 1} {rmTime}     ", end="\r")
+        Display.MyPrint(f"Generate paraview {iter}/{N - 1} {rmTime}     ", end="\r")
 
     print("\n")
 
