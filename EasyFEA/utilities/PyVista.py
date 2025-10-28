@@ -115,6 +115,7 @@ def Plot(
         inDim = 3
         pvMesh = obj
         result = result if result in pvMesh.array_names else None
+
     else:
         pvMesh = _pvMesh(obj, result, deformFactor, nodeValues)
         inDim = _Init_obj(obj)[-1]
@@ -877,25 +878,25 @@ def _pvMesh(
 
     simu, mesh, coord, __ = _Init_obj(obj, deformFactor)
 
-    pyVistaMesh = MeshIO.EasyFEA_to_PyVista(mesh, coord, useAllElements=False)
+    unstructuredGrid = MeshIO.EasyFEA_to_PyVista(mesh, coord, useAllElements=False)
 
     values = _Get_values(simu, mesh, result, nodeValues)  # type: ignore [arg-type]
 
     # Add the result
     if isinstance(result, str) and result != "":
-        pyVistaMesh[result] = values
-        pyVistaMesh.set_active_scalars(result)
+        unstructuredGrid[result] = values
+        unstructuredGrid.set_active_scalars(result)
 
     elif isinstance(result, np.ndarray):
         name = "array"  # here result is an array
-        pyVistaMesh[name] = values
-        pyVistaMesh.set_active_scalars(name)
+        unstructuredGrid[name] = values
+        unstructuredGrid.set_active_scalars(name)
 
     if clipAxis is not None:
         clipCenter = mesh.center if clipCenter is None else clipCenter
-        pyVistaMesh = pyVistaMesh.clip(clipAxis, clipCenter)
+        unstructuredGrid = unstructuredGrid.clip(clipAxis, clipCenter)
 
-    return pyVistaMesh
+    return unstructuredGrid
 
 
 @singledispatch

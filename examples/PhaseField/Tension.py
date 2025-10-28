@@ -393,7 +393,7 @@ def DoSimu(split: str, regu: str):
         def Func(plotter, iter):
             simu.Set_Iter(iterations[iter])
 
-            grid = PyVista._pyVistaMesh(simu, "damage", deformFactor)
+            grid = PyVista._pvMesh(simu, "damage", deformFactor)
 
             tresh = grid.threshold((0, 0.8))
 
