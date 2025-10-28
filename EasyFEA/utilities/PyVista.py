@@ -861,12 +861,33 @@ def _Plotter(off_screen=False, add_axes=True, shape=(1, 1), linkViews=True):
 
 
 def _setCameraPosition(
-    plotter: pv.Plotter, inDim: int, roll=0, elevation=25, azimuth=10
+    plotter: pv.Plotter,
+    inDim: int,
+    camera_position="xy",
+    roll=0,
+    elevation=25,
+    azimuth=10,
 ):
-    """Sets camera position for xy plane and control camera if inDim==3.\n
-    https://docs.pyvista.org/api/core/camera.html#controlling-camera-rotation"""
+    """Sets the camera position, then controls the camera and resets the clipping range if `inDim == 3`.\n
+    https://docs.pyvista.org/api/core/camera.html#controlling-camera-rotation
+
+    Parameters
+    ----------
+    plotter : pv.Plotter
+        pyvista plotter
+    inDim : int
+        dimension in which the objects lies.
+    camera_position : str, optional
+        camera position of the active render window., by default "xy"
+    roll : int, optional
+        this will spin the camera about its axis., by default 0
+    elevation : int, optional
+        the vertical rotation of the scene, by default 25
+    azimuth : int, optional
+        the azimuth of the camera, by default 10
+    """
     # see
-    plotter.camera_position = "xy"
+    plotter.camera_position = camera_position
     if inDim == 3:
         plotter.camera.roll = roll
         plotter.camera.elevation = elevation
