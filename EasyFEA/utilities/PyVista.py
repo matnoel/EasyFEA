@@ -177,6 +177,7 @@ def Plot(
         plotter.need_to_update_camera_position = False
 
     if show_grid:
+        # plotter.show_grid(fmt="%.3e")  # type: ignore [call-arg]
         plotter.show_grid()  # type: ignore [call-arg]
 
     tic.Tac("PyVista_Interface", "Plot")
