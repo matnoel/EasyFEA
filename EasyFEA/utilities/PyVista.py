@@ -169,7 +169,12 @@ def Plot(
             **kwargs,
         )
 
-    _setCameraPosition(plotter, inDim)
+    if (
+        hasattr(plotter, "need_to_update_camera_position")
+        and plotter.need_to_update_camera_position
+    ):
+        _setCameraPosition(plotter, inDim)
+        plotter.need_to_update_camera_position = False
 
     if show_grid:
         plotter.show_grid()  # type: ignore [call-arg]
@@ -845,6 +850,7 @@ def Movie_func(
 
 def _Plotter(off_screen=False, add_axes=True, shape=(1, 1), linkViews=True):
     plotter = pv.Plotter(off_screen=pv.OFF_SCREEN, shape=shape)
+    plotter.need_to_update_camera_position = True
     if add_axes:
         plotter.add_axes()
     if linkViews:
@@ -853,17 +859,18 @@ def _Plotter(off_screen=False, add_axes=True, shape=(1, 1), linkViews=True):
     return plotter
 
 
-def _setCameraPosition(plotter: pv.Plotter, inDim: int, elevation=25, azimuth=10):
-    # see https://docs.pyvista.org/api/core/camera.html
+def _setCameraPosition(
+    plotter: pv.Plotter, inDim: int, roll=0, elevation=25, azimuth=10
+):
+    """Sets camera position for xy plane and control camera if inDim==3.\n
+    https://docs.pyvista.org/api/core/camera.html#controlling-camera-rotation"""
+    # see
     plotter.camera_position = "xy"
     if inDim == 3:
+        plotter.camera.roll = roll
         plotter.camera.elevation = elevation
         plotter.camera.azimuth = azimuth
         plotter.camera.reset_clipping_range()
-    # if inDim == 3:
-    #     plotter.camera.elevation += 15
-    #     plotter.camera.azimuth += 5
-    #     plotter.camera.reset_clipping_range()
 
 
 def _pvMesh(
