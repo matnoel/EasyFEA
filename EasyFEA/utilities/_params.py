@@ -82,6 +82,12 @@ def _CheckIsInValues(value, values: Iterable) -> None:
     assert value in values, errorText
 
 
+def _CheckIsVector(value) -> None:
+    """Checks whether the value is a (..., 3) numpy array."""
+    errorText = "value must be a (..., 3) array"
+    assert isinstance(value, np.ndarray) and value.shape[-1] == 3, errorText
+
+
 class Updatable(ABC):
 
     @abstractmethod
@@ -172,6 +178,11 @@ class IntervalooParameter(_Parameter):
 
     def _checker(self, value):
         _CheckIsInIntervaloo(value, inf=self.__inf, sup=self.__sup)
+
+
+class VectorParameter(_Parameter):
+    def _checker(self, value):
+        _CheckIsVector(value)
 
 
 class InstanceParameter(_Parameter):
