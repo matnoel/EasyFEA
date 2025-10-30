@@ -8,7 +8,7 @@ import numpy as np
 
 from ..fem import Mesh, MatrixType
 from ..fem._linalg import FeArray, Transpose, Det, TensorProd
-from ..utilities import _types
+from ..utilities import _types, _params
 from ._utils import Project_Kelvin
 
 # ------------------------------------------------------------------------------
@@ -16,6 +16,7 @@ from ._utils import Project_Kelvin
 # ------------------------------------------------------------------------------
 
 
+# TODO: Cache the results ? It would be better to create an instance of hyperelasticity.
 class HyperElastic:
     @staticmethod
     def __CheckFormat(mesh: Mesh, u: _types.FloatArray, matrixType: MatrixType) -> None:
@@ -655,7 +656,7 @@ class HyperElastic:
         u : _types.FloatArray
             discretized displacement field [ux1, uy1, uz1, . . ., uxN, uyN, uzN] of size Nn * dim
         T : _types.FloatArray
-            direction
+            direction(s)
         matrixType : MatrixType, optional
             matrix type, by default MatrixType.rigi
 
@@ -667,10 +668,9 @@ class HyperElastic:
 
         C_e_pg = HyperElastic.Compute_C(mesh, u, matrixType)
 
+        _params._CheckIsVector(T)
         if not isinstance(T, FeArray):
             T = FeArray.asfearray(T, True)
-
-        assert T._type == "vector", "T must be a (..., 3) array"  # type: ignore
 
         I4_e_pg = T @ C_e_pg @ T
 
@@ -685,7 +685,7 @@ class HyperElastic:
         mesh : Mesh
             mesh
         T : _types.FloatArray
-            direction
+            direction(s)
 
         Returns
         -------
@@ -693,9 +693,9 @@ class HyperElastic:
             dI4dC_e_pg of shape (Ne, pg, 6)
         """
 
-        assert (
-            isinstance(T, np.ndarray) and T.shape[-1] == 3
-        ), "T must be a (..., 3) array"
+        _params._CheckIsVector(T)
+        if not isinstance(T, FeArray):
+            T = FeArray.asfearray(T, True)
 
         dI4dC_e_pg = Project_Kelvin(TensorProd(T, T))
 
@@ -732,7 +732,7 @@ class HyperElastic:
         u : _types.FloatArray
             discretized displacement field [ux1, uy1, uz1, . . ., uxN, uyN, uzN] of size Nn * dim
         T : _types.FloatArray
-            direction
+            direction(s)
         matrixType : MatrixType, optional
             matrix type, by default MatrixType.rigi
 
@@ -753,7 +753,7 @@ class HyperElastic:
         mesh : Mesh
             mesh
         T : _types.FloatArray
-            direction
+            direction(s)
 
         Returns
         -------
@@ -795,9 +795,9 @@ class HyperElastic:
         u : _types.FloatArray
             discretized displacement field [ux1, uy1, uz1, . . ., uxN, uyN, uzN] of size Nn * dim
         T1 : _types.FloatArray
-            direction 1
+            direction(s) 1
         T2 : _types.FloatArray
-            direction 2
+            direction(s) 2
         matrixType : MatrixType, optional
             matrix type, by default MatrixType.rigi
 
@@ -809,12 +809,13 @@ class HyperElastic:
 
         C_e_pg = HyperElastic.Compute_C(mesh, u, matrixType)
 
+        _params._CheckIsVector(T1)
         if not isinstance(T1, FeArray):
             T1 = FeArray.asfearray(T1, True)
-        assert T1._type == "vector", "T1 must be a (..., 3) array"  # type: ignore
+
+        _params._CheckIsVector(T2)
         if not isinstance(T2, FeArray):
             T2 = FeArray.asfearray(T2, True)
-        assert T2._type == "vector", "T2 must be a (..., 3) array"  # type: ignore
 
         I8_e_pg = T1 @ C_e_pg @ T2
 
@@ -831,9 +832,9 @@ class HyperElastic:
         mesh : Mesh
             mesh
         T1 : _types.FloatArray
-            direction 1
+            direction(s) 1
         T2 : _types.FloatArray
-            direction 2
+            direction(s) 2
 
         Returns
         -------
@@ -841,12 +842,13 @@ class HyperElastic:
             dI8dC_e_pg of shape (Ne, pg, 6)
         """
 
-        assert (
-            isinstance(T1, np.ndarray) and T1.shape[-1] == 3
-        ), "T1 must be a (..., 3) array"
-        assert (
-            isinstance(T2, np.ndarray) and T2.shape[-1] == 3
-        ), "T2 must be a (..., 3) array"
+        _params._CheckIsVector(T1)
+        if not isinstance(T1, FeArray):
+            T1 = FeArray.asfearray(T1, True)
+
+        _params._CheckIsVector(T2)
+        if not isinstance(T2, FeArray):
+            T2 = FeArray.asfearray(T2, True)
 
         dI8dC_e_pg = Project_Kelvin(TensorProd(T1, T2))
 
