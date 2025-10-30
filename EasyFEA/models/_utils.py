@@ -300,6 +300,8 @@ def Project_Kelvin(
     shapeA = A.shape
 
     if orderA is None:
+        if isinstance(A, FeArray):
+            shapeA = shapeA[2:]
         assert (
             np.std(shapeA) == 0
         ), "Must have the same number of indices in all dimensions."

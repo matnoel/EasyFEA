@@ -493,8 +493,10 @@ def TensorProd(
     sizeB = B.size
     assert sizeA == sizeB, "A and B must have the same dimensions"
 
+    useFeArray = isinstance(A, FeArray) or isinstance(B, FeArray)
+
     if ndim is None:
-        ndim = A.ndim
+        ndim = A._ndim if useFeArray else A.ndim
 
     assert ndim in [1, 2], "A and B must be vectors (i) or matrices (ij)"
 
@@ -517,7 +519,7 @@ def TensorProd(
     else:
         raise Exception("Not implemented")
 
-    if isinstance(A, FeArray) or isinstance(B, FeArray):
+    if useFeArray:
         res = FeArray.asfearray(res)
 
     return res
