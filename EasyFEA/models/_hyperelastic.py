@@ -774,3 +774,92 @@ class HyperElastic:
         """
 
         return HyperElastic.Compute_d2I4dC()
+
+    # -------------------------------------
+    # Compute I8
+    # -------------------------------------
+    @staticmethod
+    def Compute_I8(
+        mesh: Mesh,
+        u: _types.FloatArray,
+        T1: _types.FloatArray,
+        T2: _types.FloatArray,
+        matrixType=MatrixType.rigi,
+    ) -> FeArray.FeArrayALike:
+        """Computes I8(u)
+
+        Parameters
+        ----------
+        mesh : Mesh
+            mesh
+        u : _types.FloatArray
+            discretized displacement field [ux1, uy1, uz1, . . ., uxN, uyN, uzN] of size Nn * dim
+        T1 : _types.FloatArray
+            direction 1
+        T2 : _types.FloatArray
+            direction 2
+        matrixType : MatrixType, optional
+            matrix type, by default MatrixType.rigi
+
+        Returns
+        -------
+        FeArray
+            I8_e_pg of shape (Ne, pg)
+        """
+
+        C_e_pg = HyperElastic.Compute_C(mesh, u, matrixType)
+
+        if not isinstance(T1, FeArray):
+            T1 = FeArray.asfearray(T1, True)
+        assert T1._type == "vector", "T1 must be a (..., 3) array"  # type: ignore
+        if not isinstance(T2, FeArray):
+            T2 = FeArray.asfearray(T2, True)
+        assert T2._type == "vector", "T2 must be a (..., 3) array"  # type: ignore
+
+        I8_e_pg = T1 @ C_e_pg @ T2
+
+        return I8_e_pg
+
+    @staticmethod
+    def Compute_dI8dC(
+        T1: _types.FloatArray, T2: _types.FloatArray
+    ) -> FeArray.FeArrayALike:
+        """Computes dI8dC(u)
+
+        Parameters
+        ----------
+        mesh : Mesh
+            mesh
+        T1 : _types.FloatArray
+            direction 1
+        T2 : _types.FloatArray
+            direction 2
+
+        Returns
+        -------
+        FeArray
+            dI8dC_e_pg of shape (Ne, pg, 6)
+        """
+
+        assert (
+            isinstance(T1, np.ndarray) and T1.shape[-1] == 3
+        ), "T1 must be a (..., 3) array"
+        assert (
+            isinstance(T2, np.ndarray) and T2.shape[-1] == 3
+        ), "T2 must be a (..., 3) array"
+
+        dI8dC_e_pg = Project_Kelvin(TensorProd(T1, T2))
+
+        return dI8dC_e_pg
+
+    @staticmethod
+    def Compute_d2I8dC() -> FeArray.FeArrayALike:
+        """Computes d2I8dC(u)
+
+        Returns
+        -------
+        FeArray
+            d2I8dC of shape (6, 6)
+        """
+
+        return FeArray.zeros(1, 1, 6, 6)

@@ -392,3 +392,51 @@ class TestHyperElastic:
         d2I6dC_v = np.zeros((6, 6))
 
         assert np.linalg.norm(d2I6dC - d2I6dC_v) < 1e-12
+
+    # --------------------------------------------------------------------------
+    # I8
+    # --------------------------------------------------------------------------
+
+    def test_I8(self):
+
+        for simu in Get_3d_simulations():
+
+            for matrixType in [MatrixType.rigi, MatrixType.mass]:
+
+                C_e_pg = HyperElastic.Compute_C(
+                    simu.mesh, simu.displacement, matrixType
+                )
+
+                T1 = np.array([1, 1, 0])
+                T2 = np.array([0, 1, 0])
+
+                I8 = HyperElastic.Compute_I8(
+                    simu.mesh, simu.displacement, T1, T2, matrixType
+                )
+
+                I8_v = FeArray.asfearray(
+                    np.einsum(
+                        "...i,...ij,...j->...", T1, C_e_pg, T2, optimize="optimal"
+                    )
+                )
+
+                assert np.linalg.norm(I8 - I8_v) / np.linalg.norm(I8_v) < 1e-12
+
+    def test_dI8dC(self):
+
+        T1 = np.array([1, 1, 0])
+        T2 = np.array([0, 1, 0])
+
+        dI8dC = HyperElastic.Compute_dI8dC(T1, T2)
+
+        dI8dC_v = Project_Kelvin(TensorProd(T1, T2), 2)
+
+        assert np.linalg.norm(dI8dC - dI8dC_v) / np.linalg.norm(dI8dC_v) < 1e-12
+
+    def test_d2I8dC(self):
+
+        d2I8dC = HyperElastic.Compute_d2I8dC()
+
+        d2I8dC_v = np.zeros((6, 6))
+
+        assert np.linalg.norm(d2I8dC - d2I8dC_v) < 1e-12
