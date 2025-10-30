@@ -712,3 +712,65 @@ class HyperElastic:
         """
 
         return FeArray.zeros(1, 1, 6, 6)
+
+    # -------------------------------------
+    # Compute I6
+    # -------------------------------------
+    @staticmethod
+    def Compute_I6(
+        mesh: Mesh,
+        u: _types.FloatArray,
+        T: _types.FloatArray,
+        matrixType=MatrixType.rigi,
+    ) -> FeArray.FeArrayALike:
+        """Computes I6(u)
+
+        Parameters
+        ----------
+        mesh : Mesh
+            mesh
+        u : _types.FloatArray
+            discretized displacement field [ux1, uy1, uz1, . . ., uxN, uyN, uzN] of size Nn * dim
+        T : _types.FloatArray
+            direction
+        matrixType : MatrixType, optional
+            matrix type, by default MatrixType.rigi
+
+        Returns
+        -------
+        FeArray
+            I6_e_pg of shape (Ne, pg)
+        """
+
+        return HyperElastic.Compute_I4(mesh, u, T, matrixType)
+
+    @staticmethod
+    def Compute_dI6dC(T: _types.FloatArray) -> FeArray.FeArrayALike:
+        """Computes dI6dC(u)
+
+        Parameters
+        ----------
+        mesh : Mesh
+            mesh
+        T : _types.FloatArray
+            direction
+
+        Returns
+        -------
+        FeArray
+            dI6dC_e_pg of shape (Ne, pg, 6)
+        """
+
+        return HyperElastic.Compute_dI4dC(T)
+
+    @staticmethod
+    def Compute_d2I6dC() -> FeArray.FeArrayALike:
+        """Computes d2I6dC(u)
+
+        Returns
+        -------
+        FeArray
+            d2I6dC of shape (6, 6)
+        """
+
+        return HyperElastic.Compute_d2I4dC()
