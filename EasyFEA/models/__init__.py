@@ -8,6 +8,7 @@ from ._hyperelastic_laws import (
     NeoHookean,
     MooneyRivlin,
     SaintVenantKirchhoff,
+    HolzapfelOgden,
 )
 from ._hyperelastic import HyperElastic
 from ._linear_elastic_laws import _Elas, ElasIsot, ElasAnisot, ElasIsotTrans

@@ -21,7 +21,12 @@ from .models._linear_elastic_laws import (
 # HyperElastic
 # ----------------------------------------------
 
-from .models._hyperelastic_laws import NeoHookean, MooneyRivlin, SaintVenantKirchhoff
+from .models._hyperelastic_laws import (
+    NeoHookean,
+    MooneyRivlin,
+    SaintVenantKirchhoff,
+    HolzapfelOgden,
+)
 from .models._hyperelastic import HyperElastic
 
 # ----------------------------------------------
