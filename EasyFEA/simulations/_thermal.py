@@ -47,9 +47,6 @@ class ThermalSimu(_Simu):
         assert isinstance(model, Models.Thermal), "model must be a thermal model"
         super().__init__(mesh, model, verbosity, useIterativeSolvers)
 
-        # init
-        self.Solver_Set_Elliptic_Algorithm()
-
     def Get_unknowns(self, problemType=None) -> list[str]:
         return ["t"]
 

@@ -57,8 +57,6 @@ class PhaseFieldSimu(_Simu):
         # old positive elastic energy density psiPlus(e, pg, 1) to use the miehe history field
         self.__old_psiP_e_pg: FeArray.FeArrayALike = np.empty(0, dtype=float)
 
-        self.Solver_Set_Elliptic_Algorithm()
-
         self.Need_Update()
 
         self.phaseFieldModel.material._Add_observer(self)

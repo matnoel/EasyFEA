@@ -47,9 +47,6 @@ class WeakFormSimu(_Simu):
         assert isinstance(model, Models.WeakForms), "model must be a weakf form manager"
         super().__init__(mesh, model, verbosity, useIterativeSolvers)
 
-        # init
-        self.Solver_Set_Elliptic_Algorithm()
-
     def _Check_dim_mesh_material(self) -> None:
         pass
 

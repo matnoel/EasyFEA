@@ -52,9 +52,6 @@ class BeamSimu(_Simu):
         ), "model must be a beam model or a beam structure"
         super().__init__(mesh, model, verbosity, useIterativeSolvers)
 
-        # init
-        self.Solver_Set_Elliptic_Algorithm()
-
         # turn beams into observable objects
         [beam._Add_observer(self) for beam in model.beams]  # type: ignore [func-returns-value]
 

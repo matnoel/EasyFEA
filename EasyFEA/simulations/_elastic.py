@@ -49,7 +49,6 @@ class ElasticSimu(_Simu):
 
         # init
         self.Set_Rayleigh_Damping_Coefs()
-        self.Solver_Set_Elliptic_Algorithm()
 
     def Results_nodeFields_elementFields(
         self, details=False
