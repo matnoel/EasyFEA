@@ -837,14 +837,14 @@ class _Simu(_IObserver, _params.Updatable, ABC):
             gamma = self.__gamma
             beta = self.__beta
 
-            # Accel formulation
             # See Hughes 1987 Chapter 9
             # same as hht with alpha = 0
-            a_np1 = x
-            ut_np1 = u_n + (dt * v_n) + dt**2 / 2 * (1 - 2 * beta) * a_n
-            vt_np1 = v_n + (1 - gamma) * dt * a_n
+            ut_np1 = u_n + dt * v_n + dt**2 / 2 * (1 - 2 * beta) * a_n
+            vt_np1 = v_n + dt * (1 - gamma) * a_n
 
-            u_np1 = ut_np1 + beta * dt**2 * a_np1
+            # U formulation
+            u_np1 = x
+            a_np1 = (u_np1 - ut_np1) / (beta * dt**2)
             v_np1 = vt_np1 + gamma * dt * a_np1
 
             return u_np1, v_np1, a_np1
@@ -1011,41 +1011,22 @@ class _Simu(_IObserver, _params.Updatable, ABC):
             b = b + 1 / (alpha * dt) * C @ ut_np1
 
         elif algo == AlgoType.newmark:
-            # Accel formulation
+            # U formulation
             # same as hht in accel with alpha = 0
-
-            if len(self.results) == 0 and (b.max() != 0 or b.min() != 0):
-                # Initialize accel
-                _, dofsUnknown = self.Bc_dofs_known_unknown(problemType)
-
-                # don't change
-                r = b - K @ u_n.reshape(-1, 1)
-                r -= C @ v_n.reshape(-1, 1)
-
-                ri = r[dofsUnknown]
-                Aii = M[dofsUnknown, :].tocsc()[:, dofsUnknown].tocsr()
-
-                x0 = a_n[dofsUnknown]
-
-                ai_n = _Solve_Axb(
-                    self, problemType, Aii, ri, x0, np.empty(0), np.empty(0)
-                )
-
-                a_n[dofsUnknown] = ai_n
-
-                self.__Set_a_n(problemType, a_n)
-
-            a_n = self._Get_a_n(problemType)
 
             dt = self.__dt
             gamma = self.__gamma
             beta = self.__beta
 
-            ut_np1 = u_n + (dt * v_n) + dt**2 / 2 * (1 - 2 * beta) * a_n
-            vt_np1 = v_n + (1 - gamma) * dt * a_n
+            ut_np1 = u_n + dt * v_n + dt**2 / 2 * (1 - 2 * beta) * a_n
+            vt_np1 = v_n + dt * (1 - gamma) * a_n
 
-            b -= K @ ut_np1.reshape(-1, 1)
+            a_n = self._Get_a_n(problemType)
+
             b -= C @ vt_np1.reshape(-1, 1)
+            coefC = gamma / (beta * dt)
+            coefM = 1 / (beta * dt**2)
+            b += (coefC * C + coefM * M) @ ut_np1.reshape(-1, 1)
 
         elif algo == AlgoType.midpoint:
             dt = self.__dt
@@ -1137,12 +1118,12 @@ class _Simu(_IObserver, _params.Updatable, ABC):
             gamma = self.__gamma
             beta = self.__beta
 
-            # Accel formulation
+            # U formulation
             # same as hht in accel with alpha = 0
-            A = M + (beta * dt**2 * K)
-            A += gamma * dt * C
 
-            dofsValues = self._Get_a_n(problemType)[dofs]
+            coefM = 1 / (beta * dt**2)
+            coefC = gamma / (beta * dt)
+            A = coefM * M + coefC * C + K
 
         elif algo == AlgoType.midpoint:
             dt = self.__dt
