@@ -851,21 +851,12 @@ class _Simu(_IObserver, _params.Updatable, ABC):
 
         elif algo == AlgoType.midpoint:
             dt = self.__dt
-            gamma = self.__gamma
-            beta = self.__beta
 
-            # # U formulation
-            # u_np1 = x
-            # a_np1 = 1/2/beta * (2/dt**2*(u_np1 - u_n - dt*v_n) - (1-2*beta)*a_n)
-            # v_np1 = v_n + dt * ((1-gamma)*a_n + gamma*a_np1)
-
-            # Accel formulation
-            # same as hht with alpha = 1/2
-            a_np1 = x
-            u_np1 = (
-                u_n + dt * v_n + dt**2 / 2 * ((1 - 2 * beta) * a_n + 2 * beta * a_np1)
-            )
-            v_np1 = v_n + dt * ((1 - gamma) * a_n + gamma * a_np1)
+            # U formulation
+            # hht with alpha = 1/2
+            u_np1 = x
+            v_np1 = 2 / dt * (u_np1 - u_n) - v_n
+            a_np1 = 2 / dt * (v_np1 - v_n) - a_n
 
             return u_np1, v_np1, a_np1
 
@@ -1030,21 +1021,11 @@ class _Simu(_IObserver, _params.Updatable, ABC):
 
         elif algo == AlgoType.midpoint:
             dt = self.__dt
-            gamma = self.__gamma
-            beta = self.__beta
 
-            # # U formulation
-            # b += (M - dt**2/4 * K) @ u_n.reshape(-1,1)
-            # b += dt * M @ v_n.reshape(-1,1)
-
-            # hht in accel with alpha = 1/2
-            mat_an = 1 / 2 * (M + (1 - gamma) * dt * C + (1 / 2 - beta) * dt**2 * K)
-            b -= mat_an @ a_n.reshape(-1, 1)
-
-            mat_vn = C + 0.5 * dt * K
-            b -= mat_vn @ v_n.reshape(-1, 1)
-
-            b -= K @ u_n.reshape(-1, 1)
+            # U formulation
+            # hht with alpha = 1/2
+            b += (2 / dt**2 * M + 1 / dt * C - 1 / 2 * K) @ u_n.reshape(-1, 1)
+            b += 2 / dt * M @ v_n.reshape(-1, 1)
 
         elif algo == AlgoType.hht:
             dt = self.__dt
@@ -1120,20 +1101,16 @@ class _Simu(_IObserver, _params.Updatable, ABC):
 
             # U formulation
             # same as hht in accel with alpha = 0
-
             coefM = 1 / (beta * dt**2)
             coefC = gamma / (beta * dt)
             A = coefM * M + coefC * C + K
 
         elif algo == AlgoType.midpoint:
             dt = self.__dt
-            gamma = self.__gamma
-            beta = self.__beta
 
-            # Accel formulation
-            # hht in accel with alpha = 1/2
-            A = 0.5 * (M + gamma * dt * C + beta * dt**2 * K)
-            dofsValues = self._Get_a_n(problemType)[dofs]
+            # U formulation
+            # hht with alpha = 1/2
+            A = 2 / dt**2 * M + 1 / dt * C + 1 / 2 * K
 
         elif algo == AlgoType.hht:
             dt = self.__dt
