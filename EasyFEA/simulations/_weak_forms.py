@@ -27,6 +27,9 @@ class WeakFormSimu(_Simu):
         self,
         mesh: "Mesh",
         model: Models.WeakForms,
+        isNonLinear=False,
+        tolConv=1e-5,
+        maxIter=20,
         verbosity=False,
         useIterativeSolvers=True,
     ):
@@ -38,11 +41,21 @@ class WeakFormSimu(_Simu):
             The mesh used.
         model : WeakForms
             The model used.
+        isNonLinear : bool, optional
+            If True, the simulation is non linear. Defaults to False.
+        tolConv : float, optional
+            threshold used to check convergence, by default 1e-5
+        maxIter : int, optional
+            Maximum iterations for convergence, by default 20
         verbosity : bool, optional
             If True, the simulation can write in the terminal. Defaults to False.
         useIterativeSolvers : bool, optional
             If True, iterative solvers can be used. Defaults to True.
         """
+
+        self.__isNonLinear = isNonLinear
+        self.__tolConv = tolConv
+        self.__maxIter = maxIter
 
         assert isinstance(model, Models.WeakForms), "model must be a weakf form manager"
         super().__init__(mesh, model, verbosity, useIterativeSolvers)
@@ -140,15 +153,6 @@ class WeakFormSimu(_Simu):
 
         return K_e, C_e, M_e, F_e
 
-    def Solve(self):
-
-        # solve u
-        u = Solve_simu(self, self.problemType)
-
-        # update and set solutions
-        u, v, a = self._Solver_Update_solutions(self.problemType, u)
-        self._Set_solutions(self.problemType, u, v, a)
-
     def __Solve_delta_u(self):
         # compute delta_u
         delta_u = Solve_simu(self, self.problemType)
@@ -158,29 +162,22 @@ class WeakFormSimu(_Simu):
 
         return delta_u
 
-    def Solve_NonLinear(self, tolConv=1.0e-5, maxIter=20) -> _types.FloatArray:
-        """Solves the problem using the newton raphson algorithm.\n
-        Warning: The `Construct_local_matrix_system` function must return `K` and `F`, where `K` contains the tangent matrix and `F` contains the residual.
+    def Solve(self):
 
-        Parameters
-        ----------
-        tolConv : float, optional
-            threshold used to check convergence, by default 1e-5
-        maxIter : int, optional
-            Maximum iterations for convergence, by default 20
+        if self.__isNonLinear:
+            # solve u
+            u, Niter, timeIter, list_res = self._Solver_Solve_Newton_Raphson(
+                self.__Solve_delta_u, self.__tolConv, self.__maxIter
+            )
+        else:
+            # solve u
+            u = Solve_simu(self, self.problemType)
 
-        Returns
-        -------
-        _types.FloatArray
-            u_np1: displacement vector field
-        """
+        # update and set solutions
+        u, v, a = self._Solver_Update_solutions(self.problemType, u)
+        self._Set_solutions(self.problemType, u, v, a)
 
-        # solve u
-        u, Niter, timeIter, list_res = self._Solver_Solve_Newton_Raphson(
-            self.__Solve_delta_u, tolConv, maxIter
-        )
-
-        return u
+        return self._Get_u_n(self.problemType)
 
     def Save_Iter(self):
         iter = super().Save_Iter()

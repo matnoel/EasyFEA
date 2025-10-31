@@ -815,7 +815,7 @@ class _Simu(_IObserver, _params.Updatable, ABC):
         v_n = self._Get_v_n(problemType)
         a_n = self._Get_a_n(problemType)
 
-        if algo == AlgoType.elliptic:
+        if algo in [AlgoType.elliptic, AlgoType.newton_raphson]:
             u_np1 = x
             return u_np1, None, None
 
