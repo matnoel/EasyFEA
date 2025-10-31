@@ -575,9 +575,15 @@ class _Simu(_IObserver, _params.Updatable, ABC):
         Ndof = dofs + self._Bc_Lagrange_dim(self.problemType)
         shape = (Ndof, Ndof)
 
+        tic = Tic()
+
         K_e, C_e, M_e, F_e = self.Construct_local_matrix_system(problemType)
 
-        tic = Tic()
+        tic.Tac(
+            "Matrix",
+            f"Construct the local matrix system for the {problemType} problem.",
+            self._verbosity,
+        )
 
         # Assembly K
         if K_e is None:
@@ -734,6 +740,13 @@ class _Simu(_IObserver, _params.Updatable, ABC):
         assert 0 <= alpha <= 1
         self.__alpha = alpha
 
+    def Solver_Set_Newton_Raphson_Algorithm(self) -> None:
+        """Sets the algorithm's resolution properties for an non linear problem.
+
+        Used to solve K(u) Δu = - F(u).
+        """
+        self.__algo = AlgoType.newton_raphson
+
     def Solve(self) -> _types.FloatArray:
         """Computes the solution field for the current boundary conditions.
 
@@ -874,16 +887,14 @@ class _Simu(_IObserver, _params.Updatable, ABC):
         else:
             raise TypeError(f"Algo {algo} is not implemented here.")
 
-    def _Solver_problemType_is_incremental(self, problemType: ModelType) -> bool:
-        return False
-
-    def _Solver_Solve_NewtonRaphson(
+    def _Solver_Solve_Newton_Raphson(
         self,
         Solve: Callable[[], _types.FloatArray],
         tolConv=1.0e-5,
         maxIter=20,
     ) -> tuple[_types.FloatArray, int, float, list[float]]:
-        """Solves the non-linear problem using the newton raphson algorithm.
+        """Solves the non-linear problem using the newton raphson algorithm.\n
+        Warning: The `Construct_local_matrix_system` function must return `K` and `F`, where `K` contains the tangent matrix and `F` contains the residual.
 
         Parameters
         ----------
@@ -903,47 +914,40 @@ class _Simu(_IObserver, _params.Updatable, ABC):
         assert 0 < tolConv < 1, "tolConv must be between 0 and 1."
         assert maxIter > 1, "Must be > 1."
 
+        self.Solver_Set_Newton_Raphson_Algorithm()
         Niter = 0
         converged = False
         problemType = self.problemType
 
         tic = Tic()
 
-        solverIsIncremental = self._Solver_problemType_is_incremental(problemType)
-
-        if solverIsIncremental:
-            # init u
-            u = self._Get_u_n(problemType)
+        # init u
+        u = self._Get_u_n(problemType)
 
         # init convergence list
         list_res: list[float] = []
-        list_norm_b: list[float] = []
+        list_norm_r: list[float] = []
 
         while not converged and Niter < maxIter:
             Niter += 1
 
-            if solverIsIncremental:
-                # compute delta_u and ||delta_u||
-                delta_u = Solve()
-                norm_delta_u = np.linalg.norm(delta_u)
-                # uptate displacement
-                u += delta_u
-            else:
-                # compute u
-                u = Solve()
-                norm_delta_u = 1
+            # compute delta_u and ||delta_u||
+            delta_u = Solve()
+            norm_delta_u = np.linalg.norm(delta_u)
+            # uptate displacement
+            u += delta_u
 
             self.__Set_u_n(problemType, u)
 
-            # compute || b ||
-            b = self._Solver_Apply_Neumann(problemType)
-            norm_b: float = sla.norm(b)
-            list_norm_b.append(norm_b)
+            # compute || r ||
+            r = self._Solver_Apply_Neumann(problemType)
+            norm_r: float = sla.norm(r)
+            list_norm_r.append(norm_r)
 
             if Niter == 1:
                 res = 1
             else:
-                res = np.abs(list_norm_b[-2] - norm_b) / list_norm_b[-2]
+                res = np.abs(list_norm_r[-2] - norm_r) / list_norm_r[-2]
             list_res.append(res)
 
             converged = res < tolConv or norm_delta_u < tolConv
@@ -990,9 +994,9 @@ class _Simu(_IObserver, _params.Updatable, ABC):
         v_n = self._Get_v_n(problemType)
         a_n = self._Get_a_n(problemType)
 
-        b = b + F
+        b += F
 
-        if algo == AlgoType.elliptic:
+        if algo in [AlgoType.elliptic, AlgoType.newton_raphson]:
             pass
 
         elif algo == AlgoType.parabolic:
@@ -1111,13 +1115,14 @@ class _Simu(_IObserver, _params.Updatable, ABC):
         dofs = self.Bc_dofs_Dirichlet(problemType)
         dofsValues = self.Bc_values_Dirichlet(problemType)
 
-        if self._Solver_problemType_is_incremental(problemType):
-            # du = du - u
+        if algo == AlgoType.newton_raphson:
+            # dofsValues = dofsValues - u
+            # set incremental dof values
             dofsValues -= self._Get_u_n(problemType)[dofs]
 
         K, C, M, F = self.Get_K_C_M_F(problemType)
 
-        if algo == AlgoType.elliptic:
+        if algo in [AlgoType.elliptic, AlgoType.newton_raphson]:
             A = K
 
         elif algo == AlgoType.parabolic:

@@ -50,8 +50,6 @@ class WeakFormSimu(_Simu):
         # init
         self.Solver_Set_Elliptic_Algorithm()
 
-        self.__solverIsIncremental = False
-
     def _Check_dim_mesh_material(self) -> None:
         pass
 
@@ -163,10 +161,9 @@ class WeakFormSimu(_Simu):
 
         return delta_u
 
-    def Solve_NonLinear(
-        self, tolConv=1.0e-5, maxIter=20, solverIsIncremental: bool = False
-    ) -> _types.FloatArray:
-        """Solves the problem using the newton raphson algorithm.
+    def Solve_NonLinear(self, tolConv=1.0e-5, maxIter=20) -> _types.FloatArray:
+        """Solves the problem using the newton raphson algorithm.\n
+        Warning: The `Construct_local_matrix_system` function must return `K` and `F`, where `K` contains the tangent matrix and `F` contains the residual.
 
         Parameters
         ----------
@@ -174,8 +171,6 @@ class WeakFormSimu(_Simu):
             threshold used to check convergence, by default 1e-5
         maxIter : int, optional
             Maximum iterations for convergence, by default 20
-        solverIsIncremental : bool, optional
-            Solver is incremental, by default False
 
         Returns
         -------
@@ -184,15 +179,11 @@ class WeakFormSimu(_Simu):
         """
 
         # solve u
-        self.__solverIsIncremental = solverIsIncremental
-        u, Niter, timeIter, list_res = self._Solver_Solve_NewtonRaphson(
+        u, Niter, timeIter, list_res = self._Solver_Solve_Newton_Raphson(
             self.__Solve_delta_u, tolConv, maxIter
         )
 
         return u
-
-    def _Solver_problemType_is_incremental(self, problemType):
-        return self.__solverIsIncremental
 
     def Save_Iter(self):
         iter = super().Save_Iter()

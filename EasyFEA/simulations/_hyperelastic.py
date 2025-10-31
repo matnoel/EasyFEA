@@ -130,9 +130,6 @@ class HyperElasticSimu(_Simu):
 
         return delta_u
 
-    def _Solver_problemType_is_incremental(self, problemType):
-        return True
-
     def Solve(self, tolConv=1.0e-5, maxIter=20) -> _types.FloatArray:
         """Solves the hyperelastic problem using the newton raphson algorithm.
 
@@ -149,7 +146,7 @@ class HyperElasticSimu(_Simu):
             u_np1: displacement vector field
         """
 
-        u, Niter, timeIter, list_res = self._Solver_Solve_NewtonRaphson(
+        u, Niter, timeIter, list_res = self._Solver_Solve_Newton_Raphson(
             self.__Solve_hyperelastic, tolConv, maxIter
         )
 
@@ -206,6 +203,10 @@ class HyperElasticSimu(_Simu):
         K_e = K1_e + K2_e
 
         # source
+        # Here we solve:
+        # K(u) Δu = - R(u)
+        #         = - (F(u) - b)
+        #         = - F(u) + b
         F_e = -(wJ_e_pg * dWde_e_pg.T @ B_e_pg).sum(1)
 
         # reorder xi,...,xn,yi,...yn,zi,...,zn to xi,yi,zi,...,xn,yx,zn
