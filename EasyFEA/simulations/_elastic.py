@@ -143,6 +143,7 @@ class ElasticSimu(_Simu):
         """Sets damping coefficients \( C = coefK * K + coefM * M \)."""
         self.__coefM = coefM
         self.__coefK = coefK
+        self.Need_Update()
 
     def Get_x0(self, problemType=None):
         algo = self.algo
