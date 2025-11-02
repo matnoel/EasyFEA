@@ -424,8 +424,6 @@ class _Simu(_IObserver, _params.Updatable, ABC):
     # Solutions
     # ----------------------------------------------
 
-    # TODO Enable simulation creation from the variational formulation ?
-
     # Solutions
     @property
     def results(self) -> list[dict]:

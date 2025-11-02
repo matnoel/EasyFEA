@@ -73,8 +73,6 @@ class _Geom(ABC):
         self.isHollow = isHollow
         self.isOpen = isOpen
 
-    # TODO Add a To_Mesh_Function() ?
-
     # points doesn't have a public setter for safety
     @property
     def points(self) -> list[Point]:
