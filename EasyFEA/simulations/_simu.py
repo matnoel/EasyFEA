@@ -737,7 +737,7 @@ class _Simu(_IObserver, _params.Updatable, ABC):
         self.__beta = beta
         self.__gamma = gamma
 
-        assert 0 <= alpha <= 1
+        assert 0 <= alpha < 1
         self.__alpha = alpha
 
     def Solver_Set_Newton_Raphson_Algorithm(self) -> None:
