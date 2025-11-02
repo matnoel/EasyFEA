@@ -864,14 +864,14 @@ class _Simu(_IObserver, _params.Updatable, ABC):
             dt = self.__dt
             gamma = self.__gamma
             beta = self.__beta
-            alpha = self.__alpha
 
-            # Accel formulation
-            a_np1 = x
-            u_np1 = (
-                u_n + dt * v_n + dt**2 / 2 * ((1 - 2 * beta) * a_n + 2 * beta * a_np1)
+            # U formulation
+            u_np1 = x
+            a_np1 = (
+                1 / (beta * dt) * ((u_np1 - u_n) / dt - v_n)
+                + (1 - 1 / (2 * beta)) * a_n
             )
-            v_np1 = v_n + dt * ((1 - gamma) * a_n + gamma * a_np1)
+            v_np1 = dt * ((1 - gamma) * a_n + gamma * a_np1) + v_n
 
             return u_np1, v_np1, a_np1
 
@@ -999,7 +999,7 @@ class _Simu(_IObserver, _params.Updatable, ABC):
             ut_np1 = u_n + (1 - alpha) * dt * v_n
             ut_np1 = sparse.csr_matrix(ut_np1.reshape(-1, 1))
 
-            b = b + 1 / (alpha * dt) * C @ ut_np1
+            b += 1 / (alpha * dt) * C @ ut_np1
 
         elif algo == AlgoType.newmark:
             # U formulation
@@ -1012,20 +1012,28 @@ class _Simu(_IObserver, _params.Updatable, ABC):
             ut_np1 = u_n + dt * v_n + dt**2 / 2 * (1 - 2 * beta) * a_n
             vt_np1 = v_n + dt * (1 - gamma) * a_n
 
-            a_n = self._Get_a_n(problemType)
-
-            b -= C @ vt_np1.reshape(-1, 1)
+            # ut_np1
             coefC = gamma / (beta * dt)
             coefM = 1 / (beta * dt**2)
             b += (coefC * C + coefM * M) @ ut_np1.reshape(-1, 1)
+
+            # vt_np1
+            b -= C @ vt_np1.reshape(-1, 1)
 
         elif algo == AlgoType.midpoint:
             dt = self.__dt
 
             # U formulation
             # hht with alpha = 1/2
-            b += (2 / dt**2 * M + 1 / dt * C - 1 / 2 * K) @ u_n.reshape(-1, 1)
-            b += 2 / dt * M @ v_n.reshape(-1, 1)
+
+            # u_n
+            coefM = 2 / dt**2
+            coefC = 1 / dt
+            b += (coefM * M + coefC * C - 1 / 2 * K) @ u_n.reshape(-1, 1)
+
+            # v_n
+            coefM = 2 / dt
+            b += coefM * M @ v_n.reshape(-1, 1)
 
         elif algo == AlgoType.hht:
             dt = self.__dt
@@ -1033,17 +1041,22 @@ class _Simu(_IObserver, _params.Updatable, ABC):
             beta = self.__beta
             alpha = self.__alpha
 
-            mat_an = (
-                alpha * M
-                + (1 - alpha) * (1 - gamma) * dt * C
-                + (1 - alpha) * (1 / 2 - beta) * dt**2 * K
+            # u_n
+            coefM = 1 / (beta * dt**2)
+            coefC = gamma / (beta * dt)
+            b -= ((alpha - 1) * (coefM * M + coefC * C) + alpha * K) @ u_n.reshape(
+                -1, 1
             )
-            b -= mat_an @ a_n.reshape(-1, 1)
 
-            mat_vn = C + (1 - alpha) * dt * K
-            b -= mat_vn @ v_n.reshape(-1, 1)
+            # v_n
+            coefM = (alpha - 1) / (beta * dt)
+            coefC = (alpha - 1) * gamma / beta + 1
+            b -= (coefM * M + coefC * C) @ v_n.reshape(-1, 1)
 
-            b -= K @ u_n.reshape(-1, 1)
+            # a_n
+            coefM = (alpha - 1) / (2 * beta) + 1
+            coefC = dt * (alpha - 1) * (gamma / (2 * beta) - 1)
+            b -= (coefM * M + coefC * C) @ a_n.reshape(-1, 1)
 
         else:
             raise TypeError(f"Algo {algo} is not implemented here.")
@@ -1118,8 +1131,10 @@ class _Simu(_IObserver, _params.Updatable, ABC):
             beta = self.__beta
             alpha = self.__alpha
 
-            # Accel formulation
-            A = (1 - alpha) * (M + gamma * dt * C + beta * dt**2 * K)
+            # U formulation
+            coefM = 1 / (beta * dt**2)
+            coefC = gamma / (beta * dt)
+            A = (1 - alpha) * (coefM * M + coefC * C + K)
             dofsValues = self._Get_a_n(problemType)[dofs]
 
         else:
