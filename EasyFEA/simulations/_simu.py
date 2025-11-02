@@ -165,6 +165,12 @@ class _Simu(_IObserver, _params.Updatable, ABC):
         iter["indexMesh"] = self.__indexMesh
         # mesh identifier at this iteration
 
+        if self.__isNonLinear:
+            # convergence informations
+            iter["newtonIter"] = self.__newtonIter
+            iter["timeIter"] = self.__timeIter
+            iter["list_res"] = self.__list_res
+
         return iter
 
     @abstractmethod
@@ -330,6 +336,10 @@ class _Simu(_IObserver, _params.Updatable, ABC):
         self.__algo = AlgoType.elliptic
         """System resolution algorithm during simulation."""
         # Basic algo solves stationary problems
+
+        self.__isNonLinear = False
+        """System type during simulation."""
+        # a simulation is by default linear
 
         # Solver used for solving
         self.__solver = "scipy"  # Initialized just in case
@@ -740,12 +750,26 @@ class _Simu(_IObserver, _params.Updatable, ABC):
         assert 0 <= alpha < 1
         self.__alpha = alpha
 
-    def Solver_Set_Newton_Raphson_Algorithm(self) -> None:
-        """Sets the algorithm's resolution properties for an non linear problem.
+    def Solver_Set_Newton_Raphson_Algorithm(self, tolConv=1.0e-5, maxIter=20) -> None:
+        """Sets the algorithm's resolution properties for an non linear problem.\n
 
-        Used to solve K(u) Δu = - F(u).
+        Used to solve A(u) Δu = - R(u).
+
+        Parameters
+        ----------
+        tolConv : float, optional
+            threshold used to check convergence, by default 1e-5
+        maxIter : int, optional
+            Maximum iterations for convergence, by default 20
         """
-        self.__algo = AlgoType.newton_raphson
+
+        self.__isNonLinear = True
+        self.__tolConv = tolConv
+        self.__maxIter = maxIter
+
+        self.__newtonIter = None
+        self.__timeIter = None
+        self.__list_res = None
 
     def Solve(self) -> _types.FloatArray:
         """Computes the solution field for the current boundary conditions.
@@ -778,9 +802,17 @@ class _Simu(_IObserver, _params.Updatable, ABC):
     def _Solver_Solve(self, problemType: ModelType) -> _types.FloatArray:
         """Solves the problem."""
 
-        x = Solve_simu(self, problemType)
+        if self.__isNonLinear:
+            u, newtonIter, timeIter, list_res = self._Solver_Solve_Newton_Raphson(
+                problemType, self.__tolConv, self.__maxIter
+            )
+            self._newtonIter = newtonIter
+            self._timeIter = timeIter
+            self._list_res = list_res
+        else:
+            u = Solve_simu(self, problemType)
 
-        solutions = self._Solver_Update_solutions(problemType, x)
+        solutions = self._Solver_Update_solutions(problemType, u)
 
         self._Set_solutions(problemType, *solutions)
 
@@ -815,7 +847,7 @@ class _Simu(_IObserver, _params.Updatable, ABC):
         v_n = self._Get_v_n(problemType)
         a_n = self._Get_a_n(problemType)
 
-        if algo in [AlgoType.elliptic, AlgoType.newton_raphson]:
+        if algo in [AlgoType.elliptic]:
             u_np1 = x
             return u_np1, None, None
 
@@ -880,17 +912,19 @@ class _Simu(_IObserver, _params.Updatable, ABC):
 
     def _Solver_Solve_Newton_Raphson(
         self,
-        Solve: Callable[[], _types.FloatArray],
+        problemType=None,
         tolConv=1.0e-5,
         maxIter=20,
     ) -> tuple[_types.FloatArray, int, float, list[float]]:
         """Solves the non-linear problem using the newton raphson algorithm.\n
-        Warning: The `Construct_local_matrix_system` function must return `K` and `F`, where `K` contains the tangent matrix and `F` contains the residual.
+        Warning: The `Construct_local_matrix_system` function must return `K` and `F`, where `K` contains the tangent matrix and `F` contains the residual.\n
+
+        Used to solve A(u) Δu = - R(u).
 
         Parameters
         ----------
-        Solve : Callable[[], _types.FloatArray]
-            Solve function.
+        problemType : ModelType, optional
+            The problem type, by default self.problemType
         tolConv : float, optional
             threshold used to check convergence, by default 1e-5
         maxIter : int, optional
@@ -905,10 +939,12 @@ class _Simu(_IObserver, _params.Updatable, ABC):
         assert 0 < tolConv < 1, "tolConv must be between 0 and 1."
         assert maxIter > 1, "Must be > 1."
 
-        self.Solver_Set_Newton_Raphson_Algorithm()
-        Niter = 0
+        newtonIter = 0
         converged = False
-        problemType = self.problemType
+        if problemType is None:
+            problemType = self.problemType
+        else:
+            assert problemType in self.Get_problemTypes()
 
         tic = Tic()
 
@@ -919,11 +955,16 @@ class _Simu(_IObserver, _params.Updatable, ABC):
         list_res: list[float] = []
         list_norm_r: list[float] = []
 
-        while not converged and Niter < maxIter:
-            Niter += 1
+        while not converged and newtonIter < maxIter:
+            newtonIter += 1
 
-            # compute delta_u and ||delta_u||
-            delta_u = Solve()
+            # compute delta_u
+            delta_u = Solve_simu(self, self.problemType)
+            # The new delta_u indicates that u will be updated,
+            # which is why we must update the matrices.
+            self.Need_Update()
+
+            # compute ||delta_u||
             norm_delta_u = np.linalg.norm(delta_u)
             # uptate displacement
             u += delta_u
@@ -935,7 +976,7 @@ class _Simu(_IObserver, _params.Updatable, ABC):
             norm_r: float = sla.norm(r)
             list_norm_r.append(norm_r)
 
-            if Niter == 1:
+            if newtonIter == 1:
                 res = 1
             else:
                 res = np.abs(list_norm_r[-2] - norm_r) / list_norm_r[-2]
@@ -947,9 +988,9 @@ class _Simu(_IObserver, _params.Updatable, ABC):
 
         assert (
             converged
-        ), f"Newton raphson algorithm did not converged in {Niter} iterations."
+        ), f"Newton raphson algorithm did not converged in {newtonIter} iterations."
 
-        return u, Niter, timeIter, list_res
+        return u, newtonIter, timeIter, list_res
 
     def _Solver_Apply_Neumann(self, problemType: ModelType) -> sparse.csr_matrix:
         """Fill in the Neumann boundary conditions by constructing b from A x = b.
@@ -981,13 +1022,14 @@ class _Simu(_IObserver, _params.Updatable, ABC):
 
         tic = Tic()
 
-        u_n = self._Get_u_n(problemType)
-        v_n = self._Get_v_n(problemType)
-        a_n = self._Get_a_n(problemType)
+        if algo is not AlgoType.elliptic:
+            u_n = sparse.csr_matrix(self._Get_u_n(problemType).reshape(-1, 1))
+            v_n = sparse.csr_matrix(self._Get_v_n(problemType).reshape(-1, 1))
+            a_n = sparse.csr_matrix(self._Get_a_n(problemType).reshape(-1, 1))
 
         b += F
 
-        if algo in [AlgoType.elliptic, AlgoType.newton_raphson]:
+        if algo in [AlgoType.elliptic]:
             pass
 
         elif algo == AlgoType.parabolic:
@@ -997,7 +1039,6 @@ class _Simu(_IObserver, _params.Updatable, ABC):
             dt = self.__dt
 
             ut_np1 = u_n + (1 - alpha) * dt * v_n
-            ut_np1 = sparse.csr_matrix(ut_np1.reshape(-1, 1))
 
             b += 1 / (alpha * dt) * C @ ut_np1
 
@@ -1015,10 +1056,10 @@ class _Simu(_IObserver, _params.Updatable, ABC):
             # ut_np1
             coefC = gamma / (beta * dt)
             coefM = 1 / (beta * dt**2)
-            b += (coefC * C + coefM * M) @ ut_np1.reshape(-1, 1)
+            b += (coefC * C + coefM * M) @ ut_np1
 
             # vt_np1
-            b -= C @ vt_np1.reshape(-1, 1)
+            b -= C @ vt_np1
 
         elif algo == AlgoType.midpoint:
             dt = self.__dt
@@ -1029,11 +1070,11 @@ class _Simu(_IObserver, _params.Updatable, ABC):
             # u_n
             coefM = 2 / dt**2
             coefC = 1 / dt
-            b += (coefM * M + coefC * C - 1 / 2 * K) @ u_n.reshape(-1, 1)
+            b += (coefM * M + coefC * C - 1 / 2 * K) @ u_n
 
             # v_n
             coefM = 2 / dt
-            b += coefM * M @ v_n.reshape(-1, 1)
+            b += coefM * M @ v_n
 
         elif algo == AlgoType.hht:
             dt = self.__dt
@@ -1044,19 +1085,17 @@ class _Simu(_IObserver, _params.Updatable, ABC):
             # u_n
             coefM = 1 / (beta * dt**2)
             coefC = gamma / (beta * dt)
-            b -= ((alpha - 1) * (coefM * M + coefC * C) + alpha * K) @ u_n.reshape(
-                -1, 1
-            )
+            b -= ((alpha - 1) * (coefM * M + coefC * C) + alpha * K) @ u_n
 
             # v_n
             coefM = (alpha - 1) / (beta * dt)
             coefC = (alpha - 1) * gamma / beta + 1
-            b -= (coefM * M + coefC * C) @ v_n.reshape(-1, 1)
+            b -= (coefM * M + coefC * C) @ v_n
 
             # a_n
             coefM = (alpha - 1) / (2 * beta) + 1
             coefC = dt * (alpha - 1) * (gamma / (2 * beta) - 1)
-            b -= (coefM * M + coefC * C) @ a_n.reshape(-1, 1)
+            b -= (coefM * M + coefC * C) @ a_n
 
         else:
             raise TypeError(f"Algo {algo} is not implemented here.")
@@ -1090,14 +1129,14 @@ class _Simu(_IObserver, _params.Updatable, ABC):
         dofs = self.Bc_dofs_Dirichlet(problemType)
         dofsValues = self.Bc_values_Dirichlet(problemType)
 
-        if algo == AlgoType.newton_raphson:
+        if self.__isNonLinear:
             # dofsValues = dofsValues - u
             # set incremental dof values
             dofsValues -= self._Get_u_n(problemType)[dofs]
 
         K, C, M, F = self.Get_K_C_M_F(problemType)
 
-        if algo in [AlgoType.elliptic, AlgoType.newton_raphson]:
+        if algo in [AlgoType.elliptic]:
             A = K
 
         elif algo == AlgoType.parabolic:
@@ -1135,7 +1174,6 @@ class _Simu(_IObserver, _params.Updatable, ABC):
             coefM = 1 / (beta * dt**2)
             coefC = gamma / (beta * dt)
             A = (1 - alpha) * (coefM * M + coefC * C + K)
-            dofsValues = self._Get_a_n(problemType)[dofs]
 
         else:
             raise TypeError(f"Algo {algo} is not implemented here.")

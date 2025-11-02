@@ -62,8 +62,6 @@ class AlgoType(str, Enum):
     """Solve K u_np1/2 + C v_np1/2 + M a_np1/2 = F_np1/2"""
     hht = "hht"
     """Solve K u_np1ma + C v_np1ma + M a_np1ma = F_np1ma"""
-    newton_raphson = "newton_raphson"
-    """Solve K(u) Δu = - F(u)"""
 
     def __str__(self) -> str:
         return self.name

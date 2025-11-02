@@ -19,6 +19,7 @@ from ..fem._linalg import Det
 # materials
 from ..models import (
     ModelType,
+    Reshape_variable,
     Project_vector_to_matrix,
     Result_in_Strain_or_Stress_field,
     Project_Kelvin,
@@ -37,6 +38,8 @@ class HyperElasticSimu(_Simu):
         self,
         mesh: "Mesh",
         model: "_HyperElas",
+        tolConv=1e-5,
+        maxIter=20,
         verbosity=False,
         useIterativeSolvers=True,
     ):
@@ -48,6 +51,10 @@ class HyperElasticSimu(_Simu):
             The mesh used.
         model : _HyperElas
             The hyperelatic model used.
+        tolConv : float, optional
+            threshold used to check convergence, by default 1e-5
+        maxIter : int, optional
+            Maximum iterations for convergence, by default 20
         verbosity : bool, optional
             If True, the simulation can write in the terminal. Defaults to False.
         useIterativeSolvers : bool, optional
@@ -55,6 +62,8 @@ class HyperElasticSimu(_Simu):
         """
 
         super().__init__(mesh, model, verbosity, useIterativeSolvers)
+
+        self.Solver_Set_Newton_Raphson_Algorithm(tolConv=tolConv, maxIter=maxIter)
 
         assert model.dim == 3, "For the moment, the simulation is only available in 3D."
 
@@ -118,42 +127,6 @@ class HyperElasticSimu(_Simu):
     def Get_x0(self, problemType=None):
         return self.displacement
 
-    def __Solve_hyperelastic(self):
-        # compute delta_u
-        delta_u = Solve_simu(self, self.problemType)
-        # The new delta_u indicates that u will be updated,
-        # which is why we must update the matrices.
-        self.Need_Update()
-
-        return delta_u
-
-    def Solve(self, tolConv=1.0e-5, maxIter=20) -> _types.FloatArray:
-        """Solves the hyperelastic problem using the newton raphson algorithm.
-
-        Parameters
-        ----------
-        tolConv : float, optional
-            threshold used to check convergence, by default 1e-5
-        maxIter : int, optional
-            Maximum iterations for convergence, by default 20
-
-        Returns
-        -------
-        _types.FloatArray
-            u_np1: displacement vector field
-        """
-
-        u, Niter, timeIter, list_res = self._Solver_Solve_Newton_Raphson(
-            self.__Solve_hyperelastic, tolConv, maxIter
-        )
-
-        # save iter parameters
-        self.__Niter = Niter
-        self.__timeIter = timeIter
-        self.__list_res = list_res
-
-        return u
-
     def Construct_local_matrix_system(self, problemType):
         # data
         mat = self.material
@@ -194,24 +167,47 @@ class HyperElasticSimu(_Simu):
 
         B_e_pg = De_e_pg @ grad_e_pg
 
-        # stiffness
+        # ------------------------------
+        # Compute Stifness
+        # ------------------------------
         K1_e = (wJ_e_pg * B_e_pg.T @ d2Wde_e_pg @ B_e_pg).sum(1)
         K2_e = (wJ_e_pg * grad_e_pg.T @ Sig_e_pg @ grad_e_pg).sum(1)
         K_e = K1_e + K2_e
 
-        # source
+        # ------------------------------
+        # Compute Residual
+        # ------------------------------
         # Here we solve:
         # K(u) Δu = - R(u)
         #         = - (F(u) - b)
         #         = - F(u) + b
         F_e = -(wJ_e_pg * dWde_e_pg.T @ B_e_pg).sum(1)
 
+        # ------------------------------
+        # Compute Mass
+        # ------------------------------
+        if self.algo in AlgoType.Get_Hyperbolic_Types():
+            matrixType = MatrixType.mass
+            N_pg = FeArray.asfearray(mesh.Get_N_vector_pg(matrixType)[np.newaxis])
+            wJ_e_pg = mesh.Get_weightedJacobian_e_pg(matrixType)
+
+            rho_e_pg = Reshape_variable(self.rho, *wJ_e_pg.shape[:2])
+
+            M_e = (rho_e_pg * wJ_e_pg * N_pg.T @ N_pg).sum(axis=1)
+        else:
+            M_e = None
+
+        if dim == 2:
+            thickness = self.material.thickness
+            K_e *= thickness
+            M_e *= thickness
+
         # reorder xi,...,xn,yi,...yn,zi,...,zn to xi,yi,zi,...,xn,yx,zn
         reorder = np.arange(0, nPe * dim).reshape(-1, nPe).T.ravel()
         F_e = F_e[:, reorder]
         K_e = K_e[:, reorder][:, :, reorder]
 
-        return K_e, None, None, F_e
+        return K_e, None, M_e, F_e
 
     # --------------------------------------------------------------------------
     # Iterations
@@ -220,15 +216,10 @@ class HyperElasticSimu(_Simu):
     def Save_Iter(self):
         iter = super().Save_Iter()
 
-        # convergence informations
-        iter["Niter"] = self.__Niter
-        iter["timeIter"] = self.__timeIter
-        iter["list_res"] = self.__list_res
-
         iter["displacement"] = self.displacement
         if self.algo in AlgoType.Get_Hyperbolic_Types():
-            iter["speed"] = self.speed
-            iter["accel"] = self.accel
+            iter["speed"] = self._Get_v_n(self.problemType)
+            iter["accel"] = self._Get_a_n(self.problemType)
 
         self._results.append(iter)
 

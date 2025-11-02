@@ -53,12 +53,11 @@ class WeakFormSimu(_Simu):
             If True, iterative solvers can be used. Defaults to True.
         """
 
-        self.__isNonLinear = isNonLinear
-        self.__tolConv = tolConv
-        self.__maxIter = maxIter
-
         assert isinstance(model, Models.WeakForms), "model must be a weakf form manager"
         super().__init__(mesh, model, verbosity, useIterativeSolvers)
+
+        if isNonLinear:
+            self.Solver_Set_Newton_Raphson_Algorithm(tolConv=tolConv, maxIter=maxIter)
 
     def _Check_dim_mesh_material(self) -> None:
         pass
@@ -152,32 +151,6 @@ class WeakFormSimu(_Simu):
         tic.Tac("Matrix", "Compute the local F vector.", self._verbosity)
 
         return K_e, C_e, M_e, F_e
-
-    def __Solve_delta_u(self):
-        # compute delta_u
-        delta_u = Solve_simu(self, self.problemType)
-        # The new delta_u indicates that u will be updated,
-        # which is why we must update the matrices.
-        self.Need_Update()
-
-        return delta_u
-
-    def Solve(self):
-
-        if self.__isNonLinear:
-            # solve u
-            u, Niter, timeIter, list_res = self._Solver_Solve_Newton_Raphson(
-                self.__Solve_delta_u, self.__tolConv, self.__maxIter
-            )
-        else:
-            # solve u
-            u = Solve_simu(self, self.problemType)
-
-        # update and set solutions
-        u, v, a = self._Solver_Update_solutions(self.problemType, u)
-        self._Set_solutions(self.problemType, u, v, a)
-
-        return self._Get_u_n(self.problemType)
 
     def Save_Iter(self):
         iter = super().Save_Iter()
