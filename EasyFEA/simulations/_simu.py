@@ -883,7 +883,8 @@ class _Simu(_IObserver, _params.Updatable, ABC):
             dt = self.__dt
 
             # U formulation
-            # hht with alpha = 1/2
+            # hht with alpha = 1/2, gamma = 1/2 and beta = 1/4
+
             u_np1 = x
             v_np1 = 2 / dt * (u_np1 - u_n) - v_n
             a_np1 = 2 / dt * (v_np1 - v_n) - a_n
@@ -1063,7 +1064,7 @@ class _Simu(_IObserver, _params.Updatable, ABC):
             dt = self.__dt
 
             # U formulation
-            # hht with alpha = 1/2
+            # hht with alpha = 1/2, gamma = 1/2 and beta = 1/4
 
             # u_n
             coefM = 2 / dt**2
@@ -1080,6 +1081,8 @@ class _Simu(_IObserver, _params.Updatable, ABC):
             beta = self.__beta
             alpha = self.__alpha
 
+            # U formulation
+
             # u_n
             coefM = 1 / (beta * dt**2)
             coefC = gamma / (beta * dt)
@@ -1087,7 +1090,7 @@ class _Simu(_IObserver, _params.Updatable, ABC):
 
             # v_n
             coefM = (alpha - 1) / (beta * dt)
-            coefC = (alpha - 1) * gamma / beta + 1
+            coefC = (alpha - 1) * (gamma / beta) + 1
             b -= (coefM * M + coefC * C) @ v_n
 
             # a_n
@@ -1159,7 +1162,7 @@ class _Simu(_IObserver, _params.Updatable, ABC):
             dt = self.__dt
 
             # U formulation
-            # hht with alpha = 1/2
+            # hht with alpha = 1/2, gamma = 1/2 and beta = 1/4
             A = 2 / dt**2 * M + 1 / dt * C + 1 / 2 * K
 
         elif algo == AlgoType.hht:
