@@ -489,10 +489,6 @@ def TensorProd(
     assert isinstance(A, np.ndarray)
     assert isinstance(B, np.ndarray)
 
-    sizeA = A.size
-    sizeB = B.size
-    assert sizeA == sizeB, "A and B must have the same dimensions"
-
     useFeArray = isinstance(A, FeArray) or isinstance(B, FeArray)
 
     if ndim is None:
@@ -500,10 +496,18 @@ def TensorProd(
 
     assert ndim in [1, 2], "A and B must be vectors (i) or matrices (ij)"
 
+    error = "A and B must have the same dimensions"
+    if useFeArray:
+        ndim1 = A._ndim if useFeArray else A.ndim
+        ndim2 = B._ndim if useFeArray else B.ndim
+        assert ndim1 == ndim2, error
+    else:
+        assert A.size == B.size, error
+
     if ndim == 1:
         # vectors
         # Ai Bj
-        res: FeArray.FeArrayALike = np.einsum("...i,...j->...ij", A, B)
+        res = np.einsum("...i,...j->...ij", A, B)
 
     elif ndim == 2:
         # matrices
