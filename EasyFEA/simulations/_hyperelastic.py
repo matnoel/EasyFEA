@@ -8,7 +8,6 @@ import pandas as pd
 
 # utilities
 from ..utilities import Display, _types
-from ..simulations.Solvers import Solve_simu
 
 # fem
 if TYPE_CHECKING:

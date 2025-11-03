@@ -5,7 +5,7 @@
 from abc import ABC, abstractmethod
 import pickle
 from datetime import datetime
-from typing import Union, Callable, Optional, Any
+from typing import Union, Optional, Any
 import numpy as np
 from scipy import sparse
 import scipy.sparse.linalg as sla
@@ -943,7 +943,8 @@ class _Simu(_IObserver, _params.Updatable, ABC):
         if problemType is None:
             problemType = self.problemType
         else:
-            assert problemType in self.Get_problemTypes()
+            error = f"{problemType} must be in {self.Get_problemTypes()}."
+            assert problemType in self.Get_problemTypes(), error
 
         tic = Tic()
 
