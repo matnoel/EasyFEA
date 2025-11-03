@@ -18,6 +18,8 @@ from ._utils import Project_Kelvin
 
 # TODO: Cache the results ? It would be better to create an instance of hyperelasticity.
 class HyperElastic:
+    """Hyperelastic state."""
+
     @staticmethod
     def __CheckFormat(mesh: Mesh, u: _types.FloatArray, matrixType: MatrixType) -> None:
         assert isinstance(mesh, Mesh), "mesh must be an Mesh object"
@@ -30,31 +32,25 @@ class HyperElastic:
             matrixType in MatrixType.Get_types()
         ), f"matrixType must be in {MatrixType.Get_types()}"
 
-    @staticmethod
+    def __init__(self, mesh: Mesh, u: _types.FloatArray, matrixType: MatrixType):
+
+        self.__CheckFormat(mesh, u, matrixType)
+
+        self.__mesh = mesh
+        self.__u = u
+        self.__matrixType = matrixType
+
     def __GetDims(
-        mesh: Mesh, u: _types.FloatArray, matrixType: MatrixType
+        self,
     ) -> tuple[int, int, int]:
         """return Ne, nPg, dim"""
-        HyperElastic.__CheckFormat(mesh, u, matrixType)
-        Ne = mesh.Ne
-        dim = u.size // mesh.Nn
-        nPg = mesh.Get_jacobian_e_pg(matrixType).shape[1]
+        Ne = self.__mesh.Ne
+        dim = self.__u.size // self.__mesh.Nn
+        nPg = self.__mesh.Get_jacobian_e_pg(self.__matrixType).shape[1]
         return (Ne, nPg, dim)
 
-    @staticmethod
-    def Compute_F(
-        mesh: Mesh, u: _types.FloatArray, matrixType=MatrixType.rigi
-    ) -> FeArray.FeArrayALike:
+    def Compute_F(self) -> FeArray.FeArrayALike:
         """Computes the deformation gradient F(u) = I + grad(u)
-
-        Parameters
-        ----------
-        mesh : Mesh
-            mesh
-        u : _types.FloatArray
-            discretized displacement field [ux1, uy1, uz1, . . ., uxN, uyN, uzN] of size Nn * dim
-        matrixType : MatrixType, optional
-            matrix type, by default MatrixType.rigi
 
         Returns
         -------
@@ -83,28 +79,14 @@ class HyperElastic:
         dxuz dyuz 1+dzuz
         """
 
-        HyperElastic.__CheckFormat(mesh, u, matrixType)
-
-        grad_e_pg = mesh.Get_Gradient_e_pg(u, matrixType)
+        grad_e_pg = self.__mesh.Get_Gradient_e_pg(self.__u, self.__matrixType)
 
         F_e_pg = np.eye(3) + grad_e_pg
 
         return F_e_pg
 
-    @staticmethod
-    def Compute_J(
-        mesh: Mesh, u: _types.FloatArray, matrixType=MatrixType.rigi
-    ) -> FeArray.FeArrayALike:
+    def Compute_J(self) -> FeArray.FeArrayALike:
         """Computes the deformation gradient J = det(F)
-
-        Parameters
-        ----------
-        mesh : Mesh
-            mesh
-        u : _types.FloatArray
-            discretized displacement field [ux1, uy1, uz1, . . ., uxN, uyN, uzN] of size Nn * dim
-        matrixType : MatrixType, optional
-            matrix type, by default MatrixType.rigi
 
         Returns
         -------
@@ -112,26 +94,14 @@ class HyperElastic:
             J_e_pg of shape (Ne, pg)
         """
 
-        F_e_pg = HyperElastic.Compute_F(mesh, u, matrixType)
+        F_e_pg = self.Compute_F()
 
         J_e_pg = Det(F_e_pg)
 
         return J_e_pg
 
-    @staticmethod
-    def Compute_C(
-        mesh: Mesh, u: _types.FloatArray, matrixType=MatrixType.rigi
-    ) -> FeArray.FeArrayALike:
+    def Compute_C(self) -> FeArray.FeArrayALike:
         """Computes the right Cauchy-Green tensor  C(u) = F(u)'.F(u)
-
-        Parameters
-        ----------
-        mesh : Mesh
-            mesh
-        u : _types.FloatArray
-            discretized displacement field [ux1, uy1, uz1, . . ., uxN, uyN, uzN] of size Nn * dim
-        matrixType : MatrixType, optional
-            matrix type, by default MatrixType.rigi
 
         Returns
         -------
@@ -160,21 +130,18 @@ class HyperElastic:
         czx czy czz
         """
 
-        F_e_pg = HyperElastic.Compute_F(mesh, u, matrixType)
+        F_e_pg = self.Compute_F()
 
         C_e_pg = Transpose(F_e_pg) @ F_e_pg
 
         return C_e_pg
 
-    @staticmethod
-    def _Compute_C(
-        mesh: Mesh, u: _types.FloatArray, matrixType=MatrixType.rigi
-    ) -> list[FeArray.FeArrayALike]:
+    def _Compute_C(self) -> list[FeArray.FeArrayALike]:
         """Computes the right Cauchy-Green tensor components C(u) = F(u)'.F(u) \n
 
         returns [cxx, cxy, cxz, cyx, cyy, cyz, czx, czy, czz]"""
 
-        C_e_pg = HyperElastic.Compute_C(mesh, u, matrixType)
+        C_e_pg = self.Compute_C()
         vectC_e_pg = np.reshape(C_e_pg, (*C_e_pg.shape[:2], -1))
 
         cxx, cxy, cxz, cyx, cyy, cyz, czx, czy, czz = [
@@ -183,20 +150,8 @@ class HyperElastic:
 
         return [cxx, cxy, cxz, cyx, cyy, cyz, czx, czy, czz]
 
-    @staticmethod
-    def Compute_GreenLagrange(
-        mesh: Mesh, u: _types.FloatArray, matrixType=MatrixType.rigi
-    ) -> FeArray.FeArrayALike:
+    def Compute_GreenLagrange(self) -> FeArray.FeArrayALike:
         """Computes the Green-Lagrange deformation E = 1/2 (C - I)
-
-        Parameters
-        ----------
-        mesh : Mesh
-            mesh
-        u : _types.FloatArray
-            discretized displacement field [ux1, uy1, uz1, . . ., uxN, uyN, uzN] of size Nn * dim
-        matrixType : MatrixType, optional
-            matrix type, by default MatrixType.rigi
 
         Returns
         -------
@@ -204,26 +159,14 @@ class HyperElastic:
             E_e_pg of shape (Ne, pg, dim, dim)
         """
 
-        C_e_pg = HyperElastic.Compute_C(mesh, u, matrixType)
+        C_e_pg = self.Compute_C()
 
         E_e_pg = 1 / 2 * (C_e_pg - np.eye(3))
 
         return E_e_pg
 
-    @staticmethod
-    def Compute_Epsilon(
-        mesh: Mesh, u: _types.FloatArray, matrixType=MatrixType.rigi
-    ) -> FeArray.FeArrayALike:
+    def Compute_Epsilon(self) -> FeArray.FeArrayALike:
         """Computes the linearized deformation Epsilon = 1/2 (grad(u)' + grad(u))
-
-        Parameters
-        ----------
-        mesh : Mesh
-            mesh
-        u : _types.FloatArray
-            discretized displacement field [ux1, uy1, uz1, . . ., uxN, uyN, uzN] of size Nn * dim
-        matrixType : MatrixType, optional
-            matrix type, by default MatrixType.rigi
 
         Returns if dim = 2
         ------------------
@@ -240,12 +183,13 @@ class HyperElastic:
             [xx, yy, zz, 2**(-1/2) yz, 2**(-1/2) xz, 2**(-1/2) xy]
         """
 
-        HyperElastic.__CheckFormat(mesh, u, matrixType)
-        Ne, nPg, dim = HyperElastic.__GetDims(mesh, u, matrixType)
+        Ne, nPg, dim = self.__GetDims()
         assert dim in [2, 3]
 
         # compute grad
-        grad_e_pg = mesh.Get_Gradient_e_pg(u, matrixType)[..., :dim, :dim]
+        grad_e_pg = self.__mesh.Get_Gradient_e_pg(self.__u, self.__matrixType)[
+            ..., :dim, :dim
+        ]
 
         # 2d: dxux, dyux, dxuy, dyuy
         # 3d: dxux, dyux, dzu, dxuy, dyuy, dzuy, dxuz, dyuz, dzuz
@@ -272,20 +216,8 @@ class HyperElastic:
 
         return Eps_e_pg
 
-    @staticmethod
-    def Compute_De(
-        mesh: Mesh, u: _types.FloatArray, matrixType=MatrixType.rigi
-    ) -> FeArray.FeArrayALike:
+    def Compute_De(self) -> FeArray.FeArrayALike:
         """Computes De(u)
-
-        Parameters
-        ----------
-        mesh : Mesh
-            mesh
-        u : _types.FloatArray
-            discretized displacement field [ux1, uy1, uz1, . . ., uxN, uyN, uzN] of size Nn * dim
-        matrixType : MatrixType, optional
-            matrix type, by default MatrixType.rigi
 
         Returns if dim = 2
         ------------------
@@ -309,11 +241,10 @@ class HyperElastic:
             2**(-1/2) [dyux, 1+dxux, 0, 1+dyuy, dxuy, 0, dyuz, dxuz, 0] # xy
         """
 
-        HyperElastic.__CheckFormat(mesh, u, matrixType)
-        Ne, nPg, dim = HyperElastic.__GetDims(mesh, u, matrixType)
+        Ne, nPg, dim = self.__GetDims()
         assert dim in [2, 3]
 
-        grad_e_pg = mesh.Get_Gradient_e_pg(u, matrixType)
+        grad_e_pg = self.__mesh.Get_Gradient_e_pg(self.__u, self.__matrixType)
 
         if dim == 2:
             D_e_pg = FeArray.zeros(Ne, nPg, 3, 4)
@@ -363,20 +294,8 @@ class HyperElastic:
     # -------------------------------------
     # Compute I1
     # -------------------------------------
-    @staticmethod
-    def Compute_I1(
-        mesh: Mesh, u: _types.FloatArray, matrixType=MatrixType.rigi
-    ) -> FeArray.FeArrayALike:
+    def Compute_I1(self) -> FeArray.FeArrayALike:
         """Computes I1(u)
-
-        Parameters
-        ----------
-        mesh : Mesh
-            mesh
-        u : _types.FloatArray
-            discretized displacement field [ux1, uy1, uz1, . . ., uxN, uyN, uzN] of size Nn * dim
-        matrixType : MatrixType, optional
-            matrix type, by default MatrixType.rigi
 
         Returns
         -------
@@ -384,7 +303,7 @@ class HyperElastic:
             I1_e_pg of shape (Ne, pg)
         """
 
-        cxx, _, _, _, cyy, _, _, _, czz = HyperElastic._Compute_C(mesh, u, matrixType)
+        cxx, _, _, _, cyy, _, _, _, czz = self._Compute_C()
 
         I1_e_pg = cxx + cyy + czz
 
@@ -419,20 +338,8 @@ class HyperElastic:
     # -------------------------------------
     # Compute I2
     # -------------------------------------
-    @staticmethod
-    def Compute_I2(
-        mesh: Mesh, u: _types.FloatArray, matrixType=MatrixType.rigi
-    ) -> FeArray.FeArrayALike:
+    def Compute_I2(self) -> FeArray.FeArrayALike:
         """Computes I2(u)
-
-        Parameters
-        ----------
-        mesh : Mesh
-            mesh
-        u : _types.FloatArray
-            discretized displacement field [ux1, uy1, uz1, . . ., uxN, uyN, uzN] of size Nn * dim
-        matrixType : MatrixType, optional
-            matrix type, by default MatrixType.rigi
 
         Returns
         -------
@@ -440,28 +347,14 @@ class HyperElastic:
             I2_e_pg of shape (Ne, pg)
         """
 
-        cxx, cxy, cxz, _, cyy, cyz, _, _, czz = HyperElastic._Compute_C(
-            mesh, u, matrixType
-        )
+        cxx, cxy, cxz, _, cyy, cyz, _, _, czz = self._Compute_C()
 
         I2_e_pg = cxx * cyy + cyy * czz + cxx * czz - cxy**2 - cyz**2 - cxz**2
 
         return I2_e_pg
 
-    @staticmethod
-    def Compute_dI2dC(
-        mesh: Mesh, u: _types.FloatArray, matrixType=MatrixType.rigi
-    ) -> FeArray.FeArrayALike:
+    def Compute_dI2dC(self) -> FeArray.FeArrayALike:
         """Computes dI2dC(u)
-
-        Parameters
-        ----------
-        mesh : Mesh
-            mesh
-        u : _types.FloatArray
-            discretized displacement field [ux1, uy1, uz1, . . ., uxN, uyN, uzN] of size Nn * dim
-        matrixType : MatrixType, optional
-            matrix type, by default MatrixType.rigi
 
         Returns
         -------
@@ -469,11 +362,9 @@ class HyperElastic:
             dI2dC_e_pg of shape (Ne, pg, 3, 3)
         """
 
-        Ne, nPg, _ = HyperElastic.__GetDims(mesh, u, matrixType)
+        Ne, nPg, _ = self.__GetDims()
 
-        cxx, cxy, cxz, _, cyy, cyz, _, _, czz = HyperElastic._Compute_C(
-            mesh, u, matrixType
-        )
+        cxx, cxy, cxz, _, cyy, cyz, _, _, czz = self._Compute_C()
 
         dI2dC_e_pg = FeArray.asfearray(np.zeros((Ne, nPg, 6), dtype=float))
 
@@ -514,20 +405,8 @@ class HyperElastic:
     # -------------------------------------
     # Compute I3
     # -------------------------------------
-    @staticmethod
-    def Compute_I3(
-        mesh: Mesh, u: _types.FloatArray, matrixType=MatrixType.rigi
-    ) -> FeArray.FeArrayALike:
+    def Compute_I3(self) -> FeArray.FeArrayALike:
         """Computes I3(u)
-
-        Parameters
-        ----------
-        mesh : Mesh
-            mesh
-        u : _types.FloatArray
-            discretized displacement field [ux1, uy1, uz1, . . ., uxN, uyN, uzN] of size Nn * dim
-        matrixType : MatrixType, optional
-            matrix type, by default MatrixType.rigi
 
         Returns
         -------
@@ -535,9 +414,7 @@ class HyperElastic:
             I3_e_pg of shape (Ne, pg)
         """
 
-        cxx, cxy, cxz, _, cyy, cyz, _, _, czz = HyperElastic._Compute_C(
-            mesh, u, matrixType
-        )
+        cxx, cxy, cxz, _, cyy, cyz, _, _, czz = self._Compute_C()
 
         I3_e_pg = (
             cxx * cyy * czz
@@ -549,20 +426,8 @@ class HyperElastic:
 
         return I3_e_pg
 
-    @staticmethod
-    def Compute_dI3dC(
-        mesh: Mesh, u: _types.FloatArray, matrixType=MatrixType.rigi
-    ) -> FeArray.FeArrayALike:
+    def Compute_dI3dC(self) -> FeArray.FeArrayALike:
         """Computes dI3dC(u)
-
-        Parameters
-        ----------
-        mesh : Mesh
-            mesh
-        u : _types.FloatArray
-            discretized displacement field [ux1, uy1, uz1, . . ., uxN, uyN, uzN] of size Nn * dim
-        matrixType : MatrixType, optional
-            matrix type, by default MatrixType.rigi
 
         Returns
         -------
@@ -570,11 +435,9 @@ class HyperElastic:
             dI3dC_e_pg of shape (Ne, pg, 3, 3)
         """
 
-        cxx, cxy, cxz, _, cyy, cyz, _, _, czz = HyperElastic._Compute_C(
-            mesh, u, matrixType
-        )
+        cxx, cxy, cxz, _, cyy, cyz, _, _, czz = self._Compute_C()
 
-        Ne, nPg, _ = HyperElastic.__GetDims(mesh, u, matrixType)
+        Ne, nPg, _ = self.__GetDims()
 
         dI3dC_e_pg = FeArray.asfearray(np.zeros((Ne, nPg, 6)))
 
@@ -589,20 +452,8 @@ class HyperElastic:
 
         return dI3dC_e_pg
 
-    @staticmethod
-    def Compute_d2I3dC(
-        mesh: Mesh, u: _types.FloatArray, matrixType=MatrixType.rigi
-    ) -> FeArray.FeArrayALike:
+    def Compute_d2I3dC(self) -> FeArray.FeArrayALike:
         """Computes d2I3dC(u)
-
-        Parameters
-        ----------
-        mesh : Mesh
-            mesh
-        u : _types.FloatArray
-            discretized displacement field [ux1, uy1, uz1, . . ., uxN, uyN, uzN] of size Nn * dim
-        matrixType : MatrixType, optional
-            matrix type, by default MatrixType.rigi
 
         Returns
         -------
@@ -610,11 +461,9 @@ class HyperElastic:
             d2I3dC_e_pg of shape (Ne, pg, 6, 6)
         """
 
-        cxx, cxy, cxz, _, cyy, cyz, _, _, czz = HyperElastic._Compute_C(
-            mesh, u, matrixType
-        )
+        cxx, cxy, cxz, _, cyy, cyz, _, _, czz = self._Compute_C()
 
-        Ne, nPg, _ = HyperElastic.__GetDims(mesh, u, matrixType)
+        Ne, nPg, _ = self.__GetDims()
 
         d2I3dC_e_pg = FeArray.zeros(Ne, nPg, 6, 6)
 
@@ -640,25 +489,16 @@ class HyperElastic:
     # -------------------------------------
     # Compute I4
     # -------------------------------------
-    @staticmethod
     def Compute_I4(
-        mesh: Mesh,
-        u: _types.FloatArray,
+        self,
         T: _types.FloatArray,
-        matrixType=MatrixType.rigi,
     ) -> FeArray.FeArrayALike:
         """Computes I4(u)
 
         Parameters
         ----------
-        mesh : Mesh
-            mesh
-        u : _types.FloatArray
-            discretized displacement field [ux1, uy1, uz1, . . ., uxN, uyN, uzN] of size Nn * dim
         T : _types.FloatArray
             direction(s)
-        matrixType : MatrixType, optional
-            matrix type, by default MatrixType.rigi
 
         Returns
         -------
@@ -666,7 +506,7 @@ class HyperElastic:
             I4_e_pg of shape (Ne, pg)
         """
 
-        C_e_pg = HyperElastic.Compute_C(mesh, u, matrixType)
+        C_e_pg = self.Compute_C()
 
         _params._CheckIsVector(T)
         if not isinstance(T, FeArray):
@@ -682,8 +522,6 @@ class HyperElastic:
 
         Parameters
         ----------
-        mesh : Mesh
-            mesh
         T : _types.FloatArray
             direction(s)
 
@@ -716,25 +554,16 @@ class HyperElastic:
     # -------------------------------------
     # Compute I6
     # -------------------------------------
-    @staticmethod
     def Compute_I6(
-        mesh: Mesh,
-        u: _types.FloatArray,
+        self,
         T: _types.FloatArray,
-        matrixType=MatrixType.rigi,
     ) -> FeArray.FeArrayALike:
         """Computes I6(u)
 
         Parameters
         ----------
-        mesh : Mesh
-            mesh
-        u : _types.FloatArray
-            discretized displacement field [ux1, uy1, uz1, . . ., uxN, uyN, uzN] of size Nn * dim
         T : _types.FloatArray
             direction(s)
-        matrixType : MatrixType, optional
-            matrix type, by default MatrixType.rigi
 
         Returns
         -------
@@ -742,7 +571,7 @@ class HyperElastic:
             I6_e_pg of shape (Ne, pg)
         """
 
-        return HyperElastic.Compute_I4(mesh, u, T, matrixType)
+        return self.Compute_I4(T)
 
     @staticmethod
     def Compute_dI6dC(T: _types.FloatArray) -> FeArray.FeArrayALike:
@@ -750,8 +579,6 @@ class HyperElastic:
 
         Parameters
         ----------
-        mesh : Mesh
-            mesh
         T : _types.FloatArray
             direction(s)
 
@@ -778,28 +605,19 @@ class HyperElastic:
     # -------------------------------------
     # Compute I8
     # -------------------------------------
-    @staticmethod
     def Compute_I8(
-        mesh: Mesh,
-        u: _types.FloatArray,
+        self,
         T1: _types.FloatArray,
         T2: _types.FloatArray,
-        matrixType=MatrixType.rigi,
     ) -> FeArray.FeArrayALike:
         """Computes I8(u)
 
         Parameters
         ----------
-        mesh : Mesh
-            mesh
-        u : _types.FloatArray
-            discretized displacement field [ux1, uy1, uz1, . . ., uxN, uyN, uzN] of size Nn * dim
         T1 : _types.FloatArray
             direction(s) 1
         T2 : _types.FloatArray
             direction(s) 2
-        matrixType : MatrixType, optional
-            matrix type, by default MatrixType.rigi
 
         Returns
         -------
@@ -807,7 +625,7 @@ class HyperElastic:
             I8_e_pg of shape (Ne, pg)
         """
 
-        C_e_pg = HyperElastic.Compute_C(mesh, u, matrixType)
+        C_e_pg = self.Compute_C()
 
         _params._CheckIsVector(T1)
         if not isinstance(T1, FeArray):
@@ -829,8 +647,6 @@ class HyperElastic:
 
         Parameters
         ----------
-        mesh : Mesh
-            mesh
         T1 : _types.FloatArray
             direction(s) 1
         T2 : _types.FloatArray

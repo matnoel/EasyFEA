@@ -143,12 +143,14 @@ class HyperElasticSimu(_Simu):
         # get hyperelastic data
         displacement = self.displacement
 
+        hyperElasticState = HyperElastic(mesh, displacement, matrixType)
+
         # check if there is any invalid element
-        J_e_pg = HyperElastic.Compute_J(mesh, displacement, matrixType)
+        J_e_pg = hyperElasticState.Compute_J()
         assert J_e_pg.min() > 0, "Warning: det(F) < 0 - reduce load steps"
 
         # get hyper elastic matrices
-        De_e_pg = HyperElastic.Compute_De(mesh, displacement, matrixType)
+        De_e_pg = hyperElasticState.Compute_De()
         dWde_e_pg = mat.Compute_dWde(mesh, displacement, matrixType)
         d2Wde_e_pg = mat.Compute_d2Wde(mesh, displacement, matrixType)
 
@@ -389,9 +391,8 @@ class HyperElasticSimu(_Simu):
             return (wJ_e_pg * W_e_pg).sum(1)
 
     def _Calc_GreenLagrange(self, matrixType=MatrixType.rigi):
-        return Project_Kelvin(
-            HyperElastic.Compute_GreenLagrange(self.mesh, self.displacement), 2
-        )
+        hyperElasticState = HyperElastic(self.mesh, self.displacement, matrixType)
+        return Project_Kelvin(hyperElasticState.Compute_GreenLagrange(), 2)
 
     def _Calc_SecondPiolaKirchhoff(self, matrixType=MatrixType.rigi):
         return self.material.Compute_dWde(self.mesh, self.displacement, matrixType)

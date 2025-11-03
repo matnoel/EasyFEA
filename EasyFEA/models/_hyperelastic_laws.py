@@ -152,8 +152,11 @@ class NeoHookean(_HyperElas):
 
     def Compute_W(self, mesh, u, matrixType=MatrixType.rigi) -> FeArray:
         K = self.K
-        I1 = HyperElastic.Compute_I1(mesh, u, matrixType)
-        I3 = HyperElastic.Compute_I3(mesh, u, matrixType)
+
+        hyperElasticState = HyperElastic(mesh, u, matrixType)
+
+        I1 = hyperElasticState.Compute_I1()
+        I3 = hyperElasticState.Compute_I3()
 
         W = K * (I1 / I3 ** (1 / 3) - 3)
 
@@ -161,13 +164,16 @@ class NeoHookean(_HyperElas):
 
     def Compute_dWde(self, mesh, u, matrixType=MatrixType.rigi) -> FeArray:
         K = self.K
-        I1 = HyperElastic.Compute_I1(mesh, u, matrixType)
-        I3 = HyperElastic.Compute_I3(mesh, u, matrixType)
+
+        hyperElasticState = HyperElastic(mesh, u, matrixType)
+
+        I1 = hyperElasticState.Compute_I1()
+        I3 = hyperElasticState.Compute_I3()
 
         dWdI1 = K / I3 ** (1 / 3)
         dWdI3 = -I1 * K / (3 * I3 ** (4 / 3))
-        dI1dC = HyperElastic.Compute_dI1dC()
-        dI3dC = HyperElastic.Compute_dI3dC(mesh, u, matrixType)
+        dI1dC = hyperElasticState.Compute_dI1dC()
+        dI3dC = hyperElasticState.Compute_dI3dC()
 
         dWdI1 = K / I3 ** (1 / 3)
         dWdI3 = -I1 * K / (3 * I3 ** (4 / 3))
@@ -177,13 +183,16 @@ class NeoHookean(_HyperElas):
 
     def Compute_d2Wde(self, mesh, u, matrixType=MatrixType.rigi) -> FeArray:
         K = self.K
-        I1 = HyperElastic.Compute_I1(mesh, u, matrixType)
-        I3 = HyperElastic.Compute_I3(mesh, u, matrixType)
 
-        dI1dC = HyperElastic.Compute_dI1dC()
-        dI3dC = HyperElastic.Compute_dI3dC(mesh, u, matrixType)
-        d2I1dC = HyperElastic.Compute_d2I1dC()
-        d2I3dC = HyperElastic.Compute_d2I3dC(mesh, u, matrixType)
+        hyperElasticState = HyperElastic(mesh, u, matrixType)
+
+        I1 = hyperElasticState.Compute_I1()
+        I3 = hyperElasticState.Compute_I3()
+
+        dI1dC = hyperElasticState.Compute_dI1dC()
+        dI3dC = hyperElasticState.Compute_dI3dC()
+        d2I1dC = hyperElasticState.Compute_d2I1dC()
+        d2I3dC = hyperElasticState.Compute_d2I3dC()
 
         dWdI1 = K / I3 ** (1 / 3)
         d2WdI1dI3 = -K / (3 * I3 ** (4 / 3))
@@ -242,9 +251,12 @@ class MooneyRivlin(_HyperElas):
     def Compute_W(self, mesh, u, matrixType=MatrixType.rigi) -> FeArray:
         K1 = self.K1
         K2 = self.K2
-        I1 = HyperElastic.Compute_I1(mesh, u, matrixType)
-        I2 = HyperElastic.Compute_I2(mesh, u, matrixType)
-        I3 = HyperElastic.Compute_I3(mesh, u, matrixType)
+
+        hyperElasticState = HyperElastic(mesh, u, matrixType)
+
+        I1 = hyperElasticState.Compute_I1()
+        I2 = hyperElasticState.Compute_I2()
+        I3 = hyperElasticState.Compute_I3()
 
         W = K1 * (I1 / I3 ** (1 / 3) - 3) + K2 * (I2 / I3 ** (2 / 3) - 3)
 
@@ -253,13 +265,16 @@ class MooneyRivlin(_HyperElas):
     def Compute_dWde(self, mesh, u, matrixType=MatrixType.rigi) -> FeArray:
         K1 = self.K1
         K2 = self.K2
-        I1 = HyperElastic.Compute_I1(mesh, u, matrixType)
-        I2 = HyperElastic.Compute_I2(mesh, u, matrixType)
-        I3 = HyperElastic.Compute_I3(mesh, u, matrixType)
 
-        dI1dC = HyperElastic.Compute_dI1dC()
-        dI2dC = HyperElastic.Compute_dI2dC(mesh, u, matrixType)
-        dI3dC = HyperElastic.Compute_dI3dC(mesh, u, matrixType)
+        hyperElasticState = HyperElastic(mesh, u, matrixType)
+
+        I1 = hyperElasticState.Compute_I1()
+        I2 = hyperElasticState.Compute_I2()
+        I3 = hyperElasticState.Compute_I3()
+
+        dI1dC = hyperElasticState.Compute_dI1dC()
+        dI2dC = hyperElasticState.Compute_dI2dC()
+        dI3dC = hyperElasticState.Compute_dI3dC()
 
         dWdI1 = K1 / I3 ** (1 / 3)
         dWdI2 = K2 / I3 ** (2 / 3)
@@ -272,17 +287,20 @@ class MooneyRivlin(_HyperElas):
     def Compute_d2Wde(self, mesh, u, matrixType=MatrixType.rigi) -> FeArray:
         K1 = self.K1
         K2 = self.K2
-        I1 = HyperElastic.Compute_I1(mesh, u, matrixType)
-        I2 = HyperElastic.Compute_I2(mesh, u, matrixType)
-        I3 = HyperElastic.Compute_I3(mesh, u, matrixType)
 
-        dI1dC = HyperElastic.Compute_dI1dC()
-        dI2dC = HyperElastic.Compute_dI2dC(mesh, u, matrixType)
-        dI3dC = HyperElastic.Compute_dI3dC(mesh, u, matrixType)
+        hyperElasticState = HyperElastic(mesh, u, matrixType)
 
-        d2I1dC = HyperElastic.Compute_d2I1dC()
-        d2I2dC = HyperElastic.Compute_d2I2dC()
-        d2I3dC = HyperElastic.Compute_d2I3dC(mesh, u, matrixType)
+        I1 = hyperElasticState.Compute_I1()
+        I2 = hyperElasticState.Compute_I2()
+        I3 = hyperElasticState.Compute_I3()
+
+        dI1dC = hyperElasticState.Compute_dI1dC()
+        dI2dC = hyperElasticState.Compute_dI2dC()
+        dI3dC = hyperElasticState.Compute_dI3dC()
+
+        d2I1dC = hyperElasticState.Compute_d2I1dC()
+        d2I2dC = hyperElasticState.Compute_d2I2dC()
+        d2I3dC = hyperElasticState.Compute_d2I3dC()
 
         dWdI1 = K1 / I3 ** (1 / 3)
         d2WdI1dI3 = -K1 / (3 * I3 ** (4 / 3))
@@ -348,8 +366,11 @@ class SaintVenantKirchhoff(_HyperElas):
     def Compute_W(self, mesh, u, matrixType=MatrixType.rigi) -> FeArray:
         lmbda = self.lmbda
         mu = self.mu
-        I1 = HyperElastic.Compute_I1(mesh, u, matrixType)
-        I2 = HyperElastic.Compute_I2(mesh, u, matrixType)
+
+        hyperElasticState = HyperElastic(mesh, u, matrixType)
+
+        I1 = hyperElasticState.Compute_I1()
+        I2 = hyperElasticState.Compute_I2()
 
         W = lmbda * (I1**2 - 6 * I1 + 9) / 8 + mu * (I1**2 - 2 * I1 - 2 * I2 + 3) / 4
 
@@ -358,10 +379,13 @@ class SaintVenantKirchhoff(_HyperElas):
     def Compute_dWde(self, mesh, u, matrixType=MatrixType.rigi) -> FeArray:
         lmbda = self.lmbda
         mu = self.mu
-        I1 = HyperElastic.Compute_I1(mesh, u, matrixType)
 
-        dI1dC = HyperElastic.Compute_dI1dC()
-        dI2dC = HyperElastic.Compute_dI2dC(mesh, u, matrixType)
+        hyperElasticState = HyperElastic(mesh, u, matrixType)
+
+        I1 = hyperElasticState.Compute_I1()
+
+        dI1dC = hyperElasticState.Compute_dI1dC()
+        dI2dC = hyperElasticState.Compute_dI2dC()
 
         dWdI1 = 2 * I1 * (lmbda / 8 + mu / 4) - 3 * lmbda / 4 - mu / 2
         dWdI2 = -mu / 2
@@ -373,12 +397,15 @@ class SaintVenantKirchhoff(_HyperElas):
     def Compute_d2Wde(self, mesh, u, matrixType=MatrixType.rigi) -> FeArray:
         lmbda = self.lmbda
         mu = self.mu
-        I1 = HyperElastic.Compute_I1(mesh, u, matrixType)
 
-        dI1dC = HyperElastic.Compute_dI1dC()
+        hyperElasticState = HyperElastic(mesh, u, matrixType)
 
-        d2I1dC = HyperElastic.Compute_d2I1dC()
-        d2I2dC = HyperElastic.Compute_d2I2dC()
+        I1 = hyperElasticState.Compute_I1()
+
+        dI1dC = hyperElasticState.Compute_dI1dC()
+
+        d2I1dC = hyperElasticState.Compute_d2I1dC()
+        d2I2dC = hyperElasticState.Compute_d2I2dC()
 
         dWdI1 = 2 * I1 * (lmbda / 8 + mu / 4) - 3 * lmbda / 4 - mu / 2
         d2WdI1dI1 = lmbda / 4 + mu / 2
@@ -516,12 +543,14 @@ class HolzapfelOgden(_HyperElas):
         T2 = self.T2
         ks = self.__ks
 
-        I1 = HyperElastic.Compute_I1(mesh, u, matrixType)
-        I2 = HyperElastic.Compute_I2(mesh, u, matrixType)
-        I3 = HyperElastic.Compute_I3(mesh, u, matrixType)
-        I4 = HyperElastic.Compute_I4(mesh, u, T1, matrixType)
-        I6 = HyperElastic.Compute_I6(mesh, u, T2, matrixType)
-        I8 = HyperElastic.Compute_I8(mesh, u, T1, T2, matrixType)
+        hyperElasticState = HyperElastic(mesh, u, matrixType)
+
+        I1 = hyperElasticState.Compute_I1()
+        I2 = hyperElasticState.Compute_I2()
+        I3 = hyperElasticState.Compute_I3()
+        I4 = hyperElasticState.Compute_I4(T1)
+        I6 = hyperElasticState.Compute_I6(T2)
+        I8 = hyperElasticState.Compute_I8(T1, T2)
 
         W = (
             C0 * (np.exp(C1 * (I1 / I3 ** (1 / 3) - 3)) - 1)
@@ -551,19 +580,21 @@ class HolzapfelOgden(_HyperElas):
         T2 = self.T2
         ks = self.__ks
 
-        I1 = HyperElastic.Compute_I1(mesh, u, matrixType)
-        I2 = HyperElastic.Compute_I2(mesh, u, matrixType)
-        I3 = HyperElastic.Compute_I3(mesh, u, matrixType)
-        I4 = HyperElastic.Compute_I4(mesh, u, T1, matrixType)
-        I6 = HyperElastic.Compute_I6(mesh, u, T2, matrixType)
-        I8 = HyperElastic.Compute_I8(mesh, u, T1, T2, matrixType)
+        hyperElasticState = HyperElastic(mesh, u, matrixType)
 
-        dI1dC = HyperElastic.Compute_dI1dC()
-        dI2dC = HyperElastic.Compute_dI2dC(mesh, u, matrixType)
-        dI3dC = HyperElastic.Compute_dI3dC(mesh, u, matrixType)
-        dI4dC = HyperElastic.Compute_dI4dC(T1)
-        dI6dC = HyperElastic.Compute_dI6dC(T2)
-        dI8dC = HyperElastic.Compute_dI8dC(T1, T2)
+        I1 = hyperElasticState.Compute_I1()
+        I2 = hyperElasticState.Compute_I2()
+        I3 = hyperElasticState.Compute_I3()
+        I4 = hyperElasticState.Compute_I4(T1)
+        I6 = hyperElasticState.Compute_I6(T2)
+        I8 = hyperElasticState.Compute_I8(T1, T2)
+
+        dI1dC = hyperElasticState.Compute_dI1dC()
+        dI2dC = hyperElasticState.Compute_dI2dC()
+        dI3dC = hyperElasticState.Compute_dI3dC()
+        dI4dC = hyperElasticState.Compute_dI4dC(T1)
+        dI6dC = hyperElasticState.Compute_dI6dC(T2)
+        dI8dC = hyperElasticState.Compute_dI8dC(T1, T2)
 
         # see: examples/HyperElastic/HyperElasticLaws.py
         # TODO Optimize
@@ -603,26 +634,28 @@ class HolzapfelOgden(_HyperElas):
         T2 = self.T2
         ks = self.__ks
 
-        I1 = HyperElastic.Compute_I1(mesh, u, matrixType)
-        I2 = HyperElastic.Compute_I2(mesh, u, matrixType)
-        I3 = HyperElastic.Compute_I3(mesh, u, matrixType)
-        I4 = HyperElastic.Compute_I4(mesh, u, T1, matrixType)
-        I6 = HyperElastic.Compute_I6(mesh, u, T2, matrixType)
-        I8 = HyperElastic.Compute_I8(mesh, u, T1, T2, matrixType)
+        hyperElasticState = HyperElastic(mesh, u, matrixType)
 
-        dI1dC = HyperElastic.Compute_dI1dC()
-        dI2dC = HyperElastic.Compute_dI2dC(mesh, u, matrixType)
-        dI3dC = HyperElastic.Compute_dI3dC(mesh, u, matrixType)
-        dI4dC = HyperElastic.Compute_dI4dC(T1)
-        dI6dC = HyperElastic.Compute_dI6dC(T2)
-        dI8dC = HyperElastic.Compute_dI8dC(T1, T2)
+        I1 = hyperElasticState.Compute_I1()
+        I2 = hyperElasticState.Compute_I2()
+        I3 = hyperElasticState.Compute_I3()
+        I4 = hyperElasticState.Compute_I4(T1)
+        I6 = hyperElasticState.Compute_I6(T2)
+        I8 = hyperElasticState.Compute_I8(T1, T2)
 
-        d2I1dC = HyperElastic.Compute_d2I1dC()
-        d2I2dC = HyperElastic.Compute_d2I2dC()
-        d2I3dC = HyperElastic.Compute_d2I3dC(mesh, u, matrixType)
-        d2I4dC = HyperElastic.Compute_d2I4dC()
-        d2I6dC = HyperElastic.Compute_d2I6dC()
-        d2I8dC = HyperElastic.Compute_d2I8dC()
+        dI1dC = hyperElasticState.Compute_dI1dC()
+        dI2dC = hyperElasticState.Compute_dI2dC()
+        dI3dC = hyperElasticState.Compute_dI3dC()
+        dI4dC = hyperElasticState.Compute_dI4dC(T1)
+        dI6dC = hyperElasticState.Compute_dI6dC(T2)
+        dI8dC = hyperElasticState.Compute_dI8dC(T1, T2)
+
+        d2I1dC = hyperElasticState.Compute_d2I1dC()
+        d2I2dC = hyperElasticState.Compute_d2I2dC()
+        d2I3dC = hyperElasticState.Compute_d2I3dC()
+        d2I4dC = hyperElasticState.Compute_d2I4dC()
+        d2I6dC = hyperElasticState.Compute_d2I6dC()
+        d2I8dC = hyperElasticState.Compute_d2I8dC()
 
         # see: examples/HyperElastic/HyperElasticLaws.py
         # TODO Optimize
