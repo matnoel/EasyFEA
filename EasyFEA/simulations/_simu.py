@@ -960,16 +960,15 @@ class _Simu(_IObserver, _params.Updatable, ABC):
 
             # compute delta_u
             delta_u = Solve_simu(self, self.problemType)
-            # The new delta_u indicates that u will be updated,
-            # which is why we must update the matrices.
-            self.Need_Update()
 
             # compute ||delta_u||
             norm_delta_u = np.linalg.norm(delta_u)
-            # uptate displacement
+            # uptate u
             u += delta_u
-
             self.__Set_u_n(problemType, u)
+
+            # u is updated -> we must update the matrices.
+            self.Need_Update()
 
             # compute || r ||
             r = self._Solver_Apply_Neumann(problemType)
