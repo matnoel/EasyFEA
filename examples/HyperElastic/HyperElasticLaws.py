@@ -60,9 +60,9 @@ def Compute(W, params: list, details=True):
                 d2W2 += " + "
                 if details:
                     print(f"d2Wd{p_i}d{p_j} = {d2WdIiIj}")
-                    d2W2 += f"d2Wd{p_i}d{p_j} * d{p_i}dC @ d{p_j}dC.T"
+                    d2W2 += f"d2Wd{p_i}d{p_j} * TensorProd(d{p_i}dC, d{p_j}dC)"
                 else:
-                    d2W2 += f"({d2WdIiIj}) * d{p_i}dC @ d{p_j}dC.T"
+                    d2W2 += f"({d2WdIiIj}) * TensorProd(d{p_i}dC, d{p_j}dC)"
 
     if d2W2 == "":
         d2W = f"d2W = 4 * ({d2W1})"

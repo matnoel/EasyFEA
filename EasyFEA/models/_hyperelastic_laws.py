@@ -9,7 +9,7 @@ import numpy as np
 from typing import Union
 
 # utilities
-from ..fem import Mesh, MatrixType, FeArray
+from ..fem import Mesh, MatrixType, FeArray, TensorProd
 from ._hyperelastic import HyperElastic
 
 # others
@@ -180,21 +180,21 @@ class NeoHookean(_HyperElas):
         I1 = HyperElastic.Compute_I1(mesh, u, matrixType)
         I3 = HyperElastic.Compute_I3(mesh, u, matrixType)
 
-        dI1dC = HyperElastic.Compute_dI1dC()[..., np.newaxis]
-        dI3dC = HyperElastic.Compute_dI3dC(mesh, u, matrixType)[..., np.newaxis]
+        dI1dC = HyperElastic.Compute_dI1dC()
+        dI3dC = HyperElastic.Compute_dI3dC(mesh, u, matrixType)
         d2I1dC = HyperElastic.Compute_d2I1dC()
         d2I3dC = HyperElastic.Compute_d2I3dC(mesh, u, matrixType)
 
         dWdI1 = K / I3 ** (1 / 3)
-        d2WdI1I3 = -K / (3 * I3 ** (4 / 3))
+        d2WdI1dI3 = -K / (3 * I3 ** (4 / 3))
         dWdI3 = -I1 * K / (3 * I3 ** (4 / 3))
-        d2WdI3I1 = -K / (3 * I3 ** (4 / 3))
-        d2WdI3I3 = 4 * I1 * K / (9 * I3 ** (7 / 3))
+        d2WdI3dI1 = -K / (3 * I3 ** (4 / 3))
+        d2WdI3dI3 = 4 * I1 * K / (9 * I3 ** (7 / 3))
 
         d2W = 4 * (dWdI1 * d2I1dC + dWdI3 * d2I3dC) + 4 * (
-            d2WdI1I3 * dI1dC @ dI3dC.T
-            + d2WdI3I1 * dI3dC @ dI1dC.T
-            + d2WdI3I3 * dI3dC @ dI3dC.T
+            d2WdI1dI3 * TensorProd(dI1dC, dI3dC)
+            + d2WdI3dI1 * TensorProd(dI3dC, dI1dC)
+            + d2WdI3dI3 * TensorProd(dI3dC, dI3dC)
         )
 
         return d2W
@@ -276,31 +276,31 @@ class MooneyRivlin(_HyperElas):
         I2 = HyperElastic.Compute_I2(mesh, u, matrixType)
         I3 = HyperElastic.Compute_I3(mesh, u, matrixType)
 
-        dI1dC = HyperElastic.Compute_dI1dC()[..., np.newaxis]
-        dI2dC = HyperElastic.Compute_dI2dC(mesh, u, matrixType)[..., np.newaxis]
-        dI3dC = HyperElastic.Compute_dI3dC(mesh, u, matrixType)[..., np.newaxis]
+        dI1dC = HyperElastic.Compute_dI1dC()
+        dI2dC = HyperElastic.Compute_dI2dC(mesh, u, matrixType)
+        dI3dC = HyperElastic.Compute_dI3dC(mesh, u, matrixType)
 
         d2I1dC = HyperElastic.Compute_d2I1dC()
         d2I2dC = HyperElastic.Compute_d2I2dC()
         d2I3dC = HyperElastic.Compute_d2I3dC(mesh, u, matrixType)
 
         dWdI1 = K1 / I3 ** (1 / 3)
-        d2WdI1I3 = -K1 / (3 * I3 ** (4 / 3))
+        d2WdI1dI3 = -K1 / (3 * I3 ** (4 / 3))
         dWdI2 = K2 / I3 ** (2 / 3)
-        d2WdI2I3 = -2 * K2 / (3 * I3 ** (5 / 3))
+        d2WdI2dI3 = -2 * K2 / (3 * I3 ** (5 / 3))
         dWdI3 = -I1 * K1 / (3 * I3 ** (4 / 3)) - 2 * I2 * K2 / (3 * I3 ** (5 / 3))
-        d2WdI3I1 = -K1 / (3 * I3 ** (4 / 3))
-        d2WdI3I2 = -2 * K2 / (3 * I3 ** (5 / 3))
-        d2WdI3I3 = 4 * I1 * K1 / (9 * I3 ** (7 / 3)) + 10 * I2 * K2 / (
+        d2WdI3dI1 = -K1 / (3 * I3 ** (4 / 3))
+        d2WdI3dI2 = -2 * K2 / (3 * I3 ** (5 / 3))
+        d2WdI3dI3 = 4 * I1 * K1 / (9 * I3 ** (7 / 3)) + 10 * I2 * K2 / (
             9 * I3 ** (8 / 3)
         )
 
         d2W = 4 * (dWdI1 * d2I1dC + dWdI2 * d2I2dC + dWdI3 * d2I3dC) + 4 * (
-            d2WdI1I3 * dI1dC @ dI3dC.T
-            + d2WdI2I3 * dI2dC @ dI3dC.T
-            + d2WdI3I1 * dI3dC @ dI1dC.T
-            + d2WdI3I2 * dI3dC @ dI2dC.T
-            + d2WdI3I3 * dI3dC @ dI3dC.T
+            d2WdI1dI3 * TensorProd(dI1dC, dI3dC)
+            + d2WdI2dI3 * TensorProd(dI2dC, dI3dC)
+            + d2WdI3dI1 * TensorProd(dI3dC, dI1dC)
+            + d2WdI3dI2 * TensorProd(dI3dC, dI2dC)
+            + d2WdI3dI3 * TensorProd(dI3dC, dI3dC)
         )
 
         return d2W
@@ -375,16 +375,18 @@ class SaintVenantKirchhoff(_HyperElas):
         mu = self.mu
         I1 = HyperElastic.Compute_I1(mesh, u, matrixType)
 
-        dI1dC = HyperElastic.Compute_dI1dC()[..., np.newaxis]
+        dI1dC = HyperElastic.Compute_dI1dC()
 
         d2I1dC = HyperElastic.Compute_d2I1dC()
         d2I2dC = HyperElastic.Compute_d2I2dC()
 
         dWdI1 = 2 * I1 * (lmbda / 8 + mu / 4) - 3 * lmbda / 4 - mu / 2
-        d2WdI1I1 = lmbda / 4 + mu / 2
+        d2WdI1dI1 = lmbda / 4 + mu / 2
         dWdI2 = -mu / 2
 
-        d2W = 4 * (dWdI1 * d2I1dC + dWdI2 * d2I2dC) + 4 * (d2WdI1I1 * dI1dC @ dI1dC.T)
+        d2W = 4 * (dWdI1 * d2I1dC + dWdI2 * d2I2dC) + 4 * (
+            d2WdI1dI1 * TensorProd(dI1dC, dI1dC)
+        )
 
         return d2W
 
@@ -492,6 +494,9 @@ class HolzapfelOgden(_HyperElas):
         self.K = K
         self.Mu1 = Mu1
         self.Mu2 = Mu2
+
+        self.T1 = T1
+        self.T2 = T2
 
         self.__ks = ks
 
@@ -625,21 +630,16 @@ class HolzapfelOgden(_HyperElas):
         dWdI1 = C0*C1*np.exp(C1*(I1/I3**(1/3) - 3))/I3**(1/3) + Mu1/I3**(1/3)
         d2WdI1dI1 = C0*C1**2*np.exp(C1*(I1/I3**(1/3) - 3))/I3**(2/3)
         d2WdI1dI3 = -C0*C1**2*I1*np.exp(C1*(I1/I3**(1/3) - 3))/(3*I3**(5/3)) - C0*C1*np.exp(C1*(I1/I3**(1/3) - 3))/(3*I3**(4/3)) - Mu1/(3*I3**(4/3))
-        
         dWdI2 = Mu2/I3**(2/3)
         d2WdI2dI3 = -2*Mu2/(3*I3**(5/3))
-        
         dWdI3 = -C0*C1*I1*np.exp(C1*(I1/I3**(1/3) - 3))/(3*I3**(4/3)) - I1*Mu1/(3*I3**(4/3)) - 2*I2*Mu2/(3*I3**(5/3)) + K*(1 - 1/I3)/4
         d2WdI3dI1 = -C0*C1**2*I1*np.exp(C1*(I1/I3**(1/3) - 3))/(3*I3**(5/3)) - C0*C1*np.exp(C1*(I1/I3**(1/3) - 3))/(3*I3**(4/3)) - Mu1/(3*I3**(4/3))
         d2WdI3dI2 = -2*Mu2/(3*I3**(5/3))
         d2WdI3dI3 = C0*C1**2*I1**2*np.exp(C1*(I1/I3**(1/3) - 3))/(9*I3**(8/3)) + 4*C0*C1*I1*np.exp(C1*(I1/I3**(1/3) - 3))/(9*I3**(7/3)) + 4*I1*Mu1/(9*I3**(7/3)) + 10*I2*Mu2/(9*I3**(8/3)) + K/(4*I3**2)
-        
         dWdI4 = C2*C3*(2*I4 - 2)*np.exp(C3*(I4 - 1)**2)/(1 + np.exp(-ks*(I4 - 1))) + C2*ks*(np.exp(C3*(I4 - 1)**2) - 1)*np.exp(-ks*(I4 - 1))/(1 + np.exp(-ks*(I4 - 1)))**2
         d2WdI4dI4 = C2*C3**2*(2*I4 - 2)**2*np.exp(C3*(I4 - 1)**2)/(1 + np.exp(-ks*(I4 - 1))) + 2*C2*C3*ks*(2*I4 - 2)*np.exp(C3*(I4 - 1)**2)*np.exp(-ks*(I4 - 1))/(1 + np.exp(-ks*(I4 - 1)))**2 + 2*C2*C3*np.exp(C3*(I4 - 1)**2)/(1 + np.exp(-ks*(I4 - 1))) - C2*ks**2*(np.exp(C3*(I4 - 1)**2) - 1)*np.exp(-ks*(I4 - 1))/(1 + np.exp(-ks*(I4 - 1)))**2 + 2*C2*ks**2*(np.exp(C3*(I4 - 1)**2) - 1)*np.exp(-2*ks*(I4 - 1))/(1 + np.exp(-ks*(I4 - 1)))**3
-        
         dWdI6 = C4*C5*(2*I6 - 2)*np.exp(C5*(I6 - 1)**2)/(1 + np.exp(-ks*(I6 - 1))) + C4*ks*(np.exp(C5*(I6 - 1)**2) - 1)*np.exp(-ks*(I6 - 1))/(1 + np.exp(-ks*(I6 - 1)))**2
         d2WdI6dI6 = C4*C5**2*(2*I6 - 2)**2*np.exp(C5*(I6 - 1)**2)/(1 + np.exp(-ks*(I6 - 1))) + 2*C4*C5*ks*(2*I6 - 2)*np.exp(C5*(I6 - 1)**2)*np.exp(-ks*(I6 - 1))/(1 + np.exp(-ks*(I6 - 1)))**2 + 2*C4*C5*np.exp(C5*(I6 - 1)**2)/(1 + np.exp(-ks*(I6 - 1))) - C4*ks**2*(np.exp(C5*(I6 - 1)**2) - 1)*np.exp(-ks*(I6 - 1))/(1 + np.exp(-ks*(I6 - 1)))**2 + 2*C4*ks**2*(np.exp(C5*(I6 - 1)**2) - 1)*np.exp(-2*ks*(I6 - 1))/(1 + np.exp(-ks*(I6 - 1)))**3
-
         dWdI8 = 2*C6*C7*I8*np.exp(C7*I8**2)
         d2WdI8dI8 = 4*C6*C7**2*I8**2*np.exp(C7*I8**2) + 2*C6*C7*np.exp(C7*I8**2)
         # fmt: on
@@ -652,15 +652,15 @@ class HolzapfelOgden(_HyperElas):
             + dWdI6 * d2I6dC
             + dWdI8 * d2I8dC
         ) + 4 * (
-            d2WdI1dI1 * dI1dC @ dI1dC.T
-            + d2WdI1dI3 * dI1dC @ dI3dC.T
-            + d2WdI2dI3 * dI2dC @ dI3dC.T
-            + d2WdI3dI1 * dI3dC @ dI1dC.T
-            + d2WdI3dI2 * dI3dC @ dI2dC.T
-            + d2WdI3dI3 * dI3dC @ dI3dC.T
-            + d2WdI4dI4 * dI4dC @ dI4dC.T
-            + d2WdI6dI6 * dI6dC @ dI6dC.T
-            + d2WdI8dI8 * dI8dC @ dI8dC.T
+            d2WdI1dI1 * TensorProd(dI1dC, dI1dC)
+            + d2WdI1dI3 * TensorProd(dI1dC, dI3dC)
+            + d2WdI2dI3 * TensorProd(dI2dC, dI3dC)
+            + d2WdI3dI1 * TensorProd(dI3dC, dI1dC)
+            + d2WdI3dI2 * TensorProd(dI3dC, dI2dC)
+            + d2WdI3dI3 * TensorProd(dI3dC, dI3dC)
+            + d2WdI4dI4 * TensorProd(dI4dC, dI4dC)
+            + d2WdI6dI6 * TensorProd(dI6dC, dI6dC)
+            + d2WdI8dI8 * TensorProd(dI8dC, dI8dC)
         )
 
         return d2W
