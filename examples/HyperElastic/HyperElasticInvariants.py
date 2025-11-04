@@ -146,22 +146,15 @@ if __name__ == "__main__":
     Compute(I3, "I3")
 
     # -------------------------------------
-    # I4
+    # I4, I6 and I8
     # -------------------------------------
 
-    T = sympy.MatrixSymbol("T", 3, 1)
+    T1x, T1y, T1z = sympy.symbols("T1x, T1y, T1z")
+    T2x, T2y, T2z = sympy.symbols("T2x, T2y, T2z")
 
-    I4 = T.transpose() * C * T
+    T1 = sympy.Matrix([[T1x], [T1y], [T1z]])
+    T2 = sympy.Matrix([[T2x], [T2y], [T2z]])
 
-    Compute(I4, "I4")
+    I8 = T1.transpose() * (C * T2)
 
-    # -------------------------------------
-    # I8
-    # -------------------------------------
-
-    f = sympy.MatrixSymbol("f", 3, 1)
-    s = sympy.MatrixSymbol("s", 3, 1)
-
-    I8 = f.transpose() * (C * s)
-
-    Compute(I8, "I8")
+    Compute(I8, "Ii")

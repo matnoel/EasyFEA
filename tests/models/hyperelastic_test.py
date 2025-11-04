@@ -345,13 +345,57 @@ class TestHyperElastic:
 
                 assert np.linalg.norm(I4 - I4_v) / np.linalg.norm(I4_v) < 1e-12
 
+    def __anisotropic_invariants_first_derivatives(T1: np.ndarray, T2: np.ndarray):
+
+        T1 = T1.astype(float) / np.linalg.norm(T1)
+        T2 = T2.astype(float) / np.linalg.norm(T2)
+
+        first_derivatives = np.zeros(6)
+
+        compute = lambda mat: np.einsum("...i,...ij,...j", T1, np.array(mat), T2)
+
+        # fmt: off
+        first_derivatives[0] = compute([
+            [1, 0, 0],
+            [0, 0, 0],
+            [0, 0, 0]
+        ])
+        first_derivatives[1] = compute([
+            [0, 0, 0],
+            [0, 1, 0],
+            [0, 0, 0]
+        ])
+        first_derivatives[2] = compute([
+            [0, 0, 0],
+            [0, 0, 0],
+            [0, 0, 1]
+        ])
+        first_derivatives[3] = np.sqrt(2)/2 * compute([
+            [0, 0, 0],
+            [0, 0, 1],
+            [0, 1, 0]
+        ])
+        first_derivatives[4] = np.sqrt(2)/2 * compute([
+            [0, 0, 1],
+            [0, 0, 0],
+            [1, 0, 0]
+        ])
+        first_derivatives[5] = np.sqrt(2)/2 * compute([
+            [0, 1, 0],
+            [1, 0, 0],
+            [0, 0, 0]
+        ])
+        # fmt: on
+
+        return first_derivatives
+
     def test_dI4dC(self):
 
         T = np.array([0, 1, 0])
 
         dI4dC = HyperElasticState.Compute_dI4dC(T)
 
-        dI4dC_v = Project_Kelvin(TensorProd(T, T), 2)
+        dI4dC_v = TestHyperElastic.__anisotropic_invariants_first_derivatives(T, T)
 
         assert np.linalg.norm(dI4dC - dI4dC_v) / np.linalg.norm(dI4dC_v) < 1e-12
 
@@ -380,6 +424,7 @@ class TestHyperElastic:
                 C_e_pg = hyperElasticState.Compute_C()
 
                 T = np.array([1, 1, 0])
+                T = T.astype(float) / np.linalg.norm(T)
 
                 I6 = hyperElasticState.Compute_I6(T)
 
@@ -395,7 +440,7 @@ class TestHyperElastic:
 
         dI6dC = HyperElasticState.Compute_dI6dC(T)
 
-        dI6dC_v = Project_Kelvin(TensorProd(T, T), 2)
+        dI6dC_v = TestHyperElastic.__anisotropic_invariants_first_derivatives(T, T)
 
         assert np.linalg.norm(dI6dC - dI6dC_v) / np.linalg.norm(dI6dC_v) < 1e-12
 
@@ -424,6 +469,7 @@ class TestHyperElastic:
                 C_e_pg = hyperElasticState.Compute_C()
 
                 T1 = np.array([1, 1, 0])
+                T1 = T1.astype(float) / np.linalg.norm(T1)
                 T2 = np.array([0, 1, 0])
 
                 I8 = hyperElasticState.Compute_I8(T1, T2)
@@ -443,7 +489,7 @@ class TestHyperElastic:
 
         dI8dC = HyperElasticState.Compute_dI8dC(T1, T2)
 
-        dI8dC_v = Project_Kelvin(TensorProd(T1, T2), 2)
+        dI8dC_v = TestHyperElastic.__anisotropic_invariants_first_derivatives(T1, T2)
 
         assert np.linalg.norm(dI8dC - dI8dC_v) / np.linalg.norm(dI8dC_v) < 1e-12
 

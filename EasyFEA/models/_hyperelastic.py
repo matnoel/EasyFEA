@@ -7,7 +7,7 @@
 import numpy as np
 
 from ..fem import Mesh, MatrixType
-from ..fem._linalg import FeArray, Transpose, Det, TensorProd
+from ..fem._linalg import FeArray, Transpose, Det, TensorProd, Norm
 from ..utilities import _types, _params
 from ..utilities._cache import cache_computed_values
 from ._utils import Project_Kelvin
@@ -378,7 +378,7 @@ class HyperElasticState:
 
         cxx, cxy, cxz, _, cyy, cyz, _, _, czz = self._Compute_C()
 
-        dI2dC_e_pg = FeArray.asfearray(np.zeros((Ne, nPg, 6), dtype=float))
+        dI2dC_e_pg = FeArray.zeros(Ne, nPg, 6, dtype=float)
 
         coef = -np.sqrt(2)
 
@@ -454,7 +454,7 @@ class HyperElasticState:
 
         Ne, nPg, _ = self.__GetDims()
 
-        dI3dC_e_pg = FeArray.asfearray(np.zeros((Ne, nPg, 6)))
+        dI3dC_e_pg = FeArray.zeros(Ne, nPg, 6)
 
         coef = np.sqrt(2)
 
@@ -503,6 +503,69 @@ class HyperElasticState:
         return d2I3dC_e_pg
 
     # -------------------------------------
+    # Compute Anisotropic Invariants
+    # -------------------------------------
+
+    @staticmethod
+    def __Get_normalized_components(T: _types.FloatArray):
+
+        _params._CheckIsVector(T)
+        if not isinstance(T, FeArray):
+            T = FeArray.asfearray(T, True)
+        T = T.astype(float)
+
+        norm = Norm(T, axis=-1)
+        T[norm != 0] /= norm
+
+        Tx, Ty, Tz = [T[..., i] for i in range(3)]
+
+        return Tx, Ty, Tz
+
+    def __Compute_Anisotropic_Invariants(
+        self, T1: _types.FloatArray, T2: _types.FloatArray
+    ):
+
+        cxx, cxy, cxz, _, cyy, cyz, _, _, czz = self._Compute_C()
+
+        T1x, T1y, T1z = self.__Get_normalized_components(T1)
+        T2x, T2y, T2z = self.__Get_normalized_components(T2)
+
+        value = (
+            T1x * T2x * cxx
+            + T1x * T2y * cxy
+            + T1x * T2z * cxz
+            + T1y * T2x * cxy
+            + T1y * T2y * cyy
+            + T1y * T2z * cyz
+            + T1z * T2x * cxz
+            + T1z * T2y * cyz
+            + T1z * T2z * czz
+        )
+
+        return value
+
+    def __Compute_Anisotropic_Invariants_First_Derivatives(
+        T1: _types.FloatArray, T2: _types.FloatArray
+    ):
+
+        T1x, T1y, T1z = HyperElasticState.__Get_normalized_components(T1)
+        T2x, T2y, T2z = HyperElasticState.__Get_normalized_components(T2)
+
+        Ne, nPg = T1x.shape
+        firstDerivatives = FeArray.zeros(Ne, nPg, 6)
+
+        coef = np.sqrt(2) / 2
+
+        firstDerivatives[:, :, 0] = T1x * T2x
+        firstDerivatives[:, :, 1] = T1y * T2y
+        firstDerivatives[:, :, 2] = T1z * T2z
+        firstDerivatives[:, :, 3] = coef * (T1y * T2z + T1z * T2y)
+        firstDerivatives[:, :, 4] = coef * (T1x * T2z + T1z * T2x)
+        firstDerivatives[:, :, 5] = coef * (T1x * T2y + T1y * T2x)
+
+        return firstDerivatives
+
+    # -------------------------------------
     # Compute I4
     # -------------------------------------
     # Compute_I4, Compute_I6, and Compute_I8 are not cacheable,
@@ -524,15 +587,7 @@ class HyperElasticState:
             I4_e_pg of shape (Ne, pg)
         """
 
-        C_e_pg = self.Compute_C()
-
-        _params._CheckIsVector(T)
-        if not isinstance(T, FeArray):
-            T = FeArray.asfearray(T, True)
-
-        I4_e_pg = T @ C_e_pg @ T
-
-        return I4_e_pg
+        return self.__Compute_Anisotropic_Invariants(T, T)
 
     @staticmethod
     def Compute_dI4dC(T: _types.FloatArray) -> FeArray.FeArrayALike:
@@ -549,13 +604,9 @@ class HyperElasticState:
             dI4dC_e_pg of shape (Ne, pg, 6)
         """
 
-        _params._CheckIsVector(T)
-        if not isinstance(T, FeArray):
-            T = FeArray.asfearray(T, True)
-
-        dI4dC_e_pg = Project_Kelvin(TensorProd(T, T))
-
-        return dI4dC_e_pg
+        return HyperElasticState.__Compute_Anisotropic_Invariants_First_Derivatives(
+            T, T
+        )
 
     @staticmethod
     def Compute_d2I4dC() -> FeArray.FeArrayALike:
@@ -589,7 +640,7 @@ class HyperElasticState:
             I6_e_pg of shape (Ne, pg)
         """
 
-        return self.Compute_I4(T)
+        return self.__Compute_Anisotropic_Invariants(T, T)
 
     @staticmethod
     def Compute_dI6dC(T: _types.FloatArray) -> FeArray.FeArrayALike:
@@ -643,19 +694,7 @@ class HyperElasticState:
             I8_e_pg of shape (Ne, pg)
         """
 
-        C_e_pg = self.Compute_C()
-
-        _params._CheckIsVector(T1)
-        if not isinstance(T1, FeArray):
-            T1 = FeArray.asfearray(T1, True)
-
-        _params._CheckIsVector(T2)
-        if not isinstance(T2, FeArray):
-            T2 = FeArray.asfearray(T2, True)
-
-        I8_e_pg = T1 @ C_e_pg @ T2
-
-        return I8_e_pg
+        return self.__Compute_Anisotropic_Invariants(T1, T2)
 
     @staticmethod
     def Compute_dI8dC(
@@ -676,17 +715,9 @@ class HyperElasticState:
             dI8dC_e_pg of shape (Ne, pg, 6)
         """
 
-        _params._CheckIsVector(T1)
-        if not isinstance(T1, FeArray):
-            T1 = FeArray.asfearray(T1, True)
-
-        _params._CheckIsVector(T2)
-        if not isinstance(T2, FeArray):
-            T2 = FeArray.asfearray(T2, True)
-
-        dI8dC_e_pg = Project_Kelvin(TensorProd(T1, T2))
-
-        return dI8dC_e_pg
+        return HyperElasticState.__Compute_Anisotropic_Invariants_First_Derivatives(
+            T1, T2
+        )
 
     @staticmethod
     def Compute_d2I8dC() -> FeArray.FeArrayALike:
