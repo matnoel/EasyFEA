@@ -9,6 +9,7 @@ import numpy as np
 from ..fem import Mesh, MatrixType
 from ..fem._linalg import FeArray, Transpose, Det, TensorProd
 from ..utilities import _types, _params
+from ..utilities._cache import cache_computed_values
 from ._utils import Project_Kelvin
 
 # ------------------------------------------------------------------------------
@@ -48,6 +49,7 @@ class HyperElasticState:
         nPg = self.__mesh.Get_jacobian_e_pg(self.__matrixType).shape[1]
         return (Ne, nPg, dim)
 
+    @cache_computed_values
     def Compute_F(self) -> FeArray.FeArrayALike:
         """Computes the deformation gradient F(u) = I + grad(u)
 
@@ -84,6 +86,7 @@ class HyperElasticState:
 
         return F_e_pg
 
+    @cache_computed_values
     def Compute_J(self) -> FeArray.FeArrayALike:
         """Computes the deformation gradient J = det(F)
 
@@ -99,6 +102,7 @@ class HyperElasticState:
 
         return J_e_pg
 
+    @cache_computed_values
     def Compute_C(self) -> FeArray.FeArrayALike:
         """Computes the right Cauchy-Green tensor  C(u) = F(u)'.F(u)
 
@@ -135,6 +139,7 @@ class HyperElasticState:
 
         return C_e_pg
 
+    @cache_computed_values
     def _Compute_C(self) -> list[FeArray.FeArrayALike]:
         """Computes the right Cauchy-Green tensor components C(u) = F(u)'.F(u) \n
 
@@ -149,6 +154,7 @@ class HyperElasticState:
 
         return [cxx, cxy, cxz, cyx, cyy, cyz, czx, czy, czz]
 
+    @cache_computed_values
     def Compute_GreenLagrange(self) -> FeArray.FeArrayALike:
         """Computes the Green-Lagrange deformation E = 1/2 (C - I)
 
@@ -164,6 +170,7 @@ class HyperElasticState:
 
         return E_e_pg
 
+    @cache_computed_values
     def Compute_Epsilon(self) -> FeArray.FeArrayALike:
         """Computes the linearized deformation Epsilon = 1/2 (grad(u)' + grad(u))
 
@@ -215,6 +222,7 @@ class HyperElasticState:
 
         return Eps_e_pg
 
+    @cache_computed_values
     def Compute_De(self) -> FeArray.FeArrayALike:
         """Computes De(u)
 
@@ -294,6 +302,7 @@ class HyperElasticState:
     # Compute I1
     # -------------------------------------
 
+    @cache_computed_values
     def Compute_I1(self) -> FeArray.FeArrayALike:
         """Computes I1(u)
 
@@ -339,6 +348,7 @@ class HyperElasticState:
     # Compute I2
     # -------------------------------------
 
+    @cache_computed_values
     def Compute_I2(self) -> FeArray.FeArrayALike:
         """Computes I2(u)
 
@@ -354,6 +364,7 @@ class HyperElasticState:
 
         return I2_e_pg
 
+    @cache_computed_values
     def Compute_dI2dC(self) -> FeArray.FeArrayALike:
         """Computes dI2dC(u)
 
@@ -407,6 +418,7 @@ class HyperElasticState:
     # Compute I3
     # -------------------------------------
 
+    @cache_computed_values
     def Compute_I3(self) -> FeArray.FeArrayALike:
         """Computes I3(u)
 
@@ -428,6 +440,7 @@ class HyperElasticState:
 
         return I3_e_pg
 
+    @cache_computed_values
     def Compute_dI3dC(self) -> FeArray.FeArrayALike:
         """Computes dI3dC(u)
 
@@ -454,6 +467,7 @@ class HyperElasticState:
 
         return dI3dC_e_pg
 
+    @cache_computed_values
     def Compute_d2I3dC(self) -> FeArray.FeArrayALike:
         """Computes d2I3dC(u)
 
@@ -491,6 +505,8 @@ class HyperElasticState:
     # -------------------------------------
     # Compute I4
     # -------------------------------------
+    # Compute_I4, Compute_I6, and Compute_I8 are not cacheable,
+    # because the given numpy arrays are not hashable.
     def Compute_I4(
         self,
         T: _types.FloatArray,
