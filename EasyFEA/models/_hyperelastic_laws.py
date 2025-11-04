@@ -10,7 +10,7 @@ from typing import Union
 
 # utilities
 from ..fem import Mesh, MatrixType, FeArray, TensorProd
-from ._hyperelastic import HyperElastic
+from ._hyperelastic import HyperElasticState
 
 # others
 from ._utils import _IModel, ModelType
@@ -153,7 +153,7 @@ class NeoHookean(_HyperElas):
     def Compute_W(self, mesh, u, matrixType=MatrixType.rigi) -> FeArray:
         K = self.K
 
-        hyperElasticState = HyperElastic(mesh, u, matrixType)
+        hyperElasticState = HyperElasticState(mesh, u, matrixType)
 
         I1 = hyperElasticState.Compute_I1()
         I3 = hyperElasticState.Compute_I3()
@@ -165,7 +165,7 @@ class NeoHookean(_HyperElas):
     def Compute_dWde(self, mesh, u, matrixType=MatrixType.rigi) -> FeArray:
         K = self.K
 
-        hyperElasticState = HyperElastic(mesh, u, matrixType)
+        hyperElasticState = HyperElasticState(mesh, u, matrixType)
 
         I1 = hyperElasticState.Compute_I1()
         I3 = hyperElasticState.Compute_I3()
@@ -184,7 +184,7 @@ class NeoHookean(_HyperElas):
     def Compute_d2Wde(self, mesh, u, matrixType=MatrixType.rigi) -> FeArray:
         K = self.K
 
-        hyperElasticState = HyperElastic(mesh, u, matrixType)
+        hyperElasticState = HyperElasticState(mesh, u, matrixType)
 
         I1 = hyperElasticState.Compute_I1()
         I3 = hyperElasticState.Compute_I3()
@@ -252,7 +252,7 @@ class MooneyRivlin(_HyperElas):
         K1 = self.K1
         K2 = self.K2
 
-        hyperElasticState = HyperElastic(mesh, u, matrixType)
+        hyperElasticState = HyperElasticState(mesh, u, matrixType)
 
         I1 = hyperElasticState.Compute_I1()
         I2 = hyperElasticState.Compute_I2()
@@ -266,7 +266,7 @@ class MooneyRivlin(_HyperElas):
         K1 = self.K1
         K2 = self.K2
 
-        hyperElasticState = HyperElastic(mesh, u, matrixType)
+        hyperElasticState = HyperElasticState(mesh, u, matrixType)
 
         I1 = hyperElasticState.Compute_I1()
         I2 = hyperElasticState.Compute_I2()
@@ -288,7 +288,7 @@ class MooneyRivlin(_HyperElas):
         K1 = self.K1
         K2 = self.K2
 
-        hyperElasticState = HyperElastic(mesh, u, matrixType)
+        hyperElasticState = HyperElasticState(mesh, u, matrixType)
 
         I1 = hyperElasticState.Compute_I1()
         I2 = hyperElasticState.Compute_I2()
@@ -367,7 +367,7 @@ class SaintVenantKirchhoff(_HyperElas):
         lmbda = self.lmbda
         mu = self.mu
 
-        hyperElasticState = HyperElastic(mesh, u, matrixType)
+        hyperElasticState = HyperElasticState(mesh, u, matrixType)
 
         I1 = hyperElasticState.Compute_I1()
         I2 = hyperElasticState.Compute_I2()
@@ -380,7 +380,7 @@ class SaintVenantKirchhoff(_HyperElas):
         lmbda = self.lmbda
         mu = self.mu
 
-        hyperElasticState = HyperElastic(mesh, u, matrixType)
+        hyperElasticState = HyperElasticState(mesh, u, matrixType)
 
         I1 = hyperElasticState.Compute_I1()
 
@@ -398,7 +398,7 @@ class SaintVenantKirchhoff(_HyperElas):
         lmbda = self.lmbda
         mu = self.mu
 
-        hyperElasticState = HyperElastic(mesh, u, matrixType)
+        hyperElasticState = HyperElasticState(mesh, u, matrixType)
 
         I1 = hyperElasticState.Compute_I1()
 
@@ -543,7 +543,7 @@ class HolzapfelOgden(_HyperElas):
         T2 = self.T2
         ks = self.__ks
 
-        hyperElasticState = HyperElastic(mesh, u, matrixType)
+        hyperElasticState = HyperElasticState(mesh, u, matrixType)
 
         I1 = hyperElasticState.Compute_I1()
         I2 = hyperElasticState.Compute_I2()
@@ -580,7 +580,7 @@ class HolzapfelOgden(_HyperElas):
         T2 = self.T2
         ks = self.__ks
 
-        hyperElasticState = HyperElastic(mesh, u, matrixType)
+        hyperElasticState = HyperElasticState(mesh, u, matrixType)
 
         I1 = hyperElasticState.Compute_I1()
         I2 = hyperElasticState.Compute_I2()
@@ -634,7 +634,7 @@ class HolzapfelOgden(_HyperElas):
         T2 = self.T2
         ks = self.__ks
 
-        hyperElasticState = HyperElastic(mesh, u, matrixType)
+        hyperElasticState = HyperElasticState(mesh, u, matrixType)
 
         I1 = hyperElasticState.Compute_I1()
         I2 = hyperElasticState.Compute_I2()

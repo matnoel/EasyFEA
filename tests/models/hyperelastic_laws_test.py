@@ -6,7 +6,7 @@ import pytest
 
 from EasyFEA import Mesher, ElemType, Models, Simulations, np
 from EasyFEA.fem._linalg import Trace, TensorProd
-from EasyFEA.models import Project_Kelvin, HyperElastic
+from EasyFEA.models import Project_Kelvin, HyperElasticState
 from EasyFEA.Geoms import Domain
 
 
@@ -49,7 +49,7 @@ class TestSaintVenantKirchhoff:
         mat = Models.SaintVenantKirchhoff(3, matIsot.get_lambda(), matIsot.get_mu())
 
         # test W
-        E = HyperElastic(mesh, u, matrixType).Compute_GreenLagrange()
+        E = HyperElasticState(mesh, u, matrixType).Compute_GreenLagrange()
         # W_hyper = 1/2 * mat.lmbda * Trace(E)**2 + mat.mu * E.ddot(E)
         W_hyper = 1 / 2 * mat.lmbda * Trace(E) ** 2 + mat.mu * Trace(E @ E)
         W_e_pg = mat.Compute_W(mesh, u, matrixType)

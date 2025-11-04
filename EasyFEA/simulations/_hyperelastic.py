@@ -26,7 +26,7 @@ from ..models import (
 
 if TYPE_CHECKING:
     from ..models._hyperelastic_laws import _HyperElas
-from ..models._hyperelastic import HyperElastic
+from ..models._hyperelastic import HyperElasticState
 
 # simu
 from ._simu import _Simu, AlgoType
@@ -143,7 +143,7 @@ class HyperElasticSimu(_Simu):
         # get hyperelastic data
         displacement = self.displacement
 
-        hyperElasticState = HyperElastic(mesh, displacement, matrixType)
+        hyperElasticState = HyperElasticState(mesh, displacement, matrixType)
 
         # check if there is any invalid element
         J_e_pg = hyperElasticState.Compute_J()
@@ -391,7 +391,7 @@ class HyperElasticSimu(_Simu):
             return (wJ_e_pg * W_e_pg).sum(1)
 
     def _Calc_GreenLagrange(self, matrixType=MatrixType.rigi):
-        hyperElasticState = HyperElastic(self.mesh, self.displacement, matrixType)
+        hyperElasticState = HyperElasticState(self.mesh, self.displacement, matrixType)
         return Project_Kelvin(hyperElasticState.Compute_GreenLagrange(), 2)
 
     def _Calc_SecondPiolaKirchhoff(self, matrixType=MatrixType.rigi):

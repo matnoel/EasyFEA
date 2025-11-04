@@ -16,8 +16,7 @@ from ._utils import Project_Kelvin
 # ------------------------------------------------------------------------------
 
 
-# TODO: Cache the results ? It would be better to create an instance of hyperelasticity.
-class HyperElastic:
+class HyperElasticState:
     """Hyperelastic state."""
 
     @staticmethod
@@ -294,6 +293,7 @@ class HyperElastic:
     # -------------------------------------
     # Compute I1
     # -------------------------------------
+
     def Compute_I1(self) -> FeArray.FeArrayALike:
         """Computes I1(u)
 
@@ -338,6 +338,7 @@ class HyperElastic:
     # -------------------------------------
     # Compute I2
     # -------------------------------------
+
     def Compute_I2(self) -> FeArray.FeArrayALike:
         """Computes I2(u)
 
@@ -405,6 +406,7 @@ class HyperElastic:
     # -------------------------------------
     # Compute I3
     # -------------------------------------
+
     def Compute_I3(self) -> FeArray.FeArrayALike:
         """Computes I3(u)
 
@@ -588,7 +590,7 @@ class HyperElastic:
             dI6dC_e_pg of shape (Ne, pg, 6)
         """
 
-        return HyperElastic.Compute_dI4dC(T)
+        return HyperElasticState.Compute_dI4dC(T)
 
     @staticmethod
     def Compute_d2I6dC() -> FeArray.FeArrayALike:
@@ -600,7 +602,7 @@ class HyperElastic:
             d2I6dC of shape (6, 6)
         """
 
-        return HyperElastic.Compute_d2I4dC()
+        return HyperElasticState.Compute_d2I4dC()
 
     # -------------------------------------
     # Compute I8

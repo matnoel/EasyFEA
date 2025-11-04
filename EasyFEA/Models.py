@@ -27,7 +27,7 @@ from .models._hyperelastic_laws import (
     SaintVenantKirchhoff,
     HolzapfelOgden,
 )
-from .models._hyperelastic import HyperElastic
+from .models._hyperelastic import HyperElasticState
 
 # ----------------------------------------------
 # PhaseField

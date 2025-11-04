@@ -3,7 +3,7 @@
 # EasyFEA is distributed under the terms of the GNU General Public License v3, see LICENSE.txt and CREDITS.md for more information.
 
 from EasyFEA import Mesher, ElemType, MatrixType, Models, Simulations, np
-from EasyFEA.models._hyperelastic import HyperElastic
+from EasyFEA.models._hyperelastic import HyperElasticState
 from EasyFEA.Geoms import Domain
 from EasyFEA.fem._linalg import Trace, Det, Inv, TensorProd
 from EasyFEA.models._utils import Project_Kelvin, FeArray
@@ -65,7 +65,7 @@ def Get_3d_simulations(ud=1e-6) -> list[Simulations.ElasticSimu]:
 
 def Get_C_components(simu: Simulations.ElasticSimu, matrixType=MatrixType.rigi):
 
-    return HyperElastic(simu.mesh, simu.displacement, matrixType)._Compute_C()
+    return HyperElasticState(simu.mesh, simu.displacement, matrixType)._Compute_C()
 
 
 class TestHyperElastic:
@@ -95,7 +95,7 @@ class TestHyperElastic:
                 Eps2d_e_pg = simu2d._Calc_Epsilon_e_pg(simu2d.displacement, matrixType)
                 test2d_e_pg = (
                     Eps2d_e_pg
-                    - HyperElastic(
+                    - HyperElasticState(
                         simu2d.mesh, simu2d.displacement, matrixType
                     ).Compute_Epsilon()
                 )
@@ -113,7 +113,7 @@ class TestHyperElastic:
                 )
                 test3d_e_pg = (
                     Eps3d_e_pg
-                    - HyperElastic(
+                    - HyperElasticState(
                         simu3d.mesh, simu3d.displacement, MatrixType.mass
                     ).Compute_Epsilon()
                 )
@@ -146,7 +146,8 @@ class TestHyperElastic:
                 Epsilon_e_pg = simu._Calc_Epsilon_e_pg(u, matrixType)
 
                 e_e_pg = Project_Kelvin(
-                    HyperElastic(simu.mesh, u, matrixType).Compute_GreenLagrange(), 2
+                    HyperElasticState(simu.mesh, u, matrixType).Compute_GreenLagrange(),
+                    2,
                 )
 
                 diff_eps = e_e_pg - Epsilon_e_pg
@@ -163,16 +164,18 @@ class TestHyperElastic:
 
             for matrixType in [MatrixType.rigi, MatrixType.mass]:
 
-                hyperElastic = HyperElastic(simu.mesh, simu.displacement, matrixType)
+                hyperElasticState = HyperElasticState(
+                    simu.mesh, simu.displacement, matrixType
+                )
 
-                C_e_pg = hyperElastic.Compute_C()
-                I1 = hyperElastic.Compute_I1()
+                C_e_pg = hyperElasticState.Compute_C()
+                I1 = hyperElasticState.Compute_I1()
 
                 assert np.linalg.norm(I1 - Trace(C_e_pg)) / np.linalg.norm(I1) < 1e-12
 
     def test_dI1dC(self):
 
-        dI1dC = HyperElastic.Compute_dI1dC()
+        dI1dC = HyperElasticState.Compute_dI1dC()
 
         dI1dC_v = Project_Kelvin(np.eye(3), 2)
 
@@ -180,7 +183,7 @@ class TestHyperElastic:
 
     def test_d2I1dC(self):
 
-        d2I1dC = HyperElastic.Compute_d2I1dC()
+        d2I1dC = HyperElasticState.Compute_d2I1dC()
 
         d2I1dC_v = np.zeros((6, 6))
 
@@ -196,11 +199,13 @@ class TestHyperElastic:
 
             for matrixType in [MatrixType.rigi, MatrixType.mass]:
 
-                hyperElastic = HyperElastic(simu.mesh, simu.displacement, matrixType)
+                hyperElasticState = HyperElasticState(
+                    simu.mesh, simu.displacement, matrixType
+                )
 
-                C_e_pg = hyperElastic.Compute_C()
+                C_e_pg = hyperElasticState.Compute_C()
 
-                I2 = hyperElastic.Compute_I2()
+                I2 = hyperElasticState.Compute_I2()
 
                 I2_v = 1 / 2 * (Trace(C_e_pg) ** 2 - Trace(C_e_pg @ C_e_pg))
 
@@ -212,14 +217,16 @@ class TestHyperElastic:
 
             for matrixType in [MatrixType.rigi, MatrixType.mass]:
 
-                hyperElastic = HyperElastic(simu.mesh, simu.displacement, matrixType)
+                hyperElasticState = HyperElasticState(
+                    simu.mesh, simu.displacement, matrixType
+                )
 
-                dI2dC = hyperElastic.Compute_dI2dC()
+                dI2dC = hyperElasticState.Compute_dI2dC()
 
-                C_e_pg = hyperElastic.Compute_C()
+                C_e_pg = hyperElasticState.Compute_C()
 
-                I1_e_pg = hyperElastic.Compute_I1()
-                C_e_pg = hyperElastic.Compute_C()
+                I1_e_pg = hyperElasticState.Compute_I1()
+                C_e_pg = hyperElasticState.Compute_C()
 
                 # I1 * Id - C
                 dI2dC_v = (I1_e_pg * np.eye(3)) - C_e_pg
@@ -229,7 +236,7 @@ class TestHyperElastic:
 
     def test_d2I2dC(self):
 
-        d2I2dC = HyperElastic.Compute_d2I2dC()
+        d2I2dC = HyperElasticState.Compute_d2I2dC()
 
         vect1 = np.array([1, 1, 1, 0, 0, 0])
         Id_order2 = TensorProd(vect1, vect1)
@@ -255,11 +262,13 @@ class TestHyperElastic:
 
             for matrixType in [MatrixType.rigi, MatrixType.mass]:
 
-                hyperElastic = HyperElastic(simu.mesh, simu.displacement, matrixType)
+                hyperElasticState = HyperElasticState(
+                    simu.mesh, simu.displacement, matrixType
+                )
 
-                C_e_pg = hyperElastic.Compute_C()
+                C_e_pg = hyperElasticState.Compute_C()
 
-                I3 = hyperElastic.Compute_I3()
+                I3 = hyperElasticState.Compute_I3()
 
                 assert np.linalg.norm(I3 - Det(C_e_pg)) / np.linalg.norm(I3) < 1e-12
 
@@ -269,12 +278,14 @@ class TestHyperElastic:
 
             for matrixType in [MatrixType.rigi, MatrixType.mass]:
 
-                hyperElastic = HyperElastic(simu.mesh, simu.displacement, matrixType)
+                hyperElasticState = HyperElasticState(
+                    simu.mesh, simu.displacement, matrixType
+                )
 
-                dI3dC = hyperElastic.Compute_dI3dC()
+                dI3dC = hyperElasticState.Compute_dI3dC()
 
-                I3_e_pg = hyperElastic.Compute_I3()
-                C_e_pg = hyperElastic.Compute_C()
+                I3_e_pg = hyperElasticState.Compute_I3()
+                C_e_pg = hyperElasticState.Compute_C()
 
                 dI3dC_v = I3_e_pg * Inv(C_e_pg)
                 dI3dC_v = Project_Kelvin(dI3dC_v, 2)
@@ -287,13 +298,15 @@ class TestHyperElastic:
 
             for matrixType in [MatrixType.rigi, MatrixType.mass]:
 
-                hyperElastic = HyperElastic(simu.mesh, simu.displacement, matrixType)
+                hyperElasticState = HyperElasticState(
+                    simu.mesh, simu.displacement, matrixType
+                )
 
-                d2I3dC = hyperElastic.Compute_d2I3dC()
+                d2I3dC = hyperElasticState.Compute_d2I3dC()
 
-                C_e_pg = hyperElastic.Compute_C()
+                C_e_pg = hyperElasticState.Compute_C()
                 invC_e_pg = Inv(C_e_pg)
-                I3_e_pg = hyperElastic.Compute_I3()
+                I3_e_pg = hyperElasticState.Compute_I3()
 
                 p1_e_pg = np.einsum(
                     "...ij,...kl->...ijkl", I3_e_pg * invC_e_pg, invC_e_pg
@@ -316,13 +329,15 @@ class TestHyperElastic:
 
             for matrixType in [MatrixType.rigi, MatrixType.mass]:
 
-                hyperElastic = HyperElastic(simu.mesh, simu.displacement, matrixType)
+                hyperElasticState = HyperElasticState(
+                    simu.mesh, simu.displacement, matrixType
+                )
 
-                C_e_pg = hyperElastic.Compute_C()
+                C_e_pg = hyperElasticState.Compute_C()
 
                 T = np.array([0, 1, 0])
 
-                I4 = hyperElastic.Compute_I4(T)
+                I4 = hyperElasticState.Compute_I4(T)
 
                 I4_v = FeArray.asfearray(
                     np.einsum("...i,...ij,...j->...", T, C_e_pg, T, optimize="optimal")
@@ -334,7 +349,7 @@ class TestHyperElastic:
 
         T = np.array([0, 1, 0])
 
-        dI4dC = HyperElastic.Compute_dI4dC(T)
+        dI4dC = HyperElasticState.Compute_dI4dC(T)
 
         dI4dC_v = Project_Kelvin(TensorProd(T, T), 2)
 
@@ -342,7 +357,7 @@ class TestHyperElastic:
 
     def test_d2I4dC(self):
 
-        d2I4dC = HyperElastic.Compute_d2I4dC()
+        d2I4dC = HyperElasticState.Compute_d2I4dC()
 
         d2I4dC_v = np.zeros((6, 6))
 
@@ -358,13 +373,15 @@ class TestHyperElastic:
 
             for matrixType in [MatrixType.rigi, MatrixType.mass]:
 
-                hyperElastic = HyperElastic(simu.mesh, simu.displacement, matrixType)
+                hyperElasticState = HyperElasticState(
+                    simu.mesh, simu.displacement, matrixType
+                )
 
-                C_e_pg = hyperElastic.Compute_C()
+                C_e_pg = hyperElasticState.Compute_C()
 
                 T = np.array([1, 1, 0])
 
-                I6 = hyperElastic.Compute_I6(T)
+                I6 = hyperElasticState.Compute_I6(T)
 
                 I6_v = FeArray.asfearray(
                     np.einsum("...i,...ij,...j->...", T, C_e_pg, T, optimize="optimal")
@@ -376,7 +393,7 @@ class TestHyperElastic:
 
         T = np.array([1, 1, 0])
 
-        dI6dC = HyperElastic.Compute_dI6dC(T)
+        dI6dC = HyperElasticState.Compute_dI6dC(T)
 
         dI6dC_v = Project_Kelvin(TensorProd(T, T), 2)
 
@@ -384,7 +401,7 @@ class TestHyperElastic:
 
     def test_d2I6dC(self):
 
-        d2I6dC = HyperElastic.Compute_d2I6dC()
+        d2I6dC = HyperElasticState.Compute_d2I6dC()
 
         d2I6dC_v = np.zeros((6, 6))
 
@@ -400,14 +417,16 @@ class TestHyperElastic:
 
             for matrixType in [MatrixType.rigi, MatrixType.mass]:
 
-                hyperElastic = HyperElastic(simu.mesh, simu.displacement, matrixType)
+                hyperElasticState = HyperElasticState(
+                    simu.mesh, simu.displacement, matrixType
+                )
 
-                C_e_pg = hyperElastic.Compute_C()
+                C_e_pg = hyperElasticState.Compute_C()
 
                 T1 = np.array([1, 1, 0])
                 T2 = np.array([0, 1, 0])
 
-                I8 = hyperElastic.Compute_I8(T1, T2)
+                I8 = hyperElasticState.Compute_I8(T1, T2)
 
                 I8_v = FeArray.asfearray(
                     np.einsum(
@@ -422,7 +441,7 @@ class TestHyperElastic:
         T1 = np.array([1, 1, 0])
         T2 = np.array([0, 1, 0])
 
-        dI8dC = HyperElastic.Compute_dI8dC(T1, T2)
+        dI8dC = HyperElasticState.Compute_dI8dC(T1, T2)
 
         dI8dC_v = Project_Kelvin(TensorProd(T1, T2), 2)
 
@@ -430,7 +449,7 @@ class TestHyperElastic:
 
     def test_d2I8dC(self):
 
-        d2I8dC = HyperElastic.Compute_d2I8dC()
+        d2I8dC = HyperElasticState.Compute_d2I8dC()
 
         d2I8dC_v = np.zeros((6, 6))
 
