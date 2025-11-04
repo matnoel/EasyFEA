@@ -34,6 +34,7 @@ from ..geoms._utils import AsPoint
 from ..geoms import Jacobian_Matrix, Normalize
 
 from ..utilities import _types
+from ..utilities._cache import cache_computed_values, clear_cached_computed_values
 
 if TYPE_CHECKING:
     from ..models._beam import BeamStructure
@@ -98,21 +99,11 @@ class _GroupElem(ABC):
         # dictionnary associated with tags on elements or nodes
         self.__dict_nodes_tags: dict[str, _types.IntArray] = {}
         self.__dict_elements_tags: dict[str, _types.IntArray] = {}
-        self._InitMatrix()
 
     def _InitMatrix(self) -> None:
         """Initializes matrix dictionaries for finite element construction"""
         # Dictionaries for each matrix type
-        self.__dict_dN_e_pg: dict[MatrixType, FeArray.FeArrayALike] = {}
-        self.__dict_ddN_e_pg: dict[MatrixType, FeArray.FeArrayALike] = {}
-        self.__dict_F_e_pg: dict[MatrixType, FeArray.FeArrayALike] = {}
-        self.__dict_invF_e_pg: dict[MatrixType, FeArray.FeArrayALike] = {}
-        self.__dict_jacobian_e_pg: dict[MatrixType, FeArray.FeArrayALike] = {}
-        self.__dict_B_e_pg: dict[MatrixType, FeArray.FeArrayALike] = {}
-        self.__dict_leftDispPart: dict[MatrixType, FeArray.FeArrayALike] = {}
-        self.__dict_ReactionPart_e_pg: dict[MatrixType, FeArray.FeArrayALike] = {}
-        self.__dict_DiffusePart_e_pg: dict[MatrixType, FeArray.FeArrayALike] = {}
-        self.__dict_SourcePart_e_pg: dict[MatrixType, FeArray.FeArrayALike] = {}
+        clear_cached_computed_values(self)
 
     # --------------------------------------------------------------------------------------------
     # Properties
@@ -662,45 +653,45 @@ class _GroupElem(ABC):
     # Isoparametric elements
     # --------------------------------------------------------------------------------------------
 
+    @cache_computed_values
     def Get_F_e_pg(self, matrixType: MatrixType) -> FeArray.FeArrayALike:
         """Returns the transposed Jacobian matrix.\n
         This matrix describes the transformation of the (ξ, η, ζ) axes from the reference element to the (x, y, z) coordinate system of the actual element.\n
         """
         if self.dim == 0:
             return None  # type: ignore [return-value]
-        if matrixType not in self.__dict_F_e_pg:
-            coordo_e = self.coordGlob[self.__connect]
-            # Node coordinates in the (X, Y, Z) coordinate system of each element
 
-            rebased_coord_e = coordo_e.copy()
-            if self.dim != self.inDim:
-                P_e = self._Get_sysCoord_e()  # transformation matrix for each element
-                # matrix used to project element's points with (x, y, z) coordinates
-                # into the (X, Y, Z) coordinate system.
+        coordo_e = self.coordGlob[self.__connect]
+        # Node coordinates in the (X, Y, Z) coordinate system of each element
 
-                # check whether P_e is orthogonal
-                isOrth_e = Trace(Transpose(P_e) @ P_e) == 3
+        rebased_coord_e = coordo_e.copy()
+        if self.dim != self.inDim:
+            P_e = self._Get_sysCoord_e()  # transformation matrix for each element
+            # matrix used to project element's points with (x, y, z) coordinates
+            # into the (X, Y, Z) coordinate system.
 
-                # (x, y, z) = (X, Y, Z) * P_e  <==>  aj = bi Pij
-                rebased_coord_e[isOrth_e] = coordo_e[isOrth_e] @ P_e[isOrth_e]
+            # check whether P_e is orthogonal
+            isOrth_e = Trace(Transpose(P_e) @ P_e) == 3
 
-                # (x, y, z) = (X, Y, Z) * P_e^(-T)  <==>  aj = bi inv(P)ji
-                rebased_coord_e[~isOrth_e] = coordo_e[~isOrth_e] @ Transpose(
-                    Inv(P_e[~isOrth_e])
-                )
+            # (x, y, z) = (X, Y, Z) * P_e  <==>  aj = bi Pij
+            rebased_coord_e[isOrth_e] = coordo_e[isOrth_e] @ P_e[isOrth_e]
 
-            rebased_coord_e = rebased_coord_e[:, :, : self.dim]
-            # (Ne, nPe, dim)
+            # (x, y, z) = (X, Y, Z) * P_e^(-T)  <==>  aj = bi inv(P)ji
+            rebased_coord_e[~isOrth_e] = coordo_e[~isOrth_e] @ Transpose(
+                Inv(P_e[~isOrth_e])
+            )
 
-            dN_pg = FeArray.asfearray(self.Get_dN_pg(matrixType)[np.newaxis])
-            rebased_coord_e = FeArray.asfearray(rebased_coord_e[:, np.newaxis])
+        rebased_coord_e = rebased_coord_e[:, :, : self.dim]
+        # (Ne, nPe, dim)
 
-            F_e_pg = dN_pg @ rebased_coord_e
+        dN_pg = FeArray.asfearray(self.Get_dN_pg(matrixType)[np.newaxis])
+        rebased_coord_e = FeArray.asfearray(rebased_coord_e[:, np.newaxis])
 
-            self.__dict_F_e_pg[matrixType] = F_e_pg
+        F_e_pg = dN_pg @ rebased_coord_e
 
-        return self.__dict_F_e_pg[matrixType].copy()
+        return F_e_pg
 
+    @cache_computed_values
     def Get_jacobian_e_pg(
         self, matrixType: MatrixType, absoluteValues=True
     ) -> FeArray.FeArrayALike:
@@ -709,14 +700,10 @@ class _GroupElem(ABC):
         """
         if self.dim == 0:
             return None  # type: ignore [return-value]
-        if matrixType not in self.__dict_jacobian_e_pg:
-            F_e_pg = self.Get_F_e_pg(matrixType)
 
-            jacobian_e_pg = FeArray.asfearray(Det(F_e_pg))
+        F_e_pg = self.Get_F_e_pg(matrixType)
 
-            self.__dict_jacobian_e_pg[matrixType] = jacobian_e_pg
-
-        jacobian_e_pg = self.__dict_jacobian_e_pg[matrixType].copy()
+        jacobian_e_pg = FeArray.asfearray(Det(F_e_pg))
 
         if absoluteValues:
             jacobian_e_pg = np.abs(jacobian_e_pg)
@@ -735,6 +722,7 @@ class _GroupElem(ABC):
 
         return FeArray.asfearray(wJ_e_pg)
 
+    @cache_computed_values
     def Get_invF_e_pg(self, matrixType: MatrixType) -> FeArray.FeArrayALike:
         """Returns the inverse of the transposed Jacobian matrix.\n
         Used to obtain the derivative of the dN_e_pg shape functions in the actual element
@@ -742,14 +730,12 @@ class _GroupElem(ABC):
         """
         if self.dim == 0:
             return None  # type: ignore [return-value]
-        if matrixType not in self.__dict_invF_e_pg:
-            F_e_pg = self.Get_F_e_pg(matrixType)
 
-            invF_e_pg = FeArray.asfearray(Inv(F_e_pg))
+        F_e_pg = self.Get_F_e_pg(matrixType)
 
-            self.__dict_invF_e_pg[matrixType] = invF_e_pg
+        invF_e_pg = FeArray.asfearray(Inv(F_e_pg))
 
-        return self.__dict_invF_e_pg[matrixType].copy()
+        return invF_e_pg
 
     # --------------------------------------------------------------------------------------------
     # Finite element shape functions
@@ -905,6 +891,7 @@ class _GroupElem(ABC):
 
         return dN_pg
 
+    @cache_computed_values
     def Get_dN_e_pg(self, matrixType: MatrixType) -> FeArray.FeArrayALike:
         """Evaluates the first-order derivatives of shape functions in (x, y, z) coordinates.\n
         [Ni,x . . . Nn,x\n
@@ -914,17 +901,14 @@ class _GroupElem(ABC):
         """
         assert matrixType in MatrixType.Get_types()
 
-        if matrixType not in self.__dict_dN_e_pg:
-            invF_e_pg = self.Get_invF_e_pg(matrixType)
+        invF_e_pg = self.Get_invF_e_pg(matrixType)
 
-            dN_pg = FeArray.asfearray(self.Get_dN_pg(matrixType)[np.newaxis])
+        dN_pg = FeArray.asfearray(self.Get_dN_pg(matrixType)[np.newaxis])
 
-            # Derivation of shape functions in the (x, y, z) coordinates
-            dN_e_pg = invF_e_pg @ dN_pg
+        # Derivation of shape functions in the (x, y, z) coordinates
+        dN_e_pg = invF_e_pg @ dN_pg
 
-            self.__dict_dN_e_pg[matrixType] = dN_e_pg
-
-        return self.__dict_dN_e_pg[matrixType].copy()
+        return dN_e_pg
 
     # ddN
 
@@ -938,6 +922,7 @@ class _GroupElem(ABC):
         """
         return self._Init_Functions(2)
 
+    @cache_computed_values
     def Get_ddN_e_pg(self, matrixType: MatrixType) -> FeArray.FeArrayALike:
         """Evaluates the second-order derivatives of shape functions in (x, y, z) coordinates.\n
         [Ni,x2 . . . Nn,x2\n
@@ -947,16 +932,13 @@ class _GroupElem(ABC):
         """
         assert matrixType in MatrixType.Get_types()
 
-        if matrixType not in self.__dict_ddN_e_pg:
-            invF_e_pg = self.Get_invF_e_pg(matrixType)
+        invF_e_pg = self.Get_invF_e_pg(matrixType)
 
-            ddN_pg = FeArray.asfearray(self.Get_ddN_pg(matrixType)[np.newaxis])
+        ddN_pg = FeArray.asfearray(self.Get_ddN_pg(matrixType)[np.newaxis])
 
-            ddN_e_pg = invF_e_pg @ invF_e_pg @ ddN_pg
+        ddN_e_pg = invF_e_pg @ invF_e_pg @ ddN_pg
 
-            self.__dict_ddN_e_pg[matrixType] = ddN_e_pg
-
-        return self.__dict_ddN_e_pg[matrixType].copy()
+        return ddN_e_pg
 
     def Get_ddN_pg(self, matrixType: MatrixType) -> _types.FloatArray:
         """Evaluates shape functions second derivatives in the (ξ, η, ζ) coordinates.\n
@@ -1192,6 +1174,7 @@ class _GroupElem(ABC):
 
     # Linear elastic problem
 
+    @cache_computed_values
     def Get_B_e_pg(self, matrixType: MatrixType) -> FeArray.FeArrayALike:
         """Get the matrix used to calculate deformations from displacements.\n
         WARNING: Use Kelvin Mandel Notation\n
@@ -1202,51 +1185,49 @@ class _GroupElem(ABC):
         """
         assert matrixType in MatrixType.Get_types()
 
-        if matrixType not in self.__dict_B_e_pg:
-            dN_e_pg = self.Get_dN_e_pg(matrixType)
+        dN_e_pg = self.Get_dN_e_pg(matrixType)
 
-            Ne = self.Ne
-            nPg = self.Get_gauss(matrixType).nPg
-            nPe = self.nPe
-            dim = self.dim
+        Ne = self.Ne
+        nPg = self.Get_gauss(matrixType).nPg
+        nPe = self.nPe
+        dim = self.dim
 
-            cM = 1 / np.sqrt(2)
+        cM = 1 / np.sqrt(2)
 
-            columnsX = np.arange(0, nPe * dim, dim)
-            columnsY = np.arange(1, nPe * dim, dim)
-            columnsZ = np.arange(2, nPe * dim, dim)
+        columnsX = np.arange(0, nPe * dim, dim)
+        columnsY = np.arange(1, nPe * dim, dim)
+        columnsZ = np.arange(2, nPe * dim, dim)
 
-            if self.dim == 2:
-                B_e_pg = np.zeros((Ne, nPg, 3, nPe * dim))
+        if self.dim == 2:
+            B_e_pg = np.zeros((Ne, nPg, 3, nPe * dim))
 
-                dNdx = dN_e_pg[:, :, 0]
-                dNdy = dN_e_pg[:, :, 1]
+            dNdx = dN_e_pg[:, :, 0]
+            dNdy = dN_e_pg[:, :, 1]
 
-                B_e_pg[:, :, 0, columnsX] = dNdx
-                B_e_pg[:, :, 1, columnsY] = dNdy
-                B_e_pg[:, :, 2, columnsX] = dNdy * cM
-                B_e_pg[:, :, 2, columnsY] = dNdx * cM
-            else:
-                B_e_pg = np.zeros((Ne, nPg, 6, nPe * dim))
+            B_e_pg[:, :, 0, columnsX] = dNdx
+            B_e_pg[:, :, 1, columnsY] = dNdy
+            B_e_pg[:, :, 2, columnsX] = dNdy * cM
+            B_e_pg[:, :, 2, columnsY] = dNdx * cM
+        else:
+            B_e_pg = np.zeros((Ne, nPg, 6, nPe * dim))
 
-                dNdx = dN_e_pg[:, :, 0]
-                dNdy = dN_e_pg[:, :, 1]
-                dNdz = dN_e_pg[:, :, 2]
+            dNdx = dN_e_pg[:, :, 0]
+            dNdy = dN_e_pg[:, :, 1]
+            dNdz = dN_e_pg[:, :, 2]
 
-                B_e_pg[:, :, 0, columnsX] = dNdx
-                B_e_pg[:, :, 1, columnsY] = dNdy
-                B_e_pg[:, :, 2, columnsZ] = dNdz
-                B_e_pg[:, :, 3, columnsY] = dNdz * cM
-                B_e_pg[:, :, 3, columnsZ] = dNdy * cM
-                B_e_pg[:, :, 4, columnsX] = dNdz * cM
-                B_e_pg[:, :, 4, columnsZ] = dNdx * cM
-                B_e_pg[:, :, 5, columnsX] = dNdy * cM
-                B_e_pg[:, :, 5, columnsY] = dNdx * cM
+            B_e_pg[:, :, 0, columnsX] = dNdx
+            B_e_pg[:, :, 1, columnsY] = dNdy
+            B_e_pg[:, :, 2, columnsZ] = dNdz
+            B_e_pg[:, :, 3, columnsY] = dNdz * cM
+            B_e_pg[:, :, 3, columnsZ] = dNdy * cM
+            B_e_pg[:, :, 4, columnsX] = dNdz * cM
+            B_e_pg[:, :, 4, columnsZ] = dNdx * cM
+            B_e_pg[:, :, 5, columnsX] = dNdy * cM
+            B_e_pg[:, :, 5, columnsY] = dNdx * cM
 
-            self.__dict_B_e_pg[matrixType] = FeArray.asfearray(B_e_pg)
+        return FeArray.asfearray(B_e_pg)
 
-        return self.__dict_B_e_pg[matrixType].copy()
-
+    @cache_computed_values
     def Get_leftDispPart(self, matrixType: MatrixType) -> FeArray.FeArrayALike:
         """Get the left side of local displacement matrices.\n
         Ku_e = jacobian_e_pg * weight_pg * B_e_pg' @ c_e_pg @ B_e_pg\n
@@ -1256,15 +1237,12 @@ class _GroupElem(ABC):
 
         assert matrixType in MatrixType.Get_types()
 
-        if matrixType not in self.__dict_leftDispPart:
-            wJ_e_pg = self.Get_weightedJacobian_e_pg(matrixType)
-            B_e_pg = self.Get_B_e_pg(matrixType)
+        wJ_e_pg = self.Get_weightedJacobian_e_pg(matrixType)
+        B_e_pg = self.Get_B_e_pg(matrixType)
 
-            leftDispPart = wJ_e_pg * B_e_pg.T
+        leftDispPart = wJ_e_pg * B_e_pg.T
 
-            self.__dict_leftDispPart[matrixType] = leftDispPart
-
-        return self.__dict_leftDispPart[matrixType].copy()
+        return leftDispPart
 
     # Euler Bernoulli problem
 
@@ -1482,6 +1460,7 @@ class _GroupElem(ABC):
 
     # reaction diffusion problem
 
+    @cache_computed_values
     def Get_ReactionPart_e_pg(self, matrixType: MatrixType) -> FeArray.FeArrayALike:
         """Get the part that builds the reaction term (scalar).\n
         ReactionPart_e_pg = r_e_pg * jacobian_e_pg * weight_pg * N_pg' @ N_pg\n
@@ -1491,16 +1470,14 @@ class _GroupElem(ABC):
 
         assert matrixType in MatrixType.Get_types()
 
-        if matrixType not in self.__dict_ReactionPart_e_pg:
-            weightedJacobian = self.Get_weightedJacobian_e_pg(matrixType)
-            N_pg = FeArray.asfearray(self.Get_N_pg_rep(matrixType, 1)[np.newaxis])
+        weightedJacobian = self.Get_weightedJacobian_e_pg(matrixType)
+        N_pg = FeArray.asfearray(self.Get_N_pg_rep(matrixType, 1)[np.newaxis])
 
-            ReactionPart_e_pg = weightedJacobian * N_pg.T @ N_pg
+        ReactionPart_e_pg = weightedJacobian * N_pg.T @ N_pg
 
-            self.__dict_ReactionPart_e_pg[matrixType] = ReactionPart_e_pg
+        return ReactionPart_e_pg
 
-        return self.__dict_ReactionPart_e_pg[matrixType].copy()
-
+    @cache_computed_values
     def Get_DiffusePart_e_pg(self, matrixType: MatrixType) -> FeArray.FeArrayALike:
         """Get the part that builds the diffusion term (scalar).\n
         DiffusePart_e_pg = k_e_pg * jacobian_e_pg * weight_pg * dN_e_pg' @ A @ dN_e_pg\n
@@ -1510,16 +1487,14 @@ class _GroupElem(ABC):
 
         assert matrixType in MatrixType.Get_types()
 
-        if matrixType not in self.__dict_DiffusePart_e_pg:
-            wJ_e_pg = self.Get_weightedJacobian_e_pg(matrixType)
-            dN_e_pg = self.Get_dN_e_pg(matrixType)
+        wJ_e_pg = self.Get_weightedJacobian_e_pg(matrixType)
+        dN_e_pg = self.Get_dN_e_pg(matrixType)
 
-            DiffusePart_e_pg = wJ_e_pg * dN_e_pg.T
+        DiffusePart_e_pg = wJ_e_pg * dN_e_pg.T
 
-            self.__dict_DiffusePart_e_pg[matrixType] = DiffusePart_e_pg
+        return DiffusePart_e_pg
 
-        return self.__dict_DiffusePart_e_pg[matrixType].copy()
-
+    @cache_computed_values
     def Get_SourcePart_e_pg(self, matrixType: MatrixType) -> FeArray.FeArrayALike:
         """Get the part that builds the source term (scalar).\n
         SourcePart_e_pg = f_e_pg * jacobian_e_pg * weight_pg * N_pg'\n
@@ -1529,15 +1504,12 @@ class _GroupElem(ABC):
 
         assert matrixType in MatrixType.Get_types()
 
-        if matrixType not in self.__dict_SourcePart_e_pg:
-            wJ_e_pg = self.Get_weightedJacobian_e_pg(matrixType)
-            N_pg = FeArray.asfearray(self.Get_N_pg_rep(matrixType, 1)[np.newaxis])
+        wJ_e_pg = self.Get_weightedJacobian_e_pg(matrixType)
+        N_pg = FeArray.asfearray(self.Get_N_pg_rep(matrixType, 1)[np.newaxis])
 
-            SourcePart_e_pg = wJ_e_pg * N_pg.T
+        SourcePart_e_pg = wJ_e_pg * N_pg.T
 
-            self.__dict_SourcePart_e_pg[matrixType] = SourcePart_e_pg
-
-        return self.__dict_SourcePart_e_pg[matrixType].copy()
+        return SourcePart_e_pg
 
     def Get_Gradient_e_pg(
         self, u: _types.FloatArray, matrixType=MatrixType.rigi
