@@ -102,7 +102,7 @@ if __name__ == "__main__":
 
     K1, K2 = sympy.symbols("K1, K2")
 
-    W = K1 * (J1 - 3) + K2 * (J2 - 3)
+    W = K1 * (J1 - 3) + K2 * (J2 - 3) + K * (J - 1) ** 2
 
     Compute(W, [I1, I2, I3])
 

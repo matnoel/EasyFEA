@@ -216,6 +216,9 @@ class NeoHookean(_HyperElas):
 
 class MooneyRivlin(_HyperElas):
 
+    K: float = _params.PositiveScalarParameter()
+    """Bulk modulus"""
+
     K1: float = _params.PositiveScalarParameter()
     """Kappa1"""
 
@@ -225,6 +228,7 @@ class MooneyRivlin(_HyperElas):
     def __init__(
         self,
         dim: int,
+        K: Union[float, _types.FloatArray],
         K1: Union[float, _types.FloatArray],
         K2: Union[float, _types.FloatArray],
         thickness=1.0,
@@ -235,6 +239,8 @@ class MooneyRivlin(_HyperElas):
         ----------
         dim : int
             dimension (e.g 2 or 3)
+        K : float|_types.FloatArray, optional
+            Bulk modulus
         K1 : float|_types.FloatArray, optional
             Kappa1
         K2 : float|_types.FloatArray, optional
@@ -245,10 +251,12 @@ class MooneyRivlin(_HyperElas):
 
         _HyperElas.__init__(self, dim, thickness)
 
+        self.K = K
         self.K1 = K1
         self.K2 = K2
 
     def Compute_W(self, mesh, u, matrixType=MatrixType.rigi) -> FeArray:
+        K = self.K
         K1 = self.K1
         K2 = self.K2
 
@@ -258,11 +266,16 @@ class MooneyRivlin(_HyperElas):
         I2 = hyperElasticState.Compute_I2()
         I3 = hyperElasticState.Compute_I3()
 
-        W = K1 * (I1 / I3 ** (1 / 3) - 3) + K2 * (I2 / I3 ** (2 / 3) - 3)
+        W = (
+            K * (np.sqrt(I3) - 1) ** 2
+            + K1 * (I1 / I3 ** (1 / 3) - 3)
+            + K2 * (I2 / I3 ** (2 / 3) - 3)
+        )
 
         return W
 
     def Compute_dWde(self, mesh, u, matrixType=MatrixType.rigi) -> FeArray:
+        K = self.K
         K1 = self.K1
         K2 = self.K2
 
@@ -278,13 +291,18 @@ class MooneyRivlin(_HyperElas):
 
         dWdI1 = K1 / I3 ** (1 / 3)
         dWdI2 = K2 / I3 ** (2 / 3)
-        dWdI3 = -I1 * K1 / (3 * I3 ** (4 / 3)) - 2 * I2 * K2 / (3 * I3 ** (5 / 3))
+        dWdI3 = (
+            -I1 * K1 / (3 * I3 ** (4 / 3))
+            - 2 * I2 * K2 / (3 * I3 ** (5 / 3))
+            + K * (np.sqrt(I3) - 1) / np.sqrt(I3)
+        )
 
         dW = 2 * (dWdI1 * dI1dC + dWdI2 * dI2dC + dWdI3 * dI3dC)
 
         return dW
 
     def Compute_d2Wde(self, mesh, u, matrixType=MatrixType.rigi) -> FeArray:
+        K = self.K
         K1 = self.K1
         K2 = self.K2
 
@@ -306,11 +324,18 @@ class MooneyRivlin(_HyperElas):
         d2WdI1dI3 = -K1 / (3 * I3 ** (4 / 3))
         dWdI2 = K2 / I3 ** (2 / 3)
         d2WdI2dI3 = -2 * K2 / (3 * I3 ** (5 / 3))
-        dWdI3 = -I1 * K1 / (3 * I3 ** (4 / 3)) - 2 * I2 * K2 / (3 * I3 ** (5 / 3))
+        dWdI3 = (
+            -I1 * K1 / (3 * I3 ** (4 / 3))
+            - 2 * I2 * K2 / (3 * I3 ** (5 / 3))
+            + K * (np.sqrt(I3) - 1) / np.sqrt(I3)
+        )
         d2WdI3dI1 = -K1 / (3 * I3 ** (4 / 3))
         d2WdI3dI2 = -2 * K2 / (3 * I3 ** (5 / 3))
-        d2WdI3dI3 = 4 * I1 * K1 / (9 * I3 ** (7 / 3)) + 10 * I2 * K2 / (
-            9 * I3 ** (8 / 3)
+        d2WdI3dI3 = (
+            4 * I1 * K1 / (9 * I3 ** (7 / 3))
+            + 10 * I2 * K2 / (9 * I3 ** (8 / 3))
+            + K / (2 * I3)
+            - K * (np.sqrt(I3) - 1) / (2 * I3 ** (3 / 2))
         )
 
         d2W = 4 * (dWdI1 * d2I1dC + dWdI2 * d2I2dC + dWdI3 * d2I3dC) + 4 * (
