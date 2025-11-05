@@ -8,7 +8,6 @@ from datetime import datetime
 from typing import Union, Optional, Any
 import numpy as np
 from scipy import sparse
-import scipy.sparse.linalg as sla
 import textwrap
 from functools import singledispatch
 
@@ -32,7 +31,7 @@ from ..fem import (
 from ..models import ModelType, _IModel, Reshape_variable
 
 # simu
-from .Solvers import Solve_simu, _Solve_Axb, _Available_Solvers, ResolType, AlgoType
+from .Solvers import Solve_simu, _Available_Solvers, ResolType, AlgoType
 
 
 # ----------------------------------------------
@@ -957,7 +956,6 @@ class _Simu(_IObserver, _params.Updatable, ABC):
         u = self._Get_u_n(problemType)
 
         # init convergence list
-        list_res: list[float] = []
         list_norm_r: list[float] = []
 
         print()
