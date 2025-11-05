@@ -170,11 +170,11 @@ def Plot(
         )
 
     if (
-        hasattr(plotter, "need_to_update_camera_position")
-        and plotter.need_to_update_camera_position
+        hasattr(plotter, "_need_to_update_camera_position")
+        and plotter._need_to_update_camera_position
     ):
         _setCameraPosition(plotter, inDim)
-        plotter.need_to_update_camera_position = False
+        plotter._need_to_update_camera_position = False
 
     if show_grid:
         # plotter.show_grid(fmt="%.3e")  # type: ignore [call-arg]
@@ -851,7 +851,7 @@ def Movie_func(
 
 def _Plotter(off_screen=False, add_axes=True, shape=(1, 1), linkViews=True):
     plotter = pv.Plotter(off_screen=pv.OFF_SCREEN, shape=shape)
-    plotter.need_to_update_camera_position = True
+    plotter._need_to_update_camera_position = True
     if add_axes:
         plotter.add_axes()
     if linkViews:
