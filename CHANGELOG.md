@@ -2,6 +2,34 @@
 
 This document describes the changes made to the project.
 
+## 1.5.5 (November 5, 2025):
+
+- Updated the solver parameter in the `phasefield` model.
+- Added an assertion in `_Simu.Get_K_C_M_F` to detect multiple problem types.
+- Updated `PositiveParameter` to `PositiveScalarParameter` in some models [#23](https://github.com/matnoel/EasyFEA/issues/23).
+- Renamed `_pyVistaMesh` to `_pvMesh` in `EasyFEA/utilities/PyVista.py`.
+- Updated `PyVista._setCameraPosition` with its docstrings and modified how the function is called.
+- Added the `I6` and `I8` invariants in `EasyFEA/models/_hyperelastic.py`.
+- Added `VectorParameter` and `_CheckIsVector` in `EasyFEA/utilities/_params.py`.
+- Updated the behavior of `TensorProd` and `Project_Kelvin` functions for `FeArray`.
+- Updated vector checks in `EasyFEA/models/_hyperelastic.py`.
+- Created the `HolzapfelOgden` hyperelastic law in `EasyFEA/models/_hyperelastic_laws.py`.
+- Updated FEM solvers:
+    - Updated the `Newton_Raphson` algorithm.
+    - Removed the `simu.solverIsIncremental` option.
+    - Updated `newmark`, `midpoint`, and `hht` acceleration formulations to displacement formulations.
+    - Updated `Set_Rayleigh_Damping_Coefs` to ensure the matrix is updated in `EasyFEA/simulations/_elastic.py`.
+    - Revised the use of the `Newton_Raphson` algorithm in nonlinear simulations.
+    - Updated the `Newton_Raphson` algorithm to print the residual L2 norm (with applied boundary conditions).
+- Updated the `TensorProd` function in `EasyFEA/fem/_linalg.py`.
+- Updated hyperelastic chain rules to ensure cross-term derivatives used in `d2W` utilize tensor products.
+- Refactored the `HyperElastic` static class into a `HyperElasticState` class for improved performance and code readability.
+- Applied the `cache_computed_values` decorator to replace outdated caching methods in `EasyFEA/fem/_group_elems.py` and `EasyFEA/models/_hyperelastic.py`.
+- Fixed a bug in the first derivatives of anisotropic invariants `I4`, `I6`, and `I8`.
+- Fixed a bug in the penalization solver.
+- Added the bulk modulus term to the `MooneyRivlin` hyperelastic law.
+- Added the bulk modulus term to the `Saint-Venant-Kirchhoff` hyperelastic law.
+
 ## 1.5.4 (October 23, 2025):
 
 - Fixed issue [#23](https://github.com/matnoel/EasyFEA/issues/23): Descriptors are now used to simplify property creation in classes.
