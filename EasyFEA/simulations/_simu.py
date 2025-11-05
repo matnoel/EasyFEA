@@ -1215,7 +1215,7 @@ class _Simu(_IObserver, _params.Updatable, ABC):
         sparse.csr_matrix
             The A matrix after resizing.
         sparse.csr_matrix
-            The x matrix after resizing.
+            The x matrix after resizing or b matrix if resolution == ResolType.r3.
         """
         dofs = self.Bc_dofs_Dirichlet(problemType)
         size = self.mesh.Nn * self.Get_dof_n(problemType)
@@ -1232,13 +1232,13 @@ class _Simu(_IObserver, _params.Updatable, ABC):
 
         elif resolution == ResolType.r3:
             # Penalization
-
             A = A.tolil()
             b = b.tolil()
 
             # Penalization A
-            A[dofs] = 0.0
+            A[dofs, :] = 0.0  # set zeros on dofs rows
             A[dofs, dofs] = 1
+            # same as [A.__setitem__((i, i), 1) for i in dofs]
 
             # Penalization b
             b[dofs] = dofsValues

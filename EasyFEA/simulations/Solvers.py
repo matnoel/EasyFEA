@@ -384,7 +384,7 @@ def __Solver_3(simu: "_Simu", problemType: "ModelType"):
 
     # Builds the penalized matrix system
     b = simu._Solver_Apply_Neumann(problemType)
-    A, x = simu._Solver_Apply_Dirichlet(problemType, b, ResolType.r3)
+    A, b = simu._Solver_Apply_Dirichlet(problemType, b, ResolType.r3)
 
     # Solving the penalized matrix system
     x0 = simu.Get_x0(problemType)
