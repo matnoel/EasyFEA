@@ -371,7 +371,7 @@ class HyperElasticState:
         Returns
         -------
         FeArray
-            dI2dC_e_pg of shape (Ne, pg, 3, 3)
+            dI2dC_e_pg of shape (Ne, pg, 6)
         """
 
         Ne, nPg, _ = self.__GetDims()
@@ -447,7 +447,7 @@ class HyperElasticState:
         Returns
         -------
         FeArray
-            dI3dC_e_pg of shape (Ne, pg, 3, 3)
+            dI3dC_e_pg of shape (Ne, pg, 6)
         """
 
         cxx, cxy, cxz, _, cyy, cyz, _, _, czz = self._Compute_C()
