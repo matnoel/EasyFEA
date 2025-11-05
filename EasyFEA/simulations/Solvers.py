@@ -299,13 +299,17 @@ def __Solver_1(simu: "_Simu", problemType: "ModelType") -> _types.FloatArray:
 
     lb, ub = simu.Get_lb_ub(problemType)
 
-    xi = _Solve_Axb(simu, problemType, Aii, bi - Aic @ xc, x0, lb, ub)
+    bi -= Aic @ xc
+    xi = _Solve_Axb(simu, problemType, Aii, bi, x0, lb, ub)
 
     # apply result to global vector
     x = x.toarray().reshape(x.shape[0])
     x[dofsUnknown] = xi
 
-    return x
+    if simu.isNonLinear:
+        return x, sla.norm(bi)
+    else:
+        return x
 
 
 def __Solver_2(simu: "_Simu", problemType: "ModelType"):
@@ -391,7 +395,10 @@ def __Solver_3(simu: "_Simu", problemType: "ModelType"):
     lb, ub = simu.Get_lb_ub(problemType)
     x = _Solve_Axb(simu, problemType, A, b, x0, lb, ub)
 
-    return x
+    if simu.isNonLinear:
+        return x, sla.norm(b)
+    else:
+        return x
 
 
 def _PETSc(

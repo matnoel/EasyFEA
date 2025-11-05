@@ -169,7 +169,7 @@ class _Simu(_IObserver, _params.Updatable, ABC):
             # convergence informations
             iter["newtonIter"] = self.__newtonIter
             iter["timeIter"] = self.__timeIter
-            iter["list_res"] = self.__list_res
+            iter["list_norm_r"] = self.__list_norm_r
 
         return iter
 
@@ -769,6 +769,11 @@ class _Simu(_IObserver, _params.Updatable, ABC):
         self.__timeIter = None
         self.__list_res = None
 
+    @property
+    def isNonLinear(self):
+        """Returns whether the simulation is non linear."""
+        return self.__isNonLinear
+
     def Solve(self) -> _types.FloatArray:
         """Computes the solution field for the current boundary conditions.
 
@@ -800,13 +805,13 @@ class _Simu(_IObserver, _params.Updatable, ABC):
     def _Solver_Solve(self, problemType: ModelType) -> _types.FloatArray:
         """Solves the problem."""
 
-        if self.__isNonLinear:
-            u, newtonIter, timeIter, list_res = self._Solver_Solve_Newton_Raphson(
+        if self.isNonLinear:
+            u, newtonIter, timeIter, list_norm_r = self._Solver_Solve_Newton_Raphson(
                 problemType, self.__tolConv, self.__maxIter
             )
-            self._newtonIter = newtonIter
-            self._timeIter = timeIter
-            self._list_res = list_res
+            self.__newtonIter = newtonIter
+            self.__timeIter = timeIter
+            self.__list_norm_r = list_norm_r
         else:
             u = Solve_simu(self, problemType)
 
@@ -932,7 +937,7 @@ class _Simu(_IObserver, _params.Updatable, ABC):
         Returns
         -------
         tuple[_types.FloatArray, int, float, list[float]]
-            return u, Niter, timeIter, list_res
+            return u, Niter, timeIter, list_norm_r
         """
 
         assert 0 < tolConv < 1, "tolConv must be between 0 and 1."
@@ -955,11 +960,19 @@ class _Simu(_IObserver, _params.Updatable, ABC):
         list_res: list[float] = []
         list_norm_r: list[float] = []
 
-        while not converged and newtonIter < maxIter:
-            newtonIter += 1
+        print()
 
-            # compute delta_u
-            delta_u = Solve_simu(self, self.problemType)
+        while not converged and newtonIter < maxIter:
+
+            newtonIter += 1
+            # we must update the matrix system at each newton iteration.
+            self.Need_Update()
+
+            # Compute delta_u and the residual norm (with the applied boundary conditions)
+            delta_u, norm_r = Solve_simu(self, self.problemType)
+            list_norm_r.append(norm_r)
+
+            print(f"At Newton iteration {newtonIter} norm is {norm_r:14.12e}")
 
             # compute ||delta_u||
             norm_delta_u = np.linalg.norm(delta_u)
@@ -967,21 +980,7 @@ class _Simu(_IObserver, _params.Updatable, ABC):
             u += delta_u
             self.__Set_u_n(problemType, u)
 
-            # u is updated -> we must update the matrices.
-            self.Need_Update()
-
-            # compute || r ||
-            r = self._Solver_Apply_Neumann(problemType)
-            norm_r: float = sla.norm(r)
-            list_norm_r.append(norm_r)
-
-            if newtonIter == 1:
-                res = 1
-            else:
-                res = np.abs(list_norm_r[-2] - norm_r) / list_norm_r[-2]
-            list_res.append(res)
-
-            converged = res < tolConv or norm_delta_u < tolConv
+            converged = (norm_r < tolConv) or (norm_delta_u < tolConv)
 
         timeIter = tic.Tac(f"Resolution {problemType}", "Newton iterations", False)
 
@@ -989,7 +988,9 @@ class _Simu(_IObserver, _params.Updatable, ABC):
             converged
         ), f"Newton raphson algorithm did not converged in {newtonIter} iterations."
 
-        return u, newtonIter, timeIter, list_res
+        print()
+
+        return u, newtonIter, timeIter, list_norm_r
 
     def _Solver_Apply_Neumann(self, problemType: ModelType) -> sparse.csr_matrix:
         """Fill in the Neumann boundary conditions by constructing b from A x = b.
