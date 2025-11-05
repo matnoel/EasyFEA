@@ -121,6 +121,7 @@ if __name__ == "__main__":
         - (3 * lmbda / 4 + mu / 2) * I1
         + 9 * lmbda / 8
         + 3 * mu / 4
+        + 1 / 2 * K * (I3 - 1) ** 2
     )
 
     Compute(W, [I1, I2, I3])

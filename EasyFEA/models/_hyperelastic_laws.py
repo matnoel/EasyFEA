@@ -140,7 +140,7 @@ class NeoHookean(_HyperElas):
         ----------
         dim : int
             dimension (e.g 2 or 3)
-        K : float|_types.FloatArray, optional
+        K : float|_types.FloatArray
             Bulk modulus
         thickness : float, optional
             thickness, by default 1.0
@@ -216,21 +216,21 @@ class NeoHookean(_HyperElas):
 
 class MooneyRivlin(_HyperElas):
 
-    K: float = _params.PositiveScalarParameter()
-    """Bulk modulus"""
-
     K1: float = _params.PositiveScalarParameter()
     """Kappa1"""
 
     K2: float = _params.PositiveScalarParameter()
     """Kappa2"""
 
+    K: float = _params.PositiveScalarParameter()
+    """Bulk modulus"""
+
     def __init__(
         self,
         dim: int,
-        K: Union[float, _types.FloatArray],
         K1: Union[float, _types.FloatArray],
         K2: Union[float, _types.FloatArray],
+        K: Union[float, _types.FloatArray] = 0.0,
         thickness=1.0,
     ):
         """Creates an Mooney-Rivlin material.
@@ -239,21 +239,21 @@ class MooneyRivlin(_HyperElas):
         ----------
         dim : int
             dimension (e.g 2 or 3)
-        K : float|_types.FloatArray, optional
-            Bulk modulus
-        K1 : float|_types.FloatArray, optional
+        K1 : float|_types.FloatArray
             Kappa1
-        K2 : float|_types.FloatArray, optional
+        K2 : float|_types.FloatArray
             Kappa2 -> Neo-Hoolkean if K2=0
+        K : float|_types.FloatArray, optional
+            Bulk modulus, by default 0.0
         thickness : float, optional
             thickness, by default 1.0
         """
 
         _HyperElas.__init__(self, dim, thickness)
 
-        self.K = K
         self.K1 = K1
         self.K2 = K2
+        self.K = K
 
     def Compute_W(self, mesh, u, matrixType=MatrixType.rigi) -> FeArray:
         K = self.K
@@ -362,11 +362,15 @@ class SaintVenantKirchhoff(_HyperElas):
     mu: float = _params.PositiveScalarParameter()
     """Shear modulus"""
 
+    K: float = _params.PositiveScalarParameter()
+    """Bulk modulus"""
+
     def __init__(
         self,
         dim: int,
         lmbda: Union[float, _types.FloatArray],
         mu: Union[float, _types.FloatArray],
+        K: Union[float, _types.FloatArray] = 0.0,
         thickness=1.0,
     ):
         """Creates Saint-Venant-Kirchhoff material.
@@ -375,10 +379,12 @@ class SaintVenantKirchhoff(_HyperElas):
         ----------
         dim : int
             dimension (e.g 2 or 3)
-        lmbda : float|_types.FloatArray, optional
+        lmbda : float|_types.FloatArray
             Lame's first parameter
-        mu : float|_types.FloatArray, optional
+        mu : float|_types.FloatArray
             Shear modulus
+        K : float|_types.FloatArray, optional
+            Bulk modulus, by default 0.0
         thickness : float, optional
             thickness, by default 1.0
         """
@@ -387,57 +393,78 @@ class SaintVenantKirchhoff(_HyperElas):
 
         self.lmbda = lmbda
         self.mu = mu
+        self.K = K
 
     def Compute_W(self, mesh, u, matrixType=MatrixType.rigi) -> FeArray:
         lmbda = self.lmbda
         mu = self.mu
+        K = self.K
 
         hyperElasticState = HyperElasticState(mesh, u, matrixType)
 
         I1 = hyperElasticState.Compute_I1()
         I2 = hyperElasticState.Compute_I2()
+        I3 = hyperElasticState.Compute_I3()
 
-        W = lmbda * (I1**2 - 6 * I1 + 9) / 8 + mu * (I1**2 - 2 * I1 - 2 * I2 + 3) / 4
+        W = (
+            I1**2 * (lmbda / 8 + mu / 4)
+            - I1 * (3 * lmbda / 4 + mu / 2)
+            - I2 * mu / 2
+            + 0.5 * K * (I3 - 1) ** 2
+            + 9 * lmbda / 8
+            + 3 * mu / 4
+        )
 
         return W
 
     def Compute_dWde(self, mesh, u, matrixType=MatrixType.rigi) -> FeArray:
         lmbda = self.lmbda
         mu = self.mu
+        K = self.K
 
         hyperElasticState = HyperElasticState(mesh, u, matrixType)
 
         I1 = hyperElasticState.Compute_I1()
+        I3 = hyperElasticState.Compute_I3()
 
         dI1dC = hyperElasticState.Compute_dI1dC()
         dI2dC = hyperElasticState.Compute_dI2dC()
+        dI3dC = hyperElasticState.Compute_dI3dC()
 
         dWdI1 = 2 * I1 * (lmbda / 8 + mu / 4) - 3 * lmbda / 4 - mu / 2
         dWdI2 = -mu / 2
+        dWdI3 = 0.5 * K * (2 * I3 - 2)
 
-        dW = 2 * (dWdI1 * dI1dC + dWdI2 * dI2dC)
+        dW = 2 * (dWdI1 * dI1dC + dWdI2 * dI2dC + dWdI3 * dI3dC)
 
         return dW
 
     def Compute_d2Wde(self, mesh, u, matrixType=MatrixType.rigi) -> FeArray:
         lmbda = self.lmbda
         mu = self.mu
+        K = self.K
 
         hyperElasticState = HyperElasticState(mesh, u, matrixType)
 
         I1 = hyperElasticState.Compute_I1()
+        I3 = hyperElasticState.Compute_I3()
 
         dI1dC = hyperElasticState.Compute_dI1dC()
+        dI3dC = hyperElasticState.Compute_dI3dC()
 
         d2I1dC = hyperElasticState.Compute_d2I1dC()
         d2I2dC = hyperElasticState.Compute_d2I2dC()
+        d2I3dC = hyperElasticState.Compute_d2I3dC()
 
         dWdI1 = 2 * I1 * (lmbda / 8 + mu / 4) - 3 * lmbda / 4 - mu / 2
-        d2WdI1dI1 = lmbda / 4 + mu / 2
         dWdI2 = -mu / 2
+        dWdI3 = 0.5 * K * (2 * I3 - 2)
 
-        d2W = 4 * (dWdI1 * d2I1dC + dWdI2 * d2I2dC) + 4 * (
-            d2WdI1dI1 * TensorProd(dI1dC, dI1dC)
+        d2WdI1dI1 = lmbda / 4 + mu / 2
+        d2WdI3dI3 = 1.0 * K
+
+        d2W = 4 * (dWdI1 * d2I1dC + dWdI2 * d2I2dC + dWdI3 * d2I3dC) + 4 * (
+            d2WdI1dI1 * TensorProd(dI1dC, dI1dC) + d2WdI3dI3 * TensorProd(dI3dC, dI3dC)
         )
 
         return d2W
@@ -514,7 +541,7 @@ class HolzapfelOgden(_HyperElas):
             C6
         C7 : float
             C7
-        K : float, optional
+        K : float
             bulk modulus
         Mu1 : float
             Mu1
