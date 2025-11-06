@@ -179,7 +179,7 @@ def _Solve_Axb(
                 # ilu decomposition doesn't seem to work for the displacement problem in a damage simulation
 
         elif simu.problemType == "hyperelastic":
-            pcType = "none"
+            pcType = "lu"
 
         else:
             pcType = PC_DEFAULT  # 'ilu' by default
