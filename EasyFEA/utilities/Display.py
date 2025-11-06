@@ -897,7 +897,12 @@ def Plot_BoundaryConditions(simu, ax: Optional[_types.Axes] = None) -> _types.Ax
 
 
 def Plot_Tags(
-    obj, showId=True, folder="", alpha=1.0, ax: Optional[_types.Axes] = None
+    obj,
+    showId=True,
+    folder="",
+    alpha=1.0,
+    useColorCycler=False,
+    ax: Optional[_types.Axes] = None,
 ) -> _types.Axes:
     """Plots the mesh's elements tags (from 2d elements to points) but do not plot the 3d elements tags.
 
@@ -911,6 +916,8 @@ def Plot_Tags(
         saves folder, by default ""
     alpha : float, optional
         transparency, by default 1.0
+    useColorCycler : bool, optional
+        whether to use color cycler, by default False
     ax : _types.Axes, optional
         Axis to use, default None
 
@@ -939,6 +946,9 @@ def Plot_Tags(
 
     _Plot_obj(mesh, alpha=0.1, color="gray", ax=ax)
 
+    colors = plt.get_cmap("tab10").colors
+    colorIterator = iter(colors * np.ceil(np.sum(nTtags) / len(colors)).astype(int))
+
     # List of collections during creation
     collections = []
     for groupElem in mesh.dict_groupElem.values():
@@ -966,7 +976,9 @@ def Plot_Tags(
             vertices = vertices_e[elements]
 
             # Assign color
-            if groupElem.dim in [0, 1]:
+            if useColorCycler:
+                color = next(colorIterator)
+            elif groupElem.dim in [0, 1]:
                 color = "black"
             else:
                 color = "tab:cyan"
