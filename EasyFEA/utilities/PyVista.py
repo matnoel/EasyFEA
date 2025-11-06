@@ -169,12 +169,9 @@ def Plot(
             **kwargs,
         )
 
-    if (
-        hasattr(plotter, "_need_to_update_camera_position")
-        and plotter._need_to_update_camera_position
-    ):
+    if hasattr(plotter, __update_camera_arg) and getattr(plotter, __update_camera_arg):
         _setCameraPosition(plotter, inDim)
-        plotter._need_to_update_camera_position = False
+        setattr(plotter, __update_camera_arg, False)
 
     if show_grid:
         # plotter.show_grid(fmt="%.3e")  # type: ignore [call-arg]
@@ -413,6 +410,13 @@ def Plot_Elements(
     return plotter
 
 
+def __get_color_cycler():
+    pv.global_theme.color_cycler = "default"  # same as matplotlib
+    color_cycler = pv.global_theme.color_cycler
+    pv.global_theme.color_cycler = None
+    return color_cycler
+
+
 def Plot_BoundaryConditions(
     simu: "_Simu", deformFactor=0.0, plotter: Optional[pv.Plotter] = None
 ):
@@ -443,13 +447,13 @@ def Plot_BoundaryConditions(
 
     # get dirichlet and neumann boundary conditions
     dirchlets = simu.Bc_Dirichlet
-    BoundaryConditions = dirchlets
+    boundaryConditions = dirchlets
     neumanns = simu.Bc_Neuman
-    BoundaryConditions.extend(neumanns)
+    boundaryConditions.extend(neumanns)
     displays = (
         simu.Bc_Display
     )  # boundary conditions for display used for lagrangian boundary conditions
-    BoundaryConditions.extend(displays)
+    boundaryConditions.extend(displays)
 
     if plotter is None:
         plotter = _Plotter()
@@ -457,11 +461,11 @@ def Plot_BoundaryConditions(
         # Plot(simu, deformFactor=deformFactor, plotter=plotter, color='k', style='wireframe')
         plotter.add_title("Boundary conditions")
 
-    pv.global_theme.color_cycler = "default"  # same as matplotlib
-    color_cycler = pv.global_theme.color_cycler
+    color_cycler_itertor = iter(__get_color_cycler())
 
-    for bc, cycle in zip(BoundaryConditions, color_cycler):
-        color = cycle["color"]  # type: ignore [index]
+    for bc in boundaryConditions:
+
+        color = next(color_cycler_itertor)["color"]  # type: ignore [index]
 
         problemType = bc.problemType
         dofsValues = bc.dofsValues
@@ -523,16 +527,12 @@ def Plot_BoundaryConditions(
             if np.max(vectorRot) > 0:
                 vectorRot = vectorRot / normVectorRot
 
-            # here calculate the average distance between the coordinates and the center
-            center = np.mean(coord, 0)
-            dist = np.linalg.norm(coord - center, axis=1).max()
-            # use thise distance to apply a magnitude to the vectors
-            factor = 1 if dist == 0 else dist * 0.1
+            factor = mesh._Get_realistic_vector_magnitude(0.1)
 
             if dofs.size / nDir > simu.mesh.Nn:
                 # values are applied on every nodes of the mesh
                 # the plot only one arrow
-                factor = dist * 0.5
+                factor = mesh._Get_realistic_vector_magnitude(0.5)
                 start = mesh.center
                 vector = np.mean(vector, 0)
                 vectorRot = np.mean(vectorRot, 0)
@@ -568,20 +568,22 @@ def Plot_BoundaryConditions(
 
     _setCameraPosition(plotter, inDim)
 
-    pv.global_theme.color_cycler = None  # same as matplotlib
-
     tic.Tac("PyVista_Interface", "Plot_BoundaryConditions")
 
     return plotter
 
 
-def Plot_Tags(obj, plotter: Optional[pv.Plotter] = None) -> pv.Plotter:
+def Plot_Tags(
+    obj, useColorCycler=True, plotter: Optional[pv.Plotter] = None
+) -> pv.Plotter:
     """Plots the mesh's elements tags (from 2d elements to points) but do not plot the 3d elements tags.
 
     Parameters
     ----------
     obj : _Simu | Mesh | _GroupElem
         object containing the mesh
+    useColorCycler : bool, optional
+        whether to use color cycler, by default True
     plotter : pv.Plotter, optional
         The pyvista plotter, by default None and create a new Plotter instance, default None
 
@@ -611,6 +613,9 @@ def Plot_Tags(obj, plotter: Optional[pv.Plotter] = None) -> pv.Plotter:
 
     Plot(mesh, alpha=0.1, plotter=plotter)
 
+    if useColorCycler:
+        color_cycler_iterator = iter(__get_color_cycler())
+
     for groupElem in mesh.dict_groupElem.values():
 
         # groupElem's data
@@ -631,14 +636,19 @@ def Plot_Tags(obj, plotter: Optional[pv.Plotter] = None) -> pv.Plotter:
 
             grid = MeshIO._GroupElem_to_PyVista(groupElem, elements)
 
-            if dim == 0:
-                plotter.add_mesh(grid, "k", render_points_as_spheres=True)
-            elif dim == 1:
-                plotter.add_mesh(grid, "k", line_width=2)
-            elif dim == 2:
-                plotter.add_mesh(grid, "c", opacity=0.5)
+            if useColorCycler:
+                color = next(color_cycler_iterator)["color"]
             else:
-                plotter.add_mesh(grid, "c", opacity=0.5)
+                color = "k" if dim in [0, 1] else "c"
+
+            if dim == 0:
+                plotter.add_mesh(grid, color, render_points_as_spheres=True)
+            elif dim == 1:
+                plotter.add_mesh(grid, color, line_width=2)
+            elif dim == 2:
+                plotter.add_mesh(grid, color, opacity=0.5)
+            else:
+                plotter.add_mesh(grid, color, opacity=0.5)
 
             # add tags
             if dim == 0:
@@ -689,8 +699,7 @@ def Plot_Geoms(
     geoms: list[Geoms._Geom] = geoms  # type: ignore [no-redef]
 
     if "color" not in kwargs:
-        pv.global_theme.color_cycler = "default"  # same as matplotlib
-        color_cycler = pv.global_theme.color_cycler
+        color_cycler = __get_color_cycler()
     else:
         color_cycler = cycler(color=[kwargs["color"]])  # type: ignore [assignment]
         kwargs.pop("color")
@@ -724,7 +733,7 @@ def Plot_Geoms(
                 **kwargs,
             )
 
-    pv.global_theme.color_cycler = None
+    _setCameraPosition(plotter, 3)
 
     if plotLegend:
         plotter.add_legend(bcolor="white", face="o")  # type: ignore [call-arg]
@@ -849,9 +858,12 @@ def Movie_func(
 # ----------------------------------------------
 
 
+__update_camera_arg = "_need_to_update_camera_position"
+
+
 def _Plotter(off_screen=False, add_axes=True, shape=(1, 1), linkViews=True):
     plotter = pv.Plotter(off_screen=pv.OFF_SCREEN, shape=shape)
-    plotter._need_to_update_camera_position = True
+    setattr(plotter, __update_camera_arg, True)
     if add_axes:
         plotter.add_axes()
     if linkViews:
