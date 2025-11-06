@@ -83,7 +83,7 @@ class Mesh(Observable):
     def __str__(self) -> str:
         """Returns a string representation of the mesh."""
         text = f"\nElement type: {self.elemType}"
-        text += f"\nNe = {self.Ne}, Nn = {self.Nn}, dof = {self.Nn * self.__dim}"
+        text += f"\nNe = {self.Ne}, Nn = {self.Nn}"
         return text
 
     def Get_list_groupElem(self, dim=None) -> list["_GroupElem"]:
