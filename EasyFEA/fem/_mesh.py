@@ -160,6 +160,19 @@ class Mesh(Observable):
         """nodes coordinates matrix (Nn,3) for the main groupElem"""
         return self.groupElem.coord
 
+    def _Get_realistic_vector_magnitude(self, coef=0.1) -> float:
+        """Returns a realistic vector magnitude based on the mesh size.
+
+        Parameters
+        ----------
+        coef : float, optional
+            coef used to scale the average distance between the coordinates and the center, by default 0.1
+        """
+
+        dist = np.linalg.norm(self.coord - self.center, axis=1).max()
+        magnitude = 1 if dist == 0 else dist * coef
+        return magnitude
+
     def copy(self):
         newMesh = copy.deepcopy(self)
         return newMesh
