@@ -406,6 +406,7 @@ def _Meshio_to_EasyFEA(meshioMesh: meshio.Mesh) -> Mesh:
         meshioType: tags
         for values in meshioMesh.cell_data_dict.values()
         for meshioType, tags in values.items()
+        if np.issubdtype(tags.dtype, np.integer)
     }
     _Set_Tags(mesh, dict_tags)
 
