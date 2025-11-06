@@ -7,7 +7,6 @@ import numpy as np
 
 # utilities
 from ..utilities import Tic, _types
-from ..simulations.Solvers import Solve_simu
 
 # fem
 if TYPE_CHECKING:
