@@ -6,14 +6,13 @@
 https://docs.pyvista.org/api/plotting/plotting.html"""
 
 from typing import Union, Callable, Optional, TYPE_CHECKING, Any, Iterable
-from cycler import cycler
 from scipy.sparse import csr_matrix
 import pyvista as pv
 import numpy as np
 from functools import singledispatch
 
 # utilities
-from .Display import MyPrintError, MyPrint
+from .Display import MyPrintError, MyPrint, plt
 from ..simulations._simu import _Init_obj, _Get_values
 from . import Folder, Tic, _types, MeshIO
 from .. import Geoms
@@ -410,13 +409,6 @@ def Plot_Elements(
     return plotter
 
 
-def __get_color_cycler():
-    pv.global_theme.color_cycler = "default"  # same as matplotlib
-    color_cycler = pv.global_theme.color_cycler
-    pv.global_theme.color_cycler = None
-    return color_cycler
-
-
 def Plot_BoundaryConditions(
     simu: "_Simu", deformFactor=0.0, plotter: Optional[pv.Plotter] = None
 ):
@@ -461,11 +453,10 @@ def Plot_BoundaryConditions(
         # Plot(simu, deformFactor=deformFactor, plotter=plotter, color='k', style='wireframe')
         plotter.add_title("Boundary conditions")
 
-    color_cycler_itertor = iter(__get_color_cycler())
+    colors = plt.get_cmap("tab10").colors
+    colors = colors * np.ceil(len(boundaryConditions) / len(colors)).astype(int)
 
-    for bc in boundaryConditions:
-
-        color = next(color_cycler_itertor)["color"]  # type: ignore [index]
+    for bc, color in zip(boundaryConditions, colors):
 
         problemType = bc.problemType
         dofsValues = bc.dofsValues
@@ -574,7 +565,7 @@ def Plot_BoundaryConditions(
 
 
 def Plot_Tags(
-    obj, useColorCycler=True, plotter: Optional[pv.Plotter] = None
+    obj, useColorCycler=False, plotter: Optional[pv.Plotter] = None
 ) -> pv.Plotter:
     """Plots the mesh's elements tags (from 2d elements to points) but do not plot the 3d elements tags.
 
@@ -583,7 +574,7 @@ def Plot_Tags(
     obj : _Simu | Mesh | _GroupElem
         object containing the mesh
     useColorCycler : bool, optional
-        whether to use color cycler, by default True
+        whether to use color cycler, by default False
     plotter : pv.Plotter, optional
         The pyvista plotter, by default None and create a new Plotter instance, default None
 
@@ -614,7 +605,8 @@ def Plot_Tags(
     Plot(mesh, alpha=0.1, plotter=plotter)
 
     if useColorCycler:
-        color_cycler_iterator = iter(__get_color_cycler())
+        colors = plt.get_cmap("tab10").colors
+        colorIterator = iter(colors * np.ceil(np.sum(nTtags) / len(colors)).astype(int))
 
     for groupElem in mesh.dict_groupElem.values():
 
@@ -637,18 +629,18 @@ def Plot_Tags(
             grid = MeshIO._GroupElem_to_PyVista(groupElem, elements)
 
             if useColorCycler:
-                color = next(color_cycler_iterator)["color"]
+                color = next(colorIterator)
             else:
                 color = "k" if dim in [0, 1] else "c"
 
             if dim == 0:
-                plotter.add_mesh(grid, color, render_points_as_spheres=True)
+                plotter.add_mesh(grid, color=color, render_points_as_spheres=True)
             elif dim == 1:
-                plotter.add_mesh(grid, color, line_width=2)
+                plotter.add_mesh(grid, color=color, line_width=2)
             elif dim == 2:
-                plotter.add_mesh(grid, color, opacity=0.5)
+                plotter.add_mesh(grid, color=color, opacity=0.5)
             else:
-                plotter.add_mesh(grid, color, opacity=0.5)
+                plotter.add_mesh(grid, color=color, opacity=0.5)
 
             # add tags
             if dim == 0:
@@ -699,13 +691,12 @@ def Plot_Geoms(
     geoms: list[Geoms._Geom] = geoms  # type: ignore [no-redef]
 
     if "color" not in kwargs:
-        color_cycler = __get_color_cycler()
+        colors = plt.get_cmap("tab10").colors
+        colors = iter(colors * np.ceil(len(geoms) / len(colors)).astype(int))
     else:
-        color_cycler = cycler(color=[kwargs["color"]])  # type: ignore [assignment]
-        kwargs.pop("color")
+        colors = [kwargs["color"]] * len(geoms)  # type: ignore [assignment]
 
-    for geom, cycle in zip(geoms, color_cycler):
-        color = cycle["color"]  # type: ignore [index]
+    for geom, color in zip(geoms, colors):
 
         dataSet = _pvGeom(geom)
 
