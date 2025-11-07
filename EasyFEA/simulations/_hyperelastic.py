@@ -62,7 +62,7 @@ class HyperElasticSimu(_Simu):
 
         super().__init__(mesh, model, verbosity, useIterativeSolvers)
 
-        self.Solver_Set_Newton_Raphson_Algorithm(tolConv=tolConv, maxIter=maxIter)
+        self._Solver_Set_Newton_Raphson_Algorithm(tolConv=tolConv, maxIter=maxIter)
 
         assert model.dim == 3, "For the moment, the simulation is only available in 3D."
 
@@ -133,6 +133,7 @@ class HyperElasticSimu(_Simu):
         Ne = mesh.Ne
         nPe = mesh.nPe
         dim = self.dim
+        thickness = self.material.thickness if dim == 2 else 1
 
         # get mesh data
         matrixType = MatrixType.rigi
@@ -140,8 +141,15 @@ class HyperElasticSimu(_Simu):
         dN_e_pg = mesh.Get_dN_e_pg(matrixType)
         nPg = wJ_e_pg.shape[1]
 
-        # get hyperelastic data
-        displacement = self.displacement
+        # get the current newton raphson displacement (via u += delta_u)
+        displacement = self._Solver_Get_Newton_Raphson_current_solution()
+
+        # get the hyperelastic state
+        if self.algo in AlgoType.Get_Hyperbolic_Types():
+            # here update the displacement according to the time scheme
+            displacement, _, a_t = self._Solver_Compute_Hyperbolic_u_v_a(
+                problemType, displacement
+            )
 
         hyperElasticState = HyperElasticState(mesh, displacement, matrixType)
 
@@ -173,7 +181,7 @@ class HyperElasticSimu(_Simu):
         # ------------------------------
         K1_e = (wJ_e_pg * B_e_pg.T @ d2Wde_e_pg @ B_e_pg).sum(1)
         K2_e = (wJ_e_pg * grad_e_pg.T @ Sig_e_pg @ grad_e_pg).sum(1)
-        K_e = K1_e + K2_e
+        K_e = thickness * (K1_e + K2_e)
 
         # ------------------------------
         # Compute Residual
@@ -185,6 +193,14 @@ class HyperElasticSimu(_Simu):
         F_e = -(wJ_e_pg * dWde_e_pg.T @ B_e_pg).sum(1)
 
         # ------------------------------
+        # Reorder dofs
+        # ------------------------------
+        # reorder xi,...,xn,yi,...yn,zi,...,zn to xi,yi,zi,...,xn,yx,zn
+        reorder = np.arange(0, nPe * dim).reshape(-1, nPe).T.ravel()
+        F_e = F_e[:, reorder]
+        K_e = K_e[:, reorder][:, :, reorder]
+
+        # ------------------------------
         # Compute Mass
         # ------------------------------
         if self.algo in AlgoType.Get_Hyperbolic_Types():
@@ -194,21 +210,17 @@ class HyperElasticSimu(_Simu):
 
             rho_e_pg = Reshape_variable(self.rho, *wJ_e_pg.shape[:2])
 
-            M_e = (rho_e_pg * wJ_e_pg * N_pg.T @ N_pg).sum(axis=1)
-        else:
-            M_e = None
+            M_e = thickness * (rho_e_pg * wJ_e_pg * N_pg.T @ N_pg).sum(axis=1)
 
-        if dim == 2:
-            thickness = self.material.thickness
-            K_e *= thickness
-            M_e *= thickness
+            coefK, _, coefM = self._Solver_Get_Hyperbolic_K_C_M_coefs()
 
-        # reorder xi,...,xn,yi,...yn,zi,...,zn to xi,yi,zi,...,xn,yx,zn
-        reorder = np.arange(0, nPe * dim).reshape(-1, nPe).T.ravel()
-        F_e = F_e[:, reorder]
-        K_e = K_e[:, reorder][:, :, reorder]
+            # Tangent contribution
+            K_e = coefK * K_e + coefM * M_e
 
-        return K_e, None, M_e, F_e
+            # Residual contribution
+            F_e -= M_e @ self.mesh.Locates_sol_e(a_t, dim, True)
+
+        return K_e, None, None, F_e
 
     # --------------------------------------------------------------------------
     # Iterations

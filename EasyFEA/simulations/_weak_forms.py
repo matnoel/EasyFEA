@@ -56,7 +56,7 @@ class WeakFormSimu(_Simu):
         super().__init__(mesh, model, verbosity, useIterativeSolvers)
 
         if isNonLinear:
-            self.Solver_Set_Newton_Raphson_Algorithm(tolConv=tolConv, maxIter=maxIter)
+            self._Solver_Set_Newton_Raphson_Algorithm(tolConv=tolConv, maxIter=maxIter)
 
     def _Check_dim_mesh_material(self) -> None:
         pass

@@ -708,9 +708,17 @@ class _Simu(_IObserver, _params.Updatable, ABC):
         self.__algo = AlgoType.parabolic
 
         assert dt > 0, "Time increment must be > 0"
-        self.__dt = dt
 
-        self.__alpha = alpha
+        self.__parabolicProperties = (dt, alpha)
+
+    def _Solver_Get_Parabolic_Properties(self) -> tuple[float, float]:
+        """Returns (dt, alpha) parbolic scheme properties."""
+
+        assert (
+            self.algo == AlgoType.parabolic
+        ), "the current algo is not a parabolic type."
+
+        return self.__parabolicProperties
 
     def Solver_Set_Hyperbolic_Algorithm(
         self, dt: float, beta=0.25, gamma=0.5, algo=AlgoType.newmark, alpha=0.5
@@ -739,15 +747,114 @@ class _Simu(_IObserver, _params.Updatable, ABC):
         self.__algo = algo
 
         assert dt > 0, "Time increment must be > 0"
-        self.__dt = dt
-
-        self.__beta = beta
-        self.__gamma = gamma
-
         assert 0 <= alpha < 1
-        self.__alpha = alpha
 
-    def Solver_Set_Newton_Raphson_Algorithm(self, tolConv=1.0e-5, maxIter=20) -> None:
+        self.__hyperbolicProperties = (dt, beta, gamma, alpha)
+
+    def _Solver_Get_Hyperbolic_Params(self) -> tuple[float, float, float, float]:
+        """Returns (dt, beta, gamma, alpha) hyperbolic scheme properties."""
+        assert (
+            self.algo in AlgoType.Get_Hyperbolic_Types()
+        ), "the current algo is not a hyperbolic type."
+
+        return self.__hyperbolicProperties
+
+    def _Solver_Compute_Hyperbolic_u_v_a(
+        self, problemType: ModelType, u_np1: np.ndarray
+    ) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
+        """Returns `u_t`, `v_t`, and `a_t`, where the subscript `_t` indicates evaluation for the time scheme.
+
+        Parameters
+        ----------
+        problemType : ModelType
+            problem type
+        u_np1 : np.ndarray
+            the u_np1 vector
+
+        Returns
+        -------
+        tuple[np.ndarray, np.ndarray, np.ndarray]
+            the evaluated solutions u_t, v_t, a_t.
+        """
+
+        assert (
+            self.algo in AlgoType.Get_Hyperbolic_Types()
+        ), "the current algo is not a hyperbolic type."
+
+        # get previous solutions
+        u_n = self._Get_u_n(problemType)
+        assert u_np1.shape == u_n.shape
+        v_n = self._Get_v_n(problemType)
+        a_n = self._Get_a_n(problemType)
+
+        # get hyperbolic properties
+        dt, beta, gamma, alpha = self._Solver_Get_Hyperbolic_Params()
+
+        if self.algo == AlgoType.newmark:
+
+            u_tnp1 = u_n + dt * v_n + dt**2 / 2 * (1 - 2 * beta) * a_n
+            v_tnp1 = v_n + dt * (1 - gamma) * a_n
+
+            u_t = u_np1
+            a_t = (u_np1 - u_tnp1) / (beta * dt**2)
+            v_t = v_tnp1 + gamma * dt * a_t
+
+        elif self.algo == AlgoType.hht:
+
+            a_np1 = (
+                1 / (beta * dt**2) * (u_np1 - u_n - dt * v_n)
+                + (1 - 1 / (2 * beta)) * a_n
+            )
+            v_np1 = dt * ((1 - gamma) * a_n + gamma * a_np1)
+
+            u_t = (1 - alpha) * u_np1 + alpha * u_n
+            v_t = (1 - alpha) * v_np1 + alpha * v_n
+            a_t = (1 - alpha) * a_np1 + alpha * a_n
+
+        elif self.algo == AlgoType.midpoint:
+
+            v_np1 = 2 / dt * (u_np1 - u_n) - v_n
+            a_np1 = 2 / dt * (v_np1 - v_n) - a_n
+
+            u_t = (u_np1 + u_n) / 2
+            v_t = (v_np1 + v_n) / 2
+            a_t = (a_np1 + a_n) / 2
+
+        else:
+            raise NotImplementedError
+
+        return u_t, v_t, a_t
+
+    def _Solver_Get_Hyperbolic_K_C_M_coefs(
+        self,
+    ) -> tuple[float, float, float]:
+        """Returns coefK, coefC, coefM."""
+
+        assert (
+            self.algo in AlgoType.Get_Hyperbolic_Types()
+        ), "the current algo is not a hyperbolic type."
+
+        # get hyperbolic properties
+        dt, beta, gamma, alpha = self._Solver_Get_Hyperbolic_Params()
+
+        if self.algo == AlgoType.newmark:
+            coefK = 1
+            coefC = gamma / (beta * dt)
+            coefM = 1 / (beta * dt**2)
+        elif self.algo == AlgoType.hht:
+            coefK = 1 - alpha
+            coefC = (1 - alpha) * gamma / (beta * dt)
+            coefM = (1 - alpha) / (beta * dt**2)
+        elif self.algo == AlgoType.midpoint:
+            coefK = 1 / 2
+            coefC = 1 / dt
+            coefM = 2 / dt**2
+        else:
+            raise NotImplementedError
+
+        return coefK, coefC, coefM
+
+    def _Solver_Set_Newton_Raphson_Algorithm(self, tolConv=1.0e-5, maxIter=20) -> None:
         """Sets the algorithm's resolution properties for an non linear problem.\n
 
         Used to solve A(u) Δu = - R(u).
@@ -766,7 +873,7 @@ class _Simu(_IObserver, _params.Updatable, ABC):
 
         self.__newtonIter = None
         self.__timeIter = None
-        self.__list_res = None
+        self.__list_norm_r = None
 
     @property
     def isNonLinear(self):
@@ -821,7 +928,7 @@ class _Simu(_IObserver, _params.Updatable, ABC):
         return solutions[0]
 
     def _Solver_Update_solutions(
-        self, problemType: ModelType, x: _types.FloatArray
+        self, problemType: ModelType, u_np1: _types.FloatArray
     ) -> tuple[
         _types.FloatArray, Optional[_types.FloatArray], Optional[_types.FloatArray]
     ]:
@@ -831,7 +938,7 @@ class _Simu(_IObserver, _params.Updatable, ABC):
         ----------
         problemType : ModelType
             The type of problem.
-        x : _types.FloatArray
+        u_np1 : _types.FloatArray
             computed array in `_Solver_Solve()`
 
         Returns
@@ -849,17 +956,12 @@ class _Simu(_IObserver, _params.Updatable, ABC):
         v_n = self._Get_v_n(problemType)
         a_n = self._Get_a_n(problemType)
 
-        if algo in [AlgoType.elliptic]:
-            u_np1 = x
+        if algo == AlgoType.elliptic:
             return u_np1, None, None
 
         elif algo == AlgoType.parabolic:
             # See Hughes 1987 Chapter 8
-
-            u_np1 = x
-
-            alpha = self.__alpha
-            dt = self.__dt
+            dt, alpha = self._Solver_Get_Parabolic_Properties()
 
             vt_np1 = u_n + ((1 - alpha) * dt * v_n)
             v_np1 = (u_np1 - vt_np1) / (alpha * dt)
@@ -867,41 +969,30 @@ class _Simu(_IObserver, _params.Updatable, ABC):
             return u_np1, v_np1, None
 
         elif algo == AlgoType.newmark:
-            dt = self.__dt
-            gamma = self.__gamma
-            beta = self.__beta
-
             # See Hughes 1987 Chapter 9
+            dt, beta, gamma, _ = self._Solver_Get_Hyperbolic_Params()
+
             # same as hht with alpha = 0
             ut_np1 = u_n + dt * v_n + dt**2 / 2 * (1 - 2 * beta) * a_n
             vt_np1 = v_n + dt * (1 - gamma) * a_n
 
-            # U formulation
-            u_np1 = x
             a_np1 = (u_np1 - ut_np1) / (beta * dt**2)
             v_np1 = vt_np1 + gamma * dt * a_np1
 
             return u_np1, v_np1, a_np1
 
         elif algo == AlgoType.midpoint:
-            dt = self.__dt
+            dt = self._Solver_Get_Hyperbolic_Params()[0]
 
-            # U formulation
             # hht with alpha = 1/2, gamma = 1/2 and beta = 1/4
-
-            u_np1 = x
             v_np1 = 2 / dt * (u_np1 - u_n) - v_n
             a_np1 = 2 / dt * (v_np1 - v_n) - a_n
 
             return u_np1, v_np1, a_np1
 
         elif algo == AlgoType.hht:
-            dt = self.__dt
-            gamma = self.__gamma
-            beta = self.__beta
+            dt, beta, gamma, _ = self._Solver_Get_Hyperbolic_Params()
 
-            # U formulation
-            u_np1 = x
             a_np1 = (
                 1 / (beta * dt) * ((u_np1 - u_n) / dt - v_n)
                 + (1 - 1 / (2 * beta)) * a_n
@@ -912,6 +1003,22 @@ class _Simu(_IObserver, _params.Updatable, ABC):
 
         else:
             raise TypeError(f"Algo {algo} is not implemented here.")
+
+    def __Solver_Set_Newton_Raphson_current_solution(
+        self, solution: np.ndarray
+    ) -> None:
+        """Sets the current newton raphson solution."""
+        assert (
+            self.isNonLinear
+        ), "You can't use this function if the simulation is linear."
+        self.__current_newton_raphson_solution = solution
+
+    def _Solver_Get_Newton_Raphson_current_solution(self) -> np.ndarray:
+        """Returns the current newton raphson solution."""
+        assert (
+            self.isNonLinear
+        ), "You can't use this function if the simulation is linear."
+        return self.__current_newton_raphson_solution
 
     def _Solver_Solve_Newton_Raphson(
         self,
@@ -952,13 +1059,13 @@ class _Simu(_IObserver, _params.Updatable, ABC):
 
         tic = Tic()
 
-        # init u
+        # init the newton raphson solution
         u = self._Get_u_n(problemType)
 
         # init convergence list
         list_norm_r: list[float] = []
 
-        print()
+        Display.Section(f"{problemType.name} problem at iteration {len(self.results)}")
 
         while not converged and newtonIter < maxIter:
 
@@ -967,6 +1074,7 @@ class _Simu(_IObserver, _params.Updatable, ABC):
             self.Need_Update()
 
             # Compute delta_u and the residual norm (with the applied boundary conditions)
+            self.__Solver_Set_Newton_Raphson_current_solution(u)
             delta_u, norm_r = Solve_simu(self, self.problemType)
             list_norm_r.append(norm_r)
 
@@ -974,19 +1082,16 @@ class _Simu(_IObserver, _params.Updatable, ABC):
 
             # compute ||delta_u||
             norm_delta_u = np.linalg.norm(delta_u)
-            # uptate u
+            # update the newton raphson solution
             u += delta_u
-            self.__Set_u_n(problemType, u)
 
-            converged = (norm_r < tolConv) or (norm_delta_u < tolConv)
+            converged = (norm_r < tolConv) or (norm_delta_u < 1e-8)
 
         timeIter = tic.Tac(f"Resolution {problemType}", "Newton iterations", False)
 
         assert (
             converged
         ), f"Newton raphson algorithm did not converged in {newtonIter} iterations."
-
-        print()
 
         return u, newtonIter, timeIter, list_norm_r
 
@@ -1027,26 +1132,20 @@ class _Simu(_IObserver, _params.Updatable, ABC):
 
         b += F
 
-        if algo in [AlgoType.elliptic]:
+        if algo == AlgoType.elliptic or self.isNonLinear:
+            # Even if the nonlinear simulation uses a time scheme, do not update the residual vector b, as it already contains the vectors associated with the time scheme.
             pass
 
         elif algo == AlgoType.parabolic:
-            # U formulation
-
-            alpha = self.__alpha
-            dt = self.__dt
+            dt, alpha = self._Solver_Get_Parabolic_Properties()
 
             ut_np1 = u_n + (1 - alpha) * dt * v_n
 
             b += 1 / (alpha * dt) * C @ ut_np1
 
         elif algo == AlgoType.newmark:
-            # U formulation
             # same as hht in accel with alpha = 0
-
-            dt = self.__dt
-            gamma = self.__gamma
-            beta = self.__beta
+            dt, beta, gamma, _ = self._Solver_Get_Hyperbolic_Params()
 
             ut_np1 = u_n + dt * v_n + dt**2 / 2 * (1 - 2 * beta) * a_n
             vt_np1 = v_n + dt * (1 - gamma) * a_n
@@ -1060,10 +1159,8 @@ class _Simu(_IObserver, _params.Updatable, ABC):
             b -= C @ vt_np1
 
         elif algo == AlgoType.midpoint:
-            dt = self.__dt
-
-            # U formulation
             # hht with alpha = 1/2, gamma = 1/2 and beta = 1/4
+            dt = self._Solver_Get_Hyperbolic_Params()[0]
 
             # u_n
             coefM = 2 / dt**2
@@ -1075,12 +1172,7 @@ class _Simu(_IObserver, _params.Updatable, ABC):
             b += coefM * M @ v_n
 
         elif algo == AlgoType.hht:
-            dt = self.__dt
-            gamma = self.__gamma
-            beta = self.__beta
-            alpha = self.__alpha
-
-            # U formulation
+            dt, beta, gamma, alpha = self._Solver_Get_Hyperbolic_Params()
 
             # u_n
             coefM = 1 / (beta * dt**2)
@@ -1132,24 +1224,22 @@ class _Simu(_IObserver, _params.Updatable, ABC):
         if self.__isNonLinear:
             # dofsValues = dofsValues - u
             # set incremental dof values
-            dofsValues -= self._Get_u_n(problemType)[dofs]
+            dofsValues -= self._Solver_Get_Newton_Raphson_current_solution()[dofs]
 
         K, C, M, F = self.Get_K_C_M_F(problemType)
 
-        if algo in [AlgoType.elliptic]:
+        if algo == AlgoType.elliptic or self.isNonLinear:
+            # Even if the nonlinear simulation uses a time scheme, do not update the tangent matrix A, as it already contains the matrices associated with the time scheme.
             A = K
 
         elif algo == AlgoType.parabolic:
-            alpha = self.__alpha
-            dt = self.__dt
+            dt, alpha = self._Solver_Get_Parabolic_Properties()
 
             # U formulation
             A = K + C / (alpha * dt)
 
         elif algo == AlgoType.newmark:
-            dt = self.__dt
-            gamma = self.__gamma
-            beta = self.__beta
+            dt, beta, gamma, _ = self._Solver_Get_Hyperbolic_Params()
 
             # U formulation
             # same as hht in accel with alpha = 0
@@ -1158,17 +1248,14 @@ class _Simu(_IObserver, _params.Updatable, ABC):
             A = coefM * M + coefC * C + K
 
         elif algo == AlgoType.midpoint:
-            dt = self.__dt
+            dt = self._Solver_Get_Hyperbolic_Params()[0]
 
             # U formulation
             # hht with alpha = 1/2, gamma = 1/2 and beta = 1/4
             A = 2 / dt**2 * M + 1 / dt * C + 1 / 2 * K
 
         elif algo == AlgoType.hht:
-            dt = self.__dt
-            gamma = self.__gamma
-            beta = self.__beta
-            alpha = self.__alpha
+            dt, beta, gamma, alpha = self._Solver_Get_Hyperbolic_Params()
 
             # U formulation
             coefM = 1 / (beta * dt**2)
