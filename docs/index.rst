@@ -10,25 +10,14 @@ EasyFEA documentation
 
 **EasyFEA** is a user-friendly Python library that simplifies finite element analysis. It is flexible and supports different types of simulations without requiring users to handle complex PDE formulations. You will find below the finite element analysis that you can conduct using EasyFEA:
 
-1. **Linear Elastostatic and Elastodynamics simulations**
-    - :doc:`examples/Elastic <examples/Elastic/index>`
-    - :doc:`examples/Dynamic <examples/Dynamic/index>`
-    - :doc:`examples/Homog <examples/Homog/index>`
-    - :doc:`examples/Contact <examples/Contact/index>`
-2. **Nonlinear Hyperelastic Static simulations**
-    - :doc:`examples/HyperElastic <examples/HyperElastic/index>`
-3. **Euler-Bernoulli beam simulations**
-    - :doc:`/examples/Beam <examples/Beam/index>`
-4. **Thermal simulations**:
-    - :doc:`/examples/Thermal <examples/Thermal/index>`
-5. **Phase-field damage simulations for quasi-static brittle fracture**
-    - :doc:`/examples/PhaseField <examples/PhaseField/index>`
-6. **Weak forms simulations** 
-    - :doc:`/examples/WeakForms <examples/WeakForms/index>`
-7. **Digital Image Correlation (DIC) and Parameter identification** 
-    - `Material parameters of a phase-field model used to simulate brittle fracture of spruce specimens. <SpruceParams_>`_
-8. **Stochastic phase-field simulations**
-    - `Stochastic phase-field modeling of spruce wood specimens under compression. <SpruceStochastic_>`_
+1. :doc:`Linearized elastic simulations <examples/LinearizedElasticity/index>`: ``static``, ``dynamic``, ``contact`` and ``homogenization``.
+2. :doc:`Hyperelastic simulations <examples/Hyperelasticity/index>`: ``static`` and ``dynamic``.
+3. :doc:`Euler-Bernoulli beam simulations <examples/Beam/index>`: ``static``.
+4. :doc:`Thermal simulations <examples/Thermal/index>`: ``static`` and ``dynamic``.
+5. :doc:`Phase-field damage simulations for quasi-static brittle fracture <examples/PhaseField/index>`: advanced ``2D`` and ``3D`` simulations for ``isotropic``, ``transversely isotropic``, and ``anisotropic`` materials.
+6. :doc:`Weak forms simulations <examples/WeakForms/index>`: ``static`` and ``dynamic`` for ``linear`` or ``non-linear`` problems.
+7. `Digital Image Correlation DIC and Parameter identification <https://gitlab.univ-eiffel.fr/collaboration-msme-fcba/spruce-params>`_.
+8. `Stochastic phase-field simulations <https://gitlab.univ-eiffel.fr/collaboration-msme-fcba/spruce-stochastic>`_.
 
 For each simulation, users create a :py:class:`~EasyFEA.fem.Mesh` and a :py:class:`~EasyFEA.models._IModel`. Once the simulation has been set up, defining the boundary conditions, solving the problem and visualizing the results is straightforward.
 

@@ -3,8 +3,8 @@
 # EasyFEA is distributed under the terms of the GNU General Public License v3, see LICENSE.txt and CREDITS.md for more information.
 
 """
-HyperElastic0
-=============
+Static0
+=======
 
 Attempt to implement hyperelasticity within an Eulerian framework.
 

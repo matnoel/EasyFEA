@@ -3,14 +3,14 @@
 # EasyFEA is distributed under the terms of the GNU General Public License v3, see LICENSE.txt and CREDITS.md for more information.
 
 """
-Elas1
-=====
+Static2
+=======
 
-A cantilever beam undergoing bending deformation.
+Bending bracket component.
 """
 
 from EasyFEA import Display, Models, plt, np, ElemType, Simulations
-from EasyFEA.Geoms import Domain
+from EasyFEA.Geoms import Point, Points
 
 if __name__ == "__main__":
     Display.Clear()
@@ -20,10 +20,9 @@ if __name__ == "__main__":
     # ----------------------------------------------
 
     # geom
-    dim = 2
+    dim = 3
     L = 120  # mm
-    h = 13
-    I = h**4 / 12  # mm4
+    h = L * 0.3
 
     # model
     E = 210000  # MPa (Young's modulus)
@@ -31,27 +30,27 @@ if __name__ == "__main__":
     coef = 1
 
     # load
-    load = 800  # N
-
-    # expected results
-    W_an = 2 * load**2 * L / E / h**2 * (L**2 / h**2 + (1 + v) * 3 / 5)  # mJ
-    uy_an = load * L**3 / (3 * E * I)
+    load = 800
 
     # ----------------------------------------------
     # Mesh
     # ----------------------------------------------
 
-    N = 3
-    meshSize = h / N
+    # Define points and crack geometry for the mesh
+    pt1 = Point(isOpen=True, r=-10)
+    pt2 = Point(x=L)
+    pt3 = Point(x=L, y=h)
+    pt4 = Point(x=h, y=h, r=10)
+    pt5 = Point(x=h, y=L)
+    pt6 = Point(y=L)
+    pt7 = Point(x=h, y=h)
 
-    domain = Domain((0, 0), (L, h), meshSize)
+    contour = Points([pt1, pt2, pt3, pt4, pt5, pt6], h / 3)
 
     if dim == 2:
-        mesh = domain.Mesh_2D([], ElemType.QUAD9, isOrganised=True)
-    else:
-        mesh = domain.Mesh_Extrude(
-            [], [0, 0, -h], [N], ElemType.HEXA27, isOrganised=True
-        )
+        mesh = contour.Mesh_2D([], ElemType.TRI3)
+    elif dim == 3:
+        mesh = contour.Mesh_Extrude([], [0, 0, -h], [4], elemType=ElemType.TETRA10)
 
     nodes_x0 = mesh.Nodes_Conditions(lambda x, y, z: x == 0)
     nodes_xL = mesh.Nodes_Conditions(lambda x, y, z: x == L)
@@ -64,28 +63,18 @@ if __name__ == "__main__":
     simu = Simulations.ElasticSimu(mesh, material)
 
     simu.add_dirichlet(nodes_x0, [0] * dim, simu.Get_unknowns())
-    simu.add_surfLoad(nodes_xL, [-load / h**2], ["y"])
+    simu.add_surfLoad(nodes_xL, [-800 / (h * h)], ["y"])
 
     sol = simu.Solve()
     simu.Save_Iter()
-
-    uy_num = -simu.Result("uy").min()
-    W_num = simu._Calc_Psi_Elas()
 
     # ----------------------------------------------
     # Results
     # ----------------------------------------------
     print(simu)
 
-    Display.Section("Result")
-
-    print(f"err W : {np.abs(W_an - W_num) / W_an * 100:.2f} %")
-
-    print(f"err uy : {np.abs(uy_an - uy_num) / uy_an * 100:.2f} %")
-
     Display.Plot_Mesh(simu, h / 2 / np.abs(sol).max())
     Display.Plot_BoundaryConditions(simu)
-    Display.Plot_Result(simu, "uy", nodeValues=True, coef=1 / coef, ncolors=20)
-    Display.Plot_Result(simu, "Svm", plotMesh=True, ncolors=11)
+    Display.Plot_Result(simu, "Svm", nodeValues=True, coef=1 / coef, ncolors=20)
 
     plt.show()

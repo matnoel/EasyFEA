@@ -3,14 +3,20 @@
 # EasyFEA is distributed under the terms of the GNU General Public License v3, see LICENSE.txt and CREDITS.md for more information.
 
 """
-HyperElastic2
-=============
+Dynamic1
+========
 
-A hyper elastic cube in compression.
+A cantilever beam undergoing bending deformation.
 """
-# sphinx_gallery_thumbnail_number = -1
 
-from EasyFEA import Display, ElemType, Models, Simulations, PyVista
+from EasyFEA import (
+    Display,
+    Folder,
+    ElemType,
+    Models,
+    Simulations,
+    PyVista,
+)
 from EasyFEA.Geoms import Domain
 
 if __name__ == "__main__":
@@ -20,21 +26,30 @@ if __name__ == "__main__":
     # Configuration
     # ----------------------------------------------
 
+    # outputs
+    folder = Folder.Join(Folder.RESULTS_DIR, "Hyperelasticity")
+    makeMovie = True
+    result = "uy"
+
     # geom
-    L = 1
-    h = 1
+    L = 120
+    h = 13
+
+    # model
+    lmbda = 121153.84615384616  # Mpa
+    mu = 80769.23076923077
+    rho = 7850 * 1e-9  # kg/mm3
 
     # ----------------------------------------------
     # Mesh
     # ----------------------------------------------
-    meshSize = h / 10
+    meshSize = h / 2
 
-    contour = Domain((0, 0), (L, h), h / 10)
+    contour = Domain((0, 0), (L, h), h / 3)
 
     mesh = contour.Mesh_Extrude(
-        [], [0, 0, h], [h / meshSize], ElemType.HEXA8, isOrganised=True
+        [], [0, 0, h], [h / meshSize], ElemType.HEXA20, isOrganised=True
     )
-
     nodesX0 = mesh.Nodes_Conditions(lambda x, y, z: x == 0)
     nodesXL = mesh.Nodes_Conditions(lambda x, y, z: x == L)
 
@@ -42,22 +57,38 @@ if __name__ == "__main__":
     # Simulation
     # ----------------------------------------------
 
-    isot = Models.ElasIsot(3, E=1, v=0.3)
-    lmbda = isot.get_lambda()
-    mu = isot.get_mu()
     mat = Models.SaintVenantKirchhoff(3, lmbda, mu)
 
     simu = Simulations.HyperElasticSimu(mesh, mat)
 
-    uc = -0.3
     simu.add_dirichlet(nodesX0, [0, 0, 0], simu.Get_unknowns())
-    simu.add_dirichlet(nodesXL, [uc, 0, 0], simu.Get_unknowns())
+    simu.add_volumeLoad(mesh.nodes, [-rho * 9.81], ["y"])
+    simu.add_surfLoad(nodesXL, [-8000 / h / h], ["y"])
 
+    # static
     simu.Solve()
+    simu.Save_Iter()
+
+    # dynamic
+    T = 3.0
+    dt = T / 5
+    simu.Bc_Init()
+    simu.Solver_Set_Hyperbolic_Algorithm(dt)
+    simu.add_dirichlet(nodesX0, [0, 0, 0], simu.Get_unknowns())
+
+    for _ in range(int(T / dt)):
+        simu.Solve()
+        simu.Save_Iter()
 
     # ----------------------------------------------
     # Results
     # ----------------------------------------------
 
     PyVista.Plot_BoundaryConditions(simu).show()
-    PyVista.Plot(simu, "ux", 1, plotMesh=True).show()
+
+    if makeMovie:
+        PyVista.Movie_simu(
+            simu, "uy", folder, "dynamic1.gif", deformFactor=1, plotMesh=True
+        )
+
+    PyVista.Plot(simu, "uy", 1, plotMesh=True).show()

@@ -3,8 +3,8 @@
 # EasyFEA is distributed under the terms of the GNU General Public License v3, see LICENSE.txt and CREDITS.md for more information.
 
 """
-Elas3
-=====
+Static3
+=======
 
 Hydraulic dam subjected to water pressure and its own weight.
 """

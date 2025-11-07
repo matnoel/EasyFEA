@@ -3,8 +3,8 @@
 # EasyFEA is distributed under the terms of the GNU General Public License v3, see LICENSE.txt and CREDITS.md for more information.
 
 """
-Dyna2
-=====
+Elas8_dyn
+=========
 
 Wave propagation.
 """
@@ -21,7 +21,7 @@ if __name__ == "__main__":
     # ----------------------------------------------
 
     # outputs
-    folder = Folder.Join(Folder.RESULTS_DIR, "Dynamics", "Dyna2")
+    folder = Folder.Join(Folder.RESULTS_DIR, "LinearizedElasticity", "Dynamic2")
     plotModel = False
     plotIter = False
     makeMovie = True

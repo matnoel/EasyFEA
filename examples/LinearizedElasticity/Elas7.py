@@ -3,8 +3,8 @@
 # EasyFEA is distributed under the terms of the GNU General Public License v3, see LICENSE.txt and CREDITS.md for more information.
 
 """
-Elas7
-=====
+Static7
+=======
 
 Control lever for a molding machine used to blow plastic bottles.
 

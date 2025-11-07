@@ -15,25 +15,14 @@
 
 **EasyFEA** is a user-friendly Python library that simplifies finite element analysis. It is flexible and supports different types of simulations without requiring users to handle complex PDE formulations. You will find below the finite element analysis that you can conduct using EasyFEA:
 
-1. **Linear Elastostatic and Elastodynamics simulations** 
-    - [examples/Elastic](https://easyfea.readthedocs.io/en/latest/examples/Elastic/index.html)
-    - [examples/Dynamic](https://easyfea.readthedocs.io/en/latest/examples/Dynamic/index.html)
-    - [examples/Homog](https://easyfea.readthedocs.io/en/latest/examples/Homog/index.html)
-    - [examples/Contact](https://easyfea.readthedocs.io/en/latest/examples/Contact/index.html)
-2. **Nonlinear Hyperelastic Static simulations**
-    - [examples/HyperElastic](https://easyfea.readthedocs.io/en/latest/examples/HyperElastic/index.html)
-3. **Euler-Bernoulli beam simulations**
-    - [examples/Beam](https://easyfea.readthedocs.io/en/latest/examples/Beam/index.html)
-4. **Thermal simulations**
-    - [examples/Thermal](https://easyfea.readthedocs.io/en/latest/examples/Thermal/index.html)
-5. **Phase-field damage simulations for quasi-static brittle fracture** 
-    - [examples/PhaseField](https://easyfea.readthedocs.io/en/latest/examples/PhaseField/index.html)
-6. **Weak forms simulations** 
-    - [examples/WeakForms](https://easyfea.readthedocs.io/en/latest/examples/WeakForms/index.html)
-7. **Digital Image Correlation (DIC) and Parameter identification** 
-    - [Material parameters of a phase-field model used to simulate brittle fracture of spruce specimens.](https://gitlab.univ-eiffel.fr/collaboration-msme-fcba/spruce-params)
-8. **Stochastic phase-field simulations**
-    - [Stochastic phase-field modeling of spruce wood specimens under compression.](https://gitlab.univ-eiffel.fr/collaboration-msme-fcba/spruce-stochastic)
+1. [Linearized elastic simulations](https://easyfea.readthedocs.io/en/latest/examples/LinearizedElasticity/index.html): `static`, `dynamic`, `contact` and `homogenization`.
+2. [Hyperelastic simulations](https://easyfea.readthedocs.io/en/latest/examples/HyperElastic/index.html): `static` and `dynamic`.
+3. [Euler-Bernoulli beam simulations](https://easyfea.readthedocs.io/en/latest/examples/Beam/index.html): `static`.
+4. [Thermal simulations](https://easyfea.readthedocs.io/en/latest/examples/Thermal/index.html): `static` and `dynamic`.
+5. [Phase-field damage simulations for quasi-static brittle fracture](https://easyfea.readthedocs.io/en/latest/examples/PhaseField/index.html): advanced `2D` and `3D` simulations for `isotropic`, `transversely isotropic`, and `anisotropic` materials.
+6. [Weak forms simulations](https://easyfea.readthedocs.io/en/latest/examples/WeakForms/index.html): `static` and `dynamic` for `linear` or `non-linear` problems.
+7. [Digital Image Correlation (DIC) and Parameter identification](https://gitlab.univ-eiffel.fr/collaboration-msme-fcba/spruce-params).
+8. [Stochastic phase-field simulations](https://gitlab.univ-eiffel.fr/collaboration-msme-fcba/spruce-stochastic).
 
 For each simulation, users create a **mesh** and a **model**. Once the simulation has been set up, defining the boundary conditions, solving the problem and visualizing the results are straightforward.
 

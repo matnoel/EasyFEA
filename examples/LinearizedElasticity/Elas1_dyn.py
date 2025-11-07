@@ -3,8 +3,8 @@
 # EasyFEA is distributed under the terms of the GNU General Public License v3, see LICENSE.txt and CREDITS.md for more information.
 
 """
-Dyna1
-=====
+Elas1_dyn
+=========
 
 A cantilever beam undergoing dynamic bending deformation.
 """
@@ -30,7 +30,7 @@ if __name__ == "__main__":
     dim = 2
 
     # outputs
-    folder = Folder.Join(Folder.RESULTS_DIR, "Dynamics", "Dyna1")
+    folder = Folder.Join(Folder.RESULTS_DIR, "LinearizedElasticity", "Dynamic1")
     makeParaview = False
     makeMovie = True
     result = "uy"
