@@ -3,15 +3,15 @@
 # EasyFEA is distributed under the terms of the GNU General Public License v3, see LICENSE.txt and CREDITS.md for more information.
 
 """
-Thermal2
+Thermal3
 ========
 
 Transient thermal simulation.
 """
 # sphinx_gallery_thumbnail_number = -1
 
-from EasyFEA import Display, Folder, Models, Mesher, ElemType, Simulations, PyVista
-from EasyFEA.Geoms import Circle, Domain, Point
+from EasyFEA import Display, Folder, Models, np, Mesher, ElemType, Simulations, PyVista
+from EasyFEA.Geoms import Line, Domain, Point
 
 if __name__ == "__main__":
     Display.Clear()
@@ -19,54 +19,60 @@ if __name__ == "__main__":
     # ----------------------------------------------
     # Configuration
     # ----------------------------------------------
-    dim = 3  # Set the simulation dimension (2D or 3D)
 
     # outputs
-    folder = Folder.Join(Folder.RESULTS_DIR, "Thermal", "Thermal2")
+    folder = Folder.Join(Folder.RESULTS_DIR, "Thermal", "Thermal3")
     makeMovie = True
     result = "thermal"
 
     # geom
+    R = 10
+    e = 2
+    h = 10
     a = 1
 
     # load
-    Tmax = 0.5
+    Tmax = 5
     N = 50
     dt = Tmax / N
 
     # ----------------------------------------------
     # Mesh
     # ----------------------------------------------
-    domain = Domain(Point(), Point(a, a), a / 4)
-    circle = Circle(Point(a / 2, a / 2), diam=a / 3, isHollow=True, meshSize=a / 4)
+    domain = Domain(Point(R), Point(R + e, h), e / 2)
+    axis = Line(Point(), Point(0, 1, 0))
 
-    if dim == 2:
-        mesh = Mesher().Mesh_2D(domain, [circle], ElemType.TRI6)
-    else:
-        mesh = Mesher().Mesh_Extrude(
-            domain, [circle], [0, 0, -a], [4], ElemType.PRISM18
-        )
+    # Generate the mesh based on the specified dimension
+    angle = 360 * 3 / 4
+    mesh = Mesher().Mesh_Revolve(
+        domain,
+        [],
+        axis,
+        angle,
+        [angle * np.pi / 180 * R / domain.meshSize],
+        elemType=ElemType.HEXA8,
+        isOrganised=True,
+    )
 
-    nodesX0 = mesh.Nodes_Conditions(lambda x, y, z: x == 0)
-    nodesXa = mesh.Nodes_Conditions(lambda x, y, z: x == a)
-    nodesCircle = mesh.Nodes_Cylinder(circle, [0, 0, -1])
-
-    if dim == 3:
-        print(f"Volume: {mesh.volume:.3}")
+    nodesY0 = mesh.Nodes_Conditions(lambda x, y, z: y == 0)
+    nodesYH = mesh.Nodes_Conditions(lambda x, y, z: y == h)
 
     # ----------------------------------------------
     # Simulation
     # ----------------------------------------------
-    thermalModel = Models.Thermal(k=1, c=1, thickness=1)
+    thermalModel = Models.Thermal(k=1, c=1)
     simu = Simulations.ThermalSimu(mesh, thermalModel, False)
     simu.rho = 1
 
-    simu.add_dirichlet(nodesX0, [0], ["t"])
-    simu.add_dirichlet(nodesXa, [40], ["t"])
+    simu.add_surfLoad(nodesY0, [5], ["t"])
+    simu.add_surfLoad(nodesYH, [5], ["t"])
 
     # Set the parabolic algorithm for the solver
     simu.Solver_Set_Parabolic_Algorithm(alpha=0.5, dt=dt)
 
+    simu._Set_solutions(simu.problemType, np.ones(mesh.Nn) * -10)
+
+    print()
     t = -dt  # init time
     while t < Tmax:
         t += dt
@@ -81,7 +87,7 @@ if __name__ == "__main__":
     # ----------------------------------------------
     print(simu)
 
-    PyVista.Plot(simu, result, plotMesh=True, nodeValues=True).show()
+    PyVista.Plot(simu, result, plotMesh=True, nodeValues=True)
 
     if makeMovie:
         PyVista.Movie_simu(simu, result, folder, f"{result}.gif", plotMesh=True)

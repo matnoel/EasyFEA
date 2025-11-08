@@ -10,8 +10,8 @@ EasyFEA documentation
 
 **EasyFEA** is a user-friendly Python library that simplifies finite element analysis. It is flexible and supports different types of simulations without requiring users to handle complex PDE formulations. You will find below the finite element analysis that you can conduct using EasyFEA:
 
-1. :doc:`Linearized elastic simulations <examples/LinearizedElasticity/index>`: ``static``, ``dynamic``, ``contact`` and ``homogenization``.
-2. :doc:`Hyperelastic simulations <examples/Hyperelasticity/index>`: ``static`` and ``dynamic``.
+1. :doc:`Linear elastic simulations <examples/LinearizedElasticity/index>`: ``static``, ``dynamic``, ``contact``, ``homogenization`` and ``mesh optimization``.
+2. :doc:`Hyperelastic simulations <examples/Hyperelasticity/index>`: ``static`` and ``dynamic`` in the ``Lagrangian`` framework.
 3. :doc:`Euler-Bernoulli beam simulations <examples/Beam/index>`: ``static``.
 4. :doc:`Thermal simulations <examples/Thermal/index>`: ``static`` and ``dynamic``.
 5. :doc:`Phase-field damage simulations for quasi-static brittle fracture <examples/PhaseField/index>`: advanced ``2D`` and ``3D`` simulations for ``isotropic``, ``transversely isotropic``, and ``anisotropic`` materials.

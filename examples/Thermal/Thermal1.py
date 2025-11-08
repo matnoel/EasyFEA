@@ -6,19 +6,10 @@
 Thermal1
 ========
 
-Transient thermal simulation.
+Thermal simulation.
 """
 
-from EasyFEA import (
-    Display,
-    Folder,
-    Models,
-    plt,
-    Mesher,
-    ElemType,
-    Simulations,
-    PyVista,
-)
+from EasyFEA import Display, Models, Mesher, ElemType, Simulations, PyVista
 from EasyFEA.Geoms import Circle, Domain, Point
 
 if __name__ == "__main__":
@@ -27,12 +18,7 @@ if __name__ == "__main__":
     # ----------------------------------------------
     # Configuration
     # ----------------------------------------------
-    dim = 3  # Set the simulation dimension (2D or 3D)
-
-    # outputs
-    folder = Folder.Join(Folder.RESULTS_DIR, "Thermal", "Thermal1")
-    makeMovie = True
-    result = "thermal"
+    dim = 2  # Set the simulation dimension (2D or 3D)
 
     # geom
     a = 1
@@ -72,26 +58,11 @@ if __name__ == "__main__":
     simu.add_dirichlet(nodesX0, [0], ["t"])
     simu.add_dirichlet(nodesXa, [40], ["t"])
 
-    # Set the parabolic algorithm for the solver
-    simu.Solver_Set_Parabolic_Algorithm(alpha=0.5, dt=dt)
-
-    t = -dt  # init time
-    while t < Tmax:
-        t += dt
-
-        simu.Solve()
-        simu.Save_Iter()
-
-        print(f"{t:.3f} s", end="\r")
+    simu.Solve()
 
     # ----------------------------------------------
     # Results
     # ----------------------------------------------
     print(simu)
 
-    Display.Plot_Result(simu, result, plotMesh=True, nodeValues=True, folder=folder)
-
-    if makeMovie:
-        PyVista.Movie_simu(simu, result, folder, f"{result}.gif", plotMesh=True)
-
-    plt.show()
+    PyVista.Plot(simu, "thermal", plotMesh=True, nodeValues=True).show()

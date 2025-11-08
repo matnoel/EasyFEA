@@ -3,4 +3,4 @@
 Linearized elastic simulations
 ==============================
 
-Contains examples for `static`, `dynamic`, `contact` and `homogenization` simulations.
+Contains examples for ``static``, ``dynamic``, ``contact``, ``homogenization`` and ``mesh optimization``.
