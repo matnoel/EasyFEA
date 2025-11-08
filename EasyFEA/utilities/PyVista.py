@@ -558,6 +558,7 @@ def Plot_BoundaryConditions(
     plotter.add_legend(bcolor="white", face="o")  # type: ignore [call-arg]
 
     _setCameraPosition(plotter, inDim)
+    plotter.zoom_camera(0.9)
 
     tic.Tac("PyVista_Interface", "Plot_BoundaryConditions")
 
