@@ -3,10 +3,10 @@
 # EasyFEA is distributed under the terms of the GNU General Public License v3, see LICENSE.txt and CREDITS.md for more information.
 
 """
-Dynamic1
-========
+Hyperelas4
+==========
 
-A cantilever beam undergoing bending deformation.
+A cantilever beam undergoing bending deformation in dynamic.
 """
 
 from EasyFEA import (
@@ -38,17 +38,16 @@ if __name__ == "__main__":
     # model
     lmbda = 121153.84615384616  # Mpa
     mu = 80769.23076923077
-    rho = 7850 * 1e-9  # kg/mm3
 
     # ----------------------------------------------
     # Mesh
     # ----------------------------------------------
-    meshSize = h / 2
+    meshSize = h / 3
 
     contour = Domain((0, 0), (L, h), h / 3)
 
     mesh = contour.Mesh_Extrude(
-        [], [0, 0, h], [h / meshSize], ElemType.HEXA20, isOrganised=True
+        [], [0, 0, h], [h / meshSize], ElemType.HEXA8, isOrganised=True
     )
     nodesX0 = mesh.Nodes_Conditions(lambda x, y, z: x == 0)
     nodesXL = mesh.Nodes_Conditions(lambda x, y, z: x == L)
@@ -62,16 +61,15 @@ if __name__ == "__main__":
     simu = Simulations.HyperElasticSimu(mesh, mat)
 
     simu.add_dirichlet(nodesX0, [0, 0, 0], simu.Get_unknowns())
-    simu.add_volumeLoad(mesh.nodes, [-rho * 9.81], ["y"])
-    simu.add_surfLoad(nodesXL, [-8000 / h / h], ["y"])
+    simu.add_dirichlet(nodesXL, [-h], ["y"])
 
     # static
     simu.Solve()
     simu.Save_Iter()
 
     # dynamic
-    T = 3.0
-    dt = T / 5
+    T = 7
+    dt = T / 7
     simu.Bc_Init()
     simu.Solver_Set_Hyperbolic_Algorithm(dt)
     simu.add_dirichlet(nodesX0, [0, 0, 0], simu.Get_unknowns())
@@ -88,7 +86,7 @@ if __name__ == "__main__":
 
     if makeMovie:
         PyVista.Movie_simu(
-            simu, "uy", folder, "dynamic1.gif", deformFactor=1, plotMesh=True
+            simu, "uy", folder, "Hyperelas4.gif", deformFactor=1, plotMesh=True
         )
 
     PyVista.Plot(simu, "uy", 1, plotMesh=True).show()

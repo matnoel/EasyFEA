@@ -23,7 +23,7 @@ from ..utilities import _params, _types
 
 class _HyperElas(_IModel, ABC):
     """HyperElastic material.\n
-    NeoHookean, MooneyRivlin and SaintVenantKirchhoff inherit from _HyperElas class.
+    `NeoHookean`, `MooneyRivlin`, `SaintVenantKirchhoff` and `HolzapfelOgden` inherit from `_HyperElas` class.
     """
 
     dim: float = _params.ParameterInValues([1, 2, 3])
@@ -122,6 +122,7 @@ class _HyperElas(_IModel, ABC):
 
         # get params
         Ne, nPg, dim = hyperElasticState._GetDims()
+        thickness = self.thickness if dim == 2 else 1
 
         # get mesh data
         mesh = hyperElasticState.mesh
@@ -156,13 +157,13 @@ class _HyperElas(_IModel, ABC):
         linearTangent_e = (wJ_e_pg * B_e_pg.T @ d2Wde_e_pg @ B_e_pg).sum(1)
         # non linear part
         nonLinearTangent_e = (wJ_e_pg * grad_e_pg.T @ Sig_e_pg @ grad_e_pg).sum(1)
-        tangent_e = linearTangent_e + nonLinearTangent_e
+        tangent_e = thickness * (linearTangent_e + nonLinearTangent_e)
         # dont use the thickness here!
 
         # ------------------------------
         # Compute residual
         # ------------------------------
-        residual_e = (wJ_e_pg * dWde_e_pg.T @ B_e_pg).sum(1)
+        residual_e = thickness * (wJ_e_pg * dWde_e_pg.T @ B_e_pg).sum(1)
 
         # ------------------------------
         # Reorder dofs
@@ -425,8 +426,6 @@ class SaintVenantKirchhoff(_HyperElas):
             Shear modulus
         K : float|_types.FloatArray, optional
             Bulk modulus, by default 0.0
-        thickness : float, optional
-            thickness, by default 1.0
         """
 
         _HyperElas.__init__(self, dim, thickness)

@@ -19,7 +19,6 @@ from ..fem._linalg import Det
 from ..models import (
     ModelType,
     Reshape_variable,
-    Project_vector_to_matrix,
     Result_in_Strain_or_Stress_field,
     Project_Kelvin,
 )
@@ -43,6 +42,8 @@ class HyperElasticSimu(_Simu):
         useIterativeSolvers=True,
     ):
         """Creates a simulation.
+
+        Warning: 2D simulations are conducted under the **plane strain** assumption.
 
         Parameters
         ----------
@@ -126,18 +127,9 @@ class HyperElasticSimu(_Simu):
 
     def Construct_local_matrix_system(self, problemType):
         # data
-        mat = self.material
         mesh = self.mesh
-        Ne = mesh.Ne
-        nPe = mesh.nPe
         dim = self.dim
         thickness = self.material.thickness if dim == 2 else 1
-
-        # get mesh data
-        matrixType = MatrixType.rigi
-        wJ_e_pg = mesh.Get_weightedJacobian_e_pg(matrixType)
-        dN_e_pg = mesh.Get_dN_e_pg(matrixType)
-        nPg = wJ_e_pg.shape[1]
 
         # get the current newton raphson displacement (updated via u += delta_u)
         displacement = self._Solver_Get_Newton_Raphson_current_solution()
@@ -149,7 +141,7 @@ class HyperElasticSimu(_Simu):
                 problemType, displacement
             )
 
-        hyperElasticState = HyperElasticState(mesh, displacement, matrixType)
+        hyperElasticState = HyperElasticState(mesh, displacement, MatrixType.rigi)
 
         # check if there is any invalid element
         J_e_pg = hyperElasticState.Compute_J()
@@ -173,6 +165,7 @@ class HyperElasticSimu(_Simu):
         # Compute Mass
         # ------------------------------
         if self.algo in AlgoType.Get_Hyperbolic_Types():
+
             matrixType = MatrixType.mass
             N_pg = FeArray.asfearray(mesh.Get_N_vector_pg(matrixType)[np.newaxis])
             wJ_e_pg = mesh.Get_weightedJacobian_e_pg(matrixType)

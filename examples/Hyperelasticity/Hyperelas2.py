@@ -3,14 +3,14 @@
 # EasyFEA is distributed under the terms of the GNU General Public License v3, see LICENSE.txt and CREDITS.md for more information.
 
 """
-Static2
-=======
+Hyperelas2
+==========
 
 A hyper elastic cube in compression.
 """
 # sphinx_gallery_thumbnail_number = -1
 
-from EasyFEA import Display, ElemType, Models, Simulations, PyVista
+from EasyFEA import Display, ElemType, Models, Simulations, PyVista, np
 from EasyFEA.Geoms import Domain
 
 if __name__ == "__main__":
@@ -19,6 +19,7 @@ if __name__ == "__main__":
     # ----------------------------------------------
     # Configuration
     # ----------------------------------------------
+    dim = 3
 
     # geom
     L = 1
@@ -31,9 +32,12 @@ if __name__ == "__main__":
 
     contour = Domain((0, 0), (L, h), h / 10)
 
-    mesh = contour.Mesh_Extrude(
-        [], [0, 0, h], [h / meshSize], ElemType.HEXA8, isOrganised=True
-    )
+    if dim == 2:
+        mesh = contour.Mesh_2D([], ElemType.QUAD8, isOrganised=True)
+    else:
+        mesh = contour.Mesh_Extrude(
+            [], [0, 0, h], [h / meshSize], ElemType.HEXA8, isOrganised=True
+        )
 
     nodesX0 = mesh.Nodes_Conditions(lambda x, y, z: x == 0)
     nodesXL = mesh.Nodes_Conditions(lambda x, y, z: x == L)
@@ -42,16 +46,18 @@ if __name__ == "__main__":
     # Simulation
     # ----------------------------------------------
 
-    isot = Models.ElasIsot(3, E=1, v=0.3)
+    isot = Models.ElasIsot(dim, E=1, v=0.3)
     lmbda = isot.get_lambda()
     mu = isot.get_mu()
-    mat = Models.SaintVenantKirchhoff(3, lmbda, mu)
+    mat = Models.SaintVenantKirchhoff(dim, lmbda, mu, thickness=h)
 
     simu = Simulations.HyperElasticSimu(mesh, mat)
 
     uc = -0.3
-    simu.add_dirichlet(nodesX0, [0, 0, 0], simu.Get_unknowns())
-    simu.add_dirichlet(nodesXL, [uc, 0, 0], simu.Get_unknowns())
+    simu.add_dirichlet(nodesX0, [0] * dim, simu.Get_unknowns())
+    values = np.zeros_like(simu.Get_unknowns(), dtype=float)
+    values[0] = uc
+    simu.add_dirichlet(nodesXL, values, simu.Get_unknowns())
 
     simu.Solve()
 
