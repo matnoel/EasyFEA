@@ -108,10 +108,15 @@ if __name__ == "__main__":
     PyVista.Plot_Elements(
         mesh, nodes_cuve, color="green", alpha=0.5, plotter=plotter, label="Cuve"
     )
+    PyVista._setCameraPosition(plotter, 3, "yz", roll=-90)
+    plotter.zoom_camera(0.8)
     plotter.add_legend()
     plotter.show()
 
-    PyVista.Plot_Mesh(mesh, alpha=0.5).show()
+    plotter = PyVista.Plot_Mesh(mesh, alpha=0.5)
+    PyVista._setCameraPosition(plotter, 3, "yz", roll=-90)
+    plotter.zoom_camera(0.8)
+    plotter.show()
 
     # ----------------------------------------------
     # Material
@@ -135,7 +140,10 @@ if __name__ == "__main__":
     simu.add_dirichlet(nodesZ0, [0] * 3, simu.Get_unknowns())
     known, unknown = simu.Bc_dofs_known_unknown(simu.problemType)
 
-    PyVista.Plot_BoundaryConditions(simu).show()
+    plotter = PyVista.Plot_BoundaryConditions(simu)
+    PyVista._setCameraPosition(plotter, 3, "yz", roll=-90)
+    plotter.zoom_camera(0.8)
+    plotter.show()
 
     K, C, M, F = simu.Get_K_C_M_F()
 
@@ -171,10 +179,13 @@ if __name__ == "__main__":
         plotter = PyVista.Plot(simu, alpha=0.5)
         PyVista.Plot(simu, None, deformFactor, alpha=0.8, color="r", plotter=plotter)
         plotter.add_title(f"mode {n + 1}")
+        PyVista._setCameraPosition(plotter, 3, "yz", roll=-90)
+        plotter.zoom_camera(0.8)
         plotter.show()
 
     axModes = Display.Init_Axes()
     axModes.plot(np.arange(eigenValues.size), freq_t, ls="", marker=".")
+    axModes.set_xticks(np.arange(eigenValues.size))
     axModes.set_xlabel("modes")
     axModes.set_ylabel("freq [Hz]")
     axModes.grid()

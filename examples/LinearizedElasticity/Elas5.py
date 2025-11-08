@@ -3,8 +3,8 @@
 # EasyFEA is distributed under the terms of the GNU General Public License v3, see LICENSE.txt and CREDITS.md for more information.
 
 """
-Static5
-=======
+Elas5
+=====
 
 A cylindrical conduit exposed to uniform pressure.
 """

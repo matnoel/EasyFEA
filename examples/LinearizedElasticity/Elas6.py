@@ -3,8 +3,8 @@
 # EasyFEA is distributed under the terms of the GNU General Public License v3, see LICENSE.txt and CREDITS.md for more information.
 
 """
-Static6
-=======
+Elas6
+=====
 
 A bi-fixed beam undergoing bending deformation.
 """

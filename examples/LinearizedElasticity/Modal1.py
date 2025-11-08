@@ -102,8 +102,9 @@ if __name__ == "__main__":
         plotter.show()
 
     axModes = Display.Init_Axes()
-    axModes.plot(np.arange(eigenValues.size), freq_t, ls="", marker="+")
+    axModes.plot(np.arange(eigenValues.size), freq_t, ls="", marker=".")
     axModes.set_xlabel("modes")
+    axModes.set_xticks(np.arange(eigenValues.size))
     axModes.set_ylabel("freq [Hz]")
     axModes.grid()
 
