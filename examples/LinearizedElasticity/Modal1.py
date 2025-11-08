@@ -10,14 +10,7 @@ Modal analysis of a wall structure.
 """
 # sphinx_gallery_thumbnail_number = -3
 
-from EasyFEA import (
-    Display,
-    Models,
-    np,
-    ElemType,
-    Simulations,
-    PyVista,
-)
+from EasyFEA import Display, Models, np, ElemType, Simulations, PyVista
 from EasyFEA.Geoms import Domain
 
 from scipy.sparse import linalg, eye

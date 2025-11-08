@@ -12,16 +12,7 @@ WARNING: The assumption of small displacements is highly questionable for this s
 """
 # TODO: Compare results with analytical values ?
 
-from EasyFEA import (
-    Display,
-    Folder,
-    Models,
-    plt,
-    np,
-    ElemType,
-    Simulations,
-    PyVista,
-)
+from EasyFEA import Display, Folder, Models, plt, np, ElemType, Simulations, PyVista
 from EasyFEA.Geoms import Point, Domain, Points
 
 if __name__ == "__main__":

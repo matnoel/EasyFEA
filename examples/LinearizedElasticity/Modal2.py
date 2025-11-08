@@ -10,17 +10,7 @@ Modal analysis of a structure.
 """
 # sphinx_gallery_thumbnail_number = -2
 
-from EasyFEA import (
-    Display,
-    Models,
-    np,
-    Mesher,
-    ElemType,
-    Mesh,
-    Simulations,
-    PyVista,
-)
-
+from EasyFEA import Display, Models, np, Mesher, ElemType, Mesh, Simulations, PyVista
 from scipy.sparse import linalg, eye
 
 

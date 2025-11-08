@@ -10,14 +10,7 @@ A cantilever beam undergoing bending deformation in dynamic.
 """
 # sphinx_gallery_thumbnail_number = 1
 
-from EasyFEA import (
-    Display,
-    Folder,
-    ElemType,
-    Models,
-    Simulations,
-    PyVista,
-)
+from EasyFEA import Display, Folder, ElemType, Models, Simulations, PyVista
 from EasyFEA.Geoms import Domain
 
 if __name__ == "__main__":

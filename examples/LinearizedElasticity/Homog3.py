@@ -10,15 +10,7 @@ Conduct full-field homogenization.
 """
 # sphinx_gallery_thumbnail_number = -4
 
-from EasyFEA import (
-    Display,
-    Models,
-    plt,
-    np,
-    Geoms,
-    ElemType,
-    Simulations,
-)
+from EasyFEA import Display, Models, plt, np, Geoms, ElemType, Simulations
 from EasyFEA.fem import FeArray
 
 from Homog1 import Compute_ukl
