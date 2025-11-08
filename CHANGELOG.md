@@ -2,6 +2,14 @@
 
 This document describes the changes made to the project.
 
+## 1.6.0 (November 8, 2025):
+
+- Updated the `Display` and `PyVista` functions.
+- Updated the construction of `dict_tags` in the `_Meshio_to_EasyFEA` function.
+- Improved the `hyperelastic` simulation to handle `hyperbolic` problems.
+- Organized and enhanced the documentation scripts.
+- Improved `hyperelastic` models for `2D` simulations under the plane strain assumption.
+
 ## 1.5.5 (November 5, 2025):
 
 - Updated the solver parameter in the `phasefield` model.
