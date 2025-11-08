@@ -175,19 +175,35 @@ class TestHyperElastic:
 
     def test_dI1dC(self):
 
-        dI1dC = HyperElasticState.Compute_dI1dC()
+        for simu in Get_3d_simulations():
 
-        dI1dC_v = Project_Kelvin(np.eye(3), 2)
+            for matrixType in [MatrixType.rigi, MatrixType.mass]:
 
-        assert np.linalg.norm(dI1dC - dI1dC_v) / np.linalg.norm(dI1dC) < 1e-12
+                hyperElasticState = HyperElasticState(
+                    simu.mesh, simu.displacement, matrixType
+                )
+
+                dI1dC = hyperElasticState.Compute_dI1dC()
+
+                dI1dC_v = Project_Kelvin(np.eye(3), 2)
+
+                assert np.linalg.norm(dI1dC - dI1dC_v) / np.linalg.norm(dI1dC) < 1e-12
 
     def test_d2I1dC(self):
 
-        d2I1dC = HyperElasticState.Compute_d2I1dC()
+        for simu in Get_3d_simulations():
 
-        d2I1dC_v = np.zeros((6, 6))
+            for matrixType in [MatrixType.rigi, MatrixType.mass]:
 
-        assert np.linalg.norm(d2I1dC - d2I1dC_v) < 1e-12
+                hyperElasticState = HyperElasticState(
+                    simu.mesh, simu.displacement, matrixType
+                )
+
+                d2I1dC = hyperElasticState.Compute_d2I1dC()
+
+                d2I1dC_v = np.zeros((6, 6))
+
+                assert np.linalg.norm(d2I1dC - d2I1dC_v) < 1e-12
 
     # --------------------------------------------------------------------------
     # I2
@@ -236,21 +252,31 @@ class TestHyperElastic:
 
     def test_d2I2dC(self):
 
-        d2I2dC = HyperElasticState.Compute_d2I2dC()
+        for simu in Get_3d_simulations():
 
-        vect1 = np.array([1, 1, 1, 0, 0, 0])
-        Id_order2 = TensorProd(vect1, vect1)
+            for matrixType in [MatrixType.rigi, MatrixType.mass]:
 
-        # Id_order4 = np.eye(6)
-        # same as
-        vect2 = np.eye(3)
-        Id_order4 = FeArray.asfearray(
-            Project_Kelvin(TensorProd(vect2, vect2, True)), True
-        )
+                hyperElasticState = HyperElasticState(
+                    simu.mesh, simu.displacement, matrixType
+                )
 
-        d2I2dC_v = Id_order2 - Id_order4
+                d2I2dC = hyperElasticState.Compute_d2I2dC()
 
-        assert np.linalg.norm(d2I2dC - d2I2dC_v) / np.linalg.norm(d2I2dC) < 1e-12
+                vect1 = np.array([1, 1, 1, 0, 0, 0])
+                Id_order2 = TensorProd(vect1, vect1)
+
+                # Id_order4 = np.eye(6)
+                # same as
+                vect2 = np.eye(3)
+                Id_order4 = FeArray.asfearray(
+                    Project_Kelvin(TensorProd(vect2, vect2, True)), True
+                )
+
+                d2I2dC_v = Id_order2 - Id_order4
+
+                assert (
+                    np.linalg.norm(d2I2dC - d2I2dC_v) / np.linalg.norm(d2I2dC) < 1e-12
+                )
 
     # --------------------------------------------------------------------------
     # I3
@@ -391,21 +417,39 @@ class TestHyperElastic:
 
     def test_dI4dC(self):
 
-        T = np.array([0, 1, 0])
+        for simu in Get_3d_simulations():
 
-        dI4dC = HyperElasticState.Compute_dI4dC(T)
+            for matrixType in [MatrixType.rigi, MatrixType.mass]:
 
-        dI4dC_v = TestHyperElastic.__anisotropic_invariants_first_derivatives(T, T)
+                hyperElasticState = HyperElasticState(
+                    simu.mesh, simu.displacement, matrixType
+                )
 
-        assert np.linalg.norm(dI4dC - dI4dC_v) / np.linalg.norm(dI4dC_v) < 1e-12
+                T = np.array([0, 1, 0])
+
+                dI4dC = hyperElasticState.Compute_dI4dC(T)
+
+                dI4dC_v = TestHyperElastic.__anisotropic_invariants_first_derivatives(
+                    T, T
+                )
+
+                assert np.linalg.norm(dI4dC - dI4dC_v) / np.linalg.norm(dI4dC_v) < 1e-12
 
     def test_d2I4dC(self):
 
-        d2I4dC = HyperElasticState.Compute_d2I4dC()
+        for simu in Get_3d_simulations():
 
-        d2I4dC_v = np.zeros((6, 6))
+            for matrixType in [MatrixType.rigi, MatrixType.mass]:
 
-        assert np.linalg.norm(d2I4dC - d2I4dC_v) < 1e-12
+                hyperElasticState = HyperElasticState(
+                    simu.mesh, simu.displacement, matrixType
+                )
+
+                d2I4dC = hyperElasticState.Compute_d2I4dC()
+
+                d2I4dC_v = np.zeros((6, 6))
+
+                assert np.linalg.norm(d2I4dC - d2I4dC_v) < 1e-12
 
     # --------------------------------------------------------------------------
     # I6
@@ -436,21 +480,39 @@ class TestHyperElastic:
 
     def test_dI6dC(self):
 
-        T = np.array([1, 1, 0])
+        for simu in Get_3d_simulations():
 
-        dI6dC = HyperElasticState.Compute_dI6dC(T)
+            for matrixType in [MatrixType.rigi, MatrixType.mass]:
 
-        dI6dC_v = TestHyperElastic.__anisotropic_invariants_first_derivatives(T, T)
+                hyperElasticState = HyperElasticState(
+                    simu.mesh, simu.displacement, matrixType
+                )
 
-        assert np.linalg.norm(dI6dC - dI6dC_v) / np.linalg.norm(dI6dC_v) < 1e-12
+                T = np.array([1, 1, 0])
+
+                dI6dC = hyperElasticState.Compute_dI6dC(T)
+
+                dI6dC_v = TestHyperElastic.__anisotropic_invariants_first_derivatives(
+                    T, T
+                )
+
+                assert np.linalg.norm(dI6dC - dI6dC_v) / np.linalg.norm(dI6dC_v) < 1e-12
 
     def test_d2I6dC(self):
 
-        d2I6dC = HyperElasticState.Compute_d2I6dC()
+        for simu in Get_3d_simulations():
 
-        d2I6dC_v = np.zeros((6, 6))
+            for matrixType in [MatrixType.rigi, MatrixType.mass]:
 
-        assert np.linalg.norm(d2I6dC - d2I6dC_v) < 1e-12
+                hyperElasticState = HyperElasticState(
+                    simu.mesh, simu.displacement, matrixType
+                )
+
+                d2I6dC = hyperElasticState.Compute_d2I6dC()
+
+                d2I6dC_v = np.zeros((6, 6))
+
+                assert np.linalg.norm(d2I6dC - d2I6dC_v) < 1e-12
 
     # --------------------------------------------------------------------------
     # I8
@@ -484,19 +546,37 @@ class TestHyperElastic:
 
     def test_dI8dC(self):
 
-        T1 = np.array([1, 1, 0])
-        T2 = np.array([0, 1, 0])
+        for simu in Get_3d_simulations():
 
-        dI8dC = HyperElasticState.Compute_dI8dC(T1, T2)
+            for matrixType in [MatrixType.rigi, MatrixType.mass]:
 
-        dI8dC_v = TestHyperElastic.__anisotropic_invariants_first_derivatives(T1, T2)
+                hyperElasticState = HyperElasticState(
+                    simu.mesh, simu.displacement, matrixType
+                )
 
-        assert np.linalg.norm(dI8dC - dI8dC_v) / np.linalg.norm(dI8dC_v) < 1e-12
+                T1 = np.array([1, 1, 0])
+                T2 = np.array([0, 1, 0])
+
+                dI8dC = hyperElasticState.Compute_dI8dC(T1, T2)
+
+                dI8dC_v = TestHyperElastic.__anisotropic_invariants_first_derivatives(
+                    T1, T2
+                )
+
+                assert np.linalg.norm(dI8dC - dI8dC_v) / np.linalg.norm(dI8dC_v) < 1e-12
 
     def test_d2I8dC(self):
 
-        d2I8dC = HyperElasticState.Compute_d2I8dC()
+        for simu in Get_3d_simulations():
 
-        d2I8dC_v = np.zeros((6, 6))
+            for matrixType in [MatrixType.rigi, MatrixType.mass]:
 
-        assert np.linalg.norm(d2I8dC - d2I8dC_v) < 1e-12
+                hyperElasticState = HyperElasticState(
+                    simu.mesh, simu.displacement, matrixType
+                )
+
+                d2I8dC = hyperElasticState.Compute_d2I8dC()
+
+                d2I8dC_v = np.zeros((6, 6))
+
+                assert np.linalg.norm(d2I8dC - d2I8dC_v) < 1e-12

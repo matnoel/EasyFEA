@@ -64,8 +64,6 @@ class HyperElasticSimu(_Simu):
 
         self._Solver_Set_Newton_Raphson_Algorithm(tolConv=tolConv, maxIter=maxIter)
 
-        assert model.dim == 3, "For the moment, the simulation is only available in 3D."
-
     # --------------------------------------------------------------------------
     # General
     # --------------------------------------------------------------------------
@@ -141,7 +139,7 @@ class HyperElasticSimu(_Simu):
         dN_e_pg = mesh.Get_dN_e_pg(matrixType)
         nPg = wJ_e_pg.shape[1]
 
-        # get the current newton raphson displacement (via u += delta_u)
+        # get the current newton raphson displacement (updated via u += delta_u)
         displacement = self._Solver_Get_Newton_Raphson_current_solution()
 
         # get the hyperelastic state
@@ -157,48 +155,19 @@ class HyperElasticSimu(_Simu):
         J_e_pg = hyperElasticState.Compute_J()
         assert J_e_pg.min() > 0, "Warning: det(F) < 0 - reduce load steps"
 
-        # get hyper elastic matrices
-        De_e_pg = hyperElasticState.Compute_De()
-        dWde_e_pg = mat.Compute_dWde(mesh, displacement, matrixType)
-        d2Wde_e_pg = mat.Compute_d2Wde(mesh, displacement, matrixType)
-
-        # TODO Add HyperElastic.Compute_B_e_pg() and HyperElastic.Compute_Sig_e_pg()
-        # init matrices
-        grad_e_pg = FeArray.zeros(Ne, nPg, 9, dim * nPe)
-        Sig_e_pg = FeArray.zeros(Ne, nPg, 9, 9)
-        sig_e_pg = Project_vector_to_matrix(dWde_e_pg)
-
-        rows = np.arange(9).reshape(3, -1)
-        cols = np.arange(dim * nPe).reshape(3, -1)
-        for i in range(dim):
-            grad_e_pg._assemble(rows[i], cols[i], value=dN_e_pg)  # type: ignore [attr-defined]
-            Sig_e_pg._assemble(rows[i], rows[i], value=sig_e_pg)  # type: ignore [attr-defined]
-
-        B_e_pg = De_e_pg @ grad_e_pg
-
         # ------------------------------
-        # Compute Stifness
+        # Compute tangeant and residual
         # ------------------------------
-        K1_e = (wJ_e_pg * B_e_pg.T @ d2Wde_e_pg @ B_e_pg).sum(1)
-        K2_e = (wJ_e_pg * grad_e_pg.T @ Sig_e_pg @ grad_e_pg).sum(1)
-        K_e = thickness * (K1_e + K2_e)
+        tangent_e, residual_e = self.material.Compute_Tangent_and_Residual(
+            hyperElasticState
+        )
 
-        # ------------------------------
-        # Compute Residual
-        # ------------------------------
         # Here we solve:
         # K(u) Δu = - R(u)
         #         = - (F(u) - b)
         #         = - F(u) + b
-        F_e = -(wJ_e_pg * dWde_e_pg.T @ B_e_pg).sum(1)
-
-        # ------------------------------
-        # Reorder dofs
-        # ------------------------------
-        # reorder xi,...,xn,yi,...yn,zi,...,zn to xi,yi,zi,...,xn,yx,zn
-        reorder = np.arange(0, nPe * dim).reshape(-1, nPe).T.ravel()
-        F_e = F_e[:, reorder]
-        K_e = K_e[:, reorder][:, :, reorder]
+        K_e = tangent_e
+        F_e = -residual_e
 
         # ------------------------------
         # Compute Mass
@@ -407,7 +376,8 @@ class HyperElasticSimu(_Simu):
         return Project_Kelvin(hyperElasticState.Compute_GreenLagrange(), 2)
 
     def _Calc_SecondPiolaKirchhoff(self, matrixType=MatrixType.rigi):
-        return self.material.Compute_dWde(self.mesh, self.displacement, matrixType)
+        hyperElasticState = HyperElasticState(self.mesh, self.displacement, matrixType)
+        return self.material.Compute_dWde(hyperElasticState)
 
     def Results_Iter_Summary(
         self,

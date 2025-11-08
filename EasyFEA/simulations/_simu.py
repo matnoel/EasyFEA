@@ -1085,7 +1085,7 @@ class _Simu(_IObserver, _params.Updatable, ABC):
             # update the newton raphson solution
             u += delta_u
 
-            converged = (norm_r < tolConv) or (norm_delta_u < 1e-8)
+            converged = (norm_r < tolConv) or (norm_delta_u < 1e-11)
 
         timeIter = tic.Tac(f"Resolution {problemType}", "Newton iterations", False)
 

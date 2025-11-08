@@ -7,10 +7,9 @@
 import numpy as np
 
 from ..fem import Mesh, MatrixType
-from ..fem._linalg import FeArray, Transpose, Det, TensorProd, Norm
+from ..fem._linalg import FeArray, Transpose, Det, Norm
 from ..utilities import _types, _params
 from ..utilities._cache import cache_computed_values
-from ._utils import Project_Kelvin
 
 # ------------------------------------------------------------------------------
 # Functions for matrices
@@ -27,7 +26,7 @@ class HyperElasticState:
             isinstance(u, np.ndarray) and u.size % mesh.Nn == 0
         ), "wrong displacement field dimension"
         dim = u.size // mesh.Nn
-        assert dim in [2, 3], "wrong displacement field dimension"
+        assert dim in [1, 2, 3], "wrong displacement field dimension"
         assert (
             matrixType in MatrixType.Get_types()
         ), f"matrixType must be in {MatrixType.Get_types()}"
@@ -40,7 +39,11 @@ class HyperElasticState:
         self.__u = u
         self.__matrixType = matrixType
 
-    def __GetDims(
+    @property
+    def mesh(self):
+        return self.__mesh
+
+    def _GetDims(
         self,
     ) -> tuple[int, int, int]:
         """return Ne, nPg, dim"""
@@ -115,15 +118,15 @@ class HyperElasticState:
         -------
 
         cxx 0 0\n
-        0 0 0\n
-        0 0 0
+        0 1 0\n
+        0 0 1
 
         dim = 2
         -------
 
         cxx cxy 0\n
         cyx cyy 0\n
-        0 0 0
+        0 0 1
 
         dim = 3
         -------
@@ -189,7 +192,7 @@ class HyperElasticState:
             [xx, yy, zz, 2**(-1/2) yz, 2**(-1/2) xz, 2**(-1/2) xy]
         """
 
-        Ne, nPg, dim = self.__GetDims()
+        Ne, nPg, dim = self._GetDims()
         assert dim in [2, 3]
 
         # compute grad
@@ -224,7 +227,7 @@ class HyperElasticState:
 
     @cache_computed_values
     def Compute_De(self) -> FeArray.FeArrayALike:
-        """Computes De(u)
+        """Computes De(u) derivative green lagrange matrix.
 
         Returns if dim = 2
         ------------------
@@ -248,7 +251,7 @@ class HyperElasticState:
             2**(-1/2) [dyux, 1+dxux, 0, 1+dyuy, dxuy, 0, dyuz, dxuz, 0] # xy
         """
 
-        Ne, nPg, dim = self.__GetDims()
+        Ne, nPg, dim = self._GetDims()
         assert dim in [2, 3]
 
         grad_e_pg = self.__mesh.Get_Gradient_e_pg(self.__u, self.__matrixType)
@@ -298,6 +301,32 @@ class HyperElasticState:
     # Compute invariants
     # --------------------------------------------------------------------------
 
+    def __Slice_Vector(self, vector: FeArray.FeArrayALike):
+
+        assert isinstance(vector, FeArray)
+        assert vector._ndim == 1 and vector._shape == (6,)
+
+        dim = self._GetDims()[2]
+        if dim == 1:
+            vector = vector[..., [0]]
+        elif dim == 2:
+            vector = vector[..., [0, 1, 5]]
+
+        return vector
+
+    def __Slice_Matrix(self, matrix: FeArray.FeArrayALike):
+
+        assert isinstance(matrix, FeArray)
+        assert matrix._ndim == 2 and matrix._shape == (6, 6)
+
+        dim = self._GetDims()[2]
+        if dim == 1:
+            matrix = matrix[..., [0], :][..., [0]]
+        elif dim == 2:
+            matrix = matrix[..., [0, 1, 5], :][..., [0, 1, 5]]
+
+        return matrix
+
     # -------------------------------------
     # Compute I1
     # -------------------------------------
@@ -318,31 +347,29 @@ class HyperElasticState:
 
         return I1_e_pg
 
-    @staticmethod
-    def Compute_dI1dC() -> FeArray.FeArrayALike:
+    def Compute_dI1dC(self) -> FeArray.FeArrayALike:
         """Computes dI1dC(u)
 
         Returns
         -------
         FeArray
-            dI1dC of shape (6)
+            dI1dC of shape (d), where `d = 1, 3, 6` depending on whether the solution dimension is `1D`, `2D`, or `3D`.
         """
 
         dI1dC = np.array([1, 1, 1, 0, 0, 0])
 
-        return FeArray.asfearray(dI1dC, True)
+        return self.__Slice_Vector(FeArray.asfearray(dI1dC, True))
 
-    @staticmethod
-    def Compute_d2I1dC() -> FeArray.FeArrayALike:
+    def Compute_d2I1dC(self) -> FeArray.FeArrayALike:
         """Computes d2I1dC(u)
 
         Returns
         -------
         FeArray
-            d2I1dC of shape (6, 6)
+            d2I1dC of shape (d, d), where `d = 1, 3, 6` depending on whether the solution dimension is `1D`, `2D`, or `3D`.
         """
 
-        return FeArray.zeros(1, 1, 6, 6)
+        return self.__Slice_Matrix(FeArray.zeros(1, 1, 6, 6))
 
     # -------------------------------------
     # Compute I2
@@ -371,10 +398,10 @@ class HyperElasticState:
         Returns
         -------
         FeArray
-            dI2dC_e_pg of shape (Ne, pg, 6)
+            dI2dC_e_pg of shape (Ne, pg, d), where `d = 1, 3, 6` depending on whether the solution dimension is `1D`, `2D`, or `3D`.
         """
 
-        Ne, nPg, _ = self.__GetDims()
+        Ne, nPg, _ = self._GetDims()
 
         cxx, cxy, cxz, _, cyy, cyz, _, _, czz = self._Compute_C()
 
@@ -389,16 +416,15 @@ class HyperElasticState:
         dI2dC_e_pg[:, :, 4] = coef * cxz
         dI2dC_e_pg[:, :, 5] = coef * cxy
 
-        return dI2dC_e_pg
+        return self.__Slice_Vector(dI2dC_e_pg)
 
-    @staticmethod
-    def Compute_d2I2dC() -> FeArray.FeArrayALike:
+    def Compute_d2I2dC(self) -> FeArray.FeArrayALike:
         """Computes d2I2dC(u)
 
         Returns
         -------
         FeArray
-            d2I2dC of shape (6, 6)
+            d2I2dC of shape (d, d), where `d = 1, 3, 6` depending on whether the solution dimension is `1D`, `2D`, or `3D`.
         """
 
         d2I2dC = np.array(
@@ -412,7 +438,7 @@ class HyperElasticState:
             ]
         )
 
-        return FeArray.asfearray(d2I2dC, True)
+        return self.__Slice_Matrix(FeArray.asfearray(d2I2dC, True))
 
     # -------------------------------------
     # Compute I3
@@ -447,12 +473,12 @@ class HyperElasticState:
         Returns
         -------
         FeArray
-            dI3dC_e_pg of shape (Ne, pg, 6)
+            dI3dC_e_pg of shape (Ne, pg, d), where `d = 1, 3, 6` depending on whether the solution dimension is `1D`, `2D`, or `3D`.
         """
 
         cxx, cxy, cxz, _, cyy, cyz, _, _, czz = self._Compute_C()
 
-        Ne, nPg, _ = self.__GetDims()
+        Ne, nPg, _ = self._GetDims()
 
         dI3dC_e_pg = FeArray.zeros(Ne, nPg, 6)
 
@@ -465,7 +491,7 @@ class HyperElasticState:
         dI3dC_e_pg[:, :, 4] = coef * (cxy * cyz - cxz * cyy)
         dI3dC_e_pg[:, :, 5] = coef * (-cxy * czz + cxz * cyz)
 
-        return dI3dC_e_pg
+        return self.__Slice_Vector(dI3dC_e_pg)
 
     @cache_computed_values
     def Compute_d2I3dC(self) -> FeArray.FeArrayALike:
@@ -474,12 +500,12 @@ class HyperElasticState:
         Returns
         -------
         FeArray
-            d2I3dC_e_pg of shape (Ne, pg, 6, 6)
+            d2I3dC_e_pg of shape (Ne, pg, d, d), where `d = 1, 3, 6` depending on whether the solution dimension is `1D`, `2D`, or `3D`.
         """
 
         cxx, cxy, cxz, _, cyy, cyz, _, _, czz = self._Compute_C()
 
-        Ne, nPg, _ = self.__GetDims()
+        Ne, nPg, _ = self._GetDims()
 
         d2I3dC_e_pg = FeArray.zeros(Ne, nPg, 6, 6)
 
@@ -500,14 +526,15 @@ class HyperElasticState:
         d2I3dC_e_pg[:, :, 3, 5] = d2I3dC_e_pg[:, :, 5, 3] = cxz
         d2I3dC_e_pg[:, :, 4, 5] = d2I3dC_e_pg[:, :, 5, 4] = cyz
 
-        return d2I3dC_e_pg
+        return self.__Slice_Matrix(d2I3dC_e_pg)
 
     # -------------------------------------
     # Compute Anisotropic Invariants
     # -------------------------------------
 
-    @staticmethod
-    def __Get_normalized_components(T: _types.FloatArray):
+    def __Get_normalized_components(
+        self, T: _types.FloatArray
+    ) -> tuple[FeArray.FeArrayALike, FeArray.FeArrayALike, FeArray.FeArrayALike]:
 
         _params._CheckIsVector(T)
         if not isinstance(T, FeArray):
@@ -518,6 +545,12 @@ class HyperElasticState:
         T[norm != 0] /= norm
 
         Tx, Ty, Tz = [T[..., i] for i in range(3)]
+
+        dim = self._GetDims()[2]
+        if dim == 1:
+            Ty = Tz = 0
+        elif dim == 2:
+            Tz = 0
 
         return Tx, Ty, Tz
 
@@ -545,11 +578,11 @@ class HyperElasticState:
         return value
 
     def __Compute_Anisotropic_Invariants_First_Derivatives(
-        T1: _types.FloatArray, T2: _types.FloatArray
+        self, T1: _types.FloatArray, T2: _types.FloatArray
     ):
 
-        T1x, T1y, T1z = HyperElasticState.__Get_normalized_components(T1)
-        T2x, T2y, T2z = HyperElasticState.__Get_normalized_components(T2)
+        T1x, T1y, T1z = self.__Get_normalized_components(T1)
+        T2x, T2y, T2z = self.__Get_normalized_components(T2)
 
         Ne, nPg = T1x.shape
         firstDerivatives = FeArray.zeros(Ne, nPg, 6)
@@ -563,7 +596,7 @@ class HyperElasticState:
         firstDerivatives[:, :, 4] = coef * (T1x * T2z + T1z * T2x)
         firstDerivatives[:, :, 5] = coef * (T1x * T2y + T1y * T2x)
 
-        return firstDerivatives
+        return self.__Slice_Vector(firstDerivatives)
 
     # -------------------------------------
     # Compute I4
@@ -589,8 +622,7 @@ class HyperElasticState:
 
         return self.__Compute_Anisotropic_Invariants(T, T)
 
-    @staticmethod
-    def Compute_dI4dC(T: _types.FloatArray) -> FeArray.FeArrayALike:
+    def Compute_dI4dC(self, T: _types.FloatArray) -> FeArray.FeArrayALike:
         """Computes dI4dC(u)
 
         Parameters
@@ -601,24 +633,21 @@ class HyperElasticState:
         Returns
         -------
         FeArray
-            dI4dC_e_pg of shape (Ne, pg, 6)
+            dI4dC_e_pg of shape (Ne, pg, d), where `d = 1, 3, 6` depending on whether the solution dimension is `1D`, `2D`, or `3D`.
         """
 
-        return HyperElasticState.__Compute_Anisotropic_Invariants_First_Derivatives(
-            T, T
-        )
+        return self.__Compute_Anisotropic_Invariants_First_Derivatives(T, T)
 
-    @staticmethod
-    def Compute_d2I4dC() -> FeArray.FeArrayALike:
+    def Compute_d2I4dC(self) -> FeArray.FeArrayALike:
         """Computes d2I4dC(u)
 
         Returns
         -------
         FeArray
-            d2I4dC of shape (6, 6)
+            d2I4dC of shape (d, d), where `d = 1, 3, 6` depending on whether the solution dimension is `1D`, `2D`, or `3D`.
         """
 
-        return FeArray.zeros(1, 1, 6, 6)
+        return self.__Slice_Matrix(FeArray.zeros(1, 1, 6, 6))
 
     # -------------------------------------
     # Compute I6
@@ -642,8 +671,7 @@ class HyperElasticState:
 
         return self.__Compute_Anisotropic_Invariants(T, T)
 
-    @staticmethod
-    def Compute_dI6dC(T: _types.FloatArray) -> FeArray.FeArrayALike:
+    def Compute_dI6dC(self, T: _types.FloatArray) -> FeArray.FeArrayALike:
         """Computes dI6dC(u)
 
         Parameters
@@ -654,22 +682,21 @@ class HyperElasticState:
         Returns
         -------
         FeArray
-            dI6dC_e_pg of shape (Ne, pg, 6)
+            dI6dC_e_pg of shape (Ne, pg, d), where `d = 1, 3, 6` depending on whether the solution dimension is `1D`, `2D`, or `3D`.
         """
 
-        return HyperElasticState.Compute_dI4dC(T)
+        return self.Compute_dI4dC(T)
 
-    @staticmethod
-    def Compute_d2I6dC() -> FeArray.FeArrayALike:
+    def Compute_d2I6dC(self) -> FeArray.FeArrayALike:
         """Computes d2I6dC(u)
 
         Returns
         -------
         FeArray
-            d2I6dC of shape (6, 6)
+            d2I6dC of shape (d, d), where `d = 1, 3, 6` depending on whether the solution dimension is `1D`, `2D`, or `3D`.
         """
 
-        return HyperElasticState.Compute_d2I4dC()
+        return self.Compute_d2I4dC()
 
     # -------------------------------------
     # Compute I8
@@ -696,9 +723,8 @@ class HyperElasticState:
 
         return self.__Compute_Anisotropic_Invariants(T1, T2)
 
-    @staticmethod
     def Compute_dI8dC(
-        T1: _types.FloatArray, T2: _types.FloatArray
+        self, T1: _types.FloatArray, T2: _types.FloatArray
     ) -> FeArray.FeArrayALike:
         """Computes dI8dC(u)
 
@@ -712,21 +738,18 @@ class HyperElasticState:
         Returns
         -------
         FeArray
-            dI8dC_e_pg of shape (Ne, pg, 6)
+            dI8dC_e_pg of shape (Ne, pg, d), where `d = 1, 3, 6` depending on whether the solution dimension is `1D`, `2D`, or `3D`.
         """
 
-        return HyperElasticState.__Compute_Anisotropic_Invariants_First_Derivatives(
-            T1, T2
-        )
+        return self.__Compute_Anisotropic_Invariants_First_Derivatives(T1, T2)
 
-    @staticmethod
-    def Compute_d2I8dC() -> FeArray.FeArrayALike:
+    def Compute_d2I8dC(self) -> FeArray.FeArrayALike:
         """Computes d2I8dC(u)
 
         Returns
         -------
         FeArray
-            d2I8dC of shape (6, 6)
+            d2I8dC of shape (d, d), where `d = 1, 3, 6` depending on whether the solution dimension is `1D`, `2D`, or `3D`.
         """
 
-        return FeArray.zeros(1, 1, 6, 6)
+        return self.Compute_d2I4dC()

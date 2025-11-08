@@ -9,11 +9,11 @@ import numpy as np
 from typing import Union
 
 # utilities
-from ..fem import Mesh, MatrixType, FeArray, TensorProd
+from ..fem import MatrixType, FeArray, TensorProd
 from ._hyperelastic import HyperElasticState
 
 # others
-from ._utils import _IModel, ModelType
+from ._utils import _IModel, ModelType, Project_vector_to_matrix
 from ..utilities import _params, _types
 
 # ----------------------------------------------
@@ -54,19 +54,13 @@ class _HyperElas(_IModel, ABC):
         return False
 
     @abstractmethod
-    def Compute_W(
-        self, mesh: Mesh, u: _types.FloatArray, matrixType=MatrixType.rigi
-    ) -> FeArray:
+    def Compute_W(self, hyperElasticState: HyperElasticState) -> FeArray:
         """Computes the quadratic energy W(u).
 
         Parameters
         ----------
-        mesh : Mesh
-            mesh
-        u : _types.FloatArray
-            discretized displacement field [u1, v1, w1, . . ., uN, vN, wN] of size Nn * dim
-        matrixType : MatrixType, optional
-            matrix type, by default MatrixType.rigi
+        hyperElasticState : HyperElasticState
+            Hyperelastic state containing the mesh, the discretized field, and the matrix type.
 
         Returns
         -------
@@ -77,50 +71,108 @@ class _HyperElas(_IModel, ABC):
         return None  # type: ignore [return-value]
 
     @abstractmethod
-    def Compute_dWde(
-        self, mesh: Mesh, u: _types.FloatArray, matrixType=MatrixType.rigi
-    ) -> FeArray:
+    def Compute_dWde(self, hyperElasticState: HyperElasticState) -> FeArray:
         """Computes the second Piola-Kirchhoff tensor Σ(u).
 
         Parameters
         ----------
-        mesh : Mesh
-            mesh
-        u : _types.FloatArray
-            discretized displacement field [u1, v1, w1, . . ., uN, vN, wN] of size Nn * dim
-        matrixType : MatrixType, optional
-            matrix type, by default MatrixType.rigi
+        hyperElasticState : HyperElasticState
+            Hyperelastic state containing the mesh, the discretized field, and the matrix type.
 
         Returns
         -------
         FeArray
-            Σ_e_pg of shape (Ne, pg, 6)
+            Σ_e_pg of shape (Ne, pg, d), where `d = 1, 3, 6` depending on whether the solution dimension is `1D`, `2D`, or `3D`.
 
         Σxx, Σyy, Σzz, sqrt(2) Σyz, sqrt(2) Σxz, sqrt(2) Σxy
         """
         return None  # type: ignore [return-value]
 
     @abstractmethod
-    def Compute_d2Wde(
-        self, mesh: Mesh, u: _types.FloatArray, matrixType=MatrixType.rigi
-    ) -> FeArray:
+    def Compute_d2Wde(self, hyperElasticState: HyperElasticState) -> FeArray:
         """Computes dΣde.
 
         Parameters
         ----------
-        mesh : Mesh
-            mesh
-        u : _types.FloatArray
-            discretized displacement field [u1, v1, w1, . . ., uN, vN, wN] of size Nn * dim
-        matrixType : MatrixType, optional
-            matrix type, by default MatrixType.rigi
+        hyperElasticState : HyperElasticState
+            Hyperelastic state containing the mesh, the discretized field, and the matrix type.
 
         Returns
         -------
         FeArray
-            dΣde_e_pg of shape (Ne, pg, 6, 6)
+            dΣde_e_pg of shape (Ne, pg, d, d), where `d = 1, 3, 6` depending on whether the solution dimension is `1D`, `2D`, or `3D`.
         """
         return None  # type: ignore [return-value]
+
+    def Compute_Tangent_and_Residual(
+        self, hyperElasticState: HyperElasticState
+    ) -> tuple[FeArray, FeArray]:
+        """Computes the tangent matrix and the residual vector.
+
+        Parameters
+        ----------
+        hyperElasticState : HyperElasticState
+            Hyperelastic state containing the mesh, the discretized field, and the matrix type.
+
+        Returns
+        -------
+        tuple[FeArray, FeArray]
+            tangent_e_pg (Ne, pg, d, d), with `d = dof_n * mesh.nPe`
+        """
+
+        # get params
+        Ne, nPg, dim = hyperElasticState._GetDims()
+
+        # get mesh data
+        mesh = hyperElasticState.mesh
+        nPe = mesh.nPe
+        matrixType = MatrixType.rigi
+        wJ_e_pg = mesh.Get_weightedJacobian_e_pg(matrixType)
+        dN_e_pg = mesh.Get_dN_e_pg(matrixType)
+
+        # get hyper elastic matrices
+        De_e_pg = hyperElasticState.Compute_De()
+        nCols = De_e_pg.shape[-1]
+        dWde_e_pg = self.Compute_dWde(hyperElasticState)
+        d2Wde_e_pg = self.Compute_d2Wde(hyperElasticState)
+
+        # init matrices
+        grad_e_pg = FeArray.zeros(Ne, nPg, nCols, dim * nPe)
+        Sig_e_pg = FeArray.zeros(Ne, nPg, nCols, nCols)
+        sig_e_pg = Project_vector_to_matrix(dWde_e_pg)
+
+        # append values in sig_e_pg and grad_e_pg
+        rows = np.arange(nCols).reshape(sig_e_pg._shape)
+        cols = np.arange(dim * nPe).reshape(dN_e_pg._shape)
+        for i in range(dim):
+            Sig_e_pg._assemble(rows[i], rows[i], value=sig_e_pg)  # type: ignore [attr-defined]
+            grad_e_pg._assemble(rows[i], cols[i], value=dN_e_pg)  # type: ignore [attr-defined]
+
+        # ------------------------------
+        # Compute tangent
+        # ------------------------------
+        # linear part
+        B_e_pg = De_e_pg @ grad_e_pg
+        linearTangent_e = (wJ_e_pg * B_e_pg.T @ d2Wde_e_pg @ B_e_pg).sum(1)
+        # non linear part
+        nonLinearTangent_e = (wJ_e_pg * grad_e_pg.T @ Sig_e_pg @ grad_e_pg).sum(1)
+        tangent_e = linearTangent_e + nonLinearTangent_e
+        # dont use the thickness here!
+
+        # ------------------------------
+        # Compute residual
+        # ------------------------------
+        residual_e = (wJ_e_pg * dWde_e_pg.T @ B_e_pg).sum(1)
+
+        # ------------------------------
+        # Reorder dofs
+        # ------------------------------
+        # reorder xi,...,xn,yi,...yn,zi,...,zn to xi,yi,zi,...,xn,yx,zn
+        reorder = np.arange(0, nPe * dim).reshape(-1, nPe).T.ravel()
+        residual_e = residual_e[:, reorder]
+        tangent_e = tangent_e[:, reorder][:, :, reorder]
+
+        return tangent_e, residual_e
 
 
 # ----------------------------------------------
@@ -150,10 +202,8 @@ class NeoHookean(_HyperElas):
 
         self.K = K
 
-    def Compute_W(self, mesh, u, matrixType=MatrixType.rigi) -> FeArray:
+    def Compute_W(self, hyperElasticState: HyperElasticState) -> FeArray:
         K = self.K
-
-        hyperElasticState = HyperElasticState(mesh, u, matrixType)
 
         I1 = hyperElasticState.Compute_I1()
         I3 = hyperElasticState.Compute_I3()
@@ -162,10 +212,8 @@ class NeoHookean(_HyperElas):
 
         return W
 
-    def Compute_dWde(self, mesh, u, matrixType=MatrixType.rigi) -> FeArray:
+    def Compute_dWde(self, hyperElasticState: HyperElasticState) -> FeArray:
         K = self.K
-
-        hyperElasticState = HyperElasticState(mesh, u, matrixType)
 
         I1 = hyperElasticState.Compute_I1()
         I3 = hyperElasticState.Compute_I3()
@@ -181,10 +229,8 @@ class NeoHookean(_HyperElas):
 
         return dW
 
-    def Compute_d2Wde(self, mesh, u, matrixType=MatrixType.rigi) -> FeArray:
+    def Compute_d2Wde(self, hyperElasticState: HyperElasticState) -> FeArray:
         K = self.K
-
-        hyperElasticState = HyperElasticState(mesh, u, matrixType)
 
         I1 = hyperElasticState.Compute_I1()
         I3 = hyperElasticState.Compute_I3()
@@ -255,12 +301,10 @@ class MooneyRivlin(_HyperElas):
         self.K2 = K2
         self.K = K
 
-    def Compute_W(self, mesh, u, matrixType=MatrixType.rigi) -> FeArray:
+    def Compute_W(self, hyperElasticState: HyperElasticState) -> FeArray:
         K = self.K
         K1 = self.K1
         K2 = self.K2
-
-        hyperElasticState = HyperElasticState(mesh, u, matrixType)
 
         I1 = hyperElasticState.Compute_I1()
         I2 = hyperElasticState.Compute_I2()
@@ -274,12 +318,10 @@ class MooneyRivlin(_HyperElas):
 
         return W
 
-    def Compute_dWde(self, mesh, u, matrixType=MatrixType.rigi) -> FeArray:
+    def Compute_dWde(self, hyperElasticState: HyperElasticState) -> FeArray:
         K = self.K
         K1 = self.K1
         K2 = self.K2
-
-        hyperElasticState = HyperElasticState(mesh, u, matrixType)
 
         I1 = hyperElasticState.Compute_I1()
         I2 = hyperElasticState.Compute_I2()
@@ -301,12 +343,10 @@ class MooneyRivlin(_HyperElas):
 
         return dW
 
-    def Compute_d2Wde(self, mesh, u, matrixType=MatrixType.rigi) -> FeArray:
+    def Compute_d2Wde(self, hyperElasticState: HyperElasticState) -> FeArray:
         K = self.K
         K1 = self.K1
         K2 = self.K2
-
-        hyperElasticState = HyperElasticState(mesh, u, matrixType)
 
         I1 = hyperElasticState.Compute_I1()
         I2 = hyperElasticState.Compute_I2()
@@ -395,12 +435,10 @@ class SaintVenantKirchhoff(_HyperElas):
         self.mu = mu
         self.K = K
 
-    def Compute_W(self, mesh, u, matrixType=MatrixType.rigi) -> FeArray:
+    def Compute_W(self, hyperElasticState: HyperElasticState) -> FeArray:
         lmbda = self.lmbda
         mu = self.mu
         K = self.K
-
-        hyperElasticState = HyperElasticState(mesh, u, matrixType)
 
         I1 = hyperElasticState.Compute_I1()
         I2 = hyperElasticState.Compute_I2()
@@ -417,12 +455,10 @@ class SaintVenantKirchhoff(_HyperElas):
 
         return W
 
-    def Compute_dWde(self, mesh, u, matrixType=MatrixType.rigi) -> FeArray:
+    def Compute_dWde(self, hyperElasticState: HyperElasticState) -> FeArray:
         lmbda = self.lmbda
         mu = self.mu
         K = self.K
-
-        hyperElasticState = HyperElasticState(mesh, u, matrixType)
 
         I1 = hyperElasticState.Compute_I1()
         I3 = hyperElasticState.Compute_I3()
@@ -439,12 +475,10 @@ class SaintVenantKirchhoff(_HyperElas):
 
         return dW
 
-    def Compute_d2Wde(self, mesh, u, matrixType=MatrixType.rigi) -> FeArray:
+    def Compute_d2Wde(self, hyperElasticState: HyperElasticState) -> FeArray:
         lmbda = self.lmbda
         mu = self.mu
         K = self.K
-
-        hyperElasticState = HyperElasticState(mesh, u, matrixType)
 
         I1 = hyperElasticState.Compute_I1()
         I3 = hyperElasticState.Compute_I3()
@@ -579,7 +613,7 @@ class HolzapfelOgden(_HyperElas):
 
         self.__ks = ks
 
-    def Compute_W(self, mesh, u, matrixType=MatrixType.rigi) -> FeArray:
+    def Compute_W(self, hyperElasticState: HyperElasticState) -> FeArray:
         C0 = self.C0
         C1 = self.C1
         C2 = self.C2
@@ -594,8 +628,6 @@ class HolzapfelOgden(_HyperElas):
         T1 = self.T1
         T2 = self.T2
         ks = self.__ks
-
-        hyperElasticState = HyperElasticState(mesh, u, matrixType)
 
         I1 = hyperElasticState.Compute_I1()
         I2 = hyperElasticState.Compute_I2()
@@ -616,7 +648,7 @@ class HolzapfelOgden(_HyperElas):
 
         return W
 
-    def Compute_dWde(self, mesh, u, matrixType=MatrixType.rigi) -> FeArray:
+    def Compute_dWde(self, hyperElasticState: HyperElasticState) -> FeArray:
         C0 = self.C0
         C1 = self.C1
         C2 = self.C2
@@ -631,8 +663,6 @@ class HolzapfelOgden(_HyperElas):
         T1 = self.T1
         T2 = self.T2
         ks = self.__ks
-
-        hyperElasticState = HyperElasticState(mesh, u, matrixType)
 
         I1 = hyperElasticState.Compute_I1()
         I2 = hyperElasticState.Compute_I2()
@@ -670,7 +700,7 @@ class HolzapfelOgden(_HyperElas):
 
         return dW
 
-    def Compute_d2Wde(self, mesh, u, matrixType=MatrixType.rigi) -> FeArray:
+    def Compute_d2Wde(self, hyperElasticState: HyperElasticState) -> FeArray:
         C0 = self.C0
         C1 = self.C1
         C2 = self.C2
@@ -685,8 +715,6 @@ class HolzapfelOgden(_HyperElas):
         T1 = self.T1
         T2 = self.T2
         ks = self.__ks
-
-        hyperElasticState = HyperElasticState(mesh, u, matrixType)
 
         I1 = hyperElasticState.Compute_I1()
         I2 = hyperElasticState.Compute_I2()
