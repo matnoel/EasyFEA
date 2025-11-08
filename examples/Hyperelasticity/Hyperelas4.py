@@ -8,6 +8,7 @@ Hyperelas4
 
 A cantilever beam undergoing bending deformation in dynamic.
 """
+# sphinx_gallery_thumbnail_number = 1
 
 from EasyFEA import (
     Display,
