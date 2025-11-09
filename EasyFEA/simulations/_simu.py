@@ -1164,8 +1164,6 @@ class _Simu(_IObserver, _params.Updatable, ABC):
             # add residual contributions in b
             b -= C @ sparse.csr_matrix(v_t.reshape(-1, 1))
             b -= M @ sparse.csr_matrix(a_t.reshape(-1, 1))
-
-            # here theres is a minus because we solve the following problem
             # K(u) Δu = - R(u)
             #         = - (F(u) - b)
             #         = - F(u) + b
