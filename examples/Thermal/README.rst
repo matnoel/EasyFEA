@@ -3,4 +3,4 @@
 Thermal simulations
 ===================
 
-Contains examples for ``static`` and ``dynamic`` simulations in the ``Lagrangian`` framework.
+Contains examples for ``static`` and ``transient`` simulations.

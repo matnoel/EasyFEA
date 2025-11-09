@@ -13,7 +13,7 @@ EasyFEA documentation
 1. :doc:`Linear elastic simulations <examples/LinearizedElasticity/index>`: ``static``, ``dynamic``, ``contact``, ``homogenization`` and ``mesh optimization``.
 2. :doc:`Hyperelastic simulations <examples/Hyperelasticity/index>`: ``static`` and ``dynamic`` in the ``Lagrangian`` framework.
 3. :doc:`Euler-Bernoulli beam simulations <examples/Beam/index>`: ``static``.
-4. :doc:`Thermal simulations <examples/Thermal/index>`: ``static`` and ``dynamic``.
+4. :doc:`Thermal simulations <examples/Thermal/index>`: ``static`` and ``transient``.
 5. :doc:`Phase-field damage simulations for quasi-static brittle fracture <examples/PhaseField/index>`: advanced ``2D`` and ``3D`` simulations for ``isotropic``, ``transversely isotropic``, and ``anisotropic`` materials.
 6. :doc:`Weak forms simulations <examples/WeakForms/index>`: ``static`` and ``dynamic`` for ``linear`` or ``non-linear`` problems.
 7. `Digital Image Correlation DIC and Parameter identification <https://gitlab.univ-eiffel.fr/collaboration-msme-fcba/spruce-params>`_.
