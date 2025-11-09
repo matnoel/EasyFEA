@@ -428,7 +428,7 @@ class PhaseFieldSimu(_Simu):
     def __Solve_elastic(self) -> _types.FloatArray:
         """Computes the displacement field."""
 
-        self._Solver_Solve(ModelType.elastic)
+        self._Solver_Solve_problemType(ModelType.elastic)
 
         return self.displacement
 
@@ -529,7 +529,7 @@ class PhaseFieldSimu(_Simu):
     def __Solve_damage(self) -> _types.FloatArray:
         """Computes the damage field."""
 
-        self._Solver_Solve(ModelType.damage)
+        self._Solver_Solve_problemType(ModelType.damage)
 
         return self.damage
 

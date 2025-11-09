@@ -134,13 +134,13 @@ class HyperElasticSimu(_Simu):
         # get the current newton raphson displacement (updated via u += delta_u)
         displacement = self._Solver_Get_Newton_Raphson_current_solution()
 
-        # get the hyperelastic state
         if self.algo in AlgoType.Get_Hyperbolic_Types():
             # here update the displacement according to the time scheme
-            displacement, _, a_t = self._Solver_Compute_Hyperbolic_u_v_a(
+            displacement = self._Solver_Evaluate_u_v_a_for_time_scheme(
                 problemType, displacement
-            )
+            )[0]
 
+        # get the hyperelastic state
         hyperElasticState = HyperElasticState(mesh, displacement, MatrixType.rigi)
 
         # check if there is any invalid element
@@ -165,7 +165,6 @@ class HyperElasticSimu(_Simu):
         # Compute Mass
         # ------------------------------
         if self.algo in AlgoType.Get_Hyperbolic_Types():
-
             matrixType = MatrixType.mass
             N_pg = FeArray.asfearray(mesh.Get_N_vector_pg(matrixType)[np.newaxis])
             wJ_e_pg = mesh.Get_weightedJacobian_e_pg(matrixType)
@@ -173,16 +172,10 @@ class HyperElasticSimu(_Simu):
             rho_e_pg = Reshape_variable(self.rho, *wJ_e_pg.shape[:2])
 
             M_e = thickness * (rho_e_pg * wJ_e_pg * N_pg.T @ N_pg).sum(axis=1)
+        else:
+            M_e = None
 
-            coefK, _, coefM = self._Solver_Get_Hyperbolic_K_C_M_coefs()
-
-            # Tangent contribution
-            K_e = coefK * K_e + coefM * M_e
-
-            # Residual contribution
-            F_e -= M_e @ self.mesh.Locates_sol_e(a_t, dim, True)
-
-        return K_e, None, None, F_e
+        return K_e, None, M_e, F_e
 
     # --------------------------------------------------------------------------
     # Iterations

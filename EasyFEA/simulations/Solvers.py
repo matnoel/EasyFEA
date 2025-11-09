@@ -70,6 +70,12 @@ class AlgoType(str, Enum):
     def Get_Hyperbolic_Types() -> list[str]:
         return [AlgoType.newmark, AlgoType.midpoint, AlgoType.hht]
 
+    @staticmethod
+    def Get_Hyperbolic_and_Parabolic_Types() -> list[str]:
+        algoTypes = AlgoType.Get_Hyperbolic_Types()
+        algoTypes.append(AlgoType.parabolic)
+        return algoTypes
+
 
 class ResolType(str, Enum):
     r1 = "1"
