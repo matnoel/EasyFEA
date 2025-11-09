@@ -2,6 +2,12 @@
 
 This document describes the changes made to the project.
 
+## 1.6.1 (November 9, 2025):
+
+- Updated the thermal simulation description.
+- Refactored the use of time schemes for nonlinear problems.
+- Clarified the names and descriptions of the simulation solver functions.
+
 ## 1.6.0 (November 8, 2025):
 
 - Updated the `Display` and `PyVista` functions.
