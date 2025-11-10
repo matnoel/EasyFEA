@@ -709,14 +709,14 @@ class _Simu(_IObserver, _params.Updatable, ABC):
 
         assert dt > 0, "Time increment must be > 0"
 
-        self.__parabolicProperties = (dt, alpha)
+        self.__parabolicParams = (dt, alpha)
 
     def __Solver_Get_Parabolic_Params(self) -> tuple[float, float]:
         """Returns (dt, alpha) parbolic scheme properties."""
 
         assert self.algo == AlgoType.parabolic, "the current algo is not parabolic."
 
-        return self.__parabolicProperties
+        return self.__parabolicParams
 
     def Solver_Set_Hyperbolic_Algorithm(
         self, dt: float, beta=0.25, gamma=0.5, algo=AlgoType.newmark, alpha=0.5
@@ -747,7 +747,7 @@ class _Simu(_IObserver, _params.Updatable, ABC):
         assert dt > 0, "Time increment must be > 0"
         assert 0 <= alpha < 1
 
-        self.__hyperbolicProperties = (dt, beta, gamma, alpha)
+        self.__hyperbolicParams = (dt, beta, gamma, alpha)
 
     def __Solver_Get_Hyperbolic_Params(self) -> tuple[float, float, float, float]:
         """Returns (dt, beta, gamma, alpha) hyperbolic scheme properties."""
@@ -755,7 +755,7 @@ class _Simu(_IObserver, _params.Updatable, ABC):
             self.algo in AlgoType.Get_Hyperbolic_Types()
         ), "the current algo is not hyperbolic type."
 
-        return self.__hyperbolicProperties
+        return self.__hyperbolicParams
 
     def _Solver_Evaluate_u_v_a_for_time_scheme(
         self, problemType: ModelType, u_np1: np.ndarray
