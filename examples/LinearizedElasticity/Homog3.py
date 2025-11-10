@@ -22,7 +22,7 @@ if __name__ == "__main__":
     # Configuration
     # ----------------------------------------------
     # use Periodic boundary conditions ?
-    usePER = True
+    usePBC = True
 
     # geom
     L = 120  # mm
@@ -129,16 +129,16 @@ if __name__ == "__main__":
     E22 = np.array([[0, 0], [0, 1]])
     E12 = np.array([[0, 1 / r2], [1 / r2, 0]])
 
-    if usePER:
-        nodes_border = mesh_RVE.Nodes_Tags(["P0", "P1", "P2", "P3"])
-        paired_nodes = mesh_RVE.Get_Paired_Nodes(nodes_border, True)
+    if usePBC:
+        nodes_kubc = mesh_RVE.Nodes_Tags(["P0", "P1", "P2", "P3"])
+        paired_nodes = mesh_RVE.Get_Paired_Nodes(nodes_kubc, True)
     else:
-        nodes_border = mesh_RVE.Nodes_Tags(["L0", "L1", "L2", "L3"])
+        nodes_kubc = mesh_RVE.Nodes_Tags(["L0", "L1", "L2", "L3"])
         paired_nodes = None
 
-    u11 = Compute_ukl(simu_VER, nodes_border, E11, paired_nodes)
-    u22 = Compute_ukl(simu_VER, nodes_border, E22, paired_nodes)
-    u12 = Compute_ukl(simu_VER, nodes_border, E12, paired_nodes, True)
+    u11 = Compute_ukl(simu_VER, nodes_kubc, E11, paired_nodes)
+    u22 = Compute_ukl(simu_VER, nodes_kubc, E22, paired_nodes)
+    u12 = Compute_ukl(simu_VER, nodes_kubc, E12, paired_nodes, True)
 
     u11_e = mesh_RVE.Locates_sol_e(u11, asFeArray=True)
     u22_e = mesh_RVE.Locates_sol_e(u22, asFeArray=True)

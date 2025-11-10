@@ -24,11 +24,11 @@ if __name__ == "__main__":
     # ----------------------------------------------
 
     # use Periodic boundary conditions ?
-    usePER = True
+    usePBC = True
 
     geom = "D666"  # hexagon
-    # geom = 'D2' # rectangle
-    # geom = 'D6'
+    # geom = "D2"  # rectangle
+    # geom = "D6"
 
     hollowInclusion = True
 
@@ -198,11 +198,11 @@ if __name__ == "__main__":
     nCorners = len(corners)
     nEdges = nCorners // 2
 
-    if usePER:
-        nodes_border = mesh.Nodes_Points(corners)
-        paired_nodes = mesh.Get_Paired_Nodes(nodes_border, True)
+    if usePBC:
+        nodes_kubc = mesh.Nodes_Points(corners)
+        paired_nodes = mesh.Get_Paired_Nodes(nodes_kubc, True)
     else:
-        nodes_border = mesh.Nodes_Tags([f"L{i}" for i in range(6)])
+        nodes_kubc = mesh.Nodes_Tags([f"L{i}" for i in range(6)])
         paired_nodes = None
 
     # ----------------------------------------------
@@ -230,9 +230,9 @@ if __name__ == "__main__":
     E22 = np.array([[0, 0], [0, 1]])
     E12 = np.array([[0, 1 / r2], [1 / r2, 0]])
 
-    u11 = Compute_ukl(simu, nodes_border, E11, paired_nodes)
-    u22 = Compute_ukl(simu, nodes_border, E22, paired_nodes)
-    u12 = Compute_ukl(simu, nodes_border, E12, paired_nodes, True)
+    u11 = Compute_ukl(simu, nodes_kubc, E11, paired_nodes)
+    u22 = Compute_ukl(simu, nodes_kubc, E22, paired_nodes)
+    u12 = Compute_ukl(simu, nodes_kubc, E12, paired_nodes, True)
 
     u11_e = mesh.Locates_sol_e(u11, asFeArray=True)
     u22_e = mesh.Locates_sol_e(u22, asFeArray=True)

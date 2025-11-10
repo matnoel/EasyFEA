@@ -21,7 +21,7 @@ from typing import Optional
 
 def Compute_ukl(
     simu: Simulations.ElasticSimu,
-    nodes_border: np.ndarray,
+    nodes_kubc: np.ndarray,
     Ekl: np.ndarray,
     paired_nodes: Optional[np.ndarray] = None,
     pltSol=False,
@@ -31,7 +31,7 @@ def Compute_ukl(
     mesh = simu.mesh
     coord = mesh.coordGlob
 
-    usePER = paired_nodes is not None
+    usePBC = paired_nodes is not None
 
     def func_ux(x, y, z):
         return Ekl.dot([x, y])[0]
@@ -39,20 +39,21 @@ def Compute_ukl(
     def func_uy(x, y, z):
         return Ekl.dot([x, y])[1]
 
-    simu.add_dirichlet(nodes_border, [func_ux, func_uy], ["x", "y"])
+    directions = ["x", "y"]
+    simu.add_dirichlet(nodes_kubc, [func_ux, func_uy], directions)
 
-    if usePER:
+    if usePBC:
         for n0, n1 in paired_nodes:
             nodes = np.array([n0, n1])
 
-            for direction in ["x", "y"]:
+            for d, direction in enumerate(directions):
                 dofs = simu.Bc_dofs_nodes(nodes, [direction])
 
                 values = Ekl @ [
                     coord[n0, 0] - coord[n1, 0],
                     coord[n0, 1] - coord[n1, 1],
                 ]
-                value = values[0] if direction == "x" else values[1]
+                value = values[d]
 
                 condition = LagrangeCondition(
                     "elastic", nodes, dofs, [direction], [value], [1, -1]
@@ -96,7 +97,7 @@ if __name__ == "__main__":
     # ----------------------------------------------
 
     # use Periodic boundary conditions ?
-    usePER = True  # FALSE mean KUBC
+    usePBC = True
 
     # ----------------------------------------------
     # Mesh
@@ -119,11 +120,11 @@ if __name__ == "__main__":
 
     Display.Plot_Mesh(mesh, title="RVE")
 
-    if usePER:
-        nodes_border = mesh.Nodes_Tags(["P0", "P1", "P2", "P3"])
-        paired_nodes = mesh.Get_Paired_Nodes(nodes_border, True)
+    if usePBC:
+        nodes_kubc = mesh.Nodes_Tags(["P0", "P1", "P2", "P3"])
+        paired_nodes = mesh.Get_Paired_Nodes(nodes_kubc, True)
     else:
-        nodes_border = mesh.Nodes_Tags(["L0", "L1", "L2", "L3"])
+        nodes_kubc = mesh.Nodes_Tags(["L0", "L1", "L2", "L3"])
         paired_nodes = None
 
     # ----------------------------------------------
@@ -157,9 +158,9 @@ if __name__ == "__main__":
     E22 = np.array([[0, 0], [0, 1]])
     E12 = np.array([[0, 1 / r2], [1 / r2, 0]])
 
-    u11 = Compute_ukl(simu, nodes_border, E11, paired_nodes)
-    u22 = Compute_ukl(simu, nodes_border, E22, paired_nodes)
-    u12 = Compute_ukl(simu, nodes_border, E12, paired_nodes, True)
+    u11 = Compute_ukl(simu, nodes_kubc, E11, paired_nodes)
+    u22 = Compute_ukl(simu, nodes_kubc, E22, paired_nodes)
+    u12 = Compute_ukl(simu, nodes_kubc, E12, paired_nodes, True)
 
     u11_e = mesh.Locates_sol_e(u11, asFeArray=True)
     u22_e = mesh.Locates_sol_e(u22, asFeArray=True)
