@@ -148,7 +148,7 @@ class HyperElasticSimu(_Simu):
         assert J_e_pg.min() > 0, "Warning: det(F) < 0 - reduce load steps"
 
         # ------------------------------
-        # Compute tangeant and residual
+        # Compute tangent and residual
         # ------------------------------
         tangent_e, residual_e = self.material.Compute_Tangent_and_Residual(
             hyperElasticState
