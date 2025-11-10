@@ -3,4 +3,4 @@
 Weak forms simulations
 ======================
 
-Contains examples for ``static`` and ``dynamic`` simulations for ``linear`` or ``non-linear`` problems.
+Contains examples for ``static``, ``transient`` and ``dynamic`` simulations for ``linear`` or ``non-linear`` problems.
