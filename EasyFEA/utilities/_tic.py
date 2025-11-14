@@ -7,7 +7,6 @@
 import time
 import numpy as np
 import matplotlib.pyplot as plt
-import pandas as pd
 
 
 class Tic:
@@ -133,6 +132,7 @@ class Tic:
         ax.grid(axis="x", lw=1.2)
 
         timeMax = np.max(times)
+        Ncategory = len(categories)
 
         # I want to display the text on the right if the time represents < 0.5 timeTotal
         # Otherwise, we'll display it on the left
@@ -142,7 +142,8 @@ class Tic:
         ):  # noqa: F402
             # height=0.55
             # ax.barh(i, t, height=height, align="center", label=c)
-            ax.barh(i, time, align="center", label=category)
+            y_pos = Ncategory - 1 - i
+            ax.barh(y_pos, time, align="center", label=category)
 
             # We add a space at the end of the text
             space = " "
@@ -159,7 +160,7 @@ class Tic:
             if time / timeMax < 0.6:
                 ax.text(
                     time,
-                    i,
+                    y_pos,
                     category,
                     color="black",
                     verticalalignment="center",
@@ -168,7 +169,7 @@ class Tic:
             else:
                 ax.text(
                     time,
-                    i,
+                    y_pos,
                     category,
                     color="white",
                     verticalalignment="center",
@@ -196,58 +197,59 @@ class Tic:
             return
 
         history = Tic.__History
+
+        # Calculate total time per category
+        categories = np.array(list(history.keys()))
+        timesPerCategory = np.array(
+            [
+                np.sum(np.array(history[category])[:, 1].astype(np.float64))
+                for category in categories
+            ]
+        )
+
+        # Sort categories by descending time
+        sorted_indices = np.argsort(timesPerCategory)[::-1]
+        categories = categories[sorted_indices]
+        timesPerCategory = timesPerCategory[sorted_indices]
+
         totalTime = []
-        categories: list[str] = list(history.keys())
-
-        # recovers the time for each category
-        tempsCategorie = [
-            np.sum(np.array(np.array(history[c])[:, 1], dtype=np.float64))
-            for c in categories
-        ]
-
-        categories = np.asarray(categories)[np.argsort(tempsCategorie)][::-1].tolist()
-
         for i, c in enumerate(categories):
-            # c subcategory times
-            timeSubCategory = np.array(np.array(history[c])[:, 1], dtype=np.float64)
-            totalTime.append(
-                np.sum(timeSubCategory)
-            )  # somme tout les temps de cette catégorie
+            # Extract data
+            data = np.array(history[c])
+            subCategories = data[:, 0].astype(str)
+            timeSubCategory = data[:, 1].astype(np.float64)
 
-            subCategories = np.array(np.array(history[c])[:, 0], dtype=str).tolist()
+            # Calculate time and repetitions per subcategory
+            unique_subcats, indices = np.unique(subCategories, return_inverse=True)
+            time_by_subcat = np.zeros(len(unique_subcats))
+            rep_by_subcat = np.zeros(len(unique_subcats), dtype=int)
 
-            # We build a table to sum them over the sub-categories
-            dfSubCategory = pd.DataFrame(
-                {"sub-categories": subCategories, "time": timeSubCategory, "rep": 1}
-            )
-            dfSubCategory = dfSubCategory.groupby(["sub-categories"]).sum()
-            dfSubCategory = dfSubCategory.sort_values(by="time")
+            for s in np.arange(unique_subcats.size):
+                mask = indices == s
+                time_by_subcat[s] = np.sum(timeSubCategory[mask])
+                rep_by_subcat[s] = np.sum(mask)
 
-            # print(dfSousCategorie)
+            totalTime.append(np.sum(timeSubCategory))
 
-            if len(subCategories) > 1 and details and totalTime[-1] > 0:
-                fig, ax = plt.subplots()
+            # Plot subcategories if needed
+            if len(unique_subcats) > 1 and details and totalTime[-1] > 0:
+                # Sort subcategories by descending time
+                sorted_subcat_indices = np.argsort(time_by_subcat)[::-1]
+                ax = plt.subplots()[1]
                 Tic.__plotBar(
                     ax,
-                    subCategories,
-                    dfSubCategory["time"].tolist(),
-                    dfSubCategory["rep"].tolist(),
+                    unique_subcats[sorted_subcat_indices],
+                    time_by_subcat[sorted_subcat_indices],
+                    rep_by_subcat[sorted_subcat_indices],
                     c,
                 )
-
                 if folder != "":
                     Display.Save_fig(folder, f"TicTac{i}_{c}")
 
-        # We build a table to sum them over the sub-categories
-        dfCategory = pd.DataFrame({"categories": categories, "time": totalTime})
-        dfCategory = dfCategory.groupby(["categories"]).sum()
-        dfCategory = dfCategory.sort_values(by="time")
-        categories = dfCategory.index.tolist()
-
-        fig, ax = plt.subplots()
+        # Plot summary of categories
+        ax = plt.subplots()[1]
         Tic.__plotBar(
-            ax, categories, dfCategory["time"], [1] * dfCategory.shape[0], "Summary"
+            ax, categories, timesPerCategory, [1] * len(categories), "Summary"
         )
-
         if folder != "":
             Display.Save_fig(folder, "TicTac_Summary")

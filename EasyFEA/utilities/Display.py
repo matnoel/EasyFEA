@@ -7,7 +7,6 @@
 import platform
 from typing import Union, Callable, Optional, TYPE_CHECKING, Any
 import numpy as np
-import pandas as pd
 from enum import Enum
 
 # Matplotlib: https://matplotlib.org/
@@ -1175,7 +1174,7 @@ def Plot_Energy(
     step = np.max([1, Niter // N])
     iterations = np.arange(0, Niter, step)
 
-    list_dict_Energy: list[dict[str, float]] = []
+    list_dict_energy: list[dict[str, float]] = []
     times = []
     if plotSolMax:
         listSolMax: list[float] = []
@@ -1190,7 +1189,7 @@ def Plot_Energy(
         if plotSolMax:
             listSolMax.append(simu._Get_u_n(simu.problemType).max())  # type: ignore
 
-        list_dict_Energy.append(simu.Results_dict_Energy())
+        list_dict_energy.append(simu.Results_dict_Energy())
 
         time = tic.Tac("PostProcessing", "Calc Energy", False)
         times.append(time)
@@ -1209,6 +1208,7 @@ def Plot_Energy(
     axs: list[_types.Axes] = plt.subplots(nrows, 1, sharex=True)[1]
 
     iter_rows = iter(np.arange(nrows))
+    row: int = next(iter_rows)
 
     # Retrieve the axis to be used for x-axes
     if len(displacement) > 0:
@@ -1218,14 +1218,10 @@ def Plot_Energy(
         listX = iterations
         xlabel = "iter"
 
-    # Transform list_dict_energy into a dataframe
-    df = pd.DataFrame(list_dict_Energy)
-
-    row: int = next(iter_rows)
     # For each energy, we plot the values
-    for energie_str in df.columns:
-        valeurs = df[energie_str].values
-        axs[row].plot(listX, valeurs, label=energie_str)
+    for energy_str in list_dict_energy[0].keys():
+        values = [dict_energy[energy_str] for dict_energy in list_dict_energy]
+        axs[row].plot(listX, values, label=energy_str)
     axs[row].legend()
     axs[row].grid()
 

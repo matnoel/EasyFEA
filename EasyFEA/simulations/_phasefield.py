@@ -5,7 +5,6 @@
 from typing import Union, Optional
 import numpy as np
 from scipy import sparse
-import pandas as pd
 
 # utilities
 from ..utilities import Display, Tic, _types
@@ -893,21 +892,27 @@ class PhaseFieldSimu(_Simu):
     ) -> tuple[list[int], list[tuple[str, _types.FloatArray]]]:
         list_label_values = []
 
-        resultats = self.results
-        df = pd.DataFrame(resultats)
-        iterations = np.arange(df.shape[0]).tolist()
+        results = self.results
+        iterations = list(range(len(results)))
 
-        damageMaxIter = np.array([np.max(damage) for damage in df["damage"].values])
-        list_label_values.append((r"$\phi$", damageMaxIter))
+        damageMaxIter, convIter, Niter, timeIter = zip(
+            *(
+                (
+                    np.max(result["damage"]),
+                    result["convIter"],
+                    result["Niter"],
+                    result["timeIter"],
+                )
+                for result in results
+            )
+        )
 
-        convIter = df["convIter"].values
-        list_label_values.append(("convIter", convIter))
-
-        nombreIter = df["Niter"].values
-        list_label_values.append(("Niter", nombreIter))
-
-        tempsIter = df["timeIter"].values
-        list_label_values.append(("time", tempsIter))
+        list_label_values = [
+            (r"$\phi$", np.array(damageMaxIter)),
+            ("convIter", np.array(convIter)),
+            ("Niter", np.array(Niter)),
+            ("time", np.array(timeIter)),
+        ]
 
         return iterations, list_label_values
 

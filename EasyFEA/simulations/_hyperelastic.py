@@ -4,7 +4,6 @@
 
 import numpy as np
 from typing import Union, Optional, TYPE_CHECKING
-import pandas as pd
 
 # utilities
 from ..utilities import Display, _types
@@ -370,21 +369,26 @@ class HyperElasticSimu(_Simu):
     ) -> tuple[list[int], list[tuple[str, _types.FloatArray]]]:
         list_label_values = []
 
-        resultats = self.results
-        df = pd.DataFrame(resultats)
-        iterations = np.arange(df.shape[0]).tolist()
+        results = self.results
+        iterations = list(range(len(results)))
 
-        damageMaxIter = np.array([np.max(damage) for damage in df["damage"].values])
-        list_label_values.append((r"$\phi$", damageMaxIter))
+        iter["newtonIter"] = self.__newtonIter
+        iter["timeIter"] = self.__timeIter
 
-        convIter = df["convIter"].values
-        list_label_values.append(("convIter", convIter))
+        newtonIter, timeIter, list_norm_r = zip(
+            *(
+                (
+                    result["convIter"],
+                    result["timeIter"],
+                )
+                for result in results
+            )
+        )
 
-        nombreIter = df["Niter"].values
-        list_label_values.append(("Niter", nombreIter))
-
-        tempsIter = df["timeIter"].values
-        list_label_values.append(("time", tempsIter))
+        list_label_values = [
+            ("newtonIter", np.array(newtonIter)),
+            ("timeIter", np.array(timeIter)),
+        ]
 
         return iterations, list_label_values
 
