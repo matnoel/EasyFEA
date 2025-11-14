@@ -104,7 +104,7 @@ class ElasticSimu(_Simu):
         tic = Tic()
 
         # ------------------------------
-        # Compute Stifness
+        # Compute Stiffness
         # ------------------------------
         matrixType = MatrixType.rigi
         leftDepPart = mesh.Get_leftDispPart(matrixType)
