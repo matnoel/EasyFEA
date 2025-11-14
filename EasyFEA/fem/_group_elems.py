@@ -17,7 +17,7 @@ For instance, a TRI3 mesh uses POINT, SEG2 and TRI3 elements."""
 
 from abc import ABC, abstractmethod
 from scipy.optimize import least_squares
-from scipy import sparse
+from scipy import sparse, spatial
 import numpy as np
 from typing import Callable, Optional, TYPE_CHECKING
 
@@ -33,7 +33,7 @@ from ..geoms import Point, Domain, Line, Circle
 from ..geoms._utils import AsPoint
 from ..geoms import Jacobian_Matrix, Normalize
 
-from ..utilities import _types
+from ..utilities import _types, _params
 from ..utilities._cache import cache_computed_values, clear_cached_computed_values
 
 if TYPE_CHECKING:
@@ -2057,6 +2057,37 @@ class _GroupElem(ABC):
         else:
             raise ValueError("unknown dimensio")
 
+    def _Get_nearby_elements(self, coordinates_n: _types.FloatArray) -> _types.IntArray:
+        """Get nearby elements.
+
+        Parameters
+        ----------
+        coordinates_n : _types.FloatArray
+            coordinates (n, 3) array
+
+        Returns
+        -------
+        _types.IntArray
+            nearby elements
+        """
+
+        _params._CheckIsVector(coordinates_n)
+
+        #  Build a KDTree once for all nodes
+        tree = spatial.KDTree(self.coord)
+
+        # Find the index of the closest node for each coordinate
+        _, closest_node_indices = tree.query(coordinates_n, k=1)
+
+        # Retrieve the closest nodes
+        closest_nodes = self.nodes[closest_node_indices]
+
+        # Retrieve the elements associated with these nodes
+        all_elements = self.Get_Elements_Nodes(closest_nodes, exclusively=False)
+        unique_elements = np.unique(all_elements)
+
+        return unique_elements
+
     def Get_Mapping(
         self,
         coordinates_n: _types.FloatArray,
@@ -2081,10 +2112,10 @@ class _GroupElem(ABC):
                 This is applicable only if needCoordinates is set to True.
         """
 
-        if elements_e is None:
-            elements_e = np.arange(self.Ne, dtype=int)
+        _params._CheckIsVector(coordinates_n)
 
-        assert coordinates_n.shape[1] == 3, "Must be of dimension (n, 3)."
+        if elements_e is None:
+            elements_e = self._Get_nearby_elements(coordinates_n)
 
         return self._Get_Mapping(coordinates_n, elements_e, needCoordinates)
 
@@ -2155,6 +2186,8 @@ class _GroupElem(ABC):
         else:
             coordInElem_n = None
 
+        foundedCoords = 0
+
         def Research(e: int):
             # get element's node coordinates (x, y, z)
             coordElem = coord[connect[e]]
@@ -2168,6 +2201,9 @@ class _GroupElem(ABC):
             if idxInElem.size == 0:
                 # here no nodes have been detected in the element
                 return
+
+            nonlocal foundedCoords
+            foundedCoords += idxInElem.size
 
             # Nodes contained within element e.
             nodesInElement = idxNearElem[idxInElem]
@@ -2217,7 +2253,7 @@ class _GroupElem(ABC):
                 # xiP are the n coordinates of the n points in (ξ, η, ζ).
                 coordInElem_n[nodesInElement, :] = np.asarray(xiP)  # type: ignore
 
-        [Research(e) for e in elements_e]
+        [Research(e) for e in elements_e if foundedCoords < coordinates_n.shape[0]]
 
         assert len(detectedElements_e) == len(
             connect_e_n

@@ -729,26 +729,16 @@ class Mesh(Observable):
         dof_n = dofsValues.size // Nn
 
         # first detect elements with coordinates in elements
-        _, detectedElements_e, connect_e_n, coordInElem_n = groupElem.Get_Mapping(
+        _, detectedElements_e, _, coordInElem_n = groupElem.Get_Mapping(
             coordinates_n, elements, needCoordinates=True
         )
 
         # Get unique elements for each coordinates
-        # Note: A coordinate may belong to multiple elements, but only one will be selected
         Nnodes = coordinates_n.shape[0]
-        elements_n = np.array([None] * Nnodes)
-        [
-            np.put(elements_n, node, element)
-            for (element, connect) in zip(detectedElements_e[::-1], connect_e_n[::-1])
-            for node in connect
-            if elements_n[node] is None
-        ]
-
-        # make sure each coordinates get a least one element
+        elements_n = detectedElements_e.astype(int)
         assert (
-            None not in elements_n
-        ), f"No elements were detected at the given coordinates {coordinates_n[elements_n == None]}."
-        elements_n = elements_n.astype(int)
+            Nnodes == detectedElements_e.shape[0]
+        ), "Some coordinates were not found in any element."
 
         # get dofs values for each detected elements as a (Nnodes, nPe, dof_n) array
         rows_e = self.Get_assembly_e(dof_n)
