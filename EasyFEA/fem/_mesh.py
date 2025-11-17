@@ -1057,9 +1057,8 @@ def Calc_projector(oldMesh: Mesh, newMesh: Mesh) -> sp.csr_matrix:
         Display.MyPrintError(
             "Warning: distorted elements have been detected in the mesh.\nThey may lead to projection errors!"
         )
-
     detectedNodes, detectedElements_e, connect_e_n, coordo_n = (
-        oldMesh.groupElem.Get_Mapping(newMesh.coord)
+        oldMesh.groupElem.Get_Mapping(newMesh.coord, needCoordinates=True)
     )
     # - detectedNodes : The nodes that have been identified within the detected elements with shape=(Nn,).
     # - detectedElements_e : The elements in which the nodes have been detected with shape=(Ne,).
