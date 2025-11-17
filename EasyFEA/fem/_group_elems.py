@@ -2057,8 +2057,8 @@ class _GroupElem(ABC):
         else:
             raise ValueError("unknown dimensio")
 
-    def _Get_nearby_elements(self, coordinates_n: _types.FloatArray) -> _types.IntArray:
-        """Get nearby elements.
+    def _Get_nearby_nodes(self, coordinates_n: _types.FloatArray) -> _types.IntArray:
+        """Get nearby nodes.
 
         Parameters
         ----------
@@ -2068,7 +2068,7 @@ class _GroupElem(ABC):
         Returns
         -------
         _types.IntArray
-            nearby elements
+            nearby nodes
         """
 
         _params._CheckIsVector(coordinates_n)
@@ -2082,6 +2082,24 @@ class _GroupElem(ABC):
         # Retrieve the closest nodes
         closest_nodes = self.nodes[closest_node_indices]
 
+        return closest_nodes
+
+    def _Get_nearby_elements(self, coordinates_n: _types.FloatArray) -> _types.IntArray:
+        """Get nearby elements.
+
+        Parameters
+        ----------
+        coordinates_n : _types.FloatArray
+            coordinates (n, 3) array
+
+        Returns
+        -------
+        _types.IntArray
+            nearby elements
+        """
+        # Retrieve the closest nodes
+        closest_nodes = self._Get_nearby_nodes(coordinates_n)
+
         # Retrieve the elements associated with these nodes
         all_elements = self.Get_Elements_Nodes(closest_nodes, exclusively=False)
         unique_elements = np.unique(all_elements)
@@ -2092,7 +2110,7 @@ class _GroupElem(ABC):
         self,
         coordinates_n: _types.FloatArray,
         elements_e: Optional[_types.IntArray] = None,
-        needCoordinates=True,
+        needCoordinates=False,
     ) -> tuple[
         _types.IntArray,
         _types.IntArray,
@@ -2123,7 +2141,7 @@ class _GroupElem(ABC):
         self,
         coordinates_n: _types.FloatArray,
         elements_e: _types.IntArray,
-        needCoordinates=True,
+        needCoordinates=False,
     ) -> tuple[
         _types.IntArray,
         _types.IntArray,
@@ -2162,14 +2180,14 @@ class _GroupElem(ABC):
         if needCoordinates:
             # Here we want to know the coordinates of the nodes in
             # the reference element's (ξ,η) coordinate system.
-            coordInElem_n = np.zeros_like(coordinates_n[:, :dim], dtype=float)
+            coordInElem_n = np.ones_like(coordinates_n[:, :dim], dtype=float) * np.inf
+            # Use `np.inf` here to ensure that all coordinates are detected.
 
             # get coordinates in the reference element
             # get groupElem datas
             inDim = self.inDim
-            sysCoord_e = (
-                self._Get_sysCoord_e()
-            )  # basis transformation matrix for each element
+            # basis transformation matrix for each element
+            sysCoord_e = self._Get_sysCoord_e()
             # This matrix can be used to project points with (x, y, z) coordinates into the element's (i, j, k) coordinate system.
             matrixType = MatrixType.mass
             jacobian_e_pg = self.Get_jacobian_e_pg(matrixType, absoluteValues=False)
@@ -2186,8 +2204,6 @@ class _GroupElem(ABC):
         else:
             coordInElem_n = None
 
-        foundedCoords = 0
-
         def Research(e: int):
             # get element's node coordinates (x, y, z)
             coordElem = coord[connect[e]]
@@ -2201,9 +2217,6 @@ class _GroupElem(ABC):
             if idxInElem.size == 0:
                 # here no nodes have been detected in the element
                 return
-
-            nonlocal foundedCoords
-            foundedCoords += idxInElem.size
 
             # Nodes contained within element e.
             nodesInElement = idxNearElem[idxInElem]
@@ -2253,7 +2266,7 @@ class _GroupElem(ABC):
                 # xiP are the n coordinates of the n points in (ξ, η, ζ).
                 coordInElem_n[nodesInElement, :] = np.asarray(xiP)  # type: ignore
 
-        [Research(e) for e in elements_e if foundedCoords < coordinates_n.shape[0]]
+        [Research(e) for e in elements_e]
 
         assert len(detectedElements_e) == len(
             connect_e_n
@@ -2262,6 +2275,14 @@ class _GroupElem(ABC):
         ar_detectedNodes = np.asarray(detectedNodes, dtype=int)
         ar_detectedElements_e = np.asarray(detectedElements_e, dtype=int)
         ar_connect_e_n = np.asarray(connect_e_n, dtype=object)
+
+        if needCoordinates:
+            # make sure each coordinates get detected
+            mask = coordInElem_n == np.inf
+            if np.any(mask):
+                idx = np.unique(np.where(coordInElem_n == np.inf)[0])
+                error = f"No elements were detected at the given coordinates {coordinates_n[idx]}."
+                raise ValueError(error)
 
         return ar_detectedNodes, ar_detectedElements_e, ar_connect_e_n, coordInElem_n
 
