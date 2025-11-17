@@ -9,7 +9,6 @@ Third-Party Libraries:
 - [Scipy](https://scipy.org/) - [BSD-3-Clause license](https://github.com/scipy/scipy/blob/main/LICENSE.txt)
 - [PyVista](https://docs.pyvista.org/version/stable/) - [MIT License](https://github.com/pyvista/pyvista/blob/main/LICENSE)
 - [Numba](https://numba.pydata.org/) - [BSD-2-Clause license](https://github.com/numba/numba/blob/9ce83ef5c35d7f68a547bf2fd1266b9a88d3a00d/LICENSE)
-- [pandas](https://pandas.pydata.org/) - [BSD-3-Clause license](https://github.com/pandas-dev/pandas/blob/main/LICENSE)
 - [imageio](https://pypi.org/project/imageio/) - [BSD-2-Clause license](https://github.com/imageio/imageio/blob/master/LICENSE)
 - [pypardiso](https://pypi.org/project/pypardiso/) - [BSD-3-Clause license](https://github.com/haasad/PyPardiso/blob/master/LICENSE.txt)
 - [PETSc](https://petsc.org/release/) - [BSD-2-Clause license](https://gitlab.com/petsc/petsc/-/blob/main/LICENSE?ref_type=heads)

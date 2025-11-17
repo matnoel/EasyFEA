@@ -103,7 +103,6 @@ EasyFEA uses several libraries, such as NumPy and Gmsh - as such, the following 
 + [`matplotlib`](https://pypi.org/project/matplotlib/) - Plotting package.
 + [`pyvista`](https://pypi.org/project/pyvista/) - Plotting package.
 + [`numba`](https://pypi.org/project/numba/) - Compiling Python code using LLVM.
-+ [`pandas`](https://pypi.org/project/pandas/) (3.9 <= Python <= 3.12) - Powerful data structures for data analysis.
 + [`imageio`](https://pypi.org/project/imageio/) and [`imageio[ffmpeg]`](https://pypi.org/project/imageio-ffmpeg/) - Library for reading and writing a wide range of image, video, scientific, and volumetric data formats.
 + [`meshio`](https://github.com/matnoel/meshio/tree/medit_higher_order_elements) - I/O for many mesh formats.
 
