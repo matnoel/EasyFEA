@@ -193,7 +193,7 @@ class DIC(_IObserver):
         coordPixel[:, 1] = coordPy
 
         # get pixels used in elements with their coordinates
-        pixels, __, connectPixel, coordPixelInElem = mesh.groupElem.Get_Mapping(
+        pixels, _, connectPixel, coordPixelInElem = mesh.groupElem.Get_Mapping(
             coordPixel, needCoordinates=True
         )
         # mean_pixels = np.mean([connectPixel[e].size for e in range(mesh.Ne)])
