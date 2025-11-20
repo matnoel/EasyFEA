@@ -1424,7 +1424,7 @@ class Mesher:
         self._Surfaces(contour, inclusions, elemType, isOrganised)
         self._Additional_Surfaces(2, additionalSurfaces, elemType, isOrganised)
         self._Additional_Lines(2, additionalLines)
-        self._Additional_Points(2, additionalPoints)
+        self._Additional_Points(2, additionalPoints, contour.meshSize)
         # TODO: add contour to refineGeoms by default when adding surfaces, lines or points
         # additionalSurfaces, additionalLines, additionalPoints
         # adding these lines, points or surfaces will probably break the old mesh size conditions.
@@ -1516,7 +1516,7 @@ class Mesher:
         self._Surfaces(contour, inclusions, elemType, isOrganised)
         self._Additional_Surfaces(2, additionalSurfaces, elemType, isOrganised)
         self._Additional_Lines(2, additionalLines)
-        self._Additional_Points(2, additionalPoints)
+        self._Additional_Points(2, additionalPoints, contour.meshSize)
 
         # get created surfaces
         surfaces = [entity[1] for entity in factory.getEntities(2)]  # type: ignore
@@ -1616,7 +1616,7 @@ class Mesher:
         self._Surfaces(contour, inclusions, elemType, isOrganised)
         self._Additional_Surfaces(2, additionalSurfaces, elemType, isOrganised)
         self._Additional_Lines(2, additionalLines)
-        self._Additional_Points(2, additionalPoints)
+        self._Additional_Points(2, additionalPoints, contour.meshSize)
 
         # get created surfaces
         surfaces = [entity[1] for entity in factory.getEntities(2)]  # type: ignore
