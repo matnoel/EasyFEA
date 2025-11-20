@@ -45,8 +45,8 @@ class Field:
 
         self._Set_dofsValues(np.zeros(groupElem.Nn * dof_n))
 
-        self._Set_node(0)
-        self._Set_dof(0)
+        self._Set_current_active_node(0)
+        self._Set_current_active_dof(0)
 
         self.__matrixType = matrixType
 
@@ -79,20 +79,20 @@ class Field:
     def copy(self) -> "Field":
         return copy.deepcopy(self)
 
-    def _Get_node(self) -> int:
+    def _Get_current_active_node(self) -> int:
         """Returns current active node."""
         return self.__node
 
-    def _Set_node(self, node: int):
+    def _Set_current_active_node(self, node: int):
         """Sets current active node."""
         assert 0 <= node < self.groupElem.nPe
         self.__node = node
 
-    def _Get_dof(self) -> int:
+    def _Get_current_active_dof(self) -> int:
         """Returns current active dof."""
         return self.__dof
 
-    def _Set_dof(self, dof: int):
+    def _Set_current_active_dof(self, dof: int):
         """Sets current active node."""
         assert 0 <= dof < self.__dof_n
         self.__dof = dof
@@ -137,7 +137,7 @@ class Field:
 
     def __call__(self) -> FeArray.FeArrayALike:
         """Returns the field as a finite element array."""
-        node = self._Get_node()
+        node = self._Get_current_active_node()
         N_pg = self.groupElem.Get_N_pg(self.__matrixType)
         nPg, _, _ = N_pg.shape
         array = FeArray.asfearray(N_pg[..., node].reshape(1, nPg, 1))
@@ -153,8 +153,8 @@ class Field:
     def grad(self) -> FeArray.FeArrayALike:
         """Returns the gradient of the field."""
         dof_n = self.__dof_n
-        node = self._Get_node()
-        dof = self._Get_dof()
+        node = self._Get_current_active_node()
+        dof = self._Get_current_active_dof()
 
         # get gem matrices
         dN_e_pg = self.groupElem.Get_dN_e_pg(self.__matrixType)

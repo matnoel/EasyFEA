@@ -76,15 +76,15 @@ class BiLinearForm(_Form):
         for i in dofs:
 
             # activate node and dof for u
-            u._Set_node(nodes[i])
-            u._Set_dof(i % dof_n)
+            u._Set_current_active_node(nodes[i])
+            u._Set_current_active_dof(i % dof_n)
 
             # loop over v dofs
             for j in dofs:
 
                 # activate node and dof for v
-                v._Set_node(nodes[j])
-                v._Set_dof(j % dof_n)
+                v._Set_current_active_node(nodes[j])
+                v._Set_current_active_dof(j % dof_n)
 
                 # get (Ne, nPg) array
                 values_e_pg = form(u, v)
@@ -159,8 +159,8 @@ class LinearForm(_Form):
         for i in dofs:
 
             # activate node and dof for v
-            v._Set_node(nodes[i])
-            v._Set_dof(i % dof_n)
+            v._Set_current_active_node(nodes[i])
+            v._Set_current_active_dof(i % dof_n)
 
             # get (Ne, nPg) array
             values_e_pg = form(v)
