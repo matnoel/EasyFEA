@@ -2,6 +2,16 @@
 
 This document describes the changes made to the project.
 
+## 1.6.2 (November 20, 2025):
+
+- Updated homogenization examples.
+- Improved documentation.
+- Removed pandas dependency.
+- Enhanced `Tic.Plot_History` functions.
+- Updated the `mesh.Evaluate_dofsValues_at_coordinates` function.
+- Refactored mesh functions in `_gmsh_interface.py`.
+- Updated functions in `EasyFEA/fem/_forms.py` used by `EasyFEA/simulations/_weak_forms.py`.
+
 ## 1.6.1 (November 9, 2025):
 
 - Updated the thermal simulation description.
