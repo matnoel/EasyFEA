@@ -569,7 +569,7 @@ class _Simu(_IObserver, _params.Updatable, ABC):
     ) -> tuple[
         sparse.csr_matrix, sparse.csr_matrix, sparse.csr_matrix, sparse.csr_matrix
     ]:
-        """Assembles the matrix system K u + C v + M a = F for the given problemType."""
+        """Assemble the matrix system K u + C v + M a = F for the given problemType."""
         # Data
         mesh = self.mesh
         dof_n = self.Get_dof_n(problemType)
