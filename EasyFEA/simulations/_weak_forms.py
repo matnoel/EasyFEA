@@ -121,7 +121,7 @@ class WeakFormSimu(_Simu):
         if computeK is None:
             K_e = None
         else:
-            K_e = computeK._assemble(field)
+            K_e = computeK.Integrate_e(field)
 
         tic.Tac("Matrix", "Compute the local K matrix.", self._verbosity)
 
@@ -129,7 +129,7 @@ class WeakFormSimu(_Simu):
         if computeC is None:
             C_e = None
         else:
-            C_e = computeC._assemble(field)
+            C_e = computeC.Integrate_e(field)
 
         tic.Tac("Matrix", "Compute the local C matrix.", self._verbosity)
 
@@ -137,7 +137,7 @@ class WeakFormSimu(_Simu):
         if computeM is None:
             M_e = None
         else:
-            M_e = computeM._assemble(field)
+            M_e = computeM.Integrate_e(field)
 
         tic.Tac("Matrix", "Compute the local M matrix.", self._verbosity)
 
@@ -145,7 +145,7 @@ class WeakFormSimu(_Simu):
         if computeF is None:
             F_e = None
         else:
-            F_e = computeF._assemble(field)
+            F_e = computeF.Integrate_e(field)
 
         tic.Tac("Matrix", "Compute the local F vector.", self._verbosity)
 

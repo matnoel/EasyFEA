@@ -7,6 +7,7 @@
 from abc import ABC, abstractmethod
 from typing import Callable, TYPE_CHECKING
 import numpy as np
+from scipy.sparse import csr_matrix
 
 # from fem
 from ._linalg import FeArray
@@ -25,8 +26,8 @@ class _Form(ABC):
         return self._form(*args, **kwds)
 
     @abstractmethod
-    def _assemble(self, field: "Field") -> np.ndarray:
-        """Assemble de form with the field.
+    def Integrate_e(self, field: "Field") -> np.ndarray:
+        """Integrates de form with the field on elements.
 
         Parameters
         ----------
@@ -36,14 +37,18 @@ class _Form(ABC):
         Returns
         -------
         np.ndarray
-            the integrated numpy array
+            the integrated (Ne, ...) numpy array
         """
+        pass
+
+    @abstractmethod
+    def Assemble(self, field: "Field") -> csr_matrix:
         pass
 
 
 class BiLinearForm(_Form):
 
-    def _assemble(self, field):
+    def Integrate_e(self, field):
 
         # get field data
         dof_n = field.dof_n
@@ -92,10 +97,42 @@ class BiLinearForm(_Form):
 
         return data
 
+    def Assemble(self, field) -> csr_matrix:
+        """Assemble de form with the field.
+
+        Parameters
+        ----------
+        field : Field
+            field
+
+        Returns
+        -------
+        csr_matrix
+            the assembled (Nn * dof_n, Nn * dof_n) sparse matrix.
+        """
+
+        # get field data
+        dof_n = field.dof_n
+        groupElem = field.groupElem
+
+        # get values
+        values = self.Integrate_e(field=field).ravel()
+        rows = groupElem.Get_rowsVector_e(dof_n).ravel()
+        columns = groupElem.Get_columnsVector_e(dof_n).ravel()
+
+        # get shape
+        Ndof = groupElem.Nn * dof_n
+        shape = (Ndof, Ndof)
+
+        assert values.size == rows.size, f"Not enough data to fill a {shape} matrix."
+        matrix = csr_matrix((values.ravel(), (rows, columns)), shape=shape)
+
+        return matrix
+
 
 class LinearForm(_Form):
 
-    def _assemble(self, field):
+    def Integrate_e(self, field):
 
         # get field data
         dof_n = field.dof_n
@@ -135,3 +172,35 @@ class LinearForm(_Form):
             data[:, i] = values_e
 
         return data
+
+    def Assemble(self, field) -> csr_matrix:
+        """Assemble de form with the field.
+
+        Parameters
+        ----------
+        field : Field
+            field
+
+        Returns
+        -------
+        csr_matrix
+            the assembled (Nn * dof_n, 1) sparse vector.
+        """
+
+        # get field data
+        dof_n = field.dof_n
+        groupElem = field.groupElem
+
+        # get values
+        values = self.Integrate_e(field=field).ravel()
+        rows = groupElem.Get_rowsVector_e(dof_n).ravel()
+        columns = np.ones_like(rows)
+
+        # get shape
+        Ndof = groupElem.Nn * dof_n
+        shape = (Ndof, 1)
+
+        assert values.size == rows.size, f"Not enough data to fill a {shape} vector."
+        matrix = csr_matrix((values.ravel(), (rows, columns)), shape=shape)
+
+        return matrix
