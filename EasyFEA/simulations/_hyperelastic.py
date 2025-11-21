@@ -321,11 +321,9 @@ class HyperElasticSimu(_Simu):
 
             # Element average
             if "S" in result:
-                S_e_pg = self._Calc_SecondPiolaKirchhoff()
-                val_e = S_e_pg.mean(1)
+                values_e_pg = self._Calc_SecondPiolaKirchhoff()
             elif "E" in result:
-                E_e_pg = self._Calc_GreenLagrange()
-                val_e = E_e_pg.mean(1)
+                values_e_pg = self._Calc_GreenLagrange()
             else:
                 raise Exception("Wrong option")
 
@@ -335,7 +333,8 @@ class HyperElasticSimu(_Simu):
                 else result[-2:]
             )
 
-            values = Result_in_Strain_or_Stress_field(val_e, res, self.material.coef)
+            coef = self.material.coef
+            values = Result_in_Strain_or_Stress_field(values_e_pg, res, coef).mean(1)
 
         if not isinstance(values, np.ndarray):
             Display.MyPrintError("This result option is not implemented yet.")

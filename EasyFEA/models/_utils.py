@@ -357,14 +357,14 @@ def Project_Kelvin(
 
 
 def Result_in_Strain_or_Stress_field(
-    field_e: _types.FloatArray, result: str, coef=np.sqrt(2)
+    field_e_pg: FeArray, result: str, coef=np.sqrt(2)
 ) -> _types.FloatArray:
     """Extracts a specific result from a 2D or 3D strain or stress field.
 
     Parameters
     ----------
-    field_e : _types.FloatArray
-        Strain or stress field in each element.
+    field_e_pg : _types.FloatArray
+        Strain or stress field in each element and gauss points.
     result : str
         Desired result/value to extract:\n
             2D: [xx, yy, xy, vm, Strain, Stress] \n
@@ -378,33 +378,34 @@ def Result_in_Strain_or_Stress_field(
         The extracted field corresponding to the specified result.
     """
 
-    field_e = np.asarray(field_e)
+    assert isinstance(field_e_pg, FeArray), "must be a FeArray"
+    assert field_e_pg._ndim == 1, "must be a vector"
 
-    Ne = field_e.shape[0]
+    Ne, nPg = field_e_pg.shape[:2]
 
-    if field_e.shape == (Ne, 3):
+    if field_e_pg.shape == (Ne, nPg, 3):
         dim = 2
-    elif field_e.shape == (Ne, 6):
+    elif field_e_pg.shape == (Ne, nPg, 6):
         dim = 3
     else:
-        raise Exception("field_e must be of shape (Ne, 3) or (Ne, 6)")
+        raise Exception("field_e_pg must be of shape (Ne, nPg, 3) or (Ne, nPg, 6)")
 
     if dim == 2:
         # rescale and get values
-        field_e[:, 2] *= 1 / coef
-        xx_e, yy_e, xy_e = field_e.T
+        field_e_pg[:, :, 2] *= 1 / coef
+        xx, yy, xy = [np.asarray(field_e_pg[:, :, i]) for i in range(3)]
 
         if "xx" in result:
-            result_e = xx_e
+            result_e_pg = xx
         elif "yy" in result:
-            result_e = yy_e
+            result_e_pg = yy
         elif "xy" in result:
-            result_e = xy_e
+            result_e_pg = xy
         elif "vm" in result:
-            val_vm_e = np.sqrt(xx_e**2 + yy_e**2 - xx_e * yy_e + 3 * xy_e**2)
-            result_e = val_vm_e
+            vm = np.sqrt(xx**2 + yy**2 - xx * yy + 3 * xy**2)
+            result_e_pg = vm
         elif result in ("Strain", "Stress", "Green-Lagrange", "Piola-Kirchhoff"):
-            result_e = field_e
+            result_e_pg = field_e_pg
         else:
             raise Exception(
                 "result must be in [xx, yy, xy, vm, Strain, Stress, Green-Lagrange, Piola-Kirchhoff]"
@@ -412,40 +413,40 @@ def Result_in_Strain_or_Stress_field(
 
     elif dim == 3:
         # rescale and get values
-        field_e[:, 3:] *= 1 / coef
-        xx_e, yy_e, zz_e, yz_e, xz_e, xy_e = field_e.T
+        field_e_pg[:, :, 3:] *= 1 / coef
+        xx, yy, zz, yz, xz, xy = [np.asarray(field_e_pg[:, :, i]) for i in range(6)]
 
         if "xx" in result:
-            result_e = xx_e
+            result_e_pg = xx
         elif "yy" in result:
-            result_e = yy_e
+            result_e_pg = yy
         elif "zz" in result:
-            result_e = zz_e
+            result_e_pg = zz
         elif "yz" in result:
-            result_e = yz_e
+            result_e_pg = yz
         elif "xz" in result:
-            result_e = xz_e
+            result_e_pg = xz
         elif "xy" in result:
-            result_e = xy_e
+            result_e_pg = xy
         elif "vm" in result:
-            val_vm_e = np.sqrt(
+            vm = np.sqrt(
                 (
-                    (xx_e - yy_e) ** 2
-                    + (yy_e - zz_e) ** 2
-                    + (zz_e - xx_e) ** 2
-                    + 6 * (xy_e**2 + yz_e**2 + xz_e**2)
+                    (xx - yy) ** 2
+                    + (yy - zz) ** 2
+                    + (zz - xx) ** 2
+                    + 6 * (xy**2 + yz**2 + xz**2)
                 )
                 / 2
             )
-            result_e = val_vm_e
+            result_e_pg = vm
         elif result in ("Strain", "Stress", "Green-Lagrange", "Piola-Kirchhoff"):
-            result_e = field_e
+            result_e_pg = field_e_pg
         else:
             raise Exception(
                 "result must be in [xx, yy, zz, yz, xz, xy, vm, Strain, Stress, Green-Lagrange, Piola-Kirchhoff]"
             )
 
-    return result_e  # type: ignore
+    return np.asarray(result_e_pg)  # type: ignore
 
 
 def Get_Pmat(axis_1: _types.FloatArray, axis_2: _types.FloatArray, useMandel=True):

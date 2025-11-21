@@ -656,15 +656,15 @@ class PhaseFieldSimu(_Simu):
 
             # Element average
             if "S" in result and result != "Strain":
-                val_e = Sigma_e_pg.mean(1)
+                values_e_pg = Sigma_e_pg
             elif "E" in result or result == "Strain":
-                val_e = Epsilon_e_pg.mean(1)
+                values_e_pg = Epsilon_e_pg
             else:
                 raise Exception("Wrong option")
 
             res = result if result in ["Strain", "Stress"] else result[-2:]
 
-            values = Result_in_Strain_or_Stress_field(val_e, res, coef)  # type: ignore [assignment]
+            values = Result_in_Strain_or_Stress_field(values_e_pg, res, coef).mean(1)  # type: ignore [assignment]
 
         if not isinstance(values, np.ndarray):
             Display.MyPrintError("This result option is not implemented yet.")
