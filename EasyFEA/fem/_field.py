@@ -6,9 +6,10 @@
 
 import copy
 import numpy as np
+from typing import Callable
 
 # from fem
-from . import FeArray, _GroupElem, MatrixType
+from . import FeArray, _GroupElem, MatrixType, Mesh
 from ..utilities import _types
 
 
@@ -49,11 +50,21 @@ class Field:
         self._Set_current_active_dof(0)
 
         self.__matrixType = matrixType
+        self.__is_currently_evaluated = False
+        """Indicates that the object is currently being evaluated."""
 
     @property
     def groupElem(self) -> _GroupElem:
         """Group of elements."""
         return self.__groupElem
+
+    def __Get_groupElem_as_mesh(self) -> Mesh:
+        try:
+            return self.__mesh
+        except AttributeError:
+            groupElem = self.groupElem
+            self.__mesh = Mesh({groupElem.elemType: groupElem})
+            return self.__mesh
 
     @property
     def dof_n(self) -> int:
@@ -102,7 +113,7 @@ class Field:
 
     def _Set_dofsValues(self, values: _types.FloatArray):
         Ndof = self.__groupElem.Nn * self.__dof_n
-        assert values.ndim == 1 and values.size == Ndof, f"must be a {Ndof} array."
+        assert values.ndim == 1 and values.size == Ndof, f"must be a ({Ndof},) array."
         self.__dofsValues = values
 
     def __mul__(self, other) -> FeArray.FeArrayALike:
@@ -152,7 +163,14 @@ class Field:
     @property
     def grad(self) -> FeArray.FeArrayALike:
         """Returns the gradient of the field."""
+
         dof_n = self.__dof_n
+
+        if self.__is_currently_evaluated:
+            return self.groupElem.Get_Gradient_e_pg(
+                self._Get_dofsValues(), self.matrixType
+            )[..., :dof_n, :dof_n]
+
         node = self._Get_current_active_node()
         dof = self._Get_current_active_dof()
 
@@ -169,6 +187,57 @@ class Field:
             newArray[..., :, dof] = array
             return newArray
 
+    def Evaluate_e(
+        self,
+        function: Callable[["Field"], FeArray],
+        dofsValues: np.ndarray,
+        returnMeanValues: bool = True,
+    ) -> np.ndarray:
+        """Evaluates the given function for the provided field over the elements.
+
+        Parameters
+        ----------
+        function : Callable[[Field], FeArray]
+            A function that takes a `Field` as input and returns a `FeArray`.
+        dofsValues : np.ndarray
+            Array of shape (Nn * field.dof_n,) containing the degrees of freedom values.
+        returnMeanValues : bool, optional
+            If True, returns the mean of the values at each element. Default is True.
+        """
+
+        # set dofsValues
+        self._Set_dofsValues(np.asarray(dofsValues, dtype=float).ravel())
+
+        self.__is_currently_evaluated = True
+        values_e_pg = function(self)
+        assert isinstance(values_e_pg, FeArray), "must be a FeArray"
+        self.__is_currently_evaluated = False
+
+        if returnMeanValues:
+            return values_e_pg.mean(1)
+        else:
+            return values_e_pg
+
+    def Evaluate_n(
+        self, function: Callable[["Field"], FeArray], dofsValues: np.ndarray
+    ) -> np.ndarray:
+        """Evaluates the given function for the provided field over the nodes.
+
+        Parameters
+        ----------
+        function : Callable[[Field], FeArray]
+            A function that takes a `Field` as input and returns a `FeArray`.
+        dofsValues : np.ndarray
+            Array of shape (Nn * field.dof_n,) containing the degrees of freedom values.
+        """
+
+        values_e = self.Evaluate_e(function, dofsValues, returnMeanValues=True)
+
+        mesh = self.__Get_groupElem_as_mesh()
+
+        return mesh.Get_Node_Values(values_e)
+
 
 def Sym_Grad(u: Field) -> FeArray.FeArrayALike:
-    return 0.5 * (u.grad.T + u.grad)
+    grad = u.grad
+    return 0.5 * (grad.T + grad)
