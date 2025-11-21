@@ -90,4 +90,19 @@ if __name__ == "__main__":
 
     Display.Plot_Result(simu, "uy", 10, plotMesh=True)
 
+    def von_mises_stress(u):
+        Stress = S(u)
+        if dim == 2:
+            xx = Stress[..., 0, 0]
+            yy = Stress[..., 1, 1]
+            xy = Stress[..., 0, 1]
+            return np.sqrt(xx**2 + yy**2 - xx * yy + 3 * xy**2)
+        else:
+            Stress_d = Stress - 1 / 3 * Trace(Stress) * np.eye(3)
+            return np.sqrt(3 / 2 * Stress_d.ddot(Stress_d))
+
+    Svm_e = field.Evaluate_e(von_mises_stress, simu.u)
+
+    Display.Plot_Result(simu, Svm_e, plotMesh=True, ncolors=11)
+
     Display.plt.show()
