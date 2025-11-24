@@ -105,8 +105,15 @@ def Plot_Result(
     dimElem = mesh.dim  # Dimension of displayed elements
     groupElem = mesh.groupElem
 
-    # Don't know how to display nodal values on lines
-    nodeValues = False if dimElem == 1 else nodeValues
+    if dimElem == 1:
+        # Don't know how to display nodal values on lines
+        nodeValues = False  # do not modify
+    elif dimElem == 3:
+        # When mesh use 3D elements, results are displayed only on 2D elements.
+        # To display values on 2D elements, we first need to know the values at 3D nodes.
+        nodeValues = True  # do not modify
+    else:
+        nodeValues
 
     # Get values
     values = _Get_values(simu, mesh, result, nodeValues) * coef
@@ -118,10 +125,6 @@ def Plot_Result(
     ax, inDim = __Get_axis(ax, inDim)
 
     if inDim == 3:
-        # When mesh use 3D elements, results are displayed only on 2D elements.
-        # To display values on 2D elements, we first need to know the values at 3D nodes.
-        nodeValues = True if dimElem == 3 else nodeValues  # do not modify
-
         # If the mesh is a 3D mesh, only the 2D elements of the mesh will be displayed.
         # A 3D mesh can contain several types of 2D element.
         # For example PRISM6 mesh use TRI3 and QUAD4 at the same time
