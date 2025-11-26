@@ -122,7 +122,9 @@ def Save_simu(
 
         rmTime = Tic.Get_Remaining_Time(i, iterations.size - 1, times[-1])
 
-        Display.MyPrint(f"Save_simu {i}/{iterations.size - 1} {rmTime}     ", end="\r")
+        Display.MyPrint(
+            f"Generate paraview {i}/{iterations.size - 1} {rmTime}     ", end="\r"
+        )
 
     print("\n")
 
