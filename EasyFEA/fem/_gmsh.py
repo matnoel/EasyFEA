@@ -1979,6 +1979,28 @@ class Mesher:
 
         return coord, changes
 
+    def __Get_elements_data(
+        self, gmshId: int, changes: np.ndarray, tag: int = -1
+    ) -> tuple[_types.IntArray, _types.IntArray, _types.IntArray]:
+        """Returns elements, connect, nodes"""
+
+        # get element numbers and connection matrix
+        elementTags, nodeTags = gmsh.model.mesh.getElementsByType(gmshId)  # type: ignore
+        # elementTags and nodeTags starts at 0
+        elementTags -= 1  # tags for each elements
+        nodeTags -= 1  # connection matrix in shape (Ne * nPe)
+        nodeTags = changes[nodeTags]  # Apply changes to correct jumps in nodes
+
+        # Elements
+        Ne = elementTags.shape[0]  # number of elements
+        nPe = GroupElemFactory.Get_ElemInFos(gmshId)[1]  # nodes per element
+        connect = nodeTags.reshape(Ne, nPe)  # creates connect matrix
+
+        # Nodes
+        nodes = np.asarray(list(set(nodeTags)), dtype=int)  # makes nodeTags unique
+
+        return elementTags, connect, nodes
+
     def _Mesh_Get_Mesh(self, coef: float = 1.0) -> Mesh:
         """Creates the mesh object from the created gmsh mesh."""
 
@@ -1989,6 +2011,7 @@ class Mesher:
         elementTypes = gmsh.model.mesh.getElementTypes()
 
         coord, changes = self.__Get_coord_and_changes()
+        Ncoords = coord.shape[0]
 
         # Apply coef to scale the coordinates
         coord *= coef
@@ -1996,22 +2019,14 @@ class Mesher:
         knownDims = []  # known dimensions in the mesh
         # For each element type
         for gmshId in elementTypes:
-            # get element numbers and connection matrix
-            elementTags, nodeTags = gmsh.model.mesh.getElementsByType(gmshId)  # type: ignore
-            # elementTags and nodeTags starts at 0
-            elementTags -= 1  # tags for each elements
-            nodeTags -= 1  # connection matrix in shape (Ne * nPe)
-            nodeTags = changes[nodeTags]  # Apply changes to correct jumps in nodes
 
-            # Elements
-            Ne = elementTags.shape[0]  # number of elements
-            nPe = GroupElemFactory.Get_ElemInFos(gmshId)[1]  # nodes per element
-            connect = nodeTags.reshape(Ne, nPe)  # creates connect matrix
+            # get connect and nodes for the gmshId
+            _, connect, nodes = self.__Get_elements_data(gmshId, changes)
 
-            # Nodes
-            nodes = np.asarray(list(set(nodeTags)), dtype=int)  # makes nodeTags unique
-            Nmax = nodes.max()  # checks that max node numbers can be reached in coord
-            assert Nmax <= (coord.shape[0] - 1), f"Nodes {Nmax} doesn't exist in coord"
+            # Ensure that every node has a corresponding entry in the coordinates array.
+            assert (
+                nodes.max() + 1 <= Ncoords
+            ), f"Nodes {nodes.max()} doesn't exist in coord"
 
             # Element group creation
             groupElem = GroupElemFactory._Create(gmshId, connect, coord, nodes)
