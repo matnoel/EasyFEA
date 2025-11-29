@@ -1939,15 +1939,15 @@ class Mesher:
             gmsh.write(msh)
             tic.Tac("Mesh", "Saving .msh", self.__verbosity)
 
-    def _Mesh_Get_Mesh(self, coef: float = 1.0) -> Mesh:
-        """Creates the mesh object from the created gmsh mesh."""
+    def __Get_coord_and_changes(self) -> tuple[_types.FloatArray, _types.IntArray]:
+        """Returns coord and changes.\n
 
-        tic = Tic()
+        - coord is a (Nn, 3) array storing the coordinates of Nn nodes in 3D space.
+        - changes is a mapping array used to correct discontinuities in node numbering,
+        such that correctedNodes = changes[nodes]
+        """
 
-        dict_groupElem: dict[ElemType, "_GroupElem"] = {}
-        meshDim = gmsh.model.getDimension()
-        elementTypes = gmsh.model.mesh.getElementTypes()
-        nodes, coord, __ = gmsh.model.mesh.getNodes()  # type: ignore
+        nodes, coord, _ = gmsh.model.mesh.getNodes()  # type: ignore
 
         nodes = np.array(nodes, dtype=int) - 1  # node numbers
         Nn = nodes.shape[0]  # Number of nodes
@@ -1976,6 +1976,19 @@ class Mesher:
 
         # The coordinate matrix of all nodes used in the mesh is constructed
         coord = coord.reshape(-1, 3)[sortedIdx, :]
+
+        return coord, changes
+
+    def _Mesh_Get_Mesh(self, coef: float = 1.0) -> Mesh:
+        """Creates the mesh object from the created gmsh mesh."""
+
+        tic = Tic()
+
+        dict_groupElem: dict[ElemType, "_GroupElem"] = {}
+        meshDim = gmsh.model.getDimension()
+        elementTypes = gmsh.model.mesh.getElementTypes()
+
+        coord, changes = self.__Get_coord_and_changes()
 
         # Apply coef to scale the coordinates
         coord *= coef
