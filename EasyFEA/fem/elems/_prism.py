@@ -31,13 +31,9 @@ class PRISM6(_GroupElem):
     #     1-------------2
 
     def __init__(
-        self,
-        gmshId: int,
-        connect: _types.IntArray,
-        coordGlob: _types.FloatArray,
-        nodes: _types.IntArray,
+        self, gmshId: int, connect: _types.IntArray, coordGlob: _types.FloatArray
     ):
-        super().__init__(gmshId, connect, coordGlob, nodes)
+        super().__init__(gmshId, connect, coordGlob)
 
     @property
     def origin(self) -> list[int]:
@@ -160,13 +156,9 @@ class PRISM15(_GroupElem):
     #     1------9------2
 
     def __init__(
-        self,
-        gmshId: int,
-        connect: _types.IntArray,
-        coordGlob: _types.FloatArray,
-        nodes: _types.IntArray,
+        self, gmshId: int, connect: _types.IntArray, coordGlob: _types.FloatArray
     ):
-        super().__init__(gmshId, connect, coordGlob, nodes)
+        super().__init__(gmshId, connect, coordGlob)
 
     @property
     def origin(self) -> list[int]:
@@ -425,13 +417,9 @@ class PRISM18(_GroupElem):
     #     1------9------2
 
     def __init__(
-        self,
-        gmshId: int,
-        connect: _types.IntArray,
-        coordGlob: _types.FloatArray,
-        nodes: _types.IntArray,
+        self, gmshId: int, connect: _types.IntArray, coordGlob: _types.FloatArray
     ):
-        super().__init__(gmshId, connect, coordGlob, nodes)
+        super().__init__(gmshId, connect, coordGlob)
 
     @property
     def origin(self) -> list[int]:

@@ -41,6 +41,13 @@ if TYPE_CHECKING:
     from ..models._beam import _Beam
     from ..simulations._simu import _Simu
 
+try:
+    from mpi4py import MPI
+
+    CAN_USE_MPI = True
+except ModuleNotFoundError:
+    CAN_USE_MPI = False
+
 # types
 GeomCompatible = Union[_Geom, Circle, Domain, Points, Contour]
 ContourCompatible = Union[Line, CircleArc, Points]
@@ -1979,39 +1986,81 @@ class Mesher:
 
         return coord, changes
 
-    def __Get_elements_data(
+    def __Get_connect(
         self, gmshId: int, changes: np.ndarray, tag: int = -1
     ) -> tuple[_types.IntArray, _types.IntArray, _types.IntArray]:
-        """Returns elements, connect, nodes"""
+        """Returns connect"""
 
         # get element numbers and connection matrix
-        elementTags, nodeTags = gmsh.model.mesh.getElementsByType(gmshId)  # type: ignore
-        # elementTags and nodeTags starts at 0
-        elementTags -= 1  # tags for each elements
-        nodeTags -= 1  # connection matrix in shape (Ne * nPe)
-        nodeTags = changes[nodeTags]  # Apply changes to correct jumps in nodes
+        elementTags, nodeTags = gmsh.model.mesh.getElementsByType(gmshId, tag=tag)  # type: ignore
+        nodeTags -= 1  # connection matrix in shape (Ne * nPe) and starts at 0
+        # Apply changes to correct jumps in nodes
+        # Ensure that every node has corresponding coordinates.
+        nodeTags = changes[nodeTags]  # DON'T REMOVE !!!!
 
         # Elements
         Ne = elementTags.shape[0]  # number of elements
         nPe = GroupElemFactory.Get_ElemInFos(gmshId)[1]  # nodes per element
         connect = nodeTags.reshape(Ne, nPe)  # creates connect matrix
 
-        # Nodes
-        nodes = np.asarray(list(set(nodeTags)), dtype=int)  # makes nodeTags unique
+        return connect
 
-        return elementTags, connect, nodes
+    def __Get_groupElem_with_mpi(
+        self, gmshId: int, connect: np.ndarray, coord: np.ndarray
+    ) -> "_GroupElem":
+
+        Ne = connect.shape[0]
+
+        # get type's dim
+        dim = gmsh.model.mesh.getElementProperties(gmshId)[1]
+
+        # get elements
+        elements = gmsh.model.mesh.getElementsByType(gmshId)[0] - 1
+
+        # get mapping elements to detect element position in the connect array
+        map_elements = np.ones(elements.max() + 1, dtype=int) * -1
+        map_elements[elements] = np.arange(elements.size)
+
+        # get connect for each rank
+        dict_rank_elements: dict[int : set[int]] = {}
+        for dim, tag in gmsh.model.getEntities(dim):
+            ranks = gmsh.model.getPartitions(dim, tag) - 1  # starts at 0
+            if len(ranks) > 0:
+                # get elements used by the tag
+                elementTags = gmsh.model.mesh.getElementsByType(gmshId, tag=tag)[0] - 1
+                # get lines to access elements in connect matrix
+                idx = map_elements[elementTags]
+                for rank in ranks:
+                    dict_rank_elements.setdefault(rank, set()).update(idx)
+
+        # get connect for the actual rank
+        idx_r = list(dict_rank_elements[MPI.COMM_WORLD.Get_rank()])
+        connect = connect[idx_r]
+
+        groupElem = GroupElemFactory._Create(gmshId, connect, coord)
+
+        # attribute global elements positions in the global mesh
+        elementsGlob = np.arange(Ne)[idx_r]
+        groupElem._Set_elementsGlob(elementsGlob)
+
+        return groupElem
 
     def _Mesh_Get_Mesh(self, coef: float = 1.0) -> Mesh:
         """Creates the mesh object from the created gmsh mesh."""
 
         tic = Tic()
 
+        useMpi = False  # Set to True for debugging purposes
+        if CAN_USE_MPI:
+            Nrank = MPI.COMM_WORLD.Get_size()
+            useMpi = Nrank > 1
+            gmsh.model.mesh.partition(Nrank)
+
         dict_groupElem: dict[ElemType, "_GroupElem"] = {}
         meshDim = gmsh.model.getDimension()
         elementTypes = gmsh.model.mesh.getElementTypes()
 
         coord, changes = self.__Get_coord_and_changes()
-        Ncoords = coord.shape[0]
 
         # Apply coef to scale the coordinates
         coord *= coef
@@ -2021,15 +2070,14 @@ class Mesher:
         for gmshId in elementTypes:
 
             # get connect and nodes for the gmshId
-            _, connect, nodes = self.__Get_elements_data(gmshId, changes)
-
-            # Ensure that every node has a corresponding entry in the coordinates array.
-            assert (
-                nodes.max() + 1 <= Ncoords
-            ), f"Nodes {nodes.max()} doesn't exist in coord"
+            connect = self.__Get_connect(gmshId, changes)
 
             # Element group creation
-            groupElem = GroupElemFactory._Create(gmshId, connect, coord, nodes)
+            if useMpi:
+                groupElem = self.__Get_groupElem_with_mpi(gmshId, connect, coord)
+            else:
+                groupElem = GroupElemFactory._Create(gmshId, connect, coord)
+            # Note that each group of elements contains all coordinates.
 
             # We add the element group to the dictionary containing all groups
             dict_groupElem[groupElem.elemType] = groupElem
@@ -2038,7 +2086,9 @@ class Mesher:
             if groupElem.dim in knownDims and groupElem.dim == meshDim:
                 recoElement = "Triangular" if meshDim == 2 else "Tetrahedron"
                 raise Exception(
-                    f"Importing the mesh from gmsh is impossible because several {meshDim}D elements have been detected.\nTry out with {recoElement} elements.\n You can also try to reduce the mesh size"
+                    f"Importing the mesh from gmsh is impossible because several {meshDim}D elements have been detected.\n\
+                    Try out with {recoElement} elements.\n\
+                    You can also try to reduce the mesh size"
                 )
                 # TODO make it work ?
                 # Can be complicated especially in the creation of elemental matrices and assembly
@@ -2055,12 +2105,11 @@ class Mesher:
                 tag = group[1]
                 name = gmsh.model.getPhysicalName(dim, tag)
 
-                nodeTags, __ = gmsh.model.mesh.getNodesForPhysicalGroup(dim, tag)
+                nodeTags = gmsh.model.mesh.getNodesForPhysicalGroup(dim, tag)[0] - 1
 
                 # If no node has been retrieved, move on to the nextPhysics group.
-                if len(nodeTags) == 0:
+                if nodeTags.size == 0:
                     return
-                nodeTags = np.array(nodeTags, dtype=int) - 1
 
                 # nodes associated with the group
                 nodesGroup = changes[nodeTags]  # Apply change
@@ -2072,6 +2121,14 @@ class Mesher:
         tic.Tac("Mesh", "Construct mesh object", self.__verbosity)
 
         gmsh.finalize()
+
+        # Ensure that the underlying private `__coordGlob` object is unique across all element groups.
+        list_coordGlob_id = [
+            id(groupElem.__getattribute__("_GroupElem__coordGlob"))
+            for groupElem in dict_groupElem.values()
+        ]
+        error = "The underlying private `__coordGlob` object must be unique across all element groups."
+        assert len(np.unique(list_coordGlob_id)) == 1, error
 
         mesh = Mesh(dict_groupElem, self.__verbosity)
 

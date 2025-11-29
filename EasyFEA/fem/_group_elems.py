@@ -44,11 +44,7 @@ class _GroupElem(ABC):
     """The `_GroupElem` base class, from which all element types inherit."""
 
     def __init__(
-        self,
-        gmshId: int,
-        connect: _types.IntArray,
-        coordGlob: _types.FloatArray,
-        nodes: _types.IntArray,
+        self, gmshId: int, connect: _types.IntArray, coordGlob: _types.FloatArray
     ):
         """Creates a goup of elements.
 
@@ -60,8 +56,6 @@ class _GroupElem(ABC):
             connectivity matrix
         coordGlob : _types.FloatArray
             coordinate matrix (contains all mesh coordinates)
-        nodes : _types.IntArray
-            nodes used by element group
         """
 
         self.__gmshId = gmshId
@@ -86,14 +80,22 @@ class _GroupElem(ABC):
             ), "connect must be a (Ne, nPe) array."
         self.__connect = connect
         self.__connect_n_e: sparse.csr_matrix = None
+        # Sets the default positions of elements in the global mesh.
+        self._Set_elementsGlob(self.elements)
 
-        # Nodes
+        # Ensure coordGlob is a (Nn, 3) array
         if coordGlob.size != 0:  # coordGlob can be empty
             assert (
                 coordGlob.ndim == 2 and coordGlob.shape[1] == 3
             ), "Must be a (Nn, 3) array."
         self.__coordGlob = coordGlob
-        assert nodes.ndim == 1 and nodes.size <= coordGlob.shape[0]
+
+        # Nodes
+        nodes = np.asarray(list(set(connect.ravel())), dtype=int)
+        Ncoords = coordGlob.shape[0]
+        assert (
+            nodes.max() + 1 <= Ncoords
+        ), f"Nodes {nodes[nodes > Ncoords]} has not corresponding entry in the coordGlob array."
         self.__nodes = nodes
 
         # dictionnary associated with tags on elements or nodes
@@ -168,6 +170,16 @@ class _GroupElem(ABC):
     def elements(self) -> _types.IntArray:
         """elements"""
         return np.arange(self.__connect.shape[0], dtype=int)
+
+    @property
+    def elementsGlob(self) -> _types.IntArray:
+        """Positions of elements in the global mesh."""
+        return self.__elementsGlob.copy()
+
+    def _Set_elementsGlob(self, values: _types.IntArray) -> None:
+        """Sets the positions of elements in the global mesh."""
+        assert values.size == self.__connect.shape[0], "Must be a (Ne,) array."
+        self.__elementsGlob = values.astype(int)
 
     @property
     def Nn(self) -> int:
@@ -2420,10 +2432,7 @@ class GroupElemFactory:
 
     @staticmethod
     def _Create(
-        gmshId: int,
-        connect: _types.IntArray,
-        coordGlob: _types.FloatArray,
-        nodes: _types.IntArray,
+        gmshId: int, connect: _types.IntArray, coordGlob: _types.FloatArray
     ) -> _GroupElem:
         """Creates an element group.
 
@@ -2435,8 +2444,6 @@ class GroupElemFactory:
             connection matrix storing nodes for each element (Ne, nPe)
         coordGlob : _types.FloatArray
             nodes coordinates
-        nodes : _types.IntArray
-            nodes used by the element group
 
         Returns
         -------
@@ -2444,7 +2451,7 @@ class GroupElemFactory:
             the element group
         """
 
-        params = (gmshId, connect, coordGlob, nodes)
+        params = (gmshId, connect, coordGlob)
 
         elemType = GroupElemFactory.Get_ElemInFos(gmshId)[0]
 
@@ -2517,9 +2524,7 @@ class GroupElemFactory:
 
         gmshId = GroupElemFactory.DICT_ELEMTYPE[elemType][0]
 
-        nodes = np.asarray(list(set(connect.ravel())), dtype=int)
-
-        return GroupElemFactory._Create(gmshId, connect, coordGlob, nodes)
+        return GroupElemFactory._Create(gmshId, connect, coordGlob)
 
     @staticmethod
     def _Get_2d_element_types(elemType: ElemType) -> list[ElemType]:

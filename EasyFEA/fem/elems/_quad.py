@@ -23,13 +23,9 @@ class QUAD4(_GroupElem):
     # 0-----------1
 
     def __init__(
-        self,
-        gmshId: int,
-        connect: _types.IntArray,
-        coordGlob: _types.FloatArray,
-        nodes: _types.IntArray,
+        self, gmshId: int, connect: _types.IntArray, coordGlob: _types.FloatArray
     ):
-        super().__init__(gmshId, connect, coordGlob, nodes)
+        super().__init__(gmshId, connect, coordGlob)
 
     @property
     def origin(self) -> list[int]:
@@ -99,13 +95,9 @@ class QUAD8(_GroupElem):
     # 0-----4-----1
 
     def __init__(
-        self,
-        gmshId: int,
-        connect: _types.IntArray,
-        coordGlob: _types.FloatArray,
-        nodes: _types.IntArray,
+        self, gmshId: int, connect: _types.IntArray, coordGlob: _types.FloatArray
     ):
-        super().__init__(gmshId, connect, coordGlob, nodes)
+        super().__init__(gmshId, connect, coordGlob)
 
     @property
     def origin(self) -> list[int]:
@@ -222,13 +214,9 @@ class QUAD9(_GroupElem):
     # 0-----4-----1
 
     def __init__(
-        self,
-        gmshId: int,
-        connect: _types.IntArray,
-        coordGlob: _types.FloatArray,
-        nodes: _types.IntArray,
+        self, gmshId: int, connect: _types.IntArray, coordGlob: _types.FloatArray
     ):
-        super().__init__(gmshId, connect, coordGlob, nodes)
+        super().__init__(gmshId, connect, coordGlob)
 
     @property
     def origin(self) -> list[int]:

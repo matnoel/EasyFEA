@@ -31,13 +31,9 @@ class TETRA4(_GroupElem):
     #                    ` w
 
     def __init__(
-        self,
-        gmshId: int,
-        connect: _types.IntArray,
-        coordGlob: _types.FloatArray,
-        nodes: _types.IntArray,
+        self, gmshId: int, connect: _types.IntArray, coordGlob: _types.FloatArray
     ):
-        super().__init__(gmshId, connect, coordGlob, nodes)
+        super().__init__(gmshId, connect, coordGlob)
 
     @property
     def origin(self) -> list[int]:
@@ -128,13 +124,9 @@ class TETRA10(_GroupElem):
     #                    ` w
 
     def __init__(
-        self,
-        gmshId: int,
-        connect: _types.IntArray,
-        coordGlob: _types.FloatArray,
-        nodes: _types.IntArray,
+        self, gmshId: int, connect: _types.IntArray, coordGlob: _types.FloatArray
     ):
-        super().__init__(gmshId, connect, coordGlob, nodes)
+        super().__init__(gmshId, connect, coordGlob)
 
     @property
     def origin(self) -> list[int]:

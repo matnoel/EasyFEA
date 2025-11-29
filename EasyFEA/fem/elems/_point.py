@@ -12,13 +12,9 @@ from ...utilities import _types
 
 class POINT(_GroupElem):
     def __init__(
-        self,
-        gmshId: int,
-        connect: _types.IntArray,
-        coordGlob: _types.FloatArray,
-        nodes: _types.IntArray,
+        self, gmshId: int, connect: _types.IntArray, coordGlob: _types.FloatArray
     ):
-        super().__init__(gmshId, connect, coordGlob, nodes)
+        super().__init__(gmshId, connect, coordGlob)
 
     @property
     def origin(self) -> list[int]:

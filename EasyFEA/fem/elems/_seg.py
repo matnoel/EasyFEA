@@ -18,13 +18,9 @@ class SEG2(_GroupElem):
     # 0----+----1 --> u
 
     def __init__(
-        self,
-        gmshId: int,
-        connect: _types.IntArray,
-        coordGlob: _types.FloatArray,
-        nodes: _types.IntArray,
+        self, gmshId: int, connect: _types.IntArray, coordGlob: _types.FloatArray
     ):
-        super().__init__(gmshId, connect, coordGlob, nodes)
+        super().__init__(gmshId, connect, coordGlob)
 
     @property
     def origin(self) -> list[int]:
@@ -111,13 +107,9 @@ class SEG3(_GroupElem):
     # 0----2----1 --> u
 
     def __init__(
-        self,
-        gmshId: int,
-        connect: _types.IntArray,
-        coordGlob: _types.FloatArray,
-        nodes: _types.IntArray,
+        self, gmshId: int, connect: _types.IntArray, coordGlob: _types.FloatArray
     ):
-        super().__init__(gmshId, connect, coordGlob, nodes)
+        super().__init__(gmshId, connect, coordGlob)
 
     @property
     def origin(self) -> list[int]:
@@ -272,13 +264,9 @@ class SEG4(_GroupElem):
     # 0---2-+-3---1 --> u
 
     def __init__(
-        self,
-        gmshId: int,
-        connect: _types.IntArray,
-        coordGlob: _types.FloatArray,
-        nodes: _types.IntArray,
+        self, gmshId: int, connect: _types.IntArray, coordGlob: _types.FloatArray
     ):
-        super().__init__(gmshId, connect, coordGlob, nodes)
+        super().__init__(gmshId, connect, coordGlob)
 
     @property
     def origin(self) -> list[int]:
@@ -587,13 +575,9 @@ class SEG5(_GroupElem):
     #  0--2--3--4--1 --> u
 
     def __init__(
-        self,
-        gmshId: int,
-        connect: _types.IntArray,
-        coordGlob: _types.FloatArray,
-        nodes: _types.IntArray,
+        self, gmshId: int, connect: _types.IntArray, coordGlob: _types.FloatArray
     ):
-        super().__init__(gmshId, connect, coordGlob, nodes)
+        super().__init__(gmshId, connect, coordGlob)
 
     @property
     def origin(self) -> list[int]:
