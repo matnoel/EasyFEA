@@ -4,7 +4,7 @@
 
 from ._boundary_conditions import BoundaryCondition, LagrangeCondition
 from ._gauss import Gauss
-from ._gmsh_interface import Mesher, gmsh
+from ._gmsh import Mesher, gmsh
 from ._forms import BiLinearForm, LinearForm
 from ._group_elems import _GroupElem, GroupElemFactory
 from ._mesh import Mesh, Calc_projector, Mesh_Optim

@@ -198,7 +198,7 @@ class _Geom(ABC):
         Mesh
             Created mesh
         """
-        from ..fem._gmsh_interface import Mesher
+        from ..fem._gmsh import Mesher
 
         mesher = Mesher()
         mesh = mesher.Mesh_2D(
@@ -261,7 +261,7 @@ class _Geom(ABC):
         Mesh
             Created mesh
         """
-        from ..fem._gmsh_interface import Mesher
+        from ..fem._gmsh import Mesher
 
         mesher = Mesher()
         mesh = mesher.Mesh_Extrude(
@@ -329,7 +329,7 @@ class _Geom(ABC):
         Mesh
             Created mesh
         """
-        from ..fem._gmsh_interface import Mesher
+        from ..fem._gmsh import Mesher
 
         if axis is None:
             from ..geoms import Line
