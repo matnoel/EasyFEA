@@ -1985,13 +1985,9 @@ class Mesher:
         for gmshId in elementTypes:
             # get element numbers and connection matrix
             elementTags, nodeTags = gmsh.model.mesh.getElementsByType(gmshId)  # type: ignore
-            elementTags = (
-                np.asarray(elementTags, dtype=int) - 1
-            )  # tags for each elements
-            nodeTags = (
-                np.asarray(nodeTags, dtype=int) - 1
-            )  # connection matrix in shape (e * nPe)
-
+            # elementTags and nodeTags starts at 0
+            elementTags -= 1  # tags for each elements
+            nodeTags -= 1  # connection matrix in shape (Ne * nPe)
             nodeTags = changes[nodeTags]  # Apply changes to correct jumps in nodes
 
             # Elements
@@ -2000,7 +1996,7 @@ class Mesher:
             connect = nodeTags.reshape(Ne, nPe)  # creates connect matrix
 
             # Nodes
-            nodes = np.asarray(list(set(nodeTags)), dtype=int)
+            nodes = np.asarray(list(set(nodeTags)), dtype=int)  # makes nodeTags unique
             Nmax = nodes.max()  # checks that max node numbers can be reached in coord
             assert Nmax <= (coord.shape[0] - 1), f"Nodes {Nmax} doesn't exist in coord"
 
