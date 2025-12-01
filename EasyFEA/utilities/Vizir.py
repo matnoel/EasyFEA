@@ -164,12 +164,12 @@ def _Get_empty_groupElem(groupElem: "_GroupElem", order: int):
         # create empty groupElem
         emptyArray = np.empty((0), dtype=int)
         groupElem = GroupElemFactory._Create(
-            filtered_dict[elemType][0], emptyArray, emptyArray, emptyArray
+            filtered_dict[elemType][0], emptyArray, emptyArray
         )
 
     else:
         emptyArray = np.empty((0), dtype=int)
-        groupElem = GroupElemFactory.Create(groupElem.elemType, emptyArray, emptyArray)
+        groupElem = GroupElemFactory.Create(groupElem.elemType, emptyArray)
 
     return groupElem
 
