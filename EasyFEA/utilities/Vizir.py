@@ -169,7 +169,7 @@ def _Get_empty_groupElem(groupElem: "_GroupElem", order: int):
 
     else:
         emptyArray = np.empty((0), dtype=int)
-        groupElem = GroupElemFactory.Create(groupElem.elemType, emptyArray)
+        groupElem = GroupElemFactory.Create(groupElem.elemType, emptyArray, emptyArray)
 
     return groupElem
 

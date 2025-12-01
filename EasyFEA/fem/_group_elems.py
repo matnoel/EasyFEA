@@ -85,17 +85,16 @@ class _GroupElem(ABC):
 
         # Ensure coordGlob is a (Nn, 3) array
         if coordGlob.size != 0:  # coordGlob can be empty
-            assert (
-                coordGlob.ndim == 2 and coordGlob.shape[1] == 3
-            ), "Must be a (Nn, 3) array."
+            error = "Must be a (Nn, 3) array."
+            assert coordGlob.ndim == 2 and coordGlob.shape[1] == 3, error
         self.__coordGlob = coordGlob
 
         # Nodes
         nodes = np.asarray(list(set(connect.ravel())), dtype=int)
         Ncoords = coordGlob.shape[0]
-        assert (
-            nodes.max() + 1 <= Ncoords
-        ), f"Nodes {nodes[nodes > Ncoords]} has not corresponding entry in the coordGlob array."
+        if nodes.size != 0:
+            error = f"Nodes {nodes[nodes > Ncoords]} has not corresponding entry in the coordGlob array."
+            assert nodes.max() + 1 <= Ncoords, error
         self.__nodes = nodes
 
         # dictionnary associated with tags on elements or nodes
