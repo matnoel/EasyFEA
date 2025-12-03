@@ -35,6 +35,10 @@ class ElemType(str, Enum):
     def __str__(self) -> str:
         return self.name
 
+    @property
+    def topology(self) -> str:
+        return "".join([s for s in self.name if not s.isdigit()])
+
     @staticmethod
     def Get_1D() -> list["ElemType"]:
         """Returns 1D element types."""

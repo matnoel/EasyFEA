@@ -23,7 +23,12 @@ class Gauss:
             matrix type (e.g [MatrixType.rigi, MatrixType.mass, MatrixType.beam])
         """
 
-        coord, weights = Gauss._Gauss_factory(elemType, matrixType)
+        if isinstance(matrixType, (MatrixType, str)):
+            coord, weights = Gauss.Gauss_factory(elemType, matrixType)
+        elif isinstance(matrixType, int):
+            coord, weights = Gauss._Gauss_factory_nPg(elemType, matrixType)
+        else:
+            raise NotImplementedError
 
         self.__coord = coord
         self.__weights = weights
@@ -95,7 +100,7 @@ class Gauss:
 
             weights = [p1, p1, p1, p2, p2, p2, p3, p3, p3, p3, p3, p3]
         else:
-            raise ValueError("unknown nPg")
+            raise NotImplementedError("unknown nPg")
 
         return ksis, etas, weights
 
@@ -126,7 +131,7 @@ class Gauss:
                 64 / 81,
             ]
         else:
-            raise ValueError("unknown nPg")
+            raise NotImplementedError("unknown nPg")
 
         return ksis, etas, weights
 
@@ -185,7 +190,7 @@ class Gauss:
 
             weights = [p1, p2, p2, p2, p2, p3, p3, p3, p3, p4, p4, p4, p4, p4, p4]
         else:
-            raise ValueError("unknown nPg")
+            raise NotImplementedError("unknown nPg")
 
         return x, y, z, weights
 
@@ -252,7 +257,7 @@ class Gauss:
                 c13,
             ]
         else:
-            raise ValueError("unknown nPg")
+            raise NotImplementedError("unknown nPg")
 
         return x, y, z, weights
 
@@ -341,7 +346,7 @@ class Gauss:
                 c1 * cm,
             ]
         else:
-            raise ValueError("unknown nPg")
+            raise NotImplementedError("unknown nPg")
 
         # xc, yc, zc -> base code aster
         # z, x, y -> gmsh
@@ -353,17 +358,16 @@ class Gauss:
         return x, y, z, weights
 
     @staticmethod
-    def _Gauss_factory(
+    def Gauss_factory(
         elemType: ElemType, matrixType: MatrixType
     ) -> tuple[_types.FloatArray, _types.FloatArray]:
-        """Calculation of integration points according to element and matrix type"""
+        """Returns the integration points and weights based on the element and matrix type."""
 
         assert matrixType in MatrixType.Get_types()
 
         # TODO create a function to calculate the order directly?
 
         if elemType == ElemType.SEG2:
-            dim = 1
             if matrixType == MatrixType.rigi:
                 nPg = 1
             elif matrixType in [MatrixType.mass, MatrixType.beam]:
@@ -373,10 +377,9 @@ class Gauss:
             x, weights = np.polynomial.legendre.leggauss(nPg)
 
         elif elemType == ElemType.SEG3:
-            dim = 1
             if matrixType == MatrixType.rigi:
                 nPg = 1
-            elif matrixType in [MatrixType.mass]:
+            elif matrixType == MatrixType.mass:
                 nPg = 3
             elif matrixType == MatrixType.beam:
                 nPg = 4
@@ -385,7 +388,6 @@ class Gauss:
             x, weights = np.polynomial.legendre.leggauss(nPg)
 
         elif elemType == ElemType.SEG4:
-            dim = 1
             if matrixType == MatrixType.rigi:
                 nPg = 2
             elif matrixType == MatrixType.mass:
@@ -397,7 +399,6 @@ class Gauss:
             x, weights = np.polynomial.legendre.leggauss(nPg)
 
         elif elemType == ElemType.SEG5:
-            dim = 1
             if matrixType == MatrixType.rigi:
                 nPg = 4
             elif matrixType == MatrixType.mass:
@@ -409,7 +410,6 @@ class Gauss:
             x, weights = np.polynomial.legendre.leggauss(nPg)
 
         elif elemType == ElemType.TRI3:
-            dim = 2
             if matrixType == MatrixType.rigi:
                 nPg = 1
             elif matrixType == MatrixType.mass:
@@ -419,7 +419,6 @@ class Gauss:
             xis, etas, weights = Gauss._Triangle(nPg)  # type: ignore [assignment]
 
         elif elemType == ElemType.TRI6:
-            dim = 2
             if matrixType == MatrixType.rigi:
                 nPg = 3
             elif matrixType == MatrixType.mass:
@@ -429,22 +428,18 @@ class Gauss:
             xis, etas, weights = Gauss._Triangle(nPg)  # type: ignore [assignment]
 
         elif elemType == ElemType.TRI10:
-            dim = 2
             nPg = 6
             xis, etas, weights = Gauss._Triangle(nPg)  # type: ignore [assignment]
 
         elif elemType == ElemType.TRI15:
-            dim = 2
             nPg = 12
             xis, etas, weights = Gauss._Triangle(nPg)  # type: ignore [assignment]
 
         elif elemType == ElemType.QUAD4:
-            dim = 2
             nPg = 4
             xis, etas, weights = Gauss._Quadrangle(nPg)  # type: ignore [assignment]
 
         elif elemType == ElemType.QUAD8:
-            dim = 2
             if matrixType == MatrixType.rigi:
                 nPg = 4
             elif matrixType == MatrixType.mass:
@@ -453,12 +448,10 @@ class Gauss:
                 raise ValueError("unknown matrixType")
             xis, etas, weights = Gauss._Quadrangle(nPg)  # type: ignore [assignment]
         elif elemType == ElemType.QUAD9:
-            dim = 2
             nPg = 9
             xis, etas, weights = Gauss._Quadrangle(nPg)  # type: ignore [assignment]
 
         elif elemType == ElemType.TETRA4:
-            dim = 3
             if matrixType == MatrixType.rigi:
                 nPg = 1
             elif matrixType == MatrixType.mass:
@@ -468,63 +461,85 @@ class Gauss:
             x, y, z, weights = Gauss._Tetrahedron(nPg)  # type: ignore [assignment]
 
         elif elemType == ElemType.TETRA10:
-            dim = 3
             nPg = 4
             x, y, z, weights = Gauss._Tetrahedron(nPg)  # type: ignore [assignment]
 
         elif elemType == ElemType.HEXA8:
-            dim = 3
             nPg = 8
             x, y, z, weights = Gauss._Hexahedron(nPg)  # type: ignore [assignment]
 
         elif elemType == ElemType.HEXA20:
-            dim = 3
             nPg = 27
             x, y, z, weights = Gauss._Hexahedron(nPg)  # type: ignore [assignment]
 
         elif elemType == ElemType.HEXA27:
-            dim = 3
             nPg = 27
             x, y, z, weights = Gauss._Hexahedron(nPg)  # type: ignore [assignment]
 
         elif elemType == ElemType.PRISM6:
-            dim = 3
             nPg = 6
             x, y, z, weights = Gauss._Prism(nPg)  # type: ignore [assignment]
 
         elif elemType == ElemType.PRISM15:
-            dim = 3
             nPg = 6
             x, y, z, weights = Gauss._Prism(nPg)  # type: ignore [assignment]
 
         elif elemType == ElemType.PRISM18:
-            dim = 3
             nPg = 21
             x, y, z, weights = Gauss._Prism(nPg)  # type: ignore [assignment]
 
         else:
-            raise Exception("Element not implemented.")
+            raise NotImplementedError(f"Element {elemType} not implemented.")
 
-        if dim == 1:
+        if elemType in ElemType.Get_1D():
             coord = np.asarray([x]).T.reshape((nPg, 1))  # type: ignore
-        elif dim == 2:
+        elif elemType in ElemType.Get_2D():
             coord = np.asarray([xis, etas]).T.reshape((nPg, 2))  # type: ignore
-        elif dim == 3:
+        elif elemType in ElemType.Get_3D():
             coord = np.asarray([x, y, z]).T.reshape((nPg, 3))  # type: ignore
         else:
-            raise ValueError("Unknown dimension")
+            raise ValueError("Unknown element type")
 
         weights = np.asarray(weights).reshape(nPg)
 
         return coord, weights
 
     @staticmethod
-    def _MatrixType_factory(elemType: ElemType, nPg: int) -> MatrixType:
+    def _Gauss_factory_nPg(
+        elemType: ElemType, nPg
+    ) -> tuple[_types.FloatArray, _types.FloatArray]:
+        """Returns the integration points and weights based on the element type and the number of Gauss points (nPg)."""
 
-        for matrixType in [MatrixType.rigi, MatrixType.mass]:
+        if elemType.startswith(ElemType.SEG2.topology):
+            x, weights = np.polynomial.legendre.leggauss(nPg)
 
-            _, weights = Gauss._Gauss_factory(elemType, matrixType)
-            if weights.size == nPg:
-                return matrixType
+        elif elemType.startswith(ElemType.TRI3.topology):
+            xis, etas, weights = Gauss._Triangle(nPg)  # type: ignore [assignment]
 
-        raise ValueError("Unknown number of gauss points.")
+        elif elemType.startswith(ElemType.QUAD4.topology):
+            xis, etas, weights = Gauss._Quadrangle(nPg)  # type: ignore [assignment]
+
+        elif elemType.startswith(ElemType.TETRA4.topology):
+            x, y, z, weights = Gauss._Tetrahedron(nPg)  # type: ignore [assignment]
+
+        elif elemType.startswith(ElemType.HEXA8.topology):
+            x, y, z, weights = Gauss._Hexahedron(nPg)  # type: ignore [assignment]
+
+        elif elemType.startswith(ElemType.PRISM6.topology):
+            x, y, z, weights = Gauss._Prism(nPg)  # type: ignore [assignment]
+
+        else:
+            raise NotImplementedError(f"Element {elemType} not implemented.")
+
+        if elemType in ElemType.Get_1D():
+            coord = np.asarray([x]).T.reshape((nPg, 1))  # type: ignore
+        elif elemType in ElemType.Get_2D():
+            coord = np.asarray([xis, etas]).T.reshape((nPg, 2))  # type: ignore
+        elif elemType in ElemType.Get_3D():
+            coord = np.asarray([x, y, z]).T.reshape((nPg, 3))  # type: ignore
+        else:
+            raise ValueError("Unknown element type")
+
+        weights = np.asarray(weights).reshape(nPg)
+
+        return coord, weights
