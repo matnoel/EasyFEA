@@ -384,6 +384,8 @@ def __Make_pvd(filename: str, vtuFiles=[]):
 
     filename = filename + ".pvd"
 
+    dir = Folder.Dir(filename)
+
     with open(filename, "w") as file:
         file.write('<?pickle version="1.0" ?>\n')
 
@@ -393,6 +395,7 @@ def __Make_pvd(filename: str, vtuFiles=[]):
         file.write("\t<Collection>\n")
 
         for t, vtuFile in enumerate(vtuFiles):
+            vtuFile = vtuFile.replace(dir, ".")
             file.write(
                 f'\t\t<DataSet timestep="{t}" group="" part="1" file="{vtuFile}"/>\n'
             )
