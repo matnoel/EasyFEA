@@ -1623,10 +1623,9 @@ class _GroupElem(ABC):
         # It is possible that the nodes entered do not belong to the group
         if connect_n_e.shape[0] <= nodes.max():  # type: ignore
             # Remove all excess nodes
-            availableNodes = np.where(nodes < self.Nn)[0]
-            nodes = nodes[availableNodes]
+            nodes = nodes[nodes < self.Nn]
 
-        __, columns, __ = sparse.find(connect_n_e[nodes])
+        columns = connect_n_e[nodes].nonzero()[1]
 
         elements = list(set(columns))
 
@@ -1640,7 +1639,7 @@ class _GroupElem(ABC):
             nodesIntru = list(nodesElem - set(nodes))
 
             # We detect the list of elements associated with unused nodes
-            cols = sparse.find(connect_n_e[nodesIntru])[1]
+            cols = connect_n_e[nodesIntru].nonzero()[1]
             elementsIntru = list(set(cols))
 
             if len(elementsIntru) > 0:

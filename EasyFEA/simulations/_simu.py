@@ -306,11 +306,6 @@ class _Simu(_IObserver, _params.Updatable, ABC):
         if verbosity:
             Display.Section("Simulation")
 
-        if len(mesh.orphanNodes) > 0:
-            raise Exception(
-                "The simulation cannot be created because orphan nodes have been detected in the mesh.\n See `Display.Plot_Nodes(mesh, mesh.orphanNodes)`"
-            )
-
         self.__model = model
 
         self.__dim: int = model.dim
@@ -1602,7 +1597,7 @@ class _Simu(_IObserver, _params.Updatable, ABC):
             Description of the condition, by default "".
         """
 
-        if len(values) == 0 or len(values) != len(unknowns):
+        if len(nodes) == 0 or len(values) == 0 or len(values) != len(unknowns):
             return
 
         if problemType is None:
@@ -1659,7 +1654,7 @@ class _Simu(_IObserver, _params.Updatable, ABC):
             Description of the condition, by default "".
         """
 
-        if len(values) == 0 or len(values) != len(unknowns):
+        if len(nodes) == 0 or len(values) == 0 or len(values) != len(unknowns):
             return
 
         if problemType is None:
@@ -1700,7 +1695,7 @@ class _Simu(_IObserver, _params.Updatable, ABC):
             Description of the condition, by default "".
         """
 
-        if len(values) == 0 or len(values) != len(unknowns):
+        if len(nodes) == 0 or len(values) == 0 or len(values) != len(unknowns):
             return
 
         if problemType is None:
@@ -1743,7 +1738,7 @@ class _Simu(_IObserver, _params.Updatable, ABC):
             Description of the condition, by default "".
         """
 
-        if len(values) == 0 or len(values) != len(unknowns):
+        if len(nodes) == 0 or len(values) == 0 or len(values) != len(unknowns):
             return
 
         if problemType is None:
@@ -1790,6 +1785,9 @@ class _Simu(_IObserver, _params.Updatable, ABC):
         description : str, optional
             Description of the condition, by default "".
         """
+
+        if len(nodes) == 0 or magnitude == 0:
+            return
 
         if problemType is None:
             problemType = self.problemType
@@ -1839,7 +1837,7 @@ class _Simu(_IObserver, _params.Updatable, ABC):
             Description of the condition, by default "".
         """
 
-        if len(values) == 0 or len(values) != len(unknowns):
+        if len(nodes) == 0 or len(values) == 0 or len(values) != len(unknowns):
             return
 
         if problemType is None:

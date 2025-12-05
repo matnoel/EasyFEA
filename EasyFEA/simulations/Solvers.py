@@ -40,9 +40,11 @@ except ModuleNotFoundError:
 try:
     import petsc4py
     from petsc4py import PETSc
+    from mpi4py import MPI
 
     CAN_USE_PETSC = True
     PC_DEFAULT = "ilu"
+    petsc4py.init(sys.argv, comm=MPI.COMM_WORLD)
 
 except ModuleNotFoundError:
     CAN_USE_PETSC = False
@@ -263,7 +265,11 @@ def __Get_solver(solver: str) -> str:
 def Solve_simu(simu: "_Simu", problemType: "ModelType"):
     """Solving the simulation's problem according to the resolution type."""
 
-    resolution = ResolType.r2 if len(simu.Bc_Lagrange) > 0 else ResolType.r1
+    resolution = ResolType.r1
+    if CAN_USE_PETSC and MPI.COMM_WORLD.Get_size() > 1:
+        resolution = ResolType.r3
+
+    resolution = ResolType.r2 if len(simu.Bc_Lagrange) > 0 else resolution
 
     if resolution == ResolType.r1:
         return __Solver_1(simu, problemType)
@@ -441,44 +447,62 @@ def _PETSc(
         x solution to A x = b
     """
 
-    # # TODO make it work with mpi
-    # __comm = MPI.COMM_WORLD
-    # nprocs = __comm.Get_size()
-    # rank   = __comm.Get_rank()
-
     # TODO add bound constrain
     # https://petsc.org/release/petsc4py/reference/petsc4py.PETSc.SNES.html ?
 
-    __comm = None
-    petsc4py.init(sys.argv, comm=__comm)
+    assert A.ndim == 2 and A.shape[0] == A.shape[1], "A must be a square matrix"
 
-    dimI = A.shape[0]
-    dimJ = A.shape[1]
+    comm = MPI.COMM_WORLD
+    nprocs = comm.Get_size()
+    # rank = comm.Get_rank()
 
     matrix = PETSc.Mat()  # type: ignore [attr-defined]
-    csr = (A.indptr, A.indices, A.data)
-    matrix.createAIJ([dimI, dimJ], comm=__comm, csr=csr)
 
-    vectb = matrix.createVecLeft()
+    # get size and cols
+    Ndof = A.shape[0]
+    rows, cols = [list(set(idx)) for idx in A.nonzero()]
 
+    if nprocs > 1:
+        # create
+        matrix.create(comm=comm)
+        # get values
+        values = A[rows, :].tocsc()[:, cols].toarray().ravel()
+        # set sizes
+        Nrows, Ncols = len(rows), len(cols)
+        # print(Nrows)
+        matrix.setSizes([Nrows, Ndof], [Ncols, Ndof])
+        # set values
+        matrix.setValues(rows, cols, values, PETSc.InsertMode.INSERT_VALUES)
+    else:
+        csr = (A.indptr, A.indices, A.data)
+        matrix.createAIJ(A.shape, comm=comm, csr=csr)
+
+    # set rhs values
+    rhs = matrix.createVecLeft()
+    # lines, _, values = sparse.find(b)
+    # rhs.array[lines] = values
     lines, _, values = sparse.find(b)
+    rhs.array[lines] = values
 
-    vectb.array[lines] = values
-
+    # set x values
     x = matrix.createVecRight()
     if len(x0) > 0:
-        x.array[:] = x0
+        if nprocs > 1:
+            x.array[rows] = x0[rows]
+        else:
+            x.array[:] = x0
 
-    ksp = PETSc.KSP().create()  # type: ignore [attr-defined]
+    ksp = PETSc.KSP().create(comm=comm)  # type: ignore [attr-defined]
     ksp.setOperators(matrix)
     ksp.setType(kspType)
 
     pc = ksp.getPC()
-    pc.setType(pcType)
+    # pc.setType(pcType)
+    pc.setType("lu")
 
     # pc.setFactorSolverType("superlu") #"mumps"
 
-    ksp.solve(vectb, x)
+    ksp.solve(rhs, x)
     x = x.array
 
     converg: bool = ksp.is_converged

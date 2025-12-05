@@ -137,7 +137,7 @@ class Mesh(Observable):
     @property
     def Nn(self) -> int:
         """number of nodes in the mesh"""
-        return self.groupElem.Nn
+        return self.coordGlob.shape[0]
 
     @property
     def dim(self):
