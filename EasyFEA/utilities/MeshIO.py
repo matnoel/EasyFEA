@@ -868,7 +868,7 @@ def Ensight_to_EasyFEA(geoFile: str) -> Mesh:
     with open(geoFile, "r") as file:
         lines = file.readlines()
 
-    dict_ensightType_data: dict[str, list[tuple[str, _types.IntArray]]] = {}
+    dict_ensightType_data: dict[str, dict[str, _types.IntArray]] = {}
 
     index = 0
     while index < len(lines):
@@ -920,25 +920,27 @@ def Ensight_to_EasyFEA(geoFile: str) -> Mesh:
 
             # append data
             if ensight not in dict_ensightType_data:
-                dict_ensightType_data[ensight] = [(tag, connect)]
+                dict_ensightType_data[ensight] = {tag: connect}
             else:
-                dict_ensightType_data[ensight].append((tag, connect))
+                dict_ensightType_data[ensight][tag] = connect
 
         else:
             index += 1
 
     # create groups of elements
     dict_groupElem: dict[ElemType, _GroupElem] = {}
-    for ensight, list_data in dict_ensightType_data.items():
+    for ensight, dict_data in dict_ensightType_data.items():
 
         elemType = DICT_ENSIGHT_TO_ELEMTYPE[ensight]
 
         # import connect
-        connect = np.concat([data[1] for data in list_data], axis=0, dtype=int)
+        connect = np.concat(
+            [connect for connect in dict_data.values()], axis=0, dtype=int
+        )
 
         # make sur connect is unique
-        unique_rows = set(tuple(row) for row in connect)
-        connect = np.array(list(unique_rows), dtype=int)
+        unique_rows = list(set(tuple(row) for row in connect))
+        connect = np.array(unique_rows, dtype=int)
 
         # reorder connect
         if ensight in DICT_ENSIGHT_TO_GMSH_INDEXES:
@@ -948,9 +950,8 @@ def Ensight_to_EasyFEA(geoFile: str) -> Mesh:
         groupElem = GroupElemFactory.Create(elemType, connect, coordinates)
 
         # Set tags
-        for data in list_data:
-            tag, connect = data
-            nodes = np.array(list(set(connect.ravel())), dtype=int)
+        for tag, connect in dict_data.items():
+            nodes = list(set(connect.ravel()))
             groupElem.Set_Tag(nodes, tag)
 
         # add group of elements
