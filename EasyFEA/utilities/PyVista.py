@@ -365,7 +365,7 @@ def Plot_Elements(
     if nodes is None:
         nodes = mesh.nodes
     else:
-        nodes = np.asarray(nodes)
+        nodes = np.asarray(nodes, dtype=int)
         if nodes.ndim != 1 or nodes.size > mesh.Nn:
             MyPrintError("Nodes must be a list of nodes of size <= mesh.Nn.")
             return
