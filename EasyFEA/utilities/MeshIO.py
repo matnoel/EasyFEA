@@ -952,7 +952,7 @@ def Ensight_to_EasyFEA(geoFile: str) -> Mesh:
         # Set tags
         for tag, connect in dict_data.items():
             nodes = list(set(connect.ravel()))
-            groupElem.Set_Tag(nodes, tag)
+            groupElem.Set_Tag(np.asarray(nodes, dtype=int), tag)
 
         # add group of elements
         dict_groupElem[elemType] = groupElem
