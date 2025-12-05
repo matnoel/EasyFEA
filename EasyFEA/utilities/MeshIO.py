@@ -1000,6 +1000,9 @@ def EasyFEA_to_Ensight(mesh: Mesh, folder: str, name: str) -> str:
         for tag in groupElem.elementTags
     }
 
+    # offset to ensure that parts starts at 0
+    offset = 1 if parts.min() == 0 else 0
+
     with open(filename, "w") as file:
 
         file.write("Geometry ensight6 file\n")
@@ -1018,9 +1021,9 @@ def EasyFEA_to_Ensight(mesh: Mesh, folder: str, name: str) -> str:
                     continue
 
                 # write part (starts at 1)
-                file.write(f"part{get_line(part+1)}\n")
+                file.write(f"part{get_line(part+offset)}\n")
                 # write description
-                file.write(f"{groupElem.topology}_subdomain {part}\n")
+                file.write(f"{groupElem.topology}_subdomain {tag}\n")
                 # write ensight name
                 elemType = groupElem.elemType
                 file.write(f"{DICT_ELEMTYPE_TO_ENSIGHT[elemType]}\n")
