@@ -720,7 +720,7 @@ class Mesh(Observable):
             The interpolated values as a (Nnodes, dof_n) array.
         """
 
-        Nn = self.Nn + len(self.orphanNodes)
+        Nn = self.Nn
         groupElem = self.groupElem
 
         assert (
