@@ -2,7 +2,7 @@
 # This file is part of the EasyFEA project.
 # EasyFEA is distributed under the terms of the GNU General Public License v3, see LICENSE.txt and CREDITS.md for more information.
 
-from EasyFEA import Mesher, ElemType, MatrixType, Models, Simulations, np
+from EasyFEA import Mesher, ElemType, MatrixType, Models, Simulations, np, SolverType
 from EasyFEA.models._hyperelastic import HyperElasticState
 from EasyFEA.Geoms import Domain
 from EasyFEA.fem._linalg import Trace, Det, Inv, TensorProd
@@ -23,6 +23,7 @@ def Get_2d_simulations(ud=1e-6) -> list[Simulations.ElasticSimu]:
 
         mesh = Mesher().Mesh_2D(contour, [], ElemType.TRI3)
         simu = Simulations.ElasticSimu(mesh, Models.ElasIsot(2))
+        simu.solver = SolverType.scipy
 
         simu.add_dirichlet(
             mesh.Nodes_Conditions(lambda x, y, z: x == 0), [0, 0], simu.Get_unknowns()
@@ -49,6 +50,7 @@ def Get_3d_simulations(ud=1e-6) -> list[Simulations.ElasticSimu]:
 
         mesh = Mesher().Mesh_Extrude(contour, [], [0, 0, h], [h / meshSize], elemType)
         simu = Simulations.ElasticSimu(mesh, Models.ElasIsot(3))
+        simu.solver = SolverType.scipy
 
         simu.add_dirichlet(
             mesh.Nodes_Conditions(lambda x, y, z: x == 0),

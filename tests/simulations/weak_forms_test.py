@@ -4,8 +4,8 @@
 
 import numpy as np
 
-from EasyFEA import ElemType, Models, Simulations
-from EasyFEA.fem import FeArray, Field, BiLinearForm, LinearForm, Sym_Grad, Trace
+from EasyFEA import ElemType, Models, Simulations, SolverType
+from EasyFEA.fem import FeArray, Field, BiLinearForm, Sym_Grad, Trace
 from EasyFEA.Geoms import Domain
 
 
@@ -24,7 +24,8 @@ class TestWeakForms:
         # ----------------------------------------------
         material = Models.Thermal(k=1)
 
-        thermalSimu = Simulations.ThermalSimu(mesh, material, useIterativeSolvers=False)
+        thermalSimu = Simulations.ThermalSimu(mesh, material)
+        thermalSimu.solver = SolverType.scipy
 
         thermalSimu.add_dirichlet(nodesX0, [0], ["t"])
         thermalSimu.add_dirichlet(nodesX1, [1], ["t"])
@@ -43,7 +44,8 @@ class TestWeakForms:
 
         weakForms = Models.WeakForms(field, bilinear_form)
 
-        simu = Simulations.WeakFormSimu(mesh, weakForms, useIterativeSolvers=False)
+        simu = Simulations.WeakFormSimu(mesh, weakForms)
+        simu.solver = SolverType.scipy
 
         simu.add_dirichlet(nodesX0, [0], ["u"])
         simu.add_dirichlet(nodesX1, [1], ["u"])
@@ -73,7 +75,8 @@ class TestWeakForms:
         lmbda = material.get_lambda()
         mu = material.get_mu()
 
-        elasticSimu = Simulations.ElasticSimu(mesh, material, useIterativeSolvers=False)
+        elasticSimu = Simulations.ElasticSimu(mesh, material)
+        elasticSimu.solver = SolverType.scipy
 
         elasticSimu.add_dirichlet(nodesX0, [0, 0], ["x", "y"])
         elasticSimu.add_dirichlet(nodesX1, [0.1], ["x"])
@@ -98,7 +101,8 @@ class TestWeakForms:
 
         weakForms = Models.WeakForms(field, ComputeK)
 
-        simu = Simulations.WeakFormSimu(mesh, weakForms, useIterativeSolvers=False)
+        simu = Simulations.WeakFormSimu(mesh, weakForms)
+        simu.solver = SolverType.scipy
 
         simu.add_dirichlet(nodesX0, [0, 0], ["x", "y"])
         simu.add_dirichlet(nodesX1, [0.1], ["x"])

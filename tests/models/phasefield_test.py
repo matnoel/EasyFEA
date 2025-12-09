@@ -4,7 +4,7 @@
 
 import pytest
 
-from EasyFEA import Geoms, Mesher, Simulations, np
+from EasyFEA import Geoms, Mesher, Simulations, np, SolverType
 
 # materials
 from EasyFEA.Models import _Elas, ElasIsot, ElasIsotTrans, ElasAnisot, PhaseField
@@ -60,7 +60,9 @@ class TestPhaseField:
         else:
             mesh = Mesher().Mesh_Extrude(domain, [circle], [0, 0, H / 3], [4], "PRISM6")
 
-        simu = Simulations.ElasticSimu(mesh, mat, useIterativeSolvers=False)
+        simu = Simulations.ElasticSimu(mesh, mat)
+        simu.solver = SolverType.scipy
+
         simu.add_dirichlet(
             mesh.Nodes_Conditions(lambda x, y, z: x == 0),
             [0] * simu.Get_dof_n(),

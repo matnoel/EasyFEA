@@ -22,13 +22,7 @@ from ._simu import _Simu
 
 
 class BeamSimu(_Simu):
-    def __init__(
-        self,
-        mesh: "Mesh",
-        model: Models.BeamStructure,
-        verbosity=False,
-        useIterativeSolvers=True,
-    ):
+    def __init__(self, mesh: "Mesh", model: Models.BeamStructure, verbosity=False):
         """Creates a Euler-Bernoulli beam simulation.
 
         Parameters
@@ -39,8 +33,6 @@ class BeamSimu(_Simu):
             the model used.
         verbosity : bool, optional
             If True, the simulation can write in the terminal. Defaults to False.
-        useIterativeSolvers : bool, optional
-            If True, iterative solvers can be used. Defaults to True.
         """
 
         if isinstance(model, Models._Beam):
@@ -50,7 +42,7 @@ class BeamSimu(_Simu):
         assert isinstance(
             model, Models.BeamStructure
         ), "model must be a beam model or a beam structure"
-        super().__init__(mesh, model, verbosity, useIterativeSolvers)
+        super().__init__(mesh, model, verbosity)
 
         # turn beams into observable objects
         [beam._Add_observer(self) for beam in model.beams]  # type: ignore [func-returns-value]

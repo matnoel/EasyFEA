@@ -31,7 +31,15 @@ from ..fem import (
 from ..models import ModelType, _IModel, Reshape_variable
 
 # simu
-from .Solvers import Solve_simu, _Available_Solvers, ResolType, AlgoType
+from .Solvers import (
+    Solve_simu,
+    SolverType,
+    PETSc4PyOptions,
+    ResolType,
+    AlgoType,
+    CAN_USE_PETSC,
+    CAN_USE_PYPARDISO,
+)
 
 
 # ----------------------------------------------
@@ -282,13 +290,7 @@ class _Simu(_IObserver, _params.Updatable, ABC):
 
         return text
 
-    def __init__(
-        self,
-        mesh: Mesh,
-        model: _IModel,
-        verbosity: bool = True,
-        useIterativeSolvers: bool = True,
-    ):
+    def __init__(self, mesh: Mesh, model: _IModel, verbosity: bool = True):
         """Creates a simulation.
 
         Parameters
@@ -299,8 +301,6 @@ class _Simu(_IObserver, _params.Updatable, ABC):
             The model used.
         verbosity : bool, optional
             If True, the simulation can write in the terminal. Defaults to True.
-        useIterativeSolvers : bool, optional
-            If True, iterative solvers can be used. Defaults to True.
         """
 
         if verbosity:
@@ -335,21 +335,18 @@ class _Simu(_IObserver, _params.Updatable, ABC):
         """System type during simulation."""
         # a simulation is by default linear
 
-        # Solver used for solving
-        self.__solver = "scipy"  # Initialized just in case
-        solvers = _Available_Solvers()  # Available solvers
-        if "pypardiso" in solvers:
-            self.solver = "pypardiso"
-        elif "petsc" in solvers and useIterativeSolvers:
-            self.solver = "petsc"
-        elif useIterativeSolvers:
-            self.solver = "cg"
+        # Solver used
+        self.__solver = SolverType.scipy  # Initialized just in case
+        if CAN_USE_PYPARDISO:
+            self.solver = SolverType.pypardiso
+        elif CAN_USE_PETSC:
+            self.solver = SolverType.petsc
+        # solver petsc4py options
+        # Even if petsc4py is unavailable, initialize default solver options.
+        self._solver_petsc4py_options = PETSc4PyOptions()
 
+        # Initialize solutions and boundary conditions
         self.__Init_Sols_n()
-
-        self.__useIterativeSolvers: bool = useIterativeSolvers
-
-        # Initialize Boundary conditions
         self.Bc_Init()
 
         # simulation will look for material and mesh modifications
@@ -651,23 +648,13 @@ class _Simu(_IObserver, _params.Updatable, ABC):
         return K, C, M, F
 
     @property
-    def useIterativeSolvers(self) -> bool:
-        """Iterative solvers can be used."""
-        return self.__useIterativeSolvers
-
-    @property
     def solver(self) -> str:
         """Solver used to solve the simulation."""
         return self.__solver
 
     @solver.setter
     def solver(self, value: str):
-        # Retrieve usable solvers
-        solvers = _Available_Solvers()
-
-        if self.problemType != "damage":
-            solvers.remove("BoundConstrain")
-
+        solvers = list(SolverType)
         if value in solvers:
             self.__solver = value
         else:
@@ -2484,7 +2471,7 @@ def _Get_values(
     """
 
     Ne = mesh.Ne
-    Nn = mesh.Nn + len(mesh.orphanNodes)
+    Nn = mesh.Nn
 
     if isinstance(result, str):
         if simu is None:

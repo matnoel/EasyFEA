@@ -11,6 +11,7 @@ import scipy.sparse as sparse
 import scipy.optimize as optimize
 import scipy.sparse.linalg as sla
 from typing import Union, TYPE_CHECKING
+from dataclasses import dataclass
 
 
 if TYPE_CHECKING:
@@ -30,24 +31,33 @@ except ModuleNotFoundError:
     CAN_USE_PYPARDISO = False
 
 try:
-    import mumps
-
-    # from mumps import DMumpsContext
-    CAN_USE_MUMPS = True
-except ModuleNotFoundError:
-    CAN_USE_MUMPS = False
-
-try:
     import petsc4py
     from petsc4py import PETSc
     from mpi4py import MPI
 
     CAN_USE_PETSC = True
-    PC_DEFAULT = "ilu"
-    petsc4py.init(sys.argv, comm=MPI.COMM_WORLD)
 
 except ModuleNotFoundError:
     CAN_USE_PETSC = False
+
+
+@dataclass
+class PETSc4PyOptions:
+    kspType: str = "cg"
+    """PETSc Krylov method, by default 'cg'.\n
+    e.g. 'cg', 'bicg', 'gmres', 'bcgs', 'groppcg', ...\n
+    https://petsc.org/release/manualpages/KSP/KSPType/#ksptype\n
+    """
+    pcType: str = "ilu"
+    """PETSc preconditioner, by default 'ilu'.\n
+    e.g. 'ilu', 'none', 'bjacobi', 'icc', 'lu', 'jacobi', 'cholesky', ...\n
+    https://petsc.org/release/manualpages/PC/PCType/#pctype\n
+    """
+    solverType: str = "petsc"
+    """PETSc Linear Solver, by default 'petsc'.\n
+    e.g. 'petsc', 'mumps', 'superlu', 'superlu_dist', 'umfpack', 'cholesky' ...\n
+    https://petsc.org/release/manual/ksp/#using-external-linear-solvers
+    """
 
 
 class AlgoType(str, Enum):
@@ -80,6 +90,8 @@ class AlgoType(str, Enum):
 
 
 class ResolType(str, Enum):
+    """Resolution type."""
+
     r1 = "1"
     """xi = inv(Aii) * (bi - Aic * xc)"""
     r2 = "2"
@@ -91,19 +103,30 @@ class ResolType(str, Enum):
         return self.name
 
 
-def _Available_Solvers():
-    """Available solvers."""
-
-    solvers = ["scipy", "BoundConstrain", "cg", "bicg", "gmres", "lgmres"]
+class SolverType(str, Enum):
+    """Solver type used to solve the linear system `A x = b`"""
 
     if CAN_USE_PYPARDISO:
-        solvers.insert(0, "pypardiso")
+        pypardiso = "pypardiso"
+        """pypardiso.spsolve"""
     if CAN_USE_PETSC:
-        solvers.insert(1, "petsc")
-    if CAN_USE_MUMPS:
-        solvers.insert(2, "mumps")
+        petsc = "petsc"
 
-    return solvers
+    scipy = "scipy"
+    """scipy.sparse.linalg.spsolve"""
+    lsq_linear = "lsq_linear"
+    """scipy.optimize.lsq_linear"""
+    cg = "cg"
+    """scipy.sparse.linalg.cg"""
+    bicg = "bicg"
+    """scipy.sparse.linalg.bicg"""
+    gmres = "gmres"
+    """scipy.sparse.linalg.gmres"""
+    lgmres = "lgmres"
+    """scipy.sparse.linalg.lgmres"""
+
+    def __str__(self):
+        return self.name
 
 
 def _Solve_Axb(
@@ -146,15 +169,11 @@ def _Solve_Axb(
     if not isinstance(b, sparse.csr_matrix):
         b = sparse.csr_matrix(b)
 
-    # Choose the solver
-    if len(lb) > 0 and len(ub) > 0:
-        solver = "BoundConstrain"
+    if len(simu.Bc_Lagrange) > 0:
+        # If the simulation uses Lagrange multipliers, iterative solvers cannot be employed.
+        solver = SolverType.pypardiso if CAN_USE_PYPARDISO else SolverType.scipy
     else:
-        if len(simu.Bc_Lagrange) > 0:
-            # if lagrange multiplier are found we cannot use iterative solvers
-            solver = "scipy"
-        else:
-            solver = simu.solver
+        solver = simu.solver
 
     # import matplotlib.pyplot as plt
     # plt.figure()
@@ -167,77 +186,58 @@ def _Solve_Axb(
         # - There are no duplicate entries.
         sla.norm(A)
 
-    solver = __Get_solver(solver)
-
     tic = Tic()
 
-    if solver == "pypardiso":
+    if CAN_USE_PYPARDISO and solver == SolverType.pypardiso:
         x = pypardiso.spsolve(A, b.toarray())
 
-    elif solver == "petsc":
-        global PC_DEFAULT
-        # TODO find the best for damage problem
-        kspType = "cg"
+    elif CAN_USE_PETSC and solver == SolverType.petsc:
 
-        if simu.problemType == "damage":
-            if problemType == "damage":
-                pcType = "ilu"
-            else:
-                pcType = "none"
-                # ilu decomposition doesn't seem to work for the displacement problem in a damage simulation
+        # get petsc4py options
+        options = simu._solver_petsc4py_options
+        kspType = options.kspType
+        pcType = options.pcType
+        solverType = options.solverType
 
-        elif simu.problemType == "hyperelastic":
-            pcType = "lu"
-
-        else:
-            pcType = PC_DEFAULT  # 'ilu' by default
-            # if mesh.dim = 3, errors may occurs if we use ilu
-            # works faster on 2D and 3D
-
-        x, option, converg = _PETSc(A, b, x0, kspType, pcType)
-
-        if not converg:
-            print(
-                f"\nWarning petsc did not converge with ksp:{kspType} and pc:{pcType} !"
+        x, converged = _PETSc(A, b, x0, options)
+        if not converged:
+            raise Exception(
+                f"petsc did not converge with ksp:{kspType}, pc:{pcType} and solver:{solverType}."
             )
-            print(f"Try out with  ksp:{kspType} and pc:none.\n")
-            PC_DEFAULT = "none"
-            x, option, converg = _PETSc(A, b, x0, kspType, "none")
-            assert converg, "petsc didnt converge 2 times. check for kspType and pcType"
 
-        solver += option
+        # add petsc4py options in solver description
+        solver += f", {kspType}, {pcType}"
+        if solverType != "petsc":
+            solver += f", {solverType}"
 
-    elif solver == "scipy":
+    elif solver == SolverType.scipy:
         testSymetric = sla.norm(A - A.transpose()) / sla.norm(A)
         A_isSymetric = testSymetric <= 1e-12
         x = _ScipyLinearDirect(A, b, A_isSymetric)
 
-    elif solver == "BoundConstrain":
-        x = _BoundConstrain(A, b, lb, ub)
-
-    elif solver == "cg":
+    elif solver == SolverType.cg:
         x, output = sla.cg(A, b.toarray(), x0, maxiter=None)
 
-    elif solver == "bicg":
+    elif solver == SolverType.bicg:
         x, output = sla.bicg(A, b.toarray(), x0, maxiter=None)
 
-    elif solver == "gmres":
+    elif solver == SolverType.gmres:
         x, output = sla.gmres(A, b.toarray(), x0, maxiter=None)
 
     elif solver == "lgmres":
         x, output = sla.lgmres(A, b.toarray(), x0, maxiter=None)
-        print(output)
 
-    elif solver == "mumps":
-        # # TODO dont work yet
-        # ctx = DMumpsContext()
-        # if ctx.myid == 0:
-        #     ctx.set_centralized_sparse(A)
-        #     x = b.copy()
-        #     ctx.set_rhs(x) # Modified in place
-        # ctx.run(job=6) # Analysis + Factorization + Solve
-        # ctx.destroy() # Cleanup
-        x = mumps.spsolve(A, b)
+    elif solver == SolverType.lsq_linear:
+        # constrained minimization
+        # https://docs.scipy.org/doc/scipy/reference/generated/scipy.optimize.lsq_linear.html
+        assert len(lb) == len(ub)
+        x = optimize.lsq_linear(
+            A, b.toarray().ravel(), bounds=(lb, ub), tol=1e-10, method="trf", verbose=0
+        )
+        x = x["x"]
+
+    else:
+        raise NotImplementedError(f"{solver} is not implemented.")
 
     tic.Tac("Solver", f"Solve {problemType} ({solver})", simu._verbosity)
 
@@ -246,20 +246,6 @@ def _Solve_Axb(
     # print(res/np.linalg.norm(b.toarray().ravel()))
 
     return np.array(x)
-
-
-def __Get_solver(solver: str) -> str:
-    """Checks whether the selected solver library is available
-    If not, returns the solver usable in all cases (scipy)."""
-    defaultSolver = "scipy"
-    if solver == "pypardiso":
-        return solver if CAN_USE_PYPARDISO else defaultSolver
-    elif solver == "mumps":
-        return solver if CAN_USE_MUMPS else defaultSolver
-    elif solver == "petsc":
-        return solver if CAN_USE_PETSC else defaultSolver
-    else:
-        return solver
 
 
 def Solve_simu(simu: "_Simu", problemType: "ModelType"):
@@ -417,10 +403,11 @@ def _PETSc(
     A: sparse.csr_matrix,
     b: sparse.csr_matrix,
     x0: _types.FloatArray,
-    kspType: str = "cg",
-    pcType: str = "ilu",
-) -> tuple[_types.FloatArray, str, bool]:
-    """PETSc insterface to solve the linear system A x = b
+    options: PETSc4PyOptions = PETSc4PyOptions(),
+) -> tuple[_types.FloatArray, bool]:
+    """PETSc insterface to solve the linear system `A x = b`\n
+    KSP - Linear System Solvers: https://petsc.org/release/manual/ksp/#\n
+
 
     Parameters
     ----------
@@ -430,16 +417,8 @@ def _PETSc(
         sparse vector (N, 1)
     x0 : _types.FloatArray
         initial guess (N)
-    kspType : str, optional
-        PETSc Krylov method, by default 'cg'\n
-        "cg", "bicg", "gmres", "bcgs", "groppcg"\n
-        https://petsc.org/release/manualpages/KSP/KSPType/
-    pcType : str, optional
-        preconditioner, by default 'ilu'\n
-        "ilu", "none", "bjacobi", 'icc', "lu", "jacobi", "cholesky"\n
-        # TODO iluk ?
-        more -> https://petsc.org/release/manualpages/PC/PCType/\n
-        remark : The ilu preconditioner does not seem to work for systems using HEXA20 elements.
+    options : PETSc4PyOptions
+        petsc4py options
 
     Returns
     -------
@@ -455,32 +434,34 @@ def _PETSc(
     comm = MPI.COMM_WORLD
     nprocs = comm.Get_size()
     # rank = comm.Get_rank()
+    petsc4py.init(sys.argv, comm=comm)
 
     matrix = PETSc.Mat()  # type: ignore [attr-defined]
 
     # get size and cols
     Ndof = A.shape[0]
-    rows, cols = [list(set(idx)) for idx in A.nonzero()]
 
     if nprocs > 1:
+        # TODO: read https://petsc.org/release/manual/mat/#preallocation-of-memory-for-parallel-aij-sparse-matrices
         # create
         matrix.create(comm=comm)
+        matrix.setType("aij")
         # get values
+        rows, cols = [list(set(idx)) for idx in A.nonzero()]
         values = A[rows, :].tocsc()[:, cols].toarray().ravel()
         # set sizes
         Nrows, Ncols = len(rows), len(cols)
-        # print(Nrows)
+        # print(Nrows, Ncols)
         matrix.setSizes([Nrows, Ndof], [Ncols, Ndof])
         # set values
         matrix.setValues(rows, cols, values, PETSc.InsertMode.INSERT_VALUES)
+        matrix.assemble()  # TODO #26 Not functional at this stage.
     else:
         csr = (A.indptr, A.indices, A.data)
         matrix.createAIJ(A.shape, comm=comm, csr=csr)
 
     # set rhs values
     rhs = matrix.createVecLeft()
-    # lines, _, values = sparse.find(b)
-    # rhs.array[lines] = values
     lines, _, values = sparse.find(b)
     rhs.array[lines] = values
 
@@ -492,26 +473,26 @@ def _PETSc(
         else:
             x.array[:] = x0
 
+    kspType = options.kspType
+    pcType = options.pcType
+    solverType = options.solverType
+
     ksp = PETSc.KSP().create(comm=comm)  # type: ignore [attr-defined]
     ksp.setOperators(matrix)
     ksp.setType(kspType)
 
+    # set pc type
     pc = ksp.getPC()
-    # pc.setType(pcType)
-    pc.setType("lu")
+    pc.setType(pcType)
 
-    # pc.setFactorSolverType("superlu") #"mumps"
+    # set solver type
+    pc.setFactorSolverType(solverType)
 
+    # solve x
     ksp.solve(rhs, x)
     x = x.array
 
-    converg: bool = ksp.is_converged
-
-    # PETSc._finalize()
-
-    option = f", {kspType}, {pcType}"
-
-    return x, option, converg
+    return x, ksp.is_converged
 
 
 def _ScipyLinearDirect(A: sparse.csr_matrix, b: sparse.csr_matrix, A_isSymetric: bool):
@@ -521,13 +502,11 @@ def _ScipyLinearDirect(A: sparse.csr_matrix, b: sparse.csr_matrix, A_isSymetric:
     hideFacto = False  # Hide decomposition
     # permute = "MMD_AT_PLUS_A", "MMD_ATA", "COLAMD", "NATURAL"
 
-    # if A_isSymetric:
-    #     permute="MMD_AT_PLUS_A"
-    # else:
-    #     permute="COLAMD"
-    #     # permute="NATURAL"
-
-    permute = "MMD_AT_PLUS_A"
+    if A_isSymetric:
+        permute = "MMD_AT_PLUS_A"
+    else:
+        permute = "COLAMD"
+        # permute="NATURAL"
 
     if hideFacto:
         x = sla.spsolve(A, b, permc_spec=permute)
@@ -538,24 +517,5 @@ def _ScipyLinearDirect(A: sparse.csr_matrix, b: sparse.csr_matrix, A_isSymetric:
         # Users' Guide : https://portal.nersc.gov/project/sparse/superlu/ug.pdf
         lu = sla.splu(A.tocsc(), permc_spec=permute)
         x = lu.solve(b.toarray()).ravel()
-
-    return x
-
-
-def _BoundConstrain(
-    A,
-    b,
-    lb: Union[_types.AnyArray, _types.Numbers],
-    ub: Union[_types.AnyArray, _types.Numbers],
-):
-    assert len(lb) == len(ub), "Must be the same size"
-
-    # constrained minimization : https://docs.scipy.org/doc/scipy/reference/generated/scipy.optimize.lsq_linear.html
-
-    b = b.toarray().ravel()
-    # x = lsq_linear(A,b,bounds=(lb,ub), verbose=0,tol=1e-6)
-    tol = 1e-10
-    x = optimize.lsq_linear(A, b, bounds=(lb, ub), tol=tol, method="trf", verbose=0)
-    x = x["x"]
 
     return x

@@ -19,17 +19,11 @@ from ..models import ModelType, Reshape_variable, Result_in_Strain_or_Stress_fie
 
 # simu
 from ._simu import _Simu
-from .Solvers import AlgoType
+from .Solvers import AlgoType, PETSc4PyOptions
 
 
 class ElasticSimu(_Simu):
-    def __init__(
-        self,
-        mesh: "Mesh",
-        model: Models._Elas,
-        verbosity=False,
-        useIterativeSolvers=True,
-    ):
+    def __init__(self, mesh: "Mesh", model: Models._Elas, verbosity=False):
         """Creates a elastic simulation.
 
         Parameters
@@ -40,15 +34,15 @@ class ElasticSimu(_Simu):
             The elastic model (or material) used.
         verbosity : bool, optional
             If True, the simulation can write in the terminal. Defaults to False.
-        useIterativeSolvers : bool, optional
-            If True, iterative solvers can be used. Defaults to True.
         """
 
         assert isinstance(model, Models._Elas), "model must be a elastic model"
-        super().__init__(mesh, model, verbosity, useIterativeSolvers)
+        super().__init__(mesh, model, verbosity)
 
         # init
         self.Set_Rayleigh_Damping_Coefs()
+
+        self._solver_petsc4py_options = PETSc4PyOptions(pcType="lu")
 
     def Results_nodeFields_elementFields(
         self, details=False

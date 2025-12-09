@@ -18,7 +18,7 @@ from ..models import ModelType
 
 # simu
 from ._simu import _Simu
-from .Solvers import AlgoType
+from .Solvers import AlgoType, PETSc4PyOptions
 
 
 class WeakFormSimu(_Simu):
@@ -30,7 +30,6 @@ class WeakFormSimu(_Simu):
         tolConv=1e-5,
         maxIter=20,
         verbosity=False,
-        useIterativeSolvers=True,
     ):
         """Creates a thermal simulation.
 
@@ -48,12 +47,10 @@ class WeakFormSimu(_Simu):
             Maximum iterations for convergence, by default 20
         verbosity : bool, optional
             If True, the simulation can write in the terminal. Defaults to False.
-        useIterativeSolvers : bool, optional
-            If True, iterative solvers can be used. Defaults to True.
         """
 
         assert isinstance(model, Models.WeakForms), "model must be a weakf form manager"
-        super().__init__(mesh, model, verbosity, useIterativeSolvers)
+        super().__init__(mesh, model, verbosity)
 
         if isNonLinear:
             self._Solver_Set_Newton_Raphson_Algorithm(tolConv=tolConv, maxIter=maxIter)

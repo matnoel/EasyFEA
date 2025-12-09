@@ -19,7 +19,7 @@ from ..models import ModelType, Reshape_variable
 
 # simu
 from ._simu import _Simu
-from .Solvers import AlgoType
+from .Solvers import AlgoType, PETSc4PyOptions
 
 
 class ThermalSimu(_Simu):
@@ -28,7 +28,6 @@ class ThermalSimu(_Simu):
         mesh: "Mesh",
         model: Models.Thermal,
         verbosity=False,
-        useIterativeSolvers=True,
     ):
         """Creates a thermal simulation.
 
@@ -40,12 +39,10 @@ class ThermalSimu(_Simu):
             The model used.
         verbosity : bool, optional
             If True, the simulation can write in the terminal. Defaults to False.
-        useIterativeSolvers : bool, optional
-            If True, iterative solvers can be used. Defaults to True.
         """
 
         assert isinstance(model, Models.Thermal), "model must be a thermal model"
-        super().__init__(mesh, model, verbosity, useIterativeSolvers)
+        super().__init__(mesh, model, verbosity)
 
     def Get_unknowns(self, problemType=None) -> list[str]:
         return ["t"]

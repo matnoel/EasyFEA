@@ -31,6 +31,7 @@ from . import Models
 # simulations
 # ----------------------------------------------
 from . import Simulations
+from .simulations.Solvers import SolverType
 
 # ----------------------------------------------
 # version

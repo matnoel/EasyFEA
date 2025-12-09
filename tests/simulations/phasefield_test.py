@@ -2,8 +2,8 @@
 # This file is part of the EasyFEA project.
 # EasyFEA is distributed under the terms of the GNU General Public License v3, see LICENSE.txt and CREDITS.md for more information.
 
+from EasyFEA import Mesher, Models, np, Simulations, SolverType
 from EasyFEA.Geoms import Domain
-from EasyFEA import Mesher, Models, np, Simulations
 
 
 class TestPhaseField:
@@ -31,6 +31,7 @@ class TestPhaseField:
                 print(f"{split} {regu}")
 
                 simu = Simulations.PhaseFieldSimu(mesh, pfm)
+                simu.solver = SolverType.scipy
 
                 for ud in np.linspace(0, 5e-8 * 400, 3):
 

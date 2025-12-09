@@ -4,7 +4,7 @@
 
 import pytest
 
-from EasyFEA import Display, Models, plt, np
+from EasyFEA import Display, Models, plt, np, SolverType
 from EasyFEA.Geoms import Domain, Circle, Point, Line
 from EasyFEA import Mesher, ElemType
 from EasyFEA import Simulations
@@ -41,6 +41,7 @@ class TestElastic:
             comportement = Models.ElasIsot(dim, thickness=a)
 
             simu = Simulations.ElasticSimu(mesh, comportement, verbosity=False)
+            simu.solver = SolverType.scipy
 
             noeuds_en_0 = mesh.Nodes_Conditions(lambda x, y, z: x == 0)
             noeuds_en_L = mesh.Nodes_Conditions(lambda x, y, z: x == a)

@@ -11,4 +11,4 @@ from ._simu import _Simu, _Init_obj, _Get_values, Load_Simu
 
 # from ._thermal import ThermalSimu
 from ._utils import Save_pickle, Load_pickle
-from .Solvers import AlgoType, ResolType, _Available_Solvers, Solve_simu
+from .Solvers import AlgoType, ResolType, SolverType, Solve_simu

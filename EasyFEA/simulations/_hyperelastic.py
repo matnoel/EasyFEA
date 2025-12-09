@@ -27,7 +27,7 @@ if TYPE_CHECKING:
 from ..models._hyperelastic import HyperElasticState
 
 # simu
-from ._simu import _Simu, AlgoType
+from ._simu import _Simu, AlgoType, PETSc4PyOptions
 
 
 class HyperElasticSimu(_Simu):
@@ -38,7 +38,6 @@ class HyperElasticSimu(_Simu):
         tolConv=1e-5,
         maxIter=20,
         verbosity=False,
-        useIterativeSolvers=True,
     ):
         """Creates a simulation.
 
@@ -55,14 +54,14 @@ class HyperElasticSimu(_Simu):
         maxIter : int, optional
             Maximum iterations for convergence, by default 20
         verbosity : bool, optional
-            If True, the simulation can write in the terminal. Defaults to False.
-        useIterativeSolvers : bool, optional
             If True, iterative solvers can be used. Defaults to True.
         """
 
-        super().__init__(mesh, model, verbosity, useIterativeSolvers)
+        super().__init__(mesh, model, verbosity)
 
         self._Solver_Set_Newton_Raphson_Algorithm(tolConv=tolConv, maxIter=maxIter)
+
+        self._solver_petsc4py_options = PETSc4PyOptions(pcType="lu")
 
     # --------------------------------------------------------------------------
     # General

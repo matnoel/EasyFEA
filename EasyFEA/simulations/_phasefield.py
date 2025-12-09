@@ -23,17 +23,11 @@ from ..models import (
 )
 
 # simu
-from ._simu import _Simu
+from ._simu import _Simu, SolverType, PETSc4PyOptions
 
 
 class PhaseFieldSimu(_Simu):
-    def __init__(
-        self,
-        mesh: Mesh,
-        model: Models.PhaseField,
-        verbosity=False,
-        useIterativeSolvers=True,
-    ):
+    def __init__(self, mesh: Mesh, model: Models.PhaseField, verbosity=False):
         """Creates a damage simulation.
 
         Parameters
@@ -44,12 +38,10 @@ class PhaseFieldSimu(_Simu):
             The model used.
         verbosity : bool, optional
             If True, the simulation can write in the terminal. Defaults to False.
-        useIterativeSolvers : bool, optional
-            If True, iterative solvers can be used. Defaults to True.
         """
 
         assert isinstance(model, Models.PhaseField), "model must be a phase field model"
-        super().__init__(mesh, model, verbosity, useIterativeSolvers)
+        super().__init__(mesh, model, verbosity)
 
         # Init internal variable
         self.__psiP_e_pg: FeArray.FeArrayALike = np.empty(0, dtype=float)
@@ -88,11 +80,12 @@ class PhaseFieldSimu(_Simu):
         self, problemType: ModelType
     ) -> tuple[_types.FloatArray, _types.FloatArray]:
         if problemType == ModelType.damage:
-            solveur = self.phaseFieldModel.solver
-            if solveur == "BoundConstrain":
+            solver = self.phaseFieldModel.solver
+            if solver == Models.PhaseField.SolverType.BoundConstrain:
                 lb = self.damage
                 lb[np.where(lb >= 1)] = 1 - np.finfo(float).eps
                 ub = np.ones(lb.shape)
+                self.solver = SolverType.lsq_linear
             else:
                 lb, ub = np.array([]), np.array([])
         else:
@@ -427,6 +420,8 @@ class PhaseFieldSimu(_Simu):
     def __Solve_elastic(self) -> _types.FloatArray:
         """Computes the displacement field."""
 
+        # ilu decomposition doesn't work for the displacement problem
+        self._solver_petsc4py_options = PETSc4PyOptions(pcType="none")
         self._Solver_Solve_problemType(ModelType.elastic)
 
         return self.displacement
@@ -528,6 +523,7 @@ class PhaseFieldSimu(_Simu):
     def __Solve_damage(self) -> _types.FloatArray:
         """Computes the damage field."""
 
+        self._solver_petsc4py_options = PETSc4PyOptions(pcType="ilu")
         self._Solver_Solve_problemType(ModelType.damage)
 
         return self.damage
