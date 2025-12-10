@@ -1,11 +1,10 @@
 sphinx
 sphinx-autodoc-typehints
 pydata_sphinx_theme
-sphinx-gallery
+sphinx-gallery==0.20.0
 jupyter_sphinx
 sphinx-design
 scikit-learn
 sympy
 pyvista[all]
 meshio @ git+https://github.com/matnoel/meshio.git@medit_higher_order_elements
-pypardiso
