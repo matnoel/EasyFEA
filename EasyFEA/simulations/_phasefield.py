@@ -23,7 +23,7 @@ from ..models import (
 )
 
 # simu
-from ._simu import _Simu, SolverType, PETSc4PyOptions
+from ._simu import _Simu, SolverType
 
 
 class PhaseFieldSimu(_Simu):
@@ -53,6 +53,8 @@ class PhaseFieldSimu(_Simu):
         self.phaseFieldModel.material._Add_observer(self)
 
         self.__resumeLoading = ""
+
+        self.__displacement_solver = self.solver
 
     def Results_nodeFields_elementFields(
         self, details=False
@@ -421,7 +423,9 @@ class PhaseFieldSimu(_Simu):
         """Computes the displacement field."""
 
         # ilu decomposition doesn't work for the displacement problem
-        self._solver_petsc4py_options = PETSc4PyOptions(pcType="none")
+        # Set solver petsc4py options, even if petsc4py is unavailable.
+        self.solver = self.__displacement_solver
+        self._Solver_Set_PETSc4Py_Options(pcType="none")
         self._Solver_Solve_problemType(ModelType.elastic)
 
         return self.displacement
@@ -523,7 +527,8 @@ class PhaseFieldSimu(_Simu):
     def __Solve_damage(self) -> _types.FloatArray:
         """Computes the damage field."""
 
-        self._solver_petsc4py_options = PETSc4PyOptions(pcType="ilu")
+        # Set solver petsc4py options, even if petsc4py is unavailable.
+        self._Solver_Set_PETSc4Py_Options(pcType="ilu")
         self._Solver_Solve_problemType(ModelType.damage)
 
         return self.damage

@@ -27,7 +27,7 @@ if TYPE_CHECKING:
 from ..models._hyperelastic import HyperElasticState
 
 # simu
-from ._simu import _Simu, AlgoType, PETSc4PyOptions
+from ._simu import _Simu, AlgoType
 
 
 class HyperElasticSimu(_Simu):
@@ -61,7 +61,8 @@ class HyperElasticSimu(_Simu):
 
         self._Solver_Set_Newton_Raphson_Algorithm(tolConv=tolConv, maxIter=maxIter)
 
-        self._solver_petsc4py_options = PETSc4PyOptions(pcType="lu")
+        # Set solver petsc4py options, even if petsc4py is unavailable.
+        self._Solver_Set_PETSc4Py_Options(pcType="lu")
 
     # --------------------------------------------------------------------------
     # General

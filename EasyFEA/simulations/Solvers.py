@@ -11,7 +11,6 @@ import scipy.sparse as sparse
 import scipy.optimize as optimize
 import scipy.sparse.linalg as sla
 from typing import Union, TYPE_CHECKING
-from dataclasses import dataclass
 
 
 if TYPE_CHECKING:
@@ -39,25 +38,6 @@ try:
 
 except ModuleNotFoundError:
     CAN_USE_PETSC = False
-
-
-@dataclass
-class PETSc4PyOptions:
-    kspType: str = "cg"
-    """PETSc Krylov method, by default 'cg'.\n
-    e.g. 'cg', 'bicg', 'gmres', 'bcgs', 'groppcg', ...\n
-    https://petsc.org/release/manualpages/KSP/KSPType/#ksptype\n
-    """
-    pcType: str = "ilu"
-    """PETSc preconditioner, by default 'ilu'.\n
-    e.g. 'ilu', 'none', 'bjacobi', 'icc', 'lu', 'jacobi', 'cholesky', ...\n
-    https://petsc.org/release/manualpages/PC/PCType/#pctype\n
-    """
-    solverType: str = "petsc"
-    """PETSc Linear Solver, by default 'petsc'.\n
-    e.g. 'petsc', 'mumps', 'superlu', 'superlu_dist', 'umfpack', 'cholesky' ...\n
-    https://petsc.org/release/manual/ksp/#using-external-linear-solvers
-    """
 
 
 class AlgoType(str, Enum):
@@ -106,11 +86,10 @@ class ResolType(str, Enum):
 class SolverType(str, Enum):
     """Solver type used to solve the linear system `A x = b`"""
 
-    if CAN_USE_PYPARDISO:
-        pypardiso = "pypardiso"
-        """pypardiso.spsolve"""
-    if CAN_USE_PETSC:
-        petsc = "petsc"
+    pypardiso = "pypardiso"
+    """pypardiso.spsolve"""
+
+    petsc = "petsc"
 
     scipy = "scipy"
     """scipy.sparse.linalg.spsolve"""
@@ -194,12 +173,9 @@ def _Solve_Axb(
     elif CAN_USE_PETSC and solver == SolverType.petsc:
 
         # get petsc4py options
-        options = simu._solver_petsc4py_options
-        kspType = options.kspType
-        pcType = options.pcType
-        solverType = options.solverType
+        kspType, pcType, solverType = simu._Solver_Get_PETSc4Py_Options()
 
-        x, converged = _PETSc(A, b, x0, options)
+        x, converged = _PETSc(A, b, x0, kspType, pcType, solverType)
         if not converged:
             raise Exception(
                 f"petsc did not converge with ksp:{kspType}, pc:{pcType} and solver:{solverType}."
@@ -230,7 +206,7 @@ def _Solve_Axb(
     elif solver == SolverType.lsq_linear:
         # constrained minimization
         # https://docs.scipy.org/doc/scipy/reference/generated/scipy.optimize.lsq_linear.html
-        assert len(lb) == len(ub)
+        assert len(lb) == len(ub) != 0
         x = optimize.lsq_linear(
             A, b.toarray().ravel(), bounds=(lb, ub), tol=1e-10, method="trf", verbose=0
         )
@@ -403,7 +379,9 @@ def _PETSc(
     A: sparse.csr_matrix,
     b: sparse.csr_matrix,
     x0: _types.FloatArray,
-    options: PETSc4PyOptions = PETSc4PyOptions(),
+    kspType: str = "cg",
+    pcType: str = "none",
+    solverType: str = "petsc",
 ) -> tuple[_types.FloatArray, bool]:
     """PETSc insterface to solve the linear system `A x = b`\n
     KSP - Linear System Solvers: https://petsc.org/release/manual/ksp/#\n
@@ -417,8 +395,18 @@ def _PETSc(
         sparse vector (N, 1)
     x0 : _types.FloatArray
         initial guess (N)
-    options : PETSc4PyOptions
-        petsc4py options
+    kspType : str, optional
+        PETSc Krylov method, by default "cg"
+        e.g. 'cg', 'bicg', 'gmres', 'bcgs', 'groppcg', ...\n
+        https://petsc.org/release/manualpages/KSP/KSPType/#ksptype\n
+    pcType : str, optional
+        PETSc preconditioner, by default "none"
+        e.g. 'none', 'ilu', 'bjacobi', 'icc', 'lu', 'jacobi', 'cholesky', ...\n
+        https://petsc.org/release/manualpages/PC/PCType/#pctype\n
+    solverType : str, optional
+        PETSc Linear Solver, by default "petsc"
+        e.g. 'petsc', 'mumps', 'superlu', 'superlu_dist', 'umfpack', 'cholesky' ...\n
+        https://petsc.org/release/manual/ksp/#using-external-linear-solvers
 
     Returns
     -------
@@ -472,10 +460,6 @@ def _PETSc(
             x.array[rows] = x0[rows]
         else:
             x.array[:] = x0
-
-    kspType = options.kspType
-    pcType = options.pcType
-    solverType = options.solverType
 
     ksp = PETSc.KSP().create(comm=comm)  # type: ignore [attr-defined]
     ksp.setOperators(matrix)

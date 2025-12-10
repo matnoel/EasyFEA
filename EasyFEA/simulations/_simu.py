@@ -34,7 +34,6 @@ from ..models import ModelType, _IModel, Reshape_variable
 from .Solvers import (
     Solve_simu,
     SolverType,
-    PETSc4PyOptions,
     ResolType,
     AlgoType,
     CAN_USE_PETSC,
@@ -277,6 +276,12 @@ class _Simu(_IObserver, _params.Updatable, ABC):
 
         text += "\n\nsolver : " + str(self.solver)
 
+        if self.solver == SolverType.petsc:
+            kspType, pcType, solverType = self._Solver_Get_PETSc4Py_Options()
+            text += f", {kspType}, {pcType}"
+            if solverType != "petsc":
+                text += f", {solverType}"
+
         text += Display.Section("Boundary Conditions", False)
         text += "\n" + textwrap.dedent(self.Results_Get_Bc_Summary())  # type: ignore
 
@@ -341,9 +346,9 @@ class _Simu(_IObserver, _params.Updatable, ABC):
             self.solver = SolverType.pypardiso
         elif CAN_USE_PETSC:
             self.solver = SolverType.petsc
-        # solver petsc4py options
-        # Even if petsc4py is unavailable, initialize default solver options.
-        self._solver_petsc4py_options = PETSc4PyOptions()
+
+        # Set solver petsc4py options, even if petsc4py is unavailable.
+        self._Solver_Set_PETSc4Py_Options()
 
         # Initialize solutions and boundary conditions
         self.__Init_Sols_n()
@@ -1359,6 +1364,34 @@ class _Simu(_IObserver, _params.Updatable, ABC):
 
             # Here we return A penalized
             return A.tocsr(), b.tocsr()
+
+    def _Solver_Set_PETSc4Py_Options(
+        self, kspType: str = "cg", pcType: str = "none", solverType: str = "petsc"
+    ) -> None:
+        """Sets petsc4py options.
+
+        Parameters
+        ----------
+        kspType : str, optional
+            PETSc Krylov method, by default "cg"
+            e.g. 'cg', 'bicg', 'gmres', 'bcgs', 'groppcg', ...\n
+            https://petsc.org/release/manualpages/KSP/KSPType/#ksptype\n
+        pcType : str, optional
+            PETSc preconditioner, by default "none"
+            e.g. 'none', 'ilu', 'bjacobi', 'icc', 'lu', 'jacobi', 'cholesky', ...\n
+            https://petsc.org/release/manualpages/PC/PCType/#pctype\n
+        solverType : str, optional
+            PETSc Linear Solver, by default "petsc"
+            e.g. 'petsc', 'mumps', 'superlu', 'superlu_dist', 'umfpack', 'cholesky' ...\n
+            https://petsc.org/release/manual/ksp/#using-external-linear-solvers
+        """
+
+        self.__solver_petsc4py_options = (kspType, pcType, solverType)
+
+    def _Solver_Get_PETSc4Py_Options(self) -> tuple[str, str, str]:
+        """Returns (kspType, pcType, solverType) petsc4py options."""
+
+        return self.__solver_petsc4py_options
 
     # ----------------------------------------------
     # Boundary conditions

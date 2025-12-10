@@ -19,7 +19,7 @@ from ..models import ModelType, Reshape_variable, Result_in_Strain_or_Stress_fie
 
 # simu
 from ._simu import _Simu
-from .Solvers import AlgoType, PETSc4PyOptions
+from .Solvers import AlgoType
 
 
 class ElasticSimu(_Simu):
@@ -42,7 +42,8 @@ class ElasticSimu(_Simu):
         # init
         self.Set_Rayleigh_Damping_Coefs()
 
-        self._solver_petsc4py_options = PETSc4PyOptions(pcType="lu")
+        # Set solver petsc4py options, even if petsc4py is unavailable.
+        self._Solver_Set_PETSc4Py_Options(pcType="lu")
 
     def Results_nodeFields_elementFields(
         self, details=False

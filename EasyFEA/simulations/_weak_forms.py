@@ -18,7 +18,7 @@ from ..models import ModelType
 
 # simu
 from ._simu import _Simu
-from .Solvers import AlgoType, PETSc4PyOptions
+from .Solvers import AlgoType
 
 
 class WeakFormSimu(_Simu):
