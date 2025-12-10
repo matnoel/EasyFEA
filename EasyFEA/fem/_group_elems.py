@@ -1913,12 +1913,14 @@ class _GroupElem(ABC):
     ) -> FeArray.FeArrayALike:
         """Locates sol on elements"""
 
-        size = self.Nn * self.dim
+        Nn = self.coordGlob.shape[0]
+
+        size = Nn * self.dim
         if isinstance(dof_n, (int, float)):
             sol_e = sol[self.Get_assembly_e(dof_n)]
         elif sol.shape[0] == size:
             sol_e = sol[self.assembly_e]
-        elif sol.shape[0] == self.Nn:
+        elif sol.shape[0] == Nn:
             sol_e = sol[self.__connect]
         else:
             raise Exception("Wrong dimension")
