@@ -25,4 +25,3 @@ python:
     - method: pip
       path: .
     - requirements: docs/requirements.txt
-    - run: pip install pypardiso
