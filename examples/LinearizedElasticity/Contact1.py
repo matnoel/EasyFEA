@@ -157,7 +157,7 @@ if __name__ == "__main__":
             #     coordinates = groupMaster.Get_GaussCoordinates_e_p('mass').reshape(-1,3)
             #     ax.scatter(*coordinates[:,:dim].T)
 
-            #     coordo_new = simu.Results_displacement_matrix() + simu.mesh.coordo
+            #     coordo_new = simu.Results_displacement_matrix() + simu.mesh.coord
             #     ax.scatter(*coordo_old[nodes,:dim].T)
             #     incU = coordo_new - coordo_oldq
             #     [ax.arrow(*coordo_old[node, :dim], *incU[node,:dim],length_includes_head=True) for node in nodes]

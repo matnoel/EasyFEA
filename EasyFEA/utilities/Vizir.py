@@ -319,7 +319,7 @@ def _Write_solution_file(
                 # write WarpVec
                 f.write(f"WarpVec\n1\n{deformFactor}\n\n")
 
-    Nn = mesh.coordGlob.shape[0]
+    Nn = mesh.coord.shape[0]
 
     with open(solutionFile, "w") as f:
         # write first lines

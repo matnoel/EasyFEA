@@ -200,7 +200,7 @@ class TestMesh:
 
             node = np.random.randint(0, mesh.Nn, 1)
 
-            coords = mesh.coordGlob[node].reshape(1, 3)
+            coords = mesh.coord[node].reshape(1, 3)
 
             dofsValues = np.arange(mesh.Nn * 2) + 1
 
@@ -214,7 +214,7 @@ class TestMesh:
 
             node = np.random.randint(0, mesh.Nn, 1)
 
-            coords = mesh.coordGlob[node].reshape(1, 3)
+            coords = mesh.coord[node].reshape(1, 3)
 
             dofsValues = np.arange(mesh.Nn * 2) + 1
 

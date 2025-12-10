@@ -66,7 +66,7 @@ class Mesh(Observable):
         if self.__verbosity:
             print(self)
 
-        Nn = self.coordGlob.shape[0]
+        Nn = self.coord.shape[0]
         usedNodes = set(self.connect.ravel().astype(int))
         nodes = set(range(Nn))
         orphanNodes = list(nodes - usedNodes)
@@ -137,7 +137,7 @@ class Mesh(Observable):
     @property
     def Nn(self) -> int:
         """number of nodes in the mesh"""
-        return self.coordGlob.shape[0]
+        return self.coord.shape[0]
 
     @property
     def dim(self):
@@ -154,11 +154,6 @@ class Mesh(Observable):
     def nPe(self) -> int:
         """nodes per element"""
         return self.groupElem.nPe
-
-    @property
-    def coord(self) -> _types.FloatArray:
-        """nodes coordinates matrix (Nn,3) for the main groupElem"""
-        return self.groupElem.coord
 
     def _Get_realistic_vector_magnitude(self, coef=0.1) -> float:
         """Returns a realistic vector magnitude based on the mesh size.
@@ -179,7 +174,7 @@ class Mesh(Observable):
 
     def Translate(self, dx: float = 0.0, dy: float = 0.0, dz: float = 0.0) -> None:
         """Translates the mesh coordinates."""
-        oldCoord = self.coordGlob
+        oldCoord = self.coord
         newCoord = oldCoord + np.array([dx, dy, dz])
         for grp in self.dict_groupElem.values():
             grp.coordGlob = newCoord
@@ -200,7 +195,7 @@ class Mesh(Observable):
             rotation direction, by default (0,0,1)
         """
 
-        oldCoord = self.coordGlob
+        oldCoord = self.coord
         newCoord = Rotate(oldCoord, theta, center, direction)
         for grp in self.dict_groupElem.values():
             grp.coordGlob = newCoord
@@ -217,7 +212,7 @@ class Mesh(Observable):
             normal to the plane, by default (1,0,0)
         """
 
-        oldCoord = self.coordGlob
+        oldCoord = self.coord
         newCoord = Symmetry(oldCoord, point, n)
         for grp in self.dict_groupElem.values():
             grp.coordGlob = newCoord
@@ -229,14 +224,14 @@ class Mesh(Observable):
         return self.groupElem.nodes
 
     @property
-    def coordGlob(self) -> _types.FloatArray:
+    def coord(self) -> _types.FloatArray:
         """global nodes coordinates matrix (Nn, 3)\n
         Contains all nodes coordinates"""
         return self.groupElem.coordGlob
 
-    @coordGlob.setter
-    def coordGlob(self, coord: _types.FloatArray) -> None:
-        if coord.shape == self.coordGlob.shape:
+    @coord.setter
+    def coord(self, coord: _types.FloatArray) -> None:
+        if coord.shape == self.coord.shape:
             for grp in self.dict_groupElem.values():
                 grp.coordGlob = coord
 
@@ -790,7 +785,7 @@ class Mesh(Observable):
         if corners.ndim == 1:
             # corners are nodes
             # corners become the corners coordinates
-            corners = self.coordGlob[corners]
+            corners = self.coord[corners]
 
         nCorners = len(corners)  # number of corners
         nEdges = nCorners // 2  # number of edges
@@ -1149,9 +1144,9 @@ def Calc_projector(oldMesh: Mesh, newMesh: Mesh) -> sp.csr_matrix:
     # from EasyFEA import Display
     # dim = oldMesh.dim
     # ax = Display.Plot_Mesh(oldMesh)
-    # ax.scatter(*newMesh.coordo[nodesSup1,:dim].T,label='sup1')
-    # ax.scatter(*newMesh.coordo[newCorners,:dim].T,label='corners')
-    # ax.scatter(*newMesh.coordo[nodesExact,:dim].T,label='exact')
+    # ax.scatter(*newMesh.coord[nodesSup1,:dim].T,label='sup1')
+    # ax.scatter(*newMesh.coord[newCorners,:dim].T,label='corners')
+    # ax.scatter(*newMesh.coord[nodesExact,:dim].T,label='exact')
     # ax.legend()
 
     tic.Tac("Mesh", "Projector construction", False)

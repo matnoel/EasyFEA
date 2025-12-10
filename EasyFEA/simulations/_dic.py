@@ -105,7 +105,7 @@ class DIC(_IObserver):
         assert scale != 0.0
         meshC = self.__mesh.copy()
         [meshC._Remove_observer(observer) for observer in meshC.observers.copy()]
-        meshC.coordGlob = meshC.coordGlob * scale
+        meshC.coord = meshC.coord * scale
         return meshC
 
     # image properties

@@ -348,7 +348,7 @@ def _EasyFEA_to_Meshio(
 
     # import in meshio
     try:
-        meshioMesh = meshio.Mesh(mesh.coordGlob, cells_dict, None, cell_data)
+        meshioMesh = meshio.Mesh(mesh.coord, cells_dict, None, cell_data)
 
     except KeyError:
         raise KeyError(
@@ -668,9 +668,9 @@ def EasyFEA_to_PyVista(
 
     # get mesh coordinates
     if coord is None:
-        coordinates = mesh.coordGlob
+        coordinates = mesh.coord
     else:
-        expectedShape = mesh.coordGlob.shape
+        expectedShape = mesh.coord.shape
         assert coord.shape == expectedShape, f"coord must be a {expectedShape} array"
         coordinates = coord
 
@@ -985,7 +985,7 @@ def EasyFEA_to_Ensight(mesh: Mesh, folder: str, name: str) -> str:
 
     filename = Folder.Join(folder, f"{name}.geo", mkdir=True)
 
-    Nn = mesh.coordGlob.shape[0]
+    Nn = mesh.coord.shape[0]
 
     dict_tags_converter = __Get_dict_tags_converter(mesh)
     parts = np.unique([value for value in dict_tags_converter.values()])
@@ -1011,7 +1011,7 @@ def EasyFEA_to_Ensight(mesh: Mesh, folder: str, name: str) -> str:
         file.write("element id assign\n")
         file.write("coordinates\n")
         file.write(get_line(Nn) + "\n")
-        np.savetxt(file, mesh.coordGlob, fmt="%12.5e", delimiter="")
+        np.savetxt(file, mesh.coord, fmt="%12.5e", delimiter="")
 
         for part in parts:
 

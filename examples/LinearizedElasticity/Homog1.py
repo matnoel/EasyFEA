@@ -29,7 +29,7 @@ def Compute_ukl(
 ):
     simu.Bc_Init()
     mesh = simu.mesh
-    coord = mesh.coordGlob
+    coord = mesh.coord
 
     usePBC = paired_nodes is not None
 

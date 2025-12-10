@@ -304,7 +304,7 @@ if __name__ == "__main__":
         lambda x, y, z: np.sqrt(x**2 + z**2) <= R + 1e-2
     )
     nodesUpper = mesh.Nodes_Conditions(
-        lambda x, y, z: z >= mesh.coordGlob[:, 2].max() - 1e-2
+        lambda x, y, z: z >= mesh.coord[:, 2].max() - 1e-2
     )
 
     nodesBlades = mesh.Nodes_Conditions(
@@ -319,7 +319,7 @@ if __name__ == "__main__":
         matFile = Folder.Join(folder, "blade.mat")
         msh = {
             "connect": np.asarray(mesh.connect + 1, dtype=float),
-            "coordo": mesh.coordGlob,
+            "coord": mesh.coord,
             "bladesNodes": np.asarray(nodesBlades + 1, dtype=float),
             "bladesElems": np.asarray(
                 mesh.Elements_Nodes(nodesBlades) + 1, dtype=float

@@ -1894,14 +1894,14 @@ class _Simu(_IObserver, _params.Updatable, ABC):
         """Adds a point load."""
 
         Nn = nodes.shape[0]
-        coordo = self.mesh.coordGlob
-        coordo_n = coordo[nodes]
+        coord = self.mesh.coord
+        coord_n = coord[nodes]
 
         # initialize the value vector for each node
         valeurs_ddl_dir = np.zeros((Nn, len(unknowns)))
 
         for d, dir in enumerate(unknowns):
-            eval_n = self.__Bc_evaluate(coordo_n, values[d], option="nodes")
+            eval_n = self.__Bc_evaluate(coord_n, values[d], option="nodes")
             if problemType == ModelType.beam:
                 eval_n /= len(nodes)
             valeurs_ddl_dir[:, d] = eval_n.ravel()
@@ -2454,7 +2454,7 @@ def _(obj: _Simu, deformFactor: float = 0.0):
     simu = obj
     mesh = simu.mesh
     u = simu.Results_displacement_matrix()
-    coord: _types.FloatArray = mesh.coordGlob + u * np.abs(deformFactor)
+    coord: _types.FloatArray = mesh.coord + u * np.abs(deformFactor)
     inDim: int = np.max([simu.model.dim, mesh.inDim])
     return simu, mesh, coord, inDim
 
@@ -2463,7 +2463,7 @@ def _(obj: _Simu, deformFactor: float = 0.0):
 def _(obj: Mesh, deformFactor: float = 0.0):
     simu = None
     mesh = obj
-    coord = mesh.coordGlob
+    coord = mesh.coord
     inDim = mesh.inDim
     return simu, mesh, coord, inDim
 
@@ -2472,7 +2472,7 @@ def _(obj: Mesh, deformFactor: float = 0.0):
 def _(obj: _GroupElem, deformFactor: float = 0.0):
     simu = None
     mesh = Mesh({obj.elemType: obj})
-    coord = mesh.coordGlob
+    coord = mesh.coord
     inDim = mesh.inDim
     return simu, mesh, coord, inDim
 

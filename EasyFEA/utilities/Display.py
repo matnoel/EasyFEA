@@ -183,7 +183,7 @@ def Plot_Result(
         colorbar = plt.colorbar(pc, ax=ax, ticks=ticks)
 
         # Change axis scale
-        _Axis_equal_3D(ax, mesh.coordGlob)
+        _Axis_equal_3D(ax, mesh.coord)
 
     else:
 
@@ -402,7 +402,7 @@ def Plot_Mesh(
 
             # get segments coordinates / vertices
             segments = groupElem.connect[:, groupElem.segments[0]]
-            vertices = mesh.coordGlob[segments, :inDim]
+            vertices = mesh.coord[segments, :inDim]
             verticesDef = coord[segments, :inDim]
 
             if deformFactor > 0:
@@ -413,7 +413,7 @@ def Plot_Mesh(
 
             # Undeformed mesh
             pc = Line3DCollection(vertices, edgecolor=edgecolor, lw=lw, zorder=0)
-            ax.plot(*mesh.coordGlob.T, c="black", lw=lw, marker=".", ls="")
+            ax.plot(*mesh.coord.T, c="black", lw=lw, marker=".", ls="")
         else:
 
             # construct the connection matrix for the surfaces
@@ -425,7 +425,7 @@ def Plot_Mesh(
 
             # get faces coordinates / vertices
             verticesDef = coord[list_connect, :inDim]
-            vertices = mesh.coordGlob[list_connect, :inDim]
+            vertices = mesh.coord[list_connect, :inDim]
 
             if deformFactor > 0:
                 # Deformed mesh
@@ -500,7 +500,7 @@ def Plot_Mesh(
             # nodes
             if deformFactor > 0:
                 ax.plot(*coord[:, :2].T, c="red", lw=lw, marker=".", ls="")
-            ax.plot(*mesh.coordGlob[:, :2].T, c="black", lw=lw, marker=".", ls="")
+            ax.plot(*mesh.coord[:, :2].T, c="black", lw=lw, marker=".", ls="")
 
         ax.autoscale()
         if ax.name != "3d":
@@ -579,7 +579,7 @@ def _Plot_obj(
             list_connect.extend(groupElem.connect[:, surfaces])
 
         # get faces coordinates / vertices
-        vertices = mesh.coordGlob[list_connect, :inDim]
+        vertices = mesh.coord[list_connect, :inDim]
 
         params = {"facecolors": color, "alpha": alpha}
 
@@ -648,7 +648,7 @@ def Plot_Nodes(
     else:
         nodes = np.asarray(list(set(np.ravel(nodes))))
 
-    coordo = mesh.coordGlob
+    coordo = mesh.coord
 
     if inDim == 2:
         ax.plot(*coordo[nodes, :2].T, ls="", marker=marker, c=color, zorder=2.5)
@@ -812,7 +812,7 @@ def Plot_BoundaryConditions(simu, ax: Optional[_types.Axes] = None) -> _types.Ax
 
     simu = _Init_obj(simu)[0]
 
-    coord = simu.mesh.coordGlob
+    coord = simu.mesh.coord
 
     # get Dirichlet and Neumann boundary conditions
     dirchlets = simu.Bc_Dirichlet
