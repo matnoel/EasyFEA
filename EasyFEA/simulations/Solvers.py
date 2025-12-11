@@ -175,7 +175,19 @@ def _Solve_Axb(
         # get petsc4py options
         kspType, pcType, solverType = simu._Solver_Get_PETSc4Py_Options()
 
-        x, converged = _PETSc(A, b, x0, kspType, pcType, solverType)
+        # check wheter we use partionned data
+        if MPI.COMM_WORLD.Get_size() > 1:
+            mesh = simu.mesh
+            # get non-ghost nodes
+            nodes = mesh.groupElem._Get_partitionned_data()[1]
+            # get non-ghost dofs
+            usedDofs = simu.Bc_dofs_nodes(
+                nodes, simu.Get_unknowns(problemType), problemType
+            )
+        else:
+            usedDofs = None
+
+        x, converged = _PETSc(A, b, x0, kspType, pcType, solverType, usedDofs)
         if not converged:
             raise Exception(
                 f"petsc did not converge with ksp:{kspType}, pc:{pcType} and solver:{solverType}."
@@ -382,6 +394,7 @@ def _PETSc(
     kspType: str = "cg",
     pcType: str = "none",
     solverType: str = "petsc",
+    global_dofs: _types.IntArray = None,
 ) -> tuple[_types.FloatArray, bool]:
     """PETSc insterface to solve the linear system `A x = b`\n
     KSP - Linear System Solvers: https://petsc.org/release/manual/ksp/#\n
@@ -407,6 +420,8 @@ def _PETSc(
         PETSc Linear Solver, by default "petsc"
         e.g. 'petsc', 'mumps', 'superlu', 'superlu_dist', 'umfpack', 'cholesky' ...\n
         https://petsc.org/release/manual/ksp/#using-external-linear-solvers
+    global_dofs : _types.IntArray, optional
+        global dofs used to acces values in matrices, by default None
 
     Returns
     -------
@@ -421,7 +436,6 @@ def _PETSc(
 
     comm = MPI.COMM_WORLD
     nprocs = comm.Get_size()
-    # rank = comm.Get_rank()
     petsc4py.init(sys.argv, comm=comm)
 
     matrix = PETSc.Mat()  # type: ignore [attr-defined]
@@ -429,37 +443,60 @@ def _PETSc(
     # get size and cols
     Ndof = A.shape[0]
 
+    # init global to local converter
+    global_to_local_converter = np.zeros(Ndof, dtype=np.int32)
+
     if nprocs > 1:
-        # TODO: read https://petsc.org/release/manual/mat/#preallocation-of-memory-for-parallel-aij-sparse-matrices
+        # https://petsc.org/release/manual/mat/#matrices
         # create
         matrix.create(comm=comm)
         matrix.setType("aij")
+
+        # get sizes
+        Ndof_r = global_dofs.size
+        assert Ndof == comm.allreduce(Ndof_r, MPI.SUM)
+
         # get values
-        rows, cols = [list(set(idx)) for idx in A.nonzero()]
-        values = A[rows, :].tocsc()[:, cols].toarray().ravel()
-        # set sizes
-        Nrows, Ncols = len(rows), len(cols)
-        # print(Nrows, Ncols)
-        matrix.setSizes([Nrows, Ndof], [Ncols, Ndof])
+        assert isinstance(global_dofs, np.ndarray)
+
+        values = A[global_dofs, :].tocsc()[:, global_dofs].toarray().ravel()
+
+        # set matrix size
+        # https://petsc.org/release/petsc4py/reference/petsc4py.PETSc.Mat.html#petsc4py.PETSc.Mat.setSizes
+        matrix.setSizes([[Ndof_r, Ndof], [Ndof_r, Ndof]])
+
+        # set global to local converter
+        global_to_local_converter[global_dofs] = np.arange(len(global_dofs))
+
+        # get local dofs
+        local_dofs = global_to_local_converter[global_dofs]
+
         # set values
-        matrix.setValues(rows, cols, values, PETSc.InsertMode.INSERT_VALUES)
+        matrix.setValues(local_dofs, local_dofs, values, PETSc.InsertMode.INSERT_VALUES)
         matrix.assemble()  # TODO #26 Not functional at this stage.
     else:
+        # set global to local converter
+        global_to_local_converter = np.arange(Ndof)
+
+        # set values
         csr = (A.indptr, A.indices, A.data)
         matrix.createAIJ(A.shape, comm=comm, csr=csr)
 
     # set rhs values
     rhs = matrix.createVecLeft()
-    lines, _, values = sparse.find(b)
-    rhs.array[lines] = values
+    global_rows, _, values = sparse.find(b)
+    local_rows = global_to_local_converter[global_rows]
+    rhs.array[local_rows] = values
+
+    # get dofs where there is values
+    global_dofs = list(set(A.nonzero()[0]))
+    # get local dofs
+    local_dofs = global_to_local_converter[global_dofs]
 
     # set x values
     x = matrix.createVecRight()
     if len(x0) > 0:
-        if nprocs > 1:
-            x.array[rows] = x0[rows]
-        else:
-            x.array[:] = x0
+        x.array[local_dofs] = x0[global_dofs]
 
     ksp = PETSc.KSP().create(comm=comm)  # type: ignore [attr-defined]
     ksp.setOperators(matrix)
@@ -474,9 +511,12 @@ def _PETSc(
 
     # solve x
     ksp.solve(rhs, x)
-    x = x.array
 
-    return x, ksp.is_converged
+    # set dofsValues values
+    dofsValues = np.zeros(Ndof, dtype=float)
+    dofsValues[global_dofs] = x.array[local_dofs]
+
+    return dofsValues, ksp.is_converged
 
 
 def _ScipyLinearDirect(A: sparse.csr_matrix, b: sparse.csr_matrix, A_isSymetric: bool):

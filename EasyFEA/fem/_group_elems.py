@@ -80,8 +80,6 @@ class _GroupElem(ABC):
             ), "connect must be a (Ne, nPe) array."
         self.__connect = connect
         self.__connect_n_e: sparse.csr_matrix = None
-        # Sets the default positions of elements in the global mesh.
-        self._Set_elementsGlob(self.elements)
 
         # Ensure coordGlob is a (Nn, 3) array
         if coordGlob.size != 0:  # coordGlob can be empty
@@ -96,6 +94,9 @@ class _GroupElem(ABC):
             error = f"Nodes {nodes[nodes > Ncoords]} has not corresponding entry in the coordGlob array."
             assert nodes.max() + 1 <= Ncoords, error
         self.__nodes = nodes
+
+        # Set the paritionned data.
+        self._Set_partitionned_data(self.elements, self.nodes)
 
         # dictionnary associated with tags on elements or nodes
         self.__dict_nodes_tags: dict[str, _types.IntArray] = {}
@@ -170,15 +171,38 @@ class _GroupElem(ABC):
         """elements"""
         return np.arange(self.__connect.shape[0], dtype=int)
 
-    @property
-    def elementsGlob(self) -> _types.IntArray:
-        """Positions of elements in the global mesh."""
-        return self.__elementsGlob.copy()
+    def _Set_partitionned_data(
+        self, elementsGlob: _types.IntArray, nodes: _types.IntArray
+    ) -> None:
+        """Sets the paritionned data used in mpi.
 
-    def _Set_elementsGlob(self, values: _types.IntArray) -> None:
-        """Sets the positions of elements in the global mesh."""
-        assert values.size == self.__connect.shape[0], "Must be a (Ne,) array."
-        self.__elementsGlob = values.astype(int)
+        Parameters
+        ----------
+        elementsGlob : _types.IntArray
+            the positions of elements in the global mesh.
+        nodes : _types.IntArray
+            the (non-ghost) nodes.\n
+
+        Remark
+        ------
+        Ghost nodes will be computed using the given (non-ghost) nodes array.
+        """
+
+        # set elements glob
+        assert elementsGlob.size == self.__connect.shape[0], "Must be a (Ne,) array."
+        elementsGlob = np.asarray(elementsGlob, dtype=int)
+        # get (non-ghost) nodes and ghost nodes
+        nodes = np.asarray(nodes, dtype=int)
+        ghostNodes = np.asarray(list(set(self.nodes) - set(nodes)), dtype=int)
+
+        self.__partitionned_data = (elementsGlob, nodes, ghostNodes)
+
+    def _Get_partitionned_data(
+        self,
+    ) -> tuple[_types.IntArray, _types.IntArray, _types.IntArray]:
+        """Returns the paritionned data used in mpi.\n
+        (elementsGlob, nodes, ghostNodes)"""
+        return self.__partitionned_data
 
     @property
     def Nn(self) -> int:

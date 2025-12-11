@@ -40,6 +40,10 @@ from .Solvers import (
     CAN_USE_PYPARDISO,
 )
 
+if CAN_USE_PETSC:
+    # if you can use petsc it does mean that you can use MPI
+    from mpi4py import MPI
+
 
 # ----------------------------------------------
 # _Simu
@@ -1376,6 +1380,7 @@ class _Simu(_IObserver, _params.Updatable, ABC):
             PETSc Krylov method, by default "cg"
             e.g. 'cg', 'bicg', 'gmres', 'bcgs', 'groppcg', ...\n
             https://petsc.org/release/manualpages/KSP/KSPType/#ksptype\n
+            https://petsc.org/release/manual/ksp/#tab-kspdefaults
         pcType : str, optional
             PETSc preconditioner, by default "none"
             e.g. 'none', 'ilu', 'bjacobi', 'icc', 'lu', 'jacobi', 'cholesky', ...\n

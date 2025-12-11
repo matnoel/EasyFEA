@@ -2006,22 +2006,30 @@ class Mesher:
         return connect
 
     def __Get_groupElem_with_mpi(
-        self, gmshId: int, connect: np.ndarray, coord: np.ndarray
+        self,
+        gmshId: int,
+        connect: np.ndarray,
+        coordGlob: np.ndarray,
+        dict_rank_nodes: dict[int, set[int]],
     ) -> "_GroupElem":
 
-        Ne = connect.shape[0]
+        # get mpi data
+        comm = MPI.COMM_WORLD
+        Nproc = len(dict_rank_nodes)
+        assert Nproc == comm.Get_size()  # comment for debug purposes
 
         # get type's dim
         dim = gmsh.model.mesh.getElementProperties(gmshId)[1]
 
-        # get elements
+        # get elements data
+        Ne = connect.shape[0]
         elements = gmsh.model.mesh.getElementsByType(gmshId)[0] - 1
 
         # get mapping elements to detect element position in the connect array
         map_elements = np.ones(elements.max() + 1, dtype=int) * -1
         map_elements[elements] = np.arange(elements.size)
 
-        # get connect for each rank
+        # get elements for each rank
         dict_rank_elements: dict[int : set[int]] = {}
         for dim, tag in gmsh.model.getEntities(dim):
             ranks = gmsh.model.getPartitions(dim, tag) - 1  # starts at 0
@@ -2033,26 +2041,48 @@ class Mesher:
                 for rank in ranks:
                     dict_rank_elements.setdefault(rank, set()).update(idx)
 
-        # get connect for the actual rank
-        idx_r = list(dict_rank_elements[MPI.COMM_WORLD.Get_rank()])
-        connect = connect[idx_r]
+        list_rank_groupElem: list["_GroupElem"] = []
 
-        groupElem = GroupElemFactory._Create(gmshId, connect, coord)
+        Nn: int = 0
 
-        # attribute global elements positions in the global mesh
-        elementsGlob = np.arange(Ne)[idx_r]
-        groupElem._Set_elementsGlob(elementsGlob)
+        for rank in range(Nproc):
+            # get connect for the actual rank
+            idx_r = list(dict_rank_elements[rank])
+            connect_r = connect[idx_r]
+            # get (non-ghost) nodes
+            otherRankNodes: set[int] = set()
+            [
+                otherRankNodes.update(dict_rank_nodes[r])
+                for r in range(Nproc)
+                if r != rank
+            ]
+            # add (non-ghost) nodes
+            nodes = list(set(connect_r.ravel()) - set(otherRankNodes))
+            dict_rank_nodes[rank].update(nodes)
+            Nn += len(nodes)
+            # create groupElem
+            groupElem = GroupElemFactory._Create(gmshId, connect_r, coordGlob)
+            # attribute global elements positions in the global mesh
+            elementsGlob = np.arange(Ne)[idx_r]
+            groupElem._Set_partitionned_data(elementsGlob, nodes)
+            # append the created groupElem
+            list_rank_groupElem.append(groupElem)
 
-        return groupElem
+        expectedNn = len(set(connect.ravel()))
+        assert Nn == expectedNn, "wrong nodes attribution."
+
+        # return the group of element associated to the rank
+        return list_rank_groupElem[comm.Get_rank()]
 
     def _Mesh_Get_Mesh(self, coef: float = 1.0) -> Mesh:
         """Creates the mesh object from the created gmsh mesh."""
 
         tic = Tic()
 
-        useMpi = False  # Set to True for debugging purposes
+        useMpi = False
         if CAN_USE_MPI:
             Nrank = MPI.COMM_WORLD.Get_size()
+            # Nrank = 3  # uncomment for debugging purposes
             useMpi = Nrank > 1
             gmsh.model.mesh.partition(Nrank)
 
@@ -2074,7 +2104,12 @@ class Mesher:
 
             # Element group creation
             if useMpi:
-                groupElem = self.__Get_groupElem_with_mpi(gmshId, connect, coord)
+                # USE a dict to store all the nodes
+                if gmshId == elementTypes[0]:
+                    dict_rank_nodes = {r: set() for r in range(Nrank)}
+                groupElem = self.__Get_groupElem_with_mpi(
+                    gmshId, connect, coord, dict_rank_nodes
+                )
             else:
                 groupElem = GroupElemFactory._Create(gmshId, connect, coord)
             # Note that each group of elements contains all coordinates.
