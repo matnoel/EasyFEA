@@ -14,6 +14,7 @@ from .models._linear_elastic_laws import (
     _Elas,
     ElasIsot,
     ElasIsotTrans,
+    ElasOrthotropic,
     ElasAnisot,
 )
 

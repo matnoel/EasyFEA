@@ -186,6 +186,84 @@ class _Elas(_IModel, ABC):
 
         return sqrtC, sqrtS
 
+    def _Apply_basis_transformation(
+        self,
+        dim: int,
+        material_cM: _types.FloatArray,
+        material_sM: _types.FloatArray,
+        axis_1: _types.FloatArray,
+        axis_2: _types.FloatArray,
+    ) -> tuple[_types.FloatArray, _types.FloatArray]:
+        """Performs a basis transformation from the material's (1,2,3) coordinate system to the (x,y,z) coordinate system to orient the material in space.
+
+        Parameters
+        ----------
+        dim : int
+            dimension
+        material_cM : _types.FloatArray
+            stiffness matrix
+        material_sM : _types.FloatArray
+            compliance matrix
+        axis_1 : _types.FloatArray
+            Axis 1
+        axis_2 : _types.FloatArray
+            Axis 2
+
+        Returns
+        -------
+        tuple[_types.FloatArray, _types.FloatArray]
+            global_cM, global_sM
+        """
+
+        P = Get_Pmat(axis_1=axis_1, axis_2=axis_2, useMandel=True)
+
+        global_sM = Apply_Pmat(P, material_sM, toGlobal=True)
+        global_cM = Apply_Pmat(P, material_cM, toGlobal=True)
+
+        testAxis_1 = np.linalg.norm(axis_1 - np.array([1, 0, 0])) <= 1e-12
+        testAxis_2 = np.linalg.norm(axis_2 - np.array([0, 1, 0])) <= 1e-12
+        if testAxis_1 and testAxis_2:
+            # check that if the axes does not change, the same constitutive law is obtained
+            test_diff_c = np.linalg.norm(
+                global_cM - material_cM, axis=(-2, -1)
+            ) / np.linalg.norm(material_cM, axis=(-2, -1))
+            assert np.max(test_diff_c) < 1e-12
+
+            test_diff_s = np.linalg.norm(
+                global_sM - material_sM, axis=(-2, -1)
+            ) / np.linalg.norm(material_sM, axis=(-2, -1))
+            assert np.max(test_diff_s) < 1e-12
+
+        c = global_cM
+        s = global_sM
+
+        if dim == 2:
+            x = np.array([0, 1, 5])
+
+            shape = c.shape
+
+            if self.planeStress:
+                if len(shape) == 2:
+                    s = global_sM[x, :][:, x]
+                elif len(shape) == 3:
+                    s = global_sM[:, x, :][:, :, x]
+                elif len(shape) == 4:
+                    s = global_sM[:, :, x, :][:, :, :, x]
+
+                c = np.linalg.inv(s)
+
+            else:
+                if len(shape) == 2:
+                    c = global_cM[x, :][:, x]
+                elif len(shape) == 3:
+                    c = global_cM[:, x, :][:, :, x]
+                elif len(shape) == 4:
+                    c = global_cM[:, :, x, :][:, :, :, x]
+
+                s = np.linalg.inv(c)
+
+        return c, s
+
 
 # ----------------------------------------------
 # Isotropic
@@ -412,7 +490,7 @@ class ElasIsotTrans(_Elas):
         planeStress: bool = True,
         thickness: float = 1.0,
     ):
-        """Creates and Transversely Isotropic Linearized Elastic material.\n
+        """Creates an Transversely Isotropic Linearized Elastic material.\n
         More details Torquato 2002 13.3.2 (iii) http://link.springer.com/10.1007/978-1-4757-6355-3
 
         Parameters
@@ -486,23 +564,12 @@ class ElasIsotTrans(_Elas):
         """Transversal axis"""
         return self.__axis_t.copy()
 
-    @property
-    def _useSameAxis(self) -> bool:
-        testAxis_l = np.linalg.norm(self.axis_l - np.array([1, 0, 0])) <= 1e-12
-        testAxis_t = np.linalg.norm(self.axis_t - np.array([0, 1, 0])) <= 1e-12
-        if testAxis_l and testAxis_t:
-            return True
-        else:
-            return False
-
     def _Update(self) -> None:
         C, S = self._Behavior(self.dim)
         self.C = C
         self.S = S
 
-    def _Behavior(
-        self, dim: Optional[int] = None, P: Optional[_types.FloatArray] = None
-    ):
+    def _Behavior(self, dim: Optional[int] = None):
         """Updates the constitutives laws by updating the C stiffness and S compliance matrices in Kelvin Mandel notation.\n
 
         In 2D:
@@ -521,11 +588,6 @@ class ElasIsotTrans(_Elas):
 
         if dim is None:
             dim = self.dim
-
-        if not isinstance(P, np.ndarray):
-            P = Get_Pmat(self.__axis_l, self.__axis_t)
-
-        useSameAxis = self._useSameAxis
 
         El = self.El
         Et = self.Et
@@ -584,52 +646,13 @@ class ElasIsotTrans(_Elas):
             ) / np.linalg.norm(material_cM, axis=(-2, -1))
             assert np.max(diff_C) < 1e-12
 
-        # Perform a basis transformation from the material's (L,T,R) coordinate system
-        # to the (x,y,z) coordinate system to orient the material in space.
-        global_sM = Apply_Pmat(P, material_sM)
-        global_cM = Apply_Pmat(P, material_cM)
-
-        if useSameAxis:
-            # check that if the axes does not change, the same constitutive law is obtained
-            test_diff_c = np.linalg.norm(
-                global_cM - material_cM, axis=(-2, -1)
-            ) / np.linalg.norm(material_cM, axis=(-2, -1))
-            assert np.max(test_diff_c) < 1e-12
-
-            test_diff_s = np.linalg.norm(
-                global_sM - material_sM, axis=(-2, -1)
-            ) / np.linalg.norm(material_sM, axis=(-2, -1))
-            assert np.max(test_diff_s) < 1e-12
-
-        c = global_cM
-        s = global_sM
-
-        if dim == 2:
-            x = np.array([0, 1, 5])
-
-            shape = c.shape
-
-            if self.planeStress:
-                if len(shape) == 2:
-                    s = global_sM[x, :][:, x]
-                elif len(shape) == 3:
-                    s = global_sM[:, x, :][:, :, x]
-                elif len(shape) == 4:
-                    s = global_sM[:, :, x, :][:, :, :, x]
-
-                c = np.linalg.inv(s)
-
-            else:
-                if len(shape) == 2:
-                    c = global_cM[x, :][:, x]
-                elif len(shape) == 3:
-                    c = global_cM[:, x, :][:, :, x]
-                elif len(shape) == 4:
-                    c = global_cM[:, :, x, :][:, :, :, x]
-
-                s = np.linalg.inv(c)
-
-        return c, s
+        return self._Apply_basis_transformation(
+            dim=dim,
+            material_cM=material_cM,
+            material_sM=material_sM,
+            axis_1=self.axis_l,
+            axis_2=self.axis_t,
+        )
 
     def Walpole_Decomposition(self) -> tuple[_types.FloatArray, _types.FloatArray]:
         El = self.El
@@ -656,8 +679,7 @@ class ElasIsotTrans(_Elas):
         E5 = I - E1 - E2 - E4
 
         if not self.isHeterogeneous:
-            P = Get_Pmat(self.axis_l, self.axis_t)
-            C, S = self._Behavior(3, P)
+            C, S = self._Behavior(3)
             diff_C = C - (c1 * E1 + c2 * E2 + c3 * E3 + c4 * E4 + c5 * E5)
             test_C = np.linalg.norm(diff_C, axis=(-2, -1)) / np.linalg.norm(
                 C, axis=(-2, -1)
@@ -668,6 +690,230 @@ class ElasIsotTrans(_Elas):
         Ei = np.array([E1, E2, E3, E4, E5])
 
         return ci, Ei
+
+
+# ----------------------------------------------
+# Orthotropic
+# ----------------------------------------------
+
+
+class ElasOrthotropic(_Elas):
+    """Orthotropic Linearized Elastic material."""
+
+    E1: float = _params.PositiveParameter()
+    """Young's modulus along axis_1."""
+
+    E2: float = _params.PositiveParameter()
+    """Young's modulus along axis_2."""
+
+    E3: float = _params.PositiveParameter()
+    """Young's modulus along axis_3."""
+
+    G23: float = _params.PositiveParameter()
+    """Shear modulus in the 2-3 plane."""
+
+    G13: float = _params.PositiveParameter()
+    """Shear modulus in the 1-3 plane."""
+
+    G12: float = _params.PositiveParameter()
+    """Shear modulus in the 1-2 plane."""
+
+    v23: float = _params.IntervalccParameter(inf=-1, sup=0.5)
+    """Poisson's ratio for transverse strain along the axis_3 when stressed along the axis_2."""
+
+    v13: float = _params.IntervalccParameter(inf=-1, sup=0.5)
+    """Poisson's ratio for transverse strain along the axis_3 when stressed along the axis_1."""
+
+    v12: float = _params.IntervalccParameter(inf=-1, sup=0.5)
+    """Poisson's ratio for transverse strain along the axis_2 when stressed along the axis_1."""
+
+    def __str__(self) -> str:
+        text = f"{type(self).__name__}:"
+        text += f"\nE1 = {self.E1:.2e}"
+        text += f"\nE2 = {self.E2:.2e}"
+        text += f"\nE3 = {self.E3:.2e}"
+        text += f"\nG23 = {self.G23:.2e}"
+        text += f"\nG13 = {self.G13:.2e}"
+        text += f"\nG12 = {self.G12:.2e}"
+        text += f"\nv23 = {self.v23:.2e}"
+        text += f"\nv13 = {self.v13:.2e}"
+        text += f"\nv12 = {self.v12:.2e}"
+        text += f"\naxis_1 = {np.array_str(self.axis_1, precision=3)}"
+        text += f"\naxis_2 = {np.array_str(self.axis_1, precision=3)}"
+        if self.dim == 2:
+            text += f"\nplaneStress = {self.planeStress}"
+            text += f"\nthickness = {self.thickness:.2e}"
+        return text
+
+    def __init__(
+        self,
+        dim: int,
+        E1: float,
+        E2: float,
+        E3: float,
+        G23: float,
+        G13: float,
+        G12: float,
+        v23: float,
+        v13: float,
+        v12: float,
+        axis_1: _types.Coords = (1, 0, 0),
+        axis_2: _types.Coords = (0, 1, 0),
+        planeStress: bool = True,
+        thickness: float = 1.0,
+    ):
+        """Creates Orthotropic Linearized Elastic material.\n
+        More details https://www.lusas.com/user_area/faqs/orthotropic.html#:~:text=The%20inverse%20of%20the%20compliance,of%20both%20matrices%20are%20positive
+
+        Parameters
+        ----------
+        dim : int
+            Dimension of 2D or 3D simulation
+        E1 : float
+            Young's modulus along axis_1.
+        E2 : float
+            Young's modulus along axis_2.
+        E3 : float
+            Young's modulus along axis_3.
+        G23 : float
+            Shear modulus in the 2-3 plane.
+        G13 : float
+            Shear modulus in the 1-3 plane.
+        G12 : float
+            Shear modulus in the 1-2 plane.
+        v23 : float
+            Poisson's ratio for transverse strain along the axis_3 when stressed along the axis_2.
+        v13 : float
+            Poisson's ratio for transverse strain along the axis_3 when stressed along the axis_1.
+        v12 : float
+            Poisson's ratio for transverse strain along the axis_2 when stressed along the axis_1.
+        axis_1 : _types.Coords, optional
+            Axis 1, by default np.array([1,0,0])
+        axis_t : _types.Coords, optional
+            Axis 2, by default np.array([0,1,0])
+        planeStress : bool, optional
+            uses plane stress assumption, by default True
+        thickness : float, optional
+            thickness, by default 1.0
+        """
+        _Elas.__init__(self, dim, thickness, planeStress)
+
+        self.E1 = E1
+        self.E2 = E2
+        self.E3 = E3
+        self.G23 = G23
+        self.G13 = G13
+        self.G12 = G12
+        self.v23 = v23
+        self.v13 = v13
+        self.v12 = v12
+
+        axis_1 = AsCoords(axis_1)
+        axis_2 = AsCoords(axis_2)
+        assert axis_1.size == 3 and len(axis_1.shape) == 1, "axis_1 must be a 3D vector"
+        assert axis_2.size == 3 and len(axis_2.shape) == 1, "axis_2 must be a 3D vector"
+        assert axis_1 @ axis_2 <= 1e-12, "axis1 and axis2 must be perpendicular"
+        self.__axis_1 = Normalize(axis_1)
+        self.__axis_2 = Normalize(axis_2)
+
+    @property
+    def axis_1(self) -> _types.FloatArray:
+        """Axis 1"""
+        return self.__axis_1.copy()
+
+    @property
+    def axis_2(self) -> _types.FloatArray:
+        """Axis 2"""
+        return self.__axis_2.copy()
+
+    def _Update(self) -> None:
+        C, S = self._Behavior(self.dim)
+        self.C = C
+        self.S = S
+
+    def _Behavior(self, dim: Optional[int] = None):
+        """Updates the constitutives laws by updating the C stiffness and S compliance matrices in Kelvin Mandel notation.\n
+
+        In 2D:
+        -----
+
+        C -> C : Epsilon = Sigma [Sxx Syy sqrt(2)*Sxy]\n
+        S -> S : Sigma = Epsilon [Exx Eyy sqrt(2)*Exy]
+
+        In 3D:
+        -----
+
+        C -> C : Epsilon = Sigma [Sxx Syy Szz sqrt(2)*Syz sqrt(2)*Sxz sqrt(2)*Sxy]\n
+        S -> S : Sigma = Epsilon [Exx Eyy Ezz sqrt(2)*Eyz sqrt(2)*Exz sqrt(2)*Exy]
+
+        """
+
+        if dim is None:
+            dim = self.dim
+
+        E1 = self.E1
+        E2 = self.E2
+        E3 = self.E3
+        G23 = self.G23
+        G13 = self.G13
+        G12 = self.G12
+        v23 = self.v23
+        v13 = self.v13
+        v12 = self.v12
+
+        sum = E1 + E2 + E3 + G23 + G13 + G12 + v23 + v13 + v12
+        dtype = object if isinstance(sum, np.ndarray) else float
+
+        # Kelvin-Mandel compliance and stiffness matrices in the material's coordinate system.
+        # axis_1 = (1, 0, 0)
+        # axis_2 = (0, 1, 0)
+        # axis_3 = (0, 0, 1)
+        # [11, 22, 33, sqrt(2)*23, sqrt(2)*13, sqrt(2)*12]
+        material_sM = np.array(
+            [
+                [1 / E1, -v12 / E1, -v13 / E1, 0, 0, 0],
+                [-v12 / E1, 1 / E2, -v23 / E2, 0, 0, 0],
+                [-v13 / E1, -v23 / E2, 1 / E3, 0, 0, 0],
+                [0, 0, 0, 1 / (2 * G23), 0, 0],
+                [0, 0, 0, 0, 1 / (2 * G13), 0],
+                [0, 0, 0, 0, 0, 1 / (2 * G12)],
+            ],
+            dtype=dtype,
+        )
+
+        # tests on S values
+        s11, s22, s33 = [material_sM[d, d] for d in range(3)]
+        s23, s13, s12 = material_sM[1, 2], material_sM[0, 2], material_sM[0, 1]
+        assert np.all(np.abs(s23) < np.sqrt(s22 * s33)), "|s23| < sqrt(s22 * s33)"
+        assert np.all(np.abs(s13) < np.sqrt(s11 * s33)), "|s13| < sqrt(s11 * s33)"
+        assert np.all(np.abs(s12) < np.sqrt(s11 * s22)), "|s12| < sqrt(s11 * s22)"
+        assert np.all(np.abs(v23) < np.sqrt(E2 / E3)), "|v23| < sqrt(E2 / E3)"
+        assert np.all(np.abs(v13) < np.sqrt(E1 / E3)), "|v13| < sqrt(E1 / E3)"
+        assert np.all(np.abs(v12) < np.sqrt(E1 / E2)), "|v12| < sqrt(E1 / E2)"
+
+        material_sM = Heterogeneous_Array(material_sM)
+
+        # get c matrix
+        if material_sM.ndim > 2:
+            material_cM = np.zeros_like(material_sM, dtype=float)
+            uniq_S, inverse = np.unique(material_sM, return_inverse=True, axis=0)
+            for i, S in enumerate(uniq_S):
+                elems = np.where(inverse == i)[0]
+                C = np.linalg.inv(S)
+                material_cM[elems] = C
+        else:
+            material_cM = np.linalg.inv(material_sM)
+
+        return self._Apply_basis_transformation(
+            dim=dim,
+            material_cM=material_cM,
+            material_sM=material_sM,
+            axis_1=self.axis_1,
+            axis_2=self.axis_2,
+        )
+
+    def Walpole_Decomposition(self):
+        return super().Walpole_Decomposition()
 
 
 # ----------------------------------------------

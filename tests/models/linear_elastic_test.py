@@ -7,7 +7,7 @@ import pytest
 from EasyFEA import np
 
 # materials
-from EasyFEA.Models import _Elas, ElasIsot, ElasIsotTrans, ElasAnisot
+from EasyFEA.Models import _Elas, ElasIsot, ElasIsotTrans, ElasAnisot, ElasOrthotropic
 from EasyFEA.models import (
     Get_Pmat,
     Apply_Pmat,
@@ -182,11 +182,11 @@ class TestLinearElastic:
         # axis_l = [1, 0, 0] et axis_t = [0, 1, 0]
         mat1 = ElasIsotTrans(
             2,
-            El=11580,
-            Et=500,
-            Gl=450,
-            vl=0.02,
-            vt=0.44,
+            El=El,
+            Et=Et,
+            Gl=Gl,
+            vl=vl,
+            vt=vt,
             planeStress=False,
             axis_l=np.array([1, 0, 0]),
             axis_t=np.array([0, 1, 0]),
@@ -209,11 +209,11 @@ class TestLinearElastic:
         # axis_l = [0, 1, 0] et axis_t = [1, 0, 0]
         mat2 = ElasIsotTrans(
             2,
-            El=11580,
-            Et=500,
-            Gl=450,
-            vl=0.02,
-            vt=0.44,
+            El=El,
+            Et=Et,
+            Gl=Gl,
+            vl=vl,
+            vt=vt,
             planeStress=False,
             axis_l=np.array([0, 1, 0]),
             axis_t=np.array([1, 0, 0]),
@@ -233,11 +233,11 @@ class TestLinearElastic:
         # axis_l = [0, 0, 1] et axis_t = [1, 0, 0]
         mat = ElasIsotTrans(
             2,
-            El=11580,
-            Et=500,
-            Gl=450,
-            vl=0.02,
-            vt=0.44,
+            El=El,
+            Et=Et,
+            Gl=Gl,
+            vl=vl,
+            vt=vt,
             planeStress=False,
             axis_l=[0, 0, 1],
             axis_t=[1, 0, 0],
@@ -249,6 +249,120 @@ class TestLinearElastic:
         assert test_c3 < 1e-12
 
         mat.Walpole_Decomposition()
+
+    def test_Elas_Orthotropic(self):
+
+        El = 11580
+        Et = 500
+        Gl = 450
+        vl = 0.02
+        vt = 0.44
+
+        # axis_l = [0, 0, 1] et axis_t = [0, 1, 0]
+        mat0_isot = ElasIsot(3, E=El, v=vl, planeStress=False)
+        mu = mat0_isot.get_mu()
+
+        mat0_ortho = ElasOrthotropic(
+            3,
+            E1=El,
+            E2=El,
+            E3=El,
+            G23=mu,
+            G13=mu,
+            G12=mu,
+            v23=vl,
+            v13=vl,
+            v12=vl,
+            planeStress=False,
+            axis_1=[0, 0, 1],
+            axis_2=[0, 1, 0],
+        )
+
+        test_c0 = np.linalg.norm(mat0_ortho.S - mat0_isot.S) / np.linalg.norm(
+            mat0_isot.S
+        )
+        assert test_c0 < 1e-12
+
+        # material_sM = np.array(
+        #     [
+        #         [1 / El, -vl / El, -vl / El, 0, 0, 0],
+        #         [-vl / El, 1 / Et, -vt / Et, 0, 0, 0],
+        #         [-vl / El, -vt / Et, 1 / Et, 0, 0, 0],
+        #         [0, 0, 0, 1 / (2 * Gt), 0, 0],
+        #         [0, 0, 0, 0, 1 / (2 * Gl), 0],
+        #         [0, 0, 0, 0, 0, 1 / (2 * Gl)],
+        #     ]
+        # )
+
+        # axis_l = [1, 0, 0] et axis_t = [0, 1, 0]
+        mat1_isotTrans = ElasIsotTrans(
+            3,
+            El=El,
+            Et=Et,
+            Gl=Gl,
+            vl=vl,
+            vt=vt,
+            planeStress=False,
+            axis_l=[1, 0, 0],
+            axis_t=[0, 1, 0],
+        )
+        Gt = mat1_isotTrans.Gt
+
+        mat1_ortho = ElasOrthotropic(
+            3,
+            E1=El,
+            E2=Et,
+            E3=Et,
+            G23=Gt,
+            G13=Gl,
+            G12=Gl,
+            v23=vt,
+            v13=vl,
+            v12=vl,
+            planeStress=False,
+            axis_1=[1, 0, 0],
+            axis_2=[0, 1, 0],
+        )
+
+        test_c1 = np.linalg.norm(mat1_ortho.S - mat1_isotTrans.S) / np.linalg.norm(
+            mat1_isotTrans.S
+        )
+        assert test_c1 < 1e-12
+
+        # axis_l = [0, 1, 0] et axis_t = [1, 0, 0]
+        mat2_isotTrans = ElasIsotTrans(
+            2,
+            El=El,
+            Et=Et,
+            Gl=Gl,
+            vl=vl,
+            vt=vt,
+            planeStress=False,
+            axis_l=[0, 1, 0],
+            axis_t=[1, 0, 0],
+        )
+        Gt = mat2_isotTrans.Gt
+
+        mat2_ortho = ElasOrthotropic(
+            2,
+            E1=El,
+            E2=Et,
+            E3=Et,
+            G23=Gt,
+            G13=Gl,
+            G12=Gl,
+            v23=vt,
+            v13=vl,
+            v12=vl,
+            planeStress=False,
+            axis_1=[0, 1, 0],
+            axis_2=[1, 0, 0],
+        )
+
+        test_c2 = np.linalg.norm(mat2_ortho.C - mat2_isotTrans.C) / np.linalg.norm(
+            mat2_isotTrans.C
+        )
+        assert test_c2 < 1e-12
 
     def test_getPmat(self):
 
