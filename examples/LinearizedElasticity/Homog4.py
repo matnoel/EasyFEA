@@ -7,6 +7,7 @@ Homog4
 ======
 
 Conduct 3d homogenization.
+# Warning: Verify that the periodic boundary conditions have been correctly applied.
 """
 # sphinx_gallery_thumbnail_number = -1
 
@@ -100,6 +101,31 @@ def Get_nodes(mesh: Mesh, dimElem: int):
     return tuple(np.asarray(nodes[key]) for key in conditions)
 
 
+def Get_kubc_nodes(mesh: Mesh, dimElem: int = 0):
+    """Returns nodes_kubc"""
+
+    coord = mesh.coord
+
+    # conditions to get nodes on x and y faces
+    conditions = [
+        lambda x, y, z: x == coord[:, 0].min(),
+        lambda x, y, z: x == coord[:, 0].max(),
+        lambda x, y, z: y == coord[:, 1].min(),
+        lambda x, y, z: y == coord[:, 1].max(),
+        # lambda x, y, z: z == coord[:, 2].min(),
+        # lambda x, y, z: z == coord[:, 2].max(),
+    ]
+
+    # get nodes
+    nodes_kubc: set[int] = set()
+    for groupElem in mesh.Get_list_groupElem(dimElem):
+        for condition in conditions:
+            nodes = groupElem.Get_Nodes_Conditions(condition)
+            nodes_kubc = nodes_kubc.union(nodes)
+
+    return np.asarray(list(nodes_kubc), dtype=int)
+
+
 if __name__ == "__main__":
     Display.Clear()
 
@@ -115,7 +141,7 @@ if __name__ == "__main__":
     # ----------------------------------------------
     # Mesh
     # ----------------------------------------------
-    meshSize = 1 / 5
+    meshSize = 1 / 10
 
     p0 = (-1 / 2, -1 / 2)
     p1 = (1 / 2, -1 / 2)
@@ -130,8 +156,8 @@ if __name__ == "__main__":
     inclusion = Circle((0, 0), 2 * r, meshSize, isHollow=False)
     # contour.Plot_Geoms([contour, inclusion])
 
-    elemType = ElemType.TETRA10
-    mesh = contour.Mesh_Extrude([inclusion], [0, 0, 1], [6], elemType)
+    elemType = ElemType.PRISM6
+    mesh = contour.Mesh_Extrude([inclusion], [0, 0, 1], [1 / meshSize], elemType)
 
     plotter = PyVista.Plot_Mesh(mesh)
     plotter.add_title("RVE")
@@ -169,15 +195,24 @@ if __name__ == "__main__":
 
     if usePBC:
         # Hybrid PBC setup
-        nodes_kubc = mesh.Nodes_Tags(["P0", "P1", "P2", "P3", "P8", "P9", "P10", "P11"])
+        nodes_kubc = Get_kubc_nodes(mesh, dimElem=0)
+        # PyVista.Plot_Nodes(mesh, nodes_kubc).show()
+
+        # get nodes along x, y and z directions
+        nodes_x = set(nodesLeft).union(nodesRight)
+        nodes_y = set(nodesLower).union(nodesUpper)
+        nodes_z = set(nodesFront).union(nodesBack)
+
+        # get nodes along ij directions
+        nodes_xy = nodes_x.union(nodes_y)
+        nodes_xz = nodes_x.union(nodes_z)
+        nodes_yz = nodes_y.union(nodes_z)
 
         # Get nodes along the y-axis without nodes along x axis.
-        nodes_x = set(nodesLeft).union(nodesRight)
         nodesLower = np.array([node for node in nodesLower if node not in nodes_x])
         nodesUpper = np.array([node for node in nodesUpper if node not in nodes_x])
 
         # Get nodes along the z-axis without nodes along x and y axis.
-        nodes_xy = nodes_x.union(nodesLower).union(nodesUpper)
         nodesFront = np.array([node for node in nodesFront if node not in nodes_xy])
         nodesBack = np.array([node for node in nodesBack if node not in nodes_xy])
 
@@ -195,13 +230,12 @@ if __name__ == "__main__":
             nodes2 = np.array(list(set(nodes2) - set(nodes_kubc)))
 
             # sort nodes
-            # i == 0 sort by y and z
-            # i == 1 sort by x and z
-            # i == 2 sort by x and y
-            sort1 = np.lexsort([mesh.coord[nodes1, d] for d in range(3) if d != i])
-            sort2 = np.lexsort([mesh.coord[nodes2, d] for d in range(3) if d != i])
-            nodes1 = nodes1[sort1]
-            nodes2 = nodes2[sort2]
+            sorted_nodes2 = np.zeros_like(nodes1)
+            coord = mesh.coord
+            for n, node in enumerate(nodes1):
+                dist = np.linalg.norm(coord[nodes2] - coord[node], axis=1)
+                sorted_nodes2[n] = nodes2[dist.argmin()]
+            nodes2 = sorted_nodes2
 
             if plotPBC:
                 plotter = PyVista.Plot_Mesh(mesh, alpha=0.1)
@@ -224,16 +258,11 @@ if __name__ == "__main__":
                 paired_nodes = np.concatenate((paired_nodes, newPairedNodes))
 
     else:
-        nodes_kubc = set()
-        for nodes in [
-            nodesLeft,
-            nodesRight,
-            nodesUpper,
-            nodesLower,
-            nodesBack,
-            nodesFront,
-        ]:
-            nodes_kubc = nodes_kubc.union(nodes)
+        nodes_kubc = set(
+            np.concatenate(
+                [nodesLeft, nodesRight, nodesUpper, nodesLower, nodesBack, nodesFront]
+            )
+        )
         nodes_kubc = list(nodes_kubc)
         paired_nodes = None
 
@@ -307,7 +336,7 @@ if __name__ == "__main__":
         ]
     )
 
-    u11 = Compute_ukl(simu, nodes_kubc, E11, paired_nodes)
+    u11 = Compute_ukl(simu, nodes_kubc, E11, paired_nodes, True)
     u22 = Compute_ukl(simu, nodes_kubc, E22, paired_nodes)
     u33 = Compute_ukl(simu, nodes_kubc, E33, paired_nodes)
     u12 = Compute_ukl(simu, nodes_kubc, E12, paired_nodes, True)
@@ -343,7 +372,7 @@ if __name__ == "__main__":
     # if you use the mesh volume, multiply C_hom by the porosity (1-f)
     C_hom = (wJ_e_pg * C_Mat @ B_e_pg @ U_e).sum((0, 1)) / mesh.volume
 
-    if inclusion.isHollow and mesh.area != 1:
+    if inclusion.isHollow:
         C_hom *= 1 - f
 
     formatted_array = ""
