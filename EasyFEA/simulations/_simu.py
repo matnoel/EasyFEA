@@ -40,10 +40,6 @@ from .Solvers import (
     CAN_USE_PYPARDISO,
 )
 
-if CAN_USE_PETSC:
-    # if you can use petsc it does mean that you can use MPI
-    from mpi4py import MPI
-
 
 # ----------------------------------------------
 # _Simu
