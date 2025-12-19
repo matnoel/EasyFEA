@@ -384,7 +384,7 @@ def Save_simu(
     Niter = simu.Niter
     if N is None:
         N = Niter
-    step = Niter // N
+    N = np.min([Niter, N])
 
     # init sols files and make checks
     for result, type in zip(results, types, strict=True):  # type: ignore [call-overload]
@@ -393,7 +393,7 @@ def Save_simu(
             pass
         assert type in SOLUTION_TYPES
 
-    for i in np.arange(0, Niter, step, dtype=int):
+    for i in np.linspace(0, Niter - 1, N, endpoint=True, dtype=int):
         # Update simulation iteration
         simu.Set_Iter(i)
 

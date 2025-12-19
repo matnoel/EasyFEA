@@ -1174,8 +1174,8 @@ def Plot_Energy(
         ecart = np.abs(Niter - len(load))
         if ecart != 0:
             Niter -= ecart
-    step = np.max([1, Niter // N])
-    iterations = np.arange(0, Niter, step)
+    N = np.max([Niter, N])
+    iterations = np.linspace(0, Niter - 1, N, endpoint=True, dtype=int)
 
     list_dict_energy: list[dict[str, float]] = []
     times = []
@@ -1351,8 +1351,8 @@ def Movie_Simu(
         return
 
     Niter = len(simu.results)
-    step = np.max([1, Niter // N])
-    iterations = np.arange(0, Niter, step)
+    N = np.max([Niter, N])
+    iterations = np.linspace(0, Niter - 1, N, endpoint=True, dtype=int)
 
     ax = Init_Axes(simu.mesh.inDim)
     fig = ax.figure

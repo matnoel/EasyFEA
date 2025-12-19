@@ -776,8 +776,8 @@ def Movie_simu(
         return
 
     Niter = len(simu.results)
-    step = np.max([1, Niter // N])
-    iterations = np.arange(0, Niter, step)
+    N = np.min([Niter, N])
+    iterations = np.linspace(0, Niter - 1, N, endpoint=True, dtype=int)
 
     # activates the first iteration
     simu.Set_Iter(0, resetAll=True)
