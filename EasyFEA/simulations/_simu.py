@@ -1343,6 +1343,16 @@ class _Simu(_IObserver, _params.Updatable, ABC):
         dofs = self.Bc_dofs_Dirichlet(problemType)
         size = self.mesh.Nn * self.Get_dof_n(problemType)
 
+        if len(self.mesh.orphanNodes) > 0:
+            # add 1.0 to orphan dofs
+            orphanDofs = self.Bc_dofs_nodes(
+                self.mesh.orphanNodes, self.Get_unknowns(problemType), problemType
+            )
+            A = A.tolil()
+            for dof in orphanDofs:
+                A[dof, dof] = 1.0
+            A = A.tocsr()
+
         if resolution in [ResolType.r1, ResolType.r2]:
             # Here we return the solution with the known ddls
             x = sparse.csr_matrix(
