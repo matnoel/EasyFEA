@@ -172,7 +172,10 @@ class _GroupElem(ABC):
         return np.arange(self.__connect.shape[0], dtype=int)
 
     def _Set_partitionned_data(
-        self, elementsGlob: _types.IntArray, nodes: _types.IntArray
+        self,
+        elementsGlob: _types.IntArray,
+        nodes: _types.IntArray,
+        rank: int = 0,
     ) -> None:
         """Sets the paritionned data used in mpi.
 
@@ -182,6 +185,8 @@ class _GroupElem(ABC):
             the positions of elements in the global mesh.
         nodes : _types.IntArray
             the (non-ghost) nodes.\n
+        rank : int, optional
+            mpi rank, by default 0
 
         Remark
         ------
@@ -195,13 +200,13 @@ class _GroupElem(ABC):
         nodes = np.asarray(nodes, dtype=int)
         ghostNodes = np.asarray(list(set(self.nodes) - set(nodes)), dtype=int)
 
-        self.__partitionned_data = (elementsGlob, nodes, ghostNodes)
+        self.__partitionned_data = (rank, elementsGlob, nodes, ghostNodes)
 
     def _Get_partitionned_data(
         self,
     ) -> tuple[_types.IntArray, _types.IntArray, _types.IntArray]:
         """Returns the paritionned data used in mpi.\n
-        (elementsGlob, nodes, ghostNodes)"""
+        (rank, elementsGlob, nodes, ghostNodes)"""
         return self.__partitionned_data
 
     @property

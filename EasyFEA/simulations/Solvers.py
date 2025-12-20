@@ -175,17 +175,27 @@ def _Solve_Axb(
         # get petsc4py options
         kspType, pcType, solverType = simu._Solver_Get_PETSc4Py_Options()
 
-        # check wheter we use partionned data
+        # get nodes
+        mesh = simu.mesh
         if MPI.COMM_WORLD.Get_size() > 1:
-            mesh = simu.mesh
-            # get non-ghost nodes
-            nodes = mesh.groupElem._Get_partitionned_data()[1]
-            # get non-ghost dofs
-            usedDofs = simu.Bc_dofs_nodes(
-                nodes, simu.Get_unknowns(problemType), problemType
-            )
+            _, _, nodes, ghostNodes = mesh.groupElem._Get_partitionned_data()
+            nodes = list(set(nodes).union(ghostNodes))
         else:
-            usedDofs = None
+            nodes = mesh.nodes
+
+        # get used dofs
+        usedDofs = simu.Bc_dofs_nodes(
+            nodes, simu.Get_unknowns(problemType), problemType
+        )
+
+        # from ..utilities import Display
+        # print(f"rank {rank}: orphanNodes = {mesh.orphanNodes}")
+        # ax = Display.Init_Axes(2)
+        # ax.grid()
+        # A = A[usedDofs, :].tocsc()[:, usedDofs]
+        # ax.spy(A)
+        # ax.set_title(f"rank {rank}")
+        # Display.plt.show()
 
         x, converged = _PETSc(A, b, x0, kspType, pcType, solverType, usedDofs)
         if not converged:
@@ -242,6 +252,8 @@ def Solve_simu(simu: "_Simu", problemType: "ModelType"):
     resolution = ResolType.r1
     if CAN_USE_PETSC and MPI.COMM_WORLD.Get_size() > 1:
         resolution = ResolType.r3
+        solverType = simu._Solver_Get_PETSc4Py_Options()[2]
+        simu._Solver_Set_PETSc4Py_Options("none", "none", solverType)
 
     resolution = ResolType.r2 if len(simu.Bc_Lagrange) > 0 else resolution
 
@@ -436,6 +448,7 @@ def _PETSc(
 
     comm = MPI.COMM_WORLD
     nprocs = comm.Get_size()
+    rank = comm.Get_rank()
     petsc4py.init(sys.argv, comm=comm)
 
     matrix = PETSc.Mat()  # type: ignore [attr-defined]
@@ -454,49 +467,56 @@ def _PETSc(
 
         # get sizes
         Ndof_r = global_dofs.size
-        assert Ndof == comm.allreduce(Ndof_r, MPI.SUM)
+        # assert Ndof == comm.allreduce(Ndof_r, MPI.SUM)
 
-        # get values
+        # Resize A and get values
+        # print(f"rank{rank} global_dofs = {global_dofs}")
         assert isinstance(global_dofs, np.ndarray)
-
-        values = A[global_dofs, :].tocsc()[:, global_dofs].toarray().ravel()
+        A = A[global_dofs, :].tocsc()[:, global_dofs].tocsr()
+        values = A.toarray().ravel()
 
         # set matrix size
         # https://petsc.org/release/petsc4py/reference/petsc4py.PETSc.Mat.html#petsc4py.PETSc.Mat.setSizes
         matrix.setSizes([[Ndof_r, Ndof], [Ndof_r, Ndof]])
 
         # set global to local converter
-        global_to_local_converter[global_dofs] = np.arange(len(global_dofs))
+        global_to_local_converter[global_dofs] = np.arange(global_dofs.size)
 
         # get local dofs
         local_dofs = global_to_local_converter[global_dofs]
 
         # set values
+        # https://petsc.org/release/petsc4py/reference/petsc4py.PETSc.Mat.html#petsc4py.PETSc.Mat.setValues
         matrix.setValues(local_dofs, local_dofs, values, PETSc.InsertMode.INSERT_VALUES)
-        matrix.assemble()  # TODO #26 Not functional at this stage.
+        matrix.assemble()
     else:
         # set global to local converter
+        global_dofs = list(set(A.nonzero()[0]))
         global_to_local_converter = np.arange(Ndof)
 
         # set values
         csr = (A.indptr, A.indices, A.data)
         matrix.createAIJ(A.shape, comm=comm, csr=csr)
 
+    # set b values
+    global_rows, _, values = sparse.find(b)
+    # print(f"rank{rank} b = \n{b.toarray()}")
+
     # set rhs values
     rhs = matrix.createVecLeft()
-    global_rows, _, values = sparse.find(b)
     local_rows = global_to_local_converter[global_rows]
     rhs.array[local_rows] = values
+    # print(f"rank{rank} rhs = {rhs.array}")
 
-    # get dofs where there is values
-    global_dofs = list(set(A.nonzero()[0]))
     # get local dofs
     local_dofs = global_to_local_converter[global_dofs]
 
     # set x values
     x = matrix.createVecRight()
     if len(x0) > 0:
+        # print(x.array.shape)
         x.array[local_dofs] = x0[global_dofs]
+    # print(f"rank{rank} x = {x.array}")
 
     ksp = PETSc.KSP().create(comm=comm)  # type: ignore [attr-defined]
     ksp.setOperators(matrix)
@@ -511,10 +531,12 @@ def _PETSc(
 
     # solve x
     ksp.solve(rhs, x)
+    # print(f"rank{rank} x = {x.array}")
 
     # set dofsValues values
     dofsValues = np.zeros(Ndof, dtype=float)
     dofsValues[global_dofs] = x.array[local_dofs]
+    # print(f"rank{rank} dofsValues = {dofsValues}")
 
     return dofsValues, ksp.is_converged
 

@@ -595,11 +595,8 @@ class _Simu(_IObserver, _params.Updatable, ABC):
         else:
             assert K_e.size == rows_e.size, f"Not enough data to fill a {shape} matrix."
             K = sparse.csr_matrix((K_e.ravel(), (rows_e, columns_e)), shape=shape)
-
-        # import matplotlib.pyplot as plt
-        # plt.figure()
-        # plt.spy(self.__Ku)
-        # plt.show()
+            # Display.Init_Axes().spy(K)
+            # Display.plt.show()
 
         tic.Tac(
             "Matrix",
@@ -1348,6 +1345,8 @@ class _Simu(_IObserver, _params.Updatable, ABC):
             for dof in orphanDofs:
                 A[dof, dof] = 1.0
             A = A.tocsr()
+            # Display.Init_Axes().spy(A)
+            # Display.plt.show()
 
         if resolution in [ResolType.r1, ResolType.r2]:
             # Here we return the solution with the known ddls

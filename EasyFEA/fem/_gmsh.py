@@ -2064,7 +2064,7 @@ class Mesher:
             groupElem = GroupElemFactory._Create(gmshId, connect_r, coordGlob)
             # attribute global elements positions in the global mesh
             elementsGlob = np.arange(Ne)[idx_r]
-            groupElem._Set_partitionned_data(elementsGlob, nodes)
+            groupElem._Set_partitionned_data(elementsGlob, nodes, rank)
             # append the created groupElem
             list_rank_groupElem.append(groupElem)
 
