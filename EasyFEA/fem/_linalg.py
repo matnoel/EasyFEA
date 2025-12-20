@@ -11,7 +11,8 @@ from ..utilities import _types
 
 class FeArray(_types.AnyArray):
     """Finite Element array.\n
-    A finite element array has at least two dimensions.
+
+    FeArray is a Python class designed to optimize finite element simulations by leveraging NumPy arrays with a shape of `(Ne, nPg, ...)`. This structure enables vectorized operations, eliminating the need for slow loops over elements and integration points. By using np.einsum, it efficiently handles tensor computations, significantly improving performance and code clarity for finite element analyses.
     """
 
     FeArrayALike = Union["FeArray", _types.AnyArray]
@@ -203,7 +204,7 @@ class FeArray(_types.AnyArray):
         end = str(idx1 + idx2).replace(idx1[-1], "")
         subscripts = f"...{idx1},...{idx2}->...{end}"
 
-        result = np.einsum(subscripts, self, other)
+        result = np.einsum(subscripts, self, other, optimize="optimal")
 
         return FeArray.asfearray(result)
 
@@ -239,21 +240,28 @@ class FeArray(_types.AnyArray):
         end = end.replace(idx1[-2], "")
         subscripts = f"...{idx1},...{idx2}->...{end}"
 
-        result = np.einsum(subscripts, self, other)
+        result = np.einsum(subscripts, self, other, optimize="optimal")
 
         return FeArray.asfearray(result)
 
+    def __set_array(self, new: "FeArray"):
+        """Returns the new array in `FeArray` format if the new array has the same `(Ne, nPg)` shape."""
+        if self.shape[:2] == new.shape[:2]:
+            return FeArray.asfearray(new)
+        else:
+            return np.asarray(new)
+
     def sum(self, *args, **kwargs) -> FeArrayALike:  # type: ignore [override]
         """`np.sum()` wrapper."""
-        return FeArray.asfearray(super().sum(*args, **kwargs))
+        return self.__set_array(super().sum(*args, **kwargs))
 
     def max(self, *args, **kwargs) -> FeArrayALike:  # type: ignore [override]
         """`np.max()` wrapper."""
-        return FeArray.asfearray(super().max(*args, **kwargs))
+        return self.__set_array(super().max(*args, **kwargs))
 
     def min(self, *args, **kwargs) -> FeArrayALike:  # type: ignore [override]
         """`np.min()` wrapper."""
-        return FeArray.asfearray(super().min(*args, **kwargs))
+        return self.__set_array(super().min(*args, **kwargs))
 
     def _get_idx(self, *arrays) -> list[_types.AnyArray]:
         ndim = len(arrays) + 2
@@ -342,26 +350,26 @@ def Det(mat: FeArray.FeArrayALike) -> FeArray.FeArrayALike:
     dim = mat.shape[-1]
 
     if dim == 1:
-        det = mat[Ellipsis, 0, 0]
+        det = mat[..., 0, 0]
 
     elif dim == 2:
-        a = mat[Ellipsis, 0, 0]
-        b = mat[Ellipsis, 0, 1]
-        c = mat[Ellipsis, 1, 0]
-        d = mat[Ellipsis, 1, 1]
+        a = mat[..., 0, 0]
+        b = mat[..., 0, 1]
+        c = mat[..., 1, 0]
+        d = mat[..., 1, 1]
 
         det = (a * d) - (c * b)
 
     elif dim == 3:
-        a11 = mat[Ellipsis, 0, 0]
-        a12 = mat[Ellipsis, 0, 1]
-        a13 = mat[Ellipsis, 0, 2]
-        a21 = mat[Ellipsis, 1, 0]
-        a22 = mat[Ellipsis, 1, 1]
-        a23 = mat[Ellipsis, 1, 2]
-        a31 = mat[Ellipsis, 2, 0]
-        a32 = mat[Ellipsis, 2, 1]
-        a33 = mat[Ellipsis, 2, 2]
+        a11 = mat[..., 0, 0]
+        a12 = mat[..., 0, 1]
+        a13 = mat[..., 0, 2]
+        a21 = mat[..., 1, 0]
+        a22 = mat[..., 1, 1]
+        a23 = mat[..., 1, 2]
+        a31 = mat[..., 2, 0]
+        a32 = mat[..., 2, 1]
+        a33 = mat[..., 2, 2]
 
         det = (
             a11 * ((a22 * a33) - (a32 * a23))
@@ -395,17 +403,17 @@ def Inv(mat: FeArray.FeArrayALike):
 
         det = Det(mat)
 
-        alpha = mat[Ellipsis, 0, 0]
-        beta = mat[Ellipsis, 0, 1]
-        a = mat[Ellipsis, 1, 0]
-        b = mat[Ellipsis, 1, 1]
+        alpha = mat[..., 0, 0]
+        beta = mat[..., 0, 1]
+        a = mat[..., 1, 0]
+        b = mat[..., 1, 1]
 
         adj = np.zeros_like(mat)
 
-        adj[Ellipsis, 0, 0] = b
-        adj[Ellipsis, 0, 1] = -beta
-        adj[Ellipsis, 1, 0] = -a
-        adj[Ellipsis, 1, 1] = alpha
+        adj[..., 0, 0] = b
+        adj[..., 0, 1] = -beta
+        adj[..., 1, 0] = -a
+        adj[..., 1, 1] = alpha
 
         inv = np.einsum("...,...ij->...ij", 1 / det, adj, optimize="optimal")
 
@@ -417,15 +425,15 @@ def Inv(mat: FeArray.FeArrayALike):
 
         matT = Transpose(mat)
 
-        a00 = matT[Ellipsis, 0, 0]
-        a01 = matT[Ellipsis, 0, 1]
-        a02 = matT[Ellipsis, 0, 2]
-        a10 = matT[Ellipsis, 1, 0]
-        a11 = matT[Ellipsis, 1, 1]
-        a12 = matT[Ellipsis, 1, 2]
-        a20 = matT[Ellipsis, 2, 0]
-        a21 = matT[Ellipsis, 2, 1]
-        a22 = matT[Ellipsis, 2, 2]
+        a00 = matT[..., 0, 0]
+        a01 = matT[..., 0, 1]
+        a02 = matT[..., 0, 2]
+        a10 = matT[..., 1, 0]
+        a11 = matT[..., 1, 1]
+        a12 = matT[..., 1, 2]
+        a20 = matT[..., 2, 0]
+        a21 = matT[..., 2, 1]
+        a22 = matT[..., 2, 2]
 
         det00 = (a11 * a22) - (a21 * a12)
         det01 = (a10 * a22) - (a20 * a12)
@@ -440,15 +448,15 @@ def Inv(mat: FeArray.FeArrayALike):
         adj = np.zeros_like(mat)
 
         # Don't forget the - or + !!!
-        adj[Ellipsis, 0, 0] = det00
-        adj[Ellipsis, 0, 1] = -det01
-        adj[Ellipsis, 0, 2] = det02
-        adj[Ellipsis, 1, 0] = -det10
-        adj[Ellipsis, 1, 1] = det11
-        adj[Ellipsis, 1, 2] = -det12
-        adj[Ellipsis, 2, 0] = det20
-        adj[Ellipsis, 2, 1] = -det21
-        adj[Ellipsis, 2, 2] = det22
+        adj[..., 0, 0] = det00
+        adj[..., 0, 1] = -det01
+        adj[..., 0, 2] = det02
+        adj[..., 1, 0] = -det10
+        adj[..., 1, 1] = det11
+        adj[..., 1, 2] = -det12
+        adj[..., 2, 0] = det20
+        adj[..., 2, 1] = -det21
+        adj[..., 2, 2] = det22
 
         inv = np.einsum("...,...ij->...ij", 1 / det, adj, optimize="optimal")
 
@@ -507,7 +515,7 @@ def TensorProd(
     if ndim == 1:
         # vectors
         # Ai Bj
-        res = np.einsum("...i,...j->...ij", A, B)
+        res = np.einsum("...i,...j->...ij", A, B, optimize="optimal")
 
     elif ndim == 2:
         # matrices
