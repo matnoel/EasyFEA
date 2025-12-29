@@ -120,11 +120,11 @@ def Save_simu(
 
         times.append(tic.Tac("Paraview", "Make vtu", False))
 
-        rmTime = Tic.Get_Remaining_Time(i, iterations.size - 1, times[-1])
+        iteration = i + 1
+        rmTime = Tic.Get_Remaining_Time(iteration, N, times[-1])
 
-        Display.MyPrint(
-            f"Generate paraview {i}/{iterations.size - 1} {rmTime}     ", end="\r"
-        )
+        iteration = str(iteration).zfill(len(str(N)))
+        Display.MyPrint(f"Generate paraview {iteration}/{N} {rmTime}     ", end="\r")
 
     print("\n")
 
@@ -170,15 +170,14 @@ def _Save_mesh(
     times = []
     tic = Tic()
 
-    for iter in range(N):
-        filename = Folder.Join(folder, f"solution_{iter}.vtu")
+    for i in range(N):
+        filename = Folder.Join(folder, f"solution_{i}.vtu")
 
         nodeResults = {
-            nodeField: results[iter] for nodeField, results in nodeFields.items()
+            nodeField: results[i] for nodeField, results in nodeFields.items()
         }
         elementResults = {
-            elementField: results[iter]
-            for elementField, results in elementFields.items()
+            elementField: results[i] for elementField, results in elementFields.items()
         }
 
         __Make_vtu(mesh, filename, nodeResults, elementResults)
@@ -188,9 +187,11 @@ def _Save_mesh(
 
         times.append(tic.Tac("Paraview", "Make vtu", False))
 
-        rmTime = Tic.Get_Remaining_Time(iter, N - 1, times[-1])
+        iteration = i + 1
+        rmTime = Tic.Get_Remaining_Time(iteration, N, times[-1])
 
-        Display.MyPrint(f"Generate paraview {iter}/{N - 1} {rmTime}     ", end="\r")
+        iteration = str(iteration).zfill(len(str(N)))
+        Display.MyPrint(f"Generate paraview {iteration}/{N} {rmTime}     ", end="\r")
 
     print("\n")
 

@@ -832,9 +832,11 @@ def Movie_func(
 
         time = tic.Tac("PyVista_Interface", "Movie_func", False)
 
-        rmTime = Tic.Get_Remaining_Time(i, N - 1, time)
+        iteration = i + 1
+        rmTime = Tic.Get_Remaining_Time(iteration, N, time)
 
-        MyPrint(f"Generate movie {i}/{N - 1} {rmTime}    ", end="\r")
+        iteration = str(iteration).zfill(len(str(N)))
+        MyPrint(f"Generate movie {iteration}/{N} {rmTime}    ", end="\r")
 
     print()
     plotter.close()
