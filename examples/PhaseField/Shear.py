@@ -236,7 +236,7 @@ def DoSimu(split: str, regu: str):
             Loading(dep)
 
             # solve and save iter
-            u, _, Kglob, converg = simu.Solve(tolConv, maxIter, convOption=2)
+            u, _, Ku, converg = simu.Solve(tolConv, maxIter, convOption=2)
             simu.Save_Iter()
 
             # print iter solution
@@ -247,7 +247,7 @@ def DoSimu(split: str, regu: str):
                 break
 
             # resulting force on upper edge
-            f = np.sum(Kglob[dofsX_upper, :] @ u)
+            f = np.sum(Ku[dofsX_upper, :] @ u)
 
             displacement.append(dep)
             force.append(f)

@@ -731,11 +731,12 @@ class PhaseFieldSimu(_Simu):
         tic = Tic()
 
         u_n = self.displacement
+        assert u_n.shape == f_n.shape, f"f_n must be a {u_n.shape} array."
         if np.linalg.norm(u_n) == 0 or np.linalg.norm(f_n) == 0:
             Psi_Ext = 0
         else:
             with np.errstate(divide="ignore", over="ignore", invalid="ignore"):
-                Psi_Ext = (u_n @ f_n)[0]
+                Psi_Ext = u_n @ f_n
 
         tic.Tac("PostProcessing", "Calc Psi Ext", False)
 

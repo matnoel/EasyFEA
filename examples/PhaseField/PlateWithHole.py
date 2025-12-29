@@ -234,14 +234,14 @@ def DoSimu(split: str, regu: str):
 
             Apply_BC(ud)
 
-            u, d, Kglob, convergence = simu.Solve(tolConv, maxIter)
+            u, d, Ku, convergence = simu.Solve(tolConv, maxIter)
             simu.Save_Iter()
 
             # stop if the simulation does not converge
             if not convergence:
                 break
 
-            f = np.sum(Kglob[dofsY_upper, :] @ u)
+            f = np.sum(Ku[dofsY_upper, :] @ u)
 
             simu.Results_Set_Iteration_Summary(iter, ud * unit, unitU, ud / u_max, True)
 

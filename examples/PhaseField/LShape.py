@@ -194,9 +194,9 @@ if __name__ == "__main__":
             simu.add_dirichlet(nodes_load, [ud], ["y"])
 
             # solve
-            u, d, Kglob, convergence = simu.Solve(tolConv, 500, convOption)
+            u, d, Ku, convergence = simu.Solve(tolConv, 500, convOption)
             # calc load
-            fr = np.sum(Kglob[dofsY_load, :] @ u)
+            fr = np.sum(Ku[dofsY_load, :] @ u)
 
             # saves load and displacement
             displacement.append(ud)
