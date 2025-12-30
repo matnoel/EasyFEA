@@ -56,7 +56,7 @@ def Save_simu(
     results = simu.results
 
     Niter = len(results)
-    N = np.max([Niter, N])
+    N = np.min([Niter, N])
     iterations = np.linspace(0, Niter - 1, N, endpoint=True, dtype=int)
 
     folder = Folder.Join(folder, "Paraview")
