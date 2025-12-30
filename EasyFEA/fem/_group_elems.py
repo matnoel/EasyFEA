@@ -680,12 +680,12 @@ class _GroupElem(ABC):
 
         # nodes coordinates for each element
         if elements.size == 0:
-            coordo_e = coord[self.__connect]
+            coord_e = coord[self.__connect]
         else:
-            coordo_e = coord[self.__connect[elements]]
+            coord_e = coord[self.__connect[elements]]
 
         # localize coordinates on Gauss points
-        coordo_e_p = np.einsum("pin,end->epd", N_pg, coordo_e, optimize="optimal")
+        coordo_e_p = np.einsum("pin,end->epd", N_pg, coord_e, optimize="optimal")
 
         return FeArray.asfearray(coordo_e_p)
 
