@@ -1907,47 +1907,19 @@ class _Simu(_IObserver, _params.Updatable, ABC):
         coord = self.mesh.coord
         coord_n = coord[nodes]
 
-        # initialize the value vector for each node
-        valeurs_ddl_dir = np.zeros((Nn, len(unknowns)))
+        # initialize the value vector for each node (Nn, Ndof)
+        values_n_d = np.zeros((Nn, len(unknowns)))
 
         for d, dir in enumerate(unknowns):
             eval_n = self.__Bc_evaluate(coord_n, values[d], option="nodes")
-            if problemType == ModelType.beam:
-                eval_n /= len(nodes)
-            valeurs_ddl_dir[:, d] = eval_n.ravel()
+            eval_n /= len(nodes)
+            values_n_d[:, d] = eval_n.ravel()
 
-        dofsValues = valeurs_ddl_dir.ravel()
+        dofsValues = values_n_d.ravel()
 
         dofs = self.Bc_dofs_nodes(nodes, unknowns, problemType)
 
         return dofsValues, dofs
-
-    def _Bc_Integration_scale(
-        self,
-        groupElem: _GroupElem,
-        elements: _types.IntArray,
-        values_e_p: _types.FloatArray,
-        matrixType: MatrixType,
-    ) -> _types.FloatArray:
-        """Scales values_e_pg
-
-        Parameters
-        ----------
-        groupElem : _GroupElem
-            group of elements.
-        elements : _types.IntArray
-            elements where the values are applied.
-        values_e_p : _types.FloatArray
-            values applied.
-        matrixType : MatrixType
-            matrix type used.
-
-        Returns
-        -------
-        _types.FloatArray
-            scaled values
-        """
-        return values_e_p
 
     def __Bc_Integration_Dim(
         self,
@@ -1964,7 +1936,6 @@ class _Simu(_IObserver, _params.Updatable, ABC):
         dofs = np.array([], dtype=int)
         Nodes = np.array([], dtype=int)  # Nodes used by the elements
         # nodes != Nodes dont remove
-
         Nn = self.mesh.Nn
 
         # For each group element
@@ -1979,7 +1950,7 @@ class _Simu(_IObserver, _params.Updatable, ABC):
 
             # Get the coordinates of the Gauss points if you need to devaluate the function
             matrixType = MatrixType.mass
-            coordo_e_p = groupElem.Get_GaussCoordinates_e_pg(matrixType, elements)
+            coord_e_p = groupElem.Get_GaussCoordinates_e_pg(matrixType, elements)
 
             N_pg = groupElem.Get_N_pg(matrixType)
             wJ_e_pg = groupElem.Get_weightedJacobian_e_pg(matrixType)[elements]
@@ -1992,36 +1963,21 @@ class _Simu(_IObserver, _params.Updatable, ABC):
             # Integrated for all unknowns
             for u, unknown in enumerate(unknowns):
                 if isinstance(values[u], (int, float)) or callable(values[u]):
-                    # evaluate on gauss points
-                    eval_e_p = self.__Bc_evaluate(coordo_e_p, values[u], option="gauss")
-                    eval_e_p = self._Bc_Integration_scale(
-                        groupElem, elements, eval_e_p, matrixType
-                    )
-                    # integrate the elements
+                    # evaluate on gauss points (Ne, nPg)
+                    eval_e_p = self.__Bc_evaluate(coord_e_p, values[u], option="gauss")
+                    # integrate the elements (Ne, nPg, nPe)
                     values_e_p = np.einsum(
-                        "ep,ep,pin->epin",
-                        wJ_e_pg,
-                        eval_e_p,
-                        N_pg,
-                        optimize="optimal",
+                        "ep,ep,pin->epn", wJ_e_pg, eval_e_p, N_pg, optimize="optimal"
                     )
 
                 else:
                     # evaluate on nodes
                     eval_n = np.zeros(Nn, dtype=float)
                     eval_n[nodes] = values[u]
-                    eval_e = eval_n[groupElem.connect[elements]]
-                    eval_e_p = eval_e[:, np.newaxis].repeat(wJ_e_pg.shape[1], 1)
-                    eval_e_p = self._Bc_Integration_scale(
-                        groupElem, elements, eval_e_p, matrixType
-                    )
-                    # integrate the elements
+                    eval_e = eval_n[groupElem.connect[elements]]  # (Ne, nPe)
+                    # integrate the elements (Ne, nPg, nPe)
                     values_e_p = np.einsum(
-                        "ep,epj,pin->epin",
-                        wJ_e_pg,
-                        eval_e_p,
-                        N_pg,
-                        optimize="optimal",
+                        "ep,en,pin->epn", wJ_e_pg, eval_e, N_pg, optimize="optimal"
                     )
 
                 # sum over integration points
@@ -2124,6 +2080,12 @@ class _Simu(_IObserver, _params.Updatable, ABC):
         else:
             magnitude *= -1
 
+        # issue #29 revealed an error in this function.
+        # Both methods below yield similar (though not identical) results.
+
+        # -------------------
+        # Method 1
+        # -------------------
         normals, nodes = mesh.Get_normals(nodes)
 
         values = [val * magnitude for val in normals[:, :inDim].T]
@@ -2139,6 +2101,47 @@ class _Simu(_IObserver, _params.Updatable, ABC):
         )
 
         return dofsValues, dofs, nodes
+
+        # # -------------------
+        # # Method 2:
+        # # -------------------
+
+        # unknowns = self.Get_unknowns(problemType)[:inDim]
+        # dofsValues = np.array([], dtype=float)
+        # dofs = np.array([], dtype=int)
+        # Nodes = np.array([], dtype=int)  # Nodes used by the elements
+        # # nodes != Nodes dont remove
+
+        # # For each group element
+        # for groupElem in self.mesh.Get_list_groupElem(dim - 1):
+        #     # Retrieve elements that exclusively use nodes
+        #     elements = groupElem.Get_Elements_Nodes(nodes, exclusively=True)
+        #     if elements.shape[0] == 0:
+        #         continue
+        #     connect = groupElem.connect[elements]
+        #     Nodes = np.append(Nodes, np.reshape(connect, -1))
+
+        #     matrixType = MatrixType.mass
+        #     N_pg = groupElem.Get_N_pg(matrixType)
+        #     wJ_e_pg = groupElem.Get_weightedJacobian_e_pg(matrixType)[elements]
+
+        #     # evaluate normals on gauss points (Ne, nPg, inDim)
+        #     normals_e_pg = groupElem.Get_normals_e_pg(matrixType)[elements, :, :inDim]
+        #     # integrate the elements (Ne, nPg, nPe, inDim)
+        #     values_e_pg = magnitude * np.einsum(
+        #         "ep,epd,pin->epnd", wJ_e_pg, normals_e_pg, N_pg, optimize="optimal"
+        #     )
+
+        #     # sum over integration points (Ne, nPe, inDim)
+        #     values_e = np.sum(values_e_pg, axis=1)
+        #     # append dofs values
+        #     dofsValues = np.append(dofsValues, np.ravel(values_e))
+
+        #     # append new dofs
+        #     new_dofs = self.Bc_dofs_nodes(connect.ravel(), unknowns, problemType)
+        #     dofs = np.append(dofs, new_dofs.ravel())
+
+        # return dofsValues, dofs, Nodes
 
     def _Bc_Add_Neumann(
         self,

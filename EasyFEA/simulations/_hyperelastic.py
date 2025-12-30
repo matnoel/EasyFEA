@@ -89,34 +89,6 @@ class HyperElasticSimu(_Simu):
         [uxi, uyi, uzi, ...]"""
         return self._Get_u_n(self.problemType)
 
-    def _Bc_Integration_scale(self, groupElem, elements, values_e_p, matrixType):
-        # TODO to validate
-        # return values_e_p
-
-        values_e_p = FeArray.asfearray(values_e_p)
-        u = self.displacement
-
-        if groupElem.dim == 3:
-            # dont scale for 3D elements
-            coef_e_pg = 1
-        else:
-            # 1D or 2D elements
-
-            # compute F and J
-            grad_e_pg = groupElem.Get_Gradient_e_pg(u, matrixType)[elements]
-            F_e_pg = np.eye(3) + grad_e_pg
-            J_e_pg = Det(F_e_pg)
-            coef_e_pg = J_e_pg
-
-            # displacementMatrix = self.Results_displacement_matrix()
-            # normal_e = groupElem._Get_sysCoord_e(displacementMatrix)[elements,:,groupElem.dim]
-            # normal_e = FeArray.asfearray(normal_e[:,np.newaxis])
-            # coef_e_pg = J_e_pg * Norm(Inv(F_e_pg).T @ normal_e, axis=-1)
-
-        scaled_e_pg = coef_e_pg * values_e_p
-
-        return np.asarray(scaled_e_pg)
-
     # --------------------------------------------------------------------------
     # Solve
     # --------------------------------------------------------------------------
