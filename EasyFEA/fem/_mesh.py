@@ -359,6 +359,9 @@ class Mesh(Observable):
                 "ni,n->ni", connect_n_e @ normal_e, 1 / sum, optimize="optimal"
             )
 
+            # normalize vector
+            normal_n = Normalize(normal_n)
+
             # append the values on each direction and add nodes
             list_normal.append(normal_n)
             list_nodes.extend(usedNodes)
