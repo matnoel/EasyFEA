@@ -9,8 +9,8 @@ These models are used to build :py:class:`~EasyFEA.simulations._Simu` instances 
 
 With this module, you can construct:
 
-+ Linear elastic materials, such as :py:class:`~EasyFEA.models.ElasIsot`, :py:class:`~EasyFEA.models.ElasIsotTrans`, and :py:class:`~EasyFEA.models.ElasAnisot`.
-+ Nonlinear hyperelastic materials, such as :py:class:`~EasyFEA.models.NeoHookean`, :py:class:`~EasyFEA.models.MooneyRivlin`, and :py:class:`~EasyFEA.models.SaintVenantKirchhoff`.
++ Linear elastic materials, such as :py:class:`~EasyFEA.models.ElasIsot`, :py:class:`~EasyFEA.models.ElasIsotTrans`, :py:class:`~EasyFEA.models.ElasOrthotropic`, and :py:class:`~EasyFEA.models.ElasAnisot`.
++ Nonlinear hyperelastic materials, such as :py:class:`~EasyFEA.models.NeoHookean`, :py:class:`~EasyFEA.models.MooneyRivlin`, :py:class:`~EasyFEA.models.SaintVenantKirchhoff`, and :py:class:`~EasyFEA.models.HolzapfelOgden`.
 + Elastic beams with :py:class:`~EasyFEA.models.BeamElasIsot`.
 + Phase-field materials with :py:class:`~EasyFEA.models.PhaseField`.
 + Thermal materials with :py:class:`~EasyFEA.models.Thermal`.
