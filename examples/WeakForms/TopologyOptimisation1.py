@@ -2,6 +2,8 @@
 # This file is part of the EasyFEA project.
 # EasyFEA is distributed under the terms of the GNU General Public License v3, see LICENSE.txt and CREDITS.md for more information.
 
+# sphinx_gallery_thumbnail_number = -1
+
 """
 TopologyOptimisation1
 =====================
@@ -116,8 +118,7 @@ if __name__ == "__main__":
     # ----------------------------------------------
 
     simu = Simulations.WeakFormSimu(mesh, model)
-    # simu._Solver_Set_PETSc4Py_Options("none", "lu")
-    simu.solver = "scipy"
+    simu._Solver_Set_PETSc4Py_Options("none", "lu")
 
     simu.add_dirichlet(nodesX0, [0] * dim, simu.Get_unknowns())
     simu.add_neumann(nodesLoad, [-1], ["y"])
