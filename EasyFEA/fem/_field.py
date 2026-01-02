@@ -234,6 +234,42 @@ class Field:
 
         return mesh.Get_Node_Values(values_e)
 
+    def Interpolate(self, dofsValues: np.ndarray) -> FeArray:
+        """Interpolates degrees of freedom values at each integration point for every element.
+
+        Parameters
+        ----------
+        dofsValues : np.ndarray
+            Array of shape (Nn * dof_n,) containing the degrees of freedom values.
+
+        Returns
+        -------
+        FeArray
+            The (Ne, nPg, dof_n) finite element array.
+        """
+
+        # get mesh data
+        groupElem = self.groupElem
+        Ne = groupElem.Ne
+        Nn = groupElem.Nn
+        nPe = groupElem.nPe
+
+        # get dof_n
+        dofsValues = np.asarray(dofsValues).ravel()
+        assert dofsValues.size % Nn == 0, "Must be a (Nn * dof_n) array"
+        dof_n = dofsValues.size // Nn
+
+        # get (Ne, nPe, dof_n) values
+        dofsValues_e = groupElem.Locates_sol_e(dofsValues, dof_n).reshape(
+            Ne, nPe, dof_n
+        )
+
+        # get (Ne, nPg, dof_n) interpolated values
+        N_pg = groupElem.Get_N_pg(self.matrixType)
+        values_e_pg = np.einsum("end,pin->epd", dofsValues_e, N_pg, optimize="optimal")
+
+        return FeArray.asfearray(values_e_pg)
+
 
 def Sym_Grad(u: Field) -> FeArray.FeArrayALike:
     grad = u.grad
