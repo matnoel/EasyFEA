@@ -2,7 +2,6 @@
 # This file is part of the EasyFEA project.
 # EasyFEA is distributed under the terms of the GNU General Public License v3, see LICENSE.txt and CREDITS.md for more information.
 
-# sphinx_gallery_thumbnail_number = -1
 
 """
 TopologyOptimisation1
@@ -10,6 +9,7 @@ TopologyOptimisation1
 
 An educational implementation of topology optimization inspired by `Week 10- Topology Optimisation — A Step-by-Step Tutorial <https://github.com/MCM-QMUL/TopOpt_teach/blob/main/Week10_topology_optimisation_tutorial_step%20by%20step.ipynb>`_ created by (Dr Wei Tan, Queen Mary University of London), which in turn builds upon the seminal 88-line topology optimization MATLAB code by Ole Sigmund (2001), published in *Structural and Multidisciplinary Optimization*, 21(2), pp. 120–127.
 """
+# sphinx_gallery_thumbnail_number = -1
 
 from EasyFEA import Display, Folder, PyVista, np, ElemType, Models, Simulations
 from EasyFEA.fem import FeArray, Field, BiLinearForm, Sym_Grad, Trace
