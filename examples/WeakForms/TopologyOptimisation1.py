@@ -9,7 +9,7 @@ TopologyOptimisation1
 
 An educational implementation of topology optimization inspired by `Week 10- Topology Optimisation — A Step-by-Step Tutorial <https://github.com/MCM-QMUL/TopOpt_teach/blob/main/Week10_topology_optimisation_tutorial_step%20by%20step.ipynb>`_ created by (Dr Wei Tan, Queen Mary University of London), which in turn builds upon the seminal 88-line topology optimization MATLAB code by Ole Sigmund (2001), published in *Structural and Multidisciplinary Optimization*, 21(2), pp. 120–127.
 """
-# sphinx_gallery_thumbnail_number = -1
+# sphinx_gallery_thumbnail_number = 3
 
 from EasyFEA import Display, Folder, PyVista, np, ElemType, Models, Simulations
 from EasyFEA.fem import FeArray, Field, BiLinearForm, Sym_Grad, Trace
@@ -36,7 +36,11 @@ if __name__ == "__main__":
 
     # outputs
     generateMovie = True
-    folder = Folder.Join(Folder.RESULTS_DIR, "WeakForms", "TopologyOptimisation1")
+    folder = Folder.Join(
+        Folder.RESULTS_DIR,
+        "WeakForms",
+        "TopologyOptimisation1",
+    )
 
     # ----------------------------------------------
     # Mesh
@@ -52,8 +56,6 @@ if __name__ == "__main__":
         mesh = contour.Mesh_Extrude(
             [], [0, 0, H], [H / meshSize], ElemType.HEXA8, isOrganised=True
         )
-
-    PyVista.Plot_Mesh(mesh).show()
 
     nodesX0 = mesh.Nodes_Conditions(lambda x, y, z: x == 0)
 
@@ -122,8 +124,6 @@ if __name__ == "__main__":
 
     simu.add_dirichlet(nodesX0, [0] * dim, simu.Get_unknowns())
     simu.add_neumann(nodesLoad, [-1], ["y"])
-
-    PyVista.Plot_BoundaryConditions(simu).show()
 
     # ----------------------------------------------
     # Optim topo
@@ -201,6 +201,9 @@ if __name__ == "__main__":
     axC.plot(range(len(list_compliance)), list_compliance, ls="-", marker=".")
     axC.set_xlabel("Iteration")
     axC.set_ylabel("Compliance")
+    Display.plt.show()
+
+    PyVista.Plot_BoundaryConditions(simu).show()
 
     def get_thresh(p_e: np.ndarray, min=0.5, max=1.0):
         grid = PyVista._pvMesh(mesh, p_e, nodeValues=False)
@@ -224,5 +227,3 @@ if __name__ == "__main__":
             PyVista.Plot(thresh, color="k", plotter=plotter)
 
         PyVista.Movie_func(Func, len(list_compliance), folder, "optim.gif")
-
-    Display.plt.show()
