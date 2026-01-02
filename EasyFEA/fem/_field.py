@@ -20,7 +20,6 @@ class Field:
         self,
         groupElem: _GroupElem,
         dof_n: int,
-        thickness: float = 1.0,
         matrixType: MatrixType = MatrixType.mass,
     ):
         """
@@ -32,8 +31,6 @@ class Field:
             The group of elements to associate with this instance.
         dof_n : int
             Degree of freedom number, must be between 1 and the dimension of the groupElem.
-        thickness : float, optional
-            thickness used in the model, by default 1.0
         matrixType : MatrixType, optional
             Determines the number of integration points, by default MatrixType.mass
         """
