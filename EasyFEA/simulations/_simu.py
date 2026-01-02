@@ -1910,10 +1910,10 @@ class _Simu(_IObserver, _params.Updatable, ABC):
         # initialize the value vector for each node (Nn, Ndof)
         values_n_d = np.zeros((Nn, len(unknowns)))
 
-        for d, dir in enumerate(unknowns):
-            eval_n = self.__Bc_evaluate(coord_n, values[d], option="nodes")
+        for i in range(len(unknowns)):
+            eval_n = self.__Bc_evaluate(coord_n, values[i], option="nodes")
             eval_n /= len(nodes)
-            values_n_d[:, d] = eval_n.ravel()
+            values_n_d[:, i] = eval_n.ravel()
 
         dofsValues = values_n_d.ravel()
 
