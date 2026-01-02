@@ -2,6 +2,27 @@
 
 This document describes the changes made to the project.
 
+## 1.6.3 (January 2, 2026):
+
+- Updated the `Result_in_Strain_or_Stress_field` function and its calls to replace `field_e` with `field_e_pg`.
+- Added `Field.Evaluate_e` and `Field.Evaluate_n` methods to evaluate functions on elements or nodes.
+- Added the `von_mises_stress` function in `examples/WeakForms/LinearElasticity1.py`.
+- Fixed a bug in the `Display.Plot_Result` function when `nodeValues=False`.
+- Clarified the `Mesher._Mesh_Get_Mesh` function and moved the `_gmsh_interface.py` module to `_gmsh.py`.
+- Began work on issue [#26](https://github.com/matnoel/EasyFEA/issues/26): Solve simulations using petsc4py and MPI.
+- Added the `Gauss._Gauss_factory_nPg` function and refactored Gauss point construction.
+- Updated the `Paraview.__Make_pvd` function to use relative paths for accessing VTU files.
+- Improved the `MeshIO` module.
+- Renamed `mesh.coordGlob` to `mesh.coord`.
+- Created `examples/LinearizedElasticity/Homog4.py`.
+- Implemented the `ElasOrthotropic` model.
+- Fixed issue [#27](https://github.com/matnoel/EasyFEA/issues/27): Corrected bug in `PhaseFieldSimu._Calc_Psi_Ext` method.
+- Updated iteration printing in Display, Paraview, and PyVista functions.
+- Addressed issue [#29](https://github.com/matnoel/EasyFEA/issues/29): Clarified the `Simu.add_pressureLoad()` function.
+- Updated the `simu.add_neumann` function.
+- Resolved issue [#28](https://github.com/matnoel/EasyFEA/issues/28): Added topology optimization example.
+- Enhanced the Sphinx documentation.
+
 ## 1.6.2 (November 20, 2025):
 
 - Updated homogenization examples.
