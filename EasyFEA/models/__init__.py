@@ -11,7 +11,13 @@ from ._hyperelastic_laws import (
     HolzapfelOgden,
 )
 from ._hyperelastic import HyperElasticState
-from ._linear_elastic_laws import _Elas, ElasIsot, ElasAnisot, ElasIsotTrans
+from ._linear_elastic_laws import (
+    _Elas,
+    ElasIsot,
+    ElasIsotTrans,
+    ElasOrthotropic,
+    ElasAnisot,
+)
 from ._phasefield import PhaseField
 from ._thermal import Thermal
 from ._utils import (
