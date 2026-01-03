@@ -431,14 +431,16 @@ class ElasIsot(_Elas):
         E1 = 1 / 3 * TensorProd(Ivect, Ivect)
         E2 = Isym - E1
 
-        if not self.isHeterogeneous:
-            C = self.C
-            # only test if the material is heterogeneous
-            test_C = np.linalg.norm((3 * c1 * E1 + 2 * c2 * E2) - C) / np.linalg.norm(C)
-            assert test_C <= 1e-12
-
         ci = np.array([c1, c2])
         Ei = np.array([3 * E1, 2 * E2])
+
+        if not self.isHeterogeneous:
+            C, S = self._Behavior(3)
+            diff_C = C - np.sum([c * E for c, E in zip(ci, Ei)], 0)
+            test_C = np.linalg.norm(diff_C, axis=(-2, -1)) / np.linalg.norm(
+                C, axis=(-2, -1)
+            )
+            assert test_C < 1e-12
 
         return ci, Ei
 
@@ -678,16 +680,16 @@ class ElasIsotTrans(_Elas):
         I = Project_Kelvin(TensorProd(np.eye(3), np.eye(3), True))
         E5 = I - E1 - E2 - E4
 
+        ci = np.array([c1, c2, c3, c4, c5])
+        Ei = np.array([E1, E2, E3, E4, E5])
+
         if not self.isHeterogeneous:
             C, S = self._Behavior(3)
-            diff_C = C - (c1 * E1 + c2 * E2 + c3 * E3 + c4 * E4 + c5 * E5)
+            diff_C = C - np.sum([c * E for c, E in zip(ci, Ei)], 0)
             test_C = np.linalg.norm(diff_C, axis=(-2, -1)) / np.linalg.norm(
                 C, axis=(-2, -1)
             )
             assert test_C < 1e-12
-
-        ci = np.array([c1, c2, c3, c4, c5])
-        Ei = np.array([E1, E2, E3, E4, E5])
 
         return ci, Ei
 
@@ -1015,24 +1017,6 @@ class ElasOrthotropic(_Elas):
         E13 = Project_Kelvin(tensor_prods(a, a, c, c) + tensor_prods(c, c, a, a))
         E12 = Project_Kelvin(tensor_prods(a, a, b, b) + tensor_prods(b, b, a, a))
 
-        if not self.isHeterogeneous:
-            C, S = self._Behavior(3)
-            diff_C = C - (
-                self._c11 * E11
-                + self._c22 * E22
-                + self._c33 * E33
-                + self._c44 * E44
-                + self._c55 * E55
-                + self._c66 * E66
-                + self._c23 * E23
-                + self._c13 * E13
-                + self._c12 * E12
-            )
-            test_C = np.linalg.norm(diff_C, axis=(-2, -1)) / np.linalg.norm(
-                C, axis=(-2, -1)
-            )
-            assert test_C < 1e-12
-
         ci = np.array(
             [
                 self._c11,
@@ -1047,6 +1031,14 @@ class ElasOrthotropic(_Elas):
             ]
         )
         Ei = np.array([E11, E22, E33, E44, E55, E66, E23, E13, E12])
+
+        if not self.isHeterogeneous:
+            C, S = self._Behavior(3)
+            diff_C = C - np.sum([c * E for c, E in zip(ci, Ei)], 0)
+            test_C = np.linalg.norm(diff_C, axis=(-2, -1)) / np.linalg.norm(
+                C, axis=(-2, -1)
+            )
+            assert test_C < 1e-12
 
         return ci, Ei
 
