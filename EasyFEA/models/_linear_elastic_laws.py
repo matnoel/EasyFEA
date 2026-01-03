@@ -985,8 +985,70 @@ class ElasOrthotropic(_Elas):
             axis_2=self.axis_2,
         )
 
-    def Walpole_Decomposition(self):
-        return super().Walpole_Decomposition()
+    def Walpole_Decomposition(self) -> tuple[_types.FloatArray, _types.FloatArray]:
+        # see section 3.6: https://doi.org/10.1007/s10659-012-9396-z
+
+        a = self.axis_1
+        b = self.axis_2
+        c = Normalize(np.cross(a, b))
+
+        def tensor_prods(*args: np.ndarray):
+            assert len(args) == 4
+            tensor_prod = np.einsum("i,j,k,l->ijkl", *args)
+            return tensor_prod
+
+        E11 = Project_Kelvin(tensor_prods(a, a, a, a))
+        E22 = Project_Kelvin(tensor_prods(b, b, b, b))
+        E33 = Project_Kelvin(tensor_prods(c, c, c, c))
+
+        def vec_sym_tensor_prod(v1: np.ndarray, v2: np.ndarray):
+            # (ai bj + bi aj )(akb + bka )/2
+            p1 = np.einsum("i,j->ij", v1, v2) + np.einsum("i,j->ij", v2, v1)
+            p2 = np.einsum("k,l->kl", v1, v2) + np.einsum("k,l->kl", v2, v1)
+            return np.einsum("ij,kl->ijkl", p1, p2) / 2
+
+        E44 = Project_Kelvin(vec_sym_tensor_prod(b, c))  # 23
+        E55 = Project_Kelvin(vec_sym_tensor_prod(a, c))  # 13
+        E66 = Project_Kelvin(vec_sym_tensor_prod(a, b))  # 12
+
+        E23 = Project_Kelvin(tensor_prods(b, b, c, c) + tensor_prods(c, c, b, b))
+        E13 = Project_Kelvin(tensor_prods(a, a, c, c) + tensor_prods(c, c, a, a))
+        E12 = Project_Kelvin(tensor_prods(a, a, b, b) + tensor_prods(b, b, a, a))
+
+        if not self.isHeterogeneous:
+            C, S = self._Behavior(3)
+            diff_C = C - (
+                self._c11 * E11
+                + self._c22 * E22
+                + self._c33 * E33
+                + self._c44 * E44
+                + self._c55 * E55
+                + self._c66 * E66
+                + self._c23 * E23
+                + self._c13 * E13
+                + self._c12 * E12
+            )
+            test_C = np.linalg.norm(diff_C, axis=(-2, -1)) / np.linalg.norm(
+                C, axis=(-2, -1)
+            )
+            assert test_C < 1e-12
+
+        ci = np.array(
+            [
+                self._c11,
+                self._c22,
+                self._c33,
+                self._c44,
+                self._c55,
+                self._c66,
+                self._c23,
+                self._c13,
+                self._c12,
+            ]
+        )
+        Ei = np.array([E11, E22, E33, E44, E55, E66, E23, E13, E12])
+
+        return ci, Ei
 
 
 # ----------------------------------------------

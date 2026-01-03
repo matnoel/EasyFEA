@@ -364,6 +364,8 @@ class TestLinearElastic:
         )
         assert test_c2 < 1e-12
 
+        mat2_ortho.Walpole_Decomposition()
+
     def test_getPmat(self):
 
         Ne = 10
