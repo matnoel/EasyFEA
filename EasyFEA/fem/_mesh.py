@@ -1035,6 +1035,52 @@ class Mesh(Observable):
 
         return meshSize_n
 
+    def Calc_regulation_projector(self, radius: float) -> sp.csr_matrix:
+        """Returns the regulation projector matrix such that:\n
+        newU = proj * oldU
+
+        Parameters
+        ----------
+        radius : float
+            Regularization radius for the projection operation.
+
+        Returns
+        -------
+        sp.csr_matrix
+            Projection matrix of shape (Nn, Nn) that applies the regulation.
+        """
+
+        assert radius > 0.0
+
+        Nn = self.Nn
+        nodes = np.arange(Nn)
+        coord_n = self.coord
+
+        # get rows cols and values
+        rows_cols_values = np.array(
+            [
+                (
+                    np.ones(detectedNodes.size, dtype=int) * i,
+                    detectedNodes,
+                    np.ones(detectedNodes.size, dtype=int) * 1 / detectedNodes.size,
+                    # distance_n[detectedNodes] / distance_n[detectedNodes].sum(),
+                )
+                for i in range(Nn)
+                if (distance_n := np.linalg.norm(coord_n[i] - coord_n, axis=-1)).any()
+                if (detectedNodes := nodes[distance_n < radius + 1e-12]).any()
+            ],
+            dtype=object,
+        )
+
+        rows, cols, values = rows_cols_values.reshape(-1, 3).T
+
+        projector = sp.csr_matrix(
+            (np.concatenate(values), (np.concatenate(rows), np.concatenate(cols))),
+            (Nn, Nn),
+        )
+
+        return projector
+
 
 def Calc_projector(oldMesh: Mesh, newMesh: Mesh) -> sp.csr_matrix:
     """Get the matrix used to project the solution from the old mesh to the new mesh such that:\n
@@ -1137,8 +1183,10 @@ def Calc_projector(oldMesh: Mesh, newMesh: Mesh) -> sp.csr_matrix:
     #   (nodes detected in an mesh corner).
 
     nodesExact = list(set(nodesExact) - set(newCorners))  # type: ignore [assignment]
+
     for node in nodesExact:
-        oldNode = oldMesh.Nodes_Point(Point(*newMesh.coord[node]))
+        oldNode = oldMesh.groupElem._Get_nearby_nodes(newMesh.coord[node])
+        # oldNode = oldMesh.Nodes_Point(Point(*newMesh.coord[node]))
         if oldNode.size == 0:
             continue
         proj[node, :] = 0
