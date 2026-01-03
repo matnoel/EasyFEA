@@ -950,9 +950,9 @@ def _(line: Geoms.Line):
 @_pvGeom.register
 def _(circleArc: Geoms.CircleArc):
     return pv.CircularArc(
-        circleArc.pt1.coord,
-        circleArc.pt2.coord,
-        circleArc.center.coord,
+        pointa=circleArc.pt1.coord,
+        pointb=circleArc.pt2.coord,
+        center=circleArc.center.coord,
         negative=circleArc.coef == -1,
     )
 
