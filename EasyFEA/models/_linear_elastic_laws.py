@@ -826,6 +826,72 @@ class ElasOrthotropic(_Elas):
         """Axis 2"""
         return self.__axis_2.copy()
 
+    def __get_params(self) -> list[Union[float, _types.FloatArray]]:
+        """Returns E1, E2, E3, G23, G13, G12, v23, v13, v12"""
+        E1 = self.E1
+        E2 = self.E2
+        E3 = self.E3
+        G23 = self.G23
+        G13 = self.G13
+        G12 = self.G12
+        v23 = self.v23
+        v13 = self.v13
+        v12 = self.v12
+        return [E1, E2, E3, G23, G13, G12, v23, v13, v12]
+
+    def __get_cij_denominator(self) -> Union[float, _types.FloatArray]:
+        """Returns c11, c22, c33, c23, c13, c12 denominator"""
+        E1, E2, E3, _, _, _, v23, v13, v12 = self.__get_params()
+        return (
+            -E1 * E2
+            + E1 * E3 * v23**2
+            + E2**2 * v12**2
+            + 2 * E2 * E3 * v12 * v13 * v23
+            + E2 * E3 * v13**2
+        )
+
+    @property
+    def _c11(self) -> Union[float, _types.FloatArray]:
+        E1, E2, E3, _, _, _, v23, _, _ = self.__get_params()
+        return E1**2 * (-E2 + E3 * v23**2) / self.__get_cij_denominator()
+
+    @property
+    def _c22(self) -> Union[float, _types.FloatArray]:
+        E1, E2, E3, _, _, _, _, v13, _ = self.__get_params()
+        return E2**2 * (-E1 + E3 * v13**2) / self.__get_cij_denominator()
+
+    @property
+    def _c33(self) -> Union[float, _types.FloatArray]:
+        E1, E2, E3, _, _, _, _, _, v12 = self.__get_params()
+        return E2 * E3 * (-E1 + E2 * v12**2) / self.__get_cij_denominator()
+
+    @property
+    def _c44(self) -> Union[float, _types.FloatArray]:
+        return 2 * self.G23
+
+    @property
+    def _c55(self) -> Union[float, _types.FloatArray]:
+        return 2 * self.G13
+
+    @property
+    def _c66(self) -> Union[float, _types.FloatArray]:
+        return 2 * self.G12
+
+    @property
+    def _c23(self) -> Union[float, _types.FloatArray]:
+        E1, E2, E3, _, _, _, v23, v13, v12 = self.__get_params()
+        return -E2 * E3 * (E1 * v23 + E2 * v12 * v13) / self.__get_cij_denominator()
+
+    @property
+    def _c13(self) -> Union[float, _types.FloatArray]:
+        E1, E2, E3, _, _, _, v23, v13, v12 = self.__get_params()
+        return -E1 * E2 * E3 * (v12 * v23 + v13) / self.__get_cij_denominator()
+
+    @property
+    def _c12(self) -> Union[float, _types.FloatArray]:
+        E1, E2, E3, _, _, _, v23, v13, v12 = self.__get_params()
+        return -E1 * E2 * (E2 * v12 + E3 * v13 * v23) / self.__get_cij_denominator()
+
     def _Update(self) -> None:
         C, S = self._Behavior(self.dim)
         self.C = C
@@ -851,15 +917,7 @@ class ElasOrthotropic(_Elas):
         if dim is None:
             dim = self.dim
 
-        E1 = self.E1
-        E2 = self.E2
-        E3 = self.E3
-        G23 = self.G23
-        G13 = self.G13
-        G12 = self.G12
-        v23 = self.v23
-        v13 = self.v13
-        v12 = self.v12
+        E1, E2, E3, G23, G13, G12, v23, v13, v12 = self.__get_params()
 
         sum = E1 + E2 + E3 + G23 + G13 + G12 + v23 + v13 + v12
         dtype = object if isinstance(sum, np.ndarray) else float
@@ -893,16 +951,31 @@ class ElasOrthotropic(_Elas):
 
         material_sM = Heterogeneous_Array(material_sM)
 
-        # get c matrix
-        if material_sM.ndim > 2:
-            material_cM = np.zeros_like(material_sM, dtype=float)
-            uniq_S, inverse = np.unique(material_sM, return_inverse=True, axis=0)
-            for i, S in enumerate(uniq_S):
-                elems = np.where(inverse == i)[0]
-                C = np.linalg.inv(S)
-                material_cM[elems] = C
-        else:
-            material_cM = np.linalg.inv(material_sM)
+        material_cM = np.array(
+            [
+                [self._c11, self._c12, self._c13, 0, 0, 0],
+                [self._c12, self._c22, self._c23, 0, 0, 0],
+                [self._c13, self._c23, self._c33, 0, 0, 0],
+                [0, 0, 0, self._c44, 0, 0],
+                [0, 0, 0, 0, self._c55, 0],
+                [0, 0, 0, 0, 0, self._c66],
+            ],
+            dtype=dtype,
+        )
+
+        material_cM = Heterogeneous_Array(material_cM)
+
+        if len(material_cM.shape) == 2:
+            # checks that S = C^-1
+            diff_S = np.linalg.norm(
+                material_sM - np.linalg.inv(material_cM), axis=(-2, -1)
+            ) / np.linalg.norm(material_sM, axis=(-2, -1))
+            assert np.max(diff_S) < 1e-12
+            # checks that C = S^-1
+            diff_C = np.linalg.norm(
+                material_cM - np.linalg.inv(material_sM), axis=(-2, -1)
+            ) / np.linalg.norm(material_cM, axis=(-2, -1))
+            assert np.max(diff_C) < 1e-12
 
         return self._Apply_basis_transformation(
             dim=dim,
