@@ -69,9 +69,9 @@ EasyFEA uses several libraries, such as NumPy and Gmsh - as such, the following 
 
 EasyFEA includes a few optional dependencies for reducing resolution time or for performing DIC:
 
-+ `numba <https://pypi.org/project/numba/>`_ - Compiling Python code using LLVM.
 + `pypardiso <https://pypi.org/project/pypardiso/>`_ (Python > 3.8 & Intel oneAPI)  - Library for solving large systems of sparse linear equations.
 + `petsc <https://pypi.org/project/petsc/>`_ and `petsc4py <https://pypi.org/project/petsc4py/>`_ - Python bindings for PETSc.
++ `numba <https://pypi.org/project/numba/>`_ - Compiling Python code using LLVM.
 + `opencv-python <https://pypi.org/project/opencv-python/>`_ - Computer Vision package.
 
 🔤 Naming conventions

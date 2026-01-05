@@ -25,27 +25,18 @@ classifiers = [
     "Programming Language :: Python :: 3.13",
 ]
 dependencies = [
-    "numba",
     "numpy",
     "gmsh>=4.12",
     "scipy",
     "matplotlib",
     "pyvista",
-    "pandas",
     "imageio",
     "imageio[ffmpeg]",
     "meshio",
 ]
 
 [project.optional-dependencies]
-fast = ["pypardiso", "petsc", "petsc4py", "mpi4py"]
-dic = ["opencv-python"]
-dev = [
-    "mypy",
-    "black",
-    "ruff",
-    "pytest",    
-]
+dev = ["mypy", "black", "ruff", "pytest"]
 
 [project.urls]
 Documentation = "https://easyfea.readthedocs.io/en/latest/"
