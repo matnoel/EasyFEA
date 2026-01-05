@@ -648,6 +648,9 @@ def Plot_Nodes(
     else:
         nodes = np.asarray(list(set(np.ravel(nodes))))
 
+    if nodes.size == 0:
+        return ax
+
     coordo = mesh.coord
 
     if inDim == 2:
