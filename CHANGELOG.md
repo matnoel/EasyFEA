@@ -2,6 +2,15 @@
 
 This document describes the changes made to the project.
 
+## 1.6.4 (January 5, 2026):
+
+- Updated sphinx documentation.
+- Updated `ElasOrthotropic` implementation.
+- Defined `ElasOrthotropic.Walpole_Decomposition` method.
+- Updated how `Walpole_Decomposition` functions are checked during unitests.
+- Create `mesh.Calc_regulation_projector`.
+- Updated mpi4py and numba as optional dependencies.
+
 ## 1.6.3 (January 2, 2026):
 
 - Updated the `Result_in_Strain_or_Stress_field` function and its calls to replace `field_e` with `field_e_pg`.
