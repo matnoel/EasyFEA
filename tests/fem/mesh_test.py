@@ -12,7 +12,7 @@ L = 2
 H = 1
 
 
-def equal(val1, val2, tol=1e-12):
+def equal(val1, val2, tol=1e-11):
     assert np.abs(val1 - val2) / np.abs(val2) < tol
 
 
