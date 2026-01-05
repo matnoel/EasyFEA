@@ -2014,6 +2014,7 @@ class Mesher:
     ) -> "_GroupElem":
 
         # get mpi data
+        assert CAN_USE_MPI, "mpi4py must be installed"
         comm = MPI.COMM_WORLD
         Nproc = len(dict_rank_nodes)
         assert Nproc == comm.Get_size()  # comment for debug purposes

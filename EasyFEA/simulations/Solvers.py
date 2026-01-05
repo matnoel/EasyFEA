@@ -30,9 +30,23 @@ except ModuleNotFoundError:
     CAN_USE_PYPARDISO = False
 
 try:
+    from mpi4py import MPI
+
+    MPI_COMM = MPI.COMM_WORLD
+    MPI_SIZE = MPI_COMM.Get_size()
+    MPI_RANK = MPI_COMM.Get_rank()
+
+    CAN_USE_MPI = True
+except ModuleNotFoundError:
+    CAN_USE_MPI = False
+
+    MPI_COMM = None
+    MPI_SIZE = 1
+    MPI_RANK = 0
+
+try:
     import petsc4py
     from petsc4py import PETSc
-    from mpi4py import MPI
 
     CAN_USE_PETSC = True
 
@@ -177,7 +191,7 @@ def _Solve_Axb(
 
         # get nodes
         mesh = simu.mesh
-        if MPI.COMM_WORLD.Get_size() > 1:
+        if MPI_SIZE > 1:
             _, _, nodes, ghostNodes = mesh.groupElem._Get_partitionned_data()
             nodes = list(set(nodes).union(ghostNodes))
         else:
@@ -189,12 +203,12 @@ def _Solve_Axb(
         )
 
         # from ..utilities import Display
-        # print(f"rank {rank}: orphanNodes = {mesh.orphanNodes}")
+        # print(f"rank {MPI_RANK}: orphanNodes = {mesh.orphanNodes}")
         # ax = Display.Init_Axes(2)
         # ax.grid()
         # A = A[usedDofs, :].tocsc()[:, usedDofs]
         # ax.spy(A)
-        # ax.set_title(f"rank {rank}")
+        # ax.set_title(f"rank {MPI_RANK}")
         # Display.plt.show()
 
         x, converged = _PETSc(A, b, x0, kspType, pcType, solverType, usedDofs)
@@ -250,7 +264,7 @@ def Solve_simu(simu: "_Simu", problemType: "ModelType"):
     """Solving the simulation's problem according to the resolution type."""
 
     resolution = ResolType.r1
-    if CAN_USE_PETSC and MPI.COMM_WORLD.Get_size() > 1:
+    if CAN_USE_PETSC and MPI_SIZE > 1:
         resolution = ResolType.r3
         solverType = simu._Solver_Get_PETSc4Py_Options()[2]
         simu._Solver_Set_PETSc4Py_Options("none", "none", solverType)
@@ -446,10 +460,7 @@ def _PETSc(
 
     assert A.ndim == 2 and A.shape[0] == A.shape[1], "A must be a square matrix"
 
-    comm = MPI.COMM_WORLD
-    nprocs = comm.Get_size()
-    rank = comm.Get_rank()
-    petsc4py.init(sys.argv, comm=comm)
+    petsc4py.init(sys.argv, comm=MPI_COMM)
 
     matrix = PETSc.Mat()  # type: ignore [attr-defined]
 
@@ -459,10 +470,10 @@ def _PETSc(
     # init global to local converter
     global_to_local_converter = np.zeros(Ndof, dtype=np.int32)
 
-    if nprocs > 1:
+    if MPI_SIZE > 1:
         # https://petsc.org/release/manual/mat/#matrices
         # create
-        matrix.create(comm=comm)
+        matrix.create(comm=MPI_COMM)
         matrix.setType("aij")
 
         # get sizes
@@ -470,7 +481,7 @@ def _PETSc(
         # assert Ndof == comm.allreduce(Ndof_r, MPI.SUM)
 
         # Resize A and get values
-        # print(f"rank{rank} global_dofs = {global_dofs}")
+        # print(f"rank{MPI_RANK} global_dofs = {global_dofs}")
         assert isinstance(global_dofs, np.ndarray)
         A = A[global_dofs, :].tocsc()[:, global_dofs].tocsr()
         values = A.toarray().ravel()
@@ -496,17 +507,17 @@ def _PETSc(
 
         # set values
         csr = (A.indptr, A.indices, A.data)
-        matrix.createAIJ(A.shape, comm=comm, csr=csr)
+        matrix.createAIJ(A.shape, comm=MPI_COMM, csr=csr)
 
     # set b values
     global_rows, _, values = sparse.find(b)
-    # print(f"rank{rank} b = \n{b.toarray()}")
+    # print(f"rank{MPI_RANK} b = \n{b.toarray()}")
 
     # set rhs values
     rhs = matrix.createVecLeft()
     local_rows = global_to_local_converter[global_rows]
     rhs.array[local_rows] = values
-    # print(f"rank{rank} rhs = {rhs.array}")
+    # print(f"rank{MPI_RANK} rhs = {rhs.array}")
 
     # get local dofs
     local_dofs = global_to_local_converter[global_dofs]
@@ -516,9 +527,9 @@ def _PETSc(
     if len(x0) > 0:
         # print(x.array.shape)
         x.array[local_dofs] = x0[global_dofs]
-    # print(f"rank{rank} x = {x.array}")
+    # print(f"rank{MPI_RANK} x = {x.array}")
 
-    ksp = PETSc.KSP().create(comm=comm)  # type: ignore [attr-defined]
+    ksp = PETSc.KSP().create(comm=MPI_COMM)  # type: ignore [attr-defined]
     ksp.setOperators(matrix)
     ksp.setType(kspType)
 
@@ -531,12 +542,12 @@ def _PETSc(
 
     # solve x
     ksp.solve(rhs, x)
-    # print(f"rank{rank} x = {x.array}")
+    # print(f"rank{MPI_RANK} x = {x.array}")
 
     # set dofsValues values
     dofsValues = np.zeros(Ndof, dtype=float)
     dofsValues[global_dofs] = x.array[local_dofs]
-    # print(f"rank{rank} dofsValues = {dofsValues}")
+    # print(f"rank{MPI_RANK} dofsValues = {dofsValues}")
 
     return dofsValues, ksp.is_converged
 
