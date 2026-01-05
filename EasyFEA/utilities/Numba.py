@@ -5,15 +5,25 @@
 """Numba functions to speed up calculations."""
 
 import numpy as np
-from numba import njit, prange
 from ..utilities import _types
 
-__USE_CACHE = True
+CAN_USE_NUMBA = True
 __USE_PARALLEL = True
-__USE_FASTMATH = False
+try:
+    from numba import njit, prange
+
+    def numba_decorator(func):
+        return njit(cache=True, parallel=__USE_PARALLEL, fastmath=False)(func)
+
+except ModuleNotFoundError:
+    CAN_USE_NUMBA = False
+    __USE_PARALLEL = False
+
+    def numba_decorator(func):
+        func
 
 
-@njit(cache=__USE_CACHE, parallel=__USE_PARALLEL, fastmath=__USE_FASTMATH)
+@numba_decorator
 def Get_Anisot_C(
     Cp_e_pg: _types.FloatArray, mat: _types.FloatArray, Cm_e_pg: _types.FloatArray
 ) -> tuple[_types.FloatArray, _types.FloatArray, _types.FloatArray, _types.FloatArray]:
@@ -55,7 +65,7 @@ def Get_Anisot_C(
     return Cpp_e_pg, Cpm_e_pg, Cmp_e_pg, Cmm_e_pg
 
 
-@njit(cache=__USE_CACHE, parallel=__USE_PARALLEL, fastmath=__USE_FASTMATH)
+@numba_decorator
 def Get_G12_G13_G23(
     M1: _types.FloatArray, M2: _types.FloatArray, M3: _types.FloatArray
 ) -> tuple[_types.FloatArray, _types.FloatArray, _types.FloatArray]:
@@ -108,256 +118,78 @@ def Get_G12_G13_G23(
     G13_ij = np.zeros_like(G12_ij)
     G23_ij = np.zeros_like(G12_ij)
 
+    # fmt: off
     listI = np.array(
         [
-            0,
-            0,
-            0,
-            0,
-            0,
-            0,
-            1,
-            1,
-            1,
-            1,
-            1,
-            1,
-            2,
-            2,
-            2,
-            2,
-            2,
-            2,
-            1,
-            1,
-            1,
-            1,
-            1,
-            1,
-            0,
-            0,
-            0,
-            0,
-            0,
-            0,
-            0,
-            0,
-            0,
-            0,
-            0,
-            0,
+            0, 0, 0, 0, 0, 0,
+            1, 1, 1, 1, 1, 1,
+            2, 2, 2, 2, 2, 2,
+            1, 1, 1, 1, 1, 1,
+            0, 0, 0, 0, 0, 0,
+            0, 0, 0, 0, 0, 0,
         ]
     )
     listJ = np.array(
         [
-            0,
-            0,
-            0,
-            0,
-            0,
-            0,
-            1,
-            1,
-            1,
-            1,
-            1,
-            1,
-            2,
-            2,
-            2,
-            2,
-            2,
-            2,
-            2,
-            2,
-            2,
-            2,
-            2,
-            2,
-            2,
-            2,
-            2,
-            2,
-            2,
-            2,
-            1,
-            1,
-            1,
-            1,
-            1,
-            1,
+            0, 0, 0, 0, 0, 0,
+            1, 1, 1, 1, 1, 1,
+            2, 2, 2, 2, 2, 2,
+            2, 2, 2, 2, 2, 2,
+            2, 2, 2, 2, 2, 2,
+            1, 1, 1, 1, 1, 1,
         ]
     )
     listK = np.array(
         [
-            0,
-            1,
-            2,
-            1,
-            0,
-            0,
-            0,
-            1,
-            2,
-            1,
-            0,
-            0,
-            0,
-            1,
-            2,
-            1,
-            0,
-            0,
-            0,
-            1,
-            2,
-            1,
-            0,
-            0,
-            0,
-            1,
-            2,
-            1,
-            0,
-            0,
-            0,
-            1,
-            2,
-            1,
-            0,
-            0,
+            0, 1, 2, 1, 0, 0,
+            0, 1, 2, 1, 0, 0,
+            0, 1, 2, 1, 0, 0,
+            0, 1, 2, 1, 0, 0,
+            0, 1, 2, 1, 0, 0,
+            0, 1, 2, 1, 0, 0,
         ]
     )
     listL = np.array(
         [
-            0,
-            1,
-            2,
-            2,
-            2,
-            1,
-            0,
-            1,
-            2,
-            2,
-            2,
-            1,
-            0,
-            1,
-            2,
-            2,
-            2,
-            1,
-            0,
-            1,
-            2,
-            2,
-            2,
-            1,
-            0,
-            1,
-            2,
-            2,
-            2,
-            1,
-            0,
-            1,
-            2,
-            2,
-            2,
-            1,
+            0, 1, 2, 2, 2, 1,
+            0, 1, 2, 2, 2, 1,
+            0, 1, 2, 2, 2, 1,
+            0, 1, 2, 2, 2, 1,
+            0, 1, 2, 2, 2, 1,
+            0, 1, 2, 2, 2, 1,
         ]
     )
 
-    colonnes = np.array(
+    columns = np.array(
         [
-            0,
-            1,
-            2,
-            3,
-            4,
-            5,
-            0,
-            1,
-            2,
-            3,
-            4,
-            5,
-            0,
-            1,
-            2,
-            3,
-            4,
-            5,
-            0,
-            1,
-            2,
-            3,
-            4,
-            5,
-            0,
-            1,
-            2,
-            3,
-            4,
-            5,
-            0,
-            1,
-            2,
-            3,
-            4,
-            5,
+            0, 1, 2, 3, 4, 5,
+            0, 1, 2, 3, 4, 5,
+            0, 1, 2, 3, 4, 5,
+            0, 1, 2, 3, 4, 5,
+            0, 1, 2, 3, 4, 5,
+            0, 1, 2, 3, 4, 5,
         ]
     )
-    lignes = np.array(
+    rows = np.array(
         [
-            0,
-            0,
-            0,
-            0,
-            0,
-            0,
-            1,
-            1,
-            1,
-            1,
-            1,
-            1,
-            2,
-            2,
-            2,
-            2,
-            2,
-            2,
-            3,
-            3,
-            3,
-            3,
-            3,
-            3,
-            4,
-            4,
-            4,
-            4,
-            4,
-            4,
-            5,
-            5,
-            5,
-            5,
-            5,
-            5,
+            0, 0, 0, 0, 0, 0,
+            1, 1, 1, 1, 1, 1,
+            2, 2, 2, 2, 2, 2,
+            3, 3, 3, 3, 3, 3,
+            4, 4, 4, 4, 4, 4,
+            5, 5, 5, 5, 5, 5,
         ]
     )
+    # fmt: on
 
     for c in range(36):
-        G12_ij[:, :, lignes[c], colonnes[c]] = G12_ijkl[
+        G12_ij[:, :, rows[c], columns[c]] = G12_ijkl[
             :, :, listI[c], listJ[c], listK[c], listL[c]
         ]
-        G13_ij[:, :, lignes[c], colonnes[c]] = G13_ijkl[
+        G13_ij[:, :, rows[c], columns[c]] = G13_ijkl[
             :, :, listI[c], listJ[c], listK[c], listL[c]
         ]
-        G23_ij[:, :, lignes[c], colonnes[c]] = G23_ijkl[
+        G23_ij[:, :, rows[c], columns[c]] = G23_ijkl[
             :, :, listI[c], listJ[c], listK[c], listL[c]
         ]
 
@@ -384,7 +216,7 @@ def Get_G12_G13_G23(
     return G12_ij, G13_ij, G23_ij
 
 
-@njit(cache=__USE_CACHE, parallel=__USE_PARALLEL, fastmath=__USE_FASTMATH)
+@numba_decorator
 def Get_projP_projM_2D(
     BetaP: _types.FloatArray,
     gammap: _types.FloatArray,
@@ -430,7 +262,7 @@ def Get_projP_projM_2D(
     return projP, projM
 
 
-@njit(cache=__USE_CACHE, parallel=__USE_PARALLEL, fastmath=__USE_FASTMATH)
+@numba_decorator
 def Get_projP_projM_3D(
     dvalp: _types.FloatArray,
     dvalm: _types.FloatArray,
@@ -485,7 +317,7 @@ def Get_projP_projM_3D(
     return projP, projM
 
 
-@njit(cache=__USE_CACHE, parallel=__USE_PARALLEL, fastmath=__USE_FASTMATH)
+@numba_decorator
 def Get_Cp_Cm_Stress(
     c: _types.FloatArray, sP_e_pg: _types.FloatArray, sM_e_pg: _types.FloatArray
 ) -> tuple[_types.FloatArray, _types.FloatArray]:

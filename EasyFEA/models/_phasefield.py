@@ -158,6 +158,7 @@ class PhaseField(_IModel):
         l0: float,
         solver=SolverType.History,
         A: Optional[_types.FloatArray] = None,
+        useNumba: bool = True,
     ):
         """Creates a phase-field model.
 
@@ -177,6 +178,8 @@ class PhaseField(_IModel):
             solver used to manage crack irreversibility, by default History (see SolverType)
         A : _types.FloatArray, optional
             matrix characterizing the weak anisotropy in the crack surface density function.
+        useNumba : bool, optional
+            Define whether the model can use the numba function (numba must be installed), by default True
         """
 
         assert isinstance(
@@ -199,7 +202,7 @@ class PhaseField(_IModel):
             A = np.eye(self.dim)
         self.A = A  # type: ignore
 
-        self.__useNumba = False
+        self.__useNumba = Numba.CAN_USE_NUMBA and useNumba
 
     @property
     def modelType(self) -> ModelType:
