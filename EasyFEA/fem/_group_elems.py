@@ -2378,14 +2378,15 @@ class _GroupElem(ABC):
         else:
             xn, yn, zn = coordinates_n.T
             xe, ye, ze = coordElem.T
+            tol = 1e-12
 
             idx = np.where(
-                (xn >= np.min(xe))
-                & (xn <= np.max(xe))
-                & (yn >= np.min(ye))
-                & (yn <= np.max(ye))
-                & (zn >= np.min(ze))
-                & (zn <= np.max(ze))
+                (xn >= np.min(xe) - tol)
+                & (xn <= np.max(xe) + tol)
+                & (yn >= np.min(ye) - tol)
+                & (yn <= np.max(ye) + tol)
+                & (zn >= np.min(ze) - tol)
+                & (zn <= np.max(ze) + tol)
             )[0].astype(np.uint64)
 
         return idx
