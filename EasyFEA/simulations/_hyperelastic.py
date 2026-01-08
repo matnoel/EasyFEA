@@ -41,8 +41,6 @@ class HyperElasticSimu(_Simu):
     ):
         """Creates a simulation.
 
-        Warning: 2D simulations are conducted under the **plane strain** assumption.
-
         Parameters
         ----------
         mesh : Mesh
@@ -55,6 +53,10 @@ class HyperElasticSimu(_Simu):
             Maximum iterations for convergence, by default 20
         verbosity : bool, optional
             If True, iterative solvers can be used. Defaults to True.
+
+        WARNING
+        -------
+        2D simulations are conducted under the **plane strain** assumption.
         """
 
         super().__init__(mesh, model, verbosity)

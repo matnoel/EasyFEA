@@ -7,7 +7,10 @@ Homog4
 ======
 
 Conduct 3d homogenization.
-# Warning: Verify that the periodic boundary conditions have been correctly applied.
+
+WARNING
+-------
+Verify that the periodic boundary conditions have been correctly applied.
 """
 # sphinx_gallery_thumbnail_number = -1
 

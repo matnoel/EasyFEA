@@ -641,7 +641,10 @@ class _GroupElem(ABC):
     @abstractmethod
     def surfaces(self) -> _types.IntArray:
         """array of indices used to form the contour of the surfaces that make up the element (for display purposes).
-        WARNING: When adding new 3D elements, ensure that the resulting surface normals point inward the element.
+
+        WARNING
+        -------
+        When adding new 3D elements, ensure that the resulting surface normals point inward the element.
         """
         pass
 
@@ -1217,7 +1220,10 @@ class _GroupElem(ABC):
     @cache_computed_values
     def Get_B_e_pg(self, matrixType: MatrixType) -> FeArray.FeArrayALike:
         """Get the matrix used to calculate deformations from displacements.\n
-        WARNING: Use Kelvin Mandel Notation\n
+
+        WARNING
+        -------
+        Use Kelvin Mandel Notation\n
         [N1,x 0 . . . Nn,x 0\n
         0 N1,y . . . 0 Nn,y\n
         N1,y N1,x . . . N3,y N3,x]\n

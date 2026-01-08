@@ -134,7 +134,9 @@ class DIC(_IObserver):
 
     @_lr.setter
     def _lr(self, value: float) -> None:
-        """# Warning!\n
+        """
+        WARNING
+        -------
         Changing this parameter will automatically update the matrices with the _Compute_L_M() function!
         """
         assert value >= 0.0, "lr must be >= 0.0"

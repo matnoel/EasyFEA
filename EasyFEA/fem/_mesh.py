@@ -427,7 +427,10 @@ class Mesh(Observable):
 
     def Get_B_e_pg(self, matrixType: MatrixType) -> FeArray.FeArrayALike:
         """Get the matrix used to calculate deformations from displacements.\n
-        WARNING: Use Kelvin Mandel Notation\n
+
+        WARNING
+        -------
+        Use Kelvin Mandel Notation\n
         [N1,x 0 . . . Nn,x 0\n
         0 N1,y . . . 0 Nn,y\n
         N1,y N1,x . . . N3,y N3,x]\n
@@ -1105,7 +1108,7 @@ def Calc_projector(oldMesh: Mesh, newMesh: Mesh) -> sp.csr_matrix:
     distoredMesh = np.max(np.abs(1.0 - oldMesh.Get_Quality("jacobian"))) > 1e-12
     if distoredMesh:
         Display.MyPrintError(
-            "Warning: distorted elements have been detected in the mesh.\nThey may lead to projection errors!"
+            "WARNING: distorted elements have been detected in the mesh.\nThey may lead to projection errors!"
         )
     detectedNodes, detectedElements_e, connect_e_n, coordo_n = (
         oldMesh.groupElem.Get_Mapping(newMesh.coord, needCoordinates=True)

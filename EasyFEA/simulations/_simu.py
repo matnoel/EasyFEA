@@ -1029,7 +1029,6 @@ class _Simu(_IObserver, _params.Updatable, ABC):
         maxIter=20,
     ) -> tuple[_types.FloatArray, int, float, list[float]]:
         """Solves the non-linear problem using the newton raphson algorithm.\n
-        Warning: The `Construct_local_matrix_system` function must return `K` and `F`, where `K` contains the tangent matrix and `F` contains the residual.\n
 
         Used to solve A(u) Δu = - R(u).
 
@@ -1046,6 +1045,10 @@ class _Simu(_IObserver, _params.Updatable, ABC):
         -------
         tuple[_types.FloatArray, int, float, list[float]]
             return u, Niter, timeIter, list_norm_r
+
+        WARNING
+        -------
+        The `Construct_local_matrix_system` function must return `K` and `F`, where `K` contains the tangent matrix and `F` contains the residual.\n
         """
 
         assert 0 < tolConv < 1, "tolConv must be between 0 and 1."
