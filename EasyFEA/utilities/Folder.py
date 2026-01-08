@@ -5,6 +5,10 @@
 """Module containing functions used to facilitate folder and file creation using (os)."""
 
 import os
+import inspect
+from pathlib import Path
+
+from .. import BUILDING_GALLERY
 
 
 def Dir(path: str, depth: int = 1) -> str:
@@ -23,8 +27,6 @@ def Dir(path: str, depth: int = 1) -> str:
 
 
 EASYFEA_DIR = Dir(__file__, 3)
-RESULTS_DIR = os.path.join(EASYFEA_DIR, "results")
-"""EASYFEA_DIR/results"""
 
 
 def Join(*args: str, mkdir=False) -> str:
@@ -42,73 +44,55 @@ def Join(*args: str, mkdir=False) -> str:
     return path
 
 
+def Results_Dir() -> str:
+    """Provides the directory path where results should be stored, relative to the calling Python script: `<script_directory>/results/<script_name>`.
+
+    WARNING
+    -------
+    This function does not work in a Jupyter notebook!
+    """
+
+    stack = inspect.stack()
+
+    if BUILDING_GALLERY:
+        # In Sphinx Gallery, Python scripts are parsed with `py_source_parser.py`
+        # See: https://github.com/sphinx-gallery/sphinx-gallery/blob/master/sphinx_gallery/py_source_parser.py
+        # The parsed code is executed by the `execute_code_block` function
+        # See: https://github.com/sphinx-gallery/sphinx-gallery/blob/fc649a70dbbc23e0229adeaa5a60422ec592333b/sphinx_gallery/gen_rst.py#L977C5-L1097
+        # This function is itself called in the `execute_script` function.
+        # See: https://github.com/sphinx-gallery/sphinx-gallery/blob/fc649a70dbbc23e0229adeaa5a60422ec592333b/sphinx_gallery/gen_rst.py#L1127-L1222
+
+        # Look for the `execute_code_block` function in the stack
+        pythonScript = None
+        for frame in stack:
+            if frame["function"] == "execute_code_block":
+                # get local variables
+                f_locals = frame[0].f_locals
+                try:
+                    pythonScript = f_locals["script_vars"]["src_file"]
+                except KeyError:
+                    raise Exception(
+                        "sphinx_gallery may change over time; look out for `execute_script` or `execute_code_block` functions."
+                    )
+        # make sure that the file is detected
+        assert (
+            pythonScript is not None
+        ), "`execute_code_block` function was not detected"
+
+    else:
+        pythonScript = stack[1].filename
+
+    # get pythonScript as a path
+    path = Path(pythonScript)
+    assert path.exists(), f"{pythonScript} does not exist."
+    assert path.is_file(), f"{pythonScript} must be a file."
+    assert (
+        Join(EASYFEA_DIR, "EasyFEA") not in pythonScript
+    ), "You cannot write results in the src directory; therefore, you should not use this function in the src files."
+
+    return Join(Dir(pythonScript), "results", path.stem)
+
+
 def Exists(path: str) -> bool:
     """Test whether a path exists. Returns False for broken symbolic links"""
     return os.path.exists(path)
-
-
-def PhaseField_Folder(
-    folder: str,
-    material: str,
-    split: str,
-    regu: str,
-    simpli2D: str,
-    tolConv: float,
-    solver: str,
-    test: bool,
-    optimMesh=False,
-    closeCrack=False,
-    nL=0,
-    theta=0.0,
-) -> str:
-    """Creates a phase field folder based on the specified arguments."""
-
-    from EasyFEA import Models
-
-    name = ""
-
-    if material != "":
-        name += f"{material}"
-
-    if split != "":
-        start = "" if name == "" else "_"
-        name += f"{start}{split}"
-
-    if regu != "":
-        name += f"_{regu}"
-
-    if simpli2D != "":
-        name += f"_{simpli2D}"
-
-    if closeCrack:
-        name += "_closeCrack"
-
-    if optimMesh:
-        name += "_optimMesh"
-
-    if solver != "History" and solver != "":
-        assert solver in Models.PhaseField.Get_solvers()
-        name += "_" + solver
-
-    if tolConv < 1:
-        name += f"_conv{tolConv}"
-
-    if theta != 0.0:
-        name = f"{name} theta={theta}"
-
-    if nL != 0:
-        assert nL > 0
-        if isinstance(nL, float):
-            name = f"{name} nL={nL:.2f}"
-        else:
-            name = f"{name} nL={nL}"
-
-    workFolder = Join(RESULTS_DIR, "PhaseField", folder, mkdir=True)
-    path = workFolder.split(folder)[0]
-
-    if test:
-        workFolder = Join(folder, "Test", name)
-    else:
-        workFolder = Join(folder, name)
-
-    return Join(path, workFolder)

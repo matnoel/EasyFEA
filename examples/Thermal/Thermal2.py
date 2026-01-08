@@ -22,7 +22,7 @@ if __name__ == "__main__":
     dim = 3  # Set the simulation dimension (2D or 3D)
 
     # outputs
-    folder = Folder.Join(Folder.RESULTS_DIR, "Thermal", "Thermal2")
+    folder = Folder.Results_Dir() + f"{dim}D"
     makeMovie = True
     result = "thermal"
 

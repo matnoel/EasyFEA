@@ -43,6 +43,7 @@ openCrack = True
 optimMesh = True
 
 # outputs
+folder = Folder.Results_Dir() + f"{dim}D"
 plotMesh = False
 plotResult = True
 showResult = True
@@ -138,11 +139,8 @@ def DoMesh(materialType: str = "Elas_Isot") -> Mesh:
 
 def DoSimu(split: str, regu: str):
     # Builds the path to the folder based on the problem data
-    folderName = "Tension_Benchmark"
-    if dim == 3:
-        folderName += "_3D"
-    folder_save = Folder.PhaseField_Folder(
-        folderName,
+    folder_save = Simulations.PhaseFieldSimu.Folder(
+        folder,
         materialType,
         split,
         regu,

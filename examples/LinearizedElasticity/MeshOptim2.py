@@ -43,7 +43,7 @@ if __name__ == "__main__":
     e = (L - 2 * r) / 2
 
     # outputs
-    folder = Folder.Join(Folder.RESULTS_DIR, "Meshes", "MeshOptim2")
+    folder = Folder.Results_Dir()
     plotProj = False
     makeMovie = True
     makeParaview = False

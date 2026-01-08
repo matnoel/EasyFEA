@@ -45,6 +45,7 @@ openCrack = True
 optimMesh = True
 
 # outputs
+folder = Folder.Results_Dir() + f"{dim}D"
 plotResult = True
 showResult = True
 plotMesh = False
@@ -143,8 +144,8 @@ def DoMesh(split: str) -> Mesh:
 # ----------------------------------------------
 def DoSimu(split: str, regu: str):
     # Builds the path to the folder based on the problem data
-    folder_save = Folder.PhaseField_Folder(
-        f"Shear_{dim}D",
+    folder_save = Simulations.PhaseFieldSimu.Folder(
+        folder,
         "ElasIsot",
         split,
         regu,

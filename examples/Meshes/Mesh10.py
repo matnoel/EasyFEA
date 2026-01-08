@@ -22,7 +22,7 @@ if __name__ == "__main__":
     # ----------------------------------------------
 
     # outputs
-    folder = Folder.Join(Folder.RESULTS_DIR, "Meshes", "Mesh10")
+    folder = Folder.Results_Dir()
     addCylinder = True
     repeat = False
 

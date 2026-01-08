@@ -21,7 +21,7 @@ if __name__ == "__main__":
     # ----------------------------------------------
 
     # outputs
-    folder = Folder.Join(Folder.RESULTS_DIR, "Hyperelasticity")
+    folder = Folder.Results_Dir()
     makeMovie = True
     result = "uy"
 

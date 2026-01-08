@@ -36,11 +36,7 @@ if __name__ == "__main__":
 
     # outputs
     generateMovie = True
-    folder = Folder.Join(
-        Folder.RESULTS_DIR,
-        "WeakForms",
-        "TopologyOptimisation1",
-    )
+    folder = Folder.Results_Dir()
 
     # ----------------------------------------------
     # Mesh

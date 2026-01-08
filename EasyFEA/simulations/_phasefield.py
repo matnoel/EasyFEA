@@ -7,7 +7,7 @@ import numpy as np
 from scipy import sparse
 
 # utilities
-from ..utilities import Display, Tic, _types
+from ..utilities import Display, Folder, Tic, _types
 from ..utilities._observers import Observable
 
 # fem
@@ -932,3 +932,66 @@ class PhaseFieldSimu(_Simu):
             coord = np.append(coord, np.zeros((Nn, 1)), axis=1)
 
         return coord
+
+    @staticmethod
+    def Folder(
+        folder: str,
+        material: str,
+        split: str,
+        regu: str,
+        simpli2D: str,
+        tolConv: float,
+        solver: str,
+        test: bool,
+        optimMesh=False,
+        closeCrack=False,
+        nL=0,
+        theta=0.0,
+    ) -> str:
+        """Creates a phase field folder based on the specified arguments."""
+
+        if not Folder.Exists(folder):
+            Folder.os.makedirs(folder)
+
+        name = ""
+
+        if material != "":
+            name += f"{material}"
+
+        if split != "":
+            start = "" if name == "" else "_"
+            name += f"{start}{split}"
+
+        if regu != "":
+            name += f"_{regu}"
+
+        if simpli2D != "":
+            name += f"_{simpli2D}"
+
+        if closeCrack:
+            name += "_closeCrack"
+
+        if optimMesh:
+            name += "_optimMesh"
+
+        if solver != "History" and solver != "":
+            assert solver in Models.PhaseField.Get_solvers()
+            name += "_" + solver
+
+        if tolConv < 1:
+            name += f"_conv{tolConv}"
+
+        if theta != 0.0:
+            name = f"{name} theta={theta}"
+
+        if nL != 0:
+            assert nL > 0
+            if isinstance(nL, float):
+                name = f"{name} nL={nL:.2f}"
+            else:
+                name = f"{name} nL={nL}"
+
+        if test:
+            return Folder.Join(folder, "Test", name)
+        else:
+            return Folder.Join(folder, name)

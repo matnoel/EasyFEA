@@ -26,7 +26,7 @@ if __name__ == "__main__":
 
     # outputs
     makeMovie = True
-    folder = Folder.Join(Folder.RESULTS_DIR, "WeakForms", "LinearElasticity2")
+    folder = Folder.Results_Dir()
 
     # geom
     L = 120  # mm

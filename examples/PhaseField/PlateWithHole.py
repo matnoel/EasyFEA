@@ -41,6 +41,7 @@ useParallel = False
 nProcs = 4  # number of processes in parallel
 
 # outputs
+folder = Folder.Results_Dir()
 plotMesh = False
 plotIter = False
 plotResult = True
@@ -101,14 +102,14 @@ def DoMesh(
     # #     refineGeom.Plot(ax, color='k', plotPoints=False)
     # # ax.scatter(((L+diam)/2, L/2), (h/2, (h+diam)/2), c='k')
     # ax.axis("off")
-    # Display.Save_fig(Folder.RESULTS_DIR, "sample", True)
+    # Display.Save_fig(folder, "sample", True)
 
     mesh = domain.Mesh_2D([circle], ElemType.TRI3, refineGeoms=[refineGeom])
 
     # ax = Display.Plot_Mesh(mesh, lw=0.3, facecolors="white")
     # ax.axis("off")
     # ax.set_title("")
-    # Display.Save_fig(Folder.RESULTS_DIR, "mesh", transparent=True)
+    # Display.Save_fig(folder, "mesh", transparent=True)
 
     return mesh
 
@@ -117,16 +118,9 @@ def DoMesh(
 # Do Simu
 # ----------------------------------------------
 def DoSimu(split: str, regu: str):
-    folder_save = Folder.PhaseField_Folder(
-        "PlateWithHole",
-        "Elas_Isot",
-        split,
-        regu,
-        "DP",
-        tolConv,
-        solver,
-        meshTest,
-        optimMesh,
+
+    folder_save = Simulations.PhaseFieldSimu.Folder(
+        folder, "Elas_Isot", split, regu, "DP", tolConv, solver, meshTest, optimMesh
     )
 
     Display.MyPrint(folder_save, "green")

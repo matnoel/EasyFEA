@@ -32,7 +32,7 @@ if __name__ == "__main__":
     dim = 2  # Define the dimension of the problem (2D or 3D)
 
     # outputs
-    folder = Folder.Join(Folder.RESULTS_DIR, "Meshes", f"Convergence{dim}D")
+    folder = Folder.Results_Dir() + f"{dim}D"
     plotResult = True
     makeParaview = False
 

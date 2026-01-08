@@ -22,7 +22,7 @@ if __name__ == "__main__":
     # ----------------------------------------------
 
     # outputs
-    folder = Folder.Join(Folder.RESULTS_DIR, "Meshes", "Optim2D", mkdir=True)
+    folder = Folder.Results_Dir()
 
     # geom
     D = 1

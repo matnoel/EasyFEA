@@ -21,7 +21,7 @@ if __name__ == "__main__":
     # ----------------------------------------------
 
     # outputs
-    folder = Folder.Join(Folder.RESULTS_DIR, "LinearizedElasticity", "Dynamic2")
+    folder = Folder.Results_Dir()
     plotModel = False
     plotIter = False
     makeMovie = True

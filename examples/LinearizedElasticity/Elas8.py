@@ -30,7 +30,7 @@ if __name__ == "__main__":
     dim = 2
 
     # outputs
-    folder = Folder.Join(Folder.RESULTS_DIR, "LinearizedElasticity", "Dynamic1")
+    folder = Folder.Results_Dir()
     makeParaview = False
     makeMovie = True
     result = "uy"

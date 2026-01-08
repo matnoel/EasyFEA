@@ -36,7 +36,7 @@ if __name__ == "__main__":
     dim = 2
 
     # outputs
-    folder = Folder.Join(Folder.RESULTS_DIR, "Meshes", "MeshOptim3")
+    folder = Folder.Results_Dir()
     plotProj = False
     makeMovie = True
     makeParaview = False

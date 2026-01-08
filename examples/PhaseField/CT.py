@@ -37,6 +37,7 @@ if __name__ == "__main__":
     optimMesh = True
 
     # outputs
+    folder = Folder.Results_Dir()
     plotGeom = False
     plotIter = False
     makeParaview = False
@@ -58,8 +59,8 @@ if __name__ == "__main__":
     split = "Miehe"
     regu = "AT1"
 
-    folder_save = Folder.PhaseField_Folder(
-        f"CT_{dim}D", "Isot", split, regu, "", 1, "", meshTest, optimMesh, nL=nL
+    folder_save = Simulations.PhaseFieldSimu.Folder(
+        f"{folder}{dim}D", "Isot", split, regu, "", 1, "", meshTest, optimMesh, nL=nL
     )
 
     Display.MyPrint(folder_save, "green")

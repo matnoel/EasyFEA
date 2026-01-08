@@ -24,7 +24,7 @@ if __name__ == "__main__":
     dim = 2
 
     # outputs
-    folder = Folder.Join(Folder.RESULTS_DIR, "Contact", "Contact1")
+    folder = Folder.Results_Dir()
     pltIter = False
     makeMovie = True
     result = "uy"

@@ -36,6 +36,7 @@ if __name__ == "__main__":
     optimMesh = True
 
     # outputs
+    folder = Folder.Results_Dir()
     pltIter = False
     pltLoad = False
     makeMovie = True
@@ -79,19 +80,6 @@ if __name__ == "__main__":
     simu.add_dirichlet(nodes_y0, [0]*dim, simu.Get_dofs())
     simu.add_dirichlet(nodes_load, [ud], ['y'])
     """
-
-    folder = Folder.PhaseField_Folder(
-        f"LShape_{dim}D",
-        "Isot",
-        split,
-        regu,
-        "",
-        tolConv,
-        "",
-        meshTest,
-        optimMesh,
-        nL=nL,
-    )
 
     # ----------------------------------------------
     # Mesh
@@ -149,8 +137,8 @@ if __name__ == "__main__":
     material = Models.ElasIsot(dim, E, v, True, ep)
     pfm = Models.PhaseField(material, split, regu, Gc, l0)
 
-    folder_save = Folder.PhaseField_Folder(
-        folder,
+    folder_save = Simulations.PhaseFieldSimu.Folder(
+        f"{folder}{dim}D",
         "",
         pfm.split,
         pfm.regularization,
