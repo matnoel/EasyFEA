@@ -69,6 +69,7 @@ def FileNameSortKey(filename):
     return natural_sort_key(base)
 
 
+# https://sphinx-gallery.github.io/stable/configuration.html
 sphinx_gallery_conf = {
     "examples_dirs": "../examples",
     "gallery_dirs": "examples",
@@ -79,6 +80,7 @@ sphinx_gallery_conf = {
     "ignore_pattern": r"__init__\.py",
     "within_subsection_order": FileNameSortKey,
     "line_numbers": True,
+    "parallel": True,
 }
 
 # -- Options for HTML output -------------------------------------------------
@@ -125,3 +127,4 @@ html_context = {
 html_title = "EasyFEA"
 
 html_static_path = ["_static"]
+html_css_files = ["custom.css"]
