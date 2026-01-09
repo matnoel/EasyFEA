@@ -1,10 +1,9 @@
-.. _easyfea-api-utilities:
+(utilities)=
+# utilities
 
-utilities
-=========
+The [EasyFEA/utilities/](https://github.com/matnoel/EasyFEA/tree/main/EasyFEA/utilities) module in EasyFEA provides essential tools for post processing.
 
-The `EasyFEA/utilities/ <https://github.com/matnoel/EasyFEA/tree/main/EasyFEA/utilities>`_ module in EasyFEA provides essential tools for post processing.
-
+```{eval-rst}
 .. autosummary::
     ~EasyFEA.utilities.Display
     ~EasyFEA.utilities.Folder
@@ -13,11 +12,12 @@ The `EasyFEA/utilities/ <https://github.com/matnoel/EasyFEA/tree/main/EasyFEA/ut
     ~EasyFEA.utilities.Paraview
     ~EasyFEA.utilities.PyVista
     ~EasyFEA.utilities.Vizir
+```
     
 
-Detailed utilities API
-----------------------
+## Detailed utilities API
 
+```{eval-rst}
 .. automodule:: EasyFEA.utilities.Display
     :members:
     :undoc-members:
@@ -46,3 +46,4 @@ Detailed utilities API
 .. automodule:: EasyFEA.utilities.Vizir
     :members:
     :undoc-members:
+```

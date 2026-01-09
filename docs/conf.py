@@ -23,6 +23,7 @@ author = "Matthieu Noel"
 extensions = [
     "sphinx.ext.duration",  # Measure durations of Sphinx processing
     # DOC
+    "myst_parser",  # markdown
     "sphinx.ext.autodoc",
     "sphinx.ext.napoleon",
     "sphinx.ext.viewcode",

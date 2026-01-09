@@ -1,28 +1,31 @@
-.. _begin:
-
-Beginner's Guide
-================
+(begin)=
+# Beginner's Guide
 
 Like any Python script, you should start by importing the core modules from the EasyFEA package:
 
+```{eval-rst}
 .. jupyter-execute::
 
     from EasyFEA import Display, ElemType, Models, Simulations
     from EasyFEA.Geoms import Domain
+```
 
 ----
 
 The most commonly used modules in EasyFEA are:
 
+```{eval-rst}
 .. autosummary::
     ~EasyFEA.utilities.Display 
     ~EasyFEA.fem.ElemType 
     ~EasyFEA.Models
     ~EasyFEA.Simulations
     ~EasyFEA.Geoms
+```
 
-Let's now create a 2D :py:class:`~EasyFEA.fem.Mesh` using a simple rectangular domain:
+Let's now create a 2D {py:class}`~EasyFEA.fem.Mesh` using a simple rectangular domain:
 
+```{eval-rst}
 .. jupyter-execute::
 
     # ----------------------------------------------
@@ -34,11 +37,13 @@ Let's now create a 2D :py:class:`~EasyFEA.fem.Mesh` using a simple rectangular d
     domain = Domain((0, 0), (L, h), h / 3)
     mesh = domain.Mesh_2D([], ElemType.QUAD9, isOrganised=True)
     Display.Plot_Mesh(mesh)
+```
     
 ----
 
-Next, define a linear :py:class:`~EasyFEA.models.ElasIsot` material and set up the :py:class:`~EasyFEA.Simulations.ElasticSimu`  simulation:
+Next, define a linear {py:class}`~EasyFEA.models.ElasIsot` material and set up the {py:class}`~EasyFEA.Simulations.ElasticSimu`  simulation:
 
+```{eval-rst}
 .. jupyter-execute::
 
     # ----------------------------------------------
@@ -51,11 +56,13 @@ Next, define a linear :py:class:`~EasyFEA.models.ElasIsot` material and set up t
     mat = Models.ElasIsot(2, E, v, planeStress=True, thickness=h)
 
     simu = Simulations.ElasticSimu(mesh, mat)
+```
     
 ----
 
 Once the simulation has been set up, defining the boundary conditions, solving the problem and visualizing the results is straightforward.
 
+```{eval-rst}
 .. jupyter-execute::
     
     nodesX0 = mesh.Nodes_Conditions(lambda x, y, z: x == 0)
@@ -73,10 +80,11 @@ Once the simulation has been set up, defining the boundary conditions, solving t
     Display.Plot_BoundaryConditions(simu)
     Display.Plot_Result(simu, "uy", plotMesh=True)
     Display.Plot_Result(simu, "Svm", plotMesh=True, ncolors=11)
+```
     
 ----
 
-This script is available in the :doc:`HelloWorld example <examples/HelloWorld>`.
+This script is available in the {doc}`HelloWorld example <examples/HelloWorld>`.
 
-For additional details, please refer to either the :doc:`EasyFEA API documentation <api/index>` or the comprehensive collection of :doc:`Examples <examples/index>`.
+For additional details, please refer to either the {doc}`EasyFEA API documentation <api/index>` or the comprehensive collection of {doc}`examples <examples/index>`.
 

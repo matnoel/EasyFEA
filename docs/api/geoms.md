@@ -1,12 +1,11 @@
-.. _easyfea-api-geoms:
+(geoms)=
+# geoms
 
-geoms
-=====
-
-The `EasyFEA/geoms/ <https://github.com/matnoel/EasyFEA/tree/main/EasyFEA/geoms>`_ module in EasyFEA provides essential tools for creating and managing :py:class:`~EasyFEA.geoms._Geom` objects. These geometric objects are used to construct :py:class:`~EasyFEA.fem.Mesh` using the :py:class:`~EasyFEA.fem.Mesher`.
+The [EasyFEA/geoms/](https://github.com/matnoel/EasyFEA/tree/main/EasyFEA/geoms) module in EasyFEA provides essential tools for creating and managing {py:class}`~EasyFEA.geoms._Geom` objects. These geometric objects are used to construct {py:class}`~EasyFEA.fem.Mesh` using the {py:class}`~EasyFEA.fem.Mesher`.
 
 With this module, you can construct:
 
+```{eval-rst}
 .. autosummary::
     ~EasyFEA.geoms.Point
     ~EasyFEA.geoms.Points
@@ -15,13 +14,14 @@ With this module, you can construct:
     ~EasyFEA.geoms.Circle
     ~EasyFEA.geoms.CircleArc
     ~EasyFEA.geoms.Contour
+```
 
-Once the geometric objects are created, you can manipulate them using :py:meth:`~EasyFEA.geoms._Geom.copy`, :py:meth:`~EasyFEA.geoms._Geom.Translate`, :py:meth:`~EasyFEA.geoms._Geom.Rotate`, or :py:meth:`~EasyFEA.geoms._Geom.Symmetry` (see the :ref:`example <manipulate-example-section>` for details).
+Once the geometric objects are created, you can manipulate them using {py:meth}`~EasyFEA.geoms._Geom.copy`, {py:meth}`~EasyFEA.geoms._Geom.Translate`, {py:meth}`~EasyFEA.geoms._Geom.Rotate`, or {py:meth}`~EasyFEA.geoms._Geom.Symmetry` (see the {ref}`example <manipulate-example-section>` for details).
 
 
-Creating a :py:class:`~EasyFEA.geoms.Line`
-------------------------------------------
+## Creating a {py:class}`~EasyFEA.geoms.Line`
 
+```{eval-rst}
 .. plot::
     :include-source:
 
@@ -29,13 +29,13 @@ Creating a :py:class:`~EasyFEA.geoms.Line`
     
     line = Line((0,0), (1,1))
     line.Plot()
+```
 
-Creating a :py:class:`~EasyFEA.geoms.Domain`/Box
-------------------------------------------------
+## Creating a {py:class}`~EasyFEA.geoms.Domain`/Box
 
-2D Domain
-^^^^^^^^^
+### 2D Domain
 
+```{eval-rst}
 .. plot::
     :include-source:
 
@@ -43,10 +43,11 @@ Creating a :py:class:`~EasyFEA.geoms.Domain`/Box
     
     domain = Domain((0, 0), (1, 1))
     domain.Plot()
+```
 
-3D Domain
-^^^^^^^^^
+### 3D Domain
 
+```{eval-rst}
 .. plot::
     :include-source:
 
@@ -54,10 +55,11 @@ Creating a :py:class:`~EasyFEA.geoms.Domain`/Box
     
     domain = Domain((0, 0, 0), (1, 1, 1))
     domain.Plot()
+```
 
-Creating a :py:class:`~EasyFEA.geoms.Circle`
---------------------------------------------
+## Creating a {py:class}`~EasyFEA.geoms.Circle`
 
+```{eval-rst}
 .. plot::
     :include-source:
 
@@ -65,10 +67,12 @@ Creating a :py:class:`~EasyFEA.geoms.Circle`
     
     circle = Circle((0, 0), 1.0)    
     circle.Plot()
+```
 
-Using an axis normal to the circle
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
+### Using an axis normal to the circle
+
+```{eval-rst}
 .. plot::
     :include-source:
 
@@ -76,13 +80,13 @@ Using an axis normal to the circle
     
     circle = Circle((0, 0), 1.0, n=(0.5, 0.5, 0.5))
     circle.Plot()
+```
 
-Creating a :py:class:`~EasyFEA.geoms.CircleArc`
------------------------------------------------
+## Creating a {py:class}`~EasyFEA.geoms.CircleArc`
 
-From 2 :py:class:`~EasyFEA.geoms.Point` and a Center
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+### From 2 {py:class}`~EasyFEA.geoms.Point` and a Center
 
+```{eval-rst}
 .. plot::
     :include-source:
 
@@ -90,10 +94,11 @@ From 2 :py:class:`~EasyFEA.geoms.Point` and a Center
     
     circleArc = CircleArc((1, 0), (0, 1), center=(0, 0))    
     circleArc.Plot()
+```
 
-From 2 :py:class:`~EasyFEA.geoms.Point` and a Radius
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+### From 2 {py:class}`~EasyFEA.geoms.Point` and a Radius
 
+```{eval-rst}
 .. plot::
     :include-source:
 
@@ -101,10 +106,12 @@ From 2 :py:class:`~EasyFEA.geoms.Point` and a Radius
     
     circleArc = CircleArc((1, 0), (0, 1), R=0.5)
     circleArc.Plot()
+```
 
-From 2 :py:class:`~EasyFEA.geoms.Point` and a Point
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
+### From 2 {py:class}`~EasyFEA.geoms.Point` and a Point
+
+```{eval-rst}
 .. plot::
     :include-source:
 
@@ -112,10 +119,11 @@ From 2 :py:class:`~EasyFEA.geoms.Point` and a Point
     
     circleArc = CircleArc((1, 0), (0, 1), P=(0.8, 0.8))
     circleArc.Plot()
+```
 
-Creating a :py:class:`~EasyFEA.geoms.Contour` from :py:class:`~EasyFEA.geoms.Points`
-------------------------------------------------------------------------------------
+## Creating a {py:class}`~EasyFEA.geoms.Contour` from {py:class}`~EasyFEA.geoms.Points`
 
+```{eval-rst}
 .. plot::
     :include-source:
 
@@ -123,10 +131,11 @@ Creating a :py:class:`~EasyFEA.geoms.Contour` from :py:class:`~EasyFEA.geoms.Poi
     
     contour = Points([(0, 0), (1,0), (1,1), (0,1)]).Get_Contour()
     contour.Plot()
+```
 
-Add a fillet
-^^^^^^^^^^^^
+### Add a fillet
 
+```{eval-rst}
 .. plot::
     :include-source:
 
@@ -134,7 +143,9 @@ Add a fillet
     
     contour = Points([Point(0, 0, r=0.5), (1,0), (1,1), (0,1)]).Get_Contour()
     contour.Plot()
+```
 
+```{eval-rst}
 .. plot::
     :include-source:
 
@@ -142,10 +153,11 @@ Add a fillet
     
     contour = Points([Point(0, 0, r=-0.5), (1,0), (1,1), (0,1)]).Get_Contour()
     contour.Plot()
+```
 
-Creating a :py:class:`~EasyFEA.geoms.Contour` with :py:class:`~EasyFEA.geoms.Line`, :py:class:`~EasyFEA.geoms.CircleArc` and :py:class:`~EasyFEA.geoms.Points`
---------------------------------------------------------------------------------------------------------------------------------------------------------------
+## Creating a {py:class}`~EasyFEA.geoms.Contour` with {py:class}`~EasyFEA.geoms.Line`, {py:class}`~EasyFEA.geoms.CircleArc` and {py:class}`~EasyFEA.geoms.Points`
 
+```{eval-rst}
 .. plot::
     :include-source:
 
@@ -156,12 +168,13 @@ Creating a :py:class:`~EasyFEA.geoms.Contour` with :py:class:`~EasyFEA.geoms.Lin
     circleArc = CircleArc((1,1), (0,0), center=(1,0))
     contour = Contour([line, points, circleArc])
     contour.Plot()
+```
 
-.. _manipulate-example-section:
+(manipulate-example-section)=
 
-Manipulate a :py:class:`~EasyFEA.geoms._Geom` object using the :py:meth:`~EasyFEA.geoms._Geom.copy`, :py:meth:`~EasyFEA.geoms._Geom.Translate`, :py:meth:`~EasyFEA.geoms._Geom.Rotate`, and :py:meth:`~EasyFEA.geoms._Geom.Symmetry` functions
-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+## Manipulate a {py:class}`~EasyFEA.geoms._Geom` object using the {py:meth}`~EasyFEA.geoms._Geom.copy`, {py:meth}`~EasyFEA.geoms._Geom.Translate`, {py:meth}`~EasyFEA.geoms._Geom.Rotate`, and {py:meth}`~EasyFEA.geoms._Geom.Symmetry` functions
 
+```{eval-rst}
 .. plot::
     :include-source:
 
@@ -174,11 +187,12 @@ Manipulate a :py:class:`~EasyFEA.geoms._Geom` object using the :py:meth:`~EasyFE
     
     ax = contour1.Plot_Geoms([contour1, contour2, contour3, contour4], plotPoints=False)
     ax.legend(["contour1", "contour2", "contour3", "contour4"])
+```
 
 
-Detailed geoms API
-------------------
+## Detailed geoms API
 
+```{eval-rst}
 .. automodule:: EasyFEA.Geoms
     
 .. automodule:: EasyFEA.geoms
@@ -187,5 +201,4 @@ Detailed geoms API
    :undoc-members:
    :imported-members:
    :show-inheritance:
-   
-
+```

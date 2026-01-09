@@ -4,6 +4,7 @@ pydata_sphinx_theme
 sphinx-gallery==0.20.0
 jupyter_sphinx
 sphinx-design
+myst-parser
 scikit-learn
 sympy
 pyvista[all]
