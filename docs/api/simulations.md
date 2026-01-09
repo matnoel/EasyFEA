@@ -18,7 +18,7 @@ With this module, you can construct:
 To create new simulation classes, you can take inspiration from existing implementations.  
 Make sure to follow the {py:class}`~EasyFEA.simulations._Simu` interface.  
 The {py:class}`~EasyFEA.Simulations.ThermalSimu` class is relatively simple and can serve as a good starting point.  
-See `EasyFEA/simulations/_thermal.py <https://github.com/matnoel/EasyFEA/tree/main/EasyFEA/simulations/_thermal.py>`_ for more details.
+See [EasyFEA/simulations/_thermal.py](https://github.com/matnoel/EasyFEA/tree/main/EasyFEA/simulations/_thermal.py) for more details.
 
 ## Detailed simulations API
 
