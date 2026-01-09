@@ -27,10 +27,6 @@ Copyright (C) 2021-2025 Université Gustave Eiffel.
 
 EasyFEA is distributed under the terms of the [GNU General Public License v3.0 only](https://spdx.org/licenses/GPL-3.0-only.html), see [LICENSE.txt](https://github.com/matnoel/EasyFEA/blob/main/LICENSE.txt) and [CREDITS.md](https://github.com/matnoel/EasyFEA/blob/main/CREDITS.md) for more information.
 
-## 📚 Documentation
-
-Refer to the [documentation](https://easyfea.readthedocs.io/en/latest/index.html) for detailed installation and usage details.
-
 ## 💻  Installation
 
 EasyFEA can be easily installed from [PyPI](https://pypi.org/project/EasyFEA/) using pip, compatible with Python versions 3.9 through 3.13:
