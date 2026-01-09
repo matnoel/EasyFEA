@@ -13,6 +13,30 @@ With this module, you can construct:
 + Thermal simulations with {py:class}`~EasyFEA.Simulations.ThermalSimu`.
 + Weak form simulations with {py:class}`~EasyFEA.Simulations.WeakFormSimu`.
 
+## Matrix System Solvers
+
+EasyFEA handles the resolution of matrix systems automatically, allowing developers to focus solely on constructing local matrices.
+
+### Elliptic
+```{math}
+:label: elliptic
+\Krm \, \urm = \Frm
+```
+
+### Parabolic
+```{math}
+:label: parabolic
+\Krm \, \urm + \Crm \, \vrm = \Frm
+```
+
+### Hyperbolic
+- **Methods:** Newmark, HHT, Midpoint
+
+```{math}
+:label: hyperbolic
+\Krm \, \urm + \Crm \, \vrm + \Mrm \, \arm = \Frm
+```
+
 ## How to create new simulations in EasyFEA ?
 
 To create new simulation classes, you can take inspiration from existing implementations.  

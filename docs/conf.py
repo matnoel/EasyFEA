@@ -5,6 +5,7 @@
 
 import os
 import re
+import string
 
 import pyvista
 import EasyFEA
@@ -129,3 +130,39 @@ html_title = "EasyFEA"
 
 html_static_path = ["_static"]
 html_css_files = ["custom.css"]
+
+# -- Latex -------------------------------------------------
+
+
+def get_function(function: str, arg: str):
+    return chr(92) + function + "{" + arg + "}"
+
+
+def get_dict_formats(function: str, format: str) -> dict[str, str]:
+    # format: \function{letter}
+    return {f"{l}{format}": get_function(function, l) for l in string.ascii_letters}
+
+
+tt = {
+    **get_dict_formats("\mathrm", "rm"),
+    # Add all your macros here
+}
+
+mathjax3_config = {
+    "loader": {"load": ["input/tex"]},
+    "tex": {
+        "macros": {
+            # "Krm": "\mathrm{K}",
+            **get_dict_formats("mathrm", "rm"),
+            **get_dict_formats("mathcal", "c"),
+            **get_dict_formats("mathbf", "bf"),
+            **get_dict_formats("boldsymbol", "bm"),
+            # operators
+            "bm": r"\boldsymbol",
+            "grad": r"\bm{\nabla}",
+            # others
+            "dt": r"\Delta t",
+        }
+    },
+}
+pass

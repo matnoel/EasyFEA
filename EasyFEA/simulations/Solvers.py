@@ -56,18 +56,18 @@ except ModuleNotFoundError:
 
 class AlgoType(str, Enum):
     elliptic = "elliptic"
-    """Solve K u = F"""
+    r"""Solve :math:`\Krm \, \mathrm{u} = \Frm`"""
     parabolic = "parabolic"
-    """Solve K u_npa + C v_npa = F_npa"""
+    r"""Solve :math:`\Krm \, \mathrm{u}^{n+\alpha} + \Crm \, \vrm^{n+\alpha} = F^{n+\alpha}`"""
     newmark = "newmark"
-    """Solve K u_np1 + C v_np1 + M a_np1 = F_np1 \n
-    u_np1 = u_n + dt v_n + dt^2/2 ((1 - 2 B) a_n + 2 B a_np1) \n
-    v_np1 = v_n + dt ((1 - gamma) a_n + gamma a_np1)
+    r"""Solve :math:`\Krm \, \mathrm{u}^{n+1} + \Crm \, \vrm^{n+1} + \Mrm \, a^{n+1} = F^{n+1}` \n
+    :math:`\mathrm{u}^{n+1} = \mathrm{u}_n + \dt \, \vrm_n + \dt^2/2 ((1 - 2 \beta) a_n + 2 \beta a^{n+1})` \n
+    :math:`\vrm^{n+1} = \vrm_n + \dt \, ((1 - \gamma) \, a_n + \gamma \, a^{n+1})`
     """
     midpoint = "midpoint"
-    """Solve K u_np1/2 + C v_np1/2 + M a_np1/2 = F_np1/2"""
+    r"""Solve :math:`\Krm \, \mathrm{u}^{\frac{n+1}{2}} + \Crm \, \vrm^{\frac{n+1}{2}} + \Mrm \, a^{\frac{n+1}{2}} = F^{\frac{n+1}{2}}`"""
     hht = "hht"
-    """Solve K u_np1ma + C v_np1ma + M a_np1ma = F_np1ma"""
+    r"""Solve :math:`\Krm \, \mathrm{u}^{\frac{n+1-\alpha}{2}} + \Crm \, \vrm^{\frac{n+1-\alpha}{2}} + \Mrm \, a^{\frac{n+1-\alpha}{2}} = F_{\frac{n+1-\alpha}{2}}`"""
 
     def __str__(self) -> str:
         return self.name
