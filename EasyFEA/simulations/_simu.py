@@ -45,7 +45,7 @@ from .Solvers import (
 # _Simu
 # ----------------------------------------------
 class _Simu(_IObserver, _params.Updatable, ABC):
-    """
+    r"""
     The following classes inherit from the parent class _Simu:
         - ElasticSimu
         - HyperElasticSimu
@@ -79,7 +79,7 @@ class _Simu(_IObserver, _params.Updatable, ABC):
 
         - def Construct_local_matrix_system(self, problemType):
 
-        These functions assemble the matrix system K u + C v + M a = F.
+        These functions assemble the matrix system :math:`\Krm \, \mathrm{u} + \Crm \, \vrm + \Mrm \, \arm = \Frm`.
 
     Iterations:
     -----------
@@ -134,7 +134,7 @@ class _Simu(_IObserver, _params.Updatable, ABC):
     ) -> tuple[
         sparse.csr_matrix, sparse.csr_matrix, sparse.csr_matrix, sparse.csr_matrix
     ]:
-        """Returns the assembled matrices of K u + C v + M a = F for the given problem."""
+        r"""Returns the assembled matrices of :math:`\Krm \, \mathrm{u} + \Crm \, \vrm + \Mrm \, \arm = \Frm` for the given problem."""
 
         error = "You must define your own `Get_K_C_M_F` function in your simulation to construct the system matrix, since multiple problem types have been detected. For reference, see the `Get_K_C_M_F` function in `simulations._phasefield`."
         assert len(self.Get_problemTypes()) == 1, error
@@ -158,7 +158,7 @@ class _Simu(_IObserver, _params.Updatable, ABC):
         Optional[FeArray],
         Optional[FeArray],
     ]:
-        """Construct the local matrix system K u + C v + M a = F for the given problem."""
+        r"""Construct the local matrix system :math:`\Krm \, \mathrm{u} + \Crm \, \vrm + \Mrm \, \arm = \Frm` for the given problem."""
         raise NotImplementedError
 
     # Iterations
@@ -493,14 +493,14 @@ class _Simu(_IObserver, _params.Updatable, ABC):
 
     @property
     def algo(self) -> AlgoType:
-        """The algorithm used to solve the problem.\n
+        r"""The algorithm used to solve the problem.\n
         (elliptic, parabolic, hyperbolic) see:\n
         - Solver_Set_Elliptic_Algorithm()\n
-        K u = F
+        :math:`\Krm \, \mathrm{u} = \Frm`
         - Solver_Set_Parabolic_Algorithm()\n
-        K u + C v = F
+        :math:`\Krm \, \mathrm{u} + \Crm \, \vrm = \Frm`
         - Solver_Set_Hyperbolic_Algorithm()\n
-        K u + C v + M a = F
+        :math:`\Krm \, \mathrm{u} + \Crm \, \vrm + \Mrm \, \arm = \Frm`
         """
         return self.__algo
 
@@ -566,7 +566,7 @@ class _Simu(_IObserver, _params.Updatable, ABC):
     ) -> tuple[
         sparse.csr_matrix, sparse.csr_matrix, sparse.csr_matrix, sparse.csr_matrix
     ]:
-        """Assemble the matrix system K u + C v + M a = F for the given problemType."""
+        r"""Assemble the matrix system :math:`\Krm \, \mathrm{u} + \Crm \, \vrm + \Mrm \, \arm = \Frm` for the given problemType."""
         # Data
         mesh = self.mesh
         dof_n = self.Get_dof_n(problemType)
@@ -665,9 +665,9 @@ class _Simu(_IObserver, _params.Updatable, ABC):
             )
 
     def Solver_Set_Elliptic_Algorithm(self) -> None:
-        """Sets the algorithm's resolution properties for an elliptic problem.
+        r"""Sets the algorithm's resolution properties for an elliptic problem.
 
-        Used to solve K u = F.
+        Used to solve :math:`\Krm \, \mathrm{u} = \Frm`.
         """
         self.__algo = AlgoType.elliptic
 
@@ -705,9 +705,9 @@ class _Simu(_IObserver, _params.Updatable, ABC):
     def Solver_Set_Hyperbolic_Algorithm(
         self, dt: float, beta=0.25, gamma=0.5, algo=AlgoType.newmark, alpha=0.5
     ) -> None:
-        """Sets the algorithm's resolution properties for a Hyperbolic problem.
+        r"""Sets the algorithm's resolution properties for a Hyperbolic problem.
 
-        Used to solve K u + C v + M a = F.
+        Used to solve :math:`\Krm \, \mathrm{u} + \Crm \, \vrm + \Mrm \, \arm = \Frm`.
 
         Parameters
         ----------
@@ -718,7 +718,7 @@ class _Simu(_IObserver, _params.Updatable, ABC):
         gamma : float, optional
             The coefficient gamma, by default 1/2.
         algo : AlgoType, optional
-            Algo used to solve K u + C v + M a = F, by default AlgoType.newmark\n
+            Algo used to solve :math:`\Krm \, \mathrm{u} + \Crm \, \vrm + \Mrm \, \arm = \Frm`, by default AlgoType.newmark\n
             K u_np1 + C v_np1 + M a_np1 = F_np1.
         alpha : float, optional
             The coefficient alpha, by default 1/2.

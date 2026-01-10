@@ -86,11 +86,12 @@ class AlgoType(str, Enum):
 class ResolType(str, Enum):
     """Resolution type."""
 
-    r1 = "1"
-    """xi = inv(Aii) * (bi - Aic * xc)"""
-    r2 = "2"
+    r1 = "r1"
+    """:math:`\mathrm{x}_\irm = {\Arm_{\irm\irm}}^{-1} \cdot (b_\irm - \Arm_{\irm\crm} * \mathrm{x}_\crm)`,
+    where :math:`\irm` and :math:`\crm` are unknown and known degrees of freedom."""
+    r2 = "r2"
     """Lagrange multipliers"""
-    r3 = "3"
+    r3 = "r3"
     """Penality"""
 
     def __str__(self) -> str:
