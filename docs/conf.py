@@ -143,11 +143,6 @@ def get_dict_formats(function: str, format: str) -> dict[str, str]:
     return {f"{l}{format}": get_function(function, l) for l in string.ascii_letters}
 
 
-tt = {
-    **get_dict_formats("\mathrm", "rm"),
-    # Add all your macros here
-}
-
 mathjax3_config = {
     "loader": {"load": ["input/tex"]},
     "tex": {
@@ -165,4 +160,3 @@ mathjax3_config = {
         }
     },
 }
-pass
