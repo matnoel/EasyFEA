@@ -11,37 +11,37 @@ from .simulations._utils import Save_pickle, Load_pickle
 # Elastic
 # ------------------------------------------------------------------------------
 
-from .simulations._elastic import ElasticSimu, Mesh_Optim_ZZ1
+from .simulations._elastic import Elastic, Mesh_Optim_ZZ1
 
 # ----------------------------------------------
 # HyperElastic
 # ----------------------------------------------
 
-from .simulations._hyperelastic import HyperElasticSimu
+from .simulations._hyperelastic import HyperElastic
 
 # ------------------------------------------------------------------------------
 # PhaseField
 # ------------------------------------------------------------------------------
 
-from .simulations._phasefield import PhaseFieldSimu
+from .simulations._phasefield import PhaseField
 
 # ------------------------------------------------------------------------------
 # Beam
 # ------------------------------------------------------------------------------
 
-from .simulations._beam import BeamSimu
+from .simulations._beam import Beam
 
 # ------------------------------------------------------------------------------
 # Thermal
 # ------------------------------------------------------------------------------
 
-from .simulations._thermal import ThermalSimu
+from .simulations._thermal import Thermal
 
 # ------------------------------------------------------------------------------
 # WeakForm
 # ------------------------------------------------------------------------------
 
-from .simulations._weak_forms import WeakFormSimu
+from .simulations._weak_forms import WeakForm
 
 # ------------------------------------------------------------------------------
 # DIC

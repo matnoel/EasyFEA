@@ -59,7 +59,7 @@ if __name__ == "__main__":
     material = Models.Elastic.Isotropic(
         dim, E, v, planeStress=False, thickness=thickness
     )
-    simu = Simulations.ElasticSimu(mesh, material)
+    simu = Simulations.Elastic(mesh, material)
 
     simu.add_dirichlet(nodes_y0, [0] * dim, simu.Get_unknowns())
     simu.add_surfLoad(

@@ -23,7 +23,7 @@ class TestSimu:
         thermal = Models.Thermal(1, 1)
         # k, c
 
-        simu = Simulations.ThermalSimu(mesh, thermal)
+        simu = Simulations.Thermal(mesh, thermal)
         simu.Get_K_C_M_F()
         assert (
             simu.needUpdate == False

@@ -86,7 +86,7 @@ if __name__ == "__main__":
     material = Models.Elastic.Isotropic(
         dim, E=210000, v=0.3, planeStress=False, thickness=thickness
     )
-    simu = Simulations.ElasticSimu(mesh, material)
+    simu = Simulations.Elastic(mesh, material)
 
     if isSymmetric:
         nodes_x0 = mesh.Nodes_Conditions(lambda x, y, z: x == 0)

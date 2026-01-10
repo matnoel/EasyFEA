@@ -60,7 +60,7 @@ if __name__ == "__main__":
     # ----------------------------------------------
     # Simulation
     # ----------------------------------------------
-    simu = Simulations.BeamSimu(mesh, structure)
+    simu = Simulations.Beam(mesh, structure)
 
     nodesRigi = mesh.Nodes_Point(pE)
     nodesRigi = np.append(nodesRigi, mesh.Nodes_Point(pD))

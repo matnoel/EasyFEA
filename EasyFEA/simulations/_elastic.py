@@ -22,7 +22,7 @@ from ._simu import _Simu
 from .Solvers import AlgoType
 
 
-class ElasticSimu(_Simu):
+class Elastic(_Simu):
     r"""Linearized elasticity.
     
     Strong form:
@@ -43,7 +43,8 @@ class ElasticSimu(_Simu):
     .. math::
         \int_\Omega \Sig(\ub) : \Eps(\vb) \, \dO + \int_\Omega \rho \, \ddot{\ub} \cdot \vb \, \dO =
         \int _{\partial\Omega_t} \tb\cdot\vb \, \dS + \int _{\Omega} \fb\cdot\vb \, \dO \quad \forall \, \vb \in V
-
+    
+    The implemented elastic laws are available in :mod:`EasyFEA.Models.Elastic`.
     """
 
     def __init__(self, mesh: "Mesh", model: _Elastic, verbosity=False):
@@ -523,12 +524,12 @@ class ElasticSimu(_Simu):
 # Other functions
 # ----------------------------------------------
 def Mesh_Optim_ZZ1(
-    DoSimu: Callable[[str], ElasticSimu],
+    DoSimu: Callable[[str], Elastic],
     folder: str,
     threshold: float = 1e-2,
     iterMax: int = 20,
     coef: float = 1 / 2,
-) -> ElasticSimu:
+) -> Elastic:
     """Optimizes the mesh using ZZ1 error criterion.
 
     Parameters
@@ -560,7 +561,7 @@ def Mesh_Optim_ZZ1(
         # perform the simulation
         simu = DoSimu(optimGeom)  # type: ignore [arg-type]
         assert isinstance(
-            simu, ElasticSimu
+            simu, Elastic
         ), "DoSimu function must return a Displacement simulation"
         # get the current mesh
         mesh = simu.mesh

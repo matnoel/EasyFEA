@@ -47,12 +47,12 @@ from .Solvers import (
 class _Simu(_IObserver, _params.Updatable, ABC):
     r"""
     The following classes inherit from the parent class _Simu:
-        - ElasticSimu
-        - HyperElasticSimu
-        - PhaseFieldSimu
-        - BeamSimu
-        - ThermalSimu
-        - WeakFormSimu
+        - Elastic
+        - HyperElastic
+        - PhaseField
+        - Beam
+        - Thermal
+        - WeakForm
 
     To create new simulation classes, you can take inspiration from existing implementations.\n
     Make sure to follow this interface.\n

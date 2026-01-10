@@ -21,7 +21,7 @@ from ..models._beam import BeamStructure, _Beam, Isotropic
 from ._simu import _Simu
 
 
-class BeamSimu(_Simu):
+class Beam(_Simu):
     """Euler-Bernoulli beam simulation."""
 
     # TODO: add math

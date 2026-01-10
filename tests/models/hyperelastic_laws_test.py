@@ -26,7 +26,7 @@ def simuIsot():
     nodesXL = mesh.Nodes_Conditions(lambda x, y, z: x == L)
 
     matIsot = Models.Elastic.Isotropic(3)
-    simuIsot = Simulations.ElasticSimu(mesh, matIsot)
+    simuIsot = Simulations.Elastic(mesh, matIsot)
 
     simuIsot.add_dirichlet(nodesX0, [0, 0, 0], simuIsot.Get_unknowns())
     simuIsot.add_dirichlet(nodesXL, [1], ["x"])
@@ -38,7 +38,7 @@ def simuIsot():
 
 class TestSaintVenantKirchhoff:
 
-    def test_chain_rule(self, simuIsot: Simulations.ElasticSimu):
+    def test_chain_rule(self, simuIsot: Simulations.Elastic):
 
         matIsot: Models.Elastic.Isotropic = simuIsot.material
         mesh = simuIsot.mesh

@@ -60,7 +60,7 @@ if __name__ == "__main__":
     beamStructure = Models.Beam.BeamStructure(beams)
 
     # Create the beam simulation
-    simu = Simulations.BeamSimu(mesh, beamStructure)
+    simu = Simulations.Beam(mesh, beamStructure)
     dof_n = simu.Get_dof_n()
 
     # Apply boundary conditions

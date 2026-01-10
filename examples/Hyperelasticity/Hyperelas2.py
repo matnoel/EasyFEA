@@ -51,7 +51,7 @@ if __name__ == "__main__":
     mu = isot.get_mu()
     mat = Models.HyperElastic.SaintVenantKirchhoff(dim, lmbda, mu, thickness=h)
 
-    simu = Simulations.HyperElasticSimu(mesh, mat)
+    simu = Simulations.HyperElastic(mesh, mat)
 
     uc = -0.3
     simu.add_dirichlet(nodesX0, [0] * dim, simu.Get_unknowns())

@@ -9,7 +9,7 @@ from EasyFEA.fem._linalg import Trace, Det, Inv, TensorProd
 from EasyFEA.models._utils import Project_Kelvin, FeArray
 
 
-def Get_2d_simulations(ud=1e-6) -> list[Simulations.ElasticSimu]:
+def Get_2d_simulations(ud=1e-6) -> list[Simulations.Elastic]:
 
     L = 120  # mm
     h = 13
@@ -22,7 +22,7 @@ def Get_2d_simulations(ud=1e-6) -> list[Simulations.ElasticSimu]:
     for elemType in ElemType.Get_2D():
 
         mesh = Mesher().Mesh_2D(contour, [], ElemType.TRI3)
-        simu = Simulations.ElasticSimu(mesh, Models.Elastic.Isotropic(2))
+        simu = Simulations.Elastic(mesh, Models.Elastic.Isotropic(2))
         simu.solver = SolverType.scipy
 
         simu.add_dirichlet(
@@ -36,7 +36,7 @@ def Get_2d_simulations(ud=1e-6) -> list[Simulations.ElasticSimu]:
     return simulations
 
 
-def Get_3d_simulations(ud=1e-6) -> list[Simulations.ElasticSimu]:
+def Get_3d_simulations(ud=1e-6) -> list[Simulations.Elastic]:
 
     L = 120  # mm
     h = 13
@@ -49,7 +49,7 @@ def Get_3d_simulations(ud=1e-6) -> list[Simulations.ElasticSimu]:
     for elemType in ElemType.Get_3D():
 
         mesh = Mesher().Mesh_Extrude(contour, [], [0, 0, h], [h / meshSize], elemType)
-        simu = Simulations.ElasticSimu(mesh, Models.Elastic.Isotropic(3))
+        simu = Simulations.Elastic(mesh, Models.Elastic.Isotropic(3))
         simu.solver = SolverType.scipy
 
         simu.add_dirichlet(
@@ -65,7 +65,7 @@ def Get_3d_simulations(ud=1e-6) -> list[Simulations.ElasticSimu]:
     return simulations
 
 
-def Get_C_components(simu: Simulations.ElasticSimu, matrixType=MatrixType.rigi):
+def Get_C_components(simu: Simulations.Elastic, matrixType=MatrixType.rigi):
 
     return HyperElasticState(simu.mesh, simu.displacement, matrixType)._Compute_C()
 

@@ -21,7 +21,7 @@ from typing import Optional
 
 
 def Compute_ukl(
-    simu: Simulations.ElasticSimu,
+    simu: Simulations.Elastic,
     nodes_border: np.ndarray,
     Ekl: np.ndarray,
     paired_nodes: Optional[np.ndarray] = None,
@@ -287,7 +287,7 @@ if __name__ == "__main__":
 
     material = Models.Elastic.Isotropic(3, E, v)
 
-    simu = Simulations.ElasticSimu(mesh, material)
+    simu = Simulations.Elastic(mesh, material)
 
     PyVista.Plot(simu, E, nodeValues=False, colorbarTitle="E [MPa]").show()
     PyVista.Plot(simu, v, nodeValues=False, colorbarTitle="v").show()

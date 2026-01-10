@@ -30,7 +30,7 @@ from ..models._hyperelastic import HyperElasticState
 from ._simu import _Simu, AlgoType
 
 
-class HyperElasticSimu(_Simu):
+class HyperElastic(_Simu):
     r"""Hyperelastic simulation.
 
     Weak form:
@@ -54,7 +54,7 @@ class HyperElasticSimu(_Simu):
         \int_{\Omega_0} \dfrac{\partial W}{\partial \eb}(\ub) : \Drm_\ub^2 \eb(\vb) \, \dO
         \quad \forall \, \vb \in V.
 
-    The implemented hyperelastic laws are available in :mod:`EasyFEA.models._hyperelastic_laws` and where constructed by the :ref:`ComputeHyperelasticLaws` script.
+    The implemented hyperelastic laws are available in :mod:`EasyFEA.Models.HyperElastic` and where constructed by the :ref:`ComputeHyperelasticLaws` script.
     """
 
     # TODO: add math
@@ -67,7 +67,7 @@ class HyperElasticSimu(_Simu):
         maxIter=20,
         verbosity=False,
     ):
-        """Creates a simulation.
+        """Creates a hyperelastic simulation.
 
         Parameters
         ----------

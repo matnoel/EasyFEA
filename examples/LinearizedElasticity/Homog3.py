@@ -122,9 +122,9 @@ if __name__ == "__main__":
     # ----------------------------------------------
     # Homogenization
     # ----------------------------------------------
-    simu_inclusions = Simulations.ElasticSimu(mesh_inclusions, material_inclsuion)
-    simu_VER = Simulations.ElasticSimu(mesh_RVE, material_inclsuion)
-    simu = Simulations.ElasticSimu(mesh, material)
+    simu_inclusions = Simulations.Elastic(mesh_inclusions, material_inclsuion)
+    simu_VER = Simulations.Elastic(mesh_RVE, material_inclsuion)
+    simu = Simulations.Elastic(mesh, material)
 
     r2 = np.sqrt(2)
     E11 = np.array([[1, 0], [0, 0]])

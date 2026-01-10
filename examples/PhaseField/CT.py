@@ -59,7 +59,7 @@ if __name__ == "__main__":
     split = "Miehe"
     regu = "AT1"
 
-    folder_save = Simulations.PhaseFieldSimu.Folder(
+    folder_save = Simulations.PhaseField.Folder(
         f"{folder}{dim}D", "Isot", split, regu, "", 1, "", meshTest, optimMesh, nL=nL
     )
 
@@ -176,7 +176,7 @@ if __name__ == "__main__":
             simu.add_dirichlet(nodes_2, [0,dep, 0], ["x", "y", "z"])
         """
 
-        simu = Simulations.PhaseFieldSimu(mesh, pfm)
+        simu = Simulations.PhaseField(mesh, pfm)
         simu.Results_Set_Bc_Summary(config)
 
         if plotIter:
@@ -214,7 +214,7 @@ if __name__ == "__main__":
         simu.Save(folder_save)
 
     else:
-        simu: Simulations.PhaseFieldSimu = Simulations.Load_Simu(folder_save)
+        simu: Simulations.PhaseField = Simulations.Load_Simu(folder_save)
 
     # ----------------------------------------------
     # Results

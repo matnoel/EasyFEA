@@ -52,7 +52,7 @@ F = -800  # N
 
 mat = Models.Elastic.Isotropic(2, E, v, planeStress=True, thickness=h)
 
-simu = Simulations.ElasticSimu(mesh, mat)
+simu = Simulations.Elastic(mesh, mat)
 
 nodesX0 = mesh.Nodes_Conditions(lambda x, y, z: x == 0)
 nodesXL = mesh.Nodes_Conditions(lambda x, y, z: x == L)

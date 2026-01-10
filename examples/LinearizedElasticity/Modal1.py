@@ -50,7 +50,7 @@ if __name__ == "__main__":
     # ----------------------------------------------
     material = Models.Elastic.Isotropic(dim, planeStress=True, thickness=thickness)
 
-    simu = Simulations.ElasticSimu(mesh, material)
+    simu = Simulations.Elastic(mesh, material)
 
     simu.Solver_Set_Hyperbolic_Algorithm(0.1)
 

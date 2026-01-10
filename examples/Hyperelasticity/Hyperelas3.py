@@ -61,7 +61,7 @@ if __name__ == "__main__":
         dim, elas.get_lambda(), elas.get_mu(), thickness=thickness
     )
 
-    simu = Simulations.HyperElasticSimu(mesh, material)
+    simu = Simulations.HyperElastic(mesh, material)
 
     simu.add_dirichlet(nodes_y0, [0] * dim, simu.Get_unknowns())
     simu.add_surfLoad(nodes_Load, [sigMax], ["y"])

@@ -20,7 +20,7 @@ from typing import Optional
 
 
 def Compute_ukl(
-    simu: Simulations.ElasticSimu,
+    simu: Simulations.Elastic,
     nodes_kubc: np.ndarray,
     Ekl: np.ndarray,
     paired_nodes: Optional[np.ndarray] = None,
@@ -145,7 +145,7 @@ if __name__ == "__main__":
 
     material = Models.Elastic.Isotropic(2, E, v, planeStress=False)
 
-    simu = Simulations.ElasticSimu(mesh, material)
+    simu = Simulations.Elastic(mesh, material)
 
     Display.Plot_Result(simu, E, nodeValues=False, title="E [MPa]")
     Display.Plot_Result(simu, v, nodeValues=False, title="v")

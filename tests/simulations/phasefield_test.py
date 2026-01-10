@@ -32,7 +32,7 @@ class TestPhaseField:
 
                 print(f"{split} {regu}")
 
-                simu = Simulations.PhaseFieldSimu(mesh, pfm)
+                simu = Simulations.PhaseField(mesh, pfm)
                 simu.solver = SolverType.scipy
 
                 for ud in np.linspace(0, 5e-8 * 400, 3):
@@ -59,7 +59,7 @@ class TestPhaseField:
         pfm = Models.PhaseField(matIsot, "He", "AT1", 1, 0.01)
         # split, regu, split, Gc, l0, solver, A
 
-        simu = Simulations.PhaseFieldSimu(mesh, pfm)
+        simu = Simulations.PhaseField(mesh, pfm)
 
         simu.Get_K_C_M_F("elastic")
         assert simu.needUpdate

@@ -77,7 +77,7 @@ if __name__ == "__main__":
     # ----------------------------------------------
 
     material = Models.Elastic.Isotropic(dim, thickness=b)
-    simu = Simulations.ElasticSimu(mesh, material)
+    simu = Simulations.Elastic(mesh, material)
     simu.rho = 8100 * 1e-9
 
     # static simulation

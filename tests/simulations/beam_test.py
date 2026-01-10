@@ -109,7 +109,7 @@ class TestBeam:
 
             # Simulation
 
-            simu = Simulations.BeamSimu(mesh, beamStruct, verbosity=False)
+            simu = Simulations.Beam(mesh, beamStruct, verbosity=False)
 
             simu.rho = ro
 
@@ -249,7 +249,7 @@ class TestBeam:
 
         mesh = Mesher().Mesh_Beams(beams)
 
-        simu = Simulations.BeamSimu(mesh, structure)
+        simu = Simulations.Beam(mesh, structure)
         simu.Get_K_C_M_F()
         assert (
             not simu.needUpdate

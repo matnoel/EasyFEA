@@ -137,7 +137,7 @@ if __name__ == "__main__":
     material = Models.Elastic.Isotropic(dim, E, v, True, ep)
     pfm = Models.PhaseField(material, split, regu, Gc, l0)
 
-    folder_save = Simulations.PhaseFieldSimu.Folder(
+    folder_save = Simulations.PhaseField.Folder(
         f"{folder}{dim}D",
         "",
         pfm.split,
@@ -153,7 +153,7 @@ if __name__ == "__main__":
     Display.MyPrint(folder_save, "green")
 
     if doSimu:
-        simu = Simulations.PhaseFieldSimu(mesh, pfm)
+        simu = Simulations.PhaseField(mesh, pfm)
         simu.Results_Set_Bc_Summary(config)
 
         dofsY_load = simu.Bc_dofs_nodes(nodes_load, ["y"])

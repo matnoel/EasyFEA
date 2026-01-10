@@ -22,7 +22,7 @@ from ._simu import _Simu
 from .Solvers import AlgoType
 
 
-class ThermalSimu(_Simu):
+class Thermal(_Simu):
     r"""Thermal simulation.
     
     Strong form:

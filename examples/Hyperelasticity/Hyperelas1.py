@@ -48,7 +48,7 @@ if __name__ == "__main__":
 
     mat = Models.HyperElastic.SaintVenantKirchhoff(3, lmbda, mu)
 
-    simu = Simulations.HyperElasticSimu(mesh, mat)
+    simu = Simulations.HyperElastic(mesh, mat)
 
     simu.add_dirichlet(nodesX0, [0, 0, 0], simu.Get_unknowns())
     simu.add_volumeLoad(mesh.nodes, [-rho * 9.81], ["y"])

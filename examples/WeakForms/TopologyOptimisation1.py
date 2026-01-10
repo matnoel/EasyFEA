@@ -115,7 +115,7 @@ if __name__ == "__main__":
     # Simulation
     # ----------------------------------------------
 
-    simu = Simulations.WeakFormSimu(mesh, model)
+    simu = Simulations.WeakForm(mesh, model)
     simu._Solver_Set_PETSc4Py_Options("none", "lu")
 
     simu.add_dirichlet(nodesX0, [0] * dim, simu.Get_unknowns())

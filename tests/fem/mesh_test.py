@@ -163,7 +163,7 @@ class TestMesh:
 
         for mesh in meshes_3D:
 
-            simu = Simulations.ElasticSimu(mesh, mat)
+            simu = Simulations.Elastic(mesh, mat)
             simu.rho = rho
 
             assert (mass - simu.mass) / mass < 1e-12

@@ -93,7 +93,7 @@ if __name__ == "__main__":
     # Simulations
     # ----------------------------------------------
 
-    simu = Simulations.WeakFormSimu(mesh, weakForms)
+    simu = Simulations.WeakForm(mesh, weakForms)
 
     # static simulation
     simu.add_dirichlet(nodesX0, [0] * dim, simu.Get_unknowns())

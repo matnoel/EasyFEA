@@ -129,7 +129,7 @@ if __name__ == "__main__":
     # Material and Simulation
     # ----------------------------------------------
     material = Models.Elastic.Isotropic(dim, E=210000, v=0.3, thickness=b)
-    simu = Simulations.ElasticSimu(mesh, material)
+    simu = Simulations.Elastic(mesh, material)
     simu.rho = 8100 * 1e-9
 
     def DoSimu(refineGeom: str):

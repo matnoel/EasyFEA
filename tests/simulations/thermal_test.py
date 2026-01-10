@@ -33,7 +33,7 @@ class TestThermal:
 
             thermalModel = Models.Thermal(k=1, c=1, thickness=a)
 
-            simu = Simulations.ThermalSimu(mesh, thermalModel, False)
+            simu = Simulations.Thermal(mesh, thermalModel, False)
 
             noeuds0 = mesh.Nodes_Conditions(lambda x, y, z: x == 0)
             noeudsL = mesh.Nodes_Conditions(lambda x, y, z: x == a)
@@ -59,7 +59,7 @@ class TestThermal:
         thermal = Models.Thermal(1, 1)
         # k, c
 
-        simu = Simulations.ThermalSimu(mesh, thermal)
+        simu = Simulations.Thermal(mesh, thermal)
         simu.Get_K_C_M_F()
         assert not simu.needUpdate
         # check that need update is now set to false once Get_K_C_M_F() get called

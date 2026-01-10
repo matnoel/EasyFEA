@@ -26,7 +26,7 @@ from ..models import (
 from ._simu import _Simu, SolverType
 
 
-class PhaseFieldSimu(_Simu):
+class PhaseField(_Simu):
     r"""PhaseField damage simulations for quasi-static brittle fracture.
 
     Strong form:

@@ -61,7 +61,7 @@ if __name__ == "__main__":
     # Simulation
     # ----------------------------------------------
     thermalModel = Models.Thermal(k=1, c=1)
-    simu = Simulations.ThermalSimu(mesh, thermalModel, False)
+    simu = Simulations.Thermal(mesh, thermalModel, False)
     simu.rho = 1
 
     simu.add_surfLoad(nodesY0, [5], ["t"])

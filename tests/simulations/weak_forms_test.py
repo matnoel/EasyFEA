@@ -24,7 +24,7 @@ class TestWeakForms:
         # ----------------------------------------------
         material = Models.Thermal(k=1)
 
-        thermalSimu = Simulations.ThermalSimu(mesh, material)
+        thermalSimu = Simulations.Thermal(mesh, material)
         thermalSimu.solver = SolverType.scipy
 
         thermalSimu.add_dirichlet(nodesX0, [0], ["t"])
@@ -44,7 +44,7 @@ class TestWeakForms:
 
         weakForms = Models.WeakForms(field, bilinear_form)
 
-        simu = Simulations.WeakFormSimu(mesh, weakForms)
+        simu = Simulations.WeakForm(mesh, weakForms)
         simu.solver = SolverType.scipy
 
         simu.add_dirichlet(nodesX0, [0], ["u"])
@@ -75,7 +75,7 @@ class TestWeakForms:
         lmbda = material.get_lambda()
         mu = material.get_mu()
 
-        elasticSimu = Simulations.ElasticSimu(mesh, material)
+        elasticSimu = Simulations.Elastic(mesh, material)
         elasticSimu.solver = SolverType.scipy
 
         elasticSimu.add_dirichlet(nodesX0, [0, 0], ["x", "y"])
@@ -101,7 +101,7 @@ class TestWeakForms:
 
         weakForms = Models.WeakForms(field, ComputeK)
 
-        simu = Simulations.WeakFormSimu(mesh, weakForms)
+        simu = Simulations.WeakForm(mesh, weakForms)
         simu.solver = SolverType.scipy
 
         simu.add_dirichlet(nodesX0, [0, 0], ["x", "y"])

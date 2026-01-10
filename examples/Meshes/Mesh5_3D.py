@@ -54,7 +54,7 @@ if __name__ == "__main__":
     # ----------------------------------------------
 
     material = Models.Elastic.Isotropic(3)
-    simu = Simulations.ElasticSimu(mesh, material)
+    simu = Simulations.Elastic(mesh, material)
 
     simu.add_dirichlet(
         mesh.Nodes_Conditions(lambda x, y, z: y == 0), [0] * 3, simu.Get_unknowns()

@@ -119,7 +119,7 @@ def DoMesh(
 # ----------------------------------------------
 def DoSimu(split: str, regu: str):
 
-    folder_save = Simulations.PhaseFieldSimu.Folder(
+    folder_save = Simulations.PhaseField.Folder(
         folder, "Elas_Isot", split, regu, "DP", tolConv, solver, meshTest, optimMesh
     )
 
@@ -194,7 +194,7 @@ def DoSimu(split: str, regu: str):
         # ----------------------------------------------
         # Simulation
         # ----------------------------------------------
-        simu = Simulations.PhaseFieldSimu(mesh, pfm, verbosity=False)
+        simu = Simulations.PhaseField(mesh, pfm, verbosity=False)
 
         simu.Results_Set_Bc_Summary(config)
 
@@ -280,7 +280,7 @@ def DoSimu(split: str, regu: str):
         # ----------------------------------------------
         # Load
         # ----------------------------------------------
-        simu: Simulations.PhaseFieldSimu = Simulations.Load_Simu(folder_save)
+        simu: Simulations.PhaseField = Simulations.Load_Simu(folder_save)
         force, displacement = Simulations.Load_pickle(folder_save, "force-displacement")
 
     # ----------------------------------------------

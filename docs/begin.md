@@ -41,7 +41,7 @@ Let's now create a 2D {py:class}`~EasyFEA.fem.Mesh` using a simple rectangular d
     
 ----
 
-Next, define a linear {py:class}`~EasyFEA.models.ElasIsot` material and set up the {py:class}`~EasyFEA.Simulations.ElasticSimu`  simulation:
+Next, define a linear {py:class}`~EasyFEA.Models.Elastic.Isotropic` material and set up the {py:class}`~EasyFEA.Simulations.Elastic`  simulation:
 
 ```{eval-rst}
 .. jupyter-execute::
@@ -55,7 +55,7 @@ Next, define a linear {py:class}`~EasyFEA.models.ElasIsot` material and set up t
 
     mat = Models.Elastic.Isotropic(2, E, v, planeStress=True, thickness=h)
 
-    simu = Simulations.ElasticSimu(mesh, mat)
+    simu = Simulations.Elastic(mesh, mat)
 ```
     
 ----

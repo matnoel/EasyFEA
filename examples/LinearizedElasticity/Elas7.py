@@ -118,7 +118,7 @@ if __name__ == "__main__":
         dim, E=210000, v=0.25, planeStress=True, thickness=thickness
     )
 
-    simu = Simulations.ElasticSimu(mesh, material)
+    simu = Simulations.Elastic(mesh, material)
 
     fixed = [0] * dim
     unknowns = simu.Get_unknowns()

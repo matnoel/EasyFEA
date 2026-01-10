@@ -66,7 +66,7 @@ class TestPhaseField:
         else:
             mesh = Mesher().Mesh_Extrude(domain, [circle], [0, 0, H / 3], [4], "PRISM6")
 
-        simu = Simulations.ElasticSimu(mesh, mat)
+        simu = Simulations.Elastic(mesh, mat)
         simu.solver = SolverType.scipy
 
         simu.add_dirichlet(

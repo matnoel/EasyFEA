@@ -107,7 +107,7 @@ if __name__ == "__main__":
     material = Models.Elastic.Isotropic(
         dim, E=210000, v=0.3, planeStress=True, thickness=thickness
     )
-    simu = Simulations.ElasticSimu(mesh_slave, material)
+    simu = Simulations.Elastic(mesh_slave, material)
 
     list_master_mesh = [master_mesh]
 

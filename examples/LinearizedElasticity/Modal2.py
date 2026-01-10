@@ -124,7 +124,7 @@ if __name__ == "__main__":
     # ----------------------------------------------
     # Simulation
     # ----------------------------------------------
-    simu = Simulations.ElasticSimu(mesh, material)
+    simu = Simulations.Elastic(mesh, material)
     simu.rho = 7860  # kg/m3
 
     simu.add_dirichlet(nodesZ0, [0] * 3, simu.Get_unknowns())

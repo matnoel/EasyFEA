@@ -220,7 +220,7 @@ if __name__ == "__main__":
 
     material = Models.Elastic.Isotropic(2, E, v, planeStress=False)
 
-    simu = Simulations.ElasticSimu(mesh, material)
+    simu = Simulations.Elastic(mesh, material)
 
     # ----------------------------------------------
     # Homogenization
