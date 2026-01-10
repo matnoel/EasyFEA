@@ -2,6 +2,17 @@
 
 This document describes the changes made to the project.
 
+## 1.6.5 (January 10, 2026):
+
+- Fixed bug in `mesh_test.py`.
+- Updated `imageio[ffmpeg]` to `imageio-ffmpeg` in README.
+- Added `tol` parameter in `groupElem._Get_coord_Near` method.
+- Removed `jupyter` and `zip` outputs from docs examples.
+- Fixed issue #31: Created `Folder.Results()` function and removed `Folder.RESULTS_DIR`.
+- Updated links and warnings in docstrings.
+- Switched from `reStructuredText` to `Markdown` in Sphinx documentation.
+- Added mathematical formulations for simulations.
+
 ## 1.6.4 (January 5, 2026):
 
 - Updated sphinx documentation.
