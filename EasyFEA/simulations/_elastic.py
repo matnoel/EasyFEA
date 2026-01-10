@@ -23,6 +23,29 @@ from .Solvers import AlgoType
 
 
 class ElasticSimu(_Simu):
+    r"""Linearized elasticity:
+    
+    .. math::
+        :label: simu-linearized-elasticity:
+
+        \begin{alignat}{2}
+            \diver{\Sig(\U)} + \fbm &= \rho \, \ddot{\U} && \quad \text{in } \Omega, \\
+            % 
+            \Sig(\U) \cdot \nbm &= \tbm && \quad \text{on } \partial\Omega_t, \\
+            %
+            \Sig(\U) &= \Cbb : \Eps(\U) && \quad \text{in } \Omega, \\
+            % 
+            \U &= \U_D && \quad \text{on } \partial\Omega_u,        
+        \end{alignat}
+
+    .. math::
+        :label: simu-linearized-elasticity-weak:
+
+        \int_\Omega \Sig(\U) : \Eps(\V) \, \dO + \int_\Omega \rho \, \ddot{\U} \cdot \V \, \dO =
+        \int _{\partial\Omega_t} \tbm\cdot\V \, \dS + \int _{\Omega} \fbm\cdot\V \, \dO \quad \forall \, \V \in V
+
+    """
+
     def __init__(self, mesh: "Mesh", model: Models._Elas, verbosity=False):
         """Creates a elastic simulation.
 
