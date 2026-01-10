@@ -9,7 +9,7 @@ With this module, you can construct:
 
 + Linear elastic materials, such as {py:class}`~EasyFEA.Models.Elastic.Isotropic`, {py:class}`~EasyFEA.Models.Elastic.TransverselyIsotropic`, {py:class}`~EasyFEA.Models.Elastic.Orthotropic`, and {py:class}`~EasyFEA.Models.Elastic.Anisotropic` (see the {py:class}`~EasyFEA.Models.Elastic` class).
 + Nonlinear hyperelastic materials, such as {py:class}`~EasyFEA.Models.HyperElastic.NeoHookean`, {py:class}`~EasyFEA.Models.HyperElastic.MooneyRivlin`, {py:class}`~EasyFEA.Models.HyperElastic.SaintVenantKirchhoff`, and {py:class}`~EasyFEA.Models.HyperElastic.HolzapfelOgden` (see the {py:class}`~EasyFEA.Models.HyperElastic` class).
-+ Elastic beams with {py:class}`~EasyFEA.Models.Beam.Isotropic` (see the {py:class}`~EasyFEA.Models.HyperElastic` class).
++ Elastic beams with {py:class}`~EasyFEA.Models.Beam.Isotropic` (see the {py:class}`~EasyFEA.Models.Beam` class).
 + Phase-field materials with {py:class}`~EasyFEA.Models.PhaseField`.
 + Thermal materials with {py:class}`~EasyFEA.Models.Thermal`.
 + Weark forms with {py:class}`~EasyFEA.Models.WeakForms`.
