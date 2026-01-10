@@ -493,14 +493,12 @@ class _Simu(_IObserver, _params.Updatable, ABC):
 
     @property
     def algo(self) -> AlgoType:
-        r"""The algorithm used to solve the problem.\n
-        (elliptic, parabolic, hyperbolic) see:\n
-        - Solver_Set_Elliptic_Algorithm()\n
-        :math:`\Krm \, \mathrm{u} = \Frm`
-        - Solver_Set_Parabolic_Algorithm()\n
-        :math:`\Krm \, \mathrm{u} + \Crm \, \vrm = \Frm`
-        - Solver_Set_Hyperbolic_Algorithm()\n
-        :math:`\Krm \, \mathrm{u} + \Crm \, \vrm + \Mrm \, \arm = \Frm`
+        r"""The algorithm used to solve the problem.
+        (elliptic, parabolic, hyperbolic) see:
+
+        - Solver_Set_Elliptic_Algorithm() :math:`\Krm \, \mathrm{u} = \Frm`
+        - Solver_Set_Parabolic_Algorithm() :math:`\Krm \, \mathrm{u} + \Crm \, \vrm = \Frm`
+        - Solver_Set_Hyperbolic_Algorithm() :math:`\Krm \, \mathrm{u} + \Crm \, \vrm + \Mrm \, \arm = \Frm`
         """
         return self.__algo
 
@@ -672,11 +670,11 @@ class _Simu(_IObserver, _params.Updatable, ABC):
         self.__algo = AlgoType.elliptic
 
     def Solver_Set_Parabolic_Algorithm(self, dt: float, alpha=1 / 2) -> None:
-        """Sets the algorithm's resolution properties for a parabolic problem.
+        r"""Sets the algorithm's resolution properties for a parabolic problem.
 
-        Used to solve K u_np1 + C v_np1 = F_np1 with:
+        Used to solve :math:`\Krm \, u^{n+1} + \Crm \, \vrm^{n+1} = F^{n+1}` with:
 
-        u_np1 = u_n + dt v_npa
+        :math:`\mathrm{u}^{n+1} = \mathrm{u}^n + \dt \, \vrm^{n+\alpha}`
 
         Parameters
         ----------
@@ -718,8 +716,8 @@ class _Simu(_IObserver, _params.Updatable, ABC):
         gamma : float, optional
             The coefficient gamma, by default 1/2.
         algo : AlgoType, optional
-            Algo used to solve :math:`\Krm \, \mathrm{u} + \Crm \, \vrm + \Mrm \, \arm = \Frm`, by default AlgoType.newmark\n
-            K u_np1 + C v_np1 + M a_np1 = F_np1.
+            Algo used to solve :math:`\Krm \, \mathrm{u} + \Crm \, \vrm + \Mrm \, \arm = \Frm`, by default AlgoType.newmark
+            :math:`\Krm \, \mathrm{u}^{n+1} + \Crm \, \vrm^{n+1} + \Mrm \, \arm^{n+1} = \Frm^{n+1}`.
         alpha : float, optional
             The coefficient alpha, by default 1/2.
         """

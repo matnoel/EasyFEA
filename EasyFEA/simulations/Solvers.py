@@ -67,7 +67,7 @@ class AlgoType(str, Enum):
     midpoint = "midpoint"
     r"""Solve :math:`\Krm \, \mathrm{u}^{\frac{n+1}{2}} + \Crm \, \vrm^{\frac{n+1}{2}} + \Mrm \, a^{\frac{n+1}{2}} = F^{\frac{n+1}{2}}`"""
     hht = "hht"
-    r"""Solve :math:`\Krm \, \mathrm{u}^{\frac{n+1-\alpha}{2}} + \Crm \, \vrm^{\frac{n+1-\alpha}{2}} + \Mrm \, a^{\frac{n+1-\alpha}{2}} = F_{\frac{n+1-\alpha}{2}}`"""
+    r"""Solve :math:`\Krm \, \mathrm{u}^{\frac{n+1-\alpha}{2}} + \Crm \, \vrm^{\frac{n+1-\alpha}{2}} + \Mrm \, a^{\frac{n+1-\alpha}{2}} = F^{\frac{n+1-\alpha}{2}}`"""
 
     def __str__(self) -> str:
         return self.name
@@ -99,7 +99,7 @@ class ResolType(str, Enum):
 
 
 class SolverType(str, Enum):
-    """Solver type used to solve the linear system `A x = b`"""
+    r"""Solver type used to solve the linear system :math:`\Arm \, \mathrm{x} = \brm`"""
 
     pypardiso = "pypardiso"
     """pypardiso.spsolve"""
