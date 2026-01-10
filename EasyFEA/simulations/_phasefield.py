@@ -65,10 +65,10 @@ class PhaseFieldSimu(_Simu):
         \int _{\partial\Omega_t} \tb\cdot\vb \, \dS + \int _{\Omega} \fb\cdot\vb \, \dO \quad \forall \, \vb \in V
     
     Damage problem
-    
+
     .. math::
         \int_\Omega k_w \, \nabla \phi \cdot \nabla \delta \phi + r_w \, \phi \, \delta \phi \, \dO = 
-        \int_\Omega f_w \, \delta \phi \, \dO,
+        \int_\Omega f_w \, \delta \phi \, \dO \quad \forall \, \delta \phi \in V,
 
     Further Reading
     ^^^^^^^^^^^^^^^

@@ -31,6 +31,34 @@ from ._simu import _Simu, AlgoType
 
 
 class HyperElasticSimu(_Simu):
+    r"""Hyperelastic simulation.
+
+    Weak form:
+
+    .. math::
+        R(\ub, \vb) = \int_{\Omega_0} \boldsymbol{\Sigma}(\ub) : \Drm_\ub \eb(\ub) \cdot \vb \, \dO +
+        \int_{\Omega_0} \rho \, \ddot{\ub} \cdot \vb \, \dO  - \int_{\partial\Omega_0^t} \tb\cdot\vb \, \dS - \int_{\Omega_0} \fb\cdot\vb \, \dO \quad \forall \, \vb \in V
+
+    where :math:`\boldsymbol{\Sigma}` is the second Piola Kirchhoff stress tensor (PK2), :math:`\eb(\ub) := \frac{1}{2} \left( \Cb - \boldsymbol{1} \right) = \frac{1}{2} \left( \Fb^T \cdot \Fb - \boldsymbol{1} \right)` is the Green-Lagrange strain tensor and :math:`\Fb := \boldsymbol{1} +  \grad \ub` the deformation gradient.
+
+    This non linear problem is solve using the newton rapshon algorithm:
+
+    .. math::
+        A(\ub, \vb) \, \Delta \ub = - R(\ub, \vb) \quad \forall \, \vb \in V,
+
+    where the tangent is defined as:
+
+    .. math::
+        A(\ub, \vb) =
+        \int_{\Omega_0} \Drm_\ub \eb(\ub) : \dfrac{\partial^2 W}{\partial \eb^2}(\ub) : \Drm_\ub \eb(\vb) \, \dO +
+        \int_{\Omega_0} \dfrac{\partial W}{\partial \eb}(\ub) : \Drm_\ub^2 \eb(\vb) \, \dO
+        \quad \forall \, \vb \in V.
+
+    The implemented hyperelastic laws are available in :mod:`EasyFEA.models._hyperelastic_laws` and where constructed by the :ref:`ComputeHyperelasticLaws` script.
+    """
+
+    # TODO: add math
+
     def __init__(
         self,
         mesh: "Mesh",

@@ -23,6 +23,30 @@ from .Solvers import AlgoType
 
 
 class ThermalSimu(_Simu):
+    r"""Thermal simulation.
+    
+    Strong form:
+
+    .. math::
+        \begin{alignat}{2}
+            \diver q - r &= 0 && \quad \text{in } \Omega, \\
+            % 
+            q &= -k \, \nabla t && \quad \text{in } \Omega, \\
+            % 
+            q \cdot \nb &= -q_n && \quad \text{on } \partial\Omega_q, \\
+            % 
+            t &= t_D && \quad \text{on } \partial\Omega_t,
+        \end{alignat}
+
+    Weak form:
+
+    .. math::
+        \int_\Omega k \, \nabla t \cdot \nabla \delta t \, \dO =
+        \int_{\partial\Omega_q} q_n \, \delta t \, \dS +
+        \int_{\partial\Omega_t} r \, \delta t \, \dO \quad \forall \, \delta t \in V
+
+    """
+
     def __init__(
         self,
         mesh: "Mesh",

@@ -25,5 +25,9 @@ With this module, you can construct:
    :private-members: _IModel
    :undoc-members:
    :imported-members:
-   :show-inheritance:
+
+.. automodule:: EasyFEA.models._hyperelastic_laws
+   :members:
+   :private-members:
+   :undoc-members:
 ```

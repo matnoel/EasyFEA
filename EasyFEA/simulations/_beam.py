@@ -22,6 +22,10 @@ from ._simu import _Simu
 
 
 class BeamSimu(_Simu):
+    """Euler-Bernoulli beam simulation."""
+
+    # TODO: add math
+
     def __init__(self, mesh: "Mesh", model: Models.BeamStructure, verbosity=False):
         """Creates a Euler-Bernoulli beam simulation.
 
