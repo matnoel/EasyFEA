@@ -152,19 +152,16 @@ mathjax3_config = {
             **get_dict_formats("mathcal", "c"),
             **get_dict_formats("mathbf", "bf"),
             **get_dict_formats("mathbb", "bb"),
-            **get_dict_formats("boldsymbol", "bm"),
+            **get_dict_formats("boldsymbol", "b"),
             # operators
-            "bm": r"\boldsymbol",
-            "grad": r"\bm{\nabla}",
-            "lap": r"\bm{\Delta}",
-            "diver": r"\bm{\nabla} \cdot",
+            "grad": r"\boldsymbol{\nabla}",
+            "lap": r"\boldsymbol{\Delta}",
+            "diver": r"\boldsymbol{\nabla} \cdot",
             # others
             "dt": r"\Delta t",
             # meca
-            "Eps": r"\bm{\varepsilon}",
-            "Sig": r"\bm{\sigma}",
-            "U": r"\ubm",
-            "V": r"\vbm",
+            "Eps": r"\boldsymbol{\varepsilon}",
+            "Sig": r"\boldsymbol{\sigma}",
             # differentitation
             "dO": r"\drm \Omega",
             "dS": r"\drm S",

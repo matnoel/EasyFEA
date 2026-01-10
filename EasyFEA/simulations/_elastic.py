@@ -23,26 +23,26 @@ from .Solvers import AlgoType
 
 
 class ElasticSimu(_Simu):
-    r"""Linearized elasticity:
+    r"""Linearized elasticity.
     
-    .. math::
-        :label: simu-linearized-elasticity:
+    Strong form:
 
+    .. math::
         \begin{alignat}{2}
-            \diver{\Sig(\U)} + \fbm &= \rho \, \ddot{\U} && \quad \text{in } \Omega, \\
+            \diver{\Sig(\ub)} + \fb &= \rho \, \ddot{\ub} && \quad \text{in } \Omega, \\
             % 
-            \Sig(\U) \cdot \nbm &= \tbm && \quad \text{on } \partial\Omega_t, \\
+            \Sig(\ub) \cdot \nb &= \tb && \quad \text{on } \partial\Omega_t, \\
             %
-            \Sig(\U) &= \Cbb : \Eps(\U) && \quad \text{in } \Omega, \\
+            \Sig(\ub) &= \Cbb : \Eps(\ub) && \quad \text{in } \Omega, \\
             % 
-            \U &= \U_D && \quad \text{on } \partial\Omega_u,        
+            \ub &= \ub_D && \quad \text{on } \partial\Omega_u,        
         \end{alignat}
 
-    .. math::
-        :label: simu-linearized-elasticity-weak:
+    Weak form:
 
-        \int_\Omega \Sig(\U) : \Eps(\V) \, \dO + \int_\Omega \rho \, \ddot{\U} \cdot \V \, \dO =
-        \int _{\partial\Omega_t} \tbm\cdot\V \, \dS + \int _{\Omega} \fbm\cdot\V \, \dO \quad \forall \, \V \in V
+    .. math::
+        \int_\Omega \Sig(\ub) : \Eps(\vb) \, \dO + \int_\Omega \rho \, \ddot{\ub} \cdot \vb \, \dO =
+        \int _{\partial\Omega_t} \tb\cdot\vb \, \dS + \int _{\Omega} \fb\cdot\vb \, \dO \quad \forall \, \vb \in V
 
     """
 

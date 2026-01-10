@@ -27,6 +27,55 @@ from ._simu import _Simu, SolverType
 
 
 class PhaseFieldSimu(_Simu):
+    r"""PhaseField damage simulations for quasi-static brittle fracture.
+
+    Strong form:
+    ^^^^^^^^^^^^
+    
+    Damaged linear elastic problem
+
+    .. math::
+        \begin{alignat}{2}
+            -\diver{\Sig(\ub, \phi)}  &= \fb && \quad \text{in } \Omega, \\
+            % 
+            \Sig(\ub, \phi) \cdot \nb &= \tb && \quad \text{on } \partial\Omega_t, \\
+            %
+            \Sig(\ub, \phi) &= \Cbb(\phi) : \Eps(\ub) && \quad \text{in } \Omega, \\
+            % 
+            \ub &= \ub && \quad \text{on } \partial\Omega_u,        
+        \end{alignat}
+    
+    Damage problem
+
+    .. math::
+        \begin{alignat}{2}
+            - \nabla \cdot \left( \dfrac{2 \, G_c \, \ell}{c_w} \, \nabla\phi \right) + \dfrac{G_c}{c_w \, \ell} \, w'(\phi)
+            &= Y(\Eps, \phi) && \quad \text{in } \Omega, \\
+            % 
+            \nabla \phi \cdot \nb &= 0 && \quad \text{on } \partial\Omega,
+        \end{alignat}
+
+    Weak form:
+    ^^^^^^^^^^
+    
+    Damaged linear elastic problem
+
+    .. math::
+        \int_\Omega \Sig(\ub, \phi) : \Eps(\vb) \, \dO =
+        \int _{\partial\Omega_t} \tb\cdot\vb \, \dS + \int _{\Omega} \fb\cdot\vb \, \dO \quad \forall \, \vb \in V
+    
+    Damage problem
+    
+    .. math::
+        \int_\Omega k_w \, \nabla \phi \cdot \nabla \delta \phi + r_w \, \phi \, \delta \phi \, \dO = 
+        \int_\Omega f_w \, \delta \phi \, \dO,
+
+    Further Reading
+    ^^^^^^^^^^^^^^^
+
+    See section 3.1. of https://doi.org/10.1016/j.engfracmech.2025.111304 for additional mathematical details.
+    """
+
     def __init__(self, mesh: Mesh, model: Models.PhaseField, verbosity=False):
         """Creates a damage simulation.
 
