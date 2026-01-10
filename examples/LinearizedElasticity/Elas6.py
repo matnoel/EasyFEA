@@ -88,13 +88,13 @@ if __name__ == "__main__":
     # Beam simulation
     # ----------------------------------------------
 
-    beam = Models.BeamElasIsot(
+    beam = Models.Beam.Isotropic(
         2, Line(Point(-L / 2), Point(L / 2), L / 10), meshSection, E, v
     )
 
     mesh_beam = Mesher().Mesh_Beams([beam], ElemType.SEG3)
 
-    beams = Models.BeamStructure([beam])
+    beams = Models.Beam.BeamStructure([beam])
     simu_beam = Simulations.BeamSimu(mesh_beam, beams)
 
     simu_beam.add_dirichlet(
@@ -119,7 +119,7 @@ if __name__ == "__main__":
     # Elastic simulation
     # ----------------------------------------------
 
-    material = Models.ElasIsot(3, E, v)
+    material = Models.Elastic.Isotropic(3, E, v)
     simu = Simulations.ElasticSimu(mesh, material)
 
     simu.add_dirichlet(nodes_fixed, [0] * 3, simu.Get_unknowns())

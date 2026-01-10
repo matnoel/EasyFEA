@@ -179,7 +179,7 @@ def DoSimu(split: str, regu: str):
         # ----------------------------------------------
         # Material
         # ----------------------------------------------
-        material = Models.ElasIsot(
+        material = Models.Elastic.Isotropic(
             dim, E=210e9, v=0.3, planeStress=False, thickness=thickness
         )
         Gc = 2.7e3  # J/m2

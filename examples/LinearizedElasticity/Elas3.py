@@ -56,7 +56,9 @@ if __name__ == "__main__":
     # Simulation
     # ----------------------------------------------
 
-    material = Models.ElasIsot(dim, E, v, planeStress=False, thickness=thickness)
+    material = Models.Elastic.Isotropic(
+        dim, E, v, planeStress=False, thickness=thickness
+    )
     simu = Simulations.ElasticSimu(mesh, material)
 
     simu.add_dirichlet(nodes_y0, [0] * dim, simu.Get_unknowns())

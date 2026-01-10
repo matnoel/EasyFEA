@@ -56,8 +56,8 @@ if __name__ == "__main__":
     # ----------------------------------------------
     # Simulation
     # ----------------------------------------------
-    elas = Models.ElasIsot(dim, E=210000, v=0.25, planeStress=True)
-    material = Models.SaintVenantKirchhoff(
+    elas = Models.Elastic.Isotropic(dim, E=210000, v=0.25, planeStress=True)
+    material = Models.HyperElastic.SaintVenantKirchhoff(
         dim, elas.get_lambda(), elas.get_mu(), thickness=thickness
     )
 

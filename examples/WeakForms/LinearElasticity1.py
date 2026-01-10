@@ -35,7 +35,7 @@ if __name__ == "__main__":
     E = 210000  # MPa
     v = 0.3
 
-    elastic = Models.ElasIsot(dim, E, v, planeStress=True, thickness=h)
+    elastic = Models.Elastic.Isotropic(dim, E, v, planeStress=True, thickness=h)
     lmbda = elastic.get_lambda()
     mu = elastic.get_mu()
 

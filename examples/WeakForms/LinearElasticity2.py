@@ -33,7 +33,7 @@ if __name__ == "__main__":
     h = 13
 
     # model
-    elastic = Models.ElasIsot(dim, 210000, 0.3, planeStress=True, thickness=h)
+    elastic = Models.Elastic.Isotropic(dim, 210000, 0.3, planeStress=True, thickness=h)
     lmbda = elastic.get_lambda()
     mu = elastic.get_mu()
     rho = 8100 * 1e-9

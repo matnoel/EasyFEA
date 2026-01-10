@@ -14,8 +14,8 @@ if TYPE_CHECKING:
 from ..fem import MatrixType, Mesher, FeArray
 
 # materials
-from .. import Models
 from ..models import ModelType, Reshape_variable, Result_in_Strain_or_Stress_field
+from ..models._linear_elastic_laws import _Elastic
 
 # simu
 from ._simu import _Simu
@@ -46,7 +46,7 @@ class ElasticSimu(_Simu):
 
     """
 
-    def __init__(self, mesh: "Mesh", model: Models._Elas, verbosity=False):
+    def __init__(self, mesh: "Mesh", model: _Elastic, verbosity=False):
         """Creates a elastic simulation.
 
         Parameters
@@ -59,7 +59,7 @@ class ElasticSimu(_Simu):
             If True, the simulation can write in the terminal. Defaults to False.
         """
 
-        assert isinstance(model, Models._Elas), "model must be a elastic model"
+        assert isinstance(model, _Elastic), "model must be a elastic model"
         super().__init__(mesh, model, verbosity)
 
         # init
@@ -91,7 +91,7 @@ class ElasticSimu(_Simu):
         return self.dim
 
     @property
-    def material(self) -> Models._Elas:
+    def material(self) -> _Elastic:
         """elastic material"""
         return self.model  # type: ignore
 

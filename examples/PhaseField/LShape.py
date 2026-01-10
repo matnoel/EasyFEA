@@ -134,7 +134,7 @@ if __name__ == "__main__":
     # ----------------------------------------------
     # Simulation
     # ----------------------------------------------
-    material = Models.ElasIsot(dim, E, v, True, ep)
+    material = Models.Elastic.Isotropic(dim, E, v, True, ep)
     pfm = Models.PhaseField(material, split, regu, Gc, l0)
 
     folder_save = Simulations.PhaseFieldSimu.Folder(

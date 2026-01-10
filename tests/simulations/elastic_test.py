@@ -38,7 +38,7 @@ class TestElastic:
 
             dim = mesh.dim
 
-            comportement = Models.ElasIsot(dim, thickness=a)
+            comportement = Models.Elastic.Isotropic(dim, thickness=a)
 
             simu = Simulations.ElasticSimu(mesh, comportement, verbosity=False)
             simu.solver = SolverType.scipy
@@ -71,7 +71,7 @@ class TestElastic:
 
         mesh = Mesher().Mesh_2D(Domain(Point(), Point(1, 1)))
 
-        matIsot = Models.ElasIsot(2)
+        matIsot = Models.Elastic.Isotropic(2)
         # E, v, planeStress
 
         simu = Simulations.ElasticSimu(mesh, matIsot)
@@ -100,7 +100,7 @@ class TestElastic:
         except AssertionError:
             assert simu.needUpdate == False
 
-        matElasIsotTrans = Models.ElasIsotTrans(2, 10, 10, 10, 0.1, 0.1)
+        matElasIsotTrans = Models.Elastic.TransverselyIsotropic(2, 10, 10, 10, 0.1, 0.1)
         # El, Et, Gl, vl, vt, planeStress
         simu = Simulations.ElasticSimu(mesh, matElasIsotTrans)
         simu.Get_K_C_M_F()
@@ -118,7 +118,9 @@ class TestElastic:
         matElasIsotTrans.planeStress = not matElasIsotTrans.planeStress
         DoTest(simu)
 
-        matAnisot = Models.ElasAnisot(2, matElasIsotTrans.C, False, (0, 1), (-1, 0))
+        matAnisot = Models.Elastic.Anisotropic(
+            2, matElasIsotTrans.C, False, (0, 1), (-1, 0)
+        )
         # Set_C,
         simu = Simulations.ElasticSimu(mesh, matAnisot)
         simu.Get_K_C_M_F()

@@ -71,7 +71,7 @@ class TestWeakForms:
         # ----------------------------------------------
         # thermal simu
         # ----------------------------------------------
-        material = Models.ElasIsot(dim=2, E=210000, v=0.3, planeStress=False)
+        material = Models.Elastic.Isotropic(dim=2, E=210000, v=0.3, planeStress=False)
         lmbda = material.get_lambda()
         mu = material.get_mu()
 

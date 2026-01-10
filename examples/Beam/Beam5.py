@@ -50,8 +50,8 @@ if __name__ == "__main__":
     contour = Domain((-4 / 2, -8 / 2), (4 / 2, 8 / 2))
     section = Mesher().Mesh_2D(contour)
 
-    beams = [Models.BeamElasIsot(dim, line, section, E, v) for line in lines]
-    structure = Models.BeamStructure(beams)
+    beams = [Models.Beam.Isotropic(dim, line, section, E, v) for line in lines]
+    structure = Models.Beam.BeamStructure(beams)
 
     mesh = Mesher().Mesh_Beams(beams, elemType)
     # Display.Plot_Mesh(mesh)

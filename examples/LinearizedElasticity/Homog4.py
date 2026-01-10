@@ -285,7 +285,7 @@ if __name__ == "__main__":
         E[elements_inclusion] = 50
         v[elements_inclusion] = 0.3
 
-    material = Models.ElasIsot(3, E, v)
+    material = Models.Elastic.Isotropic(3, E, v)
 
     simu = Simulations.ElasticSimu(mesh, material)
 

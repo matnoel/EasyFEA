@@ -14,8 +14,8 @@ if TYPE_CHECKING:
 from ..fem import MatrixType, LagrangeCondition, FeArray
 
 # materials
-from .. import Models
 from ..models import ModelType, Reshape_variable
+from ..models._beam import BeamStructure, _Beam, Isotropic
 
 # simu
 from ._simu import _Simu
@@ -26,7 +26,7 @@ class BeamSimu(_Simu):
 
     # TODO: add math
 
-    def __init__(self, mesh: "Mesh", model: Models.BeamStructure, verbosity=False):
+    def __init__(self, mesh: "Mesh", model: BeamStructure, verbosity=False):
         """Creates a Euler-Bernoulli beam simulation.
 
         Parameters
@@ -39,12 +39,12 @@ class BeamSimu(_Simu):
             If True, the simulation can write in the terminal. Defaults to False.
         """
 
-        if isinstance(model, Models._Beam):
+        if isinstance(model, _Beam):
             # changes the beam model as a beam structure
-            model = Models.BeamStructure([model])
+            model = BeamStructure([model])
 
         assert isinstance(
-            model, Models.BeamStructure
+            model, BeamStructure
         ), "model must be a beam model or a beam structure"
         super().__init__(mesh, model, verbosity)
 
@@ -70,7 +70,7 @@ class BeamSimu(_Simu):
         return [ModelType.beam]
 
     @property
-    def structure(self) -> Models.BeamStructure:
+    def structure(self) -> BeamStructure:
         """Beam structure."""
         return self.model  # type: ignore [return-value]
 
@@ -557,7 +557,7 @@ class BeamSimu(_Simu):
             Iy_e_pg[elems] = beam.Iy
             Iz_e_pg[elems] = beam.Iz
             J_e_pg[elems] = beam.J
-            if isinstance(beam, Models.BeamElasIsot):
+            if isinstance(beam, Isotropic):
                 mu_e_pg[elems] = beam.mu
 
         y_e_pg = np.sqrt(S_e_pg)

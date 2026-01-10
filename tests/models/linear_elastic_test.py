@@ -7,7 +7,13 @@ import pytest
 from EasyFEA import np
 
 # materials
-from EasyFEA.Models import _Elas, ElasIsot, ElasIsotTrans, ElasAnisot, ElasOrthotropic
+from EasyFEA.models._linear_elastic_laws import (
+    _Elastic,
+    Isotropic,
+    TransverselyIsotropic,
+    Orthotropic,
+    Anisotropic,
+)
 from EasyFEA.models import (
     Get_Pmat,
     Apply_Pmat,
@@ -17,19 +23,19 @@ from EasyFEA.models import (
 
 
 @pytest.fixture
-def setup_elastic_materials() -> list[_Elas]:
+def setup_elastic_materials() -> list[_Elastic]:
 
-    elasticMaterials: list[_Elas] = []
+    elasticMaterials: list[_Elastic] = []
 
-    for comp in _Elas.Available_Laws():
-        if comp == ElasIsot:
-            elasticMaterials.append(ElasIsot(2, E=210e9, v=0.3, planeStress=True))
-            elasticMaterials.append(ElasIsot(2, E=210e9, v=0.3, planeStress=False))
-            elasticMaterials.append(ElasIsot(3, E=210e9, v=0.3))
-        elif comp == ElasIsotTrans:
+    for comp in _Elastic.Available_Laws():
+        if comp == Isotropic:
+            elasticMaterials.append(Isotropic(2, E=210e9, v=0.3, planeStress=True))
+            elasticMaterials.append(Isotropic(2, E=210e9, v=0.3, planeStress=False))
+            elasticMaterials.append(Isotropic(3, E=210e9, v=0.3))
+        elif comp == TransverselyIsotropic:
             c = np.sqrt(2) / 2
             elasticMaterials.append(
-                ElasIsotTrans(
+                TransverselyIsotropic(
                     3,
                     El=11580,
                     Et=500,
@@ -41,7 +47,7 @@ def setup_elastic_materials() -> list[_Elas]:
                 )
             )
             elasticMaterials.append(
-                ElasIsotTrans(
+                TransverselyIsotropic(
                     3,
                     El=11580,
                     Et=500,
@@ -53,17 +59,17 @@ def setup_elastic_materials() -> list[_Elas]:
                 )
             )
             elasticMaterials.append(
-                ElasIsotTrans(
+                TransverselyIsotropic(
                     2, El=11580, Et=500, Gl=450, vl=0.02, vt=0.44, planeStress=True
                 )
             )
             elasticMaterials.append(
-                ElasIsotTrans(
+                TransverselyIsotropic(
                     2, El=11580, Et=500, Gl=450, vl=0.02, vt=0.44, planeStress=False
                 )
             )
 
-        elif comp == ElasAnisot:
+        elif comp == Anisotropic:
             C_voigt2D = np.array([[60, 20, 0], [20, 120, 0], [0, 0, 30]])
 
             axis1_1 = np.array([1, 0, 0])
@@ -73,21 +79,21 @@ def setup_elastic_materials() -> list[_Elas]:
             axis1_2 = np.array([np.cos(tetha), np.sin(tetha), 0])
             axis2_2 = np.array([-np.sin(tetha), np.cos(tetha), 0])
 
-            elasticMaterials.append(ElasAnisot(2, C_voigt2D, True, axis1_1, axis2_1))
-            elasticMaterials.append(ElasAnisot(2, C_voigt2D, False, axis1_1, axis2_1))
-            elasticMaterials.append(ElasAnisot(2, C_voigt2D, True, axis1_2, axis2_2))
-            elasticMaterials.append(ElasAnisot(2, C_voigt2D, False, axis1_2, axis2_2))
+            elasticMaterials.append(Anisotropic(2, C_voigt2D, True, axis1_1, axis2_1))
+            elasticMaterials.append(Anisotropic(2, C_voigt2D, False, axis1_1, axis2_1))
+            elasticMaterials.append(Anisotropic(2, C_voigt2D, True, axis1_2, axis2_2))
+            elasticMaterials.append(Anisotropic(2, C_voigt2D, False, axis1_2, axis2_2))
 
     return elasticMaterials
 
 
 class TestLinearElastic:
 
-    def test_Elas_Isot(self, setup_elastic_materials):
+    def test_Elastic_Isot(self, setup_elastic_materials):
 
         for mat in setup_elastic_materials:
-            assert isinstance(mat, _Elas)
-            if isinstance(mat, ElasIsot):
+            assert isinstance(mat, _Elastic)
+            if isinstance(mat, Isotropic):
                 E = mat.E
                 v = mat.v
                 if mat.dim == 2:
@@ -126,7 +132,7 @@ class TestLinearElastic:
                 test_C = np.linalg.norm(c - mat.C) / np.linalg.norm(c)
                 assert test_C < 1e-12
 
-    def test_ElasAnisot(self):
+    def test_ElasticAnisot(self):
 
         C_voigt2D = np.array([[60, 20, 0], [20, 120, 0], [0, 0, 30]])
 
@@ -148,14 +154,14 @@ class TestLinearElastic:
         axis1_2 = np.array([np.cos(a), np.sin(a), 0])
         axis2_2 = np.array([-np.sin(a), np.cos(a), 0])
 
-        mat_2D_1 = ElasAnisot(2, C_voigt2D, True, axis1_1, axis2_1)
+        mat_2D_1 = Anisotropic(2, C_voigt2D, True, axis1_1, axis2_1)
 
-        mat_2D_2 = ElasAnisot(2, C_voigt2D, True, axis1_2, axis2_2)
+        mat_2D_2 = Anisotropic(2, C_voigt2D, True, axis1_2, axis2_2)
 
-        mat_2D_3 = ElasAnisot(2, C_voigt2D, True)
+        mat_2D_3 = Anisotropic(2, C_voigt2D, True)
 
-        mat_3D_1 = ElasAnisot(3, C_voigt3D, True, axis1_1, axis2_1)
-        mat_3D_2 = ElasAnisot(3, C_voigt3D, True, axis1_2, axis2_2)
+        mat_3D_1 = Anisotropic(3, C_voigt3D, True, axis1_1, axis2_1)
+        mat_3D_2 = Anisotropic(3, C_voigt3D, True, axis1_2, axis2_2)
 
         listComp = [mat_2D_1, mat_2D_2, mat_2D_3, mat_3D_1, mat_3D_2]
 
@@ -164,7 +170,7 @@ class TestLinearElastic:
             test_Symetry = np.linalg.norm(matC.T - matC)
             assert test_Symetry <= 1e-12
 
-    def test_Elas_IsotTrans(self):
+    def test_Elastic_IsotTrans(self):
 
         El = 11580
         Et = 500
@@ -180,7 +186,7 @@ class TestLinearElastic:
         #               [0, 0, 0, 0, 0, 2*Gl]])
 
         # axis_l = [1, 0, 0] et axis_t = [0, 1, 0]
-        mat1 = ElasIsotTrans(
+        mat1 = TransverselyIsotropic(
             2,
             El=El,
             Et=Et,
@@ -207,7 +213,7 @@ class TestLinearElastic:
         assert test_c1 < 1e-12
 
         # axis_l = [0, 1, 0] et axis_t = [1, 0, 0]
-        mat2 = ElasIsotTrans(
+        mat2 = TransverselyIsotropic(
             2,
             El=El,
             Et=Et,
@@ -231,7 +237,7 @@ class TestLinearElastic:
         assert test_c2 < 1e-12
 
         # axis_l = [0, 0, 1] et axis_t = [1, 0, 0]
-        mat = ElasIsotTrans(
+        mat = TransverselyIsotropic(
             2,
             El=El,
             Et=Et,
@@ -250,7 +256,7 @@ class TestLinearElastic:
 
         mat.Walpole_Decomposition()
 
-    def test_Elas_Orthotropic(self):
+    def test_Elastic_Orthotropic(self):
 
         El = 11580
         Et = 500
@@ -259,10 +265,10 @@ class TestLinearElastic:
         vt = 0.44
 
         # axis_l = [0, 0, 1] et axis_t = [0, 1, 0]
-        mat0_isot = ElasIsot(3, E=El, v=vl, planeStress=False)
+        mat0_isot = Isotropic(3, E=El, v=vl, planeStress=False)
         mu = mat0_isot.get_mu()
 
-        mat0_ortho = ElasOrthotropic(
+        mat0_ortho = Orthotropic(
             3,
             E1=El,
             E2=El,
@@ -295,7 +301,7 @@ class TestLinearElastic:
         # )
 
         # axis_l = [1, 0, 0] et axis_t = [0, 1, 0]
-        mat1_isotTrans = ElasIsotTrans(
+        mat1_isotTrans = TransverselyIsotropic(
             3,
             El=El,
             Et=Et,
@@ -308,7 +314,7 @@ class TestLinearElastic:
         )
         Gt = mat1_isotTrans.Gt
 
-        mat1_ortho = ElasOrthotropic(
+        mat1_ortho = Orthotropic(
             3,
             E1=El,
             E2=Et,
@@ -330,7 +336,7 @@ class TestLinearElastic:
         assert test_c1 < 1e-12
 
         # axis_l = [0, 1, 0] et axis_t = [1, 0, 0]
-        mat2_isotTrans = ElasIsotTrans(
+        mat2_isotTrans = TransverselyIsotropic(
             2,
             El=El,
             Et=Et,
@@ -343,7 +349,7 @@ class TestLinearElastic:
         )
         Gt = mat2_isotTrans.Gt
 
-        mat2_ortho = ElasOrthotropic(
+        mat2_ortho = Orthotropic(
             2,
             E1=El,
             E2=Et,
@@ -402,7 +408,7 @@ class TestLinearElastic:
 
             for c in [_, _e, _e_pg, _e2]:
 
-                mat = ElasIsotTrans(dim, El * c, Et * c, Gl * c, vl * c, vt * c)
+                mat = TransverselyIsotropic(dim, El * c, Et * c, Gl * c, vl * c, vt * c)
                 C = mat.C
                 S = mat.S
 

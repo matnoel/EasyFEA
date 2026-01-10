@@ -46,7 +46,7 @@ if __name__ == "__main__":
     # Simulation
     # ----------------------------------------------
 
-    mat = Models.SaintVenantKirchhoff(3, lmbda, mu)
+    mat = Models.HyperElastic.SaintVenantKirchhoff(3, lmbda, mu)
 
     simu = Simulations.HyperElasticSimu(mesh, mat)
 

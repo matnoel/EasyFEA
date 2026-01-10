@@ -104,7 +104,7 @@ if __name__ == "__main__":
     # ----------------------------------------------
     # Simulation
     # ----------------------------------------------
-    material = Models.ElasIsot(
+    material = Models.Elastic.Isotropic(
         dim, E=210000, v=0.3, planeStress=True, thickness=thickness
     )
     simu = Simulations.ElasticSimu(mesh_slave, material)

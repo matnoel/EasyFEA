@@ -44,7 +44,7 @@ if __name__ == "__main__":
     # model
     E = 210000  # MPa (Young's modulus)
     v = 0.25  # Poisson's ratio
-    material = Models.ElasIsot(dim, thickness=b, E=E, v=v, planeStress=True)
+    material = Models.Elastic.Isotropic(dim, thickness=b, E=E, v=v, planeStress=True)
 
     # load
     P = 800  # N

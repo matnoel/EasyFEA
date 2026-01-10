@@ -218,7 +218,7 @@ if __name__ == "__main__":
     Display.Plot_Result(mesh, E * 1e-9, nodeValues=False, title="E [GPa]")
     Display.Plot_Result(mesh, v, nodeValues=False, title="v")
 
-    material = Models.ElasIsot(2, E, v, planeStress=False)
+    material = Models.Elastic.Isotropic(2, E, v, planeStress=False)
 
     simu = Simulations.ElasticSimu(mesh, material)
 

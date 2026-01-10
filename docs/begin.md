@@ -53,7 +53,7 @@ Next, define a linear {py:class}`~EasyFEA.models.ElasIsot` material and set up t
     v = 0.3
     F = -800  # N
 
-    mat = Models.ElasIsot(2, E, v, planeStress=True, thickness=h)
+    mat = Models.Elastic.Isotropic(2, E, v, planeStress=True, thickness=h)
 
     simu = Simulations.ElasticSimu(mesh, mat)
 ```

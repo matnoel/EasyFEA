@@ -186,7 +186,7 @@ def DoSimu(split: str, regu: str):
         E = 12e9
         v = 0.3
         planeStress = False
-        material = Models.ElasIsot(2, E, v, planeStress, thickness)
+        material = Models.Elastic.Isotropic(2, E, v, planeStress, thickness)
 
         gc = 1.4
         pfm = Models.PhaseField(material, split, regu, gc, l0, solver=solver)

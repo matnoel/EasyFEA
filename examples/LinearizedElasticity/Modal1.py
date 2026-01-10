@@ -48,7 +48,7 @@ if __name__ == "__main__":
     # ----------------------------------------------
     # Simulation
     # ----------------------------------------------
-    material = Models.ElasIsot(dim, planeStress=True, thickness=thickness)
+    material = Models.Elastic.Isotropic(dim, planeStress=True, thickness=thickness)
 
     simu = Simulations.ElasticSimu(mesh, material)
 

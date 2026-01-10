@@ -10,25 +10,35 @@ from .models import Reshape_variable
 # Elastic
 # ----------------------------------------------
 
-from .models._linear_elastic_laws import (
-    _Elas,
-    ElasIsot,
-    ElasIsotTrans,
-    ElasOrthotropic,
-    ElasAnisot,
-)
+
+class Elastic:
+    """Elastic models"""
+
+    from .models._linear_elastic_laws import (
+        _Elastic,
+        Isotropic,
+        TransverselyIsotropic,
+        Orthotropic,
+        Anisotropic,
+    )
+
 
 # ----------------------------------------------
 # HyperElastic
 # ----------------------------------------------
 
-from .models._hyperelastic_laws import (
-    NeoHookean,
-    MooneyRivlin,
-    SaintVenantKirchhoff,
-    HolzapfelOgden,
-)
-from .models._hyperelastic import HyperElasticState
+
+class HyperElastic:
+    """Hyperelastic models"""
+
+    from .models._hyperelastic import HyperElasticState
+    from .models._hyperelastic_laws import (
+        NeoHookean,
+        MooneyRivlin,
+        SaintVenantKirchhoff,
+        HolzapfelOgden,
+    )
+
 
 # ----------------------------------------------
 # PhaseField
@@ -40,7 +50,12 @@ from .models._phasefield import PhaseField
 # Beam
 # ----------------------------------------------
 
-from .models._beam import _Beam, BeamStructure, BeamElasIsot
+
+class Beam:
+    """Beam models"""
+
+    from .models._beam import _Beam, BeamStructure, Isotropic
+
 
 # ----------------------------------------------
 # Thermal

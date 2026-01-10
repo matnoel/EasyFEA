@@ -222,7 +222,7 @@ class _Beam(_IModel):
         return J
 
 
-class BeamElasIsot(_Beam):
+class Isotropic(_Beam):
     """Isotropic elastic beam."""
 
     def __init__(

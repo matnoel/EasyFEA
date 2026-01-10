@@ -68,7 +68,9 @@ if __name__ == "__main__":
     # ----------------------------------------------
 
     # Define material properties
-    material = Models.ElasIsot(2, E=210000e6, v=0.3, planeStress=False, thickness=1)
+    material = Models.Elastic.Isotropic(
+        2, E=210000e6, v=0.3, planeStress=False, thickness=1
+    )
     lmbda = material.get_lambda()
     mu = material.get_mu()
 

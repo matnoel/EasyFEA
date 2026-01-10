@@ -18,7 +18,9 @@ class TestPhaseField:
         nodes_0 = mesh.Nodes_Conditions(lambda x, y, z: x == 0)
         nodes_a = mesh.Nodes_Conditions(lambda x, y, z: x == a)
 
-        material = Models.ElasIsot(2, E=210000, v=0.3, planeStress=True, thickness=1)
+        material = Models.Elastic.Isotropic(
+            2, E=210000, v=0.3, planeStress=True, thickness=1
+        )
 
         splits = list(Models.PhaseField.SplitType)
         regularizations = list(Models.PhaseField.ReguType)
@@ -51,7 +53,7 @@ class TestPhaseField:
 
         mesh = Mesher().Mesh_2D(Domain((0, 0), (1, 1)))
 
-        matIsot = Models.ElasIsot(2)
+        matIsot = Models.Elastic.Isotropic(2)
         # E, v, planeStress
 
         pfm = Models.PhaseField(matIsot, "He", "AT1", 1, 0.01)

@@ -2,24 +2,6 @@
 # This file is part of the EasyFEA project.
 # EasyFEA is distributed under the terms of the GNU General Public License v3, see LICENSE.txt and CREDITS.md for more information.
 
-from ._beam import _Beam, BeamElasIsot, BeamStructure
-from ._hyperelastic_laws import (
-    _HyperElas,
-    NeoHookean,
-    MooneyRivlin,
-    SaintVenantKirchhoff,
-    HolzapfelOgden,
-)
-from ._hyperelastic import HyperElasticState
-from ._linear_elastic_laws import (
-    _Elas,
-    ElasIsot,
-    ElasIsotTrans,
-    ElasOrthotropic,
-    ElasAnisot,
-)
-from ._phasefield import PhaseField
-from ._thermal import Thermal
 from ._utils import (
     ModelType,
     _IModel,
@@ -33,4 +15,3 @@ from ._utils import (
     Get_Pmat,
     Apply_Pmat,
 )
-from ._weak_forms import WeakForms

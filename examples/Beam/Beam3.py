@@ -67,7 +67,7 @@ if __name__ == "__main__":
     pL = Point(x=L / 2)
     p2 = Point(x=L)
     line = Line(p1, p2, L / 9)
-    beam = Models.BeamElasIsot(beamDim, line, section, E, v)
+    beam = Models.Beam.Isotropic(beamDim, line, section, E, v)
 
     mesh = Mesher().Mesh_Beams([beam], additionalPoints=[pL], elemType=elemType)
 
@@ -76,7 +76,7 @@ if __name__ == "__main__":
     # ----------------------------------------------
 
     # Initialize the beam structure with the defined beam segments
-    beamStructure = Models.BeamStructure([beam])
+    beamStructure = Models.Beam.BeamStructure([beam])
 
     # Create the beam simulation
     simu = Simulations.BeamSimu(mesh, beamStructure)

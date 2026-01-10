@@ -6,7 +6,7 @@ import pytest
 
 from EasyFEA import Mesher, ElemType, Models, Simulations, np
 from EasyFEA.fem._linalg import Trace, TensorProd
-from EasyFEA.models import Project_Kelvin, HyperElasticState
+from EasyFEA.models import Project_Kelvin
 from EasyFEA.Geoms import Domain
 
 
@@ -25,7 +25,7 @@ def simuIsot():
     nodesX0 = mesh.Nodes_Conditions(lambda x, y, z: x == 0)
     nodesXL = mesh.Nodes_Conditions(lambda x, y, z: x == L)
 
-    matIsot = Models.ElasIsot(3)
+    matIsot = Models.Elastic.Isotropic(3)
     simuIsot = Simulations.ElasticSimu(mesh, matIsot)
 
     simuIsot.add_dirichlet(nodesX0, [0, 0, 0], simuIsot.Get_unknowns())
@@ -40,15 +40,17 @@ class TestSaintVenantKirchhoff:
 
     def test_chain_rule(self, simuIsot: Simulations.ElasticSimu):
 
-        matIsot: Models.ElasIsot = simuIsot.material
+        matIsot: Models.Elastic.Isotropic = simuIsot.material
         mesh = simuIsot.mesh
         u = simuIsot.displacement
 
         matrixType = "rigi"
 
-        mat = Models.SaintVenantKirchhoff(3, matIsot.get_lambda(), matIsot.get_mu())
+        mat = Models.HyperElastic.SaintVenantKirchhoff(
+            3, matIsot.get_lambda(), matIsot.get_mu()
+        )
 
-        hyperElasticState = HyperElasticState(mesh, u, matrixType)
+        hyperElasticState = Models.HyperElastic.HyperElasticState(mesh, u, matrixType)
 
         # test W
         E = hyperElasticState.Compute_GreenLagrange()

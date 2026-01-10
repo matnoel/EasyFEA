@@ -83,7 +83,7 @@ class TestBeam:
                 point1 = Point()
                 point2 = Point(x=L)
                 line = Line(point1, point2, L / nL)
-                beam = Models.BeamElasIsot(beamDim, line, section, E, v)
+                beam = Models.Beam.Isotropic(beamDim, line, section, E, v)
                 listePoutre = [beam]
 
             elif problem in ["Flexion", "BiEnca"]:
@@ -93,7 +93,7 @@ class TestBeam:
                 point3 = Point(x=L)
 
                 line = Line(point1, point3, L / nL)
-                beam = Models.BeamElasIsot(beamDim, line, section, E, v)
+                beam = Models.Beam.Isotropic(beamDim, line, section, E, v)
                 listePoutre = [beam]
 
             Iz = beam.Iz
@@ -105,7 +105,7 @@ class TestBeam:
 
             # Modele poutre
 
-            beamStruct = Models.BeamStructure(listePoutre)
+            beamStruct = Models.Beam.BeamStructure(listePoutre)
 
             # Simulation
 
@@ -240,12 +240,12 @@ class TestBeam:
         sect3 = sect2.copy()
         sect3.Rotate(30, sect3.center)
 
-        beam1 = Models.BeamElasIsot(2, Line(Point(), Point(5)), sect1, 210e9, v=0.1)
-        beam2 = Models.BeamElasIsot(2, Line(Point(5), Point(10)), sect2, 210e9, v=0.1)
+        beam1 = Models.Beam.Isotropic(2, Line(Point(), Point(5)), sect1, 210e9, v=0.1)
+        beam2 = Models.Beam.Isotropic(2, Line(Point(5), Point(10)), sect2, 210e9, v=0.1)
 
         beams = [beam1, beam2]
 
-        structure = Models.BeamStructure(beams)
+        structure = Models.Beam.BeamStructure(beams)
 
         mesh = Mesher().Mesh_Beams(beams)
 

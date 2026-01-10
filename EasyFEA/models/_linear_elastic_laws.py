@@ -30,7 +30,7 @@ from ..fem._linalg import TensorProd
 # ----------------------------------------------
 
 
-class _Elas(_IModel, ABC):
+class _Elastic(_IModel, ABC):
     """Linearized Elasticity material.\n
     ElasIsot, ElasIsotTrans and ElasAnisot inherit from _Elas class.
     """
@@ -67,7 +67,7 @@ class _Elas(_IModel, ABC):
     # Model
     @staticmethod
     def Available_Laws():
-        laws = [ElasIsot, ElasIsotTrans, ElasAnisot]
+        laws = [Isotropic, TransverselyIsotropic, Anisotropic]
         return laws
 
     @property
@@ -270,7 +270,7 @@ class _Elas(_IModel, ABC):
 # ----------------------------------------------
 
 
-class ElasIsot(_Elas):
+class Isotropic(_Elastic):
     """Isotropic Linearized Elastic material."""
 
     E: float = _params.PositiveParameter()
@@ -303,7 +303,7 @@ class ElasIsot(_Elas):
         thickness : float, optional
             thickness, by default 1.0
         """
-        _Elas.__init__(self, dim, thickness, planeStress)
+        _Elastic.__init__(self, dim, thickness, planeStress)
 
         self.E = E
         self.v = v
@@ -450,7 +450,7 @@ class ElasIsot(_Elas):
 # ----------------------------------------------
 
 
-class ElasIsotTrans(_Elas):
+class TransverselyIsotropic(_Elastic):
     """Transversely Isotropic Linearized Elastic material."""
 
     El: float = _params.PositiveParameter()
@@ -518,7 +518,7 @@ class ElasIsotTrans(_Elas):
         thickness : float, optional
             thickness, by default 1.0
         """
-        _Elas.__init__(self, dim, thickness, planeStress)
+        _Elastic.__init__(self, dim, thickness, planeStress)
 
         self.El = El
         self.Et = Et
@@ -699,7 +699,7 @@ class ElasIsotTrans(_Elas):
 # ----------------------------------------------
 
 
-class ElasOrthotropic(_Elas):
+class Orthotropic(_Elastic):
     """Orthotropic Linearized Elastic material."""
 
     E1: float = _params.PositiveParameter()
@@ -798,7 +798,7 @@ class ElasOrthotropic(_Elas):
         thickness : float, optional
             thickness, by default 1.0
         """
-        _Elas.__init__(self, dim, thickness, planeStress)
+        _Elastic.__init__(self, dim, thickness, planeStress)
 
         self.E1 = E1
         self.E2 = E2
@@ -1048,7 +1048,7 @@ class ElasOrthotropic(_Elas):
 # ----------------------------------------------
 
 
-class ElasAnisot(_Elas):
+class Anisotropic(_Elastic):
     """Anisotropic Linearized Elastic material."""
 
     def __str__(self) -> str:
@@ -1093,7 +1093,7 @@ class ElasAnisot(_Elas):
             Anisotropic behavior law
         """
         # here planeStress is set to False because we just know the C matrix
-        _Elas.__init__(self, dim, thickness, False)
+        _Elastic.__init__(self, dim, thickness, False)
 
         axis1 = AsCoords(axis1)
         axis2 = AsCoords(axis2)

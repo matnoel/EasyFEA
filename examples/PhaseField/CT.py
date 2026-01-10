@@ -156,7 +156,7 @@ if __name__ == "__main__":
     # Simu
     # ----------------------------------------------
 
-    mat = Models.ElasIsot(dim, thickness=thickness, planeStress=True)
+    mat = Models.Elastic.Isotropic(dim, thickness=thickness, planeStress=True)
 
     pfm = Models.PhaseField(mat, split, regu, Gc, l0)
 

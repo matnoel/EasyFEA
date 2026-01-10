@@ -87,7 +87,7 @@ if __name__ == "__main__":
     # Formulations
     # ----------------------------------------------
 
-    elastic = Models.ElasIsot(dim, E=1, v=0.3, planeStress=True)
+    elastic = Models.Elastic.Isotropic(dim, E=1, v=0.3, planeStress=True)
     mu = elastic.get_mu()
     lmbda = elastic.get_lambda()
 

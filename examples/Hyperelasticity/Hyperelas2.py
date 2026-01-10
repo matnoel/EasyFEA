@@ -46,10 +46,10 @@ if __name__ == "__main__":
     # Simulation
     # ----------------------------------------------
 
-    isot = Models.ElasIsot(dim, E=1, v=0.3)
+    isot = Models.Elastic.Isotropic(dim, E=1, v=0.3)
     lmbda = isot.get_lambda()
     mu = isot.get_mu()
-    mat = Models.SaintVenantKirchhoff(dim, lmbda, mu, thickness=h)
+    mat = Models.HyperElastic.SaintVenantKirchhoff(dim, lmbda, mu, thickness=h)
 
     simu = Simulations.HyperElasticSimu(mesh, mat)
 
