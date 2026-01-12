@@ -21,7 +21,7 @@ from ..utilities import _params, _types
 # ----------------------------------------------
 
 
-class _HyperElas(_IModel, ABC):
+class _HyperElastic(_IModel, ABC):
     """HyperElastic material.\n
     `NeoHookean`, `MooneyRivlin`, `SaintVenantKirchhoff` and `HolzapfelOgden` inherit from `_HyperElas` class.
     """
@@ -181,7 +181,7 @@ class _HyperElas(_IModel, ABC):
 # ----------------------------------------------
 
 
-class NeoHookean(_HyperElas):
+class NeoHookean(_HyperElastic):
 
     K: float = _params.PositiveScalarParameter()
     """Bulk modulus"""
@@ -199,7 +199,7 @@ class NeoHookean(_HyperElas):
             thickness, by default 1.0
         """
 
-        _HyperElas.__init__(self, dim, thickness)
+        _HyperElastic.__init__(self, dim, thickness)
 
         self.K = K
 
@@ -261,7 +261,7 @@ class NeoHookean(_HyperElas):
 # ----------------------------------------------
 
 
-class MooneyRivlin(_HyperElas):
+class MooneyRivlin(_HyperElastic):
 
     K1: float = _params.PositiveScalarParameter()
     """Kappa1"""
@@ -296,7 +296,7 @@ class MooneyRivlin(_HyperElas):
             thickness, by default 1.0
         """
 
-        _HyperElas.__init__(self, dim, thickness)
+        _HyperElastic.__init__(self, dim, thickness)
 
         self.K1 = K1
         self.K2 = K2
@@ -395,7 +395,7 @@ class MooneyRivlin(_HyperElas):
 # ----------------------------------------------
 
 
-class SaintVenantKirchhoff(_HyperElas):
+class SaintVenantKirchhoff(_HyperElastic):
 
     lmbda: float = _params.ScalarParameter()
     """Lame's first parameter"""
@@ -428,7 +428,7 @@ class SaintVenantKirchhoff(_HyperElas):
             Bulk modulus, by default 0.0
         """
 
-        _HyperElas.__init__(self, dim, thickness)
+        _HyperElastic.__init__(self, dim, thickness)
 
         self.lmbda = lmbda
         self.mu = mu
@@ -508,7 +508,7 @@ class SaintVenantKirchhoff(_HyperElas):
 # ----------------------------------------------
 
 
-class HolzapfelOgden(_HyperElas):
+class HolzapfelOgden(_HyperElastic):
 
     C0: float = _params.PositiveScalarParameter()
     C1: float = _params.PositiveScalarParameter()
@@ -592,7 +592,7 @@ class HolzapfelOgden(_HyperElas):
             thickness, by default 1.0
         """
 
-        _HyperElas.__init__(self, dim, thickness)
+        _HyperElastic.__init__(self, dim, thickness)
 
         self.C0 = C0
         self.C1 = C1

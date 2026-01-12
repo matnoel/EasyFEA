@@ -12,7 +12,6 @@ from ..utilities import Display, _types
 if TYPE_CHECKING:
     from ..fem import Mesh
 from ..fem import MatrixType, FeArray
-from ..fem._linalg import Det
 
 # materials
 from ..models import (
@@ -23,7 +22,7 @@ from ..models import (
 )
 
 if TYPE_CHECKING:
-    from ..models._hyperelastic_laws import _HyperElas
+    from ..models._hyperelastic_laws import _HyperElastic
 from ..models._hyperelastic import HyperElasticState
 
 # simu
@@ -36,7 +35,7 @@ class HyperElastic(_Simu):
     Weak form:
 
     .. math::
-        R(\ub, \vb) = \int_{\Omega_0} \boldsymbol{\Sigma}(\ub) : \Drm_\ub \eb(\ub) \cdot \vb \, \dO +
+        R(\ub; \vb) = \int_{\Omega_0} \boldsymbol{\Sigma}(\ub) : \Drm_\ub \eb(\ub) \cdot \vb \, \dO +
         \int_{\Omega_0} \rho \, \ddot{\ub} \cdot \vb \, \dO  - \int_{\partial\Omega_0^t} \tb\cdot\vb \, \dS - \int_{\Omega_0} \fb\cdot\vb \, \dO \quad \forall \, \vb \in V
 
     where :math:`\boldsymbol{\Sigma}` is the second Piola Kirchhoff stress tensor (PK2), :math:`\eb(\ub) := \frac{1}{2} \left( \Cb - \boldsymbol{1} \right) = \frac{1}{2} \left( \Fb^T \cdot \Fb - \boldsymbol{1} \right)` is the Green-Lagrange strain tensor and :math:`\Fb := \boldsymbol{1} +  \grad \ub` the deformation gradient.
@@ -44,17 +43,19 @@ class HyperElastic(_Simu):
     This non linear problem is solve using the newton rapshon algorithm:
 
     .. math::
-        A(\ub, \vb) \, \Delta \ub = - R(\ub, \vb) \quad \forall \, \vb \in V,
+        A(\ub; \vb, \wb) \, \Delta \ub = - R(\ub; \vb) \quad \forall \, (\vb, \wb) \in \Vc \times \Wc,
 
-    where the tangent is defined as:
+    where the tangent :math:`A(\ub; \vb, \wb)` is defined :math:`\forall \, (\vb, \wb) \in \Vc \times \Wc` as:
 
     .. math::
-        A(\ub, \vb) =
-        \int_{\Omega_0} \Drm_\ub \eb(\ub) : \dfrac{\partial^2 W}{\partial \eb^2}(\ub) : \Drm_\ub \eb(\vb) \, \dO +
-        \int_{\Omega_0} \dfrac{\partial W}{\partial \eb}(\ub) : \Drm_\ub^2 \eb(\vb) \, \dO
-        \quad \forall \, \vb \in V.
+        \begin{align}
+            A(\ub; \vb, \wb) &=
+            \dpartial{R(\ub; \vb)}{\ub} \cdot \wb \\ &=
+            \int_{\Omega_0} \Drm_\ub \eb(\ub) \cdot \wb : \dNpartial{2}{W}{\eb}(\ub) : \Drm_\ub \eb(\vb) \, \dO +
+            \int_{\Omega_0} \dpartial{W}{\eb}(\ub) : \Drm_\ub^2 \eb(\vb, \wb) \, \dO
+        \end{align}
 
-    The implemented hyperelastic laws are available in :mod:`EasyFEA.Models.HyperElastic` and where constructed by the :ref:`ComputeHyperelasticLaws` script.
+    The implemented hyperelastic laws are available :ref:`here <models-hyperelastic>` and where constructed by the :ref:`ComputeHyperelasticLaws` script.
     """
 
     # TODO: add math
@@ -62,7 +63,7 @@ class HyperElastic(_Simu):
     def __init__(
         self,
         mesh: "Mesh",
-        model: "_HyperElas",
+        model: "_HyperElastic",
         tolConv=1e-5,
         maxIter=20,
         verbosity=False,
@@ -109,7 +110,7 @@ class HyperElastic(_Simu):
         return self.dim
 
     @property
-    def material(self) -> "_HyperElas":
+    def material(self) -> "_HyperElastic":
         """hyperelastic material"""
         return self.model  # type: ignore [return-value]
 

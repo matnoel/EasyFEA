@@ -33,6 +33,7 @@ class HyperElastic:
 
     from .models._hyperelastic import HyperElasticState
     from .models._hyperelastic_laws import (
+        _HyperElastic,
         NeoHookean,
         MooneyRivlin,
         SaintVenantKirchhoff,

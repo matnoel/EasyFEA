@@ -7,22 +7,56 @@ These models are used to build {py:class}`~EasyFEA.simulations._Simu` instances 
 
 With this module, you can construct:
 
-+ Linear elastic materials, such as {py:class}`~EasyFEA.Models.Elastic.Isotropic`, {py:class}`~EasyFEA.Models.Elastic.TransverselyIsotropic`, {py:class}`~EasyFEA.Models.Elastic.Orthotropic`, and {py:class}`~EasyFEA.Models.Elastic.Anisotropic` (see the {py:class}`~EasyFEA.Models.Elastic` class).
-+ Nonlinear hyperelastic materials, such as {py:class}`~EasyFEA.Models.HyperElastic.NeoHookean`, {py:class}`~EasyFEA.Models.HyperElastic.MooneyRivlin`, {py:class}`~EasyFEA.Models.HyperElastic.SaintVenantKirchhoff`, and {py:class}`~EasyFEA.Models.HyperElastic.HolzapfelOgden` (see the {py:class}`~EasyFEA.Models.HyperElastic` class).
-+ Elastic beams with {py:class}`~EasyFEA.Models.Beam.Isotropic` (see the {py:class}`~EasyFEA.Models.Beam` class).
+(models-elastic)=
++ Linear elastic materials, such as {py:class}`~EasyFEA.Models.Elastic.Isotropic`, {py:class}`~EasyFEA.Models.Elastic.TransverselyIsotropic`, {py:class}`~EasyFEA.Models.Elastic.Orthotropic`, and {py:class}`~EasyFEA.Models.Elastic.Anisotropic`, in `Models.Elastic`.
+(models-hyperelastic)=
++ Nonlinear hyperelastic materials, such as {py:class}`~EasyFEA.Models.HyperElastic.NeoHookean`, {py:class}`~EasyFEA.Models.HyperElastic.MooneyRivlin`, {py:class}`~EasyFEA.Models.HyperElastic.SaintVenantKirchhoff`, and {py:class}`~EasyFEA.Models.HyperElastic.HolzapfelOgden`, in `Models.HyperElastic`.
+(models-beam)=
++ Elastic beams with {py:class}`~EasyFEA.Models.Beam.Isotropic`, {py:class}`~EasyFEA.Models.Beam.BeamStructure`, in `Models.Beam`.
 + Phase-field materials with {py:class}`~EasyFEA.Models.PhaseField`.
 + Thermal materials with {py:class}`~EasyFEA.Models.Thermal`.
 + Weark forms with {py:class}`~EasyFEA.Models.WeakForms`.
 
 
-## Detailed materials API
+## Detailed models API
 
 ```{eval-rst}
 .. automodule:: EasyFEA.models
-   :private-members: _IModel
+    :private-members: _IModel
 
-.. automodule:: EasyFEA.Models
-   :members:
-   :undoc-members:
-   :imported-members:
+.. automodule:: EasyFEA.Models.Elastic
+    :members:
+    :special-members: __init__
+    :private-members: _Elastic
+    :imported-members:
+    :show-inheritance:
+
+.. automodule:: EasyFEA.Models.HyperElastic
+    :members:
+    :special-members: __init__
+    :private-members: _HyperElastic
+    :imported-members:
+    :show-inheritance:
+
+.. automodule:: EasyFEA.Models.Beam
+    :members:
+    :special-members: __init__
+    :private-members: _Beam
+    :imported-members:
+    :show-inheritance:
+
+.. autoclass:: EasyFEA.Models.PhaseField
+    :members:
+    :special-members: __init__
+    :show-inheritance:
+
+.. autoclass:: EasyFEA.Models.Thermal
+    :members:
+    :special-members: __init__
+    :show-inheritance:
+
+.. autoclass:: EasyFEA.Models.WeakForms
+    :members:
+    :special-members: __init__
+    :show-inheritance:
 ```

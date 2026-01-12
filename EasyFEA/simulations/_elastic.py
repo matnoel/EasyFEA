@@ -44,7 +44,7 @@ class Elastic(_Simu):
         \int_\Omega \Sig(\ub) : \Eps(\vb) \, \dO + \int_\Omega \rho \, \ddot{\ub} \cdot \vb \, \dO =
         \int _{\partial\Omega_t} \tb\cdot\vb \, \dS + \int _{\Omega} \fb\cdot\vb \, \dO \quad \forall \, \vb \in V
     
-    The implemented elastic laws are available in :mod:`EasyFEA.Models.Elastic`.
+    The implemented elastic laws are available :ref:`here <models-elastic>`.
     """
 
     def __init__(self, mesh: "Mesh", model: _Elastic, verbosity=False):
