@@ -18,32 +18,63 @@ The [EasyFEA/utilities/](https://github.com/matnoel/EasyFEA/tree/main/EasyFEA/ut
 ## Detailed utilities API
 
 ```{eval-rst}
+.. automodule:: EasyFEA.utilities._cache
+    :members: 
+    :private-members:
+    :show-inheritance:
+
+.. automodule:: EasyFEA.utilities._observers
+    :members: 
+    :private-members:
+    :show-inheritance:
+
+.. automodule:: EasyFEA.utilities._params
+    :members: 
+    :private-members:
+    :show-inheritance:
+
+.. automodule:: EasyFEA.utilities._tic
+    :members: 
+    :private-members:
+    :show-inheritance:
+
+.. automodule:: EasyFEA.utilities._types
+    :members: 
+    :private-members:
+    :show-inheritance:
+
 .. automodule:: EasyFEA.utilities.Display
-    :members:
-    :undoc-members:
+    :members: 
+    :private-members:
+    :show-inheritance:
 
 .. automodule:: EasyFEA.utilities.Folder
-    :members:
-    :undoc-members:
+    :members: 
+    :private-members:
+    :show-inheritance:
 
 .. automodule:: EasyFEA.utilities.MeshIO
-    :members:
-    :private-members: _Meshio_to_EasyFEA
-    :undoc-members:
+    :members: 
+    :private-members:
+    :show-inheritance:
 
 .. automodule:: EasyFEA.utilities.Numba
-    :members:
-    :undoc-members:
+    :members: 
+    :private-members:
+    :show-inheritance:
 
 .. automodule:: EasyFEA.utilities.Paraview
-    :members:
-    :undoc-members:
+    :members: 
+    :private-members:
+    :show-inheritance:
 
 .. automodule:: EasyFEA.utilities.PyVista
-    :members:
-    :undoc-members:
+    :members: 
+    :private-members:
+    :show-inheritance:
 
 .. automodule:: EasyFEA.utilities.Vizir
-    :members:
-    :undoc-members:
+    :members: 
+    :private-members:
+    :show-inheritance:
 ```

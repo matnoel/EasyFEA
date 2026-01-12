@@ -2,7 +2,7 @@
 # This file is part of the EasyFEA project.
 # EasyFEA is distributed under the terms of the GNU General Public License v3, see LICENSE.txt and CREDITS.md for more information.
 
-from typing import Union, Collection, Any, TypeVar
+from typing import Union, Collection, Any
 
 import numpy as np
 from numpy.typing import NDArray
@@ -15,34 +15,37 @@ from mpl_toolkits.mplot3d import Axes3D
 # --------------------------------------------------------------------------------------
 
 Number = Union[int, float]
+"""Number"""
 
 Numbers = Collection[Number]
-
+"""Numbers"""
 
 # --------------------------------------------------------------------------------------
 # Matplotlib
 # --------------------------------------------------------------------------------------
 
 Axes = Union[plt.Axes, Axes3D]  # type: ignore
+"""Axes"""
 
 # --------------------------------------------------------------------------------------
 # Array
 # --------------------------------------------------------------------------------------
 
 FloatArray = NDArray[np.floating]
+"""Float array"""
 
-IntType = TypeVar(
-    "IntType",
-    bound=Union[np.integer, int],
-)
-IntArray = NDArray[IntType]  # type: ignore
+IntArray = NDArray[np.int_]
+"""Int array"""
 
 NumberArray = Union[FloatArray, IntArray]
+"""Number array"""
 
 AnyArray = NDArray[Any]
+"""Any array"""
 
 # --------------------------------------------------------------------------------------
 # Mesh
 # --------------------------------------------------------------------------------------
 
 Coords = Union[AnyArray, Numbers]
+"""Coords"""
