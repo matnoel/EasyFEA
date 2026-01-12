@@ -37,8 +37,6 @@ To construct a {py:class}`~EasyFEA.fem.Mesh` using the {py:class}`~EasyFEA.fem.M
 
 Several examples are available in {doc}`../examples/Meshes/index`.
 
----
-
 ## Detailed fem API
 
 ```{eval-rst}

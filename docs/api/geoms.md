@@ -189,7 +189,6 @@ Once the geometric objects are created, you can manipulate them using {py:meth}`
     ax.legend(["contour1", "contour2", "contour3", "contour4"])
 ```
 
-
 ## Detailed geoms API
 
 ```{eval-rst}
