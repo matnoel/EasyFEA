@@ -570,8 +570,8 @@ class _Simu(_IObserver, _params.Updatable, ABC):
         dof_n = self.Get_dof_n(problemType)
         dofs = mesh.Nn * dof_n
 
-        rows_e = mesh.groupElem.Get_rowsVector_e(dof_n).ravel()
-        columns_e = mesh.groupElem.Get_columnsVector_e(dof_n).ravel()
+        rows_e = mesh.groupElem.Get_rows_e(dof_n).ravel()
+        columns_e = mesh.groupElem.Get_columns_e(dof_n).ravel()
 
         # Additional dimension linked to the use of lagrange coefficients
         Ndof = dofs + self._Bc_Lagrange_dim(self.problemType)

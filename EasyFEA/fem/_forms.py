@@ -118,8 +118,8 @@ class BiLinearForm(_Form):
 
         # get values
         values = self.Integrate_e(field=field).ravel()
-        rows = groupElem.Get_rowsVector_e(dof_n).ravel()
-        columns = groupElem.Get_columnsVector_e(dof_n).ravel()
+        rows = groupElem.Get_rows_e(dof_n).ravel()
+        columns = groupElem.Get_columns_e(dof_n).ravel()
 
         # get shape
         Ndof = groupElem.Nn * dof_n
@@ -195,7 +195,7 @@ class LinearForm(_Form):
 
         # get values
         values = self.Integrate_e(field=field).ravel()
-        rows = groupElem.Get_rowsVector_e(dof_n).ravel()
+        rows = groupElem.Get_rows_e(dof_n).ravel()
         columns = np.ones_like(rows)
 
         # get shape

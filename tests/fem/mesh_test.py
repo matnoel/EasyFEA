@@ -100,29 +100,24 @@ class TestMesh:
                     for e in elements
                 ]
             )
+            assembly_e = mesh.Get_assembly_e()
             testAssembly = np.testing.assert_array_almost_equal(
-                mesh.assembly_e, assembly_e_test, verbose=False
+                assembly_e, assembly_e_test, verbose=False
             )
             assert testAssembly is None
 
             # Verify lines_e
             lines_e_test = np.array(
-                [
-                    [i for i in mesh.assembly_e[e] for j in mesh.assembly_e[e]]
-                    for e in elements
-                ]
+                [[i for i in assembly_e[e] for j in assembly_e[e]] for e in elements]
             )
             testLines = np.testing.assert_array_almost_equal(
-                lines_e_test, mesh.rowsVector_e, verbose=False
+                lines_e_test, mesh.Get_rows_e(mesh.dim), verbose=False
             )
             assert testLines is None
 
             # Verify lines_e
             colonnes_e_test = np.array(
-                [
-                    [j for i in mesh.assembly_e[e] for j in mesh.assembly_e[e]]
-                    for e in elements
-                ]
+                [[j for i in assembly_e[e] for j in assembly_e[e]] for e in elements]
             )
             testColumns = np.testing.assert_array_almost_equal(
                 colonnes_e_test, mesh.columnsVector_e, verbose=False

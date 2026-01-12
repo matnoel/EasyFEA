@@ -252,35 +252,17 @@ class Mesh(Observable):
         """
         return self.groupElem.Get_connect_n_e()
 
-    @property
-    def assembly_e(self) -> _types.IntArray:
-        """assembly matrix (Ne, nPe*dim)\n
-        Used to position the rigi matrix in the global matrix."""
-        return self.groupElem.assembly_e
-
     def Get_assembly_e(self, dof_n: int) -> _types.IntArray:
         """Returns assembly matrix for specified dof_n (Ne, nPe*dof_n)"""
         return self.groupElem.Get_assembly_e(dof_n)
 
-    @property
-    def rowsVector_e(self) -> _types.IntArray:
-        """rows to fill the assembly matrix in vector (e.g elastic problem)"""
-        return self.groupElem.Get_rowsVector_e(self.__dim)
+    def Get_rows_e(self, dof_n: int) -> _types.IntArray:
+        """Returns the row indices used to assemble local matrices into the global matrix."""
+        return self.groupElem.Get_rows_e(dof_n)
 
-    @property
-    def columnsVector_e(self) -> _types.IntArray:
-        """columns to fill the assembly matrix in vector (e.g elastic problem)"""
-        return self.groupElem.Get_columnsVector_e(self.__dim)
-
-    @property
-    def rowsScalar_e(self) -> _types.IntArray:
-        """rows to fill the assembly matrix in scalar form (damage or thermal problems)"""
-        return self.groupElem.Get_rowsVector_e(1)
-
-    @property
-    def columnsScalar_e(self) -> _types.IntArray:
-        """columns to fill the assembly matrix in scalar form (damage or thermal problems)"""
-        return self.groupElem.Get_columnsVector_e(1)
+    def Get_columns_e(self, dof_n: int) -> _types.IntArray:
+        """Returns the column indices used to assemble local matrices into the global matrix."""
+        return self.groupElem.Get_columns_e(dof_n)
 
     @property
     def length(self) -> float:

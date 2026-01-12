@@ -317,10 +317,10 @@ class DIC(_IObserver):
 
         B_e = Bx_e + By_e
 
-        lines = mesh.rowsVector_e.ravel()
-        columns = mesh.columnsVector_e.ravel()
+        rows = mesh.Get_rows_e(dim).ravel()
+        columns = mesh.Get_columns_e(dim).ravel()
 
-        self._R = sparse.csr_matrix((B_e.ravel(), (lines, columns)), (Ndof, Ndof))
+        self._R = sparse.csr_matrix((B_e.ravel(), (rows, columns)), (Ndof, Ndof))
         """Laplacian operator"""
 
         tic.Tac("DIC", "Laplacian operator", self._verbosity)
