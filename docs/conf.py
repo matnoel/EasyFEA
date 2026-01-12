@@ -40,6 +40,11 @@ extensions = [
 ]
 autodoc_typehints = "signature"
 
+# https://www.sphinx-doc.org/en/master/usage/extensions/autodoc.html#automatically-document-modules
+autodoc_default_options = {
+    "member-order": "groupwise",
+}
+
 templates_path = ["_templates"]
 exclude_patterns = ["_build", "Thumbs.db", ".DS_Store"]
 
@@ -138,16 +143,17 @@ def get_function(function: str, arg: str):
     return chr(92) + function + "{" + arg + "}"
 
 
-def get_dict_formats(function: str, format: str) -> dict[str, str]:
-    # format: \function{letter}
-    return {f"{l}{format}": get_function(function, l) for l in string.ascii_letters}
+def get_dict_formats(
+    function: str, format: str, letters: str = string.ascii_letters
+) -> dict[str, str]:
+    # {letter}{format}: \function{letter}
+    return {f"{l}{format}": get_function(function, l) for l in letters}
 
 
 mathjax3_config = {
     "loader": {"load": ["input/tex"]},
     "tex": {
         "macros": {
-            # "Krm": "\mathrm{K}",
             **get_dict_formats("mathrm", "rm"),
             **get_dict_formats("mathcal", "c"),
             **get_dict_formats("mathbf", "bf"),
@@ -157,6 +163,8 @@ mathjax3_config = {
             "grad": r"\boldsymbol{\nabla}",
             "lap": r"\boldsymbol{\Delta}",
             "diver": r"\boldsymbol{\nabla} \cdot",
+            "dpartial": [r"\dfrac{\partial #1}{\partial #2}", 2],
+            "dNpartial": [r"\dfrac{\partial^#1 #2}{\partial #3 ^#1}", 3],
             # others
             "dt": r"\Delta t",
             # meca
