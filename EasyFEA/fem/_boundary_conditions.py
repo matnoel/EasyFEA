@@ -10,6 +10,8 @@ from ..utilities import _types
 
 
 class BoundaryCondition:
+    """Boundary condition."""
+
     def __init__(
         self,
         problemType: str,
@@ -187,6 +189,8 @@ class BoundaryCondition:
 
 
 class LagrangeCondition(BoundaryCondition):
+    """Lagrange boundary condition"""
+
     def __init__(
         self,
         problemType: str,
@@ -197,7 +201,7 @@ class LagrangeCondition(BoundaryCondition):
         lagrangeCoefs: _types.FloatArray,
         description: str = "",
     ):
-        """Creates a Lagrange condition (based on a boundary condition).
+        """Creates a Lagrange boundary condition.
 
         Parameters
         ----------

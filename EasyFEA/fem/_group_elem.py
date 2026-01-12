@@ -1893,7 +1893,7 @@ class _GroupElem(ABC):
         return self.__dict_nodes_tags.copy()
 
     def __Set_Elements_Tag(self, nodes: _types.IntArray, tag: str):
-        """Adds a tag to elements associated with nodes
+        """Adds a tag to elements associated with nodes.
 
         Parameters
         ----------

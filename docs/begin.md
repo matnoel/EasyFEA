@@ -23,7 +23,7 @@ The most commonly used modules in EasyFEA are:
     ~EasyFEA.Geoms
 ```
 
-Let's now create a 2D {py:class}`~EasyFEA.fem.Mesh` using a simple rectangular domain:
+Let's now create a 2D {py:class}`~EasyFEA.fem._mesh.Mesh` using a simple rectangular domain:
 
 ```{eval-rst}
 .. jupyter-execute::

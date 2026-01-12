@@ -25,7 +25,7 @@ from ._linalg import FeArray
 from ._utils import ElemType, MatrixType
 
 if TYPE_CHECKING:
-    from ._group_elems import _GroupElem
+    from ._group_elem import _GroupElem
 
 # others
 if TYPE_CHECKING:

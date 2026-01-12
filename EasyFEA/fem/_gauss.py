@@ -12,6 +12,8 @@ from ..utilities import _types
 
 
 class Gauss:
+    """Gauss quadrature."""
+
     def __init__(self, elemType: ElemType, matrixType: MatrixType):
         """Creates integration points.
 

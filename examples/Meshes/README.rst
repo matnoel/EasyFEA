@@ -3,4 +3,4 @@
 Meshes
 ======
 
-Scripts demonstrating how to construct :py:class:`~EasyFEA.fem.Mesh`.
+Scripts demonstrating how to construct :py:class:`~EasyFEA.fem._mesh.Mesh`.

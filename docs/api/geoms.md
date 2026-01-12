@@ -1,7 +1,7 @@
 (geoms)=
 # geoms
 
-The [EasyFEA/geoms/](https://github.com/matnoel/EasyFEA/tree/main/EasyFEA/geoms) module in EasyFEA provides essential tools for creating and managing {py:class}`~EasyFEA.geoms._Geom` objects. These geometric objects are used to construct {py:class}`~EasyFEA.fem.Mesh` using the {py:class}`~EasyFEA.fem.Mesher`.
+The [EasyFEA/geoms/](https://github.com/matnoel/EasyFEA/tree/main/EasyFEA/geoms) module in EasyFEA provides essential tools for creating and managing {py:class}`~EasyFEA.geoms._Geom` objects. These geometric objects are used to construct {py:class}`~EasyFEA.fem._mesh.Mesh` using the {py:class}`~EasyFEA.fem._gmsh.Mesher`.
 
 With this module, you can construct:
 

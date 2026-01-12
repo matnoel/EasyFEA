@@ -32,8 +32,8 @@ from ..geoms import (
 
 # fem
 if TYPE_CHECKING:
-    from ._group_elems import _GroupElem
-from ._group_elems import GroupElemFactory  # type: ignore
+    from ._group_elem import _GroupElem
+from ._group_elem import GroupElemFactory  # type: ignore
 from ._mesh import Mesh, ElemType
 
 if TYPE_CHECKING:
@@ -1950,8 +1950,7 @@ class Mesher:
         """Returns coord and changes.\n
 
         - coord is a (Nn, 3) array storing the coordinates of Nn nodes in 3D space.
-        - changes is a mapping array used to correct discontinuities in node numbering,
-        such that correctedNodes = changes[nodes]
+        - changes is a mapping array used to correct discontinuities in node numbering, such that correctedNodes = changes[nodes]
         """
 
         nodes, coord, _ = gmsh.model.mesh.getNodes()  # type: ignore

@@ -47,6 +47,7 @@ class _Form(ABC):
 
 
 class BiLinearForm(_Form):
+    """Bilinear form."""
 
     def Integrate_e(self, field):
 
@@ -131,6 +132,7 @@ class BiLinearForm(_Form):
 
 
 class LinearForm(_Form):
+    """Linear form."""
 
     def Integrate_e(self, field):
 

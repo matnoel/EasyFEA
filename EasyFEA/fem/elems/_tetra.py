@@ -6,7 +6,7 @@
 
 import numpy as np
 
-from .._group_elems import _GroupElem
+from .._group_elem import _GroupElem
 from ...utilities import _types
 
 

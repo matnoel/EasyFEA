@@ -9,12 +9,12 @@ import numpy as np
 import io
 
 from ..utilities import Folder, MeshIO, _types
-from ..fem._group_elems import GroupElemFactory, ElemType
+from ..fem._group_elem import GroupElemFactory, ElemType
 
 
 if TYPE_CHECKING:
     from ..fem._mesh import Mesh
-    from ..fem._group_elems import _GroupElem
+    from ..fem._group_elem import _GroupElem
 from ..simulations._simu import _Simu
 from ..geoms._utils import (
     _Get_BaryCentric_Coordinates_In_Triangle,

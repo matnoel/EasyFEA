@@ -15,7 +15,7 @@
 7. [Digital Image Correlation DIC and Parameter identification](https://gitlab.univ-eiffel.fr/collaboration-msme-fcba/spruce-params).
 8. [Stochastic phase-field simulations](https://gitlab.univ-eiffel.fr/collaboration-msme-fcba/spruce-stochastic).
 
-For each simulation, users create a {py:class}`~EasyFEA.fem.Mesh` and a {py:class}`~EasyFEA.models._IModel`. Once the simulation has been set up, defining the boundary conditions, solving the problem and visualizing the results is straightforward.
+For each simulation, users create a {py:class}`~EasyFEA.fem._mesh.Mesh` and a {py:class}`~EasyFEA.models._IModel`. Once the simulation has been set up, defining the boundary conditions, solving the problem and visualizing the results is straightforward.
 
 Numerous examples of mesh creation are available in the  {doc}`/examples/Meshes <examples/Meshes/index>` gallery.
 
