@@ -59,4 +59,7 @@ With this module, you can construct:
     :members:
     :special-members: __init__
     :show-inheritance:
+
+.. automodule:: EasyFEA.models._utils
+    :members:
 ```
