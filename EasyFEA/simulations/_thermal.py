@@ -134,6 +134,7 @@ class Thermal(_Simu):
         heatCapacity = thermalModel.c
 
         matrixType = MatrixType.mass
+        wJ_e_pg = mesh.Get_weightedJacobian_e_pg(matrixType)
         reactionPart = mesh.Get_ReactionPart_e_pg(matrixType)
 
         if thermalModel.isHeterogeneous:
