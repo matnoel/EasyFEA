@@ -1,29 +1,28 @@
 (geoms)=
-# geoms
+# Geoms
 
-The [EasyFEA/geoms/](https://github.com/matnoel/EasyFEA/tree/main/EasyFEA/geoms) module in EasyFEA provides essential tools for creating and managing {py:class}`~EasyFEA.geoms._Geom` objects. These geometric objects are used to construct {py:class}`~EasyFEA.fem._mesh.Mesh` using the {py:class}`~EasyFEA.fem._gmsh.Mesher`.
+The {py:mod}`EasyFEA.Geoms` module in EasyFEA provides essential tools for creating and managing {py:class}`~EasyFEA.Geoms._geom._Geom` objects. These geometric objects are used to construct {py:class}`~EasyFEA.FEM.Mesh` using the {py:class}`~EasyFEA.FEM.Mesher`.
 
 With this module, you can construct:
 
 ```{eval-rst}
 .. autosummary::
-    ~EasyFEA.geoms.Point
-    ~EasyFEA.geoms.Points
-    ~EasyFEA.geoms.Domain
-    ~EasyFEA.geoms.Line
-    ~EasyFEA.geoms.Circle
-    ~EasyFEA.geoms.CircleArc
-    ~EasyFEA.geoms.Contour
+    ~EasyFEA.Geoms.Point
+    ~EasyFEA.Geoms.Points
+    ~EasyFEA.Geoms.Domain
+    ~EasyFEA.Geoms.Line
+    ~EasyFEA.Geoms.Circle
+    ~EasyFEA.Geoms.CircleArc
+    ~EasyFEA.Geoms.Contour
 ```
 
-Once the geometric objects are created, you can manipulate them using {py:meth}`~EasyFEA.geoms._Geom.copy`, {py:meth}`~EasyFEA.geoms._Geom.Translate`, {py:meth}`~EasyFEA.geoms._Geom.Rotate`, or {py:meth}`~EasyFEA.geoms._Geom.Symmetry` (see the {ref}`example <manipulate-example-section>` for details).
+Once the geometric objects are created, you can manipulate them using {py:meth}`~EasyFEA.Geoms._Geom.copy`, {py:meth}`~EasyFEA.Geoms.Translate`, {py:meth}`~EasyFEA.Geoms.Rotate`, or {py:meth}`~EasyFEA.Geoms.Symmetry` (see the {ref}`example <manipulate-example-section>` for details).
 
 
-## Creating a {py:class}`~EasyFEA.geoms.Line`
+## Creating a {py:class}`~EasyFEA.Geoms.Line`
 
 ```{eval-rst}
-.. plot::
-    :include-source:
+.. jupyter-execute::
 
     from EasyFEA.Geoms import Line
     
@@ -31,13 +30,12 @@ Once the geometric objects are created, you can manipulate them using {py:meth}`
     line.Plot()
 ```
 
-## Creating a {py:class}`~EasyFEA.geoms.Domain`/Box
+## Creating a {py:class}`~EasyFEA.Geoms.Domain`
 
 ### 2D Domain
 
 ```{eval-rst}
-.. plot::
-    :include-source:
+.. jupyter-execute::
 
     from EasyFEA.Geoms import Domain
     
@@ -48,8 +46,7 @@ Once the geometric objects are created, you can manipulate them using {py:meth}`
 ### 3D Domain
 
 ```{eval-rst}
-.. plot::
-    :include-source:
+.. jupyter-execute::
 
     from EasyFEA.Geoms import Domain
     
@@ -57,11 +54,10 @@ Once the geometric objects are created, you can manipulate them using {py:meth}`
     domain.Plot()
 ```
 
-## Creating a {py:class}`~EasyFEA.geoms.Circle`
+## Creating a {py:class}`~EasyFEA.Geoms.Circle`
 
 ```{eval-rst}
-.. plot::
-    :include-source:
+.. jupyter-execute::
 
     from EasyFEA.Geoms import Circle
     
@@ -73,8 +69,7 @@ Once the geometric objects are created, you can manipulate them using {py:meth}`
 ### Using an axis normal to the circle
 
 ```{eval-rst}
-.. plot::
-    :include-source:
+.. jupyter-execute::
 
     from EasyFEA.Geoms import Circle
     
@@ -82,13 +77,12 @@ Once the geometric objects are created, you can manipulate them using {py:meth}`
     circle.Plot()
 ```
 
-## Creating a {py:class}`~EasyFEA.geoms.CircleArc`
+## Creating a {py:class}`~EasyFEA.Geoms.CircleArc`
 
-### From 2 {py:class}`~EasyFEA.geoms.Point` and a Center
+### From 2 {py:class}`~EasyFEA.Geoms.Point` and a Center
 
 ```{eval-rst}
-.. plot::
-    :include-source:
+.. jupyter-execute::
 
     from EasyFEA.Geoms import CircleArc
     
@@ -96,11 +90,10 @@ Once the geometric objects are created, you can manipulate them using {py:meth}`
     circleArc.Plot()
 ```
 
-### From 2 {py:class}`~EasyFEA.geoms.Point` and a Radius
+### From 2 {py:class}`~EasyFEA.Geoms.Point` and a Radius
 
 ```{eval-rst}
-.. plot::
-    :include-source:
+.. jupyter-execute::
 
     from EasyFEA.Geoms import CircleArc
     
@@ -109,11 +102,10 @@ Once the geometric objects are created, you can manipulate them using {py:meth}`
 ```
 
 
-### From 2 {py:class}`~EasyFEA.geoms.Point` and a Point
+### From 2 {py:class}`~EasyFEA.Geoms.Point` and a Point
 
 ```{eval-rst}
-.. plot::
-    :include-source:
+.. jupyter-execute::
 
     from EasyFEA.Geoms import CircleArc
     
@@ -121,11 +113,10 @@ Once the geometric objects are created, you can manipulate them using {py:meth}`
     circleArc.Plot()
 ```
 
-## Creating a {py:class}`~EasyFEA.geoms.Contour` from {py:class}`~EasyFEA.geoms.Points`
+## Creating a {py:class}`~EasyFEA.Geoms.Contour` from {py:class}`~EasyFEA.Geoms.Points`
 
 ```{eval-rst}
-.. plot::
-    :include-source:
+.. jupyter-execute::
 
     from EasyFEA.Geoms import Points
     
@@ -136,8 +127,7 @@ Once the geometric objects are created, you can manipulate them using {py:meth}`
 ### Add a fillet
 
 ```{eval-rst}
-.. plot::
-    :include-source:
+.. jupyter-execute::
 
     from EasyFEA.Geoms import Point, Points
     
@@ -146,8 +136,7 @@ Once the geometric objects are created, you can manipulate them using {py:meth}`
 ```
 
 ```{eval-rst}
-.. plot::
-    :include-source:
+.. jupyter-execute::
 
     from EasyFEA.Geoms import Point, Points
     
@@ -155,11 +144,10 @@ Once the geometric objects are created, you can manipulate them using {py:meth}`
     contour.Plot()
 ```
 
-## Creating a {py:class}`~EasyFEA.geoms.Contour` with {py:class}`~EasyFEA.geoms.Line`, {py:class}`~EasyFEA.geoms.CircleArc` and {py:class}`~EasyFEA.geoms.Points`
+## Creating a {py:class}`~EasyFEA.Geoms.Contour` with {py:class}`~EasyFEA.Geoms.Line`, {py:class}`~EasyFEA.Geoms.CircleArc` and {py:class}`~EasyFEA.Geoms.Points`
 
 ```{eval-rst}
-.. plot::
-    :include-source:
+.. jupyter-execute::
 
     from EasyFEA.Geoms import Line, CircleArc, Points, Contour
     
@@ -172,11 +160,10 @@ Once the geometric objects are created, you can manipulate them using {py:meth}`
 
 (manipulate-example-section)=
 
-## Manipulate a {py:class}`~EasyFEA.geoms._Geom` object using the {py:meth}`~EasyFEA.geoms._Geom.copy`, {py:meth}`~EasyFEA.geoms._Geom.Translate`, {py:meth}`~EasyFEA.geoms._Geom.Rotate`, and {py:meth}`~EasyFEA.geoms._Geom.Symmetry` functions
+## Manipulate a {py:class}`~EasyFEA.Geoms._Geom` object using the {py:meth}`~EasyFEA.Geoms._Geom.copy`, {py:meth}`~EasyFEA.Geoms.Translate`, {py:meth}`~EasyFEA.Geoms.Rotate`, and {py:meth}`~EasyFEA.Geoms.Symmetry` functions
 
 ```{eval-rst}
-.. plot::
-    :include-source:
+.. jupyter-execute::
 
     from EasyFEA.Geoms import Points
 
@@ -189,15 +176,8 @@ Once the geometric objects are created, you can manipulate them using {py:meth}`
     ax.legend(["contour1", "contour2", "contour3", "contour4"])
 ```
 
-## Detailed geoms API
+## Geoms API
 
 ```{eval-rst}
 .. automodule:: EasyFEA.Geoms
-    
-.. automodule:: EasyFEA.geoms
-   :members:
-   :private-members:
-   :undoc-members:
-   :imported-members:
-   :show-inheritance:
 ```

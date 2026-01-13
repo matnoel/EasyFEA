@@ -10,7 +10,7 @@ from typing import Callable
 
 # from fem
 from . import FeArray, _GroupElem, MatrixType, Mesh
-from ..utilities import _types
+from ..Utilities import _types
 
 
 class Field:

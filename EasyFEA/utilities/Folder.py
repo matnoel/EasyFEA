@@ -65,7 +65,8 @@ def Results_Dir() -> str:
         # Look for the `execute_code_block` function in the stack
         pythonScript = None
         for frame in stack:
-            if frame["function"] == "execute_code_block":
+            function = getattr(frame, "function")
+            if function == "execute_code_block":
                 # get local variables
                 f_locals = frame[0].f_locals
                 try:

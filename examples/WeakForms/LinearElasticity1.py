@@ -12,7 +12,7 @@ Note that this simulation is also performed in `examples/Elastic/Elas1.py`.
 """
 
 from EasyFEA import Display, ElemType, Models, Simulations, np
-from EasyFEA.fem import Field, BiLinearForm, FeArray, Sym_Grad, Trace
+from EasyFEA.FEM import Field, BiLinearForm, FeArray, Sym_Grad, Trace
 from EasyFEA.Geoms import Domain
 
 if __name__ == "__main__":

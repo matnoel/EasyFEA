@@ -2,12 +2,9 @@
 # This file is part of the EasyFEA project.
 # EasyFEA is distributed under the terms of the GNU General Public License v3, see LICENSE.txt and CREDITS.md for more information.
 
-import pytest
-
-from EasyFEA import Display, Models, plt, np
-from EasyFEA.Geoms import Domain, Circle, Point, Line
+from EasyFEA import Display, Models, Simulations, plt
+from EasyFEA.Geoms import Domain, Circle, Point
 from EasyFEA import Mesher, ElemType
-from EasyFEA import Simulations
 
 
 class TestThermal:

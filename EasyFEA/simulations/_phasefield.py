@@ -7,15 +7,15 @@ import numpy as np
 from scipy import sparse
 
 # utilities
-from ..utilities import Display, Folder, Tic, _types
-from ..utilities._observers import Observable
+from ..Utilities import Display, Folder, Tic, _types
+from ..Utilities._observers import Observable
 
 # fem
-from ..fem import Mesh, MatrixType, FeArray
+from ..FEM import Mesh, MatrixType, FeArray
 
-# materials
+# models
 from .. import Models
-from ..models import (
+from ..Models import (
     ModelType,
     _IModel,
     Reshape_variable,

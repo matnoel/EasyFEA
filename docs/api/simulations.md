@@ -1,8 +1,8 @@
 (simulations)=
-# simulations
+# Simulations
 
-The [EasyFEA/simulations/](https://github.com/matnoel/EasyFEA/tree/main/EasyFEA/simulations) module in EasyFEA provides essential tools for creating and managing simulations.
-These simulations are built using a {py:class}`~EasyFEA.fem._mesh.Mesh` and a {py:class}`~EasyFEA.models._IModel` (material).
+The {py:mod}`EasyFEA.Simulations` module in EasyFEA provides essential tools for creating and managing simulations.
+These simulations are built using a {py:class}`~EasyFEA.FEM.Mesh` and a {py:class}`~EasyFEA.Models._IModel` (material).
 
 With this module, you can construct:
 
@@ -11,7 +11,7 @@ With this module, you can construct:
 + Euler-Bernoulli beam simulations with {py:class}`~EasyFEA.Simulations.Beam`.
 + PhaseField damage simulations for quasi-static brittle fracture with {py:class}`~EasyFEA.Simulations.PhaseField`.
 + Thermal simulations with {py:class}`~EasyFEA.Simulations.Thermal`.
-+ Weak form simulations with {py:class}`~EasyFEA.Simulations.WeakForm`.
++ Weak form simulations with {py:class}`~EasyFEA.Simulations.WeakForms`.
 
 ## Matrix System Solvers
 
@@ -40,20 +40,11 @@ EasyFEA automatically manages the resolution of `elliptic`, `parabolic` and `hyp
 ## How to create new simulations in EasyFEA ?
 
 To create new simulation classes, you can take inspiration from existing implementations.  
-Make sure to follow the {py:class}`~EasyFEA.simulations._Simu` interface.  
+Make sure to follow the {py:class}`~EasyFEA.Simulations._Simu` interface.  
 The {py:class}`~EasyFEA.Simulations.Thermal` class is relatively simple and can serve as a good starting point.  
-See [EasyFEA/simulations/_thermal.py](https://github.com/matnoel/EasyFEA/tree/main/EasyFEA/simulations/_thermal.py) for more details.
 
-## Detailed simulations API
+## Simulations API
 
 ```{eval-rst}
 .. automodule:: EasyFEA.Simulations
-    :members: Elastic, HyperElastic, Beam, PhaseField, Thermal, WeakForm
-
-.. automodule:: EasyFEA.simulations
-   :members:
-   :private-members: _Simu
-   :undoc-members:
-   :imported-members:
-   :show-inheritance:
 ```

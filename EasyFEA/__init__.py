@@ -7,33 +7,15 @@ import numpy as np
 
 BUILDING_GALLERY = False
 
-# ----------------------------------------------
 # utilities
-# ----------------------------------------------
-from .utilities import Display, Folder, Paraview, PyVista, Vizir, MeshIO, Tic
+from .Utilities import Display, Folder, Paraview, PyVista, Vizir, MeshIO, Tic
 
-# ----------------------------------------------
-# geometry
-# ----------------------------------------------
-from . import Geoms
-
-# ----------------------------------------------
 # fem
-# ----------------------------------------------
-from .fem import Mesher, ElemType, Mesh, MatrixType, gmsh
+from .FEM import Mesher, ElemType, Mesh, MatrixType
+import gmsh
 
-# ----------------------------------------------
-# materials
-# ----------------------------------------------
-from . import Models
-
-# ----------------------------------------------
 # simulations
-# ----------------------------------------------
-from . import Simulations
-from .simulations.Solvers import SolverType
+from .Simulations.Solvers import SolverType
 
-# ----------------------------------------------
 # version
-# ----------------------------------------------
 from .__about__ import __version__

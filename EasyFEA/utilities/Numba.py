@@ -5,7 +5,7 @@
 """Numba functions to speed up calculations."""
 
 import numpy as np
-from ..utilities import _types
+from ..Utilities import _types
 
 CAN_USE_NUMBA = True
 __USE_PARALLEL = True

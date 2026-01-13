@@ -6,16 +6,16 @@ from typing import Union, Optional, TYPE_CHECKING
 import numpy as np
 
 # utilities
-from ..utilities import _types
+from ..Utilities import _types
 
 # fem
 if TYPE_CHECKING:
-    from ..fem import Mesh
-from ..fem import MatrixType
+    from ..FEM import Mesh
+from ..FEM import MatrixType
 
-# materials
+# models
 from .. import Models
-from ..models import ModelType, Reshape_variable
+from ..Models import ModelType, Reshape_variable
 
 # simu
 from ._simu import _Simu

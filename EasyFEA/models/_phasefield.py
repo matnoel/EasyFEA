@@ -8,12 +8,12 @@ from functools import partialmethod
 
 # utilities
 import numpy as np
-from ..utilities import Numba, Tic
+from ..Utilities import Numba, Tic
 
 # fem
 if TYPE_CHECKING:
-    from ..fem import Mesh, MatrixType
-from ..fem import MatrixType, FeArray, Trace, TensorProd, Det, Norm
+    from ..FEM import Mesh, MatrixType
+from ..FEM import MatrixType, FeArray, Trace, TensorProd, Det, Norm
 
 # others
 from ._utils import (
@@ -23,13 +23,13 @@ from ._utils import (
     Project_vector_to_matrix,
     Project_matrix_to_vector,
 )
-from ..utilities import _params, _types
+from ..Utilities import _params, _types
 
 # ----------------------------------------------
 # Elasticity
 # ----------------------------------------------
 
-from ._linear_elastic_laws import _Elastic, Isotropic
+from .Elastic._laws import _Elastic, Isotropic
 
 # ----------------------------------------------
 # Phase field
@@ -40,7 +40,7 @@ class PhaseField(_IModel):
     """PhaseField class."""
 
     class ReguType(str, Enum):
-        """Regularization models."""
+        """Regularization Models."""
 
         AT1 = "AT1"
         AT2 = "AT2"
@@ -54,7 +54,7 @@ class PhaseField(_IModel):
         return list(PhaseField.ReguType)
 
     class SplitType(str, Enum):
-        """Split models."""
+        """Split Models."""
 
         # Isotropic
         Bourdin = "Bourdin"  # [Bourdin 2000] DOI : 10.1016/S0022-5096(99)00028-9

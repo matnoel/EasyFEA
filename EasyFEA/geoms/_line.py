@@ -8,7 +8,7 @@ import numpy as np
 
 from ._utils import Point, AsPoint
 from ._geom import _Geom
-from ..utilities import _types
+from ..Utilities import _types
 
 
 class Line(_Geom):

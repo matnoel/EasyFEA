@@ -6,15 +6,15 @@ from typing import Union, Optional, TYPE_CHECKING
 import numpy as np
 
 # utilities
-from ..utilities import Tic, _types
+from ..Utilities import Tic, _types
 
 # fem
 if TYPE_CHECKING:
-    from ..fem import Mesh
+    from ..FEM import Mesh
 
-# materials
+# models
 from .. import Models
-from ..models import ModelType
+from ..Models import ModelType
 
 # simu
 from ._simu import _Simu

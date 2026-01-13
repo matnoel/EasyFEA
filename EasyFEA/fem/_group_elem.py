@@ -29,15 +29,15 @@ from ._linalg import FeArray, Trace, Transpose, Det, Inv
 from ._utils import ElemType, MatrixType
 
 # # others
-from ..geoms import Point, Domain, Line, Circle
-from ..geoms._utils import AsPoint
-from ..geoms import Jacobian_Matrix, Normalize
+from ..Geoms import Point, Domain, Line, Circle
+from ..Geoms._utils import AsPoint
+from ..Geoms import Jacobian_Matrix, Normalize
 
-from ..utilities import _types, _params
-from ..utilities._cache import cache_computed_values, clear_cached_computed_values
+from ..Utilities import _types, _params
+from ..Utilities._cache import cache_computed_values, clear_cached_computed_values
 
 if TYPE_CHECKING:
-    from ..models._beam import BeamStructure
+    from ..Models.Beam._beam import BeamStructure
 
 
 class _GroupElem(ABC):
@@ -2405,7 +2405,7 @@ class _GroupElem(ABC):
 # elems
 # fmt: off
 # import must be done here to avoid circular imports
-from .elems import (  # noqa: E402
+from .Elems import (  # noqa: E402
     POINT,
     SEG2, SEG3, SEG4, SEG5,
     TRI3, TRI6, TRI10, TRI15,

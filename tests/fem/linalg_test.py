@@ -5,7 +5,7 @@
 import pytest
 import numpy as np
 
-from EasyFEA.fem._linalg import Transpose, Trace, Det, Inv
+from EasyFEA.FEM._linalg import Transpose, Trace, Det, Inv
 
 
 @pytest.fixture

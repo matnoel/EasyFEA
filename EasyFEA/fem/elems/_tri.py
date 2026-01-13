@@ -7,7 +7,7 @@
 import numpy as np
 
 from .._group_elem import _GroupElem
-from ...utilities import _types
+from ...Utilities import _types
 
 
 class TRI3(_GroupElem):

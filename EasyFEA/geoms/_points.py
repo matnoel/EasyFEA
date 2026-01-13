@@ -13,7 +13,7 @@ from ._line import Line
 from ._circle import CircleArc
 
 from typing import Union, Collection
-from ..utilities import _types
+from ..Utilities import _types
 
 
 class Points(_Geom):

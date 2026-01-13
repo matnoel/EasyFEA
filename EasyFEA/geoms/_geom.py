@@ -10,12 +10,12 @@ import copy
 
 from ._utils import Point, Rotate, Symmetry
 
-from ..fem._utils import ElemType
+from ..FEM._utils import ElemType
 from typing import Union, Optional, Iterable, TYPE_CHECKING
-from ..utilities import _types, _params
+from ..Utilities import _types, _params
 
 if TYPE_CHECKING:
-    from ..geoms import Point, Line, Circle, CircleArc, Points, Contour, Domain
+    from ..Geoms import Point, Line, Circle, CircleArc, Points, Contour, Domain
 
     ContourCompatible = Union[Line, CircleArc, Points]
     CrackCompatible = Union[Line, Points, Contour, CircleArc]
@@ -198,7 +198,7 @@ class _Geom(ABC):
         Mesh
             Created mesh
         """
-        from ..fem._gmsh import Mesher
+        from ..FEM._mesher import Mesher
 
         mesher = Mesher()
         mesh = mesher.Mesh_2D(
@@ -261,7 +261,7 @@ class _Geom(ABC):
         Mesh
             Created mesh
         """
-        from ..fem._gmsh import Mesher
+        from ..FEM._mesher import Mesher
 
         mesher = Mesher()
         mesh = mesher.Mesh_Extrude(
@@ -329,10 +329,10 @@ class _Geom(ABC):
         Mesh
             Created mesh
         """
-        from ..fem._gmsh import Mesher
+        from ..FEM._mesher import Mesher
 
         if axis is None:
-            from ..geoms import Line
+            from ..Geoms import Line
 
             axis = Line((0, 0), (0, 1))
 
@@ -386,7 +386,7 @@ class _Geom(ABC):
             The axis with the plotted geometry.
         """
 
-        from ..utilities.Display import Init_Axes, _Axis_equal_3D
+        from ..Utilities.Display import Init_Axes, _Axis_equal_3D
 
         lines, points = self.Get_coord_for_plot()
 

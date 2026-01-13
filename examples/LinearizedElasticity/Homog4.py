@@ -16,7 +16,7 @@ Verify that the periodic boundary conditions have been correctly applied.
 
 from EasyFEA import Display, Models, plt, np, ElemType, Simulations, PyVista
 from EasyFEA.Geoms import Points, Circle
-from EasyFEA.fem import Mesh, LagrangeCondition, FeArray
+from EasyFEA.FEM import Mesh, LagrangeCondition, FeArray
 from typing import Optional
 
 

@@ -2,7 +2,7 @@
 # This file is part of the EasyFEA project.
 # EasyFEA is distributed under the terms of the GNU General Public License v3, see LICENSE.txt and CREDITS.md for more information.
 
-"""Linearized elastic laws."""
+"""Elastic laws."""
 
 from abc import ABC, abstractmethod
 from typing import Union, Optional
@@ -12,8 +12,8 @@ from scipy.linalg import sqrtm
 import numpy as np
 
 # others
-from ..geoms import AsCoords, Normalize
-from ._utils import (
+from ...Geoms import AsCoords, Normalize
+from .._utils import (
     _IModel,
     ModelType,
     Heterogeneous_Array,
@@ -22,8 +22,8 @@ from ._utils import (
     Get_Pmat,
     Apply_Pmat,
 )
-from ..utilities import _params, _types
-from ..fem._linalg import TensorProd
+from ...Utilities import _params, _types
+from ...FEM._linalg import TensorProd
 
 # ----------------------------------------------
 # Elasticity
@@ -348,13 +348,13 @@ class Isotropic(_Elastic):
         """Updates the constitutives laws by updating the C stiffness and S compliance matrices in Kelvin Mandel notation.\n
 
         In 2D:
-        -----
+        ------
 
         C -> C : Epsilon = Sigma [Sxx Syy sqrt(2)*Sxy]\n
         S -> S : Sigma = Epsilon [Exx Eyy sqrt(2)*Exy]
 
         In 3D:
-        -----
+        ------
 
         C -> C : Epsilon = Sigma [Sxx Syy Szz sqrt(2)*Syz sqrt(2)*Sxz sqrt(2)*Sxy]\n
         S -> S : Sigma = Epsilon [Exx Eyy Ezz sqrt(2)*Eyz sqrt(2)*Exz sqrt(2)*Exy]
@@ -575,13 +575,13 @@ class TransverselyIsotropic(_Elastic):
         """Updates the constitutives laws by updating the C stiffness and S compliance matrices in Kelvin Mandel notation.\n
 
         In 2D:
-        -----
+        ------
 
         C -> C : Epsilon = Sigma [Sxx Syy sqrt(2)*Sxy]\n
         S -> S : Sigma = Epsilon [Exx Eyy sqrt(2)*Exy]
 
         In 3D:
-        -----
+        ------
 
         C -> C : Epsilon = Sigma [Sxx Syy Szz sqrt(2)*Syz sqrt(2)*Sxz sqrt(2)*Sxy]\n
         S -> S : Sigma = Epsilon [Exx Eyy Ezz sqrt(2)*Eyz sqrt(2)*Exz sqrt(2)*Exy]
@@ -903,16 +903,16 @@ class Orthotropic(_Elastic):
         """Updates the constitutives laws by updating the C stiffness and S compliance matrices in Kelvin Mandel notation.\n
 
         In 2D:
-        -----
+        ------
 
-        C -> C : Epsilon = Sigma [Sxx Syy sqrt(2)*Sxy]\n
-        S -> S : Sigma = Epsilon [Exx Eyy sqrt(2)*Exy]
+            C -> C : Epsilon = Sigma [Sxx Syy sqrt(2)*Sxy]\n
+            S -> S : Sigma = Epsilon [Exx Eyy sqrt(2)*Exy]
 
         In 3D:
-        -----
+        ------
 
-        C -> C : Epsilon = Sigma [Sxx Syy Szz sqrt(2)*Syz sqrt(2)*Sxz sqrt(2)*Sxy]\n
-        S -> S : Sigma = Epsilon [Exx Eyy Ezz sqrt(2)*Eyz sqrt(2)*Exz sqrt(2)*Exy]
+            C -> C : Epsilon = Sigma [Sxx Syy Szz sqrt(2)*Syz sqrt(2)*Sxz sqrt(2)*Sxy]\n
+            S -> S : Sigma = Epsilon [Exx Eyy Ezz sqrt(2)*Eyz sqrt(2)*Exz sqrt(2)*Exy]
 
         """
 

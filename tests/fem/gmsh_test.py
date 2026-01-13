@@ -6,7 +6,7 @@ import pytest
 
 from EasyFEA import Mesher, ElemType, Mesh, plt, np
 from EasyFEA.Geoms import Domain, Point
-from EasyFEA.geoms import Rotate
+from EasyFEA.Geoms import Rotate
 from EasyFEA import Display as Display
 
 

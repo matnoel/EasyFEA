@@ -7,10 +7,10 @@ from typing import Union, Optional
 from enum import Enum
 
 # utilities
-from ..utilities._observers import Observable
-from ..utilities import _types
-from ..utilities._params import Updatable
-from ..fem._linalg import FeArray
+from ..Utilities._observers import Observable
+from ..Utilities import _types
+from ..Utilities._params import Updatable
+from ..FEM._linalg import FeArray
 import numpy as np
 
 # pyright: reportPossiblyUnboundVariable=false

@@ -6,14 +6,14 @@
 
 from typing import Optional, Union
 
-from ..fem import Field, BiLinearForm, LinearForm
+from ..FEM import Field, BiLinearForm, LinearForm
 
 from ._utils import _IModel, ModelType
-from ..utilities import _params
+from ..Utilities import _params
 
 
 class WeakForms(_IModel):
-    """Class responsible for computing the finite element matrices used in the system \( K u + C v + M a = F \)."""
+    r"""Class responsible for computing the finite element matrices used in the system :math:`\Krm \, \mathrm{u} + \Crm \, \vrm + \Mrm \, \arm = \Frm`."""
 
     thickness: float = _params.PositiveScalarParameter()
 
@@ -26,7 +26,7 @@ class WeakForms(_IModel):
         computeF: Optional[LinearForm] = None,
         thickness: float = 1.0,
     ):
-        """Creates a weak form manager responsible for computing the finite element matrices used in the system \( K u + C v + M a = F \).
+        r"""Creates a weak form manager responsible for computing the finite element matrices used in the system :math:`\Krm \, \mathrm{u} + \Crm \, \vrm + \Mrm \, \arm = \Frm`.
 
         Parameters
         ----------
@@ -59,22 +59,22 @@ class WeakForms(_IModel):
 
     @property
     def computeK(self) -> Union[BiLinearForm, None]:
-        """Function used to build stiffness matrix K from \( K u + C v + M a = F \)."""
+        r"""Function used to build stiffness matrix :math:`\Krm`."""
         return self.__computeK
 
     @property
     def computeC(self) -> Union[BiLinearForm, None]:
-        """Function used to build damping matrix C from \( K u + C v + M a = F \)."""
+        r"""Function used to build stiffness matrix :math:`\Crm`."""
         return self.__computeC
 
     @property
     def computeM(self) -> Union[BiLinearForm, None]:
-        """Function used to build mass matrix M from \( K u + C v + M a = F \)."""
+        r"""Function used to build stiffness matrix :math:`\Mrm`."""
         return self.__computeM
 
     @property
     def computeF(self) -> Union[LinearForm, None]:
-        """Function used to build force vector F from \( K u + C v + M a = F \)."""
+        r"""Function used to build force vector :math:`\Frm`."""
         return self.__computeF
 
     @property

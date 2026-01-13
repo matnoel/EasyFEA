@@ -24,10 +24,12 @@ from .. import BUILDING_GALLERY
 from . import Folder, Tic, _types
 
 # simulations
-from ..simulations._simu import _Init_obj, _Get_values
+from ..Simulations._simu import _Init_obj, _Get_values
 
 if TYPE_CHECKING:
-    from ..simulations._simu import _Simu, Mesh, _GroupElem
+    from ..Simulations._simu import _Simu
+    from ..FEM._mesh import Mesh
+    from ..FEM._group_elem import _GroupElem
 
 # Ideas: https://www.python-graph-gallery.com/
 

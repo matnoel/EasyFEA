@@ -8,19 +8,20 @@ from typing import Optional, TYPE_CHECKING
 import numpy as np
 import io
 
-from ..utilities import Folder, MeshIO, _types
-from ..fem._group_elem import GroupElemFactory, ElemType
+from ..Utilities import Folder, MeshIO, _types
+from ..FEM._group_elem import GroupElemFactory
+from ..FEM._utils import ElemType
 
-
-if TYPE_CHECKING:
-    from ..fem._mesh import Mesh
-    from ..fem._group_elem import _GroupElem
-from ..simulations._simu import _Simu
-from ..geoms._utils import (
+from ..Geoms._utils import (
     _Get_BaryCentric_Coordinates_In_Triangle,
     _Get_BaryCentric_Coordinates_In_Tetrahedron,
     _Get_BaryCentric_Coordinates_In_Segment,
 )
+
+if TYPE_CHECKING:
+    from ..FEM._mesh import Mesh
+    from ..FEM._group_elem import _GroupElem
+    from ..Simulations._simu import _Simu
 
 
 def __Get_vizir_HOSolAt_key(groupElem: "_GroupElem") -> str:
@@ -351,7 +352,7 @@ def _Write_solution_file(
 
 
 def Save_simu(
-    simu: _Simu,
+    simu: "_Simu",
     results: list[str],
     types: list[int],
     folder: str,
@@ -378,7 +379,7 @@ def Save_simu(
         A command string for visualizing the saved results using vizir.
     """
 
-    assert isinstance(simu, _Simu)
+    assert isinstance(simu, "_Simu")
 
     # sample the results
     Niter = simu.Niter

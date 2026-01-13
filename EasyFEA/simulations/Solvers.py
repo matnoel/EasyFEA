@@ -15,12 +15,12 @@ from typing import Union, TYPE_CHECKING
 
 if TYPE_CHECKING:
     from ._simu import _Simu
-    from ..models import ModelType
+    from ..Models import ModelType
 
-from ..utilities import Tic, _types
+from ..Utilities import Tic, _types
 
 # fem
-from ..fem import LagrangeCondition
+from ..FEM import LagrangeCondition
 
 try:
     import pypardiso
@@ -203,7 +203,7 @@ def _Solve_Axb(
             nodes, simu.Get_unknowns(problemType), problemType
         )
 
-        # from ..utilities import Display
+        # from ..Utilities import Display
         # print(f"rank {MPI_RANK}: orphanNodes = {mesh.orphanNodes}")
         # ax = Display.Init_Axes(2)
         # ax.grid()

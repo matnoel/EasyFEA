@@ -6,16 +6,16 @@ from typing import Union, Optional, TYPE_CHECKING
 import numpy as np
 
 # utilities
-from ..utilities import Display, Tic, _types
+from ..Utilities import Display, Tic, _types
 
 # fem
 if TYPE_CHECKING:
-    from ..fem import Mesh
-from ..fem import MatrixType, LagrangeCondition, FeArray
+    from ..FEM import Mesh
+from ..FEM import MatrixType, LagrangeCondition, FeArray
 
-# materials
-from ..models import ModelType, Reshape_variable
-from ..models._beam import BeamStructure, _Beam, Isotropic
+# models
+from ..Models import ModelType, Reshape_variable
+from ..Models.Beam._beam import BeamStructure, _Beam, Isotropic
 
 # simu
 from ._simu import _Simu
@@ -363,7 +363,7 @@ class Beam(_Simu):
 
         if result in ["ux", "uy", "uz", "rx", "ry", "rz"]:
             values_n = self.displacement.reshape(Nn, -1)
-            index = self.__indexResult(result)
+            index = self._indexResult(result)
             values = values_n[:, index]
 
         elif result == "displacement":
@@ -381,7 +381,7 @@ class Beam(_Simu):
             force = Kglob @ self.displacement
 
             force_n = force.reshape(self.mesh.Nn, -1)
-            index = self.__indexResult(result)
+            index = self._indexResult(result)
             values = force_n[:, index]
 
         elif result in ["N", "Mx", "My", "Mz"]:
@@ -389,27 +389,27 @@ class Beam(_Simu):
 
             internalForces_e_pg = self._Calc_InternalForces_e_pg(Epsilon_e_pg)
             values_e = internalForces_e_pg.mean(1)
-            index = self.__indexResult(result)
+            index = self._indexResult(result)
             values = values_e[:, index]
 
         elif result in ["Sxx", "Syy", "Szz", "Syz", "Sxz", "Sxy"]:
             Epsilon_e_pg = self._Calc_Epsilon_e_pg(self.displacement)
             Sigma_e = self._Calc_Sigma_e_pg(Epsilon_e_pg).mean(1)
-            index = self.__indexResult(result)
+            index = self._indexResult(result)
             values = Sigma_e[:, index]
 
         elif result in ["ux'", "rx'", "ry'", "rz'"]:
             coef = 1 if result == "Exx" else 1 / 2
 
             Epsilon_e = self._Calc_Epsilon_e_pg(self.displacement).mean(1)
-            index = self.__indexResult(result)
+            index = self._indexResult(result)
             values = Epsilon_e[:, index] * coef
 
         # end cases ----------------------------------------------------
 
         return self.Results_Reshape_values(values, nodeValues)
 
-    def __indexResult(self, result: str) -> int:
+    def _indexResult(self, result: str) -> int:
         # "Beam1D" : ["ux" "fx"]
         # "Beam2D : ["ux","uy","rz""fx", "fy", "cz"]
         # "Beam3D" : ["ux", "uy", "uz", "rx", "ry", "rz" "fx","fy","fz","cx","cy"]

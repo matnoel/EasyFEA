@@ -8,7 +8,7 @@ import numpy as np
 
 # utils
 from ._utils import ElemType, MatrixType
-from ..utilities import _types
+from ..Utilities import _types
 
 
 class Gauss:

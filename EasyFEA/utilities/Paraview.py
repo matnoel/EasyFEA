@@ -5,16 +5,17 @@
 """This module allows you to save a simulation's results on Paraview (https://www.paraview.org/)."""
 
 import numpy as np
+from typing import TYPE_CHECKING
 
 # utilities
 from . import Display, Folder, Tic
 from .MeshIO import DICT_GMSH_TO_VTK_INDEXES, DICT_ELEMTYPE_TO_VTK
 
-from typing import TYPE_CHECKING
-from ..utilities import _types
+from ..Utilities import _types
 
 if TYPE_CHECKING:
-    from ..simulations._simu import _Simu, Mesh
+    from ..Simulations._simu import _Simu
+    from ..FEM._mesh import Mesh
 
 
 # ----------------------------------------------

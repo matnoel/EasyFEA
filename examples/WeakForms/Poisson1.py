@@ -12,7 +12,7 @@ Reference: https://scikit-fem.readthedocs.io/en/latest/listofexamples.html#examp
 """
 
 from EasyFEA import Display, ElemType, Models, Simulations
-from EasyFEA.fem import Field, BiLinearForm, LinearForm
+from EasyFEA.FEM import Field, BiLinearForm, LinearForm
 from EasyFEA.Geoms import Domain
 
 if __name__ == "__main__":

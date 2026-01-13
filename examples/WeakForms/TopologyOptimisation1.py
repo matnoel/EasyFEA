@@ -12,7 +12,7 @@ An educational implementation of topology optimization inspired by `Week 10- Top
 # sphinx_gallery_thumbnail_number = 3
 
 from EasyFEA import Display, Folder, PyVista, np, ElemType, Models, Simulations
-from EasyFEA.fem import FeArray, Field, BiLinearForm, Sym_Grad, Trace
+from EasyFEA.FEM import FeArray, Field, BiLinearForm, Sym_Grad, Trace
 from EasyFEA.Geoms import Domain
 
 if __name__ == "__main__":

@@ -12,7 +12,7 @@ Optimization of a happy mesh with quality criteria.
 
 from EasyFEA import Display, Folder, plt, np, Mesher, ElemType, Mesh, PyVista
 from EasyFEA.Geoms import Point, Circle, CircleArc, Contour
-from EasyFEA.fem import Mesh_Optim
+from EasyFEA.FEM import Mesh_Optim
 
 if __name__ == "__main__":
     Display.Clear()

@@ -7,14 +7,14 @@ import pytest
 from EasyFEA import np
 
 # materials
-from EasyFEA.models._linear_elastic_laws import (
+from EasyFEA.Models.Elastic._laws import (
     _Elastic,
     Isotropic,
     TransverselyIsotropic,
     Orthotropic,
     Anisotropic,
 )
-from EasyFEA.models import (
+from EasyFEA.Models import (
     Get_Pmat,
     Apply_Pmat,
     KelvinMandel_Matrix,

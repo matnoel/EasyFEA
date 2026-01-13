@@ -11,7 +11,11 @@ from typing import Any, Optional, Union
 
 from . import Folder, Display, _types
 
-from ..fem import Mesh, ElemType, GroupElemFactory, _GroupElem
+from ..FEM._mesh import Mesh
+from ..FEM._utils import ElemType
+from ..FEM._group_elem import _GroupElem
+from ..FEM._group_elem import GroupElemFactory
+
 from .PyVista import np, pv
 
 # ----------------------------------------------

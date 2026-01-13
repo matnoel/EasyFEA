@@ -6,6 +6,8 @@
 import os
 import re
 import string
+import inspect
+import sys
 
 import pyvista
 import EasyFEA
@@ -22,31 +24,128 @@ author = "Matthieu Noel"
 # https://www.sphinx-doc.org/en/master/usage/configuration.html#general-configuration
 
 extensions = [
-    "sphinx.ext.duration",  # Measure durations of Sphinx processing
-    # DOC
     "myst_parser",  # markdown
+    # DOC
     "sphinx.ext.autodoc",
     "sphinx.ext.napoleon",
-    "sphinx.ext.viewcode",
+    "sphinx.ext.linkcode",
     "sphinx.ext.autosummary",
     "sphinx_autodoc_typehints",
-    # plot
+    # plots and gallery
     "jupyter_sphinx",
-    "matplotlib.sphinxext.plot_directive",
     "sphinx_gallery.gen_gallery",
     "sphinx_design",
     "pyvista.ext.plot_directive",
     "pyvista.ext.viewer_directive",
+    "sphinx.ext.duration",  # Measure durations of Sphinx processing
 ]
-autodoc_typehints = "signature"
 
-# https://www.sphinx-doc.org/en/master/usage/extensions/autodoc.html#automatically-document-modules
-autodoc_default_options = {
-    "member-order": "groupwise",
-}
+suppress_warnings = [
+    "toc.not_included",
+    "toc.not_readable",
+]
+
+# -- Auto doc ---------------------------------------------------
 
 templates_path = ["_templates"]
 exclude_patterns = ["_build", "Thumbs.db", ".DS_Store"]
+
+# https://www.sphinx-doc.org/en/master/usage/extensions/autodoc.html#automatically-document-modules
+autodoc_default_options = {
+    "members": True,
+    "private-members": True,
+    "imported-members": False,
+    "undoc-members": True,
+    "show-inheritance": False,
+    "member-order": "groupwise",
+}
+maximum_signature_line_length = 88
+
+
+def linkcode_resolve(
+    domain: str, info: dict[str, str], edit: bool = False
+) -> str | None:
+    """Determine the URL corresponding to a Python object.
+
+    Parameters
+    ----------
+    domain : str
+        Only useful when 'py'.
+
+    info : dict
+        With keys "module" and "fullname".
+
+    edit : bool, default=False
+        Jump right to the edit page.
+
+    Returns
+    -------
+    str
+        The code URL. Empty string if there is no valid link.
+
+    Notes
+    -----
+    This function is used by the `sphinx.ext.linkcode` extension to create the "[Source]"
+    button whose link is edited in this function.
+
+    Adapted from PyVista (pyvista/pyvista/core/utilities/docs.py).
+    """
+
+    if domain != "py":
+        return None
+
+    modname = info["module"]
+    fullname = info["fullname"]
+
+    # Little clean up to avoid pyvista.pyvista
+    if fullname.startswith(modname):
+        fullname = fullname[len(modname) + 1 :]
+
+    submod = sys.modules.get(modname)
+    if submod is None:
+        return None
+
+    obj = submod
+    for part in fullname.split("."):
+        try:
+            obj = getattr(obj, part)
+        except Exception:
+            return None
+
+    # deal with our decorators properly
+    while hasattr(obj, "fget"):
+        obj = obj.fget
+
+    # deal with wrapped object
+    while hasattr(obj, "__wrapped__"):
+        obj = obj.__wrapped__
+    try:
+        fn = inspect.getsourcefile(obj)
+    except Exception:
+        fn = None
+
+    if not fn:
+        try:
+            fn = inspect.getsourcefile(sys.modules[obj.__module__])
+        except Exception:
+            return None
+        return None
+
+    fn = os.path.relpath(fn, start=os.path.dirname(EasyFEA.__file__))
+    fn = "/".join(os.path.normpath(fn).split(os.sep))
+
+    try:
+        source, lineno = inspect.getsourcelines(obj)
+    except Exception:
+        lineno = None
+
+    linespec = f"#L{lineno}-L{lineno + len(source) - 1}" if lineno and not edit else ""
+
+    blob_or_edit = "edit" if edit else "blob"
+    github = "https://github.com/matnoel/EasyFEA"
+    link = f"{github}/{blob_or_edit}/main/EasyFEA/{fn}{linespec}"
+    return link
+
 
 # -- Gallery configuration ---------------------------------------------------
 
@@ -80,6 +179,7 @@ def FileNameSortKey(filename):
 sphinx_gallery_conf = {
     "examples_dirs": "../examples",
     "gallery_dirs": "examples",
+    "abort_on_example_error": True,
     "image_scrapers": (DynamicScraper(), "matplotlib"),
     "download_all_examples": False,
     "remove_config_comments": True,
@@ -176,3 +276,30 @@ mathjax3_config = {
         }
     },
 }
+
+# -- Setup -------------------------------------------------
+
+
+def skip_member_handler(app, obj_type, name, obj, skip, options):
+    # https://www.sphinx-doc.org/en/master/usage/extensions/autodoc.html#event-autodoc-skip-member
+    # app: the Sphinx application object
+    # obj_type: the type of the object which the docstring belongs to (one of 'module', 'class', 'exception', 'function', 'decorator', 'method', 'property', 'attribute', 'data', or 'type')
+    # name: the fully qualified name of the object
+    # obj: the object itself
+    # skip: a boolean indicating if autodoc will skip this member if the user handler does not override the decision
+    # options: the options given to the directive: an object with attributes corresponding to the options used in the auto directive, e.g. inherited_members, undoc_members, or show_inheritance.
+
+    # remove private methods
+    if "__" in name and name.startswith("_"):
+        return True
+
+    # ignore numpy, scipy, ... imports
+    module = getattr(obj, "__module__", "")
+    if module and not module.startswith("EasyFEA"):
+        return True
+
+    return skip  # default behavior
+
+
+def setup(app):
+    app.connect("autodoc-skip-member", skip_member_handler)

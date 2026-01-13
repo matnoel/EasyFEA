@@ -8,7 +8,7 @@ from scipy.optimize import minimize
 from collections.abc import Iterable
 
 from typing import Union
-from ..utilities import _types, _params
+from ..Utilities import _types, _params
 from functools import singledispatch
 
 
@@ -258,7 +258,7 @@ def Translate(
     return newCoord
 
 
-def __Rotation_matrix(vect: _types.AnyArray, theta: float) -> _types.FloatArray:
+def _Rotation_matrix(vect: _types.AnyArray, theta: float) -> _types.FloatArray:
     """Gets the rotation matrix for turning along an axis with theta angle (rad).\n
     p(x,y) = mat • p(i,j)\n
     https://en.wikipedia.org/wiki/Rotation_matrix#Axis_and_angle"""
@@ -310,7 +310,7 @@ def Rotate(
     theta *= np.pi / 180
 
     # rotation matrix
-    rotMat = __Rotation_matrix(direction, theta)
+    rotMat = _Rotation_matrix(direction, theta)
 
     oldCoord = np.reshape(coord, (-1, 3))
 
@@ -397,7 +397,6 @@ def Circle_Coords(
     n = AsCoords(n)
 
     p0 = np.mean(coord, 0)
-    x0, y0, z0 = coord[0]
 
     def eval(v):
         x, y, z = v
@@ -585,7 +584,7 @@ def Fillet(
     return A, B, C
 
 
-def __Get_Triangle_Area(A: _types.AnyArray, B: _types.AnyArray, C: _types.AnyArray):
+def _Get_Triangle_Area(A: _types.AnyArray, B: _types.AnyArray, C: _types.AnyArray):
     """Computes triangle area with A, B, C coordinates
 
     Parameters
@@ -611,7 +610,7 @@ def __Get_Triangle_Area(A: _types.AnyArray, B: _types.AnyArray, C: _types.AnyArr
     return np.linalg.norm(np.cross(B - A, C - A)) / 2
 
 
-def __Get_Tetrahedron_Volume(
+def _Get_Tetrahedron_Volume(
     A: _types.AnyArray,
     B: _types.AnyArray,
     C: _types.AnyArray,
@@ -699,14 +698,14 @@ def _Get_BaryCentric_Coordinates_In_Triangle(
 
     A, B, C = vertices
 
-    area = __Get_Triangle_Area(A, B, C)
+    area = _Get_Triangle_Area(A, B, C)
 
     barycentric_coords = np.zeros((coords.shape[0], 3), dtype=float)
 
     for i, P in enumerate(coords):
-        a = __Get_Triangle_Area(P, B, C) / area
-        b = __Get_Triangle_Area(P, A, C) / area
-        c = __Get_Triangle_Area(P, A, B) / area
+        a = _Get_Triangle_Area(P, B, C) / area
+        b = _Get_Triangle_Area(P, A, C) / area
+        c = _Get_Triangle_Area(P, A, B) / area
 
         barycentric_coords[i] = [a, b, c]
 
@@ -735,15 +734,15 @@ def _Get_BaryCentric_Coordinates_In_Tetrahedron(
 
     A, B, C, D = vertices
 
-    volume = __Get_Tetrahedron_Volume(A, B, C, D)
+    volume = _Get_Tetrahedron_Volume(A, B, C, D)
 
     barycentric_coords = np.zeros((coords.shape[0], 4), dtype=float)
 
     for i, P in enumerate(coords):
-        a = __Get_Tetrahedron_Volume(P, B, C, D) / volume
-        b = __Get_Tetrahedron_Volume(P, A, C, D) / volume
-        c = __Get_Tetrahedron_Volume(P, A, B, D) / volume
-        d = __Get_Tetrahedron_Volume(P, A, B, C) / volume
+        a = _Get_Tetrahedron_Volume(P, B, C, D) / volume
+        b = _Get_Tetrahedron_Volume(P, A, C, D) / volume
+        c = _Get_Tetrahedron_Volume(P, A, B, D) / volume
+        d = _Get_Tetrahedron_Volume(P, A, B, C) / volume
 
         barycentric_coords[i] = [a, b, c, d]
 

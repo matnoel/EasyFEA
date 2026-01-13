@@ -7,16 +7,16 @@ import pytest
 from EasyFEA import Geoms, Mesher, Simulations, np, SolverType
 
 # materials
-from EasyFEA.models._linear_elastic_laws import (
+from EasyFEA.Models.Elastic import (
     _Elastic,
     Isotropic,
     TransverselyIsotropic,
     Anisotropic,
 )
-from EasyFEA.models._phasefield import PhaseField
-from EasyFEA.models import Reshape_variable
-from EasyFEA.fem._linalg import Norm
-from EasyFEA.fem import FeArray
+from EasyFEA.Models._phasefield import PhaseField
+from EasyFEA.Models import Reshape_variable
+from EasyFEA.FEM._linalg import Norm
+from EasyFEA.FEM import FeArray
 
 
 from .linear_elastic_test import setup_elastic_materials

@@ -2,6 +2,13 @@
 # This file is part of the EasyFEA project.
 # EasyFEA is distributed under the terms of the GNU General Public License v3, see LICENSE.txt and CREDITS.md for more information.
 
+from . import Beam
+from . import Elastic
+from . import HyperElastic
+from ._phasefield import PhaseField
+from ._thermal import Thermal
+from ._weakforms import WeakForms
+
 from ._utils import (
     ModelType,
     _IModel,

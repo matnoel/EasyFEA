@@ -3,10 +3,10 @@
 # EasyFEA is distributed under the terms of the GNU General Public License v3, see LICENSE.txt and CREDITS.md for more information.
 
 from EasyFEA import Mesher, ElemType, MatrixType, Models, Simulations, np, SolverType
-from EasyFEA.models._hyperelastic import HyperElasticState
+from EasyFEA.Models.HyperElastic._state import HyperElasticState
 from EasyFEA.Geoms import Domain
-from EasyFEA.fem._linalg import Trace, Det, Inv, TensorProd
-from EasyFEA.models._utils import Project_Kelvin, FeArray
+from EasyFEA.FEM._linalg import Trace, Det, Inv, TensorProd
+from EasyFEA.Models._utils import Project_Kelvin, FeArray
 
 
 def Get_2d_simulations(ud=1e-6) -> list[Simulations.Elastic]:

@@ -15,7 +15,7 @@ Section 4.7 with corrected values on page 89 (Erratum).
 
 from EasyFEA import Display, Models, plt, np, ElemType, Simulations
 from EasyFEA.Geoms import Points, Circle
-from EasyFEA.fem import LagrangeCondition, FeArray
+from EasyFEA.FEM import LagrangeCondition, FeArray
 from typing import Optional
 
 

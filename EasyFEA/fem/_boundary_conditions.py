@@ -6,7 +6,7 @@
 
 import numpy as np
 
-from ..utilities import _types
+from ..Utilities import _types
 
 
 class BoundaryCondition:

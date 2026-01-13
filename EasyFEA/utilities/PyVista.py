@@ -13,15 +13,17 @@ from functools import singledispatch
 
 # utilities
 from .Display import MyPrintError, MyPrint, plt
-from ..simulations._simu import _Init_obj, _Get_values
+from ..Simulations._simu import _Init_obj, _Get_values
 from . import Folder, Tic, _types, MeshIO
 from .. import Geoms
 
-if TYPE_CHECKING:
-    from ..simulations._simu import _Simu, Mesh, _GroupElem
-
 # fem
-from ..fem import GroupElemFactory
+from ..FEM import GroupElemFactory
+
+if TYPE_CHECKING:
+    from ..Simulations._simu import _Simu
+    from ..FEM._mesh import Mesh
+    from ..FEM._group_elem import _GroupElem
 
 
 def Plot(
@@ -972,9 +974,14 @@ def _(geom: Geoms.Domain):
 
 @_pvGeom.register
 def _(geom: Geoms.Circle):
-    arc1 = pv.CircularArc(geom.pt1.coord, geom.pt3.coord, geom.center.coord)
+    arc1 = pv.CircularArc(
+        pointa=geom.pt1.coord, pointb=geom.pt3.coord, center=geom.center.coord
+    )
     arc2 = pv.CircularArc(
-        geom.pt1.coord, geom.pt3.coord, geom.center.coord, negative=True
+        pointa=geom.pt1.coord,
+        pointb=geom.pt3.coord,
+        center=geom.center.coord,
+        negative=True,
     )
     return [arc1, arc2]
 

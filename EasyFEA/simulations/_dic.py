@@ -12,12 +12,12 @@ import cv2  # need opencv-python library
 from typing import Optional
 
 # utilities
-from ..utilities import Tic, Folder, Display
-from ..utilities._observers import Observable, _IObserver
-from ..utilities import _types
+from ..Utilities import Tic, Folder, Display
+from ..Utilities._observers import Observable, _IObserver
+from ..Utilities import _types
 
 # fem
-from ..fem import Mesh, BoundaryCondition, FeArray, MatrixType
+from ..FEM import Mesh, BoundaryCondition, FeArray, MatrixType
 
 
 class DIC(_IObserver):

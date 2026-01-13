@@ -12,7 +12,7 @@ Perform homogenization on several RVE.
 
 from EasyFEA import Display, Models, plt, np, ElemType, Simulations
 from EasyFEA.Geoms import Point, Points, Line
-from EasyFEA.fem import FeArray
+from EasyFEA.FEM import FeArray
 
 from Homog1 import Compute_ukl
 

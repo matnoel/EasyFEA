@@ -25,7 +25,7 @@ from EasyFEA import (
     PyVista,
 )
 from EasyFEA.Geoms import Point, Points
-from EasyFEA.fem import Calc_projector
+from EasyFEA.FEM import Calc_projector
 
 if __name__ == "__main__":
     Display.Clear()

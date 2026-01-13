@@ -5,7 +5,7 @@
 import numpy as np
 
 from EasyFEA import ElemType, Models, Simulations, SolverType
-from EasyFEA.fem import FeArray, Field, BiLinearForm, Sym_Grad, Trace
+from EasyFEA.FEM import FeArray, Field, BiLinearForm, Sym_Grad, Trace
 from EasyFEA.Geoms import Domain
 
 

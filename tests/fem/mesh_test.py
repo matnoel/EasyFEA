@@ -4,7 +4,7 @@
 
 import pytest
 
-from EasyFEA.fem._utils import MatrixType
+from EasyFEA.FEM._utils import MatrixType
 from EasyFEA import Mesher, ElemType, Mesh, Models, np, Simulations
 from EasyFEA.Geoms import Points
 

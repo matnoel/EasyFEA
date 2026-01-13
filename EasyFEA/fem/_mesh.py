@@ -17,8 +17,8 @@ import copy
 from typing import Callable, Optional, TYPE_CHECKING
 
 # utilities
-from ..utilities import Display, Tic, _types
-from ..utilities._observers import Observable
+from ..Utilities import Display, Tic, _types
+from ..Utilities._observers import Observable
 
 # fem
 from ._linalg import FeArray
@@ -29,8 +29,8 @@ if TYPE_CHECKING:
 
 # others
 if TYPE_CHECKING:
-    from ..geoms import Line, Domain, Circle
-from ..geoms import Point, Rotate, Symmetry, Normalize, Angle_Between
+    from ..Geoms import Line, Domain, Circle
+from ..Geoms import Point, Rotate, Symmetry, Normalize, Angle_Between
 
 
 class Mesh(Observable):
@@ -1229,7 +1229,7 @@ def Mesh_Optim(
         optimized mesh size and ratio
     """
 
-    from ..utilities import Folder
+    from ..Utilities import Folder
     from . import Mesher
 
     targetRatio = ratio

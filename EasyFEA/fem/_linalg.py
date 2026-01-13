@@ -6,7 +6,7 @@
 
 import numpy as np
 from typing import Union, Optional, Iterable
-from ..utilities import _types
+from ..Utilities import _types
 
 
 class FeArray(_types.AnyArray):

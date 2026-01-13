@@ -6,7 +6,7 @@
 import numpy as np
 
 from ._utils import _IModel, ModelType
-from ..utilities import _params
+from ..Utilities import _params
 
 # ----------------------------------------------
 # Thermal

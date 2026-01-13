@@ -18,7 +18,7 @@ from ._utils import (
     Circle_Coords,
 )
 from ._geom import _Geom
-from ..utilities import _params, _types
+from ..Utilities import _params, _types
 
 
 class Circle(_Geom):

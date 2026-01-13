@@ -8,15 +8,14 @@ from abc import abstractmethod
 import numpy as np
 
 # geom
-from ..Geoms import Line
-from ..geoms import AsCoords, Normalize
+from ...Geoms import Line, AsCoords, Normalize
 
 # fem
-from ..fem import Mesh, _GroupElem, FeArray, MatrixType
+from ...FEM import Mesh, _GroupElem, FeArray, MatrixType
 
 # materials
-from ._utils import _IModel, ModelType
-from ..utilities import _params, _types
+from .._utils import _IModel, ModelType
+from ...Utilities import _params, _types
 
 # ----------------------------------------------
 # Beam

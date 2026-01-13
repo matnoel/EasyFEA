@@ -6,15 +6,15 @@ import numpy as np
 from typing import Union, Optional, TYPE_CHECKING
 
 # utilities
-from ..utilities import Display, _types
+from ..Utilities import Display, _types
 
 # fem
 if TYPE_CHECKING:
-    from ..fem import Mesh
-from ..fem import MatrixType, FeArray
+    from ..FEM import Mesh
+from ..FEM import MatrixType, FeArray
 
-# materials
-from ..models import (
+# models
+from ..Models import (
     ModelType,
     Reshape_variable,
     Result_in_Strain_or_Stress_field,
@@ -22,8 +22,8 @@ from ..models import (
 )
 
 if TYPE_CHECKING:
-    from ..models._hyperelastic_laws import _HyperElastic
-from ..models._hyperelastic import HyperElasticState
+    from ..Models.HyperElastic._laws import _HyperElastic
+from ..Models.HyperElastic._state import HyperElasticState
 
 # simu
 from ._simu import _Simu, AlgoType

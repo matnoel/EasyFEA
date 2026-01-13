@@ -14,11 +14,11 @@ from functools import singledispatch
 from ..__about__ import __version__
 
 # utilities
-from ..utilities import Folder, Display, Tic, _params, _types
-from ..utilities._observers import Observable, _IObserver
+from ..Utilities import Folder, Display, Tic, _params, _types
+from ..Utilities._observers import Observable, _IObserver
 
 # fem
-from ..fem import (
+from ..FEM import (
     Mesh,
     _GroupElem,
     FeArray,
@@ -28,7 +28,7 @@ from ..fem import (
 )
 
 # materials
-from ..models import ModelType, _IModel, Reshape_variable
+from ..Models import ModelType, _IModel, Reshape_variable
 
 # simu
 from .Solvers import (

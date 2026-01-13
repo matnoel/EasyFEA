@@ -7,7 +7,7 @@
 from typing import Union
 import numpy as np
 
-from ..utilities import _types
+from ..Utilities import _types
 
 from ._utils import Point
 from ._line import Line

@@ -15,10 +15,10 @@ from typing import Union, Optional, Iterable, Collection, TYPE_CHECKING
 from functools import singledispatchmethod
 
 # utilities
-from ..utilities import Display, Folder, Tic, _types
+from ..Utilities import Display, Folder, Tic, _types
 
 # geom
-from ..geoms import (
+from ..Geoms import (
     _Geom,
     Points,
     CircleArc,
@@ -38,8 +38,8 @@ from ._mesh import Mesh, ElemType
 
 if TYPE_CHECKING:
     # materials
-    from ..models._beam import _Beam
-    from ..simulations._simu import _Simu
+    from ..Models.Beam._beam import _Beam
+    from ..Simulations._simu import _Simu
 
 try:
     from mpi4py import MPI
@@ -1013,7 +1013,7 @@ class Mesher:
         if elemType is None:
             elemType = ElemType.TRI3 if dim == 2 else ElemType.TETRA4
         elif elemType in __doesNotWork:
-            from ..utilities.Display import MyPrintError
+            from ..Utilities.Display import MyPrintError
 
             MyPrintError(
                 f"It is not possible to mesh an imported part with the following elements: {__doesNotWork}"

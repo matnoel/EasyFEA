@@ -16,14 +16,14 @@ The most commonly used modules in EasyFEA are:
 
 ```{eval-rst}
 .. autosummary::
-    ~EasyFEA.utilities.Display 
-    ~EasyFEA.fem.ElemType 
+    ~EasyFEA.Utilities.Display 
+    ~EasyFEA.FEM.ElemType 
     ~EasyFEA.Models
     ~EasyFEA.Simulations
     ~EasyFEA.Geoms
 ```
 
-Let's now create a 2D {py:class}`~EasyFEA.fem._mesh.Mesh` using a simple rectangular domain:
+Let's now create a 2D {py:class}`~EasyFEA.FEM._mesh.Mesh` using a simple rectangular domain:
 
 ```{eval-rst}
 .. jupyter-execute::

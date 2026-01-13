@@ -5,8 +5,8 @@
 import pytest
 
 from EasyFEA import Mesher, ElemType, Models, Simulations, np
-from EasyFEA.fem._linalg import Trace, TensorProd
-from EasyFEA.models import Project_Kelvin
+from EasyFEA.FEM._linalg import Trace, TensorProd
+from EasyFEA.Models import Project_Kelvin
 from EasyFEA.Geoms import Domain
 
 

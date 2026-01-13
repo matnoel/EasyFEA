@@ -9,12 +9,12 @@ import numpy as np
 from typing import Union
 
 # utilities
-from ..fem import MatrixType, FeArray, TensorProd
-from ._hyperelastic import HyperElasticState
+from ...FEM import MatrixType, FeArray, TensorProd
+from ._state import HyperElasticState
 
 # others
-from ._utils import _IModel, ModelType, Project_vector_to_matrix
-from ..utilities import _params, _types
+from .._utils import _IModel, ModelType, Project_vector_to_matrix
+from ...Utilities import _params, _types
 
 # ----------------------------------------------
 # Hyper Elastic

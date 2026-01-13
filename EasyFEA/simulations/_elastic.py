@@ -6,16 +6,16 @@ from typing import Union, Callable, Optional, TYPE_CHECKING
 import numpy as np
 
 # utilities
-from ..utilities import Folder, Display, Tic, _types
+from ..Utilities import Folder, Display, Tic, _types
 
 # fem
 if TYPE_CHECKING:
-    from ..fem import Mesh
-from ..fem import MatrixType, Mesher, FeArray
+    from ..FEM import Mesh
+from ..FEM import MatrixType, Mesher, FeArray
 
-# materials
-from ..models import ModelType, Reshape_variable, Result_in_Strain_or_Stress_field
-from ..models._linear_elastic_laws import _Elastic
+# models
+from ..Models import ModelType, Reshape_variable, Result_in_Strain_or_Stress_field
+from ..Models.Elastic._laws import _Elastic
 
 # simu
 from ._simu import _Simu
