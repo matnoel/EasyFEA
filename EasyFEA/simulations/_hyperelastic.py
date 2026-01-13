@@ -48,12 +48,10 @@ class HyperElastic(_Simu):
     where the tangent :math:`A(\ub; \vb, \wb)` is defined :math:`\forall \, (\vb, \wb) \in \Vc \times \Wc` as:
 
     .. math::
-        \begin{align}
-            A(\ub; \vb, \wb) &=
-            \dpartial{R(\ub; \vb)}{\ub} \cdot \wb \\ &=
-            \int_{\Omega_0} \Drm_\ub \eb(\ub) \cdot \wb : \dNpartial{2}{W}{\eb}(\ub) : \Drm_\ub \eb(\vb) \, \dO +
-            \int_{\Omega_0} \dpartial{W}{\eb}(\ub) : \Drm_\ub^2 \eb(\vb, \wb) \, \dO
-        \end{align}
+        A(\ub; \vb, \wb) &=
+        \dpartial{R(\ub; \vb)}{\ub} \cdot \wb \\ &=
+        \int_{\Omega_0} \Drm_\ub \eb(\ub) \cdot \wb : \dNpartial{2}{W}{\eb}(\ub) : \Drm_\ub \eb(\vb) \, \dO +
+        \int_{\Omega_0} \dpartial{W}{\eb}(\ub) : \Drm_\ub^2 \eb(\vb, \wb) \, \dO
 
     The implemented hyperelastic laws are available :ref:`here <models-hyperelastic>` and where constructed by the :ref:`ComputeHyperelasticLaws` script.
     """
