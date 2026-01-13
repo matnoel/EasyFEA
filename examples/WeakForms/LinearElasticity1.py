@@ -77,7 +77,7 @@ if __name__ == "__main__":
     # Simulations
     # ----------------------------------------------
 
-    simu = Simulations.WeakForm(mesh, weakForms)
+    simu = Simulations.WeakForms(mesh, weakForms)
 
     simu.add_dirichlet(nodesX0, [0] * dim, simu.Get_unknowns())
     simu.add_surfLoad(nodesXL, [F / h**2], ["y"])

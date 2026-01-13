@@ -21,7 +21,7 @@ from ._simu import _Simu
 from .Solvers import AlgoType
 
 
-class WeakForm(_Simu):
+class WeakForms(_Simu):
     def __init__(
         self,
         mesh: "Mesh",

@@ -44,7 +44,7 @@ class TestWeakForms:
 
         weakForms = Models.WeakForms(field, bilinear_form)
 
-        simu = Simulations.WeakForm(mesh, weakForms)
+        simu = Simulations.WeakForms(mesh, weakForms)
         simu.solver = SolverType.scipy
 
         simu.add_dirichlet(nodesX0, [0], ["u"])
@@ -101,7 +101,7 @@ class TestWeakForms:
 
         weakForms = Models.WeakForms(field, ComputeK)
 
-        simu = Simulations.WeakForm(mesh, weakForms)
+        simu = Simulations.WeakForms(mesh, weakForms)
         simu.solver = SolverType.scipy
 
         simu.add_dirichlet(nodesX0, [0, 0], ["x", "y"])

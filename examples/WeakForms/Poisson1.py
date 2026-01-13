@@ -48,7 +48,7 @@ if __name__ == "__main__":
     # Simulation
     # ----------------------------------------------
 
-    simu = Simulations.WeakForm(mesh, weakForms)
+    simu = Simulations.WeakForms(mesh, weakForms)
 
     simu.add_dirichlet(nodes, [0], ["u"])
 

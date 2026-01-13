@@ -41,7 +41,7 @@ from .simulations._thermal import Thermal
 # WeakForm
 # ------------------------------------------------------------------------------
 
-from .simulations._weak_forms import WeakForm
+from .simulations._weak_forms import WeakForms
 
 # ------------------------------------------------------------------------------
 # DIC
