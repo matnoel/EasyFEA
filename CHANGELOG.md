@@ -2,6 +2,10 @@
 
 This document describes the changes made to the project.
 
+## 1.7.0 (January 18, 2026):
+
+- Updated EasyFEA api and sphinx documentation.
+
 ## 1.6.5 (January 10, 2026):
 
 - Fixed bug in `mesh_test.py`.
