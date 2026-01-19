@@ -327,7 +327,7 @@ class Mesh(Observable):
             normal_e_pg = groupElem.Get_normals_e_pg(
                 MatrixType.mass, displacementMatrix
             )
-            normal_e = normal_e_pg[elements].mean(1)
+            normal_e = normal_e_pg[elements].sum(1)
 
             # here we want to get the normal vector on the nodes
             # need to get the nodes connectivity
@@ -611,7 +611,7 @@ class Mesh(Observable):
 
         return elements
 
-    def Nodes_Tags(self, tags: Union[str, list[str]]) -> _types.IntArray:
+    def Nodes_Tags(self, tags: Union[str, Iterable[str]]) -> _types.IntArray:
         """Returns nodes associated with the tags."""
         list_node: list[int] = []
 
@@ -640,7 +640,7 @@ class Mesh(Observable):
 
         return nodes
 
-    def Elements_Tags(self, tags: Union[str, list[str]]) -> _types.IntArray:
+    def Elements_Tags(self, tags: Union[str, Iterable[str]]) -> _types.IntArray:
         """Returns elements associated with the tag."""
         list_element: list[int] = []
 
