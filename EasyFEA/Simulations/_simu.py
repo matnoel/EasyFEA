@@ -2078,8 +2078,6 @@ class _Simu(_IObserver, _params.Updatable, ABC):
         if dim == 2:
             # will use 1D elements
             magnitude *= self.model.thickness
-        else:
-            magnitude *= -1
 
         # issue #29 revealed an error in this function.
         # Both methods below yield similar (though not identical) results.
