@@ -347,6 +347,7 @@ class _GroupElem(ABC):
         """
 
         coordo = self.coordGlob
+        connect = self.connect
 
         if displacementMatrix is not None:
             displacementMatrix = np.asarray(displacementMatrix, dtype=float)
@@ -362,14 +363,10 @@ class _GroupElem(ABC):
         elif self.dim in [1, 2]:
             # 2D lines or elements
 
-            points1 = coordo[self.__connect[:, 0]]
-            points2 = coordo[self.__connect[:, 1]]
+            points1 = coordo[connect[:, 0]]
+            points2 = coordo[connect[:, 1]]
 
-            i = points2 - points1
-            # Normalize
-            i = np.einsum(
-                "ei,e->ei", i, 1 / np.linalg.norm(i, axis=1), optimize="optimal"
-            )
+            i = Normalize(points2 - points1)
 
             if self.dim == 1:
                 # Segments
@@ -383,7 +380,7 @@ class _GroupElem(ABC):
                     k = e3
 
                 elif self.inDim == 2:
-                    j = np.cross([0, 0, 1], i)
+                    j = np.cross((0, 0, 1), i)
                     k = np.cross(i, j, axis=1)
 
                 elif self.inDim == 3:
@@ -401,39 +398,24 @@ class _GroupElem(ABC):
                     j = np.zeros_like(i)
                     j[rep1] = j1[rep1]
                     j[rep2] = j2[rep2]
-                    j = np.einsum(
-                        "ei,e->ei", j, 1 / np.linalg.norm(j, axis=1), optimize="optimal"
-                    )
+                    j = Normalize(j)
 
                     k = np.zeros_like(i, dtype=float)
                     k[rep1] = k1[rep1]
                     k[rep2] = k2[rep2]
-                    k = np.einsum(
-                        "ei,e->ei", k, 1 / np.linalg.norm(k, axis=1), optimize="optimal"
-                    )
+                    k = Normalize(k)
 
             else:
                 if "TRI" in self.elemType:
-                    points3 = coordo[self.__connect[:, 2]]
+                    points3 = coordo[connect[:, 2]]
                 elif "QUAD" in self.elemType:
-                    points3 = coordo[self.__connect[:, 3]]
+                    points3 = coordo[connect[:, 3]]
                 else:
                     raise TypeError("unknown type")
 
-                j = points3 - points1
-                j = np.einsum(
-                    "ei,e->ei", j, 1 / np.linalg.norm(j, axis=1), optimize="optimal"
-                )
-
-                k = np.cross(i, j, axis=1)
-                k = np.einsum(
-                    "ei,e->ei", k, 1 / np.linalg.norm(k, axis=1), optimize="optimal"
-                )
-
-                j = np.cross(k, i)
-                j = np.einsum(
-                    "ei,e->ei", j, 1 / np.linalg.norm(j, axis=1), optimize="optimal"
-                )
+                j = Normalize(points3 - points1)
+                k = Normalize(np.cross(i, j, axis=1))
+                j = Normalize(np.cross(k, i, axis=1))
 
             sysCoord_e = np.zeros((self.Ne, 3, 3), dtype=float)
 
