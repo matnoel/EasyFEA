@@ -1909,26 +1909,22 @@ class Mesher:
             gmsh.model.mesh.removeDuplicateElements()
 
         # PLUGIN CRACK
-        if crackSurfaces is not None or crackLines is not None:
-            if crackLines is not None:  # 1D CRACKS
-                gmsh.plugin.setNumber("Crack", "Dimension", 1)
-                gmsh.plugin.setNumber("Crack", "PhysicalGroup", crackLines)
-                if openPoints is not None:
-                    gmsh.plugin.setNumber(
-                        "Crack", "OpenBoundaryPhysicalGroup", openPoints
-                    )
-                gmsh.plugin.run(
-                    "Crack"
-                )  # DONT DELETE must be called for lines and surfaces
+        if crackLines is not None:  # 1D CRACKS
+            gmsh.plugin.setNumber("Crack", "Dimension", 1)
+            gmsh.plugin.setNumber("Crack", "PhysicalGroup", crackLines)
+            if openPoints is not None:
+                gmsh.plugin.setNumber("Crack", "OpenBoundaryPhysicalGroup", openPoints)
+            gmsh.plugin.setNumber("Crack", "SwapOrientation", 1)
+            gmsh.plugin.run("Crack")
+            # DONT DELETE must be called for 1D and 2D cracks
 
-            if crackSurfaces is not None:  # 2D CRACKS
-                gmsh.plugin.setNumber("Crack", "Dimension", 2)
-                gmsh.plugin.setNumber("Crack", "PhysicalGroup", crackSurfaces)
-                if openLines is not None:
-                    gmsh.plugin.setNumber(
-                        "Crack", "OpenBoundaryPhysicalGroup", openLines
-                    )
-                gmsh.plugin.run("Crack")
+        if crackSurfaces is not None:  # 2D CRACKS
+            gmsh.plugin.setNumber("Crack", "Dimension", 2)
+            gmsh.plugin.setNumber("Crack", "PhysicalGroup", crackSurfaces)
+            if openLines is not None:
+                gmsh.plugin.setNumber("Crack", "OpenBoundaryPhysicalGroup", openLines)
+            gmsh.plugin.setNumber("Crack", "SwapOrientation", 1)
+            gmsh.plugin.run("Crack")
 
         # Open gmsh interface if necessary
         if "-nopopup" not in sys.argv and self.__openGmsh:
