@@ -19,7 +19,10 @@ from ..Utilities import _types
 class Points(_Geom):
     """Points class."""
 
-    __NPoints = 0
+    __NInstance = 0
+
+    def _Init_Ninstance():
+        Points.__NInstance = 0
 
     def __init__(
         self,
@@ -52,8 +55,8 @@ class Points(_Geom):
         self.pt2 = list_point[-1]
         """Last point"""
 
-        Points.__NPoints += 1
-        name = f"Points{Points.__NPoints}"
+        Points.__NInstance += 1
+        name = f"Points{Points.__NInstance}"
         super().__init__(list_point, meshSize, name, isHollow, isOpen)
 
     def Get_Contour(self):

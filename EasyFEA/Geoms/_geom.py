@@ -73,6 +73,12 @@ class _Geom(ABC):
         self.isHollow = isHollow
         self.isOpen = isOpen
 
+    @staticmethod
+    @abstractmethod
+    def _Init_Ninstance():
+        """Initializes the instance number."""
+        ...
+
     # points doesn't have a public setter for safety
     @property
     def points(self) -> list[Point]:

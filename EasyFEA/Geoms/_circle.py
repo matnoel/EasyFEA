@@ -24,7 +24,10 @@ from ..Utilities import _params, _types
 class Circle(_Geom):
     """Circle class."""
 
-    __NCircle = 0
+    __NInstance = 0
+
+    def _Init_Ninstance():
+        Circle.__NInstance = 0
 
     def __init__(
         self,
@@ -66,8 +69,8 @@ class Circle(_Geom):
         self.pt3 = center + [-r, 0, 0]
         self.pt4 = center + [0, -r, 0]
 
-        Circle.__NCircle += 1
-        name = f"Circle{Circle.__NCircle}"
+        Circle.__NInstance += 1
+        name = f"Circle{Circle.__NInstance}"
         _Geom.__init__(
             self,
             [self.center, self.pt1, self.pt2, self.pt3, self.pt4],
@@ -171,7 +174,10 @@ class Circle(_Geom):
 class CircleArc(_Geom):
     """CircleArc class."""
 
-    __NCircleArc = 0
+    __NInstance = 0
+
+    def _Init_Ninstance():
+        CircleArc.__NInstance = 0
 
     def __init__(
         self,
@@ -272,8 +278,8 @@ class CircleArc(_Geom):
 
         self.coef = coef
 
-        CircleArc.__NCircleArc += 1
-        name = f"CircleArc{CircleArc.__NCircleArc}"
+        CircleArc.__NInstance += 1
+        name = f"CircleArc{CircleArc.__NInstance}"
         _Geom.__init__(
             self, [pt1, center, self.pt3, pt2], meshSize, name, False, isOpen
         )

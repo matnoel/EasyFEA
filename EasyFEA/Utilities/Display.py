@@ -18,8 +18,6 @@ from mpl_toolkits.mplot3d.art3d import Poly3DCollection, Line3DCollection
 from mpl_toolkits.axes_grid1 import make_axes_locatable  # use to do colorbarIsClose
 import matplotlib.animation as animation
 
-from .. import BUILDING_GALLERY
-
 # utilities
 from . import Folder, Tic, _types
 
@@ -1647,10 +1645,11 @@ def Section(text: str, verbosity=True) -> str:
 
 def Clear() -> None:
     """Clears the terminal."""
-    syst = platform.system()
-    if BUILDING_GALLERY:
-        Tic.Clear()
-    if syst in ["Linux", "Darwin"]:
-        Folder.os.system("clear")
-    elif syst == "Windows":
-        Folder.os.system("cls")
+    from .. import BUILDING_GALLERY
+
+    if not BUILDING_GALLERY:
+        syst = platform.system()
+        if syst in ["Linux", "Darwin"]:
+            Folder.os.system("clear")
+        elif syst == "Windows":
+            Folder.os.system("cls")

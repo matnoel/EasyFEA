@@ -8,8 +8,6 @@ import os
 import inspect
 from pathlib import Path
 
-from .. import BUILDING_GALLERY
-
 
 def Dir(path: str, depth: int = 1) -> str:
     """Returns the directory of the specified path."""
@@ -51,9 +49,9 @@ def Results_Dir() -> str:
     -------
     This function does not work in a Jupyter notebook!
     """
+    from .. import BUILDING_GALLERY
 
     stack = inspect.stack()
-
     if BUILDING_GALLERY:
         # In Sphinx Gallery, Python scripts are parsed with `py_source_parser.py`
         # See: https://github.com/sphinx-gallery/sphinx-gallery/blob/master/sphinx_gallery/py_source_parser.py

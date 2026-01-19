@@ -26,3 +26,13 @@ from ._utils import (
     Jacobian_Matrix,
     Fillet,
 )
+
+
+def _Init_Geoms_NInstance():
+    """Initalizes the number of instance for each geom classes."""
+    Circle._Init_Ninstance()
+    CircleArc._Init_Ninstance()
+    Contour._Init_Ninstance()
+    Domain._Init_Ninstance()
+    Line._Init_Ninstance()
+    Points._Init_Ninstance()

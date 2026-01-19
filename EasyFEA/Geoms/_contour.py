@@ -23,7 +23,10 @@ ContourCompatible = Union["Line", "CircleArc", "Points"]
 class Contour(_Geom):
     """Contour class."""
 
-    __NContour = 0
+    __NInstance = 0
+
+    def _Init_Ninstance():
+        Contour.__NInstance = 0
 
     def __init__(
         self,
@@ -76,8 +79,8 @@ class Contour(_Geom):
 
         self.geoms = geoms
 
-        Contour.__NContour += 1
-        name = f"Contour{Contour.__NContour}"
+        Contour.__NInstance += 1
+        name = f"Contour{Contour.__NInstance}"
         meshSize = np.mean([geom.meshSize for geom in geoms]).astype(float)
         _Geom.__init__(self, points, meshSize, name, isHollow, isOpen)
 

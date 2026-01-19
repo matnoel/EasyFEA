@@ -14,7 +14,10 @@ from ..Utilities import _types
 class Domain(_Geom):
     """Domain (2d or 3d domain) class."""
 
-    __NDomain = 0
+    __NInstance = 0
+
+    def _Init_Ninstance():
+        Domain.__NInstance = 0
 
     def __init__(
         self,
@@ -40,8 +43,8 @@ class Domain(_Geom):
         self.pt1 = AsPoint(pt1)
         self.pt2 = AsPoint(pt2)
 
-        Domain.__NDomain += 1
-        name = f"Domain{Domain.__NDomain}"
+        Domain.__NInstance += 1
+        name = f"Domain{Domain.__NInstance}"
         # a domain can't be open
         _Geom.__init__(self, [self.pt1, self.pt2], meshSize, name, isHollow, False)
 
