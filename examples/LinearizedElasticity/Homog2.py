@@ -199,7 +199,7 @@ if __name__ == "__main__":
     nEdges = nCorners // 2
 
     if usePBC:
-        nodes_kubc = mesh.Nodes_Points(corners)
+        nodes_kubc = mesh.Nodes_Point(corners)
         paired_nodes = mesh.Get_Paired_Nodes(nodes_kubc, True)
     else:
         nodes_kubc = mesh.Nodes_Tags([f"L{i}" for i in range(6)])
