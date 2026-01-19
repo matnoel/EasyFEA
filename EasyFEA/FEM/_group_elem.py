@@ -284,12 +284,6 @@ class _GroupElem(ABC):
 
         return self.__connect_n_e.copy()
 
-    @property
-    def assembly_e(self) -> _types.IntArray:
-        """assembly matrix (Ne, nPe*dim)"""
-
-        return self.Get_assembly_e(self.dim)
-
     def Get_assembly_e(self, dof_n: int) -> _types.IntArray:
         """Get the assembly matrix for the specified dof_n (Ne, nPe*dof_n)
 
@@ -1950,11 +1944,10 @@ class _GroupElem(ABC):
 
         Nn = self.coordGlob.shape[0]
 
-        size = Nn * self.dim
         if isinstance(dof_n, (int, float)):
             sol_e = sol[self.Get_assembly_e(dof_n)]
-        elif sol.shape[0] == size:
-            sol_e = sol[self.assembly_e]
+        elif sol.shape[0] == Nn * self.dim:
+            sol_e = sol[self.Get_assembly_e(self.dim)]
         elif sol.shape[0] == Nn:
             sol_e = sol[self.__connect]
         else:
