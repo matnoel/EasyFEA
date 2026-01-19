@@ -327,7 +327,7 @@ class Mesh(Observable):
             normal_e_pg = groupElem.Get_normals_e_pg(
                 MatrixType.mass, displacementMatrix
             )
-            normal_e = normal_e_pg[elements].sum(1)
+            normal_e = normal_e_pg[elements].mean(1)
 
             # here we want to get the normal vector on the nodes
             # need to get the nodes connectivity
