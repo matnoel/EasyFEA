@@ -208,6 +208,7 @@ sphinx_gallery_conf = {
 
 # -- Options for HTML output -------------------------------------------------
 # https://www.sphinx-doc.org/en/master/usage/configuration.html#options-for-html-output
+# https://fontawesome.com/search
 
 html_theme = "pydata_sphinx_theme"  # "furo", "pydata_sphinx_theme"
 html_theme_options = {
@@ -221,19 +222,19 @@ html_theme_options = {
         {
             "name": "PyPI",
             "url": "https://pypi.org/project/easyfea/",
-            "icon": "fa-solid fa-box",
+            "icon": "fa-brands fa-python",
+            "type": "fontawesome",
+        },
+        {
+            "name": "Discussions",
+            "url": "https://github.com/matnoel/EasyFEA/discussions",
+            "icon": "fa-solid fa-comment",
             "type": "fontawesome",
         },
         {
             "name": "Issues",
             "url": "https://github.com/matnoel/EasyFEA/issues",
             "icon": "fa-solid fa-issues",
-            "type": "fontawesome",
-        },
-        {
-            "name": "Read the Docs",
-            "url": "https://app.readthedocs.org/projects/easyfea/",
-            "icon": "fa-solid fa-book",
             "type": "fontawesome",
         },
     ],
