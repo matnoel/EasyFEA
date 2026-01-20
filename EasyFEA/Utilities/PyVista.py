@@ -360,7 +360,7 @@ def Plot_Elements(
         The pyvista plotter
     """
 
-    _, mesh, coordo, _ = _Init_obj(obj, deformFactor)
+    _, mesh, coord, _ = _Init_obj(obj, deformFactor)
 
     dimElem = mesh.dim if dimElem is None else dimElem
 
@@ -385,7 +385,7 @@ def Plot_Elements(
 
         # construct the new group element by changing the connectivity matrix
         connect = groupElem.connect[elements]
-        newGroupElem = GroupElemFactory.Create(groupElem.elemType, connect, coordo)
+        newGroupElem = GroupElemFactory.Create(groupElem.elemType, connect, coord)
 
         pvGroup = _pvMesh(newGroupElem)  # type: ignore [arg-type]
 
@@ -400,13 +400,80 @@ def Plot_Elements(
         )
 
         if showId:
-            centers = np.mean(coordo[groupElem.connect[elements]], axis=1)
+            centers = np.mean(coord[groupElem.connect[elements]], axis=1)
             pvData = pv.PolyData(centers)
             myLabels = [f"{element}" for element in elements]
             pvData["myLabels"] = myLabels  # type: ignore [assignment]
             plotter.add_point_labels(
                 pvData, "myLabels", point_color="k", render_points_as_spheres=True
             )
+
+    return plotter
+
+
+def Plot_Arrows(
+    obj: Union["_Simu", "Mesh"],
+    nodes: _types.IntArray,
+    vectors: _types.FloatArray,
+    deformFactor: float = 0.0,
+    magnitudeCoef: float = 0.1,
+    alpha: float = 1.0,
+    color: str = "red",
+    linewidth: Optional[float] = None,
+    label: Optional[str] = None,
+    plotter: Optional[pv.Plotter] = None,
+):
+    """Plots the mesh elements corresponding to the given nodes.
+
+    Parameters
+    ----------
+    obj : _Simu | Mesh
+        object containing the mesh
+    nodes : _types.IntArray
+        mesh nodes
+    vectors : _types.FloatArray
+        vectors on nodes
+    deformFactor : float, optional
+        Factor used to display the deformed solution (0 means no deformations), default 0.0
+    magnitudeCoef : float, optional
+        coef used to scale the average distance between the coordinates and the center, by default 0.1
+    alpha : float, optional
+        transparency of faces, by default 1.0
+    color : str, optional
+        color used to display faces, by default 'red
+    linewidth : float, optional
+        Thickness of lines, by default None
+    label : str, optional
+        label, by default None
+    plotter : pv.Plotter, optional
+        The pyvista plotter, by default None and create a new Plotter instance
+
+    Returns
+    -------
+    pv.Plotter
+        The pyvista plotter
+    """
+
+    _, mesh, coord, _ = _Init_obj(obj, deformFactor)
+
+    nodes = np.asarray(nodes, dtype=int)
+    assert nodes.ndim == 1
+    vectors = np.asarray(vectors, dtype=float)
+    assert vectors.ndim == 2 and vectors.shape[0] == nodes.size
+
+    if plotter is None:
+        plotter = _Plotter()
+
+    magnitude = mesh._Get_realistic_vector_magnitude(magnitudeCoef)
+    plotter.add_arrows(
+        coord[nodes],
+        vectors,
+        magnitude,
+        opacity=alpha,
+        color=color,
+        line_width=linewidth,
+        label=label,
+    )
 
     return plotter
 
