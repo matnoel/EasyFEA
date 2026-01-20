@@ -203,8 +203,8 @@ def Surface_reconstruction(mesh: Mesh) -> Mesh:
 
     useMixedElements = mesh.elemType.startswith(("PRISM"))
 
-    # get coordinates without orphan nodes
-    coordinates = mesh.groupElem.coordGlob[mesh.nodes]
+    # get coordinates with orphan nodes
+    coordinates = mesh.coord  # DON'T remove orphan nodes!
 
     # get group elem data
     groupElem = mesh.groupElem
