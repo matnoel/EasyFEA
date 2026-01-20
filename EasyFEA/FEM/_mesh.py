@@ -50,11 +50,20 @@ class Mesh(Observable):
         list_GroupElem = []
         dim = -1
         assert len(dict_groupElem) > 0, "dict_groupElem is empty."
+        coordGlob = None
+        errorCoord = "Each group of elements must use the same coordinates!"
         for grp in dict_groupElem.values():
             if grp.dim > dim:
                 # Here we make sure that the mesh element used is the one with the largest dimension.
                 dim = grp.dim
                 self.__groupElem = grp
+            if coordGlob is None:
+                coordGlob = grp.coordGlob
+            else:
+                assert coordGlob.shape == grp.coordGlob.shape, errorCoord
+                diff = coordGlob - grp.coordGlob
+                err = np.linalg.norm(diff) / np.linalg.norm(coordGlob)
+                assert err < 1e-12, errorCoord
             list_GroupElem.append(grp)
 
         self.__dim = self.__groupElem.dim
@@ -66,6 +75,7 @@ class Mesh(Observable):
         if self.__verbosity:
             print(self)
 
+        # check orphan nodes
         Nn = self.coord.shape[0]
         usedNodes = set(self.connect.ravel().astype(int))
         nodes = set(range(Nn))
