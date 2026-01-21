@@ -130,13 +130,3 @@ To learn more about contributing to EasyFEA, please consult the [Contributing Gu
 * :ref:`modindex`
 * :ref:`search`
 ```
-
-<!-- ```{math}
-\newcommand{\Krm}{\mathrm{K}}
-\newcommand{\Crm}{\mathrm{C}}
-\newcommand{\Mrm}{\mathrm{M}}
-\newcommand{\Frm}{\mathrm{F}}
-\newcommand{\urm}{\mathrm{u}}
-\newcommand{\vrm}{\mathrm{v}}
-\newcommand{\arm}{\mathrm{a}}
-``` -->
