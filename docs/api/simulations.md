@@ -18,24 +18,21 @@ With this module, you can construct:
 EasyFEA automatically manages the resolution of `elliptic`, `parabolic` and `hyperbolic` matrix systems, allowing developers to focus exclusively on constructing local matrices via the `Construct_local_matrix_system` method.
 
 ### Elliptic
-```{math}
-:label: elliptic
+$$
 \Krm \, \urm = \Frm
-```
+$$ (elliptic)
 
 ### Parabolic
-```{math}
-:label: parabolic
+$$
 \Krm \, \urm + \Crm \, \vrm = \Frm
-```
+$$ (parabolic)
 
 ### Hyperbolic
 - **Methods:** Newmark, HHT, Midpoint
 
-```{math}
-:label: hyperbolic
+$$
 \Krm \, \urm + \Crm \, \vrm + \Mrm \, \arm = \Frm
-```
+$$ (hyperbolic)
 
 ## How to create new simulations in EasyFEA ?
 

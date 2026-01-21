@@ -255,6 +255,11 @@ html_css_files = ["custom.css"]
 
 # -- Latex -------------------------------------------------
 
+myst_enable_extensions = [
+    "amsmath",
+    "dollarmath",
+]
+
 
 def get_function(function: str, arg: str):
     return chr(92) + function + "{" + arg + "}"
