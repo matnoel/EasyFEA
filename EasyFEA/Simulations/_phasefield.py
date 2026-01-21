@@ -73,7 +73,7 @@ class PhaseField(_Simu):
     Further Reading
     ^^^^^^^^^^^^^^^
 
-    See section 3.1. of https://doi.org/10.1016/j.engfracmech.2025.111304 for additional mathematical details.
+    See section 3.1. of https://univ-eiffel.hal.science/hal-05115523 for additional mathematical details.
     """
 
     def __init__(self, mesh: Mesh, model: Models.PhaseField, verbosity=False):
