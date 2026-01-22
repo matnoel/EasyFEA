@@ -94,7 +94,7 @@ if __name__ == "__main__":
         simu.add_dirichlet(nodes_x0, [0], ["x"])
         simu.add_dirichlet(nodes_y0, [0], ["y"])
 
-    nodes_load = mesh.Nodes_Cylinder(Circle(center, r * 2), extrude)
+    nodes_load = mesh.Nodes_Cylinder(Circle(center, r * 2), direction=extrude)
 
     if dim == 2 and not isSymmetric:
         sig *= -1

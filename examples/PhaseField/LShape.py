@@ -128,7 +128,7 @@ if __name__ == "__main__":
     nodes_load = mesh.Nodes_Conditions(lambda x, y, z: (y == L) & (x >= 2 * L - 30))
     node3 = mesh.Nodes_Point(p3)
     node4 = mesh.Nodes_Point(p4)
-    nodes_circle = mesh.Nodes_Cylinder(circle, [0, 0, ep])
+    nodes_circle = mesh.Nodes_Cylinder(circle, direction=[0, 0, ep])
     nodes_edges = mesh.Nodes_Conditions(lambda x, y, z: (x == 0) | (y == 0))
 
     # ----------------------------------------------

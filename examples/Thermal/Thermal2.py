@@ -49,7 +49,7 @@ if __name__ == "__main__":
 
     nodesX0 = mesh.Nodes_Conditions(lambda x, y, z: x == 0)
     nodesXa = mesh.Nodes_Conditions(lambda x, y, z: x == a)
-    nodesCircle = mesh.Nodes_Cylinder(circle, [0, 0, -1])
+    nodesCircle = mesh.Nodes_Cylinder(circle, direction=[0, 0, -1])
 
     if dim == 3:
         print(f"Volume: {mesh.volume:.3}")

@@ -14,7 +14,7 @@ A hexahedral mesh (HEXA8) uses :\n
 import numpy as np
 import scipy.sparse as sp
 import copy
-from typing import Callable, Optional, TYPE_CHECKING, Iterable, Union
+from typing import Callable, Optional, TYPE_CHECKING
 
 # utilities
 from ..Utilities import Display, Tic, _types
@@ -525,78 +525,74 @@ class Mesh(Observable):
         """
         return self.groupElem.Get_Nodes_Conditions(func)
 
-    def Nodes_Point(
-        self, point: Union[Point.PointALike, Iterable[Point.PointALike]]
-    ) -> _types.IntArray:
+    def Nodes_Point(self, *points: Point.PointALike) -> _types.IntArray:
         """Returns nodes on the point(s)."""
-        # check type
-        if isinstance(point, Iterable):
-            points = point
-        else:
-            points = [point]
-        # get nodes
         nodes: set[int] = set()
+
+        points = [
+            nested_point
+            for point in points
+            for nested_point in (point if isinstance(point, list) else [point])
+        ]
+
         for point in points:
             nodes = nodes.union(self.groupElem.Get_Nodes_Point(point))
         return np.asarray(list(nodes), dtype=int)
 
-    def Nodes_Line(self, line: Union["Line", Iterable["Line"]]) -> _types.IntArray:
+    def Nodes_Line(self, *lines: "Line") -> _types.IntArray:
         """Returns the nodes on the line(s)."""
-        # check type
-        if isinstance(line, Iterable):
-            lines = line
-        else:
-            lines = [line]
-        # get nodes
         nodes: set[int] = set()
+
+        lines = [
+            nested_line
+            for line in lines
+            for nested_line in (line if isinstance(line, list) else [line])
+        ]
+
         for line in lines:
             nodes = nodes.union(self.groupElem.Get_Nodes_Line(line))
         return np.asarray(list(nodes), dtype=int)
 
-    def Nodes_Domain(
-        self, domain: Union["Domain", Iterable["Domain"]]
-    ) -> _types.IntArray:
+    def Nodes_Domain(self, *domains: "Domain") -> _types.IntArray:
         """Returns nodes in the domain(s)."""
-        # check type
-        if isinstance(domain, Iterable):
-            domains = domain
-        else:
-            domains = [domain]
-        # get nodes
         nodes: set[int] = set()
+
+        domains = [
+            nested_domain
+            for domain in domains
+            for nested_domain in (domain if isinstance(domain, list) else [domain])
+        ]
+
         for domain in domains:
             nodes = nodes.union(self.groupElem.Get_Nodes_Domain(domain))
         return np.asarray(list(nodes), dtype=int)
 
-    def Nodes_Circle(
-        self, circle: Union["Circle", Iterable["Circle"]], onlyOnEdge=True
-    ) -> _types.IntArray:
+    def Nodes_Circle(self, *circles: "Circle", onlyOnEdge=True) -> _types.IntArray:
         """Returns the nodes in the circle(s)."""
-        # check type
-        if isinstance(circle, Iterable):
-            circles = circle
-        else:
-            circles = [circle]
-        # get nodes
         nodes: set[int] = set()
+
+        circles = [
+            nested_circle
+            for circle in circles
+            for nested_circle in (circle if isinstance(circle, list) else [circle])
+        ]
+
         for circle in circles:
             nodes = nodes.union(self.groupElem.Get_Nodes_Circle(circle, onlyOnEdge))
         return np.asarray(list(nodes), dtype=int)
 
     def Nodes_Cylinder(
-        self,
-        circle: Union["Circle", Iterable["Circle"]],
-        direction=[0, 0, 1],
-        onlyOnEdge=False,
+        self, *circles: "Circle", direction=[0, 0, 1], onlyOnEdge=False
     ) -> _types.IntArray:
-        """Returns the nodes in the cylinder(s)."""
-        # check type
-        if isinstance(circle, Iterable):
-            circles = circle
-        else:
-            circles = [circle]
-        # get nodes
+        """Returns the nodes in the cylinder."""
         nodes: set[int] = set()
+
+        circles = [
+            nested_circle
+            for circle in circles
+            for nested_circle in (circle if isinstance(circle, list) else [circle])
+        ]
+
         for circle in circles:
             nodes = nodes.union(
                 self.groupElem.Get_Nodes_Cylinder(circle, direction, onlyOnEdge)
@@ -607,7 +603,6 @@ class Mesh(Observable):
         self, nodes: _types.IntArray, exclusively=True, neighborLayer: int = 1
     ) -> _types.IntArray:
         """Returns elements that exclusively or not use the specified nodes."""
-
         for i in range(neighborLayer):
             elements = self.groupElem.Get_Elements_Nodes(
                 nodes=nodes, exclusively=exclusively
@@ -621,12 +616,15 @@ class Mesh(Observable):
 
         return elements
 
-    def Nodes_Tags(self, tags: Union[str, Iterable[str]]) -> _types.IntArray:
+    def Nodes_Tags(self, *tags: str) -> _types.IntArray:
         """Returns nodes associated with the tags."""
         list_node: list[int] = []
 
-        if isinstance(tags, str):
-            tags = [tags]
+        tags = [
+            nested_tag
+            for tag in tags
+            for nested_tag in (tag if isinstance(tag, list) else [tag])
+        ]
 
         # get dictionnary linking tags to nodes
         dict_nodes = {}
@@ -650,12 +648,15 @@ class Mesh(Observable):
 
         return nodes
 
-    def Elements_Tags(self, tags: Union[str, Iterable[str]]) -> _types.IntArray:
+    def Elements_Tags(self, *tags: str) -> _types.IntArray:
         """Returns elements associated with the tag."""
         list_element: list[int] = []
 
-        if isinstance(tags, str):
-            tags = [tags]
+        tags = [
+            nested_tag
+            for tag in tags
+            for nested_tag in (tag if isinstance(tag, list) else [tag])
+        ]
 
         # get dictionnary linking tags to elements
         dict_elements = self.__groupElem._dict_elements_tags
