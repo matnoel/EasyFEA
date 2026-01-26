@@ -256,6 +256,7 @@ html_css_files = ["custom.css"]
 # -- Latex -------------------------------------------------
 
 myst_enable_extensions = [
+    "amsmath",
     "dollarmath",
 ]
 
