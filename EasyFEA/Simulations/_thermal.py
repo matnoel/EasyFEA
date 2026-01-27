@@ -28,15 +28,13 @@ class Thermal(_Simu):
     Strong form:
 
     .. math::
-        \begin{alignat}{2}
-            \diver q - r &= 0 && \quad \text{in } \Omega, \\
-            % 
-            q &= -k \, \nabla t && \quad \text{in } \Omega, \\
-            % 
-            q \cdot \nb &= -q_n && \quad \text{on } \partial\Omega_q, \\
-            % 
-            t &= t_D && \quad \text{on } \partial\Omega_t,
-        \end{alignat}
+        \diver q - r &= 0 && \quad \text{in } \Omega, \\
+        % 
+        q &= -k \, \nabla t && \quad \text{in } \Omega, \\
+        % 
+        q \cdot \nb &= -q_n && \quad \text{on } \partial\Omega_q, \\
+        % 
+        t &= t_D && \quad \text{on } \partial\Omega_t,
 
     Weak form:
 

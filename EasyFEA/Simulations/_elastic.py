@@ -28,15 +28,13 @@ class Elastic(_Simu):
     Strong form:
 
     .. math::
-        \begin{alignat}{2}
-            \diver{\Sig(\ub)} + \fb &= \rho \, \ddot{\ub} && \quad \text{in } \Omega, \\
-            % 
-            \Sig(\ub) \cdot \nb &= \tb && \quad \text{on } \partial\Omega_t, \\
-            %
-            \Sig(\ub) &= \Cbb : \Eps(\ub) && \quad \text{in } \Omega, \\
-            % 
-            \ub &= \ub_D && \quad \text{on } \partial\Omega_u,        
-        \end{alignat}
+        \diver{\Sig(\ub)} + \fb &= \rho \, \ddot{\ub} && \quad \text{in } \Omega, \\
+        % 
+        \Sig(\ub) \cdot \nb &= \tb && \quad \text{on } \partial\Omega_t, \\
+        %
+        \Sig(\ub) &= \Cbb : \Eps(\ub) && \quad \text{in } \Omega, \\
+        % 
+        \ub &= \ub_D && \quad \text{on } \partial\Omega_u,
 
     Weak form:
 

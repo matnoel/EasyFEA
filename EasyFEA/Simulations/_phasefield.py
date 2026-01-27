@@ -35,25 +35,21 @@ class PhaseField(_Simu):
     Damaged linear elastic problem
 
     .. math::
-        \begin{alignat}{2}
-            -\diver{\Sig(\ub, \phi)}  &= \fb && \quad \text{in } \Omega, \\
-            % 
-            \Sig(\ub, \phi) \cdot \nb &= \tb && \quad \text{on } \partial\Omega_t, \\
-            %
-            \Sig(\ub, \phi) &= \Cbb(\phi) : \Eps(\ub) && \quad \text{in } \Omega, \\
-            % 
-            \ub &= \ub && \quad \text{on } \partial\Omega_u,        
-        \end{alignat}
+        -\diver{\Sig(\ub, \phi)}  &= \fb && \quad \text{in } \Omega, \\
+        % 
+        \Sig(\ub, \phi) \cdot \nb &= \tb && \quad \text{on } \partial\Omega_t, \\
+        %
+        \Sig(\ub, \phi) &= \Cbb(\phi) : \Eps(\ub) && \quad \text{in } \Omega, \\
+        % 
+        \ub &= \ub && \quad \text{on } \partial\Omega_u,        
     
     Damage problem
 
     .. math::
-        \begin{alignat}{2}
-            - \nabla \cdot \left( \dfrac{2 \, G_c \, \ell}{c_w} \, \nabla\phi \right) + \dfrac{G_c}{c_w \, \ell} \, w'(\phi)
-            &= Y(\Eps, \phi) && \quad \text{in } \Omega, \\
-            % 
-            \nabla \phi \cdot \nb &= 0 && \quad \text{on } \partial\Omega,
-        \end{alignat}
+        - \nabla \cdot \left( \dfrac{2 \, G_c \, \ell}{c_w} \, \nabla\phi \right) + \dfrac{G_c}{c_w \, \ell} \, w'(\phi)
+        &= Y(\Eps, \phi) && \quad \text{in } \Omega, \\
+        % 
+        \nabla \phi \cdot \nb &= 0 && \quad \text{on } \partial\Omega,
 
     Weak form:
     ^^^^^^^^^^
