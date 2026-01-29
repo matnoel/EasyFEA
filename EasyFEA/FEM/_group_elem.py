@@ -363,6 +363,10 @@ class _GroupElem(ABC):
         elif self.dim in [1, 2]:
             # 2D lines or elements
 
+            if self.dim == 2:
+                # Ensure outward-facing normals for all mesh faces.
+                connect = connect[:, self.faces]
+
             points1 = coordo[connect[:, 0]]
             points2 = coordo[connect[:, 1]]
 
