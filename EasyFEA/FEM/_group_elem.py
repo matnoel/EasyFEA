@@ -2068,7 +2068,7 @@ class _GroupElem(ABC):
 
             v_f = coordinates_n_i - coord[p0_f]
 
-            t_f = np.einsum("nfi,fi->nf", v_f, n_f, optimize="optimal") >= -tol
+            t_f = np.einsum("nfi,fi->nf", v_f, n_f, optimize="optimal") <= tol
 
             filtre = np.sum(t_f, 1)
 

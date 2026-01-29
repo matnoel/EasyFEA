@@ -47,10 +47,10 @@ class TETRA4(_GroupElem):
     def surfaces(self) -> _types.IntArray:
         return np.array(
             [
-                [0, 1, 2],
-                [0, 2, 3],
-                [0, 3, 1],
-                [1, 3, 2],
+                [0, 2, 1],
+                [0, 3, 2],
+                [0, 1, 3],
+                [1, 2, 3],
             ],
             dtype=int,
         )
@@ -140,10 +140,10 @@ class TETRA10(_GroupElem):
     def surfaces(self) -> _types.IntArray:
         return np.array(
             [
-                [0, 4, 1, 5, 2, 6],
-                [0, 6, 2, 8, 3, 7],
-                [0, 7, 3, 9, 1, 4],
-                [1, 9, 3, 8, 2, 5],
+                [0, 6, 2, 5, 1, 4],
+                [0, 7, 3, 8, 2, 6],
+                [0, 4, 1, 9, 3, 7],
+                [1, 5, 2, 8, 3, 9],
             ],
             dtype=int,
         )
@@ -152,10 +152,10 @@ class TETRA10(_GroupElem):
     def faces(self) -> _types.IntArray:
         return np.array(
             [
-                [0, 1, 2, 4, 5, 6],
-                [0, 2, 3, 6, 8, 7],
-                [0, 3, 1, 7, 9, 4],
-                [1, 3, 2, 9, 8, 5],
+                [0, 2, 1, 6, 5, 4],
+                [0, 3, 2, 7, 8, 6],
+                [0, 1, 3, 4, 9, 7],
+                [1, 2, 3, 5, 8, 9],
             ],
             dtype=int,
         )
