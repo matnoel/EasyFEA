@@ -1,4 +1,4 @@
-sphinx
+sphinx==8.2.3
 sphinx-autodoc-typehints
 pydata_sphinx_theme
 sphinx-gallery==0.20.0
