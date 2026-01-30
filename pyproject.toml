@@ -35,6 +35,7 @@ dependencies = [
 [project.optional-dependencies]
 dev = ["mypy", "black", "ruff", "pytest"]
 io = ["imageio", "imageio[ffmpeg]", "meshio"]
+viz = ["matplotlib", "pyvista"]
 
 [project.urls]
 Documentation = "https://easyfea.readthedocs.io/en/latest/"
