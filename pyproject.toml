@@ -30,8 +30,6 @@ dependencies = [
     "scipy",
     "matplotlib",
     "pyvista",
-    "imageio",
-    "imageio[ffmpeg]",
 ]
 
 [project.optional-dependencies]

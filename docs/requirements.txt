@@ -9,3 +9,5 @@ scikit-learn
 sympy
 pyvista[all]
 meshio @ git+https://github.com/matnoel/meshio.git@medit_higher_order_elements
+imageio,
+imageio[ffmpeg],
