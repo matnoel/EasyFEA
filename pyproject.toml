@@ -32,7 +32,6 @@ dependencies = [
     "pyvista",
     "imageio",
     "imageio[ffmpeg]",
-    "meshio",
 ]
 
 [project.optional-dependencies]

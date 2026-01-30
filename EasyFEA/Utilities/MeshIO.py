@@ -4,10 +4,11 @@
 
 """Module providing an interface with meshio (https://pypi.org/project/meshio/)."""
 
+from __future__ import annotations
 import re
-import meshio
 from collections import Counter
 from typing import Any, Optional, Union
+import numpy as np
 
 from . import Folder, Display, _types
 
@@ -16,7 +17,15 @@ from ..FEM._utils import ElemType
 from ..FEM._group_elem import _GroupElem
 from ..FEM._group_elem import GroupElemFactory
 
-from .PyVista import np, pv
+from .PyVista import pv
+
+from ._requires import Create_requires_decorator
+
+try:
+    import meshio
+except ImportError:
+    pass
+requires_meshio = Create_requires_decorator("meshio")
 
 # ----------------------------------------------
 # TYPES
@@ -294,6 +303,7 @@ def __Get_dict_tags_converter(mesh: Mesh) -> dict[Any, int]:
 # ----------------------------------------------
 
 
+@requires_meshio
 def _EasyFEA_to_Meshio(
     mesh: Mesh, dict_tags_converter: dict[Any, int] = {}, cellType: str = "tags"
 ) -> meshio.Mesh:
@@ -362,6 +372,7 @@ def _EasyFEA_to_Meshio(
     return meshioMesh
 
 
+@requires_meshio
 def _Meshio_to_EasyFEA(meshioMesh: meshio.Mesh) -> Mesh:
     """Converts meshio mesh to EasyFEA format.
 
@@ -471,6 +482,7 @@ def _Set_Tags(mesh: Mesh, dict_tags: dict[str, _types.IntArray]):
 # ----------------------------------------------
 
 
+@requires_meshio
 def EasyFEA_to_Medit(
     mesh: Mesh,
     folder: str,
@@ -512,6 +524,7 @@ def EasyFEA_to_Medit(
     return filename
 
 
+@requires_meshio
 def Medit_to_EasyFEA(meditMesh: str) -> Mesh:
     """Converts Medit mesh to EasyFEA format.
 
@@ -545,6 +558,7 @@ def Medit_to_EasyFEA(meditMesh: str) -> Mesh:
 # ----------------------------------------------
 
 
+@requires_meshio
 def EasyFEA_to_Gmsh(mesh: Mesh, folder: str, name: str, useBinary=False) -> str:
     """Converts EasyFEA mesh to Gmsh format.
 
@@ -581,6 +595,7 @@ def EasyFEA_to_Gmsh(mesh: Mesh, folder: str, name: str, useBinary=False) -> str:
     return filename
 
 
+@requires_meshio
 def Gmsh_to_EasyFEA(gmshMesh: str) -> Mesh:
     """Converts Gmsh mesh to EasyFEA format.
 
