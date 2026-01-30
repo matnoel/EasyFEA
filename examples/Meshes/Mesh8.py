@@ -10,8 +10,9 @@ Meshing of a grooved 3D part with calculation of element quality.
 """
 
 import numpy as np
+import gmsh
 
-from EasyFEA import Display, Mesher, ElemType, gmsh, PyVista
+from EasyFEA import Display, Mesher, ElemType, PyVista
 from EasyFEA.Geoms import Point, Circle, Points
 
 if __name__ == "__main__":

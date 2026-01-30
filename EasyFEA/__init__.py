@@ -9,7 +9,6 @@ from .Utilities import Display, Folder, Paraview, PyVista, Vizir, MeshIO, Tic
 
 # fem
 from .FEM import Mesher, ElemType, Mesh, MatrixType
-import gmsh
 
 # simulations
 from .Simulations.Solvers import SolverType
