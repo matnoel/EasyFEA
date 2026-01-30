@@ -2,6 +2,30 @@
 
 This document describes the changes made to the project.
 
+## 1.7.1 (January 30, 2026):
+
+- Updated the `Mesh.Nodes_*` methods.
+- Removed the `groupElem.assembly_e` property.
+- Added a `SwapOrientation` option for the crack plugin.
+- Clarified the `groupElem._Get_sysCoord_e` method.
+- Created the `PyVista.Plot_Arrows` function.
+- Updated surface normals for 3D elements:
+    - Ensured consistent coordinate usage across element groups.
+    - Utilized all coordinates in the `MeshIO.Surface_reconstruction` function.
+    - Guaranteed outward-facing normals for all mesh faces in `groupElem._Get_sysCoord_e`.
+- Updated Sphinx documentation:
+    - Updated `docs/html_theme_options`.
+    - Reset Geoms instance numbering and ensured `BUILDING_GALLERY` is set to `False` during gallery construction.
+    - Updated LaTeX options in the documentation.
+    - Removed `\begin{alignat}` from `.. math::` environments.
+- Updated optional dependencies:
+    - Marked `meshio` as an optional dependency.
+    - Marked `imageio` as an optional dependency.
+    - Added `io` to optional dependencies.
+    - Added `viz` to optional dependencies.
+    - Updated optional dependencies in `.github/workflows/tests.yaml`.
+    - Marked `matplotlib` and `pyvista` as optional dependencies.
+
 ## 1.7.0 (January 18, 2026):
 
 - Updated EasyFEA api and sphinx documentation.
