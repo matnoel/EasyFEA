@@ -47,7 +47,7 @@ if __name__ == "__main__":
     # ----------------------------------------------
     # Mesh
     # ----------------------------------------------
-    meshSize = 42 / 10
+    meshSize = 42 / 5
 
     # get the contour
     pt1 = Point(0, 80)
@@ -89,7 +89,7 @@ if __name__ == "__main__":
     if dim == 2:
         mesh = contour.Mesh_2D(inclusions, ElemType.TRI3)
     else:
-        mesh = contour.Mesh_Extrude(inclusions, [0, 0, thickness], [5], ElemType.PRISM6)
+        mesh = contour.Mesh_Extrude(inclusions, [0, 0, thickness], [4], ElemType.PRISM6)
 
     # get loading nodes
     nodesLoad = mesh.Nodes_Cylinder(circle1)
