@@ -28,7 +28,7 @@ class Thermal(_Simu):
     Strong form:
 
     .. math::
-        \diver q - r &= 0 && \quad \text{in } \Omega, \\
+        \diver q + \rho \, c \, \dot{t} &= r && \quad \text{in } \Omega, \\
         % 
         q &= -k \, \nabla t && \quad \text{in } \Omega, \\
         % 
@@ -39,7 +39,8 @@ class Thermal(_Simu):
     Weak form:
 
     .. math::
-        \int_\Omega k \, \nabla t \cdot \nabla \delta t \, \dO =
+        \int_\Omega k \, \nabla t \cdot \nabla \delta t \, \dO +
+        \int_\Omega \rho \, c \, \dot{t} \, \delta t \, \dO =
         \int_{\partial\Omega_q} q_n \, \delta t \, \dS +
         \int_{\partial\Omega_t} r \, \delta t \, \dO \quad \forall \, \delta t \in V
 
