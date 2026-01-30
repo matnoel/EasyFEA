@@ -11,6 +11,8 @@ Poisson equation with unit load.
 Reference: https://scikit-fem.readthedocs.io/en/latest/listofexamples.html#example-1-poisson-equation-with-unit-load
 """
 
+import matplotlib.pyplot as plt
+
 from EasyFEA import Display, ElemType, Models, Simulations
 from EasyFEA.FEM import Field, BiLinearForm, LinearForm
 from EasyFEA.Geoms import Domain
@@ -60,4 +62,4 @@ if __name__ == "__main__":
 
     Display.Plot_Result(simu, "u")
 
-    Display.plt.show()
+    plt.show()

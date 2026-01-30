@@ -44,13 +44,13 @@ EasyFEA uses several libraries, such as NumPy and Gmsh - as such, the following 
 + [`numpy`](https://pypi.org/project/numpy/) - Fundamental package for scientific computing with Python.
 + [`gmsh`](https://pypi.org/project/gmsh/) (>= 4.12) - Three-dimensional finite element mesh generator.
 + [`scipy`](https://pypi.org/project/scipy/) - Fundamental package for scientific computing in Python.
-+ [`matplotlib`](https://pypi.org/project/matplotlib/) - Plotting package.
-+ [`pyvista`](https://pypi.org/project/pyvista/) - Plotting package.
 
 ### 🧪 Optional Dependencies
 
 EasyFEA includes a few optional dependencies for reducing resolution time or for performing DIC:
 
++ [`matplotlib`](https://pypi.org/project/matplotlib/) - Plotting package.
++ [`pyvista`](https://pypi.org/project/pyvista/) - Plotting package.
 + [`pypardiso`](https://pypi.org/project/pypardiso/) (Python > 3.8 & Intel oneAPI)  - Library for solving large systems of sparse linear equations.
 + [`petsc`](https://pypi.org/project/petsc/) and [`petsc4py`](https://pypi.org/project/petsc4py/) - Python bindings for PETSc.
 + [`numba`](https://pypi.org/project/numba/) - Compiling Python code using LLVM.

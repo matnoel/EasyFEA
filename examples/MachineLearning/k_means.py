@@ -9,7 +9,10 @@ k_means
 KMeans using scikit-learn according to https://www.youtube.com/watch?v=i-gxm_ofjBo.
 """
 
-from EasyFEA import Display, np, plt
+import matplotlib.pyplot as plt
+import numpy as np
+
+from EasyFEA import Display
 
 from sklearn.cluster import KMeans
 from sklearn.datasets import make_blobs

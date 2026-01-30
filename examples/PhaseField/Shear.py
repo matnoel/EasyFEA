@@ -11,12 +11,13 @@ Shear
 Damage simulation for a plate subjected to shear.
 """
 
+import matplotlib.pyplot as plt
+import numpy as np
+
 from EasyFEA import (
     Display,
     Folder,
     Models,
-    plt,
-    np,
     Tic,
     ElemType,
     Mesh,
@@ -345,7 +346,7 @@ def DoSimu(split: str, regu: str):
     if showResult:
         plt.show()
 
-    # plt.close("all")
+    # Display.plt.close("all")
     Tic.Clear()
 
 

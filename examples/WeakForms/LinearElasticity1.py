@@ -11,7 +11,10 @@ A cantilever beam undergoing bending deformation.
 Note that this simulation is also performed in `examples/Elastic/Elas1.py`.
 """
 
-from EasyFEA import Display, ElemType, Models, Simulations, np
+import matplotlib.pyplot as plt
+import numpy as np
+
+from EasyFEA import Display, ElemType, Models, Simulations
 from EasyFEA.FEM import Field, BiLinearForm, FeArray, Sym_Grad, Trace
 from EasyFEA.Geoms import Domain
 
@@ -105,4 +108,4 @@ if __name__ == "__main__":
 
     Display.Plot_Result(simu, Svm_e, plotMesh=True, ncolors=11)
 
-    Display.plt.show()
+    plt.show()

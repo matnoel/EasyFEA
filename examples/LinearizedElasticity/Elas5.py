@@ -9,7 +9,10 @@ Elas5
 A cylindrical conduit exposed to uniform pressure.
 """
 
-from EasyFEA import Display, Models, np, ElemType, Simulations
+import matplotlib.pyplot as plt
+import numpy as np
+
+from EasyFEA import Display, Models, ElemType, Simulations
 from EasyFEA.Geoms import Point, Line, Circle, CircleArc, Contour
 
 if __name__ == "__main__":
@@ -121,4 +124,4 @@ if __name__ == "__main__":
 
     # PyVista.Plot_BoundaryConditions(simu).show()
 
-    Display.plt.show()
+    plt.show()

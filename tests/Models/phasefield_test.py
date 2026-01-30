@@ -3,8 +3,9 @@
 # EasyFEA is distributed under the terms of the GNU General Public License v3, see LICENSE.txt and CREDITS.md for more information.
 
 import pytest
+import numpy as np
 
-from EasyFEA import Geoms, Mesher, Simulations, np, SolverType
+from EasyFEA import Geoms, Mesher, Simulations, SolverType
 
 # materials
 from EasyFEA.Models.Elastic import (

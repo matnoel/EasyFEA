@@ -9,6 +9,7 @@ import re
 from collections import Counter
 from typing import Any, Optional, Union
 import numpy as np
+from enum import Enum
 
 from . import Folder, Display, _types
 
@@ -17,9 +18,14 @@ from ..FEM._utils import ElemType
 from ..FEM._group_elem import _GroupElem
 from ..FEM._group_elem import GroupElemFactory
 
-from .PyVista import pv
+from .PyVista import requires_pyvista
 
 from ._requires import Create_requires_decorator
+
+try:
+    import pyvista as pv
+except ImportError:
+    pass
 
 try:
     import meshio
@@ -60,33 +66,112 @@ DICT_MESHIO_TO_ELEMTYPE: dict[str, ElemType] = {
 }
 """CellType: ElemType"""
 
-DICT_ELEMTYPE_TO_VTK: dict[ElemType, pv.CellType] = {
+
+class VTKCellType(int, Enum):
+    # https://vtk.org/doc/nightly/html/vtkCellType_8h_source.html
+    # Linear cells
+    EMPTY_CELL = 0
+    VERTEX = 1
+    POLY_VERTEX = 2
+    LINE = 3
+    POLY_LINE = 4
+    TRIANGLE = 5
+    TRIANGLE_STRIP = 6
+    POLYGON = 7
+    PIXEL = 8
+    QUAD = 9
+    TETRA = 10
+    VOXEL = 11
+    HEXAHEDRON = 12
+    WEDGE = 13
+    PYRAMID = 14
+    PENTAGONAL_PRISM = 15
+    HEXAGONAL_PRISM = 16
+    # Quadratic, isoparametric cells
+    QUADRATIC_EDGE = 21
+    QUADRATIC_TRIANGLE = 22
+    QUADRATIC_QUAD = 23
+    QUADRATIC_POLYGON = 36
+    QUADRATIC_TETRA = 24
+    QUADRATIC_HEXAHEDRON = 25
+    QUADRATIC_WEDGE = 26
+    QUADRATIC_PYRAMID = 27
+    BIQUADRATIC_QUAD = 28
+    TRIQUADRATIC_HEXAHEDRON = 29
+    TRIQUADRATIC_PYRAMID = 37
+    QUADRATIC_LINEAR_QUAD = 30
+    QUADRATIC_LINEAR_WEDGE = 31
+    BIQUADRATIC_QUADRATIC_WEDGE = 32
+    BIQUADRATIC_QUADRATIC_HEXAHEDRON = 33
+    BIQUADRATIC_TRIANGLE = 34
+    # Cubic, isoparametric cell
+    CUBIC_LINE = 35
+    # Special class of cells formed by convex group of points
+    CONVEX_POINT_SET = 41
+    # Polyhedron cell (consisting of polygonal faces)
+    POLYHEDRON = 42
+    # Higher order cells in parametric form
+    PARAMETRIC_CURVE = 51
+    PARAMETRIC_SURFACE = 52
+    PARAMETRIC_TRI_SURFACE = 53
+    PARAMETRIC_QUAD_SURFACE = 54
+    PARAMETRIC_TETRA_REGION = 55
+    PARAMETRIC_HEX_REGION = 56
+    # Higher order cells
+    HIGHER_ORDER_EDGE = 60
+    HIGHER_ORDER_TRIANGLE = 61
+    HIGHER_ORDER_QUAD = 62
+    HIGHER_ORDER_POLYGON = 63
+    HIGHER_ORDER_TETRAHEDRON = 64
+    HIGHER_ORDER_WEDGE = 65
+    HIGHER_ORDER_PYRAMID = 66
+    HIGHER_ORDER_HEXAHEDRON = 67
+    # Arbitrary order Lagrange elements (formulated separated from generic higher order cells)
+    LAGRANGE_CURVE = 68
+    LAGRANGE_TRIANGLE = 69
+    LAGRANGE_QUADRILATERAL = 70
+    LAGRANGE_TETRAHEDRON = 71
+    LAGRANGE_HEXAHEDRON = 72
+    LAGRANGE_WEDGE = 73
+    LAGRANGE_PYRAMID = 74
+    # Arbitrary order Bezier elements (formulated separated from generic higher order cells)
+    BEZIER_CURVE = 75
+    BEZIER_TRIANGLE = 76
+    BEZIER_QUADRILATERAL = 77
+    BEZIER_TETRAHEDRON = 78
+    BEZIER_HEXAHEDRON = 79
+    BEZIER_WEDGE = 80
+    BEZIER_PYRAMID = 81
+    NUMBER_OF_CELL_TYPES = 82
+
+
+DICT_ELEMTYPE_TO_VTK: dict[ElemType, VTKCellType] = {
     # (to Pyvista, to Paraview)
     # see https://dev.pyvista.org/api/utilities/_autosummary/pyvista.celltype#pyvista.CellType
-    ElemType.POINT: pv.CellType.VERTEX,
-    ElemType.SEG2: pv.CellType.LINE,
-    ElemType.SEG3: pv.CellType.QUADRATIC_EDGE,
-    ElemType.SEG4: pv.CellType.CUBIC_LINE,
-    ElemType.SEG5: pv.CellType.HIGHER_ORDER_EDGE,
-    ElemType.TRI3: pv.CellType.TRIANGLE,
-    ElemType.TRI6: pv.CellType.QUADRATIC_TRIANGLE,
-    ElemType.TRI10: pv.CellType.LAGRANGE_TRIANGLE,
-    ElemType.TRI15: pv.CellType.LAGRANGE_TRIANGLE,
-    ElemType.QUAD4: pv.CellType.QUAD,
-    ElemType.QUAD8: pv.CellType.QUADRATIC_QUAD,
-    ElemType.QUAD9: pv.CellType.BIQUADRATIC_QUAD,
-    ElemType.TETRA4: pv.CellType.TETRA,
-    ElemType.TETRA10: pv.CellType.QUADRATIC_TETRA,
-    ElemType.HEXA8: pv.CellType.HEXAHEDRON,
-    ElemType.HEXA20: pv.CellType.QUADRATIC_HEXAHEDRON,
-    ElemType.HEXA27: pv.CellType.TRIQUADRATIC_HEXAHEDRON,
-    ElemType.PRISM6: pv.CellType.WEDGE,
-    ElemType.PRISM15: pv.CellType.QUADRATIC_WEDGE,
-    ElemType.PRISM18: pv.CellType.BIQUADRATIC_QUADRATIC_WEDGE,
+    ElemType.POINT: VTKCellType.VERTEX,
+    ElemType.SEG2: VTKCellType.LINE,
+    ElemType.SEG3: VTKCellType.QUADRATIC_EDGE,
+    ElemType.SEG4: VTKCellType.CUBIC_LINE,
+    ElemType.SEG5: VTKCellType.HIGHER_ORDER_EDGE,
+    ElemType.TRI3: VTKCellType.TRIANGLE,
+    ElemType.TRI6: VTKCellType.QUADRATIC_TRIANGLE,
+    ElemType.TRI10: VTKCellType.LAGRANGE_TRIANGLE,
+    ElemType.TRI15: VTKCellType.LAGRANGE_TRIANGLE,
+    ElemType.QUAD4: VTKCellType.QUAD,
+    ElemType.QUAD8: VTKCellType.QUADRATIC_QUAD,
+    ElemType.QUAD9: VTKCellType.BIQUADRATIC_QUAD,
+    ElemType.TETRA4: VTKCellType.TETRA,
+    ElemType.TETRA10: VTKCellType.QUADRATIC_TETRA,
+    ElemType.HEXA8: VTKCellType.HEXAHEDRON,
+    ElemType.HEXA20: VTKCellType.QUADRATIC_HEXAHEDRON,
+    ElemType.HEXA27: VTKCellType.TRIQUADRATIC_HEXAHEDRON,
+    ElemType.PRISM6: VTKCellType.WEDGE,
+    ElemType.PRISM15: VTKCellType.QUADRATIC_WEDGE,
+    ElemType.PRISM18: VTKCellType.BIQUADRATIC_QUADRATIC_WEDGE,
 }
 """ElemType: CellType"""
 
-DICT_PYVISTA_TO_ELEMTYPE: dict[pv.CellType, ElemType] = {
+DICT_VTK_TO_ELEMTYPE: dict[VTKCellType, ElemType] = {
     cellType: elemType for elemType, cellType in DICT_ELEMTYPE_TO_VTK.items()
 }
 """CellType: ElemType"""
@@ -163,7 +248,7 @@ DICT_GMSH_TO_VTK_INDEXES: dict[ElemType, list[int]] = {
 }
 """ElemType: list[int]"""
 
-DICT_VTK_TO_GMSH_INDEXES: dict[pv.CellType, list[int]] = {
+DICT_VTK_TO_GMSH_INDEXES: dict[VTKCellType, list[int]] = {
     DICT_ELEMTYPE_TO_VTK[elemType]: [indexes.index(i) for i in range(len(indexes))]
     for elemType, indexes in DICT_GMSH_TO_VTK_INDEXES.items()
 }
@@ -624,7 +709,8 @@ def Gmsh_to_EasyFEA(gmshMesh: str) -> Mesh:
 # ----------------------------------------------
 
 
-def _Get_pyvista_cell(groupElem: _GroupElem) -> tuple[pv.CellType, _types.IntArray]:
+@requires_pyvista
+def _Get_pyvista_cell(groupElem: _GroupElem) -> tuple[VTKCellType, _types.IntArray]:
 
     elemType = groupElem.elemType
 
@@ -651,6 +737,7 @@ def _Get_pyvista_cell(groupElem: _GroupElem) -> tuple[pv.CellType, _types.IntArr
     return cellType, connect
 
 
+@requires_pyvista
 def EasyFEA_to_PyVista(
     mesh: Mesh, coord: Optional[_types.FloatArray] = None, useAllElements=True
 ) -> pv.UnstructuredGrid:
@@ -675,7 +762,7 @@ def EasyFEA_to_PyVista(
     assert isinstance(mesh, Mesh), "mesh must be a EasyFEA mesh!"
 
     # init dict of cell data
-    dict_cellData: dict[pv.CellType, np.ndarray] = {}
+    dict_cellData: dict[VTKCellType, np.ndarray] = {}
 
     for groupElem in mesh.dict_groupElem.values():
         if not useAllElements and groupElem is not mesh.groupElem:
@@ -699,6 +786,7 @@ def EasyFEA_to_PyVista(
     return pyVistaMesh
 
 
+@requires_pyvista
 def _GroupElem_to_PyVista(
     groupElem: _GroupElem, elements: Optional[_types.IntArray] = None
 ) -> pv.UnstructuredGrid:
@@ -731,6 +819,7 @@ def _GroupElem_to_PyVista(
     return pyVistaMesh
 
 
+@requires_pyvista
 def PyVista_to_EasyFEA(pyVistaMesh: Union[pv.UnstructuredGrid, pv.MultiBlock]) -> Mesh:
     """Converts PyVista mesh to EasyFEA format.
 
@@ -755,8 +844,8 @@ def PyVista_to_EasyFEA(pyVistaMesh: Union[pv.UnstructuredGrid, pv.MultiBlock]) -
 
         for cellTypeId in list(set(cellTypes)):
             # get cell and element types
-            cellType = pv.CellType(cellTypeId)
-            elemType = DICT_PYVISTA_TO_ELEMTYPE[cellType]
+            cellType = VTKCellType(cellTypeId)
+            elemType = DICT_VTK_TO_ELEMTYPE[cellType]
 
             # get connect
             connect = grid.cells_dict[cellTypeId].astype(int)
@@ -811,6 +900,7 @@ def PyVista_to_EasyFEA(pyVistaMesh: Union[pv.UnstructuredGrid, pv.MultiBlock]) -
 # ----------------------------------------------
 
 
+@requires_pyvista
 def _Ensight_to_PyVista(geoFile: str) -> pv.MultiBlock:
     """Converts Ensight mesh to PyVista format.
 
@@ -847,6 +937,7 @@ def _Ensight_to_PyVista(geoFile: str) -> pv.MultiBlock:
     return pyVistaMesh
 
 
+@requires_pyvista
 def _Ensight_to_Meshio(geoFile: str) -> Mesh:
     """Converts Ensight mesh to Meshio format.
 

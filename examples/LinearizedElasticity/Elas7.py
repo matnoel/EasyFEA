@@ -17,16 +17,9 @@ This example comes from:
 * The book: `Mécanique des systèmes et des milieux déformables <https://www.editions-ellipses.fr/accueil/15577-29372-mecanique-des-systemes-et-des-milieux-deformables-cours-exercices-et-problemes-corriges-3e-edition-9782340096851.html>`_ (3rd edition)
 """
 
-from EasyFEA import (
-    Display,
-    Folder,
-    Models,
-    np,
-    ElemType,
-    Simulations,
-    PyVista,
-    Paraview,
-)
+import numpy as np
+
+from EasyFEA import Display, Folder, Models, ElemType, Simulations, PyVista, Paraview
 from EasyFEA.Geoms import Points, Point, Circle
 
 if __name__ == "__main__":

@@ -9,6 +9,8 @@ HelloWorld
 A cantilever beam undergoing bending deformation.
 """
 
+import matplotlib.pyplot as plt
+
 from EasyFEA import Display, ElemType, Models, Simulations
 from EasyFEA.Geoms import Domain
 
@@ -48,4 +50,4 @@ Display.Plot_BoundaryConditions(simu)
 Display.Plot_Result(simu, "uy", plotMesh=True)
 Display.Plot_Result(simu, "Svm", plotMesh=True, ncolors=11)
 
-Display.plt.show()
+plt.show()

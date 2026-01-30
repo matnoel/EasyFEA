@@ -11,7 +11,10 @@ Poisson equation with unit load.
 Reference: https://scikit-fem.readthedocs.io/en/latest/gettingstarted.html
 """
 
-from EasyFEA import Display, ElemType, Models, Simulations, np
+import matplotlib.pyplot as plt
+import numpy as np
+
+from EasyFEA import Display, ElemType, Models, Simulations
 from EasyFEA.FEM import Field, BiLinearForm, LinearForm
 from EasyFEA.Geoms import Domain
 
@@ -67,4 +70,4 @@ if __name__ == "__main__":
     u_an = 1 / 2 / np.pi**2 * np.sin(np.pi * x) * np.sin(np.pi * y)
     error = np.linalg.norm(u_an - simu.u) / np.linalg.norm(u_an)
 
-    Display.plt.show()
+    plt.show()

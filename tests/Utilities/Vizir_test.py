@@ -3,8 +3,9 @@
 # EasyFEA is distributed under the terms of the GNU General Public License v3, see LICENSE.txt and CREDITS.md for more information.
 
 import pytest
+import numpy as np
 
-from EasyFEA import Mesher, ElemType, Mesh, np, Vizir
+from EasyFEA import Mesher, ElemType, Mesh, Vizir
 from EasyFEA.Geoms import Points
 
 L = 2

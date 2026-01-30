@@ -10,7 +10,9 @@ Wave propagation.
 """
 # TODO: Compare results with analytical values.
 
-from EasyFEA import Folder, Display, Models, Tic, plt, ElemType, Simulations, PyVista
+import matplotlib.pyplot as plt
+
+from EasyFEA import Folder, Display, Models, Tic, ElemType, Simulations, PyVista
 from EasyFEA.Geoms import Domain, Circle, Line
 
 if __name__ == "__main__":

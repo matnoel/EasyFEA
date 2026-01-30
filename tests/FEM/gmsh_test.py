@@ -2,9 +2,9 @@
 # This file is part of the EasyFEA project.
 # EasyFEA is distributed under the terms of the GNU General Public License v3, see LICENSE.txt and CREDITS.md for more information.
 
-import pytest
+import numpy as np
 
-from EasyFEA import Mesher, ElemType, Mesh, plt, np
+from EasyFEA import Mesher, ElemType, Mesh
 from EasyFEA.Geoms import Domain, Point
 from EasyFEA.Geoms import Rotate
 from EasyFEA import Display as Display

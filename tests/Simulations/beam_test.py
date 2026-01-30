@@ -3,11 +3,13 @@
 # EasyFEA is distributed under the terms of the GNU General Public License v3, see LICENSE.txt and CREDITS.md for more information.
 
 import matplotlib
+import matplotlib.pyplot as plt
+import numpy as np
 
 matplotlib.use("Agg")  # fix tkinter issue in CI for py3.12 on windows
 # see: https://github.com/matnoel/EasyFEA/actions/runs/15673958144/job/44150031408
 
-from EasyFEA import Display, Models, Simulations, Mesh, plt, np, Mesher
+from EasyFEA import Display, Models, Simulations, Mesher
 from EasyFEA.Geoms import Domain, Point, Line
 
 

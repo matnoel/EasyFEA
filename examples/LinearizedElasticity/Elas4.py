@@ -9,6 +9,8 @@ Elas4
 Plate with a hole subjected to uniform tensile loading.
 """
 
+import matplotlib.pyplot as plt
+
 from EasyFEA import Display, ElemType, Models, Simulations
 from EasyFEA.Geoms import Point, Points, Domain, Circle
 
@@ -92,4 +94,4 @@ if __name__ == "__main__":
 
     print(simu)
 
-    Display.plt.show()
+    plt.show()

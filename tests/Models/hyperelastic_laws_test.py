@@ -3,8 +3,9 @@
 # EasyFEA is distributed under the terms of the GNU General Public License v3, see LICENSE.txt and CREDITS.md for more information.
 
 import pytest
+import numpy as np
 
-from EasyFEA import Mesher, ElemType, Models, Simulations, np
+from EasyFEA import Mesher, ElemType, Models, Simulations
 from EasyFEA.FEM._linalg import Trace, TensorProd
 from EasyFEA.Models import Project_Kelvin
 from EasyFEA.Geoms import Domain

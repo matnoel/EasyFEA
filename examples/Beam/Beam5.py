@@ -9,7 +9,10 @@ Beam5
 Frame with six beams
 """
 
-from EasyFEA import Display, Models, np, Mesher, ElemType, Simulations
+import matplotlib.pyplot as plt
+import numpy as np
+
+from EasyFEA import Display, Models, Mesher, ElemType, Simulations
 from EasyFEA.Geoms import Domain, Line
 
 if __name__ == "__main__":
@@ -107,4 +110,4 @@ if __name__ == "__main__":
         print(f"  ux={ux[i]:.2e} mm, uy={uy[i]:.2e} mm, rz={rz[i]:.2e} rad")
         print(f"  fx={fx[i]:.2e} N, fy={fy[i]:.2e} N, cz={cz[i]:.2e} N.mm")
 
-    Display.plt.show()
+    plt.show()

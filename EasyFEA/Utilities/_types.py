@@ -7,9 +7,6 @@ from typing import Union, Collection, Any
 import numpy as np
 from numpy.typing import NDArray
 
-import matplotlib.pyplot as plt
-from mpl_toolkits.mplot3d import Axes3D
-
 # --------------------------------------------------------------------------------------
 # Numbers
 # --------------------------------------------------------------------------------------
@@ -19,13 +16,6 @@ Number = Union[int, float]
 
 Numbers = Collection[Number]
 """Numbers"""
-
-# --------------------------------------------------------------------------------------
-# Matplotlib
-# --------------------------------------------------------------------------------------
-
-Axes = Union[plt.Axes, Axes3D]  # type: ignore
-"""Axes"""
 
 # --------------------------------------------------------------------------------------
 # Array

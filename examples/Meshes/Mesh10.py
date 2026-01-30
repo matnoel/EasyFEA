@@ -9,7 +9,10 @@ Mesh10
 Simplified turbine mesh with data extraction in matlab.
 """
 
-from EasyFEA import Display, Folder, np, Mesher, ElemType, PyVista
+import matplotlib.pyplot as plt
+import numpy as np
+
+from EasyFEA import Display, Folder, Mesher, ElemType, PyVista
 from EasyFEA.Geoms import Point, Points, Contour, CircleArc, Line
 
 import scipy.io
@@ -346,4 +349,4 @@ if __name__ == "__main__":
         nColors=11,
     ).show()
 
-    Display.plt.show()
+    plt.show()

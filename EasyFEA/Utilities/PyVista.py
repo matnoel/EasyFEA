@@ -5,14 +5,14 @@
 """Module providing an interface with PyVista (https://docs.pyvista.org/version/stable/).\n
 https://docs.pyvista.org/api/plotting/plotting.html"""
 
+from __future__ import annotations
 from typing import Union, Callable, Optional, TYPE_CHECKING, Any, Iterable
 from scipy.sparse import csr_matrix
-import pyvista as pv
 import numpy as np
 from functools import singledispatch
 
 # utilities
-from .Display import MyPrintError, MyPrint, plt
+from . import Display
 from ..Simulations._simu import _Init_obj, _Get_values
 from . import Folder, Tic, _types, MeshIO
 from .. import Geoms
@@ -25,7 +25,16 @@ if TYPE_CHECKING:
     from ..FEM._mesh import Mesh
     from ..FEM._group_elem import _GroupElem
 
+from ._requires import Create_requires_decorator
 
+try:
+    import pyvista as pv
+except ImportError:
+    pass
+requires_pyvista = Create_requires_decorator("matplotlib", "pyvista")
+
+
+@requires_pyvista
 def Plot(
     obj: Union[
         "_Simu",
@@ -183,6 +192,7 @@ def Plot(
     return plotter
 
 
+@requires_pyvista
 def Plot_Mesh(
     obj: Union[
         "_Simu",
@@ -235,6 +245,7 @@ def Plot_Mesh(
     return plotter
 
 
+@requires_pyvista
 def Plot_Nodes(
     obj: Union["_Simu", "Mesh"],
     nodes: Optional[_types.IntArray] = None,
@@ -280,17 +291,17 @@ def Plot_Nodes(
 
         if nodes.ndim == 1:
             if nodes.size == 0:
-                MyPrintError("The list of nodes is empty.")
+                Display.MyPrintError("The list of nodes is empty.")
                 return
             if nodes.size > mesh.Nn:
-                MyPrintError("The list of nodes must be of size <= mesh.Nn")
+                Display.MyPrintError("The list of nodes must be of size <= mesh.Nn")
                 return
             else:
                 coord = coord[nodes]
         elif nodes.ndim == 2 and nodes.shape[1] == 3:
             coord = nodes  # type: ignore [assignment]
         else:
-            MyPrintError(
+            Display.MyPrintError(
                 "Nodes must be either a list of nodes or a matrix of 3D vectors of dimension (n, 3)."
             )
             return
@@ -314,6 +325,7 @@ def Plot_Nodes(
     return plotter
 
 
+@requires_pyvista
 def Plot_Elements(
     obj: Union["_Simu", "Mesh"],
     nodes: Optional[_types.IntArray] = None,
@@ -369,7 +381,7 @@ def Plot_Elements(
     else:
         nodes = np.asarray(nodes, dtype=int)
         if nodes.ndim != 1 or nodes.size > mesh.Nn:
-            MyPrintError("Nodes must be a list of nodes of size <= mesh.Nn.")
+            Display.MyPrintError("Nodes must be a list of nodes of size <= mesh.Nn.")
             return
 
     if plotter is None:
@@ -411,6 +423,7 @@ def Plot_Elements(
     return plotter
 
 
+@requires_pyvista
 def Plot_Arrows(
     obj: Union["_Simu", "Mesh"],
     nodes: _types.IntArray,
@@ -478,6 +491,7 @@ def Plot_Arrows(
     return plotter
 
 
+@requires_pyvista
 def Plot_BoundaryConditions(
     simu: "_Simu", deformFactor=0.0, plotter: Optional[pv.Plotter] = None
 ):
@@ -503,7 +517,7 @@ def Plot_BoundaryConditions(
     simu, mesh, coord, inDim = _Init_obj(simu, deformFactor)  # type: ignore [assignment]
 
     if simu is None:
-        MyPrintError("simu must be a _Simu object")
+        Display.MyPrintError("simu must be a _Simu object")
         return
 
     # get dirichlet and neumann boundary conditions
@@ -522,7 +536,7 @@ def Plot_BoundaryConditions(
         # Plot(simu, deformFactor=deformFactor, plotter=plotter, color='k', style='wireframe')
         plotter.add_title("Boundary conditions")
 
-    colors = plt.get_cmap("tab10").colors
+    colors = Display.tab10_colors
     colors = colors * np.ceil(len(boundaryConditions) / len(colors)).astype(int)
 
     for bc, color in zip(boundaryConditions, colors):
@@ -634,6 +648,7 @@ def Plot_BoundaryConditions(
     return plotter
 
 
+@requires_pyvista
 def Plot_Tags(
     obj, useColorCycler=False, plotter: Optional[pv.Plotter] = None
 ) -> pv.Plotter:
@@ -664,7 +679,7 @@ def Plot_Tags(
         for groupElem in mesh.dict_groupElem.values()
     ]
     if np.max(nTtags) == 0:
-        MyPrintError(
+        Display.MyPrintError(
             "There is no tags available in the mesh, so don't forget to use the '_Set_PhysicalGroups()' function before meshing your geometry with in the gmsh interface."
         )
         return None  # type: ignore [return-value]
@@ -675,7 +690,7 @@ def Plot_Tags(
     Plot(mesh, alpha=0.1, plotter=plotter)
 
     if useColorCycler:
-        colors = plt.get_cmap("tab10").colors
+        colors = Display.tab10_colors
         colorIterator = iter(colors * np.ceil(np.sum(nTtags) / len(colors)).astype(int))
 
     for groupElem in mesh.dict_groupElem.values():
@@ -724,6 +739,7 @@ def Plot_Tags(
     return plotter
 
 
+@requires_pyvista
 def Plot_Geoms(
     geoms: list,
     line_width=2,
@@ -761,7 +777,7 @@ def Plot_Geoms(
     geoms: list[Geoms._Geom] = geoms  # type: ignore [no-redef]
 
     if "color" not in kwargs:
-        colors = plt.get_cmap("tab10").colors
+        colors = Display.tab10_colors
         colors = iter(colors * np.ceil(len(geoms) / len(colors)).astype(int))
     else:
         colors = [kwargs["color"]] * len(geoms)  # type: ignore [assignment]
@@ -805,6 +821,7 @@ def Plot_Geoms(
 # ----------------------------------------------
 # Movie
 # ----------------------------------------------
+@requires_pyvista
 def Movie_simu(
     simu: "_Simu",
     result: str,
@@ -841,7 +858,7 @@ def Movie_simu(
     simu = _Init_obj(simu)[0]  # type: ignore [assignment]
 
     if simu is None:
-        MyPrintError("Must give a simulation.")
+        Display.MyPrintError("Must give a simulation.")
         return
 
     Niter = len(simu.results)
@@ -858,6 +875,7 @@ def Movie_simu(
     Movie_func(DoAnim, iterations.size, folder, filename)
 
 
+@requires_pyvista
 def Movie_func(
     func: Callable[[pv.Plotter, int], None], N: int, folder: str, filename="video.gif"
 ):
@@ -905,15 +923,10 @@ def Movie_func(
         rmTime = Tic.Get_Remaining_Time(iteration, N, time)
 
         iteration = str(iteration).zfill(len(str(N)))
-        MyPrint(f"Generate movie {iteration}/{N} {rmTime}    ", end="\r")
+        Display.MyPrint(f"Generate movie {iteration}/{N} {rmTime}    ", end="\r")
 
     print()
     plotter.close()
-
-
-# ----------------------------------------------
-# Types
-# ----------------------------------------------
 
 
 # ----------------------------------------------
@@ -924,6 +937,7 @@ def Movie_func(
 __update_camera_arg = "_need_to_update_camera_position"
 
 
+@requires_pyvista
 def _Plotter(off_screen=False, add_axes=True, shape=(1, 1), linkViews=True):
     plotter = pv.Plotter(off_screen=pv.OFF_SCREEN, shape=shape)
     setattr(plotter, __update_camera_arg, True)
@@ -935,6 +949,7 @@ def _Plotter(off_screen=False, add_axes=True, shape=(1, 1), linkViews=True):
     return plotter
 
 
+@requires_pyvista
 def _setCameraPosition(
     plotter: pv.Plotter,
     inDim: int,
@@ -970,6 +985,7 @@ def _setCameraPosition(
         plotter.camera.reset_clipping_range()
 
 
+@requires_pyvista
 def _pvMesh(
     obj: Union["_Simu", "Mesh", "_GroupElem"],
     result: Optional[Union[str, _types.AnyArray]] = None,
@@ -1003,9 +1019,10 @@ def _pvMesh(
     return unstructuredGrid
 
 
+@requires_pyvista
 @singledispatch
 def _pvGeom(geom) -> Union[pv.DataSet, list[pv.DataSet]]:
-    MyPrintError(
+    Display.MyPrintError(
         "geom must be in [Point, Line, Domain, Circle, CircleArc, Contour, Points]"
     )
     return None  # type: ignore [return-value]

@@ -10,8 +10,11 @@ Modal analysis of a structure.
 """
 # sphinx_gallery_thumbnail_number = -2
 
-from EasyFEA import Display, Models, np, Mesher, ElemType, Mesh, Simulations, PyVista
+import matplotlib.pyplot as plt
+import numpy as np
 from scipy.sparse import linalg, eye
+
+from EasyFEA import Display, Models, Mesher, ElemType, Mesh, Simulations, PyVista
 
 
 def Construct_struct(
@@ -180,4 +183,4 @@ if __name__ == "__main__":
     axModes.set_ylabel("freq [Hz]")
     axModes.grid()
 
-    Display.plt.show()
+    plt.show()

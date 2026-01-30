@@ -10,7 +10,7 @@ from ._params import (
     _CheckIsInIntervaloo,
 )
 from ._tic import Tic
-from ._types import Number, Numbers, Axes, FloatArray, IntArray, AnyArray, Coords
+from ._types import Number, Numbers, FloatArray, IntArray, AnyArray, Coords
 from . import Display
 from . import Folder
 from . import MeshIO

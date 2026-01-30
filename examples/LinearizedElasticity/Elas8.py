@@ -9,16 +9,9 @@ Elas8
 A cantilever beam undergoing dynamic bending deformation.
 """
 
-from EasyFEA import (
-    Display,
-    Folder,
-    Models,
-    plt,
-    ElemType,
-    Simulations,
-    PyVista,
-    Paraview,
-)
+import matplotlib.pyplot as plt
+
+from EasyFEA import Display, Folder, Models, ElemType, Simulations, PyVista, Paraview
 from EasyFEA.Geoms import Domain
 
 if __name__ == "__main__":

@@ -15,7 +15,10 @@ The assumption of small displacements is highly questionable for this simulation
 """
 # TODO: Compare results with analytical values ?
 
-from EasyFEA import Display, Folder, Models, plt, np, ElemType, Simulations, PyVista
+import matplotlib.pyplot as plt
+import numpy as np
+
+from EasyFEA import Display, Folder, Models, ElemType, Simulations, PyVista
 from EasyFEA.Geoms import Point, Domain, Points
 
 if __name__ == "__main__":
@@ -195,4 +198,4 @@ if __name__ == "__main__":
         PyVista.Plot_Mesh(master_mesh, alpha=0.4, plotter=plotter)
         plotter.show()
 
-    Display.plt.show()
+    plt.show()

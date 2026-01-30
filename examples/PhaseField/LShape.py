@@ -9,12 +9,13 @@ LShape
 Damage simulation for a L-part.
 """
 
+import matplotlib.pyplot as plt
+import numpy as np
+
 from EasyFEA import (
     Display,
     Folder,
     Models,
-    plt,
-    np,
     Tic,
     ElemType,
     Simulations,

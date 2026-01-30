@@ -10,7 +10,9 @@ A hyper elastic cube in compression.
 """
 # sphinx_gallery_thumbnail_number = -1
 
-from EasyFEA import Display, ElemType, Models, Simulations, PyVista, np
+import numpy as np
+
+from EasyFEA import Display, ElemType, Models, Simulations, PyVista
 from EasyFEA.Geoms import Domain
 
 if __name__ == "__main__":

@@ -3,8 +3,7 @@
 # EasyFEA is distributed under the terms of the GNU General Public License v3, see LICENSE.txt and CREDITS.md for more information.
 
 import pytest
-
-from EasyFEA import np
+import numpy as np
 
 # materials
 from EasyFEA.Models.Elastic._laws import (

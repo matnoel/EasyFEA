@@ -9,7 +9,10 @@ Elas3
 Hydraulic dam subjected to water pressure and its own weight.
 """
 
-from EasyFEA import Display, Models, plt, np, ElemType, Simulations
+import matplotlib.pyplot as plt
+import numpy as np
+
+from EasyFEA import Display, Models, ElemType, Simulations
 from EasyFEA.Geoms import Points
 
 if __name__ == "__main__":

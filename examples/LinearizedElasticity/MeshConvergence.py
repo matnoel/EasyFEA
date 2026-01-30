@@ -9,13 +9,14 @@ MeshConvergence
 Verification of energy convergence for a bending beam for all available elements.
 """
 
+import matplotlib.pyplot as plt
+import numpy as np
+
 from EasyFEA import (
     Display,
     Folder,
     Models,
     Tic,
-    plt,
-    np,
     Mesher,
     ElemType,
     Simulations,

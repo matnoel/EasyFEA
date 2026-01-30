@@ -10,7 +10,9 @@ Meshing a 3D part in revolution.
 """
 # sphinx_gallery_thumbnail_number = 2
 
-from EasyFEA import Display, ElemType, np, PyVista
+import numpy as np
+
+from EasyFEA import Display, ElemType, PyVista
 from EasyFEA.Geoms import Point, Points, Circle, Line
 
 if __name__ == "__main__":

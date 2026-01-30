@@ -9,12 +9,13 @@ PlateWithHole
 Damage simulation for a plate with a hole subjected to compression.
 """
 
+import matplotlib.pyplot as plt
+import numpy as np
+
 from EasyFEA import (
     Display,
     Folder,
     Models,
-    plt,
-    np,
     Tic,
     ElemType,
     Mesh,
@@ -346,7 +347,7 @@ def DoSimu(split: str, regu: str):
     if showFig:
         plt.show()
 
-    # plt.close("all")
+    # Display.plt.close("all")
     Tic.Clear()
 
 

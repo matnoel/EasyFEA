@@ -11,7 +11,10 @@ An educational implementation of topology optimization inspired by `Week 10- Top
 """
 # sphinx_gallery_thumbnail_number = 3
 
-from EasyFEA import Display, Folder, PyVista, np, ElemType, Models, Simulations
+import matplotlib.pyplot as plt
+import numpy as np
+
+from EasyFEA import Display, Folder, PyVista, ElemType, Models, Simulations
 from EasyFEA.FEM import FeArray, Field, BiLinearForm, Sym_Grad, Trace
 from EasyFEA.Geoms import Domain
 
@@ -197,7 +200,7 @@ if __name__ == "__main__":
     axC.plot(range(len(list_compliance)), list_compliance, ls="-", marker=".")
     axC.set_xlabel("Iteration")
     axC.set_ylabel("Compliance")
-    Display.plt.show()
+    plt.show()
 
     PyVista.Plot_BoundaryConditions(simu).show()
 

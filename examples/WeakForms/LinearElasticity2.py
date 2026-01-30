@@ -11,7 +11,10 @@ A cantilever beam undergoing bending deformation in dynamic.
 Note that this simulation is also performed in `examples/Dynamic/Dynamic1.py`.
 """
 
-from EasyFEA import Folder, Display, ElemType, Models, Simulations, PyVista, np
+import matplotlib.pyplot as plt
+import numpy as np
+
+from EasyFEA import Folder, Display, ElemType, Models, Simulations, PyVista
 from EasyFEA.FEM import Field, BiLinearForm, FeArray, Sym_Grad, Trace
 from EasyFEA.Geoms import Domain
 
@@ -136,4 +139,4 @@ if __name__ == "__main__":
     simu.Set_Iter(0)
     PyVista.Plot(simu, "uy", 1, plotMesh=True).show()
 
-    Display.plt.show()
+    plt.show()

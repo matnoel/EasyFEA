@@ -9,7 +9,9 @@ Beam4
 Frame with two beams.
 """
 
-from EasyFEA import Display, Models, plt, Mesher, ElemType, Simulations
+import matplotlib.pyplot as plt
+
+from EasyFEA import Display, Models, Mesher, ElemType, Simulations
 from EasyFEA.Geoms import Domain, Line
 
 if __name__ == "__main__":

@@ -3,8 +3,9 @@
 # EasyFEA is distributed under the terms of the GNU General Public License v3, see LICENSE.txt and CREDITS.md for more information.
 
 import pytest
+import matplotlib.pyplot as plt
+import numpy as np
 
-from EasyFEA import plt, np
 from EasyFEA.Geoms import Point, Circle, CircleArc
 
 

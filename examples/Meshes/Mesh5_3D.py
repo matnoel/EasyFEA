@@ -10,6 +10,8 @@ Mesh of a 3D cracked part.
 """
 # sphinx_gallery_thumbnail_number = 3
 
+import matplotlib.pyplot as plt
+
 from EasyFEA import Display, ElemType, Models, Simulations, PyVista
 from EasyFEA.Geoms import Point, Line, Points, Domain, Contour
 
@@ -63,4 +65,4 @@ if __name__ == "__main__":
     simu.Solve()
     PyVista.Plot(simu, "uy", 1, plotMesh=True).show()
 
-    Display.plt.show()
+    plt.show()

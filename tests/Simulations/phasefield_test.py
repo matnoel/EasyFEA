@@ -2,7 +2,9 @@
 # This file is part of the EasyFEA project.
 # EasyFEA is distributed under the terms of the GNU General Public License v3, see LICENSE.txt and CREDITS.md for more information.
 
-from EasyFEA import Mesher, Models, np, Simulations, SolverType
+import numpy as np
+
+from EasyFEA import Mesher, Models, Simulations, SolverType
 from EasyFEA.Geoms import Domain
 
 

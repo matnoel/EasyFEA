@@ -4,19 +4,11 @@
 
 """Module containing functions used to display simulations and meshes with matplotlib (https://matplotlib.org/)."""
 
+from __future__ import annotations
 import platform
 from typing import Union, Callable, Optional, TYPE_CHECKING, Any
 import numpy as np
 from enum import Enum
-
-# Matplotlib: https://matplotlib.org/
-import matplotlib.colors as colors
-import matplotlib.pyplot as plt
-from mpl_toolkits.mplot3d import Axes3D
-from matplotlib.collections import PolyCollection, LineCollection
-from mpl_toolkits.mplot3d.art3d import Poly3DCollection, Line3DCollection
-from mpl_toolkits.axes_grid1 import make_axes_locatable  # use to do colorbarIsClose
-import matplotlib.animation as animation
 
 # utilities
 from . import Folder, Tic, _types
@@ -29,12 +21,45 @@ if TYPE_CHECKING:
     from ..FEM._mesh import Mesh
     from ..FEM._group_elem import _GroupElem
 
+from ._requires import Create_requires_decorator
+
+# Matplotlib: https://matplotlib.org/
+try:
+    import matplotlib.colors as colors
+    import matplotlib.pyplot as plt
+    from mpl_toolkits.mplot3d import Axes3D
+    from matplotlib.collections import PolyCollection, LineCollection
+    from mpl_toolkits.mplot3d.art3d import Poly3DCollection, Line3DCollection
+    from mpl_toolkits.axes_grid1 import make_axes_locatable  # use to do colorbarIsClose
+    import matplotlib.animation as animation
+
+    Axes = Union[plt.Axes, Axes3D]
+except ImportError:
+    pass
+requires_matplotlib = Create_requires_decorator("matplotlib")
+
 # Ideas: https://www.python-graph-gallery.com/
+
+# fmt: off
+# tab10_colors = [colors.rgb2hex(color) for color in plt.get_cmap("tab10").colors] 
+tab10_colors = [
+    "#1f77b4","#ff7f0e","#2ca02c","#d62728","#9467bd",
+    "#8c564b","#e377c2","#7f7f7f","#bcbd22","#17becf"
+]
+# tab20_colors = [colors.rgb2hex(color) for color in plt.get_cmap("tab20").colors] 
+tab20_colors = [
+    "#1f77b4","#aec7e8","#ff7f0e","#ffbb78","#2ca02c",
+    "#98df8a","#d62728","#ff9896","#9467bd","#c5b0d5",
+    "#8c564b","#c49c94","#e377c2","#f7b6d2","#7f7f7f",
+    "#c7c7c7","#bcbd22","#dbdb8d","#17becf","#9edae5",
+]
+# fmt: on
 
 
 # ----------------------------------------------
 # Plot Simu or Mesh
 # ----------------------------------------------
+@requires_matplotlib
 def Plot_Result(
     obj: Union["_Simu", "Mesh"],
     result: Union[str, _types.FloatArray],
@@ -49,10 +74,10 @@ def Plot_Result(
     clim=(None, None),
     colorbarIsClose=False,
     colorbarLabel="",
-    ax: Optional[_types.Axes] = None,
+    ax: Optional[Axes] = None,
     folder: str = "",
     filename: str = "",
-) -> _types.Axes:
+) -> Axes:
     """Plots a simulation's result.
 
     Parameters
@@ -262,6 +287,7 @@ def Plot_Result(
     return ax
 
 
+@requires_matplotlib
 def __Get_axis(ax: Union[plt.Axes, Axes3D, None], inDim: int):
     # init Axes
     if ax is None:
@@ -278,6 +304,7 @@ def __Get_axis(ax: Union[plt.Axes, Axes3D, None], inDim: int):
     return ax, inDim
 
 
+@requires_matplotlib
 def __Get_colorbar_properties(
     clim: tuple[int, int],
     result: Union[str, np.ndarray],
@@ -333,6 +360,7 @@ def __Get_latex_title(result, nodeValues=True) -> str:
     return title
 
 
+@requires_matplotlib
 def Plot_Mesh(
     obj: Union["_Simu", "Mesh"],
     deformFactor: float = 0.0,
@@ -340,10 +368,10 @@ def Plot_Mesh(
     facecolors: str = "c",
     edgecolor: str = "black",
     lw: float = 0.5,
-    ax: Optional[_types.Axes] = None,
+    ax: Optional[Axes] = None,
     folder: str = "",
     title: str = "",
-) -> _types.Axes:
+) -> Axes:
     """Plots the mesh.
 
     Parameters
@@ -360,7 +388,7 @@ def Plot_Mesh(
         edgecolor, default 'black'
     lw: float, optional
         line width, default 0.5
-    ax: _types.Axes, optional
+    ax: Axes, optional
         Axis to use, default None
     folder : str, optional
         save folder, default "".
@@ -369,7 +397,7 @@ def Plot_Mesh(
 
     Returns
     -------
-    _types.Axes
+    Axes
     """
 
     tic = Tic()
@@ -514,12 +542,13 @@ def Plot_Mesh(
     return ax  # type: ignore
 
 
+@requires_matplotlib
 def _Plot_obj(
     obj: Union["_Simu", "Mesh", "_GroupElem"],
     alpha: float = 1.0,
     color: str = "gray",
-    ax: Optional[_types.Axes] = None,
-) -> _types.Axes:
+    ax: Optional[Axes] = None,
+) -> Axes:
     """Plots the mesh.
 
     Parameters
@@ -530,12 +559,12 @@ def _Plot_obj(
         face transparency, default 1.0
     color: str, optional
         color, default 'gray'
-    ax: _types.Axes, optional
+    ax: Axes, optional
         Axis to use, default None
 
     Returns
     -------
-    _types.Axes
+    Axes
     """
 
     tic = Tic()
@@ -601,14 +630,15 @@ def _Plot_obj(
     return ax  # type: ignore
 
 
+@requires_matplotlib
 def Plot_Nodes(
     obj,
     nodes: Optional[_types.IntArray] = None,
     showId=False,
     marker=".",
     color="red",
-    ax: Optional[_types.Axes] = None,
-) -> _types.Axes:
+    ax: Optional[Axes] = None,
+) -> Axes:
     """Plots the mesh's nodes.
 
     Parameters
@@ -623,12 +653,12 @@ def Plot_Nodes(
         marker type (matplotlib.markers), default '.'
     color: str, optional
         color, default 'red'
-    ax : _types.Axes, optional
+    ax : Axes, optional
         Axis to use, default None, default None
 
     Returns
     -------
-    _types.Axes
+    Axes
     """
 
     tic = Tic()
@@ -669,6 +699,7 @@ def Plot_Nodes(
     return ax
 
 
+@requires_matplotlib
 def Plot_Elements(
     obj,
     nodes=[],
@@ -677,8 +708,8 @@ def Plot_Elements(
     alpha=1.0,
     color="red",
     edgecolor="black",
-    ax: Optional[_types.Axes] = None,
-) -> _types.Axes:
+    ax: Optional[Axes] = None,
+) -> Axes:
     """Plots the mesh's elements corresponding to the given nodes.
 
     Parameters
@@ -697,12 +728,12 @@ def Plot_Elements(
         color used to display faces, by default 'red
     edgecolor : str, optional
         color used to display segments, by default 'black'
-    ax : _types.Axes, optional
+    ax : Axes, optional
         Axis to use, default None
 
     Returns
     -------
-    _types.Axes
+    Axes
     """
 
     tic = Tic()
@@ -796,19 +827,20 @@ def Plot_Elements(
     return ax
 
 
-def Plot_BoundaryConditions(simu, ax: Optional[_types.Axes] = None) -> _types.Axes:
+@requires_matplotlib
+def Plot_BoundaryConditions(simu, ax: Optional[Axes] = None) -> Axes:
     """Plots simulation's boundary conditions.
 
     Parameters
     ----------
     simu : _Simu
         simulation
-    ax : _types.Axes, optional
+    ax : Axes, optional
         Axis to use, default None
 
     Returns
     -------
-    _types.Axes
+    Axes
     """
 
     tic = Tic()
@@ -901,14 +933,15 @@ def Plot_BoundaryConditions(simu, ax: Optional[_types.Axes] = None) -> _types.Ax
     return ax
 
 
+@requires_matplotlib
 def Plot_Tags(
     obj,
     showId=True,
     folder="",
     alpha=1.0,
     useColorCycler=False,
-    ax: Optional[_types.Axes] = None,
-) -> _types.Axes:
+    ax: Optional[Axes] = None,
+) -> Axes:
     """Plots the mesh's elements tags (from 2d elements to points) but do not plot the 3d elements tags.
 
     Parameters
@@ -923,12 +956,12 @@ def Plot_Tags(
         transparency, by default 1.0
     useColorCycler : bool, optional
         whether to use color cycler, by default False
-    ax : _types.Axes, optional
+    ax : Axes, optional
         Axis to use, default None
 
     Returns
     -------
-    _types.Axes
+    Axes
     """
 
     tic = Tic()
@@ -1057,8 +1090,9 @@ def Plot_Tags(
     return ax
 
 
+@requires_matplotlib
 def __Annotation_Event(
-    collections: list, fig: Union[plt.Figure, Any], ax: _types.Axes
+    collections: list, fig: Union[plt.Figure, Any], ax: Axes
 ) -> None:
     """Creates an event to display the element tag currently active under the mouse at the bottom of the figure."""
 
@@ -1083,14 +1117,15 @@ def __Annotation_Event(
 # ----------------------------------------------
 # Plot 1D
 # ----------------------------------------------
+@requires_matplotlib
 def Plot_Force_Displacement(
     force: _types.FloatArray,
     displacement: _types.FloatArray,
     xlabel="u",
     ylabel="f",
     folder="",
-    ax: Optional[_types.Axes] = None,
-) -> tuple[plt.Figure, _types.Axes]:  # type: ignore
+    ax: Optional[Axes] = None,
+) -> tuple[plt.Figure, Axes]:  # type: ignore
     """Plots the force displacement curve.
 
     Parameters
@@ -1105,16 +1140,16 @@ def Plot_Force_Displacement(
         y-axis title, by default 'f' folder : str, optional
     folder : str, optional
         save folder, by default ""
-    ax : _types.Axes, optional
+    ax : Axes, optional
         ax in which to plot the figure, by default None
 
     Returns
     -------
-    tuple[plt.Figure, _types.Axes]
+    tuple[plt.Figure, Axes]
         returns figure and ax
     """
 
-    if isinstance(ax, _types.Axes):  # type: ignore
+    if isinstance(ax, Axes):  # type: ignore
         fig = ax.figure
         ax.clear()
     else:
@@ -1132,6 +1167,7 @@ def Plot_Force_Displacement(
     return fig, ax  # type: ignore [return-value]
 
 
+@requires_matplotlib
 def Plot_Energy(
     simu: "_Simu",
     load: _types.FloatArray = np.empty(0),
@@ -1211,7 +1247,7 @@ def Plot_Energy(
         nrows += 1
     if pltLoad:
         nrows += 1
-    axs: list[_types.Axes] = plt.subplots(nrows, 1, sharex=True)[1]
+    axs: list[Axes] = plt.subplots(nrows, 1, sharex=True)[1]
 
     iter_rows = iter(np.arange(nrows))
     row: int = next(iter_rows)
@@ -1253,6 +1289,7 @@ def Plot_Energy(
     tic.Tac("PostProcessing", "Calc Energy", False)
 
 
+@requires_matplotlib
 def Plot_Iter_Summary(simu, folder="", iterMin=None, iterMax=None) -> None:
     """Plots a summary of iterations between iterMin and iterMax.
 
@@ -1289,7 +1326,7 @@ def Plot_Iter_Summary(simu, folder="", iterMin=None, iterMax=None) -> None:
 
     nbGraph = len(list_label_values)
 
-    axs: list[_types.Axes] = plt.subplots(nrows=nbGraph, sharex=True)[1]
+    axs: list[Axes] = plt.subplots(nrows=nbGraph, sharex=True)[1]
 
     for ax, label_values in zip(axs, list_label_values):
         ax.grid()
@@ -1305,6 +1342,7 @@ def Plot_Iter_Summary(simu, folder="", iterMin=None, iterMax=None) -> None:
 # ----------------------------------------------
 # Animation
 # ----------------------------------------------
+@requires_matplotlib
 def Movie_Simu(
     simu,
     result: str,
@@ -1382,6 +1420,7 @@ def Movie_Simu(
     Movie_func(DoAnim, fig, iterations.size, folder, filename, fps)
 
 
+@requires_matplotlib
 def Movie_func(
     func: Callable[[plt.Figure, int], None],
     fig: Union[plt.Figure, Any],
@@ -1447,6 +1486,7 @@ def Movie_func(
 # ----------------------------------------------
 
 
+@requires_matplotlib
 def Save_fig(
     folder: str, filename: str, transparent=False, extension="pdf", dpi="figure"
 ) -> None:
@@ -1512,7 +1552,8 @@ def _Get_list_surfaces(mesh, dimElem: int) -> list[list[int]]:
     return list_surfaces
 
 
-def _Remove_colorbar(ax: _types.Axes) -> None:
+@requires_matplotlib
+def _Remove_colorbar(ax: Axes) -> None:
     """Removes the current colorbar from the axis."""
     [
         collection.colorbar.remove()
@@ -1521,7 +1562,8 @@ def _Remove_colorbar(ax: _types.Axes) -> None:
     ]
 
 
-def Init_Axes(dim: int = 2, elev=105, azim=-90) -> _types.Axes:
+@requires_matplotlib
+def Init_Axes(dim: int = 2, elev=105, azim=-90) -> Axes:
     """Initialize 2d or 3d axes."""
     if dim == 1 or dim == 2:
         ax = plt.subplots()[1]
@@ -1534,13 +1576,14 @@ def Init_Axes(dim: int = 2, elev=105, azim=-90) -> _types.Axes:
     return ax
 
 
+@requires_matplotlib
 def _Axis_equal_3D(ax: Axes3D, coord: _types.FloatArray) -> None:
     """Changes axis size for 3D display.\n
     Center the part and make the axes the right size.
 
     Parameters
     ----------
-    ax : _types.Axes
+    ax : Axes
         Axes in which figure will be created
     coord : _types.FloatArray
         mesh coordinates

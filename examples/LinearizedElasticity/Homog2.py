@@ -10,7 +10,10 @@ Perform homogenization on several RVE.
 """
 # sphinx_gallery_thumbnail_number = -1
 
-from EasyFEA import Display, Models, plt, np, ElemType, Simulations
+import matplotlib.pyplot as plt
+import numpy as np
+
+from EasyFEA import Display, Models, ElemType, Simulations
 from EasyFEA.Geoms import Point, Points, Line
 from EasyFEA.FEM import FeArray
 

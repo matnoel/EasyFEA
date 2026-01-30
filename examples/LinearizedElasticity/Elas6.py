@@ -9,7 +9,10 @@ Elas6
 A bi-fixed beam undergoing bending deformation.
 """
 
-from EasyFEA import Display, Models, plt, np, Mesher, ElemType, Simulations, PyVista
+import matplotlib.pyplot as plt
+import numpy as np
+
+from EasyFEA import Display, Models, Mesher, ElemType, Simulations, PyVista
 from EasyFEA.Geoms import Point, Points, Line
 
 if __name__ == "__main__":

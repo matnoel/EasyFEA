@@ -10,13 +10,14 @@ Mesh optimization using the ZZ1 criterion for a letter weigher.
 """
 # sphinx_gallery_thumbnail_number = -2
 
+import matplotlib.pyplot as plt
+import numpy as np
+
 from EasyFEA import (
     Display,
     Folder,
     Models,
     Tic,
-    plt,
-    np,
     Mesher,
     ElemType,
     Mesh,

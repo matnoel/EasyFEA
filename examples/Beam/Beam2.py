@@ -9,7 +9,10 @@ Beam2
 A cantilever beam undergoing bending deformation.
 """
 
-from EasyFEA import Display, Models, plt, np, Mesher, ElemType, Simulations
+import matplotlib.pyplot as plt
+import numpy as np
+
+from EasyFEA import Display, Models, Mesher, ElemType, Simulations
 from EasyFEA.Geoms import Domain, Line
 
 if __name__ == "__main__":

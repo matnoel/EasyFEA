@@ -2,7 +2,9 @@
 # This file is part of the EasyFEA project.
 # EasyFEA is distributed under the terms of the GNU General Public License v3, see LICENSE.txt and CREDITS.md for more information.
 
-from EasyFEA import Mesher, ElemType, MatrixType, Models, Simulations, np, SolverType
+import numpy as np
+
+from EasyFEA import Mesher, ElemType, MatrixType, Models, Simulations, SolverType
 from EasyFEA.Models.HyperElastic._state import HyperElasticState
 from EasyFEA.Geoms import Domain
 from EasyFEA.FEM._linalg import Trace, Det, Inv, TensorProd

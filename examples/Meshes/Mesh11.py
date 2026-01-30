@@ -10,7 +10,9 @@ Meshing of a specimen for a spatially oriented tensile test.
 """
 # sphinx_gallery_thumbnail_number = 2
 
-from EasyFEA import Display, ElemType, np, PyVista
+import numpy as np
+
+from EasyFEA import Display, ElemType, PyVista
 from EasyFEA.Geoms import Point, Line, CircleArc, Contour, Domain
 
 if __name__ == "__main__":

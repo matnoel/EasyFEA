@@ -2,7 +2,9 @@
 # This file is part of the EasyFEA project.
 # EasyFEA is distributed under the terms of the GNU General Public License v3, see LICENSE.txt and CREDITS.md for more information.
 
-from EasyFEA import Display, Models, Simulations, plt
+import matplotlib.pyplot as plt
+
+from EasyFEA import Display, Models, Simulations
 from EasyFEA.Geoms import Domain, Circle, Point
 from EasyFEA import Mesher, ElemType
 

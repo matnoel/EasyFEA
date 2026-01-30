@@ -28,8 +28,6 @@ dependencies = [
     "numpy",
     "gmsh>=4.12",
     "scipy",
-    "matplotlib",
-    "pyvista",
 ]
 
 [project.optional-dependencies]

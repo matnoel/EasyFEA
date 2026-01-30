@@ -4,9 +4,17 @@
 
 """Module containing the Tic class for timing tasks (code profiling)."""
 
+from __future__ import annotations
 import time
 import numpy as np
-import matplotlib.pyplot as plt
+
+from ._requires import Create_requires_decorator
+
+try:
+    import matplotlib.pyplot as plt
+except ImportError:
+    pass
+requires_matplotlib = Create_requires_decorator("matplotlib")
 
 
 class Tic:
@@ -112,6 +120,7 @@ class Tic:
         return resume
 
     @staticmethod
+    @requires_matplotlib
     def __plotBar(
         ax: plt.Axes,
         categories: list[str],
@@ -179,6 +188,7 @@ class Tic:
         # plt.legend()
         ax.set_title(title)
 
+    @requires_matplotlib
     @staticmethod
     def Plot_History(folder="", details=False) -> None:
         """Plots history.

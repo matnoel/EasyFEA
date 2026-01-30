@@ -10,7 +10,9 @@ Transient thermal simulation.
 """
 # sphinx_gallery_thumbnail_number = -1
 
-from EasyFEA import Display, Folder, Models, np, Mesher, ElemType, Simulations, PyVista
+import numpy as np
+
+from EasyFEA import Display, Folder, Models, Mesher, ElemType, Simulations, PyVista
 from EasyFEA.Geoms import Line, Domain, Point
 
 if __name__ == "__main__":

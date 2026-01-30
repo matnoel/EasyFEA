@@ -8,7 +8,6 @@ This module handles geometric objects (_Geom) to facilitate the creation of mesh
 
 import sys
 import os
-import matplotlib
 import gmsh
 import numpy as np
 from typing import Union, Optional, Iterable, Collection, TYPE_CHECKING
@@ -2324,9 +2323,10 @@ class Mesher:
 
         self._Init_gmsh()
 
+        @Display.requires_matplotlib
         def getColor(c: str):
             """transform matplotlib color to rgb"""
-            rgb = np.asarray(matplotlib.colors.to_rgb(edgeColor)) * 255  # type: ignore
+            rgb = np.asarray(Display.colors.to_rgb(edgeColor)) * 255  # type: ignore
             rgb = np.asarray(rgb, dtype=int)
             return rgb
 

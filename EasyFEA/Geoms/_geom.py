@@ -4,6 +4,7 @@
 
 """Module containing the _Geom class used to construct geometry. Geometry inherits from _Geom."""
 
+from __future__ import annotations
 from abc import ABC, abstractmethod
 import numpy as np
 import copy
@@ -14,9 +15,15 @@ from ..FEM._utils import ElemType
 from typing import Union, Optional, Iterable, TYPE_CHECKING
 from ..Utilities import _types, _params
 
+try:
+    import matplotlib.pyplot as plt
+except ImportError:
+    pass
+
 if TYPE_CHECKING:
     from ..Geoms import Point, Line, Circle, CircleArc, Points, Contour, Domain
 
+    GeomCompatible = Union["_Geom", Domain, Circle, Points, Contour]
     ContourCompatible = Union[Line, CircleArc, Points]
     CrackCompatible = Union[Line, Points, Contour, CircleArc]
     RefineCompatible = Union[Point, Circle, str]
@@ -24,8 +31,6 @@ if TYPE_CHECKING:
 
 class _Geom(ABC):
     """Geometric class."""
-
-    GeomCompatible = Union["_Geom", "Domain", "Circle", "Points", "Contour"]
 
     meshSize: float = _params.PositiveScalarParameter()
     """Element size used for meshing."""
@@ -362,13 +367,13 @@ class _Geom(ABC):
 
     def Plot(
         self,
-        ax: Optional[_types.Axes] = None,
+        ax: Optional[plt.Axes] = None,
         color: str = "",
         name: str = "",
         lw: Optional[_types.Number] = None,
         ls: Optional[str] = None,
         plotPoints: bool = True,
-    ) -> _types.Axes:
+    ) -> plt.Axes:
         """Plots the geometry using Matplotlib.
 
         Parameters
@@ -425,12 +430,12 @@ class _Geom(ABC):
     @staticmethod
     def Plot_Geoms(
         geoms: list["_Geom"],
-        ax: Optional[_types.Axes] = None,
+        ax: Optional[plt.Axes] = None,
         color: str = "",
         name: str = "",
         plotPoints: bool = True,
         plotLegend: bool = True,
-    ) -> _types.Axes:
+    ) -> plt.Axes:
         """Plots a list of geometric objects on the same axis.
 
         Parameters

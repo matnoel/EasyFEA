@@ -9,7 +9,10 @@ Elas1
 A cantilever beam undergoing bending deformation.
 """
 
-from EasyFEA import Display, Models, plt, np, ElemType, Simulations
+import matplotlib.pyplot as plt
+import numpy as np
+
+from EasyFEA import Display, Models, ElemType, Simulations
 from EasyFEA.Geoms import Domain
 
 if __name__ == "__main__":

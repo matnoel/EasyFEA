@@ -10,7 +10,9 @@ Meshing of a perforated plate with a structured mesh.
 """
 # sphinx_gallery_thumbnail_number = 2
 
-from EasyFEA import Display, np, Mesher, ElemType, PyVista
+import numpy as np
+
+from EasyFEA import Display, Mesher, ElemType, PyVista
 from EasyFEA.Geoms import Point, Circle, Points, Line, CircleArc, Contour
 
 if __name__ == "__main__":

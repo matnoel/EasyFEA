@@ -13,7 +13,10 @@ Section 4.7 with corrected values on page 89 (Erratum).
 """
 # sphinx_gallery_thumbnail_number = -1
 
-from EasyFEA import Display, Models, plt, np, ElemType, Simulations
+import matplotlib.pyplot as plt
+import numpy as np
+
+from EasyFEA import Display, Models, ElemType, Simulations
 from EasyFEA.Geoms import Points, Circle
 from EasyFEA.FEM import LagrangeCondition, FeArray
 from typing import Optional

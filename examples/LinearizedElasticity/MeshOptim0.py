@@ -10,7 +10,10 @@ Optimization of a happy mesh with quality criteria.
 """
 # sphinx_gallery_thumbnail_number = 2
 
-from EasyFEA import Display, Folder, plt, np, Mesher, ElemType, Mesh, PyVista
+import matplotlib.pyplot as plt
+import numpy as np
+
+from EasyFEA import Display, Folder, Mesher, ElemType, Mesh, PyVista
 from EasyFEA.Geoms import Point, Circle, CircleArc, Contour
 from EasyFEA.FEM import Mesh_Optim
 

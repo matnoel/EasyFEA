@@ -9,7 +9,10 @@ Elas2
 Bending bracket component.
 """
 
-from EasyFEA import Display, Models, plt, np, ElemType, Simulations
+import matplotlib.pyplot as plt
+import numpy as np
+
+from EasyFEA import Display, Models, ElemType, Simulations
 from EasyFEA.Geoms import Point, Points
 
 if __name__ == "__main__":

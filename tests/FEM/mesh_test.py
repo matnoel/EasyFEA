@@ -3,9 +3,10 @@
 # EasyFEA is distributed under the terms of the GNU General Public License v3, see LICENSE.txt and CREDITS.md for more information.
 
 import pytest
+import numpy as np
 
 from EasyFEA.FEM._utils import MatrixType
-from EasyFEA import Mesher, ElemType, Mesh, Models, np, Simulations
+from EasyFEA import Mesher, ElemType, Mesh, Models, Simulations
 from EasyFEA.Geoms import Points
 
 L = 2
