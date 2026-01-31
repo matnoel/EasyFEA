@@ -68,7 +68,7 @@ def Results_Dir() -> str:
                 # get local variables
                 f_locals = frame[0].f_locals
                 try:
-                    pythonScript = f_locals["script_vars"]["src_file"]
+                    pythonScript = f_locals["script_vars"]["target_file"]
                 except KeyError:
                     raise Exception(
                         "sphinx_gallery may change over time; look out for `execute_script` or `execute_code_block` functions."
