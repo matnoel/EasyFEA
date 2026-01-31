@@ -16,15 +16,15 @@ def Create_requires_decorator(*modules: str):
 
     try:
         [__import__(module) for module in modules]
-        can_use_module = True
+        can_use_modules = True
     except ImportError:
-        can_use_module = False
+        can_use_modules = False
 
     def __get_error(func) -> str:
         if len(modules) > 1:
             modules_str = ", ".join(modules[:-1])
             modules_str += f" and {modules[-1]}"
-            error = f"{modules_str} are required for {func.__name__} function.\nPlease install them with: pip install {', '.join(modules)} command."
+            error = f"{modules_str} are required for {func.__name__} function.\nPlease install them with: pip install {' '.join(modules)} command."
         else:
             module = modules[0]
             error = f"{module} is required for {func.__name__} function.\nPlease install it with: pip install {module} command."
@@ -33,7 +33,7 @@ def Create_requires_decorator(*modules: str):
     def decorator(func):
         @wraps(func)
         def wrapper(*args, **kwargs):
-            if not can_use_module:
+            if not can_use_modules:
                 raise ImportError(__get_error(func))
             return func(*args, **kwargs)
 
