@@ -2,6 +2,8 @@
 # This file is part of the EasyFEA project.
 # EasyFEA is distributed under the terms of the GNU General Public License v3, see LICENSE.txt and CREDITS.md for more information.
 
+"""Module implementing constitutive laws used in simulations."""
+
 from . import Beam
 from . import Elastic
 from . import HyperElastic
