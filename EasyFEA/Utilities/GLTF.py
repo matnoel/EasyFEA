@@ -166,6 +166,26 @@ try:
 
             return bufferData
 
+        @staticmethod
+        def Sort_list_data(list_data: list[Data]) -> list[Data]:
+            """Sorts the list of data by ascending buffer view index.
+
+            Parameters
+            ----------
+            list_data : list[Data]
+                The list of Data
+
+            Returns
+            -------
+            list[Data]
+                The sorted list of data.
+            """
+
+            list_first_bufferView = [data._bufferViews_index[0] for data in list_data]
+            idx_sort = np.argsort(list_first_bufferView)
+
+            return [list_data[idx] for idx in idx_sort]
+
 except ImportError:
     pass
 requires_pygltflib = Create_requires_decorator("pygltflib")
@@ -177,6 +197,7 @@ def Save_mesh_to_glb(
     folder: str,
     filename: str = "mesh",
     list_displacementMatrix: list[np.ndarray] = [],
+    list_nodesValues_n: list[np.ndarray] = [],
     fps: int = 30,
     useSurfaceReconstruction: bool = True,
 ) -> str:
@@ -209,6 +230,7 @@ def Save_mesh_to_glb(
         # ensure that surfaces are facing outward
         mesh = Surface_reconstruction(mesh)
 
+    # get mesh coordinates
     data_coord = Data(mesh.coord, mesh.Nn, Type.VEC3, Component.FLOAT)
 
     # get triangles connectivity
@@ -223,10 +245,8 @@ def Save_mesh_to_glb(
         triangles.ravel(), triangles.size, Type.SCALAR, Component.UNSIGNED_INT
     )
 
-    list_data: list[Data] = [data_coord, data_triangles]
-
+    # get animation data
     numFrames = len(list_displacementMatrix)
-
     if numFrames > 0:
         numTargets = numFrames
 
@@ -242,7 +262,40 @@ def Save_mesh_to_glb(
             list_displacementMatrix, mesh.Nn, Type.VEC3, Component.FLOAT
         )
 
+    numFields = len(list_nodesValues_n)
+
+    colors0 = np.ones((mesh.Nn, 3)) * 0.5  # grey
+    # get colors
+    if numFields > 0:
+
+        ndim = list_nodesValues_n[0].ndim
+
+        if ndim == 1:
+            list_nodesValues = list_nodesValues_n
+        elif ndim == 2:
+            list_nodesValues = [
+                np.linalg.norm(nodesValues_n, axis=1)
+                for nodesValues_n in list_nodesValues_n
+            ]
+        else:
+            raise ValueError
+
+        colors0 = __get_colors(list_nodesValues[0])
+        list_colors = [
+            __get_colors(nodesValues) - colors0 for nodesValues in list_nodesValues[1:]
+        ]
+
+        data_list_colors = Data(list_colors, mesh.Nn, Type.VEC3, Component.FLOAT)
+
+    data_colors0 = Data(colors0, mesh.Nn, Type.VEC3, Component.FLOAT)
+
+    # concatenate data
+    list_data = [data_coord, data_triangles, data_colors0]
+    if numFrames > 0:
         list_data.extend([data_times, data_weights, data_list_displacementMatrix])
+    if numFields > 0:
+        list_data.append(data_list_colors)
+    list_data = Data.Sort_list_data(list_data)
 
     # create gltf object
     gltf = GLTF2()
@@ -257,9 +310,22 @@ def Save_mesh_to_glb(
         gltf.accessors.extend(data._accessors)
 
     targets = (
-        [{"POSITION": index} for index in data_list_displacementMatrix._accessors_index]
-        if numFrames > 0
-        else []
+        [
+            {"POSITION": pos_idx, "COLOR_0": col_idx}
+            for pos_idx, col_idx in zip(
+                data_list_displacementMatrix._accessors_index,
+                data_list_colors._accessors_index,
+            )
+        ]
+        if numFrames > 0 and numFields > 0
+        else (
+            [
+                {"POSITION": index}
+                for index in data_list_displacementMatrix._accessors_index
+            ]
+            if numFrames > 0
+            else []
+        )
     )
 
     # meshe
@@ -267,7 +333,10 @@ def Save_mesh_to_glb(
         Mesh(
             primitives=[
                 Primitive(
-                    attributes={"POSITION": data_coord._accessors_index[0]},
+                    attributes={
+                        "POSITION": data_coord._accessors_index[0],
+                        "COLOR_0": data_colors0._accessors_index[0],
+                    },
                     targets=targets,
                     indices=data_triangles._accessors_index[0],
                 )
@@ -301,3 +370,18 @@ def Save_mesh_to_glb(
     gltf.save_binary(filename)
 
     return filename
+
+
+def __get_colors(values: np.ndarray) -> np.ndarray:
+
+    assert isinstance(values, np.ndarray)
+    assert values.ndim == 1
+
+    normalizedValues = (values - values.min()) / (values.max() - values.min())
+
+    colors = np.zeros((values.size, 3))
+    colors[:, 0] = normalizedValues  # red
+    colors[:, 1] = 1 - np.abs(normalizedValues - 0.5) * 2  # green
+    colors[:, 2] = 1 - normalizedValues  # blue
+
+    return colors
