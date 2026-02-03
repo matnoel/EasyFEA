@@ -3,6 +3,7 @@
 # EasyFEA is distributed under the terms of the GNU General Public License v3, see LICENSE.txt and CREDITS.md for more information.
 
 """Module providing an interface with Graphics Library Transmission Format (GLTF) using pygltflib (https://pypi.org/project/pygltflib/)."""
+# https://registry.khronos.org/glTF/specs/2.0/glTF-2.0.html#geometry
 
 from __future__ import annotations
 from typing import TYPE_CHECKING, Union
@@ -231,7 +232,7 @@ def Save_mesh_to_glb(
         mesh = Surface_reconstruction(mesh)
 
     # get mesh coordinates
-    data_coord = Data(mesh.coord, mesh.Nn, Type.VEC3, Component.FLOAT)
+    data_coord0 = Data(mesh.coord, mesh.Nn, Type.VEC3, Component.FLOAT)
 
     # get triangles connectivity
     triangles = np.concatenate(
@@ -245,26 +246,32 @@ def Save_mesh_to_glb(
         triangles.ravel(), triangles.size, Type.SCALAR, Component.UNSIGNED_INT
     )
 
-    # get animation data
+    # check list length
     numFrames = len(list_displacementMatrix)
+    numFields = len(list_nodesValues_n)
+    if numFrames > 0 and numFields > 0:
+        assert numFrames == numFields, (
+            f"list_displacementMatrix and list_nodesValues_n must have the same length. "
+            f"Got {numFrames} and {numFields}"
+        )
+
+    # get animation data
     if numFrames > 0:
         numTargets = numFrames
 
-        times = np.array([i / fps for i in range(numFrames)], dtype=float)
+        times = np.array([i / fps for i in range(numFrames + 1)], dtype=float)
         data_times = Data(times, times.size, Type.SCALAR, Component.FLOAT)
 
-        weightsValues = np.eye(numFrames, numTargets)
-        weightsValues = np.concat((np.zeros((1, numTargets)), weightsValues), axis=0)
+        weightsValues = np.zeros((numFrames + 1, numTargets))
+        weightsValues[1:] = np.eye(numFrames, numTargets)
         data_weights = Data(
-            weightsValues.ravel(), numFrames * numTargets, Type.SCALAR, Component.FLOAT
-        )  # KEEP numFrames * numTargets
+            weightsValues.ravel(), weightsValues.size, Type.SCALAR, Component.FLOAT
+        )
         data_list_displacementMatrix = Data(
             list_displacementMatrix, mesh.Nn, Type.VEC3, Component.FLOAT
         )
 
-    numFields = len(list_nodesValues_n)
-
-    colors0 = np.ones((mesh.Nn, 3)) * 0.5  # grey
+    colors0 = np.ones((mesh.Nn, 3)) * 0.5  # Default grey (normalized 0-1)
     # get colors
     if numFields > 0:
 
@@ -278,11 +285,11 @@ def Save_mesh_to_glb(
                 for nodesValues_n in list_nodesValues_n
             ]
         else:
-            raise ValueError
+            raise ValueError(f"Must have 1 or 2 dimensions, got {ndim}.")
 
         colors0 = __get_colors(list_nodesValues[0])
         list_colors = [
-            __get_colors(nodesValues) - colors0 for nodesValues in list_nodesValues[1:]
+            __get_colors(nodesValues) - colors0 for nodesValues in list_nodesValues
         ]
 
         data_list_colors = Data(list_colors, mesh.Nn, Type.VEC3, Component.FLOAT)
@@ -290,7 +297,7 @@ def Save_mesh_to_glb(
     data_colors0 = Data(colors0, mesh.Nn, Type.VEC3, Component.FLOAT)
 
     # concatenate data
-    list_data = [data_coord, data_triangles, data_colors0]
+    list_data = [data_coord0, data_triangles, data_colors0]
     if numFrames > 0:
         list_data.extend([data_times, data_weights, data_list_displacementMatrix])
     if numFields > 0:
@@ -299,9 +306,7 @@ def Save_mesh_to_glb(
 
     # create gltf object
     gltf = GLTF2()
-    bufferData = list_data[0]._bufferData
-    for data in list_data[1:]:
-        bufferData += data._bufferData
+    bufferData = b"".join(data._bufferData for data in list_data)
     gltf.buffers.append(Buffer(byteLength=len(bufferData)))
     gltf.set_binary_blob(bufferData)
 
@@ -309,12 +314,24 @@ def Save_mesh_to_glb(
         gltf.bufferViews.extend(data._bufferViews)
         gltf.accessors.extend(data._accessors)
 
+    # create attributes for Primitive
+    attributes = {
+        "POSITION": data_coord0._accessors_index[0],
+        "COLOR_0": data_colors0._accessors_index[0],
+    }
+
     targets = (
         [
-            {"POSITION": pos_idx, "COLOR_0": col_idx}
-            for pos_idx, col_idx in zip(
-                data_list_displacementMatrix._accessors_index,
-                data_list_colors._accessors_index,
+            {
+                "POSITION": position_idx,
+                f"COLOR_{i+1}": color_idx,
+            }
+            for i, (position_idx, color_idx) in enumerate(
+                zip(
+                    data_list_displacementMatrix._accessors_index,
+                    data_list_colors._accessors_index,
+                    strict=True,
+                )
             )
         ]
         if numFrames > 0 and numFields > 0
@@ -333,10 +350,7 @@ def Save_mesh_to_glb(
         Mesh(
             primitives=[
                 Primitive(
-                    attributes={
-                        "POSITION": data_coord._accessors_index[0],
-                        "COLOR_0": data_colors0._accessors_index[0],
-                    },
+                    attributes=attributes,
                     targets=targets,
                     indices=data_triangles._accessors_index[0],
                 )
@@ -377,7 +391,12 @@ def __get_colors(values: np.ndarray) -> np.ndarray:
     assert isinstance(values, np.ndarray)
     assert values.ndim == 1
 
-    normalizedValues = (values - values.min()) / (values.max() - values.min())
+    # Normalize values between 0 and 1
+    vmin, vmax = values.min(), values.max()
+    if values.max() > values.min():
+        normalizedValues = (values - vmin) / (vmax - vmin)
+    else:
+        normalizedValues = np.zeros_like(values)
 
     colors = np.zeros((values.size, 3))
     colors[:, 0] = normalizedValues  # red
