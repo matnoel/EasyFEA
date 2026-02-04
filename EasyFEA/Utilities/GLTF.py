@@ -272,11 +272,10 @@ def Save_mesh_to_glb(
         )
 
     colors0 = np.ones((mesh.Nn, 3)) * 0.5  # Default grey (normalized 0-1)
+
     # get colors
     if numFields > 0:
-
         ndim = list_nodesValues_n[0].ndim
-
         if ndim == 1:
             list_nodesValues = list_nodesValues_n
         elif ndim == 2:
@@ -288,13 +287,18 @@ def Save_mesh_to_glb(
             raise ValueError(f"Must have 1 or 2 dimensions, got {ndim}.")
 
         colors0 = __get_colors(list_nodesValues[0])
-        list_colors = [
-            __get_colors(nodesValues) - colors0 for nodesValues in list_nodesValues
-        ]
+        data_colors0 = Data(colors0, mesh.Nn, Type.VEC3, Component.FLOAT)
 
+        nodesValues0 = list_nodesValues[0]
+        list_colors = [
+            # __get_colors(nodesValues) - colors0 for nodesValues in list_nodesValues
+            __get_colors(nodesValues - nodesValues0)
+            for nodesValues in list_nodesValues
+        ]
         data_list_colors = Data(list_colors, mesh.Nn, Type.VEC3, Component.FLOAT)
 
-    data_colors0 = Data(colors0, mesh.Nn, Type.VEC3, Component.FLOAT)
+    else:
+        data_colors0 = Data(colors0, mesh.Nn, Type.VEC3, Component.FLOAT)
 
     # concatenate data
     list_data = [data_coord0, data_triangles, data_colors0]
@@ -325,6 +329,8 @@ def Save_mesh_to_glb(
             {
                 "POSITION": position_idx,
                 f"COLOR_{i+1}": color_idx,
+                # "COLOR_0": color_idx,
+                # "COLOR": color_idx,
             }
             for i, (position_idx, color_idx) in enumerate(
                 zip(
