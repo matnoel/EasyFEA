@@ -68,6 +68,8 @@ class Data:
     __NbufferViews = 0
     __Naccessors = 0
 
+    __list_data: list[Data] = []
+
     def __init__(
         self,
         data: Union[np.ndarray, list[np.ndarray]],
@@ -81,6 +83,8 @@ class Data:
         self._type = type
         self._component = component
         self._target = target
+
+        Data.__list_data.append(self)
 
         # in each case:
         # - get buffer data
@@ -163,6 +167,14 @@ class Data:
         # update Naccessors
         Data.__Naccessors = self._accessors_index[-1] + 1
 
+    @classmethod
+    def _Get_list_data(cls) -> list[Data]:
+        return cls.__list_data
+
+    @classmethod
+    def _Clear_list_data(cls) -> None:
+        cls.__list_data = []
+
     def __get_list_min_max(self, data: np.ndarray):
 
         assert isinstance(data, np.ndarray)
@@ -196,26 +208,6 @@ class Data:
             raise ValueError
 
         return bufferData
-
-    @staticmethod
-    def Sort_list_data(list_data: list[Data]) -> list[Data]:
-        """Sorts the list of data by ascending buffer view index.
-
-        Parameters
-        ----------
-        list_data : list[Data]
-            The list of Data
-
-        Returns
-        -------
-        list[Data]
-            The sorted list of data.
-        """
-
-        list_first_bufferView = [data._bufferViews_index[0] for data in list_data]
-        idx_sort = np.argsort(list_first_bufferView)
-
-        return [list_data[idx] for idx in idx_sort]
 
 
 @requires_pygltflib
@@ -257,61 +249,19 @@ def Save_mesh_to_glb(
         # ensure that surfaces are facing outward
         mesh = Surface_reconstruction(mesh)
 
+    if len(list_displacementMatrix) == 0:
+        list_displacementMatrix = [np.zeros_like(mesh.coord)]
+
     # check list length
-    numFrames = len(list_displacementMatrix)
+    Ndisplacement = len(list_displacementMatrix)
     numFields = len(list_nodesValues_n)
-    if numFrames > 0 and numFields > 0:
-        assert numFrames == numFields, (
+    if Ndisplacement > 0 and numFields > 0:
+        assert Ndisplacement == numFields, (
             f"list_displacementMatrix and list_nodesValues_n must have the same length. "
-            f"Got {numFrames} and {numFields}"
+            f"Got {Ndisplacement} and {numFields}"
         )
 
-    # get mesh coordinates
-    data_coord0 = Data(
-        mesh.coord, mesh.Nn, Type.VEC3, Component.FLOAT, Target.ARRAY_BUFFER
-    )
-
-    # get triangles connectivity
-    triangles = np.concatenate(
-        [
-            groupElem.connect[:, groupElem.triangles].reshape(-1, 3)
-            for groupElem in mesh.Get_list_groupElem(2)
-        ],
-        axis=0,
-    )
-    data_triangles = Data(
-        triangles.ravel(),
-        triangles.size,
-        Type.SCALAR,
-        Component.UNSIGNED_INT,
-        Target.ELEMENT_ARRAY_BUFFER,
-    )
-
-    useDeformedMesh = len(list_displacementMatrix) > 0
-
-    # get animation data
-    if useDeformedMesh:
-        numFrames = len(list_displacementMatrix)
-        numTargets = numFrames
-
-        times = np.array([i / fps for i in range(numFrames)], dtype=float)
-        data_times = Data(times, times.size, Type.SCALAR, Component.FLOAT)
-
-        # https://gltf-tutorial.readthedocs.io/en/latest/gltfTutorial_018_MorphTargets/
-        weights = np.eye(numFrames, numTargets)
-        data_weights = Data(weights.ravel(), weights.size, Type.SCALAR, Component.FLOAT)
-
-        data_list_displacementMatrix = Data(
-            list_displacementMatrix,
-            mesh.Nn,
-            Type.VEC3,
-            Component.FLOAT,
-            Target.ARRAY_BUFFER,
-        )
-
-    colors0 = np.ones((mesh.Nn, 3)) * 0.5  # Default grey (normalized 0-1)
-
-    # get colors
+    # get list of nodes values
     if numFields > 0:
         ndim = list_nodesValues_n[0].ndim
         if ndim == 1:
@@ -324,95 +274,106 @@ def Save_mesh_to_glb(
         else:
             raise ValueError(f"Must have 1 or 2 dimensions, got {ndim}.")
 
-        colors0 = __get_colors(list_nodesValues[-1])
-        data_colors0 = Data(
-            colors0, mesh.Nn, Type.VEC3, Component.FLOAT, Target.ARRAY_BUFFER
-        )
-
-        nodesValues0 = list_nodesValues[0]
-        list_colors = [
-            # __get_colors(nodesValues) - colors0
-            __get_colors(nodesValues - nodesValues0)
-            for nodesValues in list_nodesValues
-        ]
-        data_list_colors = Data(
-            list_colors, mesh.Nn, Type.VEC3, Component.FLOAT, Target.ARRAY_BUFFER
-        )
-
-    else:
-        data_colors0 = Data(
-            colors0, mesh.Nn, Type.VEC3, Component.FLOAT, Target.ARRAY_BUFFER
-        )
-
-    # concatenate data
-    list_data = [data_coord0, data_triangles, data_colors0]
-    if useDeformedMesh:
-        list_data.extend([data_times, data_weights, data_list_displacementMatrix])
-    if numFields > 0:
-        list_data.append(data_list_colors)
-    list_data = Data.Sort_list_data(list_data)
-
-    # create gltf object
-    gltf = pygltflib.GLTF2()
-    bufferData = b"".join(data._bufferData for data in list_data)
-    gltf.buffers.append(pygltflib.Buffer(byteLength=len(bufferData)))
-    gltf.set_binary_blob(bufferData)
-
-    for data in list_data:
-        gltf.bufferViews.extend(data._bufferViews)
-        gltf.accessors.extend(data._accessors)
-
-    # create attributes for Primitive
-    attributes = {
-        "POSITION": data_coord0._accessors_index[0],
-        "COLOR_0": data_colors0._accessors_index[0],
-    }
-
-    # Client implementations SHOULD support at least three attributes — POSITION, NORMAL, and TANGENT — for morphing.
-    # Client implementations MAY optionally support morphed TEXCOORD_n and/or COLOR_n attributes.
-    # https://registry.khronos.org/glTF/specs/2.0/glTF-2.0.html#morph-targets
-
-    targets = (
-        [{"POSITION": index} for index in data_list_displacementMatrix._accessors_index]
-        if useDeformedMesh
-        else []
+    defaultColors = np.ones((mesh.Nn, 3)) * 0.5  # Default grey (normalized 0-1)
+    data_defaultColors = Data(
+        defaultColors, mesh.Nn, Type.VEC3, Component.FLOAT, Target.ARRAY_BUFFER
     )
 
-    # meshe
-    gltf.meshes.append(
-        pygltflib.Mesh(
+    list_gltfMeshes: list[pygltflib.Mesh] = [None] * Ndisplacement
+
+    # animation
+    # https://gltf-tutorial.readthedocs.io/en/latest/gltfTutorial_007_Animations/#step
+    times = np.array([i / fps for i in range(Ndisplacement)], dtype=float)
+    data_times = Data(times, times.size, Type.SCALAR, Component.FLOAT)
+    samplers: list[pygltflib.Sampler] = []
+    channels: list[pygltflib.AnimationChannel] = []
+
+    for i, displacementMatrix in enumerate(list_displacementMatrix):
+
+        # get triangles connectivity
+        if i == 0:
+            triangles = np.concatenate(
+                [
+                    groupElem.connect[:, groupElem.triangles].reshape(-1, 3)
+                    for groupElem in mesh.Get_list_groupElem(2)
+                ],
+                axis=0,
+            )
+            data_triangles = Data(
+                triangles.ravel(),
+                triangles.size,
+                Type.SCALAR,
+                Component.UNSIGNED_INT,
+                Target.ELEMENT_ARRAY_BUFFER,
+            )
+
+        # get mesh coordinates
+        data_coord0 = Data(
+            mesh.coord + displacementMatrix,
+            mesh.Nn,
+            Type.VEC3,
+            Component.FLOAT,
+            Target.ARRAY_BUFFER,
+        )
+
+        # get colors
+        if numFields > 0:
+            colors = __get_colors(list_nodesValues[i])
+            data_colors = Data(
+                colors, mesh.Nn, Type.VEC3, Component.FLOAT, Target.ARRAY_BUFFER
+            )
+        else:
+            data_colors = data_defaultColors
+
+        # mesh
+        gltfMesh = pygltflib.Mesh(
             primitives=[
                 pygltflib.Primitive(
-                    attributes=attributes,
-                    targets=targets,
+                    attributes={
+                        "POSITION": data_coord0._accessors_index[0],
+                        "COLOR_0": data_colors._accessors_index[0],
+                    },
                     indices=data_triangles._accessors_index[0],
                 )
             ]
         )
-    )
+        list_gltfMeshes[i] = gltfMesh
+
+        # animation
+        scales = np.zeros((Ndisplacement, 3), dtype=float)
+        scales[i] = 1.0
+        data_scales = Data(scales, Ndisplacement, Type.VEC3, Component.FLOAT)
+        samplers.append(
+            pygltflib.AnimationSampler(
+                input=data_times._accessors_index[0],
+                output=data_scales._accessors_index[0],
+                interpolation=pygltflib.ANIM_STEP,
+            )
+        )
+        channels.append(
+            pygltflib.AnimationChannel(sampler=i, target={"node": i, "path": "scale"})
+        )
+
+    # create gltf object
+    gltf = pygltflib.GLTF2()
+    bufferData = b"".join(data._bufferData for data in Data._Get_list_data())
+    gltf.buffers.append(pygltflib.Buffer(byteLength=len(bufferData)))
+    gltf.set_binary_blob(bufferData)
+
+    for data in Data._Get_list_data():
+        gltf.bufferViews.extend(data._bufferViews)
+        gltf.accessors.extend(data._accessors)
+
+    gltf.meshes = list_gltfMeshes
 
     # nodes + scence
-    gltf.nodes.append(pygltflib.Node(mesh=0))
-    gltf.scenes.append(pygltflib.Scene(nodes=[0]))
+    gltf.nodes.extend([pygltflib.Node(mesh=i) for i in range(Ndisplacement)])
+    gltf.scenes.append(pygltflib.Scene(nodes=list(range(Ndisplacement))))
     gltf.scene = 0
 
     # animation
-
-    if numFrames > 0:
-
-        # animation objects
-        sampler = pygltflib.AnimationSampler(
-            input=data_times._accessors_index[0],  # times accessor index
-            output=data_weights._accessors_index[0],  # weightValues accessor index
-            interpolation="LINEAR",
-        )
-
-        channel = pygltflib.AnimationChannel(
-            sampler=0, target={"node": 0, "path": "weights"}
-        )
-
-        anim = pygltflib.Animation(samplers=[sampler], channels=[channel])
-        gltf.animations.append(anim)
+    anim = pygltflib.Animation(samplers=samplers, channels=channels)
+    gltf.animations.append(anim)
 
     # save
     filename = Folder.Join(folder, f"{filename}.glb")
