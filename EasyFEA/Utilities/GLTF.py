@@ -291,7 +291,7 @@ def Save_mesh_to_glb(
 
         nodesValues0 = list_nodesValues[0]
         list_colors = [
-            # __get_colors(nodesValues) - colors0 for nodesValues in list_nodesValues
+            # __get_colors(nodesValues) - colors0
             __get_colors(nodesValues - nodesValues0)
             for nodesValues in list_nodesValues
         ]
@@ -323,6 +323,10 @@ def Save_mesh_to_glb(
         "POSITION": data_coord0._accessors_index[0],
         "COLOR_0": data_colors0._accessors_index[0],
     }
+
+    # Client implementations SHOULD support at least three attributes — POSITION, NORMAL, and TANGENT — for morphing.
+    # Client implementations MAY optionally support morphed TEXCOORD_n and/or COLOR_n attributes.
+    # https://registry.khronos.org/glTF/specs/2.0/glTF-2.0.html#morph-targets
 
     targets = (
         [
