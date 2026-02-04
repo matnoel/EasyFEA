@@ -27,18 +27,18 @@ try:
 
     class Type(str, Enum):
         # https://github.com/KhronosGroup/glTF/blob/main/specification/2.0/Specification.adoc#3622-accessor-data-types
-        SCALAR = "SCALAR"
-        VEC2 = "VEC2"
-        VEC3 = "VEC3"
-        VEC4 = "VEC4"
-        MAT2 = "MAT2"
-        MAT3 = "MAT3"
-        MAT4 = "MAT4"
+        SCALAR = pygltflib.SCALAR
+        VEC2 = pygltflib.VEC2
+        VEC3 = pygltflib.VEC3
+        VEC4 = pygltflib.VEC4
+        MAT2 = pygltflib.MAT2
+        MAT3 = pygltflib.MAT3
+        MAT4 = pygltflib.MAT4
 
     class Component(int, Enum):
         # https://github.com/KhronosGroup/glTF/blob/main/specification/2.0/Specification.adoc#3622-accessor-data-types
-        # SIGNED_BYTE = 5120
-        # UNSIGNED_BYTE = 5121
+        SIGNED_BYTE = 5120
+        UNSIGNED_BYTE = 5121
         SIGNED_SHORT = 5122
         UNSIGNED_SHORT = 5123
         UNSIGNED_INT = 5125
@@ -53,164 +53,169 @@ try:
         UNSIGNED_INT = "I"
         FLOAT = "f"
 
-    class Data:
-
-        __offset = 0
-        __NbufferViews = 0
-        __Naccessors = 0
-
-        def __init__(
-            self,
-            data: Union[np.ndarray, list[np.ndarray]],
-            count: int,
-            type: Type,
-            component: Component,
-            target=pygltflib.ARRAY_BUFFER,
-        ):
-            self._data = data
-            self._count = count
-            self._type = type
-            self._component = component
-
-            # in each case:
-            # - get buffer data
-            # - get byte length
-            # - get buffer views
-            # - update offset
-            # - get buffer views index
-
-            if isinstance(data, np.ndarray):
-
-                bufferData = self.__get_buffer_data(data)
-                byteLength = len(bufferData)
-
-                bufferViews = [
-                    pygltflib.BufferView(
-                        buffer=0,
-                        byteOffset=Data.__offset,
-                        byteLength=byteLength,
-                        target=target,
-                    )
-                ]
-                Data.__offset += byteLength
-
-                self._bufferViews_index = [Data.__NbufferViews]
-
-                list_min, list_max = list(map(list, zip(self.__get_list_min_max(data))))
-
-            elif isinstance(data, list):
-                bufferData = b"".join(
-                    self.__get_buffer_data(np.asarray(value)) for value in data
-                )
-                byteLength = len(self.__get_buffer_data(np.asarray(data[0])))
-
-                Ndata = len(data)
-
-                offsets = [Data.__offset + i * byteLength for i in range(Ndata + 1)]
-
-                bufferViews = [
-                    pygltflib.BufferView(
-                        buffer=0, byteOffset=offset, byteLength=byteLength
-                    )
-                    for offset in offsets
-                ]
-                Data.__offset += offsets[-1]
-
-                self._bufferViews_index = [
-                    Data.__NbufferViews + i for i in range(Ndata)
-                ]
-
-                list_min, list_max = list(
-                    map(
-                        list, zip(*[self.__get_list_min_max(values) for values in data])
-                    )
-                )
-
-            else:
-                raise TypeError
-
-            # update NbufferViews
-            Data.__NbufferViews = self._bufferViews_index[-1] + 1
-
-            self._bufferData = bufferData
-            self._bufferViews: list[pygltflib.BufferView] = bufferViews
-
-            # get accessors (linked to buffer views)
-            self._accessors: list[pygltflib.Accessor] = [
-                pygltflib.Accessor(
-                    bufferView=bufferView,
-                    componentType=self._component.value,
-                    count=self._count,
-                    type=self._type.value,
-                    max=list_max[i],
-                    min=list_min[i],
-                )
-                for i, bufferView in enumerate(self._bufferViews_index)
-            ]
-            # get accessors index
-            self._accessors_index = [
-                Data.__Naccessors + i for i in range(len(self._accessors))
-            ]
-            # update Naccessors
-            Data.__Naccessors = self._accessors_index[-1] + 1
-
-        def __get_list_min_max(self, data: np.ndarray):
-
-            assert isinstance(data, np.ndarray)
-
-            usedType = float if self._component is Component.FLOAT else int
-
-            if data.ndim == 1:
-                list_max = [usedType(data.max(0))]
-                list_min = [usedType(data.min(0))]
-            else:
-                list_max = [usedType(value) for value in data.max(0)]
-                list_min = [usedType(value) for value in data.min(0)]
-
-            return list_min, list_max
-
-        def __get_buffer_data(self, data: np.ndarray):
-
-            # return data.tobytes() does not work !
-            # return data.reshape(self._count, -1).tobytes() does not work !
-
-            structType = getattr(StructFormat, self._component.name).value
-
-            assert isinstance(data, np.ndarray)
-
-            if data.ndim == 1:
-                bufferData = b"".join(struct.pack(structType, value) for value in data)
-            elif data.ndim == 2:
-                types = structType * data.shape[1]
-                bufferData = b"".join(struct.pack(types, *value) for value in data)
-            else:
-                raise ValueError
-
-            return bufferData
-
-        @staticmethod
-        def Sort_list_data(list_data: list[Data]) -> list[Data]:
-            """Sorts the list of data by ascending buffer view index.
-
-            Parameters
-            ----------
-            list_data : list[Data]
-                The list of Data
-
-            Returns
-            -------
-            list[Data]
-                The sorted list of data.
-            """
-
-            list_first_bufferView = [data._bufferViews_index[0] for data in list_data]
-            idx_sort = np.argsort(list_first_bufferView)
-
-            return [list_data[idx] for idx in idx_sort]
+    class Target(int, Enum):
+        ARRAY_BUFFER = pygltflib.ARRAY_BUFFER
+        ELEMENT_ARRAY_BUFFER = pygltflib.ELEMENT_ARRAY_BUFFER
 
 except ImportError:
     pass
 requires_pygltflib = Create_requires_decorator("pygltflib")
+
+
+class Data:
+
+    __offset = 0
+    __NbufferViews = 0
+    __Naccessors = 0
+
+    def __init__(
+        self,
+        data: Union[np.ndarray, list[np.ndarray]],
+        count: int,
+        type: Type,
+        component: Component,
+        target: Target = None,
+    ):
+        self._data = data
+        self._count = count
+        self._type = type
+        self._component = component
+        self._target = target
+
+        # in each case:
+        # - get buffer data
+        # - get byte length
+        # - get buffer views
+        # - update offset
+        # - get buffer views index
+
+        if isinstance(data, np.ndarray):
+
+            bufferData = self.__get_buffer_data(data)
+            byteLength = len(bufferData)
+
+            bufferViews = [
+                pygltflib.BufferView(
+                    buffer=0,
+                    byteOffset=Data.__offset,
+                    byteLength=byteLength,
+                    target=target,
+                )
+            ]
+            Data.__offset += byteLength
+
+            self._bufferViews_index = [Data.__NbufferViews]
+
+            list_min, list_max = list(map(list, zip(self.__get_list_min_max(data))))
+
+        elif isinstance(data, list):
+            bufferData = b"".join(
+                self.__get_buffer_data(np.asarray(value)) for value in data
+            )
+            byteLength = len(self.__get_buffer_data(np.asarray(data[0])))
+
+            Ndata = len(data)
+
+            offsets = [Data.__offset + i * byteLength for i in range(Ndata + 1)]
+
+            bufferViews = [
+                pygltflib.BufferView(
+                    buffer=0,
+                    byteOffset=offset,
+                    byteLength=byteLength,
+                    target=target,
+                )
+                for offset in offsets
+            ]
+            Data.__offset += offsets[-1]
+
+            self._bufferViews_index = [Data.__NbufferViews + i for i in range(Ndata)]
+
+            list_min, list_max = list(
+                map(list, zip(*[self.__get_list_min_max(values) for values in data]))
+            )
+
+        else:
+            raise TypeError
+
+        # update NbufferViews
+        Data.__NbufferViews = self._bufferViews_index[-1] + 1
+
+        self._bufferData = bufferData
+        self._bufferViews: list[pygltflib.BufferView] = bufferViews
+
+        # get accessors (linked to buffer views)
+        self._accessors: list[pygltflib.Accessor] = [
+            pygltflib.Accessor(
+                bufferView=bufferView,
+                componentType=self._component.value,
+                count=self._count,
+                type=self._type.value,
+                max=list_max[i],
+                min=list_min[i],
+            )
+            for i, bufferView in enumerate(self._bufferViews_index)
+        ]
+        # get accessors index
+        self._accessors_index = [
+            Data.__Naccessors + i for i in range(len(self._accessors))
+        ]
+        # update Naccessors
+        Data.__Naccessors = self._accessors_index[-1] + 1
+
+    def __get_list_min_max(self, data: np.ndarray):
+
+        assert isinstance(data, np.ndarray)
+
+        usedType = float if self._component is Component.FLOAT else int
+
+        if data.ndim == 1:
+            list_max = [usedType(data.max(0))]
+            list_min = [usedType(data.min(0))]
+        else:
+            list_max = [usedType(value) for value in data.max(0)]
+            list_min = [usedType(value) for value in data.min(0)]
+
+        return list_min, list_max
+
+    def __get_buffer_data(self, data: np.ndarray):
+
+        # return data.tobytes() does not work !
+        # return data.reshape(self._count, -1).tobytes() does not work !
+
+        structType = getattr(StructFormat, self._component.name).value
+
+        assert isinstance(data, np.ndarray)
+
+        if data.ndim == 1:
+            bufferData = b"".join(struct.pack(structType, value) for value in data)
+        elif data.ndim == 2:
+            types = structType * data.shape[1]
+            bufferData = b"".join(struct.pack(types, *value) for value in data)
+        else:
+            raise ValueError
+
+        return bufferData
+
+    @staticmethod
+    def Sort_list_data(list_data: list[Data]) -> list[Data]:
+        """Sorts the list of data by ascending buffer view index.
+
+        Parameters
+        ----------
+        list_data : list[Data]
+            The list of Data
+
+        Returns
+        -------
+        list[Data]
+            The sorted list of data.
+        """
+
+        list_first_bufferView = [data._bufferViews_index[0] for data in list_data]
+        idx_sort = np.argsort(list_first_bufferView)
+
+        return [list_data[idx] for idx in idx_sort]
 
 
 @requires_pygltflib
@@ -261,6 +266,11 @@ def Save_mesh_to_glb(
             f"Got {numFrames} and {numFields}"
         )
 
+    # get mesh coordinates
+    data_coord0 = Data(
+        mesh.coord, mesh.Nn, Type.VEC3, Component.FLOAT, Target.ARRAY_BUFFER
+    )
+
     # get triangles connectivity
     triangles = np.concatenate(
         [
@@ -274,14 +284,14 @@ def Save_mesh_to_glb(
         triangles.size,
         Type.SCALAR,
         Component.UNSIGNED_INT,
-        pygltflib.ELEMENT_ARRAY_BUFFER,
+        Target.ELEMENT_ARRAY_BUFFER,
     )
 
-    # get mesh coordinates
-    data_coord0 = Data(mesh.coord, mesh.Nn, Type.VEC3, Component.FLOAT)
+    useDeformedMesh = len(list_displacementMatrix) > 0
 
     # get animation data
-    if numFrames > 0:
+    if useDeformedMesh:
+        numFrames = len(list_displacementMatrix)
         numTargets = numFrames
 
         times = np.array([i / fps for i in range(numFrames + 1)], dtype=float)
@@ -292,8 +302,13 @@ def Save_mesh_to_glb(
         data_weights = Data(
             weightsValues.ravel(), weightsValues.size, Type.SCALAR, Component.FLOAT
         )
+
         data_list_displacementMatrix = Data(
-            list_displacementMatrix, mesh.Nn, Type.VEC3, Component.FLOAT
+            list_displacementMatrix,
+            mesh.Nn,
+            Type.VEC3,
+            Component.FLOAT,
+            Target.ARRAY_BUFFER,
         )
 
     colors0 = np.ones((mesh.Nn, 3)) * 0.5  # Default grey (normalized 0-1)
@@ -312,7 +327,9 @@ def Save_mesh_to_glb(
             raise ValueError(f"Must have 1 or 2 dimensions, got {ndim}.")
 
         colors0 = __get_colors(list_nodesValues[-1])
-        data_colors0 = Data(colors0, mesh.Nn, Type.VEC3, Component.FLOAT)
+        data_colors0 = Data(
+            colors0, mesh.Nn, Type.VEC3, Component.FLOAT, Target.ARRAY_BUFFER
+        )
 
         nodesValues0 = list_nodesValues[0]
         list_colors = [
@@ -320,14 +337,18 @@ def Save_mesh_to_glb(
             __get_colors(nodesValues - nodesValues0)
             for nodesValues in list_nodesValues
         ]
-        data_list_colors = Data(list_colors, mesh.Nn, Type.VEC3, Component.FLOAT)
+        data_list_colors = Data(
+            list_colors, mesh.Nn, Type.VEC3, Component.FLOAT, Target.ARRAY_BUFFER
+        )
 
     else:
-        data_colors0 = Data(colors0, mesh.Nn, Type.VEC3, Component.FLOAT)
+        data_colors0 = Data(
+            colors0, mesh.Nn, Type.VEC3, Component.FLOAT, Target.ARRAY_BUFFER
+        )
 
     # concatenate data
     list_data = [data_coord0, data_triangles, data_colors0]
-    if numFrames > 0:
+    if useDeformedMesh:
         list_data.extend([data_times, data_weights, data_list_displacementMatrix])
     if numFields > 0:
         list_data.append(data_list_colors)
@@ -354,30 +375,9 @@ def Save_mesh_to_glb(
     # https://registry.khronos.org/glTF/specs/2.0/glTF-2.0.html#morph-targets
 
     targets = (
-        [
-            {
-                "POSITION": position_idx,
-                f"COLOR_{i+1}": color_idx,
-                # "COLOR_0": color_idx,
-                # "COLOR": color_idx,
-            }
-            for i, (position_idx, color_idx) in enumerate(
-                zip(
-                    data_list_displacementMatrix._accessors_index,
-                    data_list_colors._accessors_index,
-                    strict=True,
-                )
-            )
-        ]
-        if numFrames > 0 and numFields > 0
-        else (
-            [
-                {"POSITION": index}
-                for index in data_list_displacementMatrix._accessors_index
-            ]
-            if numFrames > 0
-            else []
-        )
+        [{"POSITION": index} for index in data_list_displacementMatrix._accessors_index]
+        if useDeformedMesh
+        else []
     )
 
     # meshe
