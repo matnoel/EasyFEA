@@ -274,6 +274,8 @@ def Save_mesh_to_glb(
         else:
             raise ValueError(f"Must have 1 or 2 dimensions, got {ndim}.")
 
+        vMax, vMin = np.max(list_nodesValues), np.min(list_nodesValues)
+
     defaultColors = np.ones((mesh.Nn, 3)) * 0.5  # Default grey (normalized 0-1)
     data_defaultColors = Data(
         defaultColors, mesh.Nn, Type.VEC3, Component.FLOAT, Target.ARRAY_BUFFER
@@ -318,7 +320,7 @@ def Save_mesh_to_glb(
 
         # get colors
         if numFields > 0:
-            colors = __get_colors(list_nodesValues[i])
+            colors = __get_colors(list_nodesValues[i], vMax=vMax, vMin=vMin)
             data_colors = Data(
                 colors, mesh.Nn, Type.VEC3, Component.FLOAT, Target.ARRAY_BUFFER
             )
@@ -382,15 +384,18 @@ def Save_mesh_to_glb(
     return filename
 
 
-def __get_colors(values: np.ndarray) -> np.ndarray:
+def __get_colors(
+    values: np.ndarray, vMax: float = None, vMin: float = None
+) -> np.ndarray:
 
     assert isinstance(values, np.ndarray)
     assert values.ndim == 1
 
     # Normalize values between 0 and 1
-    vmin, vmax = values.min(), values.max()
-    if values.max() > values.min():
-        normalizedValues = (values - vmin) / (vmax - vmin)
+    vMin = values.min() if vMin is None else vMin
+    vMax = values.max() if vMax is None else vMax
+    if vMax > vMin:
+        normalizedValues = (values - vMin) / (vMax - vMin)
     else:
         normalizedValues = np.zeros_like(values)
 
