@@ -23,17 +23,7 @@ if TYPE_CHECKING:
     from ..FEM._mesh import Mesh
 
 try:
-    from pygltflib import (
-        GLTF2,
-        Scene,
-        Node,
-        Mesh,
-        Primitive,
-        Buffer,
-        BufferView,
-        Accessor,
-    )
-    from pygltflib import Animation, AnimationSampler, AnimationChannel
+    import pygltflib
 
     class Type(str, Enum):
         # https://github.com/KhronosGroup/glTF/blob/main/specification/2.0/Specification.adoc#3622-accessor-data-types
@@ -75,6 +65,7 @@ try:
             count: int,
             type: Type,
             component: Component,
+            target=pygltflib.ARRAY_BUFFER,
         ):
             self._data = data
             self._count = count
@@ -94,8 +85,11 @@ try:
                 byteLength = len(bufferData)
 
                 bufferViews = [
-                    BufferView(
-                        buffer=0, byteOffset=Data.__offset, byteLength=byteLength
+                    pygltflib.BufferView(
+                        buffer=0,
+                        byteOffset=Data.__offset,
+                        byteLength=byteLength,
+                        target=target,
                     )
                 ]
                 Data.__offset += byteLength
@@ -115,7 +109,9 @@ try:
                 offsets = [Data.__offset + i * byteLength for i in range(Ndata + 1)]
 
                 bufferViews = [
-                    BufferView(buffer=0, byteOffset=offset, byteLength=byteLength)
+                    pygltflib.BufferView(
+                        buffer=0, byteOffset=offset, byteLength=byteLength
+                    )
                     for offset in offsets
                 ]
                 Data.__offset += offsets[-1]
@@ -137,11 +133,11 @@ try:
             Data.__NbufferViews = self._bufferViews_index[-1] + 1
 
             self._bufferData = bufferData
-            self._bufferViews: list[BufferView] = bufferViews
+            self._bufferViews: list[pygltflib.BufferView] = bufferViews
 
             # get accessors (linked to buffer views)
-            self._accessors: list[Accessor] = [
-                Accessor(
+            self._accessors: list[pygltflib.Accessor] = [
+                pygltflib.Accessor(
                     bufferView=bufferView,
                     componentType=self._component.value,
                     count=self._count,
@@ -274,7 +270,11 @@ def Save_mesh_to_glb(
         axis=0,
     )
     data_triangles = Data(
-        triangles.ravel(), triangles.size, Type.SCALAR, Component.UNSIGNED_INT
+        triangles.ravel(),
+        triangles.size,
+        Type.SCALAR,
+        Component.UNSIGNED_INT,
+        pygltflib.ELEMENT_ARRAY_BUFFER,
     )
 
     # get mesh coordinates
@@ -311,7 +311,7 @@ def Save_mesh_to_glb(
         else:
             raise ValueError(f"Must have 1 or 2 dimensions, got {ndim}.")
 
-        colors0 = __get_colors(list_nodesValues[0])
+        colors0 = __get_colors(list_nodesValues[-1])
         data_colors0 = Data(colors0, mesh.Nn, Type.VEC3, Component.FLOAT)
 
         nodesValues0 = list_nodesValues[0]
@@ -334,9 +334,9 @@ def Save_mesh_to_glb(
     list_data = Data.Sort_list_data(list_data)
 
     # create gltf object
-    gltf = GLTF2()
+    gltf = pygltflib.GLTF2()
     bufferData = b"".join(data._bufferData for data in list_data)
-    gltf.buffers.append(Buffer(byteLength=len(bufferData)))
+    gltf.buffers.append(pygltflib.Buffer(byteLength=len(bufferData)))
     gltf.set_binary_blob(bufferData)
 
     for data in list_data:
@@ -382,9 +382,9 @@ def Save_mesh_to_glb(
 
     # meshe
     gltf.meshes.append(
-        Mesh(
+        pygltflib.Mesh(
             primitives=[
-                Primitive(
+                pygltflib.Primitive(
                     attributes=attributes,
                     targets=targets,
                     indices=data_triangles._accessors_index[0],
@@ -394,8 +394,8 @@ def Save_mesh_to_glb(
     )
 
     # nodes + scence
-    gltf.nodes.append(Node(mesh=0))
-    gltf.scenes.append(Scene(nodes=[0]))
+    gltf.nodes.append(pygltflib.Node(mesh=0))
+    gltf.scenes.append(pygltflib.Scene(nodes=[0]))
     gltf.scene = 0
 
     # animation
@@ -403,15 +403,17 @@ def Save_mesh_to_glb(
     if numFrames > 0:
 
         # animation objects
-        sampler = AnimationSampler(
+        sampler = pygltflib.AnimationSampler(
             input=data_times._accessors_index[0],  # times accessor index
             output=data_weights._accessors_index[0],  # weightValues accessor index
             interpolation="LINEAR",
         )
 
-        channel = AnimationChannel(sampler=0, target={"node": 0, "path": "weights"})
+        channel = pygltflib.AnimationChannel(
+            sampler=0, target={"node": 0, "path": "weights"}
+        )
 
-        anim = Animation(samplers=[sampler], channels=[channel])
+        anim = pygltflib.Animation(samplers=[sampler], channels=[channel])
         gltf.animations.append(anim)
 
     # save
