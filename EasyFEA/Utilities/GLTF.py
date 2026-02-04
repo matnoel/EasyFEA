@@ -102,6 +102,8 @@ try:
 
                 self._bufferViews_index = [Data.__NbufferViews]
 
+                list_min, list_max = list(map(list, zip(self.__get_list_min_max(data))))
+
             elif isinstance(data, list):
                 bufferData = b"".join(
                     self.__get_buffer_data(np.asarray(value)) for value in data
@@ -122,6 +124,12 @@ try:
                     Data.__NbufferViews + i for i in range(Ndata)
                 ]
 
+                list_min, list_max = list(
+                    map(
+                        list, zip(*[self.__get_list_min_max(values) for values in data])
+                    )
+                )
+
             else:
                 raise TypeError
 
@@ -138,8 +146,10 @@ try:
                     componentType=self._component.value,
                     count=self._count,
                     type=self._type.value,
+                    max=list_max[i],
+                    min=list_min[i],
                 )
-                for bufferView in self._bufferViews_index
+                for i, bufferView in enumerate(self._bufferViews_index)
             ]
             # get accessors index
             self._accessors_index = [
@@ -147,6 +157,21 @@ try:
             ]
             # update Naccessors
             Data.__Naccessors = self._accessors_index[-1] + 1
+
+        def __get_list_min_max(self, data: np.ndarray):
+
+            assert isinstance(data, np.ndarray)
+
+            usedType = float if self._component is Component.FLOAT else int
+
+            if data.ndim == 1:
+                list_max = [usedType(data.max(0))]
+                list_min = [usedType(data.min(0))]
+            else:
+                list_max = [usedType(value) for value in data.max(0)]
+                list_min = [usedType(value) for value in data.min(0)]
+
+            return list_min, list_max
 
         def __get_buffer_data(self, data: np.ndarray):
 
@@ -231,8 +256,14 @@ def Save_mesh_to_glb(
         # ensure that surfaces are facing outward
         mesh = Surface_reconstruction(mesh)
 
-    # get mesh coordinates
-    data_coord0 = Data(mesh.coord, mesh.Nn, Type.VEC3, Component.FLOAT)
+    # check list length
+    numFrames = len(list_displacementMatrix)
+    numFields = len(list_nodesValues_n)
+    if numFrames > 0 and numFields > 0:
+        assert numFrames == numFields, (
+            f"list_displacementMatrix and list_nodesValues_n must have the same length. "
+            f"Got {numFrames} and {numFields}"
+        )
 
     # get triangles connectivity
     triangles = np.concatenate(
@@ -246,14 +277,8 @@ def Save_mesh_to_glb(
         triangles.ravel(), triangles.size, Type.SCALAR, Component.UNSIGNED_INT
     )
 
-    # check list length
-    numFrames = len(list_displacementMatrix)
-    numFields = len(list_nodesValues_n)
-    if numFrames > 0 and numFields > 0:
-        assert numFrames == numFields, (
-            f"list_displacementMatrix and list_nodesValues_n must have the same length. "
-            f"Got {numFrames} and {numFields}"
-        )
+    # get mesh coordinates
+    data_coord0 = Data(mesh.coord, mesh.Nn, Type.VEC3, Component.FLOAT)
 
     # get animation data
     if numFrames > 0:
