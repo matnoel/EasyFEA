@@ -294,14 +294,12 @@ def Save_mesh_to_glb(
         numFrames = len(list_displacementMatrix)
         numTargets = numFrames
 
-        times = np.array([i / fps for i in range(numFrames + 1)], dtype=float)
+        times = np.array([i / fps for i in range(numFrames)], dtype=float)
         data_times = Data(times, times.size, Type.SCALAR, Component.FLOAT)
 
-        weightsValues = np.zeros((numFrames + 1, numTargets))
-        weightsValues[1:] = np.eye(numFrames, numTargets)
-        data_weights = Data(
-            weightsValues.ravel(), weightsValues.size, Type.SCALAR, Component.FLOAT
-        )
+        # https://gltf-tutorial.readthedocs.io/en/latest/gltfTutorial_018_MorphTargets/
+        weights = np.eye(numFrames, numTargets)
+        data_weights = Data(weights.ravel(), weights.size, Type.SCALAR, Component.FLOAT)
 
         data_list_displacementMatrix = Data(
             list_displacementMatrix,
