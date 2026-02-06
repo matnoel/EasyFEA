@@ -323,17 +323,7 @@ def Save_mesh(
 
     # get list of nodes values
     if Nvalues > 0:
-        ndim = list_nodesValues_n[0].ndim
-        if ndim == 1:
-            list_nodesValues = list_nodesValues_n
-        elif ndim == 2:
-            list_nodesValues = [
-                np.linalg.norm(nodesValues_n, axis=1)
-                for nodesValues_n in list_nodesValues_n
-            ]
-        else:
-            raise ValueError(f"Must have 1 or 2 dimensions, got {ndim}.")
-
+        list_nodesValues = _get_list_nodesValues(list_nodesValues_n)
         vMax, vMin = np.max(list_nodesValues), np.min(list_nodesValues)
 
     defaultColors = np.ones((mesh.Nn, 3)) * 0.5  # Default grey (normalized 0-1)
@@ -460,6 +450,25 @@ def Save_mesh(
     gltf.save_binary(filename)
 
     return filename
+
+
+def _get_list_nodesValues(list_nodesValues_n: list[np.ndarray]):
+
+    assert isinstance(list_nodesValues_n, list)
+    assert isinstance(list_nodesValues_n[0], np.ndarray)
+
+    ndim = list_nodesValues_n[0].ndim
+    if ndim == 1:
+        list_nodesValues = list_nodesValues_n
+    elif ndim == 2:
+        list_nodesValues = [
+            np.linalg.norm(nodesValues_n, axis=1)
+            for nodesValues_n in list_nodesValues_n
+        ]
+    else:
+        raise ValueError(f"Must have 1 or 2 dimensions, got {ndim}.")
+
+    return list_nodesValues
 
 
 def _get_colors_for_values(
