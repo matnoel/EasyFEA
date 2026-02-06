@@ -51,6 +51,29 @@ def get_frames(mesh: Mesh):
     return frames
 
 
+def get_simu(mesh: Mesh):
+
+    ymin, ymax = mesh.coord[:, 1].max(), mesh.coord[:, 1].max()
+
+    mat = Models.Elastic.Isotropic(mesh.dim)
+    simu = Simulations.Elastic(mesh, mat)
+
+    for i in range(3):
+        simu.Bc_Init()
+        simu.add_dirichlet(
+            mesh.Nodes_Conditions(lambda x, y, z: y == ymin),
+            [0] * mesh.dim,
+            simu.Get_unknowns(),
+        )
+        simu.add_dirichlet(
+            mesh.Nodes_Conditions(lambda x, y, z: y == ymax), [0.1 * i], ["y"]
+        )
+        simu.Solve()
+        simu.Save_Iter()
+
+    return simu
+
+
 class TestGLTF:
 
     def test_save_mesh(self, list_mesh: list[Mesh]):
@@ -117,23 +140,7 @@ class TestGLTF:
 
         for mesh in list_mesh:
 
-            ymin, ymax = mesh.coord[:, 1].max(), mesh.coord[:, 1].max()
-
-            mat = Models.Elastic.Isotropic(mesh.dim)
-            simu = Simulations.Elastic(mesh, mat)
-
-            for i in range(3):
-                simu.Bc_Init()
-                simu.add_dirichlet(
-                    mesh.Nodes_Conditions(lambda x, y, z: y == ymin),
-                    [0] * mesh.dim,
-                    simu.Get_unknowns(),
-                )
-                simu.add_dirichlet(
-                    mesh.Nodes_Conditions(lambda x, y, z: y == ymax), [0.1 * i], ["y"]
-                )
-                simu.Solve()
-                simu.Save_Iter()
+            simu = get_simu(mesh)
 
             glbFile = GLTF.Save_simu(simu, "uy", folder, mesh.elemType, fps=1)
 
