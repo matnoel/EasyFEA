@@ -290,7 +290,7 @@ def Save_simu(
     simu: "_Simu",
     result: str,
     folder: str,
-    filename="simu",
+    filename: str = None,
     N: int = 200,
     deformFactor=1.0,
 ) -> None:
@@ -305,7 +305,7 @@ def Save_simu(
     folder : str
         folder where you want to save the video
     filename : str, optional
-        filename of the video with the extension (gif, mp4), by default 'video.gif'
+        filename of the glb file, by default result.glb
     N : int, optional
         Maximal number of iterations displayed, by default 200
     deformFactor : float, optional
@@ -339,6 +339,9 @@ def Save_simu(
         simu.Set_Iter(iter)
         list_displacementMatrix[i] = deformFactor * simu.Results_displacement_matrix()
         list_nodesValues_n[i] = simu.Result(result)
+
+    if filename is None:
+        filename = result
 
     return Save_mesh(
         mesh=mesh,
