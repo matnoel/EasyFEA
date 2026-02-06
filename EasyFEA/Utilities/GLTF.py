@@ -293,6 +293,7 @@ def Save_simu(
     filename: str = None,
     N: int = 200,
     deformFactor=1.0,
+    fps: int = 30,
 ) -> None:
     """Saves the simulation as glb file.
 
@@ -310,6 +311,8 @@ def Save_simu(
         Maximal number of iterations displayed, by default 200
     deformFactor : float, optional
         Factor used to display the deformed solution (0 means no deformations), default 0.0
+    fps : int, optional
+        Frames per second, by default 30
 
     Returns
     -------
@@ -350,6 +353,7 @@ def Save_simu(
         list_displacementMatrix=list_displacementMatrix,
         list_nodesValues_n=list_nodesValues_n,
         useSurfaceReconstruction=True,
+        fps=fps,
     )
 
 
@@ -388,7 +392,7 @@ def Save_mesh(
 
     assert mesh.dim >= 2
 
-    if useSurfaceReconstruction:
+    if useSurfaceReconstruction and mesh.dim == 3:
         # ensure that surfaces are facing outward
         mesh = Surface_reconstruction(mesh)
 
