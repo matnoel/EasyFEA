@@ -381,7 +381,7 @@ def Save_mesh(
 
         # get colors
         if Nvalues > 0:
-            colors = __get_colors(list_nodesValues[i], vMax=vMax, vMin=vMin)
+            colors = _get_colors_for_values(list_nodesValues[i], vMax=vMax, vMin=vMin)
             data_colors = Data(
                 colors, mesh.Nn, Type.VEC3, Component.FLOAT, Target.ARRAY_BUFFER
             )
@@ -407,6 +407,8 @@ def Save_mesh(
         option = "scale"
         scales = np.zeros((Ndisplacement, 3), dtype=float)
         scales[i] = 1.0
+        # scales = np.ones((Ndisplacement, 3), dtype=float)
+        # scales[i] = 0.0
 
         # option = "translation"
         # scales = np.ones((Ndisplacement, 3), dtype=float) * 4
@@ -460,7 +462,7 @@ def Save_mesh(
     return filename
 
 
-def __get_colors(
+def _get_colors_for_values(
     values: np.ndarray, vMax: float = None, vMin: float = None
 ) -> np.ndarray:
 
