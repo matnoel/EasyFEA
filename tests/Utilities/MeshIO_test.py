@@ -7,7 +7,7 @@ import pytest
 from EasyFEA import Folder, Mesher, ElemType, Mesh, MeshIO
 from EasyFEA.Geoms import Points
 
-folder_results = Folder.Join(Folder.Dir(__file__), "results")
+folder_results = Folder.Results_Dir()
 
 L = 2
 H = 1
