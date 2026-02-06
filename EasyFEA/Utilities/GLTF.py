@@ -12,15 +12,16 @@ import struct
 
 import numpy as np
 
-
 from ._requires import Create_requires_decorator
+from ..Simulations._simu import _Init_obj
 
-from . import Folder
+from . import Folder, Display
 from .MeshIO import Surface_reconstruction
 
 
 if TYPE_CHECKING:
     from ..FEM._mesh import Mesh
+    from ..Simulations import _Simu
 
 try:
     import pygltflib
@@ -211,7 +212,66 @@ class Data:
 
 
 @requires_pygltflib
-def Save_mesh_to_glb(
+def Save_simu(
+    simu: "_Simu",
+    result: str,
+    folder: str,
+    filename="simu",
+    N: int = 200,
+    deformFactor=1.0,
+    coef=1.0,
+    **kwargs,
+) -> None:
+    """Generates a movie from a simulation's result.
+
+    Parameters
+    ----------
+    simu : _Simu
+        simulation
+    result : str
+        result that you want to plot
+    folder : str
+        folder where you want to save the video
+    filename : str, optional
+        filename of the video with the extension (gif, mp4), by default 'video.gif'
+    N : int, optional
+        Maximal number of iterations displayed, by default 200
+    deformFactor : float, optional
+        Factor used to display the deformed solution (0 means no deformations), default 0.0
+    coef : float, optional
+        Coef to apply to the solution, by default 1.0
+    nodeValues : bool, optional
+        Displays result to nodes otherwise displays it to elements, by default True
+    """
+
+    simu, mesh, coord, inDim = _Init_obj(simu)  # type: ignore [assignment]
+
+    if simu is None:
+        Display.MyPrintError("Must give a simulation.")
+        return
+
+    Niter = len(simu.results)
+    N = np.min([Niter, N])
+    iterations = np.linspace(0, Niter - 1, N, endpoint=True, dtype=int)
+
+    # activates the first iteration
+    simu.Set_Iter(0, resetAll=True)
+
+    list_displacementMatrix: list[np.ndarray] = [None] * N
+    list_nodesValues_n: list[np.ndarray] = [None] * N
+
+    for i, iter in enumerate(iterations):
+        simu.Set_Iter(iter)
+        list_displacementMatrix[i] = deformFactor * simu.Results_displacement_matrix()
+        list_nodesValues_n[i] = simu.Result(result)
+
+    return Save_mesh(
+        mesh, folder, filename, list_displacementMatrix, list_nodesValues_n
+    )
+
+
+@requires_pygltflib
+def Save_mesh(
     mesh: "Mesh",
     folder: str,
     filename: str = "mesh",
@@ -254,15 +314,15 @@ def Save_mesh_to_glb(
 
     # check list length
     Ndisplacement = len(list_displacementMatrix)
-    numFields = len(list_nodesValues_n)
-    if Ndisplacement > 0 and numFields > 0:
-        assert Ndisplacement == numFields, (
+    Nvalues = len(list_nodesValues_n)
+    if Ndisplacement > 0 and Nvalues > 0:
+        assert Ndisplacement == Nvalues, (
             f"list_displacementMatrix and list_nodesValues_n must have the same length. "
-            f"Got {Ndisplacement} and {numFields}"
+            f"Got {Ndisplacement} and {Nvalues}"
         )
 
     # get list of nodes values
-    if numFields > 0:
+    if Nvalues > 0:
         ndim = list_nodesValues_n[0].ndim
         if ndim == 1:
             list_nodesValues = list_nodesValues_n
@@ -310,8 +370,9 @@ def Save_mesh_to_glb(
             )
 
         # get mesh coordinates
+        coords = mesh.coord + displacementMatrix
         data_coord0 = Data(
-            mesh.coord + displacementMatrix,
+            coords,
             mesh.Nn,
             Type.VEC3,
             Component.FLOAT,
@@ -319,7 +380,7 @@ def Save_mesh_to_glb(
         )
 
         # get colors
-        if numFields > 0:
+        if Nvalues > 0:
             colors = __get_colors(list_nodesValues[i], vMax=vMax, vMin=vMin)
             data_colors = Data(
                 colors, mesh.Nn, Type.VEC3, Component.FLOAT, Target.ARRAY_BUFFER
@@ -342,18 +403,33 @@ def Save_mesh_to_glb(
         list_gltfMeshes[i] = gltfMesh
 
         # animation
+
+        option = "scale"
         scales = np.zeros((Ndisplacement, 3), dtype=float)
         scales[i] = 1.0
+
+        # option = "translation"
+        # scales = np.ones((Ndisplacement, 3), dtype=float) * 4
+        # scales[i] = 0.0
+
         data_scales = Data(scales, Ndisplacement, Type.VEC3, Component.FLOAT)
+
+        # option = "weights" # raise ANIMATION_CHANNEL_TARGET_NODE_WEIGHTS_NO_MORPHS error
+        # scales = np.eye(Ndisplacement)
+        # data_scales = Data(scales.ravel(), scales.size, Type.SCALAR, Component.FLOAT)
+
         samplers.append(
             pygltflib.AnimationSampler(
                 input=data_times._accessors_index[0],
                 output=data_scales._accessors_index[0],
                 interpolation=pygltflib.ANIM_STEP,
+                # interpolation=pygltflib.ANIM_LINEAR,
+                # interpolation=pygltflib.ANIM_CUBICSPLINE,
             )
         )
+
         channels.append(
-            pygltflib.AnimationChannel(sampler=i, target={"node": i, "path": "scale"})
+            pygltflib.AnimationChannel(sampler=i, target={"node": i, "path": option})
         )
 
     # create gltf object
