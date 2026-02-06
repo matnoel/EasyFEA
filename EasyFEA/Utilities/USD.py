@@ -37,7 +37,7 @@ def Save_simu(
     filename: str = None,
     N: int = 50,
     deformFactor=1.0,
-    clim=None,
+    fps: int = 30,
 ) -> None:
     """Saves the simulation as usda file.
 
@@ -50,11 +50,13 @@ def Save_simu(
     folder : str
         folder where you want to save the video
     filename : str, optional
-        filename of the usda file, by default 'result.usda'
+        filename of the usda file, by default result.usda
     N : int, optional
-        Maximal number of iterations displayed, by default 50
+        Maximal number of iterations displayed, by default 200
     deformFactor : float, optional
         Factor used to display the deformed solution (0 means no deformations), default 0.0
+    fps : int, optional
+        Frames per second, by default 30
 
     Returns
     -------
@@ -83,10 +85,7 @@ def Save_simu(
     for i, iter in enumerate(iterations):
         simu.Set_Iter(iter)
         list_displacementMatrix[i] = deformFactor * simu.Results_displacement_matrix()
-        nodesValues_n = simu.Result(result, nodeValues=True)
-        list_nodesValues_n[i] = (
-            nodesValues_n if clim is None else np.clip(nodesValues_n, *clim)
-        )
+        list_nodesValues_n[i] = simu.Result(result, nodeValues=True)
 
     if filename is None:
         filename = result
@@ -97,6 +96,7 @@ def Save_simu(
         filename=filename,
         list_displacementMatrix=list_displacementMatrix,
         list_nodesValues_n=list_nodesValues_n,
+        fps=fps,
     )
 
 
@@ -109,6 +109,27 @@ def Save_mesh(
     list_nodesValues_n: list[np.ndarray] = [],
     fps: int = 30,
 ) -> str:
+    """Saves the mesh as glb file.
+
+    Parameters
+    ----------
+    mesh : Mesh
+        The mesh
+    folder : str
+        The directory where the results will be saved.
+    filename : str, optional
+        The name of the solution file, by default "mesh"
+    list_displacementMatrix : list[np.ndarray], optional
+        List of displacement matrix, by default []
+    fps : int, optional
+        Frames per second, by default 30
+
+    Returns
+    -------
+    str
+        The path to the created glb file.
+    """
+
     assert mesh.dim >= 2
 
     coord0 = mesh.coord
@@ -160,7 +181,7 @@ def Save_mesh(
             mesh_prim.CreatePointsAttr().Set(list_point)
 
             if Nvalues > 0:
-                nodesValues = list_nodesValues_n[i]
+                nodesValues = list_nodesValues[i]
                 colors = _get_colors_for_values(nodesValues, vMax, vMin)
                 list_color = [Gf.Vec3f(*color) for color in colors]
             else:
@@ -183,8 +204,7 @@ def Save_mesh(
     stage.GetRootLayer().Save()
 
     # define usdz file
+    # usdzFile = Folder.Join(folder, f"{filename}.usdz")
+    # os.system(f"usdzip {usdzFile} {usdaFile}")
 
-    usdzFile = Folder.Join(folder, f"{filename}.usdz")
-    os.system(f"usdzip {usdzFile} {usdaFile}")
-
-    return usdzFile
+    return usdaFile
