@@ -5,7 +5,7 @@
 from functools import wraps
 
 
-def Create_requires_decorator(*modules: str):
+def Create_requires_decorator(*modules: str, libraries: list[str] = None):
     """Creates a decorator that checks if modules are available before executing a function.
 
     Returns
@@ -20,14 +20,20 @@ def Create_requires_decorator(*modules: str):
     except ImportError:
         can_use_modules = False
 
+    if libraries is None:
+        libraries = modules
+    install = " ".join(libraries)
+
     def __get_error(func) -> str:
         if len(modules) > 1:
             modules_str = ", ".join(modules[:-1])
             modules_str += f" and {modules[-1]}"
-            error = f"{modules_str} are required for {func.__name__} function.\nPlease install them with: pip install {' '.join(modules)} command."
+            error = f"{modules_str} are required for {func.__name__} function."
+            error += f"\nPlease install them with: pip install {install} command."
         else:
             module = modules[0]
-            error = f"{module} is required for {func.__name__} function.\nPlease install it with: pip install {module} command."
+            error = f"{module} is required for {func.__name__} function."
+            error += f"\nPlease install it with: pip install {install} command."
         return error
 
     def decorator(func):
