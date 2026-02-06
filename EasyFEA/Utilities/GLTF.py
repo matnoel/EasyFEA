@@ -63,7 +63,60 @@ except ImportError:
 requires_pygltflib = Create_requires_decorator("pygltflib")
 
 
+# --------------------------------------------
+# Utilities for GLTF and USD
+# --------------------------------------------
+
+
+def _get_list_nodesValues(list_nodesValues_n: list[np.ndarray]):
+
+    assert isinstance(list_nodesValues_n, list)
+    assert isinstance(list_nodesValues_n[0], np.ndarray)
+
+    ndim = list_nodesValues_n[0].ndim
+    if ndim == 1:
+        list_nodesValues = list_nodesValues_n
+    elif ndim == 2:
+        list_nodesValues = [
+            np.linalg.norm(nodesValues_n, axis=1)
+            for nodesValues_n in list_nodesValues_n
+        ]
+    else:
+        raise ValueError(f"Must have 1 or 2 dimensions, got {ndim}.")
+
+    return list_nodesValues
+
+
+def _get_colors_for_values(
+    values: np.ndarray, vMax: float = None, vMin: float = None
+) -> np.ndarray:
+
+    assert isinstance(values, np.ndarray)
+    assert values.ndim == 1
+
+    # Normalize values between 0 and 1
+    vMin = values.min() if vMin is None else vMin
+    vMax = values.max() if vMax is None else vMax
+    if vMax > vMin:
+        normalizedValues = (values - vMin) / (vMax - vMin)
+    else:
+        normalizedValues = np.zeros_like(values)
+
+    colors = np.zeros((values.size, 3))
+    colors[:, 0] = normalizedValues  # red
+    colors[:, 1] = 1 - np.abs(normalizedValues - 0.5) * 2  # green
+    colors[:, 2] = 1 - normalizedValues  # blue
+
+    return colors
+
+
+# --------------------------------------------
+# Classes and functions
+# --------------------------------------------
+
+
 class Data:
+    """Data class used to generate gltf data and save offset, bufferViews and accesors."""
 
     __offset = 0
     __NbufferViews = 0
@@ -79,6 +132,21 @@ class Data:
         component: Component,
         target: Target = None,
     ):
+        """Generates gltf data.
+
+        Parameters
+        ----------
+        data : Union[np.ndarray, list[np.ndarray]]
+            data to save
+        count : int
+            Count/size of data.
+        type : Type
+            Data type (e.g. SCALAR, VEC2, VEC3, MAT2, ...)
+        component : Component
+            Component type (e.g. UNSIGNED_INT, FLOAT, ...)
+        target : Target, optional
+            target (e.g. ARRAY_BUFFER or ELEMENT_ARRAY_BUFFER), by default None
+        """
         self._data = data
         self._count = count
         self._type = type
@@ -170,13 +238,16 @@ class Data:
 
     @classmethod
     def _Get_list_data(cls) -> list[Data]:
+        """Returns list of Data."""
         return cls.__list_data
 
     @classmethod
     def _Clear_list_data(cls) -> None:
+        """Resets list of Data."""
         cls.__list_data = []
 
     def __get_list_min_max(self, data: np.ndarray):
+        """Returns list_min, list_max"""
 
         assert isinstance(data, np.ndarray)
 
@@ -185,13 +256,16 @@ class Data:
         if data.ndim == 1:
             list_max = [usedType(data.max(0))]
             list_min = [usedType(data.min(0))]
-        else:
+        elif data.ndim == 2:
             list_max = [usedType(value) for value in data.max(0)]
             list_min = [usedType(value) for value in data.min(0)]
+        else:
+            raise ValueError
 
         return list_min, list_max
 
     def __get_buffer_data(self, data: np.ndarray):
+        """Returns buffer data with struct.pack."""
 
         # return data.tobytes() does not work !
         # return data.reshape(self._count, -1).tobytes() does not work !
@@ -219,10 +293,8 @@ def Save_simu(
     filename="simu",
     N: int = 200,
     deformFactor=1.0,
-    coef=1.0,
-    **kwargs,
 ) -> None:
-    """Generates a movie from a simulation's result.
+    """Saves the simulation as glb file.
 
     Parameters
     ----------
@@ -238,13 +310,14 @@ def Save_simu(
         Maximal number of iterations displayed, by default 200
     deformFactor : float, optional
         Factor used to display the deformed solution (0 means no deformations), default 0.0
-    coef : float, optional
-        Coef to apply to the solution, by default 1.0
-    nodeValues : bool, optional
-        Displays result to nodes otherwise displays it to elements, by default True
+
+    Returns
+    -------
+    str
+        The path to the created glb file.
     """
 
-    simu, mesh, coord, inDim = _Init_obj(simu)  # type: ignore [assignment]
+    simu, mesh, _, _ = _Init_obj(simu)  # type: ignore [assignment]
 
     if simu is None:
         Display.MyPrintError("Must give a simulation.")
@@ -257,16 +330,23 @@ def Save_simu(
     # activates the first iteration
     simu.Set_Iter(0, resetAll=True)
 
+    # init list
     list_displacementMatrix: list[np.ndarray] = [None] * N
     list_nodesValues_n: list[np.ndarray] = [None] * N
 
+    # get values
     for i, iter in enumerate(iterations):
         simu.Set_Iter(iter)
         list_displacementMatrix[i] = deformFactor * simu.Results_displacement_matrix()
         list_nodesValues_n[i] = simu.Result(result)
 
     return Save_mesh(
-        mesh, folder, filename, list_displacementMatrix, list_nodesValues_n
+        mesh=mesh,
+        folder=folder,
+        filename=filename,
+        list_displacementMatrix=list_displacementMatrix,
+        list_nodesValues_n=list_nodesValues_n,
+        useSurfaceReconstruction=True,
     )
 
 
@@ -277,10 +357,10 @@ def Save_mesh(
     filename: str = "mesh",
     list_displacementMatrix: list[np.ndarray] = [],
     list_nodesValues_n: list[np.ndarray] = [],
-    fps: int = 30,
     useSurfaceReconstruction: bool = True,
+    fps: int = 30,
 ) -> str:
-    """Save the mesh to a glb file
+    """Saves the mesh as glb file.
 
     Parameters
     ----------
@@ -292,10 +372,10 @@ def Save_mesh(
         The name of the solution file, by default "mesh"
     list_displacementMatrix : list[np.ndarray], optional
         List of displacement matrix, by default []
-    fps : int, optional
-        Frames per second, by default 30
     useSurfaceReconstruction : bool, optional
         Ensure that surfaces are facing outward, by default True
+    fps : int, optional
+        Frames per second, by default 30
 
     Returns
     -------
@@ -326,11 +406,13 @@ def Save_mesh(
         list_nodesValues = _get_list_nodesValues(list_nodesValues_n)
         vMax, vMin = np.max(list_nodesValues), np.min(list_nodesValues)
 
+    # get default colors
     defaultColors = np.ones((mesh.Nn, 3)) * 0.5  # Default grey (normalized 0-1)
     data_defaultColors = Data(
         defaultColors, mesh.Nn, Type.VEC3, Component.FLOAT, Target.ARRAY_BUFFER
     )
 
+    # init list of gltf mesh
     list_gltfMeshes: list[pygltflib.Mesh] = [None] * Ndisplacement
 
     # animation
@@ -393,12 +475,9 @@ def Save_mesh(
         list_gltfMeshes[i] = gltfMesh
 
         # animation
-
         option = "scale"
         scales = np.zeros((Ndisplacement, 3), dtype=float)
         scales[i] = 1.0
-        # scales = np.ones((Ndisplacement, 3), dtype=float)
-        # scales[i] = 0.0
 
         # option = "translation"
         # scales = np.ones((Ndisplacement, 3), dtype=float) * 4
@@ -430,13 +509,15 @@ def Save_mesh(
     gltf.buffers.append(pygltflib.Buffer(byteLength=len(bufferData)))
     gltf.set_binary_blob(bufferData)
 
+    # add buffer views and accessors
     for data in Data._Get_list_data():
         gltf.bufferViews.extend(data._bufferViews)
         gltf.accessors.extend(data._accessors)
 
+    # add mesh
     gltf.meshes = list_gltfMeshes
 
-    # nodes + scence
+    # add nodes + scence
     gltf.nodes.extend([pygltflib.Node(mesh=i) for i in range(Ndisplacement)])
     gltf.scenes.append(pygltflib.Scene(nodes=list(range(Ndisplacement))))
     gltf.scene = 0
@@ -450,45 +531,3 @@ def Save_mesh(
     gltf.save_binary(filename)
 
     return filename
-
-
-def _get_list_nodesValues(list_nodesValues_n: list[np.ndarray]):
-
-    assert isinstance(list_nodesValues_n, list)
-    assert isinstance(list_nodesValues_n[0], np.ndarray)
-
-    ndim = list_nodesValues_n[0].ndim
-    if ndim == 1:
-        list_nodesValues = list_nodesValues_n
-    elif ndim == 2:
-        list_nodesValues = [
-            np.linalg.norm(nodesValues_n, axis=1)
-            for nodesValues_n in list_nodesValues_n
-        ]
-    else:
-        raise ValueError(f"Must have 1 or 2 dimensions, got {ndim}.")
-
-    return list_nodesValues
-
-
-def _get_colors_for_values(
-    values: np.ndarray, vMax: float = None, vMin: float = None
-) -> np.ndarray:
-
-    assert isinstance(values, np.ndarray)
-    assert values.ndim == 1
-
-    # Normalize values between 0 and 1
-    vMin = values.min() if vMin is None else vMin
-    vMax = values.max() if vMax is None else vMax
-    if vMax > vMin:
-        normalizedValues = (values - vMin) / (vMax - vMin)
-    else:
-        normalizedValues = np.zeros_like(values)
-
-    colors = np.zeros((values.size, 3))
-    colors[:, 0] = normalizedValues  # red
-    colors[:, 1] = 1 - np.abs(normalizedValues - 0.5) * 2  # green
-    colors[:, 2] = 1 - normalizedValues  # blue
-
-    return colors
