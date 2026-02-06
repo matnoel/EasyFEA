@@ -5,7 +5,7 @@
 BUILDING_GALLERY = False
 
 # utilities
-from .Utilities import Display, Folder, Paraview, PyVista, Vizir, MeshIO, Tic, GLTF
+from .Utilities import Display, Folder, Paraview, PyVista, Vizir, MeshIO, Tic, GLTF, USD
 
 # fem
 from .FEM import Mesher, ElemType, Mesh, MatrixType
