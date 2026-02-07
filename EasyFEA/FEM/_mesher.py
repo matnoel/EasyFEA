@@ -1999,7 +1999,7 @@ class Mesher:
         connect = nodeTags.reshape(Ne, nPe)  # creates connect matrix
 
         if nPe > 1:
-            # compute the sampled minimal scaled jacobien
+            # compute the sampled minimal scaled jacobian
             minSJ = gmsh.model.mesh.getElementQualities(elementTags, "minSJ")
             # remove ill-formed elements where minSJ == 0
             connect = connect[minSJ != 0]
