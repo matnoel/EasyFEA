@@ -492,7 +492,12 @@ def Angle_Between(a: _types.AnyArray, b: _types.AnyArray) -> float:
 
     if np.max(np.abs(proj)) == 1:
         # a and b are colinear
-        angle = 0 if proj == 1 else np.pi
+        if id == "n":
+            colinear = proj == 1
+            angle = np.ones_like(proj) * np.pi
+            angle[colinear] = 0
+        else:
+            angle = 0 if proj == 1 else np.pi
 
     else:
         norm_a = np.linalg.norm(a, axis=-1)
