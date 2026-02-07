@@ -1998,6 +1998,12 @@ class Mesher:
         nPe = GroupElemFactory.Get_ElemInFos(gmshId)[1]  # nodes per element
         connect = nodeTags.reshape(Ne, nPe)  # creates connect matrix
 
+        if nPe > 1:
+            # compute the sampled minimal scaled jacobien
+            minSJ = gmsh.model.mesh.getElementQualities(elementTags, "minSJ")
+            # remove ill-formed elements where minSJ == 0
+            connect = connect[minSJ != 0]
+
         return connect
 
     def __Get_groupElem_with_mpi(
