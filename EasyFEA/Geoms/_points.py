@@ -132,7 +132,9 @@ class Points(_Geom):
         return contour
 
     def Get_coord_for_plot(self) -> tuple[_types.FloatArray, _types.FloatArray]:
-        return super().Get_coord_for_plot()
+        lines = self.coord
+        points = lines[[0, -1]]
+        return lines, points
 
     @property
     def length(self) -> float:

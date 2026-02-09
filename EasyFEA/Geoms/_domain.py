@@ -49,7 +49,7 @@ class Domain(_Geom):
         # a domain can't be open
         _Geom.__init__(self, [self.pt1, self.pt2], meshSize, name, isHollow, False)
 
-    def Get_coord_for_plot(self) -> tuple[_types.FloatArray, _types.FloatArray]:
+    def Get_coord_for_plot(self, N: int=None) -> tuple[_types.FloatArray, _types.FloatArray]:
         p1 = self.pt1.coord
         p7 = self.pt2.coord
 

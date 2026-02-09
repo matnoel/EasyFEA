@@ -116,8 +116,9 @@ class Circle(_Geom):
         n: _types.Coords = Normalize(np.cross(i, j))
         return n
 
-    def Get_coord_for_plot(self) -> tuple[_types.FloatArray, _types.FloatArray]:
-        angle = np.linspace(0, np.pi * 2, 40)
+    def Get_coord_for_plot(self, N: int = 40) -> tuple[_types.FloatArray, _types.FloatArray]:
+
+        angle = np.linspace(0, np.pi * 2, N)
 
         pC = self.center
         R = self.diam / 2
@@ -313,14 +314,14 @@ class CircleArc(_Geom):
         """circular arc length"""
         return np.abs(self.angle * self.r)
 
-    def Get_coord_for_plot(self) -> tuple[_types.FloatArray, _types.FloatArray]:
+    def Get_coord_for_plot(self, N: int = 11) -> tuple[_types.FloatArray, _types.FloatArray]:
         points = self.coord
 
         pC = self.center
         r = self.r
 
         # plot arc circle in 2D space
-        angles = np.linspace(0, np.abs(self.angle), 11)
+        angles = np.linspace(0, np.abs(self.angle), N)
         lines = np.zeros((angles.size, 3))
         lines[:, 0] = np.cos(angles) * r
         lines[:, 1] = np.sin(angles) * r
