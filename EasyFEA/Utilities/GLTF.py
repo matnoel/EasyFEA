@@ -17,7 +17,6 @@ from ._requires import Create_requires_decorator
 from ..Simulations._simu import _Init_obj
 
 from . import Folder, Display
-from .MeshIO import Surface_reconstruction
 
 
 if TYPE_CHECKING:
@@ -353,7 +352,6 @@ def Save_simu(
         filename=filename,
         list_displacementMatrix=list_displacementMatrix,
         list_nodesValues_n=list_nodesValues_n,
-        useSurfaceReconstruction=True,
         fps=fps,
     )
 
@@ -365,7 +363,6 @@ def Save_mesh(
     filename: str = "mesh",
     list_displacementMatrix: list[np.ndarray] = [],
     list_nodesValues_n: list[np.ndarray] = [],
-    useSurfaceReconstruction: bool = True,
     fps: int = 30,
 ) -> str:
     """Saves the mesh as glb file.
@@ -380,8 +377,6 @@ def Save_mesh(
         The name of the solution file, by default "mesh"
     list_displacementMatrix : list[np.ndarray], optional
         List of displacement matrix, by default []
-    useSurfaceReconstruction : bool, optional
-        Ensure that surfaces are facing outward, by default True
     fps : int, optional
         Frames per second, by default 30
 
@@ -392,10 +387,6 @@ def Save_mesh(
     """
 
     assert mesh.dim >= 2
-
-    if useSurfaceReconstruction and mesh.dim == 3:
-        # ensure that surfaces are facing outward
-        mesh = Surface_reconstruction(mesh)
 
     if len(list_displacementMatrix) == 0:
         list_displacementMatrix = [np.zeros_like(mesh.coord)]
@@ -477,6 +468,7 @@ def Save_mesh(
                         "COLOR_0": data_colors._accessors_index[0],
                     },
                     indices=data_triangles._accessors_index[0],
+                    material=0,
                 )
             ]
         )
@@ -516,6 +508,11 @@ def Save_mesh(
     bufferData = b"".join(data._bufferData for data in Data._Get_list_data())
     gltf.buffers.append(pygltflib.Buffer(byteLength=len(bufferData)))
     gltf.set_binary_blob(bufferData)
+
+    # material
+    material = pygltflib.Material()
+    material.doubleSided = True # visible surface on both sides
+    gltf.materials.append(material)
 
     # add buffer views and accessors
     for data in Data._Get_list_data():
