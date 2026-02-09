@@ -87,7 +87,6 @@ def _get_list_nodesValues(list_nodesValues_n: list[np.ndarray]):
     return list_nodesValues
 
 
-
 # --------------------------------------------
 # Classes and functions
 # --------------------------------------------
@@ -377,9 +376,6 @@ def Save_mesh(
 
     assert mesh.dim >= 2
 
-    if len(list_displacementMatrix) == 0:
-        list_displacementMatrix = [np.zeros_like(mesh.coord)]
-
     # check list length
     Ndisplacement = len(list_displacementMatrix)
     Nvalues = len(list_nodesValues_n)
@@ -388,11 +384,19 @@ def Save_mesh(
             f"list_displacementMatrix and list_nodesValues_n must have the same length. "
             f"Got {Ndisplacement} and {Nvalues}"
         )
+    Niter = int(np.max([Ndisplacement, Nvalues]))
 
     # get list of nodes values
     if Nvalues > 0:
         list_nodesValues = _get_list_nodesValues(list_nodesValues_n)
-        vMax, vMin = np.max(list_nodesValues), np.min(list_nodesValues)
+        vMin, vMax = np.min(list_nodesValues), np.max(list_nodesValues)
+        Display._Save_colorbar(
+            vMin=vMin,
+            vMax=vMax,
+            folder=folder,
+            filename=f"colorbar_{filename}",
+            cmap=cmap,
+        )
 
     # get default colors
     defaultColors = np.ones((mesh.Nn, 3)) * 0.5  # Default grey (normalized 0-1)
@@ -408,16 +412,16 @@ def Save_mesh(
         )
 
     # init list of gltf mesh
-    list_gltfMeshes: list[pygltflib.Mesh] = [None] * Ndisplacement
+    list_gltfMeshes: list[pygltflib.Mesh] = [None] * Niter
 
     # animation
     # https://gltf-tutorial.readthedocs.io/en/latest/gltfTutorial_007_Animations/#step
-    times = np.array([i / fps for i in range(Ndisplacement)], dtype=float)
+    times = np.array([i / fps for i in range(Niter)], dtype=float)
     data_times = Data(times, times.size, Type.SCALAR, Component.FLOAT)
     samplers: list[pygltflib.Sampler] = []
     channels: list[pygltflib.AnimationChannel] = []
 
-    for i, displacementMatrix in enumerate(list_displacementMatrix):
+    for i in range(Niter):
 
         # get triangles connectivity
         if i == 0:
@@ -460,7 +464,9 @@ def Save_mesh(
                 )
 
         # get mesh coordinates
-        coords = mesh.coord + displacementMatrix
+        coords = mesh.coord
+        if Ndisplacement > 0:
+            coords += list_displacementMatrix[i]
         data_coord0 = Data(
             coords,
             mesh.Nn,
@@ -471,7 +477,9 @@ def Save_mesh(
 
         # get colors
         if Nvalues > 0:
-            colors = _get_colors_for_values(list_nodesValues[i], vMax=vMax, vMin=vMin)
+            colors = Display._Get_colors_for_values(
+                list_nodesValues[i], vMax=vMax, vMin=vMin, cmap=cmap
+            )
             data_colors = Data(
                 colors, mesh.Nn, Type.VEC3, Component.FLOAT, Target.ARRAY_BUFFER
             )
@@ -508,17 +516,17 @@ def Save_mesh(
 
         # animation
         option = "scale"
-        scales = np.zeros((Ndisplacement, 3), dtype=float)
+        scales = np.zeros((Niter, 3), dtype=float)
         scales[i] = 1.0
 
         # option = "translation"
-        # scales = np.ones((Ndisplacement, 3), dtype=float) * 4
+        # scales = np.ones((Niter, 3), dtype=float) * 4
         # scales[i] = 0.0
 
-        data_scales = Data(scales, Ndisplacement, Type.VEC3, Component.FLOAT)
+        data_scales = Data(scales, Niter, Type.VEC3, Component.FLOAT)
 
         # option = "weights" # raise ANIMATION_CHANNEL_TARGET_NODE_WEIGHTS_NO_MORPHS error
-        # scales = np.eye(Ndisplacement)
+        # scales = np.eye(Niter)
         # data_scales = Data(scales.ravel(), scales.size, Type.SCALAR, Component.FLOAT)
 
         samplers.append(
@@ -555,8 +563,8 @@ def Save_mesh(
     gltf.meshes = list_gltfMeshes
 
     # add nodes + scence
-    gltf.nodes.extend([pygltflib.Node(mesh=i) for i in range(Ndisplacement)])
-    gltf.scenes.append(pygltflib.Scene(nodes=list(range(Ndisplacement))))
+    gltf.nodes.extend([pygltflib.Node(mesh=i) for i in range(Niter)])
+    gltf.scenes.append(pygltflib.Scene(nodes=list(range(Niter))))
     gltf.scene = 0
 
     # animation
