@@ -82,32 +82,10 @@ def _get_list_nodesValues(list_nodesValues_n: list[np.ndarray]):
             for nodesValues_n in list_nodesValues_n
         ]
     else:
-        raise ValueError(f"Must have 1 or 2 dimensions, got {ndim}.")
+        raise NotImplementedError(f"Not implemented for ndim={ndim}.")
 
     return list_nodesValues
 
-
-def _get_colors_for_values(
-    values: np.ndarray, vMax: float = None, vMin: float = None
-) -> np.ndarray:
-
-    assert isinstance(values, np.ndarray)
-    assert values.ndim == 1
-
-    # Normalize values between 0 and 1
-    vMin = values.min() if vMin is None else vMin
-    vMax = values.max() if vMax is None else vMax
-    if vMax > vMin:
-        normalizedValues = (values - vMin) / (vMax - vMin)
-    else:
-        normalizedValues = np.zeros_like(values)
-
-    colors = np.zeros((values.size, 3))
-    colors[:, 0] = normalizedValues  # red
-    colors[:, 1] = 1 - np.abs(normalizedValues - 0.5) * 2  # green
-    colors[:, 2] = 1 - normalizedValues  # blue
-
-    return colors
 
 
 # --------------------------------------------
@@ -368,6 +346,7 @@ def Save_mesh(
     list_displacementMatrix: list[np.ndarray] = [],
     list_nodesValues_n: list[np.ndarray] = [],
     plotMesh=False,
+    cmap="jet",
     fps: int = 30,
 ) -> str:
     """Saves the mesh as glb file.
@@ -384,6 +363,9 @@ def Save_mesh(
         List of displacement matrix, by default []
     plotMesh : bool, optional
         displays mesh, by default False
+    cmap: str, optional
+        the color map used near the figure, by default "jet" \n
+        ["jet", "seismic", "binary", "viridis"] -> https://matplotlib.org/stable/tutorials/colors/colormaps.html
     fps : int, optional
         Frames per second, by default 30
 
