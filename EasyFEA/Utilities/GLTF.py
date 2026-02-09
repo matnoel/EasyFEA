@@ -293,6 +293,7 @@ def Save_simu(
     filename: str = None,
     N: int = 200,
     deformFactor=1.0,
+    plotMesh=False,
     fps: int = 30,
 ) -> None:
     """Saves the simulation as glb file.
@@ -310,7 +311,9 @@ def Save_simu(
     N : int, optional
         Maximal number of iterations displayed, by default 200
     deformFactor : float, optional
-        Factor used to display the deformed solution (0 means no deformations), default 0.0
+        Factor used to display the deformed solution (0 means no deformations), default 1.0
+    plotMesh : bool, optional
+        displays mesh, by default False
     fps : int, optional
         Frames per second, by default 30
 
@@ -352,6 +355,7 @@ def Save_simu(
         filename=filename,
         list_displacementMatrix=list_displacementMatrix,
         list_nodesValues_n=list_nodesValues_n,
+        plotMesh=plotMesh,
         fps=fps,
     )
 
@@ -363,6 +367,7 @@ def Save_mesh(
     filename: str = "mesh",
     list_displacementMatrix: list[np.ndarray] = [],
     list_nodesValues_n: list[np.ndarray] = [],
+    plotMesh=False,
     fps: int = 30,
 ) -> str:
     """Saves the mesh as glb file.
@@ -377,6 +382,8 @@ def Save_mesh(
         The name of the solution file, by default "mesh"
     list_displacementMatrix : list[np.ndarray], optional
         List of displacement matrix, by default []
+    plotMesh : bool, optional
+        displays mesh, by default False
     fps : int, optional
         Frames per second, by default 30
 
@@ -411,6 +418,13 @@ def Save_mesh(
         defaultColors, mesh.Nn, Type.VEC3, Component.FLOAT, Target.ARRAY_BUFFER
     )
 
+    if plotMesh:
+        # get default colors
+        blackColors = np.zeros((mesh.Nn, 3))
+        data_blackColors = Data(
+            blackColors, mesh.Nn, Type.VEC3, Component.FLOAT, Target.ARRAY_BUFFER
+        )
+
     # init list of gltf mesh
     list_gltfMeshes: list[pygltflib.Mesh] = [None] * Ndisplacement
 
@@ -440,6 +454,29 @@ def Save_mesh(
                 Target.ELEMENT_ARRAY_BUFFER,
             )
 
+            if plotMesh:
+                # get list_lines
+                list_lines: list[np.ndarray] = []
+                for groupElem in mesh.Get_list_groupElem(2):
+                    segments = groupElem.segments
+                    if segments.shape[1] > 2:
+                        repeats = [2] * segments.shape[1]
+                        repeats[0] = 1
+                        repeats[-1] = 1
+                        segments = np.repeat(segments, repeats, axis=1)
+                    lines = groupElem.connect[:, segments].reshape(-1, 2)
+                    list_lines.append(lines)
+
+                # get lines
+                lines = np.concatenate(list_lines, axis=0)
+                data_lines = Data(
+                    lines.ravel(),
+                    lines.size,
+                    Type.SCALAR,
+                    Component.UNSIGNED_INT,
+                    Target.ELEMENT_ARRAY_BUFFER,
+                )
+
         # get mesh coordinates
         coords = mesh.coord + displacementMatrix
         data_coord0 = Data(
@@ -459,19 +496,32 @@ def Save_mesh(
         else:
             data_colors = data_defaultColors
 
-        # mesh
-        gltfMesh = pygltflib.Mesh(
-            primitives=[
+        # primitives
+        primitives = [
+            pygltflib.Primitive(
+                attributes={
+                    "POSITION": data_coord0._accessors_index[0],
+                    "COLOR_0": data_colors._accessors_index[0],
+                },
+                indices=data_triangles._accessors_index[0],
+                material=0,
+            )
+        ]
+        if plotMesh:
+            primitives.append(
                 pygltflib.Primitive(
                     attributes={
                         "POSITION": data_coord0._accessors_index[0],
-                        "COLOR_0": data_colors._accessors_index[0],
+                        "COLOR_0": data_blackColors._accessors_index[0],
                     },
-                    indices=data_triangles._accessors_index[0],
+                    indices=data_lines._accessors_index[0],
+                    mode=1,  # line mode
                     material=0,
                 )
-            ]
-        )
+            )
+
+        # mesh
+        gltfMesh = pygltflib.Mesh(primitives=primitives)
         list_gltfMeshes[i] = gltfMesh
 
         # animation
@@ -511,7 +561,7 @@ def Save_mesh(
 
     # material
     material = pygltflib.Material()
-    material.doubleSided = True # visible surface on both sides
+    material.doubleSided = True  # visible surface on both sides
     gltf.materials.append(material)
 
     # add buffer views and accessors
