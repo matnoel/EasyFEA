@@ -18,7 +18,7 @@ from pyvista.plotting.utilities.sphinx_gallery import DynamicScraper
 # https://www.sphinx-doc.org/en/master/usage/configuration.html#project-information
 
 project = "EasyFEA"
-copyright = "2025, Matthieu Noel"
+copyright = "2026, Matthieu Noel"
 author = "Matthieu Noel"
 
 # -- General configuration ---------------------------------------------------
@@ -202,7 +202,7 @@ sphinx_gallery_conf = {
     "filename_pattern": r".*\.py",
     "ignore_pattern": r"__init__\.py",
     "within_subsection_order": FileNameSortKey,
-    # "reset_modules": (resetEasyFEA,),
+    "reset_modules": (resetEasyFEA,),
     "line_numbers": True,
     "parallel": True,
 }
