@@ -97,7 +97,9 @@ class _Geom(ABC):
         return np.asarray([p.coord for p in self.points], dtype=float)
 
     @abstractmethod
-    def Get_coord_for_plot(self, N: int=None) -> tuple[_types.FloatArray, _types.FloatArray]:
+    def Get_coord_for_plot(
+        self, N: int = None
+    ) -> tuple[_types.FloatArray, _types.FloatArray]:
         """Returns lines and points coordinates for plotting.
 
         Parameters
@@ -111,7 +113,6 @@ class _Geom(ABC):
             Lines and points coordinates as NumPy arrays.
         """
         raise NotImplementedError
-        
 
     def copy(self):
         new = copy.deepcopy(self)

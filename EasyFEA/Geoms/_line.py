@@ -58,7 +58,9 @@ class Line(_Geom):
         """distance between the two points of the line"""
         return Line.distance(self.pt1, self.pt2)
 
-    def Get_coord_for_plot(self, N: int=2) -> tuple[_types.FloatArray, _types.FloatArray]:
+    def Get_coord_for_plot(
+        self, N: int = 2
+    ) -> tuple[_types.FloatArray, _types.FloatArray]:
         dL = np.linspace(0, self.length, N, dtype=float).reshape(-1, 1)
         lines = self.pt1.coord + dL * self.unitVector
         points = self.coord[[0, -1]]

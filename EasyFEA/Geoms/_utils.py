@@ -193,6 +193,7 @@ def _(coords: Point):
 
 @AsPoint.register
 def _(coords: Iterable):
+    assert len(coords) <= 3
     return Point(*AsCoords(coords))
 
 
