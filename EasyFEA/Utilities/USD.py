@@ -27,7 +27,7 @@ except ImportError:
     pass
 requires_pxr = Create_requires_decorator("pxr", libraries=["usd-core"])
 
-from .GLTF import _get_list_nodesValues, _get_colors_for_values
+from .GLTF import _get_list_nodesValues
 
 
 @requires_pxr
@@ -183,7 +183,7 @@ def Save_mesh(
 
             if Nvalues > 0:
                 nodesValues = list_nodesValues[i]
-                colors = _get_colors_for_values(nodesValues, vMax, vMin)
+                colors = Display._Get_colors_for_values(nodesValues, vMax, vMin)
                 list_color = [Gf.Vec3f(*color) for color in colors]
             else:
                 list_color = [Gf.Vec3f(0.5, 0.5, 0.5)] * mesh.Nn
