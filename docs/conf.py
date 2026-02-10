@@ -202,7 +202,7 @@ sphinx_gallery_conf = {
     "filename_pattern": r".*\.py",
     "ignore_pattern": r"__init__\.py",
     "within_subsection_order": FileNameSortKey,
-    "reset_modules": (resetEasyFEA,),
+    # "reset_modules": (resetEasyFEA,),
     "line_numbers": True,
     "parallel": True,
 }
