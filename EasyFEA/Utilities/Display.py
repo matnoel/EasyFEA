@@ -1722,7 +1722,7 @@ def _Save_colorbar(
     if label != "":
         cb.set_label(label, fontsize=12)
 
-    path = Folder.Join(folder, filename + ".png")
+    path = Folder.Join(folder, filename + ".png", mkdir=True)
     plt.savefig(
         path,
         dpi=150,
