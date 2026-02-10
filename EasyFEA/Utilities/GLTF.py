@@ -219,8 +219,11 @@ class Data:
         return cls.__list_data
 
     @classmethod
-    def _Clear_list_data(cls) -> None:
-        """Resets list of Data."""
+    def _Clear_All(cls) -> None:
+        """Resets all class data."""
+        cls.__offset = 0
+        cls.__NbufferViews = 0
+        cls.__Naccessors = 0
         cls.__list_data = []
 
     def __get_list_min_max(self, data: np.ndarray):
@@ -397,6 +400,8 @@ def Save_mesh(
             filename=f"colorbar_{filename}",
             cmap=cmap,
         )
+
+    Data._Clear_All()
 
     # get default colors
     defaultColors = np.ones((mesh.Nn, 3)) * 0.5  # Default grey (normalized 0-1)

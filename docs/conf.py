@@ -183,7 +183,6 @@ class ResetEasyFEA:
     def __call__(self, gallery_conf, fname):
         _Init_Geoms_NInstance()
         EasyFEA.Tic.Clear()
-        EasyFEA.Utilities.GLTF.Data._Clear_list_data()
 
     def __repr__(self):
         return "ResetEasyFEA"
