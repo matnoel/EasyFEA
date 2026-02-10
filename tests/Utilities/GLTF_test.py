@@ -83,11 +83,15 @@ class TestGLTF:
 
         for mesh in list_mesh:
 
-            glbFile = GLTF.Save_mesh(mesh, folder, mesh.elemType)
+            for plotMesh in [True, False]:
 
-            gltf = GLTF2().load(glbFile)
+                filename = mesh.elemType + "_plotMesh" if plotMesh else mesh.elemType
 
-            validate(gltf)
+                glbFile = GLTF.Save_mesh(mesh, folder, filename, plotMesh=plotMesh)
+
+                gltf = GLTF2().load(glbFile)
+
+                validate(gltf)
 
     def test_save_mesh_frames(self, list_mesh: list[Mesh]):
 
@@ -130,6 +134,36 @@ class TestGLTF:
                 folder,
                 mesh.elemType,
                 list_displacementMatrix=frames,
+                list_nodesValues_n=[frame[:, 0] for frame in frames],
+            )
+            gltf = GLTF2().load(glbFile)
+            validate(gltf)
+
+    def test_save_mesh_sols(self, list_mesh: list[Mesh]):
+
+        folder = Folder.Join(folder_results, "mesh_sols", mkdir=True)
+
+        for mesh in list_mesh:
+
+            frames = get_frames(mesh)
+
+            # norm
+            glbFile = GLTF.Save_mesh(
+                mesh,
+                folder,
+                mesh.elemType,
+                list_displacementMatrix=[],
+                list_nodesValues_n=frames,
+            )
+            gltf = GLTF2().load(glbFile)
+            validate(gltf)
+
+            # x
+            glbFile = GLTF.Save_mesh(
+                mesh,
+                folder,
+                mesh.elemType + "_ux",
+                list_displacementMatrix=[],
                 list_nodesValues_n=[frame[:, 0] for frame in frames],
             )
             gltf = GLTF2().load(glbFile)

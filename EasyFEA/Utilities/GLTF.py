@@ -384,7 +384,7 @@ def Save_mesh(
             f"list_displacementMatrix and list_nodesValues_n must have the same length. "
             f"Got {Ndisplacement} and {Nvalues}"
         )
-    Niter = int(np.max([Ndisplacement, Nvalues]))
+    Niter = int(np.max([Ndisplacement, Nvalues, 1]))
 
     # get list of nodes values
     if Nvalues > 0:
@@ -515,33 +515,36 @@ def Save_mesh(
         list_gltfMeshes[i] = gltfMesh
 
         # animation
-        option = "scale"
-        scales = np.zeros((Niter, 3), dtype=float)
-        scales[i] = 1.0
+        if Niter > 1:
+            option = "scale"
+            scales = np.zeros((Niter, 3), dtype=float)
+            scales[i] = 1.0
 
-        # option = "translation"
-        # scales = np.ones((Niter, 3), dtype=float) * 4
-        # scales[i] = 0.0
+            # option = "translation"
+            # scales = np.ones((Niter, 3), dtype=float) * 4
+            # scales[i] = 0.0
 
-        data_scales = Data(scales, Niter, Type.VEC3, Component.FLOAT)
+            data_scales = Data(scales, Niter, Type.VEC3, Component.FLOAT)
 
-        # option = "weights" # raise ANIMATION_CHANNEL_TARGET_NODE_WEIGHTS_NO_MORPHS error
-        # scales = np.eye(Niter)
-        # data_scales = Data(scales.ravel(), scales.size, Type.SCALAR, Component.FLOAT)
+            # option = "weights" # raise ANIMATION_CHANNEL_TARGET_NODE_WEIGHTS_NO_MORPHS error
+            # scales = np.eye(Niter)
+            # data_scales = Data(scales.ravel(), scales.size, Type.SCALAR, Component.FLOAT)
 
-        samplers.append(
-            pygltflib.AnimationSampler(
-                input=data_times._accessors_index[0],
-                output=data_scales._accessors_index[0],
-                interpolation=pygltflib.ANIM_STEP,
-                # interpolation=pygltflib.ANIM_LINEAR,
-                # interpolation=pygltflib.ANIM_CUBICSPLINE,
+            samplers.append(
+                pygltflib.AnimationSampler(
+                    input=data_times._accessors_index[0],
+                    output=data_scales._accessors_index[0],
+                    interpolation=pygltflib.ANIM_STEP,
+                    # interpolation=pygltflib.ANIM_LINEAR,
+                    # interpolation=pygltflib.ANIM_CUBICSPLINE,
+                )
             )
-        )
 
-        channels.append(
-            pygltflib.AnimationChannel(sampler=i, target={"node": i, "path": option})
-        )
+            channels.append(
+                pygltflib.AnimationChannel(
+                    sampler=i, target={"node": i, "path": option}
+                )
+            )
 
     # create gltf object
     gltf = pygltflib.GLTF2()
@@ -568,8 +571,9 @@ def Save_mesh(
     gltf.scene = 0
 
     # animation
-    anim = pygltflib.Animation(samplers=samplers, channels=channels)
-    gltf.animations.append(anim)
+    if Niter > 1:
+        anim = pygltflib.Animation(samplers=samplers, channels=channels)
+        gltf.animations.append(anim)
 
     # save
     filename = Folder.Join(folder, f"{filename}.glb")
