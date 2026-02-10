@@ -420,11 +420,12 @@ def Save_mesh(
     list_gltfMeshes: list[pygltflib.Mesh] = [None] * Niter
 
     # animation
-    # https://gltf-tutorial.readthedocs.io/en/latest/gltfTutorial_007_Animations/#step
-    times = np.array([i / fps for i in range(Niter)], dtype=float)
-    data_times = Data(times, times.size, Type.SCALAR, Component.FLOAT)
-    samplers: list[pygltflib.Sampler] = []
-    channels: list[pygltflib.AnimationChannel] = []
+    if Niter > 1:
+        # https://gltf-tutorial.readthedocs.io/en/latest/gltfTutorial_007_Animations/#step
+        times = np.array([i / fps for i in range(Niter)], dtype=float)
+        data_times = Data(times, times.size, Type.SCALAR, Component.FLOAT)
+        samplers: list[pygltflib.Sampler] = []
+        channels: list[pygltflib.AnimationChannel] = []
 
     for i in range(Niter):
 
