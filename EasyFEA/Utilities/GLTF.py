@@ -10,6 +10,11 @@ from __future__ import annotations
 from typing import TYPE_CHECKING, Union
 from enum import Enum
 import struct
+import textwrap
+from pathlib import Path
+import http.server
+import threading
+import webbrowser
 
 import numpy as np
 
@@ -268,13 +273,13 @@ class Data:
 @requires_pygltflib
 def Save_simu(
     simu: "_Simu",
-    result: str,
+    results: str,
     folder: str,
-    filename: str = None,
     N: int = 200,
     deformFactor=1.0,
     plotMesh=False,
     fps: int = 30,
+    openWebBrowser=True,
 ) -> None:
     """Saves the simulation as glb file.
 
@@ -282,12 +287,10 @@ def Save_simu(
     ----------
     simu : _Simu
         simulation
-    result : str
+    results : list[str]
         result that you want to plot
     folder : str
         folder where you want to save the video
-    filename : str, optional
-        filename of the glb file, by default result.glb
     N : int, optional
         Maximal number of iterations displayed, by default 200
     deformFactor : float, optional
@@ -296,6 +299,8 @@ def Save_simu(
         displays mesh, by default False
     fps : int, optional
         Frames per second, by default 30
+    openWebBrowser : bool, optional
+        open in the generated files in your web browser, by default True
 
     Returns
     -------
@@ -304,40 +309,66 @@ def Save_simu(
     """
 
     simu, mesh, _, _ = _Init_obj(simu)  # type: ignore [assignment]
+    Nn = mesh.Nn
 
     if simu is None:
         Display.MyPrintError("Must give a simulation.")
         return
-
     Niter = len(simu.results)
     N = np.min([Niter, N])
     iterations = np.linspace(0, Niter - 1, N, endpoint=True, dtype=int)
 
-    # activates the first iteration
-    simu.Set_Iter(0, resetAll=True)
+    for result in results:
 
-    # init list
-    list_displacementMatrix: list[np.ndarray] = [None] * N
-    list_nodesValues_n: list[np.ndarray] = [None] * N
+        # init list
+        list_displacementMatrix: list[np.ndarray] = [None] * N
+        list_nodesValues_n: list[np.ndarray] = [None] * N
 
-    # get values
-    for i, iter in enumerate(iterations):
-        simu.Set_Iter(iter)
-        list_displacementMatrix[i] = deformFactor * simu.Results_displacement_matrix()
-        list_nodesValues_n[i] = simu.Result(result)
+        # activates the first iteration
+        simu.Set_Iter(0, resetAll=True)
 
-    if filename is None:
-        filename = result
+        # get values
+        for i, iter in enumerate(iterations):
+            simu.Set_Iter(iter)
+            list_displacementMatrix[i] = (
+                deformFactor * simu.Results_displacement_matrix()
+            )
+            list_nodesValues_n[i] = simu.Result(result).reshape(Nn, -1)
 
-    return Save_mesh(
-        mesh=mesh,
-        folder=folder,
-        filename=filename,
-        list_displacementMatrix=list_displacementMatrix,
-        list_nodesValues_n=list_nodesValues_n,
-        plotMesh=plotMesh,
-        fps=fps,
-    )
+        dof_n = list_nodesValues_n[0].shape[1]
+
+        if dof_n == 1:
+            unknowns = [""]
+        else:
+            unknowns = [f"_{d}" for d in range(dof_n)]
+
+        # save each dofs
+        for d in range(dof_n):
+            Save_mesh(
+                mesh=mesh,
+                folder=folder,
+                filename=f"{result}{unknowns[d]}",
+                list_displacementMatrix=list_displacementMatrix,
+                list_nodesValues_n=[
+                    nodesValues_n[:, d] for nodesValues_n in list_nodesValues_n
+                ],
+                plotMesh=plotMesh,
+                fps=fps,
+            )
+
+        if dof_n > 1:
+            Save_mesh(
+                mesh=mesh,
+                folder=folder,
+                filename=f"{result}_norm",
+                list_displacementMatrix=list_displacementMatrix,
+                list_nodesValues_n=list_nodesValues_n,
+                plotMesh=plotMesh,
+                fps=fps,
+            )
+
+    if openWebBrowser:
+        Open(folder)
 
 
 @requires_pygltflib
@@ -393,6 +424,8 @@ def Save_mesh(
     if Nvalues > 0:
         list_nodesValues = _get_list_nodesValues(list_nodesValues_n)
         vMin, vMax = np.min(list_nodesValues), np.max(list_nodesValues)
+        if filename == "electrical_activation":
+            pass
         Display._Save_colorbar(
             vMin=vMin,
             vMax=vMax,
@@ -473,7 +506,7 @@ def Save_mesh(
         coords = mesh.coord
         if Ndisplacement > 0:
             coords += list_displacementMatrix[i]
-        data_coord0 = Data(
+        data_coords = Data(
             coords,
             mesh.Nn,
             Type.VEC3,
@@ -496,7 +529,7 @@ def Save_mesh(
         primitives = [
             pygltflib.Primitive(
                 attributes={
-                    "POSITION": data_coord0._accessors_index[0],
+                    "POSITION": data_coords._accessors_index[0],
                     "COLOR_0": data_colors._accessors_index[0],
                 },
                 indices=data_triangles._accessors_index[0],
@@ -507,7 +540,7 @@ def Save_mesh(
             primitives.append(
                 pygltflib.Primitive(
                     attributes={
-                        "POSITION": data_coord0._accessors_index[0],
+                        "POSITION": data_coords._accessors_index[0],
                         "COLOR_0": data_blackColors._accessors_index[0],
                     },
                     indices=data_lines._accessors_index[0],
@@ -582,7 +615,430 @@ def Save_mesh(
         gltf.animations.append(anim)
 
     # save
-    filename = Folder.Join(folder, f"{filename}.glb")
+    filename = Folder.Join(folder, f"{filename}.glb", mkdir=True)
     gltf.save_binary(filename)
 
     return filename
+
+
+def __write_file(file: str, content: str) -> str:
+    with open(file, "w") as f:
+        f.write(textwrap.dedent(content).strip())
+    return file
+
+
+def _Create_modelViewer_folder(
+    folder: str,
+    useAnimation: bool = False,
+    useColorbar: bool = False,
+    useModelSelector: bool = False,
+):
+
+    assert Folder.Exists(folder)
+
+    # -------------------- create reset.css --------------------
+    __write_file(
+        Folder.Join(folder, "reset.css"),
+        """
+        :not(:defined) > * {
+            display: none;
+        }
+
+        html {
+            height: 100%;
+        }
+
+        body {
+            margin: 0;
+            padding: 0;
+            height: 100vh;
+            overflow: hidden;
+            background-color: rgb(255, 255, 255);
+        }
+        """,
+    )
+
+    # -------------------- create mode-viewer.css --------------------
+    __write_file(
+        Folder.Join(folder, "model-viewer.css"),
+        """
+        model-viewer {
+            width: 100%;
+            height: 100%;
+            position: relative;
+            background-color: rgb(255, 255, 255);
+        }
+
+        @keyframes circle {
+            from { transform: translateX(-50%) rotate(0deg) translateX(50px) rotate(0deg); }
+            to { transform: translateX(-50%) rotate(360deg) translateX(50px) rotate(-360deg); }
+        }
+
+        @keyframes elongate {
+            from { transform: translateX(100px); }
+            to { transform: translateX(-100px); }
+        }
+
+        model-viewer > #ar-prompt {
+            position: absolute;
+            left: 50%;
+            bottom: 60px;
+            animation: elongate 2s infinite ease-in-out alternate;
+            display: none;
+        }
+
+        model-viewer[ar-status="session-started"] > #ar-prompt {
+            display: block;
+        }
+
+        model-viewer > #ar-prompt > img {
+            animation: circle 4s linear infinite;
+        }
+        """,
+    )
+
+    if useAnimation:
+        # -------------------- create animation.css --------------------
+        __write_file(
+            Folder.Join(folder, "animation.css"),
+            """
+            #autoplay-toggle {
+                position: fixed;
+                bottom: 5%;
+                left: 5%;
+                z-index: 10000;
+                padding: 10px 20px;
+                font-size: 16px;
+                transform: translateY(-50%);
+                cursor: pointer;
+                background: rgba(255,255,255,0.9);
+                border: 1px solid #ccc;
+                border-radius: 5px;
+                box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+            }
+
+            #animation-slider {
+                position: fixed;
+                bottom: 5%;
+                left: 50%;
+                width: 40%;
+                transform: translate(-50%, -50%);
+                z-index: 10000;
+                display: none;
+            }
+            """,
+        )
+
+        # -------------------- create animation.js --------------------
+        __write_file(
+            Folder.Join(folder, "animation.js"),
+            """
+            const modelSelector = document.getElementById('model-selector');
+            const viewer = document.getElementById('model-viewer');
+            const toggleBtn = document.getElementById('autoplay-toggle');
+            const slider = document.getElementById('animation-slider');
+
+            let autoplayOn = true;
+            let sliderValue = 0;
+
+            // ---------- Autoplay toggle ----------
+            toggleBtn.addEventListener('click', () => {
+                autoplayOn = !autoplayOn;
+
+                if (autoplayOn) {
+                    viewer.setAttribute('autoplay', '');
+                    viewer.removeAttribute('animation-controls');
+                    viewer.play();
+
+                    slider.style.display = 'none';
+                    toggleBtn.textContent = '⏸ Autoplay ON';
+                } else {
+                    viewer.removeAttribute('autoplay');
+                    viewer.setAttribute('animation-controls', '');
+                    viewer.pause();
+
+                    slider.style.display = 'block';
+                    toggleBtn.textContent = '▶ Autoplay OFF';
+                }
+
+                // save slider value
+                if (viewer.duration) {
+                    sliderValue = viewer.currentTime / viewer.duration;
+                    slider.value = sliderValue;
+                }
+            });
+
+            // ---------- Slider controls animation ----------
+            slider.addEventListener('input', (e) => {
+                sliderValue = parseFloat(e.target.value);
+                if (viewer.duration) {
+                    viewer.currentTime = sliderValue * viewer.duration;
+                }
+            });
+
+            // ---------- Update slider at model load ----------
+            viewer.addEventListener('load', () => {
+                if (viewer.duration) {
+                    viewer.currentTime = sliderValue * viewer.duration;
+                }
+            });
+            """,
+        )
+
+    if useColorbar:
+        # -------------------- create colorbar.css --------------------
+        __write_file(
+            Folder.Join(folder, "colorbar.css"),
+            """
+            .colorbar-overlay {
+                position: fixed;
+                right: 20px;
+                top: 50%;
+                transform: translateY(-50%);
+                z-index: 9999;
+                pointer-events: none;
+            }
+
+            .colorbar-overlay img {
+                height: 400px;
+                width: auto;
+                display: block;
+                filter: drop-shadow(0 2px 4px rgba(0,0,0,0.3));
+            }
+            """,
+        )
+
+    if useModelSelector:
+        # -------------------- create model-selector.css --------------------
+        __write_file(
+            Folder.Join(folder, "model-selector.css"),
+            """
+            #model-selector {
+                position: fixed;
+                bottom: 5%;
+                right: 5%;
+                z-index: 10000;
+                padding: 10px 20px;
+                font-size: 16px;
+                transform: translateY(-50%);
+                cursor: pointer;
+                min-width: 150px;
+                background: rgba(255,255,255,0.9);
+                border: 1px solid #ccc;
+                border-radius: 5px;
+                box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+            }
+            """,
+        )
+
+        # -------------------- create model-selector.js --------------------
+        __write_file(
+            Folder.Join(folder, "model-selector.js"),
+            """
+            document.addEventListener('DOMContentLoaded', function() {
+                const modelSelector = document.getElementById('model-selector');
+                const modelViewer = document.getElementById('model-viewer');
+                const colorbarImg = document.getElementById('colorbar');
+
+                modelSelector.addEventListener('change', function(event) {
+                    const selectedOption = event.target.options[event.target.selectedIndex];
+
+                    modelViewer.src = selectedOption.value;
+                    colorbarImg.src = selectedOption.dataset.colorbar;
+                });
+            });
+            """,
+        )
+
+
+def Create_html(path: str, modelViewerDir: str = None):
+
+    isDir = Folder.os.path.isdir(path)
+
+    folder = path if isDir else Folder.Dir(path)
+    filename = Path(path).stem
+
+    # ---------- get glb files ----------
+    extensions = (".glb", "gltf")
+    list_glbFile = [
+        file for file in Folder.os.listdir(folder) if file.endswith(extensions)
+    ]
+    list_glbFile.sort()
+    if len(list_glbFile) == 0:
+        raise FileExistsError(
+            f"No glb or gltf files were detected in the {folder} folder."
+        )
+    list_glb = [
+        pygltflib.GLTF2().load(Folder.Join(folder, file)) for file in list_glbFile
+    ]
+    NglbFile = len(list_glb)
+    useModelSelector = isDir and NglbFile > 1
+
+    # get default glb
+    defaultIndex = 0 if isDir else list_glbFile.index(Path(path).name)
+
+    # check if there is animation
+    useAnination = (
+        np.any([len(glb.animations) > 0 for glb in list_glb])
+        if isDir
+        else len(list_glb[defaultIndex].animations) > 0
+    )
+
+    # ---------- get colorbars ----------
+    list_colorbar = [
+        file for file in Folder.os.listdir(folder) if file.startswith("colorbar")
+    ]
+    list_colorbar.sort()
+    useColorbar = len(list_colorbar) == NglbFile
+
+    # ---------- get model viewer directory ----------
+    if modelViewerDir is None:
+        modelViewerDir = Folder.Join(folder, "model-viewer")
+        if not Folder.Exists(modelViewerDir):
+            Folder.os.makedirs(modelViewerDir)
+        _Create_modelViewer_folder(
+            modelViewerDir,
+            useAnimation=useAnination,
+            useColorbar=useColorbar,
+            useModelSelector=useModelSelector,
+        )
+    else:
+        assert Folder.Exists(modelViewerDir)
+
+    htmlFile = Folder.Join(folder, f"{filename}.html")
+    # get relative path to model-viewer editor from html file
+    relativModelViewerDir = Folder.os.path.relpath(
+        modelViewerDir, start=Folder.Dir(htmlFile)
+    )
+
+    # ---------- start html with head contents ----------
+    content = f"""
+    <!doctype html>
+<html lang="en">
+    <head>
+        <title>&lt;model-viewer&gt; with colorbar</title>
+        <meta charset="utf-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1">
+        <link rel="stylesheet" href="{relativModelViewerDir}/reset.css">
+        <link rel="stylesheet" href="{relativModelViewerDir}/model-viewer.css">
+    """
+
+    if useModelSelector:
+        content += f"""\t<link rel="stylesheet" href="{relativModelViewerDir}/model-selector.css">"""
+
+    if useAnination:
+        content += f"""\t<link rel="stylesheet" href="{relativModelViewerDir}/animation.css">"""
+
+    if useColorbar:
+        content += (
+            f"""\t<link rel="stylesheet" href="{relativModelViewerDir}/colorbar.css">"""
+        )
+
+    # ---------- start body with model-viewer ----------
+    content += f"""
+    </head>
+    <body>
+
+        <!-- model-viewer -->
+        <model-viewer
+            id="model-viewer"
+            src="{list_glbFile[defaultIndex]}"
+            camera-controls 
+            tone-mapping="neutral"
+            shadow-intensity="1"
+            autoplay
+            animation-name="*">
+        </model-viewer>
+        <script type="module" src="https://ajax.googleapis.com/ajax/libs/model-viewer/4.0.0/model-viewer.min.js"></script>
+    """
+
+    # ---------- add model-selector ----------
+    if useModelSelector:
+        content += """\n\t\t<!-- model-selector -->\n\t\t<select id="model-selector">"""
+
+        for i, glbFile in enumerate(list_glbFile):
+            name = glbFile.split(".")[0]
+            tabs = "\t" * 3
+            if useColorbar:
+                colorbar = list_colorbar[i]
+                content += f"""\n{tabs}<option value="{glbFile}" data-colorbar="{colorbar}">{name}</option>"""
+            else:
+                content += f"""\n{tabs}<option value="{glbFile}">{name}</option>"""
+
+        content += f"""
+        </select>
+        <script src="{relativModelViewerDir}/model-selector.js"></script>
+        """
+
+    # ---------- add colorbar ----------
+    if useColorbar:
+        content += f"""
+        <!-- colorbar -->
+        <div class="colorbar-overlay img">
+            <img id="colorbar" src="{list_colorbar[defaultIndex]}" alt="Colorbar">
+        </div>
+        """
+        pass
+
+    # ---------- add animation ----------
+    if useAnination:
+        content += f"""
+        <!-- animations -->
+        <button id="autoplay-toggle">⏸ Autoplay ON</button>
+        <input
+            id="animation-slider"
+            type="range"
+            min="0"
+            max="1"
+            step="0.001"
+            value="0"
+            style="display: none;"
+        >
+        <script src="{relativModelViewerDir}/animation.js"></script>
+        """
+
+    # ---------- end body and html file ----------
+    content += """
+    </body>
+</html>
+    """
+
+    # write the html file
+    __write_file(htmlFile, content)
+
+    return htmlFile, modelViewerDir
+
+
+def Open(path: str):
+    """
+    Opens the specified file or directory in the default web browser.
+
+    Parameters
+    ----------
+    path : str
+        Path to a glb/gltf file or a directory containing glb/gltf files.
+    """
+
+    htmlFile, modelViewerDir = Create_html(path)
+
+    # define http root
+    httpRoot = Folder.os.path.commonpath([htmlFile, modelViewerDir])
+    Folder.os.chdir(httpRoot)
+
+    # Create local http server
+    server = http.server.ThreadingHTTPServer(
+        ("localhost", 0),  # local server with available port
+        http.server.SimpleHTTPRequestHandler,  # Convert a file system folder into a minimal HTTP server.
+    )
+    port = server.server_address[1]
+
+    # The thread allows: active server + continuous script
+    thread = threading.Thread(target=server.serve_forever, daemon=True)
+    # daemon=True means: if the main program terminates the server dies automatically
+    thread.start()
+
+    # open in web browser
+    relativHtmlFile = Folder.os.path.relpath(htmlFile, start=httpRoot)
+    webbrowser.open(f"http://localhost:{port}/{relativHtmlFile}")
+
+    thread.join()  # prevents the server from shutting down at the end of the script
