@@ -15,3 +15,5 @@ Third-Party Libraries:
 - [petsc4py](https://petsc.org/release/) - [BSD-2-Clause license](https://gitlab.com/petsc/petsc/-/blob/main/LICENSE?ref_type=heads)
 - [Numba](https://numba.pydata.org/) - [BSD-2-Clause license](https://github.com/numba/numba/blob/9ce83ef5c35d7f68a547bf2fd1266b9a88d3a00d/LICENSE)
 - [opencv-python](https://pypi.org/project/opencv-python/) - [MIT License](https://github.com/opencv/opencv-python/blob/4.x/LICENSE.txt)
+- [`pygltflib`](https://pypi.org/project/pygltflib/) - [MIT License](https://gitlab.com/dodgyville/pygltflib/-/blob/master/LICENSE?ref_type=heads)
++ [`usd-core`](https://pypi.org/project/usd-core/) - [LicenseRef-TOST-1.0](https://github.com/PixarAnimationStudios/OpenUSD/blob/dev/LICENSE.txt)

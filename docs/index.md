@@ -58,6 +58,8 @@ EasyFEA includes a few optional dependencies for reducing resolution time or for
 + [`imageio`](https://pypi.org/project/imageio/) and [`imageio-ffmpeg`](https://pypi.org/project/imageio-ffmpeg/) - Library for reading and writing a wide range of image, video, scientific, and volumetric data formats.
 + [`meshio`](https://github.com/matnoel/meshio/tree/medit_higher_order_elements) - I/O for many mesh formats.
 + [`opencv-python`](https://pypi.org/project/opencv-python/) - Computer Vision package.
++ [`pygltflib`](https://pypi.org/project/pygltflib/) - Python library for reading, writing and managing 3D objects in the Khronos Group gltf and gltf2 formats.
++ [`usd-core`](https://pypi.org/project/usd-core/) - Pixar's Universal Scene Description.
 
 ## 🔤 Naming conventions
 
