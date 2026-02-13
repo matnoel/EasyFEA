@@ -8,4 +8,5 @@ myst-parser
 scikit-learn
 sympy
 pyvista[all]
+trame-vtk<2.10.3
 meshio @ git+https://github.com/matnoel/meshio.git@medit_higher_order_elements

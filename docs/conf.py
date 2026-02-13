@@ -203,7 +203,7 @@ sphinx_gallery_conf = {
     "within_subsection_order": FileNameSortKey,
     "reset_modules": (resetEasyFEA,),
     "line_numbers": True,
-    "parallel": False,
+    "parallel": True,
 }
 
 # -- Options for HTML output -------------------------------------------------
