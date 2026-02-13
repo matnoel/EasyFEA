@@ -176,19 +176,19 @@ def FileNameSortKey(filename):
     return natural_sort_key(base)
 
 
-# class ResetEasyFEA:
-#     """Reset EasyFEA module to default settings.\n
-#     Adapted from PyVista (doc/source/conf.py)."""
+class ResetEasyFEA:
+    """Reset EasyFEA module to default settings.\n
+    Adapted from PyVista (doc/source/conf.py)."""
 
-#     def __call__(self, gallery_conf, fname):
-#         _Init_Geoms_NInstance()
-#         EasyFEA.Tic.Clear()
+    def __call__(self, gallery_conf, fname):
+        _Init_Geoms_NInstance()
+        EasyFEA.Tic.Clear()
 
-#     def __repr__(self):
-#         return "ResetEasyFEA"
+    def __repr__(self):
+        return "ResetEasyFEA"
 
 
-# resetEasyFEA = ResetEasyFEA()
+resetEasyFEA = ResetEasyFEA()
 
 # https://sphinx-gallery.github.io/stable/configuration.html
 sphinx_gallery_conf = {
@@ -201,9 +201,9 @@ sphinx_gallery_conf = {
     "filename_pattern": r".*\.py",
     "ignore_pattern": r"__init__\.py",
     "within_subsection_order": FileNameSortKey,
-    # "reset_modules": (resetEasyFEA,),
+    "reset_modules": (resetEasyFEA,),
     "line_numbers": True,
-    "parallel": True,
+    "parallel": False,
 }
 
 # -- Options for HTML output -------------------------------------------------
