@@ -279,7 +279,7 @@ def Save_simu(
     deformFactor=1.0,
     plotMesh=False,
     fps: int = 30,
-    openWebBrowser=True,
+    openWebBrowser=False,
 ) -> None:
     """Saves the simulation as glb file.
 
@@ -300,7 +300,7 @@ def Save_simu(
     fps : int, optional
         Frames per second, by default 30
     openWebBrowser : bool, optional
-        open in the generated files in your web browser, by default True
+        open in the generated files in your web browser, by default False
 
     Returns
     -------
