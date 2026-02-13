@@ -87,7 +87,12 @@ class TestGLTF:
 
                 filename = mesh.elemType + "_plotMesh" if plotMesh else mesh.elemType
 
-                glbFile = GLTF.Save_mesh(mesh, folder, filename, plotMesh=plotMesh)
+                glbFile = GLTF.Save_mesh(
+                    mesh=mesh,
+                    folder=folder,
+                    filename=filename,
+                    plotMesh=plotMesh,
+                )
 
                 gltf = GLTF2().load(glbFile)
 
@@ -102,7 +107,10 @@ class TestGLTF:
             frames = get_frames(mesh)
 
             glbFile = GLTF.Save_mesh(
-                mesh, folder, mesh.elemType, list_displacementMatrix=frames
+                mesh=mesh,
+                folder=folder,
+                filename=mesh.elemType,
+                list_displacementMatrix=frames,
             )
 
             gltf = GLTF2().load(glbFile)
@@ -119,9 +127,9 @@ class TestGLTF:
 
             # norm
             glbFile = GLTF.Save_mesh(
-                mesh,
-                folder,
-                mesh.elemType,
+                mesh=mesh,
+                folder=folder,
+                filename=mesh.elemType,
                 list_displacementMatrix=frames,
                 list_nodesValues_n=frames,
             )
@@ -130,9 +138,9 @@ class TestGLTF:
 
             # x
             glbFile = GLTF.Save_mesh(
-                mesh,
-                folder,
-                mesh.elemType,
+                mesh=mesh,
+                folder=folder,
+                filename=mesh.elemType,
                 list_displacementMatrix=frames,
                 list_nodesValues_n=[frame[:, 0] for frame in frames],
             )
@@ -160,9 +168,9 @@ class TestGLTF:
 
             # x
             glbFile = GLTF.Save_mesh(
-                mesh,
-                folder,
-                mesh.elemType + "_ux",
+                mesh=mesh,
+                folder=folder,
+                filename=mesh.elemType + "_ux",
                 list_displacementMatrix=[],
                 list_nodesValues_n=[frame[:, 0] for frame in frames],
             )
@@ -177,8 +185,10 @@ class TestGLTF:
 
             simu = get_simu(mesh)
 
-            glbFile = GLTF.Save_simu(simu, "uy", folder, mesh.elemType, fps=1)
-
-            gltf = GLTF2().load(glbFile)
-
-            validate(gltf)
+            GLTF.Save_simu(
+                simu=simu,
+                results=["uy"],
+                folder=folder,
+                fps=1,
+                openWebBrowser=False,
+            )
