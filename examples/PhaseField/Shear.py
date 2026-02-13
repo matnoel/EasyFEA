@@ -350,6 +350,8 @@ def DoSimu(split: str, regu: str):
     # Display.plt.close("all")
     Tic.Clear()
 
+    return folder_save
+
 
 if __name__ == "__main__":
     # generates configs
@@ -360,10 +362,12 @@ if __name__ == "__main__":
             Splits.append(split)
             Regus.append(regu)
 
+    list_folder: list[str] = []
     if useParallel:
         items = [(split, regu) for split, regu in zip(Splits, Regus)]
         with multiprocessing.Pool(nProcs) as pool:
             for result in pool.starmap(DoSimu, items):
-                pass
+                list_folder.append(result)
     else:
-        [DoSimu(split, regu) for split, regu in zip(Splits, Regus)]
+        for split, regu in zip(Splits, Regus):
+            list_folder.append(DoSimu(split, regu))
