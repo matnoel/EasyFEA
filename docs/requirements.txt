@@ -1,4 +1,4 @@
-sphinx==8.2.3
+sphinx
 sphinx-autodoc-typehints
 pydata_sphinx_theme
 sphinx-gallery==0.20.0
@@ -9,5 +9,3 @@ scikit-learn
 sympy
 pyvista[all]
 meshio @ git+https://github.com/matnoel/meshio.git@medit_higher_order_elements
-imageio
-imageio[ffmpeg]
