@@ -1,14 +1,14 @@
 .colorbar-overlay {
     position: fixed;
-    right: 20px;
+    right: 0px;
     top: 50%;
-    transform: translateY(-50%);
+    transform: translate(+25%, -50%);
     z-index: 9999;
     pointer-events: none;
 }
 
 .colorbar-overlay img {
-    height: 400px;
+    height: 60vh;
     width: auto;
     display: block;
     filter: drop-shadow(0 2px 4px rgba(0,0,0,0.3));

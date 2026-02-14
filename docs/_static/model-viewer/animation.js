@@ -16,14 +16,14 @@ toggleBtn.addEventListener('click', () => {
         viewer.play();
 
         slider.style.display = 'none';
-        toggleBtn.textContent = '⏸ Autoplay ON';
+        toggleBtn.textContent = '▶';
     } else {
         viewer.removeAttribute('autoplay');
         viewer.setAttribute('animation-controls', '');
         viewer.pause();
 
         slider.style.display = 'block';
-        toggleBtn.textContent = '▶ Autoplay OFF';
+        toggleBtn.textContent = '⏸';
     }
 
     // save slider value

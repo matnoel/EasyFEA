@@ -2,6 +2,7 @@ import runpy
 import os
 from typing import Iterable, Callable
 from pathlib import Path
+import shutil
 
 os.environ["PYVISTA_OFF_SCREEN"] = "true"
 os.environ["MPLBACKEND"] = "Agg"
@@ -43,12 +44,16 @@ class Config:
 
         self._function(self, dict_globals, self._variables, self._kwargs)
 
+        modelViewer = Folder.Join(htmlDir, "_static", "model-viewer")
+        if not Folder.Exists(modelViewer):
+            shutil.copytree(modelViewerDir, modelViewer)
+
         htmlFile, _ = GLTF.Create_html(
             self._outputFolder,
-            modelViewerDir,
+            modelViewer,
             allowModelSelectorButton=True,
-            allowAninationButton=False,
-            allowColorbar=False,
+            allowAninationButton=True,
+            allowColorbar=True,
         )
 
         return htmlFile
