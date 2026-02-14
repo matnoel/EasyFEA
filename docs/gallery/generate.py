@@ -7,7 +7,7 @@ import shutil
 os.environ["PYVISTA_OFF_SCREEN"] = "true"
 os.environ["MPLBACKEND"] = "Agg"
 
-from EasyFEA import Folder, GLTF
+from EasyFEA import Folder, GLTF, Mesh
 from EasyFEA.Simulations._simu import _Init_obj, Load_Simu
 
 docsDir = Folder.Dir(__file__, 2)
@@ -66,6 +66,19 @@ def PlotMesh(
     GLTF.Save_mesh(mesh, folder=config._outputFolder, plotMesh=True, **kwargs)
 
 
+def PlotMeshQuality(
+    config: Config, dict_globals: dict[str], variables: list[str], kwargs
+) -> str:
+    mesh: Mesh = dict_globals[variables[0]]
+    GLTF.Save_mesh(
+        mesh,
+        folder=config._outputFolder,
+        list_nodesValues_n=[mesh.Get_Quality(nodeValues=True)],
+        plotMesh=True,
+        cmap="viridis",
+    )
+
+
 def PlotSimu(
     config: Config, dict_globals: dict[str], variables: list[str], kwargs
 ) -> str:
@@ -82,12 +95,30 @@ def PlotSimu(
     GLTF.Save_simu(simu, folder=config._outputFolder, N=20, fps=10, **kwargs)
 
 
+def PlotOptimTopo(
+    config: Config, dict_globals: dict[str], variables: list[str], kwargs
+) -> str:
+
+    mesh: Mesh = dict_globals[variables[0]]
+    list_p_e = dict_globals[variables[1]]
+
+    list_nodesValues_n = [mesh.Get_Node_Values(p_e) for p_e in list_p_e]
+
+    GLTF.Save_mesh(
+        mesh,
+        folder=config._outputFolder,
+        list_nodesValues_n=list_nodesValues_n,
+        cmap="binary",
+        **kwargs,
+    )
+
+
 def main(list_config: list[Config], replace=False):
 
     list_htmlFile: list[str] = []
 
     for config in list_config:
-        if replace and Folder.Exists(config._outputFolder):
+        if not replace and Folder.Exists(config._outputFolder):
             continue
         list_htmlFile.append(config.run())
 
@@ -120,7 +151,7 @@ def main(list_config: list[Config], replace=False):
         content += f"""
         <div class="gallery-item">
             <iframe src="{htmlPath}"></iframe>
-            <p><em><a href="{scriptPath}">{Path(scriptPath).stem}</a>: {config._title}.</em></p>
+            <p><em><a href="{scriptPath}">{Path(scriptPath).stem}</a>: {config._title}</em></p>
         </div>
     """
 
@@ -140,21 +171,66 @@ if __name__ == "__main__":
     list_config = [
         Config(
             "PhaseField/Shear.py",
-            "Damage simulation for a plate subjected to shear",
+            "Damage simulation for a plate subjected to shear.",
             ["list_folder"],
             PlotSimu,
-            {"results": ["damage", "displacement"], "deformFactor": 2, **useMesh},
+            {
+                "results": ["damage", "Svm", "displacement"],
+                "deformFactor": 2,
+                **useMesh,
+            },
+        ),
+        Config(
+            "WeakForms/TopologyOptimisation1.py",
+            "An educational implementation of topology optimization.",
+            ["mesh", "list_p_e"],
+            PlotOptimTopo,
+        ),
+        Config(
+            "LinearizedElasticity/Elas7.py",
+            "Control lever for a molding machine used to blow plastic bottles.",
+            ["simu"],
+            PlotSimu,
+            {"results": ["Svm", "displacement"], **useMesh, "deformFactor": 200},
         ),
         Config(
             "Hyperelasticity/Hyperelas3.py",
-            "A L shape part undergoing bending deformation",
+            "A L shape part undergoing bending deformation.",
             ["simu"],
             PlotSimu,
             {"results": ["displacement"], **useMesh},
         ),
         Config(
+            "Hyperelasticity/Hyperelas4.py",
+            "A cantilever beam undergoing bending deformation in dynamic.",
+            ["simu"],
+            PlotSimu,
+            {"results": ["displacement"], **useMesh},
+        ),
+        Config(
+            "Meshes/Mesh5_2D.py",
+            "Mesh of a 2D cracked part.",
+            ["simu"],
+            PlotSimu,
+            {"results": ["displacement"], **useMesh},
+        ),
+        Config(
+            "Thermal/Thermal2.py",
+            "Transient thermal simulation.",
+            ["simu"],
+            PlotSimu,
+            {"results": ["thermal"], **useMesh},
+        ),
+        Config("Meshes/Mesh6_3D.py", "Refined 3D mesh in zones.", ["mesh"], PlotMesh),
+        Config(
+            "Meshes/Mesh8.py",
+            "Meshing of a grooved 3D part with calculation of element quality.",
+            ["mesh"],
+            PlotMeshQuality,
+        ),
+        Config(
             "Meshes/Mesh10.py",
-            "Simplified turbine mesh with data extraction in matlab",
+            "Simplified turbine mesh with data extraction in matlab.",
             ["mesh"],
             PlotMesh,
         ),
