@@ -11,8 +11,9 @@ build:
     python: "3.11"
   apt_packages:
     - libglu1-mesa
-  pre_build:
-    - python docs/gallery/generate.py
+  jobs:
+    pre_build:
+      - python docs/gallery/generate.py
 
 # Build documentation in the "docs/" directory with Sphinx
 sphinx:
