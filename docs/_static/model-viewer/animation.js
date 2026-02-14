@@ -7,6 +7,23 @@ let autoplayOn = true;
 let sliderValue = 0;
 
 // ---------- Autoplay toggle ----------
+viewer.addEventListener('load', () => {
+    if (viewer.availableAnimations && viewer.availableAnimations.length > 0) {
+        // Animation available - start playing
+        viewer.setAttribute('autoplay', '');
+        viewer.removeAttribute('animation-controls');
+        viewer.play();
+        
+        slider.style.display = 'none';
+        toggleBtn.style.display = 'block';
+        toggleBtn.textContent = '⏸';
+    } else {
+        // No animation - hides controls
+        toggleBtn.style.display = 'none';
+        slider.style.display = 'none';
+    }
+});
+
 toggleBtn.addEventListener('click', () => {
     autoplayOn = !autoplayOn;
 
@@ -16,14 +33,14 @@ toggleBtn.addEventListener('click', () => {
         viewer.play();
 
         slider.style.display = 'none';
-        toggleBtn.textContent = '▶';
+        toggleBtn.textContent = '⏸';
     } else {
         viewer.removeAttribute('autoplay');
         viewer.setAttribute('animation-controls', '');
         viewer.pause();
-
+        
         slider.style.display = 'block';
-        toggleBtn.textContent = '⏸';
+        toggleBtn.textContent = '▶';
     }
 
     // save slider value

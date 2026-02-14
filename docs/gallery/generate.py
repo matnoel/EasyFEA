@@ -140,21 +140,21 @@ if __name__ == "__main__":
     list_config = [
         Config(
             "PhaseField/Shear.py",
-            "Damage simulation for a plate subjected to shear.",
+            "Damage simulation for a plate subjected to shear",
             ["list_folder"],
             PlotSimu,
             {"results": ["damage", "displacement"], "deformFactor": 2, **useMesh},
         ),
         Config(
             "Hyperelasticity/Hyperelas3.py",
-            "A L shape part undergoing bending deformation.",
+            "A L shape part undergoing bending deformation",
             ["simu"],
             PlotSimu,
             {"results": ["displacement"], **useMesh},
         ),
         Config(
             "Meshes/Mesh10.py",
-            "Simplified turbine mesh with data extraction in matlab.",
+            "Simplified turbine mesh with data extraction in matlab",
             ["mesh"],
             PlotMesh,
         ),
