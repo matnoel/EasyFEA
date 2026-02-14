@@ -14,7 +14,7 @@ modelViewerDir = Folder.Join(docsDir, "_static", "model-viewer")
 
 buildDir = os.environ.get("READTHEDOCS_OUTPUT", Folder.Join(docsDir, "_build"))
 htmlDir = Folder.Join(buildDir, "html")
-print(f"\n\n{htmlDir}\n\n")
+# print(f"\n\n{htmlDir}\n\n")
 galleryDir = Folder.Join(htmlDir, "gallery")
 
 
