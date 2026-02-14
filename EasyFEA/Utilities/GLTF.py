@@ -309,7 +309,6 @@ def Save_simu(
     """
 
     simu, mesh, _, _ = _Init_obj(simu)  # type: ignore [assignment]
-    Nn = mesh.Nn
 
     if simu is None:
         Display.MyPrintError("Must give a simulation.")
@@ -323,6 +322,7 @@ def Save_simu(
         # init list
         list_displacementMatrix: list[np.ndarray] = [None] * N
         list_nodesValues_n: list[np.ndarray] = [None] * N
+        list_mesh: list[Mesh] = [None] * N
 
         # activates the first iteration
         simu.Set_Iter(0, resetAll=True)
@@ -330,10 +330,11 @@ def Save_simu(
         # get values
         for i, iter in enumerate(iterations):
             simu.Set_Iter(iter)
+            list_mesh[i] = simu.mesh
             list_displacementMatrix[i] = (
                 deformFactor * simu.Results_displacement_matrix()
             )
-            list_nodesValues_n[i] = simu.Result(result).reshape(Nn, -1)
+            list_nodesValues_n[i] = simu.Result(result).reshape(simu.mesh.Nn, -1)
 
         dof_n = list_nodesValues_n[0].shape[1]
 
@@ -345,7 +346,7 @@ def Save_simu(
         # save each dofs
         for d in range(dof_n):
             Save_mesh(
-                mesh=mesh,
+                mesh=list_mesh,
                 folder=folder,
                 filename=f"{result}{unknowns[d]}",
                 list_displacementMatrix=list_displacementMatrix,
@@ -358,7 +359,7 @@ def Save_simu(
 
         if dof_n > 1:
             Save_mesh(
-                mesh=mesh,
+                mesh=list_mesh,
                 folder=folder,
                 filename=f"{result}_norm",
                 list_displacementMatrix=list_displacementMatrix,
@@ -408,6 +409,13 @@ def Save_mesh(
         The path to the created glb file.
     """
 
+    updatedMesh = isinstance(mesh, list)
+    if updatedMesh:
+        list_mesh = mesh
+        mesh = list_mesh[0]
+    else:
+        list_mesh = [mesh]
+
     assert mesh.dim >= 2
 
     # check list length
@@ -418,14 +426,19 @@ def Save_mesh(
             f"list_displacementMatrix and list_nodesValues_n must have the same length. "
             f"Got {Ndisplacement} and {Nvalues}"
         )
+        if updatedMesh:
+            assert Ndisplacement == len(list_mesh)
     Niter = int(np.max([Ndisplacement, Nvalues, 1]))
 
     # get list of nodes values
     if Nvalues > 0:
         list_nodesValues = _get_list_nodesValues(list_nodesValues_n)
-        vMin, vMax = np.min(list_nodesValues), np.max(list_nodesValues)
-        if filename == "electrical_activation":
-            pass
+        if updatedMesh:
+            vMin = np.min([np.min(nodeValues) for nodeValues in list_nodesValues])
+            vMax = np.max([np.max(nodeValues) for nodeValues in list_nodesValues])
+        else:
+            vMin, vMax = np.min(list_nodesValues), np.max(list_nodesValues)
+
         Display._Save_colorbar(
             vMin=vMin,
             vMax=vMax,
@@ -435,19 +448,6 @@ def Save_mesh(
         )
 
     Data._Clear_All()
-
-    # get default colors
-    defaultColors = np.ones((mesh.Nn, 3)) * 0.5  # Default grey (normalized 0-1)
-    data_defaultColors = Data(
-        defaultColors, mesh.Nn, Type.VEC3, Component.FLOAT, Target.ARRAY_BUFFER
-    )
-
-    if plotMesh:
-        # get default colors
-        blackColors = np.zeros((mesh.Nn, 3))
-        data_blackColors = Data(
-            blackColors, mesh.Nn, Type.VEC3, Component.FLOAT, Target.ARRAY_BUFFER
-        )
 
     # init list of gltf mesh
     list_gltfMeshes: list[pygltflib.Mesh] = [None] * Niter
@@ -462,8 +462,11 @@ def Save_mesh(
 
     for i in range(Niter):
 
+        if updatedMesh:
+            mesh = list_mesh[i]
+
         # get triangles connectivity
-        if i == 0:
+        if updatedMesh or i == 0:
             triangles = np.concatenate(
                 [
                     groupElem.connect[:, groupElem.triangles].reshape(-1, 3)
@@ -477,6 +480,12 @@ def Save_mesh(
                 Type.SCALAR,
                 Component.UNSIGNED_INT,
                 Target.ELEMENT_ARRAY_BUFFER,
+            )
+
+            # get default colors
+            defaultColors = np.ones((mesh.Nn, 3)) * 0.5  # Default grey (normalized 0-1)
+            data_defaultColors = Data(
+                defaultColors, mesh.Nn, Type.VEC3, Component.FLOAT, Target.ARRAY_BUFFER
             )
 
             if plotMesh:
@@ -500,6 +509,16 @@ def Save_mesh(
                     Type.SCALAR,
                     Component.UNSIGNED_INT,
                     Target.ELEMENT_ARRAY_BUFFER,
+                )
+
+                # get default colors
+                blackColors = np.zeros((mesh.Nn, 3))
+                data_blackColors = Data(
+                    blackColors,
+                    mesh.Nn,
+                    Type.VEC3,
+                    Component.FLOAT,
+                    Target.ARRAY_BUFFER,
                 )
 
         # get mesh coordinates
@@ -854,6 +873,7 @@ def _Create_modelViewer_folder(
 def Create_html(
     path: str,
     modelViewerDir: str = None,
+    defaultResult: str = None,
     allowModelSelectorButton=True,
     allowAninationButton=True,
     allowColorbar=True,
@@ -881,7 +901,14 @@ def Create_html(
     useModelSelector = allowModelSelectorButton and isDir and NglbFile > 1
 
     # get default glb
-    defaultIndex = 0 if isDir else list_glbFile.index(Path(path).name)
+    if defaultResult is None:
+        defaultIndex = 0 if isDir else list_glbFile.index(Path(path).name)
+    else:
+        defaultIndex = [
+            i
+            for i, glbFile in enumerate(list_glbFile)
+            if glbFile.startswith(defaultResult)
+        ][0]
 
     # check if there is animation
     useAnination = allowAninationButton and (
@@ -965,11 +992,14 @@ def Create_html(
         for i, glbFile in enumerate(list_glbFile):
             name = glbFile.split(".")[0]
             tabs = "\t" * 3
+            selected = "selected" if i == defaultIndex else ""
             if useColorbar:
                 colorbar = list_colorbar[i]
-                content += f"""\n{tabs}<option value="{glbFile}" data-colorbar="{colorbar}">{name}</option>"""
+                content += f"""\n{tabs}<option value="{glbFile}" data-colorbar="{colorbar}" {selected}>{name}</option>"""
             else:
-                content += f"""\n{tabs}<option value="{glbFile}">{name}</option>"""
+                content += (
+                    f"""\n{tabs}<option value="{glbFile}" {selected}>{name}</option>"""
+                )
 
         content += f"""
         </select>
