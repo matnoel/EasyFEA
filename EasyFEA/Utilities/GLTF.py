@@ -854,8 +854,8 @@ def _Create_modelViewer_folder(
 def Create_html(
     path: str,
     modelViewerDir: str = None,
-    allowModelSelector=True,
-    allowAnination=True,
+    allowModelSelectorButton=True,
+    allowAninationButton=True,
     allowColorbar=True,
 ):
 
@@ -878,13 +878,13 @@ def Create_html(
         pygltflib.GLTF2().load(Folder.Join(folder, file)) for file in list_glbFile
     ]
     NglbFile = len(list_glb)
-    useModelSelector = allowModelSelector and isDir and NglbFile > 1
+    useModelSelector = allowModelSelectorButton and isDir and NglbFile > 1
 
     # get default glb
     defaultIndex = 0 if isDir else list_glbFile.index(Path(path).name)
 
     # check if there is animation
-    useAnination = allowAnination and (
+    useAnination = allowAninationButton and (
         np.any([len(glb.animations) > 0 for glb in list_glb])
         if isDir
         else len(list_glb[defaultIndex].animations) > 0
