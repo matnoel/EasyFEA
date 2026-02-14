@@ -249,10 +249,15 @@ html_context = {
     "doc_path": "docs/",
 }
 
+# https://pydata-sphinx-theme.readthedocs.io/en/stable/examples/no-sidebar.html
+html_sidebars = {
+    "gallery/index": [],
+}
+
 html_title = "EasyFEA"
 
 html_static_path = ["_static"]
-html_css_files = ["custom.css"]
+html_css_files = ["custom.css", "gallery.css"]
 
 # -- Latex -------------------------------------------------
 

@@ -621,7 +621,7 @@ def Save_mesh(
     return filename
 
 
-def __write_file(file: str, content: str) -> str:
+def _write_file(file: str, content: str) -> str:
     with open(file, "w") as f:
         f.write(textwrap.dedent(content).strip())
     return file
@@ -637,7 +637,7 @@ def _Create_modelViewer_folder(
     assert Folder.Exists(folder)
 
     # -------------------- create reset.css --------------------
-    __write_file(
+    _write_file(
         Folder.Join(folder, "reset.css"),
         """
         :not(:defined) > * {
@@ -659,7 +659,7 @@ def _Create_modelViewer_folder(
     )
 
     # -------------------- create mode-viewer.css --------------------
-    __write_file(
+    _write_file(
         Folder.Join(folder, "model-viewer.css"),
         """
         model-viewer {
@@ -699,7 +699,7 @@ def _Create_modelViewer_folder(
 
     if useAnimation:
         # -------------------- create animation.css --------------------
-        __write_file(
+        _write_file(
             Folder.Join(folder, "animation.css"),
             """
             #autoplay-toggle {
@@ -730,7 +730,7 @@ def _Create_modelViewer_folder(
         )
 
         # -------------------- create animation.js --------------------
-        __write_file(
+        _write_file(
             Folder.Join(folder, "animation.js"),
             """
             const modelSelector = document.getElementById('model-selector');
@@ -787,7 +787,7 @@ def _Create_modelViewer_folder(
 
     if useColorbar:
         # -------------------- create colorbar.css --------------------
-        __write_file(
+        _write_file(
             Folder.Join(folder, "colorbar.css"),
             """
             .colorbar-overlay {
@@ -810,7 +810,7 @@ def _Create_modelViewer_folder(
 
     if useModelSelector:
         # -------------------- create model-selector.css --------------------
-        __write_file(
+        _write_file(
             Folder.Join(folder, "model-selector.css"),
             """
             #model-selector {
@@ -832,7 +832,7 @@ def _Create_modelViewer_folder(
         )
 
         # -------------------- create model-selector.js --------------------
-        __write_file(
+        _write_file(
             Folder.Join(folder, "model-selector.js"),
             """
             document.addEventListener('DOMContentLoaded', function() {
@@ -851,7 +851,13 @@ def _Create_modelViewer_folder(
         )
 
 
-def Create_html(path: str, modelViewerDir: str = None):
+def Create_html(
+    path: str,
+    modelViewerDir: str = None,
+    allowModelSelector=True,
+    allowAnination=True,
+    allowColorbar=True,
+):
 
     isDir = Folder.os.path.isdir(path)
 
@@ -872,13 +878,13 @@ def Create_html(path: str, modelViewerDir: str = None):
         pygltflib.GLTF2().load(Folder.Join(folder, file)) for file in list_glbFile
     ]
     NglbFile = len(list_glb)
-    useModelSelector = isDir and NglbFile > 1
+    useModelSelector = allowModelSelector and isDir and NglbFile > 1
 
     # get default glb
     defaultIndex = 0 if isDir else list_glbFile.index(Path(path).name)
 
     # check if there is animation
-    useAnination = (
+    useAnination = allowAnination and (
         np.any([len(glb.animations) > 0 for glb in list_glb])
         if isDir
         else len(list_glb[defaultIndex].animations) > 0
@@ -889,7 +895,7 @@ def Create_html(path: str, modelViewerDir: str = None):
         file for file in Folder.os.listdir(folder) if file.startswith("colorbar")
     ]
     list_colorbar.sort()
-    useColorbar = len(list_colorbar) == NglbFile
+    useColorbar = allowColorbar and len(list_colorbar) == NglbFile
 
     # ---------- get model viewer directory ----------
     if modelViewerDir is None:
@@ -1004,7 +1010,7 @@ def Create_html(path: str, modelViewerDir: str = None):
     """
 
     # write the html file
-    __write_file(htmlFile, content)
+    _write_file(htmlFile, content)
 
     return htmlFile, modelViewerDir
 

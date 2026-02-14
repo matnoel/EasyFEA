@@ -1,0 +1,15 @@
+#model-selector {
+    position: fixed;
+    top: 5px;
+    right: 5px;
+    z-index: 10000;
+    padding: 10px 20px;
+    font-size: 16px;
+    /* transform: translateY(-50%); */
+    cursor: pointer;
+    min-width: 150px;
+    background: rgba(255,255,255,0.9);
+    border: 1px solid #ccc;
+    border-radius: 5px;
+    box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+}

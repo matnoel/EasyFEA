@@ -121,6 +121,7 @@ To learn more about contributing to EasyFEA, please consult the [Contributing Gu
 .. toctree::
     :maxdepth: 1
 
+    gallery/index
     begin
     examples/index
     api/index

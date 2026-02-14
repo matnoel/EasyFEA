@@ -1,0 +1,15 @@
+:not(:defined) > * {
+    display: none;
+}
+
+html {
+    height: 100%;
+}
+
+body {
+    margin: 0;
+    padding: 0;
+    height: 100vh;
+    overflow: hidden;
+    background-color: rgb(255, 255, 255);
+}

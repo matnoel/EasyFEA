@@ -1,0 +1,32 @@
+model-viewer {
+    width: 100%;
+    height: 100%;
+    position: relative;
+    background-color: rgb(255, 255, 255);
+}
+
+@keyframes circle {
+    from { transform: translateX(-50%) rotate(0deg) translateX(50px) rotate(0deg); }
+    to { transform: translateX(-50%) rotate(360deg) translateX(50px) rotate(-360deg); }
+}
+
+@keyframes elongate {
+    from { transform: translateX(100px); }
+    to { transform: translateX(-100px); }
+}
+
+model-viewer > #ar-prompt {
+    position: absolute;
+    left: 50%;
+    bottom: 60px;
+    animation: elongate 2s infinite ease-in-out alternate;
+    display: none;
+}
+
+model-viewer[ar-status="session-started"] > #ar-prompt {
+    display: block;
+}
+
+model-viewer > #ar-prompt > img {
+    animation: circle 4s linear infinite;
+}
