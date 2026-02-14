@@ -146,6 +146,8 @@ def main(list_item: list[Item], replace=False):
 
     This page collects screenshots from various simulations based on EasyFEA.
 
+    For additional details, please refer to the comprehensive collection of {doc}`examples <../examples/index>`.
+
     ```{raw} html 
 
     <script>document.body.classList.add('gallery');</script>

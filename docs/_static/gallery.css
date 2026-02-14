@@ -12,6 +12,36 @@
     margin-top: 2rem;
 }
 
+@media (max-width: 1600px) {
+    .gallery-grid {
+        grid-template-columns: repeat(3, 1fr);
+    }
+}
+
+@media (max-width: 1200px) {
+    .gallery-grid {
+        grid-template-columns: repeat(2, 1fr);
+        gap: 1.5rem;
+    }
+}
+
+@media (max-width: 768px) {
+    .gallery-grid {
+        grid-template-columns: 1fr;
+        gap: 1.5rem;
+    }
+}
+
+@media (max-width: 480px) {
+    .gallery-grid {
+        gap: 1rem;
+    }
+    .bd-article-container {
+        padding-left: 1rem !important;
+        padding-right: 1rem !important;
+    }
+}
+
 .gallery-item iframe {
     width: 100%;
     aspect-ratio: 1;
