@@ -8,13 +8,13 @@ os.environ["MPLBACKEND"] = "Agg"
 from EasyFEA import Folder, GLTF
 from EasyFEA.Simulations._simu import _Init_obj, Load_Simu
 
-# config
-
 docsDir = Folder.Dir(__file__, 2)
-htmlDir = Folder.Join(docsDir, "_build", "html")
-galleryDir = Folder.Join(htmlDir, "gallery")
-modelViewerDir = Folder.Join(docsDir, "_static", "model-viewer")
 examplesDir = Folder.Join(Folder.Dir(docsDir), "examples")
+modelViewerDir = Folder.Join(docsDir, "_static", "model-viewer")
+
+htmlDir = os.environ.get("READTHEDOCS_OUTPUT", Folder.Join(docsDir, "_build", "html"))
+print(f"\n\n\n {htmlDir} \n\n\n")
+galleryDir = Folder.Join(htmlDir, "gallery")
 
 
 def main(list_config: list[dict], replace=False):
