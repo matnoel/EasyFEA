@@ -2,6 +2,13 @@
 
 This document describes the changes made to the project.
 
+## 1.7.2 (February 14, 2026):
+
+- Updated the `_requires` module.
+- Resolved issue **#34** to enable export of EasyFEA results to **GLB** format.
+- Resolved issue **#35** to enable export of EasyFEA results to **USD** format.
+- Implemented an interactive gallery using the **GLB** format and the **model-viewer** component.
+
 ## 1.7.1 (January 30, 2026):
 
 - Updated the `Mesh.Nodes_*` methods.

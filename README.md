@@ -15,22 +15,22 @@
 
 **EasyFEA** is a user-friendly Python library that simplifies finite element analysis. It is flexible and supports different types of simulations without requiring users to handle complex PDE formulations. You will find below the finite element analysis that you can conduct using EasyFEA:
 
-1. [Linear elastic simulations](https://easyfea.readthedocs.io/en/latest/examples/LinearizedElasticity/index.html): `static`, `dynamic`, `contact`, `homogenization` and `mesh optimization`.
-2. [Hyperelastic simulations](https://easyfea.readthedocs.io/en/latest/examples/Hyperelasticity/index.html): `static` and `dynamic` in the ``Lagrangian`` framework..
-3. [Euler-Bernoulli beam simulations](https://easyfea.readthedocs.io/en/latest/examples/Beam/index.html): `static`.
-4. [Thermal simulations](https://easyfea.readthedocs.io/en/latest/examples/Thermal/index.html): `static` and `transient`.
-5. [Phase-field damage simulations for quasi-static brittle fracture](https://easyfea.readthedocs.io/en/latest/examples/PhaseField/index.html): advanced `2D` and `3D` simulations for `isotropic`, `transversely isotropic`, and `anisotropic` materials.
-6. [Weak forms simulations](https://easyfea.readthedocs.io/en/latest/examples/WeakForms/index.html): `static` and `dynamic` for `linear` or `non-linear` problems.
+1. [Linear elastic simulations](https://easyfea.readthedocs.io/en/stable/examples/LinearizedElasticity/index.html): `static`, `dynamic`, `contact`, `homogenization` and `mesh optimization`.
+2. [Hyperelastic simulations](https://easyfea.readthedocs.io/en/stable/examples/Hyperelasticity/index.html): `static` and `dynamic` in the ``Lagrangian`` framework..
+3. [Euler-Bernoulli beam simulations](https://easyfea.readthedocs.io/en/stable/examples/Beam/index.html): `static`.
+4. [Thermal simulations](https://easyfea.readthedocs.io/en/stable/examples/Thermal/index.html): `static` and `transient`.
+5. [Phase-field damage simulations for quasi-static brittle fracture](https://easyfea.readthedocs.io/en/stable/examples/PhaseField/index.html): advanced `2D` and `3D` simulations for `isotropic`, `transversely isotropic`, and `anisotropic` materials.
+6. [Weak forms simulations](https://easyfea.readthedocs.io/en/stable/examples/WeakForms/index.html): `static` and `dynamic` for `linear` or `non-linear` problems.
 7. [Digital Image Correlation (DIC) and Parameter identification](https://gitlab.univ-eiffel.fr/collaboration-msme-fcba/spruce-params).
 8. [Stochastic phase-field simulations](https://gitlab.univ-eiffel.fr/collaboration-msme-fcba/spruce-stochastic).
 
-📸 Explore the interactive **[gallery](https://easyfea.readthedocs.io/en/latest/gallery/index.html)** to visualize simulation results.
+📸 Explore the interactive **[gallery](https://easyfea.readthedocs.io/en/stable/gallery/index.html)** to visualize simulation results.
 
 For each simulation, users create a **mesh** and a **model**. Once the simulation has been set up, defining the boundary conditions, solving the problem and visualizing the results are straightforward.
 
-Numerous examples of mesh creation are available in the [Meshes](https://easyfea.readthedocs.io/en/latest/examples/Meshes/index.html) gallery.
+Numerous examples of mesh creation are available in the [Meshes](https://easyfea.readthedocs.io/en/stable/examples/Meshes/index.html) gallery.
 
-The simplest and quickest introduction is shown below and is available in the [Beginner’s Guide](https://easyfea.readthedocs.io/en/latest/begin.html).
+The simplest and quickest introduction is shown below and is available in the [Beginner’s Guide](https://easyfea.readthedocs.io/en/stable/begin.html).
 
 ```python
 import matplotlib.pyplot as plt
@@ -86,7 +86,7 @@ EasyFEA is distributed under the terms of the [GNU General Public License v3.0 o
 
 ## 📚 Documentation
 
-Refer to the [documentation](https://easyfea.readthedocs.io/en/latest/index.html) for detailed installation and usage details.
+Refer to the [documentation](https://easyfea.readthedocs.io/en/stable/index.html) for detailed installation and usage details.
 
 ## 💻  Installation
 

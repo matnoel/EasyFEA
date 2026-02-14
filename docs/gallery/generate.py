@@ -250,7 +250,7 @@ if __name__ == "__main__":
         ),
         Item(
             "LinearizedElasticity/Elas9.py",
-            "Plate with a hole subjected to uniform tensile loading.",
+            "Wave propagation.",
             ["simu"],
             PlotSimu,
             {"results": ["displacement", "speed", "accel"]},
@@ -277,13 +277,20 @@ if __name__ == "__main__":
             {"results": ["displacement"], **useMesh},
         ),
         Item(
+            "Meshes/Mesh5_3D.py",
+            "Mesh of a 3D cracked part.",
+            ["simu"],
+            PlotSimu,
+            {"results": ["displacement"], **useMesh},
+        ),
+        Item(
             "Thermal/Thermal2.py",
             "Transient thermal simulation.",
             ["simu"],
             PlotSimu,
             {"results": ["thermal"], **useMesh},
         ),
-        Item("Meshes/Mesh6_3D.py", "Refined 3D mesh in zones.", ["mesh"], PlotMesh),
+        Item("Meshes/Mesh6_3D.py", "Refined 3D mesh.", ["mesh"], PlotMesh),
         Item(
             "Meshes/Mesh8.py",
             "Meshing of a grooved 3D part with calculation of element quality.",
