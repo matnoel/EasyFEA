@@ -144,7 +144,7 @@ def main(list_item: list[Item], replace=False):
 
     # Gallery
 
-    This page collects screenshots from various simulations based on EasyFEA.
+    This page shows interactive scenes from simulations made with **EasyFEA**.
 
     For additional details, please refer to the comprehensive collection of {doc}`examples <../examples/index>`.
 
