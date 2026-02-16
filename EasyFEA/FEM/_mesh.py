@@ -726,13 +726,13 @@ class Mesh(Observable):
 
         # connectivity of the nodes
         connect_n_e = self.Get_connect_n_e()
-        # get elements per ndoes
-        elements_n = np.reshape(connect_n_e.sum(axis=1), (Nn, 1))
+        # get elements per nodes
+        elements_n = np.reshape(connect_n_e.sum(axis=1), (-1, 1))
 
         for c in range(nCols):
             values_e = result_e[:, c].reshape(Ne, 1)
             values_n = (connect_n_e @ values_e) * 1 / elements_n
-            result_n[:, c] = values_n.ravel()
+            result_n[self.nodes, c] = values_n.ravel()
 
         tic.Tac("PostProcessing", "Element to nodes values", False)
 
