@@ -2,66 +2,79 @@ const modelSelector = document.getElementById('model-selector');
 const viewer = document.getElementById('model-viewer');
 const toggleBtn = document.getElementById('autoplay-toggle');
 const slider = document.getElementById('animation-slider');
-let autoplayOn = true;
+
+let playing = true;
 let sliderValue = 0;
 
-function setAnimationState(playing) {
-    autoplayOn = playing;
-    if (playing) {
-        viewer.setAttribute('autoplay', '');
-        viewer.removeAttribute('animation-controls');
-        viewer.play();
-        slider.style.display = 'none';
-        toggleBtn.textContent = '⏸';
-    } else {
-        viewer.removeAttribute('autoplay');
-        viewer.setAttribute('animation-controls', '');
-        viewer.pause();
-        slider.style.display = 'block';
-        toggleBtn.textContent = '▶';
-    }
-    // save slider value
+// ---------- Control time ----------
+
+function setCurrentTime()
+{
     if (viewer.duration) {
-        sliderValue = viewer.currentTime / viewer.duration;
         slider.value = sliderValue;
+        viewer.currentTime = sliderValue * viewer.duration;
     }
 }
 
-// ---------- Update current time at model load ----------
-viewer.addEventListener('load', () => {
+function saveCurrentTime()
+{
+    if (viewer.duration) {
+        sliderValue =  viewer.currentTime / viewer.duration;
+    }
+}
+
+// ---------- Animation controls ----------
+function setAnimationControls()
+{
     if (viewer.availableAnimations && viewer.availableAnimations.length > 0) {
         // Animation available
-        toggleBtn.style.display = 'block';
-        // Restore position regardless of play/pause state
-        if (viewer.duration) {
-            viewer.currentTime = sliderValue * viewer.duration;
-            slider.value = sliderValue;
+        if (playing)
+        {
+            viewer.setAttribute('autoplay', '');
+            viewer.removeAttribute('animation-controls');
+            viewer.play();
+
+            slider.style.display = 'none';
+            toggleBtn.textContent = '⏸';
         }
-        setAnimationState(autoplayOn);
+        else
+        {
+            viewer.removeAttribute('autoplay');
+            viewer.setAttribute('animation-controls', '');
+            viewer.pause();
+            
+            slider.style.display = 'block';
+            toggleBtn.textContent = '▶';
+        }
+        setCurrentTime();
     } else {
-        // No animation - hide controls
+        // No animation - hides controls
         toggleBtn.style.display = 'none';
         slider.style.display = 'none';
     }
+}
+
+viewer.addEventListener('load', () => {
+    setAnimationControls();
 });
 
-// ---------- Save position before model change ----------
-modelSelector.addEventListener('change', () => {
-    if (viewer.duration) {
-        sliderValue = viewer.currentTime / viewer.duration;
-    }
-});
-
-// ---------- Autoplay toggle ----------
+// ---------- Playing toggle ----------
 toggleBtn.addEventListener('click', () => {
-    autoplayOn = !autoplayOn;
-    setAnimationState(autoplayOn);
+    saveCurrentTime();
+    playing = !playing;
+    setAnimationControls();
 });
 
-// ---------- Slider controls animation ----------
+// ---------- Slider control ----------
 slider.addEventListener('input', (e) => {
     sliderValue = parseFloat(e.target.value);
     if (viewer.duration) {
         viewer.currentTime = sliderValue * viewer.duration;
     }
 });
+
+if (modelSelector) {
+    modelSelector.addEventListener('change', () => {
+        saveCurrentTime();
+    });
+}
