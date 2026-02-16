@@ -757,37 +757,69 @@ def _Create_modelViewer_folder(
             const toggleBtn = document.getElementById('autoplay-toggle');
             const slider = document.getElementById('animation-slider');
 
-            let autoplayOn = true;
+            let playing = true;
             let sliderValue = 0;
 
-            // ---------- Autoplay toggle ----------
-            toggleBtn.addEventListener('click', () => {
-                autoplayOn = !autoplayOn;
+            // ---------- Control time ----------
 
-                if (autoplayOn) {
-                    viewer.setAttribute('autoplay', '');
-                    viewer.removeAttribute('animation-controls');
-                    viewer.play();
-
-                    slider.style.display = 'none';
-                    toggleBtn.textContent = '⏸ Autoplay ON';
-                } else {
-                    viewer.removeAttribute('autoplay');
-                    viewer.setAttribute('animation-controls', '');
-                    viewer.pause();
-
-                    slider.style.display = 'block';
-                    toggleBtn.textContent = '▶ Autoplay OFF';
-                }
-
-                // save slider value
+            function setCurrentTime()
+            {
                 if (viewer.duration) {
-                    sliderValue = viewer.currentTime / viewer.duration;
                     slider.value = sliderValue;
+                    viewer.currentTime = sliderValue * viewer.duration;
                 }
+            }
+
+            function saveCurrentTime()
+            {
+                if (viewer.duration) {
+                    sliderValue =  viewer.currentTime / viewer.duration;
+                }
+            }
+
+            // ---------- Animation controls ----------
+            function setAnimationControls()
+            {
+                if (viewer.availableAnimations && viewer.availableAnimations.length > 0) {
+                    // Animation available
+                    if (playing)
+                    {
+                        viewer.setAttribute('autoplay', '');
+                        viewer.removeAttribute('animation-controls');
+                        viewer.play();
+
+                        slider.style.display = 'none';
+                        toggleBtn.textContent = '⏸';
+                    }
+                    else
+                    {
+                        viewer.removeAttribute('autoplay');
+                        viewer.setAttribute('animation-controls', '');
+                        viewer.pause();
+                        
+                        slider.style.display = 'block';
+                        toggleBtn.textContent = '▶';
+                    }
+                    setCurrentTime();
+                } else {
+                    // No animation - hides controls
+                    toggleBtn.style.display = 'none';
+                    slider.style.display = 'none';
+                }
+            }
+
+            viewer.addEventListener('load', () => {
+                setAnimationControls();
             });
 
-            // ---------- Slider controls animation ----------
+            // ---------- Playing toggle ----------
+            toggleBtn.addEventListener('click', () => {
+                saveCurrentTime();
+                playing = !playing;
+                setAnimationControls();
+            });
+
+            // ---------- Slider control ----------
             slider.addEventListener('input', (e) => {
                 sliderValue = parseFloat(e.target.value);
                 if (viewer.duration) {
@@ -795,12 +827,11 @@ def _Create_modelViewer_folder(
                 }
             });
 
-            // ---------- Update slider at model load ----------
-            viewer.addEventListener('load', () => {
-                if (viewer.duration) {
-                    viewer.currentTime = sliderValue * viewer.duration;
-                }
-            });
+            if (modelSelector) {
+                modelSelector.addEventListener('change', () => {
+                    saveCurrentTime();
+                });
+            }
             """,
         )
 
