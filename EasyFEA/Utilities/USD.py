@@ -38,6 +38,7 @@ def Save_simu(
     filename: str = None,
     N: int = 50,
     deformFactor=1.0,
+    plotMesh=False,
     fps: int = 30,
 ) -> None:
     """Saves the simulation as usda file.
@@ -56,6 +57,8 @@ def Save_simu(
         Maximal number of iterations displayed, by default 200
     deformFactor : float, optional
         Factor used to display the deformed solution (0 means no deformations), default 0.0
+    plotMesh : bool, optional
+        displays mesh, by default False
     fps : int, optional
         Frames per second, by default 30
 
@@ -99,6 +102,7 @@ def Save_simu(
         filename=filename,
         list_displacementMatrix=list_displacementMatrix,
         list_nodesValues_n=list_nodesValues_n,
+        plotMesh=plotMesh,
         fps=fps,
     )
 
@@ -211,7 +215,7 @@ def Save_mesh(
                 lines = np.concatenate(list_lines, axis=0)
 
                 # get default colors
-                blackColors = [Gf.Vec3f(0.0, 0.0, 0.0)] * mesh.Nn
+                blackColors = [Gf.Vec3f(0.0, 0.0, 0.0)] * lines.shape[0]
 
         # create mesh
         xform = UsdGeom.Xform.Define(stage, f"/Frame_{i:03d}")
@@ -219,6 +223,11 @@ def Save_mesh(
         mesh_prim.CreateFaceVertexCountsAttr([3] * triangles.shape[0])
         mesh_prim.CreateFaceVertexIndicesAttr(triangles.ravel().tolist())
         mesh_prim.CreateDoubleSidedAttr(True)
+        if plotMesh:
+            line_prim = UsdGeom.BasisCurves.Define(stage, f"/Frame_{i:03d}/Line")
+            line_prim.CreateTypeAttr(UsdGeom.Tokens.linear)
+            line_prim.CreateWrapAttr(UsdGeom.Tokens.nonperiodic)
+            line_prim.CreateCurveVertexCountsAttr([2] * lines.shape[0])
 
         # set mesh coordinates
         coords = mesh.coord
@@ -226,6 +235,8 @@ def Save_mesh(
             coords += list_displacementMatrix[i]
         list_point = [Gf.Vec3f(x, y, z) for x, y, z in zip(*coords.T)]
         mesh_prim.CreatePointsAttr().Set(list_point)
+        if plotMesh:
+            line_prim.CreatePointsAttr().Set(list_point)
 
         # set colors
         if Nvalues > 0:
@@ -236,6 +247,11 @@ def Save_mesh(
         else:
             list_color = defaultColors
         mesh_prim.CreateDisplayColorPrimvar(UsdGeom.Tokens.vertex).Set(list_color)
+        if plotMesh:
+            lines_coords = coords[lines].reshape(-1, 3)
+            list_point = [Gf.Vec3f(*coords) for coords in lines_coords]
+            line_prim.CreatePointsAttr().Set(list_point)
+            line_prim.CreateDisplayColorPrimvar(UsdGeom.Tokens.uniform).Set(blackColors)
 
         if Niter > 1:
             # Tips for forcing stepwise interpolation and avoiding clipping!
