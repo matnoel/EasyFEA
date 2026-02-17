@@ -86,7 +86,9 @@ def Save_simu(
     for i, iter in enumerate(iterations):
         simu.Set_Iter(iter)
         list_displacementMatrix[i] = deformFactor * simu.Results_displacement_matrix()
-        list_nodesValues_n[i] = simu.Result(result, nodeValues=True)
+        list_nodesValues_n[i] = simu.Result(result, nodeValues=True).reshape(
+            mesh.Nn, -1
+        )
 
     if filename is None:
         filename = result
@@ -183,7 +185,9 @@ def Save_mesh(
 
             if Nvalues > 0:
                 nodesValues = list_nodesValues[i]
-                colors = Display._Get_colors_for_values(nodesValues, vMax, vMin)
+                colors = Display._Get_colors_for_values(
+                    values=nodesValues, vMin=vMin, vMax=vMax
+                )
                 list_color = [Gf.Vec3f(*color) for color in colors]
             else:
                 list_color = [Gf.Vec3f(0.5, 0.5, 0.5)] * mesh.Nn
