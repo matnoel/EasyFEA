@@ -273,7 +273,7 @@ class Data:
 @requires_pygltflib
 def Save_simu(
     simu: "_Simu",
-    results: str,
+    results: list[str],
     folder: str,
     N: int = 200,
     deformFactor=1.0,
