@@ -465,8 +465,8 @@ def Save_mesh(
         if updatedMesh:
             mesh = list_mesh[i]
 
-        # get triangles connectivity
         if updatedMesh or i == 0:
+            # get triangles connectivity
             triangles = np.concatenate(
                 [
                     groupElem.connect[:, groupElem.triangles].reshape(-1, 3)
