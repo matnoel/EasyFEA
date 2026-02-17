@@ -288,7 +288,7 @@ def Save_simu(
     simu : _Simu
         simulation
     results : list[str]
-        result that you want to plot
+        results that you want to plot
     folder : str
         folder where you want to save the video
     N : int, optional
