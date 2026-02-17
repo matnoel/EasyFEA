@@ -22,7 +22,7 @@ if TYPE_CHECKING:
     from ..Simulations import _Simu
 
 try:
-    from pxr import Usd, UsdGeom, Gf
+    from pxr import Usd, UsdGeom, Gf, UsdUtils
 except ImportError:
     pass
 requires_pxr = Create_requires_decorator("pxr", libraries=["usd-core"])
@@ -33,7 +33,7 @@ from .GLTF import _get_list_nodesValues
 @requires_pxr
 def Save_simu(
     simu: "_Simu",
-    result: str,
+    results: list[str],
     folder: str,
     filename: str = None,
     N: int = 50,
@@ -47,12 +47,10 @@ def Save_simu(
     ----------
     simu : _Simu
         simulation
-    result : str
-        result that you want to plot
+    results : list[str]
+        results that you want to plot
     folder : str
         folder where you want to save the video
-    filename : str, optional
-        filename of the usda file, by default result.usda
     N : int, optional
         Maximal number of iterations displayed, by default 200
     deformFactor : float, optional
@@ -78,33 +76,56 @@ def Save_simu(
     N = np.min([Niter, N])
     iterations = np.linspace(0, Niter - 1, N, endpoint=True, dtype=int)
 
-    # activates the first iteration
-    simu.Set_Iter(0, resetAll=True)
+    for result in results:
 
-    # init list
-    list_displacementMatrix: list[np.ndarray] = [None] * N
-    list_nodesValues_n: list[np.ndarray] = [None] * N
+        # init list
+        list_displacementMatrix: list[np.ndarray] = [None] * N
+        list_nodesValues_n: list[np.ndarray] = [None] * N
+        list_mesh: list[Mesh] = [None] * N
 
-    # get values
-    for i, iter in enumerate(iterations):
-        simu.Set_Iter(iter)
-        list_displacementMatrix[i] = deformFactor * simu.Results_displacement_matrix()
-        list_nodesValues_n[i] = simu.Result(result, nodeValues=True).reshape(
-            mesh.Nn, -1
-        )
+        # activates the first iteration
+        simu.Set_Iter(0, resetAll=True)
 
-    if filename is None:
-        filename = result
+        # get values
+        for i, iter in enumerate(iterations):
+            simu.Set_Iter(iter)
+            list_mesh[i] = simu.mesh
+            list_displacementMatrix[i] = (
+                deformFactor * simu.Results_displacement_matrix()
+            )
+            list_nodesValues_n[i] = simu.Result(result).reshape(simu.mesh.Nn, -1)
 
-    return Save_mesh(
-        mesh=mesh,
-        folder=folder,
-        filename=filename,
-        list_displacementMatrix=list_displacementMatrix,
-        list_nodesValues_n=list_nodesValues_n,
-        plotMesh=plotMesh,
-        fps=fps,
-    )
+        dof_n = list_nodesValues_n[0].shape[1]
+
+        if dof_n == 1:
+            unknowns = [""]
+        else:
+            unknowns = [f"_{d}" for d in range(dof_n)]
+
+        # save each dofs
+        for d in range(dof_n):
+            Save_mesh(
+                mesh=list_mesh,
+                folder=folder,
+                filename=f"{result}{unknowns[d]}",
+                list_displacementMatrix=list_displacementMatrix,
+                list_nodesValues_n=[
+                    nodesValues_n[:, d] for nodesValues_n in list_nodesValues_n
+                ],
+                plotMesh=plotMesh,
+                fps=fps,
+            )
+
+        if dof_n > 1:
+            Save_mesh(
+                mesh=list_mesh,
+                folder=folder,
+                filename=f"{result}_norm",
+                list_displacementMatrix=list_displacementMatrix,
+                list_nodesValues_n=list_nodesValues_n,
+                plotMesh=plotMesh,
+                fps=fps,
+            )
 
 
 @requires_pxr
@@ -173,6 +194,13 @@ def Save_mesh(
             vMax = np.max([np.max(nodeValues) for nodeValues in list_nodesValues])
         else:
             vMin, vMax = np.min(list_nodesValues), np.max(list_nodesValues)
+        Display._Save_colorbar(
+            vMin=vMin,
+            vMax=vMax,
+            folder=folder,
+            filename=f"colorbar_{filename}",
+            cmap=cmap,
+        )
 
     # init stage
     usdaFile = Folder.Join(folder, f"{filename}.usda")
@@ -269,7 +297,7 @@ def Save_mesh(
     stage.GetRootLayer().Save()
 
     # define usdz file
-    # usdzFile = Folder.Join(folder, f"{filename}.usdz")
-    # os.system(f"usdzip {usdzFile} {usdaFile}")
+    usdzFile = Folder.Join(folder, f"{filename}.usdz")
+    UsdUtils.CreateNewUsdzPackage(usdaFile, usdzFile)
 
     return usdaFile
