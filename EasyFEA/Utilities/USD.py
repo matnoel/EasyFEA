@@ -40,6 +40,7 @@ def Save_simu(
     deformFactor=1.0,
     plotMesh=False,
     fps: int = 30,
+    unit: float = 1.0,
 ) -> None:
     """Saves the simulation as usda file.
 
@@ -59,6 +60,8 @@ def Save_simu(
         displays mesh, by default False
     fps : int, optional
         Frames per second, by default 30
+    unit: float, optional
+        Meters per unit, by default 1.0
 
     Returns
     -------
@@ -114,6 +117,7 @@ def Save_simu(
                 ],
                 plotMesh=plotMesh,
                 fps=fps,
+                unit=unit,
             )
 
         if dof_n > 1:
@@ -125,6 +129,7 @@ def Save_simu(
                 list_nodesValues_n=list_nodesValues_n,
                 plotMesh=plotMesh,
                 fps=fps,
+                unit=unit,
             )
 
 
@@ -138,6 +143,7 @@ def Save_mesh(
     plotMesh=False,
     cmap: str = "jet",
     fps: int = 30,
+    unit: float = 1.0,
 ) -> str:
     """Saves the mesh as glb file.
 
@@ -158,6 +164,8 @@ def Save_mesh(
         ["jet", "seismic", "binary", "viridis"] -> https://matplotlib.org/stable/tutorials/colors/colormaps.html
     fps : int, optional
         Frames per second, by default 30
+    unit: float, optional
+        Meters per unit, by default 1.0
 
     Returns
     -------
@@ -209,7 +217,7 @@ def Save_mesh(
     stage.SetStartTimeCode(0)
     stage.SetEndTimeCode(Ndisplacement - 1 if Ndisplacement > 0 else 0)
     UsdGeom.SetStageUpAxis(stage, UsdGeom.Tokens.y)
-    UsdGeom.SetStageMetersPerUnit(stage, 1.0)
+    UsdGeom.SetStageMetersPerUnit(stage, unit)
 
     for i in range(Niter):
 
