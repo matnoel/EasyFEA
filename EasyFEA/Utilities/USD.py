@@ -110,6 +110,8 @@ def Save_mesh(
     filename: str = "mesh",
     list_displacementMatrix: list[np.ndarray] = [],
     list_nodesValues_n: list[np.ndarray] = [],
+    plotMesh=False,
+    cmap: str = "jet",
     fps: int = 30,
 ) -> str:
     """Saves the mesh as glb file.
@@ -124,6 +126,11 @@ def Save_mesh(
         The name of the solution file, by default "mesh"
     list_displacementMatrix : list[np.ndarray], optional
         List of displacement matrix, by default []
+    plotMesh : bool, optional
+        displays mesh, by default False
+    cmap: str, optional
+        the color map used near the figure, by default "jet" \n
+        ["jet", "seismic", "binary", "viridis"] -> https://matplotlib.org/stable/tutorials/colors/colormaps.html
     fps : int, optional
         Frames per second, by default 30
 
@@ -133,24 +140,35 @@ def Save_mesh(
         The path to the created glb file.
     """
 
+    updatedMesh = isinstance(mesh, list)
+    if updatedMesh:
+        list_mesh = mesh
+        mesh = list_mesh[0]
+    else:
+        list_mesh = [mesh]
+
     assert mesh.dim >= 2
 
-    coord0 = mesh.coord
-    triangles = np.concatenate(
-        [
-            groupElem.connect[:, groupElem.triangles].reshape(-1, 3)
-            for groupElem in mesh.Get_list_groupElem(2)
-        ],
-        axis=0,
-    )
+    # check list length
+    Ndisplacement = len(list_displacementMatrix)
+    Nvalues = len(list_nodesValues_n)
+    if Ndisplacement > 0 and Nvalues > 0:
+        assert Ndisplacement == Nvalues, (
+            f"list_displacementMatrix and list_nodesValues_n must have the same length. "
+            f"Got {Ndisplacement} and {Nvalues}"
+        )
+        if updatedMesh:
+            assert Ndisplacement == len(list_mesh)
+    Niter = int(np.max([Ndisplacement, Nvalues, 1]))
 
     # get list of nodes values
-    Nvalues = len(list_nodesValues_n)
     if Nvalues > 0:
         list_nodesValues = _get_list_nodesValues(list_nodesValues_n)
-        vMax, vMin = np.max(list_nodesValues), np.min(list_nodesValues)
-
-    Ndisplacement = len(list_displacementMatrix)
+        if updatedMesh:
+            vMin = np.min([np.min(nodeValues) for nodeValues in list_nodesValues])
+            vMax = np.max([np.max(nodeValues) for nodeValues in list_nodesValues])
+        else:
+            vMin, vMax = np.min(list_nodesValues), np.max(list_nodesValues)
 
     # init stage
     usdaFile = Folder.Join(folder, f"{filename}.usda")
@@ -161,41 +179,67 @@ def Save_mesh(
     UsdGeom.SetStageUpAxis(stage, UsdGeom.Tokens.y)
     UsdGeom.SetStageMetersPerUnit(stage, 1.0)
 
-    if Ndisplacement == 0:
-        mesh_prim = UsdGeom.Mesh.Define(stage, "/Mesh")
+    for i in range(Niter):
+
+        if updatedMesh or i == 0:
+            # get triangles connectivity
+            triangles = np.concatenate(
+                [
+                    groupElem.connect[:, groupElem.triangles].reshape(-1, 3)
+                    for groupElem in mesh.Get_list_groupElem(2)
+                ],
+                axis=0,
+            )
+
+            # get default colors
+            defaultColors = [Gf.Vec3f(0.5, 0.5, 0.5)] * mesh.Nn
+
+            if plotMesh:
+                # get list_lines
+                list_lines: list[np.ndarray] = []
+                for groupElem in mesh.Get_list_groupElem(2):
+                    segments = groupElem.segments
+                    if segments.shape[1] > 2:
+                        repeats = [2] * segments.shape[1]
+                        repeats[0] = 1
+                        repeats[-1] = 1
+                        segments = np.repeat(segments, repeats, axis=1)
+                    lines = groupElem.connect[:, segments].reshape(-1, 2)
+                    list_lines.append(lines)
+
+                # get lines
+                lines = np.concatenate(list_lines, axis=0)
+
+                # get default colors
+                blackColors = [Gf.Vec3f(0.0, 0.0, 0.0)] * mesh.Nn
+
+        # create mesh
+        xform = UsdGeom.Xform.Define(stage, f"/Frame_{i:03d}")
+        mesh_prim = UsdGeom.Mesh.Define(stage, f"/Frame_{i:03d}/Mesh")
         mesh_prim.CreateFaceVertexCountsAttr([3] * triangles.shape[0])
         mesh_prim.CreateFaceVertexIndicesAttr(triangles.ravel().tolist())
         mesh_prim.CreateDoubleSidedAttr(True)
-        list_point = [Gf.Vec3f(x, y, z) for x, y, z in zip(*coord0.T)]
+
+        # set mesh coordinates
+        coords = mesh.coord
+        if Ndisplacement > 0:
+            coords += list_displacementMatrix[i]
+        list_point = [Gf.Vec3f(x, y, z) for x, y, z in zip(*coords.T)]
         mesh_prim.CreatePointsAttr().Set(list_point)
-        list_color = [Gf.Vec3f(0.5, 0.5, 0.5)] * mesh.Nn
+
+        # set colors
+        if Nvalues > 0:
+            colors = Display._Get_colors_for_values(
+                list_nodesValues[i], vMax=vMax, vMin=vMin, cmap=cmap
+            )
+            list_color = [Gf.Vec3f(*color) for color in colors]
+        else:
+            list_color = defaultColors
         mesh_prim.CreateDisplayColorPrimvar(UsdGeom.Tokens.vertex).Set(list_color)
-    else:
-        for i, displacement in enumerate(list_displacementMatrix):
-            xform = UsdGeom.Xform.Define(stage, f"/Frame_{i:03d}")
-            mesh_prim = UsdGeom.Mesh.Define(stage, f"/Frame_{i:03d}/Mesh")
 
-            mesh_prim.CreateFaceVertexCountsAttr([3] * triangles.shape[0])
-            mesh_prim.CreateFaceVertexIndicesAttr(triangles.ravel().tolist())
-            mesh_prim.CreateDoubleSidedAttr(True)
-
-            coords = coord0 + displacement
-            list_point = [Gf.Vec3f(x, y, z) for x, y, z in zip(*coords.T)]
-            mesh_prim.CreatePointsAttr().Set(list_point)
-
-            if Nvalues > 0:
-                nodesValues = list_nodesValues[i]
-                colors = Display._Get_colors_for_values(
-                    values=nodesValues, vMin=vMin, vMax=vMax
-                )
-                list_color = [Gf.Vec3f(*color) for color in colors]
-            else:
-                list_color = [Gf.Vec3f(0.5, 0.5, 0.5)] * mesh.Nn
-            mesh_prim.CreateDisplayColorPrimvar(UsdGeom.Tokens.vertex).Set(list_color)
-
-            scale_op = xform.AddScaleOp()
-
+        if Niter > 1:
             # Tips for forcing stepwise interpolation and avoiding clipping!
+            scale_op = xform.AddScaleOp()
             # For each frame of the animation
             for f in range(Ndisplacement):
                 if f == i:  # visible
