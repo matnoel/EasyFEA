@@ -22,7 +22,7 @@ if TYPE_CHECKING:
     from ..Simulations import _Simu
 
 try:
-    from pxr import Usd, UsdGeom, Gf, UsdUtils
+    from pxr import Usd, UsdGeom, Gf, UsdUtils, Vt
 except ImportError:
     pass
 requires_pxr = Create_requires_decorator("pxr", libraries=["usd-core"])
@@ -133,6 +133,29 @@ def Save_simu(
             )
 
 
+def _get_triangles(mesh: "Mesh") -> np.ndarray:
+    return np.concatenate(
+        [
+            groupElem.connect[:, groupElem.triangles].reshape(-1, 3)
+            for groupElem in mesh.Get_list_groupElem(2)
+        ],
+        axis=0,
+    )
+
+
+def _get_lines(mesh: "Mesh") -> np.ndarray:
+    list_lines = []
+    for groupElem in mesh.Get_list_groupElem(2):
+        segments = groupElem.segments
+        if segments.shape[1] > 2:
+            repeats = [2] * segments.shape[1]
+            repeats[0] = 1
+            repeats[-1] = 1
+            segments = np.repeat(segments, repeats, axis=1)
+        list_lines.append(groupElem.connect[:, segments].reshape(-1, 2))
+    return np.concatenate(list_lines, axis=0)
+
+
 @requires_pxr
 def Save_mesh(
     mesh: "Mesh",
@@ -144,8 +167,9 @@ def Save_mesh(
     cmap: str = "jet",
     fps: int = 30,
     unit: float = 1.0,
+    smoothAnimation: bool = False,
 ) -> str:
-    """Saves the mesh as glb file.
+    """Saves the mesh as usdz file.
 
     Parameters
     ----------
@@ -157,20 +181,27 @@ def Save_mesh(
         The name of the solution file, by default "mesh"
     list_displacementMatrix : list[np.ndarray], optional
         List of displacement matrix, by default []
+    list_nodesValues_n : list[np.ndarray], optional
+        List of node values for colors, by default []
     plotMesh : bool, optional
-        displays mesh, by default False
+        If True, wrong camera zoom in Keynote
+        If False, good camera zoom in Keynote
+        Default False
     cmap: str, optional
-        the color map used near the figure, by default "jet" \n
-        ["jet", "seismic", "binary", "viridis"] -> https://matplotlib.org/stable/tutorials/colors/colormaps.html
+        the color map, by default "jet"
     fps : int, optional
         Frames per second, by default 30
     unit: float, optional
         Meters per unit, by default 1.0
+    smoothAnimation: bool, optional
+        If True, smooth interpolation on Preview but no animation on Keynote.
+        If False, frame-by-frame animation on Previewer and Keynote.
+        Default False.
 
     Returns
     -------
     str
-        The path to the created glb file.
+        The path to the created usdz file.
     """
 
     updatedMesh = isinstance(mesh, list)
@@ -198,8 +229,8 @@ def Save_mesh(
     if Nvalues > 0:
         list_nodesValues = _get_list_nodesValues(list_nodesValues_n)
         if updatedMesh:
-            vMin = np.min([np.min(nodeValues) for nodeValues in list_nodesValues])
-            vMax = np.max([np.max(nodeValues) for nodeValues in list_nodesValues])
+            vMin = np.min([np.min(v) for v in list_nodesValues])
+            vMax = np.max([np.max(v) for v in list_nodesValues])
         else:
             vMin, vMax = np.min(list_nodesValues), np.max(list_nodesValues)
         Display._Save_colorbar(
@@ -211,101 +242,195 @@ def Save_mesh(
         )
 
     # init stage
-    usdaFile = Folder.Join(folder, f"{filename}.usda")
-    stage = Usd.Stage.CreateNew(usdaFile)
+    usdcFile = Folder.Join(folder, f"{filename}.usdc")
+    stage = Usd.Stage.CreateNew(usdcFile)
     stage.SetTimeCodesPerSecond(fps)
     stage.SetStartTimeCode(0)
-    stage.SetEndTimeCode(Ndisplacement - 1 if Ndisplacement > 0 else 0)
+    stage.SetEndTimeCode(Niter - 1 if Niter > 1 else 0)
     UsdGeom.SetStageUpAxis(stage, UsdGeom.Tokens.y)
     UsdGeom.SetStageMetersPerUnit(stage, unit)
 
-    for i in range(Niter):
+    # get initial topology
+    triangles = _get_triangles(mesh)
+    defaultColors = np.full((mesh.Nn, 3), 0.5, dtype=np.float32)
+    if plotMesh:
+        lines = _get_lines(mesh)
 
-        if updatedMesh or i == 0:
-            # get triangles connectivity
-            triangles = np.concatenate(
-                [
-                    groupElem.connect[:, groupElem.triangles].reshape(-1, 3)
-                    for groupElem in mesh.Get_list_groupElem(2)
-                ],
-                axis=0,
+    # ========== SMOOTH ANIMATION MODE ==========
+    if smoothAnimation:
+
+        meshPrim = UsdGeom.Mesh.Define(stage, "/Mesh")
+        meshPrim.CreateDoubleSidedAttr(True)
+
+        # create time-sampled attributes for triangles
+        faceCount_attr = meshPrim.CreateFaceVertexCountsAttr()
+        faceIndex_attr = meshPrim.CreateFaceVertexIndicesAttr()
+        points_attr = meshPrim.CreatePointsAttr()
+        color_primvar = meshPrim.CreateDisplayColorPrimvar(UsdGeom.Tokens.vertex)
+
+        # and for lines
+        if plotMesh:
+            linePrim = UsdGeom.BasisCurves.Define(stage, "/Lines")
+            linePrim.CreateTypeAttr(UsdGeom.Tokens.linear)
+            linePrim.CreateWrapAttr(UsdGeom.Tokens.nonperiodic)
+            # updatable attributes
+            curveCount_attr = linePrim.CreateCurveVertexCountsAttr()
+            linePoints_attr = linePrim.CreatePointsAttr()
+            lineColor_primvar = linePrim.CreateDisplayColorPrimvar(
+                UsdGeom.Tokens.uniform
             )
+        else:
+            meshPrim.CreateSubdivisionSchemeAttr().Set(UsdGeom.Tokens.none)
 
-            # get default colors
-            defaultColors = [Gf.Vec3f(0.5, 0.5, 0.5)] * mesh.Nn
+        # set static topology if not updated
+        if not updatedMesh:
+            faceCount_attr.Set(
+                Vt.IntArray.FromNumpy(np.full(triangles.shape[0], 3, dtype=np.int32))
+            )
+            faceIndex_attr.Set(
+                Vt.IntArray.FromNumpy(triangles.ravel().astype(np.int32))
+            )
+            if plotMesh:
+                curveCount_attr.Set(
+                    Vt.IntArray.FromNumpy(np.full(lines.shape[0], 2, dtype=np.int32))
+                )
+                lineColor_primvar.Set(
+                    Vt.Vec3fArray.FromNumpy(
+                        np.zeros((lines.shape[0], 3), dtype=np.float32)
+                    )
+                )
+
+        for i in range(Niter):
+            timecode = i if Niter > 1 else Usd.TimeCode.Default()
+
+            if updatedMesh:
+                mesh = list_mesh[i]
+                # update topology
+                triangles = _get_triangles(mesh)
+                faceCount_attr.Set(
+                    Vt.IntArray.FromNumpy(
+                        np.full(triangles.shape[0], 3, dtype=np.int32)
+                    ),
+                    timecode,
+                )
+                faceIndex_attr.Set(
+                    Vt.IntArray.FromNumpy(triangles.ravel().astype(np.int32)), timecode
+                )
+                if plotMesh:
+                    lines = _get_lines(mesh)
+                    curveCount_attr.Set(
+                        Vt.IntArray.FromNumpy(
+                            np.full(lines.shape[0], 2, dtype=np.int32)
+                        ),
+                        timecode,
+                    )
+            else:
+                mesh = mesh
+
+            # update coordinates
+            coords = mesh.coord.astype(np.float32).copy()
+            if Ndisplacement > 0:
+                coords += list_displacementMatrix[i].astype(np.float32)
+            points_attr.Set(Vt.Vec3fArray.FromNumpy(coords), timecode)
 
             if plotMesh:
-                # get list_lines
-                list_lines: list[np.ndarray] = []
-                for groupElem in mesh.Get_list_groupElem(2):
-                    segments = groupElem.segments
-                    if segments.shape[1] > 2:
-                        repeats = [2] * segments.shape[1]
-                        repeats[0] = 1
-                        repeats[-1] = 1
-                        segments = np.repeat(segments, repeats, axis=1)
-                    lines = groupElem.connect[:, segments].reshape(-1, 2)
-                    list_lines.append(lines)
+                linePoints_attr.Set(
+                    Vt.Vec3fArray.FromNumpy(coords[lines].reshape(-1, 3)), timecode
+                )
+                if updatedMesh:
+                    lineColor_primvar.Set(
+                        Vt.Vec3fArray.FromNumpy(
+                            np.zeros((lines.shape[0], 3), dtype=np.float32)
+                        ),
+                        timecode,
+                    )
 
-                # get lines
-                lines = np.concatenate(list_lines, axis=0)
+            # colors
+            if Nvalues > 0:
+                colors = Display._Get_colors_for_values(
+                    list_nodesValues[i], vMax=vMax, vMin=vMin, cmap=cmap
+                ).astype(np.float32)
+            else:
+                colors = np.full((mesh.Nn, 3), 0.5, dtype=np.float32)
 
-                # get default colors
-                blackColors = [Gf.Vec3f(0.0, 0.0, 0.0)] * lines.shape[0]
+            color_primvar.Set(Vt.Vec3fArray.FromNumpy(colors), timecode)
 
-        # create mesh
-        xform = UsdGeom.Xform.Define(stage, f"/Frame_{i:03d}")
-        mesh_prim = UsdGeom.Mesh.Define(stage, f"/Frame_{i:03d}/Mesh")
-        mesh_prim.CreateFaceVertexCountsAttr([3] * triangles.shape[0])
-        mesh_prim.CreateFaceVertexIndicesAttr(triangles.ravel().tolist())
-        mesh_prim.CreateDoubleSidedAttr(True)
-        if plotMesh:
-            line_prim = UsdGeom.BasisCurves.Define(stage, f"/Frame_{i:03d}/Line")
-            line_prim.CreateTypeAttr(UsdGeom.Tokens.linear)
-            line_prim.CreateWrapAttr(UsdGeom.Tokens.nonperiodic)
-            line_prim.CreateCurveVertexCountsAttr([2] * lines.shape[0])
+    # ========== SLIDESHOW ANIMATION MODE ==========
+    else:
 
-        # set mesh coordinates
-        coords = mesh.coord
-        if Ndisplacement > 0:
-            coords += list_displacementMatrix[i]
-        list_point = [Gf.Vec3f(x, y, z) for x, y, z in zip(*coords.T)]
-        mesh_prim.CreatePointsAttr().Set(list_point)
-        if plotMesh:
-            line_prim.CreatePointsAttr().Set(list_point)
+        for i in range(Niter):
 
-        # set colors
-        if Nvalues > 0:
-            colors = Display._Get_colors_for_values(
-                list_nodesValues[i], vMax=vMax, vMin=vMin, cmap=cmap
+            if updatedMesh:
+                mesh = list_mesh[i]
+                triangles = _get_triangles(mesh)
+                defaultColors = np.full((mesh.Nn, 3), 0.5, dtype=np.float32)
+                if plotMesh:
+                    lines = _get_lines(mesh)
+            else:
+                mesh = mesh
+
+            # coordinates
+            coords = mesh.coord.astype(np.float32)
+            if Ndisplacement > 0:
+                coords += list_displacementMatrix[i].astype(np.float32)
+
+            # create frame
+            xform = UsdGeom.Xform.Define(stage, f"/Frame_{i:03d}")
+
+            meshPrim = UsdGeom.Mesh.Define(stage, f"/Frame_{i:03d}/Mesh")
+            meshPrim.CreateDoubleSidedAttr(True)
+            meshPrim.CreateFaceVertexCountsAttr(
+                Vt.IntArray.FromNumpy(np.full(triangles.shape[0], 3, dtype=np.int32))
             )
-            list_color = [Gf.Vec3f(*color) for color in colors]
-        else:
-            list_color = defaultColors
-        mesh_prim.CreateDisplayColorPrimvar(UsdGeom.Tokens.vertex).Set(list_color)
-        if plotMesh:
-            lines_coords = coords[lines].reshape(-1, 3)
-            list_point = [Gf.Vec3f(*coords) for coords in lines_coords]
-            line_prim.CreatePointsAttr().Set(list_point)
-            line_prim.CreateDisplayColorPrimvar(UsdGeom.Tokens.uniform).Set(blackColors)
+            meshPrim.CreateFaceVertexIndicesAttr(
+                Vt.IntArray.FromNumpy(triangles.ravel().astype(np.int32))
+            )
+            meshPrim.CreatePointsAttr().Set(Vt.Vec3fArray.FromNumpy(coords))
 
-        if Niter > 1:
-            # Tips for forcing stepwise interpolation and avoiding clipping!
-            scale_op = xform.AddScaleOp()
-            # For each frame of the animation
-            for f in range(Ndisplacement):
-                if f == i:  # visible
-                    scale_op.Set(Gf.Vec3f(1, 1, 1), f)
-                    scale_op.Set(Gf.Vec3f(1, 1, 1), f + 0.99999)
-                else:  # invisible
-                    scale_op.Set(Gf.Vec3f(0, 0, 0), f)
-                    if f < Ndisplacement - 1:
-                        scale_op.Set(Gf.Vec3f(0, 0, 0), f + 0.99999)
+            if plotMesh:
+                linePrim = UsdGeom.BasisCurves.Define(stage, f"/Frame_{i:03d}/Lines")
+                linePrim.CreateTypeAttr(UsdGeom.Tokens.linear)
+                linePrim.CreateWrapAttr(UsdGeom.Tokens.nonperiodic)
+                linePrim.CreateCurveVertexCountsAttr(
+                    Vt.IntArray.FromNumpy(np.full(lines.shape[0], 2, dtype=np.int32))
+                )
+                line_coords = coords[lines].reshape(-1, 3)
+                linePrim.CreatePointsAttr().Set(Vt.Vec3fArray.FromNumpy(line_coords))
+                linePrim.CreateDisplayColorPrimvar(UsdGeom.Tokens.uniform).Set(
+                    Vt.Vec3fArray.FromNumpy(
+                        np.zeros((lines.shape[0], 3), dtype=np.float32)
+                    )
+                )
+            else:
+                meshPrim.CreateSubdivisionSchemeAttr().Set(UsdGeom.Tokens.none)
+
+            # colors
+            if Nvalues > 0:
+                colors = Display._Get_colors_for_values(
+                    list_nodesValues[i], vMax=vMax, vMin=vMin, cmap=cmap
+                ).astype(np.float32)
+            else:
+                colors = defaultColors
+
+            meshPrim.CreateDisplayColorPrimvar(UsdGeom.Tokens.vertex).Set(
+                Vt.Vec3fArray.FromNumpy(colors)
+            )
+
+            # animate visibility via scale
+            if Niter > 1:
+                scale_op = xform.AddScaleOp()
+                for f in range(Niter):
+                    if f == i:
+                        scale_op.Set(Gf.Vec3f(1, 1, 1), f)
+                        scale_op.Set(Gf.Vec3f(1, 1, 1), f + 0.99999)
+                    else:
+                        scale_op.Set(Gf.Vec3f(0, 0, 0), f)
+                        if f < Niter - 1:
+                            scale_op.Set(Gf.Vec3f(0, 0, 0), f + 0.99999)
 
     stage.GetRootLayer().Save()
 
-    # define usdz file
     usdzFile = Folder.Join(folder, f"{filename}.usdz")
-    UsdUtils.CreateNewUsdzPackage(usdaFile, usdzFile)
+    UsdUtils.CreateNewUsdzPackage(usdcFile, usdzFile)
 
-    return usdaFile
+    return usdzFile
