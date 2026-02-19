@@ -3,11 +3,9 @@
 # This file is part of the EasyFEA project.
 # EasyFEA is distributed under the terms of the GNU General Public License v3, see LICENSE.txt and CREDITS.md for more information.
 
-"""Module providing an interface with Graphics Library Transmission Format (GLTF) using pygltflib (https://pypi.org/project/pygltflib/)."""
-# https://registry.khronos.org/glTF/specs/2.0/glTF-2.0.html#geometry
+"""Module providing an interface with Universal Scene Description Format (USD) using usd-core (https://pypi.org/project/usd-core/)."""
 
 from __future__ import annotations
-import os
 from typing import TYPE_CHECKING
 
 import numpy as np
@@ -35,14 +33,15 @@ def Save_simu(
     simu: "_Simu",
     results: list[str],
     folder: str,
-    filename: str = None,
     N: int = 50,
     deformFactor=1.0,
     plotMesh=False,
+    cmap: str = "jet",
     fps: int = 30,
     unit: float = 1.0,
+    smoothAnimation: bool = True,
 ) -> None:
-    """Saves the simulation as usda file.
+    """Saves the simulation's results as usdz files.
 
     Parameters
     ----------
@@ -57,19 +56,23 @@ def Save_simu(
     deformFactor : float, optional
         Factor used to display the deformed solution (0 means no deformations), default 0.0
     plotMesh : bool, optional
-        displays mesh, by default False
+        If True, wrong camera zoom in Keynote.
+        If False, good camera zoom in Keynote.
+        Default False
+    cmap: str, optional
+        the color map used near the figure, by default "jet" \n
+        ["jet", "seismic", "binary", "viridis"] -> https://matplotlib.org/stable/tutorials/colors/colormaps.html
     fps : int, optional
         Frames per second, by default 30
     unit: float, optional
         Meters per unit, by default 1.0
-
-    Returns
-    -------
-    str
-        The path to the created usda file.
+    smoothAnimation: bool, optional
+        If True, smooth interpolation on Preview but no animation on Keynote.
+        If False, frame-by-frame animation on Previewer and Keynote.
+        Default True.
     """
 
-    simu, mesh, _, _ = _Init_obj(simu)  # type: ignore [assignment]
+    simu = _Init_obj(simu)[0]  # type: ignore [assignment]
 
     if simu is None:
         Display.MyPrintError("Must give a simulation.")
@@ -116,8 +119,10 @@ def Save_simu(
                     nodesValues_n[:, d] for nodesValues_n in list_nodesValues_n
                 ],
                 plotMesh=plotMesh,
+                cmap=cmap,
                 fps=fps,
                 unit=unit,
+                smoothAnimation=smoothAnimation,
             )
 
         if dof_n > 1:
@@ -128,8 +133,10 @@ def Save_simu(
                 list_displacementMatrix=list_displacementMatrix,
                 list_nodesValues_n=list_nodesValues_n,
                 plotMesh=plotMesh,
+                cmap=cmap,
                 fps=fps,
                 unit=unit,
+                smoothAnimation=smoothAnimation,
             )
 
 
@@ -167,7 +174,7 @@ def Save_mesh(
     cmap: str = "jet",
     fps: int = 30,
     unit: float = 1.0,
-    smoothAnimation: bool = False,
+    smoothAnimation: bool = True,
 ) -> str:
     """Saves the mesh as usdz file.
 
@@ -184,19 +191,20 @@ def Save_mesh(
     list_nodesValues_n : list[np.ndarray], optional
         List of node values for colors, by default []
     plotMesh : bool, optional
-        If True, wrong camera zoom in Keynote
-        If False, good camera zoom in Keynote
+        If True, wrong camera zoom in Keynote.
+        If False, good camera zoom in Keynote.
         Default False
     cmap: str, optional
-        the color map, by default "jet"
+        the color map used near the figure, by default "jet" \n
+        ["jet", "seismic", "binary", "viridis"] -> https://matplotlib.org/stable/tutorials/colors/colormaps.htmlcmap: str, optional
     fps : int, optional
         Frames per second, by default 30
     unit: float, optional
         Meters per unit, by default 1.0
     smoothAnimation: bool, optional
-        If True, smooth interpolation on Preview but no animation on Keynote.
-        If False, frame-by-frame animation on Previewer and Keynote.
-        Default False.
+        If True, smooth interpolation in Preview but no animation in Keynote.
+        If False, frame-by-frame animation in Preview and Keynote.
+        Default True.
 
     Returns
     -------
