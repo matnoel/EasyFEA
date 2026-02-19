@@ -380,7 +380,7 @@ def Save_simu(
         A command string for visualizing the saved results using vizir.
     """
 
-    assert isinstance(simu, "_Simu")
+    # assert isinstance(simu, "_Simu")
 
     # sample the results
     Niter = simu.Niter
