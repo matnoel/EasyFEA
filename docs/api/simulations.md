@@ -1,7 +1,7 @@
 (simulations)=
 # Simulations
 
-The {py:mod}`EasyFEA.Simulations` module in EasyFEA provides essential tools for creating and managing simulations.
+The {py:mod}`EasyFEA.Simulations` module provides essential tools for creating and managing simulations.
 These simulations are built using a {py:class}`~EasyFEA.FEM.Mesh` and a {py:class}`~EasyFEA.Models._IModel` (material).
 
 With this module, you can construct:

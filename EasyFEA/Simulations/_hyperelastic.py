@@ -54,7 +54,7 @@ class HyperElastic(_Simu):
         \int_{\Omega_0} \Drm_\ub \eb(\ub) \cdot \wb : \dNpartial{2}{W}{\eb}(\ub) : \Drm_\ub \eb(\vb) \, \dO +
         \int_{\Omega_0} \dpartial{W}{\eb}(\ub) : \Drm_\ub^2 \eb(\vb, \wb) \, \dO
 
-    The implemented hyperelastic laws are available :ref:`here <models-hyperelastic>` and where constructed by the :ref:`ComputeHyperelasticLaws` script.
+    The implemented hyperelastic laws are available :ref:`here <models-hyperelastic>` and were constructed by the :ref:`ComputeHyperelasticLaws` script.
     """
 
     # TODO: add math

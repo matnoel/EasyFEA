@@ -1,7 +1,7 @@
 (utilities)=
 # Utilities
 
-The {py:mod}`EasyFEA.Utilities` module in EasyFEA provides essential tools for post processing.
+The {py:mod}`EasyFEA.Utilities` module provides essential tools for post processing.
 
 ```{eval-rst}
 .. autosummary::

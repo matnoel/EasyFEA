@@ -1,7 +1,7 @@
 (models)=
 # Models
 
-The {py:mod}`EasyFEA.Models` module in EasyFEA provides essential tools for creating and managing models.
+The {py:mod}`EasyFEA.Models` module provides essential tools for creating and managing models.
 These models are used to build {py:class}`~EasyFEA.Simulations._Simu` instances and mainly contain material parameters.
 
 

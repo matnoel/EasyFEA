@@ -1,7 +1,7 @@
 (fem)=
 # FEM
 
-The {py:mod}`EasyFEA.FEM` module in EasyFEA provides essential tools for creating and managing finite element meshes, which are crucial for numerical simulations using the [Finite Element Method](https://en.wikipedia.org/wiki/Finite_element_method) (FEM).
+The {py:mod}`EasyFEA.FEM` module provides essential tools for creating and managing finite element meshes, which are crucial for numerical simulations using the [Finite Element Method](https://en.wikipedia.org/wiki/Finite_element_method) (FEM).
 
 ---
 
