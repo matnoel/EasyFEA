@@ -50,17 +50,14 @@ def Compute_ukl(
         for n0, n1 in paired_nodes:
             nodes = np.array([n0, n1])
 
+            delta = (coord[n0] - coord[n1])[:2]
+            values = Ekl @ delta
+
             for d, direction in enumerate(directions):
                 dofs = simu.Bc_dofs_nodes(nodes, [direction])
 
-                values = Ekl @ [
-                    coord[n0, 0] - coord[n1, 0],
-                    coord[n0, 1] - coord[n1, 1],
-                ]
-                value = values[d]
-
                 condition = LagrangeCondition(
-                    "elastic", nodes, dofs, [direction], [value], [1, -1]
+                    "elastic", nodes, dofs, [direction], [values[d]], [1, -1]
                 )
                 simu._Bc_Add_Lagrange(condition)
 
