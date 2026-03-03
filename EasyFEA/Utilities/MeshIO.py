@@ -889,7 +889,7 @@ def PyVista_to_EasyFEA(pyVistaMesh: Union[pv.UnstructuredGrid, pv.MultiBlock]) -
     elif isinstance(pyVistaMesh, pv.UnstructuredGrid):
         read_grid(pyVistaMesh, 0)
     else:
-        raise TypeError("Wrond type.")
+        raise TypeError("Wrong type.")
 
     mesh = Mesh(dict_groupElem)
 
