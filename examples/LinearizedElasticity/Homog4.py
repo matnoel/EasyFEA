@@ -7,11 +7,7 @@
 Homog4
 ======
 
-Conduct 3d homogenization.
-
-WARNING
--------
-Verify that the periodic boundary conditions have been correctly applied.
+Conduct 3d homogenization on a simple RVE.
 """
 # sphinx_gallery_thumbnail_number = -1
 
@@ -20,54 +16,54 @@ import numpy as np
 
 from EasyFEA import Display, Models, ElemType, Simulations, PyVista
 from EasyFEA.Geoms import Points, Circle
-from EasyFEA.FEM import Mesh, LagrangeCondition, FeArray
+from EasyFEA.FEM import LagrangeCondition, FeArray
 from typing import Optional
 
 
 def Compute_ukl(
     simu: Simulations.Elastic,
-    nodes_border: np.ndarray,
     Ekl: np.ndarray,
-    paired_nodes: Optional[np.ndarray] = None,
+    nodesKUBC: Optional[np.ndarray] = None,
+    pairedNodes: Optional[np.ndarray] = None,
     pltSol=False,
 ):
     simu.Bc_Init()
     mesh = simu.mesh
     coord = mesh.coord
 
-    usePER = paired_nodes is not None
-
-    def func_ux(x, y, z):
-        return Ekl.dot([x, y, z])[0]
-
-    def func_uy(x, y, z):
-        return Ekl.dot([x, y, z])[1]
-
-    def func_uz(x, y, z):
-        return Ekl.dot([x, y, z])[2]
-
     directions = ["x", "y", "z"]
 
-    simu.add_dirichlet(nodes_border, [func_ux, func_uy, func_uz], directions)
+    if nodesKUBC is not None:
 
-    if usePER:
-        for n0, n1 in paired_nodes:
+        def func_ux(x, y, z):
+            return Ekl.dot([x, y, z])[0]
+
+        def func_uy(x, y, z):
+            return Ekl.dot([x, y, z])[1]
+
+        def func_uz(x, y, z):
+            return Ekl.dot([x, y, z])[2]
+
+        simu.add_dirichlet(nodesKUBC, [func_ux, func_uy, func_uz], directions)
+
+    if pairedNodes is not None:
+        for n0, n1 in pairedNodes:
             nodes = np.array([n0, n1])
+
+            delta = coord[n0] - coord[n1]
+            values = Ekl @ delta
 
             for d, direction in enumerate(directions):
                 dofs = simu.Bc_dofs_nodes(nodes, [direction])
 
-                values = Ekl @ [
-                    coord[n0, 0] - coord[n1, 0],
-                    coord[n0, 1] - coord[n1, 1],
-                    coord[n0, 2] - coord[n1, 2],
-                ]
-                value = values[d]
-
                 condition = LagrangeCondition(
-                    "elastic", nodes, dofs, [direction], [value], [1, -1]
+                    "elastic", nodes, dofs, [direction], [values[d]], [1, -1]
                 )
                 simu._Bc_Add_Lagrange(condition)
+
+        # remove rigid body motion
+        nodes = mesh.groupElem._Get_nearby_nodes(mesh.center.reshape(-1, 3))
+        simu.add_dirichlet(nodes, [0, 0, 0], directions)
 
     ukl = simu.Solve()
 
@@ -82,55 +78,6 @@ def Compute_ukl(
         PyVista.Plot(simu, "Sxy", deformFactor=0.3).show()
 
     return ukl
-
-
-def Get_nodes(mesh: Mesh, dimElem: int):
-    """Returns\n
-    nodesLeft, nodesRight, nodesUpper, nodesLower, nodesFront, nodesBack"""
-
-    coord = mesh.coord
-
-    conditions = {
-        "left": lambda x, y, z: x == coord[:, 0].min(),
-        "right": lambda x, y, z: x == coord[:, 0].max(),
-        "lower": lambda x, y, z: y == coord[:, 1].min(),
-        "upper": lambda x, y, z: y == coord[:, 1].max(),
-        "back": lambda x, y, z: z == coord[:, 2].min(),
-        "front": lambda x, y, z: z == coord[:, 2].max(),
-    }
-
-    # get nodes
-    nodes = {key: [] for key in conditions}
-    for groupElem in mesh.Get_list_groupElem(dimElem):
-        for key, condition in conditions.items():
-            nodes[key].extend(groupElem.Get_Nodes_Conditions(condition))
-
-    return tuple(np.asarray(nodes[key]) for key in conditions)
-
-
-def Get_kubc_nodes(mesh: Mesh, dimElem: int = 0):
-    """Returns nodes_kubc"""
-
-    coord = mesh.coord
-
-    # conditions to get nodes on x and y faces
-    conditions = [
-        lambda x, y, z: x == coord[:, 0].min(),
-        lambda x, y, z: x == coord[:, 0].max(),
-        lambda x, y, z: y == coord[:, 1].min(),
-        lambda x, y, z: y == coord[:, 1].max(),
-        # lambda x, y, z: z == coord[:, 2].min(),
-        # lambda x, y, z: z == coord[:, 2].max(),
-    ]
-
-    # get nodes
-    nodes_kubc: set[int] = set()
-    for groupElem in mesh.Get_list_groupElem(dimElem):
-        for condition in conditions:
-            nodes = groupElem.Get_Nodes_Conditions(condition)
-            nodes_kubc = nodes_kubc.union(nodes)
-
-    return np.asarray(list(nodes_kubc), dtype=int)
 
 
 if __name__ == "__main__":
@@ -148,7 +95,7 @@ if __name__ == "__main__":
     # ----------------------------------------------
     # Mesh
     # ----------------------------------------------
-    meshSize = 1 / 10
+    meshSize = 1 / 5
 
     p0 = (-1 / 2, -1 / 2)
     p1 = (1 / 2, -1 / 2)
@@ -163,10 +110,18 @@ if __name__ == "__main__":
     inclusion = Circle((0, 0), 2 * r, meshSize, isHollow=False)
     # contour.Plot_Geoms([contour, inclusion])
 
-    elemType = ElemType.PRISM6
-    mesh = contour.Mesh_Extrude([inclusion], [0, 0, 1], [1 / meshSize], elemType)
+    elemType = ElemType.PRISM15
+    mesh = contour.Mesh_Extrude(
+        [inclusion],
+        [0, 0, 1],
+        [1 / meshSize],
+        elemType,
+        additionalPoints=[inclusion.center],
+    )
+    mesh.Translate(*-mesh.center)  # center mesh on 0,0,0
 
     plotter = PyVista.Plot_Mesh(mesh)
+    plotter.show_grid()
     plotter.add_title("RVE")
     plotter.show()
 
@@ -175,22 +130,25 @@ if __name__ == "__main__":
     # ----------------------------------------------
 
     # PyVista.Plot_Tags(mesh).show()
-
-    nodesLeft, nodesRight, nodesLower, nodesUpper, nodesFront, nodesBack = Get_nodes(
-        mesh, dimElem=2
-    )
+    coord = mesh.coord
+    nodesXm = mesh.Nodes_Conditions(lambda x, y, z: x <= coord[:, 0].min())
+    nodesXp = mesh.Nodes_Conditions(lambda x, y, z: x == coord[:, 0].max())
+    nodesYm = mesh.Nodes_Conditions(lambda x, y, z: y == coord[:, 1].min())
+    nodesYp = mesh.Nodes_Conditions(lambda x, y, z: y == coord[:, 1].max())
+    nodesZm = mesh.Nodes_Conditions(lambda x, y, z: z == coord[:, 2].min())
+    nodesZp = mesh.Nodes_Conditions(lambda x, y, z: z == coord[:, 2].max())
 
     if plotSurfaces:
         plotter = PyVista.Plot(mesh, alpha=0.1)
         colors = plt.get_cmap("tab10").colors
 
         dict_nodes = {
-            f"{nodesLeft=}".split("=")[0]: nodesLeft,
-            f"{nodesRight=}".split("=")[0]: nodesRight,
-            f"{nodesLower=}".split("=")[0]: nodesLower,
-            f"{nodesUpper=}".split("=")[0]: nodesUpper,
-            f"{nodesFront=}".split("=")[0]: nodesFront,
-            f"{nodesBack=}".split("=")[0]: nodesBack,
+            f"{nodesXm=}".split("=")[0]: nodesXm,
+            f"{nodesXp=}".split("=")[0]: nodesXp,
+            f"{nodesYm=}".split("=")[0]: nodesYm,
+            f"{nodesYp=}".split("=")[0]: nodesYp,
+            f"{nodesZm=}".split("=")[0]: nodesZm,
+            f"{nodesZp=}".split("=")[0]: nodesZp,
         }
 
         for i, (name, nodes) in enumerate(dict_nodes.items()):
@@ -201,40 +159,24 @@ if __name__ == "__main__":
         plotter.show()
 
     if usePBC:
-        # Hybrid PBC setup
-        nodes_kubc = Get_kubc_nodes(mesh, dimElem=0)
-        # PyVista.Plot_Nodes(mesh, nodes_kubc).show()
+        nodesKUBC = None
 
-        # get nodes along x, y and z directions
-        nodes_x = set(nodesLeft).union(nodesRight)
-        nodes_y = set(nodesLower).union(nodesUpper)
-        nodes_z = set(nodesFront).union(nodesBack)
+        # remove Xp nodes on Y nodes
+        nodesYp = np.array(list(set(nodesYp) - set(nodesXp)))
+        nodesYm = np.array(list(set(nodesYm) - set(nodesXp)))
 
-        # get nodes along ij directions
-        nodes_xy = nodes_x.union(nodes_y)
-        nodes_xz = nodes_x.union(nodes_z)
-        nodes_yz = nodes_y.union(nodes_z)
+        # remove Xp and Yp nodes on Z nodes
+        nodesZp = np.array(list(set(nodesZp) - set(nodesXp) - set(nodesYp)))
+        nodesZm = np.array(list(set(nodesZm) - set(nodesXp) - set(nodesYp)))
 
-        # Get nodes along the y-axis without nodes along x axis.
-        nodesLower = np.array([node for node in nodesLower if node not in nodes_x])
-        nodesUpper = np.array([node for node in nodesUpper if node not in nodes_x])
-
-        # Get nodes along the z-axis without nodes along x and y axis.
-        nodesFront = np.array([node for node in nodesFront if node not in nodes_xy])
-        nodesBack = np.array([node for node in nodesBack if node not in nodes_xy])
-
-        paired_surfaces = [
-            (nodesLeft, nodesRight),  # x
-            (nodesLower, nodesUpper),  # y
-            (nodesFront, nodesBack),  # z
+        list_tuple_nodes = [
+            (nodesXm, nodesXp),
+            (nodesYm, nodesYp),
+            (nodesZm, nodesZp),
         ]
 
         # get paired nodes
-        for i, (nodes1, nodes2) in enumerate(paired_surfaces):
-
-            # remove kubc nodes
-            nodes1 = np.array(list(set(nodes1) - set(nodes_kubc)))
-            nodes2 = np.array(list(set(nodes2) - set(nodes_kubc)))
+        for i, (nodes1, nodes2) in enumerate(list_tuple_nodes):
 
             # sort nodes
             sorted_nodes2 = np.zeros_like(nodes1)
@@ -258,25 +200,25 @@ if __name__ == "__main__":
                 plotter.show()
 
             # set new paired nodes
-            newPairedNodes = np.array([nodes1, nodes2]).T
+            newPairedNodes = np.array([nodes1, nodes2], dtype=int).T
             if i == 0:
-                paired_nodes = newPairedNodes
+                pairedNodes = newPairedNodes
             else:
-                paired_nodes = np.concatenate((paired_nodes, newPairedNodes))
+                pairedNodes = np.concatenate((pairedNodes, newPairedNodes))
 
     else:
-        nodes_kubc = set(
-            np.concatenate(
-                [nodesLeft, nodesRight, nodesUpper, nodesLower, nodesBack, nodesFront]
-            )
+        nodesKUBC = set(
+            np.concatenate([nodesXm, nodesXp, nodesYp, nodesYm, nodesZm, nodesZm])
         )
-        nodes_kubc = list(nodes_kubc)
-        paired_nodes = None
+        nodesKUBC = list(nodesKUBC)
+        pairedNodes = None
 
     # ----------------------------------------------
     # Material and Simulation
     # ----------------------------------------------
-    elements_inclusion = mesh.Elements_Tags(["V1"])
+    elements_inclusion = (
+        np.array([]) if inclusion.isHollow else mesh.Elements_Tags(["V1"])
+    )
     elements_matrix = mesh.Elements_Tags(["V0"])
 
     E = np.zeros_like(mesh.groupElem.elements, dtype=float)
@@ -295,26 +237,27 @@ if __name__ == "__main__":
 
     PyVista.Plot(simu, E, nodeValues=False, colorbarTitle="E [MPa]").show()
     PyVista.Plot(simu, v, nodeValues=False, colorbarTitle="v").show()
+    PyVista.Plot(simu, material.get_mu(), nodeValues=False, colorbarTitle="G").show()
 
     # ----------------------------------------------
     # Homogenization
     # ----------------------------------------------
     r2 = np.sqrt(2)
-    E11 = np.array(
+    E1 = np.array(
         [
             [1, 0, 0],
             [0, 0, 0],
             [0, 0, 0],
         ]
     )
-    E22 = np.array(
+    E2 = np.array(
         [
             [0, 0, 0],
             [0, 1, 0],
             [0, 0, 0],
         ]
     )
-    E33 = np.array(
+    E3 = np.array(
         [
             [0, 0, 0],
             [0, 0, 0],
@@ -343,12 +286,12 @@ if __name__ == "__main__":
         ]
     )
 
-    u11 = Compute_ukl(simu, nodes_kubc, E11, paired_nodes, True)
-    u22 = Compute_ukl(simu, nodes_kubc, E22, paired_nodes)
-    u33 = Compute_ukl(simu, nodes_kubc, E33, paired_nodes)
-    u12 = Compute_ukl(simu, nodes_kubc, E12, paired_nodes, True)
-    u13 = Compute_ukl(simu, nodes_kubc, E13, paired_nodes)
-    u23 = Compute_ukl(simu, nodes_kubc, E23, paired_nodes)
+    u11 = Compute_ukl(simu, E1, nodesKUBC, pairedNodes, True)
+    u22 = Compute_ukl(simu, E2, nodesKUBC, pairedNodes)
+    u33 = Compute_ukl(simu, E3, nodesKUBC, pairedNodes)
+    u12 = Compute_ukl(simu, E12, nodesKUBC, pairedNodes, True)
+    u13 = Compute_ukl(simu, E13, nodesKUBC, pairedNodes)
+    u23 = Compute_ukl(simu, E23, nodesKUBC, pairedNodes)
 
     u11_e = mesh.Locates_sol_e(u11, asFeArray=True)
     u22_e = mesh.Locates_sol_e(u22, asFeArray=True)
