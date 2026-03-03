@@ -50,7 +50,7 @@ EasyFEA uses several libraries, such as NumPy and Gmsh - as such, the following 
 
 ### 🧪 Optional Dependencies
 
-EasyFEA includes a few optional dependencies for reducing resolution time or for performing DIC:
+EasyFEA includes optional dependencies to reduce resolution time, plot results, or perform DIC:
 
 + [`matplotlib`](https://pypi.org/project/matplotlib/) - Plotting package.
 + [`pyvista`](https://pypi.org/project/pyvista/) - Plotting package.
