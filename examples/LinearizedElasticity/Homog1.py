@@ -64,16 +64,13 @@ def Compute_ukl(
     if useMean0:
         nodes = mesh.nodes
         vect = np.ones(mesh.Nn) * 1 / mesh.Nn
-
-        # sum u_i / Nn = 0
-        dofs = simu.Bc_dofs_nodes(nodes, ["x"])
-        condition = LagrangeCondition("elastic", nodes, dofs, ["x"], [0], [vect])
-        simu._Bc_Add_Lagrange(condition)
-
-        # sum v_i / Nn = 0
-        dofs = simu.Bc_dofs_nodes(nodes, ["y"])
-        condition = LagrangeCondition("elastic", nodes, dofs, ["y"], [0], [vect])
-        simu._Bc_Add_Lagrange(condition)
+        for direction in directions:
+            # sum d_i / Nn = 0
+            dofs = simu.Bc_dofs_nodes(nodes, [direction])
+            condition = LagrangeCondition(
+                "elastic", nodes, dofs, [direction], [0], [vect]
+            )
+            simu._Bc_Add_Lagrange(condition)
 
     ukl = simu.Solve()
 
