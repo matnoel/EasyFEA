@@ -18,7 +18,7 @@ if __name__ == "__main__":
     if BUILDING_GALLERY:
         parts_dir = Folder.os.path.abspath("../_parts")
     else:
-        parts_dir = Folder.Join(Folder.EASYFEA_DIR, "examples", "_parts")
+        parts_dir = Folder.Join(Folder.Dir(__file__, 2), "_parts")
 
     stp = Folder.Join(parts_dir, "beam.stp")
     mesh_stp = Mesher().Mesh_Import_part(stp, 3, 13 / 5, ElemType.TETRA4)
