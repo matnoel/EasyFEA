@@ -77,6 +77,6 @@ class TestUSD:
 
             simu = get_simu(mesh)
 
-            usdaFile = USD.Save_simu(simu, ["uy"], folder, mesh.elemType, fps=1)
+            usdaFile = USD.Save_simu(simu, ["uy"], folder, fps=1)
 
             validate(usdaFile)
