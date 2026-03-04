@@ -348,6 +348,12 @@ def Save_simu(
             )
             list_nodesValues_n[i] = simu.Result(result).reshape(simu.mesh.Nn, -1)
 
+        if N > 1:
+            list_displacementMatrix.append(list_displacementMatrix[0])
+            list_nodesValues_n.append(list_nodesValues_n[0])
+            if updatedMesh:
+                list_mesh.append(list_mesh[0])
+
         dof_n = list_nodesValues_n[0].shape[1]
 
         if dof_n == 1:
