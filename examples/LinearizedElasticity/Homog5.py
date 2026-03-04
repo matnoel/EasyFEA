@@ -15,6 +15,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 
 from EasyFEA import Display, Folder, Models, Simulations, MeshIO, PyVista
+from EasyFEA import BUILDING_GALLERY
 from EasyFEA.FEM import FeArray
 
 from Homog4 import Compute_ukl, Get_nodes, Get_pairedNodes
@@ -32,7 +33,10 @@ if __name__ == "__main__":
     plotSurfaces = False
 
     folderResults = Folder.Results_Dir()
-    meshes_dir = Folder.Join(Folder.Dir(n=2), "_meshes")
+    if BUILDING_GALLERY:
+        meshes_dir = Folder.os.path.abspath("../_meshes")
+    else:
+        meshes_dir = Folder.Join(Folder.Dir(n=2), "_meshes")
 
     # ----------------------------------------------
     # Mesh
