@@ -14,7 +14,7 @@ Conduct 3d homogenization on a simple RVE.
 import matplotlib.pyplot as plt
 import numpy as np
 
-from EasyFEA import Display, Models, ElemType, Simulations, PyVista
+from EasyFEA import Display, Models, Mesh, ElemType, Simulations, PyVista
 from EasyFEA.Geoms import Points, Circle
 from EasyFEA.FEM import LagrangeCondition, FeArray
 from typing import Optional
@@ -62,8 +62,15 @@ def Compute_ukl(
                 simu._Bc_Add_Lagrange(condition)
 
         # remove rigid body motion
-        nodes = mesh.groupElem._Get_nearby_nodes(mesh.center.reshape(-1, 3))
-        simu.add_dirichlet(nodes, [0, 0, 0], directions)
+        nodes = mesh.nodes
+        vect = np.ones(mesh.Nn) * 1 / mesh.Nn
+        for direction in directions:
+            # sum d_i / Nn = 0
+            dofs = simu.Bc_dofs_nodes(nodes, [direction])
+            condition = LagrangeCondition(
+                "elastic", nodes, dofs, [direction], [0], [vect]
+            )
+            simu._Bc_Add_Lagrange(condition)
 
     ukl = simu.Solve()
 
@@ -80,6 +87,100 @@ def Compute_ukl(
     return ukl
 
 
+def Get_nodes(mesh: Mesh, tol=1e-6, plotSurfaces=False):
+    """Returns nodesXm, nodesXp, nodesYm, nodesYp, nodesZm, nodesZp"""
+
+    # PyVista.Plot_Tags(mesh).show()
+    coord = mesh.coord
+    nodesXm = mesh.Nodes_Conditions(lambda x, y, z: x <= coord[:, 0].min() + tol)
+    nodesXp = mesh.Nodes_Conditions(lambda x, y, z: x >= coord[:, 0].max() - tol)
+    nodesYm = mesh.Nodes_Conditions(lambda x, y, z: y <= coord[:, 1].min() + tol)
+    nodesYp = mesh.Nodes_Conditions(lambda x, y, z: y >= coord[:, 1].max() - tol)
+    nodesZm = mesh.Nodes_Conditions(lambda x, y, z: z <= coord[:, 2].min() + tol)
+    nodesZp = mesh.Nodes_Conditions(lambda x, y, z: z >= coord[:, 2].max() - tol)
+
+    if plotSurfaces:
+        plotter = PyVista.Plot(mesh, alpha=0.1)
+        colors = plt.get_cmap("tab10").colors
+
+        dict_nodes = {
+            f"{nodesXm=}".split("=")[0]: nodesXm,
+            f"{nodesXp=}".split("=")[0]: nodesXp,
+            f"{nodesYm=}".split("=")[0]: nodesYm,
+            f"{nodesYp=}".split("=")[0]: nodesYp,
+            f"{nodesZm=}".split("=")[0]: nodesZm,
+            f"{nodesZp=}".split("=")[0]: nodesZp,
+        }
+
+        for i, (name, nodes) in enumerate(dict_nodes.items()):
+            PyVista.Plot_Elements(
+                mesh, nodes, 2, color=colors[i], label=name, plotter=plotter
+            )
+        plotter.add_legend()
+        plotter.show()
+
+    return nodesXm, nodesXp, nodesYm, nodesYp, nodesZm, nodesZp
+
+
+def Get_pairedNodes(
+    mesh: Mesh,
+    nodesXm: np.ndarray,
+    nodesXp: np.ndarray,
+    nodesYm: np.ndarray,
+    nodesYp: np.ndarray,
+    nodesZm: np.ndarray,
+    nodesZp: np.ndarray,
+    plotPBC=False,
+):
+
+    # remove Xp nodes on Y nodes
+    nodesYp = np.array(list(set(nodesYp) - set(nodesXp)))
+    nodesYm = np.array(list(set(nodesYm) - set(nodesXp)))
+
+    # remove Xp and Yp nodes on Z nodes
+    nodesZp = np.array(list(set(nodesZp) - set(nodesXp) - set(nodesYp)))
+    nodesZm = np.array(list(set(nodesZm) - set(nodesXp) - set(nodesYp)))
+
+    list_tuple_nodes = [
+        (nodesXm, nodesXp),
+        (nodesYm, nodesYp),
+        (nodesZm, nodesZp),
+    ]
+
+    # get paired nodes
+    for i, (nodes1, nodes2) in enumerate(list_tuple_nodes):
+
+        # sort nodes
+        sorted_nodes2 = np.zeros_like(nodes1)
+        coord = mesh.coord
+        for n, node in enumerate(nodes1):
+            dist = np.linalg.norm(coord[nodes2] - coord[node], axis=1)
+            sorted_nodes2[n] = nodes2[dist.argmin()]
+        nodes2 = sorted_nodes2
+
+        if plotPBC:
+            plotter = PyVista.Plot_Mesh(mesh, alpha=0.1)
+            PyVista.Plot_Nodes(mesh, nodes1, plotter=plotter)
+            PyVista.Plot_Nodes(mesh, nodes2, plotter=plotter)
+            plotter.add_lines(
+                np.concatenate(
+                    (mesh.coord[nodes1], mesh.coord[nodes2]), axis=1
+                ).reshape(-1, 3),
+                color="k",
+            )
+            plotter.add_title(f"paired nodes along {['x','y','z'][i]} axis.")
+            plotter.show()
+
+        # set new paired nodes
+        newPairedNodes = np.array([nodes1, nodes2], dtype=int).T
+        if i == 0:
+            pairedNodes = newPairedNodes
+        else:
+            pairedNodes = np.concatenate((pairedNodes, newPairedNodes))
+
+    return pairedNodes
+
+
 if __name__ == "__main__":
     Display.Clear()
 
@@ -89,7 +190,7 @@ if __name__ == "__main__":
 
     # use Periodic boundary conditions ?
     usePBC = True
-    plotPBC = True
+    plotPBC = False
     plotSurfaces = False
 
     # ----------------------------------------------
@@ -129,87 +230,12 @@ if __name__ == "__main__":
     # Get paired nodes
     # ----------------------------------------------
 
-    # PyVista.Plot_Tags(mesh).show()
-    coord = mesh.coord
-    nodesXm = mesh.Nodes_Conditions(lambda x, y, z: x <= coord[:, 0].min())
-    nodesXp = mesh.Nodes_Conditions(lambda x, y, z: x == coord[:, 0].max())
-    nodesYm = mesh.Nodes_Conditions(lambda x, y, z: y == coord[:, 1].min())
-    nodesYp = mesh.Nodes_Conditions(lambda x, y, z: y == coord[:, 1].max())
-    nodesZm = mesh.Nodes_Conditions(lambda x, y, z: z == coord[:, 2].min())
-    nodesZp = mesh.Nodes_Conditions(lambda x, y, z: z == coord[:, 2].max())
-
-    if plotSurfaces:
-        plotter = PyVista.Plot(mesh, alpha=0.1)
-        colors = plt.get_cmap("tab10").colors
-
-        dict_nodes = {
-            f"{nodesXm=}".split("=")[0]: nodesXm,
-            f"{nodesXp=}".split("=")[0]: nodesXp,
-            f"{nodesYm=}".split("=")[0]: nodesYm,
-            f"{nodesYp=}".split("=")[0]: nodesYp,
-            f"{nodesZm=}".split("=")[0]: nodesZm,
-            f"{nodesZp=}".split("=")[0]: nodesZp,
-        }
-
-        for i, (name, nodes) in enumerate(dict_nodes.items()):
-            PyVista.Plot_Elements(
-                mesh, nodes, 2, color=colors[i], label=name, plotter=plotter
-            )
-        plotter.add_legend()
-        plotter.show()
-
+    tuple_nodes = Get_nodes(mesh, plotSurfaces=plotSurfaces)
     if usePBC:
         nodesKUBC = None
-
-        # remove Xp nodes on Y nodes
-        nodesYp = np.array(list(set(nodesYp) - set(nodesXp)))
-        nodesYm = np.array(list(set(nodesYm) - set(nodesXp)))
-
-        # remove Xp and Yp nodes on Z nodes
-        nodesZp = np.array(list(set(nodesZp) - set(nodesXp) - set(nodesYp)))
-        nodesZm = np.array(list(set(nodesZm) - set(nodesXp) - set(nodesYp)))
-
-        list_tuple_nodes = [
-            (nodesXm, nodesXp),
-            (nodesYm, nodesYp),
-            (nodesZm, nodesZp),
-        ]
-
-        # get paired nodes
-        for i, (nodes1, nodes2) in enumerate(list_tuple_nodes):
-
-            # sort nodes
-            sorted_nodes2 = np.zeros_like(nodes1)
-            coord = mesh.coord
-            for n, node in enumerate(nodes1):
-                dist = np.linalg.norm(coord[nodes2] - coord[node], axis=1)
-                sorted_nodes2[n] = nodes2[dist.argmin()]
-            nodes2 = sorted_nodes2
-
-            if plotPBC:
-                plotter = PyVista.Plot_Mesh(mesh, alpha=0.1)
-                PyVista.Plot_Nodes(mesh, nodes1, plotter=plotter)
-                PyVista.Plot_Nodes(mesh, nodes2, plotter=plotter)
-                plotter.add_lines(
-                    np.concatenate(
-                        (mesh.coord[nodes1], mesh.coord[nodes2]), axis=1
-                    ).reshape(-1, 3),
-                    color="k",
-                )
-                plotter.add_title(f"paired nodes along {['x','y','z'][i]} axis.")
-                plotter.show()
-
-            # set new paired nodes
-            newPairedNodes = np.array([nodes1, nodes2], dtype=int).T
-            if i == 0:
-                pairedNodes = newPairedNodes
-            else:
-                pairedNodes = np.concatenate((pairedNodes, newPairedNodes))
-
+        pairedNodes = Get_pairedNodes(mesh, *tuple_nodes, plotPBC=plotPBC)
     else:
-        nodesKUBC = set(
-            np.concatenate([nodesXm, nodesXp, nodesYp, nodesYm, nodesZm, nodesZm])
-        )
+        nodesKUBC = set(np.concatenate(tuple_nodes))
         nodesKUBC = list(nodesKUBC)
         pairedNodes = None
 
@@ -237,7 +263,6 @@ if __name__ == "__main__":
 
     PyVista.Plot(simu, E, nodeValues=False, colorbarTitle="E [MPa]").show()
     PyVista.Plot(simu, v, nodeValues=False, colorbarTitle="v").show()
-    PyVista.Plot(simu, material.get_mu(), nodeValues=False, colorbarTitle="G").show()
 
     # ----------------------------------------------
     # Homogenization
