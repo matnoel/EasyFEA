@@ -13,9 +13,8 @@ build:
     - libglu1-mesa 
     - git-lfs
   jobs:
-    post_system_dependencies:
-      - git lfs install
     post_checkout:
+      - git lfs install --skip-repo
       - git lfs pull
     pre_build:
       - python docs/gallery/generate.py
