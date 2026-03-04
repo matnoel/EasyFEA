@@ -10,15 +10,12 @@ Mesh12
 Meshing of a part designed by cad software.
 """
 
-from EasyFEA import Display, Folder, Mesher, ElemType, PyVista, BUILDING_GALLERY
+from EasyFEA import Display, Folder, Mesher, ElemType, PyVista
 
 if __name__ == "__main__":
     Display.Clear()
 
-    if BUILDING_GALLERY:
-        parts_dir = Folder.os.path.abspath("../_parts")
-    else:
-        parts_dir = Folder.Join(Folder.Dir(__file__, 2), "_parts")
+    parts_dir = Folder.Join(Folder.Dir(n=2), "_parts")
 
     stp = Folder.Join(parts_dir, "beam.stp")
     mesh_stp = Mesher().Mesh_Import_part(stp, 3, 13 / 5, ElemType.TETRA4)
