@@ -26,7 +26,7 @@
 
 📸 Explore the interactive **[gallery](https://easyfea.readthedocs.io/en/stable/gallery/index.html)** to visualize simulation results.
 
-For each simulation, users create a **mesh** and a **model**. Once the simulation has been set up, defining the boundary conditions, solving the problem and visualizing the results are straightforward.
+For each simulation, users create a **mesh** and a **model**. Once the simulation has been set up, defining the boundary conditions, solving the problem, and visualizing the results are straightforward.
 
 Numerous examples of mesh creation are available in the [Meshes](https://easyfea.readthedocs.io/en/stable/examples/Meshes/index.html) gallery.
 
