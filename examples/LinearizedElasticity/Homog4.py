@@ -212,13 +212,7 @@ if __name__ == "__main__":
     # contour.Plot_Geoms([contour, inclusion])
 
     elemType = ElemType.PRISM15
-    mesh = contour.Mesh_Extrude(
-        [inclusion],
-        [0, 0, 1],
-        [1 / meshSize],
-        elemType,
-        additionalPoints=[inclusion.center],
-    )
+    mesh = contour.Mesh_Extrude([inclusion], [0, 0, 1], [1 / meshSize], elemType)
     mesh.Translate(*-mesh.center)  # center mesh on 0,0,0
 
     plotter = PyVista.Plot_Mesh(mesh)
