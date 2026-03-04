@@ -20,6 +20,7 @@ import numpy as np
 
 from ._requires import Create_requires_decorator
 from ..Simulations._simu import _Init_obj
+from ..Utilities.MeshIO import Surface_reconstruction
 
 from . import Folder, Display
 
@@ -310,6 +311,11 @@ def Save_simu(
 
     simu, mesh, _, _ = _Init_obj(simu)  # type: ignore [assignment]
 
+    updatedMesh = simu.Nmesh > 1
+    reconstructSurface = len(mesh.Get_list_groupElem(2)) == 0
+    if not updatedMesh:
+        list_mesh = Surface_reconstruction(mesh) if reconstructSurface else mesh
+
     if simu is None:
         Display.MyPrintError("Must give a simulation.")
         return
@@ -322,7 +328,8 @@ def Save_simu(
         # init list
         list_displacementMatrix: list[np.ndarray] = [None] * N
         list_nodesValues_n: list[np.ndarray] = [None] * N
-        list_mesh: list[Mesh] = [None] * N
+        if updatedMesh:
+            list_mesh: list[Mesh] = [None] * N
 
         # activates the first iteration
         simu.Set_Iter(0, resetAll=True)
@@ -330,7 +337,12 @@ def Save_simu(
         # get values
         for i, iter in enumerate(iterations):
             simu.Set_Iter(iter)
-            list_mesh[i] = simu.mesh
+            if updatedMesh:
+                list_mesh[i] = (
+                    Surface_reconstruction(simu.mesh)
+                    if reconstructSurface
+                    else simu.mesh
+                )
             list_displacementMatrix[i] = (
                 deformFactor * simu.Results_displacement_matrix()
             )
@@ -796,7 +808,7 @@ def _Create_modelViewer_folder(
                         viewer.removeAttribute('autoplay');
                         viewer.setAttribute('animation-controls', '');
                         viewer.pause();
-                        
+
                         slider.style.display = 'block';
                         toggleBtn.textContent = '▶';
                     }

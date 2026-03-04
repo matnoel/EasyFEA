@@ -527,6 +527,10 @@ class _Simu(_IObserver, _params.Updatable, ABC):
             self.__Init_Sols_n()
 
     @property
+    def Nmesh(self) -> int:
+        return len(self.__listMesh)
+
+    @property
     def dim(self) -> int:
         """simulation's dimension"""
         return self.__dim
