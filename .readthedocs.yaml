@@ -10,7 +10,8 @@ build:
   tools:
     python: "3.11"
   apt_packages:
-    - libglu1-mesa
+    - libglu1-mesa 
+    - git-lfs
   jobs:
     post_checkout:
       - git lfs pull
