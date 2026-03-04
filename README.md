@@ -13,7 +13,7 @@
 
 ## 🧭 Overview
 
-**EasyFEA** is a user-friendly Python library that simplifies finite element analysis. It is flexible and supports different types of simulations without requiring users to handle complex PDE formulations. You will find below the finite element analysis that you can conduct using EasyFEA:
+**EasyFEA** is a user‑friendly Python library that simplifies finite element analysis by abstracting complex PDE formulations. It is flexible and supports a range of linear and nonlinear simulations with minimal setup. You will find below the finite element analysis that you can conduct using EasyFEA:
 
 1. [Linear elastic simulations](https://easyfea.readthedocs.io/en/stable/examples/LinearizedElasticity/index.html): `static`, `dynamic`, `contact`, `homogenization` and `mesh optimization`.
 2. [Hyperelastic simulations](https://easyfea.readthedocs.io/en/stable/examples/Hyperelasticity/index.html): `static` and `dynamic` in the ``Lagrangian`` framework..
