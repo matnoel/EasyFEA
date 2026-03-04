@@ -230,7 +230,7 @@ if __name__ == "__main__":
         ),
         Item(
             "LinearizedElasticity/Homog1.py",
-            "Conduct homogenization using an example outlined in *Computational Homogenization of Heterogeneous Materials with Finite Elements*.",
+            "Conduct homogenization using an example outlined in Computational Homogenization of Heterogeneous Materials with Finite Elements.",
             ["simu"],
             PlotHomog,
         ),
