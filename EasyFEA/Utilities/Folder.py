@@ -9,11 +9,10 @@ import os
 import inspect
 from pathlib import Path
 
-from .. import BUILDING_GALLERY
-
 
 def Dir(path: str = None, n: int = 1) -> str:
     """Returns the directory located n parent levels above the given path."""
+    from .. import BUILDING_GALLERY
 
     if path is None:
         path = __Get_pythonScript()
@@ -53,6 +52,8 @@ def Join(*args: str, mkdir=False) -> str:
 
 
 def __Get_pythonScript():
+    from .. import BUILDING_GALLERY
+
     stack = inspect.stack()
     if BUILDING_GALLERY:
         # In Sphinx Gallery, Python scripts are parsed with `py_source_parser.py`
