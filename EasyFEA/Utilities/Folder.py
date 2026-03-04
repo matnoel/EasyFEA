@@ -22,9 +22,7 @@ def Dir(path: str = None, n: int = 1) -> str:
     assert isinstance(n, int) and n > 0, "n must be a positive integer"
 
     if BUILDING_GALLERY:
-        path = os.path.abspath("../" * n)
-        print(f"\n\n\n\n{path}\n\n\n\n")
-        return path
+        return os.path.abspath("../")
 
     else:
         normPath = os.path.normpath(path)
