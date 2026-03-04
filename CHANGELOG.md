@@ -2,6 +2,14 @@
 
 This document describes the changes made to the project.
 
+## 1.7.3 (March 4, 2026):
+
+- Updated Sphinx Gallery and model viewer.
+- Fixed a bug in the `mesh.Get_Node_Values` function when the mesh contains orphan nodes.
+- Improved and closed issue #35: Export EasyFEA results to USD format.
+- Added Git LFS tracking for `*.msh` files.
+- Fixed periodic boundary conditions in `Homog4.py` and introduced `Homog5.py`.
+
 ## 1.7.2 (February 14, 2026):
 
 - Updated the `_requires` module.
