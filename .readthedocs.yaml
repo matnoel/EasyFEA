@@ -13,10 +13,8 @@ build:
     - libglu1-mesa 
     - git-lfs
   jobs:
-    post_checkout:
-      - git lfs install --skip-repo
-      - git lfs pull
     pre_build:
+      - git lfs pull
       - python docs/gallery/generate.py
 
 # Build documentation in the "docs/" directory with Sphinx
