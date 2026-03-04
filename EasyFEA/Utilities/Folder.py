@@ -9,17 +9,22 @@ import os
 import inspect
 from pathlib import Path
 
+from .. import BUILDING_GALLERY
 
-def Dir(path: str, depth: int = 1) -> str:
-    """Returns the directory of the specified path."""
 
-    assert isinstance(path, str), "filename must be str"
-    assert isinstance(depth, int) and depth > 0, "depth must be a positive integer"
+def Dir(path: str = None, n: int = 1) -> str:
+    """Returns the directory located n parent levels above the given path."""
+
+    if path is None:
+        path = __Get_pythonScript()
+
+    assert isinstance(path, str), "path must be str"
+    assert isinstance(n, int) and n > 0, "n must be a positive integer"
 
     normPath = os.path.normpath(path)
 
     dir = os.path.dirname(normPath)
-    for _ in range(depth - 1):
+    for _ in range(n - 1):
         dir = os.path.dirname(dir)
 
     return dir
@@ -43,15 +48,7 @@ def Join(*args: str, mkdir=False) -> str:
     return path
 
 
-def Results_Dir() -> str:
-    """Provides the directory path where results should be stored, relative to the calling Python script: `<script_directory>/results/<script_name>`.
-
-    WARNING
-    -------
-    This function does not work in a Jupyter notebook!
-    """
-    from .. import BUILDING_GALLERY
-
+def __Get_pythonScript():
     stack = inspect.stack()
     if BUILDING_GALLERY:
         # In Sphinx Gallery, Python scripts are parsed with `py_source_parser.py`
@@ -80,7 +77,19 @@ def Results_Dir() -> str:
         ), "`execute_code_block` function was not detected"
 
     else:
-        pythonScript = stack[1].filename
+        pythonScript = stack[2].filename
+
+    return pythonScript
+
+
+def Results_Dir() -> str:
+    """Provides the directory path where results should be stored, relative to the calling Python script: `<script_directory>/results/<script_name>`.
+
+    WARNING
+    -------
+    This function does not work in a Jupyter notebook!
+    """
+    pythonScript = __Get_pythonScript()
 
     # get pythonScript as a path
     path = Path(pythonScript)
