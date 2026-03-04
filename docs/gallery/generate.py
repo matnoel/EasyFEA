@@ -125,6 +125,23 @@ def PlotOptimTopo(
     )
 
 
+def PlotHomog(item: Item, dict_globals: dict[str], variables: list[str], kwargs) -> str:
+
+    simu = dict_globals[variables[0]]
+
+    N = simu.Niter + 1
+
+    GLTF.Save_simu(
+        simu,
+        ["displacement"],
+        folder=item._outputFolder,
+        deformFactor=0.3,
+        plotMesh=True,
+        N=N,
+        fps=1,
+    )
+
+
 def main(list_item: list[Item], replace=False):
 
     list_htmlFile: list[str] = []
@@ -210,6 +227,18 @@ if __name__ == "__main__":
             "An educational implementation of topology optimization.",
             ["mesh", "list_p_e"],
             PlotOptimTopo,
+        ),
+        Item(
+            "LinearizedElasticity/Homog1.py",
+            "Conduct homogenization using an example outlined in *Computational Homogenization of Heterogeneous Materials with Finite Elements*.",
+            ["simu"],
+            PlotHomog,
+        ),
+        Item(
+            "LinearizedElasticity/Homog4.py",
+            "Conduct 3d homogenization on a simple RVE.",
+            ["simu"],
+            PlotHomog,
         ),
         Item(
             "LinearizedElasticity/MeshOptim1.py",
