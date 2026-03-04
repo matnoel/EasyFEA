@@ -11,6 +11,7 @@ build:
     python: "3.11"
   apt_packages:
     - libglu1-mesa 
+    - git-lfs
   jobs:
     pre_build:
       - git lfs pull
