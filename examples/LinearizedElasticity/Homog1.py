@@ -7,7 +7,7 @@
 Homog1
 ======
 
-Conduct homogenization using an example outlined in 'Computational Homogenization of Heterogeneous Materials with Finite Elements <https://doi.org/10.1007/978-3-030-18383-7>'_.
+Conduct homogenization using an example outlined in `Computational Homogenization of Heterogeneous Materials with Finite Elements <https://doi.org/10.1007/978-3-030-18383-7>`_.
 
 Section 4.7 with corrected values on page 89 (Erratum).
 """
