@@ -21,15 +21,11 @@ def Dir(path: str = None, n: int = 1) -> str:
     assert isinstance(path, str), "path must be str"
     assert isinstance(n, int) and n > 0, "n must be a positive integer"
 
-    if BUILDING_GALLERY:
-        return os.path.abspath("../")
+    normPath = os.path.normpath(path)
 
-    else:
-        normPath = os.path.normpath(path)
-
-        dir = os.path.dirname(normPath)
-        for _ in range(n - 1):
-            dir = os.path.dirname(dir)
+    dir = os.path.dirname(normPath)
+    for _ in range(n - 1):
+        dir = os.path.dirname(dir)
 
     return dir
 
