@@ -1,4 +1,4 @@
-Contributors are welcome! To contribute please use the following steps.
+Contributors are welcome! To contribute, please follow these steps.
 
 1. Fork the **EasyFEA** Repository on GitHub via “Fork” on https://github.com/matnoel/EasyFEA.
 
