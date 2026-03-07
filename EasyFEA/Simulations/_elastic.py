@@ -164,15 +164,10 @@ class Elastic(_Simu):
         self.Need_Update()
 
     def Get_x0(self, problemType=None):
-        algo = self.algo
         if self.displacement.size != self.mesh.Nn * self.dim:
             return np.zeros(self.mesh.Nn * self.dim)
-        elif algo == AlgoType.elliptic:
-            return self.displacement
-        elif algo in AlgoType.Get_Hyperbolic_Types():
-            return self.accel
         else:
-            raise TypeError(f"Algo {algo} is not implemented here.")
+            return self.displacement
 
     def Save_Iter(self):
         iter = super().Save_Iter()
