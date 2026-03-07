@@ -3,7 +3,6 @@
 # This file is part of the EasyFEA project.
 # EasyFEA is distributed under the terms of the GNU General Public License v3, see LICENSE.txt and CREDITS.md for more information.
 
-# sphinx_gallery_thumbnail_number = -2
 
 """
 DIC1
@@ -11,8 +10,11 @@ DIC1
 
 Performs digital image correlation analyses on images obtained experimentally in this scientific article: https://univ-eiffel.hal.science/hal-05115523.
 
+The images were downloaded from `Recherche Data Gouv <https://doi.org/10.57745/NGOKFP>`_ and are distributed under the `Etalab Open License 2.0 <https://spdx.org/licenses/etalab-2.0.html>`_. For further details, see the `DATA_LICENSE.md <https://gitlab.univ-eiffel.fr/collaboration-msme-fcba/spruce-params/-/blob/V5.1/DATA_LICENSE.md?ref_type=tags>`_ file.
+
 Further implementation details are available in my `PhD thesis <https://hal.univ-lorraine.fr/MSME_MECA/tel-04866760v1>`_ (Section 2, Chapter 2, written in French).
 """
+# sphinx_gallery_thumbnail_number = -2
 
 import matplotlib.pyplot as plt
 from PIL import Image  # matplotlib dependency

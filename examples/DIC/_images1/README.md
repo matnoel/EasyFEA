@@ -1,0 +1,1 @@
+The images were downloaded from [Recherche Data Gouv](https://doi.org/10.57745/NGOKFP) and are distributed under the [Etalab Open License 2.0](https://spdx.org/licenses/etalab-2.0.html). For further details, see the [DATA_LICENSE.md](https://gitlab.univ-eiffel.fr/collaboration-msme-fcba/spruce-params/-/blob/V5.1/DATA_LICENSE.md?ref_type=tags) file.
