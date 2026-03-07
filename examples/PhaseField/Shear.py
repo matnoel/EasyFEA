@@ -3,7 +3,6 @@
 # This file is part of the EasyFEA project.
 # EasyFEA is distributed under the terms of the GNU General Public License v3, see LICENSE.txt and CREDITS.md for more information.
 
-# sphinx_gallery_thumbnail_number = -1
 
 """
 Shear
@@ -11,6 +10,7 @@ Shear
 
 Damage simulation for a plate subjected to shear.
 """
+# sphinx_gallery_thumbnail_number = -1
 
 import matplotlib.pyplot as plt
 import numpy as np
