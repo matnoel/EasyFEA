@@ -556,34 +556,6 @@ class DIC(_IObserver):
 
         return ux_p, uy_p
 
-    def Add_Result(
-        self, idx: int, u_exp: _types.FloatArray, img: _types.FloatArray
-    ) -> None:
-        """Adds the computed dic results.
-
-        Parameters
-        ----------
-        idx : int
-            image index
-        u_exp : _types.FloatArray
-            finite element displacement field (Ndof)
-        img : _types.FloatArray
-            image used
-        """
-        Ndof = self.__mesh.Nn * 2
-
-        if idx not in self.list_idx:
-            self.__Test_img(img)
-            if u_exp.size != Ndof:
-                print(
-                    f"The displacement vector field has the wrong size. It must be of size  {Ndof}"
-                )
-                return
-
-            self.__list_idx.append(idx)
-            self.__list_u.append(u_exp)
-            self.__list_img.append(img)
-
     def Save(self, folder: str, filename: str = "dic") -> None:
         """Saves the dic analysis in folder as 'filename.pickle'."""
         path_dic = Folder.Join(folder, f"{filename}.pickle", mkdir=True)
