@@ -2189,15 +2189,16 @@ class _GroupElem(ABC):
         """
 
         dim = self.dim
+        Ne = self.Ne
         connect = self.connect
         coord = self.coord
 
         # Initialize lists
-        detectedNodes: list[int] = []
+        detectedNodes = np.full(coordinates_n.shape[0], None)
         # Elements where nodes have been identified
-        detectedElements_e: list[int] = []
+        detectedElements_e = np.full(Ne, None)
         # connectivity matrix containing the nodes used by the elements
-        connect_e_n: list[list[int]] = []
+        connect_e_n = np.full(Ne, None, dtype=object)
 
         # Calculate the number of times a coordinate appears
         dims = np.max(coordinates_n, 0) - np.min(coordinates_n, 0) + 1
@@ -2207,7 +2208,7 @@ class _GroupElem(ABC):
         if needCoordinates:
             # Here we want to know the coordinates of the nodes in
             # the reference element's (ξ,η) coordinate system.
-            coordInElem_n = np.ones_like(coordinates_n[:, :dim], dtype=float) * np.inf
+            coordInElem_n = np.full(coordinates_n[:, :dim].shape, np.inf, dtype=float)
             # Use `np.inf` here to ensure that all coordinates are detected.
 
             # get coordinates in the reference element
@@ -2231,7 +2232,7 @@ class _GroupElem(ABC):
         else:
             coordInElem_n = None
 
-        def Research(e: int):
+        for e in elements_e:
             # get element's node coordinates (x, y, z)
             coordElem = coord[connect[e]]
 
@@ -2243,15 +2244,15 @@ class _GroupElem(ABC):
 
             if idxInElem.size == 0:
                 # here no nodes have been detected in the element
-                return
+                continue
 
             # Nodes contained within element e.
             nodesInElement = idxNearElem[idxInElem]
 
             # Save de detected nodes elements and connectivity matrix
-            detectedNodes.extend(nodesInElement)
-            connect_e_n.append(nodesInElement.tolist())
-            detectedElements_e.append(e)
+            detectedNodes[nodesInElement] = nodesInElement
+            detectedElements_e[e] = e
+            connect_e_n[e] = nodesInElement
 
             if needCoordinates:
                 # Inverse mapping is required here,
@@ -2293,17 +2294,13 @@ class _GroupElem(ABC):
                 # xiP are the n coordinates of the n points in (ξ, η, ζ).
                 coordInElem_n[nodesInElement, :] = np.asarray(xiP)  # type: ignore
 
-        [Research(e) for e in elements_e]
+        detectedNodes = detectedNodes[detectedNodes != None].astype(int)
 
-        assert len(detectedElements_e) == len(
-            connect_e_n
-        ), "The number of detected elements must match the number of lines in connect_e_n."
+        mask = detectedElements_e != None
+        detectedElements_e = detectedElements_e[mask].astype(int)
+        connect_e_n = connect_e_n[mask]
 
-        ar_detectedNodes = np.asarray(detectedNodes, dtype=int)
-        ar_detectedElements_e = np.asarray(detectedElements_e, dtype=int)
-        ar_connect_e_n = np.asarray(connect_e_n, dtype=object)
-
-        return ar_detectedNodes, ar_detectedElements_e, ar_connect_e_n, coordInElem_n
+        return detectedNodes, detectedElements_e, connect_e_n, coordInElem_n
 
     def _Get_coord_Near(
         self,
