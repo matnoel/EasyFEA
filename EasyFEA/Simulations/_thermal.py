@@ -78,7 +78,6 @@ class Thermal(_Simu):
         return 1
 
     def _Check_dim_mesh_material(self) -> None:
-        # In the case of a beam problem, we don't need to check this condition.
         pass
 
     def Results_nodeFields_elementFields(
