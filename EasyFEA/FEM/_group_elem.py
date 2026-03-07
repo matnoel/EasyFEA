@@ -2303,14 +2303,6 @@ class _GroupElem(ABC):
         ar_detectedElements_e = np.asarray(detectedElements_e, dtype=int)
         ar_connect_e_n = np.asarray(connect_e_n, dtype=object)
 
-        if needCoordinates:
-            # make sure each coordinates get detected
-            mask = coordInElem_n == np.inf
-            if np.any(mask):
-                idx = np.unique(np.where(coordInElem_n == np.inf)[0])
-                error = f"No elements were detected at the given coordinates {coordinates_n[idx]}."
-                raise ValueError(error)
-
         return ar_detectedNodes, ar_detectedElements_e, ar_connect_e_n, coordInElem_n
 
     def _Get_coord_Near(
