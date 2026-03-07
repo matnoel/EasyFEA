@@ -9,28 +9,37 @@ import numpy as np
 from scipy import interpolate, sparse
 from scipy.sparse.linalg import splu
 import pickle
-import cv2  # need opencv-python library
 from typing import Optional
 
 # utilities
 from ..Utilities import Tic, Folder, Display
 from ..Utilities._observers import Observable, _IObserver
 from ..Utilities import _types
+from ..Utilities._requires import Create_requires_decorator
 
 # fem
 from ..FEM import Mesh, BoundaryCondition, FeArray, MatrixType
 
+try:
+    import cv2  # need opencv-python library
+
+    CAN_USE_CV2 = True
+except ImportError:
+    CAN_USE_CV2 = False
+requires_cv2 = Create_requires_decorator("cv2", libraries=["opencv-python"])
+
 
 class DIC(_IObserver):
+
     def __init__(
         self,
         mesh: Mesh,
-        idxImgRef: int,
         imgRef: _types.FloatArray,
         lr: float = 0.0,
         forces: Optional[_types.FloatArray] = None,
         displacements: Optional[_types.FloatArray] = None,
-        verbosity=False,
+        idxImgRef: int = None,
+        verbosity: bool = False,
     ):
         """Creates a DIC analysis.
 
@@ -38,8 +47,6 @@ class DIC(_IObserver):
         ----------
         mesh : Mesh
             pixel-based mesh used for dic.
-        idxImgRef : int
-            reference image index in _forces (or in the folder).
         imgRef : _types.FloatArray
             reference image (f)
         lr : float | int, optional
@@ -48,6 +55,8 @@ class DIC(_IObserver):
             forces measured during the tests, by default None
         displacements : _types.FloatArray, optional
             displacements measured during the tests, by default None
+        idxImgRef : int, optional
+            reference image index in _forces (or in the folder), by default None
         verbosity : bool, optional
             can write in the terminal, by default False
 
@@ -237,8 +246,8 @@ class DIC(_IObserver):
         # ----------------------------------------------
         # Build the shape function matrix for pixels (N)
         # ----------------------------------------------
-        lines_x: list[int] = []
-        lines_y: list[int] = []
+        rows_x: list[int] = []
+        rows_y: list[int] = []
         columns_Phi: list[int] = []
         values_phi: list[float] = []
 
@@ -256,33 +265,33 @@ class DIC(_IObserver):
         for e in range(mesh.Ne):
             # Get the nodes and pixels used by the element
             nodes = mesh.connect[e]
-            pixels = connectPixel[e]
+            pixels = np.asarray(connectPixel[e], dtype=int)
             # Retrieve evaluated functions
             phi = phi_n_pixels[:, pixels]
 
             # line construction
-            linesX = (
+            rowsX = (
                 BoundaryCondition.Get_dofs_nodes(["x", "y"], nodes, ["x"])
                 .reshape(-1, 1)
                 .repeat(pixels.size)
             )
             # linesY = BoundaryCondition.Get_dofs_nodes(["x","y"], nodes, ["y"]).reshape(-1,1).repeat(pixels.size)
             # same as
-            linesY = linesX + 1
+            rowsY = rowsX + 1
             # get columns in which for placing values
             columns = pixels.reshape(1, -1).repeat(mesh.nPe, 0).ravel()
 
-            lines_x.extend(linesX.tolist())
-            lines_y.extend(linesY.tolist())
+            rows_x.extend(rowsX.tolist())
+            rows_y.extend(rowsY.tolist())
             columns_Phi.extend(columns)
             values_phi.extend(phi.ravel().tolist())
 
         self._N_x = sparse.csr_matrix(
-            (values_phi, (lines_x, columns_Phi)), (Ndof, coordInElem.shape[0])
+            (values_phi, (rows_x, columns_Phi)), (Ndof, coordInElem.shape[0])
         )
         """Shape function matrix Nx (Ndof, nPixels)"""
         self._N_y = sparse.csr_matrix(
-            (values_phi, (lines_y, columns_Phi)), (Ndof, coordInElem.shape[0])
+            (values_phi, (rows_y, columns_Phi)), (Ndof, coordInElem.shape[0])
         )
         """Shape function matrix Ny (Ndof, nPixels)"""
 
@@ -382,6 +391,7 @@ class DIC(_IObserver):
 
         tic.Tac("DIC", "Construct L and M", self._verbosity)
 
+    @requires_cv2
     def _Get_u_from_images(
         self, img1: _types.FloatArray, img2: _types.FloatArray
     ) -> _types.FloatArray:
@@ -454,10 +464,17 @@ class DIC(_IObserver):
 
         self.__Test_img(img)
         imgRef = self.__Get_imgRef(imgRef)
+        diff = img - imgRef
+        assert (
+            np.linalg.norm(diff) != 0
+        ), "imgRef and img are identical; you must provide different images."
 
         # initial displacement vector
         if u0 is None:
-            u0 = self._Get_u_from_images(imgRef, img)
+            if CAN_USE_CV2:
+                u0 = self._Get_u_from_images(imgRef, img)
+            else:
+                u0 = np.zeros(self.__mesh.Nn * 2, dtype=float)
         else:
             assert (
                 u0.size == self.__mesh.Nn * 2

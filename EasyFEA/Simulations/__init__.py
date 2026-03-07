@@ -21,8 +21,4 @@ from ._weakforms import WeakForms
 # ------------------------------------------------------------------------------
 # DIC
 # ------------------------------------------------------------------------------
-try:
-    from ._dic import DIC, Load_DIC, Get_Circle
-except ModuleNotFoundError:
-    # you must install opencv-python
-    pass
+from ._dic import DIC, Load_DIC, Get_Circle
