@@ -220,10 +220,10 @@ class DIC(_IObserver):
         # ----------------------------------------------
         # Build the shape function matrix for pixels (N)
         # ----------------------------------------------
-        rows_x: list[int] = []
-        rows_y: list[int] = []
-        columns_Phi: list[int] = []
-        values_phi: list[float] = []
+        Ne = mesh.Ne
+        list_rowsX = [None] * Ne
+        list_columns = [None] * Ne
+        list_values = [None] * Ne
 
         # Evaluate shape functions for each pixels' coordinates
         x_p, y_p = coordInElem[:, 0], coordInElem[:, 1]
@@ -249,24 +249,24 @@ class DIC(_IObserver):
                 .reshape(-1, 1)
                 .repeat(pixels.size)
             )
-            # rowsY = BoundaryCondition.Get_dofs_nodes(["x","y"], nodes, ["y"]).reshape(-1,1).repeat(pixels.size)
-            # same as
-            rowsY = rowsX + 1
             # get columns in which for placing values
             columns = pixels.reshape(1, -1).repeat(mesh.nPe, 0).ravel()
 
-            rows_x.extend(rowsX.tolist())
-            rows_y.extend(rowsY.tolist())
-            columns_Phi.extend(columns)
-            values_phi.extend(phi.ravel().tolist())
+            list_rowsX[e] = rowsX
+            list_columns[e] = columns
+            list_values[e] = phi.ravel()
 
-        self._N_x = sparse.csr_matrix(
-            (values_phi, (rows_x, columns_Phi)), (Ndof, coordInElem.shape[0])
-        )
+        # concatenate values
+        rowsX = np.concatenate(list_rowsX, dtype=int)
+        rowsY = rowsX + 1
+        columns = np.concatenate(list_columns, dtype=int)
+        values = np.concatenate(list_values, dtype=float)
+        Npixels = coordInElem.shape[0]
+
+        self._N_x = sparse.csr_matrix((values, (rowsX, columns)), (Ndof, Npixels))
         """Shape function matrix Nx (Ndof, nPixels)"""
-        self._N_y = sparse.csr_matrix(
-            (values_phi, (rows_y, columns_Phi)), (Ndof, coordInElem.shape[0])
-        )
+
+        self._N_y = sparse.csr_matrix((values, (rowsY, columns)), (Ndof, Npixels))
         """Shape function matrix Ny (Ndof, nPixels)"""
 
         Op: sparse.csr_matrix = self._N_x @ self._N_x.T + self._N_y @ self._N_y.T
