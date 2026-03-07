@@ -21,4 +21,4 @@ from ._weakforms import WeakForms
 # ------------------------------------------------------------------------------
 # DIC
 # ------------------------------------------------------------------------------
-from ._dic import DIC, Load_DIC, Get_Circle
+from ._dic import DIC, Load_DIC

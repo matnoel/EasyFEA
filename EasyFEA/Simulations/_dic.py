@@ -176,7 +176,7 @@ class DIC(_IObserver):
         mesh = self.__mesh
 
         # get pixels' coordinates
-        coordPixel = DIC._Get_coords(imgRef)
+        coordPixel = self._Get_coords(imgRef)
 
         # get pixels used in elements with their coordinates
         pixels, _, connectPixel, coordPixelInElem = mesh.groupElem.Get_Mapping(
@@ -593,6 +593,59 @@ class DIC(_IObserver):
             self._M_reg_LU = None
             pickle.dump(self, file)
 
+    # tools
+
+    @staticmethod
+    def Get_Circle(
+        img: _types.FloatArray, threshold: float, boundary=None, radiusCoef=1.0
+    ) -> tuple[float, float, float]:
+        """Returns the circle properties in the image.
+
+        Parameters
+        ----------
+        img : _types.FloatArray
+            image used
+        threshold : float
+            threshold for pixel color
+        boundary: tuple[tuple[float, float], tuple[float, float]], optional
+            ((xMin, xMax),(yMin, yMax)), by default None
+        radiusCoef : float, optional
+            multiplier coef for radius, by default 1.0
+
+        Returns
+        -------
+        XC, YC, radius
+            circle coordinates and radius
+        """
+
+        yColor, xColor = np.where(img <= threshold)
+
+        if boundary is None:
+            xMin, xMax = 0, img.shape[1]
+            yMin, yMax = 0, img.shape[0]
+        else:
+            assert isinstance(boundary[0], tuple), "Must be a tuple list."
+            assert isinstance(boundary[1], tuple), "Must be a tuple list."
+
+            xMin, xMax = boundary[0]
+            yMin, yMax = boundary[1]
+
+        mask = np.where(
+            (xColor >= xMin) & (xColor <= xMax) & (yColor >= yMin) & (yColor <= yMax)
+        )[0]
+
+        coordoTresh = np.zeros((mask.size, 2), dtype=float)
+        coordoTresh[:, 0] = xColor[mask]
+        coordoTresh[:, 1] = yColor[mask]
+
+        XC = np.mean(coordoTresh[:, 0]).astype(float)
+        YC = np.mean(coordoTresh[:, 1]).astype(float)
+
+        rays = np.linalg.norm(coordoTresh - [XC, YC], axis=1)
+        radius: float = np.max(rays) * radiusCoef
+
+        return XC, YC, radius
+
 
 # ----------------------------------------------
 # DIC Functions
@@ -622,60 +675,3 @@ def Load_DIC(folder: str, filename: str = "dic") -> DIC:
         dic: DIC = pickle.load(file)
 
     return dic
-
-
-def Get_Circle(
-    img: _types.FloatArray, threshold: float, boundary=None, radiusCoef=1.0
-) -> tuple[float, float, float]:
-    """Returns the circle properties in the image.
-
-    Parameters
-    ----------
-    img : _types.FloatArray
-        image used
-    threshold : float
-        threshold for pixel color
-    boundary: tuple[tuple[float, float], tuple[float, float]], optional
-        ((xMin, xMax),(yMin, yMax)), by default None
-    radiusCoef : float, optional
-        multiplier coef for radius, by default 1.0
-
-    Returns
-    -------
-    XC, YC, radius
-        circle coordinates and radius
-    """
-
-    yColor, xColor = np.where(img <= threshold)
-
-    if boundary is None:
-        xMin, xMax = 0, img.shape[1]
-        yMin, yMax = 0, img.shape[0]
-    else:
-        assert isinstance(boundary[0], tuple), "Must be a tuple list."
-        assert isinstance(boundary[1], tuple), "Must be a tuple list."
-
-        xMin, xMax = boundary[0]
-        yMin, yMax = boundary[1]
-
-    filtre = np.where(
-        (xColor >= xMin) & (xColor <= xMax) & (yColor >= yMin) & (yColor <= yMax)
-    )[0]
-
-    coordoTresh = np.zeros((filtre.size, 2), dtype=float)
-    coordoTresh[:, 0] = xColor[filtre]
-    coordoTresh[:, 1] = yColor[filtre]
-
-    XC = np.mean(coordoTresh[:, 0]).astype(float)
-    YC = np.mean(coordoTresh[:, 1]).astype(float)
-
-    rays = np.linalg.norm(coordoTresh - [XC, YC], axis=1)
-    radius: float = np.max(rays) * radiusCoef
-
-    # rays = [np.max(coordoSeuil[:,0]) - XC]
-    # rays.append(XC - np.min(coordoSeuil[:,0]))
-    # rays.append(YC - np.min(coordoSeuil[:,1]))
-    # rays.append(np.max(coordoSeuil[:,1]) - YC)
-    # radius = np.max(rayons) * radiusCoef
-
-    return XC, YC, radius

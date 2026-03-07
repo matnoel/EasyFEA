@@ -17,7 +17,7 @@ from PIL import Image  # matplotlib dependency
 import numpy as np
 
 from EasyFEA import Display, Folder, Models
-from EasyFEA.Simulations import Elastic, DIC, Get_Circle
+from EasyFEA.Simulations import Elastic, DIC
 from EasyFEA.Geoms import Circle, Domain
 
 
@@ -65,7 +65,7 @@ if __name__ == "__main__":
     contour = Domain((x0, y0), (x1, y1), meshSize)
     contour.Plot(ax, "red")
 
-    xC, yC, radius = Get_Circle(imgRef, 30.0, [(150, 350), (350, 500)])
+    xC, yC, radius = DIC.Get_Circle(imgRef, 30.0, [(150, 350), (350, 500)])
     circle = Circle((xC, yC), 2 * radius, meshSize, isHollow=True)
     circle.Plot(ax, "blue")
 
