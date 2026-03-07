@@ -21,8 +21,9 @@
 4. [Thermal simulations](https://easyfea.readthedocs.io/en/stable/examples/Thermal/index.html): `static` and `transient`.
 5. [Phase-field damage simulations for quasi-static brittle fracture](https://easyfea.readthedocs.io/en/stable/examples/PhaseField/index.html): advanced `2D` and `3D` simulations for `isotropic`, `transversely isotropic`, and `anisotropic` materials.
 6. [Weak forms simulations](https://easyfea.readthedocs.io/en/stable/examples/WeakForms/index.html): `static` and `dynamic` for `linear` or `non-linear` problems.
-7. [Digital Image Correlation (DIC) and Parameter identification](https://gitlab.univ-eiffel.fr/collaboration-msme-fcba/spruce-params).
-8. [Stochastic phase-field simulations](https://gitlab.univ-eiffel.fr/collaboration-msme-fcba/spruce-stochastic).
+7. [Digital Image Correlation (DIC) analyses](https://easyfea.readthedocs.io/en/stable/examples/DIC/index.html).
+8. [Parameter identification](https://gitlab.univ-eiffel.fr/collaboration-msme-fcba/spruce-params).
+9. [Stochastic phase-field simulations](https://gitlab.univ-eiffel.fr/collaboration-msme-fcba/spruce-stochastic).
 
 📸 Explore the interactive **[gallery](https://easyfea.readthedocs.io/en/stable/gallery/index.html)** to visualize simulation results.
 
