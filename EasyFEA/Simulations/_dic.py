@@ -21,7 +21,7 @@ from ..Utilities._requires import Create_requires_decorator
 from ..FEM import Mesh, BoundaryCondition, FeArray, MatrixType
 
 try:
-    import cv2  # need opencv-python library
+    import cv2
 
     CAN_USE_CV2 = True
 except ImportError:
@@ -30,15 +30,13 @@ requires_cv2 = Create_requires_decorator("cv2", libraries=["opencv-python"])
 
 
 class DIC(_IObserver):
+    """Digital Image Correlation (DIC) analysis"""
 
     def __init__(
         self,
         mesh: Mesh,
         imgRef: _types.FloatArray,
         lr: float = 0.0,
-        forces: Optional[_types.FloatArray] = None,
-        displacements: Optional[_types.FloatArray] = None,
-        idxImgRef: int = None,
         verbosity: bool = False,
     ):
         """Creates a DIC analysis.
@@ -51,12 +49,6 @@ class DIC(_IObserver):
             reference image (f)
         lr : float | int, optional
             regularization length, by default 0.0
-        forces : _types.FloatArray, optional
-            forces measured during the tests, by default None
-        displacements : _types.FloatArray, optional
-            displacements measured during the tests, by default None
-        idxImgRef : int, optional
-            reference image index in _forces (or in the folder), by default None
         verbosity : bool, optional
             can write in the terminal, by default False
 
@@ -71,27 +63,11 @@ class DIC(_IObserver):
         mesh._Add_observer(self)
         self.__mesh = mesh
 
-        # images
-        assert isinstance(imgRef, np.ndarray), "Must be a numpy array."
-        self.__imgRef = imgRef
-
-        # data
-        self._forces = forces
-        """forces measured during the tests."""
-        self._displacements = displacements
-        """displacements measured during the tests."""
-        self.__idxImgRef: int = idxImgRef
-
-        # results
-        self.__list_idx: list[int] = []
-        self.__list_u: list[_types.FloatArray] = []
-        self.__list_img: list[_types.FloatArray] = []
-
         self._verbosity: bool = verbosity
 
-        # initialize ROI and shape functions and shape function derivatives
-        self.__init__roi()
-        self.__init__Phi_opLap()
+        # images
+        self._imgRef = imgRef
+        # Updating self._imgRef will automatically update the roi and
 
         # regul
         self._lr = lr
@@ -109,7 +85,7 @@ class DIC(_IObserver):
     @property
     def ldic(self) -> float:
         """8 * mean(meshSize) (see Get_ldic())"""
-        return self.Get_ldic()
+        return self._Get_ldic()
 
     def Get_scaled_mesh(self, scale: float = 1.0) -> Mesh:
         assert scale != 0.0
@@ -121,19 +97,29 @@ class DIC(_IObserver):
     # image properties
 
     @property
-    def idxImgRef(self) -> int:
-        """reference image index in _forces (or in the folder)."""
-        return self.__idxImgRef
+    def _imgRef(self) -> _types.FloatArray:
+        """reference image (f)
 
-    @property
-    def imgRef(self) -> _types.FloatArray:
-        """reference image (f)"""
+        WARNING
+        -------
+        Updating _imgRef will automatically update the roi, initialize the shape functions and construct the laplacian operator!
+        """
         return self.__imgRef.copy()
+
+    @_imgRef.setter
+    def _imgRef(self, img: np.ndarray):
+        # images
+        assert isinstance(img, np.ndarray), "Must be a numpy array."
+        self.__imgRef = img
+
+        # initialize ROI and shape functions and shape function derivatives
+        self.__init__roi()
+        self.__init__Phi_opLap()
 
     @property
     def shape(self) -> tuple[int, int]:
         """reference image shape"""
-        return self.__imgRef.shape  # type: ignore [return-value]
+        return self._imgRef.shape  # type: ignore [return-value]
 
     # regularization properties
 
@@ -151,28 +137,11 @@ class DIC(_IObserver):
         """
         assert value >= 0.0, "lr must be >= 0.0"
         self.__lr = value
-        self._Compute_L_M(self.__imgRef)
+        self._Compute_L_M(self._imgRef)
 
     @property
     def alpha(self) -> float:
         return (self._lr / self.ldic) ** 2
-
-    # solution properties
-
-    @property
-    def list_idx(self) -> list[int]:
-        """copy of the list containing indexes for which the displacement field has been calculated."""
-        return self.__list_idx.copy()
-
-    @property
-    def list_u(self) -> list[_types.FloatArray]:
-        """copy of the list containing the calculated displacement fields."""
-        return self.__list_u.copy()
-
-    @property
-    def list_img(self) -> list[_types.FloatArray]:
-        """copy of the list containing images for which the displacement field has been calculated."""
-        return self.__list_img.copy()
 
     def _Update(self, observable: Observable, event: str) -> None:
         if isinstance(observable, Mesh):
@@ -182,27 +151,32 @@ class DIC(_IObserver):
         else:
             Display.MyPrintError("Notification not yet implemented")
 
+    # core functions
+
+    @staticmethod
+    def _Get_coords(img: np.ndarray) -> _types.IntArray:
+
+        assert isinstance(img, np.ndarray)
+
+        x_p = np.arange(img.shape[1]).reshape((1, -1)).repeat(img.shape[0], 0).ravel()
+        y_p = np.arange(img.shape[0]).reshape((-1, 1)).repeat(img.shape[1]).ravel()
+
+        coords = np.zeros((x_p.shape[0], 3), dtype=int)
+        coords[:, 0] = x_p
+        coords[:, 1] = y_p
+
+        return coords
+
     def __init__roi(self) -> None:
         """Initializes the Region of Interest (ROI)"""
 
         tic = Tic()
 
-        imgRef = self.__imgRef
+        imgRef = self._imgRef
         mesh = self.__mesh
 
         # get pixels' coordinates
-        coordPx = (
-            np.arange(imgRef.shape[1])
-            .reshape((1, -1))
-            .repeat(imgRef.shape[0], 0)
-            .ravel()
-        )
-        coordPy = (
-            np.arange(imgRef.shape[0]).reshape((-1, 1)).repeat(imgRef.shape[1]).ravel()
-        )
-        coordPixel = np.zeros((coordPx.shape[0], 3), dtype=int)
-        coordPixel[:, 0] = coordPx
-        coordPixel[:, 1] = coordPy
+        coordPixel = DIC._Get_coords(imgRef)
 
         # get pixels used in elements with their coordinates
         pixels, _, connectPixel, coordPixelInElem = mesh.groupElem.Get_Mapping(
@@ -216,7 +190,7 @@ class DIC(_IObserver):
         """pixel coordinates in the reference element (xi, eta)."""
 
         # create roi (as a vector)
-        roi = np.zeros(coordPx.shape[0], dtype=int)
+        roi = np.zeros(coordPixel.shape[0], dtype=int)
         roi[pixels] = 1
         self.__roi = np.asarray(roi == 1, dtype=bool)
 
@@ -275,7 +249,7 @@ class DIC(_IObserver):
                 .reshape(-1, 1)
                 .repeat(pixels.size)
             )
-            # linesY = BoundaryCondition.Get_dofs_nodes(["x","y"], nodes, ["y"]).reshape(-1,1).repeat(pixels.size)
+            # rowsY = BoundaryCondition.Get_dofs_nodes(["x","y"], nodes, ["y"]).reshape(-1,1).repeat(pixels.size)
             # same as
             rowsY = rowsX + 1
             # get columns in which for placing values
@@ -335,16 +309,15 @@ class DIC(_IObserver):
 
         tic.Tac("DIC", "Laplacian operator", self._verbosity)
 
-    def Get_ldic(self, coef: float = 8.0) -> float:
-        """Get the characteristic length of the mesh, i.e. coef * the average length of the edges of the elements."""
+    def _Get_ldic(self, coef: float = 8.0) -> float:
+        """Get the characteristic length of the mesh, i.e. coef * the average mesh size."""
 
         assert coef > 0
-        # Calculation of average element size
         l_dic = coef * self.__mesh.Get_meshSize(False).mean()
 
         return l_dic
 
-    def Get_w(self) -> _types.FloatArray:
+    def _Get_w(self) -> _types.FloatArray:
         """Returns the 2D periodic vector field."""
 
         ldic = self.ldic
@@ -375,7 +348,7 @@ class DIC(_IObserver):
         self._M_dic: sparse.csr_matrix = self._L[:, roi] @ self._L[:, roi].T
 
         # plane wave
-        w = self.Get_w()
+        w = self._Get_w()
         # coefs
         w_M = w.T @ self._M_dic @ w
         w_R = w.T @ self._R @ w
@@ -422,7 +395,7 @@ class DIC(_IObserver):
         """Returns the reference image or checks whether the image entered is the correct shape."""
 
         if imgRef is None:
-            imgRef = self.__imgRef
+            imgRef = self._imgRef
         else:
             assert isinstance(imgRef, np.ndarray), "Must be an numpy array."
             assert imgRef.size == self.roi.size, f"Wrong shape, must be {self.shape}"
