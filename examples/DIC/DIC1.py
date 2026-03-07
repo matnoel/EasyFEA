@@ -3,13 +3,15 @@
 # This file is part of the EasyFEA project.
 # EasyFEA is distributed under the terms of the GNU General Public License v3, see LICENSE.txt and CREDITS.md for more information.
 
-# sphinx_gallery_thumbnail_number = -1
+# sphinx_gallery_thumbnail_number = -2
 
 """
 DIC1
 ====
 
 Performs digital image correlation analyses on images obtained experimentally in this scientific article: https://univ-eiffel.hal.science/hal-05115523.
+
+Further implementation details are available in my `PhD thesis <https://hal.univ-lorraine.fr/MSME_MECA/tel-04866760v1>`_ (Section 2, Chapter 2, written in French).
 """
 
 import matplotlib.pyplot as plt
@@ -61,25 +63,27 @@ if __name__ == "__main__":
 
     x0, y0 = 35, 25
     x1, y1 = 423, 814
-    meshSize = (x1 - x0) / 10
+    meshSize = (x1 - x0) / 20
     contour = Domain((x0, y0), (x1, y1), meshSize)
-    contour.Plot(ax, "red")
+    contour.Plot(ax)
 
     xC, yC, radius = DIC.Get_Circle(imgRef, 30.0, [(150, 350), (350, 500)])
     circle = Circle((xC, yC), 2 * radius, meshSize, isHollow=True)
-    circle.Plot(ax, "blue")
+    circle.Plot(ax)
 
     mesh = contour.Mesh_2D([circle])
 
     Display.Plot_Mesh(mesh, alpha=0, edgecolor="black", ax=ax)
+    ax.legend()
 
     # ----------------------------------------------
     # Conduct DIC analyses
     # ----------------------------------------------
 
     lr = int(np.sqrt(0.25) * 8 * meshSize) if useRegularization else 0
-    dic = DIC(mesh, imgRef, lr)
+    dic = DIC(mesh, imgRef, lr, verbosity=True)
 
+    # Generate an elastic simulation to streamline the visualization of results.
     simu = Elastic(mesh, Models.Elastic.Isotropic(2, E=1, v=0.3))
 
     for image in images[1:]:
@@ -96,5 +100,6 @@ if __name__ == "__main__":
         if image == images[-1]:
             Plot_Result(simu, "ux", img, f"{imgStr} ux")
             Plot_Result(simu, "uy", img, f"{imgStr} uy")
+            Plot_Result(simu, "Exx", img, f"{imgStr} Exx")
 
     plt.show()
