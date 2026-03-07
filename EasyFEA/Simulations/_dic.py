@@ -72,7 +72,6 @@ class DIC(_IObserver):
         self.__mesh = mesh
 
         # images
-        self.__idxImgRef: int = idxImgRef
         assert isinstance(imgRef, np.ndarray), "Must be a numpy array."
         self.__imgRef = imgRef
 
@@ -81,6 +80,7 @@ class DIC(_IObserver):
         """forces measured during the tests."""
         self._displacements = displacements
         """displacements measured during the tests."""
+        self.__idxImgRef: int = idxImgRef
 
         # results
         self.__list_idx: list[int] = []
