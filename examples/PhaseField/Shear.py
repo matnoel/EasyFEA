@@ -10,7 +10,6 @@ Shear
 
 Damage simulation for a plate subjected to shear.
 """
-# sphinx_gallery_thumbnail_number = -1
 
 import matplotlib.pyplot as plt
 import numpy as np
