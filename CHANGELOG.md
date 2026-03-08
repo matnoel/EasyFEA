@@ -2,6 +2,12 @@
 
 This document describes the changes made to the project.
 
+## 1.7.4 (March 8, 2026):
+
+- Removed `additionalPoints` from `examples/LinearizedElasticity/Homog4.py`.
+- Added Git LFS tracking for `*.png` files.
+- Resolved issue #8: Added DIC examples.
+
 ## 1.7.3 (March 4, 2026):
 
 - Updated Sphinx Gallery and model viewer.
