@@ -194,8 +194,8 @@ class _GroupElem(ABC):
         Ghost nodes will be computed using the given (non-ghost) nodes array.
         """
 
-        # set elements glob
-        assert elementsGlob.size == self.__connect.shape[0], "Must be a (Ne,) array."
+        # set elements glob (may be smaller than Ne when ghost elements are present)
+        assert elementsGlob.size <= self.__connect.shape[0], "Must be a (Ne,) array."
         elementsGlob = np.asarray(elementsGlob, dtype=int)
         # get (non-ghost) nodes and ghost nodes
         nodes = np.asarray(nodes, dtype=int)

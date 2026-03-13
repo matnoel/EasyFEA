@@ -222,21 +222,11 @@ def _Solve_Axb(
         #     )
         if MPI_SIZE > 1:  # resol r3
             # get owned dofs
-            _, _, nodes, ghostNodes = mesh.groupElem._Get_partitionned_data()
+            _, _, nodes, _ = mesh.groupElem._Get_partitionned_data()
 
             unknowns = simu.Get_unknowns(problemType)
-            # nodes = list(set(nodes).union(ghostNodes))
             dofs = simu.Bc_dofs_nodes(nodes, unknowns, problemType)
-            print(f"rank{MPI_RANK}: dofs = {dofs}")
-
-            # from ..Utilities import Display
-            # ax = Display.Init_Axes(2)
-            # ax.grid()
-            # A_loc = A[dofs, :]
-            # ax.spy(A_loc)
-            # ax.set_title(f"rank {MPI_RANK}")
-            # print(f"rank {MPI_RANK}: b = \n{b.toarray()}")
-            # Display.plt.show()
+            # print(f"rank{MPI_RANK}: dofs = {dofs}")
 
             x, converged = _PETSc_MPI_r3(A, b, x0, dofs, kspType, pcType, solverType)
         else:
@@ -292,11 +282,14 @@ def _Solve_Axb(
 def Solve_simu(simu: "_Simu", problemType: "ModelType"):
     """Solving the simulation's problem according to the resolution type."""
 
-    resolution = ResolType.r3
+    resolution = ResolType.r1
     if CAN_USE_PETSC and MPI_SIZE > 1:
         resolution = ResolType.r3
-        solverType = simu._Solver_Get_PETSc4Py_Options()[2]
-        simu._Solver_Set_PETSc4Py_Options("none", "none", solverType)
+        kspType, pcType, solverType = simu._Solver_Get_PETSc4Py_Options()
+        # kspType with preonly or none could not work
+        dof_n = simu.Get_dof_n(problemType)
+        kspType = "gmres" if dof_n == 1 else "cg"
+        simu._Solver_Set_PETSc4Py_Options(kspType, "none", solverType)
 
     resolution = ResolType.r2 if len(simu.Bc_Lagrange) > 0 else resolution
 
@@ -688,56 +681,47 @@ def _PETSc_MPI_r3(
         x solution to A x = b
     """
 
-    assert MPI_SIZE > 1
+    # assert MPI_SIZE > 1
     assert A.ndim == 2 and A.shape[0] == A.shape[1], "A must be a square matrix"
 
-    petsc4py.init(sys.argv, comm=MPI_COMM)
+    # petsc4py.init(sys.argv, comm=MPI_COMM)
 
     matrix = PETSc.Mat()  # type: ignore [attr-defined]
 
     Ndof = A.shape[0]
     Ndof_r = dofs.size
-    # print(f"rank{MPI_RANK} Ndof_r = {Ndof_r}")
-    # assert Ndof == MPI_COMM.allreduce(Ndof_r, MPI.SUM)
 
-    # Mapping global → local
-    allDofs = MPI_COMM.allgather(dofs)  # → [2, 3, 5, 6, 7, 8, 0, 1, 4]
+    # petscOrdering: rank-0 dofs first, rank-1 dofs next, …
+    # mapping: original dof index → PETSc global column index
+    allDofs = MPI_COMM.allgather(dofs)
     petscOrdering = np.concatenate(allDofs)
     mapping = np.zeros(Ndof, dtype=int)
     mapping[petscOrdering] = np.arange(Ndof)
 
-    # reorder A and b
-    A = A[petscOrdering, :].tocsc()[:, petscOrdering].tocsr()
-    b = b[petscOrdering]
-
     # https://petsc.org/release/manual/mat/#matrices
-    # create matrix
     matrix.create(comm=MPI_COMM)
     matrix.setType("mpiaij")
-
-    # set matrix size
     # https://petsc.org/release/petsc4py/reference/petsc4py.PETSc.Mat.html#petsc4py.PETSc.Mat.setSizes
     matrix.setSizes([[Ndof_r, Ndof], [Ndof_r, Ndof]])
 
-    localDofs = mapping[dofs]
-    print(f"rank{MPI_RANK} localDofs = {localDofs}")
-    A = A[localDofs, :]  # .tocsc()[:, localDofs].tocsr()
-    matrix.setValuesCSR(A.indptr, A.indices, A.data, PETSc.InsertMode.INSERT_VALUES)
-    # matrix.setValuesCSR(A.indptr, A.indices, A.data, PETSc.InsertMode.ADD_VALUES)
-
+    # extract owned rows; remap column indices original-dof → PETSc global (no full reorder)
+    A_owned = A[dofs, :].tocsr().copy()
+    A_owned.indices = mapping[A_owned.indices].astype(np.int32)
+    A_owned.has_sorted_indices = False
+    A_owned.sort_indices()
+    matrix.setValuesCSR(
+        A_owned.indptr, A_owned.indices, A_owned.data, PETSc.InsertMode.INSERT_VALUES
+    )
     matrix.assemble()
-    matrix.view()
 
-    # set rhs values
+    # rhs — index directly in original dof space
     rhs = matrix.createVecLeft()
-    rhs.array = b.toarray().ravel()[localDofs]
-    rhs.assemble()
-    rhs.view()
+    rhs.array[:] = b.toarray().ravel()[dofs]
 
-    # set x values
+    # initial guess
     x = matrix.createVecRight()
     if len(x0) > 0:
-        x.array = x0[localDofs]
+        x.array[:] = x0[dofs]
         # print(f"rank{MPI_RANK} x = {x.array}")
 
     ksp = PETSc.KSP().create(comm=MPI_COMM)  # type: ignore [attr-defined]

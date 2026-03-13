@@ -2048,10 +2048,10 @@ class Mesher:
         Nn: int = 0
 
         for rank in range(Nproc):
-            # get connect for the actual rank
-            idx_r = list(dict_rank_elements[rank])
+            # get owned elements and their connectivity
+            idx_r = np.array(list(dict_rank_elements[rank]), dtype=int)
             connect_r = connect[idx_r]
-            # get (non-ghost) nodes
+            # get (non-ghost) nodes from owned elements only
             otherRankNodes: set[int] = set()
             [
                 otherRankNodes.update(dict_rank_nodes[r])
@@ -2062,9 +2062,25 @@ class Mesher:
             nodes = list(set(connect_r.ravel()) - set(otherRankNodes))
             dict_rank_nodes[rank].update(nodes)
             Nn += len(nodes)
-            # create groupElem
-            groupElem = GroupElemFactory._Create(gmshId, connect_r, coordGlob)
-            # attribute global elements positions in the global mesh
+            # find ghost elements: elements from other ranks that share at least
+            # one owned node with this rank — needed for complete row assembly
+            nodes_arr = np.array(nodes, dtype=int)
+            ghost_idx: set[int] = set()
+            for other_rank in range(Nproc):
+                if other_rank == rank:
+                    continue
+                other_idx = list(dict_rank_elements[other_rank])
+                if not other_idx:
+                    continue
+                other_connect = connect[other_idx]
+                touches = np.any(np.isin(other_connect, nodes_arr), axis=1)
+                ghost_idx.update(np.array(other_idx)[touches])
+            # build full connectivity: owned elements + ghost elements
+            all_idx = np.array(sorted(set(idx_r.tolist()) | ghost_idx), dtype=int)
+            connect_r_full = connect[all_idx]
+            # create groupElem with owned + ghost elements
+            groupElem = GroupElemFactory._Create(gmshId, connect_r_full, coordGlob)
+            # attribute global element positions for owned elements only
             elementsGlob = np.arange(Ne)[idx_r]
             groupElem._Set_partitionned_data(elementsGlob, nodes, rank)
             # append the created groupElem
