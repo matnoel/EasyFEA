@@ -725,7 +725,7 @@ class Mesh(Observable):
         result_n = np.zeros((Nn, nCols), dtype=float)
 
         # connectivity of the nodes
-        connect_n_e = self.Get_connect_n_e()
+        connect_n_e = self.Get_connect_n_e()[self.nodes]
         # get elements per nodes
         elements_n = np.reshape(connect_n_e.sum(axis=1), (-1, 1))
 
