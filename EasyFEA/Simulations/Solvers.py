@@ -133,6 +133,7 @@ def _Solve_Axb(
     x0: _types.FloatArray,
     lb: Union[_types.AnyArray, _types.Numbers],
     ub: Union[_types.AnyArray, _types.Numbers],
+    resol: ResolType = ResolType.r1,
 ) -> _types.FloatArray:
     """Solves the linear system A x = b
 
@@ -205,30 +206,25 @@ def _Solve_Axb(
         # print(f"rank {MPI_RANK}: b = \n{b.toarray()}")
         # Display.plt.show()
 
-        # if MPI_SIZE > 1:  # resol r1
-        #     _, dofsUnknown = simu.Bc_dofs_known_unknown(problemType)
-        #     dofsUnknown = __Get_unique_dofs(dofsUnknown)
-        #     # get owned dofs
-        #     _, _, nodes, ghostNodes = mesh.groupElem._Get_partitionned_data()
-        #     nodes = list(set(nodes).union(ghostNodes))
-        #     dofs = simu.Bc_dofs_nodes(
-        #         nodes, simu.Get_unknowns(problemType), problemType
-        #     )
-        #     localDofs = np.array(
-        #         [d for d, dof in enumerate(dofsUnknown) if dof in dofs], dtype=int
-        #     )
-        #     x, converged = _PETSc_MPI_r1(
-        #         A, b, x0, localDofs, kspType, pcType, solverType
-        #     )
-        if MPI_SIZE > 1:  # resol r3
-            # get owned dofs
+        if MPI_SIZE > 1:
             _, _, nodes, _ = mesh.groupElem._Get_partitionned_data()
-
-            unknowns = simu.Get_unknowns(problemType)
-            dofs = simu.Bc_dofs_nodes(nodes, unknowns, problemType)
-            # print(f"rank{MPI_RANK}: dofs = {dofs}")
-
-            x, converged = _PETSc_MPI_r3(A, b, x0, dofs, kspType, pcType, solverType)
+            if resol == ResolType.r1:
+                _, dofsUnknown = simu.Bc_dofs_known_unknown(problemType)
+                dofsUnknown = __Get_unique_dofs(dofsUnknown)
+                dofs = simu.Bc_dofs_nodes(
+                    nodes, simu.Get_unknowns(problemType), problemType
+                )
+                ownedDofs = np.array(
+                    [d for d, dof in enumerate(dofsUnknown) if dof in dofs], dtype=int
+                )
+            elif resol == ResolType.r3:
+                dofs = simu.Bc_dofs_nodes(
+                    nodes, simu.Get_unknowns(problemType), problemType
+                )
+                ownedDofs = dofs
+            else:
+                raise NotImplementedError
+            x, converged = _PETSc_MPI(A, b, x0, ownedDofs, kspType, pcType, solverType)
         else:
             x, converged = _PETSc(A, b, x0, kspType, pcType, solverType)
         if not converged:
@@ -284,9 +280,7 @@ def Solve_simu(simu: "_Simu", problemType: "ModelType"):
 
     resolution = ResolType.r1
     if CAN_USE_PETSC and MPI_SIZE > 1:
-        resolution = ResolType.r3
         kspType, pcType, solverType = simu._Solver_Get_PETSc4Py_Options()
-        # kspType with preonly or none could not work
         dof_n = simu.Get_dof_n(problemType)
         kspType = "gmres" if dof_n == 1 else "cg"
         simu._Solver_Set_PETSc4Py_Options(kspType, "none", solverType)
@@ -352,7 +346,7 @@ def __Solver_1(simu: "_Simu", problemType: "ModelType") -> _types.FloatArray:
     lb, ub = simu.Get_lb_ub(problemType)
 
     bi -= Aic @ xc
-    xi = _Solve_Axb(simu, problemType, Aii, bi, x0, lb, ub)
+    xi = _Solve_Axb(simu, problemType, Aii, bi, x0, lb, ub, ResolType.r1)
 
     # apply result to global vector
     x = x.toarray().reshape(x.shape[0])
@@ -421,7 +415,7 @@ def __Solver_2(simu: "_Simu", problemType: "ModelType"):
 
     tic.Tac("Solver", f"Lagrange ({problemType}) Coupling", simu._verbosity)
 
-    x = _Solve_Axb(simu, problemType, A.tocsr(), b.tocsr(), x0, [], [])
+    x = _Solve_Axb(simu, problemType, A.tocsr(), b.tocsr(), x0, [], [], ResolType.r2)
 
     # We don't send back reaction forces
     sol = x[:size]
@@ -445,7 +439,7 @@ def __Solver_3(simu: "_Simu", problemType: "ModelType"):
     # Solving the penalized matrix system
     x0 = simu.Get_x0(problemType)
     lb, ub = simu.Get_lb_ub(problemType)
-    x = _Solve_Axb(simu, problemType, A, b, x0, lb, ub)
+    x = _Solve_Axb(simu, problemType, A, b, x0, lb, ub, ResolType.r3)
 
     if simu.isNonLinear:
         return x, sla.norm(b)
@@ -531,35 +525,35 @@ def _PETSc(
     return x.array, ksp.is_converged
 
 
-def _PETSc_MPI_r1(
+def _PETSc_MPI(
     A: sparse.csr_matrix,
     b: sparse.csr_matrix,
     x0: _types.FloatArray,
-    localDofs: _types.IntArray,
+    ownedDofs: _types.IntArray,
     kspType: str = "cg",
-    pcType: str = "none",
+    pcType: str = "bjacobi",
     solverType: str = "petsc",
 ) -> tuple[_types.FloatArray, bool]:
-    """PETSc insterface to solve the linear system `A x = b`\n
+    """PETSc parallel interface to solve the linear system `A x = b`.\n
     KSP - Linear System Solvers: https://petsc.org/release/manual/ksp/#\n
-
 
     Parameters
     ----------
     A : sparse.csr_matrix
-        sparse matrix (N, N)
+        Square sparse matrix (N, N). For r1: reduced system (Aii). For r3: full penalized system.
     b : sparse.csr_matrix
-        sparse vector (N, 1)
+        Right-hand side (N, 1).
     x0 : _types.FloatArray
-        initial guess (N)
+        Initial guess (N,).
     ownedDofs : _types.IntArray
-        owned dofs used to acces values in matrices.
+        Indices (into A/b) owned by this rank. Must be disjoint across ranks and
+        together cover all N rows.
     kspType : str, optional
         PETSc Krylov method, by default "cg"
         e.g. 'cg', 'bicg', 'gmres', 'bcgs', 'groppcg', ...\n
         https://petsc.org/release/manualpages/KSP/KSPType/#ksptype\n
     pcType : str, optional
-        PETSc preconditioner, by default "none"
+        PETSc preconditioner, by default "bjacobi"
         e.g. 'none', 'ilu', 'bjacobi', 'icc', 'lu', 'jacobi', 'cholesky', ...\n
         https://petsc.org/release/manualpages/PC/PCType/#pctype\n
     solverType : str, optional
@@ -570,7 +564,9 @@ def _PETSc_MPI_r1(
     Returns
     -------
     _types.FloatArray
-        x solution to A x = b
+        Solution x of A x = b, size (N,).
+    bool
+        Whether the KSP converged.
     """
 
     assert MPI_SIZE > 1
@@ -578,134 +574,25 @@ def _PETSc_MPI_r1(
 
     petsc4py.init(sys.argv, comm=MPI_COMM)
 
-    matrix = PETSc.Mat()  # type: ignore [attr-defined]
-
-    localDofs = localDofs.astype(np.int32)
     Ndof = A.shape[0]
-    Ndof_r = localDofs.size
-    # print(f"rank{MPI_RANK} Ndof_r = {Ndof_r}")
-    # assert Ndof == MPI_COMM.allreduce(Ndof_r, MPI.SUM)
+    Ndof_r = ownedDofs.size
 
-    # https://petsc.org/release/manual/mat/#matrices
-    # create matrix
-    matrix.create(comm=MPI_COMM)
-    matrix.setType("mpiaij")
-
-    # set matrix size
-    # https://petsc.org/release/petsc4py/reference/petsc4py.PETSc.Mat.html#petsc4py.PETSc.Mat.setSizes
-    matrix.setSizes([[Ndof_r, Ndof], [Ndof_r, Ndof]])
-
-    # Resize A and set values
-    # https://petsc.org/release/petsc4py/reference/petsc4py.PETSc.Mat.html#petsc4py.PETSc.Mat.setValuesCSR
-    A = A[localDofs, :].tocsc()[:, localDofs].tocsr()
-    matrix.setValuesCSR(A.indptr, A.indices, A.data, PETSc.InsertMode.INSERT_VALUES)
-    matrix.assemble()
-    # matrix.view()
-
-    # set rhs values
-    rhs = matrix.createVecLeft()
-    rhs.array = b.toarray().ravel()[localDofs]
-
-    # set x values
-    x = matrix.createVecRight()
-    if len(x0) > 0:
-        x.array = x0[localDofs]
-        # print(f"rank{MPI_RANK} x = {x.array}")
-
-    ksp = PETSc.KSP().create(comm=MPI_COMM)  # type: ignore [attr-defined]
-    ksp.setOperators(matrix)
-    ksp.setType(kspType)
-
-    # set pc type
-    pc = ksp.getPC()
-    pc.setType(pcType)
-
-    # set solver type
-    pc.setFactorSolverType(solverType)
-
-    # solve x
-    ksp.solve(rhs, x)
-    # print(f"rank{MPI_RANK} x = {x.array}")
-
-    # set dofsValues values
-    dofsValues = np.zeros(Ndof, dtype=float)
-    dofsValues[localDofs] = x.array
-    # print(f"rank{MPI_RANK} dofsValues = {dofsValues}")
-    # print(f"rank{MPI_RANK} localDofs = {localDofs}")
-
-    if MPI_SIZE > 1:
-        dofsValues = MPI_COMM.allreduce(dofsValues, MPI.SUM)
-
-    return dofsValues, ksp.is_converged
-
-
-def _PETSc_MPI_r3(
-    A: sparse.csr_matrix,
-    b: sparse.csr_matrix,
-    x0: _types.FloatArray,
-    dofs: _types.IntArray,
-    kspType: str = "cg",
-    pcType: str = "none",
-    solverType: str = "petsc",
-) -> tuple[_types.FloatArray, bool]:
-    """PETSc insterface to solve the linear system `A x = b`\n
-    KSP - Linear System Solvers: https://petsc.org/release/manual/ksp/#\n
-
-
-    Parameters
-    ----------
-    A : sparse.csr_matrix
-        sparse matrix (Ndof, Ndof)
-    b : sparse.csr_matrix
-        sparse vector (Ndof, 1)
-    x0 : _types.FloatArray
-        initial guess (Ndof)
-    dofs : _types.IntArray
-        dofs used to acces values in matrices.
-    kspType : str, optional
-        PETSc Krylov method, by default "cg"
-        e.g. 'cg', 'bicg', 'gmres', 'bcgs', 'groppcg', ...\n
-        https://petsc.org/release/manualpages/KSP/KSPType/#ksptype\n
-    pcType : str, optional
-        PETSc preconditioner, by default "none"
-        e.g. 'none', 'ilu', 'bjacobi', 'icc', 'lu', 'jacobi', 'cholesky', ...\n
-        https://petsc.org/release/manualpages/PC/PCType/#pctype\n
-    solverType : str, optional
-        PETSc Linear Solver, by default "petsc"
-        e.g. 'petsc', 'mumps', 'superlu', 'superlu_dist', 'umfpack', 'cholesky' ...\n
-        https://petsc.org/release/manual/ksp/#using-external-linear-solvers
-
-    Returns
-    -------
-    _types.FloatArray
-        x solution to A x = b
-    """
-
-    # assert MPI_SIZE > 1
-    assert A.ndim == 2 and A.shape[0] == A.shape[1], "A must be a square matrix"
-
-    # petsc4py.init(sys.argv, comm=MPI_COMM)
-
-    matrix = PETSc.Mat()  # type: ignore [attr-defined]
-
-    Ndof = A.shape[0]
-    Ndof_r = dofs.size
-
-    # petscOrdering: rank-0 dofs first, rank-1 dofs next, …
-    # mapping: original dof index → PETSc global column index
-    allDofs = MPI_COMM.allgather(dofs)
+    # petscOrdering: rank-0 ownedDofs first, rank-1 next, …
+    # mapping: index in A/b → PETSc global column index
+    allDofs = MPI_COMM.allgather(ownedDofs)
     petscOrdering = np.concatenate(allDofs)
     mapping = np.zeros(Ndof, dtype=int)
     mapping[petscOrdering] = np.arange(Ndof)
 
     # https://petsc.org/release/manual/mat/#matrices
+    matrix = PETSc.Mat()  # type: ignore [attr-defined]
     matrix.create(comm=MPI_COMM)
     matrix.setType("mpiaij")
     # https://petsc.org/release/petsc4py/reference/petsc4py.PETSc.Mat.html#petsc4py.PETSc.Mat.setSizes
     matrix.setSizes([[Ndof_r, Ndof], [Ndof_r, Ndof]])
 
-    # extract owned rows; remap column indices original-dof → PETSc global (no full reorder)
-    A_owned = A[dofs, :].tocsr().copy()
+    # extract owned rows; remap column indices to PETSc global space
+    A_owned = A[ownedDofs, :].tocsr().copy()
     A_owned.indices = mapping[A_owned.indices].astype(np.int32)
     A_owned.has_sorted_indices = False
     A_owned.sort_indices()
@@ -714,39 +601,28 @@ def _PETSc_MPI_r3(
     )
     matrix.assemble()
 
-    # rhs — index directly in original dof space
+    # rhs
     rhs = matrix.createVecLeft()
-    rhs.array[:] = b.toarray().ravel()[dofs]
+    rhs.array[:] = b.toarray().ravel()[ownedDofs]
 
     # initial guess
     x = matrix.createVecRight()
     if len(x0) > 0:
-        x.array[:] = x0[dofs]
-        # print(f"rank{MPI_RANK} x = {x.array}")
+        x.array[:] = x0[ownedDofs]
 
+    # KSP
     ksp = PETSc.KSP().create(comm=MPI_COMM)  # type: ignore [attr-defined]
     ksp.setOperators(matrix)
     ksp.setType(kspType)
-
-    # set pc type
     pc = ksp.getPC()
     pc.setType(pcType)
-
-    # set solver type
     pc.setFactorSolverType(solverType)
-
-    # solve x
     ksp.solve(rhs, x)
-    # print(f"rank{MPI_RANK} x = {x.array}")
 
-    # set dofsValues values
+    # gather solution
     dofsValues = np.zeros(Ndof, dtype=float)
-    dofsValues[dofs] = x.array
-    # print(f"rank{MPI_RANK} x.array = {x.array}")
-    # print(f"rank{MPI_RANK} dofsValues = {dofsValues}")
-
-    if MPI_SIZE > 1:
-        dofsValues = MPI_COMM.allreduce(dofsValues, MPI.SUM)
+    dofsValues[ownedDofs] = x.array
+    dofsValues = MPI_COMM.allreduce(dofsValues, MPI.SUM)
 
     return dofsValues, ksp.is_converged
 
