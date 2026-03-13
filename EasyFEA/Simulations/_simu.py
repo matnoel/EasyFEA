@@ -1525,14 +1525,14 @@ class _Simu(_IObserver, _params.Updatable, ABC):
         tic = Tic()
 
         # Build unknown and known dofs
-        dofsKnown_set = set(self.Bc_dofs_Dirichlet(problemType))
         nDof = self.mesh.Nn * self.Get_dof_n(problemType)
-        dofsUnknowns_set = set(range(nDof)) - dofsKnown_set
+        dofsKnown = np.asarray(self.Bc_dofs_Dirichlet(problemType), dtype=int)
+        mask = np.ones(nDof, dtype=bool)
+        mask[dofsKnown] = False  # handles duplicates implicitly
+        dofsKnown = np.where(~mask)[0]  # unique, sorted
+        dofsUnknown = np.where(mask)[0]
 
-        dofsKnown = np.asarray(list(dofsKnown_set), dtype=int)  # type: ignore [type-var]
-        dofsUnknown = np.asarray(list(dofsUnknowns_set), dtype=int)  # type: ignore [type-var]
-
-        test = dofsKnown.size + dofsUnknown.size  # type: ignore [attr-defined]
+        test = dofsKnown.size + dofsUnknown.size
         assert (
             test == nDof
         ), f"Problem under conditions dofsKnown + dofsUnknown - nDof = {test - nDof}"
