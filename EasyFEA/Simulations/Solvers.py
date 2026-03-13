@@ -132,6 +132,7 @@ def _Solve_Axb(
     lb: Union[_types.AnyArray, _types.Numbers],
     ub: Union[_types.AnyArray, _types.Numbers],
     resol: ResolType = ResolType.r1,
+    _ownedDofs: _types.IntArray = None,
 ) -> _types.FloatArray:
     """Solves the linear system A x = b
 
@@ -205,22 +206,23 @@ def _Solve_Axb(
         # Display.plt.show()
 
         if MPI_SIZE > 1:
-            _, _, nodes, _ = mesh.groupElem._Get_partitionned_data()
-            if resol == ResolType.r1:
-                _, dofsUnknown = simu.Bc_dofs_known_unknown(problemType)
-                dofsUnknown = __Get_unique_dofs(dofsUnknown)
-                dofs = simu.Bc_dofs_nodes(
-                    nodes, simu.Get_unknowns(problemType), problemType
-                )
-                ownedDofs = np.where(np.isin(dofsUnknown, dofs))[0]
-            elif resol == ResolType.r3:
-                dofs = simu.Bc_dofs_nodes(
-                    nodes, simu.Get_unknowns(problemType), problemType
-                )
-                ownedDofs = dofs
-            else:
-                raise NotImplementedError
-            x, converged = _PETSc_MPI(A, b, x0, ownedDofs, kspType, pcType, solverType)
+            if _ownedDofs is None:
+                _, _, nodes, _ = mesh.groupElem._Get_partitionned_data()
+                if resol == ResolType.r1:
+                    _, dofsUnknown = simu.Bc_dofs_known_unknown(problemType)
+                    dofsUnknown = __Get_unique_dofs(dofsUnknown)
+                    dofs = simu.Bc_dofs_nodes(
+                        nodes, simu.Get_unknowns(problemType), problemType
+                    )
+                    _ownedDofs = np.where(np.isin(dofsUnknown, dofs))[0]
+                elif resol == ResolType.r3:
+                    dofs = simu.Bc_dofs_nodes(
+                        nodes, simu.Get_unknowns(problemType), problemType
+                    )
+                    _ownedDofs = dofs
+                else:
+                    raise NotImplementedError
+            x, converged = _PETSc_MPI(A, b, x0, _ownedDofs, kspType, pcType, solverType)
         else:
             x, converged = _PETSc(A, b, x0, kspType, pcType, solverType)
         if not converged:
@@ -330,8 +332,12 @@ def __Solver_1(simu: "_Simu", problemType: "ModelType") -> _types.FloatArray:
     # Recover dofs
     dofsKnown, dofsUnknown = simu.Bc_dofs_known_unknown(problemType)
 
+    ownedDofs = None
     if MPI_SIZE > 1:
         dofsUnknown = __Get_unique_dofs(dofsUnknown)
+        _, _, nodes, _ = simu.mesh.groupElem._Get_partitionned_data()
+        dofs = simu.Bc_dofs_nodes(nodes, simu.Get_unknowns(problemType), problemType)
+        ownedDofs = np.where(np.isin(dofsUnknown, dofs))[0]
 
     tic = Tic()
     # split of the matrix system into known and unknown dofs
@@ -350,7 +356,7 @@ def __Solver_1(simu: "_Simu", problemType: "ModelType") -> _types.FloatArray:
     lb, ub = simu.Get_lb_ub(problemType)
 
     bi -= Aic @ xc
-    xi = _Solve_Axb(simu, problemType, Aii, bi, x0, lb, ub, ResolType.r1)
+    xi = _Solve_Axb(simu, problemType, Aii, bi, x0, lb, ub, ResolType.r1, ownedDofs)
 
     # apply result to global vector
     x = x.toarray().reshape(x.shape[0])
