@@ -12,8 +12,6 @@ import scipy.sparse as sparse
 import scipy.optimize as optimize
 import scipy.sparse.linalg as sla
 from typing import Union, TYPE_CHECKING
-from functools import reduce
-from operator import and_
 
 if TYPE_CHECKING:
     from ._simu import _Simu
@@ -214,9 +212,7 @@ def _Solve_Axb(
                 dofs = simu.Bc_dofs_nodes(
                     nodes, simu.Get_unknowns(problemType), problemType
                 )
-                ownedDofs = np.array(
-                    [d for d, dof in enumerate(dofsUnknown) if dof in dofs], dtype=int
-                )
+                ownedDofs = np.where(np.isin(dofsUnknown, dofs))[0]
             elif resol == ResolType.r3:
                 dofs = simu.Bc_dofs_nodes(
                     nodes, simu.Get_unknowns(problemType), problemType
@@ -280,10 +276,12 @@ def Solve_simu(simu: "_Simu", problemType: "ModelType"):
 
     resolution = ResolType.r1
     if CAN_USE_PETSC and MPI_SIZE > 1:
+        # r1 preserves symmetry → cg + bjacobi (ILU per rank)
         kspType, pcType, solverType = simu._Solver_Get_PETSc4Py_Options()
-        dof_n = simu.Get_dof_n(problemType)
-        kspType = "gmres" if dof_n == 1 else "cg"
-        simu._Solver_Set_PETSc4Py_Options(kspType, "none", solverType)
+        if resolution is ResolType.r3:
+            dof_n = simu.Get_dof_n(problemType)
+            kspType = "gmres" if dof_n == 1 else kspType
+        simu._Solver_Set_PETSc4Py_Options(kspType, "bjacobi", solverType)
 
     resolution = ResolType.r2 if len(simu.Bc_Lagrange) > 0 else resolution
 
@@ -297,17 +295,23 @@ def Solve_simu(simu: "_Simu", problemType: "ModelType"):
         raise ValueError("Unknown resolution.")
 
 
-def __Get_unique_dofs(dofs) -> _types.IntArray:
+def __Get_unique_dofs(dofs: _types.IntArray) -> _types.IntArray:
     # print(f"rank{MPI_RANK} dofs = {dofs}")
-    local_set = set(dofs)
-    all_sets = MPI_COMM.gather(local_set, root=0)
-    if MPI_COMM.rank == 0:
-        common_dofs = reduce(and_, all_sets)
-    else:
-        common_dofs = None
-    common_dofs = MPI_COMM.bcast(common_dofs, root=0)
-    dofs = MPI_COMM.bcast(dofs, root=0)
-    dofs = np.array([dof for dof in dofs if dof in common_dofs], dtype=int)
+    dofs = np.asarray(dofs, dtype=np.int64)
+    # Broadcast rank-0's dofs for a consistent ordering on all ranks
+    n = MPI_COMM.bcast(dofs.size, root=0)
+    dofs_r0 = np.empty(n, dtype=np.int64)
+    if MPI_RANK == 0:
+        dofs_r0[:] = dofs
+    MPI_COMM.Bcast(dofs_r0, root=0)
+    # Find DOFs present on ALL ranks via an Allreduce marker (no Python pickling)
+    Ndof = int(MPI_COMM.allreduce(int(dofs.max() + 1) if dofs.size > 0 else 0, MPI.MAX))
+    marker = np.zeros(Ndof, dtype=np.int32)
+    marker[dofs] = 1
+    global_count = np.empty(Ndof, dtype=np.int32)
+    MPI_COMM.Allreduce(marker, global_count, MPI.SUM)
+    # Keep only dofs that appear on every rank, in rank-0 order
+    dofs = dofs_r0[global_count[dofs_r0] == MPI_SIZE]
     # print(f"rank{MPI_RANK} dofs = {dofs}")
     return dofs
 
