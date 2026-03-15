@@ -10,6 +10,7 @@ import inspect
 from pathlib import Path
 
 from .. import BUILDING_GALLERY
+from ._mpi import MPI_SIZE, MPI_RANK
 
 
 def Dir(path: str = None, n: int = 1) -> str:
@@ -105,3 +106,10 @@ def Results_Dir() -> str:
 def Exists(path: str) -> bool:
     """Test whether a path exists. Returns False for broken symbolic links"""
     return os.path.exists(path)
+
+
+def Rank_Dir(path: str) -> str:
+    if MPI_SIZE > 1:
+        return os.path.join(path, f"Rank{MPI_RANK}")
+    else:
+        return path
