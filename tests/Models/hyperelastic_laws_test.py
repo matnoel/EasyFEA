@@ -6,7 +6,7 @@
 import pytest
 import numpy as np
 
-from EasyFEA import Mesher, ElemType, Models, Simulations
+from EasyFEA import ElemType, Models, Simulations
 from EasyFEA.FEM._linalg import Trace, TensorProd
 from EasyFEA.Models import Project_Kelvin
 from EasyFEA.Geoms import Domain
@@ -21,9 +21,7 @@ def simuIsot():
 
     contour = Domain((0, 0), (L, h), h / 3)
 
-    mesh = Mesher().Mesh_Extrude(
-        contour, [], [0, 0, h], [h / meshSize], ElemType.TETRA4
-    )
+    mesh = contour.Mesh_Extrude([], [0, 0, h], [h / meshSize], ElemType.TETRA4)
     nodesX0 = mesh.Nodes_Conditions(lambda x, y, z: x == 0)
     nodesXL = mesh.Nodes_Conditions(lambda x, y, z: x == L)
 

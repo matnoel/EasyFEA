@@ -19,7 +19,6 @@ from EasyFEA import (
     Folder,
     Models,
     Tic,
-    Mesher,
     ElemType,
     Mesh,
     Simulations,
@@ -95,10 +94,10 @@ if __name__ == "__main__":
     def DoMesh(refineGeom=None) -> Mesh:
         """Function used to generate the mesh."""
         if dim == 2:
-            return Mesher().Mesh_2D(points, inclusions, elemType, [], [refineGeom])
+            return points.Mesh_2D(inclusions, elemType, [], [refineGeom])
         else:
-            return Mesher().Mesh_Extrude(
-                points, inclusions, [0, 0, b], [], elemType, [], [refineGeom]
+            return points.Mesh_Extrude(
+                inclusions, [0, 0, b], [], elemType, [], [refineGeom]
             )
 
     # Construct the initial mesh

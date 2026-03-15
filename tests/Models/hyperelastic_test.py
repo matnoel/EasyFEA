@@ -5,7 +5,7 @@
 
 import numpy as np
 
-from EasyFEA import Mesher, ElemType, MatrixType, Models, Simulations, SolverType
+from EasyFEA import ElemType, MatrixType, Models, Simulations, SolverType
 from EasyFEA.Models.HyperElastic._state import HyperElasticState
 from EasyFEA.Geoms import Domain
 from EasyFEA.FEM._linalg import Trace, Det, Inv, TensorProd
@@ -24,7 +24,7 @@ def Get_2d_simulations(ud=1e-6) -> list[Simulations.Elastic]:
 
     for elemType in ElemType.Get_2D():
 
-        mesh = Mesher().Mesh_2D(contour, [], ElemType.TRI3)
+        mesh = contour.Mesh_2D([], elemType)
         simu = Simulations.Elastic(mesh, Models.Elastic.Isotropic(2))
         simu.solver = SolverType.scipy
 
@@ -51,7 +51,7 @@ def Get_3d_simulations(ud=1e-6) -> list[Simulations.Elastic]:
 
     for elemType in ElemType.Get_3D():
 
-        mesh = Mesher().Mesh_Extrude(contour, [], [0, 0, h], [h / meshSize], elemType)
+        mesh = contour.Mesh_Extrude([], [0, 0, h], [h / meshSize], elemType)
         simu = Simulations.Elastic(mesh, Models.Elastic.Isotropic(3))
         simu.solver = SolverType.scipy
 
@@ -83,7 +83,7 @@ class TestHyperElastic:
 
     #     contour = Domain((0,0), (L, h), meshSize)
 
-    #     mesh = Mesher().Mesh_2D(contour, [], ElemType.TRI3)
+    #     mesh = contour.Mesh_2D([], ElemType.TRI3)
 
     #     PyVista.Plot_Mesh(mesh).show()
 

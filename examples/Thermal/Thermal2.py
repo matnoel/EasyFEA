@@ -11,7 +11,7 @@ Transient thermal simulation.
 """
 # sphinx_gallery_thumbnail_number = -1
 
-from EasyFEA import Display, Folder, Models, Mesher, ElemType, Simulations, PyVista
+from EasyFEA import Display, Folder, Models, ElemType, Simulations, PyVista
 from EasyFEA.Geoms import Circle, Domain, Point
 
 if __name__ == "__main__":
@@ -42,11 +42,9 @@ if __name__ == "__main__":
     circle = Circle(Point(a / 2, a / 2), diam=a / 3, isHollow=True, meshSize=a / 4)
 
     if dim == 2:
-        mesh = Mesher().Mesh_2D(domain, [circle], ElemType.TRI6)
+        mesh = domain.Mesh_2D([circle], ElemType.TRI6)
     else:
-        mesh = Mesher().Mesh_Extrude(
-            domain, [circle], [0, 0, -a], [4], ElemType.PRISM18
-        )
+        mesh = domain.Mesh_Extrude([circle], [0, 0, -a], [4], ElemType.PRISM18)
 
     nodesX0 = mesh.Nodes_Conditions(lambda x, y, z: x == 0)
     nodesXa = mesh.Nodes_Conditions(lambda x, y, z: x == a)

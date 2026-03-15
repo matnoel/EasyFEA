@@ -5,9 +5,8 @@
 
 import matplotlib.pyplot as plt
 
-from EasyFEA import Display, Models, Simulations
+from EasyFEA import Display, Models, Simulations, ElemType
 from EasyFEA.Geoms import Domain, Circle, Point
-from EasyFEA import Mesher, ElemType
 
 
 class TestThermal:
@@ -19,9 +18,9 @@ class TestThermal:
         domain = Domain(Point(0, 0), Point(a, a), a / 10)
         inclusions = [Circle(Point(a / 2, a / 2), a / 3, a / 10)]
 
-        doMesh2D = lambda elemType: Mesher().Mesh_2D(domain, inclusions, elemType)
-        doMesh3D = lambda elemType: Mesher().Mesh_Extrude(
-            domain, inclusions, [0, 0, -a], [3], elemType
+        doMesh2D = lambda elemType: domain.Mesh_2D(inclusions, elemType)
+        doMesh3D = lambda elemType: domain.Mesh_Extrude(
+            inclusions, [0, 0, -a], [3], elemType
         )
 
         listMesh = [doMesh2D(elemType) for elemType in ElemType.Get_2D()]
@@ -54,7 +53,7 @@ class TestThermal:
             assert simu.needUpdate  # should trigger the event
             simu.Need_Update(False)  # init
 
-        mesh = Mesher().Mesh_2D(Domain(Point(), Point(1, 1)))
+        mesh = Domain(Point(), Point(1, 1)).Mesh_2D()
 
         thermal = Models.Thermal(1, 1)
         # k, c

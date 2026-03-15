@@ -5,7 +5,7 @@
 
 import numpy as np
 
-from EasyFEA import Mesher, Models, Simulations, SolverType
+from EasyFEA import Models, Simulations, SolverType
 from EasyFEA.Geoms import Domain
 
 
@@ -16,7 +16,7 @@ class TestPhaseField:
         a = 1
         l0 = a / 10
         meshSize = l0 / 2
-        mesh = Mesher().Mesh_2D(Domain((0, 0), (a, a), meshSize))
+        mesh = Domain((0, 0), (a, a), meshSize).Mesh_2D()
 
         nodes_0 = mesh.Nodes_Conditions(lambda x, y, z: x == 0)
         nodes_a = mesh.Nodes_Conditions(lambda x, y, z: x == a)
@@ -54,7 +54,7 @@ class TestPhaseField:
             assert simu.needUpdate  # should trigger the event
             simu.Need_Update(False)  # init
 
-        mesh = Mesher().Mesh_2D(Domain((0, 0), (1, 1)))
+        mesh = Domain((0, 0), (1, 1)).Mesh_2D()
 
         matIsot = Models.Elastic.Isotropic(2)
         # E, v, planeStress

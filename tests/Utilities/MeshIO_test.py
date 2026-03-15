@@ -39,14 +39,12 @@ def meshes() -> list[Mesh]:
 
     # 2d meshes
     for elemType in ElemType.Get_2D():
-        mesh = Mesher().Mesh_2D(contour, [], elemType, isOrganised=True)
+        mesh = contour.Mesh_2D([], elemType, isOrganised=True)
         meshes.append(mesh)
 
     # 3d meshes
     for elemType in ElemType.Get_3D():
-        mesh = Mesher().Mesh_Extrude(
-            contour, [], [0, 0, L], [3], elemType, isOrganised=True
-        )
+        mesh = contour.Mesh_Extrude([], [0, 0, L], [3], elemType, isOrganised=True)
         meshes.append(mesh)
 
     return meshes

@@ -79,10 +79,10 @@ class TestGmsh:
             dim = 2 if elemType in ElemType.Get_2D() else 3
 
             if dim == 2:
-                mesh = Mesher().Mesh_2D(contour, [], elemType, isOrganised=True)
+                mesh = contour.Mesh_2D([], elemType, isOrganised=True)
             else:
-                mesh = Mesher().Mesh_Extrude(
-                    contour, [], [0, 0, 1], 2, elemType, isOrganised=True
+                mesh = contour.Mesh_Extrude(
+                    [], [0, 0, 1], 2, elemType, isOrganised=True
                 )
 
             Ne = mesh.Ne

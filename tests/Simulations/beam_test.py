@@ -18,7 +18,7 @@ class TestBeam:
 
     def test_Beam(self):
 
-        interfaceGmsh = Mesher()
+        mesher = Mesher()
 
         listProblem = ["Flexion", "Traction", "BiEnca"]
         listElemType = ["SEG2", "SEG3", "SEG4", "SEG5"]
@@ -72,7 +72,7 @@ class TestBeam:
                 mass = L * h * b * ro
 
             # Section
-            section = interfaceGmsh.Mesh_2D(
+            section = mesher.Mesh_2D(
                 Domain(Point(x=-b / 2, y=-h / 2), Point(x=b / 2, y=h / 2))
             )
 
@@ -100,7 +100,7 @@ class TestBeam:
             assert (section.area - b * h) <= 1e-12
             assert (Iz - ((b * h**3) / 12)) <= 1e-12
 
-            mesh = interfaceGmsh.Mesh_Beams(beams=listePoutre, elemType=elemType)
+            mesh = mesher.Mesh_Beams(beams=listePoutre, elemType=elemType)
 
             # Modele poutre
 

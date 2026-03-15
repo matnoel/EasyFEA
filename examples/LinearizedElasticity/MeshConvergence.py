@@ -13,16 +13,7 @@ Verification of energy convergence for a bending beam for all available elements
 import matplotlib.pyplot as plt
 import numpy as np
 
-from EasyFEA import (
-    Display,
-    Folder,
-    Models,
-    Tic,
-    Mesher,
-    ElemType,
-    Simulations,
-    Paraview,
-)
+from EasyFEA import Display, Folder, Models, Tic, ElemType, Simulations, Paraview
 from EasyFEA.Geoms import Domain, Point
 
 if __name__ == "__main__":
@@ -80,8 +71,6 @@ if __name__ == "__main__":
 
     # elemTypes = [elem.name for elem in elemTypes.copy()]
 
-    mesher = Mesher()
-
     for e, elemType in enumerate(elemTypes):
         times_N = []
         wDef_N = []
@@ -97,11 +86,10 @@ if __name__ == "__main__":
 
             # Generate the mesh using Gmsh
             if dim == 2:
-                mesh = mesher.Mesh_2D(domain, [], elemType, isOrganised=isOrganised)
+                mesh = domain.Mesh_2D([], elemType, isOrganised=isOrganised)
                 volume = mesh.area * material.thickness
             else:
-                mesh = mesher.Mesh_Extrude(
-                    domain,
+                mesh = domain.Mesh_Extrude(
                     [],
                     elemType=elemType,
                     extrude=[0, 0, b],

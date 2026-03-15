@@ -5,9 +5,8 @@
 
 import matplotlib.pyplot as plt
 
-from EasyFEA import Display, Models, Simulations, SolverType
+from EasyFEA import Display, Models, Simulations, SolverType, ElemType
 from EasyFEA.Geoms import Domain, Circle, Point
-from EasyFEA import Mesher, ElemType
 
 
 class TestElastic:
@@ -25,9 +24,9 @@ class TestElastic:
         domain = Domain(Point(0, 0), Point(a, a), a / 10)
         inclusions = [Circle(Point(a / 2, a / 2), a / 3, a / 10)]
 
-        doMesh2D = lambda elemType: Mesher().Mesh_2D(domain, inclusions, elemType)
-        doMesh3D = lambda elemType: Mesher().Mesh_Extrude(
-            domain, inclusions, [0, 0, -a], [3], elemType
+        doMesh2D = lambda elemType: domain.Mesh_2D(inclusions, elemType)
+        doMesh3D = lambda elemType: domain.Mesh_Extrude(
+            inclusions, [0, 0, -a], [3], elemType
         )
 
         listMesh = [doMesh2D(elemType) for elemType in ElemType.Get_2D()]
@@ -66,10 +65,10 @@ class TestElastic:
         """Function use to check that modifications on elastic material activate the update of the simulation"""
 
         def DoTest(simu: Simulations._Simu) -> None:
-            assert simu.needUpdate == True  # should trigger the event
+            assert simu.needUpdate  # should trigger the event
             simu.Need_Update(False)  # init
 
-        mesh = Mesher().Mesh_2D(Domain(Point(), Point(1, 1)))
+        mesh = Domain(Point(), Point(1, 1)).Mesh_2D()
 
         matIsot = Models.Elastic.Isotropic(2)
         # E, v, planeStress
@@ -77,7 +76,7 @@ class TestElastic:
         simu = Simulations.Elastic(mesh, matIsot)
         simu.Get_K_C_M_F()
         assert (
-            simu.needUpdate == False
+            not simu.needUpdate
         )  # check that need update is now set to false once Get_K_C_M_F() get called
         matIsot.E *= 2
         DoTest(simu)
@@ -89,22 +88,22 @@ class TestElastic:
             # must return an error
             matIsot.E = -10
         except AssertionError:
-            assert simu.needUpdate == False
+            assert not simu.needUpdate
         try:
             # must return an error
             matIsot.v = 10
         except AssertionError:
-            assert simu.needUpdate == False
+            assert not simu.needUpdate
         try:
             matIsot.planeStress = 10
         except AssertionError:
-            assert simu.needUpdate == False
+            assert not simu.needUpdate
 
         matElasIsotTrans = Models.Elastic.TransverselyIsotropic(2, 10, 10, 10, 0.1, 0.1)
         # El, Et, Gl, vl, vt, planeStress
         simu = Simulations.Elastic(mesh, matElasIsotTrans)
         simu.Get_K_C_M_F()
-        assert simu.needUpdate == False
+        assert not simu.needUpdate
         matElasIsotTrans.El *= 2
         DoTest(simu)
         matElasIsotTrans.Et *= 2
@@ -124,6 +123,6 @@ class TestElastic:
         # Set_C,
         simu = Simulations.Elastic(mesh, matAnisot)
         simu.Get_K_C_M_F()
-        assert simu.needUpdate == False
+        assert not simu.needUpdate
         matAnisot.Set_C(matIsot.C, False)
         DoTest(simu)

@@ -6,7 +6,7 @@
 import pytest
 import numpy as np
 
-from EasyFEA import Geoms, Mesher, Simulations, SolverType
+from EasyFEA import Geoms, Simulations, SolverType
 
 # materials
 from EasyFEA.Models.Elastic import (
@@ -64,9 +64,9 @@ class TestPhaseField:
         circle = Geoms.Circle(Geoms.Point(L / 2, H / 2), H / 3)
 
         if dim == 2:
-            mesh = Mesher().Mesh_2D(domain, [circle], "TRI3")
+            mesh = domain.Mesh_2D([circle], "TRI3")
         else:
-            mesh = Mesher().Mesh_Extrude(domain, [circle], [0, 0, H / 3], [4], "PRISM6")
+            mesh = domain.Mesh_Extrude([circle], [0, 0, H / 3], [4], "PRISM6")
 
         simu = Simulations.Elastic(mesh, mat)
         simu.solver = SolverType.scipy

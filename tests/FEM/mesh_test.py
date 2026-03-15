@@ -49,7 +49,7 @@ def meshes_2D() -> list[Mesh]:
 
     for elemType in ElemType.Get_2D():
 
-        mesh = Mesher().Mesh_2D(contour, [], elemType, isOrganised=True)
+        mesh = contour.Mesh_2D([], elemType, isOrganised=True)
 
         meshes_2D.append(mesh)
 
@@ -69,9 +69,7 @@ def meshes_3D() -> list[Mesh]:
 
     for elemType in ElemType.Get_3D():
 
-        mesh = Mesher().Mesh_Extrude(
-            contour, [], [0, 0, L], [3], elemType, isOrganised=True
-        )
+        mesh = contour.Mesh_Extrude([], [0, 0, L], [3], elemType, isOrganised=True)
 
         meshes_3D.append(mesh)
 

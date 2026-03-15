@@ -14,7 +14,7 @@ Optimization of a happy mesh with quality criteria.
 import matplotlib.pyplot as plt
 import numpy as np
 
-from EasyFEA import Display, Folder, Mesher, ElemType, Mesh, PyVista
+from EasyFEA import Display, Folder, ElemType, Mesh, PyVista
 from EasyFEA.Geoms import Point, Circle, CircleArc, Contour
 from EasyFEA.FEM import Mesh_Optim
 
@@ -69,7 +69,7 @@ if __name__ == "__main__":
 
     def DoMesh(refineGeom=None) -> Mesh:
         """Function used for mesh generation"""
-        return Mesher().Mesh_2D(circle, inclusions, elemType, [], [refineGeom])
+        return circle.Mesh_2D(inclusions, elemType, [], [refineGeom])
 
     # Construct the initial mesh
     mesh = DoMesh()
