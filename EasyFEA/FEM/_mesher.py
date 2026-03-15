@@ -16,6 +16,7 @@ from functools import singledispatchmethod
 
 # utilities
 from ..Utilities import Display, Folder, Tic, _types
+from ..Utilities._mpi import CAN_USE_MPI, MPI_SIZE, MPI_RANK
 
 # geom
 from ..Geoms import (
@@ -40,13 +41,6 @@ if TYPE_CHECKING:
     # materials
     from ..Models.Beam._beam import _Beam
     from ..Simulations._simu import _Simu
-
-try:
-    from mpi4py import MPI
-
-    CAN_USE_MPI = True
-except ModuleNotFoundError:
-    CAN_USE_MPI = False
 
 # types
 GeomCompatible = Union[_Geom, Circle, Domain, Points, Contour]
@@ -2016,9 +2010,8 @@ class Mesher:
 
         # get mpi data
         assert CAN_USE_MPI, "mpi4py must be installed"
-        comm = MPI.COMM_WORLD
         Nproc = len(dict_rank_nodes)
-        assert Nproc == comm.Get_size()  # comment for debug purposes
+        assert Nproc == MPI_SIZE  # comment for debug purposes
 
         # get type's dim
         dim = gmsh.model.mesh.getElementProperties(gmshId)[1]
@@ -2090,7 +2083,7 @@ class Mesher:
         assert Nn == expectedNn, "wrong nodes attribution."
 
         # return the group of element associated to the rank
-        return list_rank_groupElem[comm.Get_rank()]
+        return list_rank_groupElem[MPI_RANK]
 
     def _Mesh_Get_Mesh(self, coef: float = 1.0) -> Mesh:
         """Creates the mesh object from the created gmsh mesh."""
@@ -2099,7 +2092,7 @@ class Mesher:
 
         useMpi = False
         if CAN_USE_MPI:
-            Nrank = MPI.COMM_WORLD.Get_size()
+            Nrank = MPI_SIZE
             # Nrank = 3  # uncomment for debugging purposes
             useMpi = Nrank > 1
             gmsh.model.mesh.partition(Nrank)

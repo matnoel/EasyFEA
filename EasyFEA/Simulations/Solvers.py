@@ -19,6 +19,11 @@ if TYPE_CHECKING:
 
 from ..Utilities import Tic, _types
 
+from ..Utilities._mpi import CAN_USE_MPI, MPI_COMM, MPI_SIZE, MPI_RANK
+
+if CAN_USE_MPI:
+    from mpi4py import MPI
+
 # fem
 from ..FEM import LagrangeCondition
 
@@ -28,21 +33,6 @@ try:
     CAN_USE_PYPARDISO = True
 except ModuleNotFoundError:
     CAN_USE_PYPARDISO = False
-
-try:
-    from mpi4py import MPI
-
-    MPI_COMM = MPI.COMM_WORLD
-    MPI_SIZE = MPI_COMM.Get_size()
-    MPI_RANK = MPI_COMM.Get_rank()
-
-    CAN_USE_MPI = True
-except ModuleNotFoundError:
-    CAN_USE_MPI = False
-
-    MPI_COMM = None
-    MPI_SIZE = 1
-    MPI_RANK = 0
 
 try:
     import petsc4py
@@ -298,6 +288,7 @@ def Solve_simu(simu: "_Simu", problemType: "ModelType"):
 
 
 def __Get_unique_dofs(dofs: _types.IntArray) -> _types.IntArray:
+    assert MPI_SIZE > 1
     dofs = np.asarray(dofs, dtype=np.int64)
     # Find global max DOF index
     local_max = dofs.max() if dofs.size > 0 else -1
