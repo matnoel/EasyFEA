@@ -298,24 +298,19 @@ def Solve_simu(simu: "_Simu", problemType: "ModelType"):
 
 
 def __Get_unique_dofs(dofs: _types.IntArray) -> _types.IntArray:
-    # print(f"rank{MPI_RANK} dofs = {dofs}")
     dofs = np.asarray(dofs, dtype=np.int64)
-    # Broadcast rank-0's dofs for a consistent ordering on all ranks
-    n = MPI_COMM.bcast(dofs.size, root=0)
-    dofs_r0 = np.empty(n, dtype=np.int64)
-    if MPI_RANK == 0:
-        dofs_r0[:] = dofs
-    MPI_COMM.Bcast(dofs_r0, root=0)
-    # Find DOFs present on ALL ranks via an Allreduce marker (no Python pickling)
-    Ndof = int(MPI_COMM.allreduce(int(dofs.max() + 1) if dofs.size > 0 else 0, MPI.MAX))
+    # Find global max DOF index
+    local_max = dofs.max() if dofs.size > 0 else -1
+    Ndof = int(MPI_COMM.allreduce(local_max, MPI.MAX)) + 1
+    # Count DOF occurrences across ranks
     marker = np.zeros(Ndof, dtype=np.int32)
     marker[dofs] = 1
     global_count = np.empty(Ndof, dtype=np.int32)
     MPI_COMM.Allreduce(marker, global_count, MPI.SUM)
-    # Keep only dofs that appear on every rank, in rank-0 order
-    dofs = dofs_r0[global_count[dofs_r0] == MPI_SIZE]
-    # print(f"rank{MPI_RANK} dofs = {dofs}")
-    return dofs
+    # Find common DOFs (same on all ranks after Allreduce)
+    common_mask = global_count == MPI_SIZE
+    result = np.flatnonzero(common_mask).astype(np.int64)
+    return result
 
 
 def __Solver_1(simu: "_Simu", problemType: "ModelType") -> _types.FloatArray:
