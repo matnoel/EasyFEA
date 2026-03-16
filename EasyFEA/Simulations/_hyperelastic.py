@@ -182,15 +182,14 @@ class HyperElastic(_Simu):
     # Iterations
     # --------------------------------------------------------------------------
 
-    def Save_Iter(self):
-        iter = super().Save_Iter()
+    def Save_Iter(self, iter={}):
 
         iter["displacement"] = self.displacement
         if self.algo in AlgoType.Get_Hyperbolic_Types():
             iter["speed"] = self._Get_v_n(self.problemType)
             iter["accel"] = self._Get_a_n(self.problemType)
 
-        self._results.append(iter)
+        return super().Save_Iter(iter)
 
     def Set_Iter(self, iter=-1, resetAll=False):
         results = super().Set_Iter(iter)

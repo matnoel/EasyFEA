@@ -85,7 +85,7 @@ class _Simu(_IObserver, _params.Updatable, ABC):
     Iterations:
     -----------
 
-        - def Save_Iter(self) -> None:
+        - def Save_Iter(self, iter: dict[str, Any]={}) -> None:
 
         - def Set_Iter(self, index=-1) -> None:
 
@@ -165,9 +165,10 @@ class _Simu(_IObserver, _params.Updatable, ABC):
     # Iterations
 
     @abstractmethod
-    def Save_Iter(self) -> dict[str, Any]:
+    def Save_Iter(self, iter: dict[str, Any] = {}):
         """Saves iteration results in _results."""
-        iter = {}
+
+        iter = iter.copy()
 
         iter["indexMesh"] = self.__indexMesh
         # mesh identifier at this iteration
@@ -178,7 +179,7 @@ class _Simu(_IObserver, _params.Updatable, ABC):
             iter["timeIter"] = self.__timeIter
             iter["list_norm_r"] = self.__list_norm_r
 
-        return iter
+        self.__results.append(iter)
 
     @abstractmethod
     def Set_Iter(self, iter: int = -1, resetAll=False) -> dict:
@@ -317,7 +318,7 @@ class _Simu(_IObserver, _params.Updatable, ABC):
         self.__dim: int = model.dim
         """Simulation dimension."""
 
-        self._results: list[dict] = []
+        self.__results: list[dict] = []
         """Dictionary list containing the results."""
 
         # Fill in the first mesh
@@ -425,12 +426,12 @@ class _Simu(_IObserver, _params.Updatable, ABC):
     @property
     def results(self) -> list[dict]:
         """Returns a copy of the list of dictionary containing the results from each iteration."""
-        return self._results.copy()
+        return self.__results.copy()
 
     @property
     def Niter(self) -> int:
         """Number of iterations"""
-        return len(self._results)
+        return len(self.__results)
 
     def __Init_Sols_n(self) -> None:
         """Initializes the solutions."""

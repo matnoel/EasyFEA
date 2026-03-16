@@ -579,8 +579,7 @@ class PhaseField(_Simu):
 
         return self.damage
 
-    def Save_Iter(self):
-        iter = super().Save_Iter()
+    def Save_Iter(self, iter={}):
 
         # convergence informations
         iter["Niter"] = self.__Niter
@@ -594,7 +593,7 @@ class PhaseField(_Simu):
         iter["displacement"] = self.displacement
         iter["damage"] = self.damage
 
-        self._results.append(iter)
+        return super().Save_Iter(iter)
 
     def Set_Iter(self, iter: int = -1, resetAll=False) -> dict:
         results = super().Set_Iter(iter)

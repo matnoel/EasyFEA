@@ -150,15 +150,14 @@ class Thermal(_Simu):
 
         return Kt_e, Ct_e, None, None
 
-    def Save_Iter(self):
-        iter = super().Save_Iter()
+    def Save_Iter(self, iter={}):
 
         iter["thermal"] = self.thermal
 
         if self.algo == AlgoType.parabolic:
             iter["thermalDot"] = self.thermalDot
 
-        self._results.append(iter)
+        return super().Save_Iter(iter)
 
     def Set_Iter(self, iter: int = -1, resetAll=False) -> dict:
         results = super().Set_Iter(iter)

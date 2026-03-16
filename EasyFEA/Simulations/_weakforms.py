@@ -150,8 +150,7 @@ class WeakForms(_Simu):
 
         return K_e, C_e, M_e, F_e
 
-    def Save_Iter(self):
-        iter = super().Save_Iter()
+    def Save_Iter(self, iter={}):
 
         if self.algo == AlgoType.elliptic:
             iter["u"] = self.u
@@ -168,7 +167,7 @@ class WeakForms(_Simu):
         else:
             raise TypeError("Unknown algo type.")
 
-        self._results.append(iter)
+        super().Save_Iter(iter)
 
     def Set_Iter(self, iter: int = -1, resetAll=False) -> dict:
         results = super().Set_Iter(iter)
