@@ -63,6 +63,7 @@ class HyperElastic(_Simu):
         self,
         mesh: "Mesh",
         model: "_HyperElastic",
+        folder: str = "",
         tolConv=1e-5,
         maxIter=20,
         verbosity=False,
@@ -75,6 +76,8 @@ class HyperElastic(_Simu):
             The mesh used.
         model : _HyperElas
             The hyperelatic model used.
+        folder : str, optional
+            save folder, by default "".
         tolConv : float, optional
             threshold used to check convergence, by default 1e-5
         maxIter : int, optional
@@ -87,7 +90,7 @@ class HyperElastic(_Simu):
         2D simulations are conducted under the **plane strain** assumption.
         """
 
-        super().__init__(mesh, model, verbosity)
+        super().__init__(mesh, model, folder, verbosity)
 
         self._Solver_Set_Newton_Raphson_Algorithm(tolConv=tolConv, maxIter=maxIter)
 

@@ -27,7 +27,9 @@ class Beam(_Simu):
 
     # TODO: add math
 
-    def __init__(self, mesh: "Mesh", model: BeamStructure, verbosity=False):
+    def __init__(
+        self, mesh: "Mesh", model: BeamStructure, folder: str = "", verbosity=False
+    ):
         """Creates a Euler-Bernoulli beam simulation.
 
         Parameters
@@ -36,6 +38,8 @@ class Beam(_Simu):
             the mesh used.
         model : Beam_Structure | _Beam
             the model used.
+        folder : str, optional
+            save folder, by default "".
         verbosity : bool, optional
             If True, the simulation can write in the terminal. Defaults to False.
         """
@@ -47,7 +51,7 @@ class Beam(_Simu):
         assert isinstance(
             model, BeamStructure
         ), "model must be a beam model or a beam structure"
-        super().__init__(mesh, model, verbosity)
+        super().__init__(mesh, model, folder, verbosity)
 
         # turn beams into observable objects
         [beam._Add_observer(self) for beam in model.beams]  # type: ignore [func-returns-value]

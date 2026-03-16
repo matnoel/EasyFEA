@@ -5,6 +5,8 @@
 
 from abc import ABC, abstractmethod
 import pickle
+import shutil
+import re
 from datetime import datetime
 from typing import Union, Optional, Any
 import numpy as np
@@ -168,6 +170,8 @@ class _Simu(_IObserver, _params.Updatable, ABC):
     def Save_Iter(self, iter: dict[str, Any] = {}):
         """Saves iteration results in _results."""
 
+        self.__Niter += 1
+
         iter = iter.copy()
 
         iter["indexMesh"] = self.__indexMesh
@@ -179,7 +183,14 @@ class _Simu(_IObserver, _params.Updatable, ABC):
             iter["timeIter"] = self.__timeIter
             iter["list_norm_r"] = self.__list_norm_r
 
-        self.__results.append(iter)
+        if self.folder == "":
+            self.__results.append(iter)
+        else:
+            file = Folder.Join(
+                self.folder, "Results", f"results{self.Niter}.pickle", mkdir=True
+            )
+            with open(file, "wb") as f:
+                pickle.dump(iter, f)
 
     @abstractmethod
     def Set_Iter(self, iter: int = -1, resetAll=False) -> dict:
@@ -192,10 +203,16 @@ class _Simu(_IObserver, _params.Updatable, ABC):
         indexMax = len(self.results) - 1
         assert iter <= indexMax, f"The iter must be < {indexMax}]"
 
-        # Retrieve the results stored in the pandas array
-        results = self.results[iter]
+        # Retrieve the results stored
+        if self.folder == "":
+            results = self.results[iter]
+        else:
+            file = self.results[iter]
+            with open(file, "rb") as f:
+                results = pickle.load(f)
 
-        self.__Update_mesh(iter)
+        indexMesh = results["indexMesh"]
+        self.__Update_mesh(indexMesh)
 
         return results.copy()
 
@@ -297,7 +314,9 @@ class _Simu(_IObserver, _params.Updatable, ABC):
 
         return text
 
-    def __init__(self, mesh: Mesh, model: _IModel, verbosity: bool = True):
+    def __init__(
+        self, mesh: Mesh, model: _IModel, folder: str = "", verbosity: bool = True
+    ):
         """Creates a simulation.
 
         Parameters
@@ -306,6 +325,8 @@ class _Simu(_IObserver, _params.Updatable, ABC):
             The mesh used.
         model : _IModel
             The model used.
+        folder: str, optional
+            save folder, by default "".
         verbosity : bool, optional
             If True, the simulation can write in the terminal. Defaults to True.
         """
@@ -315,9 +336,15 @@ class _Simu(_IObserver, _params.Updatable, ABC):
 
         self.__model = model
 
+        self.folder = folder
+        resultsFolder = Folder.Join(folder, "Results")
+        if Folder.Exists(resultsFolder):
+            shutil.rmtree(resultsFolder)
+
         self.__dim: int = model.dim
         """Simulation dimension."""
 
+        self.__Niter = 0
         self.__results: list[dict] = []
         """Dictionary list containing the results."""
 
@@ -422,16 +449,40 @@ class _Simu(_IObserver, _params.Updatable, ABC):
     # Solutions
     # ----------------------------------------------
 
-    # Solutions
     @property
-    def results(self) -> list[dict]:
+    def folder(self) -> str:
+        return self.__folder
+
+    @folder.setter
+    def folder(self, value: str) -> None:
+        assert isinstance(value, str)
+        if value != "":
+            if not Folder.Exists(value):
+                Folder.os.makedirs(value)
+        self.__folder = value
+
+    @property
+    def results(self) -> Union[list[dict], list[str]]:
         """Returns a copy of the list of dictionary containing the results from each iteration."""
-        return self.__results.copy()
+        if self.folder == "":
+            return self.__results.copy()
+        else:
+            folder = Folder.Join(self.folder, "Results", mkdir=True)
+
+            files = sorted(
+                [
+                    Folder.Join(folder, file)
+                    for file in Folder.os.listdir(folder)
+                    if file.endswith(".pickle")
+                ],
+                key=lambda f: int(re.search(r"results(\d+)", f).group(1)),
+            )
+            return files
 
     @property
     def Niter(self) -> int:
         """Number of iterations"""
-        return len(self.__results)
+        return self.__Niter
 
     def __Init_Sols_n(self) -> None:
         """Initializes the solutions."""
@@ -536,16 +587,15 @@ class _Simu(_IObserver, _params.Updatable, ABC):
         """simulation's dimension"""
         return self.__dim
 
-    def __Update_mesh(self, iter: int) -> None:
+    def __Update_mesh(self, index: int) -> None:
         """Updates the mesh for the specified iteration.
 
         Parameters
         ----------
-        iter : int
-            The iteration number to update the mesh.
+        index : int
+            The mesh index in self.__listMesh.
         """
-        indexMesh = self.results[iter]["indexMesh"]
-        self.__mesh = self.__listMesh[indexMesh]
+        self.__mesh = self.__listMesh[index]
         self.Need_Update()  # need to reconstruct matrices
 
     def _Update(self, observable: Observable, event: str) -> None:

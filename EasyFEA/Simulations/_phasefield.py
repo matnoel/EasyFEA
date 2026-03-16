@@ -73,7 +73,9 @@ class PhaseField(_Simu):
     See section 3.1. of https://univ-eiffel.hal.science/hal-05115523 for additional mathematical details.
     """
 
-    def __init__(self, mesh: Mesh, model: Models.PhaseField, verbosity=False):
+    def __init__(
+        self, mesh: Mesh, model: Models.PhaseField, folder: str = "", verbosity=False
+    ):
         """Creates a damage simulation.
 
         Parameters
@@ -82,12 +84,14 @@ class PhaseField(_Simu):
             The mesh used.
         model : PhaseField
             The model used.
+        folder : str, optional
+            save folder, by default "".
         verbosity : bool, optional
             If True, the simulation can write in the terminal. Defaults to False.
         """
 
         assert isinstance(model, Models.PhaseField), "model must be a phase field model"
-        super().__init__(mesh, model, verbosity)
+        super().__init__(mesh, model, folder, verbosity)
 
         # Init internal variable
         self.__psiP_e_pg: FeArray.FeArrayALike = np.empty(0, dtype=float)
@@ -941,6 +945,9 @@ class PhaseField(_Simu):
 
         results = self.results
         iterations = list(range(len(results)))
+
+        if self.folder != "":
+            results = [self.Set_Iter(iter) for iter in range(self.Niter)]
 
         damageMaxIter, convIter, Niter, timeIter = zip(
             *(

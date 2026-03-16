@@ -46,7 +46,9 @@ class Elastic(_Simu):
     The implemented elastic laws are available :ref:`here <models-elastic>`.
     """
 
-    def __init__(self, mesh: "Mesh", model: _Elastic, verbosity=False):
+    def __init__(
+        self, mesh: "Mesh", model: _Elastic, folder: str = "", verbosity=False
+    ):
         """Creates a elastic simulation.
 
         Parameters
@@ -55,12 +57,14 @@ class Elastic(_Simu):
             The mesh used.
         model : _Elas
             The elastic model (or material) used.
+        folder : str, optional
+            save folder, by default "".
         verbosity : bool, optional
             If True, the simulation can write in the terminal. Defaults to False.
         """
 
         assert isinstance(model, _Elastic), "model must be a elastic model"
-        super().__init__(mesh, model, verbosity)
+        super().__init__(mesh, model, folder, verbosity)
 
         # init
         self.Set_Rayleigh_Damping_Coefs()

@@ -48,10 +48,7 @@ class Thermal(_Simu):
     """
 
     def __init__(
-        self,
-        mesh: "Mesh",
-        model: Models.Thermal,
-        verbosity=False,
+        self, mesh: "Mesh", model: Models.Thermal, folder: str = "", verbosity=False
     ):
         """Creates a thermal simulation.
 
@@ -61,12 +58,14 @@ class Thermal(_Simu):
             The mesh used.
         model : IModel
             The model used.
+        folder : str, optional
+            save folder, by default "".
         verbosity : bool, optional
             If True, the simulation can write in the terminal. Defaults to False.
         """
 
         assert isinstance(model, Models.Thermal), "model must be a thermal model"
-        super().__init__(mesh, model, verbosity)
+        super().__init__(mesh, model, folder, verbosity)
 
         # Set solver petsc4py options, even if petsc4py is unavailable.
         self._Solver_Set_PETSc4Py_Options(pcType="ilu")

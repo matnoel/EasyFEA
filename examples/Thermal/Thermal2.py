@@ -57,7 +57,7 @@ if __name__ == "__main__":
     # Simulation
     # ----------------------------------------------
     thermalModel = Models.Thermal(k=1, c=1, thickness=1)
-    simu = Simulations.Thermal(mesh, thermalModel, False)
+    simu = Simulations.Thermal(mesh, thermalModel)
     simu.rho = 1
 
     simu.add_dirichlet(nodesX0, [0], ["t"])

@@ -27,6 +27,7 @@ class WeakForms(_Simu):
         self,
         mesh: "Mesh",
         model: Models.WeakForms,
+        folder: str = "",
         isNonLinear=False,
         tolConv=1e-5,
         maxIter=20,
@@ -40,6 +41,8 @@ class WeakForms(_Simu):
             The mesh used.
         model : WeakForms
             The model used.
+        folder : str, optional
+            save folder, by default "".
         isNonLinear : bool, optional
             If True, the simulation is non linear. Defaults to False.
         tolConv : float, optional
@@ -51,7 +54,7 @@ class WeakForms(_Simu):
         """
 
         assert isinstance(model, Models.WeakForms), "model must be a weakf form manager"
-        super().__init__(mesh, model, verbosity)
+        super().__init__(mesh, model, folder, verbosity)
 
         if isNonLinear:
             self._Solver_Set_Newton_Raphson_Algorithm(tolConv=tolConv, maxIter=maxIter)
