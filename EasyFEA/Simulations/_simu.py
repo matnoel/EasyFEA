@@ -470,7 +470,7 @@ class _Simu(_IObserver, _params.Updatable, ABC):
     def folder(self, value: str) -> None:
         assert isinstance(value, str)
         if value != "":
-            if not Folder.Exists(value):
+            if MPI_RANK == 0 and not Folder.Exists(value):
                 Folder.os.makedirs(value)
         self.__folder = value
 
