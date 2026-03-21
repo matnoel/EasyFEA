@@ -11,6 +11,7 @@ from typing import TYPE_CHECKING
 # utilities
 from . import Display, Folder, Tic
 from .MeshIO import DICT_GMSH_TO_VTK_INDEXES, DICT_ELEMTYPE_TO_VTK
+from ._mpi import MPI_SIZE, MPI_RANK, MPI_COMM
 
 from ..Utilities import _types
 
@@ -30,11 +31,11 @@ def Save_simu(
     nodeFields: list[str] = [],
     elementFields: list[str] = [],
 ):
-    """Generates the paraview (.pvd and .pvu files) with a simu.
+    """Generates the paraview (.pvd and .vtu/.pvtu files) with a simu.
 
     Parameters
     ----------
-    simulation : _Simu
+    simu : _Simu
         Simulation
     folder: str
         folder in which we will create the Paraview folder
@@ -42,14 +43,12 @@ def Save_simu(
         Maximal number of iterations displayed, by default 200
     details: bool, optional
         details of nodesField and elementsField used in the .vtu
-    nodesField: list, optional
-        Additional nodesField, by default []
-    elementsField: list, optional
-        Additional elementsField, by default []
+    nodeFields: list, optional
+        Additional nodeFields, by default []
+    elementFields: list, optional
+        Additional elementFields, by default []
     """
     print("\n")
-
-    vtuFiles: list[str] = []
 
     simu = Display._Init_obj(simu)[0]  # type: ignore
     meshDim = simu.mesh.dim
@@ -65,9 +64,6 @@ def Save_simu(
 
     if not Folder.Exists(folder):
         Folder.os.makedirs(folder)
-
-    times = []
-    tic = Tic()
 
     additionalNodesField = nodeFields
     additionalElementsField = elementFields
@@ -93,10 +89,12 @@ def Save_simu(
     # activate the first iteration
     simu.Set_Iter(0, resetAll=True)
 
+    pvFiles: list[str] = []
+    times = []
+    tic = Tic()
+
     for i, iter in enumerate(iterations):
         simu.Set_Iter(iter)
-
-        filename = Folder.Join(folder, f"solution_{iter}.vtu")
 
         # get nodeResults
         nodeResults: dict[str, _types.AnyArray] = {}
@@ -115,10 +113,7 @@ def Save_simu(
                 array = array.reshape(Ne, -1)[:, [0, 1, 2, 5, 3, 4]]
             elementResults[elementField] = array
 
-        __Make_vtu(simu.mesh, filename, nodeResults, elementResults)
-
-        # vtuFiles.append(vtuFile)
-        vtuFiles.append(filename)
+        pvFiles.append(__Make_vtu(simu.mesh, folder, iter, nodeResults, elementResults))
 
         times.append(tic.Tac("Paraview", "Make vtu", False))
 
@@ -132,8 +127,8 @@ def Save_simu(
 
     tic = Tic()
 
-    filenamePvd = Folder.os.path.join(folder, "simulation")
-    __Make_pvd(filenamePvd, vtuFiles)
+    if MPI_RANK == 0:
+        __Make_pvd(Folder.os.path.join(folder, "simulation"), pvFiles)
 
     tic.Tac("Paraview", "Make pvd", False)
 
@@ -145,7 +140,7 @@ def _Save_mesh(
     nodeFields: dict[str, list[_types.AnyArray]] = {},
     elementFields: dict[str, list[_types.AnyArray]] = {},
 ):
-    """Generates the paraview (.pvd and .pvu files) with a mesh.
+    """Generates the paraview (.pvd and .vtu/.pvtu files) with a mesh.
 
     Parameters
     ----------
@@ -162,19 +157,16 @@ def _Save_mesh(
     """
     print("\n")
 
-    vtuFiles: list[str] = []
-
     folder = Folder.Join(folder, "Paraview")
 
     if not Folder.Exists(folder):
         Folder.os.makedirs(folder)
 
+    pvFiles: list[str] = []
     times = []
     tic = Tic()
 
     for i in range(N):
-        filename = Folder.Join(folder, f"solution_{i}.vtu")
-
         nodeResults = {
             nodeField: results[i] for nodeField, results in nodeFields.items()
         }
@@ -182,10 +174,7 @@ def _Save_mesh(
             elementField: results[i] for elementField, results in elementFields.items()
         }
 
-        __Make_vtu(mesh, filename, nodeResults, elementResults)
-
-        # vtuFiles.append(vtuFile)
-        vtuFiles.append(filename)
+        pvFiles.append(__Make_vtu(mesh, folder, i, nodeResults, elementResults))
 
         times.append(tic.Tac("Paraview", "Make vtu", False))
 
@@ -199,8 +188,8 @@ def _Save_mesh(
 
     tic = Tic()
 
-    filenamePvd = Folder.os.path.join(folder, "simulation")
-    __Make_pvd(filenamePvd, vtuFiles)
+    if MPI_RANK == 0:
+        __Make_pvd(Folder.os.path.join(folder, "simulation"), pvFiles)
 
     tic.Tac("Paraview", "Make pvd", False)
 
@@ -210,11 +199,20 @@ def _Save_mesh(
 # ----------------------------------------------
 def __Make_vtu(
     mesh: "Mesh",
-    filename: str,
+    folder: str,
+    iter: int,
     nodeResults: dict[str, _types.AnyArray],
     elementResults: dict[str, _types.AnyArray],
-):
-    """Generates the .vtu files in binary format."""
+) -> str:
+    """Generates the .vtu file for this rank and, when MPI_SIZE > 1, the .pvtu
+    descriptor (rank 0 only). Returns the path to reference in the .pvd."""
+
+    rank_folder = Folder.Rank_Dir(folder)
+
+    if not Folder.Exists(rank_folder):
+        Folder.os.makedirs(rank_folder)
+
+    filename = Folder.Join(rank_folder, f"solution_{iter}.vtu")
 
     # get mesh data
     elemType = mesh.elemType
@@ -249,20 +247,18 @@ def __Make_vtu(
         return offset + bitSize + (bitSize * size)
 
     with open(filename, "w") as file:
-        # Specify the mesh
         file.write('<?pickle version="1.0" ?>\n')
-
         file.write(
             f'<VTKFile type="UnstructuredGrid" version="0.1" byte_order="{endian_paraview}">\n'
         )
-
         file.write("\t<UnstructuredGrid>\n")
         file.write(f'\t\t<Piece NumberOfPoints="{Nn}" NumberOfCells="{Ne}">\n')
 
         # Specify the nodes values
         file.write('\t\t\t<PointData scalars="scalar"> \n')
         offset = 0
-        list_values_n: list[_types.FloatArray] = []  # list of nodes values
+        list_values_n: list[_types.FloatArray] = []
+        nodeFields_meta: dict[str, int] = {}
         for nodeField, nodeValues in nodeResults.items():
             assert isinstance(
                 nodeValues, np.ndarray
@@ -272,13 +268,14 @@ def __Make_vtu(
 
             if dof_n == 2 and inDim == 2:
                 # add new array for z values
-                # otherwise we won’t be able to plot the deformed mesh
+                # otherwise we won't be able to plot the deformed mesh
                 nodeValues = np.concatenate(
                     (nodeValues.reshape(Nn, 2), np.zeros((Nn, 1))), axis=1
                 )
                 dof_n = 3
 
             list_values_n.append(nodeValues.ravel())
+            nodeFields_meta[nodeField] = dof_n
 
             file.write(
                 f'\t\t\t\t<DataArray type="Float32" Name="{nodeField}" NumberOfComponents="{dof_n}" format="appended" offset="{offset}" />\n'
@@ -290,6 +287,7 @@ def __Make_vtu(
         # Specify the elements values
         file.write("\t\t\t<CellData> \n")
         list_values_e: list[_types.FloatArray] = []
+        elementFields_meta: dict[str, int] = {}
         for elementField, elementValues in elementResults.items():
             assert isinstance(
                 elementValues, np.ndarray
@@ -298,6 +296,7 @@ def __Make_vtu(
             list_values_e.append(elementValues.ravel())
 
             dof_n = elementValues.size // Ne
+            elementFields_meta[elementField] = dof_n
 
             file.write(
                 f'\t\t\t\t<DataArray type="Float32" Name="{elementField}" NumberOfComponents="{dof_n}" format="appended" offset="{offset}" />\n'
@@ -330,7 +329,6 @@ def __Make_vtu(
         )
         file.write("\t\t\t</Cells>\n")
 
-        # END VTK FILE
         file.write("\t\t</Piece>\n")
         file.write("\t</UnstructuredGrid> \n")
 
@@ -341,20 +339,20 @@ def __Make_vtu(
     with open(filename, "ab") as file:
         # Nodes values
         for nodeValues in list_values_n:
-            __WriteBinary(bitSize * (nodeValues.size), "uint32", file)
+            __WriteBinary(bitSize * nodeValues.size, "uint32", file)
             __WriteBinary(nodeValues, "float32", file)
 
         # Elements values
         for elementValues in list_values_e:
-            __WriteBinary(bitSize * (elementValues.size), "uint32", file)
+            __WriteBinary(bitSize * elementValues.size, "uint32", file)
             __WriteBinary(elementValues, "float32", file)
 
         # Nodes
-        __WriteBinary(bitSize * (nodes.size), "uint32", file)
+        __WriteBinary(bitSize * nodes.size, "uint32", file)
         __WriteBinary(nodes, "float32", file)
 
         # Connectivity
-        __WriteBinary(bitSize * (connect.size), "uint32", file)
+        __WriteBinary(bitSize * connect.size, "uint32", file)
         __WriteBinary(connect, "int32", file)
 
         # Offsets
@@ -366,20 +364,29 @@ def __Make_vtu(
         __WriteBinary(types, "int8", file)
 
     with open(filename, "a") as file:
-        # End of adding data
         file.write("\n\t</AppendedData>\n")
-
-        # End of vtk
         file.write("</VTKFile> \n")
 
-    path = Folder.Dir(filename)
-    vtuFile = str(filename).replace(path + "\\", "")
+    if MPI_SIZE > 1:
+        MPI_COMM.Barrier()  # wait for all ranks to finish writing their .vtu
 
-    return vtuFile
+        if MPI_RANK == 0:
+            piece_files = [
+                Folder.Join(folder, f"Rank{r}", f"solution_{iter}.vtu")
+                for r in range(MPI_SIZE)
+            ]
+            return __Make_pvtu(
+                Folder.Join(folder, f"solution_{iter}"),
+                piece_files,
+                nodeFields_meta,
+                elementFields_meta,
+            )
+
+    return filename
 
 
-def __Make_pvd(filename: str, vtuFiles=[]):
-    """Makes .pvd file to link the .vtu files."""
+def __Make_pvd(filename: str, pvFiles: list[str] = []):
+    """Makes .pvd file to link the .vtu or .pvtu files."""
 
     tic = Tic()
 
@@ -391,16 +398,15 @@ def __Make_pvd(filename: str, vtuFiles=[]):
 
     with open(filename, "w") as file:
         file.write('<?pickle version="1.0" ?>\n')
-
         file.write(
             f'<VTKFile type="Collection" version="0.1" byte_order="{endian_paraview}">\n'
         )
         file.write("\t<Collection>\n")
 
-        for t, vtuFile in enumerate(vtuFiles):
-            vtuFile = vtuFile.replace(dir, ".")
+        for t, pvFile in enumerate(pvFiles):
+            pvFile = pvFile.replace(dir, ".")
             file.write(
-                f'\t\t<DataSet timestep="{t}" group="" part="1" file="{vtuFile}"/>\n'
+                f'\t\t<DataSet timestep="{t}" group="" part="1" file="{pvFile}"/>\n'
             )
 
         file.write("\t</Collection>\n")
@@ -409,8 +415,55 @@ def __Make_pvd(filename: str, vtuFiles=[]):
     tic.Tac("Paraview", "Make pvd", False)
 
 
+def __Make_pvtu(
+    filename: str,
+    piece_files: list[str],
+    nodeFields_meta: dict[str, int],
+    elementFields_meta: dict[str, int],
+) -> str:
+    """Generates a .pvtu parallel descriptor file referencing per-rank .vtu pieces."""
+
+    endian_paraview = "LittleEndian"
+    pvtu_filename = filename + ".pvtu"
+    dir = Folder.Dir(pvtu_filename)
+
+    with open(pvtu_filename, "w") as file:
+        file.write('<?xml version="1.0" ?>\n')
+        file.write(
+            f'<VTKFile type="PUnstructuredGrid" version="0.1" byte_order="{endian_paraview}">\n'
+        )
+        file.write('\t<PUnstructuredGrid GhostLevel="0">\n')
+
+        file.write("\t\t<PPointData>\n")
+        for name, n_comp in nodeFields_meta.items():
+            file.write(
+                f'\t\t\t<PDataArray type="Float32" Name="{name}" NumberOfComponents="{n_comp}"/>\n'
+            )
+        file.write("\t\t</PPointData>\n")
+
+        file.write("\t\t<PCellData>\n")
+        for name, n_comp in elementFields_meta.items():
+            file.write(
+                f'\t\t\t<PDataArray type="Float32" Name="{name}" NumberOfComponents="{n_comp}"/>\n'
+            )
+        file.write("\t\t</PCellData>\n")
+
+        file.write("\t\t<PPoints>\n")
+        file.write('\t\t\t<PDataArray type="Float32" NumberOfComponents="3"/>\n')
+        file.write("\t\t</PPoints>\n")
+
+        for piece_file in piece_files:
+            rel = piece_file.replace(dir, ".")
+            file.write(f'\t\t<Piece Source="{rel}"/>\n')
+
+        file.write("\t</PUnstructuredGrid>\n")
+        file.write("</VTKFile>\n")
+
+    return pvtu_filename
+
+
 def __WriteBinary(value, type: str, file):
-    """Converts value (int of array) to Binary"""
+    """Converts value (int or array) to binary."""
 
     if type not in ["uint32", "float32", "int32", "int8"]:
         raise Exception("Type not implemented")
@@ -424,6 +477,4 @@ def __WriteBinary(value, type: str, file):
     elif type == "int8":
         value = np.int8(value)
 
-    convert = value.tobytes()
-
-    file.write(convert)
+    file.write(value.tobytes())
