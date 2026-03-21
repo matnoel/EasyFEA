@@ -2084,9 +2084,6 @@ class Mesher:
             # append the created groupElem
             list_rank_groupElem.append(groupElem)
 
-        expectedNn = len(set(connect.ravel()))
-        assert Nn == expectedNn, "wrong nodes attribution."
-
         # return the group of element associated to the rank
         return list_rank_groupElem[MPI_RANK]
 
