@@ -19,7 +19,7 @@ from ..__about__ import __version__
 # utilities
 from ..Utilities import Folder, Display, Tic, _params, _types
 from ..Utilities._observers import Observable, _IObserver
-from ..Utilities._mpi import MPI_SIZE
+from ..Utilities._mpi import MPI_SIZE, MPI_RANK
 
 # fem
 from ..FEM import (
@@ -171,6 +171,9 @@ class _Simu(_IObserver, _params.Updatable, ABC):
     def Save_Iter(self, iter: dict[str, Any] = {}):
         """Saves iteration results in _results."""
 
+        if MPI_RANK != 0:
+            return
+
         self.__Niter += 1
 
         iter = iter.copy()
@@ -197,6 +200,9 @@ class _Simu(_IObserver, _params.Updatable, ABC):
     def Set_Iter(self, iter: int = -1, resetAll=False) -> dict:
         """Sets the simulation to the specified iteration (usually the last one) and then reset the required variables if necessary (resetAll).\n
         Returns the simulation results dictionary."""
+
+        if MPI_RANK != 0:
+            return None
 
         iter = int(iter)
         assert isinstance(iter, int), "Must provide an integer."
@@ -339,7 +345,7 @@ class _Simu(_IObserver, _params.Updatable, ABC):
 
         self.folder = folder
         resultsFolder = Folder.Join(folder, "Results")
-        if Folder.Exists(resultsFolder):
+        if MPI_RANK == 0 and Folder.Exists(resultsFolder):
             shutil.rmtree(resultsFolder)
 
         self.__dim: int = model.dim
