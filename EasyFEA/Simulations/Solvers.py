@@ -197,7 +197,7 @@ def _Solve_Axb(
 
         if MPI_SIZE > 1:
             if _ownedDofs is None:
-                _, _, nodes, _ = mesh.groupElem._Get_partitionned_data()
+                nodes = mesh.groupElem._Get_partitioned_data()[3]
                 if resol == ResolType.r1:
                     _, dofsUnknown = simu.Bc_dofs_known_unknown(problemType)
                     dofsUnknown = __Get_unique_dofs(dofsUnknown)
@@ -321,7 +321,7 @@ def __Solver_1(simu: "_Simu", problemType: "ModelType") -> _types.FloatArray:
     ownedDofs = None
     if MPI_SIZE > 1:
         dofsUnknown = __Get_unique_dofs(dofsUnknown)
-        _, _, nodes, _ = simu.mesh.groupElem._Get_partitionned_data()
+        nodes = simu.mesh.groupElem._Get_partitioned_data()[3]
         dofs = simu.Bc_dofs_nodes(nodes, simu.Get_unknowns(problemType), problemType)
         ownedDofs = np.where(np.isin(dofsUnknown, dofs))[0]
 

@@ -97,7 +97,7 @@ class _GroupElem(ABC):
         self.__nodes = nodes
 
         # Set the paritionned data.
-        self._Set_partitionned_data(self.elements, self.nodes)
+        self._Set_partitioned_data(self.elements, [], self.nodes)
 
         # dictionnary associated with tags on elements or nodes
         self.__dict_nodes_tags: dict[str, _types.IntArray] = {}
@@ -172,42 +172,48 @@ class _GroupElem(ABC):
         """elements"""
         return np.arange(self.__connect.shape[0], dtype=int)
 
-    def _Set_partitionned_data(
+    def _Set_partitioned_data(
         self,
-        elementsGlob: _types.IntArray,
+        elements: _types.IntArray,
         nodes: _types.IntArray,
         rank: int = 0,
+        ghostElements: _types.IntArray = [],
     ) -> None:
-        """Sets the paritionned data used in mpi.
+        """Sets the partitioned data used in mpi.
 
         Parameters
         ----------
-        elementsGlob : _types.IntArray
+        elements : _types.IntArray
             the positions of elements in the global mesh.
         nodes : _types.IntArray
             the (non-ghost) nodes.\n
         rank : int, optional
             mpi rank, by default 0
+        ghostElements : _types.IntArray, optional
+            the positions of ghost elements in the global mesh, by default [].
 
         Remark
         ------
         Ghost nodes will be computed using the given (non-ghost) nodes array.
         """
 
-        # set elements glob (may be smaller than Ne when ghost elements are present)
-        assert elementsGlob.size <= self.__connect.shape[0], "Must be a (Ne,) array."
-        elementsGlob = np.asarray(elementsGlob, dtype=int)
-        # get (non-ghost) nodes and ghost nodes
+        Ne = self.__connect.shape[0]
+        # set elements (may be smaller than Ne when ghost elements are present)
+        elements = np.asarray(elements, dtype=int)
+        assert elements.size <= Ne
+        ghostElements = np.asarray(ghostElements, dtype=int)
+        assert ghostElements.size <= Ne
+        # get nodes and ghost nodes
         nodes = np.asarray(nodes, dtype=int)
         ghostNodes = np.asarray(list(set(self.nodes) - set(nodes)), dtype=int)
 
-        self.__partitionned_data = (rank, elementsGlob, nodes, ghostNodes)
+        self.__partitionned_data = (rank, elements, ghostElements, nodes, ghostNodes)
 
-    def _Get_partitionned_data(
+    def _Get_partitioned_data(
         self,
     ) -> tuple[_types.IntArray, _types.IntArray, _types.IntArray]:
-        """Returns the paritionned data used in mpi.\n
-        (rank, elementsGlob, nodes, ghostNodes)"""
+        """Returns the partitioned data used in mpi.\n
+        (rank, elements, ghostElements, nodes, ghostNodes)"""
         return self.__partitionned_data
 
     @property

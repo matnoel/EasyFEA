@@ -2018,11 +2018,11 @@ class Mesher:
 
         # get elements data
         Ne = connect.shape[0]
-        elements = gmsh.model.mesh.getElementsByType(gmshId)[0] - 1
+        gmshElements = gmsh.model.mesh.getElementsByType(gmshId)[0] - 1
 
         # get mapping elements to detect element position in the connect array
-        map_elements = np.ones(elements.max() + 1, dtype=int) * -1
-        map_elements[elements] = np.arange(elements.size)
+        map_elements = np.ones(gmshElements.max() + 1, dtype=int) * -1
+        map_elements[gmshElements] = np.arange(gmshElements.size)
 
         # get elements for each rank
         dict_rank_elements: dict[int : set[int]] = {}
@@ -2039,43 +2039,48 @@ class Mesher:
         list_rank_groupElem: list["_GroupElem"] = []
 
         Nn: int = 0
+        elements = np.arange(Ne, dtype=int)
 
         for rank in range(Nproc):
             # get owned elements and their connectivity
             idx_r = np.array(list(dict_rank_elements[rank]), dtype=int)
             connect_r = connect[idx_r]
             # get (non-ghost) nodes from owned elements only
-            otherRankNodes: set[int] = set()
-            [
-                otherRankNodes.update(dict_rank_nodes[r])
-                for r in range(Nproc)
-                if r != rank
-            ]
+            # Build set union directly instead of loop
+            otherRankNodes = set().union(
+                *(dict_rank_nodes[r] for r in range(Nproc) if r != rank)
+            )
             # add (non-ghost) nodes
-            nodes = list(set(connect_r.ravel()) - set(otherRankNodes))
+            nodes = set(connect_r.ravel()) - otherRankNodes
             dict_rank_nodes[rank].update(nodes)
             Nn += len(nodes)
-            # find ghost elements: elements from other ranks that share at least
-            # one owned node with this rank — needed for complete row assembly
-            nodes_arr = np.array(nodes, dtype=int)
-            ghost_idx: set[int] = set()
+            # find ghost elements
+            # Convert to array once and reuse
+            nodes_arr = np.array(list(nodes), dtype=int)
+            ghost_idx = set()
             for other_rank in range(Nproc):
                 if other_rank == rank:
                     continue
-                other_idx = list(dict_rank_elements[other_rank])
+                other_idx = dict_rank_elements.get(other_rank)
                 if not other_idx:
                     continue
-                other_connect = connect[other_idx]
-                touches = np.any(np.isin(other_connect, nodes_arr), axis=1)
-                ghost_idx.update(np.array(other_idx)[touches])
+                # Convert to array once
+                other_idx_arr = np.array(list(other_idx), dtype=int)
+                other_connect = connect[other_idx_arr]
+                # Use isin (not deprecated)
+                mask = np.isin(other_connect, nodes_arr).any(axis=1)
+                ghost_idx.update(other_idx_arr[mask])
             # build full connectivity: owned elements + ghost elements
-            all_idx = np.array(sorted(set(idx_r.tolist()) | ghost_idx), dtype=int)
+            # Use np.unique for combined sorting (faster than sorted(set))
+            all_idx = np.unique(
+                np.concatenate([idx_r, np.array(list(ghost_idx), dtype=int)])
+            )
             connect_r_full = connect[all_idx]
             # create groupElem with owned + ghost elements
             groupElem = GroupElemFactory._Create(gmshId, connect_r_full, coordGlob)
-            # attribute global element positions for owned elements only
-            elementsGlob = np.arange(Ne)[idx_r]
-            groupElem._Set_partitionned_data(elementsGlob, nodes, rank)
+            groupElem._Set_partitioned_data(
+                elements[idx_r], nodes_arr, rank, elements[list(ghost_idx)]
+            )
             # append the created groupElem
             list_rank_groupElem.append(groupElem)
 
