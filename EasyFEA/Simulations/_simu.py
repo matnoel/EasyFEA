@@ -1619,12 +1619,13 @@ class _Simu(_IObserver, _params.Updatable, ABC):
             Degrees of freedom.
         """
 
+        if len(nodes) == 0:
+            return np.array([], dtype=int)
+
         if problemType is None:
             problemType = self.problemType
 
         self.__Check_problemTypes(problemType)
-
-        assert len(nodes) > 0, "Empty node list"
 
         availableUnknowns = self.Get_unknowns(problemType)
 
