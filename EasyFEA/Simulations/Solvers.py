@@ -38,6 +38,7 @@ try:
     import petsc4py
     from petsc4py import PETSc
 
+    petsc4py.init(sys.argv, comm=MPI_COMM)
     CAN_USE_PETSC = True
 
 except ModuleNotFoundError:
@@ -483,8 +484,6 @@ def _PETSc(
 
     assert A.ndim == 2 and A.shape[0] == A.shape[1], "A must be a square matrix"
 
-    petsc4py.init(sys.argv, comm=MPI_COMM)
-
     matrix = PETSc.Mat()  # type: ignore [attr-defined]
 
     # set values
@@ -567,8 +566,6 @@ def _PETSc_MPI(
 
     assert MPI_SIZE > 1
     assert A.ndim == 2 and A.shape[0] == A.shape[1], "A must be a square matrix"
-
-    petsc4py.init(sys.argv, comm=MPI_COMM)
 
     Ndof = A.shape[0]
     Ndof_r = ownedDofs.size
