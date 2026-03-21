@@ -13,6 +13,7 @@ from enum import Enum
 
 # utilities
 from . import Folder, Tic, _types
+from ._mpi import MPI_RANK
 
 # simulations
 from ..Simulations._simu import _Init_obj, _Get_values
@@ -1306,6 +1307,9 @@ def Plot_Iter_Summary(simu, folder="", iterMin=None, iterMax=None) -> None:
     iterMax : int, optional
         upper bound, by default None
     """
+
+    if MPI_RANK != 0:
+        return None
 
     simu = _Init_obj(simu)[0]
 
