@@ -274,7 +274,7 @@ def Solve_simu(simu: "_Simu", problemType: "ModelType"):
         if resolution is ResolType.r3:
             dof_n = simu.Get_dof_n(problemType)
             kspType = "gmres" if dof_n == 1 else kspType
-        simu._Solver_Set_PETSc4Py_Options(kspType, "bjacobi", solverType)
+        simu._Solver_Set_PETSc4Py_Options(kspType, "none", solverType)
 
     resolution = ResolType.r2 if len(simu.Bc_Lagrange) > 0 else resolution
 
