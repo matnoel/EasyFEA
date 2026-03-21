@@ -19,6 +19,7 @@ from ..__about__ import __version__
 # utilities
 from ..Utilities import Folder, Display, Tic, _params, _types
 from ..Utilities._observers import Observable, _IObserver
+from ..Utilities._mpi import MPI_SIZE
 
 # fem
 from ..FEM import (
@@ -370,11 +371,17 @@ class _Simu(_IObserver, _params.Updatable, ABC):
         # a simulation is by default linear
 
         # Solver used
-        self.__solver = SolverType.scipy  # Initialized just in case
-        if CAN_USE_PYPARDISO:
+        if MPI_SIZE > 1:
+            assert (
+                CAN_USE_PETSC
+            ), "You must install petsc4py in order to run EasyFEA in parallel."
+            self.solver = SolverType.petsc
+        elif CAN_USE_PYPARDISO:
             self.solver = SolverType.pypardiso
         elif CAN_USE_PETSC:
             self.solver = SolverType.petsc
+        else:
+            self.solver = SolverType.scipy
 
         # Set solver petsc4py options, even if petsc4py is unavailable.
         self._Solver_Set_PETSc4Py_Options()
