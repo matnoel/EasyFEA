@@ -587,10 +587,8 @@ def _PETSc_MPI(
     # extract owned rows; remap column indices to PETSc global space
     A_owned = A[ownedDofs, :].tocsr().copy()
     A_owned.indices = mapping[A_owned.indices].astype(np.int32)
-    A_owned.has_sorted_indices = False
-    A_owned.sort_indices()
     matrix.setValuesCSR(
-        A_owned.indptr, A_owned.indices, A_owned.data, PETSc.InsertMode.INSERT_VALUES
+        A_owned.indptr, A_owned.indices, A_owned.data, PETSc.InsertMode.ADD_VALUES
     )
     matrix.assemble()
 
