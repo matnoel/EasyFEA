@@ -171,9 +171,6 @@ class _Simu(_IObserver, _params.Updatable, ABC):
     def Save_Iter(self, iter: dict[str, Any] = {}):
         """Saves iteration results in _results."""
 
-        if MPI_RANK != 0:
-            return
-
         self.__Niter += 1
 
         iter = iter.copy()
@@ -193,22 +190,19 @@ class _Simu(_IObserver, _params.Updatable, ABC):
             file = Folder.Join(
                 self.folder, "Results", f"results{self.Niter}.pickle", mkdir=True
             )
-            with open(file, "wb") as f:
-                pickle.dump(iter, f)
+            if MPI_RANK == 0:
+                with open(file, "wb") as f:
+                    pickle.dump(iter, f)
 
     @abstractmethod
     def Set_Iter(self, iter: int = -1, resetAll=False) -> dict:
         """Sets the simulation to the specified iteration (usually the last one) and then reset the required variables if necessary (resetAll).\n
         Returns the simulation results dictionary."""
 
-        if MPI_RANK != 0:
-            return None
-
         iter = int(iter)
         assert isinstance(iter, int), "Must provide an integer."
 
-        indexMax = len(self.results) - 1
-        assert iter <= indexMax, f"The iter must be < {indexMax}]"
+        assert iter <= self.Niter, f"The iter must be < {self.Niter}]"
 
         # Retrieve the results stored
         if self.folder == "":
