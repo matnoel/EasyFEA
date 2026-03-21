@@ -19,7 +19,13 @@ if TYPE_CHECKING:
 
 from ..Utilities import Tic, _types
 
-from ..Utilities._mpi import CAN_USE_MPI, MPI_COMM, MPI_SIZE, MPI_RANK
+from ..Utilities._mpi import (
+    CAN_USE_MPI,
+    MPI_COMM,
+    MPI_SIZE,
+    MPI_RANK,
+    Concatenate_array,
+)
 
 if CAN_USE_MPI:
     from mpi4py import MPI
@@ -572,8 +578,7 @@ def _PETSc_MPI(
 
     # petscOrdering: rank-0 ownedDofs first, rank-1 next, …
     # mapping: index in A/b → PETSc global column index
-    allDofs = MPI_COMM.allgather(ownedDofs)
-    petscOrdering = np.concatenate(allDofs)
+    petscOrdering = Concatenate_array(ownedDofs)
     mapping = np.zeros(Ndof, dtype=int)
     mapping[petscOrdering] = np.arange(Ndof)
 
