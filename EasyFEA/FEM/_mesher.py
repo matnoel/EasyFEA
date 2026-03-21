@@ -2095,16 +2095,18 @@ class Mesher:
 
         tic = Tic()
 
+        dict_groupElem: dict[ElemType, "_GroupElem"] = {}
+        meshDim = gmsh.model.getDimension()
+        elementTypes = gmsh.model.mesh.getElementTypes()
+
         useMpi = False
         if CAN_USE_MPI:
             Nrank = MPI_SIZE
             # Nrank = 3  # uncomment for debugging purposes
             useMpi = Nrank > 1
+            Nelems = np.concatenate(gmsh.model.mesh.getElements(meshDim)[1]).size
+            assert MPI_SIZE <= Nelems, f"Nproc must be less than or equal to {Nelems}!"
             gmsh.model.mesh.partition(Nrank)
-
-        dict_groupElem: dict[ElemType, "_GroupElem"] = {}
-        meshDim = gmsh.model.getDimension()
-        elementTypes = gmsh.model.mesh.getElementTypes()
 
         coord, changes = self.__Get_coord_and_changes()
 
