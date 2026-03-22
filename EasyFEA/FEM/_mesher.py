@@ -16,7 +16,7 @@ from functools import singledispatchmethod
 
 # utilities
 from ..Utilities import Display, Folder, Tic, _types
-from ..Utilities._mpi import CAN_USE_MPI, MPI_SIZE, MPI_RANK
+from ..Utilities._mpi import CAN_USE_MPI, MPI_COMM, MPI_SIZE, MPI_RANK
 
 # geom
 from ..Geoms import (
@@ -1892,49 +1892,54 @@ class Mesher:
 
         tic = Tic()
 
-        gmsh.model.mesh.generate(dim)
+        if MPI_RANK == 0:
+            gmsh.model.mesh.generate(dim)
 
-        # set mesh order
-        Mesher._Set_mesh_order(elemType)
+            # set mesh order
+            Mesher._Set_mesh_order(elemType)
 
-        if dim > 1:
-            # remove all duplicated nodes and elements
-            gmsh.model.mesh.removeDuplicateNodes()
-            gmsh.model.mesh.removeDuplicateElements()
+            if dim > 1:
+                # remove all duplicated nodes and elements
+                gmsh.model.mesh.removeDuplicateNodes()
+                gmsh.model.mesh.removeDuplicateElements()
 
-        # PLUGIN CRACK
-        if crackLines is not None:  # 1D CRACKS
-            gmsh.plugin.setNumber("Crack", "Dimension", 1)
-            gmsh.plugin.setNumber("Crack", "PhysicalGroup", crackLines)
-            if openPoints is not None:
-                gmsh.plugin.setNumber("Crack", "OpenBoundaryPhysicalGroup", openPoints)
-            gmsh.plugin.setNumber("Crack", "SwapOrientation", 1)
-            gmsh.plugin.run("Crack")
-            # DONT DELETE must be called for 1D and 2D cracks
+            # PLUGIN CRACK
+            if crackLines is not None:  # 1D CRACKS
+                gmsh.plugin.setNumber("Crack", "Dimension", 1)
+                gmsh.plugin.setNumber("Crack", "PhysicalGroup", crackLines)
+                if openPoints is not None:
+                    gmsh.plugin.setNumber(
+                        "Crack", "OpenBoundaryPhysicalGroup", openPoints
+                    )
+                gmsh.plugin.setNumber("Crack", "SwapOrientation", 1)
+                gmsh.plugin.run("Crack")
+                # DONT DELETE must be called for 1D and 2D cracks
 
-        if crackSurfaces is not None:  # 2D CRACKS
-            gmsh.plugin.setNumber("Crack", "Dimension", 2)
-            gmsh.plugin.setNumber("Crack", "PhysicalGroup", crackSurfaces)
-            if openLines is not None:
-                gmsh.plugin.setNumber("Crack", "OpenBoundaryPhysicalGroup", openLines)
-            gmsh.plugin.setNumber("Crack", "SwapOrientation", 1)
-            gmsh.plugin.run("Crack")
+            if crackSurfaces is not None:  # 2D CRACKS
+                gmsh.plugin.setNumber("Crack", "Dimension", 2)
+                gmsh.plugin.setNumber("Crack", "PhysicalGroup", crackSurfaces)
+                if openLines is not None:
+                    gmsh.plugin.setNumber(
+                        "Crack", "OpenBoundaryPhysicalGroup", openLines
+                    )
+                gmsh.plugin.setNumber("Crack", "SwapOrientation", 1)
+                gmsh.plugin.run("Crack")
 
-        # Open gmsh interface if necessary
-        if "-nopopup" not in sys.argv and self.__openGmsh:
-            gmsh.fltk.run()
+            # Open gmsh interface if necessary
+            if "-nopopup" not in sys.argv and self.__openGmsh:
+                gmsh.fltk.run()
 
-        tic.Tac("Mesh", "Meshing with gmsh", self.__verbosity)
+            tic.Tac("Mesh", "Meshing with gmsh", self.__verbosity)
 
-        if folder != "":
-            # gmsh.write(Dossier.Join([folder, "model.geo"])) # It doesn't seem to work, but that's okay
-            self._Synchronize()
+            if folder != "":
+                # gmsh.write(Folder.Join([folder, "model.geo"])) # It doesn't seem to work, but that's okay
+                self._Synchronize()
 
-            if not Folder.Exists(folder):
-                os.makedirs(folder)
-            msh = Folder.Join(folder, f"{filename}.msh")
-            gmsh.write(msh)
-            tic.Tac("Mesh", "Saving .msh", self.__verbosity)
+                if not Folder.Exists(folder):
+                    os.makedirs(folder)
+                msh = Folder.Join(folder, f"{filename}.msh")
+                gmsh.write(msh)
+                tic.Tac("Mesh", "Saving .msh", self.__verbosity)
 
     def __Get_coord_and_changes(self) -> tuple[_types.FloatArray, _types.IntArray]:
         """Returns coord and changes.\n
@@ -2006,7 +2011,7 @@ class Mesher:
         connect: np.ndarray,
         coordGlob: np.ndarray,
         dict_rank_nodes: dict[int, set[int]],
-    ) -> "_GroupElem":
+    ) -> list["_GroupElem"]:
 
         # get mpi data
         assert CAN_USE_MPI, "mpi4py must be installed"
@@ -2084,93 +2089,109 @@ class Mesher:
             # append the created groupElem
             list_rank_groupElem.append(groupElem)
 
-        # return the group of element associated to the rank
-        return list_rank_groupElem[MPI_RANK]
+        # return all rank GroupElems so rank 0 can scatter them
+        return list_rank_groupElem
 
     def _Mesh_Get_Mesh(self, coef: float = 1.0) -> Mesh:
         """Creates the mesh object from the created gmsh mesh."""
 
         tic = Tic()
 
-        dict_groupElem: dict[ElemType, "_GroupElem"] = {}
-        meshDim = gmsh.model.getDimension()
-        elementTypes = gmsh.model.mesh.getElementTypes()
+        if MPI_RANK == 0:
+            meshDim = gmsh.model.getDimension()
+            elementTypes = gmsh.model.mesh.getElementTypes()
+            useMpi = CAN_USE_MPI and MPI_SIZE > 1
 
-        useMpi = False
-        if CAN_USE_MPI:
-            Nrank = MPI_SIZE
-            # Nrank = 3  # uncomment for debugging purposes
-            useMpi = Nrank > 1
-            Nelems = np.concatenate(gmsh.model.mesh.getElements(meshDim)[1]).size
-            assert MPI_SIZE <= Nelems, f"Nproc must be less than or equal to {Nelems}!"
-            gmsh.model.mesh.partition(Nrank)
-
-        coord, changes = self.__Get_coord_and_changes()
-
-        # Apply coef to scale the coordinates
-        coord *= coef
-
-        knownDims = []  # known dimensions in the mesh
-        # For each element type
-        for gmshId in elementTypes:
-
-            # get connect and nodes for the gmshId
-            connect = self.__Get_connect(gmshId, changes)
-
-            # Element group creation
             if useMpi:
-                # USE a dict to store all the nodes
-                if gmshId == elementTypes[0]:
-                    dict_rank_nodes = {r: set() for r in range(Nrank)}
-                groupElem = self.__Get_groupElem_with_mpi(
-                    gmshId, connect, coord, dict_rank_nodes
-                )
-            else:
-                groupElem = GroupElemFactory._Create(gmshId, connect, coord)
-            # Note that each group of elements contains all coordinates.
+                Nrank = MPI_SIZE
+                # Nrank = 3  # uncomment for debugging purposes
+                Nelems = np.concatenate(gmsh.model.mesh.getElements(meshDim)[1]).size
+                assert (
+                    MPI_SIZE <= Nelems
+                ), f"Nproc must be less than or equal to {Nelems}!"
+                gmsh.model.mesh.partition(Nrank)
+                dict_rank_nodes = {r: set() for r in range(Nrank)}
+                list_dict_groupElem: list[dict] = [{} for _ in range(Nrank)]
 
-            # We add the element group to the dictionary containing all groups
-            dict_groupElem[groupElem.elemType] = groupElem
+            coord, changes = self.__Get_coord_and_changes()
+            coord *= coef
 
-            # Check that the mesh does not have a group of elements of this dimension
-            if groupElem.dim in knownDims and groupElem.dim == meshDim:
-                recoElement = "Triangular" if meshDim == 2 else "Tetrahedron"
-                raise Exception(
-                    f"Importing the mesh from gmsh is impossible because several {meshDim}D elements have been detected.\n\
+            knownDims = []  # known dimensions in the mesh
+            dict_groupElem: dict[ElemType, "_GroupElem"] = {}
+
+            for gmshId in elementTypes:
+                connect = self.__Get_connect(gmshId, changes)
+
+                if useMpi:
+                    list_rank_groupElem = self.__Get_groupElem_with_mpi(
+                        gmshId, connect, coord, dict_rank_nodes
+                    )
+                    # apply physical-group tags to every rank's GroupElem
+                    physicalGroups = gmsh.model.getPhysicalGroups(
+                        list_rank_groupElem[0].dim
+                    )
+                    for group in physicalGroups:
+                        dim_g, tag = group
+                        name = gmsh.model.getPhysicalName(dim_g, tag)
+                        nodeTags = (
+                            gmsh.model.mesh.getNodesForPhysicalGroup(dim_g, tag)[0] - 1
+                        )
+                        if nodeTags.size == 0:
+                            continue
+                        nodesGroup = changes[nodeTags]
+                        for ge in list_rank_groupElem:
+                            ge.Set_Tag(nodesGroup, name)
+                    # distribute into per-rank dicts
+                    for rank, ge in enumerate(list_rank_groupElem):
+                        list_dict_groupElem[rank][ge.elemType] = ge
+                    # use rank-0 groupElem for knownDims check
+                    groupElem = list_rank_groupElem[0]
+                else:
+                    groupElem = GroupElemFactory._Create(gmshId, connect, coord)
+                    # Note that each group of elements contains all coordinates.
+                    dict_groupElem[groupElem.elemType] = groupElem
+
+                    # Here we'll retrieve the nodes and elements belonging to a group
+                    physicalGroups = gmsh.model.getPhysicalGroups(groupElem.dim)
+
+                    for group in physicalGroups:
+                        dim_g, tag = group
+
+                        name = gmsh.model.getPhysicalName(dim_g, tag)
+                        nodeTags = (
+                            gmsh.model.mesh.getNodesForPhysicalGroup(dim_g, tag)[0] - 1
+                        )
+                        # If no node has been retrieved, move on to the nextPhysics group.
+                        if nodeTags.size == 0:
+                            return
+                        # nodes associated with the group
+                        nodesGroup = changes[nodeTags]  # Apply change
+                        # add tag
+                        groupElem.Set_Tag(nodesGroup, name)
+
+                # Check that the mesh does not have a group of elements of this dimension
+                if groupElem.dim in knownDims and groupElem.dim == meshDim:
+                    recoElement = "Triangular" if meshDim == 2 else "Tetrahedron"
+                    raise Exception(
+                        f"Importing the mesh from gmsh is impossible because several {meshDim}D elements have been detected.\n\
                     Try out with {recoElement} elements.\n\
                     You can also try to reduce the mesh size"
-                )
-                # TODO make it work ?
-                # Can be complicated especially in the creation of elemental matrices and assembly
-                # Not impossible but not trivial
-                # Restart the procedure if it doesn't work?
-            knownDims.append(groupElem.dim)
+                    )
+                    # TODO make it work ?
+                    # Can be complicated especially in the creation of elemental matrices and assembly
+                    # Not impossible but not trivial
+                    # Restart the procedure if it doesn't work?
+                knownDims.append(groupElem.dim)
 
-            # Here we'll retrieve the nodes and elements belonging to a group
-            physicalGroups = gmsh.model.getPhysicalGroups(groupElem.dim)
-
-            # add nodes and elements associated with physical groups
-            def __addPysicalGroup(group: tuple[int, int]):
-                dim = group[0]
-                tag = group[1]
-                name = gmsh.model.getPhysicalName(dim, tag)
-
-                nodeTags = gmsh.model.mesh.getNodesForPhysicalGroup(dim, tag)[0] - 1
-
-                # If no node has been retrieved, move on to the nextPhysics group.
-                if nodeTags.size == 0:
-                    return
-
-                # nodes associated with the group
-                nodesGroup = changes[nodeTags]  # Apply change
-                # add tag
-                groupElem.Set_Tag(nodesGroup, name)
-
-            [__addPysicalGroup(group) for group in physicalGroups]
-
-        tic.Tac("Mesh", "Construct mesh object", self.__verbosity)
+            tic.Tac("Mesh", "Construct mesh object", self.__verbosity)
+        else:
+            useMpi = True
+            list_dict_groupElem = None
 
         gmsh.finalize()
+
+        if useMpi:
+            dict_groupElem = MPI_COMM.scatter(list_dict_groupElem, root=0)
 
         # Ensure that the underlying private `__coordGlob` object is unique across all element groups.
         list_coordGlob_id = [
