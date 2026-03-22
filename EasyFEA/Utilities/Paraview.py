@@ -62,7 +62,7 @@ def Save_simu(
 
     folder = Folder.Join(folder, "Paraview")
 
-    if not Folder.Exists(folder):
+    if MPI_RANK == 0 and not Folder.Exists(folder):
         Folder.os.makedirs(folder)
 
     additionalNodesField = nodeFields
@@ -159,7 +159,7 @@ def _Save_mesh(
 
     folder = Folder.Join(folder, "Paraview")
 
-    if not Folder.Exists(folder):
+    if MPI_RANK == 0 and not Folder.Exists(folder):
         Folder.os.makedirs(folder)
 
     pvFiles: list[str] = []

@@ -13,7 +13,7 @@ from enum import Enum
 
 # utilities
 from . import Folder, Tic, _types
-from ._mpi import MPI_RANK
+from ._mpi import rank0_only
 
 # simulations
 from ..Simulations._simu import _Init_obj, _Get_values
@@ -1308,9 +1308,6 @@ def Plot_Iter_Summary(simu, folder="", iterMin=None, iterMax=None) -> None:
         upper bound, by default None
     """
 
-    if MPI_RANK != 0:
-        return None
-
     simu = _Init_obj(simu)[0]
 
     # Recover simulation results
@@ -1492,6 +1489,7 @@ def Movie_func(
 # ----------------------------------------------
 
 
+@rank0_only
 @requires_matplotlib
 def Save_fig(
     folder: str, filename: str, transparent=False, extension="pdf", dpi="figure"
@@ -1669,6 +1667,7 @@ def _Get_colors_for_values(
     return colors
 
 
+@rank0_only
 @requires_matplotlib
 def _Save_colorbar(
     vMin: float,

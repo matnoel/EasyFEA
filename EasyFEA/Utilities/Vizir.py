@@ -10,6 +10,7 @@ import numpy as np
 import io
 
 from ..Utilities import Folder, MeshIO, _types
+from ..Utilities._mpi import rank0_only
 from ..FEM._group_elem import GroupElemFactory
 from ..FEM._utils import ElemType
 
@@ -352,6 +353,7 @@ def _Write_solution_file(
     return solutionFile
 
 
+@rank0_only
 def Save_simu(
     simu: "_Simu",
     results: list[str],

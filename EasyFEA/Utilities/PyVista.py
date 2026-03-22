@@ -27,6 +27,7 @@ if TYPE_CHECKING:
     from ..FEM._group_elem import _GroupElem
 
 from ._requires import Create_requires_decorator
+from ._mpi import rank0_only
 
 try:
     import pyvista as pv
@@ -822,6 +823,7 @@ def Plot_Geoms(
 # ----------------------------------------------
 # Movie
 # ----------------------------------------------
+@rank0_only
 @requires_pyvista
 def Movie_simu(
     simu: "_Simu",

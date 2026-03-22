@@ -10,6 +10,7 @@ import time
 import numpy as np
 
 from ._requires import Create_requires_decorator
+from ._mpi import rank0_only
 
 try:
     import matplotlib.pyplot as plt
@@ -189,6 +190,7 @@ class Tic:
         # plt.legend()
         ax.set_title(title)
 
+    @rank0_only
     @requires_matplotlib
     @staticmethod
     def Plot_History(folder="", details=False) -> None:

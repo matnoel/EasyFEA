@@ -11,6 +11,7 @@ from typing import TYPE_CHECKING
 import numpy as np
 
 from ._requires import Create_requires_decorator
+from ._mpi import rank0_only
 from ..Simulations._simu import _Init_obj
 from ..Utilities.MeshIO import Surface_reconstruction
 
@@ -29,6 +30,7 @@ requires_pxr = Create_requires_decorator("pxr", libraries=["usd-core"])
 from .GLTF import _get_list_nodesValues
 
 
+@rank0_only
 @requires_pxr
 def Save_simu(
     simu: "_Simu",
@@ -175,6 +177,7 @@ def _get_lines(mesh: "Mesh") -> np.ndarray:
     return np.concatenate(list_lines, axis=0)
 
 
+@rank0_only
 @requires_pxr
 def Save_mesh(
     mesh: "Mesh",

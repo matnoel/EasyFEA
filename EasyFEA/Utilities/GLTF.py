@@ -19,6 +19,7 @@ import webbrowser
 import numpy as np
 
 from ._requires import Create_requires_decorator
+from ._mpi import rank0_only
 from ..Simulations._simu import _Init_obj
 from ..Utilities.MeshIO import Surface_reconstruction
 
@@ -271,6 +272,7 @@ class Data:
         return bufferData
 
 
+@rank0_only
 @requires_pygltflib
 def Save_simu(
     simu: "_Simu",
@@ -390,6 +392,7 @@ def Save_simu(
         Open(folder)
 
 
+@rank0_only
 @requires_pygltflib
 def Save_mesh(
     mesh: "Mesh",
@@ -919,6 +922,7 @@ def _Create_modelViewer_folder(
         )
 
 
+@rank0_only
 def Create_html(
     path: str,
     modelViewerDir: str = None,
@@ -1094,6 +1098,7 @@ def Create_html(
     return htmlFile, modelViewerDir
 
 
+@rank0_only
 def Open(path: str):
     """
     Opens the specified file or directory in the default web browser.
