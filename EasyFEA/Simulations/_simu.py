@@ -989,7 +989,7 @@ class _Simu(_IObserver, _params.Updatable, ABC):
             self.__timeIter = timeIter
             self.__list_norm_r = list_norm_r
         else:
-            u = Solve_simu(self, problemType)
+            u, _ = Solve_simu(self, problemType)
 
         solutions = self._Solver_Update_solutions(problemType, u)
 
@@ -1018,7 +1018,6 @@ class _Simu(_IObserver, _params.Updatable, ABC):
         """
 
         # Here you need to specify the type of problem because a simulation can have several physical models
-
         algo = self.__algo
 
         # Old solution

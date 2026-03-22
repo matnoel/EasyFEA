@@ -49,3 +49,34 @@ def Concatenate_array(array: np.ndarray) -> np.ndarray:
     all_array = MPI_COMM.allgather(array)
     array = np.concatenate(all_array)
     return array
+
+
+@requires_mpi
+def Sync_dofsValues(dofsValues: np.ndarray, dofs: np.ndarray) -> np.ndarray:
+    """Reconstruct the full DOF solution vector from distributed partial contributions.
+
+    Each rank holds correct values only at its owned `dofs`. This function
+    masks every rank's vector to those owned entries, then performs an
+    `Allreduce(SUM)` so that the complete vector is available on all ranks.
+    Because owned DOF sets are disjoint across ranks, the SUM is equivalent
+    to a gather-and-broadcast.
+
+    Parameters
+    ----------
+    dofsValues : np.ndarray
+        DOF vector of shape `(N,)`. Values at `dofs` are authoritative;
+        values at all other indices are ignored.
+    dofs : np.ndarray
+        Indices of the DOFs owned by this rank. Must be disjoint from the
+        owned sets of all other ranks and their union must cover `[0, N)`.
+
+    Returns
+    -------
+    np.ndarray
+        Full DOF vector of shape `(N,)` with correct values on every rank.
+    """
+    partial = np.zeros_like(dofsValues)
+    partial[dofs] = dofsValues[dofs]
+    MPI_COMM.Allreduce(MPI.IN_PLACE, partial, op=MPI.SUM)
+    dofsValues = partial
+    return dofsValues

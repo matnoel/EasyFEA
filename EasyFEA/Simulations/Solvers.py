@@ -25,6 +25,7 @@ from ..Utilities._mpi import (
     MPI_SIZE,
     MPI_RANK,
     Concatenate_array,
+    Sync_dofsValues,
 )
 
 if CAN_USE_MPI:
@@ -270,7 +271,9 @@ def _Solve_Axb(
     return np.array(x)
 
 
-def Solve_simu(simu: "_Simu", problemType: "ModelType"):
+def Solve_simu(
+    simu: "_Simu", problemType: "ModelType"
+) -> tuple[_types.FloatArray, Union[_types.FloatArray, None, float]]:
     """Solving the simulation's problem according to the resolution type."""
 
     resolution = ResolType.r1
@@ -291,11 +294,34 @@ def Solve_simu(simu: "_Simu", problemType: "ModelType"):
     resolution = ResolType.r2 if len(simu.Bc_Lagrange) > 0 else resolution
 
     if resolution == ResolType.r1:
-        return __Solver_1(simu, problemType)
+        x, norm = __Solver_1(simu, problemType)
     elif resolution == ResolType.r2:
-        return __Solver_2(simu, problemType)[0]
+        x, lagrange = __Solver_2(simu, problemType)
     elif resolution == ResolType.r3:
-        return __Solver_3(simu, problemType)
+        x, norm = __Solver_3(simu, problemType)
+    else:
+        raise ValueError("Unknown resolution.")
+
+    if MPI_SIZE > 1:
+        # Assemble the full solution from distributed PETSc partial results.
+        # x has correct values at owned DOFs but stale/repeated values at
+        # non-owned DOFs (e.g. Dirichlet values set identically on every rank).
+        # Mask to owned DOFs first so each DOF is contributed by exactly one
+        # rank, then Gather_dofsValues reconstructs the full vector on all ranks.
+        nodes = simu.mesh.groupElem._Get_partitioned_data()[3]
+        dofs = simu.Bc_dofs_nodes(nodes, simu.Get_unknowns(problemType), problemType)
+        x = Sync_dofsValues(x, dofs)
+
+        if norm is not None:
+            norm = MPI_COMM.allreduce(norm, op=MPI.SUM)
+
+        if resolution == ResolType.r2:
+            lagrange = Sync_dofsValues(lagrange, dofs)
+
+    if resolution in [ResolType.r1, ResolType.r3]:
+        return x, norm
+    elif resolution == ResolType.r2:
+        return x, lagrange
     else:
         raise ValueError("Unknown resolution.")
 
@@ -364,7 +390,7 @@ def __Solver_1(simu: "_Simu", problemType: "ModelType") -> _types.FloatArray:
     if simu.isNonLinear:
         return x, sla.norm(bi)
     else:
-        return x
+        return x, None
 
 
 def __Solver_2(simu: "_Simu", problemType: "ModelType"):
@@ -453,7 +479,7 @@ def __Solver_3(simu: "_Simu", problemType: "ModelType"):
     if simu.isNonLinear:
         return x, sla.norm(b)
     else:
-        return x
+        return x, None
 
 
 def _PETSc(
@@ -621,10 +647,10 @@ def _PETSc_MPI(
     pc.setFactorSolverType(solverType)
     ksp.solve(rhs, x)
 
-    # gather solution
+    # Build partial solution vector: owned DOFs filled, non-owned stay 0.
+    # Allreduce (SUM) across ranks is done in _Solver_Update_solutions.
     dofsValues = np.zeros(Ndof, dtype=float)
     dofsValues[ownedDofs] = x.array
-    dofsValues = MPI_COMM.allreduce(dofsValues, MPI.SUM)
 
     return dofsValues, ksp.is_converged
 
