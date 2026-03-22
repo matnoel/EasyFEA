@@ -67,9 +67,6 @@ class Thermal(_Simu):
         assert isinstance(model, Models.Thermal), "model must be a thermal model"
         super().__init__(mesh, model, folder, verbosity)
 
-        # Set solver petsc4py options, even if petsc4py is unavailable.
-        self._Solver_Set_PETSc4Py_Options(pcType="ilu")
-
     def Get_unknowns(self, problemType=None) -> list[str]:
         return ["t"]
 

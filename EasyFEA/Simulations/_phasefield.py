@@ -472,10 +472,7 @@ class PhaseField(_Simu):
     def __Solve_elastic(self) -> _types.FloatArray:
         """Computes the displacement field."""
 
-        # ilu decomposition doesn't work for the displacement problem
-        # Set solver petsc4py options, even if petsc4py is unavailable.
         self.solver = self.__displacement_solver
-        self._Solver_Set_PETSc4Py_Options(pcType="none")
         self._Solver_Solve_problemType(ModelType.elastic)
 
         return self.displacement
@@ -577,8 +574,6 @@ class PhaseField(_Simu):
     def __Solve_damage(self) -> _types.FloatArray:
         """Computes the damage field."""
 
-        # Set solver petsc4py options, even if petsc4py is unavailable.
-        self._Solver_Set_PETSc4Py_Options(pcType="ilu")
         self._Solver_Solve_problemType(ModelType.damage)
 
         return self.damage

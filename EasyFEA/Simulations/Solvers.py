@@ -275,12 +275,18 @@ def Solve_simu(simu: "_Simu", problemType: "ModelType"):
 
     resolution = ResolType.r1
     if CAN_USE_PETSC and MPI_SIZE > 1:
-        # r1 preserves symmetry → cg + bjacobi (ILU per rank)
         kspType, pcType, solverType = simu._Solver_Get_PETSc4Py_Options()
-        if resolution is ResolType.r3:
-            dof_n = simu.Get_dof_n(problemType)
-            kspType = "gmres" if dof_n == 1 else kspType
-        simu._Solver_Set_PETSc4Py_Options(kspType, "none", solverType)
+        if resolution is ResolType.r1:
+            # SPD system: cg+gamg (set by default in __init__) is already optimal.
+            pass
+        elif resolution is ResolType.r3:
+            # Non-symmetric penalized system: gamg is SPD-only, switch to gmres+asm.
+            # asm (Additive Schwarz) overlaps between ranks, better convergence than bjacobi.
+            kspType = "gmres"
+            pcType = "asm"
+            simu._Solver_Set_PETSc4Py_Options(kspType, pcType, solverType)
+        else:
+            raise NotImplementedError
 
     resolution = ResolType.r2 if len(simu.Bc_Lagrange) > 0 else resolution
 

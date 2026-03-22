@@ -44,6 +44,9 @@ from .Solvers import (
     CAN_USE_PYPARDISO,
 )
 
+if CAN_USE_PETSC:
+    from petsc4py import PETSc
+
 
 # ----------------------------------------------
 # _Simu
@@ -383,8 +386,12 @@ class _Simu(_IObserver, _params.Updatable, ABC):
         else:
             self.solver = SolverType.scipy
 
-        # Set solver petsc4py options, even if petsc4py is unavailable.
-        self._Solver_Set_PETSc4Py_Options()
+        # Set solver petsc4py options with best available defaults.
+        # cg+gamg: mesh-independent convergence, O(n) memory, works serial and MPI.
+        if CAN_USE_PETSC:
+            self._Solver_Set_PETSc4Py_Options("cg", "gamg")
+        else:
+            self._Solver_Set_PETSc4Py_Options()
 
         # Initialize solutions and boundary conditions
         self.__Init_Sols_n()
@@ -1458,7 +1465,112 @@ class _Simu(_IObserver, _params.Updatable, ABC):
             PETSc Linear Solver, by default "petsc"
             e.g. 'petsc', 'mumps', 'superlu', 'superlu_dist', 'umfpack', 'cholesky' ...\n
             https://petsc.org/release/manual/ksp/#using-external-linear-solvers
+
+        Tips
+        ----
+        FEM stiffness matrices, are typically SPD (Symmetric Positive Definite).
+        Penalized systems may be non-symmetric.
+
+        Recommended combinations ranked by performance:
+
+        **Best - direct solve (small to medium meshes, serial or MPI with MUMPS):**
+
+        >>> simu._Solver_Set_PETSc4Py_Options("preonly", "lu", "mumps")
+        >>> simu._Solver_Set_PETSc4Py_Options("preonly", "cholesky", "mumps")  # SPD only
+
+        **Best iterative - SPD matrices, scales to large meshes:**
+
+        >>> simu._Solver_Set_PETSc4Py_Options("cg", "hypre")   # BoomerAMG, best scalability
+        >>> simu._Solver_Set_PETSc4Py_Options("cg", "gamg")    # PETSc built-in AMG, no extra package
+
+        **Good iterative - SPD, serial only:**
+
+        >>> simu._Solver_Set_PETSc4Py_Options("cg", "icc")     # Incomplete Cholesky
+
+        **Non-symmetric matrices (phase-field, r3 penalty):**
+
+        >>> simu._Solver_Set_PETSc4Py_Options("gmres", "ilu")      # serial
+        >>> simu._Solver_Set_PETSc4Py_Options("gmres", "bjacobi")  # MPI
+        >>> simu._Solver_Set_PETSc4Py_Options("bcgs", "bjacobi")   # BiCGSTAB, cheaper per iter
+
+        **Avoid:** pcType="none" gives no preconditioning and leads to slow or failing
+        convergence on ill-conditioned FEM matrices.
+
+        Raises
+        ------
+        ValueError
+            If an unknown kspType, pcType, or solverType is given, if incompatible
+            combinations are requested (e.g. pcType="lu" without kspType="preonly"),
+            or if the requested external package (mumps, hypre, …) is not available
+            in the current PETSc build.
         """
+
+        # Known valid values – covers all common FEM use cases.
+        # fmt: off
+        _valid_ksp = {
+            "cg", "bicg", "bcgs", "gmres", "lgmres", "fgmres", "groppcg", "cgne",
+            "cgls", "minres", "symmlq", "richardson", "chebyshev", "preonly"
+        }
+        _valid_pc = {
+            "none", "jacobi", "bjacobi", "sor", "ilu", "icc", "lu", "cholesky",
+            "hypre", "gamg", "ml", "asm", "gasm", "ksp", "fieldsplit",
+        }
+        _valid_solver = {
+            "petsc", "mumps", "superlu", "superlu_dist", "umfpack",
+            "cholmod", "mkl_pardiso",
+        }
+        # fmt: on
+        if kspType not in _valid_ksp:
+            raise ValueError(
+                f"Unknown kspType '{kspType}'. "
+                f"Valid options: {sorted(_valid_ksp)}\n"
+                "See https://petsc.org/release/manualpages/KSP/KSPType/"
+            )
+        if pcType not in _valid_pc:
+            raise ValueError(
+                f"Unknown pcType '{pcType}'. "
+                f"Valid options: {sorted(_valid_pc)}\n"
+                "See https://petsc.org/release/manualpages/PC/PCType/"
+            )
+        if solverType not in _valid_solver:
+            raise ValueError(
+                f"Unknown solverType '{solverType}'. "
+                f"Valid options: {sorted(_valid_solver)}\n"
+                "See https://petsc.org/release/manual/ksp/#using-external-linear-solvers"
+            )
+
+        # Direct-solve PC types must be paired with kspType="preonly".
+        _direct_pc = {"lu", "cholesky"}
+        if pcType in _direct_pc and kspType != "preonly":
+            raise ValueError(
+                f"pcType='{pcType}' is a direct solver and must be paired with "
+                f"kspType='preonly', got kspType='{kspType}'."
+            )
+
+        # External solverType only makes sense with a factorization PC.
+        if solverType != "petsc" and pcType not in _direct_pc:
+            raise ValueError(
+                f"solverType='{solverType}' is an external direct solver and requires "
+                f"pcType in {sorted(_direct_pc)}, got pcType='{pcType}'."
+            )
+
+        # Check that external packages are available in this PETSc build.
+        # These checks only run when CAN_USE_PETSC is True (PETSc is imported above).
+        if CAN_USE_PETSC:
+            # External direct solvers (mumps, superlu, umfpack, …)
+            if solverType != "petsc" and not PETSc.Sys.hasExternalPackage(solverType):  # type: ignore [name-defined]
+                raise ValueError(
+                    f"solverType='{solverType}' is not available in this PETSc build. "
+                    "Check your PETSc installation or use solverType='petsc'."
+                )
+            # External preconditioners that require a separate package
+            _external_pc = {"hypre", "ml"}
+            if pcType in _external_pc and not PETSc.Sys.hasExternalPackage(pcType):  # type: ignore [name-defined]
+                raise ValueError(
+                    f"pcType='{pcType}' requires the '{pcType}' package but it is not "
+                    "available in this PETSc build. "
+                    "Try pcType='gamg' (built-in AMG) instead."
+                )
 
         self.__solver_petsc4py_options = (kspType, pcType, solverType)
 

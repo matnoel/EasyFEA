@@ -94,9 +94,6 @@ class HyperElastic(_Simu):
 
         self._Solver_Set_Newton_Raphson_Algorithm(tolConv=tolConv, maxIter=maxIter)
 
-        # Set solver petsc4py options, even if petsc4py is unavailable.
-        self._Solver_Set_PETSc4Py_Options(pcType="lu")
-
     # --------------------------------------------------------------------------
     # General
     # --------------------------------------------------------------------------

@@ -69,9 +69,6 @@ class Elastic(_Simu):
         # init
         self.Set_Rayleigh_Damping_Coefs()
 
-        # Set solver petsc4py options, even if petsc4py is unavailable.
-        self._Solver_Set_PETSc4Py_Options(pcType="lu")
-
     def Results_nodeFields_elementFields(
         self, details=False
     ) -> tuple[list[str], list[str]]:
