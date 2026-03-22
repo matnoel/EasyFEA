@@ -32,7 +32,7 @@ class TestThermal:
 
             thermalModel = Models.Thermal(k=1, c=1, thickness=a)
 
-            simu = Simulations.Thermal(mesh, thermalModel, False)
+            simu = Simulations.Thermal(mesh, thermalModel)
 
             noeuds0 = mesh.Nodes_Conditions(lambda x, y, z: x == 0)
             noeudsL = mesh.Nodes_Conditions(lambda x, y, z: x == a)
