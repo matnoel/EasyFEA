@@ -99,6 +99,9 @@ class _GroupElem(ABC):
         # Set the paritionned data.
         self._Set_partitioned_data(self.elements, [], self.nodes)
 
+        # rank partition: set on rank 0 after Gather(), None otherwise
+        self.__rankPartition: _types.IntArray = None
+
         # dictionnary associated with tags on elements or nodes
         self.__dict_nodes_tags: dict[str, _types.IntArray] = {}
         self.__dict_elements_tags: dict[str, _types.IntArray] = {}
@@ -215,6 +218,17 @@ class _GroupElem(ABC):
         """Returns the partitioned data used in mpi.\n
         (rank, elements, ghostElements, nodes, ghostNodes)"""
         return self.__partitionned_data
+
+    @property
+    def _rankPartition(self) -> Optional[_types.IntArray]:
+        """Array of shape (Ne,) where rankPartition[e] is the MPI rank that owned
+        element e. Set on rank 0 only after Gather(). None on all other ranks."""
+        return self.__rankPartition
+
+    @_rankPartition.setter
+    def _rankPartition(self, value: _types.IntArray) -> None:
+        assert isinstance(value, np.ndarray)
+        self.__rankPartition = value
 
     @property
     def Nn(self) -> int:

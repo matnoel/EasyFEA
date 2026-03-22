@@ -596,6 +596,36 @@ class _Simu(_IObserver, _params.Updatable, ABC):
     def Nmesh(self) -> int:
         return len(self.__listMesh)
 
+    def Gather(self) -> "_Simu | None":
+        """Gathers mesh partitions from all MPI ranks onto `root`.
+
+        Each mesh in the simulation's mesh history is gathered so that rank
+        `root` holds the complete global mesh.  Simulation results are
+        *already* fully available on every rank (allgathered by the solver),
+        so they are left untouched.
+
+        Returns
+        -------
+        _Simu | None
+            The simulation with gathered meshes on rank `root`, None on other
+            ranks. Returns `self` unchanged when MPI is not in use.
+        """
+        if MPI_SIZE == 1:
+            return self
+
+        list_mesh = [m.Gather() for m in self.__listMesh]
+
+        if MPI_RANK == 0:
+            for i, mesh in enumerate(list_mesh):
+                mesh._ResetMatrix()
+                self.__listMesh[i] = mesh
+            self.__mesh = self.__listMesh[self.__indexMesh]
+            self.Bc_Init()
+            self.Need_Update()
+            return self
+        else:
+            return None
+
     @property
     def dim(self) -> int:
         """simulation's dimension"""
@@ -2584,6 +2614,11 @@ class _Simu(_IObserver, _params.Updatable, ABC):
         self, folder: str, filename: str = "simulation", additionalInfos: str = ""
     ) -> None:
         """Saves the simulation and its summary in the folder. Saves the simulation as 'filename.pickle'."""
+
+        self = self.Gather()
+        if self is None:
+            return
+
         # Empty matrices in element groups
         self.mesh._ResetMatrix()
 

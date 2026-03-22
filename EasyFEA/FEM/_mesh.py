@@ -20,6 +20,7 @@ from typing import Callable, Optional, TYPE_CHECKING
 # utilities
 from ..Utilities import Display, Tic, _types
 from ..Utilities._observers import Observable
+from ..Utilities._mpi import CAN_USE_MPI, MPI_COMM, MPI_SIZE, MPI_RANK
 
 # fem
 from ._linalg import FeArray
@@ -250,6 +251,55 @@ class Mesh(Observable):
     def connect(self) -> _types.IntArray:
         """connectivity matrix (Ne, nPe)"""
         return self.groupElem.connect
+
+    def Gather(self) -> "Mesh | None":
+        """Gather the distributed mesh to rank `root`, reconstructing the global Mesh.
+
+        Returns
+        -------
+        Mesh on rank `root`, None on other ranks.
+        """
+        if MPI_SIZE == 1:
+            return self
+
+        from ._group_elem import GroupElemFactory
+
+        dict_gathered = {}
+
+        for elemType, groupElem in self.__dict_groupElem.items():
+            _, elements, ghostElements, _, _ = groupElem._Get_partitioned_data()
+
+            # elements and ghostElements are global mesh indices.
+            # groupElem.connect rows correspond to np.unique(concat([owned, ghost])) sorted,
+            # so np.searchsorted maps a global index to its local row position.
+            all_global = np.unique(np.concatenate([elements, ghostElements]))
+            owned_local = np.searchsorted(all_global, elements)
+            owned_connect = groupElem.connect[owned_local]  # (n_owned, nPe)
+
+            all_connect = MPI_COMM.gather(owned_connect, root=0)
+            all_indices = MPI_COMM.gather(elements, root=0)
+
+            if MPI_RANK == 0:
+                Ne_global = max(idx.max() for idx in all_indices) + 1
+                nPe = owned_connect.shape[1]
+                global_connect = np.zeros((Ne_global, nPe), dtype=np.int32)
+                rank_partition = np.empty(Ne_global, dtype=np.int32)
+                for r, (connect_r, indices_r) in enumerate(
+                    zip(all_connect, all_indices)
+                ):
+                    global_connect[indices_r] = connect_r
+                    rank_partition[indices_r] = r
+
+                # coordGlob is already the full array on rank 0 — no gather needed.
+                gathered_ge = GroupElemFactory._Create(
+                    groupElem.gmshId, global_connect, groupElem.coordGlob
+                )
+                gathered_ge._rankPartition = rank_partition
+                dict_gathered[elemType] = gathered_ge
+
+        if MPI_RANK == 0:
+            return Mesh(dict_gathered, self.__verbosity)
+        return None
 
     @property
     def verbosity(self) -> bool:
