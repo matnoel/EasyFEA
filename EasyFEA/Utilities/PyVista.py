@@ -330,7 +330,7 @@ def Plot_Nodes(
 @requires_pyvista
 def Plot_Elements(
     obj: Union["_Simu", "Mesh"],
-    nodes: Optional[_types.IntArray] = None,
+    nodes: _types.IntArray = [],
     dimElem: Optional[int] = None,
     showId=False,
     deformFactor=0.0,
@@ -378,21 +378,16 @@ def Plot_Elements(
 
     dimElem = mesh.dim if dimElem is None else dimElem
 
-    if nodes is None:
-        nodes = mesh.nodes
-    else:
-        nodes = np.asarray(nodes, dtype=int)
-        if nodes.ndim != 1 or nodes.size > mesh.Nn:
-            Display.MyPrintError("Nodes must be a list of nodes of size <= mesh.Nn.")
-            return
-
     if plotter is None:
         # plotter = Plot(obj, deformFactor=deformFactor, style='wireframe', color=edge_color, line_width=line_width)
         plotter = _Plotter()
 
     for groupElem in mesh.Get_list_groupElem(dimElem):
         # get the elements associated with the nodes
-        elements = groupElem.Get_Elements_Nodes(nodes)
+        if len(nodes) > 0:
+            elements = groupElem.Get_Elements_Nodes(nodes)
+        else:
+            elements = np.arange(groupElem.Ne)
 
         if elements.size == 0:
             continue
@@ -533,9 +528,7 @@ def Plot_BoundaryConditions(
     boundaryConditions.extend(displays)
 
     if plotter is None:
-        plotter = _Plotter()
-        Plot_Elements(simu, None, 1, False, deformFactor, plotter=plotter, color="k")
-        # Plot(simu, deformFactor=deformFactor, plotter=plotter, color='k', style='wireframe')
+        plotter = Plot_Elements(simu, [], 1, False, deformFactor, color="k")
         plotter.add_title("Boundary conditions")
 
     colors = Display.tab10_colors
@@ -640,7 +633,8 @@ def Plot_BoundaryConditions(
                         start, vector, factor / 2, label=label, color=color
                     )
 
-    plotter.add_legend(bcolor="white", face="o")  # type: ignore [call-arg]
+    if len(boundaryConditions) > 0:
+        plotter.add_legend(bcolor="white", face="o")  # type: ignore [call-arg]
 
     _setCameraPosition(plotter, inDim)
     plotter.zoom_camera(0.9)
