@@ -613,7 +613,7 @@ class _Simu(_IObserver, _params.Updatable, ABC):
         if MPI_SIZE == 1:
             return self
 
-        list_mesh = [m.Gather() for m in self.__listMesh]
+        list_mesh = [mesh.Gather() for mesh in self.__listMesh]
 
         if MPI_RANK == 0:
             for i, mesh in enumerate(list_mesh):
