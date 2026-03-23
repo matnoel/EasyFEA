@@ -71,14 +71,13 @@ class Tic:
 
         textWithTime = f"{text} ({tfCoef:.3f} {unite})"
 
-        value = (text, tf)
-
-        if category in Tic.__History:
-            old = list(Tic.__History[category])
-            old.append(value)
-            Tic.__History[category] = old
-        else:
-            Tic.__History[category] = [value]
+        if category not in Tic.__History:
+            Tic.__History[category] = {}
+        cat = Tic.__History[category]
+        if text not in cat:
+            cat[text] = [0.0, 0]
+        cat[text][0] += tf
+        cat[text][1] += 1
 
         self.__start = time.time()
 
@@ -92,8 +91,8 @@ class Tic:
         """Deletes history."""
         Tic.__History = {}
 
-    __History: dict[str, list[tuple[str, float]]] = {}
-    """history = { category: list( [text, time] ) }"""
+    __History: dict[str, dict[str, list]] = {}
+    """history = { category: { text: [total_time, count] } }"""
 
     @staticmethod
     def nTic() -> int:
@@ -108,13 +107,10 @@ class Tic:
 
         resume = ""
 
-        for categorie in Tic.__History:
-            histCategory = np.array(
-                np.array(Tic.__History[categorie])[:, 1], dtype=np.float64
-            )
-            timesCategory = np.sum(histCategory).astype(float)
+        for category in Tic.__History:
+            timesCategory = float(sum(v[0] for v in Tic.__History[category].values()))
             timesCategory, unite = Tic.Get_time_unity(timesCategory)
-            resumeCategory = f"{categorie} : {timesCategory:.3f} {unite}"
+            resumeCategory = f"{category} : {timesCategory:.3f} {unite}"
             if verbosity:
                 print(resumeCategory)
             resume += "\n" + resumeCategory
@@ -214,10 +210,7 @@ class Tic:
         # Calculate total time per category
         categories = np.array(list(history.keys()))
         timesPerCategory = np.array(
-            [
-                np.sum(np.array(history[category])[:, 1].astype(np.float64))
-                for category in categories
-            ]
+            [sum(v[0] for v in history[c].values()) for c in categories]
         )
 
         # Sort categories by descending time
@@ -227,22 +220,13 @@ class Tic:
 
         totalTime = []
         for i, c in enumerate(categories):
-            # Extract data
-            data = np.array(history[c])
-            subCategories = data[:, 0].astype(str)
-            timeSubCategory = data[:, 1].astype(np.float64)
+            # Extract aggregated data: { text: [total_time, count] }
+            subcats = history[c]
+            unique_subcats = np.array(list(subcats.keys()))
+            time_by_subcat = np.array([subcats[s][0] for s in unique_subcats])
+            rep_by_subcat = np.array([subcats[s][1] for s in unique_subcats], dtype=int)
 
-            # Calculate time and repetitions per subcategory
-            unique_subcats, indices = np.unique(subCategories, return_inverse=True)
-            time_by_subcat = np.zeros(len(unique_subcats))
-            rep_by_subcat = np.zeros(len(unique_subcats), dtype=int)
-
-            for s in np.arange(unique_subcats.size):
-                mask = indices == s
-                time_by_subcat[s] = np.sum(timeSubCategory[mask])
-                rep_by_subcat[s] = np.sum(mask)
-
-            totalTime.append(np.sum(timeSubCategory))
+            totalTime.append(float(time_by_subcat.sum()))
 
             # Plot subcategories if needed
             if len(unique_subcats) > 1 and details and totalTime[-1] > 0:
