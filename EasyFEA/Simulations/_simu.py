@@ -1167,7 +1167,10 @@ class _Simu(_IObserver, _params.Updatable, ABC):
         # init convergence list
         list_norm_r: list[float] = []
 
-        Display.Section(f"{problemType.name} problem at iteration {len(self.results)}")
+        if MPI_RANK == 0:
+            Display.Section(
+                f"{problemType.name} problem at iteration {len(self.results)}"
+            )
 
         while not converged and newtonIter < maxIter:
 
@@ -1180,7 +1183,8 @@ class _Simu(_IObserver, _params.Updatable, ABC):
             delta_u, norm_r = Solve_simu(self, self.problemType)
             list_norm_r.append(norm_r)
 
-            print(f"At Newton iteration {newtonIter} norm is {norm_r:14.12e}")
+            if MPI_RANK == 0:
+                print(f"At Newton iteration {newtonIter} norm is {norm_r:14.12e}")
 
             # compute ||delta_u||
             norm_delta_u = np.linalg.norm(delta_u)

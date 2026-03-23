@@ -130,7 +130,7 @@ def _Solve_Axb(
     lb: Union[_types.AnyArray, _types.Numbers],
     ub: Union[_types.AnyArray, _types.Numbers],
     resol: ResolType = ResolType.r1,
-    _ownedDofs: _types.IntArray = None,
+    ownedDofs: _types.IntArray = None,
 ) -> _types.FloatArray:
     """Solves the linear system A x = b
 
@@ -150,6 +150,8 @@ def _Solve_Axb(
         lowerBoundary of the solution
     ub : Union[_types.AnyArra, _types.Numbers]
         upperBoundary of the solution
+    ownedDofs : _types.IntArray, optional
+        Indices (into A/b) owned by this rank, by defaut None.Must be disjoint across ranks and together cover all N rows
 
     Returns
     -------
@@ -204,7 +206,7 @@ def _Solve_Axb(
         # Display.plt.show()
 
         if MPI_SIZE > 1:
-            if _ownedDofs is None:
+            if ownedDofs is None:
                 nodes = mesh.groupElem._Get_partitioned_data()[3]
                 if resol == ResolType.r1:
                     _, dofsUnknown = simu.Bc_dofs_known_unknown(problemType)
@@ -212,15 +214,15 @@ def _Solve_Axb(
                     dofs = simu.Bc_dofs_nodes(
                         nodes, simu.Get_unknowns(problemType), problemType
                     )
-                    _ownedDofs = np.where(np.isin(dofsUnknown, dofs))[0]
+                    ownedDofs = np.where(np.isin(dofsUnknown, dofs))[0]
                 elif resol == ResolType.r3:
                     dofs = simu.Bc_dofs_nodes(
                         nodes, simu.Get_unknowns(problemType), problemType
                     )
-                    _ownedDofs = dofs
+                    ownedDofs = dofs
                 else:
                     raise NotImplementedError
-            x, converged = _PETSc_MPI(A, b, x0, _ownedDofs, kspType, pcType, solverType)
+            x, converged = _PETSc_MPI(A, b, x0, ownedDofs, kspType, pcType, solverType)
         else:
             x, converged = _PETSc(A, b, x0, kspType, pcType, solverType)
         if not converged:
@@ -277,7 +279,7 @@ def Solve_simu(
     """Solving the simulation's problem according to the resolution type."""
 
     resolution = ResolType.r1
-    if CAN_USE_PETSC and MPI_SIZE > 1:
+    if CAN_USE_PETSC:
         kspType, pcType, solverType = simu._Solver_Get_PETSc4Py_Options()
         if resolution is ResolType.r1:
             # SPD system: cg+gamg (set by default in __init__) is already optimal.
@@ -287,20 +289,20 @@ def Solve_simu(
             # asm (Additive Schwarz) overlaps between ranks, better convergence than bjacobi.
             kspType = "gmres"
             pcType = "asm"
-            simu._Solver_Set_PETSc4Py_Options(kspType, pcType, solverType)
         else:
             raise NotImplementedError
+        simu._Solver_Set_PETSc4Py_Options(kspType, pcType, solverType)
 
     resolution = ResolType.r2 if len(simu.Bc_Lagrange) > 0 else resolution
 
     if resolution == ResolType.r1:
-        x, norm = __Solver_1(simu, problemType)
+        x, rhsNorm = __Solver_1(simu, problemType)
     elif resolution == ResolType.r2:
         x, lagrange = __Solver_2(simu, problemType)
     elif resolution == ResolType.r3:
-        x, norm = __Solver_3(simu, problemType)
+        x, rhsNorm = __Solver_3(simu, problemType)
     else:
-        raise ValueError("Unknown resolution.")
+        raise NotImplementedError
 
     if MPI_SIZE > 1:
         # Assemble the full solution from distributed PETSc partial results.
@@ -312,18 +314,18 @@ def Solve_simu(
         dofs = simu.Bc_dofs_nodes(nodes, simu.Get_unknowns(problemType), problemType)
         x = Sync_dofsValues(x, dofs)
 
-        if norm is not None:
-            norm = MPI_COMM.allreduce(norm, op=MPI.SUM)
+        if rhsNorm is not None:
+            rhsNorm = MPI_COMM.allreduce(rhsNorm, op=MPI.SUM)
 
         if resolution == ResolType.r2:
             lagrange = Sync_dofsValues(lagrange, dofs)
 
     if resolution in [ResolType.r1, ResolType.r3]:
-        return x, norm
+        return x, rhsNorm
     elif resolution == ResolType.r2:
         return x, lagrange
     else:
-        raise ValueError("Unknown resolution.")
+        raise NotImplementedError
 
 
 def __Get_unique_dofs(dofs: _types.IntArray) -> _types.IntArray:
@@ -388,6 +390,8 @@ def __Solver_1(simu: "_Simu", problemType: "ModelType") -> _types.FloatArray:
     x[dofsUnknown] = xi
 
     if simu.isNonLinear:
+        if MPI_SIZE > 1:
+            bi = bi[ownedDofs]
         return x, sla.norm(bi)
     else:
         return x, None
@@ -477,6 +481,12 @@ def __Solver_3(simu: "_Simu", problemType: "ModelType"):
     x = _Solve_Axb(simu, problemType, A, b, x0, lb, ub, ResolType.r3)
 
     if simu.isNonLinear:
+        if MPI_SIZE > 1:
+            nodes = simu.mesh.groupElem._Get_partitioned_data()[3]
+            dofs = simu.Bc_dofs_nodes(
+                nodes, simu.Get_unknowns(problemType), problemType
+            )
+            b = b[dofs]
         return x, sla.norm(b)
     else:
         return x, None
