@@ -2645,7 +2645,7 @@ class _Simu(_IObserver, _params.Updatable, ABC):
             file.write(summary)
 
         if MPI_RANK == 0:
-            path = path_simu.replace(Folder.EASYFEA_DIR, "")
+            path = folder.replace(Folder.EASYFEA_DIR, "")
             Display.MyPrint(f"Saved simulation and summary in:\n{path}\n", "green")
 
 
