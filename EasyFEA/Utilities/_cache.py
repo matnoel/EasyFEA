@@ -6,7 +6,7 @@
 """Module containing the cache_computed_values decorator."""
 
 from functools import wraps
-import copy
+import numpy as np
 
 CACH_NAME = "__cachedComputedValues"
 
@@ -27,9 +27,14 @@ def cache_computed_values(func):
 
         if key not in cachedComputedValues:
             result = func(self, *args, **kwargs)
+            # Mark numpy arrays read-only so the cached buffer is protected
+            # without duplicating it on every access (copy.copy was a full
+            # data copy, doubling peak memory on every Assembly call).
+            if isinstance(result, np.ndarray) and result.flags.writeable:
+                result.flags.writeable = False
             cachedComputedValues[key] = result
 
-        return copy.copy(cachedComputedValues[key])
+        return cachedComputedValues[key]
 
     return wrapper
 
