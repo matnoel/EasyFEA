@@ -19,122 +19,47 @@ from EasyFEA import (
     Models,
     Tic,
     ElemType,
-    Mesh,
     Simulations,
     PyVista,
     Paraview,
 )
 from EasyFEA.Geoms import Domain, Circle
 
-import multiprocessing
-
-# Display.Clear()
-
-
-# ----------------------------------------------
-# Configuration
-# ----------------------------------------------
-
-# simu options
-doSimu = True
-meshTest = True
-optimMesh = True
-useParallel = False
-nProcs = 4  # number of processes in parallel
-
-# outputs
-folder = Folder.Results_Dir()
-plotMesh = False
-plotIter = False
-plotResult = True
-plotEnergy = False
-showFig = True
-
-saveParaview = False
-makeMovie = True
-
-# models
-
-# splits = ["Bourdin","Amor","Miehe","Stress"] # Splits Isotropes
-# splits = ["He","AnisotStrain","AnisotStress","Zhang"] # Splits Anisotropes
-# splits = ["Bourdin","Amor","Miehe","Stress","He","AnisotStrain","AnisotStress","Zhang"]
-# splits = ["Zhang"]
-# splits = ["AnisotStrain","AnisotStress","Zhang"]
-splits = ["Miehe"]
-
-regus = ["AT2"]  # ["AT1", "AT2"]
-# regus = ["AT1", "AT2"]
-
-l0 = 0.12e-3
-
-# convergence
-solver = (
-    Models.PhaseField.SolverType.History
-)  # ["History", "HistoryDamage", "BoundConstrain"]
-maxIter = 1000
-tolConv = 1e-0
-
-# ----------------------------------------------
-# Mesh
-# ----------------------------------------------
-
-
-def DoMesh(
-    L: float, h: float, diam: float, thickness: float, l0: float, split: str
-) -> Mesh:
-    clC = l0 * 2 if meshTest else l0 / 2
-    if optimMesh:
-        clD = l0 * 4
-        refineZone = diam * 1.5 / 2
-        if split in ["Bourdin", "Amor"]:
-            refineGeom = Domain((0, h / 2 - refineZone), (L, h / 2 + refineZone), clC)
-        else:
-            refineGeom = Domain((L / 2 - refineZone, 0), (L / 2 + refineZone, h), clC)
-    else:
-        clD = l0 if meshTest else l0 / 2
-        refineGeom = None
-
-    domain = Domain((0, 0), (L, h), clD)
-    circle = Circle((L / 2, h / 2), diam, clD, isHollow=True)
-
-    # ax = Display.Init_Axes()
-    # domain.Plot(ax, color="k", plotPoints=False)
-    # circle.Plot(ax, color="k", plotPoints=False)
-    # # if refineGeom != None:
-    # #     refineGeom.Plot(ax, color='k', plotPoints=False)
-    # # ax.scatter(((L+diam)/2, L/2), (h/2, (h+diam)/2), c='k')
-    # ax.axis("off")
-    # Display.Save_fig(folder, "sample", True)
-
-    mesh = domain.Mesh_2D([circle], ElemType.TRI3, refineGeoms=[refineGeom])
-
-    # ax = Display.Plot_Mesh(mesh, lw=0.3, facecolors="white")
-    # ax.axis("off")
-    # ax.set_title("")
-    # Display.Save_fig(folder, "mesh", transparent=True)
-
-    return mesh
-
-
-# ----------------------------------------------
-# Do Simu
-# ----------------------------------------------
-def DoSimu(split: str, regu: str) -> str:
-
-    folder_save = Simulations.PhaseField.Folder(
-        folder, "Elas_Isot", split, regu, "DP", tolConv, solver, meshTest, optimMesh
-    )
-
-    Display.MyPrint(folder_save, "green")
+if __name__ == "__main__":
 
     # ----------------------------------------------
-    # Geom
+    # Configuration
     # ----------------------------------------------
 
-    L = 15e-3
-    h = 30e-3
-    thickness = 1
-    diam = 6e-3
+    # simu options
+    doSimu = True
+    meshTest = True
+    optimMesh = True
+
+    # outputs
+    folder = Folder.Results_Dir()
+    plotMesh = False
+    plotIter = False
+    plotEnergy = False
+
+    makeParaview = False
+    makeMovie = True
+
+    # Available splits: Bourdin, Amor, Miehe, Stress (isotropic)
+    #                   He, AnisotStrain, AnisotStress, Zhang (anisotropic)
+    split = Models.PhaseField.SplitType.Miehe
+
+    # Available regus: AT1, AT2
+    regu = Models.PhaseField.ReguType.AT2
+
+    l0 = 0.12e-3  # m
+
+    # convergence
+    solver = (
+        Models.PhaseField.SolverType.History
+    )  # History, HistoryDamage, BoundConstrain
+    maxIter = 1000
+    tolConv = 1e-0
 
     # load units
     unitU = "μm"
@@ -142,62 +67,91 @@ def DoSimu(split: str, regu: str) -> str:
     unit = 1e6
 
     # ----------------------------------------------
-    # Mesh
+    # Geometry
     # ----------------------------------------------
+    L = 15e-3  # m
+    h = 30e-3  # m
+    diam = 6e-3  # m
+    thickness = 1
+
+    # ----------------------------------------------
+    # Material
+    # ----------------------------------------------
+    E = 12e9  # Pa
+    v = 0.3
+    Gc = 1.4  # J/m2
+
+    folder_save = Simulations.PhaseField.Folder(
+        folder, "", split, regu, "", tolConv, solver, meshTest, optimMesh
+    )
+    Display.MyPrint(folder_save, "green", end="\n")
 
     if doSimu:
-        mesh = DoMesh(L, h, diam, thickness, l0, split)
+        # ----------------------------------------------
+        # Mesh
+        # ----------------------------------------------
+        clC = l0 * 2 if meshTest else l0 / 2
+        if optimMesh:
+            clD = l0 * 4
+            refineZone = diam * 1.5 / 2
+            if split in (
+                Models.PhaseField.SplitType.Bourdin,
+                Models.PhaseField.SplitType.Amor,
+            ):
+                refineGeom = Domain(
+                    (0, h / 2 - refineZone), (L, h / 2 + refineZone), clC
+                )
+            else:
+                refineGeom = Domain(
+                    (L / 2 - refineZone, 0), (L / 2 + refineZone, h), clC
+                )
+        else:
+            clD = l0 if meshTest else l0 / 2
+            refineGeom = None
 
-        # Get Nodes
+        domain = Domain((0, 0), (L, h), clD)
+        circle = Circle((L / 2, h / 2), diam, clD, isHollow=True)
+        mesh = domain.Mesh_2D([circle], ElemType.TRI3, refineGeoms=[refineGeom])
+
+        # Nodes
         nodes_lower = mesh.Nodes_Conditions(lambda x, y, z: y == 0)
         nodes_upper = mesh.Nodes_Conditions(lambda x, y, z: y == h)
         nodes_x0y0 = mesh.Nodes_Conditions(lambda x, y, z: (x == 0) & (y == 0))
         nodes_edges = mesh.Nodes_Tags(["L0", "L1", "L2", "L3"])
-        nodes_upper = mesh.Nodes_Conditions(lambda x, y, z: y == h)
-
-        # ----------------------------------------------
-        # Boundary conditions
-        # ----------------------------------------------
-
-        threshold = 0.6
-        u_max = 25e-6
-        # u_max = 35e-6
-
-        uinc0 = 8e-7 if meshTest else 8e-8
-        uinc1 = 2e-7 if meshTest else 2e-8
-
-        config = f"""
-        while ud <= u_max:
-        
-        ud += uinc0 if simu.damage.max() < threshold else uinc1
-
-        u_max = {u_max}
-        uinc0 = {uinc0:.1e} (simu.damage.max() < {threshold})
-        uinc1 = {uinc1:.1e}
-
-        simu.add_dirichlet(nodes_lower, [0], ["y"])
-        simu.add_dirichlet(nodes_x0y0, [0], ["x"])
-        simu.add_dirichlet(nodes_upper, [-ud], ["y"])
-        if dim == 3:
-            simu.add_dirichlet(nodes_y0z0, [0], ["z"])
-        """
 
         # ----------------------------------------------
         # Material
         # ----------------------------------------------
-        E = 12e9
-        v = 0.3
-        planeStress = False
-        material = Models.Elastic.Isotropic(2, E, v, planeStress, thickness)
+        material = Models.Elastic.Isotropic(
+            2, E, v, planeStress=False, thickness=thickness
+        )
+        pfm = Models.PhaseField(material, split, regu, Gc, l0, solver=solver)
 
-        gc = 1.4
-        pfm = Models.PhaseField(material, split, regu, gc, l0, solver=solver)
+        # ----------------------------------------------
+        # Boundary conditions
+        # ----------------------------------------------
+        threshold = 0.6
+        u_max = 25e-6
+        uinc0 = 8e-7 if meshTest else 8e-8
+        uinc1 = 2e-7 if meshTest else 2e-8
+
+        config = f"""
+        E = {E:.2e} Pa;  v = {v};  Gc = {Gc} J/m2;  l0 = {l0:.2e} m
+
+        while ud <= u_max = {u_max:.2e}:
+
+        ud += uinc0 if simu.damage.max() < {threshold} else uinc1
+        uinc0 = {uinc0:.1e};  uinc1 = {uinc1:.1e}
+
+        simu.add_dirichlet(nodes_lower, [0], ["y"])
+        simu.add_dirichlet(nodes_x0y0, [0], ["x"])
+        simu.add_dirichlet(nodes_upper, [-ud], ["y"])
+        """
 
         # ----------------------------------------------
         # Simulation
         # ----------------------------------------------
         simu = Simulations.PhaseField(mesh, pfm, verbosity=False)
-
         simu.Results_Set_Bc_Summary(config)
 
         dofsY_upper = simu.Bc_dofs_nodes(nodes_upper, ["y"])
@@ -208,21 +162,18 @@ def DoSimu(split: str, regu: str) -> str:
             simu.add_dirichlet(nodes_x0y0, [0], ["x"])
             simu.add_dirichlet(nodes_upper, [-ud], ["y"])
 
-        # INIT
-        displacement = []
-        force = []
+        list_dep = []
+        list_f = []
         ud = -uinc0
         iter = 0
         nDetect = 0
 
         if plotIter:
             axIter = Display.Plot_Result(simu, "damage", nodeValues=True)
-
-            force = np.asarray(force)
-            displacement = np.asarray(displacement)
-            _, axLoad = Display.Plot_Force_Displacement(
-                force / unit, displacement * unit, f"ud [{unitU}]", f"f [{unitF}]"
-            )
+            _, axLoad = plt.subplots()
+            axLoad.set_xlabel(f"ud [{unitU}]")
+            axLoad.set_ylabel(f"f [{unitF}]")
+            axLoad.grid()
 
         while ud <= u_max:
             iter += 1
@@ -233,88 +184,72 @@ def DoSimu(split: str, regu: str) -> str:
             u, d, Ku, convergence = simu.Solve(tolConv, maxIter)
             simu.Save_Iter()
 
-            # stop if the simulation does not converge
             if not convergence:
                 break
 
             f = np.sum(Ku[dofsY_upper, :] @ u)
-
             simu.Results_Set_Iteration_Summary(iter, ud * unit, unitU, ud / u_max, True)
 
-            # Detect damaged edges
             if np.any(d[nodes_edges] >= 1):
                 nDetect += 1
                 if nDetect == 10:
                     break
 
-            displacement = np.concatenate((displacement, [ud]))
-            force = np.concatenate((force, [f]))
+            list_dep = np.concatenate((list_dep, [ud]))
+            list_f = np.concatenate((list_f, [f]))
 
             if plotIter:
                 Display.Plot_Result(simu, "damage", nodeValues=True, ax=axIter)
                 plt.figure(axIter.figure)
                 plt.pause(1e-12)
-
-                force = np.asarray(force)
-                displacement = np.asarray(displacement)
-                Display.Plot_Force_Displacement(
-                    force / unit,
-                    displacement * unit,
-                    f"ud [{unitU}]",
-                    f"f [{unitF}]",
-                    ax=axLoad,
-                )[1]
+                axLoad.clear()
+                axLoad.plot(np.abs(list_dep * unit), np.abs(list_f / unit), c="blue")
+                axLoad.set_xlabel(f"ud [{unitU}]")
+                axLoad.set_ylabel(f"f [{unitF}]")
+                axLoad.grid()
                 plt.figure(axLoad.figure)
                 plt.pause(1e-12)
 
         # ----------------------------------------------
         # Saving
         # ----------------------------------------------
-        force = np.asarray(force)
-        displacement = np.asarray(displacement)
         print()
-        Simulations.Save_pickle(
-            (force, displacement), folder_save, "force-displacement"
-        )
+        Simulations.Save_pickle((list_f, list_dep), folder_save, "force-displacement")
         simu.Save(folder_save)
 
     else:
-        # ----------------------------------------------
-        # Load
-        # ----------------------------------------------
         simu: Simulations.PhaseField = Simulations.Load_Simu(folder_save)
-        force, displacement = Simulations.Load_pickle(folder_save, "force-displacement")
+        list_f, list_dep = Simulations.Load_pickle(folder_save, "force-displacement")
 
     # ----------------------------------------------
     # Results
-    # ---------------------------------------------
+    # ----------------------------------------------
     if plotEnergy:
-        Display.Plot_Energy(simu, force, displacement, N=400, folder=folder_save)
+        Display.Plot_Energy(simu, list_f, list_dep, N=400, folder=folder_save)
 
-    if plotResult:
-        Display.Plot_Result(
-            simu,
-            "damage",
-            nodeValues=True,
-            colorbarIsClose=True,
-            folder=folder_save,
-            filename="damage",
-        )
-        Display.Plot_Mesh(simu)
-        Display.Plot_BoundaryConditions(simu)
-        Display.Plot_Iter_Summary(simu, folder_save, None, None)
-        Display.Plot_Force_Displacement(
-            force / unit,
-            displacement * unit,
-            f"ud [{unitU}]",
-            f"f [{unitF}]",
-            folder_save,
-        )
+    Display.Plot_Result(
+        simu,
+        "damage",
+        nodeValues=True,
+        colorbarIsClose=True,
+        folder=folder_save,
+        filename="damage",
+    )
+    Display.Plot_Mesh(simu)
+    Display.Plot_BoundaryConditions(simu)
+    Display.Plot_Iter_Summary(simu, folder_save, None, None)
+
+    ax = Display.Init_Axes()
+    ax.plot(np.abs(list_dep) * unit, np.abs(list_f) / unit, c="blue")
+    ax.set_xlabel(f"ud [{unitU}]")
+    ax.set_ylabel(f"f [{unitF}]")
+    ax.grid()
+    Display.Save_fig(folder_save, "force-displacement")
 
     if plotMesh:
-        Display.Plot_Mesh(mesh)
+        Display.Plot_Mesh(simu.mesh)
 
-    if saveParaview:
+    if makeParaview:
         Paraview.Save_simu(simu, folder_save)
 
     if makeMovie:
@@ -326,49 +261,12 @@ def DoSimu(split: str, regu: str) -> str:
 
         def Func(plotter, iter):
             simu.Set_Iter(iterations[iter])
-
-            grid = PyVista._pvMesh(simu, "damage", deformFactor)
-
-            tresh = grid.threshold((0, 0.8))
-
-            PyVista.Plot(
-                tresh,
-                "damage",
-                deformFactor,
-                plotMesh=True,
-                plotter=plotter,
-                clim=(0, 1),
-            )
+            thresh = PyVista._pvMesh(simu, "damage", deformFactor).threshold((0, 0.8))
+            PyVista.Plot(thresh, "damage", plotMesh=True, plotter=plotter, clim=(0, 1))
 
         PyVista.Movie_func(Func, iterations.size, folder_save, "damage.gif")
 
     if doSimu:
         Tic.Plot_History(folder_save, details=False)
 
-    if showFig:
-        plt.show()
-
-    # Display.plt.close("all")
-    Tic.Clear()
-
-    return folder_save
-
-
-if __name__ == "__main__":
-    # generates configs
-    Splits = []
-    Regus = []
-    for split in splits.copy():
-        for regu in regus.copy():
-            Splits.append(split)
-            Regus.append(regu)
-
-    list_folder: list[str] = []
-    if useParallel:
-        items = [(split, regu) for split, regu in zip(Splits, Regus)]
-        with multiprocessing.Pool(nProcs) as pool:
-            for result in pool.starmap(DoSimu, items):
-                list_folder.append(result)
-    else:
-        for split, regu in zip(Splits, Regus):
-            list_folder.append(DoSimu(split, regu))
+    plt.show()

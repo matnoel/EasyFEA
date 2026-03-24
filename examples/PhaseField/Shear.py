@@ -20,150 +20,126 @@ from EasyFEA import (
     Models,
     Tic,
     ElemType,
-    Mesh,
     Simulations,
     Paraview,
     PyVista,
 )
 from EasyFEA.Geoms import Point, Points, Domain, Line, Contour
 
-import multiprocessing
+if __name__ == "__main__":
 
-# Display.Clear()
+    Display.Clear()
 
-useParallel = False
-nProcs = 4  # number of processes in parallel
+    # ----------------------------------------------
+    # Configuration
+    # ----------------------------------------------
+    dim = 2
 
-# ----------------------------------------------
-# Configuration
-# ----------------------------------------------
-dim = 2
+    # simu options
+    doSimu = True
+    meshTest = True
+    openCrack = True
+    optimMesh = True
 
-# simu options
-doSimu = True
-meshTest = True
-openCrack = True
-optimMesh = True
+    # outputs
+    folder = Folder.Results_Dir() + f"{dim}D"
+    plotMesh = False
+    plotEnergy = False
+    makeParaview = False
+    makeMovie = True
 
-# outputs
-folder = Folder.Results_Dir() + f"{dim}D"
-plotResult = True
-showResult = True
-plotMesh = False
-plotEnergy = False
-saveParaview = False
-makeMovie = True
+    # phasefield
+    maxIter = 1000
 
-# phasefield
-maxIter = 1000
+    tolConv = 1e-0  # 1e-1, 1e-2, 1e-3
 
-tolConv = 1e-0  # 1e-1, 1e-2, 1e-3
+    pfmSolver = Models.PhaseField.SolverType.History
 
-pfmSolver = Models.PhaseField.SolverType.History
+    # Available splits: Bourdin, Amor, Miehe, Stress (isotropic)
+    #                   He, AnisotStrain, AnisotStress, Zhang (anisotropic)
+    split = Models.PhaseField.SplitType.Miehe
 
-# splits = ["Bourdin","Amor","Miehe","Stress"] # Splits Isotropes
-# splits = ["He","AnisotStrain","AnisotStress","Zhang"] # Splits Anisotropes sans bourdin
-# splits = ["Bourdin","Amor","Miehe","Stress","He","AnisotStrain","AnisotStress","Zhang"]
-splits = ["Miehe"]
+    # Available regus: AT1, AT2
+    regu = Models.PhaseField.ReguType.AT1
 
-# regus = ["AT1", "AT2"]
-regus = ["AT1"]  # "AT1", "AT2"
+    # ----------------------------------------------
+    # Geometry
+    # ----------------------------------------------
+    L = 1e-3  # m
+    l0 = 1e-5  # m
+    thickness = 1 if dim == 2 else 0.1 / 1000
 
-# ----------------------------------------------
-# Mesh
-# ----------------------------------------------
-L = 1e-3
-# m
-l0 = 1e-5
-thickness = 1 if dim == 2 else 0.1 / 1000
+    # ----------------------------------------------
+    # Material
+    # ----------------------------------------------
+    E = 210e9  # Pa
+    v = 0.3
+    Gc = 2.7e3  # J/m2
 
-
-def DoMesh(split: str) -> Mesh:
-    # meshSize
-    clC = l0 * 2 if meshTest else l0 / 2
-    if optimMesh:
-        # a coarser mesh can be used outside the refined zone
-        clD = clC * 4
-        # refines the mesh in the area where the crack will propagate
-        gap = L * 0.05
-        h = L if split == "Bourdin" else L / 2 + gap
-        refineDomain = Domain(Point(L / 2 - gap, 0), Point(L, h, thickness), clC)
-    else:
-        clD = clC
-        refineDomain = None
-
-    # geom
-    pt1 = Point()
-    pt2 = Point(L)
-    pt3 = Point(L, L)
-    pt4 = Point(0, L)
-    contour = Points([pt1, pt2, pt3, pt4], clD)
-
-    if dim == 2:
-        ptC1 = Point(0, L / 2, isOpen=openCrack)
-        ptC2 = Point(L / 2, L / 2)
-        cracks = [Line(ptC1, ptC2, clC, isOpen=openCrack)]
-    if dim == 3:
-        meshSize = clD if optimMesh else clC
-        ptC1 = Point(0, L / 2, 0, isOpen=openCrack)
-        ptC2 = Point(L / 2, L / 2, 0)
-        ptC3 = Point(L / 2, L / 2, thickness)
-        ptC4 = Point(0, L / 2, thickness, isOpen=openCrack)
-        l1 = Line(ptC1, ptC2, meshSize, openCrack)
-        l2 = Line(ptC2, ptC3, meshSize, False)
-        l3 = Line(ptC3, ptC4, meshSize, openCrack)
-        l4 = Line(ptC4, ptC1, meshSize, openCrack)
-        cracks = [Contour([l1, l2, l3, l4], isOpen=openCrack)]
-
-    # folder = Folder.Join("",results=True)
-    # ax = Display.Init_Axes()
-    # contour.Get_Contour().Plot(ax, color='k', plotPoints=False)
-    # cracks[0].Plot(ax, color='k', plotPoints=False)
-    # # if refineDomain != None:
-    # #     refineDomain.Plot(ax, color='k', plotPoints=False)
-    # ax.axis('off')
-    # Display.Save_fig(folder,"sample",True)
-
-    if dim == 2:
-        mesh = contour.Mesh_2D([], ElemType.TRI3, cracks, [refineDomain])
-    elif dim == 3:
-        mesh = contour.Mesh_Extrude(
-            [],
-            [0, 0, thickness],
-            [4],
-            ElemType.PRISM6,
-            cracks,
-            [refineDomain],
-            additionalLines=[l1],
-        )
-
-    return mesh
-
-
-# ----------------------------------------------
-# Simu
-# ----------------------------------------------
-def DoSimu(split: str, regu: str):
-    # Builds the path to the folder based on the problem data
     folder_save = Simulations.PhaseField.Folder(
         folder,
-        "ElasIsot",
+        "",
         split,
         regu,
-        "DP",
+        "",
         tolConv,
         pfmSolver,
         meshTest,
         optimMesh,
         not openCrack,
     )
-
-    Display.MyPrint(folder_save, "green")
+    Display.MyPrint(folder_save, "green", end="\n")
 
     if doSimu:
-        mesh = DoMesh(split)
+        # ----------------------------------------------
+        # Mesh
+        # ----------------------------------------------
+        clC = l0 * 2 if meshTest else l0 / 2
+        if optimMesh:
+            clD = clC * 4
+            gap = L * 0.05
+            h = L if split == Models.PhaseField.SplitType.Bourdin else L / 2 + gap
+            refineDomain = Domain(Point(L / 2 - gap, 0), Point(L, h, thickness), clC)
+        else:
+            clD = clC
+            refineDomain = None
 
-        # Nodes recovery
+        pt1 = Point()
+        pt2 = Point(L)
+        pt3 = Point(L, L)
+        pt4 = Point(0, L)
+        contour = Points([pt1, pt2, pt3, pt4], clD)
+
+        if dim == 2:
+            ptC1 = Point(0, L / 2, isOpen=openCrack)
+            ptC2 = Point(L / 2, L / 2)
+            cracks = [Line(ptC1, ptC2, clC, isOpen=openCrack)]
+        elif dim == 3:
+            meshSize = clD if optimMesh else clC
+            ptC1 = Point(0, L / 2, 0, isOpen=openCrack)
+            ptC2 = Point(L / 2, L / 2, 0)
+            ptC3 = Point(L / 2, L / 2, thickness)
+            ptC4 = Point(0, L / 2, thickness, isOpen=openCrack)
+            l1 = Line(ptC1, ptC2, meshSize, openCrack)
+            l2 = Line(ptC2, ptC3, meshSize, False)
+            l3 = Line(ptC3, ptC4, meshSize, openCrack)
+            l4 = Line(ptC4, ptC1, meshSize, openCrack)
+            cracks = [Contour([l1, l2, l3, l4], isOpen=openCrack)]
+
+        if dim == 2:
+            mesh = contour.Mesh_2D([], ElemType.TRI3, cracks, [refineDomain])
+        elif dim == 3:
+            mesh = contour.Mesh_Extrude(
+                [],
+                [0, 0, thickness],
+                [4],
+                ElemType.PRISM6,
+                cracks,
+                [refineDomain],
+                additionalLines=[l1],
+            )
+
+        # Nodes
         nodes_crack = mesh.Nodes_Conditions(lambda x, y, z: (y == L / 2) & (x <= L / 2))
         nodes_upper = mesh.Nodes_Conditions(lambda x, y, z: y == L)
         nodes_lower = mesh.Nodes_Conditions(lambda x, y, z: y == 0)
@@ -171,19 +147,16 @@ def DoSimu(split: str, regu: str):
         nodes_right = mesh.Nodes_Conditions(
             lambda x, y, z: (x == L) & (y > 0) & (y < L)
         )
-
-        # Builds edge nodes
-        nodes_edges = []
-        for nodes in [nodes_lower, nodes_right, nodes_upper]:
-            nodes_edges.extend(nodes)
+        nodes_edges = [
+            n for nodes in [nodes_lower, nodes_right, nodes_upper] for n in nodes
+        ]
 
         # ----------------------------------------------
         # Material
         # ----------------------------------------------
         material = Models.Elastic.Isotropic(
-            dim, E=210e9, v=0.3, planeStress=False, thickness=thickness
+            dim, E=E, v=v, planeStress=False, thickness=thickness
         )
-        Gc = 2.7e3  # J/m2
         pfm = Models.PhaseField(material, split, regu, Gc, l0, pfmSolver)
 
         # ----------------------------------------------
@@ -191,27 +164,25 @@ def DoSimu(split: str, regu: str):
         # ----------------------------------------------
         u_inc = 5e-8 if meshTest else 1e-8
         N = 400 if meshTest else 2000
-
         loadings = np.linspace(u_inc, u_inc * N, N, endpoint=True)
 
         config = f"""
-        u_inc = {u_inc:.1e}
-        N = {N}
+        E = {E:.2e} Pa;  v = {v};  Gc = {Gc:.2e} J/m2;  l0 = {l0:.2e} m
+
+        u_inc = {u_inc:.1e};  N = {N}
+        loadings = np.linspace(u_inc, u_inc*N, N, endpoint=True)
 
         for iter, dep in enumerate(loadings):
-
-        loadings = np.linspace(u_inc, u_inc*N, N, endpoint=True)
 
         if not openCrack:
             simu.add_dirichlet(nodes_crack, [1], ["d"], problemType="damage")
         simu.add_dirichlet(nodes_left, [0], ["y"])
         simu.add_dirichlet(nodes_right, [0], ["y"])
-        simu.add_dirichlet(nodes_upper, [dep,0], ["x","y"])
-        simu.add_dirichlet(nodes_lower, [0]*dim, simu.Get_dofs())
+        simu.add_dirichlet(nodes_upper, [dep, 0], ["x", "y"])
+        simu.add_dirichlet(nodes_lower, [0]*dim, simu.Get_unknowns())
         """
 
         def Loading(dep):
-            """Boundary conditions"""
             simu.Bc_Init()
             if not openCrack:
                 simu.add_dirichlet(nodes_crack, [1], ["d"], problemType="damage")
@@ -228,33 +199,25 @@ def DoSimu(split: str, regu: str):
 
         dofsX_upper = simu.Bc_dofs_nodes(nodes_upper, ["x"])
 
-        # INIT
         N = len(loadings)
         nDetect = 0
-        displacement = []
-        force = []
+        list_dep = []
+        list_f = []
         for iter, dep in enumerate(loadings):
-            # apply new boundary conditions
             Loading(dep)
 
-            # solve and save iter
             u, _, Ku, converg = simu.Solve(tolConv, maxIter, convOption=2)
             simu.Save_Iter()
 
-            # print iter solution
             simu.Results_Set_Iteration_Summary(iter, dep * 1e6, "µm", iter / N, True)
 
-            # If the solver has not converged, stop the simulation.
             if not converg:
                 break
 
-            # resulting force on upper edge
             f = np.sum(Ku[dofsX_upper, :] @ u)
+            list_dep.append(dep)
+            list_f.append(f)
 
-            displacement.append(dep)
-            force.append(f)
-
-            # Detect damaged edges
             if np.any(simu.damage[nodes_edges] >= 1):
                 nDetect += 1
                 if nDetect == 10:
@@ -263,50 +226,44 @@ def DoSimu(split: str, regu: str):
         # ----------------------------------------------
         # Saving
         # ----------------------------------------------
-        force = np.asarray(force)
-        displacement = np.asarray(displacement)
         print()
-        Simulations.Save_pickle(
-            (force, displacement), folder_save, "force-displacement"
-        )
+        Simulations.Save_pickle((list_f, list_dep), folder_save, "force-displacement")
         simu.Save(folder_save)
 
     else:
         simu: Simulations.PhaseField = Simulations.Load_Simu(folder_save)
-        force, displacement = Simulations.Load_pickle(folder_save, "force-displacement")
+        list_f, list_dep = Simulations.Load_pickle(folder_save, "force-displacement")
 
     # ----------------------------------------------
     # Results
-    # ---------------------------------------------
-    if plotResult:
-        ax = Display.Plot_Result(
-            simu,
-            "damage",
-            nodeValues=True,
-            plotMesh=False,
-            folder=folder_save,
-            filename="damage",
-            ncolors=25,
-        )
-        Display.Plot_Mesh(simu)
-        Display.Plot_Iter_Summary(simu, folder_save, None, None)
-        Display.Plot_BoundaryConditions(simu)
-        Display.Plot_Force_Displacement(
-            force * 1e-6, displacement * 1e6, "ud [µm]", "f [kN/mm]", folder_save
-        )
+    # ----------------------------------------------
+    Display.Plot_Result(
+        simu,
+        "damage",
+        nodeValues=True,
+        plotMesh=False,
+        folder=folder_save,
+        filename="damage",
+        ncolors=25,
+    )
+    Display.Plot_Mesh(simu)
+    Display.Plot_Iter_Summary(simu, folder_save, None, None)
+    Display.Plot_BoundaryConditions(simu)
 
-        # ax = Display.Plot_Result(simu, "damage", 1.5, ncolors=21, clim=(0,0.9))
-        # ax.axis('off'); ax.set_title("")
-        # Display.Save_fig(folder, "deform damage")
+    ax = Display.Init_Axes()
+    ax.plot(np.abs(list_dep) * 1e6, np.abs(list_f) * 1e-6, c="blue")
+    ax.set_xlabel("ud [µm]")
+    ax.set_ylabel("f [kN/mm]")
+    ax.grid()
+    Display.Save_fig(folder_save, "force-displacement")
 
     if plotMesh:
-        # PyVista.Plot_Mesh(simu.mesh).show()
         ax = Display.Plot_Mesh(simu.mesh, lw=0.3, facecolors="white")
         ax.axis("off")
         ax.set_title("")
         Display.Save_fig(folder_save, "mesh", transparent=True)
 
-    if saveParaview:
+    if makeParaview:
         Paraview.Save_simu(simu, folder_save, 400)
 
     if makeMovie:
@@ -319,19 +276,8 @@ def DoSimu(split: str, regu: str):
 
         def Func(plotter, iter):
             simu.Set_Iter(iterations[iter])
-
-            grid = PyVista._pvMesh(simu, "damage", deformFactor)
-
-            tresh = grid.threshold((0, 0.8))
-
-            PyVista.Plot(
-                tresh,
-                "damage",
-                deformFactor,
-                plotMesh=True,
-                plotter=plotter,
-                clim=(0, 1),
-            )
+            thresh = PyVista._pvMesh(simu, "damage", deformFactor).threshold((0, 0.8))
+            PyVista.Plot(thresh, "damage", plotMesh=True, plotter=plotter, clim=(0, 1))
 
         PyVista.Movie_func(Func, iterations.size, folder_save, "damage.gif")
 
@@ -343,30 +289,4 @@ def DoSimu(split: str, regu: str):
     if doSimu:
         Tic.Plot_History(folder_save, False)
 
-    if showResult:
-        plt.show()
-
-    # Display.plt.close("all")
-    Tic.Clear()
-
-    return folder_save
-
-
-if __name__ == "__main__":
-    # generates configs
-    Splits = []
-    Regus = []
-    for split in splits.copy():
-        for regu in regus.copy():
-            Splits.append(split)
-            Regus.append(regu)
-
-    list_folder: list[str] = []
-    if useParallel:
-        items = [(split, regu) for split, regu in zip(Splits, Regus)]
-        with multiprocessing.Pool(nProcs) as pool:
-            for result in pool.starmap(DoSimu, items):
-                list_folder.append(result)
-    else:
-        for split, regu in zip(Splits, Regus):
-            list_folder.append(DoSimu(split, regu))
+    plt.show()

@@ -13,16 +13,7 @@ Damage simulation for a L-part.
 import matplotlib.pyplot as plt
 import numpy as np
 
-from EasyFEA import (
-    Display,
-    Folder,
-    Models,
-    Tic,
-    ElemType,
-    Simulations,
-    Paraview,
-    PyVista,
-)
+from EasyFEA import Display, Folder, Models, ElemType, Simulations, Paraview, PyVista
 from EasyFEA.Geoms import Point, Points, Domain, Circle
 
 if __name__ == "__main__":
@@ -54,8 +45,8 @@ if __name__ == "__main__":
     E = 2e4  # MPa
     v = 0.18
 
-    split = "Miehe"
-    regu = "AT1"
+    split = Models.PhaseField.SplitType.Miehe
+    regu = Models.PhaseField.ReguType.AT1
     Gc = 130  # J/m2
     Gc *= 1000 / 1e6  # mJ/mm2
 
@@ -102,7 +93,6 @@ if __name__ == "__main__":
     p6 = Point(2 * L, 2 * L)
     p7 = Point(0, 2 * L)
     if optimMesh:
-        # hauteur zone rafinée
         h = 100
         refineDomain = Domain(Point(0, L - h / 3), Point(L + h / 3, L + h), hC)
         hD = hC * 5
@@ -144,7 +134,7 @@ if __name__ == "__main__":
         "",
         pfm.split,
         pfm.regularization,
-        "CP",
+        "",
         tolConv,
         "",
         meshTest,
@@ -152,7 +142,7 @@ if __name__ == "__main__":
         nL=nL,
     )
 
-    Display.MyPrint(folder_save, "green")
+    Display.MyPrint(folder_save, "green", end="\n")
 
     if doSimu:
         simu = Simulations.PhaseField(mesh, pfm)
@@ -207,9 +197,9 @@ if __name__ == "__main__":
                 axLoad.scatter(ud, fr / 1000, c="black")
                 plt.pause(1e-12)
 
-            if not convergence or np.max(d[nodes_edges]) >= 1:
-                # stops simulation if damage occurs on edges or convergence has not been reached
-                break
+            # if not convergence or np.max(d[nodes_edges]) >= 1:
+            #     # stops simulation if damage occurs on edges or convergence has not been reached
+            #     break
 
         # saves load and displacement
         displacement = np.asarray(displacement)
@@ -251,26 +241,12 @@ if __name__ == "__main__":
 
         def Func(plotter, iter):
             simu.Set_Iter(iterations[iter])
-
-            grid = PyVista._pvMesh(simu, "damage", deformFactor)
-
-            tresh = grid.threshold((0, 0.8))
-
-            PyVista.Plot(
-                tresh,
-                "damage",
-                deformFactor,
-                plotMesh=True,
-                plotter=plotter,
-                clim=(0, 1),
-            )
+            thresh = PyVista._pvMesh(simu, "damage", deformFactor).threshold((0, 0.8))
+            PyVista.Plot(thresh, "damage", plotMesh=True, plotter=plotter, clim=(0, 1))
 
         PyVista.Movie_func(Func, iterations.size, folder_save, "damage.gif")
 
     if makeParaview:
         Paraview.Save_simu(simu, folder_save)
-
-    if doSimu:
-        Tic.Plot_History(folder_save, False)
 
     plt.show()

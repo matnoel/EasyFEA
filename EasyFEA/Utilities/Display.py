@@ -1121,56 +1121,6 @@ def __Annotation_Event(
 # Plot 1D
 # ----------------------------------------------
 @requires_matplotlib
-def Plot_Force_Displacement(
-    force: _types.FloatArray,
-    displacement: _types.FloatArray,
-    xlabel="u",
-    ylabel="f",
-    folder="",
-    ax: Optional[Axes] = None,
-) -> tuple[plt.Figure, Axes]:  # type: ignore
-    """Plots the force displacement curve.
-
-    Parameters
-    ----------
-    force : _types.FloatArray
-        array of values for force
-    displacement : _types.FloatArray
-        array of values for displacements
-    xlabel : str, optional
-        x-axis title, by default 'u'.
-    ylabel : str, optional
-        y-axis title, by default 'f' folder : str, optional
-    folder : str, optional
-        save folder, by default ""
-    ax : Axes, optional
-        ax in which to plot the figure, by default None
-
-    Returns
-    -------
-    tuple[plt.Figure, Axes]
-        returns figure and ax
-    """
-
-    if isinstance(ax, Axes):  # type: ignore
-        fig = ax.figure
-        ax.clear()
-    else:
-        ax = Init_Axes()
-        fig = ax.figure
-
-    ax.plot(np.abs(displacement), np.abs(force), c="blue")
-    ax.set_xlabel(xlabel)
-    ax.set_ylabel(ylabel)
-    ax.grid()
-
-    if folder != "":
-        Save_fig(folder, "force-displacement")
-
-    return fig, ax  # type: ignore [return-value]
-
-
-@requires_matplotlib
 def Plot_Energy(
     simu: "_Simu",
     load: _types.FloatArray = np.empty(0),

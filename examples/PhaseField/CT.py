@@ -50,14 +50,14 @@ if __name__ == "__main__":
     Gc = 100
     nL = 100
     l0 = L / nL
-    split = "Miehe"
-    regu = "AT1"
+    split = Models.PhaseField.SplitType.Miehe
+    regu = Models.PhaseField.ReguType.AT1
 
     folder_save = Simulations.PhaseField.Folder(
-        f"{folder}{dim}D", "Isot", split, regu, "", 1, "", meshTest, optimMesh, nL=nL
+        f"{folder}{dim}D", "", split, regu, "", 1, "", meshTest, optimMesh, nL=nL
     )
 
-    Display.MyPrint(folder_save, "green")
+    Display.MyPrint(folder_save, "green", end="\n")
 
     # ----------------------------------------------
     # Geom
@@ -226,19 +226,8 @@ if __name__ == "__main__":
 
         def Func(plotter, iter):
             simu.Set_Iter(iterations[iter])
-
-            grid = PyVista._pvMesh(simu, "damage", deformFactor)
-
-            tresh = grid.threshold((0, 0.8))
-
-            PyVista.Plot(
-                tresh,
-                "damage",
-                deformFactor,
-                plotMesh=True,
-                plotter=plotter,
-                clim=(0, 1),
-            )
+            thresh = PyVista._pvMesh(simu, "damage", deformFactor).threshold((0, 0.8))
+            PyVista.Plot(thresh, "damage", plotMesh=True, plotter=plotter, clim=(0, 1))
 
         PyVista.Movie_func(Func, iterations.size, folder_save, "damage.gif")
 
