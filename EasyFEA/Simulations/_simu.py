@@ -2633,18 +2633,20 @@ class _Simu(_IObserver, _params.Updatable, ABC):
             pickle.dump(self, file)
 
         # Save simulation summary
-        path_summary = Folder.Join(folder, f"summary{suffix}.txt", mkdir=True)
+        path_summary = Folder.Join(folder, "summary.txt", mkdir=True)
         summary = f"Simulation completed on: {datetime.now()}\n"
         summary += f"version: {__version__}"
+        if MPI_SIZE > 1:
+            summary += f"\nNproc: {MPI_SIZE}"
         summary += str(self)
         if str(additionalInfos) != "":
             summary += Display.Section("Additional information", False)
             summary += "\n" + str(additionalInfos)
 
-        with open(path_summary, "w", encoding="utf8") as file:
-            file.write(summary)
-
         if MPI_RANK == 0:
+            with open(path_summary, "w", encoding="utf8") as file:
+                file.write(summary)
+
             path = folder.replace(Folder.EASYFEA_DIR, "")
             Display.MyPrint(f"Saved simulation and summary in:\n{path}\n", "green")
 

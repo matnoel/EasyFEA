@@ -20,7 +20,7 @@ from typing import Callable, Optional, TYPE_CHECKING
 # utilities
 from ..Utilities import Display, Tic, _types
 from ..Utilities._observers import Observable
-from ..Utilities._mpi import MPI_COMM, MPI_SIZE, MPI_RANK
+from ..Utilities._mpi import MPI_COMM, MPI_SIZE, MPI_RANK, MPI
 
 # fem
 from ._linalg import FeArray
@@ -95,7 +95,15 @@ class Mesh(Observable):
     def __str__(self) -> str:
         """Returns a string representation of the mesh."""
         text = f"\nElement type: {self.elemType}"
-        text += f"\nNe = {self.Ne}, Nn = {self.Nn}"
+
+        if MPI_SIZE > 1:
+            elements = self.groupElem._Get_partitioned_data()[1]
+            Ne = elements.max()
+            Ne = MPI_COMM.allreduce(Ne, op=MPI.MAX)
+        else:
+            Ne = self.Ne
+
+        text += f"\nNe = {Ne}, Nn = {self.Nn}"
         return text
 
     def Get_list_groupElem(self, dim=None) -> list["_GroupElem"]:
