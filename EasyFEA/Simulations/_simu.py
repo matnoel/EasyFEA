@@ -174,8 +174,6 @@ class _Simu(_IObserver, _params.Updatable, ABC):
     def Save_Iter(self, iter: dict[str, Any] = {}):
         """Saves iteration results in _results."""
 
-        self.__Niter += 1
-
         iter = iter.copy()
 
         iter["indexMesh"] = self.__indexMesh
@@ -196,6 +194,8 @@ class _Simu(_IObserver, _params.Updatable, ABC):
             if MPI_RANK == 0:
                 with open(file, "wb") as f:
                     pickle.dump(iter, f)
+
+        self.__Niter += 1
 
     @abstractmethod
     def Set_Iter(self, iter: int = -1, resetAll=False) -> dict:
@@ -373,6 +373,8 @@ class _Simu(_IObserver, _params.Updatable, ABC):
         """System type during simulation."""
         # a simulation is by default linear
 
+        self.__isGathered = MPI_SIZE == 1
+
         # Solver used
         if MPI_SIZE > 1:
             assert (
@@ -390,8 +392,6 @@ class _Simu(_IObserver, _params.Updatable, ABC):
         # cg+gamg: mesh-independent convergence, O(n) memory, works serial and MPI.
         if CAN_USE_PETSC:
             self._Solver_Set_PETSc4Py_Options("cg", "gamg")
-        else:
-            self._Solver_Set_PETSc4Py_Options()
 
         # Initialize solutions and boundary conditions
         self.__Init_Sols_n()
@@ -596,24 +596,23 @@ class _Simu(_IObserver, _params.Updatable, ABC):
     def Nmesh(self) -> int:
         return len(self.__listMesh)
 
-    def Gather(self) -> "_Simu | None":
-        """Gathers mesh partitions from all MPI ranks onto `root`.
+    @property
+    def _isGathered(self) -> bool:
+        """Whether the simulation holds the complete global mesh."""
+        return self.__isGathered
+
+    def _Gather(self):
+        """Gathers mesh partitions from all MPI ranks onto `root` rank.
 
         Each mesh in the simulation's mesh history is gathered so that rank
         `root` holds the complete global mesh.  Simulation results are
         *already* fully available on every rank (allgathered by the solver),
         so they are left untouched.
-
-        Returns
-        -------
-        _Simu | None
-            The simulation with gathered meshes on rank `root`, None on other
-            ranks. Returns `self` unchanged when MPI is not in use.
         """
         if MPI_SIZE == 1:
-            return self
+            return
 
-        list_mesh = [mesh.Gather() for mesh in self.__listMesh]
+        list_mesh = [mesh._Gather() for mesh in self.__listMesh]
 
         if MPI_RANK == 0:
             for i, mesh in enumerate(list_mesh):
@@ -622,9 +621,7 @@ class _Simu(_IObserver, _params.Updatable, ABC):
             self.__mesh = self.__listMesh[self.__indexMesh]
             self.Bc_Init()
             self.Need_Update()
-            return self
-        else:
-            return None
+            self.__isGathered = True
 
     @property
     def dim(self) -> int:
@@ -2615,28 +2612,28 @@ class _Simu(_IObserver, _params.Updatable, ABC):
         raise Exception("Unexpected conditions occurred during the calculation.")
 
     def Save(
-        self, folder: str, filename: str = "simulation", additionalInfos: str = ""
+        self,
+        folder: str,
+        filename: str = "simulation",
+        gather=True,
+        additionalInfos: str = "",
     ) -> None:
         """Saves the simulation and its summary in the folder. Saves the simulation as 'filename.pickle'."""
 
-        self = self.Gather()
-        if self is None:
-            return
+        if gather:
+            self._Gather()
 
         # Empty matrices in element groups
         self.mesh._ResetMatrix()
 
-        easyfea_dir = Folder.EASYFEA_DIR
-        # this path will be removed in print
-
         # Save simulation
-        path_simu = Folder.Join(folder, f"{filename}.pickle", mkdir=True)
+        suffix = f"_rank{MPI_RANK}" if MPI_SIZE > 1 and not gather else ""
+        path_simu = Folder.Join(folder, f"{filename}{suffix}.pickle", mkdir=True)
         with open(path_simu, "wb") as file:
             pickle.dump(self, file)
-        Display.MyPrint(f"Saved:\n{path_simu.replace(easyfea_dir, '')}\n", "green")
 
         # Save simulation summary
-        path_summary = Folder.Join(folder, "summary.txt", mkdir=True)
+        path_summary = Folder.Join(folder, f"summary{suffix}.txt", mkdir=True)
         summary = f"Simulation completed on: {datetime.now()}\n"
         summary += f"version: {__version__}"
         summary += str(self)
@@ -2646,7 +2643,10 @@ class _Simu(_IObserver, _params.Updatable, ABC):
 
         with open(path_summary, "w", encoding="utf8") as file:
             file.write(summary)
-        Display.MyPrint(f"Saved:\n{path_summary.replace(easyfea_dir, '')}\n", "green")
+
+        if MPI_RANK == 0:
+            path = path_simu.replace(Folder.EASYFEA_DIR, "")
+            Display.MyPrint(f"Saved simulation and summary in:\n{path}\n", "green")
 
 
 # ----------------------------------------------
@@ -2761,7 +2761,7 @@ def _Get_values(
     return values  # type: ignore [return-value]
 
 
-def Load_Simu(folder: str, filename: str = "simulation") -> _Simu:
+def Load_Simu(folder: str, filename: str = "simulation", gather=True) -> _Simu:
     """Loads the simulation from the specified folder.
 
     Parameters
@@ -2770,6 +2770,8 @@ def Load_Simu(folder: str, filename: str = "simulation") -> _Simu:
         simulation's folder.
     filename : str, optional
         The simualtion's name, by default "simulation".
+    gather : bool, optional
+        Gather simu on root rank, by default True.
 
     Returns
     -------
@@ -2777,8 +2779,11 @@ def Load_Simu(folder: str, filename: str = "simulation") -> _Simu:
         The loaded simulation.
     """
 
-    path_simu = Folder.Join(folder, f"{filename}.pickle")
-    assert Folder.Exists(path_simu), f"The file {filename}.pickle cannot be found."
+    suffix = f"_rank{MPI_RANK}" if MPI_SIZE > 1 and not gather else ""
+    path_simu = Folder.Join(folder, f"{filename}{suffix}.pickle")
+    assert Folder.Exists(
+        path_simu
+    ), f"The file {filename}{suffix}.pickle cannot be found."
 
     try:
         with open(path_simu, "rb") as file:
@@ -2787,8 +2792,6 @@ def Load_Simu(folder: str, filename: str = "simulation") -> _Simu:
         Display.MyPrintError(f"The file:\n{path_simu}\nis empty or corrupted.")
         return None  # type: ignore [return-value]
 
-    Display.MyPrint(
-        f"\nLoaded:\n{path_simu.replace(Folder.EASYFEA_DIR, '')}\n", "green"
-    )
-
+    if gather:
+        simu._Gather()
     return simu

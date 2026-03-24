@@ -20,7 +20,7 @@ from typing import Callable, Optional, TYPE_CHECKING
 # utilities
 from ..Utilities import Display, Tic, _types
 from ..Utilities._observers import Observable
-from ..Utilities._mpi import CAN_USE_MPI, MPI_COMM, MPI_SIZE, MPI_RANK
+from ..Utilities._mpi import MPI_COMM, MPI_SIZE, MPI_RANK
 
 # fem
 from ._linalg import FeArray
@@ -252,7 +252,7 @@ class Mesh(Observable):
         """connectivity matrix (Ne, nPe)"""
         return self.groupElem.connect
 
-    def Gather(self) -> "Mesh | None":
+    def _Gather(self) -> "Mesh | None":
         """Gather the distributed mesh to rank `root`, reconstructing the global Mesh.
 
         Returns
@@ -280,9 +280,10 @@ class Mesh(Observable):
             all_indices = MPI_COMM.gather(elements, root=0)
 
             if MPI_RANK == 0:
-                Ne_global = max(idx.max() for idx in all_indices) + 1
-                nPe = owned_connect.shape[1]
-                global_connect = np.zeros((Ne_global, nPe), dtype=np.int32)
+                Ne_global = max(idx.max() for idx in all_indices if idx.size > 0) + 1
+                global_connect = np.zeros(
+                    (Ne_global, owned_connect.shape[1]), dtype=np.int32
+                )
                 rank_partition = np.empty(Ne_global, dtype=np.int32)
                 for r, (connect_r, indices_r) in enumerate(
                     zip(all_connect, all_indices)
