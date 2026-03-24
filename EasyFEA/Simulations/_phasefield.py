@@ -888,7 +888,7 @@ class PhaseField(_Simu):
 
         min_d = d.min()
         max_d = d.max()
-        summaryIter = f"{iter + 1:4d} : {load:4.3f} {unitLoad}, [{min_d:.2e}; {max_d:.2e}], {Niter}:{timeIter:4.3f} s, tol={dincMax:.2e}  "
+        summaryIter = f"{iter + 1:4d} : {load:4.3f} {unitLoad}, [{min_d:.2e}; {max_d:.2e}], {Niter}:{timeIter:4.3f}s, tol={dincMax:.2e}  "
 
         if remove:
             end = "\r"
@@ -900,7 +900,7 @@ class PhaseField(_Simu):
             timeCoef, unite = Tic.Get_time_unity(timeLeft)
             # Adds percentage and estimated time remaining
             summaryIter = (
-                summaryIter + f"{percentage * 100:3.2f} % -> {timeCoef:3.2f} {unite}  "
+                summaryIter + f"{percentage * 100:3.2f}% -> {timeCoef:3.2f}{unite}  "
             )
 
         Display.MyPrint(summaryIter, end=end)
