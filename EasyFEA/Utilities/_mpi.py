@@ -46,9 +46,14 @@ def rank0_only(func):
 @requires_mpi
 def Concatenate_array(array: np.ndarray) -> np.ndarray:
     "Returns `np.concatenate(MPI_COMM.allgather(array))`."
+    array = np.asarray(array)
     all_array = MPI_COMM.allgather(array)
-    array = np.concatenate(all_array)
-    return array
+    # Filter out empty arrays
+    non_empty = [np.asarray(arr) for arr in all_array if arr.size > 0]
+    # If all arrays are empty, return empty array with same dtype
+    if not non_empty:
+        return np.array([], dtype=array.dtype)
+    return np.concatenate(non_empty, axis=0)
 
 
 @requires_mpi
