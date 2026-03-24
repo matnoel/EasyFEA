@@ -1120,6 +1120,7 @@ def __Annotation_Event(
 # ----------------------------------------------
 # Plot 1D
 # ----------------------------------------------
+@rank0_only
 @requires_matplotlib
 def Plot_Energy(
     simu: "_Simu",
@@ -1242,6 +1243,7 @@ def Plot_Energy(
     tic.Tac("PostProcessing", "Calc Energy", False)
 
 
+@rank0_only
 @requires_matplotlib
 def Plot_Iter_Summary(simu, folder="", iterMin=None, iterMax=None) -> None:
     """Plots a summary of iterations between iterMin and iterMax.
@@ -1295,6 +1297,7 @@ def Plot_Iter_Summary(simu, folder="", iterMin=None, iterMax=None) -> None:
 # ----------------------------------------------
 # Animation
 # ----------------------------------------------
+@rank0_only
 @requires_matplotlib
 def Movie_Simu(
     simu,
