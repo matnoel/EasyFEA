@@ -2615,7 +2615,7 @@ class _Simu(_IObserver, _params.Updatable, ABC):
         self,
         folder: str,
         filename: str = "simulation",
-        gather=True,
+        gather=False,
         additionalInfos: str = "",
     ) -> None:
         """Saves the simulation and its summary in the folder. Saves the simulation as 'filename.pickle'."""
@@ -2761,7 +2761,7 @@ def _Get_values(
     return values  # type: ignore [return-value]
 
 
-def Load_Simu(folder: str, filename: str = "simulation", gather=True) -> _Simu:
+def Load_Simu(folder: str, filename: str = "simulation", gather=False) -> _Simu:
     """Loads the simulation from the specified folder.
 
     Parameters
@@ -2771,7 +2771,7 @@ def Load_Simu(folder: str, filename: str = "simulation", gather=True) -> _Simu:
     filename : str, optional
         The simualtion's name, by default "simulation".
     gather : bool, optional
-        Gather simu on root rank, by default True.
+        Gather simu on root rank, by default False.
 
     Returns
     -------
