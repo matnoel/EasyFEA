@@ -334,14 +334,13 @@ def __Get_unique_dofs(dofs: _types.IntArray) -> _types.IntArray:
     # Find global max DOF index
     local_max = dofs.max() if dofs.size > 0 else -1
     Ndof = int(MPI_COMM.allreduce(local_max, MPI.MAX)) + 1
-    # Count DOF occurrences across ranks
+    # Count DOF occurrences across ranks.
+    # Allreduce in-place: reuse marker as both send and receive buffer,
+    # avoiding a second full-global allocation.
     marker = np.zeros(Ndof, dtype=np.int32)
     marker[dofs] = 1
-    global_count = np.empty(Ndof, dtype=np.int32)
-    MPI_COMM.Allreduce(marker, global_count, MPI.SUM)
-    # Find common DOFs (same on all ranks after Allreduce)
-    common_mask = global_count == MPI_SIZE
-    result = np.flatnonzero(common_mask).astype(np.int64)
+    MPI_COMM.Allreduce(MPI.IN_PLACE, marker, MPI.SUM)
+    result = np.flatnonzero(marker == MPI_SIZE).astype(np.int64)
     return result
 
 
