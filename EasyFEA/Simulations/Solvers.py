@@ -565,6 +565,10 @@ def _PETSc(
     # solve x
     ksp.solve(rhs, x)
 
+    # flush any remaining petsc4py reference cycles as suggested here:
+    # https://gitlab.com/petsc/petsc/-/work_items/1309
+    PETSc.garbage_cleanup()
+
     return x.array, ksp.is_converged
 
 
@@ -661,6 +665,10 @@ def _PETSc_MPI(
     # Allreduce (SUM) across ranks is done in _Solver_Update_solutions.
     dofsValues = np.zeros(Ndof, dtype=float)
     dofsValues[ownedDofs] = x.array
+
+    # flush any remaining petsc4py reference cycles as suggested here:
+    # https://gitlab.com/petsc/petsc/-/work_items/1309
+    PETSc.garbage_cleanup()
 
     return dofsValues, ksp.is_converged
 
