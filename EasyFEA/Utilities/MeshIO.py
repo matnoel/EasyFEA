@@ -924,6 +924,19 @@ def PyVista_to_EasyFEA(pyVistaMesh: Union[pv.UnstructuredGrid, pv.MultiBlock]) -
     return mesh
 
 
+@requires_pyvista
+def Merge(list_mesh: list[Mesh]) -> Mesh:
+    """Merges EasyFEA mesh."""
+
+    list_pvMesh = [EasyFEA_to_PyVista(mesh, mesh.coord) for mesh in list_mesh]
+    pvMesh = list_pvMesh[0]
+
+    if len(list_mesh) > 1:
+        [pvMesh.merge(pv, inplace=True) for pv in list_pvMesh[1:]]
+
+    return PyVista_to_EasyFEA(pvMesh)
+
+
 # ----------------------------------------------
 # Ensight
 # ----------------------------------------------
