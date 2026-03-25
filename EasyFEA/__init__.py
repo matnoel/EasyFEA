@@ -12,7 +12,7 @@ from .Utilities import Display, Folder, Paraview, PyVista, Vizir, MeshIO, Tic, G
 from .FEM import Mesher, ElemType, Mesh, MatrixType
 
 # simulations
-from .Simulations.Solvers import SolverType
+from .Simulations.Solvers import SolverType, AlgoType
 
 # version
 from .__about__ import __version__
