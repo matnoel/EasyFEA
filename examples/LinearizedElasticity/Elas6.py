@@ -13,7 +13,7 @@ A bi-fixed beam undergoing bending deformation.
 import matplotlib.pyplot as plt
 import numpy as np
 
-from EasyFEA import Display, Models, Mesher, ElemType, Simulations, PyVista
+from EasyFEA import Display, Models, Mesher, ElemType, Simulations, PyVista, MeshIO
 from EasyFEA.Geoms import Point, Points, Line
 
 if __name__ == "__main__":
@@ -61,7 +61,7 @@ if __name__ == "__main__":
     p11 = DoSym(p4, (1, 0))
     p12 = DoSym(p3, (1, 0))
     section = Points([p1, p2, p3, p4, p5, p6, p7, p8, p9, p10, p11, p12], e / 1)
-    meshSection = Mesher().Mesh_2D(section)
+    meshSection = section.Mesh_2D()
 
     section.Get_Contour().Plot()
 
@@ -70,20 +70,10 @@ if __name__ == "__main__":
     # ----------------------------------------------
     # Mesh
     # ----------------------------------------------
-
-    mesher = Mesher()
-    fact = mesher._factory
-    surfaces = mesher._Surfaces(section, [], elemType)[0]
-
-    layers = [50]
-    # layers = [2*L/meshSize/10]
-
-    mesher._Extrude(surfaces, [-L / 2, 0, 0], elemType, layers)
-    mesher._Extrude(surfaces, [L / 2, 0, 0], elemType, layers)
-
-    mesher._Set_PhysicalGroups()
-    mesher._Mesh_Generate(3, elemType)
-    mesh = mesher._Mesh_Get_Mesh()
+    mesh1 = section.Mesh_Extrude([], [L / 2, 0, 0], [50], elemType)
+    mesh2 = mesh1.copy()
+    mesh2.Translate(-L / 2)
+    mesh = MeshIO.Merge([mesh1, mesh2])
 
     nodes_fixed = mesh.Nodes_Conditions(lambda x, y, z: (x == -L / 2) | (x == L / 2))
     nodes_load = mesh.Nodes_Line(Line(p7, p8))
