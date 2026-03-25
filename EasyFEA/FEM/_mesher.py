@@ -971,7 +971,7 @@ class Mesher:
         meshSize=0.0,
         elemType: Optional[ElemType] = None,
         refineGeoms=[None],
-        folder="",
+        path="",
     ) -> Mesh:
         """Creates the mesh from .stp or .igs files.\n
         You can only use triangles or tetrahedrons.
@@ -987,8 +987,8 @@ class Mesher:
             element type, by default "TRI3" or "TETRA4" depending on dim.
         refineGeoms : list[Domain|Circle|str]
             geometric objects to refine the mesh
-        folder : str, optional
-            default mesh.msh folder, by default "" does not save the mesh
+        path : str, optional
+            path used to save the meshfile, by default "" does not save the mesh
 
         Returns
         -------
@@ -1047,7 +1047,7 @@ class Mesher:
 
         tic.Tac("Mesh", "File import", self.__verbosity)
 
-        self._Mesh_Generate(dim, elemType, folder=folder)
+        self._Mesh_Generate(dim, elemType, path=path)
 
         return self._Mesh_Get_Mesh()
 
@@ -1266,7 +1266,7 @@ class Mesher:
         beams: list["_Beam"],  # type: ignore
         elemType=ElemType.SEG2,
         additionalPoints: list[Point] = [],
-        folder: str = "",
+        path: str = "",
     ) -> Mesh:
         """Creates a beam mesh.
 
@@ -1276,10 +1276,10 @@ class Mesher:
             list of Beams
         elemType : ElemType, optional
             element type, by default "SEG2" ["SEG2", "SEG3", "SEG4"]
-        folder : str, optional
-            default mesh.msh folder, by default "" does not save the mesh
         additionalPoints : list[Point]
             additional points that will be added to the mesh. WARNING: points must be within the domain.
+        path : str, optional
+            path used to save the meshfile, by default "" does not save the mesh
 
         Returns
         -------
@@ -1330,7 +1330,7 @@ class Mesher:
 
         tic.Tac("Mesh", "Beam mesh construction", self.__verbosity)
 
-        self._Mesh_Generate(1, elemType, folder=folder)
+        self._Mesh_Generate(1, elemType, path=path)
 
         mesh = self._Mesh_Get_Mesh()
 
@@ -1381,7 +1381,7 @@ class Mesher:
         additionalSurfaces: list[GeomCompatible] = [],
         additionalLines: list[Union[Line, CircleArc]] = [],
         additionalPoints: list[Point] = [],
-        folder="",
+        path="",
     ) -> Mesh:
         """Creates a 2D mesh from a contour and inclusions that must form a closed plane surface.
 
@@ -1405,8 +1405,8 @@ class Mesher:
             additional lines that will be added to the surfaces created by the contour and the inclusions. (e.g Domain, Circle, Contour, Points). WARNING: lines must be within the domain.
         additionalPoints : list[Point]
             additional points that will be added to the surfaces created by the contour and the inclusions. WARNING: points must be within the domain.
-        folder : str, optional
-            default mesh.msh folder, by default "" does not save the mesh
+        path : str, optional
+            path used to save the meshfile, by default "" does not save the mesh
 
         Returns
         -------
@@ -1451,7 +1451,7 @@ class Mesher:
         tic.Tac("Mesh", "Geometry", self.__verbosity)
 
         self._Mesh_Generate(
-            2, elemType, crackLines=crackLines, openPoints=openPoints, folder=folder
+            2, elemType, crackLines=crackLines, openPoints=openPoints, path=path
         )
 
         return self._Mesh_Get_Mesh()
@@ -1469,7 +1469,7 @@ class Mesher:
         additionalSurfaces: list[GeomCompatible] = [],
         additionalLines: list[Union[Line, CircleArc]] = [],
         additionalPoints: list[Point] = [],
-        folder="",
+        path="",
     ) -> Mesh:
         """Creates a 3D mesh by extruding a surface constructed from a contour and inclusions.
 
@@ -1497,8 +1497,8 @@ class Mesher:
             additional lines that will be added to the surfaces created by the contour and the inclusions. (e.g Domain, Circle, Contour, Points). WARNING: lines must be within the domain.
         additionalPoints : list[Point]
             additional points that will be added to the surfaces created by the contour and the inclusions. WARNING: points must be within the domain.
-        folder : str, optional
-            default mesh.msh folder, by default "" does not save the mesh
+        path : str, optional
+            path used to save the meshfile, by default "" does not save the mesh
 
         Returns
         -------
@@ -1544,7 +1544,7 @@ class Mesher:
         self._Mesh_Generate(
             3,
             elemType,
-            folder=folder,
+            path=path,
             crackLines=crackLines,
             crackSurfaces=crackSurfaces,
             openPoints=openPoints,
@@ -1567,7 +1567,7 @@ class Mesher:
         additionalSurfaces: list[GeomCompatible] = [],
         additionalLines: list[Union[Line, CircleArc]] = [],
         additionalPoints: list[Point] = [],
-        folder="",
+        path="",
     ) -> Mesh:
         """Creates a 3D mesh by rotating a surface along an axis.
 
@@ -1597,8 +1597,8 @@ class Mesher:
             additional lines that will be added to the surfaces created by the contour and the inclusions. (e.g Domain, Circle, Contour, Points). WARNING: lines must be within the domain.
         additionalPoints : list[Point]
             additional points that will be added to the surfaces created by the contour and the inclusions. WARNING: points must be within the domain.
-        folder : str, optional
-            default mesh.msh folder, by default "" does not save the mesh
+        path : str, optional
+            path used to save the meshfile, by default "" does not save the mesh
 
         Returns
         -------
@@ -1644,7 +1644,7 @@ class Mesher:
         self._Mesh_Generate(
             3,
             elemType,
-            folder=folder,
+            path=path,
             crackLines=crackLines,
             crackSurfaces=crackSurfaces,
             openPoints=openPoints,
@@ -1861,7 +1861,7 @@ class Mesher:
         crackSurfaces: Optional[int] = None,
         openPoints: Optional[int] = None,
         openLines: Optional[int] = None,
-        folder: str = "",
+        path: str = "",
         filename: str = "mesh",
     ) -> None:
         """Generates the mesh with the available created entities.
@@ -1880,8 +1880,8 @@ class Mesher:
             physical group for open points, by default None
         openLines : int, optional
             physical group for open lines, by default None
-        folder : str, optional
-            default mesh.msh folder, by default "" does not save the mesh
+        path : str, optional
+            path used to save the meshfile, by default "" does not save the mesh
         filename : str, optional
             mesh saving file as filename.msh, by default mesh
         """
@@ -1931,14 +1931,15 @@ class Mesher:
 
             tic.Tac("Mesh", "Meshing with gmsh", self.__verbosity)
 
-            if folder != "":
+            if path != "":
                 # gmsh.write(Folder.Join([folder, "model.geo"])) # It doesn't seem to work, but that's okay
                 self._Synchronize()
 
+                folder = Folder.Dir(path)
                 if not Folder.Exists(folder):
                     os.makedirs(folder)
-                msh = Folder.Join(folder, f"{filename}.msh")
-                gmsh.write(msh)
+
+                gmsh.write(path)
                 tic.Tac("Mesh", "Saving .msh", self.__verbosity)
 
     def __Get_coord_and_changes(self) -> tuple[_types.FloatArray, _types.IntArray]:

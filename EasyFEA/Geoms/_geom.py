@@ -184,7 +184,7 @@ class _Geom(ABC):
         additionalSurfaces: list[GeomCompatible] = [],
         additionalLines: list[Union["Line", "CircleArc"]] = [],
         additionalPoints: list["Point"] = [],
-        folder="",
+        path="",
     ):
         """Creates a 2D mesh from a contour and inclusions that must form a closed plane surface.
 
@@ -206,8 +206,8 @@ class _Geom(ABC):
             additional lines that will be added to the surfaces created by the contour and the inclusions. (e.g Domain, Circle, Contour, Points). WARNING: lines must be within the domain.
         additionalPoints : list[Point]
             additional points that will be added to the surfaces created by the contour and the inclusions. WARNING: points must be within the domain.
-        folder : str, optional
-            default mesh.msh folder, by default "" does not save the mesh
+        path : str, optional
+            path used to save the meshfile, by default "" does not save the mesh
 
         Returns
         -------
@@ -227,7 +227,7 @@ class _Geom(ABC):
             additionalSurfaces=additionalSurfaces,
             additionalLines=additionalLines,
             additionalPoints=additionalPoints,
-            folder=folder,
+            path=path,
         )
         return mesh
 
@@ -243,7 +243,7 @@ class _Geom(ABC):
         additionalSurfaces: list[GeomCompatible] = [],
         additionalLines: list[Union["Line", "CircleArc"]] = [],
         additionalPoints: list["Point"] = [],
-        folder="",
+        path="",
     ):
         """Creates a 3D mesh by extruding a surface constructed from a contour and inclusions.
 
@@ -269,8 +269,8 @@ class _Geom(ABC):
             additional lines that will be added to the surfaces created by the contour and the inclusions. (e.g Domain, Circle, Contour, Points). WARNING: lines must be within the domain.
         additionalPoints : list[Point]
             additional points that will be added to the surfaces created by the contour and the inclusions. WARNING: points must be within the domain.
-        folder : str, optional
-            default mesh.msh folder, by default "" does not save the mesh
+        path : str, optional
+            path used to save the meshfile, by default "" does not save the mesh
 
         Returns
         -------
@@ -292,7 +292,7 @@ class _Geom(ABC):
             additionalSurfaces=additionalSurfaces,
             additionalLines=additionalLines,
             additionalPoints=additionalPoints,
-            folder=folder,
+            path=path,
         )
         return mesh
 
@@ -309,7 +309,7 @@ class _Geom(ABC):
         additionalSurfaces: list[GeomCompatible] = [],
         additionalLines: list[Union["Line", "CircleArc"]] = [],
         additionalPoints: list["Point"] = [],
-        folder="",
+        path="",
     ):
         """Creates a 3D mesh by rotating a surface along an axis.
 
@@ -337,8 +337,8 @@ class _Geom(ABC):
             additional lines that will be added to the surfaces created by the contour and the inclusions. (e.g Domain, Circle, Contour, Points). WARNING: lines must be within the domain.
         additionalPoints : list[Point]
             additional points that will be added to the surfaces created by the contour and the inclusions. WARNING: points must be within the domain.
-        folder : str, optional
-            default mesh.msh folder, by default "" does not save the mesh
+        path : str, optional
+            path used to save the meshfile, by default "" does not save the mesh
 
         Returns
         -------
@@ -366,7 +366,7 @@ class _Geom(ABC):
             additionalSurfaces=additionalSurfaces,
             additionalLines=additionalLines,
             additionalPoints=additionalPoints,
-            folder=folder,
+            path=path,
         )
         return mesh
 
