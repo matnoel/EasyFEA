@@ -597,7 +597,7 @@ class _Simu(_IObserver, _params.Updatable, ABC):
         return len(self.__listMesh)
 
     @property
-    def _isGathered(self) -> bool:
+    def isGathered(self) -> bool:
         """Whether the simulation holds the complete global mesh."""
         return self.__isGathered
 
