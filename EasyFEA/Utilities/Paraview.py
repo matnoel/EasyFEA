@@ -421,7 +421,9 @@ def __Make_pvtu(
     nodeFields_meta: dict[str, int],
     elementFields_meta: dict[str, int],
 ) -> str:
-    """Generates a .pvtu parallel descriptor file referencing per-rank .vtu pieces."""
+    """Generates a .pvtu parallel descriptor file referencing per-rank .vtu pieces.\n
+    https://docs.vtk.org/en/latest/vtk_file_formats/vtkxml_file_format.html#parallel-file-formats
+    """
 
     endian_paraview = "LittleEndian"
     pvtu_filename = filename + ".pvtu"
