@@ -172,7 +172,7 @@ class _Simu(_IObserver, _params.Updatable, ABC):
 
     @abstractmethod
     def Save_Iter(self, iter: dict[str, Any] = {}):
-        """Saves iteration results in _results."""
+        """Saves iteration results in _results or in the specified simu.folder."""
 
         iter = iter.copy()
 
@@ -199,8 +199,12 @@ class _Simu(_IObserver, _params.Updatable, ABC):
 
     @abstractmethod
     def Set_Iter(self, iter: int = -1, resetAll=False) -> dict:
-        """Sets the simulation to the specified iteration (usually the last one) and then reset the required variables if necessary (resetAll).\n
-        Returns the simulation results dictionary."""
+        """Sets the simulation to the specified iteration (the last one by default) and then reset (or not) the internal variables.
+
+        Examples
+        --------
+        Returns the results dictionary.
+        """
 
         iter = int(iter)
         assert isinstance(iter, int), "Must provide an integer."
@@ -231,7 +235,26 @@ class _Simu(_IObserver, _params.Updatable, ABC):
     def Result(
         self, option: str, nodeValues=True, iter=None
     ) -> Union[_types.FloatArray, float]:
-        """Returns the result. Use Results_Available() to know the available results."""
+        """Returns the result. Use Results_Available() to know the available results.
+
+        Examples
+        --------
+        For elastic simulation.
+
+        >>> simu.Results_Available()   # list valid option strings
+
+        Von Mises stress ():
+
+        >>> svm = simu.Result("Svm", nodeValues=False)  # shape (Ne,)
+
+        Node-interpolated von Mises stress:
+
+        >>> svm = simu.Result("Svm")  # shape (Nn,)
+
+        Result at a specific past iteration:
+
+        >>> u5 = simu.Result("displacement_norm", iter=5)
+        """
         pass
 
     @abstractmethod
@@ -763,6 +786,11 @@ class _Simu(_IObserver, _params.Updatable, ABC):
         r"""Sets the algorithm's resolution properties for an elliptic problem.
 
         Used to solve :math:`\Krm \, \mathrm{u} = \Frm`.
+
+        Examples
+        --------
+        >>> simu.Solver_Set_Elliptic_Algorithm()
+        >>> u = simu.Solve()
         """
         self.__algo = AlgoType.elliptic
 
@@ -783,6 +811,16 @@ class _Simu(_IObserver, _params.Updatable, ABC):
             - 0 -> Forward Euler
             - 1 -> Backward Euler
             - 1/2 -> midpoint
+
+        Examples
+        --------
+        Transient heat equation with Crank-Nicolson (α=0.5):
+
+        >>> simu.Solver_Set_Parabolic_Algorithm(dt=0.01, alpha=0.5)
+        >>> simu.add_dirichlet(nodes, [100.0], ["t"])
+        >>> for t in times:
+        ...     simu.Solve()
+        ...     simu.Save_Iter()
         """
         self.__algo = AlgoType.parabolic
 
@@ -817,6 +855,23 @@ class _Simu(_IObserver, _params.Updatable, ABC):
             :math:`\Krm \, \mathrm{u}^{n+1} + \Crm \, \vrm^{n+1} + \Mrm \, \arm^{n+1} = \Frm^{n+1}`.
         alpha : float, optional
             The coefficient alpha, by default 1/2.
+
+        Examples
+        --------
+        Newmark average acceleration (unconditionally stable, default):
+
+        >>> simu.Solver_Set_Hyperbolic_Algorithm(dt=0.001)  # beta=0.25, gamma=0.5
+        >>> simu.Solve()
+
+        HHT-α (Hilber-Hughes-Taylor, numerical damping with α=0.1):
+
+        >>> from EasyFEA import AlgoType
+        >>> simu.Solver_Set_Hyperbolic_Algorithm(dt=0.001, algo=AlgoType.hht, alpha=0.1)
+
+        Midpoint rule (second-order, unconditionally stable):
+
+        >>> from EasyFEA import AlgoType
+        >>> simu.Solver_Set_Hyperbolic_Algorithm(dt=0.001, algo=AlgoType.midpoint)
         """
 
         types = AlgoType.Get_Hyperbolic_Types()
@@ -1832,6 +1887,20 @@ class _Simu(_IObserver, _params.Updatable, ABC):
             problem type, if not specified, we take the basic problem of the problem
         description : str, optional
             Description of the condition, by default "".
+
+        Examples
+        --------
+        Fix all displacement DOFs to zero on the left wall (elastic simulation):
+
+        >>> simu.add_dirichlet(nodes, [0, 0], ["x", "y"])
+
+        Impose temperature 100°C on the top boundary (thermal simulation):
+
+        >>> simu.add_dirichlet(nodes, [100.0], ["t"])
+
+        Spatially varying temperature (uses node coordinates):
+
+        >>> simu.add_dirichlet(nodes, [lambda x, y, z: 100 * x], ["t"])
         """
 
         if len(nodes) == 0 or len(values) == 0 or len(values) != len(unknowns):
@@ -1889,6 +1958,13 @@ class _Simu(_IObserver, _params.Updatable, ABC):
             problem type, if not specified, we take the basic problem of the problem
         description : str, optional
             Description of the condition, by default "".
+
+        Examples
+        --------
+        Concentrated force of -500 N in y at the beam tip (beam simulation):
+
+        >>> nodes = mesh.Nodes_Point((L, h/2))
+        >>> simu.add_neumann(nodes, [-500], ["y"])
         """
 
         if len(nodes) == 0 or len(values) == 0 or len(values) != len(unknowns):
@@ -1930,6 +2006,16 @@ class _Simu(_IObserver, _params.Updatable, ABC):
             problem type, if not specified, we take the basic problem of the problem
         description : str, optional
             Description of the condition, by default "".
+
+        Examples
+        --------
+        Distributed load of -1000 N/m along y (elastic simulation):
+
+        >>> simu.add_lineLoad(nodes, [-1000], ["y"])
+
+        Spatially varying load (uses integration-point coordinates):
+
+        >>> simu.add_lineLoad(nodes, [lambda x, y, z: -500 * (1 + x)], ["y"])
         """
 
         if len(nodes) == 0 or len(values) == 0 or len(values) != len(unknowns):
@@ -1973,6 +2059,12 @@ class _Simu(_IObserver, _params.Updatable, ABC):
             problem type, if not specified, we take the basic problem of the problem
         description : str, optional
             Description of the condition, by default "".
+
+        Examples
+        --------
+        Uniform pressure of -800 Pa along x:
+
+        >>> simu.add_surfLoad(nodes, [-800], ["x"])
         """
 
         if len(nodes) == 0 or len(values) == 0 or len(values) != len(unknowns):
@@ -2021,6 +2113,12 @@ class _Simu(_IObserver, _params.Updatable, ABC):
             problem type, if not specified, we take the basic problem of the problem
         description : str, optional
             Description of the condition, by default "".
+
+        Examples
+        --------
+        Normal inward/outward pressure of 1 MPa on a cylinder surface (elastic simulation):
+
+        >>> simu.add_pressureLoad(cylinder_nodes, magnitude=1e6)
         """
 
         if len(nodes) == 0 or magnitude == 0:
@@ -2072,6 +2170,12 @@ class _Simu(_IObserver, _params.Updatable, ABC):
             problem type, if not specified, we take the basic problem of the problem
         description : str, optional
             Description of the condition, by default "".
+
+        Examples
+        --------
+        Gravity in -y direction, ρ = 7800 kg/m³ (elastic simulation):
+
+        >>> simu.add_volumeLoad(mesh.nodes, [-7800 * 9.81], ["y"])
         """
 
         if len(nodes) == 0 or len(values) == 0 or len(values) != len(unknowns):

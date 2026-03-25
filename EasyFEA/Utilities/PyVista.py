@@ -118,6 +118,24 @@ def Plot(
     -------
     pv.Plotter
         The pyvista plotter
+
+    Examples
+    --------
+    Von Mises stress in MPa (elastic simulation):
+
+    >>> from EasyFEA.Utilities import PyVista
+    >>> plotter = PyVista.Plot(simu, result="Svm", coef=1e-6, colorbarTitle="σ_vm [MPa]")
+    >>> plotter.show()
+
+    With deformed mesh:
+
+    >>> plotter = PyVista.Plot(simu, result="displacement_norm", deformFactor=100)
+    >>> plotter.show()
+
+    Mesh only (no scalar field):
+
+    >>> plotter = PyVista.Plot(mesh)
+    >>> plotter.show()
     """
 
     tic = Tic()
@@ -231,6 +249,19 @@ def Plot_Mesh(
     -------
     pv.Plotter
         The pyvista plotter
+
+    Examples
+    --------
+    Undeformed mesh:
+
+    >>> from EasyFEA.Utilities import PyVista
+    >>> plotter = PyVista.Plot_Mesh(mesh)
+    >>> plotter.show()
+
+    Deformed mesh with transparency:
+
+    >>> plotter = PyVista.Plot_Mesh(simu, deformFactor=50, alpha=0.5)
+    >>> plotter.show()
     """
 
     plotter = Plot(

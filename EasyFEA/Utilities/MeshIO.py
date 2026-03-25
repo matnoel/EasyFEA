@@ -595,6 +595,11 @@ def EasyFEA_to_Medit(
     -------
     str
         Path to the saved Medit file.
+
+    Examples
+    --------
+    >>> from EasyFEA.Utilities import MeshIO
+    >>> MeshIO.EasyFEA_to_Medit(mesh, folder="results", name="my_mesh")
     """
 
     assert isinstance(mesh, Mesh), "mesh must be a EasyFEA mesh!"
@@ -623,6 +628,11 @@ def Medit_to_EasyFEA(meditMesh: str) -> Mesh:
     -------
     Mesh
         Converted EasyFEA mesh object.
+
+    Examples
+    --------
+    >>> from EasyFEA.Utilities import MeshIO
+    >>> mesh = MeshIO.Medit_to_EasyFEA("mesh.mesh")
     """
 
     meshioMesh = meshio.medit.read(meditMesh)
@@ -663,6 +673,11 @@ def EasyFEA_to_Gmsh(mesh: Mesh, folder: str, name: str, useBinary=False) -> str:
     -------
     str
         Path to the saved Gmsh file.
+
+    Examples
+    --------
+    >>> from EasyFEA.Utilities import MeshIO
+    >>> MeshIO.EasyFEA_to_Gmsh(mesh, folder="results", name="my_mesh")
     """
 
     assert isinstance(mesh, Mesh), "mesh must be a EasyFEA mesh!"
@@ -690,6 +705,11 @@ def Gmsh_to_EasyFEA(gmshMesh: str) -> Mesh:
 
     Returns:
         Mesh: Converted EasyFEA mesh object.
+
+    Examples
+    --------
+    >>> from EasyFEA.Utilities import MeshIO
+    >>> mesh = MeshIO.Gmsh_to_EasyFEA("mesh.msh")
     """
 
     meshioMesh: meshio.Mesh = meshio.gmsh.read(gmshMesh)
@@ -758,6 +778,14 @@ def EasyFEA_to_PyVista(
     -------
     pv.UnstructuredGrid
         pyvista mesh
+
+    Examples
+    --------
+    Convert and inspect the PyVista mesh:
+
+    >>> from EasyFEA.Utilities import MeshIO
+    >>> pvMesh = MeshIO.EasyFEA_to_PyVista(mesh)
+    >>> print(pvMesh)
     """
 
     assert isinstance(mesh, Mesh), "mesh must be a EasyFEA mesh!"

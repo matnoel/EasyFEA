@@ -123,6 +123,24 @@ def Plot_Result(
     Returns
     -------
     _types.Axis
+
+    Examples
+    --------
+    Von Mises stress in MPa (elastic simulation):
+
+    >>> import matplotlib.pyplot as plt
+    >>> Display.Plot_Result(simu, "Svm", coef=1e-6, colorbarLabel="σ_vm [MPa]")
+    >>> plt.show()
+
+    With deformed mesh:
+
+    >>> Display.Plot_Result(simu, "displacement_norm", deformFactor=100, cmap="viridis")
+    >>> plt.show()
+
+    Temperature field at a specific iteration (thermal simulation):
+
+    >>> Display.Plot_Result(simu, "thermal", iter=5, colorbarLabel="T [°C]")
+    >>> plt.show()
     """
 
     # TODO #21: regroup function by dimElem instead of inDim
@@ -401,6 +419,19 @@ def Plot_Mesh(
     Returns
     -------
     Axes
+
+    Examples
+    --------
+    Undeformed mesh:
+
+    >>> import matplotlib.pyplot as plt
+    >>> Display.Plot_Mesh(simu)
+    >>> plt.show()
+
+    Deformed mesh, semi-transparent faces:
+
+    >>> Display.Plot_Mesh(simu, deformFactor=50, facecolors="white", alpha=0.5)
+    >>> plt.show()
     """
 
     tic = Tic()
@@ -844,6 +875,18 @@ def Plot_BoundaryConditions(simu, ax: Optional[Axes] = None) -> Axes:
     Returns
     -------
     Axes
+
+    Examples
+    --------
+    >>> import matplotlib.pyplot as plt
+    >>> Display.Plot_BoundaryConditions(simu)
+    >>> plt.show()
+
+    Combined with mesh overlay:
+
+    >>> ax = Display.Plot_Mesh(simu)
+    >>> Display.Plot_BoundaryConditions(simu, ax=ax)
+    >>> plt.show()
     """
 
     tic = Tic()
