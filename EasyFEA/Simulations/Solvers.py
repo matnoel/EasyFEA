@@ -280,7 +280,6 @@ def Solve_simu(
 
     resolution = ResolType.r1
     if CAN_USE_PETSC:
-        kspType, pcType, solverType = simu._Solver_Get_PETSc4Py_Options()
         if resolution is ResolType.r1:
             # SPD system: cg+gamg (set by default in __init__) is already optimal.
             pass
@@ -289,9 +288,9 @@ def Solve_simu(
             # asm (Additive Schwarz) overlaps between ranks, better convergence than bjacobi.
             kspType = "gmres"
             pcType = "asm"
+            simu._Solver_Set_PETSc4Py_Options(kspType, pcType)
         else:
             raise NotImplementedError
-        simu._Solver_Set_PETSc4Py_Options(kspType, pcType, solverType)
 
     resolution = ResolType.r2 if len(simu.Bc_Lagrange) > 0 else resolution
 

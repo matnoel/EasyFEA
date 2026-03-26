@@ -411,8 +411,9 @@ class _Simu(_IObserver, _params.Updatable, ABC):
         else:
             self.solver = SolverType.scipy
 
-        # Set solver petsc4py options with best available defaults.
+        # Set solver petsc4py options with best available defaults for all problems.
         # cg+gamg: mesh-independent convergence, O(n) memory, works serial and MPI.
+        self.__dict_solver_petsc4py_options: dict[ModelType, tuple[str, str, str]] = {}
         if CAN_USE_PETSC:
             self._Solver_Set_PETSc4Py_Options("cg", "gamg")
 
@@ -1531,7 +1532,11 @@ class _Simu(_IObserver, _params.Updatable, ABC):
             return A.tocsr(), b.tocsr()
 
     def _Solver_Set_PETSc4Py_Options(
-        self, kspType: str = "cg", pcType: str = "none", solverType: str = "petsc"
+        self,
+        kspType: str = "cg",
+        pcType: str = "none",
+        solverType: str = "petsc",
+        problemType: Optional[ModelType] = None,
     ) -> None:
         """Sets petsc4py options.
 
@@ -1550,6 +1555,8 @@ class _Simu(_IObserver, _params.Updatable, ABC):
             PETSc Linear Solver, by default "petsc"
             e.g. 'petsc', 'mumps', 'superlu', 'superlu_dist', 'umfpack', 'cholesky' ...\n
             https://petsc.org/release/manual/ksp/#using-external-linear-solvers
+        problemType : ModelType, optional
+            problem type to consider, by default None and set config for all problemTypes.
 
         Tips
         ----
@@ -1657,12 +1664,25 @@ class _Simu(_IObserver, _params.Updatable, ABC):
                     "Try pcType='gamg' (built-in AMG) instead."
                 )
 
-        self.__solver_petsc4py_options = (kspType, pcType, solverType)
+        # set values
+        list_problemTypes = (
+            self.Get_problemTypes() if problemType is None else [problemType]
+        )
+        for problemType in list_problemTypes:
+            self.__dict_solver_petsc4py_options[str(problemType)] = (
+                kspType,
+                pcType,
+                solverType,
+            )
 
-    def _Solver_Get_PETSc4Py_Options(self) -> tuple[str, str, str]:
-        """Returns (kspType, pcType, solverType) petsc4py options."""
+    def _Solver_Get_PETSc4Py_Options(
+        self, problemType: Optional[ModelType] = None
+    ) -> tuple[str, str, str]:
+        """Returns (kspType, pcType, solverType) petsc4py options for the given (or default) problem type."""
 
-        return self.__solver_petsc4py_options
+        problemType = self.problemType if problemType is None else problemType
+
+        return self.__dict_solver_petsc4py_options[problemType]
 
     # ----------------------------------------------
     # Boundary conditions
