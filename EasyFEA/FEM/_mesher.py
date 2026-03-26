@@ -1862,7 +1862,6 @@ class Mesher:
         openPoints: Optional[int] = None,
         openLines: Optional[int] = None,
         path: str = "",
-        filename: str = "mesh",
     ) -> None:
         """Generates the mesh with the available created entities.
 
@@ -1882,8 +1881,6 @@ class Mesher:
             physical group for open lines, by default None
         path : str, optional
             path used to save the meshfile, by default "" does not save the mesh
-        filename : str, optional
-            mesh saving file as filename.msh, by default mesh
         """
 
         self._Set_mesh_algorithm(elemType)
@@ -1895,6 +1892,8 @@ class Mesher:
         if MPI_RANK == 0:
             gmsh.model.mesh.generate(dim)
 
+            tic.Tac("Mesh", "gmsh.model.mesh.generate", self.__verbosity)
+
             # set mesh order
             Mesher._Set_mesh_order(elemType)
 
@@ -1902,6 +1901,7 @@ class Mesher:
                 # remove all duplicated nodes and elements
                 gmsh.model.mesh.removeDuplicateNodes()
                 gmsh.model.mesh.removeDuplicateElements()
+                tic.Tac("Mesh", "Remove duplicate nodes and elements", self.__verbosity)
 
             # PLUGIN CRACK
             if crackLines is not None:  # 1D CRACKS
@@ -1914,6 +1914,7 @@ class Mesher:
                 gmsh.plugin.setNumber("Crack", "SwapOrientation", 1)
                 gmsh.plugin.run("Crack")
                 # DONT DELETE must be called for 1D and 2D cracks
+                tic.Tac("Mesh", "Run plugin crack (1D)", self.__verbosity)
 
             if crackSurfaces is not None:  # 2D CRACKS
                 gmsh.plugin.setNumber("Crack", "Dimension", 2)
@@ -1924,12 +1925,11 @@ class Mesher:
                     )
                 gmsh.plugin.setNumber("Crack", "SwapOrientation", 1)
                 gmsh.plugin.run("Crack")
+                tic.Tac("Mesh", "Run plugin crack (2D)", self.__verbosity)
 
             # Open gmsh interface if necessary
             if "-nopopup" not in sys.argv and self.__openGmsh:
                 gmsh.fltk.run()
-
-            tic.Tac("Mesh", "Meshing with gmsh", self.__verbosity)
 
             if path != "":
                 # gmsh.write(Folder.Join([folder, "model.geo"])) # It doesn't seem to work, but that's okay
@@ -1940,7 +1940,7 @@ class Mesher:
                     os.makedirs(folder)
 
                 gmsh.write(path)
-                tic.Tac("Mesh", "Saving .msh", self.__verbosity)
+                tic.Tac("Mesh", "gmsh.write", self.__verbosity)
 
     def __Get_coord_and_changes(self) -> tuple[_types.FloatArray, _types.IntArray]:
         """Returns coord and changes.\n
