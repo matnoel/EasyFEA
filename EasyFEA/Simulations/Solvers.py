@@ -190,7 +190,7 @@ def _Solve_Axb(
     elif CAN_USE_PETSC and solver == SolverType.petsc:
 
         # get petsc4py options
-        kspType, pcType, solverType = simu._Solver_Get_PETSc4Py_Options()
+        kspType, pcType, solverType = simu._Solver_Get_PETSc4Py_Options(problemType)
 
         # get dofs
         mesh = simu.mesh
@@ -288,7 +288,7 @@ def Solve_simu(
             # asm (Additive Schwarz) overlaps between ranks, better convergence than bjacobi.
             kspType = "gmres"
             pcType = "gamg"
-            simu._Solver_Set_PETSc4Py_Options(kspType, pcType)
+            simu._Solver_Set_PETSc4Py_Options(kspType, pcType, problemType=problemType)
         else:
             raise NotImplementedError
 
@@ -623,7 +623,7 @@ def _PETSc_MPI(
     # petscOrdering: rank-0 ownedDofs first, rank-1 next, …
     # mapping: index in A/b → PETSc global column index
     petscOrdering = Concatenate_array(ownedDofs)
-    mapping = np.zeros(Ndof, dtype=int)
+    mapping = np.empty(Ndof, dtype=int)
     mapping[petscOrdering] = np.arange(Ndof)
 
     # https://petsc.org/release/manual/mat/#matrices
