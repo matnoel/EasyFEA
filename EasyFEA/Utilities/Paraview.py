@@ -51,6 +51,16 @@ def Save_simu(
     print("\n")
 
     simu = Display._Init_obj(simu)[0]  # type: ignore
+
+    if MPI_SIZE > 1 and simu.isGathered:
+        raise Exception(
+            "Save_simu: simu.isGathered must be False on all ranks when MPI_SIZE > 1. "
+            "Calling simu._Gather() before Save_simu causes rank 0 to hold the full global mesh "
+            "while other ranks keep their partitions; the resulting .pvtu references all pieces, "
+            "so ParaView renders the full mesh plus every partition — producing duplicate elements "
+            "and corrupted fields."
+        )
+
     meshDim = simu.mesh.dim
     Ne = simu.mesh.Ne
 
@@ -64,6 +74,9 @@ def Save_simu(
 
     if MPI_RANK == 0 and not Folder.Exists(folder):
         Folder.os.makedirs(folder)
+
+    if MPI_SIZE > 1:
+        MPI_COMM.Barrier()  # ensure folder exists before all ranks proceed
 
     additionalNodesField = nodeFields
     additionalElementsField = elementFields
@@ -162,6 +175,9 @@ def _Save_mesh(
     if MPI_RANK == 0 and not Folder.Exists(folder):
         Folder.os.makedirs(folder)
 
+    if MPI_SIZE > 1:
+        MPI_COMM.Barrier()  # ensure folder exists before all ranks proceed
+
     pvFiles: list[str] = []
     times = []
     tic = Tic()
@@ -247,7 +263,7 @@ def __Make_vtu(
         return offset + bitSize + (bitSize * size)
 
     with open(filename, "w") as file:
-        file.write('<?pickle version="1.0" ?>\n')
+        file.write('<?xml version="1.0" ?>\n')
         file.write(
             f'<VTKFile type="UnstructuredGrid" version="0.1" byte_order="{endian_paraview}">\n'
         )
@@ -381,8 +397,12 @@ def __Make_vtu(
                 nodeFields_meta,
                 elementFields_meta,
             )
+        else:
+            return ""
 
-    return filename
+    else:
+
+        return filename
 
 
 def __Make_pvd(filename: str, pvFiles: list[str] = []):
@@ -397,7 +417,7 @@ def __Make_pvd(filename: str, pvFiles: list[str] = []):
     dir = Folder.Dir(filename)
 
     with open(filename, "w") as file:
-        file.write('<?pickle version="1.0" ?>\n')
+        file.write('<?xml version="1.0" ?>\n')
         file.write(
             f'<VTKFile type="Collection" version="0.1" byte_order="{endian_paraview}">\n'
         )
