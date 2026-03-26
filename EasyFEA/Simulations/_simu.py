@@ -2666,10 +2666,7 @@ class _Simu(_IObserver, _params.Updatable, ABC):
 
     def Results_Set_Iteration_Summary(self, text: str, remove: bool = False) -> None:
         """Sets and print the iteration's summary."""
-        if remove and MPI_SIZE == 1:
-            end = "\r"
-        else:
-            end = "\n" if remove else ""
+        end = "\r" if remove else "\n"
         Display.MyPrint(text, end=end)
 
     def Results_Get_Iteration_Summary(self) -> str:
