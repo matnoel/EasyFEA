@@ -6,6 +6,7 @@
 """Linear algebra functions."""
 
 import numpy as np
+from functools import lru_cache
 from typing import Union, Optional, Iterable
 from ..Utilities import _types
 
@@ -95,16 +96,14 @@ class FeArray(_types.AnyArray):
             # array1(Ne, nPg)  array2(...) => (Ne, nPg, ...)
             # or
             # array1(Ne, nPg)  array2(Ne, nPg, ...) => (Ne, nPg, ...)
-            for _ in range(ndim2):
-                array1 = array1[..., np.newaxis]
+            array1 = array1[(Ellipsis,) + (np.newaxis,) * ndim2]
         elif ndim2 == 0:
             if array2.size == 1:
                 # array1(Ne, nPg, ...)  array2() => (Ne, nPg, ...)
                 pass
             else:
                 # array1(Ne, nPg, ...)  array2(Ne, nPg) => (Ne, nPg, ...)
-                for _ in range(ndim1):
-                    array2 = array2[..., np.newaxis]
+                array2 = array2[(Ellipsis,) + (np.newaxis,) * ndim1]
         elif shape1 == shape2:
             pass
         else:
@@ -141,10 +140,13 @@ class FeArray(_types.AnyArray):
 
     @property
     def T(self) -> FeArrayALike:  # type: ignore [override]
-        if self._ndim >= 2:
+        if self._ndim == 2:
+            # swapaxes returns a non-contiguous view — no allocation
+            result = np.swapaxes(np.asarray(self), -1, -2)
+            return FeArray.asfearray(result)
+        elif self._ndim > 2:
             idx = self._idx
-            subscripts = f"...{idx}->...{idx[::-1]}"
-            result = np.einsum(subscripts, np.asarray(self), optimize="optimal")
+            result = np.einsum(f"...{idx}->...{idx[::-1]}", np.asarray(self), optimize="optimal")
             return FeArray.asfearray(result)
         else:
             return self.copy()
@@ -165,8 +167,7 @@ class FeArray(_types.AnyArray):
         if ndim1 == ndim2 == 1:
             result = self.dot(other)
         elif ndim1 == ndim2 == 2:
-            with np.errstate(divide="ignore", over="ignore", invalid="ignore"):
-                result = super().__matmul__(other)
+            result = super().__matmul__(other)
         elif ndim1 == 1 and ndim2 == 2:
             result = (self[:, :, np.newaxis, :] @ other)[:, :, 0, :]
         elif ndim1 == 2 and ndim2 == 1:
@@ -176,36 +177,47 @@ class FeArray(_types.AnyArray):
 
         return FeArray.asfearray(result)
 
+    @staticmethod
+    @lru_cache(maxsize=16)
+    def _dot_subscript(ndim1: int, ndim2: int) -> str:
+        """Build and cache the einsum subscript for dot(ndim1, ndim2)."""
+        _idx = {0: "", 1: "i", 2: "ij", 4: "ijkl"}
+        idx1 = _idx[ndim1]
+        idx2 = "".join(chr(ord(v) + ndim1 - 1) for v in _idx[ndim2])
+        end = (idx1 + idx2).replace(idx1[-1], "")
+        return f"...{idx1},...{idx2}->...{end}"
+
+    @staticmethod
+    @lru_cache(maxsize=16)
+    def _ddot_subscript(ndim1: int, ndim2: int) -> str:
+        """Build and cache the einsum subscript for ddot(ndim1, ndim2)."""
+        _idx = {0: "", 1: "i", 2: "ij", 4: "ijkl"}
+        idx1 = _idx[ndim1]
+        idx2 = "".join(chr(ord(v) + ndim1 - 2) for v in _idx[ndim2])
+        end = (idx1 + idx2).replace(idx1[-1], "").replace(idx1[-2], "")
+        return f"...{idx1},...{idx2}->...{end}"
+
     def dot(self, other) -> FeArrayALike:  # type: ignore [override]
         ndim1 = self._ndim
         if ndim1 == 0:
             raise ValueError("Must be at least a finite element vector (Ne, nPg, i).")
 
-        idx1 = self._idx
-
         if isinstance(other, FeArray):
-            idx2 = other._idx
             ndim2 = other._ndim
         elif isinstance(other, np.ndarray):
-            idx2 = "".join([chr(ord(idx1[0]) + i) for i in range(other.ndim)])
             ndim2 = other.ndim
         elif type(other).__name__ == "Field":
             other: FeArray = other()  # type: ignore [no-redef]
-            idx2 = other._idx
             ndim2 = other._ndim
         else:
             raise TypeError("`other` must be either a FeArray, NDArray or a Field.")
-        idx2 = "".join([chr(ord(val) + ndim1 - 1) for val in idx2])
 
         if ndim2 == 0:
             raise ValueError(
                 "`other` must be at least a finite element vector (Ne, nPg, i)."
             )
 
-        end = str(idx1 + idx2).replace(idx1[-1], "")
-        subscripts = f"...{idx1},...{idx2}->...{end}"
-
-        result = np.einsum(subscripts, self, other, optimize="optimal")
+        result = np.einsum(self._dot_subscript(ndim1, ndim2), self, other, optimize="optimal")
 
         return FeArray.asfearray(result)
 
@@ -216,17 +228,12 @@ class FeArray(_types.AnyArray):
                 "Must be at least a finite element matrix (Ne, nPg, i, j)."
             )
 
-        idx1 = self._idx
-
         if isinstance(other, FeArray):
-            idx2 = other._idx
             ndim2 = other._ndim
         elif isinstance(other, np.ndarray):
-            idx2 = "".join([chr(ord(idx1[0]) + i) for i in range(other.ndim)])
             ndim2 = other.ndim
         elif type(other).__name__ == "Field":
             other: FeArray = other()  # type: ignore [no-redef]
-            idx2 = other._idx
             ndim2 = other._ndim
         else:
             raise TypeError("`other` must be either a FeArray, NDArray or a Field.")
@@ -235,13 +242,8 @@ class FeArray(_types.AnyArray):
             raise ValueError(
                 "`other` must be at least a finite element matrix (Ne, nPg, i, j)."
             )
-        idx2 = "".join([chr(ord(val) + ndim1 - 2) for val in idx2])
 
-        end = str(idx1 + idx2).replace(idx1[-1], "")
-        end = end.replace(idx1[-2], "")
-        subscripts = f"...{idx1},...{idx2}->...{end}"
-
-        result = np.einsum(subscripts, self, other, optimize="optimal")
+        result = np.einsum(self._ddot_subscript(ndim1, ndim2), self, other, optimize="optimal")
 
         return FeArray.asfearray(result)
 
@@ -324,7 +326,7 @@ def __CheckMat(mat: FeArray.FeArrayALike) -> None:
 def Transpose(mat: FeArray.FeArrayALike) -> FeArray.FeArrayALike:
     """Computes transpose(mat)"""
     assert isinstance(mat, np.ndarray) and mat.ndim >= 2
-    res: FeArray.FeArrayALike = np.einsum("...ij->...ji", mat, optimize="optimal")
+    res: FeArray.FeArrayALike = np.swapaxes(mat, -1, -2)
 
     if isinstance(mat, FeArray):
         res = FeArray.asfearray(res)
