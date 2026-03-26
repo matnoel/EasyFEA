@@ -287,7 +287,7 @@ def Solve_simu(
             # Non-symmetric penalized system: gamg is SPD-only, switch to gmres+asm.
             # asm (Additive Schwarz) overlaps between ranks, better convergence than bjacobi.
             kspType = "gmres"
-            pcType = "asm"
+            pcType = "gamg"
             simu._Solver_Set_PETSc4Py_Options(kspType, pcType)
         else:
             raise NotImplementedError
