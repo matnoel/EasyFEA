@@ -13,7 +13,7 @@ from enum import Enum
 
 # utilities
 from . import Folder, Tic, _types
-from ._mpi import rank0_only
+from ._mpi import rank0_only, MPI_COMM
 
 # simulations
 from ..Simulations._simu import _Init_obj, _Get_values
@@ -1783,6 +1783,9 @@ def MyPrint(
         formatedText += dct[color] + str(text)
 
         formatedText += __Sytles.RESET
+
+        if end == "\r" and MPI_COMM is not None:
+            end = "\n"
 
         print(formatedText, end=end)
         return formatedText
