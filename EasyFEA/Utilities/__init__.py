@@ -15,7 +15,6 @@ from ._types import Number, Numbers, FloatArray, IntArray, AnyArray, Coords
 from . import Display
 from . import Folder
 from . import MeshIO
-from . import Numba
 from . import Paraview
 from . import PyVista
 from . import Vizir

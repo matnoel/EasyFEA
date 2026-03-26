@@ -9,7 +9,7 @@ from functools import lru_cache, partialmethod
 
 # utilities
 import numpy as np
-from ..Utilities import Numba, Tic
+from ..Utilities import Tic
 
 # fem
 if TYPE_CHECKING:
@@ -159,7 +159,6 @@ class PhaseField(_IModel):
         l0: float,
         solver=SolverType.History,
         A: Optional[_types.FloatArray] = None,
-        useNumba: bool = True,
     ):
         """Creates a phase-field model.
 
@@ -179,8 +178,6 @@ class PhaseField(_IModel):
             solver used to manage crack irreversibility, by default History (see SolverType)
         A : _types.FloatArray, optional
             matrix characterizing the weak anisotropy in the crack surface density function.
-        useNumba : bool, optional
-            Define whether the model can use the numba function (numba must be installed), by default True
         """
 
         assert isinstance(
@@ -202,8 +199,6 @@ class PhaseField(_IModel):
         if A is None:
             A = np.eye(self.dim)
         self.A = A  # type: ignore
-
-        self.__useNumba = Numba.CAN_USE_NUMBA and useNumba
 
     @property
     def modelType(self) -> ModelType:
@@ -544,24 +539,15 @@ class PhaseField(_IModel):
             cM_e_pg = lamb * (Rm_e_pg * IxI) + 2 * mu * projM_e_pg
 
         elif "Strain" in self.split:
-            # here don't use numba if behavior is heterogeneous
-            if self.__useNumba and not self.isHeterogeneous:
-                # Faster (x2) but not available for heterogeneous material (memory issues)
-                Cpp, Cpm, Cmp, Cmm = Numba.Get_Anisot_C(
-                    projP_e_pg, material.C, projM_e_pg
-                )
-                Cpp, Cpm, Cmp, Cmm = FeArray._asfearrays(Cpp, Cpm, Cmp, Cmm)
+            C_e_pg = FeArray.asfearray(material.C, True)
 
-            else:
-                C_e_pg = FeArray.asfearray(material.C, True)
+            projPTC = projP_e_pg.T @ C_e_pg
+            projMTc = projM_e_pg.T @ C_e_pg
 
-                projPTC = projP_e_pg.T @ C_e_pg
-                projMTc = projM_e_pg.T @ C_e_pg
-
-                Cpp = projPTC @ projP_e_pg
-                Cpm = projPTC @ projM_e_pg
-                Cmm = projMTc @ projM_e_pg
-                Cmp = projMTc @ projP_e_pg
+            Cpp = projPTC @ projP_e_pg
+            Cpm = projPTC @ projM_e_pg
+            Cmm = projMTc @ projM_e_pg
+            Cmp = projMTc @ projP_e_pg
 
             if self.split == self.SplitType.AnisotStrain:
                 cP_e_pg = Cpp + Cpm + Cmp
@@ -644,13 +630,8 @@ class PhaseField(_IModel):
             else:
                 raise TypeError("dim error")
 
-            if self.__useNumba and not material.isHeterogeneous:
-                # Faster
-                cP_e_pg, cM_e_pg = Numba.Get_Cp_Cm_Stress(material.C, sP_e_pg, sM_e_pg)
-                cP_e_pg, cM_e_pg = FeArray._asfearrays(cP_e_pg, cM_e_pg)
-            else:
-                cP_e_pg = C_e_pg.T @ sP_e_pg @ C_e_pg
-                cM_e_pg = C_e_pg.T @ sM_e_pg @ C_e_pg
+            cP_e_pg = C_e_pg.T @ sP_e_pg @ C_e_pg
+            cM_e_pg = C_e_pg.T @ sM_e_pg @ C_e_pg
 
         elif self.split == self.SplitType.Zhang or "Stress" in self.split:
             Cp_e_pg = projP_e_pg @ C_e_pg
@@ -665,20 +646,15 @@ class PhaseField(_IModel):
                 # Compute Cp and Cm
                 S = material.S
 
-                if self.__useNumba and not material.isHeterogeneous:
-                    # Faster
-                    Cpp, Cpm, Cmp, Cmm = Numba.Get_Anisot_C(Cp_e_pg, S, Cm_e_pg)
-                    Cpp, Cpm, Cmp, Cmm = FeArray._asfearrays(Cpp, Cpm, Cmp, Cmm)
-                else:
-                    S_e_pg = Reshape_variable(S, Ne, nPg)
+                S_e_pg = Reshape_variable(S, Ne, nPg)
 
-                    ps = Cp_e_pg.T @ S_e_pg
-                    ms = Cm_e_pg.T @ S_e_pg
+                ps = Cp_e_pg.T @ S_e_pg
+                ms = Cm_e_pg.T @ S_e_pg
 
-                    Cpp = ps @ Cp_e_pg
-                    Cpm = ps @ Cm_e_pg
-                    Cmm = ms @ Cm_e_pg
-                    Cmp = ms @ Cp_e_pg
+                Cpp = ps @ Cp_e_pg
+                Cpm = ps @ Cm_e_pg
+                Cmm = ms @ Cm_e_pg
+                Cmp = ms @ Cp_e_pg
 
                 if self.split == self.SplitType.AnisotStress:
                     cP_e_pg = Cpp + Cpm + Cmp
@@ -1125,30 +1101,22 @@ class PhaseField(_IModel):
 
             tic.Tac("Split", "Betas and gammas", False)
 
-            if self.__useNumba:
-                # Faster
-                projP, projM = Numba.Get_projP_projM_2D(
-                    BetaP, gammap, BetaM, gammam, m1, m2
-                )
-                projP, projM = FeArray._asfearrays(projP, projM)
+            m1xm1 = TensorProd(m1, m1, ndim=1)
+            m2xm2 = TensorProd(m2, m2, ndim=1)
 
-            else:
-                m1xm1 = TensorProd(m1, m1, ndim=1)
-                m2xm2 = TensorProd(m2, m2, ndim=1)
+            # Projector P such that EpsP = projP • Eps
+            projP = (
+                (BetaP * np.eye(3))
+                + (gammap[..., 0] * m1xm1)
+                + (gammap[..., 1] * m2xm2)
+            )
 
-                # Projector P such that EpsP = projP • Eps
-                projP = (
-                    (BetaP * np.eye(3))
-                    + (gammap[..., 0] * m1xm1)
-                    + (gammap[..., 1] * m2xm2)
-                )
-
-                # Projector M such that EpsM = projM • Eps
-                projM = (
-                    (BetaM * np.eye(3))
-                    + (gammam[..., 0] * m1xm1)
-                    + (gammam[..., 1] * m2xm2)
-                )
+            # Projector M such that EpsM = projM • Eps
+            projM = (
+                (BetaM * np.eye(3))
+                + (gammam[..., 0] * m1xm1)
+                + (gammam[..., 1] * m2xm2)
+            )
 
             tic.Tac("Split", "projP and projM", False)
 
@@ -1178,78 +1146,62 @@ class PhaseField(_IModel):
 
             tic.Tac("Split", "thetap and thetam", False)
 
-            if self.__useNumba:
-                # Much faster (approx. 2x faster)
+            # Voigt row→(i,j) and col→(k,l) index maps
+            _rI = np.array([0, 1, 2, 1, 0, 0])
+            _rJ = np.array([0, 1, 2, 2, 2, 1])
+            _cK = np.array([0, 1, 2, 1, 0, 0])
+            _cL = np.array([0, 1, 2, 2, 2, 1])
+            # Kelvin-Mandel scale matrix: 1, sqrt(2), or 2
+            _km_scale = np.ones((6, 6))
+            _km_scale[3:, :3] = coef
+            _km_scale[:3, 3:] = coef
+            _km_scale[3:, 3:] = 2.0
 
-                G12_ij, G13_ij, G23_ij = Numba.Get_G12_G13_G23(M1, M2, M3)
+            def __Construction_Gij(Ma, Mb):
+                """Fill 6x6 Kelvin-Mandel G_ab — fully vectorized, no Python loop."""
+                Ma = np.asarray(Ma)
+                Mb = np.asarray(Mb)
+                # Gather all (r,c) index combos at once: (Ne, nPg, 6, 6)
+                A_ik = Ma[..., _rI[:, None], _cK[None, :]]
+                A_il = Ma[..., _rI[:, None], _cL[None, :]]
+                A_jl = Ma[..., _rJ[:, None], _cL[None, :]]
+                A_jk = Ma[..., _rJ[:, None], _cK[None, :]]
+                B_ik = Mb[..., _rI[:, None], _cK[None, :]]
+                B_il = Mb[..., _rI[:, None], _cL[None, :]]
+                B_jl = Mb[..., _rJ[:, None], _cL[None, :]]
+                B_jk = Mb[..., _rJ[:, None], _cK[None, :]]
+                Gij = (A_ik * B_jl + A_il * B_jk + B_ik * A_jl + B_il * A_jk) * _km_scale
+                return FeArray.asfearray(Gij)
 
-                tic.Tac("Split", "Gab", False)
+            G12 = __Construction_Gij(M1, M2)
+            G13 = __Construction_Gij(M1, M3)
+            G23 = __Construction_Gij(M2, M3)
 
-                list_mi = [m1, m2, m3]
-                list_Gab = [G12_ij, G13_ij, G23_ij]
+            tic.Tac("Split", "Gab", False)
 
-                projP, projM = Numba.Get_projP_projM_3D(
-                    dvalp, dvalm, thetap, thetam, list_mi, list_Gab
-                )
-                projP, projM = FeArray._asfearrays(projP, projM)
+            m1xm1 = TensorProd(m1, m1, ndim=1)
+            m2xm2 = TensorProd(m2, m2, ndim=1)
+            m3xm3 = TensorProd(m3, m3, ndim=1)
 
-            else:
-                # Voigt row→(i,j) and col→(k,l) index maps
-                _rI = np.array([0, 1, 2, 1, 0, 0])
-                _rJ = np.array([0, 1, 2, 2, 2, 1])
-                _cK = np.array([0, 1, 2, 1, 0, 0])
-                _cL = np.array([0, 1, 2, 2, 2, 1])
-                # Kelvin-Mandel scale matrix: 1, sqrt(2), or 2
-                _km_scale = np.ones((6, 6))
-                _km_scale[3:, :3] = coef
-                _km_scale[:3, 3:] = coef
-                _km_scale[3:, 3:] = 2.0
+            tic.Tac("Split", "mixmi", False)
 
-                def __Construction_Gij(Ma, Mb):
-                    """Fill 6x6 Kelvin-Mandel G_ab — fully vectorized, no Python loop."""
-                    Ma = np.asarray(Ma)
-                    Mb = np.asarray(Mb)
-                    # Gather all (r,c) index combos at once: (Ne, nPg, 6, 6)
-                    A_ik = Ma[..., _rI[:, None], _cK[None, :]]
-                    A_il = Ma[..., _rI[:, None], _cL[None, :]]
-                    A_jl = Ma[..., _rJ[:, None], _cL[None, :]]
-                    A_jk = Ma[..., _rJ[:, None], _cK[None, :]]
-                    B_ik = Mb[..., _rI[:, None], _cK[None, :]]
-                    B_il = Mb[..., _rI[:, None], _cL[None, :]]
-                    B_jl = Mb[..., _rJ[:, None], _cL[None, :]]
-                    B_jk = Mb[..., _rJ[:, None], _cK[None, :]]
-                    Gij = (A_ik * B_jl + A_il * B_jk + B_ik * A_jl + B_il * A_jk) * _km_scale
-                    return FeArray.asfearray(Gij)
+            projP = (
+                (dvalp[:, :, 0] * m1xm1)
+                + (dvalp[:, :, 1] * m2xm2)
+                + (dvalp[:, :, 2] * m3xm3)
+                + (thetap[:, :, 0] * G12)
+                + (thetap[:, :, 1] * G13)
+                + (thetap[:, :, 2] * G23)
+            )
 
-                G12 = __Construction_Gij(M1, M2)
-                G13 = __Construction_Gij(M1, M3)
-                G23 = __Construction_Gij(M2, M3)
-
-                tic.Tac("Split", "Gab", False)
-
-                m1xm1 = TensorProd(m1, m1, ndim=1)
-                m2xm2 = TensorProd(m2, m2, ndim=1)
-                m3xm3 = TensorProd(m3, m3, ndim=1)
-
-                tic.Tac("Split", "mixmi", False)
-
-                projP = (
-                    (dvalp[:, :, 0] * m1xm1)
-                    + (dvalp[:, :, 1] * m2xm2)
-                    + (dvalp[:, :, 2] * m3xm3)
-                    + (thetap[:, :, 0] * G12)
-                    + (thetap[:, :, 1] * G13)
-                    + (thetap[:, :, 2] * G23)
-                )
-
-                projM = (
-                    (dvalm[:, :, 0] * m1xm1)
-                    + (dvalm[:, :, 1] * m2xm2)
-                    + (dvalm[:, :, 2] * m3xm3)
-                    + (thetam[:, :, 0] * G12)
-                    + (thetam[:, :, 1] * G13)
-                    + (thetam[:, :, 2] * G23)
-                )
+            projM = (
+                (dvalm[:, :, 0] * m1xm1)
+                + (dvalm[:, :, 1] * m2xm2)
+                + (dvalm[:, :, 2] * m3xm3)
+                + (thetam[:, :, 0] * G12)
+                + (thetam[:, :, 1] * G13)
+                + (thetam[:, :, 2] * G23)
+            )
 
             tic.Tac("Split", "projP and projM", False)
 

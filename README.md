@@ -115,7 +115,6 @@ EasyFEA includes optional dependencies to reduce resolution time, plot results, 
 + [`pyvista`](https://pypi.org/project/pyvista/) - Plotting package.
 + [`pypardiso`](https://pypi.org/project/pypardiso/) (Python > 3.8 & Intel oneAPI)  - Library for solving large systems of sparse linear equations.
 + [`petsc`](https://pypi.org/project/petsc/) and [`petsc4py`](https://pypi.org/project/petsc4py/) - Python bindings for PETSc.
-+ [`numba`](https://pypi.org/project/numba/) - Compiling Python code using LLVM.
 + [`imageio`](https://pypi.org/project/imageio/) and [`imageio-ffmpeg`](https://pypi.org/project/imageio-ffmpeg/) - Library for reading and writing a wide range of image, video, scientific, and volumetric data formats.
 + [`meshio`](https://github.com/matnoel/meshio/tree/medit_higher_order_elements) - I/O for many mesh formats.
 + [`opencv-python`](https://pypi.org/project/opencv-python/) - Computer Vision package.
