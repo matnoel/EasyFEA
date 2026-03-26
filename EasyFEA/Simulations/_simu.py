@@ -1393,13 +1393,14 @@ class _Simu(_IObserver, _params.Updatable, ABC):
         tuple[sparse.csr_matrix, sparse.csr_matrix]
             The A and x matrices.
         """
-        tic = Tic()
 
         algo = self.algo
         dofs = self.Bc_dofs_Dirichlet(problemType)
         dofsValues = self.Bc_values_Dirichlet(problemType)
 
         K, C, M, _ = self.Get_K_C_M_F(problemType)
+
+        tic = Tic()
 
         if self.isNonLinear:
 
@@ -1452,11 +1453,14 @@ class _Simu(_IObserver, _params.Updatable, ABC):
             else:
                 raise NotImplementedError(f"Algo {algo} is not implemented here.")
 
+        tic.Tac("Solver", f"Construct A ({problemType}, {algo})", self._verbosity)
+
         A, x = self.__Solver_Get_Dirichlet_A_x(
             problemType, resolution, A, b, dofsValues
         )
 
-        tic.Tac("Solver", f"Dirichlet ({problemType}, {algo})", self._verbosity)
+        val = "b" if resolution == ResolType.r3 else "x"
+        tic.Tac("Solver", f"Construct {val} ({problemType}, {algo})", self._verbosity)
 
         return A, x
 
@@ -1494,14 +1498,13 @@ class _Simu(_IObserver, _params.Updatable, ABC):
         size = self.mesh.Nn * self.Get_dof_n(problemType)
 
         if len(self.mesh.orphanNodes) > 0:
-            # add 1.0 to orphan dofs
+            # add 1.0 to orphan dofs — orphan rows are zero, so addition sets the diagonal
             orphanDofs = self.Bc_dofs_nodes(
                 self.mesh.orphanNodes, self.Get_unknowns(problemType), problemType
             )
-            A = A.tolil()
-            for dof in orphanDofs:
-                A[dof, dof] = 1.0
-            A = A.tocsr()
+            diag = np.zeros(A.shape[0])
+            diag[orphanDofs] = 1.0
+            A = A + sparse.diags(diag, format="csr")
             # Display.Init_Axes().spy(A)
             # Display.plt.show()
 
@@ -1516,20 +1519,20 @@ class _Simu(_IObserver, _params.Updatable, ABC):
             return A, x
 
         elif resolution == ResolType.r3:
-            # Penalization
-            A = A.tolil()
-            b = b.tolil()
+            # Zero constrained rows directly in CSR data
+            row_of_data = np.repeat(np.arange(A.shape[0]), np.diff(A.indptr))
+            A.data[np.isin(row_of_data, dofs)] = 0.0
+            # Set diagonal to 1
+            diag = np.zeros(A.shape[0])
+            diag[dofs] = 1.0
+            A = A + sparse.diags(diag, format="csr")
+            A.eliminate_zeros()
 
-            # Penalization A
-            A[dofs, :] = 0.0  # set zeros on dofs rows
-            A[dofs, dofs] = 1
-            # same as [A.__setitem__((i, i), 1) for i in dofs]
+            b_arr = np.asarray(b.todense()).ravel()
+            b_arr[dofs] = dofsValues
+            b = sparse.csr_matrix(b_arr[:, np.newaxis])
 
-            # Penalization b
-            b[dofs] = dofsValues
-
-            # Here we return A penalized
-            return A.tocsr(), b.tocsr()
+            return A, b
 
     def _Solver_Set_PETSc4Py_Options(
         self,
