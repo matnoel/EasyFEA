@@ -890,11 +890,6 @@ class PhaseField(_Simu):
         max_d = d.max()
         summaryIter = f"{iter + 1:4d} : {load:4.3f} {unitLoad}, [{min_d:.2e}; {max_d:.2e}], {Niter}:{timeIter:4.3f}s, tol={dincMax:.2e}  "
 
-        if remove:
-            end = "\r"
-        else:
-            end = ""
-
         if percentage > 0:
             timeLeft = (1 / percentage - 1) * timeIter * iter
             timeCoef, unite = Tic.Get_time_unity(timeLeft)
@@ -903,11 +898,9 @@ class PhaseField(_Simu):
                 summaryIter + f"{percentage * 100:3.2f}% -> {timeCoef:3.2f}{unite}  "
             )
 
-        Display.MyPrint(summaryIter, end=end)
-
         self.__resumeIter = summaryIter
 
-        return summaryIter
+        super().Results_Set_Iteration_Summary(text=summaryIter, remove=remove)
 
     def Results_Get_Iteration_Summary(self) -> str:
         try:

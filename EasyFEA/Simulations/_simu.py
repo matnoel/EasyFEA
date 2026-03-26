@@ -2641,9 +2641,13 @@ class _Simu(_IObserver, _params.Updatable, ABC):
             )
             return False
 
-    def Results_Set_Iteration_Summary(self) -> None:
-        """Sets the iteration's summary."""
-        pass
+    def Results_Set_Iteration_Summary(self, text: str, remove: bool = False) -> None:
+        """Sets and print the iteration's summary."""
+        if remove and MPI_SIZE == 1:
+            end = "\r"
+        else:
+            end = "\n" if remove else ""
+        Display.MyPrint(text, end=end)
 
     def Results_Get_Iteration_Summary(self) -> str:
         """Returns the iteration's summary."""

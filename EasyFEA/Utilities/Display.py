@@ -1756,6 +1756,7 @@ class __Sytles(str, Enum):
     RESET = "\33[0m"
 
 
+@rank0_only
 def MyPrint(
     text: str,
     color="cyan",
