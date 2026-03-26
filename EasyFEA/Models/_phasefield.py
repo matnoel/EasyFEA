@@ -5,7 +5,7 @@
 
 from typing import Union, Optional, TYPE_CHECKING
 from enum import Enum
-from functools import partialmethod
+from functools import lru_cache, partialmethod
 
 # utilities
 import numpy as np
@@ -225,6 +225,20 @@ class PhaseField(_IModel):
         text += f"\nGc : {self.Gc:.4e}"
         text += f"\nl0 : {self.l0:.4e}"
         return text
+
+    @staticmethod
+    @lru_cache(maxsize=2)
+    def __Build_IxI(dim: int) -> np.ndarray:
+        """Build the Kelvin-Mandel identity tensor IxI for the given dimension.
+
+        Result is cached — dim is either 2 or 3, so at most 2 entries are stored.
+        Do NOT modify the returned array in-place.
+        """
+        if dim == 2:
+            I = np.array([1.0, 1.0, 0.0]).reshape((3, 1))
+        else:
+            I = np.array([1.0, 1.0, 1.0, 0.0, 0.0, 0.0]).reshape((6, 1))
+        return I @ I.T
 
     @property
     def isHeterogeneous(self) -> bool:
@@ -456,14 +470,7 @@ class PhaseField(_IModel):
 
         dim = material.dim
 
-        if dim == 2:
-            I = np.array([1, 1, 0]).reshape((3, 1))
-            size = 3
-        else:
-            I = np.array([1, 1, 1, 0, 0, 0]).reshape((6, 1))
-            size = 6
-
-        IxI = I @ I.T
+        IxI = self.__Build_IxI(dim)
 
         mu = material.get_mu()
         bulk = material.get_bulk()
@@ -473,7 +480,9 @@ class PhaseField(_IModel):
             mu = Reshape_variable(mu, Ne, nPg)
             bulk = Reshape_variable(bulk, Ne, nPg)
 
-        cP_e_pg = bulk * (Rp_e_pg * IxI) + 2 * mu * (np.eye(size) - 1 / dim * IxI)
+        cP_e_pg = bulk * (Rp_e_pg * IxI) + 2 * mu * (
+            np.eye(IxI.shape[0]) - 1 / dim * IxI
+        )
         cM_e_pg = bulk * (Rm_e_pg * IxI)
 
         tic.Tac("Split", "cP_e_pg and cM_e_pg", False)
@@ -483,11 +492,7 @@ class PhaseField(_IModel):
     def __Rp_Rm(self, vector_e_pg: FeArray.FeArrayALike):
         """Returns Rp_e_pg, Rm_e_pg"""
 
-        Ne, nPg = vector_e_pg.shape[:2]
-
         dim = self.__material.dim
-
-        trace = np.zeros((Ne, nPg))
 
         trace = vector_e_pg[:, :, 0] + vector_e_pg[:, :, 1]
 
@@ -524,14 +529,7 @@ class PhaseField(_IModel):
             # Compute Rp and Rm
             Rp_e_pg, Rm_e_pg = self.__Rp_Rm(Epsilon_e_pg)
 
-            # Compute IxI
-            if dim == 2:
-                I = np.array([1, 1, 0]).reshape((3, 1))
-            elif dim == 3:
-                I = np.array([1, 1, 1, 0, 0, 0]).reshape((6, 1))
-            else:
-                raise TypeError("dim error")
-            IxI = I @ I.T
+            IxI = self.__Build_IxI(dim)
 
             # Compute stifness matrices
             mu = self.__material.get_mu()
@@ -626,12 +624,7 @@ class PhaseField(_IModel):
             # Compute Rp and Rm
             Rp_e_pg, Rm_e_pg = self.__Rp_Rm(Sigma_e_pg)
 
-            # Compute IxI
-            if dim == 2:
-                I = np.array([1, 1, 0]).reshape((3, 1))
-            else:
-                I = np.array([1, 1, 1, 0, 0, 0]).reshape((6, 1))
-            IxI = I.dot(I.T)
+            IxI = self.__Build_IxI(dim)
 
             if dim == 2:
                 if material.planeStress:
@@ -891,7 +884,7 @@ class PhaseField(_IModel):
 
             test2 = g_neq_0 & (theta == np.pi / 3)
 
-            case2 = list(set(np.ravel(np.where(test2)[0])))
+            case2 = np.unique(np.where(test2)[0])
 
             if len(case2) > 0:
                 val1_e_pg[case2] += -2 / 3 * sqrt_g_e_pg[case2]
@@ -912,7 +905,7 @@ class PhaseField(_IModel):
 
             test3 = g_neq_0 & (theta == 0)
 
-            case3 = list(set(np.ravel(np.where(test3)[0])))
+            case3 = np.unique(np.where(test3)[0])
 
             if len(case3) > 0:
                 val1_e_pg[case3] += -1 / 3 * sqrt_g_e_pg[case3]
@@ -932,9 +925,9 @@ class PhaseField(_IModel):
 
             test1 = g_neq_0 & (theta != 0) & (theta != np.pi / 3)
 
-            case1 = list(set(np.ravel(np.where(test1)[0])))
-
-            case1 = np.setdiff1d(case1, np.union1d(case2, case3))  # type: ignore [assignment]
+            case1 = np.setdiff1d(
+                np.unique(np.where(test1)[0]), np.union1d(case2, case3)
+            )
 
             if len(case1) > 0:
                 val1_e_pg[case1] += (
@@ -945,22 +938,20 @@ class PhaseField(_IModel):
                 )
                 val3_e_pg[case1] += 2 / 3 * (sqrt_g_e_pg * np.cos(theta))[case1]
 
-                e1_I = val1_e_pg * np.eye(3)
-                e2_I = val2_e_pg * np.eye(3)
-                e3_I = val3_e_pg * np.eye(3)
+                # Compute projectors only on the case1 subset — avoids full-(Ne,nPg) matmuls
+                v1_c1 = val1_e_pg[case1]
+                v2_c1 = val2_e_pg[case1]
+                v3_c1 = val3_e_pg[case1]
+                mat_c1 = matrix_e_pg[case1]
 
                 M1[case1] = (
-                    ((matrix_e_pg - e2_I) @ (matrix_e_pg - e3_I))
-                    / ((val1_e_pg - val2_e_pg) * (val1_e_pg - val3_e_pg))
-                )[case1]
-                # M2[case1] = (
-                #     ((matrix_e_pg - e1_I) @ (matrix_e_pg - e3_I))
-                #     / ((val2_e_pg - val1_e_pg) * (val2_e_pg - val3_e_pg))
-                # )[case1]
+                    (mat_c1 - v2_c1 * np.eye(3)) @ (mat_c1 - v3_c1 * np.eye(3))
+                    / ((v1_c1 - v2_c1) * (v1_c1 - v3_c1))
+                )
                 M3[case1] = (
-                    ((matrix_e_pg - e1_I) @ (matrix_e_pg - e2_I))
-                    / ((val3_e_pg - val1_e_pg) * (val3_e_pg - val2_e_pg))
-                )[case1]
+                    (mat_c1 - v1_c1 * np.eye(3)) @ (mat_c1 - v2_c1 * np.eye(3))
+                    / ((v3_c1 - v1_c1) * (v3_c1 - v2_c1))
+                )
 
                 tic.Tac("Split", "proj case 1", False)
 
@@ -1124,13 +1115,8 @@ class PhaseField(_IModel):
             v1_m_v2 = val_e_pg[..., 0] - val_e_pg[..., 1]  # val1 - val2
             v1_m_v2[v1_m_v2 == 0] = 1
 
-            # compute BetaP [e,pg,1].
-            # Caution: make sure you put a copy here, otherwise the Beta modification will change dvalp at the same time!
-            BetaP = dvalp[..., 0].copy()
+            # compute BetaP and BetaM [e,pg]
             BetaP = (valp[..., 0] - valp[..., 1]) / v1_m_v2
-
-            # compute BetaM [e,pg,1].
-            BetaM = dvalm[..., 0].copy()
             BetaM = (valm[..., 0] - valm[..., 1]) / v1_m_v2
 
             # compute gammap and gammam
@@ -1138,10 +1124,6 @@ class PhaseField(_IModel):
             gammam = dvalm - BetaM
 
             tic.Tac("Split", "Betas and gammas", False)
-
-            # compute mixmi [e,pg,3,3] or [e,pg,6,6].
-            m1xm1 = TensorProd(m1, m1, ndim=1)
-            m2xm2 = TensorProd(m2, m2, ndim=1)
 
             if self.__useNumba:
                 # Faster
@@ -1151,6 +1133,9 @@ class PhaseField(_IModel):
                 projP, projM = FeArray._asfearrays(projP, projM)
 
             else:
+                m1xm1 = TensorProd(m1, m1, ndim=1)
+                m2xm2 = TensorProd(m2, m2, ndim=1)
+
                 # Projector P such that EpsP = projP • Eps
                 projP = (
                     (BetaP * np.eye(3))
@@ -1174,21 +1159,20 @@ class PhaseField(_IModel):
 
             coef = np.sqrt(2)
 
-            thetap = dvalp.copy() / 2
-            thetam = dvalm.copy() / 2
+            thetap = dvalp / 2
+            thetam = dvalm / 2
 
             v1_m_v2 = val_e_pg[..., 0] - val_e_pg[..., 1]
             v1_m_v2[v1_m_v2 == 0] = 1
-            thetap[..., 0] = (valp[..., 0] - valp[..., 1]) / (2 * v1_m_v2)
-            thetam[..., 0] = (valm[..., 0] - valm[..., 1]) / (2 * v1_m_v2)
-
             v1_m_v3 = val_e_pg[..., 0] - val_e_pg[..., 2]
             v1_m_v3[v1_m_v3 == 0] = 1
-            thetap[..., 1] = (valp[..., 0] - valp[..., 2]) / (2 * v1_m_v3)
-            thetam[..., 1] = (valm[..., 0] - valm[..., 2]) / (2 * v1_m_v3)
-
             v2_m_v3 = val_e_pg[..., 1] - val_e_pg[..., 2]
             v2_m_v3[v2_m_v3 == 0] = 1
+
+            thetap[..., 0] = (valp[..., 0] - valp[..., 1]) / (2 * v1_m_v2)
+            thetam[..., 0] = (valm[..., 0] - valm[..., 1]) / (2 * v1_m_v2)
+            thetap[..., 1] = (valp[..., 0] - valp[..., 2]) / (2 * v1_m_v3)
+            thetam[..., 1] = (valm[..., 0] - valm[..., 2]) / (2 * v1_m_v3)
             thetap[..., 2] = (valp[..., 1] - valp[..., 2]) / (2 * v2_m_v3)
             thetam[..., 2] = (valm[..., 1] - valm[..., 2]) / (2 * v2_m_v3)
 
@@ -1210,57 +1194,31 @@ class PhaseField(_IModel):
                 projP, projM = FeArray._asfearrays(projP, projM)
 
             else:
+                # Voigt row→(i,j) and col→(k,l) index maps
+                _rI = np.array([0, 1, 2, 1, 0, 0])
+                _rJ = np.array([0, 1, 2, 2, 2, 1])
+                _cK = np.array([0, 1, 2, 1, 0, 0])
+                _cL = np.array([0, 1, 2, 2, 2, 1])
+                # Kelvin-Mandel scale matrix: 1, sqrt(2), or 2
+                _km_scale = np.ones((6, 6))
+                _km_scale[3:, :3] = coef
+                _km_scale[:3, 3:] = coef
+                _km_scale[3:, 3:] = 2.0
 
                 def __Construction_Gij(Ma, Mb):
-                    Gij = np.zeros((Ne, nPg, 6, 6))
-
-                    def part1(Ma, Mb):
-                        return np.einsum(
-                            "...ik,...jl->...ijkl", Ma, Mb, optimize="optimal"
-                        )
-
-                    def part2(Ma, Mb):
-                        return np.einsum(
-                            "...il,...jk->...ijkl", Ma, Mb, optimize="optimal"
-                        )
-
-                    Gijkl = (
-                        part1(Ma, Mb) + part2(Ma, Mb) + part1(Mb, Ma) + part2(Mb, Ma)
-                    )
-
-                    listI = [0] * 6
-                    listI.extend([1] * 6)
-                    listI.extend([2] * 6)
-                    listI.extend([1] * 6)
-                    listI.extend([0] * 12)
-                    listJ = [0] * 6
-                    listJ.extend([1] * 6)
-                    listJ.extend([2] * 18)
-                    listJ.extend([1] * 6)
-                    listK = [0, 1, 2, 1, 0, 0] * 6
-                    listL = [0, 1, 2, 2, 2, 1] * 6
-
-                    columns = (
-                        np.arange(0, 6, dtype=int)
-                        .reshape((1, 6))
-                        .repeat(6, axis=0)
-                        .ravel()
-                    )
-                    lines = np.sort(columns)
-
-                    # # builds a str matrix to check whether the indexes are good or not
-                    # ma = np.zeros((6,6), dtype=np.object0)
-                    # for lin,col,i,j,k,l in zip(lines, columns, listI, listJ, listK, listL):
-                    #     text = f"{i+1}{j+1}{k+1}{l+1}"
-                    #     ma[lin,col] = text
-                    #     pass
-
-                    Gij[:, :, lines, columns] = Gijkl[:, :, listI, listJ, listK, listL]
-
-                    Gij[:, :, :3, 3:6] = Gij[:, :, :3, 3:6] * coef
-                    Gij[:, :, 3:6, :3] = Gij[:, :, 3:6, :3] * coef
-                    Gij[:, :, 3:6, 3:6] = Gij[:, :, 3:6, 3:6] * 2
-
+                    """Fill 6x6 Kelvin-Mandel G_ab — fully vectorized, no Python loop."""
+                    Ma = np.asarray(Ma)
+                    Mb = np.asarray(Mb)
+                    # Gather all (r,c) index combos at once: (Ne, nPg, 6, 6)
+                    A_ik = Ma[..., _rI[:, None], _cK[None, :]]
+                    A_il = Ma[..., _rI[:, None], _cL[None, :]]
+                    A_jl = Ma[..., _rJ[:, None], _cL[None, :]]
+                    A_jk = Ma[..., _rJ[:, None], _cK[None, :]]
+                    B_ik = Mb[..., _rI[:, None], _cK[None, :]]
+                    B_il = Mb[..., _rI[:, None], _cL[None, :]]
+                    B_jl = Mb[..., _rJ[:, None], _cL[None, :]]
+                    B_jk = Mb[..., _rJ[:, None], _cK[None, :]]
+                    Gij = (A_ik * B_jl + A_il * B_jk + B_ik * A_jl + B_il * A_jk) * _km_scale
                     return FeArray.asfearray(Gij)
 
                 G12 = __Construction_Gij(M1, M2)
