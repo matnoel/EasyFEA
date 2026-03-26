@@ -1419,6 +1419,7 @@ def Movie_Simu(
     Movie_func(DoAnim, fig, iterations.size, folder, filename, fps)
 
 
+@rank0_only
 @requires_matplotlib
 def Movie_func(
     func: Callable[[plt.Figure, int], None],

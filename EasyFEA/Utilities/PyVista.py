@@ -903,6 +903,7 @@ def Movie_simu(
     Movie_func(DoAnim, iterations.size, folder, filename)
 
 
+@rank0_only
 @requires_pyvista
 def Movie_func(
     func: Callable[[pv.Plotter, int], None], N: int, folder: str, filename="video.gif"
