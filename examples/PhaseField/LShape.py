@@ -157,8 +157,8 @@ if __name__ == "__main__":
             axLoad.set_xlabel("displacement [mm]")
             axLoad.set_ylabel("load [kN]")
 
-        displacement = []
-        force = []
+        list_ud = []
+        list_f = []
         ud = -inc0
         iter = -1
 
@@ -174,13 +174,13 @@ if __name__ == "__main__":
             simu.add_dirichlet(nodes_load, [ud], ["y"])
 
             # solve
-            u, d, Ku, convergence = simu.Solve(tolConv, 500, convOption)
+            u, d, convergence = simu.Solve(tolConv, 500, convOption)
             # calc load
-            fr = np.sum(Ku[dofsY_load, :] @ u)
+            f = np.sum(simu.Calc_Reaction(dofsY_load, "elastic"))
 
             # saves load and displacement
-            displacement.append(ud)
-            force.append(fr)
+            list_ud.append(ud)
+            list_f.append(f)
 
             # print iter
             simu.Results_Set_Iteration_Summary(iter, ud, "mm", ud / uMax, True)
@@ -194,19 +194,15 @@ if __name__ == "__main__":
                 plt.pause(1e-12)
 
                 plt.figure(axLoad.figure)
-                axLoad.scatter(ud, fr / 1000, c="black")
+                axLoad.scatter(ud, f / 1000, c="black")
                 plt.pause(1e-12)
 
-            # if not convergence or np.max(d[nodes_edges]) >= 1:
-            #     # stops simulation if damage occurs on edges or convergence has not been reached
-            #     break
+            if not convergence or simu.Detect_Damage(nodes_edges):
+                # stops simulation if damage occurs on edges or convergence has not been reached
+                break
 
         # saves load and displacement
-        displacement = np.asarray(displacement)
-        force = np.asarray(force)
-        Simulations.Save_pickle(
-            (force, displacement), folder_save, "force-displacement"
-        )
+        Simulations.Save_pickle((list_f, list_ud), folder_save, "force-displacement")
 
         # saves the simulation
         simu.Save(folder_save)
@@ -215,7 +211,7 @@ if __name__ == "__main__":
         simu = Simulations.Load_Simu(folder_save)
         mesh = simu.mesh
 
-    force, displacement = Simulations.Load_pickle(folder_save, "force-displacement")
+    list_f, list_ud = Simulations.Load_pickle(folder_save, "force-displacement")
 
     # ----------------------------------------------
     # Results
@@ -227,15 +223,14 @@ if __name__ == "__main__":
     axLoad = Display.Init_Axes()
     axLoad.set_xlabel("displacement [mm]")
     axLoad.set_ylabel("load [kN]")
-    axLoad.plot(displacement, force / 1000, c="blue")
+    axLoad.plot(list_ud, np.abs(list_f) / 1000, c="blue")
     Display.Save_fig(folder_save, "forcedep")
 
     Display.Plot_Iter_Summary(simu, folder_save)
 
     if makeMovie:
         simu.Set_Iter(-1)
-        depMax = simu.Result("displacement_norm").max()
-        deformFactor = L * 0.05 / depMax
+        deformFactor = L * 0.05 / simu.Result("displacement_norm").max()
 
         iterations = np.arange(0, simu.Niter, simu.Niter // 20)
 

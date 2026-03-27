@@ -309,12 +309,11 @@ class PhaseField(_Simu):
         Returns
         -------
         _types.FloatArray, _types.FloatArray, csr_matrix, bool
-            u_np1, d_np1, Ku, converged
+            u_np1, d_np1, converged
 
             such that:\n
             - u_np1: displacement vector field\n
             - d_np1: damage scalar field\n
-            - Ku: displacement stiffness matrix\n
             - converged: the solution has converged\n
         """
 
@@ -417,9 +416,7 @@ class PhaseField(_Simu):
         self.__convIter = convIter
         self.__timeIter = timeIter
 
-        Ku = self.__Ku.copy()
-
-        return u_np1, d_np1, Ku, converged
+        return u_np1, d_np1, converged
 
     # ------------------------------------------- Elastic problem -------------------------------------------
 
@@ -581,6 +578,37 @@ class PhaseField(_Simu):
         self._Solver_Solve_problemType(ModelType.damage)
 
         return self.damage
+
+    def Detect_Damage(self, nodes: _types.IntArray, threshold: float = 1.0) -> bool:
+        """Returns `True` if damage >= threshold on any node in `nodes`, across all MPI ranks.
+
+        Parameters
+        ----------
+        nodes : IntArray
+            Global node indices to check. May be empty.
+        threshold : float, optional
+            Damage threshold, by default 1.0.
+
+        Returns
+        -------
+        bool
+            True if any node has damage >= threshold (reduced across all MPI ranks).
+
+        Examples
+        --------
+        Stop the load loop when the crack reaches the boundary 10 consecutive times:
+
+        >>> nDetect = 0
+        >>> if simu.Detect_Damage(nodes):
+        ...     nDetect += 1
+        ...     if nDetect == 10:
+        ...         break
+        """
+        d_nodes = self.damage[nodes]
+        detected = bool(d_nodes.size > 0 and np.any(d_nodes >= threshold))
+        if MPI_SIZE > 1:
+            detected = MPI_COMM.allreduce(detected, op=MPI.LOR)
+        return detected
 
     def Save_Iter(self, iter={}):
 
@@ -1005,8 +1033,7 @@ class PhaseField(_Simu):
     ) -> str:
         """Creates a phase field folder based on the specified arguments."""
 
-        if not Folder.Exists(folder):
-            Folder.os.makedirs(folder)
+        Folder.os.makedirs(folder, exist_ok=True)
 
         name = ""
 

@@ -209,7 +209,7 @@ if __name__ == "__main__":
 
             Loading(dep)
 
-            u, _, Ku, converg = simu.Solve(tolConv, maxIter, convOption=1)
+            u, _, converg = simu.Solve(tolConv, maxIter, convOption=1)
             simu.Save_Iter()
 
             simu.Results_Set_Iteration_Summary(iter, dep * 1e6, "µm", 0, True)
@@ -217,11 +217,11 @@ if __name__ == "__main__":
             if not converg:
                 break
 
-            f = np.sum(Ku[dofsY_upper, :] @ u)
+            f = np.sum(simu.Calc_Reaction(dofsY_upper, "elastic"))
             list_dep.append(dep)
             list_f.append(f)
 
-            if np.any(simu.damage[nodes_edges] >= 1):
+            if simu.Detect_Damage(nodes_edges, 1):
                 nDetect += 1
                 if nDetect == 10:
                     break
@@ -270,9 +270,7 @@ if __name__ == "__main__":
 
     if makeMovie:
         simu.Set_Iter(-1)
-        nodes_upper = simu.mesh.Nodes_Conditions(lambda x, y, z: y == L)
-        depMax = simu.Result("displacement_norm")[nodes_upper].max()
-        deformFactor = L * 0.05 / depMax
+        deformFactor = L * 0.05 / simu.Result("displacement_norm").max()
 
         iterations = np.arange(0, simu.Niter, simu.Niter // 20)
 

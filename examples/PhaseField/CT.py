@@ -188,7 +188,7 @@ if __name__ == "__main__":
 
             # PyVista.Plot_BoundaryConditions(simu).show()
 
-            u, d, K, converg = simu.Solve()
+            u, d, converg = simu.Solve()
 
             simu.Results_Set_Iteration_Summary(
                 i, dep, "mm", i / displacements.size, remove=True
@@ -198,7 +198,7 @@ if __name__ == "__main__":
 
             simu.Save_Iter()
 
-            if np.any(d[nodes_xL] >= 1):
+            if simu.Detect_Damage(nodes_xL, 1):
                 break
 
             if plotIter:
@@ -219,8 +219,7 @@ if __name__ == "__main__":
 
     if makeMovie:
         simu.Set_Iter(-1)
-        depMax = simu.Result("displacement_norm").max()
-        deformFactor = L * 0.05 / depMax
+        deformFactor = L * 0.05 / simu.Result("displacement_norm").max()
 
         iterations = np.arange(0, simu.Niter, simu.Niter // 20)
 

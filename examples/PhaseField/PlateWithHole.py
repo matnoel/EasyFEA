@@ -50,7 +50,7 @@ if __name__ == "__main__":
     split = Models.PhaseField.SplitType.Miehe
 
     # Available regus: AT1, AT2
-    regu = Models.PhaseField.ReguType.AT2
+    regu = Models.PhaseField.ReguType.AT1
 
     l0 = 0.12e-3  # m
 
@@ -181,22 +181,22 @@ if __name__ == "__main__":
 
             Apply_BC(ud)
 
-            u, d, Ku, convergence = simu.Solve(tolConv, maxIter)
+            u, d, convergence = simu.Solve(tolConv, maxIter)
             simu.Save_Iter()
 
             if not convergence:
                 break
 
-            f = np.sum(Ku[dofsY_upper, :] @ u)
+            f = np.sum(simu.Calc_Reaction(dofsY_upper, "elastic"))
             simu.Results_Set_Iteration_Summary(iter, ud * unit, unitU, ud / u_max, True)
 
-            if np.any(d[nodes_edges] >= 1):
+            if simu.Detect_Damage(nodes_edges, 1):
                 nDetect += 1
                 if nDetect == 10:
                     break
 
-            list_dep = np.concatenate((list_dep, [ud]))
-            list_f = np.concatenate((list_f, [f]))
+            list_dep.append(ud)
+            list_f.append(f)
 
             if plotIter:
                 Display.Plot_Result(simu, "damage", nodeValues=True, ax=axIter)
@@ -254,8 +254,7 @@ if __name__ == "__main__":
 
     if makeMovie:
         simu.Set_Iter(-1)
-        depMax = simu.Result("displacement_norm").max()
-        deformFactor = L * 0.05 / depMax
+        deformFactor = L * 0.05 / simu.Result("displacement_norm").max()
 
         iterations = np.arange(0, simu.Niter, simu.Niter // 20)
 

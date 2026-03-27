@@ -19,7 +19,7 @@ from ..__about__ import __version__
 # utilities
 from ..Utilities import Folder, Display, Tic, _params, _types
 from ..Utilities._observers import Observable, _IObserver
-from ..Utilities._mpi import MPI_SIZE, MPI_RANK, MPI_COMM
+from ..Utilities._mpi import CAN_USE_MPI, MPI_SIZE, MPI_RANK, MPI_COMM
 
 # fem
 from ..FEM import (
@@ -46,6 +46,9 @@ from .Solvers import (
 
 if CAN_USE_PETSC:
     from petsc4py import PETSc
+
+if CAN_USE_MPI:
+    from mpi4py import MPI
 
 
 # ----------------------------------------------
@@ -151,6 +154,40 @@ class _Simu(_IObserver, _params.Updatable, ABC):
             self.Need_Update(False)
 
         return self.__K.copy(), self.__C.copy(), self.__M.copy(), self.__F.copy()
+
+    def Calc_Reaction(
+        self, dofs: _types.IntArray = None, problemType=None
+    ) -> np.ndarray:
+        """Resultant reaction at nodes: sum of `K[dofs] @ u`, MPI-safe."""
+
+        if self.isNonLinear:
+            raise NotImplementedError
+
+        if problemType is None:
+            problemType = self.problemType
+
+        ownedDofs = self.Get_dofs(problemType)
+
+        if dofs is None:
+            dofs = ownedDofs
+        else:
+            dofs = dofs[np.isin(dofs, ownedDofs)]
+
+        K, C, M, _ = self.Get_K_C_M_F(problemType)
+
+        reaction = np.zeros(K.shape[0], dtype=float)
+
+        reaction[dofs] = K[dofs] @ self._Get_u_n(problemType)
+        if self.algo == AlgoType.parabolic:
+            reaction[dofs] += C[dofs] @ self._Get_v_n(problemType)
+        elif self.algo in AlgoType.Get_Hyperbolic_Types():
+            reaction[dofs] += C[dofs] @ self._Get_v_n(problemType)
+            reaction[dofs] += M[dofs] @ self._Get_a_n(problemType)
+
+        if MPI_SIZE > 1:
+            reaction = MPI_COMM.allreduce(reaction, op=MPI.SUM)
+
+        return reaction
 
     @abstractmethod
     def Get_x0(self, problemType: Optional[ModelType] = None) -> _types.FloatArray:
