@@ -42,7 +42,8 @@ class Field:
         assert 1 <= dof_n <= groupElem.inDim
         self.__dof_n = dof_n
 
-        self._Set_dofsValues(np.zeros(groupElem.Nn * dof_n))
+        Nn = groupElem.coordGlob.shape[0]
+        self._Set_dofsValues(np.zeros(Nn * dof_n, dtype=float))
 
         self._Set_current_active_node(0)
         self._Set_current_active_dof(0)
@@ -110,8 +111,11 @@ class Field:
         return self.__dofsValues
 
     def _Set_dofsValues(self, values: _types.FloatArray):
-        Ndof = self.__groupElem.Nn * self.__dof_n
-        assert values.ndim == 1 and values.size == Ndof, f"must be a ({Ndof},) array."
+        Nn = self.groupElem.coordGlob.shape[0]
+        Ndof = Nn * self.__dof_n
+        assert (
+            values.ndim == 1 and values.size == Ndof
+        ), f"must be a ({Ndof},) array but is a {values.shape} array."
         self.__dofsValues = values
 
     def __mul__(self, other) -> FeArray.FeArrayALike:
@@ -252,7 +256,7 @@ class Field:
         # get mesh data
         groupElem = self.groupElem
         Ne = groupElem.Ne
-        Nn = groupElem.Nn
+        Nn = groupElem.coordGlob.shape[0]
         nPe = groupElem.nPe
 
         # get dof_n
