@@ -10,6 +10,7 @@ from scipy import sparse
 # utilities
 from ..Utilities import Display, Folder, Tic, _types
 from ..Utilities._observers import Observable
+from ..Utilities._mpi import CAN_USE_MPI, MPI_SIZE, MPI_COMM
 
 # fem
 from ..FEM import Mesh, MatrixType, FeArray
@@ -25,6 +26,9 @@ from ..Models import (
 
 # simu
 from ._simu import _Simu, SolverType
+
+if CAN_USE_MPI:
+    from mpi4py import MPI
 
 
 class PhaseField(_Simu):
@@ -744,8 +748,13 @@ class PhaseField(_Simu):
         if np.linalg.norm(u) == 0:
             Psi_Elas = 0
         else:
+            dofs = self.Get_dofs(problemType=ModelType.elastic)
             with np.errstate(divide="ignore", over="ignore", invalid="ignore"):
-                Psi_Elas = 1 / 2 * (u.T @ Ku @ u)[0, 0]
+                # Psi_Elas = 1 / 2 * (u.T @ Ku @ u)[0, 0]
+                Psi_Elas = 1 / 2 * (u[dofs].T @ Ku[dofs] @ u)[0, 0]
+
+            if MPI_SIZE > 1:
+                Psi_Elas = MPI_COMM.allreduce(Psi_Elas, op=MPI.SUM)
 
         tic.Tac("PostProcessing", "Calc Psi Elas", False)
 
@@ -762,8 +771,11 @@ class PhaseField(_Simu):
         if np.linalg.norm(d) == 0:
             Psi_Crack = 0
         else:
+            dofs = self.Get_dofs(problemType=ModelType.damage)
             with np.errstate(divide="ignore", over="ignore", invalid="ignore"):
-                Psi_Crack = 1 / 2 * (d.T @ Kd @ d)[0, 0]
+                Psi_Crack = 1 / 2 * (d[dofs].T @ Kd[dofs] @ d)[0, 0]
+            if MPI_SIZE > 1:
+                Psi_Crack = MPI_COMM.allreduce(Psi_Crack, op=MPI.SUM)
 
         tic.Tac("PostProcessing", "Calc Psi Crack", False)
 
@@ -779,8 +791,11 @@ class PhaseField(_Simu):
         if np.linalg.norm(u_n) == 0 or np.linalg.norm(f_n) == 0:
             Psi_Ext = 0
         else:
+            dofs = self.Get_dofs(problemType=ModelType.elastic)
             with np.errstate(divide="ignore", over="ignore", invalid="ignore"):
-                Psi_Ext = u_n @ f_n
+                Psi_Ext = u_n[dofs] @ f_n[dofs]
+            if MPI_SIZE > 1:
+                Psi_Ext = MPI_COMM.allreduce(Psi_Ext, op=MPI.SUM)
 
         tic.Tac("PostProcessing", "Calc Psi Ext", False)
 

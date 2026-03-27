@@ -192,9 +192,6 @@ def _Solve_Axb(
         # get petsc4py options
         kspType, pcType, solverType = simu._Solver_Get_PETSc4Py_Options(problemType)
 
-        # get dofs
-        mesh = simu.mesh
-
         # from ..Utilities import Display
         # # print(f"rank {MPI_RANK}: orphanNodes = {mesh.orphanNodes}")
         # ax = Display.Init_Axes(2)
@@ -207,18 +204,12 @@ def _Solve_Axb(
 
         if MPI_SIZE > 1:
             if ownedDofs is None:
-                nodes = mesh.groupElem._Get_partitioned_data()[3]
+                dofs = simu.Get_dofs(problemType)
                 if resol == ResolType.r1:
                     _, dofsUnknown = simu.Bc_dofs_known_unknown(problemType)
                     dofsUnknown = __Get_unique_dofs(dofsUnknown)
-                    dofs = simu.Bc_dofs_nodes(
-                        nodes, simu.Get_unknowns(problemType), problemType
-                    )
                     ownedDofs = np.where(np.isin(dofsUnknown, dofs))[0]
                 elif resol == ResolType.r3:
-                    dofs = simu.Bc_dofs_nodes(
-                        nodes, simu.Get_unknowns(problemType), problemType
-                    )
                     ownedDofs = dofs
                 else:
                     raise NotImplementedError
@@ -360,8 +351,7 @@ def __Solver_1(simu: "_Simu", problemType: "ModelType") -> _types.FloatArray:
     ownedDofs = None
     if MPI_SIZE > 1:
         dofsUnknown = __Get_unique_dofs(dofsUnknown)
-        nodes = simu.mesh.groupElem._Get_partitioned_data()[3]
-        dofs = simu.Bc_dofs_nodes(nodes, simu.Get_unknowns(problemType), problemType)
+        dofs = simu.Get_dofs(problemType)
         ownedDofs = np.where(np.isin(dofsUnknown, dofs))[0]
 
     tic = Tic()

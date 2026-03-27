@@ -1688,6 +1688,19 @@ class _Simu(_IObserver, _params.Updatable, ABC):
 
         return self.__dict_solver_petsc4py_options[problemType]
 
+    def Get_dofs(self, problemType=None):
+        """Returns (owned) dofs associated with the problem type."""
+
+        if MPI_SIZE > 1:
+            nodes = self.mesh.groupElem._Get_partitioned_data()[3]
+        else:
+            nodes = self.mesh.nodes
+
+        if problemType is None:
+            problemType = self.problemType
+
+        return self.Bc_dofs_nodes(nodes, self.Get_unknowns(problemType), problemType)
+
     # ----------------------------------------------
     # Boundary conditions
     # ----------------------------------------------
