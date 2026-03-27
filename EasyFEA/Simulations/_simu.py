@@ -1568,21 +1568,21 @@ class _Simu(_IObserver, _params.Updatable, ABC):
 
         Recommended combinations ranked by performance:
 
-        **Best - direct solve (small to medium meshes, serial or MPI with MUMPS):**
+        **Best - direct solve (small to medium meshes, serial or MPI with MUMPS)**:
 
         >>> simu._Solver_Set_PETSc4Py_Options("preonly", "lu", "mumps")
         >>> simu._Solver_Set_PETSc4Py_Options("preonly", "cholesky", "mumps")  # SPD only
 
-        **Best iterative - SPD matrices, scales to large meshes:**
+        **Best iterative - SPD matrices, scales to large meshes**:
 
         >>> simu._Solver_Set_PETSc4Py_Options("cg", "hypre")   # BoomerAMG, best scalability
         >>> simu._Solver_Set_PETSc4Py_Options("cg", "gamg")    # PETSc built-in AMG, no extra package
 
-        **Good iterative - SPD, serial only:**
+        **Good iterative - SPD, serial only**:
 
         >>> simu._Solver_Set_PETSc4Py_Options("cg", "icc")     # Incomplete Cholesky
 
-        **Non-symmetric matrices (phase-field, r3 penalty):**
+        **Non-symmetric matrices (phase-field, r3 penalty)**:
 
         >>> simu._Solver_Set_PETSc4Py_Options("gmres", "ilu")      # serial
         >>> simu._Solver_Set_PETSc4Py_Options("gmres", "bjacobi")  # MPI

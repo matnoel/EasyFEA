@@ -11,6 +11,8 @@ The {py:mod}`EasyFEA.Utilities` module provides essential tools for post process
     ~EasyFEA.Utilities.Paraview
     ~EasyFEA.Utilities.PyVista
     ~EasyFEA.Utilities.Vizir
+    ~EasyFEA.Utilities.USD
+    ~EasyFEA.Utilities.GLTF
 ```
 
 ## Utilities API
@@ -27,5 +29,9 @@ The {py:mod}`EasyFEA.Utilities` module provides essential tools for post process
 .. automodule:: EasyFEA.Utilities.PyVista
     :exclude-members: Mesh, Tic, ElemType, GroupElemFactory    
 .. automodule:: EasyFEA.Utilities.Vizir
-    :exclude-members: Mesh, Tic, ElemType, GroupElemFactory    
+    :exclude-members: Mesh, Tic, ElemType, GroupElemFactory
+.. automodule:: EasyFEA.Utilities.USD
+    :exclude-members: Mesh, Tic, ElemType, GroupElemFactory, _Simu
+.. automodule:: EasyFEA.Utilities.GLTF
+    :exclude-members: Mesh, Tic, ElemType, GroupElemFactory, _Simu
 ```

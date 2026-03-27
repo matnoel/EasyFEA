@@ -203,7 +203,7 @@ if __name__ == "__main__":
         Item(
             "PhaseField/Shear.py",
             "Damage simulation for a plate subjected to shear.",
-            ["list_folder"],
+            ["simu"],
             PlotSimu,
             {
                 "results": ["damage", "Svm", "displacement"],

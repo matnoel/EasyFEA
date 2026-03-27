@@ -31,7 +31,6 @@ extensions = [
     "sphinx.ext.napoleon",
     "sphinx.ext.linkcode",
     "sphinx.ext.autosummary",
-    "sphinx_autodoc_typehints",
     "sphinx_copybutton",
     # plots and gallery
     "jupyter_sphinx",
