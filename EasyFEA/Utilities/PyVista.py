@@ -926,10 +926,7 @@ def Movie_func(
 
     plotter = _Plotter(True)
 
-    filename = Folder.Join(folder, filename)
-
-    if not Folder.Exists(folder):
-        Folder.os.makedirs(folder)
+    filename = Folder.Join(folder, filename, mkdir=True)
 
     if ".gif" in filename:
         plotter.open_gif(filename)

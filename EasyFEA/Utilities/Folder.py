@@ -44,7 +44,7 @@ def Join(*args: str, mkdir=False) -> str:
             dir = Dir(path)
             os.makedirs(dir, exist_ok=True)
         else:
-            os.makedirs(path)
+            os.makedirs(path, exist_ok=True)
 
     return path
 

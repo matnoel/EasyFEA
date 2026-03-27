@@ -17,8 +17,7 @@ def Save_pickle(obj, folder: str, filename: str) -> None:
 
     file = Folder.Join(folder, f"{filename}.pickle")
 
-    if not Folder.os.path.exists(folder):
-        Folder.os.makedirs(folder)
+    Folder.os.makedirs(folder, exist_ok=True)
 
     with open(file, "wb") as f:
         pickle.dump(obj, f)

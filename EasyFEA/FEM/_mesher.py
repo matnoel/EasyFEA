@@ -1936,8 +1936,7 @@ class Mesher:
                 self._Synchronize()
 
                 folder = Folder.Dir(path)
-                if not Folder.Exists(folder):
-                    os.makedirs(folder)
+                os.makedirs(folder, exist_ok=True)
 
                 gmsh.write(path)
                 tic.Tac("Mesh", "gmsh.write", self.__verbosity)

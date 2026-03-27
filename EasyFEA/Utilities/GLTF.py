@@ -980,8 +980,7 @@ def Create_html(
     # ---------- get model viewer directory ----------
     if modelViewerDir is None:
         modelViewerDir = Folder.Join(folder, "model-viewer")
-        if not Folder.Exists(modelViewerDir):
-            Folder.os.makedirs(modelViewerDir)
+        Folder.os.makedirs(modelViewerDir, exist_ok=True)
         _Create_modelViewer_folder(
             modelViewerDir,
             useAnimation=useAnination,

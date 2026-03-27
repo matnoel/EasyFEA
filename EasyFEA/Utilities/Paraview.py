@@ -72,8 +72,7 @@ def Save_simu(
 
     folder = Folder.Join(folder, "Paraview")
 
-    if MPI_RANK == 0 and not Folder.Exists(folder):
-        Folder.os.makedirs(folder)
+    Folder.os.makedirs(folder, exist_ok=True)
 
     if MPI_SIZE > 1:
         MPI_COMM.Barrier()  # ensure folder exists before all ranks proceed
@@ -172,8 +171,7 @@ def _Save_mesh(
 
     folder = Folder.Join(folder, "Paraview")
 
-    if MPI_RANK == 0 and not Folder.Exists(folder):
-        Folder.os.makedirs(folder)
+    Folder.os.makedirs(folder, exist_ok=True)
 
     if MPI_SIZE > 1:
         MPI_COMM.Barrier()  # ensure folder exists before all ranks proceed
@@ -225,8 +223,7 @@ def __Make_vtu(
 
     rank_folder = Folder.Rank_Dir(folder)
 
-    if not Folder.Exists(rank_folder):
-        Folder.os.makedirs(rank_folder)
+    Folder.os.makedirs(rank_folder, exist_ok=True)
 
     filename = Folder.Join(rank_folder, f"solution_{iter}.vtu")
 

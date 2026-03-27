@@ -19,7 +19,7 @@ from ..__about__ import __version__
 # utilities
 from ..Utilities import Folder, Display, Tic, _params, _types
 from ..Utilities._observers import Observable, _IObserver
-from ..Utilities._mpi import MPI_SIZE, MPI_RANK
+from ..Utilities._mpi import MPI_SIZE, MPI_RANK, MPI_COMM
 
 # fem
 from ..FEM import (
@@ -367,6 +367,8 @@ class _Simu(_IObserver, _params.Updatable, ABC):
         resultsFolder = Folder.Join(folder, "Results")
         if MPI_RANK == 0 and Folder.Exists(resultsFolder):
             shutil.rmtree(resultsFolder)
+        if MPI_SIZE > 1:
+            MPI_COMM.Barrier()
 
         self.__dim: int = model.dim
         """Simulation dimension."""
@@ -494,9 +496,8 @@ class _Simu(_IObserver, _params.Updatable, ABC):
     @folder.setter
     def folder(self, value: str) -> None:
         assert isinstance(value, str)
-        if value != "":
-            if MPI_RANK == 0 and not Folder.Exists(value):
-                Folder.os.makedirs(value)
+        if value != "" and not Folder.Exists(value):
+            Folder.os.makedirs(value, exist_ok=True)
         self.__folder = value
 
     @property
@@ -2756,6 +2757,11 @@ class _Simu(_IObserver, _params.Updatable, ABC):
 
         # Save simulation
         suffix = f"_rank{MPI_RANK}" if MPI_SIZE > 1 and not gather else ""
+        # Rank 0 creates the folder first; barrier ensures all ranks see it before writing.
+        if MPI_SIZE > 1 and MPI_RANK == 0:
+            Folder.Join(folder, f"{filename}{suffix}.pickle", mkdir=True)
+        if MPI_SIZE > 1:
+            MPI_COMM.Barrier()
         path_simu = Folder.Join(folder, f"{filename}{suffix}.pickle", mkdir=True)
         with open(path_simu, "wb") as file:
             pickle.dump(self, file)

@@ -1456,10 +1456,7 @@ def Movie_func(
     """
 
     # Name of the video in the folder where the folder is communicated
-    filename = Folder.Join(folder, filename)
-
-    if not Folder.Exists(folder):
-        Folder.os.makedirs(folder)
+    filename = Folder.Join(folder, filename, mkdir=True)
 
     writer = animation.FFMpegWriter(fps)
     with writer.saving(fig, filename, dpi):  # type: ignore [arg-type]
@@ -1516,8 +1513,7 @@ def Save_fig(
 
     path = Folder.Join(folder, filename + "." + extension)
 
-    if not Folder.Exists(folder):
-        Folder.os.makedirs(folder)
+    Folder.os.makedirs(folder, exist_ok=True)
 
     tic = Tic()
 
