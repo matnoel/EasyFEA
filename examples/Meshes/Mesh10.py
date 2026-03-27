@@ -300,7 +300,7 @@ if __name__ == "__main__":
             # partsC = factory.copy(parts)
             # factory.rotate(partsC, 0,0,0,0,0,1, angleRev*(i+1))
 
-    mesher._Mesh_Generate(3, elemType, folder=folder, filename="blade")
+    mesher._Mesh_Generate(3, elemType, path=Folder.Join(folder, "blade.msh"))
 
     mesh = mesher._Mesh_Get_Mesh()
 
