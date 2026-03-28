@@ -2,6 +2,33 @@
 
 This document describes the changes made to the project.
 
+## 1.8.0 (March 28, 2026):
+
+- Resolved issue [#26](https://github.com/matnoel/EasyFEA/issues/26): Implemented full MPI support for distributed-memory parallel simulations using `petsc4py`.
+    - Created `EasyFEA/Utilities/_mpi.py` with MPI utility functions (`Concatenate_array`, `Sync_dofsValues`).
+    - Added `rank0_only` decorator and applied it to public functions in `Display`, `PyVista`, and `Paraview` modules.
+    - Implemented `simu._Gather` and `mesh.Gather` functions to assemble distributed results on rank 0.
+    - Added `Folder.Rank_Dir` function for rank-specific output directories.
+    - Refactored the `Paraview` module to handle MPI results with per-rank `.vtu` files.
+    - Improved PETSc solver options and pipeline; set GAMG as the default preconditioner.
+    - Fixed memory leaks in the PETSc solver using `PETSc.garbage_cleanup()`.
+    - Updated the Newton–Raphson algorithm for MPI context.
+    - Fixed bugs in `simu.Save_Iter`, `simu.folder` setter, `_mpi.Concatenate_array`, and `solver.__Get_unique_dofs`.
+- Improved Sphinx documentation by adding a comprehensive how-to section.
+- Merged PR [#36](https://github.com/matnoel/EasyFEA/pull/36) with updates: Improved `examples/README.rst`.
+- Resolved issue [#37](https://github.com/matnoel/EasyFEA/issues/37): Added examples in docstrings.
+- Created `MeshIO.Merge` function to combine multiple meshes.
+- Added `simu.Get_dofs` function.
+- Exported `AlgoType` in `EasyFEA/__init__.py`.
+- Improved `FeArray` implementation.
+- Improved `simu._Solver_Apply_Dirichlet` and `simu.__Solver_Get_Dirichlet_A_x` functions.
+- Updated `simu.Results_Set_Iteration_Summary` behavior.
+- Improved `EasyFEA/Models/_phasefield.py` and related phase-field examples.
+- Improved `mesher._Mesh_Generate`.
+- Refactored `EasyFEA/Utilities/_tic.py` to prevent memory issues.
+- Removed the `numba` optional dependency.
+- Fixed a bug in `PyVista.Plot_Elements`.
+
 ## 1.7.4 (March 8, 2026):
 
 - Removed `additionalPoints` from `examples/LinearizedElasticity/Homog4.py`.
