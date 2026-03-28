@@ -20,7 +20,7 @@ from typing import Callable, Optional, TYPE_CHECKING
 # utilities
 from ..Utilities import Display, Tic, _types
 from ..Utilities._observers import Observable
-from ..Utilities._mpi import MPI_COMM, MPI_SIZE, MPI_RANK, MPI
+from ..Utilities._mpi import CAN_USE_MPI, MPI_COMM, MPI_SIZE, MPI_RANK
 
 # fem
 from ._linalg import FeArray
@@ -33,6 +33,9 @@ if TYPE_CHECKING:
 if TYPE_CHECKING:
     from ..Geoms import Line, Domain, Circle
 from ..Geoms import Point, Rotate, Symmetry, Normalize, Angle_Between
+
+if CAN_USE_MPI:
+    from mpi4py import MPI
 
 
 class Mesh(Observable):
