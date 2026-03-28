@@ -3,6 +3,8 @@
 
 The {py:mod}`EasyFEA.FEM` module provides essential tools for creating and managing finite element meshes, which are crucial for numerical simulations using the [Finite Element Method](https://en.wikipedia.org/wiki/Finite_element_method) (FEM).
 
+In the simulation workflow, `FEM` is the **second step**: geometry objects from {py:mod}`~EasyFEA.Geoms` are passed to {py:class}`~EasyFEA.FEM.Mesher` to produce the {py:class}`~EasyFEA.FEM.Mesh` that all subsequent steps depend on. See {ref}`howto-mesh` for practical examples and {ref}`howto-import-mesh` to load an existing mesh file.
+
 ---
 
 ## What is a mesh in EasyFEA?
@@ -36,6 +38,12 @@ To construct a {py:class}`~EasyFEA.FEM.Mesh` using the {py:class}`~EasyFEA.FEM.M
 - {py:meth}`~EasyFEA.Utilities.MeshIO.Ensight_to_EasyFEA`: Imports ensight mesh.
 
 Several examples are available in {doc}`../examples/Meshes/index`.
+
+```{seealso}
+{ref}`howto-mesh` — create meshes from geometry with practical examples.
+
+{ref}`howto-import-mesh` — load an existing mesh file (Gmsh, STEP, meshio, PyVista, Ensight).
+```
 
 ## FEM API
 

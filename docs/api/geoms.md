@@ -3,6 +3,8 @@
 
 The {py:mod}`EasyFEA.Geoms` module provides essential tools for creating and managing {py:class}`~EasyFEA.Geoms._geom._Geom` objects. These geometric objects are used to construct {py:class}`~EasyFEA.FEM.Mesh` using the {py:class}`~EasyFEA.FEM.Mesher`.
 
+In the simulation workflow, `Geoms` is the **first step**: you describe the domain shape here before passing it to the mesher. See {ref}`howto-mesh` for practical examples.
+
 With this module, you can construct:
 
 ```{eval-rst}
@@ -174,6 +176,12 @@ Once the geometric objects are created, you can manipulate them using {py:meth}`
     
     ax = contour1.Plot_Geoms([contour1, contour2, contour3, contour4], plotPoints=False)
     ax.legend(["contour1", "contour2", "contour3", "contour4"])
+```
+
+```{seealso}
+{ref}`howto-geom` — build geometry objects step by step with worked examples.
+
+{ref}`howto-mesh` — pass geometry to the mesher to produce a `Mesh`.
 ```
 
 ## Geoms API

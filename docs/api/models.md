@@ -4,6 +4,8 @@
 The {py:mod}`EasyFEA.Models` module provides essential tools for creating and managing models.
 These models are used to build {py:class}`~EasyFEA.Simulations._Simu` instances and mainly contain material parameters.
 
+In the simulation workflow, `Models` is the **third step**: once the mesh exists, a model encapsulates the physics and material constants (Young's modulus, thermal conductivity, fracture toughness, …) before being passed to the simulation constructor. See {ref}`howto-models` for practical examples with constructor signatures and printed outputs.
+
 
 With this module, you can construct:
 
@@ -16,6 +18,11 @@ With this module, you can construct:
 + Phase-field materials with {py:class}`~EasyFEA.Models.PhaseField`.
 + Thermal materials with {py:class}`~EasyFEA.Models.Thermal`.
 + Weark forms with {py:class}`~EasyFEA.Models.WeakForms`.
+
+```{seealso}
+{ref}`howto-models` — choose and construct a material model, with constructor
+signatures and printed outputs for every model family.
+```
 
 ## Models API
 

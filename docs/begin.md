@@ -3,6 +3,32 @@
 
 You can follow this guide along with this [video](https://www.youtube.com/watch?v=Jv3PwPDlz90).
 
+Every EasyFEA simulation follows the same workflow:
+
+```
+ Geoms           ──►  Mesher / import   ──►  Models
+ (geometry)           (mesh)                 (material)
+                                                  │
+                                                  ▼
+                                           Simulations
+                                        (Elastic, Thermal, …)
+                                                  │
+                                         add_dirichlet / add_*
+                                                  │
+                                                  ▼
+                                             Solve()
+                                                  │
+                                                  ▼
+                                      Display / PyVista / Paraview
+```
+
+Each step maps to a module: {py:mod}`~EasyFEA.Geoms` for geometry,
+{py:mod}`~EasyFEA.FEM` for meshing, {py:mod}`~EasyFEA.Models` for materials,
+{py:mod}`~EasyFEA.Simulations` for the solver, and
+{py:mod}`~EasyFEA.Utilities` for post-processing.
+
+----
+
 Like any Python script, you should start by importing the core modules from the EasyFEA package:
 
 ```{eval-rst}
@@ -18,8 +44,8 @@ The most commonly used modules in EasyFEA are:
 
 ```{eval-rst}
 .. autosummary::
-    ~EasyFEA.Utilities.Display 
-    ~EasyFEA.FEM.ElemType 
+    ~EasyFEA.Utilities.Display
+    ~EasyFEA.FEM.ElemType
     ~EasyFEA.Models
     ~EasyFEA.Simulations
     ~EasyFEA.Geoms
@@ -88,5 +114,20 @@ Once the simulation has been set up, defining the boundary conditions, solving t
 
 This script is available in the {doc}`HelloWorld example <examples/HelloWorld>`.
 
-For additional details, please refer to either the {doc}`EasyFEA API documentation <api/index>` or the comprehensive collection of {doc}`examples <examples/index>`.
+---
+
+## Next steps
+
+| I want to … | Guide |
+|---|---|
+| Describe a geometry | {ref}`howto-geom` |
+| Create a mesh from scratch | {ref}`howto-mesh` |
+| Choose a material model | {ref}`howto-models` |
+| Apply loads and constraints | {ref}`howto-boundary-conditions` |
+| Import an external mesh file | {ref}`howto-import-mesh` |
+| Visualize and export results | {ref}`howto-postprocess` |
+| Understand what happens inside `Solve()` | {ref}`howto-pipeline` |
+
+For the full list of available simulations and API details, see the
+{doc}`examples <examples/index>` and {doc}`API reference <api/index>`.
 

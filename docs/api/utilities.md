@@ -1,7 +1,9 @@
 (utilities)=
 # Utilities
 
-The {py:mod}`EasyFEA.Utilities` module provides essential tools for post processing.
+The {py:mod}`EasyFEA.Utilities` module provides essential tools for post-processing.
+
+In the simulation workflow, `Utilities` is the **final step**: once `simu.Solve()` has run, these tools visualize results, export to external formats, and manage files. {py:mod}`~EasyFEA.Utilities.Display` and {py:mod}`~EasyFEA.Utilities.PyVista` cover interactive visualization; {py:mod}`~EasyFEA.Utilities.Paraview`, {py:mod}`~EasyFEA.Utilities.GLTF`, and {py:mod}`~EasyFEA.Utilities.USD` handle external export. See {ref}`howto-postprocess` for practical examples.
 
 ```{eval-rst}
 .. autosummary::
@@ -13,6 +15,14 @@ The {py:mod}`EasyFEA.Utilities` module provides essential tools for post process
     ~EasyFEA.Utilities.Vizir
     ~EasyFEA.Utilities.USD
     ~EasyFEA.Utilities.GLTF
+```
+
+```{seealso}
+{ref}`howto-postprocess` — visualize results, export to ParaView, PyVista, and GLTF.
+
+{ref}`howto-import-mesh` — use `MeshIO` to load meshes from external formats.
+
+{ref}`howto-mpi` — parallel export with `Paraview.Save_simu`.
 ```
 
 ## Utilities API

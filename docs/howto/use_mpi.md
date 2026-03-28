@@ -1,13 +1,14 @@
 (howto-mpi)=
 # Run simulations in parallel with MPI
 
-EasyFEA supports distributed-memory parallelism through
-[MPI](https://en.wikipedia.org/wiki/Message_Passing_Interface) via
+**MPI parallelism** distributes the mesh and linear system across multiple
+processes to accelerate large simulations. Every
+{py:class}`~EasyFEA.Simulations._Simu` in the {py:mod}`EasyFEA.Simulations`
+namespace supports it — no changes to your script are required. It is built on
 [`mpi4py`](https://mpi4py.readthedocs.io) and
-[`petsc4py`](https://petsc4py.readthedocs.io).
-When running with more than one rank, EasyFEA partitions the mesh across ranks
-at the element level, assembles the distributed linear system, and solves it
-with [PETSc](https://petsc.org).
+[`petsc4py`](https://petsc4py.readthedocs.io): when running with more than one
+rank, EasyFEA partitions the mesh at the element level, assembles the
+distributed linear system, and solves it with [PETSc](https://petsc.org).
 
 ```{note}
 `petsc4py` is **required** for parallel execution. EasyFEA raises an assertion
@@ -71,14 +72,16 @@ reporting.
 ## How parallelism works in EasyFEA
 
 EasyFEA uses **element-level domain decomposition**: each rank owns a disjoint
-subset of elements, plus a layer of ghost elements at partition boundaries
-required for consistent matrix assembly. The node coordinate array is **not**
-distributed — all ranks hold the full node array.
+subset of elements, plus a layer of **ghost elements** at partition boundaries.
+Ghost elements are copies of elements owned by a neighbouring rank; they are
+needed so that each rank can assemble the full stiffness contribution of every
+shared node without inter-rank communication during assembly. The node
+coordinate array is **not** distributed — all ranks hold the full node array.
 
 The parallel execution proceeds as follows for each solve:
 
-1. Each rank assembles only its owned (and ghost) elements into a local
-   stiffness matrix and load vector.
+1. Each rank assembles only its owned (and ghost) elements into a locals
+   matrices (K, C, M) and load vector (F).
 2. PETSc solves the distributed system $\Arm \, \xrm = \brm$ using a Krylov
    method (default: CG with GAMG preconditioner).
 3. An `Allreduce` over the disjoint owned DOF sets of each rank reconstructs

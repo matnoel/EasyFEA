@@ -4,6 +4,8 @@
 The {py:mod}`EasyFEA.Simulations` module provides essential tools for creating and managing simulations.
 These simulations are built using a {py:class}`~EasyFEA.FEM.Mesh` and a {py:class}`~EasyFEA.Models._IModel` (material).
 
+In the simulation workflow, `Simulations` is the **central step**: it takes a mesh and a model, exposes boundary-condition methods (`add_dirichlet`, `add_surfLoad`, …), drives the linear solver, and stores the solution history. See {ref}`howto-boundary-conditions` for applying loads and {ref}`howto-pipeline` for the internal solve chain.
+
 With this module, you can construct:
 
 + Linear elastic simulations with {py:class}`~EasyFEA.Simulations.Elastic`.
@@ -36,9 +38,18 @@ $$ (hyperbolic)
 
 ## How to create new simulations in EasyFEA ?
 
-To create new simulation classes, you can take inspiration from existing implementations.  
-Make sure to follow the {py:class}`~EasyFEA.Simulations._Simu` interface.  
-The {py:class}`~EasyFEA.Simulations.Thermal` class is relatively simple and can serve as a good starting point.  
+To create new simulation classes, you can take inspiration from existing implementations.
+Make sure to follow the {py:class}`~EasyFEA.Simulations._Simu` interface.
+The {py:class}`~EasyFEA.Simulations.Thermal` class is relatively simple and can serve as a good starting point.
+See {ref}`howto-new-simulation` for a step-by-step guide.
+
+```{seealso}
+{ref}`howto-boundary-conditions` — apply Dirichlet, Neumann, surface, and volume loads.
+
+{ref}`howto-pipeline` — understand what happens inside `Solve()`.
+
+{ref}`howto-new-simulation` — implement a custom simulation class.
+```
 
 ## Simulations API
 
