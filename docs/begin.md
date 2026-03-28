@@ -1,6 +1,8 @@
 (begin)=
 # Beginner's Guide
 
+You can follow this guide along with this [video](https://www.youtube.com/watch?v=Jv3PwPDlz90).
+
 Like any Python script, you should start by importing the core modules from the EasyFEA package:
 
 ```{eval-rst}
