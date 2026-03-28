@@ -80,7 +80,7 @@ coordinate array is **not** distributed — all ranks hold the full node array.
 
 The parallel execution proceeds as follows for each solve:
 
-1. Each rank assembles only its owned (and ghost) elements into a locals
+1. Each rank assembles only its owned (and ghost) elements into local
    matrices (K, C, M) and load vector (F).
 2. PETSc solves the distributed system $\Arm \, \xrm = \brm$ using a Krylov
    method (default: CG with GAMG preconditioner).

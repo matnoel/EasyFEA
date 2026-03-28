@@ -29,9 +29,9 @@ points, from easiest to most flexible:
    variational form with a few lines of Python. Covers scalar problems
    (Poisson), vector problems (elasticity), and transient or non-linear
    problems. No FEM assembly knowledge required.
-2. **Subclass {py:class}`~EasyFEA.Simulations._Simu`** — provides full control over the assembly at the element level for problems that are difficult to model in {py:class}`~EasyFEA.Simulations.WeakForms`, or to improve performance. Requires knowledge of finite element methods.
+2. **Subclass {py:class}`~EasyFEA.Simulations._Simu`** — provides full control over the assembly at the element level for problems that are difficult to model in {py:class}`~EasyFEA.Simulations.WeakForms`, or to improve performance. Knowledge of finite element methods is required.
 
-EasyFEA supports multi-physics problems like phase-field fracture simulations, which couple an elastic sub-problem with a damage sub-problem via a staggered algorithm: each sub-problem is solved in turn with the other held fixed, and the two are iterated to convergence within each load step.
+EasyFEA supports multi-physics problems such as phase-field fracture simulations, which couple an elastic sub-problem with a damage sub-problem via a staggered algorithm: each sub-problem is solved in turn with the other held fixed, and the two are iterated to convergence within each load step.
 This pattern is already implemented in {py:class}`~EasyFEA.Simulations.PhaseField`.
 Monolithic coupling—assembling all physics into a single global system—is not currently implemented, but there is no fundamental limitation preventing it.
 
@@ -86,7 +86,7 @@ All weak-form-based simulations are available in {ref}`easyfea-examples-weak-for
 If your problem requires custom assembly logic that cannot be expressed as a
 weak form, subclass {py:class}`~EasyFEA.Simulations._Simu` directly.
 {py:class}`~EasyFEA.Simulations.Thermal` is the simplest existing subclass
-and is a good starting point, consult [_thermal.py](https://github.com/matnoel/EasyFEA/blob/main/EasyFEA/Simulations/_thermal.py) for more implementation details.
+and is a good starting point; consult [_thermal.py](https://github.com/matnoel/EasyFEA/blob/main/EasyFEA/Simulations/_thermal.py) for implementation details.
 
 The complete interface to implement (all methods are abstract):
 

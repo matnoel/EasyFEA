@@ -3,30 +3,6 @@
 
 You can follow this guide along with this [video](https://www.youtube.com/watch?v=Jv3PwPDlz90).
 
-Every EasyFEA simulation follows the same workflow:
-
-```
- Geoms           ──►  Mesher / import   ──►  Models
- (geometry)           (mesh)                 (material)
-                                                  │
-                                                  ▼
-                                           Simulations
-                                        (Elastic, Thermal, …)
-                                                  │
-                                         add_dirichlet / add_*
-                                                  │
-                                                  ▼
-                                             Solve()
-                                                  │
-                                                  ▼
-                                      Display / PyVista / Paraview
-```
-
-Each step maps to a module: {py:mod}`~EasyFEA.Geoms` for geometry,
-{py:mod}`~EasyFEA.FEM` for meshing, {py:mod}`~EasyFEA.Models` for materials,
-{py:mod}`~EasyFEA.Simulations` for the solver, and
-{py:mod}`~EasyFEA.Utilities` for post-processing.
-
 ----
 
 Like any Python script, you should start by importing the core modules from the EasyFEA package:
@@ -88,7 +64,7 @@ Next, define a linear {py:class}`~EasyFEA.Models.Elastic.Isotropic` material and
     
 ----
 
-Once the simulation has been set up, defining the boundary conditions, solving the problem and visualizing the results is straightforward.
+Once the simulation has been set up, defining boundary conditions, solving the problem, and visualizing the results is straightforward.
 
 ```{eval-rst}
 .. jupyter-execute::

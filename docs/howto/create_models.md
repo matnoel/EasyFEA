@@ -1,7 +1,7 @@
 (howto-models)=
 # Create a model
 
-A **model** encapsulates the material parameters and physics of a simulation ({py:class}`~EasyFEA.Simulations._Simu`) and tey are accesible in the {py:mod}`EasyFEA.Models` namespace.
+A **model** encapsulates the material parameters and physics of a simulation ({py:class}`~EasyFEA.Simulations._Simu`) and they are accessible in the {py:mod}`EasyFEA.Models` namespace.
 
 ---
 

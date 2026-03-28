@@ -36,7 +36,7 @@ horizontal motion while leaving the vertical DOF free.
 | Method | Physical meaning | Integration |
 |---|---|---|
 | {py:meth}`~EasyFEA.Simulations._Simu.add_dirichlet` | Prescribed DOF value (displacement, temperature, …) | — |
-| {py:meth}`~EasyFEA.Simulations._Simu.add_neumann` | Concentrated nodal force / flx | Point |
+| {py:meth}`~EasyFEA.Simulations._Simu.add_neumann` | Concentrated nodal force / flux | Point |
 | {py:meth}`~EasyFEA.Simulations._Simu.add_lineLoad` | Force per unit length | Along a line |
 | {py:meth}`~EasyFEA.Simulations._Simu.add_surfLoad` | Force per unit area (pressure in 2D, traction in 3D) | Over a surface |
 | {py:meth}`~EasyFEA.Simulations._Simu.add_volumeLoad` | Body force per unit volume | Over a volume |
@@ -65,7 +65,7 @@ simu.add_dirichlet(nodes, [lambda x, y, z: 0.01 * x, 0], ["x", "y"])
 
 ## Concentrated force ({py:meth}`~EasyFEA.Simulations._Simu.add_neumann`)
 
-Applies a concentrated force (or flx) directly on the selected nodes. No
+Applies a concentrated force (or flux) directly on the selected nodes. No
 integration is performed — the value is added as-is to the right-hand side.
 Useful for point loads on beams or reactions at a single node.
 
@@ -166,8 +166,7 @@ PyVista.Plot_BoundaryConditions(simu)   # interactive 3D
 
 ## Reset boundary conditions
 
-To clear all previously defined conditions (e.g. between load steps) via
-{py:meth}`~EasyFEA.Simulations._Simu.Bc_Init`:
+Call {py:meth}`~EasyFEA.Simulations._Simu.Bc_Init` to clear all previously defined conditions (e.g., between load steps):
 
 ```python
 simu.Bc_Init()
@@ -176,8 +175,7 @@ simu.Bc_Init()
 (howto-import-mesh-tags)=
 ## Use tags to apply boundary conditions
 
-Tags are named node and element sets attached to the mesh — they correspond to physical
-groups defined in the meshing tool (Gmsh, Medit, …).
+Tags are named node and element sets attached to the mesh — they correspond to physical groups defined in the meshing tool (Gmsh, Medit, …).
 Once a mesh is imported with its physical groups, tags are the most reliable way to identify boundaries without hard-coding coordinates.
 
 ### List available tags

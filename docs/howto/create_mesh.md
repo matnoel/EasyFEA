@@ -3,7 +3,7 @@
 
 A **mesh** is a discrete representation of the simulation domain.
 Meshes are produced by {py:class}`~EasyFEA.FEM.Mesher` (which wraps [Gmsh](https://gmsh.info/)) and
-is accessible in the {py:mod}`EasyFEA.FEM` module.
+are accessible in the {py:mod}`EasyFEA.FEM` module.
 
 ```{note}
 To import an existing mesh file instead of creating one from scratch, see

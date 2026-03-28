@@ -17,7 +17,7 @@ With this module, you can construct:
 
 ## Matrix System Solvers
 
-EasyFEA automatically manages the resolution of `elliptic`, `parabolic` and `hyperbolic` matrix systems, allowing developers to focus exclusively on constructing local matrices via the `Construct_local_matrix_system` method.
+EasyFEA automatically manages the resolution of `elliptic`, `parabolic`, and `hyperbolic` matrix systems, allowing developers to focus exclusively on constructing local matrices via the `Construct_local_matrix_system` method.
 
 ### Elliptic
 $$
@@ -36,7 +36,7 @@ $$
 \Krm \, \urm + \Crm \, \vrm + \Mrm \, \arm = \Frm
 $$ (hyperbolic)
 
-## How to create new simulations in EasyFEA ?
+## How to Create New Simulations in EasyFEA?
 
 To create new simulation classes, you can take inspiration from existing implementations.
 Make sure to follow the {py:class}`~EasyFEA.Simulations._Simu` interface.

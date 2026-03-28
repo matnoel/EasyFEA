@@ -7,7 +7,7 @@ directly in any {py:class}`~EasyFEA.Simulations._Simu`.
 Import utilities are available in the {py:class}`~EasyFEA.FEM.Mesher` class and in the {py:mod}`EasyFEA.Utilities.MeshIO` namespace.
 
 When a mesh file contains **physical groups** (named regions, boundaries), EasyFEA preserves them as **tags**.
-Tags are the primary way to identify node and elements sets to apply boundary conditions — see {ref}`howto-import-mesh-tags`.
+Tags are the primary way to identify node and element sets to apply boundary conditions — see {ref}`howto-import-mesh-tags`.
 
 ```{note}
 A mesh currently supports **only one element group of dimension `mesh.dim`**

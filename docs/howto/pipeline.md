@@ -91,7 +91,7 @@ EasyFEA generates it automatically from `@BiLinearForm` / `@LinearForm`
 decorators — but you can always implement it directly for full control.
 
 Each `BiLinearForm` evaluates the weak-form integrand at all Gauss points
-simultaneously (vectorised over all `Ne` elements) — no Python loops.
+simultaneously (vectorized over all `Ne` elements) — no Python loops.
 
 ---
 

@@ -9,7 +9,7 @@ In the simulation workflow, `FEM` is the **second step**: geometry objects from 
 
 ## What is a mesh in EasyFEA?
 
-A {py:class}`~EasyFEA.FEM.Mesh` object in EasyFEA represents a collection of {py:class}`~EasyFEA.FEM.ElemType` used to define the geometry and structure for finite element analysis. It contains multiple {py:class}`~EasyFEA.FEM._GroupElem` instances, which are groups of {py:class}`~EasyFEA.FEM.ElemType` that collectively define the spatial discretization of the domain for numerical simulations.
+A {py:class}`~EasyFEA.FEM.Mesh` object in EasyFEA represents a collection of elements used to define the geometry and structure for finite element analysis. It contains multiple {py:class}`~EasyFEA.FEM._GroupElem` instances, which are groups of {py:class}`~EasyFEA.FEM.ElemType` that collectively define the spatial discretization of the domain for numerical simulations.
 
 For example, a {py:class}`~EasyFEA.FEM.Elems.HEXA8` mesh includes the following element types:
 
@@ -30,12 +30,12 @@ To construct a {py:class}`~EasyFEA.FEM.Mesh` using the {py:class}`~EasyFEA.FEM.M
 - {py:meth}`~EasyFEA.FEM.Mesher.Mesh_2D`: Generates a 2D mesh.
 - {py:meth}`~EasyFEA.FEM.Mesher.Mesh_Extrude`: Creates a mesh by extruding a 2D shape.
 - {py:meth}`~EasyFEA.FEM.Mesher.Mesh_Revolve`: Generates a mesh by revolving a 2D shape around an axis.
-- {py:meth}`~EasyFEA.FEM.Mesher.Mesh_Import_part`: Imports a cad (e.g. .stp) part to create a mesh.
-- {py:meth}`~EasyFEA.FEM.Mesher.Mesh_Import_mesh`: Imports an existing gmsh mesh. EasyFEA is also linked to meshio and can be used through the
-- {py:meth}`~EasyFEA.Utilities.MeshIO.Medit_to_EasyFEA`: Imports medit mesh.
-- {py:meth}`~EasyFEA.Utilities.MeshIO.Gmsh_to_EasyFEA`: Imports gmsh mesh.
-- {py:meth}`~EasyFEA.Utilities.MeshIO.PyVista_to_EasyFEA`: Imports pyvista mesh (UnstructuredGrid or MultiBlock).
-- {py:meth}`~EasyFEA.Utilities.MeshIO.Ensight_to_EasyFEA`: Imports ensight mesh.
+- {py:meth}`~EasyFEA.FEM.Mesher.Mesh_Import_part`: Imports a CAD part (e.g., .stp) to create a mesh.
+- {py:meth}`~EasyFEA.FEM.Mesher.Mesh_Import_mesh`: Imports an existing Gmsh mesh. EasyFEA is also linked to meshio and can be used through the following functions:
+- {py:meth}`~EasyFEA.Utilities.MeshIO.Medit_to_EasyFEA`: Imports a Medit mesh.
+- {py:meth}`~EasyFEA.Utilities.MeshIO.Gmsh_to_EasyFEA`: Imports a Gmsh mesh.
+- {py:meth}`~EasyFEA.Utilities.MeshIO.PyVista_to_EasyFEA`: Imports a PyVista mesh (UnstructuredGrid or MultiBlock).
+- {py:meth}`~EasyFEA.Utilities.MeshIO.Ensight_to_EasyFEA`: Imports an EnSight mesh.
 
 Several examples are available in {doc}`../examples/Meshes/index`.
 

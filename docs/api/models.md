@@ -17,7 +17,7 @@ With this module, you can construct:
 + Elastic beams with {py:class}`~EasyFEA.Models.Beam.Isotropic`, {py:class}`~EasyFEA.Models.Beam.BeamStructure`, in {py:class}`Models.Beam <EasyFEA.Models.Beam>`.
 + Phase-field materials with {py:class}`~EasyFEA.Models.PhaseField`.
 + Thermal materials with {py:class}`~EasyFEA.Models.Thermal`.
-+ Weark forms with {py:class}`~EasyFEA.Models.WeakForms`.
++ Weak forms with {py:class}`~EasyFEA.Models.WeakForms`.
 
 ```{seealso}
 {ref}`howto-models` — choose and construct a material model, with constructor
