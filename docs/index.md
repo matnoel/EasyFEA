@@ -125,6 +125,7 @@ To learn more about contributing to EasyFEA, please consult the [Contributing Gu
 
     gallery/index
     begin
+    howto/index
     examples/index
     api/index
 ```
