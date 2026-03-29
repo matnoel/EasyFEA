@@ -2,6 +2,13 @@
 
 This document describes the changes made to the project.
 
+## 1.8.1 (March 29, 2026):
+
+- Improved Sphinx documentation.
+- Renamed `isHollow` to `isFilled` across all geometry classes (`Domain`, `Circle`, `Points`, `Contour`), with an inverted default value (`False`). Specifically, `isHollow=True` becomes `isFilled=False`, and `isHollow=False` becomes `isFilled=True`.
+- Improved the CONTRIBUTING guide.
+- Fixed a bug in `simu.folder` and `simu.Load_Simu`.
+
 ## 1.8.0 (March 28, 2026):
 
 - Resolved issue [#26](https://github.com/matnoel/EasyFEA/issues/26): Implemented full MPI support for distributed-memory parallel simulations using `petsc4py`.
