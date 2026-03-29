@@ -1,14 +1,10 @@
 (howto-mpi)=
 # Run simulations in parallel with MPI
 
-**MPI parallelism** distributes the mesh and linear system across multiple
-processes to accelerate large simulations. Every
-{py:class}`~EasyFEA.Simulations._Simu` in the {py:mod}`EasyFEA.Simulations`
-namespace supports it — no changes to your script are required. It is built on
-[`mpi4py`](https://mpi4py.readthedocs.io) and
-[`petsc4py`](https://petsc4py.readthedocs.io): when running with more than one
-rank, EasyFEA partitions the mesh at the element level, assembles the
-distributed linear system, and solves it with [PETSc](https://petsc.org).
+**MPI parallelism** distributes the mesh and linear system across multiple processes to accelerate large simulations.
+Every {py:class}`~EasyFEA.Simulations._Simu` in the {py:mod}`EasyFEA.Simulations`
+namespace (except {py:class}`~EasyFEA.Simulations.DIC`) supports it — no changes to your script are required.
+It is built on [`mpi4py`](https://mpi4py.readthedocs.io) and [`petsc4py`](https://petsc4py.readthedocs.io): when running with more than one rank, EasyFEA partitions the mesh at the element level with [gmsh](https://gmsh.info/), assembles the distributed linear system, and solves it with [PETSc](https://petsc.org).
 
 ```{note}
 `petsc4py` is **required** for parallel execution. EasyFEA raises an assertion
@@ -80,7 +76,7 @@ coordinate array is **not** distributed — all ranks hold the full node array.
 
 The parallel execution proceeds as follows for each solve:
 
-1. Each rank assembles only its owned (and ghost) elements into local
+1. Each rank assembles only its owned (and ghost) elements into their global sparse
    matrices (K, C, M) and load vector (F).
 2. PETSc solves the distributed system $\Arm \, \xrm = \brm$ using a Krylov
    method (default: CG with GAMG preconditioner).
@@ -88,7 +84,7 @@ The parallel execution proceeds as follows for each solve:
    the full solution vector on **every** rank. Consequently, all ranks hold the
    same, complete DOF result after each solve.
 
-The partition data for each element group can be inspected via
+The partition data for each element group ({py:class}`~EasyFEA.FEM._GroupElem`) can be inspected via
 {py:meth}`~EasyFEA.FEM._GroupElem._Get_partitioned_data`.
 
 ### Iteration saving
@@ -99,16 +95,17 @@ and damage for phase-field). Derived quantities such as stress and strain are
 not stored — they are recomputed on demand by `Result()`. Because all ranks
 hold the same DOF vector after the solve, only rank 0 writes the result file.
 
-Iteration results are kept in **memory** by default. To write them to **disk**,
-provide a folder at construction time or set it afterwards:
+Iteration results are kept in **memory** by default. To write them to **disk** and prevent memory issues, provide a folder at construction time or set it afterward:
 
 ```python
 # at construction time
-simu = Simulations.Elastic(mesh, mat, folder="path/to/results")
+simu = Simulations.Elastic(mesh, mat, folder="path/to/folder")
 
 # or after construction
-simu.folder = "path/to/results"
+simu.folder = "path/to/folder"
 ```
+
+Iteration results will then be saved in `path/to/folder/Results` as `results*.pickle` files.
 
 ### Phase-field convergence
 
@@ -133,43 +130,19 @@ advanced API (single-underscore prefix). Use it when the default solver is too
 slow or fails to converge.
 ```
 
-**Symmetric positive-definite systems (most FEM problems):**
-
-```python
-# Direct solve — best for small to medium meshes; MPI-compatible via MUMPS
-simu._Solver_Set_PETSc4Py_Options("preonly", "lu", "mumps")
-
-# Iterative — scales to large meshes
-simu._Solver_Set_PETSc4Py_Options("cg", "hypre")  # BoomerAMG, best scalability
-simu._Solver_Set_PETSc4Py_Options("cg", "gamg")   # PETSc built-in AMG (default)
-```
-
-**Non-symmetric systems:**
-
-```python
-simu._Solver_Set_PETSc4Py_Options("gmres", "bjacobi")  # block Jacobi, MPI-compatible
-simu._Solver_Set_PETSc4Py_Options("bcgs", "bjacobi")   # BiCGSTAB, cheaper per iteration
-```
-
-The optional `problemType` argument restricts the configuration to a specific
-sub-problem (e.g. `elastic` or `damage` in a phase-field simulation):
-
-```python
-from EasyFEA.Models import ModelType
-
-simu._Solver_Set_PETSc4Py_Options("preonly", "lu", "mumps", problemType=ModelType.elastic)
-simu._Solver_Set_PETSc4Py_Options("gmres",   "bjacobi",     problemType=ModelType.damage)
-```
-
 ---
 
 ## Post-process results
 
+### Saving simulations
+
+{py:meth}`~EasyFEA.Simulations._Simu.Save` writes one pickle file per rank (`path/to/folder/simulation_rank{N}.pickle`) since each rank holds a different mesh partition.
+{py:func}`~EasyFEA.Simulations.Load_Simu` reloads the appropriate file per rank transparently.
+
 ### Plotting and in-memory post-processing
 
-Each rank holds only its local mesh partition. To post-process or visualize
-results on the complete global mesh, call
-{py:meth}`~EasyFEA.Simulations._Simu._Gather` after the solve loop:
+Each rank holds only its local mesh partition.
+To post-process or visualize results on the complete global mesh, call {py:meth}`~EasyFEA.Simulations._Simu._Gather` after the solve loop:
 
 ```python
 simu._Gather()  # assembles the full mesh on rank 0; no-op on other ranks
@@ -178,12 +151,7 @@ if MPI_RANK == 0:
     Display.Plot_Result(simu, "uy")
 ```
 
-{py:meth}`~EasyFEA.Simulations._Simu._Gather` is called automatically by
-{py:meth}`~EasyFEA.Simulations._Simu.Save`, which writes one pickle file per
-rank (`simulation_rank{N}.pickle`) since each rank holds a different mesh
-partition. `Load_Simu` reloads the appropriate file per rank transparently.
-Explicit calls to `_Gather` are only necessary for in-memory post-processing
-within the script.
+Explicit calls to {py:meth}`~EasyFEA.Simulations._Simu._Gather` are only necessary for in-memory post-processing within the script, and to avoid spawning multiple figures or deadlocking non-root ranks.
 
 ### Export to ParaView
 
@@ -200,12 +168,10 @@ Paraview.Save_simu(simu, folder, N=200)
 ```
 
 ```{warning}
-Do **not** call {py:meth}`~EasyFEA.Simulations._Simu._Gather` before
-`Paraview.Save_simu` in MPI mode. After `_Gather`, rank 0 holds the full
-global mesh while other ranks still hold their partitions. `Save_simu` would
-then write the full mesh once (rank 0) and each partition again (other ranks),
-producing duplicate elements and corrupted fields in ParaView. `Save_simu`
-raises an exception if `simu.isGathered` is `True` to prevent this.
+Do **not** call {py:meth}`~EasyFEA.Simulations._Simu._Gather` before {py:func}`~EasyFEA.Utilities.Paraview.Save_simu` in MPI mode.
+After `_Gather`, rank 0 holds the full global mesh while other ranks still hold their partitions.
+{py:func}`~EasyFEA.Utilities.Paraview.Save_simu` would then write the full mesh once (rank 0) and each partition again (other ranks), producing duplicate elements and corrupted fields in ParaView.
+{py:func}`~EasyFEA.Utilities.Paraview.Save_simu` raises an exception if `simu.isGathered` is `True` to prevent this.
 ```
 
 ---
@@ -233,6 +199,4 @@ raises an exception if `simu.isGathered` is `True` to prevent this.
   without an explicit gather step.
 
 - **Interactive visualization.** PyVista interactive windows and `plt.show()`
-  calls must be guarded by `if MPI_RANK == 0:` after calling
-  {py:meth}`~EasyFEA.Simulations._Simu._Gather`, to avoid spawning multiple
-  figures or deadlocking non-root ranks.
+  calls could be guarded by `if MPI_RANK == 0:` after calling {py:meth}`~EasyFEA.Simulations._Simu._Gather`, to avoid spawning multiple figures or deadlocking non-root ranks.
