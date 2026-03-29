@@ -1,8 +1,11 @@
 (howto-geom)=
 # Create a geometric object
 
-A **geometric object** describes the shape of the domain before its discretization using the meshing methods {py:meth}`~EasyFEA.Geoms._Geom.Mesh_2D`, {py:meth}`~EasyFEA.Geoms._Geom.Mesh_Extrude`, and {py:meth}`~EasyFEA.Geoms._Geom.Mesh_Revolve`.
-Geometry objects are accessible in the {py:mod}`EasyFEA.Geoms` namespace.
+A **geometric object** (accessible in the {py:mod}`EasyFEA.Geoms` namespace) describes the shape of the domain before its discretization using the meshing methods {py:meth}`~EasyFEA.Geoms._Geom.Mesh_2D`, {py:meth}`~EasyFEA.Geoms._Geom.Mesh_Extrude`, and {py:meth}`~EasyFEA.Geoms._Geom.Mesh_Revolve`.
+
+```{seealso}
+- {ref}`howto-mesh`
+```
 
 ---
 ## Basic shapes
