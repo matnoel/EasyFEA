@@ -44,7 +44,7 @@ horizontal motion while leaving the vertical DOF free.
 
 ---
 
-## Dirichlet conditions  with {py:meth}`~EasyFEA.Simulations._Simu.add_dirichlet`
+## Dirichlet conditions with {py:meth}`~EasyFEA.Simulations._Simu.add_dirichlet`
 
 Prescribes the value of one or more DOFs on a set of nodes.
 

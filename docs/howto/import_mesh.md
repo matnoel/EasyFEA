@@ -2,7 +2,7 @@
 # Import a mesh
 
 A **mesh** can be loaded from an external file instead of being generated from geometry.
-All import paths return a {py:class}`~EasyFEA.FEM.Mesh` that can be used directly in any simulations. ({py:class}`~EasyFEA.Simulations._Simu`).
+All import paths return a {py:class}`~EasyFEA.FEM.Mesh` that can be used directly in any simulation ({py:class}`~EasyFEA.Simulations._Simu`).
 Import utilities are available in the {py:class}`~EasyFEA.FEM.Mesher` class and in the {py:mod}`EasyFEA.Utilities.MeshIO` namespace.
 
 When a mesh file contains **physical groups** (named regions, boundaries), EasyFEA preserves them as **tags**.

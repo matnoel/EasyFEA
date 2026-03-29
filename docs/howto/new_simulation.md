@@ -3,8 +3,8 @@
 
 A **simulation** drives the full assembly–solve–store pipeline for a given
 physics.
-Every simulations inherits from {py:class}`~EasyFEA.Simulations._Simu`
-and are accessible in the {py:mod}`EasyFEA.Simulations` namespace.
+Every simulation inherits from {py:class}`~EasyFEA.Simulations._Simu`
+and is accessible in the {py:mod}`EasyFEA.Simulations` namespace.
 
 ```{tip}
 **Most users will never need this guide.** EasyFEA ships with ready-to-use

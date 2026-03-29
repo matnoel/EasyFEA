@@ -21,11 +21,11 @@ Every call to {py:meth}`~EasyFEA.Simulations._Simu.Solve` performs the same thre
 1. **Build** — assemble the global sparse matrices ($\Krm, \Crm, \Mrm, \Frm$) from element
    integrals (skipped if nothing changed since the last solve).
 2. **Apply BCs** — add Neumann contributions to the right-hand side, then
-   enforce Dirichlet constraints to cont the system $\Arm \, \xrm = \brm$.
+   enforce Dirichlet constraints to constrain the system $\Arm \, \xrm = \brm$.
 3. **Solve** — pass $\Arm \, \xrm = \brm$ to the linear algebra backend (scipy, PETSc,
    pypardiso) and store the solution.
 
-For **non-linear** problems (`simu.isNonLinear = True`), steps 1–3 are wrapped in a Newton–Raphson loop that repeats until the residual converges — see {py:meth}`~EasyFEA.Simulations._Simu._Solver_Solve_Newton_Raphson` for more informations.
+For **non-linear** problems (`simu.isNonLinear = True`), steps 1–3 are wrapped in a Newton–Raphson loop that repeats until the residual converges — see {py:meth}`~EasyFEA.Simulations._Simu._Solver_Solve_Newton_Raphson` for more information.
 
 ---
 
