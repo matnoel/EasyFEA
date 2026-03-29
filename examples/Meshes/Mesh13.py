@@ -60,7 +60,7 @@ if __name__ == "__main__":
 
         return Line(pt1, pt2, meshSize, isOpen)
 
-    def Create_Circle(pt: tuple[float, float], diam: float, isHollow=False) -> Circle:
+    def Create_Circle(pt: tuple[float, float], diam: float, isFilled=True) -> Circle:
         """Creates a circle.
 
         Parameters
@@ -69,8 +69,8 @@ if __name__ == "__main__":
             center point (x, y)
         diam : float
             diameter
-        isHollow : bool, optional
-            circle is hollow/empty, by default True
+        isFilled : bool, optional
+            the enclosed region is filled (solid inclusion), by default True
 
         Returns
         -------
@@ -82,7 +82,7 @@ if __name__ == "__main__":
 
         center = Point(*pt)
 
-        return Circle(center, diam, meshSize / 2, isHollow)
+        return Circle(center, diam, meshSize / 2, isFilled=isFilled)
 
     # ----------------------------------------------
     # Mesh
@@ -96,8 +96,8 @@ if __name__ == "__main__":
     circle2 = Create_Circle((3 * L / 4, L / 4), L / 8)
     circle3 = Create_Circle((3 * L / 4, 3 * L / 4), L / 6)
     circle4 = Create_Circle((L / 4, 3 * L / 4), L / 5)
-    circle5 = Create_Circle((L / 2, L / 2), L / 3, isHollow=True)
-    circle6 = Create_Circle((L, L), L / 6, isHollow=True)
+    circle5 = Create_Circle((L / 2, L / 2), L / 3, isFilled=False)
+    circle6 = Create_Circle((L, L), L / 6, isFilled=False)
 
     inclusions = [circle1, circle2, circle3, circle4, circle5]
 

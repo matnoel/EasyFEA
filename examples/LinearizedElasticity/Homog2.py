@@ -72,7 +72,7 @@ if __name__ == "__main__":
         p9 = Point(0, -(R - r))
         p10 = Point(cos_phi * (R - r), -sin_phi * (R - r))
         p11 = Point(cos_phi * (R - r), sin_phi * (R - r))
-        inclusions = [Points([p6, p7, p8, p9, p10, p11], s / N, hollowInclusion)]
+        inclusions = [Points([p6, p7, p8, p9, p10, p11], s / N, not hollowInclusion)]
 
     elif geom == "D2":
         a = 1  # width

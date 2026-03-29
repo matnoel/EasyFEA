@@ -52,8 +52,8 @@ A **geometric object** (accessible in the {py:mod}`EasyFEA.Geoms` namespace) des
     circle.Plot()
 ```
 
-`isHollow=True` (default) defines the circle as a boundary (hole or outer contour).
-`isHollow=False` defines it as a filled inclusion.
+`isFilled=False` (default) defines the circle as a boundary (hole or outer contour).
+`isFilled=True` defines it as a filled inclusion.
 
 A circle can also be oriented in 3D by specifying a normal vector `n`:
 

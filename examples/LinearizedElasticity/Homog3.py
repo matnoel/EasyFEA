@@ -38,7 +38,7 @@ if __name__ == "__main__":
     nH = 4  # number of inclusions following y
     cL = L / (2 * nL)
     cH = h / (2 * nH)
-    isHollow = True  # hollow inclusions
+    isFilled = False
 
     # model
     E = 210000
@@ -69,7 +69,7 @@ if __name__ == "__main__":
             ptd1 = Geoms.Point(x - cL / 2, y - cH / 2)
             ptd2 = Geoms.Point(x + cL / 2, y + cH / 2)
 
-            inclusion = Geoms.Domain(ptd1, ptd2, meshSize, isHollow)
+            inclusion = Geoms.Domain(ptd1, ptd2, meshSize, isFilled)
 
             inclusions.append(inclusion)
 
@@ -97,7 +97,7 @@ if __name__ == "__main__":
                 Geoms.Point(-cL / 2, -cH / 2),
                 Geoms.Point(cL / 2, cH / 2),
                 meshSize / 4,
-                isHollow,
+                isFilled,
             )
         ],
         elemType,
@@ -162,7 +162,7 @@ if __name__ == "__main__":
 
     C_hom = (wJ_e_pg * CMandel @ B_e_pg @ U_e).sum((0, 1)) / mesh_RVE.area
 
-    if isHollow:
+    if not isFilled:
         coef = 1 - area_inclusion / mesh_RVE.area
         C_hom *= coef
 

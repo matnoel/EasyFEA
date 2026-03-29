@@ -111,7 +111,7 @@ if __name__ == "__main__":
     # inclusion
     f = 0.4
     r = 1 * np.sqrt(f / np.pi)
-    inclusion = Circle((0, 0), 2 * r, meshSize, isHollow=False)
+    inclusion = Circle((0, 0), 2 * r, meshSize, isFilled=True)
 
     mesh = contour.Mesh_2D([inclusion], ElemType.TRI6)
 
@@ -182,7 +182,7 @@ if __name__ == "__main__":
     # if you use the mesh area, multiply C_hom by the porosity (1-f)
     C_hom = (wJ_e_pg * C_Mat @ B_e_pg @ U_e).sum((0, 1)) / mesh.area
 
-    if inclusion.isHollow and mesh.area != 1:
+    if not inclusion.isFilled and mesh.area != 1:
         C_hom *= 1 - f
 
     # Display.Plot_BoundaryConditions(simu)

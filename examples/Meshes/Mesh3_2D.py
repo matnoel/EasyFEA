@@ -18,7 +18,7 @@ if __name__ == "__main__":
     Display.Clear()
 
     contour = Domain((0, 0), (1, 1), 1 / 10)
-    circle = Circle((1 / 2, 1 / 2), 1 / 3, 1 / 10, isHollow=True)
+    circle = Circle((1 / 2, 1 / 2), 1 / 3, 1 / 10, isFilled=False)
     PyVista.Plot_Geoms([contour, circle]).show()
 
     # "TRI3", "TRI6", "TRI10", "TRI15", "QUAD4", "QUAD8",  "QUAD9"

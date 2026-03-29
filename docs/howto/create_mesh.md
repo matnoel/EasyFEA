@@ -1,7 +1,7 @@
 (howto-mesh)=
 # Create a mesh
 
-A **mesh** is a discrete representation of the simulation domain.
+A **mesh** is a discrete representation of the continuous simulation domain / geometry.
 Meshes are produced by {py:class}`~EasyFEA.FEM.Mesher` (which wraps [Gmsh](https://gmsh.info/)) and
 are accessible in the {py:mod}`EasyFEA.FEM` module.
 
@@ -27,9 +27,6 @@ Mesh generation relies on manipulating the geometric objects listed below, which
 | {py:class}`~EasyFEA.Geoms.Domain` | Axis-aligned rectangle or box defined by two corners |
 
 `meshSize` on any geometry object sets the local target element size.
-`isHollow=True` (the default) means the geometry defines a hole
-or boundary only;
-`isHollow=False` means it defines a filled region.
 
 ---
 
@@ -61,6 +58,8 @@ refinement.
 
 ### Rectangle with a circular hole
 
+When the geometry is not used in as a contour in `Mesh_*` functions `isFilled=False` (the default) means the geometry defines a hole or boundary only; `isFilled=True` means it defines a filled region.
+
 ```{eval-rst}
 .. jupyter-execute::
 
@@ -68,10 +67,14 @@ refinement.
     from EasyFEA.Geoms import Domain, Circle
 
     domain = Domain((0, 0), (100, 50), meshSize=5.0)
-    hole   = Circle(center=(50, 25), diam=20, meshSize=1.0, isHollow=True)
+    hole   = Circle(center=(50, 25), diam=20, meshSize=1.0)
 
     mesh = domain.Mesh_2D([hole], ElemType.TRI3)
-    Display.Plot_Mesh(mesh)
+    Display.Plot_Mesh(mesh, title="hole.isFilled=False by default")
+
+    hole.isFilled=True
+    mesh = domain.Mesh_2D([hole], ElemType.TRI3)
+    Display.Plot_Mesh(mesh, title="hole.isFilled=True")
 ```
 
 ### Structured quad mesh

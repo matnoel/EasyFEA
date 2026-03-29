@@ -32,9 +32,9 @@ if __name__ == "__main__":
     center = Point()
 
     circle_ext = Circle(center, R * 2, meshSize)
-    circle_int = Circle(center, r * 2, meshSize, True)
+    circle_int = Circle(center, r * 2, meshSize)
 
-    useFillet = circle_int.isHollow
+    useFillet = not circle_int.isFilled
     addCylinder = True
     addBox = True
     addRevolve = True

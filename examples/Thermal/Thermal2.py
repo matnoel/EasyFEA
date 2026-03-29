@@ -39,7 +39,7 @@ if __name__ == "__main__":
     # Mesh
     # ----------------------------------------------
     domain = Domain(Point(), Point(a, a), a / 4)
-    circle = Circle(Point(a / 2, a / 2), diam=a / 3, isHollow=True, meshSize=a / 4)
+    circle = Circle(Point(a / 2, a / 2), diam=a / 3, meshSize=a / 4)
 
     if dim == 2:
         mesh = domain.Mesh_2D([circle], ElemType.TRI6)

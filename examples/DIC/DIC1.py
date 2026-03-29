@@ -70,7 +70,7 @@ if __name__ == "__main__":
     contour.Plot(ax)
 
     xC, yC, radius = DIC.Get_Circle(imgRef, 30.0, [(150, 350), (350, 500)])
-    circle = Circle((xC, yC), 2 * radius, meshSize, isHollow=True)
+    circle = Circle((xC, yC), 2 * radius, meshSize)
     circle.Plot(ax)
 
     mesh = contour.Mesh_2D([circle])

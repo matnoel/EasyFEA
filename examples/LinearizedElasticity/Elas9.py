@@ -53,7 +53,7 @@ if __name__ == "__main__":
 
     # Define the domain and create the mesh
     domain = Domain((-a / 2, -a / 2), (a / 2, a / 2), meshSize)
-    circle = Circle((0, 0), diam, meshSize, isHollow=False)
+    circle = Circle((0, 0), diam, meshSize, isFilled=True)
     line = Line((0, 0), (diam / 4, 0))
     mesh = domain.Mesh_2D([circle], ElemType.TRI6, cracks=[line])
 

@@ -519,11 +519,11 @@ class Mesher:
         list_surface: list[_Geom] = []
         for surface in surfaces:
             assert isinstance(surface, _Geom)
-            if not surface.isHollow:
-                # first create an hollow surface with cut
+            if surface.isFilled:
+                # first create a hollow surface with cut
                 # then add the surface
                 newSurf = surface.copy()
-                newSurf.isHollow = True
+                newSurf.isFilled = False
                 list_surface.append(newSurf)
             list_surface.append(surface)
 
@@ -537,7 +537,7 @@ class Mesher:
             # Delete or add created entities to the current geometry.
             newEntities = [(2, surf) for surf in newSurfaces]
 
-            if surface.isHollow:
+            if not surface.isFilled:
                 factory.cut(oldEntities, newEntities)
             else:
                 factory.fragment(oldEntities, newEntities, False, True)
@@ -1363,7 +1363,7 @@ class Mesher:
         for objetGeom in inclusions:
             loop = self._Loop_From_Geom(objetGeom)[0]  # type: ignore
 
-            if objetGeom.isHollow:
+            if not objetGeom.isFilled:
                 hollowLoops.append(loop)
             else:
                 filledLoops.append(loop)
@@ -2227,10 +2227,10 @@ class Mesher:
             isOpen=True,
         )
         circle = Circle(
-            Point(x=L / 2, y=h / 2), L / 3, meshSize=meshSize, isHollow=True
+            Point(x=L / 2, y=h / 2), L / 3, meshSize=meshSize
         )
         circleClose = Circle(
-            Point(x=L / 2, y=h / 2), L / 3, meshSize=meshSize, isHollow=False
+            Point(x=L / 2, y=h / 2), L / 3, meshSize=meshSize, isFilled=True
         )
 
         domain_area = L * h
@@ -2277,10 +2277,10 @@ class Mesher:
             Point(y=-h / 2, z=-b / 2), Point(x=L, y=h / 2, z=-b / 2), meshSize=meshSize
         )
         emptyCircle = Circle(
-            Point(x=L / 2, y=0, z=-b / 2), h * 0.7, meshSize=meshSize, isHollow=True
+            Point(x=L / 2, y=0, z=-b / 2), h * 0.7, meshSize=meshSize
         )
         circle = Circle(
-            Point(x=L / 2, y=0, z=-b / 2), h * 0.7, meshSize=meshSize, isHollow=False
+            Point(x=L / 2, y=0, z=-b / 2), h * 0.7, meshSize=meshSize, isFilled=True
         )
 
         volume = L * h * b

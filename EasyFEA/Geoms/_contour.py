@@ -32,7 +32,7 @@ class Contour(_Geom):
     def __init__(
         self,
         geoms: list[ContourCompatible],
-        isHollow: bool = True,
+        isFilled: bool = False,
         isOpen: bool = False,
     ):
         """Creates a contour from a list of line CircleArc and points.
@@ -41,8 +41,8 @@ class Contour(_Geom):
         ----------
         geoms : list[Line | CircleArc | Points]
             list of objects used to build the contour
-        isHollow : bool, optional
-            the formed domain is hollow/empty, by default True
+        isFilled : bool, optional
+            the enclosed region is filled (solid inclusion), by default False
         isOpen : bool, optional
             contour can be opened, by default False
         """
@@ -83,7 +83,7 @@ class Contour(_Geom):
         Contour.__NInstance += 1
         name = f"Contour{Contour.__NInstance}"
         meshSize = np.mean([geom.meshSize for geom in geoms]).astype(float)
-        _Geom.__init__(self, points, meshSize, name, isHollow, isOpen)
+        _Geom.__init__(self, points, meshSize, name, isFilled, isOpen)
 
     def Get_coord_for_plot(
         self, N: int = None

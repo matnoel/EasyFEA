@@ -48,7 +48,7 @@ if __name__ == "__main__":
         p0 = Point(-l, -h)
         p1 = Point(l, h)
         contour = Domain(p0, p1, meshSize)
-        inclusions = [Circle(Point(), 2 * a, meshSize, isHollow=True)]
+        inclusions = [Circle(Point(), 2 * a, meshSize)]
 
     if dim == 2:
         mesh = contour.Mesh_2D(inclusions, elemType=ElemType.TRI10)

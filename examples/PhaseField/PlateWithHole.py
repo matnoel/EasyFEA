@@ -110,7 +110,7 @@ if __name__ == "__main__":
             refineGeom = None
 
         domain = Domain((0, 0), (L, h), clD)
-        circle = Circle((L / 2, h / 2), diam, clD, isHollow=True)
+        circle = Circle((L / 2, h / 2), diam, clD)
         mesh = domain.Mesh_2D([circle], ElemType.TRI3, refineGeoms=[refineGeom])
 
         # Nodes

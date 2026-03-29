@@ -107,7 +107,7 @@ if __name__ == "__main__":
     p12.Symmetry((L / 2, (h1 - e1) / 2), (0, 1))
 
     inclusion = Points(
-        [p1, p2, p3, p4, p5, p6, p7, p8, p9, p10, p11, p12], meshSize, True
+        [p1, p2, p3, p4, p5, p6, p7, p8, p9, p10, p11, p12], meshSize, isFilled=False
     )
     inclusions = [inclusion]
 

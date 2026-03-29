@@ -25,7 +25,7 @@ class Domain(_Geom):
         pt1: Point.PointALike,
         pt2: Point.PointALike,
         meshSize: _types.Number = 0.0,
-        isHollow: bool = True,
+        isFilled: bool = False,
     ):
         """Creates a 2d or 3d domain.
 
@@ -37,8 +37,8 @@ class Domain(_Geom):
             second point
         meshSize : float, optional
             mesh size that will be used to create the mesh >= 0, by default 0.0
-        isHollow : bool, optional
-            the formed domain is hollow/empty, by default True
+        isFilled : bool, optional
+            the enclosed region is filled (solid inclusion), by default False
         """
 
         self.pt1 = AsPoint(pt1)
@@ -47,7 +47,7 @@ class Domain(_Geom):
         Domain.__NInstance += 1
         name = f"Domain{Domain.__NInstance}"
         # a domain can't be open
-        _Geom.__init__(self, [self.pt1, self.pt2], meshSize, name, isHollow, False)
+        _Geom.__init__(self, [self.pt1, self.pt2], meshSize, name, isFilled, False)
 
     def Get_coord_for_plot(
         self, N: int = None

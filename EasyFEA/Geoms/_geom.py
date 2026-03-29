@@ -39,8 +39,8 @@ class _Geom(ABC):
     name: str = _params.StringParameter()
     """Name of the geometric object."""
 
-    isHollow: bool = _params.BoolParameter()
-    """Indicates whether the formed geometry is hollow."""
+    isFilled: bool = _params.BoolParameter()
+    """True if the enclosed region is filled (solid inclusion)."""
 
     isOpen: bool = _params.BoolParameter()
     """Indicates whether the geometry is open, typically to model cracks."""
@@ -50,7 +50,7 @@ class _Geom(ABC):
         points: list[Point],
         meshSize: _types.Number,
         name: str,
-        isHollow: bool,
+        isFilled: bool,
         isOpen: bool,
     ):
         """Creates a geometric object.
@@ -63,8 +63,8 @@ class _Geom(ABC):
             mesh size that will be used to create the mesh >= 0
         name : str
             object name
-        isHollow : bool
-            Indicates whether the formed geometry is hollow (i.e., contains voids).
+        isFilled : bool
+            True if the enclosed region is filled (solid inclusion).
         isOpen : bool
             Indicates whether the geometry is open, for instance to represent a crack.
         """
@@ -76,7 +76,7 @@ class _Geom(ABC):
 
         self.meshSize = meshSize
         self.name = name
-        self.isHollow = isHollow
+        self.isFilled = isFilled
         self.isOpen = isOpen
 
     @staticmethod

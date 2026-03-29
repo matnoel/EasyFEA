@@ -35,7 +35,7 @@ class Circle(_Geom):
         center: Point.PointALike,
         diam: float,
         meshSize: float = 0.0,
-        isHollow: bool = True,
+        isFilled: bool = False,
         isOpen: bool = False,
         n: _types.Coords = (0, 0, 1),
     ):
@@ -49,8 +49,8 @@ class Circle(_Geom):
             diameter
         meshSize : float, optional
             mesh size that will be used to create the mesh >= 0, by default 0.0
-        isHollow : bool, optional
-            circle is hollow/empty, by default True
+        isFilled : bool, optional
+            the enclosed region is filled (solid inclusion), by default False
         isOpen : bool, optional
             circle can be opened (openCrack), by default False
         n : Coords, optional
@@ -77,7 +77,7 @@ class Circle(_Geom):
             [self.center, self.pt1, self.pt2, self.pt3, self.pt4],
             meshSize,
             name,
-            isHollow,
+            isFilled,
             isOpen,
         )
 
@@ -151,7 +151,7 @@ class Circle(_Geom):
 
         center = self.center
         meshSize = self.meshSize
-        isHollow = self.isHollow
+        isFilled = self.isFilled
         isOpen = self.isOpen
 
         # creates circle arcs associated with the circle
@@ -171,7 +171,7 @@ class Circle(_Geom):
         from ._contour import Contour
 
         return Contour(
-            [circleArc1, circleArc2, circleArc3, circleArc4], isHollow, isOpen
+            [circleArc1, circleArc2, circleArc3, circleArc4], isFilled, isOpen
         )
 
 

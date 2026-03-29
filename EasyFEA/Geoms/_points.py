@@ -29,7 +29,7 @@ class Points(_Geom):
         self,
         points: Collection[Point.PointALike],
         meshSize: _types.Number = 0.0,
-        isHollow: bool = True,
+        isFilled: bool = False,
         isOpen: bool = False,
     ):
         """Creates points (list of point).\n
@@ -41,8 +41,8 @@ class Points(_Geom):
             list of points
         meshSize : _types.Number, optional
             mesh size that will be used to create the mesh >= 0, by default 0.0
-        isHollow : bool, optional
-            the formed domain is hollow/empty, by default True
+        isFilled : bool, optional
+            the enclosed region is filled (solid inclusion), by default False
         isOpen : bool, optional
             the spline formed by the points list can be opened (openCrack), by default False
         """
@@ -58,7 +58,7 @@ class Points(_Geom):
 
         Points.__NInstance += 1
         name = f"Points{Points.__NInstance}"
-        super().__init__(list_point, meshSize, name, isHollow, isOpen)
+        super().__init__(list_point, meshSize, name, isFilled, isOpen)
 
     def Get_Contour(self):
         """Creates a contour from the points.\n
@@ -125,7 +125,7 @@ class Points(_Geom):
 
         Link(-1, 0)
 
-        contour = Contour(geoms, self.isHollow, self.isOpen).copy()
+        contour = Contour(geoms, self.isFilled, self.isOpen).copy()
         contour.name = self.name + "_contour"
         # do the copy to unlink the points connexion with the list of points
 

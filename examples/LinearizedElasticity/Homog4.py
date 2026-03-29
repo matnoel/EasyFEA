@@ -208,7 +208,7 @@ if __name__ == "__main__":
     # inclusion
     f = 0.4
     r = 1 * np.sqrt(f / np.pi)
-    inclusion = Circle((0, 0), 2 * r, meshSize, isHollow=False)
+    inclusion = Circle((0, 0), 2 * r, meshSize, isFilled=True)
     # contour.Plot_Geoms([contour, inclusion])
 
     elemType = ElemType.PRISM15
@@ -237,7 +237,7 @@ if __name__ == "__main__":
     # Material and Simulation
     # ----------------------------------------------
     elements_inclusion = (
-        np.array([]) if inclusion.isHollow else mesh.Elements_Tags(["V1"])
+        np.array([]) if not inclusion.isFilled else mesh.Elements_Tags(["V1"])
     )
     elements_matrix = mesh.Elements_Tags(["V0"])
 
@@ -341,7 +341,7 @@ if __name__ == "__main__":
     # if you use the mesh volume, multiply C_hom by the porosity (1-f)
     C_hom = (wJ_e_pg * C_Mat @ B_e_pg @ U_e).sum((0, 1)) / mesh.volume
 
-    if inclusion.isHollow:
+    if not inclusion.isFilled:
         C_hom *= 1 - f
 
     formatted_array = ""

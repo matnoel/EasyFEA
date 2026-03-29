@@ -57,7 +57,7 @@ if __name__ == "__main__":
         inclusions = []
     else:
         contour = Circle(center, (r + e) * 2, meshSize)
-        inclusions = [Circle(center, 2 * r, meshSize, isHollow=True)]
+        inclusions = [Circle(center, 2 * r, meshSize)]
 
     extrude = [0, 0, -thickness]
 

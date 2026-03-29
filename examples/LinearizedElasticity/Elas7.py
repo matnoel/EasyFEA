@@ -78,11 +78,11 @@ if __name__ == "__main__":
     # fmt: on
 
     # get circles
-    circle1 = Circle(Point(-220), 25, meshSize, isHollow=True)
-    circle2 = Circle(Point(), 25, meshSize, isHollow=True)
-    circle3 = Circle(Point(114 + 13 - 25, 80 - 25), 25, meshSize, isHollow=True)
-    circle4 = Circle(Point(114 + 13 - 25, -80 + 25), 25, meshSize, isHollow=True)
-    circle5 = Circle(Point(67), 84, meshSize, isHollow=True)
+    circle1 = Circle(Point(-220), 25, meshSize)
+    circle2 = Circle(Point(), 25, meshSize)
+    circle3 = Circle(Point(114 + 13 - 25, 80 - 25), 25, meshSize)
+    circle4 = Circle(Point(114 + 13 - 25, -80 + 25), 25, meshSize)
+    circle5 = Circle(Point(67), 84, meshSize)
 
     inclusions = [circle1, circle2, circle3, circle4, circle5]
 
