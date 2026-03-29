@@ -2962,7 +2962,7 @@ def Load_Simu(folder: str, filename: str = "simulation", gather=False) -> _Simu:
         The loaded simulation.
     """
 
-    suffix = f"_rank{MPI_RANK}" if MPI_SIZE > 1 and not gather else ""
+    suffix = f"_rank{MPI_RANK}" if MPI_SIZE > 1 else ""
     path_simu = Folder.Join(folder, f"{filename}{suffix}.pickle")
     assert Folder.Exists(
         path_simu
