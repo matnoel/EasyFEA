@@ -35,21 +35,21 @@ horizontal motion while leaving the vertical DOF free.
 
 | Method | Physical meaning | Integration |
 |---|---|---|
-| {py:meth}`~EasyFEA.Simulations._Simu.add_dirichlet` | Prescribed DOF value (displacement, temperature, …) | — |
+| {py:meth}`~EasyFEA.Simulations._Simu.add_dirichlet` | Prescribed DOF value | — |
 | {py:meth}`~EasyFEA.Simulations._Simu.add_neumann` | Concentrated nodal force / flux | Point |
 | {py:meth}`~EasyFEA.Simulations._Simu.add_lineLoad` | Force per unit length | Along a line |
-| {py:meth}`~EasyFEA.Simulations._Simu.add_surfLoad` | Force per unit area (pressure in 2D, traction in 3D) | Over a surface |
+| {py:meth}`~EasyFEA.Simulations._Simu.add_surfLoad` | Force per unit area | Over a surface |
 | {py:meth}`~EasyFEA.Simulations._Simu.add_volumeLoad` | Body force per unit volume | Over a volume |
-| {py:meth}`~EasyFEA.Simulations._Simu.add_pressureLoad` | Normal pressure (outward positive) | Over a boundary surface |
+| {py:meth}`~EasyFEA.Simulations._Simu.add_pressureLoad` | Normal pressure | Along a line or surface |
 
 ---
 
-## Dirichlet conditions ({py:meth}`~EasyFEA.Simulations._Simu.add_dirichlet`)
+## Dirichlet conditions  with {py:meth}`~EasyFEA.Simulations._Simu.add_dirichlet`
 
 Prescribes the value of one or more DOFs on a set of nodes.
 
 ```python
-# fix all displacement DOFs to zero — clamped wall (Elastic simulation)
+# fix x an y displacement DOFs to zero (Elastic simulation)
 nodes = mesh.Nodes_Conditions(lambda x, y, z: x == 0)
 simu.add_dirichlet(nodes, [0, 0], ["x", "y"])
 
@@ -57,13 +57,13 @@ simu.add_dirichlet(nodes, [0, 0], ["x", "y"])
 nodes_top = mesh.Nodes_Conditions(lambda x, y, z: y == H)
 simu.add_dirichlet(nodes_top, [100.0], ["t"])
 
-# prescribed displacement that varies along x
-simu.add_dirichlet(nodes, [lambda x, y, z: 0.01 * x, 0], ["x", "y"])
+# prescribed y displacement that varies along x
+simu.add_dirichlet(nodes, [lambda x, y, z: 0.01 * x], ["y"])
 ```
 
 ---
 
-## Concentrated force ({py:meth}`~EasyFEA.Simulations._Simu.add_neumann`)
+## Concentrated force with {py:meth}`~EasyFEA.Simulations._Simu.add_neumann`
 
 Applies a concentrated force (or flux) directly on the selected nodes. No
 integration is performed — the value is added as-is to the right-hand side.
@@ -79,7 +79,7 @@ simu.add_neumann(nodes_tip, [0, -500], ["x", "y"])
 
 ## Distributed loads
 
-### Line load ({py:meth}`~EasyFEA.Simulations._Simu.add_lineLoad`)
+### Line load with {py:meth}`~EasyFEA.Simulations._Simu.add_lineLoad`
 
 Force per unit **length** integrated along the selected boundary edges. Used
 in 2D for loads applied along a line, or in 3D for edge loads.
@@ -93,22 +93,22 @@ simu.add_lineLoad(nodes_top, [-1000], ["y"])
 simu.add_lineLoad(nodes_top, [lambda x, y, z: -500 * (1 + x / L)], ["y"])
 ```
 
-### Surface load ({py:meth}`~EasyFEA.Simulations._Simu.add_surfLoad`)
+### Surface load with {py:meth}`~EasyFEA.Simulations._Simu.add_surfLoad`
 
 Force per unit **area** integrated over the selected boundary faces. Typical
 for pressure loads in 3D, or traction/pressure in 2D (force per unit area
 × thickness).
 
 ```python
-# uniform pressure of −800 Pa in x on the right face
+# uniform pressure of −800 Pa along x on the right face
 nodes_right = mesh.Nodes_Conditions(lambda x, y, z: x == L)
 simu.add_surfLoad(nodes_right, [-800], ["x"])
 
 # traction vector on a 3D face
-simu.add_surfLoad(nodes_right, [-1e6], ["z"])
+simu.add_surfLoad(nodes_right, [0, 0, -1e6], ["x", "y", "z"])
 ```
 
-### Volume load ({py:meth}`~EasyFEA.Simulations._Simu.add_volumeLoad`)
+### Volume load with {py:meth}`~EasyFEA.Simulations._Simu.add_volumeLoad`
 
 Body force per unit **volume** integrated over the selected elements. Typical
 use is gravity.
@@ -118,7 +118,7 @@ use is gravity.
 simu.add_volumeLoad(mesh.nodes, [-7800 * 9.81], ["y"])
 ```
 
-### Pressure load ({py:meth}`~EasyFEA.Simulations._Simu.add_pressureLoad`)
+### Pressure load with {py:meth}`~EasyFEA.Simulations._Simu.add_pressureLoad`
 
 Applies a **normal** pressure of given magnitude on a boundary surface.
 The direction is automatically computed from the outward normal at each
@@ -159,7 +159,7 @@ dimension.
 from EasyFEA import Display, PyVista
 
 Display.Plot_BoundaryConditions(simu)   # matplotlib
-PyVista.Plot_BoundaryConditions(simu)   # interactive 3D
+PyVista.Plot_BoundaryConditions(simu).show()   # interactive 3D
 ```
 
 ---
