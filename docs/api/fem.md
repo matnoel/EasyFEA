@@ -3,7 +3,13 @@
 
 The {py:mod}`EasyFEA.FEM` module provides essential tools for creating and managing finite element meshes, which are crucial for numerical simulations using the [Finite Element Method](https://en.wikipedia.org/wiki/Finite_element_method) (FEM).
 
-In the simulation workflow, `FEM` is the **second step**: geometry objects from {py:mod}`~EasyFEA.Geoms` are passed to {py:class}`~EasyFEA.FEM.Mesher` to produce the {py:class}`~EasyFEA.FEM.Mesh` that all subsequent steps depend on. See {ref}`howto-mesh` for practical examples and {ref}`howto-import-mesh` to load an existing mesh file.
+In the simulation workflow, `FEM` is the **second step**: geometry objects from {py:mod}`~EasyFEA.Geoms` are passed to {py:class}`~EasyFEA.FEM.Mesher` to produce the {py:class}`~EasyFEA.FEM.Mesh`.
+
+```{seealso}
+- {ref}`howto-mesh`
+- {ref}`howto-import-mesh`
+- {ref}`easyfea-examples-meshes` examples
+```
 
 ---
 
@@ -18,7 +24,7 @@ For example, a {py:class}`~EasyFEA.FEM.Elems.HEXA8` mesh includes the following 
 - {py:class}`~EasyFEA.FEM.Elems.QUAD4` (2D element)
 - {py:class}`~EasyFEA.FEM.Elems.HEXA8` (3D element)
 
-All implemented element types, along with their corresponding shape functions and derivatives, are defined in the {py:mod}`EasyFEA.FEM.Elems` module.
+All implemented element types, along with their corresponding shape functions and derivatives, are defined in the {py:mod}`EasyFEA.FEM.Elems` module and were defined in {ref}`examples-meshes-shape-functions`.
 The Gauss point quadratures are implemented in the {py:class}`~EasyFEA.FEM.Gauss` class.
 
 ---
@@ -37,12 +43,11 @@ To construct a {py:class}`~EasyFEA.FEM.Mesh` using the {py:class}`~EasyFEA.FEM.M
 - {py:meth}`~EasyFEA.Utilities.MeshIO.PyVista_to_EasyFEA`: Imports a PyVista mesh (UnstructuredGrid or MultiBlock).
 - {py:meth}`~EasyFEA.Utilities.MeshIO.Ensight_to_EasyFEA`: Imports an EnSight mesh.
 
-Several examples are available in {doc}`../examples/Meshes/index`.
-
 ```{seealso}
-{ref}`howto-mesh` — create meshes from geometry with practical examples.
-
-{ref}`howto-import-mesh` — load an existing mesh file (Gmsh, STEP, meshio, PyVista, Ensight).
+- {ref}`howto-geom`
+- {ref}`howto-mesh`
+- {ref}`howto-import-mesh`
+- {ref}`easyfea-examples-meshes` examples
 ```
 
 ## FEM API
