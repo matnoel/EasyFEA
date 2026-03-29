@@ -5,6 +5,7 @@ A **geometric object** (accessible in the {py:mod}`EasyFEA.Geoms` namespace) des
 
 ```{seealso}
 - {ref}`howto-mesh`
+- {ref}`geoms` API
 ```
 
 ---

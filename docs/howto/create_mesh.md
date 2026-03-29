@@ -10,6 +10,10 @@ To import an existing mesh file instead of creating one from scratch, see
 {ref}`howto-import-mesh`.
 ```
 
+```{seealso}
+- {ref}`FEM` API
+```
+
 ---
 
 ## Geometry objects

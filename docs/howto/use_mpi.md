@@ -107,6 +107,11 @@ simu.folder = "path/to/folder"
 
 Iteration results will then be saved in `path/to/folder/Results` as `results*.pickle` files.
 
+### Saving simulation
+
+{py:meth}`~EasyFEA.Simulations._Simu.Save` writes one pickle file per rank (`path/to/folder/simulation_rank{N}.pickle`) since each rank holds a different mesh partition.
+{py:func}`~EasyFEA.Simulations.Load_Simu` reloads the appropriate file per rank transparently.
+
 ### Phase-field convergence
 
 For phase-field simulations, energy-based convergence criteria
@@ -133,11 +138,6 @@ slow or fails to converge.
 ---
 
 ## Post-process results
-
-### Saving simulations
-
-{py:meth}`~EasyFEA.Simulations._Simu.Save` writes one pickle file per rank (`path/to/folder/simulation_rank{N}.pickle`) since each rank holds a different mesh partition.
-{py:func}`~EasyFEA.Simulations.Load_Simu` reloads the appropriate file per rank transparently.
 
 ### Plotting and in-memory post-processing
 

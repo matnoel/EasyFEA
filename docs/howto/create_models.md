@@ -3,6 +3,10 @@
 
 A **model** encapsulates the material parameters and physics of a simulation ({py:class}`~EasyFEA.Simulations._Simu`) and is accessible in the {py:mod}`EasyFEA.Models` namespace.
 
+```{seealso}
+- {ref}`models` API
+```
+
 ---
 
 ## Linear elastic models
