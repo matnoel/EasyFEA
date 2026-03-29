@@ -5,7 +5,6 @@
 
 from abc import ABC, abstractmethod
 import pickle
-import shutil
 import re
 from datetime import datetime
 from typing import Union, Optional, Any
@@ -401,9 +400,7 @@ class _Simu(_IObserver, _params.Updatable, ABC):
         self.__model = model
 
         self.folder = folder
-        resultsFolder = Folder.Join(folder, "Results")
-        if MPI_RANK == 0 and Folder.Exists(resultsFolder):
-            shutil.rmtree(resultsFolder)
+
         if MPI_SIZE > 1:
             MPI_COMM.Barrier()
 
