@@ -58,7 +58,7 @@ refinement.
 
 ### Rectangle with a circular hole
 
-When the geometry is not used in as a contour in `Mesh_*` functions `isFilled=False` (the default) means the geometry defines a hole or boundary only; `isFilled=True` means it defines a filled region.
+When the geometry is not used as a contour in `Mesh_*` functions `isFilled=False` (the default) means the geometry defines a hole or boundary only; `isFilled=True` means it defines a filled region.
 
 ```{eval-rst}
 .. jupyter-execute::
@@ -69,11 +69,11 @@ When the geometry is not used in as a contour in `Mesh_*` functions `isFilled=Fa
     domain = Domain((0, 0), (100, 50), meshSize=5.0)
     hole   = Circle(center=(50, 25), diam=20, meshSize=1.0)
 
-    mesh = domain.Mesh_2D([hole], ElemType.TRI3)
+    mesh = domain.Mesh_2D([hole], ElemType.TRI6)
     Display.Plot_Mesh(mesh, title="hole.isFilled=False by default")
 
     hole.isFilled=True
-    mesh = domain.Mesh_2D([hole], ElemType.TRI3)
+    mesh = domain.Mesh_2D([hole], ElemType.TRI6)
     Display.Plot_Mesh(mesh, title="hole.isFilled=True")
 ```
 
