@@ -7,10 +7,10 @@ Contributors are welcome! To contribute, please follow these steps.
     ```bash
     git clone https://github.com/YOURNAME/EasyFEA.git
     cd EasyFEA
-    python -m pip install -e .[dev]
+    python -m pip install -e ".[dev,io,viz]"
     ```
 
-    In editable mode (`-e`), code completion functionality may be compromised in your integrated development environment ([IDE](https://fr.wikipedia.org/wiki/Environnement_de_d%C3%A9veloppement)). To enable code completion, it is necessary to include the **EasyFEA** directory path in the additional resolution paths for the import search.
+    In editable mode (`-e`), code completion functionality may be compromised in your integrated development environment ([IDE](https://en.wikipedia.org/wiki/Integrated_development_environment)). To enable code completion, it is necessary to include the **EasyFEA** directory path in the additional resolution paths for the import search.
 
     For example, in Visual Studio Code (VS Code), you can achieve this by adding `<folder>/EasyFEA/` to "Python > Analysis: **Extra Paths**" in the Pylance extension settings. Or you can add `<folder>/EasyFEA/EasyFEA/` to your PYTHONPATH. Here, `<folder>` indicates the path to the directory containing `EasyFEA/`.
 
