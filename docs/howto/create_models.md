@@ -7,7 +7,7 @@ A **model** encapsulates the material parameters and physics of a simulation ({p
 
 ## Linear elastic models
 
-All elastic models expose a `.C` property: the **stiffness tensor in Kelvin–Mandel notation**, a symmetric positive-definite matrix that maps strains $\boldsymbol{\varepsilon}$ to stresses $\boldsymbol{\varsigma}$:
+All elastic models expose a `.C` property: the **stiffness tensor in Kelvin–Mandel notation**, a symmetric positive-definite matrix that maps strains $\boldsymbol{\varepsilon}$ to stresses $\boldsymbol{\sigma}$:
 
 $$
 \boldsymbol{\sigma} = \Crm \, \boldsymbol{\varepsilon}
@@ -18,7 +18,7 @@ $$
 - In 3D: $\Crm$ is $(6 \times 6)$, with components
   $[\sigma_{xx},\, \sigma_{yy},\, \sigma_{zz},\, \sqrt{2}\,\sigma_{yz},\, \sqrt{2}\,\sigma_{xz},\, \sqrt{2}\,\sigma_{xy}]$.
 
-### Isotropic
+### {py:class}`~EasyFEA.Models.Elastic.Isotropic`
 
 Defined by Young's modulus `E` and Poisson's ratio `v`:
 
@@ -35,7 +35,7 @@ mat3d = Models.Elastic.Isotropic(dim=3, E=210000, v=0.3)
 `planeStress=True` (default) applies the plane-stress assumption in 2D.
 Set `planeStress=False` for plane strain.
 
-### TransverselyIsotropic
+### {py:class}`~EasyFEA.Models.Elastic.TransverselyIsotropic`
 
 One isotropic plane (T, R) with a distinct longitudinal direction `L`:
 
@@ -54,7 +54,7 @@ mat = Models.Elastic.TransverselyIsotropic(
 )
 ```
 
-### Orthotropic
+### {py:class}`~EasyFEA.Models.Elastic.Orthotropic`
 
 Three distinct material axes, each with its own Young's modulus, shear
 modulus, and Poisson ratio:
@@ -72,7 +72,7 @@ mat = Models.Elastic.Orthotropic(
 )
 ```
 
-### Anisotropic
+### {py:class}`~EasyFEA.Models.Elastic.Anisotropic`
 
 Provide the full stiffness matrix `C` directly in the material basis:
 
@@ -94,7 +94,7 @@ mat = Models.Elastic.Anisotropic(
 
 ## Hyperelastic models
 
-### NeoHookean
+### {py:class}`~EasyFEA.Models.HyperElastic.NeoHookean`
 
 ```python
 from EasyFEA import Models
@@ -102,7 +102,7 @@ from EasyFEA import Models
 mat = Models.HyperElastic.NeoHookean(dim=2, K=100000, thickness=1.0)
 ```
 
-### MooneyRivlin
+### {py:class}`~EasyFEA.Models.HyperElastic.MooneyRivlin`
 
 ```python
 from EasyFEA import Models
@@ -110,7 +110,7 @@ from EasyFEA import Models
 mat = Models.HyperElastic.MooneyRivlin(dim=2, K1=80000, K2=20000, K=0.0)
 ```
 
-### SaintVenantKirchhoff
+### {py:class}`~EasyFEA.Models.HyperElastic.SaintVenantKirchhoff`
 
 ```python
 from EasyFEA import Models
@@ -122,7 +122,7 @@ mu    = E / (2 * (1 + nu))
 mat = Models.HyperElastic.SaintVenantKirchhoff(dim=3, lmbda=lmbda, mu=mu)
 ```
 
-### HolzapfelOgden
+### {py:class}`~EasyFEA.Models.HyperElastic.HolzapfelOgden`
 
 For fiber-reinforced soft tissues with two fiber families:
 
@@ -146,7 +146,7 @@ mat = Models.HyperElastic.HolzapfelOgden(
 
 ## Thermal model
 
-Defined by thermal conductivity `k` and, for transient problems, heat
+A {py:class}`~EasyFEA.Models.Thermal` model is defined by thermal conductivity `k` and, for transient problems, heat
 capacity `c`:
 
 ```python
@@ -163,7 +163,7 @@ mat_transient = Models.Thermal(k=1.0, c=500.0, thickness=1.0)
 
 ## Phase-field model
 
-{py:class}`~EasyFEA.Models.PhaseField` wraps an elastic model and adds the
+{py:class}`~EasyFEA.Models.PhaseField` wraps an {py:class}`~EasyFEA.Models.Elastic` model and adds the
 fracture parameters:
 
 ```python
