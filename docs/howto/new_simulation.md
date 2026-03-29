@@ -2,8 +2,9 @@
 # Create a custom simulation
 
 A **simulation** drives the full assembly–solve–store pipeline for a given
-physics. Every simulation inherits from {py:class}`~EasyFEA.Simulations._Simu`
-and is accessible in the {py:mod}`EasyFEA.Simulations` namespace.
+physics.
+Every simulations inherits from {py:class}`~EasyFEA.Simulations._Simu`
+and are accessible in the {py:mod}`EasyFEA.Simulations` namespace.
 
 ```{tip}
 **Most users will never need this guide.** EasyFEA ships with ready-to-use
@@ -163,8 +164,12 @@ automatically:
    (where $\vrm$ and $\arm$ are the velocity and acceleration computed by
    the time scheme).
 
-**Your only responsibility is to return the correct element-level matrices.**
+**Your main responsibility is to return the correct element-level matrices.**
 Everything else is handled by `_Simu` internally.
+
+```{seealso}
+- {ref}`howto-pipeline`
+```
 
 The method returns a 4-tuple **in the fixed order** `(K_e, C_e, M_e, F_e)`.
 Each term is a `np.ndarray` or `None`. The order is strict — swapping `M_e` and
@@ -185,10 +190,10 @@ than the linear load vector. `_Simu` passes the current solution through
 `Get_x0` so that the assembly can depend on it.
 
 See the
-[`Hyperelastic.Construct_local_matrix_system`](https://github.com/matnoel/EasyFEA/blob/main/EasyFEA/Simulations/_hyperelastic.py#L129)
+[`Hyperelastic.Construct_local_matrix_system`](https://github.com/matnoel/EasyFEA/blob/main/EasyFEA/Simulations/_hyperelastic.py#L129-L179)
 source for a concrete example of how tangent stiffness and residual are
 assembled in a non-linear finite deformation setting, and
-{doc}`../examples/Hyperelasticity/index` for the corresponding worked
+{ref}`easyfea-examples-hyperelasticity` for the corresponding worked
 examples.
 ```
 
@@ -220,15 +225,17 @@ The choice of `MatrixType` must match the **integrand form**:
 **Using the wrong matrix type causes under- or over-integration.** `rigi`
 and `mass` select different Gauss quadrature rules: `rigi` uses a rule exact
 for the polynomial degree of $\nabla N \nabla N$, while `mass` uses a higher
-rule suited to $N N$. Applying `rigi` to an $N N$ form
+rule suited to $N N$.
+Applying `rigi` to an $N N$ form
 **under-integrates** it (too few Gauss points, quadrature error); applying
 `mass` to a $\nabla N \nabla N$ form **over-integrates** it (unnecessary cost
 but also potential numerical issues with some element types). Either mistake
 silently produces wrong matrices.
 
 These arrays are {py:class}`~EasyFEA.FEM.FeArray` objects: they cover all
-`Ne` elements and `pg` Gauss points simultaneously.  No Python loops are
-needed.  Intermediate quantities such as `jacobian_e_pg` are computed once
+`Ne` elements and `pg` Gauss points simultaneously.
+**No Python loops** are needed.
+Intermediate quantities such as `jacobian_e_pg` are computed once
 and cached on the group element object via a cache decorator, so repeated
 calls are free.
 
