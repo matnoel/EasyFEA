@@ -153,6 +153,7 @@ Assemble a closed loop from any mix of `Line`, `CircleArc`, and `Points`:
 
 ---
 
+(manipulate-example-section)=
 ## Geometric transformations
 
 All geometry objects support {py:meth}`~EasyFEA.Geoms._Geom.copy`, {py:meth}`~EasyFEA.Geoms._Geom.Translate`, {py:meth}`~EasyFEA.Geoms._Geom.Rotate`, and {py:meth}`~EasyFEA.Geoms._Geom.Symmetry`.
