@@ -1575,7 +1575,7 @@ class _Simu(_IObserver, _params.Updatable, ABC):
     def _Solver_Set_PETSc4Py_Options(
         self,
         kspType: str = "cg",
-        pcType: str = "none",
+        pcType: str = "gamg",
         solverType: str = "petsc",
         problemType: Optional[ModelType] = None,
     ) -> None:
@@ -1585,22 +1585,22 @@ class _Simu(_IObserver, _params.Updatable, ABC):
         ----------
         kspType : str, optional
             PETSc Krylov method, by default "cg"
-            e.g. 'cg', 'bicg', 'gmres', 'bcgs', 'groppcg', ...\n
-            https://petsc.org/release/manualpages/KSP/KSPType/#ksptype\n
+            e.g. 'cg', 'bicg', 'gmres', 'bcgs', 'groppcg', ...
+            https://petsc.org/release/manualpages/KSP/KSPType/#ksptype
             https://petsc.org/release/manual/ksp/#tab-kspdefaults
         pcType : str, optional
             PETSc preconditioner, by default "none"
-            e.g. 'none', 'ilu', 'bjacobi', 'icc', 'lu', 'jacobi', 'cholesky', ...\n
-            https://petsc.org/release/manualpages/PC/PCType/#pctype\n
+            e.g. 'none', 'ilu', 'bjacobi', 'icc', 'lu', 'jacobi', 'cholesky', ...
+            https://petsc.org/release/manualpages/PC/PCType/#pctype
         solverType : str, optional
             PETSc Linear Solver, by default "petsc"
-            e.g. 'petsc', 'mumps', 'superlu', 'superlu_dist', 'umfpack', 'cholesky' ...\n
+            e.g. 'petsc', 'mumps', 'superlu', 'superlu_dist', 'umfpack', 'cholesky' ...
             https://petsc.org/release/manual/ksp/#using-external-linear-solvers
         problemType : ModelType, optional
             problem type to consider, by default None and set config for all problemTypes.
 
-        Tips
-        ----
+        Notes
+        -----
         FEM stiffness matrices, are typically SPD (Symmetric Positive Definite).
         Penalized systems may be non-symmetric.
 
