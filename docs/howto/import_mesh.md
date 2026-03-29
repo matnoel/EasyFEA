@@ -2,8 +2,7 @@
 # Import a mesh
 
 A **mesh** can be loaded from an external file instead of being generated from geometry.
-All import paths return a {py:class}`~EasyFEA.FEM.Mesh` that can be used
-directly in any {py:class}`~EasyFEA.Simulations._Simu`.
+All import paths return a {py:class}`~EasyFEA.FEM.Mesh` that can be used directly in any simulations. ({py:class}`~EasyFEA.Simulations._Simu`).
 Import utilities are available in the {py:class}`~EasyFEA.FEM.Mesher` class and in the {py:mod}`EasyFEA.Utilities.MeshIO` namespace.
 
 When a mesh file contains **physical groups** (named regions, boundaries), EasyFEA preserves them as **tags**.
@@ -67,7 +66,7 @@ file directly:
 mesh = mesher.Mesh_Import_part("part.stp", dim=3, meshSize=5.0)
 ```
 
-Only triangular (`TRI3`) or tetrahedral (`TETRA4`) elements are supported for
+Only triangular (`TRI*`) or tetrahedral (`TETRA*`) elements are supported for
 CAD import. Use `refineGeoms` to locally refine the mesh around specific
 geometric regions:
 
