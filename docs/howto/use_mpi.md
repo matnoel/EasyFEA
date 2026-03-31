@@ -15,30 +15,31 @@ error at simulation construction time if it is not available.
 
 ## Install petsc4py
 
-The simplest method uses [conda-forge](https://conda-forge.org), which
-distributes pre-built binaries for Linux, macOS, and Windows:
+The simplest method uses [pip](https://pypi.org/project/petsc4py/):
 
 ```bash
-conda install -c conda-forge petsc petsc4py mpi4py
+pip install mpi4py petsc petsc4py
 ```
 
-This installs a complete, self-consistent stack — an MPI implementation
-(OpenMPI or MPICH depending on the platform), PETSc, and Python bindings for
-both — with no compiler or system library required.
+If the installation process fails, you should try installing it through [conda-forge](https://conda-forge.org), which distributes pre-built binaries for Linux, macOS, and Windows:
+
+```bash
+conda install -c conda-forge mpi4py petsc petsc4py 
+```
 
 Verify the installation:
 
 ```bash
-python -c "from petsc4py import PETSc; print(PETSc.Sys.getVersion())"
-python -c "from mpi4py import MPI; print(MPI.Get_library_version())"
+python -c "from mpi4py import MPI; print('\n',MPI.Get_library_version())"                     
+python -c "from petsc4py import PETSc; print('petsc4py version: ',PETSc.Sys.getVersion())"    
+python -c "
+from petsc4py import PETSc
+for pkg in ['superlu_dist','mumps']:
+    print(f'has {pkg}:', PETSc.Sys.hasExternalPackage(pkg))
+"
 ```
 
-For HPC clusters where MPI is provided by the system (e.g. via `module load`),
-PETSc and `petsc4py` must be compiled against that MPI to ensure binary
-compatibility. Refer to the
-[PETSc installation guide](https://petsc.org/release/install/) and the
-[petsc4py documentation](https://petsc4py.readthedocs.io/en/stable/install.html)
-for instructions.
+Refer to the [PETSc installation guide](https://petsc.org/release/install/) and the [petsc4py documentation](https://petsc4py.readthedocs.io/en/stable/install.html) for advanced builds with `superlu_dist` and `mumps` solvers.
 
 ---
 

@@ -110,6 +110,8 @@ class PhaseField(_Simu):
 
         self.__displacement_solver = self.solver
 
+        self._Solver_Set_PETSc4Py_Options("cg", "gamg", "petsc", ModelType.elastic)
+
     def Results_nodeFields_elementFields(
         self, details=False
     ) -> tuple[list[str], list[str]]:

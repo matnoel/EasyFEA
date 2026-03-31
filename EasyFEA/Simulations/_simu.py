@@ -46,6 +46,9 @@ from .Solvers import (
 if CAN_USE_PETSC:
     from petsc4py import PETSc
 
+    PETSC_HAS_SUPERLU_DIST = PETSc.Sys.hasExternalPackage("superlu_dist")
+    PETSC_HAS_MUMPS = PETSc.Sys.hasExternalPackage("mumps")
+
 if CAN_USE_MPI:
     from mpi4py import MPI
 
@@ -448,10 +451,37 @@ class _Simu(_IObserver, _params.Updatable, ABC):
             self.solver = SolverType.scipy
 
         # Set solver petsc4py options with best available defaults for all problems.
-        # cg+gamg: mesh-independent convergence, O(n) memory, works serial and MPI.
         self.__dict_solver_petsc4py_options: dict[ModelType, tuple[str, str, str]] = {}
         if CAN_USE_PETSC:
-            self._Solver_Set_PETSc4Py_Options("cg", "gamg")
+            for problemType in self.Get_problemTypes():
+                dof_n = self.Get_dof_n(problemType)
+                if dof_n == 1:
+                    # Scalar problems
+                    # cg+gamg: works in serial and MPI, no external packages needed.
+                    # Good default for scalar SPD problems
+                    self._Solver_Set_PETSc4Py_Options(
+                        "cg", "gamg", "petsc", problemType
+                    )
+                else:
+                    # Vector problems
+                    if PETSC_HAS_SUPERLU_DIST:
+                        self._Solver_Set_PETSc4Py_Options(
+                            "preonly", "lu", "superlu_dist", problemType
+                        )
+                    elif PETSC_HAS_MUMPS:
+                        self._Solver_Set_PETSc4Py_Options(
+                            "preonly", "lu", "mumps", problemType
+                        )
+                    elif MPI_SIZE == 1:
+                        # No external direct solver: built-in LU (serial only).
+                        self._Solver_Set_PETSc4Py_Options(
+                            "preonly", "lu", "petsc", problemType
+                        )
+                    else:
+                        # MPI context without any parallel direct solver: iterative fallback.
+                        self._Solver_Set_PETSc4Py_Options(
+                            "cg", "gamg", "petsc", problemType
+                        )
 
         # Initialize solutions and boundary conditions
         self.__Init_Sols_n()
@@ -1576,133 +1606,157 @@ class _Simu(_IObserver, _params.Updatable, ABC):
         solverType: str = "petsc",
         problemType: Optional[ModelType] = None,
     ) -> None:
-        """Sets petsc4py options.
+        """Configure PETSc KSP solver options for the linear system Ax = b.
+
+        The constructor auto-selects defaults based on problem type and mesh dimension
+        (see ``__init__``). Call this method to override those defaults.
 
         Parameters
         ----------
         kspType : str, optional
-            PETSc Krylov method, by default "cg"
-            e.g. 'cg', 'bicg', 'gmres', 'bcgs', 'groppcg', ...
-            https://petsc.org/release/manualpages/KSP/KSPType/#ksptype
-            https://petsc.org/release/manual/ksp/#tab-kspdefaults
+            Krylov subspace method, by default ``"cg"``.
+            Choose based on matrix symmetry:
+
+            - SPD (symmetric positive definite): ``"cg"``, ``"groppcg"``
+            - Symmetric indefinite (Lagrange/saddle-point): ``"minres"``, ``"symmlq"``
+            - General / non-symmetric: ``"gmres"``, ``"fgmres"``, ``"lgmres"``, ``"bcgs"``
+            - Direct solve (no KSP iterations): ``"preonly"``
+            - Smoother / specialised: ``"chebyshev"`` (requires spectral bounds, best as MG smoother)
+
+            https://petsc.org/release/manualpages/KSP/KSPType/
         pcType : str, optional
-            PETSc preconditioner, by default "none"
-            e.g. 'none', 'ilu', 'bjacobi', 'icc', 'lu', 'jacobi', 'cholesky', ...
-            https://petsc.org/release/manualpages/PC/PCType/#pctype
+            Preconditioner type, by default ``"gamg"``.
+
+            +----------------+---------------------+---------------------------+
+            | pcType         | Context             | Notes                     |
+            +================+=====================+===========================+
+            | ``"gamg"``     | serial + MPI        | PETSc AMG, no extra pkg   |
+            | ``"hypre"``    | serial + MPI        | BoomerAMG, requires hypre |
+            | ``"asm"``      | serial + MPI        | overlapping Schwarz       |
+            | ``"bjacobi"``  | serial + MPI        | block Jacobi (ILU/block)  |
+            | ``"ilu"``      | serial only         | incomplete LU; use bjacobi/asm in MPI |
+            | ``"icc"``      | serial only         | incomplete Cholesky, SPD; use bjacobi/asm in MPI |
+            | ``"lu"``       | see solverType      | direct LU factorization   |
+            | ``"cholesky"`` | see solverType      | direct Cholesky, SPD only |
+            | ``"sor"``      | serial only         | SOR / Gauss-Seidel        |
+            | ``"jacobi"``   | serial + MPI        | diagonal scaling          |
+            | ``"none"``     | serial + MPI        | no preconditioning        |
+            +----------------+---------------------+---------------------------+
+
+            https://petsc.org/release/manualpages/PC/PCType/
         solverType : str, optional
-            PETSc Linear Solver, by default "petsc"
-            e.g. 'petsc', 'mumps', 'superlu', 'superlu_dist', 'umfpack', 'cholesky' ...
+            Backend for direct-factorization PC (``"lu"`` / ``"cholesky"``),
+            by default ``"petsc"``. Ignored when pcType is not a factorization type.
+
+            +--------------------+---------------+-------------------------------+
+            | solverType         | Context       | Notes                         |
+            +====================+===============+===============================+
+            | ``"petsc"``        | serial only   | built-in, seqaij only         |
+            | ``"superlu_dist"`` | serial + MPI  | most common parallel direct   |
+            | ``"mumps"``        | serial + MPI  | alternative to superlu_dist   |
+            | ``"mkl_pardiso"``  | serial + MPI  | Intel, fast on Intel CPUs     |
+            | ``"superlu"``      | serial only   |                               |
+            | ``"umfpack"``      | serial only   |                               |
+            | ``"cholmod"``      | serial only   | SPD only                      |
+            +--------------------+---------------+-------------------------------+
+
             https://petsc.org/release/manual/ksp/#using-external-linear-solvers
         problemType : ModelType, optional
-            problem type to consider, by default None and set config for all problemTypes.
-
-        Notes
-        -----
-        FEM stiffness matrices, are typically SPD (Symmetric Positive Definite).
-        Penalized systems may be non-symmetric.
-
-        Recommended combinations ranked by performance:
-
-        **Best - direct solve (small to medium meshes, serial or MPI with MUMPS)**:
-
-        >>> simu._Solver_Set_PETSc4Py_Options("preonly", "lu", "mumps")
-        >>> simu._Solver_Set_PETSc4Py_Options("preonly", "cholesky", "mumps")  # SPD only
-
-        **Best iterative - SPD matrices, scales to large meshes**:
-
-        >>> simu._Solver_Set_PETSc4Py_Options("cg", "hypre")   # BoomerAMG, best scalability
-        >>> simu._Solver_Set_PETSc4Py_Options("cg", "gamg")    # PETSc built-in AMG, no extra package
-
-        **Good iterative - SPD, serial only**:
-
-        >>> simu._Solver_Set_PETSc4Py_Options("cg", "icc")     # Incomplete Cholesky
-
-        **Non-symmetric matrices (phase-field, r3 penalty)**:
-
-        >>> simu._Solver_Set_PETSc4Py_Options("gmres", "ilu")      # serial
-        >>> simu._Solver_Set_PETSc4Py_Options("gmres", "bjacobi")  # MPI
-        >>> simu._Solver_Set_PETSc4Py_Options("bcgs", "bjacobi")   # BiCGSTAB, cheaper per iter
-
-        **Avoid:** pcType="none" gives no preconditioning and leads to slow or failing
-        convergence on ill-conditioned FEM matrices.
+            Problem type to configure. ``None`` applies to all problem types.
 
         Raises
         ------
         ValueError
-            If an unknown kspType, pcType, or solverType is given, if incompatible
-            combinations are requested (e.g. pcType="lu" without kspType="preonly"),
-            or if the requested external package (mumps, hypre, …) is not available
-            in the current PETSc build.
+            - Unknown kspType, pcType, or solverType.
+            - External solverType paired with a non-factorization pcType.
+            - ``pcType="sor"`` in MPI context (serial-only PC).
+            - ``pcType="lu"/"cholesky"`` with ``solverType="petsc"`` in MPI context
+              (seqaij only — use ``solverType="mumps"`` or ``"superlu_dist"``).
+            - Requested external package not available in the current PETSc build.
         """
 
-        # Known valid values – covers all common FEM use cases.
+        # ── Valid value sets ──────────────────────────────────────────────────
         # fmt: off
         _valid_ksp = {
-            "cg", "bicg", "bcgs", "gmres", "lgmres", "fgmres", "groppcg", "cgne",
-            "cgls", "minres", "symmlq", "richardson", "chebyshev", "preonly"
+            "cg", "groppcg", "pipecg",                     # SPD
+            "minres", "symmlq",                             # symmetric indefinite
+            "gmres", "fgmres", "lgmres", "bcgs", "bicg",   # non-symmetric
+            "cgne", "cgls", "richardson", "chebyshev",     # specialised (chebyshev: MG smoother)
+            "preonly",                                      # direct (no KSP iterations)
         }
         _valid_pc = {
-            "none", "jacobi", "bjacobi", "sor", "ilu", "icc", "lu", "cholesky",
-            "hypre", "gamg", "ml", "asm", "gasm", "ksp", "fieldsplit",
+            "gamg", "hypre", "ml",                         # algebraic multigrid
+            "asm", "gasm", "bjacobi",                      # domain decomposition
+            "ilu", "icc",                                   # incomplete factorization
+            "lu", "cholesky",                              # direct (backend = solverType)
+            "sor",                                         # SOR / Gauss-Seidel (serial only)
+            "jacobi", "none",                              # basic
+            "ksp", "fieldsplit",                           # composite
         }
         _valid_solver = {
-            "petsc", "mumps", "superlu", "superlu_dist", "umfpack",
-            "cholmod", "mkl_pardiso",
+            "petsc",                                       # built-in (seqaij only)
+            "mumps", "superlu_dist", "mkl_pardiso",        # parallel direct
+            "superlu", "umfpack", "cholmod",               # serial direct
         }
         # fmt: on
+
+        # ── Input validation ──────────────────────────────────────────────────
         if kspType not in _valid_ksp:
             raise ValueError(
-                f"Unknown kspType '{kspType}'. "
-                f"Valid options: {sorted(_valid_ksp)}\n"
+                f"Unknown kspType '{kspType}'. Valid options: {sorted(_valid_ksp)}\n"
                 "See https://petsc.org/release/manualpages/KSP/KSPType/"
             )
         if pcType not in _valid_pc:
             raise ValueError(
-                f"Unknown pcType '{pcType}'. "
-                f"Valid options: {sorted(_valid_pc)}\n"
+                f"Unknown pcType '{pcType}'. Valid options: {sorted(_valid_pc)}\n"
                 "See https://petsc.org/release/manualpages/PC/PCType/"
             )
         if solverType not in _valid_solver:
             raise ValueError(
-                f"Unknown solverType '{solverType}'. "
-                f"Valid options: {sorted(_valid_solver)}\n"
+                f"Unknown solverType '{solverType}'. Valid options: {sorted(_valid_solver)}\n"
                 "See https://petsc.org/release/manual/ksp/#using-external-linear-solvers"
             )
 
-        # Direct-solve PC types must be paired with kspType="preonly".
+        # External direct-solver backends only apply to factorization PCs.
         _direct_pc = {"lu", "cholesky"}
-        if pcType in _direct_pc and kspType != "preonly":
-            raise ValueError(
-                f"pcType='{pcType}' is a direct solver and must be paired with "
-                f"kspType='preonly', got kspType='{kspType}'."
-            )
-
-        # External solverType only makes sense with a factorization PC.
         if solverType != "petsc" and pcType not in _direct_pc:
             raise ValueError(
-                f"solverType='{solverType}' is an external direct solver and requires "
+                f"solverType='{solverType}' is a direct-solver backend and requires "
                 f"pcType in {sorted(_direct_pc)}, got pcType='{pcType}'."
             )
 
-        # Check that external packages are available in this PETSc build.
-        # These checks only run when CAN_USE_PETSC is True (PETSc is imported above).
+        # ── MPI compatibility ─────────────────────────────────────────────────
+        if MPI_SIZE > 1:
+            # PCSOR is sequential: does not support mpiaij.
+            if pcType == "sor":
+                raise ValueError(
+                    "pcType='sor' is sequential and cannot be used in MPI context. "
+                    "Use pcType='bjacobi' or 'asm' instead."
+                )
+            # PETSc built-in LU/Cholesky only supports seqaij, not mpiaij.
+            if pcType in _direct_pc and solverType == "petsc":
+                raise ValueError(
+                    f"solverType='petsc' with pcType='{pcType}' only supports sequential "
+                    "matrices (seqaij) and cannot be used in MPI context. "
+                    "Use a parallel direct solver: solverType='mumps' or 'superlu_dist'."
+                )
+
+        # ── External package availability ─────────────────────────────────────
         if CAN_USE_PETSC:
-            # External direct solvers (mumps, superlu, umfpack, …)
-            if solverType != "petsc" and not PETSc.Sys.hasExternalPackage(solverType):  # type: ignore [name-defined]
+            if solverType != "petsc" and not PETSc.Sys.hasExternalPackage(solverType):  # type: ignore[name-defined]
                 raise ValueError(
                     f"solverType='{solverType}' is not available in this PETSc build. "
                     "Check your PETSc installation or use solverType='petsc'."
                 )
-            # External preconditioners that require a separate package
             _external_pc = {"hypre", "ml"}
-            if pcType in _external_pc and not PETSc.Sys.hasExternalPackage(pcType):  # type: ignore [name-defined]
+            if pcType in _external_pc and not PETSc.Sys.hasExternalPackage(pcType):  # type: ignore[name-defined]
                 raise ValueError(
                     f"pcType='{pcType}' requires the '{pcType}' package but it is not "
                     "available in this PETSc build. "
                     "Try pcType='gamg' (built-in AMG) instead."
                 )
 
-        # set values
+        # ── Store ─────────────────────────────────────────────────────────────
         list_problemTypes = (
             self.Get_problemTypes() if problemType is None else [problemType]
         )
