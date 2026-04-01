@@ -2226,9 +2226,7 @@ class Mesher:
             meshSize=meshSize,
             isOpen=True,
         )
-        circle = Circle(
-            Point(x=L / 2, y=h / 2), L / 3, meshSize=meshSize
-        )
+        circle = Circle(Point(x=L / 2, y=h / 2), L / 3, meshSize=meshSize)
         circleClose = Circle(
             Point(x=L / 2, y=h / 2), L / 3, meshSize=meshSize, isFilled=True
         )
@@ -2276,9 +2274,7 @@ class Mesher:
         domain = Domain(
             Point(y=-h / 2, z=-b / 2), Point(x=L, y=h / 2, z=-b / 2), meshSize=meshSize
         )
-        emptyCircle = Circle(
-            Point(x=L / 2, y=0, z=-b / 2), h * 0.7, meshSize=meshSize
-        )
+        emptyCircle = Circle(Point(x=L / 2, y=0, z=-b / 2), h * 0.7, meshSize=meshSize)
         circle = Circle(
             Point(x=L / 2, y=0, z=-b / 2), h * 0.7, meshSize=meshSize, isFilled=True
         )
@@ -2349,8 +2345,6 @@ class Mesher:
         folder : str, optional
             folder used to save .pos file, by default ""
         """
-
-        assert isinstance(simu, _Simu), "simu must be a simu object"
 
         assert isinstance(results, list), "results must be a list"
 
@@ -2472,7 +2466,7 @@ class Mesher:
             gmsh.view.addListData(view, vt + gmshType, Ne, res.ravel())
 
             if folder != "":
-                gmsh.view.write(view, Folder.Join(folder, "simu.pos"), True)
+                gmsh.view.write(view, Folder.Join(folder, "simu.pos", mkdir=True), True)
 
             return view
 
