@@ -2,6 +2,11 @@
 
 This document describes the changes made to the project.
 
+## 1.8.2 (April 1, 2026):
+
+- Improved `simu._Solver_Set_PETSc4Py_Options` function (#26).
+- Updated the meshSize in Hyperelasticity examples.
+
 ## 1.8.1 (March 29, 2026):
 
 - Improved Sphinx documentation.
