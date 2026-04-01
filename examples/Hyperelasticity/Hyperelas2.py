@@ -33,7 +33,7 @@ if __name__ == "__main__":
     # ----------------------------------------------
     meshSize = h / 10
 
-    contour = Domain((0, 0), (L, h), h / 10)
+    contour = Domain((0, 0), (L, h), meshSize)
 
     if dim == 2:
         mesh = contour.Mesh_2D([], ElemType.QUAD8, isOrganised=True)

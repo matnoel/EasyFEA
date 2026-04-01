@@ -39,7 +39,7 @@ if __name__ == "__main__":
     # ----------------------------------------------
     meshSize = h / 3
 
-    contour = Domain((0, 0), (L, h), h / 3)
+    contour = Domain((0, 0), (L, h), meshSize)
 
     mesh = contour.Mesh_Extrude(
         [], [0, 0, h], [h / meshSize], ElemType.HEXA8, isOrganised=True
