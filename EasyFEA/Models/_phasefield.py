@@ -921,11 +921,13 @@ class PhaseField(_IModel):
                 mat_c1 = matrix_e_pg[case1]
 
                 M1[case1] = (
-                    (mat_c1 - v2_c1 * np.eye(3)) @ (mat_c1 - v3_c1 * np.eye(3))
+                    (mat_c1 - v2_c1 * np.eye(3))
+                    @ (mat_c1 - v3_c1 * np.eye(3))
                     / ((v1_c1 - v2_c1) * (v1_c1 - v3_c1))
                 )
                 M3[case1] = (
-                    (mat_c1 - v1_c1 * np.eye(3)) @ (mat_c1 - v2_c1 * np.eye(3))
+                    (mat_c1 - v1_c1 * np.eye(3))
+                    @ (mat_c1 - v2_c1 * np.eye(3))
                     / ((v3_c1 - v1_c1) * (v3_c1 - v2_c1))
                 )
 
@@ -1127,8 +1129,14 @@ class PhaseField(_IModel):
 
             coef = np.sqrt(2)
 
+            # [Remark M]
+            # projP + projM = I (partition of unity) — derive projM exactly from projP
+            # rather than assembling it independently from eigenvectors. The independent
+            # formula accumulated ~1e-11 rounding errors in 3D from 4th-power products
+            # of eigenvector components.
+
             thetap = dvalp / 2
-            thetam = dvalm / 2
+            # thetam = dvalm / 2 # [Remark M]
 
             v1_m_v2 = val_e_pg[..., 0] - val_e_pg[..., 1]
             v1_m_v2[v1_m_v2 == 0] = 1
@@ -1138,11 +1146,13 @@ class PhaseField(_IModel):
             v2_m_v3[v2_m_v3 == 0] = 1
 
             thetap[..., 0] = (valp[..., 0] - valp[..., 1]) / (2 * v1_m_v2)
-            thetam[..., 0] = (valm[..., 0] - valm[..., 1]) / (2 * v1_m_v2)
             thetap[..., 1] = (valp[..., 0] - valp[..., 2]) / (2 * v1_m_v3)
-            thetam[..., 1] = (valm[..., 0] - valm[..., 2]) / (2 * v1_m_v3)
             thetap[..., 2] = (valp[..., 1] - valp[..., 2]) / (2 * v2_m_v3)
-            thetam[..., 2] = (valm[..., 1] - valm[..., 2]) / (2 * v2_m_v3)
+
+            # [Remark M]
+            # thetam[..., 0] = (valm[..., 0] - valm[..., 1]) / (2 * v1_m_v2)
+            # thetam[..., 1] = (valm[..., 0] - valm[..., 2]) / (2 * v1_m_v3)
+            # thetam[..., 2] = (valm[..., 1] - valm[..., 2]) / (2 * v2_m_v3)
 
             tic.Tac("Split", "thetap and thetam", False)
 
@@ -1170,7 +1180,9 @@ class PhaseField(_IModel):
                 B_il = Mb[..., _rI[:, None], _cL[None, :]]
                 B_jl = Mb[..., _rJ[:, None], _cL[None, :]]
                 B_jk = Mb[..., _rJ[:, None], _cK[None, :]]
-                Gij = (A_ik * B_jl + A_il * B_jk + B_ik * A_jl + B_il * A_jk) * _km_scale
+                Gij = (
+                    A_ik * B_jl + A_il * B_jk + B_ik * A_jl + B_il * A_jk
+                ) * _km_scale
                 return FeArray.asfearray(Gij)
 
             G12 = __Construction_Gij(M1, M2)
@@ -1194,14 +1206,16 @@ class PhaseField(_IModel):
                 + (thetap[:, :, 2] * G23)
             )
 
-            projM = (
-                (dvalm[:, :, 0] * m1xm1)
-                + (dvalm[:, :, 1] * m2xm2)
-                + (dvalm[:, :, 2] * m3xm3)
-                + (thetam[:, :, 0] * G12)
-                + (thetam[:, :, 1] * G13)
-                + (thetam[:, :, 2] * G23)
-            )
+            # # [Remark M]
+            # projM = (
+            #     (dvalm[:, :, 0] * m1xm1)
+            #     + (dvalm[:, :, 1] * m2xm2)
+            #     + (dvalm[:, :, 2] * m3xm3)
+            #     + (thetam[:, :, 0] * G12)
+            #     + (thetam[:, :, 1] * G13)
+            #     + (thetam[:, :, 2] * G23)
+            # )
+            projM = np.eye(6) - projP
 
             tic.Tac("Split", "projP and projM", False)
 
@@ -1219,16 +1233,11 @@ class PhaseField(_IModel):
                 verif_MP = np.max(ortho_vM_vP / ortho_v_v)
                 assert verif_MP < 1e-12, f"{verif_MP:.3e}"
 
-            # [Remark M]
-            # Rounding errors in the construction of 3D eigen projectors.
-            # only occurs in 3D !!!
-            tol = 1e-12 if dim == 2 else 1e-11
-
             # check that: vector_e_pg = vectorP_e_pg + vectorM_e_pg
             diff_vect = vector_e_pg - (vectorP + vectorM)
             if np.max(Norm(vector_e_pg, axis=-1)) > 0:
                 test_vect = Norm(diff_vect, axis=-1) / Norm(vector_e_pg, axis=-1)
                 error = f"vector_e_pg != vectorP_e_pg + vectorM_e_pg -> {np.max(test_vect):.3e}"
-                assert np.max(test_vect) < tol, error
+                assert np.max(test_vect) < 1e-12, error
 
         return projP, projM
