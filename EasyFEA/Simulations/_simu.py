@@ -769,7 +769,7 @@ class _Simu(_IObserver, _params.Updatable, ABC):
 
         tic.Tac(
             "Matrix",
-            f"Construct the local matrix system for the {problemType} problem.",
+            f"Construct the local matrix system ({problemType}).",
             self._verbosity,
         )
 
@@ -782,11 +782,7 @@ class _Simu(_IObserver, _params.Updatable, ABC):
             # Display.Init_Axes().spy(K)
             # Display.plt.show()
 
-        tic.Tac(
-            "Matrix",
-            f"Assemble the K matrix for the {problemType} problem.",
-            self._verbosity,
-        )
+        tic.Tac("Matrix", f"Assemble the K matrix ({problemType}).", self._verbosity)
 
         # Assembly C
         if C_e is None:
@@ -795,11 +791,7 @@ class _Simu(_IObserver, _params.Updatable, ABC):
             assert C_e.size == rows_e.size, f"Not enough data to fill a {shape} matrix."
             C = sparse.csr_matrix((C_e.ravel(), (rows_e, columns_e)), shape=shape)
 
-        tic.Tac(
-            "Matrix",
-            f"Assemble the C matrix for the {problemType} problem.",
-            self._verbosity,
-        )
+        tic.Tac("Matrix", f"Assemble the C matrix ({problemType}).", self._verbosity)
 
         # Assembly M
         if M_e is None:
@@ -808,11 +800,7 @@ class _Simu(_IObserver, _params.Updatable, ABC):
             assert M_e.size == rows_e.size, f"Not enough data to fill a {shape} matrix."
             M = sparse.csr_matrix((M_e.ravel(), (rows_e, columns_e)), shape=shape)
 
-        tic.Tac(
-            "Matrix",
-            f"Assemble the M matrix for the {problemType} problem.",
-            self._verbosity,
-        )
+        tic.Tac("Matrix", f"Assemble the M matrix ({problemType}).", self._verbosity)
 
         # Assembly F
         if F_e is None:
@@ -825,11 +813,7 @@ class _Simu(_IObserver, _params.Updatable, ABC):
             ), f"Not enough data to fill a [{dofs}, 1] vector."
             F = sparse.csr_matrix((F_e.ravel(), (rows, cols)), shape=(Ndof, 1))
 
-        tic.Tac(
-            "Matrix",
-            f"Assemble the F vector for the {problemType} problem.",
-            self._verbosity,
-        )
+        tic.Tac("Matrix", f"Assemble the F vector ({problemType}).", self._verbosity)
 
         return K, C, M, F
 
