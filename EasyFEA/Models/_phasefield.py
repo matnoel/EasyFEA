@@ -1075,11 +1075,11 @@ class PhaseField(_IModel):
 
         # compute positive and negative parts of the eigenvalues [e,pg,2].
         valp = (val_e_pg + np.abs(val_e_pg)) / 2
-        valm = (val_e_pg - np.abs(val_e_pg)) / 2
+        # valm = (val_e_pg - np.abs(val_e_pg)) / 2
 
         # compute of di [e,pg,2].
         dvalp = np.heaviside(val_e_pg, 0.5)
-        dvalm = np.heaviside(-val_e_pg, 0.5)
+        # dvalm = np.heaviside(-val_e_pg, 0.5)
 
         if dim == 2:
             # eigenvectors
@@ -1091,16 +1091,18 @@ class PhaseField(_IModel):
 
             # compute BetaP and BetaM [e,pg]
             BetaP = (valp[..., 0] - valp[..., 1]) / v1_m_v2
-            BetaM = (valm[..., 0] - valm[..., 1]) / v1_m_v2
+            # BetaM = (valm[..., 0] - valm[..., 1]) / v1_m_v2
 
             # compute gammap and gammam
             gammap = dvalp - BetaP
-            gammam = dvalm - BetaM
+            # gammam = dvalm - BetaM
 
             tic.Tac("Split", "Betas and gammas", False)
 
             m1xm1 = TensorProd(m1, m1, ndim=1)
             m2xm2 = TensorProd(m2, m2, ndim=1)
+
+            tic.Tac("Split", "mi ⊗ mi", False)
 
             # Projector P such that EpsP = projP • Eps
             projP = (
@@ -1110,11 +1112,12 @@ class PhaseField(_IModel):
             )
 
             # Projector M such that EpsM = projM • Eps
-            projM = (
-                (BetaM * np.eye(3))
-                + (gammam[..., 0] * m1xm1)
-                + (gammam[..., 1] * m2xm2)
-            )
+            # projM = (
+            #     (BetaM * np.eye(3))
+            #     + (gammam[..., 0] * m1xm1)
+            #     + (gammam[..., 1] * m2xm2)
+            # )
+            projM = np.eye(3) - projP
 
             tic.Tac("Split", "projP and projM", False)
 
