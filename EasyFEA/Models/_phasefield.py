@@ -947,8 +947,6 @@ class PhaseField(_IModel):
 
             M2 = I_e_pg - (M1 + M3)
 
-            tic.Tac("Split", "Eigenprojectors", False)
-
         # transform eigenbases in the form of a vector [e,pg,3] or [e,pg,6].
         if dim == 2:
             # [x, y, xy]
@@ -1068,8 +1066,6 @@ class PhaseField(_IModel):
 
         dim = self.__material.dim
 
-        Ne, nPg = vector_e_pg.shape[:2]
-
         # compute eigenvalues, eigenvectors and eigenprojectors
         val_e_pg, list_m, list_M = self._Eigen_values_vectors_projectors(
             vector_e_pg, verif
@@ -1123,9 +1119,8 @@ class PhaseField(_IModel):
             tic.Tac("Split", "projP and projM", False)
 
         elif dim == 3:
-            m1, m2, m3 = list_m[0], list_m[1], list_m[2]
-
-            M1, M2, M3 = list_M[0], list_M[1], list_M[2]
+            m1, m2, m3 = list_m
+            M1, M2, M3 = list_M
 
             coef = np.sqrt(2)
 
@@ -1156,57 +1151,59 @@ class PhaseField(_IModel):
 
             tic.Tac("Split", "thetap and thetam", False)
 
-            # Voigt row→(i,j) and col→(k,l) index maps
+            # Diagonal terms Σ_k dvalp_k · mk⊗mk — all 3 in one vectorized pass.
+            m_all = np.stack([m1, m2, m3])
+            # (3, Ne, nPg, 6)
+            mxm = m_all[..., :, np.newaxis] * m_all[..., np.newaxis, :]
+            # (3, Ne, nPg, 6, 6)
+            dvalp_w = np.moveaxis(dvalp, -1, 0)[..., None, None]
+            # (3, Ne, nPg, 1, 1)
+            diag_sum = (mxm * dvalp_w).sum(axis=0)
+            # (Ne, nPg, 6, 6)
+
+            tic.Tac("Split", "Σ_a d_a^+ ma ⊗ ma", False)
+
+            # index maps (_rI = _cK, _rJ = _cL by convention)
             _rI = np.array([0, 1, 2, 1, 0, 0])
             _rJ = np.array([0, 1, 2, 2, 2, 1])
-            _cK = np.array([0, 1, 2, 1, 0, 0])
-            _cL = np.array([0, 1, 2, 2, 2, 1])
-            # Kelvin-Mandel scale matrix: 1, sqrt(2), or 2
             _km_scale = np.ones((6, 6))
             _km_scale[3:, :3] = coef
             _km_scale[:3, 3:] = coef
             _km_scale[3:, 3:] = 2.0
 
-            def __Construction_Gij(Ma, Mb):
-                """Fill 6x6 Kelvin-Mandel G_ab — fully vectorized, no Python loop."""
-                Ma = np.asarray(Ma)
-                Mb = np.asarray(Mb)
-                # Gather all (r,c) index combos at once: (Ne, nPg, 6, 6)
-                A_ik = Ma[..., _rI[:, None], _cK[None, :]]
-                A_il = Ma[..., _rI[:, None], _cL[None, :]]
-                A_jl = Ma[..., _rJ[:, None], _cL[None, :]]
-                A_jk = Ma[..., _rJ[:, None], _cK[None, :]]
-                B_ik = Mb[..., _rI[:, None], _cK[None, :]]
-                B_il = Mb[..., _rI[:, None], _cL[None, :]]
-                B_jl = Mb[..., _rJ[:, None], _cL[None, :]]
-                B_jk = Mb[..., _rJ[:, None], _cK[None, :]]
-                Gij = (
-                    A_ik * B_jl + A_il * B_jk + B_ik * A_jl + B_il * A_jk
-                ) * _km_scale
-                return FeArray.asfearray(Gij)
+            # Cross terms Σ_{i<j} thetap_ij · G_ij — 3 pairs batched.
+            # Pairs: (M1,M2), (M1,M3), (M2,M3).
+            # M symmetry: A_jk = A_il^T, B_jk = B_il^T → 6 gathers instead of 8.
+            Ma = np.stack([M1, M1, M2])  # (3, Ne, nPg, 3, 3)
+            Mb = np.stack([M2, M3, M3])  # (3, Ne, nPg, 3, 3)
 
-            G12 = __Construction_Gij(M1, M2)
-            G13 = __Construction_Gij(M1, M3)
-            G23 = __Construction_Gij(M2, M3)
+            A_ik = Ma[..., _rI[:, None], _rI[None, :]]
+            A_il = Ma[..., _rI[:, None], _rJ[None, :]]
+            A_jl = Ma[..., _rJ[:, None], _rJ[None, :]]
+            B_ik = Mb[..., _rI[:, None], _rI[None, :]]
+            B_il = Mb[..., _rI[:, None], _rJ[None, :]]
+            B_jl = Mb[..., _rJ[:, None], _rJ[None, :]]
+            # all shaped (3, Ne, nPg, 6, 6)
 
-            tic.Tac("Split", "Gab", False)
+            G_all = (
+                A_ik * B_jl
+                + A_il * B_il.swapaxes(-2, -1)
+                + B_ik * A_jl
+                + B_il * A_il.swapaxes(-2, -1)
+            ) * _km_scale
+            # (3, Ne, nPg, 6, 6)
 
-            m1xm1 = TensorProd(m1, m1, ndim=1)
-            m2xm2 = TensorProd(m2, m2, ndim=1)
-            m3xm3 = TensorProd(m3, m3, ndim=1)
+            thetap_w = np.moveaxis(thetap, -1, 0)[..., None, None]
+            # (3, Ne, nPg, 1, 1)
+            G_sum = (G_all * thetap_w).sum(axis=0)
+            # (Ne, nPg, 6, 6)
 
-            tic.Tac("Split", "mixmi", False)
+            tic.Tac("Split", "Σ_a Σ_b!=a θ_ab G_ab", False)
 
-            projP = (
-                (dvalp[:, :, 0] * m1xm1)
-                + (dvalp[:, :, 1] * m2xm2)
-                + (dvalp[:, :, 2] * m3xm3)
-                + (thetap[:, :, 0] * G12)
-                + (thetap[:, :, 1] * G13)
-                + (thetap[:, :, 2] * G23)
-            )
+            projP = FeArray.asfearray(diag_sum + G_sum)
 
-            # # [Remark M]
+            # [Remark M] projP + projM = I (partition of unity) — derive projM exactly
+            # to avoid independent rounding errors in the 4th-power eigenvector products.
             # projM = (
             #     (dvalm[:, :, 0] * m1xm1)
             #     + (dvalm[:, :, 1] * m2xm2)
