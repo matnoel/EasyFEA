@@ -28,7 +28,7 @@ if __name__ == "__main__":
     w = 50
 
     # load
-    sigMax = 8 * 1e5 / (w * thickness)
+    sigMax = 8 * 1e6 / (w * thickness)
 
     # ----------------------------------------------
     # Mesh
