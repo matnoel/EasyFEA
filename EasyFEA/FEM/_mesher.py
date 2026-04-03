@@ -2110,6 +2110,7 @@ class Mesher:
                     MPI_SIZE <= Nelems
                 ), f"Nproc must be less than or equal to {Nelems}!"
                 gmsh.model.mesh.partition(Nrank)
+                tic.Tac("Mesh", "gmsh.model.mesh.partition", self.__verbosity)
                 dict_rank_nodes = {r: set() for r in range(Nrank)}
                 list_dict_groupElem: list[dict] = [{} for _ in range(Nrank)]
 
@@ -2168,6 +2169,8 @@ class Mesher:
                         nodesGroup = changes[nodeTags]  # Apply change
                         # add tag
                         groupElem.Set_Tag(nodesGroup, name)
+
+                tic.Tac("Mesh", f"Create {str(groupElem.elemType)}", self.__verbosity)
 
                 # Check that the mesh does not have a group of elements of this dimension
                 if groupElem.dim in knownDims and groupElem.dim == meshDim:
