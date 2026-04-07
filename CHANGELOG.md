@@ -2,6 +2,14 @@
 
 This document describes the changes made to the project.
 
+## 1.8.3 (April 7, 2026):
+
+- Migrated CI/CD and ReadTheDocs to `uv` for dependency management.
+- Improved performance of `_phasefield.__Spectral_Decomposition` in 2D and 3D.
+- Fixed rounding errors in `_phasefield.__Spectral_Decomposition` in 3D.
+- Updated `mesher.Save_Simu` function.
+- Improved `mesher._Mesh_Get_Mesh` profiling (#26).
+
 ## 1.8.2 (April 1, 2026):
 
 - Improved `simu._Solver_Set_PETSc4Py_Options` function (#26).
