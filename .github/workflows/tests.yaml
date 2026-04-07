@@ -44,8 +44,8 @@ jobs:
       
       - name: Install dependencies
         run: |
-          uv pip install "meshio @ git+https://github.com/matnoel/meshio.git@medit_higher_order_elements"
-          uv pip install .[dev,io,viz]
+          uv pip install --system "meshio @ git+https://github.com/matnoel/meshio.git@medit_higher_order_elements"
+          uv pip install --system .[dev,io,viz]
       
       - name: Run tests
         run: uv run pytest
