@@ -52,6 +52,10 @@ if CAN_USE_PETSC:
 if CAN_USE_MPI:
     from mpi4py import MPI
 
+if MPI_SIZE > 1:
+    error = "You must install petsc4py and mpi4py in order to run EasyFEA in parallel."
+    assert CAN_USE_MPI and CAN_USE_PETSC, error
+
 
 # ----------------------------------------------
 # _Simu
@@ -439,9 +443,6 @@ class _Simu(_IObserver, _params.Updatable, ABC):
 
         # Solver used
         if MPI_SIZE > 1:
-            assert (
-                CAN_USE_PETSC
-            ), "You must install petsc4py in order to run EasyFEA in parallel."
             self.solver = SolverType.petsc
         elif CAN_USE_PYPARDISO:
             self.solver = SolverType.pypardiso

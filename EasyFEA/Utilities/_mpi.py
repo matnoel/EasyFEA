@@ -4,6 +4,7 @@
 # EasyFEA is distributed under the terms of the GNU General Public License v3, see LICENSE.txt and CREDITS.md for more information.
 
 
+import os
 import numpy as np
 from functools import wraps
 
@@ -22,6 +23,16 @@ except ModuleNotFoundError:
     CAN_USE_MPI = False
     MPI_COMM = None
     MPI_SIZE = 1
+    for var in [
+        "OMPI_COMM_WORLD_SIZE",
+        "PMI_SIZE",
+        "SLURM_NTASKS",
+        "MV2_COMM_WORLD_SIZE",
+    ]:
+        size = os.environ.get(var)
+        if size is not None:
+            MPI_SIZE = int(size)
+            break
     MPI_RANK = 0
 
 requires_mpi = Create_requires_decorator("mpi4py")
