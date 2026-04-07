@@ -16,8 +16,8 @@ build:
     pre_install:
       - pip install uv
     post_install:
-      - uv pip install --system .[viz,io]
-      - uv pip install --system -r docs/requirements.txt
+      - uv pip install .[viz,io]
+      - uv pip install -r docs/requirements.txt
     pre_build:
       - git lfs pull
       - python docs/gallery/generate.py
