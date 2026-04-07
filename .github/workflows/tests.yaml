@@ -30,24 +30,22 @@ jobs:
 
       - name: Install uv
         uses: astral-sh/setup-uv@v4
-        with:
-          enable-cache: true
       
-      - name: Set up python
+      - name: Set up Python
         uses: actions/setup-python@v4
         with:
-          python-version: ${{ matrix.python-version}}
+          python-version: ${{ matrix.python-version }}
 
       - name: Install system dependencies (Ubuntu)
         if: runner.os == 'Linux'
         run: |
           sudo apt-get update
           sudo apt-get install -y libglu1-mesa
-
+      
       - name: Install dependencies
         run: |
-          uv sync --extra dev --extra io --extra viz
           uv pip install "meshio @ git+https://github.com/matnoel/meshio.git@medit_higher_order_elements"
+          uv pip install .[dev,io,viz]
       
       - name: Run tests
         run: uv run pytest
