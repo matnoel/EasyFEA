@@ -751,6 +751,7 @@ def _Get_pyvista_cell(groupElem: _GroupElem) -> tuple[VTKCellType, _types.IntArr
     # get groupelem connectivity
     connect = groupElem.connect[:, vtkIndexes]
     connect = np.reshape(connect, (-1, np.shape(vtkIndexes)[-1]))
+    connect = groupElem._global_to_local_nodes[connect]
 
     # create cellData
     cellType = DICT_ELEMTYPE_TO_VTK[elemType]
@@ -843,7 +844,7 @@ def _GroupElem_to_PyVista(
         assert elements.max() < groupElem.Ne
         connect = connect[elements]
 
-    pyVistaMesh = pv.UnstructuredGrid({cellType: connect}, groupElem.coordGlob)
+    pyVistaMesh = pv.UnstructuredGrid({cellType: connect}, groupElem.coord)
 
     return pyVistaMesh
 
@@ -867,7 +868,7 @@ def PyVista_to_EasyFEA(pyVistaMesh: Union[pv.UnstructuredGrid, pv.MultiBlock]) -
 
     def read_grid(grid: pv.UnstructuredGrid, part: int):
 
-        coordGlob = grid.points
+        coordinates = grid.points
 
         cellTypes = grid.celltypes.astype(int)
 
@@ -884,7 +885,7 @@ def PyVista_to_EasyFEA(pyVistaMesh: Union[pv.UnstructuredGrid, pv.MultiBlock]) -
                 connect = connect[:, indexes]
 
             if elemType not in dict_groupElem:
-                groupElem = GroupElemFactory.Create(elemType, connect, coordGlob)
+                groupElem = GroupElemFactory.Create(elemType, connect, coordinates)
                 groupElem.Set_Tag(groupElem.nodes, str(part))
             else:
                 groupElem = dict_groupElem[elemType]
@@ -895,7 +896,7 @@ def PyVista_to_EasyFEA(pyVistaMesh: Union[pv.UnstructuredGrid, pv.MultiBlock]) -
                 # concate new data in previous groupElem
                 newNodes = np.array(list(set(connect.ravel())))
                 connect = np.concat((groupElem.connect, connect), axis=0)
-                groupElem = GroupElemFactory.Create(elemType, connect, coordGlob)
+                groupElem = GroupElemFactory.Create(elemType, connect, coordinates)
 
                 # add previous tags
                 for nodes, tag in zip(nodeTags, tags):

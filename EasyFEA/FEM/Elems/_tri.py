@@ -24,9 +24,9 @@ class TRI3(_GroupElem):
     # 0----------1 --> u
 
     def __init__(
-        self, gmshId: int, connect: _types.IntArray, coordGlob: _types.FloatArray
+        self, gmshId: int, connect: _types.IntArray, coordinates: _types.FloatArray
     ):
-        super().__init__(gmshId, connect, coordGlob)
+        super().__init__(gmshId, connect, coordinates)
 
     @property
     def origin(self) -> list[int]:
@@ -91,9 +91,9 @@ class TRI6(_GroupElem):
     # 0----3-----1 --> u
 
     def __init__(
-        self, gmshId: int, connect: _types.IntArray, coordGlob: _types.FloatArray
+        self, gmshId: int, connect: _types.IntArray, coordinates: _types.FloatArray
     ):
-        super().__init__(gmshId, connect, coordGlob)
+        super().__init__(gmshId, connect, coordinates)
 
     @property
     def origin(self) -> list[int]:
@@ -178,9 +178,9 @@ class TRI10(_GroupElem):
     # 0---3---4---1 --> u
 
     def __init__(
-        self, gmshId: int, connect: _types.IntArray, coordGlob: _types.FloatArray
+        self, gmshId: int, connect: _types.IntArray, coordinates: _types.FloatArray
     ):
-        super().__init__(gmshId, connect, coordGlob)
+        super().__init__(gmshId, connect, coordinates)
 
     @property
     def origin(self) -> list[int]:
@@ -392,9 +392,9 @@ class TRI15(_GroupElem):
     # 0---3---4---5---1
 
     def __init__(
-        self, gmshId: int, connect: _types.IntArray, coordGlob: _types.FloatArray
+        self, gmshId: int, connect: _types.IntArray, coordinates: _types.FloatArray
     ):
-        super().__init__(gmshId, connect, coordGlob)
+        super().__init__(gmshId, connect, coordinates)
 
     @property
     def origin(self) -> list[int]:

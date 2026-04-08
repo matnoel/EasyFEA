@@ -52,24 +52,13 @@ class Mesh(Observable):
             the mesh can write in the terminal, by default True
         """
 
-        list_GroupElem = []
         dim = -1
         assert len(dict_groupElem) > 0, "dict_groupElem is empty."
-        coordGlob = None
-        errorCoord = "Each group of elements must use the same coordinates!"
+        # Set the default element group.
         for grp in dict_groupElem.values():
             if grp.dim > dim:
-                # Here we make sure that the mesh element used is the one with the largest dimension.
                 dim = grp.dim
                 self.__groupElem = grp
-            if coordGlob is None:
-                coordGlob = grp.coordGlob
-            else:
-                assert coordGlob.shape == grp.coordGlob.shape, errorCoord
-                diff = coordGlob - grp.coordGlob
-                err = np.linalg.norm(diff) / np.linalg.norm(coordGlob)
-                assert err < 1e-12, errorCoord
-            list_GroupElem.append(grp)
 
         self.__dim = self.__groupElem.dim
         self.__dict_groupElem = dict_groupElem
@@ -160,7 +149,7 @@ class Mesh(Observable):
     @property
     def Nn(self) -> int:
         """number of nodes in the mesh"""
-        return self.coord.shape[0]
+        return self.groupElem.Ncoords
 
     @property
     def dim(self):
@@ -200,7 +189,7 @@ class Mesh(Observable):
         oldCoord = self.coord
         newCoord = oldCoord + np.array([dx, dy, dz])
         for grp in self.dict_groupElem.values():
-            grp.coordGlob = newCoord
+            grp.coord = newCoord
         self._Notify("The mesh has been modified")
 
     def Rotate(
@@ -217,11 +206,10 @@ class Mesh(Observable):
         direction : tuple, optional
             rotation direction, by default (0,0,1)
         """
-
         oldCoord = self.coord
         newCoord = Rotate(oldCoord, theta, center, direction)
         for grp in self.dict_groupElem.values():
-            grp.coordGlob = newCoord
+            grp.coord = newCoord
         self._Notify("The mesh has been modified")
 
     def Symmetry(self, point=(0, 0, 0), n=(1, 0, 0)) -> None:
@@ -234,11 +222,10 @@ class Mesh(Observable):
         n : tuple, optional
             normal to the plane, by default (1,0,0)
         """
-
         oldCoord = self.coord
         newCoord = Symmetry(oldCoord, point, n)
         for grp in self.dict_groupElem.values():
-            grp.coordGlob = newCoord
+            grp.coord = newCoord
         self._Notify("The mesh has been modified")
 
     @property
@@ -248,15 +235,17 @@ class Mesh(Observable):
 
     @property
     def coord(self) -> _types.FloatArray:
-        """global nodes coordinates matrix (Nn, 3)\n
+        """global nodes coordinates matrix (Ncoords, 3)\n
         Contains all nodes coordinates"""
-        return self.groupElem.coordGlob
+        coord = np.zeros((self.groupElem.Ncoords, 3), dtype=float)
+        for groupElem in self.dict_groupElem.values():
+            coord[groupElem.nodes] = groupElem.coord
+        return coord
 
     @coord.setter
     def coord(self, coord: _types.FloatArray) -> None:
-        if coord.shape == self.coord.shape:
-            for grp in self.dict_groupElem.values():
-                grp.coordGlob = coord
+        for grp in self.dict_groupElem.values():
+            grp.coord = coord
 
     @property
     def connect(self) -> _types.IntArray:
@@ -275,14 +264,24 @@ class Mesh(Observable):
 
         from ._group_elem import GroupElemFactory
 
-        dict_gathered = {}
+        # Gather node coordinates once.
+        groupElem = self.groupElem
+        all_coords = MPI_COMM.gather(groupElem.coord, root=0)
+        all_nodes = MPI_COMM.gather(groupElem.nodes, root=0)
 
+        # assembled on rank 0 only; used inside if MPI_RANK == 0
+        coordinates: np.ndarray
+        if MPI_RANK == 0:
+            coordinates = np.zeros((self.Nn, 3), dtype=float)
+            for coords_r, nodes_r in zip(all_coords, all_nodes):
+                coordinates[nodes_r] = coords_r
+
+        # Gather element connectivity per type.
+        dict_gathered: dict = {}
         for elemType, groupElem in self.__dict_groupElem.items():
+            # connect rows cover owned + ghost elements sorted by global index.
+            # searchsorted maps each owned global index to its local row in connect.
             _, elements, ghostElements, _, _ = groupElem._Get_partitioned_data()
-
-            # elements and ghostElements are global mesh indices.
-            # groupElem.connect rows correspond to np.unique(concat([owned, ghost])) sorted,
-            # so np.searchsorted maps a global index to its local row position.
             all_global = np.unique(np.concatenate([elements, ghostElements]))
             owned_local = np.searchsorted(all_global, elements)
             owned_connect = groupElem.connect[owned_local]  # (n_owned, nPe)
@@ -291,20 +290,19 @@ class Mesh(Observable):
             all_indices = MPI_COMM.gather(elements, root=0)
 
             if MPI_RANK == 0:
-                Ne_global = max(idx.max() for idx in all_indices if idx.size > 0) + 1
-                global_connect = np.zeros(
-                    (Ne_global, owned_connect.shape[1]), dtype=np.int32
-                )
-                rank_partition = np.empty(Ne_global, dtype=np.int32)
+                non_empty_sizes = [idx.max() + 1 for idx in all_indices if idx.size > 0]
+                Ne_global = max(non_empty_sizes) if non_empty_sizes else 0
+                global_connect = np.empty((Ne_global, groupElem.nPe), dtype=int)
+                rank_partition = np.empty(Ne_global, dtype=int)
                 for r, (connect_r, indices_r) in enumerate(
                     zip(all_connect, all_indices)
                 ):
-                    global_connect[indices_r] = connect_r
-                    rank_partition[indices_r] = r
+                    if indices_r.size > 0:
+                        global_connect[indices_r] = connect_r
+                        rank_partition[indices_r] = r
 
-                # coordGlob is already the full array on rank 0 — no gather needed.
                 gathered_ge = GroupElemFactory._Create(
-                    groupElem.gmshId, global_connect, groupElem.coordGlob
+                    groupElem.gmshId, global_connect, coordinates
                 )
                 gathered_ge._rankPartition = rank_partition
                 dict_gathered[elemType] = gathered_ge
@@ -1039,7 +1037,7 @@ class Mesh(Observable):
         """
 
         groupElem = self.groupElem
-        coordo = groupElem.coordGlob
+        coordinates = self.coord
         connect = groupElem.connect
 
         # length of each segments
@@ -1059,9 +1057,9 @@ class Mesh(Observable):
                 next = c + 1 if c + 1 < groupElem.Nvertex else 0
                 prev = -1 if c == 0 else c - 1
 
-                p0_e = coordo[connect[:, c]]
-                p1_e = coordo[connect[:, next]]
-                p2_e = coordo[connect[:, prev]]
+                p0_e = coordinates[connect[:, c]]
+                p1_e = coordinates[connect[:, next]]
+                p2_e = coordinates[connect[:, prev]]
 
                 angle_e = Angle_Between(p1_e - p0_e, p2_e - p0_e)
 

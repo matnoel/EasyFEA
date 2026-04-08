@@ -1612,21 +1612,21 @@ class _Simu(_IObserver, _params.Updatable, ABC):
         pcType : str, optional
             Preconditioner type, by default ``"gamg"``.
 
-            +----------------+---------------------+---------------------------+
-            | pcType         | Context             | Notes                     |
-            +================+=====================+===========================+
-            | ``"gamg"``     | serial + MPI        | PETSc AMG, no extra pkg   |
-            | ``"hypre"``    | serial + MPI        | BoomerAMG, requires hypre |
-            | ``"asm"``      | serial + MPI        | overlapping Schwarz       |
-            | ``"bjacobi"``  | serial + MPI        | block Jacobi (ILU/block)  |
-            | ``"ilu"``      | serial only         | incomplete LU; use bjacobi/asm in MPI |
+            +----------------+---------------------+--------------------------------------------------+
+            | pcType         | Context             | Notes                                            |
+            +================+=====================+==================================================+
+            | ``"gamg"``     | serial + MPI        | PETSc AMG, no extra pkg                          |
+            | ``"hypre"``    | serial + MPI        | BoomerAMG, requires hypre                        |
+            | ``"asm"``      | serial + MPI        | overlapping Schwarz                              |
+            | ``"bjacobi"``  | serial + MPI        | block Jacobi (ILU/block)                         |
+            | ``"ilu"``      | serial only         | incomplete LU; use bjacobi/asm in MPI            |
             | ``"icc"``      | serial only         | incomplete Cholesky, SPD; use bjacobi/asm in MPI |
-            | ``"lu"``       | see solverType      | direct LU factorization   |
-            | ``"cholesky"`` | see solverType      | direct Cholesky, SPD only |
-            | ``"sor"``      | serial only         | SOR / Gauss-Seidel        |
-            | ``"jacobi"``   | serial + MPI        | diagonal scaling          |
-            | ``"none"``     | serial + MPI        | no preconditioning        |
-            +----------------+---------------------+---------------------------+
+            | ``"lu"``       | see solverType      | direct LU factorization                          |
+            | ``"cholesky"`` | see solverType      | direct Cholesky, SPD only                        |
+            | ``"sor"``      | serial only         | SOR / Gauss-Seidel                               |
+            | ``"jacobi"``   | serial + MPI        | diagonal scaling                                 |
+            | ``"none"``     | serial + MPI        | no preconditioning                               |
+            +----------------+---------------------+--------------------------------------------------+
 
             https://petsc.org/release/manualpages/PC/PCType/
         solverType : str, optional

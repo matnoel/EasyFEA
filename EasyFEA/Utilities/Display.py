@@ -147,7 +147,7 @@ def Plot_Result(
 
     tic = Tic()
 
-    simu, mesh, coord, inDim = _Init_obj(obj, deformFactor)  # type: ignore
+    simu, mesh, coordDef, inDim = _Init_obj(obj, deformFactor)  # type: ignore
     dimElem = mesh.dim  # Dimension of displayed elements
     groupElem = mesh.groupElem
 
@@ -178,8 +178,8 @@ def Plot_Result(
 
         if dimElem == 1:
             if plotMesh:
-                ax.plot(*coord.T, c=edgecolor, lw=0.1, marker=".", ls="")
-            vertices = coord[groupElem.connect[:, groupElem.segments[0]]]
+                ax.plot(*coordDef.T, c=edgecolor, lw=0.1, marker=".", ls="")
+            vertices = coordDef[groupElem.connect[:, groupElem.segments[0]]]
             pc = Line3DCollection(vertices, cmap=cmap, zorder=0, norm=norm)
 
         else:
@@ -190,7 +190,7 @@ def Plot_Result(
             for groupElem, surfaces in zip(list_groupElem, list_surfaces):
                 list_connect.extend(groupElem.connect[:, surfaces])  # type: ignore [attr-defined]
             # get surfaces coordinates
-            vertices = coord[list_connect]
+            vertices = coordDef[list_connect]
 
             # Display result with or without the mesh
             edgecolor = edgecolor if plotMesh else None
@@ -229,7 +229,7 @@ def Plot_Result(
         colorbar = plt.colorbar(pc, ax=ax, ticks=ticks)
 
         # Change axis scale
-        _Axis_equal_3D(ax, mesh.coord)
+        _Axis_equal_3D(ax, coordDef)
 
     else:
 
@@ -238,13 +238,13 @@ def Plot_Result(
             idx = groupElem.segments[0]
         else:
             idx = groupElem.surfaces[0]
-        vertices = coord[groupElem.connect[:, idx], :2]
+        vertices = coordDef[groupElem.connect[:, idx], :2]
 
         # Plot the mesh
         if plotMesh:
             if mesh.dim == 1:
                 # mesh for 1D elements are points
-                ax.plot(*coord[:, :2].T, c=edgecolor, lw=0.1, marker=".", ls="")
+                ax.plot(*coordDef[:, :2].T, c=edgecolor, lw=0.1, marker=".", ls="")
             else:
                 # mesh for 2D elements are lines / segments
                 pc = LineCollection(vertices, edgecolor=edgecolor, lw=0.5)  # type: ignore [arg-type]
@@ -267,7 +267,7 @@ def Plot_Result(
             triangulation = np.reshape(mesh.connect[:, triangles], (-1, 3))
             # tripcolor, tricontour, tricontourf
             pc = ax.tricontourf(  # type: ignore [call-overload]
-                *coord[:, :2].T,
+                *coordDef[:, :2].T,
                 triangulation,
                 values,
                 levels,
@@ -436,8 +436,9 @@ def Plot_Mesh(
 
     tic = Tic()
 
-    simu, mesh, coord, inDim = _Init_obj(obj, deformFactor)
+    simu, mesh, coordDef, inDim = _Init_obj(obj, deformFactor)
     groupElem = mesh.groupElem
+    coord = mesh.coord
 
     if ax is not None:
         inDim = 3 if ax.name == "3d" else inDim
@@ -464,18 +465,18 @@ def Plot_Mesh(
 
             # get segments coordinates / vertices
             segments = groupElem.connect[:, groupElem.segments[0]]
-            vertices = mesh.coord[segments, :inDim]
-            verticesDef = coord[segments, :inDim]
+            vertices = coord[segments, :inDim]
+            verticesDef = coordDef[segments, :inDim]
 
             if deformFactor > 0:
                 # Deformed mesh
                 pc = Line3DCollection(verticesDef, edgecolor="red", lw=lw, zorder=1)
                 ax.add_collection3d(pc)  # type: ignore
-                ax.plot(*coord.T, c="red", lw=lw, marker=".", ls="")
+                ax.plot(*coordDef.T, c="red", lw=lw, marker=".", ls="")
 
             # Undeformed mesh
             pc = Line3DCollection(vertices, edgecolor=edgecolor, lw=lw, zorder=0)
-            ax.plot(*mesh.coord.T, c="black", lw=lw, marker=".", ls="")
+            ax.plot(*coord.T, c="black", lw=lw, marker=".", ls="")
         else:
 
             # construct the connection matrix for the surfaces
@@ -486,8 +487,8 @@ def Plot_Mesh(
                 list_connect.extend(groupElem.connect[:, surfaces])
 
             # get faces coordinates / vertices
-            verticesDef = coord[list_connect, :inDim]
-            vertices = mesh.coord[list_connect, :inDim]
+            vertices = coord[list_connect, :inDim]
+            verticesDef = coordDef[list_connect, :inDim]
 
             if deformFactor > 0:
                 # Deformed mesh
@@ -508,7 +509,7 @@ def Plot_Mesh(
             )
         ax.add_collection3d(pc, zs=0, zdir="z")  # type: ignore
 
-        _Axis_equal_3D(ax, coord)  # type: ignore
+        _Axis_equal_3D(ax, coordDef)  # type: ignore
 
     else:
         # in 2d space
@@ -519,8 +520,8 @@ def Plot_Mesh(
         else:
             idx = groupElem.surfaces[0]
         vertexConnect = groupElem.connect[:, idx]
-        vertices = groupElem.coordGlob[vertexConnect, :2]
-        verticesDef = coord[vertexConnect, :2]
+        vertices = coord[vertexConnect, :2]
+        verticesDef = coordDef[vertexConnect, :2]
 
         if deformFactor > 0:
             # Deformed mesh
@@ -560,9 +561,9 @@ def Plot_Mesh(
 
         if mesh.dim == 1:
             # nodes
+            ax.plot(*coord[:, :2].T, c="black", lw=lw, marker=".", ls="")
             if deformFactor > 0:
-                ax.plot(*coord[:, :2].T, c="red", lw=lw, marker=".", ls="")
-            ax.plot(*mesh.coord[:, :2].T, c="black", lw=lw, marker=".", ls="")
+                ax.plot(*coordDef[:, :2].T, c="red", lw=lw, marker=".", ls="")
 
         ax.autoscale()
         if ax.name != "3d":
@@ -603,7 +604,7 @@ def _Plot_obj(
 
     tic = Tic()
 
-    _, mesh, coord, inDim = _Init_obj(obj)
+    _, mesh, coordDef, inDim = _Init_obj(obj)
     groupElem = mesh.groupElem
 
     if ax is not None:
@@ -621,7 +622,7 @@ def _Plot_obj(
 
     if dimElem == 1:
         segments = groupElem.connect[:, groupElem.segments[0]]
-        vertices = coord[segments, :inDim]
+        vertices = coordDef[segments, :inDim]
 
         params = {"edgecolor": color, "lw": 0.5, "alpha": alpha}
 
@@ -642,7 +643,7 @@ def _Plot_obj(
             list_connect.extend(groupElem.connect[:, surfaces])
 
         # get faces coordinates / vertices
-        vertices = mesh.coord[list_connect, :inDim]
+        vertices = coordDef[list_connect, :inDim]
 
         params = {"facecolors": color, "alpha": alpha}
 
@@ -654,7 +655,7 @@ def _Plot_obj(
             ax.add_collection(pc)  # type: ignore
 
     if inDim == 3:
-        _Axis_equal_3D(ax, coord)  # type: ignore
+        _Axis_equal_3D(ax, coordDef)  # type: ignore
     else:
         ax.autoscale()
         ax.axis("equal")
@@ -697,7 +698,7 @@ def Plot_Nodes(
 
     tic = Tic()
 
-    mesh = _Init_obj(obj)[1]
+    _, mesh, coord, _ = _Init_obj(obj)
 
     inDim = mesh.inDim
 
@@ -715,18 +716,16 @@ def Plot_Nodes(
     if nodes.size == 0:
         return ax
 
-    coordo = mesh.coord
-
     if inDim == 2:
-        ax.plot(*coordo[nodes, :2].T, ls="", marker=marker, c=color, zorder=2.5)
+        ax.plot(*coord[nodes, :2].T, ls="", marker=marker, c=color, zorder=2.5)
         if showId:
-            [ax.text(*coordo[node, :2].T, str(node), c=color) for node in nodes]  # type: ignore [call-arg]
+            [ax.text(*coord[node, :2].T, str(node), c=color) for node in nodes]  # type: ignore [call-arg]
         ax.axis("equal")
     elif inDim == 3:
-        ax.plot(*coordo[nodes].T, ls="", marker=marker, c=color, zorder=2.5)
+        ax.plot(*coord[nodes].T, ls="", marker=marker, c=color, zorder=2.5)
         if showId:
-            [ax.text(*coordo[node].T, str(node), c=color) for node in nodes]  # type: ignore [call-arg]
-        _Axis_equal_3D(ax, coordo)
+            [ax.text(*coord[node].T, str(node), c=color) for node in nodes]  # type: ignore [call-arg]
+        _Axis_equal_3D(ax, coord)
 
     tic.Tac("Display", "Plot_Nodes")
 
@@ -772,7 +771,7 @@ def Plot_Elements(
 
     tic = Tic()
 
-    mesh = _Init_obj(obj)[1]
+    _, mesh, coord, _ = _Init_obj(obj)
 
     inDim = mesh.inDim
 
@@ -817,8 +816,7 @@ def Plot_Elements(
 
         # Construct the vertices coordinates
         connect_e = groupElem.connect  # connect
-        coord_n = groupElem.coordGlob[:, : mesh.inDim]  # global coordinates
-        vertices_e = coord_n[connect_e[:, idx]]
+        vertices_e = coord[connect_e[:, idx], : mesh.inDim]
         vertices = vertices_e[elements]
 
         # center coordinates for each elements
@@ -856,7 +854,7 @@ def Plot_Elements(
     if inDim < 3:
         ax.axis("equal")
     else:
-        _Axis_equal_3D(ax, mesh.coord)
+        _Axis_equal_3D(ax, coord)
 
     return ax
 
@@ -891,9 +889,7 @@ def Plot_BoundaryConditions(simu, ax: Optional[Axes] = None) -> Axes:
 
     tic = Tic()
 
-    simu = _Init_obj(simu)[0]
-
-    coord = simu.mesh.coord
+    simu, _, coord, _ = _Init_obj(simu)
 
     # get Dirichlet and Neumann boundary conditions
     dirchlets = simu.Bc_Dirichlet
@@ -1039,14 +1035,13 @@ def Plot_Tags(
         # Tags available by element group
         tags_e = groupElem.elementTags
         dim = groupElem.dim
-        coord = groupElem.coordGlob[:, :inDim]
         center_e = np.mean(coord[groupElem.connect], axis=1)  # center of each elements
 
         if groupElem.dim == 1:
             idx = groupElem.segments[0]
         else:
             idx = groupElem.surfaces.ravel().tolist()
-        vertices_e = coord[groupElem.connect[:, idx]]
+        vertices_e = coord[groupElem.connect[:, idx], :inDim]
 
         for tag_e in tags_e:
             if "nodes" in tag_e:
@@ -1147,8 +1142,8 @@ def __Annotation_Event(
             return
         if collection.contains(event)[0]:
             toolbar = ax.figure.canvas.toolbar
-            coordo = ax.format_coord(event.xdata, event.ydata)
-            toolbar.set_message(f"{collection.get_label()} : {coordo}")
+            coord = ax.format_coord(event.xdata, event.ydata)
+            toolbar.set_message(f"{collection.get_label()} : {coord}")
             # TODO get surface or length ?
             # change the title instead the toolbar message ?
 

@@ -61,8 +61,9 @@ def Save_simu(
             "and corrupted fields."
         )
 
-    meshDim = simu.mesh.dim
-    Ne = simu.mesh.Ne
+    mesh = simu.mesh
+    meshDim = mesh.dim
+    Ne = mesh.Ne
 
     results = simu.results
 
@@ -230,7 +231,9 @@ def __Make_vtu(
     # get mesh data
     elemType = mesh.elemType
     Ne = mesh.Ne
-    Nn = mesh.Nn
+    Ncoords = mesh.Nn
+    Nn = mesh.groupElem.Nn
+    nodes = mesh.nodes
     nPe = mesh.groupElem.nPe
     inDim = mesh.inDim
 
@@ -240,13 +243,14 @@ def __Make_vtu(
     else:
         vtkIndexes = np.arange(nPe).tolist()
     connect = mesh.connect[:, vtkIndexes]
+    connect = mesh.groupElem._global_to_local_nodes[connect]
 
     paraviewType = DICT_ELEMTYPE_TO_VTK[elemType].value
 
     types = np.ones(Ne, dtype=int) * paraviewType
 
     # coordinates as a vector (e.g (x1, y1, z1,..., xn, yn, zn))
-    nodes = mesh.coord.ravel()
+    coordinates = mesh.groupElem.coord.ravel()
     # connect as a vector (e.g (n1^1, n2^1, n3^1, ..., n1^e, n2^e, n3^e))
     connect = connect.ravel()
 
@@ -277,7 +281,9 @@ def __Make_vtu(
                 nodeValues, np.ndarray
             ), "nodeValues must be a numpy array."
 
-            dof_n = nodeValues.size // Nn
+            dof_n = nodeValues.size // Ncoords
+
+            nodeValues = nodeValues.reshape(-1, dof_n)[nodes].ravel()
 
             if dof_n == 2 and inDim == 2:
                 # add new array for z values
@@ -324,7 +330,7 @@ def __Make_vtu(
         file.write(
             f'\t\t\t\t<DataArray type="Float32" NumberOfComponents="3" format="appended" offset="{offset}" />\n'
         )
-        offset = CalcOffset(offset, nodes.size)
+        offset = CalcOffset(offset, coordinates.size)
         file.write("\t\t\t</Points>\n")
 
         # Elements -> Connectivity matrix
@@ -361,8 +367,8 @@ def __Make_vtu(
             __WriteBinary(elementValues, "float32", file)
 
         # Nodes
-        __WriteBinary(bitSize * nodes.size, "uint32", file)
-        __WriteBinary(nodes, "float32", file)
+        __WriteBinary(bitSize * coordinates.size, "uint32", file)
+        __WriteBinary(coordinates, "float32", file)
 
         # Connectivity
         __WriteBinary(bitSize * connect.size, "uint32", file)

@@ -725,7 +725,6 @@ def Plot_Tags(
         # groupElem's data
         tags_e = groupElem.elementTags
         dim = groupElem.dim
-        coord = groupElem.coordGlob
         center_e = np.mean(coord[groupElem.connect], axis=1)  # center of each elements
 
         for tag_e in tags_e:

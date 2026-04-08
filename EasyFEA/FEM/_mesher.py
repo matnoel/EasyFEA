@@ -1941,7 +1941,9 @@ class Mesher:
                 gmsh.write(path)
                 tic.Tac("Mesh", "gmsh.write", self.__verbosity)
 
-    def __Get_coord_and_changes(self) -> tuple[_types.FloatArray, _types.IntArray]:
+    def __Get_coordinates_and_changes(
+        self,
+    ) -> tuple[_types.FloatArray, _types.IntArray]:
         """Returns coord and changes.\n
 
         - coord is a (Nn, 3) array storing the coordinates of Nn nodes in 3D space.
@@ -2009,7 +2011,7 @@ class Mesher:
         self,
         gmshId: int,
         connect: np.ndarray,
-        coordGlob: np.ndarray,
+        coordinates: np.ndarray,
         dict_rank_nodes: dict[int, set[int]],
     ) -> list["_GroupElem"]:
 
@@ -2082,7 +2084,7 @@ class Mesher:
             )
             connect_r_full = connect[all_idx]
             # create groupElem with owned + ghost elements
-            groupElem = GroupElemFactory._Create(gmshId, connect_r_full, coordGlob)
+            groupElem = GroupElemFactory._Create(gmshId, connect_r_full, coordinates)
             groupElem._Set_partitioned_data(
                 elements[idx_r], nodes_arr, rank, elements[list(ghost_idx)]
             )
@@ -2114,8 +2116,8 @@ class Mesher:
                 dict_rank_nodes = {r: set() for r in range(Nrank)}
                 list_dict_groupElem: list[dict] = [{} for _ in range(Nrank)]
 
-            coord, changes = self.__Get_coord_and_changes()
-            coord *= coef
+            coordinates, changes = self.__Get_coordinates_and_changes()
+            coordinates *= coef
 
             knownDims = []  # known dimensions in the mesh
             dict_groupElem: dict[ElemType, "_GroupElem"] = {}
@@ -2125,7 +2127,7 @@ class Mesher:
 
                 if useMpi:
                     list_rank_groupElem = self.__Get_groupElem_with_mpi(
-                        gmshId, connect, coord, dict_rank_nodes
+                        gmshId, connect, coordinates, dict_rank_nodes
                     )
                     # apply physical-group tags to every rank's GroupElem
                     physicalGroups = gmsh.model.getPhysicalGroups(
@@ -2148,7 +2150,7 @@ class Mesher:
                     # use rank-0 groupElem for knownDims check
                     groupElem = list_rank_groupElem[0]
                 else:
-                    groupElem = GroupElemFactory._Create(gmshId, connect, coord)
+                    groupElem = GroupElemFactory._Create(gmshId, connect, coordinates)
                     # Note that each group of elements contains all coordinates.
                     dict_groupElem[groupElem.elemType] = groupElem
 
@@ -2195,14 +2197,6 @@ class Mesher:
 
         if useMpi:
             dict_groupElem = MPI_COMM.scatter(list_dict_groupElem, root=0)
-
-        # Ensure that the underlying private `__coordGlob` object is unique across all element groups.
-        list_coordGlob_id = [
-            id(groupElem.__getattribute__("_GroupElem__coordGlob"))
-            for groupElem in dict_groupElem.values()
-        ]
-        error = "The underlying private `__coordGlob` object must be unique across all element groups."
-        assert len(np.unique(list_coordGlob_id)) == 1, error
 
         mesh = Mesh(dict_groupElem, self.__verbosity)
 

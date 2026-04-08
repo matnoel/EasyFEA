@@ -45,7 +45,10 @@ class _GroupElem(ABC):
     """The `_GroupElem` base class, from which all element types inherit."""
 
     def __init__(
-        self, gmshId: int, connect: _types.IntArray, coordGlob: _types.FloatArray
+        self,
+        gmshId: int,
+        connect: _types.IntArray,
+        coordinates: _types.FloatArray,
     ):
         """Creates a goup of elements.
 
@@ -55,7 +58,7 @@ class _GroupElem(ABC):
             gmsh id
         connect : _types.IntArray
             connectivity matrix
-        coordGlob : _types.FloatArray
+        coordinates : _types.FloatArray
             coordinate matrix (contains all mesh coordinates)
         """
 
@@ -82,19 +85,25 @@ class _GroupElem(ABC):
         self.__connect = connect
         self.__connect_n_e: sparse.csr_matrix = None
 
-        # Ensure coordGlob is a (Nn, 3) array
-        if coordGlob.size != 0:  # coordGlob can be empty
-            error = "Must be a (Nn, 3) array."
-            assert coordGlob.ndim == 2 and coordGlob.shape[1] == 3, error
-        self.__coordGlob = coordGlob
+        # Ensure coordinates is a (Ncoords, 3) array
+        if coordinates.size != 0:  # coordinates can be empty
+            error = "Must be a (Ncoords, 3) array."
+            assert coordinates.ndim == 2 and coordinates.shape[1] == 3, error
 
         # Nodes
-        nodes = np.asarray(list(set(connect.ravel())), dtype=int)
-        Ncoords = coordGlob.shape[0]
+        nodes = np.unique(connect.ravel()).astype(int)
+        Ncoords = coordinates.shape[0]
         if nodes.size != 0:
-            error = f"Nodes {nodes[nodes > Ncoords]} has not corresponding entry in the coordGlob array."
+            error = f"Nodes {nodes[nodes > Ncoords]} has not corresponding entry in the coordinates array."
             assert nodes.max() + 1 <= Ncoords, error
         self.__nodes = nodes
+        self.__Ncoords = Ncoords
+        self.__coord = coordinates[nodes]
+
+        # Map global nodes to local nodes
+        # Global nodes correspond to the node positions in global coordinates, and local nodes correspond to the local positions in self.coord.
+        self._global_to_local_nodes = np.empty(Ncoords, dtype=int)
+        self._global_to_local_nodes[nodes] = np.arange(nodes.size, dtype=int)
 
         # Set the paritionned data.
         self._Set_partitioned_data(self.elements, [], self.nodes)
@@ -167,7 +176,7 @@ class _GroupElem(ABC):
 
     @property
     def nodes(self) -> _types.IntArray:
-        """nodes used by the element group. Node 'n' is on line 'n' in coordGlob"""
+        """nodes used by the element group. Node 'n' is on line 'n' in global coordinates"""
         return self.__nodes.copy()
 
     @property
@@ -236,21 +245,21 @@ class _GroupElem(ABC):
         return self.__nodes.size
 
     @property
-    def coord(self) -> _types.FloatArray:
-        """this matrix contains the element group coordinates (Nn, 3)"""
-        coord: _types.FloatArray = self.coordGlob[self.__nodes]
-        return coord
+    def Ncoords(self) -> int:
+        """number of coordinates in the mesh"""
+        return self.__Ncoords
 
     @property
-    def coordGlob(self) -> _types.FloatArray:
-        """this matrix contains all the mesh coordinates (mesh.Nn, 3)"""
-        return self.__coordGlob.copy()
+    def coord(self) -> _types.FloatArray:
+        """this matrix contains the element group (local) coordinates (Nn, 3)"""
+        return self.__coord.copy()
 
-    @coordGlob.setter
-    def coordGlob(self, coord: _types.FloatArray) -> None:
-        if coord.shape == self.__coordGlob.shape:
-            self.__coordGlob = coord
-            self._InitMatrix()
+    @coord.setter
+    def coord(self, coord: _types.FloatArray) -> None:
+        shape = (self.Ncoords, 3)
+        assert coord.shape == shape, f"coord must be a {shape} array."
+        self.__coord = coord[self.nodes]
+        self._InitMatrix()
 
     @property
     def Nvertex(self) -> int:
@@ -292,15 +301,11 @@ class _GroupElem(ABC):
             nPe = self.nPe
             elems = self.elements
 
-            lines = self.connect.ravel()
-
-            Nn = (
-                lines.max() + 1
-            )  # Do not use either self.Nn or self.__coordGlob.shape[0].
+            rows = self.connect.ravel()
             columns = np.repeat(elems, nPe)
 
             self.__connect_n_e = sparse.csr_matrix(
-                (np.ones(nPe * Ne), (lines, columns)), shape=(Nn, Ne)
+                (np.ones(nPe * Ne), (rows, columns)), shape=(self.Ncoords, Ne)
             )
 
         return self.__connect_n_e.copy()
@@ -364,18 +369,18 @@ class _GroupElem(ABC):
         iz, jz, kz]\n
 
         This matrix can be used to project points with (x, y, z) coordinates into the element's (i, j, k) coordinate system.\n
-        coordo_e * sysCoord_e -> coordinates in element's (i, j, k) coordinate system.
+        coord_e * sysCoord_e -> coordinates in element's (i, j, k) coordinate system.
         """
 
-        coordo = self.coordGlob
-        connect = self.connect
-
+        coord = self.coord
+        connect = self._global_to_local_nodes[self.connect]
         if displacementMatrix is not None:
             displacementMatrix = np.asarray(displacementMatrix, dtype=float)
+            shape = (self.Ncoords, 3)
             assert (
-                displacementMatrix.shape == coordo.shape
-            ), f"displacmentMatrix must be of size {coordo.shape}"
-            coordo += displacementMatrix
+                displacementMatrix.shape == shape
+            ), f"displacmentMatrix must be of shape {shape}"
+            coord += displacementMatrix[self.nodes]
 
         if self.dim in [0, 3]:
             sysCoord_e = np.eye(3)
@@ -388,8 +393,8 @@ class _GroupElem(ABC):
                 # Ensure outward-facing normals for all mesh faces.
                 connect = connect[:, self.faces]
 
-            points1 = coordo[connect[:, 0]]
-            points2 = coordo[connect[:, 1]]
+            points1 = coord[connect[:, 0]]
+            points2 = coord[connect[:, 1]]
 
             i = Normalize(points2 - points1)
 
@@ -432,9 +437,9 @@ class _GroupElem(ABC):
 
             else:
                 if "TRI" in self.elemType:
-                    points3 = coordo[connect[:, 2]]
+                    points3 = coord[connect[:, 2]]
                 elif "QUAD" in self.elemType:
-                    points3 = coordo[connect[:, 3]]
+                    points3 = coord[connect[:, 3]]
                 else:
                     raise TypeError("unknown type")
 
@@ -461,24 +466,28 @@ class _GroupElem(ABC):
         assert dim in [1, 2], "You can't compute normals for 0D or 3D elements."
 
         # get coords as a (Ne, nPe, 3) array
-
-        coordGlob = self.coordGlob
+        coord = self.coord
+        connect = self._global_to_local_nodes[self.connect]
         if displacementMatrix is not None:
-            coordGlob += displacementMatrix
-
-        coords_e = coordGlob[self.connect]
+            displacementMatrix = np.asarray(displacementMatrix, dtype=float)
+            shape = (self.Ncoords, 3)
+            assert (
+                displacementMatrix.shape == shape
+            ), f"displacmentMatrix must be of shape {shape}"
+            coord += displacementMatrix[self.nodes]
+        coord_e = coord[connect]
 
         # get the first derivatives of the shape functions as a (nPg, dim, nPe) array
         dN_pg = self.Get_dN_pg(matrixType)
         dNdr_pg = dN_pg[:, 0]
 
-        dxdr_e_pg = np.einsum("pn,end->epd", dNdr_pg, coords_e, optimize="optimal")
+        dxdr_e_pg = np.einsum("pn,end->epd", dNdr_pg, coord_e, optimize="optimal")
 
         if dim == 1:
             normals_e_pg = np.cross((0, 0, 1), dxdr_e_pg)
         else:
             dNds_pg = dN_pg[:, 1]
-            dxds_e_pg = np.einsum("pn,end->epd", dNds_pg, coords_e, optimize="optimal")
+            dxds_e_pg = np.einsum("pn,end->epd", dNds_pg, coord_e, optimize="optimal")
             normals_e_pg = np.cross(dxdr_e_pg, dxds_e_pg)
 
         normals_e_pg = np.einsum(
@@ -680,13 +689,14 @@ class _GroupElem(ABC):
         N_pg = self.Get_N_pg(matrixType)
 
         # retrieve node coordinates
-        coord = self.coordGlob
+        coord = self.coord
+        connect = self._global_to_local_nodes[self.connect]
 
         # nodes coordinates for each element
         if elements.size == 0:
-            coord_e = coord[self.__connect]
+            coord_e = coord[connect]
         else:
-            coord_e = coord[self.__connect[elements]]
+            coord_e = coord[connect[elements]]
 
         # localize coordinates on Gauss points
         coordo_e_p = np.einsum("pin,end->epd", N_pg, coord_e, optimize="optimal")
@@ -705,10 +715,11 @@ class _GroupElem(ABC):
         if self.dim == 0:
             return None  # type: ignore [return-value]
 
-        coordo_e = self.coordGlob[self.__connect]
+        connect = self._global_to_local_nodes[self.connect]
+        coord_e = self.coord[connect]
         # Node coordinates in the (X, Y, Z) coordinate system of each element
 
-        rebased_coord_e = coordo_e.copy()
+        rebased_coord_e = coord_e.copy()
         if self.dim != self.inDim:
             P_e = self._Get_sysCoord_e()  # transformation matrix for each element
             # matrix used to project element's points with (x, y, z) coordinates
@@ -718,10 +729,10 @@ class _GroupElem(ABC):
             isOrth_e = Trace(Transpose(P_e) @ P_e) == 3
 
             # (x, y, z) = (X, Y, Z) * P_e  <==>  aj = bi Pij
-            rebased_coord_e[isOrth_e] = coordo_e[isOrth_e] @ P_e[isOrth_e]
+            rebased_coord_e[isOrth_e] = coord_e[isOrth_e] @ P_e[isOrth_e]
 
             # (x, y, z) = (X, Y, Z) * P_e^(-T)  <==>  aj = bi inv(P)ji
-            rebased_coord_e[~isOrth_e] = coordo_e[~isOrth_e] @ Transpose(
+            rebased_coord_e[~isOrth_e] = coord_e[~isOrth_e] @ Transpose(
                 Inv(P_e[~isOrth_e])
             )
 
@@ -1597,9 +1608,9 @@ class _GroupElem(ABC):
         dxuz dyuz dzuz
         """
 
-        Nn = self.coordGlob.shape[0]
-        assert isinstance(u, np.ndarray) and u.size % Nn == 0
-        dof_n = u.size // Nn
+        Ncoords = self.__Ncoords
+        assert isinstance(u, np.ndarray) and u.size % Ncoords == 0
+        dof_n = u.size // Ncoords
         assert dof_n in [1, 2, 3]
 
         # properties
@@ -1876,9 +1887,9 @@ class _GroupElem(ABC):
             return
         assert isinstance(tag, str), "tag must be a string"
 
-        if np.min(nodes) < 0 or np.max(nodes) >= self.__coordGlob.shape[0]:
+        if np.min(nodes) < 0 or np.max(nodes) >= self.__Ncoords:
             raise Exception(
-                f"nodes must be within the range [0, {self.__coordGlob.shape[0] - 1}]."
+                f"nodes must be within the range [0, {self.__Ncoords - 1}]."
             )
 
         self.__dict_nodes_tags[tag] = nodes
@@ -1949,14 +1960,14 @@ class _GroupElem(ABC):
     ) -> FeArray.FeArrayALike:
         """Locates sol on elements"""
 
-        Nn = self.coordGlob.shape[0]
+        Ncoords = self.__Ncoords
 
         if isinstance(dof_n, (int, float)):
             sol_e = sol[self.Get_assembly_e(dof_n)]
-        elif sol.shape[0] == Nn * self.dim:
+        elif sol.shape[0] == Ncoords * self.dim:
             sol_e = sol[self.Get_assembly_e(self.dim)]
-        elif sol.shape[0] == Nn:
-            sol_e = sol[self.__connect]
+        elif sol.shape[0] == Ncoords:
+            sol_e = sol[self.connect]
         else:
             raise Exception("Wrong dimension")
 
@@ -1987,12 +1998,12 @@ class _GroupElem(ABC):
             return np.array([])
 
         dim = self.__dim
+        connect = self._global_to_local_nodes[self.connect]
 
         tol = 1e-12
-        # tol = 1e-6
 
         if dim == 0:
-            coord = self.coord[self.__connect[elem, 0]]
+            coord = self.coord[connect[elem, 0]]
 
             idx = np.where(
                 (coordinates_n[:, 0] == coord[0])
@@ -2005,8 +2016,8 @@ class _GroupElem(ABC):
         elif dim == 1:
             coord = self.coord
 
-            p1 = self.__connect[elem, 0]
-            p2 = self.__connect[elem, 1]
+            p1 = connect[elem, 0]
+            p2 = connect[elem, 1]
 
             # vector between the points of the segment
             vect = coord[p2] - coord[p1]
@@ -2457,7 +2468,7 @@ class GroupElemFactory:
 
     @staticmethod
     def _Create(
-        gmshId: int, connect: _types.IntArray, coordGlob: _types.FloatArray
+        gmshId: int, connect: _types.IntArray, coordinates: _types.FloatArray
     ) -> _GroupElem:
         """Creates an element group.
 
@@ -2467,8 +2478,8 @@ class GroupElemFactory:
             id gmsh
         connect : _types.IntArray
             connection matrix storing nodes for each element (Ne, nPe)
-        coordGlob : _types.FloatArray
-            nodes coordinates
+        coordinates : _types.FloatArray
+            coordinate matrix (contains all mesh coordinates)
 
         Returns
         -------
@@ -2476,7 +2487,7 @@ class GroupElemFactory:
             the element group
         """
 
-        params = (gmshId, connect, coordGlob)
+        params = (gmshId, connect, coordinates)
 
         elemType = GroupElemFactory.Get_ElemInFos(gmshId)[0]
 
@@ -2525,7 +2536,7 @@ class GroupElemFactory:
 
     @staticmethod
     def Create(
-        elemType: ElemType, connect: _types.IntArray, coordGlob: _types.FloatArray
+        elemType: ElemType, connect: _types.IntArray, coordinates: _types.FloatArray
     ) -> _GroupElem:
         """Creates an element group
 
@@ -2535,8 +2546,8 @@ class GroupElemFactory:
             element type
         connect : _types.IntArray
             connection matrix storing nodes for each element (Ne, nPe)
-        coordGlob : _types.FloatArray
-            nodes coordinates
+        coordinates : _types.FloatArray
+            coordinate matrix (contains all mesh coordinates)
 
         Returns
         -------
@@ -2549,7 +2560,7 @@ class GroupElemFactory:
 
         gmshId = GroupElemFactory.DICT_ELEMTYPE[elemType][0]
 
-        return GroupElemFactory._Create(gmshId, connect, coordGlob)
+        return GroupElemFactory._Create(gmshId, connect, coordinates)
 
     @staticmethod
     def _Get_2d_element_types(elemType: ElemType) -> list[ElemType]:
