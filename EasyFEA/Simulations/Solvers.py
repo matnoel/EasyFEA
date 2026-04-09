@@ -358,8 +358,8 @@ def __Solver_1(simu: "_Simu", problemType: "ModelType") -> _types.FloatArray:
     # split of the matrix system into known and unknown dofs
     # Solve : Aii * xi = bi - Aic * xc
     Ai = A[dofsUnknown, :].tocsc()
-    Aii = Ai[:, dofsUnknown].tocsr()
-    Aic = Ai[:, dofsKnown].tocsr()
+    Aii = Ai[:, dofsUnknown]
+    Aic = Ai[:, dofsKnown]
     bi = b[dofsUnknown, 0]
     xc = x[dofsKnown, 0]
 
