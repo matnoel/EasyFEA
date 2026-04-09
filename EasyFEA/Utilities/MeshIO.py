@@ -751,7 +751,6 @@ def _Get_pyvista_cell(groupElem: _GroupElem) -> tuple[VTKCellType, _types.IntArr
     # get groupelem connectivity
     connect = groupElem.connect[:, vtkIndexes]
     connect = np.reshape(connect, (-1, np.shape(vtkIndexes)[-1]))
-    connect = groupElem._global_to_local_nodes[connect]
 
     # create cellData
     cellType = DICT_ELEMTYPE_TO_VTK[elemType]
@@ -838,6 +837,7 @@ def _GroupElem_to_PyVista(
     assert isinstance(groupElem, _GroupElem), "groupElem must be a group of elements!"
 
     cellType, connect = _Get_pyvista_cell(groupElem)
+    connect = groupElem._global_to_local_nodes[connect]
 
     if isinstance(elements, np.ndarray):
         assert elements.min() >= 0
