@@ -212,6 +212,11 @@ def _Save_mesh(
 # ----------------------------------------------
 # Functions
 # ----------------------------------------------
+# Offset calculator: 4-byte uint32 header + biteSize * count data bytes.
+def CalcOffset(offset, count, biteSize=4):
+    return offset + 4 + biteSize * count
+
+
 def __Make_vtu(
     mesh: "Mesh",
     folder: str,
@@ -233,7 +238,7 @@ def __Make_vtu(
     Ne = mesh.Ne
     Ncoords = mesh.Nn
     Nn = mesh.groupElem.Nn
-    nodes = mesh.nodes
+    nodes = mesh.nodes.astype(np.uint64)
     nPe = mesh.groupElem.nPe
     inDim = mesh.inDim
 
@@ -254,14 +259,25 @@ def __Make_vtu(
     # connect as a vector (e.g (n1^1, n2^1, n3^1, ..., n1^e, n2^e, n3^e))
     connect = connect.ravel()
 
-    connect_offsets = np.arange(nPe, nPe * Ne + 1, nPe, dtype=np.int32)
+    connect_offsets = np.arange(nPe, nPe * Ne + 1, nPe, dtype=np.uint64)
+
+    # Ghost data (MPI only): vtkGhostType marks cells/points shared with neighbours,
+    # Value 1 means duplicate cells or points.
+    ghostCells: _types.IntArray = None
+    ghostPoints: _types.IntArray = None
+    if MPI_SIZE > 1:
+        _, elems, ghostElems, _, ghostNodes = mesh.groupElem._Get_partitioned_data()
+
+        ghostCells = np.zeros(Ne, dtype=np.uint8)
+        if ghostElems.size > 0:
+            allElems = np.unique(np.concatenate([elems, ghostElems]))
+            ghostCells[np.searchsorted(allElems, ghostElems)] = 1
+
+        ghostPoints = np.zeros(Nn, dtype=np.uint8)
+        if ghostNodes.size > 0:
+            ghostPoints[np.searchsorted(nodes, ghostNodes)] = 1
 
     endian_paraview = "LittleEndian"  # 'LittleEndian' 'BigEndian'
-
-    bitSize = 4  # bit size
-
-    def CalcOffset(offset, size):
-        return offset + bitSize + (bitSize * size)
 
     with open(filename, "w") as file:
         file.write('<?xml version="1.0" ?>\n')
@@ -297,9 +313,19 @@ def __Make_vtu(
             nodeFields_meta[nodeField] = dof_n
 
             file.write(
-                f'\t\t\t\t<DataArray type="Float32" Name="{nodeField}" NumberOfComponents="{dof_n}" format="appended" offset="{offset}" />\n'
+                f'\t\t\t\t<DataArray type="Float64" Name="{nodeField}" NumberOfComponents="{dof_n}" format="appended" offset="{offset}" />\n'
             )
-            offset = CalcOffset(offset, nodeValues.size)
+            offset = CalcOffset(offset, nodeValues.size, 8)
+
+        if ghostPoints is not None:
+            file.write(
+                f'\t\t\t\t<DataArray type="UInt8" Name="vtkGhostType" NumberOfComponents="1" format="appended" offset="{offset}" />\n'
+            )
+            offset = CalcOffset(offset, Nn, 1)
+            file.write(
+                f'\t\t\t\t<DataArray type="UInt64" Name="GlobalPointIds" NumberOfComponents="1" format="appended" offset="{offset}" />\n'
+            )
+            offset = CalcOffset(offset, Nn, 8)
 
         file.write("\t\t\t</PointData> \n")
 
@@ -318,9 +344,15 @@ def __Make_vtu(
             elementFields_meta[elementField] = dof_n
 
             file.write(
-                f'\t\t\t\t<DataArray type="Float32" Name="{elementField}" NumberOfComponents="{dof_n}" format="appended" offset="{offset}" />\n'
+                f'\t\t\t\t<DataArray type="Float64" Name="{elementField}" NumberOfComponents="{dof_n}" format="appended" offset="{offset}" />\n'
             )
-            offset = CalcOffset(offset, elementValues.size)
+            offset = CalcOffset(offset, elementValues.size, 8)
+
+        if ghostCells is not None:
+            file.write(
+                f'\t\t\t\t<DataArray type="UInt8" Name="vtkGhostType" NumberOfComponents="1" format="appended" offset="{offset}" />\n'
+            )
+            offset = CalcOffset(offset, Ne, 1)
 
         file.write("\t\t\t</CellData> \n")
 
@@ -328,21 +360,21 @@ def __Make_vtu(
         file.write("\t\t\t<Points>\n")
         # NumberOfComponents must be "3"
         file.write(
-            f'\t\t\t\t<DataArray type="Float32" NumberOfComponents="3" format="appended" offset="{offset}" />\n'
+            f'\t\t\t\t<DataArray type="Float64" NumberOfComponents="3" format="appended" offset="{offset}" />\n'
         )
-        offset = CalcOffset(offset, coordinates.size)
+        offset = CalcOffset(offset, coordinates.size, 8)
         file.write("\t\t\t</Points>\n")
 
         # Elements -> Connectivity matrix
         file.write("\t\t\t<Cells>\n")
         file.write(
-            f'\t\t\t\t<DataArray type="Int32" Name="connectivity" format="appended" offset="{offset}" />\n'
+            f'\t\t\t\t<DataArray type="UInt64" Name="connectivity" format="appended" offset="{offset}" />\n'
         )
-        offset = CalcOffset(offset, connect.size)
+        offset = CalcOffset(offset, connect.size, 8)
         file.write(
-            f'\t\t\t\t<DataArray type="Int32" Name="offsets" format="appended" offset="{offset}" />\n'
+            f'\t\t\t\t<DataArray type="UInt64" Name="offsets" format="appended" offset="{offset}" />\n'
         )
-        offset = CalcOffset(offset, connect_offsets.size)
+        offset = CalcOffset(offset, connect_offsets.size, 8)
         file.write(
             f'\t\t\t\t<DataArray type="Int8" Name="types" format="appended" offset="{offset}" />\n'
         )
@@ -354,31 +386,43 @@ def __Make_vtu(
         # Adding values
         file.write('\t<AppendedData encoding="raw"> \n_')
 
-    # Add all values in binary
+    # Add all values in binary (order must match XML DataArray declarations)
     with open(filename, "ab") as file:
-        # Nodes values
+        # Node values (float64)
         for nodeValues in list_values_n:
-            __WriteBinary(bitSize * nodeValues.size, "uint32", file)
-            __WriteBinary(nodeValues, "float32", file)
+            __WriteBinary(8 * nodeValues.size, "uint32", file)
+            __WriteBinary(nodeValues, "float64", file)
 
-        # Elements values
+        # Ghost point arrays (uint8 + int64, MPI only)
+        if ghostPoints is not None:
+            __WriteBinary(ghostPoints.size, "uint32", file)  # byte count = Nn * 1
+            __WriteBinary(ghostPoints, "uint8", file)
+            __WriteBinary(8 * nodes.size, "uint32", file)  # byte count = Nn * 8
+            __WriteBinary(nodes, "uint64", file)
+
+        # Element values (float64)
         for elementValues in list_values_e:
-            __WriteBinary(bitSize * elementValues.size, "uint32", file)
-            __WriteBinary(elementValues, "float32", file)
+            __WriteBinary(8 * elementValues.size, "uint32", file)
+            __WriteBinary(elementValues, "float64", file)
 
-        # Nodes
-        __WriteBinary(bitSize * coordinates.size, "uint32", file)
-        __WriteBinary(coordinates, "float32", file)
+        # Ghost cell array (uint8, MPI only)
+        if ghostCells is not None:
+            __WriteBinary(ghostCells.size, "uint32", file)  # byte count = Ne * 1
+            __WriteBinary(ghostCells, "uint8", file)
 
-        # Connectivity
-        __WriteBinary(bitSize * connect.size, "uint32", file)
-        __WriteBinary(connect, "int32", file)
+        # Node coordinates (float64)
+        __WriteBinary(8 * coordinates.size, "uint32", file)
+        __WriteBinary(coordinates, "float64", file)
 
-        # Offsets
-        __WriteBinary(bitSize * Ne, "uint32", file)
-        __WriteBinary(connect_offsets, "int32", file)
+        # Connectivity (uint64)
+        __WriteBinary(8 * connect.size, "uint32", file)
+        __WriteBinary(connect, "uint64", file)
 
-        # Element types
+        # Offsets (uint64)
+        __WriteBinary(8 * Ne, "uint32", file)
+        __WriteBinary(connect_offsets, "uint64", file)
+
+        # Element types (int8)
         __WriteBinary(types.size, "uint32", file)
         __WriteBinary(types, "int8", file)
 
@@ -399,6 +443,7 @@ def __Make_vtu(
                 piece_files,
                 nodeFields_meta,
                 elementFields_meta,
+                ghostLevel=1,
             )
         else:
             return ""
@@ -443,6 +488,7 @@ def __Make_pvtu(
     piece_files: list[str],
     nodeFields_meta: dict[str, int],
     elementFields_meta: dict[str, int],
+    ghostLevel: int = 0,
 ) -> str:
     """Generates a .pvtu parallel descriptor file referencing per-rank .vtu pieces.\n
     https://docs.vtk.org/en/latest/vtk_file_formats/vtkxml_file_format.html#parallel-file-formats
@@ -457,24 +503,35 @@ def __Make_pvtu(
         file.write(
             f'<VTKFile type="PUnstructuredGrid" version="0.1" byte_order="{endian_paraview}">\n'
         )
-        file.write('\t<PUnstructuredGrid GhostLevel="0">\n')
+        file.write(f'\t<PUnstructuredGrid GhostLevel="{ghostLevel}">\n')
 
         file.write("\t\t<PPointData>\n")
         for name, n_comp in nodeFields_meta.items():
             file.write(
-                f'\t\t\t<PDataArray type="Float32" Name="{name}" NumberOfComponents="{n_comp}"/>\n'
+                f'\t\t\t<PDataArray type="Float64" Name="{name}" NumberOfComponents="{n_comp}"/>\n'
+            )
+        if ghostLevel > 0:
+            file.write(
+                '\t\t\t<PDataArray type="UInt8" Name="vtkGhostType" NumberOfComponents="1"/>\n'
+            )
+            file.write(
+                '\t\t\t<PDataArray type="UInt64" Name="GlobalPointIds" NumberOfComponents="1"/>\n'
             )
         file.write("\t\t</PPointData>\n")
 
         file.write("\t\t<PCellData>\n")
         for name, n_comp in elementFields_meta.items():
             file.write(
-                f'\t\t\t<PDataArray type="Float32" Name="{name}" NumberOfComponents="{n_comp}"/>\n'
+                f'\t\t\t<PDataArray type="Float64" Name="{name}" NumberOfComponents="{n_comp}"/>\n'
+            )
+        if ghostLevel > 0:
+            file.write(
+                '\t\t\t<PDataArray type="UInt8" Name="vtkGhostType" NumberOfComponents="1"/>\n'
             )
         file.write("\t\t</PCellData>\n")
 
         file.write("\t\t<PPoints>\n")
-        file.write('\t\t\t<PDataArray type="Float32" NumberOfComponents="3"/>\n')
+        file.write('\t\t\t<PDataArray type="Float64" NumberOfComponents="3"/>\n')
         file.write("\t\t</PPoints>\n")
 
         for piece_file in piece_files:
@@ -490,16 +547,23 @@ def __Make_pvtu(
 def __WriteBinary(value, type: str, file):
     """Converts value (int or array) to binary."""
 
-    if type not in ["uint32", "float32", "int32", "int8"]:
-        raise Exception("Type not implemented")
-
     if type == "uint32":
         value = np.uint32(value)
     elif type == "float32":
         value = np.float32(value)
+    elif type == "float64":
+        value = np.float64(value)
     elif type == "int32":
         value = np.int32(value)
     elif type == "int8":
         value = np.int8(value)
+    elif type == "uint8":
+        value = np.uint8(value)
+    elif type == "int64":
+        value = np.int64(value)
+    elif type == "uint64":
+        value = np.uint64(value)
+    else:
+        raise NotImplementedError
 
     file.write(value.tobytes())
