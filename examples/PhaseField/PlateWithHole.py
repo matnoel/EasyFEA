@@ -136,16 +136,15 @@ if __name__ == "__main__":
         uinc1 = 2e-7 if meshTest else 2e-8
 
         config = f"""
-        E = {E:.2e} Pa;  v = {v};  Gc = {Gc} J/m2;  l0 = {l0:.2e} m
+        uinc0 = {uinc0:.1e};  uinc1 = {uinc1:.1e}
 
         while ud <= u_max = {u_max:.2e}:
 
-        ud += uinc0 if simu.damage.max() < {threshold} else uinc1
-        uinc0 = {uinc0:.1e};  uinc1 = {uinc1:.1e}
+            ud += uinc0 if simu.damage.max() < {threshold} else uinc1
 
-        simu.add_dirichlet(nodes_lower, [0], ["y"])
-        simu.add_dirichlet(nodes_x0y0, [0], ["x"])
-        simu.add_dirichlet(nodes_upper, [-ud], ["y"])
+            simu.add_dirichlet(nodes_lower, [0], ["y"])
+            simu.add_dirichlet(nodes_x0y0, [0], ["x"])
+            simu.add_dirichlet(nodes_upper, [-ud], ["y"])
         """
 
         # ----------------------------------------------

@@ -167,17 +167,14 @@ if __name__ == "__main__":
         dep0 = threshold
         dep1 = dep0 + uinc1 * N1
         config = f"""
-        E = {E:.2e} Pa;  v = {v};  Gc = {Gc:.2e} J/m2;  l0 = {l0:.2e} m
-
-        while True:
-
         uinc0 = {uinc0:.1e} (dep < threshold={threshold:.2e})
         uinc1 = {uinc1:.1e}
-
-        if not openCrack:
-            simu.add_dirichlet(nodes_crack, [1], ["d"], problemType="damage")
-        simu.add_dirichlet(nodes_upper, [0, dep], ["x", "y"])
-        simu.add_dirichlet(nodes_lower, [0], ["y"])
+        
+        while True:
+            if not openCrack:
+                simu.add_dirichlet(nodes_crack, [1], ["d"], problemType="damage")
+            simu.add_dirichlet(nodes_upper, [0, dep], ["x", "y"])
+            simu.add_dirichlet(nodes_lower, [0], ["y"])
         """
 
         def Loading(dep):

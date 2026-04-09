@@ -165,19 +165,17 @@ if __name__ == "__main__":
         loadings = np.linspace(u_inc, u_inc * N, N, endpoint=True)
 
         config = f"""
-        E = {E:.2e} Pa;  v = {v};  Gc = {Gc:.2e} J/m2;  l0 = {l0:.2e} m
-
         u_inc = {u_inc:.1e};  N = {N}
         loadings = np.linspace(u_inc, u_inc*N, N, endpoint=True)
 
         for iter, dep in enumerate(loadings):
 
-        if not openCrack:
-            simu.add_dirichlet(nodes_crack, [1], ["d"], problemType="damage")
-        simu.add_dirichlet(nodes_left, [0], ["y"])
-        simu.add_dirichlet(nodes_right, [0], ["y"])
-        simu.add_dirichlet(nodes_upper, [dep, 0], ["x", "y"])
-        simu.add_dirichlet(nodes_lower, [0]*dim, simu.Get_unknowns())
+            if not openCrack:
+                simu.add_dirichlet(nodes_crack, [1], ["d"], problemType="damage")
+            simu.add_dirichlet(nodes_left, [0], ["y"])
+            simu.add_dirichlet(nodes_right, [0], ["y"])
+            simu.add_dirichlet(nodes_upper, [dep, 0], ["x", "y"])
+            simu.add_dirichlet(nodes_lower, [0]*dim, simu.Get_unknowns())
         """
 
         def Loading(dep):

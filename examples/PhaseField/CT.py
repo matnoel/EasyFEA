@@ -162,12 +162,12 @@ if __name__ == "__main__":
 
         for i, dep in enumerate(displacements):
 
-        if dim == 2:
-            simu.add_dirichlet(nodes_1, [0,-dep], ["x","y"])
-            simu.add_dirichlet(nodes_2, [0,dep], ["x","y"])
-        else:
-            simu.add_dirichlet(nodes_1, [0,-dep, 0], ["x", "y", "z"])
-            simu.add_dirichlet(nodes_2, [0,dep, 0], ["x", "y", "z"])
+            if dim == 2:
+                simu.add_dirichlet(nodes_1, [0,-dep], ["x","y"])
+                simu.add_dirichlet(nodes_2, [0,dep], ["x","y"])
+            else:
+                simu.add_dirichlet(nodes_1, [0,-dep, 0], ["x", "y", "z"])
+                simu.add_dirichlet(nodes_2, [0,dep, 0], ["x", "y", "z"])
         """
 
         simu = Simulations.PhaseField(mesh, pfm, folder=folder_save)

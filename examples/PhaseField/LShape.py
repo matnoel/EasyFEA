@@ -61,17 +61,16 @@ if __name__ == "__main__":
 
     config = f"""
     uMax = {uMax}
-
     inc0 = {inc0}
     inc1 = {inc1}
 
     while ud <= uMax:
     
-    ud += inc0 if simu.damage.max() < 0.6 else inc1
+        ud += inc0 if simu.damage.max() < 0.6 else inc1
 
-    simu.add_dirichlet(nodes_circle, [0], ['d'], "damage")
-    simu.add_dirichlet(nodes_y0, [0]*dim, simu.Get_dofs())
-    simu.add_dirichlet(nodes_load, [ud], ['y'])
+        simu.add_dirichlet(nodes_circle, [0], ['d'], "damage")
+        simu.add_dirichlet(nodes_y0, [0]*dim, simu.Get_dofs())
+        simu.add_dirichlet(nodes_load, [ud], ['y'])
     """
 
     # ----------------------------------------------
