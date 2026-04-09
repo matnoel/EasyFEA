@@ -170,7 +170,7 @@ if __name__ == "__main__":
             simu.add_dirichlet(nodes_2, [0,dep, 0], ["x", "y", "z"])
         """
 
-        simu = Simulations.PhaseField(mesh, pfm)
+        simu = Simulations.PhaseField(mesh, pfm, folder=folder_save)
         simu.Results_Set_Bc_Summary(config)
 
         if plotIter:

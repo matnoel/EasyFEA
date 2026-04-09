@@ -151,7 +151,7 @@ if __name__ == "__main__":
         # ----------------------------------------------
         # Simulation
         # ----------------------------------------------
-        simu = Simulations.PhaseField(mesh, pfm, verbosity=False)
+        simu = Simulations.PhaseField(mesh, pfm, folde=folder_save)
         simu.Results_Set_Bc_Summary(config)
 
         dofsY_upper = simu.Bc_dofs_nodes(nodes_upper, ["y"])

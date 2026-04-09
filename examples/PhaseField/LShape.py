@@ -145,7 +145,7 @@ if __name__ == "__main__":
     Display.MyPrint(folder_save, "green", end="\n")
 
     if doSimu:
-        simu = Simulations.PhaseField(mesh, pfm)
+        simu = Simulations.PhaseField(mesh, pfm, folder=folder_save)
         simu.Results_Set_Bc_Summary(config)
 
         dofsY_load = simu.Bc_dofs_nodes(nodes_load, ["y"])
