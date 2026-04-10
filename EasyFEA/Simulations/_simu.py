@@ -363,13 +363,20 @@ class _Simu(_IObserver, _params.Updatable, ABC):
         text += Display.Section("Model", False)
         text += "\n" + str(self.model)
 
-        text += "\n\nsolver : " + str(self.solver)
+        text += "\n\nsolver:"
 
         if self.solver == SolverType.petsc:
-            kspType, pcType, solverType = self._Solver_Get_PETSc4Py_Options()
-            text += f", {kspType}, {pcType}"
-            if solverType != "petsc":
-                text += f", {solverType}"
+            problemTypes = self.Get_problemTypes()
+            for problemType in problemTypes:
+                kspType, pcType, solverType = self._Solver_Get_PETSc4Py_Options(
+                    problemType
+                )
+                if len(problemTypes) > 1:
+                    text += f"\n({problemType}) {kspType}, {pcType}, {solverType}"
+                else:
+                    text += f" {kspType}, {pcType}, {solverType}"
+        else:
+            text += str(self.solver)
 
         text += Display.Section("Boundary Conditions", False)
         text += "\n" + textwrap.dedent(self.Results_Get_Bc_Summary())  # type: ignore

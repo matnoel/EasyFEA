@@ -223,7 +223,7 @@ class _GroupElem(ABC):
 
     def _Get_partitioned_data(
         self,
-    ) -> tuple[_types.IntArray, _types.IntArray, _types.IntArray]:
+    ) -> tuple[int, _types.IntArray, _types.IntArray, _types.IntArray, _types.IntArray]:
         """Returns the partitioned data used in mpi.\n
         (rank, elements, ghostElements, nodes, ghostNodes)"""
         return self.__partitionned_data

@@ -933,7 +933,7 @@ class PhaseField(_Simu):
 
         min_d = d.min()
         max_d = d.max()
-        summaryIter = f"{iter + 1:4d} : {load:4.3f} {unitLoad}, [{min_d:.2e}; {max_d:.2e}], {Niter}:{timeIter:4.3f}s, tol={dincMax:.2e}  "
+        summaryIter = f"{iter + 1:4d}: {load:4.3f}{unitLoad}, [{min_d:.2e};{max_d:.2e}], {Niter}:{timeIter:4.3f}s, tol={dincMax:.2e}  "
 
         if percentage > 0:
             timeLeft = (1 / percentage - 1) * timeIter * iter

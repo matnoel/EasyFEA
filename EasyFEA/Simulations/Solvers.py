@@ -222,9 +222,7 @@ def _Solve_Axb(
             )
 
         # add petsc4py options in solver description
-        solver += f", {kspType}, {pcType}"
-        if solverType != "petsc":
-            solver += f", {solverType}"
+        solver += f"{kspType}, {pcType}, {solverType}"
 
     elif solver == SolverType.scipy:
         testSymetric = sla.norm(A - A.transpose()) / sla.norm(A)

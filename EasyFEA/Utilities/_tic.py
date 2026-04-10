@@ -110,7 +110,7 @@ class Tic:
         for category in Tic.__History:
             timesCategory = float(sum(v[0] for v in Tic.__History[category].values()))
             timesCategory, unite = Tic.Get_time_unity(timesCategory)
-            resumeCategory = f"{category} : {timesCategory:.3f} {unite}"
+            resumeCategory = f"{category}: {timesCategory:.3f} {unite}"
             if verbosity:
                 print(resumeCategory)
             resume += "\n" + resumeCategory
