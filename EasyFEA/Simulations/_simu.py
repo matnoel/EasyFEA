@@ -23,6 +23,7 @@ from ..Utilities._mpi import CAN_USE_MPI, MPI_SIZE, MPI_RANK, MPI_COMM
 # fem
 from ..FEM import (
     Mesh,
+    Load_Mesh,
     _GroupElem,
     FeArray,
     BoundaryCondition,
@@ -263,7 +264,9 @@ class _Simu(_IObserver, _params.Updatable, ABC):
                 results = pickle.load(f)
 
         indexMesh = results["indexMesh"]
-        self.__Update_mesh(indexMesh)
+        if indexMesh != self.__indexMesh:
+            self.__indexMesh = indexMesh
+            self.__Update_mesh(indexMesh)
 
         return results.copy()
 
@@ -415,9 +418,6 @@ class _Simu(_IObserver, _params.Updatable, ABC):
 
         self.folder = folder
 
-        if MPI_SIZE > 1:
-            MPI_COMM.Barrier()
-
         self.__dim: int = model.dim
         """Simulation dimension."""
 
@@ -426,9 +426,9 @@ class _Simu(_IObserver, _params.Updatable, ABC):
         """Dictionary list containing the results."""
 
         # Fill in the first mesh
-        self.__indexMesh: int = -1
+        self.__NindexMesh: int = -1
         """Current mesh index in self.__listMesh"""
-        self.__listMesh: list[Mesh] = []
+        self.__listMesh: list[Union[str, Mesh]] = []
         self.mesh = mesh
 
         self.rho = 1.0
@@ -676,9 +676,11 @@ class _Simu(_IObserver, _params.Updatable, ABC):
         if isinstance(mesh, Mesh):
             # For all old meshes, delete the matrices
             listMesh: list[Mesh] = self.__listMesh
-            [m._ResetMatrix() for m in listMesh]  # type: ignore [func-returns-value]
+            [m._ResetMatrix() for m in listMesh if isinstance(m, Mesh)]  # type: ignore [func-returns-value]
 
-            self.__indexMesh += 1
+            # set mesh
+            self.__NindexMesh += 1
+            self.__indexMesh = self.__NindexMesh
             self.__listMesh.append(mesh)
             self.__mesh = mesh
 
@@ -709,7 +711,11 @@ class _Simu(_IObserver, _params.Updatable, ABC):
         if MPI_SIZE == 1:
             return
 
-        list_mesh = [mesh._Gather() for mesh in self.__listMesh]
+        list_mesh = []
+        for mesh in self.__listMesh:
+            if isinstance(mesh, str):
+                mesh = Load_Mesh(Folder.Join(self.folder, mesh))
+            list_mesh.append(mesh._Gather())
 
         if MPI_RANK == 0:
             for i, mesh in enumerate(list_mesh):
@@ -733,7 +739,14 @@ class _Simu(_IObserver, _params.Updatable, ABC):
         index : int
             The mesh index in self.__listMesh.
         """
-        self.__mesh = self.__listMesh[index]
+
+        mesh = self.__listMesh[index]
+
+        if isinstance(mesh, str):
+            mesh = Load_Mesh(Folder.Join(self.folder, mesh))
+
+        self.__mesh = mesh
+
         self.Need_Update()  # need to reconstruct matrices
 
     def _Update(self, observable: Observable, event: str) -> None:
@@ -2032,8 +2045,8 @@ class _Simu(_IObserver, _params.Updatable, ABC):
         nodes = np.asarray(nodes)
 
         Nn = nodes.shape[0]
-        coordo = self.mesh.coord
-        coordo_n = coordo[nodes]
+        coord = self.mesh.coord
+        coordo_n = coord[nodes]
 
         # initialize the value vector for each nodes
         dofsValues_dir = np.zeros((Nn, len(unknowns)))
@@ -2839,23 +2852,35 @@ class _Simu(_IObserver, _params.Updatable, ABC):
         filename: str = "simulation",
         gather=False,
         additionalInfos: str = "",
-    ) -> None:
+    ) -> str:
         """Saves the simulation and its summary in the folder. Saves the simulation as 'filename.pickle'."""
 
         if gather:
             self._Gather()
+            if MPI_RANK != 0:
+                return
 
-        # Empty matrices in element groups
-        self.mesh._ResetMatrix()
-
-        # Save simulation
+        # create path
         suffix = f"_rank{MPI_RANK}" if MPI_SIZE > 1 and not gather else ""
         # Rank 0 creates the folder first; barrier ensures all ranks see it before writing.
         if MPI_SIZE > 1 and MPI_RANK == 0:
             Folder.Join(folder, f"{filename}{suffix}.pickle", mkdir=True)
-        if MPI_SIZE > 1:
-            MPI_COMM.Barrier()
         path_simu = Folder.Join(folder, f"{filename}{suffix}.pickle", mkdir=True)
+
+        # set folder
+        self.folder = folder
+
+        # Save meshes
+        folder_meshes = Folder.Join(folder, "Meshes")
+        list_mesh = []
+        for i, mesh in enumerate(self.__listMesh):
+            if isinstance(mesh, str):
+                mesh = Load_Mesh(Folder.Join(folder, mesh))
+            path = mesh.Save(folder_meshes, f"mesh{i}")
+            list_mesh.append(Folder.os.path.relpath(path, folder))
+        self.__listMesh = list_mesh
+
+        # Save simulation
         with open(path_simu, "wb") as file:
             pickle.dump(self, file)
 
@@ -2876,6 +2901,8 @@ class _Simu(_IObserver, _params.Updatable, ABC):
 
             path = folder.replace(Folder.EASYFEA_DIR, "")
             Display.MyPrint(f"Saved simulation and summary in:\n{path}\n", "green")
+
+        return path_simu
 
 
 # ----------------------------------------------
