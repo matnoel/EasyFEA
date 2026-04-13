@@ -8,7 +8,7 @@ from ._forms import _Form, BiLinearForm, LinearForm
 from ._gauss import Gauss
 from ._group_elem import _GroupElem, GroupElemFactory
 from ._linalg import FeArray, Transpose, Trace, Det, Inv, TensorProd, Norm
-from ._mesh import Mesh, Calc_projector, Mesh_Optim
+from ._mesh import Mesh, Load_Mesh, Calc_projector, Mesh_Optim
 from ._mesher import Mesher
 from ._utils import ElemType, MatrixType
 

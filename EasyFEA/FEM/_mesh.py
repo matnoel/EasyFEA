@@ -15,10 +15,11 @@ A hexahedral mesh (HEXA8) uses :\n
 import numpy as np
 import scipy.sparse as sp
 import copy
+import pickle
 from typing import Callable, Optional, TYPE_CHECKING
 
 # utilities
-from ..Utilities import Display, Tic, _types
+from ..Utilities import Display, Folder, Tic, _types
 from ..Utilities._observers import Observable
 from ..Utilities._mpi import CAN_USE_MPI, MPI_COMM, MPI_SIZE, MPI_RANK
 
@@ -1186,6 +1187,99 @@ class Mesh(Observable):
         )
 
         return projector
+
+    def Save(
+        self,
+        folder: str,
+        filename: str = "mesh",
+        gather=False,
+    ) -> str:
+        """Saves the mesh in the folder. Saves the mesh as 'filename.pickle'."""
+
+        if gather:
+            self = self._Gather()
+            if self is None:
+                return
+
+        # Save mesh
+        suffix = f"_rank{MPI_RANK}" if MPI_SIZE > 1 and not gather else ""
+        # Rank 0 creates the folder first; barrier ensures all ranks see it before writing.
+        if MPI_SIZE > 1 and MPI_RANK == 0:
+            Folder.Join(folder, f"{filename}{suffix}.pickle", mkdir=True)
+        path_mesh = Folder.Join(folder, f"{filename}{suffix}.pickle", mkdir=True)
+
+        # create dict_groupElem_data
+        coordinates = self.coord
+        dict_groupElem_data: dict[ElemType, tuple] = {}
+        for elemType, groupElem in self.dict_groupElem.items():
+            # GroupElemFactory.Create data: elemType, connect, coordinates
+            createData = (groupElem.connect, coordinates)
+            # Partitionned data: elements, nodes, rank, ghostElements
+            rank, elements, ghostElements, nodes, _ = groupElem._Get_partitioned_data()
+            partitionedData = (elements, nodes, rank, ghostElements)
+            # nodes tags
+            dict_nodes_tags = groupElem._dict_nodes_tags
+            # append data
+            dict_groupElem_data[elemType] = (
+                createData,
+                partitionedData,
+                dict_nodes_tags,
+            )
+
+        with open(path_mesh, "wb") as file:
+            pickle.dump(dict_groupElem_data, file)
+
+        if MPI_RANK == 0:
+            path = folder.replace(Folder.EASYFEA_DIR, "")
+            Display.MyPrint(f"Saved mesh data in:\n{path}\n", "green")
+
+        return path_mesh
+
+
+def Load_Mesh(path: str) -> Mesh:
+    """Loads the EasyFEA mesh from the specified pickle file.
+
+    Parameters
+    ----------
+    path : str
+        path to the pickle file.
+
+    Returns
+    -------
+    Mesh
+        The loaded mesh.
+    """
+
+    assert Folder.Exists(path), f"The file {path} cannot be found."
+
+    from ._group_elem import GroupElemFactory
+
+    with open(path, "rb") as file:
+        dict_groupElem_data: dict[ElemType, tuple] = pickle.load(file)
+
+    dict_groupElem: dict[ElemType, _GroupElem] = {}
+
+    for elemType, data in dict_groupElem_data.items():
+        # create the group of element
+        connect, coordinates = data[0]
+        groupElem = GroupElemFactory.Create(
+            elemType=elemType, connect=connect, coordinates=coordinates
+        )
+        # set partitioned data
+        elements, nodes, rank, ghostElements = data[1]
+        groupElem._Set_partitioned_data(
+            elements=elements, nodes=nodes, rank=rank, ghostElements=ghostElements
+        )
+        # append tags
+        dict_nodes_tags = data[2]
+        for tag, nodes in dict_nodes_tags.items():
+            groupElem.Set_Tag(nodes, tag)
+
+        dict_groupElem[elemType] = groupElem
+
+    mesh = Mesh(dict_groupElem=dict_groupElem)
+
+    return mesh
 
 
 def Calc_projector(oldMesh: Mesh, newMesh: Mesh) -> sp.csr_matrix:

@@ -106,7 +106,7 @@ class _GroupElem(ABC):
         self._global_to_local_nodes[nodes] = np.arange(nodes.size, dtype=int)
 
         # Set the paritionned data.
-        self._Set_partitioned_data(self.elements, [], self.nodes)
+        self._Set_partitioned_data(self.elements, self.nodes)
 
         # rank partition: set on rank 0 after Gather(), None otherwise
         self.__rankPartition: _types.IntArray = None
