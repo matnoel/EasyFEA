@@ -2,6 +2,16 @@
 
 This document describes the changes made to the project.
 
+## 1.8.4 (April 20, 2026):
+
+- #26 Improved mpi behavior:
+    - Removed coordGlob array in mesh and groupElem.
+    - Add ghost cells and ghost points in EasyFEA/Utilities/Paraview.py
+- Fixed a bug in Meshio._GroupElem_to_PyVista function.
+- Updated phase field examples.
+- Created Save and Load functions for mesh object.
+- Created Folder_test.py
+
 ## 1.8.3 (April 7, 2026):
 
 - Migrated CI/CD and ReadTheDocs to `uv` for dependency management.
