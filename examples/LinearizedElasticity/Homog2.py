@@ -257,7 +257,7 @@ if __name__ == "__main__":
 
     C_Mat = Models.Reshape_variable(material.C, *B_e_pg.shape[:2])
 
-    C_hom = (wJ_e_pg * C_Mat @ B_e_pg @ U_e).sum((0, 1)) / mesh.area
+    C_hom = (wJ_e_pg * C_Mat @ B_e_pg @ U_e).sum((0, 1)) / area
 
     print(f"c1111 = {C_hom[0, 0]}")
     print(f"c1122 = {C_hom[0, 1]}")

@@ -337,12 +337,11 @@ if __name__ == "__main__":
 
     C_Mat = Models.Reshape_variable(material.C, *B_e_pg.shape[:2])
 
-    # Be careful here you have to use all the volume even if there are holes
-    # if you use the mesh volume, multiply C_hom by the porosity (1-f)
-    C_hom = (wJ_e_pg * C_Mat @ B_e_pg @ U_e).sum((0, 1)) / mesh.volume
+    xMin, yMin, zMin = mesh.coord.min(axis=0)
+    xMax, yMax, zMax = mesh.coord.max(axis=0)
+    volume = (xMax - xMin) * (yMax - yMin) * (zMax - zMin)
 
-    if not inclusion.isFilled:
-        C_hom *= 1 - f
+    C_hom = (wJ_e_pg * C_Mat @ B_e_pg @ U_e).sum((0, 1)) / volume
 
     formatted_array = ""
     for i in range(6):

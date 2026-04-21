@@ -74,7 +74,6 @@ if __name__ == "__main__":
             inclusions.append(inclusion)
 
     inclusion = Geoms.Domain(ptd1, ptd2, meshSize)
-    area_inclusion = inclusion.Mesh_2D().area
 
     points = Geoms.Points([pt1, pt2, pt3, pt4], meshSize)
 
@@ -102,6 +101,7 @@ if __name__ == "__main__":
         ],
         elemType,
     )
+    area = 4 * cL * cH
 
     Display.Plot_Mesh(mesh_inclusions, title="non hom")
     Display.Plot_Mesh(mesh_RVE, title="RVE")
@@ -160,11 +160,7 @@ if __name__ == "__main__":
     wJ_e_pg = mesh_RVE.Get_weightedJacobian_e_pg(matrixType)
     B_e_pg = mesh_RVE.Get_B_e_pg(matrixType)
 
-    C_hom = (wJ_e_pg * CMandel @ B_e_pg @ U_e).sum((0, 1)) / mesh_RVE.area
-
-    if not isFilled:
-        coef = 1 - area_inclusion / mesh_RVE.area
-        C_hom *= coef
+    C_hom = (wJ_e_pg * CMandel @ B_e_pg @ U_e).sum((0, 1)) / area
 
     # print(np.linalg.eigvals(C_hom))
 

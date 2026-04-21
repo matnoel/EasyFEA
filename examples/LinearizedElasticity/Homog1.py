@@ -107,6 +107,7 @@ if __name__ == "__main__":
     p3 = (-1 / 2, 1 / 2)
     pts = [p0, p1, p2, p3]
     contour = Points(pts, meshSize)
+    area = (p1[0] - p0[0]) * (p2[1] - p1[1])
 
     # inclusion
     f = 0.4
@@ -178,12 +179,7 @@ if __name__ == "__main__":
 
     C_Mat = Models.Reshape_variable(material.C, *B_e_pg.shape[:2])
 
-    # Be careful here you have to use all the area even if there are holes
-    # if you use the mesh area, multiply C_hom by the porosity (1-f)
-    C_hom = (wJ_e_pg * C_Mat @ B_e_pg @ U_e).sum((0, 1)) / mesh.area
-
-    if not inclusion.isFilled and mesh.area != 1:
-        C_hom *= 1 - f
+    C_hom = (wJ_e_pg * C_Mat @ B_e_pg @ U_e).sum((0, 1)) / area
 
     # Display.Plot_BoundaryConditions(simu)
 
