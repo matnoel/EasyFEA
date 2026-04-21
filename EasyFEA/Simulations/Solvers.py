@@ -166,8 +166,27 @@ def _Solve_Axb(
         b = sparse.csr_matrix(b)
 
     if len(simu.Bc_Lagrange) > 0:
-        # If the simulation uses Lagrange multipliers, iterative solvers cannot be employed.
-        solver = SolverType.pypardiso if CAN_USE_PYPARDISO else SolverType.scipy
+        if MPI_SIZE > 1:
+            raise NotImplementedError(
+                "Simulations using Lagrangian boundary conditions are not yet supported in MPI environments."
+            )
+        # Lagrange multipliers yield a saddle-point system: iterative KSP methods diverge.
+        # Keep PETSc only when configured as a direct solver (preonly + lu/cholesky
+        # backed by mumps, superlu_dist, or petsc in serial). Otherwise fall back.
+        kspType, pcType, solverType = simu._Solver_Get_PETSc4Py_Options(problemType)
+        # Built-in PETSc LU (solverType="petsc") uses SeqAIJ which requires a
+        # non-zero diagonal — saddle-point matrices from Lagrange multipliers violate
+        # this. External solvers (mumps, superlu_dist, …) use fill-in reordering
+        # (AMD/METIS) and handle zero-diagonal rows correctly.
+        _petsc_is_direct = (
+            kspType == "preonly"
+            and pcType in {"lu", "cholesky"}
+            and solverType != "petsc"
+        )
+        if simu.solver == SolverType.petsc and CAN_USE_PETSC and _petsc_is_direct:
+            solver = SolverType.petsc
+        else:
+            solver = SolverType.pypardiso if CAN_USE_PYPARDISO else SolverType.scipy
     else:
         solver = simu.solver
 
@@ -268,19 +287,6 @@ def Solve_simu(
     """Solving the simulation's problem according to the resolution type."""
 
     resolution = ResolType.r1
-    if CAN_USE_PETSC:
-        if resolution is ResolType.r1:
-            # SPD system: cg+gamg (set by default in __init__) is already optimal.
-            pass
-        elif resolution is ResolType.r3:
-            # Non-symmetric penalized system: gamg is SPD-only, switch to gmres+asm.
-            # asm (Additive Schwarz) overlaps between ranks, better convergence than bjacobi.
-            kspType = "gmres"
-            pcType = "gamg"
-            simu._Solver_Set_PETSc4Py_Options(kspType, pcType, problemType=problemType)
-        else:
-            raise NotImplementedError
-
     resolution = ResolType.r2 if len(simu.Bc_Lagrange) > 0 else resolution
 
     if resolution == ResolType.r1:

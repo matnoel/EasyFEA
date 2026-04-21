@@ -1673,6 +1673,8 @@ class _Simu(_IObserver, _params.Updatable, ABC):
         ------
         ValueError
             - Unknown kspType, pcType, or solverType.
+            - ``pcType="lu"/"cholesky"`` with ``kspType`` other than ``"preonly"``
+              (direct factorization PCs require no KSP iterations).
             - External solverType paired with a non-factorization pcType.
             - ``pcType="sor"`` in MPI context (serial-only PC).
             - ``pcType="lu"/"cholesky"`` with ``solverType="petsc"`` in MPI context
@@ -1722,8 +1724,16 @@ class _Simu(_IObserver, _params.Updatable, ABC):
                 "See https://petsc.org/release/manual/ksp/#using-external-linear-solvers"
             )
 
-        # External direct-solver backends only apply to factorization PCs.
+        # Direct-factorization PCs must use preonly (no KSP iterations).
         _direct_pc = {"lu", "cholesky"}
+        if pcType in _direct_pc and kspType != "preonly":
+            raise ValueError(
+                f"pcType='{pcType}' is a direct factorization and requires kspType='preonly' "
+                f"(no KSP iterations). Got kspType='{kspType}'.\n"
+                "See https://petsc.org/release/overview/linear_solve_table/#direct-solvers."
+            )
+
+        # External direct-solver backends only apply to factorization PCs.
         if solverType != "petsc" and pcType not in _direct_pc:
             raise ValueError(
                 f"solverType='{solverType}' is a direct-solver backend and requires "
