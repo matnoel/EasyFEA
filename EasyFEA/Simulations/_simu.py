@@ -49,6 +49,9 @@ if CAN_USE_PETSC:
 
     PETSC_HAS_SUPERLU_DIST = PETSc.Sys.hasExternalPackage("superlu_dist")
     PETSC_HAS_MUMPS = PETSc.Sys.hasExternalPackage("mumps")
+else:
+    PETSC_HAS_SUPERLU_DIST = False
+    PETSC_HAS_MUMPS = False
 
 if CAN_USE_MPI:
     from mpi4py import MPI
