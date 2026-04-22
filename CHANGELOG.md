@@ -2,6 +2,11 @@
 
 This document describes the changes made to the project.
 
+## 1.8.5 (April 22, 2026):
+
+- Improved solver behavior when simulations are using Lagrange boundary conditions.
+- Simplified homogenization examples.
+
 ## 1.8.4 (April 20, 2026):
 
 - #26 Improved mpi behavior:
