@@ -460,36 +460,32 @@ class _Simu(_IObserver, _params.Updatable, ABC):
 
         # Set solver petsc4py options with best available defaults for all problems.
         self.__dict_solver_petsc4py_options: dict[ModelType, tuple[str, str, str]] = {}
-        if CAN_USE_PETSC:
-            for problemType in self.Get_problemTypes():
-                dof_n = self.Get_dof_n(problemType)
-                if dof_n == 1:
-                    # Scalar problems
-                    # cg+gamg: works in serial and MPI, no external packages needed.
-                    # Good default for scalar SPD problems
-                    self._Solver_Set_PETSc4Py_Options(
-                        "cg", "gamg", "petsc", problemType
-                    )
+        for problemType in self.Get_problemTypes():
+            dof_n = self.Get_dof_n(problemType)
+            if dof_n == 1:
+                # Scalar problems
+                # cg+gamg: works in serial and MPI, no external packages needed.
+                # Good default for scalar SPD problems
+                kspType, pcType, solverType = "cg", "gamg", "petsc"
+            else:
+                # Vector problems
+                if PETSC_HAS_SUPERLU_DIST:
+                    kspType, pcType, solverType = "preonly", "lu", "superlu_dist"
+                elif PETSC_HAS_MUMPS:
+                    kspType, pcType, solverType = "preonly", "lu", "mumps"
+                elif MPI_SIZE == 1:
+                    # No external direct solver: built-in LU (serial only).
+                    kspType, pcType, solverType = "preonly", "lu", "petsc"
                 else:
-                    # Vector problems
-                    if PETSC_HAS_SUPERLU_DIST:
-                        self._Solver_Set_PETSc4Py_Options(
-                            "preonly", "lu", "superlu_dist", problemType
-                        )
-                    elif PETSC_HAS_MUMPS:
-                        self._Solver_Set_PETSc4Py_Options(
-                            "preonly", "lu", "mumps", problemType
-                        )
-                    elif MPI_SIZE == 1:
-                        # No external direct solver: built-in LU (serial only).
-                        self._Solver_Set_PETSc4Py_Options(
-                            "preonly", "lu", "petsc", problemType
-                        )
-                    else:
-                        # MPI context without any parallel direct solver: iterative fallback.
-                        self._Solver_Set_PETSc4Py_Options(
-                            "cg", "gamg", "petsc", problemType
-                        )
+                    # MPI context without any parallel direct solver: iterative fallback.
+                    kspType, pcType, solverType = "cg", "gamg", "petsc"
+            # set petsc4py options
+            self._Solver_Set_PETSc4Py_Options(
+                kspType=kspType,
+                pcType=pcType,
+                solverType=solverType,
+                problemType=problemType,
+            )
 
         # Initialize solutions and boundary conditions
         self.__Init_Sols_n()
