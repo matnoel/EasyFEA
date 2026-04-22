@@ -6,6 +6,7 @@ This document describes the changes made to the project.
 
 - Improved solver behavior when simulations are using Lagrange boundary conditions.
 - Simplified homogenization examples.
+- Set petsc4py options by default in EasyFEA/Simulations/_simu, even if petsc4py is not available.
 
 ## 1.8.4 (April 20, 2026):
 
