@@ -78,7 +78,7 @@ if __name__ == "__main__":
         [simu.add_connection_hinged([firstNodes, n]) for n in others]
 
     simu.add_dirichlet(nodesRigi, [0, 0], ["x", "y"])
-    simu.add_neumann(nodesA, [-40 * 9.81], ["y"])
+    simu.add_neumann(nodesA, [-4 * 9.81], ["y"])
 
     simu.Solve()
 

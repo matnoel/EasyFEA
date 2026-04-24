@@ -101,9 +101,9 @@ if __name__ == "__main__":
 
     u_an = load * L**3 / (192 * E * beam.Iz)
 
-    uy_1d = np.abs(simu.Result("uy").min())
+    uy_min = np.abs(simu.Result("uy").min())
 
-    Display.MyPrint(f"err uy : {np.abs(u_an - uy_1d) / u_an * 100:.2f} %")
+    Display.MyPrint(f"err uy : {np.abs(u_an - uy_min) / u_an * 100:.2f} %")
 
     Display.Plot_Mesh(simu, L / 20 / sol.min())
     ax = Display.Plot_Mesh(section)

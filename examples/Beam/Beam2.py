@@ -31,7 +31,7 @@ if __name__ == "__main__":
 
     # model
     E = 210000
-    v = 0.3
+    uy = 0.3
 
     # load
     load = 800
@@ -50,7 +50,7 @@ if __name__ == "__main__":
     p1 = (0, 0)
     p2 = (L, 0)
     line = Line(p1, p2, L / nL)
-    beam = Models.Beam.Isotropic(beamDim, line, section, E, v)
+    beam = Models.Beam.Isotropic(beamDim, line, section, E, uy)
 
     mesh = mesher.Mesh_Beams([beam], elemType=elemType)
 
@@ -85,25 +85,25 @@ if __name__ == "__main__":
     Display.Plot_Result(simu, "uy")
 
     rz = simu.Result("rz")
-    v = simu.Result("uy")
+    uy = simu.Result("uy")
 
     x = np.linspace(0, L, 100)
     uy_x = load / (E * Iz) * (x**3 / 6 - (L * x**2) / 2)
 
-    flecheanalytique = load * L**3 / (3 * E * Iz)
-    err_uy = np.abs(flecheanalytique + v.min()) / flecheanalytique
+    uy_x_an = load * L**3 / (3 * E * Iz)
+    err_uy = np.abs(uy_x_an + uy.min()) / uy_x_an
     Display.MyPrint(f"err uy: {err_uy * 100:.2e} %")
 
     # Plot the analytical and finite element solutions for vertical displacement (v)
     axUy = Display.Init_Axes()
     axUy.plot(x, uy_x, label="Analytical", c="blue")
-    axUy.scatter(mesh.coord[:, 0], v, label="FE", c="red", marker="x", zorder=2)
+    axUy.scatter(mesh.coord[:, 0], uy, label="FE", c="red", marker="x", zorder=2)
     axUy.set_title("$u_y(x)$")
     axUy.legend()
 
     rz_x = load / E / Iz * (x**2 / 2 - L * x)
-    rotalytique = load * L**2 / (2 * E * Iz)
-    err_rz = np.abs(rotalytique + rz.min()) / rotalytique
+    rz_x_an = load * L**2 / (2 * E * Iz)
+    err_rz = np.abs(rz_x_an + rz.min()) / rz_x_an
     Display.MyPrint(f"err rz: {err_rz * 100:.2e} %")
 
     # Plot the analytical and finite element solutions for rotation (rz)

@@ -65,7 +65,7 @@ class Beam(_Simu):
     def Results_nodeFields_elementFields(
         self, details=False
     ) -> tuple[list[str], list[str]]:
-        nodesField = ["displacement"]
+        nodesField = ["displacement_matrix"]
         elementsField = []
         return nodesField, elementsField
 
