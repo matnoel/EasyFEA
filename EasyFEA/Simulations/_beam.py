@@ -14,6 +14,9 @@ if TYPE_CHECKING:
     from ..FEM import Mesh
 from ..FEM import MatrixType, LagrangeCondition, FeArray
 
+# euler bernoulli beams
+from ..FEM.Elems._beam import _Construct_Euler_Bernoulli_mesh, _EulerBernoulli
+
 # models
 from ..Models import ModelType, Reshape_variable
 from ..Models.Beam._beam import BeamStructure, _Beam, Isotropic
@@ -51,6 +54,9 @@ class Beam(_Simu):
         assert isinstance(
             model, BeamStructure
         ), "model must be a beam model or a beam structure"
+
+        mesh = _Construct_Euler_Bernoulli_mesh(mesh)
+
         super().__init__(mesh, model, folder, verbosity)
 
         # turn beams into observable objects
@@ -226,6 +232,8 @@ class Beam(_Simu):
         if not mesh.groupElem.dim == 1:
             return None  # type: ignore [return-value]
         groupElem = mesh.groupElem
+
+        assert isinstance(groupElem, _EulerBernoulli)
 
         # Recovering the beam model
         beamStructure = self.structure
