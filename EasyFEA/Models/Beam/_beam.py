@@ -195,6 +195,11 @@ class _Beam(_IModel):
         """Returns a matrix characterizing the beam's stiffness behavior."""
         return None  # type: ignore [return-value]
 
+    @abstractmethod
+    def Get_M(self) -> _types.FloatArray:
+        """Returns a matrix characterizing the beam's mass behavior."""
+        return None  # type: ignore [return-value]
+
     def __str__(self) -> str:
         text = ""
         text += f"\n{self.name}:"
@@ -291,6 +296,23 @@ class Isotropic(_Beam):
 
         return D
 
+    def Get_M(self) -> _types.FloatArray:
+        dim = self.dim
+        section = self.section
+        A = section.area
+
+        if dim == 1:
+            # u = [u1, . . . , un]
+            M = np.diag([A])
+        elif dim == 2:
+            # u = [u1, v1, rz1, . . . , un, vn, rzn]
+            M = np.diag([A, A, 0])
+        elif dim == 3:
+            # u = [u1, v1, w1, rx1, ry1 rz1, . . . , un, vn, wn, rxn, ryn rzn]
+            M = np.diag([A, A, A, 0, 0, 0])
+
+        return M
+
 
 class BeamStructure(_IModel):
     """Beam structure class."""
@@ -376,6 +398,29 @@ class BeamStructure(_IModel):
             D_e_pg[elems] = D
 
         return D_e_pg
+
+    def Calc_M_e_pg(self, groupElem: _GroupElem) -> FeArray.FeArrayALike:
+        """Returns a matrix characterizing the beams's stiffness behavior."""
+
+        if groupElem.dim != 1:
+            return None  # type: ignore [return-value]
+
+        listBeam = self.__beams
+        list_M = [beam.Get_M() for beam in listBeam]
+
+        Ne = groupElem.Ne
+        nPg = groupElem.Get_gauss(MatrixType.beam).nPg
+        # Initialize D_e_pg :
+        M_e_pg = FeArray.zeros(Ne, nPg, *list_M[0].shape)
+
+        # For each beam, we will construct the law of behavior on the associated nodes.
+        for beam, M in zip(listBeam, list_M):
+            # recover elements
+            elems = groupElem.Get_Elements_Tag(beam.name)
+
+            M_e_pg[elems] = M
+
+        return M_e_pg
 
     def Get_axis_e(
         self, groupElem: _GroupElem

@@ -187,7 +187,28 @@ class _EulerBernoulli(_GroupElem):
 
         return ddN_e_pg
 
-    # Euler Bernoulli problem
+    # Euler Bernoulli problem matrix
+
+    def __Compute_P_e_pg(self, beamStructure: "BeamStructure") -> FeArray.FeArrayALike:
+
+        # data
+        Ne = self.Ne
+        nPe = self.nPe
+        dof_n = beamStructure.dof_n
+
+        P = np.zeros((self.Ne, 3, 3))
+        for beam in beamStructure.beams:
+            elems = self.Get_Elements_Tag(beam.name)
+            P[elems] = beam._Calc_P()
+
+        P_e_pg = FeArray.zeros(Ne, 1, dof_n * nPe, dof_n * nPe)
+        N = P.shape[-1]
+        lines = np.repeat(range(N), N)
+        columns = np.array(list(range(N)) * N)
+        for n in range(dof_n * nPe // 3):
+            P_e_pg[:, 0, lines + n * N, columns + n * N] = P[:, lines, columns]
+
+        return P_e_pg
 
     def Get_EulerBernoulli_N_e_pg_for_beam(
         self, beamStructure: "BeamStructure"
@@ -203,16 +224,14 @@ class _EulerBernoulli(_GroupElem):
         dim = beamStructure.dim
         dof_n = beamStructure.dof_n
 
-        # Data
-        jacobian_e_pg = self.Get_jacobian_e_pg(matrixType)
-        nPe = self.nPe
-        Ne = jacobian_e_pg.shape[0]
-        nPg = jacobian_e_pg.shape[1]
-
         # get matrices to work with
-        N_pg = self.Get_N_pg(matrixType)
-        N_e_pg = self.Get_EulerBernoulli_N_e_pg()
-        dN_e_pg = self.Get_EulerBernoulli_dN_e_pg()
+        Nu_pg = self.Get_N_pg(matrixType)
+        Nv_e_pg = self.Get_EulerBernoulli_N_e_pg()
+        dNv_e_pg = self.Get_EulerBernoulli_dN_e_pg()
+
+        # Data
+        nPe = self.nPe
+        Ne, nPg = dNv_e_pg.shape[:2]
 
         if dim == 1:
             # u = [u1, . . . , un]
@@ -222,7 +241,7 @@ class _EulerBernoulli(_GroupElem):
             idx_ux = np.arange(dof_n * nPe)
 
             N_e_pg = np.zeros((Ne, nPg, 1, dof_n * nPe))
-            N_e_pg[:, :, 0, idx_ux] = N_pg[:, :, 0]
+            N_e_pg[:, :, 0, idx_ux] = Nu_pg[:, :, 0]
 
         elif dim == 2:
             # u = [u1, v1, rz1, . . . , un, vn, rzn]
@@ -238,9 +257,9 @@ class _EulerBernoulli(_GroupElem):
 
             N_e_pg = np.zeros((Ne, nPg, 3, dof_n * nPe))
 
-            N_e_pg[:, :, 0, idx_ux] = N_pg[:, :, 0]  # traction / compression to get u
-            N_e_pg[:, :, 1, idx_uy] = N_e_pg[:, :, 0]  # flexion z to get v
-            N_e_pg[:, :, 2, idx_uy] = dN_e_pg[:, :, 0]  # flexion z to get rz
+            N_e_pg[:, :, 0, idx_ux] = Nu_pg[:, :, 0]  # traction / compression to get u
+            N_e_pg[:, :, 1, idx_uy] = Nv_e_pg[:, :, 0]  # flexion z to get v
+            N_e_pg[:, :, 2, idx_uy] = dNv_e_pg[:, :, 0]  # flexion z to get rz
 
         elif dim == 3:
             # u = [u1, v1, w1, rx1, ry1, rz1, . . . , un, vn, wn, rxn, ryn, rzn]
@@ -263,39 +282,27 @@ class _EulerBernoulli(_GroupElem):
             idx_rx = idx[:, 3]  # [3,9] (SEG2) [3,9,15] (SEG3)
             idPsi = np.arange(1, nPe * 2, 2)  # [1,3] (SEG2) [1,3,5] (SEG3)
 
-            Nvz_e_pg = N_e_pg.copy()
+            Nvz_e_pg = Nv_e_pg.copy()
             Nvz_e_pg[:, :, 0, idPsi] *= -1
 
-            dNvz_e_pg = dN_e_pg.copy()
-            dNvz_e_pg[:, :, 0, idPsi] *= -1
+            dNz_e_pg = dNv_e_pg.copy()
+            dNz_e_pg[:, :, 0, idPsi] *= -1
 
             N_e_pg = np.zeros((Ne, nPg, 6, dof_n * nPe))
 
-            N_e_pg[:, :, 0, idx_ux] = N_pg[:, :, 0]
-            N_e_pg[:, :, 1, idx_uy] = N_e_pg[:, :, 0]
+            N_e_pg[:, :, 0, idx_ux] = Nu_pg[:, :, 0]
+            N_e_pg[:, :, 1, idx_uy] = Nv_e_pg[:, :, 0]
             N_e_pg[:, :, 2, idx_uz] = Nvz_e_pg[:, :, 0]
-            N_e_pg[:, :, 3, idx_rx] = N_pg[:, :, 0]
-            N_e_pg[:, :, 4, idx_uz] = -dNvz_e_pg[:, :, 0]  # ry = -uz'
-            N_e_pg[:, :, 5, idx_uy] = dN_e_pg[:, :, 0]  # rz = uy'
+            N_e_pg[:, :, 3, idx_rx] = Nu_pg[:, :, 0]
+            N_e_pg[:, :, 4, idx_uz] = -dNz_e_pg[:, :, 0]  # ry = -uz'
+            N_e_pg[:, :, 5, idx_uy] = dNv_e_pg[:, :, 0]  # rz = uy'
 
         N_e_pg = FeArray.asfearray(N_e_pg)
 
         if dim > 1:
-            # Construct the matrix used to change the matrix coordinates
-            P = np.zeros((self.Ne, 3, 3), dtype=float)
-            for beam in beamStructure.beams:
-                elems = self.Get_Elements_Tag(beam.name)
-                P[elems] = beam._Calc_P()
+            P_e_pg = self.__Compute_P_e_pg(beamStructure=beamStructure)
 
-            Pglob_e_pg = FeArray.zeros(Ne, 1, dof_n * nPe, dof_n * nPe)
-            N = P.shape[1]
-            lines = np.repeat(range(N), N)
-            columns = np.array(list(range(N)) * N)
-            for n in range(dof_n * nPe // 3):
-                # apply P on the diagonal
-                Pglob_e_pg[:, lines + n * N, columns + n * N] = P[:, lines, columns]
-
-            N_e_pg = N_e_pg @ Pglob_e_pg
+            N_e_pg = N_e_pg @ P_e_pg
 
         return N_e_pg
 
@@ -313,15 +320,13 @@ class _EulerBernoulli(_GroupElem):
         dim = beamStructure.dim
         dof_n = beamStructure.dof_n
 
-        # Data
-        jacobian_e_pg = self.Get_jacobian_e_pg(matrixType)
-        nPe = self.nPe
-        Ne = jacobian_e_pg.shape[0]
-        nPg = jacobian_e_pg.shape[1]
-
         # Recover matrices to work with
         dN_e_pg = self.Get_dN_e_pg(matrixType)
         ddNv_e_pg = self.Get_EulerBernoulli_ddN_e_pg()
+
+        # Data
+        nPe = self.nPe
+        Ne, nPg = dN_e_pg.shape[:2]
 
         if dim == 1:
             # u = [u1, . . . , un]
@@ -383,21 +388,9 @@ class _EulerBernoulli(_GroupElem):
         B_e_pg = FeArray.asfearray(B_e_pg)
 
         if dim > 1:
-            # Construct the matrix used to change the matrix coordinates
-            P = np.zeros((self.Ne, 3, 3))
-            for beam in beamStructure.beams:
-                elems = self.Get_Elements_Tag(beam.name)
-                P[elems] = beam._Calc_P()
+            Pglob_e_pg = self.__Compute_P_e_pg(beamStructure=beamStructure)
 
-            Pglob_e = FeArray.zeros(Ne, 1, dof_n * nPe, dof_n * nPe)
-            N = P.shape[-1]
-            lines = np.repeat(range(N), N)
-            columns = np.array(list(range(N)) * N)
-            for n in range(dof_n * nPe // 3):
-                # apply P on the diagonal
-                Pglob_e[:, 0, lines + n * N, columns + n * N] = P[:, lines, columns]
-
-            B_e_pg = B_e_pg @ Pglob_e
+            B_e_pg = B_e_pg @ Pglob_e_pg
 
         return B_e_pg
 

@@ -66,7 +66,7 @@ class Beam(_Simu):
         self, details=False
     ) -> tuple[list[str], list[str]]:
         nodesField = ["displacement"]
-        elementsField = ["Stress"]
+        elementsField = []
         return nodesField, elementsField
 
     def Get_unknowns(self, problemType=None) -> list[str]:
@@ -248,11 +248,21 @@ class Beam(_Simu):
 
         B_e_pg = groupElem.Get_EulerBernoulli_B_e_pg(beamStructure)
 
-        Kbeam_e = (wJ_e_pg * B_e_pg.T @ D_e_pg @ B_e_pg).sum(axis=1)
+        K_e = (wJ_e_pg * B_e_pg.T @ D_e_pg @ B_e_pg).sum(axis=1)
 
-        tic.Tac("Matrix", "Construct Kbeam_e", self._verbosity)
+        tic.Tac("Matrix", "Construct K_e", self._verbosity)
 
-        return Kbeam_e, None, None, None
+        M_e_pg = beamStructure.Calc_M_e_pg(groupElem)
+
+        N_e_pg = groupElem.Get_EulerBernoulli_N_e_pg_for_beam(beamStructure)
+
+        rho_e_pg = Reshape_variable(self.rho, *wJ_e_pg.shape[:2])
+
+        M_e = (wJ_e_pg * rho_e_pg * N_e_pg.T @ M_e_pg @ N_e_pg).sum(axis=1)
+
+        tic.Tac("Matrix", "Construct M_e", self._verbosity)
+
+        return K_e, None, M_e, None
 
     @property
     def mass(self) -> float:
