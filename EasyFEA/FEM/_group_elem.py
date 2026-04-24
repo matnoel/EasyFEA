@@ -2032,19 +2032,8 @@ class _GroupElem(ABC):
 # Factory
 # --------------------------------------------------------------------------------------------
 
-# elems
-# fmt: off
 # import must be done here to avoid circular imports
-from .Elems import (  # noqa: E402
-    POINT,
-    SEG2, SEG3, SEG4, SEG5,
-    TRI3, TRI6, TRI10, TRI15,
-    QUAD4, QUAD8, QUAD9,
-    TETRA4, TETRA10,
-    HEXA8, HEXA20, HEXA27,
-    PRISM6, PRISM15, PRISM18
-)
-# fmt: on
+from . import Elems
 
 
 class GroupElemFactory:
@@ -2096,6 +2085,29 @@ class GroupElemFactory:
 
         return GroupElemFactory.DICT_GMSH_DATA[gmshId]
 
+    GROUP_CLASS_MAP: dict[ElemType, _GroupElem] = {
+        ElemType.POINT: Elems.POINT,
+        ElemType.SEG2: Elems.SEG2,
+        ElemType.SEG3: Elems.SEG3,
+        ElemType.SEG4: Elems.SEG4,
+        ElemType.SEG5: Elems.SEG5,
+        ElemType.TRI3: Elems.TRI3,
+        ElemType.TRI6: Elems.TRI6,
+        ElemType.TRI10: Elems.TRI10,
+        ElemType.TRI15: Elems.TRI15,
+        ElemType.QUAD4: Elems.QUAD4,
+        ElemType.QUAD8: Elems.QUAD8,
+        ElemType.QUAD9: Elems.QUAD9,
+        ElemType.TETRA4: Elems.TETRA4,
+        ElemType.TETRA10: Elems.TETRA10,
+        ElemType.HEXA8: Elems.HEXA8,
+        ElemType.HEXA20: Elems.HEXA20,
+        ElemType.HEXA27: Elems.HEXA27,
+        ElemType.PRISM6: Elems.PRISM6,
+        ElemType.PRISM15: Elems.PRISM15,
+        ElemType.PRISM18: Elems.PRISM18,
+    }
+
     @staticmethod
     def _Create(
         gmshId: int, connect: _types.IntArray, coordinates: _types.FloatArray
@@ -2117,52 +2129,14 @@ class GroupElemFactory:
             the element group
         """
 
-        params = (gmshId, connect, coordinates)
-
         elemType = GroupElemFactory.Get_ElemInFos(gmshId)[0]
 
-        if elemType == ElemType.POINT:
-            return POINT(*params)
-        elif elemType == ElemType.SEG2:
-            return SEG2(*params)
-        elif elemType == ElemType.SEG3:
-            return SEG3(*params)
-        elif elemType == ElemType.SEG4:
-            return SEG4(*params)
-        elif elemType == ElemType.SEG5:
-            return SEG5(*params)
-        elif elemType == ElemType.TRI3:
-            return TRI3(*params)
-        elif elemType == ElemType.TRI6:
-            return TRI6(*params)
-        elif elemType == ElemType.TRI10:
-            return TRI10(*params)
-        elif elemType == ElemType.TRI15:
-            return TRI15(*params)
-        elif elemType == ElemType.QUAD4:
-            return QUAD4(*params)
-        elif elemType == ElemType.QUAD8:
-            return QUAD8(*params)
-        elif elemType == ElemType.QUAD9:
-            return QUAD9(*params)
-        elif elemType == ElemType.TETRA4:
-            return TETRA4(*params)
-        elif elemType == ElemType.TETRA10:
-            return TETRA10(*params)
-        elif elemType == ElemType.HEXA8:
-            return HEXA8(*params)
-        elif elemType == ElemType.HEXA20:
-            return HEXA20(*params)
-        elif elemType == ElemType.HEXA27:
-            return HEXA27(*params)
-        elif elemType == ElemType.PRISM6:
-            return PRISM6(*params)
-        elif elemType == ElemType.PRISM15:
-            return PRISM15(*params)
-        elif elemType == ElemType.PRISM18:
-            return PRISM18(*params)
-        else:
-            raise KeyError("Element type unknown.")
+        try:
+            GroupElem = GroupElemFactory.GROUP_CLASS_MAP[elemType]
+        except KeyError:
+            raise NotImplementedError(f"Beam not implemented for {elemType}")
+
+        return GroupElem(gmshId, connect, coordinates)
 
     @staticmethod
     def Create(
