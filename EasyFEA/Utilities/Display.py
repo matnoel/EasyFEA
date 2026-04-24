@@ -698,9 +698,7 @@ def Plot_Nodes(
 
     tic = Tic()
 
-    _, mesh, coord, _ = _Init_obj(obj)
-
-    inDim = mesh.inDim
+    _, mesh, coord, inDim = _Init_obj(obj)
 
     if ax is None:
         ax = Init_Axes(inDim)
@@ -771,12 +769,10 @@ def Plot_Elements(
 
     tic = Tic()
 
-    _, mesh, coord, _ = _Init_obj(obj)
-
-    inDim = mesh.inDim
+    _, mesh, coord, inDim = _Init_obj(obj)
 
     if dimElem is None:
-        dimElem = 2 if mesh.inDim == 3 else mesh.dim
+        dimElem = 2 if inDim == 3 else mesh.dim
 
     ax, inDim = __Get_axis(ax, inDim)
 
@@ -1379,7 +1375,7 @@ def Movie_Simu(
         frames per second, by default 30
     """
 
-    simu = _Init_obj(simu)[0]
+    simu, _, _, inDim = _Init_obj(simu)
 
     if simu is None:
         MyPrintError("Must give a simulation.")
@@ -1389,7 +1385,7 @@ def Movie_Simu(
     N = np.max([Niter, N])
     iterations = np.linspace(0, Niter - 1, N, endpoint=True, dtype=int)
 
-    ax = Init_Axes(simu.mesh.inDim)
+    ax = Init_Axes(inDim)
     fig = ax.figure
 
     # activate the first iteration

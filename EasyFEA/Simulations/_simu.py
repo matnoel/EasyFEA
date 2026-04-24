@@ -666,6 +666,15 @@ class _Simu(_IObserver, _params.Updatable, ABC):
         return self.__algo
 
     @property
+    def inDim(self) -> int:
+        list_dof_n = [
+            min(self.Get_dof_n(problemType), 3)
+            for problemType in self.Get_problemTypes()
+        ]
+        inDim = np.max([self.mesh.inDim, *list_dof_n])
+        return inDim
+
+    @property
     def mesh(self) -> Mesh:
         """simulation's mesh."""
         return self.__mesh
@@ -2951,8 +2960,7 @@ def _(obj: _Simu, deformFactor: float = 0.0):
     mesh = simu.mesh
     u = simu.Results_displacement_matrix()
     coord: _types.FloatArray = mesh.coord + u * np.abs(deformFactor)
-    inDim: int = np.max([simu.model.dim, mesh.inDim])
-    return simu, mesh, coord, inDim
+    return simu, mesh, coord, simu.inDim
 
 
 @_Init_obj.register

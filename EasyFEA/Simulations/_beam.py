@@ -85,6 +85,14 @@ class Beam(_Simu):
         """Beam structure."""
         return self.model  # type: ignore [return-value]
 
+    @property
+    def inDim(self) -> int:
+        dim = self.structure.dim
+        if dim in [1, 2]:
+            return 2
+        else:
+            return 3
+
     def Get_dof_n(self, problemType=None) -> int:
         return self.structure.dof_n
 
