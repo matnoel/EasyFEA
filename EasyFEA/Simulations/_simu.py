@@ -1354,9 +1354,14 @@ class _Simu(_IObserver, _params.Updatable, ABC):
         tic = Tic()
 
         if algo is not AlgoType.elliptic:
-            u_n = sparse.csr_matrix(self._Get_u_n(problemType).reshape(-1, 1))
-            v_n = sparse.csr_matrix(self._Get_v_n(problemType).reshape(-1, 1))
-            a_n = sparse.csr_matrix(self._Get_a_n(problemType).reshape(-1, 1))
+            u_n = self._Get_u_n(problemType)
+            v_n = self._Get_v_n(problemType)
+            a_n = self._Get_a_n(problemType)
+            rows = np.arange(u_n.size, dtype=int)
+            cols = np.zeros_like(rows, dtype=int)
+            u_n = sparse.csr_matrix((u_n, (rows, cols)), shape=(Ndof, 1))
+            v_n = sparse.csr_matrix((v_n, (rows, cols)), shape=(Ndof, 1))
+            a_n = sparse.csr_matrix((a_n, (rows, cols)), shape=(Ndof, 1))
 
         b += F
 
