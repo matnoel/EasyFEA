@@ -337,8 +337,8 @@ class HyperElastic(_Simu):
             coef = self.material.coef
             values = Result_in_Strain_or_Stress_field(values_e_pg, res, coef).mean(1)
 
-        if not isinstance(values, np.ndarray):
-            Display.MyPrintError("This result option is not implemented yet.")
+        else:
+            Display.MyPrintError(f"The result '{result}' is not implemented yet.")
             return None  # type: ignore [return-value]
 
         # end cases ----------------------------------------------------

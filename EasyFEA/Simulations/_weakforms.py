@@ -7,7 +7,7 @@ from typing import Union, Optional, TYPE_CHECKING
 import numpy as np
 
 # utilities
-from ..Utilities import Tic, _types
+from ..Utilities import Display, Tic, _types
 
 # fem
 if TYPE_CHECKING:
@@ -269,6 +269,10 @@ class WeakForms(_Simu):
 
         elif result == "displacement_matrix":
             values = self.Results_displacement_matrix()
+
+        else:
+            Display.MyPrintError(f"The result '{result}' is not implemented yet.")
+            return None  # type: ignore [return-value]
 
         # end cases ----------------------------------------------------
 

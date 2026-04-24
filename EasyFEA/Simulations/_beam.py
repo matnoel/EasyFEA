@@ -417,6 +417,10 @@ class Beam(_Simu):
             index = self._indexResult(result)
             values = Epsilon_e[:, index] * coef
 
+        else:
+            Display.MyPrintError(f"The result '{result}' is not implemented yet.")
+            return None  # type: ignore [return-value]
+
         # end cases ----------------------------------------------------
 
         return self.Results_Reshape_values(values, nodeValues)
