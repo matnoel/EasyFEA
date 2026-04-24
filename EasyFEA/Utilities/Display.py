@@ -1398,6 +1398,8 @@ def Movie_Simu(
     def DoAnim(fig: plt.Figure, i):  # type: ignore
         simu.Set_Iter(iterations[i])
         ax = fig.axes[0]
+        _Remove_colorbar(ax)
+        ax.clear()
         Plot_Result(
             simu,
             result,
