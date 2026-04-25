@@ -133,8 +133,5 @@ if __name__ == "__main__":
     ax = Display.Plot_Mesh(section)
     ax.set_title("Section")
     Display.Plot_Mesh(simu, deformFactor=deform)
-    Display.Plot_BoundaryConditions(simu)
-
-    Display.Plot_Mesh(simu, deform)
 
     plt.show()
