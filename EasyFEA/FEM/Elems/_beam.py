@@ -189,7 +189,7 @@ class _EulerBernoulli(_GroupElem):
 
     # Euler Bernoulli problem matrix
 
-    def __Compute_P_e_pg(self, beamStructure: "BeamStructure") -> FeArray.FeArrayALike:
+    def _Compute_P_e_pg(self, beamStructure: "BeamStructure") -> FeArray.FeArrayALike:
 
         # data
         Ne = self.Ne
@@ -210,9 +210,7 @@ class _EulerBernoulli(_GroupElem):
 
         return P_e_pg
 
-    def Get_EulerBernoulli_N_e_pg_for_beam(
-        self, beamStructure: "BeamStructure"
-    ) -> FeArray.FeArrayALike:
+    def Get_beam_N_e_pg(self, beamStructure: "BeamStructure") -> FeArray.FeArrayALike:
         """Euler-Bernoulli beam shape functions."""
 
         # Example in matlab :
@@ -300,13 +298,13 @@ class _EulerBernoulli(_GroupElem):
         N_e_pg = FeArray.asfearray(N_e_pg)
 
         if dim > 1:
-            P_e_pg = self.__Compute_P_e_pg(beamStructure=beamStructure)
+            P_e_pg = self._Compute_P_e_pg(beamStructure=beamStructure)
 
             N_e_pg = N_e_pg @ P_e_pg
 
         return N_e_pg
 
-    def Get_EulerBernoulli_B_e_pg(
+    def Get_beam_B_e_pg(
         self, beamStructure: "BeamStructure"
     ) -> FeArray.FeArrayALike:  # type: ignore
         """Get Euler-Bernoulli beam shape functions derivatives"""
@@ -388,7 +386,7 @@ class _EulerBernoulli(_GroupElem):
         B_e_pg = FeArray.asfearray(B_e_pg)
 
         if dim > 1:
-            Pglob_e_pg = self.__Compute_P_e_pg(beamStructure=beamStructure)
+            Pglob_e_pg = self._Compute_P_e_pg(beamStructure=beamStructure)
 
             B_e_pg = B_e_pg @ Pglob_e_pg
 

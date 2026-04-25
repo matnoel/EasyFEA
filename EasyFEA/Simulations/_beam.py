@@ -254,7 +254,7 @@ class Beam(_Simu):
 
         D_e_pg = beamStructure.Calc_D_e_pg(groupElem)
 
-        B_e_pg = groupElem.Get_EulerBernoulli_B_e_pg(beamStructure)
+        B_e_pg = groupElem.Get_beam_B_e_pg(beamStructure)
 
         K_e = (wJ_e_pg * B_e_pg.T @ D_e_pg @ B_e_pg).sum(axis=1)
 
@@ -262,7 +262,7 @@ class Beam(_Simu):
 
         M_e_pg = beamStructure.Calc_M_e_pg(groupElem)
 
-        N_e_pg = groupElem.Get_EulerBernoulli_N_e_pg_for_beam(beamStructure)
+        N_e_pg = groupElem.Get_beam_N_e_pg(beamStructure)
 
         rho_e_pg = Reshape_variable(self.rho, *wJ_e_pg.shape[:2])
 
