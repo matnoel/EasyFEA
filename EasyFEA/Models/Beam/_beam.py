@@ -13,6 +13,7 @@ from ...Geoms import Line, AsCoords, Normalize
 
 # fem
 from ...FEM import Mesh, _GroupElem, FeArray, MatrixType
+from ...FEM.Elems._beam import _Timoshenko, _EulerBernoulli
 
 # materials
 from .._utils import _IModel, ModelType
@@ -191,7 +192,7 @@ class _Beam(_IModel):
         return self.__dim
 
     @abstractmethod
-    def Get_D(self) -> _types.FloatArray:
+    def Get_D(self, useTimoshenko: bool = False) -> _types.FloatArray:
         """Returns a matrix characterizing the beam's stiffness behavior."""
         return None  # type: ignore [return-value]
 
@@ -273,7 +274,7 @@ class Isotropic(_Beam):
         """shear modulus (G)"""
         return self.E / (2 * (1 + self.v))
 
-    def Get_D(self) -> _types.FloatArray:
+    def Get_D(self, useTimoshenko: bool = False) -> _types.FloatArray:
         dim = self.dim
         section = self.section
         A = section.area
@@ -288,11 +289,23 @@ class Isotropic(_Beam):
             D = np.diag([E * A])
         elif dim == 2:
             # u = [u1, v1, rz1, . . . , un, vn, rzn]
-            D = np.diag([E * A, E * Iz])
+            if useTimoshenko:
+                mu = self.mu
+                # TODO #37 Compute shear correction factor using the Jouravski formula?
+                ky = 5 / 6
+                D = np.diag([E * A, E * Iz, mu * ky * A])
+            else:
+                D = np.diag([E * A, E * Iz])
         elif dim == 3:
             # u = [u1, v1, w1, rx1, ry1 rz1, . . . , un, vn, wn, rxn, ryn rzn]
             mu = self.mu
-            D = np.diag([E * A, mu * J, E * Iy, E * Iz])
+            if useTimoshenko:
+                # 6 rows: [axial, torsion, flex-y, flex-z, shear-y, shear-z]
+                ky, kz = 1, 1
+                # TODO #37 Compute shear correction factor using the Jouravski formula?
+                D = np.diag([E * A, mu * J, E * Iy, E * Iz, ky * mu * A, kz * mu * A])
+            else:
+                D = np.diag([E * A, mu * J, E * Iy, E * Iz])
 
         return D
 
@@ -380,11 +393,12 @@ class BeamStructure(_IModel):
     def Calc_D_e_pg(self, groupElem: _GroupElem) -> FeArray.FeArrayALike:
         """Returns a matrix characterizing the beams's stiffness behavior."""
 
-        if groupElem.dim != 1:
-            return None  # type: ignore [return-value]
+        assert isinstance(groupElem, (_Timoshenko, _EulerBernoulli))
+        useTimoshenko = isinstance(groupElem, _Timoshenko)
 
         listBeam = self.__beams
-        list_D = [beam.Get_D() for beam in listBeam]
+
+        list_D = [beam.Get_D(useTimoshenko) for beam in listBeam]
 
         Ne = groupElem.Ne
         nPg = groupElem.Get_gauss(MatrixType.beam).nPg
@@ -402,8 +416,7 @@ class BeamStructure(_IModel):
     def Calc_M_e_pg(self, groupElem: _GroupElem) -> FeArray.FeArrayALike:
         """Returns a matrix characterizing the beams's stiffness behavior."""
 
-        if groupElem.dim != 1:
-            return None  # type: ignore [return-value]
+        assert isinstance(groupElem, (_Timoshenko, _EulerBernoulli))
 
         listBeam = self.__beams
         list_M = [beam.Get_M() for beam in listBeam]

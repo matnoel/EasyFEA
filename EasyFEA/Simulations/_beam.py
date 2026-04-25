@@ -7,15 +7,20 @@ from typing import Union, Optional, TYPE_CHECKING
 import numpy as np
 
 # utilities
-from ..Utilities import Display, Tic, _types
+from ..Utilities import Display, Tic, _types, _params
 
 # fem
 if TYPE_CHECKING:
     from ..FEM import Mesh
 from ..FEM import MatrixType, LagrangeCondition, FeArray
 
-# euler bernoulli beams
-from ..FEM.Elems._beam import _Construct_Euler_Bernoulli_mesh, _EulerBernoulli
+# beam elements
+from ..FEM.Elems._beam import (
+    _Construct_Euler_Bernoulli_mesh,
+    _Construct_Timoshenko_mesh,
+    _EulerBernoulli,
+    _Timoshenko,
+)
 
 # models
 from ..Models import ModelType, Reshape_variable
@@ -26,25 +31,33 @@ from ._simu import _Simu
 
 
 class Beam(_Simu):
-    """Euler-Bernoulli beam simulation."""
+    """Beam simulation (Euler-Bernoulli or Timoshenko)."""
 
     # TODO: add math
 
     def __init__(
-        self, mesh: "Mesh", model: BeamStructure, folder: str = "", verbosity=False
+        self,
+        mesh: "Mesh",
+        model: BeamStructure,
+        folder: str = "",
+        verbosity=False,
+        useTimoshenkoBeams: bool = False,
     ):
-        """Creates a Euler-Bernoulli beam simulation.
+        """Creates a beam simulation.
 
         Parameters
         ----------
         mesh : Mesh
             the mesh used.
-        model : Beam_Structure | _Beam
+        model : BeamStructure | _Beam
             the model used.
         folder : str, optional
             save folder, by default "".
         verbosity : bool, optional
             If True, the simulation can write in the terminal. Defaults to False.
+        useTimoshenkoBeams : bool, optional
+            If True, uses exact Timoshenko elements.
+            If False (default), uses Euler-Bernoulli elements.
         """
 
         if isinstance(model, _Beam):
@@ -55,12 +68,18 @@ class Beam(_Simu):
             model, BeamStructure
         ), "model must be a beam model or a beam structure"
 
-        mesh = _Construct_Euler_Bernoulli_mesh(mesh)
+        self.useTimoshenkoBeams = useTimoshenkoBeams
+        if useTimoshenkoBeams:
+            mesh = _Construct_Timoshenko_mesh(mesh)
+        else:
+            mesh = _Construct_Euler_Bernoulli_mesh(mesh)
 
         super().__init__(mesh, model, folder, verbosity)
 
         # turn beams into observable objects
         [beam._Add_observer(self) for beam in model.beams]  # type: ignore [func-returns-value]
+
+    useTimoshenkoBeams: bool = _params.BoolParameter()
 
     def Results_nodeFields_elementFields(
         self, details=False
@@ -241,7 +260,7 @@ class Beam(_Simu):
             return None  # type: ignore [return-value]
         groupElem = mesh.groupElem
 
-        assert isinstance(groupElem, _EulerBernoulli)
+        assert isinstance(groupElem, (_Timoshenko, _EulerBernoulli))
 
         # Recovering the beam model
         beamStructure = self.structure
@@ -251,9 +270,7 @@ class Beam(_Simu):
         tic = Tic()
 
         wJ_e_pg = mesh.Get_weightedJacobian_e_pg(matrixType)
-
         D_e_pg = beamStructure.Calc_D_e_pg(groupElem)
-
         B_e_pg = groupElem.Get_beam_B_e_pg(beamStructure)
 
         K_e = (wJ_e_pg * B_e_pg.T @ D_e_pg @ B_e_pg).sum(axis=1)
@@ -261,9 +278,7 @@ class Beam(_Simu):
         tic.Tac("Matrix", "Construct K_e", self._verbosity)
 
         M_e_pg = beamStructure.Calc_M_e_pg(groupElem)
-
         N_e_pg = groupElem.Get_beam_N_e_pg(beamStructure)
-
         rho_e_pg = Reshape_variable(self.rho, *wJ_e_pg.shape[:2])
 
         M_e = (wJ_e_pg * rho_e_pg * N_e_pg.T @ M_e_pg @ N_e_pg).sum(axis=1)
@@ -414,13 +429,36 @@ class Beam(_Simu):
             index = self._indexResult(result)
             values = force_n[:, index]
 
-        elif result in ["N", "Mx", "My", "Mz"]:
+        elif result in ["N", "Mx", "My", "Mz", "Ty", "Tz"]:
             Epsilon_e_pg = self._Calc_Epsilon_e_pg(self.displacement)
 
             internalForces_e_pg = self._Calc_InternalForces_e_pg(Epsilon_e_pg)
-            values_e = internalForces_e_pg.mean(1)
-            index = self._indexResult(result)
-            values = values_e[:, index]
+
+            if result in ["Ty", "Tz"] and not self.useTimoshenkoBeams:
+                # Euler-Bernoulli has no shear strain DOF.
+                # Recover shear from moment equilibrium: Ty = -dMz/dx, Tz = -dMy/dx.
+                groupElem = self.mesh.groupElem
+                gauss = groupElem.Get_gauss(MatrixType.beam)
+                xi = gauss.coord[:, 0]  # reference coordinates (nPg,)
+                L_e = groupElem.length_e  # element lengths (Ne,)
+                dx_e = (
+                    (xi[-1] - xi[0]) / 2 * L_e
+                )  # physical gap between first and last GP
+
+                forces_np = np.asarray(internalForces_e_pg)  # (Ne, nPg, nComponents)
+                dim = self.structure.dim
+
+                if result == "Ty":
+                    mz_idx = 1 if dim == 2 else 3
+                    Mz_e_pg = forces_np[:, :, mz_idx]
+                    values = -(Mz_e_pg[:, -1] - Mz_e_pg[:, 0]) / dx_e
+                else:  # Tz, dim == 3 only
+                    My_e_pg = forces_np[:, :, 2]
+                    values = -(My_e_pg[:, -1] - My_e_pg[:, 0]) / dx_e
+            else:
+                values_e = internalForces_e_pg.mean(1)
+                index = self._indexResult(result)
+                values = values_e[:, index]
 
         elif result in ["Sxx", "Syy", "Szz", "Syz", "Sxz", "Sxy"]:
             Epsilon_e_pg = self._Calc_Epsilon_e_pg(self.displacement)
@@ -480,35 +518,10 @@ class Beam(_Simu):
                 return 3
             else:
                 raise ValueError("result error")
-        else:
-            raise ValueError("result error")
-
-        if len(result) == 3 and result[0] == "E":
-            # strain case
-            indices = result[1:]
-            if indices == "xx":
-                return 0
-            elif indices == "xy":
-                return -1
-            elif indices == "xz":
-                return 2
-            elif indices == "yz":
-                return 1
-        elif len(result) == 3 and result[0] == "S":
-            # stress case
-            indices = result[1:]
-            if indices == "xx":
-                return 0
-            elif indices == "yy":
-                return 1
-            elif indices == "zz":
-                return 2
-            elif indices == "yz":
-                return 3
-            elif indices == "xz":
-                return 4
-            elif indices == "xy":
-                return -1
+        elif result == "Ty" and dim >= 2 and self.useTimoshenkoBeams:
+            return 2 if dim == 2 else 4
+        elif result == "Tz" and dim == 3 and self.useTimoshenkoBeams:
+            return 5
         else:
             raise ValueError("result error")
 
@@ -520,11 +533,14 @@ class Beam(_Simu):
         3D -> [ux', rx', ry', rz']
         """
 
+        groupElem = self.mesh.groupElem
+        assert isinstance(groupElem, (_Timoshenko, _EulerBernoulli))
+
         tic = Tic()
 
         sol_e = self.mesh.Locates_sol_e(sol, self.structure.dof_n, asFeArray=True)
-        B_beam_e_pg = self.mesh.groupElem.Get_EulerBernoulli_B_e_pg(self.structure)
-        Epsilon_e_pg = B_beam_e_pg @ sol_e
+        B_e_pg = groupElem.Get_beam_B_e_pg(self.structure)
+        Epsilon_e_pg = B_e_pg @ sol_e
 
         tic.Tac("Matrix", "Epsilon_e_pg", False)
 

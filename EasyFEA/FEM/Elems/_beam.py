@@ -37,15 +37,15 @@ class _EulerBernoulli(_GroupElem):
     # N
 
     @abstractmethod
-    def _EulerBernoulli_N(self) -> _types.FloatArray:
-        """Euler-Bernoulli beam shape functions in the (ξ, η, ζ) coordinates.\n
+    def _Hermitian_N(self) -> _types.FloatArray:
+        """Hermitian shape functions in the (ξ, η, ζ) coordinates.\n
         [phi_i psi_i . . . phi_n psi_n]\n
         (nPe*2, 1)
         """
         return None  # type: ignore [return-value]
 
-    def Get_EulerBernoulli_N_pg(self) -> _types.FloatArray:
-        """Evaluates Euler-Bernoulli beam shape functions in the (ξ, η, ζ) coordinates.\n
+    def Get_Hermitian_N_pg(self) -> _types.FloatArray:
+        """Evaluates Hermitian shape functions in the (ξ, η, ζ) coordinates.\n
         [phi_i psi_i . . . phi_n psi_n]\n
         (nPg, nPe*2)
         """
@@ -54,15 +54,15 @@ class _EulerBernoulli(_GroupElem):
 
         matrixType = MatrixType.beam
 
-        N = self._EulerBernoulli_N()
+        N = self._Hermitian_N()
 
         gauss = self.Get_gauss(matrixType)
         N_pg = _GroupElem._Eval_Functions(N, gauss.coord)
 
         return N_pg
 
-    def Get_EulerBernoulli_N_e_pg(self) -> FeArray.FeArrayALike:  # type: ignore
-        """Evaluates Euler-Bernoulli beam shape functions in (x, y, z) coordinates.\n
+    def Get_Hermitian_N_e_pg(self) -> FeArray.FeArrayALike:  # type: ignore
+        """Evaluates Hermitian shape functions in (x, y, z) coordinates.\n
         [phi_i psi_i . . . phi_n psi_n]\n
         (Ne, nPg, 1, nPe*2)
         """
@@ -70,7 +70,7 @@ class _EulerBernoulli(_GroupElem):
             return None  # type: ignore [return-value]
 
         invF_e_pg = self.Get_invF_e_pg(MatrixType.beam)[:, :, 0, 0]
-        N_pg = FeArray.asfearray(self.Get_EulerBernoulli_N_pg()[np.newaxis])
+        N_pg = FeArray.asfearray(self.Get_Hermitian_N_pg()[np.newaxis])
         nPe = self.nPe
 
         N_e_pg = invF_e_pg * N_pg
@@ -88,15 +88,15 @@ class _EulerBernoulli(_GroupElem):
     # dN
 
     @abstractmethod
-    def _EulerBernoulli_dN(self) -> _types.FloatArray:
-        """Euler-Bernoulli beam shape functions first derivatives in the (ξ, η, ζ) coordinates.\n
+    def _Hermitian_dN(self) -> _types.FloatArray:
+        """Hermitian shape functions first derivatives in the (ξ, η, ζ) coordinates.\n
         [phi_i,ξ psi_i,ξ . . . phi_n,ξ psi_n,ξ]\n
         (nPe*2, 1)
         """
         return None  # type: ignore [return-value]
 
-    def Get_EulerBernoulli_dN_pg(self) -> _types.FloatArray:
-        """Evaluates Euler-Bernoulli beam shape functions first derivatives in the (ξ, η, ζ) coordinates.\n
+    def Get_Hermitian_dN_pg(self) -> _types.FloatArray:
+        """Evaluates Hermitian shape functions first derivatives in the (ξ, η, ζ) coordinates.\n
         [phi_i,ξ psi_i,ξ . . . phi_n,ξ psi_n,ξ]\n
         (nPg, nPe*2)
         """
@@ -105,15 +105,15 @@ class _EulerBernoulli(_GroupElem):
 
         matrixType = MatrixType.beam
 
-        dN = self._EulerBernoulli_dN()
+        dN = self._Hermitian_dN()
 
         gauss = self.Get_gauss(matrixType)
         dN_pg = _GroupElem._Eval_Functions(dN, gauss.coord)
 
         return dN_pg
 
-    def Get_EulerBernoulli_dN_e_pg(self) -> FeArray.FeArrayALike:
-        """Evaluates the first-order derivatives of Euler-Bernoulli beam shape functions in (x, y, z) coordinates.\n
+    def Get_Hermitian_dN_e_pg(self) -> FeArray.FeArrayALike:
+        """Evaluates the first-order derivatives of Hermitian shape functions in (x, y, z) coordinates.\n
         [phi_i,x psi_i,x . . . phi_n,x psi_n,x]\n
         (Ne, nPg, 1, nPe*2)
         """
@@ -121,7 +121,7 @@ class _EulerBernoulli(_GroupElem):
             return None  # type: ignore [return-value]
 
         invF_e_pg = self.Get_invF_e_pg(MatrixType.beam)[:, :, 0, 0]
-        dN_pg = FeArray.asfearray(self.Get_EulerBernoulli_dN_pg()[np.newaxis])
+        dN_pg = FeArray.asfearray(self.Get_Hermitian_dN_pg()[np.newaxis])
 
         dN_e_pg = invF_e_pg * dN_pg
 
@@ -139,15 +139,15 @@ class _EulerBernoulli(_GroupElem):
     # ddN
 
     @abstractmethod
-    def _EulerBernoulli_ddN(self) -> _types.FloatArray:
-        """Euler-Bernoulli beam shape functions second derivatives in the (ξ, η, ζ) coordinates.\n
+    def _Hermitian_ddN(self) -> _types.FloatArray:
+        """Hermitian shape functions second derivatives in the (ξ, η, ζ) coordinates.\n
         [phi_i,ξ psi_i,ξ . . . phi_n,ξ psi_n,ξ]\n
         (nPe*2, 2)
         """
         return None  # type: ignore [return-value]
 
-    def Get_EulerBernoulli_ddN_pg(self) -> _types.FloatArray:
-        """Evaluates Euler-Bernoulli beam shape functions second derivatives in the (ξ, η, ζ) coordinates.\n
+    def Get_Hermitian_ddN_pg(self) -> _types.FloatArray:
+        """Evaluates Hermitian shape functions second derivatives in the (ξ, η, ζ) coordinates.\n
         [phi_i,ξ psi_i,ξ . . . phi_n,ξ x psi_n,ξ]\n
         (nPg, nPe*2)
         """
@@ -156,15 +156,15 @@ class _EulerBernoulli(_GroupElem):
 
         matrixType = MatrixType.beam
 
-        ddN = self._EulerBernoulli_ddN()
+        ddN = self._Hermitian_ddN()
 
         gauss = self.Get_gauss(matrixType)
         ddN_pg = _GroupElem._Eval_Functions(ddN, gauss.coord)
 
         return ddN_pg
 
-    def Get_EulerBernoulli_ddN_e_pg(self) -> FeArray.FeArrayALike:
-        """Evaluates the second-order derivatives of Euler-Bernoulli beam shape functions in (x, y, z) coordinates.\n
+    def Get_Hermitian_ddN_e_pg(self) -> FeArray.FeArrayALike:
+        """Evaluates the second-order derivatives of Hermitian shape functions in (x, y, z) coordinates.\n
         [phi_i,xx psi_i,xx . . . phi_n,xx psi_n,xx]\n
         (Ne, nPg, 1, nPe*2)
         """
@@ -172,7 +172,7 @@ class _EulerBernoulli(_GroupElem):
             return None  # type: ignore [return-value]
 
         invF_e_pg = self.Get_invF_e_pg(MatrixType.beam)[:, :, 0, 0]
-        ddN_pg = FeArray.asfearray(self.Get_EulerBernoulli_ddN_pg()[np.newaxis])
+        ddN_pg = FeArray.asfearray(self.Get_Hermitian_ddN_pg()[np.newaxis])
         nPe = self.nPe
 
         ddN_e_pg = invF_e_pg * invF_e_pg * ddN_pg
@@ -187,7 +187,7 @@ class _EulerBernoulli(_GroupElem):
 
         return ddN_e_pg
 
-    # Euler Bernoulli problem matrix
+    # projection matrix
 
     def _Compute_P_e_pg(self, beamStructure: "BeamStructure") -> FeArray.FeArrayALike:
 
@@ -210,8 +210,10 @@ class _EulerBernoulli(_GroupElem):
 
         return P_e_pg
 
+    # Euler Bernoulli problem matrices
+
     def Get_beam_N_e_pg(self, beamStructure: "BeamStructure") -> FeArray.FeArrayALike:
-        """Euler-Bernoulli beam shape functions."""
+        """Euler Bernoulli beam shape functions for the mass matrix."""
 
         # Example in matlab :
         # https://github.com/fpled/FEMObject/blob/master/BASIC/MODEL/ELEMENTS/%40BEAM/calc_N.m
@@ -224,8 +226,8 @@ class _EulerBernoulli(_GroupElem):
 
         # get matrices to work with
         Nu_pg = self.Get_N_pg(matrixType)
-        Nv_e_pg = self.Get_EulerBernoulli_N_e_pg()
-        dNv_e_pg = self.Get_EulerBernoulli_dN_e_pg()
+        Nv_e_pg = self.Get_Hermitian_N_e_pg()
+        dNv_e_pg = self.Get_Hermitian_dN_e_pg()
 
         # Data
         nPe = self.nPe
@@ -307,7 +309,7 @@ class _EulerBernoulli(_GroupElem):
     def Get_beam_B_e_pg(
         self, beamStructure: "BeamStructure"
     ) -> FeArray.FeArrayALike:  # type: ignore
-        """Get Euler-Bernoulli beam shape functions derivatives"""
+        """Get Euler Bernoulli beam B matrix (strains from displacements)."""
 
         # Example in matlab :
         # https://github.com/fpled/FEMObject/blob/master/BASIC/MODEL/ELEMENTS/%40BEAM/calc_B.m
@@ -320,7 +322,7 @@ class _EulerBernoulli(_GroupElem):
 
         # Recover matrices to work with
         dN_e_pg = self.Get_dN_e_pg(matrixType)
-        ddNv_e_pg = self.Get_EulerBernoulli_ddN_e_pg()
+        ddNv_e_pg = self.Get_Hermitian_ddN_e_pg()
 
         # Data
         nPe = self.nPe
@@ -393,12 +395,173 @@ class _EulerBernoulli(_GroupElem):
         return B_e_pg
 
 
+class _Timoshenko(_EulerBernoulli):
+
+    def Get_beam_N_e_pg(self, beamStructure: "BeamStructure") -> FeArray.FeArrayALike:
+        """Timoshenko beam shape functions for the mass matrix."""
+
+        matrixType = MatrixType.beam
+        dim = beamStructure.dim
+        dof_n = beamStructure.dof_n
+
+        # Lagrange shape functions N_i(ξ) evaluated at Gauss points
+        Nu_pg = self.Get_N_pg(matrixType)[:, 0, :]  # (nPg, nPe)
+        # Hermitian shape functions for transverse displacement
+        Nv_e_pg = self.Get_Hermitian_N_e_pg()  # (Ne, nPg, 1, nPe*2)
+
+        # data
+        nPe = self.nPe
+        Ne, nPg = Nv_e_pg.shape[:2]
+
+        if dim == 1:
+            idx_ux = np.arange(dof_n * nPe)
+            N_e_pg = np.zeros((Ne, nPg, 1, dof_n * nPe))
+            N_e_pg[:, :, 0, idx_ux] = Nu_pg  # u: Lagrange
+
+        elif dim == 2:
+            # u: Lagrange   v: Hermitian   rz: independent Lagrange
+            idx = np.arange(dof_n * nPe, dtype=int).reshape(nPe, -1)
+            idx_ux = idx[:, 0]
+            idx_uy = np.reshape(idx[:, 1:], -1)  # [v,rz] DOFs (Hermitian)
+            idx_rz = idx[:, 2].flatten()  # rz DOFs only
+
+            N_e_pg = np.zeros((Ne, nPg, 3, dof_n * nPe))
+            N_e_pg[:, :, 0, idx_ux] = Nu_pg  # u: Lagrange
+            N_e_pg[:, :, 1, idx_uy] = Nv_e_pg[:, :, 0]  # v: Hermitian
+            N_e_pg[:, :, 2, idx_rz] = Nu_pg  # rz: independent Lagrange
+
+        elif dim == 3:
+            idx = np.arange(dof_n * nPe, dtype=int).reshape(nPe, -1)
+            idx_ux = idx[:, 0]
+            idx_uy = np.reshape(idx[:, [1, 5]], -1)  # [v,rz] DOFs (Hermitian xy)
+            idx_uz = np.reshape(idx[:, [2, 4]], -1)  # [w,ry] DOFs (Hermitian xz)
+            idx_rx = idx[:, 3]
+            idx_ry = idx[:, 4].flatten()
+            idx_rz = idx[:, 5].flatten()
+
+            idPsi = np.arange(1, nPe * 2, 2)
+            Nvz_e_pg = Nv_e_pg.copy()
+            Nvz_e_pg[:, :, 0, idPsi] *= -1  # sign-flipped for w (ry = -w' convention)
+
+            N_e_pg = np.zeros((Ne, nPg, 6, dof_n * nPe))
+            N_e_pg[:, :, 0, idx_ux] = Nu_pg  # u: Lagrange
+            N_e_pg[:, :, 1, idx_uy] = Nv_e_pg[:, :, 0]  # v: Hermitian
+            N_e_pg[:, :, 2, idx_uz] = Nvz_e_pg[:, :, 0]  # w: Hermitian (sign-flipped)
+            N_e_pg[:, :, 3, idx_rx] = Nu_pg  # rx: independent Lagrange
+            N_e_pg[:, :, 4, idx_ry] = Nu_pg  # ry: independent Lagrange
+            N_e_pg[:, :, 5, idx_rz] = Nu_pg  # rz: independent Lagrange
+        else:
+            raise TypeError("dim error")
+
+        N_e_pg = FeArray.asfearray(N_e_pg)
+
+        if dim > 1:
+            P_e_pg = self._Compute_P_e_pg(beamStructure=beamStructure)
+            N_e_pg = N_e_pg @ P_e_pg
+
+        return N_e_pg
+
+    def Get_beam_B_e_pg(
+        self, beamStructure: "BeamStructure"
+    ) -> FeArray.FeArrayALike:  # type: ignore
+        """Get Timoshenko beam B matrix (strains from displacements)."""
+
+        matrixType = MatrixType.beam
+
+        dim = beamStructure.dim
+        dof_n = beamStructure.dof_n
+
+        # Lagrange shape functions and derivatives (axial / torsion / rotations)
+        # Nu_pg shape (nPg, nPe) — correct node-wise values at each Gauss point
+        Nu_pg = self.Get_N_pg(matrixType)[:, 0, :]  # (nPg, nPe)
+        dN_e_pg = self.Get_dN_e_pg(matrixType)  # (Ne, nPg, 1, nPe)
+        # Hermitian first-order derivatives for transverse displacements (v, w)
+        dNv_e_pg = self.Get_Hermitian_dN_e_pg()  # (Ne, nPg, 1, nPe*2)
+
+        nPe = self.nPe
+        Ne, nPg = dN_e_pg.shape[:2]
+
+        if dim == 1:
+            # u = [u1, . . . , un]
+            # B = [dN_i, . . . , dN_n]
+            idx_ux = np.arange(dof_n * nPe)
+            B_e_pg = np.zeros((Ne, nPg, 1, dof_n * nPe), dtype=float)
+            B_e_pg[:, :, 0, idx_ux] = dN_e_pg[:, :, 0]
+
+        elif dim == 2:
+            # u = [u1, v1, rz1, . . . , un, vn, rzn]
+            #
+            # B = [dN_i, 0,       0,          ..., dN_n, 0,       0         ]  axial
+            #     [0,    0,       dN_i,        ..., 0,    0,       dN_n      ]  bending: dθ/dx
+            #     [0,    dPhi_i,  dPsi_i-N_i,  ..., 0,    dPhi_n,  dPsi_n-N_n]  shear: v'−rz
+
+            idx = np.arange(dof_n * nPe, dtype=int).reshape(nPe, -1)
+            idx_ux = idx[:, 0]  # u DOFs:  [0,3]     (SEG2)
+            idx_uy = np.reshape(idx[:, 1:], -1)  # [v,rz] DOFs: [1,2,4,5] (SEG2)
+            idx_rz = idx[:, 2].flatten()  # rz DOFs: [2,5]     (SEG2)
+
+            B_e_pg = np.zeros((Ne, nPg, 3, dof_n * nPe), dtype=float)
+            B_e_pg[:, :, 0, idx_ux] = dN_e_pg[:, :, 0]  # axial: du/dx
+            B_e_pg[:, :, 1, idx_rz] = dN_e_pg[:, :, 0]  # bending: dθ/dx (Lagrange)
+            B_e_pg[:, :, 2, idx_uy] = dNv_e_pg[:, :, 0]  # shear v' (Hermitian)
+            B_e_pg[:, :, 2, idx_rz] -= Nu_pg  # shear: subtract rz (Lagrange)
+
+        elif dim == 3:
+            # u = [u1, v1, w1, rx1, ry1, rz1, . . . , un, vn, wn, rxn, ryn, rzn]
+            #
+            # B has 6 rows: [axial, torsion, flex-y, flex-z, shear-y, shear-z]
+            #   flex-y: kappa_y = -dRy/dx  (ry = -w' in EB => d²w/dx² = -dRy/dx)
+            #   flex-z: kappa_z =  dRz/dx  (rz =  v' in EB => d²v/dx² =  dRz/dx)
+            #   gamma_y = v' - rz   (Hermitian dNv  at [v,rz] DOFs minus Lagrange N at rz)
+            #   gamma_z = w' + ry   (Hermitian dNvz at [w,ry] DOFs plus  Lagrange N at ry)
+
+            idx = np.arange(dof_n * nPe).reshape(nPe, -1)
+            idx_ux = idx[:, 0]  # u  DOFs: [0,6]       (SEG2)
+            idx_uy = np.reshape(idx[:, [1, 5]], -1)  # [v,rz] DOFs: [1,5,7,11] (SEG2)
+            idx_uz = np.reshape(idx[:, [2, 4]], -1)  # [w,ry] DOFs: [2,4,8,10] (SEG2)
+            idx_rx = idx[:, 3]  # rx DOFs: [3,9]       (SEG2)
+            idx_ry = idx[:, 4].flatten()  # ry DOFs: [4,10]      (SEG2)
+            idx_rz = idx[:, 5].flatten()  # rz DOFs: [5,11]      (SEG2)
+
+            # sign-flipped Hermitian derivative for w' (ry = -w' convention)
+            idPsi = np.arange(1, nPe * 2, 2)
+            dNvz_e_pg = dNv_e_pg.copy()
+            dNvz_e_pg[:, :, 0, idPsi] *= -1
+
+            B_e_pg = np.zeros((Ne, nPg, 6, dof_n * nPe), dtype=float)
+            B_e_pg[:, :, 0, idx_ux] = dN_e_pg[:, :, 0]  # axial
+            B_e_pg[:, :, 1, idx_rx] = dN_e_pg[:, :, 0]  # torsion
+            B_e_pg[:, :, 2, idx_ry] = -dN_e_pg[:, :, 0]  # flex-y: -dRy/dx (Lagrange)
+            B_e_pg[:, :, 3, idx_rz] = dN_e_pg[:, :, 0]  # flex-z:  dRz/dx (Lagrange)
+            # shear gamma_y = v' - rz
+            B_e_pg[:, :, 4, idx_uy] = dNv_e_pg[:, :, 0]  # v' (Hermitian)
+            B_e_pg[:, :, 4, idx_rz] -= Nu_pg  # subtract rz (Lagrange)
+            # shear gamma_z = w' + ry  (ry = -w' in EB => gamma_z = 0 in EB)
+            B_e_pg[:, :, 5, idx_uz] = dNvz_e_pg[:, :, 0]  # w' (Hermitian, sign-flipped)
+            B_e_pg[:, :, 5, idx_ry] += Nu_pg  # add ry (Lagrange)
+        else:
+            raise TypeError("dim error")
+
+        B_e_pg = FeArray.asfearray(B_e_pg)
+
+        if dim > 1:
+            Pglob_e_pg = self._Compute_P_e_pg(beamStructure=beamStructure)
+            B_e_pg = B_e_pg @ Pglob_e_pg
+
+        return B_e_pg
+
+
+# --------------------------------------------
+# Euler-Bernoulli elements
+# --------------------------------------------
+
+
 class EULER_BERNOULLI2(_EulerBernoulli, _seg.SEG2):
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
 
-    def _EulerBernoulli_N(self) -> _types.AnyArray:
+    def _Hermitian_N(self) -> _types.AnyArray:
         N1 = lambda r: (r - 1) ** 2 * (r + 2) / 4
         N2 = lambda r: (r - 1) ** 2 * (r + 1) / 8
         N3 = lambda r: -(r - 2) * (r + 1) ** 2 / 4
@@ -408,7 +571,7 @@ class EULER_BERNOULLI2(_EulerBernoulli, _seg.SEG2):
 
         return N
 
-    def _EulerBernoulli_dN(self) -> _types.AnyArray:
+    def _Hermitian_dN(self) -> _types.AnyArray:
         dN1 = [lambda r: (r - 1) ** 2 / 4 + (r + 2) * (2 * r - 2) / 4]
         dN2 = [lambda r: (r - 1) ** 2 / 8 + (r + 1) * (2 * r - 2) / 8]
         dN3 = [lambda r: -(r - 2) * (2 * r + 2) / 4 - (r + 1) ** 2 / 4]
@@ -418,7 +581,7 @@ class EULER_BERNOULLI2(_EulerBernoulli, _seg.SEG2):
 
         return dN
 
-    def _EulerBernoulli_ddN(self) -> _types.AnyArray:
+    def _Hermitian_ddN(self) -> _types.AnyArray:
         ddN1 = [lambda r: 3 * r / 2]
         ddN2 = [lambda r: 3 * r / 4 - 1 / 4]
         ddN3 = [lambda r: -3 * r / 2]
@@ -434,7 +597,7 @@ class EULER_BERNOULLI3(_EulerBernoulli, _seg.SEG3):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
 
-    def _EulerBernoulli_N(self) -> _types.AnyArray:
+    def _Hermitian_N(self) -> _types.AnyArray:
         N1 = lambda r: r**2 * (r - 1) ** 2 * (3 * r + 4) / 4
         N2 = lambda r: r**2 * (r - 1) ** 2 * (r + 1) / 8
         N3 = lambda r: -(r**2) * (r + 1) ** 2 * (3 * r - 4) / 4
@@ -446,7 +609,7 @@ class EULER_BERNOULLI3(_EulerBernoulli, _seg.SEG3):
 
         return N
 
-    def _EulerBernoulli_dN(self) -> _types.AnyArray:
+    def _Hermitian_dN(self) -> _types.AnyArray:
         dN1 = [
             lambda r: 3 * r**2 * (r - 1) ** 2 / 4
             + r**2 * (2 * r - 2) * (3 * r + 4) / 4
@@ -478,7 +641,7 @@ class EULER_BERNOULLI3(_EulerBernoulli, _seg.SEG3):
 
         return dN
 
-    def _EulerBernoulli_ddN(self) -> _types.AnyArray:
+    def _Hermitian_ddN(self) -> _types.AnyArray:
         ddN1 = [
             lambda r: 3 * r**2 * (2 * r - 2) / 2
             + r**2 * (3 * r + 4) / 2
@@ -530,7 +693,7 @@ class EULER_BERNOULLI4(_EulerBernoulli, _seg.SEG4):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
 
-    def _EulerBernoulli_N(self) -> _types.AnyArray:
+    def _Hermitian_N(self) -> _types.AnyArray:
         N1 = (
             lambda r: 891 * r**7 / 512
             - 729 * r**6 / 512
@@ -616,7 +779,7 @@ class EULER_BERNOULLI4(_EulerBernoulli, _seg.SEG4):
 
         return N
 
-    def _EulerBernoulli_dN(self) -> _types.AnyArray:
+    def _Hermitian_dN(self) -> _types.AnyArray:
         dN1 = [
             lambda r: 6237 * r**6 / 512
             - 2187 * r**5 / 256
@@ -694,7 +857,7 @@ class EULER_BERNOULLI4(_EulerBernoulli, _seg.SEG4):
 
         return dN
 
-    def _EulerBernoulli_ddN(self) -> _types.AnyArray:
+    def _Hermitian_ddN(self) -> _types.AnyArray:
         ddN1 = [
             lambda r: 18711 * r**5 / 256
             - 10935 * r**4 / 256
@@ -770,7 +933,7 @@ class EULER_BERNOULLI5(_EulerBernoulli, _seg.SEG5):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
 
-    def _EulerBernoulli_N(self) -> _types.AnyArray:
+    def _Hermitian_N(self) -> _types.AnyArray:
         N1 = (
             lambda r: 100 * r**9 / 27
             - 162962962962963 * r**8 / 50000000000000
@@ -858,7 +1021,7 @@ class EULER_BERNOULLI5(_EulerBernoulli, _seg.SEG5):
 
         return N
 
-    def _EulerBernoulli_dN(self) -> _types.AnyArray:
+    def _Hermitian_dN(self) -> _types.AnyArray:
         dN1 = [
             lambda r: 100 * r**8 / 3
             - 162962962962963 * r**7 / 6250000000000
@@ -946,7 +1109,7 @@ class EULER_BERNOULLI5(_EulerBernoulli, _seg.SEG5):
 
         return dN
 
-    def _EulerBernoulli_ddN(self) -> _types.AnyArray:
+    def _Hermitian_ddN(self) -> _types.AnyArray:
         ddN1 = [
             lambda r: 800 * r**7 / 3
             - 1140740740740741 * r**6 / 6250000000000
@@ -1036,7 +1199,32 @@ class EULER_BERNOULLI5(_EulerBernoulli, _seg.SEG5):
 
 
 # --------------------------------------------
-# Euler-Bernoulli factory
+# Timoshenko elements
+# --------------------------------------------
+
+
+class TIMOSHENKO2(_Timoshenko, EULER_BERNOULLI2):
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+
+
+class TIMOSHENKO3(_Timoshenko, EULER_BERNOULLI3):
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+
+
+class TIMOSHENKO4(_Timoshenko, EULER_BERNOULLI4):
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+
+
+class TIMOSHENKO5(_Timoshenko, EULER_BERNOULLI5):
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+
+
+# --------------------------------------------
+# Beam element factories
 # --------------------------------------------
 
 
@@ -1047,9 +1235,16 @@ BEAM_CLASS_MAP = {
     ElemType.SEG5: EULER_BERNOULLI5,
 }
 
+_TIMO_CLASS_MAP = {
+    ElemType.SEG2: TIMOSHENKO2,
+    ElemType.SEG3: TIMOSHENKO3,
+    ElemType.SEG4: TIMOSHENKO4,
+    ElemType.SEG5: TIMOSHENKO5,
+}
 
-def _Construct_Euler_Bernoulli_mesh(mesh: Mesh) -> Mesh:
-    """Update SEG elements with Euler-Bernoulli beam elements."""
+
+def __Construct_beam_mesh(mesh: Mesh, class_map: dict) -> Mesh:
+    """Replace 1D SEG elements with beam elements from *class_map*."""
 
     coordinates = mesh.coord
     newDict_groupElem: dict[ElemType, _GroupElem] = {}
@@ -1061,11 +1256,11 @@ def _Construct_Euler_Bernoulli_mesh(mesh: Mesh) -> Mesh:
             continue
 
         try:
-            BeamClass = BEAM_CLASS_MAP[elemType]
+            BeamClass = class_map[elemType]
         except KeyError:
             raise NotImplementedError(f"Beam not implemented for {elemType}")
 
-        newGroup: _EulerBernoulli = BeamClass(
+        newGroup: _GroupElem = BeamClass(
             gmshId=groupElem.gmshId,
             connect=groupElem.connect,
             coordinates=coordinates,
@@ -1077,3 +1272,13 @@ def _Construct_Euler_Bernoulli_mesh(mesh: Mesh) -> Mesh:
         newDict_groupElem[elemType] = newGroup
 
     return Mesh(newDict_groupElem)
+
+
+def _Construct_Euler_Bernoulli_mesh(mesh: Mesh) -> Mesh:
+    """Update SEG elements with Euler-Bernoulli beam elements."""
+    return __Construct_beam_mesh(mesh, BEAM_CLASS_MAP)
+
+
+def _Construct_Timoshenko_mesh(mesh: Mesh) -> Mesh:
+    """Update SEG elements with Timoshenko beam elements."""
+    return __Construct_beam_mesh(mesh, _TIMO_CLASS_MAP)
