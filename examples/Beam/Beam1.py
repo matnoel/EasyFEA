@@ -37,7 +37,7 @@ if __name__ == "__main__":
     # load
     g = 10
     q = ro * g * (h * b)
-    load = 5000
+    F = 5000
 
     # ----------------------------------------------
     # Mesh
@@ -71,7 +71,7 @@ if __name__ == "__main__":
     # Apply boundary conditions
     simu.add_dirichlet(mesh.Nodes_Point(p1), [0] * dof_n, simu.Get_unknowns())
     simu.add_lineLoad(mesh.nodes, [q], ["x"])
-    simu.add_neumann(mesh.Nodes_Point(p2), [load], ["x"])
+    simu.add_neumann(mesh.Nodes_Point(p2), [F], ["x"])
 
     # Solve the beam problem and get displacement results
     sol = simu.Solve()
@@ -85,21 +85,41 @@ if __name__ == "__main__":
     Display.Plot_BoundaryConditions(simu)
     Display.Plot_Result(simu, "ux")
 
+    # ------------------------
+    # ux
+    # ------------------------
+
+    A = section.area
+    x = np.linspace(0, L, 100)
+    ux_x = lambda x: (F * x / (E * A)) + (ro * g * x / 2 / E * (2 * L - x))
+
     ux = simu.Result("ux")
+    x_n = mesh.coord[:, 0]
+    err_ux = np.abs(ux_x(x_n) - ux).max() / np.abs(ux_x(L))
+    Display.MyPrint(f"\nerr ux: {err_ux * 100:.2e}%")
 
-    x_array = np.linspace(0, L, 100)
-    u_x = (load * x_array / (E * (section.area))) + (
-        ro * g * x_array / 2 / E * (2 * L - x_array)
-    )
-    err_ux = np.abs(u_x[-1] - ux.max()) / ux.max()
-    Display.MyPrint(f"err ux: {err_ux * 100:.2e} %")
+    axUx = Display.Init_Axes()
+    axUx.plot(x, ux_x(x), label="Analytical", c="blue")
+    axUx.scatter(x_n, ux, label="FE", c="red", marker="x", zorder=2)
+    axUx.set_title("$u_x(x)$")
+    axUx.legend()
 
-    # Plot the analytical and finite element solutions for displacement (u)
-    ax = Display.Init_Axes()
-    ax.plot(x_array, u_x, label="Analytical", c="blue")
-    ax.scatter(mesh.coord[:, 0], ux, label="FE", c="red", marker="x", zorder=2)
-    ax.set_title("$u_x(x)$")
-    ax.legend()
+    # ------------------------
+    # N
+    # ------------------------
+
+    N_x = lambda x: F + q * (L - x)
+
+    x_e = x_n[mesh.connect].mean(1)  # element centroid x-coords
+    N = simu.Result("N", nodeValues=False)
+    err_N = np.abs(N_x(x_e) - N).max() / np.abs(N_x(x_e)).max()
+    Display.MyPrint(f"\nerr N: {err_N * 100:.2e}%")
+
+    axN = Display.Init_Axes()
+    axN.plot(x, N_x(x), label="Analytical", c="blue")
+    axN.scatter(x_e, N, label="FE", c="red", marker="x", zorder=2)
+    axN.set_title("$N(x)$")
+    axN.legend()
 
     print(simu)
 

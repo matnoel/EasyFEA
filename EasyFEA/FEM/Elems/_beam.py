@@ -30,6 +30,28 @@ if TYPE_CHECKING:
 
 
 class _EulerBernoulli(_GroupElem):
+    """Euler-Bernoulli beam element.
+
+    Kinematic assumption: plane sections remain perpendicular to the beam axis.
+    This enforces  rz = v'  (rotation = slope), so rz is NOT an independent DOF —
+    it is derived from the transverse displacement v.
+
+    As a consequence:
+    - shear strain γ = v' - rz = 0  by definition (shear-rigid)
+    - bending curvature κ = d²v/dx²  (second derivative of Hermitian v)
+    - D matrix (2D): diag([EA, EIz])       — no shear term
+    - strain vector (2D): [du/dx,  d²v/dx²]  → internal forces [N, Mz]
+
+    Shape functions:
+    - axial u:       Lagrange  N_i(ξ)
+    - transverse v:  cubic Hermitian  Φ_i(x), Ψ_i(x)  (C¹-continuous)
+    - rotation rz:   dΦ/dx, dΨ/dx  (derivative of Hermitian — enslaved to v)
+
+    Shear force Ty is not a primary result; it is recovered from moment
+    equilibrium  Ty = -dMz/dx  in post-processing.
+
+    Valid for slender beams (L/h ≫ 1).  For stocky beams use _Timoshenko.
+    """
 
     # Beams shapes functions
     # Use hermitian shape functions
@@ -213,10 +235,15 @@ class _EulerBernoulli(_GroupElem):
     # Euler Bernoulli problem matrices
 
     def Get_beam_N_e_pg(self, beamStructure: "BeamStructure") -> FeArray.FeArrayALike:
-        """Euler Bernoulli beam shape functions for the mass matrix."""
+        """Euler-Bernoulli beam shape function matrix N for the mass matrix.
 
-        # Example in matlab :
-        # https://github.com/fpled/FEMObject/blob/master/BASIC/MODEL/ELEMENTS/%40BEAM/calc_N.m
+        Because rz = v' (rotation enslaved to slope), the rotation row of N is
+        filled with the Hermitian derivative dNv — NOT with independent Lagrange
+        functions.  Compare with _Timoshenko.Get_beam_N_e_pg where the rotation
+        rows use Lagrange N.
+
+        Example in matlab:  https://github.com/fpled/FEMObject/blob/master/BASIC/MODEL/ELEMENTS/%40BEAM/calc_N.m
+        """
 
         matrixType = MatrixType.beam
 
@@ -227,7 +254,7 @@ class _EulerBernoulli(_GroupElem):
         # get matrices to work with
         Nu_pg = self.Get_N_pg(matrixType)
         Nv_e_pg = self.Get_Hermitian_N_e_pg()
-        dNv_e_pg = self.Get_Hermitian_dN_e_pg()
+        dNv_e_pg = self.Get_Hermitian_dN_e_pg()  # used for rz because rz = v'
 
         # Data
         nPe = self.nPe
@@ -235,9 +262,7 @@ class _EulerBernoulli(_GroupElem):
 
         if dim == 1:
             # u = [u1, . . . , un]
-
             # N = [N_i, . . . , N_n]
-
             idx_ux = np.arange(dof_n * nPe)
 
             N_e_pg = np.zeros((Ne, nPg, 1, dof_n * nPe))
@@ -245,57 +270,63 @@ class _EulerBernoulli(_GroupElem):
 
         elif dim == 2:
             # u = [u1, v1, rz1, . . . , un, vn, rzn]
-
-            # N = [N_i, 0, 0, ... , N_n, 0, 0,]
-            #     [0, Phi_i, Psi_i, ... , 0, Phi_i, Psi_i]
-            #     [0, dPhi_i, dPsi_i, ... , 0, dPhi_i, dPsi_i]
+            #
+            # N = [N_i,    0,      0,      ..., N_n,    0,      0     ]  row 0: u
+            #     [0,      Phi_i,  Psi_i,  ..., 0,      Phi_n,  Psi_n ]  row 1: v  (Hermitian)
+            #     [0,      dPhi_i, dPsi_i, ..., 0,      dPhi_n, dPsi_n]  row 2: rz = v' (Hermitian deriv.)
+            #
+            # KEY: row 2 uses dNv (Hermitian derivative), NOT an independent Lagrange N.
+            # This encodes the EB constraint rz = v'.
 
             idx = np.arange(dof_n * nPe, dtype=int).reshape(nPe, -1)
 
             idx_ux = idx[:, 0]  # [0,3] (SEG2) [0,3,6] (SEG3)
-            idx_uy = np.reshape(idx[:, 1:], -1)  # [1,2,4,5] (SEG2) [1,2,4,5,7,8] (SEG3)
+            idx_uy = np.reshape(idx[:, 1:], -1)  # [v,rz] DOFs: [1,2,4,5] (SEG2)
 
             N_e_pg = np.zeros((Ne, nPg, 3, dof_n * nPe))
 
-            N_e_pg[:, :, 0, idx_ux] = Nu_pg[:, :, 0]  # traction / compression to get u
-            N_e_pg[:, :, 1, idx_uy] = Nv_e_pg[:, :, 0]  # flexion z to get v
-            N_e_pg[:, :, 2, idx_uy] = dNv_e_pg[:, :, 0]  # flexion z to get rz
+            N_e_pg[:, :, 0, idx_ux] = Nu_pg[:, :, 0]  # u: Lagrange
+            N_e_pg[:, :, 1, idx_uy] = Nv_e_pg[:, :, 0]  # v: Hermitian
+            N_e_pg[:, :, 2, idx_uy] = dNv_e_pg[:, :, 0]  # rz = v': Hermitian derivative
 
         elif dim == 3:
             # u = [u1, v1, w1, rx1, ry1, rz1, . . . , un, vn, wn, rxn, ryn, rzn]
-
-            # N = [N_i, 0, 0, 0, 0, 0, ... , N_n, 0, 0, 0, 0, 0]
-            #     [0, Phi_i, 0, 0, 0, Psi_i, ... , 0, Phi_n, 0, 0, 0, Psi_n]
-            #     [0, 0, dPhi_i, 0, -dPsi_i, 0, ... , 0, 0, dPhi_n, 0, -dPsi_n, 0]
-            #     [0, 0, 0, N_i, 0, 0, ... , 0, 0, 0, N_n, 0, 0]
-            #     [0, 0, -dPhi_i, 0, dPsi_i, 0, ... , 0, 0, -dPhi_n, 0, dPsi_n, 0]
-            #     [0, dPhi_i, 0, 0, 0, dPsi_i, ... , 0, dPhi_i, 0, 0, 0, dPsi_n]
+            #
+            # N = [N_i,    0,       0,        0,    0,       0,      ...]  row 0: u
+            #     [0,      Phi_i,   0,        0,    0,       Psi_i,  ...]  row 1: v  (Hermitian)
+            #     [0,      0,       Phi_iz,   0,    Psi_iz,  0,      ...]  row 2: w  (Hermitian, sign-flipped)
+            #     [0,      0,       0,        N_i,  0,       0,      ...]  row 3: rx (Lagrange)
+            #     [0,      0,       -dPhi_iz, 0,    -dPsi_iz,0,      ...]  row 4: ry = -w'
+            #     [0,      dPhi_i,  0,        0,    0,       dPsi_i, ...]  row 5: rz = v'
+            #
+            # rows 4 and 5 use Hermitian derivatives (ry = -w', rz = v') — EB constraint.
+            # Compare with Timoshenko where rows 4,5 use independent Lagrange N.
 
             idx = np.arange(dof_n * nPe, dtype=int).reshape(nPe, -1)
             idx_ux = idx[:, 0]  # [0,6] (SEG2) [0,6,12] (SEG3)
-            idx_uy = np.reshape(
-                idx[:, [1, 5]], -1
-            )  # [1,5,7,11] (SEG2) [1,5,7,11,13,17] (SEG3)
-            idx_uz = np.reshape(
-                idx[:, [2, 4]], -1
-            )  # [2,4,8,10] (SEG2) [2,4,8,10,14,16] (SEG3)
+            idx_uy = np.reshape(idx[:, [1, 5]], -1)  # [v,rz] DOFs: [1,5,7,11] (SEG2)
+            idx_uz = np.reshape(idx[:, [2, 4]], -1)  # [w,ry] DOFs: [2,4,8,10] (SEG2)
             idx_rx = idx[:, 3]  # [3,9] (SEG2) [3,9,15] (SEG3)
             idPsi = np.arange(1, nPe * 2, 2)  # [1,3] (SEG2) [1,3,5] (SEG3)
 
             Nvz_e_pg = Nv_e_pg.copy()
-            Nvz_e_pg[:, :, 0, idPsi] *= -1
+            Nvz_e_pg[:, :, 0, idPsi] *= -1  # sign flip for w (ry = -w' convention)
 
             dNz_e_pg = dNv_e_pg.copy()
-            dNz_e_pg[:, :, 0, idPsi] *= -1
+            dNz_e_pg[:, :, 0, idPsi] *= -1  # sign flip for w' derivative
 
             N_e_pg = np.zeros((Ne, nPg, 6, dof_n * nPe))
 
-            N_e_pg[:, :, 0, idx_ux] = Nu_pg[:, :, 0]
-            N_e_pg[:, :, 1, idx_uy] = Nv_e_pg[:, :, 0]
-            N_e_pg[:, :, 2, idx_uz] = Nvz_e_pg[:, :, 0]
-            N_e_pg[:, :, 3, idx_rx] = Nu_pg[:, :, 0]
-            N_e_pg[:, :, 4, idx_uz] = -dNz_e_pg[:, :, 0]  # ry = -uz'
-            N_e_pg[:, :, 5, idx_uy] = dNv_e_pg[:, :, 0]  # rz = uy'
+            N_e_pg[:, :, 0, idx_ux] = Nu_pg[:, :, 0]  # u:  Lagrange
+            N_e_pg[:, :, 1, idx_uy] = Nv_e_pg[:, :, 0]  # v:  Hermitian
+            N_e_pg[:, :, 2, idx_uz] = Nvz_e_pg[:, :, 0]  # w:  Hermitian (sign-flipped)
+            N_e_pg[:, :, 3, idx_rx] = Nu_pg[:, :, 0]  # rx: Lagrange
+            N_e_pg[:, :, 4, idx_uz] = -dNz_e_pg[
+                :, :, 0
+            ]  # ry = -w': Hermitian derivative (EB constraint)
+            N_e_pg[:, :, 5, idx_uy] = dNv_e_pg[
+                :, :, 0
+            ]  # rz =  v': Hermitian derivative (EB constraint)
 
         N_e_pg = FeArray.asfearray(N_e_pg)
 
@@ -309,10 +340,23 @@ class _EulerBernoulli(_GroupElem):
     def Get_beam_B_e_pg(
         self, beamStructure: "BeamStructure"
     ) -> FeArray.FeArrayALike:  # type: ignore
-        """Get Euler Bernoulli beam B matrix (strains from displacements)."""
+        """Euler-Bernoulli beam strain-displacement matrix B.
+
+        Strain vector (no shear — γ = 0 by assumption):
+          2D: ε = [du/dx,  d²v/dx²]               → internal forces [N, Mz]
+          3D: ε = [du/dx,  drx/dx,  κy,  κz]      → internal forces [N, Mx, My, Mz]
+              with  κy = d²w/dx²  (flex-y: Hermitian ddNvz at [w,ry] DOFs)
+                    κz = d²v/dx²  (flex-z: Hermitian ddNv  at [v,rz] DOFs)
+
+        KEY difference from Timoshenko:
+        - bending rows use ddNv (d²v/dx²), acting on BOTH displacement and rotation
+          DOFs simultaneously — because κ = d²v/dx² = drz/dx only under rz = v'.
+        - there is NO shear row — B has 2 rows (2D) or 4 rows (3D).
+        - D is 2×2 (2D) or 4×4 (3D): no kGA term.
 
         # Example in matlab :
         # https://github.com/fpled/FEMObject/blob/master/BASIC/MODEL/ELEMENTS/%40BEAM/calc_B.m
+        """
 
         matrixType = MatrixType.beam
 
@@ -322,7 +366,7 @@ class _EulerBernoulli(_GroupElem):
 
         # Recover matrices to work with
         dN_e_pg = self.Get_dN_e_pg(matrixType)
-        ddNv_e_pg = self.Get_Hermitian_ddN_e_pg()
+        ddNv_e_pg = self.Get_Hermitian_ddN_e_pg()  # d²v/dx² — the EB bending curvature
 
         # Data
         nPe = self.nPe
@@ -330,9 +374,7 @@ class _EulerBernoulli(_GroupElem):
 
         if dim == 1:
             # u = [u1, . . . , un]
-
             # B = [dN_i, . . . , dN_n]
-
             idx_ux = np.arange(dof_n * nPe)
 
             B_e_pg = np.zeros((Ne, nPg, 1, dof_n * nPe), dtype=float)
@@ -340,48 +382,58 @@ class _EulerBernoulli(_GroupElem):
 
         elif dim == 2:
             # u = [u1, v1, rz1, . . . , un, vn, rzn]
-
-            # B = [dN_i, 0, 0, ... , dN_n, 0, 0,]
-            #     [0, ddPhi_i, ddPsi_i, ... , 0, ddPhi_i, ddPsi_i]
+            #
+            # B = [dN_i,    0,       0,       ..., dN_n,    0,       0      ]  row 0: axial  du/dx
+            #     [0,       ddPhi_i, ddPsi_i, ..., 0,       ddPhi_n, ddPsi_n]  row 1: bending d²v/dx²
+            #
+            # KEY: row 1 uses ddNv applied to the [v, rz] DOF block — NOT just rz DOFs.
+            # This works because d²v/dx² spans both displacement (Phi) and rotation (Psi)
+            # Hermitian functions. There is no separate dθ/dx row — in EB, θ ≡ v' so
+            # κ = θ' = v''. Compare with Timoshenko where row 1 is dN at rz DOFs only.
 
             idx = np.arange(dof_n * nPe, dtype=int).reshape(nPe, -1)
 
             idx_ux = idx[:, 0]  # [0,3] (SEG2) [0,3,6] (SEG3)
-            idx_uy = np.reshape(idx[:, 1:], -1)  # [1,2,4,5] (SEG2) [1,2,4,5,7,8] (SEG3)
+            idx_uy = np.reshape(idx[:, 1:], -1)  # [v,rz] DOFs: [1,2,4,5] (SEG2)
 
             B_e_pg = np.zeros((Ne, nPg, 2, dof_n * nPe), dtype=float)
 
-            B_e_pg[:, :, 0, idx_ux] = dN_e_pg[:, :, 0]  # traction / compression
-            B_e_pg[:, :, 1, idx_uy] = ddNv_e_pg[:, :, 0]  # flexion along z
+            B_e_pg[:, :, 0, idx_ux] = dN_e_pg[:, :, 0]  # axial: du/dx (Lagrange)
+            B_e_pg[:, :, 1, idx_uy] = ddNv_e_pg[
+                :, :, 0
+            ]  # bending: κ = d²v/dx² (Hermitian)
 
         elif dim == 3:
             # u = [u1, v1, w1, rx1, ry1, rz1, . . . , un, vn, wn, rxn, ryn, rzn]
-
-            # B = [dN_i, 0, 0, 0, 0, 0, ... , dN_n, 0, 0, 0, 0, 0]
-            #     [0, 0, 0, dN_i, 0, 0, ... , 0, 0, 0, dN_n, 0, 0]
-            #     [0, 0, ddPhi_i, 0, -ddPsi_i, 0, ... , 0, 0, ddPhi_n, 0, -ddPsi_n, 0]
-            #     [0, ddPhi_i, 0, 0, 0, ddPsi_i, ... , 0, ddPhi_i, 0, 0, 0, ddPsi_n]
+            #
+            # B = [dN_i,    0,        0,         0,     0,         0,       ...]  row 0: axial
+            #     [0,       0,        0,         dN_i,  0,         0,       ...]  row 1: torsion
+            #     [0,       0,        ddPhi_iz,  0,     -ddPsi_iz, 0,       ...]  row 2: flex-y κy = d²w/dx²
+            #     [0,       ddPhi_i,  0,         0,     0,         ddPsi_i, ...]  row 3: flex-z κz = d²v/dx²
+            #
+            # KEY: bending rows use ddNv applied to [w,ry] or [v,rz] DOF blocks.
+            # No shear rows — B has 4 rows, D is 4×4.  Ty/Tz recovered from equilibrium.
 
             idx = np.arange(dof_n * nPe).reshape(nPe, -1)
-            idx_ux = idx[:, 0]  # [0,6] (SEG2) [0,6,12] (SEG3)
-            idx_uy = np.reshape(
-                idx[:, [1, 5]], -1
-            )  # [1,5,7,11] (SEG2) [1,5,7,11,13,17] (SEG3)
-            idx_uz = np.reshape(
-                idx[:, [2, 4]], -1
-            )  # [2,4,8,10] (SEG2) [2,4,8,10,14,16] (SEG3)
-            idx_rx = idx[:, 3]  # [3,9] (SEG2) [3,9,15] (SEG3)
+            idx_ux = idx[:, 0]  # [0,6]   (SEG2)
+            idx_uy = np.reshape(idx[:, [1, 5]], -1)  # [v,rz] DOFs: [1,5,7,11]  (SEG2)
+            idx_uz = np.reshape(idx[:, [2, 4]], -1)  # [w,ry] DOFs: [2,4,8,10]  (SEG2)
+            idx_rx = idx[:, 3]  # [3,9]   (SEG2)
 
             idPsi = np.arange(1, nPe * 2, 2)  # [1,3] (SEG2) [1,3,5] (SEG3)
             ddNvz_e_pg = ddNv_e_pg.copy()
-            ddNvz_e_pg[:, :, 0, idPsi] *= -1  # RY = -UZ'
+            ddNvz_e_pg[:, :, 0, idPsi] *= -1  # sign flip for ry = -w' convention
 
             B_e_pg = np.zeros((Ne, nPg, 4, dof_n * nPe), dtype=float)
 
-            B_e_pg[:, :, 0, idx_ux] = dN_e_pg[:, :, 0]  # traction / compression
-            B_e_pg[:, :, 1, idx_rx] = dN_e_pg[:, :, 0]  # torsion
-            B_e_pg[:, :, 2, idx_uz] = ddNvz_e_pg[:, :, 0]  # flexion along y
-            B_e_pg[:, :, 3, idx_uy] = ddNv_e_pg[:, :, 0]  # flexion along z
+            B_e_pg[:, :, 0, idx_ux] = dN_e_pg[:, :, 0]  # axial:   du/dx  (Lagrange)
+            B_e_pg[:, :, 1, idx_rx] = dN_e_pg[:, :, 0]  # torsion: drx/dx (Lagrange)
+            B_e_pg[:, :, 2, idx_uz] = ddNvz_e_pg[
+                :, :, 0
+            ]  # flex-y:  κy = d²w/dx² (Hermitian, sign-flipped)
+            B_e_pg[:, :, 3, idx_uy] = ddNv_e_pg[
+                :, :, 0
+            ]  # flex-z:  κz = d²v/dx² (Hermitian)
         else:
             raise TypeError("dim error")
 
@@ -396,17 +448,44 @@ class _EulerBernoulli(_GroupElem):
 
 
 class _Timoshenko(_EulerBernoulli):
+    """Timoshenko beam element.
+
+    Kinematic assumption: the cross-section can rotate independently of the beam
+    slope.  Rotation θ (rz in 2D, ry/rz in 3D) is an INDEPENDENT field — it is
+    NOT constrained to equal v'.
+
+    The transverse shear strain  γ = v' - θ  is therefore non-zero and adds
+    flexibility beyond bending.
+
+    Mixed interpolation (locking-free):
+    - transverse displacement v:  cubic Hermitian  (C¹-continuous, same as EB)
+    - rotation θ:                 linear Lagrange  (independent, C⁰-continuous)
+    → v' is quadratic, θ is linear → γ = v' - θ is quadratic: no shear locking.
+
+    As a consequence:
+    - bending curvature κ = dθ/dx  (Lagrange dN at rotation DOFs — NOT ddNv)
+    - shear strain γ = v' - θ      (Hermitian dNv minus Lagrange N at rotation DOFs)
+    - D matrix (2D): diag([EA, EIz, kGA])  — 3×3, shear term added
+    - strain vector (2D): [du/dx, dθ/dx, v'-θ] → internal forces [N, Mz, Ty]
+
+    Valid for slender AND stocky beams.  Preferred when L/h < 10.
+    """
 
     def Get_beam_N_e_pg(self, beamStructure: "BeamStructure") -> FeArray.FeArrayALike:
-        """Timoshenko beam shape functions for the mass matrix."""
+        """Timoshenko beam shape function matrix N for the mass matrix.
+
+        Rotation rows use independent Lagrange N — NOT Hermitian derivatives.
+        This is the key difference from _EulerBernoulli.Get_beam_N_e_pg where
+        those rows hold dNv (Hermitian derivative) to enforce rz = v'.
+        """
 
         matrixType = MatrixType.beam
         dim = beamStructure.dim
         dof_n = beamStructure.dof_n
 
-        # Lagrange shape functions N_i(ξ) evaluated at Gauss points
+        # Lagrange N_i(ξ): shape (nPg, nPe) — used for axial u AND independent rotations
         Nu_pg = self.Get_N_pg(matrixType)[:, 0, :]  # (nPg, nPe)
-        # Hermitian shape functions for transverse displacement
+        # Hermitian shape functions: used for transverse displacements v (and w) only
         Nv_e_pg = self.Get_Hermitian_N_e_pg()  # (Ne, nPg, 1, nPe*2)
 
         # data
@@ -419,22 +498,41 @@ class _Timoshenko(_EulerBernoulli):
             N_e_pg[:, :, 0, idx_ux] = Nu_pg  # u: Lagrange
 
         elif dim == 2:
-            # u: Lagrange   v: Hermitian   rz: independent Lagrange
+            # u = [u1, v1, rz1, . . . , un, vn, rzn]
+            #
+            # N = [N_i,   0,      0,    ..., N_n,   0,      0   ]  row 0: u  (Lagrange)
+            #     [0,     Phi_i,  Psi_i,..., 0,     Phi_n,  Psi_n]  row 1: v  (Hermitian)
+            #     [0,     0,      N_i,  ..., 0,     0,      N_n  ]  row 2: rz (Lagrange — independent)
+            #
+            # KEY: row 2 uses Lagrange N at rz DOFs only, NOT Hermitian derivatives.
+            # θ is free — it is NOT constrained to v'.  Compare with EB where row 2
+            # holds dNv (Hermitian derivative) to enforce rz = v'.
             idx = np.arange(dof_n * nPe, dtype=int).reshape(nPe, -1)
             idx_ux = idx[:, 0]
-            idx_uy = np.reshape(idx[:, 1:], -1)  # [v,rz] DOFs (Hermitian)
-            idx_rz = idx[:, 2].flatten()  # rz DOFs only
+            idx_uy = np.reshape(idx[:, 1:], -1)  # [v,rz] DOFs: [1,2,4,5] (SEG2)
+            idx_rz = idx[:, 2].flatten()  # rz DOFs only: [2,5] (SEG2)
 
             N_e_pg = np.zeros((Ne, nPg, 3, dof_n * nPe))
-            N_e_pg[:, :, 0, idx_ux] = Nu_pg  # u: Lagrange
-            N_e_pg[:, :, 1, idx_uy] = Nv_e_pg[:, :, 0]  # v: Hermitian
+            N_e_pg[:, :, 0, idx_ux] = Nu_pg  # u:  Lagrange
+            N_e_pg[:, :, 1, idx_uy] = Nv_e_pg[:, :, 0]  # v:  Hermitian
             N_e_pg[:, :, 2, idx_rz] = Nu_pg  # rz: independent Lagrange
 
         elif dim == 3:
+            # u = [u1, v1, w1, rx1, ry1, rz1, . . . , un, vn, wn, rxn, ryn, rzn]
+            #
+            # N = [N_i,  0,      0,       0,   0,    0,  ...]  row 0: u  (Lagrange)
+            #     [0,    Phi_i,  0,       0,   0,    Psi_i,...]  row 1: v  (Hermitian)
+            #     [0,    0,      Phi_iz,  0,   Psi_iz,0,  ...]  row 2: w  (Hermitian, sign-flipped)
+            #     [0,    0,      0,       N_i, 0,    0,  ...]  row 3: rx (Lagrange — independent)
+            #     [0,    0,      0,       0,   N_i,  0,  ...]  row 4: ry (Lagrange — independent)
+            #     [0,    0,      0,       0,   0,    N_i,...]  row 5: rz (Lagrange — independent)
+            #
+            # KEY: rows 3,4,5 all use Lagrange N — rotations are independent fields.
+            # Compare with EB where rows 4,5 use Hermitian derivatives (ry=-w', rz=v').
             idx = np.arange(dof_n * nPe, dtype=int).reshape(nPe, -1)
             idx_ux = idx[:, 0]
-            idx_uy = np.reshape(idx[:, [1, 5]], -1)  # [v,rz] DOFs (Hermitian xy)
-            idx_uz = np.reshape(idx[:, [2, 4]], -1)  # [w,ry] DOFs (Hermitian xz)
+            idx_uy = np.reshape(idx[:, [1, 5]], -1)  # [v,rz] DOFs: [1,5,7,11] (SEG2)
+            idx_uz = np.reshape(idx[:, [2, 4]], -1)  # [w,ry] DOFs: [2,4,8,10] (SEG2)
             idx_rx = idx[:, 3]
             idx_ry = idx[:, 4].flatten()
             idx_rz = idx[:, 5].flatten()
@@ -444,9 +542,9 @@ class _Timoshenko(_EulerBernoulli):
             Nvz_e_pg[:, :, 0, idPsi] *= -1  # sign-flipped for w (ry = -w' convention)
 
             N_e_pg = np.zeros((Ne, nPg, 6, dof_n * nPe))
-            N_e_pg[:, :, 0, idx_ux] = Nu_pg  # u: Lagrange
-            N_e_pg[:, :, 1, idx_uy] = Nv_e_pg[:, :, 0]  # v: Hermitian
-            N_e_pg[:, :, 2, idx_uz] = Nvz_e_pg[:, :, 0]  # w: Hermitian (sign-flipped)
+            N_e_pg[:, :, 0, idx_ux] = Nu_pg  # u:  Lagrange
+            N_e_pg[:, :, 1, idx_uy] = Nv_e_pg[:, :, 0]  # v:  Hermitian
+            N_e_pg[:, :, 2, idx_uz] = Nvz_e_pg[:, :, 0]  # w:  Hermitian (sign-flipped)
             N_e_pg[:, :, 3, idx_rx] = Nu_pg  # rx: independent Lagrange
             N_e_pg[:, :, 4, idx_ry] = Nu_pg  # ry: independent Lagrange
             N_e_pg[:, :, 5, idx_rz] = Nu_pg  # rz: independent Lagrange
@@ -464,18 +562,34 @@ class _Timoshenko(_EulerBernoulli):
     def Get_beam_B_e_pg(
         self, beamStructure: "BeamStructure"
     ) -> FeArray.FeArrayALike:  # type: ignore
-        """Get Timoshenko beam B matrix (strains from displacements)."""
+        """Timoshenko beam strain-displacement matrix B.
+
+        Strain vector (shear term present — γ ≠ 0):
+          2D: ε = [du/dx,  dθz/dx,  v'-θz]          → internal forces [N, Mz, Ty]
+          3D: ε = [du/dx,  drx/dx,  κy,  κz,  γy,  γz]
+                                                      → internal forces [N, Mx, My, Mz, Ty, Tz]
+              with κy = -dRy/dx,  κz = dRz/dx  (Lagrange dN — NOT ddNv)
+                   γy = v'-rz,    γz = w'+ry   (Hermitian dNv minus/plus Lagrange N)
+
+        KEY differences from _EulerBernoulli.Get_beam_B_e_pg:
+        1. Bending rows use dN (Lagrange first derivative) at rotation DOFs ONLY.
+           κ = dθ/dx, not d²v/dx².  The rotation field is independent of v.
+        2. Two shear rows are added: γy = v'-rz,  γz = w'+ry.
+           Each is assembled as (Hermitian dNv) - or + (Lagrange N at rotation DOF).
+        3. B has 3 rows (2D) or 6 rows (3D), and D gains a kGA shear term.
+        """
 
         matrixType = MatrixType.beam
 
         dim = beamStructure.dim
         dof_n = beamStructure.dof_n
 
-        # Lagrange shape functions and derivatives (axial / torsion / rotations)
-        # Nu_pg shape (nPg, nPe) — correct node-wise values at each Gauss point
-        Nu_pg = self.Get_N_pg(matrixType)[:, 0, :]  # (nPg, nPe)
-        dN_e_pg = self.Get_dN_e_pg(matrixType)  # (Ne, nPg, 1, nPe)
-        # Hermitian first-order derivatives for transverse displacements (v, w)
+        # Lagrange derivatives: used for axial, torsion, AND bending (dθ/dx)
+        Nu_pg = self.Get_N_pg(matrixType)[
+            :, 0, :
+        ]  # (nPg, nPe) — Lagrange N at Gauss pts
+        dN_e_pg = self.Get_dN_e_pg(matrixType)  # (Ne, nPg, 1, nPe) — Lagrange dN/dx
+        # Hermitian first derivatives: used ONLY for v' and w' in the shear rows
         dNv_e_pg = self.Get_Hermitian_dN_e_pg()  # (Ne, nPg, 1, nPe*2)
 
         nPe = self.nPe
@@ -491,29 +605,49 @@ class _Timoshenko(_EulerBernoulli):
         elif dim == 2:
             # u = [u1, v1, rz1, . . . , un, vn, rzn]
             #
-            # B = [dN_i, 0,       0,          ..., dN_n, 0,       0         ]  axial
-            #     [0,    0,       dN_i,        ..., 0,    0,       dN_n      ]  bending: dθ/dx
-            #     [0,    dPhi_i,  dPsi_i-N_i,  ..., 0,    dPhi_n,  dPsi_n-N_n]  shear: v'−rz
+            # B = [dN_i,   0,        0,           ..., dN_n,  0,        0         ]  row 0: axial  du/dx
+            #     [0,      0,        dN_i,        ..., 0,     0,        dN_n      ]  row 1: bending dθ/dx (Lagrange)
+            #     [0,      dPhi_i,   dPsi_i-N_i,  ..., 0,     dPhi_n,   dPsi_n-N_n]  row 2: shear  v'-rz
+            #
+            # KEY vs EB:
+            # - row 1 uses Lagrange dN at rz DOFs only  (κ = dθ/dx, θ independent)
+            #   EB used ddNv at [v,rz] block            (κ = d²v/dx², θ enslaved)
+            # - row 2 is new: γ = v' - rz assembled as Hermitian dNv minus Lagrange N
+            # - B is 3×... here vs 2×... in EB
 
             idx = np.arange(dof_n * nPe, dtype=int).reshape(nPe, -1)
-            idx_ux = idx[:, 0]  # u DOFs:  [0,3]     (SEG2)
+            idx_ux = idx[:, 0]  # u  DOFs: [0,3]   (SEG2)
             idx_uy = np.reshape(idx[:, 1:], -1)  # [v,rz] DOFs: [1,2,4,5] (SEG2)
-            idx_rz = idx[:, 2].flatten()  # rz DOFs: [2,5]     (SEG2)
+            idx_rz = idx[:, 2].flatten()  # rz DOFs only: [2,5] (SEG2)
 
             B_e_pg = np.zeros((Ne, nPg, 3, dof_n * nPe), dtype=float)
-            B_e_pg[:, :, 0, idx_ux] = dN_e_pg[:, :, 0]  # axial: du/dx
-            B_e_pg[:, :, 1, idx_rz] = dN_e_pg[:, :, 0]  # bending: dθ/dx (Lagrange)
-            B_e_pg[:, :, 2, idx_uy] = dNv_e_pg[:, :, 0]  # shear v' (Hermitian)
-            B_e_pg[:, :, 2, idx_rz] -= Nu_pg  # shear: subtract rz (Lagrange)
+            B_e_pg[:, :, 0, idx_ux] = dN_e_pg[:, :, 0]  # axial:   du/dx  (Lagrange)
+            B_e_pg[:, :, 1, idx_rz] = dN_e_pg[
+                :, :, 0
+            ]  # bending: dθ/dx  (Lagrange, rz DOFs only)
+            B_e_pg[:, :, 2, idx_uy] = dNv_e_pg[
+                :, :, 0
+            ]  # shear v' part   (Hermitian, [v,rz] block)
+            B_e_pg[:, :, 2, idx_rz] -= Nu_pg  # shear -rz part  (Lagrange, rz DOFs only)
 
         elif dim == 3:
             # u = [u1, v1, w1, rx1, ry1, rz1, . . . , un, vn, wn, rxn, ryn, rzn]
             #
             # B has 6 rows: [axial, torsion, flex-y, flex-z, shear-y, shear-z]
-            #   flex-y: kappa_y = -dRy/dx  (ry = -w' in EB => d²w/dx² = -dRy/dx)
-            #   flex-z: kappa_z =  dRz/dx  (rz =  v' in EB => d²v/dx² =  dRz/dx)
-            #   gamma_y = v' - rz   (Hermitian dNv  at [v,rz] DOFs minus Lagrange N at rz)
-            #   gamma_z = w' + ry   (Hermitian dNvz at [w,ry] DOFs plus  Lagrange N at ry)
+            #
+            # row 0: axial    du/dx              — Lagrange dN at u DOFs
+            # row 1: torsion  drx/dx             — Lagrange dN at rx DOFs
+            # row 2: flex-y   κy = -dRy/dx       — Lagrange dN at ry DOFs (sign-negated)
+            # row 3: flex-z   κz =  dRz/dx       — Lagrange dN at rz DOFs
+            # row 4: shear-y  γy = v' - rz       — Hermitian dNv at [v,rz] minus Lagrange N at rz
+            # row 5: shear-z  γz = w' + ry       — Hermitian dNvz at [w,ry] plus  Lagrange N at ry
+            #
+            # KEY vs EB:
+            # - flex rows (2,3) use Lagrange dN at rotation DOFs only (θ independent)
+            #   EB used ddNv at [w,ry] or [v,rz] blocks              (θ enslaved to disp)
+            # - shear rows (4,5) are new — no equivalent in EB
+            # - sign convention: ry = -w' in EB, so κy = d²w/dx² = -dRy/dx
+            #   preserved in Timoshenko via  B[2,ry] = -dN  and  γz = w' + ry
 
             idx = np.arange(dof_n * nPe).reshape(nPe, -1)
             idx_ux = idx[:, 0]  # u  DOFs: [0,6]       (SEG2)
@@ -529,16 +663,24 @@ class _Timoshenko(_EulerBernoulli):
             dNvz_e_pg[:, :, 0, idPsi] *= -1
 
             B_e_pg = np.zeros((Ne, nPg, 6, dof_n * nPe), dtype=float)
-            B_e_pg[:, :, 0, idx_ux] = dN_e_pg[:, :, 0]  # axial
-            B_e_pg[:, :, 1, idx_rx] = dN_e_pg[:, :, 0]  # torsion
-            B_e_pg[:, :, 2, idx_ry] = -dN_e_pg[:, :, 0]  # flex-y: -dRy/dx (Lagrange)
-            B_e_pg[:, :, 3, idx_rz] = dN_e_pg[:, :, 0]  # flex-z:  dRz/dx (Lagrange)
-            # shear gamma_y = v' - rz
-            B_e_pg[:, :, 4, idx_uy] = dNv_e_pg[:, :, 0]  # v' (Hermitian)
-            B_e_pg[:, :, 4, idx_rz] -= Nu_pg  # subtract rz (Lagrange)
-            # shear gamma_z = w' + ry  (ry = -w' in EB => gamma_z = 0 in EB)
-            B_e_pg[:, :, 5, idx_uz] = dNvz_e_pg[:, :, 0]  # w' (Hermitian, sign-flipped)
-            B_e_pg[:, :, 5, idx_ry] += Nu_pg  # add ry (Lagrange)
+            B_e_pg[:, :, 0, idx_ux] = dN_e_pg[
+                :, :, 0
+            ]  # axial:   du/dx         (Lagrange)
+            B_e_pg[:, :, 1, idx_rx] = dN_e_pg[
+                :, :, 0
+            ]  # torsion: drx/dx        (Lagrange)
+            B_e_pg[:, :, 2, idx_ry] = -dN_e_pg[
+                :, :, 0
+            ]  # flex-y:  κy = -dRy/dx (Lagrange, negated)
+            B_e_pg[:, :, 3, idx_rz] = dN_e_pg[
+                :, :, 0
+            ]  # flex-z:  κz =  dRz/dx (Lagrange)
+            B_e_pg[:, :, 4, idx_uy] = dNv_e_pg[:, :, 0]  # shear-y: v'  (Hermitian)
+            B_e_pg[:, :, 4, idx_rz] -= Nu_pg  # shear-y: -rz (Lagrange)
+            B_e_pg[:, :, 5, idx_uz] = dNvz_e_pg[
+                :, :, 0
+            ]  # shear-z: w'  (Hermitian, sign-flipped)
+            B_e_pg[:, :, 5, idx_ry] += Nu_pg  # shear-z: +ry (Lagrange)
         else:
             raise TypeError("dim error")
 

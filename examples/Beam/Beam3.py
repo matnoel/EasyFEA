@@ -32,9 +32,10 @@ if __name__ == "__main__":
     # model
     E = 210000
     v = 0.3
+    useTimoshenko = False
 
     # load
-    load = 800
+    F = -800
 
     # ----------------------------------------------
     # Section
@@ -68,7 +69,7 @@ if __name__ == "__main__":
     beamDim = 2  # must be >= 2
 
     p1 = Point()
-    pL = Point(x=L / 2)
+    pL = Point(x=L * 0.6)
     p2 = Point(x=L)
     line = Line(p1, p2, L / 9)
     beam = Models.Beam.Isotropic(beamDim, line, section, E, v)
@@ -83,13 +84,13 @@ if __name__ == "__main__":
     beamStructure = Models.Beam.BeamStructure([beam])
 
     # Create the beam simulation
-    simu = Simulations.Beam(mesh, beamStructure)
+    simu = Simulations.Beam(mesh, beamStructure, useTimoshenko=useTimoshenko)
     dof_n = simu.Get_dof_n()
 
     # Apply boundary conditions
     simu.add_dirichlet(mesh.Nodes_Point(p1), [0] * dof_n, simu.Get_unknowns())
     simu.add_dirichlet(mesh.Nodes_Point(p2), [0] * dof_n, simu.Get_unknowns())
-    simu.add_neumann(mesh.Nodes_Point(pL), [-load], ["y"])
+    simu.add_neumann(mesh.Nodes_Point(pL), [F], ["y"])
 
     # Solve the beam problem and get displacement results
     sol = simu.Solve()
@@ -99,17 +100,83 @@ if __name__ == "__main__":
     # Results
     # ----------------------------------------------
 
-    u_an = load * L**3 / (192 * E * beam.Iz)
-
-    uy_min = np.abs(simu.Result("uy").min())
-
-    Display.MyPrint(f"err uy : {np.abs(u_an - uy_min) / u_an * 100:.2f} %")
-
     Display.Plot_Mesh(simu, L / 20 / sol.min())
     ax = Display.Plot_Mesh(section)
     ax.set_title("Section")
     Display.Plot_BoundaryConditions(simu)
     Display.Plot_Result(simu, "uy", L / 20 / sol.min())
+
+    # ------------------------
+    # uy
+    # ------------------------
+
+    # beam properties
+    Iz = beam.Iz
+    G = beam.mu
+    A = section.area
+
+    # general reactions and fixed-end moment (valid for arbitrary pL.x)
+    a = pL.x
+    b = L - a
+    Ra = -F * b**2 * (3 * a + b) / L**3  # upward reaction at x=0
+    Rb = -F * a**2 * (a + 3 * b) / L**3  # upward reaction at x=L
+    Ma = F * a * b**2 / L**2  # fixed-end moment at x=0
+
+    x = np.linspace(0, L, 100)
+    x_n = mesh.coord[:, 0]
+    x_e = x_n[mesh.connect].mean(1)  # element centroid x-coords
+
+    def uy_x(x):
+        x = np.asarray(x)
+        macaulay = np.where(x > a, (x - a) ** 3 / 6, 0.0)
+        return (Ma / 2 * x**2 + Ra / 6 * x**3 + F * macaulay) / (E * Iz)
+
+    uy = simu.Result("uy")
+    err_uy = np.abs(uy_x(x_n) - uy).max() / np.abs(uy_x(a))
+    Display.MyPrint(f"\nerr uy: {err_uy * 100:.2e}%")
+
+    ax_uy = Display.Init_Axes()
+    ax_uy.plot(x, uy_x(x), label="Analytical", c="blue")
+    ax_uy.scatter(x_n, uy, label="FE", c="red", marker="x", zorder=2)
+    ax_uy.set_title("$u_y(x)$")
+    ax_uy.legend()
+
+    # ------------------------
+    # Mz
+    # ------------------------
+
+    def Mz_x(x):
+        x = np.asarray(x)
+        Ma_plus_Ra_x = Ma + Ra * x
+        return np.where(x <= a, Ma_plus_Ra_x, Ma_plus_Ra_x + F * (x - a))
+
+    Mz = simu.Result("Mz", nodeValues=False)
+    err_Mz = np.abs(Mz_x(x_e) - Mz).max() / np.abs(Mz_x(x_e)).max()
+    Display.MyPrint(f"\nerr Mz : {err_Mz * 100:.2e} %")
+
+    axMz = Display.Init_Axes()
+    axMz.plot(x, Mz_x(x), label="Analytical", c="blue")
+    axMz.scatter(x_e, Mz, label="FE", c="red", marker="x", zorder=2)
+    axMz.set_title("$M_z(x)$")
+    axMz.legend()
+
+    # ------------------------
+    # Ty
+    # ------------------------
+
+    def Ty_x(x):
+        x = np.asarray(x)
+        return np.where(x < a, -Ra, Rb)
+
+    Ty = simu.Result("Ty", nodeValues=False)
+    err_Ty = np.abs(Ty_x(x_e) - Ty).max() / max(Ra, Rb)
+    Display.MyPrint(f"\nerr Ty : {err_Ty * 100:.2e} %")
+
+    ax_Ty = Display.Init_Axes()
+    ax_Ty.step(x, Ty_x(x), label="Analytical", c="blue", where="mid")
+    ax_Ty.scatter(x_e, Ty, label="FE", c="red", marker="x", zorder=2)
+    ax_Ty.set_title("$T_y(x)$")
+    ax_Ty.legend()
 
     print(simu)
 

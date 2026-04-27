@@ -3,7 +3,7 @@
 # This file is part of the EasyFEA project.
 # EasyFEA is distributed under the terms of the GNU General Public License v3, see LICENSE.txt and CREDITS.md for more information.
 
-from typing import Union, Optional, TYPE_CHECKING
+from typing import Union, Optional, Iterable, TYPE_CHECKING
 import numpy as np
 
 # utilities
@@ -41,7 +41,7 @@ class Beam(_Simu):
         model: BeamStructure,
         folder: str = "",
         verbosity=False,
-        useTimoshenkoBeams: bool = False,
+        useTimoshenko: bool = False,
     ):
         """Creates a beam simulation.
 
@@ -55,21 +55,24 @@ class Beam(_Simu):
             save folder, by default "".
         verbosity : bool, optional
             If True, the simulation can write in the terminal. Defaults to False.
-        useTimoshenkoBeams : bool, optional
-            If True, uses exact Timoshenko elements.
+        useTimoshenko : bool, optional
+            If True, uses Timoshenko elements.
             If False (default), uses Euler-Bernoulli elements.
         """
 
         if isinstance(model, _Beam):
             # changes the beam model as a beam structure
             model = BeamStructure([model])
+        elif isinstance(model, Iterable):
+            # changes the beam model as a beam structure
+            model = BeamStructure(*model)
 
         assert isinstance(
             model, BeamStructure
-        ), "model must be a beam model or a beam structure"
+        ), "model must be a beam model, a list of beam or a beam structure"
 
-        self.useTimoshenkoBeams = useTimoshenkoBeams
-        if useTimoshenkoBeams:
+        self.useTimoshenko = useTimoshenko
+        if useTimoshenko:
             mesh = _Construct_Timoshenko_mesh(mesh)
         else:
             mesh = _Construct_Euler_Bernoulli_mesh(mesh)
@@ -81,7 +84,7 @@ class Beam(_Simu):
         # turn beams into observable objects
         [beam._Add_observer(self) for beam in model.beams]  # type: ignore [func-returns-value]
 
-    useTimoshenkoBeams: bool = _params.BoolParameter()
+    useTimoshenko: bool = _params.BoolParameter()
 
     def Results_nodeFields_elementFields(
         self, details=False
@@ -436,7 +439,7 @@ class Beam(_Simu):
 
             internalForces_e_pg = self._Calc_InternalForces_e_pg(Epsilon_e_pg)
 
-            if result in ["Ty", "Tz"] and not self.useTimoshenkoBeams:
+            if result in ["Ty", "Tz"] and not self.useTimoshenko:
                 # Euler-Bernoulli has no shear strain DOF.
                 # Recover shear from moment equilibrium: Ty = -dMz/dx, Tz = -dMy/dx.
                 groupElem = self.mesh.groupElem
@@ -520,9 +523,9 @@ class Beam(_Simu):
                 return 3
             else:
                 raise ValueError("result error")
-        elif result == "Ty" and dim >= 2 and self.useTimoshenkoBeams:
+        elif result == "Ty" and dim >= 2 and self.useTimoshenko:
             return 2 if dim == 2 else 4
-        elif result == "Tz" and dim == 3 and self.useTimoshenkoBeams:
+        elif result == "Tz" and dim == 3 and self.useTimoshenko:
             return 5
         else:
             raise ValueError("result error")
