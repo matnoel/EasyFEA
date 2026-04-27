@@ -6,6 +6,7 @@
 import matplotlib
 import matplotlib.pyplot as plt
 import numpy as np
+import pytest
 
 matplotlib.use("Agg")  # fix tkinter issue in CI for py3.12 on windows
 # see: https://github.com/matnoel/EasyFEA/actions/runs/15673958144/job/44150031408
@@ -13,251 +14,522 @@ matplotlib.use("Agg")  # fix tkinter issue in CI for py3.12 on windows
 from EasyFEA import Display, Models, Simulations, Mesher
 from EasyFEA.Geoms import Domain, Point, Line
 
+TOL = 1e-8
+ELEM_TYPES = ["SEG2", "SEG3", "SEG4", "SEG5"]
 
-class TestBeam:
 
-    def test_Beam(self):
+# -------------------------------------------------------
+# Helpers
+# -------------------------------------------------------
 
-        mesher = Mesher()
 
-        listProblem = ["Flexion", "Traction", "BiEnca"]
-        listElemType = ["SEG2", "SEG3", "SEG4", "SEG5"]
-        listBeamDim = [1, 2, 3]
+def _close_plots():
+    plt.close("all")
 
-        # Generating configs
-        listConfig = [
-            (problem, elemType, beamDim)
-            for problem in listProblem
-            for elemType in listElemType
-            for beamDim in listBeamDim
-        ]
 
-        def PlotAndDelete():
-            # plt.pause(1e-12)
-            plt.close("all")
+def _rect_section(mesher: Mesher, b: float, h: float):
+    return mesher.Mesh_2D(Domain(Point(-b / 2, -h / 2), Point(b / 2, h / 2)))
 
-        for problem, elemType, beamDim in listConfig:
 
-            if problem in ["Flexion", "BiEnca"] and beamDim == 1:
-                # not available
-                continue
+def _fixed_fixed_analytical(a: float, L: float, F: float, E: float, Iz: float):
+    """Fixed-fixed beam with point force F at x=a (Macaulay formulation).
 
-            print(f"{problem} {elemType} {beamDim}")
+    Returns callables uy_x, Mz_x, Ty_x and support reactions Ra, Rb.
+    Sign convention: F negative = downward; Mz positive = sagging.
+    """
+    b = L - a
+    Ra = -F * b**2 * (3 * a + b) / L**3  # upward reaction at x=0
+    Rb = -F * a**2 * (a + 3 * b) / L**3  # upward reaction at x=L
+    Ma = F * a * b**2 / L**2  # fixed-end moment at x=0
 
-            if problem in ["Flexion", "BiEnca"]:
-                L = 120
-                nL = 10
-                h = 13
-                b = 13
-                E = 210000
-                v = 0.3
-                charge = 800
+    def uy_x(x):
+        x = np.asarray(x, dtype=float)
+        macaulay = np.where(x > a, (x - a) ** 3 / 6, 0.0)
+        return (Ma / 2 * x**2 + Ra / 6 * x**3 + F * macaulay) / (E * Iz)
 
-                ro = 1
-                mass = L * h * b
+    def Mz_x(x):
+        x = np.asarray(x, dtype=float)
+        return np.where(x <= a, Ma + Ra * x, Ma + Ra * x + F * (x - a))
 
-            elif problem == "Traction":
-                L = 10  # m
-                nL = 10
+    def Ty_x(x):
+        x = np.asarray(x, dtype=float)
+        return np.where(x < a, -Ra, Rb)
 
-                h = 0.1
-                b = 0.1
-                E = 200000e6
-                ro = 7800
-                v = 0.3
-                g = 10
-                q = ro * g * (h * b)
-                charge = 5000
+    return uy_x, Mz_x, Ty_x, Ra, Rb
 
-                mass = L * h * b * ro
 
-            # Section
-            section = mesher.Mesh_2D(
-                Domain(Point(x=-b / 2, y=-h / 2), Point(x=b / 2, y=h / 2))
-            )
+def _simply_supported_analytical(a: float, L: float, F: float, E: float, Iz: float):
+    """Simply supported beam (pinned at x=0, roller at x=L) with point force F at x=a.
 
-            # Mesh
-            if problem in ["Traction"]:
+    Returns callables uy_x, Mz_x, Ty_x and support reactions Ra, Rb.
+    Sign convention: F negative = downward; Mz positive = sagging.
+    """
+    Ra = -F * (L - a) / L  # upward reaction at x=0
+    Rb = -F * a / L  # upward reaction at x=L
+    # EI·uy = Ra·x³/6 + F·⟨x-a⟩³/6 + C1·x  (no fixed-end moment)
+    # C1 from uy(L) = 0:
+    C1 = -(Ra * L**2 / 6 + F * (L - a) ** 3 / (6 * L))
 
-                point1 = Point()
-                point2 = Point(x=L)
-                line = Line(point1, point2, L / nL)
-                beam = Models.Beam.Isotropic(beamDim, line, section, E, v)
-                listePoutre = [beam]
+    def uy_x(x):
+        x = np.asarray(x, dtype=float)
+        macaulay = np.where(x > a, (x - a) ** 3 / 6, 0.0)
+        return (Ra / 6 * x**3 + F * macaulay + C1 * x) / (E * Iz)
 
-            elif problem in ["Flexion", "BiEnca"]:
+    def Mz_x(x):
+        x = np.asarray(x, dtype=float)
+        return np.where(x <= a, Ra * x, Ra * x + F * (x - a))
 
-                point1 = Point()
-                point2 = Point(x=L / 2)
-                point3 = Point(x=L)
+    def Ty_x(x):
+        x = np.asarray(x, dtype=float)
+        return np.where(x < a, -Ra, Rb)
 
-                line = Line(point1, point3, L / nL)
-                beam = Models.Beam.Isotropic(beamDim, line, section, E, v)
-                listePoutre = [beam]
+    return uy_x, Mz_x, Ty_x, Ra, Rb
 
-            Iz = beam.Iz
 
-            assert (section.area - b * h) <= 1e-12
-            assert (Iz - ((b * h**3) / 12)) <= 1e-12
+def _cantilever_distrib_analytical(L: float, q: float, E: float, Iz: float):
+    """Cantilever (clamped at x=0, free at x=L) with uniform distributed load q in y.
 
-            mesh = mesher.Mesh_Beams(beams=listePoutre, elemType=elemType)
+    Returns callables uy_x, rz_x, Mz_x, Ty_x.
+    Sign convention: q negative = downward; Mz positive = sagging.
+    """
 
-            # Modele poutre
+    def uy_x(x):
+        x = np.asarray(x, dtype=float)
+        return q * (x**4 / 24 - L * x**3 / 6 + L**2 * x**2 / 4) / (E * Iz)
 
-            beamStruct = Models.Beam.BeamStructure(listePoutre)
+    def rz_x(x):
+        x = np.asarray(x, dtype=float)
+        return q * (x**3 / 6 - L * x**2 / 2 + L**2 * x / 2) / (E * Iz)
 
-            # Simulation
+    def Mz_x(x):
+        x = np.asarray(x, dtype=float)
+        return q * (x - L) ** 2 / 2
 
-            simu = Simulations.Beam(mesh, beamStruct, verbosity=False)
+    def Ty_x(x):
+        x = np.asarray(x, dtype=float)
+        return q * (L - x)
 
-            simu.rho = ro
+    return uy_x, rz_x, Mz_x, Ty_x
 
-            testMass = (simu.mass - mass) ** 2 / mass**2
-            assert testMass <= 1e-12
 
-            # Conditions
+def _simply_supported_distrib_analytical(L: float, q: float, E: float, Iz: float):
+    """Simply supported beam with uniform distributed load q in y.
 
-            if beamStruct.dim == 1:
-                simu.add_dirichlet(mesh.Nodes_Point(point1), [0], ["x"])
-                if problem == "BiEnca":
-                    simu.add_dirichlet(mesh.Nodes_Point(point3), [0], ["x"])
-            elif beamStruct.dim == 2:
-                simu.add_dirichlet(
-                    mesh.Nodes_Point(point1), [0, 0, 0], ["x", "y", "rz"]
-                )
-                if problem == "BiEnca":
-                    simu.add_dirichlet(
-                        mesh.Nodes_Point(point3), [0, 0, 0], ["x", "y", "rz"]
-                    )
-            elif beamStruct.dim == 3:
-                simu.add_dirichlet(
-                    mesh.Nodes_Point(point1),
-                    [0, 0, 0, 0, 0, 0],
-                    ["x", "y", "z", "rx", "ry", "rz"],
-                )
-                if problem == "BiEnca":
-                    simu.add_dirichlet(
-                        mesh.Nodes_Point(point3),
-                        [0, 0, 0, 0, 0, 0],
-                        ["x", "y", "z", "rx", "ry", "rz"],
-                    )
+    Returns callables uy_x, Mz_x, Ty_x.
+    Sign convention: q negative = downward; Mz positive = sagging.
+    """
 
-            if problem == "Flexion":
-                simu.add_neumann(mesh.Nodes_Point(point3), [-charge], ["y"])
-                # simu.add_surfLoad(mesh.Nodes_Point(point2), [-charge/section.area],["y"])
+    def uy_x(x):
+        x = np.asarray(x, dtype=float)
+        return q * x * (L**3 - 2 * L * x**2 + x**3) / (24 * E * Iz)
 
-            elif problem == "BiEnca":
-                simu.add_neumann(mesh.Nodes_Point(point2), [-charge], ["y"])
-            elif problem == "Traction":
-                noeudsLine = mesh.Nodes_Line(line)
-                simu.add_lineLoad(noeudsLine, [q], ["x"])
-                simu.add_neumann(mesh.Nodes_Point(point2), [charge], ["x"])
+    def Mz_x(x):
+        x = np.asarray(x, dtype=float)
+        return q * x * (x - L) / 2
 
-            simu.Solve()
+    def Ty_x(x):
+        x = np.asarray(x, dtype=float)
+        return q * (L / 2 - x)
 
-            Display.Plot_BoundaryConditions(simu)
-            PlotAndDelete()
-            Display.Plot_Result(simu, "ux", plotMesh=False)
-            PlotAndDelete()
-            if beamStruct.dim > 1:
-                Display.Plot_Result(simu, "uy", plotMesh=False)
-                PlotAndDelete()
-                Display.Plot_Mesh(simu, deformFactor=10)
-                PlotAndDelete()
+    return uy_x, Mz_x, Ty_x
 
-            u = simu.Result("ux", nodeValues=True)
-            if beamStruct.dim > 1:
-                v = simu.Result("uy", nodeValues=True)
-                rz = simu.Result("rz", nodeValues=True)
 
-            listX = np.linspace(0, L, 100)
-            erreurMaxAnalytique = 1e-2
-            if problem == "Flexion":
-                v_x = charge / (E * Iz) * (listX**3 / 6 - (L * listX**2) / 2)
-                flecheanalytique = charge * L**3 / (3 * E * Iz)
+# -------------------------------------------------------
+# Traction: axial bar with tip load and body force
+# -------------------------------------------------------
 
-                assert (
-                    np.abs(flecheanalytique + v.min()) / flecheanalytique
-                ) <= erreurMaxAnalytique
 
-                ax = Display.Init_Axes()
-                ax.plot(listX, v_x, label="Analytique", c="blue")
-                ax.scatter(
-                    mesh.coord[:, 0], v, label="EF", c="red", marker="x", zorder=2
-                )
-                ax.set_title("$v(x)$")
-                ax.legend()
-                PlotAndDelete()
+@pytest.mark.parametrize("beamDim", [1, 2, 3])
+@pytest.mark.parametrize("elemType", ELEM_TYPES)
+def test_traction(elemType: str, beamDim: int):
+    L, nL = 10.0, 10
+    b, h = 0.1, 0.1
+    E, v, ro, g = 200000e6, 0.3, 7800.0, 10.0
+    P = 5000.0  # tip force in x (positive = tension)
+    q = ro * g * b * h  # distributed axial body force (N/m)
 
-                rz_x = charge / E / Iz * (listX**2 / 2 - L * listX)
-                rotalytique = -charge * L**2 / (2 * E * Iz)
-                assert (
-                    np.abs(rotalytique + rz.min()) / rotalytique
-                ) <= erreurMaxAnalytique
+    mesher = Mesher()
+    section = _rect_section(mesher, b, h)
+    A = section.area
 
-                ax = Display.Init_Axes()
-                ax.plot(listX, rz_x, label="Analytique", c="blue")
-                ax.scatter(
-                    mesh.coord[:, 0], rz, label="EF", c="red", marker="x", zorder=2
-                )
-                ax.set_title("$r_z(x)$")
-                ax.legend()
-                PlotAndDelete()
-            elif problem == "Traction":
-                u_x = (charge * listX / (E * (section.area))) + (
-                    ro * g * listX / 2 / E * (2 * L - listX)
-                )
+    assert abs(A - b * h) <= 1e-12
 
-                assert (np.abs(u_x[-1] - u.max()) / u_x[-1]) <= erreurMaxAnalytique
+    point1, point2 = Point(), Point(x=L)
+    line = Line(point1, point2, L / nL)
+    beam = Models.Beam.Isotropic(beamDim, line, section, E, v)
 
-                ax = Display.Init_Axes()
-                ax.plot(listX, u_x, label="Analytique", c="blue")
-                ax.scatter(
-                    mesh.coord[:, 0], u, label="EF", c="red", marker="x", zorder=2
-                )
-                ax.set_title("$u(x)$")
-                ax.legend()
-                PlotAndDelete()
-            elif problem == "BiEnca":
-                flecheanalytique = charge * L**3 / (192 * E * Iz)
-                assert (
-                    np.abs(flecheanalytique + v.min()) / flecheanalytique
-                ) <= erreurMaxAnalytique
+    mesh = mesher.Mesh_Beams([beam], elemType=elemType)
+    structure = Models.Beam.BeamStructure([beam])
+    simu = Simulations.Beam(mesh, structure, verbosity=False)
 
-    def test_Update_Beam(self):
-        """Function use to check that modifications on Beam material activate the update of the simulation"""
+    simu.rho = ro
+    expected_mass = L * b * h * ro
+    assert abs(simu.mass - expected_mass) / expected_mass <= 1e-12
 
-        def DoTest(simu: Simulations._Simu) -> None:
-            assert simu.needUpdate  # should trigger the event
-            simu.Need_Update(False)  # init
+    simu.add_dirichlet(
+        mesh.Nodes_Point(point1), [0] * simu.Get_dof_n(), simu.Get_unknowns()
+    )
+    simu.add_lineLoad(mesh.Nodes_Line(line), [q], ["x"])
+    simu.add_neumann(mesh.Nodes_Point(point2), [P], ["x"])
+    simu.Solve()
 
-        sect1 = Mesher().Mesh_2D(Domain(Point(), Point(0.01, 0.01)))
+    x_n = mesh.coord[:, 0]
+    x_e = x_n[mesh.connect].mean(1)
 
-        sect2 = sect1.copy()
-        sect2.Rotate(30, sect2.center)
+    # ux
+    ux_x = lambda x: P * x / (E * A) + ro * g * x / (2 * E) * (2 * L - x)
+    ux_fe = simu.Result("ux", nodeValues=True)
+    err_ux = np.abs(ux_x(x_n) - ux_fe).max() / np.abs(ux_x(L))
+    assert err_ux <= TOL, f"ux error {err_ux:.2e}"
 
-        sect3 = sect2.copy()
-        sect3.Rotate(30, sect3.center)
+    # N
+    N_x = lambda x: P + q * (L - x)
+    N_fe = simu.Result("N", nodeValues=False)
+    err_N = np.abs(N_x(x_e) - N_fe).max() / np.abs(N_x(x_e)).max()
+    assert err_N <= TOL, f"N error {err_N:.2e}"
 
-        beam1 = Models.Beam.Isotropic(2, Line(Point(), Point(5)), sect1, 210e9, v=0.1)
-        beam2 = Models.Beam.Isotropic(2, Line(Point(5), Point(10)), sect2, 210e9, v=0.1)
+    Display.Plot_BoundaryConditions(simu)
+    _close_plots()
 
-        beams = [beam1, beam2]
 
-        structure = Models.Beam.BeamStructure(beams)
+# -------------------------------------------------------
+# Cantilever with tip load (dim >= 2)
+# -------------------------------------------------------
 
-        mesh = Mesher().Mesh_Beams(beams)
 
-        simu = Simulations.Beam(mesh, structure)
-        simu.Get_K_C_M_F()
-        assert (
-            not simu.needUpdate
-        )  # check that need update is now set to false once Get_K_C_M_F() get called
+@pytest.mark.parametrize("beamDim", [2, 3])
+@pytest.mark.parametrize("elemType", ELEM_TYPES)
+def test_cantilever_tip(elemType: str, beamDim: int):
+    L, nL = 120.0, 10
+    b, h = 13.0, 13.0
+    E, v = 210000.0, 0.3
+    F = -800.0  # tip force in y (negative = downward)
+    Iz = b * h**3 / 12
 
-        for beam in beams:
-            beam.E *= 2
-            DoTest(simu)
-            beam.v = 0.4
-            DoTest(simu)
-            beam.section = sect3
-            DoTest(simu)
+    mesher = Mesher()
+    section = _rect_section(mesher, b, h)
+
+    assert abs(section.area - b * h) <= 1e-12
+
+    point1, point2 = Point(), Point(x=L)
+    line = Line(point1, point2, L / nL)
+    beam = Models.Beam.Isotropic(beamDim, line, section, E, v)
+
+    assert abs(beam.Iz - Iz) <= 1e-12
+
+    mesh = mesher.Mesh_Beams([beam], elemType=elemType)
+    structure = Models.Beam.BeamStructure([beam])
+    simu = Simulations.Beam(mesh, structure, verbosity=False)
+
+    simu.add_dirichlet(
+        mesh.Nodes_Point(point1), [0] * simu.Get_dof_n(), simu.Get_unknowns()
+    )
+    simu.add_neumann(mesh.Nodes_Point(point2), [F], ["y"])
+    simu.Solve()
+
+    x_n = mesh.coord[:, 0]
+    x_e = x_n[mesh.connect].mean(1)
+
+    # uy
+    uy_x = (
+        lambda x: F * (L * np.asarray(x) ** 2 / 2 - np.asarray(x) ** 3 / 6) / (E * Iz)
+    )
+    uy_fe = simu.Result("uy", nodeValues=True)
+    err_uy = np.abs(uy_x(x_n) - uy_fe).max() / np.abs(uy_x(L))
+    assert err_uy <= TOL, f"uy error {err_uy:.2e}"
+
+    # rz
+    rz_x = lambda x: F / (E * Iz) * (L * np.asarray(x) - np.asarray(x) ** 2 / 2)
+    rz_fe = simu.Result("rz", nodeValues=True)
+    err_rz = np.abs(rz_x(x_n) - rz_fe).max() / np.abs(rz_x(L))
+    assert err_rz <= TOL, f"rz error {err_rz:.2e}"
+
+    # Mz
+    Mz_x = lambda x: F * (L - np.asarray(x))
+    Mz_fe = simu.Result("Mz", nodeValues=False)
+    err_Mz = np.abs(Mz_x(x_e) - Mz_fe).max() / np.abs(Mz_x(x_e)).max()
+    assert err_Mz <= TOL, f"Mz error {err_Mz:.2e}"
+
+    # Ty = F (constant)
+    Ty_fe = simu.Result("Ty", nodeValues=False)
+    err_Ty = np.abs(F - Ty_fe).max() / np.abs(F)
+    assert err_Ty <= TOL, f"Ty error {err_Ty:.2e}"
+
+    Display.Plot_Mesh(simu, deformFactor=10)
+    Display.Plot_Result(simu, "uy", plotMesh=False)
+    _close_plots()
+
+
+# -------------------------------------------------------
+# Cantilever with uniform distributed load (dim >= 2)
+# -------------------------------------------------------
+
+
+@pytest.mark.parametrize("beamDim", [2, 3])
+@pytest.mark.parametrize("elemType", ELEM_TYPES)
+def test_cantilever_distrib(elemType: str, beamDim: int):
+    L, nL = 120.0, 10
+    b, h = 13.0, 13.0
+    E, v = 210000.0, 0.3
+    q = -10.0  # uniform load in y (negative = downward, N/mm)
+    Iz = b * h**3 / 12
+
+    mesher = Mesher()
+    section = _rect_section(mesher, b, h)
+
+    point1, point2 = Point(), Point(x=L)
+    line = Line(point1, point2, L / nL)
+    beam = Models.Beam.Isotropic(beamDim, line, section, E, v)
+
+    mesh = mesher.Mesh_Beams([beam], elemType=elemType)
+    structure = Models.Beam.BeamStructure([beam])
+    simu = Simulations.Beam(mesh, structure, verbosity=False)
+
+    simu.add_dirichlet(
+        mesh.Nodes_Point(point1), [0] * simu.Get_dof_n(), simu.Get_unknowns()
+    )
+    simu.add_lineLoad(mesh.nodes, [q], ["y"])
+    simu.Solve()
+
+    x_n = mesh.coord[:, 0]
+    x_e = x_n[mesh.connect].mean(1)
+
+    uy_x, rz_x, Mz_x, Ty_x = _cantilever_distrib_analytical(L, q, E, Iz)
+
+    # uy
+    uy_fe = simu.Result("uy", nodeValues=True)
+    err_uy = np.abs(uy_x(x_n) - uy_fe).max() / np.abs(uy_x(L))
+    assert err_uy <= TOL, f"uy error {err_uy:.2e}"
+
+    # rz
+    rz_fe = simu.Result("rz", nodeValues=True)
+    err_rz = np.abs(rz_x(x_n) - rz_fe).max() / np.abs(rz_x(L))
+    assert err_rz <= TOL, f"rz error {err_rz:.2e}"
+
+    # Mz
+    Mz_fe = simu.Result("Mz", nodeValues=False)
+    err_Mz = np.abs(Mz_x(x_e) - Mz_fe).max() / np.abs(Mz_x(x_e)).max()
+    assert err_Mz <= TOL, f"Mz error {err_Mz:.2e}"
+
+    # Ty
+    Ty_fe = simu.Result("Ty", nodeValues=False)
+    err_Ty = np.abs(Ty_x(x_e) - Ty_fe).max() / np.abs(Ty_x(x_e)).max()
+    assert err_Ty <= TOL, f"Ty error {err_Ty:.2e}"
+
+
+# -------------------------------------------------------
+# Fixed-fixed beam with point load, symmetric and eccentric (dim >= 2)
+# -------------------------------------------------------
+
+
+@pytest.mark.parametrize("a_frac", [0.5, 0.8], ids=["symmetric", "eccentric"])
+@pytest.mark.parametrize("beamDim", [2, 3])
+@pytest.mark.parametrize("elemType", ELEM_TYPES)
+def test_biencastre(elemType: str, beamDim: int, a_frac: float):
+    L, nL = 120.0, 10
+    b, h = 13.0, 13.0
+    E, v = 210000.0, 0.3
+    F = -800.0  # point force in y (negative = downward)
+    a = L * a_frac  # load position
+    Iz = b * h**3 / 12
+
+    mesher = Mesher()
+    section = _rect_section(mesher, b, h)
+
+    point1 = Point()
+    point_load = Point(x=a)
+    point3 = Point(x=L)
+    line = Line(point1, point3, L / nL)
+    beam = Models.Beam.Isotropic(beamDim, line, section, E, v)
+
+    mesh = mesher.Mesh_Beams([beam], additionalPoints=[point_load], elemType=elemType)
+    structure = Models.Beam.BeamStructure([beam])
+    simu = Simulations.Beam(mesh, structure, verbosity=False)
+
+    simu.add_dirichlet(
+        mesh.Nodes_Point(point1), [0] * simu.Get_dof_n(), simu.Get_unknowns()
+    )
+    simu.add_dirichlet(
+        mesh.Nodes_Point(point3), [0] * simu.Get_dof_n(), simu.Get_unknowns()
+    )
+    simu.add_neumann(mesh.Nodes_Point(point_load), [F], ["y"])
+    simu.Solve()
+
+    x_n = mesh.coord[:, 0]
+    x_e = x_n[mesh.connect].mean(1)
+
+    uy_x, Mz_x, Ty_x, Ra, Rb = _fixed_fixed_analytical(a, L, F, E, Iz)
+
+    # uy
+    uy_fe = simu.Result("uy", nodeValues=True)
+    err_uy = np.abs(uy_x(x_n) - uy_fe).max() / np.abs(uy_x(a))
+    assert err_uy <= TOL, f"uy error {err_uy:.2e}"
+
+    # Mz
+    Mz_fe = simu.Result("Mz", nodeValues=False)
+    err_Mz = np.abs(Mz_x(x_e) - Mz_fe).max() / np.abs(Mz_x(x_e)).max()
+    assert err_Mz <= TOL, f"Mz error {err_Mz:.2e}"
+
+    # Ty
+    Ty_fe = simu.Result("Ty", nodeValues=False)
+    err_Ty = np.abs(Ty_x(x_e) - Ty_fe).max() / max(Ra, Rb)
+    assert err_Ty <= TOL, f"Ty error {err_Ty:.2e}"
+
+
+# -------------------------------------------------------
+# Simply supported beam (pinned-roller) with point load (dim >= 2)
+# -------------------------------------------------------
+
+
+@pytest.mark.parametrize("a_frac", [0.5, 0.8], ids=["symmetric", "eccentric"])
+@pytest.mark.parametrize("beamDim", [2, 3])
+@pytest.mark.parametrize("elemType", ELEM_TYPES)
+def test_simply_supported_tip(elemType: str, beamDim: int, a_frac: float):
+    L, nL = 120.0, 10
+    b, h = 13.0, 13.0
+    E, v = 210000.0, 0.3
+    F = -800.0  # point force in y (negative = downward)
+    a = L * a_frac  # load position
+    Iz = b * h**3 / 12
+
+    mesher = Mesher()
+    section = _rect_section(mesher, b, h)
+
+    point1 = Point()
+    point_load = Point(x=a)
+    point3 = Point(x=L)
+    line = Line(point1, point3, L / nL)
+    beam = Models.Beam.Isotropic(beamDim, line, section, E, v)
+
+    mesh = mesher.Mesh_Beams([beam], additionalPoints=[point_load], elemType=elemType)
+    structure = Models.Beam.BeamStructure([beam])
+    simu = Simulations.Beam(mesh, structure, verbosity=False)
+
+    # pinned at x=0: fix all translations; roller at x=L: fix transverse translations
+    if beamDim == 2:
+        simu.add_dirichlet(mesh.Nodes_Point(point1), [0, 0], ["x", "y"])
+        simu.add_dirichlet(mesh.Nodes_Point(point3), [0], ["y"])
+    elif beamDim == 3:
+        simu.add_dirichlet(mesh.Nodes_Point(point1), [0, 0, 0], ["x", "y", "z"])
+        simu.add_dirichlet(mesh.Nodes_Point(point3), [0, 0], ["y", "z"])
+
+    simu.add_neumann(mesh.Nodes_Point(point_load), [F], ["y"])
+    simu.Solve()
+
+    x_n = mesh.coord[:, 0]
+    x_e = x_n[mesh.connect].mean(1)
+
+    uy_x, Mz_x, Ty_x, Ra, Rb = _simply_supported_analytical(a, L, F, E, Iz)
+
+    # uy
+    uy_fe = simu.Result("uy", nodeValues=True)
+    err_uy = np.abs(uy_x(x_n) - uy_fe).max() / np.abs(uy_x(a))
+    assert err_uy <= TOL, f"uy error {err_uy:.2e}"
+
+    # Mz
+    Mz_fe = simu.Result("Mz", nodeValues=False)
+    err_Mz = np.abs(Mz_x(x_e) - Mz_fe).max() / np.abs(Mz_x(x_e)).max()
+    assert err_Mz <= TOL, f"Mz error {err_Mz:.2e}"
+
+    # Ty
+    Ty_fe = simu.Result("Ty", nodeValues=False)
+    err_Ty = np.abs(Ty_x(x_e) - Ty_fe).max() / max(Ra, Rb)
+    assert err_Ty <= TOL, f"Ty error {err_Ty:.2e}"
+
+    Display.Plot_BoundaryConditions(simu)
+    _close_plots()
+
+
+# -------------------------------------------------------
+# Simply supported beam with uniform distributed load (dim >= 2)
+# -------------------------------------------------------
+
+
+@pytest.mark.parametrize("beamDim", [2, 3])
+@pytest.mark.parametrize("elemType", ELEM_TYPES)
+def test_simply_supported_distrib(elemType: str, beamDim: int):
+    L, nL = 120.0, 10
+    b, h = 13.0, 13.0
+    E, v = 210000.0, 0.3
+    q = -10.0  # uniform load in y (negative = downward, N/mm)
+    Iz = b * h**3 / 12
+
+    mesher = Mesher()
+    section = _rect_section(mesher, b, h)
+
+    point1, point3 = Point(), Point(x=L)
+    line = Line(point1, point3, L / nL)
+    beam = Models.Beam.Isotropic(beamDim, line, section, E, v)
+
+    mesh = mesher.Mesh_Beams([beam], elemType=elemType)
+    structure = Models.Beam.BeamStructure([beam])
+    simu = Simulations.Beam(mesh, structure, verbosity=False)
+
+    if beamDim == 2:
+        simu.add_dirichlet(mesh.Nodes_Point(point1), [0, 0], ["x", "y"])
+        simu.add_dirichlet(mesh.Nodes_Point(point3), [0], ["y"])
+    elif beamDim == 3:
+        simu.add_dirichlet(mesh.Nodes_Point(point1), [0, 0, 0], ["x", "y", "z"])
+        simu.add_dirichlet(mesh.Nodes_Point(point3), [0, 0], ["y", "z"])
+
+    simu.add_lineLoad(mesh.nodes, [q], ["y"])
+    simu.Solve()
+
+    x_n = mesh.coord[:, 0]
+    x_e = x_n[mesh.connect].mean(1)
+
+    uy_x, Mz_x, Ty_x = _simply_supported_distrib_analytical(L, q, E, Iz)
+
+    # uy
+    uy_fe = simu.Result("uy", nodeValues=True)
+    err_uy = np.abs(uy_x(x_n) - uy_fe).max() / np.abs(uy_x(L / 2))
+    assert err_uy <= TOL, f"uy error {err_uy:.2e}"
+
+    # Mz
+    Mz_fe = simu.Result("Mz", nodeValues=False)
+    err_Mz = np.abs(Mz_x(x_e) - Mz_fe).max() / np.abs(Mz_x(x_e)).max()
+    assert err_Mz <= TOL, f"Mz error {err_Mz:.2e}"
+
+    # Ty
+    Ty_fe = simu.Result("Ty", nodeValues=False)
+    err_Ty = np.abs(Ty_x(x_e) - Ty_fe).max() / np.abs(Ty_x(x_e)).max()
+    assert err_Ty <= TOL, f"Ty error {err_Ty:.2e}"
+
+
+# -------------------------------------------------------
+# Material update triggers simulation reassembly
+# -------------------------------------------------------
+
+
+def test_update_beam():
+    """Modifications to Beam material properties must mark the simulation as needing update."""
+
+    def assert_needs_update(simu: Simulations._Simu) -> None:
+        assert simu.needUpdate
+        simu.Need_Update(False)
+
+    mesher = Mesher()
+    sect1 = mesher.Mesh_2D(Domain(Point(), Point(0.01, 0.01)))
+    sect2 = sect1.copy()
+    sect2.Rotate(30, sect2.center)
+    sect3 = sect2.copy()
+    sect3.Rotate(30, sect3.center)
+
+    beam1 = Models.Beam.Isotropic(2, Line(Point(), Point(5)), sect1, 210e9, v=0.1)
+    beam2 = Models.Beam.Isotropic(2, Line(Point(5), Point(10)), sect2, 210e9, v=0.1)
+    beams = [beam1, beam2]
+
+    structure = Models.Beam.BeamStructure(beams)
+    mesh = mesher.Mesh_Beams(beams)
+    simu = Simulations.Beam(mesh, structure)
+
+    simu.Get_K_C_M_F()
+    assert not simu.needUpdate  # assembling clears the flag
+
+    for beam in beams:
+        beam.E *= 2
+        assert_needs_update(simu)
+        beam.v = 0.4
+        assert_needs_update(simu)
+        beam.section = sect3
+        assert_needs_update(simu)
