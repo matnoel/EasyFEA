@@ -27,7 +27,7 @@ from ..Models import ModelType, Reshape_variable
 from ..Models.Beam._beam import BeamStructure, _Beam, Isotropic
 
 # simu
-from ._simu import _Simu
+from ._simu import _Simu, SolverType
 
 
 class Beam(_Simu):
@@ -75,6 +75,8 @@ class Beam(_Simu):
             mesh = _Construct_Euler_Bernoulli_mesh(mesh)
 
         super().__init__(mesh, model, folder, verbosity)
+
+        self.solver = SolverType.scipy
 
         # turn beams into observable objects
         [beam._Add_observer(self) for beam in model.beams]  # type: ignore [func-returns-value]
