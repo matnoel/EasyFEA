@@ -2395,11 +2395,11 @@ class _Simu(_IObserver, _params.Updatable, ABC):
         unknowns: list[str],
     ) -> tuple[_types.FloatArray, _types.IntArray, _types.IntArray]:
         """Integrates on elements for the specified dimension.
-        return dofsValues, dofs, Nodes"""
+        return dofsValues, dofs, nodesUsedByElements"""
 
         dofsValues = np.array([])
         dofs = np.array([], dtype=int)
-        Nodes = np.array([], dtype=int)  # Nodes used by the elements
+        nodesUsedByElements = np.array([], dtype=int)  # Nodes used by the elements
         # nodes != Nodes dont remove
         Nn = self.mesh.Nn
 
@@ -2411,7 +2411,9 @@ class _Simu(_IObserver, _params.Updatable, ABC):
                 continue
             connect = groupElem.connect[elements]
             Ne = elements.shape[0]
-            Nodes = np.append(Nodes, np.reshape(connect, -1))
+            nodesUsedByElements = np.append(
+                nodesUsedByElements, np.reshape(connect, -1)
+            )
 
             # Get the coordinates of the Gauss points if you need to devaluate the function
             matrixType = MatrixType.mass
@@ -2421,9 +2423,9 @@ class _Simu(_IObserver, _params.Updatable, ABC):
             wJ_e_pg = groupElem.Get_weightedJacobian_e_pg(matrixType)[elements]
 
             # initialize the matrix of values for each node used by the elements and each gauss point (Ne*nPe, dir)
-            values_dofs_u = np.zeros((Ne * groupElem.nPe, len(unknowns)))
+            new_dofsValues_u = np.zeros((Ne * groupElem.nPe, len(unknowns)))
             # initialize the dofs vector
-            new_dofs = np.zeros_like(values_dofs_u, dtype=int)
+            new_dofs_u = np.zeros_like(new_dofsValues_u, dtype=int)
 
             # Integrated for all unknowns
             for u, unknown in enumerate(unknowns):
@@ -2445,21 +2447,17 @@ class _Simu(_IObserver, _params.Updatable, ABC):
                         "ep,en,pin->epn", wJ_e_pg, eval_e, N_pg, optimize="optimal"
                     )
 
-                # sum over integration points
-                values_e = np.sum(values_e_p, axis=1)
-                # set calculated values and dofs
-                values_dofs_u[:, u] = values_e.ravel()
-                new_dofs[:, u] = self.Bc_dofs_nodes(
+                # set calculated (sum on integration points) values and dofs
+                new_dofsValues_u[:, u] = np.sum(values_e_p, axis=1).ravel()
+                new_dofs_u[:, u] = self.Bc_dofs_nodes(
                     connect.ravel(), [unknown], problemType
                 )
 
-            new_values_dofs = values_dofs_u.ravel()  # Put in vector form
-            dofsValues = np.append(dofsValues, new_values_dofs)
+            # append dofs values and dofs (index) in in vector form
+            dofsValues = np.append(dofsValues, new_dofsValues_u.ravel())
+            dofs = np.append(dofs, new_dofs_u.ravel())
 
-            new_dofs = new_dofs.ravel()  # Put in vector form
-            dofs = np.append(dofs, new_dofs)
-
-        return dofsValues, dofs, Nodes
+        return dofsValues, dofs, nodesUsedByElements
 
     def __Bc_lineLoad(
         self,
