@@ -132,6 +132,115 @@ class Beam(_Simu):
         3D [uxi, uyi, uzi, rxi, ryi, rzi, ...]"""
         return self._Get_u_n(self.problemType)
 
+    def add_lineLoad(
+        self,
+        nodes: _types.IntArray,
+        values: list,
+        unknowns: list[str],
+        problemType=None,
+        description="",
+    ) -> None:
+        if len(nodes) == 0 or len(values) == 0 or len(values) != len(unknowns):
+            return
+
+        if problemType is None:
+            problemType = self.problemType
+
+        if self.structure.dim == 1:
+            super().add_lineLoad(nodes, values, unknowns, problemType, description)
+            return
+
+        self._Check_dofs(problemType, unknowns)
+
+        groupElem = self.mesh.groupElem
+        assert isinstance(groupElem, (_Timoshenko, _EulerBernoulli))
+        beamStructure = self.structure
+        all_unknowns = self.Get_unknowns(problemType)
+
+        # Lagrange unknowns (axial, torsion; all rotations in Timoshenko):
+        # use base-class integration — avoids the Nu_pg indexing issue in Get_beam_N_e_pg.
+        # Hermitian unknowns (transverse v/w; enslaved rz=v'/ry=-w' in EB):
+        # need consistent Hermitian integration with J correction.
+        hermitian = (
+            {"y", "z"}
+            if isinstance(groupElem, _Timoshenko)
+            else set(all_unknowns) - {"x", "rx"}
+        )
+        lagrange_idx = [i for i, u in enumerate(unknowns) if u not in hermitian]
+        hermitian_idx = [i for i, u in enumerate(unknowns) if u in hermitian]
+
+        if lagrange_idx:
+            super().add_lineLoad(
+                nodes,
+                [values[i] for i in lagrange_idx],
+                [unknowns[i] for i in lagrange_idx],
+                problemType,
+                description,
+            )
+
+        if not hermitian_idx:
+            return
+
+        dof_n = beamStructure.dof_n
+        matrixType = MatrixType.beam
+        herm_unknowns = [unknowns[i] for i in hermitian_idx]
+        herm_values = [values[i] for i in hermitian_idx]
+
+        elements = groupElem.Get_Elements_Nodes(nodes, exclusively=True)
+        if elements.shape[0] == 0:
+            return
+        connect = groupElem.connect[elements]
+        Ne = elements.shape[0]
+        nPe = groupElem.nPe
+        Nn = self.mesh.Nn
+
+        coord_e_pg = groupElem.Get_GaussCoordinates_e_pg(matrixType, elements)
+        wJ_e_pg = groupElem.Get_weightedJacobian_e_pg(matrixType)[elements]
+        J_e_pg = groupElem.Get_jacobian_e_pg(matrixType)[elements]
+        N_e_pg = groupElem.Get_beam_N_e_pg(beamStructure)[elements]
+        N_lag_pg = groupElem.Get_N_pg(matrixType)[:, 0, :]
+
+        # Ne * dof_n * nPe DOFs per element (Hermitian N couples force and moment DOFs)
+        dofsValues_u = np.zeros((Ne * dof_n * nPe, len(herm_unknowns)))
+        dofs_u = np.zeros_like(dofsValues_u, dtype=int)
+
+        for u, unknown in enumerate(herm_unknowns):
+            row = all_unknowns.index(unknown)
+            if isinstance(herm_values[u], (int, float)) or callable(herm_values[u]):
+                # evaluate on Gauss points (Ne, nPg)
+                eval_e_pg = (
+                    herm_values[u](*np.moveaxis(coord_e_pg, -1, 0))
+                    if callable(herm_values[u])
+                    else np.full(wJ_e_pg.shape, herm_values[u])
+                )
+            else:
+                # evaluate on nodes then interpolate to Gauss points
+                eval_n = np.zeros(Nn, dtype=float)
+                eval_n[nodes] = herm_values[u]
+                eval_e = eval_n[connect]  # (Ne, nPe)
+                eval_e_pg = np.einsum("en,pn->ep", eval_e, N_lag_pg, optimize="optimal")
+
+            # Hermitian N stores N/J; wJ · J · q · N(ξ) is the correct source integral
+            values_e_pg = np.einsum(
+                "ep,ep,ep,epn->epn",
+                wJ_e_pg,
+                J_e_pg,
+                eval_e_pg,
+                N_e_pg[:, :, row, :],
+                optimize="optimal",
+            )  # (Ne, nPg, dof_n*nPe)
+            dofsValues_u[:, u] = np.sum(values_e_pg, axis=1).ravel()
+            dofs_u[:, u] = groupElem._Get_assembly_e(connect, dof_n).ravel()
+
+        self._Bc_Add_Neumann(
+            problemType,
+            connect.ravel(),
+            dofsValues_u.ravel(),
+            dofs_u.ravel(),
+            herm_unknowns,
+            description,
+        )
+
     def add_surfLoad(
         self,
         nodes: _types.IntArray,
