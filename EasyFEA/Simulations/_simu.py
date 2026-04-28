@@ -2397,9 +2397,9 @@ class _Simu(_IObserver, _params.Updatable, ABC):
         """Integrates on elements for the specified dimension.
         return dofsValues, dofs, nodesUsedByElements"""
 
-        dofsValues = np.array([])
-        dofs = np.array([], dtype=int)
-        nodesUsedByElements = np.array([], dtype=int)  # Nodes used by the elements
+        list_dofsValues: list = [np.array([])]
+        list_dofs: list = [np.array([], dtype=int)]
+        list_nodesUsed: list = [np.array([], dtype=int)]
         # nodes != Nodes dont remove
         Nn = self.mesh.Nn
 
@@ -2411,9 +2411,7 @@ class _Simu(_IObserver, _params.Updatable, ABC):
                 continue
             connect = groupElem.connect[elements]
             Ne = elements.shape[0]
-            nodesUsedByElements = np.append(
-                nodesUsedByElements, np.reshape(connect, -1)
-            )
+            list_nodesUsed.append(connect.ravel())
 
             # Get the coordinates of the Gauss points if you need to devaluate the function
             matrixType = MatrixType.mass
@@ -2423,9 +2421,9 @@ class _Simu(_IObserver, _params.Updatable, ABC):
             wJ_e_pg = groupElem.Get_weightedJacobian_e_pg(matrixType)[elements]
 
             # initialize the matrix of values for each node used by the elements and each gauss point (Ne*nPe, dir)
-            new_dofsValues_u = np.zeros((Ne * groupElem.nPe, len(unknowns)))
+            dofsValues_u = np.zeros((Ne * groupElem.nPe, len(unknowns)))
             # initialize the dofs vector
-            new_dofs_u = np.zeros_like(new_dofsValues_u, dtype=int)
+            dofs_u = np.zeros_like(dofsValues_u, dtype=int)
 
             # Integrated for all unknowns
             for u, unknown in enumerate(unknowns):
@@ -2441,21 +2439,24 @@ class _Simu(_IObserver, _params.Updatable, ABC):
                     # evaluate on nodes
                     eval_n = np.zeros(Nn, dtype=float)
                     eval_n[nodes] = values[u]
-                    eval_e = eval_n[groupElem.connect[elements]]  # (Ne, nPe)
+                    eval_e = eval_n[connect]  # (Ne, nPe)
                     # integrate the elements (Ne, nPg, nPe)
                     values_e_p = np.einsum(
                         "ep,en,pin->epn", wJ_e_pg, eval_e, N_pg, optimize="optimal"
                     )
 
                 # set calculated (sum on integration points) values and dofs
-                new_dofsValues_u[:, u] = np.sum(values_e_p, axis=1).ravel()
-                new_dofs_u[:, u] = self.Bc_dofs_nodes(
+                dofsValues_u[:, u] = np.sum(values_e_p, axis=1).ravel()
+                dofs_u[:, u] = self.Bc_dofs_nodes(
                     connect.ravel(), [unknown], problemType
                 )
 
-            # append dofs values and dofs (index) in in vector form
-            dofsValues = np.append(dofsValues, new_dofsValues_u.ravel())
-            dofs = np.append(dofs, new_dofs_u.ravel())
+            list_dofsValues.append(dofsValues_u.ravel())
+            list_dofs.append(dofs_u.ravel())
+
+        dofsValues = np.concatenate(list_dofsValues)
+        dofs = np.concatenate(list_dofs).astype(int)
+        nodesUsedByElements = np.concatenate(list_nodesUsed).astype(int)
 
         return dofsValues, dofs, nodesUsedByElements
 
