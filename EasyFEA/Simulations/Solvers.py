@@ -529,7 +529,7 @@ def _PETSc(
     # set values
     # https://petsc.org/release/petsc4py/reference/petsc4py.PETSc.Mat.html#petsc4py.PETSc.Mat.createAIJ
     csr = (A.indptr, A.indices, A.data)
-    matrix.createAIJ(A.shape, comm=MPI_COMM, csr=csr)
+    matrix.createAIJ(A.shape, csr=csr)
 
     # get rhs values
     rows, _, values = sparse.find(b)
@@ -543,7 +543,7 @@ def _PETSc(
     if len(x0) > 0:
         x.array = x0
 
-    ksp = PETSc.KSP().create(comm=MPI_COMM)  # type: ignore [attr-defined]
+    ksp = PETSc.KSP().create()  # type: ignore [attr-defined]
     ksp.setOperators(matrix)
     ksp.setType(kspType)
 
