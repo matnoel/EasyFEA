@@ -168,7 +168,7 @@ class _Simu(_IObserver, _params.Updatable, ABC):
     def Calc_Reaction(
         self, dofs: _types.IntArray = None, problemType=None
     ) -> np.ndarray:
-        """Resultant reaction at nodes: sum of `K[dofs] @ u`, MPI-safe."""
+        """Resultant reaction at nodes: `K[dofs, :] @ u`, MPI-safe."""
 
         if self.isNonLinear:
             raise NotImplementedError
@@ -196,8 +196,9 @@ class _Simu(_IObserver, _params.Updatable, ABC):
 
         if MPI_SIZE > 1:
             reaction = MPI_COMM.allreduce(reaction, op=MPI.SUM)
-
-        return reaction
+            return reaction
+        else:
+            return reaction[dofs]
 
     @abstractmethod
     def Get_x0(self, problemType: Optional[ModelType] = None) -> _types.FloatArray:
