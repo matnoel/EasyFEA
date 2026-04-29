@@ -677,7 +677,11 @@ def Plot_BoundaryConditions(
 
 @requires_pyvista
 def Plot_Tags(
-    obj, useColorCycler=False, plotter: Optional[pv.Plotter] = None
+    obj,
+    alpha: float = 1.0,
+    useColorCycler=False,
+    useLegend: bool = False,
+    plotter: Optional[pv.Plotter] = None,
 ) -> pv.Plotter:
     """Plots the mesh's elements tags (from 2d elements to points) but do not plot the 3d elements tags.
 
@@ -685,10 +689,14 @@ def Plot_Tags(
     ----------
     obj : _Simu | Mesh | _GroupElem
         object containing the mesh
+    alpha : float | str | ndarray, optional
+        Opacity of the mesh, by default 1.0
     useColorCycler : bool, optional
         whether to use color cycler, by default False
+    useLegend : bool, optional
+        Use legen, by default False.
     plotter : pv.Plotter, optional
-        The pyvista plotter, by default None and create a new Plotter instance, default None
+        The pyvista plotter, by default None and create a new Plotter instance.
 
     Returns
     -------
@@ -744,23 +752,33 @@ def Plot_Tags(
             else:
                 color = "k" if dim in [0, 1] else "c"
 
-            if dim == 0:
-                plotter.add_mesh(grid, color=color, render_points_as_spheres=True)
-            elif dim == 1:
-                plotter.add_mesh(grid, color=color, line_width=2)
-            elif dim == 2:
-                plotter.add_mesh(grid, color=color, opacity=0.5)
-            else:
-                plotter.add_mesh(grid, color=color, opacity=0.5)
+            kwargs = {
+                "color": color,
+                "label": tag_e,
+            }
 
-            # add tags
             if dim == 0:
-                center = np.mean(coord[nodes], axis=0)
+                plotter.add_mesh(grid, render_points_as_spheres=True, **kwargs)
+            elif dim == 1:
+                plotter.add_mesh(grid, line_width=2, **kwargs)
+            elif dim == 2:
+                plotter.add_mesh(grid, opacity=alpha, **kwargs)
             else:
-                center = np.mean(center_e[elements], axis=0)
-            plotter.add_point_labels(center.reshape(1, 3), [tag_e], always_visible=True)
+                plotter.add_mesh(grid, opacity=alpha, **kwargs)
+
+            if not useLegend:
+                # add tags
+                if dim == 0:
+                    center = np.mean(coord[nodes], axis=0)
+                else:
+                    center = np.mean(center_e[elements], axis=0)
+                plotter.add_point_labels(
+                    center.reshape(1, 3), [tag_e], always_visible=True
+                )
 
     tic.Tac("PyVista", "Plot_Tags")
+
+    plotter.add_legend()
 
     return plotter
 
