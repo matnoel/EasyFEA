@@ -546,17 +546,15 @@ def _Set_Tags(mesh: Mesh, dict_tags: dict[str, _types.IntArray]):
         else:
             raise Exception(f"elemType {elemType} is unknown.")
 
-        uniqueTags = np.unique(tags)
-        list_elems = [np.where(tags == tag)[0] for tag in uniqueTags]
+        # uniqueTags = np.unique(tags)
+        uniqueTags, inverse = np.unique(tags, return_inverse=True)
+        list_elems = [np.where(inverse == i)[0] for i in range(len(uniqueTags))]
 
         for groupElem in mesh.Get_list_groupElem(dim):
+            if elemType not in DICT_ELEMTYPE_TO_MESHIO[groupElem.elemType]:
+                continue
             for elems, tag in zip(list_elems, uniqueTags):
-                if elems.max() > groupElem.Ne:
-                    # We can be here when several elements are the same size.
-                    # For example, in the case of a prism, there are triangles and quadrangles at the same time.
-                    continue
-                nodes_set = set(groupElem.connect[elems].ravel())
-                nodes = np.array(list(nodes_set))
+                nodes = np.unique(groupElem.connect[elems])
                 # set tag
                 groupElem.Set_Tag(nodes, t + str(tag))
 
