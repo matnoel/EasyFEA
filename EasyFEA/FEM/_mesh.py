@@ -12,11 +12,14 @@ A hexahedral mesh (HEXA8) uses :\n
 - QUAD4 (dim=2)
 - HEXA8 (dim=3)"""
 
-import numpy as np
-import scipy.sparse as sp
 import copy
 import pickle
 from typing import Callable, Optional, TYPE_CHECKING
+
+import numpy as np
+import scipy.sparse as sp
+from scipy.spatial import cKDTree
+from scipy.sparse.csgraph import connected_components
 
 # utilities
 from ..Utilities import Display, Folder, Tic, _types
@@ -184,6 +187,121 @@ class Mesh(Observable):
     def copy(self):
         newMesh = copy.deepcopy(self)
         return newMesh
+
+    @staticmethod
+    def Merge(
+        list_mesh: "list[Mesh]",
+        constructUniqueElements: bool = True,
+        mergePoints: bool = True,
+        mergePointsTol: float = 1e-12,
+        return_mapping: bool = False,
+    ) -> "Mesh | tuple[Mesh, list[_types.IntArray]]":
+        """Merges EasyFEA meshes into a single mesh.
+
+        This is a static method: call it as ``Mesh.Merge([mesh1, mesh2, ...])``.
+
+        Parameters
+        ----------
+        list_mesh : list[Mesh]
+            Meshes to merge.
+        constructUniqueElements : bool, optional
+            Remove duplicate elements after merging, by default True.
+        mergePoints : bool, optional
+            Merge coincident nodes across meshes, by default True.
+            Set to False to skip the KDTree search and simply concatenate
+            coordinate arrays (faster when meshes are known to be disjoint).
+        mergePointsTol : float, optional
+            Absolute distance below which two points are considered identical
+            and merged, by default 1e-12.
+            Ignored when ``mergePoints=False``.
+        return_mapping : bool, optional
+            If True, also return the node mapping as a list of integer arrays,
+            one per input mesh. ``mapping[i][j]`` is the index of node ``j``
+            from ``list_mesh[i]`` in the merged mesh, by default False.
+
+        Returns
+        -------
+        Mesh
+            The merged mesh.
+        mapping : list[np.ndarray], only when ``return_mapping=True``
+            ``mapping[i]`` maps each node index of ``list_mesh[i]`` to its
+            index in the merged mesh. Useful to transfer node tags::
+
+                merged, mapping = Mesh.Merge([m1, m2], return_mapping=True)
+                for tag in m1.groupElem.nodeTags:
+                    nodes = mapping[0][m1.groupElem.Get_Nodes_Tag(tag)]
+                    merged.groupElem.Set_Tag(nodes, tag)
+        """
+        from ._group_elem import GroupElemFactory
+
+        assert len(list_mesh) >= 1, "list_mesh must contain at least one mesh."
+
+        if len(list_mesh) == 1:
+            if return_mapping:
+                return list_mesh[0], [np.arange(list_mesh[0].groupElem.Ncoords)]
+            return list_mesh[0]
+
+        # Step 1: collect coords once per mesh (mesh.coord reconstructs each call)
+        coords = [mesh.coord for mesh in list_mesh]
+        sizes = np.fromiter((c.shape[0] for c in coords), dtype=int, count=len(coords))
+        offsets = np.concatenate(([0], np.cumsum(sizes[:-1])))
+        all_coords: _types.FloatArray = np.vstack(coords)
+        N = all_coords.shape[0]
+
+        # Step 2: deduplicate points — cKDTree + connected components
+        # Relative tolerance (fraction of bbox diagonal) matches vtkAppendFilter semantics.
+        if mergePoints:
+            pairs: _types.IntArray = cKDTree(all_coords).query_pairs(
+                mergePointsTol, output_type="ndarray"
+            )
+
+            if len(pairs):
+                rows = np.concatenate([pairs[:, 0], pairs[:, 1]])
+                cols = np.concatenate([pairs[:, 1], pairs[:, 0]])
+                graph = sp.csr_matrix(
+                    (np.ones(len(rows), dtype=bool), (rows, cols)), shape=(N, N)
+                )
+                _, labels = connected_components(graph, directed=False)
+            else:
+                labels = np.arange(N)
+
+            _, first_in_component = np.unique(labels, return_index=True)
+            new_coords = all_coords[first_in_component]
+            old_to_new: _types.IntArray = labels
+        else:
+            new_coords = all_coords
+            old_to_new = np.arange(N)
+
+        # Step 3: remap connectivity per element type
+        dict_connects: dict[ElemType, list] = {}
+        for mesh, off in zip(list_mesh, offsets):
+            for elemType, groupElem in mesh.dict_groupElem.items():
+                dict_connects.setdefault(elemType, []).append(
+                    old_to_new[groupElem.connect + off]
+                )
+
+        # Step 4: optionally remove duplicate elements, then build GroupElems
+        dict_groupElem: dict[ElemType, "_GroupElem"] = {}
+        for elemType, connects_list in dict_connects.items():
+            connect: _types.IntArray = np.vstack(connects_list)
+            if constructUniqueElements:
+                connect_sorted = np.sort(connect, axis=1)
+                connect_view = np.ascontiguousarray(connect_sorted).view(
+                    np.dtype((np.void, connect.dtype.itemsize * connect.shape[1]))
+                )
+                _, unique_idx = np.unique(connect_view, return_index=True)
+                connect = connect[unique_idx]
+            dict_groupElem[elemType] = GroupElemFactory.Create(
+                elemType, connect, new_coords
+            )
+
+        merged = Mesh(dict_groupElem)
+
+        if return_mapping:
+            mapping = [old_to_new[off : off + s] for off, s in zip(offsets, sizes)]
+            return merged, mapping
+
+        return merged
 
     def Translate(self, dx: float = 0.0, dy: float = 0.0, dz: float = 0.0) -> None:
         """Translates the mesh coordinates."""

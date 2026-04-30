@@ -923,53 +923,6 @@ def PyVista_to_EasyFEA(pyVistaMesh: Union[pv.UnstructuredGrid, pv.MultiBlock]) -
     return mesh
 
 
-@requires_pyvista
-def Merge(
-    list_mesh: list[Mesh],
-    constructUniqueElements=True,
-    mergePointsTol=1e-10,
-) -> Mesh:
-    """Merges EasyFEA meshes."""
-
-    list_pvMesh = [EasyFEA_to_PyVista(mesh, mesh.coord) for mesh in list_mesh]
-    pvMesh = list_pvMesh[0]
-
-    if len(list_mesh) > 1:
-        [
-            pvMesh.merge(
-                pv,
-                inplace=True,
-                merge_points=True,
-                tolerance=mergePointsTol,
-            )
-            for pv in list_pvMesh[1:]
-        ]
-
-    mesh = PyVista_to_EasyFEA(pvMesh)
-
-    if constructUniqueElements:
-        coord = mesh.coord
-
-        dict_groupElem = {}
-
-        for elemType, groupElem in mesh.dict_groupElem.items():
-            connect = groupElem.connect
-            # Sort each row's values for comparison only
-            connect_sorted = np.sort(connect, axis=1)
-            # Use view trick on sorted version
-            connect_view = np.ascontiguousarray(connect_sorted).view(
-                np.dtype((np.void, connect.dtype.itemsize * connect.shape[1]))
-            )
-            _, unique_idx = np.unique(connect_view, return_index=True)
-            # Index into ORIGINAL unsorted array
-            connect = connect[unique_idx]
-            dict_groupElem[elemType] = GroupElemFactory.Create(elemType, connect, coord)
-
-        mesh = Mesh(dict_groupElem)
-
-    return mesh
-
-
 # ----------------------------------------------
 # Ensight
 # ----------------------------------------------

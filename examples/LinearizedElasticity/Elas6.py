@@ -13,7 +13,7 @@ A bi-fixed beam undergoing bending deformation.
 import matplotlib.pyplot as plt
 import numpy as np
 
-from EasyFEA import Display, Models, Mesher, ElemType, Simulations, PyVista, MeshIO
+from EasyFEA import Display, Models, Mesher, ElemType, Simulations, PyVista
 from EasyFEA.Geoms import Point, Points, Line
 
 if __name__ == "__main__":
@@ -73,7 +73,7 @@ if __name__ == "__main__":
     mesh1 = section.Mesh_Extrude([], [L / 2, 0, 0], [50], elemType)
     mesh2 = mesh1.copy()
     mesh2.Translate(-L / 2)
-    mesh = MeshIO.Merge([mesh1, mesh2])
+    mesh = mesh1.Merge([mesh1, mesh2])
 
     nodes_fixed = mesh.Nodes_Conditions(lambda x, y, z: (x == -L / 2) | (x == L / 2))
     nodes_load = mesh.Nodes_Line(Line(p7, p8))

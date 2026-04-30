@@ -5,6 +5,7 @@
 
 import pytest
 import numpy as np
+from scipy.spatial import cKDTree
 
 from EasyFEA.FEM._utils import MatrixType
 from EasyFEA import Mesher, ElemType, Mesh, Models, Simulations
@@ -216,3 +217,123 @@ class TestMesh:
             values = mesh.Evaluate_dofsValues_at_coordinates(coords, dofsValues)
             equal(dofsValues.reshape(-1, 2)[node, 0], values[0, 0])
             equal(dofsValues.reshape(-1, 2)[node, 1], values[0, 1])
+
+
+def _no_duplicate_coords(mesh: Mesh, atol: float = 1e-12) -> bool:
+    """Returns True when no two nodes share the same position."""
+    return len(cKDTree(mesh.coord).query_pairs(atol)) == 0
+
+
+class TestMeshMerge:
+
+    @pytest.mark.parametrize("elemType", ElemType.Get_2D())
+    def test_adjacent_2d_area_and_nodes(self, elemType):
+        """Two adjacent unit squares: area = 2, shared edge nodes merged, no duplicates."""
+        h = 1 / 3
+        left = Points([(0, 0), (1, 0), (1, 1), (0, 1)], h).Mesh_2D([], elemType, isOrganised=True)
+        right = Points([(1, 0), (2, 0), (2, 1), (1, 1)], h).Mesh_2D([], elemType, isOrganised=True)
+
+        merged = Mesh.Merge([left, right])
+
+        assert abs(merged.area - 2.0) / 2.0 < 1e-10
+        assert merged.Nn < left.Nn + right.Nn
+        assert _no_duplicate_coords(merged)
+
+    @pytest.mark.parametrize("elemType", ElemType.Get_3D())
+    def test_adjacent_3d_volume_and_nodes(self, elemType):
+        """Two adjacent unit cubes: volume = 2, shared face nodes merged, no duplicates."""
+        h = 0.5
+        left = Points([(0, 0), (1, 0), (1, 1), (0, 1)], h).Mesh_Extrude([], [0, 0, 1], [2], elemType, isOrganised=True)
+        right = Points([(1, 0), (2, 0), (2, 1), (1, 1)], h).Mesh_Extrude([], [0, 0, 1], [2], elemType, isOrganised=True)
+
+        merged = Mesh.Merge([left, right])
+
+        assert abs(merged.volume - 2.0) / 2.0 < 1e-10
+        assert merged.Nn < left.Nn + right.Nn
+        assert _no_duplicate_coords(merged)
+
+    def test_single_mesh_returns_itself(self):
+        """Merge([mesh]) is the identity — no copy, no processing."""
+        mesh = Points([(0, 0), (1, 0), (1, 1), (0, 1)], 0.4).Mesh_2D([], ElemType.QUAD4, isOrganised=True)
+        assert Mesh.Merge([mesh]) is mesh
+
+    def test_construct_unique_elements_removes_duplicates(self):
+        """Merging a mesh with itself: constructUniqueElements=True keeps one copy."""
+        mesh = Points([(0, 0), (1, 0), (1, 1), (0, 1)], 0.4).Mesh_2D([], ElemType.QUAD4, isOrganised=True)
+        merged = Mesh.Merge([mesh, mesh], constructUniqueElements=True)
+        assert merged.Ne == mesh.Ne
+        assert merged.Nn == mesh.Nn
+
+    def test_no_deduplication_keeps_all_elements(self):
+        """constructUniqueElements=False preserves every element from every mesh."""
+        mesh = Points([(0, 0), (1, 0), (1, 1), (0, 1)], 0.4).Mesh_2D([], ElemType.QUAD4, isOrganised=True)
+        merged = Mesh.Merge([mesh, mesh], constructUniqueElements=False)
+        assert merged.Ne == 2 * mesh.Ne
+
+    def test_tolerance_merges_near_coincident_nodes(self):
+        """Nodes offset by < mergePointsTol are merged; nodes beyond it are not."""
+        mesh = Points([(0, 0), (1, 0), (1, 1), (0, 1)], 0.4).Mesh_2D([], ElemType.QUAD4, isOrganised=True)
+
+        delta_inside = 1e-13   # within default 1e-12 → should merge
+        delta_outside = 1e-11  # beyond default 1e-12 → should NOT merge
+
+        def perturbed(d):
+            m = mesh.copy()
+            m.coord = mesh.coord + d
+            return m
+
+        merged_in = Mesh.Merge([mesh, perturbed(delta_inside)])
+        assert merged_in.Nn == mesh.Nn  # all nodes collapsed
+
+        merged_out = Mesh.Merge([mesh, perturbed(delta_outside)])
+        assert merged_out.Nn == 2 * mesh.Nn  # no nodes merged
+
+    def test_merge_points_false_skips_deduplication(self):
+        """mergePoints=False concatenates coordinates without any KDTree search."""
+        h = 1 / 3
+        left = Points([(0, 0), (1, 0), (1, 1), (0, 1)], h).Mesh_2D([], ElemType.QUAD4, isOrganised=True)
+        right = Points([(1, 0), (2, 0), (2, 1), (1, 1)], h).Mesh_2D([], ElemType.QUAD4, isOrganised=True)
+
+        merged = Mesh.Merge([left, right], mergePoints=False)
+
+        assert merged.Nn == left.Nn + right.Nn  # no node merging
+        assert abs(merged.area - 2.0) / 2.0 < 1e-10  # geometry still correct
+
+    def test_return_mapping_identity(self):
+        """return_mapping=True on a single mesh returns the identity mapping."""
+        mesh = Points([(0, 0), (1, 0), (1, 1), (0, 1)], 0.4).Mesh_2D([], ElemType.QUAD4, isOrganised=True)
+        result, mapping = Mesh.Merge([mesh], return_mapping=True)
+
+        assert result is mesh
+        assert len(mapping) == 1
+        np.testing.assert_array_equal(mapping[0], np.arange(mesh.Nn))
+
+    def test_return_mapping_two_meshes(self):
+        """mapping[i][j] is the index of mesh i's node j in the merged mesh."""
+        h = 1 / 3
+        left = Points([(0, 0), (1, 0), (1, 1), (0, 1)], h).Mesh_2D([], ElemType.QUAD4, isOrganised=True)
+        right = Points([(1, 0), (2, 0), (2, 1), (1, 1)], h).Mesh_2D([], ElemType.QUAD4, isOrganised=True)
+
+        merged, mapping = Mesh.Merge([left, right], return_mapping=True)
+
+        assert len(mapping) == 2
+
+        # Every node of 'left' must land at the correct coordinate in merged
+        for j in range(left.Nn):
+            np.testing.assert_allclose(
+                merged.coord[mapping[0][j]], left.coord[j], atol=1e-12
+            )
+
+        # Every node of 'right' must land at the correct coordinate in merged
+        for j in range(right.Nn):
+            np.testing.assert_allclose(
+                merged.coord[mapping[1][j]], right.coord[j], atol=1e-12
+            )
+
+        # Shared edge nodes from left and right must map to the same merged node
+        shared_left = np.where(left.coord[:, 0] == 1.0)[0]
+        shared_right = np.where(right.coord[:, 0] == 1.0)[0]
+        # build a dict: merged_node → coord for each side, they must overlap
+        merged_from_left = set(mapping[0][shared_left].tolist())
+        merged_from_right = set(mapping[1][shared_right].tolist())
+        assert len(merged_from_left & merged_from_right) > 0  # at least some shared
