@@ -69,7 +69,7 @@ if __name__ == "__main__":
     beamDim = 2  # must be >= 2
 
     p1 = Point()
-    pL = Point(x=L * 0.6)
+    pL = Point(x=L * 0.75)
     p2 = Point(x=L)
     line = Line(p1, p2, L / 9)
     beam = Models.Beam.Isotropic(beamDim, line, section, E, v)

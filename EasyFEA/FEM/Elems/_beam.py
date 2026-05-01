@@ -163,14 +163,14 @@ class _EulerBernoulli(_GroupElem):
     @abstractmethod
     def _Hermitian_ddN(self) -> _types.FloatArray:
         """Hermitian shape functions second derivatives in the (ξ, η, ζ) coordinates.\n
-        [phi_i,ξ psi_i,ξ . . . phi_n,ξ psi_n,ξ]\n
+        [phi_i,ξ psi_i,ξξ . . . phi_n,ξξ psi_n,ξξ]\n
         (nPe*2, 2)
         """
         return None  # type: ignore [return-value]
 
     def Get_Hermitian_ddN_pg(self) -> _types.FloatArray:
         """Evaluates Hermitian shape functions second derivatives in the (ξ, η, ζ) coordinates.\n
-        [phi_i,ξ psi_i,ξ . . . phi_n,ξ x psi_n,ξ]\n
+        [phi_i,ξξ psi_i,ξξ . . . phi_n,ξξ x psi_n,ξξ]\n
         (nPg, nPe*2)
         """
         if self.dim != 1:
@@ -208,6 +208,57 @@ class _EulerBernoulli(_GroupElem):
             )
 
         return ddN_e_pg
+
+    # dddN
+
+    @abstractmethod
+    def _Hermitian_dddN(self) -> _types.FloatArray:
+        """Hermitian shape functions third derivatives in the (ξ, η, ζ) coordinates.\n
+        [phi_i,ξξξ psi_i,ξξξ . . . phi_n,ξξξ psi_n,ξξξ]\n
+        (nPe*2, 2)
+        """
+        return None  # type: ignore [return-value]
+
+    def Get_Hermitian_dddN_pg(self) -> _types.FloatArray:
+        """Evaluates Hermitian shape functions third derivatives in the (ξ, η, ζ) coordinates.\n
+        [phi_i,ξξξ psi_i,ξξξ . . . phi_n,ξξξ x psi_n,ξξξ]\n
+        (nPg, nPe*2)
+        """
+        if self.dim != 1:
+            return None  # type: ignore [return-value]
+
+        matrixType = MatrixType.beam
+
+        dddN = self._Hermitian_dddN()
+
+        gauss = self.Get_gauss(matrixType)
+        dddN_pg = _GroupElem._Eval_Functions(dddN, gauss.coord)
+
+        return dddN_pg
+
+    def Get_Hermitian_dddN_e_pg(self) -> FeArray.FeArrayALike:
+        """Evaluates the third-order derivatives of Hermitian shape functions in (x, y, z) coordinates.\n
+        [phi_i,xxx psi_i,xxx . . . phi_n,xxx psi_n,xxx]\n
+        (Ne, nPg, 1, nPe*2)
+        """
+        if self.dim != 1:
+            return None  # type: ignore [return-value]
+
+        invF_e_pg = self.Get_invF_e_pg(MatrixType.beam)[:, :, 0, 0]
+        dddN_pg = FeArray.asfearray(self.Get_Hermitian_dddN_pg()[np.newaxis])
+        nPe = self.nPe
+
+        dddN_e_pg = invF_e_pg * invF_e_pg * invF_e_pg * dddN_pg
+
+        # multiply by the beam length on psi_i,xx functions
+        l_e = self.length_e
+        columns = np.arange(1, nPe * 2, 2)
+        for column in columns:
+            dddN_e_pg[:, :, 0, column] = np.einsum(
+                "ep,e->ep", dddN_e_pg[:, :, 0, column], l_e, optimize="optimal"
+            )
+
+        return dddN_e_pg
 
     # projection matrix
 
@@ -446,6 +497,58 @@ class _EulerBernoulli(_GroupElem):
 
         return B_e_pg
 
+    def Get_beam_shear_B_e_pg(
+        self, beamStructure: "BeamStructure"
+    ) -> FeArray.FeArrayALike:
+        """Shear-displacement matrix for Euler-Bernoulli shear recovery.
+
+        Ty = -dMz/dx = -EIz · d³v/dx³,  Tz = -dMy/dx = -EIy · d³w/dx³.
+        Same DOF layout and shape as Get_beam_B_e_pg, but with dddNv (third
+        Hermitian derivative) in the bending rows.  Evaluating -(D @ B_shear @ sol_e)
+        at each Gauss point gives the exact shear for any polynomial Mz the element
+        can represent — unlike the two-point finite difference of Mz which is only
+        exact when Mz is linear (SEG2) or quadratic (by GP symmetry).
+
+        Returns (Ne, nPg, nStrains, dof_n * nPe) — same shape as B_e_pg.
+        """
+        dim = beamStructure.dim
+        dof_n = beamStructure.dof_n
+        dddNv_e_pg = self.Get_Hermitian_dddN_e_pg()  # (Ne, nPg, 1, nPe*2)
+        nPe = self.nPe
+        Ne, nPg = dddNv_e_pg.shape[:2]
+
+        if dim == 1:
+            return None  # type: ignore [return-value]
+
+        elif dim == 2:
+            idx = np.arange(dof_n * nPe, dtype=int).reshape(nPe, -1)
+            idx_uy = np.reshape(idx[:, 1:], -1)  # [v, rz] DOFs
+
+            B_shear = np.zeros((Ne, nPg, 2, dof_n * nPe))
+            B_shear[:, :, 1, idx_uy] = dddNv_e_pg[:, :, 0]  # d³v/dx³
+
+        elif dim == 3:
+            idx = np.arange(dof_n * nPe).reshape(nPe, -1)
+            idx_uy = np.reshape(idx[:, [1, 5]], -1)  # [v, rz] DOFs
+            idx_uz = np.reshape(idx[:, [2, 4]], -1)  # [w, ry] DOFs
+            idPsi = np.arange(1, nPe * 2, 2)
+
+            dddNvz_e_pg = np.asarray(dddNv_e_pg).copy()
+            dddNvz_e_pg[:, :, 0, idPsi] *= -1  # sign flip for ry = -w' convention
+
+            B_shear = np.zeros((Ne, nPg, 4, dof_n * nPe))
+            B_shear[:, :, 2, idx_uz] = dddNvz_e_pg[:, :, 0]  # d³w/dx³ → Tz
+            B_shear[:, :, 3, idx_uy] = dddNv_e_pg[:, :, 0]  # d³v/dx³ → Ty
+
+        else:
+            raise TypeError("dim error")
+
+        B_shear = FeArray.asfearray(B_shear)
+        Pglob_e_pg = self._Compute_P_e_pg(beamStructure=beamStructure)
+        B_shear = B_shear @ Pglob_e_pg
+
+        return B_shear
+
 
 class _Timoshenko(_EulerBernoulli):
     """Timoshenko beam element.
@@ -507,14 +610,31 @@ class _Timoshenko(_EulerBernoulli):
             # KEY: row 2 uses Lagrange N at rz DOFs only, NOT Hermitian derivatives.
             # θ is free — it is NOT constrained to v'.  Compare with EB where row 2
             # holds dNv (Hermitian derivative) to enforce rz = v'.
+            #
+            # For higher-order elements (SEG3+), internal node rz DOFs must NOT appear
+            # in the v Hermitian field via psi: the psi function at an internal node has
+            # dpsi_int/dx = N_int_Lagrange at the coincident Gauss point, so including psi
+            # in the v field would make that node's contribution to the mass matrix wrong.
+            # Only end-node (index 0, 1) psi functions are used for the v field.
             idx = np.arange(dof_n * nPe, dtype=int).reshape(nPe, -1)
-            idx_ux = idx[:, 0]
-            idx_uy = np.reshape(idx[:, 1:], -1)  # [v,rz] DOFs: [1,2,4,5] (SEG2)
-            idx_rz = idx[:, 2].flatten()  # rz DOFs only: [2,5] (SEG2)
+            idx_ux = idx[:, 0]  # u  DOFs: [0,3]   (SEG2)
+            idx_v = idx[:, 1].flatten()  # v  DOFs: [1,4]   (SEG2)
+            idx_rz = idx[:, 2].flatten()  # rz DOFs: [2,5]   (SEG2)
+            n_end = 2  # always 2 end nodes
+            idx_end_rz = idx[:n_end, 2].flatten()  # rz DOFs for end nodes only
+            phi_cols = np.arange(0, nPe * 2, 2)  # 0, 2, 4, ... (phi for all nodes)
+            psi_end_cols = np.arange(
+                1, n_end * 2, 2
+            )  # 1, 3          (psi for end nodes)
 
             N_e_pg = np.zeros((Ne, nPg, 3, dof_n * nPe))
             N_e_pg[:, :, 0, idx_ux] = Nu_pg  # u:  Lagrange
-            N_e_pg[:, :, 1, idx_uy] = Nv_e_pg[:, :, 0]  # v:  Hermitian
+            N_e_pg[:, :, 1, idx_v] = Nv_e_pg[
+                :, :, 0, phi_cols
+            ]  # v:  Hermitian phi (all)
+            N_e_pg[:, :, 1, idx_end_rz] += Nv_e_pg[
+                :, :, 0, psi_end_cols
+            ]  # v:  Hermitian psi (end nodes)
             N_e_pg[:, :, 2, idx_rz] = Nu_pg  # rz: independent Lagrange
 
         elif dim == 3:
@@ -529,22 +649,34 @@ class _Timoshenko(_EulerBernoulli):
             #
             # KEY: rows 3,4,5 all use Lagrange N — rotations are independent fields.
             # Compare with EB where rows 4,5 use Hermitian derivatives (ry=-w', rz=v').
+            # For SEG3+, psi at internal nodes is excluded from v/w rows (see dim=2 note above).
             idx = np.arange(dof_n * nPe, dtype=int).reshape(nPe, -1)
             idx_ux = idx[:, 0]
-            idx_uy = np.reshape(idx[:, [1, 5]], -1)  # [v,rz] DOFs: [1,5,7,11] (SEG2)
-            idx_uz = np.reshape(idx[:, [2, 4]], -1)  # [w,ry] DOFs: [2,4,8,10] (SEG2)
+            idx_v = idx[:, 1].flatten()
+            idx_w = idx[:, 2].flatten()
             idx_rx = idx[:, 3]
             idx_ry = idx[:, 4].flatten()
             idx_rz = idx[:, 5].flatten()
-
-            idPsi = np.arange(1, nPe * 2, 2)
-            Nvz_e_pg = Nv_e_pg.copy()
-            Nvz_e_pg[:, :, 0, idPsi] *= -1  # sign-flipped for w (ry = -w' convention)
+            n_end = 2
+            idx_end_rz = idx[:n_end, 5].flatten()  # rz DOFs for end nodes
+            idx_end_ry = idx[:n_end, 4].flatten()  # ry DOFs for end nodes
+            phi_cols = np.arange(0, nPe * 2, 2)
+            psi_end_cols = np.arange(1, n_end * 2, 2)
 
             N_e_pg = np.zeros((Ne, nPg, 6, dof_n * nPe))
             N_e_pg[:, :, 0, idx_ux] = Nu_pg  # u:  Lagrange
-            N_e_pg[:, :, 1, idx_uy] = Nv_e_pg[:, :, 0]  # v:  Hermitian
-            N_e_pg[:, :, 2, idx_uz] = Nvz_e_pg[:, :, 0]  # w:  Hermitian (sign-flipped)
+            N_e_pg[:, :, 1, idx_v] = Nv_e_pg[
+                :, :, 0, phi_cols
+            ]  # v:  Hermitian phi (all)
+            N_e_pg[:, :, 1, idx_end_rz] += Nv_e_pg[
+                :, :, 0, psi_end_cols
+            ]  # v:  Hermitian psi (end nodes)
+            N_e_pg[:, :, 2, idx_w] = Nv_e_pg[
+                :, :, 0, phi_cols
+            ]  # w:  Hermitian phi (all)
+            N_e_pg[:, :, 2, idx_end_ry] -= Nv_e_pg[
+                :, :, 0, psi_end_cols
+            ]  # w:  Hermitian -psi (end nodes)
             N_e_pg[:, :, 3, idx_rx] = Nu_pg  # rx: independent Lagrange
             N_e_pg[:, :, 4, idx_ry] = Nu_pg  # ry: independent Lagrange
             N_e_pg[:, :, 5, idx_rz] = Nu_pg  # rz: independent Lagrange
@@ -615,20 +747,30 @@ class _Timoshenko(_EulerBernoulli):
             # - row 2 is new: γ = v' - rz assembled as Hermitian dNv minus Lagrange N
             # - B is 3×... here vs 2×... in EB
 
+            # For higher-order elements (SEG3+), the Hermitian psi function at an internal
+            # node satisfies dpsi_int/dx = N_int_Lagrange at the coincident Gauss point.
+            # Including psi_int in the v' Hermitian field would cancel the -θ Lagrange
+            # contribution there, making γ = 0 regardless of DOF values — locking the
+            # shear strain.  Fix: use phi for ALL v DOFs, psi only for END NODE rz DOFs.
             idx = np.arange(dof_n * nPe, dtype=int).reshape(nPe, -1)
-            idx_ux = idx[:, 0]  # u  DOFs: [0,3]   (SEG2)
-            idx_uy = np.reshape(idx[:, 1:], -1)  # [v,rz] DOFs: [1,2,4,5] (SEG2)
-            idx_rz = idx[:, 2].flatten()  # rz DOFs only: [2,5] (SEG2)
+            idx_ux = idx[:, 0]  # u  DOFs: [0,3]      (SEG2)
+            idx_v = idx[:, 1].flatten()  # v  DOFs: [1,4]      (SEG2)
+            idx_rz = idx[:, 2].flatten()  # rz DOFs: [2,5]      (SEG2)
+            n_end = 2  # always 2 end nodes
+            idx_end_rz = idx[:n_end, 2].flatten()  # rz DOFs for end nodes only
+            phi_cols = np.arange(0, nPe * 2, 2)  # 0, 2, 4, ... (phi columns)
+            psi_end_cols = np.arange(
+                1, n_end * 2, 2
+            )  # 1, 3          (psi for end nodes)
 
             B_e_pg = np.zeros((Ne, nPg, 3, dof_n * nPe), dtype=float)
-            B_e_pg[:, :, 0, idx_ux] = dN_e_pg[:, :, 0]  # axial:   du/dx  (Lagrange)
-            B_e_pg[:, :, 1, idx_rz] = dN_e_pg[
-                :, :, 0
-            ]  # bending: dθ/dx  (Lagrange, rz DOFs only)
-            B_e_pg[:, :, 2, idx_uy] = dNv_e_pg[
-                :, :, 0
-            ]  # shear v' part   (Hermitian, [v,rz] block)
-            B_e_pg[:, :, 2, idx_rz] -= Nu_pg  # shear -rz part  (Lagrange, rz DOFs only)
+            B_e_pg[:, :, 0, idx_ux] = dN_e_pg[:, :, 0]  # axial:   du/dx
+            B_e_pg[:, :, 1, idx_rz] = dN_e_pg[:, :, 0]  # bending: dθ/dx
+            B_e_pg[:, :, 2, idx_v] = dNv_e_pg[:, :, 0, phi_cols]  # shear v': phi (all)
+            B_e_pg[:, :, 2, idx_end_rz] += dNv_e_pg[
+                :, :, 0, psi_end_cols
+            ]  # shear v': psi (end nodes)
+            B_e_pg[:, :, 2, idx_rz] -= Nu_pg  # shear -θ: Lagrange (all rz)
 
         elif dim == 3:
             # u = [u1, v1, w1, rx1, ry1, rz1, . . . , un, vn, wn, rxn, ryn, rzn]
@@ -649,38 +791,39 @@ class _Timoshenko(_EulerBernoulli):
             # - sign convention: ry = -w' in EB, so κy = d²w/dx² = -dRy/dx
             #   preserved in Timoshenko via  B[2,ry] = -dN  and  γz = w' + ry
 
+            # Same psi-end-only fix as dim=2 — see comment above Get_beam_B_e_pg dim=2.
             idx = np.arange(dof_n * nPe).reshape(nPe, -1)
             idx_ux = idx[:, 0]  # u  DOFs: [0,6]       (SEG2)
-            idx_uy = np.reshape(idx[:, [1, 5]], -1)  # [v,rz] DOFs: [1,5,7,11] (SEG2)
-            idx_uz = np.reshape(idx[:, [2, 4]], -1)  # [w,ry] DOFs: [2,4,8,10] (SEG2)
+            idx_v = idx[:, 1].flatten()  # v  DOFs: [1,7]       (SEG2)
+            idx_w = idx[:, 2].flatten()  # w  DOFs: [2,8]       (SEG2)
             idx_rx = idx[:, 3]  # rx DOFs: [3,9]       (SEG2)
             idx_ry = idx[:, 4].flatten()  # ry DOFs: [4,10]      (SEG2)
             idx_rz = idx[:, 5].flatten()  # rz DOFs: [5,11]      (SEG2)
-
-            # sign-flipped Hermitian derivative for w' (ry = -w' convention)
-            idPsi = np.arange(1, nPe * 2, 2)
-            dNvz_e_pg = dNv_e_pg.copy()
-            dNvz_e_pg[:, :, 0, idPsi] *= -1
+            n_end = 2
+            idx_end_rz = idx[:n_end, 5].flatten()  # rz DOFs for end nodes
+            idx_end_ry = idx[:n_end, 4].flatten()  # ry DOFs for end nodes
+            phi_cols = np.arange(0, nPe * 2, 2)
+            psi_end_cols = np.arange(1, n_end * 2, 2)
 
             B_e_pg = np.zeros((Ne, nPg, 6, dof_n * nPe), dtype=float)
-            B_e_pg[:, :, 0, idx_ux] = dN_e_pg[
-                :, :, 0
-            ]  # axial:   du/dx         (Lagrange)
-            B_e_pg[:, :, 1, idx_rx] = dN_e_pg[
-                :, :, 0
-            ]  # torsion: drx/dx        (Lagrange)
-            B_e_pg[:, :, 2, idx_ry] = -dN_e_pg[
-                :, :, 0
-            ]  # flex-y:  κy = -dRy/dx (Lagrange, negated)
-            B_e_pg[:, :, 3, idx_rz] = dN_e_pg[
-                :, :, 0
-            ]  # flex-z:  κz =  dRz/dx (Lagrange)
-            B_e_pg[:, :, 4, idx_uy] = dNv_e_pg[:, :, 0]  # shear-y: v'  (Hermitian)
-            B_e_pg[:, :, 4, idx_rz] -= Nu_pg  # shear-y: -rz (Lagrange)
-            B_e_pg[:, :, 5, idx_uz] = dNvz_e_pg[
-                :, :, 0
-            ]  # shear-z: w'  (Hermitian, sign-flipped)
-            B_e_pg[:, :, 5, idx_ry] += Nu_pg  # shear-z: +ry (Lagrange)
+            B_e_pg[:, :, 0, idx_ux] = dN_e_pg[:, :, 0]  # axial:   du/dx
+            B_e_pg[:, :, 1, idx_rx] = dN_e_pg[:, :, 0]  # torsion: drx/dx
+            B_e_pg[:, :, 2, idx_ry] = -dN_e_pg[:, :, 0]  # flex-y:  -dRy/dx
+            B_e_pg[:, :, 3, idx_rz] = dN_e_pg[:, :, 0]  # flex-z:  dRz/dx
+            B_e_pg[:, :, 4, idx_v] = dNv_e_pg[
+                :, :, 0, phi_cols
+            ]  # shear-y: v' phi (all)
+            B_e_pg[:, :, 4, idx_end_rz] += dNv_e_pg[
+                :, :, 0, psi_end_cols
+            ]  # shear-y: v' psi (end nodes)
+            B_e_pg[:, :, 4, idx_rz] -= Nu_pg  # shear-y: -rz
+            B_e_pg[:, :, 5, idx_w] = dNv_e_pg[
+                :, :, 0, phi_cols
+            ]  # shear-z: w' phi (all)
+            B_e_pg[:, :, 5, idx_end_ry] -= dNv_e_pg[
+                :, :, 0, psi_end_cols
+            ]  # shear-z: w' -psi (end nodes)
+            B_e_pg[:, :, 5, idx_ry] += Nu_pg  # shear-z: +ry
         else:
             raise TypeError("dim error")
 
@@ -732,6 +875,16 @@ class EULER_BERNOULLI2(_EulerBernoulli, _seg.SEG2):
         ddN = np.array([ddN1, ddN2, ddN3, ddN4])
 
         return ddN
+
+    def _Hermitian_dddN(self) -> _types.AnyArray:
+        dddN1 = [lambda r: 3 / 2]
+        dddN2 = [lambda r: 3 / 4]
+        dddN3 = [lambda r: -3 / 2]
+        dddN4 = [lambda r: 3 / 4]
+
+        dddN = np.array([dddN1, dddN2, dddN3, dddN4])
+
+        return dddN
 
 
 class EULER_BERNOULLI3(_EulerBernoulli, _seg.SEG3):
@@ -828,6 +981,48 @@ class EULER_BERNOULLI3(_EulerBernoulli, _seg.SEG3):
         ddN = np.array([ddN1, ddN2, ddN3, ddN4, ddN5, ddN6])
 
         return ddN
+
+    def _Hermitian_dddN(self) -> _types.AnyArray:
+        dddN1 = [
+            lambda r: 9 * r**2 / 2
+            + 9 * r * (2 * r - 2)
+            + 3 * r * (3 * r + 4)
+            + 9 * (r - 1) ** 2 / 2
+            + 3 * (2 * r - 2) * (3 * r + 4) / 2
+        ]
+        dddN2 = [
+            lambda r: 3 * r**2 / 4
+            + 3 * r * (r + 1) / 2
+            + 3 * r * (2 * r - 2) / 2
+            + 3 * (r - 1) ** 2 / 4
+            + 3 * (r + 1) * (2 * r - 2) / 4
+        ]
+        dddN3 = [
+            lambda r: -9 * r**2 / 2
+            - 9 * r * (2 * r + 2)
+            - 3 * r * (3 * r - 4)
+            - 9 * (r + 1) ** 2 / 2
+            - 3 * (2 * r + 2) * (3 * r - 4) / 2
+        ]
+        dddN4 = [
+            lambda r: 3 * r**2 / 4
+            + 3 * r * (r - 1) / 2
+            + 3 * r * (2 * r + 2) / 2
+            + 3 * (r - 1) * (2 * r + 2) / 4
+            + 3 * (r + 1) ** 2 / 4
+        ]
+        dddN5 = [lambda r: 24 * r]
+        dddN6 = [
+            lambda r: 3 * r * (2 * r - 2)
+            + 3 * r * (2 * r + 2)
+            + 3 * (r - 1) ** 2
+            + 3 * (r + 1) ** 2
+            + 3 * (2 * r - 2) * (2 * r + 2)
+        ]
+
+        dddN = np.array([dddN1, dddN2, dddN3, dddN4, dddN5, dddN6])
+
+        return dddN
 
 
 class EULER_BERNOULLI4(_EulerBernoulli, _seg.SEG4):
@@ -1068,6 +1263,68 @@ class EULER_BERNOULLI4(_EulerBernoulli, _seg.SEG4):
         ddN = np.array([ddN1, ddN2, ddN3, ddN4, ddN5, ddN6, ddN7, ddN8])
 
         return ddN
+
+    def _Hermitian_dddN(self) -> _types.AnyArray:
+        dddN1 = [
+            lambda r: 93555 * r**4 / 256
+            - 10935 * r**3 / 64
+            - 827929687500003 * r**2 / 5000000000000
+            + 3645 * r / 64
+            + 411621093750003 / 125000000000000
+        ]
+        dddN2 = [
+            lambda r: 8505 * r**4 / 256
+            - 1215 * r**3 / 64
+            - 1485 * r**2 / 128
+            + 297 * r / 64
+            + 556640625000003 / 2500000000000000
+        ]
+        dddN3 = [
+            lambda r: -93555 * r**4 / 256
+            - 10935 * r**3 / 64
+            + 827929687500003 * r**2 / 5000000000000
+            + 3645 * r / 64
+            - 823242187500009 / 250000000000000
+        ]
+        dddN4 = [
+            lambda r: 8505 * r**4 / 256
+            + 1215 * r**3 / 64
+            - 1485 * r**2 / 128
+            - 297 * r / 64
+            + 278320312500003 / 1250000000000000
+        ]
+        dddN5 = [
+            lambda r: 229635 * r**4 / 256
+            + 10935 * r**3 / 64
+            - 83835 * r**2 / 128
+            - 711914062499997 * r / 12500000000000
+            + 2705273437500003 / 50000000000000
+        ]
+        dddN6 = [
+            lambda r: 76545 * r**4 / 256
+            - 3645 * r**3 / 64
+            - 23085 * r**2 / 128
+            + 1539 * r / 64
+            + 2673 / 256
+        ]
+        dddN7 = [
+            lambda r: -229635 * r**4 / 256
+            + 10935 * r**3 / 64
+            + 83835 * r**2 / 128
+            - 711914062500003 * r / 12500000000000
+            - 2705273437500003 / 50000000000000
+        ]
+        dddN8 = [
+            lambda r: 76545 * r**4 / 256
+            + 711914062499997 * r**3 / 12500000000000
+            - 901757812500003 * r**2 / 5000000000000
+            - 1539 * r / 64
+            + 2673 / 256
+        ]
+
+        dddN = np.array([dddN1, dddN2, dddN3, dddN4, dddN5, dddN6, dddN7, dddN8])
+
+        return dddN
 
 
 class EULER_BERNOULLI5(_EulerBernoulli, _seg.SEG5):
@@ -1338,6 +1595,88 @@ class EULER_BERNOULLI5(_EulerBernoulli, _seg.SEG5):
         ddN = np.array([ddN1, ddN2, ddN3, ddN4, ddN5, ddN6, ddN7, ddN8, ddN9, ddN10])
 
         return ddN
+
+    def _Hermitian_dddN(self) -> _types.AnyArray:
+        dddN1 = [
+            lambda r: 5600 * r**6 / 3
+            - 3422222222222223 * r**5 / 3125000000000
+            - 4060 * r**4 / 3
+            + 2080 * r**3 / 3
+            + 455 * r**2 / 3
+            - 164 * r / 3
+            - 430555555555557 / 250000000000000
+        ]
+        dddN2 = [
+            lambda r: 112 * r**6
+            - 224 * r**5 / 3
+            - 70 * r**4
+            + 40 * r**3
+            + 15 * r**2 / 2
+            - 3 * r
+            - 1 / 12
+        ]
+        dddN3 = [
+            lambda r: -5600 * r**6 / 3
+            - 3422222222222223 * r**5 / 3125000000000
+            + 4060 * r**4 / 3
+            + 2080 * r**3 / 3
+            - 455 * r**2 / 3
+            - 164 * r / 3
+            + 430555555555557 / 250000000000000
+        ]
+        dddN4 = [
+            lambda r: 112 * r**6
+            + 224 * r**5 / 3
+            - 70 * r**4
+            - 40 * r**3
+            + 15 * r**2 / 2
+            + 3 * r
+            - 1 / 12
+        ]
+        dddN5 = [
+            lambda r: 35840 * r**6 / 3
+            - 14336 * r**5 / 9
+            - 38080 * r**4 / 3
+            + 5120 * r**3 / 3
+            + 8960 * r**2 / 3
+            - 1024 * r / 3
+            - 704 / 9
+        ]
+        dddN6 = [
+            lambda r: 1792 * r**6
+            - 1792 * r**5 / 3
+            - 1680 * r**4
+            + 480 * r**3
+            + 320 * r**2
+            - 64 * r
+            - 16 / 3
+        ]
+        dddN7 = [lambda r: 5376 * r**5 - 4800 * r**3 + 792 * r]
+        dddN8 = [lambda r: 4032 * r**6 - 4200 * r**4 + 990 * r**2 - 30]
+        dddN9 = [
+            lambda r: -35840 * r**6 / 3
+            - 14336 * r**5 / 9
+            + 38080 * r**4 / 3
+            + 5120 * r**3 / 3
+            - 8960 * r**2 / 3
+            - 1024 * r / 3
+            + 704 / 9
+        ]
+        dddN10 = [
+            lambda r: 1792 * r**6
+            + 1792 * r**5 / 3
+            - 1680 * r**4
+            - 480 * r**3
+            + 320 * r**2
+            + 64 * r
+            - 16 / 3
+        ]
+
+        dddN = np.array(
+            [dddN1, dddN2, dddN3, dddN4, dddN5, dddN6, dddN7, dddN8, dddN9, dddN10]
+        )
+
+        return dddN
 
 
 # --------------------------------------------

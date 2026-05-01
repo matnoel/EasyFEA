@@ -301,7 +301,7 @@ class Isotropic(_Beam):
             mu = self.mu
             if useTimoshenko:
                 # 6 rows: [axial, torsion, flex-y, flex-z, shear-y, shear-z]
-                ky, kz = 1, 1
+                ky = kz = 5 / 6
                 # TODO #37 Compute shear correction factor using the Jouravski formula?
                 D = np.diag([E * A, mu * J, E * Iy, E * Iz, ky * mu * A, kz * mu * A])
             else:

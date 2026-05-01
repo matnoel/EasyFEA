@@ -547,32 +547,27 @@ class Beam(_Simu):
             Epsilon_e_pg = self._Calc_Epsilon_e_pg(self.displacement)
 
             internalForces_e_pg = self._Calc_InternalForces_e_pg(Epsilon_e_pg)
+            forces_np = np.asarray(internalForces_e_pg)  # (Ne, nPg, nComponents)
 
             if result in ["Ty", "Tz"] and not self.useTimoshenko:
                 # Euler-Bernoulli has no shear strain DOF.
-                # Recover shear from moment equilibrium: Ty = -dMz/dx, Tz = -dMy/dx.
+                # Recover shear at every GP via Ty = -EIz·d³v/dx³, Tz = -EIy·d³w/dx³.
+                # Uses Get_beam_shear_B_e_pg (dddNv-based), which is exact for any
+                # polynomial Mz the element can represent.
                 groupElem = self.mesh.groupElem
-                gauss = groupElem.Get_gauss(MatrixType.beam)
-                xi = gauss.coord[:, 0]  # reference coordinates (nPg,)
-                L_e = groupElem.length_e  # element lengths (Ne,)
-                dx_e = (
-                    (xi[-1] - xi[0]) / 2 * L_e
-                )  # physical gap between first and last GP
+                B_shear_e_pg = groupElem.Get_beam_shear_B_e_pg(self.structure)
+                sol_e = self.mesh.Locates_sol_e(self.displacement, dof_n, asFeArray=True)
+                shear_np = np.asarray(self._Calc_InternalForces_e_pg(B_shear_e_pg @ sol_e))
 
-                forces_np = np.asarray(internalForces_e_pg)  # (Ne, nPg, nComponents)
                 dim = self.structure.dim
+                idx = 1 if dim == 2 else 3  # Mz row → Ty
+                if result == "Tz":
+                    idx = 2  # My row → Tz
 
-                if result == "Ty":
-                    mz_idx = 1 if dim == 2 else 3
-                    Mz_e_pg = forces_np[:, :, mz_idx]
-                    values = -(Mz_e_pg[:, -1] - Mz_e_pg[:, 0]) / dx_e
-                else:  # Tz, dim == 3 only
-                    My_e_pg = forces_np[:, :, 2]
-                    values = -(My_e_pg[:, -1] - My_e_pg[:, 0]) / dx_e
+                values = -shear_np[:, :, idx].mean(axis=1)
             else:
-                values_e = internalForces_e_pg.mean(1)
                 index = self._indexResult(result)
-                values = values_e[:, index]
+                values = forces_np[:, :, index].mean(axis=1)  # (Ne,) element means
 
         elif result in ["Sxx", "Syy", "Szz", "Syz", "Sxz", "Sxy"]:
             Epsilon_e_pg = self._Calc_Epsilon_e_pg(self.displacement)
