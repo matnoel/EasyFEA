@@ -366,10 +366,10 @@ def __Get_latex_title(result, nodeValues=True) -> str:
             optionTex = "T"
         elif "S" in result and ("_norm" not in result):
             optionFin = result.split("S")[-1]
-            optionTex = f"\sigma_{'{' + optionFin + '}'}"
+            optionTex = rf"\sigma_{{{optionFin}}}"
         elif "E" in result:
             optionFin = result.split("E")[-1]
-            optionTex = f"\epsilon_{'{' + optionFin + '}'}"
+            optionTex = rf"\epsilon_{{{optionFin}}}"
 
     # Specify whether values are on nodes or elements
     if nodeValues:
