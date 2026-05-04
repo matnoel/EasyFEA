@@ -2,6 +2,29 @@
 
 This document describes the changes made to the project.
 
+## 1.9.0 (May 4, 2026):
+
+- Worked on issue #38 and improved static and dynamic Euler-Bernoulli beam simulations.
+    - Introduced new tests and examples.
+    - Examples now compute Ty, Mz and N when needed.
+    - Set scipy as the default solver for beam simulations.
+    - Create beam.add_lineLoad override.
+- Started working on timoshenko beams in #39.
+- Refactored `GroupElemFactory` with `GROUP_CLASS_MAP`
+- Removed bug in `Display.Movie_Simu` introduced in #21 updates.
+- Updated `simu.Result` behavior for not implemented results.
+- Updated parabolic and hyperbolic time schemes when the simulation is using Lagrange multipliers.
+- Improved display function behavior with inDim calculation.
+- Updated `simu.Calc_Reaction` and return just dofs values in seq mode.
+- Removed `MPI_COMM` in `solvers._PETSc` function.
+- Improved `simu.__Bc_Integration_Dim` function.
+- Fixed bug in `MeshIO._Set_Tags` function.
+- Updated PyVista.Plot_Tags function
+- Created a mesh.Merge function,
+- Updated tol to `1e-12` in `tests/Models/phasefield_test.py`
+- Updated optionTex in `EasyFEA/Utilities/Display.py`
+- Updated pyvista to version (<=0.47.3) until the following issue is fixed: https://github.com/pyvista/pyvista/issues/8628
+
 ## 1.8.5 (April 22, 2026):
 
 - Improved solver behavior when simulations are using Lagrange boundary conditions.
