@@ -117,19 +117,16 @@ class TestPhaseField:
             SigP = cP_e_pg @ Epsilon_e_pg
             SigM = cM_e_pg @ Epsilon_e_pg
 
-            # Rounding errors in the construction of 3D eigen projectors see [Remark M] in EasyFEA/materials/_phaseField.py
-            tol = 1e-12 if mat.dim == 2 else 1e-10
-
             # Check that C_e_pg = cP + cM
             diff_C = C_e_pg - (cP_e_pg + cM_e_pg)
             test_C = Norm(diff_C, axis=(-2, -1)) / Norm(C_e_pg, axis=(-2, -1))
-            assert np.max(test_C) < tol, f"test_C = {np.max(test_C):.3e}"
+            assert np.max(test_C) < 1e-12, f"test_C = {np.max(test_C):.3e}"
 
             # Check that Sig_e_pg = SigP + SigM
             diff_Sig = Sig_e_pg - (SigP + SigM)
             test_Sig = Norm(diff_Sig, axis=-1) / Norm(Sig_e_pg, axis=-1)
             if np.min(Norm(Sig_e_pg, axis=-1)) > 0:
-                assert np.max(test_Sig) < tol, f"test_Sig = {np.max(test_Sig):.3e}"
+                assert np.max(test_Sig) < 1e-12, f"test_Sig = {np.max(test_Sig):.3e}"
 
             # Check that psi = psiP + psiM
             psi = 1 / 2 * (Sig_e_pg @ Epsilon_e_pg).sum((0, 1))
