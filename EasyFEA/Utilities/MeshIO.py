@@ -743,6 +743,7 @@ def _Get_pyvista_cell(groupElem: _GroupElem) -> tuple[VTKCellType, _types.IntArr
         # forced to do this because pyvista simply does not have LAGRANGE_TRIANGLE
         # do not put in DICT_VTK_INDEXES because paraview can read LAGRANGE_TRIANGLE without changing the indices
         vtkIndexes = np.reshape(groupElem.triangles, (-1, 3)).tolist()
+        elemType = ElemType.TRI3
     else:
         vtkIndexes = np.arange(groupElem.nPe).tolist()
 
