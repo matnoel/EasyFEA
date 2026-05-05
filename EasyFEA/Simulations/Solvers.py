@@ -85,7 +85,7 @@ class ResolType(str, Enum):
     """Resolution type."""
 
     r1 = "r1"
-    """:math:`\mathrm{x}_\irm = {\Arm_{\irm\irm}}^{-1} \cdot (b_\irm - \Arm_{\irm\crm} * \mathrm{x}_\crm)`,
+    r""":math:`\mathrm{x}_\irm = {\Arm_{\irm\irm}}^{-1} \cdot (b_\irm - \Arm_{\irm\crm} * \mathrm{x}_\crm)`,
     where :math:`\irm` and :math:`\crm` are unknown and known degrees of freedom."""
     r2 = "r2"
     """Lagrange multipliers"""

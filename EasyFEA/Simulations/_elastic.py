@@ -159,7 +159,7 @@ class Elastic(_Simu):
         return Ku_e, Cu_e, Mu_e, None
 
     def Set_Rayleigh_Damping_Coefs(self, coefM=0.0, coefK=0.0):
-        """Sets damping coefficients \( C = coefK * K + coefM * M \)."""
+        r"""Sets damping coefficients \( C = coefK * K + coefM * M \)."""
         self.__coefM = coefM
         self.__coefK = coefK
         self.Need_Update()
