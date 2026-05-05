@@ -2,6 +2,12 @@
 
 This document describes the changes made to the project.
 
+## 1.9.1 (May 5, 2026):
+
+- Improved how invalid characters are handled by `EasyFEA/Utilities/Display.py` function
+- Removed pyvista version restriction and close https://github.com/pyvista/pyvista/issues/8628.
+- Removed hard-coded elemType in `EasyFEA/Utilities/MeshIO.py`
+
 ## 1.9.0 (May 4, 2026):
 
 - Worked on issue #38 and improved static and dynamic Euler-Bernoulli beam simulations.
