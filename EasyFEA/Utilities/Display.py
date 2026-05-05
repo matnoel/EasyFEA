@@ -10,6 +10,7 @@ import platform
 from typing import Union, Callable, Optional, TYPE_CHECKING, Any
 import numpy as np
 from enum import Enum
+import re
 
 # utilities
 from . import Folder, Tic, _types
@@ -1500,9 +1501,11 @@ def Save_fig(
     if folder == "":
         return
 
-    # the filename must not contain these characters
-    for char in ["NUL", "\ ", ",", "/", ":", "*", "?", "<", ">", "|"]:
-        filename = filename.replace(char, "")
+    # Remove invalid characters for Windows/Mac/Linux
+    filename = re.sub(r'[<>:"/\\|?*\x00-\x1f]', "", filename)
+
+    # Remove leading/trailing spaces and dots
+    filename = filename.strip(". ")
 
     path = Folder.Join(folder, filename + "." + extension)
 
