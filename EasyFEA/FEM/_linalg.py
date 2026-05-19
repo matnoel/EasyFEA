@@ -115,41 +115,41 @@ class FeArray(_types.AnyArray):
         return array1, array2
 
     def __add__(self, other) -> FeArrayALike:
-        # Overload the + operator
+        if isinstance(other, FeArray) and self.shape == other.shape:
+            return super().__add__(other)
         array1, array2 = self.__get_array1_array2(other)
-        result = array1 + array2
-        return FeArray.asfearray(result)
+        return FeArray.asfearray(array1 + array2)
 
     def __sub__(self, other) -> FeArrayALike:  # type: ignore [override]
-        # Overload the - operator
+        if isinstance(other, FeArray) and self.shape == other.shape:
+            return super().__sub__(other)
         array1, array2 = self.__get_array1_array2(other)
-        result = array1 - array2
-        return FeArray.asfearray(result)
+        return FeArray.asfearray(array1 - array2)
 
     def __mul__(self, other) -> FeArrayALike:
-        # Overload the * operator
+        if isinstance(other, FeArray) and self.shape == other.shape:
+            return super().__mul__(other)
         array1, array2 = self.__get_array1_array2(other)
-        result = array1 * array2
-        return FeArray.asfearray(result)
+        return FeArray.asfearray(array1 * array2)
 
     def __truediv__(self, other) -> FeArrayALike:  # type: ignore [override]
-        # Overload the / operator
+        if isinstance(other, FeArray) and self.shape == other.shape:
+            return super().__truediv__(other)
         array1, array2 = self.__get_array1_array2(other)
-        result = array1 / array2
-        return FeArray.asfearray(result)
+        return FeArray.asfearray(array1 / array2)
 
     @property
     def T(self) -> FeArrayALike:  # type: ignore [override]
         if self._ndim == 2:
-            # swapaxes returns a non-contiguous view — no allocation
-            result = np.swapaxes(np.asarray(self), -1, -2)
-            return FeArray.asfearray(result)
+            # swapaxes returns a view — no allocation
+            return FeArray.asfearray(np.swapaxes(np.asarray(self), -1, -2))
         elif self._ndim > 2:
-            idx = self._idx
-            result = np.einsum(f"...{idx}->...{idx[::-1]}", np.asarray(self), optimize="optimal")
-            return FeArray.asfearray(result)
+            # np.transpose returns a view — no allocation
+            n = self.ndim
+            axes = tuple(range(2)) + tuple(range(n - 1, 1, -1))
+            return FeArray.asfearray(np.asarray(self).transpose(axes))
         else:
-            return self.copy()
+            return FeArray.asfearray(self)
 
     def __matmul__(self, other) -> FeArrayALike:
         ndim1 = self._ndim
@@ -165,17 +165,15 @@ class FeArray(_types.AnyArray):
             raise TypeError("`other` must be either a FeArray, NDArray or a Field.")
 
         if ndim1 == ndim2 == 1:
-            result = self.dot(other)
+            return self.dot(other)
         elif ndim1 == ndim2 == 2:
-            result = super().__matmul__(other)
+            return super().__matmul__(other)
         elif ndim1 == 1 and ndim2 == 2:
-            result = (self[:, :, np.newaxis, :] @ other)[:, :, 0, :]
+            return FeArray.asfearray(np.einsum("...i,...ij->...j", self, other, optimize="optimal"))
         elif ndim1 == 2 and ndim2 == 1:
-            result = (self @ other[:, :, :, np.newaxis])[:, :, :, 0]
+            return FeArray.asfearray(np.einsum("...ij,...j->...i", self, other, optimize="optimal"))
         else:
-            result = self.dot(other)
-
-        return FeArray.asfearray(result)
+            return self.dot(other)
 
     @staticmethod
     @lru_cache(maxsize=16)
@@ -245,7 +243,7 @@ class FeArray(_types.AnyArray):
 
         result = np.einsum(self._ddot_subscript(ndim1, ndim2), self, other, optimize="optimal")
 
-        return FeArray.asfearray(result)
+        return result.view(FeArray)
 
     def __set_array(self, new: "FeArray"):
         """Returns the new array in `FeArray` format if the new array has the same `(Ne, nPg)` shape."""
@@ -290,11 +288,12 @@ class FeArray(_types.AnyArray):
 
     @staticmethod
     def asfearray(array, broadcastFeArrays=False) -> FeArrayALike:
-        array = np.asarray(array)
+        if not isinstance(array, np.ndarray):
+            array = np.asarray(array)
         if broadcastFeArrays:
             return FeArray(array, broadcastFeArrays=broadcastFeArrays)
         elif array.ndim >= 2:
-            return FeArray(array)
+            return array.view(FeArray)
         else:
             return array
 
