@@ -110,6 +110,16 @@ if __name__ == "__main__":
     Compute(W, [I1, I2, I3])
 
     # -------------------------------------
+    # Ciarlet-Geymonat
+    # -------------------------------------
+
+    Display.Section("Ciarlet-Geymonat")
+
+    W = K1 * (J1 - 3) + K2 * (J2 - 3) + K * (J - 1 - sympy.log(J))
+
+    Compute(W, [I1, I2, I3])
+
+    # -------------------------------------
     # Saint-Venant-Kirchhoff
     # -------------------------------------
 

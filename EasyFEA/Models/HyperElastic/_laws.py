@@ -392,6 +392,139 @@ class MooneyRivlin(_HyperElastic):
 
 
 # ----------------------------------------------
+# Ciarlet-Geymonat
+# ----------------------------------------------
+
+
+class CiarletGeymonat(_HyperElastic):
+
+    K1: float = _params.PositiveScalarParameter()
+    """Kappa1"""
+
+    K2: float = _params.PositiveScalarParameter()
+    """Kappa2"""
+
+    K: float = _params.PositiveScalarParameter()
+    """Bulk modulus"""
+
+    def __init__(
+        self,
+        dim: int,
+        K1: Union[float, _types.FloatArray],
+        K2: Union[float, _types.FloatArray],
+        K: Union[float, _types.FloatArray] = 0.0,
+        thickness=1.0,
+    ):
+        """Creates an Ciarlet-Geymonat material.
+
+        Parameters
+        ----------
+        dim : int
+            dimension (e.g 2 or 3)
+        K1 : float|_types.FloatArray
+            Kappa1
+        K2 : float|_types.FloatArray
+            Kappa2 -> Neo-Hoolkean if K2=0
+        K : float|_types.FloatArray, optional
+            Bulk modulus, by default 0.0
+        thickness : float, optional
+            thickness, by default 1.0
+        """
+
+        _HyperElastic.__init__(self, dim, thickness)
+
+        self.K1 = K1
+        self.K2 = K2
+        self.K = K
+
+    def Compute_W(self, hyperElasticState: HyperElasticState) -> FeArray:
+        K = self.K
+        K1 = self.K1
+        K2 = self.K2
+
+        I1 = hyperElasticState.Compute_I1()
+        I2 = hyperElasticState.Compute_I2()
+        I3 = hyperElasticState.Compute_I3()
+
+        W = (
+            K * (np.sqrt(I3) - np.log(np.sqrt(I3)) - 1)
+            + K1 * (I1 / I3 ** (1 / 3) - 3)
+            + K2 * (I2 / I3 ** (2 / 3) - 3)
+        )
+
+        return W
+
+    def Compute_dWde(self, hyperElasticState: HyperElasticState) -> FeArray:
+        K = self.K
+        K1 = self.K1
+        K2 = self.K2
+
+        I1 = hyperElasticState.Compute_I1()
+        I2 = hyperElasticState.Compute_I2()
+        I3 = hyperElasticState.Compute_I3()
+
+        dI1dC = hyperElasticState.Compute_dI1dC()
+        dI2dC = hyperElasticState.Compute_dI2dC()
+        dI3dC = hyperElasticState.Compute_dI3dC()
+
+        dWdI1 = K1 / I3 ** (1 / 3)
+        dWdI2 = K2 / I3 ** (2 / 3)
+        dWdI3 = (
+            -I1 * K1 / (3 * I3 ** (4 / 3))
+            - 2 * I2 * K2 / (3 * I3 ** (5 / 3))
+            + K * (-1 / (2 * I3) + 1 / (2 * np.sqrt(I3)))
+        )
+
+        dW = 2 * (dWdI1 * dI1dC + dWdI2 * dI2dC + dWdI3 * dI3dC)
+
+        return dW
+
+    def Compute_d2Wde(self, hyperElasticState: HyperElasticState) -> FeArray:
+        K = self.K
+        K1 = self.K1
+        K2 = self.K2
+
+        I1 = hyperElasticState.Compute_I1()
+        I2 = hyperElasticState.Compute_I2()
+        I3 = hyperElasticState.Compute_I3()
+
+        dI1dC = hyperElasticState.Compute_dI1dC()
+        dI2dC = hyperElasticState.Compute_dI2dC()
+        dI3dC = hyperElasticState.Compute_dI3dC()
+
+        d2I1dC = hyperElasticState.Compute_d2I1dC()
+        d2I2dC = hyperElasticState.Compute_d2I2dC()
+        d2I3dC = hyperElasticState.Compute_d2I3dC()
+
+        dWdI1 = K1 / I3 ** (1 / 3)
+        d2WdI1dI3 = -K1 / (3 * I3 ** (4 / 3))
+        dWdI2 = K2 / I3 ** (2 / 3)
+        d2WdI2dI3 = -2 * K2 / (3 * I3 ** (5 / 3))
+        dWdI3 = (
+            -I1 * K1 / (3 * I3 ** (4 / 3))
+            - 2 * I2 * K2 / (3 * I3 ** (5 / 3))
+            + K * (-1 / (2 * I3) + 1 / (2 * np.sqrt(I3)))
+        )
+        d2WdI3dI1 = -K1 / (3 * I3 ** (4 / 3))
+        d2WdI3dI2 = -2 * K2 / (3 * I3 ** (5 / 3))
+        d2WdI3dI3 = (
+            4 * I1 * K1 / (9 * I3 ** (7 / 3))
+            + 10 * I2 * K2 / (9 * I3 ** (8 / 3))
+            + K * (1 / (2 * I3**2) - 1 / (4 * I3 ** (3 / 2)))
+        )
+
+        d2W = 4 * (dWdI1 * d2I1dC + dWdI2 * d2I2dC + dWdI3 * d2I3dC) + 4 * (
+            d2WdI1dI3 * TensorProd(dI1dC, dI3dC)
+            + d2WdI2dI3 * TensorProd(dI2dC, dI3dC)
+            + d2WdI3dI1 * TensorProd(dI3dC, dI1dC)
+            + d2WdI3dI2 * TensorProd(dI3dC, dI2dC)
+            + d2WdI3dI3 * TensorProd(dI3dC, dI3dC)
+        )
+
+        return d2W
+
+
+# ----------------------------------------------
 # Saint-Venant-Kirchhoff
 # ----------------------------------------------
 

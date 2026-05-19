@@ -10,6 +10,7 @@ from ._laws import (
     _HyperElastic,
     NeoHookean,
     MooneyRivlin,
+    CiarletGeymonat,
     SaintVenantKirchhoff,
     HolzapfelOgden,
 )
