@@ -2016,6 +2016,19 @@ class _Simu(_IObserver, _params.Updatable, ABC):
 
         return values_eval
 
+    def __Bc_check_inputs(self, nodes, values, unknowns) -> bool:
+        """Validates inputs shared by all add_* boundary condition methods.
+
+        Returns False when inputs are empty (caller should return early).
+        Raises AssertionError when len(values) != len(unknowns).
+        """
+        if len(nodes) == 0 or len(values) == 0:
+            return False
+        assert len(values) == len(
+            unknowns
+        ), f"len(values)={len(values)} must equal len(unknowns)={len(unknowns)}."
+        return True
+
     def add_dirichlet(
         self,
         nodes: _types.IntArray,
@@ -2057,7 +2070,7 @@ class _Simu(_IObserver, _params.Updatable, ABC):
         >>> simu.add_dirichlet(nodes, [lambda x, y, z: 100 * x], ["t"])
         """
 
-        if len(nodes) == 0 or len(values) == 0 or len(values) != len(unknowns):
+        if not self.__Bc_check_inputs(nodes, values, unknowns):
             return
 
         if problemType is None:
@@ -2121,7 +2134,7 @@ class _Simu(_IObserver, _params.Updatable, ABC):
         >>> simu.add_neumann(nodes, [-500], ["y"])
         """
 
-        if len(nodes) == 0 or len(values) == 0 or len(values) != len(unknowns):
+        if not self.__Bc_check_inputs(nodes, values, unknowns):
             return
 
         if problemType is None:
@@ -2172,7 +2185,7 @@ class _Simu(_IObserver, _params.Updatable, ABC):
         >>> simu.add_lineLoad(nodes, [lambda x, y, z: -500 * (1 + x)], ["y"])
         """
 
-        if len(nodes) == 0 or len(values) == 0 or len(values) != len(unknowns):
+        if not self.__Bc_check_inputs(nodes, values, unknowns):
             return
 
         if problemType is None:
@@ -2221,7 +2234,7 @@ class _Simu(_IObserver, _params.Updatable, ABC):
         >>> simu.add_surfLoad(nodes, [-800], ["x"])
         """
 
-        if len(nodes) == 0 or len(values) == 0 or len(values) != len(unknowns):
+        if not self.__Bc_check_inputs(nodes, values, unknowns):
             return
 
         if problemType is None:
@@ -2332,7 +2345,7 @@ class _Simu(_IObserver, _params.Updatable, ABC):
         >>> simu.add_volumeLoad(mesh.nodes, [-7800 * 9.81], ["y"])
         """
 
-        if len(nodes) == 0 or len(values) == 0 or len(values) != len(unknowns):
+        if not self.__Bc_check_inputs(nodes, values, unknowns):
             return
 
         if problemType is None:
