@@ -916,7 +916,7 @@ class _Simu(_IObserver, _params.Updatable, ABC):
         return self.__parabolicParams
 
     def Solver_Set_Hyperbolic_Algorithm(
-        self, dt: float, beta=0.25, gamma=0.5, algo=AlgoType.newmark, alpha=0.5
+        self, dt: float, algo=AlgoType.newmark, beta=0.25, gamma=0.5, alpha=0.5
     ) -> None:
         r"""Sets the algorithm's resolution properties for a Hyperbolic problem.
 
@@ -926,13 +926,13 @@ class _Simu(_IObserver, _params.Updatable, ABC):
         ----------
         dt : float
             The time increment.
+        algo : AlgoType, optional
+            Algo used to solve :math:`\Krm \, \mathrm{u} + \Crm \, \vrm + \Mrm \, \arm = \Frm`, by default AlgoType.newmark
+            :math:`\Krm \, \mathrm{u}^{n+1} + \Crm \, \vrm^{n+1} + \Mrm \, \arm^{n+1} = \Frm^{n+1}`.
         beta : float, optional
             The coefficient beta, by default 1/4.
         gamma : float, optional
             The coefficient gamma, by default 1/2.
-        algo : AlgoType, optional
-            Algo used to solve :math:`\Krm \, \mathrm{u} + \Crm \, \vrm + \Mrm \, \arm = \Frm`, by default AlgoType.newmark
-            :math:`\Krm \, \mathrm{u}^{n+1} + \Crm \, \vrm^{n+1} + \Mrm \, \arm^{n+1} = \Frm^{n+1}`.
         alpha : float, optional
             The coefficient alpha, by default 1/2.
 
