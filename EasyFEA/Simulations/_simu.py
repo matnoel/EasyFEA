@@ -1018,7 +1018,7 @@ class _Simu(_IObserver, _params.Updatable, ABC):
                 1 / (beta * dt**2) * (u_np1 - u_n - dt * v_n)
                 + (1 - 1 / (2 * beta)) * a_n
             )
-            v_np1 = dt * ((1 - gamma) * a_n + gamma * a_np1)
+            v_np1 = dt * ((1 - gamma) * a_n + gamma * a_np1) + v_n
 
             u_t = (1 - alpha) * u_np1 + alpha * u_n
             v_t = (1 - alpha) * v_np1 + alpha * v_n
