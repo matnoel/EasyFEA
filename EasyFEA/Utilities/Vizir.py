@@ -344,7 +344,14 @@ def _Write_solution_file(
             __Write_HOSolAt_Element(f, groupElem, order)
 
             if assembly_e is None or assembly_e.shape[0] != groupElem.Ne:
-                assembly_e = groupElem.Get_assembly_e(dof_n)
+                # Build assembly using only the solution-order nodes (first
+                # nPe_sol entries of connect).  Using all nPe_geom geometric
+                # nodes would make dof_n = (nPe_geom*dof_n)//nPe_sol wrong
+                # when solution_order < geom_order (e.g. P1 solution on
+                # QUAD9 or TRI6 boundary elements of a PRISM18 mesh).
+                nPe_sol = _Get_empty_groupElem(groupElem, order).nPe
+                sol_connect = groupElem.connect[:, :nPe_sol]
+                assembly_e = groupElem._Get_assembly_e(sol_connect, dof_n)
 
             __Write_HOSolAt_Solution(f, groupElem, dofsValues, assembly_e, type, order)
 
