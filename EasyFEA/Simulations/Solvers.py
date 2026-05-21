@@ -244,9 +244,7 @@ def _Solve_Axb(
         solver += f"{kspType}, {pcType}, {solverType}"
 
     elif solver == SolverType.scipy:
-        testSymetric = sla.norm(A - A.transpose()) / sla.norm(A)
-        A_isSymetric = testSymetric <= 1e-12
-        x = _ScipyLinearDirect(A, b, A_isSymetric)
+        x = sla.spsolve(A, b)
 
     elif solver == SolverType.cg:
         x, output = sla.cg(A, b.toarray(), x0, maxiter=None)
@@ -663,29 +661,3 @@ def _PETSc_MPI(
     PETSc.garbage_cleanup()
 
     return dofsValues, ksp.is_converged
-
-
-def _ScipyLinearDirect(A: sparse.csr_matrix, b: sparse.csr_matrix, A_isSymetric: bool):
-    # https://docs.scipy.org/doc/scipy/reference/sparse.linalg.html#solving-linear-problems
-    # LU decomposition behind https://caam37830.github.io/book/02_linear_algebra/sparse_linalg.html
-
-    hideFacto = False  # Hide decomposition
-    # permute = "MMD_AT_PLUS_A", "MMD_ATA", "COLAMD", "NATURAL"
-
-    if A_isSymetric:
-        permute = "MMD_AT_PLUS_A"
-    else:
-        permute = "COLAMD"
-        # permute="NATURAL"
-
-    if hideFacto:
-        x = sla.spsolve(A, b, permc_spec=permute)
-        # x = sla.spsolve(A, b)
-
-    else:
-        # superlu : https://portal.nersc.gov/project/sparse/superlu/
-        # Users' Guide : https://portal.nersc.gov/project/sparse/superlu/ug.pdf
-        lu = sla.splu(A.tocsc(), permc_spec=permute)
-        x = lu.solve(b.toarray()).ravel()
-
-    return x
