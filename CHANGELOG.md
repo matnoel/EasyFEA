@@ -2,6 +2,17 @@
 
 This document describes the changes made to the project.
 
+## 1.9.2 (May 21, 2026):
+
+- Created the `CiarletGeymonat` hyperelastic law.
+- Fixed bug for `hht` algorithm in `simu._Solver_Evaluate_u_v_a_for_time_scheme` function.
+- Created `simu.__Bc_check_inputs` function.
+- Updated the argument position in `simu.Solver_Set_Hyperbolic_Algorithm`.
+- Improved `FeArray` functions.
+- Updated the `_Write_solution_file` function in `Vizir.py`.
+
+**Full Changelog:** https://github.com/matnoel/EasyFEA/compare/v1.9.1...v1.9.2
+
 ## 1.9.1 (May 5, 2026):
 
 - Improved how invalid characters are handled by `EasyFEA/Utilities/Display.py` function
