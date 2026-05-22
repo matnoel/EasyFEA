@@ -1061,8 +1061,12 @@ class _Simu(_IObserver, _params.Updatable, ABC):
         if self.algo in AlgoType.Get_Hyperbolic_Types():
             # get hyperbolic params
             dt, beta, gamma, alpha = self.__Solver_Get_Hyperbolic_Params()
+        else:
+            # get parabolic params
+            dt, alpha = self.__Solver_Get_Parabolic_Params()
 
         if self.algo == AlgoType.newmark:
+            # hht with alpha = 0
             coefK = 1
             coefC = gamma / (beta * dt)
             coefM = 1 / (beta * dt**2)
@@ -1071,12 +1075,11 @@ class _Simu(_IObserver, _params.Updatable, ABC):
             coefC = (1 - alpha) * gamma / (beta * dt)
             coefM = (1 - alpha) / (beta * dt**2)
         elif self.algo == AlgoType.midpoint:
-            coefK = 1 / 2
+            # hht with alpha = 1/2, gamma = 1/2 and beta = 1/4
+            coefK = 0.5
             coefC = 1 / dt
             coefM = 2 / dt**2
         elif self.algo == AlgoType.parabolic:
-            # get parabolic params
-            dt, alpha = self.__Solver_Get_Parabolic_Params()
             coefK = 1
             coefC = 1 / (alpha * dt)
             coefM = 0  # no accel vector for parabolic problems.
@@ -1486,58 +1489,18 @@ class _Simu(_IObserver, _params.Updatable, ABC):
 
         tic = Tic()
 
-        if self.isNonLinear:
+        if self.algo is AlgoType.elliptic:
+            A = K
+        else:
+            coefK, coefC, coefM = self.__Solver_Get_K_C_M_coefs_for_time_scheme()
+            A = coefK * K + coefC * C + coefM * M
 
+        tic.Tac("Solver", f"Construct A ({problemType}, {algo})", self._verbosity)
+
+        if self.isNonLinear:
             # dofsValues = dofsValues - u
             # set incremental dof values
             dofsValues -= self._Solver_Get_Newton_Raphson_current_solution()[dofs]
-
-            # add tangent contributions in A
-            if self.algo in AlgoType.Get_Hyperbolic_and_Parabolic_Types():
-                coefK, coefC, coefM = self.__Solver_Get_K_C_M_coefs_for_time_scheme()
-                A = coefK * K + coefC * C + coefM * M
-            else:
-                A = K
-
-        else:
-
-            if algo == AlgoType.elliptic:
-                A = K
-
-            elif algo == AlgoType.parabolic:
-                dt, alpha = self.__Solver_Get_Parabolic_Params()
-
-                # U formulation
-                A = K + C / (alpha * dt)
-
-            elif algo == AlgoType.newmark:
-                dt, beta, gamma, _ = self.__Solver_Get_Hyperbolic_Params()
-
-                # U formulation
-                # same as hht in accel with alpha = 0
-                coefM = 1 / (beta * dt**2)
-                coefC = gamma / (beta * dt)
-                A = coefM * M + coefC * C + K
-
-            elif algo == AlgoType.midpoint:
-                dt = self.__Solver_Get_Hyperbolic_Params()[0]
-
-                # U formulation
-                # hht with alpha = 1/2, gamma = 1/2 and beta = 1/4
-                A = 2 / dt**2 * M + 1 / dt * C + 1 / 2 * K
-
-            elif algo == AlgoType.hht:
-                dt, beta, gamma, alpha = self.__Solver_Get_Hyperbolic_Params()
-
-                # U formulation
-                coefM = 1 / (beta * dt**2)
-                coefC = gamma / (beta * dt)
-                A = (1 - alpha) * (coefM * M + coefC * C + K)
-
-            else:
-                raise NotImplementedError(f"Algo {algo} is not implemented here.")
-
-        tic.Tac("Solver", f"Construct A ({problemType}, {algo})", self._verbosity)
 
         A, x = self.__Solver_Get_Dirichlet_A_x(
             problemType, resolution, A, b, dofsValues
