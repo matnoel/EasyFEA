@@ -148,6 +148,12 @@ class _Simu(_IObserver, _params.Updatable, ABC):
         """Returns the number of degrees of freedom per node."""
         pass
 
+    def __Get_Ndof(self, problemType=None) -> int:
+        """Returns the total number of degrees of freedom (including Lagrange multiplier DOFs)."""
+        return self.mesh.Nn * self.Get_dof_n(problemType) + self._Bc_Lagrange_dim(
+            problemType
+        )
+
     # Solvers
     def Get_K_C_M_F(
         self, problemType=None
@@ -615,27 +621,51 @@ class _Simu(_IObserver, _params.Updatable, ABC):
         size = self.mesh.Nn * self.Get_dof_n(problemType)
         assert values.shape[0] == size, f"Must be size {size}"
 
-    def _Get_u_n(self, problemType: ModelType) -> _types.FloatArray:
+    def _Get_u_n(
+        self, problemType: ModelType, asCsrMatrix: bool = False
+    ) -> Union[_types.FloatArray, sparse.csr_matrix]:
         """Returns the solution associated with the given problem."""
-        return self.__dict_u_n[problemType].copy()
+        arr = self.__dict_u_n[problemType].copy()
+        if not asCsrMatrix:
+            return arr
+        Ndof = self.__Get_Ndof(problemType)
+        rows = np.arange(arr.size, dtype=int)
+        cols = np.zeros_like(rows)
+        return sparse.csr_matrix((arr, (rows, cols)), shape=(Ndof, 1))
 
     def __Set_u_n(self, problemType: ModelType, values: _types.FloatArray) -> None:
         """Sets the solution associated with the given problem."""
         self.__Check_New_Sol_Values(problemType, values)
         self.__dict_u_n[problemType] = values
 
-    def _Get_v_n(self, problemType: ModelType) -> _types.FloatArray:
+    def _Get_v_n(
+        self, problemType: ModelType, asCsrMatrix: bool = False
+    ) -> Union[_types.FloatArray, sparse.csr_matrix]:
         """Returns the speed solution associated with the given problem."""
-        return self.__dict_v_n[problemType].copy()
+        arr = self.__dict_v_n[problemType].copy()
+        if not asCsrMatrix:
+            return arr
+        Ndof = self.__Get_Ndof(problemType)
+        rows = np.arange(arr.size, dtype=int)
+        cols = np.zeros_like(rows)
+        return sparse.csr_matrix((arr, (rows, cols)), shape=(Ndof, 1))
 
     def __Set_v_n(self, problemType: ModelType, values: _types.FloatArray) -> None:
         """Sets the speed solution associated with the given problem."""
         self.__Check_New_Sol_Values(problemType, values)
         self.__dict_v_n[problemType] = values
 
-    def _Get_a_n(self, problemType: ModelType) -> _types.FloatArray:
+    def _Get_a_n(
+        self, problemType: ModelType, asCsrMatrix: bool = False
+    ) -> Union[_types.FloatArray, sparse.csr_matrix]:
         """Returns the acceleration solution associated with the given problem."""
-        return self.__dict_a_n[problemType].copy()
+        arr = self.__dict_a_n[problemType].copy()
+        if not asCsrMatrix:
+            return arr
+        Ndof = self.__Get_Ndof(problemType)
+        rows = np.arange(arr.size, dtype=int)
+        cols = np.zeros_like(rows)
+        return sparse.csr_matrix((arr, (rows, cols)), shape=(Ndof, 1))
 
     def __Set_a_n(self, problemType: ModelType, values: _types.FloatArray) -> None:
         """Sets the acceleration solution associated with the given problem."""
@@ -784,13 +814,11 @@ class _Simu(_IObserver, _params.Updatable, ABC):
         # Data
         mesh = self.mesh
         dof_n = self.Get_dof_n(problemType)
-        dofs = mesh.Nn * dof_n
 
         rows_e = mesh.groupElem.Get_rows_e(dof_n).ravel()
         columns_e = mesh.groupElem.Get_columns_e(dof_n).ravel()
 
-        # Additional dimension linked to the use of lagrange coefficients
-        Ndof = dofs + self._Bc_Lagrange_dim(self.problemType)
+        Ndof = self.__Get_Ndof(problemType)
         shape = (Ndof, Ndof)
 
         tic = Tic()
@@ -840,7 +868,7 @@ class _Simu(_IObserver, _params.Updatable, ABC):
             cols = np.zeros_like(rows)
             assert (
                 F_e.size == rows.size
-            ), f"Not enough data to fill a [{dofs}, 1] vector."
+            ), f"Not enough data to fill a [{rows.size}, 1] vector."
             F = sparse.csr_matrix((F_e.ravel(), (rows, cols)), shape=(Ndof, 1))
 
         tic.Tac("Matrix", f"Assemble the F vector ({problemType}).", self._verbosity)
@@ -1353,10 +1381,7 @@ class _Simu(_IObserver, _params.Updatable, ABC):
         algo = self.algo
         dofs = self.Bc_dofs_Neumann(problemType)
         dofsValues = self.Bc_values_Neumann(problemType)
-        Ndof = self.mesh.Nn * self.Get_dof_n(problemType)
-
-        # Additional dimension associated with the lagrangian multipliers
-        Ndof += self._Bc_Lagrange_dim(problemType)
+        Ndof = self.__Get_Ndof(problemType)
 
         b = sparse.csr_matrix(
             (dofsValues, (dofs, np.zeros(len(dofs)))), shape=(Ndof, 1)
@@ -1367,14 +1392,9 @@ class _Simu(_IObserver, _params.Updatable, ABC):
         tic = Tic()
 
         if algo is not AlgoType.elliptic:
-            u_n = self._Get_u_n(problemType)
-            v_n = self._Get_v_n(problemType)
-            a_n = self._Get_a_n(problemType)
-            rows = np.arange(u_n.size, dtype=int)
-            cols = np.zeros_like(rows, dtype=int)
-            u_n = sparse.csr_matrix((u_n, (rows, cols)), shape=(Ndof, 1))
-            v_n = sparse.csr_matrix((v_n, (rows, cols)), shape=(Ndof, 1))
-            a_n = sparse.csr_matrix((a_n, (rows, cols)), shape=(Ndof, 1))
+            u_n = self._Get_u_n(problemType, asCsrMatrix=True)
+            v_n = self._Get_v_n(problemType, asCsrMatrix=True)
+            a_n = self._Get_a_n(problemType, asCsrMatrix=True)
 
         b += F
 
