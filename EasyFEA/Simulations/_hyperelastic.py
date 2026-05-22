@@ -348,8 +348,9 @@ class HyperElastic(_Simu):
     def _Calc_W(self, returnScalar=True, matrixType=MatrixType.rigi):
         wJ_e_pg = self.mesh.Get_weightedJacobian_e_pg(matrixType)
         if self.dim == 2:
-            wJ_e_pg = self.material.thickness
-        W_e_pg = self.material.Compute_W(self.mesh, self.displacement, matrixType)
+            wJ_e_pg *= self.material.thickness
+        hyperElasticState = HyperElasticState(self.mesh, self.displacement, matrixType)
+        W_e_pg = self.material.Compute_W(hyperElasticState)
 
         if returnScalar:
             return (wJ_e_pg * W_e_pg).sum()
