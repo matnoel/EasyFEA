@@ -53,30 +53,95 @@ except ModuleNotFoundError:
 
 
 class AlgoType(str, Enum):
+    r"""Temporal integration algorithm.
+
+    All time-dependent schemes assemble and solve:
+
+    .. math::
+
+        \Krm \, \urm^t + \Crm \, \vrm^t + \Mrm \, \arm^t = \Frm^t
+    """
+
     elliptic = "elliptic"
-    r"""Solve :math:`\Krm \, \mathrm{u} = \Frm`"""
+    r"""Solve :math:`\Krm \, \urm = \Frm`."""
     parabolic = "parabolic"
-    r"""Solve :math:`\Krm \, \mathrm{u}^{n+\alpha} + \Crm \, \vrm^{n+\alpha} = F^{n+\alpha}`"""
+    r"""Solve :math:`\Krm \, \urm^{n+\alpha} + \Crm \, \vrm^{n+\alpha} = \Frm^{n+\alpha}`.
+
+    Set with :py:meth:`~EasyFEA.Simulations._Simu.Solver_Set_Parabolic_Algorithm`.
+    """
     newmark = "newmark"
-    r"""Solve :math:`\Krm \, \mathrm{u}^{n+1} + \Crm \, \vrm^{n+1} + \Mrm \, a^{n+1} = F^{n+1}` \n
-    :math:`\mathrm{u}^{n+1} = \mathrm{u}_n + \dt \, \vrm_n + \dt^2/2 ((1 - 2 \beta) a_n + 2 \beta a^{n+1})` \n
-    :math:`\vrm^{n+1} = \vrm_n + \dt \, ((1 - \gamma) \, a_n + \gamma \, a^{n+1})`
+    r"""Newmark method (default :math:`\beta=1/4`, :math:`\gamma=1/2`).
+
+    Predictor:
+
+    :math:`\tilde{\urm} = \urm^n + \dt\vrm^n + \dt^2/2\,(1-2\beta)\arm^n`.
+
+    Update:
+
+    :math:`\arm^{n+1} = (\urm^{n+1} - \tilde{\urm})/(\beta\dt^2)`,
+
+    :math:`\vrm^{n+1} = \vrm^n + \dt[(1-\gamma)\arm^n + \gamma\arm^{n+1}]`.
     """
     midpoint = "midpoint"
-    r"""Solve :math:`\Krm \, \mathrm{u}^{\frac{n+1}{2}} + \Crm \, \vrm^{\frac{n+1}{2}} + \Mrm \, a^{\frac{n+1}{2}} = F^{\frac{n+1}{2}}`"""
+    r"""Midpoint rule (hht with :math:`\alpha=1/2`, :math:`\beta=1/4`, :math:`\gamma=1/2`).
+
+    Update:
+    
+    :math:`\vrm^{n+1} = 2/\dt\,(\urm^{n+1}-\urm^n) - \vrm^n`,
+
+    :math:`\arm^{n+1} = 2/\dt\,(\vrm^{n+1}-\vrm^n) - \arm^n`.
+    """
     hht = "hht"
-    r"""Solve :math:`\Krm \, \mathrm{u}^{\frac{n+1-\alpha}{2}} + \Crm \, \vrm^{\frac{n+1-\alpha}{2}} + \Mrm \, a^{\frac{n+1-\alpha}{2}} = F^{\frac{n+1-\alpha}{2}}`"""
+    r"""Hilber–Hughes–Taylor-:math:`\alpha` method (second-order, unconditionally stable).
+
+    Generalizes :attr:`newmark` by shifting evaluation points by :math:`\alpha \in [0, 1[`,
+    introducing controllable numerical damping (:math:`\alpha = 0` recovers :attr:`newmark`,
+    :math:`\alpha = 1/2` recovers :attr:`midpoint`).
+
+    Evaluation points:
+    
+    :math:`\urm^t = (1-\alpha)\urm^{n+1} + \alpha\urm^n`,
+
+    :math:`\vrm^t = (1-\alpha)\vrm^{n+1} + \alpha\vrm^n`,
+
+    :math:`\arm^t = (1-\alpha)\arm^{n+1} + \alpha\arm^n`.
+
+    Update: identical to :attr:`newmark` (default :math:`\beta=1/4`, :math:`\gamma=1/2`).
+    """
     euler_implicit = "euler_implicit"
-    r"""Backward-Euler: :math:`(\Mrm/\dt^2 + \Crm/\dt + \Krm)\, \mathrm{u}^{n+1} = \Frm^{n+1} + (\Mrm/\dt^2 + \Crm/\dt)\, \mathrm{u}^n + (\Mrm/\dt)\, \vrm^n`"""
+    r"""Backward-Euler (first-order, unconditionally stable, dissipative).
+
+    :math:`\urm^t = \urm^{n+1}`,
+
+    :math:`\vrm^t = (\urm^{n+1}-\urm^n)/\dt`,
+
+    :math:`\arm^t = (\vrm^t - \vrm^n)/\dt`.
+    """
     euler_explicit = "euler_explicit"
-    r"""Forward-Euler: :math:`\Mrm \, a^n = \Frm^n - \Crm \, \vrm^n - \Krm \, \mathrm{u}^n`, then :math:`\mathrm{u}^{n+1} = \mathrm{u}^n + \dt \, \vrm^n`, :math:`\vrm^{n+1} = \vrm^n + \dt \, a^n`"""
+    r"""Forward-Euler (first-order, conditionally stable, linear only).
+
+    Solves :math:`\Mrm\,\arm^n = \Frm^n - \Crm\vrm^n - \Krm\urm^n`,
+    then updates
+
+    :math:`\urm^{n+1} = \urm^n + \dt\vrm^n`,
+
+    :math:`\vrm^{n+1} = \vrm^n + \dt\arm^n`.
+
+    Stability requires :math:`\dt < h_e / c` where :math:`c = \sqrt{E/\rho}`.
+    """
 
     def __str__(self) -> str:
         return self.name
 
     @staticmethod
     def Get_Hyperbolic_Types() -> list[str]:
-        return [AlgoType.newmark, AlgoType.midpoint, AlgoType.hht, AlgoType.euler_implicit, AlgoType.euler_explicit]
+        return [
+            AlgoType.newmark,
+            AlgoType.midpoint,
+            AlgoType.hht,
+            AlgoType.euler_implicit,
+            AlgoType.euler_explicit,
+        ]
 
     @staticmethod
     def Get_Hyperbolic_and_Parabolic_Types() -> list[str]:

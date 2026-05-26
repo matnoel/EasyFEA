@@ -31,15 +31,31 @@ $$ (elliptic)
 
 ### Parabolic
 $$
-\Krm \, \urm + \Crm \, \vrm = \Frm
+\Krm \, \urm^{n+\alpha} + \Crm \, \vrm^{n+\alpha} = \Frm^{n+\alpha}
 $$ (parabolic)
 
-### Hyperbolic
-- **Methods:** Newmark, HHT, Midpoint
+Set with `simu.Solver_Set_Parabolic_Algorithm(dt, alpha=0.5)`.
 
+| Method | α | Order | Stability |
+|--------|---|-------|-----------|
+| Forward Euler | 0 | 1st | Conditionally stable |
+| Crank–Nicolson | 0.5 | 2nd | Unconditionally stable |
+| Backward Euler | 1 | 1st | Unconditionally stable |
+
+### Hyperbolic
 $$
 \Krm \, \urm + \Crm \, \vrm + \Mrm \, \arm = \Frm
 $$ (hyperbolic)
+
+Set with `simu.Solver_Set_Hyperbolic_Algorithm(dt, algo=AlgoType.newmark)`.
+
+| Method | `AlgoType` | Order | Stability | Notes |
+|--------|------------|-------|-----------|-------|
+| Newmark β | {py:attr}`~EasyFEA.Simulations.Solvers.AlgoType.newmark` | 2nd | Unconditionally stable | Default; energy-conserving (β=1/4, γ=1/2) |
+| Midpoint | {py:attr}`~EasyFEA.Simulations.Solvers.AlgoType.midpoint` | 2nd | Unconditionally stable | Energy-conserving |
+| HHT-α | {py:attr}`~EasyFEA.Simulations.Solvers.AlgoType.hht` | 2nd | Unconditionally stable | Numerical damping (α ∈ [0, 1[) |
+| Euler implicit | {py:attr}`~EasyFEA.Simulations.Solvers.AlgoType.euler_implicit` | 1st | Unconditionally stable | Dissipative |
+| Euler explicit | {py:attr}`~EasyFEA.Simulations.Solvers.AlgoType.euler_explicit` | 1st | Conditionally stable (dt < h_e/c) | Linear only |
 
 ## How to Create New Simulations in EasyFEA?
 
@@ -57,4 +73,24 @@ The {py:class}`~EasyFEA.Simulations.Thermal` class is relatively simple and can 
 
 ```{eval-rst}
 .. automodule:: EasyFEA.Simulations
+```
+
+## Solvers API
+
+```{eval-rst}
+.. automodule:: EasyFEA.Simulations.Solvers
+   :no-members:
+
+.. autoclass:: EasyFEA.Simulations.Solvers.AlgoType
+   :members:
+   :undoc-members:
+
+.. autoclass:: EasyFEA.Simulations.Solvers.ResolType
+   :members:
+   :undoc-members:
+   
+.. autoclass:: EasyFEA.Simulations.Solvers.SolverType
+   :members:
+   :undoc-members:
+
 ```
