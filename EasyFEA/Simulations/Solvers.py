@@ -66,13 +66,14 @@ class AlgoType(str, Enum):
     r"""Solve :math:`\Krm \, \mathrm{u}^{\frac{n+1}{2}} + \Crm \, \vrm^{\frac{n+1}{2}} + \Mrm \, a^{\frac{n+1}{2}} = F^{\frac{n+1}{2}}`"""
     hht = "hht"
     r"""Solve :math:`\Krm \, \mathrm{u}^{\frac{n+1-\alpha}{2}} + \Crm \, \vrm^{\frac{n+1-\alpha}{2}} + \Mrm \, a^{\frac{n+1-\alpha}{2}} = F^{\frac{n+1-\alpha}{2}}`"""
-
+    euler_implicit = "euler_implicit"
+    r"""Backward-Euler: :math:`(\Mrm/\dt^2 + \Crm/\dt + \Krm)\, \mathrm{u}^{n+1} = \Frm^{n+1} + (\Mrm/\dt^2 + \Crm/\dt)\, \mathrm{u}^n + (\Mrm/\dt)\, \vrm^n`"""
     def __str__(self) -> str:
         return self.name
 
     @staticmethod
     def Get_Hyperbolic_Types() -> list[str]:
-        return [AlgoType.newmark, AlgoType.midpoint, AlgoType.hht]
+        return [AlgoType.newmark, AlgoType.midpoint, AlgoType.hht, AlgoType.euler_implicit]
 
     @staticmethod
     def Get_Hyperbolic_and_Parabolic_Types() -> list[str]:

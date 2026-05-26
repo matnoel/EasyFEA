@@ -1073,6 +1073,16 @@ class _Simu(_IObserver, _params.Updatable, ABC):
             v_t = v_np1
             a_t = None  # no accel vector for parabolic problems.
 
+        elif self.algo == AlgoType.euler_implicit:
+
+            dt = self.__Solver_Get_Hyperbolic_Params()[0]
+            v_np1 = (u_np1 - u_n) / dt
+            a_np1 = (v_np1 - v_n) / dt  # backward-Euler acceleration
+
+            u_t = u_np1
+            v_t = v_np1
+            a_t = a_np1
+
         else:
             raise NotImplementedError(f"Algo {self.algo} is not implemented here.")
 
@@ -1111,6 +1121,10 @@ class _Simu(_IObserver, _params.Updatable, ABC):
             coefK = 1
             coefC = 1 / (alpha * dt)
             coefM = 0  # no accel vector for parabolic problems.
+        elif self.algo == AlgoType.euler_implicit:
+            coefK = 1
+            coefC = 1 / dt
+            coefM = 1 / dt**2
         else:
             raise NotImplementedError(f"Algo {self.algo} is not implemented here.")
 
@@ -1263,6 +1277,12 @@ class _Simu(_IObserver, _params.Updatable, ABC):
 
             return u_np1, v_np1, a_np1
 
+        elif algo == AlgoType.euler_implicit:
+            dt = self.__Solver_Get_Hyperbolic_Params()[0]
+            v_np1 = (u_np1 - u_n) / dt
+            a_np1 = (v_np1 - v_n) / dt
+            return u_np1, v_np1, a_np1
+
         else:
             raise NotImplementedError(f"Algo {algo} is not implemented here.")
 
@@ -1410,8 +1430,10 @@ class _Simu(_IObserver, _params.Updatable, ABC):
             _, v_t, a_t = self._Solver_Evaluate_u_v_a_for_time_scheme(problemType, u)
 
             # add residual contributions in b
-            b -= C @ sparse.csr_matrix(v_t.reshape(-1, 1))
-            b -= M @ sparse.csr_matrix(a_t.reshape(-1, 1))
+            if v_t is not None:
+                b -= C @ sparse.csr_matrix(v_t.reshape(-1, 1))
+            if a_t is not None:
+                b -= M @ sparse.csr_matrix(a_t.reshape(-1, 1))
             # K(u) Δu = - R(u)
             #         = - (F(u) - b)
             #         = - F(u) + b
@@ -1473,6 +1495,11 @@ class _Simu(_IObserver, _params.Updatable, ABC):
                 coefM = (alpha - 1) / (2 * beta) + 1
                 coefC = dt * (alpha - 1) * (gamma / (2 * beta) - 1)
                 b -= (coefM * M + coefC * C) @ a_n
+
+            elif algo == AlgoType.euler_implicit:
+                dt = self.__Solver_Get_Hyperbolic_Params()[0]
+                b += (1 / dt**2 * M + 1 / dt * C) @ u_n
+                b += (1 / dt * M) @ v_n
 
             else:
                 raise NotImplementedError(f"Algo {algo} is not implemented here.")
