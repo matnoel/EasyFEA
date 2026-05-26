@@ -984,6 +984,9 @@ class _Simu(_IObserver, _params.Updatable, ABC):
 
         types = AlgoType.Get_Hyperbolic_Types()
         assert algo in types, f"algo must be in {types}"
+        assert not (
+            algo == AlgoType.euler_explicit and self.isNonLinear
+        ), "euler_explicit is only supported for linear simulations."
         self.__algo = algo
 
         assert dt > 0, "Time increment must be > 0"
@@ -1083,6 +1086,12 @@ class _Simu(_IObserver, _params.Updatable, ABC):
             v_t = v_np1
             a_t = a_np1
 
+        elif self.algo == AlgoType.euler_explicit:
+            # evaluate forces at current state (n), not predicted state
+            u_t = u_n
+            v_t = v_n
+            a_t = None
+
         else:
             raise NotImplementedError(f"Algo {self.algo} is not implemented here.")
 
@@ -1125,6 +1134,11 @@ class _Simu(_IObserver, _params.Updatable, ABC):
             coefK = 1
             coefC = 1 / dt
             coefM = 1 / dt**2
+        elif self.algo == AlgoType.euler_explicit:
+            # solve M a^n = F^n - C v^n - K u^n  → A = M
+            coefK = 0
+            coefC = 0
+            coefM = 1
         else:
             raise NotImplementedError(f"Algo {self.algo} is not implemented here.")
 
@@ -1281,6 +1295,14 @@ class _Simu(_IObserver, _params.Updatable, ABC):
             dt = self.__Solver_Get_Hyperbolic_Params()[0]
             v_np1 = (u_np1 - u_n) / dt
             a_np1 = (v_np1 - v_n) / dt
+            return u_np1, v_np1, a_np1
+
+        elif algo == AlgoType.euler_explicit:
+            dt = self.__Solver_Get_Hyperbolic_Params()[0]
+            # u_np1 here is a^n (the solve variable); compute actual u^{n+1} and v^{n+1}
+            a_np1 = u_np1
+            u_np1 = u_n + dt * v_n
+            v_np1 = v_n + dt * a_np1
             return u_np1, v_np1, a_np1
 
         else:
@@ -1501,6 +1523,11 @@ class _Simu(_IObserver, _params.Updatable, ABC):
                 b += (1 / dt**2 * M + 1 / dt * C) @ u_n
                 b += (1 / dt * M) @ v_n
 
+            elif algo == AlgoType.euler_explicit:
+                # b = F^n - K u^n - C v^n  (A = M, solving for a^n)
+                b -= K @ u_n
+                b -= C @ v_n
+
             else:
                 raise NotImplementedError(f"Algo {algo} is not implemented here.")
 
@@ -1548,6 +1575,10 @@ class _Simu(_IObserver, _params.Updatable, ABC):
             # dofsValues = dofsValues - u
             # set incremental dof values
             dofsValues -= self._Solver_Get_Newton_Raphson_current_solution()[dofs]
+
+        if algo == AlgoType.euler_explicit:
+            # the solve variable is a^n: constrained DOFs have zero acceleration
+            dofsValues = np.zeros_like(dofsValues)
 
         A, x = self.__Solver_Get_Dirichlet_A_x(
             problemType, resolution, A, b, dofsValues
