@@ -1264,7 +1264,7 @@ class Mesher:
     def Mesh_Beams(
         self,
         beams: list["_Beam"],  # type: ignore
-        elemType=ElemType.SEG2,
+        elemType=ElemType.SEG3,
         additionalPoints: list[Point] = [],
         path: str = "",
     ) -> Mesh:
@@ -1275,7 +1275,7 @@ class Mesher:
         beams : list[_Beam]
             list of Beams
         elemType : ElemType, optional
-            element type, by default "SEG2" ["SEG2", "SEG3", "SEG4"]
+            element type, by default "SEG3" ["SEG2", "SEG3", "SEG4", "SEG5"]
         additionalPoints : list[Point]
             additional points that will be added to the mesh. WARNING: points must be within the domain.
         path : str, optional
