@@ -10,7 +10,6 @@ from functools import wraps
 
 from ._requires import Create_requires_decorator
 
-
 try:
     from mpi4py import MPI
 

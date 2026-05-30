@@ -17,7 +17,6 @@ from ._points import Points
 
 from ._geom import _Geom
 
-
 ContourCompatible = Union["Line", "CircleArc", "Points"]
 
 

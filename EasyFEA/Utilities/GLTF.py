@@ -4,6 +4,7 @@
 # EasyFEA is distributed under the terms of the GNU General Public License v3, see LICENSE.txt and CREDITS.md for more information.
 
 """Module providing an interface with Graphics Library Transmission Format (GLTF) using pygltflib (https://pypi.org/project/pygltflib/)."""
+
 # https://registry.khronos.org/glTF/specs/2.0/glTF-2.0.html#geometry
 
 from __future__ import annotations
@@ -24,7 +25,6 @@ from ..Simulations._simu import _Init_obj
 from ..Utilities.MeshIO import Surface_reconstruction
 
 from . import Folder, Display
-
 
 if TYPE_CHECKING:
     from ..FEM._mesh import Mesh

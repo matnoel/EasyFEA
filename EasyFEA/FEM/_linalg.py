@@ -169,9 +169,13 @@ class FeArray(_types.AnyArray):
         elif ndim1 == ndim2 == 2:
             return super().__matmul__(other)
         elif ndim1 == 1 and ndim2 == 2:
-            return FeArray.asfearray(np.einsum("...i,...ij->...j", self, other, optimize="optimal"))
+            return FeArray.asfearray(
+                np.einsum("...i,...ij->...j", self, other, optimize="optimal")
+            )
         elif ndim1 == 2 and ndim2 == 1:
-            return FeArray.asfearray(np.einsum("...ij,...j->...i", self, other, optimize="optimal"))
+            return FeArray.asfearray(
+                np.einsum("...ij,...j->...i", self, other, optimize="optimal")
+            )
         else:
             return self.dot(other)
 
@@ -215,7 +219,9 @@ class FeArray(_types.AnyArray):
                 "`other` must be at least a finite element vector (Ne, nPg, i)."
             )
 
-        result = np.einsum(self._dot_subscript(ndim1, ndim2), self, other, optimize="optimal")
+        result = np.einsum(
+            self._dot_subscript(ndim1, ndim2), self, other, optimize="optimal"
+        )
 
         return FeArray.asfearray(result)
 
@@ -241,7 +247,9 @@ class FeArray(_types.AnyArray):
                 "`other` must be at least a finite element matrix (Ne, nPg, i, j)."
             )
 
-        result = np.einsum(self._ddot_subscript(ndim1, ndim2), self, other, optimize="optimal")
+        result = np.einsum(
+            self._ddot_subscript(ndim1, ndim2), self, other, optimize="optimal"
+        )
 
         return result.view(FeArray)
 
