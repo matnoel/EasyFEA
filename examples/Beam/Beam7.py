@@ -45,12 +45,13 @@ if __name__ == "__main__":
     # model
     E = 210000
     v = 0.3
+    rho = 7850 * 1e-9
 
     # load
     load = 800
 
     # time
-    Tmax = 2.0
+    Tmax = 1 / 4
     N = 50
     dt = Tmax / N
 
@@ -58,11 +59,9 @@ if __name__ == "__main__":
     # Mesh
     # ----------------------------------------------
 
-    elemType = ElemType.SEG3
-
     # Create a section object for the beam mesh
     mesher = Mesher()
-    section = mesher.Mesh_2D(Circle((0, 0), h))
+    section = mesher.Mesh_2D(Circle((0, 0), h), elemType=ElemType.TRI6)
 
     p1 = (0, 0)
     p2 = (0, L)
@@ -73,7 +72,7 @@ if __name__ == "__main__":
     beam2 = Models.Beam.Isotropic(3, line2, section, E, v)
     beams = [beam1, beam2]
 
-    mesh = mesher.Mesh_Beams(beams=beams, elemType=elemType)
+    mesh = mesher.Mesh_Beams(beams=beams)
 
     # ----------------------------------------------
     # Simulation
@@ -84,6 +83,7 @@ if __name__ == "__main__":
 
     # Create the beam simulation
     simu = Simulations.Beam(mesh, beamStructure)
+    simu.rho = rho
     dof_n = simu.Get_dof_n()
 
     # Apply boundary conditions

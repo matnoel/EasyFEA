@@ -12,16 +12,7 @@ A cantilever beam undergoing bending deformation in dynamic.
 
 import matplotlib.pyplot as plt
 
-from EasyFEA import (
-    Folder,
-    Display,
-    Models,
-    Mesher,
-    ElemType,
-    Simulations,
-    Paraview,
-    PyVista,
-)
+from EasyFEA import Folder, Display, Models, Mesher, Simulations, Paraview, PyVista
 from EasyFEA.Geoms import Domain, Line
 
 if __name__ == "__main__":
@@ -46,22 +37,21 @@ if __name__ == "__main__":
 
     # model
     E = 210000
-    uy = 0.3
+    v = 0.3
+    rho = 7850 * 1e-9
+    beamDim = 2  # must be >= 2
 
     # load
     load = 800
 
     # time
-    Tmax = 2.0
+    Tmax = 1 / 2
     N = 50
     dt = Tmax / N
 
     # ----------------------------------------------
     # Mesh
     # ----------------------------------------------
-
-    elemType = ElemType.SEG3
-    beamDim = 2  # must be >= 2
 
     # Create a section object for the beam mesh
     domain1 = Domain((0, 0), (b, h), h / 10)
@@ -71,9 +61,9 @@ if __name__ == "__main__":
     p1 = (0, 0)
     p2 = (L, 0)
     line = Line(p1, p2, L / nL)
-    beam = Models.Beam.Isotropic(beamDim, line, section, E, uy)
+    beam = Models.Beam.Isotropic(beamDim, line, section, E, v)
 
-    mesh = Mesher().Mesh_Beams([beam], elemType=elemType)
+    mesh = Mesher().Mesh_Beams([beam])
 
     # ----------------------------------------------
     # Simulation
@@ -84,6 +74,7 @@ if __name__ == "__main__":
 
     # Create the beam simulation
     simu = Simulations.Beam(mesh, beamStructure)
+    simu.rho = rho
     dof_n = simu.Get_dof_n()
 
     # Apply boundary conditions

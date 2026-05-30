@@ -12,12 +12,20 @@ import numpy as np
 from ...Geoms import Line, AsCoords, Normalize
 
 # fem
-from ...FEM import Mesh, _GroupElem, FeArray, MatrixType
+from ...FEM import Mesh, _GroupElem, FeArray, MatrixType, ElemType
+from ...FEM import Field, BiLinearForm, LinearForm
 from ...FEM.Elems._beam import _Timoshenko, _EulerBernoulli
+
+# simulations / models — used by _shear_kappa (Saint-Venant Poisson solve)
+from ... import Models, Simulations
 
 # materials
 from .._utils import _IModel, ModelType
-from ...Utilities import _params, _types
+from ...Utilities import Display, _params, _types
+
+# Linear-order 2-D element types. The Saint-Venant Poisson solution is cubic
+# for typical sections, so these only achieve O(h²) — _shear_kappa warns once.
+_LINEAR_2D_ELEMS = (ElemType.TRI3, ElemType.QUAD4)
 
 # ----------------------------------------------
 # Beam
@@ -29,6 +37,11 @@ class _Beam(_IModel):
 
     # number of created beams
     __nBeam = -1
+
+    _ky = _params.PositiveScalarParameter()
+    """Shear correction factor k for the cross-section."""
+    _kz = _params.PositiveScalarParameter()
+    """Shear correction factor k for the cross-section."""
 
     @property
     def modelType(self) -> ModelType:
@@ -115,6 +128,9 @@ class _Beam(_IModel):
         self.section = section
 
         self.yAxis = yAxis  # type: ignore [assignment]
+
+        self._ky = self._Get_shear_kappa("y")
+        self._kz = self._Get_shear_kappa("z")
 
     @property
     def line(self) -> Line:
@@ -227,6 +243,92 @@ class _Beam(_IModel):
         J = np.array([i, j, k]).T
         return J
 
+    def _Get_shear_kappa(self, axis: str = "y") -> float:
+        """Cowper's (1966) shear correction factor k for the cross-section.
+
+        Computes k by solving a single Saint-Venant Poisson problem on the
+        2-D section mesh:
+
+            ∇²φ = -s   in the section S
+            ∂φ/∂n = 0  on the boundary ∂S
+
+        where s is the slicing coordinate (s = y ν for ``axis="y"`` returns k_y
+        paired with Iz; s = x ν for ``axis="z"`` returns k_z paired with Iy).
+        The rigid (constant) mode is fixed by clamping one node to 0 — k
+        below is translation-invariant.
+
+        With ∂φ/∂n = 0 the energy identity gives uᵀ·f = ∫_S |∇φ|² = ∫_S s·φ
+
+            k = I² / (A · uᵀ · f)
+
+        with I = Iz (or Iy for axis="z").  Reference values:
+
+            rectangle (any bxh)  →  5/6   ≈ 0.8333
+            circle    (any d)    →  6/7   ≈ 0.8571
+            I-beam, tube, etc.   →  whatever the geometry says
+
+        Note: Pure Jouravski's 1-D Q/b formula gives 9/10 for a circle; this
+        function returns 6/7 because the Poisson PDE captures the *2-D*
+        shear-stress field, which is what the underlying elasticity problem
+        actually has.  Both methods agree on rectangles.
+
+        Cowper-with-ν ≠ 0 would need a different PDE (non-zero Neumann
+        boundary term involving ν) and is not implemented here — if you need
+        a specific k value (Cowper-ν, Pure Jouravski, a value from a steel
+        section table, …), set ``beam._ky`` / ``beam._kz`` directly instead
+        of using this helper.
+        """
+        if axis == "y":
+            bending_inertia = self.Iz
+        elif axis == "z":
+            bending_inertia = self.Iy
+        else:
+            raise ValueError(f"axis must be 'y' or 'z', got {axis!r}")
+
+        section = self.section
+
+        # Warn once per beam if the section uses linear 2-D elements (TRI3 /
+        # QUAD4): the Poisson solution is cubic, so we get only O(h²) accuracy.
+        # TRI6 / QUAD8 capture cubic with O(h³), TRI10+ are exact.
+        if section.groupElem.elemType in _LINEAR_2D_ELEMS and not getattr(
+            self, "_warned_linear_section", False
+        ):
+            Display.MyPrint(
+                f"Beam: section uses linear {section.groupElem.elemType.name} "
+                "elements — _shear_kappa converges at O(h²). "
+                "Use TRI6 / QUAD8 (or finer mesh) for accurate k.",
+                color="yellow",
+                end="\n",
+            )
+            self._warned_linear_section = True
+
+        # Weak form of  ∇²φ = -s  with Neumann ∂φ/∂n = 0  is
+        #   ∫_S ∇u · ∇v dS  =  ∫_S s · v dS.
+        field = Field(section.groupElem, 1)
+
+        @BiLinearForm
+        def bilinear(u: Field, v: Field):
+            return u.grad.dot(v.grad)
+
+        @LinearForm
+        def linear(v: Field):
+            x, y, _ = v.Get_coords()
+            return (y if axis == "y" else x) * v
+
+        weakForms = Models.WeakForms(field, computeK=bilinear, computeF=linear)
+        simu = Simulations.WeakForms(section, weakForms, verbosity=False)
+        # Pin one DOF to remove the rigid mode (Neumann-only problem is singular).
+        # Doesn't affect uᵀ·f because the source ∫_S s dS = 0 on a centered section.
+        simu.add_dirichlet([0], [0.0], ["u"])
+        simu.Solve()
+
+        # uᵀ·f  ≡  ∫_S s · φ dS  ≡  ∫_S |∇φ|² dS  (energy identity)
+        f = simu.Get_K_C_M_F()[3]
+        u = simu._Get_u_n(simu.problemType, asCsrMatrix=True)
+        integral = (u.T @ f)[0, 0]
+        kappa = bending_inertia**2 / (section.area * integral)
+        return kappa
+
 
 class Isotropic(_Beam):
     """Isotropic elastic beam."""
@@ -284,6 +386,10 @@ class Isotropic(_Beam):
 
         E = self.E
 
+        # Shear correction factors are read straight from the beam's _ky / _kz
+        # parameters (default 1.0 — "no correction").  Set them explicitly to
+        # use a numerical value (e.g. ``beam._ky = beam._shear_kappa("y")`` for
+        # Cowper-ν=0, or ``beam._ky = 5/6`` for the textbook rectangular value).
         if dim == 1:
             # u = [u1, . . . , un]
             D = np.diag([E * A])
@@ -291,9 +397,7 @@ class Isotropic(_Beam):
             # u = [u1, v1, rz1, . . . , un, vn, rzn]
             if useTimoshenko:
                 mu = self.mu
-                # TODO #37 Compute shear correction factor using the Jouravski formula?
-                ky = 5 / 6
-                D = np.diag([E * A, E * Iz, mu * ky * A])
+                D = np.diag([E * A, E * Iz, mu * self._ky * A])
             else:
                 D = np.diag([E * A, E * Iz])
         elif dim == 3:
@@ -301,9 +405,16 @@ class Isotropic(_Beam):
             mu = self.mu
             if useTimoshenko:
                 # 6 rows: [axial, torsion, flex-y, flex-z, shear-y, shear-z]
-                ky = kz = 5 / 6
-                # TODO #37 Compute shear correction factor using the Jouravski formula?
-                D = np.diag([E * A, mu * J, E * Iy, E * Iz, ky * mu * A, kz * mu * A])
+                D = np.diag(
+                    [
+                        E * A,
+                        mu * J,
+                        E * Iy,
+                        E * Iz,
+                        self._ky * mu * A,
+                        self._kz * mu * A,
+                    ]
+                )
             else:
                 D = np.diag([E * A, mu * J, E * Iy, E * Iz])
 

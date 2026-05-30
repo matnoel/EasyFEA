@@ -12,7 +12,7 @@ from ..Utilities import Display, Tic, _types, _params
 # fem
 if TYPE_CHECKING:
     from ..FEM import Mesh
-from ..FEM import MatrixType, LagrangeCondition, FeArray
+from ..FEM import MatrixType, ElemType, LagrangeCondition, FeArray
 
 # beam elements
 from ..FEM.Elems._beam import (
@@ -107,6 +107,17 @@ class Beam(_Simu):
         self.useTimoshenko = useTimoshenko
         if useTimoshenko:
             mesh = _Construct_Timoshenko_mesh(mesh)
+            # SEG2 + Timoshenko is valid (matches Abaqus B31 / ANSYS BEAM188)
+            # but only O(h²) accurate — flag it once so users can choose to
+            # bump to SEG3+ for exact cubic-v representation.
+            if mesh.groupElem.elemType is ElemType.SEG2:
+                Display.MyPrint(
+                    "Beam: SEG2 + Timoshenko has only O(h²) convergence "
+                    "(linear transverse displacement). "
+                    "Use SEG3 or higher for accurate results at coarse meshes.",
+                    color="yellow",
+                    end="\n",
+                )
         else:
             mesh = _Construct_Euler_Bernoulli_mesh(mesh)
 
@@ -605,8 +616,10 @@ class Beam(_Simu):
                 # Uses Get_beam_shear_B_e_pg (dddNv-based), which is exact for any
                 # polynomial Mz the element can represent.
                 B_shear_e_pg = groupElem.Get_beam_shear_B_e_pg(self.structure)
-                sol_e = self.mesh.Locates_sol_e(self.displacement, dof_n, asFeArray=True)
-                shear_np = np.asarray(self._Calc_InternalForces_e_pg(B_shear_e_pg @ sol_e))
+                sol_e = self.mesh.Locates_sol_e(
+                    self.displacement, dof_n, asFeArray=True
+                )
+                shear_np = self._Calc_InternalForces_e_pg(B_shear_e_pg @ sol_e)
 
                 idx = 1 if dim == 2 else 3  # Mz row → Ty
                 if result == "Tz":
@@ -621,7 +634,9 @@ class Beam(_Simu):
                 shearType = MatrixType.beam_shear
                 B_red = groupElem.Get_beam_B_e_pg(self.structure, shearType)
                 D_red = self.structure.Calc_D_e_pg(groupElem, shearType)
-                sol_e = self.mesh.Locates_sol_e(self.displacement, dof_n, asFeArray=True)
+                sol_e = self.mesh.Locates_sol_e(
+                    self.displacement, dof_n, asFeArray=True
+                )
                 forces_red = D_red @ (B_red @ sol_e)
                 index = self._indexResult(result)
                 values = np.asarray(forces_red)[:, :, index].mean(axis=1)

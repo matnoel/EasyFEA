@@ -31,20 +31,18 @@ if __name__ == "__main__":
 
     # model
     E = 200000e6
-    ro = 7800
     v = 0.3
+    rho = 7800
+    beamDim = 1
 
     # load
     g = 10
-    q = ro * g * (h * b)
+    q = rho * g * (h * b)
     F = 5000
 
     # ----------------------------------------------
     # Mesh
     # ----------------------------------------------
-
-    elemType = ElemType.SEG2
-    beamDim = 1
 
     # Create a section for the beam
     mesher = Mesher()
@@ -55,7 +53,7 @@ if __name__ == "__main__":
     line = Line(p1, p2, L / nL)
     beam = Models.Beam.Isotropic(beamDim, line, section, E, v)
 
-    mesh = mesher.Mesh_Beams([beam], elemType=elemType)
+    mesh = mesher.Mesh_Beams([beam], elemType=ElemType.SEG2)
 
     # ----------------------------------------------
     # Simulation
@@ -91,7 +89,7 @@ if __name__ == "__main__":
 
     A = section.area
     x = np.linspace(0, L, 100)
-    ux_x = lambda x: (F * x / (E * A)) + (ro * g * x / 2 / E * (2 * L - x))
+    ux_x = lambda x: (F * x / (E * A)) + (rho * g * x / 2 / E * (2 * L - x))
 
     ux = simu.Result("ux")
     x_n = mesh.coord[:, 0]

@@ -29,13 +29,11 @@ if __name__ == "__main__":
     # model
     E = 276  # MPa
     v = 0.3
+    beamDim = 3  # must be >= 2
 
     # ----------------------------------------------
     # Mesh
     # ----------------------------------------------
-
-    elemType = ElemType.SEG2
-    dim = 3  # must be >= 2
 
     pA = (2 * L, 0)
     pB = (L, 0)
@@ -54,10 +52,10 @@ if __name__ == "__main__":
     contour = Domain((-4 / 2, -8 / 2), (4 / 2, 8 / 2))
     section = Mesher().Mesh_2D(contour)
 
-    beams = [Models.Beam.Isotropic(dim, line, section, E, v) for line in lines]
+    beams = [Models.Beam.Isotropic(beamDim, line, section, E, v) for line in lines]
     structure = Models.Beam.BeamStructure(beams)
 
-    mesh = Mesher().Mesh_Beams(beams, elemType)
+    mesh = Mesher().Mesh_Beams(beams, ElemType.SEG2)
     # Display.Plot_Mesh(mesh)
     # Display.Plot_Tags(mesh)
 

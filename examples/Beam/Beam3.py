@@ -32,7 +32,7 @@ if __name__ == "__main__":
     # model
     E = 210000
     v = 0.3
-    useTimoshenko = False
+    beamDim = 2  # must be >= 2
 
     # load
     F = -800
@@ -58,15 +58,12 @@ if __name__ == "__main__":
     p10 = DoSym(p5, (1, 0))
     p11 = DoSym(p4, (1, 0))
     p12 = DoSym(p3, (1, 0))
-    contour = Points([p1, p2, p3, p4, p5, p6, p7, p8, p9, p10, p11, p12], e / 6)
-    section = Mesher().Mesh_2D(contour)
+    contour = Points([p1, p2, p3, p4, p5, p6, p7, p8, p9, p10, p11, p12], e / 3)
+    section = Mesher().Mesh_2D(contour, elemType=ElemType.TRI3)
 
     # ----------------------------------------------
     # Mesh
     # ----------------------------------------------
-
-    elemType = ElemType.SEG2
-    beamDim = 2  # must be >= 2
 
     p1 = Point()
     pL = Point(x=L * 0.75)
@@ -74,7 +71,7 @@ if __name__ == "__main__":
     line = Line(p1, p2, L / 9)
     beam = Models.Beam.Isotropic(beamDim, line, section, E, v)
 
-    mesh = Mesher().Mesh_Beams([beam], additionalPoints=[pL], elemType=elemType)
+    mesh = Mesher().Mesh_Beams([beam], additionalPoints=[pL])
 
     # ----------------------------------------------
     # Simulation
@@ -84,7 +81,7 @@ if __name__ == "__main__":
     beamStructure = Models.Beam.BeamStructure([beam])
 
     # Create the beam simulation
-    simu = Simulations.Beam(mesh, beamStructure, useTimoshenko=useTimoshenko)
+    simu = Simulations.Beam(mesh, beamStructure)
     dof_n = simu.Get_dof_n()
 
     # Apply boundary conditions

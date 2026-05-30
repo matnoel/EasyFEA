@@ -32,7 +32,8 @@ if __name__ == "__main__":
     # model
     E = 210000
     v = 0.3
-    useTimoshenko = False
+    beamDim = 2  # must be >= 2
+    useTimoshenko = True
 
     # load
     F = -800  # applied tip force in y (negative = downward)
@@ -41,19 +42,16 @@ if __name__ == "__main__":
     # Mesh
     # ----------------------------------------------
 
-    elemType = ElemType.SEG2
-    beamDim = 2  # must be >= 2
-
     # Create a section object for the beam mesh
     mesher = Mesher()
-    section = mesher.Mesh_2D(Domain((0, 0), (b, h)))
+    section = mesher.Mesh_2D(Domain((0, 0), (b, h)), elemType=ElemType.TRI6)
 
     p1 = (0, 0)
     p2 = (L, 0)
     line = Line(p1, p2, L / nL)
     beam = Models.Beam.Isotropic(beamDim, line, section, E, v)
 
-    mesh = mesher.Mesh_Beams([beam], elemType=elemType)
+    mesh = mesher.Mesh_Beams([beam])
 
     # ----------------------------------------------
     # Simulation
@@ -95,8 +93,8 @@ if __name__ == "__main__":
     x = np.linspace(0, L, 100)
     uy_x_eb = lambda x: F * (L * x**2 / 2 - x**3 / 6) / (E * Iz)
     if simu.useTimoshenko:
-        # uy(x) = uy_EB(x) + F·x / (kGA) with k=1 (current default)
-        uy_x = lambda x: uy_x_eb(x) + F * x / (G * A)
+        kappa = beam._Get_shear_kappa()
+        uy_x = lambda x: uy_x_eb(x) + F * x / (kappa * G * A)
     else:
         uy_x = uy_x_eb
 

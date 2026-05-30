@@ -500,15 +500,18 @@ def test_simply_supported_distrib(elemType: str, beamDim: int):
 # -------------------------------------------------------
 
 
-def _timoshenko_kGA(beamDim: int, E: float, v: float, A: float) -> float:
-    """Effective shear stiffness kGA using the hardcoded correction factors.
-
-    2D: ky = 5/6 (Timoshenko rectangle, classic value).
-    3D: ky = kz = 5/6 (same as 2D; see TODO #37 in Models/Beam/_beam.py).
+def _timoshenko_kGA(
+    beam: Models.Beam.Isotropic, E: float, v: float, A: float, axis: str = "y"
+) -> float:
+    """Effective shear stiffness kGA — reads the shear correction factor from
+    the beam's section via the Saint-Venant Poisson formulation, so the
+    analytical reference matches whatever the simulation actually uses
+    (≈ 5/6 for a well-meshed rectangular section, ≈ 6/7 for a circle —
+    Cowper-with-ν=0 values).
     """
     mu = E / (2 * (1 + v))
-    ky = 5 / 6
-    return ky * mu * A
+    k = beam._Get_shear_kappa(axis)
+    return k * mu * A
 
 
 # Per-element tolerance / mesh size for the Timoshenko tests.
@@ -559,7 +562,6 @@ def test_timoshenko_cantilever_tip(elemType: str, beamDim: int):
     F = -800.0  # tip force in y (negative = downward)
     Iz = b * h**3 / 12
     A = b * h
-    kGA = _timoshenko_kGA(beamDim, E, v, A)
     tol = TOLS_TIP[elemType]
 
     mesher = Mesher()
@@ -568,6 +570,7 @@ def test_timoshenko_cantilever_tip(elemType: str, beamDim: int):
     point1, point2 = Point(), Point(x=L)
     line = Line(point1, point2, L / nL)
     beam = Models.Beam.Isotropic(beamDim, line, section, E, v)
+    kGA = _timoshenko_kGA(beam, E, v, A)
 
     mesh = mesher.Mesh_Beams([beam], elemType=elemType)
     structure = Models.Beam.BeamStructure([beam])
@@ -610,6 +613,76 @@ def test_timoshenko_cantilever_tip(elemType: str, beamDim: int):
     assert err_Ty <= TOL, f"Ty error {err_Ty:.2e}"
 
 
+def test_timoshenko_cantilever_tip_beam2_example():
+    """Regression test mirroring ``examples/Beam/Beam2.py`` exactly:
+
+      - 2D Timoshenko cantilever
+      - slender geometry (L = 120, b = h = 13 → L/h ≈ 9.2)
+      - TRI6 section (quadratic — matches the example's choice and our
+        recommendation for accurate _shear_kappa)
+      - SEG3 beam (cubic v → exact for tip-load deflection)
+      - nL = 10
+
+    Catches regressions that affect the slender / TRI6 path specifically.
+    """
+    L, nL = 120.0, 10
+    b, h = 13.0, 13.0
+    E, v = 210000.0, 0.3
+    F = -800.0
+    Iz = b * h**3 / 12
+    A = b * h
+
+    mesher = Mesher()
+    # TRI6 section (matches Beam2.py); domain at (0, 0)-(b, h) as in the example
+    section = mesher.Mesh_2D(Domain(Point(0, 0), Point(b, h)), elemType=ElemType.TRI6)
+
+    p1, p2 = Point(0, 0), Point(L, 0)
+    line = Line(p1, p2, L / nL)
+    beam = Models.Beam.Isotropic(2, line, section, E, v)
+    kGA = _timoshenko_kGA(beam, E, v, A)  # uses the beam's actual _shear_kappa
+
+    mesh = mesher.Mesh_Beams([beam], elemType=ElemType.SEG3)
+    structure = Models.Beam.BeamStructure([beam])
+    simu = Simulations.Beam(mesh, structure, useTimoshenko=True, verbosity=False)
+
+    simu.add_dirichlet(
+        mesh.Nodes_Point(p1), [0] * simu.Get_dof_n(), simu.Get_unknowns()
+    )
+    simu.add_neumann(mesh.Nodes_Point(p2), [F], ["y"])
+    simu.Solve()
+
+    x_n = mesh.coord[:, 0]
+    x_e = x_n[mesh.connect].mean(1)
+
+    uy_x = lambda x: (
+        F * (L * np.asarray(x) ** 2 / 2 - np.asarray(x) ** 3 / 6) / (E * Iz)
+        + F * np.asarray(x) / kGA
+    )
+    rz_x = lambda x: F / (E * Iz) * (L * np.asarray(x) - np.asarray(x) ** 2 / 2)
+    Mz_x = lambda x: F * (L - np.asarray(x))
+
+    uy_fe = simu.Result("uy", nodeValues=True)
+    rz_fe = simu.Result("rz", nodeValues=True)
+    Mz_fe = simu.Result("Mz", nodeValues=False)
+    Ty_fe = simu.Result("Ty", nodeValues=False)
+
+    # SEG3 + cubic-exact v + consistent kGA → all four checks are essentially
+    # exact.  Tolerance 1e-9 accommodates the small FP accumulation noise from
+    # the larger L (120) and the TRI6 Poisson solve, while still catching any
+    # algorithmic regression.
+    tol = 1e-9
+
+    err_uy = np.abs(uy_x(x_n) - uy_fe).max() / np.abs(uy_x(L))
+    err_rz = np.abs(rz_x(x_n) - rz_fe).max() / np.abs(rz_x(L))
+    err_Mz = np.abs(Mz_x(x_e) - Mz_fe).max() / np.abs(Mz_x(x_e)).max()
+    err_Ty = np.abs(F - Ty_fe).max() / np.abs(F)
+
+    assert err_uy <= tol, f"uy error {err_uy:.2e} (tol {tol:.0e})"
+    assert err_rz <= tol, f"rz error {err_rz:.2e} (tol {tol:.0e})"
+    assert err_Mz <= TOL, f"Mz error {err_Mz:.2e}"
+    assert err_Ty <= TOL, f"Ty error {err_Ty:.2e}"
+
+
 @pytest.mark.parametrize("beamDim", [2, 3])
 @pytest.mark.parametrize("elemType", ELEM_TYPES)
 def test_timoshenko_cantilever_distrib(elemType: str, beamDim: int):
@@ -636,7 +709,6 @@ def test_timoshenko_cantilever_distrib(elemType: str, beamDim: int):
     q = -10.0  # uniform load in y (negative = downward, N/mm)
     Iz = b * h**3 / 12
     A = b * h
-    kGA = _timoshenko_kGA(beamDim, E, v, A)
     tol = TOLS_DISTRIB[elemType]
 
     mesher = Mesher()
@@ -645,6 +717,7 @@ def test_timoshenko_cantilever_distrib(elemType: str, beamDim: int):
     point1, point2 = Point(), Point(x=L)
     line = Line(point1, point2, L / nL)
     beam = Models.Beam.Isotropic(beamDim, line, section, E, v)
+    kGA = _timoshenko_kGA(beam, E, v, A)
 
     mesh = mesher.Mesh_Beams([beam], elemType=elemType)
     structure = Models.Beam.BeamStructure([beam])
@@ -702,7 +775,6 @@ def test_timoshenko_simply_supported(elemType: str, beamDim: int):
     q = -10.0  # uniform load in y (negative = downward, N/mm)
     Iz = b * h**3 / 12
     A = b * h
-    kGA = _timoshenko_kGA(beamDim, E, v, A)
     tol = TOLS_DISTRIB[elemType]
 
     mesher = Mesher()
@@ -711,6 +783,7 @@ def test_timoshenko_simply_supported(elemType: str, beamDim: int):
     point1, point3 = Point(), Point(x=L)
     line = Line(point1, point3, L / nL)
     beam = Models.Beam.Isotropic(beamDim, line, section, E, v)
+    kGA = _timoshenko_kGA(beam, E, v, A)
 
     mesh = mesher.Mesh_Beams([beam], elemType=elemType)
     structure = Models.Beam.BeamStructure([beam])
@@ -748,6 +821,105 @@ def test_timoshenko_simply_supported(elemType: str, beamDim: int):
     Ty_fe = simu.Result("Ty", nodeValues=False)
     err_Ty = np.abs(Ty_x(x_e) - Ty_fe).max() / np.abs(Ty_x(x_e)).max()
     assert err_Ty <= tol, f"Ty error {err_Ty:.2e} (tol {tol:.0e})"
+
+
+# -------------------------------------------------------
+# Saint-Venant shear correction factor — section geometry
+# -------------------------------------------------------
+#
+# The dedicated _shear_kappa tests use TRI6 sections (quadratic — what the
+# code's own warning recommends).  φ is a cubic polynomial in (x, y) for
+# rectangles / circles, and TRI6 captures it with O(h³) error → ~1e-5 at the
+# default meshing, so we can assert a tight 1e-4 tolerance.
+#
+# The TRI3 path is exercised implicitly by every test_timoshenko_* test
+# (those use _rect_section, which defaults to TRI3) — no need for a dedicated
+# TRI3 case here.
+
+
+@pytest.mark.parametrize(
+    "b,h",
+    [(10.0, 10.0), (10.0, 30.0), (30.0, 10.0), (2.0, 20.0)],
+    ids=["square", "tall", "wide", "thin-tall"],
+)
+def test_shear_kappa_rectangle(b: float, h: float):
+    """Saint-Venant Poisson k for a rectangular cross-section converges to 5/6
+    (same as the canonical Timoshenko shear coefficient — Cowper-ν=0)."""
+    from EasyFEA.Geoms import Line
+
+    mesher = Mesher()
+    section = mesher.Mesh_2D(
+        Domain((-b / 2, -h / 2), (b / 2, h / 2), meshSize=min(b, h) / 10),
+        [],
+        ElemType.TRI6,
+    )
+    line = Line((0, 0), (10, 0), 1)
+    beam = Models.Beam.Isotropic(2, line, section, 210e9, 0.3)
+
+    k_expected = 5 / 6
+    tol = 1e-4
+    ky = beam._Get_shear_kappa("y")
+    kz = beam._Get_shear_kappa("z")
+    err_y = abs(ky - k_expected) / k_expected
+    err_z = abs(kz - k_expected) / k_expected
+    assert err_y <= tol, f"ky={ky:.6f} err {err_y:.2e} (tol {tol:.0e})"
+    assert err_z <= tol, f"kz={kz:.6f} err {err_z:.2e} (tol {tol:.0e})"
+
+
+@pytest.mark.parametrize("diam", [5.0, 10.0, 20.0])
+def test_shear_kappa_circle(diam: float):
+    """Saint-Venant Poisson k for a circular section converges to 6/7
+    (Cowper-ν=0; pure Jouravski's 9/10 misses the 2-D shear distribution)."""
+    from EasyFEA.Geoms import Circle, Line
+
+    mesher = Mesher()
+    section = mesher.Mesh_2D(
+        Circle(Point(), diam=diam, meshSize=diam / 30), [], ElemType.TRI6
+    )
+    line = Line(Point(0, 0), Point(x=10), 1)
+    beam = Models.Beam.Isotropic(2, line, section, 210e9, 0.3)
+
+    k_expected = 6 / 7
+    tol = 1e-4
+    ky = beam._Get_shear_kappa("y")
+    kz = beam._Get_shear_kappa("z")
+    err_y = abs(ky - k_expected) / k_expected
+    err_z = abs(kz - k_expected) / k_expected
+    assert err_y <= tol, f"ky={ky:.6f} err {err_y:.2e} (tol {tol:.0e})"
+    assert err_z <= tol, f"kz={kz:.6f} err {err_z:.2e} (tol {tol:.0e})"
+
+
+def test_shear_kappa_convergence():
+    """Refining the section mesh drives the Saint-Venant k error toward zero."""
+    from EasyFEA.Geoms import Line
+
+    mesher = Mesher()
+    line = Line(Point(0, 0), Point(x=10), 1)
+    k_expected = 5 / 6
+
+    errors = []
+    for meshSize in [2.0, 1.0, 0.5, 0.25]:
+        section = mesher.Mesh_2D(Domain(Point(-5, -5), Point(5, 5), meshSize=meshSize))
+        beam = Models.Beam.Isotropic(2, line, section, 210e9, 0.3)
+        errors.append(abs(beam._Get_shear_kappa("y") - k_expected) / k_expected)
+
+    # error should decrease (or already be at machine precision)
+    for fine, coarse in zip(errors[1:], errors[:-1]):
+        assert fine <= coarse + 1e-12, f"non-monotonic convergence: {errors}"
+    assert errors[-1] <= 5e-4, f"finest error {errors[-1]:.2e} too large; got {errors}"
+
+
+def test_shear_kappa_axis_error():
+    """_shear_kappa raises on invalid axis."""
+    from EasyFEA.Geoms import Line
+
+    mesher = Mesher()
+    section = _rect_section(mesher, 10.0, 10.0)
+    beam = Models.Beam.Isotropic(
+        2, Line(Point(0, 0), Point(x=10), 1), section, 210e9, 0.3
+    )
+    with pytest.raises(ValueError):
+        beam._Get_shear_kappa("x")
 
 
 # -------------------------------------------------------
@@ -791,8 +963,6 @@ def test_L_frame(elemType: str, useTimoshenko: bool):
     F = 1000.0
     A = b * h
     Iz = b * h**3 / 12
-    mu = E / (2 * (1 + v))
-    kGA = (5 / 6) * mu * A
 
     mesher = Mesher()
     section = _rect_section(mesher, b, h)
@@ -800,6 +970,7 @@ def test_L_frame(elemType: str, useTimoshenko: bool):
     line2 = Line(Point(L, 0), Point(L, L), L / 10)
     beam1 = Models.Beam.Isotropic(2, line1, section, E, v)
     beam2 = Models.Beam.Isotropic(2, line2, section, E, v)
+    kGA = _timoshenko_kGA(beam2, E, v, A)
 
     mesh = mesher.Mesh_Beams([beam1, beam2], elemType=elemType)
     structure = Models.Beam.BeamStructure([beam1, beam2])
