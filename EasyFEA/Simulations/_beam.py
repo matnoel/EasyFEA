@@ -30,8 +30,37 @@ from ..Models.Beam._beam import BeamStructure, _Beam, Isotropic
 from ._simu import _Simu, SolverType
 
 
+def _Timoshenko_shear_rows(dim: int) -> tuple[int, ...]:
+    """Row indices in B/D that hold the transverse shear strains for Timoshenko.
+
+    2D: [du/dx, dθ/dx, γ]            → shear is row 2.
+    3D: [du/dx, drx/dx, κy, κz, γy, γz] → shear is rows 4, 5.
+    1D has no shear row.
+    """
+    return {1: (), 2: (2,), 3: (4, 5)}[dim]
+
+
 class Beam(_Simu):
-    """Beam simulation (Euler-Bernoulli or Timoshenko)."""
+    """Beam simulation (Euler-Bernoulli or Timoshenko).
+
+    Timoshenko elements use pure Lagrange interpolation for every kinematic
+    field with selective reduced integration on the shear term — the standard
+    formulation used by Abaqus B31/B32, ANSYS BEAM188/189, Calculix B31 and
+    FEniCS dolfinx.  As in those codes, accuracy depends on the polynomial
+    degree of the element:
+
+      elem   | v interpolation | tip-load convergence | accurate at coarse mesh?
+      -------+-----------------+----------------------+-------------------------
+      SEG2   | linear          | O(h²)                | no — needs fine mesh
+      SEG3   | quadratic       | exact (cubic v)      | yes
+      SEG4   | cubic           | exact                | yes
+      SEG5   | quartic         | exact                | yes
+
+    SEG2+Timoshenko remains a valid choice (it matches industry-standard
+    2-node Timoshenko elements), but for results comparable to the Euler-
+    Bernoulli SEG2 element (which is exact for cubic v), prefer SEG3 or
+    higher when activating Timoshenko.
+    """
 
     # TODO: add math
 
@@ -56,8 +85,12 @@ class Beam(_Simu):
         verbosity : bool, optional
             If True, the simulation can write in the terminal. Defaults to False.
         useTimoshenko : bool, optional
-            If True, uses Timoshenko elements.
-            If False (default), uses Euler-Bernoulli elements.
+            If True, uses Timoshenko elements (pure Lagrange + selective
+            reduced integration on shear).  See class docstring for the
+            convergence implications per element type — SEG3+ is recommended
+            for coarse meshes.
+            If False (default), uses Euler-Bernoulli elements (cubic Hermitian
+            for transverse v; exact for cubic v at any element order).
         """
 
         if isinstance(model, _Beam):
@@ -154,18 +187,18 @@ class Beam(_Simu):
 
         groupElem = self.mesh.groupElem
         assert isinstance(groupElem, (_Timoshenko, _EulerBernoulli))
+
+        if isinstance(groupElem, _Timoshenko):
+            # All fields are Lagrange — use the base-class integration directly.
+            super().add_lineLoad(nodes, values, unknowns, problemType, description)
+            return
+
+        # Euler-Bernoulli: transverse v/w use Hermitian shape functions (couple
+        # force and moment DOFs); axial / torsion / pure-rotation DOFs use the
+        # Lagrange path from the base class.
         beamStructure = self.structure
         all_unknowns = self.Get_unknowns(problemType)
-
-        # Lagrange unknowns (axial, torsion; all rotations in Timoshenko):
-        # use base-class integration — avoids the Nu_pg indexing issue in Get_beam_N_e_pg.
-        # Hermitian unknowns (transverse v/w; enslaved rz=v'/ry=-w' in EB):
-        # need consistent Hermitian integration with J correction.
-        hermitian = (
-            {"y", "z"}
-            if isinstance(groupElem, _Timoshenko)
-            else set(all_unknowns) - {"x", "rx"}
-        )
+        hermitian = set(all_unknowns) - {"x", "rx"}
         lagrange_idx = [i for i, u in enumerate(unknowns) if u not in hermitian]
         hermitian_idx = [i for i, u in enumerate(unknowns) if u in hermitian]
 
@@ -196,7 +229,6 @@ class Beam(_Simu):
 
         coord_e_pg = groupElem.Get_GaussCoordinates_e_pg(matrixType, elements)
         wJ_e_pg = groupElem.Get_weightedJacobian_e_pg(matrixType)[elements]
-        J_e_pg = groupElem.Get_jacobian_e_pg(matrixType)[elements]
         N_e_pg = groupElem.Get_beam_N_e_pg(beamStructure)[elements]
         N_lag_pg = groupElem.Get_N_pg(matrixType)[:, 0, :]
 
@@ -207,28 +239,24 @@ class Beam(_Simu):
         for u, unknown in enumerate(herm_unknowns):
             row = all_unknowns.index(unknown)
             if isinstance(herm_values[u], (int, float)) or callable(herm_values[u]):
-                # evaluate on Gauss points (Ne, nPg)
                 eval_e_pg = (
                     herm_values[u](*np.moveaxis(coord_e_pg, -1, 0))
                     if callable(herm_values[u])
                     else np.full(wJ_e_pg.shape, herm_values[u])
                 )
             else:
-                # evaluate on nodes then interpolate to Gauss points
                 eval_n = np.zeros(Nn, dtype=float)
                 eval_n[nodes] = herm_values[u]
-                eval_e = eval_n[connect]  # (Ne, nPe)
+                eval_e = eval_n[connect]
                 eval_e_pg = np.einsum("en,pn->ep", eval_e, N_lag_pg, optimize="optimal")
 
-            # Hermitian N stores N/J; wJ · J · q · N(ξ) is the correct source integral
             values_e_pg = np.einsum(
-                "ep,ep,ep,epn->epn",
+                "ep,ep,epn->epn",
                 wJ_e_pg,
-                J_e_pg,
                 eval_e_pg,
                 N_e_pg[:, :, row, :],
                 optimize="optimal",
-            )  # (Ne, nPg, dof_n*nPe)
+            )
             dofsValues_u[:, u] = np.sum(values_e_pg, axis=1).ravel()
             dofs_u[:, u] = groupElem._Get_assembly_e(connect, dof_n).ravel()
 
@@ -384,10 +412,34 @@ class Beam(_Simu):
         tic = Tic()
 
         wJ_e_pg = mesh.Get_weightedJacobian_e_pg(matrixType)
-        D_e_pg = beamStructure.Calc_D_e_pg(groupElem)
         B_e_pg = groupElem.Get_beam_B_e_pg(beamStructure)
+        D_e_pg = beamStructure.Calc_D_e_pg(groupElem)
 
-        K_e = (wJ_e_pg * B_e_pg.T @ D_e_pg @ B_e_pg).sum(axis=1)
+        if isinstance(groupElem, _Timoshenko):
+            # Selective reduced integration: shear at fewer Gauss points to
+            # avoid locking; axial/bending/torsion at full points.
+            # (1D Timoshenko has no transverse shear — fall through to full int.)
+            shear_rows = _Timoshenko_shear_rows(beamStructure.dim)
+            if shear_rows:
+                D_bend_e_pg = D_e_pg.copy()
+                for r in shear_rows:
+                    D_bend_e_pg[:, :, r, r] = 0.0
+                K_e = (wJ_e_pg * B_e_pg.T @ D_bend_e_pg @ B_e_pg).sum(axis=1)
+
+                shearType = MatrixType.beam_shear
+                wJ_shear_e_pg = mesh.Get_weightedJacobian_e_pg(shearType)
+                B_shear_e_pg = groupElem.Get_beam_B_e_pg(beamStructure, shearType)
+                D_shear_e_pg = beamStructure.Calc_D_e_pg(groupElem, shearType)
+                for r in range(D_shear_e_pg.shape[-1]):
+                    if r not in shear_rows:
+                        D_shear_e_pg[:, :, r, r] = 0.0
+                K_e = K_e + (
+                    wJ_shear_e_pg * B_shear_e_pg.T @ D_shear_e_pg @ B_shear_e_pg
+                ).sum(axis=1)
+            else:
+                K_e = (wJ_e_pg * B_e_pg.T @ D_e_pg @ B_e_pg).sum(axis=1)
+        else:
+            K_e = (wJ_e_pg * B_e_pg.T @ D_e_pg @ B_e_pg).sum(axis=1)
 
         tic.Tac("Matrix", "Construct K_e", self._verbosity)
 
@@ -544,28 +596,39 @@ class Beam(_Simu):
             values = force_n[:, index]
 
         elif result in ["N", "Mx", "My", "Mz", "Ty", "Tz"]:
-            Epsilon_e_pg = self._Calc_Epsilon_e_pg(self.displacement)
-
-            internalForces_e_pg = self._Calc_InternalForces_e_pg(Epsilon_e_pg)
-            forces_np = np.asarray(internalForces_e_pg)  # (Ne, nPg, nComponents)
+            groupElem = self.mesh.groupElem
+            dim = self.structure.dim
 
             if result in ["Ty", "Tz"] and not self.useTimoshenko:
                 # Euler-Bernoulli has no shear strain DOF.
                 # Recover shear at every GP via Ty = -EIz·d³v/dx³, Tz = -EIy·d³w/dx³.
                 # Uses Get_beam_shear_B_e_pg (dddNv-based), which is exact for any
                 # polynomial Mz the element can represent.
-                groupElem = self.mesh.groupElem
                 B_shear_e_pg = groupElem.Get_beam_shear_B_e_pg(self.structure)
                 sol_e = self.mesh.Locates_sol_e(self.displacement, dof_n, asFeArray=True)
                 shear_np = np.asarray(self._Calc_InternalForces_e_pg(B_shear_e_pg @ sol_e))
 
-                dim = self.structure.dim
                 idx = 1 if dim == 2 else 3  # Mz row → Ty
                 if result == "Tz":
                     idx = 2  # My row → Tz
 
                 values = -shear_np[:, :, idx].mean(axis=1)
+            elif result in ["Ty", "Tz"] and self.useTimoshenko:
+                # Selective reduced integration: γ is physical only at the
+                # reduced Gauss points (MatrixType.beam_shear).  Evaluate Ty/Tz
+                # there to avoid the spurious oscillation that full integration
+                # introduces in γ.
+                shearType = MatrixType.beam_shear
+                B_red = groupElem.Get_beam_B_e_pg(self.structure, shearType)
+                D_red = self.structure.Calc_D_e_pg(groupElem, shearType)
+                sol_e = self.mesh.Locates_sol_e(self.displacement, dof_n, asFeArray=True)
+                forces_red = D_red @ (B_red @ sol_e)
+                index = self._indexResult(result)
+                values = np.asarray(forces_red)[:, :, index].mean(axis=1)
             else:
+                Epsilon_e_pg = self._Calc_Epsilon_e_pg(self.displacement)
+                internalForces_e_pg = self._Calc_InternalForces_e_pg(Epsilon_e_pg)
+                forces_np = np.asarray(internalForces_e_pg)
                 index = self._indexResult(result)
                 values = forces_np[:, :, index].mean(axis=1)  # (Ne,) element means
 

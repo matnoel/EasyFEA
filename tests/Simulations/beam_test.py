@@ -495,235 +495,340 @@ def test_simply_supported_distrib(elemType: str, beamDim: int):
     assert err_Ty <= TOL, f"Ty error {err_Ty:.2e}"
 
 
-# # TODO #39
-# # -------------------------------------------------------
-# # Timoshenko beams (shear-deformable)
-# # -------------------------------------------------------
+# -------------------------------------------------------
+# Timoshenko beams (shear-deformable)
+# -------------------------------------------------------
 
 
-# def _timoshenko_kGA(beamDim: int, E: float, v: float, A: float) -> float:
-#     """Effective shear stiffness kGA using the hardcoded correction factors.
+def _timoshenko_kGA(beamDim: int, E: float, v: float, A: float) -> float:
+    """Effective shear stiffness kGA using the hardcoded correction factors.
 
-#     2D: ky = 5/6 (Timoshenko rectangle, classic value).
-#     3D: ky = kz = 1 (placeholder pending issue #37).
-#     """
-#     mu = E / (2 * (1 + v))
-#     ky = 5 / 6
-#     return ky * mu * A
-
-
-# @pytest.mark.parametrize("beamDim", [2, 3])
-# @pytest.mark.parametrize("elemType", ELEM_TYPES)
-# def test_timoshenko_cantilever_tip(elemType: ElemType, beamDim: int):
-#     """Timoshenko cantilever with tip load — all element types.
-
-#     Uses a stocky beam (L/h ≈ 1.5) so the shear term F·x/(kGA) is ~33 % of the
-#     bending term — large enough that using the EB formula would fail the tolerance.
-
-#     The exact solution has θ(x) = quadratic (degree 2).  SEGn interpolates θ with
-#     Lagrange polynomials of degree n-1, so:
-
-#       elemType | θ degree | exact? | nL needed
-#       ---------+----------+--------+----------
-#       SEG2     | 1        | no     | 3000  (O(h²) convergence)
-#       SEG3     | 2        | yes    | 2     (machine precision)
-#       SEG4     | 3        | yes    | 2
-#       SEG5     | 4        | yes    | 2
-
-#     Analytical solution (exact for Timoshenko beam theory):
-#         uy(x) = F·(L·x²/2 - x³/6)/(E·Iz)  +  F·x/(kGA)   ← shear adds F·x/(kGA)
-#         rz(x) = F·(L·x - x²/2)/(E·Iz)                      ← θ only, same as EB
-#         Mz(x) = F·(L - x)                                   ← same as EB
-#         Ty(x) = F                                            ← constant from γ
-#     """
-#     L, nL = 20.0, 10
-#     b, h = 13.0, 13.0
-#     E, v = 210000.0, 0.3
-#     F = -800.0  # tip force in y (negative = downward)
-#     Iz = b * h**3 / 12
-#     A = b * h
-#     kGA = _timoshenko_kGA(beamDim, E, v, A)
-
-#     mesher = Mesher()
-#     section = _rect_section(mesher, b, h)
-
-#     point1, point2 = Point(), Point(x=L)
-#     line = Line(point1, point2, L / nL)
-#     beam = Models.Beam.Isotropic(beamDim, line, section, E, v)
-
-#     mesh = mesher.Mesh_Beams([beam], elemType=elemType)
-#     structure = Models.Beam.BeamStructure([beam])
-#     simu = Simulations.Beam(mesh, structure, useTimoshenko=True, verbosity=False)
-
-#     simu.add_dirichlet(
-#         mesh.Nodes_Point(point1), [0] * simu.Get_dof_n(), simu.Get_unknowns()
-#     )
-#     simu.add_neumann(mesh.Nodes_Point(point2), [F], ["y"])
-#     simu.Solve()
-
-#     x_n = mesh.coord[:, 0]
-#     x_e = x_n[mesh.connect].mean(1)
-
-#     # uy: bending + shear contribution
-#     uy_x = lambda x: (
-#         F * (L * np.asarray(x) ** 2 / 2 - np.asarray(x) ** 3 / 6) / (E * Iz)
-#         + F * np.asarray(x) / kGA
-#     )
-#     uy_fe = simu.Result("uy", nodeValues=True)
-#     err_uy = np.abs(uy_x(x_n) - uy_fe).max() / np.abs(uy_x(L))
-#     assert err_uy <= TOL, f"uy error {err_uy:.2e}"
-
-#     # rz: bending rotation θ only (independent DOF — does NOT include shear slope)
-#     rz_x = lambda x: F / (E * Iz) * (L * np.asarray(x) - np.asarray(x) ** 2 / 2)
-#     rz_fe = simu.Result("rz", nodeValues=True)
-#     err_rz = np.abs(rz_x(x_n) - rz_fe).max() / np.abs(rz_x(L))
-#     assert err_rz <= TOL, f"rz error {err_rz:.2e}"
-
-#     # Mz: piecewise linear — element means exact
-#     Mz_x = lambda x: F * (L - np.asarray(x))
-#     Mz_fe = simu.Result("Mz", nodeValues=False)  # (Ne,)
-#     err_Mz = np.abs(Mz_x(x_e) - Mz_fe).max() / np.abs(Mz_x(x_e)).max()
-#     assert err_Mz <= TOL, f"Mz error {err_Mz:.2e}"
-
-#     # Ty: primary result from shear strain γ = v' - θ — constant
-#     Ty_fe = simu.Result("Ty", nodeValues=False)
-#     err_Ty = np.abs(F - Ty_fe).max() / np.abs(F)
-#     assert err_Ty <= TOL, f"Ty error {err_Ty:.2e}"
+    2D: ky = 5/6 (Timoshenko rectangle, classic value).
+    3D: ky = kz = 5/6 (same as 2D; see TODO #37 in Models/Beam/_beam.py).
+    """
+    mu = E / (2 * (1 + v))
+    ky = 5 / 6
+    return ky * mu * A
 
 
-# @pytest.mark.parametrize("beamDim", [2, 3])
-# @pytest.mark.parametrize("elemType", ELEM_TYPES)
-# def test_timoshenko_cantilever_distrib(elemType: ElemType, beamDim: int):
-#     """Timoshenko cantilever with uniform distributed load — all element types.
+# Per-element tolerance / mesh size for the Timoshenko tests.
+# With selective reduced integration, the bending/torsion/axial terms are
+# integrated exactly for any polynomial Mz the element can represent, so the
+# only error source is whether the Lagrange degree (n-1) can represent the
+# exact transverse displacement v.
+#
+#   exact v shape       | SEG2 (P¹)  | SEG3 (P²)  | SEG4 (P³)  | SEG5 (P⁴)
+#   --------------------+------------+------------+------------+----------
+#   cubic   (tip load)  | O(h²)      | exact      | exact      | exact
+#   quartic (distrib q) | O(h²)      | O(h⁴)      | O(h⁵)      | exact
+#
+# At nL=10, SEG2 gives ~1.2e-3 error, SEG3 ~1.5e-6 (distrib), SEG4 ~1.1e-7,
+# SEG5 machine precision.  TOLS_TIP / TOLS_DISTRIB lock these in.
 
-#     The exact solution has θ(x) = cubic (degree 3).  SEGn interpolates θ with
-#     Lagrange polynomials of degree n-1, so:
-
-#       elemType | θ degree | exact? | nL needed
-#       ---------+----------+--------+----------
-#       SEG2     | 1        | no     | 3000  (O(h²))
-#       SEG3     | 2        | no     | 3000  (O(h²), but 8e-14 error at nL=3000 << TOL)
-#       SEG4     | 3        | yes    | 2     (machine precision)
-#       SEG5     | 4        | yes    | 2
-
-#     Analytical solution (exact for Timoshenko beam theory):
-#         uy(x) = q·x²·(6L²-4Lx+x²)/(24EIz)  +  q·x·(2L-x)/(2·kGA)
-#         rz(x) = q·(x³/6 - L·x²/2 + L²·x/2)/(EIz)   ← same ODE as EB
-#         Mz(x) = q·(x-L)²/2
-#         Ty(x) = q·(L-x)
-#     """
-#     L, nL = 20.0, 10
-#     b, h = 13.0, 13.0
-#     E, v = 210000.0, 0.3
-#     q = -10.0  # uniform load in y (negative = downward, N/mm)
-#     Iz = b * h**3 / 12
-#     A = b * h
-#     kGA = _timoshenko_kGA(beamDim, E, v, A)
-
-#     mesher = Mesher()
-#     section = _rect_section(mesher, b, h)
-
-#     point1, point2 = Point(), Point(x=L)
-#     line = Line(point1, point2, L / nL)
-#     beam = Models.Beam.Isotropic(beamDim, line, section, E, v)
-
-#     mesh = mesher.Mesh_Beams([beam], elemType=elemType)
-#     structure = Models.Beam.BeamStructure([beam])
-#     simu = Simulations.Beam(mesh, structure, useTimoshenko=True, verbosity=False)
-
-#     simu.add_dirichlet(
-#         mesh.Nodes_Point(point1), [0] * simu.Get_dof_n(), simu.Get_unknowns()
-#     )
-#     simu.add_lineLoad(mesh.nodes, [q], ["y"])
-#     simu.Solve()
-
-#     x_n = mesh.coord[:, 0]
-#     x_e = x_n[mesh.connect].mean(1)
-
-#     uy_EB_x, rz_x, Mz_x, Ty_x = _cantilever_distrib_analytical(L, q, E, Iz)
-
-#     # uy: EB bending + shear term q·x·(2L-x)/(2·kGA)
-#     uy_x = lambda x: uy_EB_x(x) + q * np.asarray(x) * (2 * L - np.asarray(x)) / (
-#         2 * kGA
-#     )
-#     uy_fe = simu.Result("uy", nodeValues=True)
-#     err_uy = np.abs(uy_x(x_n) - uy_fe).max() / np.abs(uy_x(L))
-#     assert err_uy <= TOL, f"uy error {err_uy:.2e}"
-
-#     # rz: bending rotation θ only — same ODE as EB, same analytical formula
-#     rz_fe = simu.Result("rz", nodeValues=True)
-#     err_rz = np.abs(rz_x(x_n) - rz_fe).max() / np.abs(rz_x(L))
-#     assert err_rz <= TOL, f"rz error {err_rz:.2e}"
-
-#     # Mz: element means are O(h^2) under distributed load — check shape only
-#     assert simu.Result("Mz", nodeValues=False).shape == (mesh.Ne,)
-
-#     # Ty: linear — element means at centroids are exact
-#     Ty_fe = simu.Result("Ty", nodeValues=False)
-#     err_Ty = np.abs(Ty_x(x_e) - Ty_fe).max() / np.abs(Ty_x(x_e)).max()
-#     assert err_Ty <= TOL, f"Ty error {err_Ty:.2e}"
+TOLS_TIP = {"SEG2": 2e-3, "SEG3": 1e-12, "SEG4": 1e-12, "SEG5": 1e-12}
+TOLS_DISTRIB = {"SEG2": 1e-2, "SEG3": 1e-5, "SEG4": 1e-6, "SEG5": 1e-12}
 
 
-# @pytest.mark.parametrize("beamDim", [2, 3])
-# @pytest.mark.parametrize("elemType", ELEM_TYPES)
-# def test_timoshenko_simply_supported(elemType: ElemType, beamDim: int):
-#     """Timoshenko simply supported beam with uniform distributed load — all element types.
+@pytest.mark.parametrize("beamDim", [2, 3])
+@pytest.mark.parametrize("elemType", ELEM_TYPES)
+def test_timoshenko_cantilever_tip(elemType: str, beamDim: int):
+    """Timoshenko cantilever with tip load — all element types.
 
-#     Same θ_exact degree = 3 (UDL) as test_timoshenko_cantilever_distrib.
-#     See that test for the nL selection table.
+    Uses a stocky beam (L/h ≈ 1.5) so the shear term F·x/(kGA) is ~33 % of the
+    bending term — large enough that using the EB formula would fail the tolerance.
 
-#     Analytical solution (exact for Timoshenko beam theory):
-#         uy(x) = q·x·(L³-2Lx²+x³)/(24EIz)  +  q·x·(L-x)/(2·kGA)
-#         Mz(x) = q·x·(x-L)/2
-#         Ty(x) = q·(L/2-x)
-#     """
-#     L, nL = 20.0, 10
-#     b, h = 13.0, 13.0
-#     E, v = 210000.0, 0.3
-#     q = -10.0  # uniform load in y (negative = downward, N/mm)
-#     Iz = b * h**3 / 12
-#     A = b * h
-#     kGA = _timoshenko_kGA(beamDim, E, v, A)
+    Pure-Lagrange + selective reduced integration on the shear term (Hughes 1987;
+    Bathe 2006) eliminates shear locking.  The exact tip-load v is cubic, so:
 
-#     mesher = Mesher()
-#     section = _rect_section(mesher, b, h)
+      elemType | v degree | exact? | nL=10 max-node err
+      ---------+----------+--------+--------------------
+      SEG2     | 1        | no     | 1.88e-3   (O(h²) convergence)
+      SEG3     | 2        | yes    | ~1e-14   (machine precision)
+      SEG4     | 3        | yes    | ~1e-14
+      SEG5     | 4        | yes    | ~1e-14
 
-#     point1, point3 = Point(), Point(x=L)
-#     line = Line(point1, point3, L / nL)
-#     beam = Models.Beam.Isotropic(beamDim, line, section, E, v)
+    Analytical solution (exact for Timoshenko beam theory):
+        uy(x) = F·(L·x²/2 - x³/6)/(E·Iz)  +  F·x/(kGA)   ← shear adds F·x/(kGA)
+        rz(x) = F·(L·x - x²/2)/(E·Iz)                      ← θ only, same as EB
+        Mz(x) = F·(L - x)                                   ← same as EB
+        Ty(x) = F                                            ← constant from γ
+    """
+    L, nL = 20.0, 10
+    b, h = 13.0, 13.0
+    E, v = 210000.0, 0.3
+    F = -800.0  # tip force in y (negative = downward)
+    Iz = b * h**3 / 12
+    A = b * h
+    kGA = _timoshenko_kGA(beamDim, E, v, A)
+    tol = TOLS_TIP[elemType]
 
-#     mesh = mesher.Mesh_Beams([beam], elemType=elemType)
-#     structure = Models.Beam.BeamStructure([beam])
-#     simu = Simulations.Beam(mesh, structure, useTimoshenko=True, verbosity=False)
+    mesher = Mesher()
+    section = _rect_section(mesher, b, h)
 
-#     if beamDim == 2:
-#         simu.add_dirichlet(mesh.Nodes_Point(point1), [0, 0], ["x", "y"])
-#         simu.add_dirichlet(mesh.Nodes_Point(point3), [0], ["y"])
-#     elif beamDim == 3:
-#         simu.add_dirichlet(mesh.Nodes_Point(point1), [0, 0, 0], ["x", "y", "z"])
-#         simu.add_dirichlet(mesh.Nodes_Point(point3), [0, 0], ["y", "z"])
+    point1, point2 = Point(), Point(x=L)
+    line = Line(point1, point2, L / nL)
+    beam = Models.Beam.Isotropic(beamDim, line, section, E, v)
 
-#     simu.add_lineLoad(mesh.nodes, [q], ["y"])
-#     simu.Solve()
+    mesh = mesher.Mesh_Beams([beam], elemType=elemType)
+    structure = Models.Beam.BeamStructure([beam])
+    simu = Simulations.Beam(mesh, structure, useTimoshenko=True, verbosity=False)
 
-#     x_n = mesh.coord[:, 0]
-#     x_e = x_n[mesh.connect].mean(1)
+    simu.add_dirichlet(
+        mesh.Nodes_Point(point1), [0] * simu.Get_dof_n(), simu.Get_unknowns()
+    )
+    simu.add_neumann(mesh.Nodes_Point(point2), [F], ["y"])
+    simu.Solve()
 
-#     uy_EB_x, Mz_x, Ty_x = _simply_supported_distrib_analytical(L, q, E, Iz)
+    x_n = mesh.coord[:, 0]
+    x_e = x_n[mesh.connect].mean(1)
 
-#     # uy: EB bending + shear term q·x·(L-x)/(2·kGA)
-#     uy_x = lambda x: uy_EB_x(x) + q * np.asarray(x) * (L - np.asarray(x)) / (2 * kGA)
-#     uy_fe = simu.Result("uy", nodeValues=True)
-#     err_uy = np.abs(uy_x(x_n) - uy_fe).max() / np.abs(uy_x(L / 2))
-#     assert err_uy <= TOL, f"uy error {err_uy:.2e}"
+    # uy: bending + shear contribution
+    uy_x = lambda x: (
+        F * (L * np.asarray(x) ** 2 / 2 - np.asarray(x) ** 3 / 6) / (E * Iz)
+        + F * np.asarray(x) / kGA
+    )
+    uy_fe = simu.Result("uy", nodeValues=True)
+    err_uy = np.abs(uy_x(x_n) - uy_fe).max() / np.abs(uy_x(L))
+    assert err_uy <= tol, f"uy error {err_uy:.2e} (tol {tol:.0e})"
 
-#     # Mz: element means are O(h^2) under distributed load — check shape only
-#     assert simu.Result("Mz", nodeValues=False).shape == (mesh.Ne,)
+    # rz: bending rotation θ only (independent DOF — does NOT include shear slope)
+    rz_x = lambda x: F / (E * Iz) * (L * np.asarray(x) - np.asarray(x) ** 2 / 2)
+    rz_fe = simu.Result("rz", nodeValues=True)
+    err_rz = np.abs(rz_x(x_n) - rz_fe).max() / np.abs(rz_x(L))
+    assert err_rz <= tol, f"rz error {err_rz:.2e} (tol {tol:.0e})"
 
-#     # Ty: linear — element means at centroids are exact
-#     Ty_fe = simu.Result("Ty", nodeValues=False)
-#     err_Ty = np.abs(Ty_x(x_e) - Ty_fe).max() / np.abs(Ty_x(x_e)).max()
-#     assert err_Ty <= TOL, f"Ty error {err_Ty:.2e}"
+    # Mz: piecewise linear — element means exact
+    Mz_x = lambda x: F * (L - np.asarray(x))
+    Mz_fe = simu.Result("Mz", nodeValues=False)  # (Ne,)
+    err_Mz = np.abs(Mz_x(x_e) - Mz_fe).max() / np.abs(Mz_x(x_e)).max()
+    assert err_Mz <= TOL, f"Mz error {err_Mz:.2e}"
+
+    # Ty: primary result from shear strain γ = v' - θ — constant.
+    # Evaluated at the reduced Gauss points where γ is physical.
+    Ty_fe = simu.Result("Ty", nodeValues=False)
+    err_Ty = np.abs(F - Ty_fe).max() / np.abs(F)
+    assert err_Ty <= TOL, f"Ty error {err_Ty:.2e}"
+
+
+@pytest.mark.parametrize("beamDim", [2, 3])
+@pytest.mark.parametrize("elemType", ELEM_TYPES)
+def test_timoshenko_cantilever_distrib(elemType: str, beamDim: int):
+    """Timoshenko cantilever with uniform distributed load — all element types.
+
+    Pure-Lagrange + selective reduced integration.  The exact v is quartic.
+
+      elemType | v degree | exact? | nL=10 max-node err
+      ---------+----------+--------+--------------------
+      SEG2     | 1        | no     | 1.16e-3   (O(h²))
+      SEG3     | 2        | no     | 1.45e-6   (O(h⁴))
+      SEG4     | 3        | no     | 1.14e-7   (O(h⁵))
+      SEG5     | 4        | yes    | ~1e-13   (machine precision)
+
+    Analytical solution (exact for Timoshenko beam theory):
+        uy(x) = q·x²·(6L²-4Lx+x²)/(24EIz)  +  q·x·(2L-x)/(2·kGA)
+        rz(x) = q·(x³/6 - L·x²/2 + L²·x/2)/(EIz)   ← same ODE as EB
+        Mz(x) = q·(x-L)²/2
+        Ty(x) = q·(L-x)
+    """
+    L, nL = 20.0, 10
+    b, h = 13.0, 13.0
+    E, v = 210000.0, 0.3
+    q = -10.0  # uniform load in y (negative = downward, N/mm)
+    Iz = b * h**3 / 12
+    A = b * h
+    kGA = _timoshenko_kGA(beamDim, E, v, A)
+    tol = TOLS_DISTRIB[elemType]
+
+    mesher = Mesher()
+    section = _rect_section(mesher, b, h)
+
+    point1, point2 = Point(), Point(x=L)
+    line = Line(point1, point2, L / nL)
+    beam = Models.Beam.Isotropic(beamDim, line, section, E, v)
+
+    mesh = mesher.Mesh_Beams([beam], elemType=elemType)
+    structure = Models.Beam.BeamStructure([beam])
+    simu = Simulations.Beam(mesh, structure, useTimoshenko=True, verbosity=False)
+
+    simu.add_dirichlet(
+        mesh.Nodes_Point(point1), [0] * simu.Get_dof_n(), simu.Get_unknowns()
+    )
+    simu.add_lineLoad(mesh.nodes, [q], ["y"])
+    simu.Solve()
+
+    x_n = mesh.coord[:, 0]
+    x_e = x_n[mesh.connect].mean(1)
+
+    uy_EB_x, rz_x, Mz_x, Ty_x = _cantilever_distrib_analytical(L, q, E, Iz)
+
+    # uy: EB bending + shear term q·x·(2L-x)/(2·kGA)
+    uy_x = lambda x: uy_EB_x(x) + q * np.asarray(x) * (2 * L - np.asarray(x)) / (
+        2 * kGA
+    )
+    uy_fe = simu.Result("uy", nodeValues=True)
+    err_uy = np.abs(uy_x(x_n) - uy_fe).max() / np.abs(uy_x(L))
+    assert err_uy <= tol, f"uy error {err_uy:.2e} (tol {tol:.0e})"
+
+    # rz: bending rotation θ only — same ODE as EB, same analytical formula
+    rz_fe = simu.Result("rz", nodeValues=True)
+    err_rz = np.abs(rz_x(x_n) - rz_fe).max() / np.abs(rz_x(L))
+    assert err_rz <= tol, f"rz error {err_rz:.2e} (tol {tol:.0e})"
+
+    # Mz: element means are O(h^2) under distributed load — check shape only
+    assert simu.Result("Mz", nodeValues=False).shape == (mesh.Ne,)
+
+    # Ty: linear — element means at reduced Gauss points capture this accurately.
+    Ty_fe = simu.Result("Ty", nodeValues=False)
+    err_Ty = np.abs(Ty_x(x_e) - Ty_fe).max() / np.abs(Ty_x(x_e)).max()
+    assert err_Ty <= tol, f"Ty error {err_Ty:.2e} (tol {tol:.0e})"
+
+
+@pytest.mark.parametrize("beamDim", [2, 3])
+@pytest.mark.parametrize("elemType", ELEM_TYPES)
+def test_timoshenko_simply_supported(elemType: str, beamDim: int):
+    """Timoshenko simply supported beam with uniform distributed load — all element types.
+
+    Same exact v degree = 4 as test_timoshenko_cantilever_distrib; convergence
+    table is the same — see TOLS_DISTRIB.
+
+    Analytical solution (exact for Timoshenko beam theory):
+        uy(x) = q·x·(L³-2Lx²+x³)/(24EIz)  +  q·x·(L-x)/(2·kGA)
+        Mz(x) = q·x·(x-L)/2
+        Ty(x) = q·(L/2-x)
+    """
+    L, nL = 20.0, 10
+    b, h = 13.0, 13.0
+    E, v = 210000.0, 0.3
+    q = -10.0  # uniform load in y (negative = downward, N/mm)
+    Iz = b * h**3 / 12
+    A = b * h
+    kGA = _timoshenko_kGA(beamDim, E, v, A)
+    tol = TOLS_DISTRIB[elemType]
+
+    mesher = Mesher()
+    section = _rect_section(mesher, b, h)
+
+    point1, point3 = Point(), Point(x=L)
+    line = Line(point1, point3, L / nL)
+    beam = Models.Beam.Isotropic(beamDim, line, section, E, v)
+
+    mesh = mesher.Mesh_Beams([beam], elemType=elemType)
+    structure = Models.Beam.BeamStructure([beam])
+    simu = Simulations.Beam(mesh, structure, useTimoshenko=True, verbosity=False)
+
+    if beamDim == 2:
+        simu.add_dirichlet(mesh.Nodes_Point(point1), [0, 0], ["x", "y"])
+        simu.add_dirichlet(mesh.Nodes_Point(point3), [0], ["y"])
+    elif beamDim == 3:
+        # rx must be pinned somewhere — pure-Lagrange Timoshenko leaves the
+        # torsion field with a free rigid-body mode otherwise (no torsion load).
+        simu.add_dirichlet(
+            mesh.Nodes_Point(point1), [0, 0, 0, 0], ["x", "y", "z", "rx"]
+        )
+        simu.add_dirichlet(mesh.Nodes_Point(point3), [0, 0], ["y", "z"])
+
+    simu.add_lineLoad(mesh.nodes, [q], ["y"])
+    simu.Solve()
+
+    x_n = mesh.coord[:, 0]
+    x_e = x_n[mesh.connect].mean(1)
+
+    uy_EB_x, Mz_x, Ty_x = _simply_supported_distrib_analytical(L, q, E, Iz)
+
+    # uy: EB bending + shear term q·x·(L-x)/(2·kGA)
+    uy_x = lambda x: uy_EB_x(x) + q * np.asarray(x) * (L - np.asarray(x)) / (2 * kGA)
+    uy_fe = simu.Result("uy", nodeValues=True)
+    err_uy = np.abs(uy_x(x_n) - uy_fe).max() / np.abs(uy_x(L / 2))
+    assert err_uy <= tol, f"uy error {err_uy:.2e} (tol {tol:.0e})"
+
+    # Mz: element means are O(h^2) under distributed load — check shape only
+    assert simu.Result("Mz", nodeValues=False).shape == (mesh.Ne,)
+
+    # Ty: linear — element means at reduced Gauss points are exact.
+    Ty_fe = simu.Result("Ty", nodeValues=False)
+    err_Ty = np.abs(Ty_x(x_e) - Ty_fe).max() / np.abs(Ty_x(x_e)).max()
+    assert err_Ty <= tol, f"Ty error {err_Ty:.2e} (tol {tol:.0e})"
+
+
+# -------------------------------------------------------
+# Frame / projection test: L-shape (axis-aligned beams + rigid joint)
+# -------------------------------------------------------
+
+
+@pytest.mark.parametrize("useTimoshenko", [False, True], ids=["EB", "Timoshenko"])
+@pytest.mark.parametrize("elemType", ELEM_TYPES)
+def test_L_frame(elemType: str, useTimoshenko: bool):
+    """Two-beam L-frame with rigid joint, clamped at origin, horizontal tip
+    force at the corner — exercises BeamStructure's projection matrix and the
+    add_connection_fixed Lagrange constraint.
+
+    Geometry:                           Loading:
+            F → o (L, L)                F in +x at (L, L)
+                |
+                | beam 2 (vertical)
+                |
+        o-------o (L, 0)                rigid joint at (L, 0)
+        ^ clamp
+        (0, 0)
+
+    Analytical solution:
+      Beam 1 (horizontal): inherits constant moment Mz = -F·L from beam 2's
+      tip force; tip x deflection F·L/EA (axial), tip rotation -F·L²/EI,
+      tip y deflection ±F·L³/(2EI) (sign depends on moment-sign convention,
+      compared as magnitude).
+
+      Beam 2 (vertical, cantilever from base): tip x deflection from bending
+      F·L³/(3EI), plus rigid-body x translation from base rotation -rz·L =
+      F·L³/EI, plus Timoshenko shear F·L/(kGA).
+
+      Total at (L, L):
+        ux = F·L/EA + 4·F·L³/(3·EI) + (F·L/kGA if Timoshenko else 0)
+        |uy| = F·L³/(2·EI)
+    """
+    L = 10.0
+    b, h = 0.5, 0.5
+    E, v = 210e9, 0.3
+    F = 1000.0
+    A = b * h
+    Iz = b * h**3 / 12
+    mu = E / (2 * (1 + v))
+    kGA = (5 / 6) * mu * A
+
+    mesher = Mesher()
+    section = _rect_section(mesher, b, h)
+    line1 = Line(Point(0, 0), Point(L, 0), L / 10)
+    line2 = Line(Point(L, 0), Point(L, L), L / 10)
+    beam1 = Models.Beam.Isotropic(2, line1, section, E, v)
+    beam2 = Models.Beam.Isotropic(2, line2, section, E, v)
+
+    mesh = mesher.Mesh_Beams([beam1, beam2], elemType=elemType)
+    structure = Models.Beam.BeamStructure([beam1, beam2])
+    simu = Simulations.Beam(
+        mesh, structure, useTimoshenko=useTimoshenko, verbosity=False
+    )
+    clamp = simu.mesh.Nodes_Point(Point(0, 0))
+    corner = simu.mesh.Nodes_Point(Point(L, 0))
+    tip = simu.mesh.Nodes_Point(Point(L, L))
+
+    simu.add_dirichlet(clamp, [0, 0, 0], ["x", "y", "rz"])
+    simu.add_connection_fixed(corner)  # weld the two beams at the corner
+    simu.add_neumann(tip, [F], ["x"])
+    simu.Solve()
+
+    ux_tip = simu.Result("ux", nodeValues=True)[tip][0]
+    uy_tip = simu.Result("uy", nodeValues=True)[tip][0]
+
+    shear_term = F * L / kGA if useTimoshenko else 0.0
+    ux_ex = F * L / (E * A) + 4 * F * L**3 / (3 * E * Iz) + shear_term
+    uy_ex_mag = F * L**3 / (2 * E * Iz)
+
+    # SEG2 has linear v → O(h²) convergence; SEG3+ exact for this load case.
+    tol = 1e-3 if elemType == "SEG2" else 1e-8
+
+    err_ux = abs(ux_tip - ux_ex) / abs(ux_ex)
+    err_uy = abs(abs(uy_tip) - uy_ex_mag) / uy_ex_mag
+    assert err_ux <= tol, f"ux error {err_ux:.2e} (tol {tol:.0e})"
+    assert err_uy <= tol, f"|uy| error {err_uy:.2e} (tol {tol:.0e})"
 
 
 # -------------------------------------------------------

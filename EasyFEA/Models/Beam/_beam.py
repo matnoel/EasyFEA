@@ -390,7 +390,11 @@ class BeamStructure(_IModel):
         """
         return self.__dof_n
 
-    def Calc_D_e_pg(self, groupElem: _GroupElem) -> FeArray.FeArrayALike:
+    def Calc_D_e_pg(
+        self,
+        groupElem: _GroupElem,
+        matrixType: MatrixType = MatrixType.beam,
+    ) -> FeArray.FeArrayALike:
         """Returns a matrix characterizing the beams's stiffness behavior."""
 
         assert isinstance(groupElem, (_Timoshenko, _EulerBernoulli))
@@ -401,7 +405,7 @@ class BeamStructure(_IModel):
         list_D = [beam.Get_D(useTimoshenko) for beam in listBeam]
 
         Ne = groupElem.Ne
-        nPg = groupElem.Get_gauss(MatrixType.beam).nPg
+        nPg = groupElem.Get_gauss(matrixType).nPg
         # Initialize D_e_pg :
         D_e_pg = FeArray.zeros(Ne, nPg, *list_D[0].shape)
 

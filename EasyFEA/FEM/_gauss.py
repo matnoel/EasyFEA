@@ -375,6 +375,8 @@ class Gauss:
                 nPg = 1
             elif matrixType in [MatrixType.mass, MatrixType.beam]:
                 nPg = 2
+            elif matrixType == MatrixType.beam_shear:
+                nPg = 1  # reduced (n-1)
             else:
                 raise ValueError("unknown matrixType")
             x, weights = np.polynomial.legendre.leggauss(nPg)
@@ -386,6 +388,8 @@ class Gauss:
                 nPg = 3
             elif matrixType == MatrixType.beam:
                 nPg = 4
+            elif matrixType == MatrixType.beam_shear:
+                nPg = 2  # reduced (n-1)
             else:
                 raise ValueError("unknown matrixType")
             x, weights = np.polynomial.legendre.leggauss(nPg)
@@ -397,6 +401,8 @@ class Gauss:
                 nPg = 4
             elif matrixType == MatrixType.beam:
                 nPg = 6
+            elif matrixType == MatrixType.beam_shear:
+                nPg = 3  # reduced (n-1)
             else:
                 raise ValueError("unknown matrixType")
             x, weights = np.polynomial.legendre.leggauss(nPg)
@@ -408,6 +414,8 @@ class Gauss:
                 nPg = 5
             elif matrixType == MatrixType.beam:
                 nPg = 8
+            elif matrixType == MatrixType.beam_shear:
+                nPg = 4  # reduced (n-1)
             else:
                 raise ValueError("unknown matrixType")
             x, weights = np.polynomial.legendre.leggauss(nPg)

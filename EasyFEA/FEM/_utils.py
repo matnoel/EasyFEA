@@ -85,10 +85,17 @@ class MatrixType(str, Enum):
     """int_Ω N • N dΩ type"""
     beam = "beam"
     """int_Ω ddNv • ddNv dΩ type"""
+    beam_shear = "beam_shear"
+    """Reduced integration order for the Timoshenko shear term (n-1 Gauss points for SEGn). Selective reduced integration is the standard cure for shear locking in Lagrange Timoshenko beams (Hughes 1987; Bathe 2006)."""
 
     def __str__(self) -> str:
         return self.name
 
     @staticmethod
     def Get_types() -> list["MatrixType"]:
-        return [MatrixType.rigi, MatrixType.mass, MatrixType.beam]
+        return [
+            MatrixType.rigi,
+            MatrixType.mass,
+            MatrixType.beam,
+            MatrixType.beam_shear,
+        ]
