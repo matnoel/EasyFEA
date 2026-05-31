@@ -2,6 +2,23 @@
 
 This document describes the changes made to the project.
 
+## 1.10.0 (May 31, 2026):
+
+- Created `euler_implicit` and `euler_explicit` hyperbolic algorithms.
+- Continued work on Timoshenko beams (issue #39).
+    - Replaced Jouravski's formula with Cowper's (1966) shear correction factor in `_Get_shear_correction_factor`.
+    - Prevented shear locking for Timoshenko elements.
+    - Updated shear correction factor docstrings.
+    - Updated links to fem object.
+- Fixed bug in `hyperelastic._Calc_W` function.
+- Created `simu.__Get_Ndof` function and refactored `simu._Get_*_n` functions to use it.
+- Simplified `simu._Solver_Apply_Dirichlet` function.
+- Removed `_ScipyLinearDirect` function.
+- Updated the default element type in `Mesh_Beams` function.
+- Improved `Matrix System Solvers` documentation in `docs/api/simulations.md`.
+
+**Full Changelog:** https://github.com/matnoel/EasyFEA/compare/v1.9.2...v1.10.0
+
 ## 1.9.2 (May 21, 2026):
 
 - Created the `CiarletGeymonat` hyperelastic law.
