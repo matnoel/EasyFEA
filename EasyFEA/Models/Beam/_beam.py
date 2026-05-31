@@ -324,21 +324,6 @@ class _Beam(_IModel):
 
         section = self.section
 
-        # Warn once per beam if the section uses linear 2-D elements (TRI3 /
-        # QUAD4): the Poisson solution is cubic, so we get only O(h²) accuracy.
-        # TRI6 / QUAD8 capture cubic with O(h³), TRI10+ are exact.
-        if section.groupElem.elemType in _LINEAR_2D_ELEMS and not getattr(
-            self, "_warned_linear_section", False
-        ):
-            Display.MyPrint(
-                f"Beam: section uses linear {section.groupElem.elemType.name} "
-                "elements — _Get_shear_correction_factor converges at O(h²). "
-                "Use TRI6 / QUAD8 (or finer mesh) for accurate k.",
-                color="yellow",
-                end="\n",
-            )
-            self._warned_linear_section = True
-
         # Weak form of  ∇²φ = -s  with Neumann ∂φ/∂n = 0  is
         #   ∫_S ∇u · ∇v dS  =  ∫_S s · v dS.
         field = Field(section.groupElem, 1)
