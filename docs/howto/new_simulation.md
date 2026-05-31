@@ -15,7 +15,7 @@ simulation classes that cover the vast majority of common problems:
 | {py:class}`~EasyFEA.Simulations.Elastic` | Linear elasticity (static, dynamic, contact) |
 | {py:class}`~EasyFEA.Simulations.Thermal` | Heat conduction (static, transient) |
 | {py:class}`~EasyFEA.Simulations.PhaseField` | Phase-field brittle fracture |
-| {py:class}`~EasyFEA.Simulations.Beam` | Euler–Bernoulli beams |
+| {py:class}`~EasyFEA.Simulations.Beam` | Euler–Bernoulli and Timoshenko beams |
 | {py:class}`~EasyFEA.Simulations.DIC` | Digital Image Correlation |
 
 If your physics is not listed above, consider

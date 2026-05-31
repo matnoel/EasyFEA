@@ -13,7 +13,7 @@ New to EasyFEA? Start with the :ref:`HelloWorld` script described in the :ref:`b
     * - Folder
       - Description
     * - :ref:`Beam <easyfea-examples-beam>`
-      - Euler-Bernoulli beam simulations (1D/2D/3D).
+      - Euler-Bernoulli and Timoshenko beam simulations (1D/2D/3D).
     * - :ref:`DIC <easyfea-examples-dic>`
       - Digital Image Correlation analyses.
     * - :ref:`LinearizedElasticity <easyfea-examples-linearized-elasticity>`

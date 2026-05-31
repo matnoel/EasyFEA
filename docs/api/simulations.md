@@ -10,7 +10,7 @@ With this module, you can construct:
 
 + Linear elastic simulations with {py:class}`~EasyFEA.Simulations.Elastic`.
 + Nonlinear hyperelastic simulations with {py:class}`~EasyFEA.Simulations.HyperElastic`.
-+ Euler-Bernoulli beam simulations with {py:class}`~EasyFEA.Simulations.Beam`.
++ Euler-Bernoulli and Timoshenko beam simulations with {py:class}`~EasyFEA.Simulations.Beam` (`useTimoshenko=True` to switch).
 + PhaseField damage simulations for quasi-static brittle fracture with {py:class}`~EasyFEA.Simulations.PhaseField`.
 + Thermal simulations with {py:class}`~EasyFEA.Simulations.Thermal`.
 + Weak form simulations with {py:class}`~EasyFEA.Simulations.WeakForms`.
