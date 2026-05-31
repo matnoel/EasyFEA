@@ -2,6 +2,14 @@
 
 This document describes the changes made to the project.
 
+## 1.10.1 (May 31, 2026):
+
+- Fixed flaky `test_Evaluate_dofsValues_at_coordinates_2D` and `_3D`: replaced the unseeded random-node sample with a vectorized `assert_allclose` over all nodes (tolerance now reflects Newton inverse-mapping precision).
+- Loosened machine-precision tolerances in `TOLS_TIP` and `TOLS_DISTRIB` (beam tests) from `1e-12` to `1e-11` to absorb harmless float noise.
+- Updated documentation and example READMEs to reference Timoshenko beams alongside Euler-Bernoulli, with a pointer to `Beam2` as the worked Timoshenko example.
+
+**Full Changelog:** https://github.com/matnoel/EasyFEA/compare/v1.10.0...v1.10.1
+
 ## 1.10.0 (May 31, 2026):
 
 - Created `euler_implicit` and `euler_explicit` hyperbolic algorithms.
