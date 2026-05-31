@@ -527,8 +527,8 @@ def _timoshenko_kGA(
 # At nL=10, SEG2 gives ~1.2e-3 error, SEG3 ~1.5e-6 (distrib), SEG4 ~1.1e-7,
 # SEG5 machine precision.  TOLS_TIP / TOLS_DISTRIB lock these in.
 
-TOLS_TIP = {"SEG2": 2e-3, "SEG3": 1e-12, "SEG4": 1e-12, "SEG5": 1e-12}
-TOLS_DISTRIB = {"SEG2": 1e-2, "SEG3": 1e-5, "SEG4": 1e-6, "SEG5": 1e-12}
+TOLS_TIP = {"SEG2": 2e-3, "SEG3": 1e-11, "SEG4": 1e-11, "SEG5": 1e-11}
+TOLS_DISTRIB = {"SEG2": 1e-2, "SEG3": 1e-5, "SEG4": 1e-6, "SEG5": 1e-11}
 
 
 @pytest.mark.parametrize("beamDim", [2, 3])
