@@ -194,29 +194,25 @@ class TestMesh:
 
         for mesh in meshes_2D:
 
-            node = np.random.randint(0, mesh.Nn, 1)
-
-            coords = mesh.coord[node].reshape(1, 3)
-
+            coords = mesh.coord
             dofsValues = np.arange(mesh.Nn * 2) + 1
 
             values = mesh.Evaluate_dofsValues_at_coordinates(coords, dofsValues)
-            equal(dofsValues.reshape(-1, 2)[node, 0], values[0, 0])
-            equal(dofsValues.reshape(-1, 2)[node, 1], values[0, 1])
+            expected = dofsValues.reshape(-1, 2)
+            # Newton inverse mapping in Get_Mapping converges to ~1e-12;
+            # einsum interpolation amplifies it by max(dofsValues) ~ O(Nn).
+            np.testing.assert_allclose(values, expected, rtol=1e-9, atol=1e-12)
 
     def test_Evaluate_dofsValues_at_coordinates_3D(self, meshes_3D: list[Mesh]):
 
         for mesh in meshes_3D:
 
-            node = np.random.randint(0, mesh.Nn, 1)
-
-            coords = mesh.coord[node].reshape(1, 3)
-
+            coords = mesh.coord
             dofsValues = np.arange(mesh.Nn * 2) + 1
 
             values = mesh.Evaluate_dofsValues_at_coordinates(coords, dofsValues)
-            equal(dofsValues.reshape(-1, 2)[node, 0], values[0, 0])
-            equal(dofsValues.reshape(-1, 2)[node, 1], values[0, 1])
+            expected = dofsValues.reshape(-1, 2)
+            np.testing.assert_allclose(values, expected, rtol=1e-9, atol=1e-12)
 
 
 def _no_duplicate_coords(mesh: Mesh, atol: float = 1e-12) -> bool:
