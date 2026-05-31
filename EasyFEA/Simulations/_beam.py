@@ -741,7 +741,8 @@ class Beam(_Simu):
         2D -> [N, Mz]\n
         3D -> [N, Mx, My, Mz]
         """
-        # .../FEMOBJECT/BASIC/MODEL/MATERIALS/@ELAS_BEAM/sigma.m
+        # Example in matlab with FEMObject: https://github.com/fpled/FEMObject/blob/master
+        # /MODEL/MATERIALS/@ELAS_BEAM/sigma.m
 
         Epsilon_e_pg = FeArray.asfearray(Epsilon_e_pg)
 
@@ -767,7 +768,8 @@ class Beam(_Simu):
         2D -> [Sxx, Syy, Sxy]\n
         3D -> [Sxx, Syy, Szz, Syz, Sxz, Sxy]
         """
-        # .../FEMOBJECT/BASIC/MODEL/MATERIALS/@ELAS_BEAM/sigma.m
+        # Example in matlab with FEMObject: https://github.com/fpled/FEMObject/blob/master
+        # /BASIC/MODEL/MATERIALS/@ELAS_BEAM/sigma.m
 
         Epsilon_e_pg = FeArray.asfearray(Epsilon_e_pg)
 

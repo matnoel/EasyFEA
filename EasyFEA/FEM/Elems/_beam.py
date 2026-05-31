@@ -300,8 +300,9 @@ class _EulerBernoulli(_GroupElem):
         functions.  Compare with _Timoshenko.Get_beam_N_e_pg where the rotation
         rows use Lagrange N.
 
-        Example in matlab:  https://github.com/fpled/FEMObject/blob/master/BASIC/MODEL/ELEMENTS/%40BEAM/calc_N.m
         """
+        # Example in matlab with FEMObject: https://github.com/fpled/FEMObject/blob/master
+        # /BASIC/MODEL/ELEMENTS/BEAM/calc_N.m
 
         matrixType = MatrixType.beam
 
@@ -412,9 +413,9 @@ class _EulerBernoulli(_GroupElem):
         - there is NO shear row — B has 2 rows (2D) or 4 rows (3D).
         - D is 2×2 (2D) or 4×4 (3D): no kGA term.
 
-        # Example in matlab :
-        # https://github.com/fpled/FEMObject/blob/master/BASIC/MODEL/ELEMENTS/%40BEAM/calc_B.m
         """
+        # Example in matlab with FEMObject: https://github.com/fpled/FEMObject/blob/master
+        # /BASIC/MODEL/ELEMENTS/%40BEAM/calc_B.m
 
         matrixType = MatrixType.beam
 
