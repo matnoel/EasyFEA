@@ -93,7 +93,7 @@ if __name__ == "__main__":
     x = np.linspace(0, L, 100)
     uy_x_eb = lambda x: F * (L * x**2 / 2 - x**3 / 6) / (E * Iz)
     if simu.useTimoshenko:
-        kappa = beam._Get_shear_kappa()
+        kappa = beam._Get_shear_correction_factor()
         uy_x = lambda x: uy_x_eb(x) + F * x / (kappa * G * A)
     else:
         uy_x = uy_x_eb

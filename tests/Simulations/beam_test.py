@@ -503,14 +503,13 @@ def test_simply_supported_distrib(elemType: str, beamDim: int):
 def _timoshenko_kGA(
     beam: Models.Beam.Isotropic, E: float, v: float, A: float, axis: str = "y"
 ) -> float:
-    """Effective shear stiffness kGA — reads the shear correction factor from
-    the beam's section via the Saint-Venant Poisson formulation, so the
-    analytical reference matches whatever the simulation actually uses
-    (≈ 5/6 for a well-meshed rectangular section, ≈ 6/7 for a circle —
-    Cowper-with-ν=0 values).
+    """Effective shear stiffness kGA — reads the shear correction factor
+    straight from ``beam._ky`` / ``beam._kz`` (same values the simulation
+    uses in Get_D).  Defaults are the Cowper-ν=0 values from
+    _Get_shear_kappa: ≈ 5/6 for a rectangle, ≈ 6/7 for a circle.
     """
     mu = E / (2 * (1 + v))
-    k = beam._Get_shear_kappa(axis)
+    k = beam._ky if axis == "y" else beam._kz
     return k * mu * A
 
 
@@ -619,7 +618,7 @@ def test_timoshenko_cantilever_tip_beam2_example():
       - 2D Timoshenko cantilever
       - slender geometry (L = 120, b = h = 13 → L/h ≈ 9.2)
       - TRI6 section (quadratic — matches the example's choice and our
-        recommendation for accurate _shear_kappa)
+        recommendation for accurate _Get_shear_kappa)
       - SEG3 beam (cubic v → exact for tip-load deflection)
       - nL = 10
 
@@ -639,7 +638,7 @@ def test_timoshenko_cantilever_tip_beam2_example():
     p1, p2 = Point(0, 0), Point(L, 0)
     line = Line(p1, p2, L / nL)
     beam = Models.Beam.Isotropic(2, line, section, E, v)
-    kGA = _timoshenko_kGA(beam, E, v, A)  # uses the beam's actual _shear_kappa
+    kGA = _timoshenko_kGA(beam, E, v, A)  # uses beam._ky (matches the simulation)
 
     mesh = mesher.Mesh_Beams([beam], elemType=ElemType.SEG3)
     structure = Models.Beam.BeamStructure([beam])
@@ -827,7 +826,7 @@ def test_timoshenko_simply_supported(elemType: str, beamDim: int):
 # Saint-Venant shear correction factor — section geometry
 # -------------------------------------------------------
 #
-# The dedicated _shear_kappa tests use TRI6 sections (quadratic — what the
+# The dedicated _Get_shear_kappa tests use TRI6 sections (quadratic — what the
 # code's own warning recommends).  φ is a cubic polynomial in (x, y) for
 # rectangles / circles, and TRI6 captures it with O(h³) error → ~1e-5 at the
 # default meshing, so we can assert a tight 1e-4 tolerance.
@@ -858,8 +857,8 @@ def test_shear_kappa_rectangle(b: float, h: float):
 
     k_expected = 5 / 6
     tol = 1e-4
-    ky = beam._Get_shear_kappa("y")
-    kz = beam._Get_shear_kappa("z")
+    ky = beam._Get_shear_correction_factor("y")
+    kz = beam._Get_shear_correction_factor("z")
     err_y = abs(ky - k_expected) / k_expected
     err_z = abs(kz - k_expected) / k_expected
     assert err_y <= tol, f"ky={ky:.6f} err {err_y:.2e} (tol {tol:.0e})"
@@ -881,8 +880,8 @@ def test_shear_kappa_circle(diam: float):
 
     k_expected = 6 / 7
     tol = 1e-4
-    ky = beam._Get_shear_kappa("y")
-    kz = beam._Get_shear_kappa("z")
+    ky = beam._Get_shear_correction_factor("y")
+    kz = beam._Get_shear_correction_factor("z")
     err_y = abs(ky - k_expected) / k_expected
     err_z = abs(kz - k_expected) / k_expected
     assert err_y <= tol, f"ky={ky:.6f} err {err_y:.2e} (tol {tol:.0e})"
@@ -901,7 +900,9 @@ def test_shear_kappa_convergence():
     for meshSize in [2.0, 1.0, 0.5, 0.25]:
         section = mesher.Mesh_2D(Domain(Point(-5, -5), Point(5, 5), meshSize=meshSize))
         beam = Models.Beam.Isotropic(2, line, section, 210e9, 0.3)
-        errors.append(abs(beam._Get_shear_kappa("y") - k_expected) / k_expected)
+        errors.append(
+            abs(beam._Get_shear_correction_factor("y") - k_expected) / k_expected
+        )
 
     # error should decrease (or already be at machine precision)
     for fine, coarse in zip(errors[1:], errors[:-1]):
@@ -910,7 +911,7 @@ def test_shear_kappa_convergence():
 
 
 def test_shear_kappa_axis_error():
-    """_shear_kappa raises on invalid axis."""
+    """_Get_shear_kappa raises on invalid axis."""
     from EasyFEA.Geoms import Line
 
     mesher = Mesher()
@@ -919,7 +920,7 @@ def test_shear_kappa_axis_error():
         2, Line(Point(0, 0), Point(x=10), 1), section, 210e9, 0.3
     )
     with pytest.raises(ValueError):
-        beam._Get_shear_kappa("x")
+        beam._Get_shear_correction_factor("x")
 
 
 # -------------------------------------------------------

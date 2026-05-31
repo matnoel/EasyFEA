@@ -39,9 +39,36 @@ class _Beam(_IModel):
     __nBeam = -1
 
     _ky = _params.PositiveScalarParameter()
-    """Shear correction factor k for the cross-section."""
+    """Shear correction factor for transverse shear in the beam's y direction
+    (paired with Iz bending in ``Isotropic.Get_D``).
+
+    Populated in ``_Beam.__init__`` with the Cowper-ν=0 value returned by
+    ``_Get_shear_correction_factor("y")``.  Override directly to use a different k:
+
+        # Pure Jouravski (textbook): same as default for rectangle, 9/10 for circle
+        beam._ky = 9 / 10
+
+        # Cowper-with-ν for a rectangular section (k = 10(1+ν)/(12+11ν))
+        beam._ky = 10 * (1 + beam.v) / (12 + 11 * beam.v)
+
+        # Cowper-with-ν for a circular section (k = 6(1+ν)/(7+6ν))
+        beam._ky = 6 * (1 + beam.v) / (7 + 6 * beam.v)
+
+        # Value from a steel-section table, etc.
+        beam._ky = 0.49
+    """
     _kz = _params.PositiveScalarParameter()
-    """Shear correction factor k for the cross-section."""
+    """Shear correction factor for transverse shear in the beam's z direction
+    (paired with Iy bending in ``Isotropic.Get_D``).  3-D beams only — unused
+    in 1-D / 2-D simulations.
+
+    Populated in ``_Beam.__init__`` with the Cowper-ν=0 value returned by
+    ``_Get_shear_correction_factor("z")``.  Override directly to use a different k —
+    same Cowper-with-ν / Pure Jouravski / table-value patterns as ``_ky``,
+    just applied to the z direction (so e.g. for a rectangle bxh, the
+    paired bending inertia is Iy = h·b³/12 and the formula factor refers
+    to the b direction).
+    """
 
     @property
     def modelType(self) -> ModelType:
@@ -129,8 +156,8 @@ class _Beam(_IModel):
 
         self.yAxis = yAxis  # type: ignore [assignment]
 
-        self._ky = self._Get_shear_kappa("y")
-        self._kz = self._Get_shear_kappa("z")
+        self._ky = self._Get_shear_correction_factor("y")
+        self._kz = self._Get_shear_correction_factor("z")
 
     @property
     def line(self) -> Line:
@@ -243,40 +270,50 @@ class _Beam(_IModel):
         J = np.array([i, j, k]).T
         return J
 
-    def _Get_shear_kappa(self, axis: str = "y") -> float:
-        """Cowper's (1966) shear correction factor k for the cross-section.
+    def _Get_shear_correction_factor(self, axis: str = "y") -> float:
+        """Cowper's (1966) shear correction factor k for the cross-section,
+        evaluated at Poisson's ratio ν = 0.
 
-        Computes k by solving a single Saint-Venant Poisson problem on the
-        2-D section mesh:
+        Used to populate ``self._ky`` / ``self._kz`` in ``__init__`` — those
+        attributes are what ``Isotropic.Get_D`` actually reads, so users can
+        override them with any value (Pure Jouravski, a textbook table value,
+        Cowper-with-ν=v, …) without touching this helper.
+
+        Computes k by solving one Saint-Venant Poisson problem on the 2-D
+        section mesh:
 
             ∇²φ = -s   in the section S
             ∂φ/∂n = 0  on the boundary ∂S
 
-        where s is the slicing coordinate (s = y ν for ``axis="y"`` returns k_y
-        paired with Iz; s = x ν for ``axis="z"`` returns k_z paired with Iy).
-        The rigid (constant) mode is fixed by clamping one node to 0 — k
-        below is translation-invariant.
+        where s is the section coordinate along the shear direction:
+        ``axis="y"`` → s = y (gives k_y, pairs with Iz)
+        ``axis="z"`` → s = x (gives k_z, pairs with Iy).
+        The rigid-body (constant) mode of the Neumann problem is fixed by
+        clamping one node to 0; k below is translation-invariant.
 
-        With ∂φ/∂n = 0 the energy identity gives uᵀ·f = ∫_S |∇φ|² = ∫_S s·φ
-
+        Using the Neumann BC, the energy identity gives
+            uᵀ · f  =  ∫_S |∇φ|² dS  =  ∫_S s · φ dS
+        and Cowper at ν = 0 reduces to
             k = I² / (A · uᵀ · f)
+        with I = Iz for axis="y", I = Iy for axis="z".
 
-        with I = Iz (or Iy for axis="z").  Reference values:
+        Reference values (any mesh size, any aspect ratio):
+            rectangle  →  5/6  ≈ 0.8333
+            circle     →  6/7  ≈ 0.8571
+            I-beam, hollow tube, channel, …  →  whatever the geometry yields
 
-            rectangle (any bxh)  →  5/6   ≈ 0.8333
-            circle    (any d)    →  6/7   ≈ 0.8571
-            I-beam, tube, etc.   →  whatever the geometry says
+        Note vs. the textbook "Pure Jouravski" value:
+            - The two formulas *agree on the rectangle* (both 5/6).
+            - For curved boundaries they differ: Pure Jouravski's 1-D
+              τ_yz = V·Q/(I·b), τ_xz = 0 assumption gives 9/10 for a circle;
+              this Poisson PDE returns 6/7 because it accounts for the
+              non-zero τ_xz that the curved boundary forces.  6/7 is the
+              physically correct ν = 0 value (matches 3-D elasticity).
 
-        Note: Pure Jouravski's 1-D Q/b formula gives 9/10 for a circle; this
-        function returns 6/7 because the Poisson PDE captures the *2-D*
-        shear-stress field, which is what the underlying elasticity problem
-        actually has.  Both methods agree on rectangles.
-
-        Cowper-with-ν ≠ 0 would need a different PDE (non-zero Neumann
-        boundary term involving ν) and is not implemented here — if you need
-        a specific k value (Cowper-ν, Pure Jouravski, a value from a steel
-        section table, …), set ``beam._ky`` / ``beam._kz`` directly instead
-        of using this helper.
+        Cowper-with-ν ≠ 0 needs a different PDE (non-zero Neumann boundary
+        term involving ν); not implemented here.  If you need a specific k
+        value other than Cowper-ν=0 — Pure Jouravski, Cowper-with-ν,
+        a steel-table value — set ``beam._ky`` / ``beam._kz`` directly.
         """
         if axis == "y":
             bending_inertia = self.Iz
@@ -295,7 +332,7 @@ class _Beam(_IModel):
         ):
             Display.MyPrint(
                 f"Beam: section uses linear {section.groupElem.elemType.name} "
-                "elements — _shear_kappa converges at O(h²). "
+                "elements — _Get_shear_correction_factor converges at O(h²). "
                 "Use TRI6 / QUAD8 (or finer mesh) for accurate k.",
                 color="yellow",
                 end="\n",
@@ -386,10 +423,10 @@ class Isotropic(_Beam):
 
         E = self.E
 
-        # Shear correction factors are read straight from the beam's _ky / _kz
-        # parameters (default 1.0 — "no correction").  Set them explicitly to
-        # use a numerical value (e.g. ``beam._ky = beam._shear_kappa("y")`` for
-        # Cowper-ν=0, or ``beam._ky = 5/6`` for the textbook rectangular value).
+        # Shear correction factors come straight from the beam's _ky / _kz.
+        # Default: the Cowper-ν=0 value computed once in _Beam.__init__ via
+        # _Get_shear_correction_factor.  See those attributes' docstrings for the
+        # textbook Cowper-with-ν / Pure-Jouravski override patterns.
         if dim == 1:
             # u = [u1, . . . , un]
             D = np.diag([E * A])
