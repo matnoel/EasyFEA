@@ -119,60 +119,101 @@ class _Geom(ABC):
         new.name = new.name + "_copy"
         return new
 
-    def Translate(self, dx: float = 0.0, dy: float = 0.0, dz: float = 0.0) -> None:
+    def Translate(
+        self,
+        dx: float = 0.0,
+        dy: float = 0.0,
+        dz: float = 0.0,
+        copy: bool = False,
+    ) -> Union[_Geom, None]:
         """Translates the geometry in 3D space.
 
         Parameters
         ----------
         dx : float, optional
-            Translation along the x-axis, by default 0.0.
+            translation along the x-axis, by default 0.0
         dy : float, optional
-            Translation along the y-axis, by default 0.0.
+            translation along the y-axis, by default 0.0
         dz : float, optional
-            Translation along the z-axis, by default 0.0.
-        """
+            translation along the z-axis, by default 0.0
+        copy : bool, optional
+            if True, returns a new translated object leaving the original unchanged, by default False
 
-        # to translate an object, all you have to do is move these points
-        [p.Translate(dx, dy, dz) for p in self.__points]  # type: ignore [func-returns-value]
+        Returns
+        -------
+        _Geom | None
+            a new translated object if copy=True, otherwise None
+        """
+        obj = self.copy() if copy else self
+        for p in obj.__points:
+            p.Translate(dx, dy, dz)
+        if copy:
+            return obj
 
     def Rotate(
-        self, theta: float, center: tuple = (0, 0, 0), direction: tuple = (0, 0, 1)
-    ) -> None:
-        """Rotates the object coordinates around an axis.
+        self,
+        theta: float,
+        center: _types.Coords = (0, 0, 0),
+        direction: _types.Coords = (0, 0, 1),
+        copy: bool = False,
+    ) -> Union[_Geom, None]:
+        """Rotates the geometry around an axis defined by a center and a direction.
 
         Parameters
         ----------
         theta : float
-            rotation angle in [deg]
-        center : tuple, optional
-            rotation center, by default (0,0,0)
-        direction : tuple, optional
-            rotation direction, by default (0,0,1)
-        """
-        oldCoord = self.coord
-        newCoord = Rotate(oldCoord, theta, center, direction)
+            rotation angle [deg]
+        center : _types.Coords, optional
+            point on the rotation axis, by default (0,0,0)
+        direction : _types.Coords, optional
+            unit vector defining the rotation axis, by default (0,0,1) (z-axis)
+        copy : bool, optional
+            if True, returns a new rotated object leaving the original unchanged, by default False
 
+        Returns
+        -------
+        _Geom | None
+            a new rotated object if copy=True, otherwise None
+        """
+        obj = self.copy() if copy else self
+        oldCoord = obj.coord
+        newCoord = Rotate(oldCoord, theta, center, direction)
         dec = newCoord - oldCoord
-        [point.Translate(*dec[p]) for p, point in enumerate(self.points)]  # type: ignore [func-returns-value]
+        for p, point in enumerate(obj.points):
+            point.Translate(*dec[p])
+        if copy:
+            return obj
 
     def Symmetry(
-        self, point: _types.Coords = (0, 0, 0), n: _types.Coords = (1, 0, 0)
-    ) -> None:
-        """Reflects the geometry with respect to a plane.
+        self,
+        point: _types.Coords = (0, 0, 0),
+        n: _types.Coords = (1, 0, 0),
+        copy: bool = False,
+    ) -> Union[_Geom, None]:
+        """Reflects the geometry through a plane defined by a point and a normal vector.
 
         Parameters
         ----------
-        point : Coords, optional
-            A point on the reflection plane, by default (0, 0, 0).
-        n : Coords, optional
-            Normal vector of the plane, by default (1, 0, 0).
+        point : _types.Coords, optional
+            a point on the reflection plane, by default (0,0,0)
+        n : _types.Coords, optional
+            normal vector to the reflection plane, by default (1,0,0) (yz-plane)
+        copy : bool, optional
+            if True, returns a new reflected object leaving the original unchanged, by default False
+
+        Returns
+        -------
+        _Geom | None
+            a new reflected object if copy=True, otherwise None
         """
-
-        oldCoord = self.coord
+        obj = self.copy() if copy else self
+        oldCoord = obj.coord
         newCoord = Symmetry(oldCoord, point, n)
-
         dec = newCoord - oldCoord
-        [point.Translate(*dec[p]) for p, point in enumerate(self.points)]  # type: ignore [func-returns-value]
+        for p, pt in enumerate(obj.points):
+            pt.Translate(*dec[p])
+        if copy:
+            return obj
 
     def Mesh_2D(
         self,
