@@ -303,8 +303,23 @@ class Mesh(Observable):
 
         return merged
 
-    def Translate(self, dx: float = 0.0, dy: float = 0.0, dz: float = 0.0) -> None:
-        """Translates the mesh coordinates."""
+    def Translate(
+        self,
+        dx: float = 0.0,
+        dy: float = 0.0,
+        dz: float = 0.0,
+    ) -> None:
+        """Translates the mesh coordinates in 3D space.
+
+        Parameters
+        ----------
+        dx : float, optional
+            translation along the x-axis, by default 0.0
+        dy : float, optional
+            translation along the y-axis, by default 0.0
+        dz : float, optional
+            translation along the z-axis, by default 0.0
+        """
         oldCoord = self.coord
         newCoord = oldCoord + np.array([dx, dy, dz])
         for grp in self.dict_groupElem.values():
@@ -312,18 +327,21 @@ class Mesh(Observable):
         self._Notify("The mesh has been modified")
 
     def Rotate(
-        self, theta: float, center: tuple = (0, 0, 0), direction: tuple = (0, 0, 1)
+        self,
+        theta: float,
+        center: _types.Coords = (0, 0, 0),
+        direction: _types.Coords = (0, 0, 1),
     ) -> None:
-        """Rotates the mesh coordinates around an axis.
+        """Rotates the mesh coordinates around an axis defined by a center and a direction.
 
         Parameters
         ----------
         theta : float
             rotation angle [deg]
-        center : tuple, optional
-            rotation center, by default (0,0,0)
-        direction : tuple, optional
-            rotation direction, by default (0,0,1)
+        center : _types.Coords, optional
+            point on the rotation axis, by default (0,0,0)
+        direction : _types.Coords, optional
+            unit vector defining the rotation axis, by default (0,0,1) (z-axis)
         """
         oldCoord = self.coord
         newCoord = Rotate(oldCoord, theta, center, direction)
@@ -331,15 +349,19 @@ class Mesh(Observable):
             grp.coord = newCoord
         self._Notify("The mesh has been modified")
 
-    def Symmetry(self, point=(0, 0, 0), n=(1, 0, 0)) -> None:
-        """Symmetrizes the mesh coordinates with respect to a specified plane.
+    def Symmetry(
+        self,
+        point: _types.Coords = (0, 0, 0),
+        n: _types.Coords = (1, 0, 0),
+    ) -> None:
+        """Reflects the mesh coordinates through a plane defined by a point and a normal vector.
 
         Parameters
         ----------
-        point : tuple, optional
-            a point belonging to the plane, by default (0,0,0)
-        n : tuple, optional
-            normal to the plane, by default (1,0,0)
+        point : _types.Coords, optional
+            a point on the reflection plane, by default (0,0,0)
+        n : _types.Coords, optional
+            normal vector to the reflection plane, by default (1,0,0) (yz-plane)
         """
         oldCoord = self.coord
         newCoord = Symmetry(oldCoord, point, n)
