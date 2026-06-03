@@ -30,16 +30,6 @@ from ..Models.Beam._beam import BeamStructure, _Beam, Isotropic
 from ._simu import _Simu, SolverType
 
 
-def _Timoshenko_shear_rows(dim: int) -> tuple[int, ...]:
-    """Row indices in B/D that hold the transverse shear strains for Timoshenko.
-
-    2D: [du/dx, dθ/dx, γ]            → shear is row 2.
-    3D: [du/dx, drx/dx, κy, κz, γy, γz] → shear is rows 4, 5.
-    1D has no shear row.
-    """
-    return {1: (), 2: (2,), 3: (4, 5)}[dim]
-
-
 class Beam(_Simu):
     """Beam simulation (Euler-Bernoulli or Timoshenko).
 
@@ -426,29 +416,23 @@ class Beam(_Simu):
         B_e_pg = groupElem.Get_beam_B_e_pg(beamStructure)
         D_e_pg = beamStructure.Calc_D_e_pg(groupElem)
 
-        if isinstance(groupElem, _Timoshenko):
-            # Selective reduced integration: shear at fewer Gauss points to
-            # avoid locking; axial/bending/torsion at full points.
-            # (1D Timoshenko has no transverse shear — fall through to full int.)
-            shear_rows = _Timoshenko_shear_rows(beamStructure.dim)
-            if shear_rows:
-                D_bend_e_pg = D_e_pg.copy()
-                for r in shear_rows:
-                    D_bend_e_pg[:, :, r, r] = 0.0
-                K_e = (wJ_e_pg * B_e_pg.T @ D_bend_e_pg @ B_e_pg).sum(axis=1)
-
-                shearType = MatrixType.beam_shear
-                wJ_shear_e_pg = mesh.Get_weightedJacobian_e_pg(shearType)
-                B_shear_e_pg = groupElem.Get_beam_B_e_pg(beamStructure, shearType)
-                D_shear_e_pg = beamStructure.Calc_D_e_pg(groupElem, shearType)
-                for r in range(D_shear_e_pg.shape[-1]):
-                    if r not in shear_rows:
-                        D_shear_e_pg[:, :, r, r] = 0.0
-                K_e = K_e + (
-                    wJ_shear_e_pg * B_shear_e_pg.T @ D_shear_e_pg @ B_shear_e_pg
-                ).sum(axis=1)
-            else:
-                K_e = (wJ_e_pg * B_e_pg.T @ D_e_pg @ B_e_pg).sum(axis=1)
+        if beamStructure.dim != 1 and isinstance(groupElem, _Timoshenko):
+            shear_rows = {2: (2,), 3: (4, 5)}[beamStructure.dim]
+            # bending
+            Db_e_pg = D_e_pg.copy()
+            for r in shear_rows:
+                Db_e_pg[:, :, r, r] = 0.0  # set 0.0 for shear parts
+            bend_e = (wJ_e_pg * B_e_pg.T @ Db_e_pg @ B_e_pg).sum(axis=1)
+            # reduced intefration on shear
+            shearType = MatrixType.beam_shear
+            wJs_e_pg = mesh.Get_weightedJacobian_e_pg(shearType)
+            Bs_e_pg = groupElem.Get_beam_B_e_pg(beamStructure, shearType)
+            Ds_e_pg = beamStructure.Calc_D_e_pg(groupElem, shearType)
+            for r in range(Ds_e_pg.shape[-1]):
+                if r not in shear_rows:
+                    Ds_e_pg[:, :, r, r] = 0.0  # set 0.0 for bending parts
+            shear_e = (wJs_e_pg * Bs_e_pg.T @ Ds_e_pg @ Bs_e_pg).sum(axis=1)
+            K_e = bend_e + shear_e
         else:
             K_e = (wJ_e_pg * B_e_pg.T @ D_e_pg @ B_e_pg).sum(axis=1)
 
