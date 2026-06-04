@@ -343,47 +343,14 @@ class Mesher:
 
         return surface
 
-    @singledispatchmethod
-    def __Create_geoms(self, geom: _Geom) -> list[Union[Line, CircleArc, Points]]:
-        """Creates geometries objects in order to construct a contour object.\n
-        return list[Line | CircleArc | Points]"""
-        NotImplementedError("Must be a Domain, Contour or Points.")
-
-    @__Create_geoms.register
-    def _(self, domain: Domain):
-        # construct points
-        p1 = domain.pt1
-        p3 = domain.pt2
-        p2 = p1.copy()
-        p2.x = p3.x
-        p4 = p1.copy()
-        p4.y = p3.y
-        # construct points
-        l1 = Line(p1, p2, domain.meshSize)
-        l2 = Line(p2, p3, domain.meshSize)
-        l3 = Line(p3, p4, domain.meshSize)
-        l4 = Line(p4, p1, domain.meshSize)
-
-        return [l1, l2, l3, l4]
-
-    @__Create_geoms.register
-    def _(self, contour: Contour):
-        return contour.geoms
-
-    @__Create_geoms.register
-    def _(self, points: Points):
-        return points.Get_Contour().geoms
-
     def _Surfaces(
         self,
         contour: GeomCompatible,
         inclusions: list[GeomCompatible] = [],
-        elemType: ElemType = ElemType.TRI3,
-        isOrganised: bool = False,
     ) -> tuple[list[int], list[int], list[int]]:
-        """Creates gmsh surfaces.\n
+        """Creates gmsh surfaces (pure geometry — no transfinite settings).\n
         They must be plane surfaces otherwise you must use 'factory.addSurfaceFilling' function.\n
-        returns surfaces, lines, points
+        returns surfaces, lines, points.
 
         Parameters
         ----------
@@ -392,10 +359,6 @@ class Mesher:
         inclusions : list[Domain | Circle | Points | Contour]
             hollow or filled objects contained in the contour surface.\n
             CAUTION: all inclusions must be contained within the contour and must not intersect.
-        elemType : ElemType, optional
-            element type used, by default TRI3
-        isOrganised : bool, optional
-            mesh is organized, by default False
         """
 
         assert isinstance(contour, _Geom), "The contour must be a geometric object."
@@ -420,28 +383,6 @@ class Mesher:
             surfaces.append(factory.addPlaneSurface([loop]))  # type: ignore [func-returns-value]
             for loop in filledLoops
         ]  # Adds filled surfaces
-
-        # The number of elements per line is calculated here to organize the surface if it can be.
-        if not isOrganised or isinstance(contour, Circle) or len(inclusions) > 0:
-            # Cannot be organized if there are inclusions.
-            # It is not necessary to impose a number of elements for circles and domains!
-            numElems = []
-        else:
-            geoms = self.__Create_geoms(contour)
-
-            N = len(geoms)  # number of geom in contour
-
-            def get_numElem(geom: ContourCompatible):
-                meshSize = geom.length if geom.meshSize == 0 else geom.meshSize
-                return geom.length / meshSize
-
-            if N % 2 == 0:  # N is odd
-                numElems = [get_numElem(geom) for geom in geoms[: N // 2]]
-                numElems = numElems * 2
-            else:
-                numElems = [get_numElem(geom) for geom in geoms]
-
-        self._Surfaces_Organize(surfaces, elemType, isOrganised, numElems)
 
         return surfaces, lines, points
 
@@ -491,10 +432,9 @@ class Mesher:
         self,
         dim: int,
         surfaces: list[GeomCompatible],
-        elemType: ElemType,
-        isOrganised: bool,
     ) -> None:
-        """Adds surfaces to existing dim entities. Tip: if the mesh is not well generated, you can also give the inclusions.
+        """Adds surfaces to existing dim entities. Tip: if the mesh is not well
+        generated, you can also give the inclusions.
 
         Parameters
         ----------
@@ -502,10 +442,6 @@ class Mesher:
             dimension (dim >= 2)
         surfaces : list[Domain | Circle | Points | Contour]
             surfaces
-        elemType : ElemType
-            element type used
-        isOrganised : bool
-            mesh is organized
         """
 
         assert isinstance(
@@ -528,19 +464,112 @@ class Mesher:
             list_surface.append(surface)
 
         for surface in list_surface:
-            # get old entities
             oldEntities = factory.getEntities(dim)  # type: ignore
-
-            # Create new surfaces
-            newSurfaces = self._Surfaces(surface, [], elemType, isOrganised)[0]  # type: ignore
-
-            # Delete or add created entities to the current geometry.
+            newSurfaces, _, _ = self._Surfaces(surface, [])
             newEntities = [(2, surf) for surf in newSurfaces]
 
             if not surface.isFilled:
                 factory.cut(oldEntities, newEntities)
             else:
                 factory.fragment(oldEntities, newEntities, False, True)
+
+    def _Organise_Surfaces(
+        self,
+        elemType: ElemType,
+        isOrganised: bool,
+        meshSize: float,
+    ) -> None:
+        """Applies transfinite settings to every final 2D entity.
+
+        For each surface, walks the boundary in cyclic order, computes per-line
+        node counts from the actual line length queried via
+        ``gmsh.model.occ.getMass`` and the given ``meshSize``, equalizes
+        opposite-side pairs (transfinite quad requires this), and applies
+        ``setTransfiniteCurve`` / ``setTransfiniteSurface`` / ``setRecombine``.
+
+        ``meshSize == 0`` means "no user sizing", so transfinite is skipped
+        and gmsh falls back to its default mesher (matches the legacy behavior
+        when transfinite curve settings were lost across boolean ops).
+        """
+        self._Synchronize()  # mandatory
+
+        factory = self._factory
+        setRecombine = elemType.startswith(("QUAD", "HEXA"))
+
+        for _, surf in factory.getEntities(2):  # type: ignore
+            boundary = gmsh.model.getBoundary([(2, surf)])
+            line_tags = [abs(t) for _, t in boundary]
+
+            if isOrganised:
+                if meshSize > 0:
+                    # gmsh returns boundary curves sorted by tag, not in cyclic
+                    # order. Walk the graph to recover the true cyclic order so
+                    # opposite sides can be paired correctly.
+                    ordered_tags = self._Cyclic_Boundary_Order(line_tags)
+
+                    counts = [
+                        int(gmsh.model.occ.getMass(1, ln) / meshSize + 1)
+                        for ln in ordered_tags
+                    ]
+
+                    # Transfinite quad requires equal node counts on opposite
+                    # sides. In cyclic order, opposite pairs are (0, 2) and
+                    # (1, 3); take the larger count of each pair so the finer
+                    # side wins.
+                    if len(counts) == 4:
+                        c02 = max(counts[0], counts[2])
+                        c13 = max(counts[1], counts[3])
+                        counts = [c02, c13, c02, c13]
+
+                    for ln, c in zip(ordered_tags, counts):
+                        if c > 0:
+                            gmsh.model.mesh.setTransfiniteCurve(ln, c)
+
+                # Mark the surface transfinite even when meshSize == 0: gmsh
+                # auto-fills curve counts from CharacteristicLength, and the
+                # transfinite algorithm produces a clean quad layout (required
+                # so HEXA extrusion doesn't get mixed prisms/hexes).
+                if len(boundary) in [3, 4]:
+                    gmsh.model.mesh.setTransfiniteSurface(surf)
+
+            if setRecombine:
+                gmsh.model.mesh.setRecombine(2, surf)
+
+    def _Cyclic_Boundary_Order(self, line_tags: list[int]) -> list[int]:
+        """Returns line_tags in cyclic order around the boundary.
+
+        ``gmsh.model.getBoundary`` returns curves sorted by tag, but transfinite
+        opposite-side pairing needs traversal order. Walk the closed loop by
+        following shared endpoints from one curve to the next.
+
+        Falls back to the input order if the boundary is not a single closed
+        loop (e.g. multiple holes).
+        """
+        if len(line_tags) <= 2:
+            return list(line_tags)
+
+        endpoints: dict[int, list[int]] = {}
+        for ln in line_tags:
+            pts = gmsh.model.getBoundary([(1, ln)], oriented=False, combined=False)
+            endpoints[ln] = [p[1] for p in pts]
+
+        ordered = [line_tags[0]]
+        if len(endpoints[line_tags[0]]) != 2:
+            return list(line_tags)
+        pivot = endpoints[line_tags[0]][1]
+
+        while len(ordered) < len(line_tags):
+            for ln in line_tags:
+                if ln in ordered:
+                    continue
+                if pivot in endpoints[ln]:
+                    ordered.append(ln)
+                    pivot = next(p for p in endpoints[ln] if p != pivot)
+                    break
+            else:
+                return list(line_tags)  # broken / disjoint loop
+
+        return ordered
 
     def _Additional_Lines(self, dim: int, lines: list[Union[Line, CircleArc]]) -> None:
         """Adds lines to existing dim entities. WARNING: lines must be within the domain.
@@ -1422,27 +1451,20 @@ class Mesher:
 
         factory = self._factory
 
-        self._Surfaces(contour, inclusions, elemType, isOrganised)
-        self._Additional_Surfaces(2, additionalSurfaces, elemType, isOrganised)
+        self._Surfaces(contour, inclusions)
+        self._Additional_Surfaces(2, additionalSurfaces)
         self._Additional_Lines(2, additionalLines)
         self._Additional_Points(2, additionalPoints, contour.meshSize)
-        # TODO: add contour to refineGeoms by default when adding surfaces, lines or points
-        # additionalSurfaces, additionalLines, additionalPoints
-        # adding these lines, points or surfaces will probably break the old mesh size conditions.
-        # adding contour to refineGeoms ensures that the mesh size is correct.
 
         # Recover 2D entities
         entities_2D = factory.getEntities(2)  # type: ignore
 
         # Crack creation
         crackLines, __, openPoints, __ = self._Cracks_SetPhysicalGroups(
-            cracks,
-            entities_2D,  # type: ignore
+            cracks, entities_2D
         )
 
-        # get created surfaces
-        surfaces = [entity[1] for entity in factory.getEntities(2)]  # type: ignore
-        self._Surfaces_Organize(surfaces, elemType, isOrganised)
+        self._Organise_Surfaces(elemType, isOrganised, contour.meshSize)
 
         self._Mesh_Refine(refineGeoms, contour.meshSize)
 
@@ -1514,14 +1536,15 @@ class Mesher:
 
         factory = self._factory
 
-        self._Surfaces(contour, inclusions, elemType, isOrganised)
-        self._Additional_Surfaces(2, additionalSurfaces, elemType, isOrganised)
+        self._Surfaces(contour, inclusions)
+        self._Additional_Surfaces(2, additionalSurfaces)
         self._Additional_Lines(2, additionalLines)
         self._Additional_Points(2, additionalPoints, contour.meshSize)
 
+        self._Organise_Surfaces(elemType, isOrganised, contour.meshSize)
+
         # get created surfaces
         surfaces = [entity[1] for entity in factory.getEntities(2)]  # type: ignore
-        self._Surfaces_Organize(surfaces, elemType, isOrganised)
 
         self._Extrude(
             surfaces=surfaces, extrude=extrude, elemType=elemType, layers=layers
@@ -1614,14 +1637,15 @@ class Mesher:
 
         factory = self._factory
 
-        self._Surfaces(contour, inclusions, elemType, isOrganised)
-        self._Additional_Surfaces(2, additionalSurfaces, elemType, isOrganised)
+        self._Surfaces(contour, inclusions)
+        self._Additional_Surfaces(2, additionalSurfaces)
         self._Additional_Lines(2, additionalLines)
         self._Additional_Points(2, additionalPoints, contour.meshSize)
 
+        self._Organise_Surfaces(elemType, isOrganised, contour.meshSize)
+
         # get created surfaces
         surfaces = [entity[1] for entity in factory.getEntities(2)]  # type: ignore
-        self._Surfaces_Organize(surfaces, elemType, isOrganised)
 
         self._Revolve(
             surfaces=surfaces, axis=axis, angle=angle, elemType=elemType, layers=layers
