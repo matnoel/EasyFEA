@@ -10,11 +10,11 @@ import numpy as np
 from typing import Union
 
 # utilities
-from ...FEM import MatrixType, FeArray, TensorProd
+from ...FEM import FeArray, TensorProd
 from ._state import HyperElasticState
 
 # others
-from .._utils import _IModel, ModelType, Project_vector_to_matrix
+from .._utils import _IModel, ModelType
 from ...Utilities import _params, _types
 
 # ----------------------------------------------
@@ -109,38 +109,20 @@ class _HyperElastic(_IModel, ABC):
         return None  # type: ignore [return-value]
 
     def Compute_dWde(self, hyperElasticState: HyperElasticState) -> FeArray:
-        """Total PK2 in Kelvin-Mandel vector form — elastic + Kelvin–Voigt viscous.
+        """Total PK2 in Kelvin-Mandel vector form.
 
-        Calls :meth:`_Compute_elastic_dWde` for the elastic part. When
-        ``self.eta > 0`` and the state carries a velocity, adds the
-        viscous PK2 ``η · Ė_vec``. Result feeds both the residual integral
-        ``∫ Bᵀ · dWde dΩ`` and the geometric tangent via
-        ``Sig = block(P(dWde))``.
+        Pass-through to :meth:`_Compute_elastic_dWde` today. The wrapper is preserved as the composition point for future *constitutive* PK2 additions whose derivative w.r.t.
+        ``E`` either vanishes or is E-dependent (e.g. fiber-aligned active stress ``+ τ · T̂⊗T̂``).
+        Kelvin–Voigt viscosity does **not** fold in here — it lives in
+        the separate damping matrix :func:`Operators.NonLinear.KelvinVoigtDamping`, mirroring how Rayleigh damping works in :class:`Elastic`.
         """
-        dWde_e_pg = self._Compute_elastic_dWde(hyperElasticState)
-        if self.eta > 0.0 and hyperElasticState.velocity is not None:
-            dWde_e_pg = dWde_e_pg + self.eta * hyperElasticState.Compute_Edot_vec()
-        return dWde_e_pg
+        return self._Compute_elastic_dWde(hyperElasticState)
 
     def Compute_d2Wde(self, hyperElasticState: HyperElasticState) -> FeArray:
         """Total consistent tangent ``dΣ/de`` in Kelvin–Mandel matrix form.
 
-        For Kelvin–Voigt viscosity, ``∂(η · Ė)/∂E = 0`` (viscous PK2 is
-        independent of E), so the viscous contribution to ``d²W/dE²`` is
-        zero — this method is a pass-through to
-        :meth:`_Compute_elastic_d2Wde`. The viscous *geometric* tangent
-        is still recovered: the operator builds
-        ``Sig = block(P(dWde))`` from the augmented :meth:`Compute_dWde`,
-        so ``∫ gradᵀ · Sig · grad dΩ`` picks up the viscous piece
-        automatically.
-
-        The strain-rate-kernel piece coming from
-        ``∂Ė/∂u`` at fixed ``u_{n+1}`` (MoReFEM's
-        ``(γ/(β·dt))·η·I`` time-scheme tangent) is **not** included here
-        — it requires time-scheme info that does not belong in the
-        material. Newton convergence may degrade at large ``η``; if
-        needed, add a ``state.Compute_DeVelocity()`` analogue and fold it
-        in via a future override.
+        Pass-through to :meth:`_Compute_elastic_d2Wde` today. Same rationale as :meth:`Compute_dWde`: the wrapper exists so future contributions with non-zero ``∂Σ/∂E`` can compose here.
+        Kelvin–Voigt viscosity is  independent of ``E`` and is delivered through the damping matrix :func:`Operators.NonLinear.KelvinVoigtDamping`.
         """
         return self._Compute_elastic_d2Wde(hyperElasticState)
 

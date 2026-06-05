@@ -165,7 +165,17 @@ class HyperElastic(_Simu):
         else:
             M_e = None
 
-        return K_e, None, M_e, F_e
+        # Kelvin-Voigt damping
+        # no velocity; otherwise feeds A = coefK·K + coefC·C + coefM·M and
+        # the residual via b -= C @ v_t, same pattern as Rayleigh damping)
+        if self.material.eta != 0.0 and velocity is not None:
+            C_e = Operators.NonLinear.KelvinVoigtDamping(
+                self.material, hyperElasticState
+            )
+        else:
+            C_e = None
+
+        return K_e, C_e, M_e, F_e
 
     # --------------------------------------------------------------------------
     # Iterations
