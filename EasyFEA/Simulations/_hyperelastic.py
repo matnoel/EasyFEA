@@ -144,23 +144,19 @@ class HyperElastic(_Simu):
         J_e_pg = hyperElasticState.Compute_J()
         assert J_e_pg.min() > 0, "Warning: det(F) < 0 - reduce load steps"
 
-        # ------------------------------
-        # Compute tangent and residual
-        # ------------------------------
-        tangent_e, residual_e = self.material.Compute_Tangent_and_Residual(
-            hyperElasticState
+        # compute tangent and residual
+        tangent_e, residual_e = Operators.NonLinear.SecondPiolaKirchhoffStressTensor(
+            self.material, hyperElasticState
         )
 
         # Here we solve:
-        # K(u) Δu = - R(u)
+        # A(u) Δu = - R(u)
         #         = - (F(u) - b)
         #         = - F(u) + b
         K_e = tangent_e
         F_e = -residual_e
 
-        # ------------------------------
-        # Compute Mass
-        # ------------------------------
+        # compute Mass
         if self.algo in AlgoType.Get_Hyperbolic_Types():
             M_e = thickness * Operators.Bilinear.UV(groupElem, coef=self.rho, dof_n=dim)
         else:
