@@ -851,18 +851,24 @@ class _GroupElem(ABC):
 
     @abstractmethod
     def _N(self) -> _types.FloatArray:
-        """Shape functions in (ξ, η, ζ) coordinates.\n
-        N1 \n
-        ⋮  \n
-        Nn \n
-        (nPe, 1)
+        """Shape functions in (ξ, η, ζ) reference coordinates.
+
+        ```
+        [ N₁ ]
+        [ ⋮  ]
+        [ Nₙ ]
+        ```
+        Shape: ``(nPe, 1)``.
         """
         pass
 
     def Get_N_pg(self, matrixType: MatrixType) -> _types.FloatArray:
-        """Evaluates shape functions in (ξ, η, ζ) coordinates.\n
-        [N1, . . . , Nn]\n
-        (nPg, 1, nPe)
+        """Shape functions evaluated at Gauss points in (ξ, η, ζ).
+
+        ```
+        [ N₁  ⋯  Nₙ ]
+        ```
+        Shape: ``(nPg, 1, nPe)``.
         """
         if self.dim == 0:
             return None  # type: ignore [return-value]
@@ -874,23 +880,23 @@ class _GroupElem(ABC):
         return N_pg
 
     def Get_N_pg_rep(self, matrixType: MatrixType, repeat=1) -> _types.FloatArray:
-        """Repeats shape functions in the (ξ, η, ζ) coordinates.
+        """Shape functions arranged in a block-diagonal matrix of width ``repeat``.
 
-        Parameters
-        ----------
-        matrixType : MatrixType
-            matrix type
-        repeat : int, optional
-            number of repetitions, by default 1
+        ``repeat=1`` — scalar fields (thermal, phase-field):
+        ```
+        [ N₁  ⋯  Nₙ ]
+        ```
 
-        Returns:
-        -------
-        • Vector shape functions (nPg, rep=2, rep=2*dim)\n
-            [Ni 0 . . . Nn 0 \n
-            0 Ni . . . 0 Nn]
+        ``repeat=2`` — 2D vector fields (elastic):
+        ```
+        [ N₁  0   ⋯  Nₙ  0  ]
+        [ 0   N₁  ⋯  0   Nₙ ]
+        ```
 
-        • Scalar shape functions (nPg, rep=1, nPe)\n
-            [Ni . . . Nn]
+        ``repeat=3`` — 3D vector fields: analogous ``3 × 3·nPe`` block-diagonal
+        pattern.
+
+        Shape: ``(nPg, repeat, repeat·nPe)``.
         """
         if self.dim == 0:
             return None  # type: ignore [return-value]
@@ -918,20 +924,26 @@ class _GroupElem(ABC):
 
     @abstractmethod
     def _dN(self) -> _types.FloatArray:
-        """Shape functions first derivatives in the (ξ, η, ζ) coordinates.\n
-        Ni,ξ  Ni,η  Ni,ζ \n
-        \t \t \t \t \t ⋮ \n
-        Nn,ξ  Nn,η  Nn,ζ \n
-        (nPe, dim)
+        """First derivatives of the shape functions in (ξ, η, ζ).
+
+        ```
+        [ N₁,ξ  N₁,η  N₁,ζ ]
+        [  ⋮     ⋮     ⋮   ]
+        [ Nₙ,ξ  Nₙ,η  Nₙ,ζ ]
+        ```
+        Shape: ``(nPe, dim)``.
         """
         return self._Init_Functions(1)
 
     def Get_dN_pg(self, matrixType: MatrixType) -> _types.FloatArray:
-        """Evaluates shape functions first derivatives in the (ξ, η, ζ) coordinates.\n
-        Ni,ξ . . . Nn,ξ\n
-        Ni,η . . . Nn,η\n
-        Ni,ζ . . . Nn,ζ\n
-        (nPg, dim, nPe)
+        """First derivatives of the shape functions, evaluated at Gauss points in (ξ, η, ζ).
+
+        ```
+        [ N₁,ξ  ⋯  Nₙ,ξ ]
+        [ N₁,η  ⋯  Nₙ,η ]
+        [ N₁,ζ  ⋯  Nₙ,ζ ]
+        ```
+        Shape: ``(nPg, dim, nPe)``.
         """
         if self.dim == 0:
             return None  # type: ignore [return-value]
@@ -945,11 +957,17 @@ class _GroupElem(ABC):
 
     @cache_computed_values
     def Get_dN_e_pg(self, matrixType: MatrixType) -> FeArray.FeArrayALike:
-        """Evaluates the first-order derivatives of shape functions in (x, y, z) coordinates.\n
-        [Ni,x . . . Nn,x\n
-        Ni,y . . . Nn,y\n
-        Ni,z . . . Nn,z]\n
-        (Ne, nPg, dim, nPe)\n
+        """First derivatives of the shape functions in physical (x, y, z) coordinates.
+
+        ```
+        [ N₁,x  ⋯  Nₙ,x ]
+        [ N₁,y  ⋯  Nₙ,y ]
+        [ N₁,z  ⋯  Nₙ,z ]
+        ```
+
+        Obtained from :meth:`Get_dN_pg` via the inverse Jacobian.
+
+        Shape: ``(Ne, nPg, dim, nPe)``.
         """
         assert matrixType in MatrixType.Get_types()
 
@@ -966,21 +984,30 @@ class _GroupElem(ABC):
 
     @abstractmethod
     def _ddN(self) -> _types.FloatArray:
-        """Shape functions second derivatives in the (ξ, η, ζ) coordinates.\n
-        Ni,ξ2  Ni,η2  Ni,ζ2 \n
-        \t \t \t \t \t ⋮ \n
-        Nn,ξ2  Nn,η2  Nn,ζ2 \n
-        (nPe, dim)
+        """Second derivatives of the shape functions in (ξ, η, ζ).
+
+        ```
+        [ N₁,ξξ  N₁,ηη  N₁,ζζ ]
+        [  ⋮      ⋮      ⋮    ]
+        [ Nₙ,ξξ  Nₙ,ηη  Nₙ,ζζ ]
+        ```
+        Shape: ``(nPe, dim)``.
         """
         return self._Init_Functions(2)
 
     @cache_computed_values
     def Get_ddN_e_pg(self, matrixType: MatrixType) -> FeArray.FeArrayALike:
-        """Evaluates the second-order derivatives of shape functions in (x, y, z) coordinates.\n
-        [Ni,x2 . . . Nn,x2\n
-        Ni,y2 . . . Nn,y2\n
-        Ni,z2 . . . Nn,z2]\n
-        (Ne, nPg, dim, nPe)\n
+        """Second derivatives of the shape functions in physical (x, y, z) coordinates.
+
+        ```
+        [ N₁,xx  ⋯  Nₙ,xx ]
+        [ N₁,yy  ⋯  Nₙ,yy ]
+        [ N₁,zz  ⋯  Nₙ,zz ]
+        ```
+
+        Obtained from :meth:`Get_ddN_pg` via the (squared) inverse Jacobian.
+
+        Shape: ``(Ne, nPg, dim, nPe)``.
         """
         assert matrixType in MatrixType.Get_types()
 
@@ -993,11 +1020,14 @@ class _GroupElem(ABC):
         return ddN_e_pg
 
     def Get_ddN_pg(self, matrixType: MatrixType) -> _types.FloatArray:
-        """Evaluates shape functions second derivatives in the (ξ, η, ζ) coordinates.\n
-        [Ni,ξ2 . . . Nn,ξ2\n
-        Ni,η2 . . . Nn,η2\n
-        Ni,ζ2 . . . Nn,ζ2]\n
-        (nPg, dim, nPe)
+        """Second derivatives of the shape functions, evaluated at Gauss points in (ξ, η, ζ).
+
+        ```
+        [ N₁,ξξ  ⋯  Nₙ,ξξ ]
+        [ N₁,ηη  ⋯  Nₙ,ηη ]
+        [ N₁,ζζ  ⋯  Nₙ,ζζ ]
+        ```
+        Shape: ``(nPg, dim, nPe)``.
         """
         if self.dim == 0:
             return None  # type: ignore [return-value]
@@ -1013,20 +1043,26 @@ class _GroupElem(ABC):
 
     @abstractmethod
     def _dddN(self) -> _types.FloatArray:
-        """Shape functions third derivatives in the (ξ, η, ζ) coordinates.\n
-        Ni,ξ3  Ni,η3  Ni,ζ3 \n
-        \t \t \t \t \t ⋮ \n
-        Nn,ξ3  Nn,η3  Nn,ζ3 \n
-        (nPe, dim)
+        """Third derivatives of the shape functions in (ξ, η, ζ).
+
+        ```
+        [ N₁,ξξξ  N₁,ηηη  N₁,ζζζ ]
+        [  ⋮       ⋮       ⋮     ]
+        [ Nₙ,ξξξ  Nₙ,ηηη  Nₙ,ζζζ ]
+        ```
+        Shape: ``(nPe, dim)``.
         """
         return self._Init_Functions(3)
 
     def Get_dddN_pg(self, matrixType: MatrixType) -> _types.FloatArray:
-        """Evaluates shape functions third derivatives in the (ξ, η, ζ) coordinates.\n
-        [Ni,ξ3 . . . Nn,ξ3\n
-        Ni,η3 . . . Nn,η3\n
-        Ni,ζ3 . . . Nn,ζ3]\n
-        (nPg, dim, nPe)
+        """Third derivatives of the shape functions, evaluated at Gauss points in (ξ, η, ζ).
+
+        ```
+        [ N₁,ξξξ  ⋯  Nₙ,ξξξ ]
+        [ N₁,ηηη  ⋯  Nₙ,ηηη ]
+        [ N₁,ζζζ  ⋯  Nₙ,ζζζ ]
+        ```
+        Shape: ``(nPg, dim, nPe)``.
         """
         if self.elemType == 0:
             return None  # type: ignore [return-value]
@@ -1042,20 +1078,26 @@ class _GroupElem(ABC):
 
     @abstractmethod
     def _ddddN(self) -> _types.FloatArray:
-        """Shape functions fourth derivatives in the (ξ, η, ζ) coordinates.\n
-        Ni,ξ4  Ni,η4  Ni,ζ4 \n
-        \t \t \t \t \t ⋮ \n
-        Nn,ξ4  Nn,η4  Nn,ζ4 \n
-        (nPe, dim)
+        """Fourth derivatives of the shape functions in (ξ, η, ζ).
+
+        ```
+        [ N₁,ξξξξ  N₁,ηηηη  N₁,ζζζζ ]
+        [  ⋮        ⋮        ⋮      ]
+        [ Nₙ,ξξξξ  Nₙ,ηηηη  Nₙ,ζζζζ ]
+        ```
+        Shape: ``(nPe, dim)``.
         """
         return self._Init_Functions(4)
 
     def Get_ddddN_pg(self, matrixType: MatrixType) -> _types.FloatArray:
-        """Evaluates shape functions fourth derivatives in the (ξ, η, ζ) coordinates.\n
-        [Ni,ξ4 . . . Nn,ξ4\n
-        Ni,η4 . . . Nn,η4\n
-        Ni,ζ4 . . . Nn,ζ4]\n
-        (pg, dim, nPe)
+        """Fourth derivatives of the shape functions, evaluated at Gauss points in (ξ, η, ζ).
+
+        ```
+        [ N₁,ξξξξ  ⋯  Nₙ,ξξξξ ]
+        [ N₁,ηηηη  ⋯  Nₙ,ηηηη ]
+        [ N₁,ζζζζ  ⋯  Nₙ,ζζζζ ]
+        ```
+        Shape: ``(nPg, dim, nPe)``.
         """
         if self.elemType == 0:
             return None  # type: ignore [return-value]
@@ -1075,15 +1117,33 @@ class _GroupElem(ABC):
 
     @cache_computed_values
     def Get_B_e_pg(self, matrixType: MatrixType) -> FeArray.FeArrayALike:
-        """Get the matrix used to calculate deformations from displacements.\n
+        """Strain-displacement operator ``ε = B · u`` in **Kelvin–Mandel** notation.
 
-        WARNING
-        -------
-        Use Kelvin Mandel Notation\n
-        [N1,x 0 . . . Nn,x 0\n
-        0 N1,y . . . 0 Nn,y\n
-        N1,y N1,x . . . N3,y N3,x]\n
-        (Ne, nPg, (3 or 6), nPe*dim)
+        With ``c = 1/√2`` (the Kelvin–Mandel scaling on shear terms) and DOF
+        columns ordered ``(uₓ₁, u_y₁, uₓ₂, u_y₂, …, uₓₙ, u_yₙ)`` in 2D
+        (extend with ``u_z`` in 3D):
+
+        2D — 3 strain components ``(ε_xx, ε_yy, √2·ε_xy)``:
+        ```
+        [ N₁,x    0     N₂,x    0    ⋯  Nₙ,x    0   ]
+        [  0     N₁,y    0     N₂,y  ⋯   0     Nₙ,y ]
+        [ c·N₁,y c·N₁,x c·N₂,y c·N₂,x ⋯ c·Nₙ,y c·Nₙ,x ]
+        ```
+
+        3D — 6 strain components ``(ε_xx, ε_yy, ε_zz, √2·ε_yz, √2·ε_xz, √2·ε_xy)``:
+        ```
+        [ N₁,x    0      0     ⋯  Nₙ,x    0      0    ]
+        [  0     N₁,y    0     ⋯   0     Nₙ,y    0    ]
+        [  0      0     N₁,z   ⋯   0      0     Nₙ,z  ]
+        [  0     c·N₁,z c·N₁,y ⋯   0     c·Nₙ,z c·Nₙ,y]
+        [ c·N₁,z  0     c·N₁,x ⋯  c·Nₙ,z  0     c·Nₙ,x]
+        [ c·N₁,y c·N₁,x  0     ⋯  c·Nₙ,y c·Nₙ,x  0    ]
+        ```
+
+        The ``c`` factor makes ``B`` orthonormal so ``εᵀ·σ`` equals the inner
+        product ``ε:σ`` directly — no factor-of-2 correction like Voigt needs.
+
+        Shape: ``(Ne, nPg, 3, nPe·dim)`` in 2D, ``(Ne, nPg, 6, nPe·dim)`` in 3D.
         """
         assert matrixType in MatrixType.Get_types()
 
@@ -1131,10 +1191,17 @@ class _GroupElem(ABC):
 
     @cache_computed_values
     def Get_leftDispPart(self, matrixType: MatrixType) -> FeArray.FeArrayALike:
-        """Get the left side of local displacement matrices.\n
-        Ku_e = jacobian_e_pg * weight_pg * B_e_pg' @ c_e_pg @ B_e_pg\n
+        """Left half of the elastic stiffness — precomputed ``wJ · Bᵀ``.
 
-        Returns (epij) -> jacobian_e_pg * weight_pg * B_e_pg'
+        ```
+        leftDispPart_e_pg = wJ · Bᵀ
+        Ku_e              = (leftDispPart_e_pg · C · B).sum(over Gauss points)
+        ```
+
+        Pulled out as a cached factor so the constitutive matrix ``C`` is the
+        only operand left when assembling.
+
+        Shape: ``(Ne, nPg, nPe·dim, nstrain)``.
         """
 
         assert matrixType in MatrixType.Get_types()
@@ -1150,10 +1217,18 @@ class _GroupElem(ABC):
 
     @cache_computed_values
     def Get_ReactionPart_e_pg(self, matrixType: MatrixType) -> FeArray.FeArrayALike:
-        """Get the part that builds the reaction term (scalar).\n
-        ReactionPart_e_pg = r_e_pg * jacobian_e_pg * weight_pg * N_pg' @ N_pg\n
+        """Building block of the scalar reaction/mass term — precomputed ``wJ · Nᵀ · N``.
 
-        Returns (epij) -> jacobian_e_pg * weight_pg * N_pg' @ N_pg
+        ```
+        reactionPart_e_pg = wJ · Nᵀ · N
+        Mass_e            = (coef · reactionPart_e_pg).sum(over Gauss points)
+        ```
+
+        Pulled out as a cached factor so a per-element coefficient
+        (``ρ·c``, ``ρ``, …) can be applied at assembly time without recomputing
+        the geometric part.
+
+        Shape: ``(Ne, nPg, nPe, nPe)``.
         """
 
         assert matrixType in MatrixType.Get_types()
@@ -1167,10 +1242,18 @@ class _GroupElem(ABC):
 
     @cache_computed_values
     def Get_DiffusePart_e_pg(self, matrixType: MatrixType) -> FeArray.FeArrayALike:
-        """Get the part that builds the diffusion term (scalar).\n
-        DiffusePart_e_pg = k_e_pg * jacobian_e_pg * weight_pg * dN_e_pg' @ A @ dN_e_pg\n
+        """Building block of the scalar diffusion term — precomputed ``wJ · dNᵀ``.
 
-        Returns (epij) -> jacobian_e_pg * weight_pg * dN_e_pg'
+        ```
+        diffusePart_e_pg = wJ · dNᵀ
+        Diffusion_e      = (diffusePart_e_pg · A · dN).sum(over Gauss points)
+        ```
+
+        Used when the kernel is a full diffusion tensor ``A`` (anisotropic
+        conductivity, …). For isotropic ``coef · ∇u · ∇v`` the operator
+        :func:`Operators.Bilinear.GradUGradV` is the direct entry point.
+
+        Shape: ``(Ne, nPg, nPe, dim)``.
         """
 
         assert matrixType in MatrixType.Get_types()
@@ -1184,10 +1267,17 @@ class _GroupElem(ABC):
 
     @cache_computed_values
     def Get_SourcePart_e_pg(self, matrixType: MatrixType) -> FeArray.FeArrayALike:
-        """Get the part that builds the source term (scalar).\n
-        SourcePart_e_pg = f_e_pg * jacobian_e_pg * weight_pg * N_pg'\n
+        """Building block of the scalar source/body-force term — precomputed ``wJ · Nᵀ``.
 
-        Returns (epij) -> jacobian_e_pg * weight_pg * N_pg'
+        ```
+        sourcePart_e_pg = wJ · Nᵀ
+        F_e             = (f · sourcePart_e_pg).sum(over Gauss points)
+        ```
+
+        Same pattern as :meth:`Get_ReactionPart_e_pg` but for the linear form
+        ``∫ f · v dΩ`` (body force, internal heat source, …).
+
+        Shape: ``(Ne, nPg, nPe, 1)``.
         """
 
         assert matrixType in MatrixType.Get_types()
@@ -1202,40 +1292,44 @@ class _GroupElem(ABC):
     def Get_Gradient_e_pg(
         self, u: _types.FloatArray, matrixType=MatrixType.rigi
     ) -> FeArray.FeArrayALike:
-        """Returns the gradient of the discretized displacement field u as a matrix
+        """Displacement gradient ``∇u`` at the Gauss points, padded to ``3×3``.
 
         Parameters
         ----------
-        u : _types.FloatArray
-            discretized displacement field [ux1, uy1, uz1, . . ., uxN, uyN, uzN] of size Nn * dim
-        matrixType : MatrixType, optional
-            matrix type, by default MatrixType.rigi
+        u
+            Flattened nodal field ``[ux₁, uy₁, uz₁, …, uxₙ, uyₙ, uzₙ]`` of
+            size ``Nn · dim``. ``dim`` is inferred from ``u.size``.
+        matrixType
+            Integration scheme. Defaults to :attr:`MatrixType.rigi`.
 
         Returns
         -------
         FeArray
-            grad(u) of shape (Ne, nPg, 3, 3)
+            Gradient field. Layout depends on ``dim`` (unused components are
+            zeroed so the result is always ``3×3``):
 
-        dim = 1
-        -------
+            ``dim == 1``:
+            ```
+            [ ux,x   0    0  ]
+            [  0     0    0  ]
+            [  0     0    0  ]
+            ```
 
-        dxux 0 0\n
-        0 0 0\n
-        0 0 0
+            ``dim == 2``:
+            ```
+            [ ux,x  ux,y   0  ]
+            [ uy,x  uy,y   0  ]
+            [  0     0     0  ]
+            ```
 
-        dim = 2
-        -------
+            ``dim == 3``:
+            ```
+            [ ux,x  ux,y  ux,z ]
+            [ uy,x  uy,y  uy,z ]
+            [ uz,x  uz,y  uz,z ]
+            ```
 
-        dxux dyux 0\n
-        dxuy dyuy 0\n
-        0 0 0
-
-        dim = 3
-        -------
-
-        dxux dyux dzux\n
-        dxuy dyuy dzuy\n
-        dxuz dyuz dzuz
+            Shape: ``(Ne, nPg, 3, 3)``.
         """
 
         Ncoords = self.__Ncoords
