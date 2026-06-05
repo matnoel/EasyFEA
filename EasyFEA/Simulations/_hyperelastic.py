@@ -12,7 +12,7 @@ from ..Utilities import Display, _types
 # fem
 if TYPE_CHECKING:
     from ..FEM import Mesh
-from ..FEM import MatrixType, FeArray
+from ..FEM import MatrixType, FeArray, Operators
 
 # models
 from ..Models import (
@@ -167,15 +167,7 @@ class HyperElastic(_Simu):
         # Compute Mass
         # ------------------------------
         if self.algo in AlgoType.Get_Hyperbolic_Types():
-            matrixType = MatrixType.mass
-            N_pg = FeArray.asfearray(
-                groupElem.Get_N_pg_rep(matrixType, dim)[np.newaxis]
-            )
-            wJ_e_pg = groupElem.Get_weightedJacobian_e_pg(matrixType)
-
-            rho_e_pg = Reshape_variable(self.rho, *wJ_e_pg.shape[:2])
-
-            M_e = thickness * (rho_e_pg * wJ_e_pg * N_pg.T @ N_pg).integrate()
+            M_e = thickness * Operators.Bilinear.UV(groupElem, coef=self.rho, dof_n=dim)
         else:
             M_e = None
 
