@@ -50,7 +50,7 @@ class HyperElasticState:
         """return Ne, nPg, dim"""
         Ne = self.__mesh.Ne
         dim = self.__u.size // self.__mesh.Nn
-        nPg = self.__mesh.Get_jacobian_e_pg(self.__matrixType).shape[1]
+        nPg = self.__mesh.groupElem.Get_gauss(self.__matrixType).nPg
         return (Ne, nPg, dim)
 
     @cache_computed_values
@@ -84,7 +84,7 @@ class HyperElasticState:
         dxuz dyuz 1+dzuz
         """
 
-        grad_e_pg = self.__mesh.Get_Gradient_e_pg(self.__u, self.__matrixType)
+        grad_e_pg = self.__mesh.groupElem.Get_Gradient_e_pg(self.__u, self.__matrixType)
 
         F_e_pg = np.eye(3) + grad_e_pg
 
@@ -197,9 +197,9 @@ class HyperElasticState:
         assert dim in [2, 3]
 
         # compute grad
-        grad_e_pg = self.__mesh.Get_Gradient_e_pg(self.__u, self.__matrixType)[
-            ..., :dim, :dim
-        ]
+        grad_e_pg = self.__mesh.groupElem.Get_Gradient_e_pg(
+            self.__u, self.__matrixType
+        )[..., :dim, :dim]
 
         # 2d: dxux, dyux, dxuy, dyuy
         # 3d: dxux, dyux, dzu, dxuy, dyuy, dzuy, dxuz, dyuz, dzuz
@@ -255,7 +255,7 @@ class HyperElasticState:
         Ne, nPg, dim = self._GetDims()
         assert dim in [2, 3]
 
-        grad_e_pg = self.__mesh.Get_Gradient_e_pg(self.__u, self.__matrixType)
+        grad_e_pg = self.__mesh.groupElem.Get_Gradient_e_pg(self.__u, self.__matrixType)
 
         if dim == 2:
             D_e_pg = FeArray.zeros(Ne, nPg, 3, 4)

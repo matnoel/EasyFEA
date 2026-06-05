@@ -111,11 +111,11 @@ class Thermal(_Simu):
 
     def Construct_local_matrix_system(self, problemType):
         thermalModel = self.thermalModel
-        mesh = self.mesh
+        groupElem = self.mesh.groupElem
 
         matrixType = MatrixType.rigi
-        wJ_e_pg = mesh.Get_weightedJacobian_e_pg(matrixType)
-        dN_e_pg = mesh.Get_dN_e_pg(matrixType)
+        wJ_e_pg = groupElem.Get_weightedJacobian_e_pg(matrixType)
+        dN_e_pg = groupElem.Get_dN_e_pg(matrixType)
 
         # conductivity part
         conductivity = thermalModel.k
@@ -129,8 +129,8 @@ class Thermal(_Simu):
         heatCapacity = thermalModel.c
 
         matrixType = MatrixType.mass
-        wJ_e_pg = mesh.Get_weightedJacobian_e_pg(matrixType)
-        reactionPart = mesh.Get_ReactionPart_e_pg(matrixType)
+        wJ_e_pg = groupElem.Get_weightedJacobian_e_pg(matrixType)
+        reactionPart = groupElem.Get_ReactionPart_e_pg(matrixType)
 
         if thermalModel.isHeterogeneous:
             rho = Reshape_variable(rho, *wJ_e_pg.shape[:2])

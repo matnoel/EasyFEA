@@ -126,11 +126,11 @@ class _HyperElastic(_IModel, ABC):
         thickness = self.thickness if dim == 2 else 1
 
         # get mesh data
-        mesh = hyperElasticState.mesh
-        nPe = mesh.nPe
+        groupElem = hyperElasticState.mesh.groupElem
+        nPe = groupElem.nPe
         matrixType = MatrixType.rigi
-        wJ_e_pg = mesh.Get_weightedJacobian_e_pg(matrixType)
-        dN_e_pg = mesh.Get_dN_e_pg(matrixType)
+        wJ_e_pg = groupElem.Get_weightedJacobian_e_pg(matrixType)
+        dN_e_pg = groupElem.Get_dN_e_pg(matrixType)
 
         # get hyper elastic matrices
         De_e_pg = hyperElasticState.Compute_De()

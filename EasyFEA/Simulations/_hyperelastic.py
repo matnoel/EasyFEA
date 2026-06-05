@@ -129,6 +129,7 @@ class HyperElastic(_Simu):
     def Construct_local_matrix_system(self, problemType):
         # data
         mesh = self.mesh
+        groupElem = mesh.groupElem
         dim = self.dim
         thickness = self.material.thickness if dim == 2 else 1
 
@@ -167,8 +168,10 @@ class HyperElastic(_Simu):
         # ------------------------------
         if self.algo in AlgoType.Get_Hyperbolic_Types():
             matrixType = MatrixType.mass
-            N_pg = FeArray.asfearray(mesh.Get_N_vector_pg(matrixType)[np.newaxis])
-            wJ_e_pg = mesh.Get_weightedJacobian_e_pg(matrixType)
+            N_pg = FeArray.asfearray(
+                groupElem.Get_N_pg_rep(matrixType, dim)[np.newaxis]
+            )
+            wJ_e_pg = groupElem.Get_weightedJacobian_e_pg(matrixType)
 
             rho_e_pg = Reshape_variable(self.rho, *wJ_e_pg.shape[:2])
 
@@ -346,7 +349,7 @@ class HyperElastic(_Simu):
         return self.Results_Reshape_values(values, nodeValues)
 
     def _Calc_W(self, returnScalar=True, matrixType=MatrixType.rigi):
-        wJ_e_pg = self.mesh.Get_weightedJacobian_e_pg(matrixType)
+        wJ_e_pg = self.mesh.groupElem.Get_weightedJacobian_e_pg(matrixType)
         if self.dim == 2:
             wJ_e_pg *= self.material.thickness
         hyperElasticState = HyperElasticState(self.mesh, self.displacement, matrixType)

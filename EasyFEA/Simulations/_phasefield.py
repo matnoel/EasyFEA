@@ -436,11 +436,11 @@ class PhaseField(_Simu):
 
         # Data
         mesh = self.mesh
+        groupElem = mesh.groupElem
 
-        B_dep_e_pg = mesh.Get_B_e_pg(matrixType)
-        leftDepPart = mesh.Get_leftDispPart(
-            matrixType
-        )  # -> jacobian_e_pg * weight_pg * B_dep_e_pg'
+        B_dep_e_pg = groupElem.Get_B_e_pg(matrixType)
+        leftDepPart = groupElem.Get_leftDispPart(matrixType)
+        # jacobian_e_pg * weight_pg * B_dep_e_pg'
 
         d = self.damage
         u = self.displacement
@@ -537,20 +537,20 @@ class PhaseField(_Simu):
 
         matrixType = MatrixType.mass
 
-        mesh = self.mesh
-        dN_e_pg = mesh.Get_dN_e_pg(matrixType)
+        groupElem = self.mesh.groupElem
+        dN_e_pg = groupElem.Get_dN_e_pg(matrixType)
 
         # K * Laplacien(d) + r * d = F
 
         tic = Tic()
 
         # Reaction part Kr_e = r_e_pg * jacobian_e_pg * weight_pg * N_pg' @ N_pg
-        ReactionPart_e_pg = mesh.Get_ReactionPart_e_pg(matrixType)
+        ReactionPart_e_pg = groupElem.Get_ReactionPart_e_pg(matrixType)
         r_e_pg = pfm.Get_r_e_pg(PsiP_e_pg)
         Kr_e = (r_e_pg * ReactionPart_e_pg).sum(axis=1)
 
         # Diffusion part Kk_e -> k_e_pg * jacobian_e_pg * weight_pg * dN_e_pg' @ A @ dN_e_pg
-        DiffusePart_e_pg = mesh.Get_DiffusePart_e_pg(matrixType)
+        DiffusePart_e_pg = groupElem.Get_DiffusePart_e_pg(matrixType)
         k = pfm.k
         A = pfm.A
         if pfm.isHeterogeneous:
@@ -559,7 +559,7 @@ class PhaseField(_Simu):
         Kk_e = (k * DiffusePart_e_pg @ A @ dN_e_pg).sum(axis=1)
 
         # Source part Fd_e = f_e_pg * jacobian_e_pg * weight_pg * N_pg' @ N_pg
-        SourcePart_e_pg = mesh.Get_SourcePart_e_pg(matrixType)
+        SourcePart_e_pg = groupElem.Get_SourcePart_e_pg(matrixType)
         f_e_pg = pfm.Get_f_e_pg(PsiP_e_pg)
         Fd_e = (f_e_pg * SourcePart_e_pg).sum(axis=1)
 
@@ -851,7 +851,7 @@ class PhaseField(_Simu):
 
         tic = Tic()
         sol_e = self.mesh.Locates_sol_e(sol, asFeArray=True)
-        B_e_pg = self.mesh.Get_B_e_pg(matrixType)
+        B_e_pg = self.mesh.groupElem.Get_B_e_pg(matrixType)
         Epsilon_e_pg = B_e_pg @ sol_e
 
         tic.Tac("Matrix", "Epsilon_e_pg", False)
@@ -876,10 +876,11 @@ class PhaseField(_Simu):
             Computed damaged stress field.
         """
 
+        groupElem = self.mesh.groupElem
         Epsilon_e_pg = FeArray.asfearray(Epsilon_e_pg)
 
-        assert Epsilon_e_pg.shape[0] == self.mesh.Ne
-        assert Epsilon_e_pg.shape[1] == self.mesh.Get_nPg(matrixType)
+        assert Epsilon_e_pg.shape[0] == groupElem.Ne
+        assert Epsilon_e_pg.shape[1] == groupElem.Get_gauss(matrixType).nPg
 
         d = self.damage
 

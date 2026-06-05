@@ -303,8 +303,10 @@ class PhaseField(_IModel):
     ) -> FeArray.FeArrayALike:
         """Returns degradation function"""
 
+        groupElem = mesh.groupElem
+
         d_e_n = mesh.Locates_sol_e(d_n, asFeArray=True)
-        Nd_pg = FeArray.asfearray(mesh.Get_N_pg(matrixType)[np.newaxis, :, 0])
+        Nd_pg = FeArray.asfearray(groupElem.Get_N_pg(matrixType)[np.newaxis, :, 0])
 
         d_e_pg = Nd_pg @ d_e_n
 
@@ -313,8 +315,8 @@ class PhaseField(_IModel):
         else:
             raise Exception("Not implemented.")
 
-        assert mesh.Ne == g_e_pg.shape[0]
-        assert mesh.Get_nPg(matrixType) == g_e_pg.shape[1]
+        assert groupElem.Ne == g_e_pg.shape[0]
+        assert groupElem.Get_gauss(matrixType).nPg == g_e_pg.shape[1]
 
         return FeArray.asfearray(g_e_pg)
 

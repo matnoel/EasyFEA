@@ -210,17 +210,17 @@ class DIC(_IObserver):
         """Initializes shape functions and the Laplacian operator."""
 
         mesh = self.__mesh
-        dim = 2
-        Ndof = self.__mesh.Nn * dim
+        groupElem = mesh.groupElem
+        Ne = groupElem.Ne
+        nPe = groupElem.nPe
 
         connectPixel = self.__connectPixel
         coordInElem = self.__coordPixelInElem
-        Ntild = mesh.groupElem._N()
+        Ntild = groupElem._N()
 
         # ----------------------------------------------
         # Build the shape function matrix for pixels (N)
         # ----------------------------------------------
-        Ne = mesh.Ne
         list_rowsX = [None] * Ne
         list_columns = [None] * Ne
         list_values = [None] * Ne
@@ -228,7 +228,7 @@ class DIC(_IObserver):
         # Evaluate shape functions for each pixels' coordinates
         x_p, y_p = coordInElem[:, 0], coordInElem[:, 1]
         phi_n_pixels = np.array(
-            [np.reshape([Ntild[n, 0](x_p, y_p)], -1) for n in range(mesh.nPe)]
+            [np.reshape([Ntild[n, 0](x_p, y_p)], -1) for n in range(nPe)]
         )
 
         tic = Tic()
@@ -236,9 +236,9 @@ class DIC(_IObserver):
         # Possible without the loop?
         # No, it is not possible without the loop because connectPixel doesn't have the same number of columns in each row.
         # In addition, if you remove it, you'll have to make several list comprehension.
-        for e in range(mesh.Ne):
+        for e in range(Ne):
             # Get the nodes and pixels used by the element
-            nodes = mesh.connect[e]
+            nodes = groupElem.connect[e]
             pixels = np.asarray(connectPixel[e], dtype=int)
             # Retrieve evaluated functions
             phi = phi_n_pixels[:, pixels]
@@ -250,7 +250,7 @@ class DIC(_IObserver):
                 .repeat(pixels.size)
             )
             # get columns in which for placing values
-            columns = pixels.reshape(1, -1).repeat(mesh.nPe, 0).ravel()
+            columns = pixels.reshape(1, -1).repeat(nPe, 0).ravel()
 
             list_rowsX[e] = rowsX
             list_columns[e] = columns
@@ -261,6 +261,9 @@ class DIC(_IObserver):
         rowsY = rowsX + 1
         columns = np.concatenate(list_columns, dtype=int)
         values = np.concatenate(list_values, dtype=float)
+
+        dim = 2
+        Ndof = groupElem.Nn * dim
         Npixels = coordInElem.shape[0]
 
         self._N_x = sparse.csr_matrix((values, (rowsX, columns)), (Ndof, Npixels))
@@ -279,8 +282,8 @@ class DIC(_IObserver):
         # Build the Laplacian operator (R)
         # ----------------------------------------------
         matrixType = MatrixType.mass
-        wJ_e_pg = mesh.Get_weightedJacobian_e_pg(matrixType)  # (Ne, nPg)
-        dN_e_pg = mesh.Get_dN_e_pg(matrixType)  # (Ne, nPg, dim, nPe)
+        wJ_e_pg = groupElem.Get_weightedJacobian_e_pg(matrixType)  # (Ne, nPg)
+        dN_e_pg = groupElem.Get_dN_e_pg(matrixType)  # (Ne, nPg, dim, nPe)
 
         dNdx = dN_e_pg[:, :, 0]
         dNdy = dN_e_pg[:, :, 1]

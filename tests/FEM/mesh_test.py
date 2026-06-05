@@ -91,6 +91,7 @@ class TestMesh:
         for mesh in meshes:
 
             dim = mesh.dim
+            groupElem = mesh.groupElem
             connect = mesh.connect
             elements = range(mesh.Ne)
 
@@ -126,10 +127,10 @@ class TestMesh:
             assert testColumns is None
 
             for matrixType in matrixTypes:
-                mesh.Get_jacobian_e_pg(matrixType)
-                mesh.Get_dN_e_pg(matrixType)
-                mesh.Get_ddN_e_pg(matrixType)
-                mesh.Get_B_e_pg(matrixType)
+                groupElem.Get_jacobian_e_pg(matrixType)
+                groupElem.Get_dN_e_pg(matrixType)
+                groupElem.Get_ddN_e_pg(matrixType)
+                groupElem.Get_B_e_pg(matrixType)
 
     def test_area(self, meshes_2D: list[Mesh]):
 
@@ -226,8 +227,12 @@ class TestMeshMerge:
     def test_adjacent_2d_area_and_nodes(self, elemType):
         """Two adjacent unit squares: area = 2, shared edge nodes merged, no duplicates."""
         h = 1 / 3
-        left = Points([(0, 0), (1, 0), (1, 1), (0, 1)], h).Mesh_2D([], elemType, isOrganised=True)
-        right = Points([(1, 0), (2, 0), (2, 1), (1, 1)], h).Mesh_2D([], elemType, isOrganised=True)
+        left = Points([(0, 0), (1, 0), (1, 1), (0, 1)], h).Mesh_2D(
+            [], elemType, isOrganised=True
+        )
+        right = Points([(1, 0), (2, 0), (2, 1), (1, 1)], h).Mesh_2D(
+            [], elemType, isOrganised=True
+        )
 
         merged = Mesh.Merge([left, right])
 
@@ -239,8 +244,12 @@ class TestMeshMerge:
     def test_adjacent_3d_volume_and_nodes(self, elemType):
         """Two adjacent unit cubes: volume = 2, shared face nodes merged, no duplicates."""
         h = 0.5
-        left = Points([(0, 0), (1, 0), (1, 1), (0, 1)], h).Mesh_Extrude([], [0, 0, 1], [2], elemType, isOrganised=True)
-        right = Points([(1, 0), (2, 0), (2, 1), (1, 1)], h).Mesh_Extrude([], [0, 0, 1], [2], elemType, isOrganised=True)
+        left = Points([(0, 0), (1, 0), (1, 1), (0, 1)], h).Mesh_Extrude(
+            [], [0, 0, 1], [2], elemType, isOrganised=True
+        )
+        right = Points([(1, 0), (2, 0), (2, 1), (1, 1)], h).Mesh_Extrude(
+            [], [0, 0, 1], [2], elemType, isOrganised=True
+        )
 
         merged = Mesh.Merge([left, right])
 
@@ -250,27 +259,35 @@ class TestMeshMerge:
 
     def test_single_mesh_returns_itself(self):
         """Merge([mesh]) is the identity — no copy, no processing."""
-        mesh = Points([(0, 0), (1, 0), (1, 1), (0, 1)], 0.4).Mesh_2D([], ElemType.QUAD4, isOrganised=True)
+        mesh = Points([(0, 0), (1, 0), (1, 1), (0, 1)], 0.4).Mesh_2D(
+            [], ElemType.QUAD4, isOrganised=True
+        )
         assert Mesh.Merge([mesh]) is mesh
 
     def test_construct_unique_elements_removes_duplicates(self):
         """Merging a mesh with itself: constructUniqueElements=True keeps one copy."""
-        mesh = Points([(0, 0), (1, 0), (1, 1), (0, 1)], 0.4).Mesh_2D([], ElemType.QUAD4, isOrganised=True)
+        mesh = Points([(0, 0), (1, 0), (1, 1), (0, 1)], 0.4).Mesh_2D(
+            [], ElemType.QUAD4, isOrganised=True
+        )
         merged = Mesh.Merge([mesh, mesh], constructUniqueElements=True)
         assert merged.Ne == mesh.Ne
         assert merged.Nn == mesh.Nn
 
     def test_no_deduplication_keeps_all_elements(self):
         """constructUniqueElements=False preserves every element from every mesh."""
-        mesh = Points([(0, 0), (1, 0), (1, 1), (0, 1)], 0.4).Mesh_2D([], ElemType.QUAD4, isOrganised=True)
+        mesh = Points([(0, 0), (1, 0), (1, 1), (0, 1)], 0.4).Mesh_2D(
+            [], ElemType.QUAD4, isOrganised=True
+        )
         merged = Mesh.Merge([mesh, mesh], constructUniqueElements=False)
         assert merged.Ne == 2 * mesh.Ne
 
     def test_tolerance_merges_near_coincident_nodes(self):
         """Nodes offset by < mergePointsTol are merged; nodes beyond it are not."""
-        mesh = Points([(0, 0), (1, 0), (1, 1), (0, 1)], 0.4).Mesh_2D([], ElemType.QUAD4, isOrganised=True)
+        mesh = Points([(0, 0), (1, 0), (1, 1), (0, 1)], 0.4).Mesh_2D(
+            [], ElemType.QUAD4, isOrganised=True
+        )
 
-        delta_inside = 1e-13   # within default 1e-12 → should merge
+        delta_inside = 1e-13  # within default 1e-12 → should merge
         delta_outside = 1e-11  # beyond default 1e-12 → should NOT merge
 
         def perturbed(d):
@@ -287,8 +304,12 @@ class TestMeshMerge:
     def test_merge_points_false_skips_deduplication(self):
         """mergePoints=False concatenates coordinates without any KDTree search."""
         h = 1 / 3
-        left = Points([(0, 0), (1, 0), (1, 1), (0, 1)], h).Mesh_2D([], ElemType.QUAD4, isOrganised=True)
-        right = Points([(1, 0), (2, 0), (2, 1), (1, 1)], h).Mesh_2D([], ElemType.QUAD4, isOrganised=True)
+        left = Points([(0, 0), (1, 0), (1, 1), (0, 1)], h).Mesh_2D(
+            [], ElemType.QUAD4, isOrganised=True
+        )
+        right = Points([(1, 0), (2, 0), (2, 1), (1, 1)], h).Mesh_2D(
+            [], ElemType.QUAD4, isOrganised=True
+        )
 
         merged = Mesh.Merge([left, right], mergePoints=False)
 
@@ -297,7 +318,9 @@ class TestMeshMerge:
 
     def test_return_mapping_identity(self):
         """return_mapping=True on a single mesh returns the identity mapping."""
-        mesh = Points([(0, 0), (1, 0), (1, 1), (0, 1)], 0.4).Mesh_2D([], ElemType.QUAD4, isOrganised=True)
+        mesh = Points([(0, 0), (1, 0), (1, 1), (0, 1)], 0.4).Mesh_2D(
+            [], ElemType.QUAD4, isOrganised=True
+        )
         result, mapping = Mesh.Merge([mesh], return_mapping=True)
 
         assert result is mesh
@@ -307,8 +330,12 @@ class TestMeshMerge:
     def test_return_mapping_two_meshes(self):
         """mapping[i][j] is the index of mesh i's node j in the merged mesh."""
         h = 1 / 3
-        left = Points([(0, 0), (1, 0), (1, 1), (0, 1)], h).Mesh_2D([], ElemType.QUAD4, isOrganised=True)
-        right = Points([(1, 0), (2, 0), (2, 1), (1, 1)], h).Mesh_2D([], ElemType.QUAD4, isOrganised=True)
+        left = Points([(0, 0), (1, 0), (1, 1), (0, 1)], h).Mesh_2D(
+            [], ElemType.QUAD4, isOrganised=True
+        )
+        right = Points([(1, 0), (2, 0), (2, 1), (1, 1)], h).Mesh_2D(
+            [], ElemType.QUAD4, isOrganised=True
+        )
 
         merged, mapping = Mesh.Merge([left, right], return_mapping=True)
 

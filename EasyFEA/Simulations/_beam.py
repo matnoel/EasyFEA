@@ -412,7 +412,7 @@ class Beam(_Simu):
 
         tic = Tic()
 
-        wJ_e_pg = mesh.Get_weightedJacobian_e_pg(matrixType)
+        wJ_e_pg = groupElem.Get_weightedJacobian_e_pg(matrixType)
         B_e_pg = groupElem.Get_beam_B_e_pg(beamStructure)
         D_e_pg = beamStructure.Calc_D_e_pg(groupElem)
 
@@ -425,7 +425,7 @@ class Beam(_Simu):
             bend_e = (wJ_e_pg * B_e_pg.T @ Db_e_pg @ B_e_pg).sum(axis=1)
             # reduced intefration on shear
             shearType = MatrixType.beam_shear
-            wJs_e_pg = mesh.Get_weightedJacobian_e_pg(shearType)
+            wJs_e_pg = groupElem.Get_weightedJacobian_e_pg(shearType)
             Bs_e_pg = groupElem.Get_beam_B_e_pg(beamStructure, shearType)
             Ds_e_pg = beamStructure.Calc_D_e_pg(groupElem, shearType)
             for r in range(Ds_e_pg.shape[-1]):
@@ -453,8 +453,9 @@ class Beam(_Simu):
         matrixType = MatrixType.mass
 
         mesh = self.mesh
+        groupElem = mesh.groupElem
 
-        wJ_e_pg = mesh.Get_weightedJacobian_e_pg(matrixType)
+        wJ_e_pg = groupElem.Get_weightedJacobian_e_pg(matrixType)
 
         rho_e_pg = Reshape_variable(self.rho, *wJ_e_pg.shape[:2])
 
@@ -477,11 +478,11 @@ class Beam(_Simu):
 
         mesh = self.mesh
 
-        group = mesh.groupElem
+        groupElem = mesh.groupElem
 
-        coordo_e_p = group.Get_GaussCoordinates_e_pg(matrixType)
+        coordo_e_p = groupElem.Get_GaussCoordinates_e_pg(matrixType)
 
-        wJ_e_pg = mesh.Get_weightedJacobian_e_pg(matrixType)
+        wJ_e_pg = groupElem.Get_weightedJacobian_e_pg(matrixType)
 
         rho_e_p = Reshape_variable(self.rho, *wJ_e_pg.shape[:2])
         mass = self.mass
@@ -730,10 +731,11 @@ class Beam(_Simu):
 
         Epsilon_e_pg = FeArray.asfearray(Epsilon_e_pg)
 
+        groupElem = self.mesh.groupElem
         matrixType = MatrixType.beam
 
-        assert Epsilon_e_pg.shape[0] == self.mesh.Ne
-        assert Epsilon_e_pg.shape[1] == self.mesh.Get_nPg(matrixType)
+        assert Epsilon_e_pg.shape[0] == groupElem.Ne
+        assert Epsilon_e_pg.shape[1] == groupElem.Get_gauss(matrixType).nPg
 
         tic = Tic()
 
@@ -758,7 +760,7 @@ class Beam(_Simu):
         Epsilon_e_pg = FeArray.asfearray(Epsilon_e_pg)
 
         Ne = self.mesh.Ne
-        nPg = self.mesh.Get_nPg(MatrixType.beam)
+        nPg = self.mesh.groupElem.Get_gauss(MatrixType.beam).nPg
 
         assert Epsilon_e_pg.shape[0] == Ne
         assert Epsilon_e_pg.shape[1] == nPg

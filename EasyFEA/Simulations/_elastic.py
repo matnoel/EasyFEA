@@ -119,15 +119,15 @@ class Elastic(_Simu):
 
     def Construct_local_matrix_system(self, problemType):
 
-        mesh = self.mesh
+        groupElem = self.mesh.groupElem
         tic = Tic()
 
         # ------------------------------
         # Compute Stiffness
         # ------------------------------
         matrixType = MatrixType.rigi
-        leftDepPart = mesh.Get_leftDispPart(matrixType)
-        B_dep_e_pg = mesh.Get_B_e_pg(matrixType)
+        leftDepPart = groupElem.Get_leftDispPart(matrixType)
+        B_dep_e_pg = groupElem.Get_B_e_pg(matrixType)
 
         if self.material.isHeterogeneous:
             matC = Reshape_variable(self.material.C, *B_dep_e_pg.shape[:2])
@@ -140,8 +140,10 @@ class Elastic(_Simu):
         # Compute Mass
         # ------------------------------
         matrixType = MatrixType.mass
-        N_pg = FeArray.asfearray(mesh.Get_N_vector_pg(matrixType)[np.newaxis])
-        wJ_e_pg = mesh.Get_weightedJacobian_e_pg(matrixType)
+        N_pg = FeArray.asfearray(
+            groupElem.Get_N_pg_rep(matrixType, self.dim)[np.newaxis]
+        )
+        wJ_e_pg = groupElem.Get_weightedJacobian_e_pg(matrixType)
 
         rho_e_pg = Reshape_variable(self.rho, *wJ_e_pg.shape[:2])
 
@@ -334,10 +336,11 @@ class Elastic(_Simu):
         sol_u = self.displacement
 
         mesh = self.mesh
+        groupElem = mesh.groupElem
 
         Epsilon_e_pg = self._Calc_Epsilon_e_pg(sol_u, matrixType)
-        weightedJacobian_pg = mesh.Get_weightedJacobian_e_pg(matrixType)
-        N_pg = mesh.Get_N_pg(matrixType)
+        weightedJacobian_pg = groupElem.Get_weightedJacobian_e_pg(matrixType)
+        N_pg = groupElem.Get_N_pg(matrixType)
 
         if self.dim == 2:
             ep = self.material.thickness
@@ -403,7 +406,7 @@ class Elastic(_Simu):
 
         tic = Tic()
         u_e = self.mesh.Locates_sol_e(u, asFeArray=True)
-        B_dep_e_pg = self.mesh.Get_B_e_pg(matrixType)
+        B_dep_e_pg = self.mesh.groupElem.Get_B_e_pg(matrixType)
         Epsilon_e_pg = B_dep_e_pg @ u_e
 
         tic.Tac("Matrix", "Epsilon_e_pg", False)
@@ -430,11 +433,12 @@ class Elastic(_Simu):
 
         Epsilon_e_pg = FeArray.asfearray(Epsilon_e_pg)
 
+        groupElem = self.mesh.groupElem
         Ne = Epsilon_e_pg.shape[0]
         nPg = Epsilon_e_pg.shape[1]
 
-        assert Ne == self.mesh.Ne
-        assert nPg == self.mesh.Get_nPg(matrixType)
+        assert Ne == groupElem.Ne
+        assert nPg == groupElem.Get_gauss(matrixType).nPg
 
         tic = Tic()
 
