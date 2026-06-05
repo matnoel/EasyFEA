@@ -253,32 +253,23 @@ class HyperElasticState:
 
     @cache_computed_values
     def Compute_Edot_vec(self) -> FeArray.FeArrayALike:
-        """Computes the Green–Lagrange strain rate vector ``Ė_vec`` in
-        Kelvin–Mandel form.
+        """Green–Lagrange strain rate ``Ė`` in Kelvin–Mandel vector form.
 
-        Uses the identity ``Ė = sym(Fᵀ · ∇v) = De · flat(∇v)``: the same
+        Uses the identity ``Ė = sym(Fᵀ · ∇v) = De(u) · flat(∇v)`` — the same
         kinematic operator :meth:`Compute_De` that maps ``flat(∇u̇)`` to
-        the small-strain rate also maps ``flat(∇v)`` to ``Ė_vec`` when
-        evaluated at the current ``u`` (the Fᵀ factor is folded into
-        ``De`` via the identity offsets).
+        the small-strain rate also maps ``flat(∇v)`` to ``Ė_vec`` evaluated
+        at the current ``u``.
 
-        Returns
-        -------
-        FeArray
-            ``Ė_vec`` of shape ``(Ne, pg, nstrain)`` — ``nstrain = 3`` in
-            2D and ``6`` in 3D.
+        Returns ``(Ne, nPg, nstrain)`` — ``nstrain = 3`` in 2D, ``6`` in 3D.
 
-        Raises
-        ------
-        ValueError
-            If no ``velocity`` was passed to the constructor.
+        Raises ``ValueError`` if no ``velocity`` was passed to the
+        constructor.
         """
         if self.__velocity is None:
             raise ValueError(
                 "Compute_Edot_vec requires a velocity field — pass `velocity=` "
                 "to HyperElasticState(...)."
             )
-
         Ne, nPg, dim = self._GetDims()
         De_e_pg = self.Compute_De()
         grad_v_e_pg = self.__mesh.groupElem.Get_Gradient_e_pg(

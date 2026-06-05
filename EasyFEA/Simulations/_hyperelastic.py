@@ -122,58 +122,59 @@ class HyperElastic(_Simu):
         return self.displacement
 
     def Construct_local_matrix_system(self, problemType):
-        # data
+        """Returns ``(K_e, C_e, M_e, F_e)`` for the current Newton iteration.
+
+        Solves ``A(u) · Δu = -R(u) = -F(u) + b``. The simulation builds the
+        global ``A = coefK·K + coefC·C + coefM·M`` and adds
+        ``b -= C @ v_t`` — Kelvin-Voigt viscosity rides through ``C_e``
+        (path α), so ``Compute_dWde`` stays elastic and the viscous force
+        cannot double-count. Active stress, in contrast, lives entirely in
+        ``Compute_dWde`` (and propagates into the geometric tangent via
+        ``Sig = block(P(dWde))`` inside the operator).
+        """
         mesh = self.mesh
         groupElem = mesh.groupElem
         dim = self.dim
         thickness = self.material.thickness if dim == 2 else 1
 
-        # get the current newton raphson displacement (updated via u += delta_u)
+        # current Newton-Raphson iterate (updated via u += delta_u)
         displacement = self._Solver_Get_Newton_Raphson_current_solution()
         velocity = None
-
         if self.algo in AlgoType.Get_Hyperbolic_Types():
-            # update displacement (and capture velocity for Kelvin–Voigt viscosity) per the time scheme
+            # capture velocity too, for Kelvin–Voigt viscosity
             displacement, velocity, _ = self._Solver_Evaluate_u_v_a_for_time_scheme(
                 problemType, displacement
             )
 
-        # get the hyperelastic state
         hyperElasticState = HyperElasticState(
             mesh, displacement, MatrixType.rigi, velocity=velocity
         )
 
-        # check if there is any invalid element
+        # invalid-element guard
         J_e_pg = hyperElasticState.Compute_J()
         assert J_e_pg.min() > 0, "Warning: det(F) < 0 - reduce load steps"
 
-        # compute tangent and residual
+        # tangent + residual
         tangent_e, residual_e = Operators.NonLinear.SecondPiolaKirchhoffStressTensor(
             self.material, hyperElasticState
         )
-
-        # Here we solve:
-        # A(u) Δu = - R(u)
-        #         = - (F(u) - b)
-        #         = - F(u) + b
+        # Newton: A(u) Δu = -R(u) = -(F(u) - b) = -F(u) + b
         K_e = tangent_e
         F_e = -residual_e
 
-        # compute Mass
-        if self.algo in AlgoType.Get_Hyperbolic_Types():
-            M_e = thickness * Operators.Bilinear.UV(groupElem, coef=self.rho, dof_n=dim)
-        else:
-            M_e = None
-
-        # Kelvin-Voigt damping
-        # no velocity; otherwise feeds A = coefK·K + coefC·C + coefM·M and
-        # the residual via b -= C @ v_t, same pattern as Rayleigh damping)
-        if self.material.eta != 0.0 and velocity is not None:
+        # Kelvin–Voigt damping matrix (path α)
+        if self.material.eta != 0 and velocity is not None:
             C_e = Operators.NonLinear.KelvinVoigtDamping(
                 self.material, hyperElasticState
             )
         else:
             C_e = None
+
+        # mass matrix — only assembled for dynamic schemes
+        if self.algo in AlgoType.Get_Hyperbolic_Types():
+            M_e = thickness * Operators.Bilinear.UV(groupElem, coef=self.rho, dof_n=dim)
+        else:
+            M_e = None
 
         return K_e, C_e, M_e, F_e
 

@@ -3,7 +3,7 @@
 # This file is part of the EasyFEA project.
 # EasyFEA is distributed under the terms of the GNU General Public License v3, see LICENSE.txt and CREDITS.md for more information.
 
-from typing import TYPE_CHECKING, Optional
+from typing import TYPE_CHECKING
 
 import numpy as np
 
@@ -105,20 +105,39 @@ def KelvinVoigtDamping(
     material: "_HyperElastic",
     state: "HyperElasticState",
     matrixType: MatrixType = MatrixType.rigi,
-) -> Optional[np.ndarray]:
+) -> np.ndarray:
     """Kelvin–Voigt damping matrix ``C_e = thickness · η · ∫ Bᵀ B dΩ``.
 
-    Returns ``None`` when ``material.eta == 0`` (no viscosity) or ``state.velocity is None`` (quasi-static — viscosity inactive).
+    Returns ``None`` when ``material.eta == 0`` (no viscosity) or
+    ``state.velocity is None`` (quasi-static — viscosity inactive).
 
-    The matrix feeds the simulation's global assembly ``A = coefK·K + coefC·C + coefM·M`` (where ``coefC = γ/(β·dt)``
-    — HHT-corrected — is computed by the simulation), and the time-discrete residual via ``b -= C @ v_t``. Same role as the Rayleigh damping matrix in :class:`Elastic`.
+    ``B = De(u) · grad`` is the nonlinear strain-displacement operator,
+    built the same way as inside :func:`SecondPiolaKirchhoffStressTensor`.
 
-    ``B = De(u) · grad`` is the nonlinear strain-displacement operator, built the same way as inside :func:`SecondPiolaKirchhoffStressTensor`. The viscous PK2 ``η·Ė`` is **not** folded into ``dWde`` — the C matrix carries the entire viscous contribution (residual + tangent), avoiding the double-counting bug described in issue 42.
+    Returns ``(Ne, nPe·dim, nPe·dim)`` reordered to
+    ``(xi,yi,zi,...,xn,yn,zn)``.
 
-    Returns ``(Ne, nPe·dim, nPe·dim)`` reordered to ``(xi,yi,zi,...,xn,yn,zn)``.
+    Use
+    ---
+    The matrix is the kinematic core of Kelvin–Voigt viscosity. How it
+    enters the global system depends on which residual / tangent path
+    is chosen:
+
+    - **Path α (separate damping matrix)**: return it as ``C_e`` in
+      slot 2 of the simulation tuple. The simulation does
+      ``A = coefK·K + coefC·C + coefM·M`` and ``b -= C @ v_t`` — single
+      uniform pattern, identical to Rayleigh damping in :class:`Elastic`.
+    - **Path β (viscous PK2 folded into dWde)**: the residual is already
+      covered by ``∫ Bᵀ·η·Ė dΩ`` from :meth:`_HyperElastic.Compute_dWde`,
+      and the geometric tangent picks up via the augmented ``Sig``. The
+      missing piece is the time-scheme linear tangent
+      ``(γ/(β·dt))·∫ η·BᵀB dΩ`` — exactly ``coefC`` times this matrix.
+      :class:`HyperElastic` uses path β and adds this contribution to
+      ``K_e`` directly (pre-divided by ``coefK`` so the assembly's
+      ``coefK · K`` recovers ``coefC · C``).
     """
     if material.eta == 0.0 or state.velocity is None:
-        return None
+        return None  # type: ignore [return-value]
 
     groupElem = state.mesh.groupElem
     wJ_e_pg = groupElem.Get_weightedJacobian_e_pg(matrixType)
@@ -131,7 +150,6 @@ def KelvinVoigtDamping(
     nCols = De_e_pg.shape[-1]
     thickness = material.thickness if dim == 2 else 1
 
-    # block-assemble grad — same pattern as in SecondPiolaKirchhoffStressTensor
     grad_e_pg = FeArray.zeros(Ne, nPg, nCols, dim * nPe)
     rows = np.arange(nCols).reshape((dim, dim))
     cols = np.arange(dim * nPe).reshape(dN_e_pg._shape)
@@ -139,9 +157,7 @@ def KelvinVoigtDamping(
         grad_e_pg._assemble(rows[i], cols[i], value=dN_e_pg)
 
     B_e_pg = De_e_pg @ grad_e_pg
+    fragment = thickness * material.eta * (wJ_e_pg * B_e_pg.T @ B_e_pg).integrate()
 
-    C_e = thickness * material.eta * (wJ_e_pg * B_e_pg.T @ B_e_pg).integrate()
-
-    # reorder xi,...,xn,yi,...,yn,zi,...,zn to xi,yi,zi,...,xn,yn,zn
     reorder = np.arange(0, nPe * dim).reshape(-1, nPe).T.ravel()
-    return C_e[:, reorder][:, :, reorder]
+    return fragment[:, reorder][:, :, reorder]

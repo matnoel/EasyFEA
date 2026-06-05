@@ -32,12 +32,43 @@ class _HyperElastic(_IModel, ABC):
     thickness: float = _params.PositiveScalarParameter()
 
     eta: float = _params.PositiveScalarParameter()
-    """Kelvin–Voigt viscosity. ``0`` (default) → purely elastic. When ``> 0`` and a velocity field is available on the state, the viscous PK2 contribution ``η · Ė_vec`` is folded into :meth:`Compute_dWde`."""
+    """Kelvin–Voigt viscosity. ``0`` (default) → purely elastic. When ``> 0``
+    and ``state.velocity`` is provided, the viscous contribution is delivered
+    via the damping matrix
+    :func:`Operators.NonLinear.KelvinVoigtDamping`. The simulation handles
+    both the residual contribution (``b -= C @ v_t``) and the linear tangent
+    piece (``coefC · C`` in the global assembly) — same uniform pattern as
+    Rayleigh damping in :class:`Elastic`."""
+
+    tau: float = _params.PositiveScalarParameter()
+    """Active stress magnitude. ``0`` (default) → inactive. When ``> 0`` and :attr:`active_stress` has been set, the PK2 contribution ``τ · active_stress`` is folded into :meth:`Compute_dWde`. Typical cardiac use: set per time step, ``material.tau = float(tau_values[i])``."""
 
     def __init__(self, dim: int, thickness: float):
         self.dim = dim
         self.thickness = thickness
         self.eta = 0.0
+        self.tau = 0.0
+        self.active_stress = None
+
+    def Set_active_stress(self, tau: float, stress_vec) -> None:
+        """Registers an active PK2 contribution.
+
+        After this call, :meth:`Compute_dWde` returns ``elastic + tau · stress_vec``. Use ``stress_vec = None`` to clear.
+
+        Parameters
+        ----------
+        tau
+            Activation magnitude (per-time-step scalar).
+        stress_vec
+            Active PK2 in Kelvin-Mandel vector form, shape ``(Ne, nPg, nstrain)``. For fiber-aligned active stress
+            ``τ · T̂⊗T̂``, pass ``state.Compute_dI4dC(T)`` — the helper normalises ``T`` internally and returns ``T̂⊗T̂_vec``.
+
+        Notes
+        -----
+        ``tau`` is updated each call (this is the per-step contractility knob), while ``stress_vec`` is typically constant across a run (the fiber pattern doesn't move). For the common cardiac case, precompute ``stress_vec`` once and update only ``tau`` between :meth:`Solve` calls — equivalent to setting ``material.tau`` and leaving ``material.active_stress`` alone.
+        """
+        self.tau = tau
+        self.active_stress = stress_vec
 
     @property
     def modelType(self) -> ModelType:
@@ -109,14 +140,30 @@ class _HyperElastic(_IModel, ABC):
         return None  # type: ignore [return-value]
 
     def Compute_dWde(self, hyperElasticState: HyperElasticState) -> FeArray:
-        """Total PK2 in Kelvin-Mandel vector form.
+        """Total PK2 in Kelvin-Mandel vector form — elastic + active stress.
 
-        Pass-through to :meth:`_Compute_elastic_dWde` today. The wrapper is preserved as the composition point for future *constitutive* PK2 additions whose derivative w.r.t.
-        ``E`` either vanishes or is E-dependent (e.g. fiber-aligned active stress ``+ τ · T̂⊗T̂``).
+        Composition:
+
+        1. ``_Compute_elastic_dWde(state)`` — subclass-specific elastic part.
+        2. ``+ tau · active_stress`` if ``tau > 0`` and ``active_stress`` is
+           registered (E-independent active PK2 addend).
+
+        The result feeds the residual ``∫ Bᵀ · dWde dΩ`` and the geometric
+        tangent via ``Sig = block(P(dWde))``.
+
         Kelvin–Voigt viscosity does **not** fold in here — it lives in
-        the separate damping matrix :func:`Operators.NonLinear.KelvinVoigtDamping`, mirroring how Rayleigh damping works in :class:`Elastic`.
+        the separate damping matrix
+        :func:`Operators.NonLinear.KelvinVoigtDamping`, mirroring how
+        Rayleigh damping works in :class:`Elastic`. Path α: the
+        simulation handles both the residual contribution
+        (``b -= C @ v_t``) and the linear tangent piece (``coefC · C``
+        in the global assembly) — folding ``η · Ė`` here would
+        double-count the viscous force.
         """
-        return self._Compute_elastic_dWde(hyperElasticState)
+        dWde_e_pg = self._Compute_elastic_dWde(hyperElasticState)
+        if self.tau > 0.0 and self.active_stress is not None:
+            dWde_e_pg = dWde_e_pg + self.tau * self.active_stress
+        return dWde_e_pg
 
     def Compute_d2Wde(self, hyperElasticState: HyperElasticState) -> FeArray:
         """Total consistent tangent ``dΣ/de`` in Kelvin–Mandel matrix form.
