@@ -31,9 +31,13 @@ class _HyperElastic(_IModel, ABC):
 
     thickness: float = _params.PositiveScalarParameter()
 
+    eta: float = _params.PositiveScalarParameter()
+    """Kelvin–Voigt viscosity. ``0`` (default) → purely elastic. When ``> 0`` and a velocity field is available on the state, the viscous PK2 contribution ``η · Ė_vec`` is folded into :meth:`Compute_dWde`."""
+
     def __init__(self, dim: int, thickness: float):
         self.dim = dim
         self.thickness = thickness
+        self.eta = 0.0
 
     @property
     def modelType(self) -> ModelType:
@@ -72,13 +76,12 @@ class _HyperElastic(_IModel, ABC):
         return None  # type: ignore [return-value]
 
     @abstractmethod
-    def Compute_dWde(self, hyperElasticState: HyperElasticState) -> FeArray:
-        """Computes the second Piola-Kirchhoff tensor Σ(u).
+    def _Compute_elastic_dWde(self, hyperElasticState: HyperElasticState) -> FeArray:
+        """Computes the **elastic** second Piola-Kirchhoff tensor Σ_elastic(u).
 
-        Parameters
-        ----------
-        hyperElasticState : HyperElasticState
-            Hyperelastic state containing the mesh, the discretized field, and the matrix type.
+        Subclass hook — implement the elastic kernel here. The public
+        :meth:`Compute_dWde` wraps this with viscous / future active-stress
+        contributions when applicable.
 
         Returns
         -------
@@ -90,13 +93,13 @@ class _HyperElastic(_IModel, ABC):
         return None  # type: ignore [return-value]
 
     @abstractmethod
-    def Compute_d2Wde(self, hyperElasticState: HyperElasticState) -> FeArray:
-        """Computes dΣde.
+    def _Compute_elastic_d2Wde(self, hyperElasticState: HyperElasticState) -> FeArray:
+        """Computes the **elastic** consistent tangent ``dΣ_elastic/de``.
 
-        Parameters
-        ----------
-        hyperElasticState : HyperElasticState
-            Hyperelastic state containing the mesh, the discretized field, and the matrix type.
+        Subclass hook — implement the elastic tangent here. The public
+        :meth:`Compute_d2Wde` wraps this; Kelvin–Voigt viscosity adds
+        no constitutive ``∂Σ/∂E`` term (Σ_visco = η · Ė is independent of
+        E), so the base wrapper is a pass-through today.
 
         Returns
         -------
@@ -104,6 +107,42 @@ class _HyperElastic(_IModel, ABC):
             dΣde_e_pg of shape (Ne, pg, d, d), where `d = 1, 3, 6` depending on whether the solution dimension is `1D`, `2D`, or `3D`.
         """
         return None  # type: ignore [return-value]
+
+    def Compute_dWde(self, hyperElasticState: HyperElasticState) -> FeArray:
+        """Total PK2 in Kelvin-Mandel vector form — elastic + Kelvin–Voigt viscous.
+
+        Calls :meth:`_Compute_elastic_dWde` for the elastic part. When
+        ``self.eta > 0`` and the state carries a velocity, adds the
+        viscous PK2 ``η · Ė_vec``. Result feeds both the residual integral
+        ``∫ Bᵀ · dWde dΩ`` and the geometric tangent via
+        ``Sig = block(P(dWde))``.
+        """
+        dWde_e_pg = self._Compute_elastic_dWde(hyperElasticState)
+        if self.eta > 0.0 and hyperElasticState.velocity is not None:
+            dWde_e_pg = dWde_e_pg + self.eta * hyperElasticState.Compute_Edot_vec()
+        return dWde_e_pg
+
+    def Compute_d2Wde(self, hyperElasticState: HyperElasticState) -> FeArray:
+        """Total consistent tangent ``dΣ/de`` in Kelvin–Mandel matrix form.
+
+        For Kelvin–Voigt viscosity, ``∂(η · Ė)/∂E = 0`` (viscous PK2 is
+        independent of E), so the viscous contribution to ``d²W/dE²`` is
+        zero — this method is a pass-through to
+        :meth:`_Compute_elastic_d2Wde`. The viscous *geometric* tangent
+        is still recovered: the operator builds
+        ``Sig = block(P(dWde))`` from the augmented :meth:`Compute_dWde`,
+        so ``∫ gradᵀ · Sig · grad dΩ`` picks up the viscous piece
+        automatically.
+
+        The strain-rate-kernel piece coming from
+        ``∂Ė/∂u`` at fixed ``u_{n+1}`` (MoReFEM's
+        ``(γ/(β·dt))·η·I`` time-scheme tangent) is **not** included here
+        — it requires time-scheme info that does not belong in the
+        material. Newton convergence may degrade at large ``η``; if
+        needed, add a ``state.Compute_DeVelocity()`` analogue and fold it
+        in via a future override.
+        """
+        return self._Compute_elastic_d2Wde(hyperElasticState)
 
 
 # ----------------------------------------------
@@ -143,7 +182,7 @@ class NeoHookean(_HyperElastic):
 
         return W
 
-    def Compute_dWde(self, hyperElasticState: HyperElasticState) -> FeArray:
+    def _Compute_elastic_dWde(self, hyperElasticState: HyperElasticState) -> FeArray:
         K = self.K
 
         I1 = hyperElasticState.Compute_I1()
@@ -160,7 +199,7 @@ class NeoHookean(_HyperElastic):
 
         return dW
 
-    def Compute_d2Wde(self, hyperElasticState: HyperElasticState) -> FeArray:
+    def _Compute_elastic_d2Wde(self, hyperElasticState: HyperElasticState) -> FeArray:
         K = self.K
 
         I1 = hyperElasticState.Compute_I1()
@@ -249,7 +288,7 @@ class MooneyRivlin(_HyperElastic):
 
         return W
 
-    def Compute_dWde(self, hyperElasticState: HyperElasticState) -> FeArray:
+    def _Compute_elastic_dWde(self, hyperElasticState: HyperElasticState) -> FeArray:
         K = self.K
         K1 = self.K1
         K2 = self.K2
@@ -274,7 +313,7 @@ class MooneyRivlin(_HyperElastic):
 
         return dW
 
-    def Compute_d2Wde(self, hyperElasticState: HyperElasticState) -> FeArray:
+    def _Compute_elastic_d2Wde(self, hyperElasticState: HyperElasticState) -> FeArray:
         K = self.K
         K1 = self.K1
         K2 = self.K2
@@ -383,7 +422,7 @@ class CiarletGeymonat(_HyperElastic):
 
         return W
 
-    def Compute_dWde(self, hyperElasticState: HyperElasticState) -> FeArray:
+    def _Compute_elastic_dWde(self, hyperElasticState: HyperElasticState) -> FeArray:
         K = self.K
         K1 = self.K1
         K2 = self.K2
@@ -408,7 +447,7 @@ class CiarletGeymonat(_HyperElastic):
 
         return dW
 
-    def Compute_d2Wde(self, hyperElasticState: HyperElasticState) -> FeArray:
+    def _Compute_elastic_d2Wde(self, hyperElasticState: HyperElasticState) -> FeArray:
         K = self.K
         K1 = self.K1
         K2 = self.K2
@@ -517,7 +556,7 @@ class SaintVenantKirchhoff(_HyperElastic):
 
         return W
 
-    def Compute_dWde(self, hyperElasticState: HyperElasticState) -> FeArray:
+    def _Compute_elastic_dWde(self, hyperElasticState: HyperElasticState) -> FeArray:
         lmbda = self.lmbda
         mu = self.mu
         K = self.K
@@ -537,7 +576,7 @@ class SaintVenantKirchhoff(_HyperElastic):
 
         return dW
 
-    def Compute_d2Wde(self, hyperElasticState: HyperElasticState) -> FeArray:
+    def _Compute_elastic_d2Wde(self, hyperElasticState: HyperElasticState) -> FeArray:
         lmbda = self.lmbda
         mu = self.mu
         K = self.K
@@ -710,7 +749,7 @@ class HolzapfelOgden(_HyperElastic):
 
         return W
 
-    def Compute_dWde(self, hyperElasticState: HyperElasticState) -> FeArray:
+    def _Compute_elastic_dWde(self, hyperElasticState: HyperElasticState) -> FeArray:
         C0 = self.C0
         C1 = self.C1
         C2 = self.C2
@@ -762,7 +801,7 @@ class HolzapfelOgden(_HyperElastic):
 
         return dW
 
-    def Compute_d2Wde(self, hyperElasticState: HyperElasticState) -> FeArray:
+    def _Compute_elastic_d2Wde(self, hyperElasticState: HyperElasticState) -> FeArray:
         C0 = self.C0
         C1 = self.C1
         C2 = self.C2

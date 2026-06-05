@@ -130,15 +130,18 @@ class HyperElastic(_Simu):
 
         # get the current newton raphson displacement (updated via u += delta_u)
         displacement = self._Solver_Get_Newton_Raphson_current_solution()
+        velocity = None
 
         if self.algo in AlgoType.Get_Hyperbolic_Types():
-            # here update the displacement according to the time scheme
-            displacement = self._Solver_Evaluate_u_v_a_for_time_scheme(
+            # update displacement (and capture velocity for Kelvin–Voigt viscosity) per the time scheme
+            displacement, velocity, _ = self._Solver_Evaluate_u_v_a_for_time_scheme(
                 problemType, displacement
-            )[0]
+            )
 
         # get the hyperelastic state
-        hyperElasticState = HyperElasticState(mesh, displacement, MatrixType.rigi)
+        hyperElasticState = HyperElasticState(
+            mesh, displacement, MatrixType.rigi, velocity=velocity
+        )
 
         # check if there is any invalid element
         J_e_pg = hyperElasticState.Compute_J()

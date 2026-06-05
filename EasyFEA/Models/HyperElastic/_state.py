@@ -32,17 +32,42 @@ class HyperElasticState:
             matrixType in MatrixType.Get_types()
         ), f"matrixType must be in {MatrixType.Get_types()}"
 
-    def __init__(self, mesh: Mesh, u: _types.FloatArray, matrixType: MatrixType):
+    def __init__(
+        self,
+        mesh: Mesh,
+        u: _types.FloatArray,
+        matrixType: MatrixType,
+        velocity: _types.FloatArray = None,  # type: ignore [assignment]
+    ):
+        """Hyperelastic state.
+
+        Parameters
+        ----------
+        mesh, u, matrixType
+            See :meth:`_CheckFormat`.
+        velocity
+            Optional velocity field (same shape as ``u``). Required for Kelvin–Voigt viscous contributions; ``None``  for quasi-static or elastic-only simulations.
+        """
 
         self._CheckFormat(mesh, u, matrixType)
+        if velocity is not None:
+            assert (
+                isinstance(velocity, np.ndarray) and velocity.shape == u.shape
+            ), "velocity must be a numpy array with the same shape as u"
 
         self.__mesh = mesh
         self.__u = u
         self.__matrixType = matrixType
+        self.__velocity = velocity
 
     @property
     def mesh(self):
         return self.__mesh
+
+    @property
+    def velocity(self):
+        """Velocity field used for Kelvin–Voigt viscous contributions (``None`` when the simulation is quasi-static / elastic-only)."""
+        return self.__velocity
 
     def _GetDims(
         self,
@@ -225,6 +250,42 @@ class HyperElasticState:
         Eps_e_pg = mat @ gradAsVect_e_pg
 
         return Eps_e_pg
+
+    @cache_computed_values
+    def Compute_Edot_vec(self) -> FeArray.FeArrayALike:
+        """Computes the Green–Lagrange strain rate vector ``Ė_vec`` in
+        Kelvin–Mandel form.
+
+        Uses the identity ``Ė = sym(Fᵀ · ∇v) = De · flat(∇v)``: the same
+        kinematic operator :meth:`Compute_De` that maps ``flat(∇u̇)`` to
+        the small-strain rate also maps ``flat(∇v)`` to ``Ė_vec`` when
+        evaluated at the current ``u`` (the Fᵀ factor is folded into
+        ``De`` via the identity offsets).
+
+        Returns
+        -------
+        FeArray
+            ``Ė_vec`` of shape ``(Ne, pg, nstrain)`` — ``nstrain = 3`` in
+            2D and ``6`` in 3D.
+
+        Raises
+        ------
+        ValueError
+            If no ``velocity`` was passed to the constructor.
+        """
+        if self.__velocity is None:
+            raise ValueError(
+                "Compute_Edot_vec requires a velocity field — pass `velocity=` "
+                "to HyperElasticState(...)."
+            )
+
+        Ne, nPg, dim = self._GetDims()
+        De_e_pg = self.Compute_De()
+        grad_v_e_pg = self.__mesh.groupElem.Get_Gradient_e_pg(
+            self.__velocity, self.__matrixType
+        )[..., :dim, :dim]
+        grad_v_flat = np.reshape(grad_v_e_pg, (Ne, nPg, -1))
+        return De_e_pg @ grad_v_flat
 
     @cache_computed_values
     def Compute_De(self) -> FeArray.FeArrayALike:
