@@ -305,6 +305,34 @@ class FeArray(_types.AnyArray):
         else:
             return array
 
+    @staticmethod
+    def broadcast(value, Ne: int, nPg: int) -> "FeArray.FeArrayALike":
+        """Broadcast a scalar or array coefficient to a shape compatible with multiplication against an ``(Ne, nPg, ...)`` FeArray.
+
+        Returns a stride-tricked read-only view for non-scalar inputs (no data duplication). Callers must not mutate the result in place;
+        the expected use is consumption inside expressions such as ``coef * wJ_e_pg * dN_e_pg.T @ dN_e_pg``, which create new arrays.
+
+        Accepted shapes
+        ----------------
+        - scalar (int / float / numpy scalar) → returned as ``float``.
+        - ``(Ne, nPg, ...)`` ndarray / FeArray → wrapped as FeArray.
+        - 1-D ``(Ne,)`` or ``(nPg,)`` → tiled to ``(Ne, nPg)``.
+        - Any other shape broadcastable to ``(Ne, nPg, ...)`` → tiled with leading ``(Ne, nPg)`` dims.
+        """
+        if isinstance(value, (int, float, np.floating, np.integer)):
+            return float(value)
+        arr = np.asarray(value)
+        if arr.shape[:2] == (Ne, nPg):
+            return FeArray.asfearray(arr)
+        if arr.ndim == 1:
+            if arr.shape[0] == Ne:
+                return FeArray.asfearray(np.broadcast_to(arr[:, None], (Ne, nPg)))
+            if arr.shape[0] == nPg:
+                return FeArray.asfearray(np.broadcast_to(arr[None, :], (Ne, nPg)))
+        return FeArray.asfearray(
+            np.broadcast_to(arr[None, None], (Ne, nPg) + arr.shape)
+        )
+
     def _asfearrays(
         *arrays: Iterable[FeArrayALike], broadcastFeArrays=False
     ) -> list[FeArrayALike]:

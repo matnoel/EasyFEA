@@ -12,7 +12,7 @@ from ..Utilities import Display, _types
 # fem
 if TYPE_CHECKING:
     from ..FEM import Mesh
-from ..FEM import MatrixType
+from ..FEM import MatrixType, Operators
 
 # models
 from .. import Models
@@ -113,38 +113,20 @@ class Thermal(_Simu):
         thermalModel = self.thermalModel
         groupElem = self.mesh.groupElem
 
-        matrixType = MatrixType.rigi
-        wJ_e_pg = groupElem.Get_weightedJacobian_e_pg(matrixType)
-        dN_e_pg = groupElem.Get_dN_e_pg(matrixType)
-
         # conductivity part
-        conductivity = thermalModel.k
-        if thermalModel.isHeterogeneous:
-            conductivity = Reshape_variable(conductivity, *wJ_e_pg.shape[:2])
-
-        Kt_e = (conductivity * wJ_e_pg * dN_e_pg.T @ dN_e_pg).sum(axis=1)
+        K_e = Operators.Bilinear.GradUGradV(groupElem, coef=thermalModel.k)
 
         # reaction part
-        rho = self.rho
-        heatCapacity = thermalModel.c
-
-        matrixType = MatrixType.mass
-        wJ_e_pg = groupElem.Get_weightedJacobian_e_pg(matrixType)
-        reactionPart = groupElem.Get_ReactionPart_e_pg(matrixType)
-
-        if thermalModel.isHeterogeneous:
-            rho = Reshape_variable(rho, *wJ_e_pg.shape[:2])
-            heatCapacity = Reshape_variable(heatCapacity, *reactionPart.shape[:2])
-
-        Ct_e = (rho * heatCapacity * reactionPart).sum(axis=1)
+        coef = self.rho * thermalModel.c
+        C_e = Operators.Bilinear.UV(groupElem, coef=coef, dof_n=1)
 
         # rescale
         if self.dim == 2:
             thickness = thermalModel.thickness
-            Kt_e *= thickness
-            Ct_e *= thickness
+            K_e *= thickness
+            C_e *= thickness
 
-        return Kt_e, Ct_e, None, None
+        return K_e, C_e, None, None
 
     def Save_Iter(self, iter={}):
 

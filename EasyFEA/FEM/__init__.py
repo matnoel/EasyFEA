@@ -14,3 +14,5 @@ from ._utils import ElemType, MatrixType
 
 # must be after the import of FeArray, _GroupElem, MatrixType
 from ._field import Field, Sym_Grad
+
+from . import Operators
