@@ -48,3 +48,23 @@ def UV(
     Ne, nPg = mat_e_pg.shape[:2]
     coef = FeArray.broadcast(coef, Ne, nPg)
     return (coef * mat_e_pg).sum(axis=1)
+
+
+def LinearizedElasticity(
+    groupElem: "_GroupElem",
+    C: FeArray.FeArrayALike,
+    matrixType: MatrixType = MatrixType.rigi,
+) -> FeArray.FeArrayALike:
+    """``∫_Ω ε(u) : C : ε(v) dΩ`` — small-strain elastic stiffness.
+
+    Returns ``(Ne, nPe·dim, nPe·dim)``.
+
+    ``C`` is the Hooke tensor in Kelvin–Mandel notation — accepts
+    ``(nstrain, nstrain)`` (homogeneous) or ``(Ne, nPg, nstrain, nstrain)``
+    (heterogeneous); broadcast via :pymeth:`FeArray.broadcast`.
+    """
+    leftDispPart_e_pg = groupElem.Get_leftDispPart_e_pg(matrixType)
+    B_e_pg = groupElem.Get_B_e_pg(matrixType)
+    Ne, nPg = B_e_pg.shape[:2]
+    C = FeArray.broadcast(C, Ne, nPg)
+    return (leftDispPart_e_pg @ C @ B_e_pg).sum(axis=1)

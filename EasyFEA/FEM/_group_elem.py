@@ -1190,7 +1190,7 @@ class _GroupElem(ABC):
         return FeArray.asfearray(B_e_pg)
 
     @cache_computed_values
-    def Get_leftDispPart(self, matrixType: MatrixType) -> FeArray.FeArrayALike:
+    def Get_leftDispPart_e_pg(self, matrixType: MatrixType) -> FeArray.FeArrayALike:
         """Left half of the elastic stiffness — precomputed ``wJ · Bᵀ``.
 
         ```

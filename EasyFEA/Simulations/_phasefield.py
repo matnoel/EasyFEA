@@ -439,7 +439,7 @@ class PhaseField(_Simu):
         groupElem = mesh.groupElem
 
         B_dep_e_pg = groupElem.Get_B_e_pg(matrixType)
-        leftDepPart = groupElem.Get_leftDispPart(matrixType)
+        leftDepPart = groupElem.Get_leftDispPart_e_pg(matrixType)
         # jacobian_e_pg * weight_pg * B_dep_e_pg'
 
         d = self.damage

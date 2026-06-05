@@ -12,7 +12,7 @@ from ..Utilities import Folder, Display, Tic, _types
 # fem
 if TYPE_CHECKING:
     from ..FEM import Mesh
-from ..FEM import MatrixType, Mesher, FeArray
+from ..FEM import MatrixType, Mesher, FeArray, Operators
 
 # models
 from ..Models import ModelType, Reshape_variable, Result_in_Strain_or_Stress_field
@@ -122,43 +122,22 @@ class Elastic(_Simu):
         groupElem = self.mesh.groupElem
         tic = Tic()
 
-        # ------------------------------
-        # Compute Stiffness
-        # ------------------------------
-        matrixType = MatrixType.rigi
-        leftDepPart = groupElem.Get_leftDispPart(matrixType)
-        B_dep_e_pg = groupElem.Get_B_e_pg(matrixType)
+        # compute stiffness
+        K_e = Operators.Bilinear.LinearizedElasticity(groupElem, self.material.C)
 
-        if self.material.isHeterogeneous:
-            matC = Reshape_variable(self.material.C, *B_dep_e_pg.shape[:2])
-        else:
-            matC = self.material.C
-
-        Ku_e = (leftDepPart @ matC @ B_dep_e_pg).sum(axis=1)
-
-        # ------------------------------
-        # Compute Mass
-        # ------------------------------
-        matrixType = MatrixType.mass
-        N_pg = FeArray.asfearray(
-            groupElem.Get_N_pg_rep(matrixType, self.dim)[np.newaxis]
-        )
-        wJ_e_pg = groupElem.Get_weightedJacobian_e_pg(matrixType)
-
-        rho_e_pg = Reshape_variable(self.rho, *wJ_e_pg.shape[:2])
-
-        Mu_e = (rho_e_pg * wJ_e_pg * N_pg.T @ N_pg).sum(axis=1)
+        # compute mass
+        M_e = Operators.Bilinear.UV(groupElem, self.rho, dof_n=self.dim)
 
         if self.dim == 2:
             thickness = self.material.thickness
-            Ku_e *= thickness
-            Mu_e *= thickness
+            K_e *= thickness
+            M_e *= thickness
 
-        tic.Tac("Matrix", "Construct Ku_e and Mu_e", self._verbosity)
+        tic.Tac("Matrix", "Construct K_e and M_e", self._verbosity)
 
-        Cu_e = self.__coefK * Ku_e + self.__coefM * Mu_e
+        C_e = self.__coefK * K_e + self.__coefM * M_e
 
-        return Ku_e, Cu_e, Mu_e, None
+        return K_e, C_e, M_e, None
 
     def Set_Rayleigh_Damping_Coefs(self, coefM=0.0, coefK=0.0):
         r"""Sets damping coefficients \( C = coefK * K + coefM * M \)."""
