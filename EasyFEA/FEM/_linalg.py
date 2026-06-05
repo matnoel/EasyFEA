@@ -253,24 +253,34 @@ class FeArray(_types.AnyArray):
 
         return result.view(FeArray)
 
-    def __set_array(self, new: "FeArray"):
-        """Returns the new array in `FeArray` format if the new array has the same `(Ne, nPg)` shape."""
-        if self.shape[:2] == new.shape[:2]:
-            return FeArray.asfearray(new)
-        else:
-            return np.asarray(new)
+    # Reduction methods that consume an axis — always return a plain ndarray,
+    # since the (Ne, nPg) framing is no longer meaningful after the reduction.
+    def _make_reducer(_name: str):
+        _parent = getattr(np.ndarray, _name)
 
-    def sum(self, *args, **kwargs) -> FeArrayALike:  # type: ignore [override]
-        """`np.sum()` wrapper."""
-        return self.__set_array(super().sum(*args, **kwargs))
+        def _reducer(self, *args, **kwargs):
+            return np.asarray(_parent(self, *args, **kwargs))
 
-    def max(self, *args, **kwargs) -> FeArrayALike:  # type: ignore [override]
-        """`np.max()` wrapper."""
-        return self.__set_array(super().max(*args, **kwargs))
+        _reducer.__name__ = _name
+        _reducer.__qualname__ = f"FeArray.{_name}"
+        _reducer.__doc__ = f"``np.{_name}()`` wrapper — returns ``ndarray``."
+        return _reducer
 
-    def min(self, *args, **kwargs) -> FeArrayALike:  # type: ignore [override]
-        """`np.min()` wrapper."""
-        return self.__set_array(super().min(*args, **kwargs))
+    for _name in (
+        "sum",
+        "prod",
+        "mean",
+        "std",
+        "var",
+        "max",
+        "min",
+        "argmax",
+        "argmin",
+        "all",
+        "any",
+    ):
+        locals()[_name] = _make_reducer(_name)
+    del _name, _make_reducer
 
     def _get_idx(self, *arrays) -> list[_types.AnyArray]:
         ndim = len(arrays) + 2
