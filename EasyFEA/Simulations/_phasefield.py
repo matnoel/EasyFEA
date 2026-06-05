@@ -13,7 +13,7 @@ from ..Utilities._observers import Observable
 from ..Utilities._mpi import CAN_USE_MPI, MPI_SIZE, MPI_COMM
 
 # fem
-from ..FEM import Mesh, MatrixType, FeArray
+from ..FEM import Mesh, MatrixType, FeArray, Operators
 
 # models
 from .. import Models
@@ -438,10 +438,6 @@ class PhaseField(_Simu):
         mesh = self.mesh
         groupElem = mesh.groupElem
 
-        B_dep_e_pg = groupElem.Get_B_e_pg(matrixType)
-        leftDepPart = groupElem.Get_leftDispPart_e_pg(matrixType)
-        # jacobian_e_pg * weight_pg * B_dep_e_pg'
-
         d = self.damage
         u = self.displacement
 
@@ -462,15 +458,15 @@ class PhaseField(_Simu):
         c_e_pg = cP_e_pg + cM_e_pg
 
         # stiffness matrix for each element
-        Ku_e = np.sum(leftDepPart @ c_e_pg @ B_dep_e_pg, axis=1)
+        K_e = Operators.Bilinear.LinearizedElasticity(groupElem, c_e_pg, matrixType)
 
         if self.dim == 2:
             thickness = self.phaseFieldModel.thickness
-            Ku_e *= thickness
+            K_e *= thickness
 
         tic.Tac("Matrix", "Construction Ku_e", self._verbosity)
 
-        return Ku_e, None, None, None
+        return K_e, None, None, None
 
     def __Solve_elastic(self) -> _types.FloatArray:
         """Computes the displacement field."""
@@ -531,48 +527,33 @@ class PhaseField(_Simu):
     def __Construct_Damage_Matrix(self):
 
         pfm = self.phaseFieldModel
+        groupElem = self.mesh.groupElem
 
         # Data
         PsiP_e_pg = self.__Calc_psiPlus_e_pg()
 
-        matrixType = MatrixType.mass
-
-        groupElem = self.mesh.groupElem
-        dN_e_pg = groupElem.Get_dN_e_pg(matrixType)
-
-        # K * Laplacien(d) + r * d = F
-
         tic = Tic()
 
-        # Reaction part Kr_e = r_e_pg * jacobian_e_pg * weight_pg * N_pg' @ N_pg
-        ReactionPart_e_pg = groupElem.Get_ReactionPart_e_pg(matrixType)
+        # reaction part
         r_e_pg = pfm.Get_r_e_pg(PsiP_e_pg)
-        Kr_e = (r_e_pg * ReactionPart_e_pg).sum(axis=1)
+        R_e = Operators.Bilinear.UV(groupElem, r_e_pg)
 
-        # Diffusion part Kk_e -> k_e_pg * jacobian_e_pg * weight_pg * dN_e_pg' @ A @ dN_e_pg
-        DiffusePart_e_pg = groupElem.Get_DiffusePart_e_pg(matrixType)
-        k = pfm.k
-        A = pfm.A
-        if pfm.isHeterogeneous:
-            k = Reshape_variable(k, *PsiP_e_pg.shape[:2])
-            A = Reshape_variable(A, *PsiP_e_pg.shape[:2])
-        Kk_e = (k * DiffusePart_e_pg @ A @ dN_e_pg).sum(axis=1)
+        # diffusion part
+        D_e = Operators.Bilinear.GradU_A_GradV(groupElem, pfm.A, pfm.k)
 
-        # Source part Fd_e = f_e_pg * jacobian_e_pg * weight_pg * N_pg' @ N_pg
-        SourcePart_e_pg = groupElem.Get_SourcePart_e_pg(matrixType)
-        f_e_pg = pfm.Get_f_e_pg(PsiP_e_pg)
-        Fd_e = (f_e_pg * SourcePart_e_pg).sum(axis=1)
+        # source part
+        F_e = Operators.Linear.V(groupElem, pfm.Get_f_e_pg(PsiP_e_pg))
 
-        Kd_e = Kr_e + Kk_e
+        K_e = R_e + D_e
 
         if self.dim == 2:
             thickness = pfm.thickness
-            Kd_e *= thickness
-            Fd_e *= thickness
+            K_e *= thickness
+            F_e *= thickness
 
         tic.Tac("Matrix", "Construct Kd_e and Fd_e", self._verbosity)
 
-        return Kd_e, None, None, Fd_e
+        return K_e, None, None, F_e
 
     def __Solve_damage(self) -> _types.FloatArray:
         """Computes the damage field."""

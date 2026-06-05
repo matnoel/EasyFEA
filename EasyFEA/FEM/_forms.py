@@ -92,7 +92,7 @@ class BiLinearForm(_Form):
                 values_e_pg = form(u, v)
 
                 # sum on gauss points
-                values_e = (values_e_pg * dX_e_pg).sum(axis=1)
+                values_e = (values_e_pg * dX_e_pg).integrate()
 
                 # add data
                 data[:, i, j] = values_e
@@ -169,7 +169,7 @@ class LinearForm(_Form):
             values_e_pg = form(v)
 
             # sum on gauss points
-            values_e = (values_e_pg * dX_e_pg).sum(axis=1)
+            values_e = (values_e_pg * dX_e_pg).integrate()
 
             # add data
             data[:, i] = values_e

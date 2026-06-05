@@ -422,7 +422,7 @@ class Beam(_Simu):
             Db_e_pg = D_e_pg.copy()
             for r in shear_rows:
                 Db_e_pg[:, :, r, r] = 0.0  # set 0.0 for shear parts
-            bend_e = (wJ_e_pg * B_e_pg.T @ Db_e_pg @ B_e_pg).sum(axis=1)
+            bend_e = (wJ_e_pg * B_e_pg.T @ Db_e_pg @ B_e_pg).integrate()
             # reduced intefration on shear
             shearType = MatrixType.beam_shear
             wJs_e_pg = groupElem.Get_weightedJacobian_e_pg(shearType)
@@ -431,10 +431,10 @@ class Beam(_Simu):
             for r in range(Ds_e_pg.shape[-1]):
                 if r not in shear_rows:
                     Ds_e_pg[:, :, r, r] = 0.0  # set 0.0 for bending parts
-            shear_e = (wJs_e_pg * Bs_e_pg.T @ Ds_e_pg @ Bs_e_pg).sum(axis=1)
+            shear_e = (wJs_e_pg * Bs_e_pg.T @ Ds_e_pg @ Bs_e_pg).integrate()
             K_e = bend_e + shear_e
         else:
-            K_e = (wJ_e_pg * B_e_pg.T @ D_e_pg @ B_e_pg).sum(axis=1)
+            K_e = (wJ_e_pg * B_e_pg.T @ D_e_pg @ B_e_pg).integrate()
 
         tic.Tac("Matrix", "Construct K_e", self._verbosity)
 
@@ -442,7 +442,7 @@ class Beam(_Simu):
         N_e_pg = groupElem.Get_beam_N_e_pg(beamStructure)
         rho_e_pg = Reshape_variable(self.rho, *wJ_e_pg.shape[:2])
 
-        M_e = (wJ_e_pg * rho_e_pg * N_e_pg.T @ M_e_pg @ N_e_pg).sum(axis=1)
+        M_e = (wJ_e_pg * rho_e_pg * N_e_pg.T @ M_e_pg @ N_e_pg).integrate()
 
         tic.Tac("Matrix", "Construct M_e", self._verbosity)
 

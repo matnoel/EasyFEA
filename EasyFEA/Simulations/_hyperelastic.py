@@ -175,7 +175,7 @@ class HyperElastic(_Simu):
 
             rho_e_pg = Reshape_variable(self.rho, *wJ_e_pg.shape[:2])
 
-            M_e = thickness * (rho_e_pg * wJ_e_pg * N_pg.T @ N_pg).sum(axis=1)
+            M_e = thickness * (rho_e_pg * wJ_e_pg * N_pg.T @ N_pg).integrate()
         else:
             M_e = None
 

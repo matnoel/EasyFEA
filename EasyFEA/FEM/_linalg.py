@@ -282,6 +282,10 @@ class FeArray(_types.AnyArray):
         locals()[_name] = _make_reducer(_name)
     del _name, _make_reducer
 
+    def integrate(self) -> np.ndarray:
+        """Integrate over the Gauss-point axis (axis 1). Returns ``(Ne, ...)`` ndarray."""
+        return np.asarray(super().sum(axis=1))
+
     def _get_idx(self, *arrays) -> list[_types.AnyArray]:
         ndim = len(arrays) + 2
 
