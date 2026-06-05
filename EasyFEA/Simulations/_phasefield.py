@@ -17,12 +17,7 @@ from ..FEM import Mesh, MatrixType, FeArray, Operators
 
 # models
 from .. import Models
-from ..Models import (
-    ModelType,
-    _IModel,
-    Reshape_variable,
-    Result_in_Strain_or_Stress_field,
-)
+from ..Models import ModelType, _IModel, Result_in_Strain_or_Stress_field
 
 # simu
 from ._simu import _Simu, SolverType

@@ -12,9 +12,8 @@ import pickle
 from typing import Optional
 
 # utilities
-from ..Utilities import Tic, Folder, Display
+from ..Utilities import Tic, Folder, Display, _types
 from ..Utilities._observers import Observable, _IObserver
-from ..Utilities import _types
 from ..Utilities._requires import Create_requires_decorator
 
 # fem

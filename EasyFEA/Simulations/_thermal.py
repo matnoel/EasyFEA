@@ -12,11 +12,11 @@ from ..Utilities import Display, _types
 # fem
 if TYPE_CHECKING:
     from ..FEM import Mesh
-from ..FEM import MatrixType, Operators
+from ..FEM import Operators
 
 # models
 from .. import Models
-from ..Models import ModelType, Reshape_variable
+from ..Models import ModelType
 
 # simu
 from ._simu import _Simu

@@ -12,15 +12,10 @@ from ..Utilities import Display, _types
 # fem
 if TYPE_CHECKING:
     from ..FEM import Mesh
-from ..FEM import MatrixType, FeArray, Operators
+from ..FEM import MatrixType, Operators
 
 # models
-from ..Models import (
-    ModelType,
-    Reshape_variable,
-    Result_in_Strain_or_Stress_field,
-    Project_Kelvin,
-)
+from ..Models import ModelType, Result_in_Strain_or_Stress_field, Project_Kelvin
 
 if TYPE_CHECKING:
     from ..Models.HyperElastic._laws import _HyperElastic
