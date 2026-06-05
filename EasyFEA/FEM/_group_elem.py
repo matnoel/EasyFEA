@@ -1195,11 +1195,10 @@ class _GroupElem(ABC):
 
         ```
         leftDispPart_e_pg = wJ · Bᵀ
-        Ku_e              = (leftDispPart_e_pg · C · B).sum(over Gauss points)
+        K_e              = (leftDispPart_e_pg · C · B).sum(over Gauss points)
         ```
 
-        Pulled out as a cached factor so the constitutive matrix ``C`` is the
-        only operand left when assembling.
+        Pulled out as a cached factor so the constitutive matrix ``C`` is the only operand left when assembling.
 
         Shape: ``(Ne, nPg, nPe·dim, nstrain)``.
         """
@@ -1216,25 +1215,27 @@ class _GroupElem(ABC):
     # reaction diffusion problem
 
     @cache_computed_values
-    def Get_ReactionPart_e_pg(self, matrixType: MatrixType) -> FeArray.FeArrayALike:
-        """Building block of the scalar reaction/mass term — precomputed ``wJ · Nᵀ · N``.
+    def Get_ReactionPart_e_pg(
+        self, matrixType: MatrixType, dof_n: int = 1
+    ) -> FeArray.FeArrayALike:
+        """Building block of the reaction/mass term — precomputed ``wJ · Nᵀ · N``.
+
+        ``dof_n=1`` (default) — scalar fields (thermal, phase-field).
+        ``dof_n=dim``         — vector fields (elastic dynamics); uses the
+        block-diagonal shape functions from :meth:`Get_N_pg_rep`.
 
         ```
         reactionPart_e_pg = wJ · Nᵀ · N
-        Mass_e            = (coef · reactionPart_e_pg).sum(over Gauss points)
+        M_e               = (coef · reactionPart_e_pg).sum(over Gauss points)
         ```
 
-        Pulled out as a cached factor so a per-element coefficient
-        (``ρ·c``, ``ρ``, …) can be applied at assembly time without recomputing
-        the geometric part.
-
-        Shape: ``(Ne, nPg, nPe, nPe)``.
+        Shape: ``(Ne, nPg, nPe·dof_n, nPe·dof_n)``.
         """
 
         assert matrixType in MatrixType.Get_types()
 
         weightedJacobian = self.Get_weightedJacobian_e_pg(matrixType)
-        N_pg = FeArray.asfearray(self.Get_N_pg_rep(matrixType, 1)[np.newaxis])
+        N_pg = FeArray.asfearray(self.Get_N_pg_rep(matrixType, dof_n)[np.newaxis])
 
         ReactionPart_e_pg = weightedJacobian * N_pg.T @ N_pg
 
@@ -1246,12 +1247,9 @@ class _GroupElem(ABC):
 
         ```
         diffusePart_e_pg = wJ · dNᵀ
-        Diffusion_e      = (diffusePart_e_pg · A · dN).sum(over Gauss points)
+        D1_e      = (diffusePart_e_pg · A · dN).sum(over Gauss points)
+        D2_e      = (diffusePart_e_pg · dN).sum(over Gauss points)
         ```
-
-        Used when the kernel is a full diffusion tensor ``A`` (anisotropic
-        conductivity, …). For isotropic ``coef · ∇u · ∇v`` the operator
-        :func:`Operators.Bilinear.GradUGradV` is the direct entry point.
 
         Shape: ``(Ne, nPg, nPe, dim)``.
         """
@@ -1266,24 +1264,29 @@ class _GroupElem(ABC):
         return DiffusePart_e_pg
 
     @cache_computed_values
-    def Get_SourcePart_e_pg(self, matrixType: MatrixType) -> FeArray.FeArrayALike:
-        """Building block of the scalar source/body-force term — precomputed ``wJ · Nᵀ``.
+    def Get_SourcePart_e_pg(
+        self, matrixType: MatrixType, dof_n: int = 1
+    ) -> FeArray.FeArrayALike:
+        """Building block of the source/body-force term — precomputed ``wJ · Nᵀ``.
+
+        ``dof_n=1`` (default) — scalar fields (thermal heat source, phase-field).
+        ``dof_n=dim``         — vector body forces (elastic, hyperelastic);
+        uses the block-diagonal shape functions from :meth:`Get_N_pg_rep`.
 
         ```
         sourcePart_e_pg = wJ · Nᵀ
         F_e             = (f · sourcePart_e_pg).sum(over Gauss points)
         ```
 
-        Same pattern as :meth:`Get_ReactionPart_e_pg` but for the linear form
-        ``∫ f · v dΩ`` (body force, internal heat source, …).
+        Same pattern as :meth:`Get_ReactionPart_e_pg` but for the linear form ``∫ f · v dΩ``. Each ``dof_n`` value is cached independently.
 
-        Shape: ``(Ne, nPg, nPe, 1)``.
+        Shape: ``(Ne, nPg, nPe·dof_n, dof_n)``.
         """
 
         assert matrixType in MatrixType.Get_types()
 
         wJ_e_pg = self.Get_weightedJacobian_e_pg(matrixType)
-        N_pg = FeArray.asfearray(self.Get_N_pg_rep(matrixType, 1)[np.newaxis])
+        N_pg = FeArray.asfearray(self.Get_N_pg_rep(matrixType, dof_n)[np.newaxis])
 
         SourcePart_e_pg = wJ_e_pg * N_pg.T
 
