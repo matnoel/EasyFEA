@@ -527,7 +527,7 @@ class _GroupElem(ABC):
 
         eval_e_pg = FeArray.asfearray(eval_e_pg)
 
-        values_e = (wJ_e_pg * eval_e_pg).sum(1)
+        values_e = (wJ_e_pg * eval_e_pg).integrate()
 
         return values_e
 

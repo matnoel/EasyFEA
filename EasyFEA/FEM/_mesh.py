@@ -539,7 +539,7 @@ class Mesh(Observable):
             normal_e_pg = groupElem.Get_normals_e_pg(
                 MatrixType.mass, displacementMatrix
             )
-            normal_e = normal_e_pg[elements].sum(1)
+            normal_e = normal_e_pg[elements].integrate()
 
             # here we want to get the normal vector on the nodes
             # need to get the nodes connectivity
@@ -547,7 +547,7 @@ class Mesh(Observable):
                 groupElem.Get_connect_n_e()[usedNodes, :].tocsc()[:, elements].tocsr()
             )
             # get the number of elements per nodes
-            sum = np.ravel(connect_n_e.sum(1))
+            sum = np.ravel(connect_n_e.sum(axis=1))
             # get the normal vector on normal
             normal_n = np.einsum(
                 "ni,n->ni", connect_n_e @ normal_e, 1 / sum, optimize="optimal"
@@ -788,7 +788,7 @@ class Mesh(Observable):
         # connectivity of the nodes
         connect_n_e = self.Get_connect_n_e()[self.nodes]
         # get elements per nodes
-        elements_n = np.reshape(connect_n_e.integrate(), (-1, 1))
+        elements_n = np.reshape(connect_n_e.sum(axis=1), (-1, 1))
 
         for c in range(nCols):
             values_e = result_e[:, c].reshape(Ne, 1)

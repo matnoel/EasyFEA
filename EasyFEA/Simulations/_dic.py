@@ -295,11 +295,11 @@ class DIC(_IObserver):
 
         dN_x[:, :, 0, ind_x] = dNdx
         dN_x[:, :, 1, ind_y] = dNdx
-        Bx_e = (wJ_e_pg * dN_x.T @ dN_x).sum(1)
+        Bx_e = (wJ_e_pg * dN_x.T @ dN_x).integrate()
 
         dN_y[:, :, 0, ind_x] = dNdy
         dN_y[:, :, 1, ind_y] = dNdy
-        By_e = (wJ_e_pg * dN_y.T @ dN_y).sum(1)
+        By_e = (wJ_e_pg * dN_y.T @ dN_y).integrate()
 
         B_e = Bx_e + By_e
 
