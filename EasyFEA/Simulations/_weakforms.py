@@ -151,7 +151,7 @@ class WeakForms(_Simu):
 
         tic.Tac("Matrix", "Compute the local F vector.", self._verbosity)
 
-        return K_e, C_e, M_e, F_e
+        return {self.mesh.groupElem: (K_e, C_e, M_e, F_e)}
 
     def Save_Iter(self, iter={}):
 

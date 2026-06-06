@@ -446,7 +446,7 @@ class Beam(_Simu):
 
         tic.Tac("Matrix", "Construct M_e", self._verbosity)
 
-        return K_e, None, M_e, None
+        return {groupElem: (K_e, None, M_e, None)}
 
     @property
     def mass(self) -> float:

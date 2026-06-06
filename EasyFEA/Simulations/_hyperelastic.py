@@ -132,8 +132,6 @@ class HyperElastic(_Simu):
         ``Compute_dWde`` (and propagates into the geometric tangent via
         ``Sig = block(P(dWde))`` inside the operator).
         """
-        mesh = self.mesh
-        groupElem = mesh.groupElem
         dim = self.dim
         thickness = self.material.thickness if dim == 2 else 1
 
@@ -146,37 +144,47 @@ class HyperElastic(_Simu):
                 problemType, displacement
             )
 
-        hyperElasticState = HyperElasticState(
-            groupElem, displacement, MatrixType.rigi, velocity=velocity
-        )
+        out = {}
 
-        # invalid-element guard
-        J_e_pg = hyperElasticState.Compute_J()
-        assert J_e_pg.min() > 0, "Warning: det(F) < 0 - reduce load steps"
+        for groupElem in self.mesh.Get_list_groupElem():
 
-        # tangent + residual
-        tangent_e, residual_e = Operators.NonLinear.SecondPiolaKirchhoffStressTensor(
-            self.material, hyperElasticState
-        )
-        # Newton: A(u) Δu = -R(u) = -(F(u) - b) = -F(u) + b
-        K_e = tangent_e
-        F_e = -residual_e
-
-        # Kelvin–Voigt damping matrix (path α)
-        if self.material.eta != 0 and velocity is not None:
-            C_e = Operators.NonLinear.KelvinVoigtDamping(
-                self.material, hyperElasticState
+            hyperElasticState = HyperElasticState(
+                groupElem, displacement, MatrixType.rigi, velocity=velocity
             )
-        else:
-            C_e = None
 
-        # mass matrix — only assembled for dynamic schemes
-        if self.algo in AlgoType.Get_Hyperbolic_Types():
-            M_e = thickness * Operators.Bilinear.UV(groupElem, coef=self.rho, dof_n=dim)
-        else:
-            M_e = None
+            # invalid-element guard
+            J_e_pg = hyperElasticState.Compute_J()
+            assert J_e_pg.min() > 0, "Warning: det(F) < 0 - reduce load steps"
 
-        return K_e, C_e, M_e, F_e
+            # tangent + residual
+            tangent_e, residual_e = (
+                Operators.NonLinear.SecondPiolaKirchhoffStressTensor(
+                    self.material, hyperElasticState
+                )
+            )
+            # Newton: A(u) Δu = -R(u) = -(F(u) - b) = -F(u) + b
+            K_e = tangent_e
+            F_e = -residual_e
+
+            # Kelvin–Voigt damping matrix (path α)
+            if self.material.eta != 0 and velocity is not None:
+                C_e = Operators.NonLinear.KelvinVoigtDamping(
+                    self.material, hyperElasticState
+                )
+            else:
+                C_e = None
+
+            # mass matrix — only assembled for dynamic schemes
+            if self.algo in AlgoType.Get_Hyperbolic_Types():
+                M_e = thickness * Operators.Bilinear.UV(
+                    groupElem, coef=self.rho, dof_n=dim
+                )
+            else:
+                M_e = None
+
+            out[groupElem] = (K_e, C_e, M_e, F_e)
+
+        return out
 
     # --------------------------------------------------------------------------
     # Iterations

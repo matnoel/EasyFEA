@@ -3,7 +3,7 @@
 # This file is part of the EasyFEA project.
 # EasyFEA is distributed under the terms of the GNU General Public License v3, see LICENSE.txt and CREDITS.md for more information.
 
-from typing import Union, Optional
+from typing import Union, Optional, TYPE_CHECKING
 import numpy as np
 from scipy import sparse
 
@@ -14,6 +14,9 @@ from ..Utilities._mpi import CAN_USE_MPI, MPI_SIZE, MPI_COMM
 
 # fem
 from ..FEM import Mesh, MatrixType, FeArray, Operators
+
+if TYPE_CHECKING:
+    from ..FEM import _GroupElem
 
 # models
 from .. import Models
@@ -430,38 +433,40 @@ class PhaseField(_Simu):
         matrixType = MatrixType.rigi
 
         # Data
-        mesh = self.mesh
-        groupElem = mesh.groupElem
-
         d = self.damage
         u = self.displacement
-
         phaseFieldModel = self.phaseFieldModel
 
-        # compute strain field
-        Epsilon_e_pg = self._Calc_Epsilon_e_pg(u, matrixType)
+        out = {}
 
-        # compute the splited stifness matrices for the given strain field.
-        cP_e_pg, cM_e_pg = phaseFieldModel.Calc_C(Epsilon_e_pg)
+        for groupElem in self.mesh.Get_list_groupElem():
 
-        tic = Tic()
+            # compute strain field
+            Epsilon_e_pg = self._Calc_Epsilon_e_pg(u, groupElem, matrixType)
 
-        # compute c such that: c = g(d) * cP + cM
-        g_e_pg = phaseFieldModel.Get_g_e_pg(d, mesh, matrixType)
-        cP_e_pg = g_e_pg * cP_e_pg
+            # compute the splited stifness matrices for the given strain field.
+            cP_e_pg, cM_e_pg = phaseFieldModel.Calc_C(Epsilon_e_pg)
 
-        c_e_pg = cP_e_pg + cM_e_pg
+            tic = Tic()
 
-        # stiffness matrix for each element
-        K_e = Operators.Bilinear.LinearizedElasticity(groupElem, c_e_pg, matrixType)
+            # compute c such that: c = g(d) * cP + cM
+            g_e_pg = phaseFieldModel.Get_g_e_pg(d, groupElem, matrixType)
+            cP_e_pg = g_e_pg * cP_e_pg
 
-        if self.dim == 2:
-            thickness = self.phaseFieldModel.thickness
-            K_e *= thickness
+            c_e_pg = cP_e_pg + cM_e_pg
 
-        tic.Tac("Matrix", "Construction Ku_e", self._verbosity)
+            # stiffness matrix for each element
+            K_e = Operators.Bilinear.LinearizedElasticity(groupElem, c_e_pg, matrixType)
 
-        return K_e, None, None, None
+            if self.dim == 2:
+                thickness = self.phaseFieldModel.thickness
+                K_e *= thickness
+
+            tic.Tac("Matrix", "Construction Ku_e", self._verbosity)
+
+            out[groupElem] = (K_e, None, None, None)
+
+        return out
 
     def __Solve_elastic(self) -> _types.FloatArray:
         """Computes the displacement field."""
@@ -473,7 +478,7 @@ class PhaseField(_Simu):
 
     # ------------------------------------------- Damage problem -------------------------------------------
 
-    def __Calc_psiPlus_e_pg(self) -> FeArray.FeArrayALike:
+    def __Calc_psiPlus_e_pg(self, groupElem: "_GroupElem") -> FeArray.FeArrayALike:
         """Computes the positive energy density psi^+ (e, p)."""
 
         phaseFieldModel = self.phaseFieldModel
@@ -486,7 +491,7 @@ class PhaseField(_Simu):
 
         assert testu or testd, "Dimension problem."
 
-        Epsilon_e_pg = self._Calc_Epsilon_e_pg(u, MatrixType.mass)
+        Epsilon_e_pg = self._Calc_Epsilon_e_pg(u, groupElem, MatrixType.mass)
         # here the mass term is important otherwise we under-integrate
 
         # Compute the elastic energy densities.
@@ -522,33 +527,37 @@ class PhaseField(_Simu):
     def __Construct_Damage_Matrix(self):
 
         pfm = self.phaseFieldModel
-        groupElem = self.mesh.groupElem
 
-        # Data
-        PsiP_e_pg = self.__Calc_psiPlus_e_pg()
+        out = {}
 
-        tic = Tic()
+        for groupElem in self.mesh.Get_list_groupElem():
 
-        # reaction part
-        r_e_pg = pfm.Get_r_e_pg(PsiP_e_pg)
-        R_e = Operators.Bilinear.UV(groupElem, r_e_pg)
+            PsiP_e_pg = self.__Calc_psiPlus_e_pg(groupElem)
 
-        # diffusion part
-        D_e = Operators.Bilinear.GradU_A_GradV(groupElem, pfm.A, pfm.k)
+            tic = Tic()
 
-        # source part
-        F_e = Operators.Linear.V(groupElem, pfm.Get_f_e_pg(PsiP_e_pg))
+            # reaction part
+            r_e_pg = pfm.Get_r_e_pg(PsiP_e_pg)
+            R_e = Operators.Bilinear.UV(groupElem, r_e_pg)
 
-        K_e = R_e + D_e
+            # diffusion part
+            D_e = Operators.Bilinear.GradU_A_GradV(groupElem, pfm.A, pfm.k)
 
-        if self.dim == 2:
-            thickness = pfm.thickness
-            K_e *= thickness
-            F_e *= thickness
+            # source part
+            F_e = Operators.Linear.V(groupElem, pfm.Get_f_e_pg(PsiP_e_pg))
 
-        tic.Tac("Matrix", "Construct Kd_e and Fd_e", self._verbosity)
+            K_e = R_e + D_e
 
-        return K_e, None, None, F_e
+            if self.dim == 2:
+                thickness = pfm.thickness
+                K_e *= thickness
+                F_e *= thickness
+
+            tic.Tac("Matrix", "Construct Kd_e and Fd_e", self._verbosity)
+
+            out[groupElem] = (K_e, None, None, F_e)
+
+        return out
 
     def __Solve_damage(self) -> _types.FloatArray:
         """Computes the damage field."""
@@ -627,7 +636,7 @@ class PhaseField(_Simu):
             # It's really useful to do this otherwise when we calculate psiP there will be a problem
             self.__old_psiP_e_pg = FeArray.zeros(*self.__old_psiP_e_pg.shape)
             # update psi+ with the current state
-            self.__old_psiP_e_pg = self.__Calc_psiPlus_e_pg()
+            self.__old_psiP_e_pg = self.__Calc_psiPlus_e_pg(self.mesh.groupElem)
 
         return results
 
@@ -808,26 +817,22 @@ class PhaseField(_Simu):
         return Psi_Ext
 
     def _Calc_Epsilon_e_pg(
-        self, sol: _types.FloatArray, matrixType=MatrixType.rigi
+        self,
+        sol: _types.FloatArray,
+        groupElem: "_GroupElem" = None,
+        matrixType=MatrixType.rigi,
     ) -> FeArray.FeArrayALike:
         """Computes strain field (Ne,pg,(3 or 6)).\n
         2D : [Exx Eyy sqrt(2)*Exy]\n
         3D : [Exx Eyy Ezz sqrt(2)*Eyz sqrt(2)*Exz sqrt(2)*Exy]
-
-        Parameters
-        ----------
-        sol : _types.FloatArray
-            Displacement vector
-
-        Returns
-        -------
-        FeArray
-            Computed strain field (Ne,pg,(3 or 6))
         """
 
+        if groupElem is None:
+            groupElem = self.mesh.groupElem
+
         tic = Tic()
-        sol_e = self.mesh.Locates_sol_e(sol, asFeArray=True)
-        B_e_pg = self.mesh.groupElem.Get_B_e_pg(matrixType)
+        sol_e = groupElem.Locates_sol_e(sol, asFeArray=True)
+        B_e_pg = groupElem.Get_B_e_pg(matrixType)
         Epsilon_e_pg = B_e_pg @ sol_e
 
         tic.Tac("Matrix", "Epsilon_e_pg", False)
@@ -835,7 +840,10 @@ class PhaseField(_Simu):
         return Epsilon_e_pg
 
     def _Calc_Sigma_e_pg(
-        self, Epsilon_e_pg: FeArray.FeArrayALike, matrixType=MatrixType.rigi
+        self,
+        Epsilon_e_pg: FeArray.FeArrayALike,
+        groupElem: "_GroupElem" = None,
+        matrixType=MatrixType.rigi,
     ) -> FeArray.FeArrayALike:
         """Computes stress field from strain field.\n
         2D : [Sxx Syy sqrt(2)*Sxy]\n
@@ -852,7 +860,9 @@ class PhaseField(_Simu):
             Computed damaged stress field.
         """
 
-        groupElem = self.mesh.groupElem
+        if groupElem is None:
+            groupElem = self.mesh.groupElem
+
         Epsilon_e_pg = FeArray.asfearray(Epsilon_e_pg)
 
         assert Epsilon_e_pg.shape[0] == groupElem.Ne

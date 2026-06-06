@@ -25,7 +25,6 @@ from ..FEM import (
     Mesh,
     Load_Mesh,
     _GroupElem,
-    FeArray,
     BoundaryCondition,
     LagrangeCondition,
     MatrixType,
@@ -213,13 +212,16 @@ class _Simu(_IObserver, _params.Updatable, ABC):
         return np.zeros(size)
 
     @abstractmethod
-    def Construct_local_matrix_system(self, problemType) -> tuple[
-        Optional[FeArray],
-        Optional[FeArray],
-        Optional[FeArray],
-        Optional[FeArray],
+    def Construct_local_matrix_system(self, problemType) -> dict[
+        _GroupElem,
+        tuple[
+            Optional[np.ndarray],
+            Optional[np.ndarray],
+            Optional[np.ndarray],
+            Optional[np.ndarray],
+        ],
     ]:
-        r"""Construct the local matrix system :math:`\Krm \, \mathrm{u} + \Crm \, \vrm + \Mrm \, \arm = \Frm` for the given problem."""
+        r"""Construct the local matrix system :math:`\Krm \, \mathrm{u} + \Crm \, \vrm + \Mrm \, \arm = \Frm` for the given problem, returned per contributing group of elements `{groupElem: (K_e, C_e, M_e, F_e)}`."""
         raise NotImplementedError
 
     # Iterations
@@ -805,25 +807,68 @@ class _Simu(_IObserver, _params.Updatable, ABC):
     # Solver
     # ----------------------------------------------
 
+    @staticmethod
+    def __Assemble_csr(
+        dict_group_data: dict["_GroupElem", np.ndarray],
+        dof_n: int,
+        Ndof: int,
+        isMatrix: bool = True,
+    ) -> sparse.csr_matrix:
+        """Scatter per-group local element matrices/vectors into a global CSR.
+
+        Parameters
+        ----------
+        dict_group_data : dict[_GroupElem, FeArray]
+            Per-group local arrays, keyed by element group. Empty dict returns an empty CSR.
+        dof_n : int
+            Number of DOFs per node.
+        Ndof : int
+            Total number of degrees of freedom (including Lagrange multiplier DOFs).
+        isMatrix bool, optional
+            If the value is True, creates a matrix (Ndof, Ndof); otherwise, creates a vector (Ndof, 1); the default value is True.
+        """
+
+        shape = (Ndof, Ndof) if isMatrix else (Ndof, 1)
+
+        if not dict_group_data:
+            return sparse.csr_matrix(shape)
+
+        list_rows, list_cols, list_data = [], [], []
+        for groupElem, X_e in dict_group_data.items():
+            if X_e is None:
+                continue
+            if isMatrix:
+                rows = groupElem.Get_rows_e(dof_n).ravel()
+                cols = groupElem.Get_columns_e(dof_n).ravel()
+            else:
+                rows = groupElem.Get_assembly_e(dof_n).ravel()
+                cols = np.zeros_like(rows)
+            list_rows.append(rows)
+            list_cols.append(cols)
+            list_data.append(X_e.ravel())
+
+        if not list_data:
+            return sparse.csr_matrix(shape)
+
+        data = np.concatenate(list_data)
+        rows = np.concatenate(list_rows)
+        cols = np.concatenate(list_cols)
+        assert data.size == rows.size, f"Not enough data to fill a {shape} CSR."
+        return sparse.csr_matrix((data, (rows, cols)), shape=shape)
+
     def Assembly(
         self, problemType: ModelType
     ) -> tuple[
         sparse.csr_matrix, sparse.csr_matrix, sparse.csr_matrix, sparse.csr_matrix
     ]:
         r"""Assemble the matrix system :math:`\Krm \, \mathrm{u} + \Crm \, \vrm + \Mrm \, \arm = \Frm` for the given problemType."""
-        # Data
-        mesh = self.mesh
         dof_n = self.Get_dof_n(problemType)
-
-        rows_e = mesh.groupElem.Get_rows_e(dof_n).ravel()
-        columns_e = mesh.groupElem.Get_columns_e(dof_n).ravel()
-
         Ndof = self.__Get_Ndof(problemType)
-        shape = (Ndof, Ndof)
 
         tic = Tic()
 
-        K_e, C_e, M_e, F_e = self.Construct_local_matrix_system(problemType)
+        # {groupElem: (K_e, C_e, M_e, F_e)}
+        dict_KCMF = self.Construct_local_matrix_system(problemType)
 
         tic.Tac(
             "Matrix",
@@ -831,46 +876,24 @@ class _Simu(_IObserver, _params.Updatable, ABC):
             self._verbosity,
         )
 
-        # Assembly K
-        if K_e is None:
-            K = sparse.csr_matrix(shape)
-        else:
-            assert K_e.size == rows_e.size, f"Not enough data to fill a {shape} matrix."
-            K = sparse.csr_matrix((K_e.ravel(), (rows_e, columns_e)), shape=shape)
-            # Display.Init_Axes().spy(K)
-            # Display.plt.show()
-
+        K = self.__Assemble_csr(
+            {g: KCMF[0] for g, KCMF in dict_KCMF.items()}, dof_n, Ndof, True
+        )
         tic.Tac("Matrix", f"Assemble the K matrix ({problemType}).", self._verbosity)
 
-        # Assembly C
-        if C_e is None:
-            C = sparse.csr_matrix(shape)
-        else:
-            assert C_e.size == rows_e.size, f"Not enough data to fill a {shape} matrix."
-            C = sparse.csr_matrix((C_e.ravel(), (rows_e, columns_e)), shape=shape)
-
+        C = self.__Assemble_csr(
+            {g: KCMF[1] for g, KCMF in dict_KCMF.items()}, dof_n, Ndof, True
+        )
         tic.Tac("Matrix", f"Assemble the C matrix ({problemType}).", self._verbosity)
 
-        # Assembly M
-        if M_e is None:
-            M = sparse.csr_matrix(shape)
-        else:
-            assert M_e.size == rows_e.size, f"Not enough data to fill a {shape} matrix."
-            M = sparse.csr_matrix((M_e.ravel(), (rows_e, columns_e)), shape=shape)
-
+        M = self.__Assemble_csr(
+            {g: KCMF[2] for g, KCMF in dict_KCMF.items()}, dof_n, Ndof, True
+        )
         tic.Tac("Matrix", f"Assemble the M matrix ({problemType}).", self._verbosity)
 
-        # Assembly F
-        if F_e is None:
-            F = sparse.csr_matrix((Ndof, 1))
-        else:
-            rows = mesh.Get_assembly_e(dof_n).ravel()
-            cols = np.zeros_like(rows)
-            assert (
-                F_e.size == rows.size
-            ), f"Not enough data to fill a [{rows.size}, 1] vector."
-            F = sparse.csr_matrix((F_e.ravel(), (rows, cols)), shape=(Ndof, 1))
-
+        F = self.__Assemble_csr(
+            {g: KCMF[3] for g, KCMF in dict_KCMF.items()}, dof_n, Ndof, False
+        )
         tic.Tac("Matrix", f"Assemble the F vector ({problemType}).", self._verbosity)
 
         return K, C, M, F

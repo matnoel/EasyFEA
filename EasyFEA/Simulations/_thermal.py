@@ -111,22 +111,27 @@ class Thermal(_Simu):
 
     def Construct_local_matrix_system(self, problemType):
         thermalModel = self.thermalModel
-        groupElem = self.mesh.groupElem
 
-        # conductivity part
-        K_e = Operators.Bilinear.GradUGradV(groupElem, coef=thermalModel.k)
+        out = {}
 
-        # reaction part
-        coef = self.rho * thermalModel.c
-        C_e = Operators.Bilinear.UV(groupElem, coef=coef, dof_n=1)
+        for groupElem in self.mesh.Get_list_groupElem():
 
-        # rescale
-        if self.dim == 2:
-            thickness = thermalModel.thickness
-            K_e *= thickness
-            C_e *= thickness
+            # conductivity part
+            K_e = Operators.Bilinear.GradUGradV(groupElem, coef=thermalModel.k)
 
-        return K_e, C_e, None, None
+            # reaction part
+            coef = self.rho * thermalModel.c
+            C_e = Operators.Bilinear.UV(groupElem, coef=coef, dof_n=1)
+
+            # rescale
+            if self.dim == 2:
+                thickness = thermalModel.thickness
+                K_e *= thickness
+                C_e *= thickness
+
+            out[groupElem] = (K_e, C_e, None, None)
+
+        return out
 
     def Save_Iter(self, iter={}):
 

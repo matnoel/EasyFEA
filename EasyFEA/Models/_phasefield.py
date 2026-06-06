@@ -13,7 +13,7 @@ from ..Utilities import Tic
 
 # fem
 if TYPE_CHECKING:
-    from ..FEM import Mesh, MatrixType
+    from ..FEM import _GroupElem
 from ..FEM import MatrixType, FeArray, Trace, TensorProd, Det, Norm
 
 # others
@@ -299,13 +299,15 @@ class PhaseField(_IModel):
         return f
 
     def Get_g_e_pg(
-        self, d_n: _types.FloatArray, mesh: "Mesh", matrixType: MatrixType, k_res=1e-12
+        self,
+        d_n: _types.FloatArray,
+        groupElem: "_GroupElem",
+        matrixType: MatrixType,
+        k_res=1e-12,
     ) -> FeArray.FeArrayALike:
         """Returns degradation function"""
 
-        groupElem = mesh.groupElem
-
-        d_e_n = mesh.Locates_sol_e(d_n, asFeArray=True)
+        d_e_n = groupElem.Locates_sol_e(d_n, asFeArray=True)
         Nd_pg = FeArray.asfearray(groupElem.Get_N_pg(matrixType)[np.newaxis, :, 0])
 
         d_e_pg = Nd_pg @ d_e_n

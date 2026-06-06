@@ -119,25 +119,34 @@ class Elastic(_Simu):
 
     def Construct_local_matrix_system(self, problemType):
 
-        groupElem = self.mesh.groupElem
         tic = Tic()
 
-        # compute stiffness
-        K_e = Operators.Bilinear.LinearizedElasticity(groupElem, self.material.C)
+        out = {}
 
-        # compute mass
-        M_e = Operators.Bilinear.UV(groupElem, self.rho, dof_n=self.dim)
+        for groupElem in self.mesh.Get_list_groupElem():
 
-        if self.dim == 2:
-            thickness = self.material.thickness
-            K_e *= thickness
-            M_e *= thickness
+            # compute stiffness
+            K_e = Operators.Bilinear.LinearizedElasticity(groupElem, self.material.C)
 
-        tic.Tac("Matrix", "Construct K_e and M_e", self._verbosity)
+            # compute mass
+            M_e = Operators.Bilinear.UV(groupElem, self.rho, dof_n=self.dim)
 
-        C_e = self.__coefK * K_e + self.__coefM * M_e
+            if self.dim == 2:
+                thickness = self.material.thickness
+                K_e *= thickness
+                M_e *= thickness
 
-        return K_e, C_e, M_e, None
+            tic.Tac(
+                "Matrix",
+                f"Construct K_e and M_e ({groupElem.elemType})",
+                self._verbosity,
+            )
+
+            C_e = self.__coefK * K_e + self.__coefM * M_e
+
+            out[groupElem] = (K_e, C_e, M_e, None)
+
+        return out
 
     def Set_Rayleigh_Damping_Coefs(self, coefM=0.0, coefK=0.0):
         r"""Sets damping coefficients \( C = coefK * K + coefM * M \)."""
