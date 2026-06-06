@@ -50,7 +50,9 @@ class TestSaintVenantKirchhoff:
             3, matIsot.get_lambda(), matIsot.get_mu()
         )
 
-        hyperElasticState = Models.HyperElastic.HyperElasticState(mesh, u, matrixType)
+        hyperElasticState = Models.HyperElastic.HyperElasticState(
+            mesh.groupElem, u, matrixType
+        )
 
         # test W
         E = hyperElasticState.Compute_GreenLagrange()

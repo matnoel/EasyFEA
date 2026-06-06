@@ -147,7 +147,7 @@ class HyperElastic(_Simu):
             )
 
         hyperElasticState = HyperElasticState(
-            mesh, displacement, MatrixType.rigi, velocity=velocity
+            groupElem, displacement, MatrixType.rigi, velocity=velocity
         )
 
         # invalid-element guard
@@ -346,23 +346,28 @@ class HyperElastic(_Simu):
         return self.Results_Reshape_values(values, nodeValues)
 
     def _Calc_W(self, returnScalar=True, matrixType=MatrixType.rigi):
-        wJ_e_pg = self.mesh.groupElem.Get_weightedJacobian_e_pg(matrixType)
+        groupElem = self.mesh.groupElem
+        wJ_e_pg = groupElem.Get_weightedJacobian_e_pg(matrixType)
         if self.dim == 2:
             wJ_e_pg *= self.material.thickness
-        hyperElasticState = HyperElasticState(self.mesh, self.displacement, matrixType)
+        hyperElasticState = HyperElasticState(groupElem, self.displacement, matrixType)
         W_e_pg = self.material.Compute_W(hyperElasticState)
 
         if returnScalar:
             return (wJ_e_pg * W_e_pg).sum()
         else:
-            return (wJ_e_pg * W_e_pg).sum(1)
+            return (wJ_e_pg * W_e_pg).integrate()
 
     def _Calc_GreenLagrange(self, matrixType=MatrixType.rigi):
-        hyperElasticState = HyperElasticState(self.mesh, self.displacement, matrixType)
+        hyperElasticState = HyperElasticState(
+            self.mesh.groupElem, self.displacement, matrixType
+        )
         return Project_Kelvin(hyperElasticState.Compute_GreenLagrange(), 2)
 
     def _Calc_SecondPiolaKirchhoff(self, matrixType=MatrixType.rigi):
-        hyperElasticState = HyperElasticState(self.mesh, self.displacement, matrixType)
+        hyperElasticState = HyperElasticState(
+            self.mesh.groupElem, self.displacement, matrixType
+        )
         return self.material.Compute_dWde(hyperElasticState)
 
     def Results_Iter_Summary(

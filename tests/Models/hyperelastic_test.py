@@ -70,7 +70,9 @@ def Get_3d_simulations(ud=1e-6) -> list[Simulations.Elastic]:
 
 def Get_C_components(simu: Simulations.Elastic, matrixType=MatrixType.rigi):
 
-    return HyperElasticState(simu.mesh, simu.displacement, matrixType)._Compute_C()
+    return HyperElasticState(
+        simu.mesh.groupElem, simu.displacement, matrixType
+    )._Compute_C()
 
 
 class TestHyperElastic:
@@ -101,7 +103,7 @@ class TestHyperElastic:
                 test2d_e_pg = (
                     Eps2d_e_pg
                     - HyperElasticState(
-                        simu2d.mesh, simu2d.displacement, matrixType
+                        simu2d.mesh.groupElem, simu2d.displacement, matrixType
                     ).Compute_Epsilon()
                 )
 
@@ -119,7 +121,7 @@ class TestHyperElastic:
                 test3d_e_pg = (
                     Eps3d_e_pg
                     - HyperElasticState(
-                        simu3d.mesh, simu3d.displacement, MatrixType.mass
+                        simu3d.mesh.groupElem, simu3d.displacement, MatrixType.mass
                     ).Compute_Epsilon()
                 )
 
@@ -151,7 +153,9 @@ class TestHyperElastic:
                 Epsilon_e_pg = simu._Calc_Epsilon_e_pg(u, matrixType)
 
                 e_e_pg = Project_Kelvin(
-                    HyperElasticState(simu.mesh, u, matrixType).Compute_GreenLagrange(),
+                    HyperElasticState(
+                        simu.mesh.groupElem, u, matrixType
+                    ).Compute_GreenLagrange(),
                     2,
                 )
 
@@ -170,7 +174,7 @@ class TestHyperElastic:
             for matrixType in [MatrixType.rigi, MatrixType.mass]:
 
                 hyperElasticState = HyperElasticState(
-                    simu.mesh, simu.displacement, matrixType
+                    simu.mesh.groupElem, simu.displacement, matrixType
                 )
 
                 C_e_pg = hyperElasticState.Compute_C()
@@ -185,7 +189,7 @@ class TestHyperElastic:
             for matrixType in [MatrixType.rigi, MatrixType.mass]:
 
                 hyperElasticState = HyperElasticState(
-                    simu.mesh, simu.displacement, matrixType
+                    simu.mesh.groupElem, simu.displacement, matrixType
                 )
 
                 dI1dC = hyperElasticState.Compute_dI1dC()
@@ -201,7 +205,7 @@ class TestHyperElastic:
             for matrixType in [MatrixType.rigi, MatrixType.mass]:
 
                 hyperElasticState = HyperElasticState(
-                    simu.mesh, simu.displacement, matrixType
+                    simu.mesh.groupElem, simu.displacement, matrixType
                 )
 
                 d2I1dC = hyperElasticState.Compute_d2I1dC()
@@ -221,7 +225,7 @@ class TestHyperElastic:
             for matrixType in [MatrixType.rigi, MatrixType.mass]:
 
                 hyperElasticState = HyperElasticState(
-                    simu.mesh, simu.displacement, matrixType
+                    simu.mesh.groupElem, simu.displacement, matrixType
                 )
 
                 C_e_pg = hyperElasticState.Compute_C()
@@ -239,7 +243,7 @@ class TestHyperElastic:
             for matrixType in [MatrixType.rigi, MatrixType.mass]:
 
                 hyperElasticState = HyperElasticState(
-                    simu.mesh, simu.displacement, matrixType
+                    simu.mesh.groupElem, simu.displacement, matrixType
                 )
 
                 dI2dC = hyperElasticState.Compute_dI2dC()
@@ -262,7 +266,7 @@ class TestHyperElastic:
             for matrixType in [MatrixType.rigi, MatrixType.mass]:
 
                 hyperElasticState = HyperElasticState(
-                    simu.mesh, simu.displacement, matrixType
+                    simu.mesh.groupElem, simu.displacement, matrixType
                 )
 
                 d2I2dC = hyperElasticState.Compute_d2I2dC()
@@ -294,7 +298,7 @@ class TestHyperElastic:
             for matrixType in [MatrixType.rigi, MatrixType.mass]:
 
                 hyperElasticState = HyperElasticState(
-                    simu.mesh, simu.displacement, matrixType
+                    simu.mesh.groupElem, simu.displacement, matrixType
                 )
 
                 C_e_pg = hyperElasticState.Compute_C()
@@ -310,7 +314,7 @@ class TestHyperElastic:
             for matrixType in [MatrixType.rigi, MatrixType.mass]:
 
                 hyperElasticState = HyperElasticState(
-                    simu.mesh, simu.displacement, matrixType
+                    simu.mesh.groupElem, simu.displacement, matrixType
                 )
 
                 dI3dC = hyperElasticState.Compute_dI3dC()
@@ -330,7 +334,7 @@ class TestHyperElastic:
             for matrixType in [MatrixType.rigi, MatrixType.mass]:
 
                 hyperElasticState = HyperElasticState(
-                    simu.mesh, simu.displacement, matrixType
+                    simu.mesh.groupElem, simu.displacement, matrixType
                 )
 
                 d2I3dC = hyperElasticState.Compute_d2I3dC()
@@ -361,7 +365,7 @@ class TestHyperElastic:
             for matrixType in [MatrixType.rigi, MatrixType.mass]:
 
                 hyperElasticState = HyperElasticState(
-                    simu.mesh, simu.displacement, matrixType
+                    simu.mesh.groupElem, simu.displacement, matrixType
                 )
 
                 C_e_pg = hyperElasticState.Compute_C()
@@ -427,7 +431,7 @@ class TestHyperElastic:
             for matrixType in [MatrixType.rigi, MatrixType.mass]:
 
                 hyperElasticState = HyperElasticState(
-                    simu.mesh, simu.displacement, matrixType
+                    simu.mesh.groupElem, simu.displacement, matrixType
                 )
 
                 T = np.array([0, 1, 0])
@@ -447,7 +451,7 @@ class TestHyperElastic:
             for matrixType in [MatrixType.rigi, MatrixType.mass]:
 
                 hyperElasticState = HyperElasticState(
-                    simu.mesh, simu.displacement, matrixType
+                    simu.mesh.groupElem, simu.displacement, matrixType
                 )
 
                 d2I4dC = hyperElasticState.Compute_d2I4dC()
@@ -467,7 +471,7 @@ class TestHyperElastic:
             for matrixType in [MatrixType.rigi, MatrixType.mass]:
 
                 hyperElasticState = HyperElasticState(
-                    simu.mesh, simu.displacement, matrixType
+                    simu.mesh.groupElem, simu.displacement, matrixType
                 )
 
                 C_e_pg = hyperElasticState.Compute_C()
@@ -490,7 +494,7 @@ class TestHyperElastic:
             for matrixType in [MatrixType.rigi, MatrixType.mass]:
 
                 hyperElasticState = HyperElasticState(
-                    simu.mesh, simu.displacement, matrixType
+                    simu.mesh.groupElem, simu.displacement, matrixType
                 )
 
                 T = np.array([1, 1, 0])
@@ -510,7 +514,7 @@ class TestHyperElastic:
             for matrixType in [MatrixType.rigi, MatrixType.mass]:
 
                 hyperElasticState = HyperElasticState(
-                    simu.mesh, simu.displacement, matrixType
+                    simu.mesh.groupElem, simu.displacement, matrixType
                 )
 
                 d2I6dC = hyperElasticState.Compute_d2I6dC()
@@ -530,7 +534,7 @@ class TestHyperElastic:
             for matrixType in [MatrixType.rigi, MatrixType.mass]:
 
                 hyperElasticState = HyperElasticState(
-                    simu.mesh, simu.displacement, matrixType
+                    simu.mesh.groupElem, simu.displacement, matrixType
                 )
 
                 C_e_pg = hyperElasticState.Compute_C()
@@ -556,7 +560,7 @@ class TestHyperElastic:
             for matrixType in [MatrixType.rigi, MatrixType.mass]:
 
                 hyperElasticState = HyperElasticState(
-                    simu.mesh, simu.displacement, matrixType
+                    simu.mesh.groupElem, simu.displacement, matrixType
                 )
 
                 T1 = np.array([1, 1, 0])
@@ -577,7 +581,7 @@ class TestHyperElastic:
             for matrixType in [MatrixType.rigi, MatrixType.mass]:
 
                 hyperElasticState = HyperElasticState(
-                    simu.mesh, simu.displacement, matrixType
+                    simu.mesh.groupElem, simu.displacement, matrixType
                 )
 
                 d2I8dC = hyperElasticState.Compute_d2I8dC()

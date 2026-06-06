@@ -7,7 +7,7 @@
 
 import numpy as np
 
-from ...FEM import Mesh, MatrixType
+from ...FEM import MatrixType, _GroupElem
 from ...FEM._linalg import FeArray, Transpose, Det, Norm
 from ...Utilities import _types, _params
 from ...Utilities._cache import cache_computed_values
@@ -21,48 +21,55 @@ class HyperElasticState:
     """Hyperelastic state."""
 
     @staticmethod
-    def _CheckFormat(mesh: Mesh, u: _types.FloatArray, matrixType: MatrixType) -> None:
-        assert isinstance(mesh, Mesh), "mesh must be an Mesh object"
-        assert (
-            isinstance(u, np.ndarray) and u.size % mesh.Nn == 0
-        ), "wrong displacement field dimension"
-        dim = u.size // mesh.Nn
-        assert dim in [1, 2, 3], "wrong displacement field dimension"
+    def _CheckFormat(
+        groupElem: _GroupElem, u: _types.FloatArray, matrixType: MatrixType
+    ) -> None:
+        assert isinstance(groupElem, _GroupElem)
+        Ncoords = groupElem.Ncoords
+        errorDim = "wrong displacement field dimension"
+        assert isinstance(u, np.ndarray) and u.size % Ncoords == 0, errorDim
+        dim = u.size // Ncoords
+        assert dim in [1, 2, 3], errorDim
         assert (
             matrixType in MatrixType.Get_types()
         ), f"matrixType must be in {MatrixType.Get_types()}"
 
     def __init__(
         self,
-        mesh: Mesh,
+        groupElem: _GroupElem,
         u: _types.FloatArray,
         matrixType: MatrixType,
         velocity: _types.FloatArray = None,  # type: ignore [assignment]
     ):
-        """Hyperelastic state.
+        """
+        Hyperelastic state.
 
         Parameters
         ----------
-        mesh, u, matrixType
-            See :meth:`_CheckFormat`.
-        velocity
-            Optional velocity field (same shape as ``u``). Required for Kelvin–Voigt viscous contributions; ``None``  for quasi-static or elastic-only simulations.
+        groupElem : _GroupElem
+            group of elements
+        u : _types.FloatArray
+            displacement field in (xi,yi,zi,...,xn,yn,zn) format
+        matrixType : MatrixType
+            matrix type
+        velocity : _types.FloatArray, optional
+            Optional velocity field (same shape as ``u``). Required for Kelvin–Voigt viscous contributions; ``None``  for quasi-static or elastic-only simulations., by default None
         """
 
-        self._CheckFormat(mesh, u, matrixType)
+        self._CheckFormat(groupElem, u, matrixType)
         if velocity is not None:
             assert (
                 isinstance(velocity, np.ndarray) and velocity.shape == u.shape
             ), "velocity must be a numpy array with the same shape as u"
 
-        self.__mesh = mesh
+        self.__groupElem = groupElem
         self.__u = u
         self.__matrixType = matrixType
         self.__velocity = velocity
 
     @property
-    def mesh(self):
-        return self.__mesh
+    def groupElem(self):
+        return self.__groupElem
 
     @property
     def velocity(self):
@@ -73,9 +80,9 @@ class HyperElasticState:
         self,
     ) -> tuple[int, int, int]:
         """return Ne, nPg, dim"""
-        Ne = self.__mesh.Ne
-        dim = self.__u.size // self.__mesh.Nn
-        nPg = self.__mesh.groupElem.Get_gauss(self.__matrixType).nPg
+        Ne = self.__groupElem.Ne
+        dim = self.__u.size // self.__groupElem.Ncoords
+        nPg = self.__groupElem.Get_gauss(self.__matrixType).nPg
         return (Ne, nPg, dim)
 
     @cache_computed_values
@@ -109,7 +116,7 @@ class HyperElasticState:
         dxuz dyuz 1+dzuz
         """
 
-        grad_e_pg = self.__mesh.groupElem.Get_Gradient_e_pg(self.__u, self.__matrixType)
+        grad_e_pg = self.__groupElem.Get_Gradient_e_pg(self.__u, self.__matrixType)
 
         F_e_pg = np.eye(3) + grad_e_pg
 
@@ -222,9 +229,9 @@ class HyperElasticState:
         assert dim in [2, 3]
 
         # compute grad
-        grad_e_pg = self.__mesh.groupElem.Get_Gradient_e_pg(
-            self.__u, self.__matrixType
-        )[..., :dim, :dim]
+        grad_e_pg = self.__groupElem.Get_Gradient_e_pg(self.__u, self.__matrixType)[
+            ..., :dim, :dim
+        ]
 
         # 2d: dxux, dyux, dxuy, dyuy
         # 3d: dxux, dyux, dzu, dxuy, dyuy, dzuy, dxuz, dyuz, dzuz
@@ -272,7 +279,7 @@ class HyperElasticState:
             )
         Ne, nPg, dim = self._GetDims()
         De_e_pg = self.Compute_De()
-        grad_v_e_pg = self.__mesh.groupElem.Get_Gradient_e_pg(
+        grad_v_e_pg = self.__groupElem.Get_Gradient_e_pg(
             self.__velocity, self.__matrixType
         )[..., :dim, :dim]
         grad_v_flat = np.reshape(grad_v_e_pg, (Ne, nPg, -1))
@@ -307,7 +314,7 @@ class HyperElasticState:
         Ne, nPg, dim = self._GetDims()
         assert dim in [2, 3]
 
-        grad_e_pg = self.__mesh.groupElem.Get_Gradient_e_pg(self.__u, self.__matrixType)
+        grad_e_pg = self.__groupElem.Get_Gradient_e_pg(self.__u, self.__matrixType)
 
         if dim == 2:
             D_e_pg = FeArray.zeros(Ne, nPg, 3, 4)
