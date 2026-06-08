@@ -3,7 +3,7 @@
 # This file is part of the EasyFEA project.
 # EasyFEA is distributed under the terms of the GNU General Public License v3, see LICENSE.txt and CREDITS.md for more information.
 
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Optional, Union
 
 import numpy as np
 
@@ -12,6 +12,7 @@ from .._utils import MatrixType
 from ...Models._utils import Project_vector_to_matrix
 
 if TYPE_CHECKING:
+    from .._group_elem import _GroupElem
     from ...Models.HyperElastic._laws import _HyperElastic
     from ...Models.HyperElastic._state import HyperElasticState
 
@@ -161,3 +162,119 @@ def KelvinVoigtDamping(
 
     reorder = np.arange(0, nPe * dim).reshape(-1, nPe).T.ravel()
     return fragment[:, reorder][:, :, reorder]
+
+
+def __skew(v: np.ndarray) -> np.ndarray:
+    """Skew-symmetric "cross-product" matrix: ``S(v) · w = v × w``.
+
+    Input ``v`` of shape ``(..., 3)`` → output ``(..., 3, 3)``.
+
+    ::
+
+        S(v) = |  0   -v_2   v_1 |
+               | v_2    0   -v_0 |
+               |-v_1   v_0    0  |
+    """
+    zero = np.zeros_like(v[..., 0])
+    return np.stack(
+        [
+            np.stack([zero, -v[..., 2], v[..., 1]], axis=-1),
+            np.stack([v[..., 2], zero, -v[..., 0]], axis=-1),
+            np.stack([-v[..., 1], v[..., 0], zero], axis=-1),
+        ],
+        axis=-2,
+    )
+
+
+def FollowingPressure(
+    u: np.ndarray,
+    groupElem: "_GroupElem",
+    pressure: Union[float, np.ndarray],
+    elements: Optional[np.ndarray] = None,
+    matrixType: "MatrixType" = MatrixType.rigi,
+) -> tuple[np.ndarray, np.ndarray]:
+    r"""Follower-pressure contribution on a 2D surface group in a 3D mesh.
+
+    The load tracks the deformed normal ``n = ∂x/∂r × ∂x/∂s`` with ``x = X + u``, so its Jacobian feeds a non-symmetric tangent.
+
+    Returned ``(K_e, R_e)`` are contributions to global ``K`` and ``R(u) = R_internal − F_follower`` — same convention as PK2:
+
+    ```
+    K_e = -∂F_follower/∂u    → slot K
+    R_e = -F_follower(u)     → slot F as -R_e (= +F_follower in b)
+    ```
+
+    Outside ``elements`` the returned arrays are exact zero so the surface connectivity can scatter ``(Ne_surf, ...)`` uniformly.
+    """
+    assert groupElem.dim in [1, 2], "groupElem must be 1D or 2D."
+
+    dim = 3
+    Ne, nPe = groupElem.Ne, groupElem.nPe
+    ndof = nPe * dim
+
+    K_e = np.zeros((Ne, ndof, ndof))
+    R_e = np.zeros((Ne, ndof))
+
+    if elements is None:
+        active = np.arange(Ne)
+    else:
+        active = np.asarray(elements, dtype=int).ravel()
+        if active.size == 0:
+            return K_e, R_e
+    Ne_a = active.size
+
+    if np.isscalar(pressure) and float(pressure) == 0.0:
+        return K_e, R_e
+
+    gauss = groupElem.Get_gauss(matrixType)
+    nPg = gauss.nPg
+    weights = gauss.weights
+
+    # Reference-frame shape functions and r-/s-derivatives
+    N_pg = groupElem.Get_N_pg(matrixType)[:, 0, :]  # (nPg, nPe)
+    dN_pg = groupElem.Get_dN_pg(matrixType)  # (nPg, 2, nPe)
+    dNr_pg = dN_pg[:, 0, :]
+    dNs_pg = dN_pg[:, 1, :]
+
+    # Deformed node coordinates x = X + u (Ne_a, nPe, 3)
+    connect = groupElem.connect
+    connect_local = groupElem._global_to_local_nodes[connect]
+    X_e = groupElem.coord[connect_local][active]
+    u_e = u.reshape(-1, dim)[connect][active]
+    x_e = X_e + u_e
+
+    # Deformed tangents dxdr_e_pg = ∂x/∂r, dxds_e_pg = ∂x/∂s at Gauss points
+    dxdr_e_pg = np.einsum("pn,enc->epc", dNr_pg, x_e)  # (Ne_a, nPg, 3)
+    dxds_e_pg = np.einsum("pn,enc->epc", dNs_pg, x_e)  # (Ne_a, nPg, 3)
+    n_e_pg = np.cross(dxdr_e_pg, dxds_e_pg)  # area-weighted deformed normal
+
+    # F[e, i, c] = Σ_p w·p · φ_i · n_c   (component-major, then reorder)
+    factor = weights[None, :] * pressure  # (1, nPg)
+    F_active = np.einsum("ep,pn,epc->enc", factor, N_pg, n_e_pg).reshape(
+        Ne_a, dim * nPe
+    )  # (xi, yi, zi, ...)
+
+    # Chain rule on n = a × b (with a = ∂x/∂r, b = ∂x/∂s) gives, at each Gauss point, the 3×3 matrix
+    #     ∂n / ∂u_{j, :} = ∂φ_j/∂s · S(a)  −  ∂φ_j/∂r · S(b)
+    # where S(v) is the skew-symmetric "cross-product" matrix:
+    #     S(v) = | 0    −v_2   v_1 |     so that  S(v) · w = v × w.
+    #            | v_2   0    −v_0 |
+    #            |−v_1   v_0   0   |
+    # The local tangent is then a Kronecker product over components × nodes:
+    #     K_e_pg  =  factor · [ S(a) ⊗ (φ ⊗ ∂φ/∂sᵀ)  −  S(b) ⊗ (φ ⊗ ∂φ/∂rᵀ) ]
+    # i.e. block (c_a, c_b) carries S(a)[c_a,c_b]·φ_iᵀ∂φ_j/∂s − S(b)[c_a,c_b]·φ_iᵀ∂φ_j/∂r.
+    S_a = __skew(dxdr_e_pg)  # S(a),  shape (Ne_a, nPg, 3, 3)
+    S_b = __skew(dxds_e_pg)  # S(b),  shape (Ne_a, nPg, 3, 3)
+    K_active = (
+        np.einsum("ep,epcd,pi,pj->ecidj", factor, S_a, N_pg, dNs_pg)
+        - np.einsum("ep,epcd,pi,pj->ecidj", factor, S_b, N_pg, dNr_pg)
+    ).reshape(Ne_a, dim * nPe, dim * nPe)
+
+    # component-major → interleaved (xi, yi, zi, ...)
+    reorder = np.arange(dim * nPe).reshape(dim, nPe).T.ravel()
+    K_active = K_active[:, reorder][:, :, reorder]
+
+    K_e[active] = -K_active
+    R_e[active] = F_active
+
+    return K_e, R_e
