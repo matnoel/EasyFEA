@@ -139,7 +139,7 @@ def KelvinVoigtDamping(
     if material.eta == 0.0 or state.velocity is None:
         return None  # type: ignore [return-value]
 
-    groupElem = state.groupElem.groupElem
+    groupElem = state.groupElem
     wJ_e_pg = groupElem.Get_weightedJacobian_e_pg(matrixType)
     dN_e_pg = groupElem.Get_dN_e_pg(matrixType)
     De_e_pg = state.Compute_De()
