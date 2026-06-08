@@ -1,6 +1,10 @@
 from enum import Enum
 
-from EasyFEA import Display, Folder, PyVista, MatrixType, Models, Simulations
+import numpy as np
+
+from EasyFEA import Display, Folder, PyVista, MatrixType, Models, Simulations, AlgoType
+from EasyFEA.FEM import Operators, MatrixType
+from EasyFEA.Utilities import _params
 
 from utils import RESULTS_DIR, DATA_DIR, Get_config, Get_tau_and_pressure
 
@@ -9,6 +13,47 @@ class Config(str, Enum):
     D = "D"
     A = "A"
     B = "B"
+
+
+class CardiacElastoDynamics(Simulations.HyperElastic):
+
+    pressure = _params.PositiveScalarParameter()
+
+    active_stress = _params.PositiveScalarParameter()
+
+    def __init__(
+        self, mesh, model, folder="", tolConv=0.00001, maxIter=20, verbosity=False
+    ):
+        super().__init__(mesh, model, folder, tolConv, maxIter, verbosity)
+
+        self.pressure = 0.0
+        self.active_stress = 0.0
+
+    def Construct_local_matrix_system(self, problemType):
+        results = super().Construct_local_matrix_system(problemType)
+
+        # current Newton-Raphson iterate (updated via u += delta_u)
+        displacement = self._Solver_Get_Newton_Raphson_current_solution()
+        if self.algo in AlgoType.Get_Hyperbolic_Types():
+            displacement, _, _ = self._Solver_Evaluate_u_v_a_for_time_scheme(
+                problemType, displacement
+            )
+
+        for groupElem in self.mesh.Get_list_groupElem(self.dim - 1):
+
+            tangent_e, residual_e = Operators.NonLinear.FollowingPressure(
+                displacement,
+                groupElem,
+                self.pressure,
+                groupElem.Get_Elements_Tag("3"),
+                MatrixType.mass,
+            )
+
+            # Newton: A(u) Δu = -R(u) = -(F(u) - b) = -F(u) + b
+            # Follower pressure is a `b` term that depends on u
+            results[groupElem] = (tangent_e, None, None, residual_e)
+
+        return results
 
 
 if __name__ == "__main__":
@@ -24,6 +69,8 @@ if __name__ == "__main__":
     config = Config.D
 
     results_dir = Folder.Join(RESULTS_DIR, ellipsoid + f"_{config.name}")
+
+    plotGraph = False
 
     # ----------------------------------------------
     # Mesh
@@ -41,27 +88,28 @@ if __name__ == "__main__":
     #
     # ----------------------------------------------
 
-    t_values, tau_values, p_values = Get_tau_and_pressure(Tmax=1.0, Nt=100)
+    t_values, tau_values, p_values = Get_tau_and_pressure(Tmax=1.0, Nt=50)
     if config is Config.B:
         tau_values *= 0
     if config is Config.A:
         p_values *= 0
 
-    ax = Display.Init_Axes()
-    ax.grid()
-    ax.set_xlabel(r"$t$ [s]")
-    ax.set_ylabel(r"$\tau(t)$ [Pa]")
-    ax.plot(t_values, tau_values)
-    name = "active_pressure"
-    Display.Save_fig(results_dir, name)
+    if plotGraph:
+        ax = Display.Init_Axes()
+        ax.grid()
+        ax.set_xlabel(r"$t$ [s]")
+        ax.set_ylabel(r"$\tau(t)$ [Pa]")
+        ax.plot(t_values, tau_values)
+        name = "active_pressure"
+        Display.Save_fig(results_dir, name)
 
-    ax = Display.Init_Axes()
-    ax.grid()
-    ax.set_xlabel(r"$t$ [s]")
-    ax.set_ylabel(r"$p(t)$ [Pa]")
-    ax.plot(t_values, p_values)
-    name = "pressure"
-    Display.Save_fig(results_dir, name)
+        ax = Display.Init_Axes()
+        ax.grid()
+        ax.set_xlabel(r"$t$ [s]")
+        ax.set_ylabel(r"$p(t)$ [Pa]")
+        ax.plot(t_values, p_values)
+        name = "pressure"
+        Display.Save_fig(results_dir, name)
 
     # ----------------------------------------------
     # Material
@@ -94,8 +142,29 @@ if __name__ == "__main__":
         T2=sheets_e_pg,
         ks=100,
     )
+    material.eta = 100.0
 
-    # updated_lua_dict["Solid"]["VolumicMass"]["value"] = 1000
-    # updated_lua_dict["Solid"]["Viscosity"]["value"] = 100
+    # ----------------------------------------------
+    # Simulation
+    # ----------------------------------------------
+
+    simu = CardiacElastoDynamics(mesh, material)
+
+    dt = t_values[1] - t_values[0]
+    simu.Solver_Set_Hyperbolic_Algorithm(dt, algo=AlgoType.midpoint)
+    simu.rho = 1000
+
+    nodes_dirichlet = mesh.Nodes_Tags("4")
+
+    for t in t_values:
+        simu.Bc_Init()
+        simu.add_dirichlet(nodes_dirichlet, [0] * 3, simu.Get_unknowns())
+        simu.pressure = np.interp(t + dt / 2, t_values, p_values)
+        simu.Solve()
+        simu.Save_Iter()
+
+        # PyVista.Plot(simu, "ux", deformFactor=1, plotMesh=True).show()
+
+    # PyVista.Movie_simu(simu, "uy", results_dir, "uy.mp4", deformFactor=1, plotMesh=True)
 
     Display.plt.show()
