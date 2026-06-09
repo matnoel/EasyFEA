@@ -962,15 +962,21 @@ class Mesher:
         entities.extend([(3, volume) for volume in volumes])
         return entities
 
-    def Mesh_Import_mesh(self, mesh: str, setPhysicalGroups=False, coef=1.0) -> Mesh:
+    def Mesh_Import_mesh(
+        self,
+        mesh: str,
+        setPhysicalGroupsFromEntities=True,
+        coef=1.0,
+    ) -> Mesh:
         """Creates the mesh from an .msh file.
 
         Parameters
         ----------
         mesh : str
             .msh file
-        setPhysicalGroups : bool, optional
-            creates physical groups, by default False
+        setPhysicalGroupsFromEntities : bool, optional
+            reconstruct physical groups from gmsh entities, by default True.
+            Each entity becomes a physical group named ``f"{P|L|S|V}{tag}"`` where ``tag`` is the entity's own gmsh tag (so a volume entity with tag 3 becomes ``"V3"``). Existing physical-group names are preserved.
         coef : float, optional
             coef applied to the node coordinates, by default 1.0
 
@@ -988,8 +994,16 @@ class Mesher:
 
         tic.Tac("Mesh", "Mesh import", self.__verbosity)
 
-        if setPhysicalGroups:
-            self._Set_PhysicalGroups()
+        if setPhysicalGroupsFromEntities:
+            existing_names = {
+                gmsh.model.getPhysicalName(dim, tag)
+                for dim, tag in gmsh.model.getPhysicalGroups()
+            }
+            for dim, tag in gmsh.model.getEntities():
+                name = f"{self.__dict_name_dim[dim]}{tag}"
+                if name in existing_names:
+                    continue
+                gmsh.model.addPhysicalGroup(dim, [tag], name=name)
 
         return self._Mesh_Get_Mesh(coef)
 
@@ -2190,7 +2204,7 @@ class Mesher:
                         )
                         # If no node has been retrieved, move on to the nextPhysics group.
                         if nodeTags.size == 0:
-                            return
+                            continue
                         # nodes associated with the group
                         nodesGroup = changes[nodeTags]  # Apply change
                         # add tag
