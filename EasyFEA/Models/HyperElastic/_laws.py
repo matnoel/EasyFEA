@@ -10,11 +10,11 @@ import numpy as np
 from typing import Union
 
 # utilities
-from ...FEM import FeArray, TensorProd
+from ...FEM import FeArray, TensorProd, Norm
 from ._state import HyperElasticState
 
 # others
-from .._utils import _IModel, ModelType
+from .._utils import _IModel, ModelType, Project_matrix_to_vector
 from ...Utilities import _params, _types
 
 # ----------------------------------------------
@@ -40,35 +40,58 @@ class _HyperElastic(_IModel, ABC):
     piece (``coefC · C`` in the global assembly) — same uniform pattern as
     Rayleigh damping in :class:`Elastic`."""
 
-    tau: float = _params.PositiveScalarParameter()
-    """Active stress magnitude. ``0`` (default) → inactive. When ``> 0`` and :attr:`active_stress` has been set, the PK2 contribution ``τ · active_stress`` is folded into :meth:`Compute_dWde`. Typical cardiac use: set per time step, ``material.tau = float(tau_values[i])``."""
+    active_stress: float = _params.PositiveScalarParameter()
+    """Active stress magnitude (per-time-step scalar). ``0`` (default) → inactive.
+    When ``> 0`` and the direction tensor has been registered via
+    :meth:`Set_active_stress_vec`, the PK2 contribution ``active_stress · (T̂ ⊗ T̂)`` is
+    folded into :meth:`Compute_dWde`. Typical cardiac use: precompute the fiber
+    direction tensor once with :meth:`Set_active_stress_vec`, then update only
+    this scalar between :meth:`Solve` calls — ``material.active_stress = float(tau_values[i])``."""
 
     def __init__(self, dim: int, thickness: float):
         self.dim = dim
         self.thickness = thickness
         self.eta = 0.0
-        self.tau = 0.0
-        self.active_stress = None
+        self.active_stress = 0.0
+        self.__TxT = 0.0
 
-    def Set_active_stress(self, tau: float, stress_vec) -> None:
-        """Registers an active PK2 contribution.
+    def Set_active_stress_vec(self, T) -> None:
+        r"""Registers the **direction** of the active PK2 contribution.
 
-        After this call, :meth:`Compute_dWde` returns ``elastic + tau · stress_vec``. Use ``stress_vec = None`` to clear.
+        Normalises the direction field ``T`` per Gauss point and precomputes the Kelvin-Mandel vector form of ``T̂ ⊗ T̂``, stored on the material.
+        After this call, :meth:`Compute_dWde` returns
+
+        .. math::
+
+            \Sigma(u) \;=\; \Sigma_{\text{elastic}}(u) \;+\; \texttt{active\_stress}\,\cdot\,(\hat T \otimes \hat T)
+
+        whenever :attr:`active_stress` ``> 0``. Only the **scalar** magnitude :attr:`active_stress` is updated between time steps; the direction ``T̂`` is typically constant across a run (e.g. cardiac fibers don't move with time), so this method is called **once** during setup.
 
         Parameters
         ----------
-        tau
-            Activation magnitude (per-time-step scalar).
-        stress_vec
-            Active PK2 in Kelvin-Mandel vector form, shape ``(Ne, nPg, nstrain)``. For fiber-aligned active stress
-            ``τ · T̂⊗T̂``, pass ``state.Compute_dI4dC(T)`` — the helper normalises ``T`` internally and returns ``T̂⊗T̂_vec``.
+        T
+            Direction tensor at every Gauss point, shape ``(Ne, nPg, 3)``. Not required to be unit-norm — this method divides by ``|T|`` per Gauss point internally.
 
         Notes
         -----
-        ``tau`` is updated each call (this is the per-step contractility knob), while ``stress_vec`` is typically constant across a run (the fiber pattern doesn't move). For the common cardiac case, precompute ``stress_vec`` once and update only ``tau`` between :meth:`Solve` calls — equivalent to setting ``material.tau`` and leaving ``material.active_stress`` alone.
+        **Time-scheme consistency.** When the simulation uses a time scheme (Newmark, midpoint, HHT, …), :attr:`active_stress` must be the scalar evaluated at the **time-scheme effective time**, not the
+        endpoint ``t``. For the midpoint rule that's ``t + dt/2``; for HHT with parameter ``α`` it's ``t + (1 - α)·dt``; for Newmark / Euler implicit it's ``t + dt``. Using ``t`` directly biases the contractile force by half a step and erodes the order of the scheme.
+
+        Equivalent setup pattern (midpoint)::
+
+            material.Set_active_stress_vec(T) # once, after meshing
+            for t in t_values:
+                # midpoint evaluation
+                material.active_stress = np.interp(t + dt / 2, t_values, tau_values)
+                simu.Solve()
         """
-        self.tau = tau
-        self.active_stress = stress_vec
+        # Per-Gauss-point normalisation. Norm(T) without an axis collapses to
+        # the global Frobenius norm — a scalar — which would broadcast wrong
+        # and leak NaNs into PK2; axis=-1 is the per-vector length.
+        T_hat = T / Norm(T, axis=-1)
+        # The fiber pattern doesn't move with time, so this is precomputed
+        # once and only `active_stress` is updated each step.
+        self.__TxT = Project_matrix_to_vector(TensorProd(T_hat, T_hat))  # (Ne, nPg, 6)
 
     @property
     def modelType(self) -> ModelType:
@@ -145,8 +168,9 @@ class _HyperElastic(_IModel, ABC):
         Composition:
 
         1. ``_Compute_elastic_dWde(state)`` — subclass-specific elastic part.
-        2. ``+ tau · active_stress`` if ``tau > 0`` and ``active_stress`` is
-           registered (E-independent active PK2 addend).
+        2. ``+ active_stress · (T̂ ⊗ T̂)`` if :attr:`active_stress` ``> 0`` and
+           the direction ``T̂`` has been registered via
+           :meth:`Set_active_stress_vec` (E-independent active PK2 addend).
 
         The result feeds the residual ``∫ Bᵀ · dWde dΩ`` and the geometric
         tangent via ``Sig = block(P(dWde))``.
@@ -161,8 +185,8 @@ class _HyperElastic(_IModel, ABC):
         double-count the viscous force.
         """
         dWde_e_pg = self._Compute_elastic_dWde(hyperElasticState)
-        if self.tau > 0.0 and self.active_stress is not None:
-            dWde_e_pg = dWde_e_pg + self.tau * self.active_stress
+        if self.active_stress > 0.0:
+            dWde_e_pg = dWde_e_pg + self.active_stress * self.__TxT
         return dWde_e_pg
 
     def Compute_d2Wde(self, hyperElasticState: HyperElasticState) -> FeArray:
