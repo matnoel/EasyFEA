@@ -877,7 +877,7 @@ class PhaseField(_Simu):
         tic = Tic()
 
         # compute Sig such that: Sig = g(d) * SigP + SigM
-        g_e_pg = phaseFieldModel.Get_g_e_pg(d, self.mesh, matrixType)
+        g_e_pg = phaseFieldModel.Get_g_e_pg(d, groupElem, matrixType)
         SigmaP_e_pg = g_e_pg * SigmaP_e_pg
         Sigma_e_pg = SigmaP_e_pg + SigmaM_e_pg
 
