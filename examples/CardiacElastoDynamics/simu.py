@@ -113,10 +113,7 @@ if __name__ == "__main__":
 
     results_dir = Folder.Join(RESULTS_DIR, ellipsoid + f"_{config.name}")
 
-    p0 = (0.025, 0.03, 0)
-    p1 = (0, 0.03, 0)
-
-    doSimu = False
+    doSimu = True
     plotGraph = False
     makeMovie = True
 
@@ -207,29 +204,26 @@ if __name__ == "__main__":
         simu.Solver_Set_Hyperbolic_Algorithm(dt, algo=AlgoType.midpoint)
         simu.rho = 1000
 
-        nodes_dirichlet = mesh.Nodes_Tags("4")
-
+        # evaluate displacement values
         list_p0_values = []
         list_p1_values = []
+        p0 = (0.025, 0.03, 0)
+        p1 = (0, 0.03, 0)
         evalCoords = np.array([p0, p1])
         evalElements = simu.mesh.groupElem._Get_nearby_elements(evalCoords)
 
         for t in t_values:
             simu.Bc_Init()
-            # simu.add_dirichlet(nodes_dirichlet, [0] * 3, simu.Get_unknowns())
             simu.pressure = np.interp(t + dt / 2, t_values, p_values)
             material.active_stress = np.interp(t + dt / 2, t_values, tau_values)
             displacement = simu.Solve()
             simu.Save_Iter()
-
+            # evaluate displacement values
             values = simu.mesh.Evaluate_dofsValues_at_coordinates(
                 evalCoords, displacement, evalElements
             )
-
             list_p0_values.append(values[0])
             list_p1_values.append(values[1])
-
-            # PyVista.Plot(simu, "ux", deformFactor=1, plotMesh=True).show()
 
         simu.Save(results_dir)
 
