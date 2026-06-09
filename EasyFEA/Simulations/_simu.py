@@ -5,7 +5,6 @@
 
 from abc import ABC, abstractmethod
 import pickle
-import re
 from datetime import datetime
 from typing import Union, Optional, Any
 import numpy as np
@@ -241,17 +240,31 @@ class _Simu(_IObserver, _params.Updatable, ABC):
             iter["timeIter"] = self.__timeIter
             iter["list_norm_r"] = self.__list_norm_r
 
+        # Unified history: `__list_results[i]` is either the iteration dict (in-memory) or the path to a pickle on disk. Folder mode is pinned per entry at write time, so subsequent changes to `self.folder` don't desync older entries.
         if self.folder == "":
-            self.__results.append(iter)
+            self.__list_results.append(iter)
         else:
-            file = Folder.Join(
+            path = Folder.Join(
                 self.folder, "Results", f"results{self.Niter}.pickle", mkdir=True
             )
             if MPI_RANK == 0:
-                with open(file, "wb") as f:
+                with open(path, "wb") as f:
                     pickle.dump(iter, f)
+            self.__list_results.append(path)
 
         self.__Niter += 1
+
+    def Get_results(self, iter: int = -1) -> dict:
+        """Return the iteration dict at index ``iter``, loading from disk if the entry is a pickle path. Pure read — no mutation of simulation state (use :meth:`Set_Iter` for that)."""
+        iter = int(iter)
+        if iter < 0:
+            iter += self.Niter
+        assert 0 <= iter < self.Niter, f"`iter` must be in [0, {self.Niter})"
+        entry = self.__list_results[iter]
+        if isinstance(entry, str):
+            with open(entry, "rb") as f:
+                return pickle.load(f)
+        return entry.copy()
 
     @abstractmethod
     def Set_Iter(self, iter: int = -1, resetAll=False) -> dict:
@@ -261,26 +274,14 @@ class _Simu(_IObserver, _params.Updatable, ABC):
         --------
         Returns the results dictionary.
         """
-
-        iter = int(iter)
-        assert isinstance(iter, int), "Must provide an integer."
-
-        assert iter <= self.Niter, f"The iter must be < {self.Niter}]"
-
-        # Retrieve the results stored
-        if self.folder == "":
-            results = self.results[iter]
-        else:
-            file = self.results[iter]
-            with open(file, "rb") as f:
-                results = pickle.load(f)
+        results = self.Get_results(iter)
 
         indexMesh = results["indexMesh"]
         if indexMesh != self.__indexMesh:
             self.__indexMesh = indexMesh
             self.__Update_mesh(indexMesh)
 
-        return results.copy()
+        return results
 
     # Results
 
@@ -434,7 +435,7 @@ class _Simu(_IObserver, _params.Updatable, ABC):
         """Simulation dimension."""
 
         self.__Niter = 0
-        self.__results: list[dict] = []
+        self.__list_results: list[dict] = []
         """Dictionary list containing the results."""
 
         # Fill in the first mesh
@@ -579,24 +580,6 @@ class _Simu(_IObserver, _params.Updatable, ABC):
         if value != "" and not Folder.Exists(value):
             Folder.os.makedirs(value, exist_ok=True)
         self.__folder = value
-
-    @property
-    def results(self) -> Union[list[dict], list[str]]:
-        """Returns a copy of the list of dictionary containing the results from each iteration."""
-        if self.folder == "":
-            return self.__results.copy()
-        else:
-            folder = Folder.Join(self.folder, "Results", mkdir=True)
-
-            files = sorted(
-                [
-                    Folder.Join(folder, file)
-                    for file in Folder.os.listdir(folder)
-                    if file.endswith(".pickle")
-                ],
-                key=lambda f: int(re.search(r"results(\d+)", f).group(1)),
-            )
-            return files
 
     @property
     def Niter(self) -> int:
@@ -1396,9 +1379,7 @@ class _Simu(_IObserver, _params.Updatable, ABC):
         list_norm_r: list[float] = []
 
         if MPI_RANK == 0:
-            Display.Section(
-                f"{problemType.name} problem at iteration {len(self.results)}"
-            )
+            Display.Section(f"{problemType.name} problem at iteration {self.Niter}")
 
         while not converged and newtonIter < maxIter:
 
@@ -2967,7 +2948,8 @@ class _Simu(_IObserver, _params.Updatable, ABC):
             Folder.Join(folder, f"{filename}{suffix}.pickle", mkdir=True)
         path_simu = Folder.Join(folder, f"{filename}{suffix}.pickle", mkdir=True)
 
-        # set folder
+        # The folder setter handles flushing any pending in-memory iteration
+        # dicts to disk when transitioning from `folder == ""` to set.
         self.folder = folder
 
         # Save meshes

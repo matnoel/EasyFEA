@@ -383,8 +383,8 @@ class HyperElastic(_Simu):
     ) -> tuple[list[int], list[tuple[str, _types.FloatArray]]]:
         list_label_values = []
 
-        results = self.results
-        iterations = list(range(len(results)))
+        iterations = list(range(self.Niter))
+        results = [self.Get_results(i) for i in iterations]
 
         iter["newtonIter"] = self.__newtonIter
         iter["timeIter"] = self.__timeIter

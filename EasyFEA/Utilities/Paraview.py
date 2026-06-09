@@ -65,9 +65,7 @@ def Save_simu(
     meshDim = mesh.dim
     Ne = mesh.Ne
 
-    results = simu.results
-
-    Niter = len(results)
+    Niter = simu.Niter
     N = np.min([Niter, N])
     iterations = np.linspace(0, Niter - 1, N, endpoint=True, dtype=int)
 

@@ -1197,7 +1197,7 @@ def Plot_Energy(
     tic = Tic()
 
     # recover simulation results
-    Niter = len(simu.results)
+    Niter = simu.Niter
     if len(load) > 0:
         ecart = np.abs(Niter - len(load))
         if ecart != 0:
@@ -1382,7 +1382,7 @@ def Movie_Simu(
         MyPrintError("Must give a simulation.")
         return
 
-    Niter = len(simu.results)
+    Niter = simu.Niter
     N = np.max([Niter, N])
     iterations = np.linspace(0, Niter - 1, N, endpoint=True, dtype=int)
 

@@ -86,7 +86,7 @@ def Save_simu(
         Display.MyPrintError("Must give a simulation.")
         return
 
-    Niter = len(simu.results)
+    Niter = simu.Niter
     N = np.min([Niter, N])
     iterations = np.linspace(0, Niter - 1, N, endpoint=True, dtype=int)
 
