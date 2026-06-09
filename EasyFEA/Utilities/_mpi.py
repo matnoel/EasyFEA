@@ -10,28 +10,36 @@ from functools import wraps
 
 from ._requires import Create_requires_decorator
 
-try:
-    from mpi4py import MPI
+# MPI launchers (mpirun, srun, mpiexec, …) set at least one of these env vars.
+# Only import mpi4py when actually running under an MPI launcher to avoid
+# MPI_Init hanging when invoked as a plain `python script.py`.
+_MPI_LAUNCHER_VARS = [
+    "OMPI_COMM_WORLD_SIZE",  # Open MPI
+    "PMI_SIZE",              # MPICH / Hydra
+    "SLURM_NTASKS",          # Slurm srun
+    "MV2_COMM_WORLD_SIZE",   # MVAPICH2
+    "PMIX_RANK",             # PMIx (Open MPI 4+, Slurm)
+]
+_UNDER_MPIRUN = any(os.environ.get(v) for v in _MPI_LAUNCHER_VARS)
 
-    CAN_USE_MPI = True
-    MPI_COMM = MPI.COMM_WORLD
-    MPI_SIZE = MPI_COMM.Get_size()
-    MPI_RANK = MPI_COMM.Get_rank()
+if _UNDER_MPIRUN:
+    try:
+        from mpi4py import MPI
 
-except ModuleNotFoundError:
+        CAN_USE_MPI = True
+        MPI_COMM = MPI.COMM_WORLD
+        MPI_SIZE = MPI_COMM.Get_size()
+        MPI_RANK = MPI_COMM.Get_rank()
+
+    except Exception:
+        CAN_USE_MPI = False
+        MPI_COMM = None
+        MPI_SIZE = 1
+        MPI_RANK = 0
+else:
     CAN_USE_MPI = False
     MPI_COMM = None
     MPI_SIZE = 1
-    for var in [
-        "OMPI_COMM_WORLD_SIZE",
-        "PMI_SIZE",
-        "SLURM_NTASKS",
-        "MV2_COMM_WORLD_SIZE",
-    ]:
-        size = os.environ.get(var)
-        if size is not None:
-            MPI_SIZE = int(size)
-            break
     MPI_RANK = 0
 
 requires_mpi = Create_requires_decorator("mpi4py")

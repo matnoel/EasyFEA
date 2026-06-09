@@ -45,11 +45,21 @@ try:
     import petsc4py
     from petsc4py import PETSc
 
-    petsc4py.init(sys.argv, comm=MPI_COMM)
     CAN_USE_PETSC = True
 
-except ModuleNotFoundError:
+except Exception:
     CAN_USE_PETSC = False
+
+_petsc_initialized = False
+
+
+def __petsc_init() -> None:
+    """Initialize PETSc lazily (once, on first use)."""
+    global _petsc_initialized
+    if not _petsc_initialized:
+        if not PETSc.Sys.isInitialized():
+            petsc4py.init(sys.argv, comm=MPI_COMM)
+        _petsc_initialized = True
 
 
 class AlgoType(str, Enum):
@@ -589,6 +599,7 @@ def _PETSc(
         x solution to A x = b
     """
 
+    __petsc_init()
     assert A.ndim == 2 and A.shape[0] == A.shape[1], "A must be a square matrix"
 
     matrix = PETSc.Mat()  # type: ignore [attr-defined]
@@ -675,6 +686,7 @@ def _PETSc_MPI(
         Whether the KSP converged.
     """
 
+    __petsc_init()
     assert MPI_SIZE > 1
     assert A.ndim == 2 and A.shape[0] == A.shape[1], "A must be a square matrix"
 
