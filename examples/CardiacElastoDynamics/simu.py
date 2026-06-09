@@ -3,6 +3,15 @@
 # This file is part of the EasyFEA project.
 # EasyFEA is distributed under the terms of the GNU General Public License v3, see LICENSE.txt and CREDITS.md for more information.
 
+"""
+CardiacElastoDynamics
+=====================
+
+Passive + active hyperelastic simulation of an ellipsoidal left-ventricle model.
+
+Combines a ``Holzapfel-Ogden`` orthotropic law (fiber + sheet directions), an ``active stress`` along the fiber direction, and a ``follower pressure`` on the endocardial surface. Time integration uses the midpoint hyperbolic scheme.
+"""
+
 from enum import Enum
 
 import numpy as np
