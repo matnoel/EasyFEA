@@ -1,6 +1,6 @@
 import numpy as np
 
-from EasyFEA import Folder, PyVista, MeshIO, MatrixType
+from EasyFEA import Folder, PyVista, MeshIO, MatrixType, Mesher
 from EasyFEA.FEM import ElemType, FeArray, Norm
 
 RESULTS_DIR = Folder.Join(Folder.Dir(__file__), "results")
@@ -18,7 +18,7 @@ def Get_config(
 
     # Mesh -------------------------
 
-    mesh = MeshIO.Gmsh_to_EasyFEA(Folder.Join(path, "mesh.msh"))
+    mesh = Mesher().Mesh_Import_mesh(Folder.Join(path, "mesh.msh"))
 
     if plotMesh:
         PyVista.Plot_Mesh(mesh).show()
@@ -27,25 +27,27 @@ def Get_config(
 
     # tags 3d
     groupElem3D = mesh.Get_list_groupElem(3)[0]
-    groupElem3D.Set_Tag(mesh.Nodes_Tags(["V1", "V2", "V3", "V4"]), "1")
+    groupElem3D.Set_Tag(mesh.Nodes_Tags(["V1", "V2", "V3", "V4"]), "volume")
     # tags 2d
     groupElem2D = mesh.Get_list_groupElem(2)[0]
-    groupElem2D.Set_Tag(mesh.Nodes_Tags(["S15", "S32", "S49", "S66"]), "2")
-    groupElem2D.Set_Tag(mesh.Nodes_Tags(["S22", "S39", "S56", "S73"]), "3")
-    groupElem2D.Set_Tag(mesh.Nodes_Tags(["S19", "S36", "S53", "S70"]), "4")
+    groupElem2D.Set_Tag(mesh.Nodes_Tags(["S15", "S32", "S49", "S66"]), "epi")
+    groupElem2D.Set_Tag(mesh.Nodes_Tags(["S22", "S39", "S56", "S73"]), "endo")
+    groupElem2D.Set_Tag(mesh.Nodes_Tags(["S19", "S36", "S53", "S70"]), "top")
 
     if plotTags:
         PyVista.Plot_Tags(mesh, useColorCycler=True).show()
 
     # fiber + sheet -------------------------
-
+    # `.vtu` data is sized to the GLOBAL node count; `mesh.nodes` is rank-local global indices.
+    # We slice the vtu by those rank-local indices to populate the rank-local rows of fibers_n / sheets_n.
     fiberData = MeshIO.meshio.vtu.read(Folder.Join(path, "fiber.vtu"))
-    fibers_n = np.zeros_like(mesh.coord)
-    fibers_n[mesh.nodes] = fiberData.point_data["f0"]
+    fibers_n = np.zeros((groupElem3D.Ncoords, 3), dtype=float)
+    nodes = mesh.nodes
+    fibers_n[nodes] = fiberData.point_data["f0"][nodes]
 
     sheetData = MeshIO.meshio.vtu.read(Folder.Join(path, "sheet.vtu"))
     sheets_n = np.zeros_like(fibers_n)
-    sheets_n[mesh.nodes] = sheetData.point_data["s0"]
+    sheets_n[nodes] = sheetData.point_data["s0"][nodes]
 
     if plotFibers:
         plotter = PyVista.Plot(mesh, color="gray", alpha=0.1)
@@ -83,7 +85,8 @@ def Get_config(
     return mesh, fibers_e_pg, sheets_e_pg
 
 
-def Get_tau_and_pressure(Tmax=1.0, Nt=100):
+def Get_values(Tmax=1.0, Nt=100):
+    """Returns t_values, activeStress_values, pressure_values"""
 
     # Create the activation function ---------------
 
@@ -116,7 +119,7 @@ def Get_tau_and_pressure(Tmax=1.0, Nt=100):
 
         return t_values, tau_values
 
-    t_values, tau_values = get_tau(Tmax, Nt)
+    t_values, activeStress_values = get_tau(Tmax, Nt)
 
     # Create the pressure function -----------------
 
@@ -165,6 +168,6 @@ def Get_tau_and_pressure(Tmax=1.0, Nt=100):
 
         return t_values, p_values
 
-    _, p_values = get_p(Tmax, Nt)
+    _, pressure_values = get_p(Tmax, Nt)
 
-    return t_values, tau_values, p_values
+    return t_values, activeStress_values, pressure_values

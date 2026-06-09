@@ -11,13 +11,13 @@ from EasyFEA import Display, Folder, PyVista, MatrixType, Models, Simulations, A
 from EasyFEA.FEM import Operators
 from EasyFEA.Utilities import _params
 
-from utils import RESULTS_DIR, DATA_DIR, Get_config, Get_tau_and_pressure
+from utils import RESULTS_DIR, DATA_DIR, Get_config, Get_values
 
 
 class Config(str, Enum):
-    D = "D"
-    A = "A"
-    B = "B"
+    D = "D"  # active_stress + pressure
+    A = "A"  # active_stress
+    B = "B"  # pressure
 
 
 class CardiacElastoDynamics(Simulations.HyperElastic):
@@ -54,34 +54,35 @@ class CardiacElastoDynamics(Simulations.HyperElastic):
                 displacement,
                 groupElem,
                 self.pressure,
-                groupElem.Get_Elements_Tag("3"),
+                groupElem.Get_Elements_Tag("endo"),
                 MatrixType.mass,
             )
 
             # top — isotropic surface mass penalty (Robin α·u + β·u̇ = 0)
             M_e = Operators.Bilinear.UV(groupElem, dof_n=3)
-            top_e = groupElem.Get_Elements_Tag("4")
 
             Ktop_e = np.zeros_like(M_e)
-            alpha_top = 1e5
-            Ktop_e[top_e] = alpha_top * M_e[top_e]
-
             Ctop_e = np.zeros_like(M_e)
-            beta_top = 5e3
-            Ctop_e[top_e] = beta_top * M_e[top_e]
+            if "top" in groupElem.elementTags:
+                top_e = groupElem.Get_Elements_Tag("top")
+                alpha_top = 1e5
+                Ktop_e[top_e] = alpha_top * M_e[top_e]
+
+                beta_top = 5e3
+                Ctop_e[top_e] = beta_top * M_e[top_e]
 
             # epi — normal-direction mass penalty (Robin α·(u·n̂) + β·(u̇·n̂) = 0)
             Ms_e = Operators.Bilinear.MassAlongNormal(groupElem)
 
-            epi_e = groupElem.Get_Elements_Tag("2")
-
             Kepi_e = np.zeros_like(Ms_e)
-            alpha_epi = 1e8
-            Kepi_e[epi_e] = alpha_epi * Ms_e[epi_e]
-
             Cepi_e = np.zeros_like(Ms_e)
-            beta_epi = 5e3
-            Cepi_e[epi_e] = beta_epi * Ms_e[epi_e]
+            if "epi" in groupElem.elementTags:
+                epi_e = groupElem.Get_Elements_Tag("epi")
+                alpha_epi = 1e8
+                Kepi_e[epi_e] = alpha_epi * Ms_e[epi_e]
+
+                beta_epi = 5e3
+                Cepi_e[epi_e] = beta_epi * Ms_e[epi_e]
 
             # Penalty residual contribution: −K_penalty · u_t at current iterate
             K_penalty_e = Ktop_e + Kepi_e
@@ -101,23 +102,35 @@ class CardiacElastoDynamics(Simulations.HyperElastic):
 
 if __name__ == "__main__":
 
-    Display.Clear()
+    # Display.Clear()
 
     # ----------------------------------------------
     # Config
     # ----------------------------------------------
 
     ellipsoid = "ellipsoid_0.01"
+    # ellipsoid = "ellipsoid_0.005"
 
-    config = Config.A
+    config = Config.D
 
     results_dir = Folder.Join(RESULTS_DIR, ellipsoid + f"_{config.name}")
 
     doSimu = True
     plotGraph = False
+    plotParticles = True
     makeMovie = True
 
     # ----------------------------------------------
+    # time-history needed for plotting in both doSimu / Load_Simu flows
+
+    t_values, activeStress_values, pressure_values = Get_values(Tmax=1.0, Nt=100)
+    dt = t_values[1] - t_values[0]
+    results_dir += f"_dt{dt}"
+
+    if config is Config.B:
+        activeStress_values *= 0
+    if config is Config.A:
+        pressure_values *= 0
 
     if doSimu:
 
@@ -137,18 +150,12 @@ if __name__ == "__main__":
         #
         # ----------------------------------------------
 
-        t_values, tau_values, p_values = Get_tau_and_pressure(Tmax=1.0, Nt=100)
-        if config is Config.B:
-            tau_values *= 0
-        if config is Config.A:
-            p_values *= 0
-
         if plotGraph:
             ax = Display.Init_Axes()
             ax.grid()
             ax.set_xlabel(r"$t$ [s]")
             ax.set_ylabel(r"$\tau(t)$ [Pa]")
-            ax.plot(t_values, tau_values)
+            ax.plot(t_values, activeStress_values)
             name = "active_pressure"
             Display.Save_fig(results_dir, name)
 
@@ -156,7 +163,7 @@ if __name__ == "__main__":
             ax.grid()
             ax.set_xlabel(r"$t$ [s]")
             ax.set_ylabel(r"$p(t)$ [Pa]")
-            ax.plot(t_values, p_values)
+            ax.plot(t_values, pressure_values)
             name = "pressure"
             Display.Save_fig(results_dir, name)
 
@@ -198,47 +205,64 @@ if __name__ == "__main__":
         # Simulation
         # ----------------------------------------------
 
-        simu = CardiacElastoDynamics(mesh, material)
+        simu = CardiacElastoDynamics(mesh, material, folder=results_dir)
 
-        dt = t_values[1] - t_values[0]
         simu.Solver_Set_Hyperbolic_Algorithm(dt, algo=AlgoType.midpoint)
         simu.rho = 1000
 
-        # evaluate displacement values
-        list_p0_values = []
-        list_p1_values = []
-        p0 = (0.025, 0.03, 0)
-        p1 = (0, 0.03, 0)
-        evalCoords = np.array([p0, p1])
-        evalElements = simu.mesh.groupElem._Get_nearby_elements(evalCoords)
-
         for t in t_values:
             simu.Bc_Init()
-            simu.pressure = np.interp(t + dt / 2, t_values, p_values)
-            material.active_stress = np.interp(t + dt / 2, t_values, tau_values)
-            displacement = simu.Solve()
-            simu.Save_Iter()
-            # evaluate displacement values
-            values = simu.mesh.Evaluate_dofsValues_at_coordinates(
-                evalCoords, displacement, evalElements
+            simu.pressure = np.interp(t + dt / 2, t_values, pressure_values)
+            material.active_stress = np.interp(
+                t + dt / 2, t_values, activeStress_values
             )
-            list_p0_values.append(values[0])
-            list_p1_values.append(values[1])
+            simu.Solve()
+            simu.Save_Iter()
 
         simu.Save(results_dir)
 
-        for list_p_values, name in zip((list_p0_values, list_p1_values), ("p0", "p1")):
-            p_values = np.array(list_p_values)
-            for c, u in enumerate(simu.Get_unknowns()):
-                ax = Display.Init_Axes()
-                ax.plot(t_values, p_values[:, c])
-                ax.set_xlabel("Time [s]")
-                ax.set_xlabel(f"Displacement {u}-component [m]")
-                ax.set_title(f"Particle {name}")
-                Display.Save_fig(results_dir, f"{name}_u{u}")
-
     else:
         simu = Simulations.Load_Simu(results_dir)
+
+    simu._Gather()
+
+    if plotParticles and simu.isGathered:
+
+        coords = [(0.025, 0.03, 0), (0, 0.03, 0)]
+        evalCoords = np.array(coords)
+        evalElements = simu.mesh.groupElem._Get_nearby_elements(evalCoords)
+
+        Niter = simu.Niter
+        values = np.empty((Niter, len(coords), 3))
+        for i in range(Niter):
+            simu.Set_Iter(i)
+            values[i] = simu.mesh.Evaluate_dofsValues_at_coordinates(
+                evalCoords, simu.displacement, evalElements
+            )
+
+        times = t_values[:Niter]
+        axs = Display.plt.subplots(3, 2, sharex=True)[1]
+
+        for p, (particle, coord) in enumerate(zip(["p0", "p1"], coords)):
+
+            for c, component in enumerate(["x", "y", "z"]):
+
+                ax: Display.plt.Axes = axs[c, p]
+
+                ax.grid()
+
+                if c == 2:
+                    ax.set_xlabel("Time [s]")
+                if p == 0:
+                    ax.set_ylabel(f"Displacement {component}-component [m]")
+                if c == 0:
+                    ax.set_title(f"Particle {particle}")
+
+                ax.plot(times, values[:, p, c])
+
+        width, height = ax.figure.get_size_inches()
+        ax.figure.set_size_inches(width * 1.5, height * 2.5)
+        Display.Save_fig(results_dir, "particles")
 
     if makeMovie:
         # values = [
@@ -246,7 +270,13 @@ if __name__ == "__main__":
         # ]
         # clim = (np.min(values), np.max(values))
         PyVista.Movie_simu(
-            simu, "ux", results_dir, "ux.mp4", deformFactor=1, plotMesh=True
+            simu,
+            "ux",
+            results_dir,
+            "ux.mp4",
+            N=20,
+            deformFactor=1.0,
+            plotMesh=True,
         )
 
     Display.plt.show()
