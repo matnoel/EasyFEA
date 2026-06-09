@@ -1773,7 +1773,7 @@ class _GroupElem(ABC):
             coord = self.coord
             surfaces = self.surfaces.ravel().tolist()[:-1]
             nPe = len(surfaces)
-            connect_e = self.connect[elem, surfaces]
+            connect_e = connect[elem, surfaces]
             corners_i = coord[connect_e]
 
             # Vectors e_i for edge segments (nPe, 3)
@@ -1802,7 +1802,7 @@ class _GroupElem(ABC):
 
         elif dim == 3:
             surfaces = self.surfaces
-            coord = self.coord[self.__connect[elem]]
+            coord = self.coord[connect[elem]]
 
             if self.elemType.startswith("PRISM"):
                 surfaces = np.array(  # type: ignore [type-var]
