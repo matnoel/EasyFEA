@@ -2022,11 +2022,19 @@ class Mesher:
 
     def __Get_connect(
         self, gmshId: int, changes: np.ndarray, tag: int = -1
-    ) -> tuple[_types.IntArray, _types.IntArray, _types.IntArray]:
-        """Returns connect"""
+    ) -> tuple[_types.IntArray, _types.IntArray]:
+        """Returns (connect, elementTags) with ill-formed elements removed.
+
+        elementTags are 0-based gmsh element tags, filtered together with
+        connect so that elementTags[i] is the tag of the element described by
+        connect[i]. This alignment is required by __Get_groupElem_with_mpi,
+        which uses elementTags to map partition-entity tags back to connect
+        rows.
+        """
 
         # get element numbers and connection matrix
         elementTags, nodeTags = gmsh.model.mesh.getElementsByType(gmshId, tag=tag)  # type: ignore
+        elementTags = elementTags.astype(int) - 1
         nodeTags -= 1  # connection matrix in shape (Ne * nPe) and starts at 0
         # Apply changes to correct jumps in nodes
         # Ensure that every node has corresponding coordinates.
@@ -2039,16 +2047,19 @@ class Mesher:
 
         if nPe > 1:
             # compute the sampled minimal scaled jacobian
-            minSJ = gmsh.model.mesh.getElementQualities(elementTags, "minSJ")
+            minSJ = gmsh.model.mesh.getElementQualities(elementTags + 1, "minSJ")
             # remove ill-formed elements where minSJ == 0
-            connect = connect[minSJ != 0]
+            mask = minSJ != 0
+            connect = connect[mask]
+            elementTags = elementTags[mask]
 
-        return connect
+        return connect, elementTags
 
     def __Get_groupElem_with_mpi(
         self,
         gmshId: int,
         connect: np.ndarray,
+        gmshElements: np.ndarray,
         coordinates: np.ndarray,
         dict_rank_nodes: dict[int, set[int]],
     ) -> list["_GroupElem"]:
@@ -2063,23 +2074,29 @@ class Mesher:
 
         # get elements data
         Ne = connect.shape[0]
-        gmshElements = gmsh.model.mesh.getElementsByType(gmshId)[0] - 1
 
-        # get mapping elements to detect element position in the connect array
-        map_elements = np.ones(gmshElements.max() + 1, dtype=int) * -1
+        # gmshElements is the pre-partition snapshot of element tags aligned with
+        # connect rows; map_elements gives the connect row for each tag.
+        map_elements = np.full(gmshElements.max() + 1, -1, dtype=int)
         map_elements[gmshElements] = np.arange(gmshElements.size)
 
-        # get elements for each rank
-        dict_rank_elements: dict[int : set[int]] = {}
-        for dim, tag in gmsh.model.getEntities(dim):
-            ranks = gmsh.model.getPartitions(dim, tag) - 1  # starts at 0
-            if len(ranks) > 0:
-                # get elements used by the tag
-                elementTags = gmsh.model.mesh.getElementsByType(gmshId, tag=tag)[0] - 1
-                # get lines to access elements in connect matrix
-                idx = map_elements[elementTags]
-                for rank in ranks:
-                    dict_rank_elements.setdefault(rank, set()).update(idx)
+        # get elements for each rank — pre-seed all ranks so a rank that owns
+        # no entity of this type ends up with an empty per-rank GroupElem
+        # instead of triggering KeyError downstream
+        dict_rank_elements: dict[int, set[int]] = {r: set() for r in range(Nproc)}
+        for ent_dim, tag in gmsh.model.getEntities(dim):
+            ranks = gmsh.model.getPartitions(ent_dim, tag) - 1  # starts at 0
+            if len(ranks) == 0:
+                continue
+            entityTags = gmsh.model.mesh.getElementsByType(gmshId, tag=tag)[0] - 1
+            # drop partition-interface ghost elements that have no row in
+            # the pre-partition connect (tag out of map_elements range, or
+            # map_elements == -1)
+            entityTags = entityTags[entityTags < map_elements.size]
+            idx = map_elements[entityTags]
+            idx = idx[idx >= 0]
+            for rank in ranks:
+                dict_rank_elements[rank].update(idx)
 
         list_rank_groupElem: list["_GroupElem"] = []
 
@@ -2142,6 +2159,17 @@ class Mesher:
             elementTypes = gmsh.model.mesh.getElementTypes()
             useMpi = CAN_USE_MPI and MPI_SIZE > 1
 
+            coordinates, changes = self.__Get_coordinates_and_changes()
+            coordinates *= coef
+
+            # Compute connect before partitioning: gmsh.model.mesh.partition adds
+            # ghost / partition-boundary elements whose synthetic tags break
+            # gmsh.model.mesh.getElementQualities inside __Get_connect, and
+            # would shift the connect-array indexing in __Get_groupElem_with_mpi.
+            dict_connect: dict[int, tuple[_types.IntArray, _types.IntArray]] = {
+                gmshId: self.__Get_connect(gmshId, changes) for gmshId in elementTypes
+            }
+
             if useMpi:
                 Nrank = MPI_SIZE
                 # Nrank = 3  # uncomment for debugging purposes
@@ -2154,18 +2182,15 @@ class Mesher:
                 dict_rank_nodes = {r: set() for r in range(Nrank)}
                 list_dict_groupElem: list[dict] = [{} for _ in range(Nrank)]
 
-            coordinates, changes = self.__Get_coordinates_and_changes()
-            coordinates *= coef
-
             knownDims = []  # known dimensions in the mesh
             dict_groupElem: dict[ElemType, "_GroupElem"] = {}
 
             for gmshId in elementTypes:
-                connect = self.__Get_connect(gmshId, changes)
+                connect, elementTags = dict_connect[gmshId]
 
                 if useMpi:
                     list_rank_groupElem = self.__Get_groupElem_with_mpi(
-                        gmshId, connect, coordinates, dict_rank_nodes
+                        gmshId, connect, elementTags, coordinates, dict_rank_nodes
                     )
                     # apply physical-group tags to every rank's GroupElem
                     physicalGroups = gmsh.model.getPhysicalGroups(
