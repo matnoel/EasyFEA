@@ -11,8 +11,11 @@ from .._linalg import FeArray, TensorProd
 from .._utils import MatrixType
 from ...Utilities import _types
 
+from ..Elems._beam import _EulerBernoulli, _Timoshenko
+
 if TYPE_CHECKING:
     from .._group_elem import _GroupElem
+    from ...Models.Beam._beam import BeamStructure
 
 
 def GradUGradV(
@@ -107,6 +110,123 @@ def MassAlongNormal(
     Ne, nPg = wJ_e_pg.shape
     coef = FeArray.broadcast(coef, Ne, nPg)
     return (coef * wJ_e_pg * N_pg.T @ nn_e_pg @ N_pg).integrate()
+
+
+def BeamBending(
+    groupElem: "_GroupElem",
+    beamStructure: "BeamStructure",
+) -> np.ndarray:
+    """``∫_e Bᵀ · D_bending · B dx`` — axial + bending (+ torsion) stiffness.
+
+    Returns ``(Ne, nPe·dof_n, nPe·dof_n)`` with ``dof_n = beamStructure.dof_n``.
+
+    Integrated at the full Gauss scheme ``MatrixType.beam``. For Timoshenko
+    elements in 2D / 3D the transverse-shear rows of ``D`` are zeroed so this
+    term carries only the axial / bending / torsion energy; combine with
+    :func:`BeamShear` to get the full Timoshenko stiffness, or call
+    :func:`BeamStiffness` directly.
+    """
+    assert isinstance(groupElem, (_Timoshenko, _EulerBernoulli))
+
+    matrixType = MatrixType.beam
+    wJ_e_pg = groupElem.Get_weightedJacobian_e_pg(matrixType)
+    B_e_pg = groupElem.Get_beam_B_e_pg(beamStructure)
+    D_e_pg = beamStructure.Calc_D_e_pg(groupElem, matrixType)
+
+    dim = beamStructure.dim
+    if dim != 1 and isinstance(groupElem, _Timoshenko):
+        shear_rows = {2: (2,), 3: (4, 5)}[dim]
+        D_e_pg = D_e_pg.copy()
+        for r in shear_rows:
+            D_e_pg[:, :, r, r] = 0.0
+
+    return (wJ_e_pg * B_e_pg.T @ D_e_pg @ B_e_pg).integrate()
+
+
+def BeamShear(
+    groupElem: "_GroupElem",
+    beamStructure: "BeamStructure",
+) -> np.ndarray:
+    """``∫_e Bᵀ · D_shear · B dx`` — transverse-shear stiffness, SRI.
+
+    Returns ``(Ne, nPe·dof_n, nPe·dof_n)`` with ``dof_n = beamStructure.dof_n``.
+
+    Active only for ``_Timoshenko`` groupElems in 2D / 3D — returns a zero
+    matrix otherwise. Integrated at the reduced Gauss scheme
+    ``MatrixType.beam_shear`` (one fewer point than ``MatrixType.beam``) with
+    the non-shear rows of ``D`` zeroed. This is the selective-reduced-
+    integration cure for Timoshenko shear locking.
+    """
+    assert isinstance(groupElem, (_Timoshenko, _EulerBernoulli))
+
+    dof_n = beamStructure.dof_n
+    Ne = groupElem.Ne
+    nPe = groupElem.nPe
+    dim = beamStructure.dim
+
+    if dim == 1 or not isinstance(groupElem, _Timoshenko):
+        return np.zeros((Ne, nPe * dof_n, nPe * dof_n))
+
+    matrixType = MatrixType.beam_shear
+    shear_rows = {2: (2,), 3: (4, 5)}[dim]
+    wJ_e_pg = groupElem.Get_weightedJacobian_e_pg(matrixType)
+    B_e_pg = groupElem.Get_beam_B_e_pg(beamStructure, matrixType)
+    D_e_pg = beamStructure.Calc_D_e_pg(groupElem, matrixType).copy()
+    for r in range(D_e_pg.shape[-1]):
+        if r not in shear_rows:
+            D_e_pg[:, :, r, r] = 0.0
+    return (wJ_e_pg * B_e_pg.T @ D_e_pg @ B_e_pg).integrate()
+
+
+def BeamStiffness(
+    groupElem: "_GroupElem",
+    beamStructure: "BeamStructure",
+) -> np.ndarray:
+    """Full beam stiffness ``K_e = BeamBending + BeamShear``.
+
+    Returns ``(Ne, nPe·dof_n, nPe·dof_n)`` with ``dof_n = beamStructure.dof_n``.
+
+    Euler-Bernoulli (or 1-D Timoshenko): reduces to ``∫ Bᵀ D B dx`` at
+    ``MatrixType.beam``. Timoshenko in 2D / 3D: splits into bending (full
+    Gauss) + shear (reduced Gauss) via :func:`BeamBending` and
+    :func:`BeamShear` to defeat shear locking.
+    """
+    assert isinstance(groupElem, (_Timoshenko, _EulerBernoulli))
+
+    dim = beamStructure.dim
+    if dim != 1 and isinstance(groupElem, _Timoshenko):
+        return BeamBending(groupElem, beamStructure) + BeamShear(
+            groupElem, beamStructure
+        )
+
+    matrixType = MatrixType.beam
+    wJ_e_pg = groupElem.Get_weightedJacobian_e_pg(matrixType)
+    B_e_pg = groupElem.Get_beam_B_e_pg(beamStructure)
+    D_e_pg = beamStructure.Calc_D_e_pg(groupElem, matrixType)
+    return (wJ_e_pg * B_e_pg.T @ D_e_pg @ B_e_pg).integrate()
+
+
+def BeamMass(
+    groupElem: "_GroupElem",
+    beamStructure: "BeamStructure",
+    coef: Union[_types.Number, FeArray.FeArrayALike] = 1.0,
+) -> np.ndarray:
+    """``∫_e coef · Nᵀ · M · N dx`` — beam consistent-mass matrix.
+
+    Returns ``(Ne, nPe·dof_n, nPe·dof_n)`` with ``dof_n = beamStructure.dof_n``.
+
+    Integrated at ``MatrixType.beam``. ``coef`` is typically the density
+    ``rho`` of the simulation; may be scalar, ``(Ne,)``, ``(nPg,)``, or
+    ``(Ne, nPg)`` — broadcast via :pymeth:`FeArray.broadcast`.
+    """
+    assert isinstance(groupElem, (_Timoshenko, _EulerBernoulli))
+    matrixType = MatrixType.beam
+    wJ_e_pg = groupElem.Get_weightedJacobian_e_pg(matrixType)
+    N_e_pg = groupElem.Get_beam_N_e_pg(beamStructure)
+    M_e_pg = beamStructure.Calc_M_e_pg(groupElem)
+    Ne, nPg = wJ_e_pg.shape
+    coef = FeArray.broadcast(coef, Ne, nPg)
+    return (coef * wJ_e_pg * N_e_pg.T @ M_e_pg @ N_e_pg).integrate()
 
 
 def GradU_A_GradV(

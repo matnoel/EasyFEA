@@ -13,6 +13,7 @@ from ..Utilities import Display, Tic, _types, _params
 if TYPE_CHECKING:
     from ..FEM import Mesh
 from ..FEM import MatrixType, ElemType, LagrangeCondition, FeArray
+from ..FEM.Operators import Bilinear
 
 # beam elements
 from ..FEM.Elems._beam import (
@@ -405,45 +406,13 @@ class Beam(_Simu):
 
         assert isinstance(groupElem, (_Timoshenko, _EulerBernoulli))
 
-        # Recovering the beam model
         beamStructure = self.structure
 
-        matrixType = MatrixType.beam
-
         tic = Tic()
-
-        wJ_e_pg = groupElem.Get_weightedJacobian_e_pg(matrixType)
-        B_e_pg = groupElem.Get_beam_B_e_pg(beamStructure)
-        D_e_pg = beamStructure.Calc_D_e_pg(groupElem)
-
-        if beamStructure.dim != 1 and isinstance(groupElem, _Timoshenko):
-            shear_rows = {2: (2,), 3: (4, 5)}[beamStructure.dim]
-            # bending
-            Db_e_pg = D_e_pg.copy()
-            for r in shear_rows:
-                Db_e_pg[:, :, r, r] = 0.0  # set 0.0 for shear parts
-            bend_e = (wJ_e_pg * B_e_pg.T @ Db_e_pg @ B_e_pg).integrate()
-            # reduced intefration on shear
-            shearType = MatrixType.beam_shear
-            wJs_e_pg = groupElem.Get_weightedJacobian_e_pg(shearType)
-            Bs_e_pg = groupElem.Get_beam_B_e_pg(beamStructure, shearType)
-            Ds_e_pg = beamStructure.Calc_D_e_pg(groupElem, shearType)
-            for r in range(Ds_e_pg.shape[-1]):
-                if r not in shear_rows:
-                    Ds_e_pg[:, :, r, r] = 0.0  # set 0.0 for bending parts
-            shear_e = (wJs_e_pg * Bs_e_pg.T @ Ds_e_pg @ Bs_e_pg).integrate()
-            K_e = bend_e + shear_e
-        else:
-            K_e = (wJ_e_pg * B_e_pg.T @ D_e_pg @ B_e_pg).integrate()
-
+        K_e = Bilinear.BeamStiffness(groupElem, beamStructure)
         tic.Tac("Matrix", "Construct K_e", self._verbosity)
 
-        M_e_pg = beamStructure.Calc_M_e_pg(groupElem)
-        N_e_pg = groupElem.Get_beam_N_e_pg(beamStructure)
-        rho_e_pg = Reshape_variable(self.rho, *wJ_e_pg.shape[:2])
-
-        M_e = (wJ_e_pg * rho_e_pg * N_e_pg.T @ M_e_pg @ N_e_pg).integrate()
-
+        M_e = Bilinear.BeamMass(groupElem, beamStructure, coef=self.rho)
         tic.Tac("Matrix", "Construct M_e", self._verbosity)
 
         return {groupElem: (K_e, None, M_e, None)}
