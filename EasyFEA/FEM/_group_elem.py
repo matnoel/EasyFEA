@@ -1948,7 +1948,9 @@ class _GroupElem(ABC):
 
         dim = self.dim
         Ne = self.Ne
-        connect = self.connect
+        # translate global node ids to local rows of self.coord (needed under MPI,
+        # no-op otherwise)
+        connect = self._global_to_local_nodes[self.connect]
         coord = self.coord
 
         # Initialize lists
