@@ -163,7 +163,7 @@ if __name__ == "__main__":
 
             plotter.add_title(f"ZZ1 = {zz1 * 100:.2f} %")
 
-        PyVista.Movie_func(func, len(simu.results), folder, "bracket.gif")
+        PyVista.Movie_func(func, simu.Niter, folder, "bracket.gif")
 
     Tic.Plot_History()
     plt.show()

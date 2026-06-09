@@ -332,8 +332,8 @@ if __name__ == "__main__":
     U_e[..., 5] = u12_e
 
     matrixType = "mass"
-    wJ_e_pg = mesh.Get_weightedJacobian_e_pg(matrixType)
-    B_e_pg = mesh.Get_B_e_pg(matrixType)
+    wJ_e_pg = mesh.groupElem.Get_weightedJacobian_e_pg(matrixType)
+    B_e_pg = mesh.groupElem.Get_B_e_pg(matrixType)
 
     C_Mat = Models.Reshape_variable(material.C, *B_e_pg.shape[:2])
 
