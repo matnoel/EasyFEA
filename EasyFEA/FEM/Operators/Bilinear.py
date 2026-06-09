@@ -11,7 +11,7 @@ from .._linalg import FeArray, TensorProd
 from .._utils import MatrixType
 from ...Utilities import _types
 
-from ..Elems._beam import _EulerBernoulli, _Timoshenko
+from ..Elems._beam import _EulerBernoulli, _Timoshenko  # noqa: F401
 
 if TYPE_CHECKING:
     from .._group_elem import _GroupElem
@@ -64,14 +64,14 @@ def LinearizedElasticity(
 
     Returns ``(Ne, nPe·dim, nPe·dim)``.
 
-    ``C`` is the Hooke tensor in Kelvin–Mandel notation — accepts
-    ``(nstrain, nstrain)`` (homogeneous) or ``(Ne, nPg, nstrain, nstrain)``
-    (heterogeneous); broadcast via :pymeth:`FeArray.broadcast`.
+    ``C`` is the Hooke tensor in Kelvin–Mandel notation with trailing two
+    dims ``(nstrain, nstrain)``; the leading dims may be empty (homogeneous),
+    ``(Ne,)`` (per-element), or ``(Ne, nPg)`` (per-element per-gauss-point).
     """
     leftDispPart_e_pg = groupElem.Get_leftDispPart_e_pg(matrixType)
     B_e_pg = groupElem.Get_B_e_pg(matrixType)
     Ne, nPg = B_e_pg.shape[:2]
-    C = FeArray.broadcast(C, Ne, nPg)
+    C = FeArray.broadcast(C, Ne, nPg, tensor_ndim=2)
     return (leftDispPart_e_pg @ C @ B_e_pg).integrate()
 
 
@@ -126,8 +126,6 @@ def BeamBending(
     :func:`BeamShear` to get the full Timoshenko stiffness, or call
     :func:`BeamStiffness` directly.
     """
-    assert isinstance(groupElem, (_Timoshenko, _EulerBernoulli))
-
     matrixType = MatrixType.beam
     wJ_e_pg = groupElem.Get_weightedJacobian_e_pg(matrixType)
     B_e_pg = groupElem.Get_beam_B_e_pg(beamStructure)
@@ -157,8 +155,6 @@ def BeamShear(
     the non-shear rows of ``D`` zeroed. This is the selective-reduced-
     integration cure for Timoshenko shear locking.
     """
-    assert isinstance(groupElem, (_Timoshenko, _EulerBernoulli))
-
     dof_n = beamStructure.dof_n
     Ne = groupElem.Ne
     nPe = groupElem.nPe
@@ -191,8 +187,6 @@ def BeamStiffness(
     Gauss) + shear (reduced Gauss) via :func:`BeamBending` and
     :func:`BeamShear` to defeat shear locking.
     """
-    assert isinstance(groupElem, (_Timoshenko, _EulerBernoulli))
-
     dim = beamStructure.dim
     if dim != 1 and isinstance(groupElem, _Timoshenko):
         return BeamBending(groupElem, beamStructure) + BeamShear(
@@ -219,7 +213,6 @@ def BeamMass(
     ``rho`` of the simulation; may be scalar, ``(Ne,)``, ``(nPg,)``, or
     ``(Ne, nPg)`` — broadcast via :pymeth:`FeArray.broadcast`.
     """
-    assert isinstance(groupElem, (_Timoshenko, _EulerBernoulli))
     matrixType = MatrixType.beam
     wJ_e_pg = groupElem.Get_weightedJacobian_e_pg(matrixType)
     N_e_pg = groupElem.Get_beam_N_e_pg(beamStructure)
@@ -237,14 +230,15 @@ def GradU_A_GradV(
 ) -> np.ndarray:
     """``∫_Ω coef · ∇u · A · ∇v dΩ`` — anisotropic diffusion. Returns ``(Ne, nPe, nPe)``.
 
-    ``A`` is the diffusion tensor: ``(dim, dim)`` (homogeneous) or ``(Ne, nPg, dim, dim)`` (heterogeneous).
-    ``coef`` is a scalar weight: scalar, ``(Ne,)``, ``(nPg,)``, or ``(Ne, nPg)``.
-    Both broadcast via :pymeth:`FeArray.broadcast` (stride view, no copy).
-    For the isotropic form ``∫ coef · ∇u · ∇v dΩ``, use :func:`GradUGradV`.
+    ``A`` is the diffusion tensor with trailing two dims ``(dim, dim)``; the
+    leading dims may be empty, ``(Ne,)``, or ``(Ne, nPg)``. ``coef`` is a
+    scalar weight: scalar, ``(Ne,)``, ``(nPg,)``, or ``(Ne, nPg)``. Both
+    broadcast via :pymeth:`FeArray.broadcast`. For the isotropic form
+    ``∫ coef · ∇u · ∇v dΩ``, use :func:`GradUGradV`.
     """
     diffusePart_e_pg = groupElem.Get_DiffusePart_e_pg(matrixType)
     dN_e_pg = groupElem.Get_dN_e_pg(matrixType)
     Ne, nPg = dN_e_pg.shape[:2]
-    A = FeArray.broadcast(A, Ne, nPg)
+    A = FeArray.broadcast(A, Ne, nPg, tensor_ndim=2)
     coef = FeArray.broadcast(coef, Ne, nPg)
     return (coef * diffusePart_e_pg @ A @ dN_e_pg).integrate()

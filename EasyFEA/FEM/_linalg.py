@@ -320,14 +320,20 @@ class FeArray(_types.AnyArray):
             return array
 
     @staticmethod
-    def broadcast(value, Ne: int, nPg: int) -> "FeArray.FeArrayALike":
+    def broadcast(
+        value, Ne: int, nPg: int, tensor_ndim: int = 0
+    ) -> "FeArray.FeArrayALike":
         """Broadcast a scalar or array coefficient to a shape compatible with multiplication against an ``(Ne, nPg, ...)`` FeArray.
 
         Returns a stride-tricked read-only view for non-scalar inputs (no data duplication). Callers must not mutate the result in place;
         the expected use is consumption inside expressions such as ``coef * wJ_e_pg * dN_e_pg.T @ dN_e_pg``, which create new arrays.
 
-        Accepted shapes
-        ----------------
+        ``tensor_ndim`` declares how many trailing axes of ``value`` are tensor dims (e.g. ``2`` for a Hooke tensor ``(..., nstrain, nstrain)``).
+        With it set, the leading axes are checked against ``()`` / ``(Ne,)`` / ``(Ne, nPg)`` strictly — this disambiguates shapes like
+        ``(Ne, n, n)`` from ``(Ne, nPg, n)`` when ``nPg == n`` (e.g. TRI6 in 2D, where ``nPg == nstrain == 3``).
+
+        Accepted shapes (with default ``tensor_ndim=0``)
+        -----------------------------------------------
         - scalar (int / float / numpy scalar) → returned as ``float``.
         - ``(Ne, nPg, ...)`` ndarray / FeArray → wrapped as FeArray.
         - 1-D ``(Ne,)`` or ``(nPg,)`` → tiled to ``(Ne, nPg)``.
@@ -336,6 +342,24 @@ class FeArray(_types.AnyArray):
         if isinstance(value, (int, float, np.floating, np.integer)):
             return float(value)
         arr = np.asarray(value)
+
+        if tensor_ndim > 0:
+            tail = arr.shape[-tensor_ndim:] if tensor_ndim else ()
+            lead = arr.shape[:-tensor_ndim] if tensor_ndim else arr.shape
+            if lead == (Ne, nPg):
+                return FeArray.asfearray(arr)
+            if lead == (Ne,):
+                return FeArray.asfearray(
+                    np.broadcast_to(arr[:, None], (Ne, nPg) + tail)
+                )
+            if lead == ():
+                return FeArray.asfearray(
+                    np.broadcast_to(arr[None, None], (Ne, nPg) + tail)
+                )
+            raise ValueError(
+                f"With tensor_ndim={tensor_ndim}, leading axes must be (), (Ne,), or (Ne, nPg); got {lead}."
+            )
+
         if arr.shape[:2] == (Ne, nPg):
             return FeArray.asfearray(arr)
         if arr.ndim == 1:
