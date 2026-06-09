@@ -94,8 +94,6 @@ def Get_tau_and_pressure(Tmax=1.0, Nt=100):
     t_sys = 0.16
     t_dias = 0.484
 
-    Nt = 100
-
     def get_f(t: float):
         Sp = 1 / 2 * (1 + np.tanh((t - t_sys) / gamma))
         Sm = 1 / 2 * (1 - np.tanh((t - t_dias) / gamma))
