@@ -7,7 +7,7 @@ from typing import TYPE_CHECKING, Union
 
 import numpy as np
 
-from .._linalg import FeArray
+from .._linalg import FeArray, TensorProd
 from .._utils import MatrixType
 from ...Utilities import _types
 
@@ -70,6 +70,43 @@ def LinearizedElasticity(
     Ne, nPg = B_e_pg.shape[:2]
     C = FeArray.broadcast(C, Ne, nPg)
     return (leftDispPart_e_pg @ C @ B_e_pg).integrate()
+
+
+def MassAlongNormal(
+    groupElem: "_GroupElem",
+    coef: Union[_types.Number, FeArray.FeArrayALike] = 1.0,
+    matrixType: MatrixType = MatrixType.mass,
+) -> np.ndarray:
+    r"""``∫_Γ coef · (u · n̂)(v · n̂) dΓ`` — mass projected onto the surface normal.
+
+    Returns ``(Ne, nPe·3, nPe·3)`` in ``(xi, yi, zi, ..., xn, yn, zn)`` order.
+
+    The per-Gauss-point integrand is ``Nᵀ · (n̂ ⊗ n̂) · N`` where ``n̂`` is
+    the reference-configuration unit normal supplied by
+    :meth:`_GroupElem.Get_normals_e_pg` and ``N`` is the block-diagonal
+    shape-function matrix from :meth:`_GroupElem.Get_N_pg_rep`. Typically
+    used to penalise / enforce the normal component on a surface (Robin-style
+    ``k · u·n̂ · v·n̂`` boundary conditions).
+
+    Restricted to a 2D surface group in a 3D mesh (``groupElem.dim == 2``,
+    ``groupElem.inDim == 3``).
+
+    ``coef`` may be scalar, ``(Ne,)``, ``(nPg,)``, or ``(Ne, nPg)``;
+    broadcast via :pymeth:`FeArray.broadcast` (stride view, no copy).
+    """
+    assert groupElem.dim in [1, 2]
+
+    dim = 3
+    wJ_e_pg = groupElem.Get_weightedJacobian_e_pg(matrixType)  # (Ne, nPg)
+    N_pg = FeArray.asfearray(
+        groupElem.Get_N_pg_rep(matrixType, dim)[np.newaxis]
+    )  # (1, nPg, dim, dim·nPe)
+    n_e_pg = groupElem.Get_normals_e_pg(matrixType)  # (Ne, nPg, dim) unit normal
+    nn_e_pg = TensorProd(n_e_pg, n_e_pg)  # (Ne, nPg, dim, dim)
+
+    Ne, nPg = wJ_e_pg.shape
+    coef = FeArray.broadcast(coef, Ne, nPg)
+    return (coef * wJ_e_pg * N_pg.T @ nn_e_pg @ N_pg).integrate()
 
 
 def GradU_A_GradV(
