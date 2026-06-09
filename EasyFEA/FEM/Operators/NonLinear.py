@@ -227,7 +227,6 @@ def FollowingPressure(
         return K_e, R_e
 
     gauss = groupElem.Get_gauss(matrixType)
-    nPg = gauss.nPg
     weights = gauss.weights
 
     # Reference-frame shape functions and r-/s-derivatives
