@@ -136,6 +136,23 @@ if __name__ == "__main__":
     dt = t_values[1] - t_values[0]
     results_dir += f"_dt{dt}"
 
+    if plotGraph:
+        ax = Display.Init_Axes()
+        ax.grid()
+        ax.set_xlabel(r"$t$ [s]")
+        ax.set_ylabel(r"$\tau(t)$ [Pa]")
+        ax.plot(t_values, activeStress_values)
+        name = "active_pressure"
+        Display.Save_fig(results_dir, name)
+
+        ax = Display.Init_Axes()
+        ax.grid()
+        ax.set_xlabel(r"$t$ [s]")
+        ax.set_ylabel(r"$p(t)$ [Pa]")
+        ax.plot(t_values, pressure_values)
+        name = "pressure"
+        Display.Save_fig(results_dir, name)
+
     if config is Config.B:
         activeStress_values *= 0
     if config is Config.A:
@@ -144,7 +161,7 @@ if __name__ == "__main__":
     if doSimu:
 
         # ----------------------------------------------
-        # Mesh
+        # Mesh, fibers and sheets
         # ----------------------------------------------
 
         mesh, fibers_e_pg, sheets_e_pg = Get_config(
@@ -154,27 +171,6 @@ if __name__ == "__main__":
             plotTags=False,
             plotFibers=False,
         )
-
-        # ----------------------------------------------
-        #
-        # ----------------------------------------------
-
-        if plotGraph:
-            ax = Display.Init_Axes()
-            ax.grid()
-            ax.set_xlabel(r"$t$ [s]")
-            ax.set_ylabel(r"$\tau(t)$ [Pa]")
-            ax.plot(t_values, activeStress_values)
-            name = "active_pressure"
-            Display.Save_fig(results_dir, name)
-
-            ax = Display.Init_Axes()
-            ax.grid()
-            ax.set_xlabel(r"$t$ [s]")
-            ax.set_ylabel(r"$p(t)$ [Pa]")
-            ax.plot(t_values, pressure_values)
-            name = "pressure"
-            Display.Save_fig(results_dir, name)
 
         # ----------------------------------------------
         # Material
