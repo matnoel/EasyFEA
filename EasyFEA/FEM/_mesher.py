@@ -966,6 +966,7 @@ class Mesher:
         self,
         mesh: str,
         setPhysicalGroupsFromEntities=True,
+        meshOrder: int = None,
         coef=1.0,
     ) -> Mesh:
         """Creates the mesh from an .msh file.
@@ -977,6 +978,8 @@ class Mesher:
         setPhysicalGroupsFromEntities : bool, optional
             reconstruct physical groups from gmsh entities, by default True.
             Each entity becomes a physical group named ``f"{P|L|S|V}{tag}"`` where ``tag`` is the entity's own gmsh tag (so a volume entity with tag 3 becomes ``"V3"``). Existing physical-group names are preserved.
+        meshOrder : int, optional
+            mesh order to use in `gmsh.model.mesh.setOrder(meshOrder)``, by default None
         coef : float, optional
             coef applied to the node coordinates, by default 1.0
 
@@ -991,6 +994,9 @@ class Mesher:
         tic = Tic()
 
         gmsh.open(mesh)
+
+        if meshOrder is not None:
+            gmsh.model.mesh.setOrder(meshOrder)
 
         tic.Tac("Mesh", "Mesh import", self.__verbosity)
 
@@ -1839,7 +1845,7 @@ class Mesher:
     def _Set_mesh_order(elemType: ElemType) -> None:
         """Sets the mesh order"""
         if elemType in ["TRI3", "QUAD4"]:
-            gmsh.model.mesh.set_order(1)
+            gmsh.model.mesh.setOrder(1)
         elif elemType in [
             "SEG3",
             "TRI6",
@@ -1853,11 +1859,11 @@ class Mesher:
         ]:
             if elemType in ["QUAD8", "HEXA20", "PRISM15"]:
                 gmsh.option.setNumber("Mesh.SecondOrderIncomplete", 1)
-            gmsh.model.mesh.set_order(2)
+            gmsh.model.mesh.setOrder(2)
         elif elemType in ["SEG4", "TRI10"]:
-            gmsh.model.mesh.set_order(3)
+            gmsh.model.mesh.setOrder(3)
         elif elemType in ["SEG5", "TRI15"]:
-            gmsh.model.mesh.set_order(4)
+            gmsh.model.mesh.setOrder(4)
 
     def _Set_mesh_algorithm(self, elemType: ElemType) -> None:
         """Sets the mesh algorithm.\n
