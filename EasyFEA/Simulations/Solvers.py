@@ -379,17 +379,19 @@ def Solve_simu(
         # Assemble the full solution from distributed PETSc partial results.
         # x has correct values at owned DOFs but stale/repeated values at
         # non-owned DOFs (e.g. Dirichlet values set identically on every rank).
-        # Mask to owned DOFs first so each DOF is contributed by exactly one
-        # rank, then Gather_dofsValues reconstructs the full vector on all ranks.
+        # Sync_dofsValues gathers each rank's owned slice via Allgatherv and
+        # scatters back to EasyFEA-global positions; `ordering` is shared
+        # between the x and lagrange syncs to avoid a duplicate collective.
         nodes = simu.mesh.groupElem._Get_partitioned_data()[3]
         dofs = simu.Bc_dofs_nodes(nodes, simu.Get_unknowns(problemType), problemType)
-        x = Sync_dofsValues(x, dofs)
+        ordering = Concatenate_array(dofs)
+        x = Sync_dofsValues(x, dofs, ordering=ordering)
 
         if rhsNorm is not None:
             rhsNorm = MPI_COMM.allreduce(rhsNorm, op=MPI.SUM)
 
         if resolution == ResolType.r2:
-            lagrange = Sync_dofsValues(lagrange, dofs)
+            lagrange = Sync_dofsValues(lagrange, dofs, ordering=ordering)
 
     if resolution in [ResolType.r1, ResolType.r3]:
         return x, rhsNorm
@@ -405,13 +407,18 @@ def __Get_unique_dofs(dofs: _types.IntArray) -> _types.IntArray:
     # Find global max DOF index
     local_max = dofs.max() if dofs.size > 0 else -1
     Ndof = int(MPI_COMM.allreduce(local_max, MPI.MAX)) + 1
-    # Count DOF occurrences across ranks.
-    # Allreduce in-place: reuse marker as both send and receive buffer,
-    # avoiding a second full-global allocation.
-    marker = np.zeros(Ndof, dtype=np.int32)
+    # Find DOFs present in every rank's `dofs` set (the global intersection).
+    # uint8 + Allreduce(MIN): each rank's marker is 1 where the DOF is in
+    # its `dofs`, 0 elsewhere; MIN across ranks yields 1 iff every rank had
+    # a 1 there. This is bit-for-bit equivalent to the previous
+    # (int32 marker + SUM, check == MPI_SIZE) approach but moves only one
+    # byte per DOF — a 4× bandwidth reduction on the Allreduce, which is
+    # the dominant communication cost at scale (~Ndof bytes per Solve).
+    # Allreduce in-place: reuse marker as both send and receive buffer.
+    marker = np.zeros(Ndof, dtype=np.uint8)
     marker[dofs] = 1
-    MPI_COMM.Allreduce(MPI.IN_PLACE, marker, MPI.SUM)
-    result = np.flatnonzero(marker == MPI_SIZE).astype(np.int64)
+    MPI_COMM.Allreduce(MPI.IN_PLACE, marker, MPI.MIN)
+    result = np.flatnonzero(marker).astype(np.int64)
     return result
 
 
@@ -706,9 +713,18 @@ def _PETSc_MPI(
     # https://petsc.org/release/petsc4py/reference/petsc4py.PETSc.Mat.html#petsc4py.PETSc.Mat.setSizes
     matrix.setSizes([[Ndof_r, Ndof], [Ndof_r, Ndof]])
 
-    # extract owned rows; remap column indices to PETSc global space
-    A_owned = A[ownedDofs, :].tocsr().copy()
+    # extract owned rows; remap column indices to PETSc global space.
+    # Fancy-row CSR slicing already returns a fresh CSR (data / indices /
+    # indptr arrays are newly allocated, not views into A) so the previous
+    # .tocsr().copy() was redundant. We only reassign A_owned.indices below
+    # — the .data array stays read-only and shares nothing with A.
+    A_owned = A[ownedDofs, :]
     A_owned.indices = mapping[A_owned.indices].astype(np.int32)
+    # Preallocate exactly the sparsity we're about to insert. Without this,
+    # mpiaij dynamically reallocates during setValuesCSR — each over-budget
+    # row triggers a malloc + memcpy. With it, PETSc allocates once for the
+    # whole rank-local block.
+    matrix.setPreallocationCSR((A_owned.indptr, A_owned.indices))
     matrix.setValuesCSR(
         A_owned.indptr, A_owned.indices, A_owned.data, PETSc.InsertMode.ADD_VALUES
     )
