@@ -196,9 +196,9 @@ DICT_ELEMTYPE_TO_ENSIGHT: dict[ElemType, str] = {
     ElemType.HEXA8: "hexa8",
     ElemType.HEXA20: "hexa20",
     # ElemType.HEXA27: "hexa27", # not supported by Ensight
-    ElemType.PRISM6: "wedge6",
-    ElemType.PRISM15: "wedge15",
-    # ElemType.PRISM18: "wedge18", # not supported by Ensight
+    ElemType.PRISM6: "penta6",
+    ElemType.PRISM15: "penta15",
+    # ElemType.PRISM18: "penta18", # not supported by Ensight
 }
 """ElemType: Ensight"""
 
