@@ -121,16 +121,14 @@ class HyperElastic(_Simu):
     def Get_x0(self, problemType=None):
         return self.displacement
 
-    def Construct_local_matrix_system(self, problemType):
+    def Construct_local_matrix_system(
+        self,
+        problemType,
+        matrixType: MatrixType = MatrixType.rigi,
+    ):
         """Returns ``(K_e, C_e, M_e, F_e)`` for the current Newton iteration.
 
-        Solves ``A(u) · Δu = -R(u) = -F(u) + b``. The simulation builds the
-        global ``A = coefK·K + coefC·C + coefM·M`` and adds
-        ``b -= C @ v_t`` — Kelvin-Voigt viscosity rides through ``C_e``
-        (path α), so ``Compute_dWde`` stays elastic and the viscous force
-        cannot double-count. Active stress, in contrast, lives entirely in
-        ``Compute_dWde`` (and propagates into the geometric tangent via
-        ``Sig = block(P(dWde))`` inside the operator).
+        Solves ``A(u) · Δu = -R(u) = -F(u) + b``. The simulation builds the global ``A = coefK·K + coefC·C + coefM·M`` and adds ``b -= C @ v_t`` — Kelvin-Voigt viscosity rides through ``C_e`` (path α), so ``Compute_dWde`` stays elastic and the viscous force cannot double-count. Active stress, in contrast, lives entirely in ``Compute_dWde`` (and propagates into the geometric tangent via ``Sig = block(P(dWde))`` inside the operator).
         """
         dim = self.dim
         thickness = self.material.thickness if dim == 2 else 1
@@ -149,7 +147,10 @@ class HyperElastic(_Simu):
         for groupElem in self.mesh.Get_list_groupElem():
 
             hyperElasticState = HyperElasticState(
-                groupElem, displacement, MatrixType.rigi, velocity=velocity
+                groupElem=groupElem,
+                displacement=displacement,
+                matrixType=matrixType,
+                velocity=velocity,
             )
 
             # invalid-element guard

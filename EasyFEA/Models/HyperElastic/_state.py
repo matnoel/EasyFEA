@@ -5,6 +5,8 @@
 
 """Hyper elastic module used to compute matrices."""
 
+from typing import Union
+
 import numpy as np
 
 from ...FEM import MatrixType, _GroupElem
@@ -21,23 +23,18 @@ class HyperElasticState:
     """Hyperelastic state."""
 
     @staticmethod
-    def _CheckFormat(
-        groupElem: _GroupElem, u: _types.FloatArray, matrixType: MatrixType
-    ) -> None:
+    def _CheckFormat(groupElem: _GroupElem, u: _types.FloatArray) -> None:
         assert isinstance(groupElem, _GroupElem)
         Ncoords = groupElem.Ncoords
         errorDim = "wrong displacement field dimension"
         assert isinstance(u, np.ndarray) and u.size % Ncoords == 0, errorDim
         dim = u.size // Ncoords
         assert dim in [1, 2, 3], errorDim
-        assert (
-            matrixType in MatrixType.Get_types()
-        ), f"matrixType must be in {MatrixType.Get_types()}"
 
     def __init__(
         self,
         groupElem: _GroupElem,
-        u: _types.FloatArray,
+        displacement: _types.FloatArray,
         matrixType: MatrixType,
         velocity: _types.FloatArray = None,  # type: ignore [assignment]
     ):
@@ -48,28 +45,44 @@ class HyperElasticState:
         ----------
         groupElem : _GroupElem
             group of elements
-        u : _types.FloatArray
+        displacement : _types.FloatArray
             displacement field in (xi,yi,zi,...,xn,yn,zn) format
         matrixType : MatrixType
             matrix type
         velocity : _types.FloatArray, optional
-            Optional velocity field (same shape as ``u``). Required for Kelvin–Voigt viscous contributions; ``None``  for quasi-static or elastic-only simulations., by default None
+            Optional velocity field (same shape as ``displacement``). Required for Kelvin–Voigt viscous contributions; ``None``  for quasi-static or elastic-only simulations., by default None
         """
 
-        self._CheckFormat(groupElem, u, matrixType)
+        self._CheckFormat(groupElem, displacement)
         if velocity is not None:
             assert (
-                isinstance(velocity, np.ndarray) and velocity.shape == u.shape
+                isinstance(velocity, np.ndarray)
+                and velocity.shape == displacement.shape
             ), "velocity must be a numpy array with the same shape as u"
 
         self.__groupElem = groupElem
-        self.__u = u
+        self.__displacement = displacement
         self.__matrixType = matrixType
         self.__velocity = velocity
 
     @property
     def groupElem(self):
+        """group of elements."""
         return self.__groupElem
+
+    @property
+    def displacement(self):
+        """displacement field in (xi,yi,zi,...,xn,yn,zn) format."""
+        return self.__displacement
+
+    @property
+    def matrixType(self):
+        """matrix type."""
+        return self.__matrixType
+
+    @matrixType.setter
+    def matrixType(self, value: Union[int, MatrixType]):
+        self.__matrixType = value
 
     @property
     def velocity(self):
@@ -81,42 +94,46 @@ class HyperElasticState:
     ) -> tuple[int, int, int]:
         """return Ne, nPg, dim"""
         Ne = self.__groupElem.Ne
-        dim = self.__u.size // self.__groupElem.Ncoords
-        nPg = self.__groupElem.Get_gauss(self.__matrixType).nPg
+        dim = self.__displacement.size // self.__groupElem.Ncoords
+        nPg = self.__groupElem.Get_N_pg(self.__matrixType).shape[0]
         return (Ne, nPg, dim)
 
     @cache_computed_values
     def Compute_F(self) -> FeArray.FeArrayALike:
-        """Computes the deformation gradient F(u) = I + grad(u)
+        """Deformation gradient ``F(u) = I + ∇u`` at the Gauss points, padded to ``3×3``.
 
         Returns
         -------
         FeArray
-            F(u) of shape (Ne, pg, 3, 3)
+            Layout depends on ``dim`` (unused off-diagonal terms are zero; missing diagonal terms stay at 1, so the result is always ``3×3``):
 
-        dim = 1
-        -------
+            ``dim == 1``:
+            ```
+            [ 1+dxux    0       0    ]
+            [   0       1       0    ]
+            [   0       0       1    ]
+            ```
 
-        1+dxux 0 0\n
-        0 1 0\n
-        0 0 1
+            ``dim == 2``:
+            ```
+            [ 1+dxux   dyux     0    ]
+            [  dxuy   1+dyuy    0    ]
+            [   0       0       1    ]
+            ```
 
-        dim = 2
-        -------
+            ``dim == 3``:
+            ```
+            [ 1+dxux   dyux    dzux  ]
+            [  dxuy   1+dyuy   dzuy  ]
+            [  dxuz    dyuz   1+dzuz ]
+            ```
 
-        1+dxux dyux 0\n
-        dxuy 1+dyuy 0\n
-        0 0 1
-
-        dim = 3
-        -------
-
-        1+dxux dyux dzux\n
-        dxuy 1+dyuy dzuy\n
-        dxuz dyuz 1+dzuz
+            Shape: ``(Ne, nPg, 3, 3)``.
         """
 
-        grad_e_pg = self.__groupElem.Get_Gradient_e_pg(self.__u, self.__matrixType)
+        grad_e_pg = self.__groupElem.Get_Gradient_e_pg(
+            self.__displacement, self.__matrixType
+        )
 
         F_e_pg = np.eye(3) + grad_e_pg
 
@@ -140,33 +157,35 @@ class HyperElasticState:
 
     @cache_computed_values
     def Compute_C(self) -> FeArray.FeArrayALike:
-        """Computes the right Cauchy-Green tensor  C(u) = F(u)'.F(u)
+        """Right Cauchy-Green tensor ``C(u) = F(u)ᵀ · F(u)`` at the Gauss points, padded to ``3×3``.
 
         Returns
         -------
         FeArray
-            C_e_pg of shape (Ne, pg, 3, 3)
+            Layout depends on ``dim`` (unused off-diagonal terms are zero; missing diagonal terms stay at 1, so the result is always ``3×3``):
 
-        dim = 1
-        -------
+            ``dim == 1``:
+            ```
+            [ cxx   0    0  ]
+            [  0    1    0  ]
+            [  0    0    1  ]
+            ```
 
-        cxx 0 0\n
-        0 1 0\n
-        0 0 1
+            ``dim == 2``:
+            ```
+            [ cxx  cxy   0  ]
+            [ cyx  cyy   0  ]
+            [  0    0    1  ]
+            ```
 
-        dim = 2
-        -------
+            ``dim == 3``:
+            ```
+            [ cxx  cxy  cxz ]
+            [ cyx  cyy  cyz ]
+            [ czx  czy  czz ]
+            ```
 
-        cxx cxy 0\n
-        cyx cyy 0\n
-        0 0 1
-
-        dim = 3
-        -------
-
-        cxx cxy cxz\n
-        cyx cyy cyz\n
-        czx czy czz
+            Shape: ``(Ne, nPg, 3, 3)``.
         """
 
         F_e_pg = self.Compute_F()
@@ -192,12 +211,35 @@ class HyperElasticState:
 
     @cache_computed_values
     def Compute_GreenLagrange(self) -> FeArray.FeArrayALike:
-        """Computes the Green-Lagrange deformation E = 1/2 (C - I)
+        """Green-Lagrange strain ``E = 1/2 (C - I)`` at the Gauss points, padded to ``3×3``.
 
         Returns
         -------
         FeArray
-            E_e_pg of shape (Ne, pg, dim, dim)
+            Layout depends on ``dim`` (unused components are zeroed so the result is always ``3×3``):
+
+            ``dim == 1``:
+            ```
+            [ Exx   0    0  ]
+            [  0    0    0  ]
+            [  0    0    0  ]
+            ```
+
+            ``dim == 2``:
+            ```
+            [ Exx  Exy   0  ]
+            [ Eyx  Eyy   0  ]
+            [  0    0    0  ]
+            ```
+
+            ``dim == 3``:
+            ```
+            [ Exx  Exy  Exz ]
+            [ Eyx  Eyy  Eyz ]
+            [ Ezx  Ezy  Ezz ]
+            ```
+
+            Shape: ``(Ne, nPg, 3, 3)``.
         """
 
         C_e_pg = self.Compute_C()
@@ -208,30 +250,33 @@ class HyperElasticState:
 
     @cache_computed_values
     def Compute_Epsilon(self) -> FeArray.FeArrayALike:
-        """Computes the linearized deformation Epsilon = 1/2 (grad(u)' + grad(u))
+        """Linearized strain ``ε = 1/2 (∇uᵀ + ∇u)`` in Kelvin-Mandel vector form at the Gauss points.
 
-        Returns if dim = 2
-        ------------------
+        Returns
+        -------
         FeArray
-            Eps_e_pg of shape (Ne, pg, 3)
+            Layout depends on ``dim`` (off-diagonal components carry the Kelvin-Mandel ``√2`` factor):
 
-            [xx, yy, 2**(-1/2) xy]
+            ``dim == 2``:
+            ```
+            [ εxx,  εyy,  √2·εxy ]
+            ```
+            Shape: ``(Ne, nPg, 3)``.
 
-        Returns if dim = 3
-        ------------------
-        FeArray
-            Eps_e_pg of shape (Ne, pg, 6)
-
-            [xx, yy, zz, 2**(-1/2) yz, 2**(-1/2) xz, 2**(-1/2) xy]
+            ``dim == 3``:
+            ```
+            [ εxx,  εyy,  εzz,  √2·εyz,  √2·εxz,  √2·εxy ]
+            ```
+            Shape: ``(Ne, nPg, 6)``.
         """
 
         Ne, nPg, dim = self._GetDims()
         assert dim in [2, 3]
 
         # compute grad
-        grad_e_pg = self.__groupElem.Get_Gradient_e_pg(self.__u, self.__matrixType)[
-            ..., :dim, :dim
-        ]
+        grad_e_pg = self.__groupElem.Get_Gradient_e_pg(
+            self.__displacement, self.__matrixType
+        )[..., :dim, :dim]
 
         # 2d: dxux, dyux, dxuy, dyuy
         # 3d: dxux, dyux, dzu, dxuy, dyuy, dzuy, dxuz, dyuz, dzuz
@@ -287,34 +332,36 @@ class HyperElasticState:
 
     @cache_computed_values
     def Compute_De(self) -> FeArray.FeArrayALike:
-        """Computes De(u) derivative green lagrange matrix.
+        """Kinematic operator such that ``Ė_vec = De(u) · flat(∇v)`` where ``Ė_vec`` is the Green-Lagrange strain rate in **Kelvin-Mandel** vector form.
 
-        Returns if dim = 2
-        ------------------
-        FeArray.FeArrayALike
-            D_e_pg of shape (Ne, pg, 3, 4)
+        With ``c = 1/√2`` (Kelvin-Mandel scaling on shear rows):
 
-            [1+dxux, 0, dxuy, 0] # xx \n
-            [0, dyux, 0, 1+dyuy] # yy \n
-            2**(-1/2) [dyux, 1+dxux, 1+dyuy, dxuy # xy
+        2D — 3 strain components ``(Ėxx, Ėyy, √2·Ėxy)``, columns index ``flat(∇v) = [dxux, dyux, dxuy, dyuy]``:
+        ```
+        [ 1+dxux       0         dxuy         0      ]
+        [    0       dyux         0        1+dyuy    ]
+        [ c·dyux  c·(1+dxux)  c·(1+dyuy)   c·dxuy   ]
+        ```
 
-        Returns if dim = 3
-        ------------------
-        FeArray.FeArrayALike
-            D_e_pg of shape (Ne, pg, 6, 9)
+        3D — 6 strain components ``(Ėxx, Ėyy, Ėzz, √2·Ėyz, √2·Ėxz, √2·Ėxy)``, columns index ``flat(∇v) = [dxux, dyux, dzux, dxuy, dyuy, dzuy, dxuz, dyuz, dzuz]``:
+        ```
+        [ 1+dxux      0          0         dxuy        0          0          dxuz        0          0      ]
+        [    0      dyux         0           0       1+dyuy       0            0        dyuz        0      ]
+        [    0        0        dzux          0          0        dzuy          0          0       1+dzuz   ]
+        [    0    c·dzux     c·dyux          0       c·dzuy   c·(1+dyuy)       0     c·(1+dzuz)  c·dyuz   ]
+        [ c·dzux     0      c·(1+dxux)   c·dzuy        0       c·dxuy     c·(1+dzuz)     0       c·dxuz   ]
+        [ c·dyux c·(1+dxux)    0       c·(1+dyuy)   c·dxuy       0          c·dyuz     c·dxuz        0    ]
+        ```
 
-            [1+dxux, 0, 0, dxuy, 0, 0, dxuz, 0, 0] # xx \n
-            [0, dyux, 0, 0, 1+dyuy, 0, 0, dyuz, 0] # yy \n
-            [0, 0, dzux, 0, 0, dzuy, 0, 0, 1+dzuz] # zz \n
-            2**(-1/2) [0, dzux, dyux, 0, dzuy, 1 + dyuy, 0, 1 + dzuz, dyuz] # yz \n
-            2**(-1/2) [dzux, 0, 1 + dxux, dzuy, 0, dxuy, 1 + dzuz, 0, dxuz] # xz \n
-            2**(-1/2) [dyux, 1+dxux, 0, 1+dyuy, dxuy, 0, dyuz, dxuz, 0] # xy
+        Shape: ``(Ne, nPg, 3, 4)`` in 2D, ``(Ne, nPg, 6, 9)`` in 3D.
         """
 
         Ne, nPg, dim = self._GetDims()
         assert dim in [2, 3]
 
-        grad_e_pg = self.__groupElem.Get_Gradient_e_pg(self.__u, self.__matrixType)
+        grad_e_pg = self.__groupElem.Get_Gradient_e_pg(
+            self.__displacement, self.__matrixType
+        )
 
         if dim == 2:
             D_e_pg = FeArray.zeros(Ne, nPg, 3, 4)
@@ -602,7 +649,8 @@ class HyperElasticState:
         T = T.astype(float)
 
         norm = Norm(T, axis=-1)
-        T[norm != 0] /= norm
+        nonzero = norm != 0
+        T[nonzero] /= norm[nonzero][:, None]
 
         Tx, Ty, Tz = [T[..., i] for i in range(3)]
 

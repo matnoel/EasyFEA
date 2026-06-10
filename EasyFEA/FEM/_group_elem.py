@@ -969,7 +969,6 @@ class _GroupElem(ABC):
 
         Shape: ``(Ne, nPg, dim, nPe)``.
         """
-        assert matrixType in MatrixType.Get_types()
 
         invF_e_pg = self.Get_invF_e_pg(matrixType)
 
@@ -1009,7 +1008,6 @@ class _GroupElem(ABC):
 
         Shape: ``(Ne, nPg, dim, nPe)``.
         """
-        assert matrixType in MatrixType.Get_types()
 
         invF_e_pg = self.Get_invF_e_pg(matrixType)
 
@@ -1145,7 +1143,6 @@ class _GroupElem(ABC):
 
         Shape: ``(Ne, nPg, 3, nPe·dim)`` in 2D, ``(Ne, nPg, 6, nPe·dim)`` in 3D.
         """
-        assert matrixType in MatrixType.Get_types()
 
         dN_e_pg = self.Get_dN_e_pg(matrixType)
 
@@ -1203,8 +1200,6 @@ class _GroupElem(ABC):
         Shape: ``(Ne, nPg, nPe·dim, nstrain)``.
         """
 
-        assert matrixType in MatrixType.Get_types()
-
         wJ_e_pg = self.Get_weightedJacobian_e_pg(matrixType)
         B_e_pg = self.Get_B_e_pg(matrixType)
 
@@ -1232,8 +1227,6 @@ class _GroupElem(ABC):
         Shape: ``(Ne, nPg, nPe·dof_n, nPe·dof_n)``.
         """
 
-        assert matrixType in MatrixType.Get_types()
-
         weightedJacobian = self.Get_weightedJacobian_e_pg(matrixType)
         N_pg = FeArray.asfearray(self.Get_N_pg_rep(matrixType, dof_n)[np.newaxis])
 
@@ -1253,8 +1246,6 @@ class _GroupElem(ABC):
 
         Shape: ``(Ne, nPg, nPe, dim)``.
         """
-
-        assert matrixType in MatrixType.Get_types()
 
         wJ_e_pg = self.Get_weightedJacobian_e_pg(matrixType)
         dN_e_pg = self.Get_dN_e_pg(matrixType)
@@ -1282,8 +1273,6 @@ class _GroupElem(ABC):
 
         Shape: ``(Ne, nPg, nPe·dof_n, dof_n)``.
         """
-
-        assert matrixType in MatrixType.Get_types()
 
         wJ_e_pg = self.Get_weightedJacobian_e_pg(matrixType)
         N_pg = FeArray.asfearray(self.Get_N_pg_rep(matrixType, dof_n)[np.newaxis])

@@ -20,7 +20,6 @@ if TYPE_CHECKING:
 def SecondPiolaKirchhoffStressTensor(
     material: "_HyperElastic",
     state: "HyperElasticState",
-    matrixType: MatrixType = MatrixType.rigi,
 ) -> tuple[np.ndarray, np.ndarray]:
     """Tangent and residual for a hyperelastic constitutive law.
 
@@ -50,8 +49,6 @@ def SecondPiolaKirchhoffStressTensor(
         Hyperelastic constitutive law — supplies ``Compute_dWde(state)`` and ``Compute_d2Wde(state)``.
     state
         Hyperelastic state — owns the mesh and the current displacement.
-    matrixType
-        Integration scheme for ``wJ`` and ``dN``. Defaults to :attr:`MatrixType.rigi`.
 
     Returns
     -------
@@ -62,6 +59,7 @@ def SecondPiolaKirchhoffStressTensor(
     """
 
     groupElem = state.groupElem
+    matrixType = state.matrixType
     wJ_e_pg = groupElem.Get_weightedJacobian_e_pg(matrixType)
     dN_e_pg = groupElem.Get_dN_e_pg(matrixType)
 
@@ -105,7 +103,6 @@ def SecondPiolaKirchhoffStressTensor(
 def KelvinVoigtDamping(
     material: "_HyperElastic",
     state: "HyperElasticState",
-    matrixType: MatrixType = MatrixType.rigi,
 ) -> np.ndarray:
     """Kelvin–Voigt damping matrix ``C_e = thickness · η · ∫ Bᵀ B dΩ``.
 
@@ -141,6 +138,7 @@ def KelvinVoigtDamping(
         return None  # type: ignore [return-value]
 
     groupElem = state.groupElem
+    matrixType = state.matrixType
     wJ_e_pg = groupElem.Get_weightedJacobian_e_pg(matrixType)
     dN_e_pg = groupElem.Get_dN_e_pg(matrixType)
     De_e_pg = state.Compute_De()
