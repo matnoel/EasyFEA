@@ -40,7 +40,11 @@ class CardiacElastoDynamics(Simulations.HyperElastic):
         self.pressure = 0.0
 
     def Construct_local_matrix_system(self, problemType):
-        results = super().Construct_local_matrix_system(problemType)
+
+        assert isinstance(self.material, Models.HyperElastic.HolzapfelOgden)
+        nPg = self.material.T1.shape[1]
+
+        results = super().Construct_local_matrix_system(problemType, nPg)
 
         # current Newton-Raphson iterate (updated via u += delta_u)
         displacement = self._Solver_Get_Newton_Raphson_current_solution()
