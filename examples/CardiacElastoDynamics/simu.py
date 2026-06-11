@@ -131,6 +131,7 @@ if __name__ == "__main__":
     doSimu = True
     plotGraph = False
     plotParticles = True
+    saveParticles = True
     makeMovie = True
 
     # ----------------------------------------------
@@ -272,6 +273,36 @@ if __name__ == "__main__":
         width, height = ax.figure.get_size_inches()
         ax.figure.set_size_inches(width * 1.5, height * 2.5)
         Display.Save_fig(results_dir, "particles")
+
+    if saveParticles and simu.isGathered:
+
+        # per-iteration deformed volume
+        volumes = np.empty(Niter)
+        for i in range(Niter):
+            simu.Set_Iter(i)
+            deformed = simu.mesh.copy()
+            deformed.coord += simu.displacement.reshape(-1, 3)
+            volumes[i] = deformed.volume
+
+        dict_particles = {
+            "time": times,
+            "displacement": {
+                f"p{p}": {
+                    "ux": values[:, p, 0],
+                    "uy": values[:, p, 1],
+                    "uz": values[:, p, 2],
+                    "magnitude": np.linalg.norm(values[:, p, :], axis=1),
+                }
+                for p in range(2)
+            },
+            "stress": {
+                "time": None,
+                "p0": {"magnitude": None},
+                "p1": {"magnitude": None},
+            },
+            "volume": volumes,
+        }
+        Simulations.Save_pickle(dict_particles, results_dir, "dict_particle")
 
     if makeMovie:
         # values = [
