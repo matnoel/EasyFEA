@@ -171,7 +171,8 @@ if __name__ == "__main__":
 
         mesh, fibers_e_pg, sheets_e_pg = Get_config(
             Folder.Join(DATA_DIR, ellipsoid),
-            MatrixType.rigi,
+            MatrixType.mass,
+            fiberSource="analytic",
             plotMesh=False,
             plotTags=False,
             plotFibers=False,
