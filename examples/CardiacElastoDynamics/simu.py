@@ -23,12 +23,6 @@ from EasyFEA.Utilities import _params
 from utils import RESULTS_DIR, DATA_DIR, Get_config, Get_values
 
 
-class Config(str, Enum):
-    D = "D"  # active_stress + pressure
-    A = "A"  # active_stress
-    B = "B"  # pressure
-
-
 class CardiacElastoDynamics(Simulations.HyperElastic):
 
     pressure = _params.PositiveScalarParameter()
@@ -113,6 +107,12 @@ class CardiacElastoDynamics(Simulations.HyperElastic):
         return results
 
 
+class Config(str, Enum):
+    D = "D"  # active_stress + pressure
+    A = "A"  # active_stress
+    B = "B"  # pressure
+
+
 if __name__ == "__main__":
 
     # Display.Clear()
@@ -125,6 +125,12 @@ if __name__ == "__main__":
     # ellipsoid = "ellipsoid_0.005"
 
     config = Config.D
+
+    fiberSource = "analytic"
+    # fiberSource = "vtu"
+
+    matrixType = MatrixType.mass
+    # matrixType = 15
 
     results_dir = Folder.Join(RESULTS_DIR, ellipsoid + f"_{config.name}")
 
@@ -139,7 +145,7 @@ if __name__ == "__main__":
 
     t_values, activeStress_values, pressure_values = Get_values(Tmax=1.0, Nt=100)
     dt = t_values[1] - t_values[0]
-    results_dir += f"_dt{dt}"
+    results_dir += f"_dt{dt}_{fiberSource}_{matrixType}"
 
     if plotGraph:
         ax = Display.Init_Axes()
@@ -171,8 +177,8 @@ if __name__ == "__main__":
 
         mesh, fibers_e_pg, sheets_e_pg = Get_config(
             Folder.Join(DATA_DIR, ellipsoid),
-            MatrixType.mass,
-            fiberSource="analytic",
+            matrixType=matrixType,
+            fiberSource=fiberSource,
             plotMesh=False,
             plotTags=False,
             plotFibers=False,
@@ -303,7 +309,7 @@ if __name__ == "__main__":
             },
             "volume": volumes,
         }
-        Simulations.Save_pickle(dict_particles, results_dir, "dict_particle")
+        Simulations.Save_pickle(dict_particles, results_dir, "particles")
 
     if makeMovie:
         # values = [
