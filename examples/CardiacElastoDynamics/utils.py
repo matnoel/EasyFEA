@@ -1,3 +1,10 @@
+"""Mesh / fibers / sheets for the cardiac benchmark — loading and analytic build.
+
+This reproduces *Benchmark 1: monoventricular mechanics* (§3) of the cardiac elastodynamics benchmark, Comput. Methods Appl. Mech. Engrg.: https://www.sciencedirect.com/science/article/pii/S0045782524007394
+
+Two fiber sources are supported (see :func:`Get_config`). ``"analytic"`` builds the fibers/sheets directly here (truncated-ellipsoid geometry + transmural Laplace problem) and needs no external data. ``"vtu"`` reads the ``mesh.msh`` / ``fiber.vtu`` / ``sheet.vtu`` files under ``data/``, generated with the ``cardiac_benchmark_toolkit`` (https://github.com/Reidmen/cardiac_benchmark_toolkit) — via the fork https://github.com/matnoel/cardiac_benchmark_toolkit (``morefem`` branch), which adds the export of the sheet field.
+"""
+
 from dataclasses import dataclass
 from typing import Literal
 

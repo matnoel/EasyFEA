@@ -10,6 +10,10 @@ CardiacElastoDynamics
 Passive + active hyperelastic simulation of an ellipsoidal left-ventricle model.
 
 Combines a ``Holzapfel-Ogden`` orthotropic law (fiber + sheet directions), an ``active stress`` along the fiber direction, and a ``follower pressure`` on the endocardial surface. Time integration uses the midpoint hyperbolic scheme.
+
+Reproduces *Benchmark 1: monoventricular mechanics* (§3) of the cardiac elastodynamics benchmark published in Comput. Methods Appl. Mech. Engrg.: https://www.sciencedirect.com/science/article/pii/S0045782524007394
+
+The ``mesh.msh`` / ``fiber.vtu`` / ``sheet.vtu`` files read for ``fiberSource="vtu"`` are generated beforehand with the ``cardiac_benchmark_toolkit`` — see the module docstring of ``utils.py`` for the exact procedure. (``fiberSource="analytic"`` builds the fibers/sheets directly in EasyFEA and needs no external data.)
 """
 
 from enum import Enum
