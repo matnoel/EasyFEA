@@ -32,21 +32,14 @@ class _HyperElastic(_IModel, ABC):
     thickness: float = _params.PositiveScalarParameter()
 
     eta: float = _params.PositiveScalarParameter()
-    """Kelvin–Voigt viscosity. ``0`` (default) → purely elastic. When ``> 0``
-    and ``state.velocity`` is provided, the viscous contribution is delivered
-    via the damping matrix
-    :func:`Operators.NonLinear.KelvinVoigtDamping`. The simulation handles
-    both the residual contribution (``b -= C @ v_t``) and the linear tangent
-    piece (``coefC · C`` in the global assembly) — same uniform pattern as
-    Rayleigh damping in :class:`Elastic`."""
+    """Kelvin–Voigt viscosity. ``0`` (default) → purely elastic
+    When ``> 0`` and a velocity field is available, the viscous contribution is delivered via the damping matrix :func:`Operators.NonLinear.KelvinVoigtDamping`.
+    The simulation handles both the residual contribution (``b -= C @ v_t``) and the linear tangent piece (``coefC · C`` in the global assembly) — same uniform pattern as Rayleigh damping in :class:`Elastic`."""
 
-    active_stress: float = _params.PositiveScalarParameter()
+    active_stress: float = _params.ScalarParameter()
     """Active stress magnitude (per-time-step scalar). ``0`` (default) → inactive.
-    When ``> 0`` and the direction tensor has been registered via
-    :meth:`Set_active_stress_vec`, the PK2 contribution ``active_stress · (T̂ ⊗ T̂)`` is
-    folded into :meth:`Compute_dWde`. Typical cardiac use: precompute the fiber
-    direction tensor once with :meth:`Set_active_stress_vec`, then update only
-    this scalar between :meth:`Solve` calls — ``material.active_stress = float(tau_values[i])``."""
+    When ``> 0`` and the direction tensor has been registered via :meth:`Set_active_stress_vec`, the PK2 contribution ``active_stress · (T̂ ⊗ T̂)`` is folded into :meth:`Compute_dWde`.
+    Typical cardiac use: precompute the fiber direction tensor once with :meth:`Set_active_stress_vec`, then update only this scalar between :meth:`Solve` calls — ``material.active_stress = float(tau_values[i])``."""
 
     def __init__(self, dim: int, thickness: float):
         self.dim = dim
@@ -58,32 +51,14 @@ class _HyperElastic(_IModel, ABC):
     def Set_active_stress_vec(self, T) -> None:
         r"""Registers the **direction** of the active PK2 contribution.
 
-        Normalises the direction field ``T`` per Gauss point and precomputes the Kelvin-Mandel vector form of ``T̂ ⊗ T̂``, stored on the material.
-        After this call, :meth:`Compute_dWde` returns
+        Normalises ``T`` per Gauss point and precomputes the Kelvin-Mandel vector form of ``T̂ ⊗ T̂``, so that :meth:`Compute_dWde` returns ``Σ = Σ_elastic + active_stress · (T̂ ⊗ T̂)`` whenever :attr:`active_stress` ``> 0``. Only the scalar :attr:`active_stress` is updated between steps; the direction is constant across a run, so call this **once** during setup.
 
-        .. math::
-
-            \Sigma(u) \;=\; \Sigma_{\text{elastic}}(u) \;+\; \texttt{active\_stress}\,\cdot\,(\hat T \otimes \hat T)
-
-        whenever :attr:`active_stress` ``> 0``. Only the **scalar** magnitude :attr:`active_stress` is updated between time steps; the direction ``T̂`` is typically constant across a run (e.g. cardiac fibers don't move with time), so this method is called **once** during setup.
+        Note: with a time scheme, set :attr:`active_stress` at the scheme's effective time (midpoint ``t + dt/2``, HHT ``t + (1−α)·dt``, Newmark/Euler ``t + dt``), not the endpoint ``t``.
 
         Parameters
         ----------
         T
-            Direction tensor at every Gauss point, shape ``(Ne, nPg, 3)``. Not required to be unit-norm — this method divides by ``|T|`` per Gauss point internally.
-
-        Notes
-        -----
-        **Time-scheme consistency.** When the simulation uses a time scheme (Newmark, midpoint, HHT, …), :attr:`active_stress` must be the scalar evaluated at the **time-scheme effective time**, not the
-        endpoint ``t``. For the midpoint rule that's ``t + dt/2``; for HHT with parameter ``α`` it's ``t + (1 - α)·dt``; for Newmark / Euler implicit it's ``t + dt``. Using ``t`` directly biases the contractile force by half a step and erodes the order of the scheme.
-
-        Equivalent setup pattern (midpoint)::
-
-            material.Set_active_stress_vec(T) # once, after meshing
-            for t in t_values:
-                # midpoint evaluation
-                material.active_stress = np.interp(t + dt / 2, t_values, tau_values)
-                simu.Solve()
+            Direction tensor at every Gauss point, shape ``(Ne, nPg, 3)``. Need not be unit-norm — divided by ``|T|`` per Gauss point internally.
         """
         # Per-Gauss-point normalisation. Norm(T) without an axis collapses to
         # the global Frobenius norm — a scalar — which would broadcast wrong
@@ -178,11 +153,10 @@ class _HyperElastic(_IModel, ABC):
         Kelvin–Voigt viscosity does **not** fold in here — it lives in
         the separate damping matrix
         :func:`Operators.NonLinear.KelvinVoigtDamping`, mirroring how
-        Rayleigh damping works in :class:`Elastic`. Path α: the
-        simulation handles both the residual contribution
-        (``b -= C @ v_t``) and the linear tangent piece (``coefC · C``
-        in the global assembly) — folding ``η · Ė`` here would
-        double-count the viscous force.
+        Rayleigh damping works in :class:`Elastic`. The simulation handles
+        both the residual contribution (``b -= C @ v_t``) and the linear
+        tangent piece (``coefC · C`` in the global assembly) — folding
+        ``η · Ė`` here would double-count the viscous force.
         """
         dWde_e_pg = self._Compute_elastic_dWde(hyperElasticState)
         if self.active_stress > 0.0:

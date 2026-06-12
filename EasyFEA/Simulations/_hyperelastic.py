@@ -126,62 +126,50 @@ class HyperElastic(_Simu):
         problemType,
         matrixType: MatrixType = MatrixType.rigi,
     ):
-        """Returns ``(K_e, C_e, M_e, F_e)`` for the current Newton iteration.
+        """Returns ``{groupElem: (K_e, C_e, M_e, F_e)}`` for the current Newton iterate.
 
-        Solves ``A(u) · Δu = -R(u) = -F(u) + b``. The simulation builds the global ``A = coefK·K + coefC·C + coefM·M`` and adds ``b -= C @ v_t`` — Kelvin-Voigt viscosity rides through ``C_e`` (path α), so ``Compute_dWde`` stays elastic and the viscous force cannot double-count. Active stress, in contrast, lives entirely in ``Compute_dWde`` (and propagates into the geometric tangent via ``Sig = block(P(dWde))`` inside the operator).
+        Newton solves ``A(u)·Δu = -R(u)``; the simulation assembles ``A = coefK·K + coefC·C + coefM·M`` and ``b -= C @ v_t``. Per group of elements: ``K_e`` is the elastic tangent (plus the viscous configuration tangent ``Kgeo_e``), ``F_e = -R_e`` the residual, ``C_e`` the Kelvin–Voigt damping matrix and ``M_e`` the mass matrix (dynamic schemes only).
         """
         dim = self.dim
         thickness = self.material.thickness if dim == 2 else 1
+        isDynamic = self.algo in AlgoType.Get_Hyperbolic_Types()
 
-        # current Newton-Raphson iterate (updated via u += delta_u)
+        # current Newton-Raphson iterate; for dynamic schemes also capture the
+        # velocity, for Kelvin–Voigt viscosity.
         displacement = self._Solver_Get_Newton_Raphson_current_solution()
         velocity = None
-        if self.algo in AlgoType.Get_Hyperbolic_Types():
-            # capture velocity too, for Kelvin–Voigt viscosity
+        if isDynamic:
             displacement, velocity, _ = self._Solver_Evaluate_u_v_a_for_time_scheme(
                 problemType, displacement
             )
 
         out = {}
-
         for groupElem in self.mesh.Get_list_groupElem():
-
-            hyperElasticState = HyperElasticState(
-                groupElem=groupElem,
-                displacement=displacement,
-                matrixType=matrixType,
-                velocity=velocity,
-            )
+            state = HyperElasticState(groupElem, displacement, matrixType)
 
             # invalid-element guard
-            J_e_pg = hyperElasticState.Compute_J()
-            assert J_e_pg.min() > 0, "Warning: det(F) < 0 - reduce load steps"
+            assert state.Compute_J().min() > 0, "det(F) < 0 - reduce load steps"
 
-            # tangent + residual
-            tangent_e, residual_e = (
-                Operators.NonLinear.SecondPiolaKirchhoffStressTensor(
-                    self.material, hyperElasticState
-                )
+            # elastic tangent + residual; Newton: A(u) Δu = -R(u) = -F(u) + b
+            K_e, residual_e = Operators.NonLinear.SecondPiolaKirchhoffStressTensor(
+                self.material, state
             )
-            # Newton: A(u) Δu = -R(u) = -(F(u) - b) = -F(u) + b
-            K_e = tangent_e
             F_e = -residual_e
 
-            # Kelvin–Voigt damping matrix (path α)
+            # Kelvin–Voigt viscosity: C_e is the damping matrix (slot 2, rides
+            # coefC, carries the viscous residual b -= C @ v_t); Kgeo_e is the
+            # configuration tangent ∂(C·v)/∂u, added to K_e so it rides coefK.
+            C_e = None
             if self.material.eta != 0 and velocity is not None:
-                C_e = Operators.NonLinear.KelvinVoigtDamping(
-                    self.material, hyperElasticState
+                C_e, Kgeo_e = Operators.NonLinear.KelvinVoigtDamping(
+                    self.material, state, velocity
                 )
-            else:
-                C_e = None
+                K_e = K_e + Kgeo_e
 
             # mass matrix — only assembled for dynamic schemes
-            if self.algo in AlgoType.Get_Hyperbolic_Types():
-                M_e = thickness * Operators.Bilinear.UV(
-                    groupElem, coef=self.rho, dof_n=dim
-                )
-            else:
-                M_e = None
+            M_e = None
+            if isDynamic:
+                M_e = thickness * Operators.Bilinear.UV(groupElem, self.rho, dof_n=dim)
 
             out[groupElem] = (K_e, C_e, M_e, F_e)
 

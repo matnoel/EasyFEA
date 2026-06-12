@@ -17,6 +17,64 @@ if TYPE_CHECKING:
     from ...Models.HyperElastic._state import HyperElasticState
 
 
+# ----------------------------------------------------------------------------
+# Shared block-assembly kinematics
+# ----------------------------------------------------------------------------
+# These helpers back both the hyperelastic and Kelvin–Voigt operators: the
+# block gradient / strain-displacement operator, the geometric-tangent stress
+# block, and the (xi,...,xn,yi,...) → (xi,yi,zi,...) dof permutation are the
+# same machinery regardless of which stress drives them.
+
+
+def __block_grad_B(
+    state: "HyperElasticState",
+) -> tuple["FeArray", "FeArray"]:
+    """Block gradient operator ``grad`` and ``B = De(u)·grad``.
+
+    ``grad`` maps nodal dofs (laid out ``xi,...,xn,yi,...,yn,...``) to the flat displacement gradient; ``B`` is the nonlinear (Green-Lagrange) strain- displacement operator. Shared by :func:`SecondPiolaKirchhoffStressTensor` and :func:`KelvinVoigtDamping`.
+    """
+    groupElem = state.groupElem
+    matrixType = state.matrixType
+    dN_e_pg = groupElem.Get_dN_e_pg(matrixType)
+    De_e_pg = state.Compute_De()
+
+    Ne, nPg = dN_e_pg.shape[:2]
+    nPe = groupElem.nPe
+    dim = groupElem.dim
+    nCols = De_e_pg.shape[-1]  # = dim², the flat-grad dimension
+
+    grad_e_pg = FeArray.zeros(Ne, nPg, nCols, dim * nPe)
+    rows = np.arange(nCols).reshape((dim, dim))
+    cols = np.arange(dim * nPe).reshape(dN_e_pg._shape)
+    for i in range(dim):
+        grad_e_pg._assemble(rows[i], cols[i], value=dN_e_pg)
+
+    B_e_pg = De_e_pg @ grad_e_pg
+    return grad_e_pg, B_e_pg
+
+
+def __block_stress(stress_e_pg: "FeArray", dim: int) -> "FeArray":
+    """Geometric-tangent stress block ``block(P(stress_vec))``.
+
+    Places the ``dim×dim`` symmetric stress (from the Kelvin-Mandel vector ``stress_e_pg``) on each of the ``dim`` diagonal blocks, so that ``∫ gradᵀ · Sig · grad`` yields the geometric (initial-stress) tangent — i.e. ``Sig = I_dim ⊗ sig``.
+
+    Built on a ``(Ne, nPg, dim, dim, dim, dim)`` view with basic-slice writes to
+    the diagonal blocks (``Sig[i,k,i,l] = sig[k,l]``), then reshaped to
+    ``(Ne, nPg, dim², dim²)`` — ~3× faster than fancy-indexed block assembly.
+    """
+    sig_e_pg = np.asarray(Project_vector_to_matrix(stress_e_pg))  # (Ne, nPg, dim, dim)
+    Ne, nPg = sig_e_pg.shape[:2]
+    Sig = np.zeros((Ne, nPg, dim, dim, dim, dim))
+    for i in range(dim):
+        Sig[:, :, i, :, i, :] = sig_e_pg
+    return FeArray.asfearray(Sig.reshape(Ne, nPg, dim * dim, dim * dim))
+
+
+def __reorder(dim: int, nPe: int) -> np.ndarray:
+    """Permutation from ``(xi,...,xn,yi,...,yn,...)`` to ``(xi,yi,zi,...,xn,yn,zn)``."""
+    return np.arange(0, nPe * dim).reshape(-1, nPe).T.ravel()
+
+
 def SecondPiolaKirchhoffStressTensor(
     material: "_HyperElastic",
     state: "HyperElasticState",
@@ -61,28 +119,14 @@ def SecondPiolaKirchhoffStressTensor(
     groupElem = state.groupElem
     matrixType = state.matrixType
     wJ_e_pg = groupElem.Get_weightedJacobian_e_pg(matrixType)
-    dN_e_pg = groupElem.Get_dN_e_pg(matrixType)
+    nPe = groupElem.nPe
+    dim = groupElem.dim
 
-    De_e_pg = state.Compute_De()
     dWde_e_pg = material.Compute_dWde(state)
     d2Wde_e_pg = material.Compute_d2Wde(state)
 
-    Ne, nPg = wJ_e_pg.shape[:2]
-    nPe = groupElem.nPe
-    dim = groupElem.dim
-    nCols = De_e_pg.shape[-1]  # = dim², the flat-grad-u dimension
-
-    # block-assemble grad and Sig
-    grad_e_pg = FeArray.zeros(Ne, nPg, nCols, dim * nPe)
-    Sig_e_pg = FeArray.zeros(Ne, nPg, nCols, nCols)
-    sig_e_pg = Project_vector_to_matrix(dWde_e_pg)
-    rows = np.arange(nCols).reshape(sig_e_pg._shape)
-    cols = np.arange(dim * nPe).reshape(dN_e_pg._shape)
-    for i in range(dim):
-        Sig_e_pg._assemble(rows[i], rows[i], value=sig_e_pg)
-        grad_e_pg._assemble(rows[i], cols[i], value=dN_e_pg)
-
-    B_e_pg = De_e_pg @ grad_e_pg
+    grad_e_pg, B_e_pg = __block_grad_B(state)
+    Sig_e_pg = __block_stress(dWde_e_pg, dim)
 
     # linear (material) tangent + nonlinear (geometric) tangent
     A_lin = (wJ_e_pg * B_e_pg.T @ d2Wde_e_pg @ B_e_pg).integrate()
@@ -93,7 +137,7 @@ def SecondPiolaKirchhoffStressTensor(
     residual_e = (wJ_e_pg * dWde_e_pg.T @ B_e_pg).integrate()
 
     # reorder xi,...,xn,yi,...,yn,zi,...,zn to xi,yi,zi,...,xn,yn,zn
-    reorder = np.arange(0, nPe * dim).reshape(-1, nPe).T.ravel()
+    reorder = __reorder(dim, nPe)
     residual_e = residual_e[:, reorder]
     tangent_e = tangent_e[:, reorder][:, :, reorder]
 
@@ -103,63 +147,51 @@ def SecondPiolaKirchhoffStressTensor(
 def KelvinVoigtDamping(
     material: "_HyperElastic",
     state: "HyperElasticState",
-) -> np.ndarray:
-    """Kelvin–Voigt damping matrix ``C_e = thickness · η · ∫ Bᵀ B dΩ``.
+    velocity: np.ndarray,
+) -> tuple[np.ndarray, np.ndarray]:
+    r"""Kelvin–Voigt viscous element contributions ``(C_e, Kgeo_e)`` for the large-strain viscous force ``F_visco(u) = C(u)·v``, with ``Σ_visco = η·Ė`` (Green-Lagrange strain rate of ``velocity``) and ``B = De(u)·grad``.
 
-    Returns ``None`` when ``material.eta == 0`` (no viscosity) or
-    ``state.velocity is None`` (quasi-static — viscosity inactive).
+    - ``C_e = thickness · η · ∫ Bᵀ B dΩ`` — the damping matrix; the simulation puts it in slot 2 of ``(K, C, M, F)`` (residual ``b -= C @ v_t``, time-scheme history, and the ``coefC·C`` tangent).
+    - ``Kgeo_e`` — the configuration tangent ``∂(C·v)/∂u`` at fixed velocity (geometric stiffening from ``Σ_visco`` plus the ``∂Ė/∂u`` term); the simulation adds it to ``K_e`` so it rides ``coefK``.
 
-    ``B = De(u) · grad`` is the nonlinear strain-displacement operator,
-    built the same way as inside :func:`SecondPiolaKirchhoffStressTensor`.
+    Parameters
+    ----------
+    material
+        Hyperelastic constitutive law — supplies the viscosity ``eta``.
+    state
+        Hyperelastic state — owns the mesh and the current displacement.
+    velocity
+        Velocity field (same ``(xi,yi,zi,...)`` layout as the displacement), or ``None`` for a quasi-static evaluation.
 
-    Returns ``(Ne, nPe·dim, nPe·dim)`` reordered to
-    ``(xi,yi,zi,...,xn,yn,zn)``.
-
-    Use
-    ---
-    The matrix is the kinematic core of Kelvin–Voigt viscosity. How it
-    enters the global system depends on which residual / tangent path
-    is chosen:
-
-    - **Path α (separate damping matrix)**: return it as ``C_e`` in
-      slot 2 of the simulation tuple. The simulation does
-      ``A = coefK·K + coefC·C + coefM·M`` and ``b -= C @ v_t`` — single
-      uniform pattern, identical to Rayleigh damping in :class:`Elastic`.
-    - **Path β (viscous PK2 folded into dWde)**: the residual is already
-      covered by ``∫ Bᵀ·η·Ė dΩ`` from :meth:`_HyperElastic.Compute_dWde`,
-      and the geometric tangent picks up via the augmented ``Sig``. The
-      missing piece is the time-scheme linear tangent
-      ``(γ/(β·dt))·∫ η·BᵀB dΩ`` — exactly ``coefC`` times this matrix.
-      :class:`HyperElastic` uses path β and adds this contribution to
-      ``K_e`` directly (pre-divided by ``coefK`` so the assembly's
-      ``coefK · K`` recovers ``coefC · C``).
+    Returns ``(None, None)`` when ``material.eta == 0`` or ``velocity is None``. Both matrices are ``(Ne, nPe·dim, nPe·dim)`` reordered to ``(xi,yi,zi,...,xn,yn,zn)``.
     """
-    if material.eta == 0.0 or state.velocity is None:
-        return None  # type: ignore [return-value]
+    if material.eta == 0.0 or velocity is None:
+        return None, None  # type: ignore [return-value]
 
     groupElem = state.groupElem
     matrixType = state.matrixType
     wJ_e_pg = groupElem.Get_weightedJacobian_e_pg(matrixType)
-    dN_e_pg = groupElem.Get_dN_e_pg(matrixType)
-    De_e_pg = state.Compute_De()
-
-    Ne, nPg = wJ_e_pg.shape[:2]
     nPe = groupElem.nPe
     dim = groupElem.dim
-    nCols = De_e_pg.shape[-1]
     thickness = material.thickness if dim == 2 else 1
 
-    grad_e_pg = FeArray.zeros(Ne, nPg, nCols, dim * nPe)
-    rows = np.arange(nCols).reshape((dim, dim))
-    cols = np.arange(dim * nPe).reshape(dN_e_pg._shape)
-    for i in range(dim):
-        grad_e_pg._assemble(rows[i], cols[i], value=dN_e_pg)
+    grad_e_pg, B_e_pg = __block_grad_B(state)
+    Beta_e_pg = state.Compute_Deta(velocity) @ grad_e_pg
+    Sig_e_pg = __block_stress(material.eta * state.Compute_Edot_vec(velocity), dim)
 
-    B_e_pg = De_e_pg @ grad_e_pg
-    fragment = thickness * material.eta * (wJ_e_pg * B_e_pg.T @ B_e_pg).integrate()
+    # damping matrix C = thickness · η · ∫ Bᵀ B
+    C_e = thickness * material.eta * (wJ_e_pg * B_e_pg.T @ B_e_pg).integrate()
 
-    reorder = np.arange(0, nPe * dim).reshape(-1, nPe).T.ravel()
-    return fragment[:, reorder][:, :, reorder]
+    # configuration tangent ∂(C·v)/∂u = geometric (∫ gradᵀ Sig grad) + material-like
+    # (η ∫ Bᵀ (∂Ė/∂u)) pieces
+    A_mat = material.eta * (wJ_e_pg * B_e_pg.T @ Beta_e_pg).integrate()
+    A_geo = (wJ_e_pg * grad_e_pg.T @ Sig_e_pg @ grad_e_pg).integrate()
+    Kgeo_e = thickness * (A_mat + A_geo)
+
+    reorder = __reorder(dim, nPe)
+    C_e = C_e[:, reorder][:, :, reorder]
+    Kgeo_e = Kgeo_e[:, reorder][:, :, reorder]
+    return C_e, Kgeo_e
 
 
 def __skew(v: np.ndarray) -> np.ndarray:

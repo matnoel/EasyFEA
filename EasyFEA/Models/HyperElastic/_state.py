@@ -36,10 +36,9 @@ class HyperElasticState:
         groupElem: _GroupElem,
         displacement: _types.FloatArray,
         matrixType: MatrixType,
-        velocity: _types.FloatArray = None,  # type: ignore [assignment]
     ):
         """
-        Hyperelastic state.
+        Hyperelastic state — the displacement configuration at which the material response is evaluated.
 
         Parameters
         ----------
@@ -49,21 +48,13 @@ class HyperElasticState:
             displacement field in (xi,yi,zi,...,xn,yn,zn) format
         matrixType : MatrixType
             matrix type
-        velocity : _types.FloatArray, optional
-            Optional velocity field (same shape as ``displacement``). Required for Kelvin–Voigt viscous contributions; ``None``  for quasi-static or elastic-only simulations., by default None
         """
 
         self._CheckFormat(groupElem, displacement)
-        if velocity is not None:
-            assert (
-                isinstance(velocity, np.ndarray)
-                and velocity.shape == displacement.shape
-            ), "velocity must be a numpy array with the same shape as u"
 
         self.__groupElem = groupElem
         self.__displacement = displacement
         self.__matrixType = matrixType
-        self.__velocity = velocity
 
     @property
     def groupElem(self):
@@ -83,11 +74,6 @@ class HyperElasticState:
     @matrixType.setter
     def matrixType(self, value: Union[int, MatrixType]):
         self.__matrixType = value
-
-    @property
-    def velocity(self):
-        """Velocity field used for Kelvin–Voigt viscous contributions (``None`` when the simulation is quasi-static / elastic-only)."""
-        return self.__velocity
 
     def _GetDims(
         self,
@@ -303,36 +289,74 @@ class HyperElasticState:
 
         return Eps_e_pg
 
-    @cache_computed_values
-    def Compute_Edot_vec(self) -> FeArray.FeArrayALike:
+    def Compute_Edot_vec(self, velocity: _types.FloatArray) -> FeArray.FeArrayALike:
         """Green–Lagrange strain rate ``Ė`` in Kelvin–Mandel vector form.
 
-        Uses the identity ``Ė = sym(Fᵀ · ∇v) = De(u) · flat(∇v)`` — the same
-        kinematic operator :meth:`Compute_De` that maps ``flat(∇u̇)`` to
-        the small-strain rate also maps ``flat(∇v)`` to ``Ė_vec`` evaluated
-        at the current ``u``.
+        Uses the identity ``Ė = sym(Fᵀ · ∇v) = De(u) · flat(∇v)`` — the same kinematic operator :meth:`Compute_De` that maps ``flat(∇u̇)`` to the small-strain rate also maps ``flat(∇v)`` to ``Ė_vec`` evaluated at the current ``u``.
+
+        Parameters
+        ----------
+        velocity : _types.FloatArray
+            velocity field, same ``(xi,yi,zi,...)`` layout as the displacement.
 
         Returns ``(Ne, nPg, nstrain)`` — ``nstrain = 3`` in 2D, ``6`` in 3D.
-
-        Raises ``ValueError`` if no ``velocity`` was passed to the
-        constructor.
         """
-        if self.__velocity is None:
-            raise ValueError(
-                "Compute_Edot_vec requires a velocity field — pass `velocity=` "
-                "to HyperElasticState(...)."
-            )
         Ne, nPg, dim = self._GetDims()
         De_e_pg = self.Compute_De()
-        grad_v_e_pg = self.__groupElem.Get_Gradient_e_pg(
-            self.__velocity, self.__matrixType
-        )[..., :dim, :dim]
+        grad_v_e_pg = self.__groupElem.Get_Gradient_e_pg(velocity, self.__matrixType)[
+            ..., :dim, :dim
+        ]
         grad_v_flat = np.reshape(grad_v_e_pg, (Ne, nPg, -1))
         return De_e_pg @ grad_v_flat
+
+    def __Build_De(self, G_e_pg: FeArray.FeArrayALike) -> FeArray.FeArrayALike:
+        r"""Builds the operator mapping ``flat(δ∇)`` → ``sym(Gᵀ·δ∇)`` in Kelvin-Mandel vector form, from a ``(Ne, nPg, 3, 3)`` matrix field ``G``.
+
+        Backs both :meth:`Compute_De` (``G = F = I + ∇u``, so ``De·flat(∇v) = sym(Fᵀ∇v) = Ė``) and :meth:`Compute_Deta` (``G = ∇v``, so ``Deta·flat(∇δu) = sym(∇vᵀ∇δu) = ∂Ė``): the two operators differ only in which matrix plays the role of ``G``.
+
+        With ``c = 1/√2`` (Kelvin-Mandel scaling on shear rows) and ``Gij = G[i, j]`` the row ``r`` holds the components of ``G`` so that row ``r`` · ``flat(δ∇)`` is the ``r``-th Kelvin-Mandel component of ``sym(Gᵀ·δ∇)``. Shape: ``(Ne, nPg, 3, 4)`` in 2D, ``(Ne, nPg, 6, 9)`` in 3D.
+        """
+        Ne, nPg, dim = self._GetDims()
+        assert dim in [2, 3]
+
+        D_e_pg = (
+            FeArray.zeros(Ne, nPg, 3, 4) if dim == 2 else FeArray.zeros(Ne, nPg, 6, 9)
+        )
+
+        def Add(p: int, line: int, values: list[_types.Any], coef=1.0):
+            for column, value in enumerate(values):
+                D_e_pg[:, p, line, column] = value * coef
+
+        cM = 2 ** (-1 / 2)
+
+        for p in range(nPg):
+            if dim == 2:
+                g00, g01 = G_e_pg[:, p, 0, 0], G_e_pg[:, p, 0, 1]
+                g10, g11 = G_e_pg[:, p, 1, 0], G_e_pg[:, p, 1, 1]
+
+                Add(p, 0, [g00, 0, g10, 0])  # xx
+                Add(p, 1, [0, g01, 0, g11])  # yy
+                Add(p, 2, [g01, g00, g11, g10], cM)  # xy
+
+            else:
+                g00, g01, g02 = (G_e_pg[:, p, 0, i] for i in range(3))
+                g10, g11, g12 = (G_e_pg[:, p, 1, i] for i in range(3))
+                g20, g21, g22 = (G_e_pg[:, p, 2, i] for i in range(3))
+
+                Add(p, 0, [g00, 0, 0, g10, 0, 0, g20, 0, 0])  # xx
+                Add(p, 1, [0, g01, 0, 0, g11, 0, 0, g21, 0])  # yy
+                Add(p, 2, [0, 0, g02, 0, 0, g12, 0, 0, g22])  # zz
+                Add(p, 3, [0, g02, g01, 0, g12, g11, 0, g22, g21], cM)  # yz
+                Add(p, 4, [g02, 0, g00, g12, 0, g10, g22, 0, g20], cM)  # xz
+                Add(p, 5, [g01, g00, 0, g11, g10, 0, g21, g20, 0], cM)  # xy
+
+        return D_e_pg
 
     @cache_computed_values
     def Compute_De(self) -> FeArray.FeArrayALike:
         """Kinematic operator such that ``Ė_vec = De(u) · flat(∇v)`` where ``Ė_vec`` is the Green-Lagrange strain rate in **Kelvin-Mandel** vector form.
+
+        It is ``__Build_De`` with ``G = F = I + ∇u`` the deformation gradient (so ``De · flat(∇v) = sym(Fᵀ∇v) = Ė``).
 
         With ``c = 1/√2`` (Kelvin-Mandel scaling on shear rows):
 
@@ -355,54 +379,22 @@ class HyperElasticState:
 
         Shape: ``(Ne, nPg, 3, 4)`` in 2D, ``(Ne, nPg, 6, 9)`` in 3D.
         """
+        return self.__Build_De(self.Compute_F())
 
-        Ne, nPg, dim = self._GetDims()
-        assert dim in [2, 3]
+    def Compute_Deta(self, velocity: _types.FloatArray) -> FeArray.FeArrayALike:
+        r"""Configuration derivative of the Green-Lagrange strain rate: the operator ``Deta`` such that ``∂Ė_vec = Deta · flat(∇δu)`` at fixed velocity.
 
-        grad_e_pg = self.__groupElem.Get_Gradient_e_pg(
-            self.__displacement, self.__matrixType
-        )
+        ``Ė_vec = De(u) · flat(∇v) = sym(Fᵀ∇v)`` is bilinear in ``(∇u, ∇v)``, so ``∂Ė/∂(∇u) = sym(∇vᵀ∇δu)`` is ``__Build_De`` with ``G = ∇v`` the velocity gradient (the same builder as :meth:`Compute_De`, with ``∇v`` in place of ``F``). It feeds the material-like piece ``η · Bᵀ · (Deta · grad)`` of the viscous configuration tangent (``Kgeo``) returned by :func:`Operators.NonLinear.KelvinVoigtDamping`.
 
-        if dim == 2:
-            D_e_pg = FeArray.zeros(Ne, nPg, 3, 4)
-        else:
-            D_e_pg = FeArray.zeros(Ne, nPg, 6, 9)
+        Parameters
+        ----------
+        velocity : _types.FloatArray
+            velocity field, same ``(xi,yi,zi,...)`` layout as the displacement.
 
-        def Add_to_D_e_pg(p: int, line: int, values: list[_types.Any], coef=1.0):
-            N = 4 if dim == 2 else 9
-            for column in range(N):
-                D_e_pg[:, p, line, column] = values[column] * coef
-
-        cM = 2 ** (-1 / 2)
-
-        for p in range(nPg):
-            if dim == 2:
-                dxux, dyux = [grad_e_pg[:, p, 0, i] for i in range(2)]
-                dxuy, dyuy = [grad_e_pg[:, p, 1, i] for i in range(2)]
-
-                Add_to_D_e_pg(p, 0, [1 + dxux, 0, dxuy, 0])  # xx
-                Add_to_D_e_pg(p, 1, [0, dyux, 0, 1 + dyuy])  # yy
-                Add_to_D_e_pg(p, 2, [dyux, 1 + dxux, 1 + dyuy, dxuy], cM)  # xy
-
-            else:
-                dxux, dyux, dzux = [grad_e_pg[:, p, 0, i] for i in range(3)]
-                dxuy, dyuy, dzuy = [grad_e_pg[:, p, 1, i] for i in range(3)]
-                dxuz, dyuz, dzuz = [grad_e_pg[:, p, 2, i] for i in range(3)]
-
-                Add_to_D_e_pg(p, 0, [1 + dxux, 0, 0, dxuy, 0, 0, dxuz, 0, 0])  # xx
-                Add_to_D_e_pg(p, 1, [0, dyux, 0, 0, 1 + dyuy, 0, 0, dyuz, 0])  # yy
-                Add_to_D_e_pg(p, 2, [0, 0, dzux, 0, 0, dzuy, 0, 0, 1 + dzuz])  # zz
-                Add_to_D_e_pg(
-                    p, 3, [0, dzux, dyux, 0, dzuy, 1 + dyuy, 0, 1 + dzuz, dyuz], cM
-                )  # yz
-                Add_to_D_e_pg(
-                    p, 4, [dzux, 0, 1 + dxux, dzuy, 0, dxuy, 1 + dzuz, 0, dxuz], cM
-                )  # xz
-                Add_to_D_e_pg(
-                    p, 5, [dyux, 1 + dxux, 0, 1 + dyuy, dxuy, 0, dyuz, dxuz, 0], cM
-                )  # xy
-
-        return D_e_pg
+        Returns ``(Ne, nPg, 3, 4)`` in 2D, ``(Ne, nPg, 6, 9)`` in 3D — same layout as :meth:`Compute_De`.
+        """
+        grad_v_e_pg = self.__groupElem.Get_Gradient_e_pg(velocity, self.__matrixType)
+        return self.__Build_De(grad_v_e_pg)
 
     # --------------------------------------------------------------------------
     # Compute invariants
