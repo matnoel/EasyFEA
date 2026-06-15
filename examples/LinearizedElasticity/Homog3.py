@@ -9,6 +9,7 @@ Homog3
 
 Conduct full-field homogenization.
 """
+
 # sphinx_gallery_thumbnail_number = -4
 
 import matplotlib.pyplot as plt
@@ -157,8 +158,9 @@ if __name__ == "__main__":
     U_e[..., 2] = u12_e
 
     matrixType = "rigi"
-    wJ_e_pg = mesh_RVE.Get_weightedJacobian_e_pg(matrixType)
-    B_e_pg = mesh_RVE.Get_B_e_pg(matrixType)
+    groupElem = mesh_RVE.groupElem
+    wJ_e_pg = groupElem.Get_weightedJacobian_e_pg(matrixType)
+    B_e_pg = groupElem.Get_B_e_pg(matrixType)
 
     C_hom = (wJ_e_pg * CMandel @ B_e_pg @ U_e).sum((0, 1)) / area
 
