@@ -1,5 +1,6 @@
 import runpy
 import os
+import sys
 from typing import Iterable, Callable
 from pathlib import Path
 import shutil
@@ -40,7 +41,17 @@ class Item:
     def run(self) -> str:
 
         scriptPath = Folder.Join(examplesDir, self._script)
-        dict_globals = runpy.run_path(scriptPath, run_name="__main__")
+        # `runpy.run_path` does not put the script's directory on sys.path the
+        # way `python script.py` does, so an example importing a sibling helper
+        # (e.g. `from utils import ...` in CardiacElastoDynamics/MonoVentricular.py)
+        # would raise ModuleNotFoundError. Add it for the duration of the run.
+        scriptDir = os.path.dirname(scriptPath)
+        sys.path.insert(0, scriptDir)
+        try:
+            dict_globals = runpy.run_path(scriptPath, run_name="__main__")
+        finally:
+            if scriptDir in sys.path:
+                sys.path.remove(scriptDir)
 
         self._function(self, dict_globals, self._variables, self._kwargs)
 
@@ -227,6 +238,18 @@ if __name__ == "__main__":
             "An educational implementation of topology optimization.",
             ["mesh", "list_p_e"],
             PlotOptimTopo,
+        ),
+        Item(
+            "CardiacElastoDynamics/MonoVentricular.py",
+            "Passive + active hyperelastic simulation of an ellipsoidal left-ventricle model.",
+            ["simu"],
+            PlotSimu,
+            {
+                "results": ["displacement"],
+                "deformFactor": 1,
+                **useMesh,
+                "fps": 5,
+            },
         ),
         Item(
             "LinearizedElasticity/Homog1.py",

@@ -198,7 +198,7 @@ sphinx_gallery_conf = {
     "image_scrapers": (DynamicScraper(), "matplotlib"),
     "download_all_examples": False,
     "remove_config_comments": True,
-    "ignore_pattern": r"__init__\.py|CardiacElastoDynamics/utils\.py",
+    "ignore_pattern": r"__init__\.py|utils\.py",
     "within_subsection_order": FileNameSortKey,
     "reset_modules": (resetEasyFEA,),
     "line_numbers": True,
