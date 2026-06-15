@@ -14,9 +14,9 @@ from EasyFEA import Folder, PyVista, MeshIO, MatrixType, Mesher, Models, Simulat
 from EasyFEA.FEM import Mesh, ElemType, FeArray, Norm
 from EasyFEA.Utilities._types import FloatArray, IntArray
 
-RESULTS_DIR = Folder.Join(Folder.Dir(__file__), "results")
+RESULTS_DIR = Folder.Join(Folder.Dir(), "results")
 
-DATA_DIR = Folder.Join(Folder.Dir(__file__), "data")
+DATA_DIR = Folder.Join(Folder.Dir(), "data")
 
 
 @dataclass(frozen=True)
