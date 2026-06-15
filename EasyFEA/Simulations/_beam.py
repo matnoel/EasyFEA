@@ -475,7 +475,10 @@ class Beam(_Simu):
         else:
             return self.displacement
 
-    def Save_Iter(self, iter={}):
+    def Save_Iter(self, iter=None):
+
+        if iter is None:
+            iter = {}
 
         iter["displacement"] = self.displacement
 

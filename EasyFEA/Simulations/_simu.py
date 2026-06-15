@@ -226,10 +226,18 @@ class _Simu(_IObserver, _params.Updatable, ABC):
     # Iterations
 
     @abstractmethod
-    def Save_Iter(self, iter: dict[str, Any] = {}):
-        """Saves iteration results in _results or in the specified simu.folder."""
+    def Save_Iter(self, iter: Optional[dict[str, Any]] = None):
+        """Saves iteration results in _results or in the specified simu.folder.
 
-        iter = iter.copy()
+        ``iter`` defaults to ``None`` (not ``{}``): a mutable default like ``{}``
+        is created once and shared by every call, so subclass overrides that write
+        into it (e.g. ``iter["speed"] = ...``) would leak keys across calls and
+        across simulations in the same process. We always start from a fresh dict
+        here — ``{}`` when nothing is passed, otherwise a copy of the caller's dict
+        so the original is never mutated.
+        """
+
+        iter = {} if iter is None else iter.copy()
 
         iter["indexMesh"] = self.__indexMesh
         # mesh identifier at this iteration

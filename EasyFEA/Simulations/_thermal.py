@@ -133,7 +133,10 @@ class Thermal(_Simu):
 
         return out
 
-    def Save_Iter(self, iter={}):
+    def Save_Iter(self, iter=None):
+
+        if iter is None:
+            iter = {}
 
         iter["thermal"] = self.thermal
 

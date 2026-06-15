@@ -597,7 +597,10 @@ class PhaseField(_Simu):
             detected = MPI_COMM.allreduce(detected, op=MPI.LOR)
         return detected
 
-    def Save_Iter(self, iter={}):
+    def Save_Iter(self, iter=None):
+
+        if iter is None:
+            iter = {}
 
         # convergence informations
         iter["Niter"] = self.__Niter

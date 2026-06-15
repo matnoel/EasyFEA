@@ -153,7 +153,10 @@ class WeakForms(_Simu):
 
         return {self.mesh.groupElem: (K_e, C_e, M_e, F_e)}
 
-    def Save_Iter(self, iter={}):
+    def Save_Iter(self, iter=None):
+
+        if iter is None:
+            iter = {}
 
         if self.algo == AlgoType.elliptic:
             iter["u"] = self.u
