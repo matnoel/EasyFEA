@@ -4,8 +4,8 @@
 # EasyFEA is distributed under the terms of the GNU General Public License v3, see LICENSE.txt and CREDITS.md for more information.
 
 """
-CardiacElastoDynamics
-=====================
+MonoVentricular
+===============
 
 Passive + active hyperelastic simulation of an ellipsoidal left-ventricle model.
 
@@ -14,6 +14,8 @@ Combines a ``Holzapfel-Ogden`` orthotropic law (fiber + sheet directions), an ``
 Reproduces *Benchmark 1: monoventricular mechanics* (§3) of the cardiac elastodynamics benchmark published in Comput. Methods Appl. Mech. Engrg.: https://www.sciencedirect.com/science/article/pii/S0045782524007394
 
 The ``mesh.msh`` / ``fiber.vtu`` / ``sheet.vtu`` files read for ``fiberSource="vtu"`` are generated beforehand with the ``cardiac_benchmark_toolkit`` — see the module docstring of ``utils.py`` for the exact procedure. (``fiberSource="analytic"`` builds the fibers/sheets directly in EasyFEA and needs no external data.)
+
+With ``useCoarseConfig=False`` this becomes a large 3D, non-linear, transient problem for which the default direct solver is slow. In that case it is recommended to run it either in parallel with MPI and PETSc (e.g. ``mpiexec -n <N> python MonoVentricular.py`` with a PETSc-backed solver), or, on a single process, with the ``pypardiso`` solver — both markedly cut the solve time. The default ``useCoarseConfig=True`` is light enough to run as-is.
 """
 
 from enum import Enum
