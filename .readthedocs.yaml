@@ -18,7 +18,7 @@ build:
     post_install:
       - uv pip install .[viz,io]
       - uv pip install -r docs/requirements.txt
-      - uv pip install pypardiso
+      # - uv pip install pypardiso
     pre_build:
       - git lfs pull
       - python docs/gallery/generate.py
