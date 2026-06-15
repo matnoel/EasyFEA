@@ -217,8 +217,8 @@ def __skew(v: np.ndarray) -> np.ndarray:
 
 
 def FollowingPressure(
-    u: np.ndarray,
     groupElem: "_GroupElem",
+    u: np.ndarray,
     pressure: Union[float, np.ndarray],
     elements: Optional[np.ndarray] = None,
     matrixType: "MatrixType" = MatrixType.rigi,

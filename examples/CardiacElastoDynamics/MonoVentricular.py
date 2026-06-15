@@ -57,8 +57,8 @@ class CardiacElastoDynamics(Simulations.HyperElastic):
 
             # Following pressure (operator returns slot-ready values)
             tangent_e, residual_e = Operators.NonLinear.FollowingPressure(
-                displacement,
                 groupElem,
+                displacement,
                 self.pressure,
                 groupElem.Get_Elements_Tag("endo"),
                 MatrixType.mass,
