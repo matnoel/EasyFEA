@@ -29,7 +29,10 @@ requires_cv2 = Create_requires_decorator("cv2", libraries=["opencv-python"])
 
 
 class DIC(_IObserver):
-    """Digital Image Correlation (DIC) analysis"""
+    """Digital Image Correlation (DIC) analysis.
+
+    Measures a displacement field by correlating a deformed image against a reference image over a finite-element mesh, minimising the gray-level residual (global/FE-DIC). It reuses the same mesh and Gauss-point integration machinery as the forward simulations, but solves a correlation problem rather than a mechanical one.
+    """
 
     def __init__(
         self,

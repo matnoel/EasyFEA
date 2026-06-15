@@ -24,8 +24,10 @@ from .Solvers import AlgoType
 
 
 class Elastic(_Simu):
-    r"""Linearized elasticity.
-    
+    r"""Linear (small-strain) elasticity simulation.
+
+    Solves the static, quasi-static or dynamic equilibrium of a linear-elastic body under body forces, surface tractions and Dirichlet conditions, in 1D/2D/3D. Transient and dynamic analyses use the available time schemes (Newmark, HHT, midpoint, …) and support Rayleigh damping. Material behaviour is supplied by an elastic model (isotropic, anisotropic, …).
+
     Strong form:
 
     .. math::

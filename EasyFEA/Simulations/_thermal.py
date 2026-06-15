@@ -24,8 +24,10 @@ from .Solvers import AlgoType
 
 
 class Thermal(_Simu):
-    r"""Thermal simulation.
-    
+    r"""Heat-transfer (thermal) simulation.
+
+    Solves the steady-state or transient temperature field driven by conduction, a volumetric source and Neumann/Dirichlet conditions, in 1D/2D/3D. Transient analyses use the parabolic time scheme. Material behaviour (conductivity ``k`` and heat capacity ``ρc``) is supplied by a thermal model.
+
     Strong form:
 
     .. math::

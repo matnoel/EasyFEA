@@ -32,7 +32,9 @@ from ._simu import _Simu, SolverType
 
 
 class Beam(_Simu):
-    """Beam simulation (Euler-Bernoulli or Timoshenko).
+    """Structural beam/frame simulation (Euler-Bernoulli or Timoshenko).
+
+    Solves the static or dynamic response of 1D members (axial, bending, shear and torsion) assembled into a structure embedded in 1D/2D/3D, from a ``BeamStructure`` model. Set ``useTimoshenko=True`` to include transverse-shear flexibility (Euler-Bernoulli otherwise).
 
     Timoshenko elements use pure Lagrange interpolation for every kinematic
     field with selective reduced integration on the shear term — the standard

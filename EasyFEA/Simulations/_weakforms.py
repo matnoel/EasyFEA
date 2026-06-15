@@ -23,6 +23,11 @@ from .Solvers import AlgoType
 
 
 class WeakForms(_Simu):
+    r"""Generic weak-form simulation.
+
+    Assembles and solves a user-defined variational problem given directly as weak-form terms (bilinear and linear operators over the mesh), rather than a fixed physics. Supports static, transient and dynamic time schemes for linear or nonlinear (Newton-Raphson) problems — useful for custom PDEs and rapid prototyping.
+    """
+
     def __init__(
         self,
         mesh: "Mesh",

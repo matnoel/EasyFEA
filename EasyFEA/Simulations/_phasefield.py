@@ -30,7 +30,9 @@ if CAN_USE_MPI:
 
 
 class PhaseField(_Simu):
-    r"""PhaseField damage simulations for quasi-static brittle fracture.
+    r"""Phase-field damage simulation for quasi-static brittle fracture.
+
+    Couples a damaged linear-elastic problem with a gradient-damage (phase-field) problem and advances the load incrementally, solving the two problems with a staggered (alternate-minimization) scheme at each step. Supports 2D/3D isotropic, transversely isotropic and anisotropic materials.
 
     Strong form:
     ^^^^^^^^^^^^
