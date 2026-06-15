@@ -53,13 +53,6 @@ class CardiacElastoDynamics(Simulations.HyperElastic):
 
         for groupElem in self.mesh.Get_list_groupElem(self.dim - 1):
 
-            # Newton: A(u) Δu = -R(u) = -(F(u) - b) = -F(u) + b
-            # Slot F receives the load (+ contribution to b); for a stiffness
-            # contribution α·M added to slot K, the matching residual
-            # contribution −α·M·u_t must also be put in slot F: in the
-            # Newton+hyperbolic path, _Solver_Apply_Neumann does NOT compute
-            # `b -= K @ u_t` automatically (only C@v_t and M@a_t are auto).
-
             # Following pressure (operator returns slot-ready values)
             tangent_e, residual_e = Operators.NonLinear.FollowingPressure(
                 displacement,
@@ -119,14 +112,15 @@ class Config(str, Enum):
 
 if __name__ == "__main__":
 
-    # Display.Clear()
+    Display.Clear()
 
     # ----------------------------------------------
     # Config
     # ----------------------------------------------
 
-    ellipsoid = "ellipsoid_0.01"
-    # ellipsoid = "ellipsoid_0.005"
+    useCoarseConfig = True
+
+    ellipsoid = "ellipsoid_0.03" if useCoarseConfig else "ellipsoid_0.005"
 
     config = Config.D
 
@@ -147,7 +141,9 @@ if __name__ == "__main__":
     # ----------------------------------------------
     # time-history needed for plotting in both doSimu / Load_Simu flows
 
-    t_values, activeStress_values, pressure_values = Get_values(Tmax=1.0, Nt=100)
+    Nt = 80 if useCoarseConfig else 1000
+
+    t_values, activeStress_values, pressure_values = Get_values(Tmax=1.0, Nt=Nt)
     dt = t_values[1] - t_values[0]
     results_dir += f"_dt{dt}_{fiberSource}_{matrixType}"
 
@@ -316,17 +312,16 @@ if __name__ == "__main__":
         Simulations.Save_pickle(dict_particles, results_dir, "particles")
 
     if makeMovie:
-        # values = [
-        #     simu.results[i]["displacement"].reshape(-1, 3)[:, 0] for i in range(simu.Niter)
-        # ]
-        # clim = (np.min(values), np.max(values))
+        values = [simu.Result("ux", iter=i) for i in range(simu.Niter)]
+        clim = (np.min(values), np.max(values))
         PyVista.Movie_simu(
             simu,
             "ux",
             results_dir,
-            "ux.mp4",
+            "ux.gif",
             N=20,
             deformFactor=1.0,
+            clim=clim,
             plotMesh=True,
         )
 
