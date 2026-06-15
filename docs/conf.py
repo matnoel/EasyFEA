@@ -198,7 +198,10 @@ sphinx_gallery_conf = {
     "image_scrapers": (DynamicScraper(), "matplotlib"),
     "download_all_examples": False,
     "remove_config_comments": True,
-    "filename_pattern": r".*\.py",
+    # run every example except the cardiac one — it needs toolkit-generated
+    # mesh/fiber data (not in-repo) and is a long dynamic solve, so it is listed
+    # in the gallery as source but not executed during the docs build.
+    "filename_pattern": r"^(?!.*CardiacElastoDynamics).*\.py",
     "ignore_pattern": r"__init__\.py|CardiacElastoDynamics/utils\.py",
     "within_subsection_order": FileNameSortKey,
     "reset_modules": (resetEasyFEA,),

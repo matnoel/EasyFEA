@@ -50,9 +50,40 @@ To construct a {py:class}`~EasyFEA.FEM.Mesh` using the {py:class}`~EasyFEA.FEM.M
 - {ref}`easyfea-examples-meshes` examples
 ```
 
+---
+
+## Operators
+
+The {py:mod}`EasyFEA.FEM.Operators` module provides the element-level operators that integrate a form over the Gauss points and produce the element matrices/vectors assembled into the global system (see {ref}`howto-pipeline`). Below, $c$ is a scalar/field coefficient, $\Brm$ the strain-displacement operator and $\Nrm$ the shape functions.
+
+### {py:mod}`~EasyFEA.FEM.Operators.Bilinear` — element matrices
+
+- {py:func}`~EasyFEA.FEM.Operators.Bilinear.UV` — $\int_\Omega c \, u \, v \, \dO$ (mass).
+- {py:func}`~EasyFEA.FEM.Operators.Bilinear.GradUGradV` — $\int_\Omega c \, \grad u \cdot \grad v \, \dO$ (diffusion / Laplacian).
+- {py:func}`~EasyFEA.FEM.Operators.Bilinear.GradU_A_GradV` — $\int_\Omega c \, \grad u \cdot \Abf \cdot \grad v \, \dO$ (anisotropic diffusion).
+- {py:func}`~EasyFEA.FEM.Operators.Bilinear.LinearizedElasticity` — $\int_\Omega \Eps(u) : \Cbf : \Eps(v) \, \dO$ (small-strain stiffness).
+- {py:func}`~EasyFEA.FEM.Operators.Bilinear.MassAlongNormal` — $\int_\Gamma c \, (u \cdot \nbf)(v \cdot \nbf) \, \dS$ (surface mass projected on the normal; Robin terms).
+- {py:func}`~EasyFEA.FEM.Operators.Bilinear.BeamBending` — $\int_e \Brm^\top \Dbf_{\text{bend}} \, \Brm \, dx$ (axial + bending + torsion).
+- {py:func}`~EasyFEA.FEM.Operators.Bilinear.BeamShear` — $\int_e \Brm^\top \Dbf_{\text{shear}} \, \Brm \, dx$ (transverse shear, selective reduced integration).
+- {py:func}`~EasyFEA.FEM.Operators.Bilinear.BeamStiffness` — $\Krm_e = \text{BeamBending} + \text{BeamShear}$.
+- {py:func}`~EasyFEA.FEM.Operators.Bilinear.BeamMass` — $\int_e c \, \Nrm^\top \Mbf \, \Nrm \, dx$ (consistent beam mass).
+
+### {py:mod}`~EasyFEA.FEM.Operators.Linear` — element load vectors
+
+- {py:func}`~EasyFEA.FEM.Operators.Linear.V` — $\int_\Omega \fbf \cdot v \, \dO$ (body / surface load).
+
+### {py:mod}`~EasyFEA.FEM.Operators.NonLinear` — tangent + residual
+
+- {py:func}`~EasyFEA.FEM.Operators.NonLinear.SecondPiolaKirchhoffStressTensor` — residual $\Frm_e = \int \Brm^\top \boldsymbol{\Sigma} \, \dO$ and consistent tangent $\Krm_e = \int \Brm^\top \dpartial{\boldsymbol{\Sigma}}{\Erm} \Brm \, \dO + \int \grad^\top \boldsymbol{\Sigma} \, \grad \, \dO$ (material + geometric), with $\boldsymbol{\Sigma}$ the second Piola-Kirchhoff stress.
+- {py:func}`~EasyFEA.FEM.Operators.NonLinear.KelvinVoigtDamping` — damping $\Crm_e = c \, \eta \int \Brm^\top \Brm \, \dO$ and the configuration tangent $\Krm_e^{\text{geo}} = \dpartial{(\Crm \vrm)}{\urm}$ (large-strain Kelvin–Voigt).
+- {py:func}`~EasyFEA.FEM.Operators.NonLinear.FollowingPressure` — follower-pressure load $\int_\Gamma p \, v \cdot \nbf(u) \, \dS$ with a deformation-dependent normal, plus its (non-symmetric) tangent.
+
 ## FEM API
 
 ```{eval-rst}
 .. automodule:: EasyFEA.FEM
 .. automodule:: EasyFEA.FEM.Elems
+.. automodule:: EasyFEA.FEM.Operators.Bilinear
+.. automodule:: EasyFEA.FEM.Operators.Linear
+.. automodule:: EasyFEA.FEM.Operators.NonLinear
 ```

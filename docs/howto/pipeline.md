@@ -29,6 +29,29 @@ For **non-linear** problems (`simu.isNonLinear = True`), steps 1–3 are wrapped
 
 ---
 
+## From element operators to the global system
+
+**Build** turns the mesh + model into four global sparse matrices. Each {py:class}`~EasyFEA.Simulations._Simu` implements `Construct_local_matrix_system`, which loops over the mesh element groups and returns, per group, the element tuple $(\Krm_e, \Crm_e, \Mrm_e, \Frm_e)$ — stiffness (the tangent, for non-linear laws), damping, mass, and the load / internal-force vector.
+
+These element matrices come from **operators** in {py:mod}`EasyFEA.FEM.Operators` — small functions that integrate a form over the Gauss points: {py:mod}`~EasyFEA.FEM.Operators.Bilinear` (e.g. $\int \Brm^\top \, \bf{C} \, \Brm \, \dO$), {py:mod}`~EasyFEA.FEM.Operators.Linear`, and {py:mod}`~EasyFEA.FEM.Operators.NonLinear`. The simulation assembles them into the global $\Krm, \Crm, \Mrm, \Frm$ and combines $\Krm, \Crm, \Mrm$ into the system matrix according to the time scheme:
+
+$$\Arm = \alpha_\Krm\,\Krm + \alpha_\Crm\,\Crm + \alpha_\Mrm\,\Mrm$$
+
+where $(\alpha_\Krm, \alpha_\Crm, \alpha_\Mrm)$ are the scheme-dependent weights for the active `AlgoType` (Newmark, HHT, midpoint, …); a static problem uses $\alpha_\Crm = \alpha_\Mrm = 0$.
+
+### Hyperelastic (non-linear) operators
+
+For {py:class}`~EasyFEA.Simulations.HyperElastic`, each Newton iterate builds the element tuple from two operators evaluated at the current displacement:
+
+- {py:func}`~EasyFEA.FEM.Operators.NonLinear.SecondPiolaKirchhoffStressTensor` returns the consistent tangent $\Krm_e$ (material + geometric) and the internal residual $\Frm_e$.
+- {py:func}`~EasyFEA.FEM.Operators.NonLinear.KelvinVoigtDamping` returns the large-strain Kelvin–Voigt viscous contributions $(\Crm_e, \Krm_e^{\text{geo}})$ when `material.eta > 0` and a velocity field is available (otherwise `(None, None)`):
+    - $\Crm_e = \mathrm{thickness} \cdot \eta \int \Brm^\top \Brm \, \dO$ — the **damping matrix**, placed in slot 2. It carries the viscous residual ($\brm \mathrel{-}= \Crm \, \vrm_t$) and rides $\alpha_\Crm$.
+    - $\Krm_e^{\text{geo}}$ — the **configuration tangent** $\dpartial{(\Crm \vrm)}{\urm}$ at fixed velocity (geometric stiffening from the viscous second Piola-Kirchhoff stress $\boldsymbol{\Sigma}_{\text{visco}} = \eta \dot{\Erm}$ plus the $\dpartial{\dot{\Erm}}{\urm}$ term). It is added to $\Krm_e$, so it rides $\alpha_\Krm$.
+
+Splitting the viscous tangent this way is what lets the damping (which must ride $\alpha_\Crm$) and its configuration derivative (which must ride $\alpha_\Krm$) be weighted correctly by the single $\alpha_\Krm\,\Krm + \alpha_\Crm\,\Crm + \alpha_\Mrm\,\Mrm$ assembly, with no time-scheme special-casing.
+
+---
+
 ## Use EasyFEA with a Python debugger and an IDE
 
 To step through the solve pipeline with a debugger, install EasyFEA in editable mode so that the source files are used directly (no compiled copies):
