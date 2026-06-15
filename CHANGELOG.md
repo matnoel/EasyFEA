@@ -2,6 +2,27 @@
 
 This document describes the changes made to the project.
 
+## 1.11.0 (June 15, 2026):
+
+- Created the `EasyFEA.FEM.Operators` module, gathering the element-level operators that integrate a form over the Gauss points (issue #43).
+    - `Bilinear`: `UV`, `GradUGradV`, `GradU_A_GradV`, `LinearizedElasticity`, `MassAlongNormal`, and the beam operators `BeamBending`, `BeamShear`, `BeamStiffness`, `BeamMass`.
+    - `Linear`: `V`.
+    - `NonLinear`: `SecondPiolaKirchhoffStressTensor`, `KelvinVoigtDamping`, `FollowingPressure`.
+    - Refactored the simulations to assemble their element matrices through these operators.
+- Introduced finite-strain viscosity and active stress in hyperelasticity (issue #42).
+    - Kelvin-Voigt viscosity `material.eta` (large-strain `Σ_visco = η·Ė`), delivered through `NonLinear.KelvinVoigtDamping`, which returns both the damping matrix and the configuration tangent so the gap is closed without touching the time-scheme coefficient mechanism.
+    - Fiber active stress `material.active_stress` along a direction registered with `material.Set_active_stress_vec`.
+- Added the `CardiacElastoDynamics` example (`MonoVentricular.py`): a passive + active hyperelastic left-ventricle simulation reproducing *Benchmark 1: monoventricular mechanics* of the cardiac elastodynamics benchmark (Comput. Methods Appl. Mech. Engrg.), with analytic and `cardiac_benchmark_toolkit` (`vtu`) fiber/sheet sources (issue #42).
+- Refactored `Construct_local_matrix_system` and made `HyperElasticState` operate on a `groupElem`; the velocity is now passed explicitly to `KelvinVoigtDamping` instead of being stored on the state (issue #44).
+- Added `FeArray` reduction methods and an `integrate` helper, and fixed a `FeArray.broadcast` ambiguity on per-element tensors via `tensor_ndim`.
+- Fixed a shared mutable-default-dictionary bug in the `Save_Iter` functions that leaked iteration keys across calls and across simulations in the same process.
+- Fixed bugs in `phaseField._Calc_Sigma_e_pg`, in the `LinearizedElasticity` examples, in `groupElem._Get_Mapping` / `Get_pointsInElem` (local connectivity), and in the `Mesher` MPI partitioning (snapshot connectivity before `gmsh.partition`).
+- Fixed an `mpi4py` deadlock on plain `python` and a `petsc4py` double-initialization warning.
+- Updated `Mesher.Mesh_Import_mesh` to reconstruct physical groups from gmsh entities and to accept a `meshOrder` argument; renamed `wedge` to `penta` in `MeshIO.DICT_ELEMTYPE_TO_ENSIGHT`.
+- Documentation: added an `Operators` section to the FEM API and a "from element operators to the global system" section to the solve-pipeline guide; improved the introduction docstrings of every simulation; referenced `CardiacElastoDynamics` in the docs and READMEs.
+
+**Full Changelog:** https://github.com/matnoel/EasyFEA/compare/v1.10.1...v1.11.0
+
 ## 1.10.1 (May 31, 2026):
 
 - Fixed flaky `test_Evaluate_dofsValues_at_coordinates_2D` and `_3D`: replaced the unseeded random-node sample with a vectorized `assert_allclose` over all nodes (tolerance now reflects Newton inverse-mapping precision).
