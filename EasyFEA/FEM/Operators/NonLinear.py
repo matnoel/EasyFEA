@@ -139,7 +139,7 @@ def SecondPiolaKirchhoffStressTensor(
     # reorder xi,...,xn,yi,...,yn,zi,...,zn to xi,yi,zi,...,xn,yn,zn
     reorder = __reorder(dim, nPe)
     residual_e = residual_e[:, reorder]
-    tangent_e = tangent_e[:, reorder][:, :, reorder]
+    tangent_e = tangent_e[:, reorder[:, None], reorder[None, :]]
 
     return tangent_e, residual_e
 
@@ -189,8 +189,9 @@ def KelvinVoigtDamping(
     Kgeo_e = thickness * (A_mat + A_geo)
 
     reorder = __reorder(dim, nPe)
-    C_e = C_e[:, reorder][:, :, reorder]
-    Kgeo_e = Kgeo_e[:, reorder][:, :, reorder]
+    ri, rj = reorder[:, None], reorder[None, :]
+    C_e = C_e[:, ri, rj]
+    Kgeo_e = Kgeo_e[:, ri, rj]
     return C_e, Kgeo_e
 
 
@@ -301,7 +302,7 @@ def FollowingPressure(
 
     # component-major → interleaved (xi, yi, zi, ...)
     reorder = np.arange(dim * nPe).reshape(dim, nPe).T.ravel()
-    K_active = K_active[:, reorder][:, :, reorder]
+    K_active = K_active[:, reorder[:, None], reorder[None, :]]
 
     K_e[active] = -K_active
     R_e[active] = F_active
