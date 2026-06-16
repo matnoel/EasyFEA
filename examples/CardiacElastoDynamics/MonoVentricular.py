@@ -31,7 +31,7 @@ from utils import RESULTS_DIR, DATA_DIR, Get_config, Get_values
 
 class CardiacElastoDynamics(Simulations.HyperElastic):
 
-    pressure = _params.PositiveScalarParameter()
+    pressure = _params.ScalarParameter()
 
     def __init__(
         self, mesh, model, folder="", tolConv=0.00001, maxIter=20, verbosity=False
