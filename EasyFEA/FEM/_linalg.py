@@ -169,13 +169,9 @@ class FeArray(_types.AnyArray):
         elif ndim1 == ndim2 == 2:
             return super().__matmul__(other)
         elif ndim1 == 1 and ndim2 == 2:
-            return FeArray.asfearray(
-                np.einsum("...i,...ij->...j", self, other, optimize="optimal")
-            )
+            return FeArray.asfearray(np.einsum("...i,...ij->...j", self, other))
         elif ndim1 == 2 and ndim2 == 1:
-            return FeArray.asfearray(
-                np.einsum("...ij,...j->...i", self, other, optimize="optimal")
-            )
+            return FeArray.asfearray(np.einsum("...ij,...j->...i", self, other))
         else:
             return self.dot(other)
 
@@ -219,9 +215,7 @@ class FeArray(_types.AnyArray):
                 "`other` must be at least a finite element vector (Ne, nPg, i)."
             )
 
-        result = np.einsum(
-            self._dot_subscript(ndim1, ndim2), self, other, optimize="optimal"
-        )
+        result = np.einsum(self._dot_subscript(ndim1, ndim2), self, other)
 
         return FeArray.asfearray(result)
 
@@ -247,9 +241,7 @@ class FeArray(_types.AnyArray):
                 "`other` must be at least a finite element matrix (Ne, nPg, i, j)."
             )
 
-        result = np.einsum(
-            self._ddot_subscript(ndim1, ndim2), self, other, optimize="optimal"
-        )
+        result = np.einsum(self._ddot_subscript(ndim1, ndim2), self, other)
 
         return result.view(FeArray)
 
@@ -411,7 +403,7 @@ def Trace(mat: FeArray.FeArrayALike) -> FeArray.FeArrayALike:
     """Computes trace(mat)"""
     __CheckMat(mat)
     # same as np.trace(A, axis1=-2, axis2=-1)
-    res: FeArray.FeArrayALike = np.einsum("...ii->...", mat, optimize="optimal")
+    res: FeArray.FeArrayALike = np.einsum("...ii->...", mat)
 
     if isinstance(mat, FeArray):
         res = FeArray.asfearray(res)
@@ -491,7 +483,7 @@ def Inv(mat: FeArray.FeArrayALike):
         adj[..., 1, 0] = -a
         adj[..., 1, 1] = alpha
 
-        inv = np.einsum("...,...ij->...ij", 1 / det, adj, optimize="optimal")
+        inv = np.einsum("...,...ij->...ij", 1 / det, adj)
 
     elif dim == 3:
         # optimized such that invmat = 1/det * Adj(mat)
@@ -534,7 +526,7 @@ def Inv(mat: FeArray.FeArrayALike):
         adj[..., 2, 1] = -det21
         adj[..., 2, 2] = det22
 
-        inv = np.einsum("...,...ij->...ij", 1 / det, adj, optimize="optimal")
+        inv = np.einsum("...,...ij->...ij", 1 / det, adj)
 
     else:
         inv = np.linalg.inv(mat)
@@ -591,18 +583,18 @@ def TensorProd(
     if ndim == 1:
         # vectors
         # Ai Bj
-        res = np.einsum("...i,...j->...ij", A, B, optimize="optimal")
+        res = np.einsum("...i,...j->...ij", A, B)
 
     elif ndim == 2:
         # matrices
         if symmetric:
             # 1/2 * (Aik Bjl + Ail Bjk) = 1/2 (p1 + p2)
-            p1 = np.einsum("...ik,...jl->...ijkl", A, B, optimize="optimal")
-            p2 = np.einsum("...il,...jk->...ijkl", A, B, optimize="optimal")
+            p1 = np.einsum("...ik,...jl->...ijkl", A, B)
+            p2 = np.einsum("...il,...jk->...ijkl", A, B)
             res = 1 / 2 * (p1 + p2)
         else:
             # Aij Bkl
-            res = np.einsum("...ij,...kl->...ijkl", A, B, optimize="optimal")
+            res = np.einsum("...ij,...kl->...ijkl", A, B)
 
     else:
         raise Exception("Not implemented")
