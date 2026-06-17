@@ -107,9 +107,9 @@ class CardiacElastoDynamics(Simulations.HyperElastic):
 
 
 class Config(str, Enum):
-    D = "D"  # active_stress + pressure
-    A = "A"  # active_stress
-    B = "B"  # pressure
+    step0A = "step0A"  # active_stress
+    step0B = "step0B"  # pressure
+    step1 = "step1"  # active_stress + pressure
 
 
 if __name__ == "__main__":
@@ -124,15 +124,16 @@ if __name__ == "__main__":
 
     ellipsoid = "ellipsoid0.03" if useCoarseConfig else "ellipsoid0.005"
 
-    config = Config.D
+    config = Config.step1
 
     fiberSource = "analytic"
     # fiberSource = "vtu"
 
-    matrixType = MatrixType.mass
+    matrixType = MatrixType.rigi
+    # matrixType = MatrixType.mass
     # matrixType = 15
 
-    results_dir = Folder.Join(RESULTS_DIR, ellipsoid + f"_{config.name}")
+    results_dir = Folder.Join(RESULTS_DIR, config.name, ellipsoid)
 
     doSimu = True
     plotGraph = False
@@ -166,9 +167,9 @@ if __name__ == "__main__":
         name = "pressure"
         Display.Save_fig(results_dir, name)
 
-    if config is Config.B:
+    if config is Config.step0B:
         activeStress_values *= 0
-    if config is Config.A:
+    if config is Config.step0A:
         pressure_values *= 0
 
     if doSimu:
