@@ -122,7 +122,7 @@ if __name__ == "__main__":
 
     useCoarseConfig = True
 
-    ellipsoid = "ellipsoid_0.03" if useCoarseConfig else "ellipsoid_0.005"
+    ellipsoid = "ellipsoid0.03" if useCoarseConfig else "ellipsoid0.005"
 
     config = Config.D
 
