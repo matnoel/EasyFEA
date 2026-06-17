@@ -210,6 +210,7 @@ def _Solve_Axb(
     ub: Union[_types.AnyArray, _types.Numbers],
     resol: ResolType = ResolType.r1,
     ownedDofs: _types.IntArray = None,
+    mapping: _types.IntArray = None,
 ) -> _types.FloatArray:
     """Solves the linear system A x = b
 
@@ -231,6 +232,8 @@ def _Solve_Axb(
         upperBoundary of the solution
     ownedDofs : _types.IntArray, optional
         Indices (into A/b) owned by this rank, by defaut None.Must be disjoint across ranks and together cover all N rows
+    mapping : _types.IntArray, optional
+        index in A/b -> PETSc global column index, by default None. When provided (built locally from the cached full-space ordering), `_PETSc_MPI` skips the per-solve Allgather; left None for the r3 fallback.
 
     Returns
     -------
@@ -308,10 +311,21 @@ def _Solve_Axb(
                     dofsUnknown = __Get_unique_dofs(dofsUnknown)
                     ownedDofs = np.where(np.isin(dofsUnknown, dofs))[0]
                 elif resol == ResolType.r3:
-                    ownedDofs = dofs
+                    # Full penalized system: owned DOFs in PETSc order + the
+                    # DOF->PETSc mapping, both from the cached global DOF ordering.
+                    # No collective at all (no reduction, so no Allreduce; mapping
+                    # is local, so no Allgather).
+                    fullOrdering = __Get_global_dof_ordering(simu, problemType)
+                    isOwned = np.zeros(fullOrdering.size, dtype=bool)
+                    isOwned[dofs] = True
+                    ownedDofs = fullOrdering[isOwned[fullOrdering]]
+                    mapping = np.empty(fullOrdering.size, dtype=int)
+                    mapping[fullOrdering] = np.arange(fullOrdering.size)
                 else:
                     raise NotImplementedError
-            x, converged = _PETSc_MPI(A, b, x0, ownedDofs, kspType, pcType, solverType)
+            x, converged = _PETSc_MPI(
+                A, b, x0, ownedDofs, mapping, kspType, pcType, solverType
+            )
         else:
             x, converged = _PETSc(A, b, x0, kspType, pcType, solverType)
         if not converged:
@@ -320,7 +334,7 @@ def _Solve_Axb(
             )
 
         # add petsc4py options in solver description
-        solver += f"{kspType}, {pcType}, {solverType}"
+        solver = f"{kspType}, {pcType}, {solverType}"
 
     elif solver == SolverType.scipy:
         x = sla.spsolve(A, b)
@@ -401,12 +415,14 @@ def Solve_simu(
         raise NotImplementedError
 
 
-def __Get_unique_dofs(dofs: _types.IntArray) -> _types.IntArray:
+def __Get_unique_dofs(dofs: _types.IntArray, Ndof: int = None) -> _types.IntArray:
     assert MPI_SIZE > 1
     dofs = np.asarray(dofs, dtype=np.int64)
-    # Find global max DOF index
-    local_max = dofs.max() if dofs.size > 0 else -1
-    Ndof = int(MPI_COMM.allreduce(local_max, MPI.MAX)) + 1
+    # Total DOF count. Callers that already know it (= mesh.Nn * dof_n) pass it
+    # in to skip this MAX-Allreduce; otherwise discover it via a collective.
+    if Ndof is None:
+        local_max = dofs.max() if dofs.size > 0 else -1
+        Ndof = int(MPI_COMM.allreduce(local_max, MPI.MAX)) + 1
     # Find DOFs present in every rank's `dofs` set (the global intersection).
     # uint8 + Allreduce(MIN): each rank's marker is 1 where the DOF is in
     # its `dofs`, 0 elsewhere; MIN across ranks yields 1 iff every rank had
@@ -420,6 +436,45 @@ def __Get_unique_dofs(dofs: _types.IntArray) -> _types.IntArray:
     MPI_COMM.Allreduce(MPI.IN_PLACE, marker, MPI.MIN)
     result = np.flatnonzero(marker).astype(np.int64)
     return result
+
+
+def __Get_global_dof_ordering(
+    simu: "_Simu", problemType: "ModelType"
+) -> _types.IntArray:
+    """Rank-contiguous global DOF ordering induced by the MPI partition: ``ordering[i]`` is the DOF at global position ``i``, with rank 0's owned DOFs first, then rank 1's, etc.
+
+    The owned nodes are gathered (a single ``Allgatherv``) and expanded to DOFs via the canonical node->DOF conversion (`Bc_dofs_nodes`). Useful wherever a consistent global DOF numbering across ranks is needed (e.g. mapping local DOFs to a contiguous PETSc index space).
+    """
+    ownedNodes = simu.mesh.groupElem._Get_partitioned_data()[3]
+    nodeOrdering = Concatenate_array(ownedNodes)
+    return simu.Bc_dofs_nodes(nodeOrdering, simu.Get_unknowns(problemType), problemType)
+
+
+def __Solver_1_mpi_indices(
+    simu: "_Simu", problemType: "ModelType", dofsUnknown: _types.IntArray
+) -> tuple[_types.IntArray, _types.IntArray, _types.IntArray]:
+    """Builds (global unique unknown DOFs, ownedDofs, mapping) for the r1 reduced system.
+
+    `mapping` (reduced index -> PETSc global column index) and `ownedDofs` are built locally with no sorting: `fullOrdering` already lists the DOFs in PETSc global order, so filtering it by the unknown set yields the unknowns in PETSc order directly — the compression to [0, Nu) is then a single scatter.
+    """
+    fullOrdering = __Get_global_dof_ordering(simu, problemType)
+    uniqueUnknown = __Get_unique_dofs(dofsUnknown, fullOrdering.size)
+    dofs = simu.Get_dofs(problemType)
+    Nu = uniqueUnknown.size
+    isUnknown = np.zeros(fullOrdering.size, dtype=bool)
+    isUnknown[uniqueUnknown] = True
+    unknownInPetscOrder = fullOrdering[isUnknown[fullOrdering]]
+    redPetsc = np.empty(fullOrdering.size, dtype=int)
+    redPetsc[unknownInPetscOrder] = np.arange(Nu)  # DOF -> reduced PETSc index
+    mapping = redPetsc[uniqueUnknown]  # reduced index -> reduced PETSc index
+    # ownedDofs in ascending PETSc (= local-row) order: the owned unknowns are
+    # already a contiguous run of unknownInPetscOrder; map them back to indices
+    # into the (sorted) uniqueUnknown via searchsorted.
+    isOwned = np.zeros(fullOrdering.size, dtype=bool)
+    isOwned[dofs] = True
+    ownedUnknownDofs = unknownInPetscOrder[isOwned[unknownInPetscOrder]]
+    ownedDofs = np.searchsorted(uniqueUnknown, ownedUnknownDofs)
+    return uniqueUnknown, ownedDofs, mapping
 
 
 def __Solver_1(simu: "_Simu", problemType: "ModelType") -> _types.FloatArray:
@@ -437,10 +492,11 @@ def __Solver_1(simu: "_Simu", problemType: "ModelType") -> _types.FloatArray:
     dofsKnown, dofsUnknown = simu.Bc_dofs_known_unknown(problemType)
 
     ownedDofs = None
+    mapping = None
     if MPI_SIZE > 1:
-        dofsUnknown = __Get_unique_dofs(dofsUnknown)
-        dofs = simu.Get_dofs(problemType)
-        ownedDofs = np.where(np.isin(dofsUnknown, dofs))[0]
+        dofsUnknown, ownedDofs, mapping = __Solver_1_mpi_indices(
+            simu, problemType, dofsUnknown
+        )
 
     tic = Tic()
     # split of the matrix system into known and unknown dofs
@@ -459,7 +515,9 @@ def __Solver_1(simu: "_Simu", problemType: "ModelType") -> _types.FloatArray:
     lb, ub = simu.Get_lb_ub(problemType)
 
     bi -= Aic @ xc
-    xi = _Solve_Axb(simu, problemType, Aii, bi, x0, lb, ub, ResolType.r1, ownedDofs)
+    xi = _Solve_Axb(
+        simu, problemType, Aii, bi, x0, lb, ub, ResolType.r1, ownedDofs, mapping
+    )
 
     # apply result to global vector
     x = x.toarray().reshape(x.shape[0])
@@ -654,6 +712,7 @@ def _PETSc_MPI(
     b: sparse.csr_matrix,
     x0: _types.FloatArray,
     ownedDofs: _types.IntArray,
+    mapping: _types.IntArray = None,
     kspType: str = "cg",
     pcType: str = "bjacobi",
     solverType: str = "petsc",
@@ -672,6 +731,8 @@ def _PETSc_MPI(
     ownedDofs : _types.IntArray
         Indices (into A/b) owned by this rank. Must be disjoint across ranks and
         together cover all N rows.
+    mapping : _types.IntArray, optional
+        index in A/b -> PETSc global column index, by default None. When None it is rebuilt here via an Allgather (r3 fallback); the r1 path passes it in precomputed to avoid the per-solve collective.
     kspType : str, optional
         PETSc Krylov method, by default "cg"
         e.g. 'cg', 'bicg', 'gmres', 'bcgs', 'groppcg', ...\n
@@ -700,11 +761,15 @@ def _PETSc_MPI(
     Ndof = A.shape[0]
     Ndof_r = ownedDofs.size
 
-    # petscOrdering: rank-0 ownedDofs first, rank-1 next, …
-    # mapping: index in A/b → PETSc global column index
-    petscOrdering = Concatenate_array(ownedDofs)
-    mapping = np.empty(Ndof, dtype=int)
-    mapping[petscOrdering] = np.arange(Ndof)
+    # mapping: index in A/b → PETSc global column index.
+    # Normally supplied by the caller (built locally from the cached full-space
+    # ordering — no collective). Only the r3 fallback leaves it None, in which
+    # case we rebuild it here via an Allgather (petscOrdering: rank-0 ownedDofs
+    # first, rank-1 next, …).
+    if mapping is None:
+        petscOrdering = Concatenate_array(ownedDofs)
+        mapping = np.empty(Ndof, dtype=int)
+        mapping[petscOrdering] = np.arange(Ndof)
 
     # https://petsc.org/release/manual/mat/#matrices
     matrix = PETSc.Mat()  # type: ignore [attr-defined]
