@@ -26,7 +26,7 @@ def GradUGradV(
     """``∫_Ω coef · ∇u · ∇v dΩ`` — returns ``(Ne, nPe, nPe)``.
 
     ``coef`` may be scalar, ``(Ne,)``, ``(nPg,)``, or ``(Ne, nPg)``;
-    broadcast via :pymeth:`FeArray.broadcast` (stride view, no copy).
+    broadcast via :meth:`FeArray.broadcast` (stride view, no copy).
     """
     mat_e_pg = groupElem.Get_DiffusePart_e_pg(matrixType)
     dN_e_pg = groupElem.Get_dN_e_pg(matrixType)
@@ -47,7 +47,7 @@ def UV(
     ``dof_n=dim`` for vector fields (elastic dynamics).
 
     ``coef`` may be scalar, ``(Ne,)``, ``(nPg,)``, or ``(Ne, nPg)``;
-    broadcast via :pymeth:`FeArray.broadcast` (stride view, no copy).
+    broadcast via :meth:`FeArray.broadcast` (stride view, no copy).
     """
     mat_e_pg = groupElem.Get_ReactionPart_e_pg(matrixType, dof_n)
     Ne, nPg = mat_e_pg.shape[:2]
@@ -95,7 +95,7 @@ def MassAlongNormal(
     ``groupElem.inDim == 3``).
 
     ``coef`` may be scalar, ``(Ne,)``, ``(nPg,)``, or ``(Ne, nPg)``;
-    broadcast via :pymeth:`FeArray.broadcast` (stride view, no copy).
+    broadcast via :meth:`FeArray.broadcast` (stride view, no copy).
     """
     assert groupElem.dim in [1, 2]
 
@@ -211,7 +211,7 @@ def BeamMass(
 
     Integrated at ``MatrixType.beam``. ``coef`` is typically the density
     ``rho`` of the simulation; may be scalar, ``(Ne,)``, ``(nPg,)``, or
-    ``(Ne, nPg)`` — broadcast via :pymeth:`FeArray.broadcast`.
+    ``(Ne, nPg)`` — broadcast via :meth:`FeArray.broadcast`.
     """
     matrixType = MatrixType.beam
     wJ_e_pg = groupElem.Get_weightedJacobian_e_pg(matrixType)
@@ -233,7 +233,7 @@ def GradU_A_GradV(
     ``A`` is the diffusion tensor with trailing two dims ``(dim, dim)``; the
     leading dims may be empty, ``(Ne,)``, or ``(Ne, nPg)``. ``coef`` is a
     scalar weight: scalar, ``(Ne,)``, ``(nPg,)``, or ``(Ne, nPg)``. Both
-    broadcast via :pymeth:`FeArray.broadcast`. For the isotropic form
+    broadcast via :meth:`FeArray.broadcast`. For the isotropic form
     ``∫ coef · ∇u · ∇v dΩ``, use :func:`GradUGradV`.
     """
     diffusePart_e_pg = groupElem.Get_DiffusePart_e_pg(matrixType)

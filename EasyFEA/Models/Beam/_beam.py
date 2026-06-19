@@ -280,7 +280,7 @@ class _Beam(_IModel):
         Cowper-with-ν=v, …) without touching this helper.
 
         Computes k by solving one Saint-Venant Poisson problem on the 2-D
-        section mesh:
+        section mesh::
 
             ∇²φ = -s   in the section S
             ∂φ/∂n = 0  on the boundary ∂S
@@ -291,19 +291,25 @@ class _Beam(_IModel):
         The rigid-body (constant) mode of the Neumann problem is fixed by
         clamping one node to 0; k below is translation-invariant.
 
-        Using the Neumann BC, the energy identity gives
+        Using the Neumann BC, the energy identity gives::
+
             uᵀ · f  =  ∫_S |∇φ|² dS  =  ∫_S s · φ dS
-        and Cowper at ν = 0 reduces to
+
+        and Cowper at ν = 0 reduces to::
+
             k = I² / (A · uᵀ · f)
+
         with I = Iz for axis="y", I = Iy for axis="z".
 
-        Reference values (any mesh size, any aspect ratio):
+        Reference values (any mesh size, any aspect ratio)::
+
             rectangle  →  5/6  ≈ 0.8333
             circle     →  6/7  ≈ 0.8571
             I-beam, hollow tube, channel, …  →  whatever the geometry yields
 
-        Note vs. the textbook "Pure Jouravski" value:
-            - The two formulas *agree on the rectangle* (both 5/6).
+        Note vs. the textbook "Pure Jouravski" value::
+
+            - The two formulas agree on the rectangle (both 5/6).
             - For curved boundaries they differ: Pure Jouravski's 1-D
               τ_yz = V·Q/(I·b), τ_xz = 0 assumption gives 9/10 for a circle;
               this Poisson PDE returns 6/7 because it accounts for the

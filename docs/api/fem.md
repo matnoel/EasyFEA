@@ -84,6 +84,9 @@ The {py:mod}`EasyFEA.FEM.Operators` module provides the element-level operators 
 .. automodule:: EasyFEA.FEM
 .. automodule:: EasyFEA.FEM.Elems
 .. automodule:: EasyFEA.FEM.Operators.Bilinear
+   :exclude-members: FeArray, TensorProd, MatrixType
 .. automodule:: EasyFEA.FEM.Operators.Linear
+   :exclude-members: FeArray, MatrixType
 .. automodule:: EasyFEA.FEM.Operators.NonLinear
+   :exclude-members: FeArray, MatrixType, Project_vector_to_matrix
 ```

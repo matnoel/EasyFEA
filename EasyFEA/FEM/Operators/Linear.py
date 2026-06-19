@@ -27,7 +27,7 @@ def V(
     ``dof_n=dim`` for vector fields (elastic dynamics).
 
     ``f`` may be scalar, ``(Ne,)``, ``(nPg,)``, or ``(Ne, nPg)``;
-    broadcast via :pymeth:`FeArray.broadcast` (stride view, no copy).
+    broadcast via :meth:`FeArray.broadcast` (stride view, no copy).
     """
     vec_e_pg = groupElem.Get_SourcePart_e_pg(matrixType, dof_n)
     Ne, nPg = vec_e_pg.shape[:2]

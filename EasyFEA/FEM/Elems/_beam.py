@@ -401,13 +401,15 @@ class _EulerBernoulli(_GroupElem):
     ) -> FeArray.FeArrayALike:  # type: ignore
         """Euler-Bernoulli beam strain-displacement matrix B.
 
-        Strain vector (no shear — γ = 0 by assumption):
+        Strain vector (no shear — γ = 0 by assumption)::
+
           2D: ε = [du/dx,  d²v/dx²]               → internal forces [N, Mz]
           3D: ε = [du/dx,  drx/dx,  κy,  κz]      → internal forces [N, Mx, My, Mz]
               with  κy = d²w/dx²  (flex-y: Hermitian ddNvz at [w,ry] DOFs)
                     κz = d²v/dx²  (flex-z: Hermitian ddNv  at [v,rz] DOFs)
 
         KEY difference from Timoshenko:
+
         - bending rows use ddNv (d²v/dx²), acting on BOTH displacement and rotation
           DOFs simultaneously — because κ = d²v/dx² = drz/dx only under rz = v'.
         - there is NO shear row — B has 2 rows (2D) or 4 rows (3D).
@@ -571,16 +573,19 @@ class _Timoshenko(_EulerBernoulli):
     functions as the axial DOF u.
 
     Locking cure: selective reduced integration.
+
     - axial/torsion/bending terms: full Gauss (MatrixType.beam)
     - shear terms γ_y, γ_z       : reduced Gauss (MatrixType.beam_shear, n-1 pts)
 
     This is the standard MITC / selective-reduced-integration formulation
     (Hughes 1987; Bathe 2006).  For tip-loaded cantilever it gives:
-      - SEG2 (linear v):     O(h²) convergence
-      - SEG3+ (quadratic v+): machine precision at nL=1 (exact representation
-        of the cubic bending mode)
 
-    Strain vector:
+    - SEG2 (linear v):     O(h²) convergence
+    - SEG3+ (quadratic v+): machine precision at nL=1 (exact representation
+      of the cubic bending mode)
+
+    Strain vector::
+
       2D: ε = [du/dx,  dθz/dx,  v'-θz]          → [N, Mz, Ty]
       3D: ε = [du/dx,  drx/dx,  κy,  κz,  γy,  γz]
             with  κy = -dRy/dx  (sign-consistent with ry = -w' in EB)
@@ -629,7 +634,8 @@ class _Timoshenko(_EulerBernoulli):
     ) -> FeArray.FeArrayALike:  # type: ignore
         """Timoshenko strain-displacement matrix B — pure Lagrange.
 
-        Strain vector (shear present — γ ≠ 0):
+        Strain vector (shear present — γ ≠ 0)::
+
           2D: ε = [du/dx,  dθz/dx,  v'-θz]          → [N, Mz, Ty]
           3D: ε = [du/dx,  drx/dx,  -dRy/dx,  dRz/dx,  v'-rz,  w'+ry]
                                                       → [N, Mx, My, Mz, Ty, Tz]

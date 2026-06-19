@@ -325,7 +325,7 @@ class FeArray(_types.AnyArray):
         ``(Ne, n, n)`` from ``(Ne, nPg, n)`` when ``nPg == n`` (e.g. TRI6 in 2D, where ``nPg == nstrain == 3``).
 
         Accepted shapes (with default ``tensor_ndim=0``)
-        -----------------------------------------------
+        ------------------------------------------------
         - scalar (int / float / numpy scalar) → returned as ``float``.
         - ``(Ne, nPg, ...)`` ndarray / FeArray → wrapped as FeArray.
         - 1-D ``(Ne,)`` or ``(nPg,)`` → tiled to ``(Ne, nPg)``.

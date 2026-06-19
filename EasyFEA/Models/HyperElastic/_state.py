@@ -290,16 +290,25 @@ class HyperElasticState:
         return Eps_e_pg
 
     def Compute_Edot_vec(self, velocity: _types.FloatArray) -> FeArray.FeArrayALike:
-        """Green–Lagrange strain rate ``Ė`` in Kelvin–Mandel vector form.
+        """Green–Lagrange strain rate Ė in Kelvin–Mandel vector form.
 
-        Uses the identity ``Ė = sym(Fᵀ · ∇v) = De(u) · flat(∇v)`` — the same kinematic operator :meth:`Compute_De` that maps ``flat(∇u̇)`` to the small-strain rate also maps ``flat(∇v)`` to ``Ė_vec`` evaluated at the current ``u``.
+        Uses the identity::
+
+            Ė = sym(Fᵀ · ∇v) = De(u) · flat(∇v)
+
+        — the same kinematic operator :meth:`Compute_De` that maps flat(∇u̇) to
+        the small-strain rate also maps flat(∇v) to Ė_vec evaluated at the
+        current u.
 
         Parameters
         ----------
         velocity : _types.FloatArray
-            velocity field, same ``(xi,yi,zi,...)`` layout as the displacement.
+            velocity field, same (xi, yi, zi, ...) layout as the displacement.
 
-        Returns ``(Ne, nPg, nstrain)`` — ``nstrain = 3`` in 2D, ``6`` in 3D.
+        Returns
+        -------
+        FeArray
+            (Ne, nPg, nstrain) — nstrain = 3 in 2D, 6 in 3D.
         """
         Ne, nPg, dim = self._GetDims()
         De_e_pg = self.Compute_De()
@@ -382,16 +391,29 @@ class HyperElasticState:
         return self.__Build_De(self.Compute_F())
 
     def Compute_Deta(self, velocity: _types.FloatArray) -> FeArray.FeArrayALike:
-        r"""Configuration derivative of the Green-Lagrange strain rate: the operator ``Deta`` such that ``∂Ė_vec = Deta · flat(∇δu)`` at fixed velocity.
+        r"""Configuration derivative of the Green-Lagrange strain rate.
 
-        ``Ė_vec = De(u) · flat(∇v) = sym(Fᵀ∇v)`` is bilinear in ``(∇u, ∇v)``, so ``∂Ė/∂(∇u) = sym(∇vᵀ∇δu)`` is ``__Build_De`` with ``G = ∇v`` the velocity gradient (the same builder as :meth:`Compute_De`, with ``∇v`` in place of ``F``). It feeds the material-like piece ``η · Bᵀ · (Deta · grad)`` of the viscous configuration tangent (``Kgeo``) returned by :func:`Operators.NonLinear.KelvinVoigtDamping`.
+        Returns the operator Deta such that ∂Ė_vec = Deta · flat(∇δu) at fixed
+        velocity, built from::
+
+            Ė_vec = De(u) · flat(∇v) = sym(Fᵀ∇v)        (bilinear in ∇u, ∇v)
+            ∂Ė/∂(∇u) = sym(∇vᵀ∇δu) = __Build_De(G = ∇v)
+
+        i.e. the same builder as :meth:`Compute_De` with ∇v in place of F. It
+        feeds the material-like piece η · Bᵀ · (Deta · grad) of the viscous
+        configuration tangent (Kgeo) returned by
+        :func:`Operators.NonLinear.KelvinVoigtDamping`.
 
         Parameters
         ----------
         velocity : _types.FloatArray
-            velocity field, same ``(xi,yi,zi,...)`` layout as the displacement.
+            velocity field, same (xi, yi, zi, ...) layout as the displacement.
 
-        Returns ``(Ne, nPg, 3, 4)`` in 2D, ``(Ne, nPg, 6, 9)`` in 3D — same layout as :meth:`Compute_De`.
+        Returns
+        -------
+        FeArray
+            (Ne, nPg, 3, 4) in 2D, (Ne, nPg, 6, 9) in 3D — same layout as
+            :meth:`Compute_De`.
         """
         grad_v_e_pg = self.__groupElem.Get_Gradient_e_pg(velocity, self.__matrixType)
         return self.__Build_De(grad_v_e_pg)

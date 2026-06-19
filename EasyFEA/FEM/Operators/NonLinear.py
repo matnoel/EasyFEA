@@ -89,15 +89,13 @@ def SecondPiolaKirchhoffStressTensor(
     - ``dWde_e_pg`` from ``material.Compute_dWde(state)`` — PK2 in Kelvin-Mandel vector form (any active-stress /  viscous fold-in is the material's responsibility),
     - ``d2Wde_e_pg`` from ``material.Compute_d2Wde(state)`` — consistent tangent in Kelvin-Mandel matrix form,
 
-    and assembles
+    and assembles::
 
-    ```
-    B_e_pg  = De · grad                       (strain-displacement)
-    Sig_e_pg = block(P(dWde_e_pg))            (geometric tangent kernel)
+        B_e_pg  = De · grad                       (strain-displacement)
+        Sig_e_pg = block(P(dWde_e_pg))            (geometric tangent kernel)
 
-    K_e = ∫ Bᵀ · d2Wde · B dΩ  +  ∫ gradᵀ · Sig · grad dΩ
-    R_e = ∫ Bᵀ · dWde dΩ
-    ```
+        K_e = ∫ Bᵀ · d2Wde · B dΩ  +  ∫ gradᵀ · Sig · grad dΩ
+        R_e = ∫ Bᵀ · dWde dΩ
 
     where ``P(·)`` is the Kelvin-Mandel vector → symmetric matrix projection.
 
@@ -149,21 +147,32 @@ def KelvinVoigtDamping(
     state: "HyperElasticState",
     velocity: np.ndarray,
 ) -> tuple[np.ndarray, np.ndarray]:
-    r"""Kelvin–Voigt viscous element contributions ``(C_e, Kgeo_e)`` for the large-strain viscous force ``F_visco(u) = C(u)·v``, with ``Σ_visco = η·Ė`` (Green-Lagrange strain rate of ``velocity``) and ``B = De(u)·grad``.
+    r"""Kelvin–Voigt viscous element contributions (C_e, Kgeo_e) for the
+    large-strain viscous force F_visco(u) = C(u)·v, with Σ_visco = η·Ė
+    (Green-Lagrange strain rate of velocity) and B = De(u)·grad.
 
-    - ``C_e = thickness · η · ∫ Bᵀ B dΩ`` — the damping matrix; the simulation puts it in slot 2 of ``(K, C, M, F)`` (residual ``b -= C @ v_t``, time-scheme history, and the ``coefC·C`` tangent).
-    - ``Kgeo_e`` — the configuration tangent ``∂(C·v)/∂u`` at fixed velocity (geometric stiffening from ``Σ_visco`` plus the ``∂Ė/∂u`` term); the simulation adds it to ``K_e`` so it rides ``coefK``.
+    - C_e = thickness · η · ∫ Bᵀ B dΩ — the damping matrix; the simulation puts
+      it in slot 2 of (K, C, M, F) (residual b -= C @ v_t, time-scheme history,
+      and the coefC·C tangent).
+    - Kgeo_e — the configuration tangent ∂(C·v)/∂u at fixed velocity (geometric
+      stiffening from Σ_visco plus the ∂Ė/∂u term); the simulation adds it to
+      K_e so it rides coefK.
 
     Parameters
     ----------
     material
-        Hyperelastic constitutive law — supplies the viscosity ``eta``.
+        Hyperelastic constitutive law — supplies the viscosity eta.
     state
         Hyperelastic state — owns the mesh and the current displacement.
     velocity
-        Velocity field (same ``(xi,yi,zi,...)`` layout as the displacement), or ``None`` for a quasi-static evaluation.
+        Velocity field (same (xi, yi, zi, ...) layout as the displacement), or
+        None for a quasi-static evaluation.
 
-    Returns ``(None, None)`` when ``material.eta == 0`` or ``velocity is None``. Both matrices are ``(Ne, nPe·dim, nPe·dim)`` reordered to ``(xi,yi,zi,...,xn,yn,zn)``.
+    Returns
+    -------
+    tuple
+        (None, None) when material.eta == 0 or velocity is None. Both matrices
+        are (Ne, nPe·dim, nPe·dim) reordered to (xi, yi, zi, ..., xn, yn, zn).
     """
     if material.eta == 0.0 or velocity is None:
         return None, None  # type: ignore [return-value]
