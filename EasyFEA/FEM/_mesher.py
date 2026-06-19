@@ -2188,7 +2188,6 @@ class Mesher:
                 dict_rank_nodes = {r: set() for r in range(Nrank)}
                 list_dict_groupElem: list[dict] = [{} for _ in range(Nrank)]
 
-            knownDims = []  # known dimensions in the mesh
             dict_groupElem: dict[ElemType, "_GroupElem"] = {}
 
             for gmshId in elementTypes:
@@ -2216,8 +2215,6 @@ class Mesher:
                     # distribute into per-rank dicts
                     for rank, ge in enumerate(list_rank_groupElem):
                         list_dict_groupElem[rank][ge.elemType] = ge
-                    # use rank-0 groupElem for knownDims check
-                    groupElem = list_rank_groupElem[0]
                 else:
                     groupElem = GroupElemFactory._Create(gmshId, connect, coordinates)
                     # Note that each group of elements contains all coordinates.
@@ -2242,20 +2239,6 @@ class Mesher:
                         groupElem.Set_Tag(nodesGroup, name)
 
                 tic.Tac("Mesh", f"Create {str(groupElem.elemType)}", self.__verbosity)
-
-                # Check that the mesh does not have a group of elements of this dimension
-                if groupElem.dim in knownDims and groupElem.dim == meshDim:
-                    recoElement = "Triangular" if meshDim == 2 else "Tetrahedron"
-                    raise Exception(
-                        f"Importing the mesh from gmsh is impossible because several {meshDim}D elements have been detected.\n\
-                    Try out with {recoElement} elements.\n\
-                    You can also try to reduce the mesh size"
-                    )
-                    # TODO make it work ?
-                    # Can be complicated especially in the creation of elemental matrices and assembly
-                    # Not impossible but not trivial
-                    # Restart the procedure if it doesn't work?
-                knownDims.append(groupElem.dim)
 
             tic.Tac("Mesh", "Construct mesh object", self.__verbosity)
         else:
