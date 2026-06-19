@@ -42,6 +42,10 @@ if CAN_USE_MPI:
     from mpi4py import MPI
 
 
+class AmbiguousGroupError(Exception):
+    """Raised when a single-group accessor (groupElem, connect, Ne, nPe, elemType) is used on a mesh that has several element groups of the same dimension. Iterate mesh.Get_list_groupElem(dim) instead."""
+
+
 class Mesh(Observable):
     """Mesh class that contains several _GroupElem instances."""
 
@@ -56,16 +60,19 @@ class Mesh(Observable):
             the mesh can write in the terminal, by default True
         """
 
-        dim = -1
         assert len(dict_groupElem) > 0, "dict_groupElem is empty."
-        # Set the default element group.
-        for grp in dict_groupElem.values():
-            if grp.dim > dim:
-                dim = grp.dim
-                self.__groupElem = grp
-
-        self.__dim = self.__groupElem.dim
+        # all groups must share the same global node numbering (one common Ncoords)
+        assert (
+            len({grp.Ncoords for grp in dict_groupElem.values()}) == 1
+        ), "All element groups must share the same coordinates (common Ncoords)."
         self.__dict_groupElem = dict_groupElem
+
+        self.__dim = -1
+        self.__inDim = -1
+        # Set the default element group.
+        for groupElem in dict_groupElem.values():
+            self.__dim = max(self.__dim, groupElem.dim)
+            self.__inDim = max(self.__inDim, groupElem.inDim)
 
         self.__verbosity = verbosity
         """the mesh can write in the terminal"""
@@ -73,9 +80,11 @@ class Mesh(Observable):
         if self.__verbosity:
             print(self)
 
-        # check orphan nodes
-        Nn = self.coord.shape[0]
-        usedNodes = set(self.connect.ravel().astype(int))
+        # check orphan nodes (a node is used if any group references it)
+        Nn = self.Nn
+        usedNodes: set[int] = set()
+        for groupElem in self.dict_groupElem.values():
+            usedNodes.update(groupElem.connect.ravel().astype(int).tolist())
         nodes = set(range(Nn))
         orphanNodes = list(nodes - usedNodes)
         self.__orphanNodes: list[int] = orphanNodes
@@ -119,9 +128,11 @@ class Mesh(Observable):
             dim = self.__dim
 
         list_groupElem = [
-            grp for grp in self.__dict_groupElem.values() if grp.dim == dim
+            groupElem
+            for groupElem in self.__dict_groupElem.values()
+            if groupElem.dim == dim
         ]
-        list_groupElem.reverse()  # reverse the list
+        list_groupElem.reverse()  # stable order (consumers index into this list)
 
         return list_groupElem
 
@@ -138,7 +149,13 @@ class Mesh(Observable):
     @property
     def groupElem(self) -> "_GroupElem":
         """main group element"""
-        return self.__groupElem
+        groups = self.Get_list_groupElem(self.dim)
+        if len(groups) > 1:
+            raise AmbiguousGroupError(
+                f"Mesh has several groups of dimension {self.dim}; "
+                "iterate mesh.Get_list_groupElem(dim) instead."
+            )
+        return groups[0]
 
     @property
     def elemType(self) -> ElemType:
@@ -153,7 +170,8 @@ class Mesh(Observable):
     @property
     def Nn(self) -> int:
         """number of nodes in the mesh"""
-        return self.groupElem.Ncoords
+        # coords are shared across all groups, so Ncoords is group-independent
+        return next(iter(self.dict_groupElem.values())).Ncoords
 
     @property
     def dim(self):
@@ -164,7 +182,7 @@ class Mesh(Observable):
     def inDim(self):
         """dimension in which the mesh lies.\n
         A 2D mesh can be oriented in a 3D space."""
-        return self.__groupElem.inDim
+        return self.__inDim
 
     @property
     def nPe(self) -> int:
@@ -378,7 +396,7 @@ class Mesh(Observable):
     def coord(self) -> _types.FloatArray:
         """global nodes coordinates matrix (Ncoords, 3)\n
         Contains all nodes coordinates"""
-        coord = np.zeros((self.groupElem.Ncoords, 3), dtype=float)
+        coord = np.zeros((self.Nn, 3), dtype=float)
         for groupElem in self.dict_groupElem.values():
             coord[groupElem.nodes] = groupElem.coord
         return coord
@@ -721,7 +739,7 @@ class Mesh(Observable):
         ]
 
         # get dictionnary linking tags to elements
-        dict_elements = self.__groupElem._dict_elements_tags
+        dict_elements = self.groupElem._dict_elements_tags
 
         if len(dict_elements) == 0:
             Display.MyPrintError(
