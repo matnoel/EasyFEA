@@ -115,9 +115,9 @@ if __name__ == "__main__":
 
     Display.Plot_Mesh(simu, deformFactor=factorDef)
     Display.Plot_BoundaryConditions(simu)
-    Display.Plot_Result(simu, "ux", ncolors=10, nodeValues=True)
-    Display.Plot_Result(simu, "uy", ncolors=10, nodeValues=True)
-    Display.Plot_Result(
+    Display.Plot(simu, "ux", ncolors=10, nodeValues=True)
+    Display.Plot(simu, "uy", ncolors=10, nodeValues=True)
+    Display.Plot(
         simu, "Svm", ncolors=10, nodeValues=True, deformFactor=factorDef, plotMesh=True
     )
 

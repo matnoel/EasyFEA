@@ -61,6 +61,6 @@ if __name__ == "__main__":
     # Results
     # ----------------------------------------------
 
-    Display.Plot_Result(simu, "u")
+    Display.Plot(simu, "u")
 
     plt.show()

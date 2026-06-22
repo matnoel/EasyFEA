@@ -81,7 +81,7 @@ if __name__ == "__main__":
 
     Display.Plot_Mesh(simu, deformFactor=L / 10 / sol.max())
     Display.Plot_BoundaryConditions(simu)
-    Display.Plot_Result(simu, "ux")
+    Display.Plot(simu, "ux")
 
     # ------------------------
     # ux

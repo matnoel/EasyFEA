@@ -116,7 +116,7 @@ if __name__ == "__main__":
     list_master_mesh = [master_mesh]
 
     if pltIter:
-        ax = Display.Plot_Result(simu, result, deformFactor=1)
+        ax = Display.Plot(simu, result, deformFactor=1)
 
     for i in range(N):
         master_mesh = master_mesh.copy()
@@ -150,7 +150,7 @@ if __name__ == "__main__":
         print(f"Eps max = {simu.Result('Strain').max() * 100:3.2f} %")
 
         if pltIter:
-            Display.Plot_Result(simu, result, plotMesh=True, deformFactor=1, ax=ax)
+            Display.Plot(simu, result, plotMesh=True, deformFactor=1, ax=ax)
             Display.Plot_Mesh(master_mesh, alpha=0, ax=ax)
             ax.set_title(result)
             if dim == 3:

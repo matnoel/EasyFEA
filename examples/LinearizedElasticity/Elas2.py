@@ -79,6 +79,6 @@ if __name__ == "__main__":
 
     Display.Plot_Mesh(simu, h / 2 / np.abs(sol).max())
     Display.Plot_BoundaryConditions(simu)
-    Display.Plot_Result(simu, "Svm", nodeValues=True, coef=1 / coef, ncolors=20)
+    Display.Plot(simu, "Svm", nodeValues=True, coef=1 / coef, ncolors=20)
 
     plt.show()

@@ -174,7 +174,7 @@ if __name__ == "__main__":
         simu.Results_Set_Bc_Summary(config)
 
         if plotIter:
-            ax = Display.Plot_Result(simu, "damage", 1, plotMesh=True)
+            ax = Display.Plot(simu, "damage", 1, plotMesh=True)
 
         for i, dep in enumerate(displacements):
             simu.Bc_Init()
@@ -202,7 +202,7 @@ if __name__ == "__main__":
                 break
 
             if plotIter:
-                Display.Plot_Result(simu, "damage", 1, plotMesh=True, ax=ax)
+                Display.Plot(simu, "damage", 1, plotMesh=True, ax=ax)
                 plt.pause(1e-12)
 
         simu.Save(folder_save)
@@ -230,8 +230,8 @@ if __name__ == "__main__":
 
         PyVista.Movie_func(Func, iterations.size, folder_save, "damage.gif")
 
-    Display.Plot_Result(simu, "damage", folder=folder_save)
-    Display.Plot_Result(simu, "uy", deformFactor=1)
+    Display.Plot(simu, "damage", folder=folder_save)
+    Display.Plot(simu, "uy", deformFactor=1)
     Display.Plot_Mesh(mesh)
     Display.Plot_Tags(mesh, folder=folder_save)
 

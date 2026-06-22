@@ -223,7 +223,7 @@ if __name__ == "__main__":
     Display.Save_fig(folder, "Time")
 
     # Plot the von Mises stress result using 20 color levels
-    Display.Plot_Result(simu, "Svm", ncolors=20)
+    Display.Plot(simu, "Svm", ncolors=20)
 
     if makeParaview:
         # Generate Paraview files for visualization

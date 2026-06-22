@@ -149,7 +149,7 @@ To post-process or visualize results on the complete global mesh, call {py:meth}
 simu._Gather()  # assembles the full mesh on rank 0; no-op on other ranks
 
 if MPI_RANK == 0:
-    Display.Plot_Result(simu, "uy")
+    Display.Plot(simu, "uy")
 ```
 
 Explicit calls to {py:meth}`~EasyFEA.Simulations._Simu._Gather` are only necessary for in-memory post-processing within the script, and to avoid spawning multiple figures or deadlocking non-root ranks.

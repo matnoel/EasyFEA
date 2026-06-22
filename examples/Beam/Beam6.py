@@ -116,7 +116,7 @@ if __name__ == "__main__":
 
     print(simu)
 
-    Display.Plot_Result(simu, result, deformFactor=deform)
+    Display.Plot(simu, result, deformFactor=deform)
     ax = Display.Plot_Mesh(section)
     ax.set_title("Section")
     Display.Plot_Mesh(simu, deformFactor=deform)

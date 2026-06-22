@@ -117,7 +117,7 @@ if __name__ == "__main__":
         )
 
     print(simu)
-    Display.Plot_Result(simu, f"{result}", deformFactor=1, nodeValues=False)
-    Display.Plot_Result(simu, "Svm", plotMesh=False, nodeValues=False)
+    Display.Plot(simu, f"{result}", deformFactor=1, nodeValues=False)
+    Display.Plot(simu, "Svm", plotMesh=False, nodeValues=False)
 
     plt.show()

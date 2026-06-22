@@ -168,7 +168,7 @@ if __name__ == "__main__":
         nDetect = 0
 
         if plotIter:
-            axIter = Display.Plot_Result(simu, "damage", nodeValues=True)
+            axIter = Display.Plot(simu, "damage", nodeValues=True)
             _, axLoad = plt.subplots()
             axLoad.set_xlabel(f"ud [{unitU}]")
             axLoad.set_ylabel(f"f [{unitF}]")
@@ -198,7 +198,7 @@ if __name__ == "__main__":
             list_f.append(f)
 
             if plotIter:
-                Display.Plot_Result(simu, "damage", nodeValues=True, ax=axIter)
+                Display.Plot(simu, "damage", nodeValues=True, ax=axIter)
                 plt.figure(axIter.figure)
                 plt.pause(1e-12)
                 axLoad.clear()
@@ -226,7 +226,7 @@ if __name__ == "__main__":
     if plotEnergy:
         Display.Plot_Energy(simu, list_f, list_dep, N=400, folder=folder_save)
 
-    Display.Plot_Result(
+    Display.Plot(
         simu,
         "damage",
         nodeValues=True,

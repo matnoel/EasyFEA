@@ -42,7 +42,7 @@ class TestThermal:
             simu.Solve()
             simu.Save_Iter()
 
-            ax = Display.Plot_Result(simu, "thermal", nodeValues=True, plotMesh=True)
+            ax = Display.Plot(simu, "thermal", nodeValues=True, plotMesh=True)
             # plt.pause(1e-12)
             plt.close(ax.figure)
 

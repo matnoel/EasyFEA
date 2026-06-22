@@ -76,12 +76,12 @@ def Compute_ukl(
     simu.Save_Iter()
 
     if pltSol:
-        Display.Plot_Result(simu, "ux", deformFactor=0.3)
-        Display.Plot_Result(simu, "uy", deformFactor=0.3)
+        Display.Plot(simu, "ux", deformFactor=0.3)
+        Display.Plot(simu, "uy", deformFactor=0.3)
 
-        Display.Plot_Result(simu, "Sxx", deformFactor=0.3)
-        Display.Plot_Result(simu, "Syy", deformFactor=0.3)
-        Display.Plot_Result(simu, "Sxy", deformFactor=0.3)
+        Display.Plot(simu, "Sxx", deformFactor=0.3)
+        Display.Plot(simu, "Syy", deformFactor=0.3)
+        Display.Plot(simu, "Sxy", deformFactor=0.3)
 
     return ukl
 
@@ -145,8 +145,8 @@ if __name__ == "__main__":
 
     simu = Simulations.Elastic(mesh, material)
 
-    Display.Plot_Result(simu, E, nodeValues=False, title="E [MPa]")
-    Display.Plot_Result(simu, v, nodeValues=False, title="v")
+    Display.Plot(simu, E, nodeValues=False, title="E [MPa]")
+    Display.Plot(simu, v, nodeValues=False, title="v")
 
     # ----------------------------------------------
     # Homogenization

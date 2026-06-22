@@ -150,7 +150,7 @@ if __name__ == "__main__":
         dofsY_load = simu.Bc_dofs_nodes(nodes_load, ["y"])
 
         if pltIter:
-            axIter = Display.Plot_Result(simu, "damage")
+            axIter = Display.Plot(simu, "damage")
 
             axLoad = Display.Init_Axes()
             axLoad.set_xlabel("displacement [mm]")
@@ -189,7 +189,7 @@ if __name__ == "__main__":
 
             if pltIter:
                 plt.figure(axIter.figure)
-                Display.Plot_Result(simu, "damage", ax=axIter)
+                Display.Plot(simu, "damage", ax=axIter)
                 plt.pause(1e-12)
 
                 plt.figure(axLoad.figure)
@@ -215,7 +215,7 @@ if __name__ == "__main__":
     # ----------------------------------------------
     # Results
     # ----------------------------------------------
-    Display.Plot_Result(simu, "damage", folder=folder_save)
+    Display.Plot(simu, "damage", folder=folder_save)
     Display.Plot_Mesh(simu)
     Display.Plot_BoundaryConditions(simu)
 

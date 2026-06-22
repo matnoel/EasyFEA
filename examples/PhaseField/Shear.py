@@ -233,7 +233,7 @@ if __name__ == "__main__":
     # ----------------------------------------------
     # Results
     # ----------------------------------------------
-    Display.Plot_Result(
+    Display.Plot(
         simu,
         "damage",
         nodeValues=True,

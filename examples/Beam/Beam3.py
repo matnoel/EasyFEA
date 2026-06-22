@@ -101,7 +101,7 @@ if __name__ == "__main__":
     ax = Display.Plot_Mesh(section)
     ax.set_title("Section")
     Display.Plot_BoundaryConditions(simu)
-    Display.Plot_Result(simu, "uy", L / 20 / sol.min())
+    Display.Plot(simu, "uy", L / 20 / sol.min())
 
     # ------------------------
     # uy

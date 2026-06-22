@@ -175,12 +175,12 @@ if __name__ == "__main__":
         for d in range(dim):
             uProj[:, d] = proj @ u0[:, d]
 
-        ax = Display.Plot_Result(
+        ax = Display.Plot(
             mesh0, np.linalg.norm(u0, axis=1), plotMesh=True, title="u0"
         )
         ax.plot(*mesh1.coord[:, :dim].T, ls="", marker="+", c="k", label="new nodes")
         ax.legend()
-        Display.Plot_Result(
+        Display.Plot(
             mesh1, np.linalg.norm(uProj, axis=1), plotMesh=True, title="uProj"
         )
 

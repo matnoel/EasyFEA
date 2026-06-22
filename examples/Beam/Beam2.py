@@ -78,7 +78,7 @@ if __name__ == "__main__":
 
     Display.Plot_Mesh(simu, deformFactor=-L / 10 / sol.min())
     Display.Plot_BoundaryConditions(simu)
-    Display.Plot_Result(simu, "uy")
+    Display.Plot(simu, "uy")
 
     # beam properties
     G = beam.mu

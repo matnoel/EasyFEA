@@ -64,7 +64,7 @@ if __name__ == "__main__":
     # Results
     # ----------------------------------------------
 
-    Display.Plot_Result(simu, "u", plotMesh=True)
+    Display.Plot(simu, "u", plotMesh=True)
 
     # compute error
     x, y, z = mesh.coord.T

@@ -43,14 +43,14 @@ for 2D and 3D result visualization.
 
 ### Plot a scalar field
 
-{py:func}`~EasyFEA.Utilities.Display.Plot_Result` plots any result field on the
+{py:func}`~EasyFEA.Utilities.Display.Plot` plots any result field on the
 mesh:
 
 ```python
 from EasyFEA import Display
 
-Display.Plot_Result(simu, "uy")
-Display.Plot_Result(simu, "Svm", plotMesh=True, ncolors=11)
+Display.Plot(simu, "uy")
+Display.Plot(simu, "Svm", plotMesh=True, ncolors=11)
 ```
 
 Key options:
@@ -132,7 +132,7 @@ def Func(fig, i):
     fig.clear()
     ax = fig.add_subplot(111)
     simu.Set_Iter(iterations[i])
-    Display.Plot_Result(simu, "uy", ax=ax)
+    Display.Plot(simu, "uy", ax=ax)
 
 Display.Movie_func(Func, fig, iterations.size, folder_save, "animation.gif")
 ```

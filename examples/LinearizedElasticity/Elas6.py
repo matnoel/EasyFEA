@@ -101,7 +101,7 @@ if __name__ == "__main__":
     )
     simu_beam.Solve()
 
-    Display.Plot_Result(simu_beam, "uy")
+    Display.Plot(simu_beam, "uy")
 
     u_an = load * L**3 / (192 * E * beam.Iz)
 

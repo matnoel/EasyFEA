@@ -92,7 +92,7 @@ if __name__ == "__main__":
     # Results
     # ----------------------------------------------
 
-    Display.Plot_Result(simu, "uy", 10, plotMesh=True)
+    Display.Plot(simu, "uy", 10, plotMesh=True)
 
     def von_mises_stress(u):
         Stress = S(u)
@@ -107,6 +107,6 @@ if __name__ == "__main__":
 
     Svm_e = field.Evaluate_e(von_mises_stress, simu.u)
 
-    Display.Plot_Result(simu, Svm_e, plotMesh=True, ncolors=11)
+    Display.Plot(simu, Svm_e, plotMesh=True, ncolors=11)
 
     plt.show()

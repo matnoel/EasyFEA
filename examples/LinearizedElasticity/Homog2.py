@@ -219,8 +219,8 @@ if __name__ == "__main__":
         E[elements_inclusion] = 200 * 1e9
         v[elements_inclusion] = 0.3
 
-    Display.Plot_Result(mesh, E * 1e-9, nodeValues=False, title="E [GPa]")
-    Display.Plot_Result(mesh, v, nodeValues=False, title="v")
+    Display.Plot(mesh, E * 1e-9, nodeValues=False, title="E [GPa]")
+    Display.Plot(mesh, v, nodeValues=False, title="v")
 
     material = Models.Elastic.Isotropic(2, E, v, planeStress=False)
 

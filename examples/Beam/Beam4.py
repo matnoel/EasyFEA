@@ -82,8 +82,8 @@ if __name__ == "__main__":
 
     Display.Plot_Mesh(simu, L / 10 / sol.max())
     Display.Plot_BoundaryConditions(simu)
-    Display.Plot_Result(simu, "ux", L / 10 / sol.max())
-    Display.Plot_Result(simu, "uy", L / 10 / sol.max())
+    Display.Plot(simu, "ux", L / 10 / sol.max())
+    Display.Plot(simu, "uy", L / 10 / sol.max())
 
     print(simu)
 

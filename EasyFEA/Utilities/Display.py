@@ -68,7 +68,7 @@ def _Get_vertices(
     mesh: "Mesh", coord: _types.FloatArray, inDim: int, dimElem: int
 ) -> _types.FloatArray:
     """Returns the (Ne, nPts, dim) vertex array used to build a matplotlib collection.\n
-    Shared by Plot, Plot_Mesh and Plot_Result. Branches exactly as the historical code to avoid display regressions.
+    Shared by Plot and Plot_Mesh. Branches exactly as the historical code to avoid display regressions.
     """
 
     groupElem = mesh.groupElem
@@ -182,7 +182,7 @@ def Plot(
 ) -> Axes:
     """Plots an object (simulation, mesh or group of elements) with matplotlib.
 
-    This is the rendering core that ``Plot_Result``, ``Plot_Mesh`` and ``_Plot_obj`` delegate to.
+    This is the rendering core that ``Plot_Mesh`` and ``_Plot_obj`` delegate to.
     It is the matplotlib counterpart of ``PyVista.Plot``: pass ``result`` to color the object by a
     scalar field, or ``color`` to draw it with a single solid color.
 
@@ -325,7 +325,7 @@ def Plot(
     else:
 
         # Plot the mesh edges (for a scalar field, edges are a dedicated collection drawn
-        # underneath, matching the historical Plot_Result behavior)
+        # underneath, matching the historical scalar-field behavior)
         if plotMesh and mesh.dim == 1:
             ax.plot(*coordDef[:, :2].T, c=edgecolor, lw=0.1, marker=".", ls="")
         elif plotMesh and hasResult:
@@ -397,110 +397,6 @@ def Plot(
         Save_fig(folder, filename, transparent=False)
 
     return ax
-
-
-# ----------------------------------------------
-# Plot Simu or Mesh
-# ----------------------------------------------
-@requires_matplotlib
-def Plot_Result(
-    obj: Union["_Simu", "Mesh"],
-    result: Union[str, _types.FloatArray],
-    deformFactor: _types.Number = 0.0,
-    coef: _types.Number = 1.0,
-    nodeValues: bool = True,
-    plotMesh: bool = False,
-    edgecolor: str = "black",
-    title: str = "",
-    cmap: str = "jet",
-    ncolors=256,
-    clim=(None, None),
-    colorbarIsClose=False,
-    colorbarLabel="",
-    ax: Optional[Axes] = None,
-    folder: str = "",
-    filename: str = "",
-) -> Axes:
-    """Plots a simulation's result.
-
-    Parameters
-    ----------
-    obj : _Simu | Mesh
-        simulation
-    result : str | _types.FloatArray
-        Result you want to display.
-        Must be included in simu.Get_Results() or be a numpy array of size (Nn, Ne).
-    deformFactor : float, optional
-        factor used to display the deformed solution (0 means no deformations), default 0.0
-    coef : float, optional
-        coef to apply to the solution, by default 1.0
-    nodeValues : bool, optional
-        displays result to nodes otherwise displays it to elements, by default True
-    plotMesh : bool, optional
-        displays mesh, by default False
-    edgecolor : str, optional
-        Color used to plot the mesh, by default 'black'
-    title: str, optional
-        figure title, by default ""
-    cmap: str, optional
-        the color map used near the figure, by default "jet" \n
-        ["jet", "seismic", "binary", "viridis"] -> https://matplotlib.org/stable/tutorials/colors/colormaps.html
-    ncolors : int, optional
-        number of colors for colorbar, by default 21
-    clim : sequence[float], optional
-        Two item color bar range for scalars. Defaults to minimum and maximum of scalars array. Example: (-1, 2), by default (None, None)
-    colorbarIsClose : bool, optional
-        color bar is displayed close to the figure, by default False
-    colorbarLabel: str, optional
-        colorbar label, by default ""
-    ax: axis, optional
-        Axis to use, default None, by default None
-    folder : str, optional
-        save folder, by default "".
-    filename : str, optional
-        filename, by default ""
-
-    Returns
-    -------
-    _types.Axis
-
-    Examples
-    --------
-    Von Mises stress in MPa (elastic simulation):
-
-    >>> import matplotlib.pyplot as plt
-    >>> Display.Plot_Result(simu, "Svm", coef=1e-6, colorbarLabel="σ_vm [MPa]")
-    >>> plt.show()
-
-    With deformed mesh:
-
-    >>> Display.Plot_Result(simu, "displacement_norm", deformFactor=100, cmap="viridis")
-    >>> plt.show()
-
-    Temperature field at a specific iteration (thermal simulation):
-
-    >>> Display.Plot_Result(simu, "thermal", iter=5, colorbarLabel="T [°C]")
-    >>> plt.show()
-    """
-
-    return Plot(
-        obj,
-        result=result,
-        deformFactor=deformFactor,
-        coef=coef,
-        nodeValues=nodeValues,
-        plotMesh=plotMesh,
-        edgecolor=edgecolor,
-        cmap=cmap,
-        ncolors=ncolors,
-        clim=clim,
-        ax=ax,
-        colorbarIsClose=colorbarIsClose,
-        colorbarLabel=colorbarLabel,
-        title=title,
-        folder=folder,
-        filename=filename,
-    )
 
 
 @requires_matplotlib
@@ -1446,14 +1342,14 @@ def Movie_Simu(
         ax = fig.axes[0]
         _Remove_colorbar(ax)
         ax.clear()
-        Plot_Result(
+        Plot(
             simu,
             result,
-            deformFactor,
-            coef,
-            nodeValues,
-            plotMesh,
-            edgecolor,
+            deformFactor=deformFactor,
+            coef=coef,
+            nodeValues=nodeValues,
+            plotMesh=plotMesh,
+            edgecolor=edgecolor,
             ax=ax,
             **kwargs,
         )

@@ -84,7 +84,7 @@ if __name__ == "__main__":
 
     # Plot the result at the initial iteration if specified
     if plotIter:
-        ax = Display.Plot_Result(simu, result, nodeValues=True, title=result)
+        ax = Display.Plot(simu, result, nodeValues=True, title=result)
 
     # Create a timer object
     tic = Tic()
@@ -113,7 +113,7 @@ if __name__ == "__main__":
 
         # Update the plot at each iteration if specified
         if plotIter:
-            ax = Display.Plot_Result(simu, result, nodeValues=True, ax=ax, title=result)
+            ax = Display.Plot(simu, result, nodeValues=True, ax=ax, title=result)
             plt.pause(1e-12)
 
         t += dt

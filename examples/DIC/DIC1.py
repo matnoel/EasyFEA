@@ -25,11 +25,11 @@ from EasyFEA.Simulations import Elastic, DIC
 from EasyFEA.Geoms import Circle, Domain
 
 
-def Plot_Result(simu: Elastic, result: str, img=None, title="", plotMesh=True):
+def Plot(simu: Elastic, result: str, img=None, title="", plotMesh=True):
     ax = Display.Init_Axes()
     if img is not None:
         ax.imshow(img, cmap="gray")
-    Display.Plot_Result(simu, result, title=title, plotMesh=plotMesh, ax=ax)
+    Display.Plot(simu, result, title=title, plotMesh=plotMesh, ax=ax)
 
 
 if __name__ == "__main__":
@@ -100,8 +100,8 @@ if __name__ == "__main__":
         simu.Save_Iter()
 
         if image == images[-1]:
-            Plot_Result(simu, "ux", img, f"{imgStr} ux")
-            Plot_Result(simu, "uy", img, f"{imgStr} uy")
-            Plot_Result(simu, "Exx", img, f"{imgStr} Exx")
+            Plot(simu, "ux", img, f"{imgStr} ux")
+            Plot(simu, "uy", img, f"{imgStr} uy")
+            Plot(simu, "Exx", img, f"{imgStr} Exx")
 
     plt.show()

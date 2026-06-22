@@ -52,7 +52,7 @@ class TestElastic:
             simu.Save_Iter()
 
             # static
-            ax = Display.Plot_Result(simu, "ux", plotMesh=True, nodeValues=True)
+            ax = Display.Plot(simu, "ux", plotMesh=True, nodeValues=True)
             # plt.pause(1e-12)
             plt.close(ax.figure)
 

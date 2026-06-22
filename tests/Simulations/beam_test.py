@@ -259,7 +259,7 @@ def test_cantilever_tip(elemType: str, beamDim: int):
     assert err_Ty <= TOL, f"Ty error {err_Ty:.2e}"
 
     Display.Plot_Mesh(simu, deformFactor=10)
-    Display.Plot_Result(simu, "uy", plotMesh=False)
+    Display.Plot(simu, "uy", plotMesh=False)
     _close_plots()
 
 

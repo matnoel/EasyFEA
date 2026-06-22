@@ -178,8 +178,8 @@ if __name__ == "__main__":
         simu.Solve()
 
         # Display.Plot_BoundaryConditions(simu)
-        Display.Plot_Result(simu, "uy", title=f"{title} uy")
-        # Display.Plot_Result(simu, "Eyy")
+        Display.Plot(simu, "uy", title=f"{title} uy")
+        # Display.Plot(simu, "Eyy")
 
         print(
             f"{title}: dy = {np.max(simu.Result('uy')[simu.mesh.Nodes_Point(Geoms.Point(L, 0))]):.3f}"
@@ -196,7 +196,7 @@ if __name__ == "__main__":
     material.Set_C(C_hom, False)
     Simulation(simu, "hom")
 
-    # ax = Display.Plot_Result(simu, "uy")
-    # Display.Plot_Result(simuInclusions, "uy", ax=ax)
+    # ax = Display.Plot(simu, "uy")
+    # Display.Plot(simuInclusions, "uy", ax=ax)
 
     plt.show()
