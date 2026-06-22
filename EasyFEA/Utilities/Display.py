@@ -61,6 +61,345 @@ tab20_colors = [
 
 
 # ----------------------------------------------
+# Plot core (matplotlib analogue of PyVista.Plot)
+# ----------------------------------------------
+@requires_matplotlib
+def _Get_vertices(
+    mesh: "Mesh", coord: _types.FloatArray, inDim: int, dimElem: int
+) -> _types.FloatArray:
+    """Returns the (Ne, nPts, dim) vertex array used to build a matplotlib collection.\n
+    Shared by Plot, Plot_Mesh and Plot_Result. Branches exactly as the historical code to avoid display regressions.
+    """
+
+    groupElem = mesh.groupElem
+
+    if inDim == 3:
+        # When the mesh uses 3D elements, only the 2D surfaces are displayed.
+        dimElem = 2 if dimElem == 3 else dimElem
+        if dimElem == 1:
+            vertices = coord[groupElem.connect[:, groupElem.segments[0]]]
+        else:
+            # construct the surface connection matrix across every 2D element group
+            list_connect: list[_types.IntArray] = []
+            list_groupElem = mesh.Get_list_groupElem(dimElem)
+            list_surfaces = _Get_list_surfaces(mesh, dimElem)
+            for groupElem, surfaces in zip(list_groupElem, list_surfaces):
+                list_connect.extend(groupElem.connect[:, surfaces])  # type: ignore [attr-defined]
+            vertices = coord[list_connect]
+    else:
+        idx = groupElem.segments[0] if mesh.dim == 1 else groupElem.surfaces[0]
+        vertices = coord[groupElem.connect[:, idx], :2]
+
+    return vertices
+
+
+@requires_matplotlib
+def _Add_Collection(
+    ax: Axes,
+    vertices: _types.FloatArray,
+    inDim: int,
+    dimElem: int,
+    *,
+    array: Optional[_types.FloatArray] = None,
+    norm=None,
+    cmap: Optional[str] = None,
+    facecolors=None,
+    edgecolor=None,
+    lw: float = 0.5,
+    alpha: float = 1.0,
+    zorder: float = 0,
+    clim: Optional[tuple] = None,
+):
+    """Builds and adds the matplotlib collection matching ``inDim`` × ``dimElem`` to ``ax``.\n
+    This is the matplotlib analogue of ``pyvista.Plotter.add_mesh``. Returns the collection.
+    """
+
+    is3D = inDim == 3
+    isLine = dimElem == 1
+
+    if isLine:
+        Coll = Line3DCollection if is3D else LineCollection
+    else:
+        Coll = Poly3DCollection if is3D else PolyCollection
+
+    params: dict[str, Any] = {"zorder": zorder, "lw": lw, "alpha": alpha}
+    if cmap is not None:
+        params["cmap"] = cmap
+    if norm is not None:
+        params["norm"] = norm
+    if edgecolor is not None:
+        params["edgecolor"] = edgecolor
+    if facecolors is not None:
+        # lines are colored through edgecolor; faces through facecolors
+        params["edgecolor" if isLine else "facecolors"] = facecolors
+
+    pc = Coll(vertices, **params)  # type: ignore [arg-type]
+
+    if array is not None:
+        pc.set_array(array)
+        if clim is not None:
+            pc.set_clim(*clim)
+
+    if is3D:
+        ax.add_collection3d(pc)  # type: ignore [union-attr]
+    else:
+        ax.add_collection(pc)
+
+    return pc
+
+
+def _Node_to_element_values(
+    mesh: "Mesh", values: _types.FloatArray, dimElem: int
+) -> _types.FloatArray:
+    """Averages nodal values over each element of dimension ``dimElem`` (used for 3D surface display)."""
+    elementValues: list = []
+    for groupElem in mesh.Get_list_groupElem(dimElem):
+        elementValues.extend(np.mean(values[groupElem.connect], axis=1))
+    return np.asarray(elementValues)
+
+
+@requires_matplotlib
+def Plot(
+    obj: Union["_Simu", "Mesh", "_GroupElem"],
+    result: Optional[Union[str, _types.FloatArray]] = None,
+    deformFactor: _types.Number = 0.0,
+    coef: _types.Number = 1.0,
+    nodeValues: bool = True,
+    color=None,
+    plotMesh: bool = False,
+    edgecolor: str = "black",
+    lw: float = 0.5,
+    alpha: float = 1.0,
+    cmap: str = "jet",
+    ncolors: int = 256,
+    clim=(None, None),
+    ax: Optional[Axes] = None,
+    colorbarIsClose: bool = False,
+    colorbarLabel: str = "",
+    title: str = "",
+    folder: str = "",
+    filename: str = "",
+) -> Axes:
+    """Plots an object (simulation, mesh or group of elements) with matplotlib.
+
+    This is the rendering core that ``Plot_Result``, ``Plot_Mesh`` and ``_Plot_obj`` delegate to.
+    It is the matplotlib counterpart of ``PyVista.Plot``: pass ``result`` to color the object by a
+    scalar field, or ``color`` to draw it with a single solid color.
+
+    Parameters
+    ----------
+    obj : _Simu | Mesh | _GroupElem
+        object to plot
+    result : str | _types.FloatArray, optional
+        Result used to color the object. Must be included in simu.Get_Results() or be a numpy array of size (Nn,) or (Ne,). When None, the object is drawn with ``color``, by default None
+    deformFactor : float, optional
+        factor used to display the deformed solution (0 means no deformations), default 0.0
+    coef : float, optional
+        coef to apply to the solution, by default 1.0
+    nodeValues : bool, optional
+        displays result to nodes otherwise displays it to elements, by default True
+    color : str, optional
+        solid color used when ``result`` is None, by default None
+    plotMesh : bool, optional
+        displays mesh edges, by default False
+    edgecolor : str, optional
+        Color used to plot the mesh, by default 'black'
+    lw : float, optional
+        line width, by default 0.5
+    alpha : float, optional
+        face transparency, by default 1.0
+    cmap : str, optional
+        the color map used near the figure, by default "jet" \n
+        ["jet", "seismic", "binary", "viridis"] -> https://matplotlib.org/stable/tutorials/colors/colormaps.html
+    ncolors : int, optional
+        number of colors for colorbar, by default 256
+    clim : sequence[float], optional
+        Two item color bar range for scalars. Defaults to minimum and maximum of scalars array. Example: (-1, 2), by default (None, None)
+    ax : axis, optional
+        Axis to use, by default None
+    colorbarIsClose : bool, optional
+        color bar is displayed close to the figure, by default False
+    colorbarLabel : str, optional
+        colorbar label, by default ""
+    title : str, optional
+        figure title, by default ""
+    folder : str, optional
+        save folder, by default "".
+    filename : str, optional
+        filename, by default ""
+
+    Returns
+    -------
+    Axes
+
+    Examples
+    --------
+    Von Mises stress in MPa (elastic simulation):
+
+    >>> from EasyFEA import Display
+    >>> Display.Plot(simu, "Svm", coef=1e-6, colorbarLabel="σ_vm [MPa]")
+    >>> Display.plt.show()
+
+    Mesh only (no scalar field):
+
+    >>> Display.Plot(mesh, color="cyan", plotMesh=True)
+    >>> Display.plt.show()
+    """
+
+    tic = Tic()
+
+    simu, mesh, coordDef, inDim = _Init_obj(obj, deformFactor)  # type: ignore
+    dimElem = mesh.dim  # Dimension of displayed elements
+
+    hasResult = result is not None
+
+    if dimElem == 1:
+        # Don't know how to display nodal values on lines
+        nodeValues = False  # do not modify
+    elif dimElem == 3:
+        # When mesh use 3D elements, results are displayed only on 2D elements.
+        # To display values on 2D elements, we first need to know the values at 3D nodes.
+        nodeValues = True  # do not modify
+
+    ax, inDim = __Get_axis(ax, inDim)
+
+    # surface dimension actually displayed (3D meshes show their 2D skin)
+    surfDim = 2 if (inDim == 3 and dimElem == 3) else dimElem
+
+    if hasResult:
+        # Get values and colorbar properties
+        values = _Get_values(simu, mesh, result, nodeValues) * coef
+        ticks, levels, norm, vmin, vmax = __Get_colorbar_properties(
+            clim, result, values, ncolors
+        )
+    else:
+        values = None  # type: ignore [assignment]
+        norm = None
+
+    vertices = _Get_vertices(mesh, coordDef, inDim, dimElem)
+
+    if inDim == 3:
+
+        if surfDim == 1 and plotMesh:
+            ax.plot(*coordDef.T, c=edgecolor, lw=0.1, marker=".", ls="")
+
+        if hasResult:
+            # element values colored by the scalar field
+            if nodeValues:
+                elementValues = _Node_to_element_values(mesh, values, surfDim)
+            else:
+                elementValues = values
+            edge = edgecolor if (plotMesh and surfDim == 2) else None
+            pc = _Add_Collection(
+                ax,
+                vertices,
+                inDim,
+                surfDim,
+                array=elementValues,
+                norm=norm,
+                cmap=cmap,
+                edgecolor=edge,
+                lw=1.5 if surfDim == 1 else 0.5,
+            )
+            pc.set_clim(
+                np.min([elementValues.min(), vmin]),
+                np.max([elementValues.max(), vmax]),
+            )
+            colorbar = plt.colorbar(pc, ax=ax, ticks=ticks)
+            colorbar.set_label(colorbarLabel)
+        else:
+            # solid color
+            _Add_Collection(
+                ax,
+                vertices,
+                inDim,
+                surfDim,
+                facecolors=color,
+                edgecolor=edgecolor if plotMesh else None,
+                lw=lw,
+                alpha=alpha,
+            )
+
+        _Axis_equal_3D(ax, coordDef)
+
+    else:
+
+        # Plot the mesh edges (for a scalar field, edges are a dedicated collection drawn
+        # underneath, matching the historical Plot_Result behavior)
+        if plotMesh and mesh.dim == 1:
+            ax.plot(*coordDef[:, :2].T, c=edgecolor, lw=0.1, marker=".", ls="")
+        elif plotMesh and hasResult:
+            _Add_Collection(ax, vertices, inDim, surfDim, edgecolor=edgecolor, lw=0.5)
+
+        if hasResult and nodeValues:
+            # smooth nodal field: matplotlib has no collection equivalent -> tricontourf
+            triangles = mesh.groupElem.triangles
+            triangulation = np.reshape(mesh.connect[:, triangles], (-1, 3))
+            pc = ax.tricontourf(  # type: ignore [call-overload]
+                *coordDef[:, :2].T,
+                triangulation,
+                values,
+                levels,
+                cmap=cmap,
+                vmin=values.min(),
+                vmax=values.max(),
+            )
+        elif hasResult:
+            # element values
+            pc = _Add_Collection(
+                ax,
+                vertices,
+                inDim,
+                surfDim,
+                array=values,
+                norm=norm,
+                cmap=cmap,
+                lw=1.5 if surfDim == 1 else 0.5,
+                clim=(vmin, vmax),
+            )
+        else:
+            # solid color (edges live on the face collection, matching Plot_Mesh / _Plot_obj)
+            _Add_Collection(
+                ax,
+                vertices,
+                inDim,
+                surfDim,
+                facecolors=color,
+                edgecolor=edgecolor if plotMesh else None,
+                lw=lw,
+                alpha=alpha,
+            )
+
+        ax.autoscale()
+        ax.axis("equal")
+
+        if hasResult:
+            if colorbarIsClose:
+                divider = make_axes_locatable(ax)
+                cax = divider.append_axes("right", size="10%", pad=0.1)
+            else:
+                cax = None
+            colorbar = plt.colorbar(pc, ax=ax, cax=cax, ticks=ticks)
+            colorbar.set_label(colorbarLabel)
+
+    # Title
+    if title == "" and isinstance(result, str):
+        ax.set_title(rf"${__Get_latex_title(result, nodeValues)}$")
+    elif title != "":
+        ax.set_title(title)
+
+    tic.Tac("Display", "Plot")
+
+    # If the folder has been filled in, save the figure.
+    if folder != "":
+        if filename == "":
+            filename = result if isinstance(result, str) else "mesh"
+        Save_fig(folder, filename, transparent=False)
+
+    return ax
+
+
+# ----------------------------------------------
 # Plot Simu or Mesh
 # ----------------------------------------------
 @requires_matplotlib
@@ -144,169 +483,24 @@ def Plot_Result(
     >>> plt.show()
     """
 
-    # TODO #21: regroup function by dimElem instead of inDim
-
-    tic = Tic()
-
-    simu, mesh, coordDef, inDim = _Init_obj(obj, deformFactor)  # type: ignore
-    dimElem = mesh.dim  # Dimension of displayed elements
-    groupElem = mesh.groupElem
-
-    if dimElem == 1:
-        # Don't know how to display nodal values on lines
-        nodeValues = False  # do not modify
-    elif dimElem == 3:
-        # When mesh use 3D elements, results are displayed only on 2D elements.
-        # To display values on 2D elements, we first need to know the values at 3D nodes.
-        nodeValues = True  # do not modify
-    else:
-        nodeValues
-
-    # Get values
-    values = _Get_values(simu, mesh, result, nodeValues) * coef
-    # Get colorbar properties
-    ticks, levels, norm, min, max = __Get_colorbar_properties(
-        clim, result, values, ncolors
+    return Plot(
+        obj,
+        result=result,
+        deformFactor=deformFactor,
+        coef=coef,
+        nodeValues=nodeValues,
+        plotMesh=plotMesh,
+        edgecolor=edgecolor,
+        cmap=cmap,
+        ncolors=ncolors,
+        clim=clim,
+        ax=ax,
+        colorbarIsClose=colorbarIsClose,
+        colorbarLabel=colorbarLabel,
+        title=title,
+        folder=folder,
+        filename=filename,
     )
-
-    ax, inDim = __Get_axis(ax, inDim)
-
-    if inDim == 3:
-        # If the mesh is a 3D mesh, only the 2D elements of the mesh will be displayed.
-        # A 3D mesh can contain several types of 2D element.
-        # For example PRISM6 mesh use TRI3 and QUAD4 at the same time
-        dimElem = 2 if dimElem == 3 else dimElem
-
-        if dimElem == 1:
-            if plotMesh:
-                ax.plot(*coordDef.T, c=edgecolor, lw=0.1, marker=".", ls="")
-            vertices = coordDef[groupElem.connect[:, groupElem.segments[0]]]
-            pc = Line3DCollection(vertices, cmap=cmap, zorder=0, norm=norm)
-
-        else:
-            # construct the surface connection matrix
-            list_connect: list[_types.IntArray] = []
-            list_groupElem = mesh.Get_list_groupElem(2)
-            list_surfaces = _Get_list_surfaces(mesh, 2)
-            for groupElem, surfaces in zip(list_groupElem, list_surfaces):
-                list_connect.extend(groupElem.connect[:, surfaces])  # type: ignore [attr-defined]
-            # get surfaces coordinates
-            vertices = coordDef[list_connect]
-
-            # Display result with or without the mesh
-            edgecolor = edgecolor if plotMesh else None
-            linewidths = 0.5 if plotMesh else None
-            # concat params
-            params = {
-                "edgecolor": edgecolor,
-                "linewidths": linewidths,
-                "cmap": cmap,
-                "zorder": 0,
-                "norm": norm,
-            }
-            pc = Poly3DCollection(vertices, **params)
-
-        # get elementValues
-        if nodeValues:
-            # If the result is stored at nodes, we'll average the node values over the element.
-            elementValues = []
-            # for each group of elements, we'll calculate the value to be displayed on each element
-            for groupElem in mesh.Get_list_groupElem(dimElem):
-                values_loc = values[groupElem.connect]
-                values_e = np.mean(values_loc, axis=1)
-                elementValues.extend(values_e)
-            elementValues = np.array(elementValues)  # type: ignore [assignment]
-        else:
-            elementValues = values  # type: ignore [assignment]
-
-        # Colors are applied to the faces
-        pc.set_array(elementValues)
-        pc.set_clim(
-            np.min([elementValues.min(), min]),  # type: ignore [attr-defined]
-            np.max([elementValues.max(), max]),  # type: ignore [attr-defined]
-        )
-        ax.add_collection3d(pc)
-        # We set the colorbar limits and display it
-        colorbar = plt.colorbar(pc, ax=ax, ticks=ticks)
-
-        # Change axis scale
-        _Axis_equal_3D(ax, coordDef)
-
-    else:
-
-        # get vertices
-        if mesh.dim == 1:
-            idx = groupElem.segments[0]
-        else:
-            idx = groupElem.surfaces[0]
-        vertices = coordDef[groupElem.connect[:, idx], :2]
-
-        # Plot the mesh
-        if plotMesh:
-            if mesh.dim == 1:
-                # mesh for 1D elements are points
-                ax.plot(*coordDef[:, :2].T, c=edgecolor, lw=0.1, marker=".", ls="")
-            else:
-                # mesh for 2D elements are lines / segments
-                pc = LineCollection(vertices, edgecolor=edgecolor, lw=0.5)  # type: ignore [arg-type]
-                ax.add_collection(pc)
-
-        # Plot element values
-        if mesh.Ne == len(values):
-            if mesh.dim == 1:
-                pc = LineCollection(vertices, lw=1.5, cmap=cmap, norm=norm)  # type: ignore [arg-type]
-            else:
-                pc = PolyCollection(vertices, lw=0.5, cmap=cmap, norm=norm)  # type: ignore
-            pc.set_clim(min, max)
-            pc.set_array(values)
-            ax.add_collection(pc)
-
-        # Plot node values
-        elif mesh.Nn == len(values):
-            # retrieves triangles from each face to use the trisurf function
-            triangles = mesh.groupElem.triangles
-            triangulation = np.reshape(mesh.connect[:, triangles], (-1, 3))
-            # tripcolor, tricontour, tricontourf
-            pc = ax.tricontourf(  # type: ignore [call-overload]
-                *coordDef[:, :2].T,
-                triangulation,
-                values,
-                levels,
-                cmap=cmap,
-                vmin=values.min(),
-                vmax=values.max(),
-            )
-
-        # scale the axis
-        ax.autoscale()
-        ax.axis("equal")
-
-        if colorbarIsClose:
-            divider = make_axes_locatable(ax)
-            cax = divider.append_axes("right", size="10%", pad=0.1)
-            # # cax = divider.add_auto_adjustable_area(use_axes=ax, pad=0.1, adjust_dirs='right')
-        else:
-            cax = None
-        colorbar = plt.colorbar(pc, ax=ax, cax=cax, ticks=ticks)
-
-    colorbar.set_label(colorbarLabel)
-
-    # Title
-    # if no title has been entered, the constructed title is used
-    if title == "" and isinstance(result, str):
-        ax.set_title(rf"${__Get_latex_title(result, nodeValues)}$")
-    else:
-        ax.set_title(title)
-
-    tic.Tac("Display", "Plot_Result")
-
-    # If the folder has been filled in, save the figure.
-    if folder != "":
-        if filename == "":
-            filename = result  # type: ignore [assignment]
-        Save_fig(folder, filename, transparent=False)
-
-    return ax
 
 
 @requires_matplotlib
@@ -438,7 +632,6 @@ def Plot_Mesh(
     tic = Tic()
 
     simu, mesh, coordDef, inDim = _Init_obj(obj, deformFactor)
-    groupElem = mesh.groupElem
     coord = mesh.coord
 
     if ax is not None:
@@ -446,128 +639,81 @@ def Plot_Mesh(
 
     deformFactor = 0 if simu is None else np.abs(deformFactor)
 
-    # Dimension of displayed elements
-    dimElem = mesh.dim
-    # If the mesh is a 3D mesh, only the 2D elements of the mesh will be displayed.
-    if dimElem == 3:
-        dimElem = 2
-
     if title == "":
         title = f"{mesh.elemType}: Ne = {mesh.Ne}, Nn = {mesh.Nn}"
 
-    # get axis
-    ax, inDim = __Get_axis(ax, inDim)
-    ax.set_title(title)
+    if deformFactor == 0:
+        # Undeformed mesh: the common case routes through the shared Plot core.
+        ax = Plot(
+            obj,
+            color=facecolors,
+            plotMesh=True,
+            edgecolor=edgecolor,
+            lw=lw,
+            alpha=alpha,
+            ax=ax,
+            title=title,
+        )
+        if mesh.dim == 1:
+            # 1D meshes display their nodes
+            markCoord = coord if ax.name == "3d" else coord[:, :2]
+            ax.plot(*markCoord.T, c="black", lw=lw, marker=".", ls="")
+    else:
+        # Deformed mesh: overlay the deformed (red) and undeformed wireframes.
+        # The 3D alpha=0 transparent-face wireframe is sensitive to the exact
+        # add_collection3d call (the deformed layer must be added plain while the
+        # undeformed one needs zs/zdir), so this overlay keeps the explicit
+        # collection construction rather than routing through _Add_Collection.
+        ax, inDim = __Get_axis(ax, inDim)
+        ax.set_title(title)
 
-    if inDim == 3:
-        # in 3d space
+        groupElem = mesh.groupElem
+        dimElem = 2 if mesh.dim == 3 else mesh.dim
 
-        if dimElem == 1:
-
-            # get segments coordinates / vertices
-            segments = groupElem.connect[:, groupElem.segments[0]]
-            vertices = coord[segments, :inDim]
-            verticesDef = coordDef[segments, :inDim]
-
-            if deformFactor > 0:
-                # Deformed mesh
-                pc = Line3DCollection(verticesDef, edgecolor="red", lw=lw, zorder=1)
-                ax.add_collection3d(pc)  # type: ignore
+        if inDim == 3:
+            if dimElem == 1:
+                segments = groupElem.connect[:, groupElem.segments[0]]
+                vertices = coord[segments, :inDim]
+                verticesDef = coordDef[segments, :inDim]
+                pcDef = Line3DCollection(verticesDef, edgecolor="red", lw=lw, zorder=1)
+                ax.add_collection3d(pcDef)  # type: ignore
                 ax.plot(*coordDef.T, c="red", lw=lw, marker=".", ls="")
-
-            # Undeformed mesh
-            pc = Line3DCollection(vertices, edgecolor=edgecolor, lw=lw, zorder=0)
-            ax.plot(*coord.T, c="black", lw=lw, marker=".", ls="")
-        else:
-
-            # construct the connection matrix for the surfaces
-            list_connect: list[_types.IntArray] = []
-            list_groupElem = mesh.Get_list_groupElem(dimElem)
-            list_surfaces = _Get_list_surfaces(mesh, dimElem)
-            for groupElem, surfaces in zip(list_groupElem, list_surfaces):
-                list_connect.extend(groupElem.connect[:, surfaces])
-
-            # get faces coordinates / vertices
-            vertices = coord[list_connect, :inDim]
-            verticesDef = coordDef[list_connect, :inDim]
-
-            if deformFactor > 0:
-                # Deformed mesh
+                pc = Line3DCollection(vertices, edgecolor=edgecolor, lw=lw, zorder=0)
+                ax.plot(*coord.T, c="black", lw=lw, marker=".", ls="")
+            else:
+                list_connect: list[_types.IntArray] = []
+                for ge, surfaces in zip(
+                    mesh.Get_list_groupElem(dimElem), _Get_list_surfaces(mesh, dimElem)
+                ):
+                    list_connect.extend(ge.connect[:, surfaces])
+                vertices = coord[list_connect, :inDim]
+                verticesDef = coordDef[list_connect, :inDim]
                 pcDef = Poly3DCollection(
                     verticesDef, edgecolor="red", linewidths=0.5, alpha=0, zorder=1
                 )
                 ax.add_collection3d(pcDef)  # type: ignore
-                alpha = 0
-
-            # Undeformed mesh
-            pc = Poly3DCollection(
-                vertices,
-                facecolors=facecolors,
-                edgecolor=edgecolor,
-                linewidths=0.5,
-                alpha=alpha,
-                zorder=0,
-            )
-        ax.add_collection3d(pc, zs=0, zdir="z")  # type: ignore
-
-        _Axis_equal_3D(ax, coordDef)  # type: ignore
-
-    else:
-        # in 2d space
-
-        # get vertices
-        if mesh.dim == 1:
-            idx = groupElem.segments[0]
+                pc = Poly3DCollection(
+                    vertices,
+                    facecolors=facecolors,
+                    edgecolor=edgecolor,
+                    linewidths=0.5,
+                    alpha=0,
+                    zorder=0,
+                )
+            ax.add_collection3d(pc, zs=0, zdir="z")  # type: ignore
+            _Axis_equal_3D(ax, coordDef)  # type: ignore
         else:
-            idx = groupElem.surfaces[0]
-        vertexConnect = groupElem.connect[:, idx]
-        vertices = coord[vertexConnect, :2]
-        verticesDef = coordDef[vertexConnect, :2]
-
-        if deformFactor > 0:
-            # Deformed mesh
-            pc = LineCollection(
-                verticesDef,  # type: ignore
-                edgecolor="red",
-                lw=lw,
-                zorder=1,  # type: ignore
-            )
-            ax.add_collection(pc)
-            # Overlay undeformed and deformed mesh
-            # Undeformed mesh
-            pc = LineCollection(
-                vertices,  # type: ignore
-                edgecolor=edgecolor,
-                lw=lw,
-                zorder=0,  # type: ignore
-            )
-            ax.add_collection(pc)
-        else:
-            # Undeformed mesh
-            if facecolors != edgecolor:
-                pc = LineCollection(vertices, edgecolor=edgecolor, lw=lw, zorder=1)  # type: ignore
-                ax.add_collection(pc)
-            else:
-                edgecolor = None
-
-            pc = PolyCollection(
-                vertices,  # type: ignore
-                facecolors=facecolors,
-                edgecolor=edgecolor,
-                lw=lw,
-                zorder=1,
-                alpha=alpha,
-            )
-            ax.add_collection(pc)
-
-        if mesh.dim == 1:
-            # nodes
-            ax.plot(*coord[:, :2].T, c="black", lw=lw, marker=".", ls="")
-            if deformFactor > 0:
+            idx = groupElem.segments[0] if mesh.dim == 1 else groupElem.surfaces[0]
+            vertexConnect = groupElem.connect[:, idx]
+            vertices = coord[vertexConnect, :2]
+            verticesDef = coordDef[vertexConnect, :2]
+            ax.add_collection(LineCollection(verticesDef, edgecolor="red", lw=lw, zorder=1))  # type: ignore [arg-type]
+            ax.add_collection(LineCollection(vertices, edgecolor=edgecolor, lw=lw, zorder=0))  # type: ignore [arg-type]
+            if mesh.dim == 1:
+                # nodes (undeformed in black, deformed in red)
+                ax.plot(*coord[:, :2].T, c="black", lw=lw, marker=".", ls="")
                 ax.plot(*coordDef[:, :2].T, c="red", lw=lw, marker=".", ls="")
-
-        ax.autoscale()
-        if ax.name != "3d":
+            ax.autoscale()
             ax.axis("equal")
 
     tic.Tac("Display", "Plot_Mesh")
@@ -603,67 +749,7 @@ def _Plot_obj(
     Axes
     """
 
-    tic = Tic()
-
-    _, mesh, coordDef, inDim = _Init_obj(obj)
-    groupElem = mesh.groupElem
-
-    if ax is not None:
-        inDim = 3 if ax.name == "3d" else inDim
-
-    # Dimension of displayed elements
-    dimElem = mesh.dim
-    # If the mesh is a 3D mesh, only the 2D elements of the mesh will be displayed.
-    if dimElem == 3:
-        dimElem = 2
-
-    # get axis
-    ax, inDim = __Get_axis(ax, inDim)
-    inDim = np.max([inDim, 2])
-
-    if dimElem == 1:
-        segments = groupElem.connect[:, groupElem.segments[0]]
-        vertices = coordDef[segments, :inDim]
-
-        params = {"edgecolor": color, "lw": 0.5, "alpha": alpha}
-
-        if inDim == 3:
-            pc = Line3DCollection(vertices, **params)
-            ax.add_collection3d(pc)  # type: ignore
-        else:
-            pc = LineCollection(vertices, **params)  # type: ignore [arg-type]
-            ax.add_collection(pc)
-
-    else:
-
-        # construct the connection matrix for the surfaces
-        list_connect: list[_types.IntArray] = []
-        list_groupElem = mesh.Get_list_groupElem(dimElem)
-        list_surfaces = _Get_list_surfaces(mesh, dimElem)
-        for groupElem, surfaces in zip(list_groupElem, list_surfaces):
-            list_connect.extend(groupElem.connect[:, surfaces])
-
-        # get faces coordinates / vertices
-        vertices = coordDef[list_connect, :inDim]
-
-        params = {"facecolors": color, "alpha": alpha}
-
-        if inDim == 3:
-            pc = Poly3DCollection(vertices, **params)
-            ax.add_collection3d(pc)  # type: ignore
-        else:
-            pc = PolyCollection(vertices, **params)  # type: ignore [arg-type]
-            ax.add_collection(pc)  # type: ignore
-
-    if inDim == 3:
-        _Axis_equal_3D(ax, coordDef)  # type: ignore
-    else:
-        ax.autoscale()
-        ax.axis("equal")
-
-    tic.Tac("Display", "Plot")
-
-    return ax  # type: ignore
+    return Plot(obj, color=color, alpha=alpha, ax=ax)
 
 
 @requires_matplotlib
@@ -819,23 +905,7 @@ def Plot_Elements(
         # center coordinates for each elements
         center_e = np.mean(vertices_e, axis=1)
 
-        if inDim == 3:
-
-            if groupElem.dim == 1:
-                pc = Line3DCollection(vertices, **params)
-            else:
-                pc = Poly3DCollection(vertices, **params)
-
-            ax.add_collection3d(pc, zdir="z")
-
-        else:
-
-            if groupElem.dim == 1:
-                pc = LineCollection(vertices, **params)
-            else:
-                pc = PolyCollection(vertices, **params)
-
-            ax.add_collection(pc)
+        _Add_Collection(ax, vertices, inDim, groupElem.dim, **params)
 
         if showId:
             # plot elements id's
@@ -1074,40 +1144,19 @@ def Plot_Tags(
                 collections.append(points)
             elif dim == 1:
                 # plot lines
-                params = {
-                    "lw": 1.5,
-                    "edgecolor": "black",
-                    "alpha": 1,
-                    "label": tag_e,
-                }
-
-                if inDim == 3:
-                    pc = Line3DCollection(vertices, **params)
-                    collections.append(ax.add_collection3d(pc, zdir="z"))
-                else:
-                    pc = LineCollection(vertices, **params)  # type: ignore [arg-type]
-                    collections.append(ax.add_collection(pc))
+                pc = _Add_Collection(
+                    ax, vertices, inDim, 1, edgecolor="black", lw=1.5, alpha=1
+                )
+                pc.set_label(tag_e)
+                collections.append(pc)
 
             elif dim == 2:
                 # plot surfaces
-
-                if inDim == 3:
-                    pc = Poly3DCollection(
-                        vertices,
-                        lw=0,
-                        alpha=alpha,
-                        facecolors=color,
-                        label=tag_e,
-                    )
-                    collections.append(ax.add_collection3d(pc, zdir="z"))
-                else:
-                    pc = PolyCollection(
-                        vertices,  # type: ignore
-                        facecolors=color,
-                        label=tag_e,
-                        alpha=alpha,
-                    )
-                    collections.append(ax.add_collection(pc))
+                pc = _Add_Collection(
+                    ax, vertices, inDim, 2, facecolors=color, lw=0, alpha=alpha
+                )
+                pc.set_label(tag_e)
+                collections.append(pc)
 
             if showId:
                 ax.text(*center[:inDim], tag_e, zorder=25)  # type: ignore [arg-type, call-arg]
