@@ -382,7 +382,7 @@ class _Simu(_IObserver, _params.Updatable, ABC):
         """
 
         text = Display.Section("Mesh", False)
-        text += str(self.mesh)  # type: ignore
+        text += "\n" + str(self.mesh)  # type: ignore
 
         text += Display.Section("Model", False)
         text += "\n" + str(self.model)
@@ -531,13 +531,11 @@ class _Simu(_IObserver, _params.Updatable, ABC):
 
         matrixType = MatrixType.mass
 
-        group = self.mesh.groupElem
-
-        weightedJacobian = group.Get_weightedJacobian_e_pg(matrixType)
-
-        rho_e_p = Reshape_variable(self.rho, *weightedJacobian.shape[:2])
-
-        mass = (rho_e_p * weightedJacobian).sum((0, 1)).astype(float)
+        mass = 0.0
+        for groupElem in self.mesh.Get_list_groupElem(self.dim):
+            wJ_e_pg = groupElem.Get_weightedJacobian_e_pg(matrixType)
+            rho_e_pg = Reshape_variable(self.rho, *wJ_e_pg.shape[:2])
+            mass += (rho_e_pg * wJ_e_pg).sum().astype(float)
 
         if self.dim == 2:
             mass *= self.model.thickness
@@ -553,20 +551,17 @@ class _Simu(_IObserver, _params.Updatable, ABC):
 
         matrixType = MatrixType.mass
 
-        group = self.mesh.groupElem
-
-        coord_e_p = group.Get_GaussCoordinates_e_pg(matrixType)
-
-        weightedJacobian = group.Get_weightedJacobian_e_pg(matrixType)
-
-        rho_e_p = Reshape_variable(self.rho, *weightedJacobian.shape[:2])
-
         mass = self.mass
 
-        center = (rho_e_p * weightedJacobian * coord_e_p / mass).sum((0, 1))
-
-        if self.dim == 2:
-            center *= self.model.thickness
+        center = np.zeros(3, dtype=float)
+        for groupElem in self.mesh.Get_list_groupElem(self.dim):
+            coord_e_pg = groupElem.Get_GaussCoordinates_e_pg(matrixType)
+            wJ_e_pg = groupElem.Get_weightedJacobian_e_pg(matrixType)
+            rho_e_pg = Reshape_variable(self.rho, *wJ_e_pg.shape[:2])
+            contrib = (rho_e_pg * wJ_e_pg * coord_e_pg / mass).sum()
+            if self.dim == 2:
+                contrib *= self.model.thickness
+            center += contrib
 
         if not isinstance(self.rho, np.ndarray):
             diff = np.linalg.norm(center - self.mesh.center) / np.linalg.norm(center)
@@ -2926,10 +2921,14 @@ class _Simu(_IObserver, _params.Updatable, ABC):
             elif values.size % Nn == 0:
                 # get values stored at nodes (Nn, i)
                 values_n = values.reshape(Nn, -1)
-                # get values on every elements and nPe (Ne, nPe, i)
-                values_e_nPe = values_n[mesh.connect]
-                # get values on elements by averaging over the nodes per elements (nPe)
-                values_e = np.mean(values_e_nPe, 1)
+                # average over each element's nodes, group by group (element
+                # order matches Get_list_groupElem(dim) / Get_Node_Values)
+                values_e = np.concatenate(
+                    [
+                        np.mean(values_n[groupElem.connect], axis=1)
+                        for groupElem in mesh.Get_list_groupElem(mesh.dim)
+                    ]
+                )
                 return values_e.reshape(shape)
 
         # We should never reach this line of code if no unexpected conditions occurs

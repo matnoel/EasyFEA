@@ -73,24 +73,39 @@ def __Get_vertices(
     Shared by Plot and Plot_Mesh. Branches exactly as the historical code to avoid display regressions.
     """
 
-    groupElem = mesh.groupElem
-
     if inDim == 3:
         # When the mesh uses 3D elements, only the 2D surfaces are displayed.
         dimElem = 2 if dimElem == 3 else dimElem
         if dimElem == 1:
-            vertices = coord[groupElem.connect[:, groupElem.segments[0]]]
+            list_connect = []
+            for groupElem in mesh.Get_list_groupElem(dimElem):
+                list_connect.extend(groupElem.connect[:, groupElem.segments[0]])
+            vertices = coord[list_connect]
         else:
             # construct the surface connection matrix across every 2D element group
-            list_connect: list[_types.IntArray] = []
+            list_connect = []
             list_groupElem = mesh.Get_list_groupElem(dimElem)
             list_surfaces = _Get_list_surfaces(mesh, dimElem)
             for groupElem, surfaces in zip(list_groupElem, list_surfaces):
                 list_connect.extend(groupElem.connect[:, surfaces])  # type: ignore [attr-defined]
             vertices = coord[list_connect]
     else:
-        idx = groupElem.segments[0] if dimElem == 1 else groupElem.surfaces[0]
-        vertices = coord[groupElem.connect[:, idx], :2]
+        # one or several element groups of dimension dimElem; build the polygons (or segments) following Get_list_groupElem(dimElem) order so they match the element ordering of any per-element field. When the groups mix element types (e.g. QUAD4 + TRI3) the polygons have different vertex counts, so a ragged list is returned instead of an ndarray.
+        list_verts: list[_types.FloatArray] = []
+        nPts: Optional[int] = None
+        homogeneous = True
+        for groupElem in mesh.Get_list_groupElem(dimElem):
+            idx = groupElem.segments[0] if dimElem == 1 else groupElem.surfaces[0]
+            verts = coord[groupElem.connect[:, idx], :2]  # (Ne_g, nPts_g, 2)
+            if nPts is None:
+                nPts = verts.shape[1]
+            elif verts.shape[1] != nPts:
+                homogeneous = False
+            list_verts.append(verts)
+        if homogeneous:
+            vertices = np.concatenate(list_verts, axis=0)
+        else:
+            vertices = [poly for verts in list_verts for poly in verts]  # type: ignore [assignment]
 
     return vertices
 
@@ -337,8 +352,13 @@ def Plot(
 
         if hasResult and nodeValues:
             # smooth nodal field: matplotlib has no collection equivalent -> tricontourf
-            triangles = mesh.groupElem.triangles
-            triangulation = np.reshape(mesh.connect[:, triangles], (-1, 3))
+            # triangulate every main-dimension element group (QUAD4 -> 2 tris, ...)
+            triangulation = np.concatenate(
+                [
+                    np.reshape(groupElem.connect[:, groupElem.triangles], (-1, 3))
+                    for groupElem in mesh.Get_list_groupElem(mesh.dim)
+                ]
+            )
             pc = ax.tricontourf(  # type: ignore [call-overload]
                 *coordDef[:, :2].T,
                 triangulation,
@@ -541,7 +561,7 @@ def Plot_Mesh(
     deformFactor = 0 if simu is None else np.abs(deformFactor)
 
     if title == "":
-        title = f"{mesh.elemType}: Ne = {mesh.Ne}, Nn = {mesh.Nn}"
+        title = str(mesh).replace("\n", ", ")
 
     if deformFactor == 0:
         # Undeformed mesh: the common case routes through the shared Plot core.
