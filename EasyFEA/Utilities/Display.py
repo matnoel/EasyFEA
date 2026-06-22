@@ -141,7 +141,7 @@ def _Add_Collection(
             pc.set_clim(*clim)
 
     if is3D:
-        ax.add_collection3d(pc)  # type: ignore [union-attr]
+        ax.add_collection3d(pc, zs=0, zdir="z")  # type: ignore [union-attr]
     else:
         ax.add_collection(pc)
 
@@ -555,60 +555,29 @@ def Plot_Mesh(
             markCoord = coord if ax.name == "3d" else coord[:, :2]
             ax.plot(*markCoord.T, c="black", lw=lw, marker=".", ls="")
     else:
-        # Deformed mesh: overlay the deformed (red) and undeformed wireframes.
-        # The 3D alpha=0 transparent-face wireframe is sensitive to the exact
-        # add_collection3d call (the deformed layer must be added plain while the
-        # undeformed one needs zs/zdir), so this overlay keeps the explicit
-        # collection construction rather than routing through _Add_Collection.
+        # Deformed mesh: overlay the deformed (red) over the undeformed wireframe, both built
+        # with the same _Get_vertices / _Add_Collection helpers used by Plot. The element
+        # outlines are drawn as lines (dimElem=1) so the overlay renders identically in 2D and
+        # 3D without relying on transparent faces.
         ax, inDim = __Get_axis(ax, inDim)
         ax.set_title(title)
 
-        groupElem = mesh.groupElem
-        dimElem = 2 if mesh.dim == 3 else mesh.dim
+        verticesDef = _Get_vertices(mesh, coordDef, inDim, mesh.dim)
+        vertices = _Get_vertices(mesh, coord, inDim, mesh.dim)
+
+        _Add_Collection(ax, verticesDef, inDim, 1, edgecolor="red", lw=lw, zorder=1)
+        _Add_Collection(ax, vertices, inDim, 1, edgecolor=edgecolor, lw=lw, zorder=0)
+
+        if mesh.dim == 1:
+            # 1D meshes display their nodes (undeformed in black, deformed in red)
+            markCoord = coord if inDim == 3 else coord[:, :2]
+            markDef = coordDef if inDim == 3 else coordDef[:, :2]
+            ax.plot(*markCoord.T, c="black", lw=lw, marker=".", ls="")
+            ax.plot(*markDef.T, c="red", lw=lw, marker=".", ls="")
 
         if inDim == 3:
-            if dimElem == 1:
-                segments = groupElem.connect[:, groupElem.segments[0]]
-                vertices = coord[segments, :inDim]
-                verticesDef = coordDef[segments, :inDim]
-                pcDef = Line3DCollection(verticesDef, edgecolor="red", lw=lw, zorder=1)
-                ax.add_collection3d(pcDef)  # type: ignore
-                ax.plot(*coordDef.T, c="red", lw=lw, marker=".", ls="")
-                pc = Line3DCollection(vertices, edgecolor=edgecolor, lw=lw, zorder=0)
-                ax.plot(*coord.T, c="black", lw=lw, marker=".", ls="")
-            else:
-                list_connect: list[_types.IntArray] = []
-                for ge, surfaces in zip(
-                    mesh.Get_list_groupElem(dimElem), _Get_list_surfaces(mesh, dimElem)
-                ):
-                    list_connect.extend(ge.connect[:, surfaces])
-                vertices = coord[list_connect, :inDim]
-                verticesDef = coordDef[list_connect, :inDim]
-                pcDef = Poly3DCollection(
-                    verticesDef, edgecolor="red", linewidths=0.5, alpha=0, zorder=1
-                )
-                ax.add_collection3d(pcDef)  # type: ignore
-                pc = Poly3DCollection(
-                    vertices,
-                    facecolors=facecolors,
-                    edgecolor=edgecolor,
-                    linewidths=0.5,
-                    alpha=0,
-                    zorder=0,
-                )
-            ax.add_collection3d(pc, zs=0, zdir="z")  # type: ignore
             _Axis_equal_3D(ax, coordDef)  # type: ignore
         else:
-            idx = groupElem.segments[0] if mesh.dim == 1 else groupElem.surfaces[0]
-            vertexConnect = groupElem.connect[:, idx]
-            vertices = coord[vertexConnect, :2]
-            verticesDef = coordDef[vertexConnect, :2]
-            ax.add_collection(LineCollection(verticesDef, edgecolor="red", lw=lw, zorder=1))  # type: ignore [arg-type]
-            ax.add_collection(LineCollection(vertices, edgecolor=edgecolor, lw=lw, zorder=0))  # type: ignore [arg-type]
-            if mesh.dim == 1:
-                # nodes (undeformed in black, deformed in red)
-                ax.plot(*coord[:, :2].T, c="black", lw=lw, marker=".", ls="")
-                ax.plot(*coordDef[:, :2].T, c="red", lw=lw, marker=".", ls="")
             ax.autoscale()
             ax.axis("equal")
 
