@@ -63,7 +63,7 @@ class Mesh(Observable):
         assert len(dict_groupElem) > 0, "dict_groupElem is empty."
         # all groups must share the same global node numbering (one common Ncoords)
         assert (
-            len({grp.Ncoords for grp in dict_groupElem.values()}) == 1
+            len({groupElem.Ncoords for groupElem in dict_groupElem.values()}) == 1
         ), "All element groups must share the same coordinates (common Ncoords)."
         self.__dict_groupElem = dict_groupElem
 
@@ -99,16 +99,23 @@ class Mesh(Observable):
 
     def __str__(self) -> str:
         """Returns a string representation of the mesh."""
-        text = f"\nElement type: {self.elemType}"
+        list_groupElem = self.Get_list_groupElem(self.dim)
+        list_elemType = [groupElem.elemType for groupElem in list_groupElem]
+        text = f"elemType: {'+'.join(list_elemType)}"
 
-        if MPI_SIZE > 1:
-            elements = self.groupElem._Get_partitioned_data()[1]
-            Ne = elements.max()
-            Ne = MPI_COMM.allreduce(Ne, op=MPI.MAX)
-        else:
-            Ne = self.Ne
+        list_Ne = [""] * len(list_elemType)
 
-        text += f"\nNe = {Ne}, Nn = {self.Nn}"
+        for i, groupElem in enumerate(list_groupElem):
+            if MPI_SIZE > 1:
+                elements = groupElem._Get_partitioned_data()[1]
+                Ne = elements.max()
+                Ne = MPI_COMM.allreduce(Ne, op=MPI.MAX)
+            else:
+                Ne = groupElem.Ne
+            list_Ne[i] = str(Ne)
+
+        text += f"\nNe: {'+'.join(list_Ne)}"
+        text += f"\nNn: {self.Nn}"
         return text
 
     def Get_list_groupElem(self, dim=None) -> list["_GroupElem"]:
@@ -164,8 +171,10 @@ class Mesh(Observable):
 
     @property
     def Ne(self) -> int:
-        """number of elements in the mesh"""
-        return self.groupElem.Ne
+        """number of elements in the mesh.\n
+        When several element groups share the main dimension, this is the total number of elements across those groups (concatenation order = Get_list_groupElem(dim)).
+        """
+        return int(sum(groupElem.Ne for groupElem in self.Get_list_groupElem()))
 
     @property
     def Nn(self) -> int:
@@ -183,11 +192,6 @@ class Mesh(Observable):
         """dimension in which the mesh lies.\n
         A 2D mesh can be oriented in a 3D space."""
         return self.__inDim
-
-    @property
-    def nPe(self) -> int:
-        """nodes per element"""
-        return self.groupElem.nPe
 
     def _Get_realistic_vector_magnitude(self, coef=0.1) -> float:
         """Returns a realistic vector magnitude based on the mesh size.
@@ -340,8 +344,8 @@ class Mesh(Observable):
         """
         oldCoord = self.coord
         newCoord = oldCoord + np.array([dx, dy, dz])
-        for grp in self.dict_groupElem.values():
-            grp.coord = newCoord
+        for groupElem in self.dict_groupElem.values():
+            groupElem.coord = newCoord
         self._Notify("The mesh has been modified")
 
     def Rotate(
@@ -363,8 +367,8 @@ class Mesh(Observable):
         """
         oldCoord = self.coord
         newCoord = Rotate(oldCoord, theta, center, direction)
-        for grp in self.dict_groupElem.values():
-            grp.coord = newCoord
+        for groupElem in self.dict_groupElem.values():
+            groupElem.coord = newCoord
         self._Notify("The mesh has been modified")
 
     def Symmetry(
@@ -383,14 +387,16 @@ class Mesh(Observable):
         """
         oldCoord = self.coord
         newCoord = Symmetry(oldCoord, point, n)
-        for grp in self.dict_groupElem.values():
-            grp.coord = newCoord
+        for groupElem in self.dict_groupElem.values():
+            groupElem.coord = newCoord
         self._Notify("The mesh has been modified")
 
     @property
     def nodes(self) -> _types.IntArray:
-        """mesh nodes"""
-        return self.groupElem.nodes
+        """mesh nodes (union of the nodes used by every main-dimension element group)"""
+        return np.unique(
+            np.concatenate([groupElem.nodes for groupElem in self.Get_list_groupElem()])
+        )
 
     @property
     def coord(self) -> _types.FloatArray:
@@ -403,8 +409,8 @@ class Mesh(Observable):
 
     @coord.setter
     def coord(self, coord: _types.FloatArray) -> None:
-        for grp in self.dict_groupElem.values():
-            grp.coord = coord
+        for groupElem in self.dict_groupElem.values():
+            groupElem.coord = coord
 
     @property
     def connect(self) -> _types.IntArray:
@@ -478,9 +484,15 @@ class Mesh(Observable):
     def Get_connect_n_e(self) -> sp.csr_matrix:
         """Sparse matrix (Nn, Ne) of zeros and ones with ones when the node has the element such that:\n
         values_n = connect_n_e * values_e\n
-        (Nn,1) = (Nn,Ne) * (Ne,1)
+        (Nn,1) = (Nn,Ne) * (Ne,1)\n
+        When several element groups share the main dimension, their matrices are horizontally stacked following Get_list_groupElem(dim) order.
         """
-        return self.groupElem.Get_connect_n_e()
+        list_groupElem = self.Get_list_groupElem()
+        if len(list_groupElem) == 1:
+            return list_groupElem[0].Get_connect_n_e()
+        return sp.hstack(
+            [groupElem.Get_connect_n_e() for groupElem in list_groupElem], format="csr"
+        )
 
     def Get_assembly_e(self, dof_n: int) -> _types.IntArray:
         """Returns assembly matrix for specified dof_n (Ne, nPe*dof_n)"""
@@ -499,29 +511,33 @@ class Mesh(Observable):
         """total length of the mesh."""
         if self.dim < 1:
             return None  # type: ignore [return-value]
-        lengths = [group1D.length for group1D in self.Get_list_groupElem(1)]
-        return np.sum(lengths)
+        return np.sum([groupElem.length for groupElem in self.Get_list_groupElem(1)])
 
     @property
     def area(self) -> float:
         """total area of the mesh."""
         if self.dim < 2:
             return None  # type: ignore [return-value]
-        areas = [group2D.area for group2D in self.Get_list_groupElem(2)]
-        return np.sum(areas)
+        return np.sum([groupElem.area for groupElem in self.Get_list_groupElem(2)])
 
     @property
     def volume(self) -> float:
         """total volume of the mesh."""
         if self.dim != 3:
             return None  # type: ignore [return-value]
-        volumes = [group3D.volume for group3D in self.Get_list_groupElem(3)]
-        return np.sum(volumes)
+        return np.sum([groupElem.volume for groupElem in self.Get_list_groupElem(3)])
 
     @property
     def center(self) -> _types.FloatArray:
         """center of mass / barycenter / inertia center"""
-        return self.groupElem.center
+        list_groupElem = self.Get_list_groupElem(self.dim)
+        if len(list_groupElem) == 1:
+            return list_groupElem[0].center
+        # length/area/volume weighted average of the per-group centers
+        measure = ("length", "area", "volume")[self.dim - 1]
+        centers = [groupElem.center for groupElem in list_groupElem]
+        weights = [getattr(groupElem, measure) for groupElem in list_groupElem]
+        return np.average(centers, axis=0, weights=weights)
 
     def Get_normals(
         self,
@@ -603,7 +619,13 @@ class Mesh(Observable):
         _types.IntArray
             nodes that meet the specified conditions.
         """
-        return self.groupElem.Get_Nodes_Conditions(func)
+        list_groupElem = self.Get_list_groupElem(self.dim)
+        if len(list_groupElem) == 1:
+            return list_groupElem[0].Get_Nodes_Conditions(func)
+        nodes: set[int] = set()
+        for groupElem in list_groupElem:
+            nodes.update(groupElem.Get_Nodes_Conditions(func).tolist())
+        return np.array(sorted(nodes), dtype=int)
 
     def Nodes_Point(self, *points: Point.PointALike) -> _types.IntArray:
         """Returns nodes on the point(s)."""
@@ -616,7 +638,8 @@ class Mesh(Observable):
         ]
 
         for point in points:
-            nodes = nodes.union(self.groupElem.Get_Nodes_Point(point))
+            for groupElem in self.Get_list_groupElem(self.dim):
+                nodes = nodes.union(groupElem.Get_Nodes_Point(point))
         return np.asarray(list(nodes), dtype=int)
 
     def Nodes_Line(self, *lines: "Line") -> _types.IntArray:
@@ -630,7 +653,8 @@ class Mesh(Observable):
         ]
 
         for line in lines:
-            nodes = nodes.union(self.groupElem.Get_Nodes_Line(line))
+            for groupElem in self.Get_list_groupElem(self.dim):
+                nodes = nodes.union(groupElem.Get_Nodes_Line(line))
         return np.asarray(list(nodes), dtype=int)
 
     def Nodes_Domain(self, *domains: "Domain") -> _types.IntArray:
@@ -644,7 +668,8 @@ class Mesh(Observable):
         ]
 
         for domain in domains:
-            nodes = nodes.union(self.groupElem.Get_Nodes_Domain(domain))
+            for groupElem in self.Get_list_groupElem(self.dim):
+                nodes = nodes.union(groupElem.Get_Nodes_Domain(domain))
         return np.asarray(list(nodes), dtype=int)
 
     def Nodes_Circle(self, *circles: "Circle", onlyOnEdge=True) -> _types.IntArray:
@@ -658,7 +683,8 @@ class Mesh(Observable):
         ]
 
         for circle in circles:
-            nodes = nodes.union(self.groupElem.Get_Nodes_Circle(circle, onlyOnEdge))
+            for groupElem in self.Get_list_groupElem(self.dim):
+                nodes = nodes.union(groupElem.Get_Nodes_Circle(circle, onlyOnEdge))
         return np.asarray(list(nodes), dtype=int)
 
     def Nodes_Cylinder(
@@ -674,9 +700,10 @@ class Mesh(Observable):
         ]
 
         for circle in circles:
-            nodes = nodes.union(
-                self.groupElem.Get_Nodes_Cylinder(circle, direction, onlyOnEdge)
-            )
+            for groupElem in self.Get_list_groupElem(self.dim):
+                nodes = nodes.union(
+                    groupElem.Get_Nodes_Cylinder(circle, direction, onlyOnEdge)
+                )
         return np.asarray(list(nodes), dtype=int)
 
     def Elements_Nodes(
@@ -871,7 +898,9 @@ class Mesh(Observable):
 
         # get dofs values for each detected elements as a (Nnodes, nPe, dof_n) array
         rows_e = self.Get_assembly_e(dof_n)
-        dofsValues_n = dofsValues[rows_e[elements_n]].reshape(Nnodes, self.nPe, dof_n)
+        dofsValues_n = dofsValues[rows_e[elements_n]].reshape(
+            Nnodes, groupElem.nPe, dof_n
+        )
 
         # get the evaluated shape functions as a (Nnodes, nPe) array
         evaluated_shape_functions = groupElem._Eval_Functions(
