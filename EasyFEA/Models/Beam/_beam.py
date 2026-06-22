@@ -94,8 +94,8 @@ class _Beam(_IModel):
         # here z is the x axis of the section thats why we use x
         Iy: float = np.sum(
             [
-                grp.Integrate_e(lambda x, y, z: x**2).sum()
-                for grp in self.__section.Get_list_groupElem(2)
+                groupElem.Integrate_e(lambda x, y, z: x**2).sum()
+                for groupElem in self.__section.Get_list_groupElem(2)
             ]
         )
         return Iy
@@ -106,8 +106,8 @@ class _Beam(_IModel):
         int_S y^2 dS"""
         Iz: float = np.sum(
             [
-                grp.Integrate_e(lambda x, y, z: y**2).sum()
-                for grp in self.__section.Get_list_groupElem(2)
+                groupElem.Integrate_e(lambda x, y, z: y**2).sum()
+                for groupElem in self.__section.Get_list_groupElem(2)
             ]
         )
         return Iz
@@ -117,8 +117,8 @@ class _Beam(_IModel):
         """polar area moment of inertia (Iy + Iz)."""
         J: float = np.sum(
             [
-                grp.Integrate_e(lambda x, y, z: x**2 + y**2).sum()
-                for grp in self.__section.Get_list_groupElem(2)
+                groupElem.Integrate_e(lambda x, y, z: x**2 + y**2).sum()
+                for groupElem in self.__section.Get_list_groupElem(2)
             ]
         )
         return J
