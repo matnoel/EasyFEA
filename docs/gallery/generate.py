@@ -264,6 +264,12 @@ if __name__ == "__main__":
             PlotHomog,
         ),
         Item(
+            "LinearizedElasticity/Homog5.py",
+            "Conduct 3d homogenization on a periodic mesh generated with microgen",
+            ["simu"],
+            PlotHomog,
+        ),
+        Item(
             "LinearizedElasticity/MeshOptim1.py",
             "Mesh optimization using the ZZ1 criterion for a bending bracket.",
             ["simu"],
