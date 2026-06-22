@@ -290,10 +290,10 @@ class DIC(_IObserver):
         dNdx = dN_e_pg[:, :, 0]
         dNdy = dN_e_pg[:, :, 1]
 
-        ind_x = np.arange(0, mesh.nPe * dim, dim)
+        ind_x = np.arange(0, nPe * dim, dim)
         ind_y = ind_x + 1
 
-        dN_x = FeArray.zeros(*dN_e_pg.shape[:2], 2, 2 * mesh.nPe)
+        dN_x = FeArray.zeros(*dN_e_pg.shape[:2], 2, 2 * nPe)
         dN_y = np.zeros_like(dN_x)
 
         dN_x[:, :, 0, ind_x] = dNdx
