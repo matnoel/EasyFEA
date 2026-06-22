@@ -63,9 +63,11 @@ tab20_colors = [
 # ----------------------------------------------
 # Plot core (matplotlib analogue of PyVista.Plot)
 # ----------------------------------------------
-@requires_matplotlib
-def _Get_vertices(
-    mesh: "Mesh", coord: _types.FloatArray, inDim: int, dimElem: int
+def __Get_vertices(
+    mesh: "Mesh",
+    coord: _types.FloatArray,
+    inDim: int,
+    dimElem: int,
 ) -> _types.FloatArray:
     """Returns the (Ne, nPts, dim) vertex array used to build a matplotlib collection.\n
     Shared by Plot and Plot_Mesh. Branches exactly as the historical code to avoid display regressions.
@@ -87,14 +89,14 @@ def _Get_vertices(
                 list_connect.extend(groupElem.connect[:, surfaces])  # type: ignore [attr-defined]
             vertices = coord[list_connect]
     else:
-        idx = groupElem.segments[0] if mesh.dim == 1 else groupElem.surfaces[0]
+        idx = groupElem.segments[0] if dimElem == 1 else groupElem.surfaces[0]
         vertices = coord[groupElem.connect[:, idx], :2]
 
     return vertices
 
 
 @requires_matplotlib
-def _Add_Collection(
+def __Add_Collection(
     ax: Axes,
     vertices: _types.FloatArray,
     inDim: int,
@@ -107,7 +109,7 @@ def _Add_Collection(
     edgecolor=None,
     lw: float = 0.5,
     alpha: float = 1.0,
-    zorder: float = 0,
+    zorder: float = 0.0,
     clim: Optional[tuple] = None,
 ):
     """Builds and adds the matplotlib collection matching ``inDim`` × ``dimElem`` to ``ax``.\n
@@ -276,7 +278,7 @@ def Plot(
         values = None  # type: ignore [assignment]
         norm = None
 
-    vertices = _Get_vertices(mesh, coordDef, inDim, dimElem)
+    vertices = __Get_vertices(mesh, coordDef, inDim, dimElem)
 
     if inDim == 3:
 
@@ -290,7 +292,7 @@ def Plot(
             else:
                 elementValues = values
             edge = edgecolor if (plotMesh and surfDim == 2) else None
-            pc = _Add_Collection(
+            pc = __Add_Collection(
                 ax,
                 vertices,
                 inDim,
@@ -309,7 +311,7 @@ def Plot(
             colorbar.set_label(colorbarLabel)
         else:
             # solid color
-            _Add_Collection(
+            __Add_Collection(
                 ax,
                 vertices,
                 inDim,
@@ -327,9 +329,11 @@ def Plot(
         # Plot the mesh edges (for a scalar field, edges are a dedicated collection drawn
         # underneath, matching the historical scalar-field behavior)
         if plotMesh and mesh.dim == 1:
+            # mesh for 1D elements are points
             ax.plot(*coordDef[:, :2].T, c=edgecolor, lw=0.1, marker=".", ls="")
         elif plotMesh and hasResult:
-            _Add_Collection(ax, vertices, inDim, surfDim, edgecolor=edgecolor, lw=0.5)
+            # mesh for 2D elements are lines / segments (dimElem=1 for LineCollection)
+            __Add_Collection(ax, vertices, inDim, 1, edgecolor=edgecolor, lw=0.5)
 
         if hasResult and nodeValues:
             # smooth nodal field: matplotlib has no collection equivalent -> tricontourf
@@ -343,10 +347,11 @@ def Plot(
                 cmap=cmap,
                 vmin=values.min(),
                 vmax=values.max(),
+                zorder=-1,
             )
         elif hasResult:
             # element values
-            pc = _Add_Collection(
+            pc = __Add_Collection(
                 ax,
                 vertices,
                 inDim,
@@ -359,7 +364,7 @@ def Plot(
             )
         else:
             # solid color (edges live on the face collection, matching Plot_Mesh / _Plot_obj)
-            _Add_Collection(
+            __Add_Collection(
                 ax,
                 vertices,
                 inDim,
@@ -562,11 +567,11 @@ def Plot_Mesh(
         ax, inDim = __Get_axis(ax, inDim)
         ax.set_title(title)
 
-        verticesDef = _Get_vertices(mesh, coordDef, inDim, mesh.dim)
-        vertices = _Get_vertices(mesh, coord, inDim, mesh.dim)
+        verticesDef = __Get_vertices(mesh, coordDef, inDim, mesh.dim)
+        vertices = __Get_vertices(mesh, coord, inDim, mesh.dim)
 
-        _Add_Collection(ax, verticesDef, inDim, 1, edgecolor="red", lw=lw, zorder=1)
-        _Add_Collection(ax, vertices, inDim, 1, edgecolor=edgecolor, lw=lw, zorder=0)
+        __Add_Collection(ax, verticesDef, inDim, 1, edgecolor="red", lw=lw, zorder=1)
+        __Add_Collection(ax, vertices, inDim, 1, edgecolor=edgecolor, lw=lw, zorder=0)
 
         if mesh.dim == 1:
             # 1D meshes display their nodes (undeformed in black, deformed in red)
@@ -770,7 +775,7 @@ def Plot_Elements(
         # center coordinates for each elements
         center_e = np.mean(vertices_e, axis=1)
 
-        _Add_Collection(ax, vertices, inDim, groupElem.dim, **params)
+        __Add_Collection(ax, vertices, inDim, groupElem.dim, **params)
 
         if showId:
             # plot elements id's
@@ -1009,7 +1014,7 @@ def Plot_Tags(
                 collections.append(points)
             elif dim == 1:
                 # plot lines
-                pc = _Add_Collection(
+                pc = __Add_Collection(
                     ax, vertices, inDim, 1, edgecolor="black", lw=1.5, alpha=1
                 )
                 pc.set_label(tag_e)
@@ -1017,7 +1022,7 @@ def Plot_Tags(
 
             elif dim == 2:
                 # plot surfaces
-                pc = _Add_Collection(
+                pc = __Add_Collection(
                     ax, vertices, inDim, 2, facecolors=color, lw=0, alpha=alpha
                 )
                 pc.set_label(tag_e)
