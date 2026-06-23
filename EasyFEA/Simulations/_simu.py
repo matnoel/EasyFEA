@@ -1857,7 +1857,7 @@ class _Simu(_IObserver, _params.Updatable, ABC):
         """Returns (owned) dofs associated with the problem type."""
 
         if MPI_SIZE > 1:
-            nodes = self.mesh.groupElem._Get_partitioned_data()[3]
+            nodes = self.mesh._Get_mpi_owned_nodes()
         else:
             nodes = self.mesh.nodes
 

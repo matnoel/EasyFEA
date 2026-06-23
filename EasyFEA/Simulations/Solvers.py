@@ -396,7 +396,7 @@ def Solve_simu(
         # Sync_dofsValues gathers each rank's owned slice via Allgatherv and
         # scatters back to EasyFEA-global positions; `ordering` is shared
         # between the x and lagrange syncs to avoid a duplicate collective.
-        nodes = simu.mesh.groupElem._Get_partitioned_data()[3]
+        nodes = simu.mesh._Get_mpi_owned_nodes()
         dofs = simu.Bc_dofs_nodes(nodes, simu.Get_unknowns(problemType), problemType)
         ordering = Concatenate_array(dofs)
         x = Sync_dofsValues(x, dofs, ordering=ordering)
@@ -445,7 +445,7 @@ def __Get_global_dof_ordering(
 
     The owned nodes are gathered (a single ``Allgatherv``) and expanded to DOFs via the canonical node->DOF conversion (`Bc_dofs_nodes`). Useful wherever a consistent global DOF numbering across ranks is needed (e.g. mapping local DOFs to a contiguous PETSc index space).
     """
-    ownedNodes = simu.mesh.groupElem._Get_partitioned_data()[3]
+    ownedNodes = simu.mesh._Get_mpi_owned_nodes()
     nodeOrdering = Concatenate_array(ownedNodes)
     return simu.Bc_dofs_nodes(nodeOrdering, simu.Get_unknowns(problemType), problemType)
 
@@ -616,7 +616,7 @@ def __Solver_3(simu: "_Simu", problemType: "ModelType"):
 
     if simu.isNonLinear:
         if MPI_SIZE > 1:
-            nodes = simu.mesh.groupElem._Get_partitioned_data()[3]
+            nodes = simu.mesh._Get_mpi_owned_nodes()
             dofs = simu.Bc_dofs_nodes(
                 nodes, simu.Get_unknowns(problemType), problemType
             )

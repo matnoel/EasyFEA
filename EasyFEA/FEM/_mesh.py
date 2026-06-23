@@ -24,7 +24,7 @@ from scipy.sparse.csgraph import connected_components
 # utilities
 from ..Utilities import Display, Folder, Tic, _types
 from ..Utilities._observers import Observable
-from ..Utilities._mpi import CAN_USE_MPI, MPI_COMM, MPI_SIZE, MPI_RANK
+from ..Utilities._mpi import MPI_COMM, MPI_SIZE, MPI_RANK
 
 # fem
 from ._linalg import FeArray
@@ -37,9 +37,6 @@ if TYPE_CHECKING:
 if TYPE_CHECKING:
     from ..Geoms import Line, Domain, Circle
 from ..Geoms import Point, Rotate, Symmetry, Normalize, Angle_Between
-
-if CAN_USE_MPI:
-    from mpi4py import MPI
 
 
 class AmbiguousGroupError(Exception):
@@ -107,9 +104,9 @@ class Mesh(Observable):
 
         for i, groupElem in enumerate(list_groupElem):
             if MPI_SIZE > 1:
-                elements = groupElem._Get_partitioned_data()[1]
-                Ne = elements.max()
-                Ne = MPI_COMM.allreduce(Ne, op=MPI.MAX)
+                _, elements, ghostElements, _, _ = groupElem._Get_partitioned_data()
+                # an MPI rank may own no element of this group -> empty array
+                Ne = elements.size + ghostElements.size
             else:
                 Ne = groupElem.Ne
             list_Ne[i] = str(Ne)
@@ -396,6 +393,20 @@ class Mesh(Observable):
         """mesh nodes (union of the nodes used by every main-dimension element group)"""
         return np.unique(
             np.concatenate([groupElem.nodes for groupElem in self.Get_list_groupElem()])
+        )
+
+    def _Get_mpi_owned_nodes(self) -> _types.IntArray:
+        """MPI: nodes owned (non-ghost) by the current rank, as the union over the main-dimension element groups of their partition's owned nodes.
+
+        Node ownership is globally consistent across element groups (the partitioner assigns each node to exactly one rank), so the union is conflict-free; across ranks the owned nodes form a partition of the mesh nodes. For a single-group mesh this is exactly ``groupElem._Get_partitioned_data()[3]``.
+        """
+        list_groupElem = self.Get_list_groupElem(self.dim)
+        if len(list_groupElem) == 1:
+            return list_groupElem[0]._Get_partitioned_data()[3]
+        return np.unique(
+            np.concatenate(
+                [groupElem._Get_partitioned_data()[3] for groupElem in list_groupElem]
+            )
         )
 
     @property

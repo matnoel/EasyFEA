@@ -2238,7 +2238,8 @@ class Mesher:
                         # add tag
                         groupElem.Set_Tag(nodesGroup, name)
 
-                tic.Tac("Mesh", f"Create {str(groupElem.elemType)}", self.__verbosity)
+                elemType = GroupElemFactory.Get_ElemInFos(gmshId)[0]
+                tic.Tac("Mesh", f"Create {elemType}", self.__verbosity)
 
             tic.Tac("Mesh", "Construct mesh object", self.__verbosity)
         else:
