@@ -2366,7 +2366,7 @@ class Mesher:
 
         return list_mesh3D
 
-    def Save_Simu(
+    def Save_simu(
         self,
         simu: "_Simu",
         results: list[str] = [],
@@ -2400,11 +2400,6 @@ class Mesher:
 
         # get mesh informations
         mesh = simu.mesh
-        Ne = mesh.Ne
-        nbCorners = (
-            mesh.groupElem.Nvertex
-        )  # do this because it is not working for quadratic elements
-        connect_e = mesh.connect[:, :nbCorners]
 
         self._Init_gmsh()
 
@@ -2415,39 +2410,41 @@ class Mesher:
             rgb = np.asarray(rgb, dtype=int)
             return rgb
 
-        def reshape(values: _types.FloatArray):
-            """reshape values to get them at the corners of the elements"""
+        def reshape(values: _types.FloatArray, connect_e: _types.IntArray):
+            """reshape nodal values to get them at the corners of the elements"""
             values_n: _types.FloatArray = np.reshape(values, (mesh.Nn, -1))
             values_e = values_n[connect_e]
             if len(values_e.shape) == 3:
                 values_e = np.transpose(values_e, (0, 2, 1))
-            return values_e.reshape((mesh.Ne, -1))
+            return values_e.reshape((connect_e.shape[0], -1))
 
-        elements_e = reshape(mesh.coord)
+        gmshTopo = {
+            "POINT": "P",
+            "SEG": "L",
+            "TRI": "T",
+            "QUAD": "Q",
+            "TETRA": "S",
+            "HEXA": "H",
+            "PRISM": "I",
+            "PYRA": "Y",
+        }
 
-        def types(elemType: ElemType) -> str:
-            """get gmsh type associated with elemType"""
-            if "POINT" in elemType:
-                return "P"
-            elif "SEG" in elemType:
-                return "L"
-            elif "TRI" in elemType:
-                return "T"
-            elif "QUAD" in elemType:
-                return "Q"
-            elif "TETRA" in elemType:
-                return "S"
-            elif "HEXA" in elemType:
-                return "H"
-            elif "PRISM" in elemType:
-                return "I"
-            elif "PYRA" in elemType:
-                return "Y"
-            else:
-                raise ValueError("unknown elemType")
-
-        gmshType = types(mesh.elemType)
         colorElems = getColor(edgeColor)
+
+        # one static block per element group of the main dimension; this lets meshes that mix element types (e.g. QUAD4 + TRI3) be exported into a single gmsh view through several addListData calls.
+        group_blocks = []
+        for groupElem in mesh.Get_list_groupElem(mesh.dim):
+            # quadratic elements are exported with their corner nodes only
+            nbCorners = groupElem.Nvertex
+            connect_e = groupElem.connect[:, :nbCorners]
+            group_blocks.append(
+                (
+                    groupElem.Ne,
+                    connect_e,
+                    gmshTopo[groupElem.elemType.topology],
+                    reshape(mesh.coord, connect_e),  # corner coordinates
+                )
+            )
 
         # get nodes and elements field to plot
         nodesField, elementsField = simu.Results_nodeFields_elementFields(details)
@@ -2464,18 +2461,15 @@ class Mesher:
         # activates the first iteration
         simu.Set_Iter(0, resetAll=True)
 
-        # activates the first iteration
-        simu.Set_Iter(0, resetAll=True)
-
         for i in range(simu.Niter):
             simu.Set_Iter(i)
             [
-                dict_results[result].append(reshape(simu.Result(result)))  # type: ignore
+                dict_results[result].append(simu.Result(result))  # raw nodal field
                 for result in results
             ]
 
-        def AddView(name: str, values_e: _types.FloatArray):
-            """Add a view"""
+        def AddView(name: str, list_values: list[_types.FloatArray]):
+            """Add a view; list_values holds one nodal field per iteration."""
 
             if name == "displacement_matrix_0":
                 name = "ux"
@@ -2505,38 +2499,35 @@ class Mesher:
             gmsh.view.option.setColor(view, "Pyramids", *colorElems)
             gmsh.view.option.setColor(view, "Prisms", *colorElems)
 
-            # S for scalar, V for vector, T
-            if values_e.shape[1] == nbCorners:
-                vt = "S"
-            else:
-                vt = "S"
-
-            res = np.concatenate((elements_e, values_e), 1)
-
-            gmsh.view.addListData(view, vt + gmshType, Ne, res.ravel())
+            # one scalar data block per element group (time steps stacked along axis 1)
+            for Ne, connect_e, gmshType, elements_e in group_blocks:
+                values_e = np.concatenate(
+                    [reshape(values, connect_e) for values in list_values], axis=1
+                )
+                res = np.concatenate((elements_e, values_e), axis=1)
+                gmsh.view.addListData(view, "S" + gmshType, Ne, res.ravel())
 
             if folder != "":
                 gmsh.view.write(view, Folder.Join(folder, "simu.pos", mkdir=True), True)
 
             return view
 
-        for result in dict_results.keys():
-            nIter = len(dict_results[result])
+        for result, list_values in dict_results.items():
+            nIter = len(list_values)
 
             if nIter == 0:
                 continue
 
-            dof_n = dict_results[result][0].shape[-1] // nbCorners
-
-            vals_e_i_n = np.concatenate(dict_results[result], 1).reshape(
-                (Ne, nIter, dof_n, -1)
-            )
+            dof_n = np.reshape(list_values[0], (mesh.Nn, -1)).shape[1]
 
             if dof_n == 1:
-                AddView(result, vals_e_i_n[:, :, 0].reshape((Ne, -1)))  # noqa: F841
+                AddView(result, list_values)
             else:
                 [
-                    AddView(result + f"_{n}", vals_e_i_n[:, :, n].reshape(Ne, -1))
+                    AddView(
+                        result + f"_{n}",
+                        [np.reshape(v, (mesh.Nn, -1))[:, n] for v in list_values],
+                    )
                     for n in range(dof_n)
                 ]
 
