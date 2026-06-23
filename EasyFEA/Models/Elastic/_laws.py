@@ -6,7 +6,7 @@
 """Elastic laws."""
 
 from abc import ABC, abstractmethod
-from typing import Union, Optional
+from typing import Union, Optional, TYPE_CHECKING
 from scipy.linalg import sqrtm
 
 # utilities
@@ -22,9 +22,14 @@ from .._utils import (
     Project_Kelvin,
     Get_Pmat,
     Apply_Pmat,
+    Reshape_variable,
 )
-from ...Utilities import _params, _types
-from ...FEM._linalg import TensorProd
+from ...Utilities import _params, _types, Tic
+from ...FEM import MatrixType
+from ...FEM._linalg import TensorProd, FeArray
+
+if TYPE_CHECKING:
+    from ...FEM import _GroupElem
 
 # ----------------------------------------------
 # Elasticity
@@ -125,6 +130,95 @@ class _Elastic(_IModel, ABC):
         ), f"With dim = {self.dim} array must be a {shape} matrix"
         self.__S = array
         self.__sqrt_S = None  # dont remove
+
+    def Calc_Epsilon_e_pg(
+        self,
+        sol: _types.FloatArray,
+        groupElem: "_GroupElem",
+        matrixType=MatrixType.rigi,
+    ) -> FeArray.FeArrayALike:
+        """Computes the small-strain field from a displacement vector field on the given element group.\n
+        2D : [Exx Eyy sqrt(2)*Exy]\n
+        3D : [Exx Eyy Ezz sqrt(2)*Eyz sqrt(2)*Exz sqrt(2)*Exy]
+
+        Parameters
+        ----------
+        sol : _types.FloatArray
+            displacement vector field (Ndof)
+        groupElem : _GroupElem
+            element group on which to evaluate the strain
+        matrixType : MatrixType, optional
+            integration matrix type, by default MatrixType.rigi
+
+        Returns
+        -------
+        FeArray
+            strain field (Ne, pg, (3 or 6))
+        """
+        tic = Tic()
+        u_e = groupElem.Locates_sol_e(sol, asFeArray=True)
+        B_e_pg = groupElem.Get_B_e_pg(matrixType)
+        Epsilon_e_pg = B_e_pg @ u_e
+        tic.Tac("Matrix", "Epsilon_e_pg", False)
+
+        return Epsilon_e_pg
+
+    def Calc_Sigma_e_pg(
+        self, Epsilon_e_pg: FeArray.FeArrayALike
+    ) -> FeArray.FeArrayALike:
+        """Computes the stress field from the strain field (Hooke's law): Sigma = C : Epsilon.\n
+        2D : [Sxx Syy sqrt(2)*Sxy]\n
+        3D : [Sxx Syy Szz sqrt(2)*Syz sqrt(2)*Sxz sqrt(2)*Sxy]
+
+        Parameters
+        ----------
+        Epsilon_e_pg : FeArray.FeArrayALike
+            strain field (Ne, pg, (3 or 6))
+
+        Returns
+        -------
+        FeArray
+            stress field (Ne, pg, (3 or 6))
+        """
+        Epsilon_e_pg = FeArray.asfearray(Epsilon_e_pg)
+        Ne, nPg = Epsilon_e_pg.shape[:2]
+
+        C = self.C
+        if self.isHeterogeneous:
+            C_e_pg = Reshape_variable(C, Ne, nPg)
+        else:
+            C_e_pg = FeArray.asfearray(C, True)
+
+        return C_e_pg @ Epsilon_e_pg
+
+    def Calc_Psi_e_pg(
+        self,
+        Epsilon_e_pg: FeArray.FeArrayALike,
+        Sigma_e_pg: Optional[FeArray.FeArrayALike] = None,
+    ) -> FeArray.FeArrayALike:
+        """Computes the elastic energy density: psi = 1/2 Sigma : Epsilon.
+
+        Parameters
+        ----------
+        Epsilon_e_pg : FeArray.FeArrayALike
+            strain field (Ne, pg, (3 or 6))
+        Sigma_e_pg : FeArray.FeArrayALike, optional
+            stress field (Ne, pg, (3 or 6)), by default None.
+            When None it is computed from the strain field (Sigma = C : Epsilon); pass it explicitly to use a different (e.g. smoothed) stress field.
+
+        Returns
+        -------
+        FeArray
+            elastic energy density (Ne, pg)
+        """
+        Epsilon_e_pg = FeArray.asfearray(Epsilon_e_pg)
+        if Sigma_e_pg is None:
+            Sigma_e_pg = self.Calc_Sigma_e_pg(Epsilon_e_pg)
+        Sigma_e_pg = FeArray.asfearray(Sigma_e_pg)
+        assert Epsilon_e_pg.shape == Sigma_e_pg.shape
+        # 1/2 Sigma : Epsilon (double contraction over the components),
+        # kept as a FeArray (Ne, pg) so it can be integrated downstream.
+        return 1 / 2 * (Sigma_e_pg @ Epsilon_e_pg)
 
     @abstractmethod
     def Walpole_Decomposition(self) -> tuple[_types.FloatArray, _types.FloatArray]:

@@ -4,7 +4,7 @@
 # EasyFEA is distributed under the terms of the GNU General Public License v3, see LICENSE.txt and CREDITS.md for more information.
 
 from abc import ABC, abstractmethod
-from typing import Union, Optional
+from typing import Union, Optional, Callable
 from enum import Enum
 
 # utilities
@@ -357,7 +357,7 @@ def Project_Kelvin(
     return res
 
 
-def Result_in_Strain_or_Stress_field(
+def __Result_in_Strain_or_Stress_field(
     field_e_pg: FeArray, result: str, coef=np.sqrt(2)
 ) -> _types.FloatArray:
     """Extracts a specific result from a 2D or 3D strain or stress field.
@@ -431,13 +431,13 @@ def Result_in_Strain_or_Stress_field(
             result_e_pg = xy
         elif "vm" in result:
             vm = np.sqrt(
-                (
+                0.5
+                * (
                     (xx - yy) ** 2
                     + (yy - zz) ** 2
                     + (zz - xx) ** 2
                     + 6 * (xy**2 + yz**2 + xz**2)
                 )
-                / 2
             )
             result_e_pg = vm
         elif result in ("Strain", "Stress", "Green-Lagrange", "Piola-Kirchhoff"):
@@ -448,6 +448,44 @@ def Result_in_Strain_or_Stress_field(
             )
 
     return np.asarray(result_e_pg)  # type: ignore
+
+
+def Result_strain_or_stress_field_e(
+    field_e_pg: Callable[..., FeArray],
+    list_groupElem: list,
+    result: str,
+    coef=np.sqrt(2),
+) -> _types.FloatArray:
+    """Builds a per-element (Ne,) strain/stress result by applying ``field_e_pg`` to each element group and reducing through :func:`Result_in_Strain_or_Stress_field`.
+
+    The per-group field is computed by ``field_e_pg(groupElem)`` (so each group can have its own element type / number of Gauss points), reduced with ``Result_in_Strain_or_Stress_field(field, result, coef).mean(1)``, and the per-element results are concatenated following ``list_groupElem`` order. Pass ``mesh.Get_list_groupElem()`` so the result lines up with ``Get_Node_Values`` and supports meshes with several element groups of the same dimension (e.g. QUAD4 + TRI3).
+
+    Parameters
+    ----------
+    field_e_pg : Callable
+        Callable taking an element group and returning its strain or stress field as a ``FeArray`` of shape (Ne, pg, (3 or 6)).
+    list_groupElem : list
+        Element groups to iterate over, in the order the per-element field must follow (typically ``mesh.Get_list_groupElem()``).
+    result : str
+        Component to extract, passed to :func:`Result_in_Strain_or_Stress_field` (e.g. "xx", "vm", "Stress", ...).
+    coef : float, optional
+        Kelvin-Mandel coefficient of the material (``material.coef``), by default sqrt(2).
+
+    Returns
+    -------
+    _types.FloatArray
+        The per-element result (Ne,).
+    """
+    return np.concatenate(
+        [
+            np.asarray(
+                __Result_in_Strain_or_Stress_field(
+                    field_e_pg(groupElem), result, coef
+                ).mean(1)
+            )
+            for groupElem in list_groupElem
+        ]
+    )
 
 
 def Get_Pmat(axis_1: _types.FloatArray, axis_2: _types.FloatArray, useMandel=True):

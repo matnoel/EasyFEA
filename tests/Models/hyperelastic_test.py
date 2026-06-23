@@ -99,7 +99,9 @@ class TestHyperElastic:
 
             for matrixType in [MatrixType.rigi, MatrixType.mass]:
 
-                Eps2d_e_pg = simu2d._Calc_Epsilon_e_pg(simu2d.displacement, matrixType)
+                Eps2d_e_pg = simu2d._Calc_Epsilon_e_pg(
+                    simu2d.displacement, matrixType=matrixType
+                )
                 test2d_e_pg = (
                     Eps2d_e_pg
                     - HyperElasticState(
@@ -116,7 +118,7 @@ class TestHyperElastic:
             for matrixType in [MatrixType.rigi, MatrixType.mass]:
 
                 Eps3d_e_pg = simu3d._Calc_Epsilon_e_pg(
-                    simu3d.displacement, MatrixType.mass
+                    simu3d.displacement, matrixType=MatrixType.mass
                 )
                 test3d_e_pg = (
                     Eps3d_e_pg
@@ -150,7 +152,7 @@ class TestHyperElastic:
             for matrixType in [MatrixType.rigi, MatrixType.mass]:
 
                 u = simu.displacement
-                Epsilon_e_pg = simu._Calc_Epsilon_e_pg(u, matrixType)
+                Epsilon_e_pg = simu._Calc_Epsilon_e_pg(u, matrixType=matrixType)
 
                 e_e_pg = Project_Kelvin(
                     HyperElasticState(

@@ -15,7 +15,7 @@ if TYPE_CHECKING:
 from ..FEM import MatrixType, Mesher, FeArray, Operators
 
 # models
-from ..Models import ModelType, Reshape_variable, Result_in_Strain_or_Stress_field
+from ..Models import ModelType, Result_strain_or_stress_field_e
 from ..Models.Elastic._laws import _Elastic
 
 # simu
@@ -291,24 +291,25 @@ class Elastic(_Simu):
         elif ("S" in result or "E" in result) and ("_norm" not in result):
             # Strain and Stress calculation part
 
-            coef = self.material.coef
-
             displacement = self.displacement
-            # Strain and stress for each element and gauss point
-            Epsilon_e_pg = self._Calc_Epsilon_e_pg(displacement)
-            Sigma_e_pg = self._Calc_Sigma_e_pg(Epsilon_e_pg)
 
-            # Element average
-            if "S" in result and result != "Strain":
-                values_e_pg = Sigma_e_pg
-            elif "E" in result or result == "Strain":
-                values_e_pg = Epsilon_e_pg
-            else:
+            isStrain = "E" in result or result == "Strain"
+            isStress = "S" in result and result != "Strain"
+            if not (isStrain or isStress):
                 raise Exception("Wrong option")
 
             res = result if result in ["Strain", "Stress"] else result[-2:]
 
-            values = Result_in_Strain_or_Stress_field(values_e_pg, res, coef).mean(1)
+            def field_e_pg(groupElem):
+                Eps = self._Calc_Epsilon_e_pg(displacement, groupElem)
+                return self._Calc_Sigma_e_pg(Eps, groupElem) if isStress else Eps
+
+            values = Result_strain_or_stress_field_e(
+                field_e_pg=field_e_pg,
+                list_groupElem=self.mesh.Get_list_groupElem(),
+                result=res,
+                coef=self.material.coef,
+            )
 
         else:
             Display.MyPrintError(f"The result '{result}' is not implemented yet.")
@@ -319,43 +320,79 @@ class Elastic(_Simu):
         return self.Results_Reshape_values(values, nodeValues)
 
     def _Calc_Psi_Elas(
-        self, returnScalar=True, smoothedStress=False, matrixType=MatrixType.rigi
+        self,
+        returnScalar=True,
+        smoothedStress=False,
+        matrixType=MatrixType.rigi,
     ):
-        """Computes the kinematically admissible deformation energy.
-        Wdef = 1/2 int_Ω Sig : Eps dΩ"""
+        r"""Computes the kinematically admissible deformation energy.
+
+        .. math:: W_{def} = \frac{1}{2} \int_\Omega \Sig : \Eps \, \dO = \int_\Omega \psi \, \dO
+
+        Parameters
+        ----------
+        returnScalar : bool, optional
+            If True returns the total energy as a float, otherwise the per-element energy (Ne,), by default True.
+        smoothedStress : bool, optional
+            If True the energy density is built from the nodal-averaged (smoothed) stress field rather than the raw element stress; used by the ZZ1 error estimator, by default False.
+        matrixType : MatrixType, optional
+            integration scheme, by default MatrixType.rigi.
+        """
 
         tic = Tic()
 
         sol_u = self.displacement
+        thickness = self.material.thickness if self.dim == 2 else 1
 
-        mesh = self.mesh
-        groupElem = mesh.groupElem
-
-        Epsilon_e_pg = self._Calc_Epsilon_e_pg(sol_u, matrixType)
-        weightedJacobian_pg = groupElem.Get_weightedJacobian_e_pg(matrixType)
-        N_pg = groupElem.Get_N_pg(matrixType)
-
-        if self.dim == 2:
-            ep = self.material.thickness
-        else:
-            ep = 1
-
-        Sigma_e_pg = self._Calc_Sigma_e_pg(Epsilon_e_pg, matrixType)
+        # strain and elastic energy density psi = 1/2 Sig : Eps, group by group
+        # (each main-dimension group may have its own element type / number of Gauss points)
+        list_groupElem = self.mesh.Get_list_groupElem(self.dim)
+        list_Eps = [
+            self._Calc_Epsilon_e_pg(sol_u, groupElem, matrixType)
+            for groupElem in list_groupElem
+        ]
+        list_psi = [self.material.Calc_Psi_e_pg(Eps) for Eps in list_Eps]
 
         if smoothedStress:
-            Sigma_n = mesh.Get_Node_Values(np.mean(Sigma_e_pg, 1))
+            # ZZ1: rebuild psi from the element stresses averaged at the nodes, then projected back onto the Gauss points.
+            list_Sig = [
+                self._Calc_Sigma_e_pg(Eps, g, matrixType)
+                for g, Eps in zip(list_groupElem, list_Eps)
+            ]
+            Sigma_n = self.mesh.Get_Node_Values(
+                np.concatenate([np.mean(Sig, 1) for Sig in list_Sig])
+            )
+            list_psi = [
+                self.material.Calc_Psi_e_pg(
+                    Eps,
+                    FeArray.asfearray(
+                        np.einsum(
+                            "eni,pjn->epi",
+                            groupElem.Locates_sol_e(Sigma_n),
+                            groupElem.Get_N_pg(matrixType),
+                        )
+                    ),
+                )
+                for groupElem, Eps in zip(list_groupElem, list_Eps)
+            ]
 
-            Sigma_n_e = mesh.Locates_sol_e(Sigma_n)
-            Sigma_e_pg = FeArray.asfearray(np.einsum("eni,pjn->epi", Sigma_n_e, N_pg))
-
-        if returnScalar:
-            Wdef = 1 / 2 * ep * (weightedJacobian_pg * Sigma_e_pg @ Epsilon_e_pg).sum()
-        else:
-            Wdef = 1 / 2 * ep * (weightedJacobian_pg * Sigma_e_pg @ Epsilon_e_pg).sum(1)
+        # integrate the energy density over each group: Wdef_e = int psi dOmega
+        Wdef_e = np.concatenate(
+            [
+                np.asarray(
+                    (
+                        thickness
+                        * groupElem.Get_weightedJacobian_e_pg(matrixType)
+                        * psi
+                    ).sum(1)
+                )
+                for groupElem, psi in zip(list_groupElem, list_psi)
+            ]
+        )
 
         tic.Tac("PostProcessing", "Calc Psi Elas", False)
 
-        return Wdef
+        return float(Wdef_e.sum()) if returnScalar else Wdef_e
 
     def _Calc_ZZ1(self) -> tuple[float, _types.FloatArray]:
         """Computes the ZZ1 error.\n
@@ -380,68 +417,70 @@ class Elastic(_Simu):
         return error, error_e
 
     def _Calc_Epsilon_e_pg(
-        self, u: _types.FloatArray, matrixType=MatrixType.rigi
+        self,
+        u: _types.FloatArray,
+        groupElem=None,
+        matrixType=MatrixType.rigi,
     ) -> FeArray.FeArrayALike:
-        """Computes strain field from the displacement vector field.\n
+        """Computes the strain field from the displacement vector field (delegates to the material law ``Calc_Epsilon_e_pg``).\n
         2D : [Exx Eyy sqrt(2)*Exy]\n
         3D : [Exx Eyy Ezz sqrt(2)*Eyz sqrt(2)*Exz sqrt(2)*Exy]
 
         Parameters
         ----------
         u : _types.FloatArray
-            displacement vector (Ndof)
+            displacement vector field (Ndof)
+        groupElem : _GroupElem, optional
+            element group on which to evaluate the strain, by default None (main group)
+        matrixType : MatrixType, optional
+            integration scheme, by default MatrixType.rigi
 
         Returns
         -------
         FeArray
-            Computed strain field (Ne,pg,(3 or 6))
+            strain field (Ne, pg, (3 or 6))
         """
-
-        tic = Tic()
-        u_e = self.mesh.Locates_sol_e(u, asFeArray=True)
-        B_dep_e_pg = self.mesh.groupElem.Get_B_e_pg(matrixType)
-        Epsilon_e_pg = B_dep_e_pg @ u_e
-
-        tic.Tac("Matrix", "Epsilon_e_pg", False)
-
-        return Epsilon_e_pg
+        if groupElem is None:
+            groupElem = self.mesh.groupElem
+        return self.material.Calc_Epsilon_e_pg(u, groupElem, matrixType)
 
     def _Calc_Sigma_e_pg(
-        self, Epsilon_e_pg: FeArray.FeArrayALike, matrixType=MatrixType.rigi
+        self,
+        Epsilon_e_pg: FeArray.FeArrayALike,
+        groupElem=None,
+        matrixType=MatrixType.rigi,
     ) -> FeArray.FeArrayALike:
-        """Computes stress field from strain field.\n
+        """Computes the stress field from the strain field (Hooke's law, delegates to the material law ``Calc_Sigma_e_pg``).\n
         2D : [Sxx Syy sqrt(2)*Sxy]\n
         3D : [Sxx Syy Szz sqrt(2)*Syz sqrt(2)*Sxz sqrt(2)*Sxy]
 
         Parameters
         ----------
         Epsilon_e_pg : FeArray.FeArrayALike
-            Strain field (Ne,pg,(3 or 6))
+            strain field (Ne, pg, (3 or 6))
+        groupElem : _GroupElem, optional
+            element group the strain field belongs to (used to check the array shape), by default None (main group)
+        matrixType : MatrixType, optional
+            integration scheme used for the shape check, by default MatrixType.rigi
 
         Returns
         -------
         FeArray
-            Computed stress field (Ne,pg,(3 or 6))
+            stress field (Ne, pg, (3 or 6))
         """
 
         Epsilon_e_pg = FeArray.asfearray(Epsilon_e_pg)
 
-        groupElem = self.mesh.groupElem
-        Ne = Epsilon_e_pg.shape[0]
-        nPg = Epsilon_e_pg.shape[1]
+        if groupElem is None:
+            groupElem = self.mesh.groupElem
 
-        assert Ne == groupElem.Ne
-        assert nPg == groupElem.Get_gauss(matrixType).nPg
+        assert Epsilon_e_pg.shape[0] == groupElem.Ne
+        assert Epsilon_e_pg.shape[1] == groupElem.Get_gauss(matrixType).nPg
 
         tic = Tic()
 
-        C = self.material.C
-        if self.material.isHeterogeneous:
-            C_e_pg = Reshape_variable(C, Ne, nPg)
-        else:
-            C_e_pg = FeArray.asfearray(C, True)
-
-        Sigma_e_pg = C_e_pg @ Epsilon_e_pg
+        # constitutive law Sigma = C : Epsilon lives on the material model
+        Sigma_e_pg = self.material.Calc_Sigma_e_pg(Epsilon_e_pg)
 
         tic.Tac("Matrix", "Sigma_e_pg", False)
 

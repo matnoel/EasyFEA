@@ -21,7 +21,7 @@ from ._utils import (
     Project_vector_to_matrix,
     Project_matrix_to_vector,
     Project_Kelvin,
-    Result_in_Strain_or_Stress_field,
+    Result_strain_or_stress_field_e,
     Get_Pmat,
     Apply_Pmat,
 )

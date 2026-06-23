@@ -83,7 +83,7 @@ class TestPhaseField:
         )
         u = simu.Solve()
 
-        Epsilon_e_pg = simu._Calc_Epsilon_e_pg(u, "mass")
+        Epsilon_e_pg = simu._Calc_Epsilon_e_pg(u, matrixType="mass")
 
         return Epsilon_e_pg
 

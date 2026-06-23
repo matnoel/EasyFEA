@@ -20,7 +20,7 @@ if TYPE_CHECKING:
 
 # models
 from .. import Models
-from ..Models import ModelType, _IModel, Result_in_Strain_or_Stress_field
+from ..Models import ModelType, _IModel, Result_strain_or_stress_field_e
 
 # simu
 from ._simu import _Simu, SolverType
@@ -714,26 +714,25 @@ class PhaseField(_Simu):
             values = self.Results_displacement_matrix()  # type: ignore [assignment]
 
         elif ("S" in result or "E" in result) and ("_norm" not in result):
-            # Strain and Stress calculation part
-
-            coef = self.phaseFieldModel.material.coef
+            # Strain and (damaged) stress, computed group by group
 
             displacement = self.displacement
-            # Strain and stress for each element and gauss point
-            Epsilon_e_pg = self._Calc_Epsilon_e_pg(displacement)
-            Sigma_e_pg = self._Calc_Sigma_e_pg(Epsilon_e_pg)
 
-            # Element average
-            if "S" in result and result != "Strain":
-                values_e_pg = Sigma_e_pg
-            elif "E" in result or result == "Strain":
-                values_e_pg = Epsilon_e_pg
-            else:
-                raise Exception("Wrong option")
-
+            isStress = "S" in result and result != "Strain"
             res = result if result in ["Strain", "Stress"] else result[-2:]
 
-            values = Result_in_Strain_or_Stress_field(values_e_pg, res, coef).mean(1)  # type: ignore [assignment]
+            def field_e_pg(groupElem):
+                Eps = self._Calc_Epsilon_e_pg(displacement, groupElem=groupElem)
+                return (
+                    self._Calc_Sigma_e_pg(Eps, groupElem=groupElem) if isStress else Eps
+                )
+
+            values = Result_strain_or_stress_field_e(  # type: ignore [assignment]
+                field_e_pg=field_e_pg,
+                list_groupElem=self.mesh.Get_list_groupElem(),
+                result=res,
+                coef=self.phaseFieldModel.material.coef,
+            )
 
         else:
             Display.MyPrintError(f"The result '{result}' is not implemented yet.")
@@ -827,22 +826,29 @@ class PhaseField(_Simu):
         groupElem: "_GroupElem" = None,
         matrixType=MatrixType.rigi,
     ) -> FeArray.FeArrayALike:
-        """Computes strain field (Ne,pg,(3 or 6)).\n
+        """Computes the strain field from the displacement vector field (delegates to the elastic law ``Calc_Epsilon_e_pg``).\n
         2D : [Exx Eyy sqrt(2)*Exy]\n
         3D : [Exx Eyy Ezz sqrt(2)*Eyz sqrt(2)*Exz sqrt(2)*Exy]
-        """
 
+        Parameters
+        ----------
+        sol : _types.FloatArray
+            displacement vector field (Ndof)
+        groupElem : _GroupElem, optional
+            element group on which to evaluate the strain, by default None (main group)
+        matrixType : MatrixType, optional
+            integration scheme, by default MatrixType.rigi
+
+        Returns
+        -------
+        FeArray
+            strain field (Ne, pg, (3 or 6))
+        """
         if groupElem is None:
             groupElem = self.mesh.groupElem
-
-        tic = Tic()
-        sol_e = groupElem.Locates_sol_e(sol, asFeArray=True)
-        B_e_pg = groupElem.Get_B_e_pg(matrixType)
-        Epsilon_e_pg = B_e_pg @ sol_e
-
-        tic.Tac("Matrix", "Epsilon_e_pg", False)
-
-        return Epsilon_e_pg
+        return self.phaseFieldModel.material.Calc_Epsilon_e_pg(
+            sol, groupElem, matrixType
+        )
 
     def _Calc_Sigma_e_pg(
         self,
@@ -850,19 +856,23 @@ class PhaseField(_Simu):
         groupElem: "_GroupElem" = None,
         matrixType=MatrixType.rigi,
     ) -> FeArray.FeArrayALike:
-        """Computes stress field from strain field.\n
+        """Computes the damaged stress field from the strain field: Sig = g(d) * Sig^+ + Sig^- (delegates the split to the phase-field model).\n
         2D : [Sxx Syy sqrt(2)*Sxy]\n
         3D : [Sxx Syy Szz sqrt(2)*Syz sqrt(2)*Sxz sqrt(2)*Sxy]
 
         Parameters
         ----------
         Epsilon_e_pg : FeArray.FeArrayALike
-            Strain field (Ne,pg,(3 or 6))
+            strain field (Ne, pg, (3 or 6))
+        groupElem : _GroupElem, optional
+            element group the strain field belongs to (used for the shape check and the degradation function g(d)), by default None (main group)
+        matrixType : MatrixType, optional
+            integration scheme, by default MatrixType.rigi
 
         Returns
         -------
         FeArray
-            Computed damaged stress field.
+            damaged stress field (Ne, pg, (3 or 6))
         """
 
         if groupElem is None:

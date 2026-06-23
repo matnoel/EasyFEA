@@ -15,7 +15,7 @@ if TYPE_CHECKING:
 from ..FEM import MatrixType, Operators
 
 # models
-from ..Models import ModelType, Result_in_Strain_or_Stress_field, Project_Kelvin
+from ..Models import ModelType, Project_Kelvin, Result_strain_or_stress_field_e
 
 if TYPE_CHECKING:
     from ..Models.HyperElastic._laws import _HyperElastic
@@ -326,24 +326,28 @@ class HyperElastic(_Simu):
             values = self._Calc_W(False)
 
         elif ("S" in result or "E" in result) and ("_norm" not in result):
-            # Green-Lagrange and second Piola-Kirchhoff for each element and gauss point
+            # Green-Lagrange (E) and second Piola-Kirchhoff (S), group by group
 
-            # Element average
-            if "S" in result:
-                values_e_pg = self._Calc_SecondPiolaKirchhoff()
-            elif "E" in result:
-                values_e_pg = self._Calc_GreenLagrange()
-            else:
-                raise Exception("Wrong option")
-
+            isStress = "S" in result
             res = (
                 result
                 if result in ["Green-Lagrange", "Piola-Kirchhoff"]
                 else result[-2:]
             )
 
-            coef = self.material.coef
-            values = Result_in_Strain_or_Stress_field(values_e_pg, res, coef).mean(1)
+            def field_e_pg(groupElem):
+                return (
+                    self._Calc_SecondPiolaKirchhoff(groupElem=groupElem)
+                    if isStress
+                    else self._Calc_GreenLagrange(groupElem=groupElem)
+                )
+
+            values = Result_strain_or_stress_field_e(
+                field_e_pg=field_e_pg,
+                list_groupElem=self.mesh.Get_list_groupElem(),
+                result=res,
+                coef=self.material.coef,
+            )
 
         else:
             Display.MyPrintError(f"The result '{result}' is not implemented yet.")
@@ -354,28 +358,42 @@ class HyperElastic(_Simu):
         return self.Results_Reshape_values(values, nodeValues)
 
     def _Calc_W(self, returnScalar=True, matrixType=MatrixType.rigi):
-        groupElem = self.mesh.groupElem
-        wJ_e_pg = groupElem.Get_weightedJacobian_e_pg(matrixType)
-        if self.dim == 2:
-            wJ_e_pg *= self.material.thickness
+        r"""Computes the hyperelastic strain energy.
+
+        .. math:: W = \int_{\Omega_0} W(\eb(\ub)) \, \dO
+
+        Parameters
+        ----------
+        returnScalar : bool, optional
+            If True returns the total energy as a float, otherwise the per-element energy (Ne,), by default True.
+        matrixType : MatrixType, optional
+            integration scheme, by default MatrixType.rigi.
+        """
+        thickness = self.material.thickness if self.dim == 2 else 1
+
+        # strain energy density W integrated group by group (each main-dimension
+        # group may have its own element type / number of Gauss points)
+        list_W = []
+        for groupElem in self.mesh.Get_list_groupElem(self.dim):
+            state = HyperElasticState(groupElem, self.displacement, matrixType)
+            wJ_e_pg = groupElem.Get_weightedJacobian_e_pg(matrixType)
+            W_e_pg = wJ_e_pg * self.material.Compute_W(state)
+            list_W.append(thickness * W_e_pg.integrate())
+
+        W_e = np.concatenate(list_W)
+
+        return float(W_e.sum()) if returnScalar else W_e
+
+    def _Calc_GreenLagrange(self, groupElem=None, matrixType=MatrixType.rigi):
+        if groupElem is None:
+            groupElem = self.mesh.groupElem
         hyperElasticState = HyperElasticState(groupElem, self.displacement, matrixType)
-        W_e_pg = self.material.Compute_W(hyperElasticState)
-
-        if returnScalar:
-            return (wJ_e_pg * W_e_pg).sum()
-        else:
-            return (wJ_e_pg * W_e_pg).integrate()
-
-    def _Calc_GreenLagrange(self, matrixType=MatrixType.rigi):
-        hyperElasticState = HyperElasticState(
-            self.mesh.groupElem, self.displacement, matrixType
-        )
         return Project_Kelvin(hyperElasticState.Compute_GreenLagrange(), 2)
 
-    def _Calc_SecondPiolaKirchhoff(self, matrixType=MatrixType.rigi):
-        hyperElasticState = HyperElasticState(
-            self.mesh.groupElem, self.displacement, matrixType
-        )
+    def _Calc_SecondPiolaKirchhoff(self, groupElem=None, matrixType=MatrixType.rigi):
+        if groupElem is None:
+            groupElem = self.mesh.groupElem
+        hyperElasticState = HyperElasticState(groupElem, self.displacement, matrixType)
         return self.material.Compute_dWde(hyperElasticState)
 
     def Results_Iter_Summary(
