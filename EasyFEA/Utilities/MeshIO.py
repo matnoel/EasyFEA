@@ -759,7 +759,9 @@ def _Get_pyvista_cell(groupElem: _GroupElem) -> tuple[VTKCellType, _types.IntArr
 
 @requires_pyvista
 def EasyFEA_to_PyVista(
-    mesh: Mesh, coord: Optional[_types.FloatArray] = None, useAllElements=True
+    mesh: Mesh,
+    coord: Optional[_types.FloatArray] = None,
+    useAllElements=True,
 ) -> pv.UnstructuredGrid:
     """Converts EasyFEA mesh to PyVista Multiblock format.
 
@@ -792,12 +794,15 @@ def EasyFEA_to_PyVista(
     # init dict of cell data
     dict_cellData: dict[VTKCellType, np.ndarray] = {}
 
-    for groupElem in mesh.dict_groupElem.values():
-        if not useAllElements and groupElem is not mesh.groupElem:
-            continue
+    # useAllElements -> every group (all dimensions); otherwise only the groups of the main dimension.
+    # The latter follows Get_list_groupElem(mesh.dim) order so the cells stay aligned with the element ordering of any per-element field (mesh.Ne concatenation order).
+    if useAllElements:
+        list_groupElem = list(mesh.dict_groupElem.values())
+    else:
+        list_groupElem = mesh.Get_list_groupElem(mesh.dim)
 
+    for groupElem in list_groupElem:
         cellType, connect = _Get_pyvista_cell(groupElem)
-
         dict_cellData[cellType] = connect
 
     # get mesh coordinates
@@ -816,7 +821,8 @@ def EasyFEA_to_PyVista(
 
 @requires_pyvista
 def _GroupElem_to_PyVista(
-    groupElem: _GroupElem, elements: Optional[_types.IntArray] = None
+    groupElem: _GroupElem,
+    elements: Optional[_types.IntArray] = None,
 ) -> pv.UnstructuredGrid:
     """Converts EasyFEA mesh to PyVista Multiblock format.
 
