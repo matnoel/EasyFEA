@@ -753,6 +753,8 @@ def Plot_Elements(
 
     ax, inDim = __Get_axis(ax, inDim)
 
+    plotDim = np.max([inDim, 2])
+
     # list of element group associated with the dimension
     list_groupElem = mesh.Get_list_groupElem(dimElem)
     if len(list_groupElem) == 0:
@@ -789,13 +791,13 @@ def Plot_Elements(
 
         # Construct the vertices coordinates
         connect_e = groupElem.connect  # connect
-        vertices_e = coord[connect_e[:, idx], : mesh.inDim]
+        vertices_e = coord[connect_e[:, idx], :plotDim]
         vertices = vertices_e[elements]
 
         # center coordinates for each elements
         center_e = np.mean(vertices_e, axis=1)
 
-        __Add_Collection(ax, vertices, inDim, groupElem.dim, **params)
+        __Add_Collection(ax, vertices, plotDim, groupElem.dim, **params)
 
         if showId:
             # plot elements id's
@@ -808,7 +810,7 @@ def Plot_Elements(
 
     tic.Tac("Display", "Plot_Elements")
 
-    if inDim < 3:
+    if plotDim < 3:
         ax.axis("equal")
     else:
         _Axis_equal_3D(ax, coord)
@@ -862,6 +864,8 @@ def Plot_BoundaryConditions(simu, ax: Optional[Axes] = None) -> Axes:
         ax = Plot_Elements(simu.mesh, dimElem=1, color="k")
         ax.set_title("Boundary conditions")
 
+    plotDim = np.max([simu.mesh.inDim, 2])
+
     for bc in BoundaryConditions:
         problemType = bc.problemType
         dofsValues = bc.dofsValues
@@ -908,7 +912,7 @@ def Plot_BoundaryConditions(simu, ax: Optional[Axes] = None) -> Axes:
         lw = 0
         if len(nodes) == simu.mesh.Nn:
             ax.plot(
-                *coord[:, : simu.mesh.inDim].mean(0).T,
+                *coord[:, :plotDim].mean(0).T,
                 marker=marker,
                 lw=lw * 5,
                 label=title,
@@ -917,7 +921,7 @@ def Plot_BoundaryConditions(simu, ax: Optional[Axes] = None) -> Axes:
             )
         else:
             ax.plot(
-                *coord[nodes, : simu.mesh.inDim].T,
+                *coord[nodes, :plotDim].T,
                 marker=marker,
                 lw=lw,
                 label=title,
