@@ -509,14 +509,6 @@ class Mesh(Observable):
         """Returns assembly matrix for specified dof_n (Ne, nPe*dof_n)"""
         return self.groupElem.Get_assembly_e(dof_n)
 
-    def Get_rows_e(self, dof_n: int) -> _types.IntArray:
-        """Returns the row indices used to assemble local matrices into the global matrix."""
-        return self.groupElem.Get_rows_e(dof_n)
-
-    def Get_columns_e(self, dof_n: int) -> _types.IntArray:
-        """Returns the column indices used to assemble local matrices into the global matrix."""
-        return self.groupElem.Get_columns_e(dof_n)
-
     @property
     def length(self) -> float:
         """total length of the mesh."""

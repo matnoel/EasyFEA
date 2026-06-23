@@ -306,8 +306,8 @@ class DIC(_IObserver):
 
         B_e = Bx_e + By_e
 
-        rows = mesh.Get_rows_e(dim).ravel()
-        columns = mesh.Get_columns_e(dim).ravel()
+        rows = groupElem.Get_rows_e(dim).ravel()
+        columns = groupElem.Get_columns_e(dim).ravel()
 
         self._R = sparse.csr_matrix((B_e.ravel(), (rows, columns)), (Ndof, Ndof))
         """Laplacian operator"""

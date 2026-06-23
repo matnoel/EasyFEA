@@ -113,7 +113,7 @@ class TestMesh:
                 [[i for i in assembly_e[e] for j in assembly_e[e]] for e in elements]
             )
             testLines = np.testing.assert_array_almost_equal(
-                lines_e_test, mesh.Get_rows_e(mesh.dim), verbose=False
+                lines_e_test, groupElem.Get_rows_e(mesh.dim), verbose=False
             )
             assert testLines is None
 
@@ -122,7 +122,7 @@ class TestMesh:
                 [[j for i in assembly_e[e] for j in assembly_e[e]] for e in elements]
             )
             testColumns = np.testing.assert_array_almost_equal(
-                colonnes_e_test, mesh.Get_columns_e(dim), verbose=False
+                colonnes_e_test, groupElem.Get_columns_e(dim), verbose=False
             )
             assert testColumns is None
 
