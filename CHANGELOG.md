@@ -2,6 +2,38 @@
 
 This document describes the changes made to the project.
 
+## 2.0.0 (June 23, 2026):
+
+Meshes can now contain **several element groups of the same (main) dimension**, so mixed-element meshes are supported end-to-end — for example a contour meshed with `Mesh_2D([], ElemType.QUAD4)` in `https://easyfea.readthedocs.io/en/stable/examples/Meshes/Mesh2_2D.html` that gmsh fills with `QUAD4 + TRI3` (issue #44).
+
+**Breaking changes:**
+
+- `mesh.groupElem`, `mesh.elemType`, and `mesh.connect` now raise `AmbiguousGroupError` when more than one group shares the main dimension (they cannot return a single value for a mixed mesh). Iterate `mesh.Get_list_groupElem(mesh.dim)` instead.
+- Removed `mesh.Get_rows_e`, `mesh.Get_columns_e`, and `mesh.nPe`; use the corresponding members on each `groupElem` (the assembly path already loops per group).
+- Renamed `Display.Plot_Result` to `Display.Plot`.
+
+**Multi-element-type support (issue #44):**
+
+- Reworked the writers to loop over `mesh.Get_list_groupElem(dim)`, concatenating per-element results in `mesh.Ne` order: `Display.Plot`, the PyVista export (`MeshIO`), `Mesher.Save_Simu`, and the `Paraview` VTU/PVTU export (both serial and MPI).
+- Made the mesh utilities multi-group aware: `Elements_Nodes`, `Evaluate_dofsValues_at_coordinates`, `Get_meshSize`, `Get_Quality`, and the MPI `_Gather` (coordinates are now gathered across every group). The generic result path `simu._Get_values` and the per-element stress/strain computations now assemble per group via `groupElem.Locates_sol_e`.
+- Updated the core `Mesh` functions and meshing helpers to operate on the list of element groups and removed the internal `mesh.__groupElem` shortcut.
+
+**Display:**
+
+- Refactored the `Display` functions; renamed `Display.Plot_Result` to `Display.Plot` and reworked `Plot_Mesh` together with the handling of the `result`, `plotMesh`, and `plotDim` arguments.
+
+**MPI:**
+
+- Improved MPI behavior in the simulations and in `Solvers.py` (issues #26 and #44).
+
+**Other:**
+
+- `NonLinear.FollowingPressure`: updated the argument order.
+- Removed `optimize="optimal"` in `EasyFEA/FEM/_linalg.py`.
+- Added the `Homog5` example to the documentation gallery, added a mesh-creation assertion in `_beam.py`, and fixed documentation warnings.
+
+**Full Changelog:** https://github.com/matnoel/EasyFEA/compare/v1.11.0...v2.0.0
+
 ## 1.11.0 (June 15, 2026):
 
 - Created the `EasyFEA.FEM.Operators` module, gathering the element-level operators that integrate a form over the Gauss points (issue #43).
@@ -12,7 +44,7 @@ This document describes the changes made to the project.
 - Introduced finite-strain viscosity and active stress in hyperelasticity (issue #42).
     - Kelvin-Voigt viscosity `material.eta` (large-strain `Σ_visco = η·Ė`), delivered through `NonLinear.KelvinVoigtDamping`, which returns both the damping matrix and the configuration tangent so the gap is closed without touching the time-scheme coefficient mechanism.
     - Fiber active stress `material.active_stress` along a direction registered with `material.Set_active_stress_vec`.
-- Added the `CardiacElastoDynamics` example (`MonoVentricular.py`): a passive + active hyperelastic left-ventricle simulation reproducing *Benchmark 1: monoventricular mechanics* of the cardiac elastodynamics benchmark (Comput. Methods Appl. Mech. Engrg.), with analytic and `cardiac_benchmark_toolkit` (`vtu`) fiber/sheet sources (issue #42).
+- Added the `CardiacElastoDynamics` example (`MonoVentricular.py`): a passive + active hyperelastic left-ventricle simulation reproducing *Benchmark i: monoventricular mechanics* of the cardiac elastodynamics benchmark (Comput. Methods Appl. Mech. Engrg.), with analytic and `cardiac_benchmark_toolkit` (`vtu`) fiber/sheet sources (issue #42).
 - Refactored `Construct_local_matrix_system` and made `HyperElasticState` operate on a `groupElem`; the velocity is now passed explicitly to `KelvinVoigtDamping` instead of being stored on the state (issue #44).
 - Added `FeArray` reduction methods and an `integrate` helper, and fixed a `FeArray.broadcast` ambiguity on per-element tensors via `tensor_ndim`.
 - Fixed a shared mutable-default-dictionary bug in the `Save_Iter` functions that leaked iteration keys across calls and across simulations in the same process.
