@@ -712,13 +712,23 @@ class Mesh(Observable):
     def Elements_Nodes(
         self, nodes: _types.IntArray, exclusively=True, neighborLayer: int = 1
     ) -> _types.IntArray:
-        """Returns elements that exclusively or not use the specified nodes."""
-        for i in range(neighborLayer):
-            elements = self.groupElem.Get_Elements_Nodes(
-                nodes=nodes, exclusively=exclusively
-            )
-            nodes_use_by_elements = np.ravel(self.connect[elements])
-            nodes = np.asarray(list(set(nodes_use_by_elements)), dtype=int)
+        """Returns elements that exclusively or not use the specified nodes.\n
+        When several element groups share the main dimension, the returned element indices are in the global concatenated numbering (Get_list_groupElem(dim) order, matching mesh.Ne).
+        """
+        for _ in range(neighborLayer):
+            list_elements = []
+            list_nodes_used = []
+            offset = 0  # running element count to build the global numbering
+            for groupElem in self.Get_list_groupElem(self.dim):
+                # local element indices (0..groupElem.Ne-1) within this group
+                elements_g = groupElem.Get_Elements_Nodes(
+                    nodes=nodes, exclusively=exclusively
+                )
+                list_elements.append(elements_g + offset)
+                list_nodes_used.append(np.ravel(groupElem.connect[elements_g]))
+                offset += groupElem.Ne
+            elements = np.concatenate(list_elements)
+            nodes = np.unique(np.concatenate(list_nodes_used))
 
             if neighborLayer > 1 and elements.size == self.Ne:
                 Display.MyPrint("All the neighbors have been found.")
