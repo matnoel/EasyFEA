@@ -887,51 +887,64 @@ class Mesh(Observable):
             The interpolated values as a (Nnodes, dof_n) array.
         """
 
-        Nn = self.Nn
-        groupElem = self.groupElem
+        Ncoords = self.Nn
 
         assert (
-            dofsValues.size % Nn == 0 and dofsValues.ndim == 1
+            dofsValues.size % Ncoords == 0 and dofsValues.ndim == 1
         ), "dofsValues must be a (Nn * dof_n, ) array."
-        dof_n = dofsValues.size // Nn
+        dof_n = dofsValues.size // Ncoords
 
-        # first detect elements with coordinates in elements
-        _, detectedElements_e, connect_e_n, coordInElem_n = groupElem.Get_Mapping(
-            coordinates_n, elements, needCoordinates=True
-        )
+        Nn = coordinates_n.shape[0]
+        interpolated_values_n = np.zeros((Nn, dof_n), dtype=float)
+        # query coordinates not yet assigned to an element of a previous group
+        remaining = np.ones(Nn, dtype=bool)
 
-        # Get unique elements for each coordinates
-        # Note: A coordinate may belong to multiple elements, but only one will be selected
-        Nnodes = coordinates_n.shape[0]
-        elements_n = np.array([None] * Nnodes)
-        [
-            np.put(elements_n, node, element)
-            # Don't remove [::-1], it must start at the end !
-            for (element, connect) in zip(detectedElements_e[::-1], connect_e_n[::-1])
-            for node in connect
-            if elements_n[node] is None
-        ]
-        elements_n = elements_n.astype(int)
+        # Several element groups can share the main dimension (e.g. QUAD4 + TRI3); a query coordinate is interpolated with the first group whose element contains it.
+        for groupElem in self.Get_list_groupElem(self.dim):
+            # detect elements containing the coordinates for this group
+            _, detectedElements_e, connect_e_n, coordInElem_n = groupElem.Get_Mapping(
+                coordinates_n, elements, needCoordinates=True
+            )
 
-        # get dofs values for each detected elements as a (Nnodes, nPe, dof_n) array
-        rows_e = self.Get_assembly_e(dof_n)
-        dofsValues_n = dofsValues[rows_e[elements_n]].reshape(
-            Nnodes, groupElem.nPe, dof_n
-        )
+            # Get the owning element for each coordinate in this group.
+            # Note: A coordinate may belong to multiple elements, but only one will be selected.
+            elements_n = np.array([None] * Nn)
+            [
+                np.put(elements_n, node, element)
+                # Don't remove [::-1], it must start at the end !
+                for (element, connect) in zip(
+                    detectedElements_e[::-1], connect_e_n[::-1]
+                )
+                for node in connect
+                if elements_n[node] is None
+            ]
 
-        # get the evaluated shape functions as a (Nnodes, nPe) array
-        evaluated_shape_functions = groupElem._Eval_Functions(
-            groupElem._N(), coordInElem_n
-        )[:, 0]
+            # interpolate coordinates detected here (Get_Mapping already filters by
+            # geometric containment) and not yet assigned to a previous group
+            mask = remaining & (elements_n != None)  # noqa: E711
+            if not mask.any():
+                continue
+            mask_idx = np.flatnonzero(mask)
+            found_elements = elements_n[mask].astype(int)
 
-        tol = 1e-12
-        min, max = evaluated_shape_functions.min(), evaluated_shape_functions.max()
-        assert min > -tol and max < 1 + tol, "shape functions must be in [0, 1]"
+            # get dofs values for each detected element as a (m, nPe, dof_n) array
+            rows_e = groupElem.Get_assembly_e(dof_n)
+            dofsValues_n = dofsValues[rows_e[found_elements]].reshape(
+                mask_idx.size, groupElem.nPe, dof_n
+            )
 
-        # get the interpolated values with (Nnodes, dof_n) shape
-        interpolated_values_n = np.einsum(
-            "ni,nid->nd", evaluated_shape_functions, dofsValues_n, optimize="optimal"
-        )
+            # get the evaluated shape functions as a (m, nPe) array
+            evaluated_shape_functions = groupElem._Eval_Functions(
+                groupElem._N(), coordInElem_n[mask]
+            )[:, 0]
+
+            interpolated_values_n[mask_idx] = np.einsum(
+                "ni,nid->nd",
+                evaluated_shape_functions,
+                dofsValues_n,
+                optimize=True,
+            )
+            remaining[mask_idx] = False
 
         return interpolated_values_n
 
