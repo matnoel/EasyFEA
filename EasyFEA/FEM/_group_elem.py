@@ -355,7 +355,10 @@ class _GroupElem(ABC):
         assembly_e = self.Get_assembly_e(dof_n)
         nPe = self.nPe
         Ne = self.Ne
-        rowsVector_e = np.repeat(assembly_e, nPe * dof_n).reshape((Ne, -1))
+        # each (ndof, ndof) local matrix flattens to ndof*ndof entries (ndof = nPe*dof_n);
+        # the explicit width keeps reshape valid for empty groups (Ne == 0, MPI).
+        ndof2 = (nPe * dof_n) ** 2
+        rowsVector_e = np.repeat(assembly_e, nPe * dof_n).reshape((Ne, ndof2))
         return rowsVector_e
 
     def Get_columns_e(self, dof_n: int) -> _types.IntArray:
@@ -363,7 +366,8 @@ class _GroupElem(ABC):
         assembly_e = self.Get_assembly_e(dof_n)
         nPe = self.nPe
         Ne = self.Ne
-        columnsVector_e = np.repeat(assembly_e, nPe * dof_n, axis=0).reshape((Ne, -1))
+        ndof2 = (nPe * dof_n) ** 2
+        columnsVector_e = np.repeat(assembly_e, nPe * dof_n, axis=0).reshape((Ne, ndof2))
         return columnsVector_e
 
     def _Get_sysCoord_e(self, displacementMatrix: Optional[_types.AnyArray] = None):
