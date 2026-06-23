@@ -3095,8 +3095,13 @@ def _Get_values(
                 # calculate nodal values for element values
                 values = mesh.Get_Node_Values(result)
             elif size == mesh.Nn and not nodeValues:
-                values_e = mesh.Locates_sol_e(result)
-                values = np.mean(values_e, 1)
+                # several element groups can share the main dimension (e.g. QUAD4 + TRI3); the per-group mean over nPe collapses the ragged element axis so the result concatenates in Get_list_groupElem(dim) order (matching mesh.Ne)
+                values = np.concatenate(
+                    [
+                        np.mean(groupElem.Locates_sol_e(result), 1)
+                        for groupElem in mesh.Get_list_groupElem(mesh.dim)
+                    ]
+                )
     elif result is None:
         return None
     else:
