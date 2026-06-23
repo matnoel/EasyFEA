@@ -45,10 +45,10 @@ if __name__ == "__main__":
     contour = Points([(0, 0), (h, 0), (0, h)], h / 10)
 
     if dim == 2:
-        mesh = contour.Mesh_2D([], ElemType.TRI6)
+        mesh = contour.Mesh_2D([], ElemType.QUAD8)
         print(f"err area = {np.abs(mesh.area - h**2 / 2) / mesh.area:.3e}")
     elif dim == 3:
-        mesh = contour.Mesh_Extrude([], [0, 0, -thickness], [3], ElemType.PRISM15)
+        mesh = contour.Mesh_Extrude([], [0, 0, -thickness], [3], ElemType.HEXA20)
         print(
             f"error volume = {np.abs(mesh.volume - h**2 / 2 * thickness) / mesh.volume:.3e}"
         )

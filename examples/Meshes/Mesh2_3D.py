@@ -9,6 +9,7 @@ Mesh2_3D
 
 Meshing a hydraulic dam.
 """
+
 # sphinx_gallery_thumbnail_number = 2
 
 from EasyFEA import Display, ElemType, PyVista
@@ -23,7 +24,9 @@ if __name__ == "__main__":
     contour = Points([(0, 0), (h, 0), (0, h)], h / N)
     PyVista.Plot_Geoms(contour).show()
 
-    # "TETRA4", "TETRA10", "PRISM6", "PRISM15", "PRISM18"
-    elemType = ElemType.PRISM6
+    # "TETRA4", "TETRA10", "PRISM6", "PRISM15", "PRISM18", "HEXA8", "HEXA20", "HEXA27"
+    elemType = ElemType.HEXA8
     mesh = contour.Mesh_Extrude([], [0, 0, 2 * h], [10], elemType)
-    PyVista.Plot_Mesh(mesh).show()
+    plotter = PyVista.Plot_Mesh(mesh)
+    plotter.add_title(str(mesh))
+    plotter.show()
