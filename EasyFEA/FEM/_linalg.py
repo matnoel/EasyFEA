@@ -11,7 +11,7 @@ from typing import Union, Optional, Iterable
 from ..Utilities import _types
 
 
-class FeArray(_types.AnyArray):
+class FeArray(np.ndarray):
     """Finite Element array.\n
 
     FeArray is a Python class designed to optimize finite element simulations by leveraging NumPy arrays with a shape of `(Ne, nPg, ...)`. This structure enables vectorized operations, eliminating the need for slow loops over elements and integration points. By using np.einsum, it efficiently handles tensor computations, significantly improving performance and code clarity for finite element analyses.
