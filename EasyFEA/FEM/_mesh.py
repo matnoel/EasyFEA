@@ -440,10 +440,14 @@ class Mesh(Observable):
 
         from ._group_elem import GroupElemFactory
 
-        # Gather node coordinates once.
-        groupElem = self.groupElem
-        all_coords = MPI_COMM.gather(groupElem.coord, root=0)
-        all_nodes = MPI_COMM.gather(groupElem.nodes, root=0)
+        # Gather node coordinates once, from every element group (a mesh that mixes
+        # element types has several): each group carries its own local coords indexed
+        # by its global node ids, so the union covers all nodes. Nodes shared between
+        # groups are written more than once with the same coordinate (harmless).
+        local_coords = [groupElem.coord for groupElem in self.__dict_groupElem.values()]
+        local_nodes = [groupElem.nodes for groupElem in self.__dict_groupElem.values()]
+        all_coords = MPI_COMM.gather(np.concatenate(local_coords), root=0)
+        all_nodes = MPI_COMM.gather(np.concatenate(local_nodes), root=0)
 
         # assembled on rank 0 only; used inside if MPI_RANK == 0
         coordinates: np.ndarray
