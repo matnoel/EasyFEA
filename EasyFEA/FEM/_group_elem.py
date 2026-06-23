@@ -156,15 +156,22 @@ class _GroupElem(ABC):
         """dimension in which the elements are located"""
         if self.elemType in ElemType.Get_3D():
             return 3
+        coord = self.coord
+        if coord.size == 0:
+            # empty group (e.g. an MPI rank owning no element of this type):
+            # the embedding cannot be read from the coordinates, fall back to
+            # the topological dimension (a lower bound that does not disturb the
+            # mesh-wide max over groups).
+            return self.dim
+        # embedding dimension deduced from the coordinates: 3D if any z, else
+        # 2D if any y, else 1D (elements lying on the x-axis).
+        _, y, z = np.abs(coord.T)
+        if np.max(z) > 0:
+            return 3
+        elif np.max(y) > 0:
+            return 2
         else:
-            x, y, z = np.abs(self.coord.T)
-            if np.max(y) == 0 and np.max(z) == 0:
-                inDim = 1
-            if np.max(z) == 0:
-                inDim = 2
-            else:
-                inDim = 3
-            return inDim
+            return 1
 
     @property
     def Ne(self) -> int:
