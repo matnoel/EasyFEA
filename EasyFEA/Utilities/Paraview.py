@@ -232,48 +232,63 @@ def __Make_vtu(
     filename = Folder.Join(rank_folder, f"solution_{iter}.vtu")
 
     # get mesh data
-    elemType = mesh.elemType
     Ne = mesh.Ne
     Ncoords = mesh.Nn
-    Nn = mesh.groupElem.Nn
-    nodes = mesh.nodes.astype(np.uint64)
-    nPe = mesh.groupElem.nPe
     inDim = mesh.inDim
 
-    # reorder gmsh idx to vtk indexes
-    if elemType in DICT_GMSH_TO_VTK_INDEXES:
-        vtkIndexes = DICT_GMSH_TO_VTK_INDEXES[elemType]
-    else:
-        vtkIndexes = np.arange(nPe).tolist()
-    connect = mesh.connect[:, vtkIndexes]
-    connect = mesh.groupElem._global_to_local_nodes[connect]
+    # Several element groups can share the main dimension (e.g. QUAD4 + TRI3). VTK represents such heterogeneous grids with a per-cell `types` array and cumulative `offsets`, so the cells are built by iterating over the groups (this collapses to the single-type case for a uniform mesh). The groups share one point set -- mesh.nodes, the union of their nodes, sorted -- with a local-compacted numbering, which works in serial and in MPI (where mesh.nodes are this rank's global ids).
+    nodes = mesh.nodes  # sorted unique global ids used by the main-dim groups
+    Nn = nodes.size
+    coordinates = mesh.coord[nodes].ravel()
 
-    paraviewType = DICT_ELEMTYPE_TO_VTK[elemType].value
+    list_connect: list[_types.IntArray] = []
+    list_types: list[_types.IntArray] = []
+    list_nPe_e: list[_types.IntArray] = []  # node count per cell, to build the offsets
+    list_ghostCells: list[_types.IntArray] = []
+    list_ghostNodes: list[_types.IntArray] = []
+    # Get_list_groupElem order matches mesh.Ne / element results
+    for groupElem in mesh.Get_list_groupElem(mesh.dim):
+        elemType = groupElem.elemType
+        nPe = groupElem.nPe
 
-    types = np.ones(Ne, dtype=int) * paraviewType
+        # reorder gmsh idx to vtk indexes
+        if elemType in DICT_GMSH_TO_VTK_INDEXES:
+            vtkIndexes = DICT_GMSH_TO_VTK_INDEXES[elemType]
+        else:
+            vtkIndexes = np.arange(nPe).tolist()
+        # map global node ids to the shared local numbering (equivalent to groupElem._global_to_local_nodes since mesh.nodes is sorted)
+        connect_e = np.searchsorted(nodes, groupElem.connect[:, vtkIndexes])
+        list_connect.append(connect_e.ravel())
+        list_types.append(
+            np.full(groupElem.Ne, DICT_ELEMTYPE_TO_VTK[elemType].value, dtype=int)
+        )
+        list_nPe_e.append(np.full(groupElem.Ne, nPe, dtype=np.uint64))
 
-    # coordinates as a vector (e.g (x1, y1, z1,..., xn, yn, zn))
-    coordinates = mesh.groupElem.coord.ravel()
+        # Ghost data (MPI only): vtkGhostType marks cells/points shared with neighbours; value 1 means duplicate cells or points.
+        if MPI_SIZE > 1:
+            _, elems, ghostElems, _, ghostNodes = groupElem._Get_partitioned_data()
+            gc = np.zeros(groupElem.Ne, dtype=np.uint8)
+            if ghostElems.size > 0:
+                allElems = np.unique(np.concatenate([elems, ghostElems]))
+                gc[np.searchsorted(allElems, ghostElems)] = 1
+            list_ghostCells.append(gc)
+            list_ghostNodes.append(ghostNodes)
+
     # connect as a vector (e.g (n1^1, n2^1, n3^1, ..., n1^e, n2^e, n3^e))
-    connect = connect.ravel()
+    connect = np.concatenate(list_connect)
+    types = np.concatenate(list_types)
+    connect_offsets = np.cumsum(np.concatenate(list_nPe_e), dtype=np.uint64)
 
-    connect_offsets = np.arange(nPe, nPe * Ne + 1, nPe, dtype=np.uint64)
-
-    # Ghost data (MPI only): vtkGhostType marks cells/points shared with neighbours,
-    # Value 1 means duplicate cells or points.
     ghostCells: _types.IntArray = None
     ghostPoints: _types.IntArray = None
     if MPI_SIZE > 1:
-        _, elems, ghostElems, _, ghostNodes = mesh.groupElem._Get_partitioned_data()
-
-        ghostCells = np.zeros(Ne, dtype=np.uint8)
-        if ghostElems.size > 0:
-            allElems = np.unique(np.concatenate([elems, ghostElems]))
-            ghostCells[np.searchsorted(allElems, ghostElems)] = 1
-
+        ghostCells = np.concatenate(list_ghostCells)
         ghostPoints = np.zeros(Nn, dtype=np.uint8)
+        ghostNodes = np.unique(np.concatenate(list_ghostNodes))
         if ghostNodes.size > 0:
             ghostPoints[np.searchsorted(nodes, ghostNodes)] = 1
+
+    nodes = nodes.astype(np.uint64)  # GlobalPointIds / node-field indexing
 
     endian_paraview = "LittleEndian"  # 'LittleEndian' 'BigEndian'
 
