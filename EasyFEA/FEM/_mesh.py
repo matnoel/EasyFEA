@@ -1041,58 +1041,52 @@ class Mesh(Observable):
 
         return paired_nodes
 
-    def Get_meshSize(self, doMean=True) -> _types.FloatArray:
-        """Returns the mesh size of the mesh.\n
-        returns meshSize_e if doMean else meshSize_e_s"""
-        # recover the physical group and coordinates
-        groupElem = self.groupElem
-        coordo = groupElem.coord
+    def __Get_meshSize_e_s(self, groupElem: "_GroupElem") -> _types.FloatArray:
+        """Returns the segment lengths (Ne, nSegments) of a single element group."""
+        # full mesh coordinates, indexed by the group's global node ids
+        coord = self.coord
 
         # indexes to access segments of each element
-        segments = groupElem.segments
-        segments_e = groupElem.connect[:, segments]
+        segments_e = groupElem.connect[:, groupElem.segments]
 
-        # for each elements (e)
-        # calculate the length of each segment (s)
-        h_e_s = np.linalg.norm(
-            coordo[segments_e[:, :, 1]] - coordo[segments_e[:, :, 0]], axis=2
+        # for each element (e), calculate the length of each segment (s)
+        return np.linalg.norm(
+            coord[segments_e[:, :, 1]] - coord[segments_e[:, :, 0]], axis=2
         )
 
-        if doMean:
-            # average segment size per element
-            return np.mean(h_e_s, axis=1)
-        else:
-            return h_e_s
-
-    def Get_Quality(
-        self, criteria: str = "aspect", nodeValues=False
-    ) -> _types.FloatArray:
-        """Calculates mesh quality [0, 1] (bad, good).
-
-        Parameters
-        ----------
-        criteria : str, optional
-            criterion used, by default 'aspect'\n
-            - "aspect": hMin / hMax, ratio between minimum and maximum element length\n
-            - "angular": angleMin / angleMax, ratio between the minimum and maximum angle of an element\n
-            - "gamma": 2 rci/rcc, ratio between the radius of the inscribed circle and the circumscribed circle multiplied by 2. Useful for triangular elements.\n
-            - "jacobian": jMax / jMin, ratio between the maximum jacobian and the minimum jacobian. Useful for higher-order elements.
-
-        nodeValues : bool, optional
-            calculates values on nodes, by default False
-
-        Returns
-        -------
-        _types.FloatArray
-            mesh quality
+    def Get_meshSize(self, doMean=True) -> _types.FloatArray:
+        """Returns the mesh size of the mesh.\n
+        returns meshSize_e if doMean else meshSize_e_s.\n
+        When several element groups share the main dimension, doMean=True concatenates the per-element mean size following Get_list_groupElem(dim) order (matching mesh.Ne); doMean=False returns ragged per-element segment lengths and is therefore only defined for a single group.
         """
+        list_groupElem = self.Get_list_groupElem(self.dim)
 
-        groupElem = self.groupElem
+        if not doMean:
+            # segment lengths have a different number of columns per element type
+            if len(list_groupElem) > 1:
+                raise AmbiguousGroupError(
+                    "Get_meshSize(doMean=False) returns ragged per-element segment "
+                    "lengths; iterate mesh.Get_list_groupElem(dim) instead."
+                )
+            return self.__Get_meshSize_e_s(list_groupElem[0])
+
+        # average segment size per element, concatenated across groups
+        return np.concatenate(
+            [
+                np.mean(self.__Get_meshSize_e_s(groupElem), axis=1)
+                for groupElem in list_groupElem
+            ]
+        )
+
+    def __Get_Quality_groupElem(
+        self, groupElem: "_GroupElem", criteria: str
+    ) -> _types.FloatArray:
+        """Calculates the quality criterion on a single element group (Ne,)."""
         coordinates = self.coord
         connect = groupElem.connect
 
-        # length of each segments
-        h_e_s = self.Get_meshSize(False)
+        # length of each segment
+        h_e_s = self.__Get_meshSize_e_s(groupElem)
 
         # perimeter
         p_e = np.sum(h_e_s, -1)
@@ -1156,11 +1150,48 @@ class Mesh(Observable):
 
         else:
             Display.MyPrintError(f"The criterion ({criteria}) is not implemented")
+            return None  # type: ignore [return-value]
+
+        return np.asarray(values_e)
+
+    def Get_Quality(
+        self, criteria: str = "aspect", nodeValues=False
+    ) -> _types.FloatArray:
+        """Calculates mesh quality [0, 1] (bad, good).
+
+        Parameters
+        ----------
+        criteria : str, optional
+            criterion used, by default 'aspect'\n
+            - "aspect": hMin / hMax, ratio between minimum and maximum element length\n
+            - "angular": angleMin / angleMax, ratio between the minimum and maximum angle of an element\n
+            - "gamma": 2 rci/rcc, ratio between the radius of the inscribed circle and the circumscribed circle multiplied by 2. Useful for triangular elements.\n
+            - "jacobian": jMax / jMin, ratio between the maximum jacobian and the minimum jacobian. Useful for higher-order elements.
+
+        nodeValues : bool, optional
+            calculates values on nodes, by default False
+
+        Returns
+        -------
+        _types.FloatArray
+            mesh quality
+
+        When several element groups share the main dimension, the per-element criterion is concatenated following Get_list_groupElem(dim) order (matching mesh.Ne); None is returned if the criterion is not available for one of the groups.
+        """
+
+        list_values = []
+        for groupElem in self.Get_list_groupElem(self.dim):
+            values_e = self.__Get_Quality_groupElem(groupElem, criteria)
+            if values_e is None:
+                return None  # type: ignore [return-value]
+            list_values.append(values_e)
+
+        values_e = np.concatenate(list_values)
 
         if nodeValues:
             return self.Get_Node_Values(values_e)
         else:
-            return np.asarray(values_e)
+            return values_e
 
     def Get_New_meshSize_n(
         self, error_e: _types.FloatArray, coef: float = 1 / 2
