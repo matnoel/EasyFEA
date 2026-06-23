@@ -114,6 +114,8 @@ class Beam(_Simu):
         else:
             mesh = _Construct_Euler_Bernoulli_mesh(mesh)
 
+        assert len(mesh.Get_list_groupElem(dim=1)) == 1
+
         super().__init__(mesh, model, folder, verbosity)
 
         self.solver = SolverType.scipy
