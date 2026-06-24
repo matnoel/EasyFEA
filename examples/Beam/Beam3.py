@@ -13,11 +13,11 @@ A bi-fixed beam undergoing bending deformation.
 import matplotlib.pyplot as plt
 import numpy as np
 
-from EasyFEA import Display, Models, Mesher, ElemType, Simulations
+from EasyFEA import Terminal, Matplotlib, Models, Mesher, ElemType, Simulations
 from EasyFEA.Geoms import Line, Point, Points
 
 if __name__ == "__main__":
-    Display.Clear()
+    Terminal.Clear()
 
     # ----------------------------------------------
     # Configuration
@@ -97,11 +97,11 @@ if __name__ == "__main__":
     # Results
     # ----------------------------------------------
 
-    Display.Plot_Mesh(simu, L / 20 / sol.min())
-    ax = Display.Plot_Mesh(section)
+    Matplotlib.Plot_Mesh(simu, L / 20 / sol.min())
+    ax = Matplotlib.Plot_Mesh(section)
     ax.set_title("Section")
-    Display.Plot_BoundaryConditions(simu)
-    Display.Plot(simu, "uy", L / 20 / sol.min())
+    Matplotlib.Plot_BoundaryConditions(simu)
+    Matplotlib.Plot(simu, "uy", L / 20 / sol.min())
 
     # ------------------------
     # uy
@@ -130,9 +130,9 @@ if __name__ == "__main__":
 
     uy = simu.Result("uy")
     err_uy = np.abs(uy_x(x_n) - uy).max() / np.abs(uy_x(a))
-    Display.MyPrint(f"\nerr uy: {err_uy * 100:.2e}%")
+    Terminal.MyPrint(f"\nerr uy: {err_uy * 100:.2e}%")
 
-    ax_uy = Display.Init_Axes()
+    ax_uy = Matplotlib.Init_Axes()
     ax_uy.plot(x, uy_x(x), label="Analytical", c="blue")
     ax_uy.scatter(x_n, uy, label="FE", c="red", marker="x", zorder=2)
     ax_uy.set_title("$u_y(x)$")
@@ -149,9 +149,9 @@ if __name__ == "__main__":
 
     Mz = simu.Result("Mz", nodeValues=False)
     err_Mz = np.abs(Mz_x(x_e) - Mz).max() / np.abs(Mz_x(x_e)).max()
-    Display.MyPrint(f"\nerr Mz : {err_Mz * 100:.2e} %")
+    Terminal.MyPrint(f"\nerr Mz : {err_Mz * 100:.2e} %")
 
-    axMz = Display.Init_Axes()
+    axMz = Matplotlib.Init_Axes()
     axMz.plot(x, Mz_x(x), label="Analytical", c="blue")
     axMz.scatter(x_e, Mz, label="FE", c="red", marker="x", zorder=2)
     axMz.set_title("$M_z(x)$")
@@ -167,9 +167,9 @@ if __name__ == "__main__":
 
     Ty = simu.Result("Ty", nodeValues=False)
     err_Ty = np.abs(Ty_x(x_e) - Ty).max() / max(Ra, Rb)
-    Display.MyPrint(f"\nerr Ty : {err_Ty * 100:.2e} %")
+    Terminal.MyPrint(f"\nerr Ty : {err_Ty * 100:.2e} %")
 
-    ax_Ty = Display.Init_Axes()
+    ax_Ty = Matplotlib.Init_Axes()
     ax_Ty.step(x, Ty_x(x), label="Analytical", c="blue", where="mid")
     ax_Ty.scatter(x_e, Ty, label="FE", c="red", marker="x", zorder=2)
     ax_Ty.set_title("$T_y(x)$")

@@ -12,11 +12,11 @@ Frame with two beams.
 
 import matplotlib.pyplot as plt
 
-from EasyFEA import Display, Models, Mesher, ElemType, Simulations
+from EasyFEA import Terminal, Matplotlib, Models, Mesher, ElemType, Simulations
 from EasyFEA.Geoms import Domain, Line
 
 if __name__ == "__main__":
-    Display.Clear()
+    Terminal.Clear()
 
     # ----------------------------------------------
     # Configuration
@@ -80,10 +80,10 @@ if __name__ == "__main__":
     # Results
     # ----------------------------------------------
 
-    Display.Plot_Mesh(simu, L / 10 / sol.max())
-    Display.Plot_BoundaryConditions(simu)
-    Display.Plot(simu, "ux", L / 10 / sol.max())
-    Display.Plot(simu, "uy", L / 10 / sol.max())
+    Matplotlib.Plot_Mesh(simu, L / 10 / sol.max())
+    Matplotlib.Plot_BoundaryConditions(simu)
+    Matplotlib.Plot(simu, "ux", L / 10 / sol.max())
+    Matplotlib.Plot(simu, "uy", L / 10 / sol.max())
 
     print(simu)
 

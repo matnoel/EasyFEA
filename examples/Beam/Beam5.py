@@ -13,11 +13,11 @@ Frame with six beams
 import matplotlib.pyplot as plt
 import numpy as np
 
-from EasyFEA import Display, Models, Mesher, ElemType, Simulations
+from EasyFEA import Terminal, Matplotlib, Models, Mesher, ElemType, Simulations
 from EasyFEA.Geoms import Domain, Line
 
 if __name__ == "__main__":
-    Display.Clear()
+    Terminal.Clear()
 
     # ----------------------------------------------
     # Configuration
@@ -56,8 +56,8 @@ if __name__ == "__main__":
     structure = Models.Beam.BeamStructure(beams)
 
     mesh = Mesher().Mesh_Beams(beams, ElemType.SEG2)
-    # Display.Plot_Mesh(mesh)
-    # Display.Plot_Tags(mesh)
+    # Matplotlib.Plot_Mesh(mesh)
+    # Matplotlib.Plot_Tags(mesh)
 
     # ----------------------------------------------
     # Simulation
@@ -86,20 +86,20 @@ if __name__ == "__main__":
     matrixDep = simu.Results_displacement_matrix()
     depMax = np.max(np.linalg.norm(matrixDep, axis=1))
 
-    Display.Plot_Mesh(simu, deformFactor=10 / depMax)
-    Display.Plot_Mesh(section, title="Cross section")
-    Display.Plot_BoundaryConditions(simu)
-    Display.Plot(simu, "ux", deformFactor=5 / depMax)
-    Display.Plot(simu, "uy", deformFactor=5 / depMax)
-    Display.Plot(simu, "rz", deformFactor=5 / depMax)
-    Display.Plot(simu, "fx", deformFactor=5 / depMax)
-    Display.Plot(simu, "fy", deformFactor=5 / depMax)
+    Matplotlib.Plot_Mesh(simu, deformFactor=10 / depMax)
+    Matplotlib.Plot_Mesh(section, title="Cross section")
+    Matplotlib.Plot_BoundaryConditions(simu)
+    Matplotlib.Plot(simu, "ux", deformFactor=5 / depMax)
+    Matplotlib.Plot(simu, "uy", deformFactor=5 / depMax)
+    Matplotlib.Plot(simu, "rz", deformFactor=5 / depMax)
+    Matplotlib.Plot(simu, "fx", deformFactor=5 / depMax)
+    Matplotlib.Plot(simu, "fy", deformFactor=5 / depMax)
 
     Epsilon_e_pg = simu._Calc_Epsilon_e_pg(simu.displacement)
     Internal_e = simu._Calc_InternalForces_e_pg(Epsilon_e_pg).mean(1)
     Sigma_e = simu._Calc_Sigma_e_pg(Epsilon_e_pg).mean(1)
-    Display.Plot(simu, Sigma_e[:, 0], title="Sxx")
-    Display.Plot(simu, Internal_e[:, 0], title="N")
+    Matplotlib.Plot(simu, Sigma_e[:, 0], title="Sxx")
+    Matplotlib.Plot(simu, Internal_e[:, 0], title="N")
 
     ux, uy, rz = simu.Result("ux"), simu.Result("uy"), simu.Result("rz")
     fx, fy, cz = simu.Result("fx"), simu.Result("fy"), simu.Result("cz")

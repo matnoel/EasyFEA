@@ -12,11 +12,11 @@ A cantilever beam undergoing bending deformation in dynamic.
 
 import matplotlib.pyplot as plt
 
-from EasyFEA import Folder, Display, Models, Mesher, Simulations, Paraview, PyVista
+from EasyFEA import Folder, Terminal, Matplotlib, Models, Mesher, Simulations, Paraview, PyVista
 from EasyFEA.Geoms import Domain, Line
 
 if __name__ == "__main__":
-    Display.Clear()
+    Terminal.Clear()
 
     # ----------------------------------------------
     # Configuration
@@ -97,7 +97,7 @@ if __name__ == "__main__":
     # Results
     # ----------------------------------------------
 
-    Display.Plot_BoundaryConditions(simu)
+    Matplotlib.Plot_BoundaryConditions(simu)
 
     if makeParaview:
         Paraview.Save_simu(simu, folder)
@@ -116,9 +116,9 @@ if __name__ == "__main__":
 
     print(simu)
 
-    Display.Plot(simu, result, deformFactor=deform)
-    ax = Display.Plot_Mesh(section)
+    Matplotlib.Plot(simu, result, deformFactor=deform)
+    ax = Matplotlib.Plot_Mesh(section)
     ax.set_title("Section")
-    Display.Plot_Mesh(simu, deformFactor=deform)
+    Matplotlib.Plot_Mesh(simu, deformFactor=deform)
 
     plt.show()

@@ -13,11 +13,11 @@ A cantilever beam undergoing bending deformation.
 import matplotlib.pyplot as plt
 import numpy as np
 
-from EasyFEA import Display, Models, Mesher, ElemType, Simulations
+from EasyFEA import Terminal, Matplotlib, Models, Mesher, ElemType, Simulations
 from EasyFEA.Geoms import Domain, Line
 
 if __name__ == "__main__":
-    Display.Clear()
+    Terminal.Clear()
 
     # ----------------------------------------------
     # Configuration
@@ -76,9 +76,9 @@ if __name__ == "__main__":
     # Results
     # ----------------------------------------------
 
-    Display.Plot_Mesh(simu, deformFactor=-L / 10 / sol.min())
-    Display.Plot_BoundaryConditions(simu)
-    Display.Plot(simu, "uy")
+    Matplotlib.Plot_Mesh(simu, deformFactor=-L / 10 / sol.min())
+    Matplotlib.Plot_BoundaryConditions(simu)
+    Matplotlib.Plot(simu, "uy")
 
     # beam properties
     G = beam.mu
@@ -101,9 +101,9 @@ if __name__ == "__main__":
     uy = simu.Result("uy")
     x_n = mesh.coord[:, 0]
     err_uy = np.abs(uy_x(x_n) - uy).max() / np.abs(uy_x(L))
-    Display.MyPrint(f"\nerr uy: {err_uy * 100:.2e}%")
+    Terminal.MyPrint(f"\nerr uy: {err_uy * 100:.2e}%")
 
-    axUy = Display.Init_Axes()
+    axUy = Matplotlib.Init_Axes()
     axUy.plot(x, uy_x(x), label="Analytical", c="blue")
     axUy.scatter(x_n, uy, label="FE", c="red", marker="x", zorder=2)
     axUy.set_title("$u_y(x)$")
@@ -117,9 +117,9 @@ if __name__ == "__main__":
 
     rz = simu.Result("rz")
     err_rz = np.abs(rz_x(x_n) - rz).max() / np.abs(rz_x(L))
-    Display.MyPrint(f"\nerr rz: {err_rz * 100:.2e}%")
+    Terminal.MyPrint(f"\nerr rz: {err_rz * 100:.2e}%")
 
-    axRz = Display.Init_Axes()
+    axRz = Matplotlib.Init_Axes()
     axRz.plot(x, rz_x(x), label="Analytical", c="blue")
     axRz.scatter(x_n, rz, label="FE", c="red", marker="x", zorder=2)
     axRz.set_title("$r_z(x)$")
@@ -134,9 +134,9 @@ if __name__ == "__main__":
     x_e = x_n[mesh.connect].mean(1)  # element centroid x-coords
     Mz = simu.Result("Mz", nodeValues=False)
     err_Mz = np.abs(Mz_x(x_e) - Mz).max() / np.abs(Mz_x(x_e)).max()
-    Display.MyPrint(f"\nerr Mz: {err_Mz * 100:.2e}%")
+    Terminal.MyPrint(f"\nerr Mz: {err_Mz * 100:.2e}%")
 
-    axMz = Display.Init_Axes()
+    axMz = Matplotlib.Init_Axes()
     axMz.plot(x, Mz_x(x), label="Analytical", c="blue")
     axMz.scatter(x_e, Mz, label="FE", c="red", marker="x", zorder=2)
     axMz.set_title("$M_z(x)$")
@@ -148,9 +148,9 @@ if __name__ == "__main__":
 
     Ty = simu.Result("Ty", nodeValues=False)
     err_Ty = np.abs(F - Ty).max() / np.abs(F)
-    Display.MyPrint(f"\nerr Ty: {err_Ty * 100:.2e}%")
+    Terminal.MyPrint(f"\nerr Ty: {err_Ty * 100:.2e}%")
 
-    axTy = Display.Init_Axes()
+    axTy = Matplotlib.Init_Axes()
     axTy.axhline(F, label="Analytical", c="blue")
     axTy.scatter(x_e, Ty, label="FE", c="red", marker="x", zorder=2)
     axTy.set_ylim(min(1.5 * F, -0.5 * F), max(1.5 * F, -0.5 * F))
