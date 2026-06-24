@@ -14,7 +14,7 @@ A cantilever beam undergoing bending deformation.
 
 import matplotlib.pyplot as plt
 
-from EasyFEA import Display, ElemType, Models, Simulations
+from EasyFEA import Matplotlib, ElemType, Models, Simulations
 from EasyFEA.Geoms import Domain
 
 # ----------------------------------------------
@@ -48,9 +48,9 @@ simu.Solve()
 # ----------------------------------------------
 # Results
 # ----------------------------------------------
-Display.Plot_Mesh(simu, deformFactor=10)
-Display.Plot_BoundaryConditions(simu)
-Display.Plot(simu, "uy", plotMesh=True)
-Display.Plot(simu, "Svm", plotMesh=True, ncolors=11)
+Matplotlib.Plot_Mesh(simu, deformFactor=10)
+Matplotlib.Plot_BoundaryConditions(simu)
+Matplotlib.Plot(simu, "uy", plotMesh=True)
+Matplotlib.Plot(simu, "Svm", plotMesh=True, ncolors=11)
 
 plt.show()
