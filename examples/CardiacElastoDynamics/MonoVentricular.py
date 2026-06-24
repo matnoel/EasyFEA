@@ -22,7 +22,7 @@ from enum import Enum
 
 import numpy as np
 
-from EasyFEA import Display, Folder, PyVista, MatrixType, Models, Simulations, AlgoType
+from EasyFEA import Terminal, Matplotlib, Folder, PyVista, MatrixType, Models, Simulations, AlgoType
 from EasyFEA.FEM import Operators
 from EasyFEA.Utilities import _params
 
@@ -114,7 +114,7 @@ class Config(str, Enum):
 
 if __name__ == "__main__":
 
-    Display.Clear()
+    Terminal.Clear()
 
     # ----------------------------------------------
     # Config
@@ -151,21 +151,21 @@ if __name__ == "__main__":
     results_dir += f"_dt{dt}_{fiberSource}_{matrixType}"
 
     if plotGraph:
-        ax = Display.Init_Axes()
+        ax = Matplotlib.Init_Axes()
         ax.grid()
         ax.set_xlabel(r"$t$ [s]")
         ax.set_ylabel(r"$\tau(t)$ [Pa]")
         ax.plot(t_values, activeStress_values)
         name = "active_pressure"
-        Display.Save_fig(results_dir, name)
+        Matplotlib.Save_fig(results_dir, name)
 
-        ax = Display.Init_Axes()
+        ax = Matplotlib.Init_Axes()
         ax.grid()
         ax.set_xlabel(r"$t$ [s]")
         ax.set_ylabel(r"$p(t)$ [Pa]")
         ax.plot(t_values, pressure_values)
         name = "pressure"
-        Display.Save_fig(results_dir, name)
+        Matplotlib.Save_fig(results_dir, name)
 
     if config is Config.step0B:
         activeStress_values *= 0
@@ -261,13 +261,13 @@ if __name__ == "__main__":
             )
 
         times = t_values[:Niter]
-        axs = Display.plt.subplots(3, 2, sharex=True)[1]
+        axs = Matplotlib.plt.subplots(3, 2, sharex=True)[1]
 
         for p, (particle, coord) in enumerate(zip(["p0", "p1"], coords)):
 
             for c, component in enumerate(["x", "y", "z"]):
 
-                ax: Display.plt.Axes = axs[c, p]
+                ax: Matplotlib.plt.Axes = axs[c, p]
 
                 ax.grid()
 
@@ -282,7 +282,7 @@ if __name__ == "__main__":
 
         width, height = ax.figure.get_size_inches()
         ax.figure.set_size_inches(width * 1.5, height * 2.5)
-        Display.Save_fig(results_dir, "particles")
+        Matplotlib.Save_fig(results_dir, "particles")
 
     if saveParticles and simu.isGathered:
 
@@ -328,4 +328,4 @@ if __name__ == "__main__":
             plotMesh=True,
         )
 
-    Display.plt.show()
+    Matplotlib.plt.show()
