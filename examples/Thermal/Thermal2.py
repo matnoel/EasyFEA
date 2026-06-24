@@ -11,11 +11,11 @@ Transient thermal simulation.
 """
 # sphinx_gallery_thumbnail_number = -1
 
-from EasyFEA import Display, Folder, Models, ElemType, Simulations, PyVista
+from EasyFEA import Terminal, Folder, Models, ElemType, Simulations, PyVista
 from EasyFEA.Geoms import Circle, Domain, Point
 
 if __name__ == "__main__":
-    Display.Clear()
+    Terminal.Clear()
 
     # ----------------------------------------------
     # Configuration

@@ -13,11 +13,11 @@ Transient thermal simulation.
 
 import numpy as np
 
-from EasyFEA import Display, Folder, Models, ElemType, Simulations, PyVista
+from EasyFEA import Terminal, Folder, Models, ElemType, Simulations, PyVista
 from EasyFEA.Geoms import Line, Domain, Point
 
 if __name__ == "__main__":
-    Display.Clear()
+    Terminal.Clear()
 
     # ----------------------------------------------
     # Configuration

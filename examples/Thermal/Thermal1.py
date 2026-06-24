@@ -10,11 +10,11 @@ Thermal1
 Thermal simulation.
 """
 
-from EasyFEA import Display, Models, ElemType, Simulations, PyVista
+from EasyFEA import Terminal, Models, ElemType, Simulations, PyVista
 from EasyFEA.Geoms import Circle, Domain, Point
 
 if __name__ == "__main__":
-    Display.Clear()
+    Terminal.Clear()
 
     # ----------------------------------------------
     # Configuration
