@@ -23,14 +23,20 @@ If your physics is not listed above, consider
 before writing custom code — new physics contributions are very welcome.
 ```
 
-For problems outside the built-in classes, EasyFEA provides two extension
+For problems outside the built-in classes, EasyFEA provides three extension
 points, from easiest to most flexible:
 
 1. **{py:class}`~EasyFEA.Simulations.WeakForms`** — define any PDE in
    variational form with a few lines of Python. Covers scalar problems
    (Poisson), vector problems (elasticity), and transient or non-linear
    problems. No FEM assembly knowledge required.
-2. **Subclass {py:class}`~EasyFEA.Simulations._Simu`** — provides full control over the assembly at the element level for problems that are difficult to model in {py:class}`~EasyFEA.Simulations.WeakForms`, or to improve performance. Knowledge of finite element methods is required.
+2. **Extend an existing simulation** — when a built-in class already covers
+   most of your physics and you only need to add extra terms (a boundary
+   contribution, a penalty, a coupling), subclass it and override
+   {py:meth}`~EasyFEA.Simulations._Simu.Construct_local_matrix_system`: call
+   `super().Construct_local_matrix_system(...)` for the base contributions,
+   then add your own before returning. See {ref}`howto-new-simulation-extend`.
+3. **Subclass {py:class}`~EasyFEA.Simulations._Simu`** — provides full control over the assembly at the element level for problems that are difficult to model in {py:class}`~EasyFEA.Simulations.WeakForms`, or to improve performance. Knowledge of finite element methods is required.
 
 EasyFEA supports multi-physics problems such as phase-field fracture simulations, which couple an elastic sub-problem with a damage sub-problem via a staggered algorithm: each sub-problem is solved in turn with the other held fixed, and the two are iterated to convergence within each load step.
 This pattern is already implemented in {py:class}`~EasyFEA.Simulations.PhaseField`.
@@ -78,6 +84,44 @@ following operators from `EasyFEA.FEM` act on `Field` objects and return
 All operators act element- and Gauss-point-wise over arrays of shape `(Ne, pg, ...)`, so **no Python loops are needed** over elements or integration points.
 
 All weak-form-based simulations are available in {ref}`easyfea-examples-weak-forms`.
+
+---
+
+(howto-new-simulation-extend)=
+## Extend an existing simulation
+
+When a built-in simulation already covers most of your physics, you rarely need to reimplement assembly from scratch. Subclass the existing class and override {py:meth}`~EasyFEA.Simulations._Simu.Construct_local_matrix_system` to **add** contributions on top of the base ones: call `super().Construct_local_matrix_system(...)` to obtain the base `{groupElem: (K_e, C_e, M_e, F_e)}` dict, then add your custom terms before returning it.
+
+The `MonoVentricular` example
+([CardiacElastoDynamics/MonoVentricular.py](https://github.com/matnoel/EasyFEA/blob/main/examples/CardiacElastoDynamics/MonoVentricular.py))
+does exactly this: it subclasses {py:class}`~EasyFEA.Simulations.HyperElastic`
+and augments the hyperelastic tangent/residual with a following pressure on the
+endocardium and Robin-type surface penalties on the `top` and `epi` boundaries.
+
+```python
+from EasyFEA import MatrixType, Simulations
+from EasyFEA.FEM import Operators
+
+class CardiacElastoDynamics(Simulations.HyperElastic):
+
+    def Construct_local_matrix_system(self, problemType):
+        # base hyperelastic contributions: {groupElem: (K_e, C_e, M_e, F_e)}
+        results = super().Construct_local_matrix_system(problemType)
+
+        displacement = self._Solver_Get_Newton_Raphson_current_solution()
+
+        # add surface terms on the (dim-1) boundary element groups
+        for groupElem in self.mesh.Get_list_groupElem(self.dim - 1):
+            tangent_e, residual_e = Operators.NonLinear.FollowingPressure(
+                groupElem, displacement, self.pressure,
+                groupElem.Get_Elements_Tag("endo"), MatrixType.mass,
+            )
+            results[groupElem] = (tangent_e, None, None, residual_e)
+
+        return results
+```
+
+Two things to note: the boundary loop iterates the `self.dim - 1` (surface) element groups, and each new contribution is written into the dict returned by the base class. The {py:mod}`EasyFEA.FEM.Operators` module (`Bilinear`, `Linear`, `NonLinear`) provides ready-made element operators — see {ref}`fem-operators` for the full list — so this path rarely requires hand-writing the integration described in the next section.
 
 ---
 
@@ -171,11 +215,15 @@ Everything else is handled by `_Simu` internally.
 - {ref}`howto-pipeline`
 ```
 
-The method returns a 4-tuple **in the fixed order** `(K_e, C_e, M_e, F_e)`.
-Each term is a `np.ndarray` or `None`. The order is strict — swapping `M_e` and
-`F_e`, for instance, would silently produce a wrong system.
+Since v2.0.0 a mesh can hold **several element groups of the same dimension** (mixed-element meshes), so the method returns a **dict** mapping each contributing {py:class}`~EasyFEA.FEM._GroupElem` to its 4-tuple `(K_e, C_e, M_e, F_e)`:
 
-| Return position | Symbol | Role | Shape |
+```python
+{groupElem: (K_e, C_e, M_e, F_e), ...}
+```
+
+Build the dict by looping over `self.mesh.Get_list_groupElem(self.dim)` and computing the element matrices for each group. Within each tuple the order is strict — swapping `M_e` and `F_e`, for instance, would silently produce a wrong system. Each term is a `np.ndarray` or `None` (`Ne` and `nPe` below are per-group):
+
+| Tuple position | Symbol | Role | Shape |
 |---|---|---|---|
 | 1st | `K_e` | Stiffness (linear) or **tangent** (non-linear) | `(Ne, nPe·dof_n, nPe·dof_n)` |
 | 2nd | `C_e` | Damping matrix (parabolic / hyperbolic) | same, or `None` |
@@ -192,27 +240,28 @@ than the linear load vector. `_Simu` passes the current solution through
 See the
 [`Hyperelastic.Construct_local_matrix_system`](https://github.com/matnoel/EasyFEA/blob/main/EasyFEA/Simulations/_hyperelastic.py#L129-L179)
 source for a concrete example of how tangent stiffness and residual are
-assembled in a non-linear finite deformation setting, and
+assembled in a non-linear finite deformation setting,
+{ref}`howto-pipeline-hyperelastic-operators` for how those tangent / damping
+terms are weighted into the time-scheme assembly, and
 {ref}`easyfea-examples-hyperelasticity` for the corresponding worked
 examples.
 ```
 
-#### The `mesh.Get_*` interface
+#### The `groupElem.Get_*` interface
 
-All integration data is accessed through the mesh object using two key
-functions that accept a {py:class}`~EasyFEA.FEM.MatrixType` argument:
+All integration data is accessed through each group-element object (the items yielded by `mesh.Get_list_groupElem(self.dim)`) using three key functions that accept a {py:class}`~EasyFEA.FEM.MatrixType` argument:
 
 ```python
 from EasyFEA.FEM import MatrixType
 
 # weighted Jacobians: shape (Ne, pg)
-wJ_e_pg = mesh.Get_weightedJacobian_e_pg(matrixType)
+wJ_e_pg = groupElem.Get_weightedJacobian_e_pg(matrixType)
 
 # shape function gradients: shape (Ne, pg, dim, nPe)
-dN_e_pg = mesh.Get_dN_e_pg(matrixType)
+dN_e_pg = groupElem.Get_dN_e_pg(matrixType)
 
 # shape functions (reaction term): shape (Ne, pg, nPe, nPe)
-N_e_pg  = mesh.Get_ReactionPart_e_pg(matrixType)
+N_e_pg  = groupElem.Get_ReactionPart_e_pg(matrixType)
 ```
 
 The choice of `MatrixType` must match the **integrand form**:
@@ -250,31 +299,39 @@ $\nabla N \nabla N$ form) and the heat capacity matrix $C_t$
 from EasyFEA.FEM import MatrixType
 
 def Construct_local_matrix_system(self, problemType):
-    mesh  = self.mesh
     model = self.thermalModel
+    out = {}
 
-    # --- stiffness: ∇N·∇N form → MatrixType.rigi ---
-    matrixType = MatrixType.rigi
-    wJ_e_pg = mesh.Get_weightedJacobian_e_pg(matrixType)  # (Ne, pg)
-    dN_e_pg = mesh.Get_dN_e_pg(matrixType)                # (Ne, pg, dim, nPe)
+    for groupElem in self.mesh.Get_list_groupElem(self.dim):
 
-    # (Ne, pg, nPe, nPe) -> sum over pg -> (Ne, nPe, nPe)
-    Kt_e = (model.k * wJ_e_pg * dN_e_pg.T @ dN_e_pg).sum(axis=1)
+        # --- stiffness: ∇N·∇N form → MatrixType.rigi ---
+        matrixType = MatrixType.rigi
+        wJ_e_pg = groupElem.Get_weightedJacobian_e_pg(matrixType)  # (Ne, pg)
+        dN_e_pg = groupElem.Get_dN_e_pg(matrixType)                # (Ne, pg, dim, nPe)
 
-    # --- capacity: N·N form → MatrixType.mass ---
-    matrixType = MatrixType.mass
-    wJ_e_pg      = mesh.Get_weightedJacobian_e_pg(matrixType)   # (Ne, pg)
-    reactionPart = mesh.Get_ReactionPart_e_pg(matrixType)        # (Ne, pg, nPe, nPe)
+        # (Ne, pg, nPe, nPe) -> sum over pg -> (Ne, nPe, nPe)
+        Kt_e = (model.k * wJ_e_pg * dN_e_pg.T @ dN_e_pg).sum(axis=1)
 
-    # (Ne, pg, nPe, nPe) -> sum over pg -> (Ne, nPe, nPe)
-    Ct_e = (self.rho * model.c * reactionPart).sum(axis=1)
+        # --- capacity: N·N form → MatrixType.mass ---
+        matrixType = MatrixType.mass
+        wJ_e_pg      = groupElem.Get_weightedJacobian_e_pg(matrixType)  # (Ne, pg)
+        reactionPart = groupElem.Get_ReactionPart_e_pg(matrixType)      # (Ne, pg, nPe, nPe)
 
-    # order: (K_e, C_e, M_e, F_e)
-    # M_e is None: no inertia term in the thermal problem.
-    # F_e is None: volumetric sources are handled as Neumann BCs, not here.
-    # For structural dynamics, M_e would also be assembled (MatrixType.mass)
-    # and returned in the 3rd position.
-    return Kt_e, Ct_e, None, None
+        # (Ne, pg, nPe, nPe) -> sum over pg -> (Ne, nPe, nPe)
+        Ct_e = (self.rho * model.c * reactionPart).sum(axis=1)
+
+        # order: (K_e, C_e, M_e, F_e)
+        # M_e is None: no inertia term in the thermal problem.
+        # F_e is None: volumetric sources are handled as Neumann BCs, not here.
+        # For structural dynamics, M_e would also be assembled (MatrixType.mass)
+        # and returned in the 3rd position.
+        out[groupElem] = (Kt_e, Ct_e, None, None)
+
+    return out
+```
+
+```{tip}
+This hand-written assembly is shown to expose the underlying mechanics. In practice the built-in {py:class}`~EasyFEA.Simulations.Thermal` builds the same matrices with the {py:mod}`EasyFEA.FEM.Operators` module — `Operators.Bilinear.GradUGradV(groupElem, coef=model.k)` and `Operators.Bilinear.UV(groupElem, coef=self.rho * model.c, dof_n=1)` — which is the recommended way to write new operators. The complete catalogue of {py:mod}`~EasyFEA.FEM.Operators.Bilinear`, {py:mod}`~EasyFEA.FEM.Operators.Linear`, and {py:mod}`~EasyFEA.FEM.Operators.NonLinear` operators is in {ref}`fem-operators`.
 ```
 
 The `.sum(axis=1)` call sums the contribution of each Gauss point along

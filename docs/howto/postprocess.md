@@ -2,11 +2,11 @@
 # Post-process simulation results
 
 **Post-processing** tools visualize and export simulation results.
-They are accessible in the {py:mod}`EasyFEA.Utilities` namespace: {py:mod}`~EasyFEA.Utilities.Display` for static matplotlib figures, {py:mod}`~EasyFEA.Utilities.PyVista` for interactive 3D views, and {py:mod}`~EasyFEA.Utilities.Paraview` / {py:mod}`~EasyFEA.Utilities.Vizir` / {py:mod}`~EasyFEA.Utilities.GLTF` / {py:mod}`~EasyFEA.Utilities.USD` for external export.
+They are accessible in the {py:mod}`EasyFEA.Utilities` namespace: {py:mod}`~EasyFEA.Utilities.Matplotlib` for static matplotlib figures, {py:mod}`~EasyFEA.Utilities.PyVista` for interactive 3D views, and {py:mod}`~EasyFEA.Utilities.Paraview` / {py:mod}`~EasyFEA.Utilities.Vizir` / {py:mod}`~EasyFEA.Utilities.GLTF` / {py:mod}`~EasyFEA.Utilities.USD` for external export.
 
 ```{eval-rst}
 .. autosummary::
-    ~EasyFEA.Utilities.Display
+    ~EasyFEA.Utilities.Matplotlib
     ~EasyFEA.Utilities.PyVista
     ~EasyFEA.Utilities.Paraview
     ~EasyFEA.Utilities.Vizir
@@ -36,21 +36,21 @@ Svm = simu.Result("Svm", nodeValues=False)     # element values, shape (Ne,)
 
 ---
 
-## Plot with matplotlib (Display)
+## Plot with matplotlib (Matplotlib)
 
-{py:mod}`~EasyFEA.Utilities.Display` uses matplotlib and is the primary tool
+{py:mod}`~EasyFEA.Utilities.Matplotlib` uses matplotlib and is the primary tool
 for 2D and 3D result visualization.
 
 ### Plot a scalar field
 
-{py:func}`~EasyFEA.Utilities.Display.Plot` plots any result field on the
+{py:func}`~EasyFEA.Utilities.Matplotlib.Plot` plots any result field on the
 mesh:
 
 ```python
-from EasyFEA import Display
+from EasyFEA import Matplotlib
 
-Display.Plot(simu, "uy")
-Display.Plot(simu, "Svm", plotMesh=True, ncolors=11)
+Matplotlib.Plot(simu, "uy")
+Matplotlib.Plot(simu, "Svm", plotMesh=True, ncolors=11)
 ```
 
 Key options:
@@ -67,74 +67,74 @@ Key options:
 
 ### Plot the mesh
 
-{py:func}`~EasyFEA.Utilities.Display.Plot_Mesh` plots the mesh:
+{py:func}`~EasyFEA.Utilities.Matplotlib.Plot_Mesh` plots the mesh:
 
 ```python
-Display.Plot_Mesh(simu)                   # current state
-Display.Plot_Mesh(simu, deformFactor=10)  # amplified deformation
-Display.Plot_Mesh(mesh)                   # mesh object directly
+Matplotlib.Plot_Mesh(simu)                   # current state
+Matplotlib.Plot_Mesh(simu, deformFactor=10)  # amplified deformation
+Matplotlib.Plot_Mesh(mesh)                   # mesh object directly
 ```
 
 ### Plot boundary conditions
 
-{py:func}`~EasyFEA.Utilities.Display.Plot_BoundaryConditions` visualizes the
+{py:func}`~EasyFEA.Utilities.Matplotlib.Plot_BoundaryConditions` visualizes the
 applied loads and constraints:
 
 ```python
-Display.Plot_BoundaryConditions(simu)
+Matplotlib.Plot_BoundaryConditions(simu)
 ```
 
 ### Plot tags
 
-{py:func}`~EasyFEA.Utilities.Display.Plot_Tags` shows the physical groups and
+{py:func}`~EasyFEA.Utilities.Matplotlib.Plot_Tags` shows the physical groups and
 tags defined on the mesh:
 
 ```python
-Display.Plot_Tags(mesh)
+Matplotlib.Plot_Tags(mesh)
 ```
 
 ### Plot energy and iteration history
 
 ```python
-Display.Plot_Energy(simu, folder=folder_save)
-Display.Plot_Iter_Summary(simu, folder=folder_save)
+Matplotlib.Plot_Energy(simu, folder=folder_save)
+Matplotlib.Plot_Iter_Summary(simu, folder=folder_save)
 ```
 
 ### Save a figure
 
-{py:func}`~EasyFEA.Utilities.Display.Save_fig` saves the current matplotlib
+{py:func}`~EasyFEA.Utilities.Matplotlib.Save_fig` saves the current matplotlib
 figure to disk:
 
 ```python
-Display.Save_fig(folder_save, "my_figure")
+Matplotlib.Save_fig(folder_save, "my_figure")
 ```
 
 ### Create an animation
 
-{py:func}`~EasyFEA.Utilities.Display.Movie_Simu` generates an animation
+{py:func}`~EasyFEA.Utilities.Matplotlib.Movie_Simu` generates an animation
 directly from a named result field:
 
 ```python
-Display.Movie_Simu(simu, "uy", folder=folder_save, filename="animation.gif")
+Matplotlib.Movie_Simu(simu, "uy", folder=folder_save, filename="animation.gif")
 ```
 
 For custom frame content, use
-{py:func}`~EasyFEA.Utilities.Display.Movie_func` with a user-defined function.
+{py:func}`~EasyFEA.Utilities.Matplotlib.Movie_func` with a user-defined function.
 The function receives the matplotlib figure and the frame index `i`:
 
 ```python
 import numpy as np
 
 iterations = np.arange(0, simu.Niter, max(1, simu.Niter // 20))
-fig = Display.Init_Axes()
+fig = Matplotlib.Init_Axes()
 
 def Func(fig, i):
     fig.clear()
     ax = fig.add_subplot(111)
     simu.Set_Iter(iterations[i])
-    Display.Plot(simu, "uy", ax=ax)
+    Matplotlib.Plot(simu, "uy", ax=ax)
 
-Display.Movie_func(Func, fig, iterations.size, folder_save, "animation.gif")
+Matplotlib.Movie_func(Func, fig, iterations.size, folder_save, "animation.gif")
 ```
 
 ---

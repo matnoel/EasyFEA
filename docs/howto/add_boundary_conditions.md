@@ -156,9 +156,9 @@ dimension.
 ## Visualize applied conditions
 
 ```python
-from EasyFEA import Display, PyVista
+from EasyFEA import Matplotlib, PyVista
 
-Display.Plot_BoundaryConditions(simu)   # matplotlib
+Matplotlib.Plot_BoundaryConditions(simu)   # matplotlib
 PyVista.Plot_BoundaryConditions(simu).show()   # interactive 3D
 ```
 

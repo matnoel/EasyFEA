@@ -3,11 +3,12 @@
 
 The {py:mod}`EasyFEA.Utilities` module provides essential tools for post-processing.
 
-In the simulation workflow, `Utilities` is the **final step**: once `simu.Solve()` has run, these tools visualize results, export to external formats, and manage files. {py:mod}`~EasyFEA.Utilities.Display` and {py:mod}`~EasyFEA.Utilities.PyVista` cover interactive visualization; {py:mod}`~EasyFEA.Utilities.Paraview`, {py:mod}`~EasyFEA.Utilities.GLTF`, and {py:mod}`~EasyFEA.Utilities.USD` handle external export.
+In the simulation workflow, `Utilities` is the **final step**: once `simu.Solve()` has run, these tools visualize results, export to external formats, and manage files. {py:mod}`~EasyFEA.Utilities.Matplotlib` and {py:mod}`~EasyFEA.Utilities.PyVista` cover interactive visualization; {py:mod}`~EasyFEA.Utilities.Terminal` provides console helpers; {py:mod}`~EasyFEA.Utilities.Paraview`, {py:mod}`~EasyFEA.Utilities.GLTF`, and {py:mod}`~EasyFEA.Utilities.USD` handle external export.
 
 ```{eval-rst}
 .. autosummary::
-    ~EasyFEA.Utilities.Display
+    ~EasyFEA.Utilities.Matplotlib
+    ~EasyFEA.Utilities.Terminal
     ~EasyFEA.Utilities.Folder
     ~EasyFEA.Utilities.MeshIO
     ~EasyFEA.Utilities.Paraview
@@ -26,8 +27,9 @@ In the simulation workflow, `Utilities` is the **final step**: once `simu.Solve(
 
 ```{eval-rst}
 .. automodule:: EasyFEA.Utilities
-.. automodule:: EasyFEA.Utilities.Display
+.. automodule:: EasyFEA.Utilities.Matplotlib
     :exclude-members: Mesh, Tic, ElemType, GroupElemFactory
+.. automodule:: EasyFEA.Utilities.Terminal
 .. automodule:: EasyFEA.Utilities.Folder
 .. automodule:: EasyFEA.Utilities.MeshIO
     :exclude-members: Mesh, Tic, ElemType, GroupElemFactory, _GroupElem    

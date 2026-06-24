@@ -10,7 +10,7 @@ Like any Python script, you should start by importing the core modules from the 
 ```{eval-rst}
 .. jupyter-execute::
 
-    from EasyFEA import Display, ElemType, Models, Simulations
+    from EasyFEA import Matplotlib, ElemType, Models, Simulations
     from EasyFEA.Geoms import Domain
 ```
 
@@ -20,7 +20,7 @@ The most commonly used modules in EasyFEA are:
 
 ```{eval-rst}
 .. autosummary::
-    ~EasyFEA.Utilities.Display
+    ~EasyFEA.Utilities.Matplotlib
     ~EasyFEA.FEM.ElemType
     ~EasyFEA.Models
     ~EasyFEA.Simulations
@@ -40,7 +40,7 @@ Let's now create a 2D {py:class}`~EasyFEA.FEM._mesh.Mesh` using a simple rectang
 
     domain = Domain((0, 0), (L, h), h / 3)
     mesh = domain.Mesh_2D([], ElemType.QUAD9, isOrganised=True)
-    Display.Plot_Mesh(mesh)
+    Matplotlib.Plot_Mesh(mesh)
 ```
     
 ----
@@ -80,10 +80,10 @@ Once the simulation has been set up, defining boundary conditions, solving the p
     # ----------------------------------------------
     # Results
     # ----------------------------------------------
-    Display.Plot_Mesh(simu, deformFactor=10)
-    Display.Plot_BoundaryConditions(simu)
-    Display.Plot(simu, "uy", plotMesh=True)
-    Display.Plot(simu, "Svm", plotMesh=True, ncolors=11)
+    Matplotlib.Plot_Mesh(simu, deformFactor=10)
+    Matplotlib.Plot_BoundaryConditions(simu)
+    Matplotlib.Plot(simu, "uy", plotMesh=True)
+    Matplotlib.Plot(simu, "Svm", plotMesh=True, ncolors=11)
 ```
     
 ----

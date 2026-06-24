@@ -35,8 +35,8 @@ Mesh generation relies on manipulating the geometric objects listed below, which
 ---
 
 ```{tip}
-All examples below use `Display` (matplotlib) for inline output.
-For interactive 3D visualization, replace `Display.Plot_Mesh(mesh)` with
+All examples below use `Matplotlib` (matplotlib) for inline output.
+For interactive 3D visualization, replace `Matplotlib.Plot_Mesh(mesh)` with
 `PyVista.Plot_Mesh(mesh)` — see {ref}`howto-postprocess`.
 ```
 
@@ -51,13 +51,13 @@ refinement.
 ```{eval-rst}
 .. jupyter-execute::
 
-    from EasyFEA import Display, ElemType
+    from EasyFEA import Matplotlib, ElemType
     from EasyFEA.Geoms import Domain
 
     domain = Domain((0, 0), (100, 20), meshSize=5.0)
     mesh = domain.Mesh_2D([], ElemType.TRI3)
-    Display.Plot_Mesh(mesh)
-    Display.Plot_Tags(mesh)
+    Matplotlib.Plot_Mesh(mesh)
+    Matplotlib.Plot_Tags(mesh)
 ```
 
 ### Rectangle with a circular hole
@@ -67,18 +67,18 @@ When the geometry is not used as a contour in `Mesh_*` functions `isFilled=False
 ```{eval-rst}
 .. jupyter-execute::
 
-    from EasyFEA import Display, ElemType
+    from EasyFEA import Matplotlib, ElemType
     from EasyFEA.Geoms import Domain, Circle
 
     domain = Domain((0, 0), (100, 50), meshSize=5.0)
     hole   = Circle(center=(50, 25), diam=20, meshSize=1.0)
 
     mesh = domain.Mesh_2D([hole], ElemType.TRI6)
-    Display.Plot_Mesh(mesh, title="hole.isFilled=False by default")
+    Matplotlib.Plot_Mesh(mesh, title="hole.isFilled=False by default")
 
     hole.isFilled=True
     mesh = domain.Mesh_2D([hole], ElemType.TRI6)
-    Display.Plot_Mesh(mesh, title="hole.isFilled=True")
+    Matplotlib.Plot_Mesh(mesh, title="hole.isFilled=True")
 ```
 
 ### Structured quad mesh
@@ -88,12 +88,12 @@ By setting `isOrganised=True`, you obtain a structured mesh that requires a stru
 ```{eval-rst}
 .. jupyter-execute::
 
-    from EasyFEA import Display, ElemType
+    from EasyFEA import Matplotlib, ElemType
     from EasyFEA.Geoms import Domain
 
     domain = Domain((0, 0), (100, 20), meshSize=5.0)
     mesh = domain.Mesh_2D([], ElemType.QUAD4, isOrganised=True)
-    Display.Plot_Mesh(mesh)
+    Matplotlib.Plot_Mesh(mesh)
 ```
 
 ---
@@ -106,7 +106,7 @@ extruding a 2D surface along a direction vector.
 ```{eval-rst}
 .. jupyter-execute::
 
-    from EasyFEA import Display, ElemType
+    from EasyFEA import Matplotlib, ElemType
     from EasyFEA.Geoms import Domain
 
     domain = Domain((0, 0), (100, 20), meshSize=5.0)
@@ -116,7 +116,7 @@ extruding a 2D surface along a direction vector.
         elemType=ElemType.HEXA8,
         isOrganised=True,
     )
-    Display.Plot_Mesh(mesh)
+    Matplotlib.Plot_Mesh(mesh)
 ```
 
 ---
@@ -129,7 +129,7 @@ around an axis to create an axisymmetric volume.
 ```{eval-rst}
 .. jupyter-execute::
 
-    from EasyFEA import Display, ElemType
+    from EasyFEA import Matplotlib, ElemType
     from EasyFEA.Geoms import Domain, Line, Point
 
     cross_section = Domain((5, 0), (8, 8), meshSize=2.0)
@@ -143,7 +143,7 @@ around an axis to create an axisymmetric volume.
         layers=[30],    # number of angular divisions
         elemType=ElemType.PRISM6,
     )
-    Display.Plot_Mesh(mesh)
+    Matplotlib.Plot_Mesh(mesh)
 ```
 
 ---

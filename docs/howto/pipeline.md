@@ -29,6 +29,7 @@ For **non-linear** problems (`simu.isNonLinear = True`), steps 1–3 are wrapped
 
 ---
 
+(howto-pipeline-operators)=
 ## From element operators to the global system
 
 **Build** turns the mesh + model into four global sparse matrices. Each {py:class}`~EasyFEA.Simulations._Simu` implements `Construct_local_matrix_system`, which loops over the mesh element groups and returns, per group, the element tuple $(\Krm_e, \Crm_e, \Mrm_e, \Frm_e)$ — stiffness (the tangent, for non-linear laws), damping, mass, and the load / internal-force vector.
@@ -39,6 +40,7 @@ $$\Arm = \alpha_\Krm\,\Krm + \alpha_\Crm\,\Crm + \alpha_\Mrm\,\Mrm$$
 
 where $(\alpha_\Krm, \alpha_\Crm, \alpha_\Mrm)$ are the scheme-dependent weights for the active `AlgoType` (Newmark, HHT, midpoint, …); a static problem uses $\alpha_\Crm = \alpha_\Mrm = 0$.
 
+(howto-pipeline-hyperelastic-operators)=
 ### Hyperelastic (non-linear) operators
 
 For {py:class}`~EasyFEA.Simulations.HyperElastic`, each Newton iterate builds the element tuple from two operators evaluated at the current displacement:
@@ -79,7 +81,7 @@ You could start by debugging the {ref}`HelloWorld` example.
 
 ## EasyFEA beyond forward solves
 
-The FEM infrastructure — `mesh.Get_*` functions, `FeArray` arithmetic, Gauss-point integration — is not restricted to `_Simu` subclasses.
+The FEM infrastructure — `groupElem.Get_*` functions, `FeArray` arithmetic, Gauss-point integration — is not restricted to `_Simu` subclasses.
 You can use it directly to evaluate arbitrary integrals or construct custom operators
 over a mesh.
 

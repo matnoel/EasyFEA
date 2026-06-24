@@ -52,6 +52,7 @@ To construct a {py:class}`~EasyFEA.FEM.Mesh` using the {py:class}`~EasyFEA.FEM.M
 
 ---
 
+(fem-operators)=
 ## Operators
 
 The {py:mod}`EasyFEA.FEM.Operators` module provides the element-level operators that integrate a form over the Gauss points and produce the element matrices/vectors assembled into the global system (see {ref}`howto-pipeline`). Below, $c$ is a scalar/field coefficient, $\Brm$ the strain-displacement operator and $\Nrm$ the shape functions.

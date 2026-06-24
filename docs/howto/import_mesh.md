@@ -25,7 +25,7 @@ Use {py:meth}`~EasyFEA.FEM.Mesher.Mesh_Import_mesh` to load an existing Gmsh
 mesh file:
 
 ```python
-from EasyFEA import Display, ElemType
+from EasyFEA import Matplotlib, ElemType
 from EasyFEA.FEM import Mesher
 from EasyFEA.Geoms import Domain
 
@@ -47,12 +47,12 @@ Gmsh entities, which lets you retrieve node sets by tag afterwards:
 mesh = mesher.Mesh_Import_mesh("path/to/mesh.msh", setPhysicalGroups=True)
 ```
 
-After importing, use {py:func}`EasyFEA.Utilities.Display.Plot_Tags` or
+After importing, use {py:func}`EasyFEA.Utilities.Matplotlib.Plot_Tags` or
 {py:func}`EasyFEA.Utilities.PyVista.Plot_Tags` to visualize the available tags
 on the mesh:
 
 ```python
-Display.Plot_Tags(mesh)
+Matplotlib.Plot_Tags(mesh)
 ```
 
 ---
