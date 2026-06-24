@@ -13,11 +13,11 @@ Bending bracket component.
 import matplotlib.pyplot as plt
 import numpy as np
 
-from EasyFEA import Display, Models, ElemType, Simulations
+from EasyFEA import Terminal, Matplotlib, Models, ElemType, Simulations
 from EasyFEA.Geoms import Point, Points
 
 if __name__ == "__main__":
-    Display.Clear()
+    Terminal.Clear()
 
     # ----------------------------------------------
     # Configuration
@@ -77,8 +77,8 @@ if __name__ == "__main__":
     # ----------------------------------------------
     print(simu)
 
-    Display.Plot_Mesh(simu, h / 2 / np.abs(sol).max())
-    Display.Plot_BoundaryConditions(simu)
-    Display.Plot(simu, "Svm", nodeValues=True, coef=1 / coef, ncolors=20)
+    Matplotlib.Plot_Mesh(simu, h / 2 / np.abs(sol).max())
+    Matplotlib.Plot_BoundaryConditions(simu)
+    Matplotlib.Plot(simu, "Svm", nodeValues=True, coef=1 / coef, ncolors=20)
 
     plt.show()

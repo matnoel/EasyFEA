@@ -13,11 +13,11 @@ Verification of energy convergence for a bending beam for all available elements
 import matplotlib.pyplot as plt
 import numpy as np
 
-from EasyFEA import Display, Folder, Models, Tic, ElemType, Simulations, Paraview
+from EasyFEA import Terminal, Matplotlib, Folder, Models, Tic, ElemType, Simulations, Paraview
 from EasyFEA.Geoms import Domain, Point
 
 if __name__ == "__main__":
-    Display.Clear()
+    Terminal.Clear()
 
     # ----------------------------------------------
     # Configuration
@@ -151,10 +151,10 @@ if __name__ == "__main__":
     # Results
     # ----------------------------------------------
     # Display the convergence of deformation energy
-    ax_Wdef = Display.Init_Axes()
-    ax_error = Display.Init_Axes()
-    ax_times = Display.Init_Axes()
-    ax_zz1 = Display.Init_Axes()
+    ax_Wdef = Matplotlib.Init_Axes()
+    ax_error = Matplotlib.Init_Axes()
+    ax_times = Matplotlib.Init_Axes()
+    ax_zz1 = Matplotlib.Init_Axes()
 
     print(f"\nWSA = {np.round(WdefRef, 4)} mJ")
 
@@ -196,7 +196,7 @@ if __name__ == "__main__":
     # ax_Wdef.fill_between(dofs_N, WdefRefArray, WdefRefArray5, alpha=0.5, color='red')
     ax_Wdef.fill_between(dofs_N, WdefRefArray, WdefRefArray5, alpha=0.5, color="red")
     plt.figure(ax_Wdef.figure)
-    Display.Save_fig(folder, "Energy")
+    Matplotlib.Save_fig(folder, "Energy")
 
     # Error in deformation energy
     ax_error.grid()
@@ -204,7 +204,7 @@ if __name__ == "__main__":
     ax_error.set_ylabel("Error W [%]")
     ax_error.legend(elemTypes)
     plt.figure(ax_error.figure)
-    Display.Save_fig(folder, "Error")
+    Matplotlib.Save_fig(folder, "Error")
 
     # Error in deformation energy
     ax_zz1.grid()
@@ -212,7 +212,7 @@ if __name__ == "__main__":
     ax_zz1.set_ylabel("Error [%]")
     ax_zz1.legend()
     plt.figure(ax_zz1.figure)
-    Display.Save_fig(folder, "Error ZZ1")
+    Matplotlib.Save_fig(folder, "Error ZZ1")
 
     # Computation time
     ax_times.grid()
@@ -220,10 +220,10 @@ if __name__ == "__main__":
     ax_times.set_ylabel("Computation Time [s]")
     ax_times.legend(elemTypes)
     plt.figure(ax_times.figure)
-    Display.Save_fig(folder, "Time")
+    Matplotlib.Save_fig(folder, "Time")
 
     # Plot the von Mises stress result using 20 color levels
-    Display.Plot(simu, "Svm", ncolors=20)
+    Matplotlib.Plot(simu, "Svm", ncolors=20)
 
     if makeParaview:
         # Generate Paraview files for visualization

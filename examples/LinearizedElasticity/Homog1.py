@@ -16,7 +16,7 @@ Section 4.7 with corrected values on page 89 (Erratum).
 import matplotlib.pyplot as plt
 import numpy as np
 
-from EasyFEA import Display, Models, ElemType, Simulations
+from EasyFEA import Terminal, Matplotlib, Models, ElemType, Simulations
 from EasyFEA.Geoms import Points, Circle
 from EasyFEA.FEM import LagrangeCondition, FeArray
 from typing import Optional
@@ -76,18 +76,18 @@ def Compute_ukl(
     simu.Save_Iter()
 
     if pltSol:
-        Display.Plot(simu, "ux", deformFactor=0.3)
-        Display.Plot(simu, "uy", deformFactor=0.3)
+        Matplotlib.Plot(simu, "ux", deformFactor=0.3)
+        Matplotlib.Plot(simu, "uy", deformFactor=0.3)
 
-        Display.Plot(simu, "Sxx", deformFactor=0.3)
-        Display.Plot(simu, "Syy", deformFactor=0.3)
-        Display.Plot(simu, "Sxy", deformFactor=0.3)
+        Matplotlib.Plot(simu, "Sxx", deformFactor=0.3)
+        Matplotlib.Plot(simu, "Syy", deformFactor=0.3)
+        Matplotlib.Plot(simu, "Sxy", deformFactor=0.3)
 
     return ukl
 
 
 if __name__ == "__main__":
-    Display.Clear()
+    Terminal.Clear()
 
     # ----------------------------------------------
     # Configuration
@@ -116,7 +116,7 @@ if __name__ == "__main__":
 
     mesh = contour.Mesh_2D([inclusion], ElemType.TRI6)
 
-    Display.Plot_Mesh(mesh, title="RVE")
+    Matplotlib.Plot_Mesh(mesh, title="RVE")
 
     if usePBC:
         nodes_kubc = mesh.Nodes_Tags(["P0", "P1", "P2", "P3"])
@@ -145,8 +145,8 @@ if __name__ == "__main__":
 
     simu = Simulations.Elastic(mesh, material)
 
-    Display.Plot(simu, E, nodeValues=False, title="E [MPa]")
-    Display.Plot(simu, v, nodeValues=False, title="v")
+    Matplotlib.Plot(simu, E, nodeValues=False, title="E [MPa]")
+    Matplotlib.Plot(simu, v, nodeValues=False, title="v")
 
     # ----------------------------------------------
     # Homogenization
@@ -181,7 +181,7 @@ if __name__ == "__main__":
 
     C_hom = (wJ_e_pg * C_Mat @ B_e_pg @ U_e).sum((0, 1)) / area
 
-    # Display.Plot_BoundaryConditions(simu)
+    # Matplotlib.Plot_BoundaryConditions(simu)
 
     print(f"f = {f}")
     print(f"c1111 = {C_hom[0, 0]}")

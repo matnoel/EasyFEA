@@ -15,12 +15,12 @@ import matplotlib.pyplot as plt
 import numpy as np
 from scipy.sparse import linalg, eye
 
-from EasyFEA import Display, Models, ElemType, Simulations, PyVista
+from EasyFEA import Terminal, Matplotlib, Models, ElemType, Simulations, PyVista
 from EasyFEA.Geoms import Domain
 
 
 if __name__ == "__main__":
-    Display.Clear()
+    Terminal.Clear()
 
     # ----------------------------------------------
     # Configuration
@@ -98,7 +98,7 @@ if __name__ == "__main__":
         plotter.add_title(f"mode {n + 1}")
         plotter.show()
 
-    axModes = Display.Init_Axes()
+    axModes = Matplotlib.Init_Axes()
     axModes.plot(np.arange(eigenValues.size), freq_t, ls="", marker=".")
     axModes.set_xlabel("modes")
     axModes.set_xticks(np.arange(eigenValues.size))

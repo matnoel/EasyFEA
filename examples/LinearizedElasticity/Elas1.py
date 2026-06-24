@@ -13,11 +13,11 @@ A cantilever beam undergoing bending deformation.
 import matplotlib.pyplot as plt
 import numpy as np
 
-from EasyFEA import Display, Models, ElemType, Simulations
+from EasyFEA import Terminal, Matplotlib, Models, ElemType, Simulations
 from EasyFEA.Geoms import Domain
 
 if __name__ == "__main__":
-    Display.Clear()
+    Terminal.Clear()
 
     # ----------------------------------------------
     # Configuration
@@ -81,15 +81,15 @@ if __name__ == "__main__":
     # ----------------------------------------------
     print(simu)
 
-    Display.Section("Result")
+    Terminal.Section("Result")
 
     print(f"err W : {np.abs(W_an - W_num) / W_an * 100:.2f} %")
 
     print(f"err uy : {np.abs(uy_an - uy_num) / uy_an * 100:.2f} %")
 
-    Display.Plot_Mesh(simu, h / 2 / np.abs(sol).max())
-    Display.Plot_BoundaryConditions(simu)
-    Display.Plot(simu, "uy", nodeValues=True, coef=1 / coef, ncolors=20)
-    Display.Plot(simu, "Svm", plotMesh=True, ncolors=11)
+    Matplotlib.Plot_Mesh(simu, h / 2 / np.abs(sol).max())
+    Matplotlib.Plot_BoundaryConditions(simu)
+    Matplotlib.Plot(simu, "uy", nodeValues=True, coef=1 / coef, ncolors=20)
+    Matplotlib.Plot(simu, "Svm", plotMesh=True, ncolors=11)
 
     plt.show()

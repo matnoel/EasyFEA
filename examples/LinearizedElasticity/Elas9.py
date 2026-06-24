@@ -13,11 +13,11 @@ Wave propagation.
 
 import matplotlib.pyplot as plt
 
-from EasyFEA import Folder, Display, Models, Tic, ElemType, Simulations, PyVista
+from EasyFEA import Folder, Terminal, Matplotlib, Models, Tic, ElemType, Simulations, PyVista
 from EasyFEA.Geoms import Domain, Circle, Line
 
 if __name__ == "__main__":
-    Display.Clear()
+    Terminal.Clear()
 
     # ----------------------------------------------
     # Configuration
@@ -59,7 +59,7 @@ if __name__ == "__main__":
 
     # Plot the model if specified
     if plotModel:
-        Display.Plot_Tags(mesh)
+        Matplotlib.Plot_Tags(mesh)
         plt.show()
 
     # Get nodes for boundary conditions and loading
@@ -84,7 +84,7 @@ if __name__ == "__main__":
 
     # Plot the result at the initial iteration if specified
     if plotIter:
-        ax = Display.Plot(simu, result, nodeValues=True, title=result)
+        ax = Matplotlib.Plot(simu, result, nodeValues=True, title=result)
 
     # Create a timer object
     tic = Tic()
@@ -113,7 +113,7 @@ if __name__ == "__main__":
 
         # Update the plot at each iteration if specified
         if plotIter:
-            ax = Display.Plot(simu, result, nodeValues=True, ax=ax, title=result)
+            ax = Matplotlib.Plot(simu, result, nodeValues=True, ax=ax, title=result)
             plt.pause(1e-12)
 
         t += dt

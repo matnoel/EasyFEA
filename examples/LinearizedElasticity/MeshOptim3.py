@@ -15,7 +15,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 
 from EasyFEA import (
-    Display,
+    Terminal, Matplotlib,
     Folder,
     Models,
     Tic,
@@ -29,7 +29,7 @@ from EasyFEA.Geoms import Point, Points
 from EasyFEA.FEM import Calc_projector
 
 if __name__ == "__main__":
-    Display.Clear()
+    Terminal.Clear()
 
     # ----------------------------------------------
     # Configuration
@@ -175,12 +175,12 @@ if __name__ == "__main__":
         for d in range(dim):
             uProj[:, d] = proj @ u0[:, d]
 
-        ax = Display.Plot(
+        ax = Matplotlib.Plot(
             mesh0, np.linalg.norm(u0, axis=1), plotMesh=True, title="u0"
         )
         ax.plot(*mesh1.coord[:, :dim].T, ls="", marker="+", c="k", label="new nodes")
         ax.legend()
-        Display.Plot(
+        Matplotlib.Plot(
             mesh1, np.linalg.norm(uProj, axis=1), plotMesh=True, title="uProj"
         )
 

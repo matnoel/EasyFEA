@@ -14,13 +14,13 @@ Conduct 3d homogenization on a periodic mesh generated with `microgen <https://m
 import matplotlib.pyplot as plt
 import numpy as np
 
-from EasyFEA import Display, Folder, Models, Simulations, MeshIO, PyVista
+from EasyFEA import Terminal, Folder, Models, Simulations, MeshIO, PyVista
 from EasyFEA.FEM import FeArray
 
 from Homog4 import Compute_ukl, Get_nodes, Get_pairedNodes
 
 if __name__ == "__main__":
-    Display.Clear()
+    Terminal.Clear()
 
     # ----------------------------------------------
     # Configuration

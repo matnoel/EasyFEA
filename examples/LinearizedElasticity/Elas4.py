@@ -12,11 +12,11 @@ Plate with a hole subjected to uniform tensile loading.
 
 import matplotlib.pyplot as plt
 
-from EasyFEA import Display, ElemType, Models, Simulations
+from EasyFEA import Terminal, Matplotlib, ElemType, Models, Simulations
 from EasyFEA.Geoms import Point, Points, Domain, Circle
 
 if __name__ == "__main__":
-    Display.Clear()
+    Terminal.Clear()
 
     # ----------------------------------------------
     # Configuration
@@ -86,12 +86,12 @@ if __name__ == "__main__":
     # Results
     # ----------------------------------------------
     uxMax = simu.Result("ux").max()
-    Display.Plot_Mesh(simu, deformFactor=2 / uxMax)
-    Display.Plot_BoundaryConditions(simu)
+    Matplotlib.Plot_Mesh(simu, deformFactor=2 / uxMax)
+    Matplotlib.Plot_BoundaryConditions(simu)
 
-    Display.Plot(simu, "ux", ncolors=10)
-    Display.Plot(simu, "uy", ncolors=10)
-    Display.Plot(simu, "Svm", ncolors=10, nodeValues=False, plotMesh=True)
+    Matplotlib.Plot(simu, "ux", ncolors=10)
+    Matplotlib.Plot(simu, "uy", ncolors=10)
+    Matplotlib.Plot(simu, "Svm", ncolors=10, nodeValues=False, plotMesh=True)
 
     print(simu)
 

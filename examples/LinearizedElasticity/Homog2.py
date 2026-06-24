@@ -14,14 +14,14 @@ Perform homogenization on several RVE.
 import matplotlib.pyplot as plt
 import numpy as np
 
-from EasyFEA import Display, Models, ElemType, Simulations
+from EasyFEA import Terminal, Matplotlib, Models, ElemType, Simulations
 from EasyFEA.Geoms import Point, Points, Line
 from EasyFEA.FEM import FeArray
 
 from Homog1 import Compute_ukl
 
 if __name__ == "__main__":
-    Display.Clear()
+    Terminal.Clear()
 
     # ----------------------------------------------
     # Configuration
@@ -163,7 +163,7 @@ if __name__ == "__main__":
         )
 
         rotate_points = []
-        ax = Display.Init_Axes()
+        ax = Matplotlib.Init_Axes()
         for p, point in enumerate(
             [p0, p1, p2, p3, p4, p5, p6, p7, p8, p9, p10, p11, p12, p13]
         ):
@@ -189,8 +189,8 @@ if __name__ == "__main__":
 
     mesh = contour.Mesh_2D(inclusions, elemType)
 
-    Display.Plot_Mesh(mesh, title="RVE")
-    # Display.Plot_Tags(mesh)
+    Matplotlib.Plot_Mesh(mesh, title="RVE")
+    # Matplotlib.Plot_Tags(mesh)
 
     nodes_matrix = mesh.Nodes_Tags(["S0"])
     elements_matrix = mesh.Elements_Nodes(nodes_matrix)
@@ -219,8 +219,8 @@ if __name__ == "__main__":
         E[elements_inclusion] = 200 * 1e9
         v[elements_inclusion] = 0.3
 
-    Display.Plot(mesh, E * 1e-9, nodeValues=False, title="E [GPa]")
-    Display.Plot(mesh, v, nodeValues=False, title="v")
+    Matplotlib.Plot(mesh, E * 1e-9, nodeValues=False, title="E [GPa]")
+    Matplotlib.Plot(mesh, v, nodeValues=False, title="v")
 
     material = Models.Elastic.Isotropic(2, E, v, planeStress=False)
 

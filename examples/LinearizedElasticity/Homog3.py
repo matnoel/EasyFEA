@@ -15,13 +15,13 @@ Conduct full-field homogenization.
 import matplotlib.pyplot as plt
 import numpy as np
 
-from EasyFEA import Display, Models, Geoms, ElemType, Simulations
+from EasyFEA import Terminal, Matplotlib, Models, Geoms, ElemType, Simulations
 from EasyFEA.FEM import FeArray
 
 from Homog1 import Compute_ukl
 
 if __name__ == "__main__":
-    Display.Clear()
+    Terminal.Clear()
 
     # ----------------------------------------------
     # Configuration
@@ -104,9 +104,9 @@ if __name__ == "__main__":
     )
     area = 4 * cL * cH
 
-    Display.Plot_Mesh(mesh_inclusions, title="non hom")
-    Display.Plot_Mesh(mesh_RVE, title="RVE")
-    Display.Plot_Mesh(mesh, title="hom")
+    Matplotlib.Plot_Mesh(mesh_inclusions, title="non hom")
+    Matplotlib.Plot_Mesh(mesh_RVE, title="RVE")
+    Matplotlib.Plot_Mesh(mesh, title="hom")
 
     # ----------------------------------------------
     # Material
@@ -177,9 +177,9 @@ if __name__ == "__main__":
 
         simu.Solve()
 
-        # Display.Plot_BoundaryConditions(simu)
-        Display.Plot(simu, "uy", title=f"{title} uy")
-        # Display.Plot(simu, "Eyy")
+        # Matplotlib.Plot_BoundaryConditions(simu)
+        Matplotlib.Plot(simu, "uy", title=f"{title} uy")
+        # Matplotlib.Plot(simu, "Eyy")
 
         print(
             f"{title}: dy = {np.max(simu.Result('uy')[simu.mesh.Nodes_Point(Geoms.Point(L, 0))]):.3f}"
@@ -196,7 +196,7 @@ if __name__ == "__main__":
     material.Set_C(C_hom, False)
     Simulation(simu, "hom")
 
-    # ax = Display.Plot(simu, "uy")
-    # Display.Plot(simuInclusions, "uy", ax=ax)
+    # ax = Matplotlib.Plot(simu, "uy")
+    # Matplotlib.Plot(simuInclusions, "uy", ax=ax)
 
     plt.show()

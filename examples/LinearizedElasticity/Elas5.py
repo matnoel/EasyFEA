@@ -13,11 +13,11 @@ A cylindrical conduit exposed to uniform pressure.
 import matplotlib.pyplot as plt
 import numpy as np
 
-from EasyFEA import Display, Models, ElemType, Simulations
+from EasyFEA import Terminal, Matplotlib, Models, ElemType, Simulations
 from EasyFEA.Geoms import Point, Line, Circle, CircleArc, Contour
 
 if __name__ == "__main__":
-    Display.Clear()
+    Terminal.Clear()
 
     # ----------------------------------------------
     # Configuration
@@ -113,11 +113,11 @@ if __name__ == "__main__":
     # ----------------------------------------------
     factorDef = r / 5 / simu.Result("displacement_norm").max()
 
-    Display.Plot_Mesh(simu, deformFactor=factorDef)
-    Display.Plot_BoundaryConditions(simu)
-    Display.Plot(simu, "ux", ncolors=10, nodeValues=True)
-    Display.Plot(simu, "uy", ncolors=10, nodeValues=True)
-    Display.Plot(
+    Matplotlib.Plot_Mesh(simu, deformFactor=factorDef)
+    Matplotlib.Plot_BoundaryConditions(simu)
+    Matplotlib.Plot(simu, "ux", ncolors=10, nodeValues=True)
+    Matplotlib.Plot(simu, "uy", ncolors=10, nodeValues=True)
+    Matplotlib.Plot(
         simu, "Svm", ncolors=10, nodeValues=True, deformFactor=factorDef, plotMesh=True
     )
 

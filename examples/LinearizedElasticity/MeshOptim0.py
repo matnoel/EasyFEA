@@ -14,12 +14,12 @@ Optimization of a happy mesh with quality criteria.
 import matplotlib.pyplot as plt
 import numpy as np
 
-from EasyFEA import Display, Folder, ElemType, Mesh, PyVista
+from EasyFEA import Terminal, Matplotlib, Folder, ElemType, Mesh, PyVista
 from EasyFEA.Geoms import Point, Circle, CircleArc, Contour
 from EasyFEA.FEM import Mesh_Optim
 
 if __name__ == "__main__":
-    Display.Clear()
+    Terminal.Clear()
 
     # ----------------------------------------------
     # Configuration
@@ -93,7 +93,7 @@ if __name__ == "__main__":
         cmap="viridis",
     ).show()
 
-    axHist = Display.Init_Axes()
+    axHist = Matplotlib.Init_Axes()
 
     axHist.hist(qual_e, 11, (0, 1))
     axHist.set_xlabel("quality")

@@ -20,11 +20,11 @@ This example comes from:
 
 import numpy as np
 
-from EasyFEA import Display, Folder, Models, ElemType, Simulations, PyVista, Paraview
+from EasyFEA import Terminal, Folder, Models, ElemType, Simulations, PyVista, Paraview
 from EasyFEA.Geoms import Points, Point, Circle
 
 if __name__ == "__main__":
-    Display.Clear()
+    Terminal.Clear()
 
     # ----------------------------------------------
     # Configuration

@@ -13,11 +13,11 @@ A bi-fixed beam undergoing bending deformation.
 import matplotlib.pyplot as plt
 import numpy as np
 
-from EasyFEA import Display, Models, Mesher, ElemType, Simulations, PyVista
+from EasyFEA import Terminal, Matplotlib, Models, Mesher, ElemType, Simulations, PyVista
 from EasyFEA.Geoms import Point, Points, Line
 
 if __name__ == "__main__":
-    Display.Clear()
+    Terminal.Clear()
 
     # ----------------------------------------------
     # Configuration
@@ -101,7 +101,7 @@ if __name__ == "__main__":
     )
     simu_beam.Solve()
 
-    Display.Plot(simu_beam, "uy")
+    Matplotlib.Plot(simu_beam, "uy")
 
     u_an = load * L**3 / (192 * E * beam.Iz)
 

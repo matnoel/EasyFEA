@@ -12,11 +12,11 @@ A cantilever beam undergoing dynamic bending deformation.
 
 import matplotlib.pyplot as plt
 
-from EasyFEA import Display, Folder, Models, ElemType, Simulations, PyVista, Paraview
+from EasyFEA import Terminal, Matplotlib, Folder, Models, ElemType, Simulations, PyVista, Paraview
 from EasyFEA.Geoms import Domain
 
 if __name__ == "__main__":
-    Display.Clear()
+    Terminal.Clear()
 
     # ----------------------------------------------
     # Configuration
@@ -80,7 +80,7 @@ if __name__ == "__main__":
     simu.add_dirichlet(nodes_L, [-10], ["y"], description="dep")
     simu.Solve()
     simu.Save_Iter()
-    Display.Plot_Mesh(simu, deformFactor=1)
+    Matplotlib.Plot_Mesh(simu, deformFactor=1)
 
     # dynamic simulation
     simu.Solver_Set_Hyperbolic_Algorithm(dt)
@@ -101,7 +101,7 @@ if __name__ == "__main__":
     # Results
     # ----------------------------------------------
 
-    Display.Plot_BoundaryConditions(simu)
+    Matplotlib.Plot_BoundaryConditions(simu)
 
     if makeParaview:
         Paraview.Save_simu(simu, folder)
@@ -117,7 +117,7 @@ if __name__ == "__main__":
         )
 
     print(simu)
-    Display.Plot(simu, f"{result}", deformFactor=1, nodeValues=False)
-    Display.Plot(simu, "Svm", plotMesh=False, nodeValues=False)
+    Matplotlib.Plot(simu, f"{result}", deformFactor=1, nodeValues=False)
+    Matplotlib.Plot(simu, "Svm", plotMesh=False, nodeValues=False)
 
     plt.show()

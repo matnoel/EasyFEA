@@ -14,7 +14,7 @@ Conduct 3d homogenization on a simple RVE.
 import matplotlib.pyplot as plt
 import numpy as np
 
-from EasyFEA import Display, Models, Mesh, ElemType, Simulations, PyVista
+from EasyFEA import Terminal, Models, Mesh, ElemType, Simulations, PyVista
 from EasyFEA.Geoms import Points, Circle
 from EasyFEA.FEM import LagrangeCondition, FeArray
 from typing import Optional
@@ -182,7 +182,7 @@ def Get_pairedNodes(
 
 
 if __name__ == "__main__":
-    Display.Clear()
+    Terminal.Clear()
 
     # ----------------------------------------------
     # Configuration

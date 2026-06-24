@@ -19,11 +19,11 @@ The assumption of small displacements is highly questionable for this simulation
 import matplotlib.pyplot as plt
 import numpy as np
 
-from EasyFEA import Display, Folder, Models, ElemType, Simulations, PyVista
+from EasyFEA import Terminal, Matplotlib, Folder, Models, ElemType, Simulations, PyVista
 from EasyFEA.Geoms import Point, Domain, Points
 
 if __name__ == "__main__":
-    Display.Clear()
+    Terminal.Clear()
 
     # ----------------------------------------------
     # Configuration
@@ -82,12 +82,12 @@ if __name__ == "__main__":
         )
         groupMaster = master_mesh.Get_list_groupElem(dim - 1)[0]
         if len(master_mesh.Get_list_groupElem(dim - 1)) > 1:
-            Display.MyPrintError(
+            Terminal.MyPrintError(
                 f"The {groupMaster.elemType.name} element group is used. In 3D, TETRA AND HEXA elements are recommended."
             )
     master_mesh.Translate(dz=-(master_mesh.center[2] - mesh_slave.center[2]))
 
-    # Display.Plot_Tags(mesh_master, alpha=0.1, showId=True)
+    # Matplotlib.Plot_Tags(mesh_master, alpha=0.1, showId=True)
 
     # get master nodes
     # nodes_master = mesh_master.Get_list_groupElem(dim-1)[0].nodes
@@ -97,8 +97,8 @@ if __name__ == "__main__":
         nodes_master = master_mesh.Nodes_Tags(["S1", "S2"])
 
     # # plot meshes
-    # ax = Display.Plot_Mesh(master_mesh, alpha=0)
-    # Display.Plot_Mesh(mesh_slave, ax=ax, alpha=0)
+    # ax = Matplotlib.Plot_Mesh(master_mesh, alpha=0)
+    # Matplotlib.Plot_Mesh(mesh_slave, ax=ax, alpha=0)
     # # add nodes interface
     # ax.scatter(*mesh_slave.coord[nodes_slave, :dim].T, label="slave nodes")
     # ax.scatter(*master_mesh.coord[nodes_master, :dim].T, label="master nodes")
@@ -116,7 +116,7 @@ if __name__ == "__main__":
     list_master_mesh = [master_mesh]
 
     if pltIter:
-        ax = Display.Plot(simu, result, deformFactor=1)
+        ax = Matplotlib.Plot(simu, result, deformFactor=1)
 
     for i in range(N):
         master_mesh = master_mesh.copy()
@@ -150,11 +150,11 @@ if __name__ == "__main__":
         print(f"Eps max = {simu.Result('Strain').max() * 100:3.2f} %")
 
         if pltIter:
-            Display.Plot(simu, result, plotMesh=True, deformFactor=1, ax=ax)
-            Display.Plot_Mesh(master_mesh, alpha=0, ax=ax)
+            Matplotlib.Plot(simu, result, plotMesh=True, deformFactor=1, ax=ax)
+            Matplotlib.Plot_Mesh(master_mesh, alpha=0, ax=ax)
             ax.set_title(result)
             if dim == 3:
-                Display._Axis_equal_3D(
+                Matplotlib._Axis_equal_3D(
                     ax, np.concatenate((master_mesh.coord, mesh_slave.coord), 0)
                 )
 
