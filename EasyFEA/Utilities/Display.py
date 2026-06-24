@@ -124,7 +124,7 @@ def __Add_Collection(
     edgecolor=None,
     lw: float = 0.5,
     alpha: float = 1.0,
-    zorder: float = 0.0,
+    zorder: float = None,
     clim: Optional[tuple] = None,
 ):
     """Builds and adds the matplotlib collection matching ``inDim`` × ``dimElem`` to ``ax``.\n
@@ -139,7 +139,9 @@ def __Add_Collection(
     else:
         Coll = Poly3DCollection if is3D else PolyCollection
 
-    params: dict[str, Any] = {"zorder": zorder, "lw": lw, "alpha": alpha}
+    params: dict[str, Any] = {"lw": lw}
+    if zorder is not None:
+        params["zorder"] = zorder
     if cmap is not None:
         params["cmap"] = cmap
     if norm is not None:
@@ -150,7 +152,15 @@ def __Add_Collection(
         # lines are colored through edgecolor; faces through facecolors
         params["edgecolor" if isLine else "facecolors"] = facecolors
 
+    # alpha sets face transparency: for a polygon with an explicit face color we apply it to the faces only (below) so the mesh edges stay opaque, otherwise matplotlib's collection-level alpha fades the edges too and the wireframe vanishes when alpha=0 (e.g. Plot_Mesh over an image). Lines and colormap-driven faces keep the collection-level alpha.
+    applyFaceAlpha = (not isLine) and (array is None) and (facecolors is not None)
+    if not applyFaceAlpha:
+        params["alpha"] = alpha
+
     pc = Coll(vertices, **params)  # type: ignore [arg-type]
+
+    if applyFaceAlpha and alpha != 1.0:
+        pc.set_facecolor(colors.to_rgba_array(facecolors, alpha))
 
     if array is not None:
         pc.set_array(array)
@@ -367,7 +377,6 @@ def Plot(
                 cmap=cmap,
                 vmin=values.min(),
                 vmax=values.max(),
-                zorder=-1,
             )
         elif hasResult:
             # element values
@@ -590,8 +599,8 @@ def Plot_Mesh(
         verticesDef = __Get_vertices(mesh, coordDef, inDim, mesh.dim)
         vertices = __Get_vertices(mesh, coord, inDim, mesh.dim)
 
-        __Add_Collection(ax, verticesDef, inDim, 1, edgecolor="red", lw=lw, zorder=1)
-        __Add_Collection(ax, vertices, inDim, 1, edgecolor=edgecolor, lw=lw, zorder=0)
+        __Add_Collection(ax, verticesDef, inDim, 1, edgecolor="red", lw=lw)
+        __Add_Collection(ax, vertices, inDim, 1, edgecolor=edgecolor, lw=lw)
 
         if mesh.dim == 1:
             # 1D meshes display their nodes (undeformed in black, deformed in red)
