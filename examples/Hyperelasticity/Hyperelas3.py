@@ -11,11 +11,11 @@ A L shape part undergoing bending deformation.
 """
 # sphinx_gallery_thumbnail_number = -1
 
-from EasyFEA import Display, Models, ElemType, Simulations, PyVista
+from EasyFEA import Terminal, Models, ElemType, Simulations, PyVista
 from EasyFEA.Geoms import Point, Points
 
 if __name__ == "__main__":
-    Display.Clear()
+    Terminal.Clear()
 
     # ----------------------------------------------
     # Configuration

@@ -10,7 +10,7 @@ ComputeInvariants
 Compute invariants used in hyperelastic constitutive laws.
 """
 
-from EasyFEA import Display
+from EasyFEA import Terminal
 
 try:
     import sympy
@@ -97,7 +97,7 @@ def __MyDiff(func, list_func: list, order: Optional[int] = None):
 
 
 def Compute(func, name: str, usepprint=True):
-    Display.Section(name)
+    Terminal.Section(name)
 
     myprint = sympy.pprint if usepprint else print
 
@@ -113,7 +113,7 @@ def Compute(func, name: str, usepprint=True):
 
 
 if __name__ == "__main__":
-    Display.Clear()
+    Terminal.Clear()
 
     cxx, cyy, czz, cyz, cxz, cxy = sympy.symbols("cxx, cyy, czz, cyz, cxz, cxy")
     C = sympy.Matrix([[cxx, cxy, cxz], [cxy, cyy, cyz], [cxz, cyz, czz]])

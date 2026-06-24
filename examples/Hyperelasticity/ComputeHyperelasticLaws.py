@@ -12,7 +12,7 @@ ComputeHyperelasticLaws
 Compute hyperelastic constitutive laws.
 """
 
-from EasyFEA import Display
+from EasyFEA import Terminal
 
 try:
     import sympy
@@ -77,7 +77,7 @@ def Compute(W, params: list, details=True):
 
 
 if __name__ == "__main__":
-    Display.Clear()
+    Terminal.Clear()
 
     I1, I2, I3, I4, I6, I8 = sympy.symbols("I1, I2, I3, I4, I6, I8")
 
@@ -89,7 +89,7 @@ if __name__ == "__main__":
     # Neo-Hookean
     # -------------------------------------
 
-    Display.Section("Neo-Hookean")
+    Terminal.Section("Neo-Hookean")
 
     K = sympy.symbols("K")
 
@@ -101,7 +101,7 @@ if __name__ == "__main__":
     # Mooney-Rivlin
     # -------------------------------------
 
-    Display.Section("Mooney-Rivlin")
+    Terminal.Section("Mooney-Rivlin")
 
     K1, K2 = sympy.symbols("K1, K2")
 
@@ -113,7 +113,7 @@ if __name__ == "__main__":
     # Ciarlet-Geymonat
     # -------------------------------------
 
-    Display.Section("Ciarlet-Geymonat")
+    Terminal.Section("Ciarlet-Geymonat")
 
     W = K1 * (J1 - 3) + K2 * (J2 - 3) + K * (J - 1 - sympy.log(J))
 
@@ -123,7 +123,7 @@ if __name__ == "__main__":
     # Saint-Venant-Kirchhoff
     # -------------------------------------
 
-    Display.Section("Saint-Venant-Kirchhoff")
+    Terminal.Section("Saint-Venant-Kirchhoff")
 
     lmbda, mu = sympy.symbols("lmbda, mu")
 
@@ -143,7 +143,7 @@ if __name__ == "__main__":
     # Holzapfel-Ogden
     # -------------------------------------
 
-    Display.Section("Holzapfel-Ogden")
+    Terminal.Section("Holzapfel-Ogden")
 
     C0, C1, C2, C3, C4, C5, C6, C7 = sympy.symbols("C0:8")
 

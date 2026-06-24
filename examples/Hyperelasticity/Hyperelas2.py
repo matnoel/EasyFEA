@@ -13,11 +13,11 @@ A hyper elastic cube in compression.
 
 import numpy as np
 
-from EasyFEA import Display, ElemType, Models, Simulations, PyVista
+from EasyFEA import Terminal, ElemType, Models, Simulations, PyVista
 from EasyFEA.Geoms import Domain
 
 if __name__ == "__main__":
-    Display.Clear()
+    Terminal.Clear()
 
     # ----------------------------------------------
     # Configuration

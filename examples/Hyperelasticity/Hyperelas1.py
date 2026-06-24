@@ -11,11 +11,11 @@ A cantilever beam undergoing bending deformation.
 """
 # sphinx_gallery_thumbnail_number = -1
 
-from EasyFEA import Display, ElemType, Models, Simulations, PyVista
+from EasyFEA import Terminal, ElemType, Models, Simulations, PyVista
 from EasyFEA.Geoms import Domain
 
 if __name__ == "__main__":
-    Display.Clear()
+    Terminal.Clear()
 
     # ----------------------------------------------
     # Configuration
