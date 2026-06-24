@@ -15,7 +15,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 
 from EasyFEA import (
-    Display,
+    Terminal, Matplotlib,
     Folder,
     Models,
     Tic,
@@ -28,7 +28,7 @@ from EasyFEA.Geoms import Point, Points, Domain, Line, Contour
 
 if __name__ == "__main__":
 
-    Display.Clear()
+    Terminal.Clear()
 
     # ----------------------------------------------
     # Configuration
@@ -88,7 +88,7 @@ if __name__ == "__main__":
         optimMesh,
         not openCrack,
     )
-    Display.MyPrint(folder_save, "green", end="\n")
+    Terminal.MyPrint(folder_save, "green", end="\n")
 
     if doSimu:
         # ----------------------------------------------
@@ -233,7 +233,7 @@ if __name__ == "__main__":
     # ----------------------------------------------
     # Results
     # ----------------------------------------------
-    Display.Plot(
+    Matplotlib.Plot(
         simu,
         "damage",
         nodeValues=True,
@@ -242,22 +242,22 @@ if __name__ == "__main__":
         filename="damage",
         ncolors=25,
     )
-    Display.Plot_Mesh(simu)
-    Display.Plot_Iter_Summary(simu, folder_save, None, None)
-    Display.Plot_BoundaryConditions(simu)
+    Matplotlib.Plot_Mesh(simu)
+    Matplotlib.Plot_Iter_Summary(simu, folder_save, None, None)
+    Matplotlib.Plot_BoundaryConditions(simu)
 
-    ax = Display.Init_Axes()
+    ax = Matplotlib.Init_Axes()
     ax.plot(np.abs(list_dep) * 1e6, np.abs(list_f) * 1e-6, c="blue")
     ax.set_xlabel("ud [µm]")
     ax.set_ylabel("f [kN/mm]")
     ax.grid()
-    Display.Save_fig(folder_save, "force-displacement")
+    Matplotlib.Save_fig(folder_save, "force-displacement")
 
     if plotMesh:
-        ax = Display.Plot_Mesh(simu.mesh, lw=0.3, facecolors="white")
+        ax = Matplotlib.Plot_Mesh(simu.mesh, lw=0.3, facecolors="white")
         ax.axis("off")
         ax.set_title("")
-        Display.Save_fig(folder_save, "mesh", transparent=True)
+        Matplotlib.Save_fig(folder_save, "mesh", transparent=True)
 
     if makeParaview:
         Paraview.Save_simu(simu, folder_save, 400)
@@ -276,7 +276,7 @@ if __name__ == "__main__":
         PyVista.Movie_func(Func, iterations.size, folder_save, "damage.gif")
 
     if plotEnergy:
-        Display.Plot_Energy(simu, N=400, folder=folder_save)
+        Matplotlib.Plot_Energy(simu, N=400, folder=folder_save)
 
     Tic.Resume()
 

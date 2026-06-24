@@ -13,11 +13,11 @@ Damage simulation for a L-part.
 import matplotlib.pyplot as plt
 import numpy as np
 
-from EasyFEA import Display, Folder, Models, ElemType, Simulations, Paraview, PyVista
+from EasyFEA import Terminal, Matplotlib, Folder, Models, ElemType, Simulations, Paraview, PyVista
 from EasyFEA.Geoms import Point, Points, Domain, Circle
 
 if __name__ == "__main__":
-    Display.Clear()
+    Terminal.Clear()
 
     # ----------------------------------------------
     # Configuration
@@ -110,8 +110,8 @@ if __name__ == "__main__":
             [], [0, 0, -ep], [3], ElemType.HEXA8, refineGeoms=[refineDomain]
         )
 
-    # Display.Plot_Mesh(mesh)
-    # Display.Plot_Tags(mesh)
+    # Matplotlib.Plot_Mesh(mesh)
+    # Matplotlib.Plot_Tags(mesh)
     # from EasyFEA import PyVista
     # PyVista.Plot_Mesh(mesh).show()
 
@@ -141,7 +141,7 @@ if __name__ == "__main__":
         nL=nL,
     )
 
-    Display.MyPrint(folder_save, "green", end="\n")
+    Terminal.MyPrint(folder_save, "green", end="\n")
 
     if doSimu:
         simu = Simulations.PhaseField(mesh, pfm, folder=folder_save)
@@ -150,9 +150,9 @@ if __name__ == "__main__":
         dofsY_load = simu.Bc_dofs_nodes(nodes_load, ["y"])
 
         if pltIter:
-            axIter = Display.Plot(simu, "damage")
+            axIter = Matplotlib.Plot(simu, "damage")
 
-            axLoad = Display.Init_Axes()
+            axLoad = Matplotlib.Init_Axes()
             axLoad.set_xlabel("displacement [mm]")
             axLoad.set_ylabel("load [kN]")
 
@@ -189,7 +189,7 @@ if __name__ == "__main__":
 
             if pltIter:
                 plt.figure(axIter.figure)
-                Display.Plot(simu, "damage", ax=axIter)
+                Matplotlib.Plot(simu, "damage", ax=axIter)
                 plt.pause(1e-12)
 
                 plt.figure(axLoad.figure)
@@ -215,17 +215,17 @@ if __name__ == "__main__":
     # ----------------------------------------------
     # Results
     # ----------------------------------------------
-    Display.Plot(simu, "damage", folder=folder_save)
-    Display.Plot_Mesh(simu)
-    Display.Plot_BoundaryConditions(simu)
+    Matplotlib.Plot(simu, "damage", folder=folder_save)
+    Matplotlib.Plot_Mesh(simu)
+    Matplotlib.Plot_BoundaryConditions(simu)
 
-    axLoad = Display.Init_Axes()
+    axLoad = Matplotlib.Init_Axes()
     axLoad.set_xlabel("displacement [mm]")
     axLoad.set_ylabel("load [kN]")
     axLoad.plot(list_ud, np.abs(list_f) / 1000, c="blue")
-    Display.Save_fig(folder_save, "forcedep")
+    Matplotlib.Save_fig(folder_save, "forcedep")
 
-    Display.Plot_Iter_Summary(simu, folder_save)
+    Matplotlib.Plot_Iter_Summary(simu, folder_save)
 
     if makeMovie:
         simu.Set_Iter(-1)

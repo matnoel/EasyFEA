@@ -14,7 +14,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 
 from EasyFEA import (
-    Display,
+    Terminal, Matplotlib,
     Folder,
     Models,
     Tic,
@@ -83,7 +83,7 @@ if __name__ == "__main__":
         optimMesh,
         not openCrack,
     )
-    Display.MyPrint(folder_save, "green", end="\n")
+    Terminal.MyPrint(folder_save, "green", end="\n")
 
     if doSimu:
         # ----------------------------------------------
@@ -237,7 +237,7 @@ if __name__ == "__main__":
     # ----------------------------------------------
     # Results
     # ----------------------------------------------
-    Display.Plot(
+    Matplotlib.Plot(
         simu,
         "damage",
         nodeValues=True,
@@ -245,22 +245,22 @@ if __name__ == "__main__":
         folder=folder_save,
         filename="damage",
     )
-    Display.Plot_Mesh(simu)
-    Display.Plot_Iter_Summary(simu, folder_save, None, None)
-    Display.Plot_BoundaryConditions(simu)
+    Matplotlib.Plot_Mesh(simu)
+    Matplotlib.Plot_Iter_Summary(simu, folder_save, None, None)
+    Matplotlib.Plot_BoundaryConditions(simu)
 
-    # ax = Display.Init_Axes()
+    # ax = Matplotlib.Init_Axes()
     # ax.plot(np.abs(list_dep) * 1e6, np.abs(list_f) * 1e-6, c="blue")
     # ax.set_xlabel("ud [µm]")
     # ax.set_ylabel("f [kN/mm]")
     # ax.grid()
-    # Display.Save_fig(folder_save, "force-displacement")
+    # Matplotlib.Save_fig(folder_save, "force-displacement")
 
     if plotMesh:
-        Display.Plot_Mesh(simu.mesh)
+        Matplotlib.Plot_Mesh(simu.mesh)
 
     if plotEnergy:
-        Display.Plot_Energy(simu, N=400, folder=folder_save)
+        Matplotlib.Plot_Energy(simu, N=400, folder=folder_save)
 
     if makeParaview:
         Paraview.Save_simu(simu, folder_save, 400)

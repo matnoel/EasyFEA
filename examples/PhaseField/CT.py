@@ -13,11 +13,11 @@ Performs damage simulation on a CT specimen.
 import matplotlib.pyplot as plt
 import numpy as np
 
-from EasyFEA import Display, Folder, Models, ElemType, Simulations, PyVista, Paraview
+from EasyFEA import Terminal, Matplotlib, Folder, Models, ElemType, Simulations, PyVista, Paraview
 from EasyFEA.Geoms import Point, Points, Circle, Line, Contour, Domain
 
 if __name__ == "__main__":
-    Display.Clear()
+    Terminal.Clear()
 
     # ----------------------------------------------
     # Config
@@ -57,7 +57,7 @@ if __name__ == "__main__":
         f"{folder}{dim}D", "", split, regu, "", 1, "", meshTest, optimMesh, nL=nL
     )
 
-    Display.MyPrint(folder_save, "green", end="\n")
+    Terminal.MyPrint(folder_save, "green", end="\n")
 
     # ----------------------------------------------
     # Geom
@@ -174,7 +174,7 @@ if __name__ == "__main__":
         simu.Results_Set_Bc_Summary(config)
 
         if plotIter:
-            ax = Display.Plot(simu, "damage", 1, plotMesh=True)
+            ax = Matplotlib.Plot(simu, "damage", 1, plotMesh=True)
 
         for i, dep in enumerate(displacements):
             simu.Bc_Init()
@@ -202,7 +202,7 @@ if __name__ == "__main__":
                 break
 
             if plotIter:
-                Display.Plot(simu, "damage", 1, plotMesh=True, ax=ax)
+                Matplotlib.Plot(simu, "damage", 1, plotMesh=True, ax=ax)
                 plt.pause(1e-12)
 
         simu.Save(folder_save)
@@ -230,9 +230,9 @@ if __name__ == "__main__":
 
         PyVista.Movie_func(Func, iterations.size, folder_save, "damage.gif")
 
-    Display.Plot(simu, "damage", folder=folder_save)
-    Display.Plot(simu, "uy", deformFactor=1)
-    Display.Plot_Mesh(mesh)
-    Display.Plot_Tags(mesh, folder=folder_save)
+    Matplotlib.Plot(simu, "damage", folder=folder_save)
+    Matplotlib.Plot(simu, "uy", deformFactor=1)
+    Matplotlib.Plot_Mesh(mesh)
+    Matplotlib.Plot_Tags(mesh, folder=folder_save)
 
     plt.show()

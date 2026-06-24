@@ -14,7 +14,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 
 from EasyFEA import (
-    Display,
+    Terminal, Matplotlib,
     Folder,
     Models,
     Tic,
@@ -84,7 +84,7 @@ if __name__ == "__main__":
     folder_save = Simulations.PhaseField.Folder(
         folder, "", split, regu, "", tolConv, solver, meshTest, optimMesh
     )
-    Display.MyPrint(folder_save, "green", end="\n")
+    Terminal.MyPrint(folder_save, "green", end="\n")
 
     if doSimu:
         # ----------------------------------------------
@@ -168,7 +168,7 @@ if __name__ == "__main__":
         nDetect = 0
 
         if plotIter:
-            axIter = Display.Plot(simu, "damage", nodeValues=True)
+            axIter = Matplotlib.Plot(simu, "damage", nodeValues=True)
             _, axLoad = plt.subplots()
             axLoad.set_xlabel(f"ud [{unitU}]")
             axLoad.set_ylabel(f"f [{unitF}]")
@@ -198,7 +198,7 @@ if __name__ == "__main__":
             list_f.append(f)
 
             if plotIter:
-                Display.Plot(simu, "damage", nodeValues=True, ax=axIter)
+                Matplotlib.Plot(simu, "damage", nodeValues=True, ax=axIter)
                 plt.figure(axIter.figure)
                 plt.pause(1e-12)
                 axLoad.clear()
@@ -224,9 +224,9 @@ if __name__ == "__main__":
     # Results
     # ----------------------------------------------
     if plotEnergy:
-        Display.Plot_Energy(simu, list_f, list_dep, N=400, folder=folder_save)
+        Matplotlib.Plot_Energy(simu, list_f, list_dep, N=400, folder=folder_save)
 
-    Display.Plot(
+    Matplotlib.Plot(
         simu,
         "damage",
         nodeValues=True,
@@ -234,19 +234,19 @@ if __name__ == "__main__":
         folder=folder_save,
         filename="damage",
     )
-    Display.Plot_Mesh(simu)
-    Display.Plot_BoundaryConditions(simu)
-    Display.Plot_Iter_Summary(simu, folder_save, None, None)
+    Matplotlib.Plot_Mesh(simu)
+    Matplotlib.Plot_BoundaryConditions(simu)
+    Matplotlib.Plot_Iter_Summary(simu, folder_save, None, None)
 
-    ax = Display.Init_Axes()
+    ax = Matplotlib.Init_Axes()
     ax.plot(np.abs(list_dep) * unit, np.abs(list_f) / unit, c="blue")
     ax.set_xlabel(f"ud [{unitU}]")
     ax.set_ylabel(f"f [{unitF}]")
     ax.grid()
-    Display.Save_fig(folder_save, "force-displacement")
+    Matplotlib.Save_fig(folder_save, "force-displacement")
 
     if plotMesh:
-        Display.Plot_Mesh(simu.mesh)
+        Matplotlib.Plot_Mesh(simu.mesh)
 
     if makeParaview:
         Paraview.Save_simu(simu, folder_save)
