@@ -20,16 +20,16 @@ import matplotlib.pyplot as plt
 from PIL import Image  # matplotlib dependency
 import numpy as np
 
-from EasyFEA import Display, Folder, Models
+from EasyFEA import Matplotlib, Folder, Models
 from EasyFEA.Simulations import Elastic, DIC
 from EasyFEA.Geoms import Circle, Domain
 
 
 def Plot(simu: Elastic, result: str, img=None, title="", plotMesh=True):
-    ax = Display.Init_Axes()
+    ax = Matplotlib.Init_Axes()
     if img is not None:
         ax.imshow(img, cmap="gray")
-    Display.Plot(simu, result, title=title, plotMesh=plotMesh, ax=ax)
+    Matplotlib.Plot(simu, result, title=title, plotMesh=plotMesh, ax=ax)
 
 
 if __name__ == "__main__":
@@ -54,7 +54,7 @@ if __name__ == "__main__":
 
     imgRef = np.asarray(Image.open(images[0]), dtype=int)
 
-    ax = Display.Init_Axes()
+    ax = Matplotlib.Init_Axes()
     ax.imshow(imgRef, cmap="gray")
 
     # ----------------------------------------------
@@ -75,7 +75,7 @@ if __name__ == "__main__":
 
     mesh = contour.Mesh_2D([circle])
 
-    Display.Plot_Mesh(mesh, alpha=0, edgecolor="black", ax=ax)
+    Matplotlib.Plot_Mesh(mesh, alpha=0, edgecolor="black", ax=ax)
     ax.legend()
 
     # ----------------------------------------------
