@@ -14,12 +14,12 @@ Reference: https://scikit-fem.readthedocs.io/en/latest/listofexamples.html#examp
 
 import matplotlib.pyplot as plt
 
-from EasyFEA import Display, ElemType, Models, Simulations
+from EasyFEA import Terminal, Matplotlib, ElemType, Models, Simulations
 from EasyFEA.FEM import Field, BiLinearForm, LinearForm
 from EasyFEA.Geoms import Domain
 
 if __name__ == "__main__":
-    Display.Clear()
+    Terminal.Clear()
 
     # ----------------------------------------------
     # Mesh
@@ -61,6 +61,6 @@ if __name__ == "__main__":
     # Results
     # ----------------------------------------------
 
-    Display.Plot(simu, "u")
+    Matplotlib.Plot(simu, "u")
 
     plt.show()

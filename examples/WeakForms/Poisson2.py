@@ -15,12 +15,12 @@ Reference: https://scikit-fem.readthedocs.io/en/latest/gettingstarted.html
 import matplotlib.pyplot as plt
 import numpy as np
 
-from EasyFEA import Display, ElemType, Models, Simulations
+from EasyFEA import Terminal, Matplotlib, ElemType, Models, Simulations
 from EasyFEA.FEM import Field, BiLinearForm, LinearForm
 from EasyFEA.Geoms import Domain
 
 if __name__ == "__main__":
-    Display.Clear()
+    Terminal.Clear()
 
     # ----------------------------------------------
     # Mesh
@@ -64,7 +64,7 @@ if __name__ == "__main__":
     # Results
     # ----------------------------------------------
 
-    Display.Plot(simu, "u", plotMesh=True)
+    Matplotlib.Plot(simu, "u", plotMesh=True)
 
     # compute error
     x, y, z = mesh.coord.T

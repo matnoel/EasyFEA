@@ -15,12 +15,12 @@ Note that this simulation is also performed in `examples/Dynamic/Dynamic1.py`.
 import matplotlib.pyplot as plt
 import numpy as np
 
-from EasyFEA import Folder, Display, ElemType, Models, Simulations, PyVista
+from EasyFEA import Folder, Terminal, ElemType, Models, Simulations, PyVista
 from EasyFEA.FEM import Field, BiLinearForm, FeArray, Sym_Grad, Trace
 from EasyFEA.Geoms import Domain
 
 if __name__ == "__main__":
-    Display.Clear()
+    Terminal.Clear()
 
     # ----------------------------------------------
     # Configuration

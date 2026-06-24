@@ -15,13 +15,13 @@ An educational implementation of topology optimization inspired by `Week 10- Top
 import matplotlib.pyplot as plt
 import numpy as np
 
-from EasyFEA import Display, Folder, PyVista, ElemType, Models, Simulations
+from EasyFEA import Terminal, Matplotlib, Folder, PyVista, ElemType, Models, Simulations
 from EasyFEA.FEM import FeArray, Field, BiLinearForm, Sym_Grad, Trace
 from EasyFEA.Geoms import Domain
 
 if __name__ == "__main__":
 
-    Display.Clear()
+    Terminal.Clear()
 
     # ----------------------------------------------
     # Configuration
@@ -81,11 +81,11 @@ if __name__ == "__main__":
 
     # # plot neighbor elements
     # elem = 100
-    # ax = Display.Plot_Mesh(mesh, alpha=0)
-    # Display.Plot_Elements(
+    # ax = Matplotlib.Plot_Mesh(mesh, alpha=0)
+    # Matplotlib.Plot_Elements(
     #     mesh, mesh.connect[Hij[elem] != 0].ravel(), 2, color="blue", ax=ax
     # )
-    # Display.Plot_Elements(mesh, mesh.connect[elem].ravel(), 2, ax=ax)
+    # Matplotlib.Plot_Elements(mesh, mesh.connect[elem].ravel(), 2, ax=ax)
 
     # ----------------------------------------------
     # Formulations
@@ -187,7 +187,7 @@ if __name__ == "__main__":
         # compute relative error : || p_e - pOld_e || / || pOld_e ||
         err = np.linalg.norm(p_e - pOld_e) / np.linalg.norm(pOld_e)
 
-        Display.MyPrint(
+        Terminal.MyPrint(
             f"Iteration {str(iter).zfill(len(str(iterMax)))}, compliance = {c:.3e}, volume fraction = {p_e.mean():.3f}, err = {err:.3e}",
             end="\r",
         )
@@ -196,7 +196,7 @@ if __name__ == "__main__":
     # Results
     # ----------------------------------------------
 
-    axC = Display.Init_Axes()
+    axC = Matplotlib.Init_Axes()
     axC.plot(range(len(list_compliance)), list_compliance, ls="-", marker=".")
     axC.set_xlabel("Iteration")
     axC.set_ylabel("Compliance")

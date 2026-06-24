@@ -15,12 +15,12 @@ Note that this simulation is also performed in `examples/Elastic/Elas1.py`.
 import matplotlib.pyplot as plt
 import numpy as np
 
-from EasyFEA import Display, ElemType, Models, Simulations
+from EasyFEA import Terminal, Matplotlib, ElemType, Models, Simulations
 from EasyFEA.FEM import Field, BiLinearForm, FeArray, Sym_Grad, Trace
 from EasyFEA.Geoms import Domain
 
 if __name__ == "__main__":
-    Display.Clear()
+    Terminal.Clear()
 
     # ----------------------------------------------
     # Configuration
@@ -92,7 +92,7 @@ if __name__ == "__main__":
     # Results
     # ----------------------------------------------
 
-    Display.Plot(simu, "uy", 10, plotMesh=True)
+    Matplotlib.Plot(simu, "uy", 10, plotMesh=True)
 
     def von_mises_stress(u):
         Stress = S(u)
@@ -107,6 +107,6 @@ if __name__ == "__main__":
 
     Svm_e = field.Evaluate_e(von_mises_stress, simu.u)
 
-    Display.Plot(simu, Svm_e, plotMesh=True, ncolors=11)
+    Matplotlib.Plot(simu, Svm_e, plotMesh=True, ncolors=11)
 
     plt.show()
