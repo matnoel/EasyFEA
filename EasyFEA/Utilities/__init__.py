@@ -12,7 +12,8 @@ from ._params import (
 )
 from ._tic import Tic
 from ._types import Number, Numbers, FloatArray, IntArray, AnyArray, Coords
-from . import Display
+from . import Matplotlib
+from . import Terminal
 from . import Folder
 from . import MeshIO
 from . import Paraview

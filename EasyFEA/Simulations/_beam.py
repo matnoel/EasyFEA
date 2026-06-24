@@ -7,7 +7,7 @@ from typing import Union, Optional, Iterable, TYPE_CHECKING
 import numpy as np
 
 # utilities
-from ..Utilities import Display, Tic, _types, _params
+from ..Utilities import Terminal, Tic, _types, _params
 
 # fem
 if TYPE_CHECKING:
@@ -104,7 +104,7 @@ class Beam(_Simu):
             # but only O(h²) accurate — flag it once so users can choose to
             # bump to SEG3+ for exact cubic-v representation.
             if mesh.groupElem.elemType is ElemType.SEG2:
-                Display.MyPrint(
+                Terminal.MyPrint(
                     "Beam: SEG2 + Timoshenko has only O(h²) convergence "
                     "(linear transverse displacement). "
                     "Use SEG3 or higher for accurate results at coarse meshes.",
@@ -283,7 +283,7 @@ class Beam(_Simu):
         problemType=None,
         description="",
     ):
-        Display.MyPrintError("Surface loads cannot be applied in beam problems.")
+        Terminal.MyPrintError("Surface loads cannot be applied in beam problems.")
         return
 
     def add_volumeLoad(
@@ -294,7 +294,7 @@ class Beam(_Simu):
         problemType=None,
         description="",
     ):
-        Display.MyPrintError("Volumetric loads cannot be applied in beam problems.")
+        Terminal.MyPrintError("Volumetric loads cannot be applied in beam problems.")
         return
 
     def add_connection_fixed(self, nodes: _types.IntArray, description="Fixed"):
@@ -622,7 +622,7 @@ class Beam(_Simu):
             values = Epsilon_e[:, index] * coef
 
         else:
-            Display.MyPrintError(f"The result '{result}' is not implemented yet.")
+            Terminal.MyPrintError(f"The result '{result}' is not implemented yet.")
             return None  # type: ignore [return-value]
 
         # end cases ----------------------------------------------------

@@ -15,7 +15,7 @@ from functools import singledispatch
 from ..__about__ import __version__
 
 # utilities
-from ..Utilities import Folder, Display, Tic, _params, _types
+from ..Utilities import Folder, Terminal, Tic, _params, _types
 from ..Utilities._observers import Observable, _IObserver
 from ..Utilities._mpi import CAN_USE_MPI, MPI_SIZE, MPI_RANK, MPI_COMM
 
@@ -381,10 +381,10 @@ class _Simu(_IObserver, _params.Updatable, ABC):
             A string containing information about the simulation.
         """
 
-        text = Display.Section("Mesh", False)
+        text = Terminal.Section("Mesh", False)
         text += "\n" + str(self.mesh)  # type: ignore
 
-        text += Display.Section("Model", False)
+        text += Terminal.Section("Model", False)
         text += "\n" + str(self.model)
 
         text += "\n\nsolver:"
@@ -402,13 +402,13 @@ class _Simu(_IObserver, _params.Updatable, ABC):
         else:
             text += str(self.solver)
 
-        text += Display.Section("Boundary Conditions", False)
+        text += Terminal.Section("Boundary Conditions", False)
         text += "\n" + textwrap.dedent(self.Results_Get_Bc_Summary())  # type: ignore
 
-        text += Display.Section("Results", False)
+        text += Terminal.Section("Results", False)
         text += "\n" + textwrap.dedent(self.Results_Get_Iteration_Summary())  # type: ignore
 
-        text += Display.Section("TicTac", False)
+        text += Terminal.Section("TicTac", False)
 
         if Tic.nTic() > 0:
             text += Tic.Resume(False)
@@ -433,7 +433,7 @@ class _Simu(_IObserver, _params.Updatable, ABC):
         """
 
         if verbosity:
-            Display.Section("Simulation")
+            Terminal.Section("Simulation")
 
         self.__model = model
 
@@ -783,7 +783,7 @@ class _Simu(_IObserver, _params.Updatable, ABC):
             self._Check_dim_mesh_material()
             self.Need_Update()
         else:
-            Display.MyPrintError("Notification not yet implemented")
+            Terminal.MyPrintError("Notification not yet implemented")
 
     def Need_Update(self, value=True):
         """Sets whether the simulation needs to reconstruct matrices K, C, M and F."""
@@ -895,7 +895,7 @@ class _Simu(_IObserver, _params.Updatable, ABC):
         if value in solvers:
             self.__solver = value
         else:
-            Display.MyPrintError(
+            Terminal.MyPrintError(
                 f"The solver {value} cannot be used. The solver must be in {solvers}"
             )
 
@@ -1382,7 +1382,7 @@ class _Simu(_IObserver, _params.Updatable, ABC):
         list_norm_r: list[float] = []
 
         if MPI_RANK == 0:
-            Display.Section(f"{problemType.name} problem at iteration {self.Niter}")
+            Terminal.Section(f"{problemType.name} problem at iteration {self.Niter}")
 
         while not converged and newtonIter < maxIter:
 
@@ -1637,8 +1637,8 @@ class _Simu(_IObserver, _params.Updatable, ABC):
             diag = np.zeros(A.shape[0])
             diag[orphanDofs] = 1.0
             A = A + sparse.diags(diag, format="csr")
-            # Display.Init_Axes().spy(A)
-            # Display.plt.show()
+            # Matplotlib.Init_Axes().spy(A)
+            # Matplotlib.plt.show()
 
         if resolution in [ResolType.r1, ResolType.r2]:
             # Here we return the solution with the known ddls
@@ -2345,11 +2345,11 @@ class _Simu(_IObserver, _params.Updatable, ABC):
         self.__Check_problemTypes(problemType)
 
         if self.dim == 1:
-            Display.MyPrintError("Cant apply pressure on 1D mesh.")
+            Terminal.MyPrintError("Cant apply pressure on 1D mesh.")
             return
 
         if len(self.Get_unknowns(problemType)) == 0:
-            Display.MyPrintError("Cant apply pressure on scalar problems.")
+            Terminal.MyPrintError("Cant apply pressure on scalar problems.")
             return
 
         dofsValues, dofs, nodes = self.__Bc_pressureload(problemType, nodes, magnitude)
@@ -2850,7 +2850,7 @@ class _Simu(_IObserver, _params.Updatable, ABC):
         if result in availableResults:
             return True
         else:
-            Display.MyPrintError(
+            Terminal.MyPrintError(
                 f"\nFor a {self.problemType} problem result must be in : \n {availableResults}"
             )
             return False
@@ -2858,7 +2858,7 @@ class _Simu(_IObserver, _params.Updatable, ABC):
     def Results_Set_Iteration_Summary(self, text: str, remove: bool = False) -> None:
         """Sets and print the iteration's summary."""
         end = "\r" if remove else "\n"
-        Display.MyPrint(text, end=end)
+        Terminal.MyPrint(text, end=end)
 
     def Results_Get_Iteration_Summary(self) -> str:
         """Returns the iteration's summary."""
@@ -2981,7 +2981,7 @@ class _Simu(_IObserver, _params.Updatable, ABC):
             summary += f"\nNproc: {MPI_SIZE}"
         summary += str(self)
         if str(additionalInfos) != "":
-            summary += Display.Section("Additional information", False)
+            summary += Terminal.Section("Additional information", False)
             summary += "\n" + str(additionalInfos)
 
         if MPI_RANK == 0:
@@ -2989,7 +2989,7 @@ class _Simu(_IObserver, _params.Updatable, ABC):
                 file.write(summary)
 
             path = folder.replace(Folder.EASYFEA_DIR, "")
-            Display.MyPrint(f"Saved simulation and summary in:\n{path}\n", "green")
+            Terminal.MyPrint(f"Saved simulation and summary in:\n{path}\n", "green")
 
         return path_simu
 
@@ -3138,7 +3138,7 @@ def Load_Simu(folder: str, filename: str = "simulation", gather=False) -> _Simu:
         with open(path_simu, "rb") as file:
             simu: _Simu = pickle.load(file)
     except EOFError:
-        Display.MyPrintError(f"The file:\n{path_simu}\nis empty or corrupted.")
+        Terminal.MyPrintError(f"The file:\n{path_simu}\nis empty or corrupted.")
         return None  # type: ignore [return-value]
 
     if gather:

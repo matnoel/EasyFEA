@@ -8,7 +8,7 @@ import numpy as np
 from EasyFEA import Mesher, ElemType, Mesh
 from EasyFEA.Geoms import Domain, Point
 from EasyFEA.Geoms import Rotate
-from EasyFEA import Display as Display
+from EasyFEA import Matplotlib as Matplotlib
 
 
 class TestGmsh:

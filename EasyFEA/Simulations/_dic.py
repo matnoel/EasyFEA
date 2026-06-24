@@ -12,7 +12,7 @@ import pickle
 from typing import Optional
 
 # utilities
-from ..Utilities import Tic, Folder, Display, _types
+from ..Utilities import Tic, Folder, Terminal, _types
 from ..Utilities._observers import Observable, _IObserver
 from ..Utilities._requires import Create_requires_decorator
 
@@ -151,7 +151,7 @@ class DIC(_IObserver):
                 "The current implementation does not allow you to make any modifications to the mesh."
             )
         else:
-            Display.MyPrintError("Notification not yet implemented")
+            Terminal.MyPrintError("Notification not yet implemented")
 
     # core functions
 

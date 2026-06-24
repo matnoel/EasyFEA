@@ -23,7 +23,7 @@ class Observable:
         """Add observer."""
 
         if not isinstance(observer, _IObserver):
-            from .Display import MyPrintError
+            from .Terminal import MyPrintError
 
             MyPrintError(f"observer must be an {_IObserver.__name__}")
             return

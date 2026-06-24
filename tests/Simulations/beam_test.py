@@ -8,7 +8,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 import pytest
 
-from EasyFEA import Display, Models, Simulations, Mesher, ElemType
+from EasyFEA import Matplotlib, Models, Simulations, Mesher, ElemType
 from EasyFEA.Geoms import Domain, Point, Line
 
 TOL = (
@@ -191,7 +191,7 @@ def test_traction(elemType: str, beamDim: int):
     err_N = np.abs(N_x(x_e) - N_fe).max() / np.abs(N_x(x_e)).max()
     assert err_N <= TOL, f"N error {err_N:.2e}"
 
-    Display.Plot_BoundaryConditions(simu)
+    Matplotlib.Plot_BoundaryConditions(simu)
     _close_plots()
 
 
@@ -258,8 +258,8 @@ def test_cantilever_tip(elemType: str, beamDim: int):
     err_Ty = np.abs(F - Ty_fe).max() / np.abs(F)
     assert err_Ty <= TOL, f"Ty error {err_Ty:.2e}"
 
-    Display.Plot_Mesh(simu, deformFactor=10)
-    Display.Plot(simu, "uy", plotMesh=False)
+    Matplotlib.Plot_Mesh(simu, deformFactor=10)
+    Matplotlib.Plot(simu, "uy", plotMesh=False)
     _close_plots()
 
 
@@ -437,7 +437,7 @@ def test_simply_supported_tip(elemType: str, beamDim: int, a_frac: float):
     err_Ty = np.abs(Ty_x(x_e) - Ty_fe).max() / max(Ra, Rb)
     assert err_Ty <= TOL, f"Ty error {err_Ty:.2e}"
 
-    Display.Plot_BoundaryConditions(simu)
+    Matplotlib.Plot_BoundaryConditions(simu)
     _close_plots()
 
 

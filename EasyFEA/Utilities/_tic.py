@@ -200,7 +200,7 @@ class Tic:
             History details, by default True
         """
 
-        from EasyFEA import Display
+        from EasyFEA import Matplotlib
 
         if Tic.__History == {}:
             return
@@ -241,7 +241,7 @@ class Tic:
                     c,
                 )
                 if folder != "":
-                    Display.Save_fig(folder, f"TicTac{i}_{c}")
+                    Matplotlib.Save_fig(folder, f"TicTac{i}_{c}")
 
         # Plot summary of categories
         ax = plt.subplots()[1]
@@ -249,4 +249,4 @@ class Tic:
             ax, categories, timesPerCategory, [1] * len(categories), "Summary"
         )
         if folder != "":
-            Display.Save_fig(folder, "TicTac_Summary")
+            Matplotlib.Save_fig(folder, "TicTac_Summary")

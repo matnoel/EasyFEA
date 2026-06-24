@@ -8,7 +8,7 @@ import numpy as np
 from scipy import sparse
 
 # utilities
-from ..Utilities import Display, Folder, Tic, _types
+from ..Utilities import Terminal, Folder, Tic, _types
 from ..Utilities._observers import Observable
 from ..Utilities._mpi import CAN_USE_MPI, MPI_SIZE, MPI_COMM
 
@@ -264,7 +264,7 @@ class PhaseField(_Simu):
             self._Check_dim_mesh_material()
             self.Need_Update()
         else:
-            Display.MyPrintError("Notification not yet implemented")
+            Terminal.MyPrintError("Notification not yet implemented")
 
     @property
     def needUpdate(self) -> bool:
@@ -735,7 +735,7 @@ class PhaseField(_Simu):
             )
 
         else:
-            Display.MyPrintError(f"The result '{result}' is not implemented yet.")
+            Terminal.MyPrintError(f"The result '{result}' is not implemented yet.")
             return None  # type: ignore [return-value]
 
         # end cases ----------------------------------------------------

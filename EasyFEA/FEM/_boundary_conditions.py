@@ -175,9 +175,9 @@ class BoundaryCondition:
 
         for d, direction in enumerate(unknowns):
             if direction not in availableUnknowns:
-                from EasyFEA import Display
+                from EasyFEA import Terminal
 
-                Display.MyPrintError(
+                Terminal.MyPrintError(
                     f"direction ({direction}) must be in {availableUnknowns}."
                 )
                 continue

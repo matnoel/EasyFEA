@@ -13,7 +13,7 @@ import numpy as np
 from functools import singledispatch
 
 # utilities
-from . import Display
+from . import Matplotlib, Terminal
 from ..Simulations._simu import _Init_obj, _Get_values
 from . import Folder, Tic, _types, MeshIO
 from .. import Geoms
@@ -324,17 +324,17 @@ def Plot_Nodes(
 
         if nodes.ndim == 1:
             if nodes.size == 0:
-                Display.MyPrintError("The list of nodes is empty.")
+                Terminal.MyPrintError("The list of nodes is empty.")
                 return
             if nodes.size > mesh.Nn:
-                Display.MyPrintError("The list of nodes must be of size <= mesh.Nn")
+                Terminal.MyPrintError("The list of nodes must be of size <= mesh.Nn")
                 return
             else:
                 coord = coord[nodes]
         elif nodes.ndim == 2 and nodes.shape[1] == 3:
             coord = nodes  # type: ignore [assignment]
         else:
-            Display.MyPrintError(
+            Terminal.MyPrintError(
                 "Nodes must be either a list of nodes or a matrix of 3D vectors of dimension (n, 3)."
             )
             return
@@ -545,7 +545,7 @@ def Plot_BoundaryConditions(
     simu, mesh, coord, inDim = _Init_obj(simu, deformFactor)  # type: ignore [assignment]
 
     if simu is None:
-        Display.MyPrintError("simu must be a _Simu object")
+        Terminal.MyPrintError("simu must be a _Simu object")
         return
 
     # get dirichlet and neumann boundary conditions
@@ -562,7 +562,7 @@ def Plot_BoundaryConditions(
         plotter = Plot_Elements(simu, [], 1, False, deformFactor, color="k")
         plotter.add_title("Boundary conditions")
 
-    colors = Display.tab10_colors
+    colors = Matplotlib.tab10_colors
     colors = colors * np.ceil(len(boundaryConditions) / len(colors)).astype(int)
 
     for bc, color in zip(boundaryConditions, colors):
@@ -714,7 +714,7 @@ def Plot_Tags(
         for groupElem in mesh.dict_groupElem.values()
     ]
     if np.max(nTtags) == 0:
-        Display.MyPrintError(
+        Terminal.MyPrintError(
             "There is no tags available in the mesh, so don't forget to use the '_Set_PhysicalGroups()' function before meshing your geometry with in the gmsh interface."
         )
         return None  # type: ignore [return-value]
@@ -725,7 +725,7 @@ def Plot_Tags(
     Plot(mesh, alpha=0.1, plotter=plotter)
 
     if useColorCycler:
-        colors = Display.tab10_colors
+        colors = Matplotlib.tab10_colors
         colorIterator = iter(colors * np.ceil(np.sum(nTtags) / len(colors)).astype(int))
 
     for groupElem in mesh.dict_groupElem.values():
@@ -821,7 +821,7 @@ def Plot_Geoms(
     geoms: list[Geoms._Geom] = geoms  # type: ignore [no-redef]
 
     if "color" not in kwargs:
-        colors = Display.tab10_colors
+        colors = Matplotlib.tab10_colors
         colors = iter(colors * np.ceil(len(geoms) / len(colors)).astype(int))
     else:
         colors = [kwargs["color"]] * len(geoms)  # type: ignore [assignment]
@@ -903,7 +903,7 @@ def Movie_simu(
     simu = _Init_obj(simu)[0]  # type: ignore [assignment]
 
     if simu is None:
-        Display.MyPrintError("Must give a simulation.")
+        Terminal.MyPrintError("Must give a simulation.")
         return
 
     Niter = simu.Niter
@@ -966,7 +966,7 @@ def Movie_func(
         rmTime = Tic.Get_Remaining_Time(iteration, N, time)
 
         iteration = str(iteration).zfill(len(str(N)))
-        Display.MyPrint(f"Generate movie {iteration}/{N} {rmTime}    ", end="\r")
+        Terminal.MyPrint(f"Generate movie {iteration}/{N} {rmTime}    ", end="\r")
 
     print()
     plotter.close()
@@ -1065,7 +1065,7 @@ def _pvMesh(
 @requires_pyvista
 @singledispatch
 def _pvGeom(geom) -> Union[pv.DataSet, list[pv.DataSet]]:
-    Display.MyPrintError(
+    Terminal.MyPrintError(
         "geom must be in [Point, Line, Domain, Circle, CircleArc, Contour, Points]"
     )
     return None  # type: ignore [return-value]

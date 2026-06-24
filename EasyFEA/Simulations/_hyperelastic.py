@@ -7,7 +7,7 @@ import numpy as np
 from typing import Union, Optional, TYPE_CHECKING
 
 # utilities
-from ..Utilities import Display, _types
+from ..Utilities import Terminal, _types
 
 # fem
 if TYPE_CHECKING:
@@ -350,7 +350,7 @@ class HyperElastic(_Simu):
             )
 
         else:
-            Display.MyPrintError(f"The result '{result}' is not implemented yet.")
+            Terminal.MyPrintError(f"The result '{result}' is not implemented yet.")
             return None  # type: ignore [return-value]
 
         # end cases ----------------------------------------------------

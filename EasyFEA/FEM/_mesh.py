@@ -22,7 +22,7 @@ from scipy.spatial import cKDTree
 from scipy.sparse.csgraph import connected_components
 
 # utilities
-from ..Utilities import Display, Folder, Tic, _types
+from ..Utilities import Matplotlib, Terminal, Folder, Tic, _types
 from ..Utilities._observers import Observable
 from ..Utilities._mpi import MPI_COMM, MPI_SIZE, MPI_RANK
 
@@ -86,7 +86,7 @@ class Mesh(Observable):
         orphanNodes = list(nodes - usedNodes)
         self.__orphanNodes: list[int] = orphanNodes
         if len(orphanNodes) > 0 and verbosity:
-            Display.MyPrintError(
+            Terminal.MyPrintError(
                 "WARNING: Orphan nodes have been detected in the mesh (stored in mesh.orphanNodes)."
             )
 
@@ -735,7 +735,7 @@ class Mesh(Observable):
             nodes = np.unique(np.concatenate(list_nodes_used))
 
             if neighborLayer > 1 and elements.size == self.Ne:
-                Display.MyPrint("All the neighbors have been found.")
+                Terminal.MyPrint("All the neighbors have been found.")
                 break
 
         return elements
@@ -761,7 +761,7 @@ class Mesh(Observable):
                     dict_nodes[tag] = np.unique(concat)
 
         if len(dict_nodes) == 0:
-            Display.MyPrintError(
+            Terminal.MyPrintError(
                 "There is no tags available in the mesh, so don't forget to use the '_Set_PhysicalGroups()' function before meshing your geometry with '_Meshing()' in the gmsh interface 'Gmsh_Interface'."
             )
             return np.asarray([])
@@ -786,7 +786,7 @@ class Mesh(Observable):
         dict_elements = self.groupElem._dict_elements_tags
 
         if len(dict_elements) == 0:
-            Display.MyPrintError(
+            Terminal.MyPrintError(
                 "There is no tags available in the mesh, so don't forget to use the '_Set_PhysicalGroups()' function before meshing your geometry with '_Meshing()' in the gmsh interface 'Gmsh_Interface'."
             )
             return np.asarray([])
@@ -1034,7 +1034,9 @@ class Mesh(Observable):
         if plot:
             inDim = self.inDim
 
-            ax = Display.Plot_Mesh(self, alpha=0, title="Periodic boundary conditions")
+            ax = Matplotlib.Plot_Mesh(
+                self, alpha=0, title="Periodic boundary conditions"
+            )
 
             # nEdges = np.min([len(nNodes)//2, nEdges])
 
@@ -1054,14 +1056,14 @@ class Mesh(Observable):
                         label=f"edges{edge}",
                     )
                     ax.add_collection3d(  # type: ignore [union-attr]
-                        Display.Line3DCollection(lines, edgecolor=pc.get_edgecolor())
+                        Matplotlib.Line3DCollection(lines, edgecolor=pc.get_edgecolor())
                     )
                 else:
                     pc = ax.scatter(
                         lines[:, :, 0], lines[:, :, 1], label=f"edges{edge}"
                     )
                     ax.add_collection(
-                        Display.LineCollection(lines, edgecolor=pc.get_edgecolor())  # type: ignore [arg-type]
+                        Matplotlib.LineCollection(lines, edgecolor=pc.get_edgecolor())  # type: ignore [arg-type]
                     )
 
             ax.legend()
@@ -1141,7 +1143,7 @@ class Mesh(Observable):
             # only available for triangular elements
 
             if groupElem.elemType not in [ElemType.TRI3, ElemType.TRI6, ElemType.TRI10]:
-                Display.MyPrintError(
+                Terminal.MyPrintError(
                     "The gamma criterion is only available for triangular elements."
                 )
                 return None  # type: ignore [return-value]
@@ -1162,7 +1164,7 @@ class Mesh(Observable):
         elif criteria == "angular":
             # only available for 2d elements
             if groupElem.dim != 2:
-                Display.MyPrintError(
+                Terminal.MyPrintError(
                     "The angular criterion is only available for 2D elements."
                 )
                 return None  # type: ignore [return-value]
@@ -1176,7 +1178,7 @@ class Mesh(Observable):
             values_e = jacobian_e_pg.max(1) / jacobian_e_pg.min(1)
 
         else:
-            Display.MyPrintError(f"The criterion ({criteria}) is not implemented")
+            Terminal.MyPrintError(f"The criterion ({criteria}) is not implemented")
             return None  # type: ignore [return-value]
 
         return np.asarray(values_e)
@@ -1339,7 +1341,7 @@ class Mesh(Observable):
 
         if MPI_RANK == 0:
             path = folder.replace(Folder.EASYFEA_DIR, "")
-            Display.MyPrint(f"Saved mesh data in:\n{path}\n", "green")
+            Terminal.MyPrint(f"Saved mesh data in:\n{path}\n", "green")
 
         return path_mesh
 
@@ -1412,7 +1414,7 @@ def Calc_projector(oldMesh: Mesh, newMesh: Mesh) -> sp.csr_matrix:
 
     distoredMesh = np.max(np.abs(1.0 - oldMesh.Get_Quality("jacobian"))) > 1e-12
     if distoredMesh:
-        Display.MyPrintError(
+        Terminal.MyPrintError(
             "WARNING: distorted elements have been detected in the mesh.\nThey may lead to projection errors!"
         )
     detectedNodes, detectedElements_e, connect_e_n, coordo_n = (
@@ -1500,9 +1502,9 @@ def Calc_projector(oldMesh: Mesh, newMesh: Mesh) -> sp.csr_matrix:
         proj[node, :] = 0
         proj[node, oldNode] = 1
 
-    # from EasyFEA import Display
+    # from EasyFEA import Matplotlib
     # dim = oldMesh.dim
-    # ax = Display.Plot_Mesh(oldMesh)
+    # ax = Matplotlib.Plot_Mesh(oldMesh)
     # ax.scatter(*newMesh.coord[nodesSup1,:dim].T,label='sup1')
     # ax.scatter(*newMesh.coord[newCorners,:dim].T,label='corners')
     # ax.scatter(*newMesh.coord[nodesExact,:dim].T,label='exact')

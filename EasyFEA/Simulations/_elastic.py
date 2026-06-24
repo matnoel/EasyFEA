@@ -7,7 +7,7 @@ from typing import Union, Callable, Optional, TYPE_CHECKING
 import numpy as np
 
 # utilities
-from ..Utilities import Folder, Display, Tic, _types
+from ..Utilities import Folder, Terminal, Tic, _types
 
 # fem
 if TYPE_CHECKING:
@@ -312,7 +312,7 @@ class Elastic(_Simu):
             )
 
         else:
-            Display.MyPrintError(f"The result '{result}' is not implemented yet.")
+            Terminal.MyPrintError(f"The result '{result}' is not implemented yet.")
             return None  # type: ignore [return-value]
 
         # end cases ----------------------------------------------------

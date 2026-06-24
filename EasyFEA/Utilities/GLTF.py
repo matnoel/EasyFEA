@@ -24,7 +24,7 @@ from ._mpi import rank0_only
 from ..Simulations._simu import _Init_obj
 from ..Utilities.MeshIO import Surface_reconstruction
 
-from . import Folder, Display
+from . import Folder, Matplotlib, Terminal
 
 if TYPE_CHECKING:
     from ..FEM._mesh import Mesh
@@ -319,7 +319,7 @@ def Save_simu(
         list_mesh = Surface_reconstruction(mesh) if reconstructSurface else mesh
 
     if simu is None:
-        Display.MyPrintError("Must give a simulation.")
+        Terminal.MyPrintError("Must give a simulation.")
         return
     Niter = simu.Niter
     N = np.min([Niter, N])
@@ -460,7 +460,7 @@ def Save_mesh(
         else:
             vMin, vMax = np.min(list_nodesValues), np.max(list_nodesValues)
 
-        Display._Save_colorbar(
+        Matplotlib._Save_colorbar(
             vMin=vMin,
             vMax=vMax,
             folder=folder,
@@ -556,7 +556,7 @@ def Save_mesh(
 
         # get colors
         if Nvalues > 0:
-            colors = Display._Get_colors_for_values(
+            colors = Matplotlib._Get_colors_for_values(
                 list_nodesValues[i], vMax=vMax, vMin=vMin, cmap=cmap
             )
             data_colors = Data(

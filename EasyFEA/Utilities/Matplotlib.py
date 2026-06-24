@@ -6,15 +6,14 @@
 """Module containing functions used to display simulations and meshes with matplotlib (https://matplotlib.org/)."""
 
 from __future__ import annotations
-import platform
 from typing import Union, Callable, Optional, TYPE_CHECKING, Any
 import numpy as np
-from enum import Enum
 import re
 
 # utilities
 from . import Folder, Tic, _types
-from ._mpi import rank0_only, MPI_COMM
+from ._mpi import rank0_only
+from .Terminal import MyPrint, MyPrintError
 
 # simulations
 from ..Simulations._simu import _Init_obj, _Get_values
@@ -263,14 +262,14 @@ def Plot(
     --------
     Von Mises stress in MPa (elastic simulation):
 
-    >>> from EasyFEA import Display
-    >>> Display.Plot(simu, "Svm", coef=1e-6, colorbarLabel="σ_vm [MPa]")
-    >>> Display.plt.show()
+    >>> from EasyFEA import Matplotlib
+    >>> Matplotlib.Plot(simu, "Svm", coef=1e-6, colorbarLabel="σ_vm [MPa]")
+    >>> Matplotlib.plt.show()
 
     Mesh only (no scalar field):
 
-    >>> Display.Plot(mesh, color="cyan", plotMesh=True)
-    >>> Display.plt.show()
+    >>> Matplotlib.Plot(mesh, color="cyan", plotMesh=True)
+    >>> Matplotlib.plt.show()
     """
 
     tic = Tic()
@@ -422,7 +421,7 @@ def Plot(
     elif title != "":
         ax.set_title(title)
 
-    tic.Tac("Display", "Plot")
+    tic.Tac("Matplotlib", "Plot")
 
     # If the folder has been filled in, save the figure.
     if folder != "":
@@ -550,12 +549,12 @@ def Plot_Mesh(
     Undeformed mesh:
 
     >>> import matplotlib.pyplot as plt
-    >>> Display.Plot_Mesh(simu)
+    >>> Matplotlib.Plot_Mesh(simu)
     >>> plt.show()
 
     Deformed mesh, semi-transparent faces:
 
-    >>> Display.Plot_Mesh(simu, deformFactor=50, facecolors="white", alpha=0.5)
+    >>> Matplotlib.Plot_Mesh(simu, deformFactor=50, facecolors="white", alpha=0.5)
     >>> plt.show()
     """
 
@@ -615,7 +614,7 @@ def Plot_Mesh(
             ax.autoscale()
             ax.axis("equal")
 
-    tic.Tac("Display", "Plot_Mesh")
+    tic.Tac("Matplotlib", "Plot_Mesh")
 
     if folder != "":
         Save_fig(folder, "mesh")
@@ -711,7 +710,7 @@ def Plot_Nodes(
             [ax.text(*coord[node].T, str(node), c=color) for node in nodes]  # type: ignore [call-arg]
         _Axis_equal_3D(ax, coord)
 
-    tic.Tac("Display", "Plot_Nodes")
+    tic.Tac("Matplotlib", "Plot_Nodes")
 
     return ax
 
@@ -817,7 +816,7 @@ def Plot_Elements(
                 for element in elements
             ]
 
-    tic.Tac("Display", "Plot_Elements")
+    tic.Tac("Matplotlib", "Plot_Elements")
 
     if plotDim < 3:
         ax.axis("equal")
@@ -845,13 +844,13 @@ def Plot_BoundaryConditions(simu, ax: Optional[Axes] = None) -> Axes:
     Examples
     --------
     >>> import matplotlib.pyplot as plt
-    >>> Display.Plot_BoundaryConditions(simu)
+    >>> Matplotlib.Plot_BoundaryConditions(simu)
     >>> plt.show()
 
     Combined with mesh overlay:
 
-    >>> ax = Display.Plot_Mesh(simu)
-    >>> Display.Plot_BoundaryConditions(simu, ax=ax)
+    >>> ax = Matplotlib.Plot_Mesh(simu)
+    >>> Matplotlib.Plot_BoundaryConditions(simu, ax=ax)
     >>> plt.show()
     """
 
@@ -940,7 +939,7 @@ def Plot_BoundaryConditions(simu, ax: Optional[Axes] = None) -> Axes:
 
     ax.legend()
 
-    tic.Tac("Display", "Plot_BoundaryConditions")
+    tic.Tac("Matplotlib", "Plot_BoundaryConditions")
 
     return ax
 
@@ -1070,7 +1069,7 @@ def Plot_Tags(
             ax.autoscale()
             ax.axis("equal")
 
-    tic.Tac("Display", "Plot_Tags")
+    tic.Tac("Matplotlib", "Plot_Tags")
 
     if folder != "":
         Save_fig(folder, "geom")
@@ -1415,7 +1414,7 @@ def Movie_func(
 
             writer.grab_frame()
 
-            time = tic.Tac("Display", "Movie_func", False)
+            time = tic.Tac("Matplotlib", "Movie_func", False)
 
             iteration = i + 1
             rmTime = Tic.Get_Remaining_Time(iteration, N, time)
@@ -1467,7 +1466,7 @@ def Save_fig(
 
     plt.savefig(path, dpi=dpi, transparent=transparent, bbox_inches="tight")
 
-    tic.Tac("Display", "Save figure")
+    tic.Tac("Matplotlib", "Save figure")
 
 
 def _Get_list_surfaces(mesh, dimElem: int) -> list[list[int]]:
@@ -1675,95 +1674,3 @@ def _Save_colorbar(
         pad_inches=0.1,
     )
     plt.close()
-
-
-# ----------------------------------------------
-# Print in terminal
-# ----------------------------------------------
-
-
-class __Colors(str, Enum):
-    blue = "\033[34m"
-    cyan = "\033[36m"
-    white = "\033[37m"
-    green = "\033[32m"
-    black = "\033[30m"
-    red = "\033[31m"
-    yellow = "\033[33m"
-    magenta = "\033[35m"
-
-
-class __Sytles(str, Enum):
-    BOLD = "\033[1m"
-    ITALIC = "\033[3m"
-    UNDERLINE = "\033[4m"
-    RESET = "\33[0m"
-
-
-@rank0_only
-def MyPrint(
-    text: str,
-    color="cyan",
-    bold=False,
-    italic=False,
-    underLine=False,
-    end: str = "",
-) -> str:
-    dct = dict(map(lambda item: (item.name, item.value), __Colors))
-
-    if color not in dct:
-        return MyPrint(f"Color must be in {dct.keys()}", "red")
-
-    else:
-        formatedText = ""
-
-        if bold:
-            formatedText += __Sytles.BOLD
-        if italic:
-            formatedText += __Sytles.ITALIC
-        if underLine:
-            formatedText += __Sytles.UNDERLINE
-
-        formatedText += dct[color] + str(text)
-
-        formatedText += __Sytles.RESET
-
-        if end == "\r" and MPI_COMM is not None:
-            end = "\n"
-
-        print(formatedText, end=end)
-        return formatedText
-
-
-def MyPrintError(text: str) -> str:
-    return MyPrint(text, "red")
-
-
-def Section(text: str, verbosity=True) -> str:
-    """Creates a new section in the terminal."""
-    edges = "======================="
-
-    lengthText = len(text)
-
-    lengthTot = 45
-
-    edges = "=" * int((lengthTot - lengthText) / 2)
-
-    section = f"\n\n{edges} {text} {edges}\n"
-
-    if verbosity:
-        MyPrint(section)
-
-    return section
-
-
-def Clear() -> None:
-    """Clears the terminal."""
-    from .. import BUILDING_GALLERY
-
-    if not BUILDING_GALLERY:
-        syst = platform.system()
-        if syst in ["Linux", "Darwin"]:
-            Folder.os.system("clear")
-        elif syst == "Windows":
-            Folder.os.system("cls")

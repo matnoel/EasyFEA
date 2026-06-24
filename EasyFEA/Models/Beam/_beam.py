@@ -21,7 +21,7 @@ from ... import Models, Simulations
 
 # materials
 from .._utils import _IModel, ModelType
-from ...Utilities import Display, _params, _types
+from ...Utilities import _params, _types
 
 # Linear-order 2-D element types. The Saint-Venant Poisson solution is cubic
 # for typical sections, so these only achieve O(h²) — _shear_kappa warns once.

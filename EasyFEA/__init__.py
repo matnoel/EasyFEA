@@ -6,7 +6,18 @@
 BUILDING_GALLERY = False
 
 # utilities
-from .Utilities import Display, Folder, Paraview, PyVista, Vizir, MeshIO, Tic, GLTF, USD
+from .Utilities import (
+    Matplotlib,
+    Terminal,
+    Folder,
+    Paraview,
+    PyVista,
+    Vizir,
+    MeshIO,
+    Tic,
+    GLTF,
+    USD,
+)
 
 # fem
 from .FEM import Mesher, ElemType, Mesh, MatrixType

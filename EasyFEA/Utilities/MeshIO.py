@@ -12,7 +12,7 @@ from typing import Any, Optional, Union
 import numpy as np
 from enum import Enum
 
-from . import Folder, Display, _types
+from . import Folder, Terminal, _types
 
 from ..FEM._mesh import Mesh
 from ..FEM._utils import ElemType
@@ -499,7 +499,7 @@ def _Meshio_to_EasyFEA(meshioMesh: meshio.Mesh) -> Mesh:
 
     mesh = Mesh(dict_groupElem)
 
-    Display.MyPrint("Successfully imported the mesh in EasyFEA.")
+    Terminal.MyPrint("Successfully imported the mesh in EasyFEA.")
     print(mesh)
 
     # set tags
@@ -607,7 +607,7 @@ def EasyFEA_to_Medit(
     extension = "meshb" if useBinary else "mesh"
     filename = Folder.Join(folder, f"{name}.{extension}", mkdir=True)
 
-    Display.MyPrint(f"\nCreation of: {filename}\n", "green")
+    Terminal.MyPrint(f"\nCreation of: {filename}\n", "green")
     meshio.medit.write(filename, meshioMesh)
 
     return filename
@@ -637,7 +637,7 @@ def Medit_to_EasyFEA(meditMesh: str) -> Mesh:
     # Please note that your python's meshio must come from https://github.com/matnoel/meshio/tree/medit_higher_order_elements
 
     if len(meshioMesh.cells) == 0:
-        Display.MyPrintError(
+        Terminal.MyPrintError(
             f"The medit mesh:\n {meditMesh}\n does not contain any elements!"
         )
         return None  # type: ignore [return-value]
@@ -686,7 +686,7 @@ def EasyFEA_to_Gmsh(mesh: Mesh, folder: str, name: str, useBinary=False) -> str:
 
     filename = Folder.Join(folder, f"{name}.msh", mkdir=True)
 
-    Display.MyPrint(f"\nCreation of: {filename}", "green")
+    Terminal.MyPrint(f"\nCreation of: {filename}", "green")
 
     meshio.gmsh.write(filename, meshioMesh, "2.2", useBinary)
     # Error with 4.1
@@ -713,7 +713,7 @@ def Gmsh_to_EasyFEA(gmshMesh: str) -> Mesh:
     meshioMesh: meshio.Mesh = meshio.gmsh.read(gmshMesh)
 
     if len(meshioMesh.cells) == 0:
-        Display.MyPrintError(
+        Terminal.MyPrintError(
             f"The gmsh mesh:\n {gmshMesh}\n does not contain any elements!"
         )
         return None  # type: ignore [return-value]

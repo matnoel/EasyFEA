@@ -293,15 +293,15 @@ def _Solve_Axb(
         # get petsc4py options
         kspType, pcType, solverType = simu._Solver_Get_PETSc4Py_Options(problemType)
 
-        # from ..Utilities import Display
+        # from ..Utilities import Matplotlib
         # # print(f"rank {MPI_RANK}: orphanNodes = {mesh.orphanNodes}")
-        # ax = Display.Init_Axes(2)
+        # ax = Matplotlib.Init_Axes(2)
         # ax.grid()
         # # A = A[dofs, :]
         # ax.spy(A)
         # ax.set_title(f"rank {MPI_RANK}")
         # print(f"rank {MPI_RANK}: b = \n{b.toarray()}")
-        # Display.plt.show()
+        # Matplotlib.plt.show()
 
         if MPI_SIZE > 1:
             if ownedDofs is None:

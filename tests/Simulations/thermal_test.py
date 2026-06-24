@@ -5,7 +5,7 @@
 
 import matplotlib.pyplot as plt
 
-from EasyFEA import Display, Models, Simulations, ElemType
+from EasyFEA import Matplotlib, Models, Simulations, ElemType
 from EasyFEA.Geoms import Domain, Circle, Point
 
 
@@ -42,7 +42,7 @@ class TestThermal:
             simu.Solve()
             simu.Save_Iter()
 
-            ax = Display.Plot(simu, "thermal", nodeValues=True, plotMesh=True)
+            ax = Matplotlib.Plot(simu, "thermal", nodeValues=True, plotMesh=True)
             # plt.pause(1e-12)
             plt.close(ax.figure)
 

@@ -5,7 +5,7 @@
 
 import matplotlib.pyplot as plt
 
-from EasyFEA import Display, Models, Simulations, SolverType, ElemType
+from EasyFEA import Matplotlib, Models, Simulations, SolverType, ElemType
 from EasyFEA.Geoms import Domain, Circle, Point
 
 
@@ -52,7 +52,7 @@ class TestElastic:
             simu.Save_Iter()
 
             # static
-            ax = Display.Plot(simu, "ux", plotMesh=True, nodeValues=True)
+            ax = Matplotlib.Plot(simu, "ux", plotMesh=True, nodeValues=True)
             # plt.pause(1e-12)
             plt.close(ax.figure)
 

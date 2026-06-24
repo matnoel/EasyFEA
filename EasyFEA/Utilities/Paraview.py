@@ -9,7 +9,7 @@ import numpy as np
 from typing import TYPE_CHECKING
 
 # utilities
-from . import Display, Folder, Tic
+from . import Matplotlib, Terminal, Folder, Tic
 from .MeshIO import DICT_GMSH_TO_VTK_INDEXES, DICT_ELEMTYPE_TO_VTK
 from ._mpi import MPI_SIZE, MPI_RANK, MPI_COMM
 
@@ -50,7 +50,7 @@ def Save_simu(
     """
     print("\n")
 
-    simu = Display._Init_obj(simu)[0]  # type: ignore
+    simu = Matplotlib._Init_obj(simu)[0]  # type: ignore
 
     if MPI_SIZE > 1 and simu.isGathered:
         raise Exception(
@@ -93,7 +93,7 @@ def Save_simu(
     ]
 
     if len(nodeFields) == 0 and len(elementFields) == 0:
-        Display.MyPrintError(
+        Terminal.MyPrintError(
             "The simulation has no solution fields to display in paraview."
         )
 
@@ -132,7 +132,7 @@ def Save_simu(
         rmTime = Tic.Get_Remaining_Time(iteration, N, times[-1])
 
         iteration = str(iteration).zfill(len(str(N)))
-        Display.MyPrint(f"Generate paraview {iteration}/{N} {rmTime}     ", end="\r")
+        Terminal.MyPrint(f"Generate paraview {iteration}/{N} {rmTime}     ", end="\r")
 
     print("\n")
 
@@ -195,7 +195,7 @@ def _Save_mesh(
         rmTime = Tic.Get_Remaining_Time(iteration, N, times[-1])
 
         iteration = str(iteration).zfill(len(str(N)))
-        Display.MyPrint(f"Generate paraview {iteration}/{N} {rmTime}     ", end="\r")
+        Terminal.MyPrint(f"Generate paraview {iteration}/{N} {rmTime}     ", end="\r")
 
     print("\n")
 

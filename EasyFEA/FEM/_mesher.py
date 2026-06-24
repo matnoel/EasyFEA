@@ -15,7 +15,7 @@ from typing import Union, Optional, Iterable, Collection, TYPE_CHECKING
 from functools import singledispatchmethod
 
 # utilities
-from ..Utilities import Display, Folder, Tic, _types
+from ..Utilities import Matplotlib, Terminal, Folder, Tic, _types
 from ..Utilities._mpi import CAN_USE_MPI, MPI_COMM, MPI_SIZE, MPI_RANK
 
 # geom
@@ -85,7 +85,7 @@ class Mesher:
         self._Init_gmsh()
 
         if verbosity:
-            Display.Section("Init GMSH interface")
+            Terminal.Section("Init GMSH interface")
 
     def __CheckType(self, dim: int, elemType: ElemType) -> None:
         """Checks that the element type is available."""
@@ -899,7 +899,7 @@ class Mesher:
         # specify whether contour surfaces can be organized
         canBeOrganised = len(contour1.geoms) == 4
         if not canBeOrganised:
-            Display.MyPrintError(
+            Terminal.MyPrintError(
                 "Caution! We recommend handling surfaces with 3 or 4 corners."
             )
         # specify if it is necessary to recombine bonding surfaces
@@ -1056,7 +1056,7 @@ class Mesher:
         if elemType is None:
             elemType = ElemType.TRI3 if dim == 2 else ElemType.TETRA4
         elif elemType in __doesNotWork:
-            from ..Utilities.Display import MyPrintError
+            from ..Utilities.Terminal import MyPrintError
 
             MyPrintError(
                 f"It is not possible to mesh an imported part with the following elements: {__doesNotWork}"
@@ -2403,10 +2403,10 @@ class Mesher:
 
         self._Init_gmsh()
 
-        @Display.requires_matplotlib
+        @Matplotlib.requires_matplotlib
         def getColor(c: str):
             """transform matplotlib color to rgb"""
-            rgb = np.asarray(Display.colors.to_rgb(edgeColor)) * 255  # type: ignore
+            rgb = np.asarray(Matplotlib.colors.to_rgb(edgeColor)) * 255  # type: ignore
             rgb = np.asarray(rgb, dtype=int)
             return rgb
 

@@ -48,7 +48,7 @@ requires_mpi = Create_requires_decorator("mpi4py")
 def rank0_only(func):
     """Decorator: only rank 0 executes the function. Non-root ranks return `None`.
 
-    Use on file-output and visualization functions (Display, GLTF, USD, Vizir)
+    Use on file-output and visualization functions (Matplotlib, GLTF, USD, Vizir)
     to prevent non-root MPI ranks from writing files or rendering plots.
     """
 
