@@ -2,6 +2,37 @@
 
 This document describes the changes made to the project.
 
+## 3.0.0 (June 24, 2026):
+
+**Breaking changes:**
+
+- Split the `Display` module into two focused modules, with no backward-compatibility shim (issue #46). Update `from EasyFEA import Display` to `from EasyFEA import Matplotlib, Terminal` and rename the calls accordingly.
+    - `Matplotlib` (renamed from `Display`): all matplotlib plotting — `Plot`, `Plot_Mesh`, `Plot_BoundaryConditions`, `Plot_Tags`, `Plot_Energy`, `Plot_Iter_Summary`, the `Movie_*` functions, `Save_fig`, `Init_Axes`, the matplotlib re-exports, and the `requires_matplotlib` guard (e.g. `Display.Plot` becomes `Matplotlib.Plot`).
+    - `Terminal` (new): console helpers `MyPrint`, `MyPrintError`, `Section`, and `Clear` (e.g. `Display.Clear` becomes `Terminal.Clear`).
+
+**Performance:**
+
+- Sped up FEM operator assembly, cutting the cardiac MonoVentricular matrix-assembly time by ~41% with results equivalent to within 1e-13; all changes are element-agnostic.
+    - `Operators/NonLinear.py` and `Operators/Bilinear.py`: fused the einsum contractions (collapsing the Gauss-point sum and dropping the large intermediates); the geometric tangent now exploits the block structure `Sig = I_dim (x) sig` (textbook `Ksigma = g (x) I_dim`), removing the dense 9x9 `Sig` build and the wide contraction.
+    - `Models/HyperElastic/_laws.py` (HolzapfelOgden): common-subexpression elimination of the isotropic/anisotropic terms, dropped the identically-zero `dWdI{4,6,8} * d2I{4,6,8}dC` contributions, and fibers are normalized once in the constructor.
+    - `Models/HyperElastic/_state.py`: the state no longer re-normalizes directions (now pre-normalized by the material), and `__Build_De` is built loop-free.
+    - Added the `Normalize(array, axis=-1)` free function to `EasyFEA.FEM`.
+
+**Examples:**
+
+- Migrated every example (`Beam`, `CardiacElastoDynamics`, `DIC`, `Hyperelasticity`, `LinearizedElasticity`, `MachineLearning`, `Meshes`, `PhaseField`, `Thermal`, `WeakForms`, `HelloWorld`) to the new `Matplotlib` / `Terminal` API (issue #46).
+
+**Documentation:**
+
+- Updated the README, the beginner's guide, and the how-to / API pages for the `Matplotlib` / `Terminal` split.
+- Refreshed the "Create a custom simulation" guide for the multi-element-group `Construct_local_matrix_system` API (now returning `{groupElem: (K_e, C_e, M_e, F_e)}` over `mesh.Get_list_groupElem()`, with the `Get_*` integration helpers accessed on `groupElem`), added an "Extend an existing simulation" section based on the `MonoVentricular` example, and cross-linked the FEM `Operators` catalogue.
+
+**Other:**
+
+- Updated the `zorder` and `alpha` arguments in the matplotlib plotting functions.
+
+**Full Changelog:** https://github.com/matnoel/EasyFEA/compare/v2.0.0...v3.0.0
+
 ## 2.0.0 (June 23, 2026):
 
 Meshes can now contain **several element groups of the same (main) dimension**, so mixed-element meshes are supported end-to-end — for example a contour meshed with `Mesh_2D([], ElemType.QUAD4)` in `https://easyfea.readthedocs.io/en/stable/examples/Meshes/Mesh2_2D.html` that gmsh fills with `QUAD4 + TRI3` (issue #44).
