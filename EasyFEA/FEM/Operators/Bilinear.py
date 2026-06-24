@@ -18,6 +18,10 @@ if TYPE_CHECKING:
     from ...Models.Beam._beam import BeamStructure
 
 
+def einsum(*args):
+    return np.asarray(np.einsum(*args, optimize=True))
+
+
 def GradUGradV(
     groupElem: "_GroupElem",
     coef: Union[_types.Number, FeArray.FeArrayALike] = 1.0,
@@ -32,7 +36,7 @@ def GradUGradV(
     dN_e_pg = groupElem.Get_dN_e_pg(matrixType)
     Ne, nPg = dN_e_pg.shape[:2]
     coef = FeArray.broadcast(coef, Ne, nPg)
-    return (coef * mat_e_pg @ dN_e_pg).integrate()
+    return einsum("epij,epjk->eik", coef * mat_e_pg, dN_e_pg)
 
 
 def UV(
@@ -72,7 +76,7 @@ def LinearizedElasticity(
     B_e_pg = groupElem.Get_B_e_pg(matrixType)
     Ne, nPg = B_e_pg.shape[:2]
     C = FeArray.broadcast(C, Ne, nPg, tensor_ndim=2)
-    return (leftDispPart_e_pg @ C @ B_e_pg).integrate()
+    return einsum("epij,epjk->eik", leftDispPart_e_pg @ C, B_e_pg)
 
 
 def MassAlongNormal(
@@ -109,7 +113,7 @@ def MassAlongNormal(
 
     Ne, nPg = wJ_e_pg.shape
     coef = FeArray.broadcast(coef, Ne, nPg)
-    return (coef * wJ_e_pg * N_pg.T @ nn_e_pg @ N_pg).integrate()
+    return einsum("ep,opji,epjk,opkl->eil", coef * wJ_e_pg, N_pg, nn_e_pg, N_pg)
 
 
 def BeamBending(
@@ -138,7 +142,7 @@ def BeamBending(
         for r in shear_rows:
             D_e_pg[:, :, r, r] = 0.0
 
-    return (wJ_e_pg * B_e_pg.T @ D_e_pg @ B_e_pg).integrate()
+    return einsum("ep,epji,epjk,epkl->eil", wJ_e_pg, B_e_pg, D_e_pg, B_e_pg)
 
 
 def BeamShear(
@@ -171,7 +175,7 @@ def BeamShear(
     for r in range(D_e_pg.shape[-1]):
         if r not in shear_rows:
             D_e_pg[:, :, r, r] = 0.0
-    return (wJ_e_pg * B_e_pg.T @ D_e_pg @ B_e_pg).integrate()
+    return einsum("ep,epji,epjk,epkl->eil", wJ_e_pg, B_e_pg, D_e_pg, B_e_pg)
 
 
 def BeamStiffness(
@@ -197,7 +201,7 @@ def BeamStiffness(
     wJ_e_pg = groupElem.Get_weightedJacobian_e_pg(matrixType)
     B_e_pg = groupElem.Get_beam_B_e_pg(beamStructure)
     D_e_pg = beamStructure.Calc_D_e_pg(groupElem, matrixType)
-    return (wJ_e_pg * B_e_pg.T @ D_e_pg @ B_e_pg).integrate()
+    return einsum("ep,epji,epjk,epkl->eil", wJ_e_pg, B_e_pg, D_e_pg, B_e_pg)
 
 
 def BeamMass(
@@ -219,7 +223,7 @@ def BeamMass(
     M_e_pg = beamStructure.Calc_M_e_pg(groupElem)
     Ne, nPg = wJ_e_pg.shape
     coef = FeArray.broadcast(coef, Ne, nPg)
-    return (coef * wJ_e_pg * N_e_pg.T @ M_e_pg @ N_e_pg).integrate()
+    return einsum("ep,epji,epjk,epkl->eil", coef * wJ_e_pg, N_e_pg, M_e_pg, N_e_pg)
 
 
 def GradU_A_GradV(
@@ -241,4 +245,5 @@ def GradU_A_GradV(
     Ne, nPg = dN_e_pg.shape[:2]
     A = FeArray.broadcast(A, Ne, nPg, tensor_ndim=2)
     coef = FeArray.broadcast(coef, Ne, nPg)
-    return (coef * diffusePart_e_pg @ A @ dN_e_pg).integrate()
+    # return (coef * diffusePart_e_pg @ A @ dN_e_pg).integrate()
+    return einsum("epij,epjk->eik", coef * diffusePart_e_pg, A @ dN_e_pg)

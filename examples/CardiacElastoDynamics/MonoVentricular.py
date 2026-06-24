@@ -9,7 +9,7 @@ MonoVentricular
 
 Passive + active hyperelastic simulation of an ellipsoidal left-ventricle model.
 
-Combines a ``Holzapfel-Ogden`` orthotropic law (fiber + sheet directions), an ``active stress`` along the fiber direction, and a ``follower pressure`` on the endocardial surface. Time integration uses the midpoint hyperbolic scheme.
+Combines a ``Holzapfel-Ogden`` orthotropic law (fiber + sheet directions), an ``active stress`` along the fiber direction, and a ``following pressure`` on the endocardial surface. Time integration uses the midpoint hyperbolic scheme.
 
 Reproduces *Benchmark 1: monoventricular mechanics* (§3) of the cardiac elastodynamics benchmark published in Comput. Methods Appl. Mech. Engrg.: https://www.sciencedirect.com/science/article/pii/S0045782524007394
 
@@ -22,7 +22,16 @@ from enum import Enum
 
 import numpy as np
 
-from EasyFEA import Terminal, Matplotlib, Folder, PyVista, MatrixType, Models, Simulations, AlgoType
+from EasyFEA import (
+    Terminal,
+    Matplotlib,
+    Folder,
+    PyVista,
+    MatrixType,
+    Models,
+    Simulations,
+    AlgoType,
+)
 from EasyFEA.FEM import Operators
 from EasyFEA.Utilities import _params
 
@@ -55,7 +64,8 @@ class CardiacElastoDynamics(Simulations.HyperElastic):
 
         for groupElem in self.mesh.Get_list_groupElem(self.dim - 1):
 
-            # Following pressure (operator returns slot-ready values)
+            # Following pressure — tracks the deformed normal, so it depends on
+            # the current iterate / pressure and is rebuilt every Newton step.
             tangent_e, residual_e = Operators.NonLinear.FollowingPressure(
                 groupElem,
                 displacement,

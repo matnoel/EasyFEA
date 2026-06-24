@@ -26,13 +26,29 @@ if TYPE_CHECKING:
 # same machinery regardless of which stress drives them.
 
 
+def einsum(*args):
+    return np.asarray(np.einsum(*args, optimize=True))
+
+
+_BLOCK_GRAD_B_ATTR = "_block_grad_B_cache"
+
+
 def __block_grad_B(
     state: "HyperElasticState",
 ) -> tuple["FeArray", "FeArray"]:
     """Block gradient operator ``grad`` and ``B = De(u)·grad``.
 
     ``grad`` maps nodal dofs (laid out ``xi,...,xn,yi,...,yn,...``) to the flat displacement gradient; ``B`` is the nonlinear (Green-Lagrange) strain- displacement operator. Shared by :func:`SecondPiolaKirchhoffStressTensor` and :func:`KelvinVoigtDamping`.
+
+    Within one assembly the same ``state`` is handed to both operators, so the
+    result is memoized **on the state object** (not in any module-level
+    container): the cache lives and dies with that transient state, which both
+    avoids rebuilding the identical ``grad``/``B`` twice and cannot accumulate.
     """
+    cached = getattr(state, _BLOCK_GRAD_B_ATTR, None)
+    if cached is not None:
+        return cached
+
     groupElem = state.groupElem
     matrixType = state.matrixType
     dN_e_pg = groupElem.Get_dN_e_pg(matrixType)
@@ -50,24 +66,33 @@ def __block_grad_B(
         grad_e_pg._assemble(rows[i], cols[i], value=dN_e_pg)
 
     B_e_pg = De_e_pg @ grad_e_pg
-    return grad_e_pg, B_e_pg
+    result = (grad_e_pg, B_e_pg)
+    setattr(state, _BLOCK_GRAD_B_ATTR, result)
+    return result
 
 
-def __block_stress(stress_e_pg: "FeArray", dim: int) -> "FeArray":
-    """Geometric-tangent stress block ``block(P(stress_vec))``.
+def __geometric_tangent(
+    state: "HyperElasticState",
+    stress_e_pg: "FeArray",
+    wJ_e_pg: "FeArray",
+) -> np.ndarray:
+    r"""Geometric (initial-stress) tangent ``∫ gradᵀ · Sig · grad dΩ``.
 
-    Places the ``dim×dim`` symmetric stress (from the Kelvin-Mandel vector ``stress_e_pg``) on each of the ``dim`` diagonal blocks, so that ``∫ gradᵀ · Sig · grad`` yields the geometric (initial-stress) tangent — i.e. ``Sig = I_dim ⊗ sig``.
+    Returned in component-major (``xi,...,xn,yi,...,yn,...``) layout to match the material tangent before the shared reorder.
 
-    Built on a ``(Ne, nPg, dim, dim, dim, dim)`` view with basic-slice writes to
-    the diagonal blocks (``Sig[i,k,i,l] = sig[k,l]``), then reshaped to
-    ``(Ne, nPg, dim², dim²)`` — ~3× faster than fancy-indexed block assembly.
+    Exploits the block structure ``Sig = I_dim ⊗ sig``: with ``sig`` the ``dim×dim`` PK2 (from the Kelvin-Mandel vector) and ``dN`` the cartesian shape-function gradients, the dense ``gradᵀ·Sig·grad`` collapses to a block-diagonal Kronecker product::
+
+        g   = ∫ dNᵀ · sig · dN dΩ            (Ne, nPe, nPe)
+        Kgeo = g ⊗ I_dim                     (Ne, dim·nPe, dim·nPe)
+
+    i.e. ``Kgeo[j·nPe+a, k·nPe+b] = δ_{jk} · g[a,b]``. This avoids building the dense ``(Ne, nPg, dim², dim²)`` ``Sig`` and the ``dim²``-wide contraction.
     """
+    groupElem = state.groupElem
+    Ne, dim, nPe = groupElem.Ne, groupElem.dim, groupElem.nPe
     sig_e_pg = np.asarray(Project_vector_to_matrix(stress_e_pg))  # (Ne, nPg, dim, dim)
-    Ne, nPg = sig_e_pg.shape[:2]
-    Sig = np.zeros((Ne, nPg, dim, dim, dim, dim))
-    for i in range(dim):
-        Sig[:, :, i, :, i, :] = sig_e_pg
-    return FeArray.asfearray(Sig.reshape(Ne, nPg, dim * dim, dim * dim))
+    dN_e_pg = np.asarray(groupElem.Get_dN_e_pg(state.matrixType))  # (Ne, nPg, dim, nPe)
+    g_e = einsum("ep,epab,epac,epcd->ebd", wJ_e_pg, dN_e_pg, sig_e_pg, dN_e_pg)
+    return einsum("eab,jk->ejakb", g_e, np.eye(dim)).reshape(Ne, dim * nPe, dim * nPe)
 
 
 def __reorder(dim: int, nPe: int) -> np.ndarray:
@@ -123,16 +148,20 @@ def SecondPiolaKirchhoffStressTensor(
     dWde_e_pg = material.Compute_dWde(state)
     d2Wde_e_pg = material.Compute_d2Wde(state)
 
-    grad_e_pg, B_e_pg = __block_grad_B(state)
-    Sig_e_pg = __block_stress(dWde_e_pg, dim)
+    _, B_e_pg = __block_grad_B(state)
 
-    # linear (material) tangent + nonlinear (geometric) tangent
-    A_lin = (wJ_e_pg * B_e_pg.T @ d2Wde_e_pg @ B_e_pg).integrate()
-    A_geo = (wJ_e_pg * grad_e_pg.T @ Sig_e_pg @ grad_e_pg).integrate()
+    # linear (material) tangent + nonlinear (geometric) tangent.
+    # A single fused einsum contracts the strain indices and the Gauss-point
+    # (integration) axis in one pass — it avoids materializing the per-Gauss
+    # (Ne, nPg, ndof, ndof) intermediate that the chained `B.T @ d2W @ B` builds.
+    # Summation order differs from the matmul chain, so results match only to
+    # floating-point round-off (~1e-14 relative), not bit-for-bit.
+    A_lin = einsum("ep,epji,epjk,epkl->eil", wJ_e_pg, B_e_pg, d2Wde_e_pg, B_e_pg)
+    A_geo = __geometric_tangent(state, dWde_e_pg, wJ_e_pg)
     tangent_e = A_lin + A_geo
 
     # residual
-    residual_e = (wJ_e_pg * dWde_e_pg.T @ B_e_pg).integrate()
+    residual_e = einsum("ep,epi,epij->ej", wJ_e_pg, dWde_e_pg, B_e_pg)
 
     # reorder xi,...,xn,yi,...,yn,zi,...,zn to xi,yi,zi,...,xn,yn,zn
     reorder = __reorder(dim, nPe)
@@ -186,15 +215,17 @@ def KelvinVoigtDamping(
 
     grad_e_pg, B_e_pg = __block_grad_B(state)
     Beta_e_pg = state.Compute_Deta(velocity) @ grad_e_pg
-    Sig_e_pg = __block_stress(material.eta * state.Compute_Edot_vec(velocity), dim)
 
-    # damping matrix C = thickness · η · ∫ Bᵀ B
-    C_e = thickness * material.eta * (wJ_e_pg * B_e_pg.T @ B_e_pg).integrate()
+    # damping matrix C = thickness · η · ∫ Bᵀ B (fused einsum, see SPK above)
+    subscripts = "ep,epji,epjl->eil"
+    C_e = thickness * material.eta * einsum(subscripts, wJ_e_pg, B_e_pg, B_e_pg)
 
     # configuration tangent ∂(C·v)/∂u = geometric (∫ gradᵀ Sig grad) + material-like
     # (η ∫ Bᵀ (∂Ė/∂u)) pieces
-    A_mat = material.eta * (wJ_e_pg * B_e_pg.T @ Beta_e_pg).integrate()
-    A_geo = (wJ_e_pg * grad_e_pg.T @ Sig_e_pg @ grad_e_pg).integrate()
+    A_mat = material.eta * einsum(subscripts, wJ_e_pg, B_e_pg, Beta_e_pg)
+    A_geo = __geometric_tangent(
+        state, material.eta * state.Compute_Edot_vec(velocity), wJ_e_pg
+    )
     Kgeo_e = thickness * (A_mat + A_geo)
 
     reorder = __reorder(dim, nPe)

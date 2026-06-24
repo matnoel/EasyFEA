@@ -10,7 +10,7 @@ from typing import Union
 import numpy as np
 
 from ...FEM import MatrixType, _GroupElem
-from ...FEM._linalg import FeArray, Transpose, Det, Norm
+from ...FEM._linalg import FeArray, Transpose, Det
 from ...Utilities import _types, _params
 from ...Utilities._cache import cache_computed_values
 
@@ -328,38 +328,40 @@ class HyperElasticState:
         Ne, nPg, dim = self._GetDims()
         assert dim in [2, 3]
 
-        D_e_pg = (
-            FeArray.zeros(Ne, nPg, 3, 4) if dim == 2 else FeArray.zeros(Ne, nPg, 6, 9)
-        )
+        # Built on a plain ndarray, filled per strain row over *all* Gauss points
+        # at once (no Python `for p` loop), then wrapped as a FeArray. `Add`
+        # assigns each row's columns; the 0 placeholders are skipped (D stays 0).
+        G = np.asarray(G_e_pg)  # (Ne, nPg, 3, 3) — avoids per-entry FeArray cost
+        D_e_pg = np.zeros((Ne, nPg, 3, 4) if dim == 2 else (Ne, nPg, 6, 9))
 
-        def Add(p: int, line: int, values: list[_types.Any], coef=1.0):
+        def Add(line: int, values: list, coef=1.0):
             for column, value in enumerate(values):
-                D_e_pg[:, p, line, column] = value * coef
+                if not np.isscalar(value):  # 0 placeholder -> slot already 0
+                    D_e_pg[:, :, line, column] = value * coef
 
         cM = 2 ** (-1 / 2)
 
-        for p in range(nPg):
-            if dim == 2:
-                g00, g01 = G_e_pg[:, p, 0, 0], G_e_pg[:, p, 0, 1]
-                g10, g11 = G_e_pg[:, p, 1, 0], G_e_pg[:, p, 1, 1]
+        if dim == 2:
+            g00, g01 = (G[:, :, 0, i] for i in range(2))
+            g10, g11 = (G[:, :, 1, i] for i in range(2))
 
-                Add(p, 0, [g00, 0, g10, 0])  # xx
-                Add(p, 1, [0, g01, 0, g11])  # yy
-                Add(p, 2, [g01, g00, g11, g10], cM)  # xy
+            Add(0, [g00, 0, g10, 0])  # xx
+            Add(1, [0, g01, 0, g11])  # yy
+            Add(2, [g01, g00, g11, g10], cM)  # √2·xy
 
-            else:
-                g00, g01, g02 = (G_e_pg[:, p, 0, i] for i in range(3))
-                g10, g11, g12 = (G_e_pg[:, p, 1, i] for i in range(3))
-                g20, g21, g22 = (G_e_pg[:, p, 2, i] for i in range(3))
+        else:
+            g00, g01, g02 = (G[:, :, 0, i] for i in range(3))
+            g10, g11, g12 = (G[:, :, 1, i] for i in range(3))
+            g20, g21, g22 = (G[:, :, 2, i] for i in range(3))
 
-                Add(p, 0, [g00, 0, 0, g10, 0, 0, g20, 0, 0])  # xx
-                Add(p, 1, [0, g01, 0, 0, g11, 0, 0, g21, 0])  # yy
-                Add(p, 2, [0, 0, g02, 0, 0, g12, 0, 0, g22])  # zz
-                Add(p, 3, [0, g02, g01, 0, g12, g11, 0, g22, g21], cM)  # yz
-                Add(p, 4, [g02, 0, g00, g12, 0, g10, g22, 0, g20], cM)  # xz
-                Add(p, 5, [g01, g00, 0, g11, g10, 0, g21, g20, 0], cM)  # xy
+            Add(0, [g00, 0, 0, g10, 0, 0, g20, 0, 0])  # xx
+            Add(1, [0, g01, 0, 0, g11, 0, 0, g21, 0])  # yy
+            Add(2, [0, 0, g02, 0, 0, g12, 0, 0, g22])  # zz
+            Add(3, [0, g02, g01, 0, g12, g11, 0, g22, g21], cM)  # √2·yz
+            Add(4, [g02, 0, g00, g12, 0, g10, g22, 0, g20], cM)  # √2·xz
+            Add(5, [g01, g00, 0, g11, g10, 0, g21, g20, 0], cM)  # √2·xy
 
-        return D_e_pg
+        return FeArray.asfearray(D_e_pg)
 
     @cache_computed_values
     def Compute_De(self) -> FeArray.FeArrayALike:
@@ -656,17 +658,19 @@ class HyperElasticState:
     def _Get_normalized_components(
         self, T: _types.FloatArray
     ) -> tuple[FeArray.FeArrayALike, FeArray.FeArrayALike, FeArray.FeArrayALike]:
+        """Unpack a **unit** direction into per-Gauss components (Tx, Ty, Tz).
 
+        The direction must already be normalized: fiber/sheet directions are
+        normalized once when the material is built (see :class:`HolzapfelOgden`),
+        so there is no per-call ``T/||T||`` here — only the component split, with
+        the entries above ``dim`` zeroed.
+        """
         _params._CheckIsVector(T)
         if not isinstance(T, FeArray):
             T = FeArray.asfearray(T, True)
         T = T.astype(float)
 
-        norm = Norm(T, axis=-1)
-        nonzero = norm != 0
-        T[nonzero] /= norm[nonzero][:, None]
-
-        Tx, Ty, Tz = [T[..., i] for i in range(3)]
+        Tx, Ty, Tz = T[..., 0], T[..., 1], T[..., 2]
 
         dim = self._GetDims()[2]
         if dim == 1:

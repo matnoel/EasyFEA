@@ -10,7 +10,7 @@ import numpy as np
 from typing import Union
 
 # utilities
-from ...FEM import FeArray, TensorProd, Norm
+from ...FEM import FeArray, TensorProd, Normalize
 from ._state import HyperElasticState
 
 # others
@@ -60,10 +60,8 @@ class _HyperElastic(_IModel, ABC):
         T
             Direction tensor at every Gauss point, shape ``(Ne, nPg, 3)``. Need not be unit-norm — divided by ``|T|`` per Gauss point internally.
         """
-        # Per-Gauss-point normalisation. Norm(T) without an axis collapses to
-        # the global Frobenius norm — a scalar — which would broadcast wrong
-        # and leak NaNs into PK2; axis=-1 is the per-vector length.
-        T_hat = T / Norm(T, axis=-1)
+        # Per-Gauss-point unit normalisation (axis=-1 is the per-vector length).
+        T_hat = Normalize(T)
         # The fiber pattern doesn't move with time, so this is precomputed
         # once and only `active_stress` is updated each step.
         self.__TxT = Project_matrix_to_vector(TensorProd(T_hat, T_hat))  # (Ne, nPg, 6)
@@ -736,8 +734,8 @@ class HolzapfelOgden(_HyperElastic):
         self.Mu1 = Mu1
         self.Mu2 = Mu2
 
-        self.T1 = T1
-        self.T2 = T2
+        self.T1 = Normalize(T1)
+        self.T2 = Normalize(T2)
 
         self.__ks = ks
 
@@ -807,13 +805,25 @@ class HolzapfelOgden(_HyperElastic):
         dI8dC = hyperElasticState.Compute_dI8dC(T1, T2)
 
         # see: examples/HyperElastic/HyperElasticLaws.py
-        # TODO Optimize
+        # Common subexpressions factored once (bit-identical to inlining).
         # fmt: off
-        dWdI1 = C0*C1*np.exp(C1*(I1/I3**(1/3) - 3))/I3**(1/3) + Mu1/I3**(1/3)
-        dWdI2 = Mu2/I3**(2/3)
-        dWdI3 = -C0*C1*I1*np.exp(C1*(I1/I3**(1/3) - 3))/(3*I3**(4/3)) - I1*Mu1/(3*I3**(4/3)) - 2*I2*Mu2/(3*I3**(5/3)) + K*(1 - 1/I3)/4
-        dWdI4 = C2*C3*(2*I4 - 2)*np.exp(C3*(I4 - 1)**2)/(1 + np.exp(-ks*(I4 - 1))) + C2*ks*(np.exp(C3*(I4 - 1)**2) - 1)*np.exp(-ks*(I4 - 1))/(1 + np.exp(-ks*(I4 - 1)))**2
-        dWdI6 = C4*C5*(2*I6 - 2)*np.exp(C5*(I6 - 1)**2)/(1 + np.exp(-ks*(I6 - 1))) + C4*ks*(np.exp(C5*(I6 - 1)**2) - 1)*np.exp(-ks*(I6 - 1))/(1 + np.exp(-ks*(I6 - 1)))**2
+        I3_13 = I3**(1/3)
+        I3_23 = I3**(2/3)
+        I3_43 = I3**(4/3)
+        I3_53 = I3**(5/3)
+        eC1 = np.exp(C1*(I1/I3_13 - 3))
+        e4 = np.exp(C3*(I4 - 1)**2)
+        em4 = np.exp(-ks*(I4 - 1))
+        s4 = 1 + em4
+        e6 = np.exp(C5*(I6 - 1)**2)
+        em6 = np.exp(-ks*(I6 - 1))
+        s6 = 1 + em6
+
+        dWdI1 = C0*C1*eC1/I3_13 + Mu1/I3_13
+        dWdI2 = Mu2/I3_23
+        dWdI3 = -C0*C1*I1*eC1/(3*I3_43) - I1*Mu1/(3*I3_43) - 2*I2*Mu2/(3*I3_53) + K*(1 - 1/I3)/4
+        dWdI4 = C2*C3*(2*I4 - 2)*e4/s4 + C2*ks*(e4 - 1)*em4/s4**2
+        dWdI6 = C4*C5*(2*I6 - 2)*e6/s6 + C4*ks*(e6 - 1)*em6/s6**2
         dWdI8 = 2*C6*C7*I8*np.exp(C7*I8**2)
         # fmt: on
 
@@ -861,38 +871,50 @@ class HolzapfelOgden(_HyperElastic):
         d2I1dC = hyperElasticState.Compute_d2I1dC()
         d2I2dC = hyperElasticState.Compute_d2I2dC()
         d2I3dC = hyperElasticState.Compute_d2I3dC()
-        d2I4dC = hyperElasticState.Compute_d2I4dC()
-        d2I6dC = hyperElasticState.Compute_d2I6dC()
-        d2I8dC = hyperElasticState.Compute_d2I8dC()
+        # d2I4dC = d2I6dC = d2I8dC = 0 (I4/I6/I8 are linear in C), so their
+        # `dWdI* * d2I*dC` contributions below are identically zero and are
+        # dropped (each would otherwise broadcast/allocate a full (Ne,nPg,6,6)
+        # zero array). Result is bit-identical.
 
-        # see: examples/HyperElastic/HyperElasticLaws.py
-        # TODO Optimize
+        # Common subexpressions, factored once (bit-identical to inlining): the
+        # isotropic exp/powers of I3 and the per-fiber sigmoid blocks. Only the
+        # second-derivative coefficients are needed here (the dWdI4/dWdI6/dWdI8
+        # first-derivative terms drop out with the zero d2I4/d2I6/d2I8dC above).
         # fmt: off
-        dWdI1 = C0*C1*np.exp(C1*(I1/I3**(1/3) - 3))/I3**(1/3) + Mu1/I3**(1/3)
-        d2WdI1dI1 = C0*C1**2*np.exp(C1*(I1/I3**(1/3) - 3))/I3**(2/3)
-        d2WdI1dI3 = -C0*C1**2*I1*np.exp(C1*(I1/I3**(1/3) - 3))/(3*I3**(5/3)) - C0*C1*np.exp(C1*(I1/I3**(1/3) - 3))/(3*I3**(4/3)) - Mu1/(3*I3**(4/3))
-        dWdI2 = Mu2/I3**(2/3)
-        d2WdI2dI3 = -2*Mu2/(3*I3**(5/3))
-        dWdI3 = -C0*C1*I1*np.exp(C1*(I1/I3**(1/3) - 3))/(3*I3**(4/3)) - I1*Mu1/(3*I3**(4/3)) - 2*I2*Mu2/(3*I3**(5/3)) + K*(1 - 1/I3)/4
-        d2WdI3dI1 = -C0*C1**2*I1*np.exp(C1*(I1/I3**(1/3) - 3))/(3*I3**(5/3)) - C0*C1*np.exp(C1*(I1/I3**(1/3) - 3))/(3*I3**(4/3)) - Mu1/(3*I3**(4/3))
-        d2WdI3dI2 = -2*Mu2/(3*I3**(5/3))
-        d2WdI3dI3 = C0*C1**2*I1**2*np.exp(C1*(I1/I3**(1/3) - 3))/(9*I3**(8/3)) + 4*C0*C1*I1*np.exp(C1*(I1/I3**(1/3) - 3))/(9*I3**(7/3)) + 4*I1*Mu1/(9*I3**(7/3)) + 10*I2*Mu2/(9*I3**(8/3)) + K/(4*I3**2)
-        dWdI4 = C2*C3*(2*I4 - 2)*np.exp(C3*(I4 - 1)**2)/(1 + np.exp(-ks*(I4 - 1))) + C2*ks*(np.exp(C3*(I4 - 1)**2) - 1)*np.exp(-ks*(I4 - 1))/(1 + np.exp(-ks*(I4 - 1)))**2
-        d2WdI4dI4 = C2*C3**2*(2*I4 - 2)**2*np.exp(C3*(I4 - 1)**2)/(1 + np.exp(-ks*(I4 - 1))) + 2*C2*C3*ks*(2*I4 - 2)*np.exp(C3*(I4 - 1)**2)*np.exp(-ks*(I4 - 1))/(1 + np.exp(-ks*(I4 - 1)))**2 + 2*C2*C3*np.exp(C3*(I4 - 1)**2)/(1 + np.exp(-ks*(I4 - 1))) - C2*ks**2*(np.exp(C3*(I4 - 1)**2) - 1)*np.exp(-ks*(I4 - 1))/(1 + np.exp(-ks*(I4 - 1)))**2 + 2*C2*ks**2*(np.exp(C3*(I4 - 1)**2) - 1)*np.exp(-2*ks*(I4 - 1))/(1 + np.exp(-ks*(I4 - 1)))**3
-        dWdI6 = C4*C5*(2*I6 - 2)*np.exp(C5*(I6 - 1)**2)/(1 + np.exp(-ks*(I6 - 1))) + C4*ks*(np.exp(C5*(I6 - 1)**2) - 1)*np.exp(-ks*(I6 - 1))/(1 + np.exp(-ks*(I6 - 1)))**2
-        d2WdI6dI6 = C4*C5**2*(2*I6 - 2)**2*np.exp(C5*(I6 - 1)**2)/(1 + np.exp(-ks*(I6 - 1))) + 2*C4*C5*ks*(2*I6 - 2)*np.exp(C5*(I6 - 1)**2)*np.exp(-ks*(I6 - 1))/(1 + np.exp(-ks*(I6 - 1)))**2 + 2*C4*C5*np.exp(C5*(I6 - 1)**2)/(1 + np.exp(-ks*(I6 - 1))) - C4*ks**2*(np.exp(C5*(I6 - 1)**2) - 1)*np.exp(-ks*(I6 - 1))/(1 + np.exp(-ks*(I6 - 1)))**2 + 2*C4*ks**2*(np.exp(C5*(I6 - 1)**2) - 1)*np.exp(-2*ks*(I6 - 1))/(1 + np.exp(-ks*(I6 - 1)))**3
-        dWdI8 = 2*C6*C7*I8*np.exp(C7*I8**2)
-        d2WdI8dI8 = 4*C6*C7**2*I8**2*np.exp(C7*I8**2) + 2*C6*C7*np.exp(C7*I8**2)
+        I3_23 = I3**(2/3)
+        I3_43 = I3**(4/3)
+        I3_53 = I3**(5/3)
+        I3_73 = I3**(7/3)
+        I3_83 = I3**(8/3)
+        eC1 = np.exp(C1*(I1/I3**(1/3) - 3))
+
+        I4m1 = I4 - 1
+        two_I4m2 = 2*I4 - 2
+        e4 = np.exp(C3*(I4 - 1)**2)
+        em4 = np.exp(-ks*(I4 - 1))
+        s4 = 1 + em4
+        I6m1 = I6 - 1
+        two_I6m2 = 2*I6 - 2
+        e6 = np.exp(C5*(I6 - 1)**2)
+        em6 = np.exp(-ks*(I6 - 1))
+        s6 = 1 + em6
+        eC7 = np.exp(C7*I8**2)
+
+        dWdI1 = C0*C1*eC1/I3**(1/3) + Mu1/I3**(1/3)
+        dWdI2 = Mu2/I3_23
+        dWdI3 = -C0*C1*I1*eC1/(3*I3_43) - I1*Mu1/(3*I3_43) - 2*I2*Mu2/(3*I3_53) + K*(1 - 1/I3)/4
+        d2WdI1dI1 = C0*C1**2*eC1/I3_23
+        d2WdI1dI3 = -C0*C1**2*I1*eC1/(3*I3_53) - C0*C1*eC1/(3*I3_43) - Mu1/(3*I3_43)
+        d2WdI2dI3 = -2*Mu2/(3*I3_53)
+        d2WdI3dI1 = -C0*C1**2*I1*eC1/(3*I3_53) - C0*C1*eC1/(3*I3_43) - Mu1/(3*I3_43)
+        d2WdI3dI2 = -2*Mu2/(3*I3_53)
+        d2WdI3dI3 = C0*C1**2*I1**2*eC1/(9*I3_83) + 4*C0*C1*I1*eC1/(9*I3_73) + 4*I1*Mu1/(9*I3_73) + 10*I2*Mu2/(9*I3_83) + K/(4*I3**2)
+        d2WdI4dI4 = C2*C3**2*two_I4m2**2*e4/s4 + 2*C2*C3*ks*two_I4m2*e4*em4/s4**2 + 2*C2*C3*e4/s4 - C2*ks**2*(e4 - 1)*em4/s4**2 + 2*C2*ks**2*(e4 - 1)*np.exp(-2*ks*I4m1)/s4**3
+        d2WdI6dI6 = C4*C5**2*two_I6m2**2*e6/s6 + 2*C4*C5*ks*two_I6m2*e6*em6/s6**2 + 2*C4*C5*e6/s6 - C4*ks**2*(e6 - 1)*em6/s6**2 + 2*C4*ks**2*(e6 - 1)*np.exp(-2*ks*I6m1)/s6**3
+        d2WdI8dI8 = 4*C6*C7**2*I8**2*eC7 + 2*C6*C7*eC7
         # fmt: on
 
-        d2W = 4 * (
-            dWdI1 * d2I1dC
-            + dWdI2 * d2I2dC
-            + dWdI3 * d2I3dC
-            + dWdI4 * d2I4dC
-            + dWdI6 * d2I6dC
-            + dWdI8 * d2I8dC
-        ) + 4 * (
+        d2W = 4 * (dWdI1 * d2I1dC + dWdI2 * d2I2dC + dWdI3 * d2I3dC) + 4 * (
             d2WdI1dI1 * TensorProd(dI1dC, dI1dC)
             + d2WdI1dI3 * TensorProd(dI1dC, dI3dC)
             + d2WdI2dI3 * TensorProd(dI2dC, dI3dC)

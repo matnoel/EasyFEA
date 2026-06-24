@@ -615,3 +615,29 @@ def Norm(array: FeArray.FeArrayALike, **kwargs) -> FeArray.FeArrayALike:
         res = FeArray.asfearray(res)
 
     return res
+
+
+def Normalize(array: FeArray.FeArrayALike, axis: int = -1) -> FeArray.FeArrayALike:
+    """Unit-normalize ``array`` along ``axis``.
+
+    Each slice is divided by its Euclidean length. Zero-norm slices are left
+    unchanged (no division by zero), so a zero vector stays zero. Returns a
+    ``FeArray`` when given one.
+
+    Parameters
+    ----------
+    array : FeArray.FeArrayALike
+        Values to normalize, e.g. a direction field ``(Ne, nPg, 3)``.
+    axis : int, optional
+        Axis along which the norm is taken, by default ``-1``.
+    """
+    arr = np.asarray(array)
+    norm = np.linalg.norm(arr, axis=axis, keepdims=True)
+    # leave zero-norm slices untouched (avoid 0/0): divide by 1 there
+    norm = np.where(norm == 0.0, 1.0, norm)
+    res: FeArray.FeArrayALike = arr / norm
+
+    if isinstance(array, FeArray):
+        res = FeArray.asfearray(res)
+
+    return res

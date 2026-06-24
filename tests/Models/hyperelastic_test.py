@@ -500,6 +500,7 @@ class TestHyperElastic:
                 )
 
                 T = np.array([1, 1, 0])
+                T = T.astype(float) / np.linalg.norm(T)
 
                 dI6dC = hyperElasticState.Compute_dI6dC(T)
 
@@ -566,7 +567,9 @@ class TestHyperElastic:
                 )
 
                 T1 = np.array([1, 1, 0])
+                T1 = T1.astype(float) / np.linalg.norm(T1)
                 T2 = np.array([0, 1, 0])
+                T2 = T2.astype(float) / np.linalg.norm(T2)
 
                 dI8dC = hyperElasticState.Compute_dI8dC(T1, T2)
 
