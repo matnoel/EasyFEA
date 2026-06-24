@@ -13,13 +13,13 @@ Simplified turbine mesh with data extraction in matlab.
 import matplotlib.pyplot as plt
 import numpy as np
 
-from EasyFEA import Display, Folder, Mesher, ElemType, PyVista
+from EasyFEA import Terminal, Matplotlib, Folder, Mesher, ElemType, PyVista
 from EasyFEA.Geoms import Point, Points, Contour, CircleArc, Line
 
 import scipy.io
 
 if __name__ == "__main__":
-    Display.Clear()
+    Terminal.Clear()
 
     # ----------------------------------------------
     # Contour
@@ -274,7 +274,7 @@ if __name__ == "__main__":
         vols.append((contourInf, contourSup, e / mS, elems))
         vols.append((contourInf_c, contourSup_c, e / mS, elems))
 
-    # axGeom = Display.init_Axes(3)
+    # axGeom = Matplotlib.init_Axes(3)
     # axGeom.axis('off')
     # for v, vol in enumerate(vols):
     #     color = 'blue'

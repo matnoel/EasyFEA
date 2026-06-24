@@ -10,10 +10,10 @@ Mesh12
 Meshing of a part designed by cad software.
 """
 
-from EasyFEA import Display, Folder, Mesher, ElemType, PyVista
+from EasyFEA import Terminal, Folder, Mesher, ElemType, PyVista
 
 if __name__ == "__main__":
-    Display.Clear()
+    Terminal.Clear()
 
     parts_dir = Folder.Join(Folder.Dir(n=2), "_parts")
 

@@ -11,11 +11,11 @@ Meshing a 3D domain with hole.
 """
 # sphinx_gallery_thumbnail_number = 2
 
-from EasyFEA import Display, ElemType, PyVista
+from EasyFEA import Terminal, ElemType, PyVista
 from EasyFEA.Geoms import Domain, Circle
 
 if __name__ == "__main__":
-    Display.Clear()
+    Terminal.Clear()
 
     contour = Domain((0, 0), (1, 1), 1 / 10)
     circle = Circle((1 / 2, 1 / 2), 1 / 3, 1 / 10, isFilled=False)

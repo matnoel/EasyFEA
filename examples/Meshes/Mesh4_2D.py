@@ -11,11 +11,11 @@ Meshing a 2D bracket.
 """
 # sphinx_gallery_thumbnail_number = 2
 
-from EasyFEA import Display, ElemType, PyVista
+from EasyFEA import Terminal, ElemType, PyVista
 from EasyFEA.Geoms import Point, Points
 
 if __name__ == "__main__":
-    Display.Clear()
+    Terminal.Clear()
 
     L = 120
     h = L * 0.3

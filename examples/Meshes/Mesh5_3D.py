@@ -13,11 +13,11 @@ Mesh of a 3D cracked part.
 
 import matplotlib.pyplot as plt
 
-from EasyFEA import Display, ElemType, Models, Simulations, PyVista
+from EasyFEA import Terminal, ElemType, Models, Simulations, PyVista
 from EasyFEA.Geoms import Point, Line, Points, Domain, Contour
 
 if __name__ == "__main__":
-    Display.Clear()
+    Terminal.Clear()
 
     L = 1
     openCrack = True

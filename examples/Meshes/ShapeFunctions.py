@@ -15,14 +15,14 @@ Create Lagrange finite element shape functions.
 
 import numpy as np
 import matplotlib.pyplot as plt
-from EasyFEA import Display
+from EasyFEA import Terminal, Matplotlib
 
 try:
     import sympy
 except ModuleNotFoundError:
     raise Exception("sympy must be installed!")
 
-Display.Clear()
+Terminal.Clear()
 
 # SEGMENTS
 # TRIANGLES
@@ -100,7 +100,7 @@ def Plot_Nodes(title: str, *args):
     list_x, list_y, list_z = local_coords.T
 
     if dim == 3:
-        ax = Display.Init_Axes(3, elev=16, azim=37)
+        ax = Matplotlib.Init_Axes(3, elev=16, azim=37)
         ax.set_xlabel("x")
         ax.set_ylabel("y")
         ax.set_zlabel("z")
@@ -110,7 +110,7 @@ def Plot_Nodes(title: str, *args):
         ax.scatter(list_x, list_y, list_z)
         [ax.text(list_x[i], list_y[i], list_z[i], i) for i in range(nPe)]
     else:
-        ax = Display.Init_Axes(2)
+        ax = Matplotlib.Init_Axes(2)
         ax.set_xlabel("x")
         ax.set_ylabel("y")
         ax.set_title(title)
@@ -307,7 +307,7 @@ def Do_Segments():
     # ----------------------------------------------
 
     name = "SEG2"
-    Display.Section(name)
+    Terminal.Section(name)
 
     list_x = [-1, 1]
     Plot_Nodes(name, list_x)
@@ -315,7 +315,7 @@ def Do_Segments():
     polynom = lambda x: [x, 1]
     Compute_and_Print(polynom, list_x)
 
-    Display.Section(name + " EulerBernoulli")
+    Terminal.Section(name + " EulerBernoulli")
     polynom = lambda x: [[1, x, x**2, x**3], [0, 1, 2 * x, 3 * x**2]]
     Compute_and_Print(polynom, list_x, useEulerBernoulli=True)
 
@@ -330,7 +330,7 @@ def Do_Segments():
     # ----------------------------------------------
 
     name = "SEG3"
-    Display.Section(name)
+    Terminal.Section(name)
 
     list_x = [-1, 1, 0]
     Plot_Nodes(name, list_x)
@@ -338,7 +338,7 @@ def Do_Segments():
     polynom = lambda x: [x**2, x, 1]
     Compute_and_Print(polynom, list_x)
 
-    Display.Section(name + " EulerBernoulli")
+    Terminal.Section(name + " EulerBernoulli")
     polynom = lambda x: [
         [1, x, x**2, x**3, x**4, x**5],
         [0, 1, 2 * x, 3 * x**2, 4 * x**3, 5 * x**4],
@@ -356,7 +356,7 @@ def Do_Segments():
     # ----------------------------------------------
 
     name = "SEG4"
-    Display.Section(name)
+    Terminal.Section(name)
 
     list_x = [-1, 1, -1 / 3, 1 / 3]
     Plot_Nodes(name, list_x)
@@ -364,7 +364,7 @@ def Do_Segments():
     polynom = lambda x: [x**3, x**2, x, 1]
     Compute_and_Print(polynom, list_x, useFactor=False)
 
-    Display.Section(name + " EulerBernoulli")
+    Terminal.Section(name + " EulerBernoulli")
     polynom = lambda x: [
         [1, x, x**2, x**3, x**4, x**5, x**6, x**7],
         [0, 1, 2 * x, 3 * x**2, 4 * x**3, 5 * x**4, 6 * x**5, 7 * x**6],
@@ -382,7 +382,7 @@ def Do_Segments():
     # ----------------------------------------------
 
     name = "SEG5"
-    Display.Section(name)
+    Terminal.Section(name)
 
     list_x = [-1, 1, -1 / 2, 0, 1 / 2]
     Plot_Nodes(name, list_x)
@@ -391,7 +391,7 @@ def Do_Segments():
 
     Compute_and_Print(polynom, list_x, useFactor=False)
 
-    Display.Section(name + " EulerBernoulli")
+    Terminal.Section(name + " EulerBernoulli")
     polynom = lambda x: [
         [1, x, x**2, x**3, x**4, x**5, x**6, x**7, x**8, x**9],
         [
@@ -432,7 +432,7 @@ def Do_Triangles():
     # ----------------------------------------------
 
     name = "TRI3"
-    Display.Section(name)
+    Terminal.Section(name)
 
     list_x = [0, 1, 0]
     list_y = [0, 0, 1]
@@ -458,7 +458,7 @@ def Do_Triangles():
     # ----------------------------------------------
 
     name = "TRI6"
-    Display.Section(name)
+    Terminal.Section(name)
 
     list_x = [0, 1, 0, 0.5, 0.5, 0]
     list_y = [0, 0, 1, 0, 0.5, 0.5]
@@ -484,7 +484,7 @@ def Do_Triangles():
     # ----------------------------------------------
 
     name = "TRI10"
-    Display.Section(name)
+    Terminal.Section(name)
 
     # fmt: off
     list_x = [
@@ -524,7 +524,7 @@ def Do_Triangles():
     # ----------------------------------------------
 
     name = "TRI15"
-    Display.Section(name)
+    Terminal.Section(name)
 
     # fmt: off
     list_x = [
@@ -587,7 +587,7 @@ def Do_Quadrangles():
     # ----------------------------------------------
 
     name = "QUAD4"
-    Display.Section(name)
+    Terminal.Section(name)
 
     list_x = [-1, 1, 1, -1]
     list_y = [-1, -1, 1, 1]
@@ -613,7 +613,7 @@ def Do_Quadrangles():
     # ----------------------------------------------
 
     name = "QUAD8"
-    Display.Section(name)
+    Terminal.Section(name)
 
     list_x = [-1, 1, 1, -1, 0, 1, 0, -1]
     list_y = [-1, -1, 1, 1, -1, 0, 1, 0]
@@ -639,7 +639,7 @@ def Do_Quadrangles():
     # ----------------------------------------------
 
     name = "QUAD9"
-    Display.Section(name)
+    Terminal.Section(name)
 
     list_x = [-1, 1, 1, -1, 0, 1, 0, -1, 0]
     list_y = [-1, -1, 1, 1, -1, 0, 1, 0, 0]
@@ -680,7 +680,7 @@ def Do_Tetrahedron():
     # ----------------------------------------------
 
     name = "TETRA4"
-    Display.Section(name)
+    Terminal.Section(name)
 
     list_x = [0, 1, 0, 0]
     list_y = [0, 0, 1, 0]
@@ -715,7 +715,7 @@ def Do_Tetrahedron():
     # ----------------------------------------------
 
     name = "TETRA10"
-    Display.Section(name)
+    Terminal.Section(name)
 
     list_x = [0, 1, 0, 0, 0.5, 0.5, 0, 0, 0, 0.5]
     list_y = [0, 0, 1, 0, 0, 0.5, 0.5, 0, 0.5, 0]
@@ -751,7 +751,7 @@ def Do_Hexahedron():
     # ----------------------------------------------
 
     name = "HEXA8"
-    Display.Section(name)
+    Terminal.Section(name)
 
     list_x = [-1, 1, 1, -1, -1, 1, 1, -1]
     list_y = [-1, -1, 1, 1, -1, -1, 1, 1]
@@ -780,7 +780,7 @@ def Do_Hexahedron():
     # ----------------------------------------------
 
     name = "HEXA20"
-    Display.Section(name)
+    Terminal.Section(name)
 
     # fmt: off
     list_x = [-1,1,1,-1,
@@ -844,7 +844,7 @@ def Do_Hexahedron():
     # ----------------------------------------------
 
     name = "HEXA27"
-    Display.Section(name)
+    Terminal.Section(name)
 
     # fmt: off
     list_x = [
@@ -940,7 +940,7 @@ def Do_Prism():
     # ----------------------------------------------
 
     name = "PRISM6"
-    Display.Section(name)
+    Terminal.Section(name)
 
     list_x = [0, 1, 0, 0, 1, 0]
     list_y = [0, 0, 1, 0, 0, 1]
@@ -975,7 +975,7 @@ def Do_Prism():
     # ----------------------------------------------
 
     name = "PRISM15"
-    Display.Section(name)
+    Terminal.Section(name)
 
     list_x = [0, 1, 0, 0, 1, 0, 0.5, 0, 0, 0.5, 1, 0, 0.5, 0, 0.5]
     list_y = [0, 0, 1, 0, 0, 1, 0, 0.5, 0, 0.5, 0, 1, 0, 0.5, 0.5]
@@ -1026,7 +1026,7 @@ def Do_Prism():
     # ----------------------------------------------
 
     name = "PRISM18"
-    Display.Section(name)
+    Terminal.Section(name)
 
     list_x = [0, 1, 0, 0, 1, 0, 0.5, 0, 0, 0.5, 1, 0, 0.5, 0, 0.5, 0.5, 0, 0.5]
     list_y = [0, 0, 1, 0, 0, 1, 0, 0.5, 0, 0.5, 0, 1, 0, 0.5, 0.5, 0, 0.5, 0.5]

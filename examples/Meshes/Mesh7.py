@@ -13,11 +13,11 @@ Meshing a 3D part in revolution.
 
 import numpy as np
 
-from EasyFEA import Display, ElemType, PyVista
+from EasyFEA import Terminal, ElemType, PyVista
 from EasyFEA.Geoms import Point, Points, Circle, Line
 
 if __name__ == "__main__":
-    Display.Clear()
+    Terminal.Clear()
 
     width = 1
     height = 2

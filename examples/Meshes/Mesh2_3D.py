@@ -12,11 +12,11 @@ Meshing a hydraulic dam.
 
 # sphinx_gallery_thumbnail_number = 2
 
-from EasyFEA import Display, ElemType, PyVista
+from EasyFEA import Terminal, ElemType, PyVista
 from EasyFEA.Geoms import Points
 
 if __name__ == "__main__":
-    Display.Clear()
+    Terminal.Clear()
 
     h = 180
     N = 5

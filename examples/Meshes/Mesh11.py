@@ -13,11 +13,11 @@ Meshing of a specimen for a spatially oriented tensile test.
 
 import numpy as np
 
-from EasyFEA import Display, ElemType, PyVista
+from EasyFEA import Terminal, ElemType, PyVista
 from EasyFEA.Geoms import Point, Line, CircleArc, Contour, Domain
 
 if __name__ == "__main__":
-    Display.Clear()
+    Terminal.Clear()
 
     # ----------------------------------------------
     # Configuration

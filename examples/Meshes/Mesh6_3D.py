@@ -11,11 +11,11 @@ Refined 3D mesh in zones.
 """
 # sphinx_gallery_thumbnail_number = 2
 
-from EasyFEA import Display, ElemType, PyVista
+from EasyFEA import Terminal, ElemType, PyVista
 from EasyFEA.Geoms import Circle, Domain
 
 if __name__ == "__main__":
-    Display.Clear()
+    Terminal.Clear()
 
     L = 1
     meshSize = L / 4

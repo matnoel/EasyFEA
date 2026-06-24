@@ -13,7 +13,7 @@ Meshing of a perforated plate with a structured mesh.
 
 import numpy as np
 
-from EasyFEA import Display, Mesher, ElemType, PyVista
+from EasyFEA import Terminal, Mesher, ElemType, PyVista
 from EasyFEA.Geoms import Point, Circle, Points, Line, CircleArc, Contour
 
 if __name__ == "__main__":
@@ -24,7 +24,7 @@ if __name__ == "__main__":
     else:
         elemType = ElemType.HEXA8
 
-    Display.Clear()
+    Terminal.Clear()
 
     # ----------------------------------------------
     # Geom

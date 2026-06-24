@@ -11,11 +11,11 @@ Mesh of a 2D cracked part.
 """
 # sphinx_gallery_thumbnail_number = 3
 
-from EasyFEA import Display, ElemType, Models, Simulations, PyVista
+from EasyFEA import Terminal, ElemType, Models, Simulations, PyVista
 from EasyFEA.Geoms import Point, Line, Points, Domain
 
 if __name__ == "__main__":
-    Display.Clear()
+    Terminal.Clear()
 
     L = 1
     openCrack = True
