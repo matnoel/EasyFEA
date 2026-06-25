@@ -504,6 +504,74 @@ class _GroupElem(ABC):
 
         return FeArray.asfearray(normals_e_pg)
 
+    def _Get_gap_and_normal(
+        self,
+        x_e_pg: FeArray,
+        elements: Optional[_types.IntArray] = None,
+        coord=None,
+        matrixType: MatrixType = MatrixType.mass,
+    ) -> tuple[FeArray, FeArray]:
+        """Outward normal and signed gap of integration points relative to this (1D or 2D) surface group.
+
+        For each query point, projects it onto the nearest surface sample (integration point) of this group and returns the outward unit normal there and the signed gap ``(x - closest)·n`` — positive on the outward (free) side, negative under penetration. This is the geometric kernel for contact against this surface (e.g. a rigid obstacle surface). Advanced API.
+
+        The projection is nearest-sample: the closest point is the nearest integration point of the surface, not the exact closest point on the element. Refine ``matrixType`` for denser sampling.
+
+        Parameters
+        ----------
+        x_e_pg : FeArray
+            query points as a ``(Ne, nPg, 3)`` FeArray — i.e. element-/Gauss-point-structured coordinates (typically the deformed contact-surface Gauss coordinates ``x = X + u``).
+        elements : _types.IntArray, optional
+            restrict this surface to these element indices (e.g. a contact patch), by default all.
+        coord : Coords, optional
+            interior point used to orient the normals outward (``Get_normals_e_pg`` is sign-ambiguous); by default the group centroid, which is correct for convex surfaces. Pass the obstacle *volume* centroid for a robust orientation.
+        matrixType : MatrixType, optional
+            integration scheme giving the surface samples, by default MatrixType.mass.
+
+        Returns
+        -------
+        gap_e_pg : FeArray
+            signed gap, shape ``(Ne, nPg)``; negative under penetration.
+        normal_e_pg : FeArray
+            outward unit normal at the nearest surface sample, shape ``(Ne, nPg, 3)``.
+        """
+        assert self.dim in [1, 2], "only defined for 1D/2D surface groups."
+        assert (
+            isinstance(x_e_pg, FeArray) and x_e_pg.shape[-1] == 3
+        ), "coordinates must be a (Ne, nPg, 3) FeArray."
+
+        if elements is None:
+            elements = np.arange(self.Ne)
+        else:
+            elements = np.asarray(elements, dtype=int).ravel()
+
+        # surface samples and their normals
+        samples_e_pg = self.Get_GaussCoordinates_e_pg(matrixType)[elements]
+        normals_e_pg = self.Get_normals_e_pg(matrixType)[elements]
+
+        # orient the normals outward, i.e. away from the reference point
+        if coord is None:
+            coord = self.center
+        else:
+            _params._CheckIsVector(coord)
+        outward = samples_e_pg.mean(axis=1) - coord  # (Ne, 3)
+        sign_e = np.sign(np.einsum("ei,ei->e", normals_e_pg.mean(axis=1), outward))
+        sign_e[sign_e == 0] = 1.0
+        normals_e_pg = normals_e_pg * FeArray(sign_e[:, None])
+
+        samples = samples_e_pg.reshape(-1, 3)  # (Ne*nPg, 3)
+        normals = normals_e_pg.reshape(-1, 3)
+
+        # nearest surface sample for each query point, then signed gap along its normal
+        x_e_pg = np.asarray(x_e_pg)
+        nearest_e_pg = spatial.cKDTree(samples).query(x_e_pg)[1]  # (Ne, nPg)
+        closest_e_pg = samples[nearest_e_pg]  # (Ne, nPg, 3)
+        normal_e_pg = normals[nearest_e_pg]  # (Ne, nPg, 3)
+        gap_e_pg = np.einsum("epi,epi->ep", x_e_pg - closest_e_pg, normal_e_pg)
+
+        # return as FeArrays sharing the same (Ne, nPg) element/Gauss structure
+        return FeArray.asfearray(gap_e_pg), FeArray.asfearray(normal_e_pg)
+
     def Integrate_e(
         self, func=lambda x, y, z: 1, matrixType=MatrixType.mass
     ) -> _types.FloatArray:

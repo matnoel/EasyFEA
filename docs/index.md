@@ -6,16 +6,17 @@
 
 **EasyFEA** is a user‑friendly Python library that simplifies finite element analysis by abstracting complex PDE formulations. It is flexible and supports a range of linear and nonlinear simulations with minimal setup. You will find below the finite element analysis that you can conduct using EasyFEA:
 
-1. {doc}`Linear elastic simulations <examples/LinearizedElasticity/index>`: ``static``, ``dynamic``, ``contact``, ``homogenization`` and ``mesh optimization``.
+1. {doc}`Linear elastic simulations <examples/LinearizedElasticity/index>`: ``static``, ``dynamic``, ``homogenization`` and ``mesh optimization``.
 2. {doc}`Hyperelastic simulations <examples/Hyperelasticity/index>`: ``static`` and ``dynamic`` in the ``Lagrangian`` framework.
-3. {doc}`Cardiac elasto-dynamics <examples/CardiacElastoDynamics/index>`: passive + active hyperelastic ``mono-ventricular`` left-ventricle benchmark.
-4. {doc}`Euler-Bernoulli and Timoshenko beam simulations <examples/Beam/index>`: ``static`` and ``dynamic``.
-5. {doc}`Thermal simulations <examples/Thermal/index>`: ``static`` and ``transient``.
-6. {doc}`Phase-field damage simulations for quasi-static brittle fracture <examples/PhaseField/index>`: advanced ``2D`` and ``3D`` simulations for ``isotropic``, ``transversely isotropic``, and ``anisotropic`` materials.
-7. {doc}`Weak forms simulations <examples/WeakForms/index>`: ``static``, ``transient`` and ``dynamic`` for ``linear`` or ``non-linear`` problems.
-8. {doc}`Digital Image Correlation (DIC) analyses <examples/DIC/index>`.
-9. [Parameter identification](https://gitlab.univ-eiffel.fr/collaboration-msme-fcba/spruce-params).
-10. [Stochastic phase-field simulations](https://gitlab.univ-eiffel.fr/collaboration-msme-fcba/spruce-stochastic).
+3. {doc}`Contact simulations <examples/Contact/index>`: frictionless ``penalty`` contact against a rigid obstacle (``non-linear``, ``Newton-Raphson``).
+4. {doc}`Cardiac elasto-dynamics <examples/CardiacElastoDynamics/index>`: passive + active hyperelastic ``mono-ventricular`` left-ventricle benchmark.
+5. {doc}`Euler-Bernoulli and Timoshenko beam simulations <examples/Beam/index>`: ``static`` and ``dynamic``.
+6. {doc}`Thermal simulations <examples/Thermal/index>`: ``static`` and ``transient``.
+7. {doc}`Phase-field damage simulations for quasi-static brittle fracture <examples/PhaseField/index>`: advanced ``2D`` and ``3D`` simulations for ``isotropic``, ``transversely isotropic``, and ``anisotropic`` materials.
+8. {doc}`Weak forms simulations <examples/WeakForms/index>`: ``static``, ``transient`` and ``dynamic`` for ``linear`` or ``non-linear`` problems.
+9. {doc}`Digital Image Correlation (DIC) analyses <examples/DIC/index>`.
+10. [Parameter identification](https://gitlab.univ-eiffel.fr/collaboration-msme-fcba/spruce-params).
+11. [Stochastic phase-field simulations](https://gitlab.univ-eiffel.fr/collaboration-msme-fcba/spruce-stochastic).
 
 📸 Explore the interactive **{doc}`gallery <gallery/index>`** to visualize simulation results.
 

@@ -16,6 +16,8 @@ New to EasyFEA? Start with the :ref:`HelloWorld` script described in the :ref:`b
       - Elastostatic, dynamic, contact, homogenization, and mesh optimization.
     * - :ref:`Hyperelasticity <easyfea-examples-hyperelasticity>`
       - Nonlinear hyperelastic static and dynamic simulations.
+    * - :ref:`Contact <easyfea-examples-contact>`
+      - Frictionless penalty contact against a rigid obstacle.
     * - :ref:`CardiacElastoDynamics <easyfea-examples-cardiacelastodynamics>`
       - Passive + active hyperelastic cardiac mechanics (mono-ventricular left-ventricle benchmark).
     * - :ref:`Beam <easyfea-examples-beam>`

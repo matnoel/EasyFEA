@@ -348,3 +348,107 @@ def FollowingPressure(
     R_e[active] = F_active
 
     return K_e, R_e
+
+
+def PenaltyContact(
+    groupElem: "_GroupElem",
+    penalty: float,
+    gap_e_pg: FeArray,
+    normal_e_pg: FeArray,
+    elements: Optional[np.ndarray] = None,
+    matrixType: "MatrixType" = MatrixType.mass,
+) -> tuple[np.ndarray, np.ndarray]:
+    r"""Penalty-contact tangent/residual on a contact surface group.
+
+    Integrated over ``groupElem`` — the contact surface group of the deformable body, so it assembles onto the body dofs — from a precomputed signed normal gap ``gap_e_pg`` and outward unit normal ``normal_e_pg`` at its integration points. Contact is active only where ``gap < 0``.
+
+    The operator is agnostic to **how** the gap / normal are obtained — by projecting the deformed contact-surface Gauss points onto a rigid obstacle surface (:meth:`_GroupElem._Get_gap_and_normal`), by an analytic signed-distance obstacle (plane, sphere, …), etc. They only have to be sampled at the contact-surface Gauss points of ``matrixType``, the same rule used here for the surface integral.
+
+    .. math::
+        R_c = -\varepsilon_n \int_\Gamma \langle -g_n \rangle \, N_i \, \mathbf{n} \, d\Gamma, \qquad
+        K_c = \varepsilon_n \int_\Gamma H(-g_n) \, N_i N_j \, (\mathbf{n} \otimes \mathbf{n}) \, d\Gamma
+
+    Returned ``(K_e, R_e)`` follow the slot convention of :func:`FollowingPressure`: ``K_e`` → slot K (tangent ``∂R/∂u``), ``R_e`` → slot F (``= -R_c``, the force pushing the body out of the obstacle). Outside ``elements`` both are exact zero.
+
+    Parameters
+    ----------
+    groupElem : _GroupElem
+        Contact surface group (1D edges in 2D, 2D faces in 3D).
+    penalty : float
+        Penalty stiffness ``εₙ``.
+    gap_e_pg : FeArray
+        Signed normal gap at the contact-surface ``matrixType`` Gauss points, shape ``(Ne_a, nPg)`` (negative under penetration).
+    normal_e_pg : FeArray
+        Outward unit normal at the same Gauss points, shape ``(Ne_a, nPg, 3)``. Must share its ``nPg`` with ``gap_e_pg``.
+    elements : np.ndarray, optional
+        Active (contact) element indices ``gap_e_pg``/``normal_e_pg`` were computed for, by default all.
+    matrixType : MatrixType, optional
+        Integration scheme for the surface integral; ``gap_e_pg`` / ``normal_e_pg`` must be sampled with the same one, by default ``MatrixType.mass``.
+    """
+    assert groupElem.dim in [1, 2], "groupElem must be a 1D or 2D boundary group."
+    assert isinstance(gap_e_pg, FeArray) and isinstance(
+        normal_e_pg, FeArray
+    ), "gap_e_pg and normal_e_pg must be FeArrays."
+    assert (
+        gap_e_pg.shape[1] == normal_e_pg.shape[1]
+    ), "gap_e_pg and normal_e_pg must share the same nPg."
+
+    dim = groupElem.inDim  # ambient (world) dimension
+    Ne, nPe = groupElem.Ne, groupElem.nPe
+    ndof = nPe * dim
+
+    K_e = np.zeros((Ne, ndof, ndof))
+    R_e = np.zeros((Ne, ndof))
+
+    if elements is None:
+        active = np.arange(Ne)
+    else:
+        active = np.asarray(elements, dtype=int).ravel()
+        if active.size == 0:
+            return K_e, R_e
+
+    if penalty == 0.0:
+        return K_e, R_e
+
+    # surface integration measure and shape functions
+    wJ_e_pg = groupElem.Get_weightedJacobian_e_pg(matrixType)[active]  # (Ne_a, nPg)
+    N_pg = groupElem.Get_N_pg(matrixType)[:, 0, :]  # (nPg, nPe)
+    assert (
+        gap_e_pg.shape[1] == wJ_e_pg.shape[1]
+    ), "gap_e_pg / normal_e_pg must be sampled at the `matrixType` Gauss points."
+
+    # precomputed gap / outward normal at the active Gauss points
+    normal_e_pg = normal_e_pg[..., :dim]  # (Ne_a, nPg, dim)
+
+    # active set: penetration only (gap < 0)
+    pen_e_pg = np.where(gap_e_pg < 0, -gap_e_pg, 0.0)  # ⟨-gₙ⟩ ≥ 0
+    H_e_pg = (gap_e_pg < 0).astype(float)  # active-set indicator
+
+    # The einsum node/component index order (...i,c...) yields the interleaved
+    # (xi, yi, zi, ...) dof layout directly, so no reorder is needed.
+    factor = penalty * wJ_e_pg  # (Ne_a, nPg)
+
+    # R_e = +εₙ ∫ ⟨-gₙ⟩ Nᵢ n dΓ   (force pushing the body out → slot F)
+    R_active = einsum(
+        "ep,ep,pi,epc->eic",
+        factor,
+        pen_e_pg,
+        N_pg,
+        normal_e_pg,
+    ).reshape(active.size, nPe * dim)
+
+    # K_e = +εₙ ∫ H Nᵢ Nⱼ (n⊗n) dΓ   (tangent → slot K)
+    K_active = einsum(
+        "ep,ep,pi,pj,epc,epd->eicjd",
+        factor,
+        H_e_pg,
+        N_pg,
+        N_pg,
+        normal_e_pg,
+        normal_e_pg,
+    ).reshape(active.size, nPe * dim, nPe * dim)
+
+    K_e[active] = K_active
+    R_e[active] = R_active
+
+    return K_e, R_e
