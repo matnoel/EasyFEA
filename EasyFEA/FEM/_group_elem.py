@@ -367,7 +367,9 @@ class _GroupElem(ABC):
         nPe = self.nPe
         Ne = self.Ne
         ndof2 = (nPe * dof_n) ** 2
-        columnsVector_e = np.repeat(assembly_e, nPe * dof_n, axis=0).reshape((Ne, ndof2))
+        columnsVector_e = np.repeat(assembly_e, nPe * dof_n, axis=0).reshape(
+            (Ne, ndof2)
+        )
         return columnsVector_e
 
     def _Get_sysCoord_e(self, displacementMatrix: Optional[_types.AnyArray] = None):
