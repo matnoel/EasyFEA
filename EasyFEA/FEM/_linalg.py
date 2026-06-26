@@ -270,9 +270,18 @@ class FeArray(np.ndarray):
         "argmin",
         "all",
         "any",
+        "ravel",
     ):
         locals()[_name] = _make_reducer(_name)
     del _name, _make_reducer
+
+    def reshape(self, *args, **kwargs):
+        Ne, nPg = self.shape[:2]
+        new = super().reshape(*args, **kwargs)
+        if new.shape[:2] == (Ne, nPg):
+            return new
+        else:
+            return np.asarray(new)
 
     def integrate(self) -> np.ndarray:
         """Integrate over the Gauss-point axis (axis 1). Returns ``(Ne, ...)`` ndarray."""
