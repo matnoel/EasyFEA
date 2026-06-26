@@ -30,17 +30,18 @@ class RigidContact(Simulations.Elastic):
         out = {}
 
         # bulk: elastic tangent K and internal-force residual -K·u (Newton: A Δu = -R)
-        for contactGroup in self.mesh.Get_list_groupElem(self.dim):
             K_e = thickness * Operators.Bilinear.LinearizedElasticity(
                 groupElem=contactGroup,
+                groupElem=groupElem,
                 C=self.material.C,
             )
-            u_e = u[contactGroup.Get_assembly_e(self.dim)]
+            u_e = u[groupElem.Get_assembly_e(self.dim)]
             F_e = -np.einsum("eij,ej->ei", K_e, u_e, optimize=True)
-            out[contactGroup] = (K_e, None, None, F_e)
+            out[groupElem] = (K_e, None, None, F_e)
 
         # penalty contact: integrate over the body's "contact" surface (so it assembles onto the body dofs) with the gap/normal obtained by projecting its deformed Gauss points onto the rigid obstacle surface `_contactMesh`.
         indenter: Mesh = self._contactMesh
+        assert indenter is not None
         matrixType = MatrixType.mass
         for contactGroup in indenter.Get_list_groupElem(indenter.dim - 1):
             elements = (
