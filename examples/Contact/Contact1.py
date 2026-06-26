@@ -227,7 +227,10 @@ if __name__ == "__main__":
             PyVista.Plot(
                 simu, result, 1, color="k", nColors=10, show_grid=True, plotter=plotter
             )
-            PyVista.Plot(list_indeter[n], color="gray", plotter=plotter, linewidth=0.1)
+            PyVista.Plot(list_indeter[n], color="gray", plotter=plotter)
+            PyVista.Plot_Elements(
+                list_indeter[n], dimElem=1, color="k", linewidth=1.5, plotter=plotter
+            )
             PyVista._setCameraPosition(plotter, 2)
 
         PyVista.Movie_func(Plot_Iter, N, folder=folder, filename=f"{name}.gif")
