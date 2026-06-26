@@ -24,7 +24,7 @@ from typing import Callable, Optional
 
 # fem
 from ._gauss import Gauss
-from ._linalg import FeArray, Trace, Transpose, Det, Inv
+from ._linalg import FeArray, Trace, Transpose, Det, Inv, Normalize
 
 # utils
 from ._utils import ElemType, MatrixType
@@ -32,7 +32,7 @@ from ._utils import ElemType, MatrixType
 # # others
 from ..Geoms import Point, Domain, Line, Circle
 from ..Geoms._utils import AsPoint
-from ..Geoms import Jacobian_Matrix, Normalize
+from ..Geoms import Jacobian_Matrix
 
 from ..Utilities import _types, _params
 from ..Utilities._cache import cache_computed_values, clear_cached_computed_values
@@ -500,12 +500,7 @@ class _GroupElem(ABC):
             dxds_e_pg = np.einsum("pn,end->epd", dNds_pg, coord_e, optimize="optimal")
             normals_e_pg = np.cross(dxdr_e_pg, dxds_e_pg)
 
-        normals_e_pg = np.einsum(
-            "epi,ep->epi",
-            normals_e_pg,
-            1 / np.linalg.norm(normals_e_pg, axis=-1),
-            optimize="optimal",
-        )
+        normals_e_pg = Normalize(normals_e_pg)
 
         return FeArray.asfearray(normals_e_pg)
 
