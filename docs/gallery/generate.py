@@ -252,6 +252,18 @@ if __name__ == "__main__":
             },
         ),
         Item(
+            "Contact/Contact3.py",
+            "Frictionless contact between a thin elastic arch strip and a rigid block.",
+            ["simu"],
+            PlotSimu,
+            {
+                "results": ["displacement"],
+                "deformFactor": 1,
+                **useMesh,
+                "fps": 5,
+            },
+        ),
+        Item(
             "LinearizedElasticity/Homog1.py",
             "Conduct homogenization using an example outlined in Computational Homogenization of Heterogeneous Materials with Finite Elements.",
             ["simu"],
