@@ -6,7 +6,7 @@
 import numpy as np
 
 from EasyFEA import Simulations
-from EasyFEA.FEM import Operators, Mesh, MatrixType, LagrangeCondition
+from EasyFEA.FEM import Operators, Mesh, MatrixType
 from EasyFEA.Utilities import _params
 
 
@@ -76,75 +76,3 @@ class RigidContact(Simulations.Elastic):
                 out[groupElem] = (thickness * Kc_e, None, None, thickness * Fc_e)
 
         return out
-
-
-class MutliBodyContact(Simulations.Elastic):
-    """Two-deformable-body frictionless contact via Lagrange-multiplier ties.
-
-    Each contact node of the *contactor* surface is tied (node-to-segment, along the
-    contact normal) to the *target* surface, enforcing non-penetration EXACTLY through
-    the bordered saddle-point system: no penalty parameter, no penetration, and the two
-    bodies' dofs are coupled exactly (unlike the block-diagonal penalty operator, whose
-    missing cross-term wrecks Newton convergence). The problem stays linear elastic.
-
-    Call :meth:`Set_contact` once, then :meth:`Add_contact_conditions` after each
-    ``Bc_Init`` (which clears the Lagrange conditions). The ties are bilateral, so this
-    suits (near-)full, compressive contact (e.g. a flat punch); releasing on separation
-    would need an active-set loop on top.
-    """
-
-    def __init__(self, mesh, model, **kwargs):
-        super().__init__(mesh, model, **kwargs)
-        self._ties: list[tuple] = []  # (contactor node, t1, t2, N1, N2)
-        self._direction = "y"
-
-    def Set_contact(self, contactorTag: str, targetTag: str, direction: str = "y"):
-        """Pair each contactor contact-node with the target segment beneath it.
-
-        ``contactorTag`` / ``targetTag`` are the two body tags (e.g. "indenter" / "body");
-        ``direction`` is the contact normal ("y" for a horizontal interface, 2D).
-        """
-        self._direction = direction
-        tangent = 0 if direction != "x" else 1  # in-plane span axis (2D)
-        seg = self.mesh.Get_list_groupElem(self.dim - 1)[0]
-        coord = self.mesh.coord
-
-        in_contact = np.zeros(seg.Ne, dtype=bool)
-        in_contact[seg.Get_Elements_Tag("contact")] = True
-        on_target = np.isin(seg.connect, seg.Get_Nodes_Tag(targetTag)).all(axis=1)
-        target_edges = seg.connect[np.where(in_contact & on_target)[0]]  # (Ne_t, 2)
-
-        contact_nodes = set(seg.Get_Nodes_Tag("contact").tolist())
-        contactor_nodes = [
-            n for n in seg.Get_Nodes_Tag(contactorTag).tolist() if n in contact_nodes
-        ]
-
-        self._ties = []
-        for c in contactor_nodes:
-            sc = coord[c, tangent]
-            for t1, t2 in target_edges:
-                s1, s2 = coord[t1, tangent], coord[t2, tangent]
-                if s1 == s2:
-                    continue
-                lo, hi = sorted((s1, s2))
-                if lo - 1e-9 <= sc <= hi + 1e-9:
-                    N2 = (sc - s1) / (s2 - s1)  # linear shape-function weight of t2
-                    self._ties.append((c, int(t1), int(t2), 1.0 - N2, N2))
-                    break
-
-    def Add_contact_conditions(self):
-        """(Re)add the contact Lagrange ties; call after ``Bc_Init`` each load step."""
-        for c, t1, t2, N1, N2 in self._ties:
-            nodes = np.array([c, t1, t2])
-            dofs = self.Bc_dofs_nodes(nodes, [self._direction])
-            # u_c·n - N1 u_t1·n - N2 u_t2·n = 0  (non-penetration along the normal)
-            self._Bc_Add_Lagrange(
-                LagrangeCondition(
-                    self.problemType,
-                    nodes,
-                    dofs,
-                    [self._direction],
-                    np.array([0.0]),
-                    np.array([1.0, -N1, -N2]),
-                )
-            )
