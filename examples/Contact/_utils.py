@@ -30,22 +30,22 @@ class RigidContact(Simulations.Elastic):
         out = {}
 
         # bulk: elastic tangent K and internal-force residual -K·u (Newton: A Δu = -R)
-        for indenterGroup in self.mesh.Get_list_groupElem(self.dim):
+        for contactGroup in self.mesh.Get_list_groupElem(self.dim):
             K_e = thickness * Operators.Bilinear.LinearizedElasticity(
-                groupElem=indenterGroup,
+                groupElem=contactGroup,
                 C=self.material.C,
             )
-            u_e = u[indenterGroup.Get_assembly_e(self.dim)]
+            u_e = u[contactGroup.Get_assembly_e(self.dim)]
             F_e = -np.einsum("eij,ej->ei", K_e, u_e, optimize=True)
-            out[indenterGroup] = (K_e, None, None, F_e)
+            out[contactGroup] = (K_e, None, None, F_e)
 
         # penalty contact: integrate over the body's "contact" surface (so it assembles onto the body dofs) with the gap/normal obtained by projecting its deformed Gauss points onto the rigid obstacle surface `_contactMesh`.
         indenter: Mesh = self._contactMesh
         matrixType = MatrixType.mass
-        for indenterGroup in indenter.Get_list_groupElem(indenter.dim - 1):
+        for contactGroup in indenter.Get_list_groupElem(indenter.dim - 1):
             elements = (
-                indenterGroup.Get_Elements_Tag("contact")
-                if "contact" in indenterGroup.elementTags
+                contactGroup.Get_Elements_Tag("contact")
+                if "contact" in contactGroup.elementTags
                 else None
             )
             for groupElem in self.mesh.Get_list_groupElem(self.dim - 1):
@@ -58,7 +58,7 @@ class RigidContact(Simulations.Elastic):
                 x_e_pg[..., : self.dim] += np.einsum("pn,enc->epc", N_pg, u_e)
 
                 # project onto the obstacle surface -> outward normal + signed gap
-                gap_e_pg, normal_e_pg = indenterGroup._Get_gap_and_normal(
+                gap_e_pg, normal_e_pg = contactGroup._Get_gap_and_normal(
                     x_e_pg,
                     elements=elements,
                     coord=indenter.center,

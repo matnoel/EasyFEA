@@ -40,7 +40,7 @@ def parabola_indenter() -> Mesh:
     # cluster samples near x=0: a curved indenter is gauged by nearest-sample
     # projection, so it must be resolved finely over the small contact (a << W),
     # otherwise that sampling — not the body mesh — dominates the pressure error
-    xs = W * np.linspace(0, 1, 100) ** 2
+    xs = W * np.linspace(0, 1, 200) ** 2
     geom = Points(
         [
             *[(x, x**2 / (2 * Rc)) for x in xs],  # lower bound
@@ -103,9 +103,14 @@ def contact_pressure(simu: RigidContact, indenter: Mesh):
         list_x.extend(x_e_pg[..., 0].ravel())
         # get pressure
         for groupIndent in indenter.Get_list_groupElem(1):
+            elements = (
+                groupIndent.Get_Elements_Tag("contact")
+                if "contact" in groupIndent.elementTags
+                else None
+            )
             gap_e_pg, _ = groupIndent._Get_gap_and_normal(
                 x_e_pg=x_e_pg,
-                elements=groupIndent.Get_Elements_Tag("contact"),
+                elements=elements,
                 coord=indenter.center,
                 matrixType=matrixType,
             )
@@ -159,7 +164,7 @@ if __name__ == "__main__":
     nodes_top = mesh.Nodes_Conditions(lambda x, y, z: y == 0)
     mesh.Set_Tag(nodes_top, "top")
 
-    PyVista.Plot_Mesh(mesh).show()
+    # PyVista.Plot_Mesh(mesh).show()
 
     material = Models.Elastic.Isotropic(2, E=E, v=v, planeStress=False)
 
