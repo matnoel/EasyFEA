@@ -7,29 +7,12 @@
 Contact2
 ========
 
-Frictionless contact between a thin elastic arch strip and a rigid block,
-solved with the penalty method and Newton-Raphson.
+Frictionless contact between a thin elastic arch strip and a rigid block, solved with the penalty method and Newton-Raphson.
 
-The strip is clamped at its top and the rigid block is raised into it from below;
-its filleted underside progressively flattens onto the block. As in ``Contact1``,
-the contact load is carried entirely through the penalty term
-(``Operators.NonLinear.PenaltyContact``) — driving the approach through the rigid
-obstacle's motion rather than a prescribed displacement of the strip avoids the
-spurious zero-strain translation mode that would otherwise let the strip pass
-straight through the block.
+The rigid block is treated as an obstacle: at every contact-surface Gauss point the normal gap ``gₙ`` to the obstacle surface is measured and, where it is negative (penetration), a penalty traction ``εₙ⟨-gₙ⟩ n`` resists it.These contributions are added to the elastic residual/tangent through ``Operators.NonLinear.PenaltyContact`` and the non-linear system ``A(u) Δu = -R(u)`` is solved with Newton at each load step.
 
-The whole strip boundary is handed to the contact operator; only the Gauss points
-that actually penetrate the block (negative gap) contribute a contact force.
-
-Runs in 2D (arch strip) and 3D (extruded arch strip); set ``dim`` below. The
-non-linear simulation (``ElasticContact``) lives in ``_utils.py``.
-
-WARNING
--------
-The assumption of small displacements is highly questionable for this simulation.
+Runs in 2D (arch strip) and 3D (extruded arch strip); set ``dim`` below. The non-linear simulation (``ElasticContact``) lives in ``_utils.py``.
 """
-
-import matplotlib.pyplot as plt
 
 from EasyFEA import Terminal, Folder, Models, ElemType, PyVista
 from EasyFEA.Geoms import Point, Domain, Points
@@ -42,27 +25,30 @@ if __name__ == "__main__":
     # ----------------------------------------------
     # Configuration
     # ----------------------------------------------
+
     dim = 3  # 2 or 3
-    result = "displacement_norm"
+    result = "Svm"
 
     e = 10
     L = 3 * e
     t = 1  # strip thickness
     h = 10  # strip height
     r = 3  # fillet radius
-    depth = e / 2  # out-of-plane extent (3D)
+    thickness = e / 2  # out-of-plane extent (3D)
     mS = t / 5 if dim == 2 else t
 
     N = 20  # load steps
-    inc = 2 * t / N  # block rise per step
+    delta = 2 * t
     penalty = 1e6  # contact stiffness
 
     folder = Folder.Results_Dir()
 
     # ----------------------------------------------
-    # Meshes
+    # Mesh
     # ----------------------------------------------
-    # deformable body: thin arch strip built from a lower polyline and its upward offset
+
+    # body
+    # ----
     p1 = Point(-L / 2 - e)
     p2 = Point(-L / 2, r=r)
     p3 = Point(-e / 2, h - t, r=r)
@@ -75,60 +61,64 @@ if __name__ == "__main__":
     upper.Translate(dy=t)
     contour = Points(list(lower.points) + list(upper.points[::-1]), mS)
 
-    # rigid obstacle: block below the strip (its top, y=0, is the contact surface)
+    if dim == 2:
+        mesh = contour.Mesh_2D([], ElemType.TRI3)
+    else:
+        nz = max(1, round(thickness / mS))
+        mesh = contour.Mesh_Extrude([], [0, 0, thickness], [nz], ElemType.TETRA4)
+
+    # block
+    # -----
     domain = Domain((-L / 2 - 2 * e, -5 * t), (L / 2 + 2 * e, 0))
 
     if dim == 2:
-        mesh = contour.Mesh_2D([], ElemType.TRI3)
-        obstacle = domain.Mesh_2D([], ElemType.QUAD4, isOrganised=True)
+        block = domain.Mesh_2D([], ElemType.QUAD4, isOrganised=True)
     else:
-        nz = max(1, round(depth / mS))
-        mesh = contour.Mesh_Extrude([], [0, 0, depth], [nz], ElemType.TETRA4)
-        obstacle = domain.Mesh_Extrude(
-            [], [0, 0, depth], [1], ElemType.HEXA8, isOrganised=True
+        block = domain.Mesh_Extrude(
+            [], [0, 0, thickness * 2], [1], ElemType.HEXA8, isOrganised=True
         )
+        block.Translate(dz=-block.center[2] / 2)
 
     nodes_top = mesh.Nodes_Conditions(lambda x, y, z: y == h)
-    nodes_obstacle = obstacle.Nodes_Conditions(lambda x, y, z: y == 0)
-    obstacle.Set_Tag(nodes_obstacle, "contact")
+    nodes_contact = block.Nodes_Conditions(lambda x, y, z: y == 0)
+    block.Set_Tag(nodes_contact, "contact")
 
     # ----------------------------------------------
     # Simulation
     # ----------------------------------------------
     material = Models.Elastic.Isotropic(
-        dim, E=210000, v=0.3, planeStress=True, thickness=depth
+        dim, E=210000, v=0.3, planeStress=True, thickness=thickness
     )
     simu = RigidContact(mesh, material, penalty)
-    simu._contactMesh = obstacle
+    simu._contactMesh = block
 
     print(f"Penalty contact solve in {dim}D (Newton per step):")
     for i in range(N):
-        simu.Bc_Init()
-
+        # udpate load
         dep = [0.0] * simu.dim
-        dep[1] = -i * inc
+        dep[1] = -(i + 1) / N * delta
+        # solve contact
+        simu.Bc_Init()
         simu.add_dirichlet(nodes_top, dep, simu.Get_unknowns())
         simu.Solve()
         simu.Save_Iter()
-        print(
-            f"  step {i + 1:2d}/{N}  Eps max = {simu.Result('Strain').max() * 100:5.2f} %"
-        )
 
     print(simu)
 
     # ----------------------------------------------
-    # Plot
+    # Results
     # ----------------------------------------------
-    def DoAnim(plotter, n):
+    def Plot_Iter(plotter, n):
         simu.Set_Iter(n)
         PyVista.Plot(
-            simu, result, 1, color="k", plotter=plotter, nColors=10, show_grid=True
+            simu, result, 1, color="k", nColors=21, show_grid=True, plotter=plotter
         )
-        PyVista.Plot(obstacle, plotter=plotter, plotMesh=True, alpha=0.2)
+        PyVista.Plot(block, color="gray", alpha=0.4, plotter=plotter)
+        PyVista.Plot_Elements(block, color="k", dimElem=1, linewidth=2, plotter=plotter)
 
-    PyVista.Movie_func(DoAnim, N, folder=folder, filename="contact.gif")
+    PyVista.Movie_func(Plot_Iter, N, folder=folder, filename="contact.gif")
 
-    plotter = PyVista.Plot(simu, "uy", plotMesh=True, deformFactor=1)
-    PyVista.Plot_Mesh(obstacle, alpha=0.4, plotter=plotter)
+    plotter = PyVista._Plotter()
+    result = "uy"
+    Plot_Iter(plotter, -1)
     plotter.show()
-    plt.show()
