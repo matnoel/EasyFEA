@@ -30,8 +30,8 @@ class RigidContact(Simulations.Elastic):
         out = {}
 
         # bulk: elastic tangent K and internal-force residual -K·u (Newton: A Δu = -R)
+        for groupElem in self.mesh.Get_list_groupElem(self.dim):
             K_e = thickness * Operators.Bilinear.LinearizedElasticity(
-                groupElem=contactGroup,
                 groupElem=groupElem,
                 C=self.material.C,
             )
