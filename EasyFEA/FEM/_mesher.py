@@ -497,39 +497,45 @@ class Mesher:
         setRecombine = elemType.startswith(("QUAD", "HEXA"))
 
         for _, surf in factory.getEntities(2):  # type: ignore
-            boundary = gmsh.model.getBoundary([(2, surf)])
-            line_tags = [abs(t) for _, t in boundary]
+            lineEntities = gmsh.model.getBoundary([(2, surf)])
+            lines = [abs(tag) for _, tag in lineEntities]
 
             if isOrganised:
-                if meshSize > 0:
-                    # gmsh returns boundary curves sorted by tag, not in cyclic
-                    # order. Walk the graph to recover the true cyclic order so
-                    # opposite sides can be paired correctly.
-                    ordered_tags = self._Cyclic_Boundary_Order(line_tags)
 
-                    counts = [
-                        int(gmsh.model.occ.getMass(1, ln) / meshSize + 1)
-                        for ln in ordered_tags
-                    ]
+                # gmsh returns boundary curves sorted by tag, not in cyclic
+                # order. Walk the graph to recover the true cyclic order so
+                # opposite sides can be paired correctly.
+                orderedLines = self._Cyclic_Boundary_Order(lines)
 
-                    # Transfinite quad requires equal node counts on opposite
-                    # sides. In cyclic order, opposite pairs are (0, 2) and
-                    # (1, 3); take the larger count of each pair so the finer
-                    # side wins.
-                    if len(counts) == 4:
-                        c02 = max(counts[0], counts[2])
-                        c13 = max(counts[1], counts[3])
-                        counts = [c02, c13, c02, c13]
+                counts = []
+                for line in orderedLines:
+                    points = gmsh.model.getBoundary([(1, line)])  # entities
+                    sizes = np.append(gmsh.model.mesh.getSizes(points), meshSize)
+                    sizes = sizes[sizes > 0]
+                    if sizes.size == 0:
+                        counts.append(0)
+                    else:
+                        length = gmsh.model.occ.getMass(1, line)
+                        counts.append(round(length / sizes.min()) + 1)
 
-                    for ln, c in zip(ordered_tags, counts):
-                        if c > 0:
-                            gmsh.model.mesh.setTransfiniteCurve(ln, c)
+                # Transfinite quad requires equal node counts on opposite
+                # sides. In cyclic order, opposite pairs are (0, 2) and
+                # (1, 3); take the larger count of each pair so the finer
+                # side wins.
+                if len(counts) == 4:
+                    c02 = min(counts[0], counts[2])
+                    c13 = min(counts[1], counts[3])
+                    counts = [c02, c13, c02, c13]
+
+                for line, count in zip(orderedLines, counts):
+                    if count > 0:
+                        gmsh.model.mesh.setTransfiniteCurve(line, count)
 
                 # Mark the surface transfinite even when meshSize == 0: gmsh
                 # auto-fills curve counts from CharacteristicLength, and the
                 # transfinite algorithm produces a clean quad layout (required
                 # so HEXA extrusion doesn't get mixed prisms/hexes).
-                if len(boundary) in [3, 4]:
+                if len(lineEntities) in [3, 4]:
                     gmsh.model.mesh.setTransfiniteSurface(surf)
 
             if setRecombine:
