@@ -34,7 +34,13 @@ from EasyFEA import (
 )
 from EasyFEA.FEM import Operators
 
-from utils import RESULTS_DIR, DATA_DIR, Get_config, Get_values
+from utils import (
+    RESULTS_DIR,
+    DATA_DIR,
+    Get_config_ellipsoid,
+    Get_stresses,
+    Get_pressures,
+)
 
 
 class CardiacElastoDynamics(Simulations.HyperElastic):
@@ -138,7 +144,7 @@ if __name__ == "__main__":
 
     useCoarseConfig = True
 
-    ellipsoid = "ellipsoid0.03" if useCoarseConfig else "ellipsoid0.005"
+    meshName = "ellipsoid0.03" if useCoarseConfig else "ellipsoid0.005"
 
     config = Config.step1
 
@@ -149,7 +155,7 @@ if __name__ == "__main__":
     # matrixType = MatrixType.mass
     # matrixType = 15
 
-    results_dir = Folder.Join(RESULTS_DIR, config.name, ellipsoid)
+    results_dir = Folder.Join(RESULTS_DIR, config.name, meshName)
 
     doSimu = True
     plotGraph = False
@@ -162,8 +168,12 @@ if __name__ == "__main__":
 
     Nt = 80 if useCoarseConfig else 1000
 
-    t_values, activeStress_values, pressure_values = Get_values(Tmax=1.0, Nt=Nt)
-    dt = t_values[1] - t_values[0]
+    times = np.linspace(0, 1, Nt + 1)
+    dt = times[1] - times[0]
+
+    stresses = Get_stresses(times)
+    pressures = Get_pressures(times)
+
     results_dir += f"_dt{dt}_{fiberSource}_{matrixType}"
 
     if plotGraph:
@@ -171,7 +181,7 @@ if __name__ == "__main__":
         ax.grid()
         ax.set_xlabel(r"$t$ [s]")
         ax.set_ylabel(r"$\tau(t)$ [Pa]")
-        ax.plot(t_values, activeStress_values)
+        ax.plot(times, stresses)
         name = "active_pressure"
         Matplotlib.Save_fig(results_dir, name)
 
@@ -179,14 +189,14 @@ if __name__ == "__main__":
         ax.grid()
         ax.set_xlabel(r"$t$ [s]")
         ax.set_ylabel(r"$p(t)$ [Pa]")
-        ax.plot(t_values, pressure_values)
+        ax.plot(times, pressures)
         name = "pressure"
         Matplotlib.Save_fig(results_dir, name)
 
     if config is Config.step0B:
-        activeStress_values *= 0
+        stresses *= 0
     if config is Config.step0A:
-        pressure_values *= 0
+        pressures *= 0
 
     if doSimu:
 
@@ -194,8 +204,8 @@ if __name__ == "__main__":
         # Mesh, fibers and sheets
         # ----------------------------------------------
 
-        mesh, fibers_e_pg, sheets_e_pg = Get_config(
-            Folder.Join(DATA_DIR, ellipsoid),
+        mesh, fibers_e_pg, sheets_e_pg = Get_config_ellipsoid(
+            Folder.Join(DATA_DIR, meshName),
             matrixType=matrixType,
             fiberSource=fiberSource,
             plotMesh=False,
@@ -246,12 +256,10 @@ if __name__ == "__main__":
         simu.Solver_Set_Hyperbolic_Algorithm(dt, algo=AlgoType.midpoint)
         simu.rho = 1000
 
-        for t in t_values:
+        for t in times:
             simu.Bc_Init()
-            simu.pressure = np.interp(t + dt / 2, t_values, pressure_values)
-            material.active_stress = np.interp(
-                t + dt / 2, t_values, activeStress_values
-            )
+            simu.pressure = np.interp(t + dt / 2, times, pressures)
+            material.active_stress = np.interp(t + dt / 2, times, stresses)
             simu.Solve()
             simu.Save_Iter()
 
@@ -276,7 +284,7 @@ if __name__ == "__main__":
                 evalCoords, simu.displacement, evalElements
             )
 
-        times = t_values[:Niter]
+        times = times[:Niter]
         axs = Matplotlib.plt.subplots(3, 2, sharex=True)[1]
 
         for p, (particle, coord) in enumerate(zip(["p0", "p1"], coords)):

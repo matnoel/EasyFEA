@@ -18,6 +18,10 @@ RESULTS_DIR = Folder.Join(Folder.Dir(), "results")
 
 DATA_DIR = Folder.Join(Folder.Dir(), "data")
 
+# --------------------------------------------
+# MonoVentricular
+# --------------------------------------------
+
 
 @dataclass(frozen=True)
 class EllipsoidGeometry:
@@ -148,7 +152,7 @@ def _fibers_analytic(
     return FeArray(fibers_e_pg), FeArray(sheets_e_pg)
 
 
-def Get_config(
+def Get_config_ellipsoid(
     path: str,
     matrixType: MatrixType = MatrixType.rigi,
     fiberSource: Literal["vtu", "analytic"] = "vtu",
@@ -223,17 +227,17 @@ def Get_config(
     return mesh, fibers_e_pg, sheets_e_pg
 
 
-def Get_values(Tmax=1.0, Nt=100):
-    """Returns t_values, activeStress_values, pressure_values"""
 
-    # Create the activation function ---------------
 
-    sig_0 = 1.5 * 1e5
-    gamma = 0.005
-    alpha_min = -30
-    alpha_max = 5
-    t_sys = 0.16
-    t_dias = 0.484
+def Get_stresses(
+    times: np.ndarray,
+    sig_0=1.5 * 1e5,
+    gamma=0.005,
+    alpha_min=-30,
+    alpha_max=5,
+    t_sys=0.16,
+    t_dias=0.484,
+):
 
     def get_f(t: float):
         Sp = 1 / 2 * (1 + np.tanh((t - t_sys) / gamma))
@@ -246,30 +250,27 @@ def Get_values(Tmax=1.0, Nt=100):
     def dtau_dt(t: float, tau: float):
         return -np.abs(get_a(t)) * tau + sig_0 * np.max([get_a(t), 0])
 
-    def get_tau(tf: float, N: int):
-        dt = tf / (N + 1)
-        t_values = np.linspace(0, tf, (N + 1))
-        tau_values = np.zeros_like(t_values)
-        tau_values[0] = 0.0
+    values = np.zeros_like(times)
 
-        for i in range(tau_values.size - 1):
-            tau_values[i + 1] = tau_values[i] + dt * dtau_dt(t_values[i], tau_values[i])
+    dt = times[1] - times[0]
+    for i in range(values.size - 1):
+        values[i + 1] = values[i] + dt * dtau_dt(times[i], values[i])
 
-        return t_values, tau_values
+    return values
 
-    t_values, activeStress_values = get_tau(Tmax, Nt)
 
-    # Create the pressure function -----------------
-
-    alpha_min = -30
-    alpha_max = 5
-    alpha_pre = 5
-    alpha_mid = 1
-    sig_pre = 7000
-    sig_mid = 16000
-    t_sys_pre = 0.17
-    t_dias_pre = 0.484
-    gamma = 0.005
+def Get_pressures(
+    times: np.ndarray,
+    alpha_min=-30,
+    alpha_max=5,
+    alpha_pre=5,
+    alpha_mid=1,
+    sig_pre=7000,
+    sig_mid=16000,
+    t_sys_pre=0.17,
+    t_dias_pre=0.484,
+    gamma=0.005,
+):
 
     def get_f_pre(t: float):
         Sp = 1 / 2 * (1 + np.tanh((t - t_sys_pre) / gamma))
@@ -295,17 +296,10 @@ def Get_values(Tmax=1.0, Nt=100):
             + sig_pre * np.max([get_g_pre(t), 0])
         )
 
-    def get_p(tf: float, N: int):
-        dt = tf / (N + 1)
-        t_values = np.linspace(0, tf, (N + 1))
-        p_values = np.zeros_like(t_values)
-        p_values[0] = 0.0
+    values = np.zeros_like(times)
 
-        for i in range(p_values.size - 1):
-            p_values[i + 1] = p_values[i] + dt * dp_dt(t_values[i], p_values[i])
+    dt = times[1] - times[0]
+    for i in range(values.size - 1):
+        values[i + 1] = values[i] + dt * dp_dt(times[i], values[i])
 
-        return t_values, p_values
-
-    _, pressure_values = get_p(Tmax, Nt)
-
-    return t_values, activeStress_values, pressure_values
+    return values
