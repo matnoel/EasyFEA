@@ -10,6 +10,8 @@ Elas8
 A cantilever cylinder undergoing torsion, loaded either by a surface traction.
 """
 
+# sphinx_gallery_thumbnail_number = 2
+
 import numpy as np
 
 from EasyFEA import Terminal, ElemType, Models, Simulations, PyVista
