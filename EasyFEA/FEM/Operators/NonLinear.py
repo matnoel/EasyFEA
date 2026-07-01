@@ -364,11 +364,14 @@ def PenaltyContact(
 
     The operator is agnostic to **how** the gap / normal are obtained — by projecting the deformed contact-surface Gauss points onto a rigid obstacle surface (:meth:`_GroupElem._Get_gap_and_normal`), by an analytic signed-distance obstacle (plane, sphere, …), etc. They only have to be sampled at the contact-surface Gauss points of ``matrixType``, the same rule used here for the surface integral.
 
-    .. math::
-        R_c = -\varepsilon_n \int_\Gamma \langle -g_n \rangle \, N_i \, \mathbf{n} \, d\Gamma, \qquad
-        K_c = \varepsilon_n \int_\Gamma H(-g_n) \, N_i N_j \, (\mathbf{n} \otimes \mathbf{n}) \, d\Gamma
+    With penalty ``εₙ``, signed gap ``gₙ``, outward normal ``n`` and test / trial fields ``v`` / ``u``, the weak-form contributions are::
 
-    Returned ``(K_e, R_e)`` follow the slot convention of :func:`FollowingPressure`: ``K_e`` → slot K (tangent ``∂R/∂u``), ``R_e`` → slot F (``= -R_c``, the force pushing the body out of the obstacle). Outside ``elements`` both are exact zero.
+        R_e = εₙ ∫_Γ  ⟨-gₙ⟩ (v·n) dΓ       slot F: outward force, grows with penetration ⟨-gₙ⟩
+        K_e = εₙ ∫_Γc      (u·n)(v·n) dΓ    slot K: tangent ∂R/∂u on the active set Γc (gₙ < 0)
+
+    where ``⟨·⟩`` is the Macaulay bracket. Linearising the ramp ``⟨-gₙ⟩`` collapses it to the active-set restriction ``Γc``, so ``K_e`` is :func:`~EasyFEA.FEM.Operators.Bilinear.MassAlongNormal` scaled by ``εₙ`` where contact is active (the small change-of-normal / closest-point curvature terms are dropped).
+
+    Returned ``(K_e, R_e)`` follow the slot convention of :func:`FollowingPressure` — ``K_e`` → slot K, ``R_e`` → slot F (the force pushing the body out of the obstacle). Outside ``elements`` both are exact zero.
 
     Parameters
     ----------
