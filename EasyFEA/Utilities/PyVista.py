@@ -560,6 +560,7 @@ def Plot_BoundaryConditions(
 
     if plotter is None:
         plotter = Plot_Elements(simu, [], 1, False, deformFactor, color="k")
+        Plot(simu, alpha=0.1, color="gray", plotter=plotter)
         plotter.add_title("Boundary conditions")
 
     colors = Matplotlib.tab10_colors
