@@ -33,20 +33,20 @@ from EasyFEA import (
     AlgoType,
 )
 from EasyFEA.FEM import Operators
-from EasyFEA.Utilities import _params
 
 from utils import RESULTS_DIR, DATA_DIR, Get_config, Get_values
 
 
 class CardiacElastoDynamics(Simulations.HyperElastic):
 
-    pressure = _params.ScalarParameter()
-
     def __init__(
         self, mesh, model, folder="", tolConv=0.00001, maxIter=20, verbosity=False
     ):
         super().__init__(mesh, model, folder, tolConv, maxIter, verbosity)
-        self.pressure = 0.0
+        self.__dict_pressure: dict[str, float] = {}
+
+    def Set_pressure(self, dict_pressure: dict[str, float]):
+        self.__dict_pressure = dict_pressure
 
     def Construct_local_matrix_system(self, problemType):
 
@@ -66,13 +66,19 @@ class CardiacElastoDynamics(Simulations.HyperElastic):
 
             # Following pressure — tracks the deformed normal, so it depends on
             # the current iterate / pressure and is rebuilt every Newton step.
-            tangent_e, residual_e = Operators.NonLinear.FollowingPressure(
-                groupElem,
-                displacement,
-                self.pressure,
-                groupElem.Get_Elements_Tag("endo"),
-                MatrixType.mass,
-            )
+
+            Kpressure_e, Rpressure_e = 0.0, 0.0
+            for tag, pressure in self.__dict_pressure.items():
+                if tag in groupElem.elementTags:
+                    tangent_e, residual_e = Operators.NonLinear.FollowingPressure(
+                        groupElem,
+                        displacement,
+                        pressure,
+                        groupElem.Get_Elements_Tag(tag),
+                        MatrixType.mass,
+                    )
+                    Kpressure_e += tangent_e
+                    Rpressure_e += residual_e
 
             # top — isotropic surface mass penalty (Robin α·u + β·u̇ = 0)
             M_e = Operators.Bilinear.UV(groupElem, dof_n=3)
@@ -107,10 +113,10 @@ class CardiacElastoDynamics(Simulations.HyperElastic):
             f_penalty_e = np.einsum("eij,ej->ei", K_penalty_e, u_e)
 
             results[groupElem] = (
-                tangent_e + K_penalty_e,
+                Kpressure_e + K_penalty_e,
                 Ctop_e + Cepi_e,
                 None,
-                residual_e - f_penalty_e,
+                Rpressure_e - f_penalty_e,
             )
 
         return results
