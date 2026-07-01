@@ -7,7 +7,7 @@
 Contact1
 ========
 
-Reproduces the "From indenter's shape to pressure" insert of Yastrebov, *Contact Mechanics and Elements of Tribology* (§1.5). A rigid indenter is pressed into an elastic half-space (2D, **plane strain**) and the finite-element contact pressure is compared to the closed-form solutions, with ``E* = E/(1-ν²)``:
+A rigid indenter is pressed into an elastic half-space (2D, **plane strain**) and the finite-element contact pressure is compared to the closed-form solutions, with ``E* = E/(1-ν²)``:
 
 - **parabola** ``z = x²/2R`` (Hertz line contact): ``p(x) = p₀√(1-x²/a²)``,
   ``p₀ = a·E*/(2R)`` — a semi-ellipse.
@@ -15,12 +15,7 @@ Reproduces the "From indenter's shape to pressure" insert of Yastrebov, *Contact
 
 The contact half-width ``a`` is read from the FE solution; the analytical curve is plotted with that same ``a`` (so the comparison is shape + magnitude).
 
-The contact pressure is obtained directly from the penalty contact as ``p = εₙ⟨-g⟩`` on the surface (``RigidContact`` from ``_utils.py``). Each indenter spans the whole surface and rises away from the contact, so points outside the contact patch simply have a positive gap (no spurious contact).
-
-ACCURACY
---------
-``p = εₙ⟨-g⟩`` is the contact traction at convergence. Two resolutions govern the match: the body mesh AND how finely the indenter is sampled across the contact patch. A curved indenter is gauged by nearest-sample projection, so it must be well resolved over the (small) contact — hence the body mesh is refined near x=0 and the parabola
-samples are clustered there. With both, each case matches the analytical pressure to ~1% over the inner patch (the wedge is piecewise-linear, so essentially exact). The penalty still amplifies the discrete gap (an excessive penalty re-roughens the profile), and the flat-punch edge singularity is not reproducible with a penalty method.
+The contact pressure is obtained directly from the penalty contact as ``p = εₙ⟨-g⟩`` on the surface.
 """
 
 import numpy as np
@@ -164,7 +159,7 @@ if __name__ == "__main__":
     nodes_top = mesh.Nodes_Conditions(lambda x, y, z: y == 0)
     mesh.Set_Tag(nodes_top, "top")
 
-    # PyVista.Plot_Mesh(mesh).show()
+    PyVista.Plot_Mesh(mesh).show()
 
     material = Models.Elastic.Isotropic(2, E=E, v=v, planeStress=False)
 
