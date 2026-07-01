@@ -7,11 +7,7 @@
 Contact3
 ========
 
-Frictionless contact between a thin elastic arch strip and a rigid block, solved with the penalty method and Newton-Raphson.
-
-The rigid block is treated as an obstacle: at every contact-surface Gauss point the normal gap ``gₙ`` to the obstacle surface is measured and, where it is negative (penetration), a penalty traction ``εₙ⟨-gₙ⟩ n`` resists it.These contributions are added to the elastic residual/tangent through ``Operators.NonLinear.PenaltyContact`` and the non-linear system ``A(u) Δu = -R(u)`` is solved with Newton at each load step.
-
-Runs in 2D (arch strip) and 3D (extruded arch strip); set ``dim`` below. The non-linear simulation (``ElasticContact``) lives in ``_utils.py``.
+Frictionless contact between a thin elastic arch strip and a rigid blocki.
 """
 
 from EasyFEA import Terminal, Folder, Models, ElemType, PyVista

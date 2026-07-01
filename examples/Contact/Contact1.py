@@ -174,12 +174,12 @@ if __name__ == "__main__":
         simu = RigidContact(mesh, material, penalty)
         indenter = build()
 
-        list_indeter = [indenter]
+        list_indeter: list[Mesh] = [indenter]
         delta = indeter_delta[name]
 
         print(f"\n[{name}] pressing the rigid indenter (Newton per step):")
         for i in range(N):
-            # update indeter
+            # update indenter
             indenter = list_indeter[0]
             indenter = indenter.copy()
             indenter.Translate(dy=-(i + 1) / N * delta)

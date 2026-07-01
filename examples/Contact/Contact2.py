@@ -7,11 +7,7 @@
 Contact2
 ========
 
-Frictionless contact between a deformable block and a rigid indenter, solved as a genuine non-linear problem with Newton-Raphson and a **penalty** regularisation of the unilateral (Signorini) condition.
-
-The rigid indenter is treated as an obstacle: at every contact-surface Gauss point the normal gap ``gₙ`` to the obstacle surface is measured and, where it is negative (penetration), a penalty traction ``εₙ⟨-gₙ⟩ n`` resists it.These contributions are added to the elastic residual/tangent through ``Operators.NonLinear.PenaltyContact`` and the non-linear system ``A(u) Δu = -R(u)`` is solved with Newton at each load step.
-
-Runs in 2D (block + half-disc punch) and 3D (box + half-cylinder punch); set ``dim`` below. The non-linear simulation (``ElasticContact``) lives in ``_utils.py``.
+Frictionless contact between a deformable block and a rigid indenter.
 """
 
 from EasyFEA import Terminal, Folder, Models, ElemType, PyVista
@@ -96,7 +92,7 @@ if __name__ == "__main__":
     list_indenter = [indenter]
     print(f"Penalty contact solve in {dim}D (Newton per step):")
     for i in range(N):
-        # update indeter
+        # update indenter
         indenter = list_indenter[0].copy()
         indenter.Translate(dy=-(i + 1) / N * delta)  # lower the rigid indenter
         list_indenter.append(indenter)
