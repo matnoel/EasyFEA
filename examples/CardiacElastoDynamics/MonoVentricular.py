@@ -46,10 +46,24 @@ from utils import (
 class CardiacElastoDynamics(Simulations.HyperElastic):
 
     def __init__(
-        self, mesh, model, folder="", tolConv=0.00001, maxIter=20, verbosity=False
+        self,
+        mesh,
+        model,
+        folder="",
+        tolConv=0.00001,
+        maxIter=20,
+        verbosity=False,
+        alpha_top=1e5,
+        alpha_epi=1e8,
+        beta_top=5e3,
+        beta_epi=5e3,
     ):
         super().__init__(mesh, model, folder, tolConv, maxIter, verbosity)
         self.__dict_pressure: dict[str, float] = {}
+        self.__alpha_top = alpha_top
+        self.__alpha_epi = alpha_epi
+        self.__beta_top = beta_top
+        self.__beta_epi = beta_epi
 
     def Set_pressure(self, dict_pressure: dict[str, float]):
         self.__dict_pressure = dict_pressure
@@ -93,11 +107,8 @@ class CardiacElastoDynamics(Simulations.HyperElastic):
             Ctop_e = np.zeros_like(M_e)
             if "top" in groupElem.elementTags:
                 top_e = groupElem.Get_Elements_Tag("top")
-                alpha_top = 1e5
-                Ktop_e[top_e] = alpha_top * M_e[top_e]
-
-                beta_top = 5e3
-                Ctop_e[top_e] = beta_top * M_e[top_e]
+                Ktop_e[top_e] = self.__alpha_top * M_e[top_e]
+                Ctop_e[top_e] = self.__beta_top * M_e[top_e]
 
             # epi — normal-direction mass penalty (Robin α·(u·n̂) + β·(u̇·n̂) = 0)
             Ms_e = Operators.Bilinear.MassAlongNormal(groupElem)
@@ -106,11 +117,8 @@ class CardiacElastoDynamics(Simulations.HyperElastic):
             Cepi_e = np.zeros_like(Ms_e)
             if "epi" in groupElem.elementTags:
                 epi_e = groupElem.Get_Elements_Tag("epi")
-                alpha_epi = 1e8
-                Kepi_e[epi_e] = alpha_epi * Ms_e[epi_e]
-
-                beta_epi = 5e3
-                Cepi_e[epi_e] = beta_epi * Ms_e[epi_e]
+                Kepi_e[epi_e] = self.__alpha_epi * Ms_e[epi_e]
+                Cepi_e[epi_e] = self.__beta_epi * Ms_e[epi_e]
 
             # Penalty residual contribution: −K_penalty · u_t at current iterate
             K_penalty_e = Ktop_e + Kepi_e
