@@ -77,7 +77,7 @@ The {py:mod}`EasyFEA.FEM.Operators` module provides the element-level operators 
 
 - {py:func}`~EasyFEA.FEM.Operators.NonLinear.SecondPiolaKirchhoffStressTensor` — residual $\Frm_e = \int \Brm^\top \boldsymbol{\Sigma} \, \dO$ and consistent tangent $\Krm_e = \int \Brm^\top \dpartial{\boldsymbol{\Sigma}}{\Erm} \Brm \, \dO + \int \grad^\top \boldsymbol{\Sigma} \, \grad \, \dO$ (material + geometric), with $\boldsymbol{\Sigma}$ the second Piola-Kirchhoff stress.
 - {py:func}`~EasyFEA.FEM.Operators.NonLinear.KelvinVoigtDamping` — damping $\Crm_e = c \, \eta \int \Brm^\top \Brm \, \dO$ and the configuration tangent $\Krm_e^{\text{geo}} = \dpartial{(\Crm \vrm)}{\urm}$ (large-strain Kelvin–Voigt).
-- {py:func}`~EasyFEA.FEM.Operators.NonLinear.FollowingPressure` — follower-pressure load $\int_\Gamma p \, v \cdot \nbf(u) \, \dS$ with a deformation-dependent normal, plus its (non-symmetric) tangent.
+- {py:func}`~EasyFEA.FEM.Operators.NonLinear.FollowingPressure` — following-pressure load $\int_\Gamma p \, v \cdot \nbf(u) \, \dS$ with a deformation-dependent normal, plus its (non-symmetric) tangent.
 
 ## FEM API
 
