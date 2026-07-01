@@ -7,14 +7,22 @@
 Elas9
 =====
 
-Wave propagation.
+A cantilever beam undergoing dynamic bending deformation.
 """
-# TODO: Compare results with analytical values.
 
 import matplotlib.pyplot as plt
 
-from EasyFEA import Folder, Terminal, Matplotlib, Models, Tic, ElemType, Simulations, PyVista
-from EasyFEA.Geoms import Domain, Circle, Line
+from EasyFEA import (
+    Terminal,
+    Matplotlib,
+    Folder,
+    Models,
+    ElemType,
+    Simulations,
+    PyVista,
+    Paraview,
+)
+from EasyFEA.Geoms import Domain
 
 if __name__ == "__main__":
     Terminal.Clear()
@@ -22,105 +30,90 @@ if __name__ == "__main__":
     # ----------------------------------------------
     # Configuration
     # ----------------------------------------------
+    dim = 2
 
     # outputs
     folder = Folder.Results_Dir()
-    plotModel = False
-    plotIter = False
+    makeParaview = False
     makeMovie = True
-    result = "speed_norm"
+    result = "uy"
 
-    # Define geometric parameters
-    a = 1
-    meshSize = a / 50
-    diam = a / 10
-    r = diam / 2
+    # geom
+    L = 120  # mm
+    h = 13
+    b = 13
 
-    # Time parameters
-    tMax = 1e-6
-    Nt = 20
-    dt = tMax / Nt
+    # time
+    Tmax = 0.5
+    N = 50
+    dt = Tmax / N
+    time = -dt
 
-    # Load parameters
-    load = 1e-3
-    f0 = 2
-    a0 = 1
-    t0 = dt * 4
+    # Dumping
+    coefM = 1e-3
+    coefK = 1e-3
 
     # ----------------------------------------------
     # Mesh
     # ----------------------------------------------
+    meshSize = h / 5
 
-    # Define the domain and create the mesh
-    domain = Domain((-a / 2, -a / 2), (a / 2, a / 2), meshSize)
-    circle = Circle((0, 0), diam, meshSize, isFilled=True)
-    line = Line((0, 0), (diam / 4, 0))
-    mesh = domain.Mesh_2D([circle], ElemType.TRI6, cracks=[line])
+    if dim == 2:
+        domain = Domain((0, -h / 2), (L, h / 2), meshSize)
+        mesh = domain.Mesh_2D([], ElemType.QUAD4, isOrganised=True)
 
-    # Plot the model if specified
-    if plotModel:
-        Matplotlib.Plot_Tags(mesh)
-        plt.show()
+        area = mesh.area - L * h
 
-    # Get nodes for boundary conditions and loading
-    nodesBorders = mesh.Nodes_Tags(["L0", "L1", "L2", "L3"])
-    nodesLoad = mesh.Nodes_Point((0, 0))
+    elif dim == 3:
+        domain = Domain((0, -h / 2, -b / 2), (L, h / 2, -b / 2), meshSize=meshSize)
+        mesh = domain.Mesh_Extrude([], [0, 0, b], [3], ElemType.HEXA8, isOrganised=True)
+
+        volume = mesh.volume - L * b * h
+        area = mesh.area - (L * h * 4 + 2 * b * h)
+
+    nodes_0 = mesh.Nodes_Conditions(lambda x, y, z: x == 0)
+    nodes_L = mesh.Nodes_Conditions(lambda x, y, z: x == L)
+    nodes_h = mesh.Nodes_Conditions(lambda x, y, z: y == h / 2)
 
     # ----------------------------------------------
     # Simulation
     # ----------------------------------------------
 
-    # Define material properties
-    material = Models.Elastic.Isotropic(
-        2, E=210000e6, v=0.3, planeStress=False, thickness=1
-    )
-    lmbda = material.get_lambda()
-    mu = material.get_mu()
-
-    # Create the simulation object
+    material = Models.Elastic.Isotropic(dim, thickness=b)
     simu = Simulations.Elastic(mesh, material)
-    simu.Set_Rayleigh_Damping_Coefs(1e-10, 1e-10)
-    simu.Solver_Set_Hyperbolic_Algorithm(beta=1 / 4, gamma=1 / 2, dt=dt)
+    simu.rho = 8100 * 1e-9
 
-    # Plot the result at the initial iteration if specified
-    if plotIter:
-        ax = Matplotlib.Plot(simu, result, nodeValues=True, title=result)
+    # static simulation
+    simu.Bc_Init()
+    simu.add_dirichlet(nodes_0, [0] * dim, simu.Get_unknowns(), description="Fixed")
+    simu.add_dirichlet(nodes_L, [-10], ["y"], description="dep")
+    simu.Solve()
+    simu.Save_Iter()
+    Matplotlib.Plot_Mesh(simu, deformFactor=1)
 
-    # Create a timer object
-    tic = Tic()
+    # dynamic simulation
+    simu.Solver_Set_Hyperbolic_Algorithm(dt)
+    simu.Set_Rayleigh_Damping_Coefs(coefM=coefM, coefK=coefK)
 
-    # Time loop
-    t = 0
-    while t <= tMax:
+    simu.Bc_Init()
+    simu.add_dirichlet(nodes_0, [0] * dim, simu.Get_unknowns(), description="Fixed")
 
-        simu.Bc_Init()
+    while time <= Tmax:
+        time += dt
 
-        # Set displacement boundary conditions
-        simu.add_dirichlet(nodesBorders, [0, 0], ["x", "y"], description="[0,0]")
-
-        # Set Neumann boundary conditions (loading) at t = t0
-        if t == t0:
-            simu.add_neumann(nodesLoad, [load], ["x"])
-
-        # Solve the simulation
         simu.Solve()
-
-        # Save the iteration results
         simu.Save_Iter()
 
-        # Print the progress
-        print(f"{t / tMax * 100:.3f}  %", end="\r")
-
-        # Update the plot at each iteration if specified
-        if plotIter:
-            ax = Matplotlib.Plot(simu, result, nodeValues=True, ax=ax, title=result)
-            plt.pause(1e-12)
-
-        t += dt
+        print(f"{time:.3f} s", end="\r")
 
     # ----------------------------------------------
     # Results
     # ----------------------------------------------
+
+    Matplotlib.Plot_BoundaryConditions(simu)
+
+    if makeParaview:
+        Paraview.Save_simu(simu, folder)
 
     if makeMovie:
         PyVista.Movie_simu(
@@ -128,6 +121,12 @@ if __name__ == "__main__":
             f"{result}",
             folder,
             f"{result}.gif",
+            deformFactor=1,
+            plotMesh=True,
         )
+
+    print(simu)
+    Matplotlib.Plot(simu, f"{result}", deformFactor=1, nodeValues=False)
+    Matplotlib.Plot(simu, "Svm", plotMesh=False, nodeValues=False)
 
     plt.show()
