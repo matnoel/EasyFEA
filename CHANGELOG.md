@@ -2,6 +2,27 @@
 
 This document describes the changes made to the project.
 
+## 3.1.0 (July 1, 2026):
+
+- Contact (issue #47)
+    - Added a frictionless penalty-contact framework for unilateral contact against a rigid obstacle, solved as a non-linear problem with Newton-Raphson.
+    - `Operators/NonLinear.py`: new `PenaltyContact` operator returning the contact tangent/residual `(K_e, F_e)` from a precomputed signed normal gap `gap_e_pg` and outward unit normal `normal_e_pg` sampled at the contact-surface Gauss points.
+    - `FEM/_group_elem.py`: added `_GroupElem._Get_gap_and_normal`, which projects the deformed contact-surface Gauss points onto a rigid obstacle to produce the gap and normal consumed by `PenaltyContact`.
+    - Added examples in `examples/Contact/`.
+    - Removed the obsolete `examples/LinearizedElasticity/Contact1.py` example.
+- Cardiac elastodynamics (issue #42)
+    - Added the `BiVentricular` example (`examples/CardiacElastoDynamics/BiVentricular.py`)
+    - Exposed the viscoelastic (Kelvin-Voigt) arguments in the `CardiacElastoDynamics` constructor and updated its shared `utils.py`.
+- Created a new LinearizedElasticity example according to discussion #49.
+- `FeArray`: added a `reshape` override that preserves the `(Ne, nPg)` element/Gauss-point leading axes when possible and otherwise degrades to a plain ndarray, and exposed `ravel` as a reduction.
+- `Utilities/_tic.py`: timing now uses `MPI.Wtime` when MPI is available and `time.perf_counter` otherwise, instead of `time.time()`.
+- `NonLinear.FollowingPressure`: updated the einsum contractions.
+- `PyVista.Plot_BoundaryConditions`: added a `opacity` argument.
+- `_mesher._Organise_Surfaces`: reworked the surface-organisation logic.
+- Minor `_group_elem.py` and `Normalize` cleanups.
+
+**Full Changelog:** https://github.com/matnoel/EasyFEA/compare/v3.0.0...v3.1.0
+
 ## 3.0.0 (June 24, 2026):
 
 **Breaking changes:**
