@@ -10,7 +10,10 @@ import time
 import numpy as np
 
 from ._requires import Create_requires_decorator
-from ._mpi import rank0_only
+from ._mpi import rank0_only, MPI_RANK, CAN_USE_MPI
+
+if CAN_USE_MPI:
+    from mpi4py import MPI
 
 try:
     import matplotlib.pyplot as plt
@@ -20,8 +23,11 @@ requires_matplotlib = Create_requires_decorator("matplotlib")
 
 
 class Tic:
+
+    __get_time = MPI.Wtime if CAN_USE_MPI else time.perf_counter
+
     def __init__(self):
-        self.__start = time.time()
+        self.__start = Tic.__get_time()
 
     @staticmethod
     def Get_time_unity(time: float) -> tuple[float, str]:
@@ -65,7 +71,7 @@ class Tic:
     def Tac(self, category="", text="", verbosity=False) -> float:
         """Returns the time elapsed since the last `Tic` or `Tac`."""
 
-        tf = np.abs(self.__start - time.time())
+        tf = Tic.__get_time() - self.__start
 
         tfCoef, unite = Tic.Get_time_unity(tf)
 
@@ -79,9 +85,9 @@ class Tic:
         cat[text][0] += tf
         cat[text][1] += 1
 
-        self.__start = time.time()
+        self.__start = Tic.__get_time()
 
-        if verbosity:
+        if verbosity and MPI_RANK == 0:
             print(textWithTime)
 
         return tf
