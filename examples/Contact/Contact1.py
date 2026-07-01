@@ -18,6 +18,8 @@ The contact half-width ``a`` is read from the FE solution; the analytical curve 
 The contact pressure is obtained directly from the penalty contact as ``p = εₙ⟨-g⟩`` on the surface.
 """
 
+# sphinx_gallery_thumbnail_number = 2
+
 import numpy as np
 import matplotlib.pyplot as plt
 
