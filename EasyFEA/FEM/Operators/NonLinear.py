@@ -314,13 +314,13 @@ def FollowingPressure(
     x_e = X_e + u_e
 
     # Deformed tangents dxdr_e_pg = ∂x/∂r, dxds_e_pg = ∂x/∂s at Gauss points
-    dxdr_e_pg = np.einsum("pn,enc->epc", dNr_pg, x_e)  # (Ne_a, nPg, 3)
-    dxds_e_pg = np.einsum("pn,enc->epc", dNs_pg, x_e)  # (Ne_a, nPg, 3)
+    dxdr_e_pg = einsum("pn,enc->epc", dNr_pg, x_e)  # (Ne_a, nPg, 3)
+    dxds_e_pg = einsum("pn,enc->epc", dNs_pg, x_e)  # (Ne_a, nPg, 3)
     n_e_pg = np.cross(dxdr_e_pg, dxds_e_pg)  # area-weighted deformed normal
 
     # F[e, i, c] = Σ_p w·p · φ_i · n_c   (component-major, then reorder)
     factor = weights[None, :] * pressure  # (1, nPg)
-    F_active = np.einsum("ep,pn,epc->enc", factor, N_pg, n_e_pg).reshape(
+    F_active = einsum("ep,pn,epc->enc", factor, N_pg, n_e_pg).reshape(
         Ne_a, dim * nPe
     )  # (xi, yi, zi, ...)
 
@@ -336,8 +336,8 @@ def FollowingPressure(
     S_a = __skew(dxdr_e_pg)  # S(a),  shape (Ne_a, nPg, 3, 3)
     S_b = __skew(dxds_e_pg)  # S(b),  shape (Ne_a, nPg, 3, 3)
     K_active = (
-        np.einsum("ep,epcd,pi,pj->ecidj", factor, S_a, N_pg, dNs_pg)
-        - np.einsum("ep,epcd,pi,pj->ecidj", factor, S_b, N_pg, dNr_pg)
+        einsum("ep,epcd,pi,pj->ecidj", factor, S_a, N_pg, dNs_pg)
+        - einsum("ep,epcd,pi,pj->ecidj", factor, S_b, N_pg, dNr_pg)
     ).reshape(Ne_a, dim * nPe, dim * nPe)
 
     # component-major → interleaved (xi, yi, zi, ...)
