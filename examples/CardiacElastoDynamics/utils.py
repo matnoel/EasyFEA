@@ -5,14 +5,22 @@ This reproduces *Benchmark 1: monoventricular mechanics* (§3) of the cardiac el
 Two fiber sources are supported (see :func:`Get_config`). ``"analytic"`` builds the fibers/sheets directly here (truncated-ellipsoid geometry + transmural Laplace problem) and needs no external data. ``"vtu"`` reads the ``mesh.msh`` / ``fiber.vtu`` / ``sheet.vtu`` files under ``data/``, generated with the ``cardiac_benchmark_toolkit`` (https://github.com/Reidmen/cardiac_benchmark_toolkit) — via the fork https://github.com/matnoel/cardiac_benchmark_toolkit (``morefem`` branch), which adds the export of the sheet field.
 """
 
+import os
 from dataclasses import dataclass
 from typing import Literal
 
 import numpy as np
+from scipy.spatial import KDTree
+
+try:
+    import h5py
+except ModuleNotFoundError:
+    raise Exception("h5py must be installed!")
 
 from EasyFEA import Folder, PyVista, MeshIO, MatrixType, Mesher, Models, Simulations
 from EasyFEA.FEM import Mesh, ElemType, FeArray, Norm
 from EasyFEA.Utilities._types import FloatArray, IntArray
+from EasyFEA.Utilities._mpi import MPI_RANK
 
 RESULTS_DIR = Folder.Join(Folder.Dir(), "results")
 
@@ -159,7 +167,7 @@ def Get_config_ellipsoid(
     plotMesh=False,
     plotTags=False,
     plotFibers=False,
-):
+) -> tuple[Mesh, FeArray, FeArray]:
 
     # Mesh -------------------------
 
@@ -227,6 +235,147 @@ def Get_config_ellipsoid(
     return mesh, fibers_e_pg, sheets_e_pg
 
 
+# --------------------------------------------
+# BiVentricular
+# --------------------------------------------
+
+
+def __Dolfin_xdmf_to_meshio(xdmfFile: str) -> MeshIO.meshio.Mesh:
+    """Convert a dolfin-written XDMF biventricular mesh to meshio."""
+
+    h5File = os.path.splitext(xdmfFile)[0] + ".h5"
+    with h5py.File(h5File, "r") as h5:
+        points = h5["/Mesh/mesh/geometry"][:]
+        tetra = h5["/Mesh/mesh/topology"][:]
+        tri = h5["/MeshFunction/0/mesh/topology"][:]
+        triTags = h5["/MeshFunction/0/values"][:].ravel().astype(np.int32)
+
+    # keep only the marked boundary facets (drop interior facets, tag 0)
+    keep = triTags != 0
+    tri, triTags = tri[keep], triTags[keep]
+
+    volTags = np.zeros(len(tetra), dtype=np.int32)
+    cells = [("triangle", tri), ("tetra", tetra)]
+    cell_data = {
+        "gmsh:physical": [triTags, volTags],
+        "gmsh:geometrical": [triTags, volTags],
+    }
+
+    return MeshIO.meshio.Mesh(points, cells, cell_data=cell_data)
+
+
+def Get_biventricular(
+    folder: str,
+    matrixType: MatrixType = MatrixType.rigi,
+    plotMesh=False,
+    plotTags=False,
+    plotFibers=False,
+) -> tuple[Mesh, FeArray, FeArray]:
+    """Load the biventricular EasyFEA mesh, building a cached gmsh ``.msh`` from the dolfin XDMF on first use.
+
+    On the first call the dolfin ``<name>.xdmf`` (+ ``.h5``) produced by the cardiac_benchmark_toolkit is converted once to a portable ``<name>.msh`` via :func:`_Dolfin_xdmf_to_gmsh`; later calls just import the ``.msh``. Surface tags come back as ``S10/S20/S30/S40`` (endo/epi/base — map them with ``mesh.Set_Tag`` as needed).
+    """
+    assert Folder.Exists(folder)
+    name = Folder.Path(folder).name
+
+    saveFolder = Folder.Join(RESULTS_DIR, name)
+
+    xdmfFile = Folder.Join(folder, "mesh.xdmf")
+    gmshFile = Folder.Join(saveFolder, "mesh.msh", mkdir=True)
+    dataFile = Folder.Join(folder, "data.vtk")
+    fiberFile = Folder.Join(saveFolder, "fiber_n.pickle")
+    sheetFile = Folder.Join(saveFolder, "sheet_n.pickle")
+
+    if MPI_RANK == 0:
+        if not all(Folder.Exists(f) for f in (gmshFile, fiberFile, sheetFile)):
+            print(f"Building gmsh mesh from dolfin XDMF: {gmshFile}")
+            meshioMesh = __Dolfin_xdmf_to_meshio(xdmfFile)
+            MeshIO.meshio.write(gmshFile, meshioMesh, file_format="gmsh22")
+
+            dataVtk = PyVista.pv.read(dataFile)
+
+            # idx: (Nn,), maps vtk-index to mesh-node
+            _, idx = KDTree(dataVtk.points).query(meshioMesh.points)
+            fiber_n = dataVtk["f0"][idx]
+            sheet_n = dataVtk["s0"][idx]
+            Simulations.Save_pickle(fiber_n, saveFolder, "fiber_n")
+            Simulations.Save_pickle(sheet_n, saveFolder, "sheet_n")
+
+    mesh = Mesher().Mesh_Import_mesh(gmshFile)
+
+    if plotMesh:
+        PyVista.Plot_Mesh(mesh).show()
+
+    # set tags
+
+    if plotTags:
+        # loop used to construct tag_converter
+        for groupElem in mesh.dict_groupElem.values():
+            elemTags = groupElem.elementTags
+            print(elemTags)
+            for tag in elemTags:
+                pltr = PyVista.Plot(groupElem, alpha=0.1)
+                PyVista.Plot_Elements(
+                    groupElem,
+                    groupElem.Get_Nodes_Tag(tag),
+                    dimElem=2,
+                    plotter=pltr,
+                )
+                pltr.add_title(tag)
+                pltr.show()
+
+    tag_converter = {
+        "S10": "top",
+        "S20": "endo_lv",
+        "S30": "endo_rv",
+        "S40": "epi",
+        "V0": "V0",
+    }
+    for tag1, tag2 in tag_converter.items():
+        nodes = mesh.Nodes_Tags(tag1)
+        if nodes.size == 0:
+            continue
+        mesh.Set_Tag(nodes, tag2)
+
+    # get fibers
+    fiber_n = Simulations.Load_pickle(saveFolder, "fiber_n")
+    sheet_n = Simulations.Load_pickle(saveFolder, "sheet_n")
+
+    N_pg = mesh.groupElem.Get_N_pg(matrixType)
+    fibers_e_pg = FeArray(np.einsum("pin,end->epd", N_pg, mesh.Locates_sol_e(fiber_n)))
+    sheets_e_pg = FeArray(np.einsum("pin,end->epd", N_pg, mesh.Locates_sol_e(sheet_n)))
+
+    # re-normalise the interpolated fibre (needed for higher-order elements where N_pg bends its magnitude), then project it out of the sheet
+    fibers_e_pg = fibers_e_pg / Norm(fibers_e_pg, axis=-1)
+    sheets_e_pg -= (
+        (fibers_e_pg @ sheets_e_pg) / Norm(fibers_e_pg, axis=-1) ** 2 * fibers_e_pg
+    )
+
+    if plotFibers:
+        coord = np.asarray(
+            mesh.groupElem.Get_GaussCoordinates_e_pg(matrixType)
+        ).reshape(-1, 3)
+        plotter = PyVista.Plot(mesh, color="gray", alpha=0.1)
+        coef = mesh.Get_meshSize().mean() * 0.5
+        plotter.add_arrows(
+            coord,
+            np.asarray(fibers_e_pg).reshape(-1, 3),
+            coef,
+            color="r",
+            label="fibers",
+        )
+        plotter.add_arrows(
+            coord,
+            np.asarray(sheets_e_pg).reshape(-1, 3),
+            coef,
+            color="b",
+            label="sheets",
+        )
+        plotter.show_grid()
+        plotter.add_legend()
+        plotter.show()
+
+    return mesh, fibers_e_pg, sheets_e_pg
 
 
 def Get_stresses(

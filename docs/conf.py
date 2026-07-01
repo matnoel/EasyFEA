@@ -199,7 +199,7 @@ sphinx_gallery_conf = {
     "download_all_examples": False,
     "remove_config_comments": True,
     "filename_pattern": r".*\.py",
-    "ignore_pattern": r"__init__\.py|utils\.py",
+    "ignore_pattern": r"__init__\.py|utils\.py|BiVentricular\.py",
     "within_subsection_order": FileNameSortKey,
     "reset_modules": (resetEasyFEA,),
     "line_numbers": True,
