@@ -151,7 +151,7 @@ def SecondPiolaKirchhoffStressTensor(
     The operator pulls
 
     - ``De_e_pg`` from ``state.Compute_De()`` — kinematic operator,
-    - ``dWde_e_pg`` from ``material.Compute_dWde(state)`` — PK2 in Kelvin-Mandel vector form (any active-stress /  viscous fold-in is the material's responsibility),
+    - ``dWde_e_pg`` from ``material.Compute_dWde(state)`` — PK2 in Kelvin-Mandel vector form (strictly ``∂W/∂e``; the non-conservative stresses have their own operators),
     - ``d2Wde_e_pg`` from ``material.Compute_d2Wde(state)`` — consistent tangent in Kelvin-Mandel matrix form,
 
     and assembles::
@@ -302,6 +302,55 @@ def GonzalezStressTensor(
         residual_e *= thickness
 
     return __reorder_dofs(dim, nPe, tangent_e, residual_e)
+
+
+def ActiveStressTensor(
+    material: "_HyperElastic",
+    state: "HyperElasticState",
+) -> tuple[np.ndarray, np.ndarray]:
+    r"""Active-stress contributions ``(Kgeo_e, R_e)`` for the fiber stress :math:`\Sigma_{act} = \tau \, \hat{T} \otimes \hat{T}`.
+
+    A contractile stress of magnitude ``τ`` (``material.active_stress``) along the unit fiber direction ``T̂``, typical of cardiac mechanics. It is **not** a derivative of the stored energy ``W``, so it is assembled here instead of being folded into ``material.Compute_dWde`` — the same separation Kelvin–Voigt viscosity gets in :func:`KelvinVoigtDamping`, and for the same reason: it keeps ``Compute_dWde == ∂(Compute_W)/∂e``, which every energy-based algorithm relies on. In particular :func:`GonzalezStressTensor` builds its discrete gradient from ``ΔW`` and ``s̄``; had ``s̄`` carried the active stress while ``ΔW`` did not, ``α`` would silently cancel the active contribution and the active stress would do exactly zero work.
+
+    Since ``Σ_act`` is independent of ``e`` there is **no material tangent**; it does however stiffen the structure geometrically::
+
+        R_e    = ∫ Bᵀ · Σ_act dΩ                    internal force
+        Kgeo_e = ∫ gradᵀ (I ⊗ Σ_act) grad dΩ        = ∂R_e/∂u
+
+    The simulation adds both to the elastic ``K_e`` / residual, so ``Kgeo_e`` rides ``coefK`` exactly like the elastic geometric tangent.
+
+    Parameters
+    ----------
+    material
+        Hyperelastic constitutive law — supplies ``active_stress`` and ``Compute_active_stress(state)``.
+    state
+        Hyperelastic state at the evaluation point of the time scheme (the midpoint state ``ū`` for :attr:`~EasyFEA.AlgoType.midpoint`), owning the mesh and that displacement.
+
+    Returns
+    -------
+    tuple
+        ``(None, None)`` when ``material.active_stress == 0``. Otherwise ``Kgeo_e`` of shape ``(Ne, nPe·dim, nPe·dim)`` and ``R_e`` of shape ``(Ne, nPe·dim)``, reordered to ``(xi, yi, zi, ..., xn, yn, zn)``.
+    """
+    if material.active_stress == 0.0:
+        return None, None  # type: ignore [return-value]
+
+    groupElem = state.groupElem
+    wJ_e_pg = groupElem.Get_weightedJacobian_e_pg(state.matrixType)
+    nPe = groupElem.nPe
+    dim = groupElem.dim
+
+    sig_e_pg = material.Compute_active_stress(state)
+
+    _, B_e_pg = __block_grad_B(state)
+    residual_e = einsum("ep,epi,epij->ej", wJ_e_pg, sig_e_pg, B_e_pg)
+    Kgeo_e = __geometric_tangent(wJ_e_pg, state, sig_e_pg)
+
+    if dim == 2:
+        thickness = material.thickness
+        Kgeo_e *= thickness
+        residual_e *= thickness
+
+    return __reorder_dofs(dim, nPe, Kgeo_e, residual_e)
 
 
 def KelvinVoigtDamping(

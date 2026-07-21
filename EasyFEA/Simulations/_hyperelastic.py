@@ -43,7 +43,9 @@ class HyperElastic(_Simu):
     .. math::
         \boldsymbol{\Sigma}(\ub, \dot{\ub}) = \dpartial{W}{\eb}(\ub) + \tau \, \hat{\Tb} \otimes \hat{\Tb} + \eta \, \dot{\eb}(\ub, \dot{\ub})
 
-    - **Active stress** :math:`\tau \, \hat{\Tb} \otimes \hat{\Tb}`: a contractile stress of magnitude :math:`\tau` (``material.active_stress``) acting along the unit fiber direction :math:`\hat{\Tb}`, registered once with ``material.Set_active_stress_vec``. It is strain-independent and typically used for cardiac mechanics, where only :math:`\tau` is updated between time steps.
+    Only the first term derives from the stored energy; the other two are non-conservative and are therefore assembled by their own operators rather than folded into ``material.Compute_dWde``, which stays exactly :math:`\partial W / \partial \eb`.
+
+    - **Active stress** :math:`\tau \, \hat{\Tb} \otimes \hat{\Tb}`: a contractile stress of magnitude :math:`\tau` (``material.active_stress``) acting along the unit fiber direction :math:`\hat{\Tb}`, registered once with ``material.Set_active_stress_vec``. It is strain-independent and typically used for cardiac mechanics, where only :math:`\tau` is updated between time steps. Delivered by :func:`Operators.NonLinear.ActiveStressTensor` (internal force + geometric tangent, no material tangent).
     - **Kelvin-Voigt viscosity** :math:`\eta \, \dot{\eb}`: a rate-dependent stress proportional to the Green-Lagrange strain rate :math:`\dot{\eb}` (:math:`\eta` = ``material.eta``), active only in dynamic simulations where a velocity field is available. It is delivered through a damping matrix (and a configuration tangent), mirroring Rayleigh damping in :class:`Elastic`.
 
     This non linear problem is solve using the newton rapshon algorithm:
@@ -221,6 +223,19 @@ class HyperElastic(_Simu):
                 K_e, residual_e = Operators.NonLinear.SecondPiolaKirchhoffStressTensor(
                     self.material, state
                 )
+
+            # Active fiber stress τ·(T̂⊗T̂): a non-conservative stress, so it is
+            # added here rather than inside Compute_dWde — that keeps the
+            # constitutive stress a true ∂W/∂e, which the gonzalez discrete
+            # gradient depends on. It contributes an internal force and a
+            # geometric tangent (no material tangent: it is E-independent).
+            if self.material.active_stress != 0.0:
+                Kgeo_e, R_act_e = Operators.NonLinear.ActiveStressTensor(
+                    self.material, state
+                )
+                K_e += Kgeo_e
+                residual_e += R_act_e
+
             F_e = -residual_e
 
             # Kelvin–Voigt viscosity: C_e is the damping matrix (slot 2, rides
@@ -453,7 +468,12 @@ class HyperElastic(_Simu):
         if groupElem is None:
             groupElem = self.mesh.groupElem
         hyperElasticState = HyperElasticState(groupElem, self.displacement, matrixType)
-        return self.material.Compute_dWde(hyperElasticState)
+        # total PK2 = elastic ∂W/∂e + the active fiber stress (reported as one field,
+        # even though the two are assembled by separate operators)
+        S_e_pg = self.material.Compute_dWde(hyperElasticState)
+        if self.material.active_stress != 0.0:
+            S_e_pg = S_e_pg + self.material.Compute_active_stress(hyperElasticState)
+        return S_e_pg
 
     def Results_Iter_Summary(
         self,

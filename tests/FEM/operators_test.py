@@ -151,33 +151,6 @@ class TestSecondPiolaKirchhoff:
             K_fd = _fd_tangent(self._residual_fn(ge, mat), u, asse)
             _assert_matches(K_ana, K_fd, msg=f"{law}/{elemType.name}")
 
-    def test_active_stress_tangent(self):
-        """Active stress (E-independent PK2 addend) keeps the tangent consistent.
-
-        ``active_stress·(T̂⊗T̂)`` adds nothing to the material tangent but feeds the
-        geometric tangent through ``Sig = block(P(dWde))`` — the FD check confirms
-        that geometric contribution is correct.
-        """
-        rng = np.random.default_rng(4)
-        dim, elemType = 3, ElemType.HEXA8
-        mesh = _mesh(dim, elemType)
-        mat = _material(dim, "SaintVenantKirchhoff")
-        ge = mesh.groupElem
-
-        nPg = ge.Get_N_pg(MatrixType.rigi).shape[0]
-        T = np.zeros((ge.Ne, nPg, 3))
-        T[..., 0] = 1.0  # fibers along x
-        mat.Set_active_stress_vec(FeArray.asfearray(T))
-        mat.active_stress = 0.5
-
-        u = rng.standard_normal(mesh.Nn * dim) * 0.02
-        asse = ge.Get_assembly_e(dim)
-
-        st = HyperElasticState(ge, u, MatrixType.rigi)
-        K_ana, _ = Operators.NonLinear.SecondPiolaKirchhoffStressTensor(mat, st)
-        K_fd = _fd_tangent(self._residual_fn(ge, mat), u, asse)
-        _assert_matches(K_ana, K_fd, msg="active_stress")
-
     def test_tangent_is_symmetric(self):
         """A hyperelastic (conservative) tangent without follower loads is symmetric."""
         rng = np.random.default_rng(5)
@@ -190,6 +163,98 @@ class TestSecondPiolaKirchhoff:
             K, _ = Operators.NonLinear.SecondPiolaKirchhoffStressTensor(mat, st)
             asym = np.abs(K - K.transpose(0, 2, 1)).max()
             assert asym / np.abs(K).max() < 1e-10, f"{elemType.name}: asym {asym:.2e}"
+
+
+# ----------------------------------------------------------------------------
+# Active fiber stress
+# ----------------------------------------------------------------------------
+
+
+class TestActiveStress:
+    """Active fiber stress ``τ·(T̂⊗T̂)`` of ``ActiveStressTensor``.
+
+    It is strain-independent, so it carries no material tangent — but it does
+    stiffen the structure geometrically, and it must stay *out* of the
+    constitutive stress so that ``Compute_dWde`` remains ``∂(Compute_W)/∂e``.
+    """
+
+    TAU = 0.5
+
+    @staticmethod
+    def _material_with_fibers(dim, ge, tau=TAU):
+        """Saint-Venant-Kirchhoff with unit fibers along x and an active stress ``tau``."""
+        mat = _material(dim, "SaintVenantKirchhoff")
+        nPg = ge.Get_N_pg(MatrixType.rigi).shape[0]
+        T = np.zeros((ge.Ne, nPg, 3))
+        T[..., 0] = 1.0  # fibers along x
+        mat.Set_active_stress_vec(FeArray.asfearray(T))
+        mat.active_stress = tau
+        return mat
+
+    @staticmethod
+    def _residual_fn(ge, mat):
+        def residual(u_):
+            st = HyperElasticState(ge, u_, MatrixType.rigi)
+            _, R = Operators.NonLinear.ActiveStressTensor(mat, st)
+            return R
+
+        return residual
+
+    @pytest.mark.parametrize("dim, elemType", ELEMS, ids=ELEM_IDS)
+    def test_geometric_tangent_vs_finite_difference(self, dim, elemType):
+        """``Kgeo`` equals ``∂R/∂u`` — the whole tangent, since ``∂Σ_act/∂e = 0``."""
+        rng = np.random.default_rng(6)
+        mesh = _mesh(dim, elemType)
+        ge = mesh.groupElem
+        mat = self._material_with_fibers(dim, ge)
+
+        u = rng.standard_normal(mesh.Nn * dim) * 0.02
+        asse = ge.Get_assembly_e(dim)
+
+        st = HyperElasticState(ge, u, MatrixType.rigi)
+        Kgeo, _ = Operators.NonLinear.ActiveStressTensor(mat, st)
+        K_fd = _fd_tangent(self._residual_fn(ge, mat), u, asse)
+        _assert_matches(Kgeo, K_fd, msg=elemType.name)
+
+    def test_stays_out_of_the_constitutive_stress(self):
+        """``Compute_dWde`` must stay ``∂(Compute_W)/∂e``, active stress or not.
+
+        This is the invariant every energy-based algorithm rests on — notably the
+        ``GonzalezStressTensor`` discrete gradient, which pairs ``ΔW`` with ``s̄``:
+        an active term in ``s̄`` but not in ``W`` would be silently cancelled by
+        ``α`` and do exactly zero work.
+        """
+        rng = np.random.default_rng(7)
+        dim, elemType = 3, ElemType.HEXA8
+        mesh = _mesh(dim, elemType)
+        ge = mesh.groupElem
+        u = rng.standard_normal(mesh.Nn * dim) * 0.02
+        st = HyperElasticState(ge, u, MatrixType.rigi)
+
+        mat = self._material_with_fibers(dim, ge)
+        S_active = mat.Compute_dWde(st)
+        mat.active_stress = 0.0
+        S_inert = mat.Compute_dWde(st)
+
+        assert np.array_equal(np.asarray(S_active), np.asarray(S_inert))
+
+    def test_inactive_returns_nothing(self):
+        """``active_stress == 0`` short-circuits, so the assembly can skip it."""
+        mesh = _mesh(3, ElemType.HEXA8)
+        ge = mesh.groupElem
+        mat = _material(3, "SaintVenantKirchhoff")  # never given a fiber direction
+        st = HyperElasticState(ge, np.zeros(mesh.Nn * 3), MatrixType.rigi)
+        assert Operators.NonLinear.ActiveStressTensor(mat, st) == (None, None)
+
+    def test_requires_a_registered_direction(self):
+        """A ``τ`` with no fiber direction is an error, not a silent no-op."""
+        mesh = _mesh(3, ElemType.HEXA8)
+        ge = mesh.groupElem
+        mat = _material(3, "SaintVenantKirchhoff")
+        mat.active_stress = self.TAU  # but no Set_active_stress_vec
+        st = HyperElasticState(ge, np.zeros(mesh.Nn * 3), MatrixType.rigi)
+        with pytest.raises(AssertionError):
+            Operators.NonLinear.ActiveStressTensor(mat, st)
 
 
 # ----------------------------------------------------------------------------
@@ -414,13 +479,17 @@ class TestGonzalez:
             u_np1 = u_n + rng.standard_normal(mesh.Nn * dim) * 0.02  # Δe·Δe ≫ ε₀
             sn, smid, snp = self._states(ge, u_n, u_np1)
 
-            K_con, R_con = Operators.NonLinear.GonzalezStressTensor(mat, sn, smid, snp, True)
-            K_apx, R_apx = Operators.NonLinear.GonzalezStressTensor(mat, sn, smid, snp, False)
+            K_con, R_con = Operators.NonLinear.GonzalezStressTensor(
+                mat, sn, smid, snp, True
+            )
+            K_apx, R_apx = Operators.NonLinear.GonzalezStressTensor(
+                mat, sn, smid, snp, False
+            )
 
-            assert np.array_equal(np.asarray(R_con), np.asarray(R_apx)), (
-                f"{law}/{elemType.name}: residual must not depend on useConsistentTangent"
-            )
+            assert np.array_equal(
+                np.asarray(R_con), np.asarray(R_apx)
+            ), f"{law}/{elemType.name}: residual must not depend on useConsistentTangent"
             # and the flag must actually do something to the tangent
-            assert not np.allclose(np.asarray(K_con), np.asarray(K_apx)), (
-                f"{law}/{elemType.name}: the two tangents should differ"
-            )
+            assert not np.allclose(
+                np.asarray(K_con), np.asarray(K_apx)
+            ), f"{law}/{elemType.name}: the two tangents should differ"

@@ -38,7 +38,7 @@ class _HyperElastic(_IModel, ABC):
 
     active_stress: float = _params.ScalarParameter()
     """Active stress magnitude (per-time-step scalar). ``0`` (default) → inactive.
-    When ``> 0`` and the direction tensor has been registered via :meth:`Set_active_stress_vec`, the PK2 contribution ``active_stress · (T̂ ⊗ T̂)`` is folded into :meth:`Compute_dWde`.
+    When non-zero and the direction tensor has been registered via :meth:`Set_active_stress_vec`, the PK2 contribution ``active_stress · (T̂ ⊗ T̂)`` is delivered by :func:`Operators.NonLinear.ActiveStressTensor` — **not** by :meth:`Compute_dWde`, which stays the derivative of :meth:`Compute_W` (see :meth:`Compute_active_stress`).
     Typical cardiac use: precompute the fiber direction tensor once with :meth:`Set_active_stress_vec`, then update only this scalar between :meth:`Solve` calls — ``material.active_stress = float(tau_values[i])``."""
 
     def __init__(self, dim: int, thickness: float):
@@ -46,12 +46,12 @@ class _HyperElastic(_IModel, ABC):
         self.thickness = thickness
         self.eta = 0.0
         self.active_stress = 0.0
-        self.__TxT = 0.0
+        self.__TxT = None
 
     def Set_active_stress_vec(self, T) -> None:
         r"""Registers the **direction** of the active PK2 contribution.
 
-        Normalises ``T`` per Gauss point and precomputes the Kelvin-Mandel vector form of ``T̂ ⊗ T̂``, so that :meth:`Compute_dWde` returns ``Σ = Σ_elastic + active_stress · (T̂ ⊗ T̂)`` whenever :attr:`active_stress` ``> 0``. Only the scalar :attr:`active_stress` is updated between steps; the direction is constant across a run, so call this **once** during setup.
+        Normalises ``T`` per Gauss point and precomputes the Kelvin-Mandel vector form of ``T̂ ⊗ T̂``, which :meth:`Compute_active_stress` then scales by :attr:`active_stress`. Only that scalar is updated between steps; the direction is constant across a run, so call this **once** during setup.
 
         Note: with a time scheme, set :attr:`active_stress` at the scheme's effective time (midpoint ``t + dt/2``, HHT ``t + (1−α)·dt``, Newmark/Euler ``t + dt``), not the endpoint ``t``.
 
@@ -65,6 +65,18 @@ class _HyperElastic(_IModel, ABC):
         # The fiber pattern doesn't move with time, so this is precomputed
         # once and only `active_stress` is updated each step.
         self.__TxT = Project_matrix_to_vector(TensorProd(T_hat, T_hat))  # (Ne, nPg, 6)
+
+    def Compute_active_stress(self, hyperElasticState: HyperElasticState) -> FeArray:
+        r"""Active PK2 contribution ``τ · (T̂ ⊗ T̂)`` in Kelvin-Mandel vector form, shape ``(Ne, pg, d)`` with ``d = 1, 3, 6`` for a `1D`, `2D` or `3D` solution — same layout as :meth:`Compute_dWde`.
+
+        Strain-independent, hence **not** derivable from :meth:`Compute_W`: it is a non-conservative stress, delivered by its own operator :func:`Operators.NonLinear.ActiveStressTensor` exactly as Kelvin–Voigt viscosity is delivered by :func:`Operators.NonLinear.KelvinVoigtDamping`. Folding it into :meth:`Compute_dWde` would break ``Compute_dWde == ∂(Compute_W)/∂e`` and silently corrupt every energy-based algorithm.
+
+        The direction is registered in 3D once and for all, so the state — which knows the solution dimension — supplies the slice (in `2D` the out-of-plane fiber component drops out, as it does for the elastic stress under plane strain).
+        """
+        assert (
+            self.__TxT is not None
+        ), "active_stress is set but its direction is not — call Set_active_stress_vec(T) first."
+        return hyperElasticState._Slice_Vector(self.active_stress * self.__TxT)
 
     @property
     def modelType(self) -> ModelType:
@@ -103,12 +115,16 @@ class _HyperElastic(_IModel, ABC):
         return None  # type: ignore [return-value]
 
     @abstractmethod
-    def _Compute_elastic_dWde(self, hyperElasticState: HyperElasticState) -> FeArray:
-        """Computes the **elastic** second Piola-Kirchhoff tensor Σ_elastic(u).
+    def Compute_dWde(self, hyperElasticState: HyperElasticState) -> FeArray:
+        """Computes the second Piola-Kirchhoff tensor ``Σ = ∂W/∂e``.
 
-        Subclass hook — implement the elastic kernel here. The public
-        :meth:`Compute_dWde` wraps this with viscous / future active-stress
-        contributions when applicable.
+        **Invariant**: this is exactly the derivative of :meth:`Compute_W`. Stress
+        contributions that are not derivatives of ``W`` — Kelvin-Voigt viscosity
+        ``η·ė``, active stress ``τ·(T̂⊗T̂)`` — must never be added here; they have
+        their own operators (:func:`Operators.NonLinear.KelvinVoigtDamping`,
+        :func:`Operators.NonLinear.ActiveStressTensor`). Breaking the invariant
+        silently corrupts every energy-based algorithm, e.g. the discrete gradient
+        of :func:`Operators.NonLinear.GonzalezStressTensor`.
 
         Returns
         -------
@@ -120,13 +136,13 @@ class _HyperElastic(_IModel, ABC):
         return None  # type: ignore [return-value]
 
     @abstractmethod
-    def _Compute_elastic_d2Wde(self, hyperElasticState: HyperElasticState) -> FeArray:
-        """Computes the **elastic** consistent tangent ``dΣ_elastic/de``.
+    def Compute_d2Wde(self, hyperElasticState: HyperElasticState) -> FeArray:
+        """Computes the consistent tangent ``∂²W/∂e² = ∂Σ/∂e``.
 
-        Subclass hook — implement the elastic tangent here. The public
-        :meth:`Compute_d2Wde` wraps this; Kelvin–Voigt viscosity adds
-        no constitutive ``∂Σ/∂E`` term (Σ_visco = η · Ė is independent of
-        E), so the base wrapper is a pass-through today.
+        Same invariant as :meth:`Compute_dWde`: strictly the second derivative of
+        :meth:`Compute_W`. The non-conservative contributions add nothing here
+        anyway — both ``η·ė`` and ``τ·(T̂⊗T̂)`` are independent of ``e`` — but they
+        do feed the *geometric* tangent, which their own operators assemble.
 
         Returns
         -------
@@ -134,40 +150,6 @@ class _HyperElastic(_IModel, ABC):
             dΣde_e_pg of shape (Ne, pg, d, d), where `d = 1, 3, 6` depending on whether the solution dimension is `1D`, `2D`, or `3D`.
         """
         return None  # type: ignore [return-value]
-
-    def Compute_dWde(self, hyperElasticState: HyperElasticState) -> FeArray:
-        """Total PK2 in Kelvin-Mandel vector form — elastic + active stress.
-
-        Composition:
-
-        1. ``_Compute_elastic_dWde(state)`` — subclass-specific elastic part.
-        2. ``+ active_stress · (T̂ ⊗ T̂)`` if :attr:`active_stress` ``> 0`` and
-           the direction ``T̂`` has been registered via
-           :meth:`Set_active_stress_vec` (E-independent active PK2 addend).
-
-        The result feeds the residual ``∫ Bᵀ · dWde dΩ`` and the geometric
-        tangent via ``Sig = block(P(dWde))``.
-
-        Kelvin–Voigt viscosity does **not** fold in here — it lives in
-        the separate damping matrix
-        :func:`Operators.NonLinear.KelvinVoigtDamping`, mirroring how
-        Rayleigh damping works in :class:`Elastic`. The simulation handles
-        both the residual contribution (``b -= C @ v_t``) and the linear
-        tangent piece (``coefC · C`` in the global assembly) — folding
-        ``η · Ė`` here would double-count the viscous force.
-        """
-        dWde_e_pg = self._Compute_elastic_dWde(hyperElasticState)
-        if self.active_stress > 0.0:
-            dWde_e_pg = dWde_e_pg + self.active_stress * self.__TxT
-        return dWde_e_pg
-
-    def Compute_d2Wde(self, hyperElasticState: HyperElasticState) -> FeArray:
-        """Total consistent tangent ``dΣ/de`` in Kelvin–Mandel matrix form.
-
-        Pass-through to :meth:`_Compute_elastic_d2Wde` today. Same rationale as :meth:`Compute_dWde`: the wrapper exists so future contributions with non-zero ``∂Σ/∂E`` can compose here.
-        Kelvin–Voigt viscosity is  independent of ``E`` and is delivered through the damping matrix :func:`Operators.NonLinear.KelvinVoigtDamping`.
-        """
-        return self._Compute_elastic_d2Wde(hyperElasticState)
 
 
 # ----------------------------------------------
@@ -207,7 +189,7 @@ class NeoHookean(_HyperElastic):
 
         return W
 
-    def _Compute_elastic_dWde(self, hyperElasticState: HyperElasticState) -> FeArray:
+    def Compute_dWde(self, hyperElasticState: HyperElasticState) -> FeArray:
         K = self.K
 
         I1 = hyperElasticState.Compute_I1()
@@ -224,7 +206,7 @@ class NeoHookean(_HyperElastic):
 
         return dW
 
-    def _Compute_elastic_d2Wde(self, hyperElasticState: HyperElasticState) -> FeArray:
+    def Compute_d2Wde(self, hyperElasticState: HyperElasticState) -> FeArray:
         K = self.K
 
         I1 = hyperElasticState.Compute_I1()
@@ -313,7 +295,7 @@ class MooneyRivlin(_HyperElastic):
 
         return W
 
-    def _Compute_elastic_dWde(self, hyperElasticState: HyperElasticState) -> FeArray:
+    def Compute_dWde(self, hyperElasticState: HyperElasticState) -> FeArray:
         K = self.K
         K1 = self.K1
         K2 = self.K2
@@ -338,7 +320,7 @@ class MooneyRivlin(_HyperElastic):
 
         return dW
 
-    def _Compute_elastic_d2Wde(self, hyperElasticState: HyperElasticState) -> FeArray:
+    def Compute_d2Wde(self, hyperElasticState: HyperElasticState) -> FeArray:
         K = self.K
         K1 = self.K1
         K2 = self.K2
@@ -447,7 +429,7 @@ class CiarletGeymonat(_HyperElastic):
 
         return W
 
-    def _Compute_elastic_dWde(self, hyperElasticState: HyperElasticState) -> FeArray:
+    def Compute_dWde(self, hyperElasticState: HyperElasticState) -> FeArray:
         K = self.K
         K1 = self.K1
         K2 = self.K2
@@ -472,7 +454,7 @@ class CiarletGeymonat(_HyperElastic):
 
         return dW
 
-    def _Compute_elastic_d2Wde(self, hyperElasticState: HyperElasticState) -> FeArray:
+    def Compute_d2Wde(self, hyperElasticState: HyperElasticState) -> FeArray:
         K = self.K
         K1 = self.K1
         K2 = self.K2
@@ -581,7 +563,7 @@ class SaintVenantKirchhoff(_HyperElastic):
 
         return W
 
-    def _Compute_elastic_dWde(self, hyperElasticState: HyperElasticState) -> FeArray:
+    def Compute_dWde(self, hyperElasticState: HyperElasticState) -> FeArray:
         lmbda = self.lmbda
         mu = self.mu
         K = self.K
@@ -601,7 +583,7 @@ class SaintVenantKirchhoff(_HyperElastic):
 
         return dW
 
-    def _Compute_elastic_d2Wde(self, hyperElasticState: HyperElasticState) -> FeArray:
+    def Compute_d2Wde(self, hyperElasticState: HyperElasticState) -> FeArray:
         lmbda = self.lmbda
         mu = self.mu
         K = self.K
@@ -774,7 +756,7 @@ class HolzapfelOgden(_HyperElastic):
 
         return W
 
-    def _Compute_elastic_dWde(self, hyperElasticState: HyperElasticState) -> FeArray:
+    def Compute_dWde(self, hyperElasticState: HyperElasticState) -> FeArray:
         C0 = self.C0
         C1 = self.C1
         C2 = self.C2
@@ -838,7 +820,7 @@ class HolzapfelOgden(_HyperElastic):
 
         return dW
 
-    def _Compute_elastic_d2Wde(self, hyperElasticState: HyperElasticState) -> FeArray:
+    def Compute_d2Wde(self, hyperElasticState: HyperElasticState) -> FeArray:
         C0 = self.C0
         C1 = self.C1
         C2 = self.C2
