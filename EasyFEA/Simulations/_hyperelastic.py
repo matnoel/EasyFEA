@@ -89,9 +89,11 @@ class HyperElastic(_Simu):
         mesh: "Mesh",
         model: "_HyperElastic",
         folder: str = "",
-        tolConv=1e-5,
-        maxIter=20,
-        verbosity=False,
+        absTol: float = 1e-6,
+        relTol: float = 1e-10,
+        incTol: float = 1e-11,
+        maxIter: int = 20,
+        verbosity: bool = False,
     ):
         """Creates a hyperelastic simulation.
 
@@ -103,10 +105,14 @@ class HyperElastic(_Simu):
             The hyperelatic model used.
         folder : str, optional
             save folder, by default "".
-        tolConv : float, optional
-            threshold used to check convergence, by default 1e-5
+        absTol : float, optional
+            absolute tolerance, by default 1e-6
+        relTol : float, optional
+            relative tolerance, by default 1e-10
+        incTol : float, optional
+            incremental tolerance, by default 1e-11
         maxIter : int, optional
-            Maximum iterations for convergence, by default 20
+            maximum iteration, by default 20
         verbosity : bool, optional
             If True, iterative solvers can be used. Defaults to True.
 
@@ -117,7 +123,12 @@ class HyperElastic(_Simu):
 
         super().__init__(mesh, model, folder, verbosity)
 
-        self._Solver_Set_Newton_Raphson_Algorithm(tolConv=tolConv, maxIter=maxIter)
+        self._Solver_Set_Newton_Raphson_Algorithm(
+            absTol=absTol,
+            relTol=relTol,
+            incTol=incTol,
+            maxIter=maxIter,
+        )
 
         self.Solver_Set_Stress()
 

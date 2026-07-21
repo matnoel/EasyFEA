@@ -20,7 +20,7 @@ class RigidContact(Simulations.Elastic):
 
     def __init__(self, mesh, model, penalty, **kwargs):
         super().__init__(mesh, model, **kwargs)
-        self._Solver_Set_Newton_Raphson_Algorithm(tolConv=1e-5, maxIter=50)
+        self._Solver_Set_Newton_Raphson_Algorithm(absTol=1e-5, maxIter=50)
         self.penalty = penalty
         self._contactMesh: Mesh = None
 

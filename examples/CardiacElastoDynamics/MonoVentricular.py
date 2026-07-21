@@ -50,7 +50,9 @@ class CardiacElastoDynamics(Simulations.HyperElastic):
         mesh,
         model,
         folder="",
-        tolConv=0.00001,
+        absTol: float = 1e-6,
+        relTol: float = 1e-10,
+        incTol: float = 1e-11,
         maxIter=20,
         verbosity=False,
         alpha_top=1e5,
@@ -58,7 +60,9 @@ class CardiacElastoDynamics(Simulations.HyperElastic):
         beta_top=5e3,
         beta_epi=5e3,
     ):
-        super().__init__(mesh, model, folder, tolConv, maxIter, verbosity)
+        super().__init__(
+            mesh, model, folder, absTol, relTol, incTol, maxIter, verbosity
+        )
         self.__dict_pressure: dict[str, float] = {}
         self.__alpha_top = alpha_top
         self.__alpha_epi = alpha_epi

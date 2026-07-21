@@ -1153,26 +1153,47 @@ class _Simu(_IObserver, _params.Updatable, ABC):
 
         return coefK, coefC, coefM
 
-    def _Solver_Set_Newton_Raphson_Algorithm(self, tolConv=1.0e-5, maxIter=20) -> None:
+    def _Solver_Set_Newton_Raphson_Algorithm(
+        self,
+        absTol: float = 1.0e-6,
+        relTol: float = 1.0e-10,
+        incTol: float = 1.0e-11,
+        maxIter: int = 20,
+    ) -> None:
         """Sets the algorithm's resolution properties for an non linear problem.\n
 
         Used to solve A(u) Δu = - R(u).
 
         Parameters
         ----------
-        tolConv : float, optional
-            threshold used to check convergence, by default 1e-5
+        absTol : float, optional
+            absolute tolerance, by default 1e-6
+        relTol : float, optional
+            relative tolerance, by default 1e-10
+        incTol : float, optional
+            incremental tolerance, by default 1e-11
         maxIter : int, optional
-            Maximum iterations for convergence, by default 20
+            maximum iteration, by default 20
         """
 
         self.__isNonLinear = True
-        self.__tolConv = tolConv
-        self.__maxIter = maxIter
+
+        assert 0 < absTol < 1, "absTol must be between 0 and 1."
+        assert 0 < relTol < 1, "relTol must be between 0 and 1."
+        assert 0 < incTol < 1, "incTol must be between 0 and 1."
+        assert maxIter > 1, "maxIter must be > 1."
+
+        self.__newtonRaphsonParams = (absTol, relTol, incTol, maxIter)
 
         self.__newtonIter = None
         self.__timeIter = None
         self.__list_norm_r = None
+
+    def __Solver_Get_Newton_Raphson_Params(self) -> tuple[float, float, float, int]:
+        """Returns (absTol, relTol, incTol, maxIter) Newton Raphson properties."""
+        assert self.__isNonLinear, "the current simulation is not non linear."
+
+        return self.__newtonRaphsonParams
 
     @property
     def isNonLinear(self):
@@ -1213,7 +1234,7 @@ class _Simu(_IObserver, _params.Updatable, ABC):
 
         if self.isNonLinear:
             u, newtonIter, timeIter, list_norm_r = self._Solver_Solve_Newton_Raphson(
-                problemType, self.__tolConv, self.__maxIter
+                problemType
             )
             self.__newtonIter = newtonIter
             self.__timeIter = timeIter
@@ -1334,10 +1355,7 @@ class _Simu(_IObserver, _params.Updatable, ABC):
         return self.__current_newton_raphson_solution
 
     def _Solver_Solve_Newton_Raphson(
-        self,
-        problemType=None,
-        tolConv=1.0e-5,
-        maxIter=20,
+        self, problemType=None
     ) -> tuple[_types.FloatArray, int, float, list[float]]:
         """Solves the non-linear problem using the newton raphson algorithm.\n
 
@@ -1347,10 +1365,6 @@ class _Simu(_IObserver, _params.Updatable, ABC):
         ----------
         problemType : ModelType, optional
             The problem type, by default self.problemType
-        tolConv : float, optional
-            threshold used to check convergence, by default 1e-5
-        maxIter : int, optional
-            Maximum iterations for convergence, by default 20
 
         Returns
         -------
@@ -1361,9 +1375,6 @@ class _Simu(_IObserver, _params.Updatable, ABC):
         -------
         The `Construct_local_matrix_system` function must return `K` and `F`, where `K` contains the tangent matrix and `F` contains the residual.\n
         """
-
-        assert 0 < tolConv < 1, "tolConv must be between 0 and 1."
-        assert maxIter > 1, "Must be > 1."
 
         newtonIter = 0
         converged = False
@@ -1379,10 +1390,12 @@ class _Simu(_IObserver, _params.Updatable, ABC):
         u = self._Get_u_n(problemType)
 
         # init convergence list
-        list_norm_r: list[float] = []
+        list_norm: list[float] = []
 
         if MPI_RANK == 0:
             Terminal.Section(f"{problemType.name} problem at iteration {self.Niter}")
+
+        absTol, relTol, incTol, maxIter = self.__Solver_Get_Newton_Raphson_Params()
 
         while not converged and newtonIter < maxIter:
 
@@ -1392,18 +1405,22 @@ class _Simu(_IObserver, _params.Updatable, ABC):
 
             # Compute delta_u and the residual norm (with the applied boundary conditions)
             self.__Solver_Set_Newton_Raphson_current_solution(u)
-            delta_u, norm_r = Solve_simu(self, self.problemType)
-            list_norm_r.append(norm_r)
+            delta_u, norm = Solve_simu(self, self.problemType)
+            list_norm.append(norm)
+            relNorm = norm / list_norm[0]
 
             if MPI_RANK == 0:
-                print(f"At Newton iteration {newtonIter} norm is {norm_r:14.12e}")
+                print(
+                    # f"At Newton iteration {newtonIter} norm is {norm:14.12e}"
+                    f"At Newton iteration {newtonIter} relative norm is {relNorm:14.12e}"
+                )
 
             # compute ||delta_u||
             norm_delta_u = np.linalg.norm(delta_u)
             # update the newton raphson solution
             u += delta_u
 
-            converged = (norm_r < tolConv) or (norm_delta_u < 1e-11)
+            converged = (norm < absTol) or (relNorm < relTol) or (norm_delta_u < incTol)
 
         timeIter = tic.Tac(f"Resolution {problemType}", "Newton iterations", False)
 
@@ -1411,7 +1428,7 @@ class _Simu(_IObserver, _params.Updatable, ABC):
             converged
         ), f"Newton raphson algorithm did not converged in {newtonIter} iterations."
 
-        return u, newtonIter, timeIter, list_norm_r
+        return u, newtonIter, timeIter, list_norm
 
     def _Solver_Apply_Neumann(self, problemType: ModelType) -> sparse.csr_matrix:
         """Fill in the Neumann boundary conditions by constructing b from A x = b.
