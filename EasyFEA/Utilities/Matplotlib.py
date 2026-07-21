@@ -1334,7 +1334,7 @@ def Movie_Simu(
         return
 
     Niter = simu.Niter
-    N = np.max([Niter, N])
+    N = np.min([Niter, N])
     iterations = np.linspace(0, Niter - 1, N, endpoint=True, dtype=int)
 
     ax = Init_Axes(inDim)
