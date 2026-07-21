@@ -9,7 +9,7 @@ import numpy as np
 
 from .._linalg import FeArray
 from .._utils import MatrixType
-from ...Models._utils import Project_vector_to_matrix
+from ...Models._utils import Project_matrix_to_vector, Project_vector_to_matrix
 
 if TYPE_CHECKING:
     from .._group_elem import _GroupElem
@@ -72,25 +72,25 @@ def __block_grad_B(
 
 
 def __geometric_tangent(
-    state: "HyperElasticState",
-    stress_e_pg: "FeArray",
     wJ_e_pg: "FeArray",
+    state: "HyperElasticState",
+    dWde_e_pg: "FeArray",
 ) -> np.ndarray:
     r"""Geometric (initial-stress) tangent ``∫ gradᵀ · Sig · grad dΩ``.
 
     Returned in component-major (``xi,...,xn,yi,...,yn,...``) layout to match the material tangent before the shared reorder.
 
-    Exploits the block structure ``Sig = I_dim ⊗ sig``: with ``sig`` the ``dim×dim`` PK2 (from the Kelvin-Mandel vector) and ``dN`` the cartesian shape-function gradients, the dense ``gradᵀ·Sig·grad`` collapses to a block-diagonal Kronecker product::
+    Exploits the block structure ``Sig = I_dim ⊗ dWde``: with ``dWde`` the ``dim×dim`` PK2 (from the Kelvin-Mandel vector) and ``dN`` the cartesian shape-function gradients, the dense ``gradᵀ·Sig·grad`` collapses to a block-diagonal Kronecker product::
 
-        g   = ∫ dNᵀ · sig · dN dΩ            (Ne, nPe, nPe)
+        g   = ∫ dNᵀ · dWde · dN dΩ            (Ne, nPe, nPe)
         Kgeo = g ⊗ I_dim                     (Ne, dim·nPe, dim·nPe)
 
     i.e. ``Kgeo[j·nPe+a, k·nPe+b] = δ_{jk} · g[a,b]``. This avoids building the dense ``(Ne, nPg, dim², dim²)`` ``Sig`` and the ``dim²``-wide contraction.
     """
     groupElem = state.groupElem
     Ne, dim, nPe = groupElem.Ne, groupElem.dim, groupElem.nPe
-    sig_e_pg = np.asarray(Project_vector_to_matrix(stress_e_pg))  # (Ne, nPg, dim, dim)
-    dN_e_pg = np.asarray(groupElem.Get_dN_e_pg(state.matrixType))  # (Ne, nPg, dim, nPe)
+    sig_e_pg = Project_vector_to_matrix(dWde_e_pg)  # (Ne, nPg, dim, dim)
+    dN_e_pg = groupElem.Get_dN_e_pg(state.matrixType)  # (Ne, nPg, dim, nPe)
     g_e = einsum("ep,epab,epac,epcd->ebd", wJ_e_pg, dN_e_pg, sig_e_pg, dN_e_pg)
     return einsum("eab,jk->ejakb", g_e, np.eye(dim)).reshape(Ne, dim * nPe, dim * nPe)
 
@@ -98,6 +98,46 @@ def __geometric_tangent(
 def __reorder(dim: int, nPe: int) -> np.ndarray:
     """Permutation from ``(xi,...,xn,yi,...,yn,...)`` to ``(xi,yi,zi,...,xn,yn,zn)``."""
     return np.arange(0, nPe * dim).reshape(-1, nPe).T.ravel()
+
+
+def __reorder_dofs(dim: int, nPe: int, *arrays: np.ndarray) -> tuple[np.ndarray, ...]:
+    """Reorder local arrays from component-major to interleaved dof layout.
+
+    Applies the :func:`__reorder` permutation — ``(xi,...,xn,yi,...,yn,...)`` → ``(xi,yi,zi,...,xn,yn,zn)`` — to each local array by its rank: a vector ``(Ne, nPe·dim)`` (residual / force) or a matrix ``(Ne, nPe·dim, nPe·dim)`` (tangent / mass / damping). Returns the reordered arrays in the given order, so every nonlinear operator shares this one permutation site instead of open-coding the fancy indexing.
+    """
+    perm = __reorder(dim, nPe)
+    ri, rj = perm[:, None], perm[None, :]
+    reordered = [None] * len(arrays)
+    for i, array in enumerate(arrays):
+        if array.ndim == 2:  # (Ne, ndof) vector
+            reordered[i] = array[:, perm]
+        elif array.ndim == 3:  # (Ne, ndof, ndof) matrix
+            reordered[i] = array[:, ri, rj]
+        else:
+            raise ValueError(
+                f"each array must be (Ne, ndof) or (Ne, ndof, ndof); got ndim {array.ndim}."
+            )
+    return tuple(reordered)
+
+
+def __second_piola_block(
+    wJ_e_pg: "FeArray",
+    state: "HyperElasticState",
+    dWde_e_pg: "FeArray",
+    d2Wde_e_pg: "FeArray",
+) -> tuple[np.ndarray, np.ndarray]:
+    r"""Residual and material+geometric d2Wde for a Kelvin-Mandel dWde / d2Wde sampled at ``state`` — the shared core of the hyperelastic dWde operators::
+
+        R_e     = ∫ Bᵀ · dWde dΩ
+        K_block = ∫ Bᵀ · d2Wde · B dΩ  +  ∫ gradᵀ (I ⊗ dWde) grad dΩ
+
+    Both component-major (``xi,...,xn,yi,...``), before the shared reorder. The fused einsum contracts the strain and Gauss-point axes in one pass, avoiding the per-Gauss ``(Ne, nPg, ndof, ndof)`` intermediate a chained ``Bᵀ @ d2Wde @ B`` would build (summation order differs from the matmul chain, so results match only to ~1e-14 relative). :func:`SecondPiolaKirchhoffStressTensor` feeds the constitutive ``(dWde, d2Wde)``; :func:`GonzalezStressTensor` feeds the discrete-gradient ``(Ŝ, ℂ̄)`` at the midpoint state.
+    """
+    _, B_e_pg = __block_grad_B(state)
+    A_lin = einsum("ep,epji,epjk,epkl->eil", wJ_e_pg, B_e_pg, d2Wde_e_pg, B_e_pg)
+    A_geo = __geometric_tangent(wJ_e_pg, state, dWde_e_pg)
+    residual_e = einsum("ep,epi,epij->ej", wJ_e_pg, dWde_e_pg, B_e_pg)
+    return A_lin + A_geo, residual_e
 
 
 def SecondPiolaKirchhoffStressTensor(
@@ -145,30 +185,123 @@ def SecondPiolaKirchhoffStressTensor(
     nPe = groupElem.nPe
     dim = groupElem.dim
 
-    dWde_e_pg = material.Compute_dWde(state)
-    d2Wde_e_pg = material.Compute_d2Wde(state)
+    tangent_e, residual_e = __second_piola_block(
+        wJ_e_pg,
+        state,
+        material.Compute_dWde(state),
+        material.Compute_d2Wde(state),
+    )
 
-    _, B_e_pg = __block_grad_B(state)
+    if dim == 2:
+        thickness = material.thickness
+        tangent_e *= thickness
+        residual_e *= thickness
 
-    # linear (material) tangent + nonlinear (geometric) tangent.
-    # A single fused einsum contracts the strain indices and the Gauss-point
-    # (integration) axis in one pass — it avoids materializing the per-Gauss
-    # (Ne, nPg, ndof, ndof) intermediate that the chained `B.T @ d2W @ B` builds.
-    # Summation order differs from the matmul chain, so results match only to
-    # floating-point round-off (~1e-14 relative), not bit-for-bit.
-    A_lin = einsum("ep,epji,epjk,epkl->eil", wJ_e_pg, B_e_pg, d2Wde_e_pg, B_e_pg)
-    A_geo = __geometric_tangent(state, dWde_e_pg, wJ_e_pg)
-    tangent_e = A_lin + A_geo
+    return __reorder_dofs(dim, nPe, tangent_e, residual_e)
 
-    # residual
-    residual_e = einsum("ep,epi,epij->ej", wJ_e_pg, dWde_e_pg, B_e_pg)
 
-    # reorder xi,...,xn,yi,...,yn,zi,...,zn to xi,yi,zi,...,xn,yn,zn
-    reorder = __reorder(dim, nPe)
-    residual_e = residual_e[:, reorder]
-    tangent_e = tangent_e[:, reorder[:, None], reorder[None, :]]
+def GonzalezStressTensor(
+    material: "_HyperElastic",
+    state_n: "HyperElasticState",
+    state_mid: "HyperElasticState",
+    state_np1: "HyperElasticState",
+    useConsistentTangent: bool = True,
+) -> tuple[np.ndarray, np.ndarray]:
+    r"""Energy-conserving (Gonzalez / Simo–Tarnow) tangent and residual.
 
-    return tangent_e, residual_e
+    Returns ``(K_e, R_e)`` in ``(xi,yi,zi,...,xn,yn,zn)`` for the **discrete-gradient** stress
+
+    ::
+
+        Ŝ = s̄ + α Δe ,   α = (ΔW − s̄·Δe) / (Δe·Δe)   (α = 0 when Δe·Δe ≤ ε₀),
+
+    with ``s̄ = S(E(ū))`` the midpoint PK2 (``ū = (u_n+u_{n+1})/2``), ``Δe = E(u_{n+1}) − E(u_n)`` the strain increment, and ``ΔW = W(u_{n+1}) − W(u_n)``. Because strains/stresses are stored in Kelvin-Mandel form (the ``√2`` shear factor makes the double contraction a plain dot product), ``s̄:ΔE = s̄·Δe`` and ``ΔE:ΔE = Δe·Δe`` — no ``halfCrossed``-type correction is needed. By construction ``Ŝ:Δe = ΔW``.
+
+    Residual — the discrete-gradient stress contracted with the **midpoint** strain-displacement operator ``B(ū)``. Since ``Δe = B(ū)·Δu`` exactly (E is quadratic in u, ū the midpoint), ``F_int·Δu = ∫ Ŝ:Δe = ΔW`` and total energy is conserved exactly::
+
+        R_e = ∫ B_midᵀ · Ŝ dΩ
+
+    Tangent — the **consistent** Jacobian ``∂R_e/∂u_{n+1}``. It rides the **same** ``coefK = 0.5`` as :attr:`~EasyFEA.AlgoType.midpoint`, so ``coefK · K_e`` reproduces the true Jacobian::
+
+        coefK · K_e = ½[ ∫ B_midᵀ ℂ̄ B_mid dΩ + A_geo(state_mid, Ŝ) ]   # midpoint block
+                    + α ∫ B_midᵀ B_{n+1} dΩ  +  ∫ (B_midᵀ Δe) ⊗ g dΩ    # discrete-gradient corrections
+
+    with ``v = ℂ̄:Δe`` and the dof-covector
+    ``g = (1/D)(B_{n+1}ᵀ s_{n+1} − ½ B_midᵀ v − B_{n+1}ᵀ s̄) − (2N/D²) B_{n+1}ᵀ Δe``
+    (``N = ΔW − s̄·Δe``); the corrections vanish where ``D ≤ ε₀``.
+
+    To make ``coefK`` uniform with ``midpoint`` (so any midpoint-state term the assembly adds to ``K_e`` — e.g. the Kelvin-Voigt configuration tangent — is scaled consistently), the returned ``K_e`` is built for ``coefK = 0.5``: the midpoint material+geometric block is returned **raw** (exactly as :func:`SecondPiolaKirchhoffStressTensor`), so ``coefK`` supplies its ``∂ū/∂u_{n+1} = ½`` chain factor, while the discrete-gradient corrections — genuine ``∂/∂u_{n+1}`` terms with no ½ factor — are **pre-doubled** so they survive ``coefK``.
+
+    Parameters
+    ----------
+    material
+        Hyperelastic constitutive law — supplies ``Compute_W`` / ``Compute_dWde`` / ``Compute_d2Wde``.
+    state_n, state_mid, state_np1
+        Hyperelastic states at ``u_n``, ``ū`` and ``u_{n+1}`` (same group / matrix type).
+
+    Returns
+    -------
+    K_e : ndarray of shape ``(Ne, nPe·dim, nPe·dim)``
+        Consistent tangent, built for ``coefK = 0.5`` (raw midpoint block + pre-doubled corrections).
+    R_e : ndarray of shape ``(Ne, nPe·dim)``
+        Discrete-gradient internal residual force.
+    """
+
+    eps0 = 1e-10
+
+    groupElem = state_mid.groupElem
+    matrixType = state_mid.matrixType
+    wJ_e_pg = groupElem.Get_weightedJacobian_e_pg(matrixType)
+    nPe = groupElem.nPe
+    dim = groupElem.dim
+
+    # --- 1. discrete-gradient stress  Ŝ = s̄ + α Δe ---
+    s_mid = material.Compute_dWde(state_mid)  # s̄   (Ne, nPg, d)
+    C_mid = material.Compute_d2Wde(state_mid)  # ℂ̄   (Ne, nPg, d, d)
+    # Kelvin-Mandel strain increment Δe = E(u_{n+1}) − E(u_n), sliced to `d` so it
+    # shares s̄'s basis; the √2 shear factor makes s̄:ΔE = s̄·Δe a plain FeArray dot.
+    E_n = Project_matrix_to_vector(state_n.Compute_GreenLagrange())
+    E_np1 = Project_matrix_to_vector(state_np1.Compute_GreenLagrange())
+    dE = state_mid._Slice_Vector(E_np1 - E_n)
+
+    # numerator N = ΔW − s̄·Δe
+    N = (material.Compute_W(state_np1) - material.Compute_W(state_n)) - s_mid.dot(dE)
+    dEdE = dE.dot(dE)  # Δe·Δe
+    # guard the vanishing denominator: α = 0 where Δe·Δe ≤ ε₀ (invD = 0 there)
+    inv_dEdE = np.divide(1.0, dEdE, out=np.zeros_like(dEdE), where=dEdE > eps0)
+    alpha = N * inv_dEdE  # (Ne, nPg), N / Δe·Δe
+    S_hat = s_mid + alpha * dE  # scalar-field α broadcasts over Δe
+
+    # --- 2. residual + midpoint material/geometric block (shared with SPK) ---
+    # Built RAW so it rides coefK = 0.5's ∂ū/∂u_{n+1} = ½ chain factor exactly like
+    # SecondPiolaKirchhoffStressTensor; the geometric block carries the full Ŝ.
+    tangent_e, residual_e = __second_piola_block(wJ_e_pg, state_mid, S_hat, C_mid)
+
+    if useConsistentTangent:
+        # --- 3. discrete-gradient tangent corrections  (∂α/∂u_{n+1}) ---
+        # Genuine ∂/∂u_{n+1} terms (no ½ chain factor) → pre-doubled to survive coefK = 0.5;
+        # they vanish where α = 0 (invD = 0). The rank-1 term makes K non-symmetric.
+        _, B_mid = __block_grad_B(state_mid)  # cache hit (built in phase 2)
+        _, B_np1 = __block_grad_B(state_np1)
+        s_np1 = material.Compute_dWde(state_np1)  # S(E(u_{n+1}))
+        v = C_mid @ dE  # ℂ̄ : Δe
+        # dof-covector g = ∂α/∂u_{n+1}
+        g = inv_dEdE * (B_np1.T @ s_np1 - 0.5 * (B_mid.T @ v) - B_np1.T @ s_mid) - (
+            N * inv_dEdE * inv_dEdE * 2.0
+        ) * (B_np1.T @ dE)
+        tangent_e += 2.0 * (
+            # α ∫ B_midᵀ B_{n+1}
+            einsum("ep,ep,epji,epjk->eik", wJ_e_pg, alpha, B_mid, B_np1)
+            # rank-1 ∫ (B_midᵀΔe)⊗g
+            + einsum("ep,epi,epj->eij", wJ_e_pg, B_mid.T @ dE, g)
+        )
+
+    if dim == 2:
+        thickness = material.thickness
+        tangent_e *= thickness
+        residual_e *= thickness
+
+    return __reorder_dofs(dim, nPe, tangent_e, residual_e)
 
 
 def KelvinVoigtDamping(
@@ -224,15 +357,13 @@ def KelvinVoigtDamping(
     # (η ∫ Bᵀ (∂Ė/∂u)) pieces
     A_mat = material.eta * einsum(subscripts, wJ_e_pg, B_e_pg, Beta_e_pg)
     A_geo = __geometric_tangent(
-        state, material.eta * state.Compute_Edot_vec(velocity), wJ_e_pg
+        wJ_e_pg,
+        state,
+        material.eta * state.Compute_Edot_vec(velocity),
     )
     Kgeo_e = thickness * (A_mat + A_geo)
 
-    reorder = __reorder(dim, nPe)
-    ri, rj = reorder[:, None], reorder[None, :]
-    C_e = C_e[:, ri, rj]
-    Kgeo_e = Kgeo_e[:, ri, rj]
-    return C_e, Kgeo_e
+    return __reorder_dofs(dim, nPe, C_e, Kgeo_e)
 
 
 def __skew(v: np.ndarray) -> np.ndarray:
@@ -341,8 +472,7 @@ def FollowingPressure(
     ).reshape(Ne_a, dim * nPe, dim * nPe)
 
     # component-major → interleaved (xi, yi, zi, ...)
-    reorder = np.arange(dim * nPe).reshape(dim, nPe).T.ravel()
-    K_active = K_active[:, reorder[:, None], reorder[None, :]]
+    (K_active,) = __reorder_dofs(dim, nPe, K_active)
 
     K_e[active] = -K_active
     R_e[active] = F_active

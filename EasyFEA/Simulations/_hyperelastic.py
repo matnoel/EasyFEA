@@ -97,6 +97,10 @@ class HyperElastic(_Simu):
 
         self._Solver_Set_Newton_Raphson_Algorithm(tolConv=tolConv, maxIter=maxIter)
 
+        # gonzalez (energy-momentum) options — see Solver_Set_Gonzalez
+        self.__useGonzalez = False
+        self.__useConsistentTangent = True
+
     # --------------------------------------------------------------------------
     # General
     # --------------------------------------------------------------------------
@@ -129,6 +133,34 @@ class HyperElastic(_Simu):
     def Get_x0(self, problemType=None):
         return self.displacement
 
+    def Solver_Set_Gonzalez(self, useConsistentTangent: bool = True) -> None:
+        r"""Enables the Gonzalez / Simo-Tarnow energy-momentum stress. Call **after** :py:meth:`~EasyFEA.Simulations._Simu.Solver_Set_Hyperbolic_Algorithm`, which must have selected :attr:`~EasyFEA.AlgoType.midpoint`.
+
+        This is **not** a time scheme: the discretization stays exactly :attr:`~EasyFEA.AlgoType.midpoint` (same :math:`\urm/\vrm/\arm` update, same :math:`\mathrm{coef}_\Krm/\mathrm{coef}_\Crm/\mathrm{coef}_\Mrm`). Only the stress changes — the midpoint PK2 :math:`\bar{\Srm} = \Srm(\eb(\bar{\ub}))` is replaced by the **discrete gradient** of the stored energy, assembled by :func:`~EasyFEA.FEM.Operators.NonLinear.GonzalezStressTensor`:
+
+        .. math::
+            \hat{\Srm} = \bar{\Srm} + \alpha \, \Delta \eb, \qquad
+            \alpha = \frac{\Delta W - \bar{\Srm} : \Delta \eb}{\Delta \eb : \Delta \eb}
+
+        with :math:`\Delta \eb = \eb(\ub^{n+1}) - \eb(\ub^n)`, :math:`\Delta W = W(\ub^{n+1}) - W(\ub^n)`, and :math:`\alpha = 0` where :math:`\|\Delta \eb\|^2 \le \varepsilon_0`.
+
+        By construction :math:`\hat{\Srm} : \Delta \eb = \Delta W`, and since :math:`\Delta \eb = \Brm(\bar{\ub}) \cdot \Delta \ub` exactly (:math:`\eb` is quadratic in :math:`\ub` and :math:`\bar{\ub}` is the midpoint), the discrete power balance :math:`\Frm_{int} \cdot \Delta \ub = \Delta W` holds. Total energy :math:`\mathrm{KE} + W` is therefore conserved to round-off for nonlinear hyperelastodynamics, where the plain midpoint rule drifts.
+
+        The midpoint base point is what makes the proof work, hence the :attr:`~EasyFEA.AlgoType.midpoint` requirement. Note this variant conserves **energy**, not angular momentum.
+
+        Parameters
+        ----------
+        useConsistentTangent : bool, optional
+            If True (default), use the consistent Jacobian :math:`\partial \Rrm / \partial \ub^{n+1}` (quadratic Newton convergence). If False, drop the discrete-gradient corrections and keep only the midpoint material + geometric block: the residual — and hence the exact energy conservation — is unchanged, but Newton converges linearly. Diagnostic, to measure what the consistent tangent is worth.
+        """
+        algo = self.algo
+        assert (
+            algo == AlgoType.midpoint
+        ), f"gonzalez requires AlgoType.midpoint (got {algo}). Call Solver_Set_Hyperbolic_Algorithm(dt, algo=AlgoType.midpoint) first."
+
+        self.__useGonzalez = True
+        self.__useConsistentTangent = useConsistentTangent
+
     def Construct_local_matrix_system(
         self,
         problemType,
@@ -146,22 +178,49 @@ class HyperElastic(_Simu):
         # velocity, for Kelvin–Voigt viscosity.
         displacement = self._Solver_Get_Newton_Raphson_current_solution()
         velocity = None
+        # gonzalez needs the endpoint states (u_n, u_{n+1}) for the discrete gradient;
+        # keep u_{n+1} before the midpoint evaluation overwrites `displacement` with ū.
+        # Re-checked here (not only in Solver_Set_Gonzalez) so that re-calling
+        # Solver_Set_Hyperbolic_Algorithm with another algo can't leave a stale flag.
+        useGonzalez = self.__useGonzalez
+        assert not (
+            useGonzalez and self.algo != AlgoType.midpoint
+        ), "gonzalez requires AlgoType.midpoint"
+        u_np1 = displacement
         if isDynamic:
             displacement, velocity, _ = self._Solver_Evaluate_u_v_a_for_time_scheme(
                 problemType, displacement
             )
+        if useGonzalez:
+            u_n = self._Get_u_n(problemType)
+
+        errDetF = "det(F) < 0 - reduce load steps"
 
         out = {}
         for groupElem in self.mesh.Get_list_groupElem():
             state = HyperElasticState(groupElem, displacement, matrixType)
 
             # invalid-element guard
-            assert state.Compute_J().min() > 0, "det(F) < 0 - reduce load steps"
+            assert state.Compute_J().min() > 0, errDetF
 
-            # elastic tangent + residual; Newton: A(u) Δu = -R(u) = -F(u) + b
-            K_e, residual_e = Operators.NonLinear.SecondPiolaKirchhoffStressTensor(
-                self.material, state
-            )
+            if useGonzalez:
+                # energy-conserving discrete-gradient stress; `state` is the midpoint
+                # state ū, so only the two endpoint states are built here.
+                state_n = HyperElasticState(groupElem, u_n, matrixType)
+                state_np1 = HyperElasticState(groupElem, u_np1, matrixType)
+                assert state_np1.Compute_J().min() > 0, errDetF
+                K_e, residual_e = Operators.NonLinear.GonzalezStressTensor(
+                    self.material,
+                    state_n,
+                    state,
+                    state_np1,
+                    self.__useConsistentTangent,
+                )
+            else:
+                # elastic tangent + residual; Newton: A(u) Δu = -R(u) = -F(u) + b
+                K_e, residual_e = Operators.NonLinear.SecondPiolaKirchhoffStressTensor(
+                    self.material, state
+                )
             F_e = -residual_e
 
             # Kelvin–Voigt viscosity: C_e is the damping matrix (slot 2, rides
@@ -172,7 +231,7 @@ class HyperElastic(_Simu):
                 C_e, Kgeo_e = Operators.NonLinear.KelvinVoigtDamping(
                     self.material, state, velocity
                 )
-                K_e = K_e + Kgeo_e
+                K_e += Kgeo_e
 
             # mass matrix — only assembled for dynamic schemes
             M_e = None

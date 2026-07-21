@@ -90,7 +90,6 @@ def _fd_tangent(force_fn, u, asse, eps=1e-6):
 
 
 def _assert_matches(K_ana, K_fd, tol=1e-6, msg=""):
-    K_ana = np.asarray(K_ana)
     err = np.abs(K_ana - K_fd).max()
     scale = np.abs(K_fd).max()
     assert err / scale < tol, f"{msg}: rel err {err / scale:.2e}"
@@ -115,7 +114,7 @@ class TestSecondPiolaKirchhoff:
         def residual(u_):
             st = HyperElasticState(ge, u_, MatrixType.rigi)
             _, R = Operators.NonLinear.SecondPiolaKirchhoffStressTensor(mat, st)
-            return np.asarray(R)
+            return R
 
         return residual
 
@@ -189,7 +188,6 @@ class TestSecondPiolaKirchhoff:
             u = rng.standard_normal(mesh.Nn * dim) * 0.03
             st = HyperElasticState(ge, u, MatrixType.rigi)
             K, _ = Operators.NonLinear.SecondPiolaKirchhoffStressTensor(mat, st)
-            K = np.asarray(K)
             asym = np.abs(K - K.transpose(0, 2, 1)).max()
             assert asym / np.abs(K).max() < 1e-10, f"{elemType.name}: asym {asym:.2e}"
 
@@ -255,7 +253,7 @@ class TestKelvinVoigt:
         def Fvisco(u_):
             st = HyperElasticState(ge, u_, MatrixType.rigi)
             C, _ = Operators.NonLinear.KelvinVoigtDamping(mat, st, v)
-            return np.einsum("eij,ej->ei", np.asarray(C), v[asse])
+            return np.einsum("eij,ej->ei", C, v[asse])
 
         st = HyperElasticState(ge, u, MatrixType.rigi)
         _, Kgeo = Operators.NonLinear.KelvinVoigtDamping(mat, st, v)
@@ -274,7 +272,6 @@ class TestKelvinVoigt:
         st = HyperElasticState(ge, rng.standard_normal(n) * 0.03, MatrixType.rigi)
         v = rng.standard_normal(n) * 0.1
         C, _ = Operators.NonLinear.KelvinVoigtDamping(mat, st, v)
-        C = np.asarray(C)
         assert np.abs(C - C.transpose(0, 2, 1)).max() / np.abs(C).max() < 1e-10
         # BᵀB ⇒ each element matrix has no negative eigenvalues
         assert np.linalg.eigvalsh(C).min() > -1e-9 * np.abs(C).max()
@@ -295,3 +292,135 @@ class TestKelvinVoigt:
 
         mat.eta = 0.7  # viscous, but no velocity passed
         assert Operators.NonLinear.KelvinVoigtDamping(mat, st, None) == (None, None)
+
+
+# ----------------------------------------------------------------------------
+# Gonzalez energy-momentum operator
+# ----------------------------------------------------------------------------
+
+
+class TestGonzalez:
+    """Energy-momentum operator ``GonzalezStressTensor(mat, state_n, state_mid, state_np1)``.
+
+    Two properties define it. (1) The **discrete power balance** ``R·Δu = ΔW`` — the
+    internal work of the residual over the step equals the stored-energy increment —
+    which is what makes the scheme conserve ``KE + W`` exactly; its non-trivial
+    content is the kinematic identity ``B(ū)·Δu = Δe`` (i.e. ``De(ū)`` is exact), so
+    it breaks if ``B`` is built at the wrong configuration. (2) The consistent tangent
+    ``∂R/∂u_{n+1}``; the operator returns it built for ``coefK = 0.5`` (shared with
+    ``midpoint``), so the true Jacobian is ``½·K``.
+    """
+
+    @staticmethod
+    def _states(ge, u_n, u_np1):
+        return (
+            HyperElasticState(ge, u_n, MatrixType.rigi),
+            HyperElasticState(ge, (u_n + u_np1) / 2, MatrixType.rigi),
+            HyperElasticState(ge, u_np1, MatrixType.rigi),
+        )
+
+    def _check_directionality(self, dim, elemType, law, seed):
+        rng = np.random.default_rng(seed)
+        mesh = _mesh(dim, elemType)
+        mat = _material(dim, law)
+        groupElem = mesh.groupElem
+
+        u_n = rng.standard_normal(mesh.Nn * dim) * 0.02
+        u_np1 = u_n + rng.standard_normal(mesh.Nn * dim) * 0.02  # Δe·Δe ≫ ε₀
+        asse = groupElem.Get_assembly_e(dim)
+
+        sn, smid, snp = self._states(groupElem, u_n, u_np1)
+        _, R = Operators.NonLinear.GonzalezStressTensor(mat, sn, smid, snp)
+
+        # internal work R·Δu, assembled over the interleaved element dofs
+        du_e = (u_np1 - u_n)[asse]  # (Ne, ndof_e), same layout as R
+        internal_work = float(np.einsum("ei,ei->", R, du_e))
+
+        # ΔW = ∫ (W(u_{n+1}) − W(u_n)) dΩ — independent of the operator's assembly
+        wJ = groupElem.Get_weightedJacobian_e_pg(MatrixType.rigi)
+        dW = np.sum(wJ * (mat.Compute_W(snp) - mat.Compute_W(sn)))
+
+        assert (
+            abs(internal_work - dW) / abs(dW) < 1e-9
+        ), f"{law}/{elemType.name}: R·Δu={internal_work:.6e} vs ΔW={dW:.6e}"
+
+    @pytest.mark.parametrize("dim, elemType", ELEMS, ids=ELEM_IDS)
+    def test_discrete_gradient_directionality(self, dim, elemType):
+        """``R·Δu == ΔW`` across element shapes / orders (Saint-Venant-Kirchhoff)."""
+        self._check_directionality(dim, elemType, "SaintVenantKirchhoff", seed=7)
+
+    @pytest.mark.parametrize("law", LAWS)
+    def test_discrete_gradient_directionality_laws(self, law):
+        """``R·Δu == ΔW`` for every constitutive law (energy conservation is law-agnostic)."""
+        for dim, elemType in [(2, ElemType.QUAD4), (3, ElemType.HEXA8)]:
+            self._check_directionality(dim, elemType, law, seed=8)
+
+    @staticmethod
+    def _residual_fn(ge, mat, u_n):
+        """``R(u_{n+1})`` with ``u_n`` fixed and ``ū = (u_n+u_{n+1})/2`` — for FD in ``u_{n+1}``."""
+
+        def residual(u_np1_):
+            sn = HyperElasticState(ge, u_n, MatrixType.rigi)
+            smid = HyperElasticState(ge, (u_n + u_np1_) / 2, MatrixType.rigi)
+            snp = HyperElasticState(ge, u_np1_, MatrixType.rigi)
+            _, R = Operators.NonLinear.GonzalezStressTensor(mat, sn, smid, snp)
+            return R
+
+        return residual
+
+    def _check_tangent(self, dim, elemType, law, seed):
+        rng = np.random.default_rng(seed)
+        mesh = _mesh(dim, elemType)
+        mat = _material(dim, law)
+        ge = mesh.groupElem
+
+        u_n = rng.standard_normal(mesh.Nn * dim) * 0.02
+        u_np1 = u_n + rng.standard_normal(mesh.Nn * dim) * 0.02  # Δe·Δe ≫ ε₀
+        asse = ge.Get_assembly_e(dim)
+
+        sn, smid, snp = self._states(ge, u_n, u_np1)
+        K_ana, _ = Operators.NonLinear.GonzalezStressTensor(mat, sn, smid, snp)
+        K_fd = _fd_tangent(self._residual_fn(ge, mat, u_n), u_np1, asse)
+        # operator returns K for coefK = 0.5, so the true Jacobian ∂R/∂u_{n+1} = ½·K
+        _assert_matches(0.5 * K_ana, K_fd, msg=f"{law}/{elemType.name}")
+
+    @pytest.mark.parametrize("dim, elemType", ELEMS, ids=ELEM_IDS)
+    def test_tangent_vs_finite_difference(self, dim, elemType):
+        """``½·K == ∂R/∂u_{n+1}`` (FD) across element shapes / orders (Saint-Venant-Kirchhoff)."""
+        self._check_tangent(dim, elemType, "SaintVenantKirchhoff", seed=9)
+
+    @pytest.mark.parametrize("law", LAWS)
+    def test_tangent_vs_finite_difference_laws(self, law):
+        """The consistent discrete-gradient tangent holds for every constitutive law."""
+        for dim, elemType in [(2, ElemType.QUAD4), (3, ElemType.HEXA8)]:
+            self._check_tangent(dim, elemType, law, seed=10)
+
+    @pytest.mark.parametrize("law", LAWS)
+    def test_tangent_flag_leaves_residual_untouched(self, law):
+        """``useConsistentTangent`` may only change ``K`` — never the residual.
+
+        Energy conservation is carried entirely by the residual (the discrete gradient),
+        so the approximate-tangent variant must integrate *exactly* the same physics and
+        differ only in Newton's convergence rate. If a future optimisation of the
+        cheap-tangent path perturbed ``R``, the scheme would silently stop conserving.
+        """
+        rng = np.random.default_rng(11)
+        for dim, elemType in [(2, ElemType.QUAD4), (3, ElemType.HEXA8)]:
+            mesh = _mesh(dim, elemType)
+            mat = _material(dim, law)
+            ge = mesh.groupElem
+
+            u_n = rng.standard_normal(mesh.Nn * dim) * 0.02
+            u_np1 = u_n + rng.standard_normal(mesh.Nn * dim) * 0.02  # Δe·Δe ≫ ε₀
+            sn, smid, snp = self._states(ge, u_n, u_np1)
+
+            K_con, R_con = Operators.NonLinear.GonzalezStressTensor(mat, sn, smid, snp, True)
+            K_apx, R_apx = Operators.NonLinear.GonzalezStressTensor(mat, sn, smid, snp, False)
+
+            assert np.array_equal(np.asarray(R_con), np.asarray(R_apx)), (
+                f"{law}/{elemType.name}: residual must not depend on useConsistentTangent"
+            )
+            # and the flag must actually do something to the tangent
+            assert not np.allclose(np.asarray(K_con), np.asarray(K_apx)), (
+                f"{law}/{elemType.name}: the two tangents should differ"
+            )
