@@ -7,8 +7,9 @@
 Hyperelas5
 ==========
 
-A hyperelastic cantilever is deflected, released and vibrates freely. The energy-momentum
-``gonzalez`` scheme keeps the total energy ``KE + W`` constant; the ``midpoint`` rule drifts.
+A hyperelastic cantilever is deflected, released and vibrates freely, integrated by several
+stress evaluations of the same step. The energy-momentum ``gonzalez`` scheme keeps the total
+energy ``KE + W`` constant; the time-quadrature rules and the plain schemes drift.
 """
 
 # sphinx_gallery_thumbnail_number = -1
@@ -39,12 +40,16 @@ if __name__ == "__main__":
     makeMovie = True
     result = "uy"
 
-    # schemes to compare, as (label, useGonzalez, useConsistentTangent).
-    # The first one is the reference: shown on the right and animated.
+    ST = Simulations.HyperElastic.StressType
     list_config = [
-        ("gonzalez", True, True),
-        ("gonzalez_noTangent", True, False),
-        ("midpoint", False, True),
+        ("gonzalez", dict(stressType=ST.gonzalez)),
+        # ("gonzalez_approx", dict(stressType=ST.gonzalez, useConsistentTangent=False)),
+        # ("pointwise", dict(stressType=ST.pointwise)),
+        ("1 pt (midpoint)", dict(stressType=ST.quadrature, nPoints=1)),
+        ("2 pts (trapezoid)", dict(stressType=ST.quadrature, nPoints=2)),
+        ("3 pts (simpson)", dict(stressType=ST.quadrature, nPoints=3)),
+        ("5 pts", dict(stressType=ST.quadrature, nPoints=5)),
+        ("9 pts", dict(stressType=ST.quadrature, nPoints=9)),
     ]
 
     # geom
@@ -58,7 +63,7 @@ if __name__ == "__main__":
     deflection = L * 0.4
     nPreload = 2
     T = 3.0
-    Nt = 100
+    Nt = 50
 
     # ----------------------------------------------
     # Mesh
@@ -74,7 +79,8 @@ if __name__ == "__main__":
     # Deflect (static), release, integrate freely
     # ----------------------------------------------
 
-    def run(label, useGonzalez, useConsistentTangent) -> None:
+    def run(label, **stress):
+        """`stress` is forwarded verbatim to Solver_Set_Stress."""
 
         Terminal.Section(label)
 
@@ -95,8 +101,7 @@ if __name__ == "__main__":
         dt = T / Nt
         simu.Bc_Init()
         simu.Solver_Set_Hyperbolic_Algorithm(dt, algo=AlgoType.midpoint)
-        if useGonzalez:
-            simu.Solver_Set_Gonzalez(useConsistentTangent)
+        simu.Solver_Set_Stress(**stress)
         simu.add_dirichlet(nodesX0, [0, 0], simu.Get_unknowns())
 
         problemType = simu.problemType
@@ -105,6 +110,7 @@ if __name__ == "__main__":
         list_KE = [0.0]
         list_W = [0.0]
         list_W[0] = simu._Calc_W(returnScalar=True)
+        list_newton = []
 
         M = None
         for i in range(1, Nt):
@@ -117,6 +123,7 @@ if __name__ == "__main__":
             list_t.append(i * dt)
             list_KE.append(0.5 * float(v @ (M @ v)))
             list_W.append(simu._Calc_W(returnScalar=True))
+            list_newton.append(simu.Get_results(-1)["newtonIter"])
 
         return (
             simu,
@@ -124,41 +131,44 @@ if __name__ == "__main__":
             np.array(list_KE),
             np.array(list_W),
             tic.Tac(),
+            np.array(list_newton),
         )
 
-    # {label: (simu, times, KE, W, t)}
-    runs: dict[str, tuple] = {cfg[0]: run(*cfg) for cfg in list_config}
+    # {label: (simu, times, KE, W, t, newtonIter)}
+    runs: dict[str, tuple] = {label: run(label, **kw) for label, kw in list_config}
 
     # ----------------------------------------------
     # Results
     # ----------------------------------------------
     Terminal.Section("Results")
 
-    simu_ref, times, KE_ref, W_ref, _ = runs[list_config[0][0]]
+    simu, times, KE_ref, W_ref, _, _ = runs[list_config[0][0]]
     E0 = KE_ref[0] + W_ref[0]
 
     for label in runs:
-        _, _, KE, W, _ = runs[label]
-        print(f"{label:19s}: max |KE+W-E0|/E0 = {np.abs(KE + W - E0).max() / E0:.2e}")
+        _, _, KE, W, t, newton = runs[label]
+        drift = np.abs(KE + W - E0).max() / E0
+        print(
+            f"{label:19s}: max |KE+W-E0|/E0 = {drift:.2e} | "
+            f"newton {newton.sum():4d} ({newton.mean():.2f}/step) | {t:.3f} s"
+        )
 
-    axs: list[plt.Axes]
-    _, axs = plt.subplots(1, 2, figsize=(12, 4.5))
-
-    # total energy of every scheme
-    ax1 = axs[0]
+    # Energy drift of every scheme, relative and on a log axis
+    ax1 = Matplotlib.Init_Axes()
     for label in runs:
-        _, _, KE, W, t = runs[label]
-        ls = "--" if label.endswith("noTangent") else None
-        ax1.plot(times, KE + W, label=f"{label} ({t:.3f} s)", ls=ls)
-    # ax1.axhline(E0, color="k", lw=0.6, ls="--")
-    # ax1.set_ylim(E0 - 10, E0 + 10)
+        _, _, KE, W, t, newton = runs[label]
+        drift = np.abs(KE + W - E0) / E0
+        drift[drift <= 0] = np.nan  # t = 0 is exactly 0 by construction
+        ax1.semilogy(times, drift, label=f"{label} ({t:.2f} s, {newton.sum()} it)")
     ax1.set_xlabel("time")
-    ax1.set_ylabel("total energy  KE + W")
-    ax1.set_title("Total energy vs time")
-    ax1.legend()
+    ax1.set_ylabel("relative drift  |KE + W - E0| / E0")
+    ax1.set_title("Energy drift vs time")
+    ax1.grid(True, which="both", alpha=0.25)
+    ax1.legend(fontsize=7, ncol=2, loc="center left", framealpha=0.9)
+    Matplotlib.Save_fig(folder, "energy drift")
 
     # reference scheme: kinetic / strain / total exchange
-    ax2 = axs[1]
+    ax2 = Matplotlib.Init_Axes()
     ax2.plot(times, KE_ref, label="KE")
     ax2.plot(times, W_ref, label="W")
     ax2.plot(times, KE_ref + W_ref, label="KE + W", color="k")
@@ -166,12 +176,11 @@ if __name__ == "__main__":
     ax2.set_ylabel("energy")
     ax2.set_title(f"{list_config[0][0]}: kinetic / strain / total")
     ax2.legend()
-
     Matplotlib.Save_fig(folder, "energy")
 
     if makeMovie:
         Matplotlib.Movie_Simu(
-            simu_ref,
+            simu,
             result,
             folder,
             f"{result}.gif",
@@ -180,6 +189,6 @@ if __name__ == "__main__":
             plotMesh=True,
         )
 
-    simu_ref.Set_Iter(0)
-    Matplotlib.Plot(simu_ref, result, deformFactor=1.0, plotMesh=True)
+    simu.Set_Iter(0)
+    Matplotlib.Plot(simu, result, deformFactor=1.0, plotMesh=True)
     plt.show()

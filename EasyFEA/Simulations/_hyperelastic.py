@@ -3,6 +3,8 @@
 # This file is part of the EasyFEA project.
 # EasyFEA is distributed under the terms of the GNU General Public License v3, see LICENSE.txt and CREDITS.md for more information
 
+from enum import Enum
+
 import numpy as np
 from typing import Union, Optional, TYPE_CHECKING
 
@@ -64,6 +66,24 @@ class HyperElastic(_Simu):
     The implemented hyperelastic laws are available :ref:`here <models-hyperelastic>` and were constructed by the :ref:`ComputeHyperelasticLaws` script.
     """
 
+    class StressType(str, Enum):
+        """Which PK2 stress the internal force uses. All three solve the same continuous problem; they differ in how the stress is sampled over a step, hence in whether the discrete total energy is conserved."""
+
+        pointwise = "pointwise"
+        r"""Default. :math:`\Srm(\eb(\ub^t))` at the time scheme's evaluation state, assembled by :func:`~EasyFEA.FEM.Operators.NonLinear.SecondPiolaKirchhoffStressTensor`. Energy drifts."""
+        gonzalez = "gonzalez"
+        r"""Energy-momentum discrete gradient :math:`\hat{\Srm} = \bar{\Srm} + \alpha \Delta \eb`, assembled by :func:`~EasyFEA.FEM.Operators.NonLinear.GonzalezStressTensor`. Conserves :math:`\mathrm{KE} + W` exactly, for any law, from one stress evaluation."""
+        quadrature = "quadrature"
+        r"""Strain-path average :math:`\int_0^1 \dpartial{W}{\eb}(\eb^n + s \Delta \eb) \, \drm s`, assembled by :func:`~EasyFEA.FEM.Operators.NonLinear.TimeQuadratureStressTensor`. Conservation is exact only up to the quadrature error, which falls spectrally with ``nPoints``."""
+
+        def __str__(self) -> str:
+            return self.name
+
+    @staticmethod
+    def Get_stressTypes() -> list["HyperElastic.StressType"]:
+        """Returns the available stresses."""
+        return list(HyperElastic.StressType)
+
     def __init__(
         self,
         mesh: "Mesh",
@@ -99,9 +119,7 @@ class HyperElastic(_Simu):
 
         self._Solver_Set_Newton_Raphson_Algorithm(tolConv=tolConv, maxIter=maxIter)
 
-        # gonzalez (energy-momentum) options — see Solver_Set_Gonzalez
-        self.__useGonzalez = False
-        self.__useConsistentTangent = True
+        self.Solver_Set_Stress()
 
     # --------------------------------------------------------------------------
     # General
@@ -135,33 +153,56 @@ class HyperElastic(_Simu):
     def Get_x0(self, problemType=None):
         return self.displacement
 
-    def Solver_Set_Gonzalez(self, useConsistentTangent: bool = True) -> None:
-        r"""Enables the Gonzalez / Simo-Tarnow energy-momentum stress. Call **after** :py:meth:`~EasyFEA.Simulations._Simu.Solver_Set_Hyperbolic_Algorithm`, which must have selected :attr:`~EasyFEA.AlgoType.midpoint`.
+    def Solver_Set_Stress(
+        self,
+        stressType: "HyperElastic.StressType" = StressType.pointwise,
+        nPoints: int = 3,
+        useConsistentTangent: bool = True,
+    ) -> None:
+        r"""Selects the stress used by the internal force. Call **after** :py:meth:`~EasyFEA.Simulations._Simu.Solver_Set_Hyperbolic_Algorithm`.
 
-        This is **not** a time scheme: the discretization stays exactly :attr:`~EasyFEA.AlgoType.midpoint` (same :math:`\urm/\vrm/\arm` update, same :math:`\mathrm{coef}_\Krm/\mathrm{coef}_\Crm/\mathrm{coef}_\Mrm`). Only the stress changes — the midpoint PK2 :math:`\bar{\Srm} = \Srm(\eb(\bar{\ub}))` is replaced by the **discrete gradient** of the stored energy, assembled by :func:`~EasyFEA.FEM.Operators.NonLinear.GonzalezStressTensor`:
+        None of these is a time scheme: the discretization stays exactly whatever
+        :py:meth:`~EasyFEA.Simulations._Simu.Solver_Set_Hyperbolic_Algorithm` selected (same
+        :math:`\urm/\vrm/\arm` update, same :math:`\mathrm{coef}_\Krm/\mathrm{coef}_\Crm/\mathrm{coef}_\Mrm`).
+        Only the stress in the residual changes, which is what decides whether the discrete
+        total energy :math:`\mathrm{KE} + W` is conserved. See :class:`StressType` for the three
+        options and the operators for their construction.
 
-        .. math::
-            \hat{\Srm} = \bar{\Srm} + \alpha \, \Delta \eb, \qquad
-            \alpha = \frac{\Delta W - \bar{\Srm} : \Delta \eb}{\Delta \eb : \Delta \eb}
-
-        with :math:`\Delta \eb = \eb(\ub^{n+1}) - \eb(\ub^n)`, :math:`\Delta W = W(\ub^{n+1}) - W(\ub^n)`, and :math:`\alpha = 0` where :math:`\|\Delta \eb\|^2 \le \varepsilon_0`.
-
-        By construction :math:`\hat{\Srm} : \Delta \eb = \Delta W`, and since :math:`\Delta \eb = \Brm(\bar{\ub}) \cdot \Delta \ub` exactly (:math:`\eb` is quadratic in :math:`\ub` and :math:`\bar{\ub}` is the midpoint), the discrete power balance :math:`\Frm_{int} \cdot \Delta \ub = \Delta W` holds. Total energy :math:`\mathrm{KE} + W` is therefore conserved to round-off for nonlinear hyperelastodynamics, where the plain midpoint rule drifts.
-
-        The midpoint base point is what makes the proof work, hence the :attr:`~EasyFEA.AlgoType.midpoint` requirement. Note this variant conserves **energy**, not angular momentum.
+        Both non-default stresses are built on the midpoint base point :math:`\bar{\ub}` — the
+        identity :math:`\Delta \eb = \Brm(\bar{\ub}) \cdot \Delta \ub` is what makes their energy
+        proofs work — so they require :attr:`~EasyFEA.AlgoType.midpoint`.
 
         Parameters
         ----------
+        stressType : HyperElastic.StressType, optional
+            Which stress to use, by default ``pointwise``. Calling with no argument restores
+            that default.
+        nPoints : int, optional
+            ``quadrature`` only: number of Clenshaw-Curtis points, by default 3 (Simpson).
+            ``1`` and ``2`` are the midpoint and trapezoid rules; more converges spectrally.
         useConsistentTangent : bool, optional
-            If True (default), use the consistent Jacobian :math:`\partial \Rrm / \partial \ub^{n+1}` (quadratic Newton convergence). If False, drop the discrete-gradient corrections and keep only the midpoint material + geometric block: the residual — and hence the exact energy conservation — is unchanged, but Newton converges linearly. Diagnostic, to measure what the consistent tangent is worth.
+            ``gonzalez`` only: if False, drop the discrete-gradient corrections from the
+            tangent. Same residual and same exact conservation, but Newton converges linearly
+            — a diagnostic, to measure what the consistent tangent is worth.
         """
-        algo = self.algo
-        assert (
-            algo == AlgoType.midpoint
-        ), f"gonzalez requires AlgoType.midpoint (got {algo}). Call Solver_Set_Hyperbolic_Algorithm(dt, algo=AlgoType.midpoint) first."
+        stressType = HyperElastic.StressType(stressType)
 
-        self.__useGonzalez = True
+        if stressType != HyperElastic.StressType.pointwise:
+            algo = self.algo
+            assert algo == AlgoType.midpoint, (
+                f"the '{stressType}' stress requires AlgoType.midpoint (got {algo}); it is built "
+                "on the midpoint base point ū. Call Solver_Set_Hyperbolic_Algorithm(dt, algo=AlgoType.midpoint) first."
+            )
+        assert nPoints >= 1, f"nPoints must be >= 1 (got {nPoints})."
+
+        self.__stressType = stressType
+        self.__nPoints = nPoints
         self.__useConsistentTangent = useConsistentTangent
+
+    @property
+    def stressType(self) -> "HyperElastic.StressType":
+        """Stress used by the internal force — see :py:meth:`Solver_Set_Stress`."""
+        return self.__stressType
 
     def Construct_local_matrix_system(
         self,
@@ -180,20 +221,22 @@ class HyperElastic(_Simu):
         # velocity, for Kelvin–Voigt viscosity.
         displacement = self._Solver_Get_Newton_Raphson_current_solution()
         velocity = None
-        # gonzalez needs the endpoint states (u_n, u_{n+1}) for the discrete gradient;
-        # keep u_{n+1} before the midpoint evaluation overwrites `displacement` with ū.
-        # Re-checked here (not only in Solver_Set_Gonzalez) so that re-calling
-        # Solver_Set_Hyperbolic_Algorithm with another algo can't leave a stale flag.
-        useGonzalez = self.__useGonzalez
-        assert not (
-            useGonzalez and self.algo != AlgoType.midpoint
-        ), "gonzalez requires AlgoType.midpoint"
+        # Both non-default stresses are built from the step endpoints (u_n, u_{n+1}) on top
+        # of the midpoint base point, so both need u_{n+1} kept before the midpoint
+        # evaluation overwrites `displacement` with ū. Re-checked here (not only in the
+        # setter) so that re-calling Solver_Set_Hyperbolic_Algorithm with another algo
+        # can't leave a stale selection.
+        stressType = self.__stressType
+        isPointwise = stressType == HyperElastic.StressType.pointwise
+        assert (
+            isPointwise or self.algo == AlgoType.midpoint
+        ), f"the '{stressType}' stress requires AlgoType.midpoint (got {self.algo})."
         u_np1 = displacement
         if isDynamic:
             displacement, velocity, _ = self._Solver_Evaluate_u_v_a_for_time_scheme(
                 problemType, displacement
             )
-        if useGonzalez:
+        if not isPointwise:
             u_n = self._Get_u_n(problemType)
 
         errDetF = "det(F) < 0 - reduce load steps"
@@ -205,24 +248,36 @@ class HyperElastic(_Simu):
             # invalid-element guard
             assert state.Compute_J().min() > 0, errDetF
 
-            if useGonzalez:
-                # energy-conserving discrete-gradient stress; `state` is the midpoint
-                # state ū, so only the two endpoint states are built here.
-                state_n = HyperElasticState(groupElem, u_n, matrixType)
-                state_np1 = HyperElasticState(groupElem, u_np1, matrixType)
-                assert state_np1.Compute_J().min() > 0, errDetF
-                K_e, residual_e = Operators.NonLinear.GonzalezStressTensor(
-                    self.material,
-                    state_n,
-                    state,
-                    state_np1,
-                    self.__useConsistentTangent,
-                )
-            else:
+            if isPointwise:
                 # elastic tangent + residual; Newton: A(u) Δu = -R(u) = -F(u) + b
                 K_e, residual_e = Operators.NonLinear.SecondPiolaKirchhoffStressTensor(
                     self.material, state
                 )
+            else:
+                # `state` is the midpoint state ū, so only the two endpoint states are
+                # built here; both energy-conserving stresses take the same three.
+                state_n = HyperElasticState(groupElem, u_n, matrixType)
+                state_np1 = HyperElasticState(groupElem, u_np1, matrixType)
+                assert state_np1.Compute_J().min() > 0, errDetF
+
+                if stressType == HyperElastic.StressType.gonzalez:
+                    K_e, residual_e = Operators.NonLinear.GonzalezStressTensor(
+                        self.material,
+                        state_n,
+                        state,
+                        state_np1,
+                        self.__useConsistentTangent,
+                    )
+                elif stressType == HyperElastic.StressType.quadrature:
+                    K_e, residual_e = Operators.NonLinear.TimeQuadratureStressTensor(
+                        self.material,
+                        state_n,
+                        state,
+                        state_np1,
+                        self.__nPoints,
+                    )
+                else:
+                    raise NotImplementedError
 
             # Active fiber stress τ·(T̂⊗T̂): a non-conservative stress, so it is
             # added here rather than inside Compute_dWde — that keeps the

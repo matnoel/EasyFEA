@@ -3,6 +3,7 @@
 # This file is part of the EasyFEA project.
 # EasyFEA is distributed under the terms of the GNU General Public License v3, see LICENSE.txt and CREDITS.md for more information.
 
+from functools import lru_cache
 from typing import TYPE_CHECKING, Optional, Union
 
 import numpy as np
@@ -10,11 +11,11 @@ import numpy as np
 from .._linalg import FeArray
 from .._utils import MatrixType
 from ...Models._utils import Project_matrix_to_vector, Project_vector_to_matrix
+from ...Models.HyperElastic._state import HyperElasticState
 
 if TYPE_CHECKING:
     from .._group_elem import _GroupElem
     from ...Models.HyperElastic._laws import _HyperElastic
-    from ...Models.HyperElastic._state import HyperElasticState
 
 
 # ----------------------------------------------------------------------------
@@ -207,30 +208,22 @@ def GonzalezStressTensor(
     state_np1: "HyperElasticState",
     useConsistentTangent: bool = True,
 ) -> tuple[np.ndarray, np.ndarray]:
-    r"""Energy-conserving (Gonzalez / Simo–Tarnow) tangent and residual.
+    r"""Energy-conserving (Gonzalez / Simo-Tarnow) tangent and residual.
 
-    Returns ``(K_e, R_e)`` in ``(xi,yi,zi,...,xn,yn,zn)`` for the **discrete-gradient** stress
+    Returns ``(K_e, R_e)`` in ``(xi,yi,zi,...,xn,yn,zn)`` for the **discrete-gradient** stress::
 
-    ::
-
-        Ŝ = s̄ + α Δe ,   α = (ΔW − s̄·Δe) / (Δe·Δe)   (α = 0 when Δe·Δe ≤ ε₀),
-
-    with ``s̄ = S(E(ū))`` the midpoint PK2 (``ū = (u_n+u_{n+1})/2``), ``Δe = E(u_{n+1}) − E(u_n)`` the strain increment, and ``ΔW = W(u_{n+1}) − W(u_n)``. Because strains/stresses are stored in Kelvin-Mandel form (the ``√2`` shear factor makes the double contraction a plain dot product), ``s̄:ΔE = s̄·Δe`` and ``ΔE:ΔE = Δe·Δe`` — no ``halfCrossed``-type correction is needed. By construction ``Ŝ:Δe = ΔW``.
-
-    Residual — the discrete-gradient stress contracted with the **midpoint** strain-displacement operator ``B(ū)``. Since ``Δe = B(ū)·Δu`` exactly (E is quadratic in u, ū the midpoint), ``F_int·Δu = ∫ Ŝ:Δe = ΔW`` and total energy is conserved exactly::
+        Ŝ = s̄ + α Δe ,   α = (ΔW − s̄·Δe) / (Δe·Δe)   (α = 0 when Δe·Δe ≤ ε₀)
 
         R_e = ∫ B_midᵀ · Ŝ dΩ
 
-    Tangent — the **consistent** Jacobian ``∂R_e/∂u_{n+1}``. It rides the **same** ``coefK = 0.5`` as :attr:`~EasyFEA.AlgoType.midpoint`, so ``coefK · K_e`` reproduces the true Jacobian::
+    with ``s̄ = S(E(ū))`` the midpoint PK2, ``Δe = E(u_{n+1}) − E(u_n)`` and ``ΔW = W(u_{n+1}) − W(u_n)``. By construction ``Ŝ:Δe = ΔW``, and since ``Δe = B(ū)·Δu`` exactly, ``F_int·Δu = ΔW``: total energy is conserved for any stored energy. Kelvin-Mandel form makes the double contractions plain dot products, so no ``halfCrossed``-type correction is needed.
 
-        coefK · K_e = ½[ ∫ B_midᵀ ℂ̄ B_mid dΩ + A_geo(state_mid, Ŝ) ]   # midpoint block
-                    + α ∫ B_midᵀ B_{n+1} dΩ  +  ∫ (B_midᵀ Δe) ⊗ g dΩ    # discrete-gradient corrections
+    Tangent — the **consistent** Jacobian ``∂R_e/∂u_{n+1}``, built for :attr:`~EasyFEA.AlgoType.midpoint`'s ``coefK = 0.5``::
 
-    with ``v = ℂ̄:Δe`` and the dof-covector
-    ``g = (1/D)(B_{n+1}ᵀ s_{n+1} − ½ B_midᵀ v − B_{n+1}ᵀ s̄) − (2N/D²) B_{n+1}ᵀ Δe``
-    (``N = ΔW − s̄·Δe``); the corrections vanish where ``D ≤ ε₀``.
+        coefK · K_e = ½[ ∫ B_midᵀ ℂ̄ B_mid dΩ + A_geo(state_mid, Ŝ) ]   # midpoint block, raw
+                    + α ∫ B_midᵀ B_{n+1} dΩ  +  ∫ (B_midᵀ Δe) ⊗ g dΩ    # corrections, pre-doubled
 
-    To make ``coefK`` uniform with ``midpoint`` (so any midpoint-state term the assembly adds to ``K_e`` — e.g. the Kelvin-Voigt configuration tangent — is scaled consistently), the returned ``K_e`` is built for ``coefK = 0.5``: the midpoint material+geometric block is returned **raw** (exactly as :func:`SecondPiolaKirchhoffStressTensor`), so ``coefK`` supplies its ``∂ū/∂u_{n+1} = ½`` chain factor, while the discrete-gradient corrections — genuine ``∂/∂u_{n+1}`` terms with no ½ factor — are **pre-doubled** so they survive ``coefK``.
+    The midpoint block is returned raw so ``coefK`` supplies its ``∂ū/∂u_{n+1} = ½`` chain factor, while the discrete-gradient corrections are genuine ``∂/∂u_{n+1}`` terms and are pre-doubled to survive it; ``g = ∂α/∂u_{n+1}`` and both corrections vanish where ``Δe·Δe ≤ ε₀``. The rank-1 term makes ``K_e`` non-symmetric.
 
     Parameters
     ----------
@@ -238,11 +231,13 @@ def GonzalezStressTensor(
         Hyperelastic constitutive law — supplies ``Compute_W`` / ``Compute_dWde`` / ``Compute_d2Wde``.
     state_n, state_mid, state_np1
         Hyperelastic states at ``u_n``, ``ū`` and ``u_{n+1}`` (same group / matrix type).
+    useConsistentTangent
+        If False, keep only the midpoint block: same residual, linear Newton convergence.
 
     Returns
     -------
     K_e : ndarray of shape ``(Ne, nPe·dim, nPe·dim)``
-        Consistent tangent, built for ``coefK = 0.5`` (raw midpoint block + pre-doubled corrections).
+        Consistent tangent, built for ``coefK = 0.5``.
     R_e : ndarray of shape ``(Ne, nPe·dim)``
         Discrete-gradient internal residual force.
     """
@@ -295,6 +290,166 @@ def GonzalezStressTensor(
             # rank-1 ∫ (B_midᵀΔe)⊗g
             + einsum("ep,epi,epj->eij", wJ_e_pg, B_mid.T @ dE, g)
         )
+
+    if dim == 2:
+        thickness = material.thickness
+        tangent_e *= thickness
+        residual_e *= thickness
+
+    return __reorder_dofs(dim, nPe, tangent_e, residual_e)
+
+
+@lru_cache(maxsize=None)
+def __clenshaw_curtis(nPoints: int) -> tuple[tuple[float, ...], tuple[float, ...]]:
+    r"""Clenshaw-Curtis nodes and weights on ``[0, 1]``, using ``nPoints`` points.
+
+    Nodes are the Chebyshev extrema ``cos(kπ/n)`` (``n = nPoints - 1``) rescaled to the unit interval and returned in **increasing** order; weights come from the direct closed form (Trefethen, *Spectral Methods in MATLAB*, ``clencurt``) and sum to 1. ``nPoints = 1`` is the midpoint convention (single node at ``½``).
+
+    The classical rules fall out of the same formula — ``nPoints = 1, 2, 3`` are the midpoint, trapezoid and Simpson rules — so nothing downstream special-cases them, and more points converge spectrally for a smooth integrand. The endpoints are *exactly* ``0`` and ``1``, which :func:`TimeQuadratureStressTensor` relies on to reuse the two genuine end states rather than interpolate a strain there.
+
+    Returns tuples rather than arrays on purpose: the result is cached, and a mutable array handed out repeatedly could be modified in place by a caller and silently corrupt every later call. Cached because the same handful of rules is requested at every Newton iteration.
+    """
+    assert nPoints >= 1, f"nPoints must be >= 1 (got {nPoints})."
+    if nPoints == 1:
+        return (0.5,), (1.0,)
+
+    n = nPoints - 1
+    theta = np.pi * np.arange(n + 1) / n
+    x = np.cos(theta)
+    w = np.zeros(n + 1)
+    ii = np.arange(1, n)
+    v = np.ones(n - 1)
+    if n % 2 == 0:
+        w[0] = w[n] = 1.0 / (n**2 - 1)
+        for k in range(1, n // 2):
+            v -= 2 * np.cos(2 * k * theta[ii]) / (4 * k**2 - 1)
+        v -= np.cos(n * theta[ii]) / (n**2 - 1)
+    else:
+        w[0] = w[n] = 1.0 / n**2
+        for k in range(1, (n - 1) // 2 + 1):
+            v -= 2 * np.cos(2 * k * theta[ii]) / (4 * k**2 - 1)
+    w[ii] = 2 * v / n
+
+    # [-1, 1] -> [0, 1], ascending. `cos(π/2)` is 6e-17 rather than 0, so snap the centre
+    # node to an exact ½ (it is a meaningful special value on the path).
+    nodes = 0.5 * x[::-1] + 0.5
+    nodes = np.where(np.abs(nodes - 0.5) < 1e-12, 0.5, nodes)
+
+    return tuple(nodes), tuple(0.5 * w[::-1])
+
+
+class _StrainPathState(HyperElasticState):
+    """A point of the segment ``C(s) = C_n + s (C_{n+1} - C_n)`` — the strain path integrated by :func:`TimeQuadratureStressTensor`, its only constructor.
+
+    No displacement field produces such a strain, so only the constitutive response is defined: a law reads a state through the invariants ``I1…I8``, which all descend from :meth:`Compute_C`. The kinematic quantities raise.
+    """
+
+    def __init__(
+        self,
+        state_n: HyperElasticState,
+        state_np1: HyperElasticState,
+        s: float,
+    ):
+        """``s = 0`` sits at ``state_n``, ``s = 1`` at ``state_np1``."""
+        assert state_n.groupElem is state_np1.groupElem, "states must share their group"
+        assert (
+            state_n.matrixType == state_np1.matrixType
+        ), "states must share matrixType"
+
+        # the displacement only fixes the solution dimension, it does not generate the strain
+        super().__init__(state_n.groupElem, state_n.displacement, state_n.matrixType)
+
+        C_n = state_n.Compute_C()
+        self.__C_e_pg = C_n + s * (state_np1.Compute_C() - C_n)
+
+    def Compute_C(self):
+        return self.__C_e_pg
+
+    def Compute_F(self):
+        raise NotImplementedError("an interpolated strain has no deformation gradient")
+
+    def Compute_De(self):
+        raise NotImplementedError(
+            "an interpolated strain has no strain-displacement operator"
+        )
+
+
+def TimeQuadratureStressTensor(
+    material: "_HyperElastic",
+    state_n: "HyperElasticState",
+    state_mid: "HyperElasticState",
+    state_np1: "HyperElasticState",
+    nPoints: int,
+) -> tuple[np.ndarray, np.ndarray]:
+    r"""Tangent and residual for the PK2 stress **averaged along the strain path** of the step.
+
+    Returns ``(K_e, R_e)`` in ``(xi,yi,zi,...,xn,yn,zn)``. Where :func:`SecondPiolaKirchhoffStressTensor` samples the stress at one configuration, this integrates it along the straight segment joining the two end strains and contracts the result with the **midpoint** operator::
+
+        e(s) = e_n + s Δe ,   Δe = e_{n+1} - e_n ,   s ∈ [0, 1]
+
+        S_quad = ∫₀¹ ∂W/∂e(e(s)) ds  ≈  Σ_k w_k ∂W/∂e(e(s_k))
+        R_e    = ∫ B(ū)ᵀ · S_quad dΩ
+
+    ``(s_k, w_k)`` is the Clenshaw-Curtis rule on ``nPoints`` points (:func:`__clenshaw_curtis`); ``1, 2, 3`` are the midpoint, trapezoid and Simpson rules. Intermediate nodes are :class:`_StrainPathState`; ``s = 0, 1`` reuse the end states.
+
+    Since ``Δe = B(ū)·Δu`` exactly and ``de/ds = Δe`` is constant along the segment, the fundamental theorem of calculus gives ``S_quad:Δe = ΔW`` once the ``s``-integral is exact — a **discrete gradient**. The energy defect is therefore just the quadrature error, which Clenshaw-Curtis drives down spectrally; a quadratic ``W`` is exact at every rule. Note ``nPoints = 1`` is the average-strain stress ``S(½(e_n + e_{n+1}))``, *not* the midpoint-displacement stress of :func:`SecondPiolaKirchhoffStressTensor`.
+
+    Tangent — only ``e_{n+1}`` depends on ``u_{n+1}``, and ``∂e(s_k)/∂u_{n+1} = s_k B_{n+1}``, so every node contracts with the same ``B_{n+1}`` and the constitutive tensors collapse into one weighted sum::
+
+        coefK · K_e = ½ A_geo(state_mid, S_quad)                    # raw
+                    + ∫ B(ū)ᵀ [ Σ_k w_k s_k ℂ(e(s_k)) ] B_{n+1} dΩ  # pre-doubled
+
+    Built for :attr:`~EasyFEA.AlgoType.midpoint`'s ``coefK = 0.5`` as in :func:`GonzalezStressTensor`; the doubled weights sum to 1 whatever ``nPoints``. Pairing ``B(ū)`` with ``B_{n+1}`` makes ``K_e`` non-symmetric.
+
+    Parameters
+    ----------
+    material
+        Hyperelastic constitutive law — supplies ``Compute_dWde(state)`` and ``Compute_d2Wde(state)``.
+    state_n, state_mid, state_np1
+        Hyperelastic states at ``u_n``, ``ū`` and ``u_{n+1}`` (same group / matrix type).
+    nPoints
+        Number of Clenshaw-Curtis points.
+
+    Returns
+    -------
+    K_e : ndarray of shape ``(Ne, nPe·dim, nPe·dim)``
+        Consistent tangent, built for ``coefK = 0.5``.
+    R_e : ndarray of shape ``(Ne, nPe·dim)``
+        Internal residual force.
+    """
+
+    groupElem = state_mid.groupElem
+    wJ_e_pg = groupElem.Get_weightedJacobian_e_pg(state_mid.matrixType)
+    nPe = groupElem.nPe
+    dim = groupElem.dim
+
+    _, B_mid = __block_grad_B(state_mid)
+    _, B_np1 = __block_grad_B(state_np1)
+
+    dWde_quad = 0.0  # Σ_k w_k dWde(e(s_k))          -> discrete gradient of W
+    d2Wde_quad = 0.0  # Σ_k 2 w_k s_k d2Wde(e(s_k))    -> pre-doubled for coefK = 0.5
+    for s, w in zip(*__clenshaw_curtis(int(nPoints))):
+        # the ends are genuine configurations; everything between them is a strain that
+        # no displacement field produces.
+        if s == 0.0:
+            state_s = state_n
+        elif s == 1.0:
+            state_s = state_np1
+        else:
+            state_s = _StrainPathState(state_n, state_np1, s)
+
+        dWde_quad += w * material.Compute_dWde(state_s)
+        if s == 0.0:
+            # ∂e(s)/∂u_{n+1} = s B_{n+1} = 0 — this node feeds the stress, not the tangent
+            continue
+        d2Wde_quad += (2.0 * w * s) * material.Compute_d2Wde(state_s)
+
+    # not __second_piola_block: that pairs one B with itself, while here the tangent is
+    # differentiated at u_{n+1} but tested against B(ū) — hence the non-symmetry.
+    residual_e = einsum("ep,epi,epij->ej", wJ_e_pg, dWde_quad, B_mid)
+    tangent_e = einsum(
+        "ep,epji,epjk,epkl->eil", wJ_e_pg, B_mid, d2Wde_quad, B_np1
+    ) + __geometric_tangent(wJ_e_pg, state_mid, dWde_quad)
 
     if dim == 2:
         thickness = material.thickness

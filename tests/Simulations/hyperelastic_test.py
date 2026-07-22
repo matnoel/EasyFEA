@@ -5,7 +5,7 @@
 
 """Simulation-level tests for HyperElastic dynamics.
 
-The Gonzalez energy-momentum stress (``HyperElastic.Solver_Set_Gonzalez``, on top of
+The Gonzalez energy-momentum stress (``Solver_Set_Stress(StressType.gonzalez)``, on top of
 ``AlgoType.midpoint``) conserves the total
 energy ``KE + W`` of a free (no external load, no damping) motion to round-off,
 whereas ``newmark`` drifts by orders of magnitude more — observed here only through
@@ -55,7 +55,7 @@ class TestGonzalezEnergyConservation:
         simu.Bc_Init()
         simu.Solver_Set_Hyperbolic_Algorithm(self.dt, algo=algo)
         if gonzalez:
-            simu.Solver_Set_Gonzalez()
+            simu.Solver_Set_Stress(simu.StressType.gonzalez)
         simu.add_dirichlet(n0, [0, 0], simu.Get_unknowns())
 
         pt = simu.problemType
@@ -90,7 +90,7 @@ class TestGonzalezEnergyConservation:
 
 
 class TestGonzalezRequiresMidpoint:
-    """``Solver_Set_Gonzalez`` is only valid on top of ``AlgoType.midpoint``.
+    """The gonzalez stress is only valid on top of ``AlgoType.midpoint``.
 
     The discrete gradient's conservation proof rests on the midpoint base point
     (``Δe = B(ū)·Δu`` holds exactly only for ``ū``), so pairing it with any other scheme
@@ -112,7 +112,7 @@ class TestGonzalezRequiresMidpoint:
         """Re-selecting another scheme after enabling it must not leave gonzalez active."""
         simu = self._simu()
         simu.Solver_Set_Hyperbolic_Algorithm(0.05, algo=AlgoType.midpoint)
-        simu.Solver_Set_Gonzalez()
+        simu.Solver_Set_Stress(simu.StressType.gonzalez)
         # the docs tell users to re-call this when dt changes — here the algo changes too
         simu.Solver_Set_Hyperbolic_Algorithm(0.05, algo=AlgoType.newmark)
         with pytest.raises(AssertionError):
@@ -123,7 +123,7 @@ class TestGonzalezRequiresMidpoint:
         simu = self._simu()
         simu.Solver_Set_Hyperbolic_Algorithm(0.05, algo=AlgoType.newmark)
         with pytest.raises(AssertionError):
-            simu.Solver_Set_Gonzalez()
+            simu.Solver_Set_Stress(simu.StressType.gonzalez)
 
 
 class TestThicknessInvariance:
@@ -157,7 +157,7 @@ class TestThicknessInvariance:
         simu.Bc_Init()
         simu.Solver_Set_Hyperbolic_Algorithm(0.05, algo=AlgoType.midpoint)
         if gonzalez:
-            simu.Solver_Set_Gonzalez()
+            simu.Solver_Set_Stress(simu.StressType.gonzalez)
         simu.add_dirichlet(n0, [0, 0], simu.Get_unknowns())
 
         traj = []
