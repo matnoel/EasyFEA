@@ -51,11 +51,30 @@ Set with `simu.Solver_Set_Hyperbolic_Algorithm(dt, algo=AlgoType.newmark)`.
 
 | Method | `AlgoType` | Order | Stability | Notes |
 |--------|------------|-------|-----------|-------|
-| Newmark β | {py:attr}`~EasyFEA.Simulations.Solvers.AlgoType.newmark` | 2nd | Unconditionally stable | Default; energy-conserving (β=1/4, γ=1/2) |
-| Midpoint | {py:attr}`~EasyFEA.Simulations.Solvers.AlgoType.midpoint` | 2nd | Unconditionally stable | Energy-conserving |
+| Newmark β | {py:attr}`~EasyFEA.Simulations.Solvers.AlgoType.newmark` | 2nd | Unconditionally stable | Default; energy-conserving for **linear** problems (β=1/4, γ=1/2) |
+| Midpoint | {py:attr}`~EasyFEA.Simulations.Solvers.AlgoType.midpoint` | 2nd | Unconditionally stable | Energy-conserving for **linear** problems |
 | HHT-α | {py:attr}`~EasyFEA.Simulations.Solvers.AlgoType.hht` | 2nd | Unconditionally stable | Numerical damping (α ∈ [0, 1[) |
 | Euler implicit | {py:attr}`~EasyFEA.Simulations.Solvers.AlgoType.euler_implicit` | 1st | Unconditionally stable | Dissipative |
 | Euler explicit | {py:attr}`~EasyFEA.Simulations.Solvers.AlgoType.euler_explicit` | 1st | Conditionally stable (dt < h_e/c) | Linear only |
+
+### Hyperelastic stress
+
+For a **nonlinear** problem the time scheme alone does not conserve energy: with a hyperelastic
+law, `newmark` and `midpoint` both drift (a few % of $E_0$ on a free vibration). What decides
+conservation is the stress used in the internal force, selected independently of the scheme with
+`simu.Solver_Set_Stress(HyperElastic.StressType.gonzalez)`.
+
+| Stress | `HyperElastic.StressType` | Energy | Cost / step | Notes |
+|--------|---------------------------|--------|-------------|-------|
+| Pointwise | {py:attr}`~EasyFEA.Simulations.HyperElastic.StressType.pointwise` | Drifts | 1 stress evaluation | Default; $\Srm(\eb(\ub^t))$ at the scheme's evaluation state |
+| Gonzalez | {py:attr}`~EasyFEA.Simulations.HyperElastic.StressType.gonzalez` | Exact, any law | 1 evaluation + correction | Discrete gradient $\bar{\Srm} + \alpha \Delta \eb$ |
+| Quadrature | {py:attr}`~EasyFEA.Simulations.HyperElastic.StressType.quadrature` | Exact as `nPoints` grows | `nPoints` evaluations | Strain-path average; spectral convergence, exact at every rule for a quadratic $W$ |
+
+Both non-default stresses rest on the identity $\Delta \eb = \Brm(\bar{\ub}) \cdot \Delta \ub$ and
+therefore require {py:attr}`~EasyFEA.Simulations.Solvers.AlgoType.midpoint`; call
+`Solver_Set_Stress` **after** `Solver_Set_Hyperbolic_Algorithm`. Calling it with no argument
+returns to `pointwise`. See {ref}`fem-operators` for the operators that assemble them, and
+`examples/Hyperelasticity/Hyperelas5.py` for a side-by-side comparison.
 
 ## How to Create New Simulations in EasyFEA?
 
@@ -73,6 +92,10 @@ The {py:class}`~EasyFEA.Simulations.Thermal` class is relatively simple and can 
 
 ```{eval-rst}
 .. automodule:: EasyFEA.Simulations
+
+.. autoclass:: EasyFEA.Simulations.HyperElastic.StressType
+   :members:
+   :undoc-members:
 ```
 
 ## Solvers API
