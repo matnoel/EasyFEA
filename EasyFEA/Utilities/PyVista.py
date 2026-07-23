@@ -1001,6 +1001,7 @@ def _setCameraPosition(
     roll=0,
     elevation=25,
     azimuth=10,
+    bounds=None,
 ):
     """Sets the camera position, then controls the camera and resets the clipping range if `inDim == 3`.\n
     https://docs.pyvista.org/api/core/camera.html#controlling-camera-rotation
@@ -1019,6 +1020,8 @@ def _setCameraPosition(
         the vertical rotation of the scene, by default 25
     azimuth : int, optional
         the azimuth of the camera, by default 10
+    bounds : tuple, optional
+        fixed view box (xmin, xmax, ymin, ymax, zmin, zmax) to frame the camera on, analogous to matplotlib's xlim/ylim/zlim; keeps the view steady across frames instead of refitting to the (deforming) scene bounds. by default None (fit the scene). For a 2D view only the first four entries matter; pass (…, 0, 0) for the z range.
     """
     # see
     plotter.camera_position = camera_position
@@ -1027,6 +1030,15 @@ def _setCameraPosition(
         plotter.camera.elevation = elevation
         plotter.camera.azimuth = azimuth
         plotter.camera.reset_clipping_range()
+
+    if bounds is not None:
+        # Frame the camera on a fixed bounding box (like matplotlib xlim/ylim/zlim).
+        # reset_camera fits the box along the current view direction and sets a
+        # sensible clipping range from it; aspect ratio is preserved (VTK cannot
+        # stretch axes independently), so the non-limiting axis shows a bit extra.
+        if inDim == 2:
+            plotter.enable_parallel_projection()
+        plotter.reset_camera(bounds=bounds)
 
 
 @requires_pyvista
