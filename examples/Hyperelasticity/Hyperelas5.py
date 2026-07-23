@@ -20,12 +20,13 @@ import numpy as np
 from EasyFEA import (
     Terminal,
     Folder,
-    Matplotlib,
     ElemType,
     Models,
     Simulations,
     AlgoType,
     Tic,
+    Matplotlib,
+    PyVista,
 )
 from EasyFEA.Geoms import Domain
 
@@ -61,7 +62,7 @@ if __name__ == "__main__":
 
     # load
     deflection = L * 0.4
-    nPreload = 2
+    nPreload = 1
     T = 3.0
     Nt = 50
 
@@ -114,7 +115,6 @@ if __name__ == "__main__":
 
         M = None
         for i in range(1, Nt):
-            # for i in range(1, 10):
             simu.Solve()
             simu.Save_Iter()
             if M is None:
@@ -135,7 +135,17 @@ if __name__ == "__main__":
         )
 
     # {label: (simu, times, KE, W, t, newtonIter)}
-    runs: dict[str, tuple] = {label: run(label, **kw) for label, kw in list_config}
+    runs: dict[
+        str,
+        tuple[
+            Simulations.HyperElastic,
+            np.ndarray,
+            np.ndarray,
+            np.ndarray,
+            float,
+            np.ndarray,
+        ],
+    ] = {label: run(label, **kw) for label, kw in list_config}
 
     # ----------------------------------------------
     # Results
@@ -179,16 +189,29 @@ if __name__ == "__main__":
     Matplotlib.Save_fig(folder, "energy")
 
     if makeMovie:
-        Matplotlib.Movie_Simu(
-            simu,
-            result,
+
+        block = Domain((0, -h), (-h, 2 * h)).Mesh_2D()
+
+        def DoAnim(plotter, i):
+            simu.Set_Iter(i)
+            PyVista.Plot(block, color="k", plotter=plotter)
+            PyVista.Plot(simu, plotMesh=True, deformFactor=1, plotter=plotter)
+
+            PyVista._setCameraPosition(
+                plotter,
+                2,
+                bounds=(-2 * h, L * 1.2, -deflection, deflection, 0, 0),
+            )
+            plotter.hide_axes()
+
+        PyVista.Movie_func(
+            DoAnim,
+            simu.Niter,
             folder,
             f"{result}.gif",
-            N=30,
-            deformFactor=1,
-            plotMesh=True,
         )
 
     simu.Set_Iter(0)
-    Matplotlib.Plot(simu, result, deformFactor=1.0, plotMesh=True)
+    PyVista.Plot(simu, result, deformFactor=1.0, plotMesh=True).show()
+
     plt.show()
