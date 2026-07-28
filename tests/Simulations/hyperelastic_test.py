@@ -174,3 +174,61 @@ class TestThicknessInvariance:
         thick = self._tip_trajectory(5.0, gonzalez)
         relDiff = np.abs(ref - thick).max() / np.abs(ref).max()
         assert relDiff < 1e-8, f"thickness changed the motion: rel diff {relDiff:.2e}"
+
+
+class TestQuadratureEnergyConservation:
+    """The ``quadrature`` stress conserves ``KE + W`` up to its quadrature error, so tightening
+    ``quadTol`` — the per-element energy-defect tolerance — drives the drift down. That control is
+    the whole point of the adaptive rule; a broken quadrature would drift like ``pointwise``
+    (~1e-2). Exercised end to end through the public ``Solver_Set_Stress`` / ``Solve`` interface.
+    """
+
+    L, h = 60.0, 10.0
+    dt, nStep = 0.05, 50
+
+    def _drift(self, **stress) -> float:
+        """max ``|KE + W - E0| / E0`` over a released free vibration using the quadrature stress."""
+        L, h = self.L, self.h
+        mesh = Domain((0, 0), (L, h), h / 2).Mesh_2D(
+            [], ElemType.QUAD4, isOrganised=True
+        )
+        n0 = mesh.Nodes_Conditions(lambda x, y, z: x == 0)
+        nL = mesh.Nodes_Conditions(lambda x, y, z: x == L)
+        mat = Models.HyperElastic.NeoHookean(2, K=5.0e4)
+        simu = Simulations.HyperElastic(mesh, mat, absTol=1e-4, verbosity=False)
+
+        # static preload: clamp x=0, pull the tip down
+        simu.add_dirichlet(n0, [0, 0], simu.Get_unknowns())
+        simu.add_dirichlet(nL, [-h / 3], ["y"])
+        simu.Solve()
+        simu.Save_Iter()
+
+        # release the tip → free vibration with the chosen quadrature rule
+        simu.Bc_Init()
+        simu.Solver_Set_Hyperbolic_Algorithm(self.dt, algo=AlgoType.midpoint)
+        simu.Solver_Set_Stress(simu.StressType.quadrature, **stress)
+        simu.add_dirichlet(n0, [0, 0], simu.Get_unknowns())
+
+        pt = simu.problemType
+        energies = [float(simu._Calc_W())]  # t=0: at rest, KE = 0
+        M = None
+        for _ in range(self.nStep):
+            simu.Solve()
+            simu.Save_Iter()
+            if M is None:
+                _, _, M, _ = simu.Get_K_C_M_F(pt)  # constant mass
+            v = simu._Get_v_n(pt)
+            energies.append(0.5 * float(v @ (M @ v)) + float(simu._Calc_W()))
+        E = np.array(energies)
+        return float(np.abs(E - E[0]).max() / abs(E[0]))
+
+    def test_quadTol_controls_energy_drift(self):
+        """Tightening ``quadTol`` conserves ``KE + W`` markedly better."""
+        loose = self._drift(quadTol=1e-2)
+        tight = self._drift(quadTol=1e-8)
+        assert (
+            tight < loose / 100
+        ), f"tighter quadTol should conserve energy far better: loose={loose:.1e}, tight={tight:.1e}"
+        assert (
+            tight < 1e-6
+        ), f"tight quadTol should conserve energy well; got drift {tight:.1e}"

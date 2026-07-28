@@ -7,12 +7,22 @@
 Hyperelas5
 ==========
 
-A hyperelastic cantilever is deflected, released and vibrates freely, integrated by several
-stress evaluations of the same step. The energy-momentum ``gonzalez`` scheme keeps the total
-energy ``KE + W`` constant; the time-quadrature rules and the plain schemes drift.
-"""
+A hyperelastic cantilever is deflected, released and left to vibrate freely — no external load
+and no damping — so its total energy ``KE + W`` should stay constant. Whether it does depends on
+**how the internal-force stress is sampled over each step**, and this example compares the choices
+offered by ``Solver_Set_Stress``:
 
-# sphinx_gallery_thumbnail_number = -1
+- ``gonzalez`` — the energy-momentum discrete-gradient stress: conserves ``KE + W`` to round-off,
+  for any law, from a single stress evaluation.
+- ``quadrature`` — the stress averaged along the step's strain path, at increasing resolution:
+  a fixed Clenshaw-Curtis rule (``nPoints`` = 1, 2, 3, 5, 9 — midpoint, trapezoid, Simpson, …) or
+  the adaptive per-element rule (``quadTol``). It conserves energy only up to its quadrature error,
+  so a coarse rule (1–2 points) drifts while a fine one (9 points, or a tight ``quadTol``)
+  matches ``gonzalez``.
+
+The figures show each scheme's energy drift over time, the kinetic / strain-energy exchange of the
+reference run, and the number of quadrature points the adaptive rule chose per step.
+"""
 
 import matplotlib.pyplot as plt
 import numpy as np
@@ -47,10 +57,12 @@ if __name__ == "__main__":
         # ("gonzalez_approx", dict(stressType=ST.gonzalez, useConsistentTangent=False)),
         # ("pointwise", dict(stressType=ST.pointwise)),
         ("1 pt (midpoint)", dict(stressType=ST.quadrature, nPoints=1)),
-        ("2 pts (trapezoid)", dict(stressType=ST.quadrature, nPoints=2)),
+        # ("2 pts (trapezoid)", dict(stressType=ST.quadrature, nPoints=2)),
         ("3 pts (simpson)", dict(stressType=ST.quadrature, nPoints=3)),
-        ("5 pts", dict(stressType=ST.quadrature, nPoints=5)),
+        # ("5 pts", dict(stressType=ST.quadrature, nPoints=5)),
         ("9 pts", dict(stressType=ST.quadrature, nPoints=9)),
+        ("quadTol=1e-6", dict(stressType=ST.quadrature, quadTol=1e-6)),
+        ("quadTol=1e-12", dict(stressType=ST.quadrature, quadTol=1e-12)),
     ]
 
     # geom
