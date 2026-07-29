@@ -2,6 +2,21 @@
 
 This document describes the changes made to the project.
 
+## 3.2.0 (July 29, 2026):
+
+- Energy-conserving stresses for `HyperElastic` dynamics
+    - The internal force can now be sampled by an energy-conserving stress, so a free (no external load, no damping) `AlgoType.midpoint` run keeps the total energy `KE + W` constant where the default `pointwise` stress drifts. `HyperElastic.StressType` and `Solver_Set_Stress` select `pointwise` (default), `gonzalez`, or `quadrature`; both non-default stresses require `AlgoType.midpoint`.
+    - `Operators/NonLinear.py`: new `GonzalezStressTensor` — the energy-momentum discrete-gradient stress `Ŝ = S̄ + α Δe`, which conserves `KE + W` exactly, for any law, from a single stress evaluation.
+    - `Operators/NonLinear.py`: new `TimeQuadratureStressTensor` — the PK2 stress averaged along the step's strain path `∫₀¹ ∂W/∂e(eⁿ + s Δe) ds`, integrated by a Clenshaw-Curtis rule (`__clenshaw_curtis`); a discrete gradient up to the quadrature error, which converges spectrally in `nPoints` (`1, 2, 3` recover the midpoint, trapezoid and Simpson rules). Intermediate nodes are `_StrainPathState`, a strain-only state no displacement produces.
+    - `Operators/NonLinear.py`: new `__AdaptiveTimeQuadratureStressTensor` — passing `quadTol` instead of a fixed `nPoints` refines the rule element by element until each element's own integrated energy defect `∫ (S:Δe − ΔW)² dΩ ≤ quadTol² ∫ ΔW² dΩ` is met, spending points only where the step is nonlinear; the per-step point count is saved to the results as `quadNPoints`.
+    - `Operators/NonLinear.py`: new `ActiveStressTensor` — the fiber active stress `τ (T̂ ⊗ T̂)` is assembled by its own operator and no longer folded into `Compute_dWde`, which stays exactly `∂W/∂e` (the invariant the energy-based schemes rely on).
+    - Added the `examples/Hyperelasticity/Hyperelas5.py` example comparing the stress schemes on a free-vibrating cantilever (energy drift, cost, and adaptive point count).
+- Updated the Newton-Raphson convergence options.
+- `PyVista._setCameraPosition`: added `bounds` arguments.
+- Updated `examples/CardiacElastoDynamics/MonoVentricular.py` and minor `_group_elem.py` cleanups.
+
+**Full Changelog:** https://github.com/matnoel/EasyFEA/compare/v3.1.0...v3.2.0
+
 ## 3.1.0 (July 1, 2026):
 
 - Contact (issue #47)
