@@ -469,8 +469,12 @@ class _GroupElem(ABC):
         self,
         matrixType: MatrixType,
         displacementMatrix: Optional[_types.FloatArray] = None,
+        normalize: bool = True,
     ) -> FeArray:
-        """Returns the normals for each elements and gauss points (Ne, nPg, 3)."""
+        """Returns the normals for each elements and gauss points (Ne, nPg, 3).
+
+        With ``normalize=False`` the vectors are returned as computed, i.e. as the cross product of the surface tangents: their norm is then the surface jacobian, so ``weight_pg * normals`` is the area-weighted normal ``wJ_e_pg * normals_e_pg``. On the configuration selected by ``displacementMatrix`` this is the only route to a deformed surface measure, since ``Get_weightedJacobian_e_pg`` reaches the coordinates through the cached ``Get_jacobian_e_pg`` / ``Get_F_e_pg`` and only ever knows the reference configuration.
+        """
 
         dim = self.dim
         assert dim in [1, 2], "You can't compute normals for 0D or 3D elements."
@@ -500,7 +504,8 @@ class _GroupElem(ABC):
             dxds_e_pg = np.einsum("pn,end->epd", dNds_pg, coord_e, optimize="optimal")
             normals_e_pg = np.cross(dxdr_e_pg, dxds_e_pg)
 
-        normals_e_pg = Normalize(normals_e_pg)
+        if normalize:
+            normals_e_pg = Normalize(normals_e_pg)
 
         return FeArray.asfearray(normals_e_pg)
 
@@ -755,15 +760,29 @@ class _GroupElem(ABC):
         return Gauss(self.elemType, matrixType).weights
 
     def Get_GaussCoordinates_e_pg(
-        self, matrixType: MatrixType, elements=np.array([])
+        self,
+        matrixType: MatrixType,
+        elements=np.array([]),
+        displacementMatrix: Optional[_types.FloatArray] = None,
     ) -> FeArray.FeArrayALike:
-        """Returns integration point coordinates for each element (Ne, nPg, 3) in the (x, y, z) coordinates."""
+        """Returns integration point coordinates for each element (Ne, nPg, 3) in the (x, y, z) coordinates.
+
+        With ``displacementMatrix`` the coordinates are evaluated on the deformed configuration, as in :meth:`Get_normals_e_pg`. This is the supported way to reach a deformed configuration: mutating ``mesh.coord`` in place does not propagate here, because each group holds its own local copy of the coordinates (see the ``coord`` setter).
+        """
 
         N_pg = self.Get_N_pg(matrixType)
 
         # retrieve node coordinates
         coord = self.coord
         connect = self._global_to_local_nodes[self.connect]
+
+        if displacementMatrix is not None:
+            displacementMatrix = np.asarray(displacementMatrix, dtype=float)
+            shape = (self.Ncoords, 3)
+            assert (
+                displacementMatrix.shape == shape
+            ), f"displacmentMatrix must be of shape {shape}"
+            coord += displacementMatrix[self.nodes]
 
         # nodes coordinates for each element
         if elements.size == 0:
