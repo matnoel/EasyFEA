@@ -318,7 +318,7 @@ if __name__ == "__main__":
             },
         ),
         Item(
-            "LinearizedElasticity/Elas9.py",
+            "LinearizedElasticity/Elas10.py",
             "Wave propagation.",
             ["simu"],
             PlotSimu,
