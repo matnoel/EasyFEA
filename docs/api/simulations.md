@@ -96,6 +96,7 @@ The {py:class}`~EasyFEA.Simulations.Thermal` class is relatively simple and can 
 .. autoclass:: EasyFEA.Simulations.HyperElastic.StressType
    :members:
    :undoc-members:
+   :no-index:
 ```
 
 ## Solvers API
