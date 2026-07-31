@@ -16,6 +16,7 @@ from ..__about__ import __version__
 
 # utilities
 from ..Utilities import Folder, Terminal, Tic, _params, _types
+from ..Utilities._cache import clear_cached_computed_values
 from ..Utilities._observers import Observable, _IObserver
 from ..Utilities._mpi import CAN_USE_MPI, MPI_SIZE, MPI_RANK, MPI_COMM
 
@@ -716,6 +717,10 @@ class _Simu(_IObserver, _params.Updatable, ABC):
             self.__listMesh.append(mesh)
             self.__mesh = mesh
 
+            # New connectivity invalidates the cached CSR patterns. This cannot live in `Need_Update`,
+            # which fires on every Newton iteration — exactly the case the cache exists to serve.
+            clear_cached_computed_values(self)
+
             # The mesh changes, so the matrices must be reconstructed
             self.Need_Update()
             # Initialize boundary conditions
@@ -755,6 +760,7 @@ class _Simu(_IObserver, _params.Updatable, ABC):
                 self.__listMesh[i] = mesh
             self.__mesh = self.__listMesh[self.__indexMesh]
             self.Bc_Init()
+            clear_cached_computed_values(self)
             self.Need_Update()
             self.__isGathered = True
 
@@ -779,6 +785,8 @@ class _Simu(_IObserver, _params.Updatable, ABC):
 
         self.__mesh = mesh
 
+        # switching to another mesh in the history changes the connectivity
+        clear_cached_computed_values(self)
         self.Need_Update()  # need to reconstruct matrices
 
     def _Update(self, observable: Observable, event: str) -> None:

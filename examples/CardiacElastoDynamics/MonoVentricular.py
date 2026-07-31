@@ -33,6 +33,7 @@ from EasyFEA import (
     AlgoType,
 )
 from EasyFEA.FEM import Operators
+from EasyFEA.Utilities._cache import cache_computed_values
 
 from utils import (
     RESULTS_DIR,
@@ -72,10 +73,40 @@ class CardiacElastoDynamics(Simulations.HyperElastic):
     def Set_pressure(self, dict_pressure: dict[str, float]):
         self.__dict_pressure = dict_pressure
 
+    @cache_computed_values
+    def _Get_Robin_surface_penalty(self, groupElem):
+        """Robin surface-penalty tangents.
+
+        ``top`` is an isotropic surface-mass penalty (α·u + β·u̇ = 0), ``epi`` a normal-direction one. Both
+        are evaluated on the *reference* surface with fixed α/β, so the tangents ``(K_e, C_e)`` never change
+        across the solve — only the residual contractions ``K·u`` / ``C·v̇`` depend on the current iterate and
+        stay in the assembly loop. Built once (first assembly), reused every Newton iteration and time step.
+        """
+        # isotropic surface mass
+        M_e = Operators.Bilinear.UV(groupElem, dof_n=3)
+        # normal-direction surface mass
+        Ms_e = Operators.Bilinear.MassAlongNormal(groupElem)
+
+        K_e = np.zeros_like(M_e)
+        C_e = np.zeros_like(M_e)
+
+        if "top" in groupElem.elementTags:
+            top_e = groupElem.Get_Elements_Tag("top")
+            K_e[top_e] += self.__alpha_top * M_e[top_e]
+            C_e[top_e] += self.__beta_top * M_e[top_e]
+
+        if "epi" in groupElem.elementTags:
+            epi_e = groupElem.Get_Elements_Tag("epi")
+            K_e[epi_e] += self.__alpha_epi * Ms_e[epi_e]
+            C_e[epi_e] += self.__beta_epi * Ms_e[epi_e]
+
+        return (K_e, C_e)
+
     def Construct_local_matrix_system(self, problemType):
 
         assert isinstance(self.material, Models.HyperElastic.HolzapfelOgden)
         nPg = self.material.T1.shape[1]
+        dim = self.dim
 
         results = super().Construct_local_matrix_system(problemType, nPg)
 
@@ -86,11 +117,13 @@ class CardiacElastoDynamics(Simulations.HyperElastic):
                 problemType, displacement
             )
 
-        for groupElem in self.mesh.Get_list_groupElem(self.dim - 1):
+        for groupElem in self.mesh.Get_list_groupElem(dim - 1):
+
+            # Constant Robin surface-penalty tangents (top + epi), built once and reused.
+            K_penalty_e, C_e = self._Get_Robin_surface_penalty(groupElem)
 
             # Following pressure — tracks the deformed normal, so it depends on
             # the current iterate / pressure and is rebuilt every Newton step.
-
             Kpressure_e, Rpressure_e = 0.0, 0.0
             for tag, pressure in self.__dict_pressure.items():
                 if tag in groupElem.elementTags:
@@ -104,34 +137,12 @@ class CardiacElastoDynamics(Simulations.HyperElastic):
                     Kpressure_e += tangent_e
                     Rpressure_e += residual_e
 
-            # top — isotropic surface mass penalty (Robin α·u + β·u̇ = 0)
-            M_e = Operators.Bilinear.UV(groupElem, dof_n=3)
-
-            Ktop_e = np.zeros_like(M_e)
-            Ctop_e = np.zeros_like(M_e)
-            if "top" in groupElem.elementTags:
-                top_e = groupElem.Get_Elements_Tag("top")
-                Ktop_e[top_e] = self.__alpha_top * M_e[top_e]
-                Ctop_e[top_e] = self.__beta_top * M_e[top_e]
-
-            # epi — normal-direction mass penalty (Robin α·(u·n̂) + β·(u̇·n̂) = 0)
-            Ms_e = Operators.Bilinear.MassAlongNormal(groupElem)
-
-            Kepi_e = np.zeros_like(Ms_e)
-            Cepi_e = np.zeros_like(Ms_e)
-            if "epi" in groupElem.elementTags:
-                epi_e = groupElem.Get_Elements_Tag("epi")
-                Kepi_e[epi_e] = self.__alpha_epi * Ms_e[epi_e]
-                Cepi_e[epi_e] = self.__beta_epi * Ms_e[epi_e]
-
-            # Penalty residual contribution: −K_penalty · u_t at current iterate
-            K_penalty_e = Ktop_e + Kepi_e
-            assembly_e = groupElem.Get_assembly_e(self.dim)
+            # Penalty residuals at the current iterate: −K·u
+            assembly_e = groupElem.Get_assembly_e(dim)
             u_e = displacement[assembly_e]  # (Ne_surf, nPe·3)
             f_penalty_e = np.einsum("eij,ej->ei", K_penalty_e, u_e)
-
-            C_e = Ctop_e + Cepi_e
-            v_e = groupElem.Locates_sol_e(velocity, self.dim)
+            # and −C·v̇
+            v_e = groupElem.Locates_sol_e(velocity, dim)
             Rc_e = np.einsum("eij,ej->ei", C_e, v_e)
 
             results[groupElem] = (

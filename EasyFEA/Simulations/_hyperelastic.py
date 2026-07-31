@@ -15,6 +15,7 @@ from ..Utilities import Terminal, _types
 if TYPE_CHECKING:
     from ..FEM import Mesh
 from ..FEM import MatrixType, Operators
+from ..Utilities._cache import cache_computed_values
 
 # models
 from ..Models import ModelType, Project_Kelvin, Result_strain_or_stress_field_e
@@ -231,6 +232,11 @@ class HyperElastic(_Simu):
         """Stress used by the internal force — see :py:meth:`Solver_Set_Stress`."""
         return self.__Solver_Get_Stress_Params()[0]
 
+    @cache_computed_values
+    def __Mass_e(self, groupElem, rho, thickness, dim):
+        """Constant element mass matrix ``thickness · ∫ρ N·N``."""
+        return thickness * Operators.Bilinear.UV(groupElem, rho, dof_n=dim)
+
     def Construct_local_matrix_system(
         self,
         problemType,
@@ -339,7 +345,15 @@ class HyperElastic(_Simu):
             # mass matrix and the inertia residual — dynamic schemes only
             M_e = None
             if isDynamic:
-                M_e = thickness * Operators.Bilinear.UV(groupElem, self.rho, dof_n=dim)
+                # M_e = thickness · ∫ρ N·N is constant across the solve, so it is cached (see __Mass_e)
+                # instead of rebuilt every Newton iteration. An array ρ is unhashable, so it cannot key the
+                # cache and is recomputed directly.
+                if isinstance(self.rho, np.ndarray):
+                    M_e = thickness * Operators.Bilinear.UV(
+                        groupElem, self.rho, dof_n=dim
+                    )
+                else:
+                    M_e = self.__Mass_e(groupElem, self.rho, thickness, dim)
                 F_e -= np.einsum(
                     "eij,ej->ei",
                     M_e,
