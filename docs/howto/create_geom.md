@@ -161,7 +161,7 @@ Assemble a closed loop from any mix of `Line`, `CircleArc`, and `Points`:
 ## Geometric transformations
 
 All geometry objects support {py:meth}`~EasyFEA.Geoms._Geom.copy`, {py:meth}`~EasyFEA.Geoms._Geom.Translate`, {py:meth}`~EasyFEA.Geoms._Geom.Rotate`, and {py:meth}`~EasyFEA.Geoms._Geom.Symmetry`.
-These operations modify the object **in place**; use `copy()` first to preserve the original.
+These operations modify the object **in place**; use `copy=True` to preserve the original.
 
 ```{eval-rst}
 .. jupyter-execute::
@@ -169,9 +169,9 @@ These operations modify the object **in place**; use `copy()` first to preserve 
     from EasyFEA.Geoms import Points
 
     contour1 = Points([(0, 0), (1, 0), (1, 1), (0, 1)]).Get_Contour()
-    contour2 = contour1.copy(); contour2.Translate(dx=2)
-    contour3 = contour2.copy(); contour3.Rotate(90, center=(0, 0), direction=(0, 0, 1))
-    contour4 = contour3.copy(); contour4.Symmetry(point=(0, 0), n=(0, 1, 0))
+    contour2 = contour1.Translate(dx=2, copy=True)
+    contour3 = contour2.Rotate(90, center=(0, 0), direction=(0, 0, 1), copy=True)
+    contour4 = contour3.Symmetry(point=(0, 0), n=(0, 1, 0), copy=True)
 
     ax = contour1.Plot_Geoms(
         [contour1, contour2, contour3, contour4], plotPoints=False
