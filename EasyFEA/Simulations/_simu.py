@@ -16,7 +16,7 @@ from ..__about__ import __version__
 
 # utilities
 from ..Utilities import Folder, Terminal, Tic, _params, _types
-from ..Utilities._cache import clear_cached_computed_values
+from ..Utilities._cache import cache_computed_values, clear_cached_computed_values
 from ..Utilities._observers import Observable, _IObserver
 from ..Utilities._mpi import CAN_USE_MPI, MPI_SIZE, MPI_RANK, MPI_COMM
 
@@ -717,8 +717,9 @@ class _Simu(_IObserver, _params.Updatable, ABC):
             self.__listMesh.append(mesh)
             self.__mesh = mesh
 
-            # New connectivity invalidates the cached CSR patterns. This cannot live in `Need_Update`,
-            # which fires on every Newton iteration — exactly the case the cache exists to serve.
+            # New connectivity invalidates the geometry-derived caches.
+            # This cannot live in `Need_Update`, which fires on every Newton
+            # iteration — exactly the case those caches exist to serve.
             clear_cached_computed_values(self)
 
             # The mesh changes, so the matrices must be reconstructed
@@ -748,7 +749,7 @@ class _Simu(_IObserver, _params.Updatable, ABC):
         if MPI_SIZE == 1:
             return
 
-        list_mesh = []
+        list_mesh: list[Mesh] = []
         for mesh in self.__listMesh:
             if isinstance(mesh, str):
                 mesh = Load_Mesh(Folder.Join(self.folder, mesh))
@@ -760,6 +761,8 @@ class _Simu(_IObserver, _params.Updatable, ABC):
                 self.__listMesh[i] = mesh
             self.__mesh = self.__listMesh[self.__indexMesh]
             self.Bc_Init()
+            # rank 0 swaps its partition for the full global mesh — the geometry-derived caches describe the
+            # partition and no longer apply.
             clear_cached_computed_values(self)
             self.Need_Update()
             self.__isGathered = True
@@ -787,6 +790,7 @@ class _Simu(_IObserver, _params.Updatable, ABC):
 
         # switching to another mesh in the history changes the connectivity
         clear_cached_computed_values(self)
+
         self.Need_Update()  # need to reconstruct matrices
 
     def _Update(self, observable: Observable, event: str) -> None:
@@ -806,14 +810,31 @@ class _Simu(_IObserver, _params.Updatable, ABC):
     # Solver
     # ----------------------------------------------
 
-    @staticmethod
     def __Assemble_csr(
+        self,
         dict_group_data: dict["_GroupElem", np.ndarray],
         dof_n: int,
         Ndof: int,
         isMatrix: bool = True,
     ) -> sparse.csr_matrix:
         """Scatter per-group local element matrices/vectors into a global CSR.
+
+        A finite-element matrix has far more element-level entries than stored coefficients — each shared
+        node makes several element contributions land on the same ``(row, col)`` — so assembly is
+        fundamentally "sum every contribution into its slot". The element→DOF coordinates depend only on
+        connectivity, so across a Newton loop or time stepping they never change; only the values do. This
+        method exploits that: scipy builds and owns the sparsity pattern on the first assembly, and a small
+        precomputed map lets every later assembly do the summation with a single ``np.bincount``, skipping
+        scipy's repeated sort-and-sum-duplicates.
+
+        The map is cached per ``(dof_n, isMatrix, Ndof, contributing groups)``. The contributing groups are
+        part of the key because a simulation may feed different group sets to different slots — in the
+        cardiac benchmark the surface group contributes to K, C and F but leaves M ``None``, so K and M have
+        genuinely different patterns.
+
+        Reuse is exact to floating-point round-off (~1e-16 relative), not bit-identical to a fresh scipy
+        build, because ``bincount`` sums each slot's contributions in a different order than scipy's
+        coo->csr does.
 
         Parameters
         ----------
@@ -832,28 +853,77 @@ class _Simu(_IObserver, _params.Updatable, ABC):
         if not dict_group_data:
             return sparse.csr_matrix(shape)
 
-        list_rows, list_cols, list_data = [], [], []
-        for groupElem, X_e in dict_group_data.items():
-            if X_e is None:
-                continue
-            if isMatrix:
-                rows = groupElem.Get_rows_e(dof_n).ravel()
-                cols = groupElem.Get_columns_e(dof_n).ravel()
-            else:
-                rows = groupElem.Get_assembly_e(dof_n).ravel()
-                cols = np.zeros_like(rows)
-            list_rows.append(rows)
-            list_cols.append(cols)
-            list_data.append(X_e.ravel())
-
-        if not list_data:
+        # Fixing the group order here keeps `data` aligned with the map built from these same groups.
+        groups = tuple(g for g, X_e in dict_group_data.items() if X_e is not None)
+        if not groups:
             return sparse.csr_matrix(shape)
 
-        data = np.concatenate(list_data)
+        data = np.concatenate([dict_group_data[g].ravel() for g in groups])
+
+        # An MPI rank may own no element of any contributing group.
+        if data.size == 0:
+            return sparse.csr_matrix(shape)
+
+        # The reduction map (which CSR slot each element entry feeds) is cached per key; it depends only on
+        # connectivity, so a Newton loop / time stepping reuses it and only the values below change.
+        inv, indices, indptr, nnz = self.__Get_csr_map(dof_n, isMatrix, Ndof, groups)
+        assert data.size == inv.size, f"Not enough data to fill a {shape} CSR."
+
+        # Sum every element entry into its slot with one bincount. `bincount` is real-only, so a complex
+        # system is summed as its real and imaginary parts — still one pass each, still the rare path.
+        if np.iscomplexobj(data):
+            csr_data = np.bincount(
+                inv, weights=data.real, minlength=nnz
+            ) + 1j * np.bincount(inv, weights=data.imag, minlength=nnz)
+        else:
+            csr_data = np.bincount(inv, weights=data, minlength=nnz)
+
+        matrix = sparse.csr_matrix((csr_data, indices, indptr), shape=shape)
+        # Canonical by construction (scipy sorted the pattern): lets Solvers skip its canonical fixup.
+        matrix.has_canonical_format = True
+        return matrix
+
+    @cache_computed_values
+    def __Get_csr_map(self, dof_n, isMatrix, Ndof, groups):
+        """Reduction map from element entries to global CSR slots for one assembly key.
+
+        Returns ``(inv, indices, indptr, nnz)``: ``inv[k]`` is the CSR-data slot that element entry ``k``
+        feeds, and ``(indices, indptr, nnz)`` is scipy's canonical pattern. Depends only on connectivity, so
+        ``@cache_computed_values`` (keyed on ``dof_n, isMatrix, Ndof, groups``) reuses it across every
+        assembly of a key and rebuilds it when the groups / Ndof / dof_n change or the mesh is reset. ``inv``
+        is the single largest cached array; int32 halves it and is safe since slots are bounded by nnz < 2^31.
+        """
+        shape = (Ndof, Ndof) if isMatrix else (Ndof, 1)
+
+        list_rows, list_cols = [], []
+        for groupElem in groups:
+            if isMatrix:
+                list_rows.append(groupElem.Get_rows_e(dof_n).ravel())
+                list_cols.append(groupElem.Get_columns_e(dof_n).ravel())
+            else:
+                r = groupElem.Get_assembly_e(dof_n).ravel()
+                list_rows.append(r)
+                list_cols.append(np.zeros_like(r))
         rows = np.concatenate(list_rows)
         cols = np.concatenate(list_cols)
-        assert data.size == rows.size, f"Not enough data to fill a {shape} CSR."
-        return sparse.csr_matrix((data, (rows, cols)), shape=shape)
+
+        # scipy owns the canonical sparsity pattern; build it once from a structure-only matrix (the values
+        # are irrelevant — only the nonzero positions matter).
+        matrix = sparse.csr_matrix((np.ones(rows.size), (rows, cols)), shape=shape)
+        matrix.sort_indices()
+
+        # `canon` is the sorted linear (row-major) index of each stored coefficient; `searchsorted` maps each
+        # element entry to the slot whose `(row, col)` it matches. Building the map from scipy's own pattern
+        # (rather than a parallel hand-built one) is correct by construction, independent of any sort order.
+        ncol = Ndof if isMatrix else 1
+        canon = (
+            np.repeat(np.arange(shape[0]), np.diff(matrix.indptr)) * ncol
+            + matrix.indices
+        )
+        inv = np.searchsorted(canon, rows.astype(np.int64) * ncol + cols).astype(
+            np.int32
+        )
+        return inv, matrix.indices, matrix.indptr, matrix.nnz
 
     def Assembly(
         self, problemType: ModelType
