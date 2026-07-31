@@ -17,6 +17,7 @@ simulation classes that cover the vast majority of common problems:
 | {py:class}`~EasyFEA.Simulations.PhaseField` | Phase-field brittle fracture |
 | {py:class}`~EasyFEA.Simulations.Beam` | Euler–Bernoulli and Timoshenko beams |
 | {py:class}`~EasyFEA.Simulations.DIC` | Digital Image Correlation |
+| {py:class}`~EasyFEA.Simulations.HyperElastic` | Hyperelasticity (static, dynamic) |
 
 If your physics is not listed above, consider
 [opening an issue](https://github.com/matnoel/EasyFEA/issues) to propose it
@@ -238,10 +239,10 @@ than the linear load vector. `_Simu` passes the current solution through
 `Get_x0` so that the assembly can depend on it.
 
 See the
-[`Hyperelastic.Construct_local_matrix_system`](https://github.com/matnoel/EasyFEA/blob/main/EasyFEA/Simulations/_hyperelastic.py#L129-L179)
+[`HyperElastic.Construct_local_matrix_system`](https://github.com/matnoel/EasyFEA/blob/main/EasyFEA/Simulations/_hyperelastic.py)
 source for a concrete example of how tangent stiffness and residual are
 assembled in a non-linear finite deformation setting,
-{ref}`howto-pipeline-hyperelastic-operators` for how those tangent / damping
+{ref}`howto-pipeline-nonlinear-operators` for how those tangent / damping
 terms are weighted into the time-scheme assembly, and
 {ref}`easyfea-examples-hyperelasticity` for the corresponding worked
 examples.
@@ -293,50 +294,67 @@ calls are free.
 The following example assembles both the conductivity matrix $K_t$
 ($\int_\Omega k \, \nabla t \cdot \nabla \delta t \, \dO$ — a
 $\nabla N \nabla N$ form) and the heat capacity matrix $C_t$
-($\int_\Omega \rho c \, t \, \delta t \, \dO$ — an $N N$ form):
+($\int_\Omega \rho c \, t \, \delta t \, \dO$ — an $N N$ form).
+
+Both forms already exist in {py:mod}`~EasyFEA.FEM.Operators.Bilinear`, so
+neither the quadrature nor the Gauss-point summation has to be written by
+hand — this is essentially all of
+{py:class}`~EasyFEA.Simulations.Thermal`'s assembly:
 
 ```python
-from EasyFEA.FEM import MatrixType
+from EasyFEA.FEM import Operators
 
 def Construct_local_matrix_system(self, problemType):
     model = self.thermalModel
     out = {}
 
-    for groupElem in self.mesh.Get_list_groupElem(self.dim):
+    for groupElem in self.mesh.Get_list_groupElem():
 
-        # --- stiffness: ∇N·∇N form → MatrixType.rigi ---
-        matrixType = MatrixType.rigi
-        wJ_e_pg = groupElem.Get_weightedJacobian_e_pg(matrixType)  # (Ne, pg)
-        dN_e_pg = groupElem.Get_dN_e_pg(matrixType)                # (Ne, pg, dim, nPe)
+        # conductivity — ∫ k ∇t·∇δt dΩ  (∇N·∇N form)
+        Kt_e = Operators.Bilinear.GradUGradV(groupElem, coef=model.k)
 
-        # (Ne, pg, nPe, nPe) -> sum over pg -> (Ne, nPe, nPe)
-        Kt_e = (model.k * wJ_e_pg * dN_e_pg.T @ dN_e_pg).sum(axis=1)
-
-        # --- capacity: N·N form → MatrixType.mass ---
-        matrixType = MatrixType.mass
-        wJ_e_pg      = groupElem.Get_weightedJacobian_e_pg(matrixType)  # (Ne, pg)
-        reactionPart = groupElem.Get_ReactionPart_e_pg(matrixType)      # (Ne, pg, nPe, nPe)
-
-        # (Ne, pg, nPe, nPe) -> sum over pg -> (Ne, nPe, nPe)
-        Ct_e = (self.rho * model.c * reactionPart).sum(axis=1)
+        # capacity — ∫ ρc t·δt dΩ  (N·N form, one dof per node)
+        Ct_e = Operators.Bilinear.UV(groupElem, coef=self.rho * model.c, dof_n=1)
 
         # order: (K_e, C_e, M_e, F_e)
         # M_e is None: no inertia term in the thermal problem.
         # F_e is None: volumetric sources are handled as Neumann BCs, not here.
-        # For structural dynamics, M_e would also be assembled (MatrixType.mass)
+        # For structural dynamics, M_e would also be assembled — with
+        # `Operators.Bilinear.UV(groupElem, coef=self.rho, dof_n=self.dim)` —
         # and returned in the 3rd position.
         out[groupElem] = (Kt_e, Ct_e, None, None)
 
     return out
 ```
 
-```{tip}
-This hand-written assembly is shown to expose the underlying mechanics. In practice the built-in {py:class}`~EasyFEA.Simulations.Thermal` builds the same matrices with the {py:mod}`EasyFEA.FEM.Operators` module — `Operators.Bilinear.GradUGradV(groupElem, coef=model.k)` and `Operators.Bilinear.UV(groupElem, coef=self.rho * model.c, dof_n=1)` — which is the recommended way to write new operators. The complete catalogue of {py:mod}`~EasyFEA.FEM.Operators.Bilinear`, {py:mod}`~EasyFEA.FEM.Operators.Linear`, and {py:mod}`~EasyFEA.FEM.Operators.NonLinear` operators is in {ref}`fem-operators`.
+```{warning}
+`Get_list_groupElem()` is called with **no argument**, so it returns the groups
+of the mesh's own dimension. Do not pass `self.dim`: that is the *field* dimension
+(dofs per node, `1` for a thermal problem), not the mesh dimension, so
+`Get_list_groupElem(self.dim)` would silently assemble over the `SEG2` boundary
+edges of a 2D mesh instead of its `QUAD4` cells.
 ```
 
-The `.sum(axis=1)` call sums the contribution of each Gauss point along
-`axis=1` (the `pg` axis), producing the assembled element matrix of shape
-`(Ne, nPe, nPe)`.
+Each operator returns the element matrix already integrated, of shape
+`(Ne, nPe·dof_n, nPe·dof_n)`, and picks the `MatrixType` its form requires —
+`rigi` for {py:func}`~EasyFEA.FEM.Operators.Bilinear.GradUGradV`, `mass` for
+{py:func}`~EasyFEA.FEM.Operators.Bilinear.UV` — so the under- and
+over-integration mistake described above cannot be made by accident. Pass
+`matrixType=` explicitly only to override that choice deliberately.
+
+`coef` is not restricted to a scalar: it broadcasts from `(Ne,)`, `(nPg,)` or
+`(Ne, nPg)`, which is how a spatially varying conductivity or a
+temperature-dependent capacity is supplied.
+
+```{tip}
+Reach for an existing operator first — the catalogue of
+{py:mod}`~EasyFEA.FEM.Operators.Bilinear`,
+{py:mod}`~EasyFEA.FEM.Operators.Linear` and
+{py:mod}`~EasyFEA.FEM.Operators.NonLinear` forms is in {ref}`fem-operators`.
+Write the quadrature by hand only for a form the module does not cover, and
+prefer adding it there over inlining it in a simulation, so the next
+simulation needing it gets it too.
+```
 
 ```{note}
 `None` means the corresponding term is absent from the system — not that it

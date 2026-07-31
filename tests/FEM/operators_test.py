@@ -317,13 +317,36 @@ class TestKelvinVoigt:
 
         def Fvisco(u_):
             st = HyperElasticState(ge, u_, MatrixType.rigi)
-            C, _ = Operators.NonLinear.KelvinVoigtDamping(mat, st, v)
+            _, _, C = Operators.NonLinear.KelvinVoigtDamping(mat, st, v)
             return np.einsum("eij,ej->ei", C, v[asse])
 
         st = HyperElasticState(ge, u, MatrixType.rigi)
-        _, Kgeo = Operators.NonLinear.KelvinVoigtDamping(mat, st, v)
+        Kgeo, _, _ = Operators.NonLinear.KelvinVoigtDamping(mat, st, v)
         K_fd = _fd_tangent(Fvisco, u, asse)
         _assert_matches(Kgeo, K_fd, msg=elemType.name)
+
+    @pytest.mark.parametrize("dim, elemType", ELEMS, ids=ELEM_IDS)
+    def test_residual_equals_C_times_v(self, dim, elemType):
+        """``R_e`` is exactly the viscous force ``C_e·v_e``.
+
+        Both are ``thickness·η·∫Bᵀ B v``, but ``R_e`` is integrated straight from the Gauss
+        data while ``C_e·v_e`` goes through the assembled element matrix, so the two agree
+        only if the residual and the damping matrix are built from the same ``B``.
+        """
+        rng = np.random.default_rng(11)
+        mesh = _mesh(dim, elemType)
+        mat = _material(dim, "SaintVenantKirchhoff")
+        mat.eta = 0.7
+        ge = mesh.groupElem
+        n = mesh.Nn * dim
+        st = HyperElasticState(ge, rng.standard_normal(n) * 0.03, MatrixType.rigi)
+        v = rng.standard_normal(n) * 0.1
+
+        _, R, C = Operators.NonLinear.KelvinVoigtDamping(mat, st, v)
+        Cv = np.einsum("eij,ej->ei", C, v[ge.Get_assembly_e(dim)])
+
+        assert R.shape == Cv.shape, f"{R.shape} != {Cv.shape}"
+        assert np.abs(R - Cv).max() < 1e-12 * np.abs(Cv).max(), elemType.name
 
     def test_damping_matrix_is_symmetric(self):
         """The damping matrix ``C = η·∫BᵀB`` is symmetric and positive semi-definite."""
@@ -336,13 +359,13 @@ class TestKelvinVoigt:
         n = mesh.Nn * dim
         st = HyperElasticState(ge, rng.standard_normal(n) * 0.03, MatrixType.rigi)
         v = rng.standard_normal(n) * 0.1
-        C, _ = Operators.NonLinear.KelvinVoigtDamping(mat, st, v)
+        _, _, C = Operators.NonLinear.KelvinVoigtDamping(mat, st, v)
         assert np.abs(C - C.transpose(0, 2, 1)).max() / np.abs(C).max() < 1e-10
         # BᵀB ⇒ each element matrix has no negative eigenvalues
         assert np.linalg.eigvalsh(C).min() > -1e-9 * np.abs(C).max()
 
     def test_inactive_returns_none(self):
-        """No viscosity (``eta == 0``) or no velocity ⇒ ``(None, None)``."""
+        """No viscosity (``eta == 0``) or no velocity ⇒ ``(None, None, None)``."""
         dim, elemType = 2, ElemType.QUAD4
         mesh = _mesh(dim, elemType)
         ge = mesh.groupElem
@@ -353,10 +376,15 @@ class TestKelvinVoigt:
         assert Operators.NonLinear.KelvinVoigtDamping(mat, st, np.zeros(n)) == (
             None,
             None,
+            None,
         )
 
         mat.eta = 0.7  # viscous, but no velocity passed
-        assert Operators.NonLinear.KelvinVoigtDamping(mat, st, None) == (None, None)
+        assert Operators.NonLinear.KelvinVoigtDamping(mat, st, None) == (
+            None,
+            None,
+            None,
+        )
 
 
 # ----------------------------------------------------------------------------

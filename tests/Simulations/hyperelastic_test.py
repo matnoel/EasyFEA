@@ -17,6 +17,8 @@ import pytest
 
 from EasyFEA import ElemType, Models, Simulations, AlgoType
 from EasyFEA.Geoms import Domain
+from EasyFEA.FEM import MatrixType, Operators
+from EasyFEA.Models.HyperElastic._state import HyperElasticState
 
 
 class TestGonzalezEnergyConservation:
@@ -232,3 +234,56 @@ class TestQuadratureEnergyConservation:
         assert (
             tight < 1e-6
         ), f"tight energyTol should conserve energy well; got drift {tight:.1e}"
+
+
+class TestKelvinVoigtWiring:
+    """The viscous residual the operator returns is exactly what reaches ``F_e``.
+
+    ``Construct_local_matrix_system`` must subtract ``R_e`` once, with the right sign, and
+    put nothing else in ``F_e``. Turning viscosity off changes nothing else in the
+    assembly, so the difference of the two ``F_e`` is the viscous residual alone. The
+    operator itself is checked in ``tests/FEM/operators_test.py``.
+    """
+
+    def test_residual_enters_F_e_once(self):
+        L, h = 60.0, 10.0
+        eta = 100.0
+        rng = np.random.default_rng(4)
+
+        mesh = Domain((0, 0), (L, h), h).Mesh_2D([], ElemType.QUAD4, isOrganised=True)
+        mat = Models.HyperElastic.NeoHookean(2, K=5.0e4)
+        mat.eta = eta
+        simu = Simulations.HyperElastic(mesh, mat, verbosity=False)
+        simu.Solver_Set_Hyperbolic_Algorithm(0.05, algo=AlgoType.midpoint)
+
+        # Any configuration with a non-zero velocity will do; equilibrium is not needed.
+        pt = simu.problemType
+        n = mesh.Nn * 2
+        simu._Set_solutions(
+            pt,
+            rng.standard_normal(n) * 0.05,
+            rng.standard_normal(n) * 0.5,
+            rng.standard_normal(n) * 0.5,
+        )
+        u_np1 = rng.standard_normal(n) * 0.05
+        simu._Simu__Solver_Set_Newton_Raphson_current_solution(u_np1)
+
+        groupElem = mesh.groupElem
+        F_visco = simu.Construct_local_matrix_system(pt)[groupElem][3]
+        mat.eta = 0.0
+        F_plain = simu.Construct_local_matrix_system(pt)[groupElem][3]
+        mat.eta = eta
+
+        # what the operator says the viscous residual is, at the same evaluation state
+        u_t, v_t, _ = simu._Solver_Evaluate_u_v_a_for_time_scheme(pt, u_np1)
+        state = HyperElasticState(groupElem, u_t, MatrixType.rigi)
+        _, R_e, _ = Operators.NonLinear.KelvinVoigtDamping(mat, state, v_t)
+
+        assert (
+            np.abs(R_e).max() > 0
+        ), "test state is degenerate: the viscous residual is zero"
+        got = F_plain - F_visco  # F_e -= R_e  =>  the difference is +R_e
+        assert np.abs(got - R_e).max() < 1e-10 * np.abs(R_e).max(), (
+            "F_e does not carry exactly one -R_visco: max diff "
+            f"{np.abs(got - R_e).max():.3e} vs |R| {np.abs(R_e).max():.3e}"
+        )

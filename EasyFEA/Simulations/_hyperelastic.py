@@ -238,16 +238,16 @@ class HyperElastic(_Simu):
     ):
         """Returns ``{groupElem: (K_e, C_e, M_e, F_e)}`` for the current Newton iterate.
 
-        Newton solves ``A(u)·Δu = -R(u)``; the simulation assembles ``A = coefK·K + coefC·C + coefM·M`` and ``b -= C @ v_t``. Per group of elements: ``K_e`` is the elastic tangent (plus the viscous configuration tangent ``Kgeo_e``), ``F_e = -R_e`` the residual, ``C_e`` the Kelvin–Voigt damping matrix and ``M_e`` the mass matrix (dynamic schemes only).
+        Newton solves ``A(u)·Δu = -R(u)`` with ``A = coefK·K + coefC·C + coefM·M``. Per group of elements: ``K_e`` is the elastic tangent (plus the viscous configuration tangent ``Kgeo_e``), ``C_e`` the Kelvin–Voigt damping matrix, ``M_e`` the mass matrix (dynamic schemes only) and ``F_e = -R_e`` the complete residual — internal force together with the ``C_e·v_t + M_e·a_t`` inertia and damping terms.
         """
         dim = self.dim
         thickness = self.material.thickness if dim == 2 else 1
         isDynamic = self.algo in AlgoType.Get_Hyperbolic_Types()
 
-        # current Newton-Raphson iterate; for dynamic schemes also capture the
-        # velocity, for Kelvin–Voigt viscosity.
+        # current Newton-Raphson iterate; for dynamic schemes also capture the velocity
+        # (Kelvin–Voigt viscosity) and the acceleration (inertia), both needed by F_e.
         displacement = self._Solver_Get_Newton_Raphson_current_solution()
-        velocity = None
+        velocity = accel = None
         # Both non-default stresses are built from the step endpoints (u_n, u_{n+1}) on top
         # of the midpoint base point, so both need u_{n+1} kept before the midpoint
         # evaluation overwrites `displacement` with ū. Re-checked here (not only in the
@@ -262,7 +262,7 @@ class HyperElastic(_Simu):
         ), f"the '{stressType}' stress requires AlgoType.midpoint (got {self.algo})."
         u_np1 = displacement
         if isDynamic:
-            displacement, velocity, _ = self._Solver_Evaluate_u_v_a_for_time_scheme(
+            displacement, velocity, accel = self._Solver_Evaluate_u_v_a_for_time_scheme(
                 problemType, displacement
             )
         if not isPointwise:
@@ -325,20 +325,27 @@ class HyperElastic(_Simu):
 
             F_e = -residual_e
 
-            # Kelvin–Voigt viscosity: C_e is the damping matrix (slot 2, rides
-            # coefC, carries the viscous residual b -= C @ v_t); Kgeo_e is the
-            # configuration tangent ∂(C·v)/∂u, added to K_e so it rides coefK.
+            # Kelvin–Voigt viscosity: C_e is the damping matrix (slot 2, so it rides coefC
+            # in A), R_visco_e its residual, and Kgeo_e the configuration tangent
+            # ∂(C·v)/∂u, added to K_e so it rides coefK.
             C_e = None
             if self.material.eta != 0 and velocity is not None:
-                C_e, Kgeo_e = Operators.NonLinear.KelvinVoigtDamping(
+                Kgeo_e, R_visco_e, C_e = Operators.NonLinear.KelvinVoigtDamping(
                     self.material, state, velocity
                 )
                 K_e += Kgeo_e
+                F_e -= R_visco_e
 
-            # mass matrix — only assembled for dynamic schemes
+            # mass matrix and the inertia residual — dynamic schemes only
             M_e = None
             if isDynamic:
                 M_e = thickness * Operators.Bilinear.UV(groupElem, self.rho, dof_n=dim)
+                F_e -= np.einsum(
+                    "eij,ej->ei",
+                    M_e,
+                    groupElem.Locates_sol_e(accel, dim),
+                    optimize=True,
+                )
 
             out[groupElem] = (K_e, C_e, M_e, F_e)
 

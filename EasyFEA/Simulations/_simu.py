@@ -220,7 +220,12 @@ class _Simu(_IObserver, _params.Updatable, ABC):
             Optional[np.ndarray],
         ],
     ]:
-        r"""Construct the local matrix system :math:`\Krm \, \mathrm{u} + \Crm \, \vrm + \Mrm \, \arm = \Frm` for the given problem, returned per contributing group of elements `{groupElem: (K_e, C_e, M_e, F_e)}`."""
+        r"""Construct the local matrix system :math:`\Krm \, \mathrm{u} + \Crm \, \vrm + \Mrm \, \arm = \Frm` for the given problem, returned per contributing group of elements `{groupElem: (K_e, C_e, M_e, F_e)}`.
+
+        For a **linear** problem :math:`\Frm` is the load alone: :py:meth:`_Solver_Apply_Neumann` moves :math:`\mathrm{u}^n, \vrm^n, \arm^n` to the right-hand side with the history terms of the active time scheme.
+
+        For a **nonlinear** problem the unknown is :math:`\Delta \mathrm{u}`, so :math:`\Frm_e` is the complete residual :math:`-\Rrm_e`, inertia and damping included (:math:`-\Crm_e \, \vrm_t - \Mrm_e \, \arm_t`, with :math:`\vrm_t, \arm_t` from :py:meth:`_Solver_Evaluate_u_v_a_for_time_scheme`).
+        """
         raise NotImplementedError
 
     # Iterations
@@ -1464,96 +1469,79 @@ class _Simu(_IObserver, _params.Updatable, ABC):
 
         b += F
 
-        if (
-            self.isNonLinear
-            and self.algo in AlgoType.Get_Hyperbolic_and_Parabolic_Types()
-        ):
+        if self.isNonLinear:
+            # The unknown is Δu and `F` is the complete residual -R(u), so b is already
+            # built. The history terms below belong to a solve for u^{n+1}.
+            pass
 
-            # get the current newton raphson solution (updated via u += delta_u)
-            u = self._Solver_Get_Newton_Raphson_current_solution()
+        elif algo == AlgoType.elliptic:
+            pass
 
-            # here evaluate the vectors according to the time scheme
-            _, v_t, a_t = self._Solver_Evaluate_u_v_a_for_time_scheme(problemType, u)
+        elif algo == AlgoType.parabolic:
+            dt, alpha = self.__Solver_Get_Parabolic_Params()
 
-            # add residual contributions in b
-            if v_t is not None:
-                b -= C @ sparse.csr_matrix(v_t.reshape(-1, 1))
-            if a_t is not None:
-                b -= M @ sparse.csr_matrix(a_t.reshape(-1, 1))
-            # K(u) Δu = - R(u)
-            #         = - (F(u) - b)
-            #         = - F(u) + b
+            ut_np1 = u_n + (1 - alpha) * dt * v_n
+
+            b += 1 / (alpha * dt) * C @ ut_np1
+
+        elif algo == AlgoType.newmark:
+            # same as hht in accel with alpha = 0
+            dt, beta, gamma, _ = self.__Solver_Get_Hyperbolic_Params()
+
+            ut_np1 = u_n + dt * v_n + dt**2 / 2 * (1 - 2 * beta) * a_n
+            vt_np1 = v_n + dt * (1 - gamma) * a_n
+
+            # ut_np1
+            coefC = gamma / (beta * dt)
+            coefM = 1 / (beta * dt**2)
+            b += (coefC * C + coefM * M) @ ut_np1
+
+            # vt_np1
+            b -= C @ vt_np1
+
+        elif algo == AlgoType.midpoint:
+            # hht with alpha = 1/2, gamma = 1/2 and beta = 1/4
+            dt = self.__Solver_Get_Hyperbolic_Params()[0]
+
+            # u_n
+            coefM = 2 / dt**2
+            coefC = 1 / dt
+            b += (coefM * M + coefC * C - 1 / 2 * K) @ u_n
+
+            # v_n
+            coefM = 2 / dt
+            b += coefM * M @ v_n
+
+        elif algo == AlgoType.hht:
+            dt, beta, gamma, alpha = self.__Solver_Get_Hyperbolic_Params()
+
+            # u_n
+            coefM = 1 / (beta * dt**2)
+            coefC = gamma / (beta * dt)
+            b -= ((alpha - 1) * (coefM * M + coefC * C) + alpha * K) @ u_n
+
+            # v_n
+            coefM = (alpha - 1) / (beta * dt)
+            coefC = (alpha - 1) * (gamma / beta) + 1
+            b -= (coefM * M + coefC * C) @ v_n
+
+            # a_n
+            coefM = (alpha - 1) / (2 * beta) + 1
+            coefC = dt * (alpha - 1) * (gamma / (2 * beta) - 1)
+            b -= (coefM * M + coefC * C) @ a_n
+
+        elif algo == AlgoType.euler_implicit:
+            dt = self.__Solver_Get_Hyperbolic_Params()[0]
+            b += (1 / dt**2 * M + 1 / dt * C) @ u_n
+            b += (1 / dt * M) @ v_n
+
+        elif algo == AlgoType.euler_explicit:
+            # b = F^n - K u^n - C v^n  (A = M, solving for a^n)
+            b -= K @ u_n
+            b -= C @ v_n
 
         else:
-
-            if algo == AlgoType.elliptic:
-                pass
-
-            elif algo == AlgoType.parabolic:
-                dt, alpha = self.__Solver_Get_Parabolic_Params()
-
-                ut_np1 = u_n + (1 - alpha) * dt * v_n
-
-                b += 1 / (alpha * dt) * C @ ut_np1
-
-            elif algo == AlgoType.newmark:
-                # same as hht in accel with alpha = 0
-                dt, beta, gamma, _ = self.__Solver_Get_Hyperbolic_Params()
-
-                ut_np1 = u_n + dt * v_n + dt**2 / 2 * (1 - 2 * beta) * a_n
-                vt_np1 = v_n + dt * (1 - gamma) * a_n
-
-                # ut_np1
-                coefC = gamma / (beta * dt)
-                coefM = 1 / (beta * dt**2)
-                b += (coefC * C + coefM * M) @ ut_np1
-
-                # vt_np1
-                b -= C @ vt_np1
-
-            elif algo == AlgoType.midpoint:
-                # hht with alpha = 1/2, gamma = 1/2 and beta = 1/4
-                dt = self.__Solver_Get_Hyperbolic_Params()[0]
-
-                # u_n
-                coefM = 2 / dt**2
-                coefC = 1 / dt
-                b += (coefM * M + coefC * C - 1 / 2 * K) @ u_n
-
-                # v_n
-                coefM = 2 / dt
-                b += coefM * M @ v_n
-
-            elif algo == AlgoType.hht:
-                dt, beta, gamma, alpha = self.__Solver_Get_Hyperbolic_Params()
-
-                # u_n
-                coefM = 1 / (beta * dt**2)
-                coefC = gamma / (beta * dt)
-                b -= ((alpha - 1) * (coefM * M + coefC * C) + alpha * K) @ u_n
-
-                # v_n
-                coefM = (alpha - 1) / (beta * dt)
-                coefC = (alpha - 1) * (gamma / beta) + 1
-                b -= (coefM * M + coefC * C) @ v_n
-
-                # a_n
-                coefM = (alpha - 1) / (2 * beta) + 1
-                coefC = dt * (alpha - 1) * (gamma / (2 * beta) - 1)
-                b -= (coefM * M + coefC * C) @ a_n
-
-            elif algo == AlgoType.euler_implicit:
-                dt = self.__Solver_Get_Hyperbolic_Params()[0]
-                b += (1 / dt**2 * M + 1 / dt * C) @ u_n
-                b += (1 / dt * M) @ v_n
-
-            elif algo == AlgoType.euler_explicit:
-                # b = F^n - K u^n - C v^n  (A = M, solving for a^n)
-                b -= K @ u_n
-                b -= C @ v_n
-
-            else:
-                raise NotImplementedError(f"Algo {algo} is not implemented here.")
+            raise NotImplementedError(f"Algo {algo} is not implemented here.")
 
         tic.Tac("Solver", f"Neumann ({problemType}, {algo})", self._verbosity)
 

@@ -629,17 +629,20 @@ def KelvinVoigtDamping(
     material: "_HyperElastic",
     state: "HyperElasticState",
     velocity: np.ndarray,
-) -> tuple[np.ndarray, np.ndarray]:
-    r"""Kelvin–Voigt viscous element contributions (C_e, Kgeo_e) for the
+) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
+    r"""Kelvin–Voigt viscous element contributions (Kgeo_e, R_e, C_e) for the
     large-strain viscous force F_visco(u) = C(u)·v, with Σ_visco = η·Ė
     (Green-Lagrange strain rate of velocity) and B = De(u)·grad.
 
-    - C_e = thickness · η · ∫ Bᵀ B dΩ — the damping matrix; the simulation puts
-      it in slot 2 of (K, C, M, F) (residual b -= C @ v_t, time-scheme history,
-      and the coefC·C tangent).
+    Ordered ``(tangent, residual, extra)`` like the rest of this module.
+
     - Kgeo_e — the configuration tangent ∂(C·v)/∂u at fixed velocity (geometric
       stiffening from Σ_visco plus the ∂Ė/∂u term); the simulation adds it to
       K_e so it rides coefK.
+    - R_e = thickness · η · ∫ Bᵀ Ė dΩ — the viscous residual, which the simulation
+      subtracts from F_e.
+    - C_e = thickness · η · ∫ Bᵀ B dΩ — the damping matrix; the simulation puts it
+      in slot 2 of (K, C, M, F), where it rides the coefC·C tangent.
 
     Parameters
     ----------
@@ -654,11 +657,12 @@ def KelvinVoigtDamping(
     Returns
     -------
     tuple
-        (None, None) when material.eta == 0 or velocity is None. Both matrices
-        are (Ne, nPe·dim, nPe·dim) reordered to (xi, yi, zi, ..., xn, yn, zn).
+        (None, None, None) when material.eta == 0 or velocity is None. Kgeo_e and C_e
+        are (Ne, nPe·dim, nPe·dim) and R_e is (Ne, nPe·dim), all reordered to
+        (xi, yi, zi, ..., xn, yn, zn).
     """
     if material.eta == 0.0 or velocity is None:
-        return None, None  # type: ignore [return-value]
+        return None, None, None  # type: ignore [return-value]
 
     groupElem = state.groupElem
     matrixType = state.matrixType
@@ -669,22 +673,22 @@ def KelvinVoigtDamping(
 
     grad_e_pg, B_e_pg = __block_grad_B(state)
     Beta_e_pg = state.Compute_Deta(velocity) @ grad_e_pg
+    sig_e_pg = material.eta * state.Compute_Edot_vec(velocity)  # Σ_visco = η·Ė
 
     # damping matrix C = thickness · η · ∫ Bᵀ B (fused einsum, see SPK above)
     subscripts = "ep,epji,epjl->eil"
     C_e = thickness * material.eta * einsum(subscripts, wJ_e_pg, B_e_pg, B_e_pg)
 
+    # viscous residual ∫ Bᵀ Σ_visco — same contraction as the active stress
+    residual_e = thickness * einsum("ep,epji,epj->ei", wJ_e_pg, B_e_pg, sig_e_pg)
+
     # configuration tangent ∂(C·v)/∂u = geometric (∫ gradᵀ Sig grad) + material-like
     # (η ∫ Bᵀ (∂Ė/∂u)) pieces
     A_mat = material.eta * einsum(subscripts, wJ_e_pg, B_e_pg, Beta_e_pg)
-    A_geo = __geometric_tangent(
-        wJ_e_pg,
-        state,
-        material.eta * state.Compute_Edot_vec(velocity),
-    )
+    A_geo = __geometric_tangent(wJ_e_pg, state, sig_e_pg)
     Kgeo_e = thickness * (A_mat + A_geo)
 
-    return __reorder_dofs(dim, nPe, C_e, Kgeo_e)
+    return __reorder_dofs(dim, nPe, Kgeo_e, residual_e, C_e)
 
 
 def __skew(v: np.ndarray) -> np.ndarray:

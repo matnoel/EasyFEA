@@ -82,7 +82,7 @@ class CardiacElastoDynamics(Simulations.HyperElastic):
         # current Newton-Raphson iterate (updated via u += delta_u)
         displacement = self._Solver_Get_Newton_Raphson_current_solution()
         if self.algo in AlgoType.Get_Hyperbolic_Types():
-            displacement, _, _ = self._Solver_Evaluate_u_v_a_for_time_scheme(
+            displacement, velocity, _ = self._Solver_Evaluate_u_v_a_for_time_scheme(
                 problemType, displacement
             )
 
@@ -130,11 +130,15 @@ class CardiacElastoDynamics(Simulations.HyperElastic):
             u_e = displacement[assembly_e]  # (Ne_surf, nPe·3)
             f_penalty_e = np.einsum("eij,ej->ei", K_penalty_e, u_e)
 
+            C_e = Ctop_e + Cepi_e
+            v_e = groupElem.Locates_sol_e(velocity, self.dim)
+            Rc_e = np.einsum("eij,ej->ei", C_e, v_e)
+
             results[groupElem] = (
                 Kpressure_e + K_penalty_e,
-                Ctop_e + Cepi_e,
+                C_e,
                 None,
-                Rpressure_e - f_penalty_e,
+                Rpressure_e - f_penalty_e - Rc_e,
             )
 
         return results
