@@ -16,12 +16,12 @@ offered by ``Solver_Set_Stress``:
   for any law, from a single stress evaluation.
 - ``quadrature`` — the stress averaged along the step's strain path, at increasing resolution:
   a fixed Clenshaw-Curtis rule (``nPoints`` = 1, 2, 3, 5, 9 — midpoint, trapezoid, Simpson, …) or
-  the adaptive per-element rule (``quadTol``). It conserves energy only up to its quadrature error,
-  so a coarse rule (1–2 points) drifts while a fine one (9 points, or a tight ``quadTol``)
+  the adaptive per-element rule (``energyTol``). It conserves energy only up to its quadrature error,
+  so a coarse rule (1–2 points) drifts while a fine one (9 points, or a tight ``energyTol``)
   matches ``gonzalez``.
 
 The figures show each scheme's energy drift over time, the kinetic / strain-energy exchange of the
-reference run, and the number of quadrature points the adaptive rule chose per step.
+reference run, and how the adaptive rule spread its quadrature points across the mesh over time.
 """
 
 import matplotlib.pyplot as plt
@@ -61,8 +61,9 @@ if __name__ == "__main__":
         ("3 pts (simpson)", dict(stressType=ST.quadrature, nPoints=3)),
         # ("5 pts", dict(stressType=ST.quadrature, nPoints=5)),
         ("9 pts", dict(stressType=ST.quadrature, nPoints=9)),
-        ("quadTol=1e-6", dict(stressType=ST.quadrature, quadTol=1e-6)),
-        ("quadTol=1e-12", dict(stressType=ST.quadrature, quadTol=1e-12)),
+        ("energyTol=1e-6", dict(stressType=ST.quadrature, energyTol=1e-6)),
+        # ("energyTol=1e-9", dict(stressType=ST.quadrature, energyTol=1e-9)),
+        ("energyTol=1e-12", dict(stressType=ST.quadrature, energyTol=1e-12)),
     ]
 
     # geom
@@ -146,9 +147,8 @@ if __name__ == "__main__":
             np.array(list_newton),
         )
 
-    # {label: (simu, times, KE, W, t, newtonIter)}
-    runs: dict[
-        str,
+    # parallel to list_config; each entry: (simu, times, KE, W, t, newtonIter)
+    list_results: list[
         tuple[
             Simulations.HyperElastic,
             np.ndarray,
@@ -156,30 +156,25 @@ if __name__ == "__main__":
             np.ndarray,
             float,
             np.ndarray,
-        ],
-    ] = {label: run(label, **kw) for label, kw in list_config}
+        ]
+    ] = [run(label, **kw) for label, kw in list_config]
 
     # ----------------------------------------------
     # Results
     # ----------------------------------------------
     Terminal.Section("Results")
 
-    simu, times, KE_ref, W_ref, _, _ = runs[list_config[0][0]]
+    simu, times, KE_ref, W_ref, _, _ = list_results[0]
     E0 = KE_ref[0] + W_ref[0]
 
-    for label in runs:
-        _, _, KE, W, t, newton = runs[label]
-        drift = np.abs(KE + W - E0).max() / E0
+    # one pass: print each scheme's drift/cost and plot its drift over time (log axis)
+    ax1 = Matplotlib.Init_Axes()
+    for (label, _), (_, _, KE, W, t, newton) in zip(list_config, list_results):
+        drift = np.abs(KE + W - E0) / E0
         print(
-            f"{label:19s}: max |KE+W-E0|/E0 = {drift:.2e} | "
+            f"{label:19s}: max |KE+W-E0|/E0 = {drift.max():.2e} | "
             f"newton {newton.sum():4d} ({newton.mean():.2f}/step) | {t:.3f} s"
         )
-
-    # Energy drift of every scheme, relative and on a log axis
-    ax1 = Matplotlib.Init_Axes()
-    for label in runs:
-        _, _, KE, W, t, newton = runs[label]
-        drift = np.abs(KE + W - E0) / E0
         drift[drift <= 0] = np.nan  # t = 0 is exactly 0 by construction
         ax1.semilogy(times, drift, label=f"{label} ({t:.2f} s, {newton.sum()} it)")
     ax1.set_xlabel("time")
@@ -199,6 +194,22 @@ if __name__ == "__main__":
     ax2.set_title(f"{list_config[0][0]}: kinetic / strain / total")
     ax2.legend()
     Matplotlib.Save_fig(folder, "energy")
+
+    # adaptive refinement of the last (energyTol) run: share of the mesh at each Clenshaw–Curtis
+    # level over time, stacked to 1 so band thickness reads directly as the fraction of elements —
+    # most stay at the cheapest rule, more refine only during the hard-bending phases of the swing
+    ax3 = Matplotlib.Init_Axes()
+    simu1 = list_results[-1][0]
+    nPts_e = [simu1.Get_results(i)["nPts_e"] for i in range(1, simu1.Niter)]
+    levels = np.unique(np.concatenate(nPts_e))  # CC point counts actually used
+    frac = np.array([[np.mean(step == lvl) for step in nPts_e] for lvl in levels])
+    ax3.stackplot(times[1:], frac, labels=[f"{lvl} pts" for lvl in levels])
+    ax3.set_ylim(0, 1)
+    ax3.set_xlabel("time")
+    ax3.set_ylabel("fraction of elements")
+    ax3.set_title(f"{list_config[-1][0]}: adaptive quadrature refinement")
+    ax3.legend(loc="center left", fontsize=8)
+    Matplotlib.Save_fig(folder, "adaptive points")
 
     if makeMovie:
 

@@ -169,7 +169,7 @@ class HyperElastic(_Simu):
         stressType: "HyperElastic.StressType" = StressType.pointwise,
         nPoints: int = 3,
         useConsistentTangent: bool = True,
-        quadTol: Optional[float] = None,
+        energyTol: Optional[float] = None,
     ) -> None:
         r"""Selects the stress used by the internal force. Call **after** :py:meth:`~EasyFEA.Simulations._Simu.Solver_Set_Hyperbolic_Algorithm`.
 
@@ -192,18 +192,18 @@ class HyperElastic(_Simu):
         nPoints : int, optional
             ``quadrature`` only: number of Clenshaw-Curtis points, by default 3 (Simpson).
             ``1`` and ``2`` are the midpoint and trapezoid rules; more converges spectrally.
-            When ``quadTol`` is set this is the starting (minimum) level instead of a fixed count.
+            When ``energyTol`` is set this is the starting (minimum) level instead of a fixed count.
         useConsistentTangent : bool, optional
             ``gonzalez`` only: if False, drop the discrete-gradient corrections from the
             tangent. Same residual and same exact conservation, but Newton converges linearly
             — a diagnostic, to measure what the consistent tangent is worth.
-        quadTol : float, optional
+        energyTol : float, optional
             ``quadrature`` only: if set, the rule is refined adaptively *element by element*
             along the nested Clenshaw-Curtis chain ``1, 3, 5, 9, ...`` (capped at 33) — each
             element stops once its own **integrated** relative energy defect
-            ``∫(S_quad:Δe − ΔW)² dΩ ≤ quadTol² ∫ΔW² dΩ`` over that element is met (a volume
+            ``∫|S_quad:Δe − ΔW| dΩ ≤ energyTol · ∫|ΔW| dΩ`` over that element is met (a volume
             integral over its Gauss points, not a pointwise density). So energy is conserved to
-            ``quadTol`` while points are spent only where the step is nonlinear. ``None``
+            ``energyTol`` while points are spent only where the step is nonlinear. ``None``
             (default) keeps the fixed ``nPoints`` rule.
         """
         stressType = HyperElastic.StressType(stressType)
@@ -216,13 +216,14 @@ class HyperElastic(_Simu):
             )
         assert nPoints >= 1, f"nPoints must be >= 1 (got {nPoints})."
 
-        self.__stressParams = (stressType, nPoints, useConsistentTangent, quadTol)
-        self.__quadNPoints = 0  # diagnostic: points the last assembly used
+        self.__stressParams = (stressType, nPoints, useConsistentTangent, energyTol)
+        # diagnostic: per-element quadrature-point counts, last assembly
+        self.__nPts_e = None
 
     def __Solver_Get_Stress_Params(
         self,
     ) -> tuple["HyperElastic.StressType", int, bool, Optional[float]]:
-        """Returns (stressType, nPoints, useConsistentTangent, quadTol) internal-force props."""
+        """Returns (stressType, nPoints, useConsistentTangent, energyTol) internal-force props."""
         return self.__stressParams
 
     @property
@@ -252,7 +253,7 @@ class HyperElastic(_Simu):
         # evaluation overwrites `displacement` with ū. Re-checked here (not only in the
         # setter) so that re-calling Solver_Set_Hyperbolic_Algorithm with another algo
         # can't leave a stale selection.
-        stressType, nPoints, useConsistentTangent, quadTol = (
+        stressType, nPoints, useConsistentTangent, energyTol = (
             self.__Solver_Get_Stress_Params()
         )
         isPointwise = stressType == HyperElastic.StressType.pointwise
@@ -270,7 +271,7 @@ class HyperElastic(_Simu):
         errDetF = "det(F) < 0 - reduce load steps"
 
         out = {}
-        quadNPoints = 0  # max Clenshaw-Curtis points over groups this Newton iteration
+        list_nPts_e = []  # per-element point counts across groups (quadrature only)
         for groupElem in self.mesh.Get_list_groupElem():
             state = HyperElasticState(groupElem, displacement, matrixType)
 
@@ -298,15 +299,15 @@ class HyperElastic(_Simu):
                         useConsistentTangent,
                     )
                 elif stressType == HyperElastic.StressType.quadrature:
-                    K_e, residual_e, nPts = (
+                    K_e, residual_e, nPts_e = (
                         Operators.NonLinear.TimeQuadratureStressTensor(
                             self.material,
                             *hyperElasticStates,
                             nPoints,
-                            quadTol,
+                            energyTol,
                         )
                     )
-                    quadNPoints = max(quadNPoints, nPts)
+                    list_nPts_e.append(nPts_e)
                 else:
                     raise NotImplementedError
 
@@ -341,7 +342,9 @@ class HyperElastic(_Simu):
 
             out[groupElem] = (K_e, C_e, M_e, F_e)
 
-        self.__quadNPoints = quadNPoints  # 0 unless quadrature stress ran this assembly
+        # per-element Clenshaw-Curtis point counts this assembly, or None if the quadrature
+        # stress did not run (pointwise / gonzalez)
+        self.__nPts_e = np.concatenate(list_nPts_e) if list_nPts_e else None
 
         return out
 
@@ -358,10 +361,8 @@ class HyperElastic(_Simu):
         if self.algo in AlgoType.Get_Hyperbolic_Types():
             iter["speed"] = self._Get_v_n(self.problemType)
             iter["accel"] = self._Get_a_n(self.problemType)
-        if (
-            self.__quadNPoints
-        ):  # points the converged step used (quadrature stress only)
-            iter["quadNPoints"] = self.__quadNPoints
+        if self.__nPts_e is not None:  # per-element point counts, quadrature only
+            iter["nPts_e"] = self.__nPts_e
 
         return super().Save_Iter(iter)
 

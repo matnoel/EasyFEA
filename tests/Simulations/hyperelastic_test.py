@@ -178,7 +178,7 @@ class TestThicknessInvariance:
 
 class TestQuadratureEnergyConservation:
     """The ``quadrature`` stress conserves ``KE + W`` up to its quadrature error, so tightening
-    ``quadTol`` — the per-element energy-defect tolerance — drives the drift down. That control is
+    ``energyTol`` — the per-element energy-defect tolerance — drives the drift down. That control is
     the whole point of the adaptive rule; a broken quadrature would drift like ``pointwise``
     (~1e-2). Exercised end to end through the public ``Solver_Set_Stress`` / ``Solve`` interface.
     """
@@ -222,13 +222,13 @@ class TestQuadratureEnergyConservation:
         E = np.array(energies)
         return float(np.abs(E - E[0]).max() / abs(E[0]))
 
-    def test_quadTol_controls_energy_drift(self):
-        """Tightening ``quadTol`` conserves ``KE + W`` markedly better."""
-        loose = self._drift(quadTol=1e-2)
-        tight = self._drift(quadTol=1e-8)
+    def test_energyTol_controls_energy_drift(self):
+        """Tightening ``energyTol`` conserves ``KE + W`` markedly better."""
+        loose = self._drift(energyTol=1e-2)
+        tight = self._drift(energyTol=1e-8)
         assert (
             tight < loose / 100
-        ), f"tighter quadTol should conserve energy far better: loose={loose:.1e}, tight={tight:.1e}"
+        ), f"tighter energyTol should conserve energy far better: loose={loose:.1e}, tight={tight:.1e}"
         assert (
             tight < 1e-6
-        ), f"tight quadTol should conserve energy well; got drift {tight:.1e}"
+        ), f"tight energyTol should conserve energy well; got drift {tight:.1e}"

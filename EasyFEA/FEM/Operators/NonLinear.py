@@ -402,9 +402,9 @@ def __AdaptiveTimeQuadratureStressTensor(
 ) -> tuple["FeArray", "FeArray", int]:
     r"""Per-element adaptive strain-path quadrature — the ``tol``-driven path of :func:`TimeQuadratureStressTensor`.
 
-    Each element refines along the nested chain ``1, 3, 5, 9, …`` until *its own* energy defect is within ``tol``, then freezes — so a low-strain element stops at one point while a high-strain one keeps refining. The test is the **integrated** relative error over the element, ``∫_Ωe (S:Δe − ΔW)² dΩ ≤ tol² ∫_Ωe ΔW² dΩ``. It is evaluated as the Gauss-point sums ``Σ_p V_(ep)(S:Δe − ΔW)² ≤ tol² Σ_p V_(ep) ΔW²`` with ``V_(ep)`` the Gauss point's volume (weight × Jacobian) — so the ``V_(ep)`` factor is what makes each side a genuine *integral over the element*, **not** a pointwise energy-density comparison. Energy-safe because ``S:Δe = ΔW`` holds per Gauss point; the squared, volume-weighted form is safe against sign cancellation between Gauss points, and per element the well-resolved regions cannot mask a coarse one.
+    Each element refines along the nested chain ``1, 3, 5, 9, …`` until *its own* energy defect is within ``tol``, then freezes — so a low-strain element stops at one point while a high-strain one keeps refining. The test is the **integrated** relative error over the element, ``∫_Ωe |S:Δe − ΔW| dΩ ≤ tol · ∫_Ωe |ΔW| dΩ``, evaluated as the Gauss-point sums ``Σ_p V_(ep) |S:Δe − ΔW| ≤ tol · Σ_p V_(ep) |ΔW|`` with ``V_(ep)`` the Gauss point's volume (weight × Jacobian) — so the ``V_(ep)`` factor makes each side a genuine *integral over the element*, **not** a pointwise energy-density comparison. This L1 (absolute) form is the tightest simple bound on the element's actual per-step energy drift ``|∫_Ωe (S:Δe − ΔW) dΩ|`` (triangle inequality, no volume factor), and taking ``|·|`` before summing makes it safe against sign cancellation between Gauss points — a well-resolved region cannot mask a coarse one. Energy-safe because ``S:Δe = ΔW`` holds per Gauss point.
 
-    Only the still-active elements are evaluated at each level — the rule is applied to that subset via :meth:`_StrainPathState._sliced` — so the constitutive cost tracks the hard elements, not the mesh. (Nodes shared with a coarser level are re-evaluated rather than cached; the active set shrinks fast, so that stays cheap and keeps the loop plain.) Returns ``(dWde_quad, d2Wde_quad)`` — each row carrying its element's accepted rule — and the largest point count any element reached.
+    Only the still-active elements are evaluated at each level — the rule is applied to that subset via :meth:`_StrainPathState._sliced` — so the constitutive cost tracks the hard elements, not the mesh. (Nodes shared with a coarser level are re-evaluated rather than cached; the active set shrinks fast, so that stays cheap and keeps the loop plain.) Returns ``(dWde_quad, d2Wde_quad)`` — each row carrying its element's accepted rule — and ``nPts_e``, the point count each element accepted.
     """
     groupElem = state_n.groupElem  # state_n and state_np1 share the group
     dim = groupElem.dim
@@ -417,7 +417,7 @@ def __AdaptiveTimeQuadratureStressTensor(
     dW = material.Compute_W(state_np1) - material.Compute_W(state_n)  # ΔW per point
     dE = state_np1.Compute_GreenLagrange() - state_n.Compute_GreenLagrange()
     dE_vec = Project_matrix_to_vector(dE[..., :dim, :dim])  # Δe (Kelvin-Mandel)
-    refW = einsum("ep,ep,ep->e", wJ_e_pg, dW, dW)  # Σ_p V ΔW²  (Ne,)
+    refW = einsum("ep,ep->e", wJ_e_pg, np.abs(dW))  #  Σ_p V |ΔW| (Ne,)
     Ne, nPg, ncomp = *wJ_e_pg.shape[:2], dE_vec.shape[-1]
 
     def at(
@@ -428,7 +428,8 @@ def __AdaptiveTimeQuadratureStressTensor(
     dWde_quad = FeArray.zeros(Ne, nPg, ncomp)
     d2Wde_quad = FeArray.zeros(Ne, nPg, ncomp, ncomp)
     activeElements = np.arange(Ne)  # elements still refining
-    nPts, nPts_used = 1, 1
+    nPts_e = np.zeros(Ne, dtype=int)  # accepted point count per element (diagnostic)
+    nPts = 1
     while activeElements.size:
         nodes, weights = __clenshaw_curtis(nPts)
         S = sum(
@@ -441,27 +442,27 @@ def __AdaptiveTimeQuadratureStressTensor(
         defect = einsum("epi,epi->ep", S, dE_vec[activeElements]) - dW[activeElements]
         next_nPts = 3 if nPts == 1 else 2 * nPts - 1  # next level in the chain
         # accept an element once its own energy defect is within tol (all of them at the last level)
-        done = (next_nPts > max(maxPoints, 1)) | (
-            einsum("ep,ep,ep->e", wJ_e_pg[activeElements], defect, defect)
-            <= tol * tol * (refW[activeElements] + 1e-300)
+        isAccepted = (next_nPts > max(maxPoints, 1)) | (
+            einsum("ep,ep->e", wJ_e_pg[activeElements], np.abs(defect))
+            <= tol * refW[activeElements]
         )
-        if done.any():
-            e = activeElements[done]  # elements accepting this rule
-            dWde_quad[e] = S[done]
+        if isAccepted.any():
+            acceptedElems = activeElements[isAccepted]  # elements accepting this rule
+            dWde_quad[acceptedElems] = S[isAccepted]
             # their tangent only: Σ_k 2 w_k s_k d2Wde, s=0 drops out (∂e/∂u = s B)
-            d2Wde_quad[e] = sum(
+            d2Wde_quad[acceptedElems] = sum(
                 (
-                    (2.0 * w * s) * material.Compute_d2Wde(at(s, e))
+                    (2.0 * w * s) * material.Compute_d2Wde(at(s, acceptedElems))
                     for s, w in zip(nodes, weights)
                     if s
                 ),
                 0.0,
             )
-            nPts_used = max(nPts_used, nPts)
-            activeElements = activeElements[~done]
+            nPts_e[acceptedElems] = nPts  # record each frozen element's accepted rule
+            activeElements = activeElements[~isAccepted]
         nPts = next_nPts
 
-    return dWde_quad, d2Wde_quad, nPts_used
+    return dWde_quad, d2Wde_quad, nPts_e
 
 
 def TimeQuadratureStressTensor(
@@ -484,7 +485,7 @@ def TimeQuadratureStressTensor(
 
     ``(s_k, w_k)`` is the Clenshaw-Curtis rule on ``nPoints`` points (:func:`__clenshaw_curtis`); ``1, 2, 3`` are the midpoint, trapezoid and Simpson rules. Intermediate nodes are :class:`_StrainPathState`; ``s = 0, 1`` reuse the end states.
 
-    **Adaptive (per-element) mode.** With ``tol`` set, the rule is chosen *element by element* by :func:`__AdaptiveTimeQuadratureStressTensor`: each element walks the nested chain ``1, 3, 5, 9, 17, 33`` (up to ``maxPoints``) and freezes once *its own* energy defect is within ``tol``, so points are spent only where the step is nonlinear — a low-strain element may stop at a single midpoint while a stiff one keeps refining. The defect ``S_quad:Δe − ΔW`` is the quadrature error of the discrete-gradient identity ``S_quad:Δe = ΔW`` (with ``ΔW`` *known* from the endpoints), so the test is absolute — no consecutive-difference guess. It is the **integrated** relative error over the element, ``∫_Ωe (S_quad:Δe − ΔW)² dΩ ≤ tol² ∫_Ωe ΔW² dΩ`` — the integrals are the volume-weighted Gauss-point sums ``Σ_p V_(ep)···``, *not* a pointwise energy-density comparison — so ``tol`` reads as "conserve energy to this relative tolerance". Squaring guards against sign cancellation between Gauss points, and being absolute the test accepts the coarsest rule directly: the ``1``-point midpoint is exact for a linear energy integrand, so a quadratic ``W`` converges at a single point. The tangent uses each element's accepted rule, so residual and tangent stay consistent.
+    **Adaptive (per-element) mode.** With ``tol`` set, the rule is chosen *element by element* by :func:`__AdaptiveTimeQuadratureStressTensor`: each element walks the nested chain ``1, 3, 5, 9, 17, 33`` (up to ``maxPoints``) and freezes once *its own* energy defect is within ``tol``, so points are spent only where the step is nonlinear — a low-strain element may stop at a single midpoint while a stiff one keeps refining. The defect ``S_quad:Δe − ΔW`` is the quadrature error of the discrete-gradient identity ``S_quad:Δe = ΔW`` (with ``ΔW`` *known* from the endpoints), so the test is absolute — no consecutive-difference guess. It is the **integrated** relative error over the element, ``∫_Ωe |S_quad:Δe − ΔW| dΩ ≤ tol · ∫_Ωe |ΔW| dΩ`` — the integrals are the volume-weighted Gauss-point sums ``Σ_p V_(ep)···``, *not* a pointwise energy-density comparison — so ``tol`` reads as "conserve energy to this relative tolerance". Taking the absolute value before summing bounds the element's actual energy drift directly and guards against sign cancellation between Gauss points. Since each level is scored on its own (no comparison to a coarser one) the test accepts the coarsest rule directly: the ``1``-point midpoint is exact for a linear energy integrand, so a quadratic ``W`` converges at a single point. The tangent uses each element's accepted rule, so residual and tangent stay consistent.
 
     Since ``Δe = B(ū)·Δu`` exactly and ``de/ds = Δe`` is constant along the segment, the fundamental theorem of calculus gives ``S_quad:Δe = ΔW`` once the ``s``-integral is exact — a **discrete gradient**. The energy defect is therefore just the quadrature error, which Clenshaw-Curtis drives down spectrally; a quadratic ``W`` is exact at every rule. Note ``nPoints = 1`` is the average-strain stress ``S(½(e_n + e_{n+1}))``, *not* the midpoint-displacement stress of :func:`SecondPiolaKirchhoffStressTensor`.
 
@@ -518,9 +519,9 @@ def TimeQuadratureStressTensor(
         Consistent tangent, built for ``coefK = 0.5``.
     R_e : ndarray of shape ``(Ne, nPe·dim)``
         Internal residual force.
-    nPts : int
-        Clenshaw-Curtis points used — ``nPoints`` when fixed; when adaptive, the *largest* level
-        any element reached (individual elements may use fewer). Lets the caller log the cost.
+    nPts_e : ndarray of shape ``(Ne,)``
+        Clenshaw-Curtis points each element used — constant ``nPoints`` when fixed, per-element
+        when adaptive.
     """
 
     groupElem = state_mid.groupElem
@@ -547,7 +548,7 @@ def TimeQuadratureStressTensor(
             dWde_quad += w * material.Compute_dWde(state)
             if s != 0.0:
                 d2Wde_quad += (2.0 * w * s) * material.Compute_d2Wde(state)
-        nPts_used = int(nPoints)
+        nPts_e = np.full(groupElem.Ne, int(nPoints))  # every element uses the same rule
     else:
         # Adaptive: refine per element on the *energy defect*. This stress exists so that
         # S_quad : Δe = ΔW exactly (a discrete gradient, for energy conservation); the only error
@@ -555,7 +556,7 @@ def TimeQuadratureStressTensor(
         # is *known* from the endpoints — so the test is absolute (each level scored on its own).
         # Refining element-by-element rather than the whole block spends points only where the
         # material is nonlinear over the step (see __AdaptiveTimeQuadratureStressTensor).
-        dWde_quad, d2Wde_quad, nPts_used = __AdaptiveTimeQuadratureStressTensor(
+        dWde_quad, d2Wde_quad, nPts_e = __AdaptiveTimeQuadratureStressTensor(
             material, state_n, state_np1, tol, int(maxPoints)
         )
 
@@ -572,7 +573,7 @@ def TimeQuadratureStressTensor(
         residual_e *= thickness
 
     K_e, R_e = __reorder_dofs(dim, nPe, tangent_e, residual_e)
-    return K_e, R_e, nPts_used
+    return K_e, R_e, nPts_e
 
 
 def ActiveStressTensor(
