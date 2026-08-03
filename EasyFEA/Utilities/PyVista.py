@@ -63,6 +63,7 @@ def Plot(
     show_grid=False,
     colorbarTitle=None,
     verticalColobar=True,
+    scalar_bar_kwargs: Optional[dict] = None,
     **kwargs,
 ):
     """Plots the object obj that can be either a simu, mesh, MultiBlock, PolyData.\n
@@ -111,6 +112,15 @@ def Plot(
         colorbar title, by default None
     verticalColobar : bool, optionnal
         color bar is vertical, by default True
+    scalar_bar_kwargs : dict, optionnal
+        Extra scalar-bar options, merged over the ones built from ``colorbarTitle`` and ``verticalColobar`` and taking precedence over them, by default None.
+        Useful when the defaults are unreadable — a horizontal bar in a narrow subplot needs ``n_labels`` and ``fmt`` to stop the ticks overlapping::
+
+            PyVista.Plot(simu, "uz", verticalColobar=False,
+                         scalar_bar_kwargs={"n_labels": 3, "fmt": "%.1e"})
+
+        Note that pyvista keys scalar bars by title, so several bars in one figure need distinct ``title`` entries.
+        Everything accepted by https://docs.pyvista.org/api/plotting/_autosummary/pyvista.plotter.add_scalar_bar
     **kwargs:
         Everything that can goes in add_mesh function https://docs.pyvista.org/version/stable/api/plotting/_autosummary/pyvista.Plotter.add_mesh.html#pyvista.Plotter.add_mesh
 
@@ -172,6 +182,15 @@ def Plot(
         pos = "position_y"
         val = 0.025
 
+    # caller options win, so `scalar_bar_kwargs` can override the title, the orientation or the position as well as add to them
+    scalar_bar_args = {
+        "title": colorbarTitle,
+        "vertical": verticalColobar,
+        pos: val,
+    }
+    if scalar_bar_kwargs is not None:
+        scalar_bar_args.update(scalar_bar_kwargs)
+
     # plot the mesh
     if not isinstance(pvMesh, list):
         pvMeshs = [pvMesh]
@@ -191,11 +210,7 @@ def Plot(
             cmap=cmap,
             n_colors=nColors,
             clim=clim,
-            scalar_bar_args={
-                "title": colorbarTitle,
-                "vertical": verticalColobar,
-                pos: val,
-            },
+            scalar_bar_args=scalar_bar_args,
             **kwargs,
         )
 
