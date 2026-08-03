@@ -181,9 +181,11 @@ class HyperElastic(_Simu):
         total energy :math:`\mathrm{KE} + W` is conserved. See :class:`StressType` for the three
         options and the operators for their construction.
 
-        Both non-default stresses are built on the midpoint base point :math:`\bar{\ub}` — the
-        identity :math:`\Delta \eb = \Brm(\bar{\ub}) \cdot \Delta \ub` is what makes their energy
-        proofs work — so they require :attr:`~EasyFEA.AlgoType.midpoint`.
+        Energy conservation for both non-default stresses rests on the midpoint identity
+        :math:`\Delta \eb = \Brm(\bar{\ub}) \cdot \Delta \ub`, so it holds only under
+        :attr:`~EasyFEA.AlgoType.midpoint`. ``gonzalez`` is intrinsically a midpoint discrete gradient and is
+        rejected off midpoint. ``quadrature`` also runs under any dynamic scheme — it scales its tangent by
+        that scheme's ``coefK`` and stays Newton-consistent, but conserves energy only at midpoint.
 
         Parameters
         ----------
@@ -209,12 +211,15 @@ class HyperElastic(_Simu):
         """
         stressType = HyperElastic.StressType(stressType)
 
-        if stressType != HyperElastic.StressType.pointwise:
-            algo = self.algo
-            assert algo == AlgoType.midpoint, (
-                f"the '{stressType}' stress requires AlgoType.midpoint (got {algo}); it is built "
-                "on the midpoint base point ū. Call Solver_Set_Hyperbolic_Algorithm(dt, algo=AlgoType.midpoint) first."
+        if stressType == HyperElastic.StressType.gonzalez:
+            # gonzalez is the midpoint energy-momentum stress: its discrete gradient is built on ū and
+            # conserves energy only there — intrinsically midpoint-only.
+            assert self.algo == AlgoType.midpoint, (
+                f"the 'gonzalez' stress requires AlgoType.midpoint (got {self.algo}). "
+                "Call Solver_Set_Hyperbolic_Algorithm(dt, algo=AlgoType.midpoint) first."
             )
+        # quadrature works with any dynamic scheme (its tangent is scaled by coefK); the dynamic-scheme
+        # requirement is checked at assembly, so the algo need not be set before this call.
         assert nPoints >= 1, f"nPoints must be >= 1 (got {nPoints})."
 
         self.__stressParams = (stressType, nPoints, useConsistentTangent, energyTol)
@@ -254,18 +259,26 @@ class HyperElastic(_Simu):
         # (Kelvin–Voigt viscosity) and the acceleration (inertia), both needed by F_e.
         displacement = self._Solver_Get_Newton_Raphson_current_solution()
         velocity = accel = None
-        # Both non-default stresses are built from the step endpoints (u_n, u_{n+1}) on top
-        # of the midpoint base point, so both need u_{n+1} kept before the midpoint
-        # evaluation overwrites `displacement` with ū. Re-checked here (not only in the
-        # setter) so that re-calling Solver_Set_Hyperbolic_Algorithm with another algo
-        # can't leave a stale selection.
+        # Both non-default stresses are built from the step endpoints (u_n, u_{n+1}) on top of the scheme's
+        # base point u_t (ū at midpoint), so both need u_{n+1} kept before the scheme evaluation overwrites
+        # `displacement` with u_t. Re-checked here (not only in the setter) so that re-calling
+        # Solver_Set_Hyperbolic_Algorithm with another algo can't leave a stale selection.
         stressType, nPoints, useConsistentTangent, energyTol = (
             self.__Solver_Get_Stress_Params()
         )
         isPointwise = stressType == HyperElastic.StressType.pointwise
-        assert (
-            isPointwise or self.algo == AlgoType.midpoint
-        ), f"the '{stressType}' stress requires AlgoType.midpoint (got {self.algo})."
+        if stressType == HyperElastic.StressType.gonzalez:
+            # gonzalez is the midpoint energy-momentum stress: its discrete gradient Ŝ = S̄ + α Δe is built
+            # on ū and conserves energy only there — it is intrinsically midpoint-only.
+            assert (
+                self.algo == AlgoType.midpoint
+            ), f"the 'gonzalez' stress requires AlgoType.midpoint (got {self.algo})."
+        elif stressType == HyperElastic.StressType.quadrature:
+            # quadrature builds a consistent tangent for any dynamic scheme via its `coefK = ∂u_t/∂u_{n+1}`;
+            # energy is conserved only at midpoint (coefK = 0.5) — see TimeQuadratureStressTensor.
+            assert (
+                isDynamic
+            ), f"the 'quadrature' stress requires a dynamic (hyperbolic) time scheme (got {self.algo})."
         u_np1 = displacement
         if isDynamic:
             displacement, velocity, accel = self._Solver_Evaluate_u_v_a_for_time_scheme(
@@ -305,10 +318,13 @@ class HyperElastic(_Simu):
                         useConsistentTangent,
                     )
                 elif stressType == HyperElastic.StressType.quadrature:
+                    # coefK = ∂u_t/∂u_{n+1} scales the tangent for the active scheme (0.5 at midpoint).
+                    coefK = self._Solver_Get_K_C_M_coefs_for_time_scheme()[0]
                     K_e, residual_e, nPts_e = (
                         Operators.NonLinear.TimeQuadratureStressTensor(
                             self.material,
                             *hyperElasticStates,
+                            coefK,
                             nPoints,
                             energyTol,
                         )

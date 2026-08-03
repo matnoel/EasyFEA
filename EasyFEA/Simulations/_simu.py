@@ -1189,10 +1189,15 @@ class _Simu(_IObserver, _params.Updatable, ABC):
 
         return u_t, v_t, a_t
 
-    def __Solver_Get_K_C_M_coefs_for_time_scheme(
+    def _Solver_Get_K_C_M_coefs_for_time_scheme(
         self,
     ) -> tuple[float, float, float]:
-        """Returns coefK, coefC, coefM."""
+        r"""The time scheme's ``(coefK, coefC, coefM)`` for ``A = coefK·K + coefC·C + coefM·M``.
+
+        Each is a chain-rule factor w.r.t. the step unknown ``u_{n+1}``: ``coefK = ∂u_t/∂u_{n+1}``,
+        ``coefC = ∂v_t/∂u_{n+1}``, ``coefM = ∂a_t/∂u_{n+1}`` (states from
+        :meth:`_Solver_Evaluate_u_v_a_for_time_scheme`).
+        """
 
         algotypes = AlgoType.Get_Hyperbolic_and_Parabolic_Types()
         assert self.algo in algotypes, f"the current algo is not in {algotypes}."
@@ -1656,7 +1661,7 @@ class _Simu(_IObserver, _params.Updatable, ABC):
         if self.algo is AlgoType.elliptic:
             A = K
         else:
-            coefK, coefC, coefM = self.__Solver_Get_K_C_M_coefs_for_time_scheme()
+            coefK, coefC, coefM = self._Solver_Get_K_C_M_coefs_for_time_scheme()
             A = coefK * K + coefC * C + coefM * M
 
         tic.Tac("Solver", f"Construct A ({problemType}, {algo})", self._verbosity)
