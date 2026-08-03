@@ -2,6 +2,20 @@
 
 This document describes the changes made to the project.
 
+## 3.2.1 (August 3, 2026):
+
+- Cached the global sparse-matrix assembly so repeated assemblies (every Newton iteration and time step) reuse a precomputed reduction map instead of rebuilding the CSR from scratch — element-agnostic, with results unchanged to floating-point round-off (~1e-16 relative).
+    - `Simulations/_simu.py`: `__Assemble_csr` caches, per `(dof_n, isMatrix, Ndof, contributing groups)`, a map from each element entry to its slot in the global CSR data (`__Get_csr_map`, via `@cache_computed_values`). The scatter then becomes a single `np.bincount` into scipy's own canonical pattern — about 13x faster than the previous `csr_matrix((data, (rows, cols)))` re-sort, cutting the `MonoVentricular` matrix-assembly time by ~40%. The map is stored as `int32` and is rebuilt only when the groups / `Ndof` / `dof_n` change or the mesh is reset.
+    - `Simulations/_hyperelastic.py`: the dynamic mass matrix `thickness · ∫ρ N·N`, constant across a solve, is now cached (`__Mass_e`, via `@cache_computed_values`) instead of rebuilt every Newton iteration; a heterogeneous (array) `ρ` falls back to a direct recompute.
+    - `examples/CardiacElastoDynamics/MonoVentricular.py`: the constant Robin surface-penalty tangents (`top` / `epi`) are built once and reused (`_Get_Robin_surface_penalty`, via `@cache_computed_values`), leaving only the state-dependent residual contractions in the assembly loop.
+    - The geometry-derived caches (CSR reduction maps and mass matrices) are cleared together on mesh change / `_Gather`, so they never go stale or accumulate across a remesh.
+- The complete non-linear residual — internal, inertia and damping forces — is now assembled into `F_e` inside `Construct_local_matrix_system`, and `NonLinear.KelvinVoigtDamping` returns its viscous residual alongside the configuration tangent and damping matrix. For a non-linear problem the solver no longer re-adds the time-scheme history terms (`−C·v_t`, `−M·a_t`); a custom simulation must therefore return the complete residual `−R(u)` in the `F_e` slot. See the updated "create a custom simulation" and pipeline how-tos.
+- `NonLinear.TimeQuadratureStressTensor`: updated the adaptive-quadrature convergence criterion.
+- `PyVista.Plot`: added a `scalar_bar_kwargs` argument to customise the scalar bar.
+- Updated the "create a geometry" how-to for the `copy=True` argument.
+
+**Full Changelog:** https://github.com/matnoel/EasyFEA/compare/v3.2.0...v3.2.1
+
 ## 3.2.0 (July 29, 2026):
 
 - Energy-conserving stresses for `HyperElastic` dynamics
