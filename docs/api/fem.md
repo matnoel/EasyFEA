@@ -83,9 +83,6 @@ The {py:mod}`EasyFEA.FEM.Operators` module provides the element-level operators 
 - {py:func}`~EasyFEA.FEM.Operators.NonLinear.FollowingPressure` — following-pressure load $\int_\Gamma p \, v \cdot \nbf(u) \, \dS$ with a deformation-dependent normal, plus its (non-symmetric) tangent.
 - {py:func}`~EasyFEA.FEM.Operators.NonLinear.PenaltyContact` — penalty contact on a surface group: force $\Frm_e = \varepsilon_n \int_\Gamma \langle -g_n \rangle \, (v \cdot \nbf) \, \dS$ and tangent $\Krm_e = \varepsilon_n \int_{\Gamma_c} (u \cdot \nbf)(v \cdot \nbf) \, \dS$ — the normal-projected penalty on the active contact zone $\Gamma_c$ where the signed normal gap $g_n < 0$ (penetration); cf. {py:func}`~EasyFEA.FEM.Operators.Bilinear.MassAlongNormal`. $\langle\cdot\rangle$ is the Macaulay bracket, $\nbf$ the outward obstacle normal, and $g_n,\nbf$ are supplied at the contact-surface Gauss points (e.g. from {py:meth}`~EasyFEA.FEM._GroupElem._Get_gap_and_normal`).
 
-
-The three PK2 stresses above are **alternatives**, not additions: the simulation uses exactly one, chosen with {py:meth}`~EasyFEA.Simulations.HyperElastic.Solver_Set_Stress` (see {ref}`simulations`). Both energy-conserving ones are built on the midpoint base point and so require {py:attr}`~EasyFEA.Simulations.Solvers.AlgoType.midpoint`.
-
 ## FEM API
 
 ```{eval-rst}
