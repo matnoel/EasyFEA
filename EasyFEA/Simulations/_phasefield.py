@@ -687,16 +687,22 @@ class PhaseField(_Simu):
             return self._Calc_Psi_Elas()
 
         elif result == "Wdef_e":
-            values = self._Calc_Psi_Elas()
+            values = self._Calc_Psi_Elas(returnScalar=False)
 
         elif result == "Psi_Crack":
             return self._Calc_Psi_Crack()
 
-        if result == "psiP":
-            values_e_pg = self.__Calc_psiPlus_e_pg()
-            values = np.mean(values_e_pg, axis=1)
+        elif result == "psiP":
+            # group by group, in Get_list_groupElem order, so the (Ne,) result lines up with
+            # Get_Node_Values on meshes carrying several element groups
+            values = np.concatenate(
+                [
+                    np.asarray(self.__Calc_psiPlus_e_pg(groupElem)).mean(1)
+                    for groupElem in self.mesh.Get_list_groupElem()
+                ]
+            )
 
-        if result == "damage":
+        elif result == "damage":
             values = self.damage  # type: ignore [assignment]
 
         elif result in ["ux", "uy", "uz"]:

@@ -529,10 +529,14 @@ class HyperElastic(_Simu):
         elif result == "W_e":
             values = self._Calc_W(False)
 
-        elif ("S" in result or "E" in result) and ("_norm" not in result):
-            # Green-Lagrange (E) and second Piola-Kirchhoff (S), group by group
+        elif result in ["Green-Lagrange", "Piola-Kirchhoff"] or (
+            ("S" in result or "E" in result) and ("_norm" not in result)
+        ):
+            # Green-Lagrange (E) and second Piola-Kirchhoff (S), group by group.
+            # "Green-Lagrange" and "Piola-Kirchhoff" carry no upper-case E or S, so they have to
+            # be matched by name: they are what Results_nodeFields_elementFields hands to Paraview.
 
-            isStress = "S" in result
+            isStress = result == "Piola-Kirchhoff" or "S" in result
             res = (
                 result
                 if result in ["Green-Lagrange", "Piola-Kirchhoff"]
