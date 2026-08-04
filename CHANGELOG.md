@@ -2,6 +2,13 @@
 
 This document describes the changes made to the project.
 
+## 3.2.2 (August 4, 2026):
+
+- Generalized `TimeQuadratureStressTensor` to non-midpoint schemes via a `coefK` argument.
+- Updated `simu.Result` for phasefield and hyperelastic simulations.
+
+**Full Changelog:** https://github.com/matnoel/EasyFEA/compare/v3.2.1...v3.2.2
+
 ## 3.2.1 (August 3, 2026):
 
 - Cached the global sparse-matrix assembly so repeated assemblies (every Newton iteration and time step) reuse a precomputed reduction map instead of rebuilding the CSR from scratch — element-agnostic, with results unchanged to floating-point round-off (~1e-16 relative).
