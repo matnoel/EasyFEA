@@ -33,14 +33,31 @@ class FeArray(np.ndarray):
         if obj is None:
             return
 
+    def __check_fe_dims(self) -> None:
+        """A FeArray must keep its leading (Ne, nPg) axes.
+
+        ``__new__`` enforces that, but indexing and reshaping do not go through it: ``fe[0]``
+        returns a FeArray of one dimension, whose finite element rank would be -1. Nothing
+        downstream expects that, so it is caught here rather than surfacing later as a
+        confusing shape error.
+        """
+        if self.ndim < 2:
+            raise ValueError(
+                f"this FeArray has shape {self.shape}, which has lost the leading "
+                "(Ne, nPg) axes -- indexing or reshaping dropped them. Use np.asarray(...) "
+                "if plain array semantics are what is wanted here."
+            )
+
     @property
     def _shape(self) -> tuple:
         """finite element shape"""
+        self.__check_fe_dims()
         return self.shape[2:]
 
     @property
     def _ndim(self) -> int:
         """finite element ndim"""
+        self.__check_fe_dims()
         return self.ndim - 2
 
     @property
@@ -93,6 +110,20 @@ class FeArray(np.ndarray):
             raise TypeError("other must be a FeArray, ndarray, float, int or a Field.")
 
         if ndim1 == 0:
+            # A plain array carries no finite element rank, so one is assumed: its full ndim,
+            # i.e. it is read as a *constant* tensor held at every Gauss point. That reading is
+            # ambiguous when the array has this FeArray's own shape -- it is just as likely to
+            # be a field, one value per Gauss point. Silently picking the constant reading
+            # gives an (Ne, nPg, Ne, nPg) outer product instead of an elementwise result, with
+            # no error anywhere. Refuse instead, and say how to disambiguate.
+            if not isinstance(other, FeArray) and np.shape(array2) == self.shape:
+                raise ValueError(
+                    f"ambiguous operand of shape {self.shape}: it matches this scalar "
+                    f"FeArray exactly, so it could be a constant {self.shape} tensor or a "
+                    "field with one value per Gauss point, and the two give different "
+                    "results. Wrap it with FeArray.asfearray(...) for a field, or reshape it "
+                    "for a constant."
+                )
             # array1(Ne, nPg)  array2(...) => (Ne, nPg, ...)
             # or
             # array1(Ne, nPg)  array2(Ne, nPg, ...) => (Ne, nPg, ...)

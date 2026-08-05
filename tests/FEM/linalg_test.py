@@ -6,7 +6,7 @@
 import pytest
 import numpy as np
 
-from EasyFEA.FEM._linalg import Transpose, Trace, Det, Inv
+from EasyFEA.FEM._linalg import FeArray, Transpose, Trace, Det, Inv
 
 
 @pytest.fixture
@@ -84,3 +84,40 @@ class TestLinalg:
         Check(Inv(mat2), np.linalg.inv(mat2))
         Check(Inv(mat3), np.linalg.inv(mat3))
         Check(Inv(mat4), np.linalg.inv(mat4))
+
+
+def test_ambiguous_plain_array_is_rejected():
+    """A plain array matching a scalar FeArray's shape has two readings; refuse to guess.
+
+    Read as a constant tensor it gives an (Ne, nPg, Ne, nPg) outer product; read as a field it
+    gives an elementwise (Ne, nPg). Both are defensible from the shape alone, so silently
+    picking one produced wrong results with no error.
+    """
+    scalar_field = FeArray.asfearray(np.ones((4, 3)))
+    plain = np.full((4, 3), 2.0)
+
+    with pytest.raises(ValueError, match="ambiguous operand"):
+        scalar_field * plain
+
+    # saying which one you meant still works, both ways
+    assert (scalar_field * FeArray.asfearray(plain)).shape == (4, 3)
+    assert (scalar_field * np.ones(6)).shape == (4, 3, 6)
+    assert (scalar_field * np.ones((6, 6))).shape == (4, 3, 6, 6)
+    assert (scalar_field * 2.0).shape == (4, 3)
+
+
+def test_degenerate_fearray_is_reported():
+    """Indexing can drop the (Ne, nPg) axes; the result must not answer as a FeArray.
+
+    `__new__` requires two leading axes but `__getitem__` bypasses it, so `fe[0]` used to give
+    a FeArray whose finite element rank was -1 -- an invalid state that only failed later, as a
+    confusing shape error somewhere else.
+    """
+    fe = FeArray.asfearray(np.ones((4, 3, 6)))
+    assert fe._ndim == 1
+
+    with pytest.raises(ValueError, match="lost the leading"):
+        fe[0]._ndim
+
+    # and the intended escape hatch still works
+    assert np.asarray(fe)[0].shape == (3, 6)
