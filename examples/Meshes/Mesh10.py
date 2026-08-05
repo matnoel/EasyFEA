@@ -13,7 +13,7 @@ Simplified turbine mesh with data extraction in matlab.
 import matplotlib.pyplot as plt
 import numpy as np
 
-from EasyFEA import Terminal, Matplotlib, Folder, Mesher, ElemType, PyVista
+from EasyFEA import Terminal, Folder, Mesher, ElemType, PyVista
 from EasyFEA.Geoms import Point, Points, Contour, CircleArc, Line
 
 import scipy.io

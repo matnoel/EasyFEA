@@ -66,7 +66,9 @@ include = ["pyproject.toml", "EasyFEA/**/*.py", "examples/**/*.py"]
 ignore = ["E731", "E741", "F402"]
 
 [tool.ruff.lint.per-file-ignores]
-"__init__.py" = ["F401"]
+# imports must follow module-level setup (BUILDING_GALLERY, requires_* decorators)
+"__init__.py" = ["F401", "E402"]
+"USD.py" = ["E402"]
 "Geoms.py" = ["F401"]
 "Models.py" = ["F401"]
 "Simulations.py" = ["F401"]

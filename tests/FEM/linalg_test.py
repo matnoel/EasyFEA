@@ -113,11 +113,11 @@ def test_degenerate_fearray_is_reported():
     a FeArray whose finite element rank was -1 -- an invalid state that only failed later, as a
     confusing shape error somewhere else.
     """
-    fe = FeArray.asfearray(np.ones((4, 3, 6)))
-    assert fe._ndim == 1
+    fe = FeArray.asfearray(np.ones((4, 3)))  # scalar field
+    assert fe._ndim == 0
 
     with pytest.raises(ValueError, match="lost the leading"):
-        fe[0]._ndim
+        fe[0]._ndim  # (3,) -- the (Ne, nPg) axes are gone
 
     # and the intended escape hatch still works
-    assert np.asarray(fe)[0].shape == (3, 6)
+    assert np.asarray(fe)[0].shape == (3,)

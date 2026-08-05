@@ -23,7 +23,6 @@ from ..Utilities._mpi import (
     CAN_USE_MPI,
     MPI_COMM,
     MPI_SIZE,
-    MPI_RANK,
     Concatenate_array,
     Sync_dofsValues,
 )

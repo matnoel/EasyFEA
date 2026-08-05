@@ -2138,11 +2138,14 @@ class _GroupElem(ABC):
                 # xiP are the n coordinates of the n points in (ξ, η, ζ).
                 coordInElem_n[nodesInElement, :] = np.asarray(xiP)  # type: ignore
 
-        detectedNodes = detectedNodes[detectedNodes != None].astype(int)
+        # both arrays are object arrays pre-filled with None, so the comparison is
+        # elementwise; np.not_equal says so without tripping E711
+        mask_n = np.not_equal(detectedNodes, None)
+        detectedNodes = detectedNodes[mask_n].astype(int)
 
-        mask = detectedElements_e != None
-        detectedElements_e = detectedElements_e[mask].astype(int)
-        connect_e_n = connect_e_n[mask]
+        mask_e = np.not_equal(detectedElements_e, None)
+        detectedElements_e = detectedElements_e[mask_e].astype(int)
+        connect_e_n = connect_e_n[mask_e]
 
         return detectedNodes, detectedElements_e, connect_e_n, coordInElem_n
 
@@ -2216,7 +2219,7 @@ class _GroupElem(ABC):
 # --------------------------------------------------------------------------------------------
 
 # import must be done here to avoid circular imports
-from . import Elems
+from . import Elems  # noqa: E402
 
 
 class GroupElemFactory:
