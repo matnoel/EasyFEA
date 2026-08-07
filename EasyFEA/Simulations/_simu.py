@@ -29,9 +29,10 @@ from ..FEM import (
     LagrangeCondition,
     MatrixType,
 )
+from ..FEM._linalg import FeArray
 
 # materials
-from ..Models import ModelType, _IModel, Reshape_variable
+from ..Models import ModelType, _IModel
 
 # simu
 from .Solvers import (
@@ -540,7 +541,7 @@ class _Simu(_IObserver, _params.Updatable, ABC):
         mass = 0.0
         for groupElem in self.mesh.Get_list_groupElem(self.dim):
             wJ_e_pg = groupElem.Get_weightedJacobian_e_pg(matrixType)
-            rho_e_pg = Reshape_variable(self.rho, *wJ_e_pg.shape[:2])
+            rho_e_pg = FeArray.broadcast(self.rho, *wJ_e_pg.shape[:2])
             mass += (rho_e_pg * wJ_e_pg).sum().astype(float)
 
         if self.dim == 2:
@@ -563,7 +564,7 @@ class _Simu(_IObserver, _params.Updatable, ABC):
         for groupElem in self.mesh.Get_list_groupElem(self.dim):
             coord_e_pg = groupElem.Get_GaussCoordinates_e_pg(matrixType)
             wJ_e_pg = groupElem.Get_weightedJacobian_e_pg(matrixType)
-            rho_e_pg = Reshape_variable(self.rho, *wJ_e_pg.shape[:2])
+            rho_e_pg = FeArray.broadcast(self.rho, *wJ_e_pg.shape[:2])
             contrib = (rho_e_pg * wJ_e_pg * coord_e_pg / mass).sum()
             if self.dim == 2:
                 contrib *= self.model.thickness

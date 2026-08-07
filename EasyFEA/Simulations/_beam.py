@@ -24,7 +24,7 @@ from ..FEM.Elems._beam import (
 )
 
 # models
-from ..Models import ModelType, Reshape_variable
+from ..Models import ModelType
 from ..Models.Beam._beam import BeamStructure, _Beam, Isotropic
 
 # simu
@@ -430,9 +430,9 @@ class Beam(_Simu):
 
         wJ_e_pg = groupElem.Get_weightedJacobian_e_pg(matrixType)
 
-        rho_e_pg = Reshape_variable(self.rho, *wJ_e_pg.shape[:2])
+        rho_e_pg = FeArray.broadcast(self.rho, *wJ_e_pg.shape[:2])
 
-        area_e_pg = np.zeros_like(rho_e_pg)
+        area_e_pg = FeArray.zeros(*wJ_e_pg.shape[:2])
 
         for beam in self.structure.beams:
             elements = mesh.Elements_Tags([beam.name])
@@ -457,10 +457,10 @@ class Beam(_Simu):
 
         wJ_e_pg = groupElem.Get_weightedJacobian_e_pg(matrixType)
 
-        rho_e_p = Reshape_variable(self.rho, *wJ_e_pg.shape[:2])
+        rho_e_p = FeArray.broadcast(self.rho, *wJ_e_pg.shape[:2])
         mass = self.mass
 
-        area_e_pg = np.zeros_like(rho_e_p)
+        area_e_pg = FeArray.zeros(*wJ_e_pg.shape[:2])
         for beam in self.structure.beams:
             elements = mesh.Elements_Tags([beam.name])
             area_e_pg[elements] = beam.area

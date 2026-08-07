@@ -22,7 +22,6 @@ from .._utils import (
     Project_Kelvin,
     Get_Pmat,
     Apply_Pmat,
-    Reshape_variable,
 )
 from ...Utilities import _params, _types, Tic
 from ...FEM import MatrixType
@@ -185,7 +184,7 @@ class _Elastic(_IModel, ABC):
 
         C = self.C
         if self.isHeterogeneous:
-            C_e_pg = Reshape_variable(C, Ne, nPg)
+            C_e_pg = FeArray.broadcast(C, Ne, nPg, tensor_ndim=2)
         else:
             C_e_pg = FeArray.asfearray(C, True)
 

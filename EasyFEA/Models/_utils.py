@@ -81,47 +81,14 @@ __erroDim = "Pay attention to the dimensions of the material constants.\nIf the 
 def Reshape_variable(
     variable: Union[_types.Number, _types.AnyArray], Ne: int, nPg: int
 ) -> FeArray.FeArrayALike:
-    """Resizes variable to (Ne, nPg, ...) shape."""
+    """Resizes variable to (Ne, nPg, ...) shape.
 
+    Kept for compatibility; :meth:`FeArray.broadcast` is the entry point, and states the tensor
+    rank instead of inferring it.
+    """
     if isinstance(variable, (int, float)):
         return FeArray.ones(Ne, nPg) * variable
-
-    elif isinstance(variable, np.ndarray):
-        shape = variable.shape
-        if len(shape) == 1:
-            if shape[0] == Ne:
-                variable = variable[:, np.newaxis].repeat(nPg, axis=1)
-                return FeArray.asfearray(variable)
-            elif shape[0] == nPg:
-                variable = variable[np.newaxis].repeat(Ne, axis=0)
-                return FeArray.asfearray(variable)
-            else:
-                raise Exception("The variable entered must be of dimension (e) or (p)")
-
-        if len(shape) == 2:
-            if shape == (Ne, nPg):
-                return FeArray.asfearray(variable)
-            else:
-                variable = variable[np.newaxis, np.newaxis]
-                variable = variable.repeat(Ne, axis=0)
-                variable = variable.repeat(nPg, axis=1)
-                return FeArray.asfearray(variable)
-
-        elif len(shape) == 3:
-            if shape[0] == Ne:
-                variable = variable[:, np.newaxis].repeat(nPg, axis=1)
-                return FeArray.asfearray(variable)
-            elif shape[0] == nPg:
-                variable = variable[np.newaxis].repeat(Ne, axis=0)
-                return FeArray.asfearray(variable)
-            else:
-                raise Exception(
-                    "The variable entered must be of dimension (eij) or (pij)"
-                )
-        else:
-            raise ValueError("shape error")
-    else:
-        raise TypeError("type error")
+    return FeArray.broadcast(variable, Ne, nPg, 2 if np.ndim(variable) == 3 else 0)
 
 
 def Heterogeneous_Array(array: _types.FloatArray):
