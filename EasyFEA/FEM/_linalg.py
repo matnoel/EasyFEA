@@ -11,10 +11,81 @@ from typing import Union, Optional, Iterable
 from ..Utilities import _types
 
 
+def _Evaluate(operand):
+    """A Field evaluates to its finite element array; anything else is passed through."""
+    return operand() if getattr(operand, "_isFeField", False) else operand
+
+
+def _Base(operand):
+    """Drops the FeArray view, so numpy's own machinery handles the operand."""
+    if isinstance(operand, FeArray):
+        return operand.view(np.ndarray)
+    elif isinstance(operand, (list, tuple)):
+        return type(operand)(_Base(item) for item in operand)
+    else:
+        return operand
+
+
+def _KeepsFeAxes(axis, ndim: int) -> bool:
+    """True when a reduction consumes tensor axes only, so the (Ne, nPg) axes survive."""
+    if axis is None:
+        return False
+    axes = axis if isinstance(axis, tuple) else (axis,)
+    return all(a >= 2 if a >= 0 else a >= 2 - ndim for a in axes)
+
+
+_REDUCERS = frozenset(
+    {
+        np.sum,
+        np.prod,
+        np.mean,
+        np.std,
+        np.var,
+        np.median,
+        np.average,
+        np.max,
+        np.min,
+        np.amax,
+        np.amin,
+        np.all,
+        np.any,
+        np.argmax,
+        np.argmin,
+    }
+)
+
+
+def _FeShape(operands) -> tuple:
+    """The (Ne, nPg) an operation runs at: the broadcast of its FeArray operands'."""
+    shapes = set()
+    stack = list(operands)
+    while stack:
+        operand = stack.pop()
+        if isinstance(operand, FeArray):
+            shapes.add(operand.shape[:2])
+        elif isinstance(operand, (list, tuple)):
+            stack.extend(operand)
+    if len(shapes) == 1:
+        return shapes.pop()
+    return np.broadcast_shapes(*shapes) if shapes else ()
+
+
 class FeArray(np.ndarray):
     """Finite Element array.\n
 
     FeArray is a Python class designed to optimize finite element simulations by leveraging NumPy arrays with a shape of `(Ne, nPg, ...)`. This structure enables vectorized operations, eliminating the need for slow loops over elements and integration points. By using np.einsum, it efficiently handles tensor computations, significantly improving performance and code clarity for finite element analyses.
+
+    Two rules govern how it mixes with other arrays:
+
+    - **Rank.** A FeArray's tensor rank is ``ndim - 2`` and a plain array's is its own ``ndim``
+      -- always, with no exception and nothing inferred from a shape coincidence. So a
+      ``(Ne, nPg)`` FeArray is a scalar field even where ``Ne`` and ``nPg`` match a tensor's
+      dimensions, and a plain array is a constant tensor held at every Gauss point. Fields are
+      padded to the widest rank, then broadcast once. A plain array that is really a field must
+      say so with :meth:`asfearray`, or it multiplies out as a constant tensor.
+    - **Type.** An operation stays a FeArray exactly when the ``(Ne, nPg)`` axes come out
+      unchanged. ``np.einsum``, ``np.where`` and ``np.linalg.solve`` keep them; ``reshape``,
+      ``ravel`` and a sum over elements do not.
     """
 
     FeArrayALike = Union["FeArray", _types.AnyArray]
@@ -60,114 +131,107 @@ class FeArray(np.ndarray):
         self.__check_fe_dims()
         return self.ndim - 2
 
-    @property
-    def _idx(self) -> str:
-        """einsum indicator (e.g "", "i", "ij") used in `np.einsum()` function.\n
-        see https://numpy.org/doc/stable/reference/generated/numpy.einsum.html
+    @staticmethod
+    def _align(operands: tuple) -> tuple:
+        """Pads each field's tensor rank up to the widest, so one numpy broadcast is correct.
+
+        The finite element axes then line up on the left and the tensor axes on the right,
+        which is numpy's own rule.
         """
-        if self._ndim == 0:
-            return ""
-        elif self._ndim == 1:
-            return "i"
-        elif self._ndim == 2:
-            return "ij"
-        elif self._ndim == 4:
-            return "ijkl"
+        # by far the commonest case: all fields of the same shape, nothing to line up
+        shape = operands[0].shape if isinstance(operands[0], FeArray) else None
+        for op in operands:
+            if not isinstance(op, FeArray) or op.shape != shape:
+                break
         else:
-            raise ValueError("wrong dimension")
+            return operands
 
-    @property
-    def _type(self) -> str:
-        if self._ndim == 0:
-            return "scalar"
-        elif self._ndim == 1:
-            return "vector"
-        elif self._ndim == 2:
-            return "matrix"
-        elif self._ndim == 4:
-            return "tensor"
-        else:
-            raise ValueError("wrong dimension")
-
-    def __get_array1_array2(self, other) -> tuple[_types.AnyArray, _types.AnyArray]:
-        array1 = np.asarray(self)
-        ndim1 = self._ndim
-        shape1 = self._shape
-
-        array2 = np.asarray(other)
-        if isinstance(other, FeArray):
-            ndim2 = other._ndim
-            shape2 = other._shape
-        elif isinstance(other, (np.ndarray, float, int)):
-            ndim2 = array2.ndim
-            shape2 = array2.shape
-        elif type(other).__name__ == "Field":
-            other: FeArray = other()  # type: ignore [no-redef]
-            array2 = np.asarray(other)
-            ndim2 = other._ndim
-            shape2 = other._shape
-        else:
-            raise TypeError("other must be a FeArray, ndarray, float, int or a Field.")
-
-        if ndim1 == 0:
-            # A plain array carries no finite element rank, so one is assumed: its full ndim,
-            # i.e. it is read as a *constant* tensor held at every Gauss point. That reading is
-            # ambiguous when the array has this FeArray's own shape -- it is just as likely to
-            # be a field, one value per Gauss point. Silently picking the constant reading
-            # gives an (Ne, nPg, Ne, nPg) outer product instead of an elementwise result, with
-            # no error anywhere. Refuse instead, and say how to disambiguate.
-            if not isinstance(other, FeArray) and np.shape(array2) == self.shape:
-                raise ValueError(
-                    f"ambiguous operand of shape {self.shape}: it matches this scalar "
-                    f"FeArray exactly, so it could be a constant {self.shape} tensor or a "
-                    "field with one value per Gauss point, and the two give different "
-                    "results. Wrap it with FeArray.asfearray(...) for a field, or reshape it "
-                    "for a constant."
-                )
-            # array1(Ne, nPg)  array2(...) => (Ne, nPg, ...)
-            # or
-            # array1(Ne, nPg)  array2(Ne, nPg, ...) => (Ne, nPg, ...)
-            array1 = array1[(Ellipsis,) + (np.newaxis,) * ndim2]
-        elif ndim2 == 0:
-            if array2.size == 1:
-                # array1(Ne, nPg, ...)  array2() => (Ne, nPg, ...)
-                pass
-            else:
-                # array1(Ne, nPg, ...)  array2(Ne, nPg) => (Ne, nPg, ...)
-                array2 = array2[(Ellipsis,) + (np.newaxis,) * ndim1]
-        elif shape1 == shape2:
-            pass
-        else:
-            type_str = "FeArray" if isinstance(other, FeArray) else "np.array"
-            raise ValueError(
-                f"The {type_str} `other` with shape {shape2} must be either a {self.shape} np.array or a {shape1} FeArray."
+        operands = tuple(_Evaluate(op) for op in operands)
+        ranks = [
+            op.ndim - 2 if isinstance(op, FeArray) else np.ndim(op) for op in operands
+        ]
+        nt = max(ranks)
+        return tuple(
+            (
+                op[(slice(None), slice(None)) + (None,) * (nt - rank)]
+                if isinstance(op, FeArray) and rank < nt
+                else op
             )
+            for op, rank in zip(operands, ranks)
+        )
 
-        return array1, array2
+    @staticmethod
+    def __wrap(res, feShape: tuple):
+        """A result is a field exactly when it came out on the operation's (Ne, nPg) axes."""
+        if not isinstance(res, np.ndarray):
+            return res
+        elif res.ndim >= 2 and res.shape[:2] == feShape:
+            return res.view(FeArray)
+        else:
+            return np.asarray(res)
 
-    def __add__(self, other) -> FeArrayALike:
-        if isinstance(other, FeArray) and self.shape == other.shape:
-            return super().__add__(other)
-        array1, array2 = self.__get_array1_array2(other)
-        return FeArray.asfearray(array1 + array2)
+    def __array_ufunc__(self, ufunc, method, *inputs, **kwargs):
+        # numpy asks that a subclass put all its override logic here rather than also defining
+        # __add__ and friends, so that the type hierarchy is decided in one place
+        elementwise = method == "__call__" and ufunc.signature is None
 
-    def __sub__(self, other) -> FeArrayALike:  # type: ignore [override]
-        if isinstance(other, FeArray) and self.shape == other.shape:
-            return super().__sub__(other)
-        array1, array2 = self.__get_array1_array2(other)
-        return FeArray.asfearray(array1 - array2)
+        # two fields of the same shape need no alignment and no rewrapping decision; this is
+        # the overwhelming majority of calls, and it is what keeps small arrays cheap
+        if elementwise and not kwargs and len(inputs) == 2:
+            left, right = inputs
+            if (
+                type(left) is FeArray
+                and type(right) is FeArray
+                and left.shape == right.shape
+            ):
+                return ufunc(left.view(np.ndarray), right.view(np.ndarray)).view(
+                    FeArray
+                )
 
-    def __mul__(self, other) -> FeArrayALike:
-        if isinstance(other, FeArray) and self.shape == other.shape:
-            return super().__mul__(other)
-        array1, array2 = self.__get_array1_array2(other)
-        return FeArray.asfearray(array1 * array2)
+        if elementwise:
+            inputs = FeArray._align(inputs)
 
-    def __truediv__(self, other) -> FeArrayALike:  # type: ignore [override]
-        if isinstance(other, FeArray) and self.shape == other.shape:
-            return super().__truediv__(other)
-        array1, array2 = self.__get_array1_array2(other)
-        return FeArray.asfearray(array1 / array2)
+        # ndarray refuses to run a ufunc on a subclass that overrides __array_ufunc__, so hand
+        # it plain views -- of the `out` and `where` operands too, or the call comes straight
+        # back here -- and put the type back afterwards
+        out = kwargs.pop("out", None) if kwargs else None
+        if kwargs:
+            kwargs = {key: _Base(value) for key, value in kwargs.items()}
+        if out is not None:
+            kwargs["out"] = _Base(out)
+
+        args = [_Base(array) for array in inputs]
+        res = (
+            ufunc(*args, **kwargs)
+            if elementwise
+            else getattr(ufunc, method)(*args, **kwargs)
+        )
+
+        if out is not None:
+            return out[0] if len(out) == 1 else out
+        elif elementwise and type(res) is np.ndarray:
+            # broadcasting against a FeArray always keeps the (Ne, nPg) axes
+            return res.view(FeArray)
+        feShape = _FeShape(inputs)
+        if isinstance(res, tuple):
+            return tuple(FeArray.__wrap(array, feShape) for array in res)
+        return FeArray.__wrap(res, feShape)
+
+    def __array_function__(self, func, types, args, kwargs):
+        # numpy's own implementations broadcast the plain way and must keep doing so: einsum
+        # with optimize= reaches for np.multiply internally, which would otherwise come back
+        # through __array_ufunc__ and be aligned a second time
+        feShape = _FeShape(args) or _FeShape(kwargs.values())
+        # numpy calls a dispatched reduction on the stripped array, so the method wrapper never
+        # sees it and the axis has to be read here instead
+        if func in _REDUCERS:
+            axis = kwargs.get("axis", args[1] if len(args) > 1 else None)
+            if not _KeepsFeAxes(axis, np.ndim(args[0])):
+                feShape = ()
+        args = tuple(_Base(arg) for arg in args)
+        kwargs = {key: _Base(value) for key, value in kwargs.items()}
+        res = super().__array_function__(func, types, args, kwargs)
+        return FeArray.__wrap(res, feShape)
 
     @property
     def T(self) -> FeArrayALike:  # type: ignore [override]
@@ -189,7 +253,7 @@ class FeArray(np.ndarray):
             ndim2 = other._ndim
         elif isinstance(other, np.ndarray):
             ndim2 = other.ndim
-        elif type(other).__name__ == "Field":
+        elif getattr(other, "_isFeField", False):
             other: FeArray = other()  # type: ignore [no-redef]
             ndim2 = other._ndim
         else:
@@ -235,7 +299,7 @@ class FeArray(np.ndarray):
             ndim2 = other._ndim
         elif isinstance(other, np.ndarray):
             ndim2 = other.ndim
-        elif type(other).__name__ == "Field":
+        elif getattr(other, "_isFeField", False):
             other: FeArray = other()  # type: ignore [no-redef]
             ndim2 = other._ndim
         else:
@@ -261,7 +325,7 @@ class FeArray(np.ndarray):
             ndim2 = other._ndim
         elif isinstance(other, np.ndarray):
             ndim2 = other.ndim
-        elif type(other).__name__ == "Field":
+        elif getattr(other, "_isFeField", False):
             other: FeArray = other()  # type: ignore [no-redef]
             ndim2 = other._ndim
         else:
@@ -276,17 +340,23 @@ class FeArray(np.ndarray):
 
         return result.view(FeArray)
 
-    # Reduction methods that consume an axis — always return a plain ndarray,
-    # since the (Ne, nPg) framing is no longer meaningful after the reduction.
+    # A reduction over a tensor axis is still a field; one over elements or Gauss points is
+    # not. Which axes were consumed is read from `axis`, never guessed from the result shape.
     def _make_reducer(_name: str):
         _parent = getattr(np.ndarray, _name)
 
         def _reducer(self, *args, **kwargs):
-            return np.asarray(_parent(self, *args, **kwargs))
+            res = _parent(self, *args, **kwargs)
+            axis = kwargs.get("axis", args[0] if args else None)
+            if _KeepsFeAxes(axis, self.ndim) and getattr(res, "ndim", 0) >= 2:
+                return res.view(FeArray)
+            return np.asarray(res)
 
         _reducer.__name__ = _name
         _reducer.__qualname__ = f"FeArray.{_name}"
-        _reducer.__doc__ = f"``np.{_name}()`` wrapper — returns ``ndarray``."
+        _reducer.__doc__ = (
+            f"``np.{_name}()`` wrapper — ``ndarray`` unless (Ne, nPg) survives."
+        )
         return _reducer
 
     for _name in (
@@ -307,12 +377,10 @@ class FeArray(np.ndarray):
     del _name, _make_reducer
 
     def reshape(self, *args, **kwargs):
-        Ne, nPg = self.shape[:2]
         new = super().reshape(*args, **kwargs)
-        if new.shape[:2] == (Ne, nPg):
+        if self.ndim >= 2 and new.shape[:2] == self.shape[:2]:
             return new
-        else:
-            return np.asarray(new)
+        return np.asarray(new)
 
     def integrate(self) -> np.ndarray:
         """Integrate over the Gauss-point axis (axis 1). Returns ``(Ne, ...)`` ndarray."""
@@ -341,15 +409,19 @@ class FeArray(np.ndarray):
         self[tuple(idx)] = value
 
     @staticmethod
-    def asfearray(array, broadcastFeArrays=False) -> FeArrayALike:
+    def asfearray(array, broadcastFeArrays=False) -> "FeArray":
+        """Views ``array`` as a FeArray. Refuses anything without the (Ne, nPg) axes."""
         if not isinstance(array, np.ndarray):
             array = np.asarray(array)
         if broadcastFeArrays:
             return FeArray(array, broadcastFeArrays=broadcastFeArrays)
-        elif array.ndim >= 2:
-            return array.view(FeArray)
-        else:
-            return array
+        elif array.ndim < 2:
+            raise ValueError(
+                f"cannot view a {array.shape} array as a FeArray: it has no (Ne, nPg) axes. "
+                "Pass broadcastFeArrays=True to hold it at every Gauss point, or keep it a "
+                "plain array."
+            )
+        return array.view(FeArray)
 
     @staticmethod
     def broadcast(
@@ -412,12 +484,19 @@ class FeArray(np.ndarray):
         ]
 
     @staticmethod
+    def __shape(shape: tuple) -> tuple:
+        """Accepts both ``zeros(Ne, nPg, 6)`` and ``zeros((Ne, nPg, 6))``."""
+        if len(shape) == 1 and isinstance(shape[0], (tuple, list)):
+            return tuple(shape[0])
+        return shape
+
+    @staticmethod
     def zeros(*shape, dtype=None) -> FeArrayALike:
-        return FeArray.asfearray(np.zeros(shape=shape, dtype=dtype))
+        return FeArray.asfearray(np.zeros(FeArray.__shape(shape), dtype=dtype))
 
     @staticmethod
     def ones(*shape, dtype=None) -> FeArrayALike:
-        return FeArray.asfearray(np.ones(shape=shape, dtype=dtype))
+        return FeArray.asfearray(np.ones(FeArray.__shape(shape), dtype=dtype))
 
 
 def __CheckMat(mat: FeArray.FeArrayALike) -> None:

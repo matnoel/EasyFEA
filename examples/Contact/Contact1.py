@@ -23,6 +23,7 @@ The contact pressure is obtained directly from the penalty contact as ``p = Îµâ‚
 import numpy as np
 import matplotlib.pyplot as plt
 
+from EasyFEA.FEM._linalg import FeArray
 from EasyFEA import Terminal, Folder, Models, ElemType, Mesh, PyVista
 from EasyFEA.Geoms import Domain, Points, Circle
 from EasyFEA.FEM import MatrixType
@@ -94,8 +95,8 @@ def contact_pressure(simu: RigidContact, indenter: Mesh):
         X_e_pg = group1d.Get_GaussCoordinates_e_pg(matrixType)[elements]
         u_e_pg = simu.displacement.reshape(simu.mesh.Nn, 2)
         x_e_pg = X_e_pg.copy()
-        x_e_pg[..., :2] += np.einsum(
-            "pn,enc->epc", N_pg, u_e_pg[group1d.connect[elements]]
+        x_e_pg[..., :2] += FeArray.asfearray(
+            np.einsum("pn,enc->epc", N_pg, u_e_pg[group1d.connect[elements]])
         )
         list_x.extend(x_e_pg[..., 0].ravel())
         # get pressure

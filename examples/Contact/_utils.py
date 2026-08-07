@@ -7,6 +7,7 @@ import numpy as np
 
 from EasyFEA import Simulations
 from EasyFEA.FEM import Operators, Mesh, MatrixType
+from EasyFEA.FEM._linalg import FeArray
 from EasyFEA.Utilities import _params
 
 
@@ -56,7 +57,9 @@ class RigidContact(Simulations.Elastic):
                 X_e_pg = groupElem.Get_GaussCoordinates_e_pg(matrixType)
                 u_e = u.reshape(-1, self.dim)[groupElem.connect]
                 x_e_pg = X_e_pg.copy()
-                x_e_pg[..., : self.dim] += np.einsum("pn,enc->epc", N_pg, u_e)
+                x_e_pg[..., : self.dim] += FeArray.asfearray(
+            np.einsum("pn,enc->epc", N_pg, u_e)
+        )
 
                 # project onto the obstacle surface -> outward normal + signed gap
                 gap_e_pg, normal_e_pg = contactGroup._Get_gap_and_normal(

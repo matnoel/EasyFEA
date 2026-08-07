@@ -438,7 +438,7 @@ def __AdaptiveTimeQuadratureStressTensor(
             ),
             0.0,
         )
-        defect = einsum("epi,epi->ep", S, dE_vec[activeElements]) - dW[activeElements]
+        defect = S @ dE_vec[activeElements] - dW[activeElements]
         next_nPts = 3 if nPts == 1 else 2 * nPts - 1  # next level in the chain
         # accept an element once its own energy defect is within tol (all of them at the last level)
         isAccepted = (next_nPts > max(maxPoints, 1)) | (

@@ -17,6 +17,9 @@ from ..Utilities import _types
 class Field:
     """Field class."""
 
+    _isFeField = True
+    """marks the class for :mod:`._linalg`, which cannot import it without a cycle"""
+
     def __init__(
         self,
         groupElem: _GroupElem,

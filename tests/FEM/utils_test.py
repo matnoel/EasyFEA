@@ -145,15 +145,16 @@ class TestFeArray:
 
         scalar_e_pg, vector_e_pg, matrix_e_pg, tensor_e_pg = FeArrays()
 
-        assert scalar_e_pg._idx == ""
-        assert vector_e_pg._idx == "i"
-        assert matrix_e_pg._idx == "ij"
-        assert tensor_e_pg._idx == "ijkl"
+        assert scalar_e_pg._ndim == 0
+        assert vector_e_pg._ndim == 1
+        assert matrix_e_pg._ndim == 2
+        assert tensor_e_pg._ndim == 4
 
-        assert scalar_e_pg._type == "scalar"
-        assert vector_e_pg._type == "vector"
-        assert matrix_e_pg._type == "matrix"
-        assert tensor_e_pg._type == "tensor"
+        assert vector_e_pg._shape == (3,)
+        assert matrix_e_pg._shape == (3, 3)
+
+        # an array without (Ne, nPg) axes cannot be viewed as a FeArray at all
+        _check_ValueError(lambda: FeArray.asfearray(np.ones(3)))
 
         _check_ValueError(lambda: FeArray(0, False))
         _check_ValueError(lambda: FeArray([0], False))
