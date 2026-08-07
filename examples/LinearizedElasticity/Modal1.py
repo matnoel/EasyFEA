@@ -9,15 +9,15 @@ Modal1
 
 Modal analysis of a wall structure.
 """
+
 # sphinx_gallery_thumbnail_number = -3
 
 import matplotlib.pyplot as plt
 import numpy as np
-from scipy.sparse import linalg, eye
+from scipy.sparse import linalg
 
 from EasyFEA import Terminal, Matplotlib, Models, ElemType, Simulations, PyVista
 from EasyFEA.Geoms import Domain
-
 
 if __name__ == "__main__":
     Terminal.Clear()
@@ -65,16 +65,23 @@ if __name__ == "__main__":
         known, unknown = simu.Bc_dofs_known_unknown(simu.problemType)
         K_t = K[unknown, :].tocsc()[:, unknown].tocsr()
         M_t = M[unknown, :].tocsc()[:, unknown].tocsr()
+        nRigid = 0
 
     else:
-        K_t = K + K.min() * eye(K.shape[0]) * 1e-12
-        M_t = M
+        K_t, M_t = K, M
+        # free-free: 2 translations + 1 rotation in 2D, 3 + 3 in 3D
+        nRigid = 3 if dim == 2 else 6
 
-    # eigenValues, eigenVectors = linalg.eigs(K_t, Nmode, M_t, which="SR")
-    eigenValues, eigenVectors = linalg.eigs(K_t, Nmode, M_t, sigma=0, which="LR")
+    # shift below the spectrum, so that K - sigma M = K + |sigma| M stays definite even when K is singular
+    sigma = -1e-3 * K_t.diagonal().sum() / M_t.diagonal().sum()
+    eigenValues, eigenVectors = linalg.eigsh(
+        K_t, nRigid + Nmode, M_t, sigma=sigma, which="LM"
+    )
 
-    eigenValues = eigenValues.real
-    eigenVectors = eigenVectors.real
+    # sort and drop the rigid-body modes
+    modes = np.argsort(eigenValues)[nRigid:]
+    eigenValues = eigenValues[modes]
+    eigenVectors = eigenVectors[:, modes]
     freq_t = np.sqrt(eigenValues) / 2 / np.pi
 
     # ----------------------------------------------
