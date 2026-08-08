@@ -33,3 +33,20 @@ def V(
     Ne, nPg = vec_e_pg.shape[:2]
     f = FeArray.broadcast(f, Ne, nPg)
     return (f * vec_e_pg).integrate()
+
+
+def InternalForce(
+    groupElem: "_GroupElem",
+    sigma_e_pg: FeArray.FeArrayALike,
+    matrixType: MatrixType = MatrixType.rigi,
+) -> np.ndarray:
+    """``∫_Ω σ : ε(v) dΩ`` — internal force of a known stress field.
+
+    Returns ``(Ne, nPe·dim)``.
+
+    ``sigma_e_pg`` is Kelvin-Mandel with shape ``(Ne, nPg, nstrain)``. This is the residual side
+    of a nonlinear problem: unlike :func:`Bilinear.LinearizedElasticity`, the stress is given
+    rather than derived from ``C : ε(u)``.
+    """
+    leftDispPart_e_pg = groupElem.Get_leftDispPart_e_pg(matrixType)
+    return (leftDispPart_e_pg @ FeArray.asfearray(sigma_e_pg)).integrate()
