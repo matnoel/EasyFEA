@@ -32,6 +32,10 @@ material eigenspace; everything else goes to an implicit solve over the full sta
 to machine precision wherever both apply, which is a test. ``solver="newton"`` forces the
 general one.
 
+- ``StressStrain`` — uniaxial curves for each hardening law, each against its closed form, and
+  one hardening law on three different yield surfaces. Uses ``Models.MaterialPoint``, which
+  drives a behaviour at a single Gauss point with no mesh and no solver — the same code path
+  assembly uses, so it is the real behaviour and not a second implementation of it.
 - ``ThickCylinder`` — a **verification**: the plastic zone spreading from the bore of a
   pressurised cylinder, against Hill's closed form, with a mesh-convergence study.
 - ``BeamBending`` — a second **verification**: moment-curvature of a rectangular section against
