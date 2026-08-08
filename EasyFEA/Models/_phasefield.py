@@ -827,10 +827,12 @@ class PhaseField(_IModel):
             g_neq_0 = g_e_pg != 0
 
             arg = 1 / 2 * (2 * I1_e_pg**3 - 9 * I1_e_pg * I2_e_pg + 27 * I3_e_pg)
-            if False in g_neq_0:
-                arg[g_neq_0] /= g_e_pg[g_neq_0] ** (3 / 2)
-            else:
-                arg /= g_e_pg ** (3 / 2)
+            np.divide(
+                arg,
+                g_e_pg ** (3 / 2),
+                out=arg,
+                where=g_neq_0,
+            )
 
             # Lode's angle such that 0 <= theta <= pi/3
             theta = 1 / 3 * np.arccos(arg)
