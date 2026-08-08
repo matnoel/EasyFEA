@@ -30,6 +30,7 @@ from .KinematicHardening import KinematicHardening
 from .ViscoPlastic import RateLaw
 from .ViscoElastic import Maxwell
 from .Yield import YieldSurface
+from . import _spectral
 from ..FEM._linalg import FeArray, TensorProd
 from ..Utilities import _params, _types, Tic
 
@@ -106,6 +107,7 @@ class Behaviour(_IModel):
         branches: Sequence[Maxwell] = (),
         thickness: float = 1.0,
         planeStress: bool = False,
+        solver: str = "auto",
     ):
         """Creates a behaviour.
 
@@ -195,6 +197,26 @@ class Behaviour(_IModel):
         for i in range(len(self.__branches)):
             sizes[f"{Slot.eps_v}{i}"] = 6
         self.__layout = StateLayout.From(sizes)
+
+        # the local problem collapses to one scalar when the surface is quadratic and nothing
+        # else evolves; the decomposition it runs in is built here, once, not per Gauss point
+        self.solver = solver
+        self.__eigen = (
+            _spectral.Build(np.asarray(self.C), yieldSurface.P)
+            if self.__Is_reducible()
+            else None
+        )
+
+    def __Is_reducible(self) -> bool:
+        """Whether the spectral return applies: quadratic surface, homogeneous C, nothing else."""
+        return (
+            self.solver != "newton"
+            and self.__yield is not None
+            and self.__yield.P is not None
+            and np.ndim(self.C) == 2
+            and not self.__kinematic
+            and not self.__branches
+        )
 
     # --------------------------------------------------------------------------
     # Model interface
@@ -405,7 +427,44 @@ class Behaviour(_IModel):
                 zOld_e_pg,
                 np.ones((Ne, nPg), dtype=bool),
             )
+        if self.__eigen is not None:
+            return self.__Spectral(eps6_e_pg, zOld_e_pg, C6_e_pg, dt)
         return self.__Flow(eps6_e_pg, zOld_e_pg, C6_e_pg, dt)
+
+    def __Spectral(
+        self, eps6_e_pg: FeArray, zOld_e_pg: FeArray, C_e_pg: FeArray, dt: float
+    ) -> tuple[FeArray, FeArray, FeArray, _types.FloatArray]:
+        """One scalar unknown per Gauss point; see :mod:`._spectral`."""
+        layout = self.__layout
+        P, A = layout.slots[Slot.eps_p], layout.slots[Slot.p]
+
+        epsP_e_pg = zOld_e_pg[..., P]
+        pOld_e_pg = zOld_e_pg[..., A][..., 0]
+        sigTr_e_pg = C_e_pg @ (eps6_e_pg - epsP_e_pg)
+
+        res = _spectral.Solve(
+            self.__eigen,
+            sigTr_e_pg,
+            pOld_e_pg,
+            self.__hardening,
+            self.__yield.scale,
+            self.__rate,
+            dt,
+            self._tol,
+            self._maxIter,
+        )
+
+        z_e_pg = FeArray.zeros(*eps6_e_pg.shape[:2], layout.n)
+        # eps - C^-1 sigma is the plastic strain, with no flow direction to reconstruct
+        Cinv_e_pg = FeArray.broadcast(
+            self.__eigen.Cinv, *eps6_e_pg.shape[:2], tensor_ndim=2
+        )
+        z_e_pg[..., P] = eps6_e_pg - Cinv_e_pg @ res.sig
+        z_e_pg[..., A.start] = pOld_e_pg + res.dGamma
+
+        C_alg = _spectral.Tangent(self.__eigen, res, C_e_pg)
+        converged = np.ones(eps6_e_pg.shape[:2], dtype=bool)
+        return res.sig, C_alg, z_e_pg, converged
 
     def __Condense(self, C_e_pg: FeArray) -> FeArray:
         """Static condensation of the zz row and column, giving the in-plane tangent."""

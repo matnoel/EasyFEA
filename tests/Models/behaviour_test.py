@@ -1057,3 +1057,116 @@ def test_plane_stress_gives_zero_out_of_plane_stress():
     C_2d = Isotropic(2, E=E, v=nu, planeStress=True).C
     assert np.allclose(np.asarray(C_alg)[0, 0], C_2d)
     assert np.allclose(np.asarray(sig)[0, 0], C_2d @ np.asarray(eps2d)[0, 0])
+
+
+# ------------------------------------------------------------------------------------------
+# The two solvers must agree wherever both apply. That equivalence is what makes a second
+# implementation safe rather than a second thing to be wrong.
+# ------------------------------------------------------------------------------------------
+
+_EQUIVALENT = [
+    (
+        "VonMises + Linear",
+        Models.Yield.VonMises(SIGMA_Y),
+        Models.IsotropicHardening.Linear(H),
+    ),
+    (
+        "VonMises + Voce",
+        Models.Yield.VonMises(SIGMA_Y),
+        Models.IsotropicHardening.Voce(150.0, 30.0),
+    ),
+    (
+        "VonMises + Swift",
+        Models.Yield.VonMises(SIGMA_Y),
+        Models.IsotropicHardening.Swift(600.0, 0.2),
+    ),
+    ("VonMises perfect", Models.Yield.VonMises(SIGMA_Y), None),
+    (
+        "Hill + Linear",
+        Models.Yield.Hill(SIGMA_Y, F=0.7, G=0.4, H=0.6, L=1.8, M=1.2, N=1.4),
+        Models.IsotropicHardening.Linear(H),
+    ),
+    (
+        "Hill + Voce",
+        Models.Yield.Hill(SIGMA_Y, F=0.7, G=0.4, H=0.6, L=1.8, M=1.2, N=1.4),
+        Models.IsotropicHardening.Voce(150.0, 30.0),
+    ),
+]
+
+
+def _anisotropy() -> dict:
+    isot = Isotropic(3, E=E, v=nu)
+    return {
+        "Isotropic": isot,
+        "Orthotropic": Orthotropic(
+            3,
+            E1=E,
+            E2=E / 2,
+            E3=E / 3,
+            G12=E / 4,
+            G13=E / 5,
+            G23=E / 6,
+            v12=0.3,
+            v13=0.2,
+            v23=0.1,
+        ),
+    }
+
+
+@pytest.mark.parametrize("law", list(_anisotropy()))
+@pytest.mark.parametrize(
+    "name,surface,hardening", _EQUIVALENT, ids=[c[0] for c in _EQUIVALENT]
+)
+def test_the_two_solvers_agree(law, name, surface, hardening):
+    """Same stress, same state, same tangent -- across surfaces, hardening laws and anisotropy."""
+    elastic = _anisotropy()[law]
+    kwargs = dict(yieldSurface=surface, hardening=hardening)
+    fast = Models.Behaviour(3, elastic, **kwargs)
+    slow = Models.Behaviour(3, elastic, solver="newton", **kwargs)
+    assert fast._Behaviour__eigen is not None and slow._Behaviour__eigen is None
+
+    rng = np.random.default_rng(0)
+    eps = FeArray.asfearray(rng.normal(0.0, 4e-3, (6, 3, 6)))
+
+    sigF, CF, zF, okF = fast.Integrate(eps)
+    sigS, CS, zS, okS = slow.Integrate(eps)
+
+    assert okF.all() and okS.all()
+    scale = np.linalg.norm(np.asarray(sigS))
+    assert np.linalg.norm(np.asarray(sigF) - np.asarray(sigS)) / scale < 1e-8
+    assert np.max(np.abs(np.asarray(zF) - np.asarray(zS))) < 1e-10
+    assert (
+        np.linalg.norm(np.asarray(CF) - np.asarray(CS)) / np.linalg.norm(np.asarray(CS))
+        < 1e-6
+    )
+    # the sample really did yield, so this is not vacuous
+    assert np.max(np.asarray(zF)[..., fast.layout.slots["p"]]) > 1e-6
+
+
+@pytest.mark.parametrize("planeStress", [False, True])
+def test_the_two_solvers_agree_in_2d(planeStress: bool):
+    """Plane stress wraps the 3D return in an outer Newton on eps_zz; both paths must survive it."""
+    kwargs = dict(
+        yieldSurface=Models.Yield.VonMises(SIGMA_Y),
+        hardening=Models.IsotropicHardening.Linear(H),
+        planeStress=planeStress,
+    )
+    elastic = Isotropic(3, E=E, v=nu)
+    fast = Models.Behaviour(2, elastic, **kwargs)
+    slow = Models.Behaviour(2, elastic, solver="newton", **kwargs)
+
+    rng = np.random.default_rng(3)
+    eps = FeArray.asfearray(rng.normal(0.0, 4e-3, (5, 4, 3)))
+
+    sigF, CF, zF, _ = fast.Integrate(eps)
+    sigS, CS, zS, _ = slow.Integrate(eps)
+
+    assert (
+        np.linalg.norm(np.asarray(sigF) - np.asarray(sigS))
+        / np.linalg.norm(np.asarray(sigS))
+        < 1e-7
+    )
+    assert (
+        np.linalg.norm(np.asarray(CF) - np.asarray(CS)) / np.linalg.norm(np.asarray(CS))
+        < 1e-5
+    )

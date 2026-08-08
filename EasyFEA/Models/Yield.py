@@ -10,12 +10,13 @@ hardened: the hardening force :math:`R` is handed to it by the free energy
 (see :mod:`.IsotropicHardening`), so a surface and a hardening law compose freely.
 """
 
-from typing import Callable, NamedTuple
+from typing import Callable, NamedTuple, Optional
 
 import numpy as np
 
 from . import _kelvin
 from ..FEM._linalg import FeArray, Norm, TensorProd
+from ..Utilities import _types
 
 
 class YieldSurface(NamedTuple):
@@ -27,6 +28,9 @@ class YieldSurface(NamedTuple):
     - ``scale`` — a representative stress, so the solver tolerance is dimensionless.
     - ``dNdSig(sig) -> (Ne, nPg, 6, 6)`` — :math:`\dpartial{N}{\Sig}`, which the local Jacobian
       needs. Written by hand here, as the derivatives of the hyperelastic potentials are.
+    - ``P`` — the ``(6, 6)`` quadratic form when :math:`\phi^2 = \Sig : \Prm : \Sig`, else
+      ``None``. Only that shape lets the local solve collapse to one scalar unknown, so it is
+      what :class:`.Behaviour` dispatches on.
 
     To add a surface, write ``phi`` and differentiate it twice. Yield functions are linear in
     the stress invariants, so the chain rule is a line or two.
@@ -36,6 +40,7 @@ class YieldSurface(NamedTuple):
     N: Callable[[FeArray.FeArrayALike, FeArray.FeArrayALike], FeArray.FeArrayALike]
     scale: float
     dNdSig: Callable[[FeArray.FeArrayALike], FeArray.FeArrayALike]
+    P: Optional[_types.FloatArray] = None
 
 
 def Svm(sig_e_pg: FeArray.FeArrayALike) -> FeArray.FeArrayALike:
@@ -86,7 +91,7 @@ def VonMises(sigma_y: float) -> YieldSurface:
     def N(sig_e_pg, R_e_pg):
         return _Normal_J2(sig_e_pg)
 
-    return YieldSurface(f, N, sigma_y, _dNormal_J2)
+    return YieldSurface(f, N, sigma_y, _dNormal_J2, 1.5 * _kelvin.IDEV)
 
 
 def Hill(
@@ -157,7 +162,7 @@ def Hill(
         NN_e_pg = TensorProd(N_e_pg, N_e_pg)
         return (__P_e_pg(Ne, nPg) - NN_e_pg) / safe
 
-    return YieldSurface(f, Normal, sigma_y, dNdSig)
+    return YieldSurface(f, Normal, sigma_y, dNdSig, P)
 
 
 def DruckerPrager(sigma_y: float, eta: float) -> YieldSurface:
