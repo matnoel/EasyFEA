@@ -202,7 +202,7 @@ class Behaviour(_IModel):
         # else evolves; the decomposition it runs in is built here, once, not per Gauss point
         self.solver = solver
         self.__eigen = (
-            _spectral.Build(np.asarray(self.C), yieldSurface.P)
+            _spectral.Build(*elastic.Get_sqrt_C_S(), yieldSurface.P)
             if self.__Is_reducible()
             else None
         )

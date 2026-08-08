@@ -7,7 +7,6 @@
 
 from abc import ABC, abstractmethod
 from typing import Union, Optional, TYPE_CHECKING
-from scipy.linalg import sqrtm
 
 # utilities
 import numpy as np
@@ -227,9 +226,9 @@ class _Elastic(_IModel, ABC):
         return np.array([]), np.array([])
 
     def Get_sqrt_C_S(self) -> tuple[_types.FloatArray, _types.FloatArray]:
-        """Returns the Matrix square root of C and S."""
+        """Returns the matrix square root of C and S, for a C of any shape (..., d, d)."""
 
-        C = self.C
+        C = self.C  # read first: an update resets the cache through the C setter
 
         try:
             self.__sqrt_C is None
@@ -239,46 +238,18 @@ class _Elastic(_IModel, ABC):
             self.__sqrt_C: Optional[_types.FloatArray] = None  # type: ignore [no-redef]
             self.__sqrt_S: Optional[_types.FloatArray] = None  # type: ignore [no-redef]
 
-        if self.__sqrt_C is None:
-            if self.isHeterogeneous:
-                shape = C.shape
+        if self.__sqrt_C is None or self.__sqrt_S is None:
+            # C is symmetric positive definite, so eigh gives the principal square root
+            # directly, and does every leading axis at once: (d,d), (Ne,d,d) and
+            # (Ne,nPg,d,d) all take this one path.
+            lam, Q = np.linalg.eigh(C)
+            assert lam.min() > 0, "C must be positive definite"
+            sqrt_lam = np.sqrt(lam)[..., np.newaxis, :]
+            Qt = np.swapaxes(Q, -2, -1)
+            self.__sqrt_C = (Q * sqrt_lam) @ Qt  # type: ignore [assignment]
+            self.__sqrt_S = (Q / sqrt_lam) @ Qt  # type: ignore [assignment]
 
-                assert (
-                    len(shape) == 3
-                ), "This function is not currently implemented for heterogeneous matrices where material properties are defined on Gauss points."
-
-                uniq_C, inverse = np.unique(C, return_inverse=True, axis=0)
-
-                sqrtC = np.zeros_like(C, dtype=float)
-                sqrtS = np.zeros_like(C, dtype=float)
-
-                for i, C in enumerate(uniq_C):
-                    elems = np.where(inverse == i)[0]
-
-                    sqrtmC = sqrtm(C)
-                    sqrtC[elems] = sqrtmC
-
-                    sqrtmS = np.linalg.inv(sqrtmC)
-                    sqrtS[elems] = sqrtmS
-
-            else:
-                sqrtC = sqrtm(C)
-
-                sqrtS = np.linalg.inv(sqrtC)  # faster than sqrtm(self.S)
-                # sqrtS = sqrtm(self.S)
-
-                # # give the same results !!!
-                # test = np.linalg.norm(sqrtS - sqrtm(self.S))/np.linalg.norm(sqrtS)
-                # assert test < 1e-12
-
-            self.__sqrt_C = sqrtC  # type: ignore [assignment]
-            self.__sqrt_S = sqrtS  # type: ignore [assignment]
-
-        else:
-            sqrtC = self.__sqrt_C.copy()
-            sqrtS = self.__sqrt_S.copy()
-
-        return sqrtC, sqrtS
+        return self.__sqrt_C.copy(), self.__sqrt_S.copy()
 
     def _Apply_basis_transformation(
         self,

@@ -372,6 +372,25 @@ class TestLinearElastic:
 
         mat2_ortho.Walpole_Decomposition()
 
+    @pytest.mark.parametrize("shape", [(), (11,), (11, 4)])
+    def test_sqrt_C_S(self, shape: tuple):
+        """The square root squares back, however many leading axes C carries.
+
+        (11, 4) is material properties given per Gauss point, which the old implementation
+        refused outright.
+        """
+        n = int(np.prod(shape))
+        E = 210e9 if shape == () else np.linspace(200e9, 220e9, n).reshape(shape)
+        material = Isotropic(3, E=E, v=0.3)
+
+        sqrtC, sqrtS = material.Get_sqrt_C_S()
+        C, S = material.C, material.S
+
+        assert sqrtC.shape == shape + (6, 6)
+        assert np.linalg.norm(sqrtC @ sqrtC - C) / np.linalg.norm(C) < 1e-12
+        assert np.linalg.norm(sqrtS @ sqrtS - S) / np.linalg.norm(S) < 1e-12
+        assert np.linalg.norm(sqrtC @ sqrtS - np.eye(6)) < 1e-12
+
     def test_getPmat(self):
 
         Ne = 10

@@ -63,16 +63,14 @@ class Eigenspace(NamedTuple):
     Cinv: _types.FloatArray
 
 
-def Build(C: _types.FloatArray, P: _types.FloatArray) -> Eigenspace:
-    """Diagonalises ``C^1/2 P C^1/2``. Called once, when the behaviour is built."""
-    lamC, Qc = np.linalg.eigh(C)
-    assert lamC.min() > 0, "the elastic stiffness must be positive definite"
-    Ch = Qc @ np.diag(np.sqrt(lamC)) @ Qc.T
-    Chi = Qc @ np.diag(1.0 / np.sqrt(lamC)) @ Qc.T
-
-    lam, Q = np.linalg.eigh(Ch @ P @ Ch)
+def Build(
+    sqrtC: _types.FloatArray, sqrtS: _types.FloatArray, P: _types.FloatArray
+) -> Eigenspace:
+    """Diagonalises ``C^1/2 P C^1/2``, from the law's own ``Get_sqrt_C_S``. Called once."""
+    assert np.isrealobj(sqrtC), "the elastic stiffness must be positive definite"
+    lam, Q = np.linalg.eigh(sqrtC @ P @ sqrtC)
     lam = np.maximum(lam, 0.0)  # P is positive semi-definite; clean up round-off
-    return Eigenspace(Ch @ Q, Q.T @ Chi, lam, Chi @ Chi)
+    return Eigenspace(sqrtC @ Q, Q.T @ sqrtS, lam, sqrtS @ sqrtS)
 
 
 def _Field(mat: _types.FloatArray, ref: FeArray) -> FeArray.FeArrayALike:
