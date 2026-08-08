@@ -34,3 +34,5 @@ general one.
 
 - ``ThickCylinder`` — a **verification**: the plastic zone spreading from the bore of a
   pressurised cylinder, against Hill's closed form, with a mesh-convergence study.
+- ``BeamBending`` — a second **verification**: moment-curvature of a rectangular section against
+  Chakrabarty, and the shape factor 3/2.
