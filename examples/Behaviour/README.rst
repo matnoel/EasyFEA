@@ -40,3 +40,8 @@ general one.
   pressurised cylinder, against Hill's closed form, with a mesh-convergence study.
 - ``BeamBending`` — a second **verification**: moment-curvature of a rectangular section against
   Chakrabarty, and the shape factor 3/2.
+- ``TensileTest`` — a tensile specimen pulled past yield in 3D, and a **verification** of a
+  different kind: rotated into a general orientation it must give the identical answer, which
+  tests frame indifference of the strain computation, the return mapping, the tangent and
+  assembly all at once. Use quadratic elements: plastic flow is incompressible, and fully
+  integrated linear hexahedra lock under it.
