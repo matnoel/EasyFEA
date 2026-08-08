@@ -142,9 +142,9 @@ print(
 # a verification fails rather than prints; the shape factor is a pure number, so the second
 # bound is independent of material and size
 assert errors.max() < 1.0, f"{errors.max():.2f} % away from Chakrabarty"
-assert (
-    1.4 < moments[-1] / M_e < 1.5
-), "the section does not approach the shape factor 3/2"
+assert 1.4 < moments[-1] / M_e < 1.5, (
+    "the section does not approach the shape factor 3/2"
+)
 
 # ----------------------------------------------
 # Results
