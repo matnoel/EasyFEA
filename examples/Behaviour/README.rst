@@ -39,6 +39,8 @@ general one.
 - ``CyclicLoading`` — why cyclic plasticity needs a back-stress: isotropic and kinematic
   hardening are *identical* in monotonic tension and opposite under reversal, where the
   kinematic elastic range stays exactly ``2*sigma_y``.
+- ``Chaboche`` — why one back-stress is not enough: the knee-and-tail problem, the components
+  that superpose to fix it.
 - ``ThickCylinder`` — a **verification**: the plastic zone spreading from the bore of a
   pressurised cylinder, against Hill's closed form, with a mesh-convergence study.
 - ``BeamBending`` — a second **verification**: moment-curvature of a rectangular section against
