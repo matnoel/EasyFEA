@@ -696,6 +696,7 @@ class Behaviour(_IModel):
         eps_e_pg: FeArray,
         zOld_e_pg: Optional[FeArray] = None,
         dt: float = 0.0,
+        epsOld_e_pg: Optional[FeArray] = None,
         fields: Optional[dict[str, FeArray]] = None,
         withTangent: bool = True,
     ) -> tuple[FeArray, Optional[FeArray], FeArray, FeArray]:
@@ -712,6 +713,11 @@ class Behaviour(_IModel):
             Packed state committed at the last converged step; zeros by default.
         dt : float, optional
             Time increment; required by a rate-dependent behaviour, ignored otherwise.
+        epsOld_e_pg : FeArray (Ne, nPg, nstrain), optional
+            Total strain at the last converged step, supplied by the solver and never stored --
+            the state stays exactly the history variables. Only local sub-stepping needs it, so
+            leaving it out costs that and nothing else. See MFront's `eto`/`deto`, Abaqus'
+            STRAN/DSTRAN and NEML's `e_n`.
         fields : dict[str, FeArray], optional
             External fields (temperature, ...). Not read yet — the seam for thermo-mechanical
             coupling.

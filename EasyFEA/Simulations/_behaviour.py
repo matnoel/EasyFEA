@@ -148,9 +148,14 @@ class Behaviour(_Simu):
         for groupElem in self.mesh.Get_list_groupElem():
             eps_e_pg = self._Calc_Epsilon_e_pg(u, groupElem, matrixType)
             zOld_e_pg = self.__Get_state(groupElem, matrixType)
+            # u_n is only overwritten once the Newton converges, so during assembly it is
+            # still the displacement the increment started from
+            epsOld_e_pg = self._Calc_Epsilon_e_pg(
+                self._Get_u_n(self.problemType), groupElem, matrixType
+            )
 
             sigma_e_pg, C_e_pg, z_e_pg, converged = self.material.Integrate(
-                eps_e_pg, zOld_e_pg, self.__dt
+                eps_e_pg, zOld_e_pg, self.__dt, epsOld_e_pg
             )
             assert C_e_pg is not None
             assert converged.all(), (

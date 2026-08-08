@@ -190,6 +190,63 @@ def test_relaxation_through_the_simulation(mesh3D):
     assert np.all(np.diff(history) <= 1e-9)
 
 
+def test_the_material_is_told_where_the_increment_started(mesh2D):
+    """`epsOld` must be the strain of the last converged step, not the current iterate.
+
+    u_n is only overwritten once the Newton converges, so reading it during assembly gives the
+    start of the increment for free. Nothing consumes it yet -- local sub-stepping will -- so
+    this is what keeps the plumbing from rotting unnoticed.
+    """
+    behaviour = Models.Behaviour(
+        2,
+        Isotropic(3, E=E, v=nu),
+        yieldSurface=Models.Yield.VonMises(250.0),
+        hardening=Models.IsotropicHardening.Linear(2000.0),
+        thickness=H,
+    )
+    simu = Simulations.Behaviour(mesh2D, behaviour)
+    nodes0 = mesh2D.Nodes_Conditions(lambda x, y, z: x == 0)
+    nodesL = mesh2D.Nodes_Conditions(lambda x, y, z: x == L)
+
+    def Strains() -> dict:
+        """converged strain of every group, keyed by shape so the spy can match them"""
+        return {
+            np.shape(eps): np.asarray(eps)
+            for eps in (
+                simu._Calc_Epsilon_e_pg(simu.displacement, g)
+                for g in simu.mesh.Get_list_groupElem()
+            )
+        }
+
+    seen: list = []
+    Integrate = behaviour.Integrate
+
+    def Spy(eps, zOld=None, dt=0.0, epsOld=None, *args, **kwargs):
+        seen.append(None if epsOld is None else np.asarray(epsOld).copy())
+        return Integrate(eps, zOld, dt, epsOld, *args, **kwargs)
+
+    behaviour.Integrate = Spy
+
+    previous = {shape: np.zeros(shape) for shape in Strains()}
+    for u in [0.5, 1.0, 1.5]:
+        simu.Bc_Init()
+        simu.add_dirichlet(nodes0, [0, 0], ["x", "y"])
+        simu.add_dirichlet(nodesL, [u], ["x"])
+        seen.clear()
+        simu.Solve()
+
+        # every assembly in this increment saw the same start: the last converged strain
+        assert seen
+        for epsOld in seen:
+            assert np.allclose(epsOld, previous[np.shape(epsOld)])
+
+        simu.Save_Iter()
+        previous = Strains()
+
+    # the increments were not vacuous
+    assert max(np.max(np.abs(v)) for v in previous.values()) > 0
+
+
 def test_state_stays_empty_without_internal_variables(mesh2D):
     """No yield surface means nothing to store, and the solve is one Newton iteration."""
     behaviour = Models.Behaviour(2, Isotropic(3, E=E, v=nu), thickness=H)
