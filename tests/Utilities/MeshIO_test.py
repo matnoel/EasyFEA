@@ -3,6 +3,7 @@
 # This file is part of the EasyFEA project.
 # EasyFEA is distributed under the terms of the GNU General Public License v3, see LICENSE.txt and CREDITS.md for more information.
 
+import numpy as np
 import pytest
 
 from EasyFEA import Folder, Mesher, ElemType, Mesh, MeshIO
@@ -68,6 +69,37 @@ def check_mesh(mesh1: Mesh, mesh2: Mesh):
         assert diff_volume < 1e-12
 
 
+def get_tags(mesh: Mesh) -> list[str]:
+    return sorted(
+        {
+            tag
+            for groupElem in mesh.dict_groupElem.values()
+            for tag in groupElem.nodeTags
+        }
+    )
+
+
+def check_tags(mesh1: Mesh, mesh2: Mesh):
+    """Every tag must come back, holding the very same nodes and elements.
+
+    Nodes_Tags unions the node sets over every group and Elements_Tags reads the main group, so
+    those are what a user sees; which group holds a node tag is an internal detail.
+    """
+
+    tags = get_tags(mesh1)
+    assert tags == get_tags(mesh2), "tag names differ"
+
+    for tag in tags:
+        assert np.array_equal(
+            np.sort(mesh1.Nodes_Tags(tag)), np.sort(mesh2.Nodes_Tags(tag))
+        ), f"nodes of {tag} differ"
+
+    for tag in mesh1.groupElem.elementTags:
+        assert np.array_equal(
+            np.sort(mesh1.Elements_Tags(tag)), np.sort(mesh2.Elements_Tags(tag))
+        ), f"elements of {tag} differ"
+
+
 class TestMeshIO:
 
     def test_mesh_reconstruction(self, meshes: list[Mesh]):
@@ -94,6 +126,22 @@ class TestMeshIO:
             newMesh = MeshIO._Meshio_to_EasyFEA(meshio)
 
             check_mesh(mesh, newMesh)
+            # named sets carry the tags, so this pair loses nothing
+            check_tags(mesh, newMesh)
+
+    def test_easyfea_to_meshio_keeps_a_named_tag(self, meshes: list[Mesh]):
+        """A tag that is not P{i}, L{i}, S{i} or V{i} used to raise, its digits being stripped."""
+
+        for mesh in meshes:
+
+            nodes = mesh.Nodes_Conditions(lambda x, y, z: x == 0)
+            for groupElem in mesh.dict_groupElem.values():
+                groupElem.Set_Tag(nodes, "endocardium")
+
+            newMesh = MeshIO._Meshio_to_EasyFEA(MeshIO._EasyFEA_to_Meshio(mesh))
+
+            assert "endocardium" in get_tags(newMesh)
+            check_tags(mesh, newMesh)
 
     def test_easyfea_to_gmsh(self, meshes: list[Mesh]):
 
@@ -103,6 +151,39 @@ class TestMeshIO:
             newMesh = MeshIO.Gmsh_to_EasyFEA(filename)
 
             check_mesh(mesh, newMesh)
+            # the tags Mesher creates claim disjoint elements, so every one of them fits in the
+            # single reference gmsh stores per element
+            check_tags(mesh, newMesh)
+
+    def test_easyfea_to_gmsh_keeps_a_named_tag(self, meshes: list[Mesh]):
+        """$PhysicalNames carries the name, so it comes back instead of a S{ref} placeholder."""
+
+        for mesh in meshes:
+
+            groupElems = mesh.Get_list_groupElem(max(mesh.dim - 1, 0))
+            nodes = mesh.Nodes_Conditions(lambda x, y, z: x == 0)
+            for groupElem in groupElems:
+                groupElem.Set_Tag(nodes, "endocardium")
+
+            filename = MeshIO.EasyFEA_to_Gmsh(mesh, folder_results, mesh.elemType.name)
+            newMesh = MeshIO.Gmsh_to_EasyFEA(filename)
+
+            assert "endocardium" in get_tags(newMesh)
+
+    def test_a_mesh_without_tags_gains_none(self):
+        """Writers store 0 for an element belonging to no group, which is not a tag."""
+
+        import meshio
+
+        meshioMesh = meshio.Mesh(
+            np.array([[0.0, 0, 0], [1, 0, 0], [1, 1, 0], [0, 1, 0]]),
+            [("triangle", np.array([[0, 1, 2], [0, 2, 3]]))],
+        )
+        mesh = MeshIO._Meshio_to_EasyFEA(meshioMesh)
+        assert get_tags(mesh) == []
+
+        filename = MeshIO.EasyFEA_to_Medit(mesh, folder_results, "tagless")
+        assert get_tags(MeshIO.Medit_to_EasyFEA(filename)) == []
 
     def test_easyfea_to_medit(self, meshes: list[Mesh]):
 

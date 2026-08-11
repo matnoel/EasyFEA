@@ -1757,7 +1757,7 @@ class _GroupElem(ABC):
             return self.__dict_elements_tags[tag]
         else:
             print(f"The {tag} tag is unknown")
-            return np.array([])
+            return np.array([], dtype=int)
 
     def Get_Nodes_Tag(self, tag: str) -> _types.IntArray:
         """Returns node associated with the tag."""
@@ -1765,7 +1765,7 @@ class _GroupElem(ABC):
             return self.__dict_nodes_tags[tag]
         else:
             print(f"The {tag} tag is unknown")
-            return np.array([])
+            return np.array([], dtype=int)
 
     def Locates_sol_e(
         self, sol: _types.FloatArray, dof_n: Optional[int] = None, asFeArray=False
