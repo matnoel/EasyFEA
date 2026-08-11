@@ -296,40 +296,44 @@ def Surface_reconstruction(mesh: Mesh) -> Mesh:
         # No need to reconstruct elements for 0D, 1D or 2D meshes
         return mesh
 
-    useMixedElements = mesh.elemType.startswith(("PRISM"))
-
     # get coordinates with orphan nodes
     coordinates = mesh.coord  # DON'T remove orphan nodes!
 
-    # get group elem data
-    groupElem = mesh.groupElem
-    connectivity = groupElem.connect
-
-    # get faces to access nodes in connectivity
-    faces = groupElem.faces
-    Nface = faces.shape[0]
-
     allConnect: list[_types.IntArray] = []
     allIds: list[tuple[int]] = []
+    elemTypes: list[ElemType] = []
+    Nface = 0
 
-    # loop over each indices
-    for face in faces:
+    # A mesh can hold several groups of elements in its dimension, prisms next to
+    # hexahedrons for instance. Their faces are collected together: a face shared by two
+    # groups is then created twice, just like a face shared by two elements of the same
+    # group, and is recognized as an interior one below.
+    for groupElem in mesh.Get_list_groupElem(mesh.dim):
 
-        # get connect for the idx
-        connect = connectivity[:, face]
-        allConnect.extend(connect.copy())
+        connectivity = groupElem.connect
 
-        # Ensure that generated IDs (tuples in this case) are unique
-        connect = np.sort(connect, axis=1)
+        # get faces to access nodes in connectivity
+        faces = groupElem.faces
+        Nface += groupElem.Ne * len(faces)
 
-        # add unique ids
-        if useMixedElements:
+        # loop over each indices
+        for face in faces:
+
+            # get connect for the idx
+            connect = connectivity[:, face]
+            allConnect.extend(connect.copy())
+
+            # Ensure that generated IDs (tuples in this case) are unique
+            connect = np.sort(connect, axis=1)
+
+            # add unique ids
             allIds.extend([tuple(nodes) for nodes in connect])
-        else:
-            allIds.extend(list(map(tuple, connect)))
+
+        # a prism gives both triangles and quadrangles, and two groups can give the same
+        elemTypes.extend(GroupElemFactory._Get_2d_element_types(groupElem.elemType))
 
     # make sure all nodes are imported
-    assert len(allConnect) == groupElem.Ne * Nface
+    assert len(allConnect) == Nface
 
     # counts the number of repetitions of each identifier
     counts = Counter(allIds)
@@ -346,7 +350,7 @@ def Surface_reconstruction(mesh: Mesh) -> Mesh:
     }
 
     # create new elements 2d elements
-    for elemType in GroupElemFactory._Get_2d_element_types(mesh.elemType):
+    for elemType in dict.fromkeys(elemTypes):
 
         # get connect
         nPe = GroupElemFactory.DICT_ELEMTYPE[elemType][1]
@@ -354,11 +358,14 @@ def Surface_reconstruction(mesh: Mesh) -> Mesh:
             [nodes for nodes in uniqueNodes if nodes.size == nPe], dtype=int
         )
 
+        if connect.size == 0:
+            # a group can give a type of face that the boundary does not use, e.g. a prism
+            # whose triangular caps are all shared with its neighbors
+            continue
+
         # create the new group of elements
         newGroupElem = GroupElemFactory.Create(elemType, connect, coordinates)
         new_dict_groupElem[elemType] = newGroupElem
-
-        pass
 
     # create the new mesh
     newMesh = Mesh(new_dict_groupElem)
@@ -499,7 +506,7 @@ def _Meshio_to_EasyFEA(meshioMesh: meshio.Mesh) -> Mesh:
 
     mesh = Mesh(dict_groupElem)
 
-    Terminal.MyPrint("Successfully imported the mesh in EasyFEA.")
+    Terminal.MyPrint("Successfully imported the mesh in EasyFEA.\n")
     print(mesh)
 
     # set tags
