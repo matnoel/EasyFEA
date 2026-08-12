@@ -158,6 +158,20 @@ class HyperElastic(_Simu):
         [uxi, uyi, uzi, ...]"""
         return self._Get_u_n(self.problemType)
 
+    @property
+    def speed(self) -> _types.FloatArray:
+        """Velocity vector field.\n
+        2D [vxi, vyi, ...]\n
+        3D [vxi, vyi, vzi, ...]"""
+        return self._Get_v_n(self.problemType)
+
+    @property
+    def accel(self) -> _types.FloatArray:
+        """Acceleration vector field.\n
+        2D [axi, ayi, ...]\n
+        3D [axi, ayi, azi, ...]"""
+        return self._Get_a_n(self.problemType)
+
     # --------------------------------------------------------------------------
     # Solve
     # --------------------------------------------------------------------------
@@ -449,20 +463,26 @@ class HyperElastic(_Simu):
         dim = self.dim
 
         results.extend(["displacement", "displacement_norm", "displacement_matrix"])
-        # results.extend(["speed", "speed_norm"])
-        # results.extend(["accel", "accel_norm"])
+        # only under a time scheme: a static solve has no velocity to report, and
+        # `Results_nodeFields_elementFields` gates them the same way
+        isDynamic = self.algo in AlgoType.Get_Hyperbolic_Types()
+        if isDynamic:
+            results.extend(["speed", "speed_norm"])
+            results.extend(["accel", "accel_norm"])
 
         if dim == 2:
             results.extend(["ux", "uy"])
-            # results.extend(["vx", "vy"])
-            # results.extend(["ax", "ay"])
+            if isDynamic:
+                results.extend(["vx", "vy"])
+                results.extend(["ax", "ay"])
             results.extend(["Sxx", "Syy", "Sxy"])
             results.extend(["Exx", "Eyy", "Exy"])
 
         elif dim == 3:
             results.extend(["ux", "uy", "uz"])
-            # results.extend(["vx", "vy", "vz"])
-            # results.extend(["ax", "ay", "az"])
+            if isDynamic:
+                results.extend(["vx", "vy", "vz"])
+                results.extend(["ax", "ay", "az"])
             results.extend(["Sxx", "Syy", "Szz", "Syz", "Sxz", "Sxy"])
             results.extend(["Exx", "Eyy", "Ezz", "Eyz", "Exz", "Exy"])
 
@@ -501,27 +521,27 @@ class HyperElastic(_Simu):
         elif result == "displacement_matrix":
             values = self.Results_displacement_matrix()
 
-        # elif result in ["vx", "vy", "vz"]:
-        #     values_n = self.speed.reshape(Nn, -1)
-        #     values = values_n[:,self.__indexResult(result)]
+        elif result in ["vx", "vy", "vz"]:
+            values_n = self.speed.reshape(Nn, -1)
+            values = values_n[:, self.__indexResult(result)]
 
-        # elif result == "speed":
-        #     values = self.speed
+        elif result == "speed":
+            values = self.speed
 
-        # elif result == "speed_norm":
-        #     val_n = self.speed.reshape(Nn, -1)
-        #     values = np.linalg.norm(val_n, axis=1)
+        elif result == "speed_norm":
+            val_n = self.speed.reshape(Nn, -1)
+            values = np.linalg.norm(val_n, axis=1)
 
-        # elif result in ["ax", "ay", "az"]:
-        #     values_n = self.accel.reshape(Nn, -1)
-        #     values = values_n[:,self.__indexResult(result)]
+        elif result in ["ax", "ay", "az"]:
+            values_n = self.accel.reshape(Nn, -1)
+            values = values_n[:, self.__indexResult(result)]
 
-        # elif result == "accel":
-        #     values = self.accel
+        elif result == "accel":
+            values = self.accel
 
-        # elif result == "accel_norm":
-        #     val_n = self.accel.reshape(Nn, -1)
-        #     values = np.linalg.norm(val_n, axis=1)
+        elif result == "accel_norm":
+            val_n = self.accel.reshape(Nn, -1)
+            values = np.linalg.norm(val_n, axis=1)
 
         elif result in ["W"]:
             return self._Calc_W()
