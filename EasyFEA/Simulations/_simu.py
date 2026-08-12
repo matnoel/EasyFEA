@@ -259,18 +259,85 @@ class _Simu(_IObserver, _params.Updatable, ABC):
         if self.folder == "":
             self.__list_results.append(iter)
         else:
+            # One file per rank, like `Save` / `Load_Simu`: an iteration dict may hold element-sized
+            # fields, which describe the rank's own partition, so rank 0's copy alone would hand every
+            # other rank an array of the wrong length on the way back in.
+            suffix = f"_rank{MPI_RANK}" if MPI_SIZE > 1 else ""
             path = Folder.Join(
-                self.folder, "Results", f"results{self.Niter}.pickle", mkdir=True
+                self.folder,
+                "Results",
+                f"results{self.Niter}{suffix}.pickle",
+                mkdir=True,
             )
-            if MPI_RANK == 0:
-                with open(path, "wb") as f:
-                    pickle.dump(iter, f)
+            with open(path, "wb") as f:
+                pickle.dump(self.__Reduce_iter_to_local(iter), f)
             self.__list_results.append(path)
 
         self.__Niter += 1
 
+    __LOCAL_DOFS_KEY = "__mpiLocalDofKeys"
+    """Names of the entries stored as local-dof slices, recorded in the pickle by :meth:`__Reduce_iter_to_local`."""
+
+    def __Local_dofs(self, problemType: ModelType) -> _types.IntArray:
+        """Dofs carried by the nodes of this rank's partition, ghosts included."""
+        return self.Bc_dofs_nodes(
+            self.mesh.nodes, self.Get_unknowns(problemType), problemType
+        )
+
+    def __Dof_sized_keys(self, iter: dict[str, Any]) -> dict[str, ModelType]:
+        """Entries of an iteration dict that are full dof vectors, mapped to the problem type sizing them.
+
+        The solver allgathers the solution, so every rank ends the step holding the same dof vector — storing them whole writes the same bytes ``MPI_SIZE`` times. Identification is by length, as in :meth:`Results_Reshape_values`.
+        """
+        sizes = {
+            self.mesh.Nn * self.Get_dof_n(problemType): problemType
+            for problemType in self.Get_problemTypes()
+        }
+
+        return {
+            key: sizes[value.size]
+            for key, value in iter.items()
+            if isinstance(value, np.ndarray) and value.size in sizes
+        }
+
+    def __Reduce_iter_to_local(self, iter: dict[str, Any]) -> dict[str, Any]:
+        """Replaces the full dof vectors of `iter` by the slice carried by this rank's nodes, so the per-rank files stop duplicating the whole vector on every rank.
+
+        Owned *and* ghost, not owned alone: a rank reads a solution back to evaluate it over its own elements, and the ghost layer is exactly what those elements need beyond what the rank owns. Keeping it is what lets the read stay local — reducing to the owned dofs would save the ghost layer's worth of disk and cost an ``Allgatherv`` on every read.
+
+        Element-sized entries are left whole: they already describe this rank alone.
+        """
+        if MPI_SIZE == 1:
+            return iter
+
+        keys = self.__Dof_sized_keys(iter)
+
+        iter = iter.copy()
+        for key, problemType in keys.items():
+            iter[key] = iter[key][self.__Local_dofs(problemType)]
+        iter[_Simu.__LOCAL_DOFS_KEY] = keys
+
+        return iter
+
+    def __Restore_iter_from_local(self, iter: dict[str, Any]) -> dict[str, Any]:
+        """Rebuilds the dof vectors that :meth:`__Reduce_iter_to_local` sliced, back to full length so global dof indexing keeps working.
+
+        Dofs outside this rank's partition come back as zero. They are never read: every quantity the rank derives from a solution is an integral over its own elements, which reach no further than its ghost layer.
+        """
+        keys = iter.pop(_Simu.__LOCAL_DOFS_KEY, None)
+
+        if not keys:
+            return iter
+
+        for key, problemType in keys.items():
+            full = np.zeros(self.mesh.Nn * self.Get_dof_n(problemType))
+            full[self.__Local_dofs(problemType)] = iter[key]
+            iter[key] = full
+
+        return iter
+
     def Get_results(self, iter: int = -1) -> dict:
-        """Return the iteration dict at index ``iter``, loading from disk if the entry is a pickle path. Pure read — no mutation of simulation state (use :meth:`Set_Iter` for that)."""
+        """Return the iteration dict at index ``iter``, loading from disk if the entry is a pickle path. Pure read — no mutation of simulation state (use :meth:`Set_Iter` for that), and no collective under MPI."""
         iter = int(iter)
         if iter < 0:
             iter += self.Niter
@@ -278,7 +345,7 @@ class _Simu(_IObserver, _params.Updatable, ABC):
         entry = self.__list_results[iter]
         if isinstance(entry, str):
             with open(entry, "rb") as f:
-                return pickle.load(f)
+                return self.__Restore_iter_from_local(pickle.load(f))
         return entry.copy()
 
     @abstractmethod
