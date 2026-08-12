@@ -600,9 +600,11 @@ def ActiveStressTensor(
     Returns
     -------
     tuple
-        ``(None, None)`` when ``material.active_stress == 0``. Otherwise ``Kgeo_e`` of shape ``(Ne, nPe·dim, nPe·dim)`` and ``R_e`` of shape ``(Ne, nPe·dim)``, reordered to ``(xi, yi, zi, ..., xn, yn, zn)``.
+        ``(None, None)`` when ``material.active_stress`` is nowhere non-zero. Otherwise ``Kgeo_e`` of shape ``(Ne, nPe·dim, nPe·dim)`` and ``R_e`` of shape ``(Ne, nPe·dim)``, reordered to ``(xi, yi, zi, ..., xn, yn, zn)``.
     """
-    if material.active_stress == 0.0:
+    # `np.all` rather than `== 0.0`: the magnitude may be an (Ne, nPg) field, and a partly-active
+    # body still has to be assembled
+    if np.all(material.active_stress == 0.0):
         return None, None  # type: ignore [return-value]
 
     groupElem = state.groupElem

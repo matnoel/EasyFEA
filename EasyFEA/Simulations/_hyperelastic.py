@@ -338,7 +338,7 @@ class HyperElastic(_Simu):
             # constitutive stress a true ∂W/∂e, which the gonzalez discrete
             # gradient depends on. It contributes an internal force and a
             # geometric tangent (no material tangent: it is E-independent).
-            if self.material.active_stress != 0.0:
+            if np.any(self.material.active_stress != 0.0):
                 Kgeo_e, R_act_e = Operators.NonLinear.ActiveStressTensor(
                     self.material, state
                 )
@@ -605,7 +605,7 @@ class HyperElastic(_Simu):
         # total PK2 = elastic ∂W/∂e + the active fiber stress (reported as one field,
         # even though the two are assembled by separate operators)
         S_e_pg = self.material.Compute_dWde(hyperElasticState)
-        if self.material.active_stress != 0.0:
+        if np.any(self.material.active_stress != 0.0):
             S_e_pg = S_e_pg + self.material.Compute_active_stress(hyperElasticState)
         return S_e_pg
 

@@ -17,7 +17,7 @@ import pytest
 
 from EasyFEA import ElemType, Models, Simulations, AlgoType
 from EasyFEA.Geoms import Domain
-from EasyFEA.FEM import MatrixType, Operators
+from EasyFEA.FEM import FeArray, MatrixType, Operators
 from EasyFEA.Models.HyperElastic._state import HyperElasticState
 
 
@@ -287,3 +287,44 @@ class TestKelvinVoigtWiring:
             "F_e does not carry exactly one -R_visco: max diff "
             f"{np.abs(got - R_e).max():.3e} vs |R| {np.abs(R_e).max():.3e}"
         )
+
+
+def test_active_stress_accepts_a_field():
+    """`active_stress` takes a scalar, an (Ne,) value per element, or an (Ne, nPg) value per
+    integration point. A uniform field must reproduce the scalar exactly — the identity the cardiac
+    benchmark relies on — while a varying one must reach the assembly rather than being flattened.
+    """
+    mesh = Domain((0, 0), (2.0, 1.0), 0.5).Mesh_Extrude(
+        [], [0, 0, 1], [2], ElemType.HEXA8, isOrganised=True
+    )
+    groupElem = mesh.groupElem
+    matrixType = MatrixType.rigi
+    nPg = groupElem.Get_gauss(matrixType).nPg
+    Ne = groupElem.Ne
+
+    material = Models.HyperElastic.NeoHookean(3, K=1e3)
+    # a uniform fiber along x, so the magnitude lands in the xx component of the PK2 vector
+    fibers = np.zeros((Ne, nPg, 3))
+    fibers[..., 0] = 1.0
+    material.Set_active_stress_vec(FeArray.asfearray(fibers))
+
+    state = HyperElasticState(groupElem, np.zeros(mesh.Nn * 3), matrixType)
+
+    material.active_stress = 10.0
+    scalar = np.asarray(material.Compute_active_stress(state)).copy()
+
+    for uniform in (np.full(Ne, 10.0), np.full((Ne, nPg), 10.0)):
+        material.active_stress = uniform
+        assert np.array_equal(np.asarray(material.Compute_active_stress(state)), scalar)
+
+    # a per-element magnitude must survive to the stress, not be collapsed to one value
+    varying = np.linspace(1.0, 10.0, Ne)
+    material.active_stress = varying
+    stress = np.asarray(material.Compute_active_stress(state))
+    assert not np.allclose(stress, scalar)
+    # the fiber is x, so the xx component carries the magnitude
+    assert np.allclose(stress[:, 0, 0], varying)
+
+    with pytest.raises(AssertionError):
+        material.active_stress = np.ones((Ne + 1, nPg))
+        material.Compute_active_stress(state)

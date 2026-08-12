@@ -36,8 +36,8 @@ class _HyperElastic(_IModel, ABC):
     When ``> 0`` and a velocity field is available, the viscous contribution is delivered via the damping matrix :func:`Operators.NonLinear.KelvinVoigtDamping`.
     The simulation handles both the residual contribution (``b -= C @ v_t``) and the linear tangent piece (``coefC · C`` in the global assembly) — same uniform pattern as Rayleigh damping in :class:`Elastic`."""
 
-    active_stress: float = _params.ScalarParameter()
-    """Active stress magnitude (per-time-step scalar). ``0`` (default) → inactive.
+    active_stress: Union[float, _types.FloatArray] = _params.ScalarOrFieldParameter()
+    """Active stress magnitude. ``0`` (default) → inactive.
     When non-zero and the direction tensor has been registered via :meth:`Set_active_stress_vec`, the PK2 contribution ``active_stress · (T̂ ⊗ T̂)`` is delivered by :func:`Operators.NonLinear.ActiveStressTensor` — **not** by :meth:`Compute_dWde`, which stays the derivative of :meth:`Compute_W` (see :meth:`Compute_active_stress`).
     Typical cardiac use: precompute the fiber direction tensor once with :meth:`Set_active_stress_vec`, then update only this scalar between :meth:`Solve` calls — ``material.active_stress = float(tau_values[i])``."""
 
@@ -76,7 +76,22 @@ class _HyperElastic(_IModel, ABC):
         assert (
             self.__TxT is not None
         ), "active_stress is set but its direction is not — call Set_active_stress_vec(T) first."
-        return hyperElasticState._Slice_Vector(self.active_stress * self.__TxT)
+
+        magnitude = self.active_stress
+
+        if isinstance(magnitude, np.ndarray):
+            if magnitude.ndim == 1:
+                # one value per element, repeated over that element's integration points
+                magnitude = magnitude[:, None]
+            Ne, nPg = self.__TxT.shape[:2]
+            assert magnitude.shape[0] == Ne and magnitude.shape[1] in (1, nPg), (
+                f"active_stress is {magnitude.shape}, expected a scalar, ({Ne},) or ({Ne}, {nPg}) "
+                "— the shapes registered by Set_active_stress_vec."
+            )
+            # a rank-0 field, so FeArray._align pads it to (Ne, nPg, 1) against __TxT's (Ne, nPg, 6)
+            magnitude = FeArray.asfearray(magnitude)
+
+        return hyperElasticState._Slice_Vector(magnitude * self.__TxT)
 
     @property
     def modelType(self) -> ModelType:

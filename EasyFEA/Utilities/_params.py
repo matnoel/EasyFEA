@@ -27,6 +27,16 @@ def _CheckIsScalar(value: Union[_types.Number, _types.Numbers]) -> None:
     assert isinstance(value, (int, float)), "must be a scalar value"
 
 
+def _CheckIsScalarOrField(value: Union[_types.Number, _types.Numbers]) -> None:
+    """Checks whether the value is a scalar, one value per element, or one per integration point."""
+    if isinstance(value, (int, float)):
+        return
+    assert isinstance(value, np.ndarray) and value.ndim in (
+        1,
+        2,
+    ), "must be a scalar, an (Ne,) array or an (Ne, nPg) array"
+
+
 def _CheckIsPositive(value: Union[_types.Number, _types.Numbers]) -> None:
     """Checks whether the value is positive"""
     errorText = "Must be >= 0!"
@@ -137,6 +147,13 @@ class StringParameter(_Parameter):
 class ScalarParameter(_Parameter):
     def _checker(self, value):
         _CheckIsScalar(value)
+
+
+class ScalarOrFieldParameter(_Parameter):
+    """A scalar, or one value per element and integration point — an ``(Ne, nPg)`` array."""
+
+    def _checker(self, value):
+        _CheckIsScalarOrField(value)
 
 
 class PositiveParameter(_Parameter):
