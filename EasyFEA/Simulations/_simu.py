@@ -334,16 +334,27 @@ class _Simu(_IObserver, _params.Updatable, ABC):
     __LOCAL_DOFS_KEY = "__mpiLocalDofKeys"
     """Names of the entries stored as local-dof slices, recorded in the pickle by :meth:`__Reduce_iter_to_local`."""
 
-    def __Local_dofs(self, problemType: ModelType) -> _types.IntArray:
-        """Dofs carried by the nodes of this rank's partition, ghosts included."""
-        return self.Bc_dofs_nodes(
-            self.mesh.nodes, self.Get_unknowns(problemType), problemType
-        )
+    __LOCAL_NODES_KEY = "__mpiLocalNodes"
+    """Nodes the slices of a pickle cover. Stored with them so restoring never depends on what the mesh became afterwards — `_Gather` replaces the partition with the global mesh, and a slice written before it must still be placed correctly."""
+
+    def __Local_dofs(
+        self, problemType: ModelType, nodes: _types.IntArray = None
+    ) -> _types.IntArray:
+        """Dofs carried by `nodes`, by default the nodes of this rank's partition, ghosts included.
+
+        Node ids are global in the partitioned and the gathered view alike, and this maps them to dofs from the ids and `dof_n` alone, so the same call places a slice correctly on either side of a `_Gather`.
+        """
+        if nodes is None:
+            nodes = self.mesh.nodes
+
+        return self.Bc_dofs_nodes(nodes, self.Get_unknowns(problemType), problemType)
 
     def __Dof_sized_keys(self, iter: dict[str, Any]) -> dict[str, ModelType]:
         """Entries of an iteration dict that are full dof vectors, mapped to the problem type sizing them.
 
         The solver allgathers the solution, so every rank ends the step holding the same dof vector — storing them whole writes the same bytes ``MPI_SIZE`` times. Identification is by length, as in :meth:`Results_Reshape_values`.
+
+        Mapping *per entry* is what lets one dict hold several problems: a phase-field iteration stores ``damage`` at ``dof_n = 1`` beside ``displacement`` at ``dof_n = dim``, and each is sliced and restored with its own. Two problem types of equal ``dof_n`` (1D phase-field) collapse into one entry here, harmlessly — the dof of a node is ``node * dof_n + component``, so equal ``dof_n`` means identical indices whichever type is recorded.
         """
         sizes = {
             self.mesh.Nn * self.Get_dof_n(problemType): problemType
@@ -368,29 +379,71 @@ class _Simu(_IObserver, _params.Updatable, ABC):
 
         keys = self.__Dof_sized_keys(iter)
 
+        nodes = self.mesh.nodes
+
         iter = iter.copy()
         for key, problemType in keys.items():
-            iter[key] = iter[key][self.__Local_dofs(problemType)]
+            iter[key] = iter[key][self.__Local_dofs(problemType, nodes)]
         iter[_Simu.__LOCAL_DOFS_KEY] = keys
+        iter[_Simu.__LOCAL_NODES_KEY] = nodes
 
         return iter
 
-    def __Restore_iter_from_local(self, iter: dict[str, Any]) -> dict[str, Any]:
+    def __Restore_iter_from_local(self, parts: list[dict[str, Any]]) -> dict[str, Any]:
         """Rebuilds the dof vectors that :meth:`__Reduce_iter_to_local` sliced, back to full length so global dof indexing keeps working.
 
-        Dofs outside this rank's partition come back as zero. They are never read: every quantity the rank derives from a solution is an integral over its own elements, which reach no further than its ghost layer.
+        Each part is placed by the nodes *it* recorded, never by the current mesh: after a `_Gather` the mesh is the global one while the slice still covers a single partition. Given every rank's part, the merge therefore reconstructs the whole field; given one, the dofs outside that partition come back as zero — and they are never read, since a rank derives everything from integrals over its own elements, which reach no further than its ghost layer.
         """
-        keys = iter.pop(_Simu.__LOCAL_DOFS_KEY, None)
+        keys = parts[0].get(_Simu.__LOCAL_DOFS_KEY)
 
         if not keys:
-            return iter
+            return parts[0]
+
+        merged = parts[0].copy()
+        merged.pop(_Simu.__LOCAL_DOFS_KEY)
+        merged.pop(_Simu.__LOCAL_NODES_KEY)
+
+        if len(parts) > 1:
+            # element-sized entries would need each rank's `_globalElements` to merge, which is not
+            # stored; better to say so than to hand back rank 0's partition as if it were the mesh
+            perElement = [
+                key
+                for key, value in merged.items()
+                if isinstance(value, np.ndarray) and key not in keys
+            ]
+            assert not perElement, (
+                f"{perElement} are stored per element, so they cannot be reassembled after a _Gather. "
+                "Read them before gathering, or keep the results in memory (folder='')."
+            )
 
         for key, problemType in keys.items():
             full = np.zeros(self.mesh.Nn * self.Get_dof_n(problemType))
-            full[self.__Local_dofs(problemType)] = iter[key]
-            iter[key] = full
+            for part in parts:
+                dofs = self.__Local_dofs(problemType, part[_Simu.__LOCAL_NODES_KEY])
+                full[dofs] = part[key]
+            merged[key] = full
 
-        return iter
+        return merged
+
+    def __Read_iter_parts(self, path: str) -> list[dict[str, Any]]:
+        """The pickles making up one stored iteration: this rank's alone, or every rank's once gathered.
+
+        After `_Gather` rank 0 owns the global mesh, so its own partition's slice is only a fraction of the field it is now expected to serve; the other ranks' files hold the rest.
+        """
+        if not self.isGathered or MPI_SIZE == 1:
+            with open(path, "rb") as f:
+                return [pickle.load(f)]
+
+        parts = []
+        for rank in range(MPI_SIZE):
+            with open(path.replace(f"_rank{MPI_RANK}", f"_rank{rank}"), "rb") as f:
+                parts.append(pickle.load(f))
+
+        assert all(
+            _Simu.__LOCAL_NODES_KEY in part for part in parts
+        ), "these results predate the self-describing format and cannot be merged after a _Gather"
+
+        return parts
 
     def Get_results(self, iter: int = -1) -> dict:
         """Return the iteration dict at index ``iter``, loading from disk if the entry is a pickle path. Pure read — no mutation of simulation state (use :meth:`Set_Iter` for that), and no collective under MPI."""
@@ -400,8 +453,7 @@ class _Simu(_IObserver, _params.Updatable, ABC):
         assert 0 <= iter < self.Niter, f"`iter` must be in [0, {self.Niter})"
         entry = self.__list_results[iter]
         if isinstance(entry, str):
-            with open(entry, "rb") as f:
-                return self.__Restore_iter_from_local(pickle.load(f))
+            return self.__Restore_iter_from_local(self.__Read_iter_parts(entry))
         return entry.copy()
 
     @abstractmethod

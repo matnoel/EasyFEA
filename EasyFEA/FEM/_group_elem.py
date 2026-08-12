@@ -211,17 +211,22 @@ class _GroupElem(ABC):
         Remark
         ------
         Ghost nodes will be computed using the given (non-ghost) nodes array.
+
+        The four index arrays are stored **sorted**, whatever order they arrive in: `Mesher` builds them
+        from python sets, so they come in hash order, while `connect` is in global-index order. Every
+        consumer pairs the two through `np.searchsorted`, which requires sorted input and returns
+        out-of-range indices rather than complaining when it does not get it.
         """
 
         Ne = self.__connect.shape[0]
         # set elements (may be smaller than Ne when ghost elements are present)
-        elements = np.asarray(elements, dtype=int)
+        elements = np.sort(np.asarray(elements, dtype=int))
         assert elements.size <= Ne
-        ghostElements = np.asarray(ghostElements, dtype=int)
+        ghostElements = np.sort(np.asarray(ghostElements, dtype=int))
         assert ghostElements.size <= Ne
         # get nodes and ghost nodes
-        nodes = np.asarray(nodes, dtype=int)
-        ghostNodes = np.asarray(list(set(self.nodes) - set(nodes)), dtype=int)
+        nodes = np.sort(np.asarray(nodes, dtype=int))
+        ghostNodes = np.sort(np.asarray(list(set(self.nodes) - set(nodes)), dtype=int))
 
         self.__partitionned_data = (rank, elements, ghostElements, nodes, ghostNodes)
 
@@ -250,7 +255,7 @@ class _GroupElem(ABC):
         """
         _, elements, ghostElements, _, _ = self.__partitionned_data
 
-        # serial, and any rank with no partition boundary for this type
+        # both arrays are stored sorted, so the merge is the only work left
         if ghostElements.size == 0:
             return elements
 

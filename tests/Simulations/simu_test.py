@@ -5,6 +5,8 @@
 
 import os
 
+import numpy as np
+
 from EasyFEA import Models, Simulations
 from EasyFEA.Geoms import Domain, Point
 
@@ -91,3 +93,48 @@ class TestSimu:
         simu.Save_Iter()
         assert "indexMesh" in simu.Get_results(0)  # disk entry
         assert "indexMesh" in simu.Get_results(1)  # in-memory entry
+
+    def test_local_slices_are_placed_by_their_own_nodes(self):
+        """A stored slice records the nodes it covers, so it is placed correctly whatever the mesh
+        became afterwards. `_Gather` swaps a rank's partition for the global mesh between the write
+        and the read, and restoring against the live mesh instead is what broke MonoVentricular.py.
+
+        Two partitions are simulated here rather than run under mpirun: the merge is the logic, and
+        the phase-field pair exercises it for two problem types at once (damage at dof_n = 1 beside
+        displacement at dof_n = dim), each of which must come back with its own dof count.
+        """
+        mesh = Domain(Point(), Point(1, 1), meshSize=0.34).Mesh_2D()
+        mat = Models.Elastic.Isotropic(
+            dim=2, E=210e3, v=0.3, planeStress=True, thickness=1.0
+        )
+        simu = Simulations.PhaseField(
+            mesh, Models.PhaseField(mat, "He", "AT2", Gc=1.0, l0=0.1)
+        )
+
+        Nn = mesh.Nn
+        damage = np.arange(Nn, dtype=float) + 1
+        displacement = np.arange(Nn * 2, dtype=float) + 1
+
+        # two disjoint node sets covering the mesh, as two ranks would hold
+        left, right = mesh.nodes[: Nn // 2], mesh.nodes[Nn // 2 :]
+
+        parts = []
+        for nodes in (left, right):
+            part = {"damage": None, "displacement": None, "indexMesh": 0}
+            for key, values, problemType in (
+                ("damage", damage, "damage"),
+                ("displacement", displacement, "elastic"),
+            ):
+                part[key] = values[simu._Simu__Local_dofs(problemType, nodes)]
+            part["__mpiLocalDofKeys"] = {"damage": "damage", "displacement": "elastic"}
+            part["__mpiLocalNodes"] = nodes
+            parts.append(part)
+
+        merged = simu._Simu__Restore_iter_from_local(parts)
+
+        assert np.array_equal(merged["damage"], damage)
+        assert np.array_equal(merged["displacement"], displacement)
+        # one part alone covers only its own nodes, the rest staying zero
+        alone = simu._Simu__Restore_iter_from_local(parts[:1])
+        assert np.array_equal(alone["damage"][left], damage[left])
+        assert not alone["damage"][right].any()
