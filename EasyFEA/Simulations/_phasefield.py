@@ -10,7 +10,7 @@ from scipy import sparse
 # utilities
 from ..Utilities import Terminal, Folder, Tic, _types
 from ..Utilities._observers import Observable
-from ..Utilities._mpi import CAN_USE_MPI, MPI_SIZE, MPI_COMM
+from ..Utilities._mpi import CAN_USE_MPI, MPI_SIZE, MPI_COMM, Reduce_sum
 
 # fem
 from ..FEM import Mesh, MatrixType, FeArray, Operators
@@ -769,17 +769,17 @@ class PhaseField(_Simu):
 
         tic = Tic()
 
-        u = self.displacement.reshape(-1, 1)
+        u = self.displacement
+        # every rank holds the same solution, so they all take the same branch and the reduction
+        # inside Calc_Energy stays collective
         if np.linalg.norm(u) == 0:
             Psi_Elas = 0
         else:
-            dofs = self.Get_dofs(problemType=ModelType.elastic)
             with np.errstate(divide="ignore", over="ignore", invalid="ignore"):
-                # Psi_Elas = 1 / 2 * (u.T @ Ku @ u)[0, 0]
-                Psi_Elas = 1 / 2 * (u[dofs].T @ Ku[dofs] @ u)[0, 0]
-
-            if MPI_SIZE > 1:
-                Psi_Elas = MPI_COMM.allreduce(Psi_Elas, op=MPI.SUM)
+                # the degraded stiffness can overflow where the damage saturates
+                Psi_Elas = self.Calc_Energy(
+                    Ku, u, self.Get_dofs(problemType=ModelType.elastic)
+                )
 
         tic.Tac("PostProcessing", "Calc Psi Elas", False)
 
@@ -792,15 +792,14 @@ class PhaseField(_Simu):
 
         tic = Tic()
 
-        d = self.damage.reshape(-1, 1)
+        d = self.damage
         if np.linalg.norm(d) == 0:
             Psi_Crack = 0
         else:
-            dofs = self.Get_dofs(problemType=ModelType.damage)
             with np.errstate(divide="ignore", over="ignore", invalid="ignore"):
-                Psi_Crack = 1 / 2 * (d[dofs].T @ Kd[dofs] @ d)[0, 0]
-            if MPI_SIZE > 1:
-                Psi_Crack = MPI_COMM.allreduce(Psi_Crack, op=MPI.SUM)
+                Psi_Crack = self.Calc_Energy(
+                    Kd, d, self.Get_dofs(problemType=ModelType.damage)
+                )
 
         tic.Tac("PostProcessing", "Calc Psi Crack", False)
 
@@ -818,9 +817,8 @@ class PhaseField(_Simu):
         else:
             dofs = self.Get_dofs(problemType=ModelType.elastic)
             with np.errstate(divide="ignore", over="ignore", invalid="ignore"):
-                Psi_Ext = u_n[dofs] @ f_n[dofs]
-            if MPI_SIZE > 1:
-                Psi_Ext = MPI_COMM.allreduce(Psi_Ext, op=MPI.SUM)
+                # no operator and no 1/2, so this one is a plain reduction rather than Calc_Energy
+                Psi_Ext = Reduce_sum(u_n[dofs] @ f_n[dofs])
 
         tic.Tac("PostProcessing", "Calc Psi Ext", False)
 

@@ -266,11 +266,10 @@ def __Make_vtu(
 
         # Ghost data (MPI only): vtkGhostType marks cells/points shared with neighbours; value 1 means duplicate cells or points.
         if MPI_SIZE > 1:
-            _, elems, ghostElems, _, ghostNodes = groupElem._Get_partitioned_data()
+            _, _, ghostElems, _, ghostNodes = groupElem._Get_partitioned_data()
             gc = np.zeros(groupElem.Ne, dtype=np.uint8)
             if ghostElems.size > 0:
-                allElems = np.unique(np.concatenate([elems, ghostElems]))
-                gc[np.searchsorted(allElems, ghostElems)] = 1
+                gc[np.searchsorted(groupElem._globalElements, ghostElems)] = 1
             list_ghostCells.append(gc)
             list_ghostNodes.append(ghostNodes)
 

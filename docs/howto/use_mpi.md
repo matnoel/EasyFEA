@@ -72,8 +72,9 @@ EasyFEA uses **element-level domain decomposition**: each rank owns a disjoint
 subset of elements, plus a layer of **ghost elements** at partition boundaries.
 Ghost elements are copies of elements owned by a neighbouring rank; they are
 needed so that each rank can assemble the full stiffness contribution of every
-shared node without inter-rank communication during assembly. The node
-coordinate array is **not** distributed — all ranks hold the full node array.
+shared node without inter-rank communication during assembly. Node coordinates
+are distributed with the elements: a rank holds the coordinates of the nodes its
+own elements use, and no others.
 
 The parallel execution proceeds as follows for each solve:
 
@@ -139,6 +140,45 @@ slow or fails to converge.
 ---
 
 ## Post-process results
+
+### Reduce your own quantities
+
+The solve is handled for you, but **anything your script computes itself is partition-local until you
+reduce it**. A `.sum()` over elements, a `.min()` over Gauss points, a `.max()` over a node tag: each
+returns this rank's share, silently and without error. {py:mod}`EasyFEA.Utilities._mpi` provides the
+reductions, all of which are the identity in serial, so the script is written once and runs under any
+number of ranks:
+
+```python
+from EasyFEA.Utilities._mpi import Reduce_sum, Reduce_min, Reduce_max, Allgather
+
+volume = Reduce_sum(vol_e[elements].sum())   # an integral over the mesh
+minDetF = Reduce_min(np.linalg.det(F_e_pg).min())
+```
+
+Two traps worth knowing:
+
+- **Ghost elements are counted twice.** A sum over elements must run over the *owned* ones only, or
+  every partition-boundary element contributes from both its ranks. `_Get_partitioned_data()` gives
+  them; `groupElem._globalElements` maps local rows to global indices. A `min` or `max` needs no such
+  care — a duplicate cannot change an extremum.
+- **A signed sum must be reduced before it is rectified.** `abs(local.sum())` reduced is not
+  `abs(global.sum())`.
+
+For an energy, {py:meth}`~EasyFEA.Simulations._Simu.Calc_Energy` does this correctly already:
+
+```python
+K, _, M, _ = simu.Get_K_C_M_F()
+energy = simu.Calc_Energy(K, u) + simu.Calc_Energy(M, v)
+```
+
+Reductions that are not a scalar operation go through `Allgather` — reduce locally first, then gather
+one candidate per rank, never the raw data:
+
+```python
+coord = mesh.groupElem.coord                 # dense, this rank's nodes, no empty rows
+apex = min(Allgather(coord[np.argmin(coord[:, 2])]), key=lambda point: point[2])
+```
 
 ### Plotting and in-memory post-processing
 

@@ -233,6 +233,30 @@ class _GroupElem(ABC):
         return self.__partitionned_data
 
     @property
+    def _globalElements(self) -> _types.IntArray:
+        """Global element index of each row of `connect`.
+
+        `arange(Ne)` in serial. Under MPI the rows are this rank's owned and ghost elements, sorted by
+        global index. Use it to index an array stored for the whole mesh (a fibre field, a per-element
+        contractility) with this rank's elements — the element counterpart of `_global_to_local_nodes`.
+
+        Not to be confused with `elements`, which is `arange(Ne)` in both cases because tags, `vol_e`
+        and every other per-element array are indexed by local row.
+
+        Always `Ne` long, so it indexes a whole-mesh array into exactly this group's rows. That holds
+        at the edges too: an empty group gives an empty `int` array rather than a float one, and a rank
+        holding only the boundary layer of a type (no owned element, ghosts only) gives the ghosts —
+        `connect` is built from the same `unique(owned ∪ ghosts)`.
+        """
+        _, elements, ghostElements, _, _ = self.__partitionned_data
+
+        # serial, and any rank with no partition boundary for this type
+        if ghostElements.size == 0:
+            return elements
+
+        return np.unique(np.concatenate([elements, ghostElements]))
+
+    @property
     def _rankPartition(self) -> Optional[_types.IntArray]:
         """Array of shape (Ne,) where rankPartition[e] is the MPI rank that owned
         element e. Set on rank 0 only after Gather(). None on all other ranks."""

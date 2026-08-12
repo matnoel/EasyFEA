@@ -411,8 +411,18 @@ class Mesh(Observable):
 
     @property
     def coord(self) -> _types.FloatArray:
-        """global nodes coordinates matrix (Ncoords, 3)\n
-        Contains all nodes coordinates"""
+        """nodes coordinates matrix (Ncoords, 3), indexed by global node id.
+
+        MPI
+        ---
+        Global in its *indexing* only: the rows of the nodes outside this rank's partition are never
+        written and stay at zero. Index it with local nodes — `mesh.nodes`, or a node tag intersected
+        with them — and reduce anything global (see `Utilities._mpi`). Reading it whole is what makes
+        `argmin(coord[:, 2])` return a different node on each rank, and a `max` over a node tag return
+        the 0.0 of a row nobody filled.
+
+        `groupElem.coord` is the dense local slice, `(Nn_local, 3)`, with no such rows.
+        """
         coord = np.zeros((self.Nn, 3), dtype=float)
         for groupElem in self.dict_groupElem.values():
             coord[groupElem.nodes] = groupElem.coord
@@ -459,11 +469,9 @@ class Mesh(Observable):
         # Gather element connectivity per type.
         dict_gathered: dict = {}
         for elemType, groupElem in self.__dict_groupElem.items():
-            # connect rows cover owned + ghost elements sorted by global index.
             # searchsorted maps each owned global index to its local row in connect.
-            _, elements, ghostElements, _, _ = groupElem._Get_partitioned_data()
-            all_global = np.unique(np.concatenate([elements, ghostElements]))
-            owned_local = np.searchsorted(all_global, elements)
+            _, elements, _, _, _ = groupElem._Get_partitioned_data()
+            owned_local = np.searchsorted(groupElem._globalElements, elements)
             owned_connect = groupElem.connect[owned_local]  # (n_owned, nPe)
 
             all_connect = MPI_COMM.gather(owned_connect, root=0)

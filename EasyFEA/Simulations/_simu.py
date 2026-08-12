@@ -18,7 +18,13 @@ from ..__about__ import __version__
 from ..Utilities import Folder, Terminal, Tic, _params, _types
 from ..Utilities._cache import cache_computed_values, clear_cached_computed_values
 from ..Utilities._observers import Observable, _IObserver
-from ..Utilities._mpi import CAN_USE_MPI, MPI_SIZE, MPI_RANK, MPI_COMM
+from ..Utilities._mpi import (
+    CAN_USE_MPI,
+    MPI_SIZE,
+    MPI_RANK,
+    MPI_COMM,
+    Reduce_sum,
+)
 
 # fem
 from ..FEM import (
@@ -171,10 +177,61 @@ class _Simu(_IObserver, _params.Updatable, ABC):
 
         return self.__K.copy(), self.__C.copy(), self.__M.copy(), self.__F.copy()
 
+    def Calc_Energy(
+        self,
+        A: sparse.csr_matrix,
+        x: _types.FloatArray,
+        dofs: _types.IntArray = None,
+    ) -> float:
+        """Energy `1/2 xᵀ A x` of a dof vector, summed over the ranks.
+
+        Under MPI a rank assembles its owned *and* ghost elements, so `A` is complete only on the rows
+        of the dofs the rank owns. Restricting the quadratic form to those rows makes the ranks'
+        contributions disjoint, so they sum to the global energy — the same argument
+        :meth:`Calc_Reaction` uses for `K[dofs] @ u`. Taking the form over all rows instead would
+        count the ghost layer once per rank sharing it.
+
+        Parameters
+        ----------
+        A : sparse.csr_matrix
+            Operator of the energy, e.g. `K` for the strain energy or `M` for the kinetic one.
+        x : _types.FloatArray
+            Dof vector, of the full `(Ndof,)` length on every rank as the solver leaves it.
+        dofs : _types.IntArray, optional
+            Owned dofs, by default `Get_dofs()`. Pass them in a time loop, where they do not change
+            and `Get_dofs` is not cached.
+
+        Returns
+        -------
+        float
+            The energy, identical on every rank.
+        """
+
+        if dofs is None:
+            dofs = self.Get_dofs()
+
+        return Reduce_sum(0.5 * x[dofs] @ (A[dofs] @ x))
+
     def Calc_Reaction(
         self, dofs: _types.IntArray = None, problemType=None
     ) -> np.ndarray:
-        """Resultant reaction at nodes: `K[dofs, :] @ u`, MPI-safe."""
+        """Resultant internal force at nodes, `K[dofs] @ u` plus the terms the time scheme brings in:
+        `+ C[dofs] @ v` for a parabolic algo, `+ C[dofs] @ v + M[dofs] @ a` for a hyperbolic one.
+        `F` is *not* subtracted, so this equals the reaction proper only where no load is applied —
+        which is the usual case at a Dirichlet boundary.
+
+        Returns
+        -------
+        np.ndarray
+            Serial: the values at `dofs`, shape `(len(dofs),)`.
+            MPI: the full `(Ndof,)` vector, zero away from `dofs`.
+
+            The shapes differ deliberately. `dofs` is normally built from `Nodes_Conditions` or a node
+            tag, which under MPI yields *this rank's* nodes only, so no single rank holds the whole
+            boundary. Returning the reduced full vector is what makes the idiomatic
+            `np.sum(simu.Calc_Reaction(dofs))` the resultant over the entire boundary on every rank,
+            rather than one rank's share of it. Reach for a specific dof by index, never by position.
+        """
 
         if self.isNonLinear:
             raise NotImplementedError
@@ -201,8 +258,7 @@ class _Simu(_IObserver, _params.Updatable, ABC):
             reaction[dofs] += M[dofs] @ self._Get_a_n(problemType)
 
         if MPI_SIZE > 1:
-            reaction = MPI_COMM.allreduce(reaction, op=MPI.SUM)
-            return reaction
+            return Reduce_sum(reaction)
         else:
             return reaction[dofs]
 
