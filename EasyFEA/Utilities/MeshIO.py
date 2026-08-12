@@ -8,7 +8,7 @@
 from __future__ import annotations
 import re
 from collections import Counter
-from typing import Any, Optional, Union
+from typing import Any, Iterable, Optional, Union
 import numpy as np
 from enum import Enum
 
@@ -385,6 +385,20 @@ __RE_MESHER_TAG = re.compile(rf"^([{''.join(TAG_LETTER_TO_DIM)}])(\d+)$")
 """Matches the tags Mesher creates, e.g. S3, so their number can be reused."""
 
 
+def _Sort_tags(tags: Iterable[str]) -> list[str]:
+    """Sorts tags on the numbers they contain, so that V2 comes before V10."""
+
+    def key(tag: str) -> list[tuple[int, Any]]:
+        # the leading 0/1 keeps numbers comparable with numbers and text with text
+        return [
+            (0, int(part)) if part.isdigit() else (1, part)
+            for part in re.split(r"(\d+)", tag)
+            if part
+        ]
+
+    return sorted(tags, key=key)
+
+
 def __Get_dict_tags_converter(mesh: Mesh) -> dict[str, int]:
     """Maps every tag of the mesh to an integer, as formats holding only references need.
 
@@ -395,7 +409,7 @@ def __Get_dict_tags_converter(mesh: Mesh) -> dict[str, int]:
 
     assert isinstance(mesh, Mesh), "mesh must be a EasyFEA mesh!"
 
-    tags = sorted(
+    tags = _Sort_tags(
         {
             tag
             for groupElem in mesh.dict_groupElem.values()
@@ -481,7 +495,6 @@ def _EasyFEA_to_Meshio(
     list_elements: list[_types.IntArray] = []
 
     groupElems = list(mesh.dict_groupElem.values())
-    shadowed: set[str] = set()
 
     # loop over the group elem in the mesh
     for groupElem in groupElems:
@@ -501,33 +514,22 @@ def _EasyFEA_to_Meshio(
 
         # set cell dict
         cells_dict[meshioType] = connect
-        # get element tags
+        # get element tags, 0 marking an element belonging to no tag
         element_tags = np.zeros(groupElem.Ne, dtype=int)
-        # 0 means untagged, so an element claimed twice would otherwise be shadowed silently
-        owner = np.full(groupElem.Ne, "", dtype=object)
 
         # converts tags and make sure they are integers
+        elements_tags = groupElem._dict_elements_tags
         for tag, val in dict_tags_converter.items():
             assert isinstance(val, int), "dict_tags_converter values must be integers."
-            # elements
-            elements = groupElem.Get_Elements_Tag(tag)
-            if elements.size > 0:
-                taken = elements[owner[elements] != ""]
-                if taken.size > 0:
-                    shadowed.update(np.unique(owner[taken]).tolist())
+            # elements, read from the group directly: Get_Elements_Tag prints for every miss
+            elements = elements_tags.get(tag)
+            if elements is not None:
                 element_tags[elements] = int(val)
-                owner[elements] = tag
         list_elements.append(element_tags)
 
     cell_data = {cellType: list_elements}
 
-    if shadowed:
-        Terminal.MyPrintError(
-            f"An element holds several tags, but a format storing one reference per element keeps"
-            f" only the last: {sorted(shadowed)} will not come back from such a file."
-        )
-
-    point_sets, cell_sets = _Get_sets(groupElems)
+    point_sets = _Get_point_sets(groupElems)
 
     # import in meshio
     try:
@@ -538,7 +540,6 @@ def _EasyFEA_to_Meshio(
             cell_data,
             field_data=_Get_field_data(mesh, dict_tags_converter),
             point_sets=point_sets,
-            cell_sets=cell_sets,
         )
 
     except KeyError:
@@ -549,26 +550,24 @@ def _EasyFEA_to_Meshio(
     return meshioMesh
 
 
-def _Get_sets(
-    groupElems: list[_GroupElem],
-) -> tuple[dict[str, _types.IntArray], dict[str, list[Optional[_types.IntArray]]]]:
-    """Converts EasyFEA tags to meshio named sets, one cell_sets entry per group of elements."""
+def _Get_point_sets(groupElems: list[_GroupElem]) -> dict[str, _types.IntArray]:
+    """Converts EasyFEA tags to meshio named point sets.
+
+    A tag is a set of nodes: Set_Tag derives the elements from them, Mesh.Set_Tag hands the same
+    nodes to every group, and Mesh.Save keeps only _dict_nodes_tags. Writing cell_sets as well
+    would promise element sets that nothing in EasyFEA stores, so only the nodes are written.
+    """
 
     nodes_tags = [groupElem._dict_nodes_tags for groupElem in groupElems]
-    elements_tags = [groupElem._dict_elements_tags for groupElem in groupElems]
 
-    tags = sorted({tag for dict_tags in nodes_tags for tag in dict_tags})
+    tags = _Sort_tags({tag for dict_tags in nodes_tags for tag in dict_tags})
 
-    point_sets = {
+    return {
         tag: np.unique(
             np.concatenate([d[tag] for d in nodes_tags if tag in d] or [np.empty(0)])
         ).astype(int)
         for tag in tags
     }
-    # a group without the tag contributes None, which meshio skips
-    cell_sets = {tag: [d.get(tag) for d in elements_tags] for tag in tags}
-
-    return point_sets, cell_sets
 
 
 @requires_meshio
@@ -617,8 +616,8 @@ def _Meshio_to_EasyFEA(meshioMesh: meshio.Mesh) -> Mesh:
 
     # named sets keep the tags verbatim; integer refs are the fallback for formats that
     # have nothing else, such as medit
-    if meshioMesh.point_sets or meshioMesh.cell_sets:
-        _Set_Sets(mesh, meshioMesh)
+    if meshioMesh.point_sets:
+        _Set_Point_Sets(mesh, meshioMesh)
     else:
         _Set_Tags(mesh, _Get_dict_tags(meshioMesh), meshioMesh.field_data)
 
@@ -660,30 +659,27 @@ def _Get_dict_tags(meshioMesh: meshio.Mesh) -> dict[str, _types.IntArray]:
     return {}
 
 
-def _Set_Sets(mesh: Mesh, meshioMesh: meshio.Mesh) -> None:
-    """Restores EasyFEA tags from meshio named sets."""
+def _Set_Point_Sets(mesh: Mesh, meshioMesh: meshio.Mesh) -> None:
+    """Restores EasyFEA tags from meshio named point sets.
 
-    point_sets = meshioMesh.point_sets
-    tagged: set[str] = set()
+    field_data gives the dimension each tag belongs to, which is what says whether a tag is a
+    surface or a volume one. Without it the nodes go to every group, as Mesh.Set_Tag does.
+    """
 
-    for tag, dict_cells in meshioMesh.cell_sets_dict.items():
-        for meshioType, elements in dict_cells.items():
-            elemType = DICT_MESHIO_TO_ELEMTYPE[meshioType]
-            if elemType not in mesh.dict_groupElem:
-                continue
-            groupElem = mesh.dict_groupElem[elemType]
-            nodes = point_sets.get(tag)
-            if nodes is None:
-                nodes = np.unique(groupElem.connect[elements])
-            groupElem.Set_Tag(np.asarray(nodes, dtype=int), tag)
-            tagged.add(tag)
+    dict_dims = {
+        name: int(value[1])
+        for name, value in meshioMesh.field_data.items()
+        if len(value) >= 2
+    }
 
-    # a tag whose nodes match no element has no cell_sets entry; keep the node set by
-    # giving it to every group, since nothing records which one it came from
-    for tag, nodes in point_sets.items():
-        if tag in tagged:
-            continue
-        for groupElem in mesh.dict_groupElem.values():
+    for tag, nodes in meshioMesh.point_sets.items():
+        dim = dict_dims.get(tag)
+        groupElems = (
+            mesh.Get_list_groupElem(dim)
+            if dim is not None
+            else mesh.dict_groupElem.values()
+        )
+        for groupElem in groupElems:
             groupElem.Set_Tag(np.asarray(nodes, dtype=int), tag)
 
 
@@ -872,6 +868,14 @@ def EasyFEA_to_Gmsh(mesh: Mesh, folder: str, name: str, useBinary=False) -> str:
     # gmsh:physical is the only key meshio writes as an element reference; anything else lands
     # in $ElementData, where the references are lost and the zeroed gmsh:physical wins on read
     meshioMesh = _EasyFEA_to_Meshio(mesh, dict_tags_converter, "gmsh:physical")
+
+    # gmsh resolves a physical group through the geometrical entities it holds, so leaving
+    # gmsh:geometrical unset puts every element in entity 0 and each group then covers the whole
+    # mesh. Giving each tag its own entity keeps the groups apart, which is what
+    # Mesher.Mesh_Import_mesh reads back through getNodesForPhysicalGroup.
+    meshioMesh.cell_data["gmsh:geometrical"] = [
+        data.copy() for data in meshioMesh.cell_data["gmsh:physical"]
+    ]
 
     filename = Folder.Join(folder, f"{name}.msh", mkdir=True)
 
