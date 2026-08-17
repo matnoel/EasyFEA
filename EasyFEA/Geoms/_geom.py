@@ -10,7 +10,7 @@ from abc import ABC, abstractmethod
 import numpy as np
 import copy
 
-from ._utils import Point, Rotate, Symmetry
+from ._utils import Point, Rotate, Symmetry, AsCoords, Distance_To_Polyline
 
 from ..FEM._utils import ElemType
 from typing import Union, Optional, Iterable, TYPE_CHECKING
@@ -115,6 +115,44 @@ class _Geom(ABC):
             Lines and points coordinates as NumPy arrays.
         """
         raise NotImplementedError
+
+    def Contains(self, coord: _types.Coords, tol: float = 1e-12) -> _types.BoolArray:
+        """Returns, for each of the given points, whether it lies on the curves this geometry produces.
+
+        For a region this means the boundary, not the interior: a point at the center of a `Circle` is not contained. The default samples the geometry through `Get_coord_for_plot`, so it is only as accurate as that polyline and `tol` has to absorb the difference; subclasses whose curves have a closed form override it and are exact.
+        """
+
+        lines = self.Get_coord_for_plot(N=200)[0]
+        # the sampling error is this geometry's own business, not the caller's
+        extent = float(np.linalg.norm(lines.max(axis=0) - lines.min(axis=0)))
+
+        return Distance_To_Polyline(coord, lines) <= tol + 1e-4 * extent
+
+    def Encloses(self, coord: _types.Coords, tol: float = 1e-12) -> _types.BoolArray:
+        """Returns, for each of the given points, whether it lies in the region the geometry encloses, boundary included.
+
+        The counterpart of `Contains`: a point at the center of a `Circle` is enclosed but not contained. The default casts a ray at the outline sampled through `Get_coord_for_plot`, taken in its own plane, and so is both approximate and O(points x segments); subclasses with a closed form override it.
+        """
+
+        outline = self.Get_coord_for_plot(N=200)[0]
+        origin = outline.mean(axis=0)
+        # the outline is planar, so its smallest singular direction is the plane normal
+        i, j, n = np.linalg.svd(outline - origin, full_matrices=False)[2]
+
+        vect = np.reshape(AsCoords(coord), (-1, 3)) - origin
+        x, y = vect @ i, vect @ j
+
+        edge = outline - origin
+        x1, y1 = edge @ i, edge @ j
+        x2, y2 = np.roll(x1, -1), np.roll(y1, -1)
+
+        # even-odd rule: count the outline crossings of a ray cast along +x
+        straddles = (y1 > y[:, None]) != (y2 > y[:, None])
+        with np.errstate(divide="ignore", invalid="ignore"):
+            crossing = (x2 - x1) * (y[:, None] - y1) / (y2 - y1) + x1
+        inside = np.sum(straddles & (x[:, None] < crossing), axis=1) % 2 == 1
+
+        return (np.abs(vect @ n) <= tol) & (inside | self.Contains(coord, tol))
 
     def copy(self):
         new = copy.deepcopy(self)

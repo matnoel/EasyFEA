@@ -84,6 +84,10 @@ class Contour(_Geom):
         meshSize = np.mean([geom.meshSize for geom in geoms]).astype(float)
         _Geom.__init__(self, points, meshSize, name, isFilled, isOpen)
 
+    def Contains(self, coord: _types.Coords, tol: float = 1e-12) -> _types.BoolArray:
+        """Returns, for each of the given points, whether it lies on one of the edges."""
+        return np.logical_or.reduce([geom.Contains(coord, tol) for geom in self.geoms])
+
     def Get_coord_for_plot(
         self, N: int = None
     ) -> tuple[_types.FloatArray, _types.FloatArray]:

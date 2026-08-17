@@ -246,6 +246,48 @@ def Normalize(array: _types.Coords) -> _types.FloatArray:
         raise Exception("The array is the wrong size")
 
 
+def Polar_Coords(
+    coord: _types.Coords, center: _types.Coords, i: _types.Coords, n: _types.Coords
+) -> tuple[_types.FloatArray, _types.FloatArray, _types.FloatArray]:
+    """Returns each point's radius, angle from `i` and distance out of the (i, n x i) plane.
+
+    Angles are measured the way an arc is drawn, i.e. positively around `n` from `i`, and wrapped to [0, 2 pi[.
+    """
+    i = Normalize(AsCoords(i))
+    n = Normalize(AsCoords(n))
+    j = Normalize(np.cross(n, i))
+
+    vect = np.reshape(AsCoords(coord), (-1, 3)) - np.reshape(AsCoords(center), 3)
+
+    x, y, z = vect @ i, vect @ j, vect @ n
+
+    return np.hypot(x, y), np.arctan2(y, x) % (2 * np.pi), np.abs(z)
+
+
+def Distance_To_Polyline(
+    coord: _types.Coords, polyline: _types.AnyArray
+) -> _types.FloatArray:
+    """Returns the distance from each point to the polyline joining `polyline`'s consecutive points."""
+    coord = np.reshape(AsCoords(coord), (-1, 3))
+    polyline = np.reshape(np.asarray(polyline, dtype=float), (-1, 3))
+
+    if polyline.shape[0] == 1:
+        return np.linalg.norm(coord - polyline, axis=1)
+
+    starts = polyline[:-1]
+    vects = polyline[1:] - starts  # (nSeg, 3)
+    lengths = np.sum(vects * vects, axis=1)
+    lengths[lengths == 0] = 1  # a degenerate segment projects on its own start
+
+    # (nCoord, nSeg) abscissa of each point projected on each segment, clamped to it
+    delta = coord[:, None] - starts[None]
+    t = np.clip(np.sum(delta * vects[None], axis=2) / lengths, 0, 1)
+
+    gaps = delta - t[..., None] * vects[None]
+
+    return np.min(np.linalg.norm(gaps, axis=2), axis=1)
+
+
 def Translate(
     coord: _types.AnyArray, dx: float = 0.0, dy: float = 0.0, dz: float = 0.0
 ) -> _types.FloatArray:

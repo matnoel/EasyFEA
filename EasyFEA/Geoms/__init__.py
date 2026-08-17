@@ -17,6 +17,7 @@ from ._utils import (
     AsPoint,
     AsCoords,
     Normalize,
+    Distance_To_Polyline,
     Translate,
     Rotate,
     Symmetry,

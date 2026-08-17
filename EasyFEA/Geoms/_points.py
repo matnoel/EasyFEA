@@ -137,6 +137,10 @@ class Points(_Geom):
 
         return contour
 
+    def Encloses(self, coord: _types.Coords, tol: float = 1e-12) -> _types.BoolArray:
+        """Returns, for each of the given points, whether it lies in the region the contour encloses."""
+        return self.Get_Contour().Encloses(coord, tol)
+
     def Get_coord_for_plot(
         self, N: int = None
     ) -> tuple[_types.FloatArray, _types.FloatArray]:

@@ -17,6 +17,7 @@ from ._utils import (
     Angle_Between,
     Circle_Triangle,
     Circle_Coords,
+    Polar_Coords,
 )
 from ._geom import _Geom
 from ..Utilities import _params, _types
@@ -141,6 +142,23 @@ class Circle(_Geom):
         j = Normalize((self.pt2 - self.center).coord)
         n: _types.Coords = Normalize(np.cross(i, j))
         return n
+
+    def Contains(self, coord: _types.Coords, tol: float = 1e-12) -> _types.BoolArray:
+        """Returns, for each of the given points, whether it lies on the circumference."""
+        i = (self.pt1 - self.center).coord
+        r, _, outOfPlane = Polar_Coords(coord, self.center.coord, i, self.n)
+
+        return (np.abs(r - self.diam / 2) <= tol) & (outOfPlane <= tol)
+
+    def Encloses(self, coord: _types.Coords, tol: float = 1e-12) -> _types.BoolArray:
+        """Returns, for each of the given points, whether it lies in the disk, circumference included.
+
+        The disk lies in the circle's own plane. Use `Mesh.Nodes_Cylinder` to select through a thickness.
+        """
+        i = (self.pt1 - self.center).coord
+        r, _, outOfPlane = Polar_Coords(coord, self.center.coord, i, self.n)
+
+        return (r <= self.diam / 2 + tol) & (outOfPlane <= tol)
 
     def Get_coord_for_plot(
         self, N: int = 40
@@ -357,6 +375,21 @@ class CircleArc(_Geom):
     def length(self) -> float:
         """circular arc length"""
         return np.abs(self.angle * self.r)
+
+    def Contains(self, coord: _types.Coords, tol: float = 1e-12) -> _types.BoolArray:
+        """Returns, for each of the given points, whether it lies on the arc."""
+        i = (self.pt1 - self.center).coord
+        r, theta, outOfPlane = Polar_Coords(coord, self.center.coord, i, self.n)
+
+        span = np.abs(self.angle)  # the arc is drawn from pt1 over [0, span]
+        angular = tol / self.r
+        onSpan = (theta <= span + angular) | (theta >= 2 * np.pi - angular)
+
+        return (np.abs(r - self.r) <= tol) & (outOfPlane <= tol) & onSpan
+
+    def Encloses(self, coord: _types.Coords, tol: float = 1e-12) -> _types.BoolArray:
+        """Returns `Contains`: an arc encloses no region."""
+        return self.Contains(coord, tol)
 
     def Get_coord_for_plot(
         self, N: int = 11

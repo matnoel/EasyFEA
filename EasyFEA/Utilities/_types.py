@@ -28,6 +28,9 @@ FloatArray = NDArray[np.floating]
 IntArray = NDArray[np.int_]
 """Int array"""
 
+BoolArray = NDArray[np.bool_]
+"""Bool array"""
+
 NumberArray = Union[FloatArray, IntArray]
 """Number array"""
 

@@ -1607,20 +1607,7 @@ class _GroupElem(ABC):
 
         assert isinstance(line, Line)
 
-        unitVector = line.unitVector
-
-        vect = self.coord - line.coord[0]
-
-        scalarProd = np.einsum("i,ni-> n", unitVector, vect, optimize="optimal")
-        crossProd = np.cross(vect, unitVector)
-        norm = np.linalg.norm(crossProd, axis=1)
-
-        eps = 1e-12
-
-        idx = np.where(
-            (norm < eps) & (scalarProd >= -eps) & (scalarProd <= line.length + eps)
-        )[0]
-
+        idx = np.where(line.Contains(self.coord, 1e-12))[0]
         return self.__nodes[idx].copy()
 
     def Get_Nodes_Domain(self, domain: "Domain") -> _types.IntArray:
@@ -1628,38 +1615,21 @@ class _GroupElem(ABC):
 
         assert isinstance(domain, Domain)
 
-        xn, yn, zn = self.coord.T
-
-        eps = 1e-12
-
-        idx = np.where(
-            (xn >= domain.pt1.x - eps)
-            & (xn <= domain.pt2.x + eps)
-            & (yn >= domain.pt1.y - eps)
-            & (yn <= domain.pt2.y + eps)
-            & (zn >= domain.pt1.z - eps)
-            & (zn <= domain.pt2.z + eps)
-        )[0]
-
+        idx = np.where(domain.Encloses(self.coord, 1e-12))[0]
         return self.__nodes[idx].copy()
 
     def Get_Nodes_Circle(self, circle: "Circle", onlyOnEdge=False) -> _types.IntArray:
-        """Returns nodes in the circle."""
+        """Returns nodes in the circle.
+
+        Both selections are taken in the circle's own plane; use `Get_Nodes_Cylinder` to select through a thickness.
+        """
 
         assert isinstance(circle, Circle)
 
-        eps = 1e-12
+        test = circle.Contains if onlyOnEdge else circle.Encloses
 
-        vals = np.linalg.norm(self.coord - circle.center.coord, axis=1)
-
-        if onlyOnEdge:
-            idx = np.where(
-                (vals <= circle.diam / 2 + eps) & (vals >= circle.diam / 2 - eps)
-            )
-        else:
-            idx = np.where(vals <= circle.diam / 2 + eps)
-
-        return self.__nodes[idx]
+        idx = np.where(test(self.coord, 1e-12))[0]
+        return self.__nodes[idx].copy()
 
     def Get_Nodes_Cylinder(
         self, circle: "Circle", direction=[0, 0, 1], onlyOnEdge=False

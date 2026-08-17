@@ -7,7 +7,7 @@
 
 import numpy as np
 
-from ._utils import Point, AsPoint
+from ._utils import Point, AsPoint, AsCoords
 from ._geom import _Geom
 from ..Utilities import _types
 
@@ -75,6 +75,21 @@ class Line(_Geom):
         lines = self.pt1.coord + dL * self.unitVector
         points = self.coord[[0, -1]]
         return lines, points
+
+    def Contains(self, coord: _types.Coords, tol: float = 1e-12) -> _types.BoolArray:
+        """Returns, for each of the given points, whether it lies on the segment."""
+        vect = np.reshape(AsCoords(coord), (-1, 3)) - self.pt1.coord
+        unitVector = self.unitVector
+
+        # distance to the infinite line, then abscissa clamped to the segment
+        gap = np.linalg.norm(np.cross(vect, unitVector), axis=1)
+        abscissa = vect @ unitVector
+
+        return (gap <= tol) & (abscissa >= -tol) & (abscissa <= self.length + tol)
+
+    def Encloses(self, coord: _types.Coords, tol: float = 1e-12) -> _types.BoolArray:
+        """Returns `Contains`: a line encloses no region."""
+        return self.Contains(coord, tol)
 
     @staticmethod
     def distance(pt1: Point, pt2: Point) -> float:

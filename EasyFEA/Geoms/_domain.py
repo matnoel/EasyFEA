@@ -7,7 +7,7 @@
 
 import numpy as np
 
-from ._utils import Point, AsPoint
+from ._utils import Point, AsPoint, AsCoords
 from ._geom import _Geom
 from ..Utilities import _types
 
@@ -61,6 +61,44 @@ class Domain(_Geom):
     def pt2(self) -> Point:
         """second point"""
         return self.points[1]
+
+    def Get_Contour(self):
+        """Creates the contour object associated with the domain: the four edges in the `pt1.z` plane, as the domain is meshed."""
+        pt1, pt2 = self.pt1, self.pt2
+        corners = [
+            Point(pt1.x, pt1.y, pt1.z),
+            Point(pt2.x, pt1.y, pt1.z),
+            Point(pt2.x, pt2.y, pt1.z),
+            Point(pt1.x, pt2.y, pt1.z),
+        ]
+
+        from ._contour import Contour
+        from ._line import Line
+
+        edges = [
+            Line(start, end, self.meshSize)
+            for start, end in zip(corners, corners[1:] + corners[:1])
+        ]
+
+        return Contour(edges, self.isFilled, self.isOpen)
+
+    def Contains(self, coord: _types.Coords, tol: float = 1e-12) -> _types.BoolArray:
+        """Returns, for each of the given points, whether it lies on one of the four edges."""
+        return self.Get_Contour().Contains(coord, tol)
+
+    def Encloses(self, coord: _types.Coords, tol: float = 1e-12) -> _types.BoolArray:
+        """Returns, for each of the given points, whether it lies in the box, faces included.
+
+        Unlike `Contains`, this is the 3d box spanned by `pt1` and `pt2`, not the four edges in the `pt1.z` plane.
+        """
+        coord = np.reshape(AsCoords(coord), (-1, 3))
+        pt1, pt2 = self.pt1.coord, self.pt2.coord
+
+        return np.all(
+            (coord >= np.minimum(pt1, pt2) - tol)
+            & (coord <= np.maximum(pt1, pt2) + tol),
+            axis=1,
+        )
 
     def Get_coord_for_plot(
         self, N: int = None
