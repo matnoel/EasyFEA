@@ -174,7 +174,10 @@ def Tangent(eigen: Eigenspace, res: Return, C_e_pg: FeArray) -> FeArray:
     dsig_e_pg = _Field(eigen.T, y_e_pg) @ -w_e_pg
     safe_e_pg = np.where(res.phi > 0, res.phi, 1.0)
     n_e_pg = (_Field(eigen.Ti.T, y_e_pg) @ w_e_pg) / safe_e_pg
-    dtheta_e_pg = -(1.0 - res.theta * res.slope) / res.drdtheta
+    # drdtheta is zero where nothing flowed, and those points keep the elastic stiffness below;
+    # guard the division rather than let inf reach the tensor product and come back as nan
+    slope_e_pg = np.where(res.active, res.drdtheta, 1.0)
+    dtheta_e_pg = -(1.0 - res.theta * res.slope) / slope_e_pg
 
     C_alg = elastic_e_pg + TensorProd(dtheta_e_pg * dsig_e_pg, C_e_pg @ n_e_pg)
     # a point that never yielded keeps the elastic stiffness, whatever the algebra says
