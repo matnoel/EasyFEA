@@ -6,8 +6,8 @@
 import numpy as np
 import pytest
 
-from EasyFEA import Folder, Mesher, ElemType, Mesh, MeshIO
-from EasyFEA.Geoms import Points
+from EasyFEA import Folder, ElemType, Mesh, MeshIO
+from EasyFEA.Geoms import Line, Points
 
 folder_results = Folder.Results_Dir()
 
@@ -24,19 +24,9 @@ def meshes() -> list[Mesh]:
     meshes: list[Mesh] = []
 
     # 1d meshes
+    line = Line((0, 0), (1, 0), meshSize)
     for elemType in ElemType.Get_1D():
-
-        mesher = Mesher()
-        factory = mesher._factory
-
-        p1 = factory.addPoint(0, 0, 0)
-        p2 = factory.addPoint(1, 0, 0)
-        factory.addLine(p1, p2)
-
-        mesher._Set_PhysicalGroups()
-        mesher._Mesh_Generate(1, elemType)
-
-        meshes.append(mesher._Mesh_Get_Mesh())
+        meshes.append(line.Mesh_1D(elemType))
 
     # 2d meshes
     for elemType in ElemType.Get_2D():

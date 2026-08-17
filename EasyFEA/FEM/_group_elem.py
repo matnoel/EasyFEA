@@ -2297,7 +2297,9 @@ class GroupElemFactory:
         """
 
         if gmshId not in GroupElemFactory.DICT_GMSH_DATA:
-            raise KeyError("gmshId is unknown.")
+            raise KeyError(
+                f"gmshId {gmshId} is not supported yet, but it can be added to DICT_GMSH_DATA."
+            )
 
         return GroupElemFactory.DICT_GMSH_DATA[gmshId]
 

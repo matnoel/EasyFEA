@@ -3,10 +3,12 @@
 # This file is part of the EasyFEA project.
 # EasyFEA is distributed under the terms of the GNU General Public License v3, see LICENSE.txt and CREDITS.md for more information.
 
+import inspect
 import pytest
 import matplotlib.pyplot as plt
 import numpy as np
 
+from EasyFEA import Mesher
 from EasyFEA.Geoms import _Geom, Point, Line, Circle, CircleArc, Points, Domain, Contour
 
 
@@ -87,3 +89,24 @@ class TestGeoms:
             ax.legend()
 
         plt.close("all")
+
+
+@pytest.mark.parametrize("name", ["Mesh_1D", "Mesh_2D", "Mesh_Extrude", "Mesh_Revolve"])
+def test_geom_meshing_matches_mesher(name: str):
+    """The geom-side meshing methods restate the Mesher signature so that editors can see the arguments; this pins the two copies together."""
+
+    # drop self, and on the Mesher side the leading geometry argument that the geom provides
+    geomParams = list(inspect.signature(getattr(_Geom, name)).parameters.values())[1:]
+    mesherParams = list(inspect.signature(getattr(Mesher, name)).parameters.values())[
+        2:
+    ]
+
+    assert [(p.name, p.kind) for p in geomParams] == [
+        (p.name, p.kind) for p in mesherParams
+    ], f"_Geom.{name} and Mesher.{name} no longer take the same arguments."
+
+    doc = getattr(_Geom, name).__doc__
+    for param in geomParams:
+        assert (
+            f"{param.name} :" in doc
+        ), f"_Geom.{name}: '{param.name}' is undocumented."

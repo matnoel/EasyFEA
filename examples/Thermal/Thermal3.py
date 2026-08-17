@@ -14,7 +14,7 @@ Transient thermal simulation.
 import numpy as np
 
 from EasyFEA import Terminal, Folder, Models, ElemType, Simulations, PyVista
-from EasyFEA.Geoms import Line, Domain, Point
+from EasyFEA.Geoms import Domain, Point
 
 if __name__ == "__main__":
     Terminal.Clear()
@@ -43,13 +43,13 @@ if __name__ == "__main__":
     # Mesh
     # ----------------------------------------------
     domain = Domain(Point(R), Point(R + e, h), e / 2)
-    axis = Line(Point(), Point(0, 1, 0))
 
     # Generate the mesh based on the specified dimension
     angle = 360 * 3 / 4
     mesh = domain.Mesh_Revolve(
         [],
-        axis,
+        (0, 0, 0),
+        (0, 1, 0),
         angle,
         [angle * np.pi / 180 * R / domain.meshSize],
         elemType=ElemType.HEXA8,

@@ -398,7 +398,7 @@ class Mesh(Observable):
     def _Get_mpi_owned_nodes(self) -> _types.IntArray:
         """MPI: nodes owned (non-ghost) by the current rank, as the union over the main-dimension element groups of their partition's owned nodes.
 
-        Node ownership is globally consistent across element groups (the partitioner assigns each node to exactly one rank), so the union is conflict-free; across ranks the owned nodes form a partition of the mesh nodes. For a single-group mesh this is exactly ``groupElem._Get_partitioned_data()[3]``.
+        gmsh partitions *elements*; nodes are then claimed rank by rank, an interface node going to the first rank that reaches it, so each node still ends up owned by exactly one rank and the union is conflict-free. Across ranks the owned nodes form a partition of the mesh nodes. For a single-group mesh this is exactly ``groupElem._Get_partitioned_data()[3]``.
         """
         list_groupElem = self.Get_list_groupElem(self.dim)
         if len(list_groupElem) == 1:

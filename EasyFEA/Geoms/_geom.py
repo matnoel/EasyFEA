@@ -215,6 +215,39 @@ class _Geom(ABC):
         if copy:
             return obj
 
+    def Mesh_1D(
+        self,
+        elemType: ElemType = ElemType.SEG2,
+        additionalPoints: list["Point"] = [],
+        path="",
+    ):
+        """Creates a 1D mesh from the geometry.
+
+        Parameters
+        ----------
+        elemType : ElemType, optional
+            element type, by default "SEG2" ["SEG2", "SEG3", "SEG4", "SEG5"]
+        additionalPoints : list[Point]
+            additional points that will be added to the mesh. WARNING: points must be on the lines.
+        path : str, optional
+            path used to save the meshfile, by default "" does not save the mesh
+
+        Returns
+        -------
+        Mesh
+            Created mesh
+        """
+        from ..FEM._mesher import Mesher
+
+        mesher = Mesher()
+        mesh = mesher.Mesh_1D(
+            self,
+            elemType=elemType,
+            additionalPoints=additionalPoints,
+            path=path,
+        )
+        return mesh
+
     def Mesh_2D(
         self,
         inclusions: list[GeomCompatible] = [],
@@ -294,7 +327,7 @@ class _Geom(ABC):
             list of hollow and filled geom objects inside the domain
         extrude : Coords, optional
             extrusion vector, by default [0,0,1]
-        layers: list[int], optional
+        layers : list[int], optional
             layers in the extrusion, by default []
         elemType : ElemType, optional
             element type, by default "TETRA4" ["TETRA4", "TETRA10", "HEXA8", "HEXA20", "HEXA27", "PRISM6", "PRISM15", "PRISM18"]
@@ -339,8 +372,9 @@ class _Geom(ABC):
 
     def Mesh_Revolve(
         self,
-        inclusions: list[GeomCompatible] = [],
-        axis: Optional["Line"] = None,
+        inclusions: list[GeomCompatible],
+        point: _types.Coords,
+        direction: _types.Coords,
         angle=360,
         layers: list[int] = [30],
         elemType: ElemType = ElemType.TETRA4,
@@ -356,13 +390,15 @@ class _Geom(ABC):
 
         Parameters
         ----------
-        inclusions : list[Domain, Circle, Points, Contour], optional
+        inclusions : list[Domain, Circle, Points, Contour]
             list of hollow and filled geom objects inside the domain
-        axis : Line, optional
-            revolution axis, by default Line((0, 0), (0, 1))
+        point : _types.Coords
+            point on the revolution axis
+        direction : _types.Coords
+            direction of the revolution axis
         angle : float|int, optional
             revolution angle in [deg], by default 360
-        layers: list[int], optional
+        layers : list[int], optional
             layers in extrusion, by default [30]
         elemType : ElemType, optional
             element type, by default "TETRA4" ["TETRA4", "TETRA10", "HEXA8", "HEXA20", "HEXA27", "PRISM6", "PRISM15", "PRISM18"]
@@ -388,16 +424,12 @@ class _Geom(ABC):
         """
         from ..FEM._mesher import Mesher
 
-        if axis is None:
-            from ..Geoms import Line
-
-            axis = Line((0, 0), (0, 1))
-
         mesher = Mesher()
         mesh = mesher.Mesh_Revolve(
             self,
             inclusions=inclusions,
-            axis=axis,
+            point=point,
+            direction=direction,
             angle=angle,
             layers=layers,
             elemType=elemType,

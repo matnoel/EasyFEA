@@ -9,10 +9,20 @@ This module handles geometric objects (_Geom) to facilitate the creation of mesh
 
 import sys
 import os
+import textwrap
 import gmsh
 import numpy as np
-from typing import Union, Optional, Iterable, Collection, TYPE_CHECKING
-from functools import singledispatchmethod
+from typing import (
+    Callable,
+    Collection,
+    Iterable,
+    NoReturn,
+    Optional,
+    ParamSpec,
+    Union,
+    TYPE_CHECKING,
+)
+from functools import singledispatchmethod, wraps
 
 # utilities
 from ..Utilities import Matplotlib, Terminal, Folder, Tic, _types
@@ -28,6 +38,7 @@ from ..Geoms import (
     Circle,
     Domain,
     Contour,
+    AsCoords,
     Normalize,
 )  # type: ignore
 
@@ -47,6 +58,48 @@ GeomCompatible = Union[_Geom, Circle, Domain, Points, Contour]
 ContourCompatible = Union[Line, CircleArc, Points]
 CrackCompatible = Union[Line, Points, Contour, CircleArc]
 RefineCompatible = Union[Point, Circle, str]
+
+
+class MeshError(Exception):
+    """Raised when gmsh fails to generate the mesh. The geom objects that were fed to the mesher are named in the message, and drawn in a window when `_Can_show_geoms()` allows it."""
+
+
+_P = ParamSpec("_P")
+
+
+def _shows_geoms_on_error(func: Callable[_P, Mesh]) -> Callable[_P, Mesh]:
+    """Decorator drawing the geometry when a meshing method fails, see `Mesher._Show_geoms`.
+
+    It covers entity building as well as generation, because gmsh raises just as often while the entities are built (a non-planar contour fails in `addPlaneSurface`) as while the mesh is generated. It stops at `_Mesh_Generate`: once gmsh has produced a mesh the geometry was accepted, so a later failure comes from converting that mesh (e.g. an element type EasyFEA does not implement) and drawing the geoms would only mislead.
+    """
+
+    @wraps(func)
+    def wrapper(*args: _P.args, **kwargs: _P.kwargs) -> Mesh:
+        mesher: "Mesher" = args[0]  # type: ignore[assignment]
+        try:
+            return func(*args, **kwargs)
+        except MeshError:
+            raise  # already reported by a nested meshing method
+        except Exception as error:
+            if mesher._isMeshed:
+                raise  # not a geometry failure
+            mesher._Show_geoms(error)
+
+    return wrapper
+
+
+def _Can_show_geoms() -> bool:
+    """True when a geometry window may be opened, i.e. when there is someone to close it.
+
+    Every other context would hang: a non-root mpi rank, the documentation gallery build, and a pytest run.
+    """
+    from .. import BUILDING_GALLERY
+
+    return (
+        MPI_RANK == 0
+        and not BUILDING_GALLERY
+        and "PYTEST_CURRENT_TEST" not in os.environ
+    )
 
 
 class Mesher:
@@ -77,11 +130,6 @@ class Mesher:
         self.__verbosity = verbosity
         """the mesher can write in terminal"""
 
-        # TODO Add debug config to print exceptions and errors
-        # use geom.Plot() to display the error
-        # catch the exception and print it
-        # create a Mesher Exception ?
-
         self._Init_gmsh()
 
         if verbosity:
@@ -98,6 +146,10 @@ class Mesher:
 
     def _Init_gmsh(self, factory: str = "occ") -> None:
         """Initializes gmsh."""
+        self._geoms: list[_Geom] = []
+        """geom objects consumed since the last initialization, drawn when meshing fails"""
+        self._isMeshed = False
+        """True once gmsh has generated the mesh, after which a failure is no longer a geometry problem"""
         if not gmsh.isInitialized():
             gmsh.initialize()
         if not self.__gmshVerbosity:
@@ -366,6 +418,9 @@ class Mesher:
             inclusions, Iterable
         ), "inclusions must be a list of geometric objects."
 
+        self._geoms.append(contour)
+        self._geoms.extend(inclusions)
+
         factory = self._factory
 
         # Create a contour surface
@@ -449,6 +504,8 @@ class Mesher:
         ), "surfaces must be a list of geometric objects."
 
         assert dim >= 2
+
+        self._geoms.extend(surfaces)
 
         factory = self._factory
 
@@ -590,6 +647,8 @@ class Mesher:
 
         assert dim >= 1
 
+        self._geoms.extend(lines)
+
         factory = self._factory
 
         for line in lines:
@@ -613,6 +672,8 @@ class Mesher:
         """
 
         assert dim >= 1
+
+        self._geoms.extend(points)
 
         factory = self._factory
 
@@ -704,7 +765,7 @@ class Mesher:
             extrusion vector, by default [0,0,1]
         elemType : ElemType, optional
             element type used, by default "TETRA4"
-        layers: list[int], optional
+        layers : list[int], optional
             layers in the extrusion, by default []
         """
 
@@ -733,7 +794,8 @@ class Mesher:
     def _Revolve(
         self,
         surfaces: list[int],
-        axis: Line,
+        point: _types.Coords,
+        direction: _types.Coords,
         angle: float = 360.0,
         elemType: ElemType = ElemType.TETRA4,
         layers: list[int] = [30],
@@ -744,13 +806,15 @@ class Mesher:
         ----------
         surfaces : list[int]
             gmsh surfaces
-        axis : Line
-            rotation axis
+        point : _types.Coords
+            point on the rotation axis
+        direction : _types.Coords
+            direction of the rotation axis
         angle: float, optional
             rotation angle in deg, by default 360.0
         elemType : ElemType, optional
             element type used
-        layers: list[int], optional
+        layers : list[int], optional
             layers in the rotation, by default [30]
         """
 
@@ -775,8 +839,8 @@ class Mesher:
 
         entities = [(2, s) for s in surfaces]
 
-        p0 = axis.pt1.coord
-        a0 = Normalize(axis.pt2.coord - p0)
+        p0 = AsCoords(point)
+        a0 = Normalize(AsCoords(direction))
 
         # Create new entites
         revol = factory.revolve(entities, *p0, *a0, angle, layers, recombine=recombine)  # type: ignore
@@ -899,6 +963,8 @@ class Mesher:
         """
 
         tic = Tic()
+
+        self._geoms.extend([contour1, contour2])
 
         factory = self._factory
 
@@ -1240,6 +1306,8 @@ class Mesher:
             cracks, Iterable
         ), "cracks must be a list of geometric objects."
 
+        self._geoms.extend(cracks)
+
         factory = self._factory
 
         if len(cracks) == 0:
@@ -1316,6 +1384,71 @@ class Mesher:
 
         return crackLines, crackSurfaces, openPoints, openLines
 
+    @_shows_geoms_on_error
+    def Mesh_1D(
+        self,
+        lines: Union[ContourCompatible, Contour, list],
+        elemType: ElemType = ElemType.SEG2,
+        additionalPoints: list[Point] = [],
+        path: str = "",
+    ) -> Mesh:
+        """Creates a 1D mesh from lines.
+
+        Parameters
+        ----------
+        lines : Line | CircleArc | Points | Contour | list
+            geom objects meshed as curves. A Contour is meshed as the geoms it is made of.
+        elemType : ElemType, optional
+            element type, by default "SEG2" ["SEG2", "SEG3", "SEG4", "SEG5"]
+        additionalPoints : list[Point]
+            additional points that will be added to the mesh. WARNING: points must be on the lines.
+        path : str, optional
+            path used to save the meshfile, by default "" does not save the mesh
+
+        Returns
+        -------
+        Mesh
+            Created mesh
+        """
+
+        if isinstance(lines, _Geom):
+            lines = [lines]
+        assert isinstance(lines, Iterable), "lines must be a list of geometric objects."
+
+        geoms: list[ContourCompatible] = []
+        for line in lines:
+            geoms.extend(line.geoms if isinstance(line, Contour) else [line])
+        assert all(
+            isinstance(geom, (Line, CircleArc, Points)) for geom in geoms
+        ), "lines must be Line, CircleArc, Points or Contour objects."
+
+        self._Init_gmsh()
+        self.__CheckType(1, elemType)
+
+        tic = Tic()
+
+        self._geoms.extend(geoms)
+
+        factory = self._factory
+
+        for geom in geoms:
+            p1 = factory.addPoint(*geom.pt1.coord, meshSize=geom.meshSize)
+            p2 = factory.addPoint(*geom.pt2.coord, meshSize=geom.meshSize)
+            self._Create_Lines(geom, p1, p2)
+
+        meshSizes = [geom.meshSize for geom in geoms if geom.meshSize > 0]
+        self._Additional_Points(1, additionalPoints, min(meshSizes, default=0.0))
+
+        # lines must be tagged like the surfaces and volumes of the other mesh
+        # methods: untagged elements are dropped by the exporters (Ensight)
+        self._Set_PhysicalGroups()
+
+        tic.Tac("Mesh", "Geometry", self.__verbosity)
+
+        self._Mesh_Generate(1, elemType, path=path)
+
+        return self._Mesh_Get_Mesh()
+
     def Mesh_Beams(
         self,
         beams: list["_Beam"],  # type: ignore
@@ -1344,57 +1477,14 @@ class Mesher:
 
         assert isinstance(beams, Collection), "beams must be a list of beams."
 
-        self._Init_gmsh()
-        self.__CheckType(1, elemType)
-
-        tic = Tic()
-
-        factory = self._factory
-
-        points = []
-        lines = []
-        list_meshSize = []
+        mesh = self.Mesh_1D(
+            [beam.line for beam in beams], elemType, additionalPoints, path
+        )
 
         for beam in beams:
-            line = beam.line
-            list_meshSize.append(line.meshSize)
-
-            pt1 = line.pt1
-            x1 = pt1.x
-            y1 = pt1.y
-            z1 = pt1.z
-            pt2 = line.pt2
-            x2 = pt2.x
-            y2 = pt2.y
-            z2 = pt2.z
-
-            p1 = factory.addPoint(x1, y1, z1, line.meshSize)
-            p2 = factory.addPoint(x2, y2, z2, line.meshSize)
-            points.append(p1)
-            points.append(p2)
-
-            line = factory.addLine(p1, p2)
-            lines.append(line)
-
-        # remove meshSize = 0
-        list_meshSize = [m for m in list_meshSize if m > 0]
-        mS = np.min(list_meshSize) if len(list_meshSize) > 0 else 0
-        self._Additional_Points(1, additionalPoints, mS)
-
-        self._Set_PhysicalGroups(setLines=False)
-
-        tic.Tac("Mesh", "Beam mesh construction", self.__verbosity)
-
-        self._Mesh_Generate(1, elemType, path=path)
-
-        mesh = self._Mesh_Get_Mesh()
-
-        def FuncAddTags(beam: "_Beam"):
             nodes = mesh.Nodes_Line(beam.line)
             for groupElem in mesh.Get_list_groupElem():
                 groupElem.Set_Tag(nodes, beam.name)
-
-        [FuncAddTags(beam) for beam in beams]
 
         return mesh
 
@@ -1425,6 +1515,7 @@ class Mesher:
 
         return hollowLoops, filledLoops
 
+    @_shows_geoms_on_error
     def Mesh_2D(
         self,
         contour: GeomCompatible,
@@ -1504,6 +1595,7 @@ class Mesher:
 
         return self._Mesh_Get_Mesh()
 
+    @_shows_geoms_on_error
     def Mesh_Extrude(
         self,
         contour: GeomCompatible,
@@ -1529,7 +1621,7 @@ class Mesher:
             list of hollow and filled geom objects inside the domain
         extrude : Coords, optional
             extrusion vector, by default [0,0,1]
-        layers: list[int], optional
+        layers : list[int], optional
             layers in the extrusion, by default []
         elemType : ElemType, optional
             element type, by default "TETRA4" ["TETRA4", "TETRA10", "HEXA8", "HEXA20", "HEXA27", "PRISM6", "PRISM15", "PRISM18"]
@@ -1602,11 +1694,13 @@ class Mesher:
 
         return self._Mesh_Get_Mesh()
 
+    @_shows_geoms_on_error
     def Mesh_Revolve(
         self,
         contour: GeomCompatible,
-        inclusions: list[GeomCompatible] = [],
-        axis: Line = Line(Point(), Point(0, 1)),
+        inclusions: list[GeomCompatible],
+        point: _types.Coords,
+        direction: _types.Coords,
         angle=360,
         layers: list[int] = [30],
         elemType: ElemType = ElemType.TETRA4,
@@ -1624,13 +1718,15 @@ class Mesher:
         ----------
         contour : Domain | Circle | Points | Contour
             geometry that builds the contour
-        inclusions : list[Domain | Circle | Points | Contour], optional
+        inclusions : list[Domain | Circle | Points | Contour]
             list of hollow and filled geom objects inside the domain
-        axis : Line, optional
-            revolution axis, by default Line(Point(), Point(0,1))
+        point : _types.Coords
+            point on the revolution axis
+        direction : _types.Coords
+            direction of the revolution axis
         angle : float|int, optional
             revolution angle in [deg], by default 360
-        layers: list[int], optional
+        layers : list[int], optional
             layers in extrusion, by default [30]
         elemType : ElemType, optional
             element type, by default "TETRA4" ["TETRA4", "TETRA10", "HEXA8", "HEXA20", "HEXA27", "PRISM6", "PRISM15", "PRISM18"]
@@ -1674,7 +1770,12 @@ class Mesher:
         surfaces = [entity[1] for entity in factory.getEntities(2)]  # type: ignore
 
         self._Revolve(
-            surfaces=surfaces, axis=axis, angle=angle, elemType=elemType, layers=layers
+            surfaces=surfaces,
+            point=point,
+            direction=direction,
+            angle=angle,
+            elemType=elemType,
+            layers=layers,
         )
 
         # get 3D entities
@@ -1782,6 +1883,8 @@ class Mesher:
 
         if refineGeoms is None or len(refineGeoms) == 0:
             return
+
+        self._geoms.extend(geom for geom in refineGeoms if isinstance(geom, _Geom))
 
         fields = list(gmsh.model.mesh.field.list())
 
@@ -1903,6 +2006,38 @@ class Mesher:
         gmsh.option.setNumber("Mesh.RecombinationAlgorithm", 1)
         gmsh.option.setNumber("Mesh.SubdivisionAlgorithm", 0)
 
+    def _Show_geoms(self, error: Exception) -> NoReturn:
+        """Draws the geom objects that were fed to the mesher, then raises a MeshError naming them.
+
+        The window is only opened when `_Can_show_geoms()` allows it, but the MeshError is raised either way so a failure is never swallowed.
+        """
+
+        names = ", ".join(geom.name for geom in self._geoms)
+        message = str(error) or type(error).__name__
+
+        if _Can_show_geoms():
+            try:
+                from ..Utilities import PyVista
+
+                # the grid gives the coordinates needed to locate the faulty geom
+                plotter = PyVista.Plot_Geoms(self._geoms, show_grid=True)
+                plotter.add_title("Meshing failed", color="red")
+                # upper_left is the only corner left free by the legend, the
+                # orientation widget and the grid labels
+                plotter.add_text(
+                    textwrap.fill(message, 40),
+                    position="upper_left",
+                    color="red",
+                    font_size=10,
+                )
+                plotter.show()
+            except Exception as plotError:
+                Terminal.MyPrintError(f"Could not draw the geometry: {plotError}")
+
+        raise MeshError(
+            f"gmsh could not mesh the geometry ({names}): {message}"
+        ) from error
+
     def _Mesh_Generate(
         self,
         dim: int,
@@ -1991,6 +2126,9 @@ class Mesher:
                 gmsh.write(path)
                 tic.Tac("Mesh", "gmsh.write", self.__verbosity)
 
+        # gmsh accepted the geometry, so what follows can no longer fail because of it
+        self._isMeshed = True
+
     def __Get_coordinates_and_changes(
         self,
     ) -> tuple[_types.FloatArray, _types.IntArray]:
@@ -2067,7 +2205,7 @@ class Mesher:
 
         return connect, elementTags
 
-    def __Get_groupElem_with_mpi(
+    def __Get_partitioned_groupElems(
         self,
         gmshId: int,
         connect: np.ndarray,
@@ -2075,11 +2213,9 @@ class Mesher:
         coordinates: np.ndarray,
         dict_rank_nodes: dict[int, set[int]],
     ) -> list["_GroupElem"]:
+        """Splits the elements of `gmshId` into one `_GroupElem` per partition. The partition count comes from `dict_rank_nodes`, which is not tied to MPI_SIZE — see `_Mesh_Get_Meshes`."""
 
-        # get mpi data
-        assert CAN_USE_MPI, "mpi4py must be installed"
         Nproc = len(dict_rank_nodes)
-        assert Nproc == MPI_SIZE  # comment for debug purposes
 
         # get type's dim
         dim = gmsh.model.mesh.getElementProperties(gmshId)[1]
@@ -2161,105 +2297,143 @@ class Mesher:
         # return all rank GroupElems so rank 0 can scatter them
         return list_rank_groupElem
 
-    def _Mesh_Get_Mesh(self, coef: float = 1.0) -> Mesh:
-        """Creates the mesh object from the created gmsh mesh."""
+    def __Get_dict_groupElems(
+        self, Nproc: int, coef: float
+    ) -> list[dict[ElemType, "_GroupElem"]]:
+        """Builds one `{elemType: _GroupElem}` dict per partition from the current gmsh model.
+
+        Works straight from the gmsh model — the global `Mesh` is never assembled, which is what keeps the partitioned path memory-bounded. `Nproc == 1` returns the unpartitioned mesh as a single-item list.
+
+        Parameters
+        ----------
+        Nproc : int
+            number of partitions, independent of MPI_SIZE
+        coef : float
+            coef applied to the node coordinates
+        """
 
         tic = Tic()
 
+        meshDim = gmsh.model.getDimension()
+        elementTypes = gmsh.model.mesh.getElementTypes()
+
+        coordinates, changes = self.__Get_coordinates_and_changes()
+        coordinates *= coef
+
+        # Compute connect before partitioning: gmsh.model.mesh.partition adds
+        # ghost / partition-boundary elements whose synthetic tags break
+        # gmsh.model.mesh.getElementQualities inside __Get_connect, and
+        # would shift the connect-array indexing in __Get_partitioned_groupElems.
+        dict_connect: dict[int, tuple[_types.IntArray, _types.IntArray]] = {
+            gmshId: self.__Get_connect(gmshId, changes) for gmshId in elementTypes
+        }
+
+        isPartitioned = Nproc > 1
+
+        if isPartitioned:
+            Nelems = np.concatenate(gmsh.model.mesh.getElements(meshDim)[1]).size
+            assert Nproc <= Nelems, f"Nproc must be less than or equal to {Nelems}!"
+            gmsh.model.mesh.partition(Nproc)
+            tic.Tac("Mesh", "gmsh.model.mesh.partition", self.__verbosity)
+            dict_rank_nodes: dict[int, set[int]] = {r: set() for r in range(Nproc)}
+
+        list_dict_groupElem: list[dict[ElemType, "_GroupElem"]] = [
+            {} for _ in range(Nproc)
+        ]
+
+        for gmshId in elementTypes:
+            connect, elementTags = dict_connect[gmshId]
+
+            if isPartitioned:
+                groupElems = self.__Get_partitioned_groupElems(
+                    gmshId, connect, elementTags, coordinates, dict_rank_nodes
+                )
+            else:
+                # Note that each group of elements contains all coordinates.
+                groupElems = [GroupElemFactory._Create(gmshId, connect, coordinates)]
+
+            # Here we'll retrieve the nodes and elements belonging to a group
+            physicalGroups = gmsh.model.getPhysicalGroups(groupElems[0].dim)
+
+            for group in physicalGroups:
+                dim_g, tag = group
+
+                name = gmsh.model.getPhysicalName(dim_g, tag)
+                nodeTags = gmsh.model.mesh.getNodesForPhysicalGroup(dim_g, tag)[0] - 1
+                # If no node has been retrieved, move on to the nextPhysics group.
+                if nodeTags.size == 0:
+                    continue
+                # nodes associated with the group
+                nodesGroup = changes[nodeTags]  # Apply change
+                # add tag
+                for groupElem in groupElems:
+                    groupElem.Set_Tag(nodesGroup, name)
+
+            for dict_groupElem, groupElem in zip(list_dict_groupElem, groupElems):
+                dict_groupElem[groupElem.elemType] = groupElem
+
+            elemType = GroupElemFactory.Get_ElemInFos(gmshId)[0]
+            tic.Tac("Mesh", f"Create {elemType}", self.__verbosity)
+
+        tic.Tac("Mesh", "Construct mesh object", self.__verbosity)
+
+        return list_dict_groupElem
+
+    def _Mesh_Get_Mesh(self, coef: float = 1.0) -> Mesh:
+        """Creates the mesh object from the created gmsh mesh.
+
+        Under mpi the mesh is split into MPI_SIZE partitions on rank 0 and scattered, so the returned Mesh is this rank's view. Use `_Mesh_Get_Meshes` to build a split of any size in a single process.
+        """
+
+        useMpi = CAN_USE_MPI and MPI_SIZE > 1
+
         if MPI_RANK == 0:
-            meshDim = gmsh.model.getDimension()
-            elementTypes = gmsh.model.mesh.getElementTypes()
-            useMpi = CAN_USE_MPI and MPI_SIZE > 1
-
-            coordinates, changes = self.__Get_coordinates_and_changes()
-            coordinates *= coef
-
-            # Compute connect before partitioning: gmsh.model.mesh.partition adds
-            # ghost / partition-boundary elements whose synthetic tags break
-            # gmsh.model.mesh.getElementQualities inside __Get_connect, and
-            # would shift the connect-array indexing in __Get_groupElem_with_mpi.
-            dict_connect: dict[int, tuple[_types.IntArray, _types.IntArray]] = {
-                gmshId: self.__Get_connect(gmshId, changes) for gmshId in elementTypes
-            }
-
-            if useMpi:
-                Nrank = MPI_SIZE
-                # Nrank = 3  # uncomment for debugging purposes
-                Nelems = np.concatenate(gmsh.model.mesh.getElements(meshDim)[1]).size
-                assert (
-                    MPI_SIZE <= Nelems
-                ), f"Nproc must be less than or equal to {Nelems}!"
-                gmsh.model.mesh.partition(Nrank)
-                tic.Tac("Mesh", "gmsh.model.mesh.partition", self.__verbosity)
-                dict_rank_nodes = {r: set() for r in range(Nrank)}
-                list_dict_groupElem: list[dict] = [{} for _ in range(Nrank)]
-
-            dict_groupElem: dict[ElemType, "_GroupElem"] = {}
-
-            for gmshId in elementTypes:
-                connect, elementTags = dict_connect[gmshId]
-
-                if useMpi:
-                    list_rank_groupElem = self.__Get_groupElem_with_mpi(
-                        gmshId, connect, elementTags, coordinates, dict_rank_nodes
-                    )
-                    # apply physical-group tags to every rank's GroupElem
-                    physicalGroups = gmsh.model.getPhysicalGroups(
-                        list_rank_groupElem[0].dim
-                    )
-                    for group in physicalGroups:
-                        dim_g, tag = group
-                        name = gmsh.model.getPhysicalName(dim_g, tag)
-                        nodeTags = (
-                            gmsh.model.mesh.getNodesForPhysicalGroup(dim_g, tag)[0] - 1
-                        )
-                        if nodeTags.size == 0:
-                            continue
-                        nodesGroup = changes[nodeTags]
-                        for ge in list_rank_groupElem:
-                            ge.Set_Tag(nodesGroup, name)
-                    # distribute into per-rank dicts
-                    for rank, ge in enumerate(list_rank_groupElem):
-                        list_dict_groupElem[rank][ge.elemType] = ge
-                else:
-                    groupElem = GroupElemFactory._Create(gmshId, connect, coordinates)
-                    # Note that each group of elements contains all coordinates.
-                    dict_groupElem[groupElem.elemType] = groupElem
-
-                    # Here we'll retrieve the nodes and elements belonging to a group
-                    physicalGroups = gmsh.model.getPhysicalGroups(groupElem.dim)
-
-                    for group in physicalGroups:
-                        dim_g, tag = group
-
-                        name = gmsh.model.getPhysicalName(dim_g, tag)
-                        nodeTags = (
-                            gmsh.model.mesh.getNodesForPhysicalGroup(dim_g, tag)[0] - 1
-                        )
-                        # If no node has been retrieved, move on to the nextPhysics group.
-                        if nodeTags.size == 0:
-                            continue
-                        # nodes associated with the group
-                        nodesGroup = changes[nodeTags]  # Apply change
-                        # add tag
-                        groupElem.Set_Tag(nodesGroup, name)
-
-                elemType = GroupElemFactory.Get_ElemInFos(gmshId)[0]
-                tic.Tac("Mesh", f"Create {elemType}", self.__verbosity)
-
-            tic.Tac("Mesh", "Construct mesh object", self.__verbosity)
+            list_dict_groupElem = self.__Get_dict_groupElems(
+                MPI_SIZE if useMpi else 1, coef
+            )
         else:
-            useMpi = True
             list_dict_groupElem = None
 
         gmsh.finalize()
 
         if useMpi:
+            # scatter requires one item per rank, hence Nproc == MPI_SIZE above
             dict_groupElem = MPI_COMM.scatter(list_dict_groupElem, root=0)
+        else:
+            dict_groupElem = list_dict_groupElem[0]  # type: ignore[index]
 
         mesh = Mesh(dict_groupElem, self.__verbosity)
 
         return mesh
+
+    def _Mesh_Get_Meshes(self, Nproc: int, coef: float = 1.0) -> list[Mesh]:
+        """Creates the `Nproc` partitioned meshes from the created gmsh mesh, without scattering them.
+
+        Same inputs as `_Mesh_Get_Mesh`, but the partition count is decoupled from MPI_SIZE and every piece is returned, so a split can be built and inspected in a single process (no mpirun, mpi4py not required).
+
+        Parameters
+        ----------
+        Nproc : int
+            number of partitions, must be less than or equal to the number of elements
+        coef : float, optional
+            coef applied to the node coordinates, by default 1.0
+
+        Returns
+        -------
+        list[Mesh]
+            one mesh per partition, each holding its owned and ghost elements
+        """
+
+        assert Nproc >= 1, "Nproc must be greater than or equal to 1."
+
+        list_dict_groupElem = self.__Get_dict_groupElems(Nproc, coef)
+
+        gmsh.finalize()
+
+        return [
+            Mesh(dict_groupElem, self.__verbosity)
+            for dict_groupElem in list_dict_groupElem
+        ]
 
     @staticmethod
     def _Construct_2D_meshes(L=10, h=10, meshSize=3) -> list[Mesh]:

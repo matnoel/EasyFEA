@@ -9,6 +9,7 @@ Mesh7
 
 Meshing a 3D part in revolution.
 """
+
 # sphinx_gallery_thumbnail_number = 2
 
 import numpy as np
@@ -50,5 +51,12 @@ if __name__ == "__main__":
 
     layers = [perimeter // meshSize]
 
-    mesh = contour.Mesh_Revolve(inclusions, axis, angle, layers, ElemType.PRISM6)
+    mesh = contour.Mesh_Revolve(
+        inclusions,
+        axis.pt1,
+        axis.pt2 - axis.pt1,
+        angle,
+        layers,
+        ElemType.PRISM6,
+    )
     PyVista.Plot_Mesh(mesh).show()
