@@ -11,28 +11,20 @@ Chaboche
 
 Why one back-stress is not enough.
 
-:ref:`CyclicLoading` shows that kinematic hardening is what produces the Bauschinger effect. This
-example shows why real cyclic laws use **several** kinematic components rather than one.
+A single Armstrong-Frederick back-stress is one exponential, saturating at :math:`2C/3\gamma`
+with a single rate. A measured hysteresis loop has both a sharp knee after yield and a long,
+nearly linear tail, and no single exponential fits both.
 
-A single Armstrong-Frederick back-stress is one exponential: :math:`X` rises and saturates at
-:math:`2C/3\gamma` with a single rate. A measured hysteresis loop has both a *sharp knee* just
-after yield and a *long, nearly linear tail*, and no single exponential fits both — push
-:math:`\gamma` up for the knee and the tail flattens too early; pull it down for the tail and the
-knee is lost.
-
-Chaboche's answer is superposition, :math:`X = \sum_i X_i`, with two or three components of very
-different :math:`(C_i, \gamma_i)`:
-
-- a **fast** component, large :math:`C` and large :math:`\gamma`, for the knee;
-- an **intermediate** one for the curvature;
-- a **slow or linear** one, :math:`\gamma = 0`, for the tail.
+Chaboche superposes several, :math:`X = \sum_i X_i`: a fast component for the knee, an
+intermediate one for the curvature, and a linear one (:math:`\gamma = 0`) for the tail.
 
 Reference
 ---------
 J.-L. Chaboche, *Time-independent constitutive theories for cyclic plasticity*, Int. J.
-Plasticity **2** (1986) 149--188. The single-component law is Armstrong & Frederick, CEGB report
-RD/B/N731 (1966).
+Plasticity **2** (1986) 149--188.
 """
+
+from enum import Enum
 
 import numpy as np
 
@@ -52,9 +44,18 @@ KH = Models.KinematicHardening
 # three components: fast knee, intermediate curvature, linear tail
 components = [(60000.0, 500.0), (20000.0, 100.0), (2000.0, 0.0)]
 
+
+class Laws(str, Enum):
+    ArmstrongFrederick = "single Armstrong-Frederick"
+    Chaboche = "Chaboche, 3 components"
+
+    def __str__(self):
+        return self.name
+
+
 laws = {
-    "single Armstrong-Frederick": KH.ArmstrongFrederick(60000.0, 500.0),
-    "Chaboche, 3 components": KH.Chaboche(*components),
+    Laws.ArmstrongFrederick: KH.ArmstrongFrederick(*components[0]),
+    Laws.Chaboche: KH.Chaboche(*components),
 }
 
 

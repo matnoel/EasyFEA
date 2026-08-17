@@ -3,50 +3,35 @@
 Materials with history
 ======================
 
-``Models.Behaviour`` is assembled from independent pieces rather than chosen from a list:
+Scripts that demonstrate small-strain materials whose stress depends on the history of strain:
+plasticity, viscoplasticity and viscoelasticity.
 
-.. code-block:: python
+:py:class:`~EasyFEA.Models.Behaviour` is assembled from independent pieces rather than chosen
+from a list, and driven by :py:class:`~EasyFEA.Simulations.Behaviour`. Each piece is optional and
+turns on one behaviour:
 
-    Models.Behaviour(
-        3,
-        elastic      = Isotropic(3, E=210000, v=0.3),
-        yieldSurface = Models.Yield.VonMises(250.0),
-        hardening    = Models.IsotropicHardening.Voce(150.0, 30.0),
-        kinematic    = Models.KinematicHardening.Chaboche((60000, 500), (2000, 0)),
-        rate         = Models.ViscoPlastic.Norton(1e-2),
-        branches     = [Models.ViscoElastic.Maxwell(g=0.3, tau=1.0)],
-    )
+.. list-table::
+    :header-rows: 1
 
-Every piece is optional. With none of them it is linear elasticity; with a yield surface it is
-plasticity; add a rate law and it creeps; add Maxwell branches and it relaxes without yielding.
-Damage is deliberately absent: local softening is mesh-dependent past the peak, which is what
-``Simulations.PhaseField`` exists for.
+    * - Piece
+      - What it adds
+    * - *(none)*
+      - linear elasticity
+    * - :py:class:`Models.Yield <EasyFEA.Models.Yield>`
+      - plasticity — von Mises, Hill, Drucker-Prager
+    * - :py:class:`Models.IsotropicHardening <EasyFEA.Models.IsotropicHardening>`
+      - the surface grows — linear, Voce, Swift
+    * - :py:class:`Models.KinematicHardening <EasyFEA.Models.KinematicHardening>`
+      - the surface moves, giving the Bauschinger effect — Prager, Armstrong-Frederick, Chaboche
+    * - :py:class:`Models.ViscoPlastic <EasyFEA.Models.ViscoPlastic>`
+      - it creeps and relaxes once yielded — Norton, Perzyna
+    * - :py:class:`Models.ViscoElastic <EasyFEA.Models.ViscoElastic>`
+      - it relaxes without ever yielding — Maxwell branches
 
-Because hardening lives in the **free energy** rather than inside the yield surface, any
-hardening law composes with any surface: three hardening laws and three surfaces are six
-objects, not nine.
+Because hardening lives in the free energy rather than inside the yield surface, any hardening
+law composes with any surface. Damage is out of scope and
+:py:class:`~EasyFEA.Simulations.PhaseField` handles it; so is finite strain.
 
-Two solvers produce the stress and the consistent tangent, and the material picks between them.
-A quadratic yield surface reduces the local problem to a single scalar unknown, solved in the
-material eigenspace; everything else goes to an implicit solve over the full state. They agree
-to machine precision wherever both apply, which is a test. ``solver="newton"`` forces the
-general one.
-
-- ``StressStrain`` — uniaxial curves for each hardening law, each against its closed form, and
-  one hardening law on three different yield surfaces. Uses ``Models.MaterialPoint``, which
-  drives a behaviour at a single Gauss point with no mesh and no solver — the same code path
-  assembly uses, so it is the real behaviour and not a second implementation of it.
-- ``CyclicLoading`` — why cyclic plasticity needs a back-stress: isotropic and kinematic
-  hardening are *identical* in monotonic tension and opposite under reversal, where the
-  kinematic elastic range stays exactly ``2*sigma_y``.
-- ``Chaboche`` — why one back-stress is not enough: the knee-and-tail problem, the components
-  that superpose to fix it.
-- ``ThickCylinder`` — a **verification**: the plastic zone spreading from the bore of a
-  pressurised cylinder, against Hill's closed form, with a mesh-convergence study.
-- ``BeamBending`` — a second **verification**: moment-curvature of a rectangular section against
-  Chakrabarty, and the shape factor 3/2.
-- ``TensileTest`` — a tensile specimen pulled past yield in 3D, and a **verification** of a
-  different kind: rotated into a general orientation it must give the identical answer, which
-  tests frame indifference of the strain computation, the return mapping, the tangent and
-  assembly all at once. Use quadratic elements: plastic flow is incompressible, and fully
-  integrated linear hexahedra lock under it.
+Several scripts use :py:class:`~EasyFEA.Models.MaterialPoint`, which drives a behaviour at a
+single Gauss point with no mesh and no solver. The two solvers behind it are described in
+:ref:`simulations-behaviour`.

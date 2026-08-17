@@ -4,40 +4,26 @@
 # EasyFEA is distributed under the terms of the GNU General Public License v3, see LICENSE.txt and CREDITS.md for more information.
 
 r"""
-.. _ThickCylinder:
-
 ThickCylinder
 =============
 
-A verification, not a picture.
-
-A thick-walled cylinder under internal pressure is *the* elastic-plastic benchmark: the plastic
-zone spreads from the bore outwards, and everything about it is known in closed form. Every other
-example here produces a plausible result whether or not the physics is right; this one puts three
-independent analytical landmarks on a single problem, and fails if any of them moves.
+The classic elastic-plastic benchmark: a thick-walled cylinder under internal pressure, with
+three independent analytical landmarks on one problem.
 
 For an elastic-perfectly-plastic material in plane strain the von Mises condition reduces to
-:math:`\sigma_\theta - \sigma_r = Y` with :math:`Y = 2\sigma_y/\sqrt3`. Equilibrium then gives the
-pressure at which the elastic-plastic boundary sits at radius ``c``:
+:math:`\sigma_\theta - \sigma_r = Y` with :math:`Y = 2\sigma_y/\sqrt3`, and equilibrium gives the
+pressure putting the elastic-plastic boundary at radius ``c``:
 
 .. math::
     p(c) = \frac{Y}{2}\left[\,2\ln\frac{c}{a} + 1 - \frac{c^2}{b^2}\right]
 
-**1. Below** :math:`p_e = \frac{Y}{2}(1 - a^2/b^2)` the wall is elastic and Lamé's solution holds
-exactly, so the bore displacement must be linear in the pressure with a known slope.
+Below :math:`p_e = \frac{Y}{2}(1 - a^2/b^2)` the wall is elastic and Lamé holds. Between the two
+the stresses follow from equilibrium and the yield condition alone, so no elastic constant enters
+the plastic zone. At :math:`p_{lim} = Y\ln(b/a)` the wall is fully plastic and the cylinder
+collapses.
 
-**2. Between** the two the wall is partly plastic and the stresses follow from equilibrium and the
-yield condition alone — no elastic constants enter the plastic zone, which is why that check is
-insensitive to Poisson's ratio. The mesh study is the real evidence: the error must *fall* with
-refinement, and at the right rate. It converges first order — halving the element size halves the
-error — even with quadratic elements, because the elastic-plastic boundary is a kink in the stress
-field that no mesh resolves exactly. Second-order convergence would mean the front was being
-missed.
-
-**3. At** :math:`p_{lim} = Y\ln(b/a)` the whole wall is plastic and the cylinder collapses: the
-displacement runs away while the pressure cannot rise. Pushing to :math:`0.995\,p_{lim}` under
-pressure control is also the hardest test of the return mapping, since a perfectly plastic
-structure has no stiffness left to help the global Newton.
+The mesh study converges first order even with quadratic elements, because the elastic-plastic
+boundary is a kink that no mesh resolves exactly.
 
 References
 ----------
@@ -45,10 +31,10 @@ Hill, *The Mathematical Theory of Plasticity*, Oxford (1950), ch. V.
 
 Bleyer, `Elasto-plastic analysis of a 2D von Mises material
 <https://bleyerj.github.io/comet-fenicsx/tours/nonlinear_problems/plasticity/plasticity.html>`_,
-*Computational Mechanics Numerical Tours with FEniCSx* — the same cylinder, and the
-load-displacement presentation used below. It hardens (:math:`H = E/100`) where this one is
-perfectly plastic, so its limit load is approached rather than exact.
+*Computational Mechanics Numerical Tours with FEniCSx* — the same cylinder, hardening where this
+one is perfectly plastic.
 """
+# sphinx_gallery_thumbnail_number = 2
 
 import numpy as np
 from scipy.optimize import brentq

@@ -11,23 +11,18 @@ StressStrain
 
 Uniaxial curves for the shipped hardening laws, against their closed forms.
 
-A behaviour is assembled from independent pieces: an elastic law, a yield surface, and a
-hardening law. Because hardening lives in the free energy rather than inside the surface, any
-hardening composes with any surface — three hardening laws and two surfaces are five objects,
-not six.
-
-:class:`.MaterialPoint` drives one Gauss point with no mesh and no solver, but through the same
-code path assembly uses, so this is the real behaviour rather than a second implementation of it.
-It leaves the un-driven components **stress**-free, so imposing :math:`\varepsilon_{xx}` alone is
-uniaxial tension and every curve here has an exact solution:
+:class:`.MaterialPoint` drives one Gauss point with no mesh and no solver, holding the un-driven
+components stress-free. Imposing :math:`\varepsilon_{xx}` alone is therefore uniaxial tension,
+and every curve has an exact solution:
 
 .. math::
     \sigma = E(\varepsilon - p) \quad\text{with}\quad \sigma = \sigma_y + R(p)
 
 one scalar root per point. ``R`` is written out below from the definitions rather than taken from
-the framework, so agreement is a check and not a tautology. Expect machine precision: this is the
-constitutive law on its own, with no discretisation anywhere.
+the framework, so the agreement is a check and not a tautology.
 """
+
+from enum import Enum
 
 import numpy as np
 from scipy.optimize import brentq
@@ -65,14 +60,24 @@ def Exact(eps: np.ndarray, R) -> np.ndarray:
 # ----------------------------------------------
 # One curve per hardening law
 # ----------------------------------------------
+class Hardenings(str, Enum):
+    Perfect = "perfect"
+    Linear = f"linear, H = {H:.0f}"
+    Voce = f"Voce, Q = {Q:.0f}, b = {b:.0f}"
+    Swift = f"Swift, K = {K:.0f}, n = {n}"
+
+    def __str__(self):
+        return self.name
+
+
 hardenings = {
-    "perfect": (None, lambda p: 0.0),
-    "linear, H = 2000": (Models.IsotropicHardening.Linear(H), lambda p: H * p),
-    "Voce, Q = 150, b = 30": (
+    Hardenings.Perfect: (None, lambda p: 0.0),
+    Hardenings.Linear: (Models.IsotropicHardening.Linear(H), lambda p: H * p),
+    Hardenings.Voce: (
         Models.IsotropicHardening.Voce(Q, b),
         lambda p: Q * (1 - np.exp(-b * p)),
     ),
-    "Swift, K = 600, n = 0.2": (
+    Hardenings.Swift: (
         Models.IsotropicHardening.Swift(K, n),
         lambda p: K * ((eps0 + p) ** n - eps0**n),
     ),
@@ -94,7 +99,7 @@ for i, (label, (hardening, R)) in enumerate(hardenings.items()):
     worst = max(worst, err)
     print(f"{label:28s} max |error| = {err:.2e} of sigma_y")
 
-    ax.plot(eps * 100, sig, lw=1.4, label=label)
+    ax.plot(eps * 100, sig, lw=1.4, label=label.value)
     ax.plot(
         eps * 100,
         Exact(eps, R),
@@ -120,10 +125,21 @@ ax.grid(alpha=0.3)
 # G + H must not be 1, or Hill reduces to von Mises along x and the two curves coincide
 F, G, Hh, Lh, M, N = 0.7, 0.6, 0.9, 1.8, 1.2, 1.4
 hill_y = sigma_y / np.sqrt(G + Hh)
+
+
+class Surfaces(str, Enum):
+    VonMises = "von Mises"
+    DruckerPrager = r"Drucker-Prager $\eta$ = 0.2"
+    Hill = "Hill (anisotropic)"
+
+    def __str__(self):
+        return self.name
+
+
 surfaces = {
-    "von Mises": Models.Yield.VonMises(sigma_y),
-    r"Drucker-Prager $\eta$ = 0.2": Models.Yield.DruckerPrager(sigma_y, 0.2),
-    "Hill (anisotropic)": Models.Yield.Hill(sigma_y, F=F, G=G, H=Hh, L=Lh, M=M, N=N),
+    Surfaces.VonMises: Models.Yield.VonMises(sigma_y),
+    Surfaces.DruckerPrager: Models.Yield.DruckerPrager(sigma_y, 0.2),
+    Surfaces.Hill: Models.Yield.Hill(sigma_y, F=F, G=G, H=Hh, L=Lh, M=M, N=N),
 }
 
 ax = Matplotlib.Init_Axes()
@@ -135,9 +151,9 @@ for label, surface in surfaces.items():
         yieldSurface=surface,
     )
     res = Models.MaterialPoint(law).Run(strain={"xx": path})
-    ax.plot(res["strain"][:, 0] * 100, res["stress"][:, 0], label=label)
+    ax.plot(res["strain"][:, 0] * 100, res["stress"][:, 0], label=label.value)
 
-    if surface is surfaces["Hill (anisotropic)"]:
+    if label is Surfaces.Hill:
         # uniaxially Hill reduces to sigma_xx sqrt(G + H), so first yield is bracketed
         onset = int(np.argmax(np.asarray(res["p"]) > 0))
         sig = res["stress"][:, 0]

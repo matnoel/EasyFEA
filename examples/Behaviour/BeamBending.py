@@ -4,45 +4,35 @@
 # EasyFEA is distributed under the terms of the GNU General Public License v3, see LICENSE.txt and CREDITS.md for more information.
 
 r"""
-.. _BeamBending:
-
 BeamBending
 ===========
 
-The second closed-form check: a rectangular section bent past yield.
+A rectangular section bent past yield.
 
-Yielding starts at the outer fibres and the plastic front moves inwards, leaving a shrinking
-elastic core of half-depth :math:`c = \varepsilon_y/\kappa`. Integrating the stress over the
-section gives the moment directly:
+The plastic front moves in from the outer fibres, leaving an elastic core of half-depth
+:math:`c = \varepsilon_y/\kappa`. Integrating the stress over the section gives
 
 .. math::
-    M = \sigma_y w \left(\frac{h^2}{4} - \frac{c^2}{3}\right)
-    \qquad\Longrightarrow\qquad
     \frac{M}{M_e} = \frac32 - \frac12\left(\frac{\kappa_e}{\kappa}\right)^2
 
-with :math:`M_e = \sigma_y w h^2/6` at first yield and :math:`M_p = \sigma_y w h^2/4` when the
-core has vanished. Their ratio is the **shape factor**, exactly ``3/2`` for a rectangle — a pure
-number, independent of material and size, which is why it is such a good check.
+with :math:`M_e = \sigma_y w h^2/6` at first yield and :math:`M_p = \sigma_y w h^2/4` once the
+core has vanished. Their ratio is the **shape factor**, exactly ``3/2`` for a rectangle —
+independent of material, size and mesh.
 
-The end sections are given a linear axial displacement, which imposes the plane-sections
-kinematics the closed form assumes. That is deliberate: it isolates the constitutive response
-and the through-thickness integration, rather than also testing beam theory.
+The ends are given a linear axial displacement, which imposes the plane-sections kinematics the
+closed form assumes, so this tests the constitutive response rather than beam theory. The sweep
+stops at :math:`\kappa/\kappa_e = 4`: with no hardening the curve approaches ``3/2`` without
+reaching it.
 
-The sweep stops at :math:`\kappa/\kappa_e = 4`. With no hardening the bending tangent vanishes
-as the section becomes fully plastic, so the global Newton grows ill-conditioned well before the
-shape factor is reached — the curve approaches ``3/2`` without ever arriving there numerically.
-
-The residual ~0.4% is **not** the return mapping: it is already there while the section is fully
-elastic, where the FE answer is exact. Nodal stresses average over the elements meeting a node,
-and the two free-surface nodes have only one, so the extreme fibre lags by exactly one element,
-:math:`1/n`. On the moment that is :math:`O(1/n^2)` — measured 1.56 / 0.39 / 0.10 % at
-:math:`n` = 8 / 16 / 32 elements through the depth.
+The residual ~0.4% is not the return mapping — it is present while the section is still fully
+elastic. Nodal stresses average over the elements meeting a node, and the free-surface nodes have
+only one, so the extreme fibre lags by one element, :math:`O(1/n^2)` on the moment.
 
 Reference
 ---------
-Chakrabarty, *Theory of Plasticity*, 3rd ed., Elsevier (2006), ch. 3 "Elastoplastic Bending and
-Torsion".
+Chakrabarty, *Theory of Plasticity*, 3rd ed., Elsevier (2006), ch. 3.
 """
+# sphinx_gallery_thumbnail_number = 3
 
 import numpy as np
 from scipy.integrate import simpson
