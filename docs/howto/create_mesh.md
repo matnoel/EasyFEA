@@ -134,11 +134,10 @@ around an axis to create an axisymmetric volume.
 
     cross_section = Domain((5, 0), (8, 8), meshSize=2.0)
 
-    # revolution axis: Y-axis
-    axis = Line((0, 0), (0, 1))
-
     mesh = cross_section.Mesh_Revolve(
-        axis=axis,
+        [],
+        (0, 0),
+        (0, 1),
         angle=270,
         layers=[30],    # number of angular divisions
         elemType=ElemType.PRISM6,
