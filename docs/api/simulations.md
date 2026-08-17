@@ -214,15 +214,49 @@ $\theta = \Delta\gamma/\phi$,
 
 $$(\Irm + \theta\,\Crm\Prm)\,\Sig = \Sig_{tr}$$
 
-Diagonalising $\Crm^{1/2}\Prm\Crm^{1/2} = \Qrm\Lambda\Qrm^T$ — once per material, not per Gauss
-point — makes that inverse diagonal, and consistency becomes an explicit scalar function of
-$\theta$, monotone decreasing, solved by one safeguarded Newton. It applies to *any* linear
-elasticity, not only isotropic. With isotropic $\Crm$ and von Mises the eigenvalue is repeated, the
-scalar equation becomes linear, and it reduces to the classical radial return.
+Inverting that directly at every Gauss point would be no cheaper than the vector Newton. The trick
+is to diagonalise **once per material**, when the behaviour is built:
 
-Measured over 20000 × 4 Gauss points, this is 2.6× faster than the implicit solve for von Mises
-and 10.9× for Hill; its cost does not depend on the anisotropy. Where both routes apply they
-agree to machine precision on stress, state and tangent, and the test suite checks it.
+$$\Crm^{1/2}\Prm\Crm^{1/2} = \Qrm\Lambda\Qrm^T,
+\qquad \Trm = \Crm^{1/2}\Qrm, \qquad \Trm^{-1} = \Qrm^T\Crm^{-1/2}$$
+
+taking $\Crm^{1/2}$ from the elastic law's own `Get_sqrt_C_S`, so it is shared with PhaseField
+rather than recomputed. In those coordinates the inverse is diagonal. Writing
+$y = \Trm^{-1}\Sig_{tr}$, the stress and the surface follow from $\theta$ alone:
+
+$$\Sig(\theta) = \Trm\,\frac{y}{1 + \theta\lambda},
+\qquad
+\phi(\theta)^2 = \sum_i \frac{\lambda_i\,y_i^2}{(1 + \theta\lambda_i)^2}$$
+
+$\phi$ is monotone decreasing in $\theta$, so consistency is one scalar equation,
+
+$$r(\theta) = \phi(\theta) - \sigma_y - R\!\left(p_n + \Delta\gamma\right)
+- \phi^{-1}\!\left(\Delta\gamma/\dt\right) = 0,
+\qquad \Delta\gamma = \theta\,\phi(\theta)$$
+
+solved by a safeguarded Newton clamped at $\theta \ge 0$. Both the hardening and the rate law feel
+$\theta$ only through $\Delta\gamma = \theta\phi$, so the derivative chains through that one
+product. As in the implicit route, all Gauss points advance together and points whose trial state
+is already inside the surface take a zero step.
+
+The plastic strain is then recovered without ever reconstructing a flow direction, as
+$\Eps^p = \Eps - \Crm^{-1}\Sig$, and the tangent is the exact linearisation — the elastic part in
+the same coordinates plus one rank-one term through $\theta$, in the manner of Simo & Taylor
+(1986):
+
+$$\Crm_{alg} = \Trm\,\mathrm{diag}\!\left(\frac{1}{1+\theta\lambda}\right)\Trm^{-1}\Crm
++ \dpartial{\Sig}{\theta}\otimes\dpartial{\theta}{\Sig_{tr}}$$
+
+with the elastic $\Crm$ kept at points that never yielded.
+
+This applies to *any* linear elasticity, not only isotropic — the anisotropy is absorbed into the
+one-off decomposition, so it costs the same whatever $\Crm$ and $\Prm$ are. With isotropic $\Crm$
+and von Mises the eigenvalue is repeated, $\phi$ collapses to a single term, the scalar equation
+becomes linear, and it reduces to the classical radial return with $\Delta\gamma$ in closed form.
+There is therefore no separate isotropic path to keep in step.
+
+Where both routes apply they agree to machine precision on stress, state and tangent, and the test
+suite checks it.
 
 ```{seealso}
 - {ref}`easyfea-examples-behaviour` — ten examples, each checked against a closed form
