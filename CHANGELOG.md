@@ -2,6 +2,35 @@
 
 This document describes the changes made to the project.
 
+## 3.3.0 (August 17, 2026):
+
+- Materials with history (issue #48)
+    - Added a small-strain, quasi-static framework for materials whose stress depends on the *history* of strain — plasticity, viscoplasticity and viscoelasticity — with `Simulations.Behaviour` and `Models.Behaviour`. With no internal variables it reproduces `Simulations.Elastic` to machine precision.
+    - A behaviour is assembled from independent pieces rather than chosen from a list: an elastic law, plus any of a yield surface (`Models.Yield`: von Mises, Hill, Drucker-Prager), isotropic hardening (`Models.IsotropicHardening`: linear, Voce, Swift), a back-stress (`Models.KinematicHardening`: Prager, Armstrong-Frederick, Chaboche), a rate law (`Models.ViscoPlastic`: Norton, Perzyna) and Maxwell branches (`Models.ViscoElastic`). Hardening lives in the free energy rather than inside the yield function, so N surfaces and M hardening laws are N + M objects instead of N × M.
+    - Two local solvers, chosen automatically; `solver="newton"` forces the general one. The **implicit solve** advances every internal variable by backward Euler and solves one system per Gauss point over the state increments and `dGamma`, with the consistent tangent read off the converged local Jacobian. The **spectral return** applies when the yield surface is quadratic (`phi^2 = sig:P:sig`) with homogeneous `C` and no kinematic hardening or viscous branches: diagonalising `C^1/2 P C^1/2` once per material reduces the local problem to one scalar unknown, for *any* linear elasticity rather than isotropic only. Where both apply they agree to machine precision on stress, state and tangent, which is a test.
+    - `Models.MaterialPoint` drives a behaviour at a single Gauss point with no mesh and no solver, holding the un-driven components stress- or strain-controlled — the same code path assembly uses.
+    - `Behaviour.Integrate` takes the total strain and, optionally, the strain the increment started from (`epsOld`), supplied by the solver and never stored, so the state stays exactly the history variables. This matches MFront's `eto`/`deto`, Abaqus' `STRAN`/`DSTRAN` and NEML's `e_n`, and leaves room for local sub-stepping.
+    - `_Elastic.Get_sqrt_C_S` now handles a `C` of any shape, including material properties given per Gauss point, and computes the square root by a batched `eigh` rather than `np.unique` + `sqrtm` — faster even when only two distinct matrices exist. It also fixes a cache keyed on `sqrt_C` alone, which crashed after setting `S`, and a first call that returned the live cache where later calls returned a copy.
+    - Added ten examples in `examples/Behaviour/`, each checked against a closed form rather than against itself: uniaxial hardening curves, the Bauschinger effect, Chaboche superposition, Prony relaxation and Norton creep, Hill's thick cylinder, elastoplastic beam bending and the shape factor 3/2, a 3D tensile specimen, springback, and a relaxing perforated plate.
+- `FeArray` refactor (issue #52)
+    - A field's tensor rank is now `ndim - 2`, always, and is never re-read from a shape coincidence: a `(Ne, nPg)` FeArray is a scalar field even when `Ne`, `nPg` and the tensor width collide. This fixes four separate places that each guessed a field from its shape, including reductions that read the result shape rather than the axis.
+    - All override logic moved into `__array_ufunc__` and `__array_function__`, as NumPy recommends, instead of also overriding operator special methods. `out=` / `where=` are stripped to stop the recursion they caused, and FeArray is stripped from arguments before delegating so `np.einsum`'s `optimize=` path cannot re-enter the protocol.
+    - `FeArray.broadcast` is the single entry point for lifting a constant to a field; `Reshape_variable` delegates to it. `asfearray` now refuses `ndim < 2` rather than silently returning a plain array, and `zeros` / `ones` accept a shape tuple.
+- Mesher and Geoms
+    - `Mesher`: public 1D meshing, a geometry view on failure, a testable partitioner, and transfinite counts decided per curve and sized by the geometry that produced it.
+    - `Geoms`: points are exposed as read-only views so a geometry cannot desync, and point-in-geometry questions are answered directly instead of re-derived.
+    - Surface reconstruction now works for a mesh holding several groups of elements.
+- Tags and mesh I/O
+    - Tags are stored as node sets, each in its own gmsh entity. Previously `gmsh:geometrical` was left unset, so every element landed in entity 0 and every tag read back by `Mesher.Mesh_Import_mesh` covered the whole mesh. Tags are sorted on the numbers they contain, so `V2` comes before `V10`.
+    - Every tag now survives a round trip through meshio: `EasyFEA_to_Gmsh` writes `gmsh:physical`, reading picks that array rather than letting a zeroed `gmsh:geometrical` overwrite it, a name that is not `P{i}`/`L{i}`/`S{i}`/`V{i}` no longer raises, and an unnamed reference 0 no longer invents a tag on a mesh that had none.
+- MPI
+    - `Save_Iter` writes one file per rank, sliced to the local dofs.
+    - Added reduction helpers, `Calc_Energy` and `_globalElements`; partition arrays are sorted and results are stored with the nodes they cover.
+- `HyperElastic`: `active_stress` accepts a per-element or per-Gauss-point field, and speed/acceleration field accessors were added.
+- `_Eigen_values_vectors_projectors`: uses `np.divide` for the guarded division.
+
+**Full Changelog:** https://github.com/matnoel/EasyFEA/compare/v3.2.2...v3.3.0
+
 ## 3.2.2 (August 4, 2026):
 
 - Generalized `TimeQuadratureStressTensor` to non-midpoint schemes via a `coefK` argument.
