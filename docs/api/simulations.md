@@ -10,6 +10,7 @@ With this module, you can construct:
 
 + Linear elastic simulations with {py:class}`~EasyFEA.Simulations.Elastic`.
 + Nonlinear hyperelastic simulations with {py:class}`~EasyFEA.Simulations.HyperElastic`.
++ Small-strain materials whose stress depends on the history of strain — plasticity, viscoplasticity and viscoelasticity — with {py:class}`~EasyFEA.Simulations.Behaviour` (see {ref}`simulations-behaviour`).
 + Euler-Bernoulli and Timoshenko beam simulations with {py:class}`~EasyFEA.Simulations.Beam` (`useTimoshenko=True` to switch).
 + PhaseField damage simulations for quasi-static brittle fracture with {py:class}`~EasyFEA.Simulations.PhaseField`.
 + Thermal simulations with {py:class}`~EasyFEA.Simulations.Thermal`.
@@ -75,6 +76,105 @@ therefore require {py:attr}`~EasyFEA.Simulations.Solvers.AlgoType.midpoint`; cal
 `Solver_Set_Stress` **after** `Solver_Set_Hyperbolic_Algorithm`. Calling it with no argument
 returns to `pointwise`. See {ref}`fem-operators` for the operators that assemble them, and
 `examples/Hyperelasticity/Hyperelas5.py` for a side-by-side comparison.
+
+(simulations-behaviour)=
+### Materials with history
+
+{py:class}`~EasyFEA.Simulations.Behaviour` covers materials whose stress depends on the *history*
+of strain — plasticity, viscoplasticity, viscoelasticity — so it carries internal variables `z`
+from one converged step to the next. It solves **two nested problems**.
+
+*Globally*, a Newton-Raphson on the displacement, exactly as any nonlinear simulation: assemble
+$\Krm_T = \int \Brm^T \Crm_{alg} \Brm$ and the residual $-\int \Brm^T \Sig$, solve, repeat.
+
+*Locally*, at every Gauss point independently, the material is asked for the stress and the
+consistent tangent given the strain increment. Two routes are available; the material picks, and
+`solver="newton"` forces the general one.
+
+| Route | Used when | Unknowns |
+|-------|-----------|----------|
+| Implicit solve | Always applicable | the state increments $\Delta z$ and $\Delta\gamma$ |
+| Spectral return | The yield surface is quadratic, $\phi^2 = \Sig:\Prm:\Sig$ — von Mises, Hill — with homogeneous $\Crm$, no kinematic hardening and no viscous branches | one scalar |
+
+#### The implicit solve
+
+Every internal variable is advanced by backward Euler, which gives one algebraic system per Gauss
+point. The unknowns are the **increments**, as in MFront's implicit DSL, so each row is a change
+and the committed state never appears on both sides of a subtraction:
+
+$$
+\begin{aligned}
+r_{v,i} &= \Delta\Eps^v_i - \frac{\dt}{\tau_i}\left(\Eps^e - \Eps^v_i\right)
+  &&\text{one per Maxwell branch} \\
+r_p &= \Delta\Eps^p - \Delta\gamma\, \Nrm
+  &&\text{the flow rule} \\
+r_\alpha &= \Delta\alpha - \Delta\gamma
+  &&\text{accumulated plastic strain} \\
+r_{X_j} &= \Delta\boldsymbol{\alpha}_j - \Delta\gamma\left(\Nrm - \gamma_j\boldsymbol{\alpha}_j\right)
+  &&\text{one per back-stress} \\
+r_f &= f(\Sig, R) - \phi^{-1}(\Delta\gamma/\dt)
+  &&\text{consistency, or the rate law}
+\end{aligned}
+$$
+
+Laws are evaluated at the values $z_n + \Delta z$. The flow direction $\Nrm$ is read at the stress
+shifted by the back-stress, $\boldsymbol{\xi} = \Sig - \Xrm$, which is what makes kinematic hardening move
+the surface's centre rather than grow it.
+
+Which rows exist depends on the pieces given. With no rate law the last term of $r_f$ drops and it
+becomes the consistency condition $f = 0$. With no yield surface only the $r_{v,i}$ remain, the
+system is linear, and it converges in a single iteration — pure viscoelastic relaxation needs no
+iteration at all.
+
+Newton starts from $\Delta z = 0$, and the whole mesh is advanced together: one batched
+`np.linalg.solve` per iteration rather than a loop over points. Three details matter for
+robustness:
+
+- **Not every point flows.** A point whose trial state is inside the surface has its $\Delta\gamma$
+  row replaced by $\Delta\gamma = 0$, so elastic points cannot be dragged into flowing by the
+  shared solve. Viscous branches keep evolving either way, since relaxation needs no yield surface.
+- **$\Delta\gamma \ge 0$** is enforced after each update; a negative multiplier has no meaning.
+- **Rows are scaled before they are compared.** Most rows are strains and $r_f$ is a stress, so
+  $r_f$ is divided by the surface scale. Left unscaled the stress row dominates by orders of
+  magnitude and no step looks like an improvement.
+
+With a rate law $\Delta\gamma$ is seeded from an explicit rate estimate rather than zero, because
+the inverse rate law has unbounded derivative at zero flow and Newton would not move from there.
+
+The **consistent tangent** costs no extra stress evaluations: the Jacobian
+$\Jrm = \partial r/\partial u$ is built from quantities the converged state already carries, and
+one further linear solve gives the tangent. Differentiating $r = 0$ with respect to the strain,
+
+$$\frac{\partial u}{\partial \Eps} = -\Jrm^{-1}\frac{\partial r}{\partial \Eps},
+\qquad
+\Crm_{alg} = \Crm - \Crm\frac{\partial \Eps^p}{\partial \Eps}
+- \sum_i g_i\,\Crm\frac{\partial \Eps^v_i}{\partial \Eps}$$
+
+This is $\partial\Sig/\partial\Eps$ of the *algorithm*, not of the continuous law. Substituting the
+elastic $\Crm$ still converges to the same answer, but costs the global Newton its quadratic rate.
+
+#### The spectral return
+
+A quadratic surface makes the update linear in the stress, which removes the need to iterate on a
+vector at all. The flow is $\Delta\Eps^p = \Delta\gamma\,\Prm\Sig/\phi$, so with
+$\theta = \Delta\gamma/\phi$,
+
+$$(\Irm + \theta\,\Crm\Prm)\,\Sig = \Sig_{tr}$$
+
+Diagonalising $\Crm^{1/2}\Prm\Crm^{1/2} = \Qrm\Lambda\Qrm^T$ — once per material, not per Gauss
+point — makes that inverse diagonal, and consistency becomes an explicit scalar function of
+$\theta$, monotone decreasing, solved by one safeguarded Newton. It applies to *any* linear
+elasticity, not only isotropic. With isotropic $\Crm$ and von Mises the eigenvalue is repeated, the
+scalar equation becomes linear, and it reduces to the classical radial return.
+
+Measured over 20000 × 4 Gauss points, this is 2.6× faster than the implicit solve for von Mises
+and 10.9× for Hill; its cost does not depend on the anisotropy. Where both routes apply they
+agree to machine precision on stress, state and tangent, and the test suite checks it.
+
+```{seealso}
+- {ref}`easyfea-examples-behaviour` — ten examples, each checked against a closed form
+- {ref}`models-behaviour` — the pieces a behaviour is assembled from
+```
 
 ## How to Create New Simulations in EasyFEA?
 

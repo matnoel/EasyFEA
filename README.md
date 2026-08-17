@@ -17,15 +17,16 @@
 
 1. [Linear elastic simulations](https://easyfea.readthedocs.io/en/stable/examples/LinearizedElasticity/index.html): `static`, `dynamic`, `homogenization` and `mesh optimization`.
 2. [Hyperelastic simulations](https://easyfea.readthedocs.io/en/stable/examples/Hyperelasticity/index.html): `static` and `dynamic` in the ``Lagrangian`` framework..
-3. [Cardiac elasto-dynamics](https://easyfea.readthedocs.io/en/stable/examples/CardiacElastoDynamics/index.html): passive + active hyperelastic `mono-ventricular` left-ventricle benchmark.
-4. [Contact simulations](https://easyfea.readthedocs.io/en/stable/examples/Contact/index.html): frictionless ``penalty`` contact against a rigid obstacle 
-5. [Euler-Bernoulli and Timoshenko beam simulations](https://easyfea.readthedocs.io/en/stable/examples/Beam/index.html): `static` and `dynamic`.
-6. [Thermal simulations](https://easyfea.readthedocs.io/en/stable/examples/Thermal/index.html): `static` and `transient`.
-7. [Phase-field damage simulations for quasi-static brittle fracture](https://easyfea.readthedocs.io/en/stable/examples/PhaseField/index.html): advanced `2D` and `3D` simulations for `isotropic`, `transversely isotropic`, and `anisotropic` materials.
-8. [Weak forms simulations](https://easyfea.readthedocs.io/en/stable/examples/WeakForms/index.html): `static` and `dynamic` for `linear` or `non-linear` problems.
-9. [Digital Image Correlation (DIC) analyses](https://easyfea.readthedocs.io/en/stable/examples/DIC/index.html).
-10. [Parameter identification](https://gitlab.univ-eiffel.fr/collaboration-msme-fcba/spruce-params).
-11. [Stochastic phase-field simulations](https://gitlab.univ-eiffel.fr/collaboration-msme-fcba/spruce-stochastic).
+3. [Materials with history](https://easyfea.readthedocs.io/en/stable/examples/Behaviour/index.html): small-strain `plasticity`, `viscoplasticity` and `viscoelasticity`, assembled from a yield surface, hardening, a back-stress, a rate law and Maxwell branches.
+4. [Cardiac elasto-dynamics](https://easyfea.readthedocs.io/en/stable/examples/CardiacElastoDynamics/index.html): passive + active hyperelastic `mono-ventricular` left-ventricle benchmark.
+5. [Contact simulations](https://easyfea.readthedocs.io/en/stable/examples/Contact/index.html): frictionless ``penalty`` contact against a rigid obstacle 
+6. [Euler-Bernoulli and Timoshenko beam simulations](https://easyfea.readthedocs.io/en/stable/examples/Beam/index.html): `static` and `dynamic`.
+7. [Thermal simulations](https://easyfea.readthedocs.io/en/stable/examples/Thermal/index.html): `static` and `transient`.
+8. [Phase-field damage simulations for quasi-static brittle fracture](https://easyfea.readthedocs.io/en/stable/examples/PhaseField/index.html): advanced `2D` and `3D` simulations for `isotropic`, `transversely isotropic`, and `anisotropic` materials.
+9. [Weak forms simulations](https://easyfea.readthedocs.io/en/stable/examples/WeakForms/index.html): `static` and `dynamic` for `linear` or `non-linear` problems.
+10. [Digital Image Correlation (DIC) analyses](https://easyfea.readthedocs.io/en/stable/examples/DIC/index.html).
+11. [Parameter identification](https://gitlab.univ-eiffel.fr/collaboration-msme-fcba/spruce-params).
+12. [Stochastic phase-field simulations](https://gitlab.univ-eiffel.fr/collaboration-msme-fcba/spruce-stochastic).
 
 📸 Explore the interactive **[gallery](https://easyfea.readthedocs.io/en/stable/gallery/index.html)** to visualize simulation results.
 
