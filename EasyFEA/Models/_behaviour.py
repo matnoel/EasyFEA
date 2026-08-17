@@ -136,12 +136,12 @@ class Behaviour(_IModel):
         """
         # what each piece must be
         assert isinstance(elastic, _Elastic), "elastic must be an elastic model"
-        assert yieldSurface is None or isinstance(
-            yieldSurface, YieldSurface
-        ), "yieldSurface must be a YieldSurface"
-        assert hardening is None or isinstance(
-            hardening, IsotropicHardening
-        ), "hardening must be an IsotropicHardening"
+        assert yieldSurface is None or isinstance(yieldSurface, YieldSurface), (
+            "yieldSurface must be a YieldSurface"
+        )
+        assert hardening is None or isinstance(hardening, IsotropicHardening), (
+            "hardening must be an IsotropicHardening"
+        )
         kinematics: tuple[KinematicHardening, ...] = (
             ()
             if kinematic is None
@@ -155,9 +155,9 @@ class Behaviour(_IModel):
             isinstance(component, KinematicHardening) for component in kinematics
         ), "kinematic must be a KinematicHardening, or a sequence of them"
         assert rate is None or isinstance(rate, RateLaw), "rate must be a RateLaw"
-        assert all(
-            isinstance(branch, Maxwell) for branch in branches
-        ), "branches must be Maxwell branches"
+        assert all(isinstance(branch, Maxwell) for branch in branches), (
+            "branches must be Maxwell branches"
+        )
 
         # nothing evolves until the material yields
         needsSurface = {"hardening": hardening, "kinematic": kinematic, "rate": rate}
@@ -170,13 +170,13 @@ class Behaviour(_IModel):
         # parameter ranges
         assert elastic.dim == 3, "the elastic model must be 3D (the state is 6D Kelvin)"
         assert not (planeStress and dim == 3), "plane stress is a 2D-only assumption"
-        assert all(
-            branch.tau > 0 for branch in branches
-        ), "every branch tau must be > 0"
+        assert all(branch.tau > 0 for branch in branches), (
+            "every branch tau must be > 0"
+        )
         assert all(branch.g > 0 for branch in branches), "every branch g must be > 0"
-        assert (
-            sum(branch.g for branch in branches) < 1.0
-        ), "the branch stiffness fractions must sum to less than 1"
+        assert sum(branch.g for branch in branches) < 1.0, (
+            "the branch stiffness fractions must sum to less than 1"
+        )
 
         self.dim = dim
         self.__elastic = elastic
@@ -486,13 +486,17 @@ class Behaviour(_IModel):
         C_e_pg: FeArray,
         dt: float,
     ) -> tuple[FeArray, FeArray, Optional[FeArray], Optional[FeArray]]:
-        r"""``r(u) = 0``, over the internal variables followed by :math:`\Delta\gamma`.
+        r"""``r(u) = 0``, over the state *increments* followed by :math:`\Delta\gamma`.
 
         .. math::
-            r_{v,i} &= \Eps^v_i - \Eps^v_{i,n} - \frac{\dt}{\tau_i}(\Eps^e - \Eps^v_i) \\
-            r_p &= \Eps^p - \Eps^p_n - \Delta\gamma\, N \\
-            r_\alpha &= \alpha - \alpha_n - \Delta\gamma \\
+            r_{v,i} &= \Delta\Eps^v_i - \frac{\dt}{\tau_i}(\Eps^e - \Eps^v_i) \\
+            r_p &= \Delta\Eps^p - \Delta\gamma\, N \\
+            r_\alpha &= \Delta\alpha - \Delta\gamma \\
             r_f &= f(\Sig, R) - \phi^{-1}(\Delta\gamma/\dt)
+
+        The unknowns are increments, as in MFront's implicit DSL, so every row is a change and
+        the committed state never appears on both sides of a subtraction. The values the laws
+        are evaluated at are ``zOld + du``.
 
         The rate term is absent without a rate law, which recovers ``f = 0``.
 
@@ -501,7 +505,7 @@ class Behaviour(_IModel):
         """
         layout = self.__layout
         nz = layout.n
-        z_e_pg = u_e_pg[..., :nz]
+        z_e_pg = zOld_e_pg + u_e_pg[..., :nz]
 
         eel_e_pg = self.Compute_elastic_strain(eps6_e_pg, z_e_pg)
         sig_e_pg = self.Compute_sigma(eps6_e_pg, z_e_pg)
@@ -512,35 +516,29 @@ class Behaviour(_IModel):
 
         for i, branch in enumerate(self.__branches):
             slot = layout.slots[f"{Slot.eps_v}{i}"]
-            ev_e_pg = u_e_pg[..., slot]
-            r_e_pg[..., slot] = (
-                ev_e_pg
-                - zOld_e_pg[..., slot]
-                - (dt / branch.tau) * (eel_e_pg - ev_e_pg)
+            r_e_pg[..., slot] = u_e_pg[..., slot] - (dt / branch.tau) * (
+                eel_e_pg - z_e_pg[..., slot]
             )
 
         N_e_pg = dNdSig_e_pg = None
         if self.__yield is not None:
             P, A = layout.slots[Slot.eps_p], layout.slots[Slot.p]
-            alpha_e_pg = u_e_pg[..., A][..., 0]
+            alpha_e_pg = z_e_pg[..., A][..., 0]
             dG_e_pg = u_e_pg[..., nz]
             R_e_pg = self.__hardening.R(alpha_e_pg)
             N_e_pg = self.__yield.N(xi_e_pg, R_e_pg)
             dNdSig_e_pg = self.__yield.dNdSig(xi_e_pg)
 
-            r_e_pg[..., P] = u_e_pg[..., P] - zOld_e_pg[..., P] - dG_e_pg * N_e_pg
-            r_e_pg[..., A.start] = alpha_e_pg - zOld_e_pg[..., A][..., 0] - dG_e_pg
+            r_e_pg[..., P] = u_e_pg[..., P] - dG_e_pg * N_e_pg
+            r_e_pg[..., A.start] = u_e_pg[..., A][..., 0] - dG_e_pg
             r_e_pg[..., nz] = self.__yield.f(xi_e_pg, R_e_pg)
             if self.__rate is not None:
                 r_e_pg[..., nz] -= self.__rate.inverse(u_e_pg[..., nz] / dt)
 
             for i, component in enumerate(self.__kinematic):
                 B = self.__layout.slots[f"{Slot.alpha}{i}"]
-                a_e_pg = u_e_pg[..., B]
-                r_e_pg[..., B] = (
-                    a_e_pg
-                    - zOld_e_pg[..., B]
-                    - dG_e_pg * (N_e_pg - component.recall * a_e_pg)
+                r_e_pg[..., B] = u_e_pg[..., B] - dG_e_pg * (
+                    N_e_pg - component.recall * z_e_pg[..., B]
                 )
 
         return r_e_pg, sig_e_pg, N_e_pg, dNdSig_e_pg
@@ -548,6 +546,7 @@ class Behaviour(_IModel):
     def __Jacobian(
         self,
         u_e_pg: FeArray,
+        zOld_e_pg: FeArray,
         N_e_pg: Optional[FeArray],
         dNdSig_e_pg: Optional[FeArray],
         C_e_pg: FeArray,
@@ -563,6 +562,9 @@ class Behaviour(_IModel):
         nz, nu = layout.n, u_e_pg.shape[-1]
         Ne, nPg = u_e_pg.shape[:2]
         I6 = np.eye(6)
+        # dr/du is the same matrix whether the unknown is the state or its increment, since the
+        # committed state is a constant -- but the two rows below read a state *value*
+        z_e_pg = zOld_e_pg + u_e_pg[..., :nz]
 
         J_e_pg = FeArray.zeros(Ne, nPg, nu, nu)
         D_e_pg = FeArray.zeros(Ne, nPg, nu, 6)
@@ -578,7 +580,7 @@ class Behaviour(_IModel):
         if self.__yield is not None:
             P, A = layout.slots[Slot.eps_p], layout.slots[Slot.p]
             dG_e_pg = u_e_pg[..., nz, None, None]
-            alpha_e_pg = u_e_pg[..., A][..., 0]
+            alpha_e_pg = z_e_pg[..., A][..., 0]
 
             NC_e_pg = N_e_pg @ C_e_pg
             dNdSig_C = dNdSig_e_pg @ C_e_pg
@@ -606,7 +608,7 @@ class Behaviour(_IModel):
                 J_e_pg[..., nz, Bi] = -component.modulus * N_e_pg
                 # r_alpha_i = alpha_i - alpha_i_n - dG (N - recall_i alpha_i)
                 J_e_pg[..., Bi, P] = dG_e_pg * dNdSig_C
-                J_e_pg[..., Bi, nz] = -(N_e_pg - component.recall * u_e_pg[..., Bi])
+                J_e_pg[..., Bi, nz] = -(N_e_pg - component.recall * z_e_pg[..., Bi])
                 D_e_pg[..., Bi, :] = -dG_e_pg * dNdSig_C
                 for j, other in enumerate(self.__kinematic):
                     Bj = layout.slots[f"{Slot.alpha}{j}"]
@@ -705,7 +707,6 @@ class Behaviour(_IModel):
 
         # start from the committed state: nothing has flowed or relaxed yet
         u = FeArray.zeros(Ne, nPg, nu)
-        u[..., :nz] = zOld_e_pg
 
         r, sig, N, dNdSig = self.__Residual(eps6_e_pg, u, zOld_e_pg, C_e_pg, dt)
 
@@ -723,15 +724,15 @@ class Behaviour(_IModel):
         for _ in range(self._maxIter):
             if converged.all():
                 break
-            J, _ = self.__Jacobian(u, N, dNdSig, C_e_pg, dt)
+            J, _ = self.__Jacobian(u, zOld_e_pg, N, dNdSig, C_e_pg, dt)
             self.__Freeze(J, None, r, u, active)
             u = self.__Bound(u - np.linalg.solve(J, r[..., None])[..., 0])
             r, sig, N, dNdSig = self.__Residual(eps6_e_pg, u, zOld_e_pg, C_e_pg, dt)
             converged = self.__Converged(r, active)
 
-        z_e_pg = u[..., :nz].copy()
+        z_e_pg = (zOld_e_pg + u[..., :nz]).copy()
 
-        J, D = self.__Jacobian(u, N, dNdSig, C_e_pg, dt)
+        J, D = self.__Jacobian(u, zOld_e_pg, N, dNdSig, C_e_pg, dt)
         self.__Freeze(J, D, r, u, active)
         # dz/deps = -inv(dr/dz)(dr/deps), then C_alg = dsig/deps
         dudeps = -np.linalg.solve(J, D)
@@ -791,9 +792,9 @@ class Behaviour(_IModel):
             Trial state — the caller commits it only once the global step converges.
         converged : FeArray (Ne, nPg) of bool
         """
-        assert (
-            not fields
-        ), "external fields are not read yet (thermo-mechanical coupling)"
+        assert not fields, (
+            "external fields are not read yet (thermo-mechanical coupling)"
+        )
         assert self.__rate is None or dt > 0.0, (
             "a rate-dependent behaviour needs a positive time increment; "
             "set `simu.dt` or pass `dt=` to Integrate"
