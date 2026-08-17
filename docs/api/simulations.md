@@ -154,6 +154,33 @@ The tangent reuses the same shape. `D` is $\partial r/\partial\Eps$ with shape `
 so `np.linalg.solve(J, D)` solves the *same* matrices against **six right-hand sides** — one per
 Kelvin-Mandel strain component — and returns $\partial u/\partial\Eps$ in one call.
 
+$\Jrm = \partial r/\partial u$ is written analytically, never finite-differenced. Every
+dependence runs through the stress and the shifted stress,
+
+$$\Sig = \Crm:(\Eps - \Eps^p) - \sum_i g_i \Crm : \Eps^v_i,
+\qquad \boldsymbol{\xi} = \Sig - \sum_j k_j\boldsymbol{\alpha}_j$$
+
+so the sensitivities are read straight off them — $\partial\Sig/\partial\Delta\Eps^p = -\Crm$,
+$\partial\Sig/\partial\Delta\Eps^v_i = -g_i\Crm$,
+$\partial\boldsymbol{\xi}/\partial\Delta\boldsymbol{\alpha}_j = -k_j$ — and the chain rule fills
+the blocks:
+
+| Block | Value | From |
+|-------|-------|------|
+| $\partial r_p/\partial\Delta\Eps^p$ | $\Irm + \Delta\gamma\,\dfrac{\partial \Nrm}{\partial\Sig}\Crm$ | the surface's own `dNdSig` |
+| $\partial r_p/\partial\Delta\gamma$ | $-\Nrm$ | |
+| $\partial r_f/\partial\Delta\Eps^p$ | $-\Nrm\Crm$ | $\partial f/\partial\Sig = \Nrm$ |
+| $\partial r_f/\partial\Delta\alpha$ | $-R'$ | the hardening's own `dR` |
+| $\partial r_f/\partial\Delta\gamma$ | $-\phi^{-1\prime}/\dt$ | the rate law's own `dinverse` |
+| $\partial r_{v,i}/\partial\Delta\Eps^v_i$ | $(1 + \dt/\tau_i)\,\Irm$ | |
+| $\partial r_{X_j}/\partial\Delta\boldsymbol{\alpha}_j$ | $(1 + \Delta\gamma\,\gamma_j)\,\Irm + \ldots$ | plus a full coupling block, since every back-stress shifts $\boldsymbol{\xi}$ and so moves $\Nrm$ for all the others |
+
+The same pass builds $\partial r/\partial\Eps$, which the tangent needs. What makes this
+extensible is that no block knows what law it belongs to: a yield surface supplies $\Nrm$ and
+$\partial\Nrm/\partial\Sig$, a hardening law $R$ and $R'$, a rate law its inverse and derivative,
+and the assembly is generic. Adding a mechanism means adding its rows and its blocks, not
+touching the solver.
+
 Three details matter for robustness:
 
 - **Not every point flows.** A point whose trial state is inside the surface has its $\Delta\gamma$
