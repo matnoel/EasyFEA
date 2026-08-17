@@ -34,7 +34,7 @@ class _Geom(ABC):
     """Geometric class."""
 
     meshSize: float = _params.PositiveScalarParameter()
-    """Element size used for meshing."""
+    """Element size used for meshing. On an organised mesh it also sets the transfinite count of the curves the geometry produced."""
 
     name: str = _params.StringParameter()
     """Name of the geometric object."""

@@ -57,7 +57,7 @@ if TYPE_CHECKING:
 GeomCompatible = Union[_Geom, Circle, Domain, Points, Contour]
 ContourCompatible = Union[Line, CircleArc, Points]
 CrackCompatible = Union[Line, Points, Contour, CircleArc]
-RefineCompatible = Union[Point, Circle, str]
+RefineCompatible = Union[Domain, Circle, str]
 
 
 class MeshError(Exception):
@@ -86,6 +86,33 @@ def _shows_geoms_on_error(func: Callable[_P, Mesh]) -> Callable[_P, Mesh]:
             mesher._Show_geoms(error)
 
     return wrapper
+
+
+def _Group_opposite_sides(list_lines: Iterable[list[int]]) -> dict[int, int]:
+    """Groups the curves that must carry the same transfinite count, returning curve -> group.
+
+    A quad's opposite sides are one constraint, and a shared curve ties two surfaces together, so the groups are the connected components. Surfaces that are not 4-sided add no constraint.
+    """
+
+    list_lines = list(list_lines)
+    parent: dict[int, int] = {}
+
+    def Find(line: int) -> int:
+        parent.setdefault(line, line)
+        while parent[line] != line:
+            parent[line] = parent[parent[line]]  # path compression
+            line = parent[line]
+        return line
+
+    for lines in list_lines:
+        if len(lines) != 4:
+            continue
+        for i, j in ((0, 2), (1, 3)):  # opposite sides, in cyclic order
+            rootI, rootJ = Find(lines[i]), Find(lines[j])
+            if rootI != rootJ:
+                parent[rootI] = rootJ
+
+    return {line: Find(line) for lines in list_lines for line in lines}
 
 
 def _Can_show_geoms() -> bool:
@@ -181,23 +208,27 @@ class Mesher:
     def _Loop_From_Geom(self, geom: _Geom) -> tuple[int, list[int], list[int]]:
         """Creates a loop based on the geometric object.\n
         returns loop, lines, points"""
-        NotImplementedError("Must be a circle, a domain, points or a contour.")
+        raise TypeError(
+            f"A loop cannot be built from a {type(geom).__name__}: "
+            "must be a Domain, a Circle, Points or a Contour."
+        )
 
-    @_Loop_From_Geom.register
-    def _(self, domain: Domain):
+    # the implementations are registered against an explicit type rather than through
+    # their annotation, so that each one keeps a name an editor can navigate to
+    @_Loop_From_Geom.register(Domain)
+    def __Loop_From_Domain(self, domain: Domain):
         return self._Create_Domain(domain)[:3]
 
-    @_Loop_From_Geom.register
-    def _(self, circle: Circle):
+    @_Loop_From_Geom.register(Circle)
+    def __Loop_From_Circle(self, circle: Circle):
         return self._Create_Circle(circle)[:3]
 
-    @_Loop_From_Geom.register
-    def _(self, points: Points):
-        contour = points.Get_Contour()
-        return self._Create_Contour(contour)[:3]
+    @_Loop_From_Geom.register(Points)
+    def __Loop_From_Points(self, points: Points):
+        return self._Create_Contour(points.Get_Contour())[:3]
 
-    @_Loop_From_Geom.register
-    def _(self, contour: Contour):
+    @_Loop_From_Geom.register(Contour)
+    def __Loop_From_Contour(self, contour: Contour):
         return self._Create_Contour(contour)[:3]
 
     @singledispatchmethod
@@ -205,10 +236,13 @@ class Mesher:
         """Creates the lines in order to construct the contour object (Line, CircleArc, Points).\n
         returns lines
         """
-        NotImplementedError("Must be a Line, CircleArc or Points.")
+        raise TypeError(
+            f"A contour edge cannot be a {type(geom).__name__}: "
+            "must be a Line, a CircleArc or Points."
+        )
 
-    @_Create_Lines.register
-    def _(self, line: Line, p1, p2):
+    @_Create_Lines.register(Line)
+    def __Lines_From_Line(self, line: Line, p1, p2):
         if isinstance(p1, Point):
             p1 = self._factory.addPoint(*p1.coord)
         if isinstance(p2, Point):
@@ -216,8 +250,8 @@ class Mesher:
         line = self._factory.addLine(p1, p2)
         return [line]
 
-    @_Create_Lines.register
-    def _(self, circleArc: CircleArc, p1, p2):
+    @_Create_Lines.register(CircleArc)
+    def __Lines_From_CircleArc(self, circleArc: CircleArc, p1, p2):
         factory = self._factory
 
         if isinstance(p1, Point):
@@ -256,8 +290,8 @@ class Mesher:
 
         return lines
 
-    @_Create_Lines.register
-    def _(self, points: Points, p1, p2):
+    @_Create_Lines.register(Points)
+    def __Lines_From_Points(self, points: Points, p1, p2):
         factory = self._factory
 
         if isinstance(p1, Point):
@@ -538,76 +572,133 @@ class Mesher:
     ) -> None:
         """Applies transfinite settings to every final 2D entity.
 
-        For each surface, walks the boundary in cyclic order, computes per-line
-        node counts from the actual line length queried via
-        ``gmsh.model.occ.getMass`` and the given ``meshSize``, equalizes
-        opposite-side pairs (transfinite quad requires this), and applies
-        ``setTransfiniteCurve`` / ``setTransfiniteSurface`` / ``setRecombine``.
-
-        ``meshSize == 0`` means "no user sizing", so transfinite is skipped
-        and gmsh falls back to its default mesher (matches the legacy behavior
-        when transfinite curve settings were lost across boolean ops).
+        Counts are decided per curve: curves that must share one are grouped, then each group takes the count of its coarsest member. `meshSize == 0` means "no user sizing", so transfinite is skipped.
         """
         self._Synchronize()  # mandatory
 
         factory = self._factory
         setRecombine = elemType.startswith(("QUAD", "HEXA"))
 
+        dict_surf_lines: dict[int, list[int]] = {}
+        # gmsh returns boundary curves sorted by tag, not in cyclic order
+        list_ordered: list[list[int]] = []
         for _, surf in factory.getEntities(2):  # type: ignore
-            lineEntities = gmsh.model.getBoundary([(2, surf)])
-            lines = [abs(tag) for _, tag in lineEntities]
+            lines = [abs(tag) for _, tag in gmsh.model.getBoundary([(2, surf)])]
+            dict_surf_lines[surf] = lines
+            ordered = self._Cyclic_Boundary_Order(lines)
+            if ordered is not None:
+                list_ordered.append(ordered)
 
-            if isOrganised:
+        if isOrganised:
+            merged = _Group_opposite_sides(list_ordered)
+            # a curve on no pairable surface is a group of its own
+            groups = {
+                line: merged.get(line, line)
+                for lines in dict_surf_lines.values()
+                for line in lines
+            }
 
-                # gmsh returns boundary curves sorted by tag, not in cyclic
-                # order. Walk the graph to recover the true cyclic order so
-                # opposite sides can be paired correctly.
-                orderedLines = self._Cyclic_Boundary_Order(lines)
+            dict_curve_geom = self._Geoms_From_Curves()
 
-                counts = []
-                for line in orderedLines:
+            groupCount: dict[int, int] = {}
+            for line in groups:
+                # a curve takes its own geom's size; endpoints are shared between edges
+                geom = dict_curve_geom.get(line)
+                if geom is not None and geom.meshSize > 0:
+                    size = geom.meshSize
+                else:
                     points = gmsh.model.getBoundary([(1, line)])  # entities
                     sizes = np.append(gmsh.model.mesh.getSizes(points), meshSize)
                     sizes = sizes[sizes > 0]
-                    if sizes.size == 0:
-                        counts.append(0)
-                    else:
-                        length = gmsh.model.occ.getMass(1, line)
-                        counts.append(round(length / sizes.min()) + 1)
+                    size = sizes.min() if sizes.size > 0 else 0.0
 
-                # Transfinite quad requires equal node counts on opposite
-                # sides. In cyclic order, opposite pairs are (0, 2) and
-                # (1, 3); take the larger count of each pair so the finer
-                # side wins.
-                if len(counts) == 4:
-                    c02 = min(counts[0], counts[2])
-                    c13 = min(counts[1], counts[3])
-                    counts = [c02, c13, c02, c13]
+                if size > 0:
+                    length = gmsh.model.occ.getMass(1, line)
+                    count = max(round(length / size) + 1, 2)  # 1 node is not a curve
+                else:
+                    count = 0
+                group = groups[line]
+                groupCount[group] = min(groupCount.get(group, count), count)
 
-                for line, count in zip(orderedLines, counts):
-                    if count > 0:
-                        gmsh.model.mesh.setTransfiniteCurve(line, count)
+            for line, group in groups.items():
+                if groupCount[group] > 0:
+                    gmsh.model.mesh.setTransfiniteCurve(line, groupCount[group])
 
-                # Mark the surface transfinite even when meshSize == 0: gmsh
-                # auto-fills curve counts from CharacteristicLength, and the
-                # transfinite algorithm produces a clean quad layout (required
-                # so HEXA extrusion doesn't get mixed prisms/hexes).
-                if len(lineEntities) in [3, 4]:
-                    gmsh.model.mesh.setTransfiniteSurface(surf)
+        for surf, lines in dict_surf_lines.items():
+            # Mark the surface transfinite even when meshSize == 0: gmsh
+            # auto-fills curve counts from CharacteristicLength, and the
+            # transfinite algorithm produces a clean quad layout (required
+            # so HEXA extrusion doesn't get mixed prisms/hexes).
+            if isOrganised and len(lines) in [3, 4]:
+                gmsh.model.mesh.setTransfiniteSurface(surf)
 
             if setRecombine:
                 gmsh.model.mesh.setRecombine(2, surf)
 
-    def _Cyclic_Boundary_Order(self, line_tags: list[int]) -> list[int]:
-        """Returns line_tags in cyclic order around the boundary.
+    def _Geoms_From_Curves(self) -> dict[int, _Geom]:
+        """Maps every gmsh curve back to the geom object it came from.
 
-        ``gmsh.model.getBoundary`` returns curves sorted by tag, but transfinite
-        opposite-side pairing needs traversal order. Walk the closed loop by
-        following shared endpoints from one curve to the next.
-
-        Falls back to the input order if the boundary is not a single closed
-        loop (e.g. multiple holes).
+        Tags cannot carry it: `occ.fragment` renumbers curves it was never handed. Each curve is instead probed at its parametric midpoint and given to the first geom containing it, which holds whatever the booleans did to the tags.
         """
+
+        self._Synchronize()
+
+        curves = [tag for _, tag in gmsh.model.getEntities(1)]
+        references = [
+            reference
+            for geom in dict.fromkeys(self._geoms)
+            if isinstance(geom, _Geom)
+            for reference in self.__References(geom, geom, False)
+        ]
+        if len(curves) == 0 or len(references) == 0:
+            return {}
+
+        probes = np.asarray([self.__Curve_Midpoint(tag) for tag in curves])
+        bbox = np.asarray(gmsh.model.getBoundingBox(-1, -1))
+        # only absorbs the round-trip through gmsh; a geom that cannot answer exactly
+        # widens it itself, see `_Geom.Contains`
+        tol = 1e-9 * float(np.linalg.norm(bbox[3:] - bbox[:3]))
+
+        dict_geom: dict[int, _Geom] = {}
+        for geom, owner in references:  # on an overlap the first geom given wins
+            for c in np.flatnonzero(geom.Contains(probes, tol)):
+                dict_geom.setdefault(curves[c], owner)
+
+        return dict_geom
+
+    @staticmethod
+    def __Curve_Midpoint(tag: int) -> _types.FloatArray:
+        """Returns a point lying on the curve."""
+        tMin, tMax = gmsh.model.getParametrizationBounds(1, tag)
+        return np.asarray(gmsh.model.getValue(1, tag, [(tMin[0] + tMax[0]) / 2]))
+
+    def __References(
+        self, geom: _Geom, owner: _Geom, isEdge: bool
+    ) -> list[tuple[_Geom, _Geom]]:
+        """Breaks `geom` into its elementary edges, each paired with the geom its curves are attributed to.
+
+        An edge with its own `meshSize` outranks the contour it belongs to, which is what lets an edge be sized independently.
+        """
+
+        # a Points is a contour on its own, a spline as a contour edge. The edges of that
+        # contour are synthesized rather than given by the caller, so they carry a copy of
+        # the geom's own size and must not outrank it — the caller gets its object back.
+        if not isEdge and isinstance(geom, (Domain, Circle, Points)):
+            return [(edge, owner) for edge in geom.Get_Contour().geoms]
+
+        if isinstance(geom, Contour):
+            return [
+                reference
+                for edge in geom.geoms
+                for reference in self.__References(
+                    edge, edge if edge.meshSize > 0 else owner, True
+                )
+            ]
+
+        return [(geom, owner)]
+
+    def _Cyclic_Boundary_Order(self, line_tags: list[int]) -> Optional[list[int]]:
+        """Returns line_tags in cyclic order around the boundary, or None when they do not form a single closed loop (e.g. several holes)."""
         if len(line_tags) <= 2:
             return list(line_tags)
 
@@ -618,7 +709,7 @@ class Mesher:
 
         ordered = [line_tags[0]]
         if len(endpoints[line_tags[0]]) != 2:
-            return list(line_tags)
+            return None
         pivot = endpoints[line_tags[0]][1]
 
         while len(ordered) < len(line_tags):
@@ -630,7 +721,7 @@ class Mesher:
                     pivot = next(p for p in endpoints[ln] if p != pivot)
                     break
             else:
-                return list(line_tags)  # broken / disjoint loop
+                return None  # broken / disjoint loop
 
         return ordered
 
@@ -1181,10 +1272,13 @@ class Mesher:
         """Creates the crack in gmsh.\n
         returns surfaces, lines, points, cracks_2d, cracks_1d, openLines, openPoints
         """
-        NotImplementedError("Must be a Line, Contour, Points or CircleArc.")
+        raise TypeError(
+            f"A crack cannot be a {type(geom).__name__}: "
+            "must be a Line, Points, a CircleArc or a Contour."
+        )
 
-    @__Create_crack.register
-    def _(self, crack: Line):
+    @__Create_crack.register(Line)
+    def __Crack_From_Line(self, crack: Line):
         # 1D CRACK
         factory = self._factory
 
@@ -1213,8 +1307,8 @@ class Mesher:
 
         return None, lines, points, None, cracks_1d, openLines, openPoints
 
-    @__Create_crack.register
-    def _(self, crack: Points):
+    @__Create_crack.register(Points)
+    def __Crack_From_Points(self, crack: Points):
         # 1D CRACK
         # create lines and points
         loop, lines, points, openLns, openPts = self._Create_Contour(
@@ -1236,8 +1330,8 @@ class Mesher:
 
         return None, lines, points, None, cracks_1d, openLines, openPoints
 
-    @__Create_crack.register
-    def _(self, crack: CircleArc):
+    @__Create_crack.register(CircleArc)
+    def __Crack_From_CircleArc(self, crack: CircleArc):
         # 1D CRACK
         factory = self._factory
 
@@ -1271,8 +1365,8 @@ class Mesher:
 
         return None, lines, points, None, cracks_1d, openLines, openPoints
 
-    @__Create_crack.register
-    def _(self, crack: Contour):
+    @__Create_crack.register(Contour)
+    def __Crack_From_Contour(self, crack: Contour):
         # 2D CRACK
         # get lines and points
         loop, lines, points, openLns, openPts = self._Create_Contour(crack)
