@@ -126,9 +126,35 @@ becomes the consistency condition $f = 0$. With no yield surface only the $r_{v,
 system is linear, and it converges in a single iteration — pure viscoelastic relaxation needs no
 iteration at all.
 
-Newton starts from $\Delta z = 0$, and the whole mesh is advanced together: one batched
-`np.linalg.solve` per iteration rather than a loop over points. Three details matter for
-robustness:
+The system is small and there is one of it per Gauss point. Its size $n_u$ is set by the pieces
+given — six rows for each tensor variable, one for the accumulated plastic strain, one for
+$\Delta\gamma$:
+
+| Configuration | Rows |
+|---------------|------|
+| Maxwell branches only, no yield surface | 6 per branch |
+| von Mises + isotropic hardening | 8 |
+| \+ one Armstrong-Frederick back-stress | 14 |
+| \+ Chaboche with three components | 26 |
+| \+ three components and two branches | 38 |
+
+Newton starts from $\Delta z = 0$, and the **whole mesh is advanced together**. `J` is assembled as
+a FeArray of shape `(Ne, nPg, nu, nu)` and the residual as `(Ne, nPg, nu)`, so
+
+```python
+u = Bound(u - np.linalg.solve(J, r[..., None])[..., 0])
+```
+
+is one call that solves `Ne × nPg` independent $n_u \times n_u$ systems: `np.linalg.solve` reads the
+last two axes as the matrix and broadcasts over the leading ones, so `r[..., None]` supplies one
+column vector per point. There is no Python loop over points, which is why the local solve costs
+about the same as an assembly pass rather than dominating it.
+
+The tangent reuses the same shape. `D` is $\partial r/\partial\Eps$ with shape `(Ne, nPg, nu, 6)`,
+so `np.linalg.solve(J, D)` solves the *same* matrices against **six right-hand sides** — one per
+Kelvin-Mandel strain component — and returns $\partial u/\partial\Eps$ in one call.
+
+Three details matter for robustness:
 
 - **Not every point flows.** A point whose trial state is inside the surface has its $\Delta\gamma$
   row replaced by $\Delta\gamma = 0$, so elastic points cannot be dragged into flowing by the
