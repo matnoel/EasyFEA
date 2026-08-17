@@ -15,7 +15,8 @@ import matplotlib.pyplot as plt
 import numpy as np
 
 from EasyFEA import (
-    Terminal, Matplotlib,
+    Terminal,
+    Matplotlib,
     Folder,
     Models,
     Tic,

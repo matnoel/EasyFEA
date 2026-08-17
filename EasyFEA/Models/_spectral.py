@@ -140,8 +140,15 @@ def Solve(
     sig_e_pg = _Field(eigen.T, y_e_pg) @ (y_e_pg * d_e_pg)
 
     return Return(
-        sig_e_pg, dG_e_pg, phi_e_pg, theta_e_pg, y_e_pg, d_e_pg,
-        slope_e_pg, drdtheta_e_pg, active_e_pg,
+        sig_e_pg,
+        dG_e_pg,
+        phi_e_pg,
+        theta_e_pg,
+        y_e_pg,
+        d_e_pg,
+        slope_e_pg,
+        drdtheta_e_pg,
+        active_e_pg,
     )
 
 
