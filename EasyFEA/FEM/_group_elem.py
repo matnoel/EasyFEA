@@ -1626,7 +1626,7 @@ class _GroupElem(ABC):
     def Get_Nodes_Domain(self, domain: "Domain") -> _types.IntArray:
         """Returns nodes in the domain."""
 
-        assert isinstance(domain, Line)
+        assert isinstance(domain, Domain)
 
         xn, yn, zn = self.coord.T
 

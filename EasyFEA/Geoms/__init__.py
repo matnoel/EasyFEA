@@ -5,9 +5,9 @@
 
 """Module containing the geometric functions used to build meshes."""
 
+from ._domain import Domain
 from ._circle import Circle, CircleArc
 from ._contour import Contour
-from ._domain import Domain
 from ._geom import _Geom
 from ._line import Line
 from ._points import Points
@@ -31,9 +31,9 @@ from ._utils import (
 
 def _Init_Geoms_NInstance():
     """Initalizes the number of instance for each geom classes."""
+    Domain._Init_Ninstance()
     Circle._Init_Ninstance()
     CircleArc._Init_Ninstance()
     Contour._Init_Ninstance()
-    Domain._Init_Ninstance()
     Line._Init_Ninstance()
     Points._Init_Ninstance()

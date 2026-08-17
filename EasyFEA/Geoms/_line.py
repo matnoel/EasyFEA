@@ -41,12 +41,22 @@ class Line(_Geom):
             line can be opened (openCrack), by default False
         """
 
-        self.pt1 = AsPoint(pt1)
-        self.pt2 = AsPoint(pt2)
-
         Line.__NInstance += 1
         name = f"Line{Line.__NInstance}"
-        _Geom.__init__(self, [self.pt1, self.pt2], meshSize, name, False, isOpen)
+        _Geom.__init__(
+            self, [AsPoint(pt1), AsPoint(pt2)], meshSize, name, False, isOpen
+        )
+
+    # the points are exposed as views on `points`, so they cannot desync from it
+    @property
+    def pt1(self) -> Point:
+        """first point"""
+        return self.points[0]
+
+    @property
+    def pt2(self) -> Point:
+        """second point"""
+        return self.points[1]
 
     @property
     def unitVector(self) -> _types.FloatArray:

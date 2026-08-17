@@ -51,14 +51,20 @@ class Points(_Geom):
 
         list_point: list[Point] = [AsPoint(point) for point in points]
 
-        self.pt1 = list_point[0]
-        """First point"""
-        self.pt2 = list_point[-1]
-        """Last point"""
-
         Points.__NInstance += 1
         name = f"Points{Points.__NInstance}"
         super().__init__(list_point, meshSize, name, isFilled, isOpen)
+
+    # the points are exposed as views on `points`, so they cannot desync from it
+    @property
+    def pt1(self) -> Point:
+        """First point"""
+        return self.points[0]
+
+    @property
+    def pt2(self) -> Point:
+        """Last point"""
+        return self.points[-1]
 
     def Get_Contour(self):
         """Creates a contour from the points.\n

@@ -63,18 +63,18 @@ class Circle(_Geom):
 
         r = diam / 2
 
-        # creates points associated with the circle
-        self.center = center
-        self.pt1 = center + [r, 0, 0]
-        self.pt2 = center + [0, r, 0]
-        self.pt3 = center + [-r, 0, 0]
-        self.pt4 = center + [0, -r, 0]
-
         Circle.__NInstance += 1
         name = f"Circle{Circle.__NInstance}"
+        # points associated with the circle
         _Geom.__init__(
             self,
-            [self.center, self.pt1, self.pt2, self.pt3, self.pt4],
+            [
+                center,
+                center + [r, 0, 0],
+                center + [0, r, 0],
+                center + [-r, 0, 0],
+                center + [0, -r, 0],
+            ],
             meshSize,
             name,
             isFilled,
@@ -100,6 +100,32 @@ class Circle(_Geom):
 
         for p, point in enumerate(self.points):
             point.coord = coord[p]
+
+    # the points are exposed as views on `points`, so they cannot desync from it
+    @property
+    def center(self) -> Point:
+        """center of the circle"""
+        return self.points[0]
+
+    @property
+    def pt1(self) -> Point:
+        """point at +r along the local x axis"""
+        return self.points[1]
+
+    @property
+    def pt2(self) -> Point:
+        """point at +r along the local y axis"""
+        return self.points[2]
+
+    @property
+    def pt3(self) -> Point:
+        """point at -r along the local x axis"""
+        return self.points[3]
+
+    @property
+    def pt4(self) -> Point:
+        """point at -r along the local y axis"""
+        return self.points[4]
 
     @property
     def diam(self) -> float:
@@ -249,13 +275,6 @@ class CircleArc(_Geom):
             r1 - r2
         ) ** 2 / r2**2 <= 1e-12, "The given center doesn't have the right coordinates. If the center coordinate is difficult to identify, you can give:\n - the radius R with the vector normal to the circle n\n - another point belonging to the circle."
 
-        self.center = center
-        """Point at the center of the arc."""
-        self.pt1 = pt1
-        """Starting point of the arc."""
-        self.pt2 = pt2
-        """Ending point of the arc."""
-
         # Here we'll create an intermediate point, because in gmsh, circular arcs are limited to an pi angle.
 
         i1 = (pt1 - center).coord
@@ -277,21 +296,39 @@ class CircleArc(_Geom):
         _params._CheckIsInIntervaloo(coef, -1, 1)
         pt3 = center.coord + mat @ [coef * r1, 0, 0]
 
-        self.pt3 = Point(*pt3)
-        """Midpoint of the circular arc."""
-
         self.coef = coef
 
         CircleArc.__NInstance += 1
         name = f"CircleArc{CircleArc.__NInstance}"
         _Geom.__init__(
             self,
-            [self.pt1, self.center, self.pt3, self.pt2],
+            [pt1, center, Point(*pt3), pt2],
             meshSize,
             name,
             False,
             isOpen,
         )
+
+    # the points are exposed as views on `points`, so they cannot desync from it
+    @property
+    def pt1(self) -> Point:
+        """Starting point of the arc."""
+        return self.points[0]
+
+    @property
+    def center(self) -> Point:
+        """Point at the center of the arc."""
+        return self.points[1]
+
+    @property
+    def pt3(self) -> Point:
+        """Midpoint of the circular arc."""
+        return self.points[2]
+
+    @property
+    def pt2(self) -> Point:
+        """Ending point of the arc."""
+        return self.points[3]
 
     @property
     def n(self) -> _types.Coords:

@@ -24,6 +24,8 @@ A **geometric object** (accessible in the {py:mod}`EasyFEA.Geoms` namespace) des
 
 ### Rectangle / box (`Domain`)
 
+`Domain` is defined by two opposite corners and is always axis-aligned, so it can only be rotated by a multiple of 90 deg. Use `Points` with four corners to place a quadrilateral at an angle.
+
 ```{eval-rst}
 .. jupyter-execute::
 

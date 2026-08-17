@@ -27,7 +27,7 @@ if TYPE_CHECKING:
     GeomCompatible = Union["_Geom", Domain, Circle, Points, Contour]
     ContourCompatible = Union[Line, CircleArc, Points]
     CrackCompatible = Union[Line, Points, Contour, CircleArc]
-    RefineCompatible = Union[Point, Circle, str]
+    RefineCompatible = Union[Domain, Circle, str]
 
 
 class _Geom(ABC):
@@ -69,9 +69,11 @@ class _Geom(ABC):
             Indicates whether the geometry is open, for instance to represent a crack.
         """
 
-        assert isinstance(points, Iterable) and isinstance(
-            points[0], Point
-        ), "points must be a list of points."
+        assert (
+            isinstance(points, Iterable)
+            and len(points) > 0
+            and all(isinstance(point, Point) for point in points)
+        ), "points must be a non-empty list of points."
         self.__points: list[Point] = points
 
         self.meshSize = meshSize

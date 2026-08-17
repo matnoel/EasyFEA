@@ -13,7 +13,10 @@ from ..Utilities import _types
 
 
 class Domain(_Geom):
-    """Domain (2d or 3d domain) class."""
+    """Domain (2d or 3d) class.
+
+    A domain is held as its two opposite corners `pt1` and `pt2`, and every other corner is rebuilt from them component by component, so it is always the axis-aligned box those two corners span. `Translate`, `Rotate` and `Symmetry` move `pt1` and `pt2`, which means a transformation that does not keep the box axis-aligned gives the axis-aligned box spanned by the two transformed corners, not the transformed shape: rotating a 2 x 1 domain by 45 deg leaves a domain of area 1.5. Use `Points` with the four corners when a shape has to keep an arbitrary orientation.
+    """
 
     __NInstance = 0
 
@@ -41,13 +44,23 @@ class Domain(_Geom):
             the enclosed region is filled (solid inclusion), by default False
         """
 
-        self.pt1 = AsPoint(pt1)
-        self.pt2 = AsPoint(pt2)
-
         Domain.__NInstance += 1
         name = f"Domain{Domain.__NInstance}"
         # a domain can't be open
-        _Geom.__init__(self, [self.pt1, self.pt2], meshSize, name, isFilled, False)
+        _Geom.__init__(
+            self, [AsPoint(pt1), AsPoint(pt2)], meshSize, name, isFilled, False
+        )
+
+    # the points are exposed as views on `points`, so they cannot desync from it
+    @property
+    def pt1(self) -> Point:
+        """first point"""
+        return self.points[0]
+
+    @property
+    def pt2(self) -> Point:
+        """second point"""
+        return self.points[1]
 
     def Get_coord_for_plot(
         self, N: int = None
