@@ -14,9 +14,9 @@ from typing import Callable, NamedTuple, Optional
 
 import numpy as np
 
-from . import _kelvin
-from ..FEM._linalg import FeArray, Norm, TensorProd
-from ..Utilities import _types
+from .. import _kelvin
+from ...FEM._linalg import FeArray, Norm, TensorProd
+from ...Utilities import _types
 
 
 class YieldSurface(NamedTuple):
@@ -30,7 +30,7 @@ class YieldSurface(NamedTuple):
       needs. Written by hand here, as the derivatives of the hyperelastic potentials are.
     - ``P`` — the ``(6, 6)`` quadratic form when :math:`\phi^2 = \Sig : \Prm : \Sig`, else
       ``None``. Only that shape lets the local solve collapse to one scalar unknown, so it is
-      what :class:`.Behaviour` dispatches on.
+      what :class:`.Behavior` dispatches on.
 
     To add a surface, write ``phi`` and differentiate it twice. Yield functions are linear in
     the stress invariants, so the chain rule is a line or two.

@@ -8,7 +8,7 @@
 import numpy as np
 import pytest
 
-from EasyFEA import ElemType, Models, Simulations
+from EasyFEA import ElemType, Models, Simulations, Mesh
 from EasyFEA.Geoms import Domain, Point
 from EasyFEA.Models.Elastic._laws import (
     Anisotropic,
@@ -44,10 +44,10 @@ def _laws_3d() -> dict:
     }
 
 
-def _solve(mesh, model, dim: int) -> np.ndarray:
+def _solve(mesh: Mesh, model, dim: int) -> np.ndarray:
     """Same BCs either way: clamped at x=0, pulled at x=L."""
-    if isinstance(model, Models.Behaviour):
-        simu = Simulations.Behaviour(mesh, model)
+    if isinstance(model, Models.InElastic.Behavior):
+        simu = Simulations.InElastic(mesh, model)
     else:
         simu = Simulations.Elastic(mesh, model)
 
@@ -73,20 +73,20 @@ def mesh3D():
 
 
 @pytest.mark.parametrize("law", list(_laws_3d()))
-def test_3d_matches_elastic(mesh3D, law: str):
+def test_3d_matches_elastic(mesh3D: Mesh, law: str):
     """3D, every shipped elastic law."""
     elastic = _laws_3d()[law]
 
-    u_behaviour = _solve(mesh3D, Models.Behaviour(3, elastic), 3)
+    u_behaviour = _solve(mesh3D, Models.InElastic.Behavior(3, elastic), 3)
     u_elastic = _solve(mesh3D, elastic, 3)
 
     assert np.linalg.norm(u_behaviour - u_elastic) / np.linalg.norm(u_elastic) < 1e-12
 
 
 @pytest.mark.parametrize("planeStress", [False, True])
-def test_2d_matches_elastic(mesh2D, planeStress: bool):
+def test_2d_matches_elastic(mesh2D: Mesh, planeStress: bool):
     """2D plane strain and plane stress, against the elastic law's own 2D form."""
-    behaviour = Models.Behaviour(
+    behaviour = Models.InElastic.Behavior(
         2, Isotropic(3, E=E, v=nu), thickness=H, planeStress=planeStress
     )
     elastic2d = Isotropic(2, E=E, v=nu, planeStress=planeStress, thickness=H)
@@ -97,12 +97,12 @@ def test_2d_matches_elastic(mesh2D, planeStress: bool):
     assert np.linalg.norm(u_behaviour - u_elastic) / np.linalg.norm(u_elastic) < 1e-12
 
 
-def test_stored_energy_matches_elastic(mesh2D):
+def test_stored_energy_matches_elastic(mesh2D: Mesh):
     """The free energy integrated over the domain equals Simulations.Elastic's Wdef."""
-    behaviour = Models.Behaviour(2, Isotropic(3, E=E, v=nu), thickness=H)
+    behaviour = Models.InElastic.Behavior(2, Isotropic(3, E=E, v=nu), thickness=H)
     elastic2d = Isotropic(2, E=E, v=nu, planeStress=False, thickness=H)
 
-    simu = Simulations.Behaviour(mesh2D, behaviour)
+    simu = Simulations.InElastic(mesh2D, behaviour)
     nodes0 = mesh2D.Nodes_Conditions(lambda x, y, z: x == 0)
     nodesL = mesh2D.Nodes_Conditions(lambda x, y, z: x == L)
     simu.add_dirichlet(nodes0, [0, 0], ["x", "y"])
@@ -118,19 +118,19 @@ def test_stored_energy_matches_elastic(mesh2D):
     assert np.isclose(psi, simuRef.Result("Wdef"), rtol=1e-10)
 
 
-def test_plastic_bar_matches_the_closed_form(mesh3D):
+def test_plastic_bar_matches_the_closed_form(mesh3D: Mesh):
     """A bar pulled past yield: uniform uniaxial stress, so the closed form applies everywhere.
 
     Proves the global Newton drives a flowing material, not just that the local solve is right.
     """
     sigma_y, Hm = 250.0, 2000.0
-    behaviour = Models.Behaviour(
+    behaviour = Models.InElastic.Behavior(
         3,
         Isotropic(3, E=E, v=nu),
-        hardening=Models.IsotropicHardening.Linear(Hm),
-        yieldSurface=Models.Yield.VonMises(sigma_y),
+        hardening=Models.InElastic.IsotropicHardening.Linear(Hm),
+        yieldSurface=Models.InElastic.Yield.VonMises(sigma_y),
     )
-    simu = Simulations.Behaviour(mesh3D, behaviour)
+    simu = Simulations.InElastic(mesh3D, behaviour)
 
     nodes0 = mesh3D.Nodes_Conditions(lambda x, y, z: x == 0)
     nodesL = mesh3D.Nodes_Conditions(lambda x, y, z: x == L)
@@ -157,17 +157,17 @@ def test_plastic_bar_matches_the_closed_form(mesh3D):
     assert expected > sigma_y  # the bar really did yield
 
 
-def test_relaxation_through_the_simulation(mesh3D):
+def test_relaxation_through_the_simulation(mesh3D: Mesh):
     """Hold the displacement and step time: the stress relaxes, so simu.dt reaches the material."""
     sigma_y = 250.0
-    behaviour = Models.Behaviour(
+    behaviour = Models.InElastic.Behavior(
         3,
         Isotropic(3, E=E, v=nu),
-        hardening=Models.IsotropicHardening.Linear(2000.0),
-        yieldSurface=Models.Yield.VonMises(sigma_y),
-        rate=Models.ViscoPlastic.Norton(1e-2, 1.0, sigma_y),
+        hardening=Models.InElastic.IsotropicHardening.Linear(2000.0),
+        yieldSurface=Models.InElastic.Yield.VonMises(sigma_y),
+        rate=Models.InElastic.ViscoPlastic.Norton(1e-2, 1.0, sigma_y),
     )
-    simu = Simulations.Behaviour(mesh3D, behaviour)
+    simu = Simulations.InElastic(mesh3D, behaviour)
     simu.dt = 1.0
 
     nodes0 = mesh3D.Nodes_Conditions(lambda x, y, z: x == 0)
@@ -190,21 +190,21 @@ def test_relaxation_through_the_simulation(mesh3D):
     assert np.all(np.diff(history) <= 1e-9)
 
 
-def test_the_material_is_told_where_the_increment_started(mesh2D):
+def test_the_material_is_told_where_the_increment_started(mesh2D: Mesh):
     """`epsOld` must be the strain of the last converged step, not the current iterate.
 
     u_n is only overwritten once the Newton converges, so reading it during assembly gives the
     start of the increment for free. Nothing consumes it yet -- local sub-stepping will -- so
     this is what keeps the plumbing from rotting unnoticed.
     """
-    behaviour = Models.Behaviour(
+    behaviour = Models.InElastic.Behavior(
         2,
         Isotropic(3, E=E, v=nu),
-        yieldSurface=Models.Yield.VonMises(250.0),
-        hardening=Models.IsotropicHardening.Linear(2000.0),
+        yieldSurface=Models.InElastic.Yield.VonMises(250.0),
+        hardening=Models.InElastic.IsotropicHardening.Linear(2000.0),
         thickness=H,
     )
-    simu = Simulations.Behaviour(mesh2D, behaviour)
+    simu = Simulations.InElastic(mesh2D, behaviour)
     nodes0 = mesh2D.Nodes_Conditions(lambda x, y, z: x == 0)
     nodesL = mesh2D.Nodes_Conditions(lambda x, y, z: x == L)
 
@@ -247,10 +247,10 @@ def test_the_material_is_told_where_the_increment_started(mesh2D):
     assert max(np.max(np.abs(v)) for v in previous.values()) > 0
 
 
-def test_state_stays_empty_without_internal_variables(mesh2D):
+def test_state_stays_empty_without_internal_variables(mesh2D: Mesh):
     """No yield surface means nothing to store, and the solve is one Newton iteration."""
-    behaviour = Models.Behaviour(2, Isotropic(3, E=E, v=nu), thickness=H)
-    simu = Simulations.Behaviour(mesh2D, behaviour)
+    behaviour = Models.InElastic.Behavior(2, Isotropic(3, E=E, v=nu), thickness=H)
+    simu = Simulations.InElastic(mesh2D, behaviour)
 
     nodes0 = mesh2D.Nodes_Conditions(lambda x, y, z: x == 0)
     nodesL = mesh2D.Nodes_Conditions(lambda x, y, z: x == L)

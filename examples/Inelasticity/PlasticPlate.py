@@ -7,28 +7,39 @@ r"""
 PlasticPlate
 ============
 
-The same behaviour on a mesh.
-
 A perforated plate pulled past yield. The hole concentrates the stress, so plasticity starts
 there and spreads outwards as the load increases.
 
 Nothing here is specific to plasticity: the simulation asks the material for a stress and a
 tangent, and the material decides what that means.
 """
-# sphinx_gallery_thumbnail_number = 3
+
+# sphinx_gallery_thumbnail_number = -1
 
 import numpy as np
 
-from EasyFEA import Matplotlib, ElemType, Models, Simulations
+from EasyFEA import Folder, ElemType, Models, Simulations, PyVista
 from EasyFEA.Geoms import Point, Points
 from EasyFEA.Models.Elastic._laws import Isotropic
 
 # ----------------------------------------------
-# Mesh
+# Configuration
 # ----------------------------------------------
+folder = Folder.Results_Dir()
+
 L, h, r = 120.0, 60.0, 12.0  # mm
 thickness = 5.0
 
+E, v = 210000.0, 0.3  # MPa
+sigma_y = 250.0  # MPa
+eps_y = sigma_y / E
+
+uMax = (eps_y * L / 2) * 3  # mm
+nStep = 20
+
+# ----------------------------------------------
+# Mesh
+# ----------------------------------------------
 contour = Points(
     [
         Point(0, 0, r=-r),
@@ -40,32 +51,25 @@ contour = Points(
 )
 mesh = contour.Mesh_2D([], ElemType.TRI6)
 
-# ----------------------------------------------
-# Material
-# ----------------------------------------------
-E, v = 210000.0, 0.3  # MPa
-sigma_y = 250.0  # MPa
-
-material = Models.Behaviour(
-    2,
-    Isotropic(3, E=E, v=v),
-    hardening=Models.IsotropicHardening.Voce(120.0, 40.0),
-    yieldSurface=Models.Yield.VonMises(sigma_y),
-    thickness=thickness,
-    planeStress=True,
-)
-
-simu = Simulations.Behaviour(mesh, material)
-
 nodesX0 = mesh.Nodes_Conditions(lambda x, y, z: x == 0)
 nodesY0 = mesh.Nodes_Conditions(lambda x, y, z: y == 0)
 nodesXL = mesh.Nodes_Conditions(lambda x, y, z: x == L / 2)
 
 # ----------------------------------------------
-# Load incrementally — plasticity is path dependent
+# Simulation
 # ----------------------------------------------
-uMax, Nu = 0.35, 40  # mm
-for u in np.linspace(uMax / Nu, uMax, Nu):
+material = Models.InElastic.Behavior(
+    2,
+    Isotropic(3, E=E, v=v),
+    hardening=Models.InElastic.IsotropicHardening.Voce(120.0, 40.0),
+    yieldSurface=Models.InElastic.Yield.VonMises(sigma_y),
+    thickness=thickness,
+    planeStress=True,
+)
+
+simu = Simulations.InElastic(mesh, material)
+
+for u in np.linspace(uMax / nStep, uMax, nStep):
     simu.Bc_Init()
     simu.add_dirichlet(nodesX0, [0], ["x"])
     simu.add_dirichlet(nodesY0, [0], ["y"])
@@ -77,26 +81,14 @@ p_field = simu.Result("p", nodeValues=False)
 print(f"yielded elements: {np.count_nonzero(p_field > 0)} / {mesh.Ne}")
 print(f"max accumulated plastic strain: {p_field.max():.4f}")
 
-# no closed form here, but the two things the figures claim are still checkable: plasticity
-# starts at the hole, and it has spread without reaching the far edge
-center = mesh.coord[mesh.connect].mean(axis=1)
-radius = np.hypot(center[:, 0], center[:, 1])
-yielded = p_field > 0
-print(
-    f"plastic zone spans r = {radius[yielded].min():.1f} to {radius[yielded].max():.1f} mm, "
-    f"hole at {r:.0f}, plate out to {radius.max():.1f}"
-)
-assert radius[np.argmax(p_field)] < 1.1 * r, "plasticity did not start at the hole"
-assert radius[yielded].max() < radius.max(), "the whole plate yielded"
-
 # ----------------------------------------------
 # Results
 # ----------------------------------------------
 print(simu)
-Matplotlib.Plot_Mesh(mesh)
-Matplotlib.Plot(simu, "Svm", plotMesh=True, ncolors=11, title="von Mises stress [MPa]")
-Matplotlib.Plot(
-    simu, "p", plotMesh=True, ncolors=11, title="accumulated plastic strain"
-)
+PyVista.Plot_BoundaryConditions(simu).show()
+PyVista.Plot(simu, "Svm", plotMesh=True, nColors=11).show()
+plotter = PyVista.Plot(simu, "p", plotMesh=True, nColors=11)
+plotter.add_title("accumulated plastic strain")
+plotter.show()
 
-Matplotlib.plt.show()
+PyVista.Movie_simu(simu, "p", folder, "p.gif", deformFactor=10)

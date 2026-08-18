@@ -17,12 +17,12 @@ That is the Bauschinger effect: yielding in tension lowers the stress at which t
 yields in compression. It is why cyclic plasticity needs this and not isotropic hardening alone.
 
 The internal variable is a **tensor**, which is why this is a separate piece rather than an
-option on :class:`~EasyFEA.Models.IsotropicHardening.Hardening`.
+option on :class:`~EasyFEA.Models.InElastic.IsotropicHardening.Hardening`.
 """
 
 from typing import Callable, NamedTuple
 
-from ..FEM._linalg import FeArray
+from ...FEM._linalg import FeArray
 
 
 class KinematicHardening(NamedTuple):

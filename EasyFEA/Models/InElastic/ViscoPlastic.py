@@ -20,7 +20,7 @@ from typing import Callable, NamedTuple
 
 import numpy as np
 
-from ..FEM._linalg import FeArray
+from ...FEM._linalg import FeArray
 
 _TINY = 1e-300
 """Floor on the rate, so the inverse and its slope stay finite at zero flow."""

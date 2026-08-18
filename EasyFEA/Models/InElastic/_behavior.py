@@ -5,7 +5,7 @@
 
 r"""Materials whose stress depends on the strain history.
 
-A :class:`Behaviour` is declared by a free energy and, once it can flow, a yield surface:
+A :class:`Behavior` is declared by a free energy and, once it can flow, a yield surface:
 
 .. math::
     \Sig = \dpartial{\psi}{\Eps} \qquad A = -\dpartial{\psi}{z}
@@ -13,7 +13,7 @@ A :class:`Behaviour` is declared by a free energy and, once it can flow, a yield
 where ``z`` holds the internal variables. Everything the solver needs — the stress, the
 consistent tangent, the evolution of ``z`` — follows from ``psi`` and ``f``.
 
-``Models.Elastic`` is closed-form and total; a ``Behaviour`` is incremental and carries state.
+``Models.Elastic`` is closed-form and total; a ``Behavior`` is incremental and carries state.
 With no internal variables it degenerates to :math:`\Sig = \Crm : \Eps`, which is the same
 answer ``Models.Elastic`` gives.
 """
@@ -23,16 +23,16 @@ from typing import NamedTuple, Optional, Sequence, Union
 
 import numpy as np
 
-from ._utils import _IModel, ModelType
-from .Elastic._laws import _Elastic
+from .._utils import _IModel, ModelType
+from ..Elastic._laws import _Elastic
 from .IsotropicHardening import IsotropicHardening, Linear
 from .KinematicHardening import KinematicHardening
 from .ViscoPlastic import RateLaw
 from .ViscoElastic import Maxwell
 from .Yield import YieldSurface
 from . import _spectral
-from ..FEM._linalg import FeArray, TensorProd
-from ..Utilities import _params, _types, Tic
+from ...FEM._linalg import FeArray, TensorProd
+from ...Utilities import _params, _types, Tic
 
 # in-plane components [xx, yy, xy] of a 2D field inside the 3D (6,) Kelvin vector, and the
 # out-of-plane index condensed out under plane stress
@@ -41,7 +41,7 @@ ZZ = 2
 
 
 class Slot(str, Enum):
-    """Names of the internal variables a behaviour can carry.
+    """Names of the internal variables a behavior can carry.
 
     A ``str`` enum, so ``simu.Result(Slot.p)`` and ``simu.Result("alpha")`` are the same
     call. A repeated mechanism appends an index: the second Maxwell branch is ``eps_v1``.
@@ -75,7 +75,7 @@ class StateLayout(NamedTuple):
         return StateLayout(slots, start)
 
 
-class Behaviour(_IModel):
+class Behavior(_IModel):
     """Elasticity, and later a yield surface, hardening and a rate law.
 
     The elastic model must be 3D: the state lives in 6D Kelvin whatever the problem dimension,
@@ -109,7 +109,7 @@ class Behaviour(_IModel):
         planeStress: bool = False,
         solver: str = "auto",
     ):
-        """Creates a behaviour.
+        """Creates a behavior.
 
         Parameters
         ----------
@@ -136,12 +136,12 @@ class Behaviour(_IModel):
         """
         # what each piece must be
         assert isinstance(elastic, _Elastic), "elastic must be an elastic model"
-        assert yieldSurface is None or isinstance(yieldSurface, YieldSurface), (
-            "yieldSurface must be a YieldSurface"
-        )
-        assert hardening is None or isinstance(hardening, IsotropicHardening), (
-            "hardening must be an IsotropicHardening"
-        )
+        assert yieldSurface is None or isinstance(
+            yieldSurface, YieldSurface
+        ), "yieldSurface must be a YieldSurface"
+        assert hardening is None or isinstance(
+            hardening, IsotropicHardening
+        ), "hardening must be an IsotropicHardening"
         kinematics: tuple[KinematicHardening, ...] = (
             ()
             if kinematic is None
@@ -155,9 +155,9 @@ class Behaviour(_IModel):
             isinstance(component, KinematicHardening) for component in kinematics
         ), "kinematic must be a KinematicHardening, or a sequence of them"
         assert rate is None or isinstance(rate, RateLaw), "rate must be a RateLaw"
-        assert all(isinstance(branch, Maxwell) for branch in branches), (
-            "branches must be Maxwell branches"
-        )
+        assert all(
+            isinstance(branch, Maxwell) for branch in branches
+        ), "branches must be Maxwell branches"
 
         # nothing evolves until the material yields
         needsSurface = {"hardening": hardening, "kinematic": kinematic, "rate": rate}
@@ -170,13 +170,13 @@ class Behaviour(_IModel):
         # parameter ranges
         assert elastic.dim == 3, "the elastic model must be 3D (the state is 6D Kelvin)"
         assert not (planeStress and dim == 3), "plane stress is a 2D-only assumption"
-        assert all(branch.tau > 0 for branch in branches), (
-            "every branch tau must be > 0"
-        )
+        assert all(
+            branch.tau > 0 for branch in branches
+        ), "every branch tau must be > 0"
         assert all(branch.g > 0 for branch in branches), "every branch g must be > 0"
-        assert sum(branch.g for branch in branches) < 1.0, (
-            "the branch stiffness fractions must sum to less than 1"
-        )
+        assert (
+            sum(branch.g for branch in branches) < 1.0
+        ), "the branch stiffness fractions must sum to less than 1"
 
         self.dim = dim
         self.__elastic = elastic
@@ -224,7 +224,7 @@ class Behaviour(_IModel):
 
     @property
     def modelType(self) -> ModelType:
-        # a Behaviour solves for displacement, so it reports the displacement problem type
+        # a Behavior solves for displacement, so it reports the displacement problem type
         return ModelType.elastic
 
     @property
@@ -767,14 +767,15 @@ class Behaviour(_IModel):
 
         Parameters
         ----------
-        eps_e_pg : FeArray (Ne, nPg, nstrain)
-            Total strain, Kelvin-Mandel, in the model dimension.
-        zOld_e_pg : FeArray (Ne, nPg, n), optional
-            Packed state committed at the last converged step; zeros by default.
+        eps_e_pg : FeArray
+            Total strain ``(Ne, nPg, nstrain)``, Kelvin-Mandel, in the model dimension.
+        zOld_e_pg : FeArray, optional
+            Packed state ``(Ne, nPg, n)`` committed at the last converged step; zeros by default.
         dt : float, optional
-            Time increment; required by a rate-dependent behaviour, ignored otherwise.
-        epsOld_e_pg : FeArray (Ne, nPg, nstrain), optional
-            Total strain at the last converged step, supplied by the solver and never stored --
+            Time increment; required by a rate-dependent behavior, ignored otherwise.
+        epsOld_e_pg : FeArray, optional
+            Total strain ``(Ne, nPg, nstrain)`` at the last converged step, supplied by the
+            solver and never stored --
             the state stays exactly the history variables. Only local sub-stepping needs it, so
             leaving it out costs that and nothing else. See MFront's `eto`/`deto`, Abaqus'
             STRAN/DSTRAN and NEML's `e_n`.
@@ -786,17 +787,21 @@ class Behaviour(_IModel):
 
         Returns
         -------
-        sigma : FeArray (Ne, nPg, nstrain)
-        C_alg : FeArray (Ne, nPg, nstrain, nstrain) or None
-        z : FeArray (Ne, nPg, n)
-            Trial state — the caller commits it only once the global step converges.
-        converged : FeArray (Ne, nPg) of bool
+        sigma : FeArray
+            Stress ``(Ne, nPg, nstrain)``, Kelvin-Mandel.
+        C_alg : FeArray or None
+            Consistent tangent ``(Ne, nPg, nstrain, nstrain)``; None if withTangent is False.
+        z : FeArray
+            Trial state ``(Ne, nPg, n)`` — the caller commits it only once the global step
+            converges.
+        converged : FeArray
+            Boolean ``(Ne, nPg)``.
         """
-        assert not fields, (
-            "external fields are not read yet (thermo-mechanical coupling)"
-        )
+        assert (
+            not fields
+        ), "external fields are not read yet (thermo-mechanical coupling)"
         assert self.__rate is None or dt > 0.0, (
-            "a rate-dependent behaviour needs a positive time increment; "
+            "a rate-dependent behavior needs a positive time increment; "
             "set `simu.dt` or pass `dt=` to Integrate"
         )
 
@@ -823,5 +828,5 @@ class Behaviour(_IModel):
                     else C6alg_e_pg[..., IDX_2D, :][..., :, IDX_2D]
                 )
 
-        tic.Tac("Matrix", "Behaviour integrate", False)
+        tic.Tac("Matrix", "Behavior integrate", False)
         return sig_e_pg, C_e_pg, z_e_pg, converged_e_pg

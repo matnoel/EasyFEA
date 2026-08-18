@@ -3,22 +3,22 @@
 # This file is part of the EasyFEA project.
 # EasyFEA is distributed under the terms of the GNU General Public License v3, see LICENSE.txt and CREDITS.md for more information.
 
-"""Driving a behaviour at a single material point, with no mesh and no solver."""
+"""Driving a behavior at a single material point, with no mesh and no solver."""
 
 from typing import Optional
 
 import numpy as np
 
-from ._behaviour import Behaviour
-from ..FEM._linalg import FeArray
-from ..Utilities import _types
+from ._behavior import Behavior
+from ...FEM._linalg import FeArray
+from ...Utilities import _types
 
 COMPONENTS = {"xx": 0, "yy": 1, "zz": 2, "yz": 3, "xz": 4, "xy": 5}
 """Kelvin-Mandel component names. The shear entries carry a sqrt(2)."""
 
 
 class MaterialPoint:
-    r"""Runs a :class:`~EasyFEA.Models.Behaviour` on one Gauss point.
+    r"""Runs a :class:`~EasyFEA.Models.Behavior` on one Gauss point.
 
     Each component is either **strain-controlled** — you give its history — or
     **stress-controlled**, where the strain is solved for until the stress reaches its target
@@ -27,15 +27,15 @@ class MaterialPoint:
     contraction comes out of the solve rather than being assumed.
 
     It runs the law on a ``(1, 1)`` :class:`~EasyFEA.FEM.FeArray`, which is the same code path
-    assembly uses — so this is the real behaviour, not a second implementation of it.
+    assembly uses — so this is the real behavior, not a second implementation of it.
 
     Examples
     --------
     Uniaxial tension, load then unload::
 
-        law = Models.Behaviour(3, Isotropic(3, E=210e3, v=0.3),
-                               hardening=Models.IsotropicHardening.Linear(2000.0),
-                               yieldSurface=Models.Yield.VonMises(250.0))
+        law = Models.Behavior(3, Isotropic(3, E=210e3, v=0.3),
+                               hardening=Models.InElastic.IsotropicHardening.Linear(2000.0),
+                               yieldSurface=Models.InElastic.Yield.VonMises(250.0))
         path = np.concatenate([np.linspace(0, 5e-3, 40), np.linspace(5e-3, 0, 40)[1:]])
         res = MaterialPoint(law).Run(strain={"xx": path})
         sigma_xx, eps_xx = res["stress"][:, 0], res["strain"][:, 0]
@@ -44,15 +44,15 @@ class MaterialPoint:
     _tol: float = 1e-9
     _maxIter: int = 50
 
-    def __init__(self, behaviour: Behaviour):
-        assert isinstance(behaviour, Behaviour), "behaviour must be a Behaviour"
-        assert behaviour.dim == 3, "a material point runs the 3D behaviour"
-        self.__behaviour = behaviour
+    def __init__(self, behavior: Behavior):
+        assert isinstance(behavior, Behavior), "behavior must be a Behavior"
+        assert behavior.dim == 3, "a material point runs the 3D behavior"
+        self.__behavior = behavior
 
     @property
-    def behaviour(self) -> Behaviour:
+    def behavior(self) -> Behavior:
         """The material being driven."""
-        return self.__behaviour
+        return self.__behavior
 
     @staticmethod
     def __fe(vec: _types.FloatArray) -> FeArray.FeArrayALike:
@@ -73,7 +73,7 @@ class MaterialPoint:
         stress : dict[str, FloatArray], optional
             stress targets for the remaining components; those left out are held at zero
         dt : float, optional
-            time increment per step, needed by rate-dependent behaviours
+            time increment per step, needed by rate-dependent behaviors
 
         Returns
         -------
@@ -109,7 +109,7 @@ class MaterialPoint:
             # one point, so the fields are read back as plain 6-vectors
             sig = zNew = ok = None
             for _ in range(self._maxIter):
-                sig_e_pg, C_e_pg, zNew, ok = self.__behaviour.Integrate(
+                sig_e_pg, C_e_pg, zNew, ok = self.__behavior.Integrate(
                     self.__fe(eps), z, dt
                 )
                 sig = np.asarray(sig_e_pg)[0, 0]
@@ -123,7 +123,7 @@ class MaterialPoint:
 
             assert (
                 ok is not None and ok.all()
-            ), f"the behaviour did not converge at step {k} - reduce the step size"
+            ), f"the behavior did not converge at step {k} - reduce the step size"
             z = zNew
             history.append((eps.copy(), sig.copy(), np.asarray(z)[0, 0].copy()))
 
@@ -132,7 +132,7 @@ class MaterialPoint:
             "stress": np.array([h[1] for h in history]),
             "state": np.array([h[2] for h in history]),
         }
-        for name, slot in self.__behaviour.layout.slots.items():
+        for name, slot in self.__behavior.layout.slots.items():
             values = out["state"][:, slot]
             # str(), so callers get a plain-string dict whatever the layout keys are
             out[str(name)] = values[:, 0] if values.shape[1] == 1 else values

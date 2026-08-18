@@ -8,15 +8,16 @@
 
 1. {doc}`Linear elastic simulations <examples/LinearizedElasticity/index>`: ``static``, ``dynamic``, ``homogenization`` and ``mesh optimization``.
 2. {doc}`Hyperelastic simulations <examples/Hyperelasticity/index>`: ``static`` and ``dynamic`` in the ``Lagrangian`` framework.
-3. {doc}`Cardiac elasto-dynamics <examples/CardiacElastoDynamics/index>`: passive + active hyperelastic ``mono-ventricular`` left-ventricle benchmark.
-4. {doc}`Contact simulations <examples/Contact/index>`: frictionless ``penalty`` contact against a rigid obstacle.
-5. {doc}`Euler-Bernoulli and Timoshenko beam simulations <examples/Beam/index>`: ``static`` and ``dynamic``.
-6. {doc}`Thermal simulations <examples/Thermal/index>`: ``static`` and ``transient``.
-7. {doc}`Phase-field damage simulations for quasi-static brittle fracture <examples/PhaseField/index>`: advanced ``2D`` and ``3D`` simulations for ``isotropic``, ``transversely isotropic``, and ``anisotropic`` materials.
-8. {doc}`Weak forms simulations <examples/WeakForms/index>`: ``static``, ``transient`` and ``dynamic`` for ``linear`` or ``non-linear`` problems.
-9. {doc}`Digital Image Correlation (DIC) analyses <examples/DIC/index>`.
-10. [Parameter identification](https://gitlab.univ-eiffel.fr/collaboration-msme-fcba/spruce-params).
-11. [Stochastic phase-field simulations](https://gitlab.univ-eiffel.fr/collaboration-msme-fcba/spruce-stochastic).
+3. {doc}`Inelastic simulations history <examples/Inelasticity/index>`: small-strain ``plasticity``, ``viscoplasticity`` and ``viscoelasticity``, assembled from a yield surface, hardening, a back-stress, a rate law and Maxwell branches.
+4. {doc}`Cardiac elasto-dynamics <examples/CardiacElastoDynamics/index>`: passive + active hyperelastic ``mono-ventricular`` left-ventricle benchmark.
+5. {doc}`Contact simulations <examples/Contact/index>`: frictionless ``penalty`` contact against a rigid obstacle.
+6. {doc}`Euler-Bernoulli and Timoshenko beam simulations <examples/Beam/index>`: ``static`` and ``dynamic``.
+7. {doc}`Thermal simulations <examples/Thermal/index>`: ``static`` and ``transient``.
+8. {doc}`Phase-field damage simulations for quasi-static brittle fracture <examples/PhaseField/index>`: advanced ``2D`` and ``3D`` simulations for ``isotropic``, ``transversely isotropic``, and ``anisotropic`` materials.
+9. {doc}`Weak forms simulations <examples/WeakForms/index>`: ``static``, ``transient`` and ``dynamic`` for ``linear`` or ``non-linear`` problems.
+10. {doc}`Digital Image Correlation (DIC) analyses <examples/DIC/index>`.
+11. [Parameter identification](https://gitlab.univ-eiffel.fr/collaboration-msme-fcba/spruce-params).
+12. [Stochastic phase-field simulations](https://gitlab.univ-eiffel.fr/collaboration-msme-fcba/spruce-stochastic).
 
 📸 Explore the interactive **{doc}`gallery <gallery/index>`** to visualize simulation results.
 

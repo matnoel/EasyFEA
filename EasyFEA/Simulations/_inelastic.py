@@ -15,16 +15,16 @@ if TYPE_CHECKING:
 from ..FEM import MatrixType, FeArray, Operators
 
 from ..Models import ModelType, Result_strain_or_stress_field_e
-from ..Models._behaviour import Behaviour as _Behaviour
+from ..Models.InElastic._behavior import Behavior
 
 from ._simu import _Simu
 
 
-class Behaviour(_Simu):
+class InElastic(_Simu):
     r"""Quasi-static mechanics with a history-dependent material.
 
     Solves :math:`\diver{\Sig} + \fb = 0` by Newton-Raphson, where the stress comes from
-    :meth:`~EasyFEA.Models.Behaviour.Integrate` rather than from a fixed :math:`\Crm`. The
+    :meth:`~EasyFEA.Models.Behavior.Integrate` rather than from a fixed :math:`\Crm`. The
     material owns the constitutive integration; this class owns the equilibrium iteration and
     the internal-variable history.
 
@@ -36,7 +36,7 @@ class Behaviour(_Simu):
     def __init__(
         self,
         mesh: "Mesh",
-        model: _Behaviour,
+        model: Behavior,
         folder: str = "",
         verbosity: bool = False,
         absTol: float = 1e-6,
@@ -44,13 +44,13 @@ class Behaviour(_Simu):
         incTol: float = 1e-11,
         maxIter: int = 20,
     ):
-        """Creates a behaviour simulation.
+        """Creates a behavior simulation.
 
         Parameters
         ----------
         mesh : Mesh
             The mesh used.
-        model : Behaviour
+        model : Behavior
             The material.
         folder : str, optional
             save folder, by default "".
@@ -61,7 +61,7 @@ class Behaviour(_Simu):
         maxIter : int, optional
             maximum Newton iterations, by default 20.
         """
-        assert isinstance(model, _Behaviour), "model must be a Behaviour"
+        assert isinstance(model, Behavior), "model must be a Behavior"
         super().__init__(mesh, model, folder, verbosity)
 
         self._Solver_Set_Newton_Raphson_Algorithm(absTol, relTol, incTol, maxIter)
@@ -81,7 +81,7 @@ class Behaviour(_Simu):
         self.__dt = value
 
     @property
-    def material(self) -> _Behaviour:
+    def material(self) -> Behavior:
         """The material."""
         return self.model  # type: ignore
 

@@ -4,13 +4,13 @@
 The {py:mod}`EasyFEA.Simulations` module provides essential tools for creating and managing simulations.
 These simulations are built using a {py:class}`~EasyFEA.FEM.Mesh` and a {py:class}`~EasyFEA.Models._IModel` (see {ref}`models`).
 
-In the simulation workflow, `Simulations` is the **central step**: it takes a mesh and a model, exposes boundary-condition methods (`add_dirichlet`, `add_surfLoad`, …), drives the linear solver, and stores the solution history.
+In the simulation workflow, {py:class}`~EasyFEA.Simulations._Simu` is the **central step**: it takes a mesh and a model, exposes boundary-condition methods ({py:func}`~EasyFEA.Simulations._Simu.add_dirichlet`, {py:func}`~EasyFEA.Simulations._Simu.add_surfLoad`, …), drives the linear solver, and stores the solution history.
 
 With this module, you can construct:
 
 + Linear elastic simulations with {py:class}`~EasyFEA.Simulations.Elastic`.
 + Nonlinear hyperelastic simulations with {py:class}`~EasyFEA.Simulations.HyperElastic`.
-+ Small-strain materials whose stress depends on the history of strain — plasticity, viscoplasticity and viscoelasticity — with {py:class}`~EasyFEA.Simulations.Behaviour` (see {ref}`simulations-behaviour`).
++ Small-strain materials whose stress depends on the history of strain — plasticity, viscoplasticity and viscoelasticity — with {py:class}`~EasyFEA.Simulations.InElastic` (see {ref}`simulations-inelastic`).
 + Euler-Bernoulli and Timoshenko beam simulations with {py:class}`~EasyFEA.Simulations.Beam` (`useTimoshenko=True` to switch).
 + PhaseField damage simulations for quasi-static brittle fracture with {py:class}`~EasyFEA.Simulations.PhaseField`.
 + Thermal simulations with {py:class}`~EasyFEA.Simulations.Thermal`.
@@ -23,7 +23,7 @@ With this module, you can construct:
 
 ## Matrix System Solvers
 
-EasyFEA automatically manages the resolution of `elliptic`, `parabolic`, and `hyperbolic` matrix systems, allowing developers to focus exclusively on constructing local matrices via the `Construct_local_matrix_system` method.
+EasyFEA automatically manages the resolution of `elliptic`, `parabolic`, and `hyperbolic` matrix systems, allowing developers to focus exclusively on constructing local matrices via the {py:func}`~EasyFEA.Simulations._Simu.Construct_local_matrix_system` method.
 
 ### Elliptic
 $$
@@ -35,7 +35,7 @@ $$
 \Krm \, \urm^{n+\alpha} + \Crm \, \vrm^{n+\alpha} = \Frm^{n+\alpha}
 $$ (parabolic)
 
-Set with `simu.Solver_Set_Parabolic_Algorithm(dt, alpha=0.5)`.
+Set with {py:func}`~EasyFEA.Simulations._Simu.Solver_Set_Parabolic_Algorithm`.
 
 | Method | α | Order | Stability |
 |--------|---|-------|-----------|
@@ -48,7 +48,7 @@ $$
 \Krm \, \urm + \Crm \, \vrm + \Mrm \, \arm = \Frm
 $$ (hyperbolic)
 
-Set with `simu.Solver_Set_Hyperbolic_Algorithm(dt, algo=AlgoType.newmark)`.
+Set with {py:func}`~EasyFEA.Simulations._Simu.Solver_Set_Hyperbolic_Algorithm`.
 
 | Method | `AlgoType` | Order | Stability | Notes |
 |--------|------------|-------|-----------|-------|
@@ -77,10 +77,10 @@ therefore require {py:attr}`~EasyFEA.Simulations.Solvers.AlgoType.midpoint`; cal
 returns to `pointwise`. See {ref}`fem-operators` for the operators that assemble them, and
 `examples/Hyperelasticity/Hyperelas5.py` for a side-by-side comparison.
 
-(simulations-behaviour)=
-### Materials with history
+(simulations-inelastic)=
+### InElastic
 
-{py:class}`~EasyFEA.Simulations.Behaviour` covers materials whose stress depends on the *history*
+{py:class}`~EasyFEA.Simulations.InElastic` covers materials whose stress depends on the *history*
 of strain — plasticity, viscoplasticity, viscoelasticity — so it carries internal variables `z`
 from one converged step to the next. It solves **two nested problems**.
 
@@ -259,8 +259,8 @@ Where both routes apply they agree to machine precision on stress, state and tan
 suite checks it.
 
 ```{seealso}
-- {ref}`easyfea-examples-behaviour` — ten examples, each checked against a closed form
-- {ref}`models-behaviour` — the pieces a behaviour is assembled from
+- {ref}`easyfea-examples-inelasticity` — nine examples, each checked against a closed form
+- {ref}`Inelastic models <models-inelastic>` — the pieces a behavior is assembled from
 ```
 
 ## How to Create New Simulations in EasyFEA?

@@ -9,8 +9,6 @@ r"""
 Chaboche
 ========
 
-Why one back-stress is not enough.
-
 A single Armstrong-Frederick back-stress is one exponential, saturating at :math:`2C/3\gamma`
 with a single rate. A measured hysteresis loop has both a sharp knee after yield and a long,
 nearly linear tail, and no single exponential fits both.
@@ -39,10 +37,15 @@ sigma_y = 250.0  # MPa
 elastic = Isotropic(3, E=E, v=v)
 eps_y = sigma_y / E
 
-KH = Models.KinematicHardening
+KH = Models.InElastic.KinematicHardening
+MP = Models.InElastic.MaterialPoint
 
 # three components: fast knee, intermediate curvature, linear tail
-components = [(60000.0, 500.0), (20000.0, 100.0), (2000.0, 0.0)]
+components = [
+    (60000.0, 500.0),
+    (20000.0, 100.0),
+    (2000.0, 0.0),
+]
 
 
 class Laws(str, Enum):
@@ -60,10 +63,10 @@ laws = {
 
 
 def Behaviour(kinematic):
-    return Models.Behaviour(
+    return Models.InElastic.Behavior(
         3,
         elastic,
-        yieldSurface=Models.Yield.VonMises(sigma_y),
+        yieldSurface=Models.InElastic.Yield.VonMises(sigma_y),
         kinematic=kinematic,
     )
 
@@ -72,26 +75,24 @@ def Behaviour(kinematic):
 # The loop shape: knee and tail
 # ----------------------------------------------
 peak = 8 * eps_y
-quarter = np.linspace(0.0, peak, 40)
+quarter = np.linspace(0.0, peak, 20)
 path = np.concatenate(
     [
         quarter,
-        np.linspace(peak, -peak, 80)[1:],
-        np.linspace(-peak, peak, 80)[1:],
+        np.linspace(peak, -peak, 40)[1:],
+        np.linspace(-peak, peak, 40)[1:],
     ]
 )
 
 ax = Matplotlib.Init_Axes()
 for label, kinematic in laws.items():
-    res = Models.MaterialPoint(Behaviour(kinematic)).Run(strain={"xx": path})
+    res = MP(Behaviour(kinematic)).Run(strain={"xx": path})
     ax.plot(res["strain"][:, 0] * 100, res["stress"][:, 0], lw=1.2, label=label)
 
 # a superposition of one term is that term: the machinery must add nothing of its own
 C0, g0 = components[0]
-one = Models.MaterialPoint(Behaviour(KH.Chaboche((C0, g0)))).Run(strain={"xx": path})
-alone = Models.MaterialPoint(Behaviour(KH.ArmstrongFrederick(C0, g0))).Run(
-    strain={"xx": path}
-)
+one = MP(Behaviour(KH.Chaboche((C0, g0)))).Run(strain={"xx": path})
+alone = MP(Behaviour(KH.ArmstrongFrederick(C0, g0))).Run(strain={"xx": path})
 same = np.max(np.abs(one["stress"][:, 0] - alone["stress"][:, 0]))
 print(f"Chaboche with one component vs ArmstrongFrederick: {same:.1e} MPa")
 assert same == 0.0, "the superposition is not exact for a single component"
@@ -106,7 +107,7 @@ ax.grid(alpha=0.3)
 # The components that make it up
 # ----------------------------------------------
 behaviour = Behaviour(KH.Chaboche(*components))
-res = Models.MaterialPoint(behaviour).Run(strain={"xx": path})
+res = MP(behaviour).Run(strain={"xx": path})
 
 ax = Matplotlib.Init_Axes()
 total = np.zeros_like(res["strain"][:, 0])

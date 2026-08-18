@@ -17,7 +17,7 @@
 
 1. [Linear elastic simulations](https://easyfea.readthedocs.io/en/stable/examples/LinearizedElasticity/index.html): `static`, `dynamic`, `homogenization` and `mesh optimization`.
 2. [Hyperelastic simulations](https://easyfea.readthedocs.io/en/stable/examples/Hyperelasticity/index.html): `static` and `dynamic` in the ``Lagrangian`` framework..
-3. [Materials with history](https://easyfea.readthedocs.io/en/stable/examples/Behaviour/index.html): small-strain `plasticity`, `viscoplasticity` and `viscoelasticity`, assembled from a yield surface, hardening, a back-stress, a rate law and Maxwell branches.
+3. [Inelastic simulations](https://easyfea.readthedocs.io/en/stable/examples/Inelasticity/index.html): small-strain `plasticity`, `viscoplasticity` and `viscoelasticity`, assembled from a yield surface, hardening, a back-stress, a rate law and Maxwell branches.
 4. [Cardiac elasto-dynamics](https://easyfea.readthedocs.io/en/stable/examples/CardiacElastoDynamics/index.html): passive + active hyperelastic `mono-ventricular` left-ventricle benchmark.
 5. [Contact simulations](https://easyfea.readthedocs.io/en/stable/examples/Contact/index.html): frictionless ``penalty`` contact against a rigid obstacle 
 6. [Euler-Bernoulli and Timoshenko beam simulations](https://easyfea.readthedocs.io/en/stable/examples/Beam/index.html): `static` and `dynamic`.

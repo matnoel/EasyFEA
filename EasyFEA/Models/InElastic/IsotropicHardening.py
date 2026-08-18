@@ -20,7 +20,7 @@ from typing import Callable, NamedTuple
 
 import numpy as np
 
-from ..FEM._linalg import FeArray
+from ...FEM._linalg import FeArray
 
 
 class IsotropicHardening(NamedTuple):

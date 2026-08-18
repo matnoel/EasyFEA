@@ -26,25 +26,28 @@ and since :math:`\diver(R\,\Crm{:}\Eps) = 0`, the displacement field that solved
 Backward Euler replaces :math:`e^{-t/\tau}` by :math:`(1 + \dt/\tau)^{-n}`, so the check uses the
 discrete form and holds to machine precision.
 """
-# sphinx_gallery_thumbnail_number = 2
+
+# sphinx_gallery_thumbnail_number = 3
 
 import numpy as np
 
-from EasyFEA import Matplotlib, ElemType, Models, Simulations
+from EasyFEA import Folder, ElemType, Models, Simulations, Matplotlib, PyVista
 from EasyFEA.Geoms import Point, Points
 from EasyFEA.Models.Elastic._laws import Isotropic
 
 # ----------------------------------------------
 # Configuration
 # ----------------------------------------------
+folder = Folder.Results_Dir()
+
 L, h, r = 120.0, 60.0, 12.0  # mm
 thickness = 5.0
 E, v = 210000.0, 0.3  # MPa
 stretch = 0.025  # mm, held constant — over the half-length, so 4.2e-4 average strain
 
 branches = [
-    Models.ViscoElastic.Maxwell(g=0.30, tau=1.0),
-    Models.ViscoElastic.Maxwell(g=0.20, tau=10.0),
+    Models.InElastic.ViscoElastic.Maxwell(g=0.30, tau=1.0),
+    Models.InElastic.ViscoElastic.Maxwell(g=0.20, tau=10.0),
 ]
 dt, nStep = 0.5, 40
 
@@ -56,7 +59,7 @@ def Relaxation(n: int) -> float:
 
 
 # ----------------------------------------------
-# Model
+# Mesh
 # ----------------------------------------------
 # the same quarter model as PlasticPlate: symmetry on both flats, pulled on the far edge
 contour = Points(
@@ -70,26 +73,26 @@ contour = Points(
 )
 mesh = contour.Mesh_2D([], ElemType.TRI6)
 
-material = Models.Behaviour(
+nodesX0 = mesh.Nodes_Conditions(lambda x, y, z: x == 0)
+nodesY0 = mesh.Nodes_Conditions(lambda x, y, z: y == 0)
+nodesXL = mesh.Nodes_Conditions(lambda x, y, z: x == L / 2)
+
+# ----------------------------------------------
+# Simulation
+# ----------------------------------------------
+material = Models.InElastic.Behavior(
     2,
     Isotropic(3, E=E, v=v),
     branches=branches,  # no yield surface: this never flows, it only relaxes
     thickness=thickness,
     planeStress=True,
 )
-simu = Simulations.Behaviour(mesh, material)
+simu = Simulations.InElastic(mesh, material)
 simu.dt = dt
 
-nodesX0 = mesh.Nodes_Conditions(lambda x, y, z: x == 0)
-nodesY0 = mesh.Nodes_Conditions(lambda x, y, z: y == 0)
-nodesXL = mesh.Nodes_Conditions(lambda x, y, z: x == L / 2)
-
-# ----------------------------------------------
 # Stretch, then hold
-# ----------------------------------------------
 time, peak, error = [], [], []
 sig0 = None
-
 for step in range(nStep):
     simu.Bc_Init()
     simu.add_dirichlet(nodesX0, [0], ["x"])
@@ -107,13 +110,6 @@ for step in range(nStep):
     time.append(n * dt)
     peak.append(np.max(np.abs(field[0])))
     error.append(np.max(np.abs(field - scale * sig0)) / np.max(np.abs(sig0)))
-
-print(f"held for {time[-1]:.0f} time units in {nStep} steps, {mesh.Ne} elements")
-print(
-    f"peak sigma_xx: {peak[0]:.1f} -> {peak[-1]:.1f} MPa "
-    f"({100 * peak[-1] / peak[0]:.1f} % of the glassy value)"
-)
-print(f"max error against R(t): {max(error):.2e} — the field scales by one number")
 
 # the discrete R(t) is exact for backward Euler, so the tolerance is machine precision
 # rather than a discretisation error
@@ -142,13 +138,25 @@ ax.grid(alpha=0.3)
 clim = (0.0, float(np.max(simu.Result("Svm", iter=0))))
 for it, t in ((0, time[0]), (-1, time[-1])):
     simu.Set_Iter(it)
-    Matplotlib.Plot(
+    plotter = PyVista.Plot(
         simu,
         "Svm",
-        ncolors=11,
+        colorbarTitle=r"[MPa]",
+        nColors=11,
         plotMesh=True,
         clim=clim,
-        title=rf"von Mises at $t$ = {t:g} [MPa]",
     )
+    plotter.add_title(rf"von Mises at $t$ = {t:g}")
+    plotter.show()
+
+PyVista.Movie_simu(
+    simu,
+    "Svm",
+    folder,
+    "Svm.gif",
+    nColors=11,
+    deformFactor=10,
+    clim=clim,
+)
 
 Matplotlib.plt.show()

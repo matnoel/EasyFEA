@@ -89,7 +89,7 @@ def test_kelvin_idev_projects():
 def test_sigma_is_C_eps(law: str):
     """sigma = dpsi/deps = C:eps, for every shipped elastic law."""
     elastic = _elastic_laws()[law]
-    behaviour = Models.Behaviour(3, elastic)
+    behaviour = Models.InElastic.Behavior(3, elastic)
     eps = np.array([1e-3, -2e-4, 3e-4, 1e-4, -5e-5, 2e-4])
 
     sig = np.asarray(behaviour.Compute_sigma(_fe(eps)))[0, 0]
@@ -101,7 +101,7 @@ def test_sigma_is_C_eps(law: str):
 def test_psi_is_half_eps_C_eps(law: str):
     """psi = 1/2 eps:C:eps, computed directly."""
     elastic = _elastic_laws()[law]
-    behaviour = Models.Behaviour(3, elastic)
+    behaviour = Models.InElastic.Behavior(3, elastic)
     eps = np.array([1e-3, -2e-4, 3e-4, 1e-4, -5e-5, 2e-4])
 
     psi = _val(behaviour.Compute_psi(_fe(eps))[0, 0])
@@ -111,7 +111,7 @@ def test_psi_is_half_eps_C_eps(law: str):
 
 def test_psi_is_the_potential_of_sigma():
     """dpsi/deps == sigma, by central differences — the invariant the framework rests on."""
-    behaviour = Models.Behaviour(3, Isotropic(3, E=E, v=nu))
+    behaviour = Models.InElastic.Behavior(3, Isotropic(3, E=E, v=nu))
     eps = np.array([1e-3, -2e-4, 3e-4, 1e-4, -5e-5, 2e-4])
     h = 1e-9
 
@@ -132,7 +132,7 @@ def test_psi_is_the_potential_of_sigma():
 
 def test_uniaxial_stress_is_E_times_strain():
     """Pull on x with the lateral strains set to -nu*eps: sigma_xx = E*eps_xx, and nothing else."""
-    behaviour = Models.Behaviour(3, Isotropic(3, E=E, v=nu))
+    behaviour = Models.InElastic.Behavior(3, Isotropic(3, E=E, v=nu))
     eps_xx = 1e-3
     eps = np.array([eps_xx, -nu * eps_xx, -nu * eps_xx, 0.0, 0.0, 0.0])
 
@@ -150,7 +150,7 @@ def test_uniaxial_stress_is_E_times_strain():
 def test_integrate_3d_returns_C_as_the_tangent():
     """With no internal variables the tangent is C itself, and the state stays empty."""
     elastic = Isotropic(3, E=E, v=nu)
-    behaviour = Models.Behaviour(3, elastic)
+    behaviour = Models.InElastic.Behavior(3, elastic)
     eps = _fe([1e-3, -2e-4, 3e-4, 1e-4, -5e-5, 2e-4])
 
     sig, C_alg, z, converged = behaviour.Integrate(eps)
@@ -163,7 +163,7 @@ def test_integrate_3d_returns_C_as_the_tangent():
 
 def test_integrate_tangent_matches_central_difference():
     """C_alg == dsigma/deps by central differences — catches a wrong tangent immediately."""
-    behaviour = Models.Behaviour(3, Isotropic(3, E=E, v=nu))
+    behaviour = Models.InElastic.Behavior(3, Isotropic(3, E=E, v=nu))
     eps = np.array([1e-3, -2e-4, 3e-4, 1e-4, -5e-5, 2e-4])
     h = 1e-8
 
@@ -183,7 +183,7 @@ def test_integrate_tangent_matches_central_difference():
 def test_plane_strain_zeroes_the_out_of_plane_strain():
     """Plane strain: eps_zz = 0, so sigma_zz = nu/(1-nu) * (sigma_xx + sigma_yy)."""
     elastic = Isotropic(3, E=E, v=nu)
-    behaviour = Models.Behaviour(2, elastic, planeStress=False)
+    behaviour = Models.InElastic.Behavior(2, elastic, planeStress=False)
     eps2d = np.array([1e-3, 5e-4, 2e-4])
 
     sig, C_alg, _, _ = behaviour.Integrate(_fe(eps2d))
@@ -204,7 +204,7 @@ SIGMA_Y, H = 250.0, 2000.0
 
 def test_linear_hardening_closed_form():
     """psi = 1/2 H a^2, R = H a, dR = H."""
-    law = Models.IsotropicHardening.Linear(H)
+    law = Models.InElastic.IsotropicHardening.Linear(H)
     a = _fe(0.01)
 
     assert np.isclose(_val(law.psi(a)), 0.5 * H * 0.01**2)
@@ -215,9 +215,9 @@ def test_linear_hardening_closed_form():
 @pytest.mark.parametrize(
     "law",
     [
-        Models.IsotropicHardening.Linear(H),
-        Models.IsotropicHardening.Voce(150.0, 30.0),
-        Models.IsotropicHardening.Swift(600.0, 0.2),
+        Models.InElastic.IsotropicHardening.Linear(H),
+        Models.InElastic.IsotropicHardening.Voce(150.0, 30.0),
+        Models.InElastic.IsotropicHardening.Swift(600.0, 0.2),
     ],
     ids=["Linear", "Voce", "Swift"],
 )
@@ -235,9 +235,9 @@ def test_hardening_R_is_the_derivative_of_psi(law):
 def test_hardening_starts_from_zero():
     """R(0) = 0 — the initial yield stress belongs to the surface, not to the hardening."""
     for law in (
-        Models.IsotropicHardening.Linear(H),
-        Models.IsotropicHardening.Voce(150.0, 30.0),
-        Models.IsotropicHardening.Swift(600.0, 0.2),
+        Models.InElastic.IsotropicHardening.Linear(H),
+        Models.InElastic.IsotropicHardening.Voce(150.0, 30.0),
+        Models.InElastic.IsotropicHardening.Swift(600.0, 0.2),
     ):
         assert np.isclose(_val(law.R(_fe(0.0))), 0.0, atol=1e-12)
 
@@ -249,16 +249,16 @@ def test_hardening_starts_from_zero():
 
 def test_vonmises_yields_at_sigma_y():
     """Uniaxial stress at sigma_y sits exactly on the surface."""
-    surface = Models.Yield.VonMises(SIGMA_Y)
+    surface = Models.InElastic.Yield.VonMises(SIGMA_Y)
     sig = _fe([SIGMA_Y, 0.0, 0.0, 0.0, 0.0, 0.0])
 
     assert np.isclose(_val(surface.f(sig, _fe(0.0))), 0.0)
-    assert np.isclose(_val(Models.Yield.Svm(sig)), SIGMA_Y)
+    assert np.isclose(_val(Models.InElastic.Yield.Svm(sig)), SIGMA_Y)
 
 
 def test_vonmises_normal_is_deviatoric_and_normalized():
     """N = [1, -1/2, -1/2, 0, 0, 0] under uniaxial tension, with N:N = 3/2."""
-    surface = Models.Yield.VonMises(SIGMA_Y)
+    surface = Models.InElastic.Yield.VonMises(SIGMA_Y)
     sig = _fe([SIGMA_Y, 0.0, 0.0, 0.0, 0.0, 0.0])
 
     N = np.asarray(surface.N(sig, _fe(0.0)))[0, 0]
@@ -269,7 +269,7 @@ def test_vonmises_normal_is_deviatoric_and_normalized():
 
 def test_vonmises_normal_is_finite_at_the_apex():
     """d(norm)/dx does not exist at zero stress; the surface clamps instead of returning NaN."""
-    surface = Models.Yield.VonMises(SIGMA_Y)
+    surface = Models.InElastic.Yield.VonMises(SIGMA_Y)
     N = np.asarray(surface.N(_fe(np.zeros(6)), _fe(0.0)))
 
     assert np.all(np.isfinite(N))
@@ -277,8 +277,8 @@ def test_vonmises_normal_is_finite_at_the_apex():
 
 def test_hill_defaults_to_von_mises():
     """Hill with F=G=H=1/2, L=M=N=3/2 is von Mises exactly."""
-    hill = Models.Yield.Hill(SIGMA_Y)
-    mises = Models.Yield.VonMises(SIGMA_Y)
+    hill = Models.InElastic.Yield.Hill(SIGMA_Y)
+    mises = Models.InElastic.Yield.VonMises(SIGMA_Y)
     rng = np.random.default_rng(0)
     sig = _fe(rng.normal(0.0, 200.0, 6))
     R = _fe(0.0)
@@ -290,7 +290,9 @@ def test_hill_defaults_to_von_mises():
 
 def test_hill_is_anisotropic():
     """Off-default coefficients yield at different stresses along x and y."""
-    hill = Models.Yield.Hill(SIGMA_Y, F=0.7, G=0.4, H=0.6, L=1.8, M=1.2, N=1.4)
+    hill = Models.InElastic.Yield.Hill(
+        SIGMA_Y, F=0.7, G=0.4, H=0.6, L=1.8, M=1.2, N=1.4
+    )
 
     fx = _val(hill.f(_fe([SIGMA_Y, 0, 0, 0, 0, 0]), _fe(0.0)))
     fy = _val(hill.f(_fe([0, SIGMA_Y, 0, 0, 0, 0]), _fe(0.0)))
@@ -301,9 +303,9 @@ def test_hill_is_anisotropic():
 @pytest.mark.parametrize(
     "surface",
     [
-        Models.Yield.VonMises(SIGMA_Y),
-        Models.Yield.DruckerPrager(SIGMA_Y, 0.2),
-        Models.Yield.Hill(SIGMA_Y, F=0.7, G=0.4, H=0.6, L=1.8, M=1.2, N=1.4),
+        Models.InElastic.Yield.VonMises(SIGMA_Y),
+        Models.InElastic.Yield.DruckerPrager(SIGMA_Y, 0.2),
+        Models.InElastic.Yield.Hill(SIGMA_Y, F=0.7, G=0.4, H=0.6, L=1.8, M=1.2, N=1.4),
     ],
     ids=["VonMises", "DruckerPrager", "Hill"],
 )
@@ -348,11 +350,11 @@ def _uniaxial(behaviour, eps_xx: float, z=None):
 
 def test_uniaxial_bar_matches_the_closed_form():
     """sigma = sigma_y + H*eps_p once yielding, with eps_p = eps - sigma/E."""
-    behaviour = Models.Behaviour(
+    behaviour = Models.InElastic.Behavior(
         3,
         Isotropic(3, E=E, v=nu),
-        hardening=Models.IsotropicHardening.Linear(H),
-        yieldSurface=Models.Yield.VonMises(SIGMA_Y),
+        hardening=Models.InElastic.IsotropicHardening.Linear(H),
+        yieldSurface=Models.InElastic.Yield.VonMises(SIGMA_Y),
     )
     eps_y = SIGMA_Y / E
 
@@ -371,8 +373,10 @@ def test_uniaxial_bar_matches_the_closed_form():
 
 def test_perfect_plasticity_caps_the_stress():
     """With no hardening the stress never exceeds sigma_y."""
-    behaviour = Models.Behaviour(
-        3, Isotropic(3, E=E, v=nu), yieldSurface=Models.Yield.VonMises(SIGMA_Y)
+    behaviour = Models.InElastic.Behavior(
+        3,
+        Isotropic(3, E=E, v=nu),
+        yieldSurface=Models.InElastic.Yield.VonMises(SIGMA_Y),
     )
     sig, _, ok = _uniaxial(behaviour, 20 * SIGMA_Y / E)
 
@@ -382,11 +386,11 @@ def test_perfect_plasticity_caps_the_stress():
 
 def test_unloading_is_elastic():
     """After yielding, unloading follows E again and leaves the plastic strain behind."""
-    behaviour = Models.Behaviour(
+    behaviour = Models.InElastic.Behavior(
         3,
         Isotropic(3, E=E, v=nu),
-        hardening=Models.IsotropicHardening.Linear(H),
-        yieldSurface=Models.Yield.VonMises(SIGMA_Y),
+        hardening=Models.InElastic.IsotropicHardening.Linear(H),
+        yieldSurface=Models.InElastic.Yield.VonMises(SIGMA_Y),
     )
     eps_y = SIGMA_Y / E
 
@@ -400,21 +404,21 @@ def test_unloading_is_elastic():
 @pytest.mark.parametrize(
     "hardening",
     [
-        Models.IsotropicHardening.Linear(H),
-        Models.IsotropicHardening.Voce(150.0, 30.0),
-        Models.IsotropicHardening.Swift(600.0, 0.2),
+        Models.InElastic.IsotropicHardening.Linear(H),
+        Models.InElastic.IsotropicHardening.Voce(150.0, 30.0),
+        Models.InElastic.IsotropicHardening.Swift(600.0, 0.2),
     ],
     ids=["Linear", "Voce", "Swift"],
 )
 def test_consistency_condition_holds(hardening):
     """A flowing point lands exactly on the surface: f(sigma, R(alpha)) = 0."""
-    behaviour = Models.Behaviour(
+    behaviour = Models.InElastic.Behavior(
         3,
         Isotropic(3, E=E, v=nu),
         hardening=hardening,
-        yieldSurface=Models.Yield.VonMises(SIGMA_Y),
+        yieldSurface=Models.InElastic.Yield.VonMises(SIGMA_Y),
     )
-    surface = Models.Yield.VonMises(SIGMA_Y)
+    surface = Models.InElastic.Yield.VonMises(SIGMA_Y)
 
     sig, z, ok = _uniaxial(behaviour, 20 * SIGMA_Y / E)
     alpha = np.asarray(z)[0, 0, 6]
@@ -428,18 +432,18 @@ def test_consistency_condition_holds(hardening):
 @pytest.mark.parametrize(
     "surface",
     [
-        Models.Yield.VonMises(SIGMA_Y),
-        Models.Yield.DruckerPrager(SIGMA_Y, 0.2),
-        Models.Yield.Hill(SIGMA_Y, F=0.7, G=0.4, H=0.6, L=1.8, M=1.2, N=1.4),
+        Models.InElastic.Yield.VonMises(SIGMA_Y),
+        Models.InElastic.Yield.DruckerPrager(SIGMA_Y, 0.2),
+        Models.InElastic.Yield.Hill(SIGMA_Y, F=0.7, G=0.4, H=0.6, L=1.8, M=1.2, N=1.4),
     ],
     ids=["VonMises", "DruckerPrager", "Hill"],
 )
 def test_plastic_tangent_matches_central_difference(surface):
     """C_alg == dsigma/deps through the local solve — this is what catches a wrong dr/dz."""
-    behaviour = Models.Behaviour(
+    behaviour = Models.InElastic.Behavior(
         3,
         Isotropic(3, E=E, v=nu),
-        hardening=Models.IsotropicHardening.Linear(H),
+        hardening=Models.InElastic.IsotropicHardening.Linear(H),
         yieldSurface=surface,
     )
     eps = np.array([3e-3, -5e-4, -5e-4, 1e-4, -2e-4, 3e-4])
@@ -466,11 +470,11 @@ def test_plasticity_works_with_any_elastic_law(law: str):
     isotropic. A frozen normal would converge quadratically onto a wrong stress with a tangent
     consistent with it, so the central-difference check is what actually catches that.
     """
-    behaviour = Models.Behaviour(
+    behaviour = Models.InElastic.Behavior(
         3,
         _elastic_laws()[law],
-        hardening=Models.IsotropicHardening.Linear(H),
-        yieldSurface=Models.Yield.VonMises(SIGMA_Y),
+        hardening=Models.InElastic.IsotropicHardening.Linear(H),
+        yieldSurface=Models.InElastic.Yield.VonMises(SIGMA_Y),
     )
     eps = np.array([3e-3, -5e-4, -5e-4, 1e-4, -2e-4, 3e-4])
     h = 1e-9
@@ -498,9 +502,9 @@ def test_plasticity_works_with_any_elastic_law(law: str):
 @pytest.mark.parametrize(
     "law",
     [
-        Models.ViscoPlastic.Norton(1e-3, 1.0, 250.0),
-        Models.ViscoPlastic.Norton(1e-3, 3.0, 250.0),
-        Models.ViscoPlastic.Perzyna(100.0, 2.0, 250.0),
+        Models.InElastic.ViscoPlastic.Norton(1e-3, 1.0, 250.0),
+        Models.InElastic.ViscoPlastic.Norton(1e-3, 3.0, 250.0),
+        Models.InElastic.ViscoPlastic.Perzyna(100.0, 2.0, 250.0),
     ],
     ids=["Norton n=1", "Norton n=3", "Perzyna n=2"],
 )
@@ -514,9 +518,9 @@ def test_rate_inverse_round_trips(law):
 @pytest.mark.parametrize(
     "law",
     [
-        Models.ViscoPlastic.Norton(1e-3, 1.0, 250.0),
-        Models.ViscoPlastic.Norton(1e-3, 3.0, 250.0),
-        Models.ViscoPlastic.Perzyna(100.0, 2.0, 250.0),
+        Models.InElastic.ViscoPlastic.Norton(1e-3, 1.0, 250.0),
+        Models.InElastic.ViscoPlastic.Norton(1e-3, 3.0, 250.0),
+        Models.InElastic.ViscoPlastic.Perzyna(100.0, 2.0, 250.0),
     ],
     ids=["Norton n=1", "Norton n=3", "Perzyna n=2"],
 )
@@ -530,18 +534,18 @@ def test_rate_dinverse_matches_central_difference(law):
 
 
 def _viscoplastic(rate):
-    return Models.Behaviour(
+    return Models.InElastic.Behavior(
         3,
         Isotropic(3, E=E, v=nu),
-        hardening=Models.IsotropicHardening.Linear(H),
-        yieldSurface=Models.Yield.VonMises(SIGMA_Y),
+        hardening=Models.InElastic.IsotropicHardening.Linear(H),
+        yieldSurface=Models.InElastic.Yield.VonMises(SIGMA_Y),
         rate=rate,
     )
 
 
 def test_rate_dependent_needs_a_time_increment():
     """dt = 0 is rejected rather than silently dividing by zero."""
-    behaviour = _viscoplastic(Models.ViscoPlastic.Norton(1e-3, 1.0, SIGMA_Y))
+    behaviour = _viscoplastic(Models.InElastic.ViscoPlastic.Norton(1e-3, 1.0, SIGMA_Y))
     eps = _fe([3e-3, -5e-4, -5e-4, 0.0, 0.0, 0.0])
 
     with pytest.raises(AssertionError, match="positive time increment"):
@@ -550,7 +554,7 @@ def test_rate_dependent_needs_a_time_increment():
 
 def test_relaxation_decays_towards_the_surface():
     """Hold the strain: the overstress bleeds off and the stress falls towards sigma_y."""
-    behaviour = _viscoplastic(Models.ViscoPlastic.Norton(1e-2, 1.0, SIGMA_Y))
+    behaviour = _viscoplastic(Models.InElastic.ViscoPlastic.Norton(1e-2, 1.0, SIGMA_Y))
     eps = _fe([3e-3, -5e-4, -5e-4, 0.0, 0.0, 0.0])
 
     z, history = None, []
@@ -569,7 +573,7 @@ def test_faster_flow_relaxes_further():
 
     def after_one_step(A):
         sig, _, _, ok = _viscoplastic(
-            Models.ViscoPlastic.Norton(A, 1.0, SIGMA_Y)
+            Models.InElastic.ViscoPlastic.Norton(A, 1.0, SIGMA_Y)
         ).Integrate(eps, dt=1.0)
         assert ok.all()
         return np.asarray(sig)[0, 0, 0]
@@ -582,15 +586,15 @@ def test_rate_independent_limit():
     eps = _fe([3e-3, -5e-4, -5e-4, 0.0, 0.0, 0.0])
 
     sig_visc, _, _, ok = _viscoplastic(
-        Models.ViscoPlastic.Norton(1e8, 1.0, SIGMA_Y)
+        Models.InElastic.ViscoPlastic.Norton(1e8, 1.0, SIGMA_Y)
     ).Integrate(eps, dt=1.0)
     assert ok.all()
 
-    plastic = Models.Behaviour(
+    plastic = Models.InElastic.Behavior(
         3,
         Isotropic(3, E=E, v=nu),
-        hardening=Models.IsotropicHardening.Linear(H),
-        yieldSurface=Models.Yield.VonMises(SIGMA_Y),
+        hardening=Models.InElastic.IsotropicHardening.Linear(H),
+        yieldSurface=Models.InElastic.Yield.VonMises(SIGMA_Y),
     )
     sig_plas = plastic.Integrate(eps)[0]
 
@@ -599,7 +603,7 @@ def test_rate_independent_limit():
 
 def test_viscoplastic_tangent_matches_central_difference():
     """C_alg is right with a rate law too — the dr_f/ddGamma term is the only new piece."""
-    behaviour = _viscoplastic(Models.ViscoPlastic.Norton(1e-2, 2.0, SIGMA_Y))
+    behaviour = _viscoplastic(Models.InElastic.ViscoPlastic.Norton(1e-2, 2.0, SIGMA_Y))
     eps = np.array([3e-3, -5e-4, -5e-4, 1e-4, -2e-4, 3e-4])
     h = 1e-9
 
@@ -624,20 +628,21 @@ EPS_V = np.array([1e-3, -2e-4, 3e-4, 1e-4, -5e-5, 2e-4])
 
 
 def _viscoelastic(*branches):
-    return Models.Behaviour(3, Isotropic(3, E=E, v=nu), branches=branches)
+    return Models.InElastic.Behavior(3, Isotropic(3, E=E, v=nu), branches=branches)
 
 
 def test_branch_fractions_must_leave_an_equilibrium_spring():
     """Fractions summing to 1 would leave no long-term stiffness."""
     with pytest.raises(AssertionError, match="sum to less than 1"):
         _viscoelastic(
-            Models.ViscoElastic.Maxwell(0.6, 1.0), Models.ViscoElastic.Maxwell(0.4, 2.0)
+            Models.InElastic.ViscoElastic.Maxwell(0.6, 1.0),
+            Models.InElastic.ViscoElastic.Maxwell(0.4, 2.0),
         )
 
 
 def test_glassy_response_is_the_full_stiffness():
     """dt = 0: no time passes, the dashpots are rigid, and the response is C."""
-    behaviour = _viscoelastic(Models.ViscoElastic.Maxwell(0.3, 1.0))
+    behaviour = _viscoelastic(Models.InElastic.ViscoElastic.Maxwell(0.3, 1.0))
     C = Isotropic(3, E=E, v=nu).C
 
     sig, C_alg, _, ok = behaviour.Integrate(_fe(EPS_V), dt=0.0)
@@ -650,7 +655,7 @@ def test_glassy_response_is_the_full_stiffness():
 def test_fully_relaxed_response_is_the_equilibrium_stiffness():
     """After many time constants only (1 - sum g)·C is left."""
     g = 0.3
-    behaviour = _viscoelastic(Models.ViscoElastic.Maxwell(g, 1.0))
+    behaviour = _viscoelastic(Models.InElastic.ViscoElastic.Maxwell(g, 1.0))
     C = Isotropic(3, E=E, v=nu).C
     eps = _fe(EPS_V)
 
@@ -665,7 +670,7 @@ def test_fully_relaxed_response_is_the_equilibrium_stiffness():
 def test_relaxation_matches_the_backward_euler_closed_form():
     """sigma_n = C:eps [(1-g) + g (1 + dt/tau)^-n], exactly, for a held strain."""
     g, tau, dt, nstep = 0.3, 2.0, 0.25, 12
-    behaviour = _viscoelastic(Models.ViscoElastic.Maxwell(g, tau))
+    behaviour = _viscoelastic(Models.InElastic.ViscoElastic.Maxwell(g, tau))
     C = Isotropic(3, E=E, v=nu).C
     eps = _fe(EPS_V)
 
@@ -681,7 +686,7 @@ def test_relaxation_matches_the_backward_euler_closed_form():
 def test_relaxation_approaches_the_exponential():
     """Refining dt converges on the continuous solution (1-g) + g exp(-t/tau)."""
     g, tau, t = 0.3, 2.0, 2.0
-    behaviour = _viscoelastic(Models.ViscoElastic.Maxwell(g, tau))
+    behaviour = _viscoelastic(Models.InElastic.ViscoElastic.Maxwell(g, tau))
     C = Isotropic(3, E=E, v=nu).C
     eps = _fe(EPS_V)
 
@@ -698,8 +703,8 @@ def test_relaxation_approaches_the_exponential():
 
 def test_two_branches_relax_independently():
     """Each branch carries its own time constant; the slow one still holds stress."""
-    fast = Models.ViscoElastic.Maxwell(0.3, 0.1)
-    slow = Models.ViscoElastic.Maxwell(0.3, 1000.0)
+    fast = Models.InElastic.ViscoElastic.Maxwell(0.3, 0.1)
+    slow = Models.InElastic.ViscoElastic.Maxwell(0.3, 1000.0)
     behaviour = _viscoelastic(fast, slow)
     C = Isotropic(3, E=E, v=nu).C
     eps = _fe(EPS_V)
@@ -718,7 +723,8 @@ def test_two_branches_relax_independently():
 @pytest.mark.parametrize("dt", [0.5, 5.0], ids=["dt=0.5", "dt=5"])
 def test_viscoelastic_tangent_matches_central_difference(dt: float):
     behaviour = _viscoelastic(
-        Models.ViscoElastic.Maxwell(0.3, 1.0), Models.ViscoElastic.Maxwell(0.2, 10.0)
+        Models.InElastic.ViscoElastic.Maxwell(0.3, 1.0),
+        Models.InElastic.ViscoElastic.Maxwell(0.2, 10.0),
     )
     h = 1e-9
 
@@ -737,14 +743,14 @@ def test_viscoelastic_tangent_matches_central_difference(dt: float):
 
 def test_viscoelastic_plastic_tangent_matches_central_difference():
     """Both mechanisms at once — this is what exercises the coupling blocks of dr/du."""
-    behaviour = Models.Behaviour(
+    behaviour = Models.InElastic.Behavior(
         3,
         Isotropic(3, E=E, v=nu),
-        hardening=Models.IsotropicHardening.Linear(H),
-        yieldSurface=Models.Yield.VonMises(SIGMA_Y),
+        hardening=Models.InElastic.IsotropicHardening.Linear(H),
+        yieldSurface=Models.InElastic.Yield.VonMises(SIGMA_Y),
         branches=[
-            Models.ViscoElastic.Maxwell(0.3, 1.0),
-            Models.ViscoElastic.Maxwell(0.2, 10.0),
+            Models.InElastic.ViscoElastic.Maxwell(0.3, 1.0),
+            Models.InElastic.ViscoElastic.Maxwell(0.2, 10.0),
         ],
     )
     eps = np.array([3e-3, -5e-4, -5e-4, 1e-4, -2e-4, 3e-4])
@@ -769,7 +775,8 @@ def test_viscoelastic_plastic_tangent_matches_central_difference():
 def test_psi_stays_the_potential_of_sigma_with_branches():
     """dpsi/deps == sigma still holds once the free energy carries Maxwell branches."""
     behaviour = _viscoelastic(
-        Models.ViscoElastic.Maxwell(0.3, 1.0), Models.ViscoElastic.Maxwell(0.2, 10.0)
+        Models.InElastic.ViscoElastic.Maxwell(0.3, 1.0),
+        Models.InElastic.ViscoElastic.Maxwell(0.2, 10.0),
     )
     _, _, z, _ = behaviour.Integrate(_fe(EPS_V), dt=1.0)
     h = 1e-9
@@ -797,12 +804,12 @@ C_KIN = 20000.0
 
 
 def _kinematic(gamma=0.0, hardening=None):
-    return Models.Behaviour(
+    return Models.InElastic.Behavior(
         3,
         Isotropic(3, E=E, v=nu),
         hardening=hardening,
-        yieldSurface=Models.Yield.VonMises(SIGMA_Y),
-        kinematic=Models.KinematicHardening.ArmstrongFrederick(C_KIN, gamma),
+        yieldSurface=Models.InElastic.Yield.VonMises(SIGMA_Y),
+        kinematic=Models.InElastic.KinematicHardening.ArmstrongFrederick(C_KIN, gamma),
     )
 
 
@@ -860,11 +867,11 @@ def test_bauschinger_effect():
     kin = _kinematic()
     # under uniaxial tension a Prager back-stress hardens like an isotropic modulus of C:
     # X_xx = (2/3) C alpha, and the deviatoric projection contributes the remaining 3/2
-    iso = Models.Behaviour(
+    iso = Models.InElastic.Behavior(
         3,
         Isotropic(3, E=E, v=nu),
-        hardening=Models.IsotropicHardening.Linear(C_KIN),
-        yieldSurface=Models.Yield.VonMises(SIGMA_Y),
+        hardening=Models.InElastic.IsotropicHardening.Linear(C_KIN),
+        yieldSurface=Models.InElastic.Yield.VonMises(SIGMA_Y),
     )
     eps_max = 8 * SIGMA_Y / E
 
@@ -903,7 +910,9 @@ def test_chaboche_back_stress_saturates():
 
 @pytest.mark.parametrize("gamma", [0.0, 200.0], ids=["Prager", "ArmstrongFrederick"])
 def test_kinematic_tangent_matches_central_difference(gamma: float):
-    behaviour = _kinematic(gamma, hardening=Models.IsotropicHardening.Linear(H))
+    behaviour = _kinematic(
+        gamma, hardening=Models.InElastic.IsotropicHardening.Linear(H)
+    )
     eps = np.array([3e-3, -5e-4, -5e-4, 1e-4, -2e-4, 3e-4])
     h = 1e-9
 
@@ -923,11 +932,11 @@ def test_kinematic_tangent_matches_central_difference(gamma: float):
 def test_chaboche_superposes_its_components():
     """X = sum_i X_i: the total back-stress is the sum of the component contributions."""
     components = [(60000.0, 500.0), (20000.0, 100.0), (2000.0, 0.0)]
-    behaviour = Models.Behaviour(
+    behaviour = Models.InElastic.Behavior(
         3,
         Isotropic(3, E=E, v=nu),
-        yieldSurface=Models.Yield.VonMises(SIGMA_Y),
-        kinematic=Models.KinematicHardening.Chaboche(*components),
+        yieldSurface=Models.InElastic.Yield.VonMises(SIGMA_Y),
+        kinematic=Models.InElastic.KinematicHardening.Chaboche(*components),
     )
     assert behaviour.layout.n == 6 + 1 + 3 * 6
 
@@ -951,18 +960,18 @@ def test_one_component_chaboche_is_armstrong_frederick():
     eps = _fe(np.array([3e-3, -5e-4, -5e-4, 1e-4, -2e-4, 3e-4]))
 
     def run(kinematic):
-        law = Models.Behaviour(
+        law = Models.InElastic.Behavior(
             3,
             Isotropic(3, E=E, v=nu),
-            yieldSurface=Models.Yield.VonMises(SIGMA_Y),
+            yieldSurface=Models.InElastic.Yield.VonMises(SIGMA_Y),
             kinematic=kinematic,
         )
         sig, _, z, ok = law.Integrate(eps)
         assert ok.all()
         return np.asarray(sig), np.asarray(z)
 
-    single = run(Models.KinematicHardening.ArmstrongFrederick(C_KIN, 200.0))
-    superposed = run(Models.KinematicHardening.Chaboche((C_KIN, 200.0)))
+    single = run(Models.InElastic.KinematicHardening.ArmstrongFrederick(C_KIN, 200.0))
+    superposed = run(Models.InElastic.KinematicHardening.Chaboche((C_KIN, 200.0)))
 
     assert np.allclose(single[0], superposed[0])
     assert np.allclose(single[1], superposed[1])
@@ -970,12 +979,12 @@ def test_one_component_chaboche_is_armstrong_frederick():
 
 def test_chaboche_tangent_matches_central_difference():
     """Three back-stresses couple through the flow direction; the cross blocks must be right."""
-    behaviour = Models.Behaviour(
+    behaviour = Models.InElastic.Behavior(
         3,
         Isotropic(3, E=E, v=nu),
-        hardening=Models.IsotropicHardening.Linear(H),
-        yieldSurface=Models.Yield.VonMises(SIGMA_Y),
-        kinematic=Models.KinematicHardening.Chaboche(
+        hardening=Models.InElastic.IsotropicHardening.Linear(H),
+        yieldSurface=Models.InElastic.Yield.VonMises(SIGMA_Y),
+        kinematic=Models.InElastic.KinematicHardening.Chaboche(
             (60000.0, 500.0), (20000.0, 100.0), (2000.0, 0.0)
         ),
     )
@@ -1002,11 +1011,11 @@ def test_plane_stress_holds_sigma_zz_at_zero(plastic: bool):
     The elastic closed form for eps_zz is wrong past yield and leaves a large sig_zz behind —
     a silent wrong answer, since the local solve converges perfectly on it.
     """
-    behaviour = Models.Behaviour(
+    behaviour = Models.InElastic.Behavior(
         2,
         Isotropic(3, E=E, v=nu),
-        hardening=Models.IsotropicHardening.Linear(H) if plastic else None,
-        yieldSurface=Models.Yield.VonMises(SIGMA_Y) if plastic else None,
+        hardening=Models.InElastic.IsotropicHardening.Linear(H) if plastic else None,
+        yieldSurface=(Models.InElastic.Yield.VonMises(SIGMA_Y) if plastic else None),
         planeStress=True,
     )
     eps2d = _fe([4e-3, -1e-3, 5e-4])
@@ -1023,11 +1032,11 @@ def test_plane_stress_holds_sigma_zz_at_zero(plastic: bool):
 
 def test_plane_stress_plastic_tangent_matches_central_difference():
     """The condensed 2D tangent, through the plane-stress solve and the local Newton."""
-    behaviour = Models.Behaviour(
+    behaviour = Models.InElastic.Behavior(
         2,
         Isotropic(3, E=E, v=nu),
-        hardening=Models.IsotropicHardening.Linear(H),
-        yieldSurface=Models.Yield.VonMises(SIGMA_Y),
+        hardening=Models.InElastic.IsotropicHardening.Linear(H),
+        yieldSurface=Models.InElastic.Yield.VonMises(SIGMA_Y),
         planeStress=True,
     )
     eps2d = np.array([4e-3, -1e-3, 5e-4])
@@ -1048,7 +1057,7 @@ def test_plane_stress_plastic_tangent_matches_central_difference():
 
 def test_plane_stress_gives_zero_out_of_plane_stress():
     """Plane stress: eps_zz is solved so that sigma_zz = 0, and the tangent is condensed."""
-    behaviour = Models.Behaviour(2, Isotropic(3, E=E, v=nu), planeStress=True)
+    behaviour = Models.InElastic.Behavior(2, Isotropic(3, E=E, v=nu), planeStress=True)
     eps2d = _fe([1e-3, 5e-4, 2e-4])
 
     sig, C_alg, _, _ = behaviour.Integrate(eps2d)
@@ -1067,29 +1076,29 @@ def test_plane_stress_gives_zero_out_of_plane_stress():
 _EQUIVALENT = [
     (
         "VonMises + Linear",
-        Models.Yield.VonMises(SIGMA_Y),
-        Models.IsotropicHardening.Linear(H),
+        Models.InElastic.Yield.VonMises(SIGMA_Y),
+        Models.InElastic.IsotropicHardening.Linear(H),
     ),
     (
         "VonMises + Voce",
-        Models.Yield.VonMises(SIGMA_Y),
-        Models.IsotropicHardening.Voce(150.0, 30.0),
+        Models.InElastic.Yield.VonMises(SIGMA_Y),
+        Models.InElastic.IsotropicHardening.Voce(150.0, 30.0),
     ),
     (
         "VonMises + Swift",
-        Models.Yield.VonMises(SIGMA_Y),
-        Models.IsotropicHardening.Swift(600.0, 0.2),
+        Models.InElastic.Yield.VonMises(SIGMA_Y),
+        Models.InElastic.IsotropicHardening.Swift(600.0, 0.2),
     ),
-    ("VonMises perfect", Models.Yield.VonMises(SIGMA_Y), None),
+    ("VonMises perfect", Models.InElastic.Yield.VonMises(SIGMA_Y), None),
     (
         "Hill + Linear",
-        Models.Yield.Hill(SIGMA_Y, F=0.7, G=0.4, H=0.6, L=1.8, M=1.2, N=1.4),
-        Models.IsotropicHardening.Linear(H),
+        Models.InElastic.Yield.Hill(SIGMA_Y, F=0.7, G=0.4, H=0.6, L=1.8, M=1.2, N=1.4),
+        Models.InElastic.IsotropicHardening.Linear(H),
     ),
     (
         "Hill + Voce",
-        Models.Yield.Hill(SIGMA_Y, F=0.7, G=0.4, H=0.6, L=1.8, M=1.2, N=1.4),
-        Models.IsotropicHardening.Voce(150.0, 30.0),
+        Models.InElastic.Yield.Hill(SIGMA_Y, F=0.7, G=0.4, H=0.6, L=1.8, M=1.2, N=1.4),
+        Models.InElastic.IsotropicHardening.Voce(150.0, 30.0),
     ),
 ]
 
@@ -1121,9 +1130,9 @@ def test_the_two_solvers_agree(law, name, surface, hardening):
     """Same stress, same state, same tangent -- across surfaces, hardening laws and anisotropy."""
     elastic = _anisotropy()[law]
     kwargs = dict(yieldSurface=surface, hardening=hardening)
-    fast = Models.Behaviour(3, elastic, **kwargs)
-    slow = Models.Behaviour(3, elastic, solver="newton", **kwargs)
-    assert fast._Behaviour__eigen is not None and slow._Behaviour__eigen is None
+    fast = Models.InElastic.Behavior(3, elastic, **kwargs)
+    slow = Models.InElastic.Behavior(3, elastic, solver="newton", **kwargs)
+    assert fast._Behavior__eigen is not None and slow._Behavior__eigen is None
 
     rng = np.random.default_rng(0)
     eps = FeArray.asfearray(rng.normal(0.0, 4e-3, (6, 3, 6)))
@@ -1147,13 +1156,13 @@ def test_the_two_solvers_agree(law, name, surface, hardening):
 def test_the_two_solvers_agree_in_2d(planeStress: bool):
     """Plane stress wraps the 3D return in an outer Newton on eps_zz; both paths must survive it."""
     kwargs = dict(
-        yieldSurface=Models.Yield.VonMises(SIGMA_Y),
-        hardening=Models.IsotropicHardening.Linear(H),
+        yieldSurface=Models.InElastic.Yield.VonMises(SIGMA_Y),
+        hardening=Models.InElastic.IsotropicHardening.Linear(H),
         planeStress=planeStress,
     )
     elastic = Isotropic(3, E=E, v=nu)
-    fast = Models.Behaviour(2, elastic, **kwargs)
-    slow = Models.Behaviour(2, elastic, solver="newton", **kwargs)
+    fast = Models.InElastic.Behavior(2, elastic, **kwargs)
+    slow = Models.InElastic.Behavior(2, elastic, solver="newton", **kwargs)
 
     rng = np.random.default_rng(3)
     eps = FeArray.asfearray(rng.normal(0.0, 4e-3, (5, 4, 3)))

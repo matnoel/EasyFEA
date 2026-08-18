@@ -31,8 +31,8 @@ from typing import NamedTuple
 
 import numpy as np
 
-from ..FEM._linalg import FeArray, TensorProd
-from ..Utilities import _types
+from ...FEM._linalg import FeArray, TensorProd
+from ...Utilities import _types
 
 
 class Return(NamedTuple):

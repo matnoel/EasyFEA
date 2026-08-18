@@ -4,11 +4,14 @@
 # EasyFEA is distributed under the terms of the GNU General Public License v3, see LICENSE.txt and CREDITS.md for more information.
 
 """
+.. _Mesh11:
+
 Mesh11
 ======
 
 Meshing of a specimen for a spatially oriented tensile test.
 """
+
 # sphinx_gallery_thumbnail_number = 2
 
 import numpy as np
