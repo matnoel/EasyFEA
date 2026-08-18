@@ -2,6 +2,12 @@
 
 This document describes the changes made to the project.
 
+## 3.4.1 (August 18, 2026):
+
+- Fixed the Python 3.9 import: `FEM/_mesher.py` used `typing.ParamSpec`, which needs 3.10, so `import EasyFEA` failed on 3.9 in 3.3.0 and 3.4.0.
+
+**Full Changelog:** https://github.com/matnoel/EasyFEA/compare/v3.4.0...v3.4.1
+
 ## 3.4.0 (August 18, 2026):
 
 - Renamed the 3.3.0 materials-with-history API (**breaking**, no aliases kept): `Simulations.Behaviour` is now `Simulations.InElastic`, `Models.Behaviour` is now `Models.InElastic.Behavior`, and `Yield`, `IsotropicHardening`, `KinematicHardening`, `ViscoPlastic`, `ViscoElastic` and `MaterialPoint` all moved under `Models.InElastic`. The examples moved from `examples/Behaviour/` to `examples/Inelasticity/`.
