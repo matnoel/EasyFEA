@@ -4,6 +4,7 @@
 # EasyFEA is distributed under the terms of the GNU General Public License v3, see LICENSE.txt and CREDITS.md for more information.
 
 from abc import abstractmethod
+from typing import TYPE_CHECKING
 
 # utilities
 import numpy as np
@@ -12,9 +13,12 @@ import numpy as np
 from ...Geoms import Line, AsCoords, Normalize
 
 # fem
-from ...FEM import Mesh, _GroupElem, FeArray, MatrixType, ElemType
+from ...FEM import FeArray, MatrixType, ElemType
 from ...FEM import Field, BiLinearForm, LinearForm
 from ...FEM.Elems._beam import _Timoshenko, _EulerBernoulli
+
+if TYPE_CHECKING:
+    from ...FEM import Mesh, _GroupElem
 
 # simulations / models — used by _shear_kappa (Saint-Venant Poisson solve)
 from ... import Models, Simulations
@@ -127,7 +131,7 @@ class _Beam(_IModel):
         self,
         dim: int,
         line: Line,
-        section: Mesh,
+        section: "Mesh",
         yAxis: _types.Coords = (0, 1, 0),
     ):
         """Creates a beam.
@@ -165,12 +169,12 @@ class _Beam(_IModel):
         return self.__line
 
     @property
-    def section(self) -> Mesh:
+    def section(self) -> "Mesh":
         """beam cross-section in (x,y) plane"""
         return self.__section
 
     @section.setter
-    def section(self, section: Mesh) -> None:
+    def section(self, section: "Mesh") -> None:
         assert (
             section.inDim == 2
         ), "The cross-beam section must be contained in the (x,y) plane."
@@ -179,7 +183,7 @@ class _Beam(_IModel):
         Iyz = section.groupElem.Integrate_e(lambda x, y, z: x * y).sum()
         assert np.abs(Iyz) <= 1e-9, "The section must have at least 1 symetry axis."
         self.Need_Update()
-        self.__section: Mesh = section
+        self.__section: "Mesh" = section
 
     @property
     def xAxis(self) -> _types.FloatArray:
@@ -365,7 +369,7 @@ class Isotropic(_Beam):
         self,
         dim: int,
         line: Line,
-        section: Mesh,
+        section: "Mesh",
         E: float,
         v: float,
         yAxis: _types.Coords = (0, 1, 0),
@@ -531,7 +535,7 @@ class BeamStructure(_IModel):
 
     def Calc_D_e_pg(
         self,
-        groupElem: _GroupElem,
+        groupElem: "_GroupElem",
         matrixType: MatrixType = MatrixType.beam,
     ) -> FeArray.FeArrayALike:
         """Returns a matrix characterizing the beams's stiffness behavior."""
@@ -556,7 +560,7 @@ class BeamStructure(_IModel):
 
         return D_e_pg
 
-    def Calc_M_e_pg(self, groupElem: _GroupElem) -> FeArray.FeArrayALike:
+    def Calc_M_e_pg(self, groupElem: "_GroupElem") -> FeArray.FeArrayALike:
         """Returns a matrix characterizing the beams's stiffness behavior."""
 
         assert isinstance(groupElem, (_Timoshenko, _EulerBernoulli))
@@ -579,7 +583,7 @@ class BeamStructure(_IModel):
         return M_e_pg
 
     def Get_axis_e(
-        self, groupElem: _GroupElem
+        self, groupElem: "_GroupElem"
     ) -> tuple[_types.FloatArray, _types.FloatArray]:
         """Returns the fiber and cross bar vertical axis on every elements.\n
         return xAxis_e, yAxis_e"""
