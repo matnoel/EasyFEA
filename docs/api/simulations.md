@@ -279,6 +279,7 @@ The {py:class}`~EasyFEA.Simulations.Thermal` class is relatively simple and can 
 
 ```{eval-rst}
 .. automodule:: EasyFEA.Simulations
+    :imported-members:
 
 .. autoclass:: EasyFEA.Simulations.HyperElastic.StressType
    :members:

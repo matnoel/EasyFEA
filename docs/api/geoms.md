@@ -28,4 +28,5 @@ Once the geometric objects are created, you can manipulate them using {py:meth}`
 
 ```{eval-rst}
 .. automodule:: EasyFEA.Geoms
+    :imported-members:
 ```

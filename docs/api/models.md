@@ -29,19 +29,18 @@ With this module, you can construct:
 
 ```{eval-rst}
 .. automodule:: EasyFEA.Models
+    :imported-members:
 .. automodule:: EasyFEA.Models.Elastic
+    :imported-members:
 .. automodule:: EasyFEA.Models.HyperElastic
-.. autoclass:: EasyFEA.Models.InElastic.Behavior
-.. autoclass:: EasyFEA.Models.InElastic.MaterialPoint
+    :imported-members:
+.. automodule:: EasyFEA.Models.InElastic.Behavior
+.. automodule:: EasyFEA.Models.InElastic.MaterialPoint
 .. automodule:: EasyFEA.Models.InElastic.IsotropicHardening
-    :exclude-members: FeArray
 .. automodule:: EasyFEA.Models.InElastic.KinematicHardening
-    :exclude-members: FeArray
 .. automodule:: EasyFEA.Models.InElastic.ViscoPlastic
-    :exclude-members: FeArray
 .. automodule:: EasyFEA.Models.InElastic.ViscoElastic
-    :exclude-members: FeArray
 .. automodule:: EasyFEA.Models.InElastic.Yield
-    :exclude-members: FeArray, Norm, TensorProd
 .. automodule:: EasyFEA.Models.Beam
+    :imported-members:
 ```

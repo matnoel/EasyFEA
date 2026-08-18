@@ -27,20 +27,14 @@ In the simulation workflow, `Utilities` is the **final step**: once `simu.Solve(
 
 ```{eval-rst}
 .. automodule:: EasyFEA.Utilities
+    :imported-members:
 .. automodule:: EasyFEA.Utilities.Matplotlib
-    :exclude-members: Mesh, Tic, ElemType, GroupElemFactory
 .. automodule:: EasyFEA.Utilities.Terminal
 .. automodule:: EasyFEA.Utilities.Folder
 .. automodule:: EasyFEA.Utilities.MeshIO
-    :exclude-members: Mesh, Tic, ElemType, GroupElemFactory, _GroupElem    
 .. automodule:: EasyFEA.Utilities.Paraview
-    :exclude-members: Mesh, Tic, ElemType, GroupElemFactory    
 .. automodule:: EasyFEA.Utilities.PyVista
-    :exclude-members: Mesh, Tic, ElemType, GroupElemFactory    
 .. automodule:: EasyFEA.Utilities.Vizir
-    :exclude-members: Mesh, Tic, ElemType, GroupElemFactory
 .. automodule:: EasyFEA.Utilities.USD
-    :exclude-members: Mesh, Tic, ElemType, GroupElemFactory, _Simu
 .. automodule:: EasyFEA.Utilities.GLTF
-    :exclude-members: Mesh, Tic, ElemType, GroupElemFactory, _Simu
 ```

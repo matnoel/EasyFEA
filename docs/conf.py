@@ -55,7 +55,6 @@ exclude_patterns = ["_build", "Thumbs.db", ".DS_Store"]
 autodoc_default_options = {
     "members": True,
     "private-members": True,
-    "imported-members": False,
     "undoc-members": True,
     "show-inheritance": False,
     "member-order": "groupwise",

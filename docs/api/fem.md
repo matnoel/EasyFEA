@@ -87,11 +87,10 @@ The {py:mod}`EasyFEA.FEM.Operators` module provides the element-level operators 
 
 ```{eval-rst}
 .. automodule:: EasyFEA.FEM
+    :imported-members:
 .. automodule:: EasyFEA.FEM.Elems
+    :imported-members:
 .. automodule:: EasyFEA.FEM.Operators.Bilinear
-   :exclude-members: FeArray, TensorProd, MatrixType
 .. automodule:: EasyFEA.FEM.Operators.Linear
-   :exclude-members: FeArray, MatrixType
 .. automodule:: EasyFEA.FEM.Operators.NonLinear
-   :exclude-members: FeArray, MatrixType, Project_vector_to_matrix, Project_matrix_to_vector, HyperElasticState
 ```
