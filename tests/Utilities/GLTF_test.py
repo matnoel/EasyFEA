@@ -12,6 +12,12 @@ from pygltflib.validator import validate
 
 # https://samaust.github.io/pygltflib/actions/validate.html
 
+# validate() is what these tests are for, but pygltflib warns that it is provisional on every
+# call. Filtered on the message alone, so any other warning it raises still surfaces.
+pytestmark = pytest.mark.filterwarnings(
+    "ignore:pygltf.utils.validator is a provisional function:UserWarning"
+)
+
 from EasyFEA import Folder, ElemType, Mesh, GLTF, Models, Simulations
 from EasyFEA.Geoms import Domain, Circle, Rotate, Translate
 
