@@ -8,7 +8,7 @@
 
 1. {doc}`Linear elastic simulations <examples/LinearizedElasticity/index>`: ``static``, ``dynamic``, ``homogenization`` and ``mesh optimization``.
 2. {doc}`Hyperelastic simulations <examples/Hyperelasticity/index>`: ``static`` and ``dynamic`` in the ``Lagrangian`` framework.
-3. {doc}`Inelastic simulations history <examples/Inelasticity/index>`: small-strain ``plasticity``, ``viscoplasticity`` and ``viscoelasticity``, assembled from a yield surface, hardening, a back-stress, a rate law and Maxwell branches.
+3. {doc}`Inelastic simulations <examples/Inelasticity/index>`: small-strain ``plasticity``, ``viscoplasticity`` and ``viscoelasticity``, assembled from a yield surface, hardening, a back-stress, a rate law and Maxwell branches.
 4. {doc}`Cardiac elasto-dynamics <examples/CardiacElastoDynamics/index>`: passive + active hyperelastic ``mono-ventricular`` left-ventricle benchmark.
 5. {doc}`Contact simulations <examples/Contact/index>`: frictionless ``penalty`` contact against a rigid obstacle.
 6. {doc}`Euler-Bernoulli and Timoshenko beam simulations <examples/Beam/index>`: ``static`` and ``dynamic``.
