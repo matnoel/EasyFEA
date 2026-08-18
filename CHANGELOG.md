@@ -2,6 +2,15 @@
 
 This document describes the changes made to the project.
 
+## 3.4.0 (August 18, 2026):
+
+- Renamed the 3.3.0 materials-with-history API (**breaking**, no aliases kept): `Simulations.Behaviour` is now `Simulations.InElastic`, `Models.Behaviour` is now `Models.InElastic.Behavior`, and `Yield`, `IsotropicHardening`, `KinematicHardening`, `ViscoPlastic`, `ViscoElastic` and `MaterialPoint` all moved under `Models.InElastic`. The examples moved from `examples/Behaviour/` to `examples/Inelasticity/`.
+- Fixed a division by zero in the spectral return at Gauss points where nothing flowed; it was masked out of the result but emitted `RuntimeWarning`s on every 3.3.0 solve.
+- Examples: assertions now check only analytic, mesh-independent quantities; `ThickCylinder` runs one mesh and one pressure ramp instead of a refinement study; removed `SpringBack`, which had no closed form to check against.
+- Docs: `autodoc_default_options` set `"imported-members": False`, which Sphinx reads as `True` since `bool_option()` maps any value to true, so every module documented the names it imported. Removed, together with the fifteen `:exclude-members:` lists that existed to undo it.
+
+**Full Changelog:** https://github.com/matnoel/EasyFEA/compare/v3.3.0...v3.4.0
+
 ## 3.3.0 (August 17, 2026):
 
 - Materials with history (issue #48)
