@@ -18,7 +18,7 @@ from typing import (
     Iterable,
     NoReturn,
     Optional,
-    ParamSpec,
+    TypeVar,
     Union,
     TYPE_CHECKING,
 )
@@ -64,18 +64,19 @@ class MeshError(Exception):
     """Raised when gmsh fails to generate the mesh. The geom objects that were fed to the mesher are named in the message, and drawn in a window when `_Can_show_geoms()` allows it."""
 
 
-_P = ParamSpec("_P")
+# bound to the callable rather than a ParamSpec, which needs Python 3.10
+_F = TypeVar("_F", bound=Callable[..., Mesh])
 
 
-def _shows_geoms_on_error(func: Callable[_P, Mesh]) -> Callable[_P, Mesh]:
+def _shows_geoms_on_error(func: _F) -> _F:
     """Decorator drawing the geometry when a meshing method fails, see `Mesher._Show_geoms`.
 
     It covers entity building as well as generation, because gmsh raises just as often while the entities are built (a non-planar contour fails in `addPlaneSurface`) as while the mesh is generated. It stops at `_Mesh_Generate`: once gmsh has produced a mesh the geometry was accepted, so a later failure comes from converting that mesh (e.g. an element type EasyFEA does not implement) and drawing the geoms would only mislead.
     """
 
     @wraps(func)
-    def wrapper(*args: _P.args, **kwargs: _P.kwargs) -> Mesh:
-        mesher: "Mesher" = args[0]  # type: ignore[assignment]
+    def wrapper(*args, **kwargs) -> Mesh:
+        mesher: "Mesher" = args[0]
         try:
             return func(*args, **kwargs)
         except MeshError:
@@ -85,7 +86,7 @@ def _shows_geoms_on_error(func: Callable[_P, Mesh]) -> Callable[_P, Mesh]:
                 raise  # not a geometry failure
             mesher._Show_geoms(error)
 
-    return wrapper
+    return wrapper  # type: ignore[return-value]
 
 
 def _Group_opposite_sides(list_lines: Iterable[list[int]]) -> dict[int, int]:
