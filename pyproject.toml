@@ -31,8 +31,9 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
-dev = ["mypy", "black", "ruff", "pytest"]
+dev = ["mypy", "black", "ruff", "pytest", "jax"]
 io = ["imageio", "imageio[ffmpeg]", "meshio"]
+jax = ["jax"]
 viz = ["matplotlib", "pyvista", "pygltflib", "usd-core"]
 
 [project.urls]
