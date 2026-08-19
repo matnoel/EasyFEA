@@ -9,6 +9,7 @@ Mesh13
 
 Mesh a heterogeneous RVE with cracks.
 """
+
 # sphinx_gallery_thumbnail_number = 2
 
 from EasyFEA import Terminal, ElemType, PyVista

@@ -9,6 +9,7 @@ Homog4
 
 Conduct 3d homogenization on a simple RVE.
 """
+
 # sphinx_gallery_thumbnail_number = -1
 
 import matplotlib.pyplot as plt

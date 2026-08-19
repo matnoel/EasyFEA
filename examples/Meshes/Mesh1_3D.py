@@ -9,6 +9,7 @@ Mesh1_3D
 
 Meshing a 3D domain.
 """
+
 # sphinx_gallery_thumbnail_number = 2
 
 from EasyFEA import Terminal, ElemType, PyVista

@@ -9,6 +9,7 @@ Thermal3
 
 Transient thermal simulation.
 """
+
 # sphinx_gallery_thumbnail_number = -1
 
 import numpy as np

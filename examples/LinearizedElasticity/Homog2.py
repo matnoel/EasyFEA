@@ -9,6 +9,7 @@ Homog2
 
 Perform homogenization on several RVE.
 """
+
 # sphinx_gallery_thumbnail_number = -1
 
 import matplotlib.pyplot as plt

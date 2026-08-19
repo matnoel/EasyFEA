@@ -14,6 +14,7 @@ The images were downloaded from `Recherche Data Gouv <https://doi.org/10.57745/N
 
 Further implementation details are available in my `PhD thesis <https://hal.univ-lorraine.fr/MSME_MECA/tel-04866760v1>`_ (Section 2, Chapter 2, written in French).
 """
+
 # sphinx_gallery_thumbnail_number = -2
 
 import matplotlib.pyplot as plt

@@ -12,7 +12,16 @@ A cantilever beam undergoing bending deformation in dynamic.
 
 import matplotlib.pyplot as plt
 
-from EasyFEA import Folder, Terminal, Matplotlib, Models, Mesher, Simulations, Paraview, PyVista
+from EasyFEA import (
+    Folder,
+    Terminal,
+    Matplotlib,
+    Models,
+    Mesher,
+    Simulations,
+    Paraview,
+    PyVista,
+)
 from EasyFEA.Geoms import Domain, Line
 
 if __name__ == "__main__":

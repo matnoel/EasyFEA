@@ -9,6 +9,7 @@ Mesh6_2D
 
 Refined 2D mesh in zones.
 """
+
 # sphinx_gallery_thumbnail_number = 2
 
 from EasyFEA import Terminal, ElemType, PyVista

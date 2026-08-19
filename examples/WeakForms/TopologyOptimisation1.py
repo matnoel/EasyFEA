@@ -10,6 +10,7 @@ TopologyOptimisation1
 
 An educational implementation of topology optimization inspired by `Week 10- Topology Optimisation — A Step-by-Step Tutorial <https://github.com/MCM-QMUL/TopOpt_teach/blob/main/Week10_topology_optimisation_tutorial_step%20by%20step.ipynb>`_ created by (Dr Wei Tan, Queen Mary University of London), which in turn builds upon the seminal 88-line topology optimization MATLAB code by Ole Sigmund (2001), published in *Structural and Multidisciplinary Optimization*, 21(2), pp. 120–127.
 """
+
 # sphinx_gallery_thumbnail_number = 3
 
 import matplotlib.pyplot as plt

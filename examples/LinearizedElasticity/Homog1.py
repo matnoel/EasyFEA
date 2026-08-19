@@ -11,6 +11,7 @@ Conduct homogenization using an example outlined in `Computational Homogenizatio
 
 Section 4.7 with corrected values on page 89 (Erratum).
 """
+
 # sphinx_gallery_thumbnail_number = -1
 
 import matplotlib.pyplot as plt

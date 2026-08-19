@@ -9,6 +9,7 @@ Homog5
 
 Conduct 3d homogenization on a periodic mesh generated with `microgen <https://microgen.readthedocs.io/en/v1.3.2/examples/mesh.html#periodic-mesh>`_.
 """
+
 # sphinx_gallery_thumbnail_number = -1
 
 import matplotlib.pyplot as plt

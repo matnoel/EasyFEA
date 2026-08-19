@@ -9,13 +9,23 @@ Modal2
 
 Modal analysis of a structure.
 """
+
 # sphinx_gallery_thumbnail_number = -2
 
 import matplotlib.pyplot as plt
 import numpy as np
 from scipy.sparse import linalg, eye
 
-from EasyFEA import Terminal, Matplotlib, Models, Mesher, ElemType, Mesh, Simulations, PyVista
+from EasyFEA import (
+    Terminal,
+    Matplotlib,
+    Models,
+    Mesher,
+    ElemType,
+    Mesh,
+    Simulations,
+    PyVista,
+)
 
 
 def Construct_struct(

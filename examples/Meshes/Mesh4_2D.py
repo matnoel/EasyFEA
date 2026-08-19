@@ -9,6 +9,7 @@ Mesh4_2D
 
 Meshing a 2D bracket.
 """
+
 # sphinx_gallery_thumbnail_number = 2
 
 from EasyFEA import Terminal, ElemType, PyVista

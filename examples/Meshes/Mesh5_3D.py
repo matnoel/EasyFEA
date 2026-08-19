@@ -9,6 +9,7 @@ Mesh5_3D
 
 Mesh of a 3D cracked part.
 """
+
 # sphinx_gallery_thumbnail_number = 3
 
 import matplotlib.pyplot as plt

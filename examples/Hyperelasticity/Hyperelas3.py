@@ -9,6 +9,7 @@ Hyperelas3
 
 A L shape part undergoing bending deformation.
 """
+
 # sphinx_gallery_thumbnail_number = -1
 
 from EasyFEA import Terminal, Models, ElemType, Simulations, PyVista

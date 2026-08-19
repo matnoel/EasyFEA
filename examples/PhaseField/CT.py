@@ -13,7 +13,16 @@ Performs damage simulation on a CT specimen.
 import matplotlib.pyplot as plt
 import numpy as np
 
-from EasyFEA import Terminal, Matplotlib, Folder, Models, ElemType, Simulations, PyVista, Paraview
+from EasyFEA import (
+    Terminal,
+    Matplotlib,
+    Folder,
+    Models,
+    ElemType,
+    Simulations,
+    PyVista,
+    Paraview,
+)
 from EasyFEA.Geoms import Point, Points, Circle, Line, Contour, Domain
 
 if __name__ == "__main__":

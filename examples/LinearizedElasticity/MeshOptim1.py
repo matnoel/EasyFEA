@@ -9,13 +9,15 @@ MeshOptim1
 
 Mesh optimization using the ZZ1 criterion for a bending bracket.
 """
+
 # sphinx_gallery_thumbnail_number = -2
 
 import matplotlib.pyplot as plt
 import numpy as np
 
 from EasyFEA import (
-    Terminal, Matplotlib,
+    Terminal,
+    Matplotlib,
     Folder,
     Models,
     Tic,

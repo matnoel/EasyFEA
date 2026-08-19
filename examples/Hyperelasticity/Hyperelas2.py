@@ -9,6 +9,7 @@ Hyperelas2
 
 A hyper elastic cube in compression.
 """
+
 # sphinx_gallery_thumbnail_number = -1
 
 import numpy as np

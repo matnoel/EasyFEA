@@ -13,7 +13,16 @@ Verification of energy convergence for a bending beam for all available elements
 import matplotlib.pyplot as plt
 import numpy as np
 
-from EasyFEA import Terminal, Matplotlib, Folder, Models, Tic, ElemType, Simulations, Paraview
+from EasyFEA import (
+    Terminal,
+    Matplotlib,
+    Folder,
+    Models,
+    Tic,
+    ElemType,
+    Simulations,
+    Paraview,
+)
 from EasyFEA.Geoms import Domain, Point
 
 if __name__ == "__main__":

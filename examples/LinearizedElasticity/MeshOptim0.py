@@ -9,6 +9,7 @@ MeshOptim0
 
 Optimization of a happy mesh with quality criteria.
 """
+
 # sphinx_gallery_thumbnail_number = 2
 
 import matplotlib.pyplot as plt

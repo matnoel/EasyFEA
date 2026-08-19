@@ -13,7 +13,16 @@ Damage simulation for a L-part.
 import matplotlib.pyplot as plt
 import numpy as np
 
-from EasyFEA import Terminal, Matplotlib, Folder, Models, ElemType, Simulations, Paraview, PyVista
+from EasyFEA import (
+    Terminal,
+    Matplotlib,
+    Folder,
+    Models,
+    ElemType,
+    Simulations,
+    Paraview,
+    PyVista,
+)
 from EasyFEA.Geoms import Point, Points, Domain, Circle
 
 if __name__ == "__main__":

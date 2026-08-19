@@ -9,6 +9,7 @@ Mesh3_2D
 
 Meshing a 2D domain with hole.
 """
+
 # sphinx_gallery_thumbnail_number = 2
 
 from EasyFEA import Terminal, ElemType, PyVista

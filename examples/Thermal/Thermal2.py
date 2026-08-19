@@ -9,6 +9,7 @@ Thermal2
 
 Transient thermal simulation.
 """
+
 # sphinx_gallery_thumbnail_number = -1
 
 from EasyFEA import Terminal, Folder, Models, ElemType, Simulations, PyVista

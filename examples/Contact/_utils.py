@@ -58,8 +58,8 @@ class RigidContact(Simulations.Elastic):
                 u_e = u.reshape(-1, self.dim)[groupElem.connect]
                 x_e_pg = X_e_pg.copy()
                 x_e_pg[..., : self.dim] += FeArray.asfearray(
-            np.einsum("pn,enc->epc", N_pg, u_e)
-        )
+                    np.einsum("pn,enc->epc", N_pg, u_e)
+                )
 
                 # project onto the obstacle surface -> outward normal + signed gap
                 gap_e_pg, normal_e_pg = contactGroup._Get_gap_and_normal(

@@ -9,6 +9,7 @@ Mesh5_2D
 
 Mesh of a 2D cracked part.
 """
+
 # sphinx_gallery_thumbnail_number = 3
 
 from EasyFEA import Terminal, ElemType, Models, Simulations, PyVista

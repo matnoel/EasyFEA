@@ -9,6 +9,7 @@ Hyperelas1
 
 A cantilever beam undergoing bending deformation.
 """
+
 # sphinx_gallery_thumbnail_number = -1
 
 from EasyFEA import Terminal, ElemType, Models, Simulations, PyVista
