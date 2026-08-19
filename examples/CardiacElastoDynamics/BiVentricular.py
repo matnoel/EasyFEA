@@ -29,7 +29,6 @@ from EasyFEA import (
     Folder,
     PyVista,
     MatrixType,
-    Models,
     Simulations,
     AlgoType,
 )
@@ -40,6 +39,7 @@ from utils import (
     RESULTS_DIR,
     DATA_DIR,
     Get_biventricular,
+    Get_material,
     Get_stresses,
     Get_pressures,
 )
@@ -141,35 +141,21 @@ if __name__ == "__main__":
         # ----------------------------------------------
 
         # solid
-        a, a_f, a_fs, a_s = dict_a = {
+        a, a_f, a_fs, a_s = {
             Config.A: (177, 55416, 648, 7443),
             Config.B: (295, 92360, 1080, 12405),
             Config.C: (19, 6157, 72, 827),
         }[config]
-        b = 8.023
-        b_f = 16.026
-        b_fs = 11.436
-        b_s = 11.12
 
-        material = Models.HyperElastic.HolzapfelOgden(
-            dim=3,
-            C0=a / 2 / b,
-            C1=b,
-            C2=a_f / 2 / b_f,
-            C3=b_f,
-            C4=a_s / 2 / b_s,
-            C5=b_s,
-            C6=a_fs / 2 / b_fs,
-            C7=b_fs,
-            K=1e6,
-            Mu1=0.0,
-            Mu2=0.0,
-            T1=fibers_e_pg,
-            T2=sheets_e_pg,
-            ks=100,
+        material = Get_material(
+            fibers_e_pg,
+            sheets_e_pg,
+            a,
+            a_f,
+            a_fs,
+            a_s,
+            useJax=False,
         )
-        material.eta = 100.0
-        material.Set_active_stress_vec(material.T1)
 
         # ----------------------------------------------
         # Simulation
@@ -181,6 +167,7 @@ if __name__ == "__main__":
             folder=results_dir,
             alpha_top=1e6,
             alpha_epi=1e8,
+            matrixType=matrixType,
         )
 
         simu.Solver_Set_Hyperbolic_Algorithm(dt, algo=AlgoType.midpoint)

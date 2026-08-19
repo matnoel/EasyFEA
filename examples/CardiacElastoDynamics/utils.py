@@ -7,6 +7,7 @@ Two fiber sources are supported (see :func:`Get_config`). ``"analytic"`` builds 
 
 import os
 from dataclasses import dataclass
+from functools import partial
 from typing import Literal
 
 import numpy as np
@@ -18,7 +19,7 @@ except ModuleNotFoundError:
     raise Exception("h5py must be installed!")
 
 from EasyFEA import Folder, PyVista, MeshIO, MatrixType, Mesher, Models, Simulations
-from EasyFEA.FEM import Mesh, ElemType, FeArray, Norm
+from EasyFEA.FEM import Mesh, ElemType, FeArray, Norm, Normalize
 from EasyFEA.Utilities._types import FloatArray, IntArray
 from EasyFEA.Utilities._mpi import MPI_RANK
 
@@ -452,3 +453,92 @@ def Get_pressures(
         values[i + 1] = values[i] + dt * dp_dt(times[i], values[i])
 
     return values
+
+
+def _Holzapfel_ogden(C, T1, T2, *, C0, C1, C2, C3, C4, C5, C6, C7, K, Mu1, Mu2, ks):
+    """The passive myocardium potential, at one material point.
+
+    Module level, with its parameters bound by :func:`functools.partial`, so the law stays picklable.
+    """
+    import jax.numpy as jnp
+
+    I1 = jnp.trace(C)
+    I2 = (I1**2 - jnp.trace(C @ C)) / 2
+    I3 = jnp.linalg.det(C)
+    J1, J2, J = I1 * I3 ** (-1 / 3), I2 * I3 ** (-2 / 3), jnp.sqrt(I3)
+    I4, I6, I8 = T1 @ C @ T1, T2 @ C @ T2, T1 @ C @ T2
+
+    # the sigmoid: the fiber terms stiffen in tension and switch off in compression
+    def chi(Ii):
+        return 1 / (1 + jnp.exp(-ks * (Ii - 1)))
+
+    return (
+        C0 * (jnp.exp(C1 * (J1 - 3)) - 1)
+        + C2 * chi(I4) * (jnp.exp(C3 * (I4 - 1) ** 2) - 1)
+        + C4 * chi(I6) * (jnp.exp(C5 * (I6 - 1) ** 2) - 1)
+        + C6 * (jnp.exp(C7 * I8**2) - 1)
+        + K / 4 * (J**2 - 1 - 2 * jnp.log(J))
+        + Mu1 * (J1 - 3)
+        + Mu2 * (J2 - 3)
+    )
+
+
+def Get_material(
+    fibers_e_pg: FeArray,
+    sheets_e_pg: FeArray,
+    a: float,
+    a_f: float,
+    a_fs: float,
+    a_s: float,
+    eta: float = 100.0,
+    useJax: bool = False,
+) -> Models.HyperElastic._HyperElastic:
+    """Holzapfel-Ogden for passive myocardium, with the active-stress direction registered.
+
+    ``useJax=True`` derives the stress and tangent by automatic differentiation instead: same answer to ~1e-16, and faster on large meshes. Needs ``pip install easyfea[jax]``.
+
+    Parameters
+    ----------
+    fibers_e_pg, sheets_e_pg : FeArray
+        fiber and sheet directions at the Gauss points, ``(Ne, nPg, 3)``
+    a, a_f, a_fs, a_s : float
+        isotropic, fiber, fiber-sheet and sheet moduli, in Pa
+    eta : float, optional
+        Kelvin-Voigt viscosity, by default 100.0
+    useJax : bool, optional
+        derive the stress and tangent by autodiff, by default False
+    """
+    b, b_f, b_fs, b_s = 8.023, 16.026, 11.436, 11.12
+    C0, C1 = a / 2 / b, b
+    C2, C3 = a_f / 2 / b_f, b_f
+    C4, C5 = a_s / 2 / b_s, b_s
+    C6, C7 = a_fs / 2 / b_fs, b_fs
+    K, Mu1, Mu2, ks = 1e6, 0.0, 0.0, 100.0
+
+    # normalised once here, so both branches see the same directions
+    T1 = Normalize(fibers_e_pg)
+    T2 = Normalize(sheets_e_pg)
+
+    if useJax:
+        from EasyFEA.Models._autodiff import Enable_x64
+
+        # without this the exponentials overflow to NaN: jax defaults to float32
+        Enable_x64()
+
+        W = partial(
+            _Holzapfel_ogden,
+            C0=C0, C1=C1, C2=C2, C3=C3, C4=C4, C5=C5, C6=C6, C7=C7,
+            K=K, Mu1=Mu1, Mu2=Mu2, ks=ks,
+        )  # fmt: skip
+        material = Models.HyperElastic.AutoDiff(3, W, (T1, T2))
+    else:
+        material = Models.HyperElastic.HolzapfelOgden(
+            dim=3,
+            C0=C0, C1=C1, C2=C2, C3=C3, C4=C4, C5=C5, C6=C6, C7=C7,
+            K=K, Mu1=Mu1, Mu2=Mu2, T1=T1, T2=T2, ks=ks,
+        )  # fmt: skip
+
+    material.eta = eta
+    material.Set_active_stress_vec(T1)
+
+    return material

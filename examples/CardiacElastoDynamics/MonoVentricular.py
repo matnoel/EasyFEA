@@ -28,7 +28,6 @@ from EasyFEA import (
     Folder,
     PyVista,
     MatrixType,
-    Models,
     Simulations,
     AlgoType,
 )
@@ -39,6 +38,7 @@ from utils import (
     RESULTS_DIR,
     DATA_DIR,
     Get_config_ellipsoid,
+    Get_material,
     Get_stresses,
     Get_pressures,
 )
@@ -60,10 +60,13 @@ class CardiacElastoDynamics(Simulations.HyperElastic):
         alpha_epi=1e8,
         beta_top=5e3,
         beta_epi=5e3,
+        matrixType: MatrixType = MatrixType.rigi,
     ):
         super().__init__(
             mesh, model, folder, absTol, relTol, incTol, maxIter, verbosity
         )
+        # the fibers are sampled at this same rule, so it must match the one used to build them
+        self.__matrixType = matrixType
         self.__dict_pressure: dict[str, float] = {}
         self.__alpha_top = alpha_top
         self.__alpha_epi = alpha_epi
@@ -104,11 +107,9 @@ class CardiacElastoDynamics(Simulations.HyperElastic):
 
     def Construct_local_matrix_system(self, problemType):
 
-        assert isinstance(self.material, Models.HyperElastic.HolzapfelOgden)
-        nPg = self.material.T1.shape[1]
         dim = self.dim
 
-        results = super().Construct_local_matrix_system(problemType, nPg)
+        results = super().Construct_local_matrix_system(problemType, self.__matrixType)
 
         # current Newton-Raphson iterate (updated via u += delta_u)
         displacement = self._Solver_Get_Newton_Raphson_current_solution()
@@ -245,40 +246,25 @@ if __name__ == "__main__":
         # ----------------------------------------------
 
         # solid
-        a = 59.0
-        a_f = 18472.0
-        a_fs = 216.0
-        a_s = 2481.0
-        b = 8.023
-        b_f = 16.026
-        b_fs = 11.436
-        b_s = 11.12
+        a, a_f, a_fs, a_s = 59.0, 18472.0, 216.0, 2481.0
 
-        material = Models.HyperElastic.HolzapfelOgden(
-            dim=3,
-            C0=a / 2 / b,
-            C1=b,
-            C2=a_f / 2 / b_f,
-            C3=b_f,
-            C4=a_s / 2 / b_s,
-            C5=b_s,
-            C6=a_fs / 2 / b_fs,
-            C7=b_fs,
-            K=1e6,
-            Mu1=0.0,
-            Mu2=0.0,
-            T1=fibers_e_pg,
-            T2=sheets_e_pg,
-            ks=100,
+        material = Get_material(
+            fibers_e_pg,
+            sheets_e_pg,
+            a,
+            a_f,
+            a_fs,
+            a_s,
+            useJax=False,
         )
-        material.eta = 100.0
-        material.Set_active_stress_vec(material.T1)
 
         # ----------------------------------------------
         # Simulation
         # ----------------------------------------------
 
-        simu = CardiacElastoDynamics(mesh, material, folder=results_dir)
+        simu = CardiacElastoDynamics(
+            mesh, material, folder=results_dir, matrixType=matrixType
+        )
 
         simu.Solver_Set_Hyperbolic_Algorithm(dt, algo=AlgoType.midpoint)
         simu.rho = 1000
