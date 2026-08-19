@@ -7,7 +7,7 @@
 
 from abc import ABC, abstractmethod
 import numpy as np
-from typing import Union
+from typing import Callable, Union
 
 # utilities
 from ...FEM import FeArray, TensorProd, Normalize
@@ -924,3 +924,111 @@ class HolzapfelOgden(_HyperElastic):
         )
 
         return d2W
+
+
+# ----------------------------------------------
+# AutoDiff
+# ----------------------------------------------
+
+
+def HyperElasticPotential(
+    W: Callable, in_axes: Union[int, tuple] = 0
+) -> tuple[Callable, Callable, Callable]:
+    """Builds the ``(W, dWde, d2Wde)`` trio from the potential alone. Needs jax.
+
+    Parameters
+    ----------
+    W : Callable
+        ``W(C, *aux)`` for one point, with ``C`` the ``(3, 3)`` right Cauchy-Green tensor
+    in_axes : int | tuple, optional
+        as in :func:`~EasyFEA.Models._autodiff.Vmap_e_pg`, over ``(C, *aux)``
+    """
+    # imported here so jax stays optional
+    from .._autodiff import Vmap_e_pg, Kelvin_to_tensor
+
+    # differentiated w.r.t. the 6 independent components of C, not its 9 entries
+    def W_kelvin(vec, *aux):
+        return W(Kelvin_to_tensor(vec), *aux)
+
+    # called first: it is guarded, so a missing jax is reported before jax is used
+    W_field = Vmap_e_pg(W_kelvin, in_axes)
+
+    import jax
+
+    dW_field = Vmap_e_pg(jax.grad(W_kelvin), in_axes)
+    d2W_field = Vmap_e_pg(jax.hessian(W_kelvin), in_axes)
+
+    def Kelvin_C(state: HyperElasticState) -> FeArray.FeArrayALike:
+        return Project_matrix_to_vector(state.Compute_C())
+
+    def Compute_W(state: HyperElasticState, *aux) -> FeArray:
+        return W_field(Kelvin_C(state), *aux)
+
+    def Compute_dWde(state: HyperElasticState, *aux) -> FeArray:
+        return state._Slice_Vector(2 * dW_field(Kelvin_C(state), *aux))
+
+    def Compute_d2Wde(state: HyperElasticState, *aux) -> FeArray:
+        return state._Slice_Matrix(4 * d2W_field(Kelvin_C(state), *aux))
+
+    return (Compute_W, Compute_dWde, Compute_d2Wde)
+
+
+class AutoDiff(_HyperElastic):
+    """A law declared as a potential ``W(C)``, differentiated by jax.
+
+    Needs ``pip install easyfea[jax]``. Runs a potential EasyFEA does not ship, with no derivative written by hand.
+    """
+
+    def __init__(
+        self,
+        dim: int,
+        W: Callable,
+        aux: tuple = (),
+        in_axes: Union[int, tuple] = 0,
+        thickness: float = 1.0,
+    ):
+        """Creates a hyperelastic law from its potential alone.
+
+        Parameters
+        ----------
+        dim : int
+            dimension (e.g 2 or 3)
+        W : Callable
+            ``W(C, *aux)`` for one material point, with ``C`` the ``(3, 3)`` right Cauchy-Green tensor
+        aux : tuple, optional
+            fields ``W`` takes after ``C``, fibre directions for instance. Held here because the operators call ``Compute_dWde(state)`` with nothing else.
+        in_axes : int | tuple, optional
+            which arguments vary per point, as :func:`jax.vmap` reads it
+        thickness : float, optional
+            thickness, by default 1.0
+        """
+        _HyperElastic.__init__(self, dim, thickness)
+
+        self.__potential = W
+        self.__in_axes = in_axes
+        self.__aux = tuple(aux)
+        self.__Build()
+
+    def __Build(self) -> None:
+        self.__W, self.__dWde, self.__d2Wde = HyperElasticPotential(
+            self.__potential, self.__in_axes
+        )
+
+    __DERIVED = ("_AutoDiff__W", "_AutoDiff__dWde", "_AutoDiff__d2Wde")
+
+    def __getstate__(self) -> dict:
+        """Drops the jax closures, which pickle cannot take. ``W`` must be picklable: define it at module level and bind its parameters with :func:`functools.partial`."""
+        return {k: v for k, v in self.__dict__.items() if k not in self.__DERIVED}
+
+    def __setstate__(self, state: dict) -> None:
+        self.__dict__.update(state)
+        self.__Build()
+
+    def Compute_W(self, hyperElasticState: HyperElasticState) -> FeArray:
+        return self.__W(hyperElasticState, *self.__aux)
+
+    def Compute_dWde(self, hyperElasticState: HyperElasticState) -> FeArray:
+        return self.__dWde(hyperElasticState, *self.__aux)
+
+    def Compute_d2Wde(self, hyperElasticState: HyperElasticState) -> FeArray:
+        return self.__d2Wde(hyperElasticState, *self.__aux)

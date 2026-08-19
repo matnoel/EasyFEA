@@ -13,4 +13,6 @@ from ._laws import (
     CiarletGeymonat,
     SaintVenantKirchhoff,
     HolzapfelOgden,
+    HyperElasticPotential,
+    AutoDiff,
 )
