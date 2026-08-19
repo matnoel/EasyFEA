@@ -1,7 +1,7 @@
 .. _easyfea-examples-inelasticity:
 
-Materials with history
-======================
+Inelastic simulations
+=====================
 
 Scripts that demonstrate small-strain materials whose stress depends on the history of strain:
 plasticity, viscoplasticity and viscoelasticity.
