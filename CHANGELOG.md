@@ -2,6 +2,14 @@
 
 This document describes the changes made to the project.
 
+## 3.5.0 (August 21, 2026):
+
+- Added `AlgoType.hht_newmark`, the HHT-Newmark time-integration scheme of Doyen, Ern & Piperno (SIAM J. Sci. Comput. 33(1), 2011). Unlike the existing generalized-alpha-style `AlgoType.hht`, which blends mass, damping and stiffness all by `(1-alpha)`, this keeps the mass term at the full step and only shifts the stiffness (internal force) and external load — the discretization the paper proves second-order and unconditionally stable for `alpha` in `[0, 1/3]`. `beta` and `gamma` are derived from `alpha` rather than left free, since the stability/accuracy proof only covers that specific pair.
+- Added `Models.HyperElastic.AutoDiff` (issue #53): a hyperelastic law declared from its potential `W(C)` alone, differentiated by `jax` (`pip install easyfea[jax]`) instead of a hand-written `Compute_dWde`/`Compute_d2Wde`. Checked against every shipped law's own closed-form derivatives; see `examples/Hyperelasticity/AutoDiffPotential.py`.
+- Examples: the cardiac elastodynamics examples (`BiVentricular.py`, `MonoVentricular.py`) now share their material setup through `Get_material` in `examples/CardiacElastoDynamics/utils.py`.
+
+**Full Changelog:** https://github.com/matnoel/EasyFEA/compare/v3.4.1...v3.5.0
+
 ## 3.4.1 (August 18, 2026):
 
 - Fixed the Python 3.9 import: `FEM/_mesher.py` used `typing.ParamSpec`, which needs 3.10, so `import EasyFEA` failed on 3.9 in 3.3.0 and 3.4.0.
