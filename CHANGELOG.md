@@ -2,6 +2,10 @@
 
 This document describes the changes made to the project.
 
+## 3.5.1 (August 21, 2026):
+
+- Added `jax` dependency in `.readthedocs.yaml`.
+
 ## 3.5.0 (August 21, 2026):
 
 - Added `AlgoType.hht_newmark`, the HHT-Newmark time-integration scheme of Doyen, Ern & Piperno (SIAM J. Sci. Comput. 33(1), 2011). Unlike the existing generalized-alpha-style `AlgoType.hht`, which blends mass, damping and stiffness all by `(1-alpha)`, this keeps the mass term at the full step and only shifts the stiffness (internal force) and external load — the discretization the paper proves second-order and unconditionally stable for `alpha` in `[0, 1/3]`. `beta` and `gamma` are derived from `alpha` rather than left free, since the stability/accuracy proof only covers that specific pair.
