@@ -117,6 +117,28 @@ class AlgoType(str, Enum):
 
     Update: identical to :attr:`newmark` (default :math:`\beta=1/4`, :math:`\gamma=1/2`).
     """
+    hht_newmark = "hht_newmark"
+    r"""Hilber–Hughes–Taylor–Newmark method (second-order, unconditionally stable, dissipative).
+
+    Unlike :attr:`hht`, only the stiffness (internal force) and external load are shifted; the mass
+    term stays at the full step :math:`n+1`, following the HHT-Newmark discretization of
+    Doyen, Ern & Piperno, *Time-Integration Schemes for the Finite Element Dynamic Signorini
+    Problem*, SIAM J. Sci. Comput. 33(1), 2011.
+
+    Evaluation points:
+
+    :math:`\urm^t = (1-\alpha)\urm^{n+1} + \alpha\urm^n`,
+
+    :math:`\vrm^t = \vrm^{n+1}`,
+
+    :math:`\arm^t = \arm^{n+1}`.
+
+    :math:`\beta` and :math:`\gamma` are not free: they are derived from :math:`\alpha \in [0, 1/3]`
+    as :math:`\beta = 1/4\,(1+\alpha)^2`, :math:`\gamma = 1/2+\alpha`, the pair Doyen's stability and
+    accuracy proof requires — any explicit :math:`\beta`/:math:`\gamma` passed to
+    :py:meth:`~EasyFEA.Simulations._Simu.Solver_Set_Hyperbolic_Algorithm` is overwritten.
+    :math:`\alpha = 0` recovers :attr:`newmark` exactly (undamped).
+    """
     euler_implicit = "euler_implicit"
     r"""Backward-Euler (first-order, unconditionally stable, dissipative).
 
@@ -148,6 +170,7 @@ class AlgoType(str, Enum):
             AlgoType.newmark,
             AlgoType.midpoint,
             AlgoType.hht,
+            AlgoType.hht_newmark,
             AlgoType.euler_implicit,
             AlgoType.euler_explicit,
         ]

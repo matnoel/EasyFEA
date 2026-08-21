@@ -1248,6 +1248,11 @@ class _Simu(_IObserver, _params.Updatable, ABC):
 
         >>> from EasyFEA import AlgoType
         >>> simu.Solver_Set_Hyperbolic_Algorithm(dt=0.001, algo=AlgoType.midpoint)
+
+        HHT-Newmark (Doyen et al. 2011, numerical damping with α=1/6, β and γ derived from α):
+
+        >>> from EasyFEA import AlgoType
+        >>> simu.Solver_Set_Hyperbolic_Algorithm(dt=0.001, algo=AlgoType.hht_newmark, alpha=1 / 6)
         """
 
         types = AlgoType.Get_Hyperbolic_Types()
@@ -1258,7 +1263,20 @@ class _Simu(_IObserver, _params.Updatable, ABC):
         self.__algo = algo
 
         assert dt > 0, "Time increment must be > 0"
-        assert 0 <= alpha < 1
+
+        if algo == AlgoType.hht_newmark:
+            assert 0 <= alpha <= 1 / 3, (
+                "hht_newmark requires alpha in [0, 1/3], the range Doyen et al. 2011's "
+                "stability and accuracy proof covers."
+            )
+            # beta and gamma are not free here: they're the pair the proof requires at this alpha.
+            # Doyen's own alpha runs negative ([-1/3, 0]); ours is its negation (see hht_newmark's
+            # docstring), so their beta = 1/4(1-alpha_doyen)^2, gamma = 1/2-alpha_doyen become
+            # beta = 1/4(1+alpha)^2, gamma = 1/2+alpha here.
+            beta = 1 / 4 * (1 + alpha) ** 2
+            gamma = 1 / 2 + alpha
+        else:
+            assert 0 <= alpha < 1
 
         self.__hyperbolicParams = (dt, beta, gamma, alpha)
 
@@ -1332,6 +1350,19 @@ class _Simu(_IObserver, _params.Updatable, ABC):
             v_t = (v_np1 + v_n) / 2
             a_t = (a_np1 + a_n) / 2
 
+        elif self.algo == AlgoType.hht_newmark:
+            # same corrector as newmark (beta, gamma already derived from alpha); only the
+            # evaluation displacement shifts -- velocity and acceleration stay at the full step.
+            a_np1 = (
+                1 / (beta * dt**2) * (u_np1 - u_n - dt * v_n)
+                + (1 - 1 / (2 * beta)) * a_n
+            )
+            v_np1 = dt * ((1 - gamma) * a_n + gamma * a_np1) + v_n
+
+            u_t = (1 - alpha) * u_np1 + alpha * u_n
+            v_t = v_np1
+            a_t = a_np1
+
         elif self.algo == AlgoType.parabolic:
 
             # get parabolic properties
@@ -1399,6 +1430,12 @@ class _Simu(_IObserver, _params.Updatable, ABC):
             coefK = 0.5
             coefC = 1 / dt
             coefM = 2 / dt**2
+        elif self.algo == AlgoType.hht_newmark:
+            # same as newmark's coefC/coefM (mass and damping stay at the full step); only coefK
+            # picks up the (1-alpha) factor from the shifted stiffness evaluation point.
+            coefK = 1 - alpha
+            coefC = gamma / (beta * dt)
+            coefM = 1 / (beta * dt**2)
         elif self.algo == AlgoType.parabolic:
             coefK = 1
             coefC = 1 / (alpha * dt)
@@ -1552,8 +1589,9 @@ class _Simu(_IObserver, _params.Updatable, ABC):
 
             return u_np1, v_np1, None
 
-        elif algo == AlgoType.newmark:
-            # See Hughes 1987 Chapter 9
+        elif algo in (AlgoType.newmark, AlgoType.hht_newmark):
+            # See Hughes 1987 Chapter 9. hht_newmark shares this exact corrector -- only its
+            # evaluation displacement (used during assembly, not here) differs from newmark's.
             dt, beta, gamma, _ = self.__Solver_Get_Hyperbolic_Params()
 
             # same as hht with alpha = 0
@@ -1770,6 +1808,21 @@ class _Simu(_IObserver, _params.Updatable, ABC):
             # v_n
             coefM = 2 / dt
             b += coefM * M @ v_n
+
+        elif algo == AlgoType.hht_newmark:
+            # mass/damping history predictor: identical to newmark's (v_t, a_t unshifted)
+            dt, beta, gamma, alpha = self.__Solver_Get_Hyperbolic_Params()
+
+            ut_np1 = u_n + dt * v_n + dt**2 / 2 * (1 - 2 * beta) * a_n
+            vt_np1 = v_n + dt * (1 - gamma) * a_n
+
+            coefC = gamma / (beta * dt)
+            coefM = 1 / (beta * dt**2)
+            b += (coefC * C + coefM * M) @ ut_np1
+            b -= C @ vt_np1
+
+            # only K is shifted: u_t = (1-alpha) u_np1 + alpha u_n
+            b -= alpha * K @ u_n
 
         elif algo == AlgoType.hht:
             dt, beta, gamma, alpha = self.__Solver_Get_Hyperbolic_Params()
