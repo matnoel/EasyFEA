@@ -16,7 +16,7 @@ build:
     pre_install:
       - pip install uv
     post_install:
-      - uv pip install .[viz,io]
+      - uv pip install .[viz,io,jax]
       - uv pip install -r docs/requirements.txt
       # - uv pip install pypardiso
     pre_build:
