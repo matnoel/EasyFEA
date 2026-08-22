@@ -22,7 +22,6 @@ from ..Utilities._mpi import (
     CAN_USE_MPI,
     MPI_SIZE,
     MPI_RANK,
-    MPI_COMM,
     Reduce_sum,
 )
 
@@ -58,9 +57,6 @@ if CAN_USE_PETSC:
 else:
     PETSC_HAS_SUPERLU_DIST = False
     PETSC_HAS_MUMPS = False
-
-if CAN_USE_MPI:
-    from mpi4py import MPI
 
 if MPI_SIZE > 1:
     error = "You must install petsc4py and mpi4py in order to run EasyFEA in parallel."
