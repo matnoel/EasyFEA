@@ -19,7 +19,6 @@ from ..FEM import MatrixType, FeArray, Trace, TensorProd, Det, Norm
 # others
 from ._utils import (
     _IModel,
-    ModelType,
     Project_vector_to_matrix,
     Project_matrix_to_vector,
 )
@@ -198,10 +197,6 @@ class PhaseField(_IModel):
         if A is None:
             A = np.eye(self.dim)
         self.A = A  # type: ignore
-
-    @property
-    def modelType(self) -> ModelType:
-        return ModelType.damage
 
     @property
     def dim(self) -> int:

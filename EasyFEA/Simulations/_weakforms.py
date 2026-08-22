@@ -15,11 +15,11 @@ if TYPE_CHECKING:
 
 # models
 from .. import Models
-from ..Models import ModelType
 
 # simu
 from ._simu import _Simu
 from .Solvers import AlgoType
+from ._problem_type import ProblemType
 
 
 class WeakForms(_Simu):
@@ -89,8 +89,8 @@ class WeakForms(_Simu):
         elementsField: list[str] = []
         return nodesField, elementsField
 
-    def Get_problemTypes(self) -> list[ModelType]:
-        return [ModelType.weakForm]
+    def Get_problemTypes(self) -> list[ProblemType]:
+        return [ProblemType("weakForm")]
 
     @property
     def weakForms(self) -> Models.WeakForms:

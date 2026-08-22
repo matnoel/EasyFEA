@@ -14,7 +14,7 @@ from ...FEM import FeArray, TensorProd, Normalize
 from ._state import HyperElasticState
 
 # others
-from .._utils import _IModel, ModelType, Project_matrix_to_vector
+from .._utils import _IModel, Project_matrix_to_vector
 from ...Utilities import _params, _types
 
 # ----------------------------------------------
@@ -92,10 +92,6 @@ class _HyperElastic(_IModel, ABC):
             magnitude = FeArray.asfearray(magnitude)
 
         return hyperElasticState._Slice_Vector(magnitude * self.__TxT)
-
-    @property
-    def modelType(self) -> ModelType:
-        return ModelType.hyperelastic
 
     @property
     def coef(self) -> float:

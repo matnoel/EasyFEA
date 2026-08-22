@@ -6,7 +6,7 @@
 # utilities
 import numpy as np
 
-from ._utils import _IModel, ModelType
+from ._utils import _IModel
 from ..Utilities import _params
 
 # ----------------------------------------------
@@ -16,10 +16,6 @@ from ..Utilities import _params
 
 class Thermal(_IModel):
     """Thermal class."""
-
-    @property
-    def modelType(self) -> ModelType:
-        return ModelType.thermal
 
     dim: int = _params.ParameterInValues([1])
 

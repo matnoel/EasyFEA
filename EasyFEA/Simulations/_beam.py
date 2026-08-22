@@ -3,7 +3,9 @@
 # This file is part of the EasyFEA project.
 # EasyFEA is distributed under the terms of the GNU General Public License v3, see LICENSE.txt and CREDITS.md for more information.
 
+from enum import Enum
 from typing import Union, Optional, Iterable, TYPE_CHECKING
+
 import numpy as np
 
 # utilities
@@ -24,11 +26,11 @@ from ..FEM.Elems._beam import (
 )
 
 # models
-from ..Models import ModelType
 from ..Models.Beam._beam import BeamStructure, _Beam, Isotropic
 
 # simu
 from ._simu import _Simu, SolverType
+from ._problem_type import ProblemType
 
 
 class Beam(_Simu):
@@ -140,8 +142,8 @@ class Beam(_Simu):
         }
         return dict_unknowns[self.structure.dof_n]
 
-    def Get_problemTypes(self) -> list[ModelType]:
-        return [ModelType.beam]
+    def Get_problemTypes(self) -> list[ProblemType]:
+        return [ProblemType("beam")]
 
     @property
     def structure(self) -> BeamStructure:

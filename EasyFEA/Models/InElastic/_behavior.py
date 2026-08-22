@@ -23,7 +23,7 @@ from typing import NamedTuple, Optional, Sequence, Union
 
 import numpy as np
 
-from .._utils import _IModel, ModelType
+from .._utils import _IModel
 from ..Elastic._laws import _Elastic
 from .IsotropicHardening import IsotropicHardening, Linear
 from .KinematicHardening import KinematicHardening
@@ -221,11 +221,6 @@ class Behavior(_IModel):
     # --------------------------------------------------------------------------
     # Model interface
     # --------------------------------------------------------------------------
-
-    @property
-    def modelType(self) -> ModelType:
-        # a Behavior solves for displacement, so it reports the displacement problem type
-        return ModelType.elastic
 
     @property
     def elastic(self) -> _Elastic:

@@ -14,10 +14,11 @@ if TYPE_CHECKING:
     from ..FEM._utils import ElemType
 from ..FEM import MatrixType, FeArray, Operators
 
-from ..Models import ModelType, Result_strain_or_stress_field_e
+from ..Models import Result_strain_or_stress_field_e
 from ..Models.InElastic._behavior import Behavior
 
 from ._simu import _Simu
+from ._problem_type import ProblemType
 
 
 class InElastic(_Simu):
@@ -95,9 +96,9 @@ class InElastic(_Simu):
     def Get_unknowns(self, problemType=None) -> list[str]:
         return {2: ["x", "y"], 3: ["x", "y", "z"]}[self.dim]
 
-    def Get_problemTypes(self) -> list[ModelType]:
+    def Get_problemTypes(self) -> list[ProblemType]:
         # a displacement problem, structurally identical to Simulations.Elastic
-        return [ModelType.elastic]
+        return [ProblemType("elastic")]
 
     def Get_dof_n(self, problemType=None) -> int:
         return self.dim

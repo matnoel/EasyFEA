@@ -9,7 +9,7 @@ from typing import Optional, Union
 
 from ..FEM import Field, BiLinearForm, LinearForm
 
-from ._utils import _IModel, ModelType
+from ._utils import _IModel
 from ..Utilities import _params
 
 
@@ -77,10 +77,6 @@ class WeakForms(_IModel):
     def computeF(self) -> Union[LinearForm, None]:
         r"""Function used to build force vector :math:`\Frm`."""
         return self.__computeF
-
-    @property
-    def modelType(self) -> ModelType:
-        return ModelType.weakForm
 
     @property
     def dim(self) -> int:

@@ -37,9 +37,10 @@ from ..FEM import (
 from ..FEM._linalg import FeArray
 
 # materials
-from ..Models import ModelType, _IModel
+from ..Models import _IModel
 
 # simu
+from ._problem_type import ProblemType
 from .Solvers import (
     Solve_simu,
     SolverType,
@@ -86,7 +87,7 @@ class _Simu(_IObserver, _params.Updatable, ABC):
     General:
     --------
 
-        - def Get_problemTypes(self) -> list[ModelType]:
+        - def Get_problemTypes(self) -> list[ProblemType]:
 
         - def Get_unknowns(self, problemType=None) -> list[str]:
 
@@ -135,22 +136,22 @@ class _Simu(_IObserver, _params.Updatable, ABC):
     # ----------------------------------------------
 
     @abstractmethod
-    def Get_problemTypes(self) -> list[ModelType]:
+    def Get_problemTypes(self) -> list[ProblemType]:
         """Returns the problem types available through the simulation."""
         # A PhaseField simulation involves solving 2 problems. An elastic and a damage problem.
         pass
 
     @abstractmethod
-    def Get_unknowns(self, problemType=None) -> list[str]:
+    def Get_unknowns(self, problemType: ProblemType = None) -> list[str]:
         """Returns a list of unknowns available in the simulation."""
         pass
 
     @abstractmethod
-    def Get_dof_n(self, problemType=None) -> int:
+    def Get_dof_n(self, problemType: ProblemType = None) -> int:
         """Returns the number of degrees of freedom per node."""
         pass
 
-    def __Get_Ndof(self, problemType=None) -> int:
+    def __Get_Ndof(self, problemType: ProblemType = None) -> int:
         """Returns the total number of degrees of freedom (including Lagrange multiplier DOFs)."""
         return self.mesh.Nn * self.Get_dof_n(problemType) + self._Bc_Lagrange_dim(
             problemType
@@ -158,7 +159,7 @@ class _Simu(_IObserver, _params.Updatable, ABC):
 
     # Solvers
     def Get_K_C_M_F(
-        self, problemType=None
+        self, problemType: ProblemType = None
     ) -> tuple[
         sparse.csr_matrix, sparse.csr_matrix, sparse.csr_matrix, sparse.csr_matrix
     ]:
@@ -209,7 +210,7 @@ class _Simu(_IObserver, _params.Updatable, ABC):
         return Reduce_sum(0.5 * x[dofs] @ (A[dofs] @ x))
 
     def Calc_Reaction(
-        self, dofs: _types.IntArray = None, problemType=None
+        self, dofs: _types.IntArray = None, problemType: ProblemType = None
     ) -> np.ndarray:
         """Resultant internal force at nodes, `K[dofs] @ u` plus the terms the time scheme brings in:
         `+ C[dofs] @ v` for a parabolic algo, `+ C[dofs] @ v + M[dofs] @ a` for a hyperbolic one.
@@ -259,7 +260,7 @@ class _Simu(_IObserver, _params.Updatable, ABC):
             return reaction[dofs]
 
     @abstractmethod
-    def Get_x0(self, problemType: Optional[ModelType] = None) -> _types.FloatArray:
+    def Get_x0(self, problemType: Optional[ProblemType] = None) -> _types.FloatArray:
         """Returns the solution from the previous iteration."""
         size = self.mesh.Nn * self.Get_dof_n(problemType)
         return np.zeros(size)
@@ -334,7 +335,7 @@ class _Simu(_IObserver, _params.Updatable, ABC):
     """Nodes the slices of a pickle cover. Stored with them so restoring never depends on what the mesh became afterwards — `_Gather` replaces the partition with the global mesh, and a slice written before it must still be placed correctly."""
 
     def __Local_dofs(
-        self, problemType: ModelType, nodes: _types.IntArray = None
+        self, problemType: ProblemType, nodes: _types.IntArray = None
     ) -> _types.IntArray:
         """Dofs carried by `nodes`, by default the nodes of this rank's partition, ghosts included.
 
@@ -345,7 +346,7 @@ class _Simu(_IObserver, _params.Updatable, ABC):
 
         return self.Bc_dofs_nodes(nodes, self.Get_unknowns(problemType), problemType)
 
-    def __Dof_sized_keys(self, iter: dict[str, Any]) -> dict[str, ModelType]:
+    def __Dof_sized_keys(self, iter: dict[str, Any]) -> dict[str, ProblemType]:
         """Entries of an iteration dict that are full dof vectors, mapped to the problem type sizing them.
 
         The solver allgathers the solution, so every rank ends the step holding the same dof vector — storing them whole writes the same bytes ``MPI_SIZE`` times. Identification is by length, as in :meth:`Results_Reshape_values`.
@@ -531,13 +532,13 @@ class _Simu(_IObserver, _params.Updatable, ABC):
     # core functions
     # ----------------------------------------------
 
-    def _Check_dofs(self, problemType: ModelType, unknowns: list) -> None:
+    def _Check_dofs(self, problemType: ProblemType, unknowns: list) -> None:
         """Checks whether the specified unknowns are available for the problem."""
         dofs = self.Get_unknowns(problemType)
         for d in unknowns:
             assert d in dofs, f"{d} is not in {dofs}"
 
-    def __Check_problemTypes(self, problemType: ModelType) -> None:
+    def __Check_problemTypes(self, problemType: ProblemType) -> None:
         """Checks whether this type of problem is available through the simulation."""
         assert (
             problemType in self.Get_problemTypes()
@@ -658,7 +659,10 @@ class _Simu(_IObserver, _params.Updatable, ABC):
             self.solver = SolverType.scipy
 
         # Set solver petsc4py options with best available defaults for all problems.
-        self.__dict_solver_petsc4py_options: dict[ModelType, tuple[str, str, str]] = {}
+        self.__dict_solver_petsc4py_options: dict[
+            ProblemType,
+            tuple[str, str, str],
+        ] = {}
         for problemType in self.Get_problemTypes():
             dof_n = self.Get_dof_n(problemType)
             if dof_n == 1:
@@ -780,7 +784,7 @@ class _Simu(_IObserver, _params.Updatable, ABC):
             self.__dict_a_n[problemType] = vectInit
 
     def __Check_New_Sol_Values(
-        self, problemType: ModelType, values: _types.FloatArray
+        self, problemType: ProblemType, values: _types.FloatArray
     ) -> None:
         """Checks that the solution has the right size."""
         self.__Check_problemTypes(problemType)
@@ -788,7 +792,7 @@ class _Simu(_IObserver, _params.Updatable, ABC):
         assert values.shape[0] == size, f"Must be size {size}"
 
     def _Get_u_n(
-        self, problemType: ModelType, asCsrMatrix: bool = False
+        self, problemType: ProblemType, asCsrMatrix: bool = False
     ) -> Union[_types.FloatArray, sparse.csr_matrix]:
         """Returns the solution associated with the given problem."""
         arr = self.__dict_u_n[problemType].copy()
@@ -799,13 +803,13 @@ class _Simu(_IObserver, _params.Updatable, ABC):
         cols = np.zeros_like(rows)
         return sparse.csr_matrix((arr, (rows, cols)), shape=(Ndof, 1))
 
-    def __Set_u_n(self, problemType: ModelType, values: _types.FloatArray) -> None:
+    def __Set_u_n(self, problemType: ProblemType, values: _types.FloatArray) -> None:
         """Sets the solution associated with the given problem."""
         self.__Check_New_Sol_Values(problemType, values)
         self.__dict_u_n[problemType] = values
 
     def _Get_v_n(
-        self, problemType: ModelType, asCsrMatrix: bool = False
+        self, problemType: ProblemType, asCsrMatrix: bool = False
     ) -> Union[_types.FloatArray, sparse.csr_matrix]:
         """Returns the speed solution associated with the given problem."""
         arr = self.__dict_v_n[problemType].copy()
@@ -816,13 +820,13 @@ class _Simu(_IObserver, _params.Updatable, ABC):
         cols = np.zeros_like(rows)
         return sparse.csr_matrix((arr, (rows, cols)), shape=(Ndof, 1))
 
-    def __Set_v_n(self, problemType: ModelType, values: _types.FloatArray) -> None:
+    def __Set_v_n(self, problemType: ProblemType, values: _types.FloatArray) -> None:
         """Sets the speed solution associated with the given problem."""
         self.__Check_New_Sol_Values(problemType, values)
         self.__dict_v_n[problemType] = values
 
     def _Get_a_n(
-        self, problemType: ModelType, asCsrMatrix: bool = False
+        self, problemType: ProblemType, asCsrMatrix: bool = False
     ) -> Union[_types.FloatArray, sparse.csr_matrix]:
         """Returns the acceleration solution associated with the given problem."""
         arr = self.__dict_a_n[problemType].copy()
@@ -833,23 +837,23 @@ class _Simu(_IObserver, _params.Updatable, ABC):
         cols = np.zeros_like(rows)
         return sparse.csr_matrix((arr, (rows, cols)), shape=(Ndof, 1))
 
-    def __Set_a_n(self, problemType: ModelType, values: _types.FloatArray) -> None:
+    def __Set_a_n(self, problemType: ProblemType, values: _types.FloatArray) -> None:
         """Sets the acceleration solution associated with the given problem."""
         self.__Check_New_Sol_Values(problemType, values)
         self.__dict_a_n[problemType] = values
 
     # This method is overloaded in PhaseFieldSimu
     def Get_lb_ub(
-        self, problemType: ModelType
+        self, problemType: ProblemType
     ) -> tuple[_types.FloatArray, _types.FloatArray]:
         """Returns the lower bound and upper bound."""
         return np.array([]), np.array([])
 
     # Properties
     @property
-    def problemType(self) -> ModelType:
-        """Get the simulation problem type."""
-        return self.__model.modelType
+    def problemType(self) -> ProblemType:
+        """Get the simulation's default problem type (the first one it declares)."""
+        return self.Get_problemTypes()[0]
 
     @property
     def algo(self) -> AlgoType:
@@ -1098,7 +1102,7 @@ class _Simu(_IObserver, _params.Updatable, ABC):
         return inv, matrix.indices, matrix.indptr, matrix.nnz
 
     def Assembly(
-        self, problemType: ModelType
+        self, problemType: ProblemType
     ) -> tuple[
         sparse.csr_matrix, sparse.csr_matrix, sparse.csr_matrix, sparse.csr_matrix
     ]:
@@ -1285,13 +1289,13 @@ class _Simu(_IObserver, _params.Updatable, ABC):
         return self.__hyperbolicParams
 
     def _Solver_Evaluate_u_v_a_for_time_scheme(
-        self, problemType: ModelType, u_np1: np.ndarray
+        self, problemType: ProblemType, u_np1: np.ndarray
     ) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
         """Returns `u_t`, `v_t`, and `a_t` vectors according to the time scheme.
 
         Parameters
         ----------
-        problemType : ModelType
+        problemType : ProblemType
             problem type
         u_np1 : np.ndarray
             the u_np1 vector
@@ -1512,7 +1516,7 @@ class _Simu(_IObserver, _params.Updatable, ABC):
 
     def _Set_solutions(
         self,
-        problemType: ModelType,
+        problemType: ProblemType,
         u: _types.FloatArray,
         v: Optional[_types.FloatArray] = None,
         a: Optional[_types.FloatArray] = None,
@@ -1525,7 +1529,7 @@ class _Simu(_IObserver, _params.Updatable, ABC):
         if isinstance(a, np.ndarray):
             self.__Set_a_n(problemType, a)
 
-    def _Solver_Solve_problemType(self, problemType: ModelType) -> _types.FloatArray:
+    def _Solver_Solve_problemType(self, problemType: ProblemType) -> _types.FloatArray:
         """Solves the problem.\n
         It is recommended to call the resolution via the Solve() function."""
 
@@ -1546,7 +1550,7 @@ class _Simu(_IObserver, _params.Updatable, ABC):
         return solutions[0]
 
     def _Solver_Update_solutions(
-        self, problemType: ModelType, u_np1: _types.FloatArray
+        self, problemType: ProblemType, u_np1: _types.FloatArray
     ) -> tuple[
         _types.FloatArray, Optional[_types.FloatArray], Optional[_types.FloatArray]
     ]:
@@ -1554,7 +1558,7 @@ class _Simu(_IObserver, _params.Updatable, ABC):
 
         Parameters
         ----------
-        problemType : ModelType
+        problemType : ProblemType
             The type of problem.
         u_np1 : _types.FloatArray
             computed array in `_Solver_Solve()`
@@ -1653,7 +1657,7 @@ class _Simu(_IObserver, _params.Updatable, ABC):
         return self.__current_newton_raphson_solution
 
     def _Solver_Solve_Newton_Raphson(
-        self, problemType=None
+        self, problemType: ProblemType = None
     ) -> tuple[_types.FloatArray, int, float, list[float]]:
         """Solves the non-linear problem using the newton raphson algorithm.\n
 
@@ -1661,7 +1665,7 @@ class _Simu(_IObserver, _params.Updatable, ABC):
 
         Parameters
         ----------
-        problemType : ModelType, optional
+        problemType : ProblemType, optional
             The problem type, by default self.problemType
 
         Returns
@@ -1691,7 +1695,7 @@ class _Simu(_IObserver, _params.Updatable, ABC):
         list_norm: list[float] = []
 
         if MPI_RANK == 0:
-            Terminal.Section(f"{problemType.name} problem at iteration {self.Niter}")
+            Terminal.Section(f"{problemType} problem at iteration {self.Niter}")
 
         absTol, relTol, incTol, maxIter = self.__Solver_Get_Newton_Raphson_Params()
 
@@ -1728,12 +1732,12 @@ class _Simu(_IObserver, _params.Updatable, ABC):
 
         return u, newtonIter, timeIter, list_norm
 
-    def _Solver_Apply_Neumann(self, problemType: ModelType) -> sparse.csr_matrix:
+    def _Solver_Apply_Neumann(self, problemType: ProblemType) -> sparse.csr_matrix:
         """Fill in the Neumann boundary conditions by constructing b from A x = b.
 
         Parameters
         ----------
-        problemType : ModelType
+        problemType : ProblemType
             problem type
 
         Returns
@@ -1856,13 +1860,13 @@ class _Simu(_IObserver, _params.Updatable, ABC):
         return b
 
     def _Solver_Apply_Dirichlet(
-        self, problemType: ModelType, b: sparse.csr_matrix, resolution: ResolType
+        self, problemType: ProblemType, b: sparse.csr_matrix, resolution: ResolType
     ) -> tuple[sparse.csr_matrix, sparse.csr_matrix]:
         """Fill in the Dirichlet conditions by constructing A and x from A x = b.
 
         Parameters
         ----------
-        problemType : ModelType
+        problemType : ProblemType
             The type of problem.
         b : sparse.csr_matrix
             The b matrix.
@@ -1911,7 +1915,7 @@ class _Simu(_IObserver, _params.Updatable, ABC):
 
     def __Solver_Get_Dirichlet_A_x(
         self,
-        problemType: ModelType,
+        problemType: ProblemType,
         resolution: ResolType,
         A: sparse.csr_matrix,
         b: sparse.csr_matrix,
@@ -1921,7 +1925,7 @@ class _Simu(_IObserver, _params.Updatable, ABC):
 
         Parameters
         ----------
-        problemType : ModelType
+        problemType : ProblemType
             The type of problem.
         resolution : ResolutionType
             The resolution type.
@@ -1984,7 +1988,7 @@ class _Simu(_IObserver, _params.Updatable, ABC):
         kspType: str = "cg",
         pcType: str = "gamg",
         solverType: str = "petsc",
-        problemType: Optional[ModelType] = None,
+        problemType: Optional[ProblemType] = None,
     ) -> None:
         """Configure PETSc KSP solver options for the linear system Ax = b.
 
@@ -2041,7 +2045,7 @@ class _Simu(_IObserver, _params.Updatable, ABC):
             +--------------------+---------------+-------------------------------+
 
             https://petsc.org/release/manual/ksp/#using-external-linear-solvers
-        problemType : ModelType, optional
+        problemType : ProblemType, optional
             Problem type to configure. ``None`` applies to all problem types.
 
         Raises
@@ -2151,14 +2155,14 @@ class _Simu(_IObserver, _params.Updatable, ABC):
             self.Get_problemTypes() if problemType is None else [problemType]
         )
         for problemType in list_problemTypes:
-            self.__dict_solver_petsc4py_options[str(problemType)] = (
+            self.__dict_solver_petsc4py_options[problemType] = (
                 kspType,
                 pcType,
                 solverType,
             )
 
     def _Solver_Get_PETSc4Py_Options(
-        self, problemType: Optional[ModelType] = None
+        self, problemType: Optional[ProblemType] = None
     ) -> tuple[str, str, str]:
         """Returns (kspType, pcType, solverType) petsc4py options for the given (or default) problem type."""
 
@@ -2166,7 +2170,7 @@ class _Simu(_IObserver, _params.Updatable, ABC):
 
         return self.__dict_solver_petsc4py_options[problemType]
 
-    def Get_dofs(self, problemType=None):
+    def Get_dofs(self, problemType: ProblemType = None):
         """Returns (owned) dofs associated with the problem type."""
 
         if MPI_SIZE > 1:
@@ -2219,7 +2223,7 @@ class _Simu(_IObserver, _params.Updatable, ABC):
         # triger the update because when we use lagrange multiplier we need to update the matrix system
         self.Need_Update()
 
-    def _Bc_Lagrange_dim(self, problemType=None) -> int:
+    def _Bc_Lagrange_dim(self, problemType: ProblemType = None) -> int:
         """Calculates the dimension required to resize the system to use Lagrange multipliers."""
         if problemType is None:
             problemType = self.problemType
@@ -2238,7 +2242,7 @@ class _Simu(_IObserver, _params.Updatable, ABC):
         """Returns a copy of the boundary conditions for display."""
         return self.__Bc_Display.copy()
 
-    def Bc_vector_Dirichlet(self, problemType=None) -> _types.FloatArray:
+    def Bc_vector_Dirichlet(self, problemType: ProblemType = None) -> _types.FloatArray:
         """Returns a vector filled with Dirichlet boundary conditions values."""
         if problemType is None:
             problemType = self.problemType
@@ -2251,7 +2255,7 @@ class _Simu(_IObserver, _params.Updatable, ABC):
         vector = csr_vector.toarray().ravel()
         return vector
 
-    def Bc_vector_Neumann(self, problemType=None) -> _types.FloatArray:
+    def Bc_vector_Neumann(self, problemType: ProblemType = None) -> _types.FloatArray:
         """Returns a vector filled with Neuman boundary conditions values."""
         if problemType is None:
             problemType = self.problemType
@@ -2264,32 +2268,32 @@ class _Simu(_IObserver, _params.Updatable, ABC):
         vector = csr_vector.toarray().ravel()
         return vector
 
-    def Bc_dofs_Dirichlet(self, problemType=None) -> _types.IntArray:
+    def Bc_dofs_Dirichlet(self, problemType: ProblemType = None) -> _types.IntArray:
         """Returns dofs related to Dirichlet conditions."""
         if problemType is None:
             problemType = self.problemType
         return BoundaryCondition.Get_dofs(problemType, self.__Bc_Dirichlet)
 
-    def Bc_values_Dirichlet(self, problemType=None) -> _types.FloatArray:
+    def Bc_values_Dirichlet(self, problemType: ProblemType = None) -> _types.FloatArray:
         """Returns dofs values related to Dirichlet conditions."""
         if problemType is None:
             problemType = self.problemType
         return BoundaryCondition.Get_values(problemType, self.__Bc_Dirichlet)
 
-    def Bc_dofs_Neumann(self, problemType=None) -> _types.IntArray:
+    def Bc_dofs_Neumann(self, problemType: ProblemType = None) -> _types.IntArray:
         """Returns dofs related to Neumann conditions."""
         if problemType is None:
             problemType = self.problemType
         return BoundaryCondition.Get_dofs(problemType, self.__Bc_Neumann)
 
-    def Bc_values_Neumann(self, problemType=None) -> _types.FloatArray:
+    def Bc_values_Neumann(self, problemType: ProblemType = None) -> _types.FloatArray:
         """Returns dofs values related to Neumann conditions."""
         if problemType is None:
             problemType = self.problemType
         return BoundaryCondition.Get_values(problemType, self.__Bc_Neumann)
 
     def Bc_dofs_known_unknown(
-        self, problemType: ModelType
+        self, problemType: ProblemType
     ) -> tuple[_types.IntArray, _types.IntArray]:
         """Returns known and unknown dofs."""
         tic = Tic()
@@ -2312,7 +2316,10 @@ class _Simu(_IObserver, _params.Updatable, ABC):
         return dofsKnown, dofsUnknown
 
     def Bc_dofs_nodes(
-        self, nodes: _types.IntArray, unknowns: list[str], problemType=None
+        self,
+        nodes: _types.IntArray,
+        unknowns: list[str],
+        problemType: ProblemType = None,
     ) -> _types.IntArray:
         """Returns degrees of freedom associated with the nodes, based on the problem type and unknowns.
 
@@ -2395,7 +2402,7 @@ class _Simu(_IObserver, _params.Updatable, ABC):
         nodes: _types.IntArray,
         values: list,
         unknowns: list[str],
-        problemType=None,
+        problemType: ProblemType = None,
         description="",
     ) -> None:
         """Adds Dirichlet's boundary conditions.
@@ -2411,7 +2418,7 @@ class _Simu(_IObserver, _params.Updatable, ABC):
             Please note that the functions must take 3 input parameters in the order x, y, z, whether the problem is 1D, 2D or 3D.
         unknowns : list[str]
             unknowns where values will be applied (e.g ['y', 'x'])
-        problemType : ModelType, optional
+        problemType : ProblemType, optional
             problem type, if not specified, we take the basic problem of the problem
         description : str, optional
             Description of the condition, by default "".
@@ -2466,7 +2473,7 @@ class _Simu(_IObserver, _params.Updatable, ABC):
         nodes: _types.IntArray,
         values: list,
         unknowns: list[str],
-        problemType=None,
+        problemType: ProblemType = None,
         description="",
     ) -> None:
         """Adds Neumann's boundary conditions.
@@ -2482,7 +2489,7 @@ class _Simu(_IObserver, _params.Updatable, ABC):
             Please note that the functions must take 3 input parameters in the order x, y, z, whether the problem is 1D, 2D or 3D.
         unknowns : list[str]
             unknowns where values will be applied (e.g ['y', 'x'])
-        problemType : ModelType, optional
+        problemType : ProblemType, optional
             problem type, if not specified, we take the basic problem of the problem
         description : str, optional
             Description of the condition, by default "".
@@ -2514,7 +2521,7 @@ class _Simu(_IObserver, _params.Updatable, ABC):
         nodes: _types.IntArray,
         values: list,
         unknowns: list[str],
-        problemType=None,
+        problemType: ProblemType = None,
         description="",
     ) -> None:
         """Adds a linear load.
@@ -2530,7 +2537,7 @@ class _Simu(_IObserver, _params.Updatable, ABC):
             Please note that the functions must take 3 input parameters in the order x, y, z, whether the problem is 1D, 2D or 3D.
         unknowns : list[str]
             unknowns where values will be applied (e.g ['y', 'x'])
-        problemType : ModelType, optional
+        problemType : ProblemType, optional
             problem type, if not specified, we take the basic problem of the problem
         description : str, optional
             Description of the condition, by default "".
@@ -2567,7 +2574,7 @@ class _Simu(_IObserver, _params.Updatable, ABC):
         nodes: _types.IntArray,
         values: list,
         unknowns: list[str],
-        problemType=None,
+        problemType: ProblemType = None,
         description="",
     ) -> None:
         """Adds a surface load.
@@ -2583,7 +2590,7 @@ class _Simu(_IObserver, _params.Updatable, ABC):
             Please note that the functions must take 3 input parameters in the order x, y, z, whether the problem is 1D, 2D or 3D.
         unknowns : list[str]
             unknowns where values will be applied (e.g ['y', 'x'])
-        problemType : ModelType, optional
+        problemType : ProblemType, optional
             problem type, if not specified, we take the basic problem of the problem
         description : str, optional
             Description of the condition, by default "".
@@ -2626,7 +2633,7 @@ class _Simu(_IObserver, _params.Updatable, ABC):
         self,
         nodes: _types.IntArray,
         magnitude: float,
-        problemType=None,
+        problemType: ProblemType = None,
         description="",
     ) -> None:
         """Adds a pressure.
@@ -2678,7 +2685,7 @@ class _Simu(_IObserver, _params.Updatable, ABC):
         nodes: _types.IntArray,
         values: list,
         unknowns: list[str],
-        problemType=None,
+        problemType: ProblemType = None,
         description="",
     ) -> None:
         """Adds a volumetric load.
@@ -2694,7 +2701,7 @@ class _Simu(_IObserver, _params.Updatable, ABC):
             Please note that the functions must take 3 input parameters in the order x, y, z, whether the problem is 1D, 2D or 3D.
         unknowns : list[str]
             unknowns where values will be applied (e.g ['y', 'x'])
-        problemType : ModelType, optional
+        problemType : ProblemType, optional
             problem type, if not specified, we take the basic problem of the problem
         description : str, optional
             Description of the condition, by default "".
@@ -2735,7 +2742,7 @@ class _Simu(_IObserver, _params.Updatable, ABC):
 
     def __Bc_pointLoad(
         self,
-        problemType: ModelType,
+        problemType: ProblemType,
         nodes: _types.IntArray,
         values: list,
         unknowns: list,
@@ -2763,7 +2770,7 @@ class _Simu(_IObserver, _params.Updatable, ABC):
     def __Bc_Integration_Dim(
         self,
         dim: int,
-        problemType: ModelType,
+        problemType: ProblemType,
         nodes: _types.IntArray,
         values: list,
         unknowns: list[str],
@@ -2836,7 +2843,7 @@ class _Simu(_IObserver, _params.Updatable, ABC):
 
     def __Bc_lineLoad(
         self,
-        problemType: ModelType,
+        problemType: ProblemType,
         nodes: _types.IntArray,
         values: list,
         unknowns: list,
@@ -2858,7 +2865,7 @@ class _Simu(_IObserver, _params.Updatable, ABC):
 
     def __Bc_surfload(
         self,
-        problemType: ModelType,
+        problemType: ProblemType,
         nodes: _types.IntArray,
         values: list,
         unknowns: list,
@@ -2880,7 +2887,7 @@ class _Simu(_IObserver, _params.Updatable, ABC):
 
     def __Bc_volumeload(
         self,
-        problemType: ModelType,
+        problemType: ProblemType,
         nodes: _types.IntArray,
         values: list,
         unknowns: list,
@@ -2901,7 +2908,7 @@ class _Simu(_IObserver, _params.Updatable, ABC):
         return dofsValues, dofs, nodes
 
     def __Bc_pressureload(
-        self, problemType: ModelType, nodes: _types.IntArray, magnitude: float
+        self, problemType: ProblemType, nodes: _types.IntArray, magnitude: float
     ) -> tuple[_types.FloatArray, _types.IntArray, _types.IntArray]:
         """Adds a pressure load.\n
         returns dofsValues, dofs, nodes"""
@@ -2981,7 +2988,7 @@ class _Simu(_IObserver, _params.Updatable, ABC):
 
     def _Bc_Add_Neumann(
         self,
-        problemType: ModelType,
+        problemType: ProblemType,
         nodes: _types.IntArray,
         dofsValues: _types.FloatArray,
         dofs: _types.IntArray,
@@ -3005,7 +3012,7 @@ class _Simu(_IObserver, _params.Updatable, ABC):
 
     def _Bc_Add_Dirichlet(
         self,
-        problemType: ModelType,
+        problemType: ProblemType,
         nodes: _types.IntArray,
         dofsValues: _types.FloatArray,
         dofs: _types.IntArray,
@@ -3035,7 +3042,7 @@ class _Simu(_IObserver, _params.Updatable, ABC):
         nodes: _types.IntArray,
         unknowns: list[str],
         description: str,
-        problemType=None,
+        problemType: ProblemType = None,
     ) -> None:
         """Adds a display condition."""
 

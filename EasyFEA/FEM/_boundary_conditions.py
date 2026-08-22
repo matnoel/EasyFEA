@@ -5,9 +5,14 @@
 
 """Module containing classes used to create boundary conditions."""
 
+from typing import TYPE_CHECKING
+
 import numpy as np
 
 from ..Utilities import _types
+
+if TYPE_CHECKING:
+    from ..Simulations._problem_type import ProblemType
 
 
 class BoundaryCondition:
@@ -15,7 +20,7 @@ class BoundaryCondition:
 
     def __init__(
         self,
-        problemType: str,
+        problemType: "ProblemType",
         nodes: _types.IntArray,
         dofs: _types.IntArray,
         unknowns: list[str],
@@ -26,7 +31,7 @@ class BoundaryCondition:
 
         Parameters
         ----------
-        problemType : str
+        problemType : ProblemType
             Problem type.
         nodes : _types.IntArray
             Nodes on which the condition is applied.
@@ -52,7 +57,7 @@ class BoundaryCondition:
         self.description = description
 
     @property
-    def problemType(self) -> str:
+    def problemType(self) -> "ProblemType":
         """type of problem"""
         return self.__problemType
 
@@ -77,12 +82,15 @@ class BoundaryCondition:
         return self.__unknowns.copy()
 
     @staticmethod
-    def Get_nBc(problemType: str, list_Bc_Condition: list["BoundaryCondition"]) -> int:
+    def Get_nBc(
+        problemType: "ProblemType",
+        list_Bc_Condition: list["BoundaryCondition"],
+    ) -> int:
         """Returns the number of conditions for the problem type.
 
         Parameters
         ----------
-        problemType : str
+        problemType : ProblemType
             Problem type.
         list_Bc_Condition : list[BoundaryCondition]
             List of boundary conditions.
@@ -96,13 +104,14 @@ class BoundaryCondition:
 
     @staticmethod
     def Get_dofs(
-        problemType: str, list_Bc_Condition: list["BoundaryCondition"]
+        problemType: "ProblemType",
+        list_Bc_Condition: list["BoundaryCondition"],
     ) -> _types.IntArray:
         """Returns the degrees of freedom for the problem type.
 
         Parameters
         ----------
-        problemType : str
+        problemType : ProblemType
             Problem type.
         list_Bc_Condition : list[BoundaryCondition]
             List of boundary conditions.
@@ -122,13 +131,14 @@ class BoundaryCondition:
 
     @staticmethod
     def Get_values(
-        problemType: str, list_Bc_Condition: list["BoundaryCondition"]
+        problemType: "ProblemType",
+        list_Bc_Condition: list["BoundaryCondition"],
     ) -> _types.FloatArray:
         """Returns the dofs values for problem type.
 
         Parameters
         ----------
-        problemType : str
+        problemType : ProblemType
             Problem type.
         list_Bc_Condition : list[BoundaryCondition]
             List of boundary condition.
@@ -148,7 +158,9 @@ class BoundaryCondition:
 
     @staticmethod
     def Get_dofs_nodes(
-        availableUnknowns: list[str], nodes: _types.IntArray, unknowns: list[str]
+        availableUnknowns: list[str],
+        nodes: _types.IntArray,
+        unknowns: list[str],
     ) -> _types.IntArray:
         """Retrieves degrees of freedom (dofs) associated with the nodes.
 
@@ -194,7 +206,7 @@ class LagrangeCondition(BoundaryCondition):
 
     def __init__(
         self,
-        problemType: str,
+        problemType: "ProblemType",
         nodes: _types.IntArray,
         dofs: _types.IntArray,
         unknowns: list[str],
@@ -206,7 +218,7 @@ class LagrangeCondition(BoundaryCondition):
 
         Parameters
         ----------
-        problemType : str
+        problemType : ProblemType
             Problem type.
         nodes : _types.IntArray
             Nodes on which the condition is applied.

@@ -15,11 +15,12 @@ if TYPE_CHECKING:
 from ..FEM import MatrixType, Mesher, FeArray, Operators
 
 # models
-from ..Models import ModelType, Result_strain_or_stress_field_e
+from ..Models import Result_strain_or_stress_field_e
 from ..Models.Elastic._laws import _Elastic
 
 # simu
 from ._simu import _Simu
+from ._problem_type import ProblemType
 from .Solvers import AlgoType
 
 
@@ -87,8 +88,8 @@ class Elastic(_Simu):
         dict_unknowns = {2: ["x", "y"], 3: ["x", "y", "z"]}
         return dict_unknowns[self.dim]
 
-    def Get_problemTypes(self) -> list[ModelType]:
-        return [ModelType.elastic]
+    def Get_problemTypes(self) -> list[ProblemType]:
+        return [ProblemType("elastic")]
 
     def Get_dof_n(self, problemType=None) -> int:
         return self.dim

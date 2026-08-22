@@ -18,7 +18,7 @@ from ..FEM import MatrixType, Operators
 from ..Utilities._cache import cache_computed_values
 
 # models
-from ..Models import ModelType, Project_Kelvin, Result_strain_or_stress_field_e
+from ..Models import Project_Kelvin, Result_strain_or_stress_field_e
 
 if TYPE_CHECKING:
     from ..Models.HyperElastic._laws import _HyperElastic
@@ -26,6 +26,7 @@ from ..Models.HyperElastic._state import HyperElasticState
 
 # simu
 from ._simu import _Simu, AlgoType
+from ._problem_type import ProblemType
 
 
 class HyperElastic(_Simu):
@@ -138,7 +139,7 @@ class HyperElastic(_Simu):
     # --------------------------------------------------------------------------
 
     def Get_problemTypes(self):
-        return [ModelType.hyperelastic]
+        return [ProblemType("hyperelastic")]
 
     def Get_unknowns(self, problemType=None) -> list[str]:
         dict_unknowns = {2: ["x", "y"], 3: ["x", "y", "z"]}

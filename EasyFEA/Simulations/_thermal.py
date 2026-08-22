@@ -16,11 +16,11 @@ from ..FEM import Operators
 
 # models
 from .. import Models
-from ..Models import ModelType
 
 # simu
 from ._simu import _Simu
 from .Solvers import AlgoType
+from ._problem_type import ProblemType
 
 
 class Thermal(_Simu):
@@ -85,8 +85,8 @@ class Thermal(_Simu):
         elementsField: list[str] = []
         return nodesField, elementsField
 
-    def Get_problemTypes(self) -> list[ModelType]:
-        return [ModelType.thermal]
+    def Get_problemTypes(self) -> list[ProblemType]:
+        return [ProblemType("thermal")]
 
     @property
     def thermalModel(self) -> Models.Thermal:

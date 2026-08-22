@@ -15,7 +15,6 @@ import numpy as np
 from ...Geoms import AsCoords, Normalize
 from .._utils import (
     _IModel,
-    ModelType,
     Heterogeneous_Array,
     KelvinMandel_Matrix,
     Project_Kelvin,
@@ -43,10 +42,6 @@ class _Elastic(_IModel, ABC):
         self.dim = dim
         self.planeStress = planeStress
         self.thickness = thickness
-
-    @property
-    def modelType(self) -> ModelType:
-        return ModelType.elastic
 
     dim: int = _params.ParameterInValues([2, 3])
 

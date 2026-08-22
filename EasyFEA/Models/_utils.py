@@ -5,7 +5,6 @@
 
 from abc import ABC, abstractmethod
 from typing import Union, Optional, Callable
-from enum import Enum
 
 # utilities
 from ..Utilities._observers import Observable
@@ -21,32 +20,8 @@ import numpy as np
 # ----------------------------------------------
 
 
-class ModelType(str, Enum):
-    """Model types."""
-
-    elastic = "elastic"
-    damage = "damage"
-    thermal = "thermal"
-    beam = "beam"
-    hyperelastic = "hyperelastic"
-    weakForm = "weakForm"
-
-    def __str__(self) -> str:
-        return self.name
-
-    @classmethod
-    def types(cls):
-        return list(cls)
-
-
 class _IModel(Observable, Updatable, ABC):
     """Model interface."""
-
-    @property
-    @abstractmethod
-    def modelType(self) -> ModelType:
-        """model type"""
-        pass
 
     @property
     @abstractmethod

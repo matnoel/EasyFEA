@@ -15,7 +15,7 @@ from typing import Union, TYPE_CHECKING
 
 if TYPE_CHECKING:
     from ._simu import _Simu
-    from ..Models import ModelType
+    from ._problem_type import ProblemType
 
 from ..Utilities import Tic, _types
 
@@ -224,7 +224,7 @@ class SolverType(str, Enum):
 
 def _Solve_Axb(
     simu: "_Simu",
-    problemType: "ModelType",
+    problemType: "ProblemType",
     A: sparse.csr_matrix,
     b: sparse.csr_matrix,
     x0: _types.FloatArray,
@@ -240,7 +240,7 @@ def _Solve_Axb(
     ----------
     simu : Simu
         Simulation
-    problemType : ModelType
+    problemType : ProblemType
         Specify the problemType because a simulation can have several physcal models (such as a damage simulation).
     A : sparse.csr_matrix
         matrix A
@@ -395,7 +395,7 @@ def _Solve_Axb(
 
 
 def Solve_simu(
-    simu: "_Simu", problemType: "ModelType"
+    simu: "_Simu", problemType: "ProblemType"
 ) -> tuple[_types.FloatArray, Union[_types.FloatArray, None, float]]:
     """Solving the simulation's problem according to the resolution type."""
 
@@ -461,7 +461,7 @@ def __Get_unique_dofs(dofs: _types.IntArray, Ndof: int = None) -> _types.IntArra
 
 
 def __Get_global_dof_ordering(
-    simu: "_Simu", problemType: "ModelType"
+    simu: "_Simu", problemType: "ProblemType"
 ) -> _types.IntArray:
     """Rank-contiguous global DOF ordering induced by the MPI partition: ``ordering[i]`` is the DOF at global position ``i``, with rank 0's owned DOFs first, then rank 1's, etc.
 
@@ -473,7 +473,7 @@ def __Get_global_dof_ordering(
 
 
 def __Solver_1_mpi_indices(
-    simu: "_Simu", problemType: "ModelType", dofsUnknown: _types.IntArray
+    simu: "_Simu", problemType: "ProblemType", dofsUnknown: _types.IntArray
 ) -> tuple[_types.IntArray, _types.IntArray, _types.IntArray]:
     """Builds (global unique unknown DOFs, ownedDofs, mapping) for the r1 reduced system.
 
@@ -499,7 +499,7 @@ def __Solver_1_mpi_indices(
     return uniqueUnknown, ownedDofs, mapping
 
 
-def __Solver_1(simu: "_Simu", problemType: "ModelType") -> _types.FloatArray:
+def __Solver_1(simu: "_Simu", problemType: "ProblemType") -> _types.FloatArray:
     # --       --  --  --   --  --
     # | Aii Aic |  | xi |   | bi |
     # | Aci Acc |  | xc | = | bc |
@@ -553,7 +553,7 @@ def __Solver_1(simu: "_Simu", problemType: "ModelType") -> _types.FloatArray:
         return x, None
 
 
-def __Solver_2(simu: "_Simu", problemType: "ModelType"):
+def __Solver_2(simu: "_Simu", problemType: "ProblemType"):
     # Lagrange multiplier method
 
     size = simu.mesh.Nn * simu.Get_dof_n(problemType)
@@ -619,7 +619,7 @@ def __Solver_2(simu: "_Simu", problemType: "ModelType"):
     return sol, lagrange
 
 
-def __Solver_3(simu: "_Simu", problemType: "ModelType"):
+def __Solver_3(simu: "_Simu", problemType: "ProblemType"):
     # Resolution using the penalty method
 
     # This method does not give preference to dirichlet conditions over neumann conditions.

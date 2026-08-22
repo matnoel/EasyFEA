@@ -24,7 +24,7 @@ if TYPE_CHECKING:
 from ... import Models, Simulations
 
 # materials
-from .._utils import _IModel, ModelType
+from .._utils import _IModel
 from ...Utilities import _params, _types
 
 # Linear-order 2-D element types. The Saint-Venant Poisson solution is cubic
@@ -73,10 +73,6 @@ class _Beam(_IModel):
     paired bending inertia is Iy = h·b³/12 and the formula factor refers
     to the b direction).
     """
-
-    @property
-    def modelType(self) -> ModelType:
-        return ModelType.beam
 
     @property
     def dim(self):
@@ -472,10 +468,6 @@ class Isotropic(_Beam):
 
 class BeamStructure(_IModel):
     """Beam structure class."""
-
-    @property
-    def modelType(self) -> ModelType:
-        return ModelType.beam
 
     @property
     def dim(self) -> int:

@@ -14,7 +14,6 @@ from ._thermal import Thermal
 from ._weakforms import WeakForms
 
 from ._utils import (
-    ModelType,
     _IModel,
     Reshape_variable,
     Heterogeneous_Array,
