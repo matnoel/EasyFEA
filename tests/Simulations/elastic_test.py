@@ -42,11 +42,11 @@ class TestElastic:
             simu = Simulations.Elastic(mesh, comportement, verbosity=False)
             simu.solver = SolverType.scipy
 
-            noeuds_en_0 = mesh.Nodes_Conditions(lambda x, y, z: x == 0)
-            noeuds_en_L = mesh.Nodes_Conditions(lambda x, y, z: x == a)
+            nodesX0 = mesh.Nodes_Conditions(lambda x, y, z: x == 0)
+            nodesXa = mesh.Nodes_Conditions(lambda x, y, z: x == a)
 
-            simu.add_dirichlet(noeuds_en_0, [0, 0], ["x", "y"])
-            simu.add_surfLoad(noeuds_en_L, [P / a / a], ["y"])
+            simu.add_dirichlet(nodesX0, [0, 0], ["x", "y"])
+            simu.add_surfLoad(nodesXa, [P / a / a], ["y"])
 
             simu.Solve()
             simu.Save_Iter()
