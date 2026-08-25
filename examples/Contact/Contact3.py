@@ -33,7 +33,7 @@ if __name__ == "__main__":
     thickness = e / 2  # out-of-plane extent (3D)
     mS = t / 5 if dim == 2 else t
 
-    N = 20  # load steps
+    N = 10  # load steps
     delta = 2 * t
     penalty = 1e6  # contact stiffness
 

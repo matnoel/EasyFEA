@@ -161,8 +161,8 @@ if __name__ == "__main__":
         # ----------------------------------------------
         # Boundary conditions
         # ----------------------------------------------
-        u_inc = 2e-7 if meshTest else 1e-8
-        N = 100 if meshTest else 2000
+        u_inc = 1e-7 if meshTest else 1e-8
+        N = 200 if meshTest else 2000
         loadings = np.linspace(u_inc, u_inc * N, N, endpoint=True)
 
         config = f"""

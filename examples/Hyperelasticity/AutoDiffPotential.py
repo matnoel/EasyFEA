@@ -154,7 +154,3 @@ if __name__ == "__main__":
             rel(d2Wde(state, *aux), shipped.Compute_d2Wde(state)),
         )
         print(f"{type(shipped).__name__:24s}" + "".join(f"{e:12.2e}" for e in errors))
-
-    print(
-        "\nHolzapfel-Ogden carries a fibre direction per Gauss point, as the cardiac mesh does."
-    )

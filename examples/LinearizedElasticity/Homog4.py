@@ -197,7 +197,7 @@ if __name__ == "__main__":
     # ----------------------------------------------
     # Mesh
     # ----------------------------------------------
-    meshSize = 1 / 5
+    meshSize = 1 / 3
 
     p0 = (-1 / 2, -1 / 2)
     p1 = (1 / 2, -1 / 2)
@@ -212,7 +212,7 @@ if __name__ == "__main__":
     inclusion = Circle((0, 0), 2 * r, meshSize, isFilled=True)
     # contour.Plot_Geoms([contour, inclusion])
 
-    elemType = ElemType.PRISM15
+    elemType = ElemType.PRISM18
     mesh = contour.Mesh_Extrude([inclusion], [0, 0, 1], [1 / meshSize], elemType)
     mesh.Translate(*-mesh.center)  # center mesh on 0,0,0
 

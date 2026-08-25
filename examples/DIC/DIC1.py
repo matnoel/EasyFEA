@@ -66,7 +66,7 @@ if __name__ == "__main__":
 
     x0, y0 = 35, 25
     x1, y1 = 423, 814
-    meshSize = (x1 - x0) / 20
+    meshSize = (x1 - x0) / 10
     contour = Domain((x0, y0), (x1, y1), meshSize)
     contour.Plot(ax)
 

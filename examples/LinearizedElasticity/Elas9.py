@@ -45,7 +45,7 @@ if __name__ == "__main__":
 
     # time
     Tmax = 0.5
-    N = 50
+    N = 25
     dt = Tmax / N
     time = -dt
 

@@ -60,9 +60,7 @@ if __name__ == "__main__":
     surfLoad = P / h1 / b  # N/mm2
 
     # criteria
-    threshold = (
-        1 / 100 if dim == 2 else 0.04
-    )  # Target error for the optimization process
+    threshold = 0.04  # Target error for the optimization process
     iterMax = 20  # Maximum number of iterations
     coef = 1 / 10  # Scaling coefficient for the optimization process
 

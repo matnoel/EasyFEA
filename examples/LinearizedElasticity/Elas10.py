@@ -48,7 +48,7 @@ if __name__ == "__main__":
 
     # Time parameters
     tMax = 1e-6
-    Nt = 20
+    Nt = 10
     dt = tMax / Nt
 
     # Load parameters

@@ -141,7 +141,7 @@ if __name__ == "__main__":
     U_e[..., 4] = u13_e
     U_e[..., 5] = u12_e
 
-    matrixType = "mass"
+    matrixType = "rigi"
     wJ_e_pg = mesh.groupElem.Get_weightedJacobian_e_pg(matrixType)
     B_e_pg = mesh.groupElem.Get_B_e_pg(matrixType)
 

@@ -27,7 +27,7 @@ if __name__ == "__main__":
 
     # mesh
     elemType = ElemType.TRI3
-    meshSize = L / 40
+    meshSize = L / 20
 
     # ----------------------------------------------
     # Functions

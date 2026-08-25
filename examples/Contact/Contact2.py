@@ -29,7 +29,7 @@ if __name__ == "__main__":
     thickness = R / 3  # out-of-plane extent (3D)
     meshSize = R / 20 if dim == 2 else R / 8
 
-    N = 30  # load steps
+    N = 10  # load steps
     delta = 0.1
     penalty = 1e7  # contact stiffness (larger -> less penetration)
 

@@ -49,7 +49,7 @@ branches = [
     Models.InElastic.ViscoElastic.Maxwell(g=0.30, tau=1.0),
     Models.InElastic.ViscoElastic.Maxwell(g=0.20, tau=10.0),
 ]
-dt, nStep = 0.5, 40
+dt, nStep = 0.5, 10
 
 
 def Relaxation(n: int) -> float:
