@@ -6,7 +6,7 @@
 import matplotlib.pyplot as plt
 
 from EasyFEA import Matplotlib, Models, Simulations, SolverType, ElemType
-from EasyFEA.Geoms import Domain, Circle, Point
+from EasyFEA.Geoms import Domain, Circle
 
 
 class TestElastic:
@@ -21,8 +21,8 @@ class TestElastic:
 
         a = 1
 
-        domain = Domain(Point(0, 0), Point(a, a), a / 10)
-        inclusions = [Circle(Point(a / 2, a / 2), a / 3, a / 10)]
+        domain = Domain((0, 0), (a, a), meshSize=a / 2)
+        inclusions = [Circle((a / 2, a / 2), diam=a / 3, meshSize=a / 2)]
 
         doMesh2D = lambda elemType: domain.Mesh_2D(inclusions, elemType)
         doMesh3D = lambda elemType: domain.Mesh_Extrude(
@@ -68,7 +68,7 @@ class TestElastic:
             assert simu.needUpdate  # should trigger the event
             simu.Need_Update(False)  # init
 
-        mesh = Domain(Point(), Point(1, 1)).Mesh_2D()
+        mesh = Domain((0, 0), (1, 1)).Mesh_2D()
 
         matIsot = Models.Elastic.Isotropic(2)
         # E, v, planeStress
@@ -99,7 +99,14 @@ class TestElastic:
         except AssertionError:
             assert not simu.needUpdate
 
-        matElasIsotTrans = Models.Elastic.TransverselyIsotropic(2, 10, 10, 10, 0.1, 0.1)
+        matElasIsotTrans = Models.Elastic.TransverselyIsotropic(
+            dim=2,
+            El=10,
+            Et=10,
+            Gl=10,
+            vl=0.1,
+            vt=0.1,
+        )
         # El, Et, Gl, vl, vt, planeStress
         simu = Simulations.Elastic(mesh, matElasIsotTrans)
         simu.Get_K_C_M_F()
