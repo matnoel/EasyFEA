@@ -42,29 +42,31 @@ def __move_meshes(list_mesh: list[Mesh]):
 
 
 @pytest.fixture
-def meshes_2D(make_mesh_2D: Callable[..., Mesh]) -> list[Mesh]:
-
-    meshes_2D: list[Mesh] = []
-
-    for elemType in ElemType.Get_2D():
-        meshes_2D.append(make_mesh_2D(elemType=elemType, isOrganised=True))
-
-    meshes_2D = __move_meshes(meshes_2D)
-
-    return meshes_2D
+def plain_meshes_2D(make_mesh_2D: Callable[..., Mesh]) -> list[Mesh]:
+    """One mesh per 2D element type, no rotated/translated copies."""
+    return [
+        make_mesh_2D(elemType=elemType, isOrganised=True)
+        for elemType in ElemType.Get_2D()
+    ]
 
 
 @pytest.fixture
-def meshes_3D(make_mesh_3D: Callable[..., Mesh]) -> list[Mesh]:
+def plain_meshes_3D(make_mesh_3D: Callable[..., Mesh]) -> list[Mesh]:
+    """One mesh per 3D element type, no rotated/translated copies."""
+    return [
+        make_mesh_3D(elemType=elemType, B=L, isOrganised=True)
+        for elemType in ElemType.Get_3D()
+    ]
 
-    meshes_3D: list[Mesh] = []
 
-    for elemType in ElemType.Get_3D():
-        meshes_3D.append(make_mesh_3D(elemType=elemType, B=L, isOrganised=True))
+@pytest.fixture
+def meshes_2D(plain_meshes_2D: list[Mesh]) -> list[Mesh]:
+    return __move_meshes(list(plain_meshes_2D))
 
-    meshes_3D = __move_meshes(meshes_3D)
 
-    return meshes_3D
+@pytest.fixture
+def meshes_3D(plain_meshes_3D: list[Mesh]) -> list[Mesh]:
+    return __move_meshes(list(plain_meshes_3D))
 
 
 class TestMesh:
@@ -137,7 +139,7 @@ class TestMesh:
 
             assert (volume - mesh.volume) / volume < 1e-12
 
-    def test_load(self, meshes_3D: list[Mesh]):
+    def test_load(self, plain_meshes_3D: list[Mesh]):
 
         mat = Models.Elastic.Isotropic(3, 210000 * 1e6, 0.33)
         rho = 7850  # kg/m3
@@ -147,7 +149,7 @@ class TestMesh:
         F = mass * 9.81  # N
         P = 50
 
-        for mesh in meshes_3D:
+        for mesh in plain_meshes_3D:
 
             simu = Simulations.Elastic(mesh, mat)
             simu.rho = rho
@@ -180,9 +182,9 @@ class TestMesh:
 
             assert (P / area - load.sum()) / (P / area) < 1e-12
 
-    def test_Evaluate_dofsValues_at_coordinates_2D(self, meshes_2D: list[Mesh]):
+    def test_Evaluate_dofsValues_at_coordinates_2D(self, plain_meshes_2D: list[Mesh]):
 
-        for mesh in meshes_2D:
+        for mesh in plain_meshes_2D:
 
             coords = mesh.coord
             dofsValues = np.arange(mesh.Nn * 2) + 1
@@ -193,9 +195,9 @@ class TestMesh:
             # einsum interpolation amplifies it by max(dofsValues) ~ O(Nn).
             np.testing.assert_allclose(values, expected, rtol=1e-9, atol=1e-12)
 
-    def test_Evaluate_dofsValues_at_coordinates_3D(self, meshes_3D: list[Mesh]):
+    def test_Evaluate_dofsValues_at_coordinates_3D(self, plain_meshes_3D: list[Mesh]):
 
-        for mesh in meshes_3D:
+        for mesh in plain_meshes_3D:
 
             coords = mesh.coord
             dofsValues = np.arange(mesh.Nn * 2) + 1
