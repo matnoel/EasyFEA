@@ -3,11 +3,13 @@
 # This file is part of the EasyFEA project.
 # EasyFEA is distributed under the terms of the GNU General Public License v3, see LICENSE.txt and CREDITS.md for more information.
 
+from typing import Callable
+
 import numpy as np
 import pytest
 
 from EasyFEA import Folder, ElemType, Mesh, MeshIO
-from EasyFEA.Geoms import Line, Points
+from EasyFEA.Geoms import Line
 
 folder_results = Folder.Results_Dir()
 
@@ -16,11 +18,11 @@ H = 1
 
 
 @pytest.fixture
-def meshes() -> list[Mesh]:
+def meshes(
+    make_mesh_2D: Callable[..., Mesh], make_mesh_3D: Callable[..., Mesh]
+) -> list[Mesh]:
 
     meshSize = H / 3
-
-    contour = Points([(0, 0), (L, 0), (L, H), (0, H)], meshSize)
     meshes: list[Mesh] = []
 
     # 1d meshes
@@ -30,13 +32,11 @@ def meshes() -> list[Mesh]:
 
     # 2d meshes
     for elemType in ElemType.Get_2D():
-        mesh = contour.Mesh_2D([], elemType, isOrganised=True)
-        meshes.append(mesh)
+        meshes.append(make_mesh_2D(elemType=elemType, isOrganised=True))
 
     # 3d meshes
     for elemType in ElemType.Get_3D():
-        mesh = contour.Mesh_Extrude([], [0, 0, L], [3], elemType, isOrganised=True)
-        meshes.append(mesh)
+        meshes.append(make_mesh_3D(elemType=elemType, B=L, isOrganised=True))
 
     return meshes
 

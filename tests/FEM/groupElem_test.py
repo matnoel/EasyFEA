@@ -3,23 +3,23 @@
 # This file is part of the EasyFEA project.
 # EasyFEA is distributed under the terms of the GNU General Public License v3, see LICENSE.txt and CREDITS.md for more information.
 
+from typing import Callable
+
 import pytest
 import numpy as np
 
 from EasyFEA import Mesher, ElemType, Mesh
 from EasyFEA.FEM._group_elem import GroupElemFactory
-from EasyFEA.Geoms import Points
 
 L = 2
 H = 1
 
 
 @pytest.fixture
-def meshes() -> list[Mesh]:
+def meshes(
+    make_mesh_2D: Callable[..., Mesh], make_mesh_3D: Callable[..., Mesh]
+) -> list[Mesh]:
 
-    meshSize = H / 3
-
-    contour = Points([(0, 0), (L, 0), (L, H), (0, H)], meshSize)
     meshes: list[Mesh] = []
 
     # 1d meshes
@@ -38,13 +38,11 @@ def meshes() -> list[Mesh]:
 
     # 2d meshes
     for elemType in ElemType.Get_2D():
-        mesh = contour.Mesh_2D([], elemType, isOrganised=True)
-        meshes.append(mesh)
+        meshes.append(make_mesh_2D(elemType=elemType, isOrganised=True))
 
     # 3d meshes
     for elemType in ElemType.Get_3D():
-        mesh = contour.Mesh_Extrude([], [0, 0, L], [3], elemType, isOrganised=True)
-        meshes.append(mesh)
+        meshes.append(make_mesh_3D(elemType=elemType, B=L, isOrganised=True))
 
     return meshes
 
@@ -80,14 +78,14 @@ class TestGroupElem:
                 assert np.abs(1 - eval) < 1e-12
 
 
-def test_globalElements_is_sorted():
+def test_globalElements_is_sorted(make_mesh_2D: Callable[..., Mesh]):
     """`_globalElements` pairs a whole-mesh array with `connect`, and both consumers do it through
     `np.searchsorted`, which needs sorted input and returns out-of-range indices rather than raising
     when it does not get it. Under MPI `Mesher` builds the partition arrays from python sets, so they
     arrive in hash order — the case that broke `Mesh._Gather` on a rank owning elements but no ghosts.
     """
 
-    mesh = Points([(0, 0), (L, 0), (L, H), (0, H)], H / 3).Mesh_2D()
+    mesh = make_mesh_2D()
     groupElem = mesh.groupElem
     Ne = groupElem.Ne
 

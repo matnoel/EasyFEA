@@ -5,7 +5,7 @@
 
 import numpy as np
 
-from EasyFEA import Mesher, ElemType, Mesh
+from EasyFEA import ElemType, Mesh
 from EasyFEA.Geoms import Domain, Point
 from EasyFEA.Geoms import Rotate
 from EasyFEA import Matplotlib as Matplotlib
@@ -13,11 +13,12 @@ from EasyFEA import Matplotlib as Matplotlib
 
 class TestGmsh:
 
-    def test_MoveMesh(self):
+    def test_MoveMesh(
+        self, cracked_meshes_2D: list[Mesh], cracked_meshes_3D: list[Mesh]
+    ):
         """Check that if you move the mesh the properties remain the same."""
 
-        meshes = Mesher._Construct_2D_meshes()
-        meshes.extend(Mesher._Construct_3D_meshes())
+        meshes = cracked_meshes_2D + cracked_meshes_3D
 
         def testSameMesh(mesh1: Mesh, mesh2: Mesh) -> None:
 

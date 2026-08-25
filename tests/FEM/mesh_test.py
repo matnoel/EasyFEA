@@ -3,12 +3,14 @@
 # This file is part of the EasyFEA project.
 # EasyFEA is distributed under the terms of the GNU General Public License v3, see LICENSE.txt and CREDITS.md for more information.
 
+from typing import Callable
+
 import pytest
 import numpy as np
 from scipy.spatial import cKDTree
 
 from EasyFEA.FEM._utils import MatrixType
-from EasyFEA import Mesher, ElemType, Mesh, Models, Simulations
+from EasyFEA import ElemType, Mesh, Models, Simulations
 from EasyFEA.Geoms import Points
 
 L = 2
@@ -40,19 +42,12 @@ def __move_meshes(list_mesh: list[Mesh]):
 
 
 @pytest.fixture
-def meshes_2D() -> list[Mesh]:
-
-    meshSize = H / 3
-
-    contour = Points([(0, 0), (L, 0), (L, H), (0, H)], meshSize)
+def meshes_2D(make_mesh_2D: Callable[..., Mesh]) -> list[Mesh]:
 
     meshes_2D: list[Mesh] = []
 
     for elemType in ElemType.Get_2D():
-
-        mesh = contour.Mesh_2D([], elemType, isOrganised=True)
-
-        meshes_2D.append(mesh)
+        meshes_2D.append(make_mesh_2D(elemType=elemType, isOrganised=True))
 
     meshes_2D = __move_meshes(meshes_2D)
 
@@ -60,19 +55,12 @@ def meshes_2D() -> list[Mesh]:
 
 
 @pytest.fixture
-def meshes_3D() -> list[Mesh]:
-
-    meshSize = H / 3
-
-    contour = Points([(0, 0), (L, 0), (L, H), (0, H)], meshSize)
+def meshes_3D(make_mesh_3D: Callable[..., Mesh]) -> list[Mesh]:
 
     meshes_3D: list[Mesh] = []
 
     for elemType in ElemType.Get_3D():
-
-        mesh = contour.Mesh_Extrude([], [0, 0, L], [3], elemType, isOrganised=True)
-
-        meshes_3D.append(mesh)
+        meshes_3D.append(make_mesh_3D(elemType=elemType, B=L, isOrganised=True))
 
     meshes_3D = __move_meshes(meshes_3D)
 
@@ -81,10 +69,11 @@ def meshes_3D() -> list[Mesh]:
 
 class TestMesh:
 
-    def test_construct_matrix(self):
+    def test_construct_matrix(
+        self, cracked_meshes_2D: list[Mesh], cracked_meshes_3D: list[Mesh]
+    ):
 
-        meshes = Mesher._Construct_2D_meshes()
-        meshes.extend(Mesher._Construct_3D_meshes()[:2])
+        meshes = cracked_meshes_2D + cracked_meshes_3D[:2]
 
         matrixTypes = [MatrixType.rigi, MatrixType.mass]
 
@@ -118,11 +107,11 @@ class TestMesh:
             assert testLines is None
 
             # Verify lines_e
-            colonnes_e_test = np.array(
+            columns_e_test = np.array(
                 [[j for i in assembly_e[e] for j in assembly_e[e]] for e in elements]
             )
             testColumns = np.testing.assert_array_almost_equal(
-                colonnes_e_test, groupElem.Get_columns_e(dim), verbose=False
+                columns_e_test, groupElem.Get_columns_e(dim), verbose=False
             )
             assert testColumns is None
 
@@ -224,30 +213,28 @@ def _no_duplicate_coords(mesh: Mesh, atol: float = 1e-12) -> bool:
 class TestMeshMerge:
 
     @pytest.mark.parametrize("elemType", ElemType.Get_2D())
-    def test_adjacent_2d_area_and_nodes(self, elemType):
+    def test_adjacent_2d_area_and_nodes(self, elemType: ElemType):
         """Two adjacent unit squares: area = 2, shared edge nodes merged, no duplicates."""
         h = 1 / 3
-        left = Points([(0, 0), (1, 0), (1, 1), (0, 1)], h).Mesh_2D(
-            [], elemType, isOrganised=True
-        )
-        right = Points([(1, 0), (2, 0), (2, 1), (1, 1)], h).Mesh_2D(
-            [], elemType, isOrganised=True
-        )
+        leftContour = Points([(0, 0), (1, 0), (1, 1), (0, 1)], h)
+        leftMesh = leftContour.Mesh_2D([], elemType, isOrganised=True)
+        rightContour = Points([(1, 0), (2, 0), (2, 1), (1, 1)], h)
+        rightMesh = rightContour.Mesh_2D([], elemType, isOrganised=True)
 
-        merged = Mesh.Merge([left, right])
+        merged = Mesh.Merge([leftMesh, rightMesh])
 
         assert abs(merged.area - 2.0) / 2.0 < 1e-10
-        assert merged.Nn < left.Nn + right.Nn
+        assert merged.Nn < leftMesh.Nn + rightMesh.Nn
         assert _no_duplicate_coords(merged)
 
     @pytest.mark.parametrize("elemType", ElemType.Get_3D())
-    def test_adjacent_3d_volume_and_nodes(self, elemType):
+    def test_adjacent_3d_volume_and_nodes(self, elemType: ElemType):
         """Two adjacent unit cubes: volume = 2, shared face nodes merged, no duplicates."""
         h = 0.5
-        left = Points([(0, 0), (1, 0), (1, 1), (0, 1)], h).Mesh_Extrude(
-            [], [0, 0, 1], [2], elemType, isOrganised=True
-        )
-        right = Points([(1, 0), (2, 0), (2, 1), (1, 1)], h).Mesh_Extrude(
+        leftContour = Points([(0, 0), (1, 0), (1, 1), (0, 1)], h)
+        left = leftContour.Mesh_Extrude([], [0, 0, 1], [2], elemType, isOrganised=True)
+        rightContour = Points([(1, 0), (2, 0), (2, 1), (1, 1)], h)
+        right = rightContour.Mesh_Extrude(
             [], [0, 0, 1], [2], elemType, isOrganised=True
         )
 
@@ -259,33 +246,29 @@ class TestMeshMerge:
 
     def test_single_mesh_returns_itself(self):
         """Merge([mesh]) is the identity — no copy, no processing."""
-        mesh = Points([(0, 0), (1, 0), (1, 1), (0, 1)], 0.4).Mesh_2D(
-            [], ElemType.QUAD4, isOrganised=True
-        )
+        contour = Points([(0, 0), (1, 0), (1, 1), (0, 1)], 0.4)
+        mesh = contour.Mesh_2D([], ElemType.QUAD4, isOrganised=True)
         assert Mesh.Merge([mesh]) is mesh
 
     def test_construct_unique_elements_removes_duplicates(self):
         """Merging a mesh with itself: constructUniqueElements=True keeps one copy."""
-        mesh = Points([(0, 0), (1, 0), (1, 1), (0, 1)], 0.4).Mesh_2D(
-            [], ElemType.QUAD4, isOrganised=True
-        )
+        contour = Points([(0, 0), (1, 0), (1, 1), (0, 1)], 0.4)
+        mesh = contour.Mesh_2D([], ElemType.QUAD4, isOrganised=True)
         merged = Mesh.Merge([mesh, mesh], constructUniqueElements=True)
         assert merged.Ne == mesh.Ne
         assert merged.Nn == mesh.Nn
 
     def test_no_deduplication_keeps_all_elements(self):
         """constructUniqueElements=False preserves every element from every mesh."""
-        mesh = Points([(0, 0), (1, 0), (1, 1), (0, 1)], 0.4).Mesh_2D(
-            [], ElemType.QUAD4, isOrganised=True
-        )
+        contour = Points([(0, 0), (1, 0), (1, 1), (0, 1)], 0.4)
+        mesh = contour.Mesh_2D([], ElemType.QUAD4, isOrganised=True)
         merged = Mesh.Merge([mesh, mesh], constructUniqueElements=False)
         assert merged.Ne == 2 * mesh.Ne
 
     def test_tolerance_merges_near_coincident_nodes(self):
         """Nodes offset by < mergePointsTol are merged; nodes beyond it are not."""
-        mesh = Points([(0, 0), (1, 0), (1, 1), (0, 1)], 0.4).Mesh_2D(
-            [], ElemType.QUAD4, isOrganised=True
-        )
+        contour = Points([(0, 0), (1, 0), (1, 1), (0, 1)], 0.4)
+        mesh = contour.Mesh_2D([], ElemType.QUAD4, isOrganised=True)
 
         delta_inside = 1e-13  # within default 1e-12 → should merge
         delta_outside = 1e-11  # beyond default 1e-12 → should NOT merge
@@ -304,12 +287,10 @@ class TestMeshMerge:
     def test_merge_points_false_skips_deduplication(self):
         """mergePoints=False concatenates coordinates without any KDTree search."""
         h = 1 / 3
-        left = Points([(0, 0), (1, 0), (1, 1), (0, 1)], h).Mesh_2D(
-            [], ElemType.QUAD4, isOrganised=True
-        )
-        right = Points([(1, 0), (2, 0), (2, 1), (1, 1)], h).Mesh_2D(
-            [], ElemType.QUAD4, isOrganised=True
-        )
+        leftContour = Points([(0, 0), (1, 0), (1, 1), (0, 1)], h)
+        left = leftContour.Mesh_2D([], ElemType.QUAD4, isOrganised=True)
+        rightContour = Points([(1, 0), (2, 0), (2, 1), (1, 1)], h)
+        right = rightContour.Mesh_2D([], ElemType.QUAD4, isOrganised=True)
 
         merged = Mesh.Merge([left, right], mergePoints=False)
 
@@ -318,9 +299,8 @@ class TestMeshMerge:
 
     def test_return_mapping_identity(self):
         """return_mapping=True on a single mesh returns the identity mapping."""
-        mesh = Points([(0, 0), (1, 0), (1, 1), (0, 1)], 0.4).Mesh_2D(
-            [], ElemType.QUAD4, isOrganised=True
-        )
+        contour = Points([(0, 0), (1, 0), (1, 1), (0, 1)], 0.4)
+        mesh = contour.Mesh_2D([], ElemType.QUAD4, isOrganised=True)
         result, mapping = Mesh.Merge([mesh], return_mapping=True)
 
         assert result is mesh
@@ -330,12 +310,10 @@ class TestMeshMerge:
     def test_return_mapping_two_meshes(self):
         """mapping[i][j] is the index of mesh i's node j in the merged mesh."""
         h = 1 / 3
-        left = Points([(0, 0), (1, 0), (1, 1), (0, 1)], h).Mesh_2D(
-            [], ElemType.QUAD4, isOrganised=True
-        )
-        right = Points([(1, 0), (2, 0), (2, 1), (1, 1)], h).Mesh_2D(
-            [], ElemType.QUAD4, isOrganised=True
-        )
+        leftContour = Points([(0, 0), (1, 0), (1, 1), (0, 1)], h)
+        left = leftContour.Mesh_2D([], ElemType.QUAD4, isOrganised=True)
+        rightContour = Points([(1, 0), (2, 0), (2, 1), (1, 1)], h)
+        right = rightContour.Mesh_2D([], ElemType.QUAD4, isOrganised=True)
 
         merged, mapping = Mesh.Merge([left, right], return_mapping=True)
 

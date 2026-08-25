@@ -3,18 +3,17 @@
 # This file is part of the EasyFEA project.
 # EasyFEA is distributed under the terms of the GNU General Public License v3, see LICENSE.txt and CREDITS.md for more information.
 
-import pytest
 import matplotlib.pyplot as plt
 import numpy as np
 
-from EasyFEA import Mesher, Matplotlib
+from EasyFEA import ElemType, Folder, Mesh, Mesher, Matplotlib
 
 
 class TestMatplotlib:
 
-    def test_Plot_2D(self):
+    def test_Plot_2D(self, cracked_meshes_2D: list[Mesh]):
         """Builds all 2D meshes"""
-        list_mesh2D = Mesher._Construct_2D_meshes()
+        list_mesh2D = cracked_meshes_2D
         nbMesh = len(list_mesh2D)
         nrows = 5
         ncols = 10
@@ -38,9 +37,20 @@ class TestMatplotlib:
 
         # plt.show()
 
-    def test_Plot_3D(self):
+    def test_Plot_3D(self, cracked_meshes_3D: list[Mesh]):
         """Builds all 3D meshes"""
-        list_mesh3D = Mesher._Construct_3D_meshes(useImport3D=True)
+        list_mesh3D = list(cracked_meshes_3D)
+
+        partPath = Folder.Join(Folder.EASYFEA_DIR, "examples", "_parts", "beam.stp")
+        if Folder.Exists(partPath):
+            mesher = Mesher()
+            for elemType in [ElemType.TETRA4, ElemType.TETRA10]:
+                list_mesh3D.append(
+                    mesher.Mesh_Import_part(
+                        partPath, 3, meshSize=7.5, elemType=elemType
+                    )
+                )
+
         for mesh3D in list_mesh3D:
             ax = Matplotlib.Plot_Mesh(mesh3D)
             Matplotlib.Plot_Nodes(mesh3D, showId=False, ax=ax, color="black")
