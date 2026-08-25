@@ -19,9 +19,9 @@ from EasyFEA.Geoms import Domain
 from EasyFEA.FEM import Operators, FeArray
 from EasyFEA.Models.HyperElastic._state import HyperElasticState
 
-# Element types spanning shapes and interpolation orders (low + high order).
-# Meshes are kept to a single element (or the few an organised mesh splits a
-# unit cell into), so the finite-difference loop stays cheap even at high order.
+# Every element type, for the two cheap (non-FD) assembly-identity checks below
+# (test_residual_equals_C_times_v, test_discrete_gradient_directionality) — full
+# coverage costs nothing there. The FD-tangent checks use REPR_ELEMS instead.
 ELEMS = [
     (2, ElemType.TRI3),
     (2, ElemType.QUAD4),
@@ -38,6 +38,14 @@ ELEMS = [
 ]
 ELEM_IDS = [e.name for _, e in ELEMS]
 
+# A representative 2D/3D pair for the finite-difference tangent checks: shape
+# functions, Jacobian and dof map are shared plumbing already covered per element
+# type elsewhere (groupElem_test.py::test_shape_fucntion, mesh_test.py's
+# area/volume/test_construct_matrix), so an FD check here only needs to prove the
+# operator's own tensor contraction, which has no per-element-type branch.
+REPR_ELEMS = [(2, ElemType.QUAD4), (3, ElemType.HEXA8)]
+REPR_ELEM_IDS = [e.name for _, e in REPR_ELEMS]
+
 LAWS = ["SaintVenantKirchhoff", "NeoHookean", "MooneyRivlin"]
 
 
@@ -52,11 +60,10 @@ def _mesh(dim: int, elemType: ElemType):
     ``meshSize`` equal to the cell size keeps the count minimal (QUAD/HEXA = 1,
     TRI = 2, TETRA = 6), so the finite-difference loop stays cheap at high order.
     """
+    contour = Domain((0, 0), (1, 1), 1.0)
     if dim == 2:
-        return Domain((0, 0), (1, 1), 1.0).Mesh_2D([], elemType, isOrganised=True)
-    return Domain((0, 0), (1, 1), 1.0).Mesh_Extrude(
-        [], [0, 0, 1], [1], elemType, isOrganised=True
-    )
+        return contour.Mesh_2D([], elemType, isOrganised=True)
+    return contour.Mesh_Extrude([], [0, 0, 1], [1], elemType, isOrganised=True)
 
 
 def _material(dim: int, law: str):
@@ -118,9 +125,9 @@ class TestSecondPiolaKirchhoff:
 
         return residual
 
-    @pytest.mark.parametrize("dim, elemType", ELEMS, ids=ELEM_IDS)
+    @pytest.mark.parametrize("dim, elemType", REPR_ELEMS, ids=REPR_ELEM_IDS)
     def test_tangent_vs_finite_difference(self, dim, elemType):
-        """Tangent matches FD across element shapes / orders (Saint-Venant-Kirchhoff)."""
+        """Tangent matches FD, representative dims (Saint-Venant-Kirchhoff)."""
         rng = np.random.default_rng(2)
         mesh = _mesh(dim, elemType)
         mat = _material(dim, "SaintVenantKirchhoff")
@@ -200,7 +207,7 @@ class TestActiveStress:
 
         return residual
 
-    @pytest.mark.parametrize("dim, elemType", ELEMS, ids=ELEM_IDS)
+    @pytest.mark.parametrize("dim, elemType", REPR_ELEMS, ids=REPR_ELEM_IDS)
     def test_geometric_tangent_vs_finite_difference(self, dim, elemType):
         """``Kgeo`` equals ``∂R/∂u`` — the whole tangent, since ``∂Σ_act/∂e = 0``."""
         rng = np.random.default_rng(6)
@@ -295,7 +302,7 @@ class TestKelvinVoigt:
         diff = Edot_lin - (Deta @ grad_u_flat)
         assert np.linalg.norm(diff) / np.linalg.norm(Edot_lin) < 1e-12
 
-    @pytest.mark.parametrize("dim, elemType", ELEMS, ids=ELEM_IDS)
+    @pytest.mark.parametrize("dim, elemType", REPR_ELEMS, ids=REPR_ELEM_IDS)
     def test_geometric_tangent_vs_finite_difference(self, dim, elemType):
         """``Kgeo`` equals ``∂(C(u)·v)/∂u`` at fixed velocity.
 
@@ -477,9 +484,9 @@ class TestGonzalez:
         # operator returns K for coefK = 0.5, so the true Jacobian ∂R/∂u_{n+1} = ½·K
         _assert_matches(0.5 * K_ana, K_fd, msg=f"{law}/{elemType.name}")
 
-    @pytest.mark.parametrize("dim, elemType", ELEMS, ids=ELEM_IDS)
+    @pytest.mark.parametrize("dim, elemType", REPR_ELEMS, ids=REPR_ELEM_IDS)
     def test_tangent_vs_finite_difference(self, dim, elemType):
-        """``½·K == ∂R/∂u_{n+1}`` (FD) across element shapes / orders (Saint-Venant-Kirchhoff)."""
+        """``½·K == ∂R/∂u_{n+1}`` (FD), representative dims (Saint-Venant-Kirchhoff)."""
         self._check_tangent(dim, elemType, "SaintVenantKirchhoff", seed=9)
 
     @pytest.mark.parametrize("law", LAWS)
