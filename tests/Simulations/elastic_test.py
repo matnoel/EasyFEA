@@ -45,7 +45,7 @@ class TestElastic:
             nodesX0 = mesh.Nodes_Conditions(lambda x, y, z: x == 0)
             nodesXa = mesh.Nodes_Conditions(lambda x, y, z: x == a)
 
-            simu.add_dirichlet(nodesX0, [0, 0], ["x", "y"])
+            simu.add_dirichlet(nodesX0, [0] * dim, simu.Get_unknowns())
             simu.add_surfLoad(nodesXa, [P / a / a], ["y"])
 
             simu.Solve()
