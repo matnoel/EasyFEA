@@ -133,7 +133,7 @@ if __name__ == "__main__":
 
     W, D = 6.0, 6.0  # elastic half-space (symmetry about x=0): wide & deep vs contact
     meshSize = W / 10
-    N = 12  # indentation steps
+    N = 6  # indentation steps
     penalty = 100 * Es
 
     Rc = 6.0  # parabola radius of curvature

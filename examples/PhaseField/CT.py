@@ -164,10 +164,10 @@ if __name__ == "__main__":
     pfm = Models.PhaseField(mat, split, regu, Gc, l0)
 
     if doSimu:
-        displacements = np.linspace(0, L / 40, 50)
+        displacements = np.linspace(0, L / 40, 30)
 
         config = """
-        displacements = np.linspace(0, L/40, 50)
+        displacements = np.linspace(0, L/40, 30)
 
         for i, dep in enumerate(displacements):
 
