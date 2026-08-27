@@ -15,31 +15,47 @@ error at simulation construction time if it is not available.
 
 ## Install petsc4py
 
-The simplest method uses [pip](https://pypi.org/project/petsc4py/):
+[`petsc`](https://pypi.org/project/petsc/) and [`petsc4py`](https://pypi.org/project/petsc4py/) are published as source only, so both are compiled during the install — a few minutes. They are built against the MPI installed on the machine, which must provide `mpicc` and `mpifort`:
 
 ```bash
-pip install mpi4py petsc petsc4py
+brew install open-mpi              # macOS
+sudo apt install libopenmpi-dev    # Debian, Ubuntu
+module load openmpi                # cluster, where the site MPI is the one to use
 ```
-
-If the installation process fails, you should try installing it through [conda-forge](https://conda-forge.org), which distributes pre-built binaries for Linux, macOS, and Windows:
 
 ```bash
-conda install -c conda-forge mpi4py petsc petsc4py 
+python -m pip install mpi4py "cython<3.3" setuptools numpy
+export PETSC_CONFIGURE_OPTIONS="--with-debugging=0 --download-mumps --download-scalapack --download-parmetis --download-metis --download-superlu_dist"
+python -m pip install petsc
+python -m pip install --no-build-isolation petsc4py
 ```
 
-Verify the installation:
++ `PETSC_CONFIGURE_OPTIONS` selects the external packages — here MUMPS and SuperLU_DIST, the two direct solvers that run in parallel. Without them only `cg` + `gamg` and PETSc's built-in LU are available. See [Tune the linear solver](#mpi-tune-solver).
++ `petsc` and `petsc4py` are installed by two separate commands, and `--no-build-isolation` lets the second import the first to locate PETSc.
++ `cython` is capped: `petsc4py` 3.25.4 does not compile with Cython >= 3.3.
+
+To change the options afterwards, rebuild both with `--force-reinstall --no-cache-dir`, otherwise pip reinstalls the wheel it built from the previous ones.
+
+```{warning}
+Install a single MPI. The wheels [`mpich`](https://pypi.org/project/mpich/) and [`openmpi`](https://pypi.org/project/openmpi/) provide `mpicc` and `mpirun` but no `mpifort`, so alongside a system MPI the build mixes both — `mpicc` from the wheel, `mpifort` from the system — and stops at `Error configuring SCALAPACK with CMake`. `mpi4py` needs no such wheel: it binds to the MPI found at run time.
+```
+
+### conda-forge
+
+Prebuilt for Linux and macOS, MUMPS and SuperLU_DIST included:
 
 ```bash
-python -c "from mpi4py import MPI; print('\n',MPI.Get_library_version())"                     
-python -c "from petsc4py import PETSc; print('petsc4py version: ',PETSc.Sys.getVersion())"    
-python -c "
-from petsc4py import PETSc
-for pkg in ['superlu_dist','mumps']:
-    print(f'has {pkg}:', PETSc.Sys.hasExternalPackage(pkg))
-"
+conda install -c conda-forge petsc petsc4py mpi4py
 ```
 
-Refer to the [PETSc installation guide](https://petsc.org/release/install/) and the [petsc4py documentation](https://petsc4py.readthedocs.io/en/stable/install.html) for advanced builds with `superlu_dist` and `mumps` solvers.
+Take all three from conda-forge: a conda PETSc with a pip `mpi4py` loads two MPI libraries and fails at run time. Windows has no PETSc build at all — use [WSL2](https://petsc.org/release/install/windows/).
+
+### Check the installation
+
+```bash
+python -c "from petsc4py import PETSc; print(PETSc.Sys.getVersion())"
+python -c "from petsc4py import PETSc; print([(p, PETSc.Sys.hasExternalPackage(p)) for p in ('mumps', 'superlu_dist')])"
+```
 
 ---
 
@@ -50,6 +66,13 @@ Any EasyFEA script runs in parallel without modification. Use `mpirun` (or
 
 ```bash
 mpirun -n 4 python my_simulation.py
+```
+
+`mpirun`, `mpi4py` and PETSc must come from the same MPI. Launching processes with the `mpirun` of another one aborts with `Runtime environment uses unsupported PMI version PMIx`:
+
+```bash
+mpirun --version | head -1
+python -c "from mpi4py import MPI; print(MPI.Get_library_version().splitlines()[0])"
 ```
 
 ```{tip}
@@ -124,12 +147,19 @@ identical to a serial run.
 
 ---
 
+(mpi-tune-solver)=
 ## Tune the linear solver
 
 The default solver (`cg` + `gamg`) is a good general-purpose choice for both
 serial and parallel execution. For large meshes or specific problem types, it
 can be tuned via the advanced method
 {py:meth}`~EasyFEA.Simulations._Simu._Solver_Set_PETSc4Py_Options`.
+
+A direct factorization is requested with `kspType="preonly"` and `pcType="lu"`, the factorization itself being performed by `solverType`. MUMPS and SuperLU_DIST both run serial and parallel, so the same call is used for any number of ranks:
+
+```python
+simu._Solver_Set_PETSc4Py_Options(kspType="preonly", pcType="lu", solverType="mumps")
+```
 
 ```{note}
 {py:meth}`~EasyFEA.Simulations._Simu._Solver_Set_PETSc4Py_Options` is an
