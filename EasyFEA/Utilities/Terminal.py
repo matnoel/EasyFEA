@@ -9,7 +9,7 @@ import os
 import platform
 from enum import Enum
 
-from ._mpi import rank0_only, MPI_COMM
+from ._mpi import rank0_only, _UNDER_MPIRUN
 
 
 class __Colors(str, Enum):
@@ -58,8 +58,9 @@ def MyPrint(
 
         formatedText += __Sytles.RESET
 
-        if end == "\r" and MPI_COMM is not None:
-            end = "\n"
+        if end == "\r" and _UNDER_MPIRUN:
+            # mpirun only forwards whole lines, so end one and step back onto it
+            formatedText, end = "\033[2K" + formatedText, "\n\033[F"
 
         print(formatedText, end=end)
         return formatedText

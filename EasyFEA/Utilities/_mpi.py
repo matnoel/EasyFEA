@@ -5,6 +5,8 @@
 
 
 import os
+import warnings
+
 import numpy as np
 from functools import wraps
 
@@ -15,10 +17,9 @@ from ._requires import Create_requires_decorator
 # MPI_Init hanging when invoked as a plain `python script.py`.
 _MPI_LAUNCHER_VARS = [
     "OMPI_COMM_WORLD_SIZE",  # Open MPI
-    "PMI_SIZE",  # MPICH / Hydra
-    "SLURM_NTASKS",  # Slurm srun
+    "PMI_SIZE",  # MPICH / Hydra, Slurm pmi2
     "MV2_COMM_WORLD_SIZE",  # MVAPICH2
-    "PMIX_RANK",  # PMIx (Open MPI 4+, Slurm)
+    "PMIX_RANK",  # PMIx (Open MPI 4+, Slurm pmix)
 ]
 _UNDER_MPIRUN = any(os.environ.get(v) for v in _MPI_LAUNCHER_VARS)
 
@@ -31,11 +32,16 @@ if _UNDER_MPIRUN:
         MPI_SIZE = MPI_COMM.Get_size()
         MPI_RANK = MPI_COMM.Get_rank()
 
-    except Exception:
+    except Exception as error:
         CAN_USE_MPI = False
         MPI_COMM = None
         MPI_SIZE = 1
         MPI_RANK = 0
+        warnings.warn(
+            f"launched under an MPI launcher but mpi4py could not be loaded ({error}): every process "
+            "runs the whole simulation on its own. See docs/howto/use_mpi.md.",
+            RuntimeWarning,
+        )
 else:
     CAN_USE_MPI = False
     MPI_COMM = None
