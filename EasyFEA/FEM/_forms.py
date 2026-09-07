@@ -142,8 +142,7 @@ class LinearForm(_Form):
         groupElem = field.groupElem
         nPe = groupElem.nPe
 
-        # init data array
-        data = np.zeros((groupElem.Ne, nPe * dof_n, 1), dtype=float)
+        data = np.zeros((groupElem.Ne, nPe * dof_n), dtype=float)
 
         # get form function
         form = self._form
@@ -172,7 +171,7 @@ class LinearForm(_Form):
             values_e = (values_e_pg * dX_e_pg).integrate()
 
             # add data
-            data[:, i] = values_e
+            data[:, i] = values_e.reshape(-1)
 
         return data
 
