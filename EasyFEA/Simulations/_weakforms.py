@@ -12,12 +12,14 @@ from ..Utilities import Terminal, Tic, _types
 # fem
 if TYPE_CHECKING:
     from ..FEM import Mesh
+from ..FEM import _GroupElem, _Form
 
 # models
 from .. import Models
 
 # simu
 from ._simu import _Simu
+from ._terms import Term
 from .Solvers import AlgoType
 from ._problem_type import ProblemType
 
@@ -115,48 +117,44 @@ class WeakForms(_Simu):
     def Get_x0(self, problemType=None):
         return self.u
 
-    def Construct_local_matrix_system(self, problemType):
+    @property
+    def thickness(self) -> float:
+        """The weak form's own thickness, keyed on the **ambient** dimension: a form written on a surface embedded in 3D integrates over that surface already, so nothing is left to scale."""
+        return 1.0 if self.mesh.inDim == 3 else self.weakForms.thickness
 
-        # Data
+    def Get_terms(self, problemType=None) -> list[Term]:
+        """One term per form the user supplied; the fold applies :py:attr:`thickness` to each.
+
+        The K/C/M forms fill a single slot, so in a nonlinear simulation the fold also contracts their residual ``-K·u_t`` / ``-C·v_t`` / ``-M·a_t``. ``computeF`` is a load, hence the ``F`` slot.
+        """
         weakForms = self.weakForms
-        field = weakForms.field
-        thickness = 1.0 if self.mesh.inDim == 3 else weakForms.thickness
+
+        forms = {
+            "K": weakForms.computeK,
+            "C": weakForms.computeC,
+            "M": weakForms.computeM,
+            "F": weakForms.computeF,
+        }
+
+        return [
+            Term(slot, self.__Integrate, form=form)
+            for slot, form in forms.items()
+            if form is not None
+        ]
+
+    def __Integrate(self, groupElem: _GroupElem, form: _Form) -> Optional[np.ndarray]:
+        """Integrates one weak form over a group.
+
+        The form is written against ``weakForms.field``, which is bound to one element group, so any other group of the same dimension contributes nothing — returning None rather than repeating the same values, which is what a mesh carrying several groups of one dimension (PRISM18 + HEXA27) would otherwise get.
+        """
+        field = self.weakForms.field
+        if groupElem is not field.groupElem:
+            return None
 
         tic = Tic()
-
-        computeK = weakForms.computeK
-        if computeK is None:
-            K_e = None
-        else:
-            K_e = computeK.Integrate_e(field) * thickness
-
-        tic.Tac("Matrix", "Compute the local K matrix.", self._verbosity)
-
-        computeC = weakForms.computeC
-        if computeC is None:
-            C_e = None
-        else:
-            C_e = computeC.Integrate_e(field) * thickness
-
-        tic.Tac("Matrix", "Compute the local C matrix.", self._verbosity)
-
-        computeM = weakForms.computeM
-        if computeM is None:
-            M_e = None
-        else:
-            M_e = computeM.Integrate_e(field) * thickness
-
-        tic.Tac("Matrix", "Compute the local M matrix.", self._verbosity)
-
-        computeF = weakForms.computeF
-        if computeF is None:
-            F_e = None
-        else:
-            F_e = computeF.Integrate_e(field) * thickness
-
-        tic.Tac("Matrix", "Compute the local F vector.", self._verbosity)
-
-        return {self.mesh.groupElem: (K_e, C_e, M_e, F_e)}
+        values_e = form.Integrate_e(field)
+        tic.Tac("Matrix", "Integrate the weak form.", self._verbosity)
+        return values_e
 
     def Save_Iter(self, iter=None):
 

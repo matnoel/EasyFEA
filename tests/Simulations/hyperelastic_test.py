@@ -239,7 +239,7 @@ class TestQuadratureEnergyConservation:
 class TestKelvinVoigtWiring:
     """The viscous residual the operator returns is exactly what reaches ``F_e``.
 
-    ``Construct_local_matrix_system`` must subtract ``R_e`` once, with the right sign, and
+    ``_Construct_local_matrix_system`` must subtract ``R_e`` once, with the right sign, and
     put nothing else in ``F_e``. Turning viscosity off changes nothing else in the
     assembly, so the difference of the two ``F_e`` is the viscous residual alone. The
     operator itself is checked in ``tests/FEM/operators_test.py``.
@@ -269,9 +269,9 @@ class TestKelvinVoigtWiring:
         simu._Simu__Solver_Set_Newton_Raphson_current_solution(u_np1)
 
         groupElem = mesh.groupElem
-        F_visco = simu.Construct_local_matrix_system(pt)[groupElem][3]
+        F_visco = simu._Construct_local_matrix_system(pt)[groupElem][3]
         mat.eta = 0.0
-        F_plain = simu.Construct_local_matrix_system(pt)[groupElem][3]
+        F_plain = simu._Construct_local_matrix_system(pt)[groupElem][3]
         mat.eta = eta
 
         # what the operator says the viscous residual is, at the same evaluation state

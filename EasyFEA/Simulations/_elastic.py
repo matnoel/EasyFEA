@@ -20,6 +20,7 @@ from ..Models.Elastic._laws import _Elastic
 
 # simu
 from ._simu import _Simu
+from ._terms import Term
 from ._problem_type import ProblemType
 from .Solvers import AlgoType
 
@@ -120,36 +121,40 @@ class Elastic(_Simu):
         3D [axi, ayi, azi, ...]"""
         return self._Get_a_n(self.problemType)
 
-    def Construct_local_matrix_system(self, problemType):
+    def Get_terms(self, problemType=None) -> list[Term]:
 
-        tic = Tic()
+        terms = [
+            Term("K", Operators.Bilinear.LinearizedElasticity, C=self.material.C),
+            # ∫ρ N·N does not change across the solve, so it is built once and reused; an array ρ cannot key the cache, so it is rebuilt every assembly.
+            Term(
+                "M",
+                Operators.Bilinear.UV,
+                coef=self.rho,
+                dof_n=self.dim,
+                constant=not isinstance(self.rho, np.ndarray),
+            ),
+        ]
 
-        out = {}
-
-        for groupElem in self.mesh.Get_list_groupElem():
-
-            # compute stiffness
-            K_e = Operators.Bilinear.LinearizedElasticity(groupElem, self.material.C)
-
-            # compute mass
-            M_e = Operators.Bilinear.UV(groupElem, self.rho, dof_n=self.dim)
-
-            if self.dim == 2:
-                thickness = self.material.thickness
-                K_e *= thickness
-                M_e *= thickness
-
-            tic.Tac(
-                "Matrix",
-                f"Construct K_e and M_e ({groupElem.elemType})",
-                self._verbosity,
+        # Rayleigh damping C = coefK·K + coefM·M, declared rather than summed from the two matrices above — so an undamped simulation (the default) never builds it at all.
+        if self.__coefK != 0.0:
+            terms.append(
+                Term(
+                    "C",
+                    Operators.Bilinear.LinearizedElasticity,
+                    C=self.__coefK * self.material.C,
+                )
+            )
+        if self.__coefM != 0.0:
+            terms.append(
+                Term(
+                    "C",
+                    Operators.Bilinear.UV,
+                    coef=self.__coefM * self.rho,
+                    dof_n=self.dim,
+                )
             )
 
-            C_e = self.__coefK * K_e + self.__coefM * M_e
-
-            out[groupElem] = (K_e, C_e, M_e, None)
-
-        return out
+        return terms
 
     def Set_Rayleigh_Damping_Coefs(self, coefM=0.0, coefK=0.0):
         r"""Sets damping coefficients \( C = coefK * K + coefM * M \)."""

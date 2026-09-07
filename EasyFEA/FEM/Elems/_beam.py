@@ -642,7 +642,7 @@ class _Timoshenko(_EulerBernoulli):
 
         All fields use Lagrange degree (n-1).  The shear rows in particular
         produce equal-order locking under FULL integration, which is why the
-        assembly (see Simulations.Beam.Construct_local_matrix_system) integrates
+        assembly (see Simulations.Beam.Get_terms) integrates
         the shear contribution at MatrixType.beam_shear (n-1 Gauss points) —
         selective reduced integration, the standard cure.
 

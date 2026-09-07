@@ -41,6 +41,7 @@ from ..Models import _IModel
 
 # simu
 from ._problem_type import ProblemType
+from ._terms import Term, Fold_terms
 from .Solvers import (
     Solve_simu,
     SolverType,
@@ -100,7 +101,7 @@ class _Simu(_IObserver, _params.Updatable, ABC):
 
         - def Get_x0(self, problemType=None):
 
-        - def Construct_local_matrix_system(self, problemType):
+        - def Get_terms(self, problemType):
 
         These functions assemble the matrix system :math:`\Krm \, \mathrm{u} + \Crm \, \vrm + \Mrm \, \arm = \Frm`.
 
@@ -266,7 +267,48 @@ class _Simu(_IObserver, _params.Updatable, ABC):
         return np.zeros(size)
 
     @abstractmethod
-    def Construct_local_matrix_system(self, problemType) -> dict[
+    def Get_terms(self, problemType: Optional[ProblemType] = None) -> list[Term]:
+        r"""Returns the operator terms building this simulation's local matrix system.
+
+        A simulation describes itself as a list rather than a group loop::
+
+            def Get_terms(self, problemType=None):
+                return [Term("K", Operators.Bilinear.GradUGradV, coef=self.thermalModel.k)]
+
+        Subclasses compose with ``super().Get_terms(problemType) + [...]``; instance terms from :py:meth:`Add_terms` are folded in too. Return ``[]`` when overriding :py:meth:`_Construct_local_matrix_system` instead.
+        """
+        return []
+
+    def Add_terms(self, *terms: Term) -> list[Term]:
+        """Adds terms to this simulation instance, without subclassing it. One term or many behave the same way.
+
+        The terms are returned for convenience, but a :class:`~EasyFEA.Simulations.Term` is its own handle: keep the one whose value changes between steps and update it with :py:meth:`Term.Set`.
+
+        Examples
+        --------
+        >>> endo = Term("KR", NonLinear.FollowingPressure, dim=2, tag="endo", pressure=0.0)
+        >>> simu.Add_terms(endo)
+        >>> endo.Set(pressure=1e4)
+        """
+        assert all(isinstance(t, Term) for t in terms), "every term must be a Term."
+
+        for term in terms:
+            term._simu = self  # so `term.Set(...)` invalidates the assembled matrices
+            self.__terms.append(term)
+        self.Need_Update()
+        return list(terms)
+
+    def Terms_Init(self) -> None:
+        """Removes every term added with :py:meth:`Add_terms`. Terms persist across time steps — unlike boundary conditions, they are declared once and their arguments updated — so this is rarely needed."""
+        self.__terms: list[Term] = []
+        self.Need_Update()
+
+    @cache_computed_values
+    def _Term_cached(self, term: Term, groupElem: _GroupElem):
+        """Contribution of a ``constant=True`` term on one group, built once and reused across Newton iterations and time steps. Dropped when the mesh changes, like every other cached computed value."""
+        return term._Evaluate_constant(groupElem)
+
+    def _Construct_local_matrix_system(self, problemType) -> dict[
         _GroupElem,
         tuple[
             Optional[np.ndarray],
@@ -277,11 +319,17 @@ class _Simu(_IObserver, _params.Updatable, ABC):
     ]:
         r"""Construct the local matrix system :math:`\Krm \, \mathrm{u} + \Crm \, \vrm + \Mrm \, \arm = \Frm` for the given problem, returned per contributing group of elements `{groupElem: (K_e, C_e, M_e, F_e)}`.
 
+        Folds :py:meth:`Get_terms` together with the terms added via :py:meth:`Add_terms`. Override it only for a simulation whose assembly is not expressible as a term list — a monolithic mixed formulation, say — in which case :py:meth:`Get_terms` returns ``[]``.
+
         For a **linear** problem :math:`\Frm` is the load alone: :py:meth:`_Solver_Apply_Neumann` moves :math:`\mathrm{u}^n, \vrm^n, \arm^n` to the right-hand side with the history terms of the active time scheme.
 
-        For a **nonlinear** problem the unknown is :math:`\Delta \mathrm{u}`, so :math:`\Frm_e` is the complete residual :math:`-\Rrm_e`, inertia and damping included (:math:`-\Crm_e \, \vrm_t - \Mrm_e \, \arm_t`, with :math:`\vrm_t, \arm_t` from :py:meth:`_Solver_Evaluate_u_v_a_for_time_scheme`).
+        For a **nonlinear** problem the unknown is :math:`\Delta \mathrm{u}`, so :math:`\Frm_e` is the complete residual :math:`-\Rrm_e`, inertia and damping included (:math:`-\Crm_e \, \vrm_t - \Mrm_e \, \arm_t`, with :math:`\vrm_t, \arm_t` from :py:meth:`Get_u_v_a`).
         """
-        raise NotImplementedError
+        return Fold_terms(
+            self,
+            self.Get_terms(problemType) + self.__terms,
+            problemType,
+        )
 
     # Iterations
 
@@ -693,6 +741,7 @@ class _Simu(_IObserver, _params.Updatable, ABC):
         # Initialize solutions and boundary conditions
         self.__Init_Sols_n()
         self.Bc_Init()
+        self.Terms_Init()
 
         # simulation will look for material and mesh modifications
         model._Add_observer(self)
@@ -948,6 +997,11 @@ class _Simu(_IObserver, _params.Updatable, ABC):
         """simulation's dimension"""
         return self.__dim
 
+    @property
+    def thickness(self) -> float:
+        """Out-of-plane thickness in 2D, 1 otherwise. Operators integrate over the element's own dimension, so every 2D contribution is scaled by this once, in :func:`~EasyFEA.Simulations._terms.Fold_terms`."""
+        return self.model.thickness if self.dim == 2 else 1.0
+
     def __Update_mesh(self, index: int) -> None:
         """Updates the mesh for the specified iteration.
 
@@ -1113,7 +1167,7 @@ class _Simu(_IObserver, _params.Updatable, ABC):
         tic = Tic()
 
         # {groupElem: (K_e, C_e, M_e, F_e)}
-        dict_KCMF = self.Construct_local_matrix_system(problemType)
+        dict_KCMF = self._Construct_local_matrix_system(problemType)
 
         tic.Tac(
             "Matrix",
@@ -1287,6 +1341,33 @@ class _Simu(_IObserver, _params.Updatable, ABC):
         ), "the current algo is not hyperbolic type."
 
         return self.__hyperbolicParams
+
+    def Get_u_v_a(
+        self, problemType: Optional[ProblemType] = None
+    ) -> tuple[np.ndarray, Optional[np.ndarray], Optional[np.ndarray]]:
+        r"""Returns the current iterate :math:`(\mathrm{u}_t, \vrm_t, \arm_t)`, evaluated at the active time scheme's own evaluation point.
+
+        This is the single place the elliptic / parabolic / hyperbolic branch lives. :meth:`_Solver_Get_Newton_Raphson_current_solution` asserts the simulation is nonlinear and :meth:`_Solver_Evaluate_u_v_a_for_time_scheme` asserts the algo is not elliptic, so every caller would otherwise repeat the same two guards.
+
+        Returns
+        -------
+        tuple
+            `u_t` always; `v_t` and `a_t` only under a parabolic or hyperbolic scheme, `None` otherwise.
+        """
+
+        if problemType is None:
+            problemType = self.problemType
+
+        u = (
+            self._Solver_Get_Newton_Raphson_current_solution()
+            if self.isNonLinear
+            else self._Get_u_n(problemType)
+        )
+
+        if self.algo in AlgoType.Get_Hyperbolic_and_Parabolic_Types():
+            return self._Solver_Evaluate_u_v_a_for_time_scheme(problemType, u)
+
+        return u, None, None
 
     def _Solver_Evaluate_u_v_a_for_time_scheme(
         self, problemType: ProblemType, u_np1: np.ndarray
@@ -1675,7 +1756,7 @@ class _Simu(_IObserver, _params.Updatable, ABC):
 
         WARNING
         -------
-        The `Construct_local_matrix_system` function must return `K` and `F`, where `K` contains the tangent matrix and `F` contains the residual.\n
+        The terms returned by `Get_terms` must supply `K` and `F`, where `K` is the tangent matrix and `F` the residual.\n
         """
 
         newtonIter = 0

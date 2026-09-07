@@ -3,7 +3,7 @@
 # This file is part of the EasyFEA project.
 # EasyFEA is distributed under the terms of the GNU General Public License v3, see LICENSE.txt and CREDITS.md for more information.
 
-from typing import TYPE_CHECKING, Union
+from typing import Optional, TYPE_CHECKING, Union
 
 import numpy as np
 
@@ -12,37 +12,40 @@ from .._utils import MatrixType
 from ...Utilities import _types
 
 from ..Elems._beam import _EulerBernoulli, _Timoshenko  # noqa: F401
+from ._utils import einsum, Restrict, Scatter
 
 if TYPE_CHECKING:
     from .._group_elem import _GroupElem
     from ...Models.Beam._beam import BeamStructure
 
 
-def einsum(*args):
-    return np.asarray(np.einsum(*args, optimize=True))
-
-
 def GradUGradV(
     groupElem: "_GroupElem",
     coef: Union[_types.Number, FeArray.FeArrayALike] = 1.0,
+    elements: Optional[_types.IntArray] = None,
     matrixType: MatrixType = MatrixType.rigi,
 ) -> np.ndarray:
     """``∫_Ω coef · ∇u · ∇v dΩ`` — returns ``(Ne, nPe, nPe)``.
 
     ``coef`` may be scalar, ``(Ne,)``, ``(nPg,)``, or ``(Ne, nPg)``;
     broadcast via :meth:`FeArray.broadcast` (stride view, no copy).
+
+    ``elements`` restricts the integral to those elements of ``groupElem``; the result stays full-group, exact zero outside.
     """
     mat_e_pg = groupElem.Get_DiffusePart_e_pg(matrixType)
     dN_e_pg = groupElem.Get_dN_e_pg(matrixType)
     Ne, nPg = dN_e_pg.shape[:2]
     coef = FeArray.broadcast(coef, Ne, nPg)
-    return einsum("epij,epjk->eik", coef * mat_e_pg, dN_e_pg)
+    coef, mat_e_pg, dN_e_pg = Restrict(elements, coef, mat_e_pg, dN_e_pg)
+    values_e = einsum("epij,epjk->eik", coef * mat_e_pg, dN_e_pg)
+    return Scatter(values_e, Ne, elements)
 
 
 def UV(
     groupElem: "_GroupElem",
     coef: Union[_types.Number, FeArray.FeArrayALike] = 1.0,
     dof_n: int = 1,
+    elements: Optional[_types.IntArray] = None,
     matrixType: MatrixType = MatrixType.mass,
 ) -> np.ndarray:
     """``∫_Ω coef · u · v dΩ`` — returns ``(Ne, nPe·dof_n, nPe·dof_n)``.
@@ -56,12 +59,14 @@ def UV(
     mat_e_pg = groupElem.Get_ReactionPart_e_pg(matrixType, dof_n)
     Ne, nPg = mat_e_pg.shape[:2]
     coef = FeArray.broadcast(coef, Ne, nPg)
-    return (coef * mat_e_pg).integrate()
+    coef, mat_e_pg = Restrict(elements, coef, mat_e_pg)
+    return Scatter((coef * mat_e_pg).integrate(), Ne, elements)
 
 
 def LinearizedElasticity(
     groupElem: "_GroupElem",
     C: FeArray.FeArrayALike,
+    elements: Optional[_types.IntArray] = None,
     matrixType: MatrixType = MatrixType.rigi,
 ) -> np.ndarray:
     """``∫_Ω ε(u) : C : ε(v) dΩ`` — small-strain elastic stiffness.
@@ -76,12 +81,15 @@ def LinearizedElasticity(
     B_e_pg = groupElem.Get_B_e_pg(matrixType)
     Ne, nPg = B_e_pg.shape[:2]
     C = FeArray.broadcast(C, Ne, nPg, tensor_ndim=2)
-    return einsum("epij,epjk->eik", leftDispPart_e_pg @ C, B_e_pg)
+    C, leftDispPart_e_pg, B_e_pg = Restrict(elements, C, leftDispPart_e_pg, B_e_pg)
+    values_e = einsum("epij,epjk->eik", leftDispPart_e_pg @ C, B_e_pg)
+    return Scatter(values_e, Ne, elements)
 
 
 def MassAlongNormal(
     groupElem: "_GroupElem",
     coef: Union[_types.Number, FeArray.FeArrayALike] = 1.0,
+    elements: Optional[_types.IntArray] = None,
     matrixType: MatrixType = MatrixType.mass,
 ) -> np.ndarray:
     r"""``∫_Γ coef · (u · n̂)(v · n̂) dΓ`` — mass projected onto the surface normal.
@@ -113,7 +121,9 @@ def MassAlongNormal(
 
     Ne, nPg = wJ_e_pg.shape
     coef = FeArray.broadcast(coef, Ne, nPg)
-    return einsum("ep,opji,epjk,opkl->eil", coef * wJ_e_pg, N_pg, nn_e_pg, N_pg)
+    coef, wJ_e_pg, nn_e_pg = Restrict(elements, coef, wJ_e_pg, nn_e_pg)
+    values_e = einsum("ep,opji,epjk,opkl->eil", coef * wJ_e_pg, N_pg, nn_e_pg, N_pg)
+    return Scatter(values_e, Ne, elements)
 
 
 def BeamBending(

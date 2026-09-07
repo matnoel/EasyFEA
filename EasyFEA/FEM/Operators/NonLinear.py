@@ -27,9 +27,7 @@ if TYPE_CHECKING:
 # same machinery regardless of which stress drives them.
 
 
-def einsum(*args):
-    return np.asarray(np.einsum(*args, optimize=True))
-
+from ._utils import einsum, Restrict, Scatter  # noqa: F401
 
 _BLOCK_GRAD_B_ATTR = "_block_grad_B_cache"
 
@@ -193,11 +191,6 @@ def SecondPiolaKirchhoffStressTensor(
         material.Compute_d2Wde(state),
     )
 
-    if dim == 2:
-        thickness = material.thickness
-        tangent_e *= thickness
-        residual_e *= thickness
-
     return __reorder_dofs(dim, nPe, tangent_e, residual_e)
 
 
@@ -290,11 +283,6 @@ def GonzalezStressTensor(
             # rank-1 ∫ (B_midᵀΔe)⊗g
             + einsum("ep,epi,epj->eij", wJ_e_pg, B_mid.T @ dE, g)
         )
-
-    if dim == 2:
-        thickness = material.thickness
-        tangent_e *= thickness
-        residual_e *= thickness
 
     return __reorder_dofs(dim, nPe, tangent_e, residual_e)
 
@@ -566,11 +554,6 @@ def TimeQuadratureStressTensor(
         "ep,epji,epjk,epkl->eil", wJ_e_pg, B_t, d2Wde_quad, B_np1
     ) + __geometric_tangent(wJ_e_pg, state_t, dWde_quad)
 
-    if dim == 2:
-        thickness = material.thickness
-        tangent_e *= thickness
-        residual_e *= thickness
-
     K_e, R_e = __reorder_dofs(dim, nPe, tangent_e, residual_e)
     return K_e, R_e, nPts_e
 
@@ -618,11 +601,6 @@ def ActiveStressTensor(
     residual_e = einsum("ep,epi,epij->ej", wJ_e_pg, sig_e_pg, B_e_pg)
     Kgeo_e = __geometric_tangent(wJ_e_pg, state, sig_e_pg)
 
-    if dim == 2:
-        thickness = material.thickness
-        Kgeo_e *= thickness
-        residual_e *= thickness
-
     return __reorder_dofs(dim, nPe, Kgeo_e, residual_e)
 
 
@@ -640,9 +618,9 @@ def KelvinVoigtDamping(
     - Kgeo_e — the configuration tangent ∂(C·v)/∂u at fixed velocity (geometric
       stiffening from Σ_visco plus the ∂Ė/∂u term); the simulation adds it to
       K_e so it rides coefK.
-    - R_e = thickness · η · ∫ Bᵀ Ė dΩ — the viscous residual, which the simulation
+    - R_e = η · ∫ Bᵀ Ė dΩ — the viscous residual, which the simulation
       subtracts from F_e.
-    - C_e = thickness · η · ∫ Bᵀ B dΩ — the damping matrix; the simulation puts it
+    - C_e = η · ∫ Bᵀ B dΩ — the damping matrix; the simulation puts it
       in slot 2 of (K, C, M, F), where it rides the coefC·C tangent.
 
     Parameters
@@ -670,24 +648,23 @@ def KelvinVoigtDamping(
     wJ_e_pg = groupElem.Get_weightedJacobian_e_pg(matrixType)
     nPe = groupElem.nPe
     dim = groupElem.dim
-    thickness = material.thickness if dim == 2 else 1
 
     grad_e_pg, B_e_pg = __block_grad_B(state)
     Beta_e_pg = state.Compute_Deta(velocity) @ grad_e_pg
     sig_e_pg = material.eta * state.Compute_Edot_vec(velocity)  # Σ_visco = η·Ė
 
-    # damping matrix C = thickness · η · ∫ Bᵀ B (fused einsum, see SPK above)
+    # damping matrix C = η · ∫ Bᵀ B (fused einsum, see SPK above)
     subscripts = "ep,epji,epjl->eil"
-    C_e = thickness * material.eta * einsum(subscripts, wJ_e_pg, B_e_pg, B_e_pg)
+    C_e = material.eta * einsum(subscripts, wJ_e_pg, B_e_pg, B_e_pg)
 
     # viscous residual ∫ Bᵀ Σ_visco — same contraction as the active stress
-    residual_e = thickness * einsum("ep,epji,epj->ei", wJ_e_pg, B_e_pg, sig_e_pg)
+    residual_e = einsum("ep,epji,epj->ei", wJ_e_pg, B_e_pg, sig_e_pg)
 
     # configuration tangent ∂(C·v)/∂u = geometric (∫ gradᵀ Sig grad) + material-like
     # (η ∫ Bᵀ (∂Ė/∂u)) pieces
     A_mat = material.eta * einsum(subscripts, wJ_e_pg, B_e_pg, Beta_e_pg)
     A_geo = __geometric_tangent(wJ_e_pg, state, sig_e_pg)
-    Kgeo_e = thickness * (A_mat + A_geo)
+    Kgeo_e = A_mat + A_geo
 
     return __reorder_dofs(dim, nPe, Kgeo_e, residual_e, C_e)
 
@@ -725,11 +702,11 @@ def FollowingPressure(
 
     The load tracks the deformed normal ``n = ∂x/∂r × ∂x/∂s`` with ``x = X + u``, so its Jacobian feeds a non-symmetric tangent.
 
-    Returned ``(K_e, R_e)`` are contributions to global ``K`` and ``R(u) = R_internal − F_follower`` — same convention as PK2:
+    Returned ``(K_e, R_e)`` follow the same convention as every other nonlinear operator — ``R`` is the **internal** force, which the assembly subtracts — so the term is declared ``"KR"``:
 
     ```
-    K_e = -∂F_follower/∂u    → slot K
-    R_e = -F_follower(u)     → slot F as -R_e (= +F_follower in b)
+    R_e = -F_follower(u)     → slot R, subtracted: the residual of A·Δu = -R(u)
+    K_e = +∂R_e/∂u           → slot K, non-symmetric because the normal follows u
     ```
 
     Outside ``elements`` the returned arrays are exact zero so the surface connectivity can scatter ``(Ne_surf, ...)`` uniformly.
@@ -801,7 +778,7 @@ def FollowingPressure(
     (K_active,) = __reorder_dofs(dim, nPe, K_active)
 
     K_e[active] = -K_active
-    R_e[active] = F_active
+    R_e[active] = -F_active  # internal force: the assembly subtracts it
 
     return K_e, R_e
 
@@ -822,12 +799,12 @@ def PenaltyContact(
 
     With penalty ``εₙ``, signed gap ``gₙ``, outward normal ``n`` and test / trial fields ``v`` / ``u``, the weak-form contributions are::
 
-        R_e = εₙ ∫_Γ  ⟨-gₙ⟩ (v·n) dΓ       slot F: outward force, grows with penetration ⟨-gₙ⟩
-        K_e = εₙ ∫_Γc      (u·n)(v·n) dΓ    slot K: tangent ∂R/∂u on the active set Γc (gₙ < 0)
+        R_e = -εₙ ∫_Γ  ⟨-gₙ⟩ (v·n) dΓ      slot R: **internal** force, subtracted by the assembly
+        K_e = +εₙ ∫_Γc      (u·n)(v·n) dΓ   slot K: tangent ∂R/∂u on the active set Γc (gₙ < 0)
 
     where ``⟨·⟩`` is the Macaulay bracket. Linearising the ramp ``⟨-gₙ⟩`` collapses it to the active-set restriction ``Γc``, so ``K_e`` is :func:`~EasyFEA.FEM.Operators.Bilinear.MassAlongNormal` scaled by ``εₙ`` where contact is active (the small change-of-normal / closest-point curvature terms are dropped).
 
-    Returned ``(K_e, R_e)`` follow the slot convention of :func:`FollowingPressure` — ``K_e`` → slot K, ``R_e`` → slot F (the force pushing the body out of the obstacle). Outside ``elements`` both are exact zero.
+    Returned ``(K_e, R_e)`` follow the same convention as every other nonlinear operator, so the term is declared ``"KR"``: the assembly subtracts ``R_e``, leaving the outward force that pushes the body out of the obstacle. Outside ``elements`` both are exact zero.
 
     Parameters
     ----------
@@ -836,11 +813,11 @@ def PenaltyContact(
     penalty : float
         Penalty stiffness ``εₙ``.
     gap_e_pg : FeArray
-        Signed normal gap at the contact-surface ``matrixType`` Gauss points, shape ``(Ne_a, nPg)`` (negative under penetration).
+        Signed normal gap at the contact-surface ``matrixType`` Gauss points, shape ``(Ne, nPg)`` — full-group, negative under penetration. Rows outside ``elements`` are never read, so an expensive projection may leave them at zero.
     normal_e_pg : FeArray
-        Outward unit normal at the same Gauss points, shape ``(Ne_a, nPg, 3)``. Must share its ``nPg`` with ``gap_e_pg``.
+        Outward unit normal at the same Gauss points, shape ``(Ne, nPg, 3)``. Must share its ``nPg`` with ``gap_e_pg``.
     elements : np.ndarray, optional
-        Active (contact) element indices ``gap_e_pg``/``normal_e_pg`` were computed for, by default all.
+        Candidate contact elements of ``groupElem``, by default all. Outside them the returned arrays are exact zero.
     matrixType : MatrixType, optional
         Integration scheme for the surface integral; ``gap_e_pg`` / ``normal_e_pg`` must be sampled with the same one, by default ``MatrixType.mass``.
     """
@@ -876,8 +853,9 @@ def PenaltyContact(
         gap_e_pg.shape[1] == wJ_e_pg.shape[1]
     ), "gap_e_pg / normal_e_pg must be sampled at the `matrixType` Gauss points."
 
-    # precomputed gap / outward normal at the active Gauss points
-    normal_e_pg = normal_e_pg[..., :dim]  # (Ne_a, nPg, dim)
+    # precomputed gap / outward normal, restricted to the candidate elements
+    gap_e_pg = gap_e_pg[active]  # (Ne_a, nPg)
+    normal_e_pg = normal_e_pg[active][..., :dim]  # (Ne_a, nPg, dim)
 
     # active set: penetration only (gap < 0)
     pen_e_pg = np.where(gap_e_pg < 0, -gap_e_pg, 0.0)  # ⟨-gₙ⟩ ≥ 0
@@ -887,8 +865,8 @@ def PenaltyContact(
     # (xi, yi, zi, ...) dof layout directly, so no reorder is needed.
     factor = penalty * wJ_e_pg  # (Ne_a, nPg)
 
-    # R_e = +εₙ ∫ ⟨-gₙ⟩ Nᵢ n dΓ   (force pushing the body out → slot F)
-    R_active = einsum(
+    # R_e = -εₙ ∫ ⟨-gₙ⟩ Nᵢ n dΓ   (internal force → slot R, subtracted; the outward push is what survives)
+    R_active = -einsum(
         "ep,ep,pi,epc->eic",
         factor,
         pen_e_pg,

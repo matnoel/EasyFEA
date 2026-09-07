@@ -17,7 +17,9 @@ from ..FEM import MatrixType, FeArray, Operators
 from ..Models import Result_strain_or_stress_field_e
 from ..Models.InElastic._behavior import Behavior
 
+from ..FEM import _GroupElem
 from ._simu import _Simu
+from ._terms import Term
 from ._problem_type import ProblemType
 
 
@@ -118,7 +120,7 @@ class InElastic(_Simu):
     # Assembly
     # --------------------------------------------------------------------------
 
-    def __Get_state(self, groupElem, matrixType: MatrixType) -> FeArray:
+    def __Get_state(self, groupElem: _GroupElem, matrixType: MatrixType) -> FeArray:
         """Committed state for a group, zeros if none yet."""
         elemType = groupElem.elemType
         if elemType not in self.__zOld:
@@ -136,47 +138,49 @@ class InElastic(_Simu):
         u_e = groupElem.Locates_sol_e(u, asFeArray=True)
         return groupElem.Get_B_e_pg(matrixType) @ u_e
 
-    def Construct_local_matrix_system(
-        self, problemType, matrixType: MatrixType = MatrixType.rigi
-    ):
-        """Per group: integrate the material, then assemble ``K_e = ∫BᵀC_alg B`` and
-        ``F_e = -∫Bᵀσ``. The trial state is stashed, and committed only in :meth:`Save_Iter`.
+    def Get_terms(
+        self, problemType=None, matrixType: MatrixType = MatrixType.rigi
+    ) -> list[Term]:
+        """One term: integrate the material, then the tangent ``∫BᵀC_alg B`` and the internal force ``∫Bᵀσ``."""
+        return [Term("KR", self.__Stress, matrixType=matrixType)]
+
+    def __Stress(
+        self, groupElem: _GroupElem, matrixType: MatrixType = MatrixType.rigi
+    ) -> tuple[np.ndarray, np.ndarray]:
+        """Integrates the material on one group, returning ``(K_e, R_e) = (∫BᵀC_alg B, ∫Bᵀσ)``.
+
+        The trial state is stashed here, and committed only in :meth:`Save_Iter`.
         """
-        thickness = self.material.thickness if self.dim == 2 else 1.0
         u = self._Solver_Get_Newton_Raphson_current_solution()
 
-        out = {}
-        for groupElem in self.mesh.Get_list_groupElem():
-            eps_e_pg = self._Calc_Epsilon_e_pg(u, groupElem, matrixType)
-            zOld_e_pg = self.__Get_state(groupElem, matrixType)
-            # u_n is only overwritten once the Newton converges, so during assembly it is
-            # still the displacement the increment started from
-            epsOld_e_pg = self._Calc_Epsilon_e_pg(
-                self._Get_u_n(self.problemType), groupElem, matrixType
-            )
+        eps_e_pg = self._Calc_Epsilon_e_pg(u, groupElem, matrixType)
+        zOld_e_pg = self.__Get_state(groupElem, matrixType)
+        # u_n is only overwritten once the Newton converges, so during assembly it is still the displacement the increment started from
+        epsOld_e_pg = self._Calc_Epsilon_e_pg(
+            self._Get_u_n(self.problemType), groupElem, matrixType
+        )
 
-            sigma_e_pg, C_e_pg, z_e_pg, converged = self.material.Integrate(
-                eps_e_pg, zOld_e_pg, self.__dt, epsOld_e_pg
-            )
-            assert C_e_pg is not None
-            assert converged.all(), (
-                f"constitutive integration did not converge at {int((~converged).sum())} of "
-                f"{converged.size} Gauss points ({groupElem.elemType}) - reduce the load step"
-            )
+        sigma_e_pg, C_e_pg, z_e_pg, converged = self.material.Integrate(
+            eps_e_pg, zOld_e_pg, self.__dt, epsOld_e_pg
+        )
+        assert C_e_pg is not None
+        assert converged.all(), (
+            f"constitutive integration did not converge at {int((~converged).sum())} of "
+            f"{converged.size} Gauss points ({groupElem.elemType}) - reduce the load step"
+        )
 
-            tic = Tic()
-            K_e = thickness * Operators.Bilinear.LinearizedElasticity(
-                groupElem, C_e_pg, matrixType
-            )
-            F_e = -thickness * Operators.Linear.InternalForce(
-                groupElem, sigma_e_pg, matrixType
-            )
-            tic.Tac("Matrix", f"Construct K_e and F_e ({groupElem.elemType})", False)
+        tic = Tic()
+        K_e = Operators.Bilinear.LinearizedElasticity(
+            groupElem, C_e_pg, matrixType=matrixType
+        )
+        R_e = Operators.Linear.InternalForce(
+            groupElem, sigma_e_pg, matrixType=matrixType
+        )
+        tic.Tac("Matrix", f"Construct K_e and R_e ({groupElem.elemType})", False)
 
-            self.__z[groupElem.elemType] = z_e_pg
-            out[groupElem] = (K_e, None, None, F_e)
+        self.__z[groupElem.elemType] = z_e_pg
 
-        return out
+        return K_e, R_e
 
     # --------------------------------------------------------------------------
     # Iterations

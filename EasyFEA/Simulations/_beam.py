@@ -30,6 +30,7 @@ from ..Models.Beam._beam import BeamStructure, _Beam, Isotropic
 
 # simu
 from ._simu import _Simu, SolverType
+from ._terms import Term
 from ._problem_type import ProblemType
 
 
@@ -402,26 +403,23 @@ class Beam(_Simu):
 
         self._Bc_Add_Display(nodes, unknowns, description, problemType)
 
-    def Construct_local_matrix_system(self, problemType):
+    @property
+    def thickness(self) -> float:
+        """Always 1: a beam section carries an area, not an out-of-plane thickness, and ``BeamStructure.thickness`` is deliberately ``None``. ``self.dim`` here is the structure's kinematic dimension (1D tension, 2D + bending, 3D), not a plane dimension, so the base ``model.thickness if dim == 2`` rule does not apply."""
+        return 1.0
 
-        # Data
-        mesh = self.mesh
-        if not mesh.groupElem.dim == 1:
-            return None  # type: ignore [return-value]
-        groupElem = mesh.groupElem
-
-        assert isinstance(groupElem, (_Timoshenko, _EulerBernoulli))
-
-        beamStructure = self.structure
-
-        tic = Tic()
-        K_e = Bilinear.BeamStiffness(groupElem, beamStructure)
-        tic.Tac("Matrix", "Construct K_e", self._verbosity)
-
-        M_e = Bilinear.BeamMass(groupElem, beamStructure, coef=self.rho)
-        tic.Tac("Matrix", "Construct M_e", self._verbosity)
-
-        return {groupElem: (K_e, None, M_e, None)}
+    def Get_terms(self, problemType=None) -> list[Term]:
+        """Beam stiffness and mass, on the mesh's 1D element groups."""
+        return [
+            Term("K", Bilinear.BeamStiffness, dim=1, beamStructure=self.structure),
+            Term(
+                "M",
+                Bilinear.BeamMass,
+                dim=1,
+                beamStructure=self.structure,
+                coef=self.rho,
+            ),
+        ]
 
     @property
     def mass(self) -> float:

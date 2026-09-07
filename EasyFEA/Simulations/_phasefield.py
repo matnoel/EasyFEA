@@ -14,10 +14,7 @@ from ..Utilities._observers import Observable
 from ..Utilities._mpi import CAN_USE_MPI, MPI_SIZE, MPI_COMM, Reduce_sum
 
 # fem
-from ..FEM import Mesh, MatrixType, FeArray, Operators
-
-if TYPE_CHECKING:
-    from ..FEM import _GroupElem
+from ..FEM import Mesh, MatrixType, FeArray, Operators, _GroupElem
 
 # models
 from .. import Models
@@ -25,6 +22,7 @@ from ..Models import _IModel, Result_strain_or_stress_field_e
 
 # simu
 from ._simu import _Simu, SolverType
+from ._terms import Term
 from ._problem_type import ProblemType
 
 if CAN_USE_MPI:
@@ -433,53 +431,39 @@ class PhaseField(_Simu):
 
     # ------------------------------------------- Elastic problem -------------------------------------------
 
-    def Construct_local_matrix_system(self, problemType):
+    def Get_terms(self, problemType=None) -> list[Term]:
+        """One term per problem: the damaged stiffness for the elastic problem, the damage operator for the other. The two are solved in turn, never together."""
         if problemType == self.ProblemTypes.elastic:
-            return self.__Construct_Elastic_Matrix()
+            return [Term("K", self.__Damaged_stiffness)]
         elif problemType == self.ProblemTypes.damage:
-            return self.__Construct_Damage_Matrix()
+            return [Term("KF", self.__Damage)]
         else:
             raise NotImplementedError
 
-    def __Construct_Elastic_Matrix(self):
+    def __Damaged_stiffness(self, groupElem: _GroupElem) -> np.ndarray:
+        """Degraded elastic stiffness ``∫Bᵀ c(d) B`` with ``c = g(d)·cP + cM``."""
 
         matrixType = MatrixType.rigi
-
-        # Data
-        d = self.damage
-        u = self.displacement
         phaseFieldModel = self.phaseFieldModel
 
-        out = {}
+        # compute strain field
+        Epsilon_e_pg = self._Calc_Epsilon_e_pg(self.displacement, groupElem, matrixType)
 
-        for groupElem in self.mesh.Get_list_groupElem():
+        # compute the splited stifness matrices for the given strain field.
+        cP_e_pg, cM_e_pg = phaseFieldModel.Calc_C(Epsilon_e_pg)
 
-            # compute strain field
-            Epsilon_e_pg = self._Calc_Epsilon_e_pg(u, groupElem, matrixType)
+        tic = Tic()
 
-            # compute the splited stifness matrices for the given strain field.
-            cP_e_pg, cM_e_pg = phaseFieldModel.Calc_C(Epsilon_e_pg)
+        g_e_pg = phaseFieldModel.Get_g_e_pg(self.damage, groupElem, matrixType)
+        c_e_pg = g_e_pg * cP_e_pg + cM_e_pg
 
-            tic = Tic()
+        K_e = Operators.Bilinear.LinearizedElasticity(
+            groupElem, c_e_pg, matrixType=matrixType
+        )
 
-            # compute c such that: c = g(d) * cP + cM
-            g_e_pg = phaseFieldModel.Get_g_e_pg(d, groupElem, matrixType)
-            cP_e_pg = g_e_pg * cP_e_pg
+        tic.Tac("Matrix", "Construction Ku_e", self._verbosity)
 
-            c_e_pg = cP_e_pg + cM_e_pg
-
-            # stiffness matrix for each element
-            K_e = Operators.Bilinear.LinearizedElasticity(groupElem, c_e_pg, matrixType)
-
-            if self.dim == 2:
-                thickness = self.phaseFieldModel.thickness
-                K_e *= thickness
-
-            tic.Tac("Matrix", "Construction Ku_e", self._verbosity)
-
-            out[groupElem] = (K_e, None, None, None)
-
-        return out
+        return K_e
 
     def __Solve_elastic(self) -> _types.FloatArray:
         """Computes the displacement field."""
@@ -537,40 +521,25 @@ class PhaseField(_Simu):
 
         return self.__psiP_e_pg
 
-    def __Construct_Damage_Matrix(self):
+    def __Damage(self, groupElem: _GroupElem) -> tuple[np.ndarray, np.ndarray]:
+        """Damage operator ``(K_e, F_e)``: reaction + diffusion against the positive energy source.
+
+        Both halves are built here rather than as two terms, so ``psi+`` is evaluated once per group — it is the expensive part, and it feeds the reaction *and* the source.
+        """
 
         pfm = self.phaseFieldModel
 
-        out = {}
+        PsiP_e_pg = self.__Calc_psiPlus_e_pg(groupElem)
 
-        for groupElem in self.mesh.Get_list_groupElem():
+        tic = Tic()
 
-            PsiP_e_pg = self.__Calc_psiPlus_e_pg(groupElem)
+        reaction_e = Operators.Bilinear.UV(groupElem, pfm.Get_r_e_pg(PsiP_e_pg))
+        diffusion_e = Operators.Bilinear.GradU_A_GradV(groupElem, pfm.A, pfm.k)
+        source_e = Operators.Linear.V(groupElem, pfm.Get_f_e_pg(PsiP_e_pg))
 
-            tic = Tic()
+        tic.Tac("Matrix", "Construct Kd_e and Fd_e", self._verbosity)
 
-            # reaction part
-            r_e_pg = pfm.Get_r_e_pg(PsiP_e_pg)
-            R_e = Operators.Bilinear.UV(groupElem, r_e_pg)
-
-            # diffusion part
-            D_e = Operators.Bilinear.GradU_A_GradV(groupElem, pfm.A, pfm.k)
-
-            # source part
-            F_e = Operators.Linear.V(groupElem, pfm.Get_f_e_pg(PsiP_e_pg))
-
-            K_e = R_e + D_e
-
-            if self.dim == 2:
-                thickness = pfm.thickness
-                K_e *= thickness
-                F_e *= thickness
-
-            tic.Tac("Matrix", "Construct Kd_e and Fd_e", self._verbosity)
-
-            out[groupElem] = (K_e, None, None, F_e)
-
-        return out
+        return reaction_e + diffusion_e, source_e
 
     def __Solve_damage(self) -> _types.FloatArray:
         """Computes the damage field."""

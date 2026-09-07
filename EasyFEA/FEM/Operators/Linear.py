@@ -3,12 +3,13 @@
 # This file is part of the EasyFEA project.
 # EasyFEA is distributed under the terms of the GNU General Public License v3, see LICENSE.txt and CREDITS.md for more information.
 
-from typing import TYPE_CHECKING, Union
+from typing import Optional, TYPE_CHECKING, Union
 
 import numpy as np
 
 from .._linalg import FeArray
 from .._utils import MatrixType
+from ._utils import Restrict, Scatter
 from ...Utilities import _types
 
 if TYPE_CHECKING:
@@ -19,6 +20,7 @@ def V(
     groupElem: "_GroupElem",
     f: Union[_types.Number, FeArray.FeArrayALike] = 1.0,
     dof_n: int = 1,
+    elements: Optional[_types.IntArray] = None,
     matrixType: MatrixType = MatrixType.mass,
 ) -> np.ndarray:
     """``∫_Ω f · v dΩ`` — returns ``(Ne, nPe·dof_n)``.
@@ -32,12 +34,14 @@ def V(
     vec_e_pg = groupElem.Get_SourcePart_e_pg(matrixType, dof_n)
     Ne, nPg = vec_e_pg.shape[:2]
     f = FeArray.broadcast(f, Ne, nPg)
-    return (f * vec_e_pg).integrate()
+    f, vec_e_pg = Restrict(elements, f, vec_e_pg)
+    return Scatter((f * vec_e_pg).integrate(), Ne, elements)
 
 
 def InternalForce(
     groupElem: "_GroupElem",
     sigma_e_pg: FeArray.FeArrayALike,
+    elements: Optional[_types.IntArray] = None,
     matrixType: MatrixType = MatrixType.rigi,
 ) -> np.ndarray:
     """``∫_Ω σ : ε(v) dΩ`` — internal force of a known stress field.
@@ -49,4 +53,9 @@ def InternalForce(
     rather than derived from ``C : ε(u)``.
     """
     leftDispPart_e_pg = groupElem.Get_leftDispPart_e_pg(matrixType)
-    return (leftDispPart_e_pg @ FeArray.asfearray(sigma_e_pg)).integrate()
+    Ne = leftDispPart_e_pg.shape[0]
+    leftDispPart_e_pg, sigma_e_pg = Restrict(
+        elements, leftDispPart_e_pg, FeArray.asfearray(sigma_e_pg)
+    )
+    values_e = (leftDispPart_e_pg @ sigma_e_pg).integrate()
+    return Scatter(values_e, Ne, elements)
