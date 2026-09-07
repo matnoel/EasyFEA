@@ -18,10 +18,20 @@ try:
 except ModuleNotFoundError:
     raise Exception("h5py must be installed!")
 
-from EasyFEA import Folder, PyVista, MeshIO, MatrixType, Mesher, Models, Simulations
-from EasyFEA.FEM import Mesh, ElemType, FeArray, Norm, Normalize
-from EasyFEA.Utilities._types import FloatArray, IntArray
+from EasyFEA import (
+    AlgoType,
+    Folder,
+    MatrixType,
+    Mesher,
+    MeshIO,
+    Models,
+    PyVista,
+    Simulations,
+)
+from EasyFEA.FEM import ElemType, FeArray, Mesh, Norm, Normalize, Operators
+from EasyFEA.Simulations import Term
 from EasyFEA.Utilities._mpi import MPI_RANK
+from EasyFEA.Utilities._types import FloatArray, IntArray
 
 RESULTS_DIR = Folder.Join(Folder.Dir(), "results")
 
@@ -542,3 +552,73 @@ def Get_material(
     material.Set_active_stress_vec(T1)
 
     return material
+
+
+def Get_simu(
+    mesh: Mesh,
+    material: Models.HyperElastic._HyperElastic,
+    dt: float,
+    pressureTags: list[str],
+    folder: str = "",
+    matrixType: MatrixType = MatrixType.rigi,
+    alpha_top: float = 1e5,
+    alpha_epi: float = 1e8,
+    beta_top: float = 5e3,
+    beta_epi: float = 5e3,
+) -> tuple[Simulations.HyperElastic, dict[str, Term]]:
+    """Cardiac benchmark simulation: midpoint hyperelastodynamics with Robin surface penalties and one follower pressure per endocardial surface.
+
+    The Robin penalties `α·u + β·u̇ = 0` hold the heart in place without clamping it: isotropic on the basal surface (`top`), normal-direction on the epicardium (`epi`). Both are evaluated on the reference surface with fixed α/β, so their tangents never change across the solve and are built once; the assembly contracts their residuals `-K·u` and `-C·u̇` at the current iterate on its own.
+
+    Parameters
+    ----------
+    mesh : Mesh
+        The ventricular mesh, carrying the `top`, `epi` and endocardial element tags.
+    material : _HyperElastic
+        The myocardium, from :func:`Get_material`.
+    dt : float
+        The time increment of the midpoint scheme.
+    pressureTags : list[str]
+        Endocardial surface tags carrying a follower pressure — `["endo"]` for the monoventricular benchmark, `["endo_lv", "endo_rv"]` for the biventricular one.
+    folder : str, optional
+        Save folder, by default "".
+    matrixType : MatrixType, optional
+        Integration rule of the tangent. The fibers are sampled at this same rule, so it must match the one used to build them.
+    alpha_top, alpha_epi, beta_top, beta_epi : float, optional
+        Robin stiffness and damping on the two surfaces.
+
+    Returns
+    -------
+    tuple[Simulations.HyperElastic, dict[str, Term]]
+        The simulation, and its follower-pressure term per tag — so a time loop sets that step's value with `terms[tag].Set(pressure=...)`.
+    """
+
+    simu = Simulations.HyperElastic(mesh, material, folder=folder)
+
+    simu.matrixType = matrixType
+    simu.Solver_Set_Hyperbolic_Algorithm(dt, algo=AlgoType.midpoint)
+    simu.rho = 1000
+
+    UV, Mn = Operators.Bilinear.UV, Operators.Bilinear.MassAlongNormal
+    simu.Add_terms(
+        Term("K", UV, dim=2, tag="top", coef=alpha_top, dof_n=3, constant=True),
+        Term("C", UV, dim=2, tag="top", coef=beta_top, dof_n=3, constant=True),
+        Term("K", Mn, dim=2, tag="epi", coef=alpha_epi, constant=True),
+        Term("C", Mn, dim=2, tag="epi", coef=beta_epi, constant=True),
+    )
+
+    # Follower pressure: it tracks the deformed normal, so it is rebuilt at every Newton iteration; only its magnitude changes from one step to the next.
+    pressureTerms = {
+        tag: Term(
+            "KR",
+            Operators.NonLinear.FollowingPressure,
+            dim=2,
+            tag=tag,
+            pressure=0.0,
+            matrixType=MatrixType.mass,
+        )
+        for tag in pressureTags
+    }
+    simu.Add_terms(*pressureTerms.values())
+
+    return simu, pressureTerms

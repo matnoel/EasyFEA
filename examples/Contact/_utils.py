@@ -3,12 +3,15 @@
 # This file is part of the EasyFEA project.
 # EasyFEA is distributed under the terms of the GNU General Public License v3, see LICENSE.txt and CREDITS.md for more information.
 
+from typing import Optional
+
 import numpy as np
 
 from EasyFEA import Simulations
-from EasyFEA.FEM import Operators, Mesh, MatrixType
+from EasyFEA.FEM import Operators, Mesh, MatrixType, _GroupElem
 from EasyFEA.FEM._linalg import FeArray
-from EasyFEA.Utilities import _params
+from EasyFEA.Utilities import _params, _types
+from EasyFEA.Simulations._terms import Term
 
 
 class RigidContact(Simulations.Elastic):
@@ -25,57 +28,58 @@ class RigidContact(Simulations.Elastic):
         self.penalty = penalty
         self._contactMesh: Mesh = None
 
-    def Construct_local_matrix_system(self, problemType):
-        u = self._Solver_Get_Newton_Raphson_current_solution()
-        thickness = self.material.thickness if self.dim == 2 else 1.0
-        out = {}
+    def Get_terms(self, problemType=None) -> list[Term]:
+        return super().Get_terms(problemType) + [
+            Term("KR", self.__Contact, dim=self.dim - 1)
+        ]
 
-        # bulk: elastic tangent K and internal-force residual -K·u (Newton: A Δu = -R)
-        for groupElem in self.mesh.Get_list_groupElem(self.dim):
-            K_e = thickness * Operators.Bilinear.LinearizedElasticity(
-                groupElem=groupElem,
-                C=self.material.C,
-            )
-            u_e = u[groupElem.Get_assembly_e(self.dim)]
-            F_e = -np.einsum("eij,ej->ei", K_e, u_e, optimize=True)
-            out[groupElem] = (K_e, None, None, F_e)
+    def __Contact(
+        self, groupElem: _GroupElem, elements: Optional[_types.IntArray] = None
+    ) -> tuple[np.ndarray, np.ndarray]:
+        """Penalty-contact tangent/force on one surface group of the body.
 
-        # penalty contact: integrate over the body's "contact" surface (so it assembles onto the body dofs) with the gap/normal obtained by projecting its deformed Gauss points onto the rigid obstacle surface `_contactMesh`.
+        Integrating over the body's surface is what makes the contribution assemble onto the body's dofs; the gap and outward normal come from projecting that group's deformed Gauss points onto the rigid obstacle `_contactMesh`.
+        """
         indenter: Mesh = self._contactMesh
         assert indenter is not None
         matrixType = MatrixType.mass
+
+        u = self.Get_u_v_a()[0]
+
+        # deformed contact-surface Gauss coordinates x = X + u
+        N_pg = groupElem.Get_N_pg(matrixType)[:, 0, :]
+        x_e_pg = groupElem.Get_GaussCoordinates_e_pg(matrixType).copy()
+        u_e = u.reshape(-1, self.dim)[groupElem.connect]
+        x_e_pg[..., : self.dim] += FeArray.asfearray(
+            np.einsum("pn,enc->epc", N_pg, u_e)
+        )
+
+        K_e, F_e = 0.0, 0.0
         for contactGroup in indenter.Get_list_groupElem(indenter.dim - 1):
-            elements = (
+            # `obstacle` indexes the *indenter*'s elements — which faces to project onto — so it is not this term's `elements`, which would index the body's surface group.
+            obstacle = (
                 contactGroup.Get_Elements_Tag("contact")
                 if "contact" in contactGroup.elementTags
                 else None
             )
-            for groupElem in self.mesh.Get_list_groupElem(self.dim - 1):
 
-                # deformed contact-surface Gauss coordinates x = X + u
-                N_pg = groupElem.Get_N_pg(matrixType)[:, 0, :]
-                X_e_pg = groupElem.Get_GaussCoordinates_e_pg(matrixType)
-                u_e = u.reshape(-1, self.dim)[groupElem.connect]
-                x_e_pg = X_e_pg.copy()
-                x_e_pg[..., : self.dim] += FeArray.asfearray(
-                    np.einsum("pn,enc->epc", N_pg, u_e)
-                )
+            # project onto the obstacle surface -> outward normal + signed gap
+            gap_e_pg, normal_e_pg = contactGroup._Get_gap_and_normal(
+                x_e_pg,
+                elements=obstacle,
+                coord=indenter.center,
+                matrixType=matrixType,
+            )
 
-                # project onto the obstacle surface -> outward normal + signed gap
-                gap_e_pg, normal_e_pg = contactGroup._Get_gap_and_normal(
-                    x_e_pg,
-                    elements=elements,
-                    coord=indenter.center,
-                    matrixType=matrixType,
-                )
+            Kc_e, Fc_e = Operators.NonLinear.PenaltyContact(
+                groupElem=groupElem,
+                penalty=self.penalty,
+                gap_e_pg=gap_e_pg,
+                normal_e_pg=normal_e_pg,
+                elements=elements,
+                matrixType=matrixType,
+            )
+            # several obstacle groups all press on the same body surface, so they add up
+            K_e, F_e = K_e + Kc_e, F_e + Fc_e
 
-                Kc_e, Fc_e = Operators.NonLinear.PenaltyContact(
-                    groupElem=groupElem,
-                    penalty=self.penalty,
-                    gap_e_pg=gap_e_pg,
-                    normal_e_pg=normal_e_pg,
-                    matrixType=matrixType,
-                )
-                out[groupElem] = (thickness * Kc_e, None, None, thickness * Fc_e)
-
-        return out
+        return K_e, F_e

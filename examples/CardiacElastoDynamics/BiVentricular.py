@@ -23,23 +23,14 @@ from enum import Enum
 import numpy as np
 
 
-from EasyFEA import (
-    Terminal,
-    Matplotlib,
-    Folder,
-    PyVista,
-    MatrixType,
-    Simulations,
-    AlgoType,
-)
-
-from MonoVentricular import CardiacElastoDynamics
+from EasyFEA import Terminal, Matplotlib, Folder, PyVista, MatrixType, Simulations
 
 from utils import (
     RESULTS_DIR,
     DATA_DIR,
     Get_biventricular,
     Get_material,
+    Get_simu,
     Get_stresses,
     Get_pressures,
 )
@@ -161,26 +152,24 @@ if __name__ == "__main__":
         # Simulation
         # ----------------------------------------------
 
-        simu = CardiacElastoDynamics(
+        simu, endoTerms = Get_simu(
             mesh,
             material,
+            dt,
+            ["endo_lv", "endo_rv"],
             folder=results_dir,
-            alpha_top=1e6,
-            alpha_epi=1e8,
             matrixType=matrixType,
+            alpha_top=1e6,
         )
-
-        simu.Solver_Set_Hyperbolic_Algorithm(dt, algo=AlgoType.midpoint)
-        simu.rho = 1000
 
         for t in times:
 
             simu.Bc_Init()
-            simu.Set_pressure(
-                {
-                    "endo_lv": np.interp(t + dt / 2, times, pressures_lv),
-                    "endo_rv": np.interp(t + dt / 2, times, pressures_rv),
-                }
+            endoTerms["endo_lv"].Set(
+                pressure=np.interp(t + dt / 2, times, pressures_lv)
+            )
+            endoTerms["endo_rv"].Set(
+                pressure=np.interp(t + dt / 2, times, pressures_rv)
             )
             material.active_stress = np.interp(t + dt / 2, times, stresses)
             simu.Solve()

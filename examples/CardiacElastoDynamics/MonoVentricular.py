@@ -22,138 +22,17 @@ from enum import Enum
 
 import numpy as np
 
-from EasyFEA import (
-    Terminal,
-    Matplotlib,
-    Folder,
-    PyVista,
-    MatrixType,
-    Simulations,
-    AlgoType,
-)
-from EasyFEA.FEM import Operators
-from EasyFEA.Utilities._cache import cache_computed_values
+from EasyFEA import Terminal, Matplotlib, Folder, PyVista, MatrixType, Simulations
 
 from utils import (
     RESULTS_DIR,
     DATA_DIR,
     Get_config_ellipsoid,
     Get_material,
+    Get_simu,
     Get_stresses,
     Get_pressures,
 )
-
-
-class CardiacElastoDynamics(Simulations.HyperElastic):
-
-    def __init__(
-        self,
-        mesh,
-        model,
-        folder="",
-        absTol: float = 1e-6,
-        relTol: float = 1e-10,
-        incTol: float = 1e-11,
-        maxIter=20,
-        verbosity=False,
-        alpha_top=1e5,
-        alpha_epi=1e8,
-        beta_top=5e3,
-        beta_epi=5e3,
-        matrixType: MatrixType = MatrixType.rigi,
-    ):
-        super().__init__(
-            mesh, model, folder, absTol, relTol, incTol, maxIter, verbosity
-        )
-        # the fibers are sampled at this same rule, so it must match the one used to build them
-        self.__matrixType = matrixType
-        self.__dict_pressure: dict[str, float] = {}
-        self.__alpha_top = alpha_top
-        self.__alpha_epi = alpha_epi
-        self.__beta_top = beta_top
-        self.__beta_epi = beta_epi
-
-    def Set_pressure(self, dict_pressure: dict[str, float]):
-        self.__dict_pressure = dict_pressure
-
-    @cache_computed_values
-    def _Get_Robin_surface_penalty(self, groupElem):
-        """Robin surface-penalty tangents.
-
-        ``top`` is an isotropic surface-mass penalty (α·u + β·u̇ = 0), ``epi`` a normal-direction one. Both
-        are evaluated on the *reference* surface with fixed α/β, so the tangents ``(K_e, C_e)`` never change
-        across the solve — only the residual contractions ``K·u`` / ``C·v̇`` depend on the current iterate and
-        stay in the assembly loop. Built once (first assembly), reused every Newton iteration and time step.
-        """
-        # isotropic surface mass
-        M_e = Operators.Bilinear.UV(groupElem, dof_n=3)
-        # normal-direction surface mass
-        Ms_e = Operators.Bilinear.MassAlongNormal(groupElem)
-
-        K_e = np.zeros_like(M_e)
-        C_e = np.zeros_like(M_e)
-
-        if "top" in groupElem.elementTags:
-            top_e = groupElem.Get_Elements_Tag("top")
-            K_e[top_e] += self.__alpha_top * M_e[top_e]
-            C_e[top_e] += self.__beta_top * M_e[top_e]
-
-        if "epi" in groupElem.elementTags:
-            epi_e = groupElem.Get_Elements_Tag("epi")
-            K_e[epi_e] += self.__alpha_epi * Ms_e[epi_e]
-            C_e[epi_e] += self.__beta_epi * Ms_e[epi_e]
-
-        return (K_e, C_e)
-
-    def Construct_local_matrix_system(self, problemType):
-
-        dim = self.dim
-
-        results = super().Construct_local_matrix_system(problemType, self.__matrixType)
-
-        # current Newton-Raphson iterate (updated via u += delta_u)
-        displacement = self._Solver_Get_Newton_Raphson_current_solution()
-        if self.algo in AlgoType.Get_Hyperbolic_Types():
-            displacement, velocity, _ = self._Solver_Evaluate_u_v_a_for_time_scheme(
-                problemType, displacement
-            )
-
-        for groupElem in self.mesh.Get_list_groupElem(dim - 1):
-
-            # Constant Robin surface-penalty tangents (top + epi), built once and reused.
-            K_penalty_e, C_e = self._Get_Robin_surface_penalty(groupElem)
-
-            # Following pressure — tracks the deformed normal, so it depends on
-            # the current iterate / pressure and is rebuilt every Newton step.
-            Kpressure_e, Rpressure_e = 0.0, 0.0
-            for tag, pressure in self.__dict_pressure.items():
-                if tag in groupElem.elementTags:
-                    tangent_e, residual_e = Operators.NonLinear.FollowingPressure(
-                        groupElem,
-                        displacement,
-                        pressure,
-                        groupElem.Get_Elements_Tag(tag),
-                        MatrixType.mass,
-                    )
-                    Kpressure_e += tangent_e
-                    Rpressure_e += residual_e
-
-            # Penalty residuals at the current iterate: −K·u
-            assembly_e = groupElem.Get_assembly_e(dim)
-            u_e = displacement[assembly_e]  # (Ne_surf, nPe·3)
-            f_penalty_e = np.einsum("eij,ej->ei", K_penalty_e, u_e)
-            # and −C·v̇
-            v_e = groupElem.Locates_sol_e(velocity, dim)
-            Rc_e = np.einsum("eij,ej->ei", C_e, v_e)
-
-            results[groupElem] = (
-                Kpressure_e + K_penalty_e,
-                C_e,
-                None,
-                Rpressure_e - f_penalty_e - Rc_e,
-            )
-
-        return results
 
 
 class Config(str, Enum):
@@ -262,20 +141,13 @@ if __name__ == "__main__":
         # Simulation
         # ----------------------------------------------
 
-        simu = CardiacElastoDynamics(
-            mesh, material, folder=results_dir, matrixType=matrixType
+        simu, endoTerms = Get_simu(
+            mesh, material, dt, ["endo"], folder=results_dir, matrixType=matrixType
         )
-
-        simu.Solver_Set_Hyperbolic_Algorithm(dt, algo=AlgoType.midpoint)
-        simu.rho = 1000
 
         for t in times:
             simu.Bc_Init()
-            simu.Set_pressure(
-                {
-                    "endo": np.interp(t + dt / 2, times, pressures),
-                }
-            )
+            endoTerms["endo"].Set(pressure=np.interp(t + dt / 2, times, pressures))
             material.active_stress = np.interp(t + dt / 2, times, stresses)
             simu.Solve()
             simu.Save_Iter()
