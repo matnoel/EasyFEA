@@ -32,7 +32,7 @@ For **non-linear** problems (`simu.isNonLinear = True`), steps 1–3 are wrapped
 (howto-pipeline-operators)=
 ## From element operators to the global system
 
-**Build** turns the mesh + model into four global sparse matrices. Each {py:class}`~EasyFEA.Simulations._Simu` implements `Construct_local_matrix_system`, which loops over the mesh element groups and returns, per group, the element tuple $(\Krm_e, \Crm_e, \Mrm_e, \Frm_e)$ — stiffness (the tangent, for non-linear laws), damping, mass, and the force vector. For a linear problem $\Frm_e$ is the load alone and the time scheme moves $\urm^n, \vrm^n, \arm^n$ to the right-hand side; for a non-linear one it is the complete residual $-\Rrm_e$, as described {ref}`below <howto-pipeline-nonlinear-operators>`.
+**Build** turns the mesh + model into four global sparse matrices. Each {py:class}`~EasyFEA.Simulations._Simu` implements `Get_terms`, whose terms are folded over the mesh element groups into, per group, the element tuple $(\Krm_e, \Crm_e, \Mrm_e, \Frm_e)$ — stiffness (the tangent, for non-linear laws), damping, mass, and the force vector. For a linear problem $\Frm_e$ is the load alone and the time scheme moves $\urm^n, \vrm^n, \arm^n$ to the right-hand side; for a non-linear one it is the complete residual $-\Rrm_e$, as described {ref}`below <howto-pipeline-nonlinear-operators>`.
 
 These element matrices come from **operators** in {py:mod}`EasyFEA.FEM.Operators` — small functions that integrate a form over the Gauss points: {py:mod}`~EasyFEA.FEM.Operators.Bilinear` (e.g. $\int \Brm^\top \, \bf{C} \, \Brm \, \dO$), {py:mod}`~EasyFEA.FEM.Operators.Linear`, and {py:mod}`~EasyFEA.FEM.Operators.NonLinear`. The simulation assembles them into the global $\Krm, \Crm, \Mrm, \Frm$ and combines $\Krm, \Crm, \Mrm$ into the system matrix according to the time scheme:
 
@@ -88,7 +88,7 @@ while not converged and newtonIter < maxIter:
 assert converged, "..."
 ```
 
-`Need_Update()` is what makes this Newton rather than a fixed-point iteration: it invalidates the cached matrices, so `Construct_local_matrix_system` re-evaluates the tangent **and** the residual at the new iterate. Setting the current solution just before is what lets both the assembly and the boundary conditions see it.
+`Need_Update()` is what makes this Newton rather than a fixed-point iteration: it invalidates the cached matrices, so the terms are re-evaluated, giving the tangent **and** the residual at the new iterate. Setting the current solution just before is what lets both the assembly and the boundary conditions see it.
 
 ### What the norm measures
 

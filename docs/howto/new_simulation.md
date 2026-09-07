@@ -33,10 +33,10 @@ points, from easiest to most flexible:
    problems. No FEM assembly knowledge required.
 2. **Extend an existing simulation** — when a built-in class already covers
    most of your physics and you only need to add extra terms (a boundary
-   contribution, a penalty, a coupling), subclass it and override
-   {py:meth}`~EasyFEA.Simulations._Simu.Construct_local_matrix_system`: call
-   `super().Construct_local_matrix_system(...)` for the base contributions,
-   then add your own before returning. See {ref}`howto-new-simulation-extend`.
+   contribution, a penalty, a coupling), add them to the instance with
+   {py:meth}`~EasyFEA.Simulations._Simu.Add_terms`, or compose them into
+   {py:meth}`~EasyFEA.Simulations._Simu.Get_terms` in a subclass. Usually no
+   subclass is needed at all. See {ref}`howto-new-simulation-extend`.
 3. **Subclass {py:class}`~EasyFEA.Simulations._Simu`** — provides full control over the assembly at the element level for problems that are difficult to model in {py:class}`~EasyFEA.Simulations.WeakForms`, or to improve performance. Knowledge of finite element methods is required.
 
 EasyFEA supports multi-physics problems such as phase-field fracture simulations, which couple an elastic sub-problem with a damage sub-problem via a staggered algorithm: each sub-problem is solved in turn with the other held fixed, and the two are iterated to convergence within each load step.
@@ -91,38 +91,70 @@ All weak-form-based simulations are available in {ref}`easyfea-examples-weak-for
 (howto-new-simulation-extend)=
 ## Extend an existing simulation
 
-When a built-in simulation already covers most of your physics, you rarely need to reimplement assembly from scratch. Subclass the existing class and override {py:meth}`~EasyFEA.Simulations._Simu.Construct_local_matrix_system` to **add** contributions on top of the base ones: call `super().Construct_local_matrix_system(...)` to obtain the base `{groupElem: (K_e, C_e, M_e, F_e)}` dict, then add your custom terms before returning it.
+When a built-in simulation already covers most of your physics, you rarely need to subclass it at
+all. Add {py:class}`~EasyFEA.Simulations.Term` objects to the instance with
+{py:meth}`~EasyFEA.Simulations._Simu.Add_terms`, and they are folded into the local matrix system
+alongside the ones the simulation declares itself.
 
 The `MonoVentricular` example
 ([CardiacElastoDynamics/MonoVentricular.py](https://github.com/matnoel/EasyFEA/blob/main/examples/CardiacElastoDynamics/MonoVentricular.py))
-does exactly this: it subclasses {py:class}`~EasyFEA.Simulations.HyperElastic`
-and augments the hyperelastic tangent/residual with a following pressure on the
-endocardium and Robin-type surface penalties on the `top` and `epi` boundaries.
+does exactly this: a stock {py:class}`~EasyFEA.Simulations.HyperElastic` plus a following pressure
+on the endocardium and Robin-type surface penalties on the `top` and `epi` boundaries.
 
 ```python
 from EasyFEA import MatrixType, Simulations
+from EasyFEA.Simulations import Term
 from EasyFEA.FEM import Operators
 
-class CardiacElastoDynamics(Simulations.HyperElastic):
+simu = Simulations.HyperElastic(mesh, material)
 
-    def Construct_local_matrix_system(self, problemType):
-        # base hyperelastic contributions: {groupElem: (K_e, C_e, M_e, F_e)}
-        results = super().Construct_local_matrix_system(problemType)
+# Robin penalty α·u on the `epi` surface. `dim=2` selects the surface element groups and
+# `tag="epi"` restricts the term to that tagged subset. Because it fills a single slot, the
+# assembly also contracts its residual −K·u for you.
+epi = Term("K", Operators.Bilinear.MassAlongNormal,
+           dim=2, tag="epi", coef=1e8, constant=True)
 
-        displacement = self._Solver_Get_Newton_Raphson_current_solution()
+# Following pressure. `groupElem`, `u` and `elements` are supplied by the assembly, so only
+# the pressure is passed; the slot string `"KR"` says the operator returns a tangent and an
+# *internal* force, which the assembly subtracts (use `"F"` for a genuine external load).
+endo = Term("KR", Operators.NonLinear.FollowingPressure,
+            dim=2, tag="endo", pressure=0.0,
+            matrixType=MatrixType.mass)
 
-        # add surface terms on the (dim-1) boundary element groups
-        for groupElem in self.mesh.Get_list_groupElem(self.dim - 1):
-            tangent_e, residual_e = Operators.NonLinear.FollowingPressure(
-                groupElem, displacement, self.pressure,
-                groupElem.Get_Elements_Tag("endo"), MatrixType.mass,
-            )
-            results[groupElem] = (tangent_e, None, None, residual_e)
+# one term or many, same call
+simu.Add_terms(epi, endo)
 
-        return results
+for t in times:
+    endo.Set(pressure=pressure_at(t))   # terms persist; only the value changes
+    simu.Solve()
 ```
 
-Two things to note: the boundary loop iterates the `self.dim - 1` (surface) element groups, and each new contribution is written into the dict returned by the base class. The {py:mod}`EasyFEA.FEM.Operators` module (`Bilinear`, `Linear`, `NonLinear`) provides ready-made element operators — see {ref}`fem-operators` for the full list — so this path rarely requires hand-writing the integration described in the next section.
+`constant=True` marks a contribution that does not depend on the solution, so it is built once and
+reused across Newton iterations and time steps. The {py:mod}`EasyFEA.FEM.Operators` module
+(`Bilinear`, `Linear`, `NonLinear`) provides ready-made element operators — see {ref}`fem-operators`
+for the full list.
+
+When the extra physics belongs to a *class* rather than to one script, override
+{py:meth}`~EasyFEA.Simulations._Simu.Get_terms` and compose:
+
+```python
+class RigidContact(Simulations.Elastic):
+
+    def Get_terms(self, problemType=None):
+        return super().Get_terms(problemType) + [
+            Term("KR", self.__Contact, dim=self.dim - 1)
+        ]
+
+    def __Contact(self, groupElem, elements=None):
+        gap_e_pg, normal_e_pg = self.__Gap_and_normal(groupElem)
+        return Operators.NonLinear.PenaltyContact(
+            groupElem, self.penalty, gap_e_pg, normal_e_pg, elements
+        )
+```
+
+An operator whose arguments cannot be known before the element group is chosen — a hyperelastic
+state, a contact projection — is written as a named method with the same shape as an operator:
+`(groupElem, ...) -> array` or a tuple of arrays.
 
 ---
 
@@ -162,7 +194,7 @@ class MySimulation(_Simu):
 
     # --- assembly (see below for details) ---
 
-    def Construct_local_matrix_system(self, problemType):
+    def Get_terms(self, problemType=None):
         ...
 
     # --- iteration management ---
@@ -194,10 +226,11 @@ class MySimulation(_Simu):
         ...
 ```
 
-### Implementing `Construct_local_matrix_system`
+### Implementing `Get_terms`
 
-`Construct_local_matrix_system` is the only method where you provide
-physics-specific data. From those element-level matrices, `_Simu`
+`Get_terms` is the only method where you provide physics-specific data: it
+returns the list of {py:class}`~EasyFEA.Simulations.Term` objects that make up
+the local matrix system. From the element-level matrices they produce, `_Simu`
 automatically:
 
 1. assembles the global sparse system $\Krm$, $\Crm$, $\Mrm$, $\Frm$,
@@ -239,7 +272,7 @@ than the linear load vector. `_Simu` passes the current solution through
 `Get_x0` so that the assembly can depend on it.
 
 See the
-[`HyperElastic.Construct_local_matrix_system`](https://github.com/matnoel/EasyFEA/blob/main/EasyFEA/Simulations/_hyperelastic.py)
+[`HyperElastic.Get_terms`](https://github.com/matnoel/EasyFEA/blob/main/EasyFEA/Simulations/_hyperelastic.py)
 source for a concrete example of how tangent stiffness and residual are
 assembled in a non-linear finite deformation setting,
 {ref}`howto-pipeline-nonlinear-operators` for how those tangent / damping
@@ -303,36 +336,28 @@ hand — this is essentially all of
 
 ```python
 from EasyFEA.FEM import Operators
+from EasyFEA.Simulations import Term
 
-def Construct_local_matrix_system(self, problemType):
+def Get_terms(self, problemType=None):
     model = self.thermalModel
-    out = {}
 
-    for groupElem in self.mesh.Get_list_groupElem():
-
+    return [
         # conductivity — ∫ k ∇t·∇δt dΩ  (∇N·∇N form)
-        Kt_e = Operators.Bilinear.GradUGradV(groupElem, coef=model.k)
-
+        Term("K", Operators.Bilinear.GradUGradV, coef=model.k),
         # capacity — ∫ ρc t·δt dΩ  (N·N form, one dof per node)
-        Ct_e = Operators.Bilinear.UV(groupElem, coef=self.rho * model.c, dof_n=1)
-
-        # order: (K_e, C_e, M_e, F_e)
-        # M_e is None: no inertia term in the thermal problem.
-        # F_e is None: volumetric sources are handled as Neumann BCs, not here.
-        # For structural dynamics, M_e would also be assembled — with
-        # `Operators.Bilinear.UV(groupElem, coef=self.rho, dof_n=self.dim)` —
-        # and returned in the 3rd position.
-        out[groupElem] = (Kt_e, Ct_e, None, None)
-
-    return out
+        Term("C", Operators.Bilinear.UV, coef=self.rho * model.c, dof_n=1),
+    ]
 ```
 
+No mass term: the thermal problem has no inertia. No load term either — volumetric
+sources are applied as Neumann boundary conditions. For structural dynamics you
+would add `Term("M", Operators.Bilinear.UV, coef=self.rho, dof_n=self.dim)`.
+
 ```{warning}
-`Get_list_groupElem()` is called with **no argument**, so it returns the groups
-of the mesh's own dimension. Do not pass `self.dim`: that is the *field* dimension
-(dofs per node, `1` for a thermal problem), not the mesh dimension, so
-`Get_list_groupElem(self.dim)` would silently assemble over the `SEG2` boundary
-edges of a 2D mesh instead of its `QUAD4` cells.
+Neither term passes `dim=`, so each is integrated over the groups of the mesh's own
+dimension. Do not pass `dim=self.dim`: that is the *field* dimension (dofs per node,
+`1` for a thermal problem), not the mesh dimension, so it would silently assemble over
+the `SEG2` boundary edges of a 2D mesh instead of its `QUAD4` cells.
 ```
 
 Each operator returns the element matrix already integrated, of shape
@@ -365,7 +390,7 @@ absent from the formulation should be returned as `None`.
 ```
 
 ```{note}
-Implementing `Construct_local_matrix_system` requires familiarity with FEM
+Implementing `Get_terms` requires familiarity with FEM
 formulations.  For most new physics, the weak-form approach described above
 is simpler and should be preferred.
 ```
