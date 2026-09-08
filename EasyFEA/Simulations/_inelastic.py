@@ -138,11 +138,9 @@ class InElastic(_Simu):
         u_e = groupElem.Locates_sol_e(u, asFeArray=True)
         return groupElem.Get_B_e_pg(matrixType) @ u_e
 
-    def Get_terms(
-        self, problemType=None, matrixType: MatrixType = MatrixType.rigi
-    ) -> list[Term]:
+    def Get_terms(self, problemType=None) -> list[Term]:
         """One term: integrate the material, then the tangent ``∫BᵀC_alg B`` and the internal force ``∫Bᵀσ``."""
-        return [Term("KR", self.__Stress, matrixType=matrixType)]
+        return [Term("KR", self.__Stress)]
 
     def __Stress(
         self, groupElem: _GroupElem, matrixType: MatrixType = MatrixType.rigi
