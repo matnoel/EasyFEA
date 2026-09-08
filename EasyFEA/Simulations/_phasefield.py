@@ -3,7 +3,7 @@
 # This file is part of the EasyFEA project.
 # EasyFEA is distributed under the terms of the GNU General Public License v3, see LICENSE.txt and CREDITS.md for more information.
 
-from typing import Union, Optional, TYPE_CHECKING
+from typing import Union, Optional
 from enum import Enum
 import numpy as np
 from scipy import sparse
