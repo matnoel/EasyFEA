@@ -34,7 +34,7 @@ _INJECTABLE = frozenset({"u", "elements"})
 class Term:
     r"""One operator's contribution to the local matrix system :math:`\Krm \, \mathrm{u} + \Crm \, \vrm + \Mrm \, \arm = \Frm`.
 
-    ``slots`` names where the returned arrays go, one letter of ``KCMFR`` each::
+    ``slots`` names where the returned arrays go — one letter of ``KCMFR`` per array, in order, so an operator returning two arrays takes exactly two letters. Slots *route* arrays; they never copy one into several, so ``"KC"`` on an operator returning a single matrix is an error, not a request to damp with the stiffness::
 
         Term("K", Bilinear.LinearizedElasticity, C=material.C)
         Term("KR", self.__Stress)                # R is an *internal* force: F -= R
@@ -58,7 +58,7 @@ class Term:
         Parameters
         ----------
         slots : str
-            Where ``fn``'s returned arrays go, one letter of ``KCMFR`` each — see :py:data:`_SLOTS`.
+            Where ``fn``'s returned arrays go, one letter of ``KCMFR`` per returned array — see :py:data:`_SLOTS`.
         fn : Callable
             The operator, called as ``fn(groupElem, **kwargs)``.
         dim : int, optional
@@ -217,10 +217,12 @@ def Fold_terms(
                 contributions = term._Evaluate(groupElem, u_t)
             if not isinstance(contributions, tuple):
                 contributions = (contributions,)
-            assert len(contributions) >= len(term.slots), (
-                f"{term!r} returned {len(contributions)} array(s) but declares "
-                f"{len(term.slots)} slot(s)."
-            )
+            if len(contributions) != len(term.slots):
+                raise ValueError(
+                    f"{term!r} declares {len(term.slots)} slot(s) but the operator returned "
+                    f"{len(contributions)} array(s). One slot per returned array — slots route "
+                    "arrays, they do not copy one into several."
+                )
 
             slots = out.setdefault(groupElem, [None, None, None, None])
             own = None  # this term's own matrix contribution, for its residual

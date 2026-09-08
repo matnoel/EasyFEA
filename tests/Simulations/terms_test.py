@@ -3,17 +3,18 @@
 # This file is part of the EasyFEA project.
 # EasyFEA is distributed under the terms of the GNU General Public License v3, see LICENSE.txt and CREDITS.md for more information.
 
-"""Declaration-time guards on :class:`~EasyFEA.Simulations.Term`.
+"""Guards on :class:`~EasyFEA.Simulations.Term`.
 
-Both failures they catch are silent at run time: an unknown slot letter would only surface deep inside the fold, and a ``tag`` on an operator that takes no ``elements`` would assemble the whole group instead of the tagged subset while reporting nothing.
+Each catches a failure that is otherwise silent: an unknown slot letter would surface deep inside the fold, a ``tag`` on an operator that takes no ``elements`` would assemble the whole group instead of the tagged subset, and a slot count that does not match what the operator returns would drop an array or fabricate one.
 """
 
+import numpy as np
 import pytest
 
 from EasyFEA import Models, Simulations
 from EasyFEA.FEM import Operators
 from EasyFEA.Geoms import Domain, Point
-from EasyFEA.Simulations import Term
+from EasyFEA.Simulations import Fold_terms, Term
 
 
 def Operator(groupElem, elements=None):
@@ -24,6 +25,21 @@ def Operator(groupElem, elements=None):
 def Operator_without_elements(groupElem):
     """Stand-in operator that cannot be restricted to a subset of its group."""
     return None
+
+
+def One_array(groupElem):
+    """A matrix, as a single-slot operator returns it (dof_n = 1, as in Thermal)."""
+    return np.zeros((groupElem.Ne, groupElem.nPe, groupElem.nPe))
+
+
+def Two_arrays(groupElem):
+    """A matrix and a vector, as a two-slot operator returns them."""
+    return One_array(groupElem), np.zeros((groupElem.Ne, groupElem.nPe))
+
+
+def Simu() -> Simulations.Thermal:
+    mesh = Domain(Point(), Point(1, 1)).Mesh_2D()
+    return Simulations.Thermal(mesh, Models.Thermal(1, 1))  # k, c
 
 
 class TestSlots:
@@ -54,16 +70,36 @@ class TestTagNeedsElements:
         assert Term("K", Operators.Bilinear.GradU_A_GradV).slots == ("K",)
 
 
+class TestSlotsMatchReturnedArrays:
+    """One slot letter per returned array; the fold rejects any other count.
+
+    Too many letters is the ``Term("KC", op)`` mistake — reading slots as "put this matrix in K *and* C", which they never do. Too few is the dangerous direction: the extra array would be dropped in silence, and a term left holding a single slot then has its residual synthesised as ``-K·u_t``, which is only the residual of a *linear* contribution.
+    """
+
+    @staticmethod
+    def Fold(slots, fn):
+        return Fold_terms(Simu(), [Term(slots, fn)])
+
+    def test_rejects_more_slots_than_arrays(self):
+        with pytest.raises(ValueError, match="2 slot"):
+            self.Fold("KC", One_array)
+
+    def test_rejects_fewer_slots_than_arrays(self):
+        with pytest.raises(ValueError, match="1 slot"):
+            self.Fold("K", Two_arrays)
+
+    @pytest.mark.parametrize("slots,fn", [("K", One_array), ("KF", Two_arrays)])
+    def test_accepts_a_matching_count(self, slots, fn):
+        assert self.Fold(slots, fn)
+
+
 class TestAddTerms:
     """``Add_terms`` is variadic: one term and many take the same path.
 
     Assertions compare by ``is``, never ``==``: :py:meth:`Term.__eq__` is *value* identity so the cache can find a rebuilt term, which makes two separately built ``Term("K", op)`` compare equal.
     """
 
-    @staticmethod
-    def Simu() -> Simulations.Thermal:
-        mesh = Domain(Point(), Point(1, 1)).Mesh_2D()
-        return Simulations.Thermal(mesh, Models.Thermal(1, 1))  # k, c
+    Simu = staticmethod(Simu)
 
     @staticmethod
     def Added(simu) -> list[Term]:
