@@ -127,7 +127,7 @@ def MassAlongNormal(
 
 
 def BeamBending(
-    groupElem: Union[_Timoshenko, _EulerBernoulli],
+    groupElem: "_GroupElem",
     beamStructure: "BeamStructure",
 ) -> np.ndarray:
     """``∫_e Bᵀ · D_bending · B dx`` — axial + bending (+ torsion) stiffness.
@@ -149,10 +149,6 @@ def BeamBending(
     B_e_pg = groupElem.Get_beam_B_e_pg(beamStructure)
     D_e_pg = beamStructure.Calc_D_e_pg(groupElem, matrixType)
 
-    assert isinstance(
-        groupElem, (_EulerBernoulli, _Timoshenko)
-    ), "groupElem must be a beam element group."
-
     dim = beamStructure.dim
     if dim != 1 and isinstance(groupElem, _Timoshenko):
         shear_rows = {2: (2,), 3: (4, 5)}[dim]
@@ -164,7 +160,7 @@ def BeamBending(
 
 
 def BeamShear(
-    groupElem: Union[_Timoshenko, _EulerBernoulli],
+    groupElem: "_GroupElem",
     beamStructure: "BeamStructure",
 ) -> np.ndarray:
     """``∫_e Bᵀ · D_shear · B dx`` — transverse-shear stiffness, SRI.
@@ -201,7 +197,7 @@ def BeamShear(
 
 
 def BeamStiffness(
-    groupElem: Union[_Timoshenko, _EulerBernoulli],
+    groupElem: "_GroupElem",
     beamStructure: "BeamStructure",
 ) -> np.ndarray:
     """Full beam stiffness ``K_e = BeamBending + BeamShear``.
@@ -213,6 +209,10 @@ def BeamStiffness(
     Gauss) + shear (reduced Gauss) via :func:`BeamBending` and
     :func:`BeamShear` to defeat shear locking.
     """
+    assert isinstance(
+        groupElem, (_EulerBernoulli, _Timoshenko)
+    ), "groupElem must be a beam element group."
+
     dim = beamStructure.dim
     if dim != 1 and isinstance(groupElem, _Timoshenko):
         return BeamBending(groupElem, beamStructure) + BeamShear(
@@ -227,7 +227,7 @@ def BeamStiffness(
 
 
 def BeamMass(
-    groupElem: Union[_Timoshenko, _EulerBernoulli],
+    groupElem: "_GroupElem",
     beamStructure: "BeamStructure",
     coef: Union[_types.Number, FeArray.FeArrayALike] = 1.0,
 ) -> np.ndarray:
