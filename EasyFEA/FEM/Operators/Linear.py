@@ -35,7 +35,10 @@ def V(
     Ne, nPg = vec_e_pg.shape[:2]
     f = FeArray.broadcast(f, Ne, nPg)
     f, vec_e_pg = Restrict(elements, f, vec_e_pg)
-    return Scatter((f * vec_e_pg).integrate(), Ne, elements)
+    # sourcePart is (Ne, nPg, nPe·dof_n, dof_n): summing the trailing axis collapses the
+    # block-diagonal shape functions, applying the scalar f to each dof.
+    values_e = (f * vec_e_pg).integrate().sum(axis=-1)
+    return Scatter(values_e, Ne, elements)
 
 
 def InternalForce(
