@@ -17,8 +17,16 @@ if TYPE_CHECKING:
 from ..Utilities import _types
 
 if TYPE_CHECKING:
+    from typing import Concatenate
+
     from ._simu import _Simu
     from ._problem_type import ProblemType
+
+    # what a checker enforces: the first positional argument is the element group, the rest are the term's kwargs
+    _Operator = Callable[Concatenate[_GroupElem, ...], Any]
+else:
+    # Concatenate reached typing in 3.10, and this alias is evaluated at import
+    _Operator = Callable[..., Any]
 
 
 _SLOTS = "KCMFR"
@@ -45,7 +53,7 @@ class Term:
     def __init__(
         self,
         slots: str,
-        fn: Callable[..., Any],
+        fn: _Operator,
         /,
         *,
         dim: Optional[int] = None,
@@ -60,7 +68,7 @@ class Term:
         slots : str
             Where ``fn``'s returned arrays go, one letter of ``KCMFR`` per returned array — see :py:data:`_SLOTS`.
         fn : Callable
-            The operator, called as ``fn(groupElem, **kwargs)``.
+            The operator, called as ``fn(groupElem, **kwargs)``, so its first positional parameter must be a :py:class:`~EasyFEA.FEM._GroupElem`.
         dim : int, optional
             Dimension of the element groups this term integrates over, ``mesh.dim`` by default.
         tag : str, optional
