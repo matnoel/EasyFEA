@@ -11,7 +11,7 @@ from .._linalg import FeArray, TensorProd
 from .._utils import MatrixType
 from ...Utilities import _types
 
-from ..Elems._beam import _EulerBernoulli, _Timoshenko  # noqa: F401
+from ..Elems._beam import _Timoshenko
 from ._utils import einsum, Restrict, Scatter
 
 if TYPE_CHECKING:

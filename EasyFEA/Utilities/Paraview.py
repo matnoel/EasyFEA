@@ -518,10 +518,10 @@ def __Make_pvtu(
         file.write(f'\t<PUnstructuredGrid GhostLevel="{ghostLevel}">\n')
 
         file.write("\t\t<PPointData>\n")
-        for name, n_comp in nodeFields_meta.items():
-            file.write(
-                f'\t\t\t<PDataArray type="Float64" Name="{name}" NumberOfComponents="{n_comp}"/>\n'
-            )
+        file.writelines(
+            f'\t\t\t<PDataArray type="Float64" Name="{name}" NumberOfComponents="{n_comp}"/>\n'
+            for name, n_comp in nodeFields_meta.items()
+        )
         if ghostLevel > 0:
             file.write(
                 '\t\t\t<PDataArray type="UInt8" Name="vtkGhostType" NumberOfComponents="1"/>\n'
@@ -532,10 +532,10 @@ def __Make_pvtu(
         file.write("\t\t</PPointData>\n")
 
         file.write("\t\t<PCellData>\n")
-        for name, n_comp in elementFields_meta.items():
-            file.write(
-                f'\t\t\t<PDataArray type="Float64" Name="{name}" NumberOfComponents="{n_comp}"/>\n'
-            )
+        file.writelines(
+            f'\t\t\t<PDataArray type="Float64" Name="{name}" NumberOfComponents="{n_comp}"/>\n'
+            for name, n_comp in elementFields_meta.items()
+        )
         if ghostLevel > 0:
             file.write(
                 '\t\t\t<PDataArray type="UInt8" Name="vtkGhostType" NumberOfComponents="1"/>\n'

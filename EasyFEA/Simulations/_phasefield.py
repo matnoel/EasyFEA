@@ -732,9 +732,7 @@ class PhaseField(_Simu):
         if len(result) <= 2:
             if "x" in result:
                 return 0
-            elif "y" in result:
-                return 1
-            elif "z" in result:
+            elif "y" in result or "z" in result:
                 return 1
             else:
                 raise ValueError("result error")

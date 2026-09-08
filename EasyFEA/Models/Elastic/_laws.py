@@ -61,7 +61,6 @@ class _Elastic(_IModel, ABC):
     @abstractmethod
     def _Update(self) -> None:
         """Updates the constitutives laws by updating the C stiffness and S compliance matrices. in Kelvin Mandel notation"""
-        pass
 
     # Model
     @staticmethod

@@ -27,7 +27,7 @@ if TYPE_CHECKING:
 # same machinery regardless of which stress drives them.
 
 
-from ._utils import einsum, Restrict, Scatter  # noqa: F401
+from ._utils import einsum
 
 _BLOCK_GRAD_B_ATTR = "_block_grad_B_cache"
 

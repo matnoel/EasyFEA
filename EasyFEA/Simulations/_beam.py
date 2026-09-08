@@ -286,7 +286,6 @@ class Beam(_Simu):
         description="",
     ):
         Terminal.MyPrintError("Surface loads cannot be applied in beam problems.")
-        return
 
     def add_volumeLoad(
         self,
@@ -297,7 +296,6 @@ class Beam(_Simu):
         description="",
     ):
         Terminal.MyPrintError("Volumetric loads cannot be applied in beam problems.")
-        return
 
     def add_connection_fixed(self, nodes: _types.IntArray, description="Fixed"):
         """Adds a fixed connection.

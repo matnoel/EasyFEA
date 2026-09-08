@@ -8,8 +8,7 @@
 import sys
 from enum import Enum
 import numpy as np
-import scipy.sparse as sparse
-import scipy.optimize as optimize
+from scipy import sparse, optimize
 import scipy.sparse.linalg as sla
 from typing import Union, TYPE_CHECKING
 

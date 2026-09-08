@@ -140,17 +140,14 @@ class _Simu(_IObserver, _params.Updatable, ABC):
     def Get_problemTypes(self) -> list[ProblemType]:
         """Returns the problem types available through the simulation."""
         # A PhaseField simulation involves solving 2 problems. An elastic and a damage problem.
-        pass
 
     @abstractmethod
     def Get_unknowns(self, problemType: ProblemType = None) -> list[str]:
         """Returns a list of unknowns available in the simulation."""
-        pass
 
     @abstractmethod
     def Get_dof_n(self, problemType: ProblemType = None) -> int:
         """Returns the number of degrees of freedom per node."""
-        pass
 
     def __Get_Ndof(self, problemType: ProblemType = None) -> int:
         """Returns the total number of degrees of freedom (including Lagrange multiplier DOFs)."""
@@ -523,7 +520,6 @@ class _Simu(_IObserver, _params.Updatable, ABC):
     @abstractmethod
     def Results_Available(self) -> list[str]:
         """Returns a list of available results in the simulation."""
-        pass
 
     @abstractmethod
     def Result(
@@ -549,7 +545,6 @@ class _Simu(_IObserver, _params.Updatable, ABC):
 
         >>> u5 = simu.Result("displacement_norm", iter=5)
         """
-        pass
 
     @abstractmethod
     def Results_Iter_Summary(
@@ -3167,7 +3162,6 @@ class _Simu(_IObserver, _params.Updatable, ABC):
 
     def Results_Set_Bc_Summary(self) -> None:
         """Sets the simulation loading summary."""
-        pass
 
     def Results_Get_Bc_Summary(self) -> str:
         """Returns the simulation loading summary."""

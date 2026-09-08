@@ -40,7 +40,6 @@ class _Form(ABC):
         np.ndarray
             the integrated (Ne, ...) numpy array
         """
-        pass
 
     @abstractmethod
     def Assemble(self, field: "Field") -> csr_matrix:

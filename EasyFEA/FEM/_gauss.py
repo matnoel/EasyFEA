@@ -479,19 +479,11 @@ class Gauss:
             nPg = 8
             x, y, z, weights = Gauss._Hexahedron(nPg)  # type: ignore [assignment]
 
-        elif elemType == ElemType.HEXA20:
+        elif elemType in (ElemType.HEXA20, ElemType.HEXA27):
             nPg = 27
             x, y, z, weights = Gauss._Hexahedron(nPg)  # type: ignore [assignment]
 
-        elif elemType == ElemType.HEXA27:
-            nPg = 27
-            x, y, z, weights = Gauss._Hexahedron(nPg)  # type: ignore [assignment]
-
-        elif elemType == ElemType.PRISM6:
-            nPg = 6
-            x, y, z, weights = Gauss._Prism(nPg)  # type: ignore [assignment]
-
-        elif elemType == ElemType.PRISM15:
+        elif elemType in (ElemType.PRISM6, ElemType.PRISM15):
             nPg = 6
             x, y, z, weights = Gauss._Prism(nPg)  # type: ignore [assignment]
 

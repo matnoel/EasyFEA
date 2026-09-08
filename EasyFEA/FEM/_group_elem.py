@@ -713,7 +713,6 @@ class _GroupElem(ABC):
     @abstractmethod
     def triangles(self) -> list[int]:
         """list of index used to form the triangles of an element that will be used for the 2D trisurf function"""
-        pass
 
     @property
     def segments(self) -> _types.IntArray:  # type: ignore [return]
@@ -764,18 +763,15 @@ class _GroupElem(ABC):
         -------
         When adding new 3D elements, ensure that the resulting surface normals point inward the element.
         """
-        pass
 
     @property
     @abstractmethod
     def faces(self) -> _types.IntArray:
         """array of indices used to form the element faces (for FEM purposes)."""
-        pass
 
     @abstractmethod
     def Get_Local_Coords(self) -> _types.FloatArray:
         """Get local ξ, η, ζ coordinates as a (nPe, dim) numpy array"""
-        pass
 
     # --------------------------------------------------------------------------------------------
     # Gauss
@@ -985,7 +981,6 @@ class _GroupElem(ABC):
         ```
         Shape: ``(nPe, 1)``.
         """
-        pass
 
     def Get_N_pg(self, matrixType: MatrixType) -> _types.FloatArray:
         """Shape functions evaluated at Gauss points in (ξ, η, ζ).

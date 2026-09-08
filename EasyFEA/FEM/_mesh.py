@@ -929,6 +929,7 @@ class Mesh(Observable):
 
             # interpolate coordinates detected here (Get_Mapping already filters by
             # geometric containment) and not yet assigned to a previous group
+            # `!= None` is elementwise here, not an identity test
             mask = remaining & (elements_n != None)  # noqa: E711
             if not mask.any():
                 continue

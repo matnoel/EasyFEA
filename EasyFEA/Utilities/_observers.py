@@ -49,4 +49,3 @@ class _IObserver(ABC):
     @abstractmethod
     def _Update(self, observable: Observable, event: str) -> None:
         """Receive an update/event from an observable object (observer pattern)."""
-        pass

@@ -6,5 +6,3 @@
 
 class ProblemType(str):
     """Type identifying a physical problem solved by a simulation."""
-
-    pass

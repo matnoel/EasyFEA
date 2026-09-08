@@ -35,7 +35,7 @@ def __Project_Mandel(A, orderA: int = 4):
 
         for i in range(3):
             for j in range(3):
-                A_I[e[i, j]] = sympy.sqrt((2 - kron(i, j))) * A[i, j]
+                A_I[e[i, j]] = sympy.sqrt(2 - kron(i, j)) * A[i, j]
 
         res = A_I
 

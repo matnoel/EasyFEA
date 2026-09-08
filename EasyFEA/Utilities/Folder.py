@@ -62,7 +62,7 @@ def __Get_pythonScript():
         # Look for the `execute_code_block` function in the stack
         pythonScript = None
         for frame in stack:
-            function = getattr(frame, "function")
+            function = frame.function
             if function == "execute_code_block":
                 # get local variables
                 f_locals = frame[0].f_locals

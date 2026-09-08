@@ -1066,7 +1066,6 @@ def Create_html(
             <img id="colorbar" src="{list_colorbar[defaultIndex]}" alt="Colorbar">
         </div>
         """
-        pass
 
     # ---------- add animation ----------
     if useAnination:

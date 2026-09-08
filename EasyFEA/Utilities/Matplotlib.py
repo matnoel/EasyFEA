@@ -27,14 +27,14 @@ from ._requires import Create_requires_decorator
 
 # Matplotlib: https://matplotlib.org/
 try:
-    import matplotlib.colors as colors
+    from matplotlib import colors
     import matplotlib.pyplot as plt
     from matplotlib import colorbar
     from mpl_toolkits.mplot3d import Axes3D
     from matplotlib.collections import PolyCollection, LineCollection
     from mpl_toolkits.mplot3d.art3d import Poly3DCollection, Line3DCollection
     from mpl_toolkits.axes_grid1 import make_axes_locatable  # use to do colorbarIsClose
-    import matplotlib.animation as animation
+    from matplotlib import animation
 
     Axes = Union[plt.Axes, Axes3D]
 except ImportError:

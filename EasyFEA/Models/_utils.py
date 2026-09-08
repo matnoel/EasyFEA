@@ -27,13 +27,11 @@ class _IModel(Observable, Updatable, ABC):
     @abstractmethod
     def dim(self) -> int:
         """model dimension"""
-        pass
 
     @property
     @abstractmethod
     def thickness(self) -> float:
         """thickness used in the model"""
-        pass
 
     def Need_Update(self, value=True):
         super().Need_Update(value)
@@ -263,7 +261,7 @@ def Project_Kelvin(
         A_I = np.zeros((*shapeA[:-2], 6))
 
         def add(i: int, j: int) -> None:  # type: ignore
-            A_I[..., e[i, j]] = np.sqrt((2 - kron(i, j))) * A[..., i, j]
+            A_I[..., e[i, j]] = np.sqrt(2 - kron(i, j)) * A[..., i, j]
 
         [add(i, j) for i in range(3) for j in range(3)]  # type: ignore [func-returns-value]
 

@@ -125,12 +125,10 @@ if __name__ == "__main__":
         pc2 = Point(t + r + 6, 0, 0)
         pc3 = pc2 + [0, 0, thickness]
         pc4 = Point(t + r, 0, thickness, True)
-        #
         line1 = Line(pc1, pc2, clC, True)
         line2 = Line(pc2, pc3, clC, False)
         line3 = Line(pc3, pc4, clC, True)
         line4 = Line(pc4, pc1, clC, True)
-        #
         crack = Contour([line1, line2, line3, line4], isOpen=True)
         cracks = [crack]
 

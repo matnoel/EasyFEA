@@ -48,7 +48,7 @@ def _CheckIsPositive(value: Union[_types.Number, _types.Numbers]) -> None:
         raise TypeError("Unknown type.")
 
 
-def _CheckIsNegative(value: Union[int, float, Iterable]) -> None:
+def _CheckIsNegative(value: Union[float, Iterable]) -> None:
     """Checks whether the value is negative"""
     errorText = "Must be <= 0!"
     if isinstance(value, (int, float)):
@@ -59,7 +59,7 @@ def _CheckIsNegative(value: Union[int, float, Iterable]) -> None:
         raise TypeError("Unknown type.")
 
 
-def _CheckIsInIntervalcc(value: Union[int, float, Iterable], inf, sup) -> None:
+def _CheckIsInIntervalcc(value: Union[float, Iterable], inf, sup) -> None:
     """Checks whether the value is in ]inf, sup["""
     assert inf < sup
     errorText = f"Must be in ]{inf}, {sup}["
@@ -73,7 +73,7 @@ def _CheckIsInIntervalcc(value: Union[int, float, Iterable], inf, sup) -> None:
         raise TypeError("Unknown type.")
 
 
-def _CheckIsInIntervaloo(value: Union[int, float, Iterable], inf, sup) -> None:
+def _CheckIsInIntervaloo(value: Union[float, Iterable], inf, sup) -> None:
     """Checks whether the value is in [inf, sup]"""
     assert inf < sup
     errorText = f"Must be in [{inf}, {sup}]"
