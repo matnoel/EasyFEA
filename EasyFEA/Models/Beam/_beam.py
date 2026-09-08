@@ -13,7 +13,7 @@ import numpy as np
 from ...Geoms import Line, AsCoords, Normalize
 
 # fem
-from ...FEM import FeArray, MatrixType, ElemType
+from ...FEM import FeArray, MatrixType
 from ...FEM import Field, BiLinearForm, LinearForm
 from ...FEM.Elems._beam import _Timoshenko, _EulerBernoulli
 
@@ -26,10 +26,6 @@ from ... import Models, Simulations
 # materials
 from .._utils import _IModel
 from ...Utilities import _params, _types
-
-# Linear-order 2-D element types. The Saint-Venant Poisson solution is cubic
-# for typical sections, so these only achieve O(h²) — _shear_kappa warns once.
-_LINEAR_2D_ELEMS = (ElemType.TRI3, ElemType.QUAD4)
 
 # ----------------------------------------------
 # Beam
