@@ -11,7 +11,7 @@ from EasyFEA import Simulations
 from EasyFEA.FEM import Operators, Mesh, MatrixType, _GroupElem
 from EasyFEA.FEM._linalg import FeArray
 from EasyFEA.Utilities import _params, _types
-from EasyFEA.Simulations._terms import Term
+from EasyFEA.Simulations import Term
 
 
 class RigidContact(Simulations.Elastic):
@@ -34,7 +34,10 @@ class RigidContact(Simulations.Elastic):
         ]
 
     def __Contact(
-        self, groupElem: _GroupElem, elements: Optional[_types.IntArray] = None
+        self,
+        groupElem: _GroupElem,
+        u: _types.FloatArray,
+        elements: Optional[_types.IntArray] = None,
     ) -> tuple[np.ndarray, np.ndarray]:
         """Penalty-contact tangent/force on one surface group of the body.
 
@@ -44,8 +47,6 @@ class RigidContact(Simulations.Elastic):
         assert indenter is not None
         matrixType = MatrixType.mass
 
-        u = self.Get_u_v_a()[0]
-
         # deformed contact-surface Gauss coordinates x = X + u
         N_pg = groupElem.Get_N_pg(matrixType)[:, 0, :]
         x_e_pg = groupElem.Get_GaussCoordinates_e_pg(matrixType).copy()
@@ -54,16 +55,20 @@ class RigidContact(Simulations.Elastic):
             np.einsum("pn,enc->epc", N_pg, u_e)
         )
 
-        K_e, F_e = 0.0, 0.0
-        for contactGroup in indenter.Get_list_groupElem(indenter.dim - 1):
-            # `obstacle` indexes the *indenter*'s elements — which faces to project onto — so it is not this term's `elements`, which would index the body's surface group.
+        contactGroups = indenter.Get_list_groupElem(indenter.dim - 1)
+        assert (
+            len(contactGroups) > 0
+        ), f"the indenter has no {indenter.dim - 1}D group to project onto."
+
+        contributions = []
+        for contactGroup in contactGroups:
+            # `obstacle` indexes the *indenter*'s elements, not this term's `elements`
             obstacle = (
                 contactGroup.Get_Elements_Tag("contact")
                 if "contact" in contactGroup.elementTags
                 else None
             )
 
-            # project onto the obstacle surface -> outward normal + signed gap
             gap_e_pg, normal_e_pg = contactGroup._Get_gap_and_normal(
                 x_e_pg,
                 elements=obstacle,
@@ -71,15 +76,17 @@ class RigidContact(Simulations.Elastic):
                 matrixType=matrixType,
             )
 
-            Kc_e, Fc_e = Operators.NonLinear.PenaltyContact(
-                groupElem=groupElem,
-                penalty=self.penalty,
-                gap_e_pg=gap_e_pg,
-                normal_e_pg=normal_e_pg,
-                elements=elements,
-                matrixType=matrixType,
+            contributions.append(
+                Operators.NonLinear.PenaltyContact(
+                    groupElem=groupElem,
+                    penalty=self.penalty,
+                    gap_e_pg=gap_e_pg,
+                    normal_e_pg=normal_e_pg,
+                    elements=elements,
+                    matrixType=matrixType,
+                )
             )
-            # several obstacle groups all press on the same body surface, so they add up
-            K_e, F_e = K_e + Kc_e, F_e + Fc_e
 
-        return K_e, F_e
+        # several obstacle groups press on the same body surface, so they add up
+        Ks, Fs = zip(*contributions)
+        return sum(Ks), sum(Fs)
