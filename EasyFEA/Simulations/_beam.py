@@ -550,6 +550,7 @@ class Beam(_Simu):
 
         elif result in ["N", "Mx", "My", "Mz", "Ty", "Tz"]:
             groupElem = self.mesh.groupElem
+            assert isinstance(groupElem, (_Timoshenko, _EulerBernoulli))
             dim = self.structure.dim
 
             if result in ["Ty", "Tz"] and not self.useTimoshenko:
@@ -573,6 +574,8 @@ class Beam(_Simu):
                 # reduced Gauss points (MatrixType.beam_shear).  Evaluate Ty/Tz
                 # there to avoid the spurious oscillation that full integration
                 # introduces in γ.
+                # useTimoshenko converts the mesh in __init__, so the group is a _Timoshenko one; only it takes a matrixType.
+                assert isinstance(groupElem, _Timoshenko)
                 shearType = MatrixType.beam_shear
                 B_red = groupElem.Get_beam_B_e_pg(self.structure, shearType)
                 D_red = self.structure.Calc_D_e_pg(groupElem, shearType)
