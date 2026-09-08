@@ -38,23 +38,7 @@ class Beam(_Simu):
 
     Solves the static or dynamic response of 1D members (axial, bending, shear and torsion) assembled into a structure embedded in 1D/2D/3D, from a ``BeamStructure`` model. Set ``useTimoshenko=True`` to include transverse-shear flexibility (Euler-Bernoulli otherwise).
 
-    Timoshenko elements use pure Lagrange interpolation for every kinematic
-    field with selective reduced integration on the shear term — the standard
-    formulation used by Abaqus B31/B32, ANSYS BEAM188/189, Calculix B31 and
-    FEniCS dolfinx.  As in those codes, accuracy depends on the polynomial
-    degree of the element:
-
-      elem   | v interpolation | tip-load convergence | accurate at coarse mesh?
-      -------+-----------------+----------------------+-------------------------
-      SEG2   | linear          | O(h²)                | no — needs fine mesh
-      SEG3   | quadratic       | exact (cubic v)      | yes
-      SEG4   | cubic           | exact                | yes
-      SEG5   | quartic         | exact                | yes
-
-    SEG2+Timoshenko remains a valid choice (it matches industry-standard
-    2-node Timoshenko elements), but for results comparable to the Euler-
-    Bernoulli SEG2 element (which is exact for cubic v), prefer SEG3 or
-    higher when activating Timoshenko.
+    Timoshenko uses Lagrange interpolation with selective reduced integration on the shear term, so accuracy follows the element order: ``SEG2`` converges in O(h²) and needs a fine mesh, while ``SEG3`` and above are exact under a tip load. Prefer ``SEG3`` or higher with ``useTimoshenko=True`` — the Euler-Bernoulli ``SEG2`` is already exact for a cubic transverse displacement.
     """
 
     # TODO: add math
