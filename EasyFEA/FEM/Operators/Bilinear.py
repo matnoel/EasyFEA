@@ -11,7 +11,7 @@ from .._linalg import FeArray, TensorProd
 from .._utils import MatrixType
 from ...Utilities import _types
 
-from ..Elems._beam import _Timoshenko
+from ..Elems._beam import _Timoshenko, _EulerBernoulli
 from ._utils import einsum, Restrict, Scatter
 
 if TYPE_CHECKING:
@@ -127,7 +127,7 @@ def MassAlongNormal(
 
 
 def BeamBending(
-    groupElem: "_GroupElem",
+    groupElem: Union[_Timoshenko, _EulerBernoulli],
     beamStructure: "BeamStructure",
 ) -> np.ndarray:
     """``∫_e Bᵀ · D_bending · B dx`` — axial + bending (+ torsion) stiffness.
@@ -140,10 +140,18 @@ def BeamBending(
     :func:`BeamShear` to get the full Timoshenko stiffness, or call
     :func:`BeamStiffness` directly.
     """
+    assert isinstance(
+        groupElem, (_EulerBernoulli, _Timoshenko)
+    ), "groupElem must be a beam element group."
+
     matrixType = MatrixType.beam
     wJ_e_pg = groupElem.Get_weightedJacobian_e_pg(matrixType)
     B_e_pg = groupElem.Get_beam_B_e_pg(beamStructure)
     D_e_pg = beamStructure.Calc_D_e_pg(groupElem, matrixType)
+
+    assert isinstance(
+        groupElem, (_EulerBernoulli, _Timoshenko)
+    ), "groupElem must be a beam element group."
 
     dim = beamStructure.dim
     if dim != 1 and isinstance(groupElem, _Timoshenko):
@@ -156,7 +164,7 @@ def BeamBending(
 
 
 def BeamShear(
-    groupElem: "_GroupElem",
+    groupElem: Union[_Timoshenko, _EulerBernoulli],
     beamStructure: "BeamStructure",
 ) -> np.ndarray:
     """``∫_e Bᵀ · D_shear · B dx`` — transverse-shear stiffness, SRI.
@@ -169,6 +177,10 @@ def BeamShear(
     the non-shear rows of ``D`` zeroed. This is the selective-reduced-
     integration cure for Timoshenko shear locking.
     """
+    assert isinstance(
+        groupElem, (_EulerBernoulli, _Timoshenko)
+    ), "groupElem must be a beam element group."
+
     dof_n = beamStructure.dof_n
     Ne = groupElem.Ne
     nPe = groupElem.nPe
@@ -189,7 +201,7 @@ def BeamShear(
 
 
 def BeamStiffness(
-    groupElem: "_GroupElem",
+    groupElem: Union[_Timoshenko, _EulerBernoulli],
     beamStructure: "BeamStructure",
 ) -> np.ndarray:
     """Full beam stiffness ``K_e = BeamBending + BeamShear``.
@@ -215,7 +227,7 @@ def BeamStiffness(
 
 
 def BeamMass(
-    groupElem: "_GroupElem",
+    groupElem: Union[_Timoshenko, _EulerBernoulli],
     beamStructure: "BeamStructure",
     coef: Union[_types.Number, FeArray.FeArrayALike] = 1.0,
 ) -> np.ndarray:
@@ -227,6 +239,10 @@ def BeamMass(
     ``rho`` of the simulation; may be scalar, ``(Ne,)``, ``(nPg,)``, or
     ``(Ne, nPg)`` — broadcast via :meth:`FeArray.broadcast`.
     """
+    assert isinstance(
+        groupElem, (_EulerBernoulli, _Timoshenko)
+    ), "groupElem must be a beam element group."
+
     matrixType = MatrixType.beam
     wJ_e_pg = groupElem.Get_weightedJacobian_e_pg(matrixType)
     N_e_pg = groupElem.Get_beam_N_e_pg(beamStructure)
