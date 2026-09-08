@@ -60,10 +60,12 @@ disable_error_code = [
 ]
 
 [tool.ruff]
-target-version = "py311"
+# no target-version: inferred from requires-python, so ruff never proposes syntax 3.9 cannot run
 include = ["pyproject.toml", "EasyFEA/**/*.py", "examples/**/*.py"]
 
 [tool.ruff.lint]
+# pinned, so a ruff release cannot silently enable hundreds of new rules
+select = ["E4", "E7", "E9", "F"]
 ignore = ["E731", "E741", "F402"]
 
 [tool.ruff.lint.per-file-ignores]
