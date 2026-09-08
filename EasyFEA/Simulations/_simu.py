@@ -101,16 +101,16 @@ class _Simu(_IObserver, _params.Updatable, ABC):
 
         - def Get_x0(self, problemType=None):
 
-        - def Get_terms(self, problemType):
+        - def Get_terms(self, problemType=None) -> list[Term]:
 
-        These functions assemble the matrix system :math:`\Krm \, \mathrm{u} + \Crm \, \vrm + \Mrm \, \arm = \Frm`.
+        These functions describe the matrix system :math:`\Krm \, \mathrm{u} + \Crm \, \vrm + \Mrm \, \arm = \Frm`, which `_Simu` then assembles.
 
     Iterations:
     -----------
 
-        - def Save_Iter(self, iter: dict[str, Any]={}) -> None:
+        - def Save_Iter(self, iter: Optional[dict[str, Any]]=None) -> None:
 
-        - def Set_Iter(self, index=-1) -> None:
+        - def Set_Iter(self, iter=-1, resetAll=False) -> dict:
 
         These functions are used to save or load iterations.
 
@@ -127,7 +127,7 @@ class _Simu(_IObserver, _params.Updatable, ABC):
 
         - def Results_displacement_matrix(self) -> _types.FloatArray:
 
-        - def Results_nodesField_elementsField(self, details=False) -> tuple[list[str], list[str]]:
+        - def Results_nodeFields_elementFields(self, details=False) -> tuple[list[str], list[str]]:
 
         These functions are used to process the results.
     """

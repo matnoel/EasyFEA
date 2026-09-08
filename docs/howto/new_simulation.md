@@ -170,8 +170,7 @@ The complete interface to implement (all methods are abstract):
 
 ```python
 import numpy as np
-from EasyFEA.Simulations import _Simu
-from EasyFEA.Models import ModelType
+from EasyFEA.Simulations import _Simu, ProblemType, Term
 
 class MySimulation(_Simu):
 
@@ -180,7 +179,7 @@ class MySimulation(_Simu):
 
     # --- problem definition ---
 
-    def Get_problemTypes(self) -> list[ModelType]:
+    def Get_problemTypes(self) -> list[ProblemType]:
         ...
 
     def Get_unknowns(self, problemType=None) -> list[str]:
@@ -192,14 +191,14 @@ class MySimulation(_Simu):
     def Get_x0(self, problemType=None):
         ...
 
-    # --- assembly (see below for details) ---
+    # --- physics (see below for details) ---
 
-    def Get_terms(self, problemType=None):
+    def Get_terms(self, problemType=None) -> list[Term]:
         ...
 
     # --- iteration management ---
 
-    def Save_Iter(self, iter={}):
+    def Save_Iter(self, iter=None):
         ...
 
     def Set_Iter(self, iter=-1, resetAll=False):
@@ -242,48 +241,48 @@ automatically:
    (where $\vrm$ and $\arm$ are the velocity and acceleration computed by
    the time scheme).
 
-**Your main responsibility is to return the correct element-level matrices.**
-Everything else is handled by `_Simu` internally.
+**Your only responsibility is to declare the right terms.** Everything else is
+handled by `_Simu` internally.
 
 ```{seealso}
 - {ref}`howto-pipeline`
 ```
 
-Since v2.0.0 a mesh can hold **several element groups of the same dimension** (mixed-element meshes), so the method returns a **dict** mapping each contributing {py:class}`~EasyFEA.FEM._GroupElem` to its 4-tuple `(K_e, C_e, M_e, F_e)`:
+A {py:class}`~EasyFEA.Simulations.Term` names one operator and, with a string of
+slot letters, where each array it returns belongs — one letter per array:
 
-```python
-{groupElem: (K_e, C_e, M_e, F_e), ...}
-```
+| Letter | Goes to | Meaning |
+|---|---|---|
+| `K` | $\Krm$ | stiffness, or the tangent of a non-linear term |
+| `C` | $\Crm$ | damping (parabolic / hyperbolic) |
+| `M` | $\Mrm$ | mass (hyperbolic only) |
+| `F` | $\Frm$ | an external load, added as-is |
+| `R` | $\Frm$ | an **internal** force, so it is subtracted |
 
-Build the dict by looping over `self.mesh.Get_list_groupElem(self.dim)` and computing the element matrices for each group. Within each tuple the order is strict — swapping `M_e` and `F_e`, for instance, would silently produce a wrong system. Each term is a `np.ndarray` or `None` (`Ne` and `nPe` below are per-group):
+So `Term("K", op)` is a stiffness, `Term("KR", op)` an operator returning a
+tangent *and* an internal force, `Term("KF", op)` a tangent and a load.
 
-| Tuple position | Symbol | Role | Shape |
-|---|---|---|---|
-| 1st | `K_e` | Stiffness (linear) or **tangent** (non-linear) | `(Ne, nPe·dof_n, nPe·dof_n)` |
-| 2nd | `C_e` | Damping matrix (parabolic / hyperbolic) | same, or `None` |
-| 3rd | `M_e` | Mass matrix (hyperbolic only) | same as `K_e`, or `None` |
-| 4th | `F_e` | Load vector (linear) or **residual** (non-linear) | `(Ne, nPe·dof_n, 1)`, or `None` |
+The fold takes care of the rest: contributions **accumulate** when several terms
+target one element group, the 2D `thickness` is applied once, and a term filling
+a **single** slot also gets its residual — $-\Krm_e \urm_t$, $-\Crm_e \vrm_t$,
+$-\Mrm_e \arm_t$ — contracted for it, since one slot means the contribution is
+linear in that field. Add `constant=True` when a contribution does not depend on
+the solution: it is then built once and reused across Newton iterations and time
+steps.
 
 ```{warning}
-In a **non-linear** problem, `K_e` must contain the **tangent stiffness**
-matrix $\Krm_t = \partial \Rrm / \partial \urm$ evaluated at the current
-solution state, and `F_e` must contain the **residual** $\Rrm(\urm)$ rather
-than the linear load vector. `_Simu` passes the current solution through
-`Get_x0` so that the assembly can depend on it.
-
-See the
+A **non-linear** problem needs no special handling here: put the tangent in `K`
+and the internal force in `R`, and the residual follows. See
 [`HyperElastic.Get_terms`](https://github.com/matnoel/EasyFEA/blob/main/EasyFEA/Simulations/_hyperelastic.py)
-source for a concrete example of how tangent stiffness and residual are
-assembled in a non-linear finite deformation setting,
-{ref}`howto-pipeline-nonlinear-operators` for how those tangent / damping
-terms are weighted into the time-scheme assembly, and
-{ref}`easyfea-examples-hyperelasticity` for the corresponding worked
-examples.
+for a worked finite-deformation example,
+{ref}`howto-pipeline-nonlinear-operators` for how the tangent and damping terms
+are weighted into the time scheme, and
+{ref}`easyfea-examples-hyperelasticity` for the corresponding examples.
 ```
 
 #### The `groupElem.Get_*` interface
 
-All integration data is accessed through each group-element object (the items yielded by `mesh.Get_list_groupElem(self.dim)`) using three key functions that accept a {py:class}`~EasyFEA.FEM.MatrixType` argument:
+Writing an operator of your own — the fold hands it one `groupElem` at a time — means reading its integration data through three functions, each taking a {py:class}`~EasyFEA.FEM.MatrixType`:
 
 ```python
 from EasyFEA.FEM import MatrixType
@@ -382,11 +381,9 @@ simulation needing it gets it too.
 ```
 
 ```{note}
-`None` means the corresponding term is absent from the system — not that it
-is always zero. For a parabolic problem (e.g. heat equation) `C_e` is
-non-`None`; for a hyperbolic problem (e.g. structural dynamics) both `C_e`
-and `M_e` must be assembled and returned. Only terms that are genuinely
-absent from the formulation should be returned as `None`.
+Declare only the terms the formulation actually has: a parabolic problem
+(heat equation) needs a `C` term, a hyperbolic one (structural dynamics) both
+`C` and `M`. A slot with no term is simply absent from the system.
 ```
 
 ```{note}
