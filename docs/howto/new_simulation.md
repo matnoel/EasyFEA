@@ -239,8 +239,8 @@ handled by `_Simu` internally.
 - {ref}`howto-pipeline`
 ```
 
-A {py:class}`~EasyFEA.Simulations.Term` names one operator and, with a string of
-slot letters, where each array it returns belongs — one letter per array:
+A {py:class}`~EasyFEA.Simulations.Term` names one {ref}`operator <fem-operators>` and, with a
+string of slot letters, where each array it returns belongs — one letter per array:
 
 | Letter | Goes to | Meaning |
 |---|---|---|
