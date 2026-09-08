@@ -250,13 +250,13 @@ class HyperElastic(_Simu):
         assert nPoints >= 1, f"nPoints must be >= 1 (got {nPoints})."
 
         self.__stressParams = (stressType, nPoints, useConsistentTangent, energyTol)
-        # diagnostic: per-element quadrature-point counts, last assembly
-        self.__list_nPts_e: list = []
+        # cleared on stress selection, not per assembly, so it cannot go stale
+        self.__nPts_e: dict[_GroupElem, _types.IntArray] = {}
 
     @property
     def _nPts_e(self) -> Optional[_types.IntArray]:
         """Per-element Clenshaw-Curtis point counts from the last assembly, or None when the quadrature stress did not run (pointwise / gonzalez)."""
-        return np.concatenate(self.__list_nPts_e) if self.__list_nPts_e else None
+        return np.concatenate(list(self.__nPts_e.values())) if self.__nPts_e else None
 
     def __Solver_Get_Stress_Params(
         self,
@@ -269,123 +269,120 @@ class HyperElastic(_Simu):
         """Stress used by the internal force — see :py:meth:`Solver_Set_Stress`."""
         return self.__Solver_Get_Stress_Params()[0]
 
-    def Get_terms(
-        self,
-        problemType=None,
-        matrixType: Optional[MatrixType] = None,
-    ) -> list[Term]:
+    def Get_terms(self, problemType=None) -> list[Term]:
         r"""Terms of ``A(u)·Δu = -R(u)`` with ``A = coefK·K + coefC·C + coefM·M``.
 
         The elastic tangent and internal force come as one ``"KR"`` term; the active fiber stress and the Kelvin–Voigt viscosity add their own; the mass matrix is a plain ``"M"`` whose residual :math:`-\Mrm_e \, \arm_t` the fold supplies. The ``R`` slot throughout: these operators return the **internal** force, which reaches the right-hand side negated.
         """
         if problemType is None:
             problemType = self.problemType
-        if matrixType is None:
-            matrixType = self.matrixType
 
-        dim = self.dim
-        isDynamic = self.algo in AlgoType.Get_Hyperbolic_Types()
+        self.__Check_stress()
 
-        # Both non-default stresses are built from the step endpoints (u_n, u_{n+1}) on top of the scheme's
-        # base point u_t (ū at midpoint). Re-checked here (not only in the setter) so that re-calling
-        # Solver_Set_Hyperbolic_Algorithm with another algo can't leave a stale selection.
-        stressType, nPoints, useConsistentTangent, energyTol = (
-            self.__Solver_Get_Stress_Params()
-        )
-        isPointwise = stressType == HyperElastic.StressType.pointwise
-        if stressType == HyperElastic.StressType.gonzalez:
-            # gonzalez is the midpoint energy-momentum stress: its discrete gradient Ŝ = S̄ + α Δe is built
-            # on ū and conserves energy only there — it is intrinsically midpoint-only.
-            assert (
-                self.algo == AlgoType.midpoint
-            ), f"the 'gonzalez' stress requires AlgoType.midpoint (got {self.algo})."
-        elif stressType == HyperElastic.StressType.quadrature:
-            # quadrature builds a consistent tangent for any dynamic scheme via its `coefK = ∂u_t/∂u_{n+1}`;
-            # energy is conserved only at midpoint (coefK = 0.5) — see TimeQuadratureStressTensor.
-            assert (
-                isDynamic
-            ), f"the 'quadrature' stress requires a dynamic (hyperbolic) time scheme (got {self.algo})."
+        isPointwise = self.stressType == HyperElastic.StressType.pointwise
+        _, v_t, _ = self.Get_u_v_a(problemType)
 
-        u_np1 = self._Solver_Get_Newton_Raphson_current_solution()
-        u_t, v_t, _ = self.Get_u_v_a(problemType)
-        u_n = None if isPointwise else self._Get_u_n(problemType)
-
-        errDetF = "det(F) < 0 - reduce load steps"
-
-        def State(groupElem: _GroupElem, u: _types.FloatArray) -> HyperElasticState:
-            state = HyperElasticState(groupElem, u, matrixType)
-            assert state.Compute_J().min() > 0, errDetF  # invalid-element guard
-            return state
-
-        def Stress(groupElem: _GroupElem) -> tuple[np.ndarray, np.ndarray]:
-            """Elastic tangent and internal force at the time scheme's evaluation state."""
-            state = State(groupElem, u_t)
-
-            if isPointwise:
-                return Operators.NonLinear.SecondPiolaKirchhoffStressTensor(
-                    self.material, state
-                )
-
-            # `state` is the midpoint state ū, so only the two endpoint states are built here; both energy-conserving stresses take the same three.
-            assert u_n is not None  # set whenever the stress is not pointwise
-            states = (State(groupElem, u_n), state, State(groupElem, u_np1))
-
-            if stressType == HyperElastic.StressType.gonzalez:
-                return Operators.NonLinear.GonzalezStressTensor(
-                    self.material, *states, useConsistentTangent
-                )
-
-            elif stressType == HyperElastic.StressType.quadrature:
-                # coefK = ∂u_t/∂u_{n+1} scales the tangent for the active scheme (0.5 at midpoint).
-                coefK = self._Solver_Get_K_C_M_coefs_for_time_scheme()[0]
-                K_e, R_e, nPts_e = Operators.NonLinear.TimeQuadratureStressTensor(
-                    self.material, *states, coefK, nPoints, energyTol
-                )
-                # the third return is a diagnostic, not a slot
-                self.__list_nPts_e.append(nPts_e)
-                return K_e, R_e
-
-            raise NotImplementedError
-
-        def ActiveStress(groupElem: _GroupElem) -> tuple[np.ndarray, np.ndarray]:
-            """Active fiber stress τ·(T̂⊗T̂) — a non-conservative stress, so it is its own operator rather than part of ``Compute_dWde``, which must stay a true ∂W/∂e for the gonzalez discrete gradient. Internal force + geometric tangent, no material tangent."""
-            return Operators.NonLinear.ActiveStressTensor(
-                self.material, State(groupElem, u_t)
+        terms = [
+            Term(
+                "KR",
+                self.__Stress,
+                u_n=None if isPointwise else self._Get_u_n(problemType),
+                u_np1=self._Solver_Get_Newton_Raphson_current_solution(),
             )
-
-        def Viscosity(
-            groupElem: _GroupElem,
-        ) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
-            """Kelvin–Voigt viscosity: the configuration tangent ∂(C·v)/∂u rides coefK, the damping matrix rides coefC, and the viscous residual goes to the right-hand side."""
-            assert v_t is not None  # the term is only declared when a velocity exists
-            return Operators.NonLinear.KelvinVoigtDamping(
-                self.material, State(groupElem, u_t), v_t
-            )
-
-        # per-element Clenshaw-Curtis point counts, filled by `Stress` during the fold
-        self.__list_nPts_e = []
-
-        terms = [Term("KR", Stress)]
+        ]
 
         if np.any(self.material.active_stress != 0.0):
-            terms.append(Term("KR", ActiveStress))
+            terms.append(Term("KR", self.__ActiveStress))
 
         if self.material.eta != 0 and v_t is not None:
-            terms.append(Term("KRC", Viscosity))
+            terms.append(Term("KRC", self.__Viscosity, v_t=v_t))
 
-        if isDynamic:
-            # ∫ρ N·N does not change across the solve, so it is built once and reused; an array ρ cannot key the cache, so it is rebuilt every assembly as before.
+        if self.algo in AlgoType.Get_Hyperbolic_Types():
             terms.append(
                 Term(
                     "M",
                     Operators.Bilinear.UV,
                     coef=self.rho,
-                    dof_n=dim,
+                    dof_n=self.dim,
                     constant=not isinstance(self.rho, np.ndarray),
                 )
             )
 
         return terms
+
+    def __Check_stress(self) -> None:
+        """Rejects a stress the current time scheme cannot carry. Re-checked at every assembly, so a later :py:meth:`~EasyFEA.Simulations._Simu.Solver_Set_Hyperbolic_Algorithm` cannot leave a stale selection."""
+
+        stressType = self.stressType
+
+        if stressType == HyperElastic.StressType.gonzalez:
+            assert (
+                self.algo == AlgoType.midpoint
+            ), f"the 'gonzalez' stress requires AlgoType.midpoint (got {self.algo})."
+
+        elif stressType == HyperElastic.StressType.quadrature:
+            assert (
+                self.algo in AlgoType.Get_Hyperbolic_Types()
+            ), f"the 'quadrature' stress requires a dynamic (hyperbolic) time scheme (got {self.algo})."
+
+    def __State(self, groupElem: _GroupElem, u: _types.FloatArray) -> HyperElasticState:
+        """Hyperelastic state of `groupElem` at `u`, guarded against an inverted element."""
+        state = HyperElasticState(groupElem, u, self.matrixType)
+        assert state.Compute_J().min() > 0, "det(F) < 0 - reduce load steps"
+        return state
+
+    def __Stress(
+        self,
+        groupElem: _GroupElem,
+        u: _types.FloatArray,
+        u_n: Optional[_types.FloatArray],
+        u_np1: _types.FloatArray,
+    ) -> tuple[np.ndarray, np.ndarray]:
+        """Elastic tangent and internal force at the time scheme's evaluation state `u`."""
+
+        state = self.__State(groupElem, u)
+        stressType, nPoints, useConsistentTangent, energyTol = (
+            self.__Solver_Get_Stress_Params()
+        )
+
+        if stressType == HyperElastic.StressType.pointwise:
+            return Operators.NonLinear.SecondPiolaKirchhoffStressTensor(
+                self.material, state
+            )
+
+        assert u_n is not None
+        states = (self.__State(groupElem, u_n), state, self.__State(groupElem, u_np1))
+
+        if stressType == HyperElastic.StressType.gonzalez:
+            return Operators.NonLinear.GonzalezStressTensor(
+                self.material, *states, useConsistentTangent
+            )
+
+        elif stressType == HyperElastic.StressType.quadrature:
+            coefK = self._Solver_Get_K_C_M_coefs_for_time_scheme()[0]
+            K_e, R_e, nPts_e = Operators.NonLinear.TimeQuadratureStressTensor(
+                self.material, *states, coefK, nPoints, energyTol
+            )
+            self.__nPts_e[groupElem] = nPts_e
+            return K_e, R_e
+
+        raise NotImplementedError
+
+    def __ActiveStress(
+        self, groupElem: _GroupElem, u: _types.FloatArray
+    ) -> tuple[np.ndarray, np.ndarray]:
+        """Active fiber stress τ·(T̂⊗T̂): internal force + geometric tangent, no material tangent."""
+        return Operators.NonLinear.ActiveStressTensor(
+            self.material, self.__State(groupElem, u)
+        )
+
+    def __Viscosity(
+        self, groupElem: _GroupElem, u: _types.FloatArray, v_t: _types.FloatArray
+    ) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
+        """Kelvin–Voigt viscosity: configuration tangent, damping matrix, viscous residual."""
+        return Operators.NonLinear.KelvinVoigtDamping(
+            self.material, self.__State(groupElem, u), v_t
+        )
 
     # --------------------------------------------------------------------------
     # Iterations
