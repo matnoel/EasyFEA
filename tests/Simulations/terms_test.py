@@ -32,9 +32,14 @@ def One_array(groupElem):
     return np.zeros((groupElem.Ne, groupElem.nPe, groupElem.nPe))
 
 
+def One_vector(groupElem):
+    """A load vector, as an F/R slot expects it."""
+    return np.zeros((groupElem.Ne, groupElem.nPe))
+
+
 def Two_arrays(groupElem):
     """A matrix and a vector, as a two-slot operator returns them."""
-    return One_array(groupElem), np.zeros((groupElem.Ne, groupElem.nPe))
+    return One_array(groupElem), One_vector(groupElem)
 
 
 def Simu() -> Simulations.Thermal:
@@ -91,6 +96,33 @@ class TestSlotsMatchReturnedArrays:
     @pytest.mark.parametrize("slots,fn", [("K", One_array), ("KF", Two_arrays)])
     def test_accepts_a_matching_count(self, slots, fn):
         assert self.Fold(slots, fn)
+
+
+class TestSlotRank:
+    """A slot's contribution must be a matrix for ``K``/``C``/``M`` and a vector for ``F``/``R``.
+
+    Slot letters are positional, so ``"RK"`` where ``"KR"`` was meant sends the tangent to the right-hand side and the force to the stiffness. The rank is what makes that visible; two same-shaped matrices (``"MK"`` for ``"KM"``) still swap silently.
+    """
+
+    @staticmethod
+    def Fold(slots, fn):
+        return Fold_terms(Simu(), [Term(slots, fn)])
+
+    def test_rejects_a_matrix_in_a_vector_slot(self):
+        with pytest.raises(ValueError, match="takes a vector"):
+            self.Fold("R", One_array)
+
+    def test_rejects_a_vector_in_a_matrix_slot(self):
+        with pytest.raises(ValueError, match="takes a matrix"):
+            self.Fold("K", One_vector)
+
+    def test_rejects_the_reversed_order(self):
+        # "RK" instead of "KR": both letters are valid, only the order is wrong
+        with pytest.raises(ValueError, match="positional"):
+            self.Fold("RK", Two_arrays)
+
+    def test_accepts_the_right_order(self):
+        assert self.Fold("KR", Two_arrays)
 
 
 class TestAddTerms:

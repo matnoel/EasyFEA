@@ -238,6 +238,7 @@ def Fold_terms(
             for slot, contribution in zip(term.slots, contributions):
                 if contribution is None:
                     continue
+                _Check_rank(term, slot, contribution)
                 # always allocates, so a cached `constant=True` array is never written into
                 contribution = thickness * contribution
                 if slot == "R":  # an internal force opposes the right-hand side
@@ -254,6 +255,23 @@ def Fold_terms(
                     slots[3] = residual if slots[3] is None else slots[3] + residual
 
     return {groupElem: tuple(slots) for groupElem, slots in out.items()}
+
+
+_SLOT_RANK = {"K": 3, "C": 3, "M": 3, "F": 2, "R": 2}
+"""Rank a slot's contribution must have: ``K``/``C``/``M`` take an ``(Ne, n, n)`` matrix, ``F``/``R`` an ``(Ne, n)`` vector."""
+
+
+def _Check_rank(term: Term, slot: str, contribution: Any) -> None:
+    """Rejects a contribution whose rank does not match its slot — almost always slot letters written in the wrong order, since they are positional."""
+    rank = _SLOT_RANK[slot]
+    if np.ndim(contribution) == rank:
+        return
+    kind = "matrix" if rank == 3 else "vector"
+    raise ValueError(
+        f"{term!r} sent a {np.ndim(contribution)}-D {np.shape(contribution)} array to slot "
+        f"{slot!r}, which takes a {kind}. Slot letters are positional — one per returned array, "
+        "in the order the operator returns them."
+    )
 
 
 def _Residual(
