@@ -276,10 +276,19 @@ class _Simu(_IObserver, _params.Updatable, ABC):
         """
         return []
 
-    def Add_terms(self, *terms: Term) -> list[Term]:
+    def Add_terms(
+        self, *terms: Term, problemType: Optional[ProblemType] = None
+    ) -> list[Term]:
         """Adds terms to this simulation instance, without subclassing it. One term or many behave the same way.
 
         The terms are returned for convenience, but a :class:`~EasyFEA.Simulations.Term` is its own handle: keep the one whose value changes between steps and update it with :py:meth:`Term.Set`.
+
+        Parameters
+        ----------
+        *terms : Term
+            The terms to add.
+        problemType : ProblemType, optional
+            problem the terms belong to, if not specified, we take the basic problem of the simulation. It matters only for a simulation solving several problems, such as :class:`~EasyFEA.Simulations.PhaseField`.
 
         Examples
         --------
@@ -289,15 +298,20 @@ class _Simu(_IObserver, _params.Updatable, ABC):
         """
         assert all(isinstance(t, Term) for t in terms), "every term must be a Term."
 
+        if problemType is None:
+            problemType = self.problemType
+        self.__Check_problemTypes(problemType)
+
+        added = self.__terms.setdefault(problemType, [])
         for term in terms:
             term._simu = self  # so `term.Set(...)` invalidates the assembled matrices
-            self.__terms.append(term)
+            added.append(term)
         self.Need_Update()
         return list(terms)
 
     def Terms_Init(self) -> None:
         """Removes every term added with :py:meth:`Add_terms`. Terms persist across time steps — unlike boundary conditions, they are declared once and their arguments updated — so this is rarely needed."""
-        self.__terms: list[Term] = []
+        self.__terms: dict[ProblemType, list[Term]] = {}
         self.Need_Update()
 
     @cache_computed_values
@@ -316,15 +330,17 @@ class _Simu(_IObserver, _params.Updatable, ABC):
     ]:
         r"""Construct the local matrix system :math:`\Krm \, \mathrm{u} + \Crm \, \vrm + \Mrm \, \arm = \Frm` for the given problem, returned per contributing group of elements `{groupElem: (K_e, C_e, M_e, F_e)}`.
 
-        Folds :py:meth:`Get_terms` together with the terms added via :py:meth:`Add_terms`. Override it only for a simulation whose assembly is not expressible as a term list — a monolithic mixed formulation, say — in which case :py:meth:`Get_terms` returns ``[]``.
+        Folds :py:meth:`Get_terms` together with the terms :py:meth:`Add_terms` registered **for this problem**. Override it only for a simulation whose assembly is not expressible as a term list — a monolithic mixed formulation, say — in which case :py:meth:`Get_terms` returns ``[]``.
 
         For a **linear** problem :math:`\Frm` is the load alone: :py:meth:`_Solver_Apply_Neumann` moves :math:`\mathrm{u}^n, \vrm^n, \arm^n` to the right-hand side with the history terms of the active time scheme.
 
         For a **nonlinear** problem the unknown is :math:`\Delta \mathrm{u}`, so :math:`\Frm_e` is the complete residual :math:`-\Rrm_e`, inertia and damping included (:math:`-\Crm_e \, \vrm_t - \Mrm_e \, \arm_t`, with :math:`\vrm_t, \arm_t` from :py:meth:`Get_u_v_a`).
         """
+        if problemType is None:
+            problemType = self.problemType
         return Fold_terms(
             self,
-            self.Get_terms(problemType) + self.__terms,
+            self.Get_terms(problemType) + self.__terms.get(problemType, []),
             problemType,
         )
 

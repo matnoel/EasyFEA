@@ -14,7 +14,7 @@ import pytest
 from EasyFEA import Models, Simulations
 from EasyFEA.FEM import Operators
 from EasyFEA.Geoms import Domain, Point
-from EasyFEA.Simulations import Fold_terms, Term
+from EasyFEA.Simulations import Fold_terms, ProblemType, Term
 
 
 def Operator(groupElem, elements=None):
@@ -45,6 +45,25 @@ def Two_arrays(groupElem):
 def Simu() -> Simulations.Thermal:
     mesh = Domain(Point(), Point(1, 1)).Mesh_2D()
     return Simulations.Thermal(mesh, Models.Thermal(1, 1))  # k, c
+
+
+def Added(simu, problemType=None) -> list[Term]:
+    """The terms `Add_terms` registered for one problem — the one place these tests reach into private state. `Get_terms` returns the *declared* terms, a separate list."""
+    return simu._Simu__terms.get(problemType or simu.problemType, [])
+
+
+def PhaseFieldSimu() -> Simulations.PhaseField:
+    """The one shipped simulation solving several problems: damage (dof_n 1) and elastic (dof_n 2)."""
+    mesh = Domain(Point(), Point(1, 1), 0.5).Mesh_2D()
+    material = Models.Elastic.Isotropic(2, E=210000, v=0.3, planeStress=True)
+    pfm = Models.PhaseField(
+        material,
+        Models.PhaseField.SplitType.He,
+        Models.PhaseField.ReguType.AT2,
+        2700,
+        0.1,
+    )
+    return Simulations.PhaseField(mesh, pfm)
 
 
 class TestSlots:
@@ -132,11 +151,7 @@ class TestAddTerms:
     """
 
     Simu = staticmethod(Simu)
-
-    @staticmethod
-    def Added(simu) -> list[Term]:
-        """The terms added on the instance. `Get_terms` returns the declared ones, a separate list."""
-        return simu._Simu__terms
+    Added = staticmethod(Added)
 
     def test_one_term_is_added_and_bound(self):
         simu = self.Simu()
@@ -187,3 +202,55 @@ class TestAddTerms:
         simu.Add_terms(Term("K", Operator), Term("C", Operator))
         simu.Terms_Init()
         assert self.Added(simu) == []
+
+
+class TestAddTermsProblemType:
+    """An added term belongs to one problem, like a boundary condition.
+
+    `Get_terms` is dispatched on the problem type, but added terms used to be appended to every problem — so a `dof_n = dim` stiffness reached PhaseField's `dof_n = 1` damage system.
+    """
+
+    @staticmethod
+    def Folded(simu, problemType):
+        """Terms folded for one problem, keyed by the groups they reached."""
+        return simu._Construct_local_matrix_system(problemType)
+
+    def test_defaults_to_the_basic_problem(self):
+        # add_dirichlet's convention: "if not specified, we take the basic problem"
+        simu = PhaseFieldSimu()
+        term = Term("K", Operator)
+
+        simu.Add_terms(term)
+
+        basic, other = simu.Get_problemTypes()
+        assert Added(simu, basic) == [term]
+        assert Added(simu, other) == []
+        assert simu.problemType == basic
+
+    def test_a_single_problem_simulation_is_unaffected(self):
+        simu = Simu()
+        term = Term("K", Operator)
+        simu.Add_terms(term)
+        assert Added(simu) == [term]
+
+    def test_rejects_a_problem_the_simulation_does_not_have(self):
+        simu = Simu()  # Thermal solves no damage problem
+        with pytest.raises(AssertionError, match="not available"):
+            simu.Add_terms(Term("K", Operator), problemType=ProblemType("damage"))
+
+    def test_a_term_reaches_only_its_own_problem(self):
+        simu = PhaseFieldSimu()
+        elastic, damage = simu.ProblemTypes.elastic, simu.ProblemTypes.damage
+        # a dof_n=2 stiffness: it belongs to the elastic problem and would be the wrong shape for damage
+        simu.Add_terms(
+            Term("K", Operators.Bilinear.UV, coef=1.0, dof_n=2), problemType=elastic
+        )
+
+        K_elastic = [KCMF[0] for KCMF in self.Folded(simu, elastic).values()]
+        K_damage = [KCMF[0] for KCMF in self.Folded(simu, damage).values()]
+
+        nPe = simu.mesh.groupElem.nPe
+        assert any(
+            K is not None and K.shape[1:] == (nPe * 2, nPe * 2) for K in K_elastic
+        )
+        assert all(K is None or K.shape[1:] == (nPe, nPe) for K in K_damage)
