@@ -2,6 +2,26 @@
 
 This document describes the changes made to the project.
 
+## 4.0.0 (September 8, 2026):
+
+- The local matrix system is declared, not built (issue #55)
+    - `Construct_local_matrix_system` is replaced by `Get_terms`, returning a `list[Simulations.Term]` (**breaking**). A `Term` names one operator and a string of slot letters (`KCMFR`) saying where each array that operator returns belongs; `Simulations.Fold_terms` folds the list into the `{groupElem: (K_e, C_e, M_e, F_e)}` the assembler consumes.
+    - The internal-force sign convention is now uniform (**breaking**): `R` is an *internal* force and reaches `F` negated, so `NonLinear.FollowingPressure` and `NonLinear.PenaltyContact` — which returned a positive force — now match the other nonlinear operators. `F` is reserved for genuine external loads.
+    - Every operator a `Term` can tag now takes `elements` **before** `matrixType` (**breaking**): a positional `matrixType` must become a keyword. Array arguments stay full-group and the result is exact zero outside `elements`.
+    - The five `NonLinear` stress operators no longer apply `material.thickness` (**breaking**); `_Simu.thickness` is applied by the fold, so thickness has one owner.
+    - A single-slot term gets its residual from the fold — `-K·u_t`, `-C·v_t`, `-M·a_t`. Multi-slot terms return their own.
+    - `Simu.Add_terms(*terms, problemType=None)` extends a simulation without subclassing it, `Terms_Init` clears them, and a term is its own handle: `Term.Set(**kwargs)` updates a value that changes between steps, such as a follower pressure or a penalty.
+    - `constant=True` builds a contribution once and reuses it across Newton iterations and time steps.
+    - Three mistakes that used to pass silently now raise: a `tag` on an operator that takes no `elements`, a slot count differing from the number of arrays returned, and a contribution whose rank does not match its slot.
+- Renamed `Models.ModelType` to `Simulations.ProblemType` (**breaking**) and exported it, which the move had left out.
+- `FEM.LinearForm.Integrate_e` and `FEM.Operators.Linear.V` return a flat `(Ne, nPe·dof_n)` array instead of `(Ne, nPe·dof_n, 1)` (**breaking**). Results are unchanged.
+- `Simulations.WeakForms(isNonLinear=True)` now assembles a residual instead of raising.
+- MPI: rewrote the petsc4py installation guide, fixed the PETSc option handling in `Simulations.Solvers`, and handled progress output and a missing `mpi4py` under an MPI launcher.
+- Docs: rewrote the "create a custom simulation" how-to around the term list, and made the `FEM` operator catalogue one line per operator again.
+- Pinned ruff's rule set in `pyproject.toml` and let it infer the target version from `requires-python`. Tests and examples run on coarser meshes.
+
+**Full Changelog:** https://github.com/matnoel/EasyFEA/compare/v3.5.1...v4.0.0
+
 ## 3.5.1 (August 21, 2026):
 
 - Added `jax` dependency in `.readthedocs.yaml`.
