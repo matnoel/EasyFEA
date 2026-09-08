@@ -6,7 +6,7 @@ build-backend = "setuptools.build_meta"
 name = "easyfea"
 version = "3.5.1"
 description = "User-friendly Python library that simplifies finite element analysis."
-authors = [{ name = "Matthieu Noel", email = "matthieu.noel7@gmail.com" }]
+authors = [{ name = "Matthieu Noel", email = "noel.mat@proton.me" }]
 readme = "README.md"
 requires-python = ">=3.9"
 keywords = ["finite-element-analysis", "phase-field", "python", "easy", "fem"]
