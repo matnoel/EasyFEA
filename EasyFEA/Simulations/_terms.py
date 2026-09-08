@@ -84,12 +84,14 @@ class Term:
                 "would be silently ignored on the elements it selects."
             )
 
-        self.slots = tuple(slots)
-        self.fn = fn
-        self.kwargs: dict[str, Any] = kwargs
-        self.dim = dim
-        self.tag = tag
-        self.constant = constant
+        # written only here: `Set` is the one supported update, and a `constant=True` term is hashed
+        # on these, so a later assignment would silently go stale in the cache.
+        self.__slots = tuple(slots)
+        self.__fn = fn
+        self.__kwargs: dict[str, Any] = kwargs
+        self.__dim = dim
+        self.__tag = tag
+        self.__constant = constant
         self._simu: Optional["_Simu"] = None
         """Set by :py:meth:`_Simu.Add_terms`, so :py:meth:`Set` can invalidate the assembled matrices."""
 
@@ -108,13 +110,23 @@ class Term:
                 ) from error
 
     def __repr__(self) -> str:
-        name = getattr(self.fn, "__name__", repr(self.fn))
-        tag = "" if self.tag is None else f", tag={self.tag!r}"
-        return f"Term({''.join(self.slots)!r}, {name}{tag})"
+        name = getattr(self.__fn, "__name__", repr(self.__fn))
+        tag = "" if self.__tag is None else f", tag={self.__tag!r}"
+        return f"Term({''.join(self.__slots)!r}, {name}{tag})"
+
+    @property
+    def slots(self) -> tuple[str, ...]:
+        """Where each array the operator returns belongs, one letter of ``KCMFR`` each. Read-only: the fold routes on it, and a ``constant=True`` term is hashed on it."""
+        return self.__slots
+
+    @property
+    def constant(self) -> bool:
+        """Whether the contribution is built once and reused across Newton iterations and time steps."""
+        return self.__constant
 
     def Set(self, **kwargs) -> "Term":
         """Updates arguments in place, for a value that changes between steps (a pressure, a penalty). Returns the term, so it can be chained."""
-        self.kwargs.update(kwargs)
+        self.__kwargs.update(kwargs)
         if self._simu is not None:
             self._simu.Need_Update()
         return self
@@ -126,11 +138,11 @@ class Term:
     def _Cache_key(self) -> tuple:
         """Value identity of the term, so a ``constant=True`` contribution is still found in the cache after :py:meth:`_Simu.Get_terms` rebuilds the list on the next assembly."""
         return (
-            self.fn,
-            self.slots,
-            self.dim,
-            self.tag,
-            tuple(sorted(self.kwargs.items(), key=lambda item: item[0])),
+            self.__fn,
+            self.__slots,
+            self.__dim,
+            self.__tag,
+            tuple(sorted(self.__kwargs.items(), key=lambda item: item[0])),
         )
 
     def __hash__(self):
@@ -145,25 +157,25 @@ class Term:
 
     def _Get_groups(self, mesh: "Mesh") -> list[_GroupElem]:
         """Element groups this term integrates over, tag-filtered."""
-        groups = mesh.Get_list_groupElem(self.dim)
-        if self.tag is None:
+        groups = mesh.Get_list_groupElem(self.__dim)
+        if self.__tag is None:
             return groups
-        return [g for g in groups if self.tag in g.elementTags]
+        return [g for g in groups if self.__tag in g.elementTags]
 
     def _Get_elements(self, groupElem: _GroupElem) -> Optional[_types.IntArray]:
         """Element indices this term is restricted to within `groupElem`, or None."""
-        return None if self.tag is None else groupElem.Get_Elements_Tag(self.tag)
+        return None if self.__tag is None else groupElem.Get_Elements_Tag(self.__tag)
 
     def _Evaluate(
         self, groupElem: _GroupElem, u: Optional[_types.FloatArray] = None
     ) -> Any:
         """Calls the operator on one group, injecting the arguments it declares and the caller left out."""
         values = {"u": u, "elements": self._Get_elements(groupElem)}
-        kwargs = dict(self.kwargs)
+        kwargs = dict(self.__kwargs)
         for name in self.__injectable:
             if name not in kwargs and values[name] is not None:
                 kwargs[name] = values[name]
-        return self.fn(groupElem, **kwargs)
+        return self.__fn(groupElem, **kwargs)
 
     def _Evaluate_constant(self, groupElem: _GroupElem) -> Any:
         """Evaluates a ``constant=True`` term. ``u`` is deliberately unavailable here: a term that needs it is not constant, and would fail loudly on the missing argument rather than silently freeze the first iterate."""
@@ -206,8 +218,8 @@ def Fold_terms(
             if not isinstance(contributions, tuple):
                 contributions = (contributions,)
             assert len(contributions) >= len(term.slots), (
-                f"{term.fn.__name__} returned {len(contributions)} array(s) but the term declares "
-                f"{len(term.slots)} slot(s) {term.slots}."
+                f"{term!r} returned {len(contributions)} array(s) but declares "
+                f"{len(term.slots)} slot(s)."
             )
 
             slots = out.setdefault(groupElem, [None, None, None, None])

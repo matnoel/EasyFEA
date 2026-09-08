@@ -39,7 +39,7 @@ class TestSlots:
 
 class TestTagNeedsElements:
     def test_accepts_a_tag_when_the_operator_takes_elements(self):
-        assert Term("K", Operator, tag="epi").tag == "epi"
+        assert Term("K", Operator, tag="epi").slots == ("K",)
 
     def test_rejects_a_tag_the_operator_cannot_honour(self):
         with pytest.raises(ValueError, match="elements"):
@@ -51,7 +51,7 @@ class TestTagNeedsElements:
             Term("K", Operators.Bilinear.GradU_A_GradV, tag="epi")
 
     def test_allows_that_operator_untagged(self):
-        assert Term("K", Operators.Bilinear.GradU_A_GradV).tag is None
+        assert Term("K", Operators.Bilinear.GradU_A_GradV).slots == ("K",)
 
 
 class TestAddTerms:
