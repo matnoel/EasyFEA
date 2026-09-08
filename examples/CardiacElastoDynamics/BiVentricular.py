@@ -152,7 +152,7 @@ if __name__ == "__main__":
         # Simulation
         # ----------------------------------------------
 
-        simu, endoTerms = Get_simu(
+        simu, pressureTerms = Get_simu(
             mesh,
             material,
             dt,
@@ -165,10 +165,10 @@ if __name__ == "__main__":
         for t in times:
 
             simu.Bc_Init()
-            endoTerms["endo_lv"].Set(
+            pressureTerms["endo_lv"].Set(
                 pressure=np.interp(t + dt / 2, times, pressures_lv)
             )
-            endoTerms["endo_rv"].Set(
+            pressureTerms["endo_rv"].Set(
                 pressure=np.interp(t + dt / 2, times, pressures_rv)
             )
             material.active_stress = np.interp(t + dt / 2, times, stresses)

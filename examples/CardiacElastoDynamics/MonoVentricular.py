@@ -141,13 +141,19 @@ if __name__ == "__main__":
         # Simulation
         # ----------------------------------------------
 
-        simu, endoTerms = Get_simu(
-            mesh, material, dt, ["endo"], folder=results_dir, matrixType=matrixType
+        simu, pressureTerms = Get_simu(
+            mesh,
+            material,
+            dt,
+            ["endo"],
+            folder=results_dir,
+            matrixType=matrixType,
         )
 
         for t in times:
             simu.Bc_Init()
-            endoTerms["endo"].Set(pressure=np.interp(t + dt / 2, times, pressures))
+            for pressureTerm in pressureTerms.values():
+                pressureTerm.Set(pressure=np.interp(t + dt / 2, times, pressures))
             material.active_stress = np.interp(t + dt / 2, times, stresses)
             simu.Solve()
             simu.Save_Iter()
