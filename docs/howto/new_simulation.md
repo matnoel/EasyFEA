@@ -91,15 +91,13 @@ All weak-form-based simulations are available in {ref}`easyfea-examples-weak-for
 (howto-new-simulation-extend)=
 ## Extend an existing simulation
 
-When a built-in simulation already covers most of your physics, you rarely need to subclass it at
-all. Add {py:class}`~EasyFEA.Simulations.Term` objects to the instance with
-{py:meth}`~EasyFEA.Simulations._Simu.Add_terms`, and they are folded into the local matrix system
-alongside the ones the simulation declares itself.
-
-The `MonoVentricular` example
-([CardiacElastoDynamics/MonoVentricular.py](https://github.com/matnoel/EasyFEA/blob/main/examples/CardiacElastoDynamics/MonoVentricular.py))
-does exactly this: a stock {py:class}`~EasyFEA.Simulations.HyperElastic` plus a following pressure
-on the endocardium and Robin-type surface penalties on the `top` and `epi` boundaries.
+When a built-in simulation already covers most of your physics, add
+{py:class}`~EasyFEA.Simulations.Term` objects to the instance with
+{py:meth}`~EasyFEA.Simulations._Simu.Add_terms` — no subclass needed. They are folded in alongside
+the terms the simulation declares itself, as in
+[MonoVentricular](https://github.com/matnoel/EasyFEA/blob/main/examples/CardiacElastoDynamics/MonoVentricular.py),
+a stock {py:class}`~EasyFEA.Simulations.HyperElastic` plus a follower pressure and two surface
+penalties:
 
 ```python
 from EasyFEA import MatrixType, Simulations
@@ -108,39 +106,32 @@ from EasyFEA.FEM import Operators
 
 simu = Simulations.HyperElastic(mesh, material)
 
-# Robin penalty α·u on the `epi` surface. `dim=2` selects the surface element groups and
-# `tag="epi"` restricts the term to that tagged subset. Because it fills a single slot, the
-# assembly also contracts its residual −K·u for you.
+# `dim=2` picks the surface groups, `tag` the subset within them;
+# `constant=True` builds the contribution once and reuses it
 epi = Term("K", Operators.Bilinear.MassAlongNormal,
            dim=2, tag="epi", coef=1e8, constant=True)
 
-# Following pressure. `groupElem`, `u` and `elements` are supplied by the assembly, so only
-# the pressure is passed; the slot string `"KR"` says the operator returns a tangent and an
-# *internal* force, which the assembly subtracts (use `"F"` for a genuine external load).
+# `groupElem`, `u` and `elements` come from the assembly, so only the pressure is passed
 endo = Term("KR", Operators.NonLinear.FollowingPressure,
-            dim=2, tag="endo", pressure=0.0,
-            matrixType=MatrixType.mass)
+            dim=2, tag="endo", pressure=0.0, matrixType=MatrixType.mass)
 
-# one term or many, same call
-simu.Add_terms(epi, endo)
+simu.Add_terms(epi, endo)   # one term or many, same call
 
 for t in times:
     endo.Set(pressure=pressure_at(t))   # terms persist; only the value changes
     simu.Solve()
 ```
 
-`constant=True` marks a contribution that does not depend on the solution, so it is built once and
-reused across Newton iterations and time steps. The {py:mod}`EasyFEA.FEM.Operators` module
-(`Bilinear`, `Linear`, `NonLinear`) provides ready-made element operators — see {ref}`fem-operators`
-for the full list.
+Ready-made operators live in {py:mod}`EasyFEA.FEM.Operators` (`Bilinear`, `Linear`, `NonLinear`) —
+see {ref}`fem-operators`.
 
-When the extra physics belongs to a *class* rather than to one script, override
+When the extra physics belongs to a *class* rather than a script, override
 {py:meth}`~EasyFEA.Simulations._Simu.Get_terms` and compose:
 
 ```python
 class RigidContact(Simulations.Elastic):
 
-    def Get_terms(self, problemType=None):
+    def Get_terms(self, problemType=None) -> list[Term]:
         return super().Get_terms(problemType) + [
             Term("KR", self.__Contact, dim=self.dim - 1)
         ]
@@ -152,9 +143,9 @@ class RigidContact(Simulations.Elastic):
         )
 ```
 
-An operator whose arguments cannot be known before the element group is chosen — a hyperelastic
-state, a contact projection — is written as a named method with the same shape as an operator:
-`(groupElem, ...) -> array` or a tuple of arrays.
+`__Contact` shows the shape to use when an operator's arguments depend on the element group — a
+hyperelastic state, a contact projection: a named method `(groupElem, ...) -> array`, or a tuple of
+arrays.
 
 ---
 
