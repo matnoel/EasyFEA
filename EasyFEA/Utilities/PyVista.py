@@ -1143,9 +1143,7 @@ def _(geom: Geoms.Circle):
 
 @_pvGeom.register
 def _(geom: Geoms.Points):
-    geoms = geom.Get_Contour().geoms
-    if geom.isOpen:
-        geoms = geoms[:-1]
+    geoms = geom.Get_Contour().geoms[:-1]
     dataSets: list[pv.DataSet] = []
     for geom in geoms:
         newData = _pvGeom(geom)
