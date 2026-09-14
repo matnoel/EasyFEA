@@ -849,6 +849,8 @@ def Plot_Geoms(
         if dataSet is None:
             continue
 
+        kwargs["color"] = color
+
         if isinstance(dataSet, list):
             for d, data in enumerate(dataSet):
                 label = geom.name if d == 0 else None
@@ -856,7 +858,6 @@ def Plot_Geoms(
                     data,
                     plotter=plotter,
                     label=label,
-                    color=color,
                     linewidth=line_width,
                     **kwargs,
                 )
@@ -865,7 +866,6 @@ def Plot_Geoms(
                 dataSet,
                 plotter=plotter,
                 label=geom.name,
-                color=color,
                 linewidth=line_width,
                 **kwargs,
             )
