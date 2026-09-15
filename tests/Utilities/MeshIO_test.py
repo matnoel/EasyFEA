@@ -175,6 +175,31 @@ class TestMeshIO:
         filename = MeshIO.EasyFEA_to_Medit(mesh, folder_results, "tagless")
         assert get_tags(MeshIO.Medit_to_EasyFEA(filename)) == []
 
+    def test_imported_tags_keep_their_elements(self):
+        """The middle triangle's nodes all belong to its neighbours' tag, which must not take it."""
+
+        import meshio
+
+        #  0---2---4
+        #   \ / \ /      refs: (0,1,2) -> 1, (1,3,2) -> 2, (2,3,4) -> 1
+        #    1---3
+        points = np.array([[0, 0], [1, -1], [2, 0], [3, -1], [4, 0]], dtype=float)
+        triangles = np.array([[0, 1, 2], [1, 3, 2], [2, 3, 4]])
+        refs = np.array([1, 2, 1])
+        meshioMesh = meshio.Mesh(
+            points, [("triangle", triangles)], cell_data={"medit:ref": [refs]}
+        )
+
+        mesh = MeshIO._Meshio_to_EasyFEA(meshioMesh)
+
+        assert np.array_equal(np.sort(mesh.Elements_Tags("S1")), [0, 2])
+        assert np.array_equal(mesh.Elements_Tags("S2"), [1])
+        # a tag given by nodes alone still takes every element using only those nodes
+        mesh.groupElem.Set_Tag(mesh.Nodes_Tags("S1"), "fromNodes")
+        assert np.array_equal(np.sort(mesh.Elements_Tags("fromNodes")), [0, 1, 2])
+        with pytest.raises(Exception):
+            mesh.groupElem.Set_Tag(mesh.Nodes_Tags("S1"), "bad", np.array([3]))
+
     def test_easyfea_to_medit(self, meshes: list[Mesh]):
 
         for mesh in meshes:
