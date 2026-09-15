@@ -738,8 +738,8 @@ def _Set_Tags(
                         continue
                     name = t + str(tag)
                 nodes = np.unique(groupElem.connect[elems])
-                # set tag
-                groupElem.Set_Tag(nodes, name)
+                # the elements are known: recomputing them from the nodes would overlap neighbouring tags
+                groupElem.Set_Tag(nodes=nodes, tag=name, elements=elems)
 
             print(f"{groupElem.elemType} -> Ne = {groupElem.Ne}")
 

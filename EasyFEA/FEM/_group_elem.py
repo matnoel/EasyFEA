@@ -1671,13 +1671,30 @@ class _GroupElem(ABC):
     # "Line" -> Plane equation
     # CircleArc -> Cylinder do something like Get_Nodes_Cylinder
 
-    def Set_Tag(self, nodes: _types.IntArray, tag: str):
-        """Set a tag on the nodes and elements belonging to the group of elements."""
+    def Set_Tag(
+        self,
+        nodes: _types.IntArray,
+        tag: str,
+        elements: Optional[_types.IntArray] = None,
+    ):
+        """Set a tag on the nodes and elements belonging to the group of elements.
+
+        Parameters
+        ----------
+        nodes : _types.IntArray
+            list of nodes
+        tag : str
+            tag used
+        elements : _types.IntArray, optional
+            elements to tag, by default those using only `nodes`, which also catches neighbours whose nodes all lie on the tag's border
+        """
         assert isinstance(tag, str), "tag must be a string"
+        if nodes.size == 0:
+            return
         self.__Set_Nodes_Tag(nodes, tag)
-        # The elements used by the nodes are automatically defined using the function
-        # Get_Elements_Nodes(nodes, exclusively=True) in the following function.
-        self.__Set_Elements_Tag(nodes, tag)
+        if elements is None:
+            elements = self.Get_Elements_Nodes(nodes=nodes, exclusively=True)
+        self.__Set_Elements_Tag(elements, tag)
 
     def __Set_Nodes_Tag(self, nodes: _types.IntArray, tag: str):
         """Adds a tag to the nodes.
@@ -1710,25 +1727,24 @@ class _GroupElem(ABC):
         """Dictionary associating tags with nodes."""
         return self.__dict_nodes_tags.copy()
 
-    def __Set_Elements_Tag(self, nodes: _types.IntArray, tag: str):
-        """Adds a tag to elements associated with nodes.
+    def __Set_Elements_Tag(self, elements: _types.IntArray, tag: str):
+        """Adds a tag to elements.
 
         Parameters
         ----------
-        nodes : _types.IntArray
-            list of nodes
+        elements : _types.IntArray
+            list of elements
         tag : str
             tag used
         """
 
-        if nodes.size == 0:
+        elements = np.asarray(elements)
+        if elements.size == 0:
             return
         assert isinstance(tag, str), "tag must be a string"
 
-        # Retrieve elements associated with nodes
-        elements = self.Get_Elements_Nodes(nodes=nodes, exclusively=True)
-        if elements.size == 0:
-            return
+        if elements.ndim != 1 or not np.issubdtype(elements.dtype, np.integer):
+            raise Exception("elements must be a 1D array of integers.")
 
         if np.min(elements) < 0 or np.max(elements) >= self.Ne:
             raise Exception(f"elements must be within the range [0, {self.Ne - 1}].")
