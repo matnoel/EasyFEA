@@ -10,22 +10,19 @@ from typing import Any, Callable, Optional, TYPE_CHECKING
 
 import numpy as np
 
-from ..FEM import _GroupElem
-
-if TYPE_CHECKING:
-    from ..FEM import Mesh
 from ..Utilities import _types
 
 if TYPE_CHECKING:
     from typing import Concatenate
 
+    from ..FEM import Mesh, _GroupElem
     from ._simu import _Simu
     from ._problem_type import ProblemType
 
     # what a checker enforces: the first positional argument is the element group, the rest are the term's kwargs
     _Operator = Callable[Concatenate[_GroupElem, ...], Any]
 else:
-    # Concatenate reached typing in 3.10, and this alias is evaluated at import
+    # Concatenate reached typing in 3.10
     _Operator = Callable[..., Any]
 
 
@@ -40,7 +37,9 @@ _INJECTABLE = frozenset({"u", "elements"})
 
 
 class Term:
-    r"""One operator's contribution to the local matrix system :math:`\Krm \, \mathrm{u} + \Crm \, \vrm + \Mrm \, \arm = \Frm`.
+    r"""One operator, declared: where its arrays go, what it integrates over, what it is called with.
+
+    Evaluating a term on one element group yields one **contribution** per slot — the arrays :func:`Fold_terms` accumulates into ``{groupElem: (K_e, C_e, M_e, F_e)}``, the local form of :math:`\Krm \, \mathrm{u} + \Crm \, \vrm + \Mrm \, \arm = \Frm`.
 
     ``slots`` names where the returned arrays go — one letter of ``KCMFR`` per array, in order, so an operator returning two arrays takes exactly two letters. Slots *route* arrays; they never copy one into several, so ``"KC"`` on an operator returning a single matrix is an error, not a request to damp with the stiffness::
 
@@ -163,19 +162,19 @@ class Term:
     # Evaluation
     # ----------------------------------------------
 
-    def _Get_groups(self, mesh: "Mesh") -> list[_GroupElem]:
+    def _Get_groups(self, mesh: "Mesh") -> list["_GroupElem"]:
         """Element groups this term integrates over, tag-filtered."""
         groups = mesh.Get_list_groupElem(self.__dim)
         if self.__tag is None:
             return groups
         return [g for g in groups if self.__tag in g.elementTags]
 
-    def _Get_elements(self, groupElem: _GroupElem) -> Optional[_types.IntArray]:
+    def _Get_elements(self, groupElem: "_GroupElem") -> Optional[_types.IntArray]:
         """Element indices this term is restricted to within `groupElem`, or None."""
         return None if self.__tag is None else groupElem.Get_Elements_Tag(self.__tag)
 
     def _Evaluate(
-        self, groupElem: _GroupElem, u: Optional[_types.FloatArray] = None
+        self, groupElem: "_GroupElem", u: Optional[_types.FloatArray] = None
     ) -> Any:
         """Calls the operator on one group, injecting the arguments it declares and the caller left out."""
         values = {"u": u, "elements": self._Get_elements(groupElem)}
@@ -185,7 +184,7 @@ class Term:
                 kwargs[name] = values[name]
         return self.__fn(groupElem, **kwargs)
 
-    def _Evaluate_constant(self, groupElem: _GroupElem) -> Any:
+    def _Evaluate_constant(self, groupElem: "_GroupElem") -> Any:
         """Evaluates a ``constant=True`` term. ``u`` is deliberately unavailable here: a term that needs it is not constant, and would fail loudly on the missing argument rather than silently freeze the first iterate."""
         return self._Evaluate(groupElem)
 
@@ -194,7 +193,7 @@ def Fold_terms(
     simu: "_Simu",
     terms: list[Term],
     problemType: Optional["ProblemType"] = None,
-) -> dict[_GroupElem, tuple]:
+) -> dict["_GroupElem", tuple]:
     r"""Folds `terms` into the local matrix system ``{groupElem: (K_e, C_e, M_e, F_e)}``.
 
     Contributions **accumulate**: several terms may target one group, and each fills only the slots it declares. Every contribution is scaled by :py:attr:`_Simu.thickness`, so operators stay free of simulation-level geometry.
@@ -214,7 +213,7 @@ def Fold_terms(
     fields = {"u": u_t, "v": v_t, "a": a_t}
 
     index = {"K": 0, "C": 1, "M": 2, "F": 3}  # slot name -> index in (K, C, M, F)
-    out: dict[_GroupElem, list] = {}
+    out: dict["_GroupElem", list] = {}
 
     for term in terms:
         for groupElem in term._Get_groups(mesh):
@@ -276,7 +275,7 @@ def _Check_rank(term: Term, slot: str, contribution: Any) -> None:
 
 def _Residual(
     term: Term,
-    groupElem: _GroupElem,
+    groupElem: "_GroupElem",
     matrix_e: Optional[np.ndarray],
     fields: dict[str, Optional[_types.FloatArray]],
     dof_n: int,
