@@ -2,6 +2,13 @@
 
 This document describes the changes made to the project.
 
+## Unreleased
+
+- A `constant=True` term is reused while its arguments keep the same values, checked against a copy taken when it was built, instead of hashed, so array arguments such as `material.C` or an array `rho` are cached too, and an in-place write is seen. `Elastic` (including Rayleigh damping), `Thermal` and `HyperElastic`'s mass declare every solution-independent term constant.
+- A `constant=True` term refuses a bound-method operator, and a list, dict, set or identity-compared object argument (**breaking**).
+- `Term.Scaled(coef, slots=None)` returns a copy multiplied by `coef`, outside the cache, so Rayleigh damping reuses the stiffness and mass integrations.
+- The term cache is dropped on a mesh notification, and a simulation observes a mesh assigned after construction.
+
 ## 4.0.0 (September 8, 2026):
 
 - The local matrix system is declared, not built (issue #55)

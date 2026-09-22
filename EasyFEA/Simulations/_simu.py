@@ -302,7 +302,7 @@ class _Simu(_IObserver, _params.Updatable, ABC):
             problemType = self.problemType
         self.__Check_problemTypes(problemType)
 
-        added = self.__terms.setdefault(problemType, [])
+        added = self.__terms_added.setdefault(problemType, [])
         for term in terms:
             term._simu = self  # so `term.Set(...)` invalidates the assembled matrices
             added.append(term)
@@ -311,13 +311,8 @@ class _Simu(_IObserver, _params.Updatable, ABC):
 
     def Terms_Init(self) -> None:
         """Removes every term added with :py:meth:`Add_terms`. Terms persist across time steps — unlike boundary conditions, they are declared once and their arguments updated — so this is rarely needed."""
-        self.__terms: dict[ProblemType, list[Term]] = {}
+        self.__terms_added: dict[ProblemType, list[Term]] = {}
         self.Need_Update()
-
-    @cache_computed_values
-    def _Term_cached(self, term: Term, groupElem: _GroupElem):
-        """Contribution of a ``constant=True`` term on one group, built once and reused across Newton iterations and time steps. Dropped when the mesh changes, like every other cached computed value."""
-        return term._Evaluate_constant(groupElem)
 
     def _Construct_local_matrix_system(self, problemType) -> dict[
         _GroupElem,
@@ -340,7 +335,7 @@ class _Simu(_IObserver, _params.Updatable, ABC):
             problemType = self.problemType
         return Fold_terms(
             self,
-            self.Get_terms(problemType) + self.__terms.get(problemType, []),
+            self.Get_terms(problemType) + self.__terms_added.get(problemType, []),
             problemType,
         )
 
@@ -957,6 +952,7 @@ class _Simu(_IObserver, _params.Updatable, ABC):
             # This cannot live in `Need_Update`, which fires on every Newton
             # iteration — exactly the case those caches exist to serve.
             clear_cached_computed_values(self)
+            mesh._Add_observer(self)
 
             # The mesh changes, so the matrices must be reconstructed
             self.Need_Update()
@@ -1039,6 +1035,7 @@ class _Simu(_IObserver, _params.Updatable, ABC):
             self.Need_Update()
         elif isinstance(observable, Mesh):
             self._Check_dim_mesh_material()
+            clear_cached_computed_values(self)
             self.Need_Update()
         else:
             Terminal.MyPrintError("Notification not yet implemented")

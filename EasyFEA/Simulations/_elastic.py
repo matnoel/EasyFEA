@@ -123,36 +123,26 @@ class Elastic(_Simu):
 
     def Get_terms(self, problemType=None) -> list[Term]:
 
-        terms = [
-            Term("K", Operators.Bilinear.LinearizedElasticity, C=self.material.C),
-            # ∫ρ N·N does not change across the solve, so it is built once and reused; an array ρ cannot key the cache, so it is rebuilt every assembly.
-            Term(
-                "M",
-                Operators.Bilinear.UV,
-                coef=self.rho,
-                dof_n=self.dim,
-                constant=not isinstance(self.rho, np.ndarray),
-            ),
-        ]
+        stiffness = Term(
+            "K",
+            Operators.Bilinear.LinearizedElasticity,
+            C=self.material.C,
+            constant=True,
+        )
+        mass = Term(
+            "M",
+            Operators.Bilinear.UV,
+            coef=self.rho,
+            dof_n=self.dim,
+            constant=True,
+        )
+        terms = [stiffness, mass]
 
-        # Rayleigh damping C = coefK·K + coefM·M, declared rather than summed from the two matrices above — so an undamped simulation (the default) never builds it at all.
+        # Rayleigh damping C = coefK·K + coefM·M: the same integrations, scaled into C — so an undamped simulation (the default) never builds it at all.
         if self.__coefK != 0.0:
-            terms.append(
-                Term(
-                    "C",
-                    Operators.Bilinear.LinearizedElasticity,
-                    C=self.__coefK * self.material.C,
-                )
-            )
+            terms.append(stiffness.Scaled(self.__coefK, "C"))
         if self.__coefM != 0.0:
-            terms.append(
-                Term(
-                    "C",
-                    Operators.Bilinear.UV,
-                    coef=self.__coefM * self.rho,
-                    dof_n=self.dim,
-                )
-            )
+            terms.append(mass.Scaled(self.__coefM, "C"))
 
         return terms
 

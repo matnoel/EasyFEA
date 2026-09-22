@@ -259,7 +259,9 @@ a **single** slot also gets its residual — $-\Krm_e \urm_t$, $-\Crm_e \vrm_t$,
 $-\Mrm_e \arm_t$ — contracted for it, since one slot means the contribution is
 linear in that field. Add `constant=True` when a contribution does not depend on
 the solution: it is then built once and reused across Newton iterations and time
-steps.
+steps, until one of its arguments changes. So a constant term must get everything
+it reads through its arguments — a plain operator such as `Bilinear.UV` with
+`coef=self.rho`, never a bound method, which `Term` refuses.
 
 ```{warning}
 A **non-linear** problem needs no special handling here: put the tangent in `K`

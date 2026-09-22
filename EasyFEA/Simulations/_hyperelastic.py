@@ -304,7 +304,7 @@ class HyperElastic(_Simu):
                     Operators.Bilinear.UV,
                     coef=self.rho,
                     dof_n=self.dim,
-                    constant=not isinstance(self.rho, np.ndarray),
+                    constant=True,
                 )
             )
 

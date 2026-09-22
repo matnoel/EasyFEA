@@ -5,12 +5,14 @@
 
 r"""Declarative description of a simulation's local matrix system: a list of :class:`Term`, folded into ``{groupElem: (K_e, C_e, M_e, F_e)}`` by :func:`Fold_terms`."""
 
+import copy
 import inspect
 from typing import Any, Callable, Optional, TYPE_CHECKING
 
 import numpy as np
 
 from ..Utilities import _types
+from ..Utilities._cache import cached_computed_values
 
 if TYPE_CHECKING:
     from typing import Concatenate
@@ -34,6 +36,25 @@ _SLOT_FIELD = {"K": "u", "C": "v", "M": "a"}
 
 _INJECTABLE = frozenset({"u", "elements"})
 """Parameters the fold fills in by name when the caller does not supply them. Kept short and generic on purpose: injection makes an operator's *parameter names* part of the contract, so it covers only quantities every simulation has. Anything domain-specific — a hyperelastic state, a material — is passed by a named method instead, as in :py:meth:`HyperElastic.Get_terms`."""
+
+
+def _Check_comparable(fn: Callable, name: str, value: Any) -> None:
+    """Refuses a ``constant=True`` argument that no value check can see change."""
+    if isinstance(value, (list, dict, set)) or (
+        value is not None
+        and not isinstance(value, np.ndarray)
+        and type(value).__eq__ is object.__eq__
+    ):
+        raise TypeError(
+            f"{getattr(fn, '__name__', fn)}: argument {name!r} ({type(value).__name__}) can "
+            "change without the term seeing it, so it cannot be constant=True. Pass the "
+            "values the operator reads instead."
+        )
+
+
+def _Same(a: Any, b: Any) -> bool:
+    """Whether a ``constant=True`` argument is unchanged since the contribution was built."""
+    return a is b or np.array_equal(a, b)
 
 
 class Term:
@@ -73,7 +94,7 @@ class Term:
         tag : str, optional
             Restricts the term to a tagged element subset; groups without the tag are skipped.
         constant : bool, optional
-            Declares the contribution independent of the solution, so it is built once and reused across Newton iterations and time steps. Defaults to False.
+            Declares the contribution independent of the solution, so it is built once and reused across Newton iterations and time steps while its arguments are unchanged. `fn` must then read nothing but its arguments, so it cannot be a bound method. Defaults to False.
         **kwargs
             Passed on to ``fn``. ``u`` and ``elements`` are supplied by the fold when ``fn`` declares them and they are left out here.
         """
@@ -91,11 +112,15 @@ class Term:
                 "would be silently ignored on the elements it selects."
             )
 
-        # written only here: `Set` is the one supported update, and a `constant=True` term is hashed
-        # on these, so a later assignment would silently go stale in the cache.
+        # written only here: `Set` is the one supported update, and a `constant=True` term's cache
+        # is keyed and checked on these, so a later assignment would silently go stale.
         self.__slots = tuple(slots)
         self.__fn = fn
         self.__kwargs: dict[str, Any] = kwargs
+        self.__scale: float = 1.0
+        self.__declared = (
+            self.__slots
+        )  # a scaled copy keeps its source's, to share its cache entry
         self.__dim = dim
         self.__tag = tag
         self.__constant = constant
@@ -106,15 +131,14 @@ class Term:
         self.__injectable = tuple(n for n in parameters[1:] if n in _INJECTABLE)
 
         if constant:
-            # the cache is keyed on the term's value, so every argument must be hashable
-            try:
-                hash(self)
-            except TypeError as error:
+            if inspect.ismethod(fn):
                 raise TypeError(
-                    f"constant=True needs hashable arguments and a stable function, but {fn} "
-                    f"cannot key the cache ({error}). Drop constant=True, or pass the varying "
-                    "argument through a term that is rebuilt each assembly."
-                ) from error
+                    f"{fn.__name__} is a bound method: it can read state no argument carries, "
+                    "so constant=True could not see it change. Pass what it reads as arguments "
+                    "of a plain function, or drop constant=True."
+                )
+            for n, v in kwargs.items():
+                _Check_comparable(fn, n, v)
 
     def __repr__(self) -> str:
         name = getattr(self.__fn, "__name__", repr(self.__fn))
@@ -123,7 +147,7 @@ class Term:
 
     @property
     def slots(self) -> tuple[str, ...]:
-        """Where each array the operator returns belongs, one letter of ``KCMFR`` each. Read-only: the fold routes on it, and a ``constant=True`` term is hashed on it."""
+        """Where each array the operator returns belongs, one letter of ``KCMFR`` each. Read-only: the fold routes on it."""
         return self.__slots
 
     @property
@@ -131,32 +155,52 @@ class Term:
         """Whether the contribution is built once and reused across Newton iterations and time steps."""
         return self.__constant
 
+    @property
+    def scale(self) -> float:
+        """Multiplies every array the operator returns, set by :py:meth:`Scaled`."""
+        return self.__scale
+
+    def Scaled(self, coef: int | float, slots: Optional[str] = None) -> "Term":
+        """A copy of this term with its arrays multiplied by `coef`, routed to `slots` if given. Applied outside the cache, so a constant term and its scaled copies integrate once."""
+        term = Term(
+            slots or "".join(self.__slots),
+            self.__fn,
+            dim=self.__dim,
+            tag=self.__tag,
+            constant=self.__constant,
+            **self.__kwargs,
+        )
+        term.__scale = self.__scale * coef
+        term.__declared = self.__declared
+        return term
+
     def Set(self, **kwargs) -> "Term":
         """Updates arguments in place, for a value that changes between steps (a pressure, a penalty). Returns the term, so it can be chained."""
+        if self.__constant:
+            for n, v in kwargs.items():
+                _Check_comparable(self.__fn, n, v)
         self.__kwargs.update(kwargs)
         if self._simu is not None:
             self._simu.Need_Update()
         return self
 
     # ----------------------------------------------
-    # Value identity, so `constant=True` survives the per-assembly rebuild of the list
+    # Reuse across the per-assembly rebuild of the list
     # ----------------------------------------------
 
-    def _Cache_key(self) -> tuple:
-        """Value identity of the term, so a ``constant=True`` contribution is still found in the cache after :py:meth:`_Simu.Get_terms` rebuilds the list on the next assembly."""
-        return (
-            self.__fn,
-            self.__slots,
-            self.__dim,
-            self.__tag,
-            tuple(sorted(self.__kwargs.items(), key=lambda item: item[0])),
-        )
-
-    def __hash__(self):
-        return hash(self._Cache_key())
-
-    def __eq__(self, other):
-        return isinstance(other, Term) and self._Cache_key() == other._Cache_key()
+    def _Cached(self, simu: "_Simu", groupElem: "_GroupElem") -> Any:
+        """Unscaled contribution of a ``constant=True`` term on one group, kept with `simu`'s cached computed values (so a mesh change drops it) and reused by the term declared the same way, and by its :py:meth:`Scaled` copies, while the argument values are unchanged. ``u`` is deliberately unavailable: a term that needs it is not constant, and fails loudly on the missing argument rather than silently freeze the first iterate."""
+        key = (self.__fn, self.__declared, self.__dim, self.__tag, groupElem)
+        kwargs = self.__kwargs
+        cache = cached_computed_values(simu)
+        hit = cache.get(key)
+        if (
+            hit is None
+            or hit[0].keys() != kwargs.keys()
+            or not all(_Same(v, kwargs[n]) for n, v in hit[0].items())
+        ):
+            hit = cache[key] = (copy.deepcopy(kwargs), self._Evaluate(groupElem))
+        return hit[1]
 
     # ----------------------------------------------
     # Evaluation
@@ -183,10 +227,6 @@ class Term:
             if name not in kwargs and values[name] is not None:
                 kwargs[name] = values[name]
         return self.__fn(groupElem, **kwargs)
-
-    def _Evaluate_constant(self, groupElem: "_GroupElem") -> Any:
-        """Evaluates a ``constant=True`` term. ``u`` is deliberately unavailable here: a term that needs it is not constant, and would fail loudly on the missing argument rather than silently freeze the first iterate."""
-        return self._Evaluate(groupElem)
 
 
 def Fold_terms(
@@ -219,7 +259,7 @@ def Fold_terms(
         for groupElem in term._Get_groups(mesh):
 
             if term.constant:
-                contributions = simu._Term_cached(term, groupElem)
+                contributions = term._Cached(simu, groupElem)
             else:
                 contributions = term._Evaluate(groupElem, u_t)
             if not isinstance(contributions, tuple):
@@ -239,7 +279,7 @@ def Fold_terms(
                     continue
                 _Check_rank(term, slot, contribution)
                 # always allocates, so a cached `constant=True` array is never written into
-                contribution = thickness * contribution
+                contribution = thickness * term.scale * contribution
                 if slot == "R":  # an internal force opposes the right-hand side
                     contribution, slot = -contribution, "F"
                 else:

@@ -117,9 +117,17 @@ class Thermal(_Simu):
 
         return [
             # conductivity
-            Term("K", Operators.Bilinear.GradUGradV, coef=thermalModel.k),
+            Term(
+                "K", Operators.Bilinear.GradUGradV, coef=thermalModel.k, constant=True
+            ),
             # reaction
-            Term("C", Operators.Bilinear.UV, coef=self.rho * thermalModel.c, dof_n=1),
+            Term(
+                "C",
+                Operators.Bilinear.UV,
+                coef=self.rho * thermalModel.c,
+                dof_n=1,
+                constant=True,
+            ),
         ]
 
     def Save_Iter(self, iter=None):

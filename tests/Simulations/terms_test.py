@@ -49,7 +49,7 @@ def Simu() -> Simulations.Thermal:
 
 def Added(simu, problemType=None) -> list[Term]:
     """The terms `Add_terms` registered for one problem — the one place these tests reach into private state. `Get_terms` returns the *declared* terms, a separate list."""
-    return simu._Simu__terms.get(problemType or simu.problemType, [])
+    return simu._Simu__terms_added.get(problemType or simu.problemType, [])
 
 
 def PhaseFieldSimu() -> Simulations.PhaseField:
@@ -145,10 +145,7 @@ class TestSlotRank:
 
 
 class TestAddTerms:
-    """``Add_terms`` is variadic: one term and many take the same path.
-
-    Assertions compare by ``is``, never ``==``: :py:meth:`Term.__eq__` is *value* identity so the cache can find a rebuilt term, which makes two separately built ``Term("K", op)`` compare equal.
-    """
+    """``Add_terms`` is variadic: one term and many take the same path."""
 
     Simu = staticmethod(Simu)
     Added = staticmethod(Added)

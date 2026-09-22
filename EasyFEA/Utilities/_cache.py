@@ -16,14 +16,9 @@ def cache_computed_values(func):
     @wraps(func)
     def wrapper(self, *args, **kwargs):
 
-        __check_class(self)
-
-        if not hasattr(self, CACH_NAME):
-            setattr(self, CACH_NAME, {})
-
         key = (func.__name__, args, frozenset(kwargs.items()))
         # frozenset is used here to make kwargs arguments hashable.
-        cachedComputedValues = getattr(self, CACH_NAME)
+        cachedComputedValues = cached_computed_values(self)
 
         if key not in cachedComputedValues:
             result = func(self, *args, **kwargs)
@@ -44,6 +39,14 @@ def __check_class(self):
         raise TypeError(
             "The `@cache_computed_values` decorator only works for class methods."
         )
+
+
+def cached_computed_values(self) -> dict:
+    "Returns the cached computed values, for a cache the decorator cannot key"
+    __check_class(self)
+    if not hasattr(self, CACH_NAME):
+        setattr(self, CACH_NAME, {})
+    return getattr(self, CACH_NAME)
 
 
 def clear_cached_computed_values(self):
