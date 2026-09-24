@@ -136,6 +136,14 @@ see {ref}`fem-operators`. The contact example extends {py:class}`~EasyFEA.Simula
 ```python
 class RigidContact(Simulations.Elastic):
 
+    penalty = _params.ScalarParameter()
+
+    def __init__(self, mesh, model, penalty):
+        super().__init__(mesh, model)
+        # contact makes the problem nonlinear: Newton-Raphson, so the `R` slot is used
+        self._Solver_Set_Newton_Raphson_Algorithm(absTol=1e-5, maxIter=50)
+        self.penalty = penalty
+
     def Get_terms(self, problemType: Optional[ProblemType] = None) -> list[Term]:
         return super().Get_terms(problemType) + [
             Term("KR", self.__Contact, dim=self.dim - 1)
