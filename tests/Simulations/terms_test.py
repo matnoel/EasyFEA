@@ -8,13 +8,16 @@
 Each catches a failure that is otherwise silent: an unknown slot letter would surface deep inside the fold, a ``tag`` on an operator that takes no ``elements`` would assemble the whole group instead of the tagged subset, and a slot count that does not match what the operator returns would drop an array or fabricate one.
 """
 
+from typing import Optional
+
 import numpy as np
 import pytest
 
 from EasyFEA import Models, Simulations
 from EasyFEA.FEM import Operators
 from EasyFEA.Geoms import Domain, Point
-from EasyFEA.Simulations import Fold_terms, Term
+from EasyFEA.Simulations import Fold_terms, ProblemType, Term
+from EasyFEA.Utilities import _params
 
 
 def Operator(groupElem, elements=None):
@@ -123,3 +126,141 @@ class TestSlotRank:
 
     def test_accepts_the_right_order(self):
         assert self.Fold("KR", Two_arrays)
+
+
+class Heated(Simulations.Thermal):
+    """Thermal extended by subclassing: a uniform heat source that changes between solves."""
+
+    source = _params.ScalarParameter()
+
+    def __init__(self):
+        domain = Domain((0, 0), (1, 1))
+        mesh = domain.Mesh_2D()
+        super().__init__(mesh, Models.Thermal(1, 1))
+        self.source = 1.0
+
+    def Get_terms(self, problemType: Optional[ProblemType] = None) -> list[Term]:
+        return super().Get_terms(problemType) + [
+            Term("F", Operators.Linear.V, f=self.source)
+        ]
+
+    def Solve_held_at_zero(self) -> np.ndarray:
+        """Solves with the temperature fixed to 0 on the edge x = 0."""
+        self.Bc_Init()
+        self.add_dirichlet(
+            self.mesh.Nodes_Conditions(lambda x, y, z: x == 0), [0], ["t"]
+        )
+        return self.Solve().copy()
+
+
+class Counted:
+    """`Operators.Bilinear.UV`, counting its calls: an object, not a bound method, so a constant term accepts it."""
+
+    def __init__(self):
+        self.calls = 0
+
+    def __call__(self, groupElem, coef=1.0, elements=None):
+        self.calls += 1
+        return Operators.Bilinear.UV(groupElem, coef=coef, elements=elements)
+
+
+class Stiffened(Heated):
+    """`Heated` plus a constant `K` term integrated by a `Counted` operator."""
+
+    stiffness = _params.ScalarParameter()
+
+    def __init__(self):
+        super().__init__()
+        self.operator = Counted()
+        self.stiffness = 1.0
+
+    def Get_terms(self, problemType: Optional[ProblemType] = None) -> list[Term]:
+        return super().Get_terms(problemType) + [
+            Term("K", self.operator, coef=self.stiffness, constant=True)
+        ]
+
+
+class Sprung(Heated):
+    """`Heated` plus one constant term scaled into `K` by `alpha` and into `C` by `beta`, as a Robin spring."""
+
+    alpha = _params.ScalarParameter()
+    beta = _params.ScalarParameter()
+
+    def __init__(self):
+        super().__init__()
+        self.operator = Counted()
+        self.alpha = 2.0
+        self.beta = 3.0
+
+    def Get_terms(self, problemType: Optional[ProblemType] = None) -> list[Term]:
+        spring = Term("K", self.operator, constant=True)
+        return super().Get_terms(problemType) + [
+            spring.Scaled(self.alpha),
+            spring.Scaled(self.beta, "C"),
+        ]
+
+
+class TestExtendBySubclass:
+    """A subclass adds terms to `Get_terms`; a value that changes between solves is a parameter of it."""
+
+    def test_a_parameter_written_between_solves_reaches_the_next_solve(self):
+        simu = Heated()
+        once = simu.Solve_held_at_zero()
+
+        simu.source = 2.0
+        twice = simu.Solve_held_at_zero()
+
+        # linear in the source: doubling it doubles the temperature
+        assert np.abs(once).max() > 0
+        np.testing.assert_allclose(twice, 2 * once, rtol=1e-12)
+
+    def test_a_constant_term_is_integrated_once_while_its_arguments_are_unchanged(self):
+        simu = Stiffened()
+        for source in (1.0, 2.0, 3.0):
+            simu.source = source  # re-assembles every solve; only the cache spares K
+            simu.Solve_held_at_zero()
+
+        assert len(simu.mesh.Get_list_groupElem(simu.dim)) == 1
+        assert simu.operator.calls == 1
+
+    def test_a_constant_term_whose_argument_changes_is_integrated_again(self):
+        simu = Stiffened()
+        K_once = simu.Get_K_C_M_F()[0]
+
+        simu.stiffness = 2.0
+        K_twice = simu.Get_K_C_M_F()[0]
+
+        assert simu.operator.calls == 2
+        # each unit of stiffness adds one UV on top of the conduction matrix
+        K_conduction = Heated().Get_K_C_M_F()[0]
+        UV = (K_once - K_conduction).toarray()
+        assert np.abs(UV).max() > 0
+        np.testing.assert_allclose((K_twice - K_once).toarray(), UV, atol=1e-14)
+
+    @staticmethod
+    def UV() -> np.ndarray:
+        """One unit of the `Counted` term, assembled: `Stiffened`'s stiffness over conduction alone."""
+        return (Stiffened().Get_K_C_M_F()[0] - Heated().Get_K_C_M_F()[0]).toarray()
+
+    def test_scaled_copies_of_a_constant_term_share_one_integration(self):
+        simu = Sprung()
+        K, C = simu.Get_K_C_M_F()[:2]
+
+        assert simu.operator.calls == 1
+        K_conduction, C_capacity = Heated().Get_K_C_M_F()[:2]
+        UV = self.UV()
+        np.testing.assert_allclose((K - K_conduction).toarray(), 2.0 * UV, atol=1e-14)
+        np.testing.assert_allclose((C - C_capacity).toarray(), 3.0 * UV, atol=1e-14)
+
+    def test_a_new_scale_reaches_the_matrix_without_integrating_again(self):
+        simu = Sprung()
+        simu.Get_K_C_M_F()
+
+        simu.alpha = 5.0
+        K = simu.Get_K_C_M_F()[0]
+
+        assert simu.operator.calls == 1
+        K_conduction = Heated().Get_K_C_M_F()[0]
+        np.testing.assert_allclose(
+            (K - K_conduction).toarray(), 5.0 * self.UV(), atol=1e-14
+        )
