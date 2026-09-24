@@ -10,7 +10,7 @@ from enum import Enum
 import numpy as np
 from scipy import sparse, optimize
 import scipy.sparse.linalg as sla
-from typing import Union, TYPE_CHECKING
+from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
     from ._simu import _Simu
@@ -220,8 +220,8 @@ def _Solve_Axb(
     A: sparse.csr_matrix,
     b: sparse.csr_matrix,
     x0: _types.FloatArray,
-    lb: Union[_types.AnyArray, _types.Numbers],
-    ub: Union[_types.AnyArray, _types.Numbers],
+    lb: _types.AnyArray | _types.Numbers,
+    ub: _types.AnyArray | _types.Numbers,
     resol: ResolType = ResolType.r1,
     ownedDofs: _types.IntArray = None,
     mapping: _types.IntArray = None,
@@ -240,9 +240,9 @@ def _Solve_Axb(
         vector b
     x0 : _types.FloatArray
         initial solution for iterative solvers
-    lb : Union[_types.AnyArra, _types.Numbers]
+    lb : _types.AnyArra | _types.Numbers
         lowerBoundary of the solution
-    ub : Union[_types.AnyArra, _types.Numbers]
+    ub : _types.AnyArra | _types.Numbers
         upperBoundary of the solution
     ownedDofs : _types.IntArray, optional
         Indices (into A/b) owned by this rank, by defaut None.Must be disjoint across ranks and together cover all N rows
@@ -388,7 +388,7 @@ def _Solve_Axb(
 
 def Solve_simu(
     simu: "_Simu", problemType: "ProblemType"
-) -> tuple[_types.FloatArray, Union[_types.FloatArray, None, float]]:
+) -> tuple[_types.FloatArray, _types.FloatArray | None | float]:
     """Solving the simulation's problem according to the resolution type."""
 
     resolution = ResolType.r1

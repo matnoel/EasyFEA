@@ -5,7 +5,8 @@
 
 """Module containing the Contour class."""
 
-from typing import Union
+from typing import TypeAlias
+
 import numpy as np
 
 from ..Utilities import _types
@@ -17,7 +18,7 @@ from ._points import Points
 
 from ._geom import _Geom
 
-ContourCompatible = Union["Line", "CircleArc", "Points"]
+ContourCompatible: TypeAlias = Line | CircleArc | Points
 
 
 class Contour(_Geom):
@@ -47,7 +48,7 @@ class Contour(_Geom):
         """
 
         # Check that the points form a closed loop
-        points: list["Point"] = []
+        points: list[Point] = []
 
         tol = 1e-12
 

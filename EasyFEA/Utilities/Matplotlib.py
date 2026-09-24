@@ -6,7 +6,7 @@
 """Module containing functions used to display simulations and meshes with matplotlib (https://matplotlib.org/)."""
 
 from __future__ import annotations
-from typing import Union, Callable, Optional, TYPE_CHECKING, Any
+from typing import Callable, TYPE_CHECKING, Any, TypeAlias
 import numpy as np
 import re
 
@@ -36,7 +36,7 @@ try:
     from mpl_toolkits.axes_grid1 import make_axes_locatable  # use to do colorbarIsClose
     from matplotlib import animation
 
-    Axes = Union[plt.Axes, Axes3D]
+    Axes: TypeAlias = plt.Axes | Axes3D
 except ImportError:
     pass
 requires_matplotlib = Create_requires_decorator("matplotlib")
@@ -63,7 +63,7 @@ tab20_colors = [
 # Plot core (matplotlib analogue of PyVista.Plot)
 # ----------------------------------------------
 def __Get_vertices(
-    mesh: "Mesh",
+    mesh: Mesh,
     coord: _types.FloatArray,
     inDim: int,
     dimElem: int,
@@ -91,7 +91,7 @@ def __Get_vertices(
     else:
         # one or several element groups of dimension dimElem; build the polygons (or segments) following Get_list_groupElem(dimElem) order so they match the element ordering of any per-element field. When the groups mix element types (e.g. QUAD4 + TRI3) the polygons have different vertex counts, so a ragged list is returned instead of an ndarray.
         list_verts: list[_types.FloatArray] = []
-        nPts: Optional[int] = None
+        nPts: int | None = None
         homogeneous = True
         for groupElem in mesh.Get_list_groupElem(dimElem):
             idx = groupElem.segments[0] if dimElem == 1 else groupElem.surfaces[0]
@@ -116,15 +116,15 @@ def __Add_Collection(
     inDim: int,
     dimElem: int,
     *,
-    array: Optional[_types.FloatArray] = None,
+    array: _types.FloatArray | None = None,
     norm=None,
-    cmap: Optional[str] = None,
+    cmap: str | None = None,
     facecolors=None,
     edgecolor=None,
     lw: float = 0.5,
     alpha: float = 1.0,
     zorder: float = None,
-    clim: Optional[tuple] = None,
+    clim: tuple | None = None,
 ):
     """Builds and adds the matplotlib collection matching ``inDim`` × ``dimElem`` to ``ax``.\n
     This is the matplotlib analogue of ``pyvista.Plotter.add_mesh``. Returns the collection.
@@ -175,7 +175,7 @@ def __Add_Collection(
 
 
 def _Node_to_element_values(
-    mesh: "Mesh", values: _types.FloatArray, dimElem: int
+    mesh: Mesh, values: _types.FloatArray, dimElem: int
 ) -> _types.FloatArray:
     """Averages nodal values over each element of dimension ``dimElem`` (used for 3D surface display)."""
     elementValues: list = []
@@ -186,8 +186,8 @@ def _Node_to_element_values(
 
 @requires_matplotlib
 def Plot(
-    obj: Union["_Simu", "Mesh", "_GroupElem"],
-    result: Optional[Union[str, _types.FloatArray]] = None,
+    obj: _Simu | Mesh | _GroupElem,
+    result: str | _types.FloatArray | None = None,
     deformFactor: _types.Number = 0.0,
     coef: _types.Number = 1.0,
     nodeValues: bool = True,
@@ -199,7 +199,7 @@ def Plot(
     cmap: str = "jet",
     ncolors: int = 256,
     clim=(None, None),
-    ax: Optional[Axes] = None,
+    ax: Axes | None = None,
     colorbarIsClose: bool = False,
     colorbarLabel: str = "",
     title: str = "",
@@ -433,7 +433,7 @@ def Plot(
 
 
 @requires_matplotlib
-def __Get_axis(ax: Union[plt.Axes, Axes3D, None], inDim: int):
+def __Get_axis(ax: plt.Axes | Axes3D | None, inDim: int):
     # init Axes
     if ax is None:
         ax = Init_Axes(3) if inDim == 3 else Init_Axes(2)
@@ -452,7 +452,7 @@ def __Get_axis(ax: Union[plt.Axes, Axes3D, None], inDim: int):
 @requires_matplotlib
 def __Get_colorbar_properties(
     clim: tuple[int, int],
-    result: Union[str, np.ndarray],
+    result: str | np.ndarray,
     values: np.ndarray,
     ncolors: int,
 ):
@@ -507,13 +507,13 @@ def __Get_latex_title(result, nodeValues=True) -> str:
 
 @requires_matplotlib
 def Plot_Mesh(
-    obj: Union["_Simu", "Mesh"],
+    obj: _Simu | Mesh,
     deformFactor: float = 0.0,
     alpha: float = 1.0,
     facecolors: str = "c",
     edgecolor: str = "black",
     lw: float = 0.5,
-    ax: Optional[Axes] = None,
+    ax: Axes | None = None,
     folder: str = "",
     title: str = "",
 ) -> Axes:
@@ -624,10 +624,10 @@ def Plot_Mesh(
 
 @requires_matplotlib
 def _Plot_obj(
-    obj: Union["_Simu", "Mesh", "_GroupElem"],
+    obj: _Simu | Mesh | _GroupElem,
     alpha: float = 1.0,
     color: str = "gray",
-    ax: Optional[Axes] = None,
+    ax: Axes | None = None,
 ) -> Axes:
     """Plots the mesh.
 
@@ -653,11 +653,11 @@ def _Plot_obj(
 @requires_matplotlib
 def Plot_Nodes(
     obj,
-    nodes: Optional[_types.IntArray] = None,
+    nodes: _types.IntArray | None = None,
     showId=False,
     marker=".",
     color="red",
-    ax: Optional[Axes] = None,
+    ax: Axes | None = None,
 ) -> Axes:
     """Plots the mesh's nodes.
 
@@ -719,12 +719,12 @@ def Plot_Nodes(
 def Plot_Elements(
     obj,
     nodes=[],
-    dimElem: Optional[int] = None,
+    dimElem: int | None = None,
     showId=False,
     alpha=1.0,
     color="red",
     edgecolor="black",
-    ax: Optional[Axes] = None,
+    ax: Axes | None = None,
 ) -> Axes:
     """Plots the mesh's elements corresponding to the given nodes.
 
@@ -827,7 +827,7 @@ def Plot_Elements(
 
 
 @requires_matplotlib
-def Plot_BoundaryConditions(simu, ax: Optional[Axes] = None) -> Axes:
+def Plot_BoundaryConditions(simu, ax: Axes | None = None) -> Axes:
     """Plots simulation's boundary conditions.
 
     Parameters
@@ -951,7 +951,7 @@ def Plot_Tags(
     folder="",
     alpha=1.0,
     useColorCycler=False,
-    ax: Optional[Axes] = None,
+    ax: Axes | None = None,
 ) -> Axes:
     """Plots the mesh's elements tags (from 2d elements to points) but do not plot the 3d elements tags.
 
@@ -1080,9 +1080,7 @@ def Plot_Tags(
 
 
 @requires_matplotlib
-def __Annotation_Event(
-    collections: list, fig: Union[plt.Figure, Any], ax: Axes
-) -> None:
+def __Annotation_Event(collections: list, fig: plt.Figure | Any, ax: Axes) -> None:
     """Creates an event to display the element tag currently active under the mouse at the bottom of the figure."""
 
     def Set_Message(collection, event):
@@ -1109,7 +1107,7 @@ def __Annotation_Event(
 @rank0_only
 @requires_matplotlib
 def Plot_Energy(
-    simu: "_Simu",
+    simu: _Simu,
     load: _types.FloatArray = np.empty(0),
     displacement: _types.FloatArray = np.empty(0),
     plotSolMax: bool = True,
@@ -1368,7 +1366,7 @@ def Movie_Simu(
 @requires_matplotlib
 def Movie_func(
     func: Callable[[plt.Figure, int], None],
-    fig: Union[plt.Figure, Any],
+    fig: plt.Figure | Any,
     N: int,
     folder: str,
     filename="video.gif",

@@ -8,7 +8,7 @@
 from __future__ import annotations
 import re
 from collections import Counter
-from typing import Any, Iterable, Optional, Union
+from typing import Any, Iterable
 import numpy as np
 from enum import Enum
 
@@ -953,7 +953,7 @@ def _Get_pyvista_cell(groupElem: _GroupElem) -> tuple[VTKCellType, _types.IntArr
 @requires_pyvista
 def EasyFEA_to_PyVista(
     mesh: Mesh,
-    coord: Optional[_types.FloatArray] = None,
+    coord: _types.FloatArray | None = None,
     useAllElements=True,
 ) -> pv.UnstructuredGrid:
     """Converts EasyFEA mesh to PyVista Multiblock format.
@@ -1015,7 +1015,7 @@ def EasyFEA_to_PyVista(
 @requires_pyvista
 def _GroupElem_to_PyVista(
     groupElem: _GroupElem,
-    elements: Optional[_types.IntArray] = None,
+    elements: _types.IntArray | None = None,
 ) -> pv.UnstructuredGrid:
     """Converts EasyFEA mesh to PyVista Multiblock format.
 
@@ -1048,7 +1048,7 @@ def _GroupElem_to_PyVista(
 
 
 @requires_pyvista
-def PyVista_to_EasyFEA(pyVistaMesh: Union[pv.UnstructuredGrid, pv.MultiBlock]) -> Mesh:
+def PyVista_to_EasyFEA(pyVistaMesh: pv.UnstructuredGrid | pv.MultiBlock) -> Mesh:
     """Converts PyVista mesh to EasyFEA format.
 
     Parameters

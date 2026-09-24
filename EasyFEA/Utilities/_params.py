@@ -4,7 +4,7 @@
 # EasyFEA is distributed under the terms of the GNU General Public License v3, see LICENSE.txt and CREDITS.md for more information.
 
 from abc import ABC, abstractmethod
-from typing import Union, Iterable, Callable
+from typing import Iterable, Callable
 from functools import partialmethod
 import numpy as np
 import copy
@@ -22,12 +22,12 @@ def _CheckIsString(value: str) -> None:
     assert isinstance(value, str), "Must be a string."
 
 
-def _CheckIsScalar(value: Union[_types.Number, _types.Numbers]) -> None:
+def _CheckIsScalar(value: _types.Number | _types.Numbers) -> None:
     """Checks whether the value is positive"""
     assert isinstance(value, (int, float)), "must be a scalar value"
 
 
-def _CheckIsScalarOrField(value: Union[_types.Number, _types.Numbers]) -> None:
+def _CheckIsScalarOrField(value: _types.Number | _types.Numbers) -> None:
     """Checks whether the value is a scalar, one value per element, or one per integration point."""
     if isinstance(value, (int, float)):
         return
@@ -37,7 +37,7 @@ def _CheckIsScalarOrField(value: Union[_types.Number, _types.Numbers]) -> None:
     ), "must be a scalar, an (Ne,) array or an (Ne, nPg) array"
 
 
-def _CheckIsPositive(value: Union[_types.Number, _types.Numbers]) -> None:
+def _CheckIsPositive(value: _types.Number | _types.Numbers) -> None:
     """Checks whether the value is positive"""
     errorText = "Must be >= 0!"
     if isinstance(value, (int, float)):
@@ -48,7 +48,7 @@ def _CheckIsPositive(value: Union[_types.Number, _types.Numbers]) -> None:
         raise TypeError("Unknown type.")
 
 
-def _CheckIsNegative(value: Union[float, Iterable]) -> None:
+def _CheckIsNegative(value: float | Iterable) -> None:
     """Checks whether the value is negative"""
     errorText = "Must be <= 0!"
     if isinstance(value, (int, float)):
@@ -59,7 +59,7 @@ def _CheckIsNegative(value: Union[float, Iterable]) -> None:
         raise TypeError("Unknown type.")
 
 
-def _CheckIsInIntervalcc(value: Union[float, Iterable], inf, sup) -> None:
+def _CheckIsInIntervalcc(value: float | Iterable, inf, sup) -> None:
     """Checks whether the value is in ]inf, sup["""
     assert inf < sup
     errorText = f"Must be in ]{inf}, {sup}["
@@ -73,7 +73,7 @@ def _CheckIsInIntervalcc(value: Union[float, Iterable], inf, sup) -> None:
         raise TypeError("Unknown type.")
 
 
-def _CheckIsInIntervaloo(value: Union[float, Iterable], inf, sup) -> None:
+def _CheckIsInIntervaloo(value: float | Iterable, inf, sup) -> None:
     """Checks whether the value is in [inf, sup]"""
     assert inf < sup
     errorText = f"Must be in [{inf}, {sup}]"

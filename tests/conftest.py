@@ -3,7 +3,7 @@
 # This file is part of the EasyFEA project.
 # EasyFEA is distributed under the terms of the GNU General Public License v3, see LICENSE.txt and CREDITS.md for more information.
 
-from typing import Callable, Optional
+from typing import Callable
 
 import pytest
 import numpy as np
@@ -23,7 +23,7 @@ def _make_mesh_2D(
     L: float = L,
     H: float = H,
     elemType: ElemType = ElemType.TRI3,
-    meshSize: Optional[float] = None,
+    meshSize: float | None = None,
     isOrganised: bool = False,
     inclusions: list[Circle] = [],
     cracks: list[Line] = [],
@@ -38,7 +38,7 @@ def _make_mesh_3D(
     H: float = H,
     B: float = B,
     elemType: ElemType = ElemType.TETRA4,
-    meshSize: Optional[float] = None,
+    meshSize: float | None = None,
     isOrganised: bool = False,
     inclusions: list[Circle] = [],
 ) -> Mesh:

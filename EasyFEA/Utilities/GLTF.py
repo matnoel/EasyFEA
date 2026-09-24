@@ -8,7 +8,7 @@
 # https://registry.khronos.org/glTF/specs/2.0/glTF-2.0.html#geometry
 
 from __future__ import annotations
-from typing import TYPE_CHECKING, Union
+from typing import TYPE_CHECKING
 from enum import Enum
 import struct
 import textwrap
@@ -110,7 +110,7 @@ class Data:
 
     def __init__(
         self,
-        data: Union[np.ndarray, list[np.ndarray]],
+        data: np.ndarray | list[np.ndarray],
         count: int,
         type: Type,
         component: Component,
@@ -120,7 +120,7 @@ class Data:
 
         Parameters
         ----------
-        data : Union[np.ndarray, list[np.ndarray]]
+        data : np.ndarray | list[np.ndarray]
             data to save
         count : int
             Count/size of data.
@@ -275,7 +275,7 @@ class Data:
 @rank0_only
 @requires_pygltflib
 def Save_simu(
-    simu: "_Simu",
+    simu: _Simu,
     results: list[str],
     folder: str,
     N: int = 200,
@@ -395,7 +395,7 @@ def Save_simu(
 @rank0_only
 @requires_pygltflib
 def Save_mesh(
-    mesh: "Mesh",
+    mesh: Mesh,
     folder: str,
     filename: str = "mesh",
     list_displacementMatrix: list[np.ndarray] = [],

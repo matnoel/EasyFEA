@@ -9,7 +9,6 @@ import numpy as np
 from scipy import interpolate, sparse
 from scipy.sparse.linalg import splu
 import pickle
-from typing import Optional
 
 # utilities
 from ..Utilities import Tic, Folder, Terminal, _types
@@ -410,10 +409,10 @@ class DIC(_IObserver):
     def Solve(
         self,
         img: _types.FloatArray,
-        u0: Optional[_types.FloatArray] = None,
+        u0: _types.FloatArray | None = None,
         iterMax: int = 1000,
         tolConv: float = 1e-6,
-        imgRef: Optional[_types.FloatArray] = None,
+        imgRef: _types.FloatArray | None = None,
         verbosity=True,
     ) -> _types.FloatArray:
         """Computes the displacement field between the two images.
@@ -502,7 +501,7 @@ class DIC(_IObserver):
         self,
         u: _types.FloatArray,
         img: _types.FloatArray,
-        imgRef: Optional[_types.FloatArray] = None,
+        imgRef: _types.FloatArray | None = None,
     ) -> _types.FloatArray:
         """Computes the dic residual between img and imgRef (as a Np x Np matrix).\n
         r_dic = f(x) - g(x + u(x))

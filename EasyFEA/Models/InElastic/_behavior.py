@@ -19,7 +19,7 @@ answer ``Models.Elastic`` gives.
 """
 
 from enum import Enum
-from typing import NamedTuple, Optional, Sequence, Union
+from typing import NamedTuple, Sequence
 
 import numpy as np
 
@@ -96,14 +96,10 @@ class Behavior(_IModel):
         self,
         dim: int,
         elastic: _Elastic,
-        yieldSurface: Optional[YieldSurface] = None,
-        hardening: Optional[IsotropicHardening] = None,
-        kinematic: Union[
-            KinematicHardening,
-            Sequence[KinematicHardening],
-            None,
-        ] = None,
-        rate: Optional[RateLaw] = None,
+        yieldSurface: YieldSurface | None = None,
+        hardening: IsotropicHardening | None = None,
+        kinematic: KinematicHardening | Sequence[KinematicHardening] | None = None,
+        rate: RateLaw | None = None,
         branches: Sequence[Maxwell] = (),
         thickness: float = 1.0,
         planeStress: bool = False,
@@ -279,7 +275,7 @@ class Behavior(_IModel):
         return X_e_pg
 
     def __State(
-        self, eps_e_pg: FeArray.FeArrayALike, z_e_pg: Optional[FeArray]
+        self, eps_e_pg: FeArray.FeArrayALike, z_e_pg: FeArray | None
     ) -> FeArray:
         """The given state, or the virgin one — so the potentials can be asked about bare strain."""
         if z_e_pg is not None:
@@ -288,7 +284,7 @@ class Behavior(_IModel):
         return self.State_zeros(Ne, nPg)
 
     def Compute_psi(
-        self, eps_e_pg: FeArray.FeArrayALike, z_e_pg: Optional[FeArray] = None
+        self, eps_e_pg: FeArray.FeArrayALike, z_e_pg: FeArray | None = None
     ) -> FeArray.FeArrayALike:
         r"""Free energy: the springs, the Maxwell branches and the stored hardening, in 3D Kelvin."""
         z_e_pg = self.__State(eps_e_pg, z_e_pg)
@@ -313,7 +309,7 @@ class Behavior(_IModel):
         return psi_e_pg
 
     def Compute_elastic_strain(
-        self, eps_e_pg: FeArray.FeArrayALike, z_e_pg: Optional[FeArray] = None
+        self, eps_e_pg: FeArray.FeArrayALike, z_e_pg: FeArray | None = None
     ) -> FeArray.FeArrayALike:
         r""":math:`\Eps^e = \Eps - \Eps^p`, in 3D Kelvin."""
         slot = self.__layout.slots.get(Slot.eps_p)
@@ -322,7 +318,7 @@ class Behavior(_IModel):
         return eps_e_pg - self.__State(eps_e_pg, z_e_pg)[..., slot]
 
     def Compute_sigma(
-        self, eps_e_pg: FeArray.FeArrayALike, z_e_pg: Optional[FeArray] = None
+        self, eps_e_pg: FeArray.FeArrayALike, z_e_pg: FeArray | None = None
     ) -> FeArray.FeArrayALike:
         r""":math:`\Sig = \dpartial{\psi}{\Eps} = \Crm : \Eps^e - \sum_i g_i \Crm : \Eps^v_i`, in 3D Kelvin."""
         z_e_pg = self.__State(eps_e_pg, z_e_pg)
@@ -337,7 +333,7 @@ class Behavior(_IModel):
         return sig_e_pg
 
     def Compute_stress(
-        self, eps_e_pg: FeArray.FeArrayALike, z_e_pg: Optional[FeArray] = None
+        self, eps_e_pg: FeArray.FeArrayALike, z_e_pg: FeArray | None = None
     ) -> FeArray.FeArrayALike:
         r"""Stress at the given state, in the model dimension.
 
@@ -358,7 +354,7 @@ class Behavior(_IModel):
     def Compute_strain_6d(
         self,
         eps_e_pg: FeArray.FeArrayALike,
-        zOld_e_pg: Optional[FeArray] = None,
+        zOld_e_pg: FeArray | None = None,
         dt: float = 0.0,
     ) -> FeArray:
         r"""The 3D Kelvin strain the material actually sees.
@@ -480,7 +476,7 @@ class Behavior(_IModel):
         zOld_e_pg: FeArray,
         C_e_pg: FeArray,
         dt: float,
-    ) -> tuple[FeArray, FeArray, Optional[FeArray], Optional[FeArray]]:
+    ) -> tuple[FeArray, FeArray, FeArray | None, FeArray | None]:
         r"""``r(u) = 0``, over the state *increments* followed by :math:`\Delta\gamma`.
 
         .. math::
@@ -542,8 +538,8 @@ class Behavior(_IModel):
         self,
         u_e_pg: FeArray,
         zOld_e_pg: FeArray,
-        N_e_pg: Optional[FeArray],
-        dNdSig_e_pg: Optional[FeArray],
+        N_e_pg: FeArray | None,
+        dNdSig_e_pg: FeArray | None,
         C_e_pg: FeArray,
         dt: float,
     ) -> tuple[FeArray, FeArray]:
@@ -623,7 +619,7 @@ class Behavior(_IModel):
     @staticmethod
     def __Pin(
         J_e_pg: FeArray,
-        D_e_pg: Optional[FeArray],
+        D_e_pg: FeArray | None,
         r_e_pg: FeArray,
         mask_e_pg: FeArray,
         row: int,
@@ -647,7 +643,7 @@ class Behavior(_IModel):
     def __Freeze(
         self,
         J_e_pg: FeArray,
-        D_e_pg: Optional[FeArray],
+        D_e_pg: FeArray | None,
         r_e_pg: FeArray,
         u_e_pg: FeArray,
         active_e_pg: FeArray,
@@ -749,12 +745,12 @@ class Behavior(_IModel):
     def Integrate(
         self,
         eps_e_pg: FeArray,
-        zOld_e_pg: Optional[FeArray] = None,
+        zOld_e_pg: FeArray | None = None,
         dt: float = 0.0,
-        epsOld_e_pg: Optional[FeArray] = None,
-        fields: Optional[dict[str, FeArray]] = None,
+        epsOld_e_pg: FeArray | None = None,
+        fields: dict[str, FeArray] | None = None,
         withTangent: bool = True,
-    ) -> tuple[FeArray, Optional[FeArray], FeArray, FeArray]:
+    ) -> tuple[FeArray, FeArray | None, FeArray, FeArray]:
         """Give it the total strain, it gives back the stress. At every Gauss point.
 
         Pure: it reads the committed state, it never writes it. The caller decides when the new
@@ -813,7 +809,7 @@ class Behavior(_IModel):
         )
 
         sig_e_pg = sig6_e_pg
-        C_e_pg: Optional[FeArray] = C6alg_e_pg if withTangent else None
+        C_e_pg: FeArray | None = C6alg_e_pg if withTangent else None
         if self.dim == 2:
             sig_e_pg = sig6_e_pg[..., IDX_2D]
             if C_e_pg is not None:

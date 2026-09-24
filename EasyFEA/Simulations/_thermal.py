@@ -3,7 +3,7 @@
 # This file is part of the EasyFEA project.
 # EasyFEA is distributed under the terms of the GNU General Public License v3, see LICENSE.txt and CREDITS.md for more information.
 
-from typing import Union, Optional, TYPE_CHECKING
+from typing import TYPE_CHECKING
 import numpy as np
 
 # utilities
@@ -165,8 +165,8 @@ class Thermal(_Simu):
         return options
 
     def Result(
-        self, result: str, nodeValues: bool = True, iter: Optional[int] = None
-    ) -> Union[_types.FloatArray, float]:
+        self, result: str, nodeValues: bool = True, iter: int | None = None
+    ) -> _types.FloatArray | float:
         if iter is not None:
             self.Set_Iter(iter)
 

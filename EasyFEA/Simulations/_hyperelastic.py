@@ -6,7 +6,7 @@
 from enum import Enum
 
 import numpy as np
-from typing import Union, Optional, TYPE_CHECKING
+from typing import TYPE_CHECKING
 
 # utilities
 from ..Utilities import Terminal, _types
@@ -197,7 +197,7 @@ class HyperElastic(_Simu):
         stressType: "HyperElastic.StressType" = StressType.pointwise,
         nPoints: int = 3,
         useConsistentTangent: bool = True,
-        energyTol: Optional[float] = None,
+        energyTol: float | None = None,
     ) -> None:
         r"""Selects the stress used by the internal force. Call **after** :py:meth:`~EasyFEA.Simulations._Simu.Solver_Set_Hyperbolic_Algorithm`.
 
@@ -254,13 +254,13 @@ class HyperElastic(_Simu):
         self.__nPts_e: dict[_GroupElem, _types.IntArray] = {}
 
     @property
-    def _nPts_e(self) -> Optional[_types.IntArray]:
+    def _nPts_e(self) -> _types.IntArray | None:
         """Per-element Clenshaw-Curtis point counts from the last assembly, or None when the quadrature stress did not run (pointwise / gonzalez)."""
         return np.concatenate(list(self.__nPts_e.values())) if self.__nPts_e else None
 
     def __Solver_Get_Stress_Params(
         self,
-    ) -> tuple["HyperElastic.StressType", int, bool, Optional[float]]:
+    ) -> tuple["HyperElastic.StressType", int, bool, float | None]:
         """Returns (stressType, nPoints, useConsistentTangent, energyTol) internal-force props."""
         return self.__stressParams
 
@@ -335,7 +335,7 @@ class HyperElastic(_Simu):
         self,
         groupElem: _GroupElem,
         u: _types.FloatArray,
-        u_n: Optional[_types.FloatArray],
+        u_n: _types.FloatArray | None,
         u_np1: _types.FloatArray,
     ) -> tuple[np.ndarray, np.ndarray]:
         """Elastic tangent and internal force at the time scheme's evaluation state `u`."""
@@ -479,8 +479,8 @@ class HyperElastic(_Simu):
         return results
 
     def Result(
-        self, result: str, nodeValues: bool = True, iter: Optional[int] = None
-    ) -> Union[_types.FloatArray, float]:
+        self, result: str, nodeValues: bool = True, iter: int | None = None
+    ) -> _types.FloatArray | float:
         if iter is not None:
             self.Set_Iter(iter)
 

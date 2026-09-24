@@ -3,7 +3,7 @@
 # This file is part of the EasyFEA project.
 # EasyFEA is distributed under the terms of the GNU General Public License v3, see LICENSE.txt and CREDITS.md for more information.
 
-from typing import Union, Optional, TYPE_CHECKING
+from typing import TYPE_CHECKING
 from enum import Enum
 from functools import lru_cache, partialmethod
 
@@ -153,10 +153,10 @@ class PhaseField(_IModel):
         material: _Elastic,
         split: SplitType,
         regularization: ReguType,
-        Gc: Union[float, _types.FloatArray],
+        Gc: float | _types.FloatArray,
         l0: float,
         solver=SolverType.History,
-        A: Optional[_types.FloatArray] = None,
+        A: _types.FloatArray | None = None,
     ):
         """Creates a phase-field model.
 
@@ -234,7 +234,7 @@ class PhaseField(_IModel):
         return isinstance(self.Gc, np.ndarray)
 
     @property
-    def k(self) -> Union[float, _types.FloatArray]:
+    def k(self) -> float | _types.FloatArray:
         """get diffusion therm"""
 
         Gc = self.Gc

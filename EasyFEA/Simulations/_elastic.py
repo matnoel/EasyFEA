@@ -3,7 +3,7 @@
 # This file is part of the EasyFEA project.
 # EasyFEA is distributed under the terms of the GNU General Public License v3, see LICENSE.txt and CREDITS.md for more information.
 
-from typing import Union, Callable, Optional, TYPE_CHECKING
+from typing import Callable, TYPE_CHECKING
 import numpy as np
 
 # utilities
@@ -222,8 +222,8 @@ class Elastic(_Simu):
         return results
 
     def Result(
-        self, result: str, nodeValues: bool = True, iter: Optional[int] = None
-    ) -> Union[_types.FloatArray, float]:
+        self, result: str, nodeValues: bool = True, iter: int | None = None
+    ) -> _types.FloatArray | float:
         if iter is not None:
             self.Set_Iter(iter)
 
@@ -579,7 +579,7 @@ def Mesh_Optim_ZZ1(
 
     i = -1
     error = 1
-    optimGeom: Optional[str] = None
+    optimGeom: str | None = None
     # max=1
     while error >= threshold and i <= iterMax:
         i += 1

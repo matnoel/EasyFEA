@@ -4,7 +4,7 @@
 # EasyFEA is distributed under the terms of the GNU General Public License v3, see LICENSE.txt and CREDITS.md for more information.
 
 from abc import ABC, abstractmethod
-from typing import Union, Optional, Callable
+from typing import Callable
 
 # utilities
 from ..Utilities._observers import Observable
@@ -52,7 +52,7 @@ __erroDim = "Pay attention to the dimensions of the material constants.\nIf the 
 
 
 def Reshape_variable(
-    variable: Union[_types.Number, _types.AnyArray], Ne: int, nPg: int
+    variable: _types.Number | _types.AnyArray, Ne: int, nPg: int
 ) -> FeArray.FeArrayALike:
     """Resizes variable to (Ne, nPg, ...) shape.
 
@@ -221,7 +221,7 @@ def Project_matrix_to_vector(
 
 
 def Project_Kelvin(
-    A: _types.FloatArray, orderA: Optional[int] = None
+    A: _types.FloatArray, orderA: int | None = None
 ) -> _types.FloatArray:
     """Projects the tensor A in Kelvin Mandel notation.
 

@@ -8,8 +8,6 @@
 Each catches a failure that is otherwise silent: an unknown slot letter would surface deep inside the fold, a ``tag`` on an operator that takes no ``elements`` would assemble the whole group instead of the tagged subset, and a slot count that does not match what the operator returns would drop an array or fabricate one.
 """
 
-from typing import Optional
-
 import numpy as np
 import pytest
 
@@ -139,7 +137,7 @@ class Heated(Simulations.Thermal):
         super().__init__(mesh, Models.Thermal(1, 1))
         self.source = 1.0
 
-    def Get_terms(self, problemType: Optional[ProblemType] = None) -> list[Term]:
+    def Get_terms(self, problemType: ProblemType | None = None) -> list[Term]:
         return super().Get_terms(problemType) + [
             Term("F", Operators.Linear.V, f=self.source)
         ]
@@ -174,7 +172,7 @@ class Stiffened(Heated):
         self.operator = Counted()
         self.stiffness = 1.0
 
-    def Get_terms(self, problemType: Optional[ProblemType] = None) -> list[Term]:
+    def Get_terms(self, problemType: ProblemType | None = None) -> list[Term]:
         return super().Get_terms(problemType) + [
             Term("K", self.operator, coef=self.stiffness, constant=True)
         ]
@@ -192,7 +190,7 @@ class Sprung(Heated):
         self.alpha = 2.0
         self.beta = 3.0
 
-    def Get_terms(self, problemType: Optional[ProblemType] = None) -> list[Term]:
+    def Get_terms(self, problemType: ProblemType | None = None) -> list[Term]:
         spring = Term("K", self.operator, constant=True)
         return super().Get_terms(problemType) + [
             spring.Scaled(self.alpha),

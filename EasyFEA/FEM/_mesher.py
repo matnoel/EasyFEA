@@ -17,10 +17,9 @@ from typing import (
     Collection,
     Iterable,
     NoReturn,
-    Optional,
     TypeVar,
-    Union,
     TYPE_CHECKING,
+    TypeAlias,
 )
 from functools import singledispatchmethod, wraps
 
@@ -54,10 +53,10 @@ if TYPE_CHECKING:
     from ..Simulations._simu import _Simu
 
 # types
-GeomCompatible = Union[_Geom, Circle, Domain, Points, Contour]
-ContourCompatible = Union[Line, CircleArc, Points]
-CrackCompatible = Union[Line, Points, Contour, CircleArc]
-RefineCompatible = Union[Domain, Circle, str]
+GeomCompatible: TypeAlias = _Geom | Circle | Domain | Points | Contour
+ContourCompatible: TypeAlias = Line | CircleArc | Points
+CrackCompatible: TypeAlias = Line | Points | Contour | CircleArc
+RefineCompatible: TypeAlias = Domain | Circle | str
 
 
 class MeshError(Exception):
@@ -76,7 +75,7 @@ def _shows_geoms_on_error(func: _F) -> _F:
 
     @wraps(func)
     def wrapper(*args, **kwargs) -> Mesh:
-        mesher: "Mesher" = args[0]
+        mesher: Mesher = args[0]
         try:
             return func(*args, **kwargs)
         except MeshError:
@@ -698,7 +697,7 @@ class Mesher:
 
         return [(geom, owner)]
 
-    def _Cyclic_Boundary_Order(self, line_tags: list[int]) -> Optional[list[int]]:
+    def _Cyclic_Boundary_Order(self, line_tags: list[int]) -> list[int] | None:
         """Returns line_tags in cyclic order around the boundary, or None when they do not form a single closed loop (e.g. several holes)."""
         if len(line_tags) <= 2:
             return list(line_tags)
@@ -726,14 +725,14 @@ class Mesher:
 
         return ordered
 
-    def _Additional_Lines(self, dim: int, lines: list[Union[Line, CircleArc]]) -> None:
+    def _Additional_Lines(self, dim: int, lines: list[Line | CircleArc]) -> None:
         """Adds lines to existing dim entities. WARNING: lines must be within the domain.
 
         Parameters
         ----------
         dim : int
             dimension (dim >= 1)
-        lines : list[Union[Line, CircleArc]]
+        lines : list[Line | CircleArc]
             lines
         """
 
@@ -1182,7 +1181,7 @@ class Mesher:
         file: str,
         dim: int,
         meshSize=0.0,
-        elemType: Optional[ElemType] = None,
+        elemType: ElemType | None = None,
         refineGeoms=[None],
         path="",
     ) -> Mesh:
@@ -1392,7 +1391,7 @@ class Mesher:
 
     def _Cracks_SetPhysicalGroups(
         self, cracks: list[CrackCompatible], entities: list[tuple]
-    ) -> tuple[Optional[int], Optional[int], Optional[int], Optional[int]]:
+    ) -> tuple[int | None, int | None, int | None, int | None]:
         """Creates physical groups for cracks embeded in existing gmsh entities.\n
         returns crackLines, crackSurfaces, openPoints, openLines
         """
@@ -1459,19 +1458,19 @@ class Mesher:
 
         self._Synchronize()  # mandatory
 
-        crackLines: Optional[int] = (
+        crackLines: int | None = (
             gmsh.model.addPhysicalGroup(1, cracks_1D) if len(cracks_1D) > 0 else None
         )
-        crackSurfaces: Optional[int] = (
+        crackSurfaces: int | None = (
             gmsh.model.addPhysicalGroup(2, cracks_2D) if len(cracks_2D) > 0 else None
         )
 
-        openPoints: Optional[int] = (
+        openPoints: int | None = (
             gmsh.model.addPhysicalGroup(0, cracks_0D_open)
             if len(cracks_0D_open) > 0
             else None
         )
-        openLines: Optional[int] = (
+        openLines: int | None = (
             gmsh.model.addPhysicalGroup(1, cracks_1D_open)
             if len(cracks_1D_open) > 0
             else None
@@ -1482,7 +1481,7 @@ class Mesher:
     @_shows_geoms_on_error
     def Mesh_1D(
         self,
-        lines: Union[ContourCompatible, Contour, list],
+        lines: ContourCompatible | Contour | list,
         elemType: ElemType = ElemType.SEG2,
         additionalPoints: list[Point] = [],
         path: str = "",
@@ -1620,7 +1619,7 @@ class Mesher:
         refineGeoms: list[RefineCompatible] = [],
         isOrganised=False,
         additionalSurfaces: list[GeomCompatible] = [],
-        additionalLines: list[Union[Line, CircleArc]] = [],
+        additionalLines: list[Line | CircleArc] = [],
         additionalPoints: list[Point] = [],
         path="",
     ) -> Mesh:
@@ -1642,7 +1641,7 @@ class Mesher:
             mesh is organized, by default False
         additionalSurfaces : list[Domain | Circle | Points | Contour]
             additional surfaces that will be added to or removed from the surfaces created by the contour and the inclusions. (e.g Domain, Circle, Contour, Points). Tip: if the mesh is not well generated, you can also give the inclusions.
-        additionalLines : list[Union[Line,CircleArc]]
+        additionalLines : list[Line | CircleArc]
             additional lines that will be added to the surfaces created by the contour and the inclusions. (e.g Domain, Circle, Contour, Points). WARNING: lines must be within the domain.
         additionalPoints : list[Point]
             additional points that will be added to the surfaces created by the contour and the inclusions. WARNING: points must be within the domain.
@@ -1702,7 +1701,7 @@ class Mesher:
         refineGeoms: list[RefineCompatible] = [],
         isOrganised=False,
         additionalSurfaces: list[GeomCompatible] = [],
-        additionalLines: list[Union[Line, CircleArc]] = [],
+        additionalLines: list[Line | CircleArc] = [],
         additionalPoints: list[Point] = [],
         path="",
     ) -> Mesh:
@@ -1728,7 +1727,7 @@ class Mesher:
             mesh is organized, by default False
         additionalSurfaces : list[Domain | Circle | Points | Contour]
             additional surfaces that will be added to or removed from the surfaces created by the contour and the inclusions. (e.g Domain, Circle, Contour, Points). Tip: if the mesh is not well generated, you can also give the inclusions.
-        additionalLines : list[Union[Line,CircleArc]]
+        additionalLines : list[Line | CircleArc]
             additional lines that will be added to the surfaces created by the contour and the inclusions. (e.g Domain, Circle, Contour, Points). WARNING: lines must be within the domain.
         additionalPoints : list[Point]
             additional points that will be added to the surfaces created by the contour and the inclusions. WARNING: points must be within the domain.
@@ -1803,7 +1802,7 @@ class Mesher:
         refineGeoms: list[RefineCompatible] = [],
         isOrganised=False,
         additionalSurfaces: list[GeomCompatible] = [],
-        additionalLines: list[Union[Line, CircleArc]] = [],
+        additionalLines: list[Line | CircleArc] = [],
         additionalPoints: list[Point] = [],
         path="",
     ) -> Mesh:
@@ -1833,7 +1832,7 @@ class Mesher:
             mesh is organized, by default False
         additionalSurfaces : list[Domain | Circle | Points | Contour]
             additional surfaces that will be added to or removed from the surfaces created by the contour and the inclusions. (e.g Domain, Circle, Contour, Points). Tip: if the mesh is not well generated, you can also give the inclusions.
-        additionalLines : list[Union[Line,CircleArc]]
+        additionalLines : list[Line | CircleArc]
             additional lines that will be added to the surfaces created by the contour and the inclusions. (e.g Domain, Circle, Contour, Points). WARNING: lines must be within the domain.
         additionalPoints : list[Point]
             additional points that will be added to the surfaces created by the contour and the inclusions. WARNING: points must be within the domain.
@@ -2137,10 +2136,10 @@ class Mesher:
         self,
         dim: int,
         elemType: ElemType,
-        crackLines: Optional[int] = None,
-        crackSurfaces: Optional[int] = None,
-        openPoints: Optional[int] = None,
-        openLines: Optional[int] = None,
+        crackLines: int | None = None,
+        crackSurfaces: int | None = None,
+        openPoints: int | None = None,
+        openLines: int | None = None,
         path: str = "",
     ) -> None:
         """Generates the mesh with the available created entities.
@@ -2341,7 +2340,7 @@ class Mesher:
             for rank in ranks:
                 dict_rank_elements[rank].update(idx)
 
-        list_rank_groupElem: list["_GroupElem"] = []
+        list_rank_groupElem: list[_GroupElem] = []
 
         Nn: int = 0
         elements = np.arange(Ne, dtype=int)
@@ -2432,7 +2431,7 @@ class Mesher:
             tic.Tac("Mesh", "gmsh.model.mesh.partition", self.__verbosity)
             dict_rank_nodes: dict[int, set[int]] = {r: set() for r in range(Nproc)}
 
-        list_dict_groupElem: list[dict[ElemType, "_GroupElem"]] = [
+        list_dict_groupElem: list[dict[ElemType, _GroupElem]] = [
             {} for _ in range(Nproc)
         ]
 

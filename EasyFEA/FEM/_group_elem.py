@@ -20,7 +20,7 @@ from abc import ABC, abstractmethod
 from scipy.optimize import least_squares
 from scipy import sparse, spatial
 import numpy as np
-from typing import Callable, Optional
+from typing import Callable
 
 # fem
 from ._gauss import Gauss
@@ -262,7 +262,7 @@ class _GroupElem(ABC):
         return np.unique(np.concatenate([elements, ghostElements]))
 
     @property
-    def _rankPartition(self) -> Optional[_types.IntArray]:
+    def _rankPartition(self) -> _types.IntArray | None:
         """Array of shape (Ne,) where rankPartition[e] is the MPI rank that owned
         element e. Set on rank 0 only after Gather(). None on all other ranks."""
         return self.__rankPartition
@@ -401,7 +401,7 @@ class _GroupElem(ABC):
         )
         return columnsVector_e
 
-    def _Get_sysCoord_e(self, displacementMatrix: Optional[_types.AnyArray] = None):
+    def _Get_sysCoord_e(self, displacementMatrix: _types.AnyArray | None = None):
         """Get the basis transformation matrix (Ne, 3, 3).\n
         [ix, jx, kx\n
         iy, jy, ky\n
@@ -497,7 +497,7 @@ class _GroupElem(ABC):
     def Get_normals_e_pg(
         self,
         matrixType: MatrixType,
-        displacementMatrix: Optional[_types.FloatArray] = None,
+        displacementMatrix: _types.FloatArray | None = None,
         normalize: bool = True,
     ) -> FeArray:
         """Returns the normals for each elements and gauss points (Ne, nPg, 3).
@@ -541,7 +541,7 @@ class _GroupElem(ABC):
     def _Get_gap_and_normal(
         self,
         x_e_pg: FeArray,
-        elements: Optional[_types.IntArray] = None,
+        elements: _types.IntArray | None = None,
         coord=None,
         matrixType: MatrixType = MatrixType.mass,
     ) -> tuple[FeArray, FeArray]:
@@ -789,7 +789,7 @@ class _GroupElem(ABC):
         self,
         matrixType: MatrixType,
         elements=np.array([]),
-        displacementMatrix: Optional[_types.FloatArray] = None,
+        displacementMatrix: _types.FloatArray | None = None,
     ) -> FeArray.FeArrayALike:
         """Returns integration point coordinates for each element (Ne, nPg, 3) in the (x, y, z) coordinates.
 
@@ -1675,7 +1675,7 @@ class _GroupElem(ABC):
         self,
         nodes: _types.IntArray,
         tag: str,
-        elements: Optional[_types.IntArray] = None,
+        elements: _types.IntArray | None = None,
     ):
         """Set a tag on the nodes and elements belonging to the group of elements.
 
@@ -1778,7 +1778,7 @@ class _GroupElem(ABC):
             return np.array([], dtype=int)
 
     def Locates_sol_e(
-        self, sol: _types.FloatArray, dof_n: Optional[int] = None, asFeArray=False
+        self, sol: _types.FloatArray, dof_n: int | None = None, asFeArray=False
     ) -> FeArray.FeArrayALike:
         """Locates sol on elements"""
 
@@ -1989,13 +1989,13 @@ class _GroupElem(ABC):
     def Get_Mapping(
         self,
         coordinates_n: _types.FloatArray,
-        elements_e: Optional[_types.IntArray] = None,
+        elements_e: _types.IntArray | None = None,
         needCoordinates=False,
     ) -> tuple[
         _types.IntArray,
         _types.IntArray,
         _types.IntArray,
-        Optional[_types.FloatArray],
+        _types.FloatArray | None,
     ]:
         """Locates coordinates within elements.
 
@@ -2026,7 +2026,7 @@ class _GroupElem(ABC):
         _types.IntArray,
         _types.IntArray,
         _types.IntArray,
-        Optional[_types.FloatArray],
+        _types.FloatArray | None,
     ]:
         """Locates coordinates within elements.
 

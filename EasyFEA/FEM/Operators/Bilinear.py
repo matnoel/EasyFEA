@@ -3,7 +3,7 @@
 # This file is part of the EasyFEA project.
 # EasyFEA is distributed under the terms of the GNU General Public License v3, see LICENSE.txt and CREDITS.md for more information.
 
-from typing import Optional, TYPE_CHECKING, Union
+from typing import TYPE_CHECKING
 
 import numpy as np
 
@@ -21,8 +21,8 @@ if TYPE_CHECKING:
 
 def GradUGradV(
     groupElem: "_GroupElem",
-    coef: Union[_types.Number, FeArray.FeArrayALike] = 1.0,
-    elements: Optional[_types.IntArray] = None,
+    coef: _types.Number | FeArray.FeArrayALike = 1.0,
+    elements: _types.IntArray | None = None,
     matrixType: MatrixType = MatrixType.rigi,
 ) -> np.ndarray:
     """``∫_Ω coef · ∇u · ∇v dΩ`` — returns ``(Ne, nPe, nPe)``.
@@ -43,9 +43,9 @@ def GradUGradV(
 
 def UV(
     groupElem: "_GroupElem",
-    coef: Union[_types.Number, FeArray.FeArrayALike] = 1.0,
+    coef: _types.Number | FeArray.FeArrayALike = 1.0,
     dof_n: int = 1,
-    elements: Optional[_types.IntArray] = None,
+    elements: _types.IntArray | None = None,
     matrixType: MatrixType = MatrixType.mass,
 ) -> np.ndarray:
     """``∫_Ω coef · u · v dΩ`` — returns ``(Ne, nPe·dof_n, nPe·dof_n)``.
@@ -66,7 +66,7 @@ def UV(
 def LinearizedElasticity(
     groupElem: "_GroupElem",
     C: FeArray.FeArrayALike,
-    elements: Optional[_types.IntArray] = None,
+    elements: _types.IntArray | None = None,
     matrixType: MatrixType = MatrixType.rigi,
 ) -> np.ndarray:
     """``∫_Ω ε(u) : C : ε(v) dΩ`` — small-strain elastic stiffness.
@@ -88,8 +88,8 @@ def LinearizedElasticity(
 
 def MassAlongNormal(
     groupElem: "_GroupElem",
-    coef: Union[_types.Number, FeArray.FeArrayALike] = 1.0,
-    elements: Optional[_types.IntArray] = None,
+    coef: _types.Number | FeArray.FeArrayALike = 1.0,
+    elements: _types.IntArray | None = None,
     matrixType: MatrixType = MatrixType.mass,
 ) -> np.ndarray:
     r"""``∫_Γ coef · (u · n̂)(v · n̂) dΓ`` — mass projected onto the surface normal.
@@ -229,7 +229,7 @@ def BeamStiffness(
 def BeamMass(
     groupElem: "_GroupElem",
     beamStructure: "BeamStructure",
-    coef: Union[_types.Number, FeArray.FeArrayALike] = 1.0,
+    coef: _types.Number | FeArray.FeArrayALike = 1.0,
 ) -> np.ndarray:
     """``∫_e coef · Nᵀ · M · N dx`` — beam consistent-mass matrix.
 
@@ -255,7 +255,7 @@ def BeamMass(
 def GradU_A_GradV(
     groupElem: "_GroupElem",
     A: FeArray.FeArrayALike,
-    coef: Union[_types.Number, FeArray.FeArrayALike] = 1.0,
+    coef: _types.Number | FeArray.FeArrayALike = 1.0,
     matrixType: MatrixType = MatrixType.rigi,
 ) -> np.ndarray:
     """``∫_Ω coef · ∇u · A · ∇v dΩ`` — anisotropic diffusion. Returns ``(Ne, nPe, nPe)``.

@@ -3,7 +3,6 @@
 # This file is part of the EasyFEA project.
 # EasyFEA is distributed under the terms of the GNU General Public License v3, see LICENSE.txt and CREDITS.md for more information.
 
-from typing import Union, Optional
 from enum import Enum
 import numpy as np
 from scipy import sparse
@@ -649,8 +648,8 @@ class PhaseField(_Simu):
         return results
 
     def Result(
-        self, result: str, nodeValues: bool = True, iter: Optional[int] = None
-    ) -> Union[_types.FloatArray, float, None]:
+        self, result: str, nodeValues: bool = True, iter: int | None = None
+    ) -> _types.FloatArray | float | None:
         if iter is not None:
             self.Set_Iter(iter)
 

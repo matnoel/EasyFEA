@@ -5,7 +5,7 @@
 
 """Module providing functions used to save FEM-solutions for vizir (https://pyamg.saclay.inria.fr/vizir4.html)."""
 
-from typing import Optional, TYPE_CHECKING
+from typing import TYPE_CHECKING
 import numpy as np
 import io
 
@@ -273,7 +273,7 @@ def _Write_solution_file(
     order: int,
     folder: str,
     filename: str,
-    warpVector_n: Optional[_types.FloatArray] = None,
+    warpVector_n: _types.FloatArray | None = None,
     deformFactor: float = 1.0,
 ) -> str:
     """Writes a solution file for a given mesh and solution data.
@@ -294,7 +294,7 @@ def _Write_solution_file(
         The directory where the solution file will be saved.
     filename : str
         The name of the solution file.
-    warpVector_n : Optional[_types.FloatArray], optional
+    warpVector_n : _types.FloatArray | None, optional
         Warp vector values for mesh deformation.
     deformFactor : float, optional
         Deformation factor for the warp vector, default is 1.0.
@@ -366,7 +366,7 @@ def Save_simu(
     results: list[str],
     types: list[int],
     folder: str,
-    N: Optional[int] = None,
+    N: int | None = None,
 ) -> str:
     """Saves simulation results to files and prepares a command for visualization.
 
@@ -380,7 +380,7 @@ def Save_simu(
         A list of types corresponding to each result.
     folder : str
         The directory where the results will be saved.
-    N : Optional[int], optional
+    N : int | None, optional
         The number of iterations to sample from the simulation. If None, all iterations are used.
 
     Returns

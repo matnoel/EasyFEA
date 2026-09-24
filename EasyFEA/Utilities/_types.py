@@ -3,7 +3,7 @@
 # This file is part of the EasyFEA project.
 # EasyFEA is distributed under the terms of the GNU General Public License v3, see LICENSE.txt and CREDITS.md for more information.
 
-from typing import Union, Collection, Any
+from typing import Collection, Any, TypeAlias
 
 import numpy as np
 from numpy.typing import NDArray
@@ -12,7 +12,7 @@ from numpy.typing import NDArray
 # Numbers
 # --------------------------------------------------------------------------------------
 
-Number = Union[int, float]
+Number: TypeAlias = int | float
 """Number"""
 
 Numbers = Collection[Number]
@@ -31,7 +31,7 @@ IntArray = NDArray[np.int_]
 BoolArray = NDArray[np.bool_]
 """Bool array"""
 
-NumberArray = Union[FloatArray, IntArray]
+NumberArray: TypeAlias = FloatArray | IntArray
 """Number array"""
 
 AnyArray = NDArray[Any]
@@ -41,5 +41,5 @@ AnyArray = NDArray[Any]
 # Mesh
 # --------------------------------------------------------------------------------------
 
-Coords = Union[AnyArray, Numbers]
+Coords: TypeAlias = AnyArray | Numbers
 """Coords"""

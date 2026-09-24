@@ -5,8 +5,6 @@
 
 """Driving a behavior at a single material point, with no mesh and no solver."""
 
-from typing import Optional
-
 import numpy as np
 
 from ._behavior import Behavior
@@ -61,7 +59,7 @@ class MaterialPoint:
     def Run(
         self,
         strain: dict[str, _types.FloatArray],
-        stress: Optional[dict[str, _types.FloatArray]] = None,
+        stress: dict[str, _types.FloatArray] | None = None,
         dt: float = 0.0,
     ) -> dict[str, _types.FloatArray]:
         """Walks the prescribed history, one step at a time.

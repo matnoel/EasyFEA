@@ -3,7 +3,7 @@
 # This file is part of the EasyFEA project.
 # EasyFEA is distributed under the terms of the GNU General Public License v3, see LICENSE.txt and CREDITS.md for more information.
 
-from typing import Optional, TYPE_CHECKING, Union
+from typing import TYPE_CHECKING
 
 import numpy as np
 
@@ -18,9 +18,9 @@ if TYPE_CHECKING:
 
 def V(
     groupElem: "_GroupElem",
-    f: Union[_types.Number, FeArray.FeArrayALike] = 1.0,
+    f: _types.Number | FeArray.FeArrayALike = 1.0,
     dof_n: int = 1,
-    elements: Optional[_types.IntArray] = None,
+    elements: _types.IntArray | None = None,
     matrixType: MatrixType = MatrixType.mass,
 ) -> np.ndarray:
     """``∫_Ω f · v dΩ`` — returns ``(Ne, nPe·dof_n)``.
@@ -44,7 +44,7 @@ def V(
 def InternalForce(
     groupElem: "_GroupElem",
     sigma_e_pg: FeArray.FeArrayALike,
-    elements: Optional[_types.IntArray] = None,
+    elements: _types.IntArray | None = None,
     matrixType: MatrixType = MatrixType.rigi,
 ) -> np.ndarray:
     """``∫_Ω σ : ε(v) dΩ`` — internal force of a known stress field.

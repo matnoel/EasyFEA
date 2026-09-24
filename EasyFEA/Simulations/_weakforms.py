@@ -3,7 +3,7 @@
 # This file is part of the EasyFEA project.
 # EasyFEA is distributed under the terms of the GNU General Public License v3, see LICENSE.txt and CREDITS.md for more information.
 
-from typing import Union, Optional, TYPE_CHECKING
+from typing import TYPE_CHECKING
 import numpy as np
 
 # utilities
@@ -142,7 +142,7 @@ class WeakForms(_Simu):
             if form is not None
         ]
 
-    def __Integrate(self, groupElem: _GroupElem, form: _Form) -> Optional[np.ndarray]:
+    def __Integrate(self, groupElem: _GroupElem, form: _Form) -> np.ndarray | None:
         """Integrates one weak form over a group.
 
         The form is written against ``weakForms.field``, which is bound to one element group, so any other group of the same dimension contributes nothing — returning None rather than repeating the same values, which is what a mesh carrying several groups of one dimension (PRISM18 + HEXA27) would otherwise get.
@@ -240,8 +240,8 @@ class WeakForms(_Simu):
             raise ValueError("result error")
 
     def Result(
-        self, result: str, nodeValues: bool = True, iter: Optional[int] = None
-    ) -> Union[_types.FloatArray, float]:
+        self, result: str, nodeValues: bool = True, iter: int | None = None
+    ) -> _types.FloatArray | float:
         if iter is not None:
             self.Set_Iter(iter)
 

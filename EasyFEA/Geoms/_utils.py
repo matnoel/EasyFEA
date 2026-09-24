@@ -7,8 +7,8 @@ import numpy as np
 import copy
 from scipy.optimize import minimize
 from collections.abc import Iterable
-
 from typing import Union
+
 from ..Utilities import _types, _params
 from functools import singledispatch
 
@@ -16,7 +16,8 @@ from functools import singledispatch
 class Point:
     """Point class."""
 
-    PointALike = Union["Point", _types.Coords]
+    # Union, not `|`: the class is not defined yet, and `|` cannot take its name as a string
+    PointALike = Union["Point", _types.Coords]  # noqa: UP007
 
     r: float = _params.ScalarParameter()
     """radius used for fillet"""
@@ -91,7 +92,7 @@ class Point:
         coord = AsCoords(value)
         self.__coord = coord
 
-    def Check(self, coord: Union["Point", _types.Coords]) -> bool:
+    def Check(self, coord: "Point | _types.Coords") -> bool:
         """Checks if coordinates are identical"""
         coord = AsCoords(coord)
         n = np.linalg.norm(self.coord).astype(float)
@@ -136,42 +137,42 @@ class Point:
         """
         self.__coord = Symmetry(self.__coord, point, n).ravel()
 
-    def __radd__(self, value: Union[_types.Coords, _types.Number, "Point"]):
+    def __radd__(self, value: "_types.Coords | _types.Number | Point"):
         return self.__add__(value)
 
-    def __add__(self, value: Union[_types.Coords, _types.Number, "Point"]):
+    def __add__(self, value: "_types.Coords | _types.Number | Point"):
         coord = AsCoords(value)
         newCoord: _types.AnyArray = self.coord + coord
         return Point(*newCoord)
 
-    def __rsub__(self, value: Union[_types.Coords, _types.Number, "Point"]):
+    def __rsub__(self, value: "_types.Coords | _types.Number | Point"):
         return self.__add__(value)
 
-    def __sub__(self, value: Union[_types.Coords, _types.Number, "Point"]):
+    def __sub__(self, value: "_types.Coords | _types.Number | Point"):
         coord = AsCoords(value)
         newCoord: _types.AnyArray = self.coord - coord
         return Point(*newCoord)
 
-    def __rmul__(self, value: Union[_types.Coords, _types.Number, "Point"]):
+    def __rmul__(self, value: "_types.Coords | _types.Number | Point"):
         return self.__mul__(value)
 
-    def __mul__(self, value: Union[_types.Coords, _types.Number, "Point"]):
+    def __mul__(self, value: "_types.Coords | _types.Number | Point"):
         coord = AsCoords(value)
         newCoord: _types.AnyArray = self.coord * coord
         return Point(*newCoord)
 
-    def __rtruediv__(self, value: Union[_types.Coords, _types.Number, "Point"]):
+    def __rtruediv__(self, value: "_types.Coords | _types.Number | Point"):
         return self.__truediv__(value)
 
-    def __truediv__(self, value: Union[_types.Coords, _types.Number, "Point"]):
+    def __truediv__(self, value: "_types.Coords | _types.Number | Point"):
         coord = AsCoords(value)
         newCoord: _types.AnyArray = self.coord / coord
         return Point(*newCoord)
 
-    def __rfloordiv__(self, value: Union[_types.Coords, _types.Number, "Point"]):
+    def __rfloordiv__(self, value: "_types.Coords | _types.Number | Point"):
         return self.__floordiv__(value)
 
-    def __floordiv__(self, value: Union[_types.Coords, _types.Number, "Point"]):
+    def __floordiv__(self, value: "_types.Coords | _types.Number | Point"):
         coord = AsCoords(value)
         newCoord: _types.AnyArray = self.coord // coord
         return Point(*newCoord)
@@ -199,7 +200,7 @@ def _(coords: Iterable):
 
 @singledispatch
 def AsCoords(
-    value: Union[_types.Coords, _types.Number, Point],
+    value: _types.Coords | _types.Number | Point,
 ) -> _types.FloatArray:
     """Returns value as a 3D vector"""
     NotImplementedError(

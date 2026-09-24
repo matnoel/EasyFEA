@@ -8,7 +8,7 @@
 Optional (``pip install easyfea[jax]``). Importing this module imports jax, so import it inside a function on the eager path.
 """
 
-from typing import Callable, Union
+from typing import Callable
 
 import numpy as np
 
@@ -54,7 +54,7 @@ def Kelvin_to_tensor(vec):
 
 
 @requires_jax
-def Vmap_e_pg(kernel: Callable, in_axes: Union[int, tuple] = 0) -> Callable:
+def Vmap_e_pg(kernel: Callable, in_axes: int | tuple = 0) -> Callable:
     """Lifts a one-point kernel to ``(Ne, nPg, ...)`` fields, returning a :class:`.FeArray`.
 
     Parameters

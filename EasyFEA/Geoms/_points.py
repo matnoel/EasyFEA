@@ -13,7 +13,7 @@ from ._geom import _Geom
 from ._line import Line
 from ._circle import CircleArc
 
-from typing import Union, Collection
+from typing import Collection
 from ..Utilities import _types
 
 
@@ -79,7 +79,7 @@ class Points(_Geom):
         from ._contour import Contour, ContourCompatible
 
         # Get corners
-        corners: list[Union[Point, _Geom]] = []
+        corners: list[Point | _Geom] = []
         geoms: list[ContourCompatible] = []
 
         def Link(idx1: int, idx2: int):

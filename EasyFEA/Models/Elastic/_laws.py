@@ -6,7 +6,7 @@
 """Elastic laws."""
 
 from abc import ABC, abstractmethod
-from typing import Union, Optional, TYPE_CHECKING
+from typing import TYPE_CHECKING
 
 # utilities
 import numpy as np
@@ -186,7 +186,7 @@ class _Elastic(_IModel, ABC):
     def Calc_Psi_e_pg(
         self,
         Epsilon_e_pg: FeArray.FeArrayALike,
-        Sigma_e_pg: Optional[FeArray.FeArrayALike] = None,
+        Sigma_e_pg: FeArray.FeArrayALike | None = None,
     ) -> FeArray.FeArrayALike:
         """Computes the elastic energy density: psi = 1/2 Sigma : Epsilon.
 
@@ -229,8 +229,8 @@ class _Elastic(_IModel, ABC):
             self.__sqrt_S is None
         except AttributeError:
             # init
-            self.__sqrt_C: Optional[_types.FloatArray] = None  # type: ignore [no-redef]
-            self.__sqrt_S: Optional[_types.FloatArray] = None  # type: ignore [no-redef]
+            self.__sqrt_C: _types.FloatArray | None = None  # type: ignore [no-redef]
+            self.__sqrt_S: _types.FloatArray | None = None  # type: ignore [no-redef]
 
         if self.__sqrt_C is None or self.__sqrt_S is None:
             # C is symmetric positive definite, so eigh gives the principal square root
@@ -403,7 +403,7 @@ class Isotropic(_Elastic):
 
         return bulk
 
-    def _Behavior(self, dim: Optional[int] = None):
+    def _Behavior(self, dim: int | None = None):
         """Updates the constitutives laws by updating the C stiffness and S compliance matrices in Kelvin Mandel notation.\n
 
         In 2D:
@@ -594,7 +594,7 @@ class TransverselyIsotropic(_Elastic):
         self.__axis_t = Normalize(axis_t)
 
     @property
-    def Gt(self) -> Union[float, _types.FloatArray]:
+    def Gt(self) -> float | _types.FloatArray:
         """Transverse shear modulus."""
 
         Et = self.Et
@@ -605,7 +605,7 @@ class TransverselyIsotropic(_Elastic):
         return Gt
 
     @property
-    def kt(self) -> Union[float, _types.FloatArray]:
+    def kt(self) -> float | _types.FloatArray:
         # Torquato 2002 13.3.2 (iii)
         El = self.El
         Et = self.Et
@@ -630,7 +630,7 @@ class TransverselyIsotropic(_Elastic):
         self.C = C
         self.S = S
 
-    def _Behavior(self, dim: Optional[int] = None):
+    def _Behavior(self, dim: int | None = None):
         """Updates the constitutives laws by updating the C stiffness and S compliance matrices in Kelvin Mandel notation.\n
 
         In 2D:
@@ -887,7 +887,7 @@ class Orthotropic(_Elastic):
         """Axis 2"""
         return self.__axis_2.copy()
 
-    def __get_params(self) -> list[Union[float, _types.FloatArray]]:
+    def __get_params(self) -> list[float | _types.FloatArray]:
         """Returns E1, E2, E3, G23, G13, G12, v23, v13, v12"""
         E1 = self.E1
         E2 = self.E2
@@ -900,7 +900,7 @@ class Orthotropic(_Elastic):
         v12 = self.v12
         return [E1, E2, E3, G23, G13, G12, v23, v13, v12]
 
-    def __get_cij_denominator(self) -> Union[float, _types.FloatArray]:
+    def __get_cij_denominator(self) -> float | _types.FloatArray:
         """Returns c11, c22, c33, c23, c13, c12 denominator"""
         E1, E2, E3, _, _, _, v23, v13, v12 = self.__get_params()
         return (
@@ -912,44 +912,44 @@ class Orthotropic(_Elastic):
         )
 
     @property
-    def _c11(self) -> Union[float, _types.FloatArray]:
+    def _c11(self) -> float | _types.FloatArray:
         E1, E2, E3, _, _, _, v23, _, _ = self.__get_params()
         return E1**2 * (-E2 + E3 * v23**2) / self.__get_cij_denominator()
 
     @property
-    def _c22(self) -> Union[float, _types.FloatArray]:
+    def _c22(self) -> float | _types.FloatArray:
         E1, E2, E3, _, _, _, _, v13, _ = self.__get_params()
         return E2**2 * (-E1 + E3 * v13**2) / self.__get_cij_denominator()
 
     @property
-    def _c33(self) -> Union[float, _types.FloatArray]:
+    def _c33(self) -> float | _types.FloatArray:
         E1, E2, E3, _, _, _, _, _, v12 = self.__get_params()
         return E2 * E3 * (-E1 + E2 * v12**2) / self.__get_cij_denominator()
 
     @property
-    def _c44(self) -> Union[float, _types.FloatArray]:
+    def _c44(self) -> float | _types.FloatArray:
         return 2 * self.G23
 
     @property
-    def _c55(self) -> Union[float, _types.FloatArray]:
+    def _c55(self) -> float | _types.FloatArray:
         return 2 * self.G13
 
     @property
-    def _c66(self) -> Union[float, _types.FloatArray]:
+    def _c66(self) -> float | _types.FloatArray:
         return 2 * self.G12
 
     @property
-    def _c23(self) -> Union[float, _types.FloatArray]:
+    def _c23(self) -> float | _types.FloatArray:
         E1, E2, E3, _, _, _, v23, v13, v12 = self.__get_params()
         return -E2 * E3 * (E1 * v23 + E2 * v12 * v13) / self.__get_cij_denominator()
 
     @property
-    def _c13(self) -> Union[float, _types.FloatArray]:
+    def _c13(self) -> float | _types.FloatArray:
         E1, E2, E3, _, _, _, v23, v13, v12 = self.__get_params()
         return -E1 * E2 * E3 * (v12 * v23 + v13) / self.__get_cij_denominator()
 
     @property
-    def _c12(self) -> Union[float, _types.FloatArray]:
+    def _c12(self) -> float | _types.FloatArray:
         E1, E2, E3, _, _, _, v23, v13, v12 = self.__get_params()
         return -E1 * E2 * (E2 * v12 + E3 * v13 * v23) / self.__get_cij_denominator()
 
@@ -958,7 +958,7 @@ class Orthotropic(_Elastic):
         self.C = C
         self.S = S
 
-    def _Behavior(self, dim: Optional[int] = None):
+    def _Behavior(self, dim: int | None = None):
         """Updates the constitutives laws by updating the C stiffness and S compliance matrices in Kelvin Mandel notation.\n
 
         In 2D:

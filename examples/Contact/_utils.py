@@ -3,7 +3,6 @@
 # This file is part of the EasyFEA project.
 # EasyFEA is distributed under the terms of the GNU General Public License v3, see LICENSE.txt and CREDITS.md for more information.
 
-from typing import Optional
 
 import numpy as np
 
@@ -37,7 +36,7 @@ class RigidContact(Simulations.Elastic):
         self,
         groupElem: _GroupElem,
         u: _types.FloatArray,
-        elements: Optional[_types.IntArray] = None,
+        elements: _types.IntArray | None = None,
     ) -> tuple[np.ndarray, np.ndarray]:
         """Penalty-contact tangent/force on one surface group of the body.
 

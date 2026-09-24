@@ -7,7 +7,7 @@
 
 import numpy as np
 from functools import lru_cache
-from typing import Union, Optional, Iterable
+from typing import Iterable, Union
 from ..Utilities import _types
 
 
@@ -88,7 +88,8 @@ class FeArray(np.ndarray):
       ``ravel`` and a sum over elements do not.
     """
 
-    FeArrayALike = Union["FeArray", _types.AnyArray]
+    # Union, not `|`: the class is not defined yet, and `|` cannot take its name as a string
+    FeArrayALike = Union["FeArray", _types.AnyArray]  # noqa: UP007
 
     def __new__(cls, input_array, broadcastFeArrays=False):
         obj = np.asarray(input_array).view(cls)
@@ -98,7 +99,7 @@ class FeArray(np.ndarray):
             raise ValueError("The input array must have at least 2 dimensions.")
         return obj
 
-    def __array_finalize__(self, obj: Optional[_types.AnyArray]):
+    def __array_finalize__(self, obj: _types.AnyArray | None):
         # This method is automatically called when new instances are created.
         # It can be used to initialize additional attributes if necessary.
         if obj is None:
@@ -660,7 +661,7 @@ def TensorProd(
     A: FeArray.FeArrayALike,
     B: FeArray.FeArrayALike,
     symmetric=False,
-    ndim: Optional[int] = None,
+    ndim: int | None = None,
 ) -> FeArray.FeArrayALike:
     """Computes tensor product.
 

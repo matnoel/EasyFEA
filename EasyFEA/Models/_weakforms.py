@@ -5,8 +5,6 @@
 
 """Module containing the WeakForms class used to assemble arbitrary finite element matrices."""
 
-from typing import Optional, Union
-
 from ..FEM import Field, BiLinearForm, LinearForm
 
 from ._utils import _IModel
@@ -22,9 +20,9 @@ class WeakForms(_IModel):
         self,
         field: Field,
         computeK: BiLinearForm,
-        computeC: Optional[BiLinearForm] = None,
-        computeM: Optional[BiLinearForm] = None,
-        computeF: Optional[LinearForm] = None,
+        computeC: BiLinearForm | None = None,
+        computeM: BiLinearForm | None = None,
+        computeF: LinearForm | None = None,
         thickness: float = 1.0,
     ):
         r"""Creates a weak form manager responsible for computing the finite element matrices used in the system :math:`\Krm \, \mathrm{u} + \Crm \, \vrm + \Mrm \, \arm = \Frm`.
@@ -35,11 +33,11 @@ class WeakForms(_IModel):
             Finite element field u
         computeK : BiLinearForm
             Function used to build stiffness matrix K
-        computeC : Optional[BiLinearForm], optional
+        computeC : BiLinearForm | None, optional
             Function used to build damping matrix C, by default None
-        computeM : Optional[BiLinearForm], optional
+        computeM : BiLinearForm | None, optional
             Function used to build mass matrix M, by default None
-        computeF : Optional[LinearForm], optional
+        computeF : LinearForm | None, optional
             Function used to build force vector F, by default None
         thickness : float, optional
             thickness used in the model, by default 1.0
@@ -59,22 +57,22 @@ class WeakForms(_IModel):
         return self.__field
 
     @property
-    def computeK(self) -> Union[BiLinearForm, None]:
+    def computeK(self) -> BiLinearForm | None:
         r"""Function used to build stiffness matrix :math:`\Krm`."""
         return self.__computeK
 
     @property
-    def computeC(self) -> Union[BiLinearForm, None]:
+    def computeC(self) -> BiLinearForm | None:
         r"""Function used to build stiffness matrix :math:`\Crm`."""
         return self.__computeC
 
     @property
-    def computeM(self) -> Union[BiLinearForm, None]:
+    def computeM(self) -> BiLinearForm | None:
         r"""Function used to build stiffness matrix :math:`\Mrm`."""
         return self.__computeM
 
     @property
-    def computeF(self) -> Union[LinearForm, None]:
+    def computeF(self) -> LinearForm | None:
         r"""Function used to build force vector :math:`\Frm`."""
         return self.__computeF
 

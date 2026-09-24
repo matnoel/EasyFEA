@@ -6,7 +6,7 @@
 from abc import ABC, abstractmethod
 import pickle
 from datetime import datetime
-from typing import Union, Optional, Any
+from typing import Any
 import numpy as np
 from scipy import sparse
 import textwrap
@@ -108,7 +108,7 @@ class _Simu(_IObserver, _params.Updatable, ABC):
     Iterations:
     -----------
 
-        - def Save_Iter(self, iter: Optional[dict[str, Any]]=None) -> None:
+        - def Save_Iter(self, iter: dict[str, Any] | None=None) -> None:
 
         - def Set_Iter(self, iter=-1, resetAll=False) -> dict:
 
@@ -258,13 +258,13 @@ class _Simu(_IObserver, _params.Updatable, ABC):
             return reaction[dofs]
 
     @abstractmethod
-    def Get_x0(self, problemType: Optional[ProblemType] = None) -> _types.FloatArray:
+    def Get_x0(self, problemType: ProblemType | None = None) -> _types.FloatArray:
         """Returns the solution from the previous iteration."""
         size = self.mesh.Nn * self.Get_dof_n(problemType)
         return np.zeros(size)
 
     @abstractmethod
-    def Get_terms(self, problemType: Optional[ProblemType] = None) -> list[Term]:
+    def Get_terms(self, problemType: ProblemType | None = None) -> list[Term]:
         r"""Returns the operator terms building this simulation's local matrix system.
 
         A simulation describes itself as a list rather than a group loop::
@@ -279,10 +279,10 @@ class _Simu(_IObserver, _params.Updatable, ABC):
     def _Construct_local_matrix_system(self, problemType) -> dict[
         _GroupElem,
         tuple[
-            Optional[np.ndarray],
-            Optional[np.ndarray],
-            Optional[np.ndarray],
-            Optional[np.ndarray],
+            np.ndarray | None,
+            np.ndarray | None,
+            np.ndarray | None,
+            np.ndarray | None,
         ],
     ]:
         r"""Construct the local matrix system :math:`\Krm \, \mathrm{u} + \Crm \, \vrm + \Mrm \, \arm = \Frm` for the given problem, returned per contributing group of elements `{groupElem: (K_e, C_e, M_e, F_e)}`.
@@ -300,7 +300,7 @@ class _Simu(_IObserver, _params.Updatable, ABC):
     # Iterations
 
     @abstractmethod
-    def Save_Iter(self, iter: Optional[dict[str, Any]] = None):
+    def Save_Iter(self, iter: dict[str, Any] | None = None):
         """Saves iteration results in _results or in the specified simu.folder.
 
         ``iter`` defaults to ``None`` (not ``{}``): a mutable default like ``{}``
@@ -493,7 +493,7 @@ class _Simu(_IObserver, _params.Updatable, ABC):
     @abstractmethod
     def Result(
         self, option: str, nodeValues=True, iter=None
-    ) -> Union[_types.FloatArray, float]:
+    ) -> _types.FloatArray | float:
         """Returns the result. Use Results_Available() to know the available results.
 
         Examples
@@ -640,7 +640,7 @@ class _Simu(_IObserver, _params.Updatable, ABC):
         # Fill in the first mesh
         self.__NindexMesh: int = -1
         """Current mesh index in self.__listMesh"""
-        self.__listMesh: list[Union[str, Mesh]] = []
+        self.__listMesh: list[str | Mesh] = []
         self.mesh = mesh
 
         self.rho = 1.0
@@ -805,7 +805,7 @@ class _Simu(_IObserver, _params.Updatable, ABC):
 
     def _Get_u_n(
         self, problemType: ProblemType, asCsrMatrix: bool = False
-    ) -> Union[_types.FloatArray, sparse.csr_matrix]:
+    ) -> _types.FloatArray | sparse.csr_matrix:
         """Returns the solution associated with the given problem."""
         arr = self.__dict_u_n[problemType].copy()
         if not asCsrMatrix:
@@ -822,7 +822,7 @@ class _Simu(_IObserver, _params.Updatable, ABC):
 
     def _Get_v_n(
         self, problemType: ProblemType, asCsrMatrix: bool = False
-    ) -> Union[_types.FloatArray, sparse.csr_matrix]:
+    ) -> _types.FloatArray | sparse.csr_matrix:
         """Returns the speed solution associated with the given problem."""
         arr = self.__dict_v_n[problemType].copy()
         if not asCsrMatrix:
@@ -839,7 +839,7 @@ class _Simu(_IObserver, _params.Updatable, ABC):
 
     def _Get_a_n(
         self, problemType: ProblemType, asCsrMatrix: bool = False
-    ) -> Union[_types.FloatArray, sparse.csr_matrix]:
+    ) -> _types.FloatArray | sparse.csr_matrix:
         """Returns the acceleration solution associated with the given problem."""
         arr = self.__dict_a_n[problemType].copy()
         if not asCsrMatrix:
@@ -1308,8 +1308,8 @@ class _Simu(_IObserver, _params.Updatable, ABC):
         return self.__hyperbolicParams
 
     def Get_u_v_a(
-        self, problemType: Optional[ProblemType] = None
-    ) -> tuple[np.ndarray, Optional[np.ndarray], Optional[np.ndarray]]:
+        self, problemType: ProblemType | None = None
+    ) -> tuple[np.ndarray, np.ndarray | None, np.ndarray | None]:
         r"""Returns the current iterate :math:`(\mathrm{u}_t, \vrm_t, \arm_t)`, evaluated at the active time scheme's own evaluation point.
 
         This is the single place the elliptic / parabolic / hyperbolic branch lives. :meth:`_Solver_Get_Newton_Raphson_current_solution` asserts the simulation is nonlinear and :meth:`_Solver_Evaluate_u_v_a_for_time_scheme` asserts the algo is not elliptic, so every caller would otherwise repeat the same two guards.
@@ -1564,8 +1564,8 @@ class _Simu(_IObserver, _params.Updatable, ABC):
         self,
         problemType: ProblemType,
         u: _types.FloatArray,
-        v: Optional[_types.FloatArray] = None,
-        a: Optional[_types.FloatArray] = None,
+        v: _types.FloatArray | None = None,
+        a: _types.FloatArray | None = None,
     ) -> None:
         self.__Set_u_n(problemType, u)
 
@@ -1597,9 +1597,7 @@ class _Simu(_IObserver, _params.Updatable, ABC):
 
     def _Solver_Update_solutions(
         self, problemType: ProblemType, u_np1: _types.FloatArray
-    ) -> tuple[
-        _types.FloatArray, Optional[_types.FloatArray], Optional[_types.FloatArray]
-    ]:
+    ) -> tuple[_types.FloatArray, _types.FloatArray | None, _types.FloatArray | None]:
         """Update solutions u, v and a according to x array.
 
         Parameters
@@ -1611,7 +1609,7 @@ class _Simu(_IObserver, _params.Updatable, ABC):
 
         Returns
         -------
-        tuple[ _types.FloatArray, Optional[_types.FloatArray], Optional[_types.FloatArray] ]
+        tuple[ _types.FloatArray, _types.FloatArray | None, _types.FloatArray | None ]
             returns u_np1, v_np1, a_np1
         """
 
@@ -2034,7 +2032,7 @@ class _Simu(_IObserver, _params.Updatable, ABC):
         kspType: str = "cg",
         pcType: str = "gamg",
         solverType: str = "petsc",
-        problemType: Optional[ProblemType] = None,
+        problemType: ProblemType | None = None,
     ) -> None:
         """Configure PETSc KSP solver options for the linear system Ax = b.
 
@@ -2208,7 +2206,7 @@ class _Simu(_IObserver, _params.Updatable, ABC):
             )
 
     def _Solver_Get_PETSc4Py_Options(
-        self, problemType: Optional[ProblemType] = None
+        self, problemType: ProblemType | None = None
     ) -> tuple[str, str, str]:
         """Returns (kspType, pcType, solverType) petsc4py options for the given (or default) problem type."""
 
@@ -2244,7 +2242,7 @@ class _Simu(_IObserver, _params.Updatable, ABC):
         # LAGRANGE
         self.__Bc_Lagrange: list[LagrangeCondition] = []
         """Lagrange conditions list[BoundaryCondition]"""
-        self.__Bc_Display: list[Union[BoundaryCondition, LagrangeCondition]] = []
+        self.__Bc_Display: list[BoundaryCondition | LagrangeCondition] = []
         """Boundary conditions for display list[BoundaryCondition]"""
 
     @property
@@ -2284,7 +2282,7 @@ class _Simu(_IObserver, _params.Updatable, ABC):
         return nBc
 
     @property
-    def Bc_Display(self) -> list[Union[BoundaryCondition, LagrangeCondition]]:
+    def Bc_Display(self) -> list[BoundaryCondition | LagrangeCondition]:
         """Returns a copy of the boundary conditions for display."""
         return self.__Bc_Display.copy()
 
@@ -3266,8 +3264,8 @@ class _Simu(_IObserver, _params.Updatable, ABC):
 
 @singledispatch
 def _Init_obj(
-    obj: Union[_Simu, Mesh, _GroupElem], deformFactor: float = 0.0
-) -> tuple[Optional[_Simu], Mesh, _types.FloatArray, int]:
+    obj: _Simu | Mesh | _GroupElem, deformFactor: float = 0.0
+) -> tuple[_Simu | None, Mesh, _types.FloatArray, int]:
     """Returns (simu, mesh, coord, inDim) from an ojbect that could be either a _Simu, a Mesh or a _GroupElem object.
 
     Parameters
@@ -3313,20 +3311,20 @@ def _(obj: _GroupElem, deformFactor: float = 0.0):
 
 
 def _Get_values(
-    simu: Union[_Simu, None],
+    simu: _Simu | None,
     mesh: Mesh,
-    result: Union[str, _types.AnyArray],
+    result: str | _types.AnyArray,
     nodeValues=True,
 ) -> _types.AnyArray:
     """Retrieves values and ensures compatibility with the mesh.
 
     Parameters
     ----------
-    simu : Union[_Simu, None]
+    simu : _Simu | None
         Simulation (can be set to None).
     mesh : Mesh
         Mesh used to display the result.
-    result : Union[str, _types.AnyArray]
+    result : str | _types.AnyArray
         Result you want to display.
         Must be included in simu.Get_Results() or be a numpy array of size (Nn, Ne).
     nodeValues : bool, optional

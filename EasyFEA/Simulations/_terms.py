@@ -7,7 +7,7 @@ r"""Declarative description of a simulation's local matrix system: a list of :cl
 
 import copy
 import inspect
-from typing import Any, Callable, Optional, TYPE_CHECKING
+from typing import Any, Callable, TYPE_CHECKING
 
 import numpy as np
 
@@ -76,8 +76,8 @@ class Term:
         fn: _Operator,
         /,
         *,
-        dim: Optional[int] = None,
-        tag: Optional[str] = None,
+        dim: int | None = None,
+        tag: str | None = None,
         constant: bool = False,
         **kwargs,
     ):
@@ -157,7 +157,7 @@ class Term:
         """Multiplies every array the operator returns, set by :py:meth:`Scaled`."""
         return self.__scale
 
-    def Scaled(self, coef: int | float, slots: Optional[str] = None) -> "Term":
+    def Scaled(self, coef: float, slots: str | None = None) -> "Term":
         """A copy of this term with its arrays multiplied by `coef`, routed to `slots` if given. Applied outside the cache, so a constant term and its scaled copies integrate once."""
         term = Term(
             slots or "".join(self.__slots),
@@ -200,12 +200,12 @@ class Term:
             return groups
         return [g for g in groups if self.__tag in g.elementTags]
 
-    def _Get_elements(self, groupElem: "_GroupElem") -> Optional[_types.IntArray]:
+    def _Get_elements(self, groupElem: "_GroupElem") -> _types.IntArray | None:
         """Element indices this term is restricted to within `groupElem`, or None."""
         return None if self.__tag is None else groupElem.Get_Elements_Tag(self.__tag)
 
     def _Evaluate(
-        self, groupElem: "_GroupElem", u: Optional[_types.FloatArray] = None
+        self, groupElem: "_GroupElem", u: _types.FloatArray | None = None
     ) -> Any:
         """Calls the operator on one group, injecting the arguments it declares and the caller left out."""
         values = {"u": u, "elements": self._Get_elements(groupElem)}
@@ -219,7 +219,7 @@ class Term:
 def Fold_terms(
     simu: "_Simu",
     terms: list[Term],
-    problemType: Optional["ProblemType"] = None,
+    problemType: "ProblemType | None" = None,
 ) -> dict["_GroupElem", tuple]:
     r"""Folds `terms` into the local matrix system ``{groupElem: (K_e, C_e, M_e, F_e)}``.
 
@@ -240,7 +240,7 @@ def Fold_terms(
     fields = {"u": u_t, "v": v_t, "a": a_t}
 
     index = {"K": 0, "C": 1, "M": 2, "F": 3}  # slot name -> index in (K, C, M, F)
-    out: dict["_GroupElem", list] = {}
+    out: dict[_GroupElem, list] = {}
 
     for term in terms:
         for groupElem in term._Get_groups(mesh):
@@ -303,10 +303,10 @@ def _Check_rank(term: Term, slot: str, contribution: Any) -> None:
 def _Residual(
     term: Term,
     groupElem: "_GroupElem",
-    matrix_e: Optional[np.ndarray],
-    fields: dict[str, Optional[_types.FloatArray]],
+    matrix_e: np.ndarray | None,
+    fields: dict[str, _types.FloatArray | None],
     dof_n: int,
-) -> Optional[np.ndarray]:
+) -> np.ndarray | None:
     """``-A_e · x_t`` for a single-slot term, where `x_t` is the field that slot multiplies.
 
     Sound because a single slot means the contribution is linear in that field, so the product *is* the residual. Returns None when the slot carries no matrix (an ``F`` term) or when the field does not exist under the active time scheme (no velocity in a static problem).

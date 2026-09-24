@@ -3,7 +3,7 @@
 # This file is part of the EasyFEA project.
 # EasyFEA is distributed under the terms of the GNU General Public License v3, see LICENSE.txt and CREDITS.md for more information.
 
-from typing import Optional, Union, TYPE_CHECKING
+from typing import TYPE_CHECKING
 
 import numpy as np
 
@@ -70,8 +70,8 @@ class InElastic(_Simu):
         self._Solver_Set_Newton_Raphson_Algorithm(absTol, relTol, incTol, maxIter)
 
         self.__dt = 0.0
-        self.__z: dict["ElemType", FeArray] = {}
-        self.__zOld: dict["ElemType", FeArray] = {}
+        self.__z: dict[ElemType, FeArray] = {}
+        self.__zOld: dict[ElemType, FeArray] = {}
 
     @property
     def dt(self) -> float:
@@ -252,8 +252,8 @@ class InElastic(_Simu):
         return {"x": 0, "y": 1, "z": 2}[result[-1]]
 
     def Result(
-        self, result: str, nodeValues: bool = True, iter: Optional[int] = None
-    ) -> Union[_types.FloatArray, float]:
+        self, result: str, nodeValues: bool = True, iter: int | None = None
+    ) -> _types.FloatArray | float:
         if iter is not None:
             self.Set_Iter(iter)
 

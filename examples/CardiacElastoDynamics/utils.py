@@ -8,7 +8,7 @@ Two fiber sources are supported (see :func:`Get_config`). ``"analytic"`` builds 
 import os
 from dataclasses import dataclass
 from functools import partial
-from typing import Literal, Optional
+from typing import Literal
 
 import numpy as np
 from scipy.spatial import KDTree
@@ -592,7 +592,7 @@ class _Ventricle(Simulations.HyperElastic):
         self.alpha_top, self.alpha_epi = alpha_top, alpha_epi
         self.beta_top, self.beta_epi = beta_top, beta_epi
 
-    def Get_terms(self, problemType: Optional[ProblemType] = None) -> list[Term]:
+    def Get_terms(self, problemType: ProblemType | None = None) -> list[Term]:
         top = Term(
             "K",
             Operators.Bilinear.UV,
@@ -658,7 +658,7 @@ class MonoVentricle(_Ventricle):
         )
         self.pressure = 0.0
 
-    def Get_terms(self, problemType: Optional[ProblemType] = None) -> list[Term]:
+    def Get_terms(self, problemType: ProblemType | None = None) -> list[Term]:
         return super().Get_terms(problemType) + [self._Pressure("endo", self.pressure)]
 
 
@@ -694,7 +694,7 @@ class BiVentricle(_Ventricle):
         self.pressure_lv = 0.0
         self.pressure_rv = 0.0
 
-    def Get_terms(self, problemType: Optional[ProblemType] = None) -> list[Term]:
+    def Get_terms(self, problemType: ProblemType | None = None) -> list[Term]:
         return super().Get_terms(problemType) + [
             self._Pressure("endo_lv", self.pressure_lv),
             self._Pressure("endo_rv", self.pressure_rv),

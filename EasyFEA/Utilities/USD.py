@@ -33,7 +33,7 @@ from .GLTF import _get_list_nodesValues
 @rank0_only
 @requires_pxr
 def Save_simu(
-    simu: "_Simu",
+    simu: _Simu,
     results: list[str],
     folder: str,
     N: int = 50,
@@ -154,7 +154,7 @@ def Save_simu(
             )
 
 
-def _get_triangles(mesh: "Mesh") -> np.ndarray:
+def _get_triangles(mesh: Mesh) -> np.ndarray:
     return np.concatenate(
         [
             groupElem.connect[:, groupElem.triangles].reshape(-1, 3)
@@ -164,7 +164,7 @@ def _get_triangles(mesh: "Mesh") -> np.ndarray:
     )
 
 
-def _get_lines(mesh: "Mesh") -> np.ndarray:
+def _get_lines(mesh: Mesh) -> np.ndarray:
     list_lines = []
     for groupElem in mesh.Get_list_groupElem(2):
         segments = groupElem.segments
@@ -180,7 +180,7 @@ def _get_lines(mesh: "Mesh") -> np.ndarray:
 @rank0_only
 @requires_pxr
 def Save_mesh(
-    mesh: "Mesh",
+    mesh: Mesh,
     folder: str,
     filename: str = "mesh",
     list_displacementMatrix: list[np.ndarray] = [],

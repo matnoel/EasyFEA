@@ -4,7 +4,7 @@
 # EasyFEA is distributed under the terms of the GNU General Public License v3, see LICENSE.txt and CREDITS.md for more information.
 
 from functools import lru_cache
-from typing import TYPE_CHECKING, Optional, Union
+from typing import TYPE_CHECKING
 
 import numpy as np
 
@@ -459,7 +459,7 @@ def TimeQuadratureStressTensor(
     state_np1: "HyperElasticState",
     coefK: float,
     nPoints: int,
-    tol: Optional[float] = None,
+    tol: float | None = None,
     maxPoints: int = 33,
 ) -> tuple[np.ndarray, np.ndarray, int]:
     r"""Tangent and residual for the PK2 stress **averaged along the strain path** of the step.
@@ -694,8 +694,8 @@ def __skew(v: np.ndarray) -> np.ndarray:
 def FollowingPressure(
     groupElem: "_GroupElem",
     u: np.ndarray,
-    pressure: Union[float, np.ndarray],
-    elements: Optional[np.ndarray] = None,
+    pressure: float | np.ndarray,
+    elements: np.ndarray | None = None,
     matrixType: "MatrixType" = MatrixType.rigi,
 ) -> tuple[np.ndarray, np.ndarray]:
     r"""Follower-pressure contribution on a 2D surface group in a 3D mesh.
@@ -788,7 +788,7 @@ def PenaltyContact(
     penalty: float,
     gap_e_pg: FeArray,
     normal_e_pg: FeArray,
-    elements: Optional[np.ndarray] = None,
+    elements: np.ndarray | None = None,
     matrixType: "MatrixType" = MatrixType.mass,
 ) -> tuple[np.ndarray, np.ndarray]:
     r"""Penalty-contact tangent/residual on a contact surface group.

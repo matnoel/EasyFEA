@@ -13,7 +13,7 @@ import copy
 from ._utils import Point, Rotate, Symmetry, AsCoords, Distance_To_Polyline
 
 from ..FEM._utils import ElemType
-from typing import Union, Optional, Iterable, TYPE_CHECKING
+from typing import Iterable, TYPE_CHECKING, TypeAlias
 from ..Utilities import _types, _params
 
 try:
@@ -24,10 +24,10 @@ except ImportError:
 if TYPE_CHECKING:
     from ..Geoms import Point, Line, Circle, CircleArc, Points, Contour, Domain
 
-    GeomCompatible = Union["_Geom", Domain, Circle, Points, Contour]
-    ContourCompatible = Union[Line, CircleArc, Points]
-    CrackCompatible = Union[Line, Points, Contour, CircleArc]
-    RefineCompatible = Union[Domain, Circle, str]
+    GeomCompatible: TypeAlias = "_Geom | Domain | Circle | Points | Contour"
+    ContourCompatible: TypeAlias = Line | CircleArc | Points
+    CrackCompatible: TypeAlias = Line | Points | Contour | CircleArc
+    RefineCompatible: TypeAlias = Domain | Circle | str
 
 
 class _Geom(ABC):
@@ -165,7 +165,7 @@ class _Geom(ABC):
         dy: float = 0.0,
         dz: float = 0.0,
         copy: bool = False,
-    ) -> Union[_Geom, None]:
+    ) -> _Geom | None:
         """Translates the geometry in 3D space.
 
         Parameters
@@ -196,7 +196,7 @@ class _Geom(ABC):
         center: _types.Coords = (0, 0, 0),
         direction: _types.Coords = (0, 0, 1),
         copy: bool = False,
-    ) -> Union[_Geom, None]:
+    ) -> _Geom | None:
         """Rotates the geometry around an axis defined by a center and a direction.
 
         Parameters
@@ -229,7 +229,7 @@ class _Geom(ABC):
         point: _types.Coords = (0, 0, 0),
         n: _types.Coords = (1, 0, 0),
         copy: bool = False,
-    ) -> Union[_Geom, None]:
+    ) -> _Geom | None:
         """Reflects the geometry through a plane defined by a point and a normal vector.
 
         Parameters
@@ -258,7 +258,7 @@ class _Geom(ABC):
     def Mesh_1D(
         self,
         elemType: ElemType = ElemType.SEG2,
-        additionalPoints: list["Point"] = [],
+        additionalPoints: list[Point] = [],
         path="",
     ):
         """Creates a 1D mesh from the geometry.
@@ -292,12 +292,12 @@ class _Geom(ABC):
         self,
         inclusions: list[GeomCompatible] = [],
         elemType: ElemType = ElemType.TRI3,
-        cracks: list["CrackCompatible"] = [],
-        refineGeoms: list["RefineCompatible"] = [],
+        cracks: list[CrackCompatible] = [],
+        refineGeoms: list[RefineCompatible] = [],
         isOrganised=False,
         additionalSurfaces: list[GeomCompatible] = [],
-        additionalLines: list[Union["Line", "CircleArc"]] = [],
-        additionalPoints: list["Point"] = [],
+        additionalLines: list[Line | CircleArc] = [],
+        additionalPoints: list[Point] = [],
         path="",
     ):
         """Creates a 2D mesh from a contour and inclusions that must form a closed plane surface.
@@ -316,7 +316,7 @@ class _Geom(ABC):
             mesh is organized, by default False
         additionalSurfaces : list[Domain, Circle, Points, Contour]
             additional surfaces that will be added to or removed from the surfaces created by the contour and the inclusions. (e.g Domain, Circle, Contour, Points). Tip: if the mesh is not well generated, you can also give the inclusions.
-        additionalLines : list[Union[Line,CircleArc]]
+        additionalLines : list[Line | CircleArc]
             additional lines that will be added to the surfaces created by the contour and the inclusions. (e.g Domain, Circle, Contour, Points). WARNING: lines must be within the domain.
         additionalPoints : list[Point]
             additional points that will be added to the surfaces created by the contour and the inclusions. WARNING: points must be within the domain.
@@ -351,12 +351,12 @@ class _Geom(ABC):
         extrude: _types.Coords = (0, 0, 1),
         layers: list[int] = [],
         elemType: ElemType = ElemType.TETRA4,
-        cracks: list["CrackCompatible"] = [],
-        refineGeoms: list["RefineCompatible"] = [],
+        cracks: list[CrackCompatible] = [],
+        refineGeoms: list[RefineCompatible] = [],
         isOrganised=False,
         additionalSurfaces: list[GeomCompatible] = [],
-        additionalLines: list[Union["Line", "CircleArc"]] = [],
-        additionalPoints: list["Point"] = [],
+        additionalLines: list[Line | CircleArc] = [],
+        additionalPoints: list[Point] = [],
         path="",
     ):
         """Creates a 3D mesh by extruding a surface constructed from a contour and inclusions.
@@ -379,7 +379,7 @@ class _Geom(ABC):
             mesh is organized, by default False
         additionalSurfaces : list[Domain, Circle, Points, Contour]
             additional surfaces that will be added to or removed from the surfaces created by the contour and the inclusions. (e.g Domain, Circle, Contour, Points). Tip: if the mesh is not well generated, you can also give the inclusions.
-        additionalLines : list[Union[Line,CircleArc]]
+        additionalLines : list[Line | CircleArc]
             additional lines that will be added to the surfaces created by the contour and the inclusions. (e.g Domain, Circle, Contour, Points). WARNING: lines must be within the domain.
         additionalPoints : list[Point]
             additional points that will be added to the surfaces created by the contour and the inclusions. WARNING: points must be within the domain.
@@ -418,12 +418,12 @@ class _Geom(ABC):
         angle=360,
         layers: list[int] = [30],
         elemType: ElemType = ElemType.TETRA4,
-        cracks: list["CrackCompatible"] = [],
-        refineGeoms: list["RefineCompatible"] = [],
+        cracks: list[CrackCompatible] = [],
+        refineGeoms: list[RefineCompatible] = [],
         isOrganised=False,
         additionalSurfaces: list[GeomCompatible] = [],
-        additionalLines: list[Union["Line", "CircleArc"]] = [],
-        additionalPoints: list["Point"] = [],
+        additionalLines: list[Line | CircleArc] = [],
+        additionalPoints: list[Point] = [],
         path="",
     ):
         """Creates a 3D mesh by rotating a surface along an axis.
@@ -450,7 +450,7 @@ class _Geom(ABC):
             mesh is organized, by default False
         additionalSurfaces : list[Domain, Circle, Points, Contour]
             additional surfaces that will be added to or removed from the surfaces created by the contour and the inclusions. (e.g Domain, Circle, Contour, Points). Tip: if the mesh is not well generated, you can also give the inclusions.
-        additionalLines : list[Union[Line,CircleArc]]
+        additionalLines : list[Line | CircleArc]
             additional lines that will be added to the surfaces created by the contour and the inclusions. (e.g Domain, Circle, Contour, Points). WARNING: lines must be within the domain.
         additionalPoints : list[Point]
             additional points that will be added to the surfaces created by the contour and the inclusions. WARNING: points must be within the domain.
@@ -485,11 +485,11 @@ class _Geom(ABC):
 
     def Plot(
         self,
-        ax: Optional[plt.Axes] = None,
+        ax: plt.Axes | None = None,
         color: str = "",
         name: str = "",
-        lw: Optional[_types.Number] = None,
-        ls: Optional[str] = None,
+        lw: _types.Number | None = None,
+        ls: str | None = None,
         plotPoints: bool = True,
     ) -> plt.Axes:
         """Plots the geometry using Matplotlib.
@@ -547,8 +547,8 @@ class _Geom(ABC):
 
     @staticmethod
     def Plot_Geoms(
-        geoms: list["_Geom"],
-        ax: Optional[plt.Axes] = None,
+        geoms: list[_Geom],
+        ax: plt.Axes | None = None,
         color: str = "",
         name: str = "",
         plotPoints: bool = True,

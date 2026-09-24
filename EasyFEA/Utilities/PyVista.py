@@ -7,7 +7,7 @@
 https://docs.pyvista.org/api/plotting/plotting.html"""
 
 from __future__ import annotations
-from typing import Union, Callable, Optional, TYPE_CHECKING, Any, Iterable
+from typing import Callable, TYPE_CHECKING, Any, Iterable
 from scipy.sparse import csr_matrix
 import numpy as np
 from functools import singledispatch
@@ -38,13 +38,8 @@ requires_pyvista = Create_requires_decorator("matplotlib", "pyvista")
 
 @requires_pyvista
 def Plot(
-    obj: Union[
-        "_Simu",
-        "Mesh",
-        "_GroupElem",
-        Any,
-    ],
-    result: Optional[Union[str, _types.FloatArray]] = None,
+    obj: _Simu | Mesh | _GroupElem | Any,
+    result: str | _types.FloatArray | None = None,
     deformFactor=0.0,
     coef=1.0,
     nodeValues=True,
@@ -59,11 +54,11 @@ def Plot(
     cmap="jet",
     nColors=256,
     clim=None,
-    plotter: Optional[pv.Plotter] = None,
+    plotter: pv.Plotter | None = None,
     show_grid=False,
     colorbarTitle=None,
     verticalColobar=True,
-    scalar_bar_kwargs: Optional[dict] = None,
+    scalar_bar_kwargs: dict | None = None,
     **kwargs,
 ):
     """Plots the object obj that can be either a simu, mesh, MultiBlock, PolyData.\n
@@ -73,7 +68,7 @@ def Plot(
     ----------
     obj : _Simu | Mesh | _GroupElem | MultiBlock | PolyData | UnstructuredGrid
         The object to plot and will be transformed to a mesh
-    result : Union[str,_types.FloatArray], optional
+    result : str | _types.FloatArray, optional
         Scalars used to “color” the mesh, by default None
     deformFactor : float, optional
         Factor used to display the deformed solution (0 means no deformations), default 0.0
@@ -229,17 +224,13 @@ def Plot(
 
 @requires_pyvista
 def Plot_Mesh(
-    obj: Union[
-        "_Simu",
-        "Mesh",
-        Any,
-    ],
+    obj: _Simu | Mesh | Any,
     deformFactor=0.0,
     alpha=1.0,
     color="cyan",
     edgecolor="black",
     linewidth=0.5,
-    plotter: Optional[pv.Plotter] = None,
+    plotter: pv.Plotter | None = None,
 ):
     """Plots the mesh.
 
@@ -295,14 +286,14 @@ def Plot_Mesh(
 
 @requires_pyvista
 def Plot_Nodes(
-    obj: Union["_Simu", "Mesh"],
-    nodes: Optional[_types.IntArray] = None,
+    obj: _Simu | Mesh,
+    nodes: _types.IntArray | None = None,
     showId=False,
     deformFactor=0,
     color="red",
     folder="",
     label=None,
-    plotter: Optional[pv.Plotter] = None,
+    plotter: pv.Plotter | None = None,
 ):
     """Plots mesh's nodes.
 
@@ -375,17 +366,17 @@ def Plot_Nodes(
 
 @requires_pyvista
 def Plot_Elements(
-    obj: Union["_Simu", "Mesh"],
+    obj: _Simu | Mesh,
     nodes: _types.IntArray = [],
-    dimElem: Optional[int] = None,
+    dimElem: int | None = None,
     showId=False,
     deformFactor=0.0,
     alpha=1.0,
     color="red",
     edgecolor="black",
-    linewidth: Optional[float] = None,
-    label: Optional[str] = None,
-    plotter: Optional[pv.Plotter] = None,
+    linewidth: float | None = None,
+    label: str | None = None,
+    plotter: pv.Plotter | None = None,
 ):
     """Plots the mesh elements corresponding to the given nodes.
 
@@ -468,16 +459,16 @@ def Plot_Elements(
 
 @requires_pyvista
 def Plot_Arrows(
-    obj: Union["_Simu", "Mesh"],
+    obj: _Simu | Mesh,
     nodes: _types.IntArray,
     vectors: _types.FloatArray,
     deformFactor: float = 0.0,
     magnitudeCoef: float = 0.1,
     alpha: float = 1.0,
     color: str = "red",
-    linewidth: Optional[float] = None,
-    label: Optional[str] = None,
-    plotter: Optional[pv.Plotter] = None,
+    linewidth: float | None = None,
+    label: str | None = None,
+    plotter: pv.Plotter | None = None,
 ):
     """Plots the mesh elements corresponding to the given nodes.
 
@@ -536,7 +527,7 @@ def Plot_Arrows(
 
 @requires_pyvista
 def Plot_BoundaryConditions(
-    simu: "_Simu", deformFactor=0.0, plotter: Optional[pv.Plotter] = None
+    simu: _Simu, deformFactor=0.0, plotter: pv.Plotter | None = None
 ):
     """Plots simulation's boundary conditions.
 
@@ -697,7 +688,7 @@ def Plot_Tags(
     alpha: float = 1.0,
     useColorCycler=False,
     useLegend: bool = False,
-    plotter: Optional[pv.Plotter] = None,
+    plotter: pv.Plotter | None = None,
 ) -> pv.Plotter:
     """Plots the mesh's elements tags (from 2d elements to points) but do not plot the 3d elements tags.
 
@@ -804,7 +795,7 @@ def Plot_Geoms(
     geoms: list,
     line_width=2,
     plotLegend=True,
-    plotter: Optional[pv.Plotter] = None,
+    plotter: pv.Plotter | None = None,
     **kwargs,
 ) -> pv.Plotter:
     """Plots _Geom objects
@@ -884,7 +875,7 @@ def Plot_Geoms(
 @rank0_only
 @requires_pyvista
 def Movie_simu(
-    simu: "_Simu",
+    simu: _Simu,
     result: str,
     folder: str,
     filename="video.gif",
@@ -1058,8 +1049,8 @@ def _setCameraPosition(
 
 @requires_pyvista
 def _pvMesh(
-    obj: Union["_Simu", "Mesh", "_GroupElem"],
-    result: Optional[Union[str, _types.AnyArray]] = None,
+    obj: _Simu | Mesh | _GroupElem,
+    result: str | _types.AnyArray | None = None,
     deformFactor=0.0,
     nodeValues=True,
     clipAxis=None,
@@ -1092,7 +1083,7 @@ def _pvMesh(
 
 @requires_pyvista
 @singledispatch
-def _pvGeom(geom) -> Union[pv.DataSet, list[pv.DataSet]]:
+def _pvGeom(geom) -> pv.DataSet | list[pv.DataSet]:
     Terminal.MyPrintError(
         "geom must be in [Point, Line, Domain, Circle, CircleArc, Contour, Points]"
     )

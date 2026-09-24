@@ -5,8 +5,6 @@
 
 """Helpers shared by the operator modules: the contraction they all integrate with, and the element restriction they all honour."""
 
-from typing import Optional
-
 import numpy as np
 
 from ...Utilities import _types
@@ -17,7 +15,7 @@ def einsum(*args) -> np.ndarray:
     return np.asarray(np.einsum(*args, optimize=True))
 
 
-def Restrict(elements: Optional[_types.IntArray], *arrays: np.ndarray):
+def Restrict(elements: _types.IntArray | None, *arrays: np.ndarray):
     """Restricts per-element arrays to `elements`, or returns them untouched when it is None.
 
     Every array argument of an operator carries **full-group** shape — row ``i`` is element ``i`` of this group — so an index array is only ever meaningful against the group being integrated. That is what makes ``elements`` safe when several groups share a dimension (PRISM18 + HEXA27): the indices are resolved against the one group being integrated, never hoisted across groups.
@@ -32,7 +30,7 @@ def Restrict(elements: Optional[_types.IntArray], *arrays: np.ndarray):
 
 
 def Scatter(
-    values_e: np.ndarray, Ne: int, elements: Optional[_types.IntArray]
+    values_e: np.ndarray, Ne: int, elements: _types.IntArray | None
 ) -> np.ndarray:
     """Places `values_e` at `elements` inside a full-group array of zeros, so a restricted operator still scatters uniformly through the group's connectivity."""
     if elements is None:

@@ -5,8 +5,6 @@
 
 """Hyper elastic module used to compute matrices."""
 
-from typing import Union
-
 import numpy as np
 
 from ...FEM import MatrixType, _GroupElem
@@ -72,7 +70,7 @@ class HyperElasticState:
         return self.__matrixType
 
     @matrixType.setter
-    def matrixType(self, value: Union[int, MatrixType]):
+    def matrixType(self, value: int | MatrixType):
         self.__matrixType = value
 
     def _GetDims(

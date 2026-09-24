@@ -110,8 +110,6 @@ a {py:class}`~EasyFEA.Simulations.HyperElastic` plus a surface spring and a foll
 pressure:
 
 ```python
-from typing import Optional
-
 from EasyFEA import MatrixType, Simulations
 from EasyFEA.Simulations import ProblemType, Term
 from EasyFEA.FEM import Operators
@@ -125,7 +123,7 @@ class Ventricle(Simulations.HyperElastic):
         super().__init__(mesh, material)
         self.pressure = 0.0   # a parameter has no default: reading it unset raises
 
-    def Get_terms(self, problemType: Optional[ProblemType] = None) -> list[Term]:
+    def Get_terms(self, problemType: ProblemType | None = None) -> list[Term]:
         # `dim=2` picks the surface groups, `tag` the subset within them;
         # `constant=True` builds the contribution once and reuses it while its arguments are unchanged
         epi = Term("K", Operators.Bilinear.MassAlongNormal, dim=2, tag="epi", constant=True)
@@ -158,7 +156,7 @@ class RigidContact(Simulations.Elastic):
         self._Solver_Set_Newton_Raphson_Algorithm(absTol=1e-5, maxIter=50)
         self.penalty = penalty
 
-    def Get_terms(self, problemType: Optional[ProblemType] = None) -> list[Term]:
+    def Get_terms(self, problemType: ProblemType | None = None) -> list[Term]:
         return super().Get_terms(problemType) + [
             Term("KR", self.__Contact, dim=self.dim - 1)
         ]

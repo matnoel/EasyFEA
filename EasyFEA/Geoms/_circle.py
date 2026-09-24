@@ -6,7 +6,6 @@
 """Module containing the Circle and CircleArc classes."""
 
 import numpy as np
-from typing import Union, Optional
 
 from ._utils import (
     Point,
@@ -231,9 +230,9 @@ class CircleArc(_Geom):
         self,
         pt1: Point.PointALike,
         pt2: Point.PointALike,
-        center: Union[Point, None] = None,
-        R: Optional[_types.Number] = None,
-        P: Optional[_types.Coords] = None,
+        center: Point | None = None,
+        R: _types.Number | None = None,
+        P: _types.Coords | None = None,
         meshSize: _types.Number = 0.0,
         n: _types.Coords = (0, 0, 1),
         isOpen: bool = False,

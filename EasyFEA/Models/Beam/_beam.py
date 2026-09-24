@@ -175,7 +175,7 @@ class _Beam(_IModel):
         Iyz = section.groupElem.Integrate_e(lambda x, y, z: x * y).sum()
         assert np.abs(Iyz) <= 1e-9, "The section must have at least 1 symetry axis."
         self.Need_Update()
-        self.__section: "Mesh" = section
+        self.__section: Mesh = section
 
     @property
     def xAxis(self) -> _types.FloatArray:

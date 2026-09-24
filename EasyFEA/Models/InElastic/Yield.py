@@ -10,7 +10,7 @@ hardened: the hardening force :math:`R` is handed to it by the free energy
 (see :mod:`.IsotropicHardening`), so a surface and a hardening law compose freely.
 """
 
-from typing import Callable, NamedTuple, Optional
+from typing import Callable, NamedTuple
 
 import numpy as np
 
@@ -40,7 +40,7 @@ class YieldSurface(NamedTuple):
     N: Callable[[FeArray.FeArrayALike, FeArray.FeArrayALike], FeArray.FeArrayALike]
     scale: float
     dNdSig: Callable[[FeArray.FeArrayALike], FeArray.FeArrayALike]
-    P: Optional[_types.FloatArray] = None
+    P: _types.FloatArray | None = None
 
 
 def Svm(sig_e_pg: FeArray.FeArrayALike) -> FeArray.FeArrayALike:

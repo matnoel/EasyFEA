@@ -14,7 +14,7 @@ A hexahedral mesh (HEXA8) uses :\n
 
 import copy
 import pickle
-from typing import Callable, Optional, TYPE_CHECKING
+from typing import Callable, TYPE_CHECKING
 
 import numpy as np
 import scipy.sparse as sp
@@ -300,7 +300,7 @@ class Mesh(Observable):
                 )
 
         # Step 4: optionally remove duplicate elements, then build GroupElems
-        dict_groupElem: dict[ElemType, "_GroupElem"] = {}
+        dict_groupElem: dict[ElemType, _GroupElem] = {}
         for elemType, connects_list in dict_connects.items():
             connect: _types.IntArray = np.vstack(connects_list)
             if constructUniqueElements:
@@ -556,8 +556,8 @@ class Mesh(Observable):
 
     def Get_normals(
         self,
-        nodes: Optional[_types.IntArray] = None,
-        displacementMatrix: Optional[_types.FloatArray] = None,
+        nodes: _types.IntArray | None = None,
+        displacementMatrix: _types.FloatArray | None = None,
     ) -> tuple[_types.FloatArray, _types.IntArray]:
         """Returns normal vectors and nodes belonging to the edge of the mesh.\n
         returns normals, nodes."""
@@ -814,7 +814,7 @@ class Mesh(Observable):
             groupElem.Set_Tag(nodes, tag)
 
     def Locates_sol_e(
-        self, sol: _types.FloatArray, dof_n: Optional[int] = None, asFeArray=False
+        self, sol: _types.FloatArray, dof_n: int | None = None, asFeArray=False
     ) -> FeArray.FeArrayALike:
         """Locates solution on elements."""
         return self.groupElem.Locates_sol_e(sol, dof_n, asFeArray)
@@ -876,7 +876,7 @@ class Mesh(Observable):
         self,
         coordinates_n: _types.FloatArray,
         dofsValues: _types.FloatArray,
-        elements: Optional[_types.IntArray] = None,
+        elements: _types.IntArray | None = None,
     ) -> _types.FloatArray:
         """Evaluates dofsValues with shape (Nn*dof_n, ) at the specified coordinates.
 
@@ -886,7 +886,7 @@ class Mesh(Observable):
             coordinates that must be a (Nnodes, 3) array.
         dofsValues : _types.FloatArray
             dofs values that must be a (Nn * dof_n) array.
-        elements : Optional[_types.IntArray], optional
+        elements : _types.IntArray | None, optional
             elements that may contain the specified coordinates to speed up evaluation, by default None
 
         Returns
@@ -1571,7 +1571,7 @@ def Mesh_Optim(
 
     i = -1
     ratio = 0
-    optimGeom: Optional[str] = None
+    optimGeom: str | None = None
     # max=1
     while ratio <= targetRatio and i <= iterMax:
         i += 1

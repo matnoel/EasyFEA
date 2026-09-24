@@ -7,7 +7,7 @@
 
 from abc import ABC, abstractmethod
 import numpy as np
-from typing import Callable, Union
+from typing import Callable
 
 # utilities
 from ...FEM import FeArray, TensorProd, Normalize
@@ -36,7 +36,7 @@ class _HyperElastic(_IModel, ABC):
     When ``> 0`` and a velocity field is available, the viscous contribution is delivered via the damping matrix :func:`Operators.NonLinear.KelvinVoigtDamping`.
     The simulation handles both the residual contribution (``b -= C @ v_t``) and the linear tangent piece (``coefC · C`` in the global assembly) — same uniform pattern as Rayleigh damping in :class:`Elastic`."""
 
-    active_stress: Union[float, _types.FloatArray] = _params.ScalarOrFieldParameter()
+    active_stress: float | _types.FloatArray = _params.ScalarOrFieldParameter()
     """Active stress magnitude. ``0`` (default) → inactive.
     When non-zero and the direction tensor has been registered via :meth:`Set_active_stress_vec`, the PK2 contribution ``active_stress · (T̂ ⊗ T̂)`` is delivered by :func:`Operators.NonLinear.ActiveStressTensor` — **not** by :meth:`Compute_dWde`, which stays the derivative of :meth:`Compute_W` (see :meth:`Compute_active_stress`).
     Typical cardiac use: precompute the fiber direction tensor once with :meth:`Set_active_stress_vec`, then update only this scalar between :meth:`Solve` calls — ``material.active_stress = float(tau_values[i])``."""
@@ -173,7 +173,7 @@ class NeoHookean(_HyperElastic):
     K: float = _params.PositiveScalarParameter()
     """Bulk modulus"""
 
-    def __init__(self, dim: int, K: Union[float, _types.FloatArray], thickness=1.0):
+    def __init__(self, dim: int, K: float | _types.FloatArray, thickness=1.0):
         """Creates an Neo-Hookean material.
 
         Parameters
@@ -262,9 +262,9 @@ class MooneyRivlin(_HyperElastic):
     def __init__(
         self,
         dim: int,
-        K1: Union[float, _types.FloatArray],
-        K2: Union[float, _types.FloatArray],
-        K: Union[float, _types.FloatArray] = 0.0,
+        K1: float | _types.FloatArray,
+        K2: float | _types.FloatArray,
+        K: float | _types.FloatArray = 0.0,
         thickness=1.0,
     ):
         """Creates an Mooney-Rivlin material.
@@ -396,9 +396,9 @@ class CiarletGeymonat(_HyperElastic):
     def __init__(
         self,
         dim: int,
-        K1: Union[float, _types.FloatArray],
-        K2: Union[float, _types.FloatArray],
-        K: Union[float, _types.FloatArray] = 0.0,
+        K1: float | _types.FloatArray,
+        K2: float | _types.FloatArray,
+        K: float | _types.FloatArray = 0.0,
         thickness=1.0,
     ):
         """Creates an Ciarlet-Geymonat material.
@@ -529,9 +529,9 @@ class SaintVenantKirchhoff(_HyperElastic):
     def __init__(
         self,
         dim: int,
-        lmbda: Union[float, _types.FloatArray],
-        mu: Union[float, _types.FloatArray],
-        K: Union[float, _types.FloatArray] = 0.0,
+        lmbda: float | _types.FloatArray,
+        mu: float | _types.FloatArray,
+        K: float | _types.FloatArray = 0.0,
         thickness=1.0,
     ):
         """Creates Saint-Venant-Kirchhoff material.
@@ -928,7 +928,7 @@ class HolzapfelOgden(_HyperElastic):
 
 
 def HyperElasticPotential(
-    W: Callable, in_axes: Union[int, tuple] = 0
+    W: Callable, in_axes: int | tuple = 0
 ) -> tuple[Callable, Callable, Callable]:
     """Builds the ``(W, dWde, d2Wde)`` trio from the potential alone. Needs jax.
 
@@ -980,7 +980,7 @@ class AutoDiff(_HyperElastic):
         dim: int,
         W: Callable,
         aux: tuple = (),
-        in_axes: Union[int, tuple] = 0,
+        in_axes: int | tuple = 0,
         thickness: float = 1.0,
     ):
         """Creates a hyperelastic law from its potential alone.

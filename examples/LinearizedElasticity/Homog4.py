@@ -18,14 +18,13 @@ import numpy as np
 from EasyFEA import Terminal, Models, Mesh, ElemType, Simulations, PyVista
 from EasyFEA.Geoms import Points, Circle
 from EasyFEA.FEM import LagrangeCondition, FeArray
-from typing import Optional
 
 
 def Compute_ukl(
     simu: Simulations.Elastic,
     Ekl: np.ndarray,
-    nodesKUBC: Optional[np.ndarray] = None,
-    pairedNodes: Optional[np.ndarray] = None,
+    nodesKUBC: np.ndarray | None = None,
+    pairedNodes: np.ndarray | None = None,
     pltSol=False,
 ):
     simu.Bc_Init()
