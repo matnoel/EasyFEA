@@ -36,7 +36,7 @@ EasyFEA is distributed under the terms of the [GNU General Public License v3.0 o
 
 ## 💻  Installation
 
-EasyFEA can be easily installed from [PyPI](https://pypi.org/project/EasyFEA/) using pip, compatible with Python versions 3.9 through 3.13:
+EasyFEA can be easily installed from [PyPI](https://pypi.org/project/EasyFEA/) using pip, compatible with Python versions 3.10 through 3.14:
 
 ```
 pip install EasyFEA

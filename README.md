@@ -94,7 +94,7 @@ Refer to the [documentation](https://easyfea.readthedocs.io/en/stable/index.html
 
 ## 💻  Installation
 
-EasyFEA can be easily installed from [PyPI](https://pypi.org/project/EasyFEA/) using pip, compatible with Python versions 3.9 through 3.13:
+EasyFEA can be easily installed from [PyPI](https://pypi.org/project/EasyFEA/) using pip, compatible with Python versions 3.10 through 3.14:
 
 ```
 pip install EasyFEA
