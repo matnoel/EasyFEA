@@ -1,9 +1,15 @@
 (utilities)=
+
 # Utilities
 
 The {py:mod}`EasyFEA.Utilities` module provides essential tools for post-processing.
 
-In the simulation workflow, `Utilities` is the **final step**: once `simu.Solve()` has run, these tools visualize results, export to external formats, and manage files. {py:mod}`~EasyFEA.Utilities.Matplotlib` and {py:mod}`~EasyFEA.Utilities.PyVista` cover interactive visualization; {py:mod}`~EasyFEA.Utilities.Terminal` provides console helpers; {py:mod}`~EasyFEA.Utilities.Paraview`, {py:mod}`~EasyFEA.Utilities.GLTF`, and {py:mod}`~EasyFEA.Utilities.USD` handle external export.
+In the simulation workflow, `Utilities` is the **final step**: once `simu.Solve()` has
+run, these tools visualize results, export to external formats, and manage files.
+{py:mod}`~EasyFEA.Utilities.Matplotlib` and {py:mod}`~EasyFEA.Utilities.PyVista` cover
+interactive visualization; {py:mod}`~EasyFEA.Utilities.Terminal` provides console
+helpers; {py:mod}`~EasyFEA.Utilities.Paraview`, {py:mod}`~EasyFEA.Utilities.GLTF`, and
+{py:mod}`~EasyFEA.Utilities.USD` handle external export.
 
 ```{eval-rst}
 .. autosummary::

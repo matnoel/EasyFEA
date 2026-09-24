@@ -1,14 +1,19 @@
 (howto-geom)=
+
 # Create a geometric object
 
-A **geometric object** (accessible in the {py:mod}`EasyFEA.Geoms` namespace) describes the shape of the domain before its discretization using the meshing methods {py:meth}`~EasyFEA.Geoms._Geom.Mesh_2D`, {py:meth}`~EasyFEA.Geoms._Geom.Mesh_Extrude`, and {py:meth}`~EasyFEA.Geoms._Geom.Mesh_Revolve`.
+A **geometric object** (accessible in the {py:mod}`EasyFEA.Geoms` namespace) describes
+the shape of the domain before its discretization using the meshing methods
+{py:meth}`~EasyFEA.Geoms._Geom.Mesh_2D`, {py:meth}`~EasyFEA.Geoms._Geom.Mesh_Extrude`,
+and {py:meth}`~EasyFEA.Geoms._Geom.Mesh_Revolve`.
 
 ```{seealso}
 - {ref}`howto-mesh`
 - {ref}`geoms` API
 ```
 
----
+______________________________________________________________________
+
 ## Basic shapes
 
 ### Line
@@ -24,7 +29,9 @@ A **geometric object** (accessible in the {py:mod}`EasyFEA.Geoms` namespace) des
 
 ### Rectangle / box (`Domain`)
 
-`Domain` is defined by two opposite corners and is always axis-aligned, so it can only be rotated by a multiple of 90 deg. Use `Points` with four corners to place a quadrilateral at an angle.
+`Domain` is defined by two opposite corners and is always axis-aligned, so it can only
+be rotated by a multiple of 90 deg. Use `Points` with four corners to place a
+quadrilateral at an angle.
 
 ```{eval-rst}
 .. jupyter-execute::
@@ -103,7 +110,7 @@ Three construction modes are available:
     arc.Plot()
 ```
 
----
+______________________________________________________________________
 
 ## Polygons and contours
 
@@ -120,8 +127,8 @@ Three construction modes are available:
 
 ### Add fillets at corners
 
-Assign a fillet radius `r` on individual `Point` objects. Positive `r`
-rounds the corner outward; negative `r` rounds it inward:
+Assign a fillet radius `r` on individual `Point` objects. Positive `r` rounds the corner
+outward; negative `r` rounds it inward:
 
 ```{eval-rst}
 .. jupyter-execute::
@@ -157,13 +164,16 @@ Assemble a closed loop from any mix of `Line`, `CircleArc`, and `Points`:
     contour.Plot()
 ```
 
----
+______________________________________________________________________
 
 (manipulate-example-section)=
+
 ## Geometric transformations
 
-All geometry objects support {py:meth}`~EasyFEA.Geoms._Geom.copy`, {py:meth}`~EasyFEA.Geoms._Geom.Translate`, {py:meth}`~EasyFEA.Geoms._Geom.Rotate`, and {py:meth}`~EasyFEA.Geoms._Geom.Symmetry`.
-These operations modify the object **in place**; use `copy=True` to preserve the original.
+All geometry objects support {py:meth}`~EasyFEA.Geoms._Geom.copy`,
+{py:meth}`~EasyFEA.Geoms._Geom.Translate`, {py:meth}`~EasyFEA.Geoms._Geom.Rotate`, and
+{py:meth}`~EasyFEA.Geoms._Geom.Symmetry`. These operations modify the object **in
+place**; use `copy=True` to preserve the original.
 
 ```{eval-rst}
 .. jupyter-execute::

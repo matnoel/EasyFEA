@@ -1,10 +1,10 @@
 (howto-new-simulation)=
+
 # Create a custom simulation
 
-A **simulation** drives the full assembly–solve–store pipeline for a given
-physics.
-Every simulation inherits from {py:class}`~EasyFEA.Simulations._Simu`
-and is accessible in the {py:mod}`EasyFEA.Simulations` namespace.
+A **simulation** drives the full assembly–solve–store pipeline for a given physics.
+Every simulation inherits from {py:class}`~EasyFEA.Simulations._Simu` and is accessible
+in the {py:mod}`EasyFEA.Simulations` namespace.
 
 ```{tip}
 **Most users will never need this guide.** EasyFEA ships with ready-to-use
@@ -24,22 +24,30 @@ If your physics is not listed above, consider
 before writing custom code — new physics contributions are very welcome.
 ```
 
-For problems outside the built-in classes, EasyFEA provides three extension
-points, from easiest to most flexible:
+For problems outside the built-in classes, EasyFEA provides three extension points, from
+easiest to most flexible:
 
-1. **{py:class}`~EasyFEA.Simulations.WeakForms`** — define any PDE in
-   variational form with a few lines of Python. Covers scalar problems
-   (Poisson), vector problems (elasticity), and transient or non-linear
-   problems. No FEM assembly knowledge required.
-2. **Extend an existing simulation** — when a built-in class already covers
-   most of your physics and you only need to add extra terms (a boundary
-   contribution, a penalty, a coupling), subclass it and compose them into
-   {py:meth}`~EasyFEA.Simulations._Simu.Get_terms`. See {ref}`howto-new-simulation-extend`.
-3. **Subclass {py:class}`~EasyFEA.Simulations._Simu`** — provides full control over the assembly at the element level for problems that are difficult to model in {py:class}`~EasyFEA.Simulations.WeakForms`, or to improve performance. Knowledge of finite element methods is required.
+1. **{py:class}`~EasyFEA.Simulations.WeakForms`** — define any PDE in variational form
+   with a few lines of Python. Covers scalar problems (Poisson), vector problems
+   (elasticity), and transient or non-linear problems. No FEM assembly knowledge
+   required.
+2. **Extend an existing simulation** — when a built-in class already covers most of your
+   physics and you only need to add extra terms (a boundary contribution, a penalty, a
+   coupling), subclass it and compose them into
+   {py:meth}`~EasyFEA.Simulations._Simu.Get_terms`. See
+   {ref}`howto-new-simulation-extend`.
+3. **Subclass {py:class}`~EasyFEA.Simulations._Simu`** — provides full control over the
+   assembly at the element level for problems that are difficult to model in
+   {py:class}`~EasyFEA.Simulations.WeakForms`, or to improve performance. Knowledge of
+   finite element methods is required.
 
-EasyFEA supports multi-physics problems such as phase-field fracture simulations, which couple an elastic sub-problem with a damage sub-problem via a staggered algorithm: each sub-problem is solved in turn with the other held fixed, and the two are iterated to convergence within each load step.
-This pattern is already implemented in {py:class}`~EasyFEA.Simulations.PhaseField`.
-Monolithic coupling—assembling all physics into a single global system—is not currently implemented, but there is no fundamental limitation preventing it.
+EasyFEA supports multi-physics problems such as phase-field fracture simulations, which
+couple an elastic sub-problem with a damage sub-problem via a staggered algorithm: each
+sub-problem is solved in turn with the other held fixed, and the two are iterated to
+convergence within each load step. This pattern is already implemented in
+{py:class}`~EasyFEA.Simulations.PhaseField`. Monolithic coupling—assembling all physics
+into a single global system—is not currently implemented, but there is no fundamental
+limitation preventing it.
 
 ```{note}
 {py:class}`~EasyFEA.Simulations.WeakForms` is still evolving. Contributions
@@ -50,7 +58,7 @@ involvement. See the
 if you would like to help.
 ```
 
----
+______________________________________________________________________
 
 ## The weak form approach
 
@@ -59,42 +67,47 @@ A weak form is defined by:
 - a **bilinear form** $a(u, v)$ that produces the stiffness matrix $\Krm$,
 - a **linear form** $\ell(v)$ that produces the load vector $\Frm$.
 
-EasyFEA assembles $\Krm$ and $\Frm$ automatically from these forms using Gauss quadrature over the mesh elements.
+EasyFEA assembles $\Krm$ and $\Frm$ automatically from these forms using Gauss
+quadrature over the mesh elements.
 
 ### Available operators
 
-{py:class}`~EasyFEA.FEM.Field` represents the unknown and test fields. The
-following operators from `EasyFEA.FEM` act on `Field` objects and return
+{py:class}`~EasyFEA.FEM.Field` represents the unknown and test fields. The following
+operators from `EasyFEA.FEM` act on `Field` objects and return
 {py:class}`~EasyFEA.FEM.FeArray` tensors:
 
-| Operator | Description |
-|---|---|
-| `u.grad` | Gradient $\nabla u$ — shape `(Ne, pg, dof_n, dim)` |
-| `Sym_Grad(u)` | Symmetric gradient $\frac{1}{2}(\nabla u + \nabla u^\top)$ |
-| `Trace(A)` | Trace of a square `FeArray` |
-| `Transpose(A)` | Transpose of a `FeArray` |
-| `Det(A)` | Determinant of a square `FeArray` |
-| `Inv(A)` | Inverse of a square `FeArray` |
-| `TensorProd(a, b)` | Tensor (outer) product $a \otimes b$ |
-| `Norm(a)` | Euclidean norm |
-| `A.dot(B)` | Contracted product (inner product for vectors, matrix–vector for tensors) |
-| `A.ddot(B)` | Double contraction $A : B$ — used for stress–strain products |
+| Operator           | Description                                                               |
+| ------------------ | ------------------------------------------------------------------------- |
+| `u.grad`           | Gradient $\nabla u$ — shape `(Ne, pg, dof_n, dim)`                        |
+| `Sym_Grad(u)`      | Symmetric gradient $\frac{1}{2}(\nabla u + \nabla u^\top)$                |
+| `Trace(A)`         | Trace of a square `FeArray`                                               |
+| `Transpose(A)`     | Transpose of a `FeArray`                                                  |
+| `Det(A)`           | Determinant of a square `FeArray`                                         |
+| `Inv(A)`           | Inverse of a square `FeArray`                                             |
+| `TensorProd(a, b)` | Tensor (outer) product $a \otimes b$                                      |
+| `Norm(a)`          | Euclidean norm                                                            |
+| `A.dot(B)`         | Contracted product (inner product for vectors, matrix–vector for tensors) |
+| `A.ddot(B)`        | Double contraction $A : B$ — used for stress–strain products              |
 
-All operators act element- and Gauss-point-wise over arrays of shape `(Ne, pg, ...)`, so **no Python loops are needed** over elements or integration points.
+All operators act element- and Gauss-point-wise over arrays of shape `(Ne, pg, ...)`, so
+**no Python loops are needed** over elements or integration points.
 
 All weak-form-based simulations are available in {ref}`easyfea-examples-weak-forms`.
 
----
+______________________________________________________________________
 
 (howto-new-simulation-extend)=
+
 ## Extend an existing simulation
 
 When a built-in simulation already covers most of your physics, subclass it and add
-{py:class}`~EasyFEA.Simulations.Term` objects to {py:meth}`~EasyFEA.Simulations._Simu.Get_terms`.
-The list is rebuilt at every assembly, so a value that changes between steps is a parameter of the
-subclass, read there. As in
-the cardiac examples' [utils.py](https://github.com/matnoel/EasyFEA/blob/main/examples/CardiacElastoDynamics/utils.py),
-a {py:class}`~EasyFEA.Simulations.HyperElastic` plus a surface spring and a follower pressure:
+{py:class}`~EasyFEA.Simulations.Term` objects to
+{py:meth}`~EasyFEA.Simulations._Simu.Get_terms`. The list is rebuilt at every assembly,
+so a value that changes between steps is a parameter of the subclass, read there. As in
+the cardiac examples'
+[utils.py](https://github.com/matnoel/EasyFEA/blob/main/examples/CardiacElastoDynamics/utils.py),
+a {py:class}`~EasyFEA.Simulations.HyperElastic` plus a surface spring and a follower
+pressure:
 
 ```python
 from typing import Optional
@@ -130,8 +143,9 @@ for t in times:
     simu.Solve()
 ```
 
-Ready-made operators live in {py:mod}`EasyFEA.FEM.Operators` (`Bilinear`, `Linear`, `NonLinear`) —
-see {ref}`fem-operators`. The contact example extends {py:class}`~EasyFEA.Simulations.Elastic` the same way:
+Ready-made operators live in {py:mod}`EasyFEA.FEM.Operators` (`Bilinear`, `Linear`,
+`NonLinear`) — see {ref}`fem-operators`. The contact example extends
+{py:class}`~EasyFEA.Simulations.Elastic` the same way:
 
 ```python
 class RigidContact(Simulations.Elastic):
@@ -156,19 +170,22 @@ class RigidContact(Simulations.Elastic):
         )
 ```
 
-`__Contact` shows the shape to use when an operator's arguments depend on the element group — a
-hyperelastic state, a contact projection: a named method `(groupElem, ...) -> array`, or a tuple of
-arrays.
+`__Contact` shows the shape to use when an operator's arguments depend on the element
+group — a hyperelastic state, a contact projection: a named method
+`(groupElem, ...) -> array`, or a tuple of arrays.
 
----
+______________________________________________________________________
 
 (howto-new-simulation-subclass)=
+
 ## Subclass `_Simu` for a fully custom simulation
 
-If your problem requires custom assembly logic that cannot be expressed as a
-weak form, subclass {py:class}`~EasyFEA.Simulations._Simu` directly.
-{py:class}`~EasyFEA.Simulations.Thermal` is the simplest existing subclass
-and is a good starting point; consult [_thermal.py](https://github.com/matnoel/EasyFEA/blob/main/EasyFEA/Simulations/_thermal.py) for implementation details.
+If your problem requires custom assembly logic that cannot be expressed as a weak form,
+subclass {py:class}`~EasyFEA.Simulations._Simu` directly.
+{py:class}`~EasyFEA.Simulations.Thermal` is the simplest existing subclass and is a good
+starting point; consult
+[\_thermal.py](https://github.com/matnoel/EasyFEA/blob/main/EasyFEA/Simulations/_thermal.py)
+for implementation details.
 
 The complete interface to implement (all methods are abstract):
 
@@ -231,50 +248,48 @@ class MySimulation(_Simu):
 
 ### Implementing `Get_terms`
 
-`Get_terms` is the only method where you provide physics-specific data: it
-returns the list of {py:class}`~EasyFEA.Simulations.Term` objects that make up
-the local matrix system. From the element-level matrices they produce, `_Simu`
-automatically:
+`Get_terms` is the only method where you provide physics-specific data: it returns the
+list of {py:class}`~EasyFEA.Simulations.Term` objects that make up the local matrix
+system. From the element-level matrices they produce, `_Simu` automatically:
 
 1. assembles the global sparse system $\Krm$, $\Crm$, $\Mrm$, $\Frm$,
 2. applies boundary conditions,
-3. selects the appropriate combination of $\Krm$, $\Crm$, $\Mrm$ for the
-   active time-integration algorithm,
-4. solves the resulting linear system
-   $\Krm \urm + \Crm \vrm + \Mrm \arm = \Frm$
-   (where $\vrm$ and $\arm$ are the velocity and acceleration computed by
-   the time scheme).
+3. selects the appropriate combination of $\Krm$, $\Crm$, $\Mrm$ for the active
+   time-integration algorithm,
+4. solves the resulting linear system $\Krm \urm + \Crm \vrm + \Mrm \arm = \Frm$ (where
+   $\vrm$ and $\arm$ are the velocity and acceleration computed by the time scheme).
 
-**Your only responsibility is to declare the right terms.** Everything else is
-handled by `_Simu` internally.
+**Your only responsibility is to declare the right terms.** Everything else is handled
+by `_Simu` internally.
 
 ```{seealso}
 - {ref}`howto-pipeline`
 ```
 
-A {py:class}`~EasyFEA.Simulations.Term` names one {ref}`operator <fem-operators>` and, with a
-string of slot letters, where each array it returns belongs — one letter per array:
+A {py:class}`~EasyFEA.Simulations.Term` names one {ref}`operator <fem-operators>` and,
+with a string of slot letters, where each array it returns belongs — one letter per
+array:
 
-| Letter | Goes to | Meaning |
-|---|---|---|
-| `K` | $\Krm$ | stiffness, or the tangent of a non-linear term |
-| `C` | $\Crm$ | damping (parabolic / hyperbolic) |
-| `M` | $\Mrm$ | mass (hyperbolic only) |
-| `F` | $\Frm$ | an external load, added as-is |
-| `R` | $\Frm$ | an **internal** force, so it is subtracted |
+| Letter | Goes to | Meaning                                        |
+| ------ | ------- | ---------------------------------------------- |
+| `K`    | $\Krm$  | stiffness, or the tangent of a non-linear term |
+| `C`    | $\Crm$  | damping (parabolic / hyperbolic)               |
+| `M`    | $\Mrm$  | mass (hyperbolic only)                         |
+| `F`    | $\Frm$  | an external load, added as-is                  |
+| `R`    | $\Frm$  | an **internal** force, so it is subtracted     |
 
-So `Term("K", op)` is a stiffness, `Term("KR", op)` an operator returning a
-tangent *and* an internal force, `Term("KF", op)` a tangent and a load.
+So `Term("K", op)` is a stiffness, `Term("KR", op)` an operator returning a tangent
+*and* an internal force, `Term("KF", op)` a tangent and a load.
 
-The fold takes care of the rest: contributions **accumulate** when several terms
-target one element group, the 2D `thickness` is applied once, and a term filling
-a **single** slot also gets its residual — $-\Krm_e \urm_t$, $-\Crm_e \vrm_t$,
-$-\Mrm_e \arm_t$ — contracted for it, since one slot means the contribution is
-linear in that field. Add `constant=True` when a contribution does not depend on
-the solution: it is then built once and reused across Newton iterations and time
-steps, until one of its arguments changes. So a constant term must get everything
-it reads through its arguments — a plain operator such as `Bilinear.UV` with
-`coef=self.rho`, never a bound method, which `Term` refuses.
+The fold takes care of the rest: contributions **accumulate** when several terms target
+one element group, the 2D `thickness` is applied once, and a term filling a **single**
+slot also gets its residual — $-\Krm_e \urm_t$, $-\Crm_e \vrm_t$, $-\Mrm_e \arm_t$ —
+contracted for it, since one slot means the contribution is linear in that field. Add
+`constant=True` when a contribution does not depend on the solution: it is then built
+once and reused across Newton iterations and time steps, until one of its arguments
+changes. So a constant term must get everything it reads through its arguments — a plain
+operator such as `Bilinear.UV` with `coef=self.rho`, never a bound method, which `Term`
+refuses.
 
 ```{warning}
 A **non-linear** problem needs no special handling here: put the tangent in `K`
@@ -288,7 +303,9 @@ are weighted into the time scheme, and
 
 #### The `groupElem.Get_*` interface
 
-Writing an operator of your own — the fold hands it one `groupElem` at a time — means reading its integration data through three functions, each taking a {py:class}`~EasyFEA.FEM.MatrixType`:
+Writing an operator of your own — the fold hands it one `groupElem` at a time — means
+reading its integration data through three functions, each taking a
+{py:class}`~EasyFEA.FEM.MatrixType`:
 
 ```python
 from EasyFEA.FEM import MatrixType
@@ -305,39 +322,34 @@ N_e_pg  = groupElem.Get_ReactionPart_e_pg(matrixType)
 
 The choice of `MatrixType` must match the **integrand form**:
 
-| Integrand | `MatrixType` | Typical use |
-|---|---|---|
-| $\nabla N \cdot \nabla N$ | `MatrixType.rigi` | Stiffness, damping ($\Krm$, $\Crm$) |
-| $N \cdot N$ | `MatrixType.mass` | Mass, reaction, capacity ($\Mrm$, $\Crm_t$) |
+| Integrand                 | `MatrixType`      | Typical use                                 |
+| ------------------------- | ----------------- | ------------------------------------------- |
+| $\nabla N \cdot \nabla N$ | `MatrixType.rigi` | Stiffness, damping ($\Krm$, $\Crm$)         |
+| $N \cdot N$               | `MatrixType.mass` | Mass, reaction, capacity ($\Mrm$, $\Crm_t$) |
 
-**Using the wrong matrix type causes under- or over-integration.** `rigi`
-and `mass` select different Gauss quadrature rules: `rigi` uses a rule exact
-for the polynomial degree of $\nabla N \nabla N$, while `mass` uses a higher
-rule suited to $N N$.
-Applying `rigi` to an $N N$ form
-**under-integrates** it (too few Gauss points, quadrature error); applying
-`mass` to a $\nabla N \nabla N$ form **over-integrates** it (unnecessary cost
-but also potential numerical issues with some element types). Either mistake
-silently produces wrong matrices.
+**Using the wrong matrix type causes under- or over-integration.** `rigi` and `mass`
+select different Gauss quadrature rules: `rigi` uses a rule exact for the polynomial
+degree of $\nabla N \nabla N$, while `mass` uses a higher rule suited to $N N$. Applying
+`rigi` to an $N N$ form **under-integrates** it (too few Gauss points, quadrature
+error); applying `mass` to a $\nabla N \nabla N$ form **over-integrates** it
+(unnecessary cost but also potential numerical issues with some element types). Either
+mistake silently produces wrong matrices.
 
-These arrays are {py:class}`~EasyFEA.FEM.FeArray` objects: they cover all
-`Ne` elements and `pg` Gauss points simultaneously.
-**No Python loops** are needed.
-Intermediate quantities such as `jacobian_e_pg` are computed once
-and cached on the group element object via a cache decorator, so repeated
-calls are free.
+These arrays are {py:class}`~EasyFEA.FEM.FeArray` objects: they cover all `Ne` elements
+and `pg` Gauss points simultaneously. **No Python loops** are needed. Intermediate
+quantities such as `jacobian_e_pg` are computed once and cached on the group element
+object via a cache decorator, so repeated calls are free.
 
 #### Example: thermal stiffness and capacity matrices
 
 The following example assembles both the conductivity matrix $K_t$
-($\int_\Omega k \, \nabla t \cdot \nabla \delta t \, \dO$ — a
-$\nabla N \nabla N$ form) and the heat capacity matrix $C_t$
-($\int_\Omega \rho c \, t \, \delta t \, \dO$ — an $N N$ form).
+($\int_\Omega k \, \nabla t \cdot \nabla \delta t \, \dO$ — a $\nabla N \nabla N$ form)
+and the heat capacity matrix $C_t$ ($\int_\Omega \rho c \, t \, \delta t \, \dO$ — an
+$N N$ form).
 
-Both forms already exist in {py:mod}`~EasyFEA.FEM.Operators.Bilinear`, so
-neither the quadrature nor the Gauss-point summation has to be written by
-hand — this is essentially all of
-{py:class}`~EasyFEA.Simulations.Thermal`'s assembly:
+Both forms already exist in {py:mod}`~EasyFEA.FEM.Operators.Bilinear`, so neither the
+quadrature nor the Gauss-point summation has to be written by hand — this is essentially
+all of {py:class}`~EasyFEA.Simulations.Thermal`'s assembly:
 
 ```python
 from EasyFEA.FEM import Operators
@@ -355,8 +367,8 @@ def Get_terms(self, problemType=None):
 ```
 
 No mass term: the thermal problem has no inertia. No load term either — volumetric
-sources are applied as Neumann boundary conditions. For structural dynamics you
-would add `Term("M", Operators.Bilinear.UV, coef=self.rho, dof_n=self.dim)`.
+sources are applied as Neumann boundary conditions. For structural dynamics you would
+add `Term("M", Operators.Bilinear.UV, coef=self.rho, dof_n=self.dim)`.
 
 ```{warning}
 Neither term passes `dim=`, so each is integrated over the groups of the mesh's own
@@ -366,15 +378,15 @@ the `SEG2` boundary edges of a 2D mesh instead of its `QUAD4` cells.
 ```
 
 Each operator returns the element matrix already integrated, of shape
-`(Ne, nPe·dof_n, nPe·dof_n)`, and picks the `MatrixType` its form requires —
-`rigi` for {py:func}`~EasyFEA.FEM.Operators.Bilinear.GradUGradV`, `mass` for
-{py:func}`~EasyFEA.FEM.Operators.Bilinear.UV` — so the under- and
-over-integration mistake described above cannot be made by accident. Pass
-`matrixType=` explicitly only to override that choice deliberately.
+`(Ne, nPe·dof_n, nPe·dof_n)`, and picks the `MatrixType` its form requires — `rigi` for
+{py:func}`~EasyFEA.FEM.Operators.Bilinear.GradUGradV`, `mass` for
+{py:func}`~EasyFEA.FEM.Operators.Bilinear.UV` — so the under- and over-integration
+mistake described above cannot be made by accident. Pass `matrixType=` explicitly only
+to override that choice deliberately.
 
 `coef` is not restricted to a scalar: it broadcasts from `(Ne,)`, `(nPg,)` or
-`(Ne, nPg)`, which is how a spatially varying conductivity or a
-temperature-dependent capacity is supplied.
+`(Ne, nPg)`, which is how a spatially varying conductivity or a temperature-dependent
+capacity is supplied.
 
 ```{tip}
 Reach for an existing operator first — the catalogue of

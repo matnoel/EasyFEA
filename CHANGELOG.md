@@ -4,29 +4,65 @@ This document describes the changes made to the project.
 
 ## Unreleased
 
-- A `constant=True` term is reused while its arguments keep the same values, checked against a copy taken when it was built, instead of hashed, so array arguments such as `material.C` or an array `rho` are cached too, and an in-place write is seen. `Elastic` (including Rayleigh damping), `Thermal` and `HyperElastic`'s mass declare every solution-independent term constant.
-- A `constant=True` term refuses a bound-method operator, and a list, dict, set or identity-compared object argument (**breaking**).
-- `Term.Scaled(coef, slots=None)` returns a copy multiplied by `coef`, outside the cache, so Rayleigh damping reuses the stiffness and mass integrations.
-- The term cache is dropped on a mesh notification, and a simulation observes a mesh assigned after construction.
-- `Simu.Add_terms`, `Simu.Terms_Init` and `Term.Set` are removed (**breaking**): a simulation is extended by subclassing it and composing `Get_terms`, and a value that changes between steps is a parameter of that subclass (see `examples/CardiacElastoDynamics/utils.py`). A simulation saved with added terms reloads without them.
+- A `constant=True` term is reused while its arguments keep the same values, checked
+  against a copy taken when it was built, instead of hashed, so array arguments such as
+  `material.C` or an array `rho` are cached too, and an in-place write is seen.
+  `Elastic` (including Rayleigh damping), `Thermal` and `HyperElastic`'s mass declare
+  every solution-independent term constant.
+- A `constant=True` term refuses a bound-method operator, and a list, dict, set or
+  identity-compared object argument (**breaking**).
+- `Term.Scaled(coef, slots=None)` returns a copy multiplied by `coef`, outside the
+  cache, so Rayleigh damping reuses the stiffness and mass integrations.
+- The term cache is dropped on a mesh notification, and a simulation observes a mesh
+  assigned after construction.
+- `Simu.Add_terms`, `Simu.Terms_Init` and `Term.Set` are removed (**breaking**): a
+  simulation is extended by subclassing it and composing `Get_terms`, and a value that
+  changes between steps is a parameter of that subclass (see
+  `examples/CardiacElastoDynamics/utils.py`). A simulation saved with added terms
+  reloads without them.
 
 ## 4.0.0 (September 8, 2026):
 
 - The local matrix system is declared, not built (issue #55)
-    - `Construct_local_matrix_system` is replaced by `Get_terms`, returning a `list[Simulations.Term]` (**breaking**). A `Term` names one operator and a string of slot letters (`KCMFR`) saying where each array that operator returns belongs; `Simulations.Fold_terms` folds the list into the `{groupElem: (K_e, C_e, M_e, F_e)}` the assembler consumes.
-    - The internal-force sign convention is now uniform (**breaking**): `R` is an *internal* force and reaches `F` negated, so `NonLinear.FollowingPressure` and `NonLinear.PenaltyContact` — which returned a positive force — now match the other nonlinear operators. `F` is reserved for genuine external loads.
-    - Every operator a `Term` can tag now takes `elements` **before** `matrixType` (**breaking**): a positional `matrixType` must become a keyword. Array arguments stay full-group and the result is exact zero outside `elements`.
-    - The five `NonLinear` stress operators no longer apply `material.thickness` (**breaking**); `_Simu.thickness` is applied by the fold, so thickness has one owner.
-    - A single-slot term gets its residual from the fold — `-K·u_t`, `-C·v_t`, `-M·a_t`. Multi-slot terms return their own.
-    - `Simu.Add_terms(*terms, problemType=None)` extends a simulation without subclassing it, `Terms_Init` clears them, and a term is its own handle: `Term.Set(**kwargs)` updates a value that changes between steps, such as a follower pressure or a penalty.
-    - `constant=True` builds a contribution once and reuses it across Newton iterations and time steps.
-    - Three mistakes that used to pass silently now raise: a `tag` on an operator that takes no `elements`, a slot count differing from the number of arrays returned, and a contribution whose rank does not match its slot.
-- Renamed `Models.ModelType` to `Simulations.ProblemType` (**breaking**) and exported it, which the move had left out.
-- `FEM.LinearForm.Integrate_e` and `FEM.Operators.Linear.V` return a flat `(Ne, nPe·dof_n)` array instead of `(Ne, nPe·dof_n, 1)` (**breaking**). Results are unchanged.
+  - `Construct_local_matrix_system` is replaced by `Get_terms`, returning a
+    `list[Simulations.Term]` (**breaking**). A `Term` names one operator and a string of
+    slot letters (`KCMFR`) saying where each array that operator returns belongs;
+    `Simulations.Fold_terms` folds the list into the `{groupElem: (K_e, C_e, M_e, F_e)}`
+    the assembler consumes.
+  - The internal-force sign convention is now uniform (**breaking**): `R` is an
+    *internal* force and reaches `F` negated, so `NonLinear.FollowingPressure` and
+    `NonLinear.PenaltyContact` — which returned a positive force — now match the other
+    nonlinear operators. `F` is reserved for genuine external loads.
+  - Every operator a `Term` can tag now takes `elements` **before** `matrixType`
+    (**breaking**): a positional `matrixType` must become a keyword. Array arguments
+    stay full-group and the result is exact zero outside `elements`.
+  - The five `NonLinear` stress operators no longer apply `material.thickness`
+    (**breaking**); `_Simu.thickness` is applied by the fold, so thickness has one
+    owner.
+  - A single-slot term gets its residual from the fold — `-K·u_t`, `-C·v_t`, `-M·a_t`.
+    Multi-slot terms return their own.
+  - `Simu.Add_terms(*terms, problemType=None)` extends a simulation without subclassing
+    it, `Terms_Init` clears them, and a term is its own handle: `Term.Set(**kwargs)`
+    updates a value that changes between steps, such as a follower pressure or a
+    penalty.
+  - `constant=True` builds a contribution once and reuses it across Newton iterations
+    and time steps.
+  - Three mistakes that used to pass silently now raise: a `tag` on an operator that
+    takes no `elements`, a slot count differing from the number of arrays returned, and
+    a contribution whose rank does not match its slot.
+- Renamed `Models.ModelType` to `Simulations.ProblemType` (**breaking**) and exported
+  it, which the move had left out.
+- `FEM.LinearForm.Integrate_e` and `FEM.Operators.Linear.V` return a flat
+  `(Ne, nPe·dof_n)` array instead of `(Ne, nPe·dof_n, 1)` (**breaking**). Results are
+  unchanged.
 - `Simulations.WeakForms(isNonLinear=True)` now assembles a residual instead of raising.
-- MPI: rewrote the petsc4py installation guide, fixed the PETSc option handling in `Simulations.Solvers`, and handled progress output and a missing `mpi4py` under an MPI launcher.
-- Docs: rewrote the "create a custom simulation" how-to around the term list, and made the `FEM` operator catalogue one line per operator again.
-- Pinned ruff's rule set in `pyproject.toml` and let it infer the target version from `requires-python`. Tests and examples run on coarser meshes.
+- MPI: rewrote the petsc4py installation guide, fixed the PETSc option handling in
+  `Simulations.Solvers`, and handled progress output and a missing `mpi4py` under an MPI
+  launcher.
+- Docs: rewrote the "create a custom simulation" how-to around the term list, and made
+  the `FEM` operator catalogue one line per operator again.
+- Pinned ruff's rule set in `pyproject.toml` and let it infer the target version from
+  `requires-python`. Tests and examples run on coarser meshes.
 
 **Full Changelog:** https://github.com/matnoel/EasyFEA/compare/v3.5.1...v4.0.0
 
@@ -38,72 +74,173 @@ This document describes the changes made to the project.
 
 ## 3.5.0 (August 21, 2026):
 
-- Added `AlgoType.hht_newmark`, the HHT-Newmark time-integration scheme of Doyen, Ern & Piperno (SIAM J. Sci. Comput. 33(1), 2011). Unlike the existing generalized-alpha-style `AlgoType.hht`, which blends mass, damping and stiffness all by `(1-alpha)`, this keeps the mass term at the full step and only shifts the stiffness (internal force) and external load — the discretization the paper proves second-order and unconditionally stable for `alpha` in `[0, 1/3]`. `beta` and `gamma` are derived from `alpha` rather than left free, since the stability/accuracy proof only covers that specific pair.
-- Added `Models.HyperElastic.AutoDiff` (issue #53): a hyperelastic law declared from its potential `W(C)` alone, differentiated by `jax` (`pip install easyfea[jax]`) instead of a hand-written `Compute_dWde`/`Compute_d2Wde`. Checked against every shipped law's own closed-form derivatives; see `examples/Hyperelasticity/AutoDiffPotential.py`.
-- Examples: the cardiac elastodynamics examples (`BiVentricular.py`, `MonoVentricular.py`) now share their material setup through `Get_material` in `examples/CardiacElastoDynamics/utils.py`.
+- Added `AlgoType.hht_newmark`, the HHT-Newmark time-integration scheme of Doyen, Ern &
+  Piperno (SIAM J. Sci. Comput. 33(1), 2011). Unlike the existing
+  generalized-alpha-style `AlgoType.hht`, which blends mass, damping and stiffness all
+  by `(1-alpha)`, this keeps the mass term at the full step and only shifts the
+  stiffness (internal force) and external load — the discretization the paper proves
+  second-order and unconditionally stable for `alpha` in `[0, 1/3]`. `beta` and `gamma`
+  are derived from `alpha` rather than left free, since the stability/accuracy proof
+  only covers that specific pair.
+- Added `Models.HyperElastic.AutoDiff` (issue #53): a hyperelastic law declared from its
+  potential `W(C)` alone, differentiated by `jax` (`pip install easyfea[jax]`) instead
+  of a hand-written `Compute_dWde`/`Compute_d2Wde`. Checked against every shipped law's
+  own closed-form derivatives; see `examples/Hyperelasticity/AutoDiffPotential.py`.
+- Examples: the cardiac elastodynamics examples (`BiVentricular.py`,
+  `MonoVentricular.py`) now share their material setup through `Get_material` in
+  `examples/CardiacElastoDynamics/utils.py`.
 
 **Full Changelog:** https://github.com/matnoel/EasyFEA/compare/v3.4.1...v3.5.0
 
 ## 3.4.1 (August 18, 2026):
 
-- Fixed the Python 3.9 import: `FEM/_mesher.py` used `typing.ParamSpec`, which needs 3.10, so `import EasyFEA` failed on 3.9 in 3.3.0 and 3.4.0.
+- Fixed the Python 3.9 import: `FEM/_mesher.py` used `typing.ParamSpec`, which needs
+  3.10, so `import EasyFEA` failed on 3.9 in 3.3.0 and 3.4.0.
 
 **Full Changelog:** https://github.com/matnoel/EasyFEA/compare/v3.4.0...v3.4.1
 
 ## 3.4.0 (August 18, 2026):
 
-- Renamed the 3.3.0 materials-with-history API (**breaking**, no aliases kept): `Simulations.Behaviour` is now `Simulations.InElastic`, `Models.Behaviour` is now `Models.InElastic.Behavior`, and `Yield`, `IsotropicHardening`, `KinematicHardening`, `ViscoPlastic`, `ViscoElastic` and `MaterialPoint` all moved under `Models.InElastic`. The examples moved from `examples/Behaviour/` to `examples/Inelasticity/`.
-- Fixed a division by zero in the spectral return at Gauss points where nothing flowed; it was masked out of the result but emitted `RuntimeWarning`s on every 3.3.0 solve.
-- Examples: assertions now check only analytic, mesh-independent quantities; `ThickCylinder` runs one mesh and one pressure ramp instead of a refinement study; removed `SpringBack`, which had no closed form to check against.
-- Docs: `autodoc_default_options` set `"imported-members": False`, which Sphinx reads as `True` since `bool_option()` maps any value to true, so every module documented the names it imported. Removed, together with the fifteen `:exclude-members:` lists that existed to undo it.
+- Renamed the 3.3.0 materials-with-history API (**breaking**, no aliases kept):
+  `Simulations.Behaviour` is now `Simulations.InElastic`, `Models.Behaviour` is now
+  `Models.InElastic.Behavior`, and `Yield`, `IsotropicHardening`, `KinematicHardening`,
+  `ViscoPlastic`, `ViscoElastic` and `MaterialPoint` all moved under `Models.InElastic`.
+  The examples moved from `examples/Behaviour/` to `examples/Inelasticity/`.
+- Fixed a division by zero in the spectral return at Gauss points where nothing flowed;
+  it was masked out of the result but emitted `RuntimeWarning`s on every 3.3.0 solve.
+- Examples: assertions now check only analytic, mesh-independent quantities;
+  `ThickCylinder` runs one mesh and one pressure ramp instead of a refinement study;
+  removed `SpringBack`, which had no closed form to check against.
+- Docs: `autodoc_default_options` set `"imported-members": False`, which Sphinx reads as
+  `True` since `bool_option()` maps any value to true, so every module documented the
+  names it imported. Removed, together with the fifteen `:exclude-members:` lists that
+  existed to undo it.
 
 **Full Changelog:** https://github.com/matnoel/EasyFEA/compare/v3.3.0...v3.4.0
 
 ## 3.3.0 (August 17, 2026):
 
 - Materials with history (issue #48)
-    - Added a small-strain, quasi-static framework for materials whose stress depends on the *history* of strain — plasticity, viscoplasticity and viscoelasticity — with `Simulations.Behaviour` and `Models.Behaviour`. With no internal variables it reproduces `Simulations.Elastic` to machine precision.
-    - A behaviour is assembled from independent pieces rather than chosen from a list: an elastic law, plus any of a yield surface (`Models.Yield`: von Mises, Hill, Drucker-Prager), isotropic hardening (`Models.IsotropicHardening`: linear, Voce, Swift), a back-stress (`Models.KinematicHardening`: Prager, Armstrong-Frederick, Chaboche), a rate law (`Models.ViscoPlastic`: Norton, Perzyna) and Maxwell branches (`Models.ViscoElastic`). Hardening lives in the free energy rather than inside the yield function, so N surfaces and M hardening laws are N + M objects instead of N × M.
-    - Two local solvers, chosen automatically; `solver="newton"` forces the general one. The **implicit solve** advances every internal variable by backward Euler and solves one system per Gauss point over the state increments and `dGamma`, with the consistent tangent read off the converged local Jacobian. The **spectral return** applies when the yield surface is quadratic (`phi^2 = sig:P:sig`) with homogeneous `C` and no kinematic hardening or viscous branches: diagonalising `C^1/2 P C^1/2` once per material reduces the local problem to one scalar unknown, for *any* linear elasticity rather than isotropic only. Where both apply they agree to machine precision on stress, state and tangent, which is a test.
-    - `Models.MaterialPoint` drives a behaviour at a single Gauss point with no mesh and no solver, holding the un-driven components stress- or strain-controlled — the same code path assembly uses.
-    - `Behaviour.Integrate` takes the total strain and, optionally, the strain the increment started from (`epsOld`), supplied by the solver and never stored, so the state stays exactly the history variables. This matches MFront's `eto`/`deto`, Abaqus' `STRAN`/`DSTRAN` and NEML's `e_n`, and leaves room for local sub-stepping.
-    - `_Elastic.Get_sqrt_C_S` now handles a `C` of any shape, including material properties given per Gauss point, and computes the square root by a batched `eigh` rather than `np.unique` + `sqrtm` — faster even when only two distinct matrices exist. It also fixes a cache keyed on `sqrt_C` alone, which crashed after setting `S`, and a first call that returned the live cache where later calls returned a copy.
-    - Added ten examples in `examples/Behaviour/`, each checked against a closed form rather than against itself: uniaxial hardening curves, the Bauschinger effect, Chaboche superposition, Prony relaxation and Norton creep, Hill's thick cylinder, elastoplastic beam bending and the shape factor 3/2, a 3D tensile specimen, springback, and a relaxing perforated plate.
+  - Added a small-strain, quasi-static framework for materials whose stress depends on
+    the *history* of strain — plasticity, viscoplasticity and viscoelasticity — with
+    `Simulations.Behaviour` and `Models.Behaviour`. With no internal variables it
+    reproduces `Simulations.Elastic` to machine precision.
+  - A behaviour is assembled from independent pieces rather than chosen from a list: an
+    elastic law, plus any of a yield surface (`Models.Yield`: von Mises, Hill,
+    Drucker-Prager), isotropic hardening (`Models.IsotropicHardening`: linear, Voce,
+    Swift), a back-stress (`Models.KinematicHardening`: Prager, Armstrong-Frederick,
+    Chaboche), a rate law (`Models.ViscoPlastic`: Norton, Perzyna) and Maxwell branches
+    (`Models.ViscoElastic`). Hardening lives in the free energy rather than inside the
+    yield function, so N surfaces and M hardening laws are N + M objects instead of N ×
+    M.
+  - Two local solvers, chosen automatically; `solver="newton"` forces the general one.
+    The **implicit solve** advances every internal variable by backward Euler and solves
+    one system per Gauss point over the state increments and `dGamma`, with the
+    consistent tangent read off the converged local Jacobian. The **spectral return**
+    applies when the yield surface is quadratic (`phi^2 = sig:P:sig`) with homogeneous
+    `C` and no kinematic hardening or viscous branches: diagonalising `C^1/2 P C^1/2`
+    once per material reduces the local problem to one scalar unknown, for *any* linear
+    elasticity rather than isotropic only. Where both apply they agree to machine
+    precision on stress, state and tangent, which is a test.
+  - `Models.MaterialPoint` drives a behaviour at a single Gauss point with no mesh and
+    no solver, holding the un-driven components stress- or strain-controlled — the same
+    code path assembly uses.
+  - `Behaviour.Integrate` takes the total strain and, optionally, the strain the
+    increment started from (`epsOld`), supplied by the solver and never stored, so the
+    state stays exactly the history variables. This matches MFront's `eto`/`deto`,
+    Abaqus' `STRAN`/`DSTRAN` and NEML's `e_n`, and leaves room for local sub-stepping.
+  - `_Elastic.Get_sqrt_C_S` now handles a `C` of any shape, including material
+    properties given per Gauss point, and computes the square root by a batched `eigh`
+    rather than `np.unique` + `sqrtm` — faster even when only two distinct matrices
+    exist. It also fixes a cache keyed on `sqrt_C` alone, which crashed after setting
+    `S`, and a first call that returned the live cache where later calls returned a
+    copy.
+  - Added ten examples in `examples/Behaviour/`, each checked against a closed form
+    rather than against itself: uniaxial hardening curves, the Bauschinger effect,
+    Chaboche superposition, Prony relaxation and Norton creep, Hill's thick cylinder,
+    elastoplastic beam bending and the shape factor 3/2, a 3D tensile specimen,
+    springback, and a relaxing perforated plate.
 - `FeArray` refactor (issue #52)
-    - A field's tensor rank is now `ndim - 2`, always, and is never re-read from a shape coincidence: a `(Ne, nPg)` FeArray is a scalar field even when `Ne`, `nPg` and the tensor width collide. This fixes four separate places that each guessed a field from its shape, including reductions that read the result shape rather than the axis.
-    - All override logic moved into `__array_ufunc__` and `__array_function__`, as NumPy recommends, instead of also overriding operator special methods. `out=` / `where=` are stripped to stop the recursion they caused, and FeArray is stripped from arguments before delegating so `np.einsum`'s `optimize=` path cannot re-enter the protocol.
-    - `FeArray.broadcast` is the single entry point for lifting a constant to a field; `Reshape_variable` delegates to it. `asfearray` now refuses `ndim < 2` rather than silently returning a plain array, and `zeros` / `ones` accept a shape tuple.
+  - A field's tensor rank is now `ndim - 2`, always, and is never re-read from a shape
+    coincidence: a `(Ne, nPg)` FeArray is a scalar field even when `Ne`, `nPg` and the
+    tensor width collide. This fixes four separate places that each guessed a field from
+    its shape, including reductions that read the result shape rather than the axis.
+  - All override logic moved into `__array_ufunc__` and `__array_function__`, as NumPy
+    recommends, instead of also overriding operator special methods. `out=` / `where=`
+    are stripped to stop the recursion they caused, and FeArray is stripped from
+    arguments before delegating so `np.einsum`'s `optimize=` path cannot re-enter the
+    protocol.
+  - `FeArray.broadcast` is the single entry point for lifting a constant to a field;
+    `Reshape_variable` delegates to it. `asfearray` now refuses `ndim < 2` rather than
+    silently returning a plain array, and `zeros` / `ones` accept a shape tuple.
 - Mesher and Geoms
-    - `Mesher`: public 1D meshing, a geometry view on failure, a testable partitioner, and transfinite counts decided per curve and sized by the geometry that produced it.
-    - `Geoms`: points are exposed as read-only views so a geometry cannot desync, and point-in-geometry questions are answered directly instead of re-derived.
-    - Surface reconstruction now works for a mesh holding several groups of elements.
+  - `Mesher`: public 1D meshing, a geometry view on failure, a testable partitioner, and
+    transfinite counts decided per curve and sized by the geometry that produced it.
+  - `Geoms`: points are exposed as read-only views so a geometry cannot desync, and
+    point-in-geometry questions are answered directly instead of re-derived.
+  - Surface reconstruction now works for a mesh holding several groups of elements.
 - Tags and mesh I/O
-    - Tags are stored as node sets, each in its own gmsh entity. Previously `gmsh:geometrical` was left unset, so every element landed in entity 0 and every tag read back by `Mesher.Mesh_Import_mesh` covered the whole mesh. Tags are sorted on the numbers they contain, so `V2` comes before `V10`.
-    - Every tag now survives a round trip through meshio: `EasyFEA_to_Gmsh` writes `gmsh:physical`, reading picks that array rather than letting a zeroed `gmsh:geometrical` overwrite it, a name that is not `P{i}`/`L{i}`/`S{i}`/`V{i}` no longer raises, and an unnamed reference 0 no longer invents a tag on a mesh that had none.
+  - Tags are stored as node sets, each in its own gmsh entity. Previously
+    `gmsh:geometrical` was left unset, so every element landed in entity 0 and every tag
+    read back by `Mesher.Mesh_Import_mesh` covered the whole mesh. Tags are sorted on
+    the numbers they contain, so `V2` comes before `V10`.
+  - Every tag now survives a round trip through meshio: `EasyFEA_to_Gmsh` writes
+    `gmsh:physical`, reading picks that array rather than letting a zeroed
+    `gmsh:geometrical` overwrite it, a name that is not `P{i}`/`L{i}`/`S{i}`/`V{i}` no
+    longer raises, and an unnamed reference 0 no longer invents a tag on a mesh that had
+    none.
 - MPI
-    - `Save_Iter` writes one file per rank, sliced to the local dofs.
-    - Added reduction helpers, `Calc_Energy` and `_globalElements`; partition arrays are sorted and results are stored with the nodes they cover.
-- `HyperElastic`: `active_stress` accepts a per-element or per-Gauss-point field, and speed/acceleration field accessors were added.
+  - `Save_Iter` writes one file per rank, sliced to the local dofs.
+  - Added reduction helpers, `Calc_Energy` and `_globalElements`; partition arrays are
+    sorted and results are stored with the nodes they cover.
+- `HyperElastic`: `active_stress` accepts a per-element or per-Gauss-point field, and
+  speed/acceleration field accessors were added.
 - `_Eigen_values_vectors_projectors`: uses `np.divide` for the guarded division.
 
 **Full Changelog:** https://github.com/matnoel/EasyFEA/compare/v3.2.2...v3.3.0
 
 ## 3.2.2 (August 4, 2026):
 
-- Generalized `TimeQuadratureStressTensor` to non-midpoint schemes via a `coefK` argument.
+- Generalized `TimeQuadratureStressTensor` to non-midpoint schemes via a `coefK`
+  argument.
 - Updated `simu.Result` for phasefield and hyperelastic simulations.
 
 **Full Changelog:** https://github.com/matnoel/EasyFEA/compare/v3.2.1...v3.2.2
 
 ## 3.2.1 (August 3, 2026):
 
-- Cached the global sparse-matrix assembly so repeated assemblies (every Newton iteration and time step) reuse a precomputed reduction map instead of rebuilding the CSR from scratch — element-agnostic, with results unchanged to floating-point round-off (~1e-16 relative).
-    - `Simulations/_simu.py`: `__Assemble_csr` caches, per `(dof_n, isMatrix, Ndof, contributing groups)`, a map from each element entry to its slot in the global CSR data (`__Get_csr_map`, via `@cache_computed_values`). The scatter then becomes a single `np.bincount` into scipy's own canonical pattern — about 13x faster than the previous `csr_matrix((data, (rows, cols)))` re-sort, cutting the `MonoVentricular` matrix-assembly time by ~40%. The map is stored as `int32` and is rebuilt only when the groups / `Ndof` / `dof_n` change or the mesh is reset.
-    - `Simulations/_hyperelastic.py`: the dynamic mass matrix `thickness · ∫ρ N·N`, constant across a solve, is now cached (`__Mass_e`, via `@cache_computed_values`) instead of rebuilt every Newton iteration; a heterogeneous (array) `ρ` falls back to a direct recompute.
-    - `examples/CardiacElastoDynamics/MonoVentricular.py`: the constant Robin surface-penalty tangents (`top` / `epi`) are built once and reused (`_Get_Robin_surface_penalty`, via `@cache_computed_values`), leaving only the state-dependent residual contractions in the assembly loop.
-    - The geometry-derived caches (CSR reduction maps and mass matrices) are cleared together on mesh change / `_Gather`, so they never go stale or accumulate across a remesh.
-- The complete non-linear residual — internal, inertia and damping forces — is now assembled into `F_e` inside `Construct_local_matrix_system`, and `NonLinear.KelvinVoigtDamping` returns its viscous residual alongside the configuration tangent and damping matrix. For a non-linear problem the solver no longer re-adds the time-scheme history terms (`−C·v_t`, `−M·a_t`); a custom simulation must therefore return the complete residual `−R(u)` in the `F_e` slot. See the updated "create a custom simulation" and pipeline how-tos.
-- `NonLinear.TimeQuadratureStressTensor`: updated the adaptive-quadrature convergence criterion.
+- Cached the global sparse-matrix assembly so repeated assemblies (every Newton
+  iteration and time step) reuse a precomputed reduction map instead of rebuilding the
+  CSR from scratch — element-agnostic, with results unchanged to floating-point
+  round-off (~1e-16 relative).
+  - `Simulations/_simu.py`: `__Assemble_csr` caches, per
+    `(dof_n, isMatrix, Ndof, contributing groups)`, a map from each element entry to its
+    slot in the global CSR data (`__Get_csr_map`, via `@cache_computed_values`). The
+    scatter then becomes a single `np.bincount` into scipy's own canonical pattern —
+    about 13x faster than the previous `csr_matrix((data, (rows, cols)))` re-sort,
+    cutting the `MonoVentricular` matrix-assembly time by ~40%. The map is stored as
+    `int32` and is rebuilt only when the groups / `Ndof` / `dof_n` change or the mesh is
+    reset.
+  - `Simulations/_hyperelastic.py`: the dynamic mass matrix `thickness · ∫ρ N·N`,
+    constant across a solve, is now cached (`__Mass_e`, via `@cache_computed_values`)
+    instead of rebuilt every Newton iteration; a heterogeneous (array) `ρ` falls back to
+    a direct recompute.
+  - `examples/CardiacElastoDynamics/MonoVentricular.py`: the constant Robin
+    surface-penalty tangents (`top` / `epi`) are built once and reused
+    (`_Get_Robin_surface_penalty`, via `@cache_computed_values`), leaving only the
+    state-dependent residual contractions in the assembly loop.
+  - The geometry-derived caches (CSR reduction maps and mass matrices) are cleared
+    together on mesh change / `_Gather`, so they never go stale or accumulate across a
+    remesh.
+- The complete non-linear residual — internal, inertia and damping forces — is now
+  assembled into `F_e` inside `Construct_local_matrix_system`, and
+  `NonLinear.KelvinVoigtDamping` returns its viscous residual alongside the
+  configuration tangent and damping matrix. For a non-linear problem the solver no
+  longer re-adds the time-scheme history terms (`−C·v_t`, `−M·a_t`); a custom simulation
+  must therefore return the complete residual `−R(u)` in the `F_e` slot. See the updated
+  "create a custom simulation" and pipeline how-tos.
+- `NonLinear.TimeQuadratureStressTensor`: updated the adaptive-quadrature convergence
+  criterion.
 - `PyVista.Plot`: added a `scalar_bar_kwargs` argument to customise the scalar bar.
 - Updated the "create a geometry" how-to for the `copy=True` argument.
 
@@ -112,32 +249,63 @@ This document describes the changes made to the project.
 ## 3.2.0 (July 29, 2026):
 
 - Energy-conserving stresses for `HyperElastic` dynamics
-    - The internal force can now be sampled by an energy-conserving stress, so a free (no external load, no damping) `AlgoType.midpoint` run keeps the total energy `KE + W` constant where the default `pointwise` stress drifts. `HyperElastic.StressType` and `Solver_Set_Stress` select `pointwise` (default), `gonzalez`, or `quadrature`; both non-default stresses require `AlgoType.midpoint`.
-    - `Operators/NonLinear.py`: new `GonzalezStressTensor` — the energy-momentum discrete-gradient stress `Ŝ = S̄ + α Δe`, which conserves `KE + W` exactly, for any law, from a single stress evaluation.
-    - `Operators/NonLinear.py`: new `TimeQuadratureStressTensor` — the PK2 stress averaged along the step's strain path `∫₀¹ ∂W/∂e(eⁿ + s Δe) ds`, integrated by a Clenshaw-Curtis rule (`__clenshaw_curtis`); a discrete gradient up to the quadrature error, which converges spectrally in `nPoints` (`1, 2, 3` recover the midpoint, trapezoid and Simpson rules). Intermediate nodes are `_StrainPathState`, a strain-only state no displacement produces.
-    - `Operators/NonLinear.py`: new `__AdaptiveTimeQuadratureStressTensor` — passing `quadTol` instead of a fixed `nPoints` refines the rule element by element until each element's own integrated energy defect `∫ (S:Δe − ΔW)² dΩ ≤ quadTol² ∫ ΔW² dΩ` is met, spending points only where the step is nonlinear; the per-step point count is saved to the results as `quadNPoints`.
-    - `Operators/NonLinear.py`: new `ActiveStressTensor` — the fiber active stress `τ (T̂ ⊗ T̂)` is assembled by its own operator and no longer folded into `Compute_dWde`, which stays exactly `∂W/∂e` (the invariant the energy-based schemes rely on).
-    - Added the `examples/Hyperelasticity/Hyperelas5.py` example comparing the stress schemes on a free-vibrating cantilever (energy drift, cost, and adaptive point count).
+  - The internal force can now be sampled by an energy-conserving stress, so a free (no
+    external load, no damping) `AlgoType.midpoint` run keeps the total energy `KE + W`
+    constant where the default `pointwise` stress drifts. `HyperElastic.StressType` and
+    `Solver_Set_Stress` select `pointwise` (default), `gonzalez`, or `quadrature`; both
+    non-default stresses require `AlgoType.midpoint`.
+  - `Operators/NonLinear.py`: new `GonzalezStressTensor` — the energy-momentum
+    discrete-gradient stress `Ŝ = S̄ + α Δe`, which conserves `KE + W` exactly, for any
+    law, from a single stress evaluation.
+  - `Operators/NonLinear.py`: new `TimeQuadratureStressTensor` — the PK2 stress averaged
+    along the step's strain path `∫₀¹ ∂W/∂e(eⁿ + s Δe) ds`, integrated by a
+    Clenshaw-Curtis rule (`__clenshaw_curtis`); a discrete gradient up to the quadrature
+    error, which converges spectrally in `nPoints` (`1, 2, 3` recover the midpoint,
+    trapezoid and Simpson rules). Intermediate nodes are `_StrainPathState`, a
+    strain-only state no displacement produces.
+  - `Operators/NonLinear.py`: new `__AdaptiveTimeQuadratureStressTensor` — passing
+    `quadTol` instead of a fixed `nPoints` refines the rule element by element until
+    each element's own integrated energy defect `∫ (S:Δe − ΔW)² dΩ ≤ quadTol² ∫ ΔW² dΩ`
+    is met, spending points only where the step is nonlinear; the per-step point count
+    is saved to the results as `quadNPoints`.
+  - `Operators/NonLinear.py`: new `ActiveStressTensor` — the fiber active stress
+    `τ (T̂ ⊗ T̂)` is assembled by its own operator and no longer folded into
+    `Compute_dWde`, which stays exactly `∂W/∂e` (the invariant the energy-based schemes
+    rely on).
+  - Added the `examples/Hyperelasticity/Hyperelas5.py` example comparing the stress
+    schemes on a free-vibrating cantilever (energy drift, cost, and adaptive point
+    count).
 - Updated the Newton-Raphson convergence options.
 - `PyVista._setCameraPosition`: added `bounds` arguments.
-- Updated `examples/CardiacElastoDynamics/MonoVentricular.py` and minor `_group_elem.py` cleanups.
+- Updated `examples/CardiacElastoDynamics/MonoVentricular.py` and minor `_group_elem.py`
+  cleanups.
 
 **Full Changelog:** https://github.com/matnoel/EasyFEA/compare/v3.1.0...v3.2.0
 
 ## 3.1.0 (July 1, 2026):
 
 - Contact (issue #47)
-    - Added a frictionless penalty-contact framework for unilateral contact against a rigid obstacle, solved as a non-linear problem with Newton-Raphson.
-    - `Operators/NonLinear.py`: new `PenaltyContact` operator returning the contact tangent/residual `(K_e, F_e)` from a precomputed signed normal gap `gap_e_pg` and outward unit normal `normal_e_pg` sampled at the contact-surface Gauss points.
-    - `FEM/_group_elem.py`: added `_GroupElem._Get_gap_and_normal`, which projects the deformed contact-surface Gauss points onto a rigid obstacle to produce the gap and normal consumed by `PenaltyContact`.
-    - Added examples in `examples/Contact/`.
-    - Removed the obsolete `examples/LinearizedElasticity/Contact1.py` example.
+  - Added a frictionless penalty-contact framework for unilateral contact against a
+    rigid obstacle, solved as a non-linear problem with Newton-Raphson.
+  - `Operators/NonLinear.py`: new `PenaltyContact` operator returning the contact
+    tangent/residual `(K_e, F_e)` from a precomputed signed normal gap `gap_e_pg` and
+    outward unit normal `normal_e_pg` sampled at the contact-surface Gauss points.
+  - `FEM/_group_elem.py`: added `_GroupElem._Get_gap_and_normal`, which projects the
+    deformed contact-surface Gauss points onto a rigid obstacle to produce the gap and
+    normal consumed by `PenaltyContact`.
+  - Added examples in `examples/Contact/`.
+  - Removed the obsolete `examples/LinearizedElasticity/Contact1.py` example.
 - Cardiac elastodynamics (issue #42)
-    - Added the `BiVentricular` example (`examples/CardiacElastoDynamics/BiVentricular.py`)
-    - Exposed the viscoelastic (Kelvin-Voigt) arguments in the `CardiacElastoDynamics` constructor and updated its shared `utils.py`.
+  - Added the `BiVentricular` example
+    (`examples/CardiacElastoDynamics/BiVentricular.py`)
+  - Exposed the viscoelastic (Kelvin-Voigt) arguments in the `CardiacElastoDynamics`
+    constructor and updated its shared `utils.py`.
 - Created a new LinearizedElasticity example according to discussion #49.
-- `FeArray`: added a `reshape` override that preserves the `(Ne, nPg)` element/Gauss-point leading axes when possible and otherwise degrades to a plain ndarray, and exposed `ravel` as a reduction.
-- `Utilities/_tic.py`: timing now uses `MPI.Wtime` when MPI is available and `time.perf_counter` otherwise, instead of `time.time()`.
+- `FeArray`: added a `reshape` override that preserves the `(Ne, nPg)`
+  element/Gauss-point leading axes when possible and otherwise degrades to a plain
+  ndarray, and exposed `ravel` as a reduction.
+- `Utilities/_tic.py`: timing now uses `MPI.Wtime` when MPI is available and
+  `time.perf_counter` otherwise, instead of `time.time()`.
 - `NonLinear.FollowingPressure`: updated the einsum contractions.
 - `PyVista.Plot_BoundaryConditions`: added a `opacity` argument.
 - `_mesher._Organise_Surfaces`: reworked the surface-organisation logic.
@@ -149,26 +317,50 @@ This document describes the changes made to the project.
 
 **Breaking changes:**
 
-- Split the `Display` module into two focused modules, with no backward-compatibility shim (issue #46). Update `from EasyFEA import Display` to `from EasyFEA import Matplotlib, Terminal` and rename the calls accordingly.
-    - `Matplotlib` (renamed from `Display`): all matplotlib plotting — `Plot`, `Plot_Mesh`, `Plot_BoundaryConditions`, `Plot_Tags`, `Plot_Energy`, `Plot_Iter_Summary`, the `Movie_*` functions, `Save_fig`, `Init_Axes`, the matplotlib re-exports, and the `requires_matplotlib` guard (e.g. `Display.Plot` becomes `Matplotlib.Plot`).
-    - `Terminal` (new): console helpers `MyPrint`, `MyPrintError`, `Section`, and `Clear` (e.g. `Display.Clear` becomes `Terminal.Clear`).
+- Split the `Display` module into two focused modules, with no backward-compatibility
+  shim (issue #46). Update `from EasyFEA import Display` to
+  `from EasyFEA import Matplotlib, Terminal` and rename the calls accordingly.
+  - `Matplotlib` (renamed from `Display`): all matplotlib plotting — `Plot`,
+    `Plot_Mesh`, `Plot_BoundaryConditions`, `Plot_Tags`, `Plot_Energy`,
+    `Plot_Iter_Summary`, the `Movie_*` functions, `Save_fig`, `Init_Axes`, the
+    matplotlib re-exports, and the `requires_matplotlib` guard (e.g. `Display.Plot`
+    becomes `Matplotlib.Plot`).
+  - `Terminal` (new): console helpers `MyPrint`, `MyPrintError`, `Section`, and `Clear`
+    (e.g. `Display.Clear` becomes `Terminal.Clear`).
 
 **Performance:**
 
-- Sped up FEM operator assembly, cutting the cardiac MonoVentricular matrix-assembly time by ~41% with results equivalent to within 1e-13; all changes are element-agnostic.
-    - `Operators/NonLinear.py` and `Operators/Bilinear.py`: fused the einsum contractions (collapsing the Gauss-point sum and dropping the large intermediates); the geometric tangent now exploits the block structure `Sig = I_dim (x) sig` (textbook `Ksigma = g (x) I_dim`), removing the dense 9x9 `Sig` build and the wide contraction.
-    - `Models/HyperElastic/_laws.py` (HolzapfelOgden): common-subexpression elimination of the isotropic/anisotropic terms, dropped the identically-zero `dWdI{4,6,8} * d2I{4,6,8}dC` contributions, and fibers are normalized once in the constructor.
-    - `Models/HyperElastic/_state.py`: the state no longer re-normalizes directions (now pre-normalized by the material), and `__Build_De` is built loop-free.
-    - Added the `Normalize(array, axis=-1)` free function to `EasyFEA.FEM`.
+- Sped up FEM operator assembly, cutting the cardiac MonoVentricular matrix-assembly
+  time by ~41% with results equivalent to within 1e-13; all changes are
+  element-agnostic.
+  - `Operators/NonLinear.py` and `Operators/Bilinear.py`: fused the einsum contractions
+    (collapsing the Gauss-point sum and dropping the large intermediates); the geometric
+    tangent now exploits the block structure `Sig = I_dim (x) sig` (textbook
+    `Ksigma = g (x) I_dim`), removing the dense 9x9 `Sig` build and the wide
+    contraction.
+  - `Models/HyperElastic/_laws.py` (HolzapfelOgden): common-subexpression elimination of
+    the isotropic/anisotropic terms, dropped the identically-zero
+    `dWdI{4,6,8} * d2I{4,6,8}dC` contributions, and fibers are normalized once in the
+    constructor.
+  - `Models/HyperElastic/_state.py`: the state no longer re-normalizes directions (now
+    pre-normalized by the material), and `__Build_De` is built loop-free.
+  - Added the `Normalize(array, axis=-1)` free function to `EasyFEA.FEM`.
 
 **Examples:**
 
-- Migrated every example (`Beam`, `CardiacElastoDynamics`, `DIC`, `Hyperelasticity`, `LinearizedElasticity`, `MachineLearning`, `Meshes`, `PhaseField`, `Thermal`, `WeakForms`, `HelloWorld`) to the new `Matplotlib` / `Terminal` API (issue #46).
+- Migrated every example (`Beam`, `CardiacElastoDynamics`, `DIC`, `Hyperelasticity`,
+  `LinearizedElasticity`, `MachineLearning`, `Meshes`, `PhaseField`, `Thermal`,
+  `WeakForms`, `HelloWorld`) to the new `Matplotlib` / `Terminal` API (issue #46).
 
 **Documentation:**
 
-- Updated the README, the beginner's guide, and the how-to / API pages for the `Matplotlib` / `Terminal` split.
-- Refreshed the "Create a custom simulation" guide for the multi-element-group `Construct_local_matrix_system` API (now returning `{groupElem: (K_e, C_e, M_e, F_e)}` over `mesh.Get_list_groupElem()`, with the `Get_*` integration helpers accessed on `groupElem`), added an "Extend an existing simulation" section based on the `MonoVentricular` example, and cross-linked the FEM `Operators` catalogue.
+- Updated the README, the beginner's guide, and the how-to / API pages for the
+  `Matplotlib` / `Terminal` split.
+- Refreshed the "Create a custom simulation" guide for the multi-element-group
+  `Construct_local_matrix_system` API (now returning `{groupElem: (K_e, C_e, M_e, F_e)}`
+  over `mesh.Get_list_groupElem()`, with the `Get_*` integration helpers accessed on
+  `groupElem`), added an "Extend an existing simulation" section based on the
+  `MonoVentricular` example, and cross-linked the FEM `Operators` catalogue.
 
 **Other:**
 
@@ -178,23 +370,39 @@ This document describes the changes made to the project.
 
 ## 2.0.0 (June 23, 2026):
 
-Meshes can now contain **several element groups of the same (main) dimension**, so mixed-element meshes are supported end-to-end — for example a contour meshed with `Mesh_2D([], ElemType.QUAD4)` in `https://easyfea.readthedocs.io/en/stable/examples/Meshes/Mesh2_2D.html` that gmsh fills with `QUAD4 + TRI3` (issue #44).
+Meshes can now contain **several element groups of the same (main) dimension**, so
+mixed-element meshes are supported end-to-end — for example a contour meshed with
+`Mesh_2D([], ElemType.QUAD4)` in
+`https://easyfea.readthedocs.io/en/stable/examples/Meshes/Mesh2_2D.html` that gmsh fills
+with `QUAD4 + TRI3` (issue #44).
 
 **Breaking changes:**
 
-- `mesh.groupElem`, `mesh.elemType`, and `mesh.connect` now raise `AmbiguousGroupError` when more than one group shares the main dimension (they cannot return a single value for a mixed mesh). Iterate `mesh.Get_list_groupElem(mesh.dim)` instead.
-- Removed `mesh.Get_rows_e`, `mesh.Get_columns_e`, and `mesh.nPe`; use the corresponding members on each `groupElem` (the assembly path already loops per group).
+- `mesh.groupElem`, `mesh.elemType`, and `mesh.connect` now raise `AmbiguousGroupError`
+  when more than one group shares the main dimension (they cannot return a single value
+  for a mixed mesh). Iterate `mesh.Get_list_groupElem(mesh.dim)` instead.
+- Removed `mesh.Get_rows_e`, `mesh.Get_columns_e`, and `mesh.nPe`; use the corresponding
+  members on each `groupElem` (the assembly path already loops per group).
 - Renamed `Display.Plot_Result` to `Display.Plot`.
 
 **Multi-element-type support (issue #44):**
 
-- Reworked the writers to loop over `mesh.Get_list_groupElem(dim)`, concatenating per-element results in `mesh.Ne` order: `Display.Plot`, the PyVista export (`MeshIO`), `Mesher.Save_Simu`, and the `Paraview` VTU/PVTU export (both serial and MPI).
-- Made the mesh utilities multi-group aware: `Elements_Nodes`, `Evaluate_dofsValues_at_coordinates`, `Get_meshSize`, `Get_Quality`, and the MPI `_Gather` (coordinates are now gathered across every group). The generic result path `simu._Get_values` and the per-element stress/strain computations now assemble per group via `groupElem.Locates_sol_e`.
-- Updated the core `Mesh` functions and meshing helpers to operate on the list of element groups and removed the internal `mesh.__groupElem` shortcut.
+- Reworked the writers to loop over `mesh.Get_list_groupElem(dim)`, concatenating
+  per-element results in `mesh.Ne` order: `Display.Plot`, the PyVista export (`MeshIO`),
+  `Mesher.Save_Simu`, and the `Paraview` VTU/PVTU export (both serial and MPI).
+- Made the mesh utilities multi-group aware: `Elements_Nodes`,
+  `Evaluate_dofsValues_at_coordinates`, `Get_meshSize`, `Get_Quality`, and the MPI
+  `_Gather` (coordinates are now gathered across every group). The generic result path
+  `simu._Get_values` and the per-element stress/strain computations now assemble per
+  group via `groupElem.Locates_sol_e`.
+- Updated the core `Mesh` functions and meshing helpers to operate on the list of
+  element groups and removed the internal `mesh.__groupElem` shortcut.
 
 **Display:**
 
-- Refactored the `Display` functions; renamed `Display.Plot_Result` to `Display.Plot` and reworked `Plot_Mesh` together with the handling of the `result`, `plotMesh`, and `plotDim` arguments.
+- Refactored the `Display` functions; renamed `Display.Plot_Result` to `Display.Plot`
+  and reworked `Plot_Mesh` together with the handling of the `result`, `plotMesh`, and
+  `plotDim` arguments.
 
 **MPI:**
 
@@ -204,36 +412,66 @@ Meshes can now contain **several element groups of the same (main) dimension**, 
 
 - `NonLinear.FollowingPressure`: updated the argument order.
 - Removed `optimize="optimal"` in `EasyFEA/FEM/_linalg.py`.
-- Added the `Homog5` example to the documentation gallery, added a mesh-creation assertion in `_beam.py`, and fixed documentation warnings.
+- Added the `Homog5` example to the documentation gallery, added a mesh-creation
+  assertion in `_beam.py`, and fixed documentation warnings.
 
 **Full Changelog:** https://github.com/matnoel/EasyFEA/compare/v1.11.0...v2.0.0
 
 ## 1.11.0 (June 15, 2026):
 
-- Created the `EasyFEA.FEM.Operators` module, gathering the element-level operators that integrate a form over the Gauss points (issue #43).
-    - `Bilinear`: `UV`, `GradUGradV`, `GradU_A_GradV`, `LinearizedElasticity`, `MassAlongNormal`, and the beam operators `BeamBending`, `BeamShear`, `BeamStiffness`, `BeamMass`.
-    - `Linear`: `V`.
-    - `NonLinear`: `SecondPiolaKirchhoffStressTensor`, `KelvinVoigtDamping`, `FollowingPressure`.
-    - Refactored the simulations to assemble their element matrices through these operators.
+- Created the `EasyFEA.FEM.Operators` module, gathering the element-level operators that
+  integrate a form over the Gauss points (issue #43).
+  - `Bilinear`: `UV`, `GradUGradV`, `GradU_A_GradV`, `LinearizedElasticity`,
+    `MassAlongNormal`, and the beam operators `BeamBending`, `BeamShear`,
+    `BeamStiffness`, `BeamMass`.
+  - `Linear`: `V`.
+  - `NonLinear`: `SecondPiolaKirchhoffStressTensor`, `KelvinVoigtDamping`,
+    `FollowingPressure`.
+  - Refactored the simulations to assemble their element matrices through these
+    operators.
 - Introduced finite-strain viscosity and active stress in hyperelasticity (issue #42).
-    - Kelvin-Voigt viscosity `material.eta` (large-strain `Σ_visco = η·Ė`), delivered through `NonLinear.KelvinVoigtDamping`, which returns both the damping matrix and the configuration tangent so the gap is closed without touching the time-scheme coefficient mechanism.
-    - Fiber active stress `material.active_stress` along a direction registered with `material.Set_active_stress_vec`.
-- Added the `CardiacElastoDynamics` example (`MonoVentricular.py`): a passive + active hyperelastic left-ventricle simulation reproducing *Benchmark i: monoventricular mechanics* of the cardiac elastodynamics benchmark (Comput. Methods Appl. Mech. Engrg.), with analytic and `cardiac_benchmark_toolkit` (`vtu`) fiber/sheet sources (issue #42).
-- Refactored `Construct_local_matrix_system` and made `HyperElasticState` operate on a `groupElem`; the velocity is now passed explicitly to `KelvinVoigtDamping` instead of being stored on the state (issue #44).
-- Added `FeArray` reduction methods and an `integrate` helper, and fixed a `FeArray.broadcast` ambiguity on per-element tensors via `tensor_ndim`.
-- Fixed a shared mutable-default-dictionary bug in the `Save_Iter` functions that leaked iteration keys across calls and across simulations in the same process.
-- Fixed bugs in `phaseField._Calc_Sigma_e_pg`, in the `LinearizedElasticity` examples, in `groupElem._Get_Mapping` / `Get_pointsInElem` (local connectivity), and in the `Mesher` MPI partitioning (snapshot connectivity before `gmsh.partition`).
-- Fixed an `mpi4py` deadlock on plain `python` and a `petsc4py` double-initialization warning.
-- Updated `Mesher.Mesh_Import_mesh` to reconstruct physical groups from gmsh entities and to accept a `meshOrder` argument; renamed `wedge` to `penta` in `MeshIO.DICT_ELEMTYPE_TO_ENSIGHT`.
-- Documentation: added an `Operators` section to the FEM API and a "from element operators to the global system" section to the solve-pipeline guide; improved the introduction docstrings of every simulation; referenced `CardiacElastoDynamics` in the docs and READMEs.
+  - Kelvin-Voigt viscosity `material.eta` (large-strain `Σ_visco = η·Ė`), delivered
+    through `NonLinear.KelvinVoigtDamping`, which returns both the damping matrix and
+    the configuration tangent so the gap is closed without touching the time-scheme
+    coefficient mechanism.
+  - Fiber active stress `material.active_stress` along a direction registered with
+    `material.Set_active_stress_vec`.
+- Added the `CardiacElastoDynamics` example (`MonoVentricular.py`): a passive + active
+  hyperelastic left-ventricle simulation reproducing *Benchmark i: monoventricular
+  mechanics* of the cardiac elastodynamics benchmark (Comput. Methods Appl. Mech.
+  Engrg.), with analytic and `cardiac_benchmark_toolkit` (`vtu`) fiber/sheet sources
+  (issue #42).
+- Refactored `Construct_local_matrix_system` and made `HyperElasticState` operate on a
+  `groupElem`; the velocity is now passed explicitly to `KelvinVoigtDamping` instead of
+  being stored on the state (issue #44).
+- Added `FeArray` reduction methods and an `integrate` helper, and fixed a
+  `FeArray.broadcast` ambiguity on per-element tensors via `tensor_ndim`.
+- Fixed a shared mutable-default-dictionary bug in the `Save_Iter` functions that leaked
+  iteration keys across calls and across simulations in the same process.
+- Fixed bugs in `phaseField._Calc_Sigma_e_pg`, in the `LinearizedElasticity` examples,
+  in `groupElem._Get_Mapping` / `Get_pointsInElem` (local connectivity), and in the
+  `Mesher` MPI partitioning (snapshot connectivity before `gmsh.partition`).
+- Fixed an `mpi4py` deadlock on plain `python` and a `petsc4py` double-initialization
+  warning.
+- Updated `Mesher.Mesh_Import_mesh` to reconstruct physical groups from gmsh entities
+  and to accept a `meshOrder` argument; renamed `wedge` to `penta` in
+  `MeshIO.DICT_ELEMTYPE_TO_ENSIGHT`.
+- Documentation: added an `Operators` section to the FEM API and a "from element
+  operators to the global system" section to the solve-pipeline guide; improved the
+  introduction docstrings of every simulation; referenced `CardiacElastoDynamics` in the
+  docs and READMEs.
 
 **Full Changelog:** https://github.com/matnoel/EasyFEA/compare/v1.10.1...v1.11.0
 
 ## 1.10.1 (May 31, 2026):
 
-- Fixed flaky `test_Evaluate_dofsValues_at_coordinates_2D` and `_3D`: replaced the unseeded random-node sample with a vectorized `assert_allclose` over all nodes (tolerance now reflects Newton inverse-mapping precision).
-- Loosened machine-precision tolerances in `TOLS_TIP` and `TOLS_DISTRIB` (beam tests) from `1e-12` to `1e-11` to absorb harmless float noise.
-- Updated documentation and example READMEs to reference Timoshenko beams alongside Euler-Bernoulli, with a pointer to `Beam2` as the worked Timoshenko example.
+- Fixed flaky `test_Evaluate_dofsValues_at_coordinates_2D` and `_3D`: replaced the
+  unseeded random-node sample with a vectorized `assert_allclose` over all nodes
+  (tolerance now reflects Newton inverse-mapping precision).
+- Loosened machine-precision tolerances in `TOLS_TIP` and `TOLS_DISTRIB` (beam tests)
+  from `1e-12` to `1e-11` to absorb harmless float noise.
+- Updated documentation and example READMEs to reference Timoshenko beams alongside
+  Euler-Bernoulli, with a pointer to `Beam2` as the worked Timoshenko example.
 
 **Full Changelog:** https://github.com/matnoel/EasyFEA/compare/v1.10.0...v1.10.1
 
@@ -241,10 +479,11 @@ Meshes can now contain **several element groups of the same (main) dimension**, 
 
 - Created `euler_implicit` and `euler_explicit` hyperbolic algorithms.
 - Continued work on Timoshenko beams (issue #39).
-    - Replaced Jouravski's formula with Cowper's (1966) shear correction factor in `_Get_shear_correction_factor`.
-    - Prevented shear locking for Timoshenko elements.
-    - Updated shear correction factor docstrings.
-    - Updated links to fem object.
+  - Replaced Jouravski's formula with Cowper's (1966) shear correction factor in
+    `_Get_shear_correction_factor`.
+  - Prevented shear locking for Timoshenko elements.
+  - Updated shear correction factor docstrings.
+  - Updated links to fem object.
 - Fixed bug in `hyperelastic._Calc_W` function.
 - Created `simu.__Get_Ndof` function and refactored `simu._Get_*_n` functions to use it.
 - Simplified `simu._Solver_Apply_Dirichlet` function.
@@ -257,7 +496,8 @@ Meshes can now contain **several element groups of the same (main) dimension**, 
 ## 1.9.2 (May 21, 2026):
 
 - Created the `CiarletGeymonat` hyperelastic law.
-- Fixed bug for `hht` algorithm in `simu._Solver_Evaluate_u_v_a_for_time_scheme` function.
+- Fixed bug for `hht` algorithm in `simu._Solver_Evaluate_u_v_a_for_time_scheme`
+  function.
 - Created `simu.__Bc_check_inputs` function.
 - Updated the argument position in `simu.Solver_Set_Hyperbolic_Algorithm`.
 - Improved `FeArray` functions.
@@ -268,21 +508,23 @@ Meshes can now contain **several element groups of the same (main) dimension**, 
 ## 1.9.1 (May 5, 2026):
 
 - Improved how invalid characters are handled by `EasyFEA/Utilities/Display.py` function
-- Removed pyvista version restriction and close https://github.com/pyvista/pyvista/issues/8628.
+- Removed pyvista version restriction and close
+  https://github.com/pyvista/pyvista/issues/8628.
 - Removed hard-coded elemType in `EasyFEA/Utilities/MeshIO.py`
 
 ## 1.9.0 (May 4, 2026):
 
 - Worked on issue #38 and improved static and dynamic Euler-Bernoulli beam simulations.
-    - Introduced new tests and examples.
-    - Examples now compute Ty, Mz and N when needed.
-    - Set scipy as the default solver for beam simulations.
-    - Create beam.add_lineLoad override.
+  - Introduced new tests and examples.
+  - Examples now compute Ty, Mz and N when needed.
+  - Set scipy as the default solver for beam simulations.
+  - Create beam.add_lineLoad override.
 - Started working on timoshenko beams in #39.
 - Refactored `GroupElemFactory` with `GROUP_CLASS_MAP`
 - Removed bug in `Display.Movie_Simu` introduced in #21 updates.
 - Updated `simu.Result` behavior for not implemented results.
-- Updated parabolic and hyperbolic time schemes when the simulation is using Lagrange multipliers.
+- Updated parabolic and hyperbolic time schemes when the simulation is using Lagrange
+  multipliers.
 - Improved display function behavior with inDim calculation.
 - Updated `simu.Calc_Reaction` and return just dofs values in seq mode.
 - Removed `MPI_COMM` in `solvers._PETSc` function.
@@ -292,20 +534,22 @@ Meshes can now contain **several element groups of the same (main) dimension**, 
 - Created a mesh.Merge function,
 - Updated tol to `1e-12` in `tests/Models/phasefield_test.py`
 - Updated optionTex in `EasyFEA/Utilities/Display.py`
-- Updated pyvista to version (<=0.47.3) until the following issue is fixed: https://github.com/pyvista/pyvista/issues/8628
+- Updated pyvista to version (\<=0.47.3) until the following issue is fixed:
+  https://github.com/pyvista/pyvista/issues/8628
 
 ## 1.8.5 (April 22, 2026):
 
 - Improved solver behavior when simulations are using Lagrange boundary conditions.
 - Simplified homogenization examples.
-- Set petsc4py options by default in EasyFEA/Simulations/_simu, even if petsc4py is not available.
+- Set petsc4py options by default in EasyFEA/Simulations/\_simu, even if petsc4py is not
+  available.
 
 ## 1.8.4 (April 20, 2026):
 
 - #26 Improved mpi behavior:
-    - Removed coordGlob array in mesh and groupElem.
-    - Add ghost cells and ghost points in EasyFEA/Utilities/Paraview.py
-- Fixed a bug in Meshio._GroupElem_to_PyVista function.
+  - Removed coordGlob array in mesh and groupElem.
+  - Add ghost cells and ghost points in EasyFEA/Utilities/Paraview.py
+- Fixed a bug in Meshio.\_GroupElem_to_PyVista function.
 - Updated phase field examples.
 - Created Save and Load functions for mesh object.
 - Created Folder_test.py
@@ -326,30 +570,41 @@ Meshes can now contain **several element groups of the same (main) dimension**, 
 ## 1.8.1 (March 29, 2026):
 
 - Improved Sphinx documentation.
-- Renamed `isHollow` to `isFilled` across all geometry classes (`Domain`, `Circle`, `Points`, `Contour`), with an inverted default value (`False`). Specifically, `isHollow=True` becomes `isFilled=False`, and `isHollow=False` becomes `isFilled=True`.
+- Renamed `isHollow` to `isFilled` across all geometry classes (`Domain`, `Circle`,
+  `Points`, `Contour`), with an inverted default value (`False`). Specifically,
+  `isHollow=True` becomes `isFilled=False`, and `isHollow=False` becomes
+  `isFilled=True`.
 - Improved the CONTRIBUTING guide.
 - Fixed a bug in `simu.folder` and `simu.Load_Simu`.
 
 ## 1.8.0 (March 28, 2026):
 
-- Resolved issue [#26](https://github.com/matnoel/EasyFEA/issues/26): Implemented full MPI support for distributed-memory parallel simulations using `petsc4py`.
-    - Created `EasyFEA/Utilities/_mpi.py` with MPI utility functions (`Concatenate_array`, `Sync_dofsValues`).
-    - Added `rank0_only` decorator and applied it to public functions in `Display`, `PyVista`, and `Paraview` modules.
-    - Implemented `simu._Gather` and `mesh.Gather` functions to assemble distributed results on rank 0.
-    - Added `Folder.Rank_Dir` function for rank-specific output directories.
-    - Refactored the `Paraview` module to handle MPI results with per-rank `.vtu` files.
-    - Improved PETSc solver options and pipeline; set GAMG as the default preconditioner.
-    - Fixed memory leaks in the PETSc solver using `PETSc.garbage_cleanup()`.
-    - Updated the Newton–Raphson algorithm for MPI context.
-    - Fixed bugs in `simu.Save_Iter`, `simu.folder` setter, `_mpi.Concatenate_array`, and `solver.__Get_unique_dofs`.
+- Resolved issue [#26](https://github.com/matnoel/EasyFEA/issues/26): Implemented full
+  MPI support for distributed-memory parallel simulations using `petsc4py`.
+  - Created `EasyFEA/Utilities/_mpi.py` with MPI utility functions (`Concatenate_array`,
+    `Sync_dofsValues`).
+  - Added `rank0_only` decorator and applied it to public functions in `Display`,
+    `PyVista`, and `Paraview` modules.
+  - Implemented `simu._Gather` and `mesh.Gather` functions to assemble distributed
+    results on rank 0.
+  - Added `Folder.Rank_Dir` function for rank-specific output directories.
+  - Refactored the `Paraview` module to handle MPI results with per-rank `.vtu` files.
+  - Improved PETSc solver options and pipeline; set GAMG as the default preconditioner.
+  - Fixed memory leaks in the PETSc solver using `PETSc.garbage_cleanup()`.
+  - Updated the Newton–Raphson algorithm for MPI context.
+  - Fixed bugs in `simu.Save_Iter`, `simu.folder` setter, `_mpi.Concatenate_array`, and
+    `solver.__Get_unique_dofs`.
 - Improved Sphinx documentation by adding a comprehensive how-to section.
-- Merged PR [#36](https://github.com/matnoel/EasyFEA/pull/36) with updates: Improved `examples/README.rst`.
-- Resolved issue [#37](https://github.com/matnoel/EasyFEA/issues/37): Added examples in docstrings.
+- Merged PR [#36](https://github.com/matnoel/EasyFEA/pull/36) with updates: Improved
+  `examples/README.rst`.
+- Resolved issue [#37](https://github.com/matnoel/EasyFEA/issues/37): Added examples in
+  docstrings.
 - Created `MeshIO.Merge` function to combine multiple meshes.
 - Added `simu.Get_dofs` function.
 - Exported `AlgoType` in `EasyFEA/__init__.py`.
 - Improved `FeArray` implementation.
-- Improved `simu._Solver_Apply_Dirichlet` and `simu.__Solver_Get_Dirichlet_A_x` functions.
+- Improved `simu._Solver_Apply_Dirichlet` and `simu.__Solver_Get_Dirichlet_A_x`
+  functions.
 - Updated `simu.Results_Set_Iteration_Summary` behavior.
 - Improved `EasyFEA/Models/_phasefield.py` and related phase-field examples.
 - Improved `mesher._Mesh_Generate`.
@@ -366,7 +621,8 @@ Meshes can now contain **several element groups of the same (main) dimension**, 
 ## 1.7.3 (March 4, 2026):
 
 - Updated Sphinx Gallery and model viewer.
-- Fixed a bug in the `mesh.Get_Node_Values` function when the mesh contains orphan nodes.
+- Fixed a bug in the `mesh.Get_Node_Values` function when the mesh contains orphan
+  nodes.
 - Improved and closed issue #35: Export EasyFEA results to USD format.
 - Added Git LFS tracking for `*.msh` files.
 - Fixed periodic boundary conditions in `Homog4.py` and introduced `Homog5.py`.
@@ -376,7 +632,8 @@ Meshes can now contain **several element groups of the same (main) dimension**, 
 - Updated the `_requires` module.
 - Resolved issue **#34** to enable export of EasyFEA results to **GLB** format.
 - Resolved issue **#35** to enable export of EasyFEA results to **USD** format.
-- Implemented an interactive gallery using the **GLB** format and the **model-viewer** component.
+- Implemented an interactive gallery using the **GLB** format and the **model-viewer**
+  component.
 
 ## 1.7.1 (January 30, 2026):
 
@@ -386,21 +643,22 @@ Meshes can now contain **several element groups of the same (main) dimension**, 
 - Clarified the `groupElem._Get_sysCoord_e` method.
 - Created the `PyVista.Plot_Arrows` function.
 - Updated surface normals for 3D elements:
-    - Ensured consistent coordinate usage across element groups.
-    - Utilized all coordinates in the `MeshIO.Surface_reconstruction` function.
-    - Guaranteed outward-facing normals for all mesh faces in `groupElem._Get_sysCoord_e`.
+  - Ensured consistent coordinate usage across element groups.
+  - Utilized all coordinates in the `MeshIO.Surface_reconstruction` function.
+  - Guaranteed outward-facing normals for all mesh faces in `groupElem._Get_sysCoord_e`.
 - Updated Sphinx documentation:
-    - Updated `docs/html_theme_options`.
-    - Reset Geoms instance numbering and ensured `BUILDING_GALLERY` is set to `False` during gallery construction.
-    - Updated LaTeX options in the documentation.
-    - Removed `\begin{alignat}` from `.. math::` environments.
+  - Updated `docs/html_theme_options`.
+  - Reset Geoms instance numbering and ensured `BUILDING_GALLERY` is set to `False`
+    during gallery construction.
+  - Updated LaTeX options in the documentation.
+  - Removed `\begin{alignat}` from `.. math::` environments.
 - Updated optional dependencies:
-    - Marked `meshio` as an optional dependency.
-    - Marked `imageio` as an optional dependency.
-    - Added `io` to optional dependencies.
-    - Added `viz` to optional dependencies.
-    - Updated optional dependencies in `.github/workflows/tests.yaml`.
-    - Marked `matplotlib` and `pyvista` as optional dependencies.
+  - Marked `meshio` as an optional dependency.
+  - Marked `imageio` as an optional dependency.
+  - Added `io` to optional dependencies.
+  - Added `viz` to optional dependencies.
+  - Updated optional dependencies in `.github/workflows/tests.yaml`.
+  - Marked `matplotlib` and `pyvista` as optional dependencies.
 
 ## 1.7.0 (January 18, 2026):
 
@@ -428,23 +686,31 @@ Meshes can now contain **several element groups of the same (main) dimension**, 
 
 ## 1.6.3 (January 2, 2026):
 
-- Updated the `Result_in_Strain_or_Stress_field` function and its calls to replace `field_e` with `field_e_pg`.
-- Added `Field.Evaluate_e` and `Field.Evaluate_n` methods to evaluate functions on elements or nodes.
+- Updated the `Result_in_Strain_or_Stress_field` function and its calls to replace
+  `field_e` with `field_e_pg`.
+- Added `Field.Evaluate_e` and `Field.Evaluate_n` methods to evaluate functions on
+  elements or nodes.
 - Added the `von_mises_stress` function in `examples/WeakForms/LinearElasticity1.py`.
 - Fixed a bug in the `Display.Plot_Result` function when `nodeValues=False`.
-- Clarified the `Mesher._Mesh_Get_Mesh` function and moved the `_gmsh_interface.py` module to `_gmsh.py`.
-- Began work on issue [#26](https://github.com/matnoel/EasyFEA/issues/26): Solve simulations using petsc4py and MPI.
+- Clarified the `Mesher._Mesh_Get_Mesh` function and moved the `_gmsh_interface.py`
+  module to `_gmsh.py`.
+- Began work on issue [#26](https://github.com/matnoel/EasyFEA/issues/26): Solve
+  simulations using petsc4py and MPI.
 - Added the `Gauss._Gauss_factory_nPg` function and refactored Gauss point construction.
-- Updated the `Paraview.__Make_pvd` function to use relative paths for accessing VTU files.
+- Updated the `Paraview.__Make_pvd` function to use relative paths for accessing VTU
+  files.
 - Improved the `MeshIO` module.
 - Renamed `mesh.coordGlob` to `mesh.coord`.
 - Created `examples/LinearizedElasticity/Homog4.py`.
 - Implemented the `ElasOrthotropic` model.
-- Fixed issue [#27](https://github.com/matnoel/EasyFEA/issues/27): Corrected bug in `PhaseFieldSimu._Calc_Psi_Ext` method.
+- Fixed issue [#27](https://github.com/matnoel/EasyFEA/issues/27): Corrected bug in
+  `PhaseFieldSimu._Calc_Psi_Ext` method.
 - Updated iteration printing in Display, Paraview, and PyVista functions.
-- Addressed issue [#29](https://github.com/matnoel/EasyFEA/issues/29): Clarified the `Simu.add_pressureLoad()` function.
+- Addressed issue [#29](https://github.com/matnoel/EasyFEA/issues/29): Clarified the
+  `Simu.add_pressureLoad()` function.
 - Updated the `simu.add_neumann` function.
-- Resolved issue [#28](https://github.com/matnoel/EasyFEA/issues/28): Added topology optimization example.
+- Resolved issue [#28](https://github.com/matnoel/EasyFEA/issues/28): Added topology
+  optimization example.
 - Enhanced the Sphinx documentation.
 
 ## 1.6.2 (November 20, 2025):
@@ -455,7 +721,8 @@ Meshes can now contain **several element groups of the same (main) dimension**, 
 - Enhanced `Tic.Plot_History` functions.
 - Updated the `mesh.Evaluate_dofsValues_at_coordinates` function.
 - Refactored mesh functions in `_gmsh_interface.py`.
-- Updated functions in `EasyFEA/fem/_forms.py` used by `EasyFEA/simulations/_weak_forms.py`.
+- Updated functions in `EasyFEA/fem/_forms.py` used by
+  `EasyFEA/simulations/_weak_forms.py`.
 
 ## 1.6.1 (November 9, 2025):
 
@@ -475,25 +742,34 @@ Meshes can now contain **several element groups of the same (main) dimension**, 
 
 - Updated the solver parameter in the `phasefield` model.
 - Added an assertion in `_Simu.Get_K_C_M_F` to detect multiple problem types.
-- Updated `PositiveParameter` to `PositiveScalarParameter` in some models [#23](https://github.com/matnoel/EasyFEA/issues/23).
+- Updated `PositiveParameter` to `PositiveScalarParameter` in some models
+  [#23](https://github.com/matnoel/EasyFEA/issues/23).
 - Renamed `_pyVistaMesh` to `_pvMesh` in `EasyFEA/utilities/PyVista.py`.
-- Updated `PyVista._setCameraPosition` with its docstrings and modified how the function is called.
+- Updated `PyVista._setCameraPosition` with its docstrings and modified how the function
+  is called.
 - Added the `I6` and `I8` invariants in `EasyFEA/models/_hyperelastic.py`.
 - Added `VectorParameter` and `_CheckIsVector` in `EasyFEA/utilities/_params.py`.
 - Updated the behavior of `TensorProd` and `Project_Kelvin` functions for `FeArray`.
 - Updated vector checks in `EasyFEA/models/_hyperelastic.py`.
-- Created the `HolzapfelOgden` hyperelastic law in `EasyFEA/models/_hyperelastic_laws.py`.
+- Created the `HolzapfelOgden` hyperelastic law in
+  `EasyFEA/models/_hyperelastic_laws.py`.
 - Updated FEM solvers:
-    - Updated the `Newton_Raphson` algorithm.
-    - Removed the `simu.solverIsIncremental` option.
-    - Updated `newmark`, `midpoint`, and `hht` acceleration formulations to displacement formulations.
-    - Updated `Set_Rayleigh_Damping_Coefs` to ensure the matrix is updated in `EasyFEA/simulations/_elastic.py`.
-    - Revised the use of the `Newton_Raphson` algorithm in nonlinear simulations.
-    - Updated the `Newton_Raphson` algorithm to print the residual L2 norm (with applied boundary conditions).
+  - Updated the `Newton_Raphson` algorithm.
+  - Removed the `simu.solverIsIncremental` option.
+  - Updated `newmark`, `midpoint`, and `hht` acceleration formulations to displacement
+    formulations.
+  - Updated `Set_Rayleigh_Damping_Coefs` to ensure the matrix is updated in
+    `EasyFEA/simulations/_elastic.py`.
+  - Revised the use of the `Newton_Raphson` algorithm in nonlinear simulations.
+  - Updated the `Newton_Raphson` algorithm to print the residual L2 norm (with applied
+    boundary conditions).
 - Updated the `TensorProd` function in `EasyFEA/fem/_linalg.py`.
-- Updated hyperelastic chain rules to ensure cross-term derivatives used in `d2W` utilize tensor products.
-- Refactored the `HyperElastic` static class into a `HyperElasticState` class for improved performance and code readability.
-- Applied the `cache_computed_values` decorator to replace outdated caching methods in `EasyFEA/fem/_group_elems.py` and `EasyFEA/models/_hyperelastic.py`.
+- Updated hyperelastic chain rules to ensure cross-term derivatives used in `d2W`
+  utilize tensor products.
+- Refactored the `HyperElastic` static class into a `HyperElasticState` class for
+  improved performance and code readability.
+- Applied the `cache_computed_values` decorator to replace outdated caching methods in
+  `EasyFEA/fem/_group_elems.py` and `EasyFEA/models/_hyperelastic.py`.
 - Fixed a bug in the first derivatives of anisotropic invariants `I4`, `I6`, and `I8`.
 - Fixed a bug in the penalization solver.
 - Added the bulk modulus term to the `MooneyRivlin` hyperelastic law.
@@ -501,13 +777,17 @@ Meshes can now contain **several element groups of the same (main) dimension**, 
 
 ## 1.5.4 (October 23, 2025):
 
-- Fixed issue [#23](https://github.com/matnoel/EasyFEA/issues/23): Descriptors are now used to simplify property creation in classes.
-- Fixed issue [#24](https://github.com/matnoel/EasyFEA/issues/24): Introduced the `Construct_matrix_system` function and removed all `Assembly` functions. This reduces the amount of code required for each simulation.
+- Fixed issue [#23](https://github.com/matnoel/EasyFEA/issues/23): Descriptors are now
+  used to simplify property creation in classes.
+- Fixed issue [#24](https://github.com/matnoel/EasyFEA/issues/24): Introduced the
+  `Construct_matrix_system` function and removed all `Assembly` functions. This reduces
+  the amount of code required for each simulation.
 - Fixed a bug in the `_Create_Lines` dispatch methods.
 - Updated the `_Write_solution_file` function in `utilities.Vizir.py`.
 - Fixed a bug in `Get_pointsInElem` caused by `nan` values in normalized arrays.
 - Added the `mesh.Evaluate_dofsValues_at_coordinates` function.
-- Added the `HolzapfelOgden` hyperelastic law in the `examples/HyperElastic/HyperElasticLaws.py` script.
+- Added the `HolzapfelOgden` hyperelastic law in the
+  `examples/HyperElastic/HyperElasticLaws.py` script.
 - Removed the `useNumba` property from `simu` and `models`.
 - Removed the `dim` argument from the `Thermal` model.
 - Updated functions in `EasyFEA/utilities/_params.py`.
@@ -515,9 +795,13 @@ Meshes can now contain **several element groups of the same (main) dimension**, 
 
 ## 1.5.3 (October 1, 2025):
 
-- Added the `I8` invariant to the `examples/HyperElastic/HyperElasticInvariants.py` script.
-- Fixed issue [#22](https://github.com/matnoel/EasyFEA/issues/22): Implemented `singledispatch` methods in `_gmsh_interface.py`, `geoms/_utils.py`, `_simu.py` and `PyVista.py` to improve code readability.
-- Introduced the `BUILDING_GALLERY` option and updated the `Display.Clear` function to ensure the `Tic` history is initialized when `BUILDING_GALLERY = True`.
+- Added the `I8` invariant to the `examples/HyperElastic/HyperElasticInvariants.py`
+  script.
+- Fixed issue [#22](https://github.com/matnoel/EasyFEA/issues/22): Implemented
+  `singledispatch` methods in `_gmsh_interface.py`, `geoms/_utils.py`, `_simu.py` and
+  `PyVista.py` to improve code readability.
+- Introduced the `BUILDING_GALLERY` option and updated the `Display.Clear` function to
+  ensure the `Tic` history is initialized when `BUILDING_GALLERY = True`.
 
 ## 1.5.2 (September 11, 2025):
 
@@ -539,8 +823,8 @@ Meshes can now contain **several element groups of the same (main) dimension**, 
 - Updated `MeshIO.Surface_reconstruction`.
 - Updated `Material.WeakForms` docstrings.
 - Fixed issue [#21](https://github.com/matnoel/EasyFEA/issues/21):
-    - Clarified `Display.py` and `PyVista.py` modules.
-    - Improved `Plot_Tags` functions.
+  - Clarified `Display.py` and `PyVista.py` modules.
+  - Improved `Plot_Tags` functions.
 - Improved mesh and element group tagging.
 - Fixed bug in `_Additional_Points()`.
 - Switched `GroupElemFactory` `_Create` and `Create`.
@@ -548,14 +832,18 @@ Meshes can now contain **several element groups of the same (main) dimension**, 
 ## 1.5.0 (July 16, 2025):
 
 - Updated Python version in README.md.
-- Updated Display module according to modifications in [#19](https://github.com/matnoel/EasyFEA/issues/19).
+- Updated Display module according to modifications in
+  [#19](https://github.com/matnoel/EasyFEA/issues/19).
 - Updated Vizir module.
 - Updated MeshIO docstrings.
 - Fixed mypy and ruff type issues.
-- Renamed `linesVector_e` to `rowsVector_e` and `linesScalar_e` to `rowsScalar_e` in simulations and group of elements.
-- Fixed issue [#20](https://github.com/matnoel/EasyFEA/issues/20): Users can now perform finite element analysis by simply providing weak form functions.
+- Renamed `linesVector_e` to `rowsVector_e` and `linesScalar_e` to `rowsScalar_e` in
+  simulations and group of elements.
+- Fixed issue [#20](https://github.com/matnoel/EasyFEA/issues/20): Users can now perform
+  finite element analysis by simply providing weak form functions.
   - Renamed Materials to Models.
-  - Created `Field`, `BilinearForm`, `LinearForm`, `Materials.WeakForms`, and `Simulations.WeakFormSimu`.
+  - Created `Field`, `BilinearForm`, `LinearForm`, `Materials.WeakForms`, and
+    `Simulations.WeakFormSimu`.
   - Created 2 Poisson and 2 linear elasticity examples with tests.
 - Improved the documentation by providing as many animated GIFs as possible.
 
@@ -586,48 +874,64 @@ Meshes can now contain **several element groups of the same (main) dimension**, 
 - Renamed `weightedJacobian_e_pg` to `wJ_e_pg` in scripts.
 - Updated `Solvers.py` dependencies.
 - Reordered tensor ordering in `Paraview.py`.
-- Fixed issue [#17](https://github.com/matnoel/EasyFEA/issues/17): Fixed Newton-Raphson algorithm and added a new hyperelastic example.
-- Fixed issue [#18](https://github.com/matnoel/EasyFEA/issues/18): Updated `MeshIO.py` to import `EnSight` meshes.
+- Fixed issue [#17](https://github.com/matnoel/EasyFEA/issues/17): Fixed Newton-Raphson
+  algorithm and added a new hyperelastic example.
+- Fixed issue [#18](https://github.com/matnoel/EasyFEA/issues/18): Updated `MeshIO.py`
+  to import `EnSight` meshes.
 
 ## 1.4.5 (June 25, 2025):
 
-- Fixed issue [#16](https://github.com/matnoel/EasyFEA/issues/16): Enabled Paraview functionality without a simulation object.
+- Fixed issue [#16](https://github.com/matnoel/EasyFEA/issues/16): Enabled Paraview
+  functionality without a simulation object.
 - Updated documentation links to reference external research projects.
 
 ## 1.4.4 (June 21, 2025):
 
-- Fixed issue [#15](https://github.com/matnoel/EasyFEA/issues/15): You can now create meshes simply by using geometric objects. 
+- Fixed issue [#15](https://github.com/matnoel/EasyFEA/issues/15): You can now create
+  meshes simply by using geometric objects.
 - Enhanced docstrings, documentation and examples.
 
 ## 1.4.3 (June 16, 2025):
 
-- Added an interface to Vizir (see issue [#9](https://github.com/matnoel/EasyFEA/issues/9)).
+- Added an interface to Vizir (see issue
+  [#9](https://github.com/matnoel/EasyFEA/issues/9)).
 - Applied `black` code formatting across the codebase (see issue #10).
-- Integrated continuous integration using GitHub Actions (see issues [#11](https://github.com/matnoel/EasyFEA/issues/11), [#13](https://github.com/matnoel/EasyFEA/issues/13), and [#14](https://github.com/matnoel/EasyFEA/issues/14)).
-- Added comprehensive documentation (see issue [#5](https://github.com/matnoel/EasyFEA/issues/5)).
-- Fixed tkinter issue in CI for py3.12 on windows. (see: https://github.com/matnoel/EasyFEA/actions/runs/15673958144/job/44150031408)
+- Integrated continuous integration using GitHub Actions (see issues
+  [#11](https://github.com/matnoel/EasyFEA/issues/11),
+  [#13](https://github.com/matnoel/EasyFEA/issues/13), and
+  [#14](https://github.com/matnoel/EasyFEA/issues/14)).
+- Added comprehensive documentation (see issue
+  [#5](https://github.com/matnoel/EasyFEA/issues/5)).
+- Fixed tkinter issue in CI for py3.12 on windows. (see:
+  https://github.com/matnoel/EasyFEA/actions/runs/15673958144/job/44150031408)
 
 ## 1.4.2 (June 7, 2025):
 
-- Direct dependency on meshio@ git+https://github.com/matnoel/meshio.git cannot be included in PyPI.
+- Direct dependency on meshio@ git+https://github.com/matnoel/meshio.git cannot be
+  included in PyPI.
 
 ## 1.4.1 (June 7, 2025):
 
 - Updated project dependency to https://github.com/matnoel/meshio.git
 - Fixed issue [#9](https://github.com/matnoel/EasyFEA/issues/9): add vizir output format
-- Fixed issue [#10](https://github.com/matnoel/EasyFEA/issues/10): format the code with black
+- Fixed issue [#10](https://github.com/matnoel/EasyFEA/issues/10): format the code with
+  black
 - Fixed bug in gauss quadrature for prisms
-- Fixed issue [#11](https://github.com/matnoel/EasyFEA/issues/11): add continuous integration with github-actions
+- Fixed issue [#11](https://github.com/matnoel/EasyFEA/issues/11): add continuous
+  integration with github-actions
 - Fixed issue [#14](https://github.com/matnoel/EasyFEA/issues/14): test types with mypy.
 - Added new badges in the readme file.
 
 ## 1.4.0 (April 24, 2025):
 
-- Fixed issues [#6](https://github.com/matnoel/EasyFEA/issues/6) and [#7](https://github.com/matnoel/EasyFEA/issues/7).
+- Fixed issues [#6](https://github.com/matnoel/EasyFEA/issues/6) and
+  [#7](https://github.com/matnoel/EasyFEA/issues/7).
 - Organized the `tests/` directory.
 - Updated hyperbolic solvers (`hht`, `newmark`, `midpoint`).
-- Created a linear algebra module for the `Trace`, `Det`, `Inv`, `TensorProd`, `Transpose`, and `Norm` functions.
-- Updated the `MeshIO` interface. Removed unnecessary node reordering, which is now handled by the https://github.com/matnoel/meshio fork.
+- Created a linear algebra module for the `Trace`, `Det`, `Inv`, `TensorProd`,
+  `Transpose`, and `Norm` functions.
+- Updated the `MeshIO` interface. Removed unnecessary node reordering, which is now
+  handled by the https://github.com/matnoel/meshio fork.
 - Replaced `simu.Get_directions()` with `simu.Get_unknowns()`.
 - Clarified the `groupElem.Get_F_e_pg()` function.
 - Created `simu` functions to access Neumann boundary condition values.
@@ -647,14 +951,17 @@ Meshes can now contain **several element groups of the same (main) dimension**, 
 
 ## 1.3.2 (March 16, 2025):
 
-- Updated pyproject.toml (name = "easyfea") to comply with PyPI distribution format specifications.
-- Enhanced Gmsh_Interface to support linked surface creation by adding pointTags to the addSurfaceFilling function in Gmsh.
+- Updated pyproject.toml (name = "easyfea") to comply with PyPI distribution format
+  specifications.
+- Enhanced Gmsh_Interface to support linked surface creation by adding pointTags to the
+  addSurfaceFilling function in Gmsh.
 
 ## 1.3.1 (February 28, 2025):
 
 - Updated Folder functions (New_File -> Join(mkdir=True), Get_Path() -> Dir())
 - Removed colors in Display.Plot_Tags()
-- Updated the method for setting up a tag in a mesh (_Set_Nodes_Tag and _Set_Elements_Tag).
+- Updated the method for setting up a tag in a mesh (\_Set_Nodes_Tag and
+  \_Set_Elements_Tag).
 - Removed the old trick to generate the mesh with gmsh recombine
 - Updated Gmsh_Interface tests (test_mesh_isOrganised).
 - Enhanced examples.
@@ -691,7 +998,7 @@ Meshes can now contain **several element groups of the same (main) dimension**, 
 - Updated docstrings.
 - Updated Display functions.
 - Updated PyVista_Interface functions.
-- Added _Elas.Get_sqrt_C_S() function.
+- Added \_Elas.Get_sqrt_C_S() function.
 - Updated He split for heterogeneous material properties.
 - Added Save_pickle() and Load_pickle() functions.
 - Updated Gmsh_Interface for cracks.
@@ -704,10 +1011,10 @@ Meshes can now contain **several element groups of the same (main) dimension**, 
 ## 1.2.2 (September 10, 2024):
 
 - Updated docstrings.
-- Updated simulations/_phasefield.py solver.
+- Updated simulations/\_phasefield.py solver.
 - Updated Bc Config.
 - Updated tests.
-- Updated _Additional_Points().
+- Updated \_Additional_Points().
 - Updated Mesh_Beams().
 
 ## 1.2.1 (August 17, 2024):
@@ -716,8 +1023,10 @@ Meshes can now contain **several element groups of the same (main) dimension**, 
 
 ## 1.2.0 (August 14, 2024):
 
-- Added the resetAll option in Set_Iter() to simplify the update process after iteration activation.
-- Enhanced clarity in phase field functions, including both simulation and material aspects.
+- Added the resetAll option in Set_Iter() to simplify the update process after iteration
+  activation.
+- Enhanced clarity in phase field functions, including both simulation and material
+  aspects.
 - Improved display options for geometric objects.
 - Improved display functions.
 - Provided clearer functionality in mesh and group element.
@@ -742,8 +1051,10 @@ Meshes can now contain **several element groups of the same (main) dimension**, 
 - Minor adjustments to object printing.
 - Reorganization of save functions in the simulation recording and loading process.
 - Modification of the PETSc interface for the new version.
-- Implemented minor refinements in Solvers.py to ensure correct canonical values of matrix A in Ax=b equations, thus avoiding potential bugs when using PETSc or pypardiso.
-- Renamed functions in fem/_gauss.py to improve clarity and consistency.
+- Implemented minor refinements in Solvers.py to ensure correct canonical values of
+  matrix A in Ax=b equations, thus avoiding potential bugs when using PETSc or
+  pypardiso.
+- Renamed functions in fem/\_gauss.py to improve clarity and consistency.
 - Updated function names in Display.py to improve readability.
 - Updated copyright information to reflect the latest changes.
 - Added a contribution guide to facilitate community participation and collaboration.

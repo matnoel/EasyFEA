@@ -1,17 +1,22 @@
 (howto-models)=
+
 # Create a model
 
-A **model** encapsulates the material parameters and physics of a simulation ({py:class}`~EasyFEA.Simulations._Simu`) and is accessible in the {py:mod}`EasyFEA.Models` namespace.
+A **model** encapsulates the material parameters and physics of a simulation
+({py:class}`~EasyFEA.Simulations._Simu`) and is accessible in the
+{py:mod}`EasyFEA.Models` namespace.
 
 ```{seealso}
 - {ref}`models` API
 ```
 
----
+______________________________________________________________________
 
 ## Linear elastic models
 
-All elastic models expose a `.C` property: the **stiffness tensor in Kelvin–Mandel notation**, a symmetric positive-definite matrix that maps strains $\boldsymbol{\varepsilon}$ to stresses $\boldsymbol{\sigma}$:
+All elastic models expose a `.C` property: the **stiffness tensor in Kelvin–Mandel
+notation**, a symmetric positive-definite matrix that maps strains
+$\boldsymbol{\varepsilon}$ to stresses $\boldsymbol{\sigma}$:
 
 $$
 \boldsymbol{\sigma} = \Crm \, \boldsymbol{\varepsilon}
@@ -36,8 +41,8 @@ mat = Models.Elastic.Isotropic(dim=2, E=210000, v=0.3, planeStress=True, thickne
 mat3d = Models.Elastic.Isotropic(dim=3, E=210000, v=0.3)
 ```
 
-`planeStress=True` (default) applies the plane-stress assumption in 2D.
-Set `planeStress=False` for plane strain.
+`planeStress=True` (default) applies the plane-stress assumption in 2D. Set
+`planeStress=False` for plane strain.
 
 ### {py:class}`~EasyFEA.Models.Elastic.TransverselyIsotropic`
 
@@ -60,8 +65,8 @@ mat = Models.Elastic.TransverselyIsotropic(
 
 ### {py:class}`~EasyFEA.Models.Elastic.Orthotropic`
 
-Three distinct material axes, each with its own Young's modulus, shear
-modulus, and Poisson ratio:
+Three distinct material axes, each with its own Young's modulus, shear modulus, and
+Poisson ratio:
 
 ```python
 from EasyFEA import Models
@@ -94,7 +99,7 @@ mat = Models.Elastic.Anisotropic(
 )
 ```
 
----
+______________________________________________________________________
 
 ## Hyperelastic models
 
@@ -146,12 +151,12 @@ mat = Models.HyperElastic.HolzapfelOgden(
 )
 ```
 
----
+______________________________________________________________________
 
 ## Thermal model
 
-A {py:class}`~EasyFEA.Models.Thermal` model is defined by thermal conductivity `k` and, for transient problems, heat
-capacity `c`:
+A {py:class}`~EasyFEA.Models.Thermal` model is defined by thermal conductivity `k` and,
+for transient problems, heat capacity `c`:
 
 ```python
 from EasyFEA import Models
@@ -163,12 +168,12 @@ mat = Models.Thermal(k=1.0)
 mat_transient = Models.Thermal(k=1.0, c=500.0, thickness=1.0)
 ```
 
----
+______________________________________________________________________
 
 ## Phase-field model
 
-{py:class}`~EasyFEA.Models.PhaseField` wraps an {py:class}`~EasyFEA.Models.Elastic` model and adds the
-fracture parameters:
+{py:class}`~EasyFEA.Models.PhaseField` wraps an {py:class}`~EasyFEA.Models.Elastic`
+model and adds the fracture parameters:
 
 ```python
 from EasyFEA import Models
@@ -184,12 +189,12 @@ mat = Models.PhaseField(
 )
 ```
 
----
+______________________________________________________________________
 
 ## WeakForms model
 
-{py:class}`~EasyFEA.Models.WeakForms` takes the bilinear and linear form
-functions defined with `@BiLinearForm` / `@LinearForm` decorators:
+{py:class}`~EasyFEA.Models.WeakForms` takes the bilinear and linear form functions
+defined with `@BiLinearForm` / `@LinearForm` decorators:
 
 ```python
 from EasyFEA.FEM import Field, BiLinearForm

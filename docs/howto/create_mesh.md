@@ -1,9 +1,10 @@
 (howto-mesh)=
+
 # Create a mesh
 
 A **mesh** is a discrete representation of the continuous simulation domain / geometry.
-Meshes are produced by {py:class}`~EasyFEA.FEM.Mesher` (which wraps [Gmsh](https://gmsh.info/)) and
-are accessible in the {py:mod}`EasyFEA.FEM` module.
+Meshes are produced by {py:class}`~EasyFEA.FEM.Mesher` (which wraps
+[Gmsh](https://gmsh.info/)) and are accessible in the {py:mod}`EasyFEA.FEM` module.
 
 ```{note}
 To import an existing mesh file instead of creating one from scratch, see
@@ -14,25 +15,26 @@ To import an existing mesh file instead of creating one from scratch, see
 - {ref}`FEM` API
 ```
 
----
+______________________________________________________________________
 
 ## Geometry objects
 
-Mesh generation relies on manipulating the geometric objects listed below, which are available in the {py:class}`EasyFEA.Geoms` namespace:
+Mesh generation relies on manipulating the geometric objects listed below, which are
+available in the {py:class}`EasyFEA.Geoms` namespace:
 
-| Class | Description |
-|---|---|
-| {py:class}`~EasyFEA.Geoms.Point` | Single point; optional fillet radius `r` |
-| {py:class}`~EasyFEA.Geoms.Line` | Straight segment between two points |
-| {py:class}`~EasyFEA.Geoms.Circle` | Full circle defined by center and diameter |
-| {py:class}`~EasyFEA.Geoms.CircleArc` | Circular arc (from radius, center, or on-circle point) |
-| {py:class}`~EasyFEA.Geoms.Points` | Closed polygon / spline from a list of points |
-| {py:class}`~EasyFEA.Geoms.Contour` | Closed loop assembled from `Line`, `CircleArc`, and/or `Points` |
-| {py:class}`~EasyFEA.Geoms.Domain` | Axis-aligned rectangle or box defined by two corners |
+| Class                                | Description                                                     |
+| ------------------------------------ | --------------------------------------------------------------- |
+| {py:class}`~EasyFEA.Geoms.Point`     | Single point; optional fillet radius `r`                        |
+| {py:class}`~EasyFEA.Geoms.Line`      | Straight segment between two points                             |
+| {py:class}`~EasyFEA.Geoms.Circle`    | Full circle defined by center and diameter                      |
+| {py:class}`~EasyFEA.Geoms.CircleArc` | Circular arc (from radius, center, or on-circle point)          |
+| {py:class}`~EasyFEA.Geoms.Points`    | Closed polygon / spline from a list of points                   |
+| {py:class}`~EasyFEA.Geoms.Contour`   | Closed loop assembled from `Line`, `CircleArc`, and/or `Points` |
+| {py:class}`~EasyFEA.Geoms.Domain`    | Axis-aligned rectangle or box defined by two corners            |
 
 `meshSize` on any geometry object sets the local target element size.
 
----
+______________________________________________________________________
 
 ```{tip}
 All examples below use `Matplotlib` (matplotlib) for inline output.
@@ -42,9 +44,8 @@ For interactive 3D visualization, replace `Matplotlib.Plot_Mesh(mesh)` with
 
 ## 2D mesh
 
-{py:meth}`~EasyFEA.Geoms._Geom.Mesh_2D` meshes the surface of the geometry,
-with optional inclusions (holes, filled regions), cracks, and local
-refinement.
+{py:meth}`~EasyFEA.Geoms._Geom.Mesh_2D` meshes the surface of the geometry, with
+optional inclusions (holes, filled regions), cracks, and local refinement.
 
 ### Simple rectangle
 
@@ -62,7 +63,9 @@ refinement.
 
 ### Rectangle with a circular hole
 
-When the geometry is not used as a contour in `Mesh_*` functions `isFilled=False` (the default) means the geometry defines a hole or boundary only; `isFilled=True` means it defines a filled region.
+When the geometry is not used as a contour in `Mesh_*` functions `isFilled=False` (the
+default) means the geometry defines a hole or boundary only; `isFilled=True` means it
+defines a filled region.
 
 ```{eval-rst}
 .. jupyter-execute::
@@ -83,7 +86,8 @@ When the geometry is not used as a contour in `Mesh_*` functions `isFilled=False
 
 ### Structured quad mesh
 
-By setting `isOrganised=True`, you obtain a structured mesh that requires a structurable polygon consisting of four or three segments:
+By setting `isOrganised=True`, you obtain a structured mesh that requires a structurable
+polygon consisting of four or three segments:
 
 ```{eval-rst}
 .. jupyter-execute::
@@ -96,12 +100,12 @@ By setting `isOrganised=True`, you obtain a structured mesh that requires a stru
     Matplotlib.Plot_Mesh(mesh)
 ```
 
----
+______________________________________________________________________
 
 ## 3D mesh by extrusion
 
-{py:meth}`~EasyFEA.Geoms._Geom.Mesh_Extrude` creates a 3D volume by
-extruding a 2D surface along a direction vector.
+{py:meth}`~EasyFEA.Geoms._Geom.Mesh_Extrude` creates a 3D volume by extruding a 2D
+surface along a direction vector.
 
 ```{eval-rst}
 .. jupyter-execute::
@@ -119,12 +123,12 @@ extruding a 2D surface along a direction vector.
     Matplotlib.Plot_Mesh(mesh)
 ```
 
----
+______________________________________________________________________
 
 ## 3D mesh by revolution
 
-{py:meth}`~EasyFEA.Geoms._Geom.Mesh_Revolve` sweeps a 2D cross-section
-around an axis to create an axisymmetric volume.
+{py:meth}`~EasyFEA.Geoms._Geom.Mesh_Revolve` sweeps a 2D cross-section around an axis to
+create an axisymmetric volume.
 
 ```{eval-rst}
 .. jupyter-execute::
@@ -145,8 +149,9 @@ around an axis to create an axisymmetric volume.
     Matplotlib.Plot_Mesh(mesh)
 ```
 
----
+______________________________________________________________________
 
 ## Element types
 
-The types of isoparametric geometric elements that can be used to discretize the domain are available in the {py:class}`~EasyFEA.FEM.ElemType` class.
+The types of isoparametric geometric elements that can be used to discretize the domain
+are available in the {py:class}`~EasyFEA.FEM.ElemType` class.

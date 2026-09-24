@@ -1,21 +1,29 @@
 (howto-mpi)=
+
 # Run simulations in parallel with MPI
 
-**MPI parallelism** distributes the mesh and linear system across multiple processes to accelerate large simulations.
-Every {py:class}`~EasyFEA.Simulations._Simu` in the {py:mod}`EasyFEA.Simulations`
-namespace (except {py:class}`~EasyFEA.Simulations.DIC`) supports it — no changes to your script are required.
-It is built on [`mpi4py`](https://mpi4py.readthedocs.io) and [`petsc4py`](https://petsc4py.readthedocs.io): when running with more than one rank, EasyFEA partitions the mesh at the element level with [gmsh](https://gmsh.info/), assembles the distributed linear system, and solves it with [PETSc](https://petsc.org).
+**MPI parallelism** distributes the mesh and linear system across multiple processes to
+accelerate large simulations. Every {py:class}`~EasyFEA.Simulations._Simu` in the
+{py:mod}`EasyFEA.Simulations` namespace (except {py:class}`~EasyFEA.Simulations.DIC`)
+supports it — no changes to your script are required. It is built on
+[`mpi4py`](https://mpi4py.readthedocs.io) and
+[`petsc4py`](https://petsc4py.readthedocs.io): when running with more than one rank,
+EasyFEA partitions the mesh at the element level with [gmsh](https://gmsh.info/),
+assembles the distributed linear system, and solves it with [PETSc](https://petsc.org).
 
 ```{note}
 `petsc4py` is **required** for parallel execution. EasyFEA raises an assertion
 error at simulation construction time if it is not available.
 ```
 
----
+______________________________________________________________________
 
 ## Install petsc4py
 
-[`petsc`](https://pypi.org/project/petsc/) and [`petsc4py`](https://pypi.org/project/petsc4py/) are published as source only, so both are compiled during the install — a few minutes. They are built against the MPI installed on the machine, which must provide `mpicc` and `mpifort`:
+[`petsc`](https://pypi.org/project/petsc/) and
+[`petsc4py`](https://pypi.org/project/petsc4py/) are published as source only, so both
+are compiled during the install — a few minutes. They are built against the MPI
+installed on the machine, which must provide `mpicc` and `mpifort`:
 
 ```bash
 brew install open-mpi              # macOS
@@ -30,11 +38,15 @@ python -m pip install petsc
 python -m pip install --no-build-isolation petsc4py
 ```
 
-+ `PETSC_CONFIGURE_OPTIONS` selects the external packages — here MUMPS and SuperLU_DIST, the two direct solvers that run in parallel. Without them only `cg` + `gamg` and PETSc's built-in LU are available. See [Tune the linear solver](#mpi-tune-solver).
-+ `petsc` and `petsc4py` are installed by two separate commands, and `--no-build-isolation` lets the second import the first to locate PETSc.
-+ `cython` is capped: `petsc4py` 3.25.4 does not compile with Cython >= 3.3.
+- `PETSC_CONFIGURE_OPTIONS` selects the external packages — here MUMPS and SuperLU_DIST,
+  the two direct solvers that run in parallel. Without them only `cg` + `gamg` and
+  PETSc's built-in LU are available. See [Tune the linear solver](#mpi-tune-solver).
+- `petsc` and `petsc4py` are installed by two separate commands, and
+  `--no-build-isolation` lets the second import the first to locate PETSc.
+- `cython` is capped: `petsc4py` 3.25.4 does not compile with Cython >= 3.3.
 
-To change the options afterwards, rebuild both with `--force-reinstall --no-cache-dir`, otherwise pip reinstalls the wheel it built from the previous ones.
+To change the options afterwards, rebuild both with `--force-reinstall --no-cache-dir`,
+otherwise pip reinstalls the wheel it built from the previous ones.
 
 ```{warning}
 Install a single MPI. The wheels [`mpich`](https://pypi.org/project/mpich/) and [`openmpi`](https://pypi.org/project/openmpi/) provide `mpicc` and `mpirun` but no `mpifort`, so alongside a system MPI the build mixes both — `mpicc` from the wheel, `mpifort` from the system — and stops at `Error configuring SCALAPACK with CMake`. `mpi4py` needs no such wheel: it binds to the MPI found at run time.
@@ -48,7 +60,9 @@ Prebuilt for Linux and macOS, MUMPS and SuperLU_DIST included:
 conda install -c conda-forge petsc petsc4py mpi4py
 ```
 
-Take all three from conda-forge: a conda PETSc with a pip `mpi4py` loads two MPI libraries and fails at run time. Windows has no PETSc build at all — use [WSL2](https://petsc.org/release/install/windows/).
+Take all three from conda-forge: a conda PETSc with a pip `mpi4py` loads two MPI
+libraries and fails at run time. Windows has no PETSc build at all — use
+[WSL2](https://petsc.org/release/install/windows/).
 
 ### Check the installation
 
@@ -57,18 +71,20 @@ python -c "from petsc4py import PETSc; print(PETSc.Sys.getVersion())"
 python -c "from petsc4py import PETSc; print([(p, PETSc.Sys.hasExternalPackage(p)) for p in ('mumps', 'superlu_dist')])"
 ```
 
----
+______________________________________________________________________
 
 ## Run a script in parallel
 
-Any EasyFEA script runs in parallel without modification. Use `mpirun` (or
-`mpiexec`) with the desired number of processes:
+Any EasyFEA script runs in parallel without modification. Use `mpirun` (or `mpiexec`)
+with the desired number of processes:
 
 ```bash
 mpirun -n 4 python my_simulation.py
 ```
 
-`mpirun`, `mpi4py` and PETSc must come from the same MPI. Launching processes with the `mpirun` of another one aborts with `Runtime environment uses unsupported PMI version PMIx`:
+`mpirun`, `mpi4py` and PETSc must come from the same MPI. Launching processes with the
+`mpirun` of another one aborts with
+`Runtime environment uses unsupported PMI version PMIx`:
 
 ```bash
 mpirun --version | head -1
@@ -87,40 +103,40 @@ default) and use `simu.Results_Set_Iteration_Summary(...)` to control progress
 reporting.
 ```
 
----
+______________________________________________________________________
 
 ## How parallelism works in EasyFEA
 
-EasyFEA uses **element-level domain decomposition**: each rank owns a disjoint
-subset of elements, plus a layer of **ghost elements** at partition boundaries.
-Ghost elements are copies of elements owned by a neighbouring rank; they are
-needed so that each rank can assemble the full stiffness contribution of every
-shared node without inter-rank communication during assembly. Node coordinates
-are distributed with the elements: a rank holds the coordinates of the nodes its
-own elements use, and no others.
+EasyFEA uses **element-level domain decomposition**: each rank owns a disjoint subset of
+elements, plus a layer of **ghost elements** at partition boundaries. Ghost elements are
+copies of elements owned by a neighbouring rank; they are needed so that each rank can
+assemble the full stiffness contribution of every shared node without inter-rank
+communication during assembly. Node coordinates are distributed with the elements: a
+rank holds the coordinates of the nodes its own elements use, and no others.
 
 The parallel execution proceeds as follows for each solve:
 
 1. Each rank assembles only its owned (and ghost) elements into their global sparse
    matrices (K, C, M) and load vector (F).
-2. PETSc solves the distributed system $\Arm \, \xrm = \brm$ using a Krylov
-   method (default: CG with GAMG preconditioner).
-3. An `Allreduce` over the disjoint owned DOF sets of each rank reconstructs
-   the full solution vector on **every** rank. Consequently, all ranks hold the
-   same, complete DOF result after each solve.
+2. PETSc solves the distributed system $\Arm \, \xrm = \brm$ using a Krylov method
+   (default: CG with GAMG preconditioner).
+3. An `Allreduce` over the disjoint owned DOF sets of each rank reconstructs the full
+   solution vector on **every** rank. Consequently, all ranks hold the same, complete
+   DOF result after each solve.
 
-The partition data for each element group ({py:class}`~EasyFEA.FEM._GroupElem`) can be inspected via
-{py:meth}`~EasyFEA.FEM._GroupElem._Get_partitioned_data`.
+The partition data for each element group ({py:class}`~EasyFEA.FEM._GroupElem`) can be
+inspected via {py:meth}`~EasyFEA.FEM._GroupElem._Get_partitioned_data`.
 
 ### Iteration saving
 
-{py:meth}`~EasyFEA.Simulations._Simu.Save_Iter` stores only the primary
-unknowns per iteration (e.g. displacement for elastic simulations, displacement
-and damage for phase-field). Derived quantities such as stress and strain are
-not stored — they are recomputed on demand by `Result()`. Because all ranks
-hold the same DOF vector after the solve, only rank 0 writes the result file.
+{py:meth}`~EasyFEA.Simulations._Simu.Save_Iter` stores only the primary unknowns per
+iteration (e.g. displacement for elastic simulations, displacement and damage for
+phase-field). Derived quantities such as stress and strain are not stored — they are
+recomputed on demand by `Result()`. Because all ranks hold the same DOF vector after the
+solve, only rank 0 writes the result file.
 
-Iteration results are kept in **memory** by default. To write them to **disk** and prevent memory issues, provide a folder at construction time or set it afterward:
+Iteration results are kept in **memory** by default. To write them to **disk** and
+prevent memory issues, provide a folder at construction time or set it afterward:
 
 ```python
 # at construction time
@@ -130,32 +146,36 @@ simu = Simulations.Elastic(mesh, mat, folder="path/to/folder")
 simu.folder = "path/to/folder"
 ```
 
-Iteration results will then be saved in `path/to/folder/Results` as `results*.pickle` files.
+Iteration results will then be saved in `path/to/folder/Results` as `results*.pickle`
+files.
 
 ### Saving simulation
 
-{py:meth}`~EasyFEA.Simulations._Simu.Save` writes one pickle file per rank (`path/to/folder/simulation_rank{N}.pickle`) since each rank holds a different mesh partition.
-{py:func}`~EasyFEA.Simulations.Load_Simu` reloads the appropriate file per rank transparently.
+{py:meth}`~EasyFEA.Simulations._Simu.Save` writes one pickle file per rank
+(`path/to/folder/simulation_rank{N}.pickle`) since each rank holds a different mesh
+partition. {py:func}`~EasyFEA.Simulations.Load_Simu` reloads the appropriate file per
+rank transparently.
 
 ### Phase-field convergence
 
-For phase-field simulations, energy-based convergence criteria
-(`convOption=1` or `convOption=2`) reduce partial energy contributions across
-all ranks via `Allreduce` before evaluating the stopping criterion. The
-convergence flag is therefore consistent across ranks and produces results
-identical to a serial run.
+For phase-field simulations, energy-based convergence criteria (`convOption=1` or
+`convOption=2`) reduce partial energy contributions across all ranks via `Allreduce`
+before evaluating the stopping criterion. The convergence flag is therefore consistent
+across ranks and produces results identical to a serial run.
 
----
+______________________________________________________________________
 
 (mpi-tune-solver)=
+
 ## Tune the linear solver
 
-The default solver (`cg` + `gamg`) is a good general-purpose choice for both
-serial and parallel execution. For large meshes or specific problem types, it
-can be tuned via the advanced method
-{py:meth}`~EasyFEA.Simulations._Simu._Solver_Set_PETSc4Py_Options`.
+The default solver (`cg` + `gamg`) is a good general-purpose choice for both serial and
+parallel execution. For large meshes or specific problem types, it can be tuned via the
+advanced method {py:meth}`~EasyFEA.Simulations._Simu._Solver_Set_PETSc4Py_Options`.
 
-A direct factorization is requested with `kspType="preonly"` and `pcType="lu"`, the factorization itself being performed by `solverType`. MUMPS and SuperLU_DIST both run serial and parallel, so the same call is used for any number of ranks:
+A direct factorization is requested with `kspType="preonly"` and `pcType="lu"`, the
+factorization itself being performed by `solverType`. MUMPS and SuperLU_DIST both run
+serial and parallel, so the same call is used for any number of ranks:
 
 ```python
 simu._Solver_Set_PETSc4Py_Options(kspType="preonly", pcType="lu", solverType="mumps")
@@ -167,17 +187,17 @@ advanced API (single-underscore prefix). Use it when the default solver is too
 slow or fails to converge.
 ```
 
----
+______________________________________________________________________
 
 ## Post-process results
 
 ### Reduce your own quantities
 
-The solve is handled for you, but **anything your script computes itself is partition-local until you
-reduce it**. A `.sum()` over elements, a `.min()` over Gauss points, a `.max()` over a node tag: each
-returns this rank's share, silently and without error. {py:mod}`EasyFEA.Utilities._mpi` provides the
-reductions, all of which are the identity in serial, so the script is written once and runs under any
-number of ranks:
+The solve is handled for you, but **anything your script computes itself is
+partition-local until you reduce it**. A `.sum()` over elements, a `.min()` over Gauss
+points, a `.max()` over a node tag: each returns this rank's share, silently and without
+error. {py:mod}`EasyFEA.Utilities._mpi` provides the reductions, all of which are the
+identity in serial, so the script is written once and runs under any number of ranks:
 
 ```python
 from EasyFEA.Utilities._mpi import Reduce_sum, Reduce_min, Reduce_max, Allgather
@@ -188,22 +208,24 @@ minDetF = Reduce_min(np.linalg.det(F_e_pg).min())
 
 Two traps worth knowing:
 
-- **Ghost elements are counted twice.** A sum over elements must run over the *owned* ones only, or
-  every partition-boundary element contributes from both its ranks. `_Get_partitioned_data()` gives
-  them; `groupElem._globalElements` maps local rows to global indices. A `min` or `max` needs no such
-  care — a duplicate cannot change an extremum.
-- **A signed sum must be reduced before it is rectified.** `abs(local.sum())` reduced is not
-  `abs(global.sum())`.
+- **Ghost elements are counted twice.** A sum over elements must run over the *owned*
+  ones only, or every partition-boundary element contributes from both its ranks.
+  `_Get_partitioned_data()` gives them; `groupElem._globalElements` maps local rows to
+  global indices. A `min` or `max` needs no such care — a duplicate cannot change an
+  extremum.
+- **A signed sum must be reduced before it is rectified.** `abs(local.sum())` reduced is
+  not `abs(global.sum())`.
 
-For an energy, {py:meth}`~EasyFEA.Simulations._Simu.Calc_Energy` does this correctly already:
+For an energy, {py:meth}`~EasyFEA.Simulations._Simu.Calc_Energy` does this correctly
+already:
 
 ```python
 K, _, M, _ = simu.Get_K_C_M_F()
 energy = simu.Calc_Energy(K, u) + simu.Calc_Energy(M, v)
 ```
 
-Reductions that are not a scalar operation go through `Allgather` — reduce locally first, then gather
-one candidate per rank, never the raw data:
+Reductions that are not a scalar operation go through `Allgather` — reduce locally
+first, then gather one candidate per rank, never the raw data:
 
 ```python
 coord = mesh.groupElem.coord                 # dense, this rank's nodes, no empty rows
@@ -212,8 +234,9 @@ apex = min(Allgather(coord[np.argmin(coord[:, 2])]), key=lambda point: point[2])
 
 ### Plotting and in-memory post-processing
 
-Each rank holds only its local mesh partition.
-To post-process or visualize results on the complete global mesh, call {py:meth}`~EasyFEA.Simulations._Simu._Gather` after the solve loop:
+Each rank holds only its local mesh partition. To post-process or visualize results on
+the complete global mesh, call {py:meth}`~EasyFEA.Simulations._Simu._Gather` after the
+solve loop:
 
 ```python
 simu._Gather()  # assembles the full mesh on rank 0; no-op on other ranks
@@ -222,14 +245,16 @@ if MPI_RANK == 0:
     Matplotlib.Plot(simu, "uy")
 ```
 
-Explicit calls to {py:meth}`~EasyFEA.Simulations._Simu._Gather` are only necessary for in-memory post-processing within the script, and to avoid spawning multiple figures or deadlocking non-root ranks.
+Explicit calls to {py:meth}`~EasyFEA.Simulations._Simu._Gather` are only necessary for
+in-memory post-processing within the script, and to avoid spawning multiple figures or
+deadlocking non-root ranks.
 
 ### Export to ParaView
 
-{py:func}`~EasyFEA.Utilities.Paraview.Save_simu` supports fully parallel
-export. Each rank writes its own `.vtu` piece; rank 0 additionally writes the
-`.pvtu` parallel descriptor and the `.pvd` timeline. ParaView reads the `.pvd`
-and assembles all pieces automatically.
+{py:func}`~EasyFEA.Utilities.Paraview.Save_simu` supports fully parallel export. Each
+rank writes its own `.vtu` piece; rank 0 additionally writes the `.pvtu` parallel
+descriptor and the `.pvd` timeline. ParaView reads the `.pvd` and assembles all pieces
+automatically.
 
 ```python
 from EasyFEA import Paraview
@@ -245,29 +270,28 @@ After `_Gather`, rank 0 holds the full global mesh while other ranks still hold 
 {py:func}`~EasyFEA.Utilities.Paraview.Save_simu` raises an exception if `simu.isGathered` is `True` to prevent this.
 ```
 
----
+______________________________________________________________________
 
 ## Known limitations
 
-- **Serial-only solvers.** The `scipy` and `pypardiso` solvers are not
-  available in MPI mode. `petsc4py` is the only supported solver when
-  `MPI_SIZE > 1`.
+- **Serial-only solvers.** The `scipy` and `pypardiso` solvers are not available in MPI
+  mode. `petsc4py` is the only supported solver when `MPI_SIZE > 1`.
 
-- **Beam simulations.** {py:class}`~EasyFEA.Simulations.Beam` simulations are
-  not yet supported in MPI mode. The {py:class}`~EasyFEA.Models.Beam.Isotropic`
-  material requires a 2D cross-section mesh to compute section properties
-  (area, second moments of area $I_y$, $I_z$) by integrating over all section
-  elements. Partitioning the section across ranks would yield incorrect
-  properties.
+- **Beam simulations.** {py:class}`~EasyFEA.Simulations.Beam` simulations are not yet
+  supported in MPI mode. The {py:class}`~EasyFEA.Models.Beam.Isotropic` material
+  requires a 2D cross-section mesh to compute section properties (area, second moments
+  of area $I_y$, $I_z$) by integrating over all section elements. Partitioning the
+  section across ranks would yield incorrect properties.
 
-- **DIC analyses.** {py:class}`~EasyFEA.Simulations.DIC` analyses are not yet
-  supported in MPI mode.
+- **DIC analyses.** {py:class}`~EasyFEA.Simulations.DIC` analyses are not yet supported
+  in MPI mode.
 
-- **Topology optimisation.** The mesh-independence sensitivity filter
-  (Sigmund, 1998) builds a full $N_e \times N_e$ element-distance matrix from
-  all element centroids at once. With domain decomposition, each rank holds
-  only a subset of centroids, making the global filter construction impossible
-  without an explicit gather step.
+- **Topology optimisation.** The mesh-independence sensitivity filter (Sigmund, 1998)
+  builds a full $N_e \times N_e$ element-distance matrix from all element centroids at
+  once. With domain decomposition, each rank holds only a subset of centroids, making
+  the global filter construction impossible without an explicit gather step.
 
-- **Interactive visualization.** PyVista interactive windows and `plt.show()`
-  calls could be guarded by `if MPI_RANK == 0:` after calling {py:meth}`~EasyFEA.Simulations._Simu._Gather`, to avoid spawning multiple figures or deadlocking non-root ranks.
+- **Interactive visualization.** PyVista interactive windows and `plt.show()` calls
+  could be guarded by `if MPI_RANK == 0:` after calling
+  {py:meth}`~EasyFEA.Simulations._Simu._Gather`, to avoid spawning multiple figures or
+  deadlocking non-root ranks.

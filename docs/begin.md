@@ -1,11 +1,14 @@
 (begin)=
+
 # Beginner's Guide
 
-You can follow this guide along with this [video](https://www.youtube.com/watch?v=Jv3PwPDlz90).
+You can follow this guide along with this
+[video](https://www.youtube.com/watch?v=Jv3PwPDlz90).
 
-----
+______________________________________________________________________
 
-Like any Python script, you should start by importing the core modules from the EasyFEA package:
+Like any Python script, you should start by importing the core modules from the EasyFEA
+package:
 
 ```{eval-rst}
 .. jupyter-execute::
@@ -14,7 +17,7 @@ Like any Python script, you should start by importing the core modules from the 
     from EasyFEA.Geoms import Domain
 ```
 
-----
+______________________________________________________________________
 
 The most commonly used modules in EasyFEA are:
 
@@ -27,7 +30,8 @@ The most commonly used modules in EasyFEA are:
     ~EasyFEA.Geoms
 ```
 
-Let's now create a 2D {py:class}`~EasyFEA.FEM._mesh.Mesh` using a simple rectangular domain:
+Let's now create a 2D {py:class}`~EasyFEA.FEM._mesh.Mesh` using a simple rectangular
+domain:
 
 ```{eval-rst}
 .. jupyter-execute::
@@ -42,10 +46,11 @@ Let's now create a 2D {py:class}`~EasyFEA.FEM._mesh.Mesh` using a simple rectang
     mesh = domain.Mesh_2D([], ElemType.QUAD9, isOrganised=True)
     Matplotlib.Plot_Mesh(mesh)
 ```
-    
-----
 
-Next, define a linear {py:class}`~EasyFEA.Models.Elastic.Isotropic` material and set up the {py:class}`~EasyFEA.Simulations.Elastic`  simulation:
+______________________________________________________________________
+
+Next, define a linear {py:class}`~EasyFEA.Models.Elastic.Isotropic` material and set up
+the {py:class}`~EasyFEA.Simulations.Elastic` simulation:
 
 ```{eval-rst}
 .. jupyter-execute::
@@ -61,10 +66,11 @@ Next, define a linear {py:class}`~EasyFEA.Models.Elastic.Isotropic` material and
 
     simu = Simulations.Elastic(mesh, mat)
 ```
-    
-----
 
-Once the simulation has been set up, defining boundary conditions, solving the problem, and visualizing the results is straightforward.
+______________________________________________________________________
+
+Once the simulation has been set up, defining boundary conditions, solving the problem,
+and visualizing the results is straightforward.
 
 ```{eval-rst}
 .. jupyter-execute::
@@ -85,25 +91,24 @@ Once the simulation has been set up, defining boundary conditions, solving the p
     Matplotlib.Plot(simu, "uy", plotMesh=True)
     Matplotlib.Plot(simu, "Svm", plotMesh=True, ncolors=11)
 ```
-    
-----
+
+______________________________________________________________________
 
 This script is available in the {doc}`HelloWorld example <examples/HelloWorld>`.
 
----
+______________________________________________________________________
 
 ## Next steps
 
-| I want to … | Guide |
-|---|---|
-| Describe a geometry | {ref}`howto-geom` |
-| Create a mesh from scratch | {ref}`howto-mesh` |
-| Choose a material model | {ref}`howto-models` |
-| Apply loads and constraints | {ref}`howto-boundary-conditions` |
-| Import an external mesh file | {ref}`howto-import-mesh` |
-| Visualize and export results | {ref}`howto-postprocess` |
-| Understand what happens inside `Solve()` | {ref}`howto-pipeline` |
+| I want to …                              | Guide                            |
+| ---------------------------------------- | -------------------------------- |
+| Describe a geometry                      | {ref}`howto-geom`                |
+| Create a mesh from scratch               | {ref}`howto-mesh`                |
+| Choose a material model                  | {ref}`howto-models`              |
+| Apply loads and constraints              | {ref}`howto-boundary-conditions` |
+| Import an external mesh file             | {ref}`howto-import-mesh`         |
+| Visualize and export results             | {ref}`howto-postprocess`         |
+| Understand what happens inside `Solve()` | {ref}`howto-pipeline`            |
 
 For the full list of available simulations and API details, see the
 {doc}`examples <examples/index>` and {doc}`API reference <api/index>`.
-

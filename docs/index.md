@@ -4,84 +4,128 @@
 
 ## 🧭 Overview
 
-**EasyFEA** is a user‑friendly Python library that simplifies finite element analysis by abstracting complex PDE formulations. It is flexible and supports a range of linear and nonlinear simulations with minimal setup. You will find below the finite element analysis that you can conduct using EasyFEA:
+**EasyFEA** is a user‑friendly Python library that simplifies finite element analysis by
+abstracting complex PDE formulations. It is flexible and supports a range of linear and
+nonlinear simulations with minimal setup. You will find below the finite element
+analysis that you can conduct using EasyFEA:
 
-1. {doc}`Linear elastic simulations <examples/LinearizedElasticity/index>`: ``static``, ``dynamic``, ``homogenization`` and ``mesh optimization``.
-2. {doc}`Hyperelastic simulations <examples/Hyperelasticity/index>`: ``static`` and ``dynamic`` in the ``Lagrangian`` framework.
-3. {doc}`Inelastic simulations <examples/Inelasticity/index>`: small-strain ``plasticity``, ``viscoplasticity`` and ``viscoelasticity``, assembled from a yield surface, hardening, a back-stress, a rate law and Maxwell branches.
-4. {doc}`Cardiac elasto-dynamics <examples/CardiacElastoDynamics/index>`: passive + active hyperelastic ``mono-ventricular`` left-ventricle benchmark.
-5. {doc}`Contact simulations <examples/Contact/index>`: frictionless ``penalty`` contact against a rigid obstacle.
-6. {doc}`Euler-Bernoulli and Timoshenko beam simulations <examples/Beam/index>`: ``static`` and ``dynamic``.
-7. {doc}`Thermal simulations <examples/Thermal/index>`: ``static`` and ``transient``.
-8. {doc}`Phase-field damage simulations for quasi-static brittle fracture <examples/PhaseField/index>`: advanced ``2D`` and ``3D`` simulations for ``isotropic``, ``transversely isotropic``, and ``anisotropic`` materials.
-9. {doc}`Weak forms simulations <examples/WeakForms/index>`: ``static``, ``transient`` and ``dynamic`` for ``linear`` or ``non-linear`` problems.
+01. {doc}`Linear elastic simulations <examples/LinearizedElasticity/index>`: `static`,
+    `dynamic`, `homogenization` and `mesh optimization`.
+02. {doc}`Hyperelastic simulations <examples/Hyperelasticity/index>`: `static` and
+    `dynamic` in the `Lagrangian` framework.
+03. {doc}`Inelastic simulations <examples/Inelasticity/index>`: small-strain
+    `plasticity`, `viscoplasticity` and `viscoelasticity`, assembled from a yield
+    surface, hardening, a back-stress, a rate law and Maxwell branches.
+04. {doc}`Cardiac elasto-dynamics <examples/CardiacElastoDynamics/index>`: passive +
+    active hyperelastic `mono-ventricular` left-ventricle benchmark.
+05. {doc}`Contact simulations <examples/Contact/index>`: frictionless `penalty` contact
+    against a rigid obstacle.
+06. {doc}`Euler-Bernoulli and Timoshenko beam simulations <examples/Beam/index>`:
+    `static` and `dynamic`.
+07. {doc}`Thermal simulations <examples/Thermal/index>`: `static` and `transient`.
+08. {doc}`Phase-field damage simulations for quasi-static brittle fracture <examples/PhaseField/index>`:
+    advanced `2D` and `3D` simulations for `isotropic`, `transversely isotropic`, and
+    `anisotropic` materials.
+09. {doc}`Weak forms simulations <examples/WeakForms/index>`: `static`, `transient` and
+    `dynamic` for `linear` or `non-linear` problems.
 10. {doc}`Digital Image Correlation (DIC) analyses <examples/DIC/index>`.
 11. [Parameter identification](https://gitlab.univ-eiffel.fr/collaboration-msme-fcba/spruce-params).
 12. [Stochastic phase-field simulations](https://gitlab.univ-eiffel.fr/collaboration-msme-fcba/spruce-stochastic).
 
-📸 Explore the interactive **{doc}`gallery <gallery/index>`** to visualize simulation results.
+📸 Explore the interactive **{doc}`gallery <gallery/index>`** to visualize simulation
+results.
 
-For each simulation, users create a {py:class}`~EasyFEA.FEM._mesh.Mesh` and a {py:class}`~EasyFEA.Models._IModel`. Once the simulation has been set up, defining the boundary conditions, solving the problem and visualizing the results is straightforward.
+For each simulation, users create a {py:class}`~EasyFEA.FEM._mesh.Mesh` and a
+{py:class}`~EasyFEA.Models._IModel`. Once the simulation has been set up, defining the
+boundary conditions, solving the problem and visualizing the results is straightforward.
 
-Numerous examples of mesh creation are available in the  {doc}`/examples/Meshes <examples/Meshes/index>` gallery.
+Numerous examples of mesh creation are available in the
+{doc}`/examples/Meshes <examples/Meshes/index>` gallery.
 
 The simplest and quickest introduction is available in the {ref}`begin`.
 
 ## ⚖️ License
 
-Copyright (C) 2021-2024 Université Gustave Eiffel.
-Copyright (C) 2025-2026 Université Gustave Eiffel, INRIA.
+Copyright (C) 2021-2024 Université Gustave Eiffel. Copyright (C) 2025-2026 Université
+Gustave Eiffel, INRIA.
 
-EasyFEA is distributed under the terms of the [GNU General Public License v3.0 only](https://spdx.org/licenses/GPL-3.0-only.html), see [LICENSE.txt](https://github.com/matnoel/EasyFEA/blob/main/LICENSE.txt) and [CREDITS.md](https://github.com/matnoel/EasyFEA/blob/main/CREDITS.md) for more information.
+EasyFEA is distributed under the terms of the
+[GNU General Public License v3.0 only](https://spdx.org/licenses/GPL-3.0-only.html), see
+[LICENSE.txt](https://github.com/matnoel/EasyFEA/blob/main/LICENSE.txt) and
+[CREDITS.md](https://github.com/matnoel/EasyFEA/blob/main/CREDITS.md) for more
+information.
 
-## 💻  Installation
+## 💻 Installation
 
-EasyFEA can be easily installed from [PyPI](https://pypi.org/project/EasyFEA/) using pip, compatible with Python versions 3.10 through 3.14:
+EasyFEA can be easily installed from [PyPI](https://pypi.org/project/EasyFEA/) using
+pip, compatible with Python versions 3.10 through 3.14:
 
 ```
 pip install EasyFEA
 ```
 
-You can also install EasyFEA with the [source code](https://github.com/matnoel/EasyFEA) using the `pip install .` command in the downloaded or cloned EasyFEA `folder`.
+You can also install EasyFEA with the [source code](https://github.com/matnoel/EasyFEA)
+using the `pip install .` command in the downloaded or cloned EasyFEA `folder`.
 
 ### 📦 Dependencies
 
-EasyFEA uses several libraries, such as NumPy and Gmsh - as such, the following projects are required dependencies of EasyFEA:
+EasyFEA uses several libraries, such as NumPy and Gmsh - as such, the following projects
+are required dependencies of EasyFEA:
 
-+ [`numpy`](https://pypi.org/project/numpy/) - Fundamental package for scientific computing with Python.
-+ [`gmsh`](https://pypi.org/project/gmsh/) (>= 4.12) - Three-dimensional finite element mesh generator.
-+ [`scipy`](https://pypi.org/project/scipy/) - Fundamental package for scientific computing in Python.
+- [`numpy`](https://pypi.org/project/numpy/) - Fundamental package for scientific
+  computing with Python.
+- [`gmsh`](https://pypi.org/project/gmsh/) (>= 4.12) - Three-dimensional finite element
+  mesh generator.
+- [`scipy`](https://pypi.org/project/scipy/) - Fundamental package for scientific
+  computing in Python.
 
 ### 🧪 Optional Dependencies
 
-EasyFEA includes optional dependencies to reduce resolution time, plot results, or perform DIC:
+EasyFEA includes optional dependencies to reduce resolution time, plot results, or
+perform DIC:
 
-+ [`matplotlib`](https://pypi.org/project/matplotlib/) - Plotting package.
-+ [`pyvista`](https://pypi.org/project/pyvista/) - Plotting package.
-+ [`pypardiso`](https://pypi.org/project/pypardiso/) (Python > 3.8 & Intel oneAPI)  - Library for solving large systems of sparse linear equations.
-+ [`petsc`](https://pypi.org/project/petsc/) and [`petsc4py`](https://pypi.org/project/petsc4py/) - Python bindings for PETSc.
-+ [`imageio`](https://pypi.org/project/imageio/) and [`imageio-ffmpeg`](https://pypi.org/project/imageio-ffmpeg/) - Library for reading and writing a wide range of image, video, scientific, and volumetric data formats.
-+ [`meshio`](https://github.com/matnoel/meshio/tree/medit_higher_order_elements) - I/O for many mesh formats.
-+ [`opencv-python`](https://pypi.org/project/opencv-python/) - Computer Vision package.
-+ [`pygltflib`](https://pypi.org/project/pygltflib/) - Python library for reading, writing and managing 3D objects in the Khronos Group gltf and gltf2 formats.
-+ [`usd-core`](https://pypi.org/project/usd-core/) - Pixar's Universal Scene Description.
+- [`matplotlib`](https://pypi.org/project/matplotlib/) - Plotting package.
+- [`pyvista`](https://pypi.org/project/pyvista/) - Plotting package.
+- [`pypardiso`](https://pypi.org/project/pypardiso/) (Python > 3.8 & Intel oneAPI) -
+  Library for solving large systems of sparse linear equations.
+- [`petsc`](https://pypi.org/project/petsc/) and
+  [`petsc4py`](https://pypi.org/project/petsc4py/) - Python bindings for PETSc.
+- [`imageio`](https://pypi.org/project/imageio/) and
+  [`imageio-ffmpeg`](https://pypi.org/project/imageio-ffmpeg/) - Library for reading and
+  writing a wide range of image, video, scientific, and volumetric data formats.
+- [`meshio`](https://github.com/matnoel/meshio/tree/medit_higher_order_elements) - I/O
+  for many mesh formats.
+- [`opencv-python`](https://pypi.org/project/opencv-python/) - Computer Vision package.
+- [`pygltflib`](https://pypi.org/project/pygltflib/) - Python library for reading,
+  writing and managing 3D objects in the Khronos Group gltf and gltf2 formats.
+- [`usd-core`](https://pypi.org/project/usd-core/) - Pixar's Universal Scene
+  Description.
 
 ## 🔤 Naming conventions
 
-**EasyFEA** uses Object-Oriented Programming ([OOP](https://en.wikipedia.org/wiki/Object-oriented_programming)) with the following naming conventions:
-+ `PascalCasing` for classes
-+ `camelCasing` for properties
-+ `Snake_Casing` or `Snake_casing` for functions/methods
+**EasyFEA** uses Object-Oriented Programming
+([OOP](https://en.wikipedia.org/wiki/Object-oriented_programming)) with the following
+naming conventions:
 
-In this library, objects can contain both **public** and **private** properties or functions.
+- `PascalCasing` for classes
+- `camelCasing` for properties
+- `Snake_Casing` or `Snake_casing` for functions/methods
 
-**Private** parameters or functions are designated by a double underscore, such as `__privateParam`. In addition, parameters or functions beginning with an underscore, such as `_My_Function` are accessible to advanced users, but should be used with caution.
+In this library, objects can contain both **public** and **private** properties or
+functions.
+
+**Private** parameters or functions are designated by a double underscore, such as
+`__privateParam`. In addition, parameters or functions beginning with an underscore,
+such as `_My_Function` are accessible to advanced users, but should be used with
+caution.
 
 ## ✍️ Citing EasyFEA
 
-If you are using EasyFEA as part of your scientific research, please contribute to the scientific visibility of the project by citing it as follows.
+If you are using EasyFEA as part of your scientific research, please contribute to the
+scientific visibility of the project by citing it as follows.
 
-> Noel M., *EasyFEA: a user-friendly Python library that simplifies finite element analysis*, https://hal.science/hal-04571962
+> Noel M., *EasyFEA: a user-friendly Python library that simplifies finite element
+> analysis*, https://hal.science/hal-04571962
 
 Bibtex:
 
@@ -107,7 +151,9 @@ Bibtex:
 
 ### 📝 Scientific Publications
 
-- Noel M. et al.,  *Parameter identification for phase-field modeling of brittle fracture in spruce wood* - Engineering Fracture Mechanics, https://doi.org/10.1016/j.engfracmech.2025.111304
+- Noel M. et al., *Parameter identification for phase-field modeling of brittle fracture
+  in spruce wood* - Engineering Fracture Mechanics,
+  https://doi.org/10.1016/j.engfracmech.2025.111304
 
 ### 🧪 Research Projects
 
@@ -116,9 +162,13 @@ Bibtex:
 
 ## 🤝 Contributing
 
-**EasyFEA** is an emerging project with a strong commitment to growth and improvement. Your input and ideas are invaluable to me. I welcome your comments and advice with open arms, encouraging a culture of respect and kindness in our collaborative journey towards improvement.
+**EasyFEA** is an emerging project with a strong commitment to growth and improvement.
+Your input and ideas are invaluable to me. I welcome your comments and advice with open
+arms, encouraging a culture of respect and kindness in our collaborative journey towards
+improvement.
 
-To learn more about contributing to EasyFEA, please consult the [Contributing Guide](https://github.com/matnoel/EasyFEA/blob/main/CONTRIBUTING.md).
+To learn more about contributing to EasyFEA, please consult the
+[Contributing Guide](https://github.com/matnoel/EasyFEA/blob/main/CONTRIBUTING.md).
 
 # Contents
 

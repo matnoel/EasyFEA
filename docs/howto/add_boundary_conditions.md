@@ -1,14 +1,14 @@
 (howto-boundary-conditions)=
+
 # Apply boundary conditions
 
-**Boundary conditions** prescribe loads and constraints on the degrees of
-freedom of a {py:class}`~EasyFEA.Simulations._Simu`. They are applied to
-**node sets** via `add_*` methods on the simulation object and are accessible
-in the {py:mod}`EasyFEA.Simulations` namespace. Node sets come from coordinate
-conditions or from mesh tags — see {ref}`howto-import-mesh-tags` for the
-tag-based approach.
+**Boundary conditions** prescribe loads and constraints on the degrees of freedom of a
+{py:class}`~EasyFEA.Simulations._Simu`. They are applied to **node sets** via `add_*`
+methods on the simulation object and are accessible in the {py:mod}`EasyFEA.Simulations`
+namespace. Node sets come from coordinate conditions or from mesh tags — see
+{ref}`howto-import-mesh-tags` for the tag-based approach.
 
----
+______________________________________________________________________
 
 ## Query available unknowns
 
@@ -25,24 +25,24 @@ print(simu.Get_unknowns())
 # PhaseField:        ['x', 'y'] for elastic sub-problem, ['d'] for damage
 ```
 
-Pass these strings as the `unknowns` argument to every `add_*` method.
-You can also pass a **subset** — for example, fix only `["x"]` to constrain
-horizontal motion while leaving the vertical DOF free.
+Pass these strings as the `unknowns` argument to every `add_*` method. You can also pass
+a **subset** — for example, fix only `["x"]` to constrain horizontal motion while
+leaving the vertical DOF free.
 
----
+______________________________________________________________________
 
 ## Summary of BC methods
 
-| Method | Physical meaning | Integration |
-|---|---|---|
-| {py:meth}`~EasyFEA.Simulations._Simu.add_dirichlet` | Prescribed DOF value | — |
-| {py:meth}`~EasyFEA.Simulations._Simu.add_neumann` | Concentrated nodal force / flux | Point |
-| {py:meth}`~EasyFEA.Simulations._Simu.add_lineLoad` | Force per unit length | Along a line |
-| {py:meth}`~EasyFEA.Simulations._Simu.add_surfLoad` | Force per unit area | Over a surface |
-| {py:meth}`~EasyFEA.Simulations._Simu.add_volumeLoad` | Body force per unit volume | Over a volume |
-| {py:meth}`~EasyFEA.Simulations._Simu.add_pressureLoad` | Normal pressure | Along a line or surface |
+| Method                                                 | Physical meaning                | Integration             |
+| ------------------------------------------------------ | ------------------------------- | ----------------------- |
+| {py:meth}`~EasyFEA.Simulations._Simu.add_dirichlet`    | Prescribed DOF value            | —                       |
+| {py:meth}`~EasyFEA.Simulations._Simu.add_neumann`      | Concentrated nodal force / flux | Point                   |
+| {py:meth}`~EasyFEA.Simulations._Simu.add_lineLoad`     | Force per unit length           | Along a line            |
+| {py:meth}`~EasyFEA.Simulations._Simu.add_surfLoad`     | Force per unit area             | Over a surface          |
+| {py:meth}`~EasyFEA.Simulations._Simu.add_volumeLoad`   | Body force per unit volume      | Over a volume           |
+| {py:meth}`~EasyFEA.Simulations._Simu.add_pressureLoad` | Normal pressure                 | Along a line or surface |
 
----
+______________________________________________________________________
 
 ## Dirichlet conditions with {py:meth}`~EasyFEA.Simulations._Simu.add_dirichlet`
 
@@ -61,13 +61,13 @@ simu.add_dirichlet(nodes_top, [100.0], ["t"])
 simu.add_dirichlet(nodes, [lambda x, y, z: 0.01 * x], ["y"])
 ```
 
----
+______________________________________________________________________
 
 ## Concentrated force with {py:meth}`~EasyFEA.Simulations._Simu.add_neumann`
 
-Applies a concentrated force (or flux) directly on the selected nodes. No
-integration is performed — the value is added as-is to the right-hand side.
-Useful for point loads on beams or reactions at a single node.
+Applies a concentrated force (or flux) directly on the selected nodes. No integration is
+performed — the value is added as-is to the right-hand side. Useful for point loads on
+beams or reactions at a single node.
 
 ```python
 # point load at the beam tip (Elastic simulation)
@@ -75,14 +75,14 @@ nodes_tip = mesh.Nodes_Point((L, h / 2))
 simu.add_neumann(nodes_tip, [0, -500], ["x", "y"])
 ```
 
----
+______________________________________________________________________
 
 ## Distributed loads
 
 ### Line load with {py:meth}`~EasyFEA.Simulations._Simu.add_lineLoad`
 
-Force per unit **length** integrated along the selected boundary edges. Used
-in 2D for loads applied along a line, or in 3D for edge loads.
+Force per unit **length** integrated along the selected boundary edges. Used in 2D for
+loads applied along a line, or in 3D for edge loads.
 
 ```python
 # uniform downward load of −1000 N/m along the top edge
@@ -95,9 +95,8 @@ simu.add_lineLoad(nodes_top, [lambda x, y, z: -500 * (1 + x / L)], ["y"])
 
 ### Surface load with {py:meth}`~EasyFEA.Simulations._Simu.add_surfLoad`
 
-Force per unit **area** integrated over the selected boundary faces. Typical
-for pressure loads in 3D, or traction/pressure in 2D (force per unit area
-× thickness).
+Force per unit **area** integrated over the selected boundary faces. Typical for
+pressure loads in 3D, or traction/pressure in 2D (force per unit area × thickness).
 
 ```python
 # uniform pressure of −800 Pa along x on the right face
@@ -110,8 +109,8 @@ simu.add_surfLoad(nodes_right, [0, 0, -1e6], ["x", "y", "z"])
 
 ### Volume load with {py:meth}`~EasyFEA.Simulations._Simu.add_volumeLoad`
 
-Body force per unit **volume** integrated over the selected elements. Typical
-use is gravity.
+Body force per unit **volume** integrated over the selected elements. Typical use is
+gravity.
 
 ```python
 # gravity in −y, ρ = 7800 kg/m³
@@ -120,16 +119,15 @@ simu.add_volumeLoad(mesh.nodes, [-7800 * 9.81], ["y"])
 
 ### Pressure load with {py:meth}`~EasyFEA.Simulations._Simu.add_pressureLoad`
 
-Applies a **normal** pressure of given magnitude on a boundary surface.
-The direction is automatically computed from the outward normal at each
-boundary face.
+Applies a **normal** pressure of given magnitude on a boundary surface. The direction is
+automatically computed from the outward normal at each boundary face.
 
 ```python
 # internal pressure of 1 MPa on a cylinder inner surface
 simu.add_pressureLoad(inner_surface_nodes, magnitude=1e6)
 ```
 
----
+______________________________________________________________________
 
 ## Spatially varying values
 
@@ -137,8 +135,8 @@ All `values` arguments accept:
 
 - a **float** — uniform value applied to all selected nodes,
 - a **NumPy array** of length `Nn` — one value per node,
-- a **lambda function** `lambda x, y, z: ...` — evaluated at node (or
-  integration-point) coordinates.
+- a **lambda function** `lambda x, y, z: ...` — evaluated at node (or integration-point)
+  coordinates.
 
 ```python
 # temperature that increases linearly along x
@@ -148,10 +146,9 @@ simu.add_dirichlet(nodes, [lambda x, y, z: 20 + 80 * x / L], ["t"])
 simu.add_surfLoad(nodes, [lambda x, y, z: -100 * (x - L/2)**2], ["x"])
 ```
 
-Functions always receive three arguments `x, y, z` regardless of the problem
-dimension.
+Functions always receive three arguments `x, y, z` regardless of the problem dimension.
 
----
+______________________________________________________________________
 
 ## Visualize applied conditions
 
@@ -162,21 +159,25 @@ Matplotlib.Plot_BoundaryConditions(simu)   # matplotlib
 PyVista.Plot_BoundaryConditions(simu).show()   # interactive 3D
 ```
 
----
+______________________________________________________________________
 
 ## Reset boundary conditions
 
-Call {py:meth}`~EasyFEA.Simulations._Simu.Bc_Init` to clear all previously defined conditions (e.g., between load steps):
+Call {py:meth}`~EasyFEA.Simulations._Simu.Bc_Init` to clear all previously defined
+conditions (e.g., between load steps):
 
 ```python
 simu.Bc_Init()
 ```
 
 (howto-import-mesh-tags)=
+
 ## Use tags to apply boundary conditions
 
-Tags are named node and element sets attached to the mesh — they correspond to physical groups defined in the meshing tool (Gmsh, Medit, …).
-Once a mesh is imported with its physical groups, tags are the most reliable way to identify boundaries without hard-coding coordinates.
+Tags are named node and element sets attached to the mesh — they correspond to physical
+groups defined in the meshing tool (Gmsh, Medit, …). Once a mesh is imported with its
+physical groups, tags are the most reliable way to identify boundaries without
+hard-coding coordinates.
 
 ### List available tags
 
@@ -201,8 +202,7 @@ elems_inlet = mesh.Elements_Tags("inlet")
 
 ### Assign a custom tag
 
-You can also define your own tags from a coordinate condition and reuse them
-later:
+You can also define your own tags from a coordinate condition and reuse them later:
 
 ```python
 nodes = mesh.Nodes_Conditions(lambda x, y, z: x == 0)
