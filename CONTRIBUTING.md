@@ -8,7 +8,7 @@ Contributors are welcome! To contribute, please follow these steps.
    ```bash
    git clone https://github.com/YOURNAME/EasyFEA.git
    cd EasyFEA
-   python -m pip install -e ".[dev,io,viz]"
+   python -m pip install -e ".[dev,lint,io,viz]"
    ```
 
    In editable mode (`-e`), code completion functionality may be compromised in your
@@ -25,8 +25,12 @@ Contributors are welcome! To contribute, please follow these steps.
 3. To develop a **new feature**, start working in a new branch via the
    `git checkout -b my_new_feature` command.
 
-4. Add new and changed files with `git add ...` and commit the changes with
-   `git commit -m "Update ..."`.
+4. Format, then add new and changed files with `git add ...` and commit the changes with
+   `git commit -m "Update ..."`. The **Lint** check fails on unformatted code:
+
+   ```bash
+   make format
+   ```
 
 5. After implementing and validating your changes with **tests** (see `EasyFEA/tests/`
    for tips) you can push the branch to your fork for the first time with
