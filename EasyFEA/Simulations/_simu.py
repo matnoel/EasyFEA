@@ -272,47 +272,9 @@ class _Simu(_IObserver, _params.Updatable, ABC):
             def Get_terms(self, problemType=None):
                 return [Term("K", Operators.Bilinear.GradUGradV, coef=self.thermalModel.k)]
 
-        Subclasses compose with ``super().Get_terms(problemType) + [...]``; instance terms from :py:meth:`Add_terms` are folded in too. Return ``[]`` when overriding :py:meth:`_Construct_local_matrix_system` instead.
+        Subclasses compose with ``super().Get_terms(problemType) + [...]``, which is also how a simulation is extended. Return ``[]`` when overriding :py:meth:`_Construct_local_matrix_system` instead.
         """
         return []
-
-    def Add_terms(
-        self, *terms: Term, problemType: Optional[ProblemType] = None
-    ) -> list[Term]:
-        """Adds terms to this simulation instance, without subclassing it. One term or many behave the same way.
-
-        The terms are returned for convenience, but a :class:`~EasyFEA.Simulations.Term` is its own handle: keep the one whose value changes between steps and update it with :py:meth:`Term.Set`.
-
-        Parameters
-        ----------
-        *terms : Term
-            The terms to add.
-        problemType : ProblemType, optional
-            problem the terms belong to, if not specified, we take the basic problem of the simulation. It matters only for a simulation solving several problems, such as :class:`~EasyFEA.Simulations.PhaseField`.
-
-        Examples
-        --------
-        >>> endo = Term("KR", NonLinear.FollowingPressure, dim=2, tag="endo", pressure=0.0)
-        >>> simu.Add_terms(endo)
-        >>> endo.Set(pressure=1e4)
-        """
-        assert all(isinstance(t, Term) for t in terms), "every term must be a Term."
-
-        if problemType is None:
-            problemType = self.problemType
-        self.__Check_problemTypes(problemType)
-
-        added = self.__terms_added.setdefault(problemType, [])
-        for term in terms:
-            term._simu = self  # so `term.Set(...)` invalidates the assembled matrices
-            added.append(term)
-        self.Need_Update()
-        return list(terms)
-
-    def Terms_Init(self) -> None:
-        """Removes every term added with :py:meth:`Add_terms`. Terms persist across time steps — unlike boundary conditions, they are declared once and their arguments updated — so this is rarely needed."""
-        self.__terms_added: dict[ProblemType, list[Term]] = {}
-        self.Need_Update()
 
     def _Construct_local_matrix_system(self, problemType) -> dict[
         _GroupElem,
@@ -325,7 +287,7 @@ class _Simu(_IObserver, _params.Updatable, ABC):
     ]:
         r"""Construct the local matrix system :math:`\Krm \, \mathrm{u} + \Crm \, \vrm + \Mrm \, \arm = \Frm` for the given problem, returned per contributing group of elements `{groupElem: (K_e, C_e, M_e, F_e)}`.
 
-        Folds :py:meth:`Get_terms` together with the terms :py:meth:`Add_terms` registered **for this problem**. Override it only for a simulation whose assembly is not expressible as a term list — a monolithic mixed formulation, say — in which case :py:meth:`Get_terms` returns ``[]``.
+        Folds :py:meth:`Get_terms` for this problem. Override it only for a simulation whose assembly is not expressible as a term list — a monolithic mixed formulation, say — in which case :py:meth:`Get_terms` returns ``[]``.
 
         For a **linear** problem :math:`\Frm` is the load alone: :py:meth:`_Solver_Apply_Neumann` moves :math:`\mathrm{u}^n, \vrm^n, \arm^n` to the right-hand side with the history terms of the active time scheme.
 
@@ -333,11 +295,7 @@ class _Simu(_IObserver, _params.Updatable, ABC):
         """
         if problemType is None:
             problemType = self.problemType
-        return Fold_terms(
-            self,
-            self.Get_terms(problemType) + self.__terms_added.get(problemType, []),
-            problemType,
-        )
+        return Fold_terms(self, self.Get_terms(problemType), problemType)
 
     # Iterations
 
@@ -747,7 +705,6 @@ class _Simu(_IObserver, _params.Updatable, ABC):
         # Initialize solutions and boundary conditions
         self.__Init_Sols_n()
         self.Bc_Init()
-        self.Terms_Init()
 
         # simulation will look for material and mesh modifications
         model._Add_observer(self)

@@ -33,10 +33,8 @@ points, from easiest to most flexible:
    problems. No FEM assembly knowledge required.
 2. **Extend an existing simulation** — when a built-in class already covers
    most of your physics and you only need to add extra terms (a boundary
-   contribution, a penalty, a coupling), add them to the instance with
-   {py:meth}`~EasyFEA.Simulations._Simu.Add_terms`, or compose them into
-   {py:meth}`~EasyFEA.Simulations._Simu.Get_terms` in a subclass. Usually no
-   subclass is needed at all. See {ref}`howto-new-simulation-extend`.
+   contribution, a penalty, a coupling), subclass it and compose them into
+   {py:meth}`~EasyFEA.Simulations._Simu.Get_terms`. See {ref}`howto-new-simulation-extend`.
 3. **Subclass {py:class}`~EasyFEA.Simulations._Simu`** — provides full control over the assembly at the element level for problems that are difficult to model in {py:class}`~EasyFEA.Simulations.WeakForms`, or to improve performance. Knowledge of finite element methods is required.
 
 EasyFEA supports multi-physics problems such as phase-field fracture simulations, which couple an elastic sub-problem with a damage sub-problem via a staggered algorithm: each sub-problem is solved in turn with the other held fixed, and the two are iterated to convergence within each load step.
@@ -91,47 +89,54 @@ All weak-form-based simulations are available in {ref}`easyfea-examples-weak-for
 (howto-new-simulation-extend)=
 ## Extend an existing simulation
 
-When a built-in simulation already covers most of your physics, add
-{py:class}`~EasyFEA.Simulations.Term` objects to the instance with
-{py:meth}`~EasyFEA.Simulations._Simu.Add_terms` — no subclass needed. They are folded in alongside
-the terms the simulation declares itself, as in
-[MonoVentricular](https://github.com/matnoel/EasyFEA/blob/main/examples/CardiacElastoDynamics/MonoVentricular.py),
-a stock {py:class}`~EasyFEA.Simulations.HyperElastic` plus a follower pressure and two surface
-penalties:
+When a built-in simulation already covers most of your physics, subclass it and add
+{py:class}`~EasyFEA.Simulations.Term` objects to {py:meth}`~EasyFEA.Simulations._Simu.Get_terms`.
+The list is rebuilt at every assembly, so a value that changes between steps is a parameter of the
+subclass, read there. As in
+the cardiac examples' [utils.py](https://github.com/matnoel/EasyFEA/blob/main/examples/CardiacElastoDynamics/utils.py),
+a {py:class}`~EasyFEA.Simulations.HyperElastic` plus a surface spring and a follower pressure:
 
 ```python
+from typing import Optional
+
 from EasyFEA import MatrixType, Simulations
-from EasyFEA.Simulations import Term
+from EasyFEA.Simulations import ProblemType, Term
 from EasyFEA.FEM import Operators
+from EasyFEA.Utilities import _params
 
-simu = Simulations.HyperElastic(mesh, material)
+class Ventricle(Simulations.HyperElastic):
 
-# `dim=2` picks the surface groups, `tag` the subset within them;
-# `constant=True` builds the contribution once and reuses it
-epi = Term("K", Operators.Bilinear.MassAlongNormal,
-           dim=2, tag="epi", coef=1e8, constant=True)
+    pressure = _params.ScalarParameter()   # a write marks the matrices outdated
 
-# `groupElem`, `u` and `elements` come from the assembly, so only the pressure is passed
-endo = Term("KR", Operators.NonLinear.FollowingPressure,
-            dim=2, tag="endo", pressure=0.0, matrixType=MatrixType.mass)
+    def __init__(self, mesh, material):
+        super().__init__(mesh, material)
+        self.pressure = 0.0   # a parameter has no default: reading it unset raises
 
-simu.Add_terms(epi, endo)   # one term or many, same call
+    def Get_terms(self, problemType: Optional[ProblemType] = None) -> list[Term]:
+        # `dim=2` picks the surface groups, `tag` the subset within them;
+        # `constant=True` builds the contribution once and reuses it while its arguments are unchanged
+        epi = Term("K", Operators.Bilinear.MassAlongNormal, dim=2, tag="epi", constant=True)
+        return super().Get_terms(problemType) + [
+            epi.Scaled(1e8),          # stiffness
+            epi.Scaled(5e3, "C"),     # damping, from the same integration
+            # `groupElem`, `u` and `elements` come from the assembly, so only the pressure is passed
+            Term("KR", Operators.NonLinear.FollowingPressure,
+                 dim=2, tag="endo", pressure=self.pressure, matrixType=MatrixType.mass),
+        ]
 
+simu = Ventricle(mesh, material)
 for t in times:
-    endo.Set(pressure=pressure_at(t))   # terms persist; only the value changes
+    simu.pressure = pressure_at(t)
     simu.Solve()
 ```
 
 Ready-made operators live in {py:mod}`EasyFEA.FEM.Operators` (`Bilinear`, `Linear`, `NonLinear`) —
-see {ref}`fem-operators`.
-
-When the extra physics belongs to a *class* rather than a script, override
-{py:meth}`~EasyFEA.Simulations._Simu.Get_terms` and compose:
+see {ref}`fem-operators`. The contact example extends {py:class}`~EasyFEA.Simulations.Elastic` the same way:
 
 ```python
 class RigidContact(Simulations.Elastic):
 
-    def Get_terms(self, problemType=None) -> list[Term]:
+    def Get_terms(self, problemType: Optional[ProblemType] = None) -> list[Term]:
         return super().Get_terms(problemType) + [
             Term("KR", self.__Contact, dim=self.dim - 1)
         ]

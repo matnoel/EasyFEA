@@ -112,8 +112,7 @@ class Term:
                 "would be silently ignored on the elements it selects."
             )
 
-        # written only here: `Set` is the one supported update, and a `constant=True` term's cache
-        # is keyed and checked on these, so a later assignment would silently go stale.
+        # written only here: a `constant=True` term's cache is keyed and checked on these
         self.__slots = tuple(slots)
         self.__fn = fn
         self.__kwargs: dict[str, Any] = kwargs
@@ -124,8 +123,6 @@ class Term:
         self.__dim = dim
         self.__tag = tag
         self.__constant = constant
-        self._simu: Optional["_Simu"] = None
-        """Set by :py:meth:`_Simu.Add_terms`, so :py:meth:`Set` can invalidate the assembled matrices."""
 
         # resolved once, not per group per Newton iteration
         self.__injectable = tuple(n for n in parameters[1:] if n in _INJECTABLE)
@@ -173,16 +170,6 @@ class Term:
         term.__scale = self.__scale * coef
         term.__declared = self.__declared
         return term
-
-    def Set(self, **kwargs) -> "Term":
-        """Updates arguments in place, for a value that changes between steps (a pressure, a penalty). Returns the term, so it can be chained."""
-        if self.__constant:
-            for n, v in kwargs.items():
-                _Check_comparable(self.__fn, n, v)
-        self.__kwargs.update(kwargs)
-        if self._simu is not None:
-            self._simu.Need_Update()
-        return self
 
     # ----------------------------------------------
     # Reuse across the per-assembly rebuild of the list

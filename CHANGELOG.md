@@ -8,6 +8,7 @@ This document describes the changes made to the project.
 - A `constant=True` term refuses a bound-method operator, and a list, dict, set or identity-compared object argument (**breaking**).
 - `Term.Scaled(coef, slots=None)` returns a copy multiplied by `coef`, outside the cache, so Rayleigh damping reuses the stiffness and mass integrations.
 - The term cache is dropped on a mesh notification, and a simulation observes a mesh assigned after construction.
+- `Simu.Add_terms`, `Simu.Terms_Init` and `Term.Set` are removed (**breaking**): a simulation is extended by subclassing it and composing `Get_terms`, and a value that changes between steps is a parameter of that subclass (see `examples/CardiacElastoDynamics/utils.py`). A simulation saved with added terms reloads without them.
 
 ## 4.0.0 (September 8, 2026):
 
