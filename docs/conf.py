@@ -13,6 +13,7 @@ import pyvista
 import EasyFEA
 from EasyFEA.Geoms import _Init_Geoms_NInstance
 from pyvista.plotting.utilities.sphinx_gallery import DynamicScraper
+import trame_pyvista  # noqa: F401  # raises on a trame-vtk/VTK mismatch, which the gallery would otherwise hide by going static
 
 # -- Project information -----------------------------------------------------
 # https://www.sphinx-doc.org/en/master/usage/configuration.html#project-information
