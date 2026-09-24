@@ -2,7 +2,7 @@
 
 This document describes the changes made to the project.
 
-## Unreleased
+## 5.0.0 (September 24, 2026):
 
 - A `constant=True` term is reused while its arguments keep the same values, checked
   against a copy taken when it was built, instead of hashed, so array arguments such as
@@ -20,6 +20,18 @@ This document describes the changes made to the project.
   changes between steps is a parameter of that subclass (see
   `examples/CardiacElastoDynamics/utils.py`). A simulation saved with added terms
   reloads without them.
+- Python 3.10 to 3.14 are supported: 3.9, end-of-life since October 2025, is dropped
+  (**breaking**) and 3.14 is added. Annotations use `X | Y` instead of `Union` and
+  `Optional`.
+- Docs: the gallery keeps its interactive scenes. `docs/requirements.txt` requires
+  `trame-vtk>=2.11.15` and `pyvista>=0.49`, and the build fails instead of silently
+  falling back to static images. The how-to's `RigidContact` declares itself nonlinear.
+- `CREDITS.md` credits JAX and mpi4py.
+- Contributors: `make format` and `make lint` run black, ruff and mdformat at the
+  versions pinned in the `lint` extra; CI runs `make lint`. All tracked Markdown is
+  formatted with mdformat, wrapped at 88 columns.
+
+**Full Changelog:** https://github.com/matnoel/EasyFEA/compare/v4.0.0...v5.0.0
 
 ## 4.0.0 (September 8, 2026):
 
