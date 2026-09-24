@@ -142,7 +142,11 @@ if __name__ == "__main__":
         # ----------------------------------------------
 
         simu = MonoVentricle(
-            mesh, material, dt, matrixType=matrixType, folder=results_dir
+            mesh,
+            material,
+            dt,
+            matrixType=matrixType,
+            folder=results_dir,
         )
 
         for t in times:

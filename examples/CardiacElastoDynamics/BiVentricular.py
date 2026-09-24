@@ -153,7 +153,11 @@ if __name__ == "__main__":
         # ----------------------------------------------
 
         simu = BiVentricle(
-            mesh, material, dt, matrixType=matrixType, folder=results_dir
+            mesh,
+            material,
+            dt,
+            matrixType=matrixType,
+            folder=results_dir,
         )
 
         for t in times:
