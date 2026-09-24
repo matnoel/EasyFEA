@@ -10,7 +10,7 @@ Third-Party Libraries:
   [BSD license](https://github.com/numpy/numpy/blob/main/LICENSE.txt)
 - [Gmsh](https://gmsh.info/) -
   [GNU General Public License v2.0 or later](https://gmsh.info/LICENSE.txt)
-- [Scipy](https://scipy.org/) -
+- [SciPy](https://scipy.org/) -
   [BSD-3-Clause license](https://github.com/scipy/scipy/blob/main/LICENSE.txt)
 - [Matplotlib](https://matplotlib.org/) -
   [Python Software Foundation License (PSF)](https://matplotlib.org/stable/users/project/license.html)
@@ -19,15 +19,19 @@ Third-Party Libraries:
 - [imageio](https://pypi.org/project/imageio/) -
   [BSD-2-Clause license](https://github.com/imageio/imageio/blob/master/LICENSE)
 - [meshio](https://pypi.org/project/meshio/) -
-  [MIT Licensee](https://github.com/nschloe/meshio/blob/main/LICENSE.txt)
+  [MIT License](https://github.com/nschloe/meshio/blob/main/LICENSE.txt)
 - [pypardiso](https://pypi.org/project/pypardiso/) -
   [BSD-3-Clause license](https://github.com/haasad/PyPardiso/blob/master/LICENSE.txt)
 - [PETSc](https://petsc.org/release/) -
   [BSD-2-Clause license](https://gitlab.com/petsc/petsc/-/blob/main/LICENSE?ref_type=heads)
-- [petsc4py](https://petsc.org/release/) -
+- [petsc4py](https://petsc.org/release/petsc4py/) -
   [BSD-2-Clause license](https://gitlab.com/petsc/petsc/-/blob/main/LICENSE?ref_type=heads)
 - [opencv-python](https://pypi.org/project/opencv-python/) -
   [MIT License](https://github.com/opencv/opencv-python/blob/4.x/LICENSE.txt)
+- [mpi4py](https://mpi4py.readthedocs.io/) -
+  [BSD-3-Clause license](https://github.com/mpi4py/mpi4py/blob/master/LICENSE.rst)
+- [JAX](https://docs.jax.dev/) -
+  [Apache License 2.0](https://github.com/jax-ml/jax/blob/main/LICENSE)
 - [pygltflib](https://pypi.org/project/pygltflib/) -
   [MIT License](https://gitlab.com/dodgyville/pygltflib/-/blob/master/LICENSE?ref_type=heads)
 - [usd-core](https://pypi.org/project/usd-core/) -
