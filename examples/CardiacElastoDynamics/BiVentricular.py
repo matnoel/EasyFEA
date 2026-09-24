@@ -30,7 +30,7 @@ from utils import (
     DATA_DIR,
     Get_biventricular,
     Get_material,
-    Get_simu,
+    BiVentricle,
     Get_stresses,
     Get_pressures,
 )
@@ -152,25 +152,15 @@ if __name__ == "__main__":
         # Simulation
         # ----------------------------------------------
 
-        simu, pressureTerms = Get_simu(
-            mesh,
-            material,
-            dt,
-            ["endo_lv", "endo_rv"],
-            folder=results_dir,
-            matrixType=matrixType,
-            alpha_top=1e6,
+        simu = BiVentricle(
+            mesh, material, dt, matrixType=matrixType, folder=results_dir
         )
 
         for t in times:
 
             simu.Bc_Init()
-            pressureTerms["endo_lv"].Set(
-                pressure=np.interp(t + dt / 2, times, pressures_lv)
-            )
-            pressureTerms["endo_rv"].Set(
-                pressure=np.interp(t + dt / 2, times, pressures_rv)
-            )
+            simu.pressure_lv = np.interp(t + dt / 2, times, pressures_lv)
+            simu.pressure_rv = np.interp(t + dt / 2, times, pressures_rv)
             material.active_stress = np.interp(t + dt / 2, times, stresses)
             simu.Solve()
             simu.Save_Iter()

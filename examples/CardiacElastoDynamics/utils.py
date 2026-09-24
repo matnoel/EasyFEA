@@ -8,7 +8,7 @@ Two fiber sources are supported (see :func:`Get_config`). ``"analytic"`` builds 
 import os
 from dataclasses import dataclass
 from functools import partial
-from typing import Literal
+from typing import Literal, Optional
 
 import numpy as np
 from scipy.spatial import KDTree
@@ -29,7 +29,8 @@ from EasyFEA import (
     Simulations,
 )
 from EasyFEA.FEM import ElemType, FeArray, Mesh, Norm, Normalize, Operators
-from EasyFEA.Simulations import Term
+from EasyFEA.Simulations import ProblemType, Term
+from EasyFEA.Utilities import _params
 from EasyFEA.Utilities._mpi import MPI_RANK
 from EasyFEA.Utilities._types import FloatArray, IntArray
 
@@ -554,71 +555,147 @@ def Get_material(
     return material
 
 
-def Get_simu(
-    mesh: Mesh,
-    material: Models.HyperElastic._HyperElastic,
-    dt: float,
-    pressureTags: list[str],
-    folder: str = "",
-    matrixType: MatrixType = MatrixType.rigi,
-    alpha_top: float = 1e5,
-    alpha_epi: float = 1e8,
-    beta_top: float = 5e3,
-    beta_epi: float = 5e3,
-) -> tuple[Simulations.HyperElastic, dict[str, Term]]:
-    """Cardiac benchmark simulation: midpoint hyperelastodynamics with Robin surface penalties and one follower pressure per endocardial surface.
+# --------------------------------------------
+# Simulations
+# --------------------------------------------
 
-    The Robin penalties `α·u + β·u̇ = 0` hold the heart in place without clamping it: isotropic on the basal surface (`top`), normal-direction on the epicardium (`epi`). Both are evaluated on the reference surface with fixed α/β, so their tangents never change across the solve and are built once; the assembly contracts their residuals `-K·u` and `-C·u̇` at the current iterate on its own.
 
-    Parameters
-    ----------
-    mesh : Mesh
-        The ventricular mesh, carrying the `top`, `epi` and endocardial element tags.
-    material : _HyperElastic
-        The myocardium, from :func:`Get_material`.
-    dt : float
-        The time increment of the midpoint scheme.
-    pressureTags : list[str]
-        Endocardial surface tags carrying a follower pressure — `["endo"]` for the monoventricular benchmark, `["endo_lv", "endo_rv"]` for the biventricular one.
-    folder : str, optional
-        Save folder, by default "".
-    matrixType : MatrixType, optional
-        Integration rule of the tangent. The fibers are sampled at this same rule, so it must match the one used to build them.
-    alpha_top, alpha_epi, beta_top, beta_epi : float, optional
-        Robin stiffness and damping on the two surfaces.
+class _Ventricle(Simulations.HyperElastic):
+    """Cardiac benchmark simulation: midpoint hyperelastodynamics held by Robin springs; subclasses add the follower pressures.
 
-    Returns
-    -------
-    tuple[Simulations.HyperElastic, dict[str, Term]]
-        The simulation, and its follower-pressure term per tag — so a time loop sets that step's value with `terms[tag].Set(pressure=...)`.
+    The springs `α·u + β·u̇ = 0` hold the heart in place without clamping it: isotropic on the basal surface (`top`), normal-direction on the epicardium (`epi`). Each is integrated once on the reference surface and scaled into `K` and `C`.
+
+    `matrixType` must be the integration rule the fibers were sampled at.
     """
 
-    simu = Simulations.HyperElastic(mesh, material, folder=folder)
+    alpha_top = _params.PositiveScalarParameter()
+    alpha_epi = _params.PositiveScalarParameter()
+    beta_top = _params.PositiveScalarParameter()
+    beta_epi = _params.PositiveScalarParameter()
 
-    simu.matrixType = matrixType
-    simu.Solver_Set_Hyperbolic_Algorithm(dt, algo=AlgoType.midpoint)
-    simu.rho = 1000
+    def __init__(
+        self,
+        mesh: Mesh,
+        material: Models.HyperElastic._HyperElastic,
+        dt: float,
+        matrixType: MatrixType = MatrixType.rigi,
+        folder: str = "",
+        alpha_top: float = 1e5,
+        alpha_epi: float = 1e8,
+        beta_top: float = 5e3,
+        beta_epi: float = 5e3,
+    ):
+        super().__init__(mesh, material, folder=folder)
+        self.matrixType = matrixType
+        self.Solver_Set_Hyperbolic_Algorithm(dt, algo=AlgoType.midpoint)
+        self.rho = 1000
+        self.alpha_top, self.alpha_epi = alpha_top, alpha_epi
+        self.beta_top, self.beta_epi = beta_top, beta_epi
 
-    UV, Mn = Operators.Bilinear.UV, Operators.Bilinear.MassAlongNormal
-    simu.Add_terms(
-        Term("K", UV, dim=2, tag="top", coef=alpha_top, dof_n=3, constant=True),
-        Term("C", UV, dim=2, tag="top", coef=beta_top, dof_n=3, constant=True),
-        Term("K", Mn, dim=2, tag="epi", coef=alpha_epi, constant=True),
-        Term("C", Mn, dim=2, tag="epi", coef=beta_epi, constant=True),
-    )
+    def Get_terms(self, problemType: Optional[ProblemType] = None) -> list[Term]:
+        top = Term(
+            "K",
+            Operators.Bilinear.UV,
+            dim=2,
+            tag="top",
+            dof_n=3,
+            constant=True,
+        )
+        epi = Term(
+            "K",
+            Operators.Bilinear.MassAlongNormal,
+            dim=2,
+            tag="epi",
+            constant=True,
+        )
+        return super().Get_terms(problemType) + [
+            top.Scaled(self.alpha_top),
+            top.Scaled(self.beta_top, "C"),
+            epi.Scaled(self.alpha_epi),
+            epi.Scaled(self.beta_epi, "C"),
+        ]
 
-    # Follower pressure: it tracks the deformed normal, so it is rebuilt at every Newton iteration; only its magnitude changes from one step to the next.
-    pressureTerms = {
-        tag: Term(
+    @staticmethod
+    def _Pressure(tag: str, pressure: float) -> Term:
+        """Follower pressure on `tag`: it tracks the deformed normal, so it is rebuilt at every Newton iteration."""
+        return Term(
             "KR",
             Operators.NonLinear.FollowingPressure,
             dim=2,
             tag=tag,
-            pressure=0.0,
+            pressure=pressure,
             matrixType=MatrixType.mass,
         )
-        for tag in pressureTags
-    }
-    simu.Add_terms(*pressureTerms.values())
 
-    return simu, pressureTerms
+
+class MonoVentricle(_Ventricle):
+    """Monoventricular benchmark: one follower pressure on `endo`."""
+
+    pressure = _params.ScalarParameter()
+
+    def __init__(
+        self,
+        mesh: Mesh,
+        material: Models.HyperElastic._HyperElastic,
+        dt: float,
+        matrixType: MatrixType = MatrixType.rigi,
+        folder: str = "",
+        alpha_top: float = 1e5,
+        alpha_epi: float = 1e8,
+        beta_top: float = 5e3,
+        beta_epi: float = 5e3,
+    ):
+        super().__init__(
+            mesh,
+            material,
+            dt,
+            matrixType,
+            folder,
+            alpha_top,
+            alpha_epi,
+            beta_top,
+            beta_epi,
+        )
+        self.pressure = 0.0
+
+    def Get_terms(self, problemType: Optional[ProblemType] = None) -> list[Term]:
+        return super().Get_terms(problemType) + [self._Pressure("endo", self.pressure)]
+
+
+class BiVentricle(_Ventricle):
+    """Biventricular benchmark: one follower pressure per ventricle, on `endo_lv` and `endo_rv`."""
+
+    pressure_lv = _params.ScalarParameter()
+    pressure_rv = _params.ScalarParameter()
+
+    def __init__(
+        self,
+        mesh: Mesh,
+        material: Models.HyperElastic._HyperElastic,
+        dt: float,
+        matrixType: MatrixType = MatrixType.rigi,
+        folder: str = "",
+        alpha_top: float = 1e6,
+        alpha_epi: float = 1e8,
+        beta_top: float = 5e3,
+        beta_epi: float = 5e3,
+    ):
+        super().__init__(
+            mesh,
+            material,
+            dt,
+            matrixType,
+            folder,
+            alpha_top,
+            alpha_epi,
+            beta_top,
+            beta_epi,
+        )
+        self.pressure_lv = 0.0
+        self.pressure_rv = 0.0
+
+    def Get_terms(self, problemType: Optional[ProblemType] = None) -> list[Term]:
+        return super().Get_terms(problemType) + [
+            self._Pressure("endo_lv", self.pressure_lv),
+            self._Pressure("endo_rv", self.pressure_rv),
+        ]

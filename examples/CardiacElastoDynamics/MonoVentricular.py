@@ -29,7 +29,7 @@ from utils import (
     DATA_DIR,
     Get_config_ellipsoid,
     Get_material,
-    Get_simu,
+    MonoVentricle,
     Get_stresses,
     Get_pressures,
 )
@@ -141,19 +141,13 @@ if __name__ == "__main__":
         # Simulation
         # ----------------------------------------------
 
-        simu, pressureTerms = Get_simu(
-            mesh,
-            material,
-            dt,
-            ["endo"],
-            folder=results_dir,
-            matrixType=matrixType,
+        simu = MonoVentricle(
+            mesh, material, dt, matrixType=matrixType, folder=results_dir
         )
 
         for t in times:
             simu.Bc_Init()
-            for pressureTerm in pressureTerms.values():
-                pressureTerm.Set(pressure=np.interp(t + dt / 2, times, pressures))
+            simu.pressure = np.interp(t + dt / 2, times, pressures)
             material.active_stress = np.interp(t + dt / 2, times, stresses)
             simu.Solve()
             simu.Save_Iter()
