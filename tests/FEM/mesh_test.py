@@ -93,6 +93,21 @@ def _Get_contours() -> list[Points | Circle]:
     ]
 
 
+def _Move_in_plane(mesh: Mesh) -> Mesh:
+    """Rotates about z and translates, so no boundary passes through the origin."""
+    mesh.Rotate(30, direction=(0, 0, 1))
+    mesh.Translate(-1, 2)
+    return mesh
+
+
+def _Move(mesh: Mesh) -> Mesh:
+    """Rotates about x and y and translates, so no boundary passes through the origin."""
+    mesh.Rotate(45, direction=(1, 0, 0))
+    mesh.Rotate(45, direction=(0, 1, 0))
+    mesh.Translate(-1, 2, 3)
+    return mesh
+
+
 class TestMesh:
 
     def test_construct_matrix(
@@ -167,23 +182,31 @@ class TestMesh:
     @pytest.mark.parametrize("isOrganised", [True, False])
     def test_enclosed_area(self, elemType: ElemType, isOrganised: bool):
         for contour in _Get_contours():
-            mesh = contour.Mesh_2D([], elemType, isOrganised=isOrganised)
+            mesh = _Move_in_plane(
+                contour.Mesh_2D([], elemType, isOrganised=isOrganised)
+            )
             # 1D normals point inward on a counterclockwise contour
             equal(-_Get_enclosed_measure(mesh), mesh.area, 1e-13)
 
     @pytest.mark.parametrize("elemType", ElemType.Get_3D())
     @pytest.mark.parametrize("isOrganised", [True, False])
-    def test_enclosed_volume(self, elemType: ElemType, isOrganised: bool):
+    @pytest.mark.parametrize("extrude", [(0, 0, B), (0, 0, -B)])
+    def test_enclosed_volume(
+        self, elemType: ElemType, isOrganised: bool, extrude: tuple
+    ):
         for contour in _Get_contours():
-            mesh = contour.Mesh_Extrude(
-                [], [0, 0, B], [3], elemType, isOrganised=isOrganised
+            mesh = _Move(
+                contour.Mesh_Extrude(
+                    [], extrude, [3], elemType, isOrganised=isOrganised
+                )
             )
             equal(_Get_enclosed_measure(mesh), mesh.volume, 1e-13)
 
     @pytest.mark.parametrize("elemType", ElemType.Get_3D())
-    def test_enclosed_volume_of_surface_mesh(self, elemType: ElemType):
+    @pytest.mark.parametrize("extrude", [(0, 0, B), (0, 0, -B)])
+    def test_enclosed_volume_of_surface_mesh(self, elemType: ElemType, extrude: tuple):
         for contour in _Get_contours():
-            mesh = contour.Mesh_Extrude([], [0, 0, B], [3], elemType)
+            mesh = _Move(contour.Mesh_Extrude([], extrude, [3], elemType))
             surface = Mesh(
                 {
                     surfType: groupElem
