@@ -22,14 +22,11 @@ REFERENCE_MEASURES = {
 class TestGauss:
 
     @pytest.mark.parametrize("elemType", [e for e in ElemType if e != ElemType.POINT])
-    @pytest.mark.parametrize("matrixType", list(MatrixType))
+    @pytest.mark.parametrize("matrixType", [MatrixType.rigi, MatrixType.mass])
     def test_weights_sum_to_reference_measure(
         self, elemType: ElemType, matrixType: MatrixType
     ):
-        try:
-            gauss = Gauss(elemType, matrixType)
-        except ValueError:
-            pytest.skip(f"no {matrixType} rule for {elemType}")
+        gauss = Gauss(elemType, matrixType)
 
         measure = REFERENCE_MEASURES[elemType.topology]
 

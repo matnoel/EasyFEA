@@ -72,9 +72,9 @@ def meshes_3D(plain_meshes_3D: list[Mesh]) -> list[Mesh]:
 
 
 def _Get_enclosed_measure(mesh: Mesh, matrixType=MatrixType.mass) -> float:
-    """Measure enclosed by the dim-1 groups, from the divergence theorem."""
+    """Measure enclosed by the inDim-1 groups, from the divergence theorem."""
     measure = 0.0
-    for groupElem in mesh.Get_list_groupElem(mesh.dim - 1):
+    for groupElem in mesh.Get_list_groupElem(mesh.inDim - 1):
         x_e_pg = groupElem.Get_GaussCoordinates_e_pg(matrixType)
         normal_e_pg = groupElem.Get_normals_e_pg(matrixType, normalize=False)
         xn_e_pg = x_e_pg.dot(normal_e_pg)
@@ -82,7 +82,7 @@ def _Get_enclosed_measure(mesh: Mesh, matrixType=MatrixType.mass) -> float:
             groupElem.Get_weight_pg(matrixType), *xn_e_pg.shape[:2]
         )
         measure += (weight_e_pg * xn_e_pg).integrate().sum()
-    return measure / mesh.dim
+    return measure / mesh.inDim
 
 
 def _Get_contours() -> list[Points | Circle]:
@@ -179,6 +179,20 @@ class TestMesh:
                 [], [0, 0, B], [3], elemType, isOrganised=isOrganised
             )
             equal(_Get_enclosed_measure(mesh), mesh.volume, 1e-13)
+
+    @pytest.mark.parametrize("elemType", ElemType.Get_3D())
+    def test_enclosed_volume_of_surface_mesh(self, elemType: ElemType):
+        for contour in _Get_contours():
+            mesh = contour.Mesh_Extrude([], [0, 0, B], [3], elemType)
+            surface = Mesh(
+                {
+                    surfType: groupElem
+                    for surfType, groupElem in mesh.dict_groupElem.items()
+                    if groupElem.dim <= 2
+                }
+            )
+            assert surface.dim == 2
+            equal(_Get_enclosed_measure(surface), mesh.volume, 1e-13)
 
     def test_load(self, plain_meshes_3D: list[Mesh]):
 
