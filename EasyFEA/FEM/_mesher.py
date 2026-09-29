@@ -2182,6 +2182,10 @@ class Mesher:
                 gmsh.model.mesh.removeDuplicateElements()
                 tic.Tac("Mesh", "Remove duplicate nodes and elements", self.__verbosity)
 
+            if dim == 3 and self._factory is gmsh.model.occ:
+                for _, volume in gmsh.model.getEntities(3):
+                    gmsh.model.mesh.setOutwardOrientation(volume)
+
             # PLUGIN CRACK
             if crackLines is not None:  # 1D CRACKS
                 gmsh.plugin.setNumber("Crack", "Dimension", 1)
