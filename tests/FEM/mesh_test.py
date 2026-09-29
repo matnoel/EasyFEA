@@ -10,11 +10,13 @@ import numpy as np
 from scipy.spatial import cKDTree
 
 from EasyFEA.FEM._utils import MatrixType
+from EasyFEA.FEM._linalg import FeArray
 from EasyFEA import ElemType, Mesh, Models, Simulations
-from EasyFEA.Geoms import Points
+from EasyFEA.Geoms import Points, Circle, Point
 
 L = 2
 H = 1
+B = 1
 
 
 def equal(val1, val2, tol=1e-11):
@@ -67,6 +69,28 @@ def meshes_2D(plain_meshes_2D: list[Mesh]) -> list[Mesh]:
 @pytest.fixture
 def meshes_3D(plain_meshes_3D: list[Mesh]) -> list[Mesh]:
     return __move_meshes(list(plain_meshes_3D))
+
+
+def _Get_enclosed_measure(mesh: Mesh, matrixType=MatrixType.mass) -> float:
+    """Measure enclosed by the dim-1 groups, from the divergence theorem."""
+    measure = 0.0
+    for groupElem in mesh.Get_list_groupElem(mesh.dim - 1):
+        x_e_pg = groupElem.Get_GaussCoordinates_e_pg(matrixType)
+        normal_e_pg = groupElem.Get_normals_e_pg(matrixType, normalize=False)
+        xn_e_pg = x_e_pg.dot(normal_e_pg)
+        weight_e_pg = FeArray.broadcast(
+            groupElem.Get_weight_pg(matrixType), *xn_e_pg.shape[:2]
+        )
+        measure += (weight_e_pg * xn_e_pg).integrate().sum()
+    return measure / mesh.dim
+
+
+def _Get_contours() -> list[Points | Circle]:
+    """A flat-sided contour and a curved one."""
+    return [
+        Points([(0, 0), (L, 0), (L, H), (0, H)], H / 3),
+        Circle(Point(L / 2, H / 2), L, H / 2),
+    ]
 
 
 class TestMesh:
@@ -138,6 +162,23 @@ class TestMesh:
         for mesh in meshes_3D:
 
             assert (volume - mesh.volume) / volume < 1e-12
+
+    @pytest.mark.parametrize("elemType", ElemType.Get_2D())
+    @pytest.mark.parametrize("isOrganised", [True, False])
+    def test_enclosed_area(self, elemType: ElemType, isOrganised: bool):
+        for contour in _Get_contours():
+            mesh = contour.Mesh_2D([], elemType, isOrganised=isOrganised)
+            # 1D normals point inward on a counterclockwise contour
+            equal(-_Get_enclosed_measure(mesh), mesh.area, 1e-13)
+
+    @pytest.mark.parametrize("elemType", ElemType.Get_3D())
+    @pytest.mark.parametrize("isOrganised", [True, False])
+    def test_enclosed_volume(self, elemType: ElemType, isOrganised: bool):
+        for contour in _Get_contours():
+            mesh = contour.Mesh_Extrude(
+                [], [0, 0, B], [3], elemType, isOrganised=isOrganised
+            )
+            equal(_Get_enclosed_measure(mesh), mesh.volume, 1e-13)
 
     def test_load(self, plain_meshes_3D: list[Mesh]):
 
