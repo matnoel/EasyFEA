@@ -220,7 +220,10 @@ class Plasticity(_Behavior):
             tol=self._tol,
             maxIter=self._maxIter,
         )
-        new = Plasticity.State(eps_p=z.eps_p + dz.eps_p, p=z.p + dz.p)
+        new = Plasticity.State(
+            eps_p=z.eps_p + dz.eps_p,
+            p=z.p + dz.p,
+        )
         return self.Stress(eps, new.eps_p), new
 
 
@@ -241,17 +244,35 @@ class Norton(Plasticity):
     ):
         """Large ``A`` approaches rate-independent plasticity."""
         assert A > 0 and n > 0 and sigma_0 > 0, "need A > 0, n > 0, sigma_0 > 0"
-        super().__init__(elastic, surface, hardening, dim, planeStress, thickness)
+        super().__init__(
+            elastic,
+            surface,
+            hardening,
+            dim,
+            planeStress,
+            thickness,
+        )
         self.A = A
         self.n = n
         self.sigma_0 = sigma_0
 
-    def Integrate(self, eps_e_pg, z_e_pg=None, dt=0.0, **external):
+    def Integrate(
+        self,
+        eps_e_pg,
+        z_e_pg=None,
+        dt=0.0,
+        **external,
+    ):
         assert dt > 0.0, (
             "a rate-dependent behavior needs a positive time increment; "
             "set `simu.dt` or pass `dt=` to Integrate"
         )
-        return super().Integrate(eps_e_pg, z_e_pg, dt, **external)
+        return super().Integrate(
+            eps_e_pg,
+            z_e_pg,
+            dt,
+            **external,
+        )
 
     def Creep(self, dp: "Array", dt: float) -> "Array":
         """The overstress ``f`` sustaining the rate ``dp / dt``."""
@@ -281,7 +302,10 @@ class Norton(Plasticity):
             R_new = R(z.p + dz.p)
             N = jax.grad(f)(sig, R_new)
             over = f(sig, R_new) - self.Creep(dz.p, dt)
-            return Plasticity.State(eps_p=dz.eps_p - dz.p * N, p=over / f.sigma_y)
+            return Plasticity.State(
+                eps_p=dz.eps_p - dz.p * N,
+                p=over / f.sigma_y,
+            )
 
         # one explicit step as the first guess, capped by the rate-independent return
         N = jax.grad(f)(trial, R(z.p))
@@ -297,7 +321,10 @@ class Norton(Plasticity):
             tol=self._tol,
             maxIter=self._maxIter,
         )
-        new = Plasticity.State(eps_p=z.eps_p + dz.eps_p, p=z.p + dz.p)
+        new = Plasticity.State(
+            eps_p=z.eps_p + dz.eps_p,
+            p=z.p + dz.p,
+        )
         return self.Stress(eps, new.eps_p), new
 
 
@@ -341,7 +368,12 @@ class Chaboche(_Behavior):
     def Virgin_state(self) -> "Chaboche.State":
         return Chaboche.State(alpha=np.zeros((self.C_X.size, 6)))  # type: ignore[arg-type]
 
-    def Shifted_stress(self, eps: "Array", eps_p: "Array", alpha: "Array") -> "Array":
+    def Shifted_stress(
+        self,
+        eps: "Array",
+        eps_p: "Array",
+        alpha: "Array",
+    ) -> "Array":
         """The stress the surface reads, :math:`\\Sig - X`."""
         return self.C @ (eps - eps_p) - 2 / 3 * self.C_X @ alpha
 

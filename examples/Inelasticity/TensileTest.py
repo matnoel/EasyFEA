@@ -26,6 +26,7 @@ import numpy as np
 from EasyFEA import Folder, ElemType, Models, PyVista, Simulations
 from EasyFEA.Geoms import Point, Line, CircleArc, Contour, Domain
 from EasyFEA.Models.Elastic._laws import Isotropic
+from EasyFEA.Models.InElastic._plasticity import Voce, VonMises
 
 # ----------------------------------------------
 # Configuration
@@ -74,13 +75,10 @@ top = np.where(np.isclose(y, y.max()))[0]
 # ----------------------------------------------
 # Simulation
 # ----------------------------------------------
-material = Models.InElastic.Behavior(
-    3,
-    Isotropic(3, E=E, v=v),
-    yieldSurface=Models.InElastic.Yield.VonMises(sigma_y),
-    hardening=Models.InElastic.IsotropicHardening.Voce(Q, b),
+material = Models.InElastic.Plasticity(
+    Isotropic(3, E=E, v=v), VonMises(sigma_y), Voce(Q, b)
 )
-simu = Simulations.InElastic(mesh, material)
+simu = Simulations.InElasticContract(mesh, material)
 
 for u in np.linspace(uMax / nStep, uMax, nStep):
     simu.Bc_Init()

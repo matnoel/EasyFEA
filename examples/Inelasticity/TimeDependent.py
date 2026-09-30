@@ -26,6 +26,7 @@ import numpy as np
 
 from EasyFEA import Matplotlib, Models
 from EasyFEA.Models.Elastic._laws import Isotropic
+from EasyFEA.Models.InElastic._plasticity import Linear, VonMises
 
 # ----------------------------------------------
 # Configuration
@@ -108,16 +109,12 @@ rateIndependent = (sigma_y + Hm * eps_0) / (1 + Hm / E)
 
 ax = Matplotlib.Init_Axes()
 for A in (1e-3, 1e-2, 1e-1):
-    law = Models.InElastic.Behavior(
-        3,
-        elastic,
-        hardening=Models.InElastic.IsotropicHardening.Linear(Hm),
-        yieldSurface=Models.InElastic.Yield.VonMises(sigma_y),
-        rate=Models.InElastic.ViscoPlastic.Norton(A, n=1.0, sigma_0=sigma_y),
+    law = Models.InElastic.Norton(
+        elastic, VonMises(sigma_y), Linear(Hm), A=A, n=1.0, sigma_0=sigma_y
     )
-    sig = Models.InElastic.MaterialPoint(law).Run(strain={"xx": hold}, dt=dt)["stress"][
-        :, 0
-    ]
+    sig = Models.InElastic.Contract.MaterialPoint(law).Run(strain={"xx": hold}, dt=dt)[
+        "stress"
+    ][:, 0]
     ax.plot(time, sig, label=f"Norton, $A$ = {A:g}")
     print(
         f"Norton A = {A:<6g} ends at {sig[-1]:7.3f}, rate-independent {rateIndependent:7.3f}"
@@ -138,19 +135,14 @@ ax.grid(alpha=0.3)
 # Creep — the same law, holding the stress instead
 # ----------------------------------------------
 A = 1e-2
-law = Models.InElastic.Behavior(
-    3,
-    elastic,
-    yieldSurface=Models.InElastic.Yield.VonMises(sigma_y),
-    rate=Models.InElastic.ViscoPlastic.Norton(A, n=1.0, sigma_0=sigma_y),
-)
+law = Models.InElastic.Norton(elastic, VonMises(sigma_y), A=A, n=1.0, sigma_0=sigma_y)
 
 ax = Matplotlib.Init_Axes()
 for held in (1.2 * sigma_y, 1.4 * sigma_y):
     # yz is pinned only because one component must be strain-driven; it carries no stress
     # here, so the state stays uniaxial. Pinning yy instead would constrain the lateral
     # contraction and make it biaxial, which changes the answer.
-    res = Models.InElastic.MaterialPoint(law).Run(
+    res = Models.InElastic.Contract.MaterialPoint(law).Run(
         strain={"yz": np.zeros(nStep)},
         stress={"xx": np.full(nStep, held)},
         dt=dt,

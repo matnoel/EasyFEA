@@ -28,6 +28,7 @@ import numpy as np
 
 from EasyFEA import Matplotlib, Models
 from EasyFEA.Models.Elastic._laws import Isotropic
+from EasyFEA.Models.InElastic._plasticity import VonMises
 
 # ----------------------------------------------
 # Material
@@ -37,8 +38,7 @@ sigma_y = 250.0  # MPa
 elastic = Isotropic(3, E=E, v=v)
 eps_y = sigma_y / E
 
-KH = Models.InElastic.KinematicHardening
-MP = Models.InElastic.MaterialPoint
+MP = Models.InElastic.Contract.MaterialPoint
 
 # three components: fast knee, intermediate curvature, linear tail
 components = [
@@ -57,18 +57,14 @@ class Laws(str, Enum):
 
 
 laws = {
-    Laws.ArmstrongFrederick: KH.ArmstrongFrederick(*components[0]),
-    Laws.Chaboche: KH.Chaboche(*components),
+    Laws.ArmstrongFrederick: components[:1],
+    Laws.Chaboche: components,
 }
 
 
 def Behaviour(kinematic):
-    return Models.InElastic.Behavior(
-        3,
-        elastic,
-        yieldSurface=Models.InElastic.Yield.VonMises(sigma_y),
-        kinematic=kinematic,
-    )
+    C_X, gamma = zip(*kinematic)
+    return Models.InElastic.Chaboche(elastic, VonMises(sigma_y), C_X=C_X, gamma=gamma)
 
 
 # ----------------------------------------------
@@ -89,14 +85,6 @@ for label, kinematic in laws.items():
     res = MP(Behaviour(kinematic)).Run(strain={"xx": path})
     ax.plot(res["strain"][:, 0] * 100, res["stress"][:, 0], lw=1.2, label=label)
 
-# a superposition of one term is that term: the machinery must add nothing of its own
-C0, g0 = components[0]
-one = MP(Behaviour(KH.Chaboche((C0, g0)))).Run(strain={"xx": path})
-alone = MP(Behaviour(KH.ArmstrongFrederick(C0, g0))).Run(strain={"xx": path})
-same = np.max(np.abs(one["stress"][:, 0] - alone["stress"][:, 0]))
-print(f"Chaboche with one component vs ArmstrongFrederick: {same:.1e} MPa")
-assert same == 0.0, "the superposition is not exact for a single component"
-
 ax.set_xlabel("axial strain [%]")
 ax.set_ylabel(r"$\sigma_{xx}$ [MPa]")
 ax.set_title("One exponential cannot follow both the knee and the tail")
@@ -106,13 +94,13 @@ ax.grid(alpha=0.3)
 # ----------------------------------------------
 # The components that make it up
 # ----------------------------------------------
-behaviour = Behaviour(KH.Chaboche(*components))
+behaviour = Behaviour(components)
 res = MP(behaviour).Run(strain={"xx": path})
 
 ax = Matplotlib.Init_Axes()
 total = np.zeros_like(res["strain"][:, 0])
 for i, (C, gamma) in enumerate(components):
-    X_xx = 2 / 3 * C * res[f"alpha{i}"][:, 0]
+    X_xx = 2 / 3 * C * res["alpha"][:, i, 0]
     total = total + X_xx
     ax.plot(
         res["strain"][:, 0] * 100,

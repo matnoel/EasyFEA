@@ -24,6 +24,7 @@ import numpy as np
 
 from EasyFEA import Models, Matplotlib
 from EasyFEA.Models.Elastic._laws import Isotropic
+from EasyFEA.Models.InElastic._plasticity import Linear, VonMises
 
 # ----------------------------------------------
 # Configuration
@@ -62,26 +63,16 @@ class Laws(str, Enum):
         return self.name
 
 
+# Prager is Chaboche with no recall
 laws = {
-    Laws.Isotropic: Models.InElastic.Behavior(
-        3,
-        elastic,
-        hardening=Models.InElastic.IsotropicHardening.Linear(C_kin),
-        yieldSurface=Models.InElastic.Yield.VonMises(sigma_y),
+    Laws.Isotropic: Models.InElastic.Plasticity(
+        elastic, VonMises(sigma_y), Linear(C_kin)
     ),
-    Laws.Prager: Models.InElastic.Behavior(
-        3,
-        elastic,
-        yieldSurface=Models.InElastic.Yield.VonMises(sigma_y),
-        kinematic=Models.InElastic.KinematicHardening.Prager(C_kin),
+    Laws.Prager: Models.InElastic.Chaboche(
+        elastic, VonMises(sigma_y), C_X=C_kin, gamma=0.0
     ),
-    Laws.ArmstrongFrederick: Models.InElastic.Behavior(
-        3,
-        elastic,
-        yieldSurface=Models.InElastic.Yield.VonMises(sigma_y),
-        kinematic=Models.InElastic.KinematicHardening.ArmstrongFrederick(
-            C_kin, gamma=gamma
-        ),
+    Laws.ArmstrongFrederick: Models.InElastic.Chaboche(
+        elastic, VonMises(sigma_y), C_X=C_kin, gamma=gamma
     ),
 }
 
@@ -97,7 +88,7 @@ def Elastic_span(res) -> float:
 ax = Matplotlib.Init_Axes()
 runs = {}
 for label, law in laws.items():
-    res = Models.InElastic.MaterialPoint(law).Run(strain={"xx": path})
+    res = Models.InElastic.Contract.MaterialPoint(law).Run(strain={"xx": path})
     runs[label] = res
     ax.plot(res["strain"][:, 0] * 100, res["stress"][:, 0], label=label, lw=1.2)
 
@@ -135,7 +126,7 @@ saturation = 2 * C_kin / (3 * gamma)  # X = 2/3 C alpha, and alpha stalls at 1/g
 
 ax = Matplotlib.Init_Axes()
 for label in (Laws.Prager, Laws.ArmstrongFrederick):
-    X_xx = 2 / 3 * C_kin * runs[label]["alpha0"][:, 0]
+    X_xx = 2 / 3 * C_kin * runs[label]["alpha"][:, 0, 0]
     ax.plot(runs[label]["strain"][:, 0] * 100, X_xx, label=label)
 
 ax.axhline(saturation, ls=":", c="k", lw=0.8)

@@ -21,6 +21,7 @@ import numpy as np
 from EasyFEA import Folder, ElemType, Models, Simulations, PyVista
 from EasyFEA.Geoms import Point, Points
 from EasyFEA.Models.Elastic._laws import Isotropic
+from EasyFEA.Models.InElastic._plasticity import Voce, VonMises
 
 # ----------------------------------------------
 # Configuration
@@ -58,16 +59,16 @@ nodesXL = mesh.Nodes_Conditions(lambda x, y, z: x == L / 2)
 # ----------------------------------------------
 # Simulation
 # ----------------------------------------------
-material = Models.InElastic.Behavior(
-    2,
+material = Models.InElastic.Plasticity(
     Isotropic(3, E=E, v=v),
-    hardening=Models.InElastic.IsotropicHardening.Voce(120.0, 40.0),
-    yieldSurface=Models.InElastic.Yield.VonMises(sigma_y),
-    thickness=thickness,
+    VonMises(sigma_y),
+    Voce(120.0, 40.0),
+    dim=2,
     planeStress=True,
+    thickness=thickness,
 )
 
-simu = Simulations.InElastic(mesh, material)
+simu = Simulations.InElasticContract(mesh, material)
 
 for u in np.linspace(uMax / nStep, uMax, nStep):
     simu.Bc_Init()

@@ -43,6 +43,7 @@ from scipy.optimize import brentq
 from EasyFEA import Folder, ElemType, Models, Simulations, PyVista, Matplotlib
 from EasyFEA.Geoms import CircleArc, Contour, Line, Circle
 from EasyFEA.Models.Elastic._laws import Isotropic
+from EasyFEA.Models.InElastic._plasticity import VonMises
 
 # ----------------------------------------------
 # Configuration
@@ -106,12 +107,7 @@ nodesY0 = mesh.Nodes_Conditions(lambda x, y, z: y == 0)
 bore = mesh.Nodes_Circle(Circle((0, 0), diam=2 * a))
 
 # perfectly plastic, as Hill assumes
-material = Models.InElastic.Behavior(
-    2,
-    Isotropic(3, E=E, v=v),
-    yieldSurface=Models.InElastic.Yield.VonMises(sigma_y),
-    planeStress=False,
-)
+material = Models.InElastic.Plasticity(Isotropic(3, E=E, v=v), VonMises(sigma_y), dim=2)
 
 
 # 1 & 3. One ramp, from first yield to collapse
@@ -121,7 +117,7 @@ material = Models.InElastic.Behavior(
 steps = np.sort(np.append(p_lim * 0.998 * np.linspace(0, 1, 26)[1:] ** 0.5, pressure))
 iPressure = int(np.flatnonzero(steps == pressure)[0])
 
-simu = Simulations.InElastic(mesh, material)
+simu = Simulations.InElasticContract(mesh, material)
 node_a = mesh.Nodes_Conditions(lambda x, y, z: (y == 0) & (x <= a * 1.001))
 
 u_bore = []
