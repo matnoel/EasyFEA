@@ -29,3 +29,5 @@ tangent and handles 2D. The shipped ones:
 
 Several scripts use :py:class:`~EasyFEA.Models.InElastic.MaterialPoint`, which drives a behavior at a
 single point with no mesh and no solver.
+
+``ThermoElasticity`` writes its own behavior, reading the temperature as an external variable.
