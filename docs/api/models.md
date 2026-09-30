@@ -43,6 +43,9 @@ With this module, you can construct:
   {py:class}`~EasyFEA.Models.InElastic.ViscoElastic`. With none of them it is linear
   elasticity. {py:class}`~EasyFEA.Models.InElastic.MaterialPoint` drives one of these at
   a single Gauss point, with no mesh and no solver.
+- Inelastic behaviors written as one `Update` at one 3D point, in `jax.numpy`, on
+  {py:class}`~EasyFEA.Models.InElastic.Contract._Behavior`: EasyFEA derives the tangent
+  and handles 2D. {py:class}`~EasyFEA.Models.InElastic.Maxwell` is written on it.
 
 (models-beam)=
 
@@ -73,6 +76,8 @@ With this module, you can construct:
 .. automodule:: EasyFEA.Models.InElastic.ViscoPlastic
 .. automodule:: EasyFEA.Models.InElastic.ViscoElastic
 .. automodule:: EasyFEA.Models.InElastic.Yield
+.. automodule:: EasyFEA.Models.InElastic.Contract
+.. autoclass:: EasyFEA.Models.InElastic.Maxwell
 .. automodule:: EasyFEA.Models.Beam
     :imported-members:
 ```

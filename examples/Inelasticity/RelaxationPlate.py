@@ -45,17 +45,14 @@ thickness = 5.0
 E, v = 210000.0, 0.3  # MPa
 stretch = 0.025  # mm, held constant — over the half-length, so 4.2e-4 average strain
 
-branches = [
-    Models.InElastic.ViscoElastic.Maxwell(g=0.30, tau=1.0),
-    Models.InElastic.ViscoElastic.Maxwell(g=0.20, tau=10.0),
-]
+g = np.array([0.30, 0.20])  # fraction of C carried by each Maxwell branch
+tau = np.array([1.0, 10.0])  # relaxation time of each branch
 dt, nStep = 0.5, 10
 
 
 def Relaxation(n: int) -> float:
     """R after n backward-Euler steps — exact for the scheme, unlike exp(-t/tau)."""
-    g_eq = 1.0 - sum(br.g for br in branches)
-    return g_eq + sum(br.g * (1 + dt / br.tau) ** -n for br in branches)
+    return 1.0 - g.sum() + g @ (1 + dt / tau) ** -n
 
 
 # ----------------------------------------------
@@ -80,14 +77,11 @@ nodesXL = mesh.Nodes_Conditions(lambda x, y, z: x == L / 2)
 # ----------------------------------------------
 # Simulation
 # ----------------------------------------------
-material = Models.InElastic.Behavior(
-    2,
-    Isotropic(3, E=E, v=v),
-    branches=branches,  # no yield surface: this never flows, it only relaxes
-    thickness=thickness,
-    planeStress=True,
+# no yield surface: this never flows, it only relaxes
+material = Models.InElastic.Maxwell(
+    Isotropic(3, E=E, v=v), g, tau, dim=2, planeStress=True, thickness=thickness
 )
-simu = Simulations.InElastic(mesh, material)
+simu = Simulations.InElasticContract(mesh, material)
 simu.dt = dt
 
 # Stretch, then hold
@@ -124,7 +118,7 @@ ax.plot(
     time, [Relaxation(k) / Relaxation(1) for k in n], "k-", lw=1, label="$R(t)$ exact"
 )
 ax.plot(time, np.array(peak) / peak[0], "o", ms=3, label="peak $\\sigma_{xx}$, FE")
-g_eq = 1.0 - sum(br.g for br in branches)
+g_eq = 1.0 - g.sum()
 ax.axhline(g_eq / Relaxation(1), ls=":", c="k", lw=0.8)
 ax.text(0, g_eq / Relaxation(1), " equilibrium spring", fontsize=8, va="bottom")
 ax.set_xlabel("time")

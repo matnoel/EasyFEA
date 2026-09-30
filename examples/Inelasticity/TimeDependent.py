@@ -66,16 +66,12 @@ chains = {
 
 ax = Matplotlib.Init_Axes()
 for label, branches in chains.items():
-    law = Models.InElastic.Behavior(
-        3,
-        elastic,
-        branches=[
-            Models.InElastic.ViscoElastic.Maxwell(g=g, tau=t) for g, t in branches
-        ],
+    law = Models.InElastic.Maxwell(
+        elastic, g=[g for g, _ in branches], tau=[t for _, t in branches]
     )
-    sig = Models.InElastic.MaterialPoint(law).Run(strain={"xx": hold}, dt=dt)["stress"][
-        :, 0
-    ]
+    sig = Models.InElastic.Contract.MaterialPoint(law).Run(strain={"xx": hold}, dt=dt)[
+        "stress"
+    ][:, 0]
     ax.plot(time, sig, label=label.value)
 
     # what is left once every branch has relaxed: the lone spring

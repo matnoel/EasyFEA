@@ -25,9 +25,11 @@ turns on one behavior:
       - the surface moves, giving the Bauschinger effect — Prager, Armstrong-Frederick, Chaboche
     * - :py:class:`Models.InElastic.ViscoPlastic <EasyFEA.Models.InElastic.ViscoPlastic>`
       - it creeps and relaxes once yielded — Norton, Perzyna
-    * - :py:class:`Models.InElastic.ViscoElastic <EasyFEA.Models.InElastic.ViscoElastic>`
-      - it relaxes without ever yielding — Maxwell branches
 
 Several scripts use :py:class:`~EasyFEA.Models.InElastic.MaterialPoint`, which drives a behaviour at a
 single Gauss point with no mesh and no solver. The two solvers behind it are described in
 :ref:`simulations-inelastic`.
+
+Viscoelasticity is :py:class:`~EasyFEA.Models.InElastic.Maxwell`, written as one ``Update`` at one
+material point on :py:class:`~EasyFEA.Models.InElastic.Contract._Behavior` and driven by
+:py:class:`~EasyFEA.Simulations.InElasticContract`.
