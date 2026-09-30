@@ -107,191 +107,38 @@ problems**.
 assemble $\Krm_T = \int \Brm^T \Crm_{alg} \Brm$ and the residual $-\int \Brm^T \Sig$,
 solve, repeat.
 
-*Locally*, at every Gauss point independently, the material is asked for the stress and
-the consistent tangent given the strain increment. Two routes are available; the
-material picks, and `solver="newton"` forces the general one.
+*Locally*, at every Gauss point, the material is a
+{py:class}`~EasyFEA.Models.InElastic._Behavior`: one `Update(eps, z, dt)` written at one
+3D point in `jax.numpy`, returning the stress and the new state. EasyFEA lifts it to
+every Gauss point (`vmap`), derives $\Crm_{alg}$ by `jacfwd` through `Update`, pads
+plane strain, and under plane stress solves $\varepsilon_{zz}$ at each point so that
+$\sigma_{zz} = 0$, the tangent going through that solve too.
 
-| Route           | Used when                                                                                                                                             | Unknowns                                           |
-| --------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------- |
-| Implicit solve  | Always applicable                                                                                                                                     | the state increments $\Delta z$ and $\Delta\gamma$ |
-| Spectral return | The yield surface is quadratic, $\phi^2 = \Sig:\Prm:\Sig$ — von Mises, Hill — with homogeneous $\Crm$, no kinematic hardening and no viscous branches | one scalar                                         |
-
-#### The implicit solve
-
-Every internal variable is advanced by backward Euler, which gives one algebraic system
-per Gauss point. The unknowns are the **increments**, as in MFront's implicit DSL, so
-each row is a change and the committed state never appears on both sides of a
-subtraction:
+A return mapping is a {py:func}`~EasyFEA.Models.InElastic.Newton` on the state
+increments, differentiable through its root, so the consistent tangent needs no
+hand-written Jacobian. {py:class}`~EasyFEA.Models.InElastic.Plasticity` writes
 
 $$
 \begin{aligned}
-r_{v,i} &= \Delta\Eps^v_i - \frac{\dt}{\tau_i}\left(\Eps^e - \Eps^v_i\right)
-  &&\text{one per Maxwell branch} \\
-r_p &= \Delta\Eps^p - \Delta\gamma\, \Nrm
-  &&\text{the flow rule} \\
-r_\alpha &= \Delta\alpha - \Delta\gamma
-  &&\text{accumulated plastic strain} \\
-r_{X_j} &= \Delta\boldsymbol{\alpha}_j - \Delta\gamma\left(\Nrm - \gamma_j\boldsymbol{\alpha}_j\right)
-  &&\text{one per back-stress} \\
-r_f &= f(\Sig, R) - \phi^{-1}(\Delta\gamma/\dt)
-  &&\text{consistency, or the rate law}
+r_p &= \Delta\Eps^p - \Delta p\, \Nrm, \qquad \Nrm = \dpartial{f}{\Sig} \\
+r_f &= f(\Sig, R(p_n + \Delta p)) / \sigma_y
 \end{aligned}
 $$
 
-Laws are evaluated at the values $z_n + \Delta z$. The flow direction $\Nrm$ is read at
-the stress shifted by the back-stress, $\boldsymbol{\xi} = \Sig - \Xrm$, which is what
-makes kinematic hardening move the surface's centre rather than grow it.
+with $\Nrm$ from `jax.grad` of the surface; {py:class}`~EasyFEA.Models.InElastic.Norton`
+subtracts the overstress its creep rate sustains from $r_f$, and
+{py:class}`~EasyFEA.Models.InElastic.Chaboche` reads the surface at $\Sig - \Xrm$ and
+adds one row per back-stress. A point on the surface flows, so that it gets the loading
+tangent whatever the roundoff in $f$.
 
-Which rows exist depends on the pieces given. With no rate law the last term of $r_f$
-drops and it becomes the consistency condition $f = 0$. With no yield surface only the
-$r_{v,i}$ remain, the system is linear, and it converges in a single iteration — pure
-viscoelastic relaxation needs no iteration at all.
-
-The system is small and there is one of it per Gauss point. Its size $n_u$ is set by the
-pieces given — six rows for each tensor variable, one for the accumulated plastic
-strain, one for $\Delta\gamma$:
-
-| Configuration                           | Rows         |
-| --------------------------------------- | ------------ |
-| Maxwell branches only, no yield surface | 6 per branch |
-| von Mises + isotropic hardening         | 8            |
-| + one Armstrong-Frederick back-stress   | 14           |
-| + Chaboche with three components        | 26           |
-| + three components and two branches     | 38           |
-
-Newton starts from $\Delta z = 0$, and the **whole mesh is advanced together**. `J` is
-assembled as a FeArray of shape `(Ne, nPg, nu, nu)` and the residual as `(Ne, nPg, nu)`,
-so
-
-```python
-u = Bound(u - np.linalg.solve(J, r[..., None])[..., 0])
-```
-
-is one call that solves `Ne × nPg` independent $n_u \times n_u$ systems:
-`np.linalg.solve` reads the last two axes as the matrix and broadcasts over the leading
-ones, so `r[..., None]` supplies one column vector per point. There is no Python loop
-over points, which is why the local solve costs about the same as an assembly pass
-rather than dominating it.
-
-The tangent reuses the same shape. `D` is $\partial r/\partial\Eps$ with shape
-`(Ne, nPg, nu, 6)`, so `np.linalg.solve(J, D)` solves the *same* matrices against **six
-right-hand sides** — one per Kelvin-Mandel strain component — and returns
-$\partial u/\partial\Eps$ in one call.
-
-$\Jrm = \partial r/\partial u$ is written analytically, never finite-differenced. Every
-dependence runs through the stress and the shifted stress,
-
-$$\Sig = \Crm:(\Eps - \Eps^p) - \sum_i g_i \Crm : \Eps^v_i,
-\qquad \boldsymbol{\xi} = \Sig - \sum_j k_j\boldsymbol{\alpha}_j$$
-
-so the sensitivities are read straight off them —
-$\partial\Sig/\partial\Delta\Eps^p = -\Crm$,
-$\partial\Sig/\partial\Delta\Eps^v_i = -g_i\Crm$,
-$\partial\boldsymbol{\xi}/\partial\Delta\boldsymbol{\alpha}_j = -k_j$ — and the chain
-rule fills the blocks:
-
-| Block                                                  | Value                                                          | From                                                                                                                 |
-| ------------------------------------------------------ | -------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------- |
-| $\partial r_p/\partial\Delta\Eps^p$                    | $\Irm + \Delta\gamma\,\dfrac{\partial \Nrm}{\partial\Sig}\Crm$ | the surface's own `dNdSig`                                                                                           |
-| $\partial r_p/\partial\Delta\gamma$                    | $-\Nrm$                                                        |                                                                                                                      |
-| $\partial r_f/\partial\Delta\Eps^p$                    | $-\Nrm\Crm$                                                    | $\partial f/\partial\Sig = \Nrm$                                                                                     |
-| $\partial r_f/\partial\Delta\alpha$                    | $-R'$                                                          | the hardening's own `dR`                                                                                             |
-| $\partial r_f/\partial\Delta\gamma$                    | $-\phi^{-1\prime}/\dt$                                         | the rate law's own `dinverse`                                                                                        |
-| $\partial r_{v,i}/\partial\Delta\Eps^v_i$              | $(1 + \dt/\tau_i)\,\Irm$                                       |                                                                                                                      |
-| $\partial r_{X_j}/\partial\Delta\boldsymbol{\alpha}_j$ | $(1 + \Delta\gamma\,\gamma_j)\,\Irm + \ldots$                  | plus a full coupling block, since every back-stress shifts $\boldsymbol{\xi}$ and so moves $\Nrm$ for all the others |
-
-The same pass builds $\partial r/\partial\Eps$, which the tangent needs. What makes this
-extensible is that no block knows what law it belongs to: a yield surface supplies
-$\Nrm$ and $\partial\Nrm/\partial\Sig$, a hardening law $R$ and $R'$, a rate law its
-inverse and derivative, and the assembly is generic. Adding a mechanism means adding its
-rows and its blocks, not touching the solver.
-
-Three details matter for robustness:
-
-- **Not every point flows.** A point whose trial state is inside the surface has its
-  $\Delta\gamma$ row replaced by $\Delta\gamma = 0$, so elastic points cannot be dragged
-  into flowing by the shared solve. Viscous branches keep evolving either way, since
-  relaxation needs no yield surface.
-- **$\Delta\gamma \ge 0$** is enforced after each update; a negative multiplier has no
-  meaning.
-- **Rows are scaled before they are compared.** Most rows are strains and $r_f$ is a
-  stress, so $r_f$ is divided by the surface scale. Left unscaled the stress row
-  dominates by orders of magnitude and no step looks like an improvement.
-
-With a rate law $\Delta\gamma$ is seeded from an explicit rate estimate rather than
-zero, because the inverse rate law has unbounded derivative at zero flow and Newton
-would not move from there.
-
-The **consistent tangent** costs no extra stress evaluations: the Jacobian
-$\Jrm = \partial r/\partial u$ is built from quantities the converged state already
-carries, and one further linear solve gives the tangent. Differentiating $r = 0$ with
-respect to the strain,
-
-$$\frac{\partial u}{\partial \Eps} = -\Jrm^{-1}\frac{\partial r}{\partial \Eps},
-\qquad
-\Crm_{alg} = \Crm - \Crm\frac{\partial \Eps^p}{\partial \Eps}
-- \sum_i g_i\,\Crm\frac{\partial \Eps^v_i}{\partial \Eps}$$
-
-This is $\partial\Sig/\partial\Eps$ of the *algorithm*, not of the continuous law.
-Substituting the elastic $\Crm$ still converges to the same answer, but costs the global
-Newton its quadratic rate.
-
-#### The spectral return
-
-A quadratic surface makes the update linear in the stress, which removes the need to
-iterate on a vector at all. The flow is $\Delta\Eps^p = \Delta\gamma\,\Prm\Sig/\phi$, so
-with $\theta = \Delta\gamma/\phi$,
-
-$$(\Irm + \theta\,\Crm\Prm)\,\Sig = \Sig_{tr}$$
-
-Inverting that directly at every Gauss point would be no cheaper than the vector Newton.
-The trick is to diagonalise **once per material**, when the behaviour is built:
-
-$$\Crm^{1/2}\Prm\Crm^{1/2} = \Qrm\Lambda\Qrm^T,
-\qquad \Trm = \Crm^{1/2}\Qrm, \qquad \Trm^{-1} = \Qrm^T\Crm^{-1/2}$$
-
-taking $\Crm^{1/2}$ from the elastic law's own `Get_sqrt_C_S`, so it is shared with
-PhaseField rather than recomputed. In those coordinates the inverse is diagonal. Writing
-$y = \Trm^{-1}\Sig_{tr}$, the stress and the surface follow from $\theta$ alone:
-
-$$\Sig(\theta) = \Trm\,\frac{y}{1 + \theta\lambda},
-\qquad
-\phi(\theta)^2 = \sum_i \frac{\lambda_i\,y_i^2}{(1 + \theta\lambda_i)^2}$$
-
-$\phi$ is monotone decreasing in $\theta$, so consistency is one scalar equation,
-
-$$r(\theta) = \phi(\theta) - \sigma_y - R\!\left(p_n + \Delta\gamma\right)
-- \phi^{-1}\!\left(\Delta\gamma/\dt\right) = 0,
-\qquad \Delta\gamma = \theta\,\phi(\theta)$$
-
-solved by a safeguarded Newton clamped at $\theta \ge 0$. Both the hardening and the
-rate law feel $\theta$ only through $\Delta\gamma = \theta\phi$, so the derivative
-chains through that one product. As in the implicit route, all Gauss points advance
-together and points whose trial state is already inside the surface take a zero step.
-
-The plastic strain is then recovered without ever reconstructing a flow direction, as
-$\Eps^p = \Eps - \Crm^{-1}\Sig$, and the tangent is the exact linearisation — the
-elastic part in the same coordinates plus one rank-one term through $\theta$, in the
-manner of Simo & Taylor (1986):
-
-$$\Crm_{alg} = \Trm\,\mathrm{diag}\!\left(\frac{1}{1+\theta\lambda}\right)\Trm^{-1}\Crm
-+ \dpartial{\Sig}{\theta}\otimes\dpartial{\theta}{\Sig_{tr}}$$
-
-with the elastic $\Crm$ kept at points that never yielded.
-
-This applies to *any* linear elasticity, not only isotropic — the anisotropy is absorbed
-into the one-off decomposition, so it costs the same whatever $\Crm$ and $\Prm$ are.
-With isotropic $\Crm$ and von Mises the eigenvalue is repeated, $\phi$ collapses to a
-single term, the scalar equation becomes linear, and it reduces to the classical radial
-return with $\Delta\gamma$ in closed form. There is therefore no separate isotropic path
-to keep in step.
-
-Where both routes apply they agree to machine precision on stress, state and tangent,
-and the test suite checks it.
+Every step integrates from the state committed at the last
+{py:func}`~EasyFEA.Simulations._Simu.Save_Iter`, which commits the stress and the state
+together; {py:func}`~EasyFEA.Simulations._Simu.Set_Iter` restarts from a saved one. The
+kernel is compiled on the first step, which costs about a second.
 
 ```{seealso}
 - {ref}`easyfea-examples-inelasticity` — nine examples, each checked against a closed form
-- {ref}`Inelastic models <models-inelastic>` — the pieces a behavior is assembled from
+- {ref}`Inelastic models <models-inelastic>` — the shipped behaviors and how to write one
 ```
 
 ## How to Create New Simulations in EasyFEA?

@@ -8,7 +8,7 @@ from typing import TYPE_CHECKING, NamedTuple, Sequence
 import numpy as np
 
 from ..Elastic._laws import _Elastic
-from .Contract import ZERO_TENSOR, _Behavior
+from ._behavior import ZERO_TENSOR, _Behavior
 
 if TYPE_CHECKING:
     from jax import Array

@@ -5,14 +5,18 @@
 
 """Module implementing constitutive laws used in simulations."""
 
-from ._behavior import Behavior
-from ._materialpoint import MaterialPoint
+from ._behavior import (
+    _Behavior,
+    MaterialPoint,
+    Newton,
+    Trace,
+    Deviator,
+    Von_Mises_stress,
+    ONE,
+    ZERO_TENSOR,
+    ZERO_SCALAR,
+)
 from . import IsotropicHardening
-from . import KinematicHardening
-from . import ViscoPlastic
-from . import ViscoElastic
 from . import Yield
-from . import Contract
 from ._maxwell import Maxwell
 from ._plasticity import Plasticity, Norton, Chaboche
-from .Yield import YieldSurface

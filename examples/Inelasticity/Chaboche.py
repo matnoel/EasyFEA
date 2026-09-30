@@ -27,18 +27,16 @@ from enum import Enum
 import numpy as np
 
 from EasyFEA import Matplotlib, Models
-from EasyFEA.Models.Elastic._laws import Isotropic
-from EasyFEA.Models.InElastic._plasticity import VonMises
 
 # ----------------------------------------------
 # Material
 # ----------------------------------------------
 E, v = 210000.0, 0.3  # MPa
 sigma_y = 250.0  # MPa
-elastic = Isotropic(3, E=E, v=v)
+elastic = Models.Elastic.Isotropic(3, E=E, v=v)
 eps_y = sigma_y / E
 
-MP = Models.InElastic.Contract.MaterialPoint
+MP = Models.InElastic.MaterialPoint
 
 # three components: fast knee, intermediate curvature, linear tail
 components = [
@@ -64,7 +62,12 @@ laws = {
 
 def Behaviour(kinematic):
     C_X, gamma = zip(*kinematic)
-    return Models.InElastic.Chaboche(elastic, VonMises(sigma_y), C_X=C_X, gamma=gamma)
+    return Models.InElastic.Chaboche(
+        elastic,
+        Models.InElastic.Yield.VonMises(sigma_y),
+        C_X=C_X,
+        gamma=gamma,
+    )
 
 
 # ----------------------------------------------

@@ -36,8 +36,6 @@ from scipy.integrate import simpson
 
 from EasyFEA import Folder, Matplotlib, ElemType, Models, PyVista, Simulations
 from EasyFEA.Geoms import Domain, Line
-from EasyFEA.Models.Elastic._laws import Isotropic
-from EasyFEA.Models.InElastic._plasticity import VonMises
 
 # ----------------------------------------------
 # Configuration
@@ -86,9 +84,13 @@ yMid = yMid[order]
 # ----------------------------------------------
 # perfectly plastic
 material = Models.InElastic.Plasticity(
-    Isotropic(3, E=E, v=v), VonMises(sigma_y), dim=2, planeStress=True, thickness=w
+    Models.Elastic.Isotropic(3, E=E, v=v),
+    Models.InElastic.Yield.VonMises(sigma_y),
+    dim=2,
+    planeStress=True,
+    thickness=w,
 )
-simu = Simulations.InElasticContract(mesh, material)
+simu = Simulations.InElastic(mesh, material)
 
 # Bend it, curvature by curvature
 ratios = np.arange(0.4, 4.01, 0.4)

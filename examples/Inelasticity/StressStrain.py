@@ -28,16 +28,6 @@ import numpy as np
 from scipy.optimize import brentq
 
 from EasyFEA import Matplotlib, Models
-from EasyFEA.Models.Elastic._laws import Isotropic
-from EasyFEA.Models.InElastic._plasticity import (
-    DruckerPrager,
-    Hill,
-    Linear,
-    Perfect,
-    Swift,
-    Voce,
-    VonMises,
-)
 
 # ----------------------------------------------
 # Configuration
@@ -45,7 +35,7 @@ from EasyFEA.Models.InElastic._plasticity import (
 E, v = 210000.0, 0.3  # MPa
 sigma_y = 250.0  # MPa
 
-elastic = Isotropic(3, E=E, v=v)
+elastic = Models.Elastic.Isotropic(3, E=E, v=v)
 eps_y = sigma_y / E
 
 path = np.linspace(0.0, 30 * eps_y, 200)
@@ -80,14 +70,20 @@ class Hardenings(str, Enum):
 
 
 hardenings = {
-    Hardenings.Perfect: (Perfect(), lambda p: 0.0),
-    Hardenings.Linear: (Linear(H), lambda p: H * p),
+    Hardenings.Perfect: (
+        Models.InElastic.IsotropicHardening.Perfect(),
+        lambda p: 0.0,
+    ),
+    Hardenings.Linear: (
+        Models.InElastic.IsotropicHardening.Linear(H),
+        lambda p: H * p,
+    ),
     Hardenings.Voce: (
-        Voce(Q, b),
+        Models.InElastic.IsotropicHardening.Voce(Q, b),
         lambda p: Q * (1 - np.exp(-b * p)),
     ),
     Hardenings.Swift: (
-        Swift(K, n),
+        Models.InElastic.IsotropicHardening.Swift(K, n),
         lambda p: K * ((eps0 + p) ** n - eps0**n),
     ),
 }
@@ -95,8 +91,10 @@ hardenings = {
 ax = Matplotlib.Init_Axes()
 worst = 0.0
 for i, (label, (hardening, R)) in enumerate(hardenings.items()):
-    law = Models.InElastic.Plasticity(elastic, VonMises(sigma_y), hardening)
-    res = Models.InElastic.Contract.MaterialPoint(law).Run(strain={"xx": path})
+    law = Models.InElastic.Plasticity(
+        elastic, Models.InElastic.Yield.VonMises(sigma_y), hardening
+    )
+    res = Models.InElastic.MaterialPoint(law).Run(strain={"xx": path})
     eps, sig = res["strain"][:, 0], res["stress"][:, 0]
 
     err = np.max(np.abs(sig - Exact(eps, R))) / sigma_y
@@ -141,15 +139,17 @@ class Surfaces(str, Enum):
 
 
 surfaces = {
-    Surfaces.VonMises: VonMises(sigma_y),
-    Surfaces.DruckerPrager: DruckerPrager(sigma_y, 0.2),
-    Surfaces.Hill: Hill(sigma_y, F=F, G=G, H=Hh, L=Lh, M=M, N=N),
+    Surfaces.VonMises: Models.InElastic.Yield.VonMises(sigma_y),
+    Surfaces.DruckerPrager: Models.InElastic.Yield.DruckerPrager(sigma_y, 0.2),
+    Surfaces.Hill: Models.InElastic.Yield.Hill(sigma_y, F=F, G=G, H=Hh, L=Lh, M=M, N=N),
 }
 
 ax = Matplotlib.Init_Axes()
 for label, surface in surfaces.items():
-    law = Models.InElastic.Plasticity(elastic, surface, Voce(Q, b))
-    res = Models.InElastic.Contract.MaterialPoint(law).Run(strain={"xx": path})
+    law = Models.InElastic.Plasticity(
+        elastic, surface, Models.InElastic.IsotropicHardening.Voce(Q, b)
+    )
+    res = Models.InElastic.MaterialPoint(law).Run(strain={"xx": path})
     ax.plot(res["strain"][:, 0] * 100, res["stress"][:, 0], label=label.value)
 
     if label is Surfaces.Hill:

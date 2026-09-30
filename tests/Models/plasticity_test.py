@@ -7,24 +7,14 @@
 
 import numpy as np
 import pytest
+from scipy.optimize import brentq
 
 from EasyFEA.FEM._linalg import FeArray
 from EasyFEA.Models import _autodiff
 from EasyFEA.Models.Elastic._laws import Isotropic, Orthotropic
-from EasyFEA.Models.InElastic._plasticity import (
-    Chaboche,
-    DruckerPrager,
-    Hill,
-    Linear,
-    Norton,
-    Perfect,
-    Plasticity,
-    Swift,
-    Voce,
-    VonMises,
-)
-from scipy.optimize import brentq
-from EasyFEA.Models.InElastic.Contract import MaterialPoint
+from EasyFEA.Models.InElastic import Chaboche, MaterialPoint, Norton, Plasticity
+from EasyFEA.Models.InElastic.IsotropicHardening import Linear, Perfect, Swift, Voce
+from EasyFEA.Models.InElastic.Yield import DruckerPrager, Hill, VonMises
 
 pytest.importorskip("jax")
 _autodiff.Enable_x64()

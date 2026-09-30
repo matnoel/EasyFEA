@@ -16,7 +16,7 @@ import pytest
 from EasyFEA.FEM._linalg import FeArray
 from EasyFEA.Models import _autodiff
 from EasyFEA.Models.Elastic._laws import Isotropic
-from EasyFEA.Models.InElastic.Contract import (
+from EasyFEA.Models.InElastic import (
     ZERO_SCALAR,
     ZERO_TENSOR,
     _Behavior,

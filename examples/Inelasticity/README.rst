@@ -6,30 +6,26 @@ Inelastic simulations
 Scripts that demonstrate small-strain materials whose stress depends on the history of strain:
 plasticity, viscoplasticity and viscoelasticity.
 
-:py:class:`~EasyFEA.Models.InElastic.Behavior` is assembled from independent pieces rather than chosen
-from a list, and driven by :py:class:`~EasyFEA.Simulations.InElastic`. Each piece is optional and
-turns on one behavior:
+Each material is a :py:class:`~EasyFEA.Models.InElastic._Behavior`, written as one ``Update`` at one
+3D material point and driven by :py:class:`~EasyFEA.Simulations.InElastic`, which derives the
+tangent and handles 2D. The shipped ones:
 
 .. list-table::
     :header-rows: 1
 
-    * - Piece
-      - What it adds
-    * - *(none)*
-      - linear elasticity
-    * - :py:class:`Models.InElastic.Yield <EasyFEA.Models.InElastic.Yield>`
-      - plasticity — von Mises, Hill, Drucker-Prager
-    * - :py:class:`Models.InElastic.IsotropicHardening <EasyFEA.Models.InElastic.IsotropicHardening>`
-      - the surface grows — linear, Voce, Swift
-    * - :py:class:`Models.InElastic.KinematicHardening <EasyFEA.Models.InElastic.KinematicHardening>`
-      - the surface moves, giving the Bauschinger effect — Prager, Armstrong-Frederick, Chaboche
-    * - :py:class:`Models.InElastic.ViscoPlastic <EasyFEA.Models.InElastic.ViscoPlastic>`
-      - it creeps and relaxes once yielded — Norton, Perzyna
+    * - Behavior
+      - What it models
+    * - :py:class:`~EasyFEA.Models.InElastic.Plasticity`
+      - plasticity, on any surface from :py:mod:`~EasyFEA.Models.InElastic.Yield` (von Mises,
+        Hill, Drucker-Prager) with any hardening from
+        :py:mod:`~EasyFEA.Models.InElastic.IsotropicHardening` (linear, Voce, Swift)
+    * - :py:class:`~EasyFEA.Models.InElastic.Norton`
+      - it creeps and relaxes once yielded
+    * - :py:class:`~EasyFEA.Models.InElastic.Chaboche`
+      - the surface moves, giving the Bauschinger effect — Prager, Armstrong-Frederick and their
+        superposition
+    * - :py:class:`~EasyFEA.Models.InElastic.Maxwell`
+      - viscoelastic relaxation
 
-Several scripts use :py:class:`~EasyFEA.Models.InElastic.MaterialPoint`, which drives a behaviour at a
-single Gauss point with no mesh and no solver. The two solvers behind it are described in
-:ref:`simulations-inelastic`.
-
-Viscoelasticity is :py:class:`~EasyFEA.Models.InElastic.Maxwell`, written as one ``Update`` at one
-material point on :py:class:`~EasyFEA.Models.InElastic.Contract._Behavior` and driven by
-:py:class:`~EasyFEA.Simulations.InElasticContract`.
+Several scripts use :py:class:`~EasyFEA.Models.InElastic.MaterialPoint`, which drives a behavior at a
+single point with no mesh and no solver.

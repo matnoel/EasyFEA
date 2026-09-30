@@ -33,7 +33,6 @@ import numpy as np
 
 from EasyFEA import Folder, ElemType, Models, Simulations, Matplotlib, PyVista
 from EasyFEA.Geoms import Point, Points
-from EasyFEA.Models.Elastic._laws import Isotropic
 
 # ----------------------------------------------
 # Configuration
@@ -79,9 +78,14 @@ nodesXL = mesh.Nodes_Conditions(lambda x, y, z: x == L / 2)
 # ----------------------------------------------
 # no yield surface: this never flows, it only relaxes
 material = Models.InElastic.Maxwell(
-    Isotropic(3, E=E, v=v), g, tau, dim=2, planeStress=True, thickness=thickness
+    Models.Elastic.Isotropic(3, E=E, v=v),
+    g,
+    tau,
+    dim=2,
+    planeStress=True,
+    thickness=thickness,
 )
-simu = Simulations.InElasticContract(mesh, material)
+simu = Simulations.InElastic(mesh, material)
 simu.dt = dt
 
 # Stretch, then hold

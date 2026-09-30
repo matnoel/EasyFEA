@@ -33,19 +33,17 @@ With this module, you can construct:
 (models-inelastic)=
 
 - Small-strain materials whose stress depends on the *history* of strain — plasticity,
-  viscoplasticity and viscoelasticity — with
-  {py:class}`~EasyFEA.Models.InElastic.Behavior`. It is assembled from independent
-  pieces rather than chosen from a list: an elastic law, plus any of a yield surface
-  from {py:class}`~EasyFEA.Models.InElastic.Yield`, isotropic hardening from
-  {py:class}`~EasyFEA.Models.InElastic.IsotropicHardening`, a back-stress from
-  {py:class}`~EasyFEA.Models.InElastic.KinematicHardening`, a rate law from
-  {py:class}`~EasyFEA.Models.InElastic.ViscoPlastic`, and Maxwell branches from
-  {py:class}`~EasyFEA.Models.InElastic.ViscoElastic`. With none of them it is linear
-  elasticity. {py:class}`~EasyFEA.Models.InElastic.MaterialPoint` drives one of these at
-  a single Gauss point, with no mesh and no solver.
-- Inelastic behaviors written as one `Update` at one 3D point, in `jax.numpy`, on
-  {py:class}`~EasyFEA.Models.InElastic.Contract._Behavior`: EasyFEA derives the tangent
-  and handles 2D. {py:class}`~EasyFEA.Models.InElastic.Maxwell` is written on it.
+  viscoplasticity and viscoelasticity — as a
+  {py:class}`~EasyFEA.Models.InElastic._Behavior`: one `Update` written at one 3D point,
+  in `jax.numpy`, from which EasyFEA derives the tangent and handles 2D. Shipped:
+  {py:class}`~EasyFEA.Models.InElastic.Plasticity` on any surface from
+  {py:class}`~EasyFEA.Models.InElastic.Yield` with any hardening from
+  {py:class}`~EasyFEA.Models.InElastic.IsotropicHardening`,
+  {py:class}`~EasyFEA.Models.InElastic.Norton`,
+  {py:class}`~EasyFEA.Models.InElastic.Chaboche` and
+  {py:class}`~EasyFEA.Models.InElastic.Maxwell`.
+  {py:class}`~EasyFEA.Models.InElastic.MaterialPoint` drives one at a single point, with
+  no mesh and no solver.
 
 (models-beam)=
 
@@ -69,15 +67,10 @@ With this module, you can construct:
     :imported-members:
 .. automodule:: EasyFEA.Models.HyperElastic
     :imported-members:
-.. automodule:: EasyFEA.Models.InElastic.Behavior
-.. automodule:: EasyFEA.Models.InElastic.MaterialPoint
-.. automodule:: EasyFEA.Models.InElastic.IsotropicHardening
-.. automodule:: EasyFEA.Models.InElastic.KinematicHardening
-.. automodule:: EasyFEA.Models.InElastic.ViscoPlastic
-.. automodule:: EasyFEA.Models.InElastic.ViscoElastic
+.. automodule:: EasyFEA.Models.InElastic
+    :imported-members:
 .. automodule:: EasyFEA.Models.InElastic.Yield
-.. automodule:: EasyFEA.Models.InElastic.Contract
-.. autoclass:: EasyFEA.Models.InElastic.Maxwell
+.. automodule:: EasyFEA.Models.InElastic.IsotropicHardening
 .. automodule:: EasyFEA.Models.Beam
     :imported-members:
 ```

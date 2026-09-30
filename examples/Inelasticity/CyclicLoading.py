@@ -23,8 +23,6 @@ from enum import Enum
 import numpy as np
 
 from EasyFEA import Models, Matplotlib
-from EasyFEA.Models.Elastic._laws import Isotropic
-from EasyFEA.Models.InElastic._plasticity import Linear, VonMises
 
 # ----------------------------------------------
 # Configuration
@@ -34,7 +32,7 @@ sigma_y = 250.0  # MPa
 C_kin = 20000.0  # MPa, kinematic modulus
 gamma = 200.0  # ArmstrongFrederick recall
 
-elastic = Isotropic(3, E=E, v=v)
+elastic = Models.Elastic.Isotropic(3, E=E, v=v)
 eps_y = sigma_y / E
 
 # two and a half cycles
@@ -66,13 +64,21 @@ class Laws(str, Enum):
 # Prager is Chaboche with no recall
 laws = {
     Laws.Isotropic: Models.InElastic.Plasticity(
-        elastic, VonMises(sigma_y), Linear(C_kin)
+        elastic,
+        Models.InElastic.Yield.VonMises(sigma_y),
+        Models.InElastic.IsotropicHardening.Linear(C_kin),
     ),
     Laws.Prager: Models.InElastic.Chaboche(
-        elastic, VonMises(sigma_y), C_X=C_kin, gamma=0.0
+        elastic,
+        Models.InElastic.Yield.VonMises(sigma_y),
+        C_X=C_kin,
+        gamma=0.0,
     ),
     Laws.ArmstrongFrederick: Models.InElastic.Chaboche(
-        elastic, VonMises(sigma_y), C_X=C_kin, gamma=gamma
+        elastic,
+        Models.InElastic.Yield.VonMises(sigma_y),
+        C_X=C_kin,
+        gamma=gamma,
     ),
 }
 
@@ -88,7 +94,7 @@ def Elastic_span(res) -> float:
 ax = Matplotlib.Init_Axes()
 runs = {}
 for label, law in laws.items():
-    res = Models.InElastic.Contract.MaterialPoint(law).Run(strain={"xx": path})
+    res = Models.InElastic.MaterialPoint(law).Run(strain={"xx": path})
     runs[label] = res
     ax.plot(res["strain"][:, 0] * 100, res["stress"][:, 0], label=label, lw=1.2)
 

@@ -2,6 +2,23 @@
 
 This document describes the changes made to the project.
 
+## Unreleased
+
+- Inelastic materials are written on a contract (**breaking**): a
+  `Models.InElastic._Behavior` declares a `State` and writes `Update(eps, z, dt)` at one
+  3D point in `jax.numpy`; EasyFEA lifts it to every Gauss point, derives the tangent by
+  `jax.jacfwd`, handles plane strain and plane stress, and commits the state at
+  `Save_Iter`. `Newton`, `Trace`, `Deviator`, `Von_Mises_stress` help write one.
+- Shipped behaviors: `Plasticity(elastic, surface, hardening)`, `Norton`, `Chaboche`
+  with N back-stresses, and `Maxwell` with N branches. Surfaces (`Yield.VonMises`,
+  `Hill`, `DruckerPrager`) and hardening (`IsotropicHardening.Perfect`, `Linear`,
+  `Voce`, `Swift`) are plain callables.
+- The numpy `Behavior(dim, elastic, yieldSurface, hardening, kinematic, rate, branches)`
+  is removed, with `KinematicHardening`, `ViscoPlastic` (`Perzyna` is Norton with
+  `A = 1/eta`) and `ViscoElastic` (**breaking**). `Chaboche`'s back-stresses are one
+  `alpha` of shape `(N, 6)`, not `alpha0`, `alpha1`, ...; `Simulations.InElastic` no
+  longer reports a free energy.
+
 ## 5.0.0 (September 24, 2026):
 
 - A `constant=True` term is reused while its arguments keep the same values, checked

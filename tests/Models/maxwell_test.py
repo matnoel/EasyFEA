@@ -8,7 +8,6 @@
 import numpy as np
 import pytest
 
-from EasyFEA import Models
 from EasyFEA.FEM._linalg import FeArray
 from EasyFEA.Models import _autodiff
 from EasyFEA.Models.Elastic._laws import Isotropic
@@ -110,27 +109,3 @@ def test_tangent_matches_central_difference():
     C_alg = _at(behavior.Integrate(_fe(EPS), dt=5.0)[1])
 
     assert np.allclose(C_alg, _central_difference(behavior, EPS, None, 5.0), rtol=1e-6)
-
-
-@pytest.mark.parametrize("dim, planeStress", [(3, False), (2, False), (2, True)])
-def test_matches_the_numpy_engine_branches(dim: int, planeStress: bool):
-    branches = [Models.InElastic.ViscoElastic.Maxwell(g, t) for g, t in zip(G, TAU)]
-    old = Models.InElastic.Behavior(
-        dim, ELASTIC, branches=branches, planeStress=planeStress
-    )
-    new = Maxwell(ELASTIC, G, TAU, dim=dim, planeStress=planeStress)
-    rng = np.random.default_rng(1)
-    eps = FeArray.asfearray(rng.normal(0, 1e-3, (3, 2, 6 if dim == 3 else 3)))
-    z = FeArray.asfearray(rng.normal(0, 1e-3, (3, 2, 12)))
-
-    zNew = {"eps_v": z.reshape(3, 2, 2, 6)}
-    if planeStress:
-        # a warm start away from the root
-        zNew["eps_zz"] = np.full((3, 2), 1e-3)
-
-    sigO, CO, zO, _ = old.Integrate(eps, z, 0.5)
-    sigN, CN, zN = new.Integrate(eps, zNew, 0.5)
-
-    assert np.allclose(sigN, sigO, rtol=1e-12, atol=1e-9)
-    assert np.allclose(CN, CO, rtol=1e-12, atol=1e-6)
-    assert np.allclose(zN["eps_v"].reshape(3, 2, 12), zO, rtol=1e-12, atol=1e-15)
