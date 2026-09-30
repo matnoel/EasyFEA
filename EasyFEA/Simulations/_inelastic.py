@@ -31,6 +31,9 @@ class InElastic(_Simu):
     __INTERNAL_KEY = "internal"
     """Prefix of the saved iteration entries holding the internal variables, one per group and variable."""
 
+    __EXTERNAL_KEY = "external"
+    """Prefix of the saved iteration entries holding the external variables, one per name."""
+
     def __init__(
         self,
         mesh: "Mesh",
@@ -50,6 +53,8 @@ class InElastic(_Simu):
         self.__dt = 0.0
         # per group, at the last converged Solve; empty before any
         self.__internal: dict[ElemType, dict[str, FeArray]] = {}
+        # nodal, kept until changed
+        self.__external: dict[str, _types.FloatArray] = {}
 
     @property
     def dt(self) -> float:
@@ -60,6 +65,24 @@ class InElastic(_Simu):
     def dt(self, value: float) -> None:
         assert value >= 0.0, "dt must be >= 0"
         self.__dt = value
+
+    @property
+    def external(self) -> dict[str, _types.FloatArray]:
+        """The nodal external variables the next steps see, by name; set them with :meth:`Set_external`."""
+        return {name: v.copy() for name, v in self.__external.items()}
+
+    def Set_external(self, **values: float | _types.FloatArray) -> None:
+        """Sets external variables, each a scalar or a ``(Nn,)`` nodal field on this mesh, e.g. ``T=thermal.thermal``; kept until changed."""
+        Nn = self.mesh.Nn
+        for name, v in values.items():
+            assert (
+                name in self.material.externals
+            ), f"{type(self.material).__name__} reads no '{name}'"
+            v = np.asarray(v, dtype=float)
+            if v.ndim == 0:
+                v = np.full(Nn, float(v))
+            assert v.shape == (Nn,), f"'{name}' must be a scalar or a (Nn,) array"
+            self.__external[name] = v.copy()
 
     @property
     def material(self) -> _Behavior:
@@ -88,7 +111,7 @@ class InElastic(_Simu):
         self, details=False
     ) -> tuple[list[str], list[str]]:
         elementsField = ["Svm", "Stress", "Strain"] if details else ["Svm", "Stress"]
-        return ["displacement"], elementsField
+        return ["displacement", *self.__external], elementsField
 
     # --------------------------------------------------------------------------
     # Integration
@@ -113,15 +136,30 @@ class InElastic(_Simu):
         ), "the internal variables cannot follow a mesh change"
         return internal
 
+    def __External(self, groupElem: _GroupElem) -> dict[str, FeArray.FeArrayALike]:
+        """The external variables, interpolated at the Gauss points."""
+        N_pg = FeArray.asfearray(groupElem.Get_N_pg(MatrixType.rigi)[np.newaxis, :, 0])
+        return {
+            name: N_pg @ groupElem.Locates_sol_e(v, asFeArray=True)
+            for name, v in self.__external.items()
+        }
+
     def __Integrate(
         self, u: _types.FloatArray, groupElem: _GroupElem
     ) -> tuple[FeArray, FeArray, dict[str, FeArray]]:
         eps_e_pg = self.__Strain(u, groupElem)
-        return self.material.Integrate(eps_e_pg, self.__Internal(groupElem), self.__dt)
+        return self.material.Integrate(
+            eps_e_pg,
+            self.__Internal(groupElem),
+            self.__dt,
+            **self.__External(groupElem),
+        )
 
     def __Stress(self, groupElem: _GroupElem) -> FeArray:
         eps_e_pg = self.__Strain(self.displacement, groupElem)
-        return self.material.Stress_e_pg(eps_e_pg, self.__Internal(groupElem))
+        return self.material.Stress_e_pg(
+            eps_e_pg, self.__Internal(groupElem), **self.__External(groupElem)
+        )
 
     def Solve(self) -> _types.FloatArray:
         """Solves one step and commits its internal variables; Newton asserts before committing if it does not converge."""
@@ -163,6 +201,8 @@ class InElastic(_Simu):
         for elemType, internal in self.__internal.items():
             for name, v in internal.items():
                 iter[f"{InElastic.__INTERNAL_KEY}/{elemType.value}/{name}"] = v
+        for name, v in self.__external.items():
+            iter[f"{InElastic.__EXTERNAL_KEY}/{name}"] = v
 
         return super().Save_Iter(iter)
 
@@ -174,12 +214,16 @@ class InElastic(_Simu):
         u = results["displacement"]
         self._Set_solutions(self.problemType, u, np.zeros_like(u), np.zeros_like(u))
         internal: dict[ElemType, dict[str, FeArray]] = {}
+        external: dict[str, _types.FloatArray] = {}
         for key, v in results.items():
             prefix, _, rest = key.partition("/")
             if prefix == InElastic.__INTERNAL_KEY:
                 elemType, name = rest.split("/")
                 internal.setdefault(ElemType(elemType), {})[name] = v
+            elif prefix == InElastic.__EXTERNAL_KEY:
+                external[rest] = v
         self.__internal = internal
+        self.__external = external
         return results
 
     # --------------------------------------------------------------------------
@@ -201,6 +245,7 @@ class InElastic(_Simu):
         results.extend(["Svm", "Stress", "Evm", "Strain"])
         # scalar internal variables are plottable
         results.extend(self.__Scalar_states())
+        results.extend(self.material.externals)
         return results
 
     def Result(
@@ -229,6 +274,10 @@ class InElastic(_Simu):
 
         elif result == "displacement_matrix":
             values = self.Results_displacement_matrix()
+
+        elif result in self.material.externals:
+            assert result in self.__external, f"'{result}' is not set"
+            values = self.__external[result]
 
         elif result in self.__Scalar_states():
             values = np.concatenate(
