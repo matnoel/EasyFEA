@@ -117,6 +117,9 @@ class _Behavior(_IModel):
     State: ClassVar[type] = _NoState
     """The internal variables, a NamedTuple whose defaults are the virgin material."""
 
+    externals: ClassVar[tuple[str, ...]] = ()
+    """The external variables ``Update`` and ``Stress`` read as keywords, e.g. ``("T",)``, at the end of the step."""
+
     dim: int = _params.ParameterInValues([2, 3])
     thickness: float = _params.PositiveScalarParameter()
     planeStress: bool = _params.BoolParameter()
@@ -242,18 +245,20 @@ class _Behavior(_IModel):
         C_alg, (sig, z_new) = jax.jacfwd(Stress, has_aux=True)(eps)
         return sig, C_alg, z_new
 
-    def __Point_stress(self, eps: "Array", z: dict[str, "Array"]) -> "Array":
+    def __Point_stress(
+        self, eps: "Array", z: dict[str, "Array"], external: dict
+    ) -> "Array":
         """Stress at one point, in the model dimension, under the state ``z``."""
         import jax.numpy as jnp
 
         State = type(self.Virgin_state())
         state = State(**{name: z[name] for name in State._fields})
         if self.dim == 3:
-            return self.Stress(eps, state)
+            return self.Stress(eps, state, **external)
         eps6 = jnp.zeros(6).at[IDX_2D].set(eps)
         if self.planeStress:
             eps6 = eps6.at[ZZ].set(z["eps_zz"])
-        return self.Stress(eps6, state)[IDX_2D]
+        return self.Stress(eps6, state, **external)[IDX_2D]
 
     def __Eps_zz(
         self,
@@ -278,6 +283,19 @@ class _Behavior(_IModel):
             maxIter=self._maxIter,
         )
 
+    def __External_e_pg(
+        self, external: dict[str, FeArray.FeArrayALike], Ne: int, nPg: int
+    ) -> dict[str, FeArray.FeArrayALike]:
+        """The declared external variables, each broadcast to ``(Ne, nPg)``; asserted here, since inside the trace a missing one fails obscurely."""
+        missing = set(self.externals) - set(external)
+        unknown = set(external) - set(self.externals)
+        assert not missing, f"external variables missing: {sorted(missing)}"
+        assert not unknown, f"{type(self).__name__} reads no {sorted(unknown)}"
+        return {
+            name: FeArray.broadcast(np.asarray(v, dtype=float), Ne, nPg)
+            for name, v in external.items()
+        }
+
     def Integrate(
         self,
         eps_e_pg: FeArray.FeArrayALike,
@@ -291,6 +309,7 @@ class _Behavior(_IModel):
         Ne, nPg = eps_e_pg.shape[:2]
         if z_e_pg is None:
             z_e_pg = self.Virgin_state_e_pg(Ne, nPg)
+        external = self.__External_e_pg(external, Ne, nPg)
 
         if "_compiled" not in self.__dict__:
             import jax
@@ -318,9 +337,11 @@ class _Behavior(_IModel):
         self,
         eps_e_pg: FeArray.FeArrayALike,
         z_e_pg: dict[str, FeArray],
+        **external,
     ) -> FeArray:
         """Stress at every Gauss point, in the model dimension, under the state ``z_e_pg``, with no step."""
         eps_e_pg = FeArray.asfearray(np.asarray(eps_e_pg, dtype=float))
+        external = self.__External_e_pg(external, *eps_e_pg.shape[:2])
         if "_compiledStress" not in self.__dict__:
             import jax
             from .._autodiff import Enable_x64
@@ -328,7 +349,9 @@ class _Behavior(_IModel):
             Enable_x64()
             point = jax.vmap(self.__Point_stress)
             self._compiledStress = jax.jit(jax.vmap(point))
-        return FeArray.asfearray(np.array(self._compiledStress(eps_e_pg, z_e_pg)))
+        return FeArray.asfearray(
+            np.array(self._compiledStress(eps_e_pg, z_e_pg, external))
+        )
 
 
 # ----------------------------------------------
@@ -355,8 +378,9 @@ class MaterialPoint:
         strain: dict[str, np.ndarray],
         stress: dict[str, np.ndarray] | None = None,
         dt: float = 0.0,
+        external: dict[str, np.ndarray] | None = None,
     ) -> dict[str, np.ndarray]:
-        """``strain`` and ``stress`` as ``(nstep, 6)``, plus one ``(nstep, ...)`` entry per internal variable."""
+        """``strain`` and ``stress`` as ``(nstep, 6)``, plus one ``(nstep, ...)`` entry per internal variable; each ``external`` is ``(nstep,)``."""
         assert strain, "at least one component must be strain-controlled"
         driven = {COMPONENTS[k]: np.asarray(v, dtype=float) for k, v in strain.items()}
         targets = {
@@ -366,6 +390,7 @@ class MaterialPoint:
             set(driven) & set(targets)
         ), "a component is either strain- or stress-driven"
         free = [i for i in range(6) if i not in driven]
+        external = {k: np.asarray(v, dtype=float) for k, v in (external or {}).items()}
 
         eps = np.zeros(6)
         z = self.behavior.Virgin_state_e_pg(1, 1)
@@ -374,9 +399,12 @@ class MaterialPoint:
             for i, path in driven.items():
                 eps[i] = path[k]
             target = np.array([targets[i][k] if i in targets else 0.0 for i in free])
+            external_k = {name: v[k] for name, v in external.items()}
 
             for _ in range(self._maxIter):
-                sig_e_pg, C_e_pg, zNew = self.behavior.Integrate(eps[None, None], z, dt)
+                sig_e_pg, C_e_pg, zNew = self.behavior.Integrate(
+                    eps[None, None], z, dt, **external_k
+                )
                 # one point, read back as plain vectors
                 sig, C_alg = np.asarray(sig_e_pg)[0, 0], np.asarray(C_e_pg)[0, 0]
                 r = sig[free] - target
