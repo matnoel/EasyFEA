@@ -135,8 +135,7 @@ def test_asking_for_a_result_leaves_the_stress_alone(mesh: str, request):
     assert np.allclose(simu.Result("Sxy", nodeValues=False), first, rtol=1e-12)
 
 
-def test_state_is_committed_at_save_iter(mesh2D: Mesh):
-    """Stepping on from a restored iteration reproduces the history."""
+def test_stepping_on_from_a_restored_iteration_reproduces_the_history(mesh2D: Mesh):
     simu = _relax(mesh2D, 3)
     last = simu.Result("Sxx", nodeValues=False)
 

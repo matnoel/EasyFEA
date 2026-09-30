@@ -5,10 +5,12 @@ This document describes the changes made to the project.
 ## Unreleased
 
 - Inelastic materials are written on a contract (**breaking**): a
-  `Models.InElastic._Behavior` declares a `State` and writes `Update(eps, z, dt)` at one
-  3D point in `jax.numpy`; EasyFEA lifts it to every Gauss point, derives the tangent by
-  `jax.jacfwd`, handles plane strain and plane stress, and commits the state at
-  `Save_Iter`. `Newton`, `Trace`, `Deviator`, `Von_Mises_stress` help write one.
+  `Models.InElastic._Behavior` declares a `State` and writes `Update(eps, z, dt)` and
+  `Stress(eps, z)` at one 3D point in `jax.numpy`; EasyFEA lifts them to every Gauss
+  point, derives the tangent by `jax.jacfwd`, handles plane strain and plane stress, and
+  commits the state at every converged `Solve` (`Save_Iter` only records it, so it can
+  be skipped on some steps). `Newton`, `Trace`, `Deviator`, `Von_Mises_stress` help
+  write one.
 - Shipped behaviors: `Plasticity(elastic, surface, hardening)`, `Norton`, `Chaboche`
   with N back-stresses, and `Maxwell` with N branches. Surfaces (`Yield.VonMises`,
   `Hill`, `DruckerPrager`) and hardening (`IsotropicHardening.Perfect`, `Linear`,

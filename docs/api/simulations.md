@@ -131,10 +131,12 @@ subtracts the overstress its creep rate sustains from $r_f$, and
 adds one row per back-stress. A point on the surface flows, so that it gets the loading
 tangent whatever the roundoff in $f$.
 
-Every step integrates from the state committed at the last
-{py:func}`~EasyFEA.Simulations._Simu.Save_Iter`, which commits the stress and the state
-together; {py:func}`~EasyFEA.Simulations._Simu.Set_Iter` restarts from a saved one. The
-kernel is compiled on the first step, which costs about a second.
+A converged {py:func}`~EasyFEA.Simulations.InElastic.Solve` is a step: it commits the
+internal variables, which the next step integrates from and results read, the stress
+being `Stress` at the committed ones. {py:func}`~EasyFEA.Simulations._Simu.Save_Iter`
+only records them, so it can be skipped on some steps;
+{py:func}`~EasyFEA.Simulations._Simu.Set_Iter` restarts from a saved one. The kernel is
+compiled on the first step, which costs about a second.
 
 ```{seealso}
 - {ref}`easyfea-examples-inelasticity` — nine examples, each checked against a closed form

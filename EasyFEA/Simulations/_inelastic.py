@@ -3,7 +3,7 @@
 # This file is part of the EasyFEA project.
 # EasyFEA is distributed under the terms of the GNU General Public License v3, see LICENSE.txt and CREDITS.md for more information.
 
-from typing import TYPE_CHECKING, NamedTuple
+from typing import TYPE_CHECKING
 
 import numpy as np
 
@@ -11,7 +11,7 @@ from ..Utilities import Terminal, Tic, _types
 
 if TYPE_CHECKING:
     from ..FEM import Mesh
-    from ..FEM._utils import ElemType
+from ..FEM._utils import ElemType
 from ..FEM import MatrixType, FeArray, Operators, _GroupElem
 
 from ..Models import Result_strain_or_stress_field_e
@@ -22,21 +22,14 @@ from ._terms import Term
 from ._problem_type import ProblemType
 
 
-class _Committed(NamedTuple):
-    stress: FeArray
-    state: dict[str, FeArray]
-
-    def Copy(self) -> "_Committed":
-        return _Committed(
-            self.stress.copy(), {name: v.copy() for name, v in self.state.items()}
-        )
-
-
 class InElastic(_Simu):
     r"""Quasi-static mechanics :math:`\diver{\Sig} + \fb = 0` by Newton-Raphson, the stress coming from a :class:`~EasyFEA.Models.InElastic._Behavior`.
 
-    Every step integrates from the state committed at the last :meth:`Save_Iter`, which commits the state and the stress together.
+    A converged :meth:`Solve` is a step: it commits the internal variables, which the next step integrates from and :meth:`Result` reads; :meth:`Save_Iter` only records them.
     """
+
+    __INTERNAL_KEY = "internal"
+    """Prefix of the saved iteration entries holding the internal variables, one per group and variable."""
 
     def __init__(
         self,
@@ -55,9 +48,8 @@ class InElastic(_Simu):
         self._Solver_Set_Newton_Raphson_Algorithm(absTol, relTol, incTol, maxIter)
 
         self.__dt = 0.0
-        # per group, at the last Save_Iter; empty before any
-        self.__committed: dict["ElemType", _Committed] = {}
-        self.__isSaved = False
+        # per group, at the last converged Solve; empty before any
+        self.__internal: dict[ElemType, dict[str, FeArray]] = {}
 
     @property
     def dt(self) -> float:
@@ -109,25 +101,35 @@ class InElastic(_Simu):
         u_e = groupElem.Locates_sol_e(u, asFeArray=True)
         return groupElem.Get_B_e_pg(MatrixType.rigi) @ u_e
 
-    def __Start(self, groupElem: _GroupElem) -> dict[str, FeArray]:
-        """The state the current step integrates from."""
-        if groupElem.elemType in self.__committed:
-            return self.__committed[groupElem.elemType].state
-        nPg = groupElem.Get_gauss(MatrixType.rigi).nPg
-        return self.material.Virgin_state_e_pg(groupElem.Ne, nPg)
+    def __Internal(self, groupElem: _GroupElem) -> dict[str, FeArray]:
+        """The internal variables committed at the last converged solve, virgin before any."""
+        if groupElem.elemType not in self.__internal:
+            nPg = groupElem.Get_gauss(MatrixType.rigi).nPg
+            return self.material.Virgin_state_e_pg(groupElem.Ne, nPg)
+        internal = self.__internal[groupElem.elemType]
+        # they could be projected onto the new mesh instead
+        assert all(
+            v.shape[0] == groupElem.Ne for v in internal.values()
+        ), "the internal variables cannot follow a mesh change"
+        return internal
 
     def __Integrate(
         self, u: _types.FloatArray, groupElem: _GroupElem
     ) -> tuple[FeArray, FeArray, dict[str, FeArray]]:
         eps_e_pg = self.__Strain(u, groupElem)
-        return self.material.Integrate(eps_e_pg, self.__Start(groupElem), self.__dt)
+        return self.material.Integrate(eps_e_pg, self.__Internal(groupElem), self.__dt)
 
-    def __Current(self, groupElem: _GroupElem) -> _Committed:
-        """Committed once saved; otherwise the trial step at the current displacement."""
-        if self.__isSaved:
-            return self.__committed[groupElem.elemType]
-        sig, _, z = self.__Integrate(self.displacement, groupElem)
-        return _Committed(sig, z)
+    def __Stress(self, groupElem: _GroupElem) -> FeArray:
+        eps_e_pg = self.__Strain(self.displacement, groupElem)
+        return self.material.Stress_e_pg(eps_e_pg, self.__Internal(groupElem))
+
+    def Solve(self) -> _types.FloatArray:
+        """Solves one step and commits its internal variables; Newton asserts before committing if it does not converge."""
+        u = super().Solve()
+        self.__internal = {
+            g.elemType: self.__Integrate(u, g)[2] for g in self.__Groups()
+        }
+        return u
 
     def Get_terms(self, problemType=None) -> list[Term]:
         """One term: the tangent ``∫BᵀC_alg B`` and the internal force ``∫Bᵀσ``."""
@@ -136,7 +138,6 @@ class InElastic(_Simu):
     def __Assemble(
         self, groupElem: _GroupElem, matrixType: MatrixType = MatrixType.rigi
     ) -> tuple[np.ndarray, np.ndarray]:
-        self.__isSaved = False
         u = self._Solver_Get_Newton_Raphson_current_solution()
         sigma_e_pg, C_e_pg, _ = self.__Integrate(u, groupElem)
 
@@ -158,10 +159,10 @@ class InElastic(_Simu):
         if iter is None:
             iter = {}
         iter["displacement"] = self.displacement
-
-        self.__committed = {g.elemType: self.__Current(g) for g in self.__Groups()}
-        self.__isSaved = True
-        iter["committed"] = {et: c.Copy() for et, c in self.__committed.items()}
+        # flat, so that each is seen as an element field
+        for elemType, internal in self.__internal.items():
+            for name, v in internal.items():
+                iter[f"{InElastic.__INTERNAL_KEY}/{elemType.value}/{name}"] = v
 
         return super().Save_Iter(iter)
 
@@ -172,8 +173,13 @@ class InElastic(_Simu):
 
         u = results["displacement"]
         self._Set_solutions(self.problemType, u, np.zeros_like(u), np.zeros_like(u))
-        self.__committed = {et: c.Copy() for et, c in results["committed"].items()}
-        self.__isSaved = True
+        internal: dict[ElemType, dict[str, FeArray]] = {}
+        for key, v in results.items():
+            prefix, _, rest = key.partition("/")
+            if prefix == InElastic.__INTERNAL_KEY:
+                elemType, name = rest.split("/")
+                internal.setdefault(ElemType(elemType), {})[name] = v
+        self.__internal = internal
         return results
 
     # --------------------------------------------------------------------------
@@ -226,10 +232,7 @@ class InElastic(_Simu):
 
         elif result in self.__Scalar_states():
             values = np.concatenate(
-                [
-                    np.mean(self.__Current(g).state[result], axis=1)
-                    for g in self.__Groups()
-                ]
+                [np.mean(self.__Internal(g)[result], axis=1) for g in self.__Groups()]
             )
 
         elif ("S" in result or "E" in result) and "_norm" not in result:
@@ -238,7 +241,7 @@ class InElastic(_Simu):
 
             def field_e_pg(groupElem):
                 if isStress:
-                    return self.__Current(groupElem).stress
+                    return self.__Stress(groupElem)
                 return self.__Strain(u, groupElem)
 
             values = Result_strain_or_stress_field_e(
