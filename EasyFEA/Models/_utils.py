@@ -323,6 +323,8 @@ def __Result_in_Strain_or_Stress_field(
     assert field_e_pg._ndim == 1, "must be a vector"
 
     Ne, nPg = field_e_pg.shape[:2]
+    # rescaled below: a caller may hand over the stress it keeps
+    field_e_pg = field_e_pg.copy()
 
     if field_e_pg.shape == (Ne, nPg, 3):
         dim = 2

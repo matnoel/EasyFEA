@@ -119,6 +119,19 @@ def test_the_stress_is_the_same_before_and_after_save_iter(mesh2D: Mesh):
     assert np.allclose(simu.Result("Sxx", nodeValues=False), trial, rtol=1e-12)
 
 
+@pytest.mark.parametrize("mesh", ["mesh2D", "mesh3D"])
+def test_asking_for_a_result_leaves_the_stress_alone(mesh: str, request):
+    """The shear components carry a sqrt(2) that reading them must not strip from the committed stress."""
+    mesh = request.getfixturevalue(mesh)
+    simu = Simulations.InElastic(mesh, Linear(dim=mesh.dim, thickness=H))
+    _pull(simu, mesh)
+    simu.Save_Iter()
+    first = simu.Result("Sxy", nodeValues=False)
+    simu.Result("Svm", nodeValues=False)
+
+    assert np.allclose(simu.Result("Sxy", nodeValues=False), first, rtol=1e-12)
+
+
 def test_state_is_committed_at_save_iter(mesh2D: Mesh):
     """Stepping on from a restored iteration reproduces the history."""
     simu = _relax(mesh2D, 3)
