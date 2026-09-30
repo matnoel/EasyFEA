@@ -1,0 +1,136 @@
+# Copyright (C) 2021-2024 Université Gustave Eiffel.
+# Copyright (C) 2025-2026 Université Gustave Eiffel, INRIA.
+# This file is part of the EasyFEA project.
+# EasyFEA is distributed under the terms of the GNU General Public License v3, see LICENSE.txt and CREDITS.md for more information.
+
+"""Maxwell, the first behavior on the contract, against its closed forms. Skipped whole when jax is absent."""
+
+import numpy as np
+import pytest
+
+from EasyFEA import Models
+from EasyFEA.FEM._linalg import FeArray
+from EasyFEA.Models import _autodiff
+from EasyFEA.Models.Elastic._laws import Isotropic
+from EasyFEA.Models.InElastic import Maxwell
+
+pytest.importorskip("jax")
+_autodiff.Enable_x64()
+
+E, nu = 210000.0, 0.3
+EPS = np.array([1e-3, -2e-4, 3e-4, 1e-4, -5e-5, 2e-4])
+ELASTIC = Isotropic(3, E=E, v=nu)
+C = ELASTIC.C
+G, TAU = [0.3, 0.2], [1.0, 10.0]
+
+
+def _fe(vec) -> FeArray.FeArrayALike:
+    return FeArray.asfearray(np.asarray(vec, dtype=float)[np.newaxis, np.newaxis])
+
+
+def _at(field) -> np.ndarray:
+    return np.asarray(field)[0, 0]
+
+
+def _hold(
+    behavior: Maxwell,
+    eps,
+    nstep: int,
+    dt: float,
+) -> np.ndarray:
+    z = None
+    for _ in range(nstep):
+        sig, _, z = behavior.Integrate(_fe(eps), z, dt)
+    return _at(sig)
+
+
+def _central_difference(
+    behavior: Maxwell,
+    eps,
+    z,
+    dt: float,
+    h: float = 1e-9,
+):
+    C_fd = np.zeros((eps.size, eps.size))
+    for j, d in enumerate(np.eye(eps.size) * h):
+        sigP = _at(behavior.Integrate(_fe(eps + d), z, dt)[0])
+        sigM = _at(behavior.Integrate(_fe(eps - d), z, dt)[0])
+        C_fd[:, j] = (sigP - sigM) / (2 * h)
+    return C_fd
+
+
+def test_state_is_sized_by_the_branches():
+    behavior = Maxwell(ELASTIC, G, TAU)
+
+    assert behavior.Virgin_state().eps_v.shape == (2, 6)
+    assert behavior.Virgin_state_e_pg(5, 4)["eps_v"].shape == (5, 4, 2, 6)
+    # a (2, 6) default must not be taken for an (Ne, nPg) field
+    assert behavior.Virgin_state_e_pg(2, 6)["eps_v"].shape == (2, 6, 2, 6)
+
+
+def test_fractions_must_leave_an_equilibrium_spring():
+    with pytest.raises(AssertionError, match="sum to less than 1"):
+        Maxwell(ELASTIC, [0.6, 0.4], [1.0, 2.0])
+
+
+def test_glassy_response_is_the_full_stiffness():
+    """dt = 0: the dashpots are rigid."""
+    sig, C_alg, _ = Maxwell(ELASTIC, 0.3, 1.0).Integrate(_fe(EPS), dt=0.0)
+
+    assert np.allclose(_at(sig), C @ EPS)
+    assert np.allclose(_at(C_alg), C)
+
+
+def test_relaxation_matches_the_backward_euler_closed_form():
+    """sigma_n = C:eps [(1 - sum g) + sum g (1 + dt/tau)^-n] for a held strain."""
+    g, tau, dt, nstep = np.array(G), np.array(TAU), 0.25, 12
+    sig = _hold(Maxwell(ELASTIC, g, tau), EPS, nstep, dt)
+
+    factor = 1 - g.sum() + g @ (1 + dt / tau) ** -nstep
+    assert np.allclose(sig, factor * C @ EPS, rtol=1e-12)
+
+
+def test_fully_relaxed_response_is_the_equilibrium_stiffness():
+    assert np.allclose(_hold(Maxwell(ELASTIC, 0.3, 1.0), EPS, 200, 1.0), 0.7 * C @ EPS)
+
+
+@pytest.mark.parametrize("planeStress", [False, True])
+def test_2d_tangent_matches_central_difference(planeStress: bool):
+    behavior = Maxwell(ELASTIC, G, TAU, dim=2, planeStress=planeStress)
+    eps = EPS[[0, 1, 5]]
+    _, _, z = behavior.Integrate(_fe(eps), dt=0.5)  # a history, so eps_v is not zero
+
+    C_alg = _at(behavior.Integrate(_fe(2 * eps), z, 0.5)[1])
+
+    assert np.allclose(C_alg, _central_difference(behavior, 2 * eps, z, 0.5), rtol=1e-6)
+
+
+def test_tangent_matches_central_difference():
+    behavior = Maxwell(ELASTIC, G, TAU)
+    C_alg = _at(behavior.Integrate(_fe(EPS), dt=5.0)[1])
+
+    assert np.allclose(C_alg, _central_difference(behavior, EPS, None, 5.0), rtol=1e-6)
+
+
+@pytest.mark.parametrize("dim, planeStress", [(3, False), (2, False), (2, True)])
+def test_matches_the_numpy_engine_branches(dim: int, planeStress: bool):
+    branches = [Models.InElastic.ViscoElastic.Maxwell(g, t) for g, t in zip(G, TAU)]
+    old = Models.InElastic.Behavior(
+        dim, ELASTIC, branches=branches, planeStress=planeStress
+    )
+    new = Maxwell(ELASTIC, G, TAU, dim=dim, planeStress=planeStress)
+    rng = np.random.default_rng(1)
+    eps = FeArray.asfearray(rng.normal(0, 1e-3, (3, 2, 6 if dim == 3 else 3)))
+    z = FeArray.asfearray(rng.normal(0, 1e-3, (3, 2, 12)))
+
+    zNew = {"eps_v": z.reshape(3, 2, 2, 6)}
+    if planeStress:
+        # a warm start away from the root
+        zNew["eps_zz"] = np.full((3, 2), 1e-3)
+
+    sigO, CO, zO, _ = old.Integrate(eps, z, 0.5)
+    sigN, CN, zN = new.Integrate(eps, zNew, 0.5)
+
+    assert np.allclose(sigN, sigO, rtol=1e-12, atol=1e-9)
+    assert np.allclose(CN, CO, rtol=1e-12, atol=1e-6)
+    assert np.allclose(zN["eps_v"].reshape(3, 2, 12), zO, rtol=1e-12, atol=1e-15)

@@ -12,4 +12,6 @@ from . import KinematicHardening
 from . import ViscoPlastic
 from . import ViscoElastic
 from . import Yield
+from . import Contract
+from ._maxwell import Maxwell
 from .Yield import YieldSurface
