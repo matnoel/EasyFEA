@@ -14,4 +14,5 @@ from . import ViscoElastic
 from . import Yield
 from . import Contract
 from ._maxwell import Maxwell
+from ._plasticity import Plasticity, Norton, Chaboche
 from .Yield import YieldSurface

@@ -11,7 +11,8 @@ import pytest
 from EasyFEA import ElemType, Mesh, Simulations
 from EasyFEA.Geoms import Domain, Point
 from EasyFEA.Models.Elastic._laws import Isotropic
-from EasyFEA.Models.InElastic import Maxwell
+from EasyFEA.Models.InElastic import Maxwell, Norton, Plasticity
+from EasyFEA.Models.InElastic._plasticity import Linear as LinearHardening, VonMises
 from EasyFEA.Models.InElastic.Contract import _Behavior
 
 pytest.importorskip("jax")
@@ -140,3 +141,52 @@ def test_simulation_survives_save_and_load(mesh2D: Mesh, tmp_path):
         s.Save_Iter()
 
     assert np.allclose(loaded.Result("Sxx"), simu.Result("Sxx"), rtol=1e-12)
+
+
+SIGMA_Y, HM = 250.0, 2000.0
+
+
+def _pull_bar(simu, mesh: Mesh, eps_xx: float) -> None:
+    """Statically determinate: x fixed on the face, y and z pinned on one edge each, so the stress stays uniaxial."""
+    simu.Bc_Init()
+    simu.add_dirichlet(mesh.Nodes_Conditions(lambda x, y, z: x == 0), [0], ["x"])
+    simu.add_dirichlet(
+        mesh.Nodes_Conditions(lambda x, y, z: (x == 0) & (y == 0)), [0], ["y"]
+    )
+    simu.add_dirichlet(
+        mesh.Nodes_Conditions(lambda x, y, z: (x == 0) & (z == 0)), [0], ["z"]
+    )
+    simu.add_dirichlet(
+        mesh.Nodes_Conditions(lambda x, y, z: x == L), [eps_xx * L], ["x"]
+    )
+    simu.Solve()
+    simu.Save_Iter()
+
+
+def test_plastic_bar_matches_the_closed_form(mesh3D: Mesh):
+    simu = Simulations.InElasticContract(
+        mesh3D, Plasticity(ELASTIC, VonMises(SIGMA_Y), LinearHardening(HM))
+    )
+    eps_target = 5 * SIGMA_Y / E
+    for eps_xx in np.linspace(eps_target / 10, eps_target, 10):
+        _pull_bar(simu, mesh3D, eps_xx)
+
+    expected = E * (SIGMA_Y + HM * eps_target) / (E + HM)
+    assert np.allclose(simu.Result("Sxx", nodeValues=False), expected, rtol=1e-9)
+    assert np.all(simu.Result("p", nodeValues=False) > 0)
+
+
+def test_norton_relaxes_through_the_simulation(mesh3D: Mesh):
+    """simu.dt reaches the material: held displacement, falling stress."""
+    behavior = Norton(
+        ELASTIC, VonMises(SIGMA_Y), LinearHardening(HM), A=1e-2, n=1.0, sigma_0=SIGMA_Y
+    )
+    simu = Simulations.InElasticContract(mesh3D, behavior)
+    simu.dt = 1.0
+    history = []
+    for _ in range(6):
+        _pull_bar(simu, mesh3D, 5 * SIGMA_Y / E)
+        history.append(float(np.mean(simu.Result("Sxx", nodeValues=False))))
+
+    assert history[-1] < history[0]
+    assert np.all(np.diff(history) <= 1e-9)
