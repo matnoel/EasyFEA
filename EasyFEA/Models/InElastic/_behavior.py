@@ -150,6 +150,15 @@ class _Behavior(_IModel):
     ) -> tuple["Array", Any]:
         """(6,) strain, state at the last converged step -> (6,) stress, new state."""
 
+    @abstractmethod
+    def Stress(
+        self,
+        eps: "Array",
+        z: Any,
+        **external,
+    ) -> "Array":
+        """(6,) strain, state -> (6,) stress, with no step: ``Update`` returns ``Stress(eps, new)``."""
+
     def Virgin_state(self) -> Any:
         """The internal variables of the virgin material; override it when their size depends on the instance."""
         return self.State()
@@ -170,9 +179,14 @@ class _Behavior(_IModel):
         super().Need_Update(value)
         # jit captured the parameters at its first trace
         self.__dict__.pop("_compiled", None)
+        self.__dict__.pop("_compiledStress", None)
 
     def __getstate__(self) -> dict:
-        return {k: v for k, v in self.__dict__.items() if k != "_compiled"}
+        return {
+            k: v
+            for k, v in self.__dict__.items()
+            if k not in ("_compiled", "_compiledStress")
+        }
 
     # --------------------------------------------------------------------------
     # The state at every point: one (Ne, nPg, ...) array per internal variable
@@ -227,6 +241,19 @@ class _Behavior(_IModel):
 
         C_alg, (sig, z_new) = jax.jacfwd(Stress, has_aux=True)(eps)
         return sig, C_alg, z_new
+
+    def __Point_stress(self, eps: "Array", z: dict[str, "Array"]) -> "Array":
+        """Stress at one point, in the model dimension, under the state ``z``."""
+        import jax.numpy as jnp
+
+        State = type(self.Virgin_state())
+        state = State(**{name: z[name] for name in State._fields})
+        if self.dim == 3:
+            return self.Stress(eps, state)
+        eps6 = jnp.zeros(6).at[IDX_2D].set(eps)
+        if self.planeStress:
+            eps6 = eps6.at[ZZ].set(z["eps_zz"])
+        return self.Stress(eps6, state)[IDX_2D]
 
     def __Eps_zz(
         self,
@@ -286,6 +313,22 @@ class _Behavior(_IModel):
         )
         tic.Tac("Matrix", "Behavior integrate", False)
         return sig, C_alg, z
+
+    def Stress_e_pg(
+        self,
+        eps_e_pg: FeArray.FeArrayALike,
+        z_e_pg: dict[str, FeArray],
+    ) -> FeArray:
+        """Stress at every Gauss point, in the model dimension, under the state ``z_e_pg``, with no step."""
+        eps_e_pg = FeArray.asfearray(np.asarray(eps_e_pg, dtype=float))
+        if "_compiledStress" not in self.__dict__:
+            import jax
+            from .._autodiff import Enable_x64
+
+            Enable_x64()
+            point = jax.vmap(self.__Point_stress)
+            self._compiledStress = jax.jit(jax.vmap(point))
+        return FeArray.asfearray(np.array(self._compiledStress(eps_e_pg, z_e_pg)))
 
 
 # ----------------------------------------------

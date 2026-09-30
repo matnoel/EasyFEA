@@ -34,9 +34,9 @@ With this module, you can construct:
 
 - Small-strain materials whose stress depends on the *history* of strain — plasticity,
   viscoplasticity and viscoelasticity — as a
-  {py:class}`~EasyFEA.Models.InElastic._Behavior`: one `Update` written at one 3D point,
-  in `jax.numpy`, from which EasyFEA derives the tangent and handles 2D. Shipped:
-  {py:class}`~EasyFEA.Models.InElastic.Plasticity` on any surface from
+  {py:class}`~EasyFEA.Models.InElastic._Behavior`: one `Update` and one `Stress` written
+  at one 3D point, in `jax.numpy`, from which EasyFEA derives the tangent and handles
+  2D. Shipped: {py:class}`~EasyFEA.Models.InElastic.Plasticity` on any surface from
   {py:class}`~EasyFEA.Models.InElastic.Yield` with any hardening from
   {py:class}`~EasyFEA.Models.InElastic.IsotropicHardening`,
   {py:class}`~EasyFEA.Models.InElastic.Norton`,

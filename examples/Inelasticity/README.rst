@@ -6,8 +6,8 @@ Inelastic simulations
 Scripts that demonstrate small-strain materials whose stress depends on the history of strain:
 plasticity, viscoplasticity and viscoelasticity.
 
-Each material is a :py:class:`~EasyFEA.Models.InElastic._Behavior`, written as one ``Update`` at one
-3D material point and driven by :py:class:`~EasyFEA.Simulations.InElastic`, which derives the
+Each material is a :py:class:`~EasyFEA.Models.InElastic._Behavior`, written as one ``Update`` and
+one ``Stress`` at one 3D material point and driven by :py:class:`~EasyFEA.Simulations.InElastic`, which derives the
 tangent and handles 2D. The shipped ones:
 
 .. list-table::

@@ -31,7 +31,10 @@ class Linear(_Behavior):
         dt,
         **external,
     ):
-        return ELASTIC.C @ eps, z
+        return self.Stress(eps, z), z
+
+    def Stress(self, eps, z, **external):
+        return ELASTIC.C @ eps
 
 
 @pytest.fixture(scope="module")

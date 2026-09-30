@@ -60,7 +60,10 @@ class Linear(_Behavior):
         dt,
         **external,
     ):
-        return self.k * C @ eps, z
+        return self.Stress(eps, z), z
+
+    def Stress(self, eps, z, **external):
+        return self.k * C @ eps
 
 
 class Damage(_Behavior):
@@ -77,8 +80,11 @@ class Damage(_Behavior):
         dt,
         **external,
     ):
-        d = z.d + 0.1
-        return (1 - d) * (C @ eps), Damage.State(eps_old=eps, d=d)
+        new = Damage.State(eps_old=eps, d=z.d + 0.1)
+        return self.Stress(eps, new), new
+
+    def Stress(self, eps, z, **external):
+        return (1 - z.d) * (C @ eps)
 
 
 class NoRoot(_Behavior):
@@ -91,6 +97,9 @@ class NoRoot(_Behavior):
     ):
         x = Newton(lambda x: x**2 + 1.0, jnp.array([1.0]))
         return C @ eps + x[0], z
+
+    def Stress(self, eps, z, **external):
+        return C @ eps
 
 
 def test_importing_easyfea_does_not_pull_jax():

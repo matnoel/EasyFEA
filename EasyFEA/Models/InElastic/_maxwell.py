@@ -62,5 +62,13 @@ class Maxwell(_Behavior):
         **external,
     ) -> tuple["Array", State]:
         k = (dt / self.tau)[:, None]
-        eps_v = (z.eps_v + k * eps) / (1 + k)
-        return self.C @ (eps - self.g @ eps_v), Maxwell.State(eps_v=eps_v)
+        new = Maxwell.State(eps_v=(z.eps_v + k * eps) / (1 + k))
+        return self.Stress(eps, new), new
+
+    def Stress(
+        self,
+        eps: "Array",
+        z: State,
+        **external,
+    ) -> "Array":
+        return self.C @ (eps - self.g @ z.eps_v)

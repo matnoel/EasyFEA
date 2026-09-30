@@ -3,7 +3,7 @@
 # This file is part of the EasyFEA project.
 # EasyFEA is distributed under the terms of the GNU General Public License v3, see LICENSE.txt and CREDITS.md for more information.
 
-from typing import TYPE_CHECKING, NamedTuple, Sequence
+from typing import TYPE_CHECKING, Any, NamedTuple, Sequence
 
 import numpy as np
 
@@ -49,9 +49,11 @@ class _Plastic(_Behavior):
     def Stress(
         self,
         eps: "Array",
-        eps_p: "Array",
+        z: Any,
+        **external,
     ) -> "Array":
-        return self.C @ (eps - eps_p)
+        """``z`` carries ``eps_p``."""
+        return self.C @ (eps - z.eps_p)
 
     def _Flows(self, f_trial: "Array") -> "Array":
         """A point on the surface, as every plastic point is at the start of a step, flows, so that it gets the loading tangent whatever the roundoff in f."""
@@ -91,13 +93,14 @@ class Plasticity(_Plastic):
         import jax
 
         f, R = self.surface, self.hardening
-        trial = self.Stress(eps, z.eps_p)
+        trial = self.Stress(eps, z)
         f_trial = f(trial, R(z.p))
         flows = self._Flows(f_trial)
 
         def Residual(dz: Plasticity.State) -> Plasticity.State:
-            sig = self.Stress(eps, z.eps_p + dz.eps_p)
-            R_new = R(z.p + dz.p)
+            new = _Add(z, dz)
+            sig = self.Stress(eps, new)
+            R_new = R(new.p)
             N = jax.grad(f)(sig, R_new)
             return Plasticity.State(
                 eps_p=dz.eps_p - dz.p * N,
@@ -113,7 +116,7 @@ class Plasticity(_Plastic):
             maxIter=self._maxIter,
         )
         new = _Add(z, dz)
-        return self.Stress(eps, new.eps_p), new
+        return self.Stress(eps, new), new
 
 
 class Norton(Plasticity):
@@ -242,11 +245,10 @@ class Chaboche(_Plastic):
     def Shifted_stress(
         self,
         eps: "Array",
-        eps_p: "Array",
-        alpha: "Array",
+        z: "Chaboche.State",
     ) -> "Array":
         """The stress the surface reads, :math:`\\Sig - X`."""
-        return self.Stress(eps, eps_p) - 2 / 3 * self.C_X @ alpha
+        return self.Stress(eps, z) - 2 / 3 * self.C_X @ z.alpha
 
     def Update(
         self,
@@ -258,17 +260,17 @@ class Chaboche(_Plastic):
         import jax
 
         f, R = self.surface, self.hardening
-        flows = self._Flows(f(self.Shifted_stress(eps, z.eps_p, z.alpha), R(z.p)))
+        flows = self._Flows(f(self.Shifted_stress(eps, z), R(z.p)))
 
         def Residual(dz: Chaboche.State) -> Chaboche.State:
-            alpha = z.alpha + dz.alpha
-            xi = self.Shifted_stress(eps, z.eps_p + dz.eps_p, alpha)
-            R_new = R(z.p + dz.p)
+            new = _Add(z, dz)
+            xi = self.Shifted_stress(eps, new)
+            R_new = R(new.p)
             N = jax.grad(f)(xi, R_new)
             return Chaboche.State(
                 eps_p=dz.eps_p - dz.p * N,
                 p=f(xi, R_new) / f.sigma_y,
-                alpha=dz.alpha - dz.p * (N - self.gamma[:, None] * alpha),
+                alpha=dz.alpha - dz.p * (N - self.gamma[:, None] * new.alpha),
             )
 
         dz = Newton(
@@ -279,4 +281,4 @@ class Chaboche(_Plastic):
             maxIter=self._maxIter,
         )
         new = _Add(z, dz)
-        return self.Stress(eps, new.eps_p), new
+        return self.Stress(eps, new), new
