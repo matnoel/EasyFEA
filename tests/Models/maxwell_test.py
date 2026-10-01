@@ -95,7 +95,7 @@ def test_fully_relaxed_response_is_the_equilibrium_stiffness():
 
 @pytest.mark.parametrize("planeStress", [False, True])
 def test_2d_tangent_matches_central_difference(planeStress: bool):
-    behavior = Maxwell(ELASTIC, G, TAU, dim=2, planeStress=planeStress)
+    behavior = Maxwell(Isotropic(2, E=E, v=nu, planeStress=planeStress), G, TAU)
     eps = EPS[[0, 1, 5]]
     _, _, z = behavior.Integrate(_fe(eps), dt=0.5)  # a history, so eps_v is not zero
 

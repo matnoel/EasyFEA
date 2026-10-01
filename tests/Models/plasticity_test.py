@@ -158,7 +158,7 @@ EPS_2D = np.array([4e-3, -1e-3, 5e-4])
 
 def test_plane_stress_holds_sigma_zz_at_zero_once_flowing():
     """The 3D behavior at the solved eps_zz gives back the 2D stress and sig_zz = 0."""
-    plane = Plasticity(ELASTIC, VonMises(SIGMA_Y), Linear(H), dim=2, planeStress=True)
+    plane = Plasticity(Isotropic(2, E=E, v=nu), VonMises(SIGMA_Y), Linear(H))
     sig2, _, z = plane.Integrate(_fe(EPS_2D))
     assert _at(z["p"]) > 0.0
 
@@ -176,16 +176,14 @@ def test_plane_stress_holds_sigma_zz_at_zero_once_flowing():
 @pytest.mark.parametrize("planeStress", [False, True])
 def test_2d_plastic_tangent_matches_central_difference(planeStress: bool):
     behavior = Plasticity(
-        ELASTIC, VonMises(SIGMA_Y), Linear(H), dim=2, planeStress=planeStress
+        Isotropic(2, E=E, v=nu, planeStress=planeStress), VonMises(SIGMA_Y), Linear(H)
     )
     _assert_tangent(behavior, EPS_2D)
 
 
 def test_plane_stress_flows_from_a_committed_plastic_state():
     """Reloading from a plastic state: eps_zz starts from the committed one, flows may switch between its iterates."""
-    behavior = Plasticity(
-        ELASTIC, VonMises(SIGMA_Y), Voce(Q, B), dim=2, planeStress=True
-    )
+    behavior = Plasticity(Isotropic(2, E=E, v=nu), VonMises(SIGMA_Y), Voce(Q, B))
     _, _, z = behavior.Integrate(_fe(EPS_2D))
     _assert_tangent(behavior, 1.2 * EPS_2D, z)
     # unloading from it is elastic

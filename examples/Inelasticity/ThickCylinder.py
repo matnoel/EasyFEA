@@ -106,9 +106,8 @@ bore = mesh.Nodes_Circle(Circle((0, 0), diam=2 * a))
 
 # perfectly plastic, as Hill assumes
 material = Models.InElastic.Plasticity(
-    Models.Elastic.Isotropic(3, E=E, v=v),
+    Models.Elastic.Isotropic(2, E=E, v=v, planeStress=False),
     Models.InElastic.Yield.VonMises(sigma_y),
-    dim=2,
 )
 
 

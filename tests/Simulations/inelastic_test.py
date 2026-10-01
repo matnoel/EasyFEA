@@ -34,7 +34,7 @@ class Linear(_Behavior):
         return self.Stress(eps, z), z
 
     def Stress(self, eps, z, **external):
-        return ELASTIC.C @ eps
+        return self.C @ eps
 
 
 @pytest.fixture(scope="module")
@@ -63,7 +63,9 @@ def _rel(a, b) -> float:
 
 
 def _relax(mesh: Mesh, nstep: int, planeStress: bool = True):
-    behavior = Maxwell(ELASTIC, G, TAU, dim=2, planeStress=planeStress, thickness=H)
+    behavior = Maxwell(
+        Isotropic(2, E=E, v=nu, planeStress=planeStress, thickness=H), G, TAU
+    )
     simu = Simulations.InElastic(mesh, behavior)
     simu.dt = DT
     for _ in range(nstep):
@@ -75,7 +77,7 @@ def _relax(mesh: Mesh, nstep: int, planeStress: bool = True):
 @pytest.mark.parametrize("planeStress", [False, True])
 def test_2d_matches_elastic(mesh2D: Mesh, planeStress: bool):
     simu = Simulations.InElastic(
-        mesh2D, Linear(dim=2, planeStress=planeStress, thickness=H)
+        mesh2D, Linear(Isotropic(2, E=E, v=nu, planeStress=planeStress, thickness=H))
     )
     ref = Simulations.Elastic(
         mesh2D, Isotropic(2, E=E, v=nu, planeStress=planeStress, thickness=H)
@@ -88,7 +90,7 @@ def test_2d_matches_elastic(mesh2D: Mesh, planeStress: bool):
 
 
 def test_3d_matches_elastic(mesh3D: Mesh):
-    simu = Simulations.InElastic(mesh3D, Linear())
+    simu = Simulations.InElastic(mesh3D, Linear(ELASTIC))
     ref = Simulations.Elastic(mesh3D, ELASTIC)
     _pull(simu, mesh3D)
     _pull(ref, mesh3D)
@@ -126,7 +128,9 @@ def test_the_stress_is_the_same_before_and_after_save_iter(mesh2D: Mesh):
 def test_asking_for_a_result_leaves_the_stress_alone(mesh: str, request):
     """The shear components carry a sqrt(2) that reading them must not strip from the committed stress."""
     mesh = request.getfixturevalue(mesh)
-    simu = Simulations.InElastic(mesh, Linear(dim=mesh.dim, thickness=H))
+    simu = Simulations.InElastic(
+        mesh, Linear(Isotropic(mesh.dim, E=E, v=nu, thickness=H))
+    )
     _pull(simu, mesh)
     simu.Save_Iter()
     first = simu.Result("Sxy", nodeValues=False)

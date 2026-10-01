@@ -32,17 +32,8 @@ class _Plastic(_Behavior):
         elastic: _Elastic,
         surface: Surface,
         hardening: Hardening = Perfect(),
-        dim: int = 3,
-        planeStress: bool = False,
-        thickness: float = 1.0,
     ):
-        """``elastic`` must be 3D."""
-        assert isinstance(elastic, _Elastic), "elastic must be an elastic model"
-        assert elastic.dim == 3, "the elastic model must be 3D"
-        super().__init__(dim, planeStress, thickness)
-
-        # numpy, so that building a behavior needs no jax
-        self.C: Array = np.asarray(elastic.C, dtype=float)  # type: ignore[assignment]
+        super().__init__(elastic)
         self.surface = surface
         self.hardening = hardening
 
@@ -130,9 +121,6 @@ class Norton(Plasticity):
         A: float = 1.0,
         n: float = 1.0,
         sigma_0: float = 1.0,
-        dim: int = 3,
-        planeStress: bool = False,
-        thickness: float = 1.0,
     ):
         """Large ``A`` approaches rate-independent plasticity."""
         assert A > 0 and n > 0 and sigma_0 > 0, "need A > 0, n > 0, sigma_0 > 0"
@@ -140,9 +128,6 @@ class Norton(Plasticity):
             elastic,
             surface,
             hardening,
-            dim,
-            planeStress,
-            thickness,
         )
         self.A = A
         self.n = n
@@ -219,11 +204,8 @@ class Chaboche(_Plastic):
         C_X: float | Sequence[float],
         gamma: float | Sequence[float],
         hardening: Hardening = Perfect(),
-        dim: int = 3,
-        planeStress: bool = False,
-        thickness: float = 1.0,
     ):
-        """One ``C_X`` and one ``gamma`` per back-stress; ``elastic`` must be 3D."""
+        """One ``C_X`` and one ``gamma`` per back-stress."""
         C_arr = np.atleast_1d(np.asarray(C_X, dtype=float))
         gamma_arr = np.atleast_1d(np.asarray(gamma, dtype=float))
         assert C_arr.shape == gamma_arr.shape, "one C_X and one gamma per back-stress"
@@ -232,9 +214,6 @@ class Chaboche(_Plastic):
             elastic,
             surface,
             hardening,
-            dim,
-            planeStress,
-            thickness,
         )
         self.C_X = C_arr
         self.gamma = gamma_arr

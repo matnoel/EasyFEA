@@ -58,12 +58,9 @@ nodesXL = mesh.Nodes_Conditions(lambda x, y, z: x == L / 2)
 # Simulation
 # ----------------------------------------------
 material = Models.InElastic.Plasticity(
-    Models.Elastic.Isotropic(3, E=E, v=v),
+    Models.Elastic.Isotropic(2, E=E, v=v, planeStress=True, thickness=thickness),
     Models.InElastic.Yield.VonMises(sigma_y),
     Models.InElastic.IsotropicHardening.Voce(120.0, 40.0),
-    dim=2,
-    planeStress=True,
-    thickness=thickness,
 )
 
 simu = Simulations.InElastic(mesh, material)

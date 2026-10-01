@@ -11,8 +11,10 @@ from typing import TYPE_CHECKING, Any, Callable, ClassVar, NamedTuple, TypeVar
 import numpy as np
 
 from .._utils import _IModel
+from ..Elastic._laws import _Elastic
 from ...FEM._linalg import FeArray
 from ...Utilities import _params, Tic
+from ...Utilities._observers import _IObserver, Observable
 
 if TYPE_CHECKING:
     from jax import Array
@@ -111,7 +113,7 @@ class _NoState(NamedTuple):
     pass
 
 
-class _Behavior(_IModel):
+class _Behavior(_IModel, _IObserver):
     """A material whose stress depends on its history: subclass it, declare ``State``, write :meth:`Update` at one 3D point."""
 
     State: ClassVar[type] = _NoState
@@ -120,28 +122,45 @@ class _Behavior(_IModel):
     externals: ClassVar[tuple[str, ...]] = ()
     """The external variables ``Update`` and ``Stress`` read as keywords, e.g. ``("T",)``, at the end of the step."""
 
-    dim: int = _params.ParameterInValues([2, 3])
-    thickness: float = _params.PositiveScalarParameter()
-    planeStress: bool = _params.BoolParameter()
-    """the 2D model uses the plane-stress assumption (otherwise plane strain)"""
-
     _tol: float = _params.PositiveScalarParameter()
     """plane-stress eps_zz solve, on sig_zz scaled to a strain"""
     _maxIter: int = _params.PositiveScalarParameter()
     """plane-stress eps_zz solve"""
 
-    def __init__(
-        self,
-        dim: int = 3,
-        planeStress: bool = False,
-        thickness: float = 1.0,
-    ):
-        assert not (planeStress and dim == 3), "plane stress is a 2D-only assumption"
-        self.dim = dim
-        self.planeStress = planeStress
-        self.thickness = thickness
+    def __init__(self, elastic: _Elastic):
+        """``dim``, ``planeStress`` and ``thickness`` are the elastic model's; it must be homogeneous."""
+        assert isinstance(elastic, _Elastic), "elastic must be an elastic model"
+        assert not elastic.isHeterogeneous, "the elastic model must be homogeneous"
+        elastic._Add_observer(self)
+        self.__elastic = elastic
         self._tol = 1e-10
         self._maxIter = 20
+
+    @property
+    def elastic(self) -> _Elastic:
+        """The elastic model; modifying it rebuilds the kernel."""
+        return self.__elastic
+
+    @property
+    def dim(self) -> int:
+        return self.__elastic.dim
+
+    @property
+    def thickness(self) -> float:
+        return self.__elastic.thickness
+
+    @property
+    def planeStress(self) -> bool:
+        """the 2D model uses the plane-stress assumption (otherwise plane strain)"""
+        return self.dim == 2 and self.__elastic.planeStress
+
+    @property
+    def C(self) -> "Array":
+        """The 3D stiffness, in Kelvin-Mandel notation, whatever the model dimension."""
+        return self.__elastic._Get_C_S(3)[0]  # type: ignore[return-value]
+
+    def _Update(self, observable: Observable, event: str) -> None:
+        self.Need_Update()
 
     @abstractmethod
     def Update(

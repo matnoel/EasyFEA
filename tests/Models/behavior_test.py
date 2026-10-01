@@ -15,7 +15,7 @@ import pytest
 
 from EasyFEA.FEM._linalg import FeArray
 from EasyFEA.Models import _autodiff
-from EasyFEA.Models.Elastic._laws import Isotropic
+from EasyFEA.Models.Elastic._laws import Anisotropic, Isotropic, _Elastic
 from EasyFEA.Models.InElastic import (
     ZERO_SCALAR,
     ZERO_TENSOR,
@@ -37,6 +37,10 @@ EPS = np.array([1e-3, -2e-4, 3e-4, 1e-4, -5e-5, 2e-4])
 C = Isotropic(3, E=E, v=nu).C
 
 
+def _elastic(dim: int = 3, **kwargs) -> Isotropic:
+    return Isotropic(dim, E=E, v=nu, **kwargs)
+
+
 def _fe(vec) -> FeArray.FeArrayALike:
     """A (1, 1, ...) field holding one value."""
     return FeArray.asfearray(np.asarray(vec, dtype=float)[np.newaxis, np.newaxis])
@@ -49,8 +53,8 @@ def _at(field) -> np.ndarray:
 class Linear(_Behavior):
     """No internal variable: sigma = k C eps."""
 
-    def __init__(self, k: float = 1.0, **plane):
-        super().__init__(**plane)
+    def __init__(self, elastic: _Elastic, k: float = 1.0):
+        super().__init__(elastic)
         self.k = k
 
     def Update(
@@ -63,7 +67,7 @@ class Linear(_Behavior):
         return self.Stress(eps, z), z
 
     def Stress(self, eps, z, **external):
-        return self.k * C @ eps
+        return self.k * self.C @ eps
 
 
 class Damage(_Behavior):
@@ -84,7 +88,7 @@ class Damage(_Behavior):
         return self.Stress(eps, new), new
 
     def Stress(self, eps, z, **external):
-        return (1 - z.d) * (C @ eps)
+        return (1 - z.d) * (self.C @ eps)
 
 
 class NoRoot(_Behavior):
@@ -96,10 +100,10 @@ class NoRoot(_Behavior):
         **external,
     ):
         x = Newton(lambda x: x**2 + 1.0, jnp.array([1.0]))
-        return C @ eps + x[0], z
+        return self.C @ eps + x[0], z
 
     def Stress(self, eps, z, **external):
-        return C @ eps
+        return self.C @ eps
 
 
 def test_importing_easyfea_does_not_pull_jax():
@@ -155,7 +159,7 @@ def test_newton_flags_a_missing_root_as_nan():
 
 
 def test_no_internal_variable_gives_back_the_elastic_response():
-    sig, C_alg, z = Linear().Integrate(_fe(EPS))
+    sig, C_alg, z = Linear(_elastic()).Integrate(_fe(EPS))
 
     assert np.allclose(_at(sig), C @ EPS)
     assert np.allclose(_at(C_alg), C)
@@ -163,7 +167,7 @@ def test_no_internal_variable_gives_back_the_elastic_response():
 
 
 def test_state_is_held_by_name():
-    z = Damage().Integrate(_fe(EPS))[2]
+    z = Damage(_elastic()).Integrate(_fe(EPS))[2]
 
     assert list(z) == ["eps_old", "d"]
     assert np.allclose(_at(z["eps_old"]), EPS) and np.isclose(_at(z["d"]), 0.1)
@@ -171,7 +175,7 @@ def test_state_is_held_by_name():
 
 def test_every_gauss_point_is_integrated():
     eps = np.random.default_rng(0).normal(0, 1e-3, (4, 3, 6))
-    sig, C_alg, z = Damage().Integrate(FeArray.asfearray(eps))
+    sig, C_alg, z = Damage(_elastic()).Integrate(FeArray.asfearray(eps))
 
     assert isinstance(sig, FeArray) and sig.shape == (4, 3, 6)
     assert C_alg.shape == (4, 3, 6, 6)
@@ -182,7 +186,7 @@ def test_every_gauss_point_is_integrated():
 @pytest.mark.parametrize("planeStress", [False, True])
 def test_2d_matches_the_elastic_law(planeStress: bool):
     eps = EPS[[0, 1, 5]]
-    sig, C_alg, _ = Linear(dim=2, planeStress=planeStress).Integrate(_fe(eps))
+    sig, C_alg, _ = Linear(_elastic(2, planeStress=planeStress)).Integrate(_fe(eps))
 
     ref = Isotropic(2, E=E, v=nu, planeStress=planeStress).C
     assert np.allclose(_at(sig), ref @ eps)
@@ -191,32 +195,37 @@ def test_2d_matches_the_elastic_law(planeStress: bool):
 
 def test_plane_stress_keeps_eps_zz_in_the_state():
     """Elastic plane stress: eps_zz = -nu / (1 - nu) (eps_xx + eps_yy)."""
-    behavior = Damage(dim=2, planeStress=True)
+    behavior = Damage(_elastic(2, planeStress=True))
     z = behavior.Integrate(_fe(EPS[[0, 1, 5]]))[2]
 
     assert np.isclose(_at(z["eps_zz"]), -nu / (1 - nu) * (EPS[0] + EPS[1]))
 
 
 def test_plane_stress_solve_settings_are_checked():
-    behavior = Linear()
+    behavior = Linear(_elastic())
     with pytest.raises(AssertionError):
         behavior._tol = -1.0
     with pytest.raises(AssertionError):
         behavior._maxIter = -1
 
 
-def test_plane_stress_is_a_2d_assumption():
-    with pytest.raises(AssertionError):
-        Linear(dim=3, planeStress=True)
+def test_a_3d_model_is_never_plane_stress():
+    assert not Linear(_elastic(3, planeStress=True)).planeStress
+
+
+def test_a_2d_anisotropic_model_has_no_3d_stiffness():
+    behavior = Linear(Anisotropic(2, _elastic(2).C, useVoigtNotation=False))
+    with pytest.raises(AssertionError, match="own dimension"):
+        behavior.C
 
 
 def test_a_failed_local_solve_is_reported():
     with pytest.raises(AssertionError, match="did not converge"):
-        NoRoot().Integrate(_fe(EPS))
+        NoRoot(_elastic()).Integrate(_fe(EPS))
 
 
 def test_changing_a_parameter_rebuilds_the_kernel():
-    behavior = Linear()
+    behavior = Linear(_elastic())
     behavior.Integrate(_fe(EPS))
     behavior.k = 2.0
     behavior.Need_Update()
@@ -224,9 +233,18 @@ def test_changing_a_parameter_rebuilds_the_kernel():
     assert np.allclose(_at(behavior.Integrate(_fe(EPS))[0]), 2 * C @ EPS)
 
 
+def test_modifying_the_elastic_model_rebuilds_the_kernel():
+    elastic = _elastic()
+    behavior = Linear(elastic)
+    behavior.Integrate(_fe(EPS))
+    elastic.E = 2 * E
+
+    assert np.allclose(_at(behavior.Integrate(_fe(EPS))[0]), 2 * C @ EPS)
+
+
 def test_behavior_survives_a_pickle_round_trip():
     """``Load_Simu`` pickles the material with the simulation, after its kernel is built."""
-    behavior = Damage(dim=2, planeStress=True, thickness=5.0)
+    behavior = Damage(_elastic(2, planeStress=True, thickness=5.0))
     eps = EPS[[0, 1, 5]]
     before = behavior.Integrate(_fe(eps))
 
@@ -245,7 +263,7 @@ def test_behavior_survives_a_pickle_round_trip():
 
 def test_material_point_solves_uniaxial_stress():
     """eps_xx driven, everything else free: sig_xx = E eps_xx and the lateral strain is -nu eps_xx."""
-    res = MaterialPoint(Linear()).Run(strain={"xx": np.array([1e-3, 2e-3])})
+    res = MaterialPoint(Linear(_elastic())).Run(strain={"xx": np.array([1e-3, 2e-3])})
 
     assert np.allclose(res["stress"][:, 0], E * np.array([1e-3, 2e-3]))
     assert np.allclose(res["stress"][:, 1:], 0.0, atol=1e-6)
@@ -253,7 +271,9 @@ def test_material_point_solves_uniaxial_stress():
 
 
 def test_material_point_returns_each_internal_variable():
-    res = MaterialPoint(Damage()).Run(strain={"xx": np.zeros(3), "yy": np.zeros(3)})
+    res = MaterialPoint(Damage(_elastic())).Run(
+        strain={"xx": np.zeros(3), "yy": np.zeros(3)}
+    )
 
     assert np.allclose(res["d"], [0.1, 0.2, 0.3])
     assert res["eps_old"].shape == (3, 6)

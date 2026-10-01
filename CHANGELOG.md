@@ -10,7 +10,9 @@ This document describes the changes made to the project.
   point, derives the tangent by `jax.jacfwd`, handles plane strain and plane stress, and
   commits the state at every converged `Solve` (`Save_Iter` only records it, so it can
   be skipped on some steps). `Newton`, `Trace`, `Deviator`, `Von_Mises_stress` help
-  write one.
+  write one. A behavior takes only its elastic model, `_Behavior(elastic)`: `dim`,
+  `planeStress` and `thickness` are the model's, `C` its 3D stiffness even in 2D, and
+  modifying the model rebuilds the kernel.
 - Shipped behaviors: `Plasticity(elastic, surface, hardening)`, `Norton`, `Chaboche`
   with N back-stresses, and `Maxwell` with N branches. Surfaces (`Yield.VonMises`,
   `Hill`, `DruckerPrager`) and hardening (`IsotropicHardening.Perfect`, `Linear`,

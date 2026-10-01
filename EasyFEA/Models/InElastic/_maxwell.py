@@ -29,25 +29,17 @@ class Maxwell(_Behavior):
         elastic: _Elastic,
         g: float | Sequence[float],
         tau: float | Sequence[float],
-        dim: int = 3,
-        planeStress: bool = False,
-        thickness: float = 1.0,
     ):
-        """One ``g`` and one ``tau`` per branch; ``elastic`` must be 3D."""
+        """One ``g`` and one ``tau`` per branch."""
         g_arr = np.atleast_1d(np.asarray(g, dtype=float))
         tau_arr = np.atleast_1d(np.asarray(tau, dtype=float))
-        assert isinstance(elastic, _Elastic), "elastic must be an elastic model"
-        assert elastic.dim == 3, "the elastic model must be 3D"
         assert g_arr.shape == tau_arr.shape, "one g and one tau per branch"
         assert np.all(g_arr > 0), "every branch g must be > 0"
         assert np.all(tau_arr > 0), "every branch tau must be > 0"
         assert (
             g_arr.sum() < 1.0
         ), "the branch stiffness fractions must sum to less than 1"
-        super().__init__(dim, planeStress, thickness)
-
-        # numpy, so that building a behavior needs no jax
-        self.C: Array = np.asarray(elastic.C, dtype=float)  # type: ignore[assignment]
+        super().__init__(elastic)
         self.g = g_arr
         self.tau = tau_arr
 

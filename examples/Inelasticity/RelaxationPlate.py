@@ -78,12 +78,15 @@ nodesXL = mesh.Nodes_Conditions(lambda x, y, z: x == L / 2)
 # ----------------------------------------------
 # no yield surface: this never flows, it only relaxes
 material = Models.InElastic.Maxwell(
-    Models.Elastic.Isotropic(3, E=E, v=v),
+    Models.Elastic.Isotropic(
+        2,
+        E=E,
+        v=v,
+        planeStress=True,
+        thickness=thickness,
+    ),
     g,
     tau,
-    dim=2,
-    planeStress=True,
-    thickness=thickness,
 )
 simu = Simulations.InElastic(mesh, material)
 simu.dt = dt

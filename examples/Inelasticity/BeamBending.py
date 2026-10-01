@@ -84,11 +84,8 @@ yMid = yMid[order]
 # ----------------------------------------------
 # perfectly plastic
 material = Models.InElastic.Plasticity(
-    Models.Elastic.Isotropic(3, E=E, v=v),
+    Models.Elastic.Isotropic(2, E=E, v=v, planeStress=True, thickness=w),
     Models.InElastic.Yield.VonMises(sigma_y),
-    dim=2,
-    planeStress=True,
-    thickness=w,
 )
 simu = Simulations.InElastic(mesh, material)
 

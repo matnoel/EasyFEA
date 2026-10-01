@@ -21,11 +21,10 @@ first alone, then with the self-weight.
 
 # sphinx_gallery_thumbnail_number = -1
 
-import numpy as np
-
 from EasyFEA import ElemType, Models, PyVista, Simulations
 from EasyFEA.Geoms import Point, Line, Contour
 from EasyFEA.Models.InElastic import _Behavior, ONE
+from EasyFEA.Utilities import _params
 
 # ----------------------------------------------
 # Configuration
@@ -74,14 +73,15 @@ class ThermoElastic(_Behavior):
 
     externals = ("T",)
 
+    alpha: float = _params.PositiveScalarParameter()
+    """thermal expansion coefficient"""
+
     def __init__(
         self,
         elastic: Models.Elastic.Isotropic,
         alpha: float,
-        dim: int,
     ):
-        super().__init__(dim)
-        self.C = np.asarray(elastic.C, dtype=float)
+        super().__init__(elastic)
         self.alpha = alpha
 
     def Update(self, eps, z, dt, T):
@@ -93,9 +93,13 @@ class ThermoElastic(_Behavior):
 
 # plane strain
 material = ThermoElastic(
-    Models.Elastic.Isotropic(3, E=E, v=v),
+    Models.Elastic.Isotropic(
+        2,
+        E=E,
+        v=v,
+        planeStress=False,
+    ),
     alpha,
-    dim=2,
 )
 simu = Simulations.InElastic(mesh, material)
 simu.Set_external(T=thermal.thermal)
