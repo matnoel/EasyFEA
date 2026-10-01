@@ -307,15 +307,36 @@ def test_an_unconverged_solve_commits_nothing(mesh2D: Mesh):
     assert np.allclose(simu.Result("p", nodeValues=False), p, rtol=1e-12)
 
 
-def test_internal_variables_do_not_follow_a_mesh_change(mesh2D: Mesh, meshFine: Mesh):
+@pytest.mark.parametrize(
+    "size, elemType",
+    [(H / 4, ElemType.QUAD4), (H / 2, ElemType.TRI6), (H / 2, ElemType.QUAD4)],
+    ids=["finer", "other element type", "same mesh rebuilt"],
+)
+def test_internal_variables_do_not_follow_a_mesh_change(
+    mesh2D: Mesh, size: float, elemType: ElemType
+):
     simu = Simulations.InElastic(
         mesh2D, _plastic(Isotropic(2, E=E, v=nu, planeStress=False, thickness=H))
     )
     _pull(simu, mesh2D)
-    simu.mesh = meshFine
+    newMesh = Domain(Point(0, 0), Point(L, H), size).Mesh_2D([], elemType)
+    simu.mesh = newMesh
 
     with pytest.raises(AssertionError, match="internal variables cannot follow"):
-        _pull(simu, meshFine)
+        _pull(simu, newMesh)
+
+
+def test_internal_variables_follow_the_same_mesh(mesh2D: Mesh):
+    simu = Simulations.InElastic(
+        mesh2D, _plastic(Isotropic(2, E=E, v=nu, planeStress=False, thickness=H))
+    )
+    _pull(simu, mesh2D, 0.5)
+    p = simu.Result("p", nodeValues=False)
+    simu.mesh = mesh2D
+    _pull(simu, mesh2D, 0.5)
+
+    assert p.max() > 0
+    assert np.allclose(simu.Result("p", nodeValues=False), p, rtol=1e-12)
 
 
 def test_every_assembly_integrates_from_the_last_committed_state(

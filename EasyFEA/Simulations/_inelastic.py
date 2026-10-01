@@ -52,7 +52,7 @@ class InElastic(_Simu):
 
         self.__dt = 0.0
         # per group, at the last converged Solve; empty before any
-        self.__internal: dict[ElemType, dict[str, FeArray]] = {}
+        self.__internal: dict[_GroupElem, dict[str, FeArray]] = {}
         # nodal, by name
         self.__external: dict[str, _types.FloatArray] = {}
 
@@ -123,19 +123,19 @@ class InElastic(_Simu):
         u_e = groupElem.Locates_sol_e(u, asFeArray=True)
         return groupElem.Get_B_e_pg(MatrixType.rigi) @ u_e
 
-    def __Internal(self, groupElem: _GroupElem) -> dict[str, FeArray]:
+    def __Internal_e_pg(self, groupElem: _GroupElem) -> dict[str, FeArray]:
         """The internal variables committed at the last converged solve, virgin before any."""
-        if groupElem.elemType not in self.__internal:
+        if not self.__internal:
             nPg = groupElem.Get_gauss(MatrixType.rigi).nPg
             return self.material.Virgin_internals_e_pg(groupElem.Ne, nPg)
-        internal = self.__internal[groupElem.elemType]
+        internal = self.__internal.get(groupElem)
         # they could be projected onto the new mesh instead
-        assert all(
-            v.shape[0] == groupElem.Ne for v in internal.values()
+        assert (
+            internal is not None
         ), "the internal variables cannot follow a mesh change"
         return internal
 
-    def __External(self, groupElem: _GroupElem) -> dict[str, FeArray.FeArrayALike]:
+    def __External_e_pg(self, groupElem: _GroupElem) -> dict[str, FeArray.FeArrayALike]:
         """The external variables, interpolated at the Gauss points."""
         N_pg = FeArray.asfearray(groupElem.Get_N_pg(MatrixType.rigi)[np.newaxis, :, 0])
         # they could be interpolated onto the new mesh instead
@@ -153,23 +153,21 @@ class InElastic(_Simu):
         eps_e_pg = self.__Strain(u, groupElem)
         return self.material.Integrate(
             eps_e_pg,
-            self.__Internal(groupElem),
+            self.__Internal_e_pg(groupElem),
             self.__dt,
-            **self.__External(groupElem),
+            **self.__External_e_pg(groupElem),
         )
 
     def __Stress(self, groupElem: _GroupElem) -> FeArray:
         eps_e_pg = self.__Strain(self.displacement, groupElem)
         return self.material.Stress_e_pg(
-            eps_e_pg, self.__Internal(groupElem), **self.__External(groupElem)
+            eps_e_pg, self.__Internal_e_pg(groupElem), **self.__External_e_pg(groupElem)
         )
 
     def Solve(self) -> _types.FloatArray:
         """Solves one step and commits its internal variables; Newton asserts before committing if it does not converge."""
         u = super().Solve()
-        self.__internal = {
-            g.elemType: self.__Integrate(u, g)[2] for g in self.__Groups()
-        }
+        self.__internal = {g: self.__Integrate(u, g)[2] for g in self.__Groups()}
         return u
 
     def Get_terms(self, problemType=None) -> list[Term]:
@@ -204,9 +202,10 @@ class InElastic(_Simu):
             iter = {}
         iter["displacement"] = self.displacement
         # flat, so that each is seen as an element field
-        for elemType, internal in self.__internal.items():
+        for groupElem, internal in self.__internal.items():
             for name, v in internal.items():
-                iter[f"{InElastic.__INTERNAL_KEY}/{elemType.value}/{name}"] = v
+                key = f"{InElastic.__INTERNAL_KEY}/{groupElem.elemType.value}/{name}"
+                iter[key] = v
         for name, v in self.__external.items():
             iter[f"{InElastic.__EXTERNAL_KEY}/{name}"] = v
 
@@ -219,13 +218,15 @@ class InElastic(_Simu):
 
         u = results["displacement"]
         self._Set_solutions(self.problemType, u, np.zeros_like(u), np.zeros_like(u))
-        internal: dict[ElemType, dict[str, FeArray]] = {}
+        # the groups of the iteration's mesh, which super().Set_Iter restored
+        groups = {g.elemType: g for g in self.__Groups()}
+        internal: dict[_GroupElem, dict[str, FeArray]] = {}
         external: dict[str, _types.FloatArray] = {}
         for key, v in results.items():
             prefix, _, rest = key.partition("/")
             if prefix == InElastic.__INTERNAL_KEY:
                 elemType, name = rest.split("/")
-                internal.setdefault(ElemType(elemType), {})[name] = v
+                internal.setdefault(groups[ElemType(elemType)], {})[name] = v
             elif prefix == InElastic.__EXTERNAL_KEY:
                 external[rest] = v
         self.__internal = internal
@@ -289,7 +290,10 @@ class InElastic(_Simu):
 
         elif result in self.__Scalar_states():
             values = np.concatenate(
-                [np.mean(self.__Internal(g)[result], axis=1) for g in self.__Groups()]
+                [
+                    np.mean(self.__Internal_e_pg(g)[result], axis=1)
+                    for g in self.__Groups()
+                ]
             )
 
         elif ("S" in result or "E" in result) and "_norm" not in result:
