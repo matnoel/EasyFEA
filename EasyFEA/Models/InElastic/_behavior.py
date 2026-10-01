@@ -348,8 +348,9 @@ class _Behavior(_IModel, _IObserver):
         unknown = set(external) - declared
         assert not missing, f"external variables missing: {sorted(missing)}"
         assert not unknown, f"{type(self).__name__} reads no {sorted(unknown)}"
+        # vmap maps every one over (Ne, nPg), a scalar included
         return {
-            name: FeArray.broadcast(v, Ne, nPg)
+            name: np.broadcast_to(FeArray.broadcast(v, Ne, nPg), (Ne, nPg))
             for name, v in external.items()
         }
 

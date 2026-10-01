@@ -17,6 +17,7 @@ from EasyFEA.FEM._linalg import FeArray
 from EasyFEA.Models import _autodiff
 from EasyFEA.Models.Elastic._laws import Anisotropic, Isotropic, _Elastic
 from EasyFEA.Models.InElastic import (
+    ONE,
     ZERO_SCALAR,
     ZERO_TENSOR,
     _Behavior,
@@ -37,6 +38,7 @@ jnp = jax.numpy
 _autodiff.Enable_x64()
 
 E, nu = 210000.0, 0.3
+ALPHA = 1e-5
 EPS = np.array([1e-3, -2e-4, 3e-4, 1e-4, -5e-5, 2e-4])
 C = Isotropic(3, E=E, v=nu).C
 
@@ -108,6 +110,19 @@ class NoRoot(_Behavior):
 
     def Stress(self, eps, z, **external):
         return self.C @ eps
+
+
+class ThermoElastic(_Behavior):
+    """Reads the temperature change T."""
+
+    class Externals(NamedTuple):
+        T: float
+
+    def Update(self, eps, z, dt, T):
+        return self.Stress(eps, z, T=T), z
+
+    def Stress(self, eps, z, T):
+        return self.C @ (eps - ALPHA * T * ONE)
 
 
 def test_importing_easyfea_does_not_pull_jax():
@@ -246,6 +261,14 @@ def test_modifying_the_elastic_model_rebuilds_the_kernel():
     assert np.allclose(_at(behavior.Integrate(_fe(EPS))[0]), 2 * C @ EPS)
 
 
+def test_missing_or_unknown_external_variables_are_refused():
+    behavior = ThermoElastic(_elastic())
+    with pytest.raises(AssertionError, match="missing"):
+        behavior.Integrate(_fe(EPS))
+    with pytest.raises(AssertionError, match="reads no"):
+        behavior.Integrate(_fe(EPS), T=1.0, P=1.0)
+
+
 @pytest.mark.parametrize("per", ["element", "point"])
 def test_a_heterogeneous_elastic_model_is_integrated_point_by_point(per: str):
     """C scales with E, so sigma = E / E_ref C_ref eps at each point."""
@@ -287,6 +310,18 @@ def test_material_point_solves_uniaxial_stress():
     assert np.allclose(res["stress"][:, 0], E * np.array([1e-3, 2e-3]))
     assert np.allclose(res["stress"][:, 1:], 0.0, atol=1e-6)
     assert np.allclose(res["strain"][:, 1], -nu * np.array([1e-3, 2e-3]))
+
+
+def test_material_point_reads_the_external_variables_at_each_step():
+    """Fully constrained heating: sigma = -3 K alpha T on the diagonal."""
+    T = np.array([0.0, 10.0, 20.0])
+    zero = np.zeros(3)
+    res = MaterialPoint(ThermoElastic(_elastic())).Run(
+        strain={"xx": zero, "yy": zero, "zz": zero}, external={"T": T}
+    )
+
+    K = E / (3 * (1 - 2 * nu))
+    assert np.allclose(res["stress"][:, :3], (-3 * K * ALPHA * T)[:, None])
 
 
 def test_material_point_returns_each_internal_variable():

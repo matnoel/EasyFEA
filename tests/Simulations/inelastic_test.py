@@ -5,6 +5,8 @@
 
 """Simulations.InElastic, driven by behaviors written on the contract. Skipped whole when jax is absent."""
 
+from typing import NamedTuple
+
 import numpy as np
 import pytest
 
@@ -12,6 +14,7 @@ from EasyFEA import ElemType, Mesh, Simulations
 from EasyFEA.Geoms import Domain, Point
 from EasyFEA.Models.Elastic._laws import Isotropic
 from EasyFEA.Models.InElastic import (
+    ONE,
     _Behavior,
     MaterialPoint,
     Maxwell,
@@ -27,6 +30,7 @@ L, H = 120.0, 13.0
 E, nu = 210000.0, 0.3
 ELASTIC = Isotropic(3, E=E, v=nu)
 G, TAU, DT = [0.3, 0.2], [1.0, 10.0], 0.5
+ALPHA = 1e-5
 
 
 class Linear(_Behavior):
@@ -379,3 +383,102 @@ def test_plane_stress_plastic_plate_matches_a_material_point(mesh2D: Mesh):
     for n in range(path.size):
         assert np.allclose(sxx[n], ref["stress"][n, 0], rtol=1e-8)
         assert np.allclose(p[n], ref["p"][n], rtol=1e-8, atol=1e-14)
+
+
+# ----------------------------------------------
+# External variables
+# ----------------------------------------------
+
+
+class ThermoElastic(_Behavior):
+    """Reads the temperature change T."""
+
+    class Externals(NamedTuple):
+        T: float
+
+    def Update(self, eps, z, dt, T):
+        return self.Stress(eps, z, T=T), z
+
+    def Stress(self, eps, z, T):
+        return self.C @ (eps - ALPHA * T * ONE)
+
+
+def _thermo(mesh: Mesh, planeStress: bool = False):
+    return Simulations.InElastic(
+        mesh,
+        ThermoElastic(Isotropic(2, E=E, v=nu, planeStress=planeStress, thickness=H)),
+    )
+
+
+def _heat(simu, mesh: Mesh) -> None:
+    """Free to expand: x fixed on x=0, y at the origin."""
+    simu.Bc_Init()
+    simu.add_dirichlet(mesh.Nodes_Conditions(lambda x, y, z: x == 0), [0], ["x"])
+    simu.add_dirichlet(
+        mesh.Nodes_Conditions(lambda x, y, z: (x == 0) & (y == 0)), [0], ["y"]
+    )
+    simu.Solve()
+
+
+def test_set_external_refuses_what_the_behavior_does_not_read(mesh2D: Mesh):
+    simu = _thermo(mesh2D)
+    with pytest.raises(AssertionError, match="reads no 'P'"):
+        simu.Set_external(P=1.0)
+    with pytest.raises(AssertionError, match="scalar or a"):
+        simu.Set_external(T=np.ones(mesh2D.Nn + 1))
+
+
+def test_a_scalar_external_variable_is_a_uniform_nodal_field(mesh2D: Mesh):
+    scalar, nodal = _thermo(mesh2D), _thermo(mesh2D)
+    scalar.Set_external(T=20.0)
+    nodal.Set_external(T=np.full(mesh2D.Nn, 20.0))
+    _heat(scalar, mesh2D)
+    _heat(nodal, mesh2D)
+
+    assert np.allclose(scalar.displacement, nodal.displacement, rtol=1e-12)
+    assert np.allclose(scalar.Result("T"), 20.0)
+
+
+@pytest.mark.parametrize("planeStress", [False, True])
+def test_uniform_heating_expands_freely(mesh2D: Mesh, planeStress: bool):
+    """No in-plane stress; eps = alpha T in plane stress, (1 + nu) alpha T in plane strain, where eps_zz = 0."""
+    T = 20.0
+    simu = _thermo(mesh2D, planeStress)
+    simu.Set_external(T=T)
+    _heat(simu, mesh2D)
+
+    eps = ALPHA * T * (1 if planeStress else 1 + nu)
+    assert np.isclose(simu.Result("ux").max(), eps * L, rtol=1e-10)
+    assert np.isclose(simu.Result("uy").max(), eps * H, rtol=1e-10)
+    for result in ("Sxx", "Syy", "Sxy"):
+        assert np.allclose(simu.Result(result, nodeValues=False), 0.0, atol=1e-8)
+
+
+def test_saving_needs_the_external_variables(mesh2D: Mesh):
+    with pytest.raises(AssertionError, match="before saving"):
+        _thermo(mesh2D).Save_Iter()
+
+
+def test_external_variables_do_not_follow_a_mesh_change(mesh2D: Mesh, meshFine: Mesh):
+    simu = _thermo(mesh2D)
+    simu.Set_external(T=np.full(mesh2D.Nn, 20.0))
+    simu.mesh = meshFine
+
+    with pytest.raises(AssertionError, match="mesh change"):
+        _heat(simu, meshFine)
+
+
+def test_external_variables_are_saved_with_each_iteration(mesh2D: Mesh, tmp_path):
+    simu = _thermo(mesh2D)
+    for T in (10.0, 20.0):
+        simu.Set_external(T=T)
+        _heat(simu, mesh2D)
+        simu.Save_Iter()
+    simu.Save(str(tmp_path))
+    loaded = Simulations.Load_Simu(str(tmp_path))
+
+    for s in (simu, loaded):
+        for i, T in enumerate((10.0, 20.0)):
+            s.Set_Iter(i)
+            assert np.allclose(s.external["T"], T)
+            assert np.isclose(s.Result("ux").max(), (1 + nu) * ALPHA * T * L)
