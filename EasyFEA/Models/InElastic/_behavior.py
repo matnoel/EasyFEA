@@ -76,22 +76,30 @@ def Newton(
         return jnp.where(active, r, flat - flat0)
 
     def Solve(F, u0):
-        def Converged(u):
-            return jnp.max(jnp.abs(F(u))) < tol
+        # F evaluated once per iteration: nested in another Newton, every extra call multiplies
+        def Jacobian_and_residual(u):
+            def F_twice(u):
+                r = F(u)
+                return r, r
 
-        # carry: (flat iterate, iterations done, converged)
+            return jax.jacfwd(F_twice, has_aux=True)(u)
+
+        # carry: (flat iterate, iterates checked, converged)
         def Continue(carry: tuple["Array", "Array", "Array"]) -> "Array":
             _, i, done = carry
-            return (i < maxIter) & ~done
+            return (i <= maxIter) & ~done
 
+        # checks the iterate, then steps from it: F is traced once, in the loop body only
         def Step(
             carry: tuple["Array", "Array", "Array"],
         ) -> tuple["Array", "Array", "Array"]:
             u, i, _ = carry
-            u = u - jnp.linalg.solve(jax.jacfwd(F)(u), F(u))
-            return u, i + 1, Converged(u)
+            J, r = Jacobian_and_residual(u)
+            done = jnp.max(jnp.abs(r)) < tol
+            u = jnp.where(done, u, u - jnp.linalg.solve(J, r))
+            return u, i + 1, done
 
-        u, _, done = lax.while_loop(Continue, Step, (u0, 0, Converged(u0)))
+        u, _, done = lax.while_loop(Continue, Step, (u0, 0, False))
         return jnp.where(done, u, jnp.nan)
 
     def Tangent_solve(g, y):
