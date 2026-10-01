@@ -109,12 +109,12 @@ solve, repeat.
 
 *Locally*, at every Gauss point, the material is a
 {py:class}`~EasyFEA.Models.InElastic._Behavior`: one `Update(eps, z, dt)` written at one
-3D point in `jax.numpy`, returning the stress and the new state. EasyFEA lifts it to
+3D point in `jax.numpy`, returning the stress and the new internal state. EasyFEA lifts it to
 every Gauss point (`vmap`), derives $\Crm_{alg}$ by `jacfwd` through `Update`, pads
 plane strain, and under plane stress solves $\varepsilon_{zz}$ at each point so that
 $\sigma_{zz} = 0$, the tangent going through that solve too.
 
-A return mapping is a {py:func}`~EasyFEA.Models.InElastic.Newton` on the state
+A return mapping is a {py:func}`~EasyFEA.Models.InElastic.Newton` on the internal state
 increments, differentiable through its root, so the consistent tangent needs no
 hand-written Jacobian. {py:class}`~EasyFEA.Models.InElastic.Plasticity` writes
 

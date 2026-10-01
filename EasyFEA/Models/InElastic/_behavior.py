@@ -109,18 +109,22 @@ IDX_2D = np.array([0, 1, 5])
 ZZ = 2
 
 
-class _NoState(NamedTuple):
+class _NoInternals(NamedTuple):
+    pass
+
+
+class _NoExternals(NamedTuple):
     pass
 
 
 class _Behavior(_IModel, _IObserver):
-    """A material whose stress depends on its history: subclass it, declare ``State``, write :meth:`Update` at one 3D point."""
+    """A material whose stress depends on its history: subclass it, declare ``Internals``, write :meth:`Update` at one 3D point."""
 
-    State: ClassVar[type] = _NoState
+    Internals: ClassVar[type] = _NoInternals
     """The internal variables, a NamedTuple whose defaults are the virgin material."""
 
-    externals: ClassVar[tuple[str, ...]] = ()
-    """The external variables ``Update`` and ``Stress`` read as keywords, e.g. ``("T",)``, at the end of the step."""
+    Externals: ClassVar[type] = _NoExternals
+    """The external variables, a NamedTuple with no defaults whose fields ``Update`` and ``Stress`` read as keywords at the end of the step."""
 
     _tol: float = _params.PositiveScalarParameter()
     """plane-stress eps_zz solve, on sig_zz scaled to a strain"""
@@ -131,6 +135,9 @@ class _Behavior(_IModel, _IObserver):
         """``dim``, ``planeStress`` and ``thickness`` are the elastic model's; it must be homogeneous."""
         assert isinstance(elastic, _Elastic), "elastic must be an elastic model"
         assert not elastic.isHeterogeneous, "the elastic model must be homogeneous"
+        assert not self.Externals._field_defaults, (
+            "an external variable has no default: a reference value is a parameter"
+        )
         elastic._Add_observer(self)
         self.__elastic = elastic
         self._tol = 1e-10
@@ -159,7 +166,16 @@ class _Behavior(_IModel, _IObserver):
         """The 3D stiffness, in Kelvin-Mandel notation, whatever the model dimension."""
         return self.__elastic._Get_C_S(3)[0]  # type: ignore[return-value]
 
-    def _Update(self, observable: Observable, event: str) -> None:
+    @property
+    def externalNames(self) -> tuple[str, ...]:
+        """The declared external variables, in order."""
+        return self.Externals._fields
+
+    def _Update(
+        self,
+        observable: Observable,
+        event: str,
+    ) -> None:
         self.Need_Update()
 
     @abstractmethod
@@ -170,7 +186,7 @@ class _Behavior(_IModel, _IObserver):
         dt: float,
         **external,
     ) -> tuple["Array", Any]:
-        """(6,) strain, state at the last converged step -> (6,) stress, new state."""
+        """(6,) strain, internal state ``z`` at the last converged step -> (6,) stress, new internal state."""
 
     @abstractmethod
     def Stress(
@@ -179,11 +195,11 @@ class _Behavior(_IModel, _IObserver):
         z: Any,
         **external,
     ) -> "Array":
-        """(6,) strain, state -> (6,) stress, with no step: ``Update`` returns ``Stress(eps, new)``."""
+        """(6,) strain, internal state ``z`` -> (6,) stress, with no step: ``Update`` returns ``Stress(eps, new)``."""
 
-    def Virgin_state(self) -> Any:
+    def Virgin_internals(self) -> Any:
         """The internal variables of the virgin material; override it when their size depends on the instance."""
-        return self.State()
+        return self.Internals()
 
     @property
     def coef(self) -> float:
@@ -211,12 +227,12 @@ class _Behavior(_IModel, _IObserver):
         }
 
     # --------------------------------------------------------------------------
-    # The state at every point: one (Ne, nPg, ...) array per internal variable
+    # The internal state at every point: one (Ne, nPg, ...) array per internal variable
     # --------------------------------------------------------------------------
 
-    def Virgin_state_e_pg(self, Ne: int, nPg: int) -> dict[str, FeArray]:
-        """The virgin state at every point, by name; plane stress adds ``eps_zz``."""
-        virgin = self.Virgin_state()._asdict()
+    def Virgin_internals_e_pg(self, Ne: int, nPg: int) -> dict[str, FeArray]:
+        """The virgin internal state at every point, by name; plane stress adds ``eps_zz``."""
+        virgin = self.Virgin_internals()._asdict()
         if self.planeStress:
             virgin["eps_zz"] = ZERO_SCALAR
         # tensor_ndim, else a (6,) default reads as (Ne,) when Ne == 6; copied, since broadcast is a read-only view
@@ -238,12 +254,12 @@ class _Behavior(_IModel, _IObserver):
         dt: float,
         external: dict,
     ) -> tuple["Array", "Array", dict[str, "Array"]]:
-        """Stress, tangent and new state at one point, in the model dimension; the tangent is jacfwd through Update and the eps_zz solve."""
+        """Stress, tangent and new internal state at one point, in the model dimension; the tangent is jacfwd through Update and the eps_zz solve."""
         import jax
         import jax.numpy as jnp
 
-        State = type(self.Virgin_state())
-        zOld = State(**{name: z[name] for name in State._fields})
+        Internals = type(self.Virgin_internals())
+        zOld = Internals(**{name: z[name] for name in Internals._fields})
 
         def Update_named(eps6):
             sig6, new = self.Update(eps6, zOld, dt, **external)
@@ -265,13 +281,16 @@ class _Behavior(_IModel, _IObserver):
         return sig, C_alg, z_new
 
     def __Point_stress(
-        self, eps: "Array", z: dict[str, "Array"], external: dict
+        self,
+        eps: "Array",
+        z: dict[str, "Array"],
+        external: dict,
     ) -> "Array":
-        """Stress at one point, in the model dimension, under the state ``z``."""
+        """Stress at one point, in the model dimension, under the internal state ``z``."""
         import jax.numpy as jnp
 
-        State = type(self.Virgin_state())
-        state = State(**{name: z[name] for name in State._fields})
+        Internals = type(self.Virgin_internals())
+        state = Internals(**{name: z[name] for name in Internals._fields})
         if self.dim == 3:
             return self.Stress(eps, state, **external)
         eps6 = jnp.zeros(6).at[IDX_2D].set(eps)
@@ -303,11 +322,15 @@ class _Behavior(_IModel, _IObserver):
         )
 
     def __External_e_pg(
-        self, external: dict[str, FeArray.FeArrayALike], Ne: int, nPg: int
+        self,
+        external: dict[str, FeArray.FeArrayALike],
+        Ne: int,
+        nPg: int,
     ) -> dict[str, FeArray.FeArrayALike]:
         """The declared external variables, each broadcast to ``(Ne, nPg)``; asserted here, since inside the trace a missing one fails obscurely."""
-        missing = set(self.externals) - set(external)
-        unknown = set(external) - set(self.externals)
+        declared = set(self.externalNames)
+        missing = declared - set(external)
+        unknown = set(external) - declared
         assert not missing, f"external variables missing: {sorted(missing)}"
         assert not unknown, f"{type(self).__name__} reads no {sorted(unknown)}"
         return {
@@ -322,12 +345,12 @@ class _Behavior(_IModel, _IObserver):
         dt: float = 0.0,
         **external,
     ) -> tuple[FeArray, FeArray, dict[str, FeArray]]:
-        """Stress, consistent tangent and trial state at every Gauss point, in the model dimension, from the state at the last converged step (virgin by default)."""
+        """Stress, consistent tangent and trial internal state at every Gauss point, in the model dimension, from the internal state at the last converged step (virgin by default)."""
         tic = Tic()
         eps_e_pg = FeArray.asfearray(np.asarray(eps_e_pg, dtype=float))
         Ne, nPg = eps_e_pg.shape[:2]
         if z_e_pg is None:
-            z_e_pg = self.Virgin_state_e_pg(Ne, nPg)
+            z_e_pg = self.Virgin_internals_e_pg(Ne, nPg)
         external = self.__External_e_pg(external, Ne, nPg)
 
         if "_compiled" not in self.__dict__:
@@ -358,7 +381,7 @@ class _Behavior(_IModel, _IObserver):
         z_e_pg: dict[str, FeArray],
         **external,
     ) -> FeArray:
-        """Stress at every Gauss point, in the model dimension, under the state ``z_e_pg``, with no step."""
+        """Stress at every Gauss point, in the model dimension, under the internal state ``z_e_pg``, with no step."""
         eps_e_pg = FeArray.asfearray(np.asarray(eps_e_pg, dtype=float))
         external = self.__External_e_pg(external, *eps_e_pg.shape[:2])
         if "_compiledStress" not in self.__dict__:
@@ -412,7 +435,7 @@ class MaterialPoint:
         external = {k: np.asarray(v, dtype=float) for k, v in (external or {}).items()}
 
         eps = np.zeros(6)
-        z = self.behavior.Virgin_state_e_pg(1, 1)
+        z = self.behavior.Virgin_internals_e_pg(1, 1)
         strains, stresses, states = [], [], []
         for k in range(len(next(iter(driven.values())))):
             for i, path in driven.items():

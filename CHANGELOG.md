@@ -5,14 +5,15 @@ This document describes the changes made to the project.
 ## Unreleased
 
 - Inelastic materials are written on a contract (**breaking**): a
-  `Models.InElastic._Behavior` declares a `State` and writes `Update(eps, z, dt)` and
-  `Stress(eps, z)` at one 3D point in `jax.numpy`; EasyFEA lifts them to every Gauss
+  `Models.InElastic._Behavior` declares its `Internals` and writes `Update(eps, z, dt)`
+  and `Stress(eps, z)` at one 3D point in `jax.numpy`; EasyFEA lifts them to every Gauss
   point, derives the tangent by `jax.jacfwd`, handles plane strain and plane stress, and
-  commits the state at every converged `Solve` (`Save_Iter` only records it, so it can
-  be skipped on some steps). `Newton`, `Trace`, `Deviator`, `Von_Mises_stress` help
-  write one. A behavior takes only its elastic model, `_Behavior(elastic)`: `dim`,
+  commits the internal state at every converged `Solve` (`Save_Iter` only records it, so
+  it can be skipped on some steps). `Newton`, `Trace`, `Deviator`, `Von_Mises_stress`
+  help write one. A behavior takes only its elastic model, `_Behavior(elastic)`: `dim`,
   `planeStress` and `thickness` are the model's, `C` its 3D stiffness even in 2D, and
-  modifying the model rebuilds the kernel.
+  modifying the model rebuilds the kernel. External variables, such as a temperature,
+  are declared as `Externals` and set with `simu.Set_external(T=...)`.
 - Shipped behaviors: `Plasticity(elastic, surface, hardening)`, `Norton`, `Chaboche`
   with N back-stresses, and `Maxwell` with N branches. Surfaces (`Yield.VonMises`,
   `Hill`, `DruckerPrager`) and hardening (`IsotropicHardening.Perfect`, `Linear`,

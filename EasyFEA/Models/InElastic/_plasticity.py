@@ -18,7 +18,7 @@ if TYPE_CHECKING:
 
 
 def _Add(z, dz):
-    """The state after the increment ``dz``."""
+    """The internal state after the increment ``dz``."""
     import jax
 
     return jax.tree_util.tree_map(lambda a, b: a + b, z, dz)
@@ -54,7 +54,7 @@ class _Plastic(_Behavior):
 class Plasticity(_Plastic):
     r"""Associated plasticity: any elasticity, any surface :math:`f(\Sig, R)`, any isotropic hardening :math:`R(p)`; backward Euler, returned onto the surface by :func:`Newton`."""
 
-    class State(NamedTuple):
+    class Internals(NamedTuple):
         eps_p: "Array" = ZERO_TENSOR
         """plastic strain"""
         p: "Array" = ZERO_SCALAR
@@ -68,19 +68,19 @@ class Plasticity(_Plastic):
         self,
         trial: "Array",
         f_trial: "Array",
-        z: State,
+        z: "Plasticity.Internals",
         dt: float,
         flows: "Array",
-    ) -> State:
-        return Plasticity.State()
+    ) -> "Plasticity.Internals":
+        return Plasticity.Internals()
 
     def Update(
         self,
         eps: "Array",
-        z: State,
+        z: "Plasticity.Internals",
         dt: float,
         **external,
-    ) -> tuple["Array", State]:
+    ) -> tuple["Array", "Plasticity.Internals"]:
         import jax
 
         f, R = self.surface, self.hardening
@@ -88,17 +88,17 @@ class Plasticity(_Plastic):
         f_trial = f(trial, R(z.p))
         flows = self._Flows(f_trial)
 
-        def Residual(dz: Plasticity.State) -> Plasticity.State:
+        def Residual(dz: "Plasticity.Internals") -> "Plasticity.Internals":
             new = _Add(z, dz)
             sig = self.Stress(eps, new)
             R_new = R(new.p)
             N = jax.grad(f)(sig, R_new)
-            return Plasticity.State(
+            return Plasticity.Internals(
                 eps_p=dz.eps_p - dz.p * N,
                 p=self._Overstress(f(sig, R_new), dz.p, dt) / f.sigma_y,
             )
 
-        # the unknown is the increment of the state; where nothing flows it stays zero
+        # the unknown is the increment of the internal state; where nothing flows it stays zero
         dz = Newton(
             Residual,
             self._First_guess(trial, f_trial, z, dt, flows),
@@ -169,10 +169,10 @@ class Norton(Plasticity):
         self,
         trial: "Array",
         f_trial: "Array",
-        z: Plasticity.State,
+        z: "Plasticity.Internals",
         dt: float,
         flows: "Array",
-    ) -> Plasticity.State:
+    ) -> "Plasticity.Internals":
         """One explicit step, capped by the rate-independent return."""
         import jax
         import jax.numpy as jnp
@@ -183,13 +183,13 @@ class Norton(Plasticity):
         explicit = dt * self.A * (overstress / self.sigma_0) ** self.n
         capped = overstress / (N @ self.C @ N + jax.grad(R)(z.p))
         dp = jnp.where(flows, jnp.minimum(explicit, capped), 0.0)
-        return Plasticity.State(eps_p=dp * N, p=dp)
+        return Plasticity.Internals(eps_p=dp * N, p=dp)
 
 
 class Chaboche(_Plastic):
     r"""Plasticity with Armstrong-Frederick back-stresses :math:`X = \sum_i \tfrac23 C_i \bm{\alpha}_i`, the surface read at :math:`\Sig - X`; :math:`\gamma_i = 0` is linear (Prager) hardening."""
 
-    class State(NamedTuple):
+    class Internals(NamedTuple):
         eps_p: "Array" = ZERO_TENSOR
         """plastic strain"""
         p: "Array" = ZERO_SCALAR
@@ -218,13 +218,13 @@ class Chaboche(_Plastic):
         self.C_X = C_arr
         self.gamma = gamma_arr
 
-    def Virgin_state(self) -> "Chaboche.State":
-        return Chaboche.State(alpha=np.zeros((self.C_X.size, 6)))  # type: ignore[arg-type]
+    def Virgin_internals(self) -> "Chaboche.Internals":
+        return Chaboche.Internals(alpha=np.zeros((self.C_X.size, 6)))  # type: ignore[arg-type]
 
     def Shifted_stress(
         self,
         eps: "Array",
-        z: "Chaboche.State",
+        z: "Chaboche.Internals",
     ) -> "Array":
         """The stress the surface reads, :math:`\\Sig - X`."""
         return self.Stress(eps, z) - 2 / 3 * self.C_X @ z.alpha
@@ -232,21 +232,21 @@ class Chaboche(_Plastic):
     def Update(
         self,
         eps: "Array",
-        z: State,
+        z: "Chaboche.Internals",
         dt: float,
         **external,
-    ) -> tuple["Array", State]:
+    ) -> tuple["Array", "Chaboche.Internals"]:
         import jax
 
         f, R = self.surface, self.hardening
         flows = self._Flows(f(self.Shifted_stress(eps, z), R(z.p)))
 
-        def Residual(dz: Chaboche.State) -> Chaboche.State:
+        def Residual(dz: "Chaboche.Internals") -> "Chaboche.Internals":
             new = _Add(z, dz)
             xi = self.Shifted_stress(eps, new)
             R_new = R(new.p)
             N = jax.grad(f)(xi, R_new)
-            return Chaboche.State(
+            return Chaboche.Internals(
                 eps_p=dz.eps_p - dz.p * N,
                 p=f(xi, R_new) / f.sigma_y,
                 alpha=dz.alpha - dz.p * (N - self.gamma[:, None] * new.alpha),
@@ -254,7 +254,7 @@ class Chaboche(_Plastic):
 
         dz = Newton(
             Residual,
-            self.Virgin_state(),
+            self.Virgin_internals(),
             flows,
             tol=self._tol,
             maxIter=self._maxIter,

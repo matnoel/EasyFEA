@@ -253,8 +253,8 @@ def _cycle(peak: float) -> np.ndarray:
 def test_chaboche_state_is_sized_by_its_components():
     behavior = _chaboche(COMPONENTS)
 
-    assert behavior.Virgin_state().alpha.shape == (3, 6)
-    assert behavior.Virgin_state_e_pg(5, 4)["alpha"].shape == (5, 4, 3, 6)
+    assert behavior.Virgin_internals().alpha.shape == (3, 6)
+    assert behavior.Virgin_internals_e_pg(5, 4)["alpha"].shape == (5, 4, 3, 6)
 
 
 def test_prager_hardens_like_linear_isotropic_in_monotonic_tension():

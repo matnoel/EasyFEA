@@ -21,6 +21,8 @@ first alone, then with the self-weight.
 
 # sphinx_gallery_thumbnail_number = -1
 
+from typing import NamedTuple
+
 from EasyFEA import ElemType, Models, PyVista, Simulations
 from EasyFEA.Geoms import Point, Line, Contour
 from EasyFEA.Models.InElastic import _Behavior, ONE
@@ -71,7 +73,8 @@ thermal.Solve()
 class ThermoElastic(_Behavior):
     """Linear thermoelasticity, ``T`` being the temperature change."""
 
-    externals = ("T",)
+    class Externals(NamedTuple):
+        T: float
 
     alpha: float = _params.PositiveScalarParameter()
     """thermal expansion coefficient"""

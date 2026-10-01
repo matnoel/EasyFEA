@@ -73,7 +73,7 @@ class Linear(_Behavior):
 class Damage(_Behavior):
     """A tensor and a scalar internal variable, to check the packing."""
 
-    class State(NamedTuple):
+    class Internals(NamedTuple):
         eps_old: np.ndarray = ZERO_TENSOR
         d: np.ndarray = ZERO_SCALAR
 
@@ -84,7 +84,7 @@ class Damage(_Behavior):
         dt,
         **external,
     ):
-        new = Damage.State(eps_old=eps, d=z.d + 0.1)
+        new = Damage.Internals(eps_old=eps, d=z.d + 0.1)
         return self.Stress(eps, new), new
 
     def Stress(self, eps, z, **external):

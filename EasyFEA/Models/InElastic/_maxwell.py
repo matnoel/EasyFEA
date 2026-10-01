@@ -20,7 +20,7 @@ class Maxwell(_Behavior):
     Backward Euler in closed form: :math:`\Eps^v_i = (\Eps^v_{i,n} + k_i \Eps) / (1 + k_i)` with :math:`k_i = \dt/\tau_i`, and :math:`\Sig = \Crm : (\Eps - \sum_i g_i \Eps^v_i)`.
     """
 
-    class State(NamedTuple):
+    class Internals(NamedTuple):
         eps_v: "Array" = ZERO_TENSOR[None]
         """one branch strain per row, (n_branches, 6)"""
 
@@ -43,24 +43,24 @@ class Maxwell(_Behavior):
         self.g = g_arr
         self.tau = tau_arr
 
-    def Virgin_state(self) -> "Maxwell.State":
-        return Maxwell.State(eps_v=np.zeros((self.g.size, 6)))  # type: ignore[arg-type]
+    def Virgin_internals(self) -> "Maxwell.Internals":
+        return Maxwell.Internals(eps_v=np.zeros((self.g.size, 6)))  # type: ignore[arg-type]
 
     def Update(
         self,
         eps: "Array",
-        z: State,
+        z: "Maxwell.Internals",
         dt: float,
         **external,
-    ) -> tuple["Array", State]:
+    ) -> tuple["Array", "Maxwell.Internals"]:
         k = (dt / self.tau)[:, None]
-        new = Maxwell.State(eps_v=(z.eps_v + k * eps) / (1 + k))
+        new = Maxwell.Internals(eps_v=(z.eps_v + k * eps) / (1 + k))
         return self.Stress(eps, new), new
 
     def Stress(
         self,
         eps: "Array",
-        z: State,
+        z: "Maxwell.Internals",
         **external,
     ) -> "Array":
         return self.C @ (eps - self.g @ z.eps_v)

@@ -61,10 +61,10 @@ def _central_difference(
 def test_state_is_sized_by_the_branches():
     behavior = Maxwell(ELASTIC, G, TAU)
 
-    assert behavior.Virgin_state().eps_v.shape == (2, 6)
-    assert behavior.Virgin_state_e_pg(5, 4)["eps_v"].shape == (5, 4, 2, 6)
+    assert behavior.Virgin_internals().eps_v.shape == (2, 6)
+    assert behavior.Virgin_internals_e_pg(5, 4)["eps_v"].shape == (5, 4, 2, 6)
     # a (2, 6) default must not be taken for an (Ne, nPg) field
-    assert behavior.Virgin_state_e_pg(2, 6)["eps_v"].shape == (2, 6, 2, 6)
+    assert behavior.Virgin_internals_e_pg(2, 6)["eps_v"].shape == (2, 6, 2, 6)
 
 
 def test_fractions_must_leave_an_equilibrium_spring():

@@ -76,7 +76,7 @@ class InElastic(_Simu):
         Nn = self.mesh.Nn
         for name, v in values.items():
             assert (
-                name in self.material.externals
+                name in self.material.externalNames
             ), f"{type(self.material).__name__} reads no '{name}'"
             v = np.asarray(v, dtype=float)
             v = np.full(Nn, float(v)) if v.ndim == 0 else v.copy()
@@ -110,7 +110,7 @@ class InElastic(_Simu):
         self, details=False
     ) -> tuple[list[str], list[str]]:
         elementsField = ["Svm", "Stress", "Strain"] if details else ["Svm", "Stress"]
-        return ["displacement", *self.material.externals], elementsField
+        return ["displacement", *self.material.externalNames], elementsField
 
     # --------------------------------------------------------------------------
     # Integration
@@ -127,7 +127,7 @@ class InElastic(_Simu):
         """The internal variables committed at the last converged solve, virgin before any."""
         if groupElem.elemType not in self.__internal:
             nPg = groupElem.Get_gauss(MatrixType.rigi).nPg
-            return self.material.Virgin_state_e_pg(groupElem.Ne, nPg)
+            return self.material.Virgin_internals_e_pg(groupElem.Ne, nPg)
         internal = self.__internal[groupElem.elemType]
         # they could be projected onto the new mesh instead
         assert all(
@@ -198,7 +198,7 @@ class InElastic(_Simu):
 
     def Save_Iter(self, iter=None):
         # so that every saved iteration can give its stress back
-        missing = set(self.material.externals) - set(self.__external)
+        missing = set(self.material.externalNames) - set(self.__external)
         assert not missing, f"set {sorted(missing)} with Set_external before saving"
         if iter is None:
             iter = {}
@@ -237,7 +237,7 @@ class InElastic(_Simu):
     # --------------------------------------------------------------------------
 
     def __Scalar_states(self) -> list[str]:
-        virgin = self.material.Virgin_state_e_pg(1, 1)
+        virgin = self.material.Virgin_internals_e_pg(1, 1)
         return [name for name, v in virgin.items() if v.shape == (1, 1)]
 
     def Results_Available(self) -> list[str]:
@@ -251,7 +251,7 @@ class InElastic(_Simu):
         results.extend(["Svm", "Stress", "Evm", "Strain"])
         # scalar internal variables are plottable
         results.extend(self.__Scalar_states())
-        results.extend(self.material.externals)
+        results.extend(self.material.externalNames)
         return results
 
     def Result(
@@ -281,7 +281,7 @@ class InElastic(_Simu):
         elif result == "displacement_matrix":
             values = self.Results_displacement_matrix()
 
-        elif result in self.material.externals:
+        elif result in self.material.externalNames:
             if result not in self.__external:
                 Terminal.MyPrintError(f"'{result}' is not set, see Set_external.")
                 return None  # type: ignore[return-value]
