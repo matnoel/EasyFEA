@@ -96,7 +96,7 @@ class InElastic(_Simu):
         return {2: ["x", "y"], 3: ["x", "y", "z"]}[self.dim]
 
     def Get_problemTypes(self) -> list[ProblemType]:
-        return [ProblemType("elastic")]
+        return [ProblemType("inelastic")]
 
     def Get_dof_n(self, problemType=None) -> int:
         return self.dim

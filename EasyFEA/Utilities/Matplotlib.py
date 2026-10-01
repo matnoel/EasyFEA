@@ -875,16 +875,16 @@ def Plot_BoundaryConditions(simu, ax: Axes | None = None) -> Axes:
     plotDim = np.max([simu.mesh.inDim, 2])
 
     for bc in BoundaryConditions:
-        problemType = bc.problemType
         dofsValues = bc.dofsValues
         unknowns = bc.unknowns
         nDir = len(unknowns)
         nodes = list(set(list(bc.nodes)))
         description = bc.description
 
-        if problemType in ["damage", "thermal"]:
+        marker = "."
+        if not set(unknowns) <= {"x", "y", "z", "rx", "ry", "rz"}:
             marker = "o"
-        elif problemType in ["elastic", "beam", "hyperelastic"]:
+        else:
             # get values for each direction
             sum = np.sum(dofsValues.reshape(-1, nDir), axis=0)
             values = np.round(sum, 2)
@@ -910,8 +910,6 @@ def Plot_BoundaryConditions(simu, ax: Axes | None = None) -> Axes:
                     marker = "X"
             elif len(unknowns) > 2:
                 marker = "s"
-        else:
-            marker = "."
 
         # Title
         unknowns_str = str(unknowns).replace("'", "")
