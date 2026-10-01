@@ -8,10 +8,11 @@
 import numpy as np
 import pytest
 
-from EasyFEA.FEM._linalg import FeArray
 from EasyFEA.Models import _autodiff
 from EasyFEA.Models.Elastic._laws import Isotropic
 from EasyFEA.Models.InElastic import Maxwell
+
+from .conftest import one_point_field, point_value
 
 pytest.importorskip("jax")
 _autodiff.Enable_x64()
@@ -23,14 +24,6 @@ C = ELASTIC.C
 G, TAU = [0.3, 0.2], [1.0, 10.0]
 
 
-def _fe(vec) -> FeArray.FeArrayALike:
-    return FeArray.asfearray(np.asarray(vec, dtype=float)[np.newaxis, np.newaxis])
-
-
-def _at(field) -> np.ndarray:
-    return np.asarray(field)[0, 0]
-
-
 def _hold(
     behavior: Maxwell,
     eps,
@@ -39,8 +32,8 @@ def _hold(
 ) -> np.ndarray:
     z = None
     for _ in range(nstep):
-        sig, _, z = behavior.Integrate(_fe(eps), z, dt)
-    return _at(sig)
+        sig, _, z = behavior.Integrate(one_point_field(eps), z, dt)
+    return point_value(sig)
 
 
 def _central_difference(
@@ -52,8 +45,8 @@ def _central_difference(
 ):
     C_fd = np.zeros((eps.size, eps.size))
     for j, d in enumerate(np.eye(eps.size) * h):
-        sigP = _at(behavior.Integrate(_fe(eps + d), z, dt)[0])
-        sigM = _at(behavior.Integrate(_fe(eps - d), z, dt)[0])
+        sigP = point_value(behavior.Integrate(one_point_field(eps + d), z, dt)[0])
+        sigM = point_value(behavior.Integrate(one_point_field(eps - d), z, dt)[0])
         C_fd[:, j] = (sigP - sigM) / (2 * h)
     return C_fd
 
@@ -74,10 +67,10 @@ def test_fractions_must_leave_an_equilibrium_spring():
 
 def test_glassy_response_is_the_full_stiffness():
     """dt = 0: the dashpots are rigid."""
-    sig, C_alg, _ = Maxwell(ELASTIC, 0.3, 1.0).Integrate(_fe(EPS), dt=0.0)
+    sig, C_alg, _ = Maxwell(ELASTIC, 0.3, 1.0).Integrate(one_point_field(EPS), dt=0.0)
 
-    assert np.allclose(_at(sig), C @ EPS)
-    assert np.allclose(_at(C_alg), C)
+    assert np.allclose(point_value(sig), C @ EPS)
+    assert np.allclose(point_value(C_alg), C)
 
 
 def test_relaxation_matches_the_backward_euler_closed_form():
@@ -97,15 +90,17 @@ def test_fully_relaxed_response_is_the_equilibrium_stiffness():
 def test_2d_tangent_matches_central_difference(planeStress: bool):
     behavior = Maxwell(Isotropic(2, E=E, v=nu, planeStress=planeStress), G, TAU)
     eps = EPS[[0, 1, 5]]
-    _, _, z = behavior.Integrate(_fe(eps), dt=0.5)  # a history, so eps_v is not zero
+    _, _, z = behavior.Integrate(
+        one_point_field(eps), dt=0.5
+    )  # a history, so eps_v is not zero
 
-    C_alg = _at(behavior.Integrate(_fe(2 * eps), z, 0.5)[1])
+    C_alg = point_value(behavior.Integrate(one_point_field(2 * eps), z, 0.5)[1])
 
     assert np.allclose(C_alg, _central_difference(behavior, 2 * eps, z, 0.5), rtol=1e-6)
 
 
 def test_tangent_matches_central_difference():
     behavior = Maxwell(ELASTIC, G, TAU)
-    C_alg = _at(behavior.Integrate(_fe(EPS), dt=5.0)[1])
+    C_alg = point_value(behavior.Integrate(one_point_field(EPS), dt=5.0)[1])
 
     assert np.allclose(C_alg, _central_difference(behavior, EPS, None, 5.0), rtol=1e-6)
