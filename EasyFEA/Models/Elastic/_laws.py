@@ -378,13 +378,14 @@ class Isotropic(_Elastic):
         self.C = C
         self.S = S
 
-    def get_lambda(self):
+    def get_lambda(self, dim: int | None = None):
+        """First Lamé coefficient in ``dim`` (the model's by default), reduced under plane stress."""
         E = self.E
         v = self.v
 
         lmbda = E * v / ((1 + v) * (1 - 2 * v))
 
-        if self.dim == 2 and self.planeStress:
+        if (self.dim if dim is None else dim) == 2 and self.planeStress:
             lmbda = E * v / (1 - v**2)
 
         return lmbda
@@ -422,9 +423,7 @@ class Isotropic(_Elastic):
         v = self.v
 
         mu = self.get_mu()
-        lmbda = E * v / ((1 + v) * (1 - 2 * v))
-        if dim == 2 and self.planeStress:
-            lmbda = E * v / (1 - v**2)
+        lmbda = self.get_lambda(dim)
 
         dtype = object if True in [isinstance(p, np.ndarray) for p in [E, v]] else float
 
