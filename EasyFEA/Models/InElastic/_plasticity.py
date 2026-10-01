@@ -3,6 +3,7 @@
 # This file is part of the EasyFEA project.
 # EasyFEA is distributed under the terms of the GNU General Public License v3, see LICENSE.txt and CREDITS.md for more information.
 
+from abc import abstractmethod
 from typing import TYPE_CHECKING, Any, NamedTuple, Sequence
 
 import numpy as np
@@ -31,6 +32,11 @@ class _Plastic(_Behavior):
     surface: Surface = _params.InstanceParameter()
     hardening: Hardening = _params.InstanceParameter()
 
+    _returnTol: float = _params.StrictlyPositiveScalarParameter()
+    """Newton tolerance of the plastic return"""
+    _returnMaxIter: int = _params.StrictlyPositiveScalarParameter()
+    """Newton iteration cap of the plastic return"""
+
     def __init__(
         self,
         elastic: _Elastic,
@@ -40,6 +46,8 @@ class _Plastic(_Behavior):
         super().__init__(elastic)
         self.surface = surface
         self.hardening = hardening
+        self._returnTol = 1e-10
+        self._returnMaxIter = 20
 
     def Stress(
         self,
@@ -51,8 +59,51 @@ class _Plastic(_Behavior):
         return self.C @ (eps - z.eps_p)
 
     def _Flows(self, f_trial: "Array") -> "Array":
-        """A point on the surface, as every plastic point is at the start of a step, flows, so that it gets the loading tangent whatever the roundoff in f."""
-        return f_trial > -self._tol * self.surface.sigma_y
+        """A point on the surface flows, so that it gets the loading tangent whatever the roundoff in f."""
+        return f_trial > -self._returnTol * self.surface.sigma_y
+
+    def _Surface_stress(self, eps: "Array", z: Any) -> "Array":
+        """The stress the surface reads."""
+        return self.Stress(eps, z)
+
+    @abstractmethod
+    def _Residual(self, eps: "Array", z: Any, dz: Any, dt: float) -> Any:
+        """What the return drives to zero, for the increment ``dz`` of the internal state."""
+
+    def _First_guess(
+        self,
+        eps: "Array",
+        f_trial: "Array",
+        z: Any,
+        dt: float,
+        flows: "Array",
+    ) -> Any:
+        """A zero increment."""
+        import jax
+        import jax.numpy as jnp
+
+        return jax.tree_util.tree_map(jnp.zeros_like, z)
+
+    def Update(
+        self,
+        eps: "Array",
+        z: Any,
+        dt: float,
+        **external,
+    ) -> tuple["Array", Any]:
+        f, R = self.surface, self.hardening
+        f_trial = f(self._Surface_stress(eps, z), R(z.p))
+        flows = self._Flows(f_trial)
+        # the unknown is the increment of the internal state; where nothing flows it stays zero
+        dz = Newton(
+            lambda dz: self._Residual(eps, z, dz, dt),
+            self._First_guess(eps, f_trial, z, dt, flows),
+            flows,
+            tol=self._returnTol,
+            maxIter=self._returnMaxIter,
+        )
+        new = _Add(z, dz)
+        return self.Stress(eps, new), new
 
 
 class Plasticity(_Plastic):
@@ -68,50 +119,24 @@ class Plasticity(_Plastic):
         """What the return drives to zero."""
         return f
 
-    def _First_guess(
-        self,
-        trial: "Array",
-        f_trial: "Array",
-        z: "Plasticity.Internals",
-        dt: float,
-        flows: "Array",
-    ) -> "Plasticity.Internals":
-        return Plasticity.Internals()
-
-    def Update(
+    def _Residual(
         self,
         eps: "Array",
         z: "Plasticity.Internals",
+        dz: "Plasticity.Internals",
         dt: float,
-        **external,
-    ) -> tuple["Array", "Plasticity.Internals"]:
+    ) -> "Plasticity.Internals":
         import jax
 
         f, R = self.surface, self.hardening
-        trial = self.Stress(eps, z)
-        f_trial = f(trial, R(z.p))
-        flows = self._Flows(f_trial)
-
-        def Residual(dz: "Plasticity.Internals") -> "Plasticity.Internals":
-            new = _Add(z, dz)
-            sig = self.Stress(eps, new)
-            R_new = R(new.p)
-            N = jax.grad(f)(sig, R_new)
-            return Plasticity.Internals(
-                eps_p=dz.eps_p - dz.p * N,
-                p=self._Overstress(f(sig, R_new), dz.p, dt) / f.sigma_y,
-            )
-
-        # the unknown is the increment of the internal state; where nothing flows it stays zero
-        dz = Newton(
-            Residual,
-            self._First_guess(trial, f_trial, z, dt, flows),
-            flows,
-            tol=self._tol,
-            maxIter=self._maxIter,
-        )
         new = _Add(z, dz)
-        return self.Stress(eps, new), new
+        sig = self.Stress(eps, new)
+        R_new = R(new.p)
+        N = jax.grad(f)(sig, R_new)
+        return Plasticity.Internals(
+            eps_p=dz.eps_p - dz.p * N,
+            p=self._Overstress(f(sig, R_new), dz.p, dt) / f.sigma_y,
+        )
 
 
 class Norton(Plasticity):
@@ -174,7 +199,7 @@ class Norton(Plasticity):
 
     def _First_guess(
         self,
-        trial: "Array",
+        eps: "Array",
         f_trial: "Array",
         z: "Plasticity.Internals",
         dt: float,
@@ -185,7 +210,7 @@ class Norton(Plasticity):
         import jax.numpy as jnp
 
         f, R = self.surface, self.hardening
-        N = jax.grad(f)(trial, R(z.p))
+        N = jax.grad(f)(self.Stress(eps, z), R(z.p))
         overstress = jnp.maximum(f_trial, 0.0)
         explicit = dt * self.A * (overstress / self.sigma_0) ** self.n
         capped = overstress / (N @ self.C @ N + jax.grad(R)(z.p))
@@ -230,43 +255,30 @@ class Chaboche(_Plastic):
     def Virgin_internals(self) -> "Chaboche.Internals":
         return Chaboche.Internals(alpha=np.zeros((self.C_X.size, 6)))  # type: ignore[arg-type]
 
-    def Shifted_stress(
+    def _Surface_stress(
         self,
         eps: "Array",
         z: "Chaboche.Internals",
     ) -> "Array":
-        """The stress the surface reads, :math:`\\Sig - X`."""
+        """:math:`\\Sig - X`."""
         return self.Stress(eps, z) - 2 / 3 * self.C_X @ z.alpha
 
-    def Update(
+    def _Residual(
         self,
         eps: "Array",
         z: "Chaboche.Internals",
+        dz: "Chaboche.Internals",
         dt: float,
-        **external,
-    ) -> tuple["Array", "Chaboche.Internals"]:
+    ) -> "Chaboche.Internals":
         import jax
 
         f, R = self.surface, self.hardening
-        flows = self._Flows(f(self.Shifted_stress(eps, z), R(z.p)))
-
-        def Residual(dz: "Chaboche.Internals") -> "Chaboche.Internals":
-            new = _Add(z, dz)
-            xi = self.Shifted_stress(eps, new)
-            R_new = R(new.p)
-            N = jax.grad(f)(xi, R_new)
-            return Chaboche.Internals(
-                eps_p=dz.eps_p - dz.p * N,
-                p=f(xi, R_new) / f.sigma_y,
-                alpha=dz.alpha - dz.p * (N - self.gamma[:, None] * new.alpha),
-            )
-
-        dz = Newton(
-            Residual,
-            self.Virgin_internals(),
-            flows,
-            tol=self._tol,
-            maxIter=self._maxIter,
-        )
         new = _Add(z, dz)
-        return self.Stress(eps, new), new
+        xi = self._Surface_stress(eps, new)
+        R_new = R(new.p)
+        N = jax.grad(f)(xi, R_new)
+        return Chaboche.Internals(
+            eps_p=dz.eps_p - dz.p * N,
+            p=f(xi, R_new) / f.sigma_y,
+            alpha=dz.alpha - dz.p * (N - self.gamma[:, None] * new.alpha),
+        )
