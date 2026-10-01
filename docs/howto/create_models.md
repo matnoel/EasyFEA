@@ -158,9 +158,9 @@ ______________________________________________________________________
 ## Inelastic models
 
 An inelastic model is a {py:class}`~EasyFEA.Models.InElastic._Behavior`, driven by
-{py:class}`~EasyFEA.Simulations.InElastic`, and relies on [JAX](https://docs.jax.dev), an
-optional dependency: `pip install EasyFEA[jax]`. It takes an elastic model, whose `dim`,
-`planeStress` and `thickness` it keeps:
+{py:class}`~EasyFEA.Simulations.InElastic`, and relies on [JAX](https://docs.jax.dev),
+an optional dependency: `pip install EasyFEA[jax]`. It takes an elastic model, whose
+`dim`, `planeStress` and `thickness` it keeps:
 
 ```python
 from EasyFEA import Models
@@ -185,14 +185,14 @@ mat = Models.InElastic.Maxwell(
 
 ### Write a behavior
 
-Subclass {py:class}`~EasyFEA.Models.InElastic._Behavior` and write the material at
-**one 3D point**, in `jax.numpy`:
+Subclass {py:class}`~EasyFEA.Models.InElastic._Behavior` and write the material at **one
+3D point**, in `jax.numpy`:
 
 - `Internals`: a `NamedTuple` of the internal variables, whose defaults are the virgin
   material.
 - `Stress(eps, z)`: the stress under the internal state `z`.
-- `Update(eps, z, dt)`: from the internal state at the last converged step, the stress and
-  the new internal state.
+- `Update(eps, z, dt)`: from the internal state at the last converged step, the stress
+  and the new internal state.
 
 Strains and stresses are `(6,)` Kelvin–Mandel vectors
 $[xx,\, yy,\, zz,\, \sqrt{2}\,yz,\, \sqrt{2}\,xz,\, \sqrt{2}\,xy]$. EasyFEA lifts
@@ -255,14 +255,14 @@ This one matches {py:class}`~EasyFEA.Models.InElastic.Plasticity` with
   with a 3D elastic model.
 - **Parameters** declared with `_params` (here `PositiveScalarParameter`) are checked
   when set, and setting one, like modifying the elastic model, rebuilds the kernel.
-- **External variables**, such as a temperature, are declared like the internal ones,
-  as the fields of a `NamedTuple` `Externals`, and read as keywords by `Update` and
+- **External variables**, such as a temperature, are declared like the internal ones, as
+  the fields of a `NamedTuple` `Externals`, and read as keywords by `Update` and
   `Stress`. They have no defaults: a reference value, such as the temperature at which
   there is no thermal strain, is a parameter. The simulation sets them with
   {py:func}`~EasyFEA.Simulations.InElastic.Set_external` (see
   {ref}`sphx_glr_examples_Inelasticity_ThermoElasticity.py`).
-- **An internal state sized by the instance**, such as one strain per Maxwell branch: override
-  {py:func}`~EasyFEA.Models.InElastic._Behavior.Virgin_internals`.
+- **An internal state sized by the instance**, such as one strain per Maxwell branch:
+  override {py:func}`~EasyFEA.Models.InElastic._Behavior.Virgin_internals`.
 
 ```{seealso}
 - {ref}`simulations-inelastic` — how the simulation drives a behavior
