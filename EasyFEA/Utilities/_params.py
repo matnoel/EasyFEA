@@ -48,6 +48,17 @@ def _CheckIsPositive(value: _types.Number | _types.Numbers) -> None:
         raise TypeError("Unknown type.")
 
 
+def _CheckIsStrictlyPositive(value: _types.Number | _types.Numbers) -> None:
+    """Checks whether the value is strictly positive"""
+    errorText = "Must be > 0!"
+    if isinstance(value, (int, float)):
+        assert value > 0.0, errorText
+    elif isinstance(value, Iterable):
+        assert np.all(np.asarray(value) > 0.0), errorText
+    else:
+        raise TypeError("Unknown type.")
+
+
 def _CheckIsNegative(value: float | Iterable) -> None:
     """Checks whether the value is negative"""
     errorText = "Must be <= 0!"
@@ -165,6 +176,17 @@ class PositiveScalarParameter(_Parameter):
     def _checker(self, value):
         _CheckIsScalar(value)
         _CheckIsPositive(value)
+
+
+class StrictlyPositiveParameter(_Parameter):
+    def _checker(self, value):
+        _CheckIsStrictlyPositive(value)
+
+
+class StrictlyPositiveScalarParameter(_Parameter):
+    def _checker(self, value):
+        _CheckIsScalar(value)
+        _CheckIsStrictlyPositive(value)
 
 
 class NegativeParameter(_Parameter):

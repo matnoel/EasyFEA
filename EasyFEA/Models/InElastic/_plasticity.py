@@ -8,6 +8,7 @@ from typing import TYPE_CHECKING, Any, NamedTuple, Sequence
 import numpy as np
 
 from ..Elastic._laws import _Elastic
+from ...Utilities import _params
 from ...FEM._linalg import FeArray
 from ._behavior import ZERO_SCALAR, ZERO_TENSOR, _Behavior, Newton
 from .IsotropicHardening import Hardening, Perfect
@@ -112,6 +113,8 @@ class Plasticity(_Plastic):
 
 class Norton(Plasticity):
     r"""Plasticity with a Norton flow rate :math:`\dot p = A \langle f/\sigma_0 \rangle^n`: past the surface ``f`` no longer vanishes, it drives the flow."""
+
+    _params.PositiveScalarParameter()
 
     def __init__(
         self,
