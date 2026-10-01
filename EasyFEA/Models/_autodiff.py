@@ -55,7 +55,7 @@ def Kelvin_to_tensor(vec):
 
 @requires_jax
 def Vmap_e_pg(kernel: Callable, in_axes: int | tuple = 0) -> Callable:
-    """Lifts a one-point kernel to ``(Ne, nPg, ...)`` fields, returning a :class:`.FeArray`.
+    """Lifts a one-point kernel to ``(Ne, nPg, ...)`` fields; arguments and outputs may be pytrees, each output array returned as a :class:`.FeArray`.
 
     Parameters
     ----------
@@ -66,8 +66,8 @@ def Vmap_e_pg(kernel: Callable, in_axes: int | tuple = 0) -> Callable:
     """
     mapped = jax.jit(jax.vmap(jax.vmap(kernel, in_axes=in_axes), in_axes=in_axes))
 
-    def field(*args) -> FeArray.FeArrayALike:
-        out = mapped(*(jnp.asarray(arg) for arg in args))
-        return FeArray.asfearray(np.asarray(out))
+    def field(*args):
+        out = mapped(*jax.tree_util.tree_map(jnp.asarray, args))
+        return jax.tree_util.tree_map(lambda a: FeArray.asfearray(np.asarray(a)), out)
 
     return field

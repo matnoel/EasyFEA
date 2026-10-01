@@ -132,6 +132,12 @@ class _Behavior(_IModel, _IObserver):
     _maxIter: int = _params.PositiveScalarParameter()
     """plane-stress eps_zz solve"""
 
+    __KERNEL_UPDATE = "_compiled"
+    """Where the kernel of :meth:`Integrate` is cached."""
+    __KERNEL_STRESS = "_compiledStress"
+    """Where the kernel of :meth:`Stress_e_pg` is cached."""
+    __KERNELS = (__KERNEL_UPDATE, __KERNEL_STRESS)
+
     def __init__(self, elastic: _Elastic):
         """``dim``, ``planeStress`` and ``thickness`` are the elastic model's."""
         assert isinstance(elastic, _Elastic), "elastic must be an elastic model"
@@ -227,15 +233,25 @@ class _Behavior(_IModel, _IObserver):
     def Need_Update(self, value=True) -> None:
         super().Need_Update(value)
         # jit captured the parameters at its first trace
-        for cached in ("_C", "_compiled", "_compiledStress"):
+        for cached in ("_C", *_Behavior.__KERNELS):
             self.__dict__.pop(cached, None)
 
     def __getstate__(self) -> dict:
-        return {
-            k: v
-            for k, v in self.__dict__.items()
-            if k not in ("_compiled", "_compiledStress")
-        }
+        return {k: v for k, v in self.__dict__.items() if k not in _Behavior.__KERNELS}
+
+    def __Kernel(
+        self,
+        name: str,
+        point: Callable,
+        in_axes: int | tuple = 0,
+    ) -> Callable:
+        """``point`` lifted to every Gauss point, built once until :meth:`Need_Update`."""
+        if name not in self.__dict__:
+            from .._autodiff import Enable_x64, Vmap_e_pg
+
+            Enable_x64()
+            self.__dict__[name] = Vmap_e_pg(point, in_axes)
+        return self.__dict__[name]
 
     # --------------------------------------------------------------------------
     # The internal state at every point: one (Ne, nPg, ...) array per internal variable
@@ -369,15 +385,11 @@ class _Behavior(_IModel, _IObserver):
             z_e_pg = self.Virgin_internals_e_pg(Ne, nPg)
         external = self.__External_e_pg(external, Ne, nPg)
 
-        if "_compiled" not in self.__dict__:
-            import jax
-            from .._autodiff import Enable_x64
-
-            Enable_x64()
-            # mapped over elements, then Gauss points; dt is shared
-            point = jax.vmap(self.__Point, in_axes=(0, 0, None, 0, 0))
-            self._compiled = jax.jit(jax.vmap(point, in_axes=(0, 0, None, 0, 0)))
-        out = self._compiled(eps_e_pg, z_e_pg, dt, external, self.__C_e_pg(Ne, nPg))
+        # dt is shared
+        kernel = self.__Kernel(
+            _Behavior.__KERNEL_UPDATE, self.__Point, (0, 0, None, 0, 0)
+        )
+        out = kernel(eps_e_pg, z_e_pg, dt, external, self.__C_e_pg(Ne, nPg))
         # copied, since jax hands out read-only buffers
         sig, C_alg = (FeArray.asfearray(np.array(a)) for a in out[:2])
         # in the declaration order, which jax sorts away
@@ -401,17 +413,10 @@ class _Behavior(_IModel, _IObserver):
         eps_e_pg = FeArray.asfearray(eps_e_pg)
         Ne, nPg = eps_e_pg.shape[:2]
         external = self.__External_e_pg(external, Ne, nPg)
-        if "_compiledStress" not in self.__dict__:
-            import jax
-            from .._autodiff import Enable_x64
-
-            Enable_x64()
-            point = jax.vmap(self.__Point_stress)
-            self._compiledStress = jax.jit(jax.vmap(point))
+        kernel = self.__Kernel(_Behavior.__KERNEL_STRESS, self.__Point_stress)
+        # copied, since jax hands out read-only buffers
         return FeArray.asfearray(
-            np.array(
-                self._compiledStress(eps_e_pg, z_e_pg, external, self.__C_e_pg(Ne, nPg))
-            )
+            np.array(kernel(eps_e_pg, z_e_pg, external, self.__C_e_pg(Ne, nPg)))
         )
 
 
