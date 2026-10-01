@@ -138,9 +138,14 @@ only records them, so it can be skipped on some steps;
 {py:func}`~EasyFEA.Simulations._Simu.Set_Iter` restarts from a saved one. The kernel is
 compiled on the first step, which costs about a second.
 
+External variables a behavior declares, such as a temperature, are given by
+{py:func}`~EasyFEA.Simulations.InElastic.Set_external` as scalars or nodal fields, e.g.
+`simu.Set_external(T=thermal.thermal)`, and kept until changed.
+
 ```{seealso}
-- {ref}`easyfea-examples-inelasticity` — nine examples, each checked against a closed form
-- {ref}`Inelastic models <models-inelastic>` — the shipped behaviors and how to write one
+- {ref}`easyfea-examples-inelasticity`
+- {ref}`Inelastic models <models-inelastic>` — the shipped behaviors
+- {ref}`howto-models-inelastic-own`
 ```
 
 ## How to Create New Simulations in EasyFEA?

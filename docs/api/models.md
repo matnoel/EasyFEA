@@ -43,7 +43,7 @@ With this module, you can construct:
   {py:class}`~EasyFEA.Models.InElastic.Chaboche` and
   {py:class}`~EasyFEA.Models.InElastic.Maxwell`.
   {py:class}`~EasyFEA.Models.InElastic.MaterialPoint` drives one at a single point, with
-  no mesh and no solver.
+  no mesh and no solver. To write one, see {ref}`howto-models-inelastic-own`.
 
 (models-beam)=
 

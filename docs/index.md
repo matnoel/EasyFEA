@@ -14,8 +14,8 @@ analysis that you can conduct using EasyFEA:
 02. {doc}`Hyperelastic simulations <examples/Hyperelasticity/index>`: `static` and
     `dynamic` in the `Lagrangian` framework.
 03. {doc}`Inelastic simulations <examples/Inelasticity/index>`: small-strain
-    `plasticity`, `viscoplasticity` and `viscoelasticity`, assembled from a yield
-    surface, hardening, a back-stress, a rate law and Maxwell branches.
+    `plasticity`, `viscoplasticity` and `viscoelasticity`, from shipped behaviors or
+    one written at a single point in `jax.numpy`.
 04. {doc}`Cardiac elasto-dynamics <examples/CardiacElastoDynamics/index>`: passive +
     active hyperelastic `mono-ventricular` left-ventricle benchmark.
 05. {doc}`Contact simulations <examples/Contact/index>`: frictionless `penalty` contact

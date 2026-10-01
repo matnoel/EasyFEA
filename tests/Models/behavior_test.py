@@ -23,9 +23,13 @@ from EasyFEA.Models.InElastic import (
     Deviator,
     MaterialPoint,
     Newton,
+    Plasticity,
     Trace,
     Von_Mises_stress,
 )
+from EasyFEA.Models.InElastic.IsotropicHardening import Linear as LinearIsotropic
+from EasyFEA.Models.InElastic.Yield import VonMises
+from EasyFEA.Utilities import _params
 
 jax = pytest.importorskip("jax")
 jnp = jax.numpy
@@ -292,3 +296,58 @@ def test_material_point_returns_each_internal_variable():
 
     assert np.allclose(res["d"], [0.1, 0.2, 0.3])
     assert res["eps_old"].shape == (3, 6)
+
+
+# ----------------------------------------------
+# The how-to example
+# ----------------------------------------------
+
+
+class LinearHardening(_Behavior):
+    """The how-to's example: keep it identical to docs/howto/create_models.md."""
+
+    class Internals(NamedTuple):
+        eps_p: jax.Array = ZERO_TENSOR  # plastic strain
+        p: jax.Array = ZERO_SCALAR  # accumulated plastic strain
+
+    sigma_y: float = _params.PositiveScalarParameter()
+    H: float = _params.PositiveScalarParameter()
+
+    def __init__(self, elastic, sigma_y, H):
+        super().__init__(elastic)
+        self.sigma_y = sigma_y
+        self.H = H
+
+    def Stress(self, eps, z):
+        return self.C @ (eps - z.eps_p)  # C: the 3D stiffness, even in 2D
+
+    def Update(self, eps, z, dt):
+        def f(sig, p):
+            return Von_Mises_stress(sig) - self.sigma_y - self.H * p
+
+        def Residual(new):
+            sig = self.Stress(eps, new)
+            N = jax.grad(f)(sig, new.p)
+            return LinearHardening.Internals(
+                eps_p=new.eps_p - z.eps_p - (new.p - z.p) * N,
+                p=f(sig, new.p) / self.sigma_y,
+            )
+
+        flows = f(self.Stress(eps, z), z.p) > 0  # elsewhere, the internal state stays z
+        new = Newton(Residual, z, flows)
+        return self.Stress(eps, new), new
+
+
+def test_the_howto_behavior_matches_plasticity():
+    try:
+        mine = LinearHardening(_elastic(), 250.0, 1e3)
+        ref = Plasticity(_elastic(), VonMises(250.0), LinearIsotropic(1e3))
+        path = {"xx": np.linspace(0, 5e-3, 20)}  # uniaxial stress, through yield
+        a, b = MaterialPoint(mine).Run(path), MaterialPoint(ref).Run(path)
+        assert np.allclose(a["stress"], b["stress"], rtol=1e-10, atol=1e-8)
+        assert np.allclose(a["p"], b["p"], rtol=1e-10, atol=1e-14)
+    except Exception as error:
+        raise AssertionError(
+            "LinearHardening no longer matches Plasticity: fix it, then copy the "
+            "updated version into docs/howto/create_models.md"
+        ) from error

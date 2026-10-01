@@ -8,7 +8,13 @@ plasticity, viscoplasticity and viscoelasticity.
 
 Each material is a :py:class:`~EasyFEA.Models.InElastic._Behavior`, written as one ``Update`` and
 one ``Stress`` at one 3D material point and driven by :py:class:`~EasyFEA.Simulations.InElastic`, which derives the
-tangent and handles 2D. The shipped ones:
+tangent and handles 2D.
+
+.. note::
+    Inelastic behaviors rely on `JAX <https://docs.jax.dev>`_, an optional dependency:
+    ``pip install EasyFEA[jax]``. It is imported only once a behavior runs.
+
+The shipped ones:
 
 .. list-table::
     :header-rows: 1
@@ -30,4 +36,4 @@ tangent and handles 2D. The shipped ones:
 Several scripts use :py:class:`~EasyFEA.Models.InElastic.MaterialPoint`, which drives a behavior at a
 single point with no mesh and no solver.
 
-``ThermoElasticity`` writes its own behavior, reading the temperature as an external variable.
+:ref:`sphx_glr_examples_Inelasticity_ThermoElasticity.py` writes its own behavior, reading the temperature as an external variable.
