@@ -89,6 +89,22 @@ def test_2d_matches_elastic(mesh2D: Mesh, planeStress: bool):
     assert _rel(simu.Result("Svm"), ref.Result("Svm")) < 1e-12
 
 
+def test_a_heterogeneous_elastic_model_matches_elastic():
+    """One group, so that E can be given per element."""
+    mesh = Domain(Point(0, 0), Point(L, H), H / 2).Mesh_2D(
+        [], ElemType.QUAD4, isOrganised=True
+    )
+    group = mesh.groupElem
+    E_e = np.where(group.coord[group.connect].mean(1)[:, 0] < L / 2, E / 3, E)
+    simu = Simulations.InElastic(mesh, Linear(Isotropic(2, E=E_e, v=nu, thickness=H)))
+    ref = Simulations.Elastic(mesh, Isotropic(2, E=E_e, v=nu, thickness=H))
+    _pull(simu, mesh)
+    _pull(ref, mesh)
+
+    assert _rel(simu.displacement, ref.displacement) < 1e-12
+    assert _rel(simu.Result("Svm"), ref.Result("Svm")) < 1e-12
+
+
 def test_3d_matches_elastic(mesh3D: Mesh):
     simu = Simulations.InElastic(mesh3D, Linear(ELASTIC))
     ref = Simulations.Elastic(mesh3D, ELASTIC)

@@ -242,6 +242,21 @@ def test_modifying_the_elastic_model_rebuilds_the_kernel():
     assert np.allclose(_at(behavior.Integrate(_fe(EPS))[0]), 2 * C @ EPS)
 
 
+@pytest.mark.parametrize("per", ["element", "point"])
+def test_a_heterogeneous_elastic_model_is_integrated_point_by_point(per: str):
+    """C scales with E, so sigma = E / E_ref C_ref eps at each point."""
+    scale = np.array([[1.0, 2.0, 0.5], [3.0, 1.5, 0.8]])
+    if per == "element":
+        scale = scale[:, :1].repeat(3, axis=1)
+    E_e_pg = E * (scale[:, 0] if per == "element" else scale)
+    eps = FeArray.asfearray(np.broadcast_to(EPS, (2, 3, 6)).copy())
+
+    sig, C_alg, _ = Linear(Isotropic(3, E=E_e_pg, v=nu)).Integrate(eps)
+
+    assert np.allclose(sig, scale[..., None] * (C @ EPS))
+    assert np.allclose(C_alg, scale[..., None, None] * C)
+
+
 def test_behavior_survives_a_pickle_round_trip():
     """``Load_Simu`` pickles the material with the simulation, after its kernel is built."""
     behavior = Damage(_elastic(2, planeStress=True, thickness=5.0))

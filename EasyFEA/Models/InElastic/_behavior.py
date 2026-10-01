@@ -5,6 +5,7 @@
 
 """The behavior contract: a developer writes ``Update`` at one 3D point, EasyFEA does the rest; jax is imported only once a behavior runs."""
 
+import copy
 from abc import abstractmethod
 from typing import TYPE_CHECKING, Any, Callable, ClassVar, NamedTuple, TypeVar
 
@@ -132,9 +133,8 @@ class _Behavior(_IModel, _IObserver):
     """plane-stress eps_zz solve"""
 
     def __init__(self, elastic: _Elastic):
-        """``dim``, ``planeStress`` and ``thickness`` are the elastic model's; it must be homogeneous."""
+        """``dim``, ``planeStress`` and ``thickness`` are the elastic model's."""
         assert isinstance(elastic, _Elastic), "elastic must be an elastic model"
-        assert not elastic.isHeterogeneous, "the elastic model must be homogeneous"
         assert not self.Externals._field_defaults, (
             "an external variable has no default: a reference value is a parameter"
         )
@@ -163,13 +163,24 @@ class _Behavior(_IModel, _IObserver):
 
     @property
     def C(self) -> "Array":
-        """The 3D stiffness, in Kelvin-Mandel notation, whatever the model dimension."""
-        return self.__elastic._Get_C_S(3)[0]  # type: ignore[return-value]
+        """The 3D stiffness, in Kelvin-Mandel notation, whatever the model dimension; the point's inside ``Update`` and ``Stress``."""
+        if "_C" not in self.__dict__:
+            self._C = self.__elastic._Get_C_S(3)[0]
+        return self._C  # type: ignore[return-value]
+
+    def __With_stiffness(self, C: "Array") -> "_Behavior":
+        """A copy whose ``C`` is the point's, for the kernel to trace, so that the elastic model may be heterogeneous."""
+        point = copy.copy(self)
+        point._C = C
+        return point
 
     @property
     def externalNames(self) -> tuple[str, ...]:
         """The declared external variables, in order."""
         return self.Externals._fields
+
+    def __C_e_pg(self, Ne: int, nPg: int) -> FeArray.FeArrayALike:
+        return FeArray.broadcast(self.C, Ne, nPg, tensor_ndim=2)
 
     def _Update(
         self,
@@ -216,8 +227,8 @@ class _Behavior(_IModel, _IObserver):
     def Need_Update(self, value=True) -> None:
         super().Need_Update(value)
         # jit captured the parameters at its first trace
-        self.__dict__.pop("_compiled", None)
-        self.__dict__.pop("_compiledStress", None)
+        for cached in ("_C", "_compiled", "_compiledStress"):
+            self.__dict__.pop(cached, None)
 
     def __getstate__(self) -> dict:
         return {
@@ -253,16 +264,18 @@ class _Behavior(_IModel, _IObserver):
         z: dict[str, "Array"],
         dt: float,
         external: dict,
+        C: "Array",
     ) -> tuple["Array", "Array", dict[str, "Array"]]:
         """Stress, tangent and new internal state at one point, in the model dimension; the tangent is jacfwd through Update and the eps_zz solve."""
         import jax
         import jax.numpy as jnp
 
+        point = self.__With_stiffness(C)
         Internals = type(self.Virgin_internals())
         zOld = Internals(**{name: z[name] for name in Internals._fields})
 
         def Update_named(eps6):
-            sig6, new = self.Update(eps6, zOld, dt, **external)
+            sig6, new = point.Update(eps6, zOld, dt, **external)
             return sig6, new._asdict()
 
         def Stress(e):
@@ -285,18 +298,20 @@ class _Behavior(_IModel, _IObserver):
         eps: "Array",
         z: dict[str, "Array"],
         external: dict,
+        C: "Array",
     ) -> "Array":
         """Stress at one point, in the model dimension, under the internal state ``z``."""
         import jax.numpy as jnp
 
+        point = self.__With_stiffness(C)
         Internals = type(self.Virgin_internals())
         state = Internals(**{name: z[name] for name in Internals._fields})
         if self.dim == 3:
-            return self.Stress(eps, state, **external)
+            return point.Stress(eps, state, **external)
         eps6 = jnp.zeros(6).at[IDX_2D].set(eps)
         if self.planeStress:
             eps6 = eps6.at[ZZ].set(z["eps_zz"])
-        return self.Stress(eps6, state, **external)[IDX_2D]
+        return point.Stress(eps6, state, **external)[IDX_2D]
 
     def __Eps_zz(
         self,
@@ -334,7 +349,7 @@ class _Behavior(_IModel, _IObserver):
         assert not missing, f"external variables missing: {sorted(missing)}"
         assert not unknown, f"{type(self).__name__} reads no {sorted(unknown)}"
         return {
-            name: FeArray.broadcast(np.asarray(v, dtype=float), Ne, nPg)
+            name: FeArray.broadcast(v, Ne, nPg)
             for name, v in external.items()
         }
 
@@ -347,7 +362,7 @@ class _Behavior(_IModel, _IObserver):
     ) -> tuple[FeArray, FeArray, dict[str, FeArray]]:
         """Stress, consistent tangent and trial internal state at every Gauss point, in the model dimension, from the internal state at the last converged step (virgin by default)."""
         tic = Tic()
-        eps_e_pg = FeArray.asfearray(np.asarray(eps_e_pg, dtype=float))
+        eps_e_pg = FeArray.asfearray(eps_e_pg)
         Ne, nPg = eps_e_pg.shape[:2]
         if z_e_pg is None:
             z_e_pg = self.Virgin_internals_e_pg(Ne, nPg)
@@ -359,9 +374,9 @@ class _Behavior(_IModel, _IObserver):
 
             Enable_x64()
             # mapped over elements, then Gauss points; dt is shared
-            point = jax.vmap(self.__Point, in_axes=(0, 0, None, 0))
-            self._compiled = jax.jit(jax.vmap(point, in_axes=(0, 0, None, 0)))
-        out = self._compiled(eps_e_pg, z_e_pg, dt, external)
+            point = jax.vmap(self.__Point, in_axes=(0, 0, None, 0, 0))
+            self._compiled = jax.jit(jax.vmap(point, in_axes=(0, 0, None, 0, 0)))
+        out = self._compiled(eps_e_pg, z_e_pg, dt, external, self.__C_e_pg(Ne, nPg))
         # copied, since jax hands out read-only buffers
         sig, C_alg = (FeArray.asfearray(np.array(a)) for a in out[:2])
         # in the declaration order, which jax sorts away
@@ -382,8 +397,9 @@ class _Behavior(_IModel, _IObserver):
         **external,
     ) -> FeArray:
         """Stress at every Gauss point, in the model dimension, under the internal state ``z_e_pg``, with no step."""
-        eps_e_pg = FeArray.asfearray(np.asarray(eps_e_pg, dtype=float))
-        external = self.__External_e_pg(external, *eps_e_pg.shape[:2])
+        eps_e_pg = FeArray.asfearray(eps_e_pg)
+        Ne, nPg = eps_e_pg.shape[:2]
+        external = self.__External_e_pg(external, Ne, nPg)
         if "_compiledStress" not in self.__dict__:
             import jax
             from .._autodiff import Enable_x64
@@ -392,7 +408,9 @@ class _Behavior(_IModel, _IObserver):
             point = jax.vmap(self.__Point_stress)
             self._compiledStress = jax.jit(jax.vmap(point))
         return FeArray.asfearray(
-            np.array(self._compiledStress(eps_e_pg, z_e_pg, external))
+            np.array(
+                self._compiledStress(eps_e_pg, z_e_pg, external, self.__C_e_pg(Ne, nPg))
+            )
         )
 
 
