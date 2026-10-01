@@ -475,6 +475,21 @@ def test_uniform_heating_expands_freely(mesh2D: Mesh, planeStress: bool):
         assert np.allclose(simu.Result(result, nodeValues=False), 0.0, atol=1e-8)
 
 
+def test_results_read_the_external_variables_of_the_last_solve(mesh2D: Mesh):
+    """Clamped, so that heating stresses it."""
+    simu = _thermo(mesh2D, planeStress=True)
+    simu.Set_external(T=10.0)
+    _pull(simu, mesh2D, 0.0)
+    sxx = simu.Result("Sxx", nodeValues=False)
+
+    simu.Set_external(T=20.0)
+    assert np.allclose(simu.Result("Sxx", nodeValues=False), sxx, rtol=1e-12)
+    assert np.allclose(simu.Result("T"), 10.0)
+    assert np.allclose(simu.external["T"], 20.0)
+    simu.Save_Iter()
+    assert np.allclose(simu.Set_Iter(0)["external/T"], 10.0)
+
+
 def test_saving_needs_the_external_variables(mesh2D: Mesh):
     with pytest.raises(AssertionError, match="before saving"):
         _thermo(mesh2D).Save_Iter()

@@ -140,7 +140,8 @@ compiled on the first step, which costs about a second.
 
 External variables a behavior declares, such as a temperature, are given by
 {py:func}`~EasyFEA.Simulations.InElastic.Set_external` as scalars or nodal fields, e.g.
-`simu.Set_external(T=thermal.thermal)`, and kept until changed.
+`simu.Set_external(T=thermal.thermal)`, and kept until changed; a converged `Solve`
+commits them with the internal variables, so results read those of the last step.
 
 ```{seealso}
 - {ref}`easyfea-examples-inelasticity`
