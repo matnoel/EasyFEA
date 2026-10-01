@@ -8,6 +8,7 @@ from typing import TYPE_CHECKING, NamedTuple, Sequence
 import numpy as np
 
 from ..Elastic._laws import _Elastic
+from ...Utilities import _params
 from ._behavior import ZERO_TENSOR, _Behavior
 
 if TYPE_CHECKING:
@@ -24,6 +25,9 @@ class Maxwell(_Behavior):
         eps_v: "Array" = ZERO_TENSOR[None]
         """one branch strain per row, (n_branches, 6)"""
 
+    g: np.ndarray = _params.StrictlyPositiveParameter()
+    tau: np.ndarray = _params.StrictlyPositiveParameter()
+
     def __init__(
         self,
         elastic: _Elastic,
@@ -34,8 +38,6 @@ class Maxwell(_Behavior):
         g_arr = np.atleast_1d(np.asarray(g, dtype=float))
         tau_arr = np.atleast_1d(np.asarray(tau, dtype=float))
         assert g_arr.shape == tau_arr.shape, "one g and one tau per branch"
-        assert np.all(g_arr > 0), "every branch g must be > 0"
-        assert np.all(tau_arr > 0), "every branch tau must be > 0"
         assert (
             g_arr.sum() < 1.0
         ), "the branch stiffness fractions must sum to less than 1"

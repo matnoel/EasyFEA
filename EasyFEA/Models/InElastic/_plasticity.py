@@ -8,8 +8,8 @@ from typing import TYPE_CHECKING, Any, NamedTuple, Sequence
 import numpy as np
 
 from ..Elastic._laws import _Elastic
-from ...Utilities import _params
 from ...FEM._linalg import FeArray
+from ...Utilities import _params
 from ._behavior import ZERO_SCALAR, ZERO_TENSOR, _Behavior, Newton
 from .IsotropicHardening import Hardening, Perfect
 from .Yield import Surface
@@ -27,6 +27,9 @@ def _Add(z, dz):
 
 class _Plastic(_Behavior):
     """Elasticity, a surface and an isotropic hardening: what Plasticity and Chaboche share."""
+
+    surface: Surface = _params.InstanceParameter()
+    hardening: Hardening = _params.InstanceParameter()
 
     def __init__(
         self,
@@ -114,7 +117,9 @@ class Plasticity(_Plastic):
 class Norton(Plasticity):
     r"""Plasticity with a Norton flow rate :math:`\dot p = A \langle f/\sigma_0 \rangle^n`: past the surface ``f`` no longer vanishes, it drives the flow."""
 
-    _params.PositiveScalarParameter()
+    A: float = _params.StrictlyPositiveScalarParameter()
+    n: float = _params.StrictlyPositiveScalarParameter()
+    sigma_0: float = _params.StrictlyPositiveScalarParameter()
 
     def __init__(
         self,
@@ -126,7 +131,6 @@ class Norton(Plasticity):
         sigma_0: float = 1.0,
     ):
         """Large ``A`` approaches rate-independent plasticity."""
-        assert A > 0 and n > 0 and sigma_0 > 0, "need A > 0, n > 0, sigma_0 > 0"
         super().__init__(
             elastic,
             surface,
@@ -200,6 +204,9 @@ class Chaboche(_Plastic):
         alpha: "Array" = ZERO_TENSOR[None]
         """one kinematic variable per row, (n_components, 6)"""
 
+    C_X: np.ndarray = _params.StrictlyPositiveParameter()
+    gamma: np.ndarray = _params.PositiveParameter()
+
     def __init__(
         self,
         elastic: _Elastic,
@@ -212,7 +219,6 @@ class Chaboche(_Plastic):
         C_arr = np.atleast_1d(np.asarray(C_X, dtype=float))
         gamma_arr = np.atleast_1d(np.asarray(gamma, dtype=float))
         assert C_arr.shape == gamma_arr.shape, "one C_X and one gamma per back-stress"
-        assert np.all(C_arr > 0) and np.all(gamma_arr >= 0), "need C_X > 0, gamma >= 0"
         super().__init__(
             elastic,
             surface,

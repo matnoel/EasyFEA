@@ -196,6 +196,23 @@ def _norton(A: float, n: float = 1.0, hardening=Linear(H)) -> Norton:
     return Norton(ELASTIC, VonMises(SIGMA_Y), hardening, A=A, n=n, sigma_0=SIGMA_Y)
 
 
+def test_changing_a_parameter_rebuilds_the_kernel():
+    behavior = Norton(ELASTIC, VonMises(SIGMA_Y), A=1.0, n=3.0, sigma_0=100.0)
+    sig = _at(behavior.Integrate(_fe(EPS), dt=1.0)[0])
+
+    behavior.A = 100.0
+    sigA = _at(behavior.Integrate(_fe(EPS), dt=1.0)[0])
+    assert not np.allclose(sigA, sig)
+
+    behavior.surface = VonMises(2 * SIGMA_Y)
+    assert not np.allclose(_at(behavior.Integrate(_fe(EPS), dt=1.0)[0]), sigA)
+
+
+def test_norton_parameters_must_be_strictly_positive():
+    with pytest.raises(AssertionError, match="> 0"):
+        Norton(ELASTIC, VonMises(SIGMA_Y), A=0.0)
+
+
 def test_norton_needs_a_time_increment():
     with pytest.raises(AssertionError, match="positive time increment"):
         _norton(1e-3).Integrate(_fe(EPS), dt=0.0)
