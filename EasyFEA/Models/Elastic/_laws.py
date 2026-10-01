@@ -62,6 +62,12 @@ class _Elastic(_IModel, ABC):
     def _Update(self) -> None:
         """Updates the constitutives laws by updating the C stiffness and S compliance matrices. in Kelvin Mandel notation"""
 
+    @abstractmethod
+    def _Get_C_S(
+        self, dim: int | None = None
+    ) -> tuple[_types.FloatArray, _types.FloatArray]:
+        """Stiffness and compliance in Kelvin-Mandel notation, in ``dim`` (the model's by default)."""
+
     # Model
     @staticmethod
     def Available_Laws():
@@ -368,7 +374,7 @@ class Isotropic(_Elastic):
         self.v = v
 
     def _Update(self) -> None:
-        C, S = self._Behavior(self.dim)
+        C, S = self._Get_C_S()
         self.C = C
         self.S = S
 
@@ -403,22 +409,9 @@ class Isotropic(_Elastic):
 
         return bulk
 
-    def _Behavior(self, dim: int | None = None):
-        """Updates the constitutives laws by updating the C stiffness and S compliance matrices in Kelvin Mandel notation.\n
-
-        In 2D:
-        ------
-
-        C -> C : Epsilon = Sigma [Sxx Syy sqrt(2)*Sxy]\n
-        S -> S : Sigma = Epsilon [Exx Eyy sqrt(2)*Exy]
-
-        In 3D:
-        ------
-
-        C -> C : Epsilon = Sigma [Sxx Syy Szz sqrt(2)*Syz sqrt(2)*Sxz sqrt(2)*Sxy]\n
-        S -> S : Sigma = Epsilon [Exx Eyy Ezz sqrt(2)*Eyz sqrt(2)*Exz sqrt(2)*Exy]
-
-        """
+    def _Get_C_S(
+        self, dim: int | None = None
+    ) -> tuple[_types.FloatArray, _types.FloatArray]:
 
         if dim is None:
             dim = self.dim
@@ -429,7 +422,9 @@ class Isotropic(_Elastic):
         v = self.v
 
         mu = self.get_mu()
-        lmbda = self.get_lambda()
+        lmbda = E * v / ((1 + v) * (1 - 2 * v))
+        if dim == 2 and self.planeStress:
+            lmbda = E * v / (1 - v**2)
 
         dtype = object if True in [isinstance(p, np.ndarray) for p in [E, v]] else float
 
@@ -437,7 +432,11 @@ class Isotropic(_Elastic):
             # Caution: lambda changes according to 2D simplification.
 
             cVoigt = np.array(
-                [[lmbda + 2 * mu, lmbda, 0], [lmbda, lmbda + 2 * mu, 0], [0, 0, mu]],
+                [
+                    [lmbda + 2 * mu, lmbda, 0],
+                    [lmbda, lmbda + 2 * mu, 0],
+                    [0, 0, mu],
+                ],
                 dtype=dtype,
             )
 
@@ -493,8 +492,9 @@ class Isotropic(_Elastic):
         ci = np.array([c1, c2])
         Ei = np.array([3 * E1, 2 * E2])
 
-        if not self.isHeterogeneous:
-            C, S = self._Behavior(3)
+        # under 2D plane stress c1 is the reduced bulk, not the 3D one
+        if not self.isHeterogeneous and not (self.dim == 2 and self.planeStress):
+            C, S = self._Get_C_S(3)
             diff_C = C - np.sum([c * E for c, E in zip(ci, Ei)], 0)
             test_C = np.linalg.norm(diff_C, axis=(-2, -1)) / np.linalg.norm(
                 C, axis=(-2, -1)
@@ -626,26 +626,13 @@ class TransverselyIsotropic(_Elastic):
         return self.__axis_t.copy()
 
     def _Update(self) -> None:
-        C, S = self._Behavior(self.dim)
+        C, S = self._Get_C_S()
         self.C = C
         self.S = S
 
-    def _Behavior(self, dim: int | None = None):
-        """Updates the constitutives laws by updating the C stiffness and S compliance matrices in Kelvin Mandel notation.\n
-
-        In 2D:
-        ------
-
-        C -> C : Epsilon = Sigma [Sxx Syy sqrt(2)*Sxy]\n
-        S -> S : Sigma = Epsilon [Exx Eyy sqrt(2)*Exy]
-
-        In 3D:
-        ------
-
-        C -> C : Epsilon = Sigma [Sxx Syy Szz sqrt(2)*Syz sqrt(2)*Sxz sqrt(2)*Sxy]\n
-        S -> S : Sigma = Epsilon [Exx Eyy Ezz sqrt(2)*Eyz sqrt(2)*Exz sqrt(2)*Exy]
-
-        """
+    def _Get_C_S(
+        self, dim: int | None = None
+    ) -> tuple[_types.FloatArray, _types.FloatArray]:
 
         if dim is None:
             dim = self.dim
@@ -743,7 +730,7 @@ class TransverselyIsotropic(_Elastic):
         Ei = np.array([E1, E2, E3, E4, E5])
 
         if not self.isHeterogeneous:
-            C, S = self._Behavior(3)
+            C, S = self._Get_C_S(3)
             diff_C = C - np.sum([c * E for c, E in zip(ci, Ei)], 0)
             test_C = np.linalg.norm(diff_C, axis=(-2, -1)) / np.linalg.norm(
                 C, axis=(-2, -1)
@@ -954,26 +941,13 @@ class Orthotropic(_Elastic):
         return -E1 * E2 * (E2 * v12 + E3 * v13 * v23) / self.__get_cij_denominator()
 
     def _Update(self) -> None:
-        C, S = self._Behavior(self.dim)
+        C, S = self._Get_C_S()
         self.C = C
         self.S = S
 
-    def _Behavior(self, dim: int | None = None):
-        """Updates the constitutives laws by updating the C stiffness and S compliance matrices in Kelvin Mandel notation.\n
-
-        In 2D:
-        ------
-
-            C -> C : Epsilon = Sigma [Sxx Syy sqrt(2)*Sxy]\n
-            S -> S : Sigma = Epsilon [Exx Eyy sqrt(2)*Exy]
-
-        In 3D:
-        ------
-
-            C -> C : Epsilon = Sigma [Sxx Syy Szz sqrt(2)*Syz sqrt(2)*Sxz sqrt(2)*Sxy]\n
-            S -> S : Sigma = Epsilon [Exx Eyy Ezz sqrt(2)*Eyz sqrt(2)*Exz sqrt(2)*Exy]
-
-        """
+    def _Get_C_S(
+        self, dim: int | None = None
+    ) -> tuple[_types.FloatArray, _types.FloatArray]:
 
         if dim is None:
             dim = self.dim
@@ -1092,7 +1066,7 @@ class Orthotropic(_Elastic):
         Ei = np.array([E11, E22, E33, E44, E55, E66, E23, E13, E12])
 
         if not self.isHeterogeneous:
-            C, S = self._Behavior(3)
+            C, S = self._Get_C_S(3)
             diff_C = C - np.sum([c * E for c, E in zip(ci, Ei)], 0)
             test_C = np.linalg.norm(diff_C, axis=(-2, -1)) / np.linalg.norm(
                 C, axis=(-2, -1)
@@ -1183,16 +1157,26 @@ class Anisotropic(_Elastic):
 
         self.Need_Update()
 
-        C_mandelP = self._Behavior(C, useVoigtNotation)
+        C_mandelP = self._Global_C(C, useVoigtNotation)
         self.C = C_mandelP
 
         if update_S:
             S_mandelP = np.linalg.inv(C_mandelP)
             self.S = S_mandelP
 
-    def _Behavior(
+    def _Get_C_S(
+        self, dim: int | None = None
+    ) -> tuple[_types.FloatArray, _types.FloatArray]:
+        assert dim in (
+            None,
+            self.dim,
+        ), "an anisotropic model is known in its own dimension only"
+        return self.C, self.S
+
+    def _Global_C(
         self, C: _types.FloatArray, useVoigtNotation: bool
     ) -> _types.FloatArray:
+        """``C`` in Kelvin-Mandel notation, rotated into the global basis, in the model dimension."""
         shape = C.shape
         assert (shape[-2], shape[-1]) in [
             (3, 3),
