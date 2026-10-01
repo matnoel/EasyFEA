@@ -144,25 +144,41 @@ are required dependencies of EasyFEA:
 
 ### 🧪 Optional Dependencies
 
-EasyFEA includes optional dependencies to reduce resolution time, plot results, or
-perform DIC:
+EasyFEA includes optional dependencies, grouped as pip extras, to plot results, read and
+write files, or derive material laws automatically:
 
-- [`matplotlib`](https://pypi.org/project/matplotlib/) - Plotting package.
-- [`pyvista`](https://pypi.org/project/pyvista/) - Plotting package.
-- [`pypardiso`](https://pypi.org/project/pypardiso/) (Python > 3.8 & Intel oneAPI) -
-  Library for solving large systems of sparse linear equations.
-- [`petsc`](https://pypi.org/project/petsc/) and
-  [`petsc4py`](https://pypi.org/project/petsc4py/) - Python bindings for PETSc.
-- [`imageio`](https://pypi.org/project/imageio/) and
-  [`imageio-ffmpeg`](https://pypi.org/project/imageio-ffmpeg/) - Library for reading and
-  writing a wide range of image, video, scientific, and volumetric data formats.
-- [`meshio`](https://github.com/matnoel/meshio/tree/medit_higher_order_elements) - I/O
-  for many mesh formats.
+```
+pip install EasyFEA[viz,io,jax]
+```
+
+- `viz`:
+  - [`matplotlib`](https://pypi.org/project/matplotlib/) - Plotting package.
+  - [`pyvista`](https://pypi.org/project/pyvista/) - Plotting package.
+  - [`pygltflib`](https://pypi.org/project/pygltflib/) - Python library for reading,
+    writing and managing 3D objects in the Khronos Group gltf and gltf2 formats.
+  - [`usd-core`](https://pypi.org/project/usd-core/) - Pixar's Universal Scene
+    Description.
+- `io`:
+  - [`imageio`](https://pypi.org/project/imageio/) and
+    [`imageio-ffmpeg`](https://pypi.org/project/imageio-ffmpeg/) - Library for reading
+    and writing a wide range of image, video, scientific, and volumetric data formats.
+  - [`meshio`](https://github.com/matnoel/meshio/tree/medit_higher_order_elements) - I/O
+    for many mesh formats.
+- `jax`:
+  - [`jax`](https://pypi.org/project/jax/) - Automatic differentiation, required by
+    hyperelastic laws derived from their energy and by inelastic behaviors.
+
+The following ones are installed separately, to reduce resolution time, run in parallel,
+or perform DIC:
+
+- [`pypardiso`](https://pypi.org/project/pypardiso/) (Intel MKL, x86 only) - Library for
+  solving large systems of sparse linear equations.
+- [`petsc`](https://pypi.org/project/petsc/),
+  [`petsc4py`](https://pypi.org/project/petsc4py/) and
+  [`mpi4py`](https://pypi.org/project/mpi4py/) - Python bindings for PETSc and MPI, to
+  run in parallel with `mpirun`, see
+  [how to install them](https://easyfea.readthedocs.io/en/stable/howto/use_mpi.html#install-petsc4py).
 - [`opencv-python`](https://pypi.org/project/opencv-python/) - Computer Vision package.
-- [`pygltflib`](https://pypi.org/project/pygltflib/) - Python library for reading,
-  writing and managing 3D objects in the Khronos Group gltf and gltf2 formats.
-- [`usd-core`](https://pypi.org/project/usd-core/) - Pixar's Universal Scene
-  Description.
 
 ## 🔤 Naming conventions
 
