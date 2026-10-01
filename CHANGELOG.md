@@ -2,7 +2,7 @@
 
 This document describes the changes made to the project.
 
-## Unreleased
+## 6.0.0 (October 1, 2026):
 
 - Inelastic materials are written on a contract (**breaking**): a
   `Models.InElastic._Behavior` declares its `Internals` and writes `Update(eps, z, dt)`
@@ -23,6 +23,14 @@ This document describes the changes made to the project.
   `A = 1/eta`) and `ViscoElastic` (**breaking**). `Chaboche`'s back-stresses are one
   `alpha` of shape `(N, 6)`, not `alpha0`, `alpha1`, ...; `Simulations.InElastic` no
   longer reports a free energy.
+- Inelastic behaviors need jax: `pip install EasyFEA[jax]`. The README lists the
+  optional dependencies by extra (`viz`, `io`, `jax`).
+- Boundary surfaces of 3D meshes built with the OCC factory are oriented outward, so
+  their normals may flip sign.
+- Fixed the weights of the 6-point triangle quadrature rule, truncated to about 14
+  digits.
+
+**Full Changelog:** https://github.com/matnoel/EasyFEA/compare/v5.0.0...v6.0.0
 
 ## 5.0.0 (September 24, 2026):
 
