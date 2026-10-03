@@ -13,7 +13,7 @@ from ..Utilities._observers import Observable
 from ..Utilities._mpi import CAN_USE_MPI, MPI_SIZE, MPI_COMM, Reduce_sum
 
 # fem
-from ..FEM import Mesh, MatrixType, FeArray, Operators, _GroupElem
+from ..FEM import Mesh, MatrixType, FeArray, Kinematics, Operators, _GroupElem
 
 # models
 from .. import Models
@@ -807,29 +807,10 @@ class PhaseField(_Simu):
         groupElem: "_GroupElem" = None,
         matrixType=MatrixType.rigi,
     ) -> FeArray.FeArrayALike:
-        """Computes the strain field from the displacement vector field (delegates to the elastic law ``Calc_Epsilon_e_pg``).\n
-        2D : [Exx Eyy sqrt(2)*Exy]\n
-        3D : [Exx Eyy Ezz sqrt(2)*Eyz sqrt(2)*Exz sqrt(2)*Exy]
-
-        Parameters
-        ----------
-        sol : _types.FloatArray
-            displacement vector field (Ndof)
-        groupElem : _GroupElem, optional
-            element group on which to evaluate the strain, by default None (main group)
-        matrixType : MatrixType, optional
-            integration scheme, by default MatrixType.rigi
-
-        Returns
-        -------
-        FeArray
-            strain field (Ne, pg, (3 or 6))
-        """
+        """Strain field (Ne, pg, 3 or 6) of `sol` on `groupElem` (main group by default)."""
         if groupElem is None:
             groupElem = self.mesh.groupElem
-        return self.phaseFieldModel.material.Calc_Epsilon_e_pg(
-            sol, groupElem, matrixType
-        )
+        return Kinematics(groupElem, sol, matrixType).Compute_Epsilon()
 
     def _Calc_Sigma_e_pg(
         self,
