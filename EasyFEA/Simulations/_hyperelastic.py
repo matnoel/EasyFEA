@@ -14,14 +14,14 @@ from ..Utilities import Terminal, _types
 # fem
 if TYPE_CHECKING:
     from ..FEM import Mesh
-from ..FEM import MatrixType, Operators
+from ..FEM import MatrixType, FeArray, Kinematics, Operators
 
 # models
 from ..Models import Project_Kelvin, Result_strain_or_stress_field_e
+from ..Models._utils import _Field_per_groupElem
 
 if TYPE_CHECKING:
     from ..Models.HyperElastic._laws import _HyperElastic
-from ..FEM import Kinematics
 
 # simu
 from ..FEM import _GroupElem
@@ -553,19 +553,12 @@ class HyperElastic(_Simu):
                 else result[-2:]
             )
 
-            def field_e_pg(groupElem):
-                return (
-                    self._Calc_SecondPiolaKirchhoff(groupElem=groupElem)
-                    if isStress
-                    else self._Calc_GreenLagrange(groupElem=groupElem)
-                )
-
-            values = Result_strain_or_stress_field_e(
-                field_e_pg=field_e_pg,
-                list_groupElem=self.mesh.Get_list_groupElem(),
-                result=res,
-                coef=self.material.coef,
+            field = (
+                self._Calc_SecondPiolaKirchhoff()
+                if isStress
+                else self._Calc_GreenLagrange()
             )
+            values = Result_strain_or_stress_field_e(field, res, self.material.coef)
 
         else:
             Terminal.MyPrintError(f"The result '{result}' is not implemented yet.")
@@ -602,22 +595,38 @@ class HyperElastic(_Simu):
 
         return float(W_e.sum()) if returnScalar else W_e
 
-    def _Calc_GreenLagrange(self, groupElem=None, matrixType=MatrixType.rigi):
-        if groupElem is None:
-            groupElem = self.mesh.groupElem
-        kinematics = Kinematics(groupElem, self.displacement, matrixType)
-        return Project_Kelvin(kinematics.Compute_GreenLagrange(), 2)
+    def _Calc_GreenLagrange(
+        self, matrixType: MatrixType | None = None
+    ) -> FeArray.FeArrayALike | dict:
+        """Green-Lagrange strain in Kelvin-Mandel form, at ``self.matrixType`` by default: an ``FeArray`` on one group, ``{groupElem: FeArray}`` on several."""
+        if matrixType is None:
+            matrixType = self.matrixType
+        return _Field_per_groupElem(
+            lambda groupElem: Project_Kelvin(
+                Kinematics(
+                    groupElem, self.displacement, matrixType
+                ).Compute_GreenLagrange(),
+                2,
+            ),
+            self.mesh.Get_list_groupElem(),
+        )
 
-    def _Calc_SecondPiolaKirchhoff(self, groupElem=None, matrixType=MatrixType.rigi):
-        if groupElem is None:
-            groupElem = self.mesh.groupElem
-        kinematics = Kinematics(groupElem, self.displacement, matrixType)
-        # total PK2 = elastic ∂W/∂e + the active fiber stress (reported as one field,
-        # even though the two are assembled by separate operators)
-        S_e_pg = self.material.Compute_dWde(kinematics)
-        if np.any(self.material.active_stress != 0.0):
-            S_e_pg = S_e_pg + self.material.Compute_active_stress(kinematics)
-        return S_e_pg
+    def _Calc_SecondPiolaKirchhoff(
+        self, matrixType=None
+    ) -> FeArray.FeArrayALike | dict:
+        """Total second Piola-Kirchhoff stress ``∂W/∂e`` + active stress, at ``self.matrixType`` by default: an ``FeArray`` on one group, ``{groupElem: FeArray}`` on several."""
+        if matrixType is None:
+            matrixType = self.matrixType
+
+        def S_e_pg(groupElem: _GroupElem) -> FeArray.FeArrayALike:
+            kinematics = Kinematics(groupElem, self.displacement, matrixType)
+            # reported as one field, even though the two are assembled by separate operators
+            S_e_pg = self.material.Compute_dWde(kinematics)
+            if np.any(self.material.active_stress != 0.0):
+                S_e_pg = S_e_pg + self.material.Compute_active_stress(kinematics)
+            return S_e_pg
+
+        return _Field_per_groupElem(S_e_pg, self.mesh.Get_list_groupElem())
 
     def Results_Iter_Summary(
         self,

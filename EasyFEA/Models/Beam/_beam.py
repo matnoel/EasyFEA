@@ -655,7 +655,7 @@ class BeamStructure(_IModel):
 
         tic.Tac("Matrix", "Sigma_e_pg", False)
 
-        return Sigma_e_pg
+        return FeArray.asfearray(Sigma_e_pg)
 
     def Get_axis_e(
         self, groupElem: "_GroupElem"

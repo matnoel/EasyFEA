@@ -392,40 +392,28 @@ def __Result_in_Strain_or_Stress_field(
     return np.asarray(result_e_pg)  # type: ignore
 
 
+def _Field_per_groupElem(
+    field_e_pg: Callable[..., FeArray.FeArrayALike], list_groupElem: list
+) -> FeArray.FeArrayALike | dict:
+    """``field_e_pg(groupElem)`` as an ``FeArray`` on one group, ``{groupElem: FeArray}`` on several."""
+    if len(list_groupElem) == 1:
+        return field_e_pg(list_groupElem[0])
+    return {groupElem: field_e_pg(groupElem) for groupElem in list_groupElem}
+
+
 def Result_strain_or_stress_field_e(
-    field_e_pg: Callable[..., FeArray],
-    list_groupElem: list,
+    field: FeArray.FeArrayALike | dict,
     result: str,
     coef=np.sqrt(2),
 ) -> _types.FloatArray:
-    """Builds a per-element (Ne,) strain/stress result by applying ``field_e_pg`` to each element group and reducing through :func:`Result_in_Strain_or_Stress_field`.
-
-    The per-group field is computed by ``field_e_pg(groupElem)`` (so each group can have its own element type / number of Gauss points), reduced with ``Result_in_Strain_or_Stress_field(field, result, coef).mean(1)``, and the per-element results are concatenated following ``list_groupElem`` order. Pass ``mesh.Get_list_groupElem()`` so the result lines up with ``Get_Node_Values`` and supports meshes with several element groups of the same dimension (e.g. QUAD4 + TRI3).
-
-    Parameters
-    ----------
-    field_e_pg : Callable
-        Callable taking an element group and returning its strain or stress field as a ``FeArray`` of shape (Ne, pg, (3 or 6)).
-    list_groupElem : list
-        Element groups to iterate over, in the order the per-element field must follow (typically ``mesh.Get_list_groupElem()``).
-    result : str
-        Component to extract, passed to :func:`Result_in_Strain_or_Stress_field` (e.g. "xx", "vm", "Stress", ...).
-    coef : float, optional
-        Kelvin-Mandel coefficient of the material (``material.coef``), by default sqrt(2).
-
-    Returns
-    -------
-    _types.FloatArray
-        The per-element result (Ne,).
-    """
+    """Per-element (Ne,) component ``result`` of a strain/stress ``field`` — one ``FeArray`` or ``{groupElem: FeArray}`` concatenated in its order — Gauss points averaged."""
+    fields = field.values() if isinstance(field, dict) else [field]
     return np.concatenate(
         [
             np.asarray(
-                __Result_in_Strain_or_Stress_field(
-                    field_e_pg(groupElem), result, coef
-                ).mean(1)
+                __Result_in_Strain_or_Stress_field(field_e_pg, result, coef).mean(1)
             )
-            for groupElem in list_groupElem
+            for field_e_pg in fields
         ]
     )
 

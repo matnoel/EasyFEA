@@ -18,6 +18,7 @@ from ..FEM import Mesh, MatrixType, FeArray, Kinematics, Operators, _GroupElem
 # models
 from .. import Models
 from ..Models import _IModel, Result_strain_or_stress_field_e
+from ..Models._utils import _Field_per_groupElem
 
 # simu
 from ._simu import _Simu, SolverType
@@ -694,23 +695,12 @@ class PhaseField(_Simu):
 
         elif ("S" in result or "E" in result) and ("_norm" not in result):
             # Strain and (damaged) stress, computed group by group
-
-            displacement = self.displacement
-
             isStress = "S" in result and result != "Strain"
             res = result if result in ["Strain", "Stress"] else result[-2:]
 
-            def field_e_pg(groupElem):
-                kinematics = Kinematics(groupElem, displacement)
-                if isStress:
-                    return self.phaseFieldModel.Compute_Sigma(kinematics, self.damage)
-                return kinematics.Compute_Epsilon()
-
+            field = self._Calc_Sigma() if isStress else self._Calc_Epsilon()
             values = Result_strain_or_stress_field_e(  # type: ignore [assignment]
-                field_e_pg=field_e_pg,
-                list_groupElem=self.mesh.Get_list_groupElem(),
-                result=res,
-                coef=self.phaseFieldModel.material.coef,
+                field, res, self.phaseFieldModel.material.coef
             )
 
         else:
@@ -795,28 +785,27 @@ class PhaseField(_Simu):
 
         return Psi_Ext
 
-    def _Calc_Epsilon_e_pg(
-        self,
-        sol: _types.FloatArray,
-        groupElem: "_GroupElem" = None,
-        matrixType=MatrixType.rigi,
-    ) -> FeArray.FeArrayALike:
-        """Strain field (Ne, pg, 3 or 6) of `sol` on `groupElem` (main group by default)."""
-        if groupElem is None:
-            groupElem = self.mesh.groupElem
-        return Kinematics(groupElem, sol, matrixType).Compute_Epsilon()
+    def _Calc_Epsilon(
+        self, matrixType: MatrixType = MatrixType.rigi
+    ) -> FeArray.FeArrayALike | dict:
+        """Strain (Ne, pg, 3 or 6): an ``FeArray`` on one group, ``{groupElem: FeArray}`` on several."""
+        return _Field_per_groupElem(
+            lambda groupElem: Kinematics(
+                groupElem, self.displacement, matrixType
+            ).Compute_Epsilon(),
+            self.mesh.Get_list_groupElem(),
+        )
 
-    def _Calc_Sigma_e_pg(
-        self,
-        sol: _types.FloatArray,
-        groupElem: "_GroupElem" = None,
-        matrixType=MatrixType.rigi,
-    ) -> FeArray.FeArrayALike:
-        """Damaged stress field ``g(d)·σ⁺ + σ⁻`` (Ne, pg, 3 or 6) of `sol` on `groupElem` (main group by default)."""
-        if groupElem is None:
-            groupElem = self.mesh.groupElem
-        kinematics = Kinematics(groupElem, sol, matrixType)
-        return self.phaseFieldModel.Compute_Sigma(kinematics, self.damage)
+    def _Calc_Sigma(
+        self, matrixType: MatrixType = MatrixType.rigi
+    ) -> FeArray.FeArrayALike | dict:
+        """Damaged stress ``g(d)·σ⁺ + σ⁻`` (Ne, pg, 3 or 6): an ``FeArray`` on one group, ``{groupElem: FeArray}`` on several."""
+        return _Field_per_groupElem(
+            lambda groupElem: self.phaseFieldModel.Compute_Sigma(
+                Kinematics(groupElem, self.displacement, matrixType), self.damage
+            ),
+            self.mesh.Get_list_groupElem(),
+        )
 
     def Results_Set_Bc_Summary(self, config: str):
         assert isinstance(config, str)

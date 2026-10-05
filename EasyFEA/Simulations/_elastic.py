@@ -16,6 +16,7 @@ from ..FEM import MatrixType, Mesher, FeArray, Kinematics, Operators
 
 # models
 from ..Models import Result_strain_or_stress_field_e
+from ..Models._utils import _Field_per_groupElem
 from ..Models.Elastic._laws import _Elastic
 
 # simu
@@ -287,8 +288,6 @@ class Elastic(_Simu):
         elif ("S" in result or "E" in result) and ("_norm" not in result):
             # Strain and Stress calculation part
 
-            displacement = self.displacement
-
             isStrain = "E" in result or result == "Strain"
             isStress = "S" in result and result != "Strain"
             if not (isStrain or isStress):
@@ -296,18 +295,8 @@ class Elastic(_Simu):
 
             res = result if result in ["Strain", "Stress"] else result[-2:]
 
-            def field_e_pg(groupElem):
-                kinematics = Kinematics(groupElem, displacement)
-                if isStress:
-                    return self.material.Compute_Sigma(kinematics)
-                return kinematics.Compute_Epsilon()
-
-            values = Result_strain_or_stress_field_e(
-                field_e_pg=field_e_pg,
-                list_groupElem=self.mesh.Get_list_groupElem(),
-                result=res,
-                coef=self.material.coef,
-            )
+            field = self._Calc_Sigma() if isStress else self._Calc_Epsilon()
+            values = Result_strain_or_stress_field_e(field, res, self.material.coef)
 
         else:
             Terminal.MyPrintError(f"The result '{result}' is not implemented yet.")
@@ -411,27 +400,27 @@ class Elastic(_Simu):
 
         return error, error_e
 
-    def _Calc_Epsilon_e_pg(
-        self,
-        u: _types.FloatArray,
-        groupElem=None,
-        matrixType=MatrixType.rigi,
-    ) -> FeArray.FeArrayALike:
-        """Strain field (Ne, pg, 3 or 6) of `u` on `groupElem` (main group by default)."""
-        if groupElem is None:
-            groupElem = self.mesh.groupElem
-        return Kinematics(groupElem, u, matrixType).Compute_Epsilon()
+    def _Calc_Epsilon(
+        self, matrixType: MatrixType = MatrixType.rigi
+    ) -> FeArray.FeArrayALike | dict:
+        """Strain (Ne, pg, 3 or 6): an ``FeArray`` on one group, ``{groupElem: FeArray}`` on several."""
+        return _Field_per_groupElem(
+            lambda groupElem: Kinematics(
+                groupElem, self.displacement, matrixType
+            ).Compute_Epsilon(),
+            self.mesh.Get_list_groupElem(),
+        )
 
-    def _Calc_Sigma_e_pg(
-        self,
-        u: _types.FloatArray,
-        groupElem=None,
-        matrixType=MatrixType.rigi,
-    ) -> FeArray.FeArrayALike:
-        """Stress field (Ne, pg, 3 or 6) of `u` on `groupElem` (main group by default)."""
-        if groupElem is None:
-            groupElem = self.mesh.groupElem
-        return self.material.Compute_Sigma(Kinematics(groupElem, u, matrixType))
+    def _Calc_Sigma(
+        self, matrixType: MatrixType = MatrixType.rigi
+    ) -> FeArray.FeArrayALike | dict:
+        """Stress (Ne, pg, 3 or 6): an ``FeArray`` on one group, ``{groupElem: FeArray}`` on several."""
+        return _Field_per_groupElem(
+            lambda groupElem: self.material.Compute_Sigma(
+                Kinematics(groupElem, self.displacement, matrixType)
+            ),
+            self.mesh.Get_list_groupElem(),
+        )
 
     def __indexResult(self, result: str) -> int:
         if len(result) <= 2:

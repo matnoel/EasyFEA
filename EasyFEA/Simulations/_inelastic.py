@@ -15,6 +15,7 @@ from ..FEM._utils import ElemType
 from ..FEM import MatrixType, FeArray, Kinematics, Operators, _GroupElem
 
 from ..Models import Result_strain_or_stress_field_e
+from ..Models._utils import _Field_per_groupElem
 from ..Models.InElastic._behavior import _Behavior
 
 from ._simu import _Simu
@@ -161,12 +162,31 @@ class InElastic(_Simu):
             **self.__External_e_pg(groupElem, self.__external),
         )
 
-    def __Stress(self, groupElem: _GroupElem) -> FeArray:
-        external = self.__External_e_pg(groupElem, self.__Solved_external())
-        return self.material.Compute_Sigma(
-            Kinematics(groupElem, self.displacement),
-            self.__Internal_e_pg(groupElem),
-            **external,
+    def _Calc_Epsilon(
+        self, matrixType: MatrixType = MatrixType.rigi
+    ) -> FeArray.FeArrayALike | dict:
+        """Strain (Ne, pg, 3 or 6): an ``FeArray`` on one group, ``{groupElem: FeArray}`` on several."""
+        return _Field_per_groupElem(
+            lambda groupElem: Kinematics(
+                groupElem, self.displacement, matrixType
+            ).Compute_Epsilon(),
+            self.__Groups(),
+        )
+
+    def _Calc_Sigma(
+        self, matrixType: MatrixType = MatrixType.rigi
+    ) -> FeArray.FeArrayALike | dict:
+        """Stress (Ne, pg, 3 or 6) under the committed internal state: an ``FeArray`` on one group, ``{groupElem: FeArray}`` on several."""
+        assert (
+            matrixType == MatrixType.rigi
+        ), "the internal state lives at the rigi points"
+        return _Field_per_groupElem(
+            lambda groupElem: self.material.Compute_Sigma(
+                Kinematics(groupElem, self.displacement, matrixType),
+                self.__Internal_e_pg(groupElem),
+                **self.__External_e_pg(groupElem, self.__Solved_external()),
+            ),
+            self.__Groups(),
         )
 
     def Solve(self) -> _types.FloatArray:
@@ -309,17 +329,8 @@ class InElastic(_Simu):
             isStress = "S" in result and result != "Strain"
             res = result if result in ["Strain", "Stress"] else result[-2:]
 
-            def field_e_pg(groupElem):
-                if isStress:
-                    return self.__Stress(groupElem)
-                return Kinematics(groupElem, u).Compute_Epsilon()
-
-            values = Result_strain_or_stress_field_e(
-                field_e_pg=field_e_pg,
-                list_groupElem=self.__Groups(),
-                result=res,
-                coef=self.material.coef,
-            )
+            field = self._Calc_Sigma() if isStress else self._Calc_Epsilon()
+            values = Result_strain_or_stress_field_e(field, res, self.material.coef)
 
         else:
             Terminal.MyPrintError(f"The result '{result}' is not implemented yet.")

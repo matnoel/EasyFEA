@@ -589,20 +589,14 @@ class Beam(_Simu):
                 values = forces_np[:, :, index].mean(axis=1)  # (Ne,) element means
 
         elif result in ["Sxx", "Syy", "Szz", "Syz", "Sxz", "Sxy"]:
-            kinematics = Kinematics(
-                self.mesh.groupElem, self.displacement, MatrixType.beam
-            )
-            Sigma_e = self.structure.Compute_Sigma(kinematics).mean(1)
+            Sigma_e = self._Calc_Sigma().mean(1)
             index = self._indexResult(result)
             values = Sigma_e[:, index]
 
         elif result in ["ux'", "rx'", "ry'", "rz'"]:
             coef = 1 if result == "Exx" else 1 / 2
 
-            kinematics = Kinematics(
-                self.mesh.groupElem, self.displacement, MatrixType.beam
-            )
-            Epsilon_e = self.structure.Compute_Epsilon(kinematics).mean(1)
+            Epsilon_e = self._Calc_Epsilon().mean(1)
             index = self._indexResult(result)
             values = Epsilon_e[:, index] * coef
 
@@ -613,6 +607,20 @@ class Beam(_Simu):
         # end cases ----------------------------------------------------
 
         return self.Results_Reshape_values(values, nodeValues)
+
+    def _Calc_Epsilon(
+        self, matrixType: MatrixType = MatrixType.beam
+    ) -> FeArray.FeArrayALike:
+        """Generalized strains (Ne, pg, n) on the single beam group."""
+        kinematics = Kinematics(self.mesh.groupElem, self.displacement, matrixType)
+        return self.structure.Compute_Epsilon(kinematics)
+
+    def _Calc_Sigma(
+        self, matrixType: MatrixType = MatrixType.beam
+    ) -> FeArray.FeArrayALike:
+        """Stresses (Ne, pg, 1, 3 or 6 components) on the single beam group."""
+        kinematics = Kinematics(self.mesh.groupElem, self.displacement, matrixType)
+        return self.structure.Compute_Sigma(kinematics)
 
     def _indexResult(self, result: str) -> int:
         # "Beam1D" : ["ux" "fx"]
