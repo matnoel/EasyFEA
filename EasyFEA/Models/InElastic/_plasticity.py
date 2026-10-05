@@ -165,7 +165,7 @@ class Norton(Plasticity):
         self.n = n
         self.sigma_0 = sigma_0
 
-    def Integrate(
+    def _Integrate(
         self,
         eps_e_pg: FeArray.FeArrayALike,
         z_e_pg: dict[str, FeArray] | None = None,
@@ -176,7 +176,7 @@ class Norton(Plasticity):
             "a rate-dependent behavior needs a positive time increment; "
             "set `simu.dt` or pass `dt=` to Integrate"
         )
-        return super().Integrate(
+        return super()._Integrate(
             eps_e_pg,
             z_e_pg,
             dt,

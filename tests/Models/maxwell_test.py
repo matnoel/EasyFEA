@@ -32,7 +32,7 @@ def _hold(
 ) -> np.ndarray:
     z = None
     for _ in range(nstep):
-        sig, _, z = behavior.Integrate(one_point_field(eps), z, dt)
+        sig, _, z = behavior._Integrate(one_point_field(eps), z, dt)
     return point_value(sig)
 
 
@@ -45,8 +45,8 @@ def _central_difference(
 ):
     C_fd = np.zeros((eps.size, eps.size))
     for j, d in enumerate(np.eye(eps.size) * h):
-        sigP = point_value(behavior.Integrate(one_point_field(eps + d), z, dt)[0])
-        sigM = point_value(behavior.Integrate(one_point_field(eps - d), z, dt)[0])
+        sigP = point_value(behavior._Integrate(one_point_field(eps + d), z, dt)[0])
+        sigM = point_value(behavior._Integrate(one_point_field(eps - d), z, dt)[0])
         C_fd[:, j] = (sigP - sigM) / (2 * h)
     return C_fd
 
@@ -67,7 +67,7 @@ def test_fractions_must_leave_an_equilibrium_spring():
 
 def test_glassy_response_is_the_full_stiffness():
     """dt = 0: the dashpots are rigid."""
-    sig, C_alg, _ = Maxwell(ELASTIC, 0.3, 1.0).Integrate(one_point_field(EPS), dt=0.0)
+    sig, C_alg, _ = Maxwell(ELASTIC, 0.3, 1.0)._Integrate(one_point_field(EPS), dt=0.0)
 
     assert np.allclose(point_value(sig), C @ EPS)
     assert np.allclose(point_value(C_alg), C)
@@ -90,17 +90,17 @@ def test_fully_relaxed_response_is_the_equilibrium_stiffness():
 def test_2d_tangent_matches_central_difference(planeStress: bool):
     behavior = Maxwell(Isotropic(2, E=E, v=nu, planeStress=planeStress), G, TAU)
     eps = EPS[[0, 1, 5]]
-    _, _, z = behavior.Integrate(
+    _, _, z = behavior._Integrate(
         one_point_field(eps), dt=0.5
     )  # a history, so eps_v is not zero
 
-    C_alg = point_value(behavior.Integrate(one_point_field(2 * eps), z, 0.5)[1])
+    C_alg = point_value(behavior._Integrate(one_point_field(2 * eps), z, 0.5)[1])
 
     assert np.allclose(C_alg, _central_difference(behavior, 2 * eps, z, 0.5), rtol=1e-6)
 
 
 def test_tangent_matches_central_difference():
     behavior = Maxwell(ELASTIC, G, TAU)
-    C_alg = point_value(behavior.Integrate(one_point_field(EPS), dt=5.0)[1])
+    C_alg = point_value(behavior._Integrate(one_point_field(EPS), dt=5.0)[1])
 
     assert np.allclose(C_alg, _central_difference(behavior, EPS, None, 5.0), rtol=1e-6)

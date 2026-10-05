@@ -350,8 +350,8 @@ def test_every_assembly_integrates_from_the_last_committed_state(
     calls: list[tuple[dict, dict]] = []
     Integrate = behavior.Integrate
 
-    def Spy(eps, z, dt=0.0, **external):
-        out = Integrate(eps, z, dt, **external)
+    def Spy(kinematics, z, dt=0.0, **external):
+        out = Integrate(kinematics, z, dt, **external)
         calls.append(
             (
                 {k: np.array(v) for k, v in z.items()},

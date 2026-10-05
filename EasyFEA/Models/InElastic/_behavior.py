@@ -19,6 +19,7 @@ from ...Utilities._observers import _IObserver, Observable
 
 if TYPE_CHECKING:
     from jax import Array
+    from ...FEM import Kinematics
     from jax.typing import ArrayLike
 
 X = TypeVar("X")
@@ -143,7 +144,7 @@ class _Behavior(_IModel, _IObserver):
     __KERNEL_UPDATE = "_compiled"
     """Where the kernel of :meth:`Integrate` is cached."""
     __KERNEL_STRESS = "_compiledStress"
-    """Where the kernel of :meth:`Stress_e_pg` is cached."""
+    """Where the kernel of :meth:`Compute_Sigma` is cached."""
     __KERNELS = (__KERNEL_UPDATE, __KERNEL_STRESS)
 
     def __init__(self, elastic: _Elastic):
@@ -380,12 +381,22 @@ class _Behavior(_IModel, _IObserver):
 
     def Integrate(
         self,
+        kinematics: "Kinematics",
+        z_e_pg: dict[str, FeArray] | None = None,
+        dt: float = 0.0,
+        **external,
+    ) -> tuple[FeArray, FeArray, dict[str, FeArray]]:
+        """Stress, consistent tangent and trial internal state at every Gauss point of `kinematics`, in the model dimension, from the internal state at the last converged step (virgin by default)."""
+        return self._Integrate(kinematics.Compute_Epsilon(), z_e_pg, dt, **external)
+
+    def _Integrate(
+        self,
         eps_e_pg: FeArray.FeArrayALike,
         z_e_pg: dict[str, FeArray] | None = None,
         dt: float = 0.0,
         **external,
     ) -> tuple[FeArray, FeArray, dict[str, FeArray]]:
-        """Stress, consistent tangent and trial internal state at every Gauss point, in the model dimension, from the internal state at the last converged step (virgin by default)."""
+        """:meth:`Integrate` at a prescribed strain field, with no mesh — what :class:`MaterialPoint` drives."""
         tic = Tic()
         eps_e_pg = FeArray.asfearray(eps_e_pg)
         Ne, nPg = eps_e_pg.shape[:2]
@@ -411,14 +422,14 @@ class _Behavior(_IModel, _IObserver):
         tic.Tac("Matrix", "Behavior integrate", False)
         return sig, C_alg, z
 
-    def Stress_e_pg(
+    def Compute_Sigma(
         self,
-        eps_e_pg: FeArray.FeArrayALike,
+        kinematics: "Kinematics",
         z_e_pg: dict[str, FeArray],
         **external,
     ) -> FeArray:
-        """Stress at every Gauss point, in the model dimension, under the internal state ``z_e_pg``, with no step."""
-        eps_e_pg = FeArray.asfearray(eps_e_pg)
+        """Stress at every Gauss point of `kinematics`, in the model dimension, under the internal state ``z_e_pg``, with no step."""
+        eps_e_pg = kinematics.Compute_Epsilon()
         Ne, nPg = eps_e_pg.shape[:2]
         external = self.__External_e_pg(external, Ne, nPg)
         kernel = self.__Kernel(_Behavior.__KERNEL_STRESS, self.__Point_stress)
@@ -476,7 +487,7 @@ class MaterialPoint:
             external_k = {name: v[k] for name, v in external.items()}
 
             for _ in range(self._maxIter):
-                sig_e_pg, C_e_pg, zNew = self.behavior.Integrate(
+                sig_e_pg, C_e_pg, zNew = self.behavior._Integrate(
                     eps[None, None], z, dt, **external_k
                 )
                 # one point, read back as plain vectors

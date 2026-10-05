@@ -171,7 +171,7 @@ def test_newton_flags_a_missing_root_as_nan():
 
 
 def test_no_internal_variable_gives_back_the_elastic_response():
-    sig, C_alg, z = Linear(_elastic()).Integrate(one_point_field(EPS))
+    sig, C_alg, z = Linear(_elastic())._Integrate(one_point_field(EPS))
 
     assert np.allclose(point_value(sig), C @ EPS)
     assert np.allclose(point_value(C_alg), C)
@@ -179,7 +179,7 @@ def test_no_internal_variable_gives_back_the_elastic_response():
 
 
 def test_state_is_held_by_name():
-    z = Damage(_elastic()).Integrate(one_point_field(EPS))[2]
+    z = Damage(_elastic())._Integrate(one_point_field(EPS))[2]
 
     assert list(z) == ["eps_old", "d"]
     assert np.allclose(point_value(z["eps_old"]), EPS) and np.isclose(
@@ -189,7 +189,7 @@ def test_state_is_held_by_name():
 
 def test_every_gauss_point_is_integrated():
     eps = np.random.default_rng(0).normal(0, 1e-3, (4, 3, 6))
-    sig, C_alg, z = Damage(_elastic()).Integrate(FeArray.asfearray(eps))
+    sig, C_alg, z = Damage(_elastic())._Integrate(FeArray.asfearray(eps))
 
     assert isinstance(sig, FeArray) and sig.shape == (4, 3, 6)
     assert C_alg.shape == (4, 3, 6, 6)
@@ -200,7 +200,7 @@ def test_every_gauss_point_is_integrated():
 @pytest.mark.parametrize("planeStress", [False, True])
 def test_2d_matches_the_elastic_law(planeStress: bool):
     eps = EPS[[0, 1, 5]]
-    sig, C_alg, _ = Linear(_elastic(2, planeStress=planeStress)).Integrate(
+    sig, C_alg, _ = Linear(_elastic(2, planeStress=planeStress))._Integrate(
         one_point_field(eps)
     )
 
@@ -212,7 +212,7 @@ def test_2d_matches_the_elastic_law(planeStress: bool):
 def test_plane_stress_keeps_eps_zz_in_the_state():
     """Elastic plane stress: eps_zz = -nu / (1 - nu) (eps_xx + eps_yy)."""
     behavior = Damage(_elastic(2, planeStress=True))
-    z = behavior.Integrate(one_point_field(EPS[[0, 1, 5]]))[2]
+    z = behavior._Integrate(one_point_field(EPS[[0, 1, 5]]))[2]
 
     assert np.isclose(point_value(z["eps_zz"]), -nu / (1 - nu) * (EPS[0] + EPS[1]))
 
@@ -237,37 +237,37 @@ def test_a_2d_anisotropic_model_has_no_3d_stiffness():
 
 def test_a_failed_local_solve_is_reported():
     with pytest.raises(AssertionError, match="did not converge"):
-        NoRoot(_elastic()).Integrate(one_point_field(EPS))
+        NoRoot(_elastic())._Integrate(one_point_field(EPS))
 
 
 def test_changing_a_parameter_rebuilds_the_kernel():
     behavior = Linear(_elastic())
-    behavior.Integrate(one_point_field(EPS))
+    behavior._Integrate(one_point_field(EPS))
     behavior.k = 2.0
     behavior.Need_Update()
 
     assert np.allclose(
-        point_value(behavior.Integrate(one_point_field(EPS))[0]), 2 * C @ EPS
+        point_value(behavior._Integrate(one_point_field(EPS))[0]), 2 * C @ EPS
     )
 
 
 def test_modifying_the_elastic_model_rebuilds_the_kernel():
     elastic = _elastic()
     behavior = Linear(elastic)
-    behavior.Integrate(one_point_field(EPS))
+    behavior._Integrate(one_point_field(EPS))
     elastic.E = 2 * E
 
     assert np.allclose(
-        point_value(behavior.Integrate(one_point_field(EPS))[0]), 2 * C @ EPS
+        point_value(behavior._Integrate(one_point_field(EPS))[0]), 2 * C @ EPS
     )
 
 
 def test_missing_or_unknown_external_variables_are_refused():
     behavior = ThermoElastic(_elastic())
     with pytest.raises(AssertionError, match="missing"):
-        behavior.Integrate(one_point_field(EPS))
+        behavior._Integrate(one_point_field(EPS))
     with pytest.raises(AssertionError, match="reads no"):
-        behavior.Integrate(one_point_field(EPS), T=1.0, P=1.0)
+        behavior._Integrate(one_point_field(EPS), T=1.0, P=1.0)
 
 
 @pytest.mark.parametrize("per", ["element", "point"])
@@ -279,7 +279,7 @@ def test_a_heterogeneous_elastic_model_is_integrated_point_by_point(per: str):
     E_e_pg = E * (scale[:, 0] if per == "element" else scale)
     eps = FeArray.asfearray(np.broadcast_to(EPS, (2, 3, 6)).copy())
 
-    sig, C_alg, _ = Linear(Isotropic(3, E=E_e_pg, v=nu)).Integrate(eps)
+    sig, C_alg, _ = Linear(Isotropic(3, E=E_e_pg, v=nu))._Integrate(eps)
 
     assert np.allclose(sig, scale[..., None] * (C @ EPS))
     assert np.allclose(C_alg, scale[..., None, None] * C)
@@ -289,12 +289,12 @@ def test_behavior_survives_a_pickle_round_trip():
     """``Load_Simu`` pickles the material with the simulation, after its kernel is built."""
     behavior = Damage(_elastic(2, planeStress=True, thickness=5.0))
     eps = EPS[[0, 1, 5]]
-    before = behavior.Integrate(one_point_field(eps))
+    before = behavior._Integrate(one_point_field(eps))
 
     reloaded = pickle.loads(pickle.dumps(behavior))
 
     assert reloaded.thickness == 5.0 and reloaded.planeStress
-    sig, C_alg, z = reloaded.Integrate(one_point_field(eps))
+    sig, C_alg, z = reloaded._Integrate(one_point_field(eps))
     assert np.allclose(sig, before[0]) and np.allclose(C_alg, before[1])
     assert all(np.allclose(z[name], before[2][name]) for name in z)
 

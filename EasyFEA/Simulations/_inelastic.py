@@ -12,7 +12,7 @@ from ..Utilities import Terminal, Tic, _types
 if TYPE_CHECKING:
     from ..FEM import Mesh
 from ..FEM._utils import ElemType
-from ..FEM import MatrixType, FeArray, Operators, _GroupElem
+from ..FEM import MatrixType, FeArray, Kinematics, Operators, _GroupElem
 
 from ..Models import Result_strain_or_stress_field_e
 from ..Models.InElastic._behavior import _Behavior
@@ -121,10 +121,6 @@ class InElastic(_Simu):
     def __Groups(self) -> list[_GroupElem]:
         return self.mesh.Get_list_groupElem(self.dim)
 
-    def __Strain(self, u: _types.FloatArray, groupElem: _GroupElem) -> FeArray:
-        u_e = groupElem.Locates_sol_e(u, asFeArray=True)
-        return groupElem.Get_B_e_pg(MatrixType.rigi) @ u_e
-
     def __Internal_e_pg(self, groupElem: _GroupElem) -> dict[str, FeArray]:
         """The internal variables committed at the last converged solve, virgin before any."""
         if not self.__internal:
@@ -158,19 +154,19 @@ class InElastic(_Simu):
     def __Integrate(
         self, u: _types.FloatArray, groupElem: _GroupElem
     ) -> tuple[FeArray, FeArray, dict[str, FeArray]]:
-        eps_e_pg = self.__Strain(u, groupElem)
         return self.material.Integrate(
-            eps_e_pg,
+            Kinematics(groupElem, u),
             self.__Internal_e_pg(groupElem),
             self.__dt,
             **self.__External_e_pg(groupElem, self.__external),
         )
 
     def __Stress(self, groupElem: _GroupElem) -> FeArray:
-        eps_e_pg = self.__Strain(self.displacement, groupElem)
         external = self.__External_e_pg(groupElem, self.__Solved_external())
-        return self.material.Stress_e_pg(
-            eps_e_pg, self.__Internal_e_pg(groupElem), **external
+        return self.material.Compute_Sigma(
+            Kinematics(groupElem, self.displacement),
+            self.__Internal_e_pg(groupElem),
+            **external,
         )
 
     def Solve(self) -> _types.FloatArray:
@@ -316,7 +312,7 @@ class InElastic(_Simu):
             def field_e_pg(groupElem):
                 if isStress:
                     return self.__Stress(groupElem)
-                return self.__Strain(u, groupElem)
+                return Kinematics(groupElem, u).Compute_Epsilon()
 
             values = Result_strain_or_stress_field_e(
                 field_e_pg=field_e_pg,
