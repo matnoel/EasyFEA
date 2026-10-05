@@ -1016,8 +1016,8 @@ class AutoDiff(_HyperElastic):
         """Drops the jax closures, which pickle cannot take. ``W`` must be picklable: define it at module level and bind its parameters with :func:`functools.partial`."""
         return {k: v for k, v in self.__dict__.items() if k not in self.__DERIVED}
 
-    def __setstate__(self, kinematics: dict) -> None:
-        self.__dict__.update(kinematics)
+    def __setstate__(self, state: dict) -> None:
+        self.__dict__.update(state)
         self.__Build()
 
     def Compute_W(self, kinematics: Kinematics) -> FeArray:
