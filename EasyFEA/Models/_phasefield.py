@@ -13,8 +13,8 @@ from ..Utilities import Tic
 
 # fem
 if TYPE_CHECKING:
-    from ..FEM import _GroupElem
-from ..FEM import MatrixType, FeArray, Trace, TensorProd, Det, Norm
+    from ..FEM import Kinematics
+from ..FEM import FeArray, Trace, TensorProd, Det, Norm
 
 # others
 from ._utils import (
@@ -294,12 +294,14 @@ class PhaseField(_IModel):
 
     def Get_g_e_pg(
         self,
+        kinematics: "Kinematics",
         d_n: _types.FloatArray,
-        groupElem: "_GroupElem",
-        matrixType: MatrixType,
         k_res=1e-12,
     ) -> FeArray.FeArrayALike:
         """Returns degradation function"""
+
+        groupElem = kinematics.groupElem
+        matrixType = kinematics.matrixType
 
         d_e_n = groupElem.Locates_sol_e(d_n, asFeArray=True)
         Nd_pg = FeArray.asfearray(groupElem.Get_N_pg(matrixType)[np.newaxis, :, 0])
@@ -332,112 +334,90 @@ class PhaseField(_IModel):
             raise TypeError("regu error")
         return c_w
 
-    def Calc_psi_e_pg(
-        self, Epsilon_e_pg: FeArray.FeArrayALike
+    def Compute_psi(
+        self, kinematics: "Kinematics"
     ) -> tuple[FeArray.FeArrayALike, FeArray.FeArrayALike]:
-        """Computes the elastic energy densities.\n
+        """Undegraded elastic energy densities ``(ψ⁺, ψ⁻)`` with ``ψ± = 1/2 σ± : ε``, shape (Ne, nPg)."""
 
-        psiP_e_pg = 1/2 SigmaP_e_pg * Epsilon_e_pg\n
-        psiM_e_pg = 1/2 SigmaM_e_pg * Epsilon_e_pg\n
-        Such as :\n
-        SigmaP_e_pg = cP_e_pg * Epsilon_e_pg\n
-        SigmaM_e_pg = cM_e_pg * Epsilon_e_pg
-        """
+        Epsilon_e_pg = kinematics.Compute_Epsilon()
 
-        Epsilon_e_pg = FeArray.asfearray(Epsilon_e_pg)
-
-        SigmaP_e_pg, SigmaM_e_pg = self.Calc_Sigma_e_pg(Epsilon_e_pg)
+        SigmaP_e_pg, SigmaM_e_pg = self._Split_Sigma(kinematics)
 
         tic = Tic()
 
-        psiP_e_pg = np.sum(1 / 2 * Epsilon_e_pg * SigmaP_e_pg, -1)
-        psiM_e_pg = np.sum(1 / 2 * Epsilon_e_pg * SigmaM_e_pg, -1)
+        psiP_e_pg = 0.5 * Epsilon_e_pg @ SigmaP_e_pg
+        psiM_e_pg = 0.5 * Epsilon_e_pg @ SigmaM_e_pg
 
         tic.Tac("Matrix", "psiP_e_pg and psiM_e_pg", False)
 
         return psiP_e_pg, psiM_e_pg
 
-    def Calc_Sigma_e_pg(
-        self, Epsilon_e_pg: FeArray.FeArrayALike
+    def Compute_Sigma(
+        self, kinematics: "Kinematics", d: _types.FloatArray
+    ) -> FeArray.FeArrayALike:
+        """Damaged stress ``σ = g(d)·σ⁺ + σ⁻`` for the nodal damage `d`, shape (Ne, nPg, 3 or 6)."""
+        SigmaP_e_pg, SigmaM_e_pg = self._Split_Sigma(kinematics)
+        g_e_pg = self.Get_g_e_pg(kinematics, d)
+        return g_e_pg * SigmaP_e_pg + SigmaM_e_pg
+
+    def Compute_C(
+        self, kinematics: "Kinematics", d: _types.FloatArray
+    ) -> FeArray.FeArrayALike:
+        """Damaged stiffness ``c = g(d)·cP + cM`` for the nodal damage `d`, shape (Ne, nPg, 3 or 6, 3 or 6)."""
+        cP_e_pg, cM_e_pg = self._Split_C(kinematics)
+        g_e_pg = self.Get_g_e_pg(kinematics, d)
+        return g_e_pg * cP_e_pg + cM_e_pg
+
+    def _Split_Sigma(
+        self, kinematics: "Kinematics"
     ) -> tuple[FeArray.FeArrayALike, FeArray.FeArrayALike]:
-        """Computes the Stress field using the strains and the split such that:\n
+        """Undegraded stresses ``(σ⁺, σ⁻) = (cP : ε, cM : ε)``, shape (Ne, nPg, 3 or 6)."""
 
-        SigmaP_e_pg = cP_e_pg * Epsilon_e_pg\n
-        SigmaM_e_pg = cM_e_pg * Epsilon_e_pg
+        Epsilon_e_pg = kinematics.Compute_Epsilon()
 
-        Parameters
-        ----------
-        Epsilon_e_pg : FeArray.FeArrayALike
-            strains field (e, p, D)
-
-        Returns
-        -------
-        FeArray
-            SigmaP_e_pg, SigmaM_e_pg: positive and negative stress fields (e, p, D)
-        """
-
-        Epsilon_e_pg = FeArray.asfearray(Epsilon_e_pg)
-
-        Ne, nPg, dim = Epsilon_e_pg.shape[:3]
-
-        cP_e_pg, cM_e_pg = self.Calc_C(Epsilon_e_pg)
+        cP_e_pg, cM_e_pg = self._Split_C(kinematics)
 
         tic = Tic()
 
-        Epsilon_e_pg = Epsilon_e_pg.reshape((Ne, nPg, dim, 1))
-
-        SigmaP_e_pg = np.reshape(cP_e_pg @ Epsilon_e_pg, (Ne, nPg, -1))
-        SigmaM_e_pg = np.reshape(cM_e_pg @ Epsilon_e_pg, (Ne, nPg, -1))
+        SigmaP_e_pg = cP_e_pg @ Epsilon_e_pg
+        SigmaM_e_pg = cM_e_pg @ Epsilon_e_pg
 
         tic.Tac("Matrix", "SigmaP_e_pg and SigmaM_e_pg", False)
 
         return SigmaP_e_pg, SigmaM_e_pg
 
-    def Calc_C(
-        self, Epsilon_e_pg: FeArray.FeArrayALike, verif=False
+    def _Split_C(
+        self, kinematics: "Kinematics", verif=False
     ) -> tuple[FeArray.FeArrayALike, FeArray.FeArrayALike]:
-        """Computes the splited stifness matrices for the given strain field.
-
-        Parameters
-        ----------
-        Epsilon_e_pg : FeArray.FeArrayALike
-            strains field (e, p, D)
-
-        Returns
-        -------
-        FeArray
-            cP_e_pg, cM_e_pg: positive and negative stifness matrices (e, p, D, D)
-        """
-
-        Ne, nPg = Epsilon_e_pg.shape[:2]
+        """Undegraded split stiffnesses ``(cP, cM)``, shape (Ne, nPg, 3 or 6, 3 or 6)."""
 
         if self.split == self.SplitType.Bourdin:
-            cP_e_pg, cM_e_pg = self.__Split_Bourdin(Ne, nPg)
+            cP_e_pg, cM_e_pg = self.__Split_Bourdin(kinematics)
 
         elif self.split == self.SplitType.Amor:
-            cP_e_pg, cM_e_pg = self.__Split_Amor(Epsilon_e_pg)
+            cP_e_pg, cM_e_pg = self.__Split_Amor(kinematics)
 
         elif self.split == self.SplitType.Miehe or "Strain" in self.split:
-            cP_e_pg, cM_e_pg = self.__Split_Strain(Epsilon_e_pg, verif=verif)
+            cP_e_pg, cM_e_pg = self.__Split_Strain(kinematics, verif=verif)
 
         elif self.split == self.SplitType.Zhang or "Stress" in self.split:
-            cP_e_pg, cM_e_pg = self.__Split_Stress(Epsilon_e_pg, verif=verif)
+            cP_e_pg, cM_e_pg = self.__Split_Stress(kinematics, verif=verif)
 
         elif self.split == self.SplitType.He:
-            cP_e_pg, cM_e_pg = self.__Split_He(Epsilon_e_pg, verif=verif)
+            cP_e_pg, cM_e_pg = self.__Split_He(kinematics, verif=verif)
         else:
             raise TypeError("split error")
 
         return cP_e_pg, cM_e_pg
 
-    def __Split_Bourdin(self, Ne: int, nPg: int):
+    def __Split_Bourdin(self, kinematics: "Kinematics"):
         """[Bourdin 2000] DOI : 10.1016/S0022-5096(99)00028-9"""
 
         tic = Tic()
 
         C = self.__material.C
         if self.isHeterogeneous:
-            C_e_pg = FeArray.broadcast(C, Ne, nPg, tensor_ndim=2)
+            C_e_pg = FeArray.broadcast(C, *kinematics._GetDims()[:2], tensor_ndim=2)
         else:
             C_e_pg = FeArray.asfearray(C, True)
 
@@ -448,16 +428,17 @@ class PhaseField(_IModel):
 
         return cP_e_pg, cM_e_pg
 
-    def __Split_Amor(self, Epsilon_e_pg: FeArray.FeArrayALike):
+    def __Split_Amor(self, kinematics: "Kinematics"):
         """[Amor 2009] DOI : 10.1016/j.jmps.2009.04.011"""
 
+        material = self.__material
         assert isinstance(
-            self.__material, Isotropic
+            material, Isotropic
         ), "Implemented only for ElasIsot material."
 
-        tic = Tic()
+        Epsilon_e_pg = kinematics.Compute_Epsilon()
 
-        material = self.__material
+        tic = Tic()
 
         Rp_e_pg, Rm_e_pg = self.__Rp_Rm(Epsilon_e_pg)
 
@@ -501,13 +482,14 @@ class PhaseField(_IModel):
         return Rp_e_pg, Rm_e_pg
 
     def __Split_Strain(
-        self, Epsilon_e_pg: FeArray.FeArrayALike, verif=False
+        self, kinematics: "Kinematics", verif=False
     ) -> tuple[FeArray.FeArrayALike, FeArray.FeArrayALike]:
         """Computes the stifness matrices for strain based splits."""
 
         material = self.__material
         dim = material.dim
 
+        Epsilon_e_pg = kinematics.Compute_Epsilon()
         projP_e_pg, projM_e_pg = self.__Spectral_Decomposition(Epsilon_e_pg, verif)
 
         tic = Tic()
@@ -516,7 +498,7 @@ class PhaseField(_IModel):
             # [Miehe 2010] DOI : 10.1016/j.cma.2010.04.011
 
             assert isinstance(
-                self.__material, Isotropic
+                material, Isotropic
             ), "Implemented only for ElasIsot material"
 
             # Compute Rp and Rm
@@ -525,8 +507,8 @@ class PhaseField(_IModel):
             IxI = self.__Build_IxI(dim)
 
             # Compute stifness matrices
-            mu = self.__material.get_mu()
-            lamb = self.__material.get_lambda()
+            mu = material.get_mu()
+            lamb = material.get_lambda()
 
             if material.isHeterogeneous:
                 Ne, nPg = Epsilon_e_pg.shape[:2]
@@ -570,12 +552,13 @@ class PhaseField(_IModel):
 
         return cP_e_pg, cM_e_pg  # type: ignore
 
-    def __Split_Stress(self, Epsilon_e_pg: FeArray.FeArrayALike, verif=False):
+    def __Split_Stress(self, kinematics: "Kinematics", verif=False):
         """Computes the stifness matrices for stress based splits."""
 
         # Recover stresses
         material = self.__material
 
+        Epsilon_e_pg = kinematics.Compute_Epsilon()
         Ne, nPg = Epsilon_e_pg.shape[:2]
 
         C = material.C
@@ -677,15 +660,15 @@ class PhaseField(_IModel):
 
         return cP_e_pg, cM_e_pg  # type: ignore
 
-    def __Split_He(self, Epsilon_e_pg: FeArray.FeArrayALike, verif=False):
+    def __Split_He(self, kinematics: "Kinematics", verif=False):
         """[He Shao 2019] DOI : 10.1115/1.4042217"""
 
         # Here the material is supposed to be homogeneous
         material = self.__material
 
-        Ne, nPg = Epsilon_e_pg.shape[:2]
-
         C = material.C
+
+        Epsilon_e_pg = kinematics.Compute_Epsilon()
 
         tic = Tic()
         sqrtC, inv_sqrtC = material.Get_sqrt_C_S()
@@ -693,6 +676,7 @@ class PhaseField(_IModel):
         tic.Tac("Split", "sqrt C and S", False)
 
         if material.isHeterogeneous:
+            Ne, nPg = Epsilon_e_pg.shape[:2]
             sqrtC = FeArray.broadcast(sqrtC, Ne, nPg, tensor_ndim=2)
             inv_sqrtC = FeArray.broadcast(inv_sqrtC, Ne, nPg, tensor_ndim=2)
         else:
@@ -755,9 +739,10 @@ class PhaseField(_IModel):
     ]:
         """Computes the eigen values and eigen projectors of a second-order tensor (as a vector)."""
 
-        dim = self.__material.dim
+        material = self.__material
+        dim = material.dim
 
-        coef = self.__material.coef
+        coef = material.coef
         Ne, nPg = vector_e_pg.shape[:2]
 
         tic = Tic()
@@ -774,7 +759,7 @@ class PhaseField(_IModel):
         def normalize_matrix(M):
             return M / Norm(M, axis=(-2, -1))
 
-        if self.dim == 2:
+        if dim == 2:
             # invariants of the strain tensor [e,pg]
             det_e_pg = Det(matrix_e_pg)
 
@@ -806,7 +791,7 @@ class PhaseField(_IModel):
 
             tic.Tac("Split", "Eigenprojectors", False)
 
-        elif self.dim == 3:
+        elif dim == 3:
             # [Q.-C. He Closed-form coordinate-free]
 
             # Invariants

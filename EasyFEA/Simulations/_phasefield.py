@@ -445,16 +445,10 @@ class PhaseField(_Simu):
         matrixType = MatrixType.rigi
         phaseFieldModel = self.phaseFieldModel
 
-        # compute strain field
-        Epsilon_e_pg = self._Calc_Epsilon_e_pg(self.displacement, groupElem, matrixType)
-
-        # compute the splited stifness matrices for the given strain field.
-        cP_e_pg, cM_e_pg = phaseFieldModel.Calc_C(Epsilon_e_pg)
+        kinematics = Kinematics(groupElem, self.displacement, matrixType)
+        c_e_pg = phaseFieldModel.Compute_C(kinematics, self.damage)
 
         tic = Tic()
-
-        g_e_pg = phaseFieldModel.Get_g_e_pg(self.damage, groupElem, matrixType)
-        c_e_pg = g_e_pg * cP_e_pg + cM_e_pg
 
         K_e = Operators.Bilinear.LinearizedElasticity(
             groupElem, c_e_pg, matrixType=matrixType
@@ -487,11 +481,11 @@ class PhaseField(_Simu):
 
         assert testu or testd, "Dimension problem."
 
-        Epsilon_e_pg = self._Calc_Epsilon_e_pg(u, groupElem, MatrixType.mass)
         # here the mass term is important otherwise we under-integrate
+        kinematics = Kinematics(groupElem, u, MatrixType.mass)
 
         # Compute the elastic energy densities.
-        psiP_e_pg, _ = phaseFieldModel.Calc_psi_e_pg(Epsilon_e_pg)
+        psiP_e_pg, _ = phaseFieldModel.Compute_psi(kinematics)
 
         if phaseFieldModel.solver == "History":
             # Get the old history field
@@ -707,10 +701,10 @@ class PhaseField(_Simu):
             res = result if result in ["Strain", "Stress"] else result[-2:]
 
             def field_e_pg(groupElem):
-                Eps = self._Calc_Epsilon_e_pg(displacement, groupElem=groupElem)
-                return (
-                    self._Calc_Sigma_e_pg(Eps, groupElem=groupElem) if isStress else Eps
-                )
+                kinematics = Kinematics(groupElem, displacement)
+                if isStress:
+                    return self.phaseFieldModel.Compute_Sigma(kinematics, self.damage)
+                return kinematics.Compute_Epsilon()
 
             values = Result_strain_or_stress_field_e(  # type: ignore [assignment]
                 field_e_pg=field_e_pg,
@@ -814,53 +808,15 @@ class PhaseField(_Simu):
 
     def _Calc_Sigma_e_pg(
         self,
-        Epsilon_e_pg: FeArray.FeArrayALike,
+        sol: _types.FloatArray,
         groupElem: "_GroupElem" = None,
         matrixType=MatrixType.rigi,
     ) -> FeArray.FeArrayALike:
-        """Computes the damaged stress field from the strain field: Sig = g(d) * Sig^+ + Sig^- (delegates the split to the phase-field model).\n
-        2D : [Sxx Syy sqrt(2)*Sxy]\n
-        3D : [Sxx Syy Szz sqrt(2)*Syz sqrt(2)*Sxz sqrt(2)*Sxy]
-
-        Parameters
-        ----------
-        Epsilon_e_pg : FeArray.FeArrayALike
-            strain field (Ne, pg, (3 or 6))
-        groupElem : _GroupElem, optional
-            element group the strain field belongs to (used for the shape check and the degradation function g(d)), by default None (main group)
-        matrixType : MatrixType, optional
-            integration scheme, by default MatrixType.rigi
-
-        Returns
-        -------
-        FeArray
-            damaged stress field (Ne, pg, (3 or 6))
-        """
-
+        """Damaged stress field ``g(d)·σ⁺ + σ⁻`` (Ne, pg, 3 or 6) of `sol` on `groupElem` (main group by default)."""
         if groupElem is None:
             groupElem = self.mesh.groupElem
-
-        Epsilon_e_pg = FeArray.asfearray(Epsilon_e_pg)
-
-        assert Epsilon_e_pg.shape[0] == groupElem.Ne
-        assert Epsilon_e_pg.shape[1] == groupElem.Get_gauss(matrixType).nPg
-
-        d = self.damage
-
-        phaseFieldModel = self.phaseFieldModel
-
-        SigmaP_e_pg, SigmaM_e_pg = phaseFieldModel.Calc_Sigma_e_pg(Epsilon_e_pg)
-
-        tic = Tic()
-
-        # compute Sig such that: Sig = g(d) * SigP + SigM
-        g_e_pg = phaseFieldModel.Get_g_e_pg(d, groupElem, matrixType)
-        SigmaP_e_pg = g_e_pg * SigmaP_e_pg
-        Sigma_e_pg = SigmaP_e_pg + SigmaM_e_pg
-
-        tic.Tac("Matrix", "Sigma_e_pg", False)
-
-        return Sigma_e_pg
+        kinematics = Kinematics(groupElem, sol, matrixType)
+        return self.phaseFieldModel.Compute_Sigma(kinematics, self.damage)
 
     def Results_Set_Bc_Summary(self, config: str):
         assert isinstance(config, str)

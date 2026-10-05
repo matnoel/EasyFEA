@@ -18,7 +18,7 @@ from EasyFEA.Models.Elastic import (
 from EasyFEA.Models._phasefield import PhaseField
 from EasyFEA.Models import Reshape_variable
 from EasyFEA.FEM._linalg import Norm
-from EasyFEA.FEM import FeArray
+from EasyFEA.FEM import Kinematics, MatrixType
 
 
 from .linear_elastic_test import setup_elastic_materials
@@ -54,7 +54,7 @@ def setup_pfm_materials(setup_elastic_materials) -> list[PhaseField]:
 
 class TestPhaseField:
 
-    def __cal_eps(self, dim) -> np.ndarray:
+    def __kinematics(self, dim) -> Kinematics:
 
         mat = Isotropic(dim)
 
@@ -83,9 +83,7 @@ class TestPhaseField:
         )
         u = simu.Solve()
 
-        Epsilon_e_pg = simu._Calc_Epsilon_e_pg(u, matrixType="mass")
-
-        return Epsilon_e_pg
+        return Kinematics(mesh.groupElem, u, MatrixType.mass)
 
     def test_split_phaseField(self, setup_pfm_materials):
 
@@ -93,10 +91,8 @@ class TestPhaseField:
 
         phaseFieldModels: list[PhaseField] = setup_pfm_materials
 
-        # computes 2D strain field
-        Epsilon2D_e_pg = self.__cal_eps(2)
-        # comutes 3D strain field
-        Epsilon3D_e_pg = self.__cal_eps(3)
+        kinematics2D = self.__kinematics(2)
+        kinematics3D = self.__kinematics(3)
 
         for pfm in phaseFieldModels:
 
@@ -105,13 +101,11 @@ class TestPhaseField:
             config = f"{type(mat).__name__} {mat.simplification} {pfm.split} {pfm.regularization}"
             print(config)
 
-            if mat.dim == 2:
-                Epsilon_e_pg = FeArray(Epsilon2D_e_pg)
-            elif mat.dim == 3:
-                Epsilon_e_pg = FeArray(Epsilon3D_e_pg)
+            kinematics = kinematics2D if mat.dim == 2 else kinematics3D
+            Epsilon_e_pg = kinematics.Compute_Epsilon()
 
             C_e_pg = Reshape_variable(mat.C, *Epsilon_e_pg.shape[:2])
-            cP_e_pg, cM_e_pg = pfm.Calc_C(Epsilon_e_pg.copy(), verif=True)
+            cP_e_pg, cM_e_pg = pfm._Split_C(kinematics, verif=True)
             # stress
             Sig_e_pg = C_e_pg @ Epsilon_e_pg
             SigP = cP_e_pg @ Epsilon_e_pg
