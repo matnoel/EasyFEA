@@ -13,7 +13,16 @@ Frame with six beams
 import matplotlib.pyplot as plt
 import numpy as np
 
-from EasyFEA import Terminal, Matplotlib, Models, Mesher, ElemType, Simulations
+from EasyFEA import (
+    Terminal,
+    Matplotlib,
+    Models,
+    Mesher,
+    ElemType,
+    MatrixType,
+    Simulations,
+)
+from EasyFEA.FEM import Kinematics
 from EasyFEA.Geoms import Domain, Line
 
 if __name__ == "__main__":
@@ -95,9 +104,9 @@ if __name__ == "__main__":
     Matplotlib.Plot(simu, "fx", deformFactor=5 / depMax)
     Matplotlib.Plot(simu, "fy", deformFactor=5 / depMax)
 
-    Epsilon_e_pg = simu._Calc_Epsilon_e_pg(simu.displacement)
-    Internal_e = simu._Calc_InternalForces_e_pg(Epsilon_e_pg).mean(1)
-    Sigma_e = simu._Calc_Sigma_e_pg(Epsilon_e_pg).mean(1)
+    kinematics = Kinematics(simu.mesh.groupElem, simu.displacement, MatrixType.beam)
+    Internal_e = structure.Compute_InternalForces(kinematics).mean(1)
+    Sigma_e = structure.Compute_Sigma(kinematics).mean(1)
     Matplotlib.Plot(simu, Sigma_e[:, 0], title="Sxx")
     Matplotlib.Plot(simu, Internal_e[:, 0], title="N")
 

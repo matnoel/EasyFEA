@@ -13,7 +13,7 @@ from ..Utilities import Terminal, Tic, _types, _params
 # fem
 if TYPE_CHECKING:
     from ..FEM import Mesh
-from ..FEM import MatrixType, ElemType, LagrangeCondition, FeArray
+from ..FEM import MatrixType, ElemType, LagrangeCondition, FeArray, Kinematics
 from ..FEM.Operators import Bilinear
 
 # beam elements
@@ -25,7 +25,7 @@ from ..FEM.Elems._beam import (
 )
 
 # models
-from ..Models.Beam._beam import BeamStructure, _Beam, Isotropic
+from ..Models.Beam._beam import BeamStructure, _Beam
 
 # simu
 from ._simu import _Simu, SolverType
@@ -559,10 +559,9 @@ class Beam(_Simu):
                 # Uses Get_beam_shear_B_e_pg (dddNv-based), which is exact for any
                 # polynomial Mz the element can represent.
                 B_shear_e_pg = groupElem.Get_beam_shear_B_e_pg(self.structure)
-                sol_e = self.mesh.Locates_sol_e(
-                    self.displacement, dof_n, asFeArray=True
-                )
-                shear_np = self._Calc_InternalForces_e_pg(B_shear_e_pg @ sol_e)
+                kinematics = Kinematics(groupElem, self.displacement, MatrixType.beam)
+                D_e_pg = self.structure.Calc_D_e_pg(groupElem)
+                shear_np = D_e_pg @ (B_shear_e_pg @ kinematics.displacement_e)
 
                 idx = 1 if dim == 2 else 3  # Mz row → Ty
                 if result == "Tz":
@@ -576,32 +575,34 @@ class Beam(_Simu):
                 # introduces in γ.
                 # useTimoshenko converts the mesh in __init__, so the group is a _Timoshenko one; only it takes a matrixType.
                 assert isinstance(groupElem, _Timoshenko)
-                shearType = MatrixType.beam_shear
-                B_red = groupElem.Get_beam_B_e_pg(self.structure, shearType)
-                D_red = self.structure.Calc_D_e_pg(groupElem, shearType)
-                sol_e = self.mesh.Locates_sol_e(
-                    self.displacement, dof_n, asFeArray=True
+                kinematics = Kinematics(
+                    groupElem, self.displacement, MatrixType.beam_shear
                 )
-                forces_red = D_red @ (B_red @ sol_e)
+                forces_red = self.structure.Compute_InternalForces(kinematics)
                 index = self._indexResult(result)
                 values = np.asarray(forces_red)[:, :, index].mean(axis=1)
             else:
-                Epsilon_e_pg = self._Calc_Epsilon_e_pg(self.displacement)
-                internalForces_e_pg = self._Calc_InternalForces_e_pg(Epsilon_e_pg)
+                kinematics = Kinematics(groupElem, self.displacement, MatrixType.beam)
+                internalForces_e_pg = self.structure.Compute_InternalForces(kinematics)
                 forces_np = np.asarray(internalForces_e_pg)
                 index = self._indexResult(result)
                 values = forces_np[:, :, index].mean(axis=1)  # (Ne,) element means
 
         elif result in ["Sxx", "Syy", "Szz", "Syz", "Sxz", "Sxy"]:
-            Epsilon_e_pg = self._Calc_Epsilon_e_pg(self.displacement)
-            Sigma_e = self._Calc_Sigma_e_pg(Epsilon_e_pg).mean(1)
+            kinematics = Kinematics(
+                self.mesh.groupElem, self.displacement, MatrixType.beam
+            )
+            Sigma_e = self.structure.Compute_Sigma(kinematics).mean(1)
             index = self._indexResult(result)
             values = Sigma_e[:, index]
 
         elif result in ["ux'", "rx'", "ry'", "rz'"]:
             coef = 1 if result == "Exx" else 1 / 2
 
-            Epsilon_e = self._Calc_Epsilon_e_pg(self.displacement).mean(1)
+            kinematics = Kinematics(
+                self.mesh.groupElem, self.displacement, MatrixType.beam
+            )
+            Epsilon_e = self.structure.Compute_Epsilon(kinematics).mean(1)
             index = self._indexResult(result)
             values = Epsilon_e[:, index] * coef
 
@@ -656,145 +657,6 @@ class Beam(_Simu):
             return 5
         else:
             raise ValueError("result error")
-
-    def _Calc_Epsilon_e_pg(self, sol: _types.FloatArray) -> FeArray.FeArrayALike:
-        """Construct deformations for each element and each Gauss point.\n
-        a' denotes here da/dx \n
-        1D -> [ux']\n
-        2D -> [ux', rz']\n
-        3D -> [ux', rx', ry', rz']
-        """
-
-        groupElem = self.mesh.groupElem
-        assert isinstance(groupElem, (_Timoshenko, _EulerBernoulli))
-
-        tic = Tic()
-
-        sol_e = self.mesh.Locates_sol_e(sol, self.structure.dof_n, asFeArray=True)
-        B_e_pg = groupElem.Get_beam_B_e_pg(self.structure)
-        Epsilon_e_pg = B_e_pg @ sol_e
-
-        tic.Tac("Matrix", "Epsilon_e_pg", False)
-
-        return Epsilon_e_pg
-
-    def _Calc_InternalForces_e_pg(
-        self, Epsilon_e_pg: FeArray.FeArrayALike
-    ) -> FeArray.FeArrayALike:
-        """Calculation of internal forces.\n
-        1D -> [N]\n
-        2D -> [N, Mz]\n
-        3D -> [N, Mx, My, Mz]
-        """
-        # Example in matlab with FEMObject: https://github.com/fpled/FEMObject/blob/master
-        # /MODEL/MATERIALS/@ELAS_BEAM/sigma.m
-
-        Epsilon_e_pg = FeArray.asfearray(Epsilon_e_pg)
-
-        groupElem = self.mesh.groupElem
-        matrixType = MatrixType.beam
-
-        assert Epsilon_e_pg.shape[0] == groupElem.Ne
-        assert Epsilon_e_pg.shape[1] == groupElem.Get_gauss(matrixType).nPg
-
-        tic = Tic()
-
-        D_e_pg = self.structure.Calc_D_e_pg(self.mesh.groupElem)
-        forces_e_pg = D_e_pg @ Epsilon_e_pg
-
-        tic.Tac("Matrix", "InternalForces_e_pg", False)
-
-        return forces_e_pg
-
-    def _Calc_Sigma_e_pg(
-        self, Epsilon_e_pg: FeArray.FeArrayALike
-    ) -> FeArray.FeArrayALike:
-        """Calculates stresses from strains.\n
-        1D -> [Sxx]\n
-        2D -> [Sxx, Syy, Sxy]\n
-        3D -> [Sxx, Syy, Szz, Syz, Sxz, Sxy]
-        """
-        # Example in matlab with FEMObject: https://github.com/fpled/FEMObject/blob/master
-        # /BASIC/MODEL/MATERIALS/@ELAS_BEAM/sigma.m
-
-        Epsilon_e_pg = FeArray.asfearray(Epsilon_e_pg)
-
-        Ne = self.mesh.Ne
-        nPg = self.mesh.groupElem.Get_gauss(MatrixType.beam).nPg
-
-        assert Epsilon_e_pg.shape[0] == Ne
-        assert Epsilon_e_pg.shape[1] == nPg
-
-        dim = self.structure.dim
-
-        InternalForces_e_pg = self._Calc_InternalForces_e_pg(Epsilon_e_pg)
-
-        tic = Tic()
-
-        S_e_pg = FeArray.zeros(Ne, nPg)
-        Iy_e_pg = np.zeros_like(S_e_pg)
-        Iz_e_pg = np.zeros_like(S_e_pg)
-        J_e_pg = np.zeros_like(S_e_pg)
-        mu_e_pg = np.zeros_like(S_e_pg)
-        for beam in self.structure.beams:
-            elems = self.mesh.Elements_Tags([beam.name])
-            S_e_pg[elems] = beam.area
-            Iy_e_pg[elems] = beam.Iy
-            Iz_e_pg[elems] = beam.Iz
-            J_e_pg[elems] = beam.J
-            if isinstance(beam, Isotropic):
-                mu_e_pg[elems] = beam.mu
-
-        y_e_pg = np.sqrt(S_e_pg)
-        z_e_pg = np.sqrt(S_e_pg)
-
-        N_e_pg = InternalForces_e_pg[:, :, 0]
-
-        if dim == 1:
-            # [Sxx]
-            Sigma_e_pg = np.zeros((Ne, nPg, 1))
-            Sigma_e_pg[:, :, 0] = N_e_pg / S_e_pg  # Sxx = N/S
-        elif dim == 2:
-            # [Sxx, Syy, Sxy]
-            # [Sxx, 0, 0] for euler bernouilli
-            Sigma_e_pg = np.zeros((Ne, nPg, 3))
-
-            Mz_e_pg = InternalForces_e_pg[:, :, 1]
-            Sigma_e_pg[:, :, 0] = N_e_pg / S_e_pg - (
-                Mz_e_pg * y_e_pg / Iz_e_pg
-            )  # Sxx = N/S - Mz*y/Iz
-            Sigma_e_pg[:, :, 1] = 0  # Syy = 0
-            # Ty = 0 with euler bernoulli beam because uy' = rz
-            Sigma_e_pg[:, :, 2] = 0  # Sxy = Ty/S il faut calculer Ty
-        elif dim == 3:
-            # [Sxx, Syy, Szz, Syz, Sxz, Sxy]
-            # [Sxx, 0, 0, 0, Sxz, Sxy] for
-            Sigma_e_pg = np.zeros((Ne, nPg, 6))
-
-            Mx_e_pg = InternalForces_e_pg[:, :, 1]
-            My_e_pg = InternalForces_e_pg[:, :, 2]
-            Mz_e_pg = InternalForces_e_pg[:, :, 3]
-
-            Sigma_e_pg[:, :, 0] = (
-                N_e_pg / S_e_pg
-                + My_e_pg / Iy_e_pg * z_e_pg
-                - Mz_e_pg / Iz_e_pg * y_e_pg
-            )  # Sxx = N/S + My/Iy*z - Mz/Iz*y
-            Sigma_e_pg[:, :, 1] = 0  # Syy = 0
-            Sigma_e_pg[:, :, 2] = 0  # Szz = 0
-            Sigma_e_pg[:, :, 3] = 0  # Syz = 0
-            # Ty = Tz = 0 with euler bernoulli beam
-            Sigma_e_pg[:, :, 4] = Mx_e_pg / J_e_pg * y_e_pg  # Sxz = Tz/S + Mx/Ix*y
-            Sigma_e_pg[:, :, 5] = -Mx_e_pg / J_e_pg * z_e_pg  # Sxy = Ty/S - Mx/Ix*z
-
-        # xAxis_e, yAxis_e = self.structure.Get_axis_e(self.mesh.groupElem)
-        # d = np.max((2,dim))
-        # Ps, Pe = Materials.Get_Pmat(xAxis_e[:,:d], yAxis_e[:,:d], False)
-        # Sigma_e_pg = np.einsum('eij,epj->epi',Ps, Sigma_e_pg, optimize='optimal')
-
-        tic.Tac("Matrix", "Sigma_e_pg", False)
-
-        return Sigma_e_pg
 
     def Results_dict_Energy(self) -> dict[str, float]:
         return super().Results_dict_Energy()

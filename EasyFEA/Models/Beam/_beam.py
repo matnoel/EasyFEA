@@ -18,14 +18,14 @@ from ...FEM import Field, BiLinearForm, LinearForm
 from ...FEM.Elems._beam import _Timoshenko, _EulerBernoulli
 
 if TYPE_CHECKING:
-    from ...FEM import Mesh, _GroupElem
+    from ...FEM import Mesh, _GroupElem, Kinematics
 
 # simulations / models — used by _shear_kappa (Saint-Venant Poisson solve)
 from ... import Models, Simulations
 
 # materials
 from .._utils import _IModel
-from ...Utilities import _params, _types
+from ...Utilities import _params, _types, Tic
 
 # ----------------------------------------------
 # Beam
@@ -569,6 +569,93 @@ class BeamStructure(_IModel):
             M_e_pg[elems] = M
 
         return M_e_pg
+
+    def Compute_Epsilon(self, kinematics: "Kinematics") -> FeArray.FeArrayALike:
+        """Generalized strains ``B · u_e``: 1D [ux'], 2D [ux', rz'], 3D [ux', rx', ry', rz'] (+ shears with Timoshenko)."""
+        groupElem = kinematics.groupElem
+        if isinstance(groupElem, _Timoshenko):
+            B_e_pg = groupElem.Get_beam_B_e_pg(self, kinematics.matrixType)
+        else:
+            assert isinstance(groupElem, _EulerBernoulli)
+            assert kinematics.matrixType == MatrixType.beam
+            B_e_pg = groupElem.Get_beam_B_e_pg(self)
+        return B_e_pg @ kinematics.displacement_e
+
+    def Compute_InternalForces(self, kinematics: "Kinematics") -> FeArray.FeArrayALike:
+        """Internal forces ``D · ε``: 1D [N], 2D [N, Mz], 3D [N, Mx, My, Mz] (+ shears with Timoshenko)."""
+        D_e_pg = self.Calc_D_e_pg(kinematics.groupElem, kinematics.matrixType)
+        return D_e_pg @ self.Compute_Epsilon(kinematics)
+
+    def Compute_Sigma(self, kinematics: "Kinematics") -> FeArray.FeArrayALike:
+        """Stresses from the internal forces: 1D [Sxx], 2D [Sxx, Syy, Sxy], 3D [Sxx, Syy, Szz, Syz, Sxz, Sxy]."""
+        # Example in matlab with FEMObject: https://github.com/fpled/FEMObject/blob/master
+        # /BASIC/MODEL/MATERIALS/@ELAS_BEAM/sigma.m
+
+        groupElem = kinematics.groupElem
+        Ne = groupElem.Ne
+        nPg = groupElem.Get_gauss(kinematics.matrixType).nPg
+
+        dim = self.dim
+
+        InternalForces_e_pg = self.Compute_InternalForces(kinematics)
+
+        tic = Tic()
+
+        S_e_pg = FeArray.zeros(Ne, nPg)
+        Iy_e_pg = np.zeros_like(S_e_pg)
+        Iz_e_pg = np.zeros_like(S_e_pg)
+        J_e_pg = np.zeros_like(S_e_pg)
+        for beam in self.beams:
+            elems = groupElem.Get_Elements_Tag(beam.name)
+            S_e_pg[elems] = beam.area
+            Iy_e_pg[elems] = beam.Iy
+            Iz_e_pg[elems] = beam.Iz
+            J_e_pg[elems] = beam.J
+
+        y_e_pg = np.sqrt(S_e_pg)
+        z_e_pg = np.sqrt(S_e_pg)
+
+        N_e_pg = InternalForces_e_pg[:, :, 0]
+
+        if dim == 1:
+            # [Sxx]
+            Sigma_e_pg = np.zeros((Ne, nPg, 1))
+            Sigma_e_pg[:, :, 0] = N_e_pg / S_e_pg  # Sxx = N/S
+        elif dim == 2:
+            # [Sxx, Syy, Sxy]
+            # [Sxx, 0, 0] for euler bernouilli
+            Sigma_e_pg = np.zeros((Ne, nPg, 3))
+
+            Mz_e_pg = InternalForces_e_pg[:, :, 1]
+            Sigma_e_pg[:, :, 0] = N_e_pg / S_e_pg - (
+                Mz_e_pg * y_e_pg / Iz_e_pg
+            )  # Sxx = N/S - Mz*y/Iz
+            Sigma_e_pg[:, :, 1] = 0
+
+            Sigma_e_pg[:, :, 2] = 0
+        elif dim == 3:
+            # [Sxx, Syy, Szz, Syz, Sxz, Sxy]
+            Sigma_e_pg = np.zeros((Ne, nPg, 6))
+
+            Mx_e_pg = InternalForces_e_pg[:, :, 1]
+            My_e_pg = InternalForces_e_pg[:, :, 2]
+            Mz_e_pg = InternalForces_e_pg[:, :, 3]
+
+            Sigma_e_pg[:, :, 0] = (
+                N_e_pg / S_e_pg
+                + My_e_pg / Iy_e_pg * z_e_pg
+                - Mz_e_pg / Iz_e_pg * y_e_pg
+            )  # Sxx = N/S + My/Iy*z - Mz/Iz*y
+            Sigma_e_pg[:, :, 1] = 0
+            Sigma_e_pg[:, :, 2] = 0
+            Sigma_e_pg[:, :, 3] = 0
+            # Ty = Tz = 0 with euler bernoulli beam
+            Sigma_e_pg[:, :, 4] = Mx_e_pg / J_e_pg * y_e_pg  # Sxz = Tz/S + Mx/Ix*y
+            Sigma_e_pg[:, :, 5] = -Mx_e_pg / J_e_pg * z_e_pg  # Sxy = Ty/S - Mx/Ix*z
+
+        tic.Tac("Matrix", "Sigma_e_pg", False)
+
+        return Sigma_e_pg
 
     def Get_axis_e(
         self, groupElem: "_GroupElem"
