@@ -39,7 +39,7 @@ requires_pyvista = Create_requires_decorator("matplotlib", "pyvista")
 @requires_pyvista
 def Plot(
     obj: _Simu | Mesh | _GroupElem | Any,
-    result: str | _types.FloatArray | None = None,
+    result: str | _types.FloatArray | dict | None = None,
     deformFactor=0.0,
     coef=1.0,
     nodeValues=True,
@@ -68,8 +68,8 @@ def Plot(
     ----------
     obj : _Simu | Mesh | _GroupElem | MultiBlock | PolyData | UnstructuredGrid
         The object to plot and will be transformed to a mesh
-    result : str | _types.FloatArray, optional
-        Scalars used to “color” the mesh, by default None
+    result : str | _types.FloatArray | dict, optional
+        Scalars used to “color” the mesh, an (Ne, nPg) array or a per-group parameter ``{_GroupElem: scalar | (Ne_g,) | (Ne_g, nPg)}`` (Gauss points averaged), by default None
     deformFactor : float, optional
         Factor used to display the deformed solution (0 means no deformations), default 0.0
     coef : float, optional
@@ -160,7 +160,7 @@ def Plot(
         raise TypeError("Issue during UnstructuredGrid creation process")
 
     # apply coef to the array
-    name = "array" if isinstance(result, np.ndarray) else result
+    name = "array" if isinstance(result, (np.ndarray, dict)) else result
     name = None if pvMesh.n_arrays == 0 else name
     if name is not None:
         pvMesh[name] *= coef
@@ -1050,7 +1050,7 @@ def _setCameraPosition(
 @requires_pyvista
 def _pvMesh(
     obj: _Simu | Mesh | _GroupElem,
-    result: str | _types.AnyArray | None = None,
+    result: str | _types.AnyArray | dict | None = None,
     deformFactor=0.0,
     nodeValues=True,
     clipAxis=None,
@@ -1059,6 +1059,7 @@ def _pvMesh(
     """Creates the pyvista mesh from obj (_Simu, Mesh and _GroupElem objects)"""
 
     simu, mesh, coord, __ = _Init_obj(obj, deformFactor)
+    result = Matplotlib._Gauss_points_averaged(mesh, result)
 
     unstructuredGrid = MeshIO.EasyFEA_to_PyVista(mesh, coord, useAllElements=False)
 

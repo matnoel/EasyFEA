@@ -184,10 +184,29 @@ def _Node_to_element_values(
     return np.asarray(elementValues)
 
 
+def _Gauss_points_averaged(
+    mesh: Mesh, result: str | _types.AnyArray | dict | None
+) -> str | _types.AnyArray | None:
+    """An ``(Ne, nPg)`` array, or ``{_GroupElem: scalar | (Ne_g,) | (Ne_g, nPg)}`` flattened in ``Get_list_groupElem(dim)`` order, as ``(Ne,)`` with the Gauss points averaged; any other ``result`` as is."""
+    if isinstance(result, np.ndarray) and result.ndim == 2 and len(result) == mesh.Ne:
+        return result.mean(1)
+    if not isinstance(result, dict):
+        return result
+    values = []
+    for groupElem in mesh.Get_list_groupElem(mesh.dim):
+        if groupElem not in result:
+            raise KeyError(f"no value given for the {groupElem.elemType} group")
+        value = np.asarray(result[groupElem], dtype=float)
+        if value.ndim == 2:
+            value = value.mean(1)
+        values.append(np.broadcast_to(value, (groupElem.Ne,)))
+    return np.concatenate(values)
+
+
 @requires_matplotlib
 def Plot(
     obj: _Simu | Mesh | _GroupElem,
-    result: str | _types.FloatArray | None = None,
+    result: str | _types.FloatArray | dict | None = None,
     deformFactor: _types.Number = 0.0,
     coef: _types.Number = 1.0,
     nodeValues: bool = True,
@@ -216,8 +235,8 @@ def Plot(
     ----------
     obj : _Simu | Mesh | _GroupElem
         object to plot
-    result : str | _types.FloatArray, optional
-        Result used to color the object. Must be included in simu.Get_Results() or be a numpy array of size (Nn,) or (Ne,). When None, the object is drawn with ``color``, by default None
+    result : str | _types.FloatArray | dict, optional
+        Result used to color the object. Must be included in simu.Get_Results(), be a numpy array of size (Nn,), (Ne,) or (Ne, nPg), or a per-group parameter ``{_GroupElem: scalar | (Ne_g,) | (Ne_g, nPg)}`` (Gauss points averaged). When None, the object is drawn with ``color``, by default None
     deformFactor : float, optional
         factor used to display the deformed solution (0 means no deformations), default 0.0
     coef : float, optional
@@ -276,6 +295,7 @@ def Plot(
 
     simu, mesh, coordDef, inDim = _Init_obj(obj, deformFactor)  # type: ignore
     dimElem = mesh.dim  # Dimension of displayed elements
+    result = _Gauss_points_averaged(mesh, result)
 
     hasResult = result is not None
 
