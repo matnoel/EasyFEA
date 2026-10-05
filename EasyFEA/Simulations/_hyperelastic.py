@@ -21,7 +21,7 @@ from ..Models import Project_Kelvin, Result_strain_or_stress_field_e
 
 if TYPE_CHECKING:
     from ..Models.HyperElastic._laws import _HyperElastic
-from ..Models.HyperElastic._state import HyperElasticState
+from ..FEM import Kinematics
 
 # simu
 from ..FEM import _GroupElem
@@ -73,7 +73,7 @@ class HyperElastic(_Simu):
         """Which PK2 stress the internal force uses. All three solve the same continuous problem; they differ in how the stress is sampled over a step, hence in whether the discrete total energy is conserved."""
 
         pointwise = "pointwise"
-        r"""Default. :math:`\Srm(\eb(\ub^t))` at the time scheme's evaluation state, assembled by :func:`~EasyFEA.FEM.Operators.NonLinear.SecondPiolaKirchhoffStressTensor`. Energy drifts."""
+        r"""Default. :math:`\Srm(\eb(\ub^t))` at the time scheme's evaluation kinematics, assembled by :func:`~EasyFEA.FEM.Operators.NonLinear.SecondPiolaKirchhoffStressTensor`. Energy drifts."""
         gonzalez = "gonzalez"
         r"""Energy-momentum discrete gradient :math:`\hat{\Srm} = \bar{\Srm} + \alpha \Delta \eb`, assembled by :func:`~EasyFEA.FEM.Operators.NonLinear.GonzalezStressTensor`. Conserves :math:`\mathrm{KE} + W` exactly, for any law, from one stress evaluation."""
         quadrature = "quadrature"
@@ -325,11 +325,11 @@ class HyperElastic(_Simu):
                 self.algo in AlgoType.Get_Hyperbolic_Types()
             ), f"the 'quadrature' stress requires a dynamic (hyperbolic) time scheme (got {self.algo})."
 
-    def __State(self, groupElem: _GroupElem, u: _types.FloatArray) -> HyperElasticState:
-        """Hyperelastic state of `groupElem` at `u`, guarded against an inverted element."""
-        state = HyperElasticState(groupElem, u, self.matrixType)
-        assert state.Compute_J().min() > 0, "det(F) < 0 - reduce load steps"
-        return state
+    def __Kinematics(self, groupElem: _GroupElem, u: _types.FloatArray) -> Kinematics:
+        """Hyperelastic kinematics of `groupElem` at `u`, guarded against an inverted element."""
+        kinematics = Kinematics(groupElem, u, self.matrixType)
+        assert kinematics.Compute_J().min() > 0, "det(F) < 0 - reduce load steps"
+        return kinematics
 
     def __Stress(
         self,
@@ -338,30 +338,34 @@ class HyperElastic(_Simu):
         u_n: _types.FloatArray | None,
         u_np1: _types.FloatArray,
     ) -> tuple[np.ndarray, np.ndarray]:
-        """Elastic tangent and internal force at the time scheme's evaluation state `u`."""
+        """Elastic tangent and internal force at the time scheme's evaluation displacement `u`."""
 
-        state = self.__State(groupElem, u)
+        kinematics = self.__Kinematics(groupElem, u)
         stressType, nPoints, useConsistentTangent, energyTol = (
             self.__Solver_Get_Stress_Params()
         )
 
         if stressType == HyperElastic.StressType.pointwise:
             return Operators.NonLinear.SecondPiolaKirchhoffStressTensor(
-                self.material, state
+                self.material, kinematics
             )
 
         assert u_n is not None
-        states = (self.__State(groupElem, u_n), state, self.__State(groupElem, u_np1))
+        path = (
+            self.__Kinematics(groupElem, u_n),
+            kinematics,
+            self.__Kinematics(groupElem, u_np1),
+        )
 
         if stressType == HyperElastic.StressType.gonzalez:
             return Operators.NonLinear.GonzalezStressTensor(
-                self.material, *states, useConsistentTangent
+                self.material, *path, useConsistentTangent
             )
 
         elif stressType == HyperElastic.StressType.quadrature:
             coefK = self._Solver_Get_K_C_M_coefs_for_time_scheme()[0]
             K_e, R_e, nPts_e = Operators.NonLinear.TimeQuadratureStressTensor(
-                self.material, *states, coefK, nPoints, energyTol
+                self.material, *path, coefK, nPoints, energyTol
             )
             self.__nPts_e[groupElem] = nPts_e
             return K_e, R_e
@@ -373,7 +377,7 @@ class HyperElastic(_Simu):
     ) -> tuple[np.ndarray, np.ndarray]:
         """Active fiber stress τ·(T̂⊗T̂): internal force + geometric tangent, no material tangent."""
         return Operators.NonLinear.ActiveStressTensor(
-            self.material, self.__State(groupElem, u)
+            self.material, self.__Kinematics(groupElem, u)
         )
 
     def __Viscosity(
@@ -381,7 +385,7 @@ class HyperElastic(_Simu):
     ) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
         """Kelvin–Voigt viscosity: configuration tangent, damping matrix, viscous residual."""
         return Operators.NonLinear.KelvinVoigtDamping(
-            self.material, self.__State(groupElem, u), v_t
+            self.material, self.__Kinematics(groupElem, u), v_t
         )
 
     # --------------------------------------------------------------------------
@@ -589,9 +593,9 @@ class HyperElastic(_Simu):
         # group may have its own element type / number of Gauss points)
         list_W = []
         for groupElem in self.mesh.Get_list_groupElem(self.dim):
-            state = HyperElasticState(groupElem, self.displacement, matrixType)
+            kinematics = Kinematics(groupElem, self.displacement, matrixType)
             wJ_e_pg = groupElem.Get_weightedJacobian_e_pg(matrixType)
-            W_e_pg = wJ_e_pg * self.material.Compute_W(state)
+            W_e_pg = wJ_e_pg * self.material.Compute_W(kinematics)
             list_W.append(thickness * W_e_pg.integrate())
 
         W_e = np.concatenate(list_W)
@@ -601,18 +605,18 @@ class HyperElastic(_Simu):
     def _Calc_GreenLagrange(self, groupElem=None, matrixType=MatrixType.rigi):
         if groupElem is None:
             groupElem = self.mesh.groupElem
-        hyperElasticState = HyperElasticState(groupElem, self.displacement, matrixType)
-        return Project_Kelvin(hyperElasticState.Compute_GreenLagrange(), 2)
+        kinematics = Kinematics(groupElem, self.displacement, matrixType)
+        return Project_Kelvin(kinematics.Compute_GreenLagrange(), 2)
 
     def _Calc_SecondPiolaKirchhoff(self, groupElem=None, matrixType=MatrixType.rigi):
         if groupElem is None:
             groupElem = self.mesh.groupElem
-        hyperElasticState = HyperElasticState(groupElem, self.displacement, matrixType)
+        kinematics = Kinematics(groupElem, self.displacement, matrixType)
         # total PK2 = elastic ∂W/∂e + the active fiber stress (reported as one field,
         # even though the two are assembled by separate operators)
-        S_e_pg = self.material.Compute_dWde(hyperElasticState)
+        S_e_pg = self.material.Compute_dWde(kinematics)
         if np.any(self.material.active_stress != 0.0):
-            S_e_pg = S_e_pg + self.material.Compute_active_stress(hyperElasticState)
+            S_e_pg = S_e_pg + self.material.Compute_active_stress(kinematics)
         return S_e_pg
 
     def Results_Iter_Summary(

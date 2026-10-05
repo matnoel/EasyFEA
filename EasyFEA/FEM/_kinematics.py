@@ -3,22 +3,19 @@
 # This file is part of the EasyFEA project.
 # EasyFEA is distributed under the terms of the GNU General Public License v3, see LICENSE.txt and CREDITS.md for more information.
 
-"""Hyper elastic module used to compute matrices."""
+"""Kinematics module: strain measures of a displacement on a group of elements."""
 
 import numpy as np
 
-from ...FEM import MatrixType, _GroupElem
-from ...FEM._linalg import FeArray, Transpose, Det
-from ...Utilities import _types, _params
-from ...Utilities._cache import cache_computed_values
-
-# ------------------------------------------------------------------------------
-# Functions for matrices
-# ------------------------------------------------------------------------------
+from ._utils import MatrixType
+from ._group_elem import _GroupElem
+from ._linalg import FeArray, Transpose, Det
+from ..Utilities import _types, _params
+from ..Utilities._cache import cache_computed_values
 
 
-class HyperElasticState:
-    """Hyperelastic state."""
+class Kinematics:
+    """Displacement on a group of elements and its strain measures, each cached on first use."""
 
     @staticmethod
     def _CheckFormat(groupElem: _GroupElem, u: _types.FloatArray) -> None:
@@ -26,17 +23,15 @@ class HyperElasticState:
         Ncoords = groupElem.Ncoords
         errorDim = "wrong displacement field dimension"
         assert isinstance(u, np.ndarray) and u.size % Ncoords == 0, errorDim
-        dim = u.size // Ncoords
-        assert dim in [1, 2, 3], errorDim
 
     def __init__(
         self,
         groupElem: _GroupElem,
         displacement: _types.FloatArray,
-        matrixType: MatrixType,
+        matrixType: MatrixType = MatrixType.rigi,
     ):
         """
-        Hyperelastic state — the displacement configuration at which the material response is evaluated.
+        Kinematics — the displacement configuration at which a constitutive law is evaluated.
 
         Parameters
         ----------
@@ -44,8 +39,8 @@ class HyperElasticState:
             group of elements
         displacement : _types.FloatArray
             displacement field in (xi,yi,zi,...,xn,yn,zn) format
-        matrixType : MatrixType
-            matrix type
+        matrixType : MatrixType, optional
+            matrix type, by default MatrixType.rigi
         """
 
         self._CheckFormat(groupElem, displacement)
@@ -55,23 +50,27 @@ class HyperElasticState:
         self.__matrixType = matrixType
 
     @property
-    def groupElem(self):
+    def groupElem(self) -> _GroupElem:
         """group of elements."""
         return self.__groupElem
 
     @property
-    def displacement(self):
+    def displacement(self) -> _types.FloatArray:
         """displacement field in (xi,yi,zi,...,xn,yn,zn) format."""
         return self.__displacement
 
     @property
-    def matrixType(self):
+    def matrixType(self) -> MatrixType:
         """matrix type."""
         return self.__matrixType
 
-    @matrixType.setter
-    def matrixType(self, value: int | MatrixType):
-        self.__matrixType = value
+    @property
+    def displacement_e(self) -> FeArray.FeArrayALike:
+        """Element displacements of shape (Ne, 1, nPe*dof_n), recomputed on each access."""
+        dof_n = self.__displacement.size // self.__groupElem.Ncoords
+        return self.__groupElem.Locates_sol_e(
+            self.__displacement, dof_n, asFeArray=True
+        )
 
     def _GetDims(
         self,
@@ -81,6 +80,13 @@ class HyperElasticState:
         dim = self.__displacement.size // self.__groupElem.Ncoords
         nPg = self.__groupElem.Get_N_pg(self.__matrixType).shape[0]
         return (Ne, nPg, dim)
+
+    @cache_computed_values
+    def Compute_GradU(self) -> FeArray.FeArrayALike:
+        """Displacement gradient ``∇u`` at the Gauss points, padded to ``3×3``, shape ``(Ne, nPg, 3, 3)``."""
+        return self.__groupElem.Get_Gradient_e_pg(
+            self.__displacement, self.__matrixType
+        )
 
     @cache_computed_values
     def Compute_F(self) -> FeArray.FeArrayALike:
@@ -115,11 +121,7 @@ class HyperElasticState:
             Shape: ``(Ne, nPg, 3, 3)``.
         """
 
-        grad_e_pg = self.__groupElem.Get_Gradient_e_pg(
-            self.__displacement, self.__matrixType
-        )
-
-        F_e_pg = np.eye(3) + grad_e_pg
+        F_e_pg = np.eye(3) + self.Compute_GradU()
 
         return F_e_pg
 
@@ -254,38 +256,8 @@ class HyperElasticState:
             Shape: ``(Ne, nPg, 6)``.
         """
 
-        Ne, nPg, dim = self._GetDims()
-        assert dim in [2, 3]
-
-        # compute grad
-        grad_e_pg = self.__groupElem.Get_Gradient_e_pg(
-            self.__displacement, self.__matrixType
-        )[..., :dim, :dim]
-
-        # 2d: dxux, dyux, dxuy, dyuy
-        # 3d: dxux, dyux, dzu, dxuy, dyuy, dzuy, dxuz, dyuz, dzuz
-        gradAsVect_e_pg = np.reshape(grad_e_pg, (Ne, nPg, -1))
-
-        c = 2 ** (-1 / 2)
-
-        if dim == 2:
-            mat = np.array([[1, 0, 0, 0], [0, 0, 0, 1], [0, c, c, 0]])  # xx  # yy  # xy
-        else:
-            mat = np.array(
-                [
-                    [1, 0, 0, 0, 0, 0, 0, 0, 0],  # xx
-                    [0, 0, 0, 0, 1, 0, 0, 0, 0],  # yy
-                    [0, 0, 0, 0, 0, 0, 0, 0, 1],  # zz
-                    [0, 0, 0, 0, 0, c, 0, c, 0],  # yz
-                    [0, 0, c, 0, 0, 0, c, 0, 0],  # xz
-                    [0, c, 0, c, 0, 0, 0, 0, 0],  # xy
-                ]
-            )
-
-        mat = FeArray.asfearray(mat, True)
-        Eps_e_pg = mat @ gradAsVect_e_pg
-
-        return Eps_e_pg
+        B_e_pg = self.__groupElem.Get_B_e_pg(self.__matrixType)
+        return B_e_pg @ self.displacement_e
 
     def Compute_Edot_vec(self, velocity: _types.FloatArray) -> FeArray.FeArrayALike:
         """Green–Lagrange strain rate Ė in Kelvin–Mandel vector form.

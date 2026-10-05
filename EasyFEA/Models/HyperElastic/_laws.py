@@ -11,7 +11,7 @@ from typing import Callable
 
 # utilities
 from ...FEM import FeArray, TensorProd, Normalize
-from ._state import HyperElasticState
+from ...FEM import Kinematics
 
 # others
 from .._utils import _IModel, Project_matrix_to_vector
@@ -66,12 +66,12 @@ class _HyperElastic(_IModel, ABC):
         # once and only `active_stress` is updated each step.
         self.__TxT = Project_matrix_to_vector(TensorProd(T_hat, T_hat))  # (Ne, nPg, 6)
 
-    def Compute_active_stress(self, hyperElasticState: HyperElasticState) -> FeArray:
+    def Compute_active_stress(self, kinematics: Kinematics) -> FeArray:
         r"""Active PK2 contribution ``τ · (T̂ ⊗ T̂)`` in Kelvin-Mandel vector form, shape ``(Ne, pg, d)`` with ``d = 1, 3, 6`` for a `1D`, `2D` or `3D` solution — same layout as :meth:`Compute_dWde`.
 
         Strain-independent, hence **not** derivable from :meth:`Compute_W`: it is a non-conservative stress, delivered by its own operator :func:`Operators.NonLinear.ActiveStressTensor` exactly as Kelvin–Voigt viscosity is delivered by :func:`Operators.NonLinear.KelvinVoigtDamping`. Folding it into :meth:`Compute_dWde` would break ``Compute_dWde == ∂(Compute_W)/∂e`` and silently corrupt every energy-based algorithm.
 
-        The direction is registered in 3D once and for all, so the state — which knows the solution dimension — supplies the slice (in `2D` the out-of-plane fiber component drops out, as it does for the elastic stress under plane strain).
+        The direction is registered in 3D once and for all, so the kinematics — which knows the solution dimension — supplies the slice (in `2D` the out-of-plane fiber component drops out, as it does for the elastic stress under plane strain).
         """
         assert (
             self.__TxT is not None
@@ -91,7 +91,7 @@ class _HyperElastic(_IModel, ABC):
             # a rank-0 field, so FeArray._align pads it to (Ne, nPg, 1) against __TxT's (Ne, nPg, 6)
             magnitude = FeArray.asfearray(magnitude)
 
-        return hyperElasticState._Slice_Vector(magnitude * self.__TxT)
+        return kinematics._Slice_Vector(magnitude * self.__TxT)
 
     @property
     def coef(self) -> float:
@@ -109,13 +109,13 @@ class _HyperElastic(_IModel, ABC):
         return False
 
     @abstractmethod
-    def Compute_W(self, hyperElasticState: HyperElasticState) -> FeArray:
+    def Compute_W(self, kinematics: Kinematics) -> FeArray:
         """Computes the quadratic energy W(u).
 
         Parameters
         ----------
-        hyperElasticState : HyperElasticState
-            Hyperelastic state containing the mesh, the discretized field, and the matrix type.
+        kinematics : Kinematics
+            Hyperelastic kinematics containing the mesh, the discretized field, and the matrix type.
 
         Returns
         -------
@@ -126,7 +126,7 @@ class _HyperElastic(_IModel, ABC):
         return None  # type: ignore [return-value]
 
     @abstractmethod
-    def Compute_dWde(self, hyperElasticState: HyperElasticState) -> FeArray:
+    def Compute_dWde(self, kinematics: Kinematics) -> FeArray:
         """Computes the second Piola-Kirchhoff tensor ``Σ = ∂W/∂e``.
 
         **Invariant**: this is exactly the derivative of :meth:`Compute_W`. Stress
@@ -147,7 +147,7 @@ class _HyperElastic(_IModel, ABC):
         return None  # type: ignore [return-value]
 
     @abstractmethod
-    def Compute_d2Wde(self, hyperElasticState: HyperElasticState) -> FeArray:
+    def Compute_d2Wde(self, kinematics: Kinematics) -> FeArray:
         """Computes the consistent tangent ``∂²W/∂e² = ∂Σ/∂e``.
 
         Same invariant as :meth:`Compute_dWde`: strictly the second derivative of
@@ -190,26 +190,26 @@ class NeoHookean(_HyperElastic):
 
         self.K = K
 
-    def Compute_W(self, hyperElasticState: HyperElasticState) -> FeArray:
+    def Compute_W(self, kinematics: Kinematics) -> FeArray:
         K = self.K
 
-        I1 = hyperElasticState.Compute_I1()
-        I3 = hyperElasticState.Compute_I3()
+        I1 = kinematics.Compute_I1()
+        I3 = kinematics.Compute_I3()
 
         W = K * (I1 / I3 ** (1 / 3) - 3)
 
         return W
 
-    def Compute_dWde(self, hyperElasticState: HyperElasticState) -> FeArray:
+    def Compute_dWde(self, kinematics: Kinematics) -> FeArray:
         K = self.K
 
-        I1 = hyperElasticState.Compute_I1()
-        I3 = hyperElasticState.Compute_I3()
+        I1 = kinematics.Compute_I1()
+        I3 = kinematics.Compute_I3()
 
         dWdI1 = K / I3 ** (1 / 3)
         dWdI3 = -I1 * K / (3 * I3 ** (4 / 3))
-        dI1dC = hyperElasticState.Compute_dI1dC()
-        dI3dC = hyperElasticState.Compute_dI3dC()
+        dI1dC = kinematics.Compute_dI1dC()
+        dI3dC = kinematics.Compute_dI3dC()
 
         dWdI1 = K / I3 ** (1 / 3)
         dWdI3 = -I1 * K / (3 * I3 ** (4 / 3))
@@ -217,16 +217,16 @@ class NeoHookean(_HyperElastic):
 
         return dW
 
-    def Compute_d2Wde(self, hyperElasticState: HyperElasticState) -> FeArray:
+    def Compute_d2Wde(self, kinematics: Kinematics) -> FeArray:
         K = self.K
 
-        I1 = hyperElasticState.Compute_I1()
-        I3 = hyperElasticState.Compute_I3()
+        I1 = kinematics.Compute_I1()
+        I3 = kinematics.Compute_I3()
 
-        dI1dC = hyperElasticState.Compute_dI1dC()
-        dI3dC = hyperElasticState.Compute_dI3dC()
-        d2I1dC = hyperElasticState.Compute_d2I1dC()
-        d2I3dC = hyperElasticState.Compute_d2I3dC()
+        dI1dC = kinematics.Compute_dI1dC()
+        dI3dC = kinematics.Compute_dI3dC()
+        d2I1dC = kinematics.Compute_d2I1dC()
+        d2I3dC = kinematics.Compute_d2I3dC()
 
         dWdI1 = K / I3 ** (1 / 3)
         d2WdI1dI3 = -K / (3 * I3 ** (4 / 3))
@@ -289,14 +289,14 @@ class MooneyRivlin(_HyperElastic):
         self.K2 = K2
         self.K = K
 
-    def Compute_W(self, hyperElasticState: HyperElasticState) -> FeArray:
+    def Compute_W(self, kinematics: Kinematics) -> FeArray:
         K = self.K
         K1 = self.K1
         K2 = self.K2
 
-        I1 = hyperElasticState.Compute_I1()
-        I2 = hyperElasticState.Compute_I2()
-        I3 = hyperElasticState.Compute_I3()
+        I1 = kinematics.Compute_I1()
+        I2 = kinematics.Compute_I2()
+        I3 = kinematics.Compute_I3()
 
         W = (
             K * (np.sqrt(I3) - 1) ** 2
@@ -306,18 +306,18 @@ class MooneyRivlin(_HyperElastic):
 
         return W
 
-    def Compute_dWde(self, hyperElasticState: HyperElasticState) -> FeArray:
+    def Compute_dWde(self, kinematics: Kinematics) -> FeArray:
         K = self.K
         K1 = self.K1
         K2 = self.K2
 
-        I1 = hyperElasticState.Compute_I1()
-        I2 = hyperElasticState.Compute_I2()
-        I3 = hyperElasticState.Compute_I3()
+        I1 = kinematics.Compute_I1()
+        I2 = kinematics.Compute_I2()
+        I3 = kinematics.Compute_I3()
 
-        dI1dC = hyperElasticState.Compute_dI1dC()
-        dI2dC = hyperElasticState.Compute_dI2dC()
-        dI3dC = hyperElasticState.Compute_dI3dC()
+        dI1dC = kinematics.Compute_dI1dC()
+        dI2dC = kinematics.Compute_dI2dC()
+        dI3dC = kinematics.Compute_dI3dC()
 
         dWdI1 = K1 / I3 ** (1 / 3)
         dWdI2 = K2 / I3 ** (2 / 3)
@@ -331,22 +331,22 @@ class MooneyRivlin(_HyperElastic):
 
         return dW
 
-    def Compute_d2Wde(self, hyperElasticState: HyperElasticState) -> FeArray:
+    def Compute_d2Wde(self, kinematics: Kinematics) -> FeArray:
         K = self.K
         K1 = self.K1
         K2 = self.K2
 
-        I1 = hyperElasticState.Compute_I1()
-        I2 = hyperElasticState.Compute_I2()
-        I3 = hyperElasticState.Compute_I3()
+        I1 = kinematics.Compute_I1()
+        I2 = kinematics.Compute_I2()
+        I3 = kinematics.Compute_I3()
 
-        dI1dC = hyperElasticState.Compute_dI1dC()
-        dI2dC = hyperElasticState.Compute_dI2dC()
-        dI3dC = hyperElasticState.Compute_dI3dC()
+        dI1dC = kinematics.Compute_dI1dC()
+        dI2dC = kinematics.Compute_dI2dC()
+        dI3dC = kinematics.Compute_dI3dC()
 
-        d2I1dC = hyperElasticState.Compute_d2I1dC()
-        d2I2dC = hyperElasticState.Compute_d2I2dC()
-        d2I3dC = hyperElasticState.Compute_d2I3dC()
+        d2I1dC = kinematics.Compute_d2I1dC()
+        d2I2dC = kinematics.Compute_d2I2dC()
+        d2I3dC = kinematics.Compute_d2I3dC()
 
         dWdI1 = K1 / I3 ** (1 / 3)
         d2WdI1dI3 = -K1 / (3 * I3 ** (4 / 3))
@@ -423,14 +423,14 @@ class CiarletGeymonat(_HyperElastic):
         self.K2 = K2
         self.K = K
 
-    def Compute_W(self, hyperElasticState: HyperElasticState) -> FeArray:
+    def Compute_W(self, kinematics: Kinematics) -> FeArray:
         K = self.K
         K1 = self.K1
         K2 = self.K2
 
-        I1 = hyperElasticState.Compute_I1()
-        I2 = hyperElasticState.Compute_I2()
-        I3 = hyperElasticState.Compute_I3()
+        I1 = kinematics.Compute_I1()
+        I2 = kinematics.Compute_I2()
+        I3 = kinematics.Compute_I3()
 
         W = (
             K * (np.sqrt(I3) - np.log(np.sqrt(I3)) - 1)
@@ -440,18 +440,18 @@ class CiarletGeymonat(_HyperElastic):
 
         return W
 
-    def Compute_dWde(self, hyperElasticState: HyperElasticState) -> FeArray:
+    def Compute_dWde(self, kinematics: Kinematics) -> FeArray:
         K = self.K
         K1 = self.K1
         K2 = self.K2
 
-        I1 = hyperElasticState.Compute_I1()
-        I2 = hyperElasticState.Compute_I2()
-        I3 = hyperElasticState.Compute_I3()
+        I1 = kinematics.Compute_I1()
+        I2 = kinematics.Compute_I2()
+        I3 = kinematics.Compute_I3()
 
-        dI1dC = hyperElasticState.Compute_dI1dC()
-        dI2dC = hyperElasticState.Compute_dI2dC()
-        dI3dC = hyperElasticState.Compute_dI3dC()
+        dI1dC = kinematics.Compute_dI1dC()
+        dI2dC = kinematics.Compute_dI2dC()
+        dI3dC = kinematics.Compute_dI3dC()
 
         dWdI1 = K1 / I3 ** (1 / 3)
         dWdI2 = K2 / I3 ** (2 / 3)
@@ -465,22 +465,22 @@ class CiarletGeymonat(_HyperElastic):
 
         return dW
 
-    def Compute_d2Wde(self, hyperElasticState: HyperElasticState) -> FeArray:
+    def Compute_d2Wde(self, kinematics: Kinematics) -> FeArray:
         K = self.K
         K1 = self.K1
         K2 = self.K2
 
-        I1 = hyperElasticState.Compute_I1()
-        I2 = hyperElasticState.Compute_I2()
-        I3 = hyperElasticState.Compute_I3()
+        I1 = kinematics.Compute_I1()
+        I2 = kinematics.Compute_I2()
+        I3 = kinematics.Compute_I3()
 
-        dI1dC = hyperElasticState.Compute_dI1dC()
-        dI2dC = hyperElasticState.Compute_dI2dC()
-        dI3dC = hyperElasticState.Compute_dI3dC()
+        dI1dC = kinematics.Compute_dI1dC()
+        dI2dC = kinematics.Compute_dI2dC()
+        dI3dC = kinematics.Compute_dI3dC()
 
-        d2I1dC = hyperElasticState.Compute_d2I1dC()
-        d2I2dC = hyperElasticState.Compute_d2I2dC()
-        d2I3dC = hyperElasticState.Compute_d2I3dC()
+        d2I1dC = kinematics.Compute_d2I1dC()
+        d2I2dC = kinematics.Compute_d2I2dC()
+        d2I3dC = kinematics.Compute_d2I3dC()
 
         dWdI1 = K1 / I3 ** (1 / 3)
         d2WdI1dI3 = -K1 / (3 * I3 ** (4 / 3))
@@ -554,14 +554,14 @@ class SaintVenantKirchhoff(_HyperElastic):
         self.mu = mu
         self.K = K
 
-    def Compute_W(self, hyperElasticState: HyperElasticState) -> FeArray:
+    def Compute_W(self, kinematics: Kinematics) -> FeArray:
         lmbda = self.lmbda
         mu = self.mu
         K = self.K
 
-        I1 = hyperElasticState.Compute_I1()
-        I2 = hyperElasticState.Compute_I2()
-        I3 = hyperElasticState.Compute_I3()
+        I1 = kinematics.Compute_I1()
+        I2 = kinematics.Compute_I2()
+        I3 = kinematics.Compute_I3()
 
         W = (
             I1**2 * (lmbda / 8 + mu / 4)
@@ -574,17 +574,17 @@ class SaintVenantKirchhoff(_HyperElastic):
 
         return W
 
-    def Compute_dWde(self, hyperElasticState: HyperElasticState) -> FeArray:
+    def Compute_dWde(self, kinematics: Kinematics) -> FeArray:
         lmbda = self.lmbda
         mu = self.mu
         K = self.K
 
-        I1 = hyperElasticState.Compute_I1()
-        I3 = hyperElasticState.Compute_I3()
+        I1 = kinematics.Compute_I1()
+        I3 = kinematics.Compute_I3()
 
-        dI1dC = hyperElasticState.Compute_dI1dC()
-        dI2dC = hyperElasticState.Compute_dI2dC()
-        dI3dC = hyperElasticState.Compute_dI3dC()
+        dI1dC = kinematics.Compute_dI1dC()
+        dI2dC = kinematics.Compute_dI2dC()
+        dI3dC = kinematics.Compute_dI3dC()
 
         dWdI1 = 2 * I1 * (lmbda / 8 + mu / 4) - 3 * lmbda / 4 - mu / 2
         dWdI2 = -mu / 2
@@ -594,20 +594,20 @@ class SaintVenantKirchhoff(_HyperElastic):
 
         return dW
 
-    def Compute_d2Wde(self, hyperElasticState: HyperElasticState) -> FeArray:
+    def Compute_d2Wde(self, kinematics: Kinematics) -> FeArray:
         lmbda = self.lmbda
         mu = self.mu
         K = self.K
 
-        I1 = hyperElasticState.Compute_I1()
-        I3 = hyperElasticState.Compute_I3()
+        I1 = kinematics.Compute_I1()
+        I3 = kinematics.Compute_I3()
 
-        dI1dC = hyperElasticState.Compute_dI1dC()
-        dI3dC = hyperElasticState.Compute_dI3dC()
+        dI1dC = kinematics.Compute_dI1dC()
+        dI3dC = kinematics.Compute_dI3dC()
 
-        d2I1dC = hyperElasticState.Compute_d2I1dC()
-        d2I2dC = hyperElasticState.Compute_d2I2dC()
-        d2I3dC = hyperElasticState.Compute_d2I3dC()
+        d2I1dC = kinematics.Compute_d2I1dC()
+        d2I2dC = kinematics.Compute_d2I2dC()
+        d2I3dC = kinematics.Compute_d2I3dC()
 
         dWdI1 = 2 * I1 * (lmbda / 8 + mu / 4) - 3 * lmbda / 4 - mu / 2
         dWdI2 = -mu / 2
@@ -732,7 +732,7 @@ class HolzapfelOgden(_HyperElastic):
 
         self.__ks = ks
 
-    def Compute_W(self, hyperElasticState: HyperElasticState) -> FeArray:
+    def Compute_W(self, kinematics: Kinematics) -> FeArray:
         C0 = self.C0
         C1 = self.C1
         C2 = self.C2
@@ -748,12 +748,12 @@ class HolzapfelOgden(_HyperElastic):
         T2 = self.T2
         ks = self.__ks
 
-        I1 = hyperElasticState.Compute_I1()
-        I2 = hyperElasticState.Compute_I2()
-        I3 = hyperElasticState.Compute_I3()
-        I4 = hyperElasticState.Compute_I4(T1)
-        I6 = hyperElasticState.Compute_I6(T2)
-        I8 = hyperElasticState.Compute_I8(T1, T2)
+        I1 = kinematics.Compute_I1()
+        I2 = kinematics.Compute_I2()
+        I3 = kinematics.Compute_I3()
+        I4 = kinematics.Compute_I4(T1)
+        I6 = kinematics.Compute_I6(T2)
+        I8 = kinematics.Compute_I8(T1, T2)
 
         W = (
             C0 * (np.exp(C1 * (I1 / I3 ** (1 / 3) - 3)) - 1)
@@ -767,7 +767,7 @@ class HolzapfelOgden(_HyperElastic):
 
         return W
 
-    def Compute_dWde(self, hyperElasticState: HyperElasticState) -> FeArray:
+    def Compute_dWde(self, kinematics: Kinematics) -> FeArray:
         C0 = self.C0
         C1 = self.C1
         C2 = self.C2
@@ -783,19 +783,19 @@ class HolzapfelOgden(_HyperElastic):
         T2 = self.T2
         ks = self.__ks
 
-        I1 = hyperElasticState.Compute_I1()
-        I2 = hyperElasticState.Compute_I2()
-        I3 = hyperElasticState.Compute_I3()
-        I4 = hyperElasticState.Compute_I4(T1)
-        I6 = hyperElasticState.Compute_I6(T2)
-        I8 = hyperElasticState.Compute_I8(T1, T2)
+        I1 = kinematics.Compute_I1()
+        I2 = kinematics.Compute_I2()
+        I3 = kinematics.Compute_I3()
+        I4 = kinematics.Compute_I4(T1)
+        I6 = kinematics.Compute_I6(T2)
+        I8 = kinematics.Compute_I8(T1, T2)
 
-        dI1dC = hyperElasticState.Compute_dI1dC()
-        dI2dC = hyperElasticState.Compute_dI2dC()
-        dI3dC = hyperElasticState.Compute_dI3dC()
-        dI4dC = hyperElasticState.Compute_dI4dC(T1)
-        dI6dC = hyperElasticState.Compute_dI6dC(T2)
-        dI8dC = hyperElasticState.Compute_dI8dC(T1, T2)
+        dI1dC = kinematics.Compute_dI1dC()
+        dI2dC = kinematics.Compute_dI2dC()
+        dI3dC = kinematics.Compute_dI3dC()
+        dI4dC = kinematics.Compute_dI4dC(T1)
+        dI6dC = kinematics.Compute_dI6dC(T2)
+        dI8dC = kinematics.Compute_dI8dC(T1, T2)
 
         # see: examples/HyperElastic/HyperElasticLaws.py
         # Common subexpressions factored once (bit-identical to inlining).
@@ -831,7 +831,7 @@ class HolzapfelOgden(_HyperElastic):
 
         return dW
 
-    def Compute_d2Wde(self, hyperElasticState: HyperElasticState) -> FeArray:
+    def Compute_d2Wde(self, kinematics: Kinematics) -> FeArray:
         C0 = self.C0
         C1 = self.C1
         C2 = self.C2
@@ -847,23 +847,23 @@ class HolzapfelOgden(_HyperElastic):
         T2 = self.T2
         ks = self.__ks
 
-        I1 = hyperElasticState.Compute_I1()
-        I2 = hyperElasticState.Compute_I2()
-        I3 = hyperElasticState.Compute_I3()
-        I4 = hyperElasticState.Compute_I4(T1)
-        I6 = hyperElasticState.Compute_I6(T2)
-        I8 = hyperElasticState.Compute_I8(T1, T2)
+        I1 = kinematics.Compute_I1()
+        I2 = kinematics.Compute_I2()
+        I3 = kinematics.Compute_I3()
+        I4 = kinematics.Compute_I4(T1)
+        I6 = kinematics.Compute_I6(T2)
+        I8 = kinematics.Compute_I8(T1, T2)
 
-        dI1dC = hyperElasticState.Compute_dI1dC()
-        dI2dC = hyperElasticState.Compute_dI2dC()
-        dI3dC = hyperElasticState.Compute_dI3dC()
-        dI4dC = hyperElasticState.Compute_dI4dC(T1)
-        dI6dC = hyperElasticState.Compute_dI6dC(T2)
-        dI8dC = hyperElasticState.Compute_dI8dC(T1, T2)
+        dI1dC = kinematics.Compute_dI1dC()
+        dI2dC = kinematics.Compute_dI2dC()
+        dI3dC = kinematics.Compute_dI3dC()
+        dI4dC = kinematics.Compute_dI4dC(T1)
+        dI6dC = kinematics.Compute_dI6dC(T2)
+        dI8dC = kinematics.Compute_dI8dC(T1, T2)
 
-        d2I1dC = hyperElasticState.Compute_d2I1dC()
-        d2I2dC = hyperElasticState.Compute_d2I2dC()
-        d2I3dC = hyperElasticState.Compute_d2I3dC()
+        d2I1dC = kinematics.Compute_d2I1dC()
+        d2I2dC = kinematics.Compute_d2I2dC()
+        d2I3dC = kinematics.Compute_d2I3dC()
         # d2I4dC = d2I6dC = d2I8dC = 0 (I4/I6/I8 are linear in C), so their
         # `dWdI* * d2I*dC` contributions below are identically zero and are
         # dropped (each would otherwise broadcast/allocate a full (Ne,nPg,6,6)
@@ -954,17 +954,17 @@ def HyperElasticPotential(
     dW_field = Vmap_e_pg(jax.grad(W_kelvin), in_axes)
     d2W_field = Vmap_e_pg(jax.hessian(W_kelvin), in_axes)
 
-    def Kelvin_C(state: HyperElasticState) -> FeArray.FeArrayALike:
-        return Project_matrix_to_vector(state.Compute_C())
+    def Kelvin_C(kinematics: Kinematics) -> FeArray.FeArrayALike:
+        return Project_matrix_to_vector(kinematics.Compute_C())
 
-    def Compute_W(state: HyperElasticState, *aux) -> FeArray:
-        return W_field(Kelvin_C(state), *aux)
+    def Compute_W(kinematics: Kinematics, *aux) -> FeArray:
+        return W_field(Kelvin_C(kinematics), *aux)
 
-    def Compute_dWde(state: HyperElasticState, *aux) -> FeArray:
-        return state._Slice_Vector(2 * dW_field(Kelvin_C(state), *aux))
+    def Compute_dWde(kinematics: Kinematics, *aux) -> FeArray:
+        return kinematics._Slice_Vector(2 * dW_field(Kelvin_C(kinematics), *aux))
 
-    def Compute_d2Wde(state: HyperElasticState, *aux) -> FeArray:
-        return state._Slice_Matrix(4 * d2W_field(Kelvin_C(state), *aux))
+    def Compute_d2Wde(kinematics: Kinematics, *aux) -> FeArray:
+        return kinematics._Slice_Matrix(4 * d2W_field(Kelvin_C(kinematics), *aux))
 
     return (Compute_W, Compute_dWde, Compute_d2Wde)
 
@@ -992,7 +992,7 @@ class AutoDiff(_HyperElastic):
         W : Callable
             ``W(C, *aux)`` for one material point, with ``C`` the ``(3, 3)`` right Cauchy-Green tensor
         aux : tuple, optional
-            fields ``W`` takes after ``C``, fibre directions for instance. Held here because the operators call ``Compute_dWde(state)`` with nothing else.
+            fields ``W`` takes after ``C``, fibre directions for instance. Held here because the operators call ``Compute_dWde(kinematics)`` with nothing else.
         in_axes : int | tuple, optional
             which arguments vary per point, as :func:`jax.vmap` reads it
         thickness : float, optional
@@ -1016,15 +1016,15 @@ class AutoDiff(_HyperElastic):
         """Drops the jax closures, which pickle cannot take. ``W`` must be picklable: define it at module level and bind its parameters with :func:`functools.partial`."""
         return {k: v for k, v in self.__dict__.items() if k not in self.__DERIVED}
 
-    def __setstate__(self, state: dict) -> None:
-        self.__dict__.update(state)
+    def __setstate__(self, kinematics: dict) -> None:
+        self.__dict__.update(kinematics)
         self.__Build()
 
-    def Compute_W(self, hyperElasticState: HyperElasticState) -> FeArray:
-        return self.__W(hyperElasticState, *self.__aux)
+    def Compute_W(self, kinematics: Kinematics) -> FeArray:
+        return self.__W(kinematics, *self.__aux)
 
-    def Compute_dWde(self, hyperElasticState: HyperElasticState) -> FeArray:
-        return self.__dWde(hyperElasticState, *self.__aux)
+    def Compute_dWde(self, kinematics: Kinematics) -> FeArray:
+        return self.__dWde(kinematics, *self.__aux)
 
-    def Compute_d2Wde(self, hyperElasticState: HyperElasticState) -> FeArray:
-        return self.__d2Wde(hyperElasticState, *self.__aux)
+    def Compute_d2Wde(self, kinematics: Kinematics) -> FeArray:
+        return self.__d2Wde(kinematics, *self.__aux)

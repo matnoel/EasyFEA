@@ -11,6 +11,7 @@ from ._linalg import FeArray, Transpose, Trace, Det, Inv, TensorProd, Norm, Norm
 from ._mesh import Mesh, Load_Mesh, Calc_projector, Mesh_Optim
 from ._mesher import Mesher
 from ._utils import ElemType, MatrixType
+from ._kinematics import Kinematics
 
 # must be after the import of FeArray, _GroupElem, MatrixType
 from ._field import Field, Sym_Grad

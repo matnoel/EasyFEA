@@ -24,7 +24,7 @@ import numpy as np
 
 from EasyFEA import Terminal, Models, ElemType, MatrixType
 from EasyFEA.Models._autodiff import Enable_x64
-from EasyFEA.Models.HyperElastic._state import HyperElasticState
+from EasyFEA.FEM import Kinematics
 from EasyFEA.FEM._linalg import FeArray
 from EasyFEA.Geoms import Domain, Point
 
@@ -119,13 +119,13 @@ if __name__ == "__main__":
         )
 
     # ----------------------------------------------
-    # A state to evaluate them on
+    # A kinematics to evaluate them on
     # ----------------------------------------------
     mesh = Domain(Point(0, 0, 0), Point(1, 1, 0), meshSize=0.5).Mesh_Extrude(
         [], [0, 0, 1], [2], ElemType.HEXA8
     )
     u = np.random.default_rng(0).normal(0.0, 0.02, mesh.Nn * 3)
-    state = HyperElasticState(mesh.groupElem, u, MatrixType.rigi)
+    kinematics = Kinematics(mesh.groupElem, u, MatrixType.rigi)
 
     # a fibre field, not a constant. FeArray, or a bare (Ne, nPg, 3) reads as one big tensor.
     Ne, nPg = mesh.Ne, mesh.groupElem.Get_gauss(MatrixType.rigi).nPg
@@ -149,8 +149,8 @@ if __name__ == "__main__":
     for potential, shipped, aux in LAWS:
         W, dWde, d2Wde = Models.HyperElastic.HyperElasticPotential(potential)
         errors = (
-            rel(W(state, *aux), shipped.Compute_W(state)),
-            rel(dWde(state, *aux), shipped.Compute_dWde(state)),
-            rel(d2Wde(state, *aux), shipped.Compute_d2Wde(state)),
+            rel(W(kinematics, *aux), shipped.Compute_W(kinematics)),
+            rel(dWde(kinematics, *aux), shipped.Compute_dWde(kinematics)),
+            rel(d2Wde(kinematics, *aux), shipped.Compute_d2Wde(kinematics)),
         )
         print(f"{type(shipped).__name__:24s}" + "".join(f"{e:12.2e}" for e in errors))

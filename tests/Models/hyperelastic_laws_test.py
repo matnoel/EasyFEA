@@ -6,7 +6,7 @@
 import pytest
 import numpy as np
 
-from EasyFEA import ElemType, Models, Simulations
+from EasyFEA import ElemType, FEM, Models, Simulations
 from EasyFEA.FEM._linalg import Trace, TensorProd
 from EasyFEA.Models import Project_Kelvin
 from EasyFEA.Geoms import Domain
@@ -50,22 +50,20 @@ class TestSaintVenantKirchhoff:
             3, matIsot.get_lambda(), matIsot.get_mu()
         )
 
-        hyperElasticState = Models.HyperElastic.HyperElasticState(
-            mesh.groupElem, u, matrixType
-        )
+        kinematics = FEM.Kinematics(mesh.groupElem, u, matrixType)
 
         # test W
-        E = hyperElasticState.Compute_GreenLagrange()
+        E = kinematics.Compute_GreenLagrange()
         # W_hyper = 1/2 * mat.lmbda * Trace(E)**2 + mat.mu * E.ddot(E)
         W_hyper = 1 / 2 * mat.lmbda * Trace(E) ** 2 + mat.mu * Trace(E @ E)
-        W_e_pg = mat.Compute_W(hyperElasticState)
+        W_e_pg = mat.Compute_W(kinematics)
         diff_w = W_hyper - W_e_pg
         assert np.linalg.norm(diff_w) / np.linalg.norm(W_hyper) < 1e-11
 
         # test dW
         I = np.array([1, 1, 1, 0, 0, 0])
         dW_hyper = mat.lmbda * Trace(E) * I + 2 * mat.mu * Project_Kelvin(E, 2)
-        dW_e_pg = mat.Compute_dWde(hyperElasticState)
+        dW_e_pg = mat.Compute_dWde(kinematics)
         diff_dW = dW_hyper - dW_e_pg
         assert np.linalg.norm(diff_dW) / np.linalg.norm(dW_hyper) < 1e-11
 
@@ -73,6 +71,6 @@ class TestSaintVenantKirchhoff:
         d2W_hyper = mat.lmbda * TensorProd(I, I) + 2 * mat.mu * Project_Kelvin(
             TensorProd(np.eye(3), np.eye(3), symmetric=True)
         )
-        d2W_e_pg = mat.Compute_d2Wde(hyperElasticState)
+        d2W_e_pg = mat.Compute_d2Wde(kinematics)
         diff_d2W = d2W_hyper - d2W_e_pg
         assert np.linalg.norm(diff_d2W) / np.linalg.norm(d2W_hyper) < 1e-11

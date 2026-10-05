@@ -11,7 +11,7 @@ import numpy as np
 from .._linalg import FeArray
 from .._utils import MatrixType
 from ...Models._utils import Project_matrix_to_vector, Project_vector_to_matrix
-from ...Models.HyperElastic._state import HyperElasticState
+from .._kinematics import Kinematics
 
 if TYPE_CHECKING:
     from .._group_elem import _GroupElem
@@ -33,25 +33,25 @@ _BLOCK_GRAD_B_ATTR = "_block_grad_B_cache"
 
 
 def __block_grad_B(
-    state: "HyperElasticState",
+    kinematics: "Kinematics",
 ) -> tuple["FeArray", "FeArray"]:
     """Block gradient operator ``grad`` and ``B = De(u)·grad``.
 
     ``grad`` maps nodal dofs (laid out ``xi,...,xn,yi,...,yn,...``) to the flat displacement gradient; ``B`` is the nonlinear (Green-Lagrange) strain- displacement operator. Shared by :func:`SecondPiolaKirchhoffStressTensor` and :func:`KelvinVoigtDamping`.
 
-    Within one assembly the same ``state`` is handed to both operators, so the
-    result is memoized **on the state object** (not in any module-level
-    container): the cache lives and dies with that transient state, which both
+    Within one assembly the same ``kinematics`` is handed to both operators, so the
+    result is memoized **on the kinematics object** (not in any module-level
+    container): the cache lives and dies with that transient kinematics, which both
     avoids rebuilding the identical ``grad``/``B`` twice and cannot accumulate.
     """
-    cached = getattr(state, _BLOCK_GRAD_B_ATTR, None)
+    cached = getattr(kinematics, _BLOCK_GRAD_B_ATTR, None)
     if cached is not None:
         return cached
 
-    groupElem = state.groupElem
-    matrixType = state.matrixType
+    groupElem = kinematics.groupElem
+    matrixType = kinematics.matrixType
     dN_e_pg = groupElem.Get_dN_e_pg(matrixType)
-    De_e_pg = state.Compute_De()
+    De_e_pg = kinematics.Compute_De()
 
     Ne, nPg = dN_e_pg.shape[:2]
     nPe = groupElem.nPe
@@ -66,13 +66,13 @@ def __block_grad_B(
 
     B_e_pg = De_e_pg @ grad_e_pg
     result = (grad_e_pg, B_e_pg)
-    setattr(state, _BLOCK_GRAD_B_ATTR, result)
+    setattr(kinematics, _BLOCK_GRAD_B_ATTR, result)
     return result
 
 
 def __geometric_tangent(
     wJ_e_pg: "FeArray",
-    state: "HyperElasticState",
+    kinematics: "Kinematics",
     dWde_e_pg: "FeArray",
 ) -> np.ndarray:
     r"""Geometric (initial-stress) tangent ``∫ gradᵀ · Sig · grad dΩ``.
@@ -86,10 +86,10 @@ def __geometric_tangent(
 
     i.e. ``Kgeo[j·nPe+a, k·nPe+b] = δ_{jk} · g[a,b]``. This avoids building the dense ``(Ne, nPg, dim², dim²)`` ``Sig`` and the ``dim²``-wide contraction.
     """
-    groupElem = state.groupElem
+    groupElem = kinematics.groupElem
     Ne, dim, nPe = groupElem.Ne, groupElem.dim, groupElem.nPe
     sig_e_pg = Project_vector_to_matrix(dWde_e_pg)  # (Ne, nPg, dim, dim)
-    dN_e_pg = groupElem.Get_dN_e_pg(state.matrixType)  # (Ne, nPg, dim, nPe)
+    dN_e_pg = groupElem.Get_dN_e_pg(kinematics.matrixType)  # (Ne, nPg, dim, nPe)
     g_e = einsum("ep,epab,epac,epcd->ebd", wJ_e_pg, dN_e_pg, sig_e_pg, dN_e_pg)
     return einsum("eab,jk->ejakb", g_e, np.eye(dim)).reshape(Ne, dim * nPe, dim * nPe)
 
@@ -121,27 +121,27 @@ def __reorder_dofs(dim: int, nPe: int, *arrays: np.ndarray) -> tuple[np.ndarray,
 
 def __second_piola_block(
     wJ_e_pg: "FeArray",
-    state: "HyperElasticState",
+    kinematics: "Kinematics",
     dWde_e_pg: "FeArray",
     d2Wde_e_pg: "FeArray",
 ) -> tuple[np.ndarray, np.ndarray]:
-    r"""Residual and material+geometric d2Wde for a Kelvin-Mandel dWde / d2Wde sampled at ``state`` — the shared core of the hyperelastic dWde operators::
+    r"""Residual and material+geometric d2Wde for a Kelvin-Mandel dWde / d2Wde sampled at ``kinematics`` — the shared core of the hyperelastic dWde operators::
 
         R_e     = ∫ Bᵀ · dWde dΩ
         K_block = ∫ Bᵀ · d2Wde · B dΩ  +  ∫ gradᵀ (I ⊗ dWde) grad dΩ
 
-    Both component-major (``xi,...,xn,yi,...``), before the shared reorder. The fused einsum contracts the strain and Gauss-point axes in one pass, avoiding the per-Gauss ``(Ne, nPg, ndof, ndof)`` intermediate a chained ``Bᵀ @ d2Wde @ B`` would build (summation order differs from the matmul chain, so results match only to ~1e-14 relative). :func:`SecondPiolaKirchhoffStressTensor` feeds the constitutive ``(dWde, d2Wde)``; :func:`GonzalezStressTensor` feeds the discrete-gradient ``(Ŝ, ℂ̄)`` at the midpoint state.
+    Both component-major (``xi,...,xn,yi,...``), before the shared reorder. The fused einsum contracts the strain and Gauss-point axes in one pass, avoiding the per-Gauss ``(Ne, nPg, ndof, ndof)`` intermediate a chained ``Bᵀ @ d2Wde @ B`` would build (summation order differs from the matmul chain, so results match only to ~1e-14 relative). :func:`SecondPiolaKirchhoffStressTensor` feeds the constitutive ``(dWde, d2Wde)``; :func:`GonzalezStressTensor` feeds the discrete-gradient ``(Ŝ, ℂ̄)`` at the midpoint kinematics.
     """
-    _, B_e_pg = __block_grad_B(state)
+    _, B_e_pg = __block_grad_B(kinematics)
     A_lin = einsum("ep,epji,epjk,epkl->eil", wJ_e_pg, B_e_pg, d2Wde_e_pg, B_e_pg)
-    A_geo = __geometric_tangent(wJ_e_pg, state, dWde_e_pg)
+    A_geo = __geometric_tangent(wJ_e_pg, kinematics, dWde_e_pg)
     residual_e = einsum("ep,epi,epij->ej", wJ_e_pg, dWde_e_pg, B_e_pg)
     return A_lin + A_geo, residual_e
 
 
 def SecondPiolaKirchhoffStressTensor(
     material: "_HyperElastic",
-    state: "HyperElasticState",
+    kinematics: "Kinematics",
 ) -> tuple[np.ndarray, np.ndarray]:
     """Tangent and residual for a hyperelastic constitutive law.
 
@@ -149,9 +149,9 @@ def SecondPiolaKirchhoffStressTensor(
 
     The operator pulls
 
-    - ``De_e_pg`` from ``state.Compute_De()`` — kinematic operator,
-    - ``dWde_e_pg`` from ``material.Compute_dWde(state)`` — PK2 in Kelvin-Mandel vector form (strictly ``∂W/∂e``; the non-conservative stresses have their own operators),
-    - ``d2Wde_e_pg`` from ``material.Compute_d2Wde(state)`` — consistent tangent in Kelvin-Mandel matrix form,
+    - ``De_e_pg`` from ``kinematics.Compute_De()`` — kinematic operator,
+    - ``dWde_e_pg`` from ``material.Compute_dWde(kinematics)`` — PK2 in Kelvin-Mandel vector form (strictly ``∂W/∂e``; the non-conservative stresses have their own operators),
+    - ``d2Wde_e_pg`` from ``material.Compute_d2Wde(kinematics)`` — consistent tangent in Kelvin-Mandel matrix form,
 
     and assembles::
 
@@ -166,9 +166,9 @@ def SecondPiolaKirchhoffStressTensor(
     Parameters
     ----------
     material
-        Hyperelastic constitutive law — supplies ``Compute_dWde(state)`` and ``Compute_d2Wde(state)``.
-    state
-        Hyperelastic state — owns the mesh and the current displacement.
+        Hyperelastic constitutive law — supplies ``Compute_dWde(kinematics)`` and ``Compute_d2Wde(kinematics)``.
+    kinematics
+        Hyperelastic kinematics — owns the mesh and the current displacement.
 
     Returns
     -------
@@ -178,17 +178,17 @@ def SecondPiolaKirchhoffStressTensor(
         Internal residual force.
     """
 
-    groupElem = state.groupElem
-    matrixType = state.matrixType
+    groupElem = kinematics.groupElem
+    matrixType = kinematics.matrixType
     wJ_e_pg = groupElem.Get_weightedJacobian_e_pg(matrixType)
     nPe = groupElem.nPe
     dim = groupElem.dim
 
     tangent_e, residual_e = __second_piola_block(
         wJ_e_pg,
-        state,
-        material.Compute_dWde(state),
-        material.Compute_d2Wde(state),
+        kinematics,
+        material.Compute_dWde(kinematics),
+        material.Compute_d2Wde(kinematics),
     )
 
     return __reorder_dofs(dim, nPe, tangent_e, residual_e)
@@ -196,9 +196,9 @@ def SecondPiolaKirchhoffStressTensor(
 
 def GonzalezStressTensor(
     material: "_HyperElastic",
-    state_n: "HyperElasticState",
-    state_mid: "HyperElasticState",
-    state_np1: "HyperElasticState",
+    kinematics_n: "Kinematics",
+    kinematics_mid: "Kinematics",
+    kinematics_np1: "Kinematics",
     useConsistentTangent: bool = True,
 ) -> tuple[np.ndarray, np.ndarray]:
     r"""Energy-conserving (Gonzalez / Simo-Tarnow) tangent and residual.
@@ -213,7 +213,7 @@ def GonzalezStressTensor(
 
     Tangent — the **consistent** Jacobian ``∂R_e/∂u_{n+1}``, built for :attr:`~EasyFEA.AlgoType.midpoint`'s ``coefK = 0.5``::
 
-        coefK · K_e = ½[ ∫ B_midᵀ ℂ̄ B_mid dΩ + A_geo(state_mid, Ŝ) ]   # midpoint block, raw
+        coefK · K_e = ½[ ∫ B_midᵀ ℂ̄ B_mid dΩ + A_geo(kinematics_mid, Ŝ) ]   # midpoint block, raw
                     + α ∫ B_midᵀ B_{n+1} dΩ  +  ∫ (B_midᵀ Δe) ⊗ g dΩ    # corrections, pre-doubled
 
     The midpoint block is returned raw so ``coefK`` supplies its ``∂ū/∂u_{n+1} = ½`` chain factor, while the discrete-gradient corrections are genuine ``∂/∂u_{n+1}`` terms and are pre-doubled to survive it; ``g = ∂α/∂u_{n+1}`` and both corrections vanish where ``Δe·Δe ≤ ε₀``. The rank-1 term makes ``K_e`` non-symmetric.
@@ -222,8 +222,8 @@ def GonzalezStressTensor(
     ----------
     material
         Hyperelastic constitutive law — supplies ``Compute_W`` / ``Compute_dWde`` / ``Compute_d2Wde``.
-    state_n, state_mid, state_np1
-        Hyperelastic states at ``u_n``, ``ū`` and ``u_{n+1}`` (same group / matrix type).
+    kinematics_n, kinematics_mid, kinematics_np1
+        Hyperelastic kinematics at ``u_n``, ``ū`` and ``u_{n+1}`` (same group / matrix type).
     useConsistentTangent
         If False, keep only the midpoint block: same residual, linear Newton convergence.
 
@@ -237,23 +237,25 @@ def GonzalezStressTensor(
 
     eps0 = 1e-10
 
-    groupElem = state_mid.groupElem
-    matrixType = state_mid.matrixType
+    groupElem = kinematics_mid.groupElem
+    matrixType = kinematics_mid.matrixType
     wJ_e_pg = groupElem.Get_weightedJacobian_e_pg(matrixType)
     nPe = groupElem.nPe
     dim = groupElem.dim
 
     # --- 1. discrete-gradient stress  Ŝ = s̄ + α Δe ---
-    s_mid = material.Compute_dWde(state_mid)  # s̄   (Ne, nPg, d)
-    C_mid = material.Compute_d2Wde(state_mid)  # ℂ̄   (Ne, nPg, d, d)
+    s_mid = material.Compute_dWde(kinematics_mid)  # s̄   (Ne, nPg, d)
+    C_mid = material.Compute_d2Wde(kinematics_mid)  # ℂ̄   (Ne, nPg, d, d)
     # Kelvin-Mandel strain increment Δe = E(u_{n+1}) − E(u_n), sliced to `d` so it
     # shares s̄'s basis; the √2 shear factor makes s̄:ΔE = s̄·Δe a plain FeArray dot.
-    E_n = Project_matrix_to_vector(state_n.Compute_GreenLagrange())
-    E_np1 = Project_matrix_to_vector(state_np1.Compute_GreenLagrange())
-    dE = state_mid._Slice_Vector(E_np1 - E_n)
+    E_n = Project_matrix_to_vector(kinematics_n.Compute_GreenLagrange())
+    E_np1 = Project_matrix_to_vector(kinematics_np1.Compute_GreenLagrange())
+    dE = kinematics_mid._Slice_Vector(E_np1 - E_n)
 
     # numerator N = ΔW − s̄·Δe
-    N = (material.Compute_W(state_np1) - material.Compute_W(state_n)) - s_mid.dot(dE)
+    N = (
+        material.Compute_W(kinematics_np1) - material.Compute_W(kinematics_n)
+    ) - s_mid.dot(dE)
     dEdE = dE.dot(dE)  # Δe·Δe
     # guard the vanishing denominator: α = 0 where Δe·Δe ≤ ε₀ (invD = 0 there)
     inv_dEdE = np.divide(1.0, dEdE, out=np.zeros_like(dEdE), where=dEdE > eps0)
@@ -263,15 +265,15 @@ def GonzalezStressTensor(
     # --- 2. residual + midpoint material/geometric block (shared with SPK) ---
     # Built RAW so it rides coefK = 0.5's ∂ū/∂u_{n+1} = ½ chain factor exactly like
     # SecondPiolaKirchhoffStressTensor; the geometric block carries the full Ŝ.
-    tangent_e, residual_e = __second_piola_block(wJ_e_pg, state_mid, S_hat, C_mid)
+    tangent_e, residual_e = __second_piola_block(wJ_e_pg, kinematics_mid, S_hat, C_mid)
 
     if useConsistentTangent:
         # --- 3. discrete-gradient tangent corrections  (∂α/∂u_{n+1}) ---
         # Genuine ∂/∂u_{n+1} terms (no ½ chain factor) → pre-doubled to survive coefK = 0.5;
         # they vanish where α = 0 (invD = 0). The rank-1 term makes K non-symmetric.
-        _, B_mid = __block_grad_B(state_mid)  # cache hit (built in phase 2)
-        _, B_np1 = __block_grad_B(state_np1)
-        s_np1 = material.Compute_dWde(state_np1)  # S(E(u_{n+1}))
+        _, B_mid = __block_grad_B(kinematics_mid)  # cache hit (built in phase 2)
+        _, B_np1 = __block_grad_B(kinematics_np1)
+        s_np1 = material.Compute_dWde(kinematics_np1)  # S(E(u_{n+1}))
         v = C_mid @ dE  # ℂ̄ : Δe
         # dof-covector g = ∂α/∂u_{n+1}
         g = inv_dEdE * (B_np1.T @ s_np1 - 0.5 * (B_mid.T @ v) - B_np1.T @ s_mid) - (
@@ -293,7 +295,7 @@ def __clenshaw_curtis(nPoints: int) -> tuple[tuple[float, ...], tuple[float, ...
 
     Nodes are the Chebyshev extrema ``cos(kπ/n)`` (``n = nPoints - 1``) rescaled to the unit interval and returned in **increasing** order; weights come from the direct closed form (Trefethen, *Spectral Methods in MATLAB*, ``clencurt``) and sum to 1. ``nPoints = 1`` is the midpoint convention (single node at ``½``).
 
-    The classical rules fall out of the same formula — ``nPoints = 1, 2, 3`` are the midpoint, trapezoid and Simpson rules — so nothing downstream special-cases them, and more points converge spectrally for a smooth integrand. The endpoints are *exactly* ``0`` and ``1``, which :func:`TimeQuadratureStressTensor` relies on to reuse the two genuine end states rather than interpolate a strain there.
+    The classical rules fall out of the same formula — ``nPoints = 1, 2, 3`` are the midpoint, trapezoid and Simpson rules — so nothing downstream special-cases them, and more points converge spectrally for a smooth integrand. The endpoints are *exactly* ``0`` and ``1``, which :func:`TimeQuadratureStressTensor` relies on to reuse the two genuine end kinematics rather than interpolate a strain there.
 
     Returns tuples rather than arrays on purpose: the result is cached, and a mutable array handed out repeatedly could be modified in place by a caller and silently corrupt every later call. Cached because the same handful of rules is requested at every Newton iteration.
     """
@@ -326,37 +328,41 @@ def __clenshaw_curtis(nPoints: int) -> tuple[tuple[float, ...], tuple[float, ...
     return tuple(nodes), tuple(0.5 * w[::-1])
 
 
-class _StrainPathState(HyperElasticState):
+class _StrainPathKinematics(Kinematics):
     """A point of the segment ``C(s) = C_n + s (C_{n+1} - C_n)`` — the strain path integrated by :func:`TimeQuadratureStressTensor`.
 
-    No displacement field produces such a strain, so only the constitutive response is defined: a law reads a state through the invariants ``I1…I8``, which all descend from :meth:`Compute_C`. The kinematic quantities raise.
+    No displacement field produces such a strain, so only the constitutive response is defined: a law reads a kinematics through the invariants ``I1…I8``, which all descend from :meth:`Compute_C`. The kinematic quantities raise.
 
     :meth:`_sliced` builds a holder over an explicit ``C`` — used by the per-element adaptive path to evaluate the response on the still-refining subset of elements. ``Ne``/``nPg`` therefore come from the stored ``C`` (:meth:`_GetDims`), not from the group, so the two constructors stay consistent whether ``C`` spans the whole block or a subset.
     """
 
     def __init__(
         self,
-        state_n: HyperElasticState,
-        state_np1: HyperElasticState,
+        kinematics_n: Kinematics,
+        kinematics_np1: Kinematics,
         s: float,
     ):
-        """``s = 0`` sits at ``state_n``, ``s = 1`` at ``state_np1``."""
-        assert state_n.groupElem is state_np1.groupElem, "states must share their group"
+        """``s = 0`` sits at ``kinematics_n``, ``s = 1`` at ``kinematics_np1``."""
         assert (
-            state_n.matrixType == state_np1.matrixType
-        ), "states must share matrixType"
+            kinematics_n.groupElem is kinematics_np1.groupElem
+        ), "kinematics must share their group"
+        assert (
+            kinematics_n.matrixType == kinematics_np1.matrixType
+        ), "kinematics must share matrixType"
 
         # the displacement only fixes the solution dimension, it does not generate the strain
-        super().__init__(state_n.groupElem, state_n.displacement, state_n.matrixType)
+        super().__init__(
+            kinematics_n.groupElem, kinematics_n.displacement, kinematics_n.matrixType
+        )
 
-        C_n = state_n.Compute_C()
-        self.__C_e_pg = C_n + s * (state_np1.Compute_C() - C_n)
+        C_n = kinematics_n.Compute_C()
+        self.__C_e_pg = C_n + s * (kinematics_np1.Compute_C() - C_n)
 
     @classmethod
-    def _sliced(cls, template: HyperElasticState, C_e_pg) -> "_StrainPathState":
-        """Holder over an explicit ``C_e_pg`` (typically an element subset of a path state). ``template`` lends its group / displacement / matrixType — used only for the scalar ``dim`` — while ``Ne``/``nPg`` come from ``C_e_pg``."""
+    def _sliced(cls, template: Kinematics, C_e_pg) -> "_StrainPathKinematics":
+        """Holder over an explicit ``C_e_pg`` (typically an element subset of a path kinematics). ``template`` lends its group / displacement / matrixType — used only for the scalar ``dim`` — while ``Ne``/``nPg`` come from ``C_e_pg``."""
         obj = cls.__new__(cls)
-        HyperElasticState.__init__(
+        Kinematics.__init__(
             obj, template.groupElem, template.displacement, template.matrixType
         )
         obj.__C_e_pg = C_e_pg
@@ -383,34 +389,38 @@ class _StrainPathState(HyperElasticState):
 
 def __AdaptiveTimeQuadratureStressTensor(
     material: "_HyperElastic",
-    state_n: "HyperElasticState",
-    state_np1: "HyperElasticState",
+    kinematics_n: "Kinematics",
+    kinematics_np1: "Kinematics",
     coefK: float,
     tol: float,
     maxPoints: int,
 ) -> tuple["FeArray", "FeArray", int]:
     r"""Per-element adaptive strain-path quadrature — the ``tol``-driven path of :func:`TimeQuadratureStressTensor`.
 
-    Each element refines along the nested chain ``1, 3, 5, 9, …`` (capped at ``maxPoints``) until *its own* integrated energy defect is within ``tol`` — ``Σ_p V_(ep) |S:Δe − ΔW| ≤ tol · Σ_p V_(ep) |ΔW|``, ``V_(ep)`` the Gauss-point volume — then freezes, so points are spent only where the step is nonlinear. The defect is the quadrature error of the exact identity ``S:Δe = ΔW`` (``ΔW`` known from the endpoints), so the test is absolute; taking ``|·|`` before summing bounds the element's real energy drift and is safe against Gauss-point sign cancellation. Only still-active elements are evaluated at each level (via :meth:`_StrainPathState._sliced`), so cost tracks the hard elements. Returns ``(dWde_quad, d2Wde_quad, nPts_e)``, each row carrying its element's accepted rule and point count.
+    Each element refines along the nested chain ``1, 3, 5, 9, …`` (capped at ``maxPoints``) until *its own* integrated energy defect is within ``tol`` — ``Σ_p V_(ep) |S:Δe − ΔW| ≤ tol · Σ_p V_(ep) |ΔW|``, ``V_(ep)`` the Gauss-point volume — then freezes, so points are spent only where the step is nonlinear. The defect is the quadrature error of the exact identity ``S:Δe = ΔW`` (``ΔW`` known from the endpoints), so the test is absolute; taking ``|·|`` before summing bounds the element's real energy drift and is safe against Gauss-point sign cancellation. Only still-active elements are evaluated at each level (via :meth:`_StrainPathKinematics._sliced`), so cost tracks the hard elements. Returns ``(dWde_quad, d2Wde_quad, nPts_e)``, each row carrying its element's accepted rule and point count.
     """
-    groupElem = state_n.groupElem  # state_n and state_np1 share the group
+    groupElem = (
+        kinematics_n.groupElem
+    )  # kinematics_n and kinematics_np1 share the group
     dim = groupElem.dim
     wJ_e_pg = groupElem.Get_weightedJacobian_e_pg(
-        state_n.matrixType
+        kinematics_n.matrixType
     )  # V_(ep), ref config
 
-    C_n = state_n.Compute_C()
-    dC = state_np1.Compute_C() - C_n
-    dW = material.Compute_W(state_np1) - material.Compute_W(state_n)  # ΔW per point
-    dE = state_np1.Compute_GreenLagrange() - state_n.Compute_GreenLagrange()
+    C_n = kinematics_n.Compute_C()
+    dC = kinematics_np1.Compute_C() - C_n
+    dW = material.Compute_W(kinematics_np1) - material.Compute_W(
+        kinematics_n
+    )  # ΔW per point
+    dE = kinematics_np1.Compute_GreenLagrange() - kinematics_n.Compute_GreenLagrange()
     dE_vec = Project_matrix_to_vector(dE[..., :dim, :dim])  # Δe (Kelvin-Mandel)
     refW = einsum("ep,ep->e", wJ_e_pg, np.abs(dW))  #  Σ_p V |ΔW| (Ne,)
     Ne, nPg, ncomp = *wJ_e_pg.shape[:2], dE_vec.shape[-1]
 
     def at(
         s, e
-    ):  # constitutive-state holder at strain-path point s, restricted to elements e
-        return _StrainPathState._sliced(state_n, (C_n + s * dC)[e])
+    ):  # constitutive-kinematics holder at strain-path point s, restricted to elements e
+        return _StrainPathKinematics._sliced(kinematics_n, (C_n + s * dC)[e])
 
     dWde_quad = FeArray.zeros(Ne, nPg, ncomp)
     d2Wde_quad = FeArray.zeros(Ne, nPg, ncomp, ncomp)
@@ -454,9 +464,9 @@ def __AdaptiveTimeQuadratureStressTensor(
 
 def TimeQuadratureStressTensor(
     material: "_HyperElastic",
-    state_n: "HyperElasticState",
-    state_t: "HyperElasticState",
-    state_np1: "HyperElasticState",
+    kinematics_n: "Kinematics",
+    kinematics_t: "Kinematics",
+    kinematics_np1: "Kinematics",
     coefK: float,
     nPoints: int,
     tol: float | None = None,
@@ -474,19 +484,19 @@ def TimeQuadratureStressTensor(
 
     Tangent — only ``e_{n+1}`` depends on ``u_{n+1}`` (``∂e(s_k)/∂u_{n+1} = s_k B_{n+1}``), so::
 
-        coefK · K_e = coefK · A_geo(state_t, S_quad)  +  ∫ B(u_t)ᵀ [ Σ_k w_k s_k ℂ(e(s_k)) ] B_{n+1} dΩ
+        coefK · K_e = coefK · A_geo(kinematics_t, S_quad)  +  ∫ B(u_t)ᵀ [ Σ_k w_k s_k ℂ(e(s_k)) ] B_{n+1} dΩ
 
     The geometric block is raw so it rides the caller's ``coefK`` chain factor ``∂u_t/∂u_{n+1}``; the material term is pre-scaled by ``1/coefK`` to survive it. Pairing ``B(u_t)`` with ``B_{n+1}`` makes ``K_e`` non-symmetric.
 
     Parameters
     ----------
     material
-        Hyperelastic constitutive law — supplies ``Compute_dWde(state)`` and ``Compute_d2Wde(state)``.
-    state_n, state_t, state_np1
-        Hyperelastic states at ``u_n``, the time-scheme base displacement ``u_t``, and ``u_{n+1}`` (same group / matrix type).
+        Hyperelastic constitutive law — supplies ``Compute_dWde(kinematics)`` and ``Compute_d2Wde(kinematics)``.
+    kinematics_n, kinematics_t, kinematics_np1
+        Hyperelastic kinematics at ``u_n``, the time-scheme base displacement ``u_t``, and ``u_{n+1}`` (same group / matrix type).
     coefK
         Time-scheme K-coefficient ``= ∂u_t/∂u_{n+1}`` for the base displacement ``u_t`` passed as
-        ``state_t`` — ``0.5`` for :attr:`~EasyFEA.AlgoType.midpoint` (the only value that conserves energy),
+        ``kinematics_t`` — ``0.5`` for :attr:`~EasyFEA.AlgoType.midpoint` (the only value that conserves energy),
         ``1`` for :attr:`~EasyFEA.AlgoType.newmark`, ``1−α`` for :attr:`~EasyFEA.AlgoType.hht`. Other schemes
         give a consistent but non-conserving stress.
     nPoints
@@ -511,13 +521,13 @@ def TimeQuadratureStressTensor(
         when adaptive.
     """
 
-    groupElem = state_t.groupElem
-    wJ_e_pg = groupElem.Get_weightedJacobian_e_pg(state_t.matrixType)
+    groupElem = kinematics_t.groupElem
+    wJ_e_pg = groupElem.Get_weightedJacobian_e_pg(kinematics_t.matrixType)
     nPe = groupElem.nPe
     dim = groupElem.dim
 
-    _, B_t = __block_grad_B(state_t)
-    _, B_np1 = __block_grad_B(state_np1)
+    _, B_t = __block_grad_B(kinematics_t)
+    _, B_np1 = __block_grad_B(kinematics_np1)
 
     if tol is None:
         # Fixed rule: one Clenshaw-Curtis rule for the whole block.
@@ -527,14 +537,14 @@ def TimeQuadratureStressTensor(
         )
         for s, w in zip(*__clenshaw_curtis(int(nPoints))):
             if s == 0.0:
-                state = state_n
+                kinematics = kinematics_n
             elif s == 1.0:
-                state = state_np1
+                kinematics = kinematics_np1
             else:
-                state = _StrainPathState(state_n, state_np1, s)
-            dWde_quad += w * material.Compute_dWde(state)
+                kinematics = _StrainPathKinematics(kinematics_n, kinematics_np1, s)
+            dWde_quad += w * material.Compute_dWde(kinematics)
             if s != 0.0:
-                d2Wde_quad += (w * s / coefK) * material.Compute_d2Wde(state)
+                d2Wde_quad += (w * s / coefK) * material.Compute_d2Wde(kinematics)
         nPts_e = np.full(groupElem.Ne, int(nPoints))  # every element uses the same rule
     else:
         # Adaptive: refine per element on the *energy defect*. This stress exists so that
@@ -544,7 +554,7 @@ def TimeQuadratureStressTensor(
         # Refining element-by-element rather than the whole block spends points only where the
         # material is nonlinear over the step (see __AdaptiveTimeQuadratureStressTensor).
         dWde_quad, d2Wde_quad, nPts_e = __AdaptiveTimeQuadratureStressTensor(
-            material, state_n, state_np1, coefK, tol, int(maxPoints)
+            material, kinematics_n, kinematics_np1, coefK, tol, int(maxPoints)
         )
 
     # not __second_piola_block: that pairs one B with itself, while here the tangent is
@@ -552,7 +562,7 @@ def TimeQuadratureStressTensor(
     residual_e = einsum("ep,epi,epij->ej", wJ_e_pg, dWde_quad, B_t)
     tangent_e = einsum(
         "ep,epji,epjk,epkl->eil", wJ_e_pg, B_t, d2Wde_quad, B_np1
-    ) + __geometric_tangent(wJ_e_pg, state_t, dWde_quad)
+    ) + __geometric_tangent(wJ_e_pg, kinematics_t, dWde_quad)
 
     K_e, R_e = __reorder_dofs(dim, nPe, tangent_e, residual_e)
     return K_e, R_e, nPts_e
@@ -560,7 +570,7 @@ def TimeQuadratureStressTensor(
 
 def ActiveStressTensor(
     material: "_HyperElastic",
-    state: "HyperElasticState",
+    kinematics: "Kinematics",
 ) -> tuple[np.ndarray, np.ndarray]:
     r"""Active-stress contributions ``(Kgeo_e, R_e)`` for the fiber stress :math:`\Sigma_{act} = \tau \, \hat{T} \otimes \hat{T}`.
 
@@ -576,9 +586,9 @@ def ActiveStressTensor(
     Parameters
     ----------
     material
-        Hyperelastic constitutive law — supplies ``active_stress`` and ``Compute_active_stress(state)``.
-    state
-        Hyperelastic state at the evaluation point of the time scheme (the midpoint state ``ū`` for :attr:`~EasyFEA.AlgoType.midpoint`), owning the mesh and that displacement.
+        Hyperelastic constitutive law — supplies ``active_stress`` and ``Compute_active_stress(kinematics)``.
+    kinematics
+        Hyperelastic kinematics at the evaluation point of the time scheme (the midpoint kinematics ``ū`` for :attr:`~EasyFEA.AlgoType.midpoint`), owning the mesh and that displacement.
 
     Returns
     -------
@@ -590,23 +600,23 @@ def ActiveStressTensor(
     if np.all(material.active_stress == 0.0):
         return None, None  # type: ignore [return-value]
 
-    groupElem = state.groupElem
-    wJ_e_pg = groupElem.Get_weightedJacobian_e_pg(state.matrixType)
+    groupElem = kinematics.groupElem
+    wJ_e_pg = groupElem.Get_weightedJacobian_e_pg(kinematics.matrixType)
     nPe = groupElem.nPe
     dim = groupElem.dim
 
-    sig_e_pg = material.Compute_active_stress(state)
+    sig_e_pg = material.Compute_active_stress(kinematics)
 
-    _, B_e_pg = __block_grad_B(state)
+    _, B_e_pg = __block_grad_B(kinematics)
     residual_e = einsum("ep,epi,epij->ej", wJ_e_pg, sig_e_pg, B_e_pg)
-    Kgeo_e = __geometric_tangent(wJ_e_pg, state, sig_e_pg)
+    Kgeo_e = __geometric_tangent(wJ_e_pg, kinematics, sig_e_pg)
 
     return __reorder_dofs(dim, nPe, Kgeo_e, residual_e)
 
 
 def KelvinVoigtDamping(
     material: "_HyperElastic",
-    state: "HyperElasticState",
+    kinematics: "Kinematics",
     velocity: np.ndarray,
 ) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
     r"""Kelvin–Voigt viscous element contributions (Kgeo_e, R_e, C_e) for the
@@ -627,8 +637,8 @@ def KelvinVoigtDamping(
     ----------
     material
         Hyperelastic constitutive law — supplies the viscosity eta.
-    state
-        Hyperelastic state — owns the mesh and the current displacement.
+    kinematics
+        Hyperelastic kinematics — owns the mesh and the current displacement.
     velocity
         Velocity field (same (xi, yi, zi, ...) layout as the displacement), or
         None for a quasi-static evaluation.
@@ -643,15 +653,15 @@ def KelvinVoigtDamping(
     if material.eta == 0.0 or velocity is None:
         return None, None, None  # type: ignore [return-value]
 
-    groupElem = state.groupElem
-    matrixType = state.matrixType
+    groupElem = kinematics.groupElem
+    matrixType = kinematics.matrixType
     wJ_e_pg = groupElem.Get_weightedJacobian_e_pg(matrixType)
     nPe = groupElem.nPe
     dim = groupElem.dim
 
-    grad_e_pg, B_e_pg = __block_grad_B(state)
-    Beta_e_pg = state.Compute_Deta(velocity) @ grad_e_pg
-    sig_e_pg = material.eta * state.Compute_Edot_vec(velocity)  # Σ_visco = η·Ė
+    grad_e_pg, B_e_pg = __block_grad_B(kinematics)
+    Beta_e_pg = kinematics.Compute_Deta(velocity) @ grad_e_pg
+    sig_e_pg = material.eta * kinematics.Compute_Edot_vec(velocity)  # Σ_visco = η·Ė
 
     # damping matrix C = η · ∫ Bᵀ B (fused einsum, see SPK above)
     subscripts = "ep,epji,epjl->eil"
@@ -663,7 +673,7 @@ def KelvinVoigtDamping(
     # configuration tangent ∂(C·v)/∂u = geometric (∫ gradᵀ Sig grad) + material-like
     # (η ∫ Bᵀ (∂Ė/∂u)) pieces
     A_mat = material.eta * einsum(subscripts, wJ_e_pg, B_e_pg, Beta_e_pg)
-    A_geo = __geometric_tangent(wJ_e_pg, state, sig_e_pg)
+    A_geo = __geometric_tangent(wJ_e_pg, kinematics, sig_e_pg)
     Kgeo_e = A_mat + A_geo
 
     return __reorder_dofs(dim, nPe, Kgeo_e, residual_e, C_e)

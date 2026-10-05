@@ -5,7 +5,6 @@
 
 """Hyper elastic module."""
 
-from ._state import HyperElasticState
 from ._laws import (
     _HyperElastic,
     NeoHookean,

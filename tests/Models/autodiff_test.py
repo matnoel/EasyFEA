@@ -21,7 +21,7 @@ from EasyFEA.FEM._linalg import FeArray
 from EasyFEA.Geoms import Domain, Line
 from EasyFEA.Models import _autodiff
 from EasyFEA.Models.HyperElastic import HyperElasticPotential
-from EasyFEA.Models.HyperElastic._state import HyperElasticState
+from EasyFEA.FEM import Kinematics
 
 jax = pytest.importorskip("jax")
 jnp = jax.numpy
@@ -37,7 +37,7 @@ def _rel(a, b) -> float:
     return float(np.linalg.norm(a - b) / np.linalg.norm(b))
 
 
-def _state(dim: int) -> HyperElasticState:
+def _kinematics(dim: int) -> Kinematics:
     """A small mesh under a random displacement, large enough to strain every invariant."""
     if dim == 1:
         line = Line((0, 0), (1, 0), meshSize=0.25)
@@ -49,13 +49,13 @@ def _state(dim: int) -> HyperElasticState:
         domain = Domain((0, 0), (1, 1), meshSize=1)
         mesh = domain.Mesh_Extrude([], [0, 0, 1], [1], ElemType.HEXA8)
     u = np.random.default_rng(0).normal(0.0, 0.02, mesh.Nn * dim)
-    return HyperElasticState(mesh.groupElem, u, MatrixType.rigi)
+    return Kinematics(mesh.groupElem, u, MatrixType.rigi)
 
 
 @pytest.fixture(scope="module")
-def state() -> HyperElasticState:
+def kinematics() -> Kinematics:
     """A HEXA8 block, for the tests that do not vary the dimension."""
-    return _state(3)
+    return _kinematics(3)
 
 
 # ----------------------------------------------
@@ -189,18 +189,18 @@ def test_potential_derivatives_match_autodiff(law: str, dim: int):
     Over every dimension, since nothing else asserts the ``_Slice_Vector`` / ``_Slice_Matrix`` step.
     """
     W_point, Material, aux, in_axes = LAWS[law]
-    state = _state(dim)
+    kinematics = _kinematics(dim)
     material = Material(dim)
     W, dWde, d2Wde = HyperElasticPotential(W_point, in_axes)
 
-    assert _rel(W(state, *aux), material.Compute_W(state)) < TOL
-    assert _rel(dWde(state, *aux), material.Compute_dWde(state)) < TOL
-    assert _rel(d2Wde(state, *aux), material.Compute_d2Wde(state)) < TOL
+    assert _rel(W(kinematics, *aux), material.Compute_W(kinematics)) < TOL
+    assert _rel(dWde(kinematics, *aux), material.Compute_dWde(kinematics)) < TOL
+    assert _rel(d2Wde(kinematics, *aux), material.Compute_d2Wde(kinematics)) < TOL
 
 
-def test_holzapfel_ogden_accepts_fibre_fields(state: HyperElasticState):
+def test_holzapfel_ogden_accepts_fibre_fields(kinematics: Kinematics):
     """The fibre directions may vary per Gauss point, as a heart mesh supplies them."""
-    Ne, nPg, _ = state._GetDims()
+    Ne, nPg, _ = kinematics._GetDims()
     angle = np.linspace(-np.pi / 3, np.pi / 3, Ne)[:, None] * np.ones((1, nPg))
     zero = np.zeros_like(angle)
     T1_e_pg = FeArray.asfearray(np.stack([np.cos(angle), np.sin(angle), zero], -1))
@@ -209,9 +209,15 @@ def test_holzapfel_ogden_accepts_fibre_fields(state: HyperElasticState):
     W, dWde, d2Wde = HyperElasticPotential(_holzapfel_ogden, 0)
     material = Models.HyperElastic.HolzapfelOgden(3, T1=T1_e_pg, T2=T2_e_pg, **HO)
 
-    assert _rel(W(state, T1_e_pg, T2_e_pg), material.Compute_W(state)) < TOL
-    assert _rel(dWde(state, T1_e_pg, T2_e_pg), material.Compute_dWde(state)) < TOL
-    assert _rel(d2Wde(state, T1_e_pg, T2_e_pg), material.Compute_d2Wde(state)) < TOL
+    assert _rel(W(kinematics, T1_e_pg, T2_e_pg), material.Compute_W(kinematics)) < TOL
+    assert (
+        _rel(dWde(kinematics, T1_e_pg, T2_e_pg), material.Compute_dWde(kinematics))
+        < TOL
+    )
+    assert (
+        _rel(d2Wde(kinematics, T1_e_pg, T2_e_pg), material.Compute_d2Wde(kinematics))
+        < TOL
+    )
 
 
 # ----------------------------------------------
@@ -219,9 +225,9 @@ def test_holzapfel_ogden_accepts_fibre_fields(state: HyperElasticState):
 # ----------------------------------------------
 
 
-def test_kelvin_to_tensor_inverts_the_shipped_projection(state: HyperElasticState):
+def test_kelvin_to_tensor_inverts_the_shipped_projection(kinematics: Kinematics):
     """``Kelvin_to_tensor`` undoes ``Project_matrix_to_vector``."""
-    C_e_pg = state.Compute_C()
+    C_e_pg = kinematics.Compute_C()
     rebuilt = _autodiff.Vmap_e_pg(_autodiff.Kelvin_to_tensor)(
         Models.Project_matrix_to_vector(C_e_pg)
     )
@@ -237,9 +243,9 @@ def test_kelvin_basis_is_orthonormal():
     assert _rel(gram, np.eye(6)) < TOL
 
 
-def test_vmap_returns_fearray_fields(state: HyperElasticState):
-    Ne, nPg, _ = state._GetDims()
-    out = _autodiff.Vmap_e_pg(lambda C: C @ C)(state.Compute_C())
+def test_vmap_returns_fearray_fields(kinematics: Kinematics):
+    Ne, nPg, _ = kinematics._GetDims()
+    out = _autodiff.Vmap_e_pg(lambda C: C @ C)(kinematics.Compute_C())
 
     assert isinstance(out, FeArray)
     assert out.shape == (Ne, nPg, 3, 3)
@@ -288,9 +294,9 @@ def test_autodiff_law_solves_like_the_shipped_one():
     assert _rel(_Solve(autodiff), _Solve(shipped)) < 1e-10
 
 
-def test_autodiff_law_carries_per_gauss_point_fields(state: HyperElasticState):
+def test_autodiff_law_carries_per_gauss_point_fields(kinematics: Kinematics):
     """``aux`` reaches the kernel: HolzapfelOgden with a fibre direction per Gauss point."""
-    Ne, nPg, _ = state._GetDims()
+    Ne, nPg, _ = kinematics._GetDims()
     angle = np.linspace(-np.pi / 3, np.pi / 3, Ne)[:, None] * np.ones((1, nPg))
     zero = np.zeros_like(angle)
     T1_e_pg = FeArray.asfearray(np.stack([np.cos(angle), np.sin(angle), zero], -1))
@@ -299,19 +305,24 @@ def test_autodiff_law_carries_per_gauss_point_fields(state: HyperElasticState):
     autodiff = Models.HyperElastic.AutoDiff(3, _holzapfel_ogden, (T1_e_pg, T2_e_pg))
     shipped = Models.HyperElastic.HolzapfelOgden(3, T1=T1_e_pg, T2=T2_e_pg, **HO)
 
-    assert _rel(autodiff.Compute_W(state), shipped.Compute_W(state)) < TOL
-    assert _rel(autodiff.Compute_dWde(state), shipped.Compute_dWde(state)) < TOL
-    assert _rel(autodiff.Compute_d2Wde(state), shipped.Compute_d2Wde(state)) < TOL
+    assert _rel(autodiff.Compute_W(kinematics), shipped.Compute_W(kinematics)) < TOL
+    assert (
+        _rel(autodiff.Compute_dWde(kinematics), shipped.Compute_dWde(kinematics)) < TOL
+    )
+    assert (
+        _rel(autodiff.Compute_d2Wde(kinematics), shipped.Compute_d2Wde(kinematics))
+        < TOL
+    )
 
 
-def test_autodiff_law_survives_a_pickle_round_trip(state: HyperElasticState):
+def test_autodiff_law_survives_a_pickle_round_trip(kinematics: Kinematics):
     """``Simu.Save`` pickles the whole simulation, material included, so the law must survive it."""
     law = Models.HyperElastic.AutoDiff(3, _ciarlet_geymonat)
     reloaded = pickle.loads(pickle.dumps(law))
 
-    assert _rel(reloaded.Compute_W(state), law.Compute_W(state)) < TOL
-    assert _rel(reloaded.Compute_dWde(state), law.Compute_dWde(state)) < TOL
-    assert _rel(reloaded.Compute_d2Wde(state), law.Compute_d2Wde(state)) < TOL
+    assert _rel(reloaded.Compute_W(kinematics), law.Compute_W(kinematics)) < TOL
+    assert _rel(reloaded.Compute_dWde(kinematics), law.Compute_dWde(kinematics)) < TOL
+    assert _rel(reloaded.Compute_d2Wde(kinematics), law.Compute_d2Wde(kinematics)) < TOL
 
 
 def test_importing_easyfea_does_not_pull_jax():

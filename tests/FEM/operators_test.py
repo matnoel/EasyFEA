@@ -16,8 +16,7 @@ import pytest
 
 from EasyFEA import ElemType, MatrixType, Models
 from EasyFEA.Geoms import Domain
-from EasyFEA.FEM import Operators, FeArray
-from EasyFEA.Models.HyperElastic._state import HyperElasticState
+from EasyFEA.FEM import Operators, FeArray, Kinematics
 
 # Every element type, for the two cheap (non-FD) assembly-identity checks below
 # (test_residual_equals_C_times_v, test_discrete_gradient_directionality) — full
@@ -119,8 +118,8 @@ class TestSecondPiolaKirchhoff:
     @staticmethod
     def _residual_fn(ge, mat):
         def residual(u_):
-            st = HyperElasticState(ge, u_, MatrixType.rigi)
-            _, R = Operators.NonLinear.SecondPiolaKirchhoffStressTensor(mat, st)
+            kin = Kinematics(ge, u_, MatrixType.rigi)
+            _, R = Operators.NonLinear.SecondPiolaKirchhoffStressTensor(mat, kin)
             return R
 
         return residual
@@ -136,8 +135,8 @@ class TestSecondPiolaKirchhoff:
         u = rng.standard_normal(mesh.Nn * dim) * 0.03  # small strains: det(F) > 0
         asse = ge.Get_assembly_e(dim)
 
-        st = HyperElasticState(ge, u, MatrixType.rigi)
-        K_ana, _ = Operators.NonLinear.SecondPiolaKirchhoffStressTensor(mat, st)
+        kin = Kinematics(ge, u, MatrixType.rigi)
+        K_ana, _ = Operators.NonLinear.SecondPiolaKirchhoffStressTensor(mat, kin)
         K_fd = _fd_tangent(self._residual_fn(ge, mat), u, asse)
         _assert_matches(K_ana, K_fd, msg=elemType.name)
 
@@ -153,8 +152,8 @@ class TestSecondPiolaKirchhoff:
             u = rng.standard_normal(mesh.Nn * dim) * 0.02
             asse = ge.Get_assembly_e(dim)
 
-            st = HyperElasticState(ge, u, MatrixType.rigi)
-            K_ana, _ = Operators.NonLinear.SecondPiolaKirchhoffStressTensor(mat, st)
+            kin = Kinematics(ge, u, MatrixType.rigi)
+            K_ana, _ = Operators.NonLinear.SecondPiolaKirchhoffStressTensor(mat, kin)
             K_fd = _fd_tangent(self._residual_fn(ge, mat), u, asse)
             _assert_matches(K_ana, K_fd, msg=f"{law}/{elemType.name}")
 
@@ -166,8 +165,8 @@ class TestSecondPiolaKirchhoff:
             mat = _material(dim, "SaintVenantKirchhoff")
             ge = mesh.groupElem
             u = rng.standard_normal(mesh.Nn * dim) * 0.03
-            st = HyperElasticState(ge, u, MatrixType.rigi)
-            K, _ = Operators.NonLinear.SecondPiolaKirchhoffStressTensor(mat, st)
+            kin = Kinematics(ge, u, MatrixType.rigi)
+            K, _ = Operators.NonLinear.SecondPiolaKirchhoffStressTensor(mat, kin)
             asym = np.abs(K - K.transpose(0, 2, 1)).max()
             assert asym / np.abs(K).max() < 1e-10, f"{elemType.name}: asym {asym:.2e}"
 
@@ -201,8 +200,8 @@ class TestActiveStress:
     @staticmethod
     def _residual_fn(ge, mat):
         def residual(u_):
-            st = HyperElasticState(ge, u_, MatrixType.rigi)
-            _, R = Operators.NonLinear.ActiveStressTensor(mat, st)
+            kin = Kinematics(ge, u_, MatrixType.rigi)
+            _, R = Operators.NonLinear.ActiveStressTensor(mat, kin)
             return R
 
         return residual
@@ -218,8 +217,8 @@ class TestActiveStress:
         u = rng.standard_normal(mesh.Nn * dim) * 0.02
         asse = ge.Get_assembly_e(dim)
 
-        st = HyperElasticState(ge, u, MatrixType.rigi)
-        Kgeo, _ = Operators.NonLinear.ActiveStressTensor(mat, st)
+        kin = Kinematics(ge, u, MatrixType.rigi)
+        Kgeo, _ = Operators.NonLinear.ActiveStressTensor(mat, kin)
         K_fd = _fd_tangent(self._residual_fn(ge, mat), u, asse)
         _assert_matches(Kgeo, K_fd, msg=elemType.name)
 
@@ -236,12 +235,12 @@ class TestActiveStress:
         mesh = _mesh(dim, elemType)
         ge = mesh.groupElem
         u = rng.standard_normal(mesh.Nn * dim) * 0.02
-        st = HyperElasticState(ge, u, MatrixType.rigi)
+        kin = Kinematics(ge, u, MatrixType.rigi)
 
         mat = self._material_with_fibers(dim, ge)
-        S_active = mat.Compute_dWde(st)
+        S_active = mat.Compute_dWde(kin)
         mat.active_stress = 0.0
-        S_inert = mat.Compute_dWde(st)
+        S_inert = mat.Compute_dWde(kin)
 
         assert np.array_equal(np.asarray(S_active), np.asarray(S_inert))
 
@@ -250,8 +249,8 @@ class TestActiveStress:
         mesh = _mesh(3, ElemType.HEXA8)
         ge = mesh.groupElem
         mat = _material(3, "SaintVenantKirchhoff")  # never given a fiber direction
-        st = HyperElasticState(ge, np.zeros(mesh.Nn * 3), MatrixType.rigi)
-        assert Operators.NonLinear.ActiveStressTensor(mat, st) == (None, None)
+        kin = Kinematics(ge, np.zeros(mesh.Nn * 3), MatrixType.rigi)
+        assert Operators.NonLinear.ActiveStressTensor(mat, kin) == (None, None)
 
     def test_requires_a_registered_direction(self):
         """A ``τ`` with no fiber direction is an error, not a silent no-op."""
@@ -259,9 +258,9 @@ class TestActiveStress:
         ge = mesh.groupElem
         mat = _material(3, "SaintVenantKirchhoff")
         mat.active_stress = self.TAU  # but no Set_active_stress_vec
-        st = HyperElasticState(ge, np.zeros(mesh.Nn * 3), MatrixType.rigi)
+        kin = Kinematics(ge, np.zeros(mesh.Nn * 3), MatrixType.rigi)
         with pytest.raises(AssertionError):
-            Operators.NonLinear.ActiveStressTensor(mat, st)
+            Operators.NonLinear.ActiveStressTensor(mat, kin)
 
 
 # ----------------------------------------------------------------------------
@@ -290,14 +289,14 @@ class TestKelvinVoigt:
         u = rng.standard_normal(n) * 0.03
         v = rng.standard_normal(n) * 0.1
 
-        st = HyperElasticState(ge, u, MatrixType.rigi)
-        Edot = st.Compute_Edot_vec(v)  # De(u)·flat(∇v)
-        Deta = st.Compute_Deta(v)  # ∂Ė/∂(∇u), built from ∇v
+        kin = Kinematics(ge, u, MatrixType.rigi)
+        Edot = kin.Compute_Edot_vec(v)  # De(u)·flat(∇v)
+        Deta = kin.Compute_Deta(v)  # ∂Ė/∂(∇u), built from ∇v
         grad_u = ge.Get_Gradient_e_pg(u, MatrixType.rigi)[..., :dim, :dim]
         grad_u_flat = np.reshape(grad_u, (*grad_u.shape[:2], -1))
 
-        st0 = HyperElasticState(ge, np.zeros(n), MatrixType.rigi)
-        Edot_lin = Edot - st0.Compute_Edot_vec(v)  # u-linear remainder
+        kin0 = Kinematics(ge, np.zeros(n), MatrixType.rigi)
+        Edot_lin = Edot - kin0.Compute_Edot_vec(v)  # u-linear remainder
 
         diff = Edot_lin - (Deta @ grad_u_flat)
         assert np.linalg.norm(diff) / np.linalg.norm(Edot_lin) < 1e-12
@@ -323,12 +322,12 @@ class TestKelvinVoigt:
         asse = ge.Get_assembly_e(dim)
 
         def Fvisco(u_):
-            st = HyperElasticState(ge, u_, MatrixType.rigi)
-            _, _, C = Operators.NonLinear.KelvinVoigtDamping(mat, st, v)
+            kin = Kinematics(ge, u_, MatrixType.rigi)
+            _, _, C = Operators.NonLinear.KelvinVoigtDamping(mat, kin, v)
             return np.einsum("eij,ej->ei", C, v[asse])
 
-        st = HyperElasticState(ge, u, MatrixType.rigi)
-        Kgeo, _, _ = Operators.NonLinear.KelvinVoigtDamping(mat, st, v)
+        kin = Kinematics(ge, u, MatrixType.rigi)
+        Kgeo, _, _ = Operators.NonLinear.KelvinVoigtDamping(mat, kin, v)
         K_fd = _fd_tangent(Fvisco, u, asse)
         _assert_matches(Kgeo, K_fd, msg=elemType.name)
 
@@ -346,10 +345,10 @@ class TestKelvinVoigt:
         mat.eta = 0.7
         ge = mesh.groupElem
         n = mesh.Nn * dim
-        st = HyperElasticState(ge, rng.standard_normal(n) * 0.03, MatrixType.rigi)
+        kin = Kinematics(ge, rng.standard_normal(n) * 0.03, MatrixType.rigi)
         v = rng.standard_normal(n) * 0.1
 
-        _, R, C = Operators.NonLinear.KelvinVoigtDamping(mat, st, v)
+        _, R, C = Operators.NonLinear.KelvinVoigtDamping(mat, kin, v)
         Cv = np.einsum("eij,ej->ei", C, v[ge.Get_assembly_e(dim)])
 
         assert R.shape == Cv.shape, f"{R.shape} != {Cv.shape}"
@@ -364,9 +363,9 @@ class TestKelvinVoigt:
         mat.eta = 0.7
         ge = mesh.groupElem
         n = mesh.Nn * dim
-        st = HyperElasticState(ge, rng.standard_normal(n) * 0.03, MatrixType.rigi)
+        kin = Kinematics(ge, rng.standard_normal(n) * 0.03, MatrixType.rigi)
         v = rng.standard_normal(n) * 0.1
-        _, _, C = Operators.NonLinear.KelvinVoigtDamping(mat, st, v)
+        _, _, C = Operators.NonLinear.KelvinVoigtDamping(mat, kin, v)
         assert np.abs(C - C.transpose(0, 2, 1)).max() / np.abs(C).max() < 1e-10
         # BᵀB ⇒ each element matrix has no negative eigenvalues
         assert np.linalg.eigvalsh(C).min() > -1e-9 * np.abs(C).max()
@@ -377,17 +376,17 @@ class TestKelvinVoigt:
         mesh = _mesh(dim, elemType)
         ge = mesh.groupElem
         n = mesh.Nn * dim
-        st = HyperElasticState(ge, np.zeros(n), MatrixType.rigi)
+        kin = Kinematics(ge, np.zeros(n), MatrixType.rigi)
 
         mat = _material(dim, "SaintVenantKirchhoff")  # eta defaults to 0
-        assert Operators.NonLinear.KelvinVoigtDamping(mat, st, np.zeros(n)) == (
+        assert Operators.NonLinear.KelvinVoigtDamping(mat, kin, np.zeros(n)) == (
             None,
             None,
             None,
         )
 
         mat.eta = 0.7  # viscous, but no velocity passed
-        assert Operators.NonLinear.KelvinVoigtDamping(mat, st, None) == (
+        assert Operators.NonLinear.KelvinVoigtDamping(mat, kin, None) == (
             None,
             None,
             None,
@@ -400,7 +399,7 @@ class TestKelvinVoigt:
 
 
 class TestGonzalez:
-    """Energy-momentum operator ``GonzalezStressTensor(mat, state_n, state_mid, state_np1)``.
+    """Energy-momentum operator ``GonzalezStressTensor(mat, kinematics_n, kinematics_mid, kinematics_np1)``.
 
     Two properties define it. (1) The **discrete power balance** ``R·Δu = ΔW`` — the
     internal work of the residual over the step equals the stored-energy increment —
@@ -412,11 +411,11 @@ class TestGonzalez:
     """
 
     @staticmethod
-    def _states(ge, u_n, u_np1):
+    def _kinematics(ge, u_n, u_np1):
         return (
-            HyperElasticState(ge, u_n, MatrixType.rigi),
-            HyperElasticState(ge, (u_n + u_np1) / 2, MatrixType.rigi),
-            HyperElasticState(ge, u_np1, MatrixType.rigi),
+            Kinematics(ge, u_n, MatrixType.rigi),
+            Kinematics(ge, (u_n + u_np1) / 2, MatrixType.rigi),
+            Kinematics(ge, u_np1, MatrixType.rigi),
         )
 
     def _check_directionality(self, dim, elemType, law, seed):
@@ -429,8 +428,8 @@ class TestGonzalez:
         u_np1 = u_n + rng.standard_normal(mesh.Nn * dim) * 0.02  # Δe·Δe ≫ ε₀
         asse = groupElem.Get_assembly_e(dim)
 
-        sn, smid, snp = self._states(groupElem, u_n, u_np1)
-        _, R = Operators.NonLinear.GonzalezStressTensor(mat, sn, smid, snp)
+        kin_n, kin_mid, kin_np1 = self._kinematics(groupElem, u_n, u_np1)
+        _, R = Operators.NonLinear.GonzalezStressTensor(mat, kin_n, kin_mid, kin_np1)
 
         # internal work R·Δu, assembled over the interleaved element dofs
         du_e = (u_np1 - u_n)[asse]  # (Ne, ndof_e), same layout as R
@@ -438,7 +437,7 @@ class TestGonzalez:
 
         # ΔW = ∫ (W(u_{n+1}) − W(u_n)) dΩ — independent of the operator's assembly
         wJ = groupElem.Get_weightedJacobian_e_pg(MatrixType.rigi)
-        dW = np.sum(wJ * (mat.Compute_W(snp) - mat.Compute_W(sn)))
+        dW = np.sum(wJ * (mat.Compute_W(kin_np1) - mat.Compute_W(kin_n)))
 
         assert (
             abs(internal_work - dW) / abs(dW) < 1e-9
@@ -460,10 +459,12 @@ class TestGonzalez:
         """``R(u_{n+1})`` with ``u_n`` fixed and ``ū = (u_n+u_{n+1})/2`` — for FD in ``u_{n+1}``."""
 
         def residual(u_np1_):
-            sn = HyperElasticState(ge, u_n, MatrixType.rigi)
-            smid = HyperElasticState(ge, (u_n + u_np1_) / 2, MatrixType.rigi)
-            snp = HyperElasticState(ge, u_np1_, MatrixType.rigi)
-            _, R = Operators.NonLinear.GonzalezStressTensor(mat, sn, smid, snp)
+            kin_n = Kinematics(ge, u_n, MatrixType.rigi)
+            kin_mid = Kinematics(ge, (u_n + u_np1_) / 2, MatrixType.rigi)
+            kin_np1 = Kinematics(ge, u_np1_, MatrixType.rigi)
+            _, R = Operators.NonLinear.GonzalezStressTensor(
+                mat, kin_n, kin_mid, kin_np1
+            )
             return R
 
         return residual
@@ -478,8 +479,10 @@ class TestGonzalez:
         u_np1 = u_n + rng.standard_normal(mesh.Nn * dim) * 0.02  # Δe·Δe ≫ ε₀
         asse = ge.Get_assembly_e(dim)
 
-        sn, smid, snp = self._states(ge, u_n, u_np1)
-        K_ana, _ = Operators.NonLinear.GonzalezStressTensor(mat, sn, smid, snp)
+        kin_n, kin_mid, kin_np1 = self._kinematics(ge, u_n, u_np1)
+        K_ana, _ = Operators.NonLinear.GonzalezStressTensor(
+            mat, kin_n, kin_mid, kin_np1
+        )
         K_fd = _fd_tangent(self._residual_fn(ge, mat, u_n), u_np1, asse)
         # operator returns K for coefK = 0.5, so the true Jacobian ∂R/∂u_{n+1} = ½·K
         _assert_matches(0.5 * K_ana, K_fd, msg=f"{law}/{elemType.name}")
@@ -512,13 +515,13 @@ class TestGonzalez:
 
             u_n = rng.standard_normal(mesh.Nn * dim) * 0.02
             u_np1 = u_n + rng.standard_normal(mesh.Nn * dim) * 0.02  # Δe·Δe ≫ ε₀
-            sn, smid, snp = self._states(ge, u_n, u_np1)
+            kin_n, kin_mid, kin_np1 = self._kinematics(ge, u_n, u_np1)
 
             K_con, R_con = Operators.NonLinear.GonzalezStressTensor(
-                mat, sn, smid, snp, True
+                mat, kin_n, kin_mid, kin_np1, True
             )
             K_apx, R_apx = Operators.NonLinear.GonzalezStressTensor(
-                mat, sn, smid, snp, False
+                mat, kin_n, kin_mid, kin_np1, False
             )
 
             assert np.array_equal(

@@ -18,7 +18,7 @@ import pytest
 from EasyFEA import ElemType, Models, Simulations, AlgoType
 from EasyFEA.Geoms import Domain
 from EasyFEA.FEM import FeArray, MatrixType, Operators
-from EasyFEA.Models.HyperElastic._state import HyperElasticState
+from EasyFEA.FEM import Kinematics
 
 
 class TestGonzalezEnergyConservation:
@@ -274,14 +274,14 @@ class TestKelvinVoigtWiring:
         F_plain = simu._Construct_local_matrix_system(pt)[groupElem][3]
         mat.eta = eta
 
-        # what the operator says the viscous residual is, at the same evaluation state
+        # what the operator says the viscous residual is, at the same evaluation kinematics
         u_t, v_t, _ = simu._Solver_Evaluate_u_v_a_for_time_scheme(pt, u_np1)
-        state = HyperElasticState(groupElem, u_t, MatrixType.rigi)
-        _, R_e, _ = Operators.NonLinear.KelvinVoigtDamping(mat, state, v_t)
+        kinematics = Kinematics(groupElem, u_t, MatrixType.rigi)
+        _, R_e, _ = Operators.NonLinear.KelvinVoigtDamping(mat, kinematics, v_t)
 
         assert (
             np.abs(R_e).max() > 0
-        ), "test state is degenerate: the viscous residual is zero"
+        ), "test kinematics is degenerate: the viscous residual is zero"
         got = F_plain - F_visco  # F_e -= R_e  =>  the difference is +R_e
         assert np.abs(got - R_e).max() < 1e-10 * np.abs(R_e).max(), (
             "F_e does not carry exactly one -R_visco: max diff "
@@ -308,23 +308,25 @@ def test_active_stress_accepts_a_field():
     fibers[..., 0] = 1.0
     material.Set_active_stress_vec(FeArray.asfearray(fibers))
 
-    state = HyperElasticState(groupElem, np.zeros(mesh.Nn * 3), matrixType)
+    kinematics = Kinematics(groupElem, np.zeros(mesh.Nn * 3), matrixType)
 
     material.active_stress = 10.0
-    scalar = np.asarray(material.Compute_active_stress(state)).copy()
+    scalar = np.asarray(material.Compute_active_stress(kinematics)).copy()
 
     for uniform in (np.full(Ne, 10.0), np.full((Ne, nPg), 10.0)):
         material.active_stress = uniform
-        assert np.array_equal(np.asarray(material.Compute_active_stress(state)), scalar)
+        assert np.array_equal(
+            np.asarray(material.Compute_active_stress(kinematics)), scalar
+        )
 
     # a per-element magnitude must survive to the stress, not be collapsed to one value
     varying = np.linspace(1.0, 10.0, Ne)
     material.active_stress = varying
-    stress = np.asarray(material.Compute_active_stress(state))
+    stress = np.asarray(material.Compute_active_stress(kinematics))
     assert not np.allclose(stress, scalar)
     # the fiber is x, so the xx component carries the magnitude
     assert np.allclose(stress[:, 0, 0], varying)
 
     with pytest.raises(AssertionError):
         material.active_stress = np.ones((Ne + 1, nPg))
-        material.Compute_active_stress(state)
+        material.Compute_active_stress(kinematics)
