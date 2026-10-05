@@ -5,7 +5,7 @@
 
 import numpy as np
 
-from EasyFEA import Models, Simulations, SolverType
+from EasyFEA import ElemType, Models, Simulations, SolverType
 from EasyFEA.Geoms import Domain
 
 
@@ -87,3 +87,30 @@ class TestPhaseField:
         DoTest(simu)
         pfm.A = np.eye(2) * 3
         DoTest(simu)
+
+    def test_History_per_groupElem(self):
+        """On a mixed mesh, psi+ keeps each group's history after unloading."""
+
+        mesh = Domain((0, 0), (120, 13), 13 / 2).Mesh_2D([], ElemType.QUAD4)
+        assert len(mesh.Get_list_groupElem()) == 2
+
+        material = Models.Elastic.Isotropic(2, E=210000, v=0.3)
+        pfm = Models.PhaseField(material, "Miehe", "AT2", 2700, 13)
+        simu = Simulations.PhaseField(mesh, pfm)
+
+        nodes_0 = mesh.Nodes_Conditions(lambda x, y, z: x == 0)
+        nodes_a = mesh.Nodes_Conditions(lambda x, y, z: x == 120)
+
+        def load(ud: float) -> np.ndarray:
+            simu.Bc_Init()
+            simu.add_dirichlet(nodes_0, [0, 0], ["x", "y"])
+            simu.add_dirichlet(nodes_a, [ud], ["x"])
+            simu.Solve()
+            simu.Save_Iter()
+            return simu.Result("psiP", nodeValues=False)
+
+        loaded = load(1e-2)
+        unloaded = load(0.0)
+
+        assert np.all(loaded > 0)
+        np.testing.assert_allclose(unloaded, loaded)

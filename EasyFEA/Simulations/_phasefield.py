@@ -102,9 +102,9 @@ class PhaseField(_Simu):
         super().__init__(mesh, model, folder, verbosity)
 
         # Init internal variable
-        self.__psiP_e_pg: FeArray.FeArrayALike = np.empty(0, dtype=float)
-        # old positive elastic energy density psiPlus(e, pg, 1) to use the miehe history field
-        self.__old_psiP_e_pg: FeArray.FeArrayALike = np.empty(0, dtype=float)
+        self.__psiP_e_pg: dict[_GroupElem, FeArray] = {}
+        # old positive elastic energy density psiPlus(e, pg) to use the miehe history field
+        self.__old_psiP_e_pg: dict[_GroupElem, FeArray] = {}
 
         self.Need_Update()
 
@@ -489,31 +489,14 @@ class PhaseField(_Simu):
         psiP_e_pg, _ = phaseFieldModel.Compute_psi(kinematics)
 
         if phaseFieldModel.solver == "History":
-            # Get the old history field
-            old_psiPlus_e_pg = self.__old_psiP_e_pg.copy()  # type: ignore [union-attr]
+            old_psiP_e_pg = self.__old_psiP_e_pg.get(groupElem)
+            # skipped when there is no history yet or the mesh has changed
+            if old_psiP_e_pg is not None and old_psiP_e_pg.shape == psiP_e_pg.shape:
+                psiP_e_pg = np.maximum(psiP_e_pg, old_psiP_e_pg)
 
-            if isinstance(old_psiPlus_e_pg, list) and len(old_psiPlus_e_pg) == 0:
-                # No damage available yet
-                old_psiPlus_e_pg = np.zeros_like(psiP_e_pg)
+        self.__psiP_e_pg[groupElem] = FeArray.asfearray(psiP_e_pg)
 
-            if old_psiPlus_e_pg.shape != psiP_e_pg.shape:
-                # the mesh has been changed, the value must be recalculated
-                # here do nothing
-                old_psiPlus_e_pg = np.zeros_like(psiP_e_pg)
-
-            inc_H = psiP_e_pg - old_psiPlus_e_pg
-
-            elements, gaussPoints = np.where(inc_H < 0)
-
-            psiP_e_pg[elements, gaussPoints] = old_psiPlus_e_pg[elements, gaussPoints]
-
-            # new = np.linalg.norm(psiP_e_pg)
-            # old = np.linalg.norm(self.__old_psiP_e_pg)
-            # assert new >= old, "Error"
-
-        self.__psiP_e_pg = FeArray.asfearray(psiP_e_pg)
-
-        return self.__psiP_e_pg
+        return self.__psiP_e_pg[groupElem]
 
     def __Damage(self, groupElem: _GroupElem) -> tuple[np.ndarray, np.ndarray]:
         """Damage operator ``(K_e, F_e)``: reaction + diffusion against the positive energy source.
@@ -585,7 +568,7 @@ class PhaseField(_Simu):
 
         if self.phaseFieldModel.solver == self.phaseFieldModel.SolverType.History:
             # update old history field for next resolution
-            self.__old_psiP_e_pg = self.__psiP_e_pg
+            self.__old_psiP_e_pg = dict(self.__psiP_e_pg)
 
         iter["displacement"] = self.displacement
         iter["damage"] = self.damage
@@ -612,10 +595,12 @@ class PhaseField(_Simu):
             resetAll
             and self.phaseFieldModel.solver == self.phaseFieldModel.SolverType.History
         ):
-            # It's really useful to do this otherwise when we calculate psiP there will be a problem
-            self.__old_psiP_e_pg = FeArray.zeros(*self.__old_psiP_e_pg.shape)
-            # update psi+ with the current state
-            self.__old_psiP_e_pg = self.__Calc_psiPlus_e_pg(self.mesh.groupElem)
+            # emptied first so the rebuild ignores the history of later iterations
+            self.__old_psiP_e_pg = {}
+            self.__old_psiP_e_pg = {
+                groupElem: self.__Calc_psiPlus_e_pg(groupElem)
+                for groupElem in self.mesh.Get_list_groupElem()
+            }
 
         return results
 
