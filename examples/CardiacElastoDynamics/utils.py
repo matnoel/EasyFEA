@@ -128,7 +128,7 @@ def _fibers_from_vtu(
     path: str,
     matrixType: MatrixType,
 ) -> tuple[FeArray, FeArray]:
-    """`fiber.vtu` / `sheet.vtu` source: read the FEniCS-generated nodal `f0` / `s0`, interpolate them to the Gauss points, then Gram-Schmidt to restore `f _|_ s` (interpolation through the shape functions bends the alignment). `mesh.nodes` are the rank-local owned indices; the unowned rows stay at zero, as Locates_sol_e expects."""
+    """`fiber.vtu` / `sheet.vtu` source: read the FEniCS-generated nodal `f0` / `s0`, interpolate them to the Gauss points, then Gram-Schmidt to restore `f _|_ s` (interpolation through the shape functions bends the alignment). `mesh.nodes` are the rank-local owned indices; the unowned rows stay at zero, as Interpolate_e_pg expects."""
     groupElem3D = mesh.Get_list_groupElem(3)[0]
     nodes = mesh.nodes
 
@@ -139,9 +139,8 @@ def _fibers_from_vtu(
     sheetFile = Folder.Join(path, "sheet.vtu")
     sheets_n[nodes] = MeshIO.meshio.vtu.read(sheetFile).point_data["s0"][nodes]
 
-    N_pg = mesh.groupElem.Get_N_pg(matrixType)
-    fibers_e_pg = FeArray(np.einsum("pin,end->epd", N_pg, mesh.Locates_sol_e(fibers_n)))
-    sheets_e_pg = FeArray(np.einsum("pin,end->epd", N_pg, mesh.Locates_sol_e(sheets_n)))
+    fibers_e_pg = mesh.groupElem.Interpolate_e_pg(fibers_n, matrixType)
+    sheets_e_pg = mesh.groupElem.Interpolate_e_pg(sheets_n, matrixType)
 
     # re-normalise the interpolated fibre (needed for higher-order elements where N_pg bends its magnitude), then project it out of the sheet
     fibers_e_pg = fibers_e_pg / Norm(fibers_e_pg, axis=-1)
@@ -161,11 +160,10 @@ def _fibers_analytic(
     """Analytic source: solve the transmural distance, interpolate it to the Gauss points, then evaluate the analytic triad directly at the Gauss-point coordinates. The frame is exact and orthonormal at every quadrature point, so no node->Gauss interpolation of the vectors and no Gram-Schmidt are needed."""
     td_n = __Compute_transmural_distance(mesh, endoNodes, epiNodes)
 
-    N_pg = mesh.groupElem.Get_N_pg(matrixType)
     coord_e_pg = np.asarray(
         mesh.groupElem.Get_GaussCoordinates_e_pg(matrixType)
     )  # (Ne, nPg, 3)
-    td_e_pg = np.einsum("pin,en->ep", N_pg, mesh.Locates_sol_e(td_n))  # (Ne, nPg)
+    td_e_pg = np.asarray(mesh.groupElem.Interpolate_e_pg(td_n, matrixType))  # (Ne, nPg)
 
     fibers_e_pg, sheets_e_pg, _ = __Compute_fiber_directions(coord_e_pg, td_e_pg)
 
@@ -353,9 +351,8 @@ def Get_biventricular(
     fiber_n = Simulations.Load_pickle(saveFolder, "fiber_n")
     sheet_n = Simulations.Load_pickle(saveFolder, "sheet_n")
 
-    N_pg = mesh.groupElem.Get_N_pg(matrixType)
-    fibers_e_pg = FeArray(np.einsum("pin,end->epd", N_pg, mesh.Locates_sol_e(fiber_n)))
-    sheets_e_pg = FeArray(np.einsum("pin,end->epd", N_pg, mesh.Locates_sol_e(sheet_n)))
+    fibers_e_pg = mesh.groupElem.Interpolate_e_pg(fiber_n, matrixType)
+    sheets_e_pg = mesh.groupElem.Interpolate_e_pg(sheet_n, matrixType)
 
     # re-normalise the interpolated fibre (needed for higher-order elements where N_pg bends its magnitude), then project it out of the sheet
     fibers_e_pg = fibers_e_pg / Norm(fibers_e_pg, axis=-1)
