@@ -27,7 +27,7 @@ def GradUGradV(
 ) -> np.ndarray:
     """``∫_Ω coef · ∇u · ∇v dΩ`` — returns ``(Ne, nPe, nPe)``.
 
-    ``coef`` may be scalar, ``(Ne,)``, ``(nPg,)``, or ``(Ne, nPg)``;
+    ``coef`` may be scalar, ``(Ne,)`` or ``(Ne, nPg)``;
     broadcast via :meth:`FeArray.broadcast` (stride view, no copy).
 
     ``elements`` restricts the integral to those elements of ``groupElem``; the result stays full-group, exact zero outside.
@@ -35,7 +35,7 @@ def GradUGradV(
     mat_e_pg = groupElem.Get_DiffusePart_e_pg(matrixType)
     dN_e_pg = groupElem.Get_dN_e_pg(matrixType)
     Ne, nPg = dN_e_pg.shape[:2]
-    coef = FeArray.broadcast(coef, Ne, nPg)
+    coef = FeArray.broadcast(coef, Ne, nPg, tensor_shape=())
     coef, mat_e_pg, dN_e_pg = Restrict(elements, coef, mat_e_pg, dN_e_pg)
     values_e = einsum("epij,epjk->eik", coef * mat_e_pg, dN_e_pg)
     return Scatter(values_e, Ne, elements)
@@ -53,12 +53,12 @@ def UV(
     ``dof_n=1`` for scalar fields (thermal, phase-field);
     ``dof_n=dim`` for vector fields (elastic dynamics).
 
-    ``coef`` may be scalar, ``(Ne,)``, ``(nPg,)``, or ``(Ne, nPg)``;
+    ``coef`` may be scalar, ``(Ne,)`` or ``(Ne, nPg)``;
     broadcast via :meth:`FeArray.broadcast` (stride view, no copy).
     """
     mat_e_pg = groupElem.Get_ReactionPart_e_pg(matrixType, dof_n)
     Ne, nPg = mat_e_pg.shape[:2]
-    coef = FeArray.broadcast(coef, Ne, nPg)
+    coef = FeArray.broadcast(coef, Ne, nPg, tensor_shape=())
     coef, mat_e_pg = Restrict(elements, coef, mat_e_pg)
     return Scatter((coef * mat_e_pg).integrate(), Ne, elements)
 
@@ -79,8 +79,8 @@ def LinearizedElasticity(
     """
     leftDispPart_e_pg = groupElem.Get_leftDispPart_e_pg(matrixType)
     B_e_pg = groupElem.Get_B_e_pg(matrixType)
-    Ne, nPg = B_e_pg.shape[:2]
-    C = FeArray.broadcast(C, Ne, nPg, tensor_ndim=2)
+    Ne, nPg, nS = B_e_pg.shape[:3]
+    C = FeArray.broadcast(C, Ne, nPg, tensor_shape=(nS, nS))
     C, leftDispPart_e_pg, B_e_pg = Restrict(elements, C, leftDispPart_e_pg, B_e_pg)
     values_e = einsum("epij,epjk->eik", leftDispPart_e_pg @ C, B_e_pg)
     return Scatter(values_e, Ne, elements)
@@ -106,7 +106,7 @@ def MassAlongNormal(
     Restricted to a 2D surface group in a 3D mesh (``groupElem.dim == 2``,
     ``groupElem.inDim == 3``).
 
-    ``coef`` may be scalar, ``(Ne,)``, ``(nPg,)``, or ``(Ne, nPg)``;
+    ``coef`` may be scalar, ``(Ne,)`` or ``(Ne, nPg)``;
     broadcast via :meth:`FeArray.broadcast` (stride view, no copy).
     """
     assert groupElem.dim in [1, 2]
@@ -120,7 +120,7 @@ def MassAlongNormal(
     nn_e_pg = TensorProd(n_e_pg, n_e_pg)  # (Ne, nPg, dim, dim)
 
     Ne, nPg = wJ_e_pg.shape
-    coef = FeArray.broadcast(coef, Ne, nPg)
+    coef = FeArray.broadcast(coef, Ne, nPg, tensor_shape=())
     coef, wJ_e_pg, nn_e_pg = Restrict(elements, coef, wJ_e_pg, nn_e_pg)
     values_e = einsum("ep,opji,epjk,opkl->eil", coef * wJ_e_pg, N_pg, nn_e_pg, N_pg)
     return Scatter(values_e, Ne, elements)
@@ -236,7 +236,7 @@ def BeamMass(
     Returns ``(Ne, nPe·dof_n, nPe·dof_n)`` with ``dof_n = beamStructure.dof_n``.
 
     Integrated at ``MatrixType.beam``. ``coef`` is typically the density
-    ``rho`` of the simulation; may be scalar, ``(Ne,)``, ``(nPg,)``, or
+    ``rho`` of the simulation; may be scalar, ``(Ne,)`` or
     ``(Ne, nPg)`` — broadcast via :meth:`FeArray.broadcast`.
     """
     assert isinstance(
@@ -248,7 +248,7 @@ def BeamMass(
     N_e_pg = groupElem.Get_beam_N_e_pg(beamStructure)
     M_e_pg = beamStructure.Calc_M_e_pg(groupElem)
     Ne, nPg = wJ_e_pg.shape
-    coef = FeArray.broadcast(coef, Ne, nPg)
+    coef = FeArray.broadcast(coef, Ne, nPg, tensor_shape=())
     return einsum("ep,epji,epjk,epkl->eil", coef * wJ_e_pg, N_e_pg, M_e_pg, N_e_pg)
 
 
@@ -262,14 +262,14 @@ def GradU_A_GradV(
 
     ``A`` is the diffusion tensor with trailing two dims ``(dim, dim)``; the
     leading dims may be empty, ``(Ne,)``, or ``(Ne, nPg)``. ``coef`` is a
-    scalar weight: scalar, ``(Ne,)``, ``(nPg,)``, or ``(Ne, nPg)``. Both
+    scalar weight: scalar, ``(Ne,)`` or ``(Ne, nPg)``. Both
     broadcast via :meth:`FeArray.broadcast`. For the isotropic form
     ``∫ coef · ∇u · ∇v dΩ``, use :func:`GradUGradV`.
     """
     diffusePart_e_pg = groupElem.Get_DiffusePart_e_pg(matrixType)
     dN_e_pg = groupElem.Get_dN_e_pg(matrixType)
-    Ne, nPg = dN_e_pg.shape[:2]
-    A = FeArray.broadcast(A, Ne, nPg, tensor_ndim=2)
-    coef = FeArray.broadcast(coef, Ne, nPg)
+    Ne, nPg, dim = dN_e_pg.shape[:3]
+    A = FeArray.broadcast(A, Ne, nPg, tensor_shape=(dim, dim))
+    coef = FeArray.broadcast(coef, Ne, nPg, tensor_shape=())
     # return (coef * diffusePart_e_pg @ A @ dN_e_pg).integrate()
     return einsum("epij,epjk->eik", coef * diffusePart_e_pg, A @ dN_e_pg)

@@ -78,8 +78,9 @@ def _Get_enclosed_measure(mesh: Mesh, matrixType=MatrixType.mass) -> float:
         x_e_pg = groupElem.Get_GaussCoordinates_e_pg(matrixType)
         normal_e_pg = groupElem.Get_normals_e_pg(matrixType, normalize=False)
         xn_e_pg = x_e_pg.dot(normal_e_pg)
-        weight_e_pg = FeArray.broadcast(
-            groupElem.Get_weight_pg(matrixType), *xn_e_pg.shape[:2]
+        weight_pg = groupElem.Get_weight_pg(matrixType)
+        weight_e_pg = FeArray.asfearray(
+            np.broadcast_to(weight_pg, (xn_e_pg.shape[0], *weight_pg.shape))
         )
         measure += (weight_e_pg * xn_e_pg).integrate().sum()
     return measure / mesh.inDim

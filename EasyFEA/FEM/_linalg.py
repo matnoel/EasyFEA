@@ -426,54 +426,38 @@ class FeArray(np.ndarray):
 
     @staticmethod
     def broadcast(
-        value, Ne: int, nPg: int, tensor_ndim: int = 0
+        value, Ne: int, nPg: int, *, tensor_shape: tuple[int, ...]
     ) -> "FeArray.FeArrayALike":
-        """Broadcast a scalar or array coefficient to a shape compatible with multiplication against an ``(Ne, nPg, ...)`` FeArray.
+        """``value`` as ``(Ne, nPg, *tensor_shape)``: its tail must be ``tensor_shape`` and its lead ``()``, ``(Ne,)`` or ``(Ne, nPg)``, else raise; nothing is guessed from shape.
 
-        Returns a stride-tricked read-only view for non-scalar inputs (no data duplication). Callers must not mutate the result in place;
-        the expected use is consumption inside expressions such as ``coef * wJ_e_pg * dN_e_pg.T @ dN_e_pg``, which create new arrays.
-
-        ``tensor_ndim`` declares how many trailing axes of ``value`` are tensor dims (e.g. ``2`` for a Hooke tensor ``(..., nstrain, nstrain)``).
-        With it set, the leading axes are checked against ``()`` / ``(Ne,)`` / ``(Ne, nPg)`` strictly — this disambiguates shapes like
-        ``(Ne, n, n)`` from ``(Ne, nPg, n)`` when ``nPg == n`` (e.g. TRI6 in 2D, where ``nPg == nstrain == 3``).
-
-        Accepted shapes (with default ``tensor_ndim=0``)
-        ------------------------------------------------
-        - scalar (int / float / numpy scalar) → returned as ``float``.
-        - ``(Ne, nPg, ...)`` ndarray / FeArray → wrapped as FeArray.
-        - 1-D ``(Ne,)`` or ``(nPg,)`` → tiled to ``(Ne, nPg)``.
-        - Any other shape broadcastable to ``(Ne, nPg, ...)`` → tiled with leading ``(Ne, nPg)`` dims.
+        A 0-d scalar comes back as a float, a constant as a read-only view (consume, never mutate in place).
         """
-        if isinstance(value, (int, float, np.floating, np.integer)):
-            return float(value)
+        tensor_shape = tuple(tensor_shape)
+        if isinstance(value, FeArray):
+            if value.shape != (Ne, nPg, *tensor_shape):
+                raise ValueError(
+                    f"a FeArray of shape {value.shape} cannot be held at "
+                    f"(Ne, nPg, *tensor_shape) = {(Ne, nPg, *tensor_shape)}."
+                )
+            return value
         arr = np.asarray(value)
-
-        if tensor_ndim > 0:
-            tail = arr.shape[-tensor_ndim:] if tensor_ndim else ()
-            lead = arr.shape[:-tensor_ndim] if tensor_ndim else arr.shape
-            if lead == (Ne, nPg):
-                return FeArray.asfearray(arr)
-            if lead == (Ne,):
-                return FeArray.asfearray(
-                    np.broadcast_to(arr[:, None], (Ne, nPg) + tail)
-                )
-            if lead == ():
-                return FeArray.asfearray(
-                    np.broadcast_to(arr[None, None], (Ne, nPg) + tail)
-                )
+        nt = len(tensor_shape)
+        if arr.ndim == 0 and nt == 0:
+            return float(arr)
+        lead, tail = arr.shape[: arr.ndim - nt], arr.shape[arr.ndim - nt :]
+        if arr.ndim < nt or tail != tensor_shape:
             raise ValueError(
-                f"With tensor_ndim={tensor_ndim}, leading axes must be (), (Ne,), or (Ne, nPg); got {lead}."
+                f"a value of shape {arr.shape} must end with tensor_shape {tensor_shape}."
             )
-
-        if arr.shape[:2] == (Ne, nPg):
+        if lead == (Ne, nPg):
             return FeArray.asfearray(arr)
-        if arr.ndim == 1:
-            if arr.shape[0] == Ne:
-                return FeArray.asfearray(np.broadcast_to(arr[:, None], (Ne, nPg)))
-            if arr.shape[0] == nPg:
-                return FeArray.asfearray(np.broadcast_to(arr[None, :], (Ne, nPg)))
-        return FeArray.asfearray(
-            np.broadcast_to(arr[None, None], (Ne, nPg) + arr.shape)
+        elif lead == (Ne,):
+            return FeArray.asfearray(np.broadcast_to(arr[:, None], (Ne, nPg, *tail)))
+        elif lead == ():
+            return FeArray.asfearray(np.broadcast_to(arr, (Ne, nPg, *tail)))
+        raise ValueError(
+            f"a value of shape {arr.shape} has leading axes {lead}: expected (), "
+            f"(Ne,) = ({Ne},) or (Ne, nPg) = ({Ne}, {nPg})."
         )
 
     def _asfearrays(

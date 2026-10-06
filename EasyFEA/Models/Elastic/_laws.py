@@ -131,14 +131,8 @@ class _Elastic(_IModel, ABC):
     def Compute_Sigma(self, kinematics: "Kinematics") -> FeArray.FeArrayALike:
         """Stress ``σ = C : ε`` in Kelvin-Mandel form, shape (Ne, nPg, 3 or 6)."""
         Epsilon_e_pg = kinematics.Compute_Epsilon()
-        Ne, nPg = Epsilon_e_pg.shape[:2]
-
-        C = self.C
-        if self.isHeterogeneous:
-            C_e_pg = FeArray.broadcast(C, Ne, nPg, tensor_ndim=2)
-        else:
-            C_e_pg = FeArray.asfearray(C, True)
-
+        Ne, nPg, nS = Epsilon_e_pg.shape
+        C_e_pg = FeArray.broadcast(self.C, Ne, nPg, tensor_shape=(nS, nS))
         return C_e_pg @ Epsilon_e_pg
 
     def Compute_Psi(self, kinematics: "Kinematics") -> FeArray.FeArrayALike:

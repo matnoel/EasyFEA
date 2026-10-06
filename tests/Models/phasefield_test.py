@@ -16,8 +16,7 @@ from EasyFEA.Models.Elastic import (
     Anisotropic,
 )
 from EasyFEA.Models._phasefield import PhaseField
-from EasyFEA.Models import Reshape_variable
-from EasyFEA.FEM._linalg import Norm
+from EasyFEA.FEM._linalg import FeArray, Norm
 from EasyFEA.FEM import Kinematics, MatrixType
 
 
@@ -104,7 +103,8 @@ class TestPhaseField:
             kinematics = kinematics2D if mat.dim == 2 else kinematics3D
             Epsilon_e_pg = kinematics.Compute_Epsilon()
 
-            C_e_pg = Reshape_variable(mat.C, *Epsilon_e_pg.shape[:2])
+            Ne, nPg, nS = Epsilon_e_pg.shape
+            C_e_pg = FeArray.broadcast(mat.C, Ne, nPg, tensor_shape=(nS, nS))
             cP_e_pg, cM_e_pg = pfm._Split_C(kinematics, verif=True)
             # stress
             Sig_e_pg = C_e_pg @ Epsilon_e_pg

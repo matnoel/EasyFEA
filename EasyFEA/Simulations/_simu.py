@@ -728,7 +728,7 @@ class _Simu(_IObserver, _params.Updatable, ABC):
         mass = 0.0
         for groupElem in self.mesh.Get_list_groupElem(self.dim):
             wJ_e_pg = groupElem.Get_weightedJacobian_e_pg(matrixType)
-            rho_e_pg = FeArray.broadcast(self.rho, *wJ_e_pg.shape[:2])
+            rho_e_pg = FeArray.broadcast(self.rho, *wJ_e_pg.shape, tensor_shape=())
             mass += (rho_e_pg * wJ_e_pg).sum().astype(float)
 
         if self.dim == 2:
@@ -751,7 +751,7 @@ class _Simu(_IObserver, _params.Updatable, ABC):
         for groupElem in self.mesh.Get_list_groupElem(self.dim):
             coord_e_pg = groupElem.Get_GaussCoordinates_e_pg(matrixType)
             wJ_e_pg = groupElem.Get_weightedJacobian_e_pg(matrixType)
-            rho_e_pg = FeArray.broadcast(self.rho, *wJ_e_pg.shape[:2])
+            rho_e_pg = FeArray.broadcast(self.rho, *wJ_e_pg.shape, tensor_shape=())
             contrib = (rho_e_pg * wJ_e_pg * coord_e_pg / mass).sum()
             if self.dim == 2:
                 contrib *= self.model.thickness

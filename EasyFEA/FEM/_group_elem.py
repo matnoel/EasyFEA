@@ -635,8 +635,7 @@ class _GroupElem(ABC):
             coord_e_pg[:, :, 0], coord_e_pg[:, :, 1], coord_e_pg[:, :, 2]
         )
 
-        # func may return a constant, so go through the field constructor rather than a view
-        eval_e_pg = FeArray.broadcast(eval_e_pg, *wJ_e_pg.shape[:2])
+        eval_e_pg = FeArray.broadcast(eval_e_pg, *wJ_e_pg.shape, tensor_shape=())
 
         values_e = (wJ_e_pg * eval_e_pg).integrate()
 

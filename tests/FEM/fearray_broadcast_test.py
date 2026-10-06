@@ -9,8 +9,6 @@ import pytest
 
 from EasyFEA.FEM._linalg import FeArray
 
-pytestmark = pytest.mark.xfail(strict=True, reason="#64 strict broadcast")
-
 # (value, tensor shape, accepted, meaning): value "" is a float, "fe:..." a FeArray;
 # meaning "full" (constant or already per point), "e" per element, "pg" per point (the hole), None ill-formed
 S, V, M = "", "n", "n, n"

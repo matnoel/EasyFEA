@@ -15,7 +15,6 @@ from ._weakforms import WeakForms
 
 from ._utils import (
     _IModel,
-    Reshape_variable,
     Heterogeneous_Array,
     KelvinMandel_Matrix,
     Project_vector_to_matrix,

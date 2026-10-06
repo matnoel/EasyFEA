@@ -51,19 +51,6 @@ class _IModel(Observable, Updatable, ABC):
 __erroDim = "Pay attention to the dimensions of the material constants.\nIf the material constants are in arrays, these arrays must have the same dimension."
 
 
-def Reshape_variable(
-    variable: _types.Number | _types.AnyArray, Ne: int, nPg: int
-) -> FeArray.FeArrayALike:
-    """Resizes variable to (Ne, nPg, ...) shape.
-
-    Kept for compatibility; :meth:`FeArray.broadcast` is the entry point, and states the tensor
-    rank instead of inferring it.
-    """
-    if isinstance(variable, (int, float)):
-        return FeArray.ones(Ne, nPg) * variable
-    return FeArray.broadcast(variable, Ne, nPg, 2 if np.ndim(variable) == 3 else 0)
-
-
 def Heterogeneous_Array(array: _types.FloatArray):
     """Builds a heterogeneous array."""
 

@@ -195,7 +195,7 @@ class _Behavior(_IModel, _IObserver):
         return self.Externals._fields
 
     def __C_e_pg(self, Ne: int, nPg: int) -> FeArray.FeArrayALike:
-        return FeArray.broadcast(self.C, Ne, nPg, tensor_ndim=2)
+        return FeArray.broadcast(self.C, Ne, nPg, tensor_shape=(6, 6))
 
     def _Update(
         self,
@@ -271,11 +271,8 @@ class _Behavior(_IModel, _IObserver):
         virgin = self.Virgin_internals()._asdict()
         if self.planeStress:
             virgin["eps_zz"] = ZERO_SCALAR
-        # tensor_ndim, else a (6,) default reads as (Ne,) when Ne == 6; copied, since broadcast is a read-only view
         return {
-            name: FeArray.broadcast(
-                np.asarray(v, dtype=float), Ne, nPg, tensor_ndim=np.ndim(v)
-            ).copy()
+            name: FeArray.asfearray(np.full((Ne, nPg, *np.shape(v)), v, dtype=float))
             for name, v in virgin.items()
         }
 
@@ -375,7 +372,9 @@ class _Behavior(_IModel, _IObserver):
         assert not unknown, f"{type(self).__name__} reads no {sorted(unknown)}"
         # vmap maps every one over (Ne, nPg), a scalar included
         return {
-            name: np.broadcast_to(FeArray.broadcast(v, Ne, nPg), (Ne, nPg))
+            name: np.broadcast_to(
+                FeArray.broadcast(v, Ne, nPg, tensor_shape=()), (Ne, nPg)
+            )
             for name, v in external.items()
         }
 

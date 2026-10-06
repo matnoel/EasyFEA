@@ -28,12 +28,12 @@ def V(
     ``dof_n=1`` for scalar fields (thermal, phase-field);
     ``dof_n=dim`` for vector fields (elastic dynamics).
 
-    ``f`` may be scalar, ``(Ne,)``, ``(nPg,)``, or ``(Ne, nPg)``;
+    ``f`` may be scalar, ``(Ne,)`` or ``(Ne, nPg)``;
     broadcast via :meth:`FeArray.broadcast` (stride view, no copy).
     """
     vec_e_pg = groupElem.Get_SourcePart_e_pg(matrixType, dof_n)
     Ne, nPg = vec_e_pg.shape[:2]
-    f = FeArray.broadcast(f, Ne, nPg)
+    f = FeArray.broadcast(f, Ne, nPg, tensor_shape=())
     f, vec_e_pg = Restrict(elements, f, vec_e_pg)
     # sourcePart is (Ne, nPg, nPe·dof_n, dof_n): summing the trailing axis collapses the
     # block-diagonal shape functions, applying the scalar f to each dof.

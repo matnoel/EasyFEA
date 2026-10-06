@@ -253,11 +253,7 @@ class PhaseField(_IModel):
     def Get_r_e_pg(self, PsiP_e_pg: _types.FloatArray) -> FeArray.FeArrayALike:
         """Returns reaction therm"""
 
-        Gc = self.Gc
-        if self.isHeterogeneous:
-            Gc = FeArray.broadcast(Gc, *PsiP_e_pg.shape[:2])
-        else:
-            FeArray.asfearray(Gc, True)
+        Gc = FeArray.broadcast(self.Gc, *PsiP_e_pg.shape[:2], tensor_shape=())
         l0 = self.l0
 
         # J/m3
@@ -273,11 +269,7 @@ class PhaseField(_IModel):
     def Get_f_e_pg(self, PsiP_e_pg: _types.FloatArray) -> FeArray.FeArrayALike:
         """Returns source therm"""
 
-        Gc = self.Gc
-        if self.isHeterogeneous:
-            Gc = FeArray.broadcast(Gc, *PsiP_e_pg.shape[:2])
-        else:
-            Gc = FeArray.asfearray(Gc, True)
+        Gc = FeArray.broadcast(self.Gc, *PsiP_e_pg.shape[:2], tensor_shape=())
         l0 = self.l0
 
         # J/m3
@@ -415,11 +407,10 @@ class PhaseField(_IModel):
 
         tic = Tic()
 
-        C = self.__material.C
-        if self.isHeterogeneous:
-            C_e_pg = FeArray.broadcast(C, *kinematics._GetDims()[:2], tensor_ndim=2)
-        else:
-            C_e_pg = FeArray.asfearray(C, True)
+        nS = 3 if self.__material.dim == 2 else 6
+        C_e_pg = FeArray.broadcast(
+            self.__material.C, *kinematics._GetDims()[:2], tensor_shape=(nS, nS)
+        )
 
         cP_e_pg = C_e_pg
         cM_e_pg = np.zeros_like(cP_e_pg)
@@ -451,8 +442,8 @@ class PhaseField(_IModel):
 
         if material.isHeterogeneous:
             Ne, nPg = Epsilon_e_pg.shape[:2]
-            mu = FeArray.broadcast(mu, Ne, nPg)
-            bulk = FeArray.broadcast(bulk, Ne, nPg)
+            mu = FeArray.broadcast(mu, Ne, nPg, tensor_shape=())
+            bulk = FeArray.broadcast(bulk, Ne, nPg, tensor_shape=())
 
         cP_e_pg = bulk * (Rp_e_pg * IxI) + 2 * mu * (
             np.eye(IxI.shape[0]) - 1 / dim * IxI
@@ -512,14 +503,15 @@ class PhaseField(_IModel):
 
             if material.isHeterogeneous:
                 Ne, nPg = Epsilon_e_pg.shape[:2]
-                mu = FeArray.broadcast(mu, Ne, nPg)
-                lamb = FeArray.broadcast(lamb, Ne, nPg)
+                mu = FeArray.broadcast(mu, Ne, nPg, tensor_shape=())
+                lamb = FeArray.broadcast(lamb, Ne, nPg, tensor_shape=())
 
             cP_e_pg = lamb * (Rp_e_pg * IxI) + 2 * mu * projP_e_pg
             cM_e_pg = lamb * (Rm_e_pg * IxI) + 2 * mu * projM_e_pg
 
         elif "Strain" in self.split:
-            C_e_pg = FeArray.asfearray(material.C, True)
+            Ne, nPg, nS = Epsilon_e_pg.shape
+            C_e_pg = FeArray.broadcast(material.C, Ne, nPg, tensor_shape=(nS, nS))
 
             projPTC = projP_e_pg.T @ C_e_pg
             projMTc = projM_e_pg.T @ C_e_pg
@@ -559,13 +551,9 @@ class PhaseField(_IModel):
         material = self.__material
 
         Epsilon_e_pg = kinematics.Compute_Epsilon()
-        Ne, nPg = Epsilon_e_pg.shape[:2]
+        Ne, nPg, nS = Epsilon_e_pg.shape
 
-        C = material.C
-        if self.isHeterogeneous:
-            C_e_pg = FeArray.broadcast(C, Ne, nPg, tensor_ndim=2)
-        else:
-            C_e_pg = FeArray.asfearray(C, True)
+        C_e_pg = FeArray.broadcast(material.C, Ne, nPg, tensor_shape=(nS, nS))
 
         Sigma_e_pg = C_e_pg @ Epsilon_e_pg
 
@@ -582,9 +570,9 @@ class PhaseField(_IModel):
             mu = material.get_mu()
 
             if material.isHeterogeneous:
-                E = FeArray.broadcast(E, Ne, nPg)
-                v = FeArray.broadcast(v, Ne, nPg)
-                mu = FeArray.broadcast(mu, Ne, nPg)
+                E = FeArray.broadcast(E, Ne, nPg, tensor_shape=())
+                v = FeArray.broadcast(v, Ne, nPg, tensor_shape=())
+                mu = FeArray.broadcast(mu, Ne, nPg, tensor_shape=())
 
             dim = self.dim
 
@@ -627,7 +615,7 @@ class PhaseField(_IModel):
                 # Compute Cp and Cm
                 S = material.S
 
-                S_e_pg = FeArray.broadcast(S, Ne, nPg, tensor_ndim=2)
+                S_e_pg = FeArray.broadcast(S, Ne, nPg, tensor_shape=(nS, nS))
 
                 ps = Cp_e_pg.T @ S_e_pg
                 ms = Cm_e_pg.T @ S_e_pg
@@ -675,13 +663,9 @@ class PhaseField(_IModel):
         # inv(sqrtC) = sqrtS
         tic.Tac("Split", "sqrt C and S", False)
 
-        if material.isHeterogeneous:
-            Ne, nPg = Epsilon_e_pg.shape[:2]
-            sqrtC = FeArray.broadcast(sqrtC, Ne, nPg, tensor_ndim=2)
-            inv_sqrtC = FeArray.broadcast(inv_sqrtC, Ne, nPg, tensor_ndim=2)
-        else:
-            sqrtC = FeArray.asfearray(sqrtC, True)
-            inv_sqrtC = FeArray.asfearray(inv_sqrtC, True)
+        Ne, nPg, nS = Epsilon_e_pg.shape
+        sqrtC = FeArray.broadcast(sqrtC, Ne, nPg, tensor_shape=(nS, nS))
+        inv_sqrtC = FeArray.broadcast(inv_sqrtC, Ne, nPg, tensor_shape=(nS, nS))
 
         if verif:
             # check that C^1/2 * C^1/2 = C

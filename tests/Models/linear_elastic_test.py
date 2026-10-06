@@ -18,7 +18,6 @@ from EasyFEA.Models import (
     Get_Pmat,
     Apply_Pmat,
     KelvinMandel_Matrix,
-    Reshape_variable,
 )
 
 

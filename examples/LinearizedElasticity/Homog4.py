@@ -335,7 +335,9 @@ if __name__ == "__main__":
     wJ_e_pg = mesh.groupElem.Get_weightedJacobian_e_pg(matrixType)
     B_e_pg = mesh.groupElem.Get_B_e_pg(matrixType)
 
-    C_Mat = Models.Reshape_variable(material.C, *B_e_pg.shape[:2])
+    C_Mat = FeArray.broadcast(
+        material.C, *B_e_pg.shape[:2], tensor_shape=material.C.shape[-2:]
+    )
 
     xMin, yMin, zMin = mesh.coord.min(axis=0)
     xMax, yMax, zMax = mesh.coord.max(axis=0)

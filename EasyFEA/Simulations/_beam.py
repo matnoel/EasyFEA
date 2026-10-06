@@ -411,7 +411,7 @@ class Beam(_Simu):
 
         wJ_e_pg = groupElem.Get_weightedJacobian_e_pg(matrixType)
 
-        rho_e_pg = FeArray.broadcast(self.rho, *wJ_e_pg.shape[:2])
+        rho_e_pg = FeArray.broadcast(self.rho, *wJ_e_pg.shape, tensor_shape=())
 
         area_e_pg = FeArray.zeros(*wJ_e_pg.shape[:2])
 
@@ -438,7 +438,7 @@ class Beam(_Simu):
 
         wJ_e_pg = groupElem.Get_weightedJacobian_e_pg(matrixType)
 
-        rho_e_p = FeArray.broadcast(self.rho, *wJ_e_pg.shape[:2])
+        rho_e_p = FeArray.broadcast(self.rho, *wJ_e_pg.shape, tensor_shape=())
         mass = self.mass
 
         area_e_pg = FeArray.zeros(*wJ_e_pg.shape[:2])
