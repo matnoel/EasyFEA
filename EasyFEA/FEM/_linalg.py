@@ -118,6 +118,38 @@ class FeArray(np.ndarray):
                 "if plain array semantics are what is wanted here."
             )
 
+    def __getitem__(self, key):
+        res = super().__getitem__(key)
+        if isinstance(res, FeArray) and FeArray.__consumes_fe_axis(key, self.ndim):
+            return res.view(np.ndarray)
+        return res
+
+    @staticmethod
+    def __consumes_fe_axis(key, ndim: int) -> bool:
+        """True when ``key`` takes axis 0 or 1 with an integer, merges them with a mask, or inserts an axis before them."""
+        key = key if isinstance(key, tuple) else (key,)
+        widths = [
+            (
+                0
+                if k is None or k is Ellipsis
+                else k.ndim if isinstance(k, np.ndarray) and k.dtype.kind == "b" else 1
+            )
+            for k in key
+        ]
+        axis = 0
+        for k, width in zip(key, widths):
+            if axis >= 2:
+                return False
+            elif k is Ellipsis:
+                axis += ndim - sum(widths)
+            elif k is None:
+                return True
+            elif width > 1 or (np.ndim(k) == 0 and isinstance(k, (int, np.integer))):
+                return True
+            else:
+                axis += width
+        return False
+
     @property
     def _shape(self) -> tuple:
         """finite element shape"""

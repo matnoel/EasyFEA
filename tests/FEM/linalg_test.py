@@ -252,17 +252,31 @@ def test_an_array_without_fe_axes_cannot_become_one():
 
 
 def test_degenerate_fearray_is_reported():
-    """Indexing can drop the (Ne, nPg) axes; the result must not answer as a FeArray.
-
-    `__new__` requires two leading axes but `__getitem__` bypasses it, so `fe[0]` used to give
-    a FeArray whose finite element rank was -1 -- an invalid state that only failed later, as a
-    confusing shape error somewhere else.
-    """
+    """A view that bypasses `__new__` without the (Ne, nPg) axes must not answer as a FeArray."""
     fe = FeArray.asfearray(np.ones((4, 3)))  # scalar field
     assert fe._ndim == 0
 
     with pytest.raises(ValueError, match="lost the leading"):
-        fe[0]._ndim  # (3,) -- the (Ne, nPg) axes are gone
+        np.ones(3).view(FeArray)._ndim
 
     # and the intended escape hatch still works
     assert np.asarray(fe)[0].shape == (3,)
+
+
+def test_an_integer_on_a_fe_axis_gives_a_plain_array():
+    """``sig[:, 0]`` or ``sig[e, 0]`` is no longer laid out ``(Ne, nPg, ...)``."""
+    sig = FeArray.asfearray(np.arange(48.0).reshape(4, 3, 2, 2))
+    mask = np.asarray(sig[:, :, 0, 0]) > 20
+
+    for consumed in [sig[0], sig[:, 0], sig[1, 2], sig[..., 0, :, :], sig[np.int64(0)], sig[mask], sig[:, None], sig[None]]:  # fmt: skip
+        assert type(consumed) is np.ndarray, np.shape(consumed)
+    for kept in [
+        sig[:, :, 0],
+        sig[..., 0, 1],
+        sig[[0, 2]],
+        sig[1:3],
+        sig[mask[:, 0]],
+        sig[:, :, None],
+        sig[..., None],
+    ]:
+        assert isinstance(kept, FeArray), np.shape(kept)
