@@ -192,6 +192,24 @@ class FeArray(np.ndarray):
         )
 
     @staticmethod
+    def _lift_plain(operands: tuple) -> tuple | None:
+        """The plain arrays among ``operands`` broadcast as constant tensors; ``None`` when there is none to lift."""
+        fe = next((op for op in operands if isinstance(op, FeArray)), None)
+        if fe is None or all(
+            isinstance(op, FeArray) or np.ndim(op) == 0 for op in operands
+        ):
+            return None
+        Ne, nPg = fe.shape[:2]
+        return tuple(
+            (
+                op
+                if isinstance(op, FeArray) or np.ndim(op) == 0
+                else FeArray.broadcast(op, Ne, nPg, tensor_shape=np.shape(op))
+            )
+            for op in operands
+        )
+
+    @staticmethod
     def __wrap(res, feShape: tuple):
         """A result is a field exactly when it came out on the operation's (Ne, nPg) axes."""
         if not isinstance(res, np.ndarray):
@@ -221,6 +239,13 @@ class FeArray(np.ndarray):
 
         if elementwise:
             inputs = FeArray._align(inputs)
+        elif ufunc is np.matmul and method == "__call__" and not kwargs:
+            # a plain operand is a constant tensor: numpy's own matmul would read the
+            # FeArray's Gauss points as matrix rows
+            lifted = FeArray._lift_plain(inputs)
+            if lifted is not None:
+                left, right = lifted
+                return left.__matmul__(right)
 
         # ndarray refuses to run a ufunc on a subclass that overrides __array_ufunc__, so hand
         # it plain views -- of the `out` and `where` operands too, or the call comes straight
@@ -704,6 +729,8 @@ def TensorProd(
     assert isinstance(B, np.ndarray)
 
     useFeArray = isinstance(A, FeArray) or isinstance(B, FeArray)
+    if useFeArray:
+        A, B = FeArray._lift_plain((A, B)) or (A, B)
 
     if ndim is None:
         ndim = A._ndim if useFeArray else A.ndim

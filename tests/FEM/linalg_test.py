@@ -6,7 +6,7 @@
 import pytest
 import numpy as np
 
-from EasyFEA.FEM._linalg import FeArray, Transpose, Trace, Det, Inv
+from EasyFEA.FEM._linalg import FeArray, Transpose, Trace, Det, Inv, TensorProd
 
 
 @pytest.fixture
@@ -280,3 +280,30 @@ def test_an_integer_on_a_fe_axis_gives_a_plain_array():
         sig[..., None],
     ]:
         assert isinstance(kept, FeArray), np.shape(kept)
+
+
+@pytest.mark.parametrize("nPg", [4, 3], ids=["nPg!=n", "nPg==n"])
+def test_a_plain_matrix_applies_at_every_point(nPg: int):
+    """``R @ u`` with a plain ``R``: a constant tensor, never summed over Gauss points."""
+    rng = np.random.default_rng(0)
+    R = rng.random((3, 3))
+    u = FeArray.asfearray(rng.random((5, nPg, 3)))
+    M = FeArray.asfearray(rng.random((5, nPg, 3, 3)))
+
+    Ru = R @ u
+    assert isinstance(Ru, FeArray) and Ru.shape == (5, nPg, 3)
+    Check(np.asarray(Ru), np.einsum("ij,epj->epi", R, np.asarray(u)))
+    Check(np.asarray(R @ M), np.einsum("ij,epjk->epik", R, np.asarray(M)))
+    Check(np.asarray(u @ R), np.einsum("epi,ij->epj", np.asarray(u), R))
+
+
+@pytest.mark.parametrize("nPg", [4, 3], ids=["nPg!=n", "nPg==n"])
+def test_tensor_product_with_a_plain_operand(nPg: int):
+    rng = np.random.default_rng(0)
+    a = rng.random(3)
+    u = FeArray.asfearray(rng.random((5, nPg, 3)))
+
+    au = TensorProd(a, u)
+    assert isinstance(au, FeArray) and au.shape == (5, nPg, 3, 3)
+    Check(np.asarray(au), np.einsum("i,epj->epij", a, np.asarray(u)))
+    Check(np.asarray(TensorProd(u, a)), np.einsum("epi,j->epij", np.asarray(u), a))
