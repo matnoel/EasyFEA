@@ -96,8 +96,8 @@ class _Elastic(_IModel, ABC):
         assert isinstance(array, np.ndarray), "must be an array"
         shape = (3, 3) if self.dim == 2 else (6, 6)
         assert (
-            array.shape[-2:] == shape
-        ), f"With dim = {self.dim} array must be a {shape} matrix"
+            array.shape[-2:] == shape and array.ndim <= 4
+        ), f"With dim = {self.dim} array must be a {shape}, (Ne, *{shape}) or (Ne, nPg, *{shape}) matrix"
         self.__C = array
         self.__sqrt_C = None  # dont remove
 
@@ -123,8 +123,8 @@ class _Elastic(_IModel, ABC):
         assert isinstance(array, np.ndarray), "must be an array"
         shape = (3, 3) if self.dim == 2 else (6, 6)
         assert (
-            array.shape[-2:] == shape
-        ), f"With dim = {self.dim} array must be a {shape} matrix"
+            array.shape[-2:] == shape and array.ndim <= 4
+        ), f"With dim = {self.dim} array must be a {shape}, (Ne, *{shape}) or (Ne, nPg, *{shape}) matrix"
         self.__S = array
         self.__sqrt_S = None  # dont remove
 

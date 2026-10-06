@@ -106,8 +106,10 @@ def _CheckIsInValues(value, values: Iterable) -> None:
 
 def _CheckIsVector(value) -> None:
     """Checks whether the value is a (..., 3) numpy array."""
-    errorText = "value must be a (..., 3) array"
-    assert isinstance(value, np.ndarray) and value.shape[-1] == 3, errorText
+    errorText = "value must be a (3,), (Ne, 3) or (Ne, nPg, 3) array"
+    assert (
+        isinstance(value, np.ndarray) and value.shape[-1] == 3 and value.ndim <= 3
+    ), errorText
 
 
 class Updatable(ABC):

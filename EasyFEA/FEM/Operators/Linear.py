@@ -56,9 +56,8 @@ def InternalForce(
     rather than derived from ``C : ε(u)``.
     """
     leftDispPart_e_pg = groupElem.Get_leftDispPart_e_pg(matrixType)
-    Ne = leftDispPart_e_pg.shape[0]
-    leftDispPart_e_pg, sigma_e_pg = Restrict(
-        elements, leftDispPart_e_pg, FeArray.asfearray(sigma_e_pg)
-    )
+    Ne, nPg, _, nS = leftDispPart_e_pg.shape
+    sigma_e_pg = FeArray.broadcast(sigma_e_pg, Ne, nPg, tensor_shape=(nS,))
+    leftDispPart_e_pg, sigma_e_pg = Restrict(elements, leftDispPart_e_pg, sigma_e_pg)
     values_e = (leftDispPart_e_pg @ sigma_e_pg).integrate()
     return Scatter(values_e, Ne, elements)
