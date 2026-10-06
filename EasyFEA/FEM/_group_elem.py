@@ -820,6 +820,15 @@ class _GroupElem(ABC):
 
         return FeArray.asfearray(coordo_e_p)
 
+    def Interpolate_e_pg(
+        self, sol: _types.FloatArray, matrixType=MatrixType.rigi
+    ) -> FeArray.FeArrayALike:
+        """Nodal ``sol`` at the Gauss points, ``(Ne, nPg)``, or ``(Ne, nPg, dof_n)`` with ``dof_n > 1`` values per node."""
+        N_pg = self.Get_N_pg(matrixType)[:, 0]  # (nPg, nPe)
+        sol_e = sol.reshape(self.__Ncoords, -1)[self.connect]  # (Ne, nPe, dof_n)
+        sol_e_pg = N_pg @ sol_e
+        return FeArray.asfearray(sol_e_pg[..., 0] if sol_e.shape[-1] == 1 else sol_e_pg)
+
     # --------------------------------------------------------------------------------------------
     # Isoparametric elements
     # --------------------------------------------------------------------------------------------
@@ -856,10 +865,10 @@ class _GroupElem(ABC):
         rebased_coord_e = rebased_coord_e[:, :, : self.dim]
         # (Ne, nPe, dim)
 
-        dN_pg = FeArray.asfearray(self.Get_dN_pg(matrixType)[np.newaxis])
-        rebased_coord_e = FeArray.asfearray(rebased_coord_e[:, np.newaxis])
+        dN_pg = self.Get_dN_pg(matrixType)
 
-        F_e_pg = dN_pg @ rebased_coord_e
+        # (nPg, dim, nPe) @ (Ne, 1, nPe, dim) -> (Ne, nPg, dim, dim)
+        F_e_pg = FeArray.asfearray(dN_pg @ rebased_coord_e[:, None])
 
         return F_e_pg
 
@@ -875,7 +884,7 @@ class _GroupElem(ABC):
 
         F_e_pg = self.Get_F_e_pg(matrixType)
 
-        jacobian_e_pg = FeArray.asfearray(Det(F_e_pg))
+        jacobian_e_pg = Det(F_e_pg)
 
         if absoluteValues:
             jacobian_e_pg = np.abs(jacobian_e_pg)
@@ -905,7 +914,7 @@ class _GroupElem(ABC):
 
         F_e_pg = self.Get_F_e_pg(matrixType)
 
-        invF_e_pg = FeArray.asfearray(Inv(F_e_pg))
+        invF_e_pg = Inv(F_e_pg)
 
         return invF_e_pg
 
@@ -1091,10 +1100,9 @@ class _GroupElem(ABC):
 
         invF_e_pg = self.Get_invF_e_pg(matrixType)
 
-        dN_pg = FeArray.asfearray(self.Get_dN_pg(matrixType)[np.newaxis])
-
+        dN_pg = self.Get_dN_pg(matrixType)
         # Derivation of shape functions in the (x, y, z) coordinates
-        dN_e_pg = invF_e_pg @ dN_pg
+        dN_e_pg = invF_e_pg @ FeArray.from_pg(dN_pg, invF_e_pg.shape[0])
 
         return dN_e_pg
 
@@ -1130,9 +1138,8 @@ class _GroupElem(ABC):
 
         invF_e_pg = self.Get_invF_e_pg(matrixType)
 
-        ddN_pg = FeArray.asfearray(self.Get_ddN_pg(matrixType)[np.newaxis])
-
-        ddN_e_pg = invF_e_pg @ invF_e_pg @ ddN_pg
+        ddN_pg = self.Get_ddN_pg(matrixType)
+        ddN_e_pg = invF_e_pg @ invF_e_pg @ FeArray.from_pg(ddN_pg, invF_e_pg.shape[0])
 
         return ddN_e_pg
 
@@ -1347,9 +1354,10 @@ class _GroupElem(ABC):
         """
 
         weightedJacobian = self.Get_weightedJacobian_e_pg(matrixType)
-        N_pg = FeArray.asfearray(self.Get_N_pg_rep(matrixType, dof_n)[np.newaxis])
+        N_pg = self.Get_N_pg_rep(matrixType, dof_n)
+        N_e_pg = FeArray.from_pg(N_pg, weightedJacobian.shape[0])
 
-        ReactionPart_e_pg = weightedJacobian * N_pg.T @ N_pg
+        ReactionPart_e_pg = weightedJacobian * N_e_pg.T @ N_e_pg
 
         return ReactionPart_e_pg
 
@@ -1394,9 +1402,10 @@ class _GroupElem(ABC):
         """
 
         wJ_e_pg = self.Get_weightedJacobian_e_pg(matrixType)
-        N_pg = FeArray.asfearray(self.Get_N_pg_rep(matrixType, dof_n)[np.newaxis])
+        N_pg = self.Get_N_pg_rep(matrixType, dof_n)
+        N_e_pg = FeArray.from_pg(N_pg, wJ_e_pg.shape[0])
 
-        SourcePart_e_pg = wJ_e_pg * N_pg.T
+        SourcePart_e_pg = wJ_e_pg * N_e_pg.T
 
         return SourcePart_e_pg
 
@@ -1777,9 +1786,9 @@ class _GroupElem(ABC):
             return np.array([], dtype=int)
 
     def Locates_sol_e(
-        self, sol: _types.FloatArray, dof_n: int | None = None, asFeArray=False
-    ) -> FeArray.FeArrayALike:
-        """Locates sol on elements"""
+        self, sol: _types.FloatArray, dof_n: int | None = None
+    ) -> _types.FloatArray:
+        """Locates sol on elements, ``(Ne, ...)``."""
 
         Ncoords = self.__Ncoords
 
@@ -1792,10 +1801,7 @@ class _GroupElem(ABC):
         else:
             raise Exception("Wrong dimension")
 
-        if asFeArray:
-            return FeArray.asfearray(sol_e[:, np.newaxis])
-        else:
-            return sol_e
+        return sol_e
 
     def Get_pointsInElem(
         self, coordinates_n: _types.FloatArray, elem: int

@@ -494,7 +494,7 @@ class PhaseField(_Simu):
             if old_psiP_e_pg is not None and old_psiP_e_pg.shape == psiP_e_pg.shape:
                 psiP_e_pg = np.maximum(psiP_e_pg, old_psiP_e_pg)
 
-        self.__psiP_e_pg[groupElem] = FeArray.asfearray(psiP_e_pg)
+        self.__psiP_e_pg[groupElem] = psiP_e_pg
 
         return self.__psiP_e_pg[groupElem]
 

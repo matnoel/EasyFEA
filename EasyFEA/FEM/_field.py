@@ -84,10 +84,7 @@ class Field:
         if concatenate:
             return coords
         else:
-            x = FeArray.asfearray(coords[..., 0])
-            y = FeArray.asfearray(coords[..., 1])
-            z = FeArray.asfearray(coords[..., 2])
-            return x, y, z
+            return coords[..., 0], coords[..., 1], coords[..., 2]
 
     def copy(self) -> "Field":
         return copy.deepcopy(self)
@@ -154,9 +151,7 @@ class Field:
         """Returns the field as a finite element array."""
         node = self._Get_current_active_node()
         N_pg = self.groupElem.Get_N_pg(self.__matrixType)
-        nPg, _, _ = N_pg.shape
-        array = FeArray.asfearray(N_pg[..., node].reshape(1, nPg, 1))
-        return array
+        return FeArray.from_pg(N_pg[..., node], self.groupElem.Ne)
 
     def dot(self, other):
         return self().dot(other)
@@ -182,7 +177,7 @@ class Field:
         dN_e_pg = self.groupElem.Get_dN_e_pg(self.__matrixType)
         Ne, nPg, dim, _ = dN_e_pg.shape
 
-        array = FeArray.asfearray(dN_e_pg[..., node])
+        array = dN_e_pg[..., node]
 
         if dof_n == 1:
             return array

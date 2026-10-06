@@ -142,13 +142,12 @@ class InElastic(_Simu):
         self, groupElem: _GroupElem, external: dict[str, _types.FloatArray]
     ) -> dict[str, FeArray.FeArrayALike]:
         """The nodal ``external``, interpolated at the Gauss points."""
-        N_pg = FeArray.asfearray(groupElem.Get_N_pg(MatrixType.rigi)[np.newaxis, :, 0])
         # they could be interpolated onto the new mesh instead
         assert all(
             v.size == groupElem.Ncoords for v in external.values()
         ), "the external variables cannot follow a mesh change - set them again"
         return {
-            name: N_pg @ groupElem.Locates_sol_e(v, asFeArray=True)
+            name: groupElem.Interpolate_e_pg(v, MatrixType.rigi)
             for name, v in external.items()
         }
 

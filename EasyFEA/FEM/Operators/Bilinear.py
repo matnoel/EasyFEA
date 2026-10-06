@@ -113,16 +113,14 @@ def MassAlongNormal(
 
     dim = 3
     wJ_e_pg = groupElem.Get_weightedJacobian_e_pg(matrixType)  # (Ne, nPg)
-    N_pg = FeArray.asfearray(
-        groupElem.Get_N_pg_rep(matrixType, dim)[np.newaxis]
-    )  # (1, nPg, dim, dim·nPe)
+    Ne, nPg = wJ_e_pg.shape
+    N_pg = groupElem.Get_N_pg_rep(matrixType, dim)  # (nPg, dim, dim·nPe)
     n_e_pg = groupElem.Get_normals_e_pg(matrixType)  # (Ne, nPg, dim) unit normal
     nn_e_pg = TensorProd(n_e_pg, n_e_pg)  # (Ne, nPg, dim, dim)
 
-    Ne, nPg = wJ_e_pg.shape
     coef = FeArray.broadcast(coef, Ne, nPg, tensor_shape=())
     coef, wJ_e_pg, nn_e_pg = Restrict(elements, coef, wJ_e_pg, nn_e_pg)
-    values_e = einsum("ep,opji,epjk,opkl->eil", coef * wJ_e_pg, N_pg, nn_e_pg, N_pg)
+    values_e = einsum("ep,pji,epjk,pkl->eil", coef * wJ_e_pg, N_pg, nn_e_pg, N_pg)
     return Scatter(values_e, Ne, elements)
 
 

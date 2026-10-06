@@ -295,10 +295,7 @@ class PhaseField(_IModel):
         groupElem = kinematics.groupElem
         matrixType = kinematics.matrixType
 
-        d_e_n = groupElem.Locates_sol_e(d_n, asFeArray=True)
-        Nd_pg = FeArray.asfearray(groupElem.Get_N_pg(matrixType)[np.newaxis, :, 0])
-
-        d_e_pg = Nd_pg @ d_e_n
+        d_e_pg = groupElem.Interpolate_e_pg(d_n, matrixType)
 
         if self.regularization in self.Get_regularizations():
             g_e_pg: _types.FloatArray = (1 - d_e_pg) ** 2 + k_res
@@ -308,7 +305,7 @@ class PhaseField(_IModel):
         assert groupElem.Ne == g_e_pg.shape[0]
         assert groupElem.Get_gauss(matrixType).nPg == g_e_pg.shape[1]
 
-        return FeArray.asfearray(g_e_pg)
+        return g_e_pg
 
     @property
     def material(self) -> _Elastic:
@@ -938,7 +935,7 @@ class PhaseField(_IModel):
 
         if verif:
             valnum, vectnum = np.linalg.eigh(matrix_e_pg)
-            valnum, vectnum = FeArray._asfearrays(valnum, vectnum)
+            valnum, vectnum = FeArray.asfearray(valnum), FeArray.asfearray(vectnum)
 
             def func_Mi(mi):
                 return TensorProd(mi, mi, ndim=1)

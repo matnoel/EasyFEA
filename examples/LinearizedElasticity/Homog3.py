@@ -16,7 +16,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 
 from EasyFEA import Terminal, Matplotlib, Models, Geoms, ElemType, Simulations
-from EasyFEA.FEM import FeArray
+from EasyFEA.FEM import FeArray, MatrixType
 
 from Homog1 import Compute_ukl
 
@@ -147,22 +147,17 @@ if __name__ == "__main__":
     u22 = Compute_ukl(simu_VER, nodes_kubc, E22, paired_nodes)
     u12 = Compute_ukl(simu_VER, nodes_kubc, E12, paired_nodes, True)
 
-    u11_e = mesh_RVE.Locates_sol_e(u11, asFeArray=True)
-    u22_e = mesh_RVE.Locates_sol_e(u22, asFeArray=True)
-    u12_e = mesh_RVE.Locates_sol_e(u12, asFeArray=True)
+    matrixType = MatrixType.mass
+    u_e = np.stack(
+        [mesh_RVE.Locates_sol_e(u) for u in (u11, u22, u12)], axis=-1
+    )  # (Ne, nPe·dim, 3)
 
-    U_e = FeArray.zeros(*u11_e.shape, 3)
-
-    U_e[..., 0] = u11_e
-    U_e[..., 1] = u22_e
-    U_e[..., 2] = u12_e
-
-    matrixType = "rigi"
     groupElem = mesh_RVE.groupElem
     wJ_e_pg = groupElem.Get_weightedJacobian_e_pg(matrixType)
     B_e_pg = groupElem.Get_B_e_pg(matrixType)
+    u_e_pg = FeArray.from_e(u_e, B_e_pg.shape[1])
 
-    C_hom = (wJ_e_pg * CMandel @ B_e_pg @ U_e).sum((0, 1)) / area
+    C_hom = (wJ_e_pg * CMandel @ B_e_pg @ u_e_pg).sum((0, 1)) / area
 
     # print(np.linalg.eigvals(C_hom))
 

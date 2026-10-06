@@ -150,9 +150,8 @@ class _EulerBernoulli(_GroupElem):
             return None  # type: ignore [return-value]
 
         invF_e_pg = self.Get_invF_e_pg(MatrixType.beam)[:, :, 0, 0]
-        dN_pg = FeArray.asfearray(self.Get_Hermitian_dN_pg()[np.newaxis])
-
-        dN_e_pg = invF_e_pg * dN_pg
+        dN_pg = self.Get_Hermitian_dN_pg()
+        dN_e_pg = invF_e_pg * FeArray.from_pg(dN_pg, invF_e_pg.shape[0])
 
         # multiply by the beam length on psi_i,xx functions
         l_e = self.length_e
@@ -201,10 +200,10 @@ class _EulerBernoulli(_GroupElem):
             return None  # type: ignore [return-value]
 
         invF_e_pg = self.Get_invF_e_pg(MatrixType.beam)[:, :, 0, 0]
-        ddN_pg = FeArray.asfearray(self.Get_Hermitian_ddN_pg()[np.newaxis])
+        ddN_pg = self.Get_Hermitian_ddN_pg()
         nPe = self.nPe
 
-        ddN_e_pg = invF_e_pg * invF_e_pg * ddN_pg
+        ddN_e_pg = invF_e_pg * invF_e_pg * FeArray.from_pg(ddN_pg, invF_e_pg.shape[0])
 
         # multiply by the beam length on psi_i,xx functions
         l_e = self.length_e
@@ -252,10 +251,15 @@ class _EulerBernoulli(_GroupElem):
             return None  # type: ignore [return-value]
 
         invF_e_pg = self.Get_invF_e_pg(MatrixType.beam)[:, :, 0, 0]
-        dddN_pg = FeArray.asfearray(self.Get_Hermitian_dddN_pg()[np.newaxis])
+        dddN_pg = self.Get_Hermitian_dddN_pg()
         nPe = self.nPe
 
-        dddN_e_pg = invF_e_pg * invF_e_pg * invF_e_pg * dddN_pg
+        dddN_e_pg = (
+            invF_e_pg
+            * invF_e_pg
+            * invF_e_pg
+            * FeArray.from_pg(dddN_pg, invF_e_pg.shape[0])
+        )
 
         # multiply by the beam length on psi_i,xx functions
         l_e = self.length_e

@@ -156,8 +156,8 @@ class TestFeArray:
         # an array without (Ne, nPg) axes cannot be viewed as a FeArray at all
         _check_ValueError(lambda: FeArray.asfearray(np.ones(3)))
 
-        _check_ValueError(lambda: FeArray(0, False))
-        _check_ValueError(lambda: FeArray([0], False))
+        _check_ValueError(lambda: FeArray(0))
+        _check_ValueError(lambda: FeArray([0]))
 
     def test_add_array(self):
 

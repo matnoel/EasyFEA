@@ -579,7 +579,7 @@ class BeamStructure(_IModel):
             assert isinstance(groupElem, _EulerBernoulli)
             assert kinematics.matrixType == MatrixType.beam
             B_e_pg = groupElem.Get_beam_B_e_pg(self)
-        return B_e_pg @ kinematics.displacement_e
+        return B_e_pg @ kinematics.displacement_e_pg
 
     def Compute_InternalForces(self, kinematics: "Kinematics") -> FeArray.FeArrayALike:
         """Internal forces ``D · ε``: 1D [N], 2D [N, Mz], 3D [N, Mx, My, Mz] (+ shears with Timoshenko)."""

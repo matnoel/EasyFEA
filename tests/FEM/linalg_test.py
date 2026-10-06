@@ -216,14 +216,14 @@ def test_the_type_survives_exactly_where_the_fe_axes_do():
 
 
 def test_a_constant_field_keeps_its_type_against_a_mesh_field():
-    """(1, 1, ...) constants broadcast against real fields and must stay fields."""
-    const = FeArray.asfearray(np.eye(3), broadcastFeArrays=True)  # (1, 1, 3, 3)
+    """Broadcast constants meet real fields and must stay fields."""
+    const = FeArray.broadcast(np.eye(3), 7, 2, tensor_shape=(3, 3))
     mesh = FeArray.asfearray(np.ones((7, 2, 3, 3)))
 
     assert isinstance(const @ mesh, FeArray)
     assert (const @ mesh).shape == (7, 2, 3, 3)
     # but reshaping one out of field-land must not be undone
-    assert not isinstance(np.reshape(const, (3, 3)), FeArray)
+    assert not isinstance(np.reshape(const, (14, 3, 3)), FeArray)
 
 
 def test_out_and_where_do_not_recurse():
@@ -247,8 +247,8 @@ def test_reflected_operands_agree():
 def test_an_array_without_fe_axes_cannot_become_one():
     with pytest.raises(ValueError, match="no \\(Ne, nPg\\) axes"):
         FeArray.asfearray(np.ones(N))
-    # the deliberate way to hold a constant at every Gauss point still works
-    assert FeArray.asfearray(np.ones(N), broadcastFeArrays=True).shape == (1, 1, N)
+    # the deliberate way to hold a constant at every Gauss point
+    assert FeArray.broadcast(np.ones(N), 2, 3, tensor_shape=(N,)).shape == (2, 3, N)
 
 
 def test_degenerate_fearray_is_reported():

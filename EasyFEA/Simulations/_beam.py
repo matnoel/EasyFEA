@@ -561,7 +561,7 @@ class Beam(_Simu):
                 B_shear_e_pg = groupElem.Get_beam_shear_B_e_pg(self.structure)
                 kinematics = Kinematics(groupElem, self.displacement, MatrixType.beam)
                 D_e_pg = self.structure.Calc_D_e_pg(groupElem)
-                shear_np = D_e_pg @ (B_shear_e_pg @ kinematics.displacement_e)
+                shear_np = D_e_pg @ (B_shear_e_pg @ kinematics.displacement_e_pg)
 
                 idx = 1 if dim == 2 else 3  # Mz row → Ty
                 if result == "Tz":

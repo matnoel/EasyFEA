@@ -16,7 +16,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 
 from EasyFEA import Terminal, Folder, Models, Simulations, MeshIO, PyVista
-from EasyFEA.FEM import FeArray
+from EasyFEA.FEM import FeArray, MatrixType
 
 from Homog4 import Compute_ukl, Get_nodes, Get_pairedNodes
 
@@ -122,38 +122,27 @@ if __name__ == "__main__":
     u13 = Compute_ukl(simu, E13, nodesKUBC, pairedNodes)
     u23 = Compute_ukl(simu, E23, nodesKUBC, pairedNodes)
 
-    u11_e = mesh.Locates_sol_e(u11, asFeArray=True)
-    u22_e = mesh.Locates_sol_e(u22, asFeArray=True)
-    u33_e = mesh.Locates_sol_e(u33, asFeArray=True)
-    u12_e = mesh.Locates_sol_e(u12, asFeArray=True)
-    u13_e = mesh.Locates_sol_e(u13, asFeArray=True)
-    u23_e = mesh.Locates_sol_e(u23, asFeArray=True)
+    matrixType = MatrixType.mass
+    u_e = np.stack(
+        [mesh.Locates_sol_e(u) for u in (u11, u22, u33, u23, u13, u12)],
+        axis=-1,
+    )  # (Ne, nPe·dim, 6)
 
     # ----------------------------------------------
     # Effective elasticity tensor (C_hom)
     # ----------------------------------------------
-    U_e = FeArray.zeros(*u11_e.shape, 6)
-
-    U_e[..., 0] = u11_e
-    U_e[..., 1] = u22_e
-    U_e[..., 2] = u33_e
-    U_e[..., 3] = u23_e
-    U_e[..., 4] = u13_e
-    U_e[..., 5] = u12_e
-
-    matrixType = "rigi"
     wJ_e_pg = mesh.groupElem.Get_weightedJacobian_e_pg(matrixType)
     B_e_pg = mesh.groupElem.Get_B_e_pg(matrixType)
 
-    C_Mat = FeArray.broadcast(
-        material.C, *B_e_pg.shape[:2], tensor_shape=material.C.shape[-2:]
-    )
+    Ne, nPg, nS, _ = B_e_pg.shape
+    u_e_pg = FeArray.from_e(u_e, nPg)
+    C_Mat = FeArray.broadcast(material.C, Ne, nPg, tensor_shape=(nS, nS))
 
     xMin, yMin, zMin = mesh.coord.min(axis=0)
     xMax, yMax, zMax = mesh.coord.max(axis=0)
     volume = (xMax - xMin) * (yMax - yMin) * (zMax - zMin)
 
-    C_hom = (wJ_e_pg * C_Mat @ B_e_pg @ U_e).sum((0, 1)) / volume
+    C_hom = (wJ_e_pg * C_Mat @ B_e_pg @ u_e_pg).sum((0, 1)) / volume
 
     formatted_array = ""
     for i in range(6):

@@ -42,9 +42,12 @@ def test_matrixType_is_read_only(kinematics: Kinematics):
         kinematics.matrixType = MatrixType.mass  # type: ignore[misc]
 
 
-def test_displacement_e_is_not_cached(kinematics: Kinematics):
+def test_displacement_e_pg_is_not_cached(kinematics: Kinematics):
     groupElem = kinematics.groupElem
-    u_e = kinematics.displacement_e
-    assert u_e.shape == (groupElem.Ne, 1, groupElem.nPe * 2)
-    assert np.allclose(u_e[:, 0], kinematics.displacement[groupElem.Get_assembly_e(2)])
-    assert kinematics.displacement_e is not u_e
+    u_e_pg = kinematics.displacement_e_pg
+    nPg = groupElem.Get_gauss(kinematics.matrixType).nPg
+    assert u_e_pg.shape == (groupElem.Ne, nPg, groupElem.nPe * 2)
+    assert np.allclose(
+        u_e_pg[:, 0], kinematics.displacement[groupElem.Get_assembly_e(2)]
+    )
+    assert kinematics.displacement_e_pg is not u_e_pg

@@ -7,7 +7,7 @@
 
 import numpy as np
 from functools import lru_cache
-from typing import Iterable, Union
+from typing import Union
 from ..Utilities import _types
 
 
@@ -82,7 +82,7 @@ class FeArray(np.ndarray):
       ``(Ne, nPg)`` FeArray is a scalar field even where ``Ne`` and ``nPg`` match a tensor's
       dimensions, and a plain array is a constant tensor held at every Gauss point. Fields are
       padded to the widest rank, then broadcast once. A plain array that is really a field must
-      say so with :meth:`asfearray`, or it multiplies out as a constant tensor.
+      say so with :meth:`broadcast`, or it multiplies out as a constant tensor.
     - **Type.** An operation stays a FeArray exactly when the ``(Ne, nPg)`` axes come out
       unchanged. ``np.einsum``, ``np.where`` and ``np.linalg.solve`` keep them; ``reshape``,
       ``ravel`` and a sum over elements do not.
@@ -91,10 +91,8 @@ class FeArray(np.ndarray):
     # Union, not `|`: the class is not defined yet, and `|` cannot take its name as a string
     FeArrayALike = Union["FeArray", _types.AnyArray]  # noqa: UP007
 
-    def __new__(cls, input_array, broadcastFeArrays=False):
+    def __new__(cls, input_array):
         obj = np.asarray(input_array).view(cls)
-        if broadcastFeArrays:
-            obj = obj[np.newaxis, np.newaxis]
         if obj.ndim < 2:
             raise ValueError("The input array must have at least 2 dimensions.")
         return obj
@@ -410,19 +408,31 @@ class FeArray(np.ndarray):
         self[tuple(idx)] = value
 
     @staticmethod
-    def asfearray(array, broadcastFeArrays=False) -> "FeArray":
-        """Views ``array`` as a FeArray. Refuses anything without the (Ne, nPg) axes."""
+    def asfearray(array) -> "FeArray":
+        """Views ``array`` as a FeArray: its axes 0 and 1 already are ``(Ne, nPg)``, the caller's responsibility; lift anything else with :meth:`broadcast`."""
         if not isinstance(array, np.ndarray):
             array = np.asarray(array)
-        if broadcastFeArrays:
-            return FeArray(array, broadcastFeArrays=broadcastFeArrays)
-        elif array.ndim < 2:
+        if array.ndim < 2:
             raise ValueError(
                 f"cannot view a {array.shape} array as a FeArray: it has no (Ne, nPg) axes. "
-                "Pass broadcastFeArrays=True to hold it at every Gauss point, or keep it a "
-                "plain array."
+                "Lift it with FeArray.broadcast, or keep it a plain array."
             )
         return array.view(FeArray)
+
+    @staticmethod
+    def from_pg(value_pg, Ne: int) -> "FeArray":
+        """Reference values ``(nPg, ...)`` repeated over ``Ne`` elements, as a read-only view."""
+        return FeArray.asfearray(np.broadcast_to(value_pg, (Ne, *np.shape(value_pg))))
+
+    @staticmethod
+    def from_e(value_e, nPg: int) -> "FeArray":
+        """Per-element values ``(Ne, ...)`` repeated over ``nPg`` Gauss points, as a read-only view."""
+        value_e = np.asarray(value_e)
+        return FeArray.asfearray(
+            np.broadcast_to(
+                value_e[:, None], (value_e.shape[0], nPg, *value_e.shape[1:])
+            )
+        )
 
     @staticmethod
     def broadcast(
@@ -459,14 +469,6 @@ class FeArray(np.ndarray):
             f"a value of shape {arr.shape} has leading axes {lead}: expected (), "
             f"(Ne,) = ({Ne},) or (Ne, nPg) = ({Ne}, {nPg})."
         )
-
-    def _asfearrays(
-        *arrays: Iterable[FeArrayALike], broadcastFeArrays=False
-    ) -> list[FeArrayALike]:
-        return [
-            FeArray.asfearray(array, broadcastFeArrays=broadcastFeArrays)
-            for array in arrays
-        ]
 
     @staticmethod
     def __shape(shape: tuple) -> tuple:

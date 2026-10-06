@@ -27,7 +27,6 @@ from ..Utilities._observers import Observable
 from ..Utilities._mpi import MPI_COMM, MPI_SIZE, MPI_RANK
 
 # fem
-from ._linalg import FeArray
 from ._utils import ElemType, MatrixType
 
 if TYPE_CHECKING:
@@ -814,10 +813,10 @@ class Mesh(Observable):
             groupElem.Set_Tag(nodes, tag)
 
     def Locates_sol_e(
-        self, sol: _types.FloatArray, dof_n: int | None = None, asFeArray=False
-    ) -> FeArray.FeArrayALike:
-        """Locates solution on elements."""
-        return self.groupElem.Locates_sol_e(sol, dof_n, asFeArray)
+        self, sol: _types.FloatArray, dof_n: int | None = None
+    ) -> _types.FloatArray:
+        """Locates sol on elements, ``(Ne, ...)``."""
+        return self.groupElem.Locates_sol_e(sol, dof_n)
 
     def Get_Node_Values(self, result_e: _types.FloatArray) -> _types.FloatArray:
         """Get node values from element values.\n

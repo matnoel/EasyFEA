@@ -65,12 +65,13 @@ class Kinematics:
         return self.__matrixType
 
     @property
-    def displacement_e(self) -> FeArray.FeArrayALike:
-        """Element displacements of shape (Ne, 1, nPe*dof_n), recomputed on each access."""
-        dof_n = self.__displacement.size // self.__groupElem.Ncoords
-        return self.__groupElem.Locates_sol_e(
-            self.__displacement, dof_n, asFeArray=True
-        )
+    def displacement_e_pg(self) -> FeArray.FeArrayALike:
+        """Element displacements of shape (Ne, nPg, nPe*dof_n), recomputed on each access."""
+        groupElem = self.__groupElem
+        dof_n = self.__displacement.size // groupElem.Ncoords
+        u_e = groupElem.Locates_sol_e(self.__displacement, dof_n)
+        nPg = groupElem.Get_gauss(self.__matrixType).nPg
+        return FeArray.from_e(u_e, nPg)
 
     def _GetDims(
         self,
@@ -257,7 +258,7 @@ class Kinematics:
         """
 
         B_e_pg = self.__groupElem.Get_B_e_pg(self.__matrixType)
-        return B_e_pg @ self.displacement_e
+        return B_e_pg @ self.displacement_e_pg
 
     def Compute_Edot_vec(self, velocity: _types.FloatArray) -> FeArray.FeArrayALike:
         """Green–Lagrange strain rate Ė in Kelvin–Mandel vector form.
@@ -451,7 +452,10 @@ class Kinematics:
 
         dI1dC = np.array([1, 1, 1, 0, 0, 0])
 
-        return self._Slice_Vector(FeArray.asfearray(dI1dC, True))
+        Ne, nPg = self._GetDims()[:2]
+        return self._Slice_Vector(
+            FeArray.broadcast(dI1dC, Ne, nPg, tensor_shape=dI1dC.shape)
+        )
 
     def Compute_d2I1dC(self) -> FeArray.FeArrayALike:
         """Computes d2I1dC(u)
@@ -531,7 +535,10 @@ class Kinematics:
             ]
         )
 
-        return self._Slice_Matrix(FeArray.asfearray(d2I2dC, True))
+        Ne, nPg = self._GetDims()[:2]
+        return self._Slice_Matrix(
+            FeArray.broadcast(d2I2dC, Ne, nPg, tensor_shape=d2I2dC.shape)
+        )
 
     # -------------------------------------
     # Compute I3
@@ -636,13 +643,11 @@ class Kinematics:
         the entries above ``dim`` zeroed.
         """
         _params._CheckIsVector(T)
-        if not isinstance(T, FeArray):
-            T = FeArray.asfearray(T, True)
-        T = T.astype(float)
+        Ne, nPg, dim = self._GetDims()
+        T = FeArray.broadcast(T, Ne, nPg, tensor_shape=(3,)).astype(float)
 
         Tx, Ty, Tz = T[..., 0], T[..., 1], T[..., 2]
 
-        dim = self._GetDims()[2]
         if dim == 1:
             Ty = Tz = 0
         elif dim == 2:
