@@ -648,10 +648,7 @@ class PhaseField(_IModel):
     def __Split_He(self, kinematics: "Kinematics", verif=False):
         """[He Shao 2019] DOI : 10.1115/1.4042217"""
 
-        # Here the material is supposed to be homogeneous
         material = self.__material
-
-        C = material.C
 
         Epsilon_e_pg = kinematics.Compute_Epsilon()
 
@@ -661,6 +658,7 @@ class PhaseField(_IModel):
         tic.Tac("Split", "sqrt C and S", False)
 
         Ne, nPg, nS = Epsilon_e_pg.shape
+        C = FeArray.broadcast(material.C, Ne, nPg, tensor_shape=(nS, nS))
         sqrtC = FeArray.broadcast(sqrtC, Ne, nPg, tensor_shape=(nS, nS))
         inv_sqrtC = FeArray.broadcast(inv_sqrtC, Ne, nPg, tensor_shape=(nS, nS))
 
