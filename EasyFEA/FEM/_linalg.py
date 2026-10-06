@@ -771,8 +771,17 @@ def TensorProd(
 
 
 def Norm(array: FeArray.FeArrayALike, **kwargs) -> FeArray.FeArrayALike:
-    """`np.linalg.norm()` wrapper.\n
+    """`np.linalg.norm()` wrapper; without ``axis``, a FeArray's is taken over its tensor axes (Frobenius for any rank).\n
     see https://numpy.org/doc/stable/reference/generated/numpy.linalg.norm.html"""
+
+    if isinstance(array, FeArray) and "axis" not in kwargs:
+        if array._ndim == 0:
+            return np.abs(array)
+        elif "ord" in kwargs:
+            kwargs["axis"] = -1 if array._ndim == 1 else (-2, -1)
+        else:
+            axes = tuple(range(2, array.ndim))
+            return np.sqrt((np.asarray(array) ** 2).sum(axis=axes)).view(FeArray)
 
     res: FeArray.FeArrayALike = np.linalg.norm(array, **kwargs)
 

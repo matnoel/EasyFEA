@@ -6,7 +6,7 @@
 import pytest
 import numpy as np
 
-from EasyFEA.FEM._linalg import FeArray, Transpose, Trace, Det, Inv, TensorProd
+from EasyFEA.FEM._linalg import FeArray, Transpose, Trace, Det, Inv, TensorProd, Norm
 
 
 @pytest.fixture
@@ -307,3 +307,15 @@ def test_tensor_product_with_a_plain_operand(nPg: int):
     assert isinstance(au, FeArray) and au.shape == (5, nPg, 3, 3)
     Check(np.asarray(au), np.einsum("i,epj->epij", a, np.asarray(u)))
     Check(np.asarray(TensorProd(u, a)), np.einsum("epi,j->epij", np.asarray(u), a))
+
+
+def test_norm_reduces_over_tensor_axes_only():
+    rng = np.random.default_rng(0)
+    for t in [(), (3,), (3, 3), (2, 2, 2, 2)]:
+        x = FeArray.asfearray(rng.random((5, 4, *t)))
+        res = Norm(x)
+        assert isinstance(res, FeArray) and res.shape == (5, 4), t
+        expected = np.sqrt((np.asarray(x) ** 2).reshape(5, 4, -1).sum(-1))
+        Check(np.asarray(res), expected)
+    scalar = FeArray.asfearray(-rng.random((5, 4)))
+    Check(np.asarray(Norm(scalar, ord=2)), np.abs(np.asarray(scalar)))
