@@ -142,3 +142,17 @@ def test_unknown_tag_raises(name: str):
     assert getattr(groupElem, name)("L0").size > 0
     with pytest.raises(KeyError, match="L1"):
         getattr(groupElem, name)("L1")
+
+
+def test_Get_Nodes_Point_within_tolerance():
+    """A point off by round-off finds its node, a point one tolerance away finds none."""
+
+    groupElem = GroupElemFactory.Create(
+        ElemType.SEG2, np.array([[0, 1]]), np.array([[0.0, 0, 0], [1, 1, 0]])
+    )
+
+    with np.errstate(all="raise"):
+        nodes = groupElem.Get_Nodes_Point((1 + 1e-9, 1))
+
+    assert np.array_equal(nodes, [1])
+    assert groupElem.Get_Nodes_Point((1 + 1e-3, 1)).size == 0

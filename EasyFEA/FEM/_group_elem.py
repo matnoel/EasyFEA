@@ -1582,26 +1582,11 @@ class _GroupElem(ABC):
         idx = np.where((xn == point.x) & (yn == point.y) & (zn == point.z))[0]
 
         if len(idx) == 0:
-            # the previous condition may be too restrictive
-            tolerance = 1e-3
-
-            # we make sure there is no coordinates = 0
-            dec = 10
-            decX = np.abs(xn.min()) + dec
-            decY = np.abs(yn.min()) + dec
-            decZ = np.abs(zn.min()) + dec
-            x = point.x + decX
-            y = point.y + decY
-            z = point.z + decZ
-
-            # get errors between coordinates
-            errorX = np.abs((xn - x) / xn)
-            errorY = np.abs((yn - y) / yn)
-            errorZ = np.abs((zn - z) / zn)
-
-            idx = np.where(
-                (errorX <= tolerance) & (errorY <= tolerance) & (errorZ <= tolerance)
-            )[0]
+            # the previous condition may be too restrictive: allow round-off relative to the group size
+            extent = np.ptp(self.coord, axis=0).max()
+            tolerance = 1e-6 * (extent if extent > 0 else 1.0)
+            distances = np.linalg.norm(self.coord - point.coord, axis=1)
+            idx = np.where(distances <= tolerance)[0]
 
         return self.__nodes[idx].copy()
 
