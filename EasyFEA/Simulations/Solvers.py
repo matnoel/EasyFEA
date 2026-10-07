@@ -223,8 +223,8 @@ def _Solve_Axb(
     lb: _types.AnyArray | _types.Numbers,
     ub: _types.AnyArray | _types.Numbers,
     resol: ResolType = ResolType.r1,
-    ownedDofs: _types.IntArray = None,
-    mapping: _types.IntArray = None,
+    ownedDofs: _types.IntArray | None = None,
+    mapping: _types.IntArray | None = None,
 ) -> _types.FloatArray:
     """Solves the linear system A x = b
 
@@ -491,7 +491,9 @@ def __Solver_1_mpi_indices(
     return uniqueUnknown, ownedDofs, mapping
 
 
-def __Solver_1(simu: "_Simu", problemType: "ProblemType") -> _types.FloatArray:
+def __Solver_1(
+    simu: "_Simu", problemType: "ProblemType"
+) -> tuple[_types.FloatArray, float | None]:
     # --       --  --  --   --  --
     # | Aii Aic |  | xi |   | bi |
     # | Aci Acc |  | xc | = | bc |
@@ -718,7 +720,7 @@ def _PETSc(
     # https://gitlab.com/petsc/petsc/-/work_items/1309
     PETSc.garbage_cleanup()
 
-    return x.array, ksp.is_converged
+    return x.array, ksp.is_converged  # type: ignore [return-value]
 
 
 def _PETSc_MPI(
@@ -726,7 +728,7 @@ def _PETSc_MPI(
     b: sparse.csr_matrix,
     x0: _types.FloatArray,
     ownedDofs: _types.IntArray,
-    mapping: _types.IntArray = None,
+    mapping: _types.IntArray | None = None,
     kspType: str = "cg",
     pcType: str = "bjacobi",
     solverType: str = "petsc",
@@ -786,10 +788,10 @@ def _PETSc_MPI(
 
     # https://petsc.org/release/manual/mat/#matrices
     matrix = PETSc.Mat()  # type: ignore [attr-defined]
-    matrix.create(comm=MPI_COMM)
+    matrix.create(comm=MPI_COMM)  # type: ignore [arg-type]
     matrix.setType("mpiaij")
     # https://petsc.org/release/petsc4py/reference/petsc4py.PETSc.Mat.html#petsc4py.PETSc.Mat.setSizes
-    matrix.setSizes([[Ndof_r, Ndof], [Ndof_r, Ndof]])
+    matrix.setSizes(((Ndof_r, Ndof), (Ndof_r, Ndof)))
 
     # extract owned rows; remap column indices to PETSc global space.
     # Fancy-row CSR slicing already returns a fresh CSR (data / indices /
@@ -804,7 +806,10 @@ def _PETSc_MPI(
     # whole rank-local block.
     matrix.setPreallocationCSR((A_owned.indptr, A_owned.indices))
     matrix.setValuesCSR(
-        A_owned.indptr, A_owned.indices, A_owned.data, PETSc.InsertMode.ADD_VALUES
+        A_owned.indptr,
+        A_owned.indices,
+        A_owned.data,
+        PETSc.InsertMode.ADD_VALUES,  # type: ignore [arg-type]
     )
     matrix.assemble()
 
@@ -818,7 +823,7 @@ def _PETSc_MPI(
         x.array[:] = x0[ownedDofs]
 
     # KSP
-    ksp = PETSc.KSP().create(comm=MPI_COMM)  # type: ignore [attr-defined]
+    ksp = PETSc.KSP().create(comm=MPI_COMM)  # type: ignore [attr-defined, arg-type]
     ksp.setOperators(matrix)
     ksp.setType(kspType)
     pc = ksp.getPC()

@@ -222,9 +222,9 @@ class DIC(_IObserver):
         # ----------------------------------------------
         # Build the shape function matrix for pixels (N)
         # ----------------------------------------------
-        list_rowsX = [None] * Ne
-        list_columns = [None] * Ne
-        list_values = [None] * Ne
+        list_rowsX: list[_types.IntArray] = []
+        list_columns: list[_types.IntArray] = []
+        list_values: list[_types.FloatArray] = []
 
         # Evaluate shape functions for each pixels' coordinates
         x_p, y_p = coordInElem[:, 0], coordInElem[:, 1]
@@ -253,9 +253,9 @@ class DIC(_IObserver):
             # get columns in which for placing values
             columns = pixels.reshape(1, -1).repeat(nPe, 0).ravel()
 
-            list_rowsX[e] = rowsX
-            list_columns[e] = columns
-            list_values[e] = phi.ravel()
+            list_rowsX.append(rowsX)
+            list_columns.append(columns)
+            list_values.append(phi.ravel())
 
         # concatenate values
         rowsX = np.concatenate(list_rowsX, dtype=int)
@@ -317,7 +317,7 @@ class DIC(_IObserver):
         """Get the characteristic length of the mesh, i.e. coef * the average mesh size."""
 
         assert coef > 0
-        l_dic = coef * self.__mesh.Get_meshSize(False).mean()
+        l_dic = coef * float(self.__mesh.Get_meshSize(False).mean())
 
         return l_dic
 
