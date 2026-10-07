@@ -71,9 +71,9 @@ def __block_grad_B(
 
 
 def __geometric_tangent(
-    wJ_e_pg: "FeArray",
+    wJ_e_pg: FeArray.FeArrayALike,
     kinematics: "Kinematics",
-    dWde_e_pg: "FeArray",
+    dWde_e_pg: FeArray.FeArrayALike,
 ) -> np.ndarray:
     r"""Geometric (initial-stress) tangent ``∫ gradᵀ · Sig · grad dΩ``.
 
@@ -106,12 +106,12 @@ def __reorder_dofs(dim: int, nPe: int, *arrays: np.ndarray) -> tuple[np.ndarray,
     """
     perm = __reorder(dim, nPe)
     ri, rj = perm[:, None], perm[None, :]
-    reordered = [None] * len(arrays)
-    for i, array in enumerate(arrays):
+    reordered: list[np.ndarray] = []
+    for array in arrays:
         if array.ndim == 2:  # (Ne, ndof) vector
-            reordered[i] = array[:, perm]
+            reordered.append(array[:, perm])
         elif array.ndim == 3:  # (Ne, ndof, ndof) matrix
-            reordered[i] = array[:, ri, rj]
+            reordered.append(array[:, ri, rj])
         else:
             raise ValueError(
                 f"each array must be (Ne, ndof) or (Ne, ndof, ndof); got ndim {array.ndim}."
@@ -120,10 +120,10 @@ def __reorder_dofs(dim: int, nPe: int, *arrays: np.ndarray) -> tuple[np.ndarray,
 
 
 def __second_piola_block(
-    wJ_e_pg: "FeArray",
+    wJ_e_pg: FeArray.FeArrayALike,
     kinematics: "Kinematics",
-    dWde_e_pg: "FeArray",
-    d2Wde_e_pg: "FeArray",
+    dWde_e_pg: FeArray.FeArrayALike,
+    d2Wde_e_pg: FeArray.FeArrayALike,
 ) -> tuple[np.ndarray, np.ndarray]:
     r"""Residual and material+geometric d2Wde for a Kelvin-Mandel dWde / d2Wde sampled at ``kinematics`` — the shared core of the hyperelastic dWde operators::
 
@@ -191,7 +191,8 @@ def SecondPiolaKirchhoffStressTensor(
         material.Compute_d2Wde(kinematics),
     )
 
-    return __reorder_dofs(dim, nPe, tangent_e, residual_e)
+    K_e, R_e = __reorder_dofs(dim, nPe, tangent_e, residual_e)
+    return K_e, R_e
 
 
 def GonzalezStressTensor(
@@ -286,7 +287,8 @@ def GonzalezStressTensor(
             + einsum("ep,epi,epj->eij", wJ_e_pg, B_mid.T @ dE, g)
         )
 
-    return __reorder_dofs(dim, nPe, tangent_e, residual_e)
+    K_e, R_e = __reorder_dofs(dim, nPe, tangent_e, residual_e)
+    return K_e, R_e
 
 
 @lru_cache(maxsize=None)
@@ -394,7 +396,7 @@ def __AdaptiveTimeQuadratureStressTensor(
     coefK: float,
     tol: float,
     maxPoints: int,
-) -> tuple["FeArray", "FeArray", int]:
+) -> tuple[FeArray.FeArrayALike, FeArray.FeArrayALike, np.ndarray]:
     r"""Per-element adaptive strain-path quadrature — the ``tol``-driven path of :func:`TimeQuadratureStressTensor`.
 
     Each element refines along the nested chain ``1, 3, 5, 9, …`` (capped at ``maxPoints``) until *its own* integrated energy defect is within ``tol`` — ``Σ_p V_(ep) |S:Δe − ΔW| ≤ tol · Σ_p V_(ep) |ΔW|``, ``V_(ep)`` the Gauss-point volume — then freezes, so points are spent only where the step is nonlinear. The defect is the quadrature error of the exact identity ``S:Δe = ΔW`` (``ΔW`` known from the endpoints), so the test is absolute; taking ``|·|`` before summing bounds the element's real energy drift and is safe against Gauss-point sign cancellation. Only still-active elements are evaluated at each level (via :meth:`_StrainPathKinematics._sliced`), so cost tracks the hard elements. Returns ``(dWde_quad, d2Wde_quad, nPts_e)``, each row carrying its element's accepted rule and point count.
@@ -445,7 +447,7 @@ def __AdaptiveTimeQuadratureStressTensor(
         )
         if isAccepted.any():
             acceptedElems = activeElements[isAccepted]  # elements accepting this rule
-            dWde_quad[acceptedElems] = S[isAccepted]
+            dWde_quad[acceptedElems] = S[isAccepted]  # type: ignore [index]
             # their tangent only: Σ_k (w_k s_k / coefK) d2Wde, s=0 drops out (∂e/∂u = s B)
             d2Wde_quad[acceptedElems] = sum(
                 (
@@ -471,7 +473,7 @@ def TimeQuadratureStressTensor(
     nPoints: int,
     tol: float | None = None,
     maxPoints: int = 33,
-) -> tuple[np.ndarray, np.ndarray, int]:
+) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
     r"""Tangent and residual for the PK2 stress **averaged along the strain path** of the step.
 
     Returns ``(K_e, R_e)`` in ``(xi,yi,zi,...,xn,yn,zn)``. Where :func:`SecondPiolaKirchhoffStressTensor` samples the stress at one configuration, this averages it along the segment between the two end strains and tests it against ``B(u_t)``::
@@ -531,8 +533,8 @@ def TimeQuadratureStressTensor(
 
     if tol is None:
         # Fixed rule: one Clenshaw-Curtis rule for the whole block.
-        dWde_quad = 0.0  # Σ_k w_k dWde(e(s_k))
-        d2Wde_quad = (
+        dWde_quad: FeArray.FeArrayALike = 0.0  # Σ_k w_k dWde(e(s_k))
+        d2Wde_quad: FeArray.FeArrayALike = (
             0.0  # Σ_k 2 w_k s_k d2Wde(e(s_k)); s=0 drops out (∂e/∂u_{n+1}=s B=0)
         )
         for s, w in zip(*__clenshaw_curtis(int(nPoints))):
@@ -611,7 +613,8 @@ def ActiveStressTensor(
     residual_e = einsum("ep,epi,epij->ej", wJ_e_pg, sig_e_pg, B_e_pg)
     Kgeo_e = __geometric_tangent(wJ_e_pg, kinematics, sig_e_pg)
 
-    return __reorder_dofs(dim, nPe, Kgeo_e, residual_e)
+    K_e, R_e = __reorder_dofs(dim, nPe, Kgeo_e, residual_e)
+    return K_e, R_e
 
 
 def KelvinVoigtDamping(
@@ -676,7 +679,8 @@ def KelvinVoigtDamping(
     A_geo = __geometric_tangent(wJ_e_pg, kinematics, sig_e_pg)
     Kgeo_e = A_mat + A_geo
 
-    return __reorder_dofs(dim, nPe, Kgeo_e, residual_e, C_e)
+    K_e, R_e, C_e = __reorder_dofs(dim, nPe, Kgeo_e, residual_e, C_e)
+    return K_e, R_e, C_e
 
 
 def __skew(v: np.ndarray) -> np.ndarray:
@@ -738,7 +742,7 @@ def FollowingPressure(
             return K_e, R_e
     Ne_a = active.size
 
-    if np.isscalar(pressure) and float(pressure) == 0.0:
+    if np.isscalar(pressure) and pressure == 0.0:
         return K_e, R_e
 
     gauss = groupElem.Get_gauss(matrixType)
