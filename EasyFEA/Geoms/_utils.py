@@ -184,7 +184,7 @@ class Point:
 @singledispatch
 def AsPoint(coords: Point.PointALike) -> Point:
     """Returns coords as a point."""
-    NotImplementedError("coords must be a Point or an Iterable")
+    raise NotImplementedError("coords must be a Point or an Iterable")
 
 
 @AsPoint.register
@@ -203,7 +203,7 @@ def AsCoords(
     value: _types.Coords | _types.Number | Point,
 ) -> _types.FloatArray:
     """Returns value as a 3D vector"""
-    NotImplementedError(
+    raise NotImplementedError(
         f"{type(value)} is not supported. Must be (Point | float | int | Iterable)"
     )
 
