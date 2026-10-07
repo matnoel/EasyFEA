@@ -265,7 +265,7 @@ class Isotropic(_Elastic):
     E: float = _params.PositiveParameter()
     """Young's modulus"""
 
-    v: float = _params.IntervalccParameter(inf=-1, sup=0.5)
+    v: float = _params.IntervalooParameter(inf=-1, sup=0.5)
     """Poisson's ratio (-1<v<0.5)"""
 
     def __init__(self, dim: int, E=210000.0, v=0.3, planeStress=True, thickness=1.0):
@@ -436,10 +436,10 @@ class TransverselyIsotropic(_Elastic):
     Gl: float = _params.PositiveParameter()
     """Longitudinal shear modulus."""
 
-    vl: float = _params.IntervalccParameter(inf=-1, sup=0.5)
+    vl: float = _params.IntervalooParameter(inf=-1, sup=0.5)
     """Longitudinal Poisson's ratio (-1<vl<0.5)."""
 
-    vt: float = _params.IntervalccParameter(inf=-1, sup=1)
+    vt: float = _params.IntervalooParameter(inf=-1, sup=1)
     """Transverse Poisson ratio (-1<vt<1)"""
 
     def __str__(self) -> str:
@@ -676,13 +676,13 @@ class Orthotropic(_Elastic):
     G12: float = _params.PositiveParameter()
     """Shear modulus in the 1-2 plane."""
 
-    v23: float = _params.IntervalccParameter(inf=-1, sup=0.5)
+    v23: float = _params.IntervalooParameter(inf=-1, sup=0.5)
     """Poisson's ratio for transverse strain along the axis_3 when stressed along the axis_2."""
 
-    v13: float = _params.IntervalccParameter(inf=-1, sup=0.5)
+    v13: float = _params.IntervalooParameter(inf=-1, sup=0.5)
     """Poisson's ratio for transverse strain along the axis_3 when stressed along the axis_1."""
 
-    v12: float = _params.IntervalccParameter(inf=-1, sup=0.5)
+    v12: float = _params.IntervalooParameter(inf=-1, sup=0.5)
     """Poisson's ratio for transverse strain along the axis_2 when stressed along the axis_1."""
 
     def __str__(self) -> str:

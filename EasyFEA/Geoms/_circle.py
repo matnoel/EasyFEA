@@ -312,7 +312,7 @@ class CircleArc(_Geom):
         mat = np.array([i, j, k]).T
 
         # midpoint coordinates
-        _params._CheckIsInIntervaloo(coef, -1, 1)
+        _params._CheckIsInIntervalcc(coef, -1, 1)
         pt3 = center.coord + mat @ [coef * r1, 0, 0]
 
         self.coef = coef

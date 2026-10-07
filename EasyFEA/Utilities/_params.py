@@ -70,7 +70,7 @@ def _CheckIsNegative(value: float | Iterable) -> None:
         raise TypeError("Unknown type.")
 
 
-def _CheckIsInIntervalcc(value: float | Iterable, inf, sup) -> None:
+def _CheckIsInIntervaloo(value: float | Iterable, inf, sup) -> None:
     """Checks whether the value is in ]inf, sup["""
     assert inf < sup
     errorText = f"Must be in ]{inf}, {sup}["
@@ -84,7 +84,7 @@ def _CheckIsInIntervalcc(value: float | Iterable, inf, sup) -> None:
         raise TypeError("Unknown type.")
 
 
-def _CheckIsInIntervaloo(value: float | Iterable, inf, sup) -> None:
+def _CheckIsInIntervalcc(value: float | Iterable, inf, sup) -> None:
     """Checks whether the value is in [inf, sup]"""
     assert inf < sup
     errorText = f"Must be in [{inf}, {sup}]"
@@ -204,21 +204,6 @@ class ParameterInValues(_Parameter):
         _CheckIsInValues(value, self.__values)
 
 
-class IntervalccParameter(_Parameter):
-    def __init__(self, inf: float, sup: float):
-        self.__inf = inf
-        self.__sup = sup
-
-    def _checker(self, value):
-        _CheckIsInIntervalcc(value, inf=self.__inf, sup=self.__sup)
-
-
-class IntervalccScalarParameter(IntervalccParameter):
-    def _checker(self, value):
-        _CheckIsScalar(value)
-        super()._checker(value)
-
-
 class IntervalooParameter(_Parameter):
     def __init__(self, inf: float, sup: float):
         self.__inf = inf
@@ -226,6 +211,21 @@ class IntervalooParameter(_Parameter):
 
     def _checker(self, value):
         _CheckIsInIntervaloo(value, inf=self.__inf, sup=self.__sup)
+
+
+class IntervalooScalarParameter(IntervalooParameter):
+    def _checker(self, value):
+        _CheckIsScalar(value)
+        super()._checker(value)
+
+
+class IntervalccParameter(_Parameter):
+    def __init__(self, inf: float, sup: float):
+        self.__inf = inf
+        self.__sup = sup
+
+    def _checker(self, value):
+        _CheckIsInIntervalcc(value, inf=self.__inf, sup=self.__sup)
 
 
 class VectorParameter(_Parameter):
