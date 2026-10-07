@@ -325,3 +325,131 @@ def a(u: Field, v: Field):
 
 model = Models.WeakForms(field, computeK=a)
 ```
+
+______________________________________________________________________
+
+(howto-models-heterogeneous)=
+
+## Heterogeneous parameters
+
+A model parameter is a scalar, an `(Ne,)` array (one value per element) or an
+`(Ne, nPg)` array (one value per Gauss point), `Ne` and `nPg` being those of the mesh's
+element group. Both shapes plot as element values with `nodeValues=False`.
+
+### Per element, from tags
+
+```{eval-rst}
+.. jupyter-execute::
+
+    import numpy as np
+    from EasyFEA import ElemType, Matplotlib, Models
+    from EasyFEA.Geoms import Circle, Domain
+
+    domain = Domain((0, 0), (1, 1), 1 / 20)
+    inclusion = Circle((0.5, 0.5), 0.4, 1 / 20, isFilled=True)
+    mesh = domain.Mesh_2D([inclusion], ElemType.TRI6)  # tags S0 (matrix), S1 (inclusion)
+
+    E = np.full(mesh.Ne, 1.0)
+    E[mesh.Elements_Tags(["S1"])] = 50.0
+    material = Models.Elastic.Isotropic(2, E, v=0.3)
+
+    Matplotlib.Plot(mesh, E, nodeValues=False, title="E (Ne,)")
+```
+
+### Per Gauss point, from coordinates
+
+The Gauss points are those of the matrix the parameter enters: `MatrixType.rigi` for a
+stiffness.
+
+```{eval-rst}
+.. jupyter-execute::
+
+    from EasyFEA import MatrixType
+
+    x_e_pg = mesh.groupElem.Get_GaussCoordinates_e_pg(MatrixType.rigi)[..., 0]  # (Ne, nPg)
+    E = 1.0 + 49.0 * x_e_pg
+    material = Models.Elastic.Isotropic(2, E, v=0.3)
+
+    Matplotlib.Plot(mesh, E, nodeValues=False, title="E (Ne, nPg)")
+```
+
+In 3D, `PyVista.Plot(mesh, E, nodeValues=False)` plots the same.
+
+### Mixed meshes: one model per group
+
+When the mesh's main dimension has several element groups (e.g. QUAD8 + TRI6, HEXA27 +
+PRISM18), an array fits one group only, and built-in simulations take a single model.
+One way to do it, among others: build one model per group, then override `Get_terms` to
+restrict one {py:class}`~EasyFEA.Simulations.Term` to each group with `groupElem=` (see
+{ref}`howto-new-simulation-extend`). Three points:
+
+- the per-group dispatch happens in `Get_terms`, nowhere else;
+- the simulation still needs one model at construction: give it any of them, here the
+  first;
+- every model must share the same `thickness`: every group is scaled by the given
+  model's.
+
+On the dam of {ref}`sphx_glr_examples_LinearizedElasticity_Elas3.py`, with stiffer
+triangles (`(Ne,)` values here; `(Ne, nPg)` values work the same):
+
+```{eval-rst}
+.. jupyter-execute::
+
+    from EasyFEA import Simulations
+    from EasyFEA.FEM import Operators, _GroupElem
+    from EasyFEA.Geoms import Points
+    from EasyFEA.Simulations import Term
+
+    h = 180
+    contour = Points([(0, 0), (h, 0), (0, h)], h / 10)
+    mesh = contour.Mesh_2D([], ElemType.QUAD8)  # QUAD8 + TRI6
+
+    materials: dict[_GroupElem, Models.Elastic.Isotropic] = {}
+    for groupElem in mesh.Get_list_groupElem():
+        value = 15e9 if groupElem.topology == "QUAD" else 30e9
+        E = np.full(groupElem.Ne, value)
+        materials[groupElem] = Models.Elastic.Isotropic(
+            2,
+            E,
+            v=0.25,
+            planeStress=False,
+            thickness=2 * h,
+        )
+
+
+    class MixedElastic(Simulations.Elastic):
+
+        def __init__(self, mesh, materials):
+            super().__init__(mesh, next(iter(materials.values())))
+            self._materials = materials
+
+        def Get_terms(self, problemType=None):
+            return [
+                Term(
+                    "K",
+                    Operators.Bilinear.LinearizedElasticity,
+                    groupElem=groupElem,
+                    C=material.C,
+                    constant=True,
+                )
+                for groupElem, material in self._materials.items()
+            ]
+
+
+    nodesClamped = mesh.Nodes_Conditions(lambda x, y, z: y == 0)
+    nodesWater = mesh.Nodes_Conditions(lambda x, y, z: x == 0)
+
+    simu = MixedElastic(mesh, materials)
+    simu.add_dirichlet(nodesClamped, [0, 0], ["x", "y"])
+    simu.add_surfLoad(nodesWater, [lambda x, y, z: 1000 * 9.81 * (h - y)], ["x"])
+    simu.add_volumeLoad(mesh.nodes, [-2400 * 9.81], ["y"])
+    simu.Solve()
+
+    E = {g: m.E for g, m in materials.items()}  # a {groupElem: values} dict plots as is
+    Matplotlib.Plot(simu, E, nodeValues=False, title="E per group")
+    Matplotlib.Plot(simu, "uy")
+```
+
+Overriding `Get_terms` replaces the built-in terms: add back the ones you need (mass,
+Rayleigh damping, ...), one per group. `simu.material` is the first group's model, so
+post-processing that reads it is only right on that group.
