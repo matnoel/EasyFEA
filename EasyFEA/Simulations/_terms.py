@@ -78,6 +78,7 @@ class Term:
         *,
         dim: int | None = None,
         tag: str | None = None,
+        groupElem: "_GroupElem | None" = None,
         constant: bool = False,
         **kwargs,
     ):
@@ -90,9 +91,11 @@ class Term:
         fn : Callable
             The operator, called as ``fn(groupElem, **kwargs)``, so its first positional parameter must be a :py:class:`~EasyFEA.FEM._GroupElem`.
         dim : int, optional
-            Dimension of the element groups this term integrates over, ``mesh.dim`` by default.
+            Dimension of the element groups this term integrates over, `groupElem`'s or ``mesh.dim`` by default.
         tag : str, optional
             Restricts the term to a tagged element subset; groups without the tag are skipped.
+        groupElem : _GroupElem, optional
+            Restricts the term to this element group of the simulation's mesh, so a mixed mesh can carry one model per group.
         constant : bool, optional
             Declares the contribution independent of the solution, so it is built once and reused across Newton iterations and time steps while its arguments are unchanged. `fn` must then read nothing but its arguments, so it cannot be a bound method. Defaults to False.
         **kwargs
@@ -112,6 +115,11 @@ class Term:
                 "would be silently ignored on the elements it selects."
             )
 
+        if groupElem is not None and dim not in (None, groupElem.dim):
+            raise ValueError(
+                f"dim={dim} contradicts groupElem={groupElem.elemType}, of dimension {groupElem.dim}."
+            )
+
         # written only here: a `constant=True` term's cache is keyed and checked on these
         self.__slots = tuple(slots)
         self.__fn = fn
@@ -120,8 +128,9 @@ class Term:
         self.__declared = (
             self.__slots
         )  # a scaled copy keeps its source's, to share its cache entry
-        self.__dim = dim
+        self.__dim = groupElem.dim if dim is None and groupElem is not None else dim
         self.__tag = tag
+        self.__groupElem = groupElem
         self.__constant = constant
 
         # resolved once, not per group per Newton iteration
@@ -140,7 +149,12 @@ class Term:
     def __repr__(self) -> str:
         name = getattr(self.__fn, "__name__", repr(self.__fn))
         tag = "" if self.__tag is None else f", tag={self.__tag!r}"
-        return f"Term({''.join(self.__slots)!r}, {name}{tag})"
+        group = (
+            ""
+            if self.__groupElem is None
+            else f", groupElem={self.__groupElem.elemType}"
+        )
+        return f"Term({''.join(self.__slots)!r}, {name}{tag}{group})"
 
     @property
     def slots(self) -> tuple[str, ...]:
@@ -164,6 +178,7 @@ class Term:
             self.__fn,
             dim=self.__dim,
             tag=self.__tag,
+            groupElem=self.__groupElem,
             constant=self.__constant,
             **self.__kwargs,
         )
@@ -177,7 +192,14 @@ class Term:
 
     def _Cached(self, simu: "_Simu", groupElem: "_GroupElem") -> Any:
         """Unscaled contribution of a ``constant=True`` term on one group, kept with `simu`'s cached computed values (so a mesh change drops it) and reused by the term declared the same way, and by its :py:meth:`Scaled` copies, while the argument values are unchanged. ``u`` is deliberately unavailable: a term that needs it is not constant, and fails loudly on the missing argument rather than silently freeze the first iterate."""
-        key = (self.__fn, self.__declared, self.__dim, self.__tag, groupElem)
+        key = (
+            self.__fn,
+            self.__declared,
+            self.__dim,
+            self.__tag,
+            self.__groupElem,
+            groupElem,
+        )
         kwargs = self.__kwargs
         cache = cached_computed_values(simu)
         hit = cache.get(key)
@@ -194,8 +216,16 @@ class Term:
     # ----------------------------------------------
 
     def _Get_groups(self, mesh: "Mesh") -> list["_GroupElem"]:
-        """Element groups this term integrates over, tag-filtered."""
+        """Element groups this term integrates over, restricted to its group and tag-filtered."""
         groups = mesh.Get_list_groupElem(self.__dim)
+        if self.__groupElem is not None:
+            if not any(g is self.__groupElem for g in groups):
+                raise ValueError(
+                    f"{self!r}: its {self.__groupElem.elemType} group is not a group of the "
+                    f"simulation's mesh in dimension {self.__dim}, e.g. a group of another mesh "
+                    "or of a mesh replaced since."
+                )
+            groups = [self.__groupElem]
         if self.__tag is None:
             return groups
         return [g for g in groups if self.__tag in g.elementTags]

@@ -11,7 +11,7 @@ Each catches a failure that is otherwise silent: an unknown slot letter would su
 import numpy as np
 import pytest
 
-from EasyFEA import Models, Simulations
+from EasyFEA import ElemType, Models, Simulations
 from EasyFEA.FEM import Operators
 from EasyFEA.Geoms import Domain, Point
 from EasyFEA.Simulations import Fold_terms, ProblemType, Term
@@ -262,3 +262,78 @@ class TestExtendBySubclass:
         np.testing.assert_allclose(
             (K - K_conduction).toarray(), 5.0 * self.UV(), atol=1e-14
         )
+
+
+class MixedElastic(Simulations.Elastic):
+    """Elastic with one model per element group, one stiffness term each."""
+
+    def __init__(self, mesh, materials):
+        super().__init__(mesh, next(iter(materials.values())))
+        self.materials = materials
+
+    def Get_terms(self, problemType: ProblemType | None = None) -> list[Term]:
+        return [
+            Term(
+                "K",
+                Operators.Bilinear.LinearizedElasticity,
+                groupElem=g,
+                C=m.C,
+                constant=True,
+            )
+            for g, m in self.materials.items()
+        ]
+
+
+class TestGroupElem:
+    """`groupElem=` restricts a term to one element group, so a mixed mesh can carry one model per group."""
+
+    @staticmethod
+    def Mesh():
+        domain = Domain((0, 0), (120, 13), 6.5)
+        mesh = domain.Mesh_2D([], ElemType.QUAD4)
+        assert len(mesh.Get_list_groupElem(2)) == 2  # QUAD4 + TRI3
+        return mesh
+
+    @staticmethod
+    def Material(E=210000.0):
+        return Models.Elastic.Isotropic(2, E=E, v=0.3, planeStress=True)
+
+    @staticmethod
+    def K(simu) -> np.ndarray:
+        return simu.Get_K_C_M_F()[0].toarray()
+
+    def test_per_group_terms_with_one_model_equal_one_term(self):
+        mesh = self.Mesh()
+        materials = {g: self.Material() for g in mesh.Get_list_groupElem(2)}
+
+        K_groups = self.K(MixedElastic(mesh, materials))
+        K_whole = self.K(Simulations.Elastic(mesh, self.Material()))
+
+        np.testing.assert_allclose(K_groups, K_whole, rtol=1e-12, atol=1e-9)
+
+    def test_each_group_gets_its_own_model(self):
+        mesh = self.Mesh()
+        quad, tri = mesh.Get_list_groupElem(2)
+        K = self.K(MixedElastic(mesh, {quad: self.Material(), tri: self.Material(2e5)}))
+
+        # linear in E: the TRI3 part alone is what changes with its modulus
+        K_tri = self.K(MixedElastic(mesh, {tri: self.Material(1.0)}))
+        K_quad = self.K(MixedElastic(mesh, {quad: self.Material()}))
+        np.testing.assert_allclose(K, K_quad + 2e5 * K_tri, rtol=1e-10, atol=1e-6)
+
+    def test_a_group_from_another_mesh_is_rejected(self):
+        mesh = self.Mesh()
+        other = self.Mesh()
+        materials = {g: self.Material() for g in other.Get_list_groupElem(2)}
+        with pytest.raises(ValueError, match="not a group"):
+            MixedElastic(mesh, materials).Get_K_C_M_F()
+
+    def test_a_dim_other_than_the_group_s_is_rejected(self):
+        g = self.Mesh().Get_list_groupElem(2)[0]
+        with pytest.raises(ValueError, match="contradicts"):
+            Term("K", Operator, dim=1, groupElem=g)
+
+    def test_repr_names_the_group(self):
+        g = self.Mesh().Get_list_groupElem(2)[1]
+        term = Term("K", Operator, groupElem=g)
+        assert f"groupElem={g.elemType}" in repr(term)
