@@ -216,7 +216,7 @@ class Mesh(Observable):
     ) -> "Mesh | tuple[Mesh, list[_types.IntArray]]":
         """Merges EasyFEA meshes into a single mesh.
 
-        This is a static method: call it as ``Mesh.Merge([mesh1, mesh2, ...])``.
+        This is a static method: call it as ``Mesh.Merge([mesh1, mesh2, ...])``. Element and node tags are carried per element type; tags sharing a name across meshes are united.
 
         Parameters
         ----------
@@ -243,12 +243,7 @@ class Mesh(Observable):
             The merged mesh.
         mapping : list[np.ndarray], only when ``return_mapping=True``
             ``mapping[i]`` maps each node index of ``list_mesh[i]`` to its
-            index in the merged mesh. Useful to transfer node tags::
-
-                merged, mapping = Mesh.Merge([m1, m2], return_mapping=True)
-                for tag in m1.groupElem.nodeTags:
-                    nodes = mapping[0][m1.groupElem.Get_Nodes_Tag(tag)]
-                    merged.groupElem.Set_Tag(nodes, tag)
+            index in the merged mesh.
         """
         from ._group_elem import GroupElemFactory
 
@@ -290,28 +285,47 @@ class Mesh(Observable):
             new_coords = all_coords
             old_to_new = np.arange(N)
 
-        # Step 3: remap connectivity per element type
+        # Step 3: remap connectivity and tags per element type, same-named tags united
         dict_connects: dict[ElemType, list] = {}
+        dict_nodesTags: dict[ElemType, dict[str, list]] = {}
+        dict_elementsTags: dict[ElemType, dict[str, list]] = {}
         for mesh, off in zip(list_mesh, offsets):
             for elemType, groupElem in mesh.dict_groupElem.items():
-                dict_connects.setdefault(elemType, []).append(
-                    old_to_new[groupElem.connect + off]
-                )
+                connects = dict_connects.setdefault(elemType, [])
+                elemOffset = sum(len(c) for c in connects)
+                connects.append(old_to_new[groupElem.connect + off])
+                nodesTags = dict_nodesTags.setdefault(elemType, {})
+                for tag, nodes in groupElem._dict_nodes_tags.items():
+                    nodesTags.setdefault(tag, []).append(old_to_new[nodes + off])
+                elementsTags = dict_elementsTags.setdefault(elemType, {})
+                for tag, elements in groupElem._dict_elements_tags.items():
+                    elementsTags.setdefault(tag, []).append(elements + elemOffset)
 
         # Step 4: optionally remove duplicate elements, then build GroupElems
         dict_groupElem: dict[ElemType, _GroupElem] = {}
         for elemType, connects_list in dict_connects.items():
             connect: _types.IntArray = np.vstack(connects_list)
+            old_to_kept = np.arange(len(connect))
             if constructUniqueElements:
                 connect_sorted = np.sort(connect, axis=1)
                 connect_view = np.ascontiguousarray(connect_sorted).view(
                     np.dtype((np.void, connect.dtype.itemsize * connect.shape[1]))
                 )
-                _, unique_idx = np.unique(connect_view, return_index=True)
+                _, unique_idx, old_to_kept = np.unique(
+                    connect_view, return_index=True, return_inverse=True
+                )
+                old_to_kept = old_to_kept.ravel()
                 connect = connect[unique_idx]
-            dict_groupElem[elemType] = GroupElemFactory.Create(
-                elemType, connect, new_coords
-            )
+            groupElem = GroupElemFactory.Create(elemType, connect, new_coords)
+            elementsTags = dict_elementsTags[elemType]
+            for tag, nodes in dict_nodesTags[elemType].items():
+                elements = np.concatenate(elementsTags.get(tag, [[]])).astype(int)
+                groupElem.Set_Tag(
+                    np.unique(np.concatenate(nodes)),
+                    tag,
+                    np.unique(old_to_kept[elements]),
+                )
+            dict_groupElem[elemType] = groupElem
 
         merged = Mesh(dict_groupElem)
 

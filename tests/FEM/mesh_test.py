@@ -419,3 +419,41 @@ class TestMeshMerge:
         merged_from_left = set(mapping[0][shared_left].tolist())
         merged_from_right = set(mapping[1][shared_right].tolist())
         assert len(merged_from_left & merged_from_right) > 0  # at least some shared
+
+    def test_tags_survive_a_mixed_merge(self):
+        """A QUAD4 square beside a TRI3 square: each group keeps its element and node tags."""
+        leftContour = Points([(0, 0), (1, 0), (1, 1), (0, 1)], 1 / 3)
+        left = leftContour.Mesh_2D([], ElemType.QUAD4, isOrganised=True)
+        rightContour = Points([(1, 0), (2, 0), (2, 1), (1, 1)], 1 / 3)
+        right = rightContour.Mesh_2D([], ElemType.TRI3)
+
+        merged, mapping = Mesh.Merge([left, right], return_mapping=True)
+
+        for mesh, nodes in zip([left, right], mapping):
+            groupElem = mesh.groupElem
+            mergedGroup = merged.dict_groupElem[groupElem.elemType]
+            assert mergedGroup.elementTags == ["S0"]
+            np.testing.assert_array_equal(
+                mergedGroup.Get_Elements_Tag("S0"), np.arange(groupElem.Ne)
+            )
+            np.testing.assert_array_equal(
+                np.sort(mergedGroup.Get_Nodes_Tag("S0")),
+                np.unique(nodes[groupElem.Get_Nodes_Tag("S0")]),
+            )
+
+    def test_tags_follow_the_kept_duplicates(self):
+        """Merging a mesh with itself: each tag points at the copy that survived."""
+        contour = Points([(0, 0), (1, 0), (1, 1), (0, 1)], 0.4)
+        mesh = contour.Mesh_2D([], ElemType.QUAD4, isOrganised=True)
+
+        merged = Mesh.Merge([mesh, mesh])
+
+        for elemType, groupElem in mesh.dict_groupElem.items():
+            mergedGroup = merged.dict_groupElem[elemType]
+            assert mergedGroup.elementTags == groupElem.elementTags
+            for tag in groupElem.elementTags:
+                tagged = mergedGroup.connect[mergedGroup.Get_Elements_Tag(tag)]
+                expected = groupElem.connect[groupElem.Get_Elements_Tag(tag)]
+                assert {tuple(sorted(e)) for e in tagged} == {
+                    tuple(sorted(e)) for e in expected
+                }
