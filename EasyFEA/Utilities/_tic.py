@@ -32,28 +32,18 @@ class Tic:
     @staticmethod
     def Get_time_unity(time: float) -> tuple[float, str]:
         """Returns time with unity"""
-        if time > 1:
-            if time < 60:
-                unite = "s"
-                coef = 1.0
-            elif time > 60 and time < 3600:
-                unite = "m"
-                coef = 1 / 60
-            elif time > 3600 and time < 86400:
-                unite = "h"
-                coef = 1 / 3600
-            else:
-                unite = "j"
-                coef = 1 / 86400
-        elif time < 1 and time > 1e-3:
-            coef = 1e3
-            unite = "ms"
-        elif time < 1e-3:
-            coef = 1e6
-            unite = "µs"
+        if time >= 86400:
+            unite, coef = "j", 1 / 86400
+        elif time >= 3600:
+            unite, coef = "h", 1 / 3600
+        elif time >= 60:
+            unite, coef = "m", 1 / 60
+        elif time >= 1:
+            unite, coef = "s", 1.0
+        elif time >= 1e-3:
+            unite, coef = "ms", 1e3
         else:
-            unite = "s"
-            coef = 1.0
+            unite, coef = "µs", 1e6
 
         return time * coef, unite
 
