@@ -19,9 +19,8 @@ from ..FEM import FeArray, Trace, TensorProd, Det, Norm
 # others
 from ._utils import (
     _IModel,
-    Project_vector_to_matrix,
-    Project_matrix_to_vector,
 )
+from ..FEM._kelvin_mandel import Vector_to_Matrix, Matrix_to_Vector
 from ..Utilities import _params, _types
 
 # ----------------------------------------------
@@ -715,13 +714,12 @@ class PhaseField(_IModel):
         material = self.__material
         dim = material.dim
 
-        coef = material.coef
         Ne, nPg = vector_e_pg.shape[:2]
 
         tic = Tic()
 
         # Initialize the second-order tensor [e,pg,dim,dim]
-        matrix_e_pg = Project_vector_to_matrix(vector_e_pg, coef)
+        matrix_e_pg = Vector_to_Matrix(vector_e_pg)
 
         tic.Tac("Split", "vector_e_pg -> matrix_e_pg", False)
 
@@ -908,17 +906,17 @@ class PhaseField(_IModel):
         # transform eigenbases in the form of a vector [e,pg,3] or [e,pg,6].
         if dim == 2:
             # [x, y, xy]
-            m1 = Project_matrix_to_vector(M1)
-            m2 = Project_matrix_to_vector(M2)
+            m1 = Matrix_to_Vector(M1)
+            m2 = Matrix_to_Vector(M2)
 
             list_m = [m1, m2]
             list_M = [M1, M2]
 
         elif dim == 3:
             # [x, y, z, yz, xz, xy]
-            m1 = Project_matrix_to_vector(M1)
-            m2 = Project_matrix_to_vector(M2)
-            m3 = Project_matrix_to_vector(M3)
+            m1 = Matrix_to_Vector(M1)
+            m2 = Matrix_to_Vector(M2)
+            m3 = Matrix_to_Vector(M3)
 
             list_m = [m1, m2, m3]
             list_M = [M1, M2, M3]

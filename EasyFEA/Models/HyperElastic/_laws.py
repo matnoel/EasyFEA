@@ -15,7 +15,7 @@ from ...FEM import Kinematics
 
 # others
 from .._utils import _IModel
-from ...FEM._kelvin_mandel import Matrix_to_Vector, R2
+from ...FEM._kelvin_mandel import Matrix_to_Vector
 from ...Utilities import _params, _types
 
 # ----------------------------------------------
@@ -93,11 +93,6 @@ class _HyperElastic(_IModel, ABC):
             magnitude = FeArray.asfearray(magnitude)
 
         return kinematics._Slice_Vector(magnitude * self.__TxT)
-
-    @property
-    def coef(self) -> float:
-        """Kelvin–Mandel shear weight, √2."""
-        return R2
 
     # Model
     @staticmethod

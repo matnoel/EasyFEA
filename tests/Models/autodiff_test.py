@@ -18,6 +18,7 @@ import pytest
 
 from EasyFEA import ElemType, MatrixType, Models, Simulations
 from EasyFEA.FEM._linalg import FeArray
+from EasyFEA.FEM import _kelvin_mandel as kelvin_mandel
 from EasyFEA.Geoms import Domain, Line
 from EasyFEA.Models import _autodiff
 from EasyFEA.Models.HyperElastic import HyperElasticPotential
@@ -226,10 +227,10 @@ def test_holzapfel_ogden_accepts_fibre_fields(kinematics: Kinematics):
 
 
 def test_kelvin_to_tensor_inverts_the_shipped_projection(kinematics: Kinematics):
-    """``Kelvin_to_tensor`` undoes ``Project_matrix_to_vector``."""
+    """``Kelvin_to_tensor`` undoes ``Matrix_to_Vector``."""
     C_e_pg = kinematics.Compute_C()
     rebuilt = _autodiff.Vmap_e_pg(_autodiff.Kelvin_to_tensor)(
-        Models.Project_matrix_to_vector(C_e_pg)
+        kelvin_mandel.Matrix_to_Vector(C_e_pg)
     )
 
     assert _rel(rebuilt, C_e_pg) < TOL

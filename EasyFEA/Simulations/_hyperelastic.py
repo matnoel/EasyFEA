@@ -17,7 +17,8 @@ if TYPE_CHECKING:
 from ..FEM import MatrixType, FeArray, Kinematics, Operators
 
 # models
-from ..Models import Project_Kelvin, Result_strain_or_stress_field_e
+from ..FEM._kelvin_mandel import Tensor_to_Kelvin
+from ..Models import Result_strain_or_stress_field_e
 from ..Models._utils import _Field_per_groupElem
 
 if TYPE_CHECKING:
@@ -558,7 +559,7 @@ class HyperElastic(_Simu):
                 if isStress
                 else self._Calc_GreenLagrange()
             )
-            values = Result_strain_or_stress_field_e(field, res, self.material.coef)
+            values = Result_strain_or_stress_field_e(field, res)
 
         else:
             Terminal.MyPrintError(f"The result '{result}' is not implemented yet.")
@@ -602,7 +603,7 @@ class HyperElastic(_Simu):
         if matrixType is None:
             matrixType = self.matrixType
         return _Field_per_groupElem(
-            lambda groupElem: Project_Kelvin(
+            lambda groupElem: Tensor_to_Kelvin(
                 Kinematics(
                     groupElem, self.displacement, matrixType
                 ).Compute_GreenLagrange(),

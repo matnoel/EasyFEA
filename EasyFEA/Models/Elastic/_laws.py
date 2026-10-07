@@ -6,16 +6,16 @@
 """Elastic laws."""
 
 from abc import ABC, abstractmethod
+from functools import cached_property
 from typing import TYPE_CHECKING
 
 # utilities
 import numpy as np
 
 # others
-from ...Geoms import AsCoords, Normalize
+from ...Geoms import AsCoords
 from .._utils import _IModel, _Format_parameter, Heterogeneous_Array
 from ...FEM import _kelvin_mandel as kelvin_mandel
-from ...FEM._kelvin_mandel import Tensor_to_Kelvin, Get_Pmat, Apply_Pmat
 from ...Utilities import _params, _types
 from ...FEM._linalg import TensorProd, FeArray
 
@@ -28,11 +28,14 @@ if TYPE_CHECKING:
 
 
 class _Elastic(_IModel, ABC):
-    """Linearized Elasticity material.\n
-    ElasIsot, ElasIsotTrans and ElasAnisot inherit from _Elas class.
-    """
+    """Linearized elastic material: a law gives its material-frame Kelvin–Mandel C, the base rotates it, applies the 2D hypothesis, inverts and caches."""
 
-    def __init__(self, dim: int, thickness: float, planeStress: bool):
+    def __init__(
+        self,
+        dim: int,
+        thickness: float,
+        planeStress: bool,
+    ):
         self.dim = dim
         self.planeStress = planeStress
         self.thickness = thickness
@@ -53,75 +56,61 @@ class _Elastic(_IModel, ABC):
             return "3D"
 
     @abstractmethod
-    def _Update(self) -> None:
-        """Updates the constitutives laws by updating the C stiffness and S compliance matrices. in Kelvin Mandel notation"""
-
-    @abstractmethod
-    def _Get_C_S(
-        self, dim: int | None = None
-    ) -> tuple[_types.FloatArray, _types.FloatArray]:
-        """Stiffness and compliance in Kelvin-Mandel notation, in ``dim`` (the model's by default)."""
+    def _Material_C(self) -> _types.FloatArray:
+        """Kelvin–Mandel C in the material frame, (…, 6, 6); Anisotropic may give a 2D-only (…, 3, 3)."""
 
     # Model
     @staticmethod
     def Available_Laws():
-        laws = [Isotropic, TransverselyIsotropic, Anisotropic]
+        laws = [Isotropic, TransverselyIsotropic, Orthotropic, Anisotropic]
         return laws
 
-    @property
-    def coef(self) -> float:
-        """Kelvin–Mandel shear weight, √2."""
-        return kelvin_mandel.R2
+    @cached_property
+    def __C_S(self) -> tuple:
+        """(C3, C, S), C3 None for a 2D-only C."""
+        materialC = np.asarray(self._Material_C(), dtype=float)
+        C3: _types.FloatArray | None = None
+        if materialC.shape[-2:] == (3, 3):
+            if self.dim == 3 or self.planeStress:
+                raise ValueError(
+                    "A (3, 3) C is 2D only, with no plane stress: give a (6, 6) C."
+                )
+            C = materialC
+            S = np.linalg.inv(C)
+        else:
+            P = kelvin_mandel.Get_Pmat(*self._Axes())
+            C3 = kelvin_mandel.Apply_Pmat(P, materialC)
+            if self.dim == 3:
+                C = C3
+                S = np.linalg.inv(C)
+            elif self.planeStress:
+                S = kelvin_mandel.Reduce(np.linalg.inv(C3), 2)
+                C = np.linalg.inv(S)
+            else:
+                C = kelvin_mandel.Reduce(C3, 2)
+                S = np.linalg.inv(C)
+        return C3, C, S
 
     @property
     def C(self) -> _types.FloatArray:
-        """Stifness matrix in Kelvin Mandel notation such that:\n
-        In 2D: C -> C: Epsilon = Sigma [Sxx, Syy, sqrt(2)*Sxy]\n
-        In 3D: C -> C: Epsilon = Sigma [Sxx, Syy, Szz, sqrt(2)*Syz, sqrt(2)*Sxz, sqrt(2)*Sxy].\n
-        (Lame's law)
-        """
-        if self.needUpdate:
-            self._Update()
-            self.Need_Update(False)
-        return self.__C.copy()
+        """Stiffness in Kelvin–Mandel notation, model dimension, global frame: ``σ = C : ε``."""
+        return self.__C_S[1].copy()
 
-    # 23 Cannot be a descriptor due to conflict with `__sqrt_C`.
-    @C.setter
-    def C(self, array: _types.FloatArray):
-        assert isinstance(array, np.ndarray), "must be an array"
-        shape = (3, 3) if self.dim == 2 else (6, 6)
-        assert (
-            array.shape[-2:] == shape and array.ndim <= 4
-        ), f"With dim = {self.dim} array must be a {shape}, (Ne, *{shape}) or (Ne, nPg, *{shape}) matrix"
-        self.__C = array
-        self.__sqrt_C: _types.FloatArray | None = None  # dont remove
+    @property
+    def S(self) -> _types.FloatArray:
+        """Compliance in Kelvin–Mandel notation, model dimension, global frame: ``ε = S : σ``."""
+        return self.__C_S[2].copy()
+
+    def _Get_C_3D(self) -> _types.FloatArray:
+        """3D stiffness in Kelvin–Mandel notation, global frame, whatever ``dim``."""
+        C3 = self.__C_S[0]
+        if C3 is None:
+            raise ValueError("A (3, 3) C is 2D only: it has no 3D stiffness.")
+        return C3.copy()
 
     @property
     def isHeterogeneous(self) -> bool:
-        return len(self.C.shape) > 2
-
-    # 23 Cannot be a descriptor due to conflict with `__sqrt_S`.
-    @property
-    def S(self) -> _types.FloatArray:
-        """Compliance matrix in Kelvin Mandel notation such that:\n
-        In 2D: S -> S : Sigma = Epsilon [Exx, Eyy, sqrt(2)*Exy]\n
-        In 3D: S -> S: Sigma = Epsilon [Exx, Eyy, Ezz, sqrt(2)*Eyz, sqrt(2)*Exz, sqrt(2)*Exy].\n
-        (Hooke's law)
-        """
-        if self.needUpdate:
-            self._Update()
-            self.Need_Update(False)
-        return self.__S.copy()
-
-    @S.setter
-    def S(self, array: _types.FloatArray):
-        assert isinstance(array, np.ndarray), "must be an array"
-        shape = (3, 3) if self.dim == 2 else (6, 6)
-        assert (
-            array.shape[-2:] == shape and array.ndim <= 4
-        ), f"With dim = {self.dim} array must be a {shape}, (Ne, *{shape}) or (Ne, nPg, *{shape}) matrix"
-        self.__S = array
-        self.__sqrt_S: _types.FloatArray | None = None  # dont remove
+        return self.__C_S[1].ndim > 2
 
     def Compute_Sigma(self, kinematics: "Kinematics") -> FeArray.FeArrayALike:
         """Stress ``σ = C : ε`` in Kelvin-Mandel form, shape (Ne, nPg, 3 or 6)."""
@@ -143,109 +132,47 @@ class _Elastic(_IModel, ABC):
         returns ci, Ei"""
         return np.array([]), np.array([])
 
+    @cached_property
+    def __sqrt_C_S(self) -> tuple:
+        # C is symmetric positive definite: eigh gives the principal square root, over every leading axis at once
+        lam, Q = np.linalg.eigh(self.__C_S[1])
+        assert lam.min() > 0, "C must be positive definite"
+        sqrt_lam = np.sqrt(lam)[..., np.newaxis, :]
+        Qt = np.swapaxes(Q, -2, -1)
+        return (Q * sqrt_lam) @ Qt, (Q / sqrt_lam) @ Qt
+
     def Get_sqrt_C_S(self) -> tuple[_types.FloatArray, _types.FloatArray]:
         """Returns the matrix square root of C and S, for a C of any shape (..., d, d)."""
+        sqrtC, sqrtS = self.__sqrt_C_S
+        return sqrtC.copy(), sqrtS.copy()
 
-        C = self.C  # read first: an update resets the cache through the C setter
+    def _Axes(self) -> tuple[_types.FloatArray, _types.FloatArray]:
+        """The 2 first axes of the material frame, (…, 3) each."""
+        return np.array([1.0, 0, 0]), np.array([0, 1.0, 0])
 
-        try:
-            self.__sqrt_C is None
-            self.__sqrt_S is None
-        except AttributeError:
-            # init
-            self.__sqrt_C: _types.FloatArray | None = None  # type: ignore [no-redef]
-            self.__sqrt_S: _types.FloatArray | None = None  # type: ignore [no-redef]
+    def _Frame_fields(self) -> list[FeArray.FeArrayALike]:
+        """The 3 unit frame axes: (3,) each, or (Ne, nPg, 3) FeArrays, (Ne, 3) held at one point."""
+        axis_1, axis_2 = kelvin_mandel.Normalise_axes(*self._Axes())
+        axes = [axis_1, axis_2, np.cross(axis_1, axis_2)]
+        if axes[0].ndim == 1:
+            return axes
+        return [FeArray.asfearray(a if a.ndim == 3 else a[:, np.newaxis]) for a in axes]
 
-        if self.__sqrt_C is None or self.__sqrt_S is None:
-            # C is symmetric positive definite, so eigh gives the principal square root
-            # directly, and does every leading axis at once: (d,d), (Ne,d,d) and
-            # (Ne,nPg,d,d) all take this one path.
-            lam, Q = np.linalg.eigh(C)
-            assert lam.min() > 0, "C must be positive definite"
-            sqrt_lam = np.sqrt(lam)[..., np.newaxis, :]
-            Qt = np.swapaxes(Q, -2, -1)
-            self.__sqrt_C = (Q * sqrt_lam) @ Qt
-            self.__sqrt_S = (Q / sqrt_lam) @ Qt
-
-        return self.__sqrt_C.copy(), self.__sqrt_S.copy()
-
-    def _Apply_basis_transformation(
-        self,
-        dim: int,
-        material_cM: _types.FloatArray,
-        material_sM: _types.FloatArray,
-        axis_1: _types.FloatArray,
-        axis_2: _types.FloatArray,
+    def _Walpole(
+        self, ci: list, Ei: list, check=True
     ) -> tuple[_types.FloatArray, _types.FloatArray]:
-        """Performs a basis transformation from the material's (1,2,3) coordinate system to the (x,y,z) coordinate system to orient the material in space.
-
-        Parameters
-        ----------
-        dim : int
-            dimension
-        material_cM : _types.FloatArray
-            stiffness matrix
-        material_sM : _types.FloatArray
-            compliance matrix
-        axis_1 : _types.FloatArray
-            Axis 1
-        axis_2 : _types.FloatArray
-            Axis 2
-
-        Returns
-        -------
-        tuple[_types.FloatArray, _types.FloatArray]
-            global_cM, global_sM
-        """
-
-        P = Get_Pmat(axis_1=axis_1, axis_2=axis_2, useMandel=True)
-
-        global_sM = Apply_Pmat(P, material_sM, toGlobal=True)
-        global_cM = Apply_Pmat(P, material_cM, toGlobal=True)
-
-        testAxis_1 = np.linalg.norm(axis_1 - np.array([1, 0, 0])) <= 1e-12
-        testAxis_2 = np.linalg.norm(axis_2 - np.array([0, 1, 0])) <= 1e-12
-        if testAxis_1 and testAxis_2:
-            # check that if the axes does not change, the same constitutive law is obtained
-            test_diff_c = np.linalg.norm(
-                global_cM - material_cM, axis=(-2, -1)
-            ) / np.linalg.norm(material_cM, axis=(-2, -1))
-            assert np.max(test_diff_c) < 1e-12
-
-            test_diff_s = np.linalg.norm(
-                global_sM - material_sM, axis=(-2, -1)
-            ) / np.linalg.norm(material_sM, axis=(-2, -1))
-            assert np.max(test_diff_s) < 1e-12
-
-        c = global_cM
-        s = global_sM
-
-        if dim == 2:
-            x = kelvin_mandel.IDX[2]
-
-            shape = c.shape
-
-            if self.planeStress:
-                if len(shape) == 2:
-                    s = global_sM[x, :][:, x]
-                elif len(shape) == 3:
-                    s = global_sM[:, x, :][:, :, x]
-                elif len(shape) == 4:
-                    s = global_sM[:, :, x, :][:, :, :, x]
-
-                c = np.linalg.inv(s)
-
-            else:
-                if len(shape) == 2:
-                    c = global_cM[x, :][:, x]
-                elif len(shape) == 3:
-                    c = global_cM[:, x, :][:, :, x]
-                elif len(shape) == 4:
-                    c = global_cM[:, :, x, :][:, :, :, x]
-
-                s = np.linalg.inv(c)
-
-        return c, s
+        """(k, …) moduli and (k, …, 6, 6) tensors at the frame's points; asserts ``Σ cᵢ Eᵢ`` is the 3D C when ``check`` and the moduli are uniform."""
+        lead = np.shape(self._Axes()[0])[:-1]
+        ci_ = np.stack(np.broadcast_arrays(*ci))
+        Ei_ = np.stack([np.asarray(E).reshape(*lead, 6, 6) for E in Ei])
+        if check and ci_.ndim == 1:
+            C = self._Get_C_3D()
+            diff_C = C - np.tensordot(ci_, Ei_, axes=1)
+            test_C = np.linalg.norm(diff_C, axis=(-2, -1)) / np.linalg.norm(
+                C, axis=(-2, -1)
+            )
+            assert np.max(test_C) < 1e-12
+        return ci_, Ei_
 
 
 # ----------------------------------------------
@@ -283,11 +210,6 @@ class Isotropic(_Elastic):
         self.E = E
         self.v = v
 
-    def _Update(self) -> None:
-        C, S = self._Get_C_S()
-        self.C = C
-        self.S = S
-
     def get_lambda(self, dim: int | None = None):
         """First Lamé coefficient in ``dim`` (the model's by default), reduced under plane stress."""
         E = self.E
@@ -320,73 +242,19 @@ class Isotropic(_Elastic):
 
         return bulk
 
-    def _Get_C_S(
-        self, dim: int | None = None
-    ) -> tuple[_types.FloatArray, _types.FloatArray]:
-
-        if dim is None:
-            dim = self.dim
-        else:
-            assert dim in [2, 3]
-
-        E = self.E
-        v = self.v
-
+    def _Material_C(self) -> _types.FloatArray:
+        lmbda = self.get_lambda(3)
         mu = self.get_mu()
-        lmbda = self.get_lambda(dim)
-
-        dtype = object if True in [isinstance(p, np.ndarray) for p in [E, v]] else float
-
-        if dim == 2:
-            # Caution: lambda changes according to 2D simplification.
-
-            cVoigt = np.array(
-                [
-                    [lmbda + 2 * mu, lmbda, 0],
-                    [lmbda, lmbda + 2 * mu, 0],
-                    [0, 0, mu],
-                ],
-                dtype=dtype,
-            )
-
-            # if self.contraintesPlanes:
-            #     # C = np.array([  [4*(mu+l), 2*l, 0],
-            #     #                 [2*l, 4*(mu+l), 0],
-            #     #                 [0, 0, 2*mu+l]]) * mu/(2*mu+l)
-
-            #     cVoigt = np.array([ [1, v, 0],
-            #                         [v, 1, 0],
-            #                         [0, 0, (1-v)/2]]) * E/(1-v**2)
-
-            # else:
-            #     cVoigt = np.array([ [l + 2*mu, l, 0],
-            #                         [l, l + 2*mu, 0],
-            #                         [0, 0, mu]])
-
-            #     # C = np.array([  [1, v/(1-v), 0],
-            #     #                 [v/(1-v), 1, 0],
-            #     #                 [0, 0, (1-2*v)/(2*(1-v))]]) * E*(1-v)/((1+v)*(1-2*v))
-
-        elif dim == 3:
-            cVoigt = np.array(
-                [
-                    [lmbda + 2 * mu, lmbda, lmbda, 0, 0, 0],
-                    [lmbda, lmbda + 2 * mu, lmbda, 0, 0, 0],
-                    [lmbda, lmbda, lmbda + 2 * mu, 0, 0, 0],
-                    [0, 0, 0, mu, 0, 0],
-                    [0, 0, 0, 0, mu, 0],
-                    [0, 0, 0, 0, 0, mu],
-                ],
-                dtype=dtype,
-            )
-
-        cVoigt = Heterogeneous_Array(cVoigt)
-
-        c = kelvin_mandel.From_Voigt(cVoigt)
-
-        s = np.linalg.inv(c)
-
-        return c, s
+        return Heterogeneous_Array(
+            [
+                [lmbda + 2 * mu, lmbda, lmbda, 0, 0, 0],
+                [lmbda, lmbda + 2 * mu, lmbda, 0, 0, 0],
+                [lmbda, lmbda, lmbda + 2 * mu, 0, 0, 0],
+                [0, 0, 0, 2 * mu, 0, 0],
+                [0, 0, 0, 0, 2 * mu, 0],
+                [0, 0, 0, 0, 0, 2 * mu],
+            ]
+        )
 
     def Walpole_Decomposition(self) -> tuple[_types.FloatArray, _types.FloatArray]:
         c1 = self.get_bulk()
@@ -398,19 +266,10 @@ class Isotropic(_Elastic):
         E1 = 1 / 3 * TensorProd(Ivect, Ivect)
         E2 = Isym - E1
 
-        ci = np.array([c1, c2])
-        Ei = np.array([3 * E1, 2 * E2])
-
         # under 2D plane stress c1 is the reduced bulk, not the 3D one
-        if not self.isHeterogeneous and not (self.dim == 2 and self.planeStress):
-            C, S = self._Get_C_S(3)
-            diff_C = C - np.sum([c * E for c, E in zip(ci, Ei)], 0)
-            test_C = np.linalg.norm(diff_C, axis=(-2, -1)) / np.linalg.norm(
-                C, axis=(-2, -1)
-            )
-            assert test_C < 1e-12
-
-        return ci, Ei
+        return self._Walpole(
+            [c1, c2], [3 * E1, 2 * E2], not (self.dim == 2 and self.planeStress)
+        )
 
 
 # ----------------------------------------------
@@ -435,12 +294,6 @@ class TransverselyIsotropic(_Elastic):
 
     vt: float = _params.IntervalooParameter(inf=-1, sup=1)
     """Transverse Poisson ratio (-1<vt<1)"""
-
-    def __str__(self) -> str:
-        text = super().__str__()
-        text += f"\naxis_l = {_Format_parameter(self.axis_l)}"
-        text += f"\naxis_t = {_Format_parameter(self.axis_t)}"
-        return text
 
     def __init__(
         self,
@@ -481,21 +334,20 @@ class TransverselyIsotropic(_Elastic):
         thickness : float, optional
             thickness, by default 1.0
         """
-        _Elastic.__init__(self, dim, thickness, planeStress)
+        _Elastic.__init__(
+            self,
+            dim,
+            thickness,
+            planeStress,
+        )
+        self.axis_l = AsCoords(axis_l)
+        self.axis_t = AsCoords(axis_t)
 
         self.El = El
         self.Et = Et
         self.Gl = Gl
         self.vl = vl
         self.vt = vt
-
-        axis_l = AsCoords(axis_l)
-        axis_t = AsCoords(axis_t)
-        assert axis_l.size == 3 and len(axis_l.shape) == 1, "axis_l must be a 3D vector"
-        assert axis_t.size == 3 and len(axis_t.shape) == 1, "axis_t must be a 3D vector"
-        assert axis_l @ axis_t <= 1e-12, "axis1 and axis2 must be perpendicular"
-        self.__axis_l = Normalize(axis_l)
-        self.__axis_t = Normalize(axis_t)
 
     @property
     def Gt(self) -> float | _types.FloatArray:
@@ -519,60 +371,23 @@ class TransverselyIsotropic(_Elastic):
 
         return kt
 
-    @property
-    def axis_l(self) -> _types.FloatArray:
-        """Longitudinal axis"""
-        return self.__axis_l.copy()
+    axis_l: _types.FloatArray = _params.VectorParameter()
+    """Longitudinal axis, (…, 3)."""
 
-    @property
-    def axis_t(self) -> _types.FloatArray:
-        """Transversal axis"""
-        return self.__axis_t.copy()
+    axis_t: _types.FloatArray = _params.VectorParameter()
+    """Transverse axis, (…, 3)."""
 
-    def _Update(self) -> None:
-        C, S = self._Get_C_S()
-        self.C = C
-        self.S = S
+    def _Axes(self) -> tuple[_types.FloatArray, _types.FloatArray]:
+        return self.axis_l, self.axis_t
 
-    def _Get_C_S(
-        self, dim: int | None = None
-    ) -> tuple[_types.FloatArray, _types.FloatArray]:
-
-        if dim is None:
-            dim = self.dim
-
+    def _Material_C(self) -> _types.FloatArray:
+        # axes (l, t, r) = (1, 2, 3)
         El = self.El
-        Et = self.Et
-        vt = self.vt
         vl = self.vl
         Gl = self.Gl
         Gt = self.Gt
-
         kt = self.kt
-
-        dtype = object if isinstance(kt, np.ndarray) else float
-
-        # Kelvin-Mandel compliance and stiffness matrices in the material's coordinate system.
-        # L = (1, 0, 0)
-        # T = (0, 1, 0)
-        # R = (0, 0, 1)
-        # [11, 22, 33, sqrt(2)*23, sqrt(2)*13, sqrt(2)*12]
-
-        material_sM = np.array(
-            [
-                [1 / El, -vl / El, -vl / El, 0, 0, 0],
-                [-vl / El, 1 / Et, -vt / Et, 0, 0, 0],
-                [-vl / El, -vt / Et, 1 / Et, 0, 0, 0],
-                [0, 0, 0, 1 / (2 * Gt), 0, 0],
-                [0, 0, 0, 0, 1 / (2 * Gl), 0],
-                [0, 0, 0, 0, 0, 1 / (2 * Gl)],
-            ],
-            dtype=dtype,
-        )
-
-        material_sM = Heterogeneous_Array(material_sM)
-
-        material_cM = np.array(
+        return Heterogeneous_Array(
             [
                 [El + 4 * vl**2 * kt, 2 * kt * vl, 2 * kt * vl, 0, 0, 0],
                 [2 * kt * vl, kt + Gt, kt - Gt, 0, 0, 0],
@@ -580,30 +395,7 @@ class TransverselyIsotropic(_Elastic):
                 [0, 0, 0, 2 * Gt, 0, 0],
                 [0, 0, 0, 0, 2 * Gl, 0],
                 [0, 0, 0, 0, 0, 2 * Gl],
-            ],
-            dtype=dtype,
-        )
-
-        material_cM = Heterogeneous_Array(material_cM)
-
-        if len(material_cM.shape) == 2:
-            # checks that S = C^-1
-            diff_S = np.linalg.norm(
-                material_sM - np.linalg.inv(material_cM), axis=(-2, -1)
-            ) / np.linalg.norm(material_sM, axis=(-2, -1))
-            assert np.max(diff_S) < 1e-12
-            # checks that C = S^-1
-            diff_C = np.linalg.norm(
-                material_cM - np.linalg.inv(material_sM), axis=(-2, -1)
-            ) / np.linalg.norm(material_cM, axis=(-2, -1))
-            assert np.max(diff_C) < 1e-12
-
-        return self._Apply_basis_transformation(
-            dim=dim,
-            material_cM=material_cM,
-            material_sM=material_sM,
-            axis_1=self.axis_l,
-            axis_2=self.axis_t,
+            ]
         )
 
     def Walpole_Decomposition(self) -> tuple[_types.FloatArray, _types.FloatArray]:
@@ -619,31 +411,21 @@ class TransverselyIsotropic(_Elastic):
         c4 = 2 * Gt
         c5 = 2 * Gl
 
-        n = self.axis_l
+        n = self._Frame_fields()[0]
         p = TensorProd(n, n)
         q = np.eye(3) - p
 
-        E1 = Tensor_to_Kelvin(TensorProd(p, p))
-        E2 = Tensor_to_Kelvin(1 / 2 * TensorProd(q, q))
-        E3 = Tensor_to_Kelvin(
+        E1 = kelvin_mandel.Tensor_to_Kelvin(TensorProd(p, p))
+        E2 = kelvin_mandel.Tensor_to_Kelvin(1 / 2 * TensorProd(q, q))
+        E3 = kelvin_mandel.Tensor_to_Kelvin(
             1 / kelvin_mandel.R2 * (TensorProd(p, q) + TensorProd(q, p))
         )
-        E4 = Tensor_to_Kelvin(TensorProd(q, q, True) - 1 / 2 * TensorProd(q, q))
-        I = Tensor_to_Kelvin(TensorProd(np.eye(3), np.eye(3), True))
-        E5 = I - E1 - E2 - E4
+        E4 = kelvin_mandel.Tensor_to_Kelvin(
+            TensorProd(q, q, True) - 1 / 2 * TensorProd(q, q)
+        )
+        E5 = np.eye(6) - E1 - E2 - E4
 
-        ci = np.array([c1, c2, c3, c4, c5])
-        Ei = np.array([E1, E2, E3, E4, E5])
-
-        if not self.isHeterogeneous:
-            C, S = self._Get_C_S(3)
-            diff_C = C - np.sum([c * E for c, E in zip(ci, Ei)], 0)
-            test_C = np.linalg.norm(diff_C, axis=(-2, -1)) / np.linalg.norm(
-                C, axis=(-2, -1)
-            )
-            assert test_C < 1e-12
-
-        return ci, Ei
+        return self._Walpole([c1, c2, c3, c4, c5], [E1, E2, E3, E4, E5])
 
 
 # ----------------------------------------------
@@ -680,12 +462,6 @@ class Orthotropic(_Elastic):
 
     v12: float = _params.IntervalooParameter(inf=-1, sup=0.5)
     """Poisson's ratio for transverse strain along the axis_2 when stressed along the axis_1."""
-
-    def __str__(self) -> str:
-        text = super().__str__()
-        text += f"\naxis_1 = {_Format_parameter(self.axis_1)}"
-        text += f"\naxis_2 = {_Format_parameter(self.axis_2)}"
-        return text
 
     def __init__(
         self,
@@ -738,7 +514,14 @@ class Orthotropic(_Elastic):
         thickness : float, optional
             thickness, by default 1.0
         """
-        _Elastic.__init__(self, dim, thickness, planeStress)
+        _Elastic.__init__(
+            self,
+            dim,
+            thickness,
+            planeStress,
+        )
+        self.axis_1 = AsCoords(axis_1)
+        self.axis_2 = AsCoords(axis_2)
 
         self.E1 = E1
         self.E2 = E2
@@ -750,23 +533,14 @@ class Orthotropic(_Elastic):
         self.v13 = v13
         self.v12 = v12
 
-        axis_1 = AsCoords(axis_1)
-        axis_2 = AsCoords(axis_2)
-        assert axis_1.size == 3 and len(axis_1.shape) == 1, "axis_1 must be a 3D vector"
-        assert axis_2.size == 3 and len(axis_2.shape) == 1, "axis_2 must be a 3D vector"
-        assert axis_1 @ axis_2 <= 1e-12, "axis1 and axis2 must be perpendicular"
-        self.__axis_1 = Normalize(axis_1)
-        self.__axis_2 = Normalize(axis_2)
+    axis_1: _types.FloatArray = _params.VectorParameter()
+    """Axis 1, (…, 3)."""
 
-    @property
-    def axis_1(self) -> _types.FloatArray:
-        """Axis 1"""
-        return self.__axis_1.copy()
+    axis_2: _types.FloatArray = _params.VectorParameter()
+    """Axis 2, (…, 3)."""
 
-    @property
-    def axis_2(self) -> _types.FloatArray:
-        """Axis 2"""
-        return self.__axis_2.copy()
+    def _Axes(self) -> tuple[_types.FloatArray, _types.FloatArray]:
+        return self.axis_1, self.axis_2
 
     def __get_params(self) -> list[float | _types.FloatArray]:
         """Returns E1, E2, E3, G23, G13, G12, v23, v13, v12"""
@@ -834,53 +608,20 @@ class Orthotropic(_Elastic):
         E1, E2, E3, _, _, _, v23, v13, v12 = self.__get_params()
         return -E1 * E2 * (E2 * v12 + E3 * v13 * v23) / self.__get_cij_denominator()
 
-    def _Update(self) -> None:
-        C, S = self._Get_C_S()
-        self.C = C
-        self.S = S
+    def _Material_C(self) -> _types.FloatArray:
+        E1, E2, E3, _, _, _, v23, v13, v12 = self.__get_params()
 
-    def _Get_C_S(
-        self, dim: int | None = None
-    ) -> tuple[_types.FloatArray, _types.FloatArray]:
+        bounds = {
+            "|v23| < sqrt(E2 / E3)": np.abs(v23) < np.sqrt(E2 / E3),
+            "|v13| < sqrt(E1 / E3)": np.abs(v13) < np.sqrt(E1 / E3),
+            "|v12| < sqrt(E1 / E2)": np.abs(v12) < np.sqrt(E1 / E2),
+        }
+        for bound, holds in bounds.items():
+            if not np.all(holds):
+                raise ValueError(f"Orthotropic moduli must satisfy {bound}.")
 
-        if dim is None:
-            dim = self.dim
-
-        E1, E2, E3, G23, G13, G12, v23, v13, v12 = self.__get_params()
-
-        sum = E1 + E2 + E3 + G23 + G13 + G12 + v23 + v13 + v12
-        dtype = object if isinstance(sum, np.ndarray) else float
-
-        # Kelvin-Mandel compliance and stiffness matrices in the material's coordinate system.
-        # axis_1 = (1, 0, 0)
-        # axis_2 = (0, 1, 0)
-        # axis_3 = (0, 0, 1)
-        # [11, 22, 33, sqrt(2)*23, sqrt(2)*13, sqrt(2)*12]
-        material_sM = np.array(
-            [
-                [1 / E1, -v12 / E1, -v13 / E1, 0, 0, 0],
-                [-v12 / E1, 1 / E2, -v23 / E2, 0, 0, 0],
-                [-v13 / E1, -v23 / E2, 1 / E3, 0, 0, 0],
-                [0, 0, 0, 1 / (2 * G23), 0, 0],
-                [0, 0, 0, 0, 1 / (2 * G13), 0],
-                [0, 0, 0, 0, 0, 1 / (2 * G12)],
-            ],
-            dtype=dtype,
-        )
-
-        # tests on S values
-        s11, s22, s33 = [material_sM[d, d] for d in range(3)]
-        s23, s13, s12 = material_sM[1, 2], material_sM[0, 2], material_sM[0, 1]
-        assert np.all(np.abs(s23) < np.sqrt(s22 * s33)), "|s23| < sqrt(s22 * s33)"
-        assert np.all(np.abs(s13) < np.sqrt(s11 * s33)), "|s13| < sqrt(s11 * s33)"
-        assert np.all(np.abs(s12) < np.sqrt(s11 * s22)), "|s12| < sqrt(s11 * s22)"
-        assert np.all(np.abs(v23) < np.sqrt(E2 / E3)), "|v23| < sqrt(E2 / E3)"
-        assert np.all(np.abs(v13) < np.sqrt(E1 / E3)), "|v13| < sqrt(E1 / E3)"
-        assert np.all(np.abs(v12) < np.sqrt(E1 / E2)), "|v12| < sqrt(E1 / E2)"
-
-        material_sM = Heterogeneous_Array(material_sM)
-
-        material_cM = np.array(
+        # axes (1, 2, 3)
+        return Heterogeneous_Array(
             [
                 [self._c11, self._c12, self._c13, 0, 0, 0],
                 [self._c12, self._c22, self._c23, 0, 0, 0],
@@ -888,86 +629,53 @@ class Orthotropic(_Elastic):
                 [0, 0, 0, self._c44, 0, 0],
                 [0, 0, 0, 0, self._c55, 0],
                 [0, 0, 0, 0, 0, self._c66],
-            ],
-            dtype=dtype,
-        )
-
-        material_cM = Heterogeneous_Array(material_cM)
-
-        if len(material_cM.shape) == 2:
-            # checks that S = C^-1
-            diff_S = np.linalg.norm(
-                material_sM - np.linalg.inv(material_cM), axis=(-2, -1)
-            ) / np.linalg.norm(material_sM, axis=(-2, -1))
-            assert np.max(diff_S) < 1e-12
-            # checks that C = S^-1
-            diff_C = np.linalg.norm(
-                material_cM - np.linalg.inv(material_sM), axis=(-2, -1)
-            ) / np.linalg.norm(material_cM, axis=(-2, -1))
-            assert np.max(diff_C) < 1e-12
-
-        return self._Apply_basis_transformation(
-            dim=dim,
-            material_cM=material_cM,
-            material_sM=material_sM,
-            axis_1=self.axis_1,
-            axis_2=self.axis_2,
+            ]
         )
 
     def Walpole_Decomposition(self) -> tuple[_types.FloatArray, _types.FloatArray]:
         # see section 3.6: https://doi.org/10.1007/s10659-012-9396-z
 
-        a = self.axis_1
-        b = self.axis_2
-        c = Normalize(np.cross(a, b))
+        a, b, c = self._Frame_fields()
 
-        def tensor_prods(*args: np.ndarray):
-            assert len(args) == 4
-            tensor_prod = np.einsum("i,j,k,l->ijkl", *args)
-            return tensor_prod
+        def tensor_prods(v1, v2, v3, v4):
+            return TensorProd(TensorProd(v1, v2), TensorProd(v3, v4))
 
-        E11 = Tensor_to_Kelvin(tensor_prods(a, a, a, a))
-        E22 = Tensor_to_Kelvin(tensor_prods(b, b, b, b))
-        E33 = Tensor_to_Kelvin(tensor_prods(c, c, c, c))
+        def vec_sym_tensor_prod(v1, v2):
+            # (ai bj + bi aj)(ak bl + bk al) / 2
+            p = TensorProd(v1, v2) + TensorProd(v2, v1)
+            return TensorProd(p, p) / 2
 
-        def vec_sym_tensor_prod(v1: np.ndarray, v2: np.ndarray):
-            # (ai bj + bi aj )(akb + bka )/2
-            p1 = np.einsum("i,j->ij", v1, v2) + np.einsum("i,j->ij", v2, v1)
-            p2 = np.einsum("k,l->kl", v1, v2) + np.einsum("k,l->kl", v2, v1)
-            return np.einsum("ij,kl->ijkl", p1, p2) / 2
+        E11 = kelvin_mandel.Tensor_to_Kelvin(tensor_prods(a, a, a, a))
+        E22 = kelvin_mandel.Tensor_to_Kelvin(tensor_prods(b, b, b, b))
+        E33 = kelvin_mandel.Tensor_to_Kelvin(tensor_prods(c, c, c, c))
 
-        E44 = Tensor_to_Kelvin(vec_sym_tensor_prod(b, c))  # 23
-        E55 = Tensor_to_Kelvin(vec_sym_tensor_prod(a, c))  # 13
-        E66 = Tensor_to_Kelvin(vec_sym_tensor_prod(a, b))  # 12
+        E44 = kelvin_mandel.Tensor_to_Kelvin(vec_sym_tensor_prod(b, c))  # 23
+        E55 = kelvin_mandel.Tensor_to_Kelvin(vec_sym_tensor_prod(a, c))  # 13
+        E66 = kelvin_mandel.Tensor_to_Kelvin(vec_sym_tensor_prod(a, b))  # 12
 
-        E23 = Tensor_to_Kelvin(tensor_prods(b, b, c, c) + tensor_prods(c, c, b, b))
-        E13 = Tensor_to_Kelvin(tensor_prods(a, a, c, c) + tensor_prods(c, c, a, a))
-        E12 = Tensor_to_Kelvin(tensor_prods(a, a, b, b) + tensor_prods(b, b, a, a))
-
-        ci = np.array(
-            [
-                self._c11,
-                self._c22,
-                self._c33,
-                self._c44,
-                self._c55,
-                self._c66,
-                self._c23,
-                self._c13,
-                self._c12,
-            ]
+        E23 = kelvin_mandel.Tensor_to_Kelvin(
+            tensor_prods(b, b, c, c) + tensor_prods(c, c, b, b)
         )
-        Ei = np.array([E11, E22, E33, E44, E55, E66, E23, E13, E12])
+        E13 = kelvin_mandel.Tensor_to_Kelvin(
+            tensor_prods(a, a, c, c) + tensor_prods(c, c, a, a)
+        )
+        E12 = kelvin_mandel.Tensor_to_Kelvin(
+            tensor_prods(a, a, b, b) + tensor_prods(b, b, a, a)
+        )
 
-        if not self.isHeterogeneous:
-            C, S = self._Get_C_S(3)
-            diff_C = C - np.sum([c * E for c, E in zip(ci, Ei)], 0)
-            test_C = np.linalg.norm(diff_C, axis=(-2, -1)) / np.linalg.norm(
-                C, axis=(-2, -1)
-            )
-            assert test_C < 1e-12
-
-        return ci, Ei
+        ci = [
+            self._c11,
+            self._c22,
+            self._c33,
+            self._c44,
+            self._c55,
+            self._c66,
+            self._c23,
+            self._c13,
+            self._c12,
+        ]
+        Ei = [E11, E22, E33, E44, E55, E66, E23, E13, E12]
+        return self._Walpole(ci, Ei)
 
 
 # ----------------------------------------------
@@ -976,13 +684,11 @@ class Orthotropic(_Elastic):
 
 
 class Anisotropic(_Elastic):
-    """Anisotropic Linearized Elastic material."""
+    """Anisotropic Linearized Elastic material, its C given in the global frame."""
 
     def __str__(self) -> str:
         text = super().__str__()
         text += f"\nC = {_Format_parameter(self.C)}"
-        text += f"\naxis1 = {_Format_parameter(self.axis1)}"
-        text += f"\naxis2 = {_Format_parameter(self.axis2)}"
         return text
 
     def __init__(
@@ -990,158 +696,43 @@ class Anisotropic(_Elastic):
         dim: int,
         C: _types.FloatArray,
         useVoigtNotation: bool,
-        axis1: _types.Coords = (1, 0, 0),
-        axis2: _types.Coords = (0, 1, 0),
         thickness=1.0,
     ):
-        """Creates an Anisotropic Linearized Elastic class.
+        """Creates an Anisotropic Linearized Elastic material.
 
         Parameters
         ----------
         dim : int
             dimension
         C : _types.FloatArray
-            stiffness matrix in anisotropy basis
+            stiffness in the global frame, (…, 6, 6), or (…, 3, 3) in 2D only; rotate it first with ``Get_Pmat``/``Apply_Pmat``
         useVoigtNotation : bool
-            behavior law uses voigt notation
-        axis1 : _types.Coords, optional
-            axis1 vector, by default (1,0,0)
-        axis2 : _types.Coords
-            axis2 vector, by default (0,1,0)
+            C is in Voigt notation, else Kelvin–Mandel
         thickness: float, optional
             material thickness, by default 1.0
-
-        Returns
-        -------
-        ElasAnisot
-            Anisotropic behavior law
         """
-        # here planeStress is set to False because we just know the C matrix
+        # plane strain; a (6, 6) C may switch to plane stress afterwards
         _Elastic.__init__(self, dim, thickness, False)
-
-        axis1 = AsCoords(axis1)
-        axis2 = AsCoords(axis2)
-        assert axis1.size == 3 and len(axis1.shape) == 1, "axis1 must be a 3D vector"
-        assert axis2.size == 3 and len(axis2.shape) == 1, "axis2 must be a 3D vector"
-        assert axis1 @ axis2 <= 1e-12, "axis1 and axis2 must be perpendicular"
-        self.__axis1 = Normalize(axis1)
-        self.__axis2 = Normalize(axis2)
-
         self.Set_C(C, useVoigtNotation)
 
-    def _Update(self) -> None:
-        # doesn't do anything here, because we use Set_C to update the laws.
-        return super()._Update()
-
-    def Set_C(self, C: _types.FloatArray, useVoigtNotation=True, update_S=True):
-        """Updates the constitutives laws by updating the C stiffness and S compliance matrices in Kelvin Mandel notation.\n
-
-        Parameters
-        ----------
-        C : _types.FloatArray
-           Stifness matrix (Lamé's law)
-        useVoigtNotation : bool, optional
-            uses Kevin Mandel's notation, by default True
-        update_S : bool, optional
-            updates the compliance matrix (Hooke's law), by default True
-        """
-
+    def Set_C(self, C: _types.FloatArray, useVoigtNotation=True):
+        """Sets the stiffness C in the global frame, in Voigt or Kelvin–Mandel notation."""
+        C = np.asarray(C, dtype=float)
+        if C.shape[-2:] not in ((3, 3), (6, 6)) or C.ndim > 4:
+            raise ValueError(
+                "C must be a (3, 3) or (6, 6), (Ne, …) or (Ne, nPg, …) matrix."
+            )
+        if C.shape[-1] == 3 and (self.dim == 3 or self.planeStress):
+            raise ValueError(
+                "A (3, 3) C is 2D only, with no plane stress: give a (6, 6) C."
+            )
+        if np.abs(C - np.swapaxes(C, -2, -1)).max() > 1e-12 * np.abs(C).max():
+            raise ValueError("C must be symmetric.")
+        self.__C = kelvin_mandel.From_Voigt(C) if useVoigtNotation else C.copy()
         self.Need_Update()
 
-        C_mandelP = self._Global_C(C, useVoigtNotation)
-        self.C = C_mandelP
-
-        if update_S:
-            S_mandelP = np.linalg.inv(C_mandelP)
-            self.S = S_mandelP
-
-    def _Get_C_S(
-        self, dim: int | None = None
-    ) -> tuple[_types.FloatArray, _types.FloatArray]:
-        assert dim in (
-            None,
-            self.dim,
-        ), "an anisotropic model is known in its own dimension only"
-        return self.C, self.S
-
-    def _Global_C(
-        self, C: _types.FloatArray, useVoigtNotation: bool
-    ) -> _types.FloatArray:
-        """``C`` in Kelvin-Mandel notation, rotated into the global basis, in the model dimension."""
-        shape = C.shape
-        assert (shape[-2], shape[-1]) in [
-            (3, 3),
-            (6, 6),
-        ], "C must be a (3,3) or (6,6) matrix"
-        dim = 3 if C.shape[-1] == 6 else 2
-        if len(C.shape) == 2:
-            Ct = C.T
-        elif len(C.shape) == 3:
-            Ct = np.transpose(C, (0, 2, 1))
-        elif len(C.shape) == 4:
-            Ct = np.transpose(C, (0, 1, 3, 2))
-        else:
-            raise ValueError(
-                "This matrix must be of dimensions (dim, dim), (Ne, dim, dim) or (Ne, nPg, dim, dim)."
-            )
-
-        testSym = np.linalg.norm(Ct - C, axis=(-2, -1)) / np.linalg.norm(
-            C, axis=(-2, -1)
-        )
-        assert np.max(testSym) <= 1e-12, "The matrix is not symmetrical."
-
-        if useVoigtNotation:
-            C_mandel = kelvin_mandel.From_Voigt(C)
-        else:
-            C_mandel = C.copy()
-
-        # sets to 3D
-        idx = kelvin_mandel.IDX[2]
-        if dim == 2:
-            if len(shape) == 2:
-                C_mandel_global = np.zeros((6, 6))
-                for i, I in enumerate(idx):
-                    for j, J in enumerate(idx):
-                        C_mandel_global[I, J] = C_mandel[i, j]
-            if len(shape) == 3:
-                C_mandel_global = np.zeros((shape[0], 6, 6))
-                for i, I in enumerate(idx):
-                    for j, J in enumerate(idx):
-                        C_mandel_global[:, I, J] = C_mandel[:, i, j]
-            elif len(shape) == 4:
-                C_mandel_global = np.zeros((shape[0], shape[1], 6, 6))
-                for i, I in enumerate(idx):
-                    for j, J in enumerate(idx):
-                        C_mandel_global[:, :, I, J] = C_mandel[:, :, i, j]
-        else:
-            C_mandel_global = C_mandel
-
-        P = Get_Pmat(self.__axis1, self.__axis2)
-
-        C_mandelP_global = Apply_Pmat(P, C_mandel_global)
-
-        if self.dim == 2:
-            if len(shape) == 2:
-                C_mandelP = C_mandelP_global[idx, :][:, idx]
-            if len(shape) == 3:
-                C_mandelP = C_mandelP_global[:, idx, :][:, :, idx]
-            elif len(shape) == 4:
-                C_mandelP = C_mandelP_global[:, :, idx, :][:, :, :, idx]
-
-        else:
-            C_mandelP = C_mandelP_global
-
-        return C_mandelP
-
-    @property
-    def axis1(self) -> _types.FloatArray:
-        """axis1 vector"""
-        return self.__axis1.copy()
-
-    @property
-    def axis2(self) -> _types.FloatArray:
-        """axis2 vector"""
-        return self.__axis2.copy()
+    def _Material_C(self) -> _types.FloatArray:
+        return self.__C
 
     def Walpole_Decomposition(self) -> tuple[_types.FloatArray, _types.FloatArray]:
         raise NotImplementedError(

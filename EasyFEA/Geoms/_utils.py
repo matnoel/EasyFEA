@@ -216,7 +216,7 @@ def _(value: Point):
 @AsCoords.register
 def _(value: Collection):
     val = np.asarray(value, dtype=float)
-    if len(val.shape) == 2:
+    if val.ndim >= 2:
         assert val.shape[-1] <= 3, "must be 3d vector or 3d vectors"
         coords = val
     else:

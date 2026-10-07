@@ -682,9 +682,7 @@ class PhaseField(_Simu):
             res = result if result in ["Strain", "Stress"] else result[-2:]
 
             field = self._Calc_Sigma() if isStress else self._Calc_Epsilon()
-            values = Result_strain_or_stress_field_e(  # type: ignore [assignment]
-                field, res, self.phaseFieldModel.material.coef
-            )
+            values = Result_strain_or_stress_field_e(field, res)  # type: ignore [assignment]
 
         else:
             Terminal.MyPrintError(f"The result '{result}' is not implemented yet.")

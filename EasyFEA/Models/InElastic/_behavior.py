@@ -182,7 +182,7 @@ class _Behavior(_IModel, _IObserver):
     def C(self) -> "Array":
         """The 3D stiffness, in Kelvin-Mandel notation, whatever the model dimension; the point's inside ``Update`` and ``Stress``."""
         if "_C" not in self.__dict__:
-            self._C = self.__elastic._Get_C_S(3)[0]
+            self._C = self.__elastic._Get_C_3D()
         return self._C  # type: ignore[return-value]
 
     def __With_stiffness(self, C: "Array") -> "_Behavior":
@@ -228,11 +228,6 @@ class _Behavior(_IModel, _IObserver):
     def Virgin_internals(self) -> Any:
         """The internal variables of the virgin material; override it when their size depends on the instance."""
         return self.Internals()
-
-    @property
-    def coef(self) -> float:
-        """Kelvin-Mandel coefficient, used when projecting result fields."""
-        return kelvin_mandel.R2
 
     def Need_Update(self, value=True) -> None:
         super().Need_Update(value)

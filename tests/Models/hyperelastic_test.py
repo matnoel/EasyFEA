@@ -9,7 +9,8 @@ from EasyFEA import ElemType, MatrixType, Models, Simulations, SolverType
 from EasyFEA.FEM import Kinematics
 from EasyFEA.Geoms import Domain
 from EasyFEA.FEM._linalg import Trace, Det, Inv, TensorProd
-from EasyFEA.Models._utils import Project_Kelvin, FeArray
+from EasyFEA.Models._utils import FeArray
+from EasyFEA.FEM._kelvin_mandel import Tensor_to_Kelvin
 
 
 def Get_2d_simulations(ud=1e-6) -> list[Simulations.Elastic]:
@@ -148,7 +149,7 @@ class TestHyperElastic:
                 u = simu.displacement
                 Epsilon_e_pg = simu._Calc_Epsilon(matrixType)
 
-                e_e_pg = Project_Kelvin(
+                e_e_pg = Tensor_to_Kelvin(
                     Kinematics(
                         simu.mesh.groupElem, u, matrixType
                     ).Compute_GreenLagrange(),
@@ -190,7 +191,7 @@ class TestHyperElastic:
 
                 dI1dC = kinematics.Compute_dI1dC()
 
-                dI1dC_v = Project_Kelvin(np.eye(3), 2)
+                dI1dC_v = Tensor_to_Kelvin(np.eye(3), 2)
 
                 assert np.linalg.norm(dI1dC - dI1dC_v) / np.linalg.norm(dI1dC) < 1e-12
 
@@ -251,7 +252,7 @@ class TestHyperElastic:
 
                 # I1 * Id - C
                 dI2dC_v = (I1_e_pg * np.eye(3)) - C_e_pg
-                dI2dC_v = Project_Kelvin(dI2dC_v, 2)
+                dI2dC_v = Tensor_to_Kelvin(dI2dC_v, 2)
 
                 assert np.linalg.norm(dI2dC - dI2dC_v) / np.linalg.norm(dI2dC) < 1e-12
 
@@ -273,7 +274,7 @@ class TestHyperElastic:
                 # Id_order4 = np.eye(6)
                 # same as
                 vect2 = np.eye(3)
-                Id_order4 = Project_Kelvin(TensorProd(vect2, vect2, True))
+                Id_order4 = Tensor_to_Kelvin(TensorProd(vect2, vect2, True))
 
                 d2I2dC_v = Id_order2 - Id_order4
 
@@ -317,7 +318,7 @@ class TestHyperElastic:
                 C_e_pg = kinematics.Compute_C()
 
                 dI3dC_v = I3_e_pg * Inv(C_e_pg)
-                dI3dC_v = Project_Kelvin(dI3dC_v, 2)
+                dI3dC_v = Tensor_to_Kelvin(dI3dC_v, 2)
 
                 assert np.linalg.norm(dI3dC - dI3dC_v) / np.linalg.norm(dI3dC) < 1e-12
 
@@ -342,7 +343,7 @@ class TestHyperElastic:
                 )
                 p2_e_pg = I3_e_pg * TensorProd(invC_e_pg, invC_e_pg, True, 2)
 
-                d2I3dC_v = Project_Kelvin(p1_e_pg - p2_e_pg, orderA=4)
+                d2I3dC_v = Tensor_to_Kelvin(p1_e_pg - p2_e_pg, orderA=4)
 
                 assert (
                     np.linalg.norm(d2I3dC - d2I3dC_v) / np.linalg.norm(d2I3dC) < 1e-12

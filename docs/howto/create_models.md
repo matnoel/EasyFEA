@@ -83,21 +83,20 @@ mat = Models.Elastic.Orthotropic(
 
 ### {py:class}`~EasyFEA.Models.Elastic.Anisotropic`
 
-Provide the full stiffness matrix `C` directly in the material basis:
+Provide the full stiffness matrix `C` in the global frame: a (6, 6), or a (3, 3) in 2D
+plane strain. A C known in a material frame is rotated first:
 
 ```python
 import numpy as np
 from EasyFEA import Models
 
-C = np.eye(3) * 210000   # example — replace with your actual matrix
-mat = Models.Elastic.Anisotropic(
-    dim=2,
-    C=C,
-    useVoigtNotation=False,  # True if C is expressed in Voigt notation
-    axis1=(1, 0, 0),
-    axis2=(0, 1, 0),
-)
+C_material = np.eye(6) * 210000  # example — replace with your actual matrix
+P = Models.Get_Pmat(np.array([1.0, 1.0, 0.0]), np.array([-1.0, 1.0, 0.0]))
+C = Models.Apply_Pmat(P, C_material)
+mat = Models.Elastic.Anisotropic(dim=3, C=C, useVoigtNotation=False)
 ```
+
+`mat.Set_C(C, useVoigtNotation)` changes it afterwards; `mat.C` is read-only.
 
 ______________________________________________________________________
 

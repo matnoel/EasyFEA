@@ -128,30 +128,16 @@ def Matrix_to_Vector(matrix: _types.FloatArray, coef=R2) -> FeArray.FeArrayALike
 def Tensor_to_Kelvin(
     A: _types.FloatArray, orderA: int | None = None
 ) -> _types.FloatArray:
-    """Projects the tensor A in Kelvin Mandel notation.
-
-    Parameters
-    ----------
-    A : _types.FloatArray
-        tensor A (2 or 4 order tensor)
-    orderA : int, optional
-        tensor order, by default None
-
-    Returns
-    -------
-    _types.FloatArray
-        Projected tensor
-    """
+    """Order-2 (…, 3, 3) or order-4 (…, 3, 3, 3, 3) tensor → Kelvin–Mandel (…, 6) or (…, 6, 6); ``orderA`` inferred when None."""
 
     shapeA = A.shape
 
     if orderA is None:
-        if isinstance(A, FeArray):
-            shapeA = shapeA[2:]
+        tensorShape = shapeA[2:] if isinstance(A, FeArray) else shapeA
         assert (
-            np.std(shapeA) == 0
+            np.std(tensorShape) == 0
         ), "Must have the same number of indices in all dimensions."
-        orderA = len(shapeA)
+        orderA = len(tensorShape)
 
     # for xx, yy, zz, yz, xz, zy
     e = np.array([[0, 5, 4], [5, 1, 3], [4, 3, 2]])
@@ -202,104 +188,54 @@ def Tensor_to_Kelvin(
     return res
 
 
+def Normalise_axes(
+    axis_1: _types.FloatArray, axis_2: _types.FloatArray
+) -> tuple[_types.FloatArray, _types.FloatArray]:
+    """Unit ``axis_1, axis_2``; ``ValueError`` unless same shape and perpendicular at every point."""
+    axis_1 = np.asarray(axis_1, dtype=float)
+    axis_2 = np.asarray(axis_2, dtype=float)
+    if axis_1.shape != axis_2.shape:
+        raise ValueError(
+            f"Both axes must have the same shape, not {axis_1.shape} and {axis_2.shape}."
+        )
+    if axis_1.shape[-1] not in (2, 3) or axis_1.ndim > 3:
+        raise ValueError("An axis must be a (dim,), (Ne, dim) or (Ne, nPg, dim) array.")
+    axis_1 = axis_1 / np.linalg.norm(axis_1, axis=-1, keepdims=True)
+    axis_2 = axis_2 / np.linalg.norm(axis_2, axis=-1, keepdims=True)
+    if np.abs(np.sum(axis_1 * axis_2, axis=-1)).max() > 1e-12:
+        raise ValueError("The axes must be perpendicular.")
+    return axis_1, axis_2
+
+
 def Get_Pmat(axis_1: _types.FloatArray, axis_2: _types.FloatArray, useMandel=True):
-    """Constructs Pmat to pass from the material coordinates (x,y,z) to the global coordinate (X,Y,Z) such that:\n
+    """Rotation from the material frame to the global one (Chevalier 1988), (…, 3, 3) in 2D or (…, 6, 6) in 3D.
 
-    if useMandel:\n
-        return [Pm]\n
-    else:\n
-        return [Ps], [Pe]\n
-
-    In Kelvin Mandel notation:
-    --------------------------
-
-        Sig & Eps en [11, 22, 33, sqrt(2)*23, sqrt(2)*13, sqrt(2)*12]\n
-        [C_global] = [Pm] * [C_material] * [Pm]^T & [C_material] = [Pm]^T * [C_global] * [Pm]\n
-        [S_global] = [Pm] * [S_material] * [Pm]^T & [S_material] = [Pm]^T * [S_global] * [Pm]\n
-        Sig_global = [Pm] * Sig_material & Sig_material = [Pm]^T * Sig_global\n
-        Eps_global = [Pm] * Eps_material & Eps_material = [Pm]^T * Eps_global\n
-
-    In Voigt's notation:
-    --------------------
-
-        Sig [S11, S22, S33, S23, S13, S12]\n
-        Eps [E11, E22, E33, 2*E23, 2*E13, 2*E12]\n
-        [C_global] = [Ps] * [C_material] * [Ps]^T & [C_material] = [Pe]^T * [C_global] * [Pe]\n
-        S_global = [Pe] * [S_material] * [Pe]^T & [S_material] = [Ps]^T * S_global * [Ps]\n
-        Sig_global = [Ps] * Sig_material & Sig_material = [Pe]^T * Sig_global\n
-        Eps_global = [Pe] * Eps_material & Eps_material = [Ps]^T * Eps_global \n
-
-    P matrices are orhogonal such that: inv([P]) = [P]^T\n
-
-    Here we use "Chevalier 1988 : Comportements élastique et viscoélastique des composites"
+    Kelvin–Mandel ``Pm``: ``C_global = Pm C_material Pmᵀ``, ``σ_global = Pm σ_material``, ``Pm⁻¹ = Pmᵀ``. Voigt (``useMandel=False``) returns ``Ps, Pe``: ``C_global = Ps C_material Psᵀ``, ``S_global = Pe S_material Peᵀ``, ``Ps⁻¹ = Peᵀ``.
     """
-
-    axis_1 = np.asarray(axis_1)
-    axis_2 = np.asarray(axis_2)
+    axis_1, axis_2 = Normalise_axes(axis_1, axis_2)
+    frame = [axis_1, axis_2]
+    if axis_1.shape[-1] == 3:
+        frame.append(np.cross(axis_1, axis_2))
 
     dim = axis_1.shape[-1]
-    assert dim in [2, 3], "Must be a 2d or 3d vector"
-    shape1 = axis_1.shape
-    shape2 = axis_2.shape
-    assert len(shape1) <= 3, "Must be a numpy array of shape (i), (e,i) or (e,p,i)"
-    assert len(shape2) <= 3, "Must be a numpy array of shape (i), (e,i) or (e,p,i)"
-    assert shape1 == shape2, "axis_1 and axis_2 must be the same size"
+    # (k, …, i) -> (k, i, …)
+    axes = np.moveaxis(np.stack(frame), -1, 1)
+    transposeP = [*range(2, axes.ndim), 0, 1]  # (dim, dim, …) -> (…, dim, dim)
 
-    # get the indices and transpose
-    if len(shape1) == 1:
-        id = ""
-        transposeP = [0, 1]  # (dim*2,dim*2) -> (dim*2,dim*2)
-    elif len(shape1) == 2:
-        id = "e"
-        axis_1 = axis_1.transpose((1, 0))  # (e,dim) -> (dim,e)
-        axis_2 = axis_2.transpose((1, 0))
-        transposeP = [2, 0, 1]  # (dim,dim,e) -> (e,dim,dim)
-    elif len(shape1) == 3:
-        id = "ep"
-        axis_1 = axis_1.transpose((2, 0, 1))  # (e,p,dim) -> (dim,e,p)
-        axis_2 = axis_2.transpose((2, 0, 1))
-        transposeP = [2, 3, 0, 1]  # (dim,dim,e,p) -> (e,p,dim,dim)
-    else:
-        raise TypeError("shape error")
-
-    # normalize thoses vectors
-    axis_1 = np.einsum(
-        f"i{id},{id}->i{id}", axis_1, np.linalg.norm(axis_1, axis=0), optimize="optimal"
-    )
-    axis_2 = np.einsum(
-        f"i{id},{id}->i{id}", axis_2, np.linalg.norm(axis_2, axis=0), optimize="optimal"
-    )
-
-    # Checks whether the two vectors are perpendicular
-    dotProd = np.einsum(f"i{id},i{id}->{id}", axis_1, axis_2, optimize="optimal")  # type: ignore
-    assert np.linalg.norm(dotProd) <= 1e-12, "Must give perpendicular axes"
-
+    axis_1, axis_2 = axes[0], axes[1]
     if dim == 2:
         p11, p12 = axis_1
         p21, p22 = axis_2
     elif dim == 3:
-        # constructs z-axis
-        axis_3 = np.cross(axis_1, axis_2, axis=0)
+        axis_3 = axes[2]
         p11, p12, p13 = axis_1
         p21, p22, p23 = axis_2
         p31, p32, p33 = axis_3
     else:
         raise TypeError("dim error")
 
-    if len(shape1) == 1:
-        p = np.zeros((dim, dim))
-    elif len(shape1) == 2:
-        p = np.zeros((dim, dim, shape1[0]))
-    elif len(shape1) == 3:
-        p = np.zeros((dim, dim, shape1[0], shape1[1]))
-    else:
-        raise TypeError("shape error")
-
-    # apply vectors
-    p[:, 0] = axis_1
-    p[:, 1] = axis_2
-    if dim == 3:
-        p[:, 2] = axis_3  # type: ignore
+    # p[i, k] = axis_k[i]
+    p = np.swapaxes(axes, 0, 1)
 
     D1 = p**2
 
@@ -364,27 +300,7 @@ def Get_Pmat(axis_1: _types.FloatArray, axis_2: _types.FloatArray, useMandel=Tru
 def Apply_Pmat(
     P: _types.FloatArray, M: _types.FloatArray, toGlobal=True
 ) -> _types.FloatArray:
-    """Performs a basis transformation from the material's coordinate system to the (x,y,z) coordinate system to orient the material in space.\n
-    Caution: P must be in Kelvin mandel notation
-
-    Parameters
-    ----------
-    P : _types.FloatArray
-        P in mandel notation obtained with Get_Pmat
-    M : _types.FloatArray
-        3x3 or 6x6 matrix
-    toGlobal : bool, optional
-        sets wheter you want to get matrix in global or material coordinates, by default True\n
-        if toGlobal:\n
-            Matrix_global = P * C_material * P'\n
-        else:\n
-            Matrix_material = P' * Matrix_global * P
-
-    Returns
-    -------
-    _types.FloatArray
-        new matrix
-    """
+    """``P M Pᵀ`` (material → global) or ``Pᵀ M P`` (``toGlobal=False``), P a Kelvin–Mandel ``Get_Pmat``; leading axes of P and M may differ (``()``, ``(Ne,)``, ``(Ne, nPg)``)."""
     assert isinstance(M, np.ndarray), "Matrix must be an array"
     assert (
         M.shape[-2:] == P.shape[-2:]

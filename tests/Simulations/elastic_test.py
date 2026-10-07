@@ -3,6 +3,7 @@
 # This file is part of the EasyFEA project.
 # EasyFEA is distributed under the terms of the GNU General Public License v3, see LICENSE.txt and CREDITS.md for more information.
 
+import numpy as np
 import matplotlib.pyplot as plt
 
 from EasyFEA import Matplotlib, Models, Simulations, SolverType, ElemType
@@ -124,9 +125,9 @@ class TestElastic:
         matElasIsotTrans.planeStress = not matElasIsotTrans.planeStress
         DoTest(simu)
 
-        matAnisot = Models.Elastic.Anisotropic(
-            2, matElasIsotTrans.C, False, (0, 1), (-1, 0)
-        )
+        P = Models.Get_Pmat(np.array([0.0, 1.0]), np.array([-1.0, 0.0]))
+        C = Models.Apply_Pmat(P, matElasIsotTrans.C)
+        matAnisot = Models.Elastic.Anisotropic(2, C, False)
         # Set_C,
         simu = Simulations.Elastic(mesh, matAnisot)
         simu.Get_K_C_M_F()

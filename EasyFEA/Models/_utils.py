@@ -4,6 +4,7 @@
 # EasyFEA is distributed under the terms of the GNU General Public License v3, see LICENSE.txt and CREDITS.md for more information.
 
 from abc import ABC, abstractmethod
+from functools import cached_property
 from typing import Callable
 
 # utilities
@@ -16,12 +17,6 @@ from ..FEM._kelvin_mandel import (
     IDX,
     R2,
     Weights,
-    From_Voigt,
-    Vector_to_Matrix,
-    Matrix_to_Vector,
-    Tensor_to_Kelvin,
-    Get_Pmat as Get_Pmat,
-    Apply_Pmat as Apply_Pmat,
 )
 import numpy as np
 
@@ -48,6 +43,10 @@ class _IModel(Observable, Updatable, ABC):
     def Need_Update(self, value=True):
         super().Need_Update(value)
         if value:
+            for cls in type(self).__mro__:
+                for name, attr in vars(cls).items():
+                    if isinstance(attr, cached_property):
+                        self.__dict__.pop(name, None)
             self._Notify("The model has been modified.")
 
     @property
@@ -98,63 +97,21 @@ def _Format_parameter(value) -> str:
     return str(value)
 
 
-__erroDim = "Pay attention to the dimensions of the material constants.\nIf the material constants are in arrays, these arrays must have the same dimension."
-
-
-def Heterogeneous_Array(array: _types.FloatArray):
-    """Builds a heterogeneous array."""
-
-    dimI, dimJ = array.shape
-
-    shapes = [
-        np.shape(array[i, j])
-        for i in range(dimI)
-        for j in range(dimJ)
-        if len(np.shape(array[i, j])) > 0
-    ]
-    if len(shapes) > 0:
-        idx = np.argmax([len(shape) for shape in shapes])
-        shape = shapes[idx]
-    else:
-        shape = ()
-
-    shapeNew = list(shape)
-    shapeNew.extend(array.shape)
-
-    newArray = np.zeros(shapeNew)
-
-    def SetMat(i, j):
-        values = array[i, j]
-        if isinstance(values, (int, float)):
-            values = np.ones(shape) * values
-        if len(shape) == 0:
-            newArray[i, j] = values
-        elif len(shape) == 1:
-            newArray[:, i, j] = values
-        elif len(shape) == 2:
-            newArray[:, :, i, j] = values
-        else:
-            raise Exception(
-                "The material constants must be of maximum dimension (Ne, nPg)"
-            )
-
-    [SetMat(i, j) for i in range(dimI) for j in range(dimJ)]
-
-    return newArray
-
-
-def KelvinMandel_Matrix(dim: int, M: _types.FloatArray) -> _types.FloatArray:
-    """Voigt stiffness → Kelvin–Mandel; alias of :func:`From_Voigt`."""
-    return From_Voigt(M)
-
-
-Project_vector_to_matrix = Vector_to_Matrix
-Project_matrix_to_vector = Matrix_to_Vector
-Project_Kelvin = Tensor_to_Kelvin
+def Heterogeneous_Array(array) -> _types.FloatArray:
+    """(…, I, J) float array from an (I, J) nested list or object array of scalars and arrays broadcasting together."""
+    rows = [[np.asarray(value, dtype=float) for value in row] for row in array]
+    shape = np.broadcast_shapes(*(value.shape for row in rows for value in row))
+    return np.stack(
+        [
+            np.stack([np.broadcast_to(value, shape) for value in row], -1)
+            for row in rows
+        ],
+        -2,
+    )
 
 
 def __Result_in_Strain_or_Stress_field(
-    field_e_pg: FeArray.FeArrayALike, result: str, coef=R2
+    field_e_pg: FeArray.FeArrayALike, result: str
 ) -> _types.FloatArray:
     """Extracts a specific result from a 2D or 3D strain or stress field.
 
@@ -166,8 +123,6 @@ def __Result_in_Strain_or_Stress_field(
         Desired result/value to extract:\n
             2D: [xx, yy, xy, vm, Strain, Stress] \n
             3D: [xx, yy, zz, yz, xz, xy, vm, Strain, Stress] \n
-    coef : float, optional
-        Coefficient used to scale cross components in the field (e.g., xy/coef in dim=2, or yz/coef, xz/coef, xy/coef if dim=3).
 
     Returns
     -------
@@ -190,7 +145,7 @@ def __Result_in_Strain_or_Stress_field(
         raise Exception("field_e_pg must be of shape (Ne, nPg, 3) or (Ne, nPg, 6)")
 
     names = [ORDER[i] for i in IDX[dim]]
-    field_e_pg[..., Weights(dim) != 1] *= 1 / coef
+    field_e_pg[..., Weights(dim) != 1] *= 1 / R2
     values = {name: np.asarray(field_e_pg[:, :, i]) for i, name in enumerate(names)}
 
     name = next((name for name in names if name in result), None)
@@ -229,15 +184,12 @@ def _Field_per_groupElem(
 def Result_strain_or_stress_field_e(
     field: FeArray.FeArrayALike | dict,
     result: str,
-    coef=R2,
 ) -> _types.FloatArray:
     """Per-element (Ne,) component ``result`` of a strain/stress ``field`` — one ``FeArray`` or ``{groupElem: FeArray}`` concatenated in its order — Gauss points averaged."""
     fields = field.values() if isinstance(field, dict) else [field]
     return np.concatenate(
         [
-            np.asarray(
-                __Result_in_Strain_or_Stress_field(field_e_pg, result, coef).mean(1)
-            )
+            np.asarray(__Result_in_Strain_or_Stress_field(field_e_pg, result).mean(1))
             for field_e_pg in fields
         ]
     )

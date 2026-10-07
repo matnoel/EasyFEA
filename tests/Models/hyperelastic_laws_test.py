@@ -8,7 +8,7 @@ import numpy as np
 
 from EasyFEA import ElemType, FEM, Models, Simulations
 from EasyFEA.FEM._linalg import Trace, TensorProd
-from EasyFEA.Models import Project_Kelvin
+from EasyFEA.FEM._kelvin_mandel import Tensor_to_Kelvin
 from EasyFEA.Geoms import Domain
 
 
@@ -62,13 +62,13 @@ class TestSaintVenantKirchhoff:
 
         # test dW
         I = np.array([1, 1, 1, 0, 0, 0])
-        dW_hyper = mat.lmbda * Trace(E) * I + 2 * mat.mu * Project_Kelvin(E, 2)
+        dW_hyper = mat.lmbda * Trace(E) * I + 2 * mat.mu * Tensor_to_Kelvin(E, 2)
         dW_e_pg = mat.Compute_dWde(kinematics)
         diff_dW = dW_hyper - dW_e_pg
         assert np.linalg.norm(diff_dW) / np.linalg.norm(dW_hyper) < 1e-11
 
         # test d2W
-        d2W_hyper = mat.lmbda * TensorProd(I, I) + 2 * mat.mu * Project_Kelvin(
+        d2W_hyper = mat.lmbda * TensorProd(I, I) + 2 * mat.mu * Tensor_to_Kelvin(
             TensorProd(np.eye(3), np.eye(3), symmetric=True)
         )
         d2W_e_pg = mat.Compute_d2Wde(kinematics)

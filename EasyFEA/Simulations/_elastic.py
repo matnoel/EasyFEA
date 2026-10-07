@@ -296,7 +296,7 @@ class Elastic(_Simu):
             res = result if result in ["Strain", "Stress"] else result[-2:]
 
             field = self._Calc_Sigma() if isStress else self._Calc_Epsilon()
-            values = Result_strain_or_stress_field_e(field, res, self.material.coef)
+            values = Result_strain_or_stress_field_e(field, res)
 
         else:
             Terminal.MyPrintError(f"The result '{result}' is not implemented yet.")

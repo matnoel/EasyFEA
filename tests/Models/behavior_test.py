@@ -231,7 +231,7 @@ def test_a_3d_model_is_never_plane_stress():
 
 def test_a_2d_anisotropic_model_has_no_3d_stiffness():
     behavior = Linear(Anisotropic(2, _elastic(2).C, useVoigtNotation=False))
-    with pytest.raises(AssertionError, match="own dimension"):
+    with pytest.raises(ValueError, match="no 3D stiffness"):
         behavior.C
 
 
