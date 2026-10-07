@@ -61,9 +61,7 @@ def Save_simu(
             "and corrupted fields."
         )
 
-    mesh = simu.mesh
-    meshDim = mesh.dim
-    Ne = mesh.Ne
+    meshDim = simu.mesh.dim
 
     Niter = simu.Niter
     N = np.min([Niter, N])
@@ -114,7 +112,8 @@ def Save_simu(
             nodeField = nodeField.removesuffix("_matrix")
             nodeResults[nodeField] = array
 
-        # get elementResults
+        # get elementResults, on the mesh of this iteration
+        Ne = simu.mesh.Ne
         elementResults: dict[str, _types.AnyArray] = {}
         for elementField in elementFields:
             array = simu.Result(elementField, False)
