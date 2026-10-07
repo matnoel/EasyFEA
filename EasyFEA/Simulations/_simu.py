@@ -3280,7 +3280,7 @@ def _Init_obj(
     tuple[_Simu|None, Mesh, ndarray, int]
         (simu, mesh, coord, inDim)
     """
-    NotImplementedError("obj must be a simulation, a mesh or a group of elements.")
+    raise NotImplementedError("obj must be a simulation, a mesh or a group of elements.")
 
 
 @_Init_obj.register
