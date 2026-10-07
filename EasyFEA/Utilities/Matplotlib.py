@@ -1296,6 +1296,118 @@ def Plot_Iter_Summary(simu, folder="", iterMin=None, iterMax=None) -> None:
         Save_fig(folder, "resumeConvergence")
 
 
+@rank0_only
+@requires_matplotlib
+def _Plot_Tic_History(
+    history: dict[str, dict[str, list]], folder="", details=False
+) -> None:
+    """Plots a `Tic` history (`{category: {text: [total_time, count]}}`)."""
+
+    if history == {}:
+        return
+
+    # Calculate total time per category
+    categories = np.array(list(history.keys()))
+    timesPerCategory = np.array(
+        [sum(v[0] for v in history[c].values()) for c in categories]
+    )
+
+    # Sort categories by descending time
+    sorted_indices = np.argsort(timesPerCategory)[::-1]
+    categories = categories[sorted_indices]
+    timesPerCategory = timesPerCategory[sorted_indices]
+
+    totalTime = []
+    for i, c in enumerate(categories):
+        # Extract aggregated data: { text: [total_time, count] }
+        subcats = history[c]
+        unique_subcats = np.array(list(subcats.keys()))
+        time_by_subcat = np.array([subcats[s][0] for s in unique_subcats])
+        rep_by_subcat = np.array([subcats[s][1] for s in unique_subcats], dtype=int)
+
+        totalTime.append(float(time_by_subcat.sum()))
+
+        # Plot subcategories if needed
+        if len(unique_subcats) > 1 and details and totalTime[-1] > 0:
+            # Sort subcategories by descending time
+            sorted_subcat_indices = np.argsort(time_by_subcat)[::-1]
+            ax = plt.subplots()[1]
+            _Plot_Bar(
+                ax,
+                unique_subcats[sorted_subcat_indices],
+                time_by_subcat[sorted_subcat_indices],
+                rep_by_subcat[sorted_subcat_indices],
+                c,
+            )
+            if folder != "":
+                Save_fig(folder, f"TicTac{i}_{c}")
+
+    # Plot summary of categories
+    ax = plt.subplots()[1]
+    _Plot_Bar(ax, categories, timesPerCategory, [1] * len(categories), "Summary")
+    if folder != "":
+        Save_fig(folder, "TicTac_Summary")
+
+
+@requires_matplotlib
+def _Plot_Bar(
+    ax: plt.Axes,
+    categories: list[str],
+    times: list[float],
+    reps: list[int],
+    title: str,
+) -> None:
+    ax.xaxis.set_tick_params(labelbottom=False, labeltop=True, length=0)
+    ax.yaxis.set_visible(False)
+    ax.set_axisbelow(True)
+
+    ax.spines["right"].set_visible(False)
+    ax.spines["top"].set_visible(False)
+    ax.spines["bottom"].set_visible(False)
+    ax.spines["left"].set_linewidth(1.5)
+
+    ax.grid(axis="x", lw=1.2)
+
+    timeMax = np.max(times)
+    Ncategory = len(categories)
+
+    for i, (category, time, rep) in enumerate(zip(categories, times, reps)):
+        y_pos = Ncategory - 1 - i
+        ax.barh(y_pos, time, align="center", label=category)
+
+        space = " "
+
+        unitTime, unit = Tic.Get_time_unity(time / rep)
+
+        if rep > 1:
+            repTemps = f" ({rep} x {np.round(unitTime, 2)} {unit})"
+        else:
+            repTemps = f" ({np.round(unitTime, 2)} {unit})"
+
+        category = space + category + repTemps + space
+
+        if time / timeMax < 0.6:
+            ax.text(
+                time,
+                y_pos,
+                category,
+                color="black",
+                verticalalignment="center",
+                horizontalalignment="left",
+            )
+        else:
+            ax.text(
+                time,
+                y_pos,
+                category,
+                color="white",
+                verticalalignment="center",
+                horizontalalignment="right",
+            )
+
+    ax.set_title(title)
+
+
 # ----------------------------------------------
 # Animation
 # ----------------------------------------------

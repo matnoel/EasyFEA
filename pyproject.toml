@@ -116,5 +116,4 @@ ignore_imports = [
     "EasyFEA.Utilities.Vizir -> EasyFEA.FEM._group_elem",
     "EasyFEA.Utilities.Vizir -> EasyFEA.FEM._utils",
     "EasyFEA.Utilities.Vizir -> EasyFEA.Geoms._utils",
-    "EasyFEA.Utilities._tic -> EasyFEA",
 ]

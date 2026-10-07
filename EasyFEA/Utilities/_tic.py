@@ -7,18 +7,13 @@
 
 from __future__ import annotations
 import time
-import numpy as np
 
 from ._requires import Create_requires_decorator
-from ._mpi import rank0_only, MPI_RANK, CAN_USE_MPI
+from ._mpi import MPI_RANK, CAN_USE_MPI
 
 if CAN_USE_MPI:
     from mpi4py import MPI
 
-try:
-    import matplotlib.pyplot as plt
-except ImportError:
-    pass
 requires_matplotlib = Create_requires_decorator("matplotlib")
 
 
@@ -115,74 +110,6 @@ class Tic:
 
     @staticmethod
     @requires_matplotlib
-    def __plotBar(
-        ax: plt.Axes,
-        categories: list[str],
-        times: list[float],
-        reps: list[int],
-        title: str,
-    ) -> None:
-        # Axis parameters
-        ax.xaxis.set_tick_params(labelbottom=False, labeltop=True, length=0)
-        ax.yaxis.set_visible(False)
-        ax.set_axisbelow(True)
-
-        ax.spines["right"].set_visible(False)
-        ax.spines["top"].set_visible(False)
-        ax.spines["bottom"].set_visible(False)
-        ax.spines["left"].set_linewidth(1.5)
-
-        ax.grid(axis="x", lw=1.2)
-
-        timeMax = np.max(times)
-        Ncategory = len(categories)
-
-        # I want to display the text on the right if the time represents < 0.5 timeTotal
-        # Otherwise, we'll display it on the left
-
-        for i, (category, time, rep) in enumerate(zip(categories, times, reps)):
-            # height=0.55
-            # ax.barh(i, t, height=height, align="center", label=c)
-            y_pos = Ncategory - 1 - i
-            ax.barh(y_pos, time, align="center", label=category)
-
-            # We add a space at the end of the text
-            space = " "
-
-            unitTime, unit = Tic.Get_time_unity(time / rep)
-
-            if rep > 1:
-                repTemps = f" ({rep} x {np.round(unitTime, 2)} {unit})"
-            else:
-                repTemps = f" ({np.round(unitTime, 2)} {unit})"
-
-            category = space + category + repTemps + space
-
-            if time / timeMax < 0.6:
-                ax.text(
-                    time,
-                    y_pos,
-                    category,
-                    color="black",
-                    verticalalignment="center",
-                    horizontalalignment="left",
-                )
-            else:
-                ax.text(
-                    time,
-                    y_pos,
-                    category,
-                    color="white",
-                    verticalalignment="center",
-                    horizontalalignment="right",
-                )
-
-        # plt.legend()
-        ax.set_title(title)
-
-    @rank0_only
-    @requires_matplotlib
-    @staticmethod
     def Plot_History(folder="", details=False) -> None:
         """Plots history.
 
@@ -191,56 +118,8 @@ class Tic:
         folder : str, optional
             save folder, by default ""
         details : bool, optional
-            History details, by default True
+            History details, by default False
         """
+        from . import Matplotlib
 
-        from EasyFEA import Matplotlib
-
-        if Tic.__History == {}:
-            return
-
-        history = Tic.__History
-
-        # Calculate total time per category
-        categories = np.array(list(history.keys()))
-        timesPerCategory = np.array(
-            [sum(v[0] for v in history[c].values()) for c in categories]
-        )
-
-        # Sort categories by descending time
-        sorted_indices = np.argsort(timesPerCategory)[::-1]
-        categories = categories[sorted_indices]
-        timesPerCategory = timesPerCategory[sorted_indices]
-
-        totalTime = []
-        for i, c in enumerate(categories):
-            # Extract aggregated data: { text: [total_time, count] }
-            subcats = history[c]
-            unique_subcats = np.array(list(subcats.keys()))
-            time_by_subcat = np.array([subcats[s][0] for s in unique_subcats])
-            rep_by_subcat = np.array([subcats[s][1] for s in unique_subcats], dtype=int)
-
-            totalTime.append(float(time_by_subcat.sum()))
-
-            # Plot subcategories if needed
-            if len(unique_subcats) > 1 and details and totalTime[-1] > 0:
-                # Sort subcategories by descending time
-                sorted_subcat_indices = np.argsort(time_by_subcat)[::-1]
-                ax = plt.subplots()[1]
-                Tic.__plotBar(
-                    ax,
-                    unique_subcats[sorted_subcat_indices],
-                    time_by_subcat[sorted_subcat_indices],
-                    rep_by_subcat[sorted_subcat_indices],
-                    c,
-                )
-                if folder != "":
-                    Matplotlib.Save_fig(folder, f"TicTac{i}_{c}")
-
-        # Plot summary of categories
-        ax = plt.subplots()[1]
-        Tic.__plotBar(
-            ax, categories, timesPerCategory, [1] * len(categories), "Summary"
-        )
-        if folder != "":
-            Matplotlib.Save_fig(folder, "TicTac_Summary")
+        Matplotlib._Plot_Tic_History(Tic.__History, folder, details)
