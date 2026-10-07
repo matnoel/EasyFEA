@@ -1040,3 +1040,18 @@ def test_update_beam():
         assert_needs_update(simu)
         beam.section = sect3
         assert_needs_update(simu)
+
+
+@pytest.mark.parametrize("E, v", [(np.full(3, 210e9), 0.3), (210e9, np.full(3, 0.3))])
+def test_beam_parameters_are_scalar(E, v):
+    section = _rect_section(Mesher(), 0.1, 0.1)
+    line = Line(Point(), Point(x=1.0), 0.1)
+
+    with pytest.raises(AssertionError, match="scalar"):
+        Models.Beam.Isotropic(
+            2,
+            line,
+            section,
+            E,
+            v,
+        )

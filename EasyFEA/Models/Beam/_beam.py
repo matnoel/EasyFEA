@@ -389,10 +389,10 @@ class Isotropic(_Beam):
         self.E = E
         self.v = v
 
-    E: float = _params.PositiveParameter()
+    E: float = _params.PositiveScalarParameter()
     """Young's modulus"""
 
-    v: float = _params.IntervalccParameter(inf=-1, sup=0.5)
+    v: float = _params.IntervalccScalarParameter(inf=-1, sup=0.5)
     """Poisson's ratio"""
 
     @property

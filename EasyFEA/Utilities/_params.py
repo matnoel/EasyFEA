@@ -213,6 +213,12 @@ class IntervalccParameter(_Parameter):
         _CheckIsInIntervalcc(value, inf=self.__inf, sup=self.__sup)
 
 
+class IntervalccScalarParameter(IntervalccParameter):
+    def _checker(self, value):
+        _CheckIsScalar(value)
+        super()._checker(value)
+
+
 class IntervalooParameter(_Parameter):
     def __init__(self, inf: float, sup: float):
         self.__inf = inf
