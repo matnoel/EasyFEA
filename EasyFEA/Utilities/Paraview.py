@@ -244,7 +244,7 @@ def __Make_vtu(
     list_connect: list[_types.IntArray] = []
     list_types: list[_types.IntArray] = []
     list_nPe_e: list[_types.IntArray] = []  # node count per cell, to build the offsets
-    list_ghostCells: list[_types.IntArray] = []
+    list_ghostCells: list[np.ndarray] = []
     list_ghostNodes: list[_types.IntArray] = []
     # Get_list_groupElem order matches mesh.Ne / element results
     for groupElem in mesh.Get_list_groupElem(mesh.dim):

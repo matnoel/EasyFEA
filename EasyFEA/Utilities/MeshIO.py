@@ -564,7 +564,9 @@ def _Get_point_sets(groupElems: list[_GroupElem]) -> dict[str, _types.IntArray]:
 
     return {
         tag: np.unique(
-            np.concatenate([d[tag] for d in nodes_tags if tag in d] or [np.empty(0)])
+            np.concatenate(
+                [d[tag] for d in nodes_tags if tag in d] or [np.empty(0, dtype=int)]
+            )
         ).astype(int)
         for tag in tags
     }

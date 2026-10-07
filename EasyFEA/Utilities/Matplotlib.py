@@ -76,7 +76,7 @@ def __Get_vertices(
         # When the mesh uses 3D elements, only the 2D surfaces are displayed.
         dimElem = 2 if dimElem == 3 else dimElem
         if dimElem == 1:
-            list_connect = []
+            list_connect: list[_types.IntArray] = []
             for groupElem in mesh.Get_list_groupElem(dimElem):
                 list_connect.extend(groupElem.connect[:, groupElem.segments[0]])
             vertices = coord[list_connect]
@@ -159,7 +159,7 @@ def __Add_Collection(
     pc = Coll(vertices, **params)  # type: ignore [arg-type]
 
     if applyFaceAlpha and alpha != 1.0:
-        pc.set_facecolor(colors.to_rgba_array(facecolors, alpha))
+        pc.set_facecolor(colors.to_rgba_array(facecolors, alpha))  # type: ignore [arg-type]
 
     if array is not None:
         pc.set_array(array)
@@ -312,7 +312,7 @@ def Plot(
     # surface dimension actually displayed (3D meshes show their 2D skin)
     surfDim = 2 if (inDim == 3 and dimElem == 3) else dimElem
 
-    if hasResult:
+    if result is not None:
         # Get values and colorbar properties
         values = _Get_values(simu, mesh, result, nodeValues) * coef
         ticks, levels, norm, vmin, vmax = __Get_colorbar_properties(
@@ -329,7 +329,7 @@ def Plot(
         if surfDim == 1 and plotMesh:
             ax.plot(*coordDef.T, c=edgecolor, lw=0.1, marker=".", ls="")
 
-        if hasResult:
+        if values is not None:
             # element values colored by the scalar field
             if nodeValues:
                 elementValues = _Node_to_element_values(mesh, values, surfDim)
@@ -1013,7 +1013,7 @@ def Plot_Tags(
 
     _Plot_obj(mesh, alpha=0.1, color="gray", ax=ax)
 
-    colors = plt.get_cmap("tab10").colors
+    colors = plt.get_cmap("tab10").colors  # type: ignore [attr-defined]
     colorIterator = iter(colors * np.ceil(np.sum(nTtags) / len(colors)).astype(int))
 
     # List of collections during creation
@@ -1658,12 +1658,12 @@ def _Save_colorbar(
 
     fig = plt.figure(figsize=(1.5, 6) if orientation == "vertical" else (6, 1.5))
     ax = fig.add_axes(
-        [
+        (
             0.05,
             0.05,
             0.15 if orientation == "vertical" else 0.9,
             0.9 if orientation == "vertical" else 0.15,
-        ]
+        )
     )
 
     norm = colors.Normalize(vmin=vMin, vmax=vMax)
@@ -1675,7 +1675,7 @@ def _Save_colorbar(
     # set explicit ticks
     nTicks = 5  # Number of tick marks
     tick_values = np.linspace(vMin, vMax, nTicks)
-    cb.set_ticks(tick_values)
+    cb.set_ticks(tick_values.tolist())
 
     # set label
     if label != "":
