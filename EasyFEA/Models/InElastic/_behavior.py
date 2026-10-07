@@ -14,6 +14,7 @@ import numpy as np
 from .._utils import _IModel
 from ..Elastic._laws import _Elastic
 from ...FEM._linalg import FeArray
+from ...FEM import _kelvin_mandel as kelvin_mandel
 from ...Utilities import _params, Tic
 from ...Utilities._observers import _IObserver, Observable
 
@@ -114,9 +115,7 @@ def Newton(
 # The base class
 # ----------------------------------------------
 
-IDX_2D = np.array([0, 1, 5])
-"""In-plane components [xx, yy, xy] of the (6,) Kelvin vector."""
-ZZ = 2
+ZZ = kelvin_mandel.INDEX["zz"]
 
 
 class _NoInternals(NamedTuple):
@@ -233,7 +232,7 @@ class _Behavior(_IModel, _IObserver):
     @property
     def coef(self) -> float:
         """Kelvin-Mandel coefficient, used when projecting result fields."""
-        return np.sqrt(2)
+        return kelvin_mandel.R2
 
     def Need_Update(self, value=True) -> None:
         super().Need_Update(value)
@@ -300,13 +299,13 @@ class _Behavior(_IModel, _IObserver):
             if self.dim == 3:
                 sig, new = Update_named(e)
                 return sig, (sig, new)
-            eps6 = jnp.zeros(6).at[IDX_2D].set(e)
+            eps6 = jnp.zeros(6).at[kelvin_mandel.IDX[2]].set(e)
             if self.planeStress:
                 eps6 = eps6.at[ZZ].set(self.__Eps_zz(Update_named, eps6, z["eps_zz"]))
             sig6, new = Update_named(eps6)
             if self.planeStress:
                 new["eps_zz"] = eps6[ZZ]
-            return sig6[IDX_2D], (sig6[IDX_2D], new)
+            return sig6[kelvin_mandel.IDX[2]], (sig6[kelvin_mandel.IDX[2]], new)
 
         C_alg, (sig, z_new) = jax.jacfwd(Stress, has_aux=True)(eps)
         return sig, C_alg, z_new
@@ -326,10 +325,10 @@ class _Behavior(_IModel, _IObserver):
         state = Internals(**{name: z[name] for name in Internals._fields})
         if self.dim == 3:
             return point.Stress(eps, state, **external)
-        eps6 = jnp.zeros(6).at[IDX_2D].set(eps)
+        eps6 = jnp.zeros(6).at[kelvin_mandel.IDX[2]].set(eps)
         if self.planeStress:
             eps6 = eps6.at[ZZ].set(z["eps_zz"])
-        return point.Stress(eps6, state, **external)[IDX_2D]
+        return point.Stress(eps6, state, **external)[kelvin_mandel.IDX[2]]
 
     def __Eps_zz(
         self,
@@ -438,9 +437,6 @@ class _Behavior(_IModel, _IObserver):
 # One material point, with no mesh
 # ----------------------------------------------
 
-COMPONENTS = {"xx": 0, "yy": 1, "zz": 2, "yz": 3, "xz": 4, "xy": 5}
-"""Kelvin-Mandel component names; the shear entries carry a sqrt(2)."""
-
 
 class MaterialPoint:
     """Runs a 3D :class:`_Behavior` at one point: each component is strain-driven by its history, or stress-driven to a target (zero by default) by a Newton on the free strains."""
@@ -462,9 +458,13 @@ class MaterialPoint:
     ) -> dict[str, np.ndarray]:
         """``strain`` and ``stress`` as ``(nstep, 6)``, plus one ``(nstep, ...)`` entry per internal variable; each ``external`` is ``(nstep,)``."""
         assert strain, "at least one component must be strain-controlled"
-        driven = {COMPONENTS[k]: np.asarray(v, dtype=float) for k, v in strain.items()}
+        driven = {
+            kelvin_mandel.INDEX[k]: np.asarray(v, dtype=float)
+            for k, v in strain.items()
+        }
         targets = {
-            COMPONENTS[k]: np.asarray(v, dtype=float) for k, v in (stress or {}).items()
+            kelvin_mandel.INDEX[k]: np.asarray(v, dtype=float)
+            for k, v in (stress or {}).items()
         }
         assert not (
             set(driven) & set(targets)

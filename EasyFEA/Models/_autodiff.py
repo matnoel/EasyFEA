@@ -13,6 +13,7 @@ from typing import Callable
 import numpy as np
 
 from ..FEM._linalg import FeArray
+from ..FEM._kelvin_mandel import BASIS as _KELVIN_BASIS
 from ..Utilities._requires import Create_requires_decorator
 
 try:
@@ -22,20 +23,6 @@ except ImportError:
     pass
 
 requires_jax = Create_requires_decorator("jax")
-
-_SQ2 = 1.0 / np.sqrt(2.0)
-
-_KELVIN_BASIS = np.array(
-    [
-        [[1, 0, 0], [0, 0, 0], [0, 0, 0]],
-        [[0, 0, 0], [0, 1, 0], [0, 0, 0]],
-        [[0, 0, 0], [0, 0, 0], [0, 0, 1]],
-        [[0, 0, 0], [0, 0, _SQ2], [0, _SQ2, 0]],
-        [[0, 0, _SQ2], [0, 0, 0], [_SQ2, 0, 0]],
-        [[0, _SQ2, 0], [_SQ2, 0, 0], [0, 0, 0]],
-    ]
-)
-"""The six Kelvin basis tensors, ordered ``[xx, yy, zz, yz, xz, xy]``."""
 
 
 @requires_jax

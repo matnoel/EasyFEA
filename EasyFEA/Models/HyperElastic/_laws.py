@@ -14,7 +14,8 @@ from ...FEM import FeArray, TensorProd, Normalize
 from ...FEM import Kinematics
 
 # others
-from .._utils import _IModel, Project_matrix_to_vector
+from .._utils import _IModel
+from ...FEM._kelvin_mandel import Matrix_to_Vector, R2
 from ...Utilities import _params, _types
 
 # ----------------------------------------------
@@ -64,7 +65,7 @@ class _HyperElastic(_IModel, ABC):
         T_hat = Normalize(T)
         # The fiber pattern doesn't move with time, so this is precomputed
         # once and only `active_stress` is updated each step.
-        self.__TxT = Project_matrix_to_vector(TensorProd(T_hat, T_hat))  # (Ne, nPg, 6)
+        self.__TxT = Matrix_to_Vector(TensorProd(T_hat, T_hat))  # (Ne, nPg, 6)
 
     def Compute_active_stress(self, kinematics: Kinematics) -> FeArray:
         r"""Active PK2 contribution ``τ · (T̂ ⊗ T̂)`` in Kelvin-Mandel vector form, shape ``(Ne, pg, d)`` with ``d = 1, 3, 6`` for a `1D`, `2D` or `3D` solution — same layout as :meth:`Compute_dWde`.
@@ -95,8 +96,8 @@ class _HyperElastic(_IModel, ABC):
 
     @property
     def coef(self) -> float:
-        """kelvin mandel coef -> sqrt(2)"""
-        return np.sqrt(2)
+        """Kelvin–Mandel shear weight, √2."""
+        return R2
 
     # Model
     @staticmethod
@@ -961,7 +962,7 @@ def HyperElasticPotential(
     d2W_field = Vmap_e_pg(jax.hessian(W_kelvin), in_axes)
 
     def Kelvin_C(kinematics: Kinematics) -> FeArray.FeArrayALike:
-        return Project_matrix_to_vector(kinematics.Compute_C())
+        return Matrix_to_Vector(kinematics.Compute_C())
 
     def Compute_W(kinematics: Kinematics, *aux) -> FeArray:
         return W_field(Kelvin_C(kinematics), *aux)

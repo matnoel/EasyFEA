@@ -10,7 +10,7 @@ import numpy as np
 
 from .._linalg import FeArray
 from .._utils import MatrixType
-from ...Models._utils import Project_matrix_to_vector, Project_vector_to_matrix
+from .._kelvin_mandel import Matrix_to_Vector, Vector_to_Matrix
 from .._kinematics import Kinematics
 
 if TYPE_CHECKING:
@@ -88,7 +88,7 @@ def __geometric_tangent(
     """
     groupElem = kinematics.groupElem
     Ne, dim, nPe = groupElem.Ne, groupElem.dim, groupElem.nPe
-    sig_e_pg = Project_vector_to_matrix(dWde_e_pg)  # (Ne, nPg, dim, dim)
+    sig_e_pg = Vector_to_Matrix(dWde_e_pg)  # (Ne, nPg, dim, dim)
     dN_e_pg = groupElem.Get_dN_e_pg(kinematics.matrixType)  # (Ne, nPg, dim, nPe)
     g_e = einsum("ep,epab,epac,epcd->ebd", wJ_e_pg, dN_e_pg, sig_e_pg, dN_e_pg)
     return einsum("eab,jk->ejakb", g_e, np.eye(dim)).reshape(Ne, dim * nPe, dim * nPe)
@@ -249,8 +249,8 @@ def GonzalezStressTensor(
     C_mid = material.Compute_d2Wde(kinematics_mid)  # ℂ̄   (Ne, nPg, d, d)
     # Kelvin-Mandel strain increment Δe = E(u_{n+1}) − E(u_n), sliced to `d` so it
     # shares s̄'s basis; the √2 shear factor makes s̄:ΔE = s̄·Δe a plain FeArray dot.
-    E_n = Project_matrix_to_vector(kinematics_n.Compute_GreenLagrange())
-    E_np1 = Project_matrix_to_vector(kinematics_np1.Compute_GreenLagrange())
+    E_n = Matrix_to_Vector(kinematics_n.Compute_GreenLagrange())
+    E_np1 = Matrix_to_Vector(kinematics_np1.Compute_GreenLagrange())
     dE = kinematics_mid._Slice_Vector(E_np1 - E_n)
 
     # numerator N = ΔW − s̄·Δe
@@ -415,7 +415,7 @@ def __AdaptiveTimeQuadratureStressTensor(
         kinematics_n
     )  # ΔW per point
     dE = kinematics_np1.Compute_GreenLagrange() - kinematics_n.Compute_GreenLagrange()
-    dE_vec = Project_matrix_to_vector(dE[..., :dim, :dim])  # Δe (Kelvin-Mandel)
+    dE_vec = Matrix_to_Vector(dE[..., :dim, :dim])  # Δe (Kelvin-Mandel)
     refW = einsum("ep,ep->e", wJ_e_pg, np.abs(dW))  #  Σ_p V |ΔW| (Ne,)
     Ne, nPg, ncomp = *wJ_e_pg.shape[:2], dE_vec.shape[-1]
 

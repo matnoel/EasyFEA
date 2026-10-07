@@ -14,6 +14,7 @@ from .MeshIO import DICT_GMSH_TO_VTK_INDEXES, DICT_ELEMTYPE_TO_VTK
 from ._mpi import MPI_SIZE, MPI_RANK, MPI_COMM
 
 from ..Utilities import _types
+from ..FEM._kelvin_mandel import VTK_ORDER
 
 if TYPE_CHECKING:
     from ..Simulations._simu import _Simu
@@ -118,9 +119,7 @@ def Save_simu(
         for elementField in elementFields:
             array = simu.Result(elementField, False)
             if meshDim == 3 and array.size / Ne == 6:
-                # reorder (xx, yy, zz, yz, xz, xy)
-                # to      (xx, yy, zz, xy, yz, xz)
-                array = array.reshape(Ne, -1)[:, [0, 1, 2, 5, 3, 4]]
+                array = array.reshape(Ne, -1)[:, VTK_ORDER]
             elementResults[elementField] = array
 
         pvFiles.append(__Make_vtu(simu.mesh, folder, iter, nodeResults, elementResults))

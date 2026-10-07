@@ -10,6 +10,7 @@ import numpy as np
 from ._utils import MatrixType
 from ._group_elem import _GroupElem
 from ._linalg import FeArray, Transpose, Det
+from . import _kelvin_mandel as kelvin_mandel
 from ..Utilities import _types, _params
 from ..Utilities._cache import cache_computed_values
 
@@ -400,26 +401,14 @@ class Kinematics:
         assert isinstance(vector, FeArray)
         assert vector._ndim == 1 and vector._shape == (6,)
 
-        dim = self._GetDims()[2]
-        if dim == 1:
-            vector = vector[..., [0]]
-        elif dim == 2:
-            vector = vector[..., [0, 1, 5]]
-
-        return vector
+        return kelvin_mandel.Reduce(vector, self._GetDims()[2], rank=1)
 
     def _Slice_Matrix(self, matrix: FeArray.FeArrayALike):
 
         assert isinstance(matrix, FeArray)
         assert matrix._ndim == 2 and matrix._shape == (6, 6)
 
-        dim = self._GetDims()[2]
-        if dim == 1:
-            matrix = matrix[..., [0], :][..., [0]]
-        elif dim == 2:
-            matrix = matrix[..., [0, 1, 5], :][..., [0, 1, 5]]
-
-        return matrix
+        return kelvin_mandel.Reduce(matrix, self._GetDims()[2])
 
     # -------------------------------------
     # Compute I1
@@ -504,7 +493,7 @@ class Kinematics:
 
         dI2dC_e_pg = FeArray.zeros(Ne, nPg, 6, dtype=float)
 
-        coef = -np.sqrt(2)
+        coef = -kelvin_mandel.R2
 
         dI2dC_e_pg[:, :, 0] = cyy + czz
         dI2dC_e_pg[:, :, 1] = cxx + czz
@@ -582,7 +571,7 @@ class Kinematics:
 
         dI3dC_e_pg = FeArray.zeros(Ne, nPg, 6)
 
-        coef = np.sqrt(2)
+        coef = kelvin_mandel.R2
 
         dI3dC_e_pg[:, :, 0] = cyy * czz - cyz**2
         dI3dC_e_pg[:, :, 1] = cxx * czz - cxz**2
@@ -613,7 +602,7 @@ class Kinematics:
         d2I3dC_e_pg[:, :, 0, 2] = d2I3dC_e_pg[:, :, 2, 0] = cyy
         d2I3dC_e_pg[:, :, 1, 2] = d2I3dC_e_pg[:, :, 2, 1] = cxx
 
-        c = -np.sqrt(2)
+        c = -kelvin_mandel.R2
         d2I3dC_e_pg[:, :, 0, 3] = d2I3dC_e_pg[:, :, 3, 0] = c * cyz
         d2I3dC_e_pg[:, :, 1, 4] = d2I3dC_e_pg[:, :, 4, 1] = c * cxz
         d2I3dC_e_pg[:, :, 2, 5] = d2I3dC_e_pg[:, :, 5, 2] = c * cxy
@@ -688,7 +677,7 @@ class Kinematics:
         Ne, nPg = T1x.shape
         firstDerivatives = FeArray.zeros(Ne, nPg, 6)
 
-        coef = np.sqrt(2) / 2
+        coef = kelvin_mandel.R2 / 2
 
         firstDerivatives[:, :, 0] = T1x * T2x
         firstDerivatives[:, :, 1] = T1y * T2y

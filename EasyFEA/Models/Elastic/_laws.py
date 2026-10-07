@@ -13,15 +13,9 @@ import numpy as np
 
 # others
 from ...Geoms import AsCoords, Normalize
-from .._utils import (
-    _IModel,
-    _Format_parameter,
-    Heterogeneous_Array,
-    KelvinMandel_Matrix,
-    Project_Kelvin,
-    Get_Pmat,
-    Apply_Pmat,
-)
+from .._utils import _IModel, _Format_parameter, Heterogeneous_Array
+from ...FEM import _kelvin_mandel as kelvin_mandel
+from ...FEM._kelvin_mandel import Tensor_to_Kelvin, Get_Pmat, Apply_Pmat
 from ...Utilities import _params, _types
 from ...FEM._linalg import TensorProd, FeArray
 
@@ -76,8 +70,8 @@ class _Elastic(_IModel, ABC):
 
     @property
     def coef(self) -> float:
-        """kelvin mandel coef -> sqrt(2)"""
-        return np.sqrt(2)
+        """Kelvin–Mandel shear weight, √2."""
+        return kelvin_mandel.R2
 
     @property
     def C(self) -> _types.FloatArray:
@@ -227,7 +221,7 @@ class _Elastic(_IModel, ABC):
         s = global_sM
 
         if dim == 2:
-            x = np.array([0, 1, 5])
+            x = kelvin_mandel.IDX[2]
 
             shape = c.shape
 
@@ -388,7 +382,7 @@ class Isotropic(_Elastic):
 
         cVoigt = Heterogeneous_Array(cVoigt)
 
-        c = KelvinMandel_Matrix(dim, cVoigt)
+        c = kelvin_mandel.From_Voigt(cVoigt)
 
         s = np.linalg.inv(c)
 
@@ -621,7 +615,7 @@ class TransverselyIsotropic(_Elastic):
 
         c1 = El + 4 * vl**2 * kt
         c2 = 2 * kt
-        c3 = 2 * np.sqrt(2) * kt * vl
+        c3 = 2 * kelvin_mandel.R2 * kt * vl
         c4 = 2 * Gt
         c5 = 2 * Gl
 
@@ -629,11 +623,13 @@ class TransverselyIsotropic(_Elastic):
         p = TensorProd(n, n)
         q = np.eye(3) - p
 
-        E1 = Project_Kelvin(TensorProd(p, p))
-        E2 = Project_Kelvin(1 / 2 * TensorProd(q, q))
-        E3 = Project_Kelvin(1 / np.sqrt(2) * (TensorProd(p, q) + TensorProd(q, p)))
-        E4 = Project_Kelvin(TensorProd(q, q, True) - 1 / 2 * TensorProd(q, q))
-        I = Project_Kelvin(TensorProd(np.eye(3), np.eye(3), True))
+        E1 = Tensor_to_Kelvin(TensorProd(p, p))
+        E2 = Tensor_to_Kelvin(1 / 2 * TensorProd(q, q))
+        E3 = Tensor_to_Kelvin(
+            1 / kelvin_mandel.R2 * (TensorProd(p, q) + TensorProd(q, p))
+        )
+        E4 = Tensor_to_Kelvin(TensorProd(q, q, True) - 1 / 2 * TensorProd(q, q))
+        I = Tensor_to_Kelvin(TensorProd(np.eye(3), np.eye(3), True))
         E5 = I - E1 - E2 - E4
 
         ci = np.array([c1, c2, c3, c4, c5])
@@ -930,9 +926,9 @@ class Orthotropic(_Elastic):
             tensor_prod = np.einsum("i,j,k,l->ijkl", *args)
             return tensor_prod
 
-        E11 = Project_Kelvin(tensor_prods(a, a, a, a))
-        E22 = Project_Kelvin(tensor_prods(b, b, b, b))
-        E33 = Project_Kelvin(tensor_prods(c, c, c, c))
+        E11 = Tensor_to_Kelvin(tensor_prods(a, a, a, a))
+        E22 = Tensor_to_Kelvin(tensor_prods(b, b, b, b))
+        E33 = Tensor_to_Kelvin(tensor_prods(c, c, c, c))
 
         def vec_sym_tensor_prod(v1: np.ndarray, v2: np.ndarray):
             # (ai bj + bi aj )(akb + bka )/2
@@ -940,13 +936,13 @@ class Orthotropic(_Elastic):
             p2 = np.einsum("k,l->kl", v1, v2) + np.einsum("k,l->kl", v2, v1)
             return np.einsum("ij,kl->ijkl", p1, p2) / 2
 
-        E44 = Project_Kelvin(vec_sym_tensor_prod(b, c))  # 23
-        E55 = Project_Kelvin(vec_sym_tensor_prod(a, c))  # 13
-        E66 = Project_Kelvin(vec_sym_tensor_prod(a, b))  # 12
+        E44 = Tensor_to_Kelvin(vec_sym_tensor_prod(b, c))  # 23
+        E55 = Tensor_to_Kelvin(vec_sym_tensor_prod(a, c))  # 13
+        E66 = Tensor_to_Kelvin(vec_sym_tensor_prod(a, b))  # 12
 
-        E23 = Project_Kelvin(tensor_prods(b, b, c, c) + tensor_prods(c, c, b, b))
-        E13 = Project_Kelvin(tensor_prods(a, a, c, c) + tensor_prods(c, c, a, a))
-        E12 = Project_Kelvin(tensor_prods(a, a, b, b) + tensor_prods(b, b, a, a))
+        E23 = Tensor_to_Kelvin(tensor_prods(b, b, c, c) + tensor_prods(c, c, b, b))
+        E13 = Tensor_to_Kelvin(tensor_prods(a, a, c, c) + tensor_prods(c, c, a, a))
+        E12 = Tensor_to_Kelvin(tensor_prods(a, a, b, b) + tensor_prods(b, b, a, a))
 
         ci = np.array(
             [
@@ -1095,12 +1091,12 @@ class Anisotropic(_Elastic):
         assert np.max(testSym) <= 1e-12, "The matrix is not symmetrical."
 
         if useVoigtNotation:
-            C_mandel = KelvinMandel_Matrix(dim, C)
+            C_mandel = kelvin_mandel.From_Voigt(C)
         else:
             C_mandel = C.copy()
 
         # sets to 3D
-        idx = np.array([0, 1, 5])
+        idx = kelvin_mandel.IDX[2]
         if dim == 2:
             if len(shape) == 2:
                 C_mandel_global = np.zeros((6, 6))
