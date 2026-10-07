@@ -21,10 +21,6 @@ if TYPE_CHECKING:
     from ..FEM._mesh import Mesh
     from ..Simulations import _Simu
 
-try:
-    from pxr import Usd, UsdGeom, Gf, UsdUtils, Vt
-except ImportError:
-    pass
 requires_pxr = Create_requires_decorator("pxr", libraries=["usd-core"])
 
 from .GLTF import _get_list_nodesValues
@@ -225,6 +221,8 @@ def Save_mesh(
     str
         The path to the created usdz file.
     """
+
+    from pxr import Usd, UsdGeom, Gf, UsdUtils, Vt
 
     updatedMesh = isinstance(mesh, list)
     list_mesh = mesh if isinstance(mesh, list) else [mesh]
