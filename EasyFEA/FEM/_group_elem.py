@@ -637,7 +637,7 @@ class _GroupElem(ABC):
 
         eval_e_pg = FeArray.broadcast(eval_e_pg, *wJ_e_pg.shape, tensor_shape=())
 
-        values_e = (wJ_e_pg * eval_e_pg).integrate()
+        values_e = (wJ_e_pg * eval_e_pg).integrate()  # type: ignore [attr-defined]
 
         return values_e
 
@@ -654,7 +654,7 @@ class _GroupElem(ABC):
         """length covered by elements"""
         if self.dim != 1:
             return None  # type: ignore [return-value]
-        return self.length_e.sum()
+        return float(self.length_e.sum())
 
     @property
     def area_e(self) -> _types.FloatArray:
@@ -669,7 +669,7 @@ class _GroupElem(ABC):
         """area covered by elements"""
         if self.dim != 2:
             return None  # type: ignore [return-value]
-        return self.area_e.sum()
+        return float(self.area_e.sum())
 
     @property
     def volume_e(self) -> _types.FloatArray:
@@ -684,7 +684,7 @@ class _GroupElem(ABC):
         """volume covered by elements"""
         if self.dim != 3:
             return None  # type: ignore [return-value]
-        return self.volume_e.sum()
+        return float(self.volume_e.sum())
 
     @property
     def center(self) -> _types.FloatArray:
@@ -1804,7 +1804,7 @@ class _GroupElem(ABC):
         return sol_e
 
     def Get_pointsInElem(
-        self, coordinates_n: _types.FloatArray, elem: int
+        self, coordinates_n: _types.NumberArray, elem: int
     ) -> _types.IntArray:
         """Returns the indexes of the coordinates contained in the element.
 
@@ -1871,9 +1871,9 @@ class _GroupElem(ABC):
             # corners i [1, nPe]
 
             coord = self.coord
-            surfaces = self.surfaces.ravel().tolist()[:-1]
-            nPe = len(surfaces)
-            connect_e = connect[elem, surfaces]
+            contour = self.surfaces.ravel().tolist()[:-1]
+            nPe = len(contour)
+            connect_e = connect[elem, contour]
             corners_i = coord[connect_e]
 
             # Vectors e_i for edge segments (nPe, 3)
@@ -1942,7 +1942,7 @@ class _GroupElem(ABC):
         else:
             raise ValueError("unknown dimensio")
 
-    def _Get_nearby_nodes(self, coordinates_n: _types.FloatArray) -> _types.IntArray:
+    def _Get_nearby_nodes(self, coordinates_n: _types.NumberArray) -> _types.IntArray:
         """Get nearby nodes.
 
         Parameters
@@ -1969,7 +1969,9 @@ class _GroupElem(ABC):
 
         return closest_nodes
 
-    def _Get_nearby_elements(self, coordinates_n: _types.FloatArray) -> _types.IntArray:
+    def _Get_nearby_elements(
+        self, coordinates_n: _types.NumberArray
+    ) -> _types.IntArray:
         """Get nearby elements.
 
         Parameters
@@ -1993,7 +1995,7 @@ class _GroupElem(ABC):
 
     def Get_Mapping(
         self,
-        coordinates_n: _types.FloatArray,
+        coordinates_n: _types.NumberArray,
         elements_e: _types.IntArray | None = None,
         needCoordinates=False,
     ) -> tuple[
@@ -2024,7 +2026,7 @@ class _GroupElem(ABC):
 
     def _Get_Mapping(
         self,
-        coordinates_n: _types.FloatArray,
+        coordinates_n: _types.NumberArray,
         elements_e: _types.IntArray,
         needCoordinates=False,
     ) -> tuple[
@@ -2156,10 +2158,10 @@ class _GroupElem(ABC):
 
         # both arrays are object arrays pre-filled with None, so the comparison is
         # elementwise; np.not_equal says so without tripping E711
-        mask_n = np.not_equal(detectedNodes, None)
+        mask_n = np.not_equal(detectedNodes, None)  # type: ignore [call-overload]
         detectedNodes = detectedNodes[mask_n].astype(int)
 
-        mask_e = np.not_equal(detectedElements_e, None)
+        mask_e = np.not_equal(detectedElements_e, None)  # type: ignore [call-overload]
         detectedElements_e = detectedElements_e[mask_e].astype(int)
         connect_e_n = connect_e_n[mask_e]
 
@@ -2167,7 +2169,7 @@ class _GroupElem(ABC):
 
     def _Get_coord_Near(
         self,
-        coordinates_n: _types.FloatArray,
+        coordinates_n: _types.NumberArray,
         coordElem: _types.FloatArray,
         dims: _types.FloatArray,
     ) -> _types.IntArray:
@@ -2210,7 +2212,7 @@ class _GroupElem(ABC):
             Xe, Ye = np.meshgrid(xe, ye)
 
             grid_elements_coordinates = np.concatenate(([Ye.ravel()], [Xe.ravel()]))
-            idx = np.ravel_multi_index(grid_elements_coordinates, (nY, nX))  # type: ignore
+            idx = np.asarray(np.ravel_multi_index(grid_elements_coordinates, (nY, nX)))
             # if something goes wrong, check that the mesh is correctly positioned in the image
 
         else:
@@ -2289,7 +2291,7 @@ class GroupElemFactory:
 
         return GroupElemFactory.DICT_GMSH_DATA[gmshId]
 
-    GROUP_CLASS_MAP: dict[ElemType, _GroupElem] = {
+    GROUP_CLASS_MAP: dict[ElemType, type[_GroupElem]] = {
         ElemType.POINT: Elems.POINT,
         ElemType.SEG2: Elems.SEG2,
         ElemType.SEG3: Elems.SEG3,

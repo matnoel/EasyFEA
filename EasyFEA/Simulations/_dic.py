@@ -293,15 +293,15 @@ class DIC(_IObserver):
         ind_y = ind_x + 1
 
         dN_x = FeArray.zeros(*dN_e_pg.shape[:2], 2, 2 * nPe)
-        dN_y = np.zeros_like(dN_x)
+        dN_y = FeArray.zeros(*dN_e_pg.shape[:2], 2, 2 * nPe)
 
         dN_x[:, :, 0, ind_x] = dNdx
         dN_x[:, :, 1, ind_y] = dNdx
-        Bx_e = (wJ_e_pg * dN_x.T @ dN_x).integrate()
+        Bx_e = (wJ_e_pg * dN_x.T @ dN_x).integrate()  # type: ignore [attr-defined]
 
         dN_y[:, :, 0, ind_x] = dNdy
         dN_y[:, :, 1, ind_y] = dNdy
-        By_e = (wJ_e_pg * dN_y.T @ dN_y).integrate()
+        By_e = (wJ_e_pg * dN_y.T @ dN_y).integrate()  # type: ignore [attr-defined]
 
         B_e = Bx_e + By_e
 
