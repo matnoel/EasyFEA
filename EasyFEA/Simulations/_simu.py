@@ -132,6 +132,9 @@ class _Simu(_IObserver, _params.Updatable, ABC):
         These functions are used to process the results.
     """
 
+    __indexMesh: int
+    __mesh: Mesh
+
     # ----------------------------------------------
     # Abstract method
     # ----------------------------------------------
@@ -146,7 +149,7 @@ class _Simu(_IObserver, _params.Updatable, ABC):
         """Returns a list of unknowns available in the simulation."""
 
     @abstractmethod
-    def Get_dof_n(self, problemType: ProblemType = None) -> int:
+    def Get_dof_n(self, problemType: ProblemType | None = None) -> int:
         """Returns the number of degrees of freedom per node."""
 
     def __Get_Ndof(self, problemType: ProblemType = None) -> int:
@@ -634,7 +637,7 @@ class _Simu(_IObserver, _params.Updatable, ABC):
         """Simulation dimension."""
 
         self.__Niter = 0
-        self.__list_results: list[dict] = []
+        self.__list_results: list[dict | str] = []
         """Dictionary list containing the results."""
 
         # Fill in the first mesh
@@ -1007,7 +1010,7 @@ class _Simu(_IObserver, _params.Updatable, ABC):
 
     def __Assemble_csr(
         self,
-        dict_group_data: dict["_GroupElem", np.ndarray],
+        dict_group_data: dict["_GroupElem", np.ndarray | None],
         dof_n: int,
         Ndof: int,
         isMatrix: bool = True,
@@ -1752,6 +1755,7 @@ class _Simu(_IObserver, _params.Updatable, ABC):
             # Compute delta_u and the residual norm (with the applied boundary conditions)
             self.__Solver_Set_Newton_Raphson_current_solution(u)
             delta_u, norm = Solve_simu(self, self.problemType)
+            assert isinstance(norm, float)
             list_norm.append(norm)
             relNorm = norm / list_norm[0]
 
@@ -1993,7 +1997,9 @@ class _Simu(_IObserver, _params.Updatable, ABC):
         if len(self.mesh.orphanNodes) > 0:
             # add 1.0 to orphan dofs — orphan rows are zero, so addition sets the diagonal
             orphanDofs = self.Bc_dofs_nodes(
-                self.mesh.orphanNodes, self.Get_unknowns(problemType), problemType
+                np.asarray(self.mesh.orphanNodes, dtype=int),
+                self.Get_unknowns(problemType),
+                problemType,
             )
             diag = np.zeros(A.shape[0])
             diag[orphanDofs] = 1.0
@@ -3203,13 +3209,13 @@ class _Simu(_IObserver, _params.Updatable, ABC):
         filename: str = "simulation",
         gather=False,
         additionalInfos: str = "",
-    ) -> str:
+    ) -> str | None:
         """Saves the simulation and its summary in the folder. Saves the simulation as 'filename.pickle'."""
 
         if gather:
             self._Gather()
             if MPI_RANK != 0:
-                return
+                return None
 
         # create path
         suffix = f"_rank{MPI_RANK}" if MPI_SIZE > 1 and not gather else ""
@@ -3280,7 +3286,9 @@ def _Init_obj(
     tuple[_Simu|None, Mesh, ndarray, int]
         (simu, mesh, coord, inDim)
     """
-    raise NotImplementedError("obj must be a simulation, a mesh or a group of elements.")
+    raise NotImplementedError(
+        "obj must be a simulation, a mesh or a group of elements."
+    )
 
 
 @_Init_obj.register
