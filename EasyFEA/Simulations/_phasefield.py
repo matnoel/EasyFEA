@@ -104,7 +104,7 @@ class PhaseField(_Simu):
         # Init internal variable
         self.__psiP_e_pg: dict[_GroupElem, FeArray] = {}
         # old positive elastic energy density psiPlus(e, pg) to use the miehe history field
-        self.__old_psiP_e_pg: dict[_GroupElem, FeArray] = {}
+        self.__old_psiP_e_pg: dict[_GroupElem, FeArray.FeArrayALike] = {}
 
         self.Need_Update()
 
@@ -300,7 +300,7 @@ class PhaseField(_Simu):
 
     def Solve(
         self, tolConv=1.0, maxIter=500, convOption=2
-    ) -> tuple[_types.FloatArray, _types.FloatArray, sparse.csr_matrix, bool]:
+    ) -> tuple[_types.FloatArray, _types.FloatArray, bool]:
         """Solves the iterative damage problem using the staggered scheme.
 
         Parameters
@@ -319,7 +319,7 @@ class PhaseField(_Simu):
 
         Returns
         -------
-        _types.FloatArray, _types.FloatArray, csr_matrix, bool
+        _types.FloatArray, _types.FloatArray, bool
             u_np1, d_np1, converged
 
             such that:\n
@@ -799,7 +799,7 @@ class PhaseField(_Simu):
 
     def Results_Set_Iteration_Summary(
         self, iter: int, load: float, unitLoad: str, percentage=0.0, remove=False
-    ) -> str:
+    ) -> None:
         """Creates the iteration summary for the damage problem.
 
         Parameters

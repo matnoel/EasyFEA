@@ -115,7 +115,7 @@ class Beam(_Simu):
         self, details=False
     ) -> tuple[list[str], list[str]]:
         nodesField = ["displacement_matrix"]
-        elementsField = []
+        elementsField: list[str] = []
         return nodesField, elementsField
 
     def Get_unknowns(self, problemType=None) -> list[str]:
@@ -420,7 +420,7 @@ class Beam(_Simu):
 
             area_e_pg[elements] = beam.area
 
-        mass = (rho_e_pg * area_e_pg * wJ_e_pg).sum(axis=(0, 1))
+        mass = float((rho_e_pg * area_e_pg * wJ_e_pg).sum(axis=(0, 1)))
 
         return mass
 
