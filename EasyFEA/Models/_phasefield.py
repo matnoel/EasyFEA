@@ -207,13 +207,7 @@ class PhaseField(_IModel):
         return self.__material.thickness
 
     def __str__(self) -> str:
-        text = str(self.__material)
-        text += f"\n\n{type(self).__name__} :"
-        text += f"\nsplit : {self.split}"
-        text += f"\nregularization : {self.regularization}"
-        text += f"\nGc : {self.Gc}"
-        text += f"\nl0 : {self.l0:.4e}"
-        return text
+        return f"{self.__material}\n\n{super().__str__()}"
 
     @staticmethod
     @lru_cache(maxsize=2)

@@ -158,6 +158,9 @@ class _Behavior(_IModel, _IObserver):
         self._tol = 1e-10
         self._maxIter = 20
 
+    def __str__(self) -> str:
+        return f"{self.__elastic}\n\n{super().__str__()}"
+
     @property
     def elastic(self) -> _Elastic:
         """The elastic model; modifying it rebuilds the kernel."""
@@ -231,13 +234,6 @@ class _Behavior(_IModel, _IObserver):
     def coef(self) -> float:
         """Kelvin-Mandel coefficient, used when projecting result fields."""
         return np.sqrt(2)
-
-    def __str__(self) -> str:
-        text = f"{type(self).__name__}:"
-        if self.dim == 2:
-            simplification = "Plane Stress" if self.planeStress else "Plane Strain"
-            text += f"\nthickness = {self.thickness:.2e} ({simplification})"
-        return text
 
     def Need_Update(self, value=True) -> None:
         super().Need_Update(value)

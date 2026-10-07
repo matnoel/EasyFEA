@@ -24,7 +24,7 @@ if TYPE_CHECKING:
 from ... import Models, Simulations
 
 # materials
-from .._utils import _IModel
+from .._utils import _IModel, _Format_parameter
 from ...Utilities import _params, _types, Tic
 
 # ----------------------------------------------
@@ -241,13 +241,9 @@ class _Beam(_IModel):
         return None  # type: ignore [return-value]
 
     def __str__(self) -> str:
-        text = ""
-        text += f"\n{self.name}:"
-        text += f"\n  area = {self.__section.area:.2},"
-        text += f"\n  Iz = {self.Iz:.2},"
-        text += f"\n  Iy = {self.Iy:.2},"
-        text += f"\n  J = {self.J:.2}"
-
+        text = f"{self.name} {super().__str__()}"
+        for name in ("area", "Iz", "Iy", "J"):
+            text += f"\n{name} = {_Format_parameter(getattr(self, name))}"
         return text
 
     def _Calc_P(self) -> _types.FloatArray:
@@ -479,6 +475,9 @@ class BeamStructure(_IModel):
         """The beam structure can have several beams and therefore different sections.\n
         You need to look at the section of the beam you are interested in."""
         return None  # type: ignore [return-value]
+
+    def __str__(self) -> str:
+        return "\n\n".join(str(beam) for beam in self.__beams)
 
     @property
     def areas(self) -> list[float]:

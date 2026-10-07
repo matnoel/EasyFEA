@@ -9,7 +9,7 @@ from typing import Callable
 # utilities
 from ..Utilities._observers import Observable
 from ..Utilities import _types
-from ..Utilities._params import Updatable
+from ..Utilities._params import Updatable, _Parameter
 from ..FEM._linalg import FeArray
 import numpy as np
 
@@ -43,10 +43,48 @@ class _IModel(Observable, Updatable, ABC):
         """indicates whether the model has heterogeneous parameters"""
         return False
 
+    def _Get_parameters(self) -> dict[str, object]:
+        """Parameters declared as ``_params`` descriptors, in declaration order, base classes first."""
+        parameters: dict[str, object] = {}
+        for cls in reversed(type(self).__mro__):
+            for name, attr in vars(cls).items():
+                if (
+                    isinstance(attr, _Parameter)
+                    and not name.startswith("_")
+                    and name in self.__dict__
+                ):
+                    parameters[name] = getattr(self, name)
+        if self.dim == 3:
+            parameters.pop("thickness", None)
+            parameters.pop("planeStress", None)
+        return parameters
+
+    def __str__(self) -> str:
+        text = f"{type(self).__name__}:"
+        for name, value in self._Get_parameters().items():
+            text += f"\n{name} = {_Format_parameter(value)}"
+        return text
+
 
 # ----------------------------------------------
 # Functions
 # ----------------------------------------------
+
+
+def _Format_parameter(value) -> str:
+    """A scalar or a small array in full, a field as its shape and range."""
+    if isinstance(value, (bool, str)):
+        return str(value)
+    if isinstance(value, (int, float, np.number)):
+        return f"{value:.4g}"
+    if isinstance(value, np.ndarray) and np.issubdtype(value.dtype, np.number):
+        if value.ndim == 0:
+            return f"{value.item():.4g}"
+        if value.size <= 9:
+            return np.array_str(value, precision=4)
+        return f"{value.shape} in [{value.min():.4g}, {value.max():.4g}]"
+    return str(value)
+
 
 __erroDim = "Pay attention to the dimensions of the material constants.\nIf the material constants are in arrays, these arrays must have the same dimension."
 

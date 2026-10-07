@@ -28,12 +28,6 @@ class Thermal(_IModel):
 
     thickness: float = _params.PositiveScalarParameter()
 
-    def __str__(self) -> str:
-        text = f"\n{type(self).__name__} :"
-        text += f"\nthermal conductivity (k)  : {self.k}"
-        text += f"\nthermal mass capacity (c) : {self.c}"
-        return text
-
     def __init__(self, k: float, c=0.0, thickness: float = 1.0):
         """Creates a thermal model.
 

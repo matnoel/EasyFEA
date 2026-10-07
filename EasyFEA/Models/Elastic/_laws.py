@@ -15,6 +15,7 @@ import numpy as np
 from ...Geoms import AsCoords, Normalize
 from .._utils import (
     _IModel,
+    _Format_parameter,
     Heterogeneous_Array,
     KelvinMandel_Matrix,
     Project_Kelvin,
@@ -267,14 +268,6 @@ class Isotropic(_Elastic):
     v: float = _params.IntervalccParameter(inf=-1, sup=0.5)
     """Poisson's ratio (-1<v<0.5)"""
 
-    def __str__(self) -> str:
-        text = f"{type(self).__name__}:"
-        text += f"\nE = {self.E}, v = {self.v}"
-        if self.dim == 2:
-            text += f"\nplaneStress = {self.planeStress}"
-            text += f"\nthickness = {self.thickness:.2e}"
-        return text
-
     def __init__(self, dim: int, E=210000.0, v=0.3, planeStress=True, thickness=1.0):
         """Creates an Isotropic Linearized Elastic material.
 
@@ -450,14 +443,9 @@ class TransverselyIsotropic(_Elastic):
     """Transverse Poisson ratio (-1<vt<1)"""
 
     def __str__(self) -> str:
-        text = f"{type(self).__name__}:"
-        text += f"\nEl = {self.El}, Et = {self.Et}, Gl = {self.Gl}"
-        text += f"\nvl = {self.vl}, vt = {self.vt}"
-        text += f"\naxis_l = {np.array_str(self.axis_l, precision=3)}"
-        text += f"\naxis_t = {np.array_str(self.axis_t, precision=3)}"
-        if self.dim == 2:
-            text += f"\nplaneStress = {self.planeStress}"
-            text += f"\nthickness = {self.thickness:.2e}"
+        text = super().__str__()
+        text += f"\naxis_l = {_Format_parameter(self.axis_l)}"
+        text += f"\naxis_t = {_Format_parameter(self.axis_t)}"
         return text
 
     def __init__(
@@ -698,21 +686,9 @@ class Orthotropic(_Elastic):
     """Poisson's ratio for transverse strain along the axis_2 when stressed along the axis_1."""
 
     def __str__(self) -> str:
-        text = f"{type(self).__name__}:"
-        text += f"\nE1 = {self.E1}"
-        text += f"\nE2 = {self.E2}"
-        text += f"\nE3 = {self.E3}"
-        text += f"\nG23 = {self.G23}"
-        text += f"\nG13 = {self.G13}"
-        text += f"\nG12 = {self.G12}"
-        text += f"\nv23 = {self.v23}"
-        text += f"\nv13 = {self.v13}"
-        text += f"\nv12 = {self.v12}"
-        text += f"\naxis_1 = {np.array_str(self.axis_1, precision=3)}"
-        text += f"\naxis_2 = {np.array_str(self.axis_1, precision=3)}"
-        if self.dim == 2:
-            text += f"\nplaneStress = {self.planeStress}"
-            text += f"\nthickness = {self.thickness:.2e}"
+        text = super().__str__()
+        text += f"\naxis_1 = {_Format_parameter(self.axis_1)}"
+        text += f"\naxis_2 = {_Format_parameter(self.axis_2)}"
         return text
 
     def __init__(
@@ -1007,13 +983,10 @@ class Anisotropic(_Elastic):
     """Anisotropic Linearized Elastic material."""
 
     def __str__(self) -> str:
-        text = f"\n{type(self).__name__}):"
-        text += f"\n{self.C}"
-        text += f"\naxis1 = {np.array_str(self.__axis1, precision=3)}"
-        text += f"\naxis2 = {np.array_str(self.__axis2, precision=3)}"
-        if self.dim == 2:
-            text += f"\nplaneStress = {self.planeStress}"
-            text += f"\nthickness = {self.thickness:.2e}"
+        text = super().__str__()
+        text += f"\nC = {_Format_parameter(self.C)}"
+        text += f"\naxis1 = {_Format_parameter(self.axis1)}"
+        text += f"\naxis2 = {_Format_parameter(self.axis2)}"
         return text
 
     def __init__(

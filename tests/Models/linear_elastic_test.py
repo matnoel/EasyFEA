@@ -392,8 +392,9 @@ class TestLinearElastic:
 
     @pytest.mark.parametrize("shape", [(), (11,), (11, 4)])
     def test_str_heterogeneous(self, shape: tuple):
-        """Printing a material works whatever the shape of its parameters."""
+        """Printing a material works whatever the shape of its parameters; a field prints as its shape and range."""
         E = np.full(shape, 210e3)
+        expected = "2.1e+05" if shape == () else f"{shape} in [2.1e+05, 2.1e+05]"
         for material in (
             Isotropic(2, E=E, v=0.3),
             TransverselyIsotropic(2, El=E, Et=800, Gl=500, vl=0.3, vt=0.4),
@@ -410,7 +411,24 @@ class TestLinearElastic:
                 0.4,
             ),
         ):
-            assert str(E) in str(material)
+            assert f"= {expected}\n" in str(material)
+
+    def test_str_prints_both_axes(self):
+        material = Orthotropic(
+            3,
+            1,
+            2,
+            3,
+            4,
+            5,
+            6,
+            0.1,
+            0.2,
+            0.3,
+            axis_1=(1, 0, 0),
+            axis_2=(0, 1, 0),
+        )
+        assert "axis_2 = [0. 1. 0.]" in str(material)
 
     def test_getPmat(self):
 
