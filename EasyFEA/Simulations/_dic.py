@@ -6,7 +6,7 @@
 """DIC analysis module"""
 
 import numpy as np
-from scipy import interpolate, sparse
+from scipy import sparse
 from scipy.sparse.linalg import splu
 import pickle
 
@@ -464,7 +464,9 @@ class DIC(_IObserver):
         )
         coordX, coordY = gridX.ravel(), gridY.ravel()
 
-        img_fct = interpolate.RectBivariateSpline(
+        from scipy.interpolate import RectBivariateSpline
+
+        img_fct = RectBivariateSpline(
             np.arange(img.shape[0]), np.arange(img.shape[1]), img
         )
         roi = self.roi
@@ -531,7 +533,9 @@ class DIC(_IObserver):
         )
         coordX, coordY = gridX.ravel(), gridY.ravel()
 
-        img_fct = interpolate.RectBivariateSpline(
+        from scipy.interpolate import RectBivariateSpline
+
+        img_fct = RectBivariateSpline(
             np.arange(img.shape[0]), np.arange(img.shape[1]), img
         )
 

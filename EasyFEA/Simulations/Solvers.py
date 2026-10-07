@@ -10,7 +10,7 @@ from enum import Enum
 from functools import cache
 from types import ModuleType
 import numpy as np
-from scipy import sparse, optimize
+from scipy import sparse
 import scipy.sparse.linalg as sla
 from typing import TYPE_CHECKING
 
@@ -377,7 +377,9 @@ def _Solve_Axb(
         # constrained minimization
         # https://docs.scipy.org/doc/scipy/reference/generated/scipy.optimize.lsq_linear.html
         assert len(lb) == len(ub) != 0
-        x = optimize.lsq_linear(
+        from scipy.optimize import lsq_linear
+
+        x = lsq_linear(
             A, b.toarray().ravel(), bounds=(lb, ub), tol=1e-10, method="trf", verbose=0
         )
         x = x["x"]

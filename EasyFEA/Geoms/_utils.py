@@ -5,7 +5,6 @@
 
 import numpy as np
 import copy
-from scipy.optimize import minimize
 from collections.abc import Collection
 from typing import Union
 
@@ -453,6 +452,8 @@ def Circle_Coords(
         return v @ n
 
     cons = {"type": "eq", "fun": eqPlane}
+    from scipy.optimize import minimize
+
     res = minimize(eval, p0, constraints=cons, tol=1e-12)
 
     assert res.success, "the center has not been found"

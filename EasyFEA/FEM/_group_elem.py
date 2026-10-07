@@ -17,7 +17,6 @@ For instance, a TRI3 mesh uses POINT, SEG2 and TRI3 elements."""
 # Factory
 
 from abc import ABC, abstractmethod
-from scipy.optimize import least_squares
 from scipy import sparse, spatial
 import numpy as np
 from typing import Callable
@@ -2128,6 +2127,8 @@ class _GroupElem(ABC):
                         F = dN[0] @ coordElemBase[:, :dim]  # jacobian matrix [J]
                         J = x0 + (xi - xiOrigin) @ F - xP  # cost function
                         return J
+
+                    from scipy.optimize import least_squares
 
                     xiP = []
                     for xP in xP_n:
