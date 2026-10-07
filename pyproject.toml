@@ -38,6 +38,7 @@ lint = [
     "ruff==0.16.5",
     "mdformat==1.0.0",
     "mdformat-myst==0.3.0",
+    "import-linter==2.15",
 ]
 io = ["imageio", "imageio[ffmpeg]", "meshio"]
 jax = ["jax"]
@@ -83,3 +84,37 @@ ignore = ["E731", "E741", "F402"]
 "Geoms.py" = ["F401"]
 "Models.py" = ["F401"]
 "Simulations.py" = ["F401"]
+
+[tool.importlinter]
+root_package = "EasyFEA"
+exclude_type_checking_imports = true
+
+[[tool.importlinter.contracts]]
+# no new upward import; ignore_imports may only shrink (an unmatched entry fails)
+name = "Layers"
+type = "layers"
+containers = ["EasyFEA"]
+layers = ["Simulations", "Models", "FEM", "Geoms", "Utilities"]
+ignore_imports = [
+    "EasyFEA.FEM._boundary_conditions -> EasyFEA",
+    "EasyFEA.FEM._mesher -> EasyFEA",
+    "EasyFEA.Geoms._geom -> EasyFEA.FEM._mesher",
+    "EasyFEA.Geoms._geom -> EasyFEA.FEM._utils",
+    "EasyFEA.Models.Beam._beam -> EasyFEA.Simulations",
+    "EasyFEA.Utilities.Folder -> EasyFEA",
+    "EasyFEA.Utilities.GLTF -> EasyFEA.Simulations._simu",
+    "EasyFEA.Utilities.Matplotlib -> EasyFEA.Simulations._simu",
+    "EasyFEA.Utilities.MeshIO -> EasyFEA.FEM._group_elem",
+    "EasyFEA.Utilities.MeshIO -> EasyFEA.FEM._mesh",
+    "EasyFEA.Utilities.MeshIO -> EasyFEA.FEM._utils",
+    "EasyFEA.Utilities.Paraview -> EasyFEA.FEM._kelvin_mandel",
+    "EasyFEA.Utilities.PyVista -> EasyFEA.FEM",
+    "EasyFEA.Utilities.PyVista -> EasyFEA.Geoms",
+    "EasyFEA.Utilities.PyVista -> EasyFEA.Simulations._simu",
+    "EasyFEA.Utilities.Terminal -> EasyFEA",
+    "EasyFEA.Utilities.USD -> EasyFEA.Simulations._simu",
+    "EasyFEA.Utilities.Vizir -> EasyFEA.FEM._group_elem",
+    "EasyFEA.Utilities.Vizir -> EasyFEA.FEM._utils",
+    "EasyFEA.Utilities.Vizir -> EasyFEA.Geoms._utils",
+    "EasyFEA.Utilities._tic -> EasyFEA",
+]

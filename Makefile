@@ -10,4 +10,5 @@ format:
 lint:
 	black --check .
 	ruff check .
+	lint-imports
 	mdformat --check $(MD)
