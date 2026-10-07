@@ -22,7 +22,7 @@ from scipy.spatial import cKDTree
 from scipy.sparse.csgraph import connected_components
 
 # utilities
-from ..Utilities import Matplotlib, Terminal, Folder, Tic, _types
+from ..Utilities import Terminal, Folder, Tic, _types
 from ..Utilities._observers import Observable
 from ..Utilities._mpi import MPI_COMM, MPI_SIZE, MPI_RANK
 
@@ -1054,6 +1054,8 @@ class Mesh(Observable):
         paired_nodes = np.array([nodes1, nodes2]).T
 
         if plot:
+            from ..Utilities import Matplotlib
+
             inDim = self.inDim
 
             ax = Matplotlib.Plot_Mesh(

@@ -16,12 +16,8 @@ from ..FEM._utils import ElemType
 from typing import Iterable, TYPE_CHECKING, TypeAlias
 from ..Utilities import _types, _params
 
-try:
-    import matplotlib.pyplot as plt
-except ImportError:
-    pass
-
 if TYPE_CHECKING:
+    import matplotlib.pyplot as plt
     from ..Geoms import Point, Line, Circle, CircleArc, Points, Contour, Domain
 
     GeomCompatible: TypeAlias = "_Geom | Domain | Circle | Points | Contour"

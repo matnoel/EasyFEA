@@ -24,7 +24,7 @@ from typing import (
 from functools import singledispatchmethod, wraps
 
 # utilities
-from ..Utilities import Matplotlib, Terminal, Folder, Tic, _types
+from ..Utilities import Terminal, Folder, Tic, _types
 from ..Utilities._mpi import CAN_USE_MPI, MPI_COMM, MPI_SIZE, MPI_RANK
 
 # geom
@@ -2562,6 +2562,8 @@ class Mesher:
         mesh = simu.mesh
 
         self._Init_gmsh()
+
+        from ..Utilities import Matplotlib
 
         @Matplotlib.requires_matplotlib
         def getColor(c: str):
