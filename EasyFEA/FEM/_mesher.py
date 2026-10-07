@@ -173,7 +173,7 @@ class Mesher:
 
     def _Init_gmsh(self, factory: str = "occ") -> None:
         """Initializes gmsh."""
-        self._geoms: list[_Geom] = []
+        self._geoms: list[_Geom | Point] = []
         """geom objects consumed since the last initialization, drawn when meshing fails"""
         self._isMeshed = False
         """True once gmsh has generated the mesh, after which a failure is no longer a geometry problem"""
@@ -1425,8 +1425,8 @@ class Mesher:
                 points,
                 new_cracks_2d,
                 new_cracks_1d,
-                openLines,
-                openPoints,
+                crackOpenLines,
+                crackOpenPoints,
             ) = self.__Create_crack(crack)
 
             # add entities
@@ -1444,10 +1444,10 @@ class Mesher:
                 cracks_1D.extend(new_cracks_1d)
 
             # add open lines and points
-            if openLines is not None:
-                cracks_1D_open.extend(openLines)
-            if openPoints is not None:
-                cracks_0D_open.extend(openPoints)
+            if crackOpenLines is not None:
+                cracks_1D_open.extend(crackOpenLines)
+            if crackOpenPoints is not None:
+                cracks_0D_open.extend(crackOpenPoints)
 
         newEntities = [(0, point) for point in entities_0D]
         newEntities.extend([(1, line) for line in entities_1D])
@@ -2365,7 +2365,7 @@ class Mesher:
             # find ghost elements
             # Convert to array once and reuse
             nodes_arr = np.array(list(nodes), dtype=int)
-            ghost_idx = set()
+            ghost_idx: set[int] = set()
             for other_rank in range(Nproc):
                 if other_rank == rank:
                     continue
@@ -2630,10 +2630,10 @@ class Mesher:
 
         for i in range(simu.Niter):
             simu.Set_Iter(i)
-            [
-                dict_results[result].append(simu.Result(result))  # raw nodal field
-                for result in results
-            ]
+            for result in results:
+                dict_results[result].append(
+                    np.asarray(simu.Result(result))
+                )  # raw nodal field
 
         def AddView(name: str, list_values: list[_types.FloatArray]):
             """Add a view; list_values holds one nodal field per iteration."""

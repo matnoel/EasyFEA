@@ -18,6 +18,7 @@ class Field:
     """Field class."""
 
     _isFeField = True
+    __mesh: Mesh
     """marks the class for :mod:`._linalg`, which cannot import it without a cycle"""
 
     def __init__(

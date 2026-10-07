@@ -475,6 +475,7 @@ class Mesh(Observable):
         # assembled on rank 0 only; used inside if MPI_RANK == 0
         coordinates: np.ndarray
         if MPI_RANK == 0:
+            assert all_coords is not None and all_nodes is not None
             coordinates = np.zeros((self.Nn, 3), dtype=float)
             for coords_r, nodes_r in zip(all_coords, all_nodes):
                 coordinates[nodes_r] = coords_r
@@ -491,6 +492,7 @@ class Mesh(Observable):
             all_indices = MPI_COMM.gather(elements, root=0)
 
             if MPI_RANK == 0:
+                assert all_connect is not None and all_indices is not None
                 non_empty_sizes = [idx.max() + 1 for idx in all_indices if idx.size > 0]
                 Ne_global = max(non_empty_sizes) if non_empty_sizes else 0
                 global_connect = np.empty((Ne_global, groupElem.nPe), dtype=int)
@@ -785,7 +787,7 @@ class Mesh(Observable):
             Terminal.MyPrintError(
                 "There is no tags available in the mesh, so don't forget to use the '_Set_PhysicalGroups()' function before meshing your geometry with '_Meshing()' in the gmsh interface 'Gmsh_Interface'."
             )
-            return np.asarray([])
+            return np.asarray([], dtype=int)
 
         [list_node.extend(dict_nodes[tag]) for tag in tags]  # type: ignore [func-returns-value]
         # make sure that that the list is unique
@@ -810,7 +812,7 @@ class Mesh(Observable):
             Terminal.MyPrintError(
                 "There is no tags available in the mesh, so don't forget to use the '_Set_PhysicalGroups()' function before meshing your geometry with '_Meshing()' in the gmsh interface 'Gmsh_Interface'."
             )
-            return np.asarray([])
+            return np.asarray([], dtype=int)
 
         # add elements belonging to the tags
         [list_element.extend(dict_elements[tag]) for tag in tags]  # type: ignore [func-returns-value]
@@ -930,15 +932,11 @@ class Mesh(Observable):
             # Get the owning element for each coordinate in this group.
             # Note: A coordinate may belong to multiple elements, but only one will be selected.
             elements_n = np.array([None] * Nn)
-            [
-                np.put(elements_n, node, element)
-                # Don't remove [::-1], it must start at the end !
-                for (element, connect) in zip(
-                    detectedElements_e[::-1], connect_e_n[::-1]
-                )
-                for node in connect
-                if elements_n[node] is None
-            ]
+            # Don't remove [::-1], it must start at the end !
+            for element, connect in zip(detectedElements_e[::-1], connect_e_n[::-1]):
+                for node in connect:
+                    if elements_n[node] is None:
+                        elements_n[node] = element
 
             # interpolate coordinates detected here (Get_Mapping already filters by
             # geometric containment) and not yet assigned to a previous group
@@ -946,6 +944,7 @@ class Mesh(Observable):
             mask = remaining & (elements_n != None)  # noqa: E711
             if not mask.any():
                 continue
+            assert coordInElem_n is not None
             mask_idx = np.flatnonzero(mask)
             found_elements = elements_n[mask].astype(int)
 
