@@ -9,8 +9,7 @@ import numpy as np
 from typing import TYPE_CHECKING
 
 # utilities
-from . import Matplotlib, Terminal, Folder, Tic
-from .MeshIO import DICT_GMSH_TO_VTK_INDEXES, DICT_ELEMTYPE_TO_VTK
+from . import Terminal, Folder, Tic
 from ._mpi import MPI_SIZE, MPI_RANK, MPI_COMM
 
 from ..Utilities import _types
@@ -49,6 +48,9 @@ def Save_simu(
     elementFields: list, optional
         Additional elementFields, by default []
     """
+
+    from . import Matplotlib
+
     print("\n")
 
     simu = Matplotlib._Init_obj(simu)[0]  # type: ignore
@@ -222,6 +224,8 @@ def __Make_vtu(
 ) -> str:
     """Generates the .vtu file for this rank and, when MPI_SIZE > 1, the .pvtu
     descriptor (rank 0 only). Returns the path to reference in the .pvd."""
+
+    from .MeshIO import DICT_GMSH_TO_VTK_INDEXES, DICT_ELEMTYPE_TO_VTK
 
     rank_folder = Folder.Rank_Dir(folder)
 

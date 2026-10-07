@@ -13,9 +13,9 @@ import numpy as np
 from functools import singledispatch
 
 # utilities
-from . import Matplotlib, Terminal
+from . import Terminal
 from ..Simulations._simu import _Init_obj, _Get_values
-from . import Folder, Tic, _types, MeshIO
+from . import Folder, Tic, _types
 from .. import Geoms
 
 # fem
@@ -546,6 +546,8 @@ def Plot_BoundaryConditions(
         The pyvista plotter
     """
 
+    from . import Matplotlib
+
     tic = Tic()
 
     simu, mesh, coord, inDim = _Init_obj(simu, deformFactor)  # type: ignore [assignment]
@@ -715,6 +717,8 @@ def Plot_Tags(
         The pyvista plotter
     """
 
+    from . import Matplotlib, MeshIO
+
     tic = Tic()
 
     __, mesh, coord, inDim = _Init_obj(obj)
@@ -822,6 +826,8 @@ def Plot_Geoms(
     pv.Plotter
         The pyvista plotter
     """
+
+    from . import Matplotlib
 
     if not isinstance(geoms, list):
         geoms = [geoms]
@@ -1061,6 +1067,8 @@ def _pvMesh(
     clipCenter=None,
 ) -> pv.UnstructuredGrid:
     """Creates the pyvista mesh from obj (_Simu, Mesh and _GroupElem objects)"""
+
+    from . import Matplotlib, MeshIO
 
     simu, mesh, coord, __ = _Init_obj(obj, deformFactor)
     result = Matplotlib._Gauss_points_averaged(mesh, result)

@@ -9,7 +9,7 @@ from typing import TYPE_CHECKING
 import numpy as np
 import io
 
-from ..Utilities import Folder, MeshIO, _types
+from ..Utilities import Folder, _types
 from ..Utilities._mpi import rank0_only
 from ..FEM._group_elem import GroupElemFactory
 from ..FEM._utils import ElemType
@@ -388,6 +388,8 @@ def Save_simu(
     str
         A command string for visualizing the saved results using vizir.
     """
+
+    from . import MeshIO
 
     # assert isinstance(simu, "_Simu")
 

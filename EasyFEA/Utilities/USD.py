@@ -13,17 +13,14 @@ import numpy as np
 from ._requires import Create_requires_decorator
 from ._mpi import rank0_only
 from ..Simulations._simu import _Init_obj
-from ..Utilities.MeshIO import Surface_reconstruction
 
-from . import Folder, Matplotlib, Terminal
+from . import Folder, Terminal
 
 if TYPE_CHECKING:
     from ..FEM._mesh import Mesh
     from ..Simulations import _Simu
 
 requires_pxr = Create_requires_decorator("pxr", libraries=["usd-core"])
-
-from .GLTF import _get_list_nodesValues
 
 
 @rank0_only
@@ -70,6 +67,8 @@ def Save_simu(
         If False, frame-by-frame animation on Previewer and Keynote.
         Default True.
     """
+
+    from .MeshIO import Surface_reconstruction
 
     simu, mesh, _, _ = _Init_obj(simu)  # type: ignore [assignment]
 
@@ -221,6 +220,9 @@ def Save_mesh(
     str
         The path to the created usdz file.
     """
+
+    from . import Matplotlib
+    from .GLTF import _get_list_nodesValues
 
     from pxr import Usd, UsdGeom, Gf, UsdUtils, Vt
 

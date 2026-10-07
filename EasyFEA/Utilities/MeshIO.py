@@ -8,7 +8,7 @@
 from __future__ import annotations
 import re
 from collections import Counter
-from typing import Any, Iterable
+from typing import Any, Iterable, TYPE_CHECKING
 import numpy as np
 from enum import Enum
 
@@ -19,20 +19,17 @@ from ..FEM._utils import ElemType
 from ..FEM._group_elem import _GroupElem
 from ..FEM._group_elem import GroupElemFactory
 
-from .PyVista import requires_pyvista
-
 from ._requires import Create_requires_decorator
 
-try:
+if TYPE_CHECKING:
     import pyvista as pv
-except ImportError:
-    pass
 
 try:
     import meshio
 except ImportError:
     pass
 requires_meshio = Create_requires_decorator("meshio")
+requires_pyvista = Create_requires_decorator("matplotlib", "pyvista")
 
 # ----------------------------------------------
 # TYPES
@@ -984,6 +981,8 @@ def EasyFEA_to_PyVista(
     >>> print(pvMesh)
     """
 
+    import pyvista as pv
+
     assert isinstance(mesh, Mesh), "mesh must be a EasyFEA mesh!"
 
     # init dict of cell data
@@ -1034,6 +1033,8 @@ def _GroupElem_to_PyVista(
         pyvista mesh
     """
 
+    import pyvista as pv
+
     assert isinstance(groupElem, _GroupElem), "groupElem must be a group of elements!"
 
     cellType, connect = _Get_pyvista_cell(groupElem)
@@ -1063,6 +1064,8 @@ def PyVista_to_EasyFEA(pyVistaMesh: pv.UnstructuredGrid | pv.MultiBlock) -> Mesh
     Mesh
         Converted EasyFEA mesh object.
     """
+
+    import pyvista as pv
 
     dict_groupElem: dict[ElemType, _GroupElem] = {}
 
@@ -1144,6 +1147,8 @@ def _Ensight_to_PyVista(geoFile: str) -> pv.MultiBlock:
     Mesh
         Converted PyVista mesh object.
     """
+
+    import pyvista as pv
 
     # create case file
     folder = Folder.Dir(geoFile)
