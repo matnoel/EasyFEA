@@ -631,7 +631,7 @@ def Plot_BoundaryConditions(
                 vector = vector / normVector
 
             normVectorRot = np.linalg.norm(vectorRot, axis=1).max()
-            if np.max(vectorRot) > 0:
+            if normVectorRot > 0:
                 vectorRot = vectorRot / normVectorRot
 
             factor = mesh._Get_realistic_vector_magnitude(0.1)
@@ -668,7 +668,11 @@ def Plot_BoundaryConditions(
                 else:
                     # here the arrow will end at the node coordinates
                     plotter.add_arrows(
-                        start, vector, factor / 2, label=label, color=color  # type: ignore [arg-type]
+                        start,  # type: ignore [arg-type]
+                        vectorRot,  # type: ignore [arg-type]
+                        factor / 2,
+                        label=label,
+                        color=color,
                     )
 
     if len(boundaryConditions) > 0:
