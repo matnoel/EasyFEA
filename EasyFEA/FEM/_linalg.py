@@ -290,7 +290,7 @@ class FeArray(np.ndarray):
         return FeArray.__wrap(res, feShape)
 
     @property
-    def T(self) -> FeArrayALike:  # type: ignore [override]
+    def T(self) -> "FeArray":  # type: ignore [override]
         if self._ndim == 2:
             # swapaxes returns a view — no allocation
             return FeArray.asfearray(np.swapaxes(np.asarray(self), -1, -2))
@@ -398,6 +398,7 @@ class FeArray(np.ndarray):
 
     # A reduction over a tensor axis is still a field; one over elements or Gauss points is
     # not. Which axes were consumed is read from `axis`, never guessed from the result shape.
+    @staticmethod
     def _make_reducer(_name: str):
         _parent = getattr(np.ndarray, _name)
 
@@ -510,7 +511,7 @@ class FeArray(np.ndarray):
         arr = np.asarray(value)
         nt = len(tensor_shape)
         if arr.ndim == 0 and nt == 0:
-            return float(arr)
+            return float(arr)  # type: ignore [return-value]
         lead, tail = arr.shape[: arr.ndim - nt], arr.shape[arr.ndim - nt :]
         if arr.ndim < nt or tail != tensor_shape:
             raise ValueError(
@@ -535,11 +536,11 @@ class FeArray(np.ndarray):
         return shape
 
     @staticmethod
-    def zeros(*shape, dtype=None) -> FeArrayALike:
+    def zeros(*shape, dtype=None) -> "FeArray":
         return FeArray.asfearray(np.zeros(FeArray.__shape(shape), dtype=dtype))
 
     @staticmethod
-    def ones(*shape, dtype=None) -> FeArrayALike:
+    def ones(*shape, dtype=None) -> "FeArray":
         return FeArray.asfearray(np.ones(FeArray.__shape(shape), dtype=dtype))
 
 
@@ -733,14 +734,14 @@ def TensorProd(
         A, B = FeArray._lift_plain((A, B)) or (A, B)
 
     if ndim is None:
-        ndim = A._ndim if useFeArray else A.ndim
+        ndim = A._ndim if isinstance(A, FeArray) else A.ndim
 
     assert ndim in [1, 2], "A and B must be vectors (i) or matrices (ij)"
 
     error = "A and B must have the same dimensions"
     if useFeArray:
-        ndim1 = A._ndim if useFeArray else A.ndim
-        ndim2 = B._ndim if useFeArray else B.ndim
+        ndim1 = A._ndim if isinstance(A, FeArray) else A.ndim
+        ndim2 = B._ndim if isinstance(B, FeArray) else B.ndim
         assert ndim1 == ndim2, error
     else:
         assert A.size == B.size, error
