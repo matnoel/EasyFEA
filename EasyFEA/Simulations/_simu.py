@@ -1774,9 +1774,10 @@ class _Simu(_IObserver, _params.Updatable, ABC):
 
         timeIter = tic.Tac(f"Resolution {problemType}", "Newton iterations", False)
 
-        assert (
-            converged
-        ), f"Newton raphson algorithm did not converged in {newtonIter} iterations."
+        if not converged:
+            raise AssertionError(
+                f"Newton raphson algorithm did not converged in {newtonIter} iterations."
+            )
 
         return u, newtonIter, timeIter, list_norm
 
