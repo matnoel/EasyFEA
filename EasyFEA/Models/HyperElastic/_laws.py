@@ -101,7 +101,13 @@ class _HyperElastic(_IModel, ABC):
     # Model
     @staticmethod
     def Available_Laws():
-        laws = [NeoHookean, MooneyRivlin, SaintVenantKirchhoff]
+        laws = [
+            NeoHookean,
+            MooneyRivlin,
+            CiarletGeymonat,
+            SaintVenantKirchhoff,
+            HolzapfelOgden,
+        ]
         return laws
 
     @property

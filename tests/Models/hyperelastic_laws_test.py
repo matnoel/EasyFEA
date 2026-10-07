@@ -74,3 +74,16 @@ class TestSaintVenantKirchhoff:
         d2W_e_pg = mat.Compute_d2Wde(kinematics)
         diff_d2W = d2W_hyper - d2W_e_pg
         assert np.linalg.norm(diff_d2W) / np.linalg.norm(d2W_hyper) < 1e-11
+
+
+def test_Available_Laws_lists_every_shipped_law():
+    """Every concrete law except AutoDiff, which runs a potential the user supplies."""
+    from EasyFEA.Models.HyperElastic._laws import _HyperElastic
+
+    shipped = {
+        law
+        for law in _HyperElastic.__subclasses__()
+        if law is not Models.HyperElastic.AutoDiff
+    }
+
+    assert set(_HyperElastic.Available_Laws()) == shipped
