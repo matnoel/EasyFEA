@@ -13,9 +13,5 @@ from ._phasefield import PhaseField
 from ._thermal import Thermal
 from ._weakforms import WeakForms
 
-from ._utils import (
-    _IModel,
-    Heterogeneous_Array,
-    Result_strain_or_stress_field_e,
-)
+from ._utils import _IModel, Heterogeneous_Array
 from ..FEM._kelvin_mandel import Get_Pmat, Apply_Pmat

@@ -9,7 +9,7 @@ from EasyFEA import ElemType, MatrixType, Models, Simulations, SolverType
 from EasyFEA.FEM import Kinematics
 from EasyFEA.Geoms import Domain
 from EasyFEA.FEM._linalg import Trace, Det, Inv, TensorProd
-from EasyFEA.Models._utils import FeArray
+from EasyFEA.FEM._linalg import FeArray
 from EasyFEA.FEM._kelvin_mandel import Tensor_to_Kelvin
 
 

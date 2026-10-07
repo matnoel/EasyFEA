@@ -17,8 +17,8 @@ from ..FEM import Mesh, MatrixType, FeArray, Kinematics, Operators, _GroupElem
 
 # models
 from .. import Models
-from ..Models import _IModel, Result_strain_or_stress_field_e
-from ..Models._utils import _Field_per_groupElem
+from ..Models import _IModel
+from ._utils import Result_strain_or_stress_field_e, _Field_per_groupElem
 
 # simu
 from ._simu import _Simu, SolverType

@@ -14,18 +14,18 @@ from EasyFEA.Models.Elastic._laws import (
     Orthotropic,
     Anisotropic,
 )
-from EasyFEA.FEM import _kelvin_mandel as kelvin_mandel
+from EasyFEA.FEM import _kelvin_mandel
 from EasyFEA.FEM._kelvin_mandel import Get_Pmat, Apply_Pmat
 
 
 def _Rotate_2D(C_voigt2D: np.ndarray, axis1: np.ndarray, axis2: np.ndarray):
     """In-plane rotation of a 2D Voigt C, through its 3D Kelvin–Mandel lift."""
-    idx = kelvin_mandel.IDX[2]
+    idx = _kelvin_mandel.IDX[2]
     C = np.zeros((6, 6))
-    C[np.ix_(idx, idx)] = kelvin_mandel.From_Voigt(C_voigt2D)
+    C[np.ix_(idx, idx)] = _kelvin_mandel.From_Voigt(C_voigt2D)
     C = Apply_Pmat(Get_Pmat(axis1, axis2), C)
-    w = kelvin_mandel.Weights(2)
-    return kelvin_mandel.Reduce(C, 2) / np.outer(w, w)
+    w = _kelvin_mandel.Weights(2)
+    return _kelvin_mandel.Reduce(C, 2) / np.outer(w, w)
 
 
 @pytest.fixture
@@ -133,7 +133,7 @@ class TestLinearElastic:
                         )
                     )
 
-                c = kelvin_mandel.From_Voigt(C_voigt)
+                c = _kelvin_mandel.From_Voigt(C_voigt)
 
                 test_C = np.linalg.norm(c - mat.C) / np.linalg.norm(c)
                 assert test_C < 1e-12
@@ -166,7 +166,7 @@ class TestLinearElastic:
 
         mat_2D_3 = Anisotropic(2, C_voigt2D, True)
 
-        C_3D = kelvin_mandel.From_Voigt(C_voigt3D)
+        C_3D = _kelvin_mandel.From_Voigt(C_voigt3D)
         mat_3D_1 = Anisotropic(3, Apply_Pmat(Get_Pmat(axis1_1, axis2_1), C_3D), False)
         mat_3D_2 = Anisotropic(3, Apply_Pmat(Get_Pmat(axis1_2, axis2_2), C_3D), False)
 
@@ -670,7 +670,7 @@ class TestElasticPipeline:
         E = 1.0 if E == "uniform" else np.linspace(1, 2, NE)
         material = _Law(law, dim, planeStress, axes, E)
 
-        w = kelvin_mandel.Weights(3)
+        w = _kelvin_mandel.Weights(3)
         aniso = Anisotropic(dim, material._Get_C_3D() / np.outer(w, w), True)
         aniso.planeStress = material.planeStress
 
@@ -682,7 +682,7 @@ class TestElasticPipeline:
         E = 1.0 if E == "uniform" else np.linspace(1, 2, NE)
         material = _Law(law, dim, planeStress, axes, E)
 
-        w = kelvin_mandel.Weights(2)
+        w = _kelvin_mandel.Weights(2)
         aniso = Anisotropic(2, material.C / np.outer(w, w), True)
 
         _Assert_close(aniso.C, material.C)
@@ -779,3 +779,10 @@ class TestElasticPipeline:
 
     def test_available_laws_list_orthotropic(self):
         assert Orthotropic in _Elastic.Available_Laws()
+
+
+def test_kelvin_components_remove_sqrt2():
+    values = _kelvin_mandel.Components(np.array([1.0, 2.0, 3.0 * _kelvin_mandel.R2]))
+    assert values == {"xx": 1.0, "yy": 2.0, "xy": pytest.approx(3.0)}
+    with pytest.raises(ValueError):
+        _kelvin_mandel.Components(np.zeros(4))

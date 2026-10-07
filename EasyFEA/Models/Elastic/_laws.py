@@ -15,7 +15,7 @@ import numpy as np
 # others
 from ...Geoms import AsCoords
 from .._utils import _IModel, _Format_parameter, Heterogeneous_Array
-from ...FEM import _kelvin_mandel as kelvin_mandel
+from ...FEM import _kelvin_mandel
 from ...Utilities import _params, _types
 from ...FEM._linalg import TensorProd, FeArray
 
@@ -78,16 +78,16 @@ class _Elastic(_IModel, ABC):
             C = materialC
             S = np.linalg.inv(C)
         else:
-            P = kelvin_mandel.Get_Pmat(*self._Axes())
-            C3 = kelvin_mandel.Apply_Pmat(P, materialC)
+            P = _kelvin_mandel.Get_Pmat(*self._Axes())
+            C3 = _kelvin_mandel.Apply_Pmat(P, materialC)
             if self.dim == 3:
                 C = C3
                 S = np.linalg.inv(C)
             elif self.planeStress:
-                S = kelvin_mandel.Reduce(np.linalg.inv(C3), 2)
+                S = _kelvin_mandel.Reduce(np.linalg.inv(C3), 2)
                 C = np.linalg.inv(S)
             else:
-                C = kelvin_mandel.Reduce(C3, 2)
+                C = _kelvin_mandel.Reduce(C3, 2)
                 S = np.linalg.inv(C)
         return C3, C, S
 
@@ -152,7 +152,7 @@ class _Elastic(_IModel, ABC):
 
     def _Frame_fields(self) -> list[FeArray.FeArrayALike]:
         """The 3 unit frame axes: (3,) each, or (Ne, nPg, 3) FeArrays, (Ne, 3) held at one point."""
-        axis_1, axis_2 = kelvin_mandel.Normalise_axes(*self._Axes())
+        axis_1, axis_2 = _kelvin_mandel.Normalise_axes(*self._Axes())
         axes = [axis_1, axis_2, np.cross(axis_1, axis_2)]
         if axes[0].ndim == 1:
             return axes
@@ -407,7 +407,7 @@ class TransverselyIsotropic(_Elastic):
 
         c1 = El + 4 * vl**2 * kt
         c2 = 2 * kt
-        c3 = 2 * kelvin_mandel.R2 * kt * vl
+        c3 = 2 * _kelvin_mandel.R2 * kt * vl
         c4 = 2 * Gt
         c5 = 2 * Gl
 
@@ -415,12 +415,12 @@ class TransverselyIsotropic(_Elastic):
         p = TensorProd(n, n)
         q = np.eye(3) - p
 
-        E1 = kelvin_mandel.Tensor_to_Kelvin(TensorProd(p, p))
-        E2 = kelvin_mandel.Tensor_to_Kelvin(1 / 2 * TensorProd(q, q))
-        E3 = kelvin_mandel.Tensor_to_Kelvin(
-            1 / kelvin_mandel.R2 * (TensorProd(p, q) + TensorProd(q, p))
+        E1 = _kelvin_mandel.Tensor_to_Kelvin(TensorProd(p, p))
+        E2 = _kelvin_mandel.Tensor_to_Kelvin(1 / 2 * TensorProd(q, q))
+        E3 = _kelvin_mandel.Tensor_to_Kelvin(
+            1 / _kelvin_mandel.R2 * (TensorProd(p, q) + TensorProd(q, p))
         )
-        E4 = kelvin_mandel.Tensor_to_Kelvin(
+        E4 = _kelvin_mandel.Tensor_to_Kelvin(
             TensorProd(q, q, True) - 1 / 2 * TensorProd(q, q)
         )
         E5 = np.eye(6) - E1 - E2 - E4
@@ -645,21 +645,21 @@ class Orthotropic(_Elastic):
             p = TensorProd(v1, v2) + TensorProd(v2, v1)
             return TensorProd(p, p) / 2
 
-        E11 = kelvin_mandel.Tensor_to_Kelvin(tensor_prods(a, a, a, a))
-        E22 = kelvin_mandel.Tensor_to_Kelvin(tensor_prods(b, b, b, b))
-        E33 = kelvin_mandel.Tensor_to_Kelvin(tensor_prods(c, c, c, c))
+        E11 = _kelvin_mandel.Tensor_to_Kelvin(tensor_prods(a, a, a, a))
+        E22 = _kelvin_mandel.Tensor_to_Kelvin(tensor_prods(b, b, b, b))
+        E33 = _kelvin_mandel.Tensor_to_Kelvin(tensor_prods(c, c, c, c))
 
-        E44 = kelvin_mandel.Tensor_to_Kelvin(vec_sym_tensor_prod(b, c))  # 23
-        E55 = kelvin_mandel.Tensor_to_Kelvin(vec_sym_tensor_prod(a, c))  # 13
-        E66 = kelvin_mandel.Tensor_to_Kelvin(vec_sym_tensor_prod(a, b))  # 12
+        E44 = _kelvin_mandel.Tensor_to_Kelvin(vec_sym_tensor_prod(b, c))  # 23
+        E55 = _kelvin_mandel.Tensor_to_Kelvin(vec_sym_tensor_prod(a, c))  # 13
+        E66 = _kelvin_mandel.Tensor_to_Kelvin(vec_sym_tensor_prod(a, b))  # 12
 
-        E23 = kelvin_mandel.Tensor_to_Kelvin(
+        E23 = _kelvin_mandel.Tensor_to_Kelvin(
             tensor_prods(b, b, c, c) + tensor_prods(c, c, b, b)
         )
-        E13 = kelvin_mandel.Tensor_to_Kelvin(
+        E13 = _kelvin_mandel.Tensor_to_Kelvin(
             tensor_prods(a, a, c, c) + tensor_prods(c, c, a, a)
         )
-        E12 = kelvin_mandel.Tensor_to_Kelvin(
+        E12 = _kelvin_mandel.Tensor_to_Kelvin(
             tensor_prods(a, a, b, b) + tensor_prods(b, b, a, a)
         )
 
@@ -728,7 +728,7 @@ class Anisotropic(_Elastic):
             )
         if np.abs(C - np.swapaxes(C, -2, -1)).max() > 1e-12 * np.abs(C).max():
             raise ValueError("C must be symmetric.")
-        self.__C = kelvin_mandel.From_Voigt(C) if useVoigtNotation else C.copy()
+        self.__C = _kelvin_mandel.From_Voigt(C) if useVoigtNotation else C.copy()
         self.Need_Update()
 
     def _Material_C(self) -> _types.FloatArray:

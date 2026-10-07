@@ -15,8 +15,7 @@ if TYPE_CHECKING:
 from ..FEM import MatrixType, Mesher, FeArray, Kinematics, Operators
 
 # models
-from ..Models import Result_strain_or_stress_field_e
-from ..Models._utils import _Field_per_groupElem
+from ._utils import Result_strain_or_stress_field_e, _Field_per_groupElem
 from ..Models.Elastic._laws import _Elastic
 
 # simu

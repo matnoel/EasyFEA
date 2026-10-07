@@ -43,6 +43,15 @@ def Weights(dim: int) -> _types.FloatArray:
     return np.where(IDX[dim] < 3, 1.0, R2)
 
 
+def Components(vector: _types.FloatArray) -> dict[str, _types.FloatArray]:
+    """Tensor components of a (…, 3) or (…, 6) Kelvin vector, by name, √2 removed."""
+    dim = {3: 2, 6: 3}.get(vector.shape[-1])
+    if dim is None:
+        raise ValueError("A Kelvin vector is (…, 3) or (…, 6).")
+    vector = np.asarray(vector) / Weights(dim)
+    return {ORDER[i]: vector[..., k] for k, i in enumerate(IDX[dim])}
+
+
 def From_Voigt(C: _types.FloatArray) -> _types.FloatArray:
     """Voigt stiffness (…, 3, 3) or (…, 6, 6) → Kelvin–Mandel."""
     w = Weights(2 if C.shape[-1] == 3 else 3)

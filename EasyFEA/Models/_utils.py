@@ -5,19 +5,11 @@
 
 from abc import ABC, abstractmethod
 from functools import cached_property
-from typing import Callable
 
 # utilities
 from ..Utilities._observers import Observable
 from ..Utilities import _types
 from ..Utilities._params import Updatable, _Parameter
-from ..FEM._linalg import FeArray
-from ..FEM._kelvin_mandel import (
-    ORDER,
-    IDX,
-    R2,
-    Weights,
-)
 import numpy as np
 
 # pyright: reportPossiblyUnboundVariable=false
@@ -107,89 +99,4 @@ def Heterogeneous_Array(array) -> _types.FloatArray:
             for row in rows
         ],
         -2,
-    )
-
-
-def __Result_in_Strain_or_Stress_field(
-    field_e_pg: FeArray.FeArrayALike, result: str
-) -> _types.FloatArray:
-    """Extracts a specific result from a 2D or 3D strain or stress field.
-
-    Parameters
-    ----------
-    field_e_pg : _types.FloatArray
-        Strain or stress field in each element and gauss points.
-    result : str
-        Desired result/value to extract:\n
-            2D: [xx, yy, xy, vm, Strain, Stress] \n
-            3D: [xx, yy, zz, yz, xz, xy, vm, Strain, Stress] \n
-
-    Returns
-    -------
-    _types.FloatArray
-        The extracted field corresponding to the specified result.
-    """
-
-    assert isinstance(field_e_pg, FeArray), "must be a FeArray"
-    assert field_e_pg._ndim == 1, "must be a vector"
-
-    Ne, nPg = field_e_pg.shape[:2]
-    # rescaled below: a caller may hand over the stress it keeps
-    field_e_pg = field_e_pg.copy()
-
-    if field_e_pg.shape == (Ne, nPg, 3):
-        dim = 2
-    elif field_e_pg.shape == (Ne, nPg, 6):
-        dim = 3
-    else:
-        raise Exception("field_e_pg must be of shape (Ne, nPg, 3) or (Ne, nPg, 6)")
-
-    names = [ORDER[i] for i in IDX[dim]]
-    field_e_pg[..., Weights(dim) != 1] *= 1 / R2
-    values = {name: np.asarray(field_e_pg[:, :, i]) for i, name in enumerate(names)}
-
-    name = next((name for name in names if name in result), None)
-    if name is not None:
-        result_e_pg = values[name]
-    elif "vm" in result:
-        xx, yy, zz, yz, xz, xy = [values.get(name, 0.0) for name in ORDER]
-        result_e_pg = np.sqrt(
-            0.5
-            * (
-                (xx - yy) ** 2
-                + (yy - zz) ** 2
-                + (zz - xx) ** 2
-                + 6 * (xy**2 + yz**2 + xz**2)
-            )
-        )
-    elif result in ("Strain", "Stress", "Green-Lagrange", "Piola-Kirchhoff"):
-        result_e_pg = field_e_pg
-    else:
-        raise Exception(
-            f"result must be in [{', '.join(names)}, vm, Strain, Stress, Green-Lagrange, Piola-Kirchhoff]"
-        )
-
-    return np.asarray(result_e_pg)  # type: ignore
-
-
-def _Field_per_groupElem(
-    field_e_pg: Callable[..., FeArray.FeArrayALike], list_groupElem: list
-) -> FeArray.FeArrayALike | dict:
-    """``field_e_pg(groupElem)`` as an ``FeArray`` on one group, ``{groupElem: FeArray}`` on several."""
-    if len(list_groupElem) == 1:
-        return field_e_pg(list_groupElem[0])
-    return {groupElem: field_e_pg(groupElem) for groupElem in list_groupElem}
-
-
-def Result_strain_or_stress_field_e(
-    field: FeArray.FeArrayALike | dict,
-    result: str,
-) -> _types.FloatArray:
-    """Per-element (Ne,) component ``result`` of a strain/stress ``field`` — one ``FeArray`` or ``{groupElem: FeArray}`` concatenated in its order — Gauss points averaged."""
-    fields = field.values() if isinstance(field, dict) else [field]
-    return np.concatenate(
-        [
-            np.asarray(__Result_in_Strain_or_Stress_field(field_e_pg, result).mean(1))
-            for field_e_pg in fields
-        ]
     )

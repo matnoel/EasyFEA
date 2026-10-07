@@ -14,8 +14,7 @@ if TYPE_CHECKING:
 from ..FEM._utils import ElemType
 from ..FEM import MatrixType, FeArray, Kinematics, Operators, _GroupElem
 
-from ..Models import Result_strain_or_stress_field_e
-from ..Models._utils import _Field_per_groupElem
+from ._utils import Result_strain_or_stress_field_e, _Field_per_groupElem
 from ..Models.InElastic._behavior import _Behavior
 
 from ._simu import _Simu

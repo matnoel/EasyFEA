@@ -14,7 +14,7 @@ import numpy as np
 from .._utils import _IModel
 from ..Elastic._laws import _Elastic
 from ...FEM._linalg import FeArray
-from ...FEM import _kelvin_mandel as kelvin_mandel
+from ...FEM import _kelvin_mandel
 from ...Utilities import _params, Tic
 from ...Utilities._observers import _IObserver, Observable
 
@@ -115,7 +115,7 @@ def Newton(
 # The base class
 # ----------------------------------------------
 
-ZZ = kelvin_mandel.INDEX["zz"]
+ZZ = _kelvin_mandel.INDEX["zz"]
 
 
 class _NoInternals(NamedTuple):
@@ -294,13 +294,13 @@ class _Behavior(_IModel, _IObserver):
             if self.dim == 3:
                 sig, new = Update_named(e)
                 return sig, (sig, new)
-            eps6 = jnp.zeros(6).at[kelvin_mandel.IDX[2]].set(e)
+            eps6 = jnp.zeros(6).at[_kelvin_mandel.IDX[2]].set(e)
             if self.planeStress:
                 eps6 = eps6.at[ZZ].set(self.__Eps_zz(Update_named, eps6, z["eps_zz"]))
             sig6, new = Update_named(eps6)
             if self.planeStress:
                 new["eps_zz"] = eps6[ZZ]
-            return sig6[kelvin_mandel.IDX[2]], (sig6[kelvin_mandel.IDX[2]], new)
+            return sig6[_kelvin_mandel.IDX[2]], (sig6[_kelvin_mandel.IDX[2]], new)
 
         C_alg, (sig, z_new) = jax.jacfwd(Stress, has_aux=True)(eps)
         return sig, C_alg, z_new
@@ -320,10 +320,10 @@ class _Behavior(_IModel, _IObserver):
         state = Internals(**{name: z[name] for name in Internals._fields})
         if self.dim == 3:
             return point.Stress(eps, state, **external)
-        eps6 = jnp.zeros(6).at[kelvin_mandel.IDX[2]].set(eps)
+        eps6 = jnp.zeros(6).at[_kelvin_mandel.IDX[2]].set(eps)
         if self.planeStress:
             eps6 = eps6.at[ZZ].set(z["eps_zz"])
-        return point.Stress(eps6, state, **external)[kelvin_mandel.IDX[2]]
+        return point.Stress(eps6, state, **external)[_kelvin_mandel.IDX[2]]
 
     def __Eps_zz(
         self,
@@ -454,11 +454,11 @@ class MaterialPoint:
         """``strain`` and ``stress`` as ``(nstep, 6)``, plus one ``(nstep, ...)`` entry per internal variable; each ``external`` is ``(nstep,)``."""
         assert strain, "at least one component must be strain-controlled"
         driven = {
-            kelvin_mandel.INDEX[k]: np.asarray(v, dtype=float)
+            _kelvin_mandel.INDEX[k]: np.asarray(v, dtype=float)
             for k, v in strain.items()
         }
         targets = {
-            kelvin_mandel.INDEX[k]: np.asarray(v, dtype=float)
+            _kelvin_mandel.INDEX[k]: np.asarray(v, dtype=float)
             for k, v in (stress or {}).items()
         }
         assert not (

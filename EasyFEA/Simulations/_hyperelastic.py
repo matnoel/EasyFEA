@@ -18,8 +18,7 @@ from ..FEM import MatrixType, FeArray, Kinematics, Operators
 
 # models
 from ..FEM._kelvin_mandel import Tensor_to_Kelvin
-from ..Models import Result_strain_or_stress_field_e
-from ..Models._utils import _Field_per_groupElem
+from ._utils import Result_strain_or_stress_field_e, _Field_per_groupElem
 
 if TYPE_CHECKING:
     from ..Models.HyperElastic._laws import _HyperElastic
