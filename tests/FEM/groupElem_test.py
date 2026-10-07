@@ -8,7 +8,7 @@ from typing import Callable
 import pytest
 import numpy as np
 
-from EasyFEA import Mesher, ElemType, Mesh
+from EasyFEA import Mesher, ElemType, Mesh, MatrixType
 from EasyFEA.FEM._group_elem import GroupElemFactory
 
 L = 2
@@ -121,3 +121,12 @@ def test_globalElements_of_an_empty_group():
 
     assert globalElements.size == 0 == groupElem.Ne
     assert globalElements.dtype.kind == "i"
+
+
+@pytest.mark.parametrize("name", ["Get_dddN_pg", "Get_ddddN_pg"])
+def test_point_has_no_high_order_derivatives(name: str):
+    groupElem = GroupElemFactory.Create(
+        ElemType.POINT, np.array([[0], [1]]), np.array([[0.0, 0, 0], [1, 0, 0]])
+    )
+
+    assert getattr(groupElem, name)(MatrixType.rigi) is None

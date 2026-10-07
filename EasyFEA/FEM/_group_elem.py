@@ -1188,7 +1188,7 @@ class _GroupElem(ABC):
         ```
         Shape: ``(nPg, dim, nPe)``.
         """
-        if self.elemType == 0:
+        if self.dim == 0:
             return None  # type: ignore [return-value]
 
         dddN = self._dddN()
@@ -1223,7 +1223,7 @@ class _GroupElem(ABC):
         ```
         Shape: ``(nPg, dim, nPe)``.
         """
-        if self.elemType == 0:
+        if self.dim == 0:
             return None  # type: ignore [return-value]
 
         ddddN = self._ddddN()
