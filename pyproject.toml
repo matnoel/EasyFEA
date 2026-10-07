@@ -31,7 +31,7 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
-dev = ["mypy", "pytest", "jax"]
+dev = ["mypy", "pytest", "pytest-xdist", "jax"]
 # pinned so CI and every machine format alike
 lint = [
     "black==26.5.1",
