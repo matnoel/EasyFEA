@@ -114,3 +114,17 @@ class TestPhaseField:
 
         assert np.all(loaded > 0)
         np.testing.assert_allclose(unloaded, loaded)
+
+    def test_Get_lb_ub_keeps_the_solver(self):
+        domain = Domain((0, 0), (1, 1))
+        mesh = domain.Mesh_2D()
+        material = Models.Elastic.Isotropic(2)
+        pfm = Models.PhaseField(material, "He", "AT1", 1, 0.1)
+        pfm.solver = pfm.SolverType.BoundConstrain
+        simu = Simulations.PhaseField(mesh, pfm)
+        solver = simu.solver
+
+        lb, ub = simu.Get_lb_ub(simu.ProblemTypes.damage)
+
+        assert lb.size == ub.size == mesh.Nn
+        assert simu.solver == solver

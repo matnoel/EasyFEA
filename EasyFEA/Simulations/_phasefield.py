@@ -152,7 +152,6 @@ class PhaseField(_Simu):
                 lb = self.damage
                 lb[np.where(lb >= 1)] = 1 - np.finfo(float).eps
                 ub = np.ones(lb.shape)
-                self.solver = SolverType.lsq_linear
             else:
                 lb, ub = np.array([]), np.array([])
         else:
@@ -521,6 +520,8 @@ class PhaseField(_Simu):
     def __Solve_damage(self) -> _types.FloatArray:
         """Computes the damage field."""
 
+        if self.phaseFieldModel.solver == Models.PhaseField.SolverType.BoundConstrain:
+            self.solver = SolverType.lsq_linear
         self._Solver_Solve_problemType(self.ProblemTypes.damage)
 
         return self.damage
