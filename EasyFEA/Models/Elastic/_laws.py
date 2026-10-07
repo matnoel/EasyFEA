@@ -1118,7 +1118,7 @@ class Anisotropic(_Elastic):
                     for j, J in enumerate(idx):
                         C_mandel_global[:, :, I, J] = C_mandel[:, :, i, j]
         else:
-            C_mandel_global = C
+            C_mandel_global = C_mandel
 
         P = Get_Pmat(self.__axis1, self.__axis2)
 

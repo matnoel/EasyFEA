@@ -169,6 +169,17 @@ class TestLinearElastic:
             test_Symetry = np.linalg.norm(matC.T - matC)
             assert test_Symetry <= 1e-12
 
+    @pytest.mark.parametrize("dim", [2, 3])
+    def test_Anisot_from_voigt(self, dim: int):
+        C_kelvin = Isotropic(dim, E=210e3, v=0.3).C
+        kelvinScale = np.ones(C_kelvin.shape[0])
+        kelvinScale[dim:] = np.sqrt(2)
+        C_voigt = C_kelvin / np.outer(kelvinScale, kelvinScale)
+
+        aniso = Anisotropic(dim, C_voigt, True)
+
+        np.testing.assert_allclose(aniso.C, C_kelvin, atol=1e-6)
+
     def test_Elastic_IsotTrans(self):
 
         El = 11580
