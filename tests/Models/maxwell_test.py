@@ -65,6 +65,11 @@ def test_fractions_must_leave_an_equilibrium_spring():
         Maxwell(ELASTIC, [0.6, 0.4], [1.0, 2.0])
 
 
+def test_a_field_is_not_taken_for_branches():
+    with pytest.raises(AssertionError, match="one g and one tau per branch"):
+        Maxwell(ELASTIC, np.full((5, 4), 0.01), np.ones((5, 4)))
+
+
 def test_glassy_response_is_the_full_stiffness():
     """dt = 0: the dashpots are rigid."""
     sig, C_alg, _ = Maxwell(ELASTIC, 0.3, 1.0)._Integrate(one_point_field(EPS), dt=0.0)

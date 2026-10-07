@@ -37,7 +37,9 @@ class Maxwell(_Behavior):
         """One ``g`` and one ``tau`` per branch."""
         g_arr = np.atleast_1d(np.asarray(g, dtype=float))
         tau_arr = np.atleast_1d(np.asarray(tau, dtype=float))
-        assert g_arr.shape == tau_arr.shape, "one g and one tau per branch"
+        assert (
+            g_arr.ndim == 1 and g_arr.shape == tau_arr.shape
+        ), "one g and one tau per branch"
         assert (
             g_arr.sum() < 1.0
         ), "the branch stiffness fractions must sum to less than 1"

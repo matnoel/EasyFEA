@@ -276,6 +276,11 @@ def test_chaboche_state_is_sized_by_its_components():
     assert behavior.Virgin_internals_e_pg(5, 4)["alpha"].shape == (5, 4, 3, 6)
 
 
+def test_a_field_is_not_taken_for_back_stresses():
+    with pytest.raises(AssertionError, match="one C_X and one gamma per back-stress"):
+        Chaboche(ELASTIC, VonMises(SIGMA_Y), np.ones((5, 4)), np.ones((5, 4)))
+
+
 def test_prager_hardens_like_linear_isotropic_in_monotonic_tension():
     path = np.linspace(0.0, 6 * EPS_Y, 20)
     kin = _uniaxial(_chaboche([(C_KIN, 0.0)]), path)["stress"][:, 0]

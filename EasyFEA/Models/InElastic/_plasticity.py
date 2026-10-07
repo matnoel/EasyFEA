@@ -243,7 +243,9 @@ class Chaboche(_Plastic):
         """One ``C_X`` and one ``gamma`` per back-stress."""
         C_arr = np.atleast_1d(np.asarray(C_X, dtype=float))
         gamma_arr = np.atleast_1d(np.asarray(gamma, dtype=float))
-        assert C_arr.shape == gamma_arr.shape, "one C_X and one gamma per back-stress"
+        assert (
+            C_arr.ndim == 1 and C_arr.shape == gamma_arr.shape
+        ), "one C_X and one gamma per back-stress"
         super().__init__(
             elastic,
             surface,
