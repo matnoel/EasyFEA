@@ -80,3 +80,9 @@ class TestUSD:
             usdaFile = USD.Save_simu(simu, ["uy"], folder, fps=1)
 
             validate(usdaFile)
+
+    def test_save_simu_needs_a_simulation(self, list_mesh: list[Mesh]):
+
+        folder = Folder.Join(folder_results, "simu", mkdir=True)
+
+        assert USD.Save_simu(list_mesh[0], ["uy"], folder) is None  # type: ignore [arg-type]

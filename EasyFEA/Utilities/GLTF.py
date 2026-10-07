@@ -313,14 +313,14 @@ def Save_simu(
 
     simu, mesh, _, _ = _Init_obj(simu)  # type: ignore [assignment]
 
+    if simu is None:
+        Terminal.MyPrintError("Must give a simulation.")
+        return
+
     updatedMesh = simu.Nmesh > 1
     reconstructSurface = len(mesh.Get_list_groupElem(2)) == 0
     if not updatedMesh:
         staticMesh = Surface_reconstruction(mesh) if reconstructSurface else mesh
-
-    if simu is None:
-        Terminal.MyPrintError("Must give a simulation.")
-        return
     Niter = simu.Niter
     N = np.min([Niter, N])
     iterations = np.linspace(0, Niter - 1, N, endpoint=True, dtype=int)
