@@ -1754,7 +1754,7 @@ class _Simu(_IObserver, _params.Updatable, ABC):
 
             # Compute delta_u and the residual norm (with the applied boundary conditions)
             self.__Solver_Set_Newton_Raphson_current_solution(u)
-            delta_u, norm = Solve_simu(self, self.problemType)
+            delta_u, norm = Solve_simu(self, problemType)
             assert isinstance(norm, float)
             list_norm.append(norm)
             relNorm = norm / list_norm[0]
