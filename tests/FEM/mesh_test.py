@@ -12,7 +12,7 @@ from scipy.spatial import cKDTree
 from EasyFEA.FEM._utils import MatrixType
 from EasyFEA.FEM._linalg import FeArray
 from EasyFEA import ElemType, Mesh, Models, Simulations
-from EasyFEA.Geoms import Points, Circle, Point
+from EasyFEA.Geoms import Points, Circle, Point, Domain
 
 L = 2
 H = 1
@@ -284,6 +284,40 @@ class TestMesh:
             values = mesh.Evaluate_dofsValues_at_coordinates(coords, dofsValues)
             expected = dofsValues.reshape(-1, 2)
             np.testing.assert_allclose(values, expected, rtol=1e-9, atol=1e-12)
+
+    def test_coord_setter_notifies_simulation(self):
+        """Stretching through the setter re-solves on the new geometry."""
+
+        def solve(mesh: Mesh, simu: Simulations.Elastic) -> float:
+            simu.Bc_Init()
+            xMax = mesh.coord[:, 0].max()
+            nodesLeft = mesh.Nodes_Conditions(lambda x, y, z: x == 0)
+            nodesRight = mesh.Nodes_Conditions(lambda x, y, z: x == xMax)
+            simu.add_dirichlet(nodesLeft, [0, 0], ["x", "y"])
+            simu.add_surfLoad(nodesRight, [1.0], ["x"])
+            simu.Solve()
+            return simu.Result("ux").max()
+
+        def stretch(mesh: Mesh) -> None:
+            coord = mesh.coord
+            coord[:, 0] *= 2
+            mesh.coord = coord
+
+        mat = Models.Elastic.Isotropic(2, E=1.0, v=0.3, planeStress=True)
+
+        contour = Domain((0, 0), (1, 1), meshSize=0.25)
+
+        mesh = contour.Mesh_2D([], ElemType.QUAD4, isOrganised=True)
+        simu = Simulations.Elastic(mesh, mat)
+        solve(mesh, simu)
+        stretch(mesh)
+
+        # stretched before the simulation exists, so nothing is cached
+        meshRef = contour.Mesh_2D([], ElemType.QUAD4, isOrganised=True)
+        stretch(meshRef)
+        simuRef = Simulations.Elastic(meshRef, mat)
+
+        equal(solve(mesh, simu), solve(meshRef, simuRef), 1e-12)
 
 
 def _no_duplicate_coords(mesh: Mesh, atol: float = 1e-12) -> bool:

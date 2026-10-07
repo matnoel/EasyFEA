@@ -445,6 +445,7 @@ class Mesh(Observable):
     def coord(self, coord: _types.FloatArray) -> None:
         for groupElem in self.dict_groupElem.values():
             groupElem.coord = coord
+        self._Notify("The mesh has been modified")
 
     @property
     def connect(self) -> _types.IntArray:
