@@ -187,7 +187,7 @@ LAWS = {
 def test_potential_derivatives_match_autodiff(law: str, dim: int):
     """``Compute_dWde`` and ``Compute_d2Wde`` are the derivatives of ``Compute_W`` they claim to be.
 
-    Over every dimension, since nothing else asserts the ``_Slice_Vector`` / ``_Slice_Matrix`` step.
+    Over every dimension, since nothing else asserts the 2D/1D ``Reduce`` step.
     """
     W_point, Material, aux, in_axes = LAWS[law]
     kinematics = _kinematics(dim)

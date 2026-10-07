@@ -94,23 +94,25 @@ class _Elastic(_IModel, ABC):
     @property
     def C(self) -> _types.FloatArray:
         """Stiffness in Kelvin–Mandel notation, model dimension, global frame: ``σ = C : ε``."""
-        return self.__C_S[1].copy()
+        _, C, _ = self.__C_S
+        return C.copy()
 
     @property
     def S(self) -> _types.FloatArray:
         """Compliance in Kelvin–Mandel notation, model dimension, global frame: ``ε = S : σ``."""
-        return self.__C_S[2].copy()
+        _, _, S = self.__C_S
+        return S.copy()
 
     def _Get_C_3D(self) -> _types.FloatArray:
         """3D stiffness in Kelvin–Mandel notation, global frame, whatever ``dim``."""
-        C3 = self.__C_S[0]
+        C3, _, _ = self.__C_S
         if C3 is None:
             raise ValueError("A (3, 3) C is 2D only: it has no 3D stiffness.")
         return C3.copy()
 
     @property
     def isHeterogeneous(self) -> bool:
-        return self.__C_S[1].ndim > 2
+        return self.C.ndim > 2
 
     def Compute_Sigma(self, kinematics: "Kinematics") -> FeArray.FeArrayALike:
         """Stress ``σ = C : ε`` in Kelvin-Mandel form, shape (Ne, nPg, 3 or 6)."""
@@ -135,7 +137,7 @@ class _Elastic(_IModel, ABC):
     @cached_property
     def __sqrt_C_S(self) -> tuple:
         # C is symmetric positive definite: eigh gives the principal square root, over every leading axis at once
-        lam, Q = np.linalg.eigh(self.__C_S[1])
+        lam, Q = np.linalg.eigh(self.C)
         assert lam.min() > 0, "C must be positive definite"
         sqrt_lam = np.sqrt(lam)[..., np.newaxis, :]
         Qt = np.swapaxes(Q, -2, -1)
@@ -159,13 +161,13 @@ class _Elastic(_IModel, ABC):
         return [FeArray.asfearray(a if a.ndim == 3 else a[:, np.newaxis]) for a in axes]
 
     def _Walpole(
-        self, ci: list, Ei: list, check=True
+        self, ci: list, Ei: list
     ) -> tuple[_types.FloatArray, _types.FloatArray]:
-        """(k, …) moduli and (k, …, 6, 6) tensors at the frame's points; asserts ``Σ cᵢ Eᵢ`` is the 3D C when ``check`` and the moduli are uniform."""
+        """(k, …) moduli and (k, …, 6, 6) tensors at the frame's points; asserts ``Σ cᵢ Eᵢ`` is the 3D C when the moduli are uniform."""
         lead = np.shape(self._Axes()[0])[:-1]
         ci_ = np.stack(np.broadcast_arrays(*ci))
         Ei_ = np.stack([np.asarray(E).reshape(*lead, 6, 6) for E in Ei])
-        if check and ci_.ndim == 1:
+        if ci_.ndim == 1:
             C = self._Get_C_3D()
             diff_C = C - np.tensordot(ci_, Ei_, axes=1)
             test_C = np.linalg.norm(diff_C, axis=(-2, -1)) / np.linalg.norm(
@@ -257,8 +259,8 @@ class Isotropic(_Elastic):
         )
 
     def Walpole_Decomposition(self) -> tuple[_types.FloatArray, _types.FloatArray]:
-        c1 = self.get_bulk()
         c2 = self.get_mu()
+        c1 = self.get_lambda(3) + 2 / 3 * c2
 
         Ivect = np.array([1, 1, 1, 0, 0, 0])
         Isym = np.eye(6)
@@ -266,10 +268,7 @@ class Isotropic(_Elastic):
         E1 = 1 / 3 * TensorProd(Ivect, Ivect)
         E2 = Isym - E1
 
-        # under 2D plane stress c1 is the reduced bulk, not the 3D one
-        return self._Walpole(
-            [c1, c2], [3 * E1, 2 * E2], not (self.dim == 2 and self.planeStress)
-        )
+        return self._Walpole([c1, c2], [3 * E1, 2 * E2])
 
 
 # ----------------------------------------------
@@ -721,10 +720,6 @@ class Anisotropic(_Elastic):
         if C.shape[-2:] not in ((3, 3), (6, 6)) or C.ndim > 4:
             raise ValueError(
                 "C must be a (3, 3) or (6, 6), (Ne, …) or (Ne, nPg, …) matrix."
-            )
-        if C.shape[-1] == 3 and (self.dim == 3 or self.planeStress):
-            raise ValueError(
-                "A (3, 3) C is 2D only, with no plane stress: give a (6, 6) C."
             )
         if np.abs(C - np.swapaxes(C, -2, -1)).max() > 1e-12 * np.abs(C).max():
             raise ValueError("C must be symmetric.")

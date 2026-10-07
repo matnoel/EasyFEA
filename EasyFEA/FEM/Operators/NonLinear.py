@@ -10,6 +10,7 @@ import numpy as np
 
 from .._linalg import FeArray
 from .._utils import MatrixType
+from .. import _kelvin_mandel
 from .._kelvin_mandel import Matrix_to_Vector, Vector_to_Matrix
 from .._kinematics import Kinematics
 
@@ -251,7 +252,7 @@ def GonzalezStressTensor(
     # shares s̄'s basis; the √2 shear factor makes s̄:ΔE = s̄·Δe a plain FeArray dot.
     E_n = Matrix_to_Vector(kinematics_n.Compute_GreenLagrange())
     E_np1 = Matrix_to_Vector(kinematics_np1.Compute_GreenLagrange())
-    dE = kinematics_mid._Slice_Vector(E_np1 - E_n)
+    dE = _kelvin_mandel.Reduce(E_np1 - E_n, kinematics_mid.dim, rank=1)
 
     # numerator N = ΔW − s̄·Δe
     N = (

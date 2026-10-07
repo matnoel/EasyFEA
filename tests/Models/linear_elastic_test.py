@@ -702,7 +702,7 @@ class TestElasticPipeline:
     def test_a_3x3_C_is_2d_only(self):
         C = Isotropic(2, planeStress=False).C
         with pytest.raises(ValueError, match="2D"):
-            Anisotropic(3, C, False)
+            Anisotropic(3, C, False).C
         aniso = Anisotropic(2, C, False)
         aniso.planeStress = True
         with pytest.raises(ValueError, match="plane stress"):
@@ -786,3 +786,22 @@ def test_kelvin_components_remove_sqrt2():
     assert values == {"xx": 1.0, "yy": 2.0, "xy": pytest.approx(3.0)}
     with pytest.raises(ValueError):
         _kelvin_mandel.Components(np.zeros(4))
+
+
+@pytest.mark.parametrize("E", [210000.0, np.full(4, 210000.0)])
+@pytest.mark.parametrize("dim, planeStress", [(3, False), (2, False), (2, True)])
+def test_isotropic_C_is_the_closed_form(dim, planeStress, E):
+    v = 0.3
+    E0 = 210000.0
+    l3, mu = E0 * v / ((1 + v) * (1 - 2 * v)), E0 / (2 * (1 + v))
+    if dim == 3:
+        ref = np.diag([0, 0, 0, 2 * mu, 2 * mu, 2 * mu])
+        ref[:3, :3] = l3 + 2 * mu * np.eye(3)
+    elif planeStress:
+        ref = E0 / (1 - v**2) * np.array([[1, v, 0], [v, 1, 0], [0, 0, 1 - v]])
+    else:
+        ref = np.array([[l3 + 2 * mu, l3, 0], [l3, l3 + 2 * mu, 0], [0, 0, 2 * mu]])
+    _Assert_close(
+        Isotropic(dim, E, v, planeStress).C,
+        np.broadcast_to(ref, (*np.shape(E), *ref.shape)),
+    )

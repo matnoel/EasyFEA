@@ -15,6 +15,7 @@ from ...FEM import Kinematics
 
 # others
 from .._utils import _IModel
+from ...FEM import _kelvin_mandel
 from ...FEM._kelvin_mandel import Matrix_to_Vector
 from ...Utilities import _params, _types
 
@@ -92,7 +93,7 @@ class _HyperElastic(_IModel, ABC):
             # a rank-0 field, so FeArray._align pads it to (Ne, nPg, 1) against __TxT's (Ne, nPg, 6)
             magnitude = FeArray.asfearray(magnitude)
 
-        return kinematics._Slice_Vector(magnitude * self.__TxT)
+        return _kelvin_mandel.Reduce(magnitude * self.__TxT, kinematics.dim, rank=1)
 
     # Model
     @staticmethod
@@ -962,11 +963,15 @@ def HyperElasticPotential(
     def Compute_W(kinematics: Kinematics, *aux) -> FeArray:
         return W_field(Kelvin_C(kinematics), *aux)
 
-    def Compute_dWde(kinematics: Kinematics, *aux) -> FeArray:
-        return kinematics._Slice_Vector(2 * dW_field(Kelvin_C(kinematics), *aux))
+    def Compute_dWde(kinematics: Kinematics, *aux) -> FeArray.FeArrayALike:
+        return _kelvin_mandel.Reduce(
+            2 * dW_field(Kelvin_C(kinematics), *aux), kinematics.dim, rank=1
+        )
 
-    def Compute_d2Wde(kinematics: Kinematics, *aux) -> FeArray:
-        return kinematics._Slice_Matrix(4 * d2W_field(Kelvin_C(kinematics), *aux))
+    def Compute_d2Wde(kinematics: Kinematics, *aux) -> FeArray.FeArrayALike:
+        return _kelvin_mandel.Reduce(
+            4 * d2W_field(Kelvin_C(kinematics), *aux), kinematics.dim
+        )
 
     return (Compute_W, Compute_dWde, Compute_d2Wde)
 

@@ -58,7 +58,7 @@ def From_Voigt(C: _types.FloatArray) -> _types.FloatArray:
     return C * np.outer(w, w)
 
 
-def Reduce(x: _types.AnyArray, dim: int, rank: int = 2) -> _types.AnyArray:
+def Reduce(x: _types.AnyArray, dim: int, rank: int = 2) -> FeArray.FeArrayALike:
     """The ``dim`` components of a (…, 6) Kelvin vector (``rank=1``) or (…, 6, 6) matrix (``rank=2``)."""
     idx = IDX[dim]
     if rank == 1:
@@ -66,135 +66,38 @@ def Reduce(x: _types.AnyArray, dim: int, rank: int = 2) -> _types.AnyArray:
     return x[..., idx, :][..., idx]
 
 
-def Vector_to_Matrix(vector: _types.FloatArray, coef=R2) -> FeArray.FeArrayALike:
-    """Kelvin (…, 3) or (…, 6) vector → symmetric (…, 2, 2) or (…, 3, 3) matrix; the shear entries are divided by ``coef``."""
-    vectDim = vector.shape[-1]
-
-    assert vectDim in [3, 6], "vector must be a either (...,3) or (...,6) array."
-
-    dim = 2 if vectDim == 3 else 3
-
-    if isinstance(vector, FeArray):
-        matrix = FeArray.zeros(*vector.shape[:2], dim, dim)
-    elif isinstance(vector, np.ndarray):
-        matrix = np.zeros((*vector.shape[:2], dim, dim), dtype=float)
-    else:
-        raise ValueError("vector must be either a FeArray or a np.ndarray.")
-
-    for d in range(dim):
-        matrix[..., d, d] = vector[..., d]
-
-    if dim == 2:
-        # [x, y, xy]
-        # xy
-        matrix[..., 0, 1] = matrix[..., 1, 0] = vector[..., 2] / coef
-
-    else:
-        # [x, y, z, yz, xz, xy]
-        # yz
-        matrix[..., 1, 2] = matrix[..., 2, 1] = vector[..., 3] / coef
-        # xz
-        matrix[..., 0, 2] = matrix[..., 2, 0] = vector[..., 4] / coef
-        # xy
-        matrix[..., 0, 1] = matrix[..., 1, 0] = vector[..., 5] / coef
-
-    return matrix
+def _Basis(dim: int) -> _types.FloatArray:
+    """(n, dim·dim) flattened Kelvin basis tensors of the ``dim`` components."""
+    idx = IDX[dim]
+    return BASIS[idx][:, :dim, :dim].reshape(idx.size, dim * dim)
 
 
-def Matrix_to_Vector(matrix: _types.FloatArray, coef=R2) -> FeArray.FeArrayALike:
-    """Symmetric (…, 2, 2) or (…, 3, 3) matrix → Kelvin (…, 3) or (…, 6) vector; the shear entries are multiplied by ``coef``."""
-    matrixDim = matrix.shape[-1]
+def Vector_to_Matrix(vector: _types.FloatArray) -> FeArray.FeArrayALike:
+    """Kelvin (…, 3) or (…, 6) vector → symmetric (…, 2, 2) or (…, 3, 3) matrix."""
+    dim = {3: 2, 6: 3}[vector.shape[-1]]
+    return (vector @ _Basis(dim)).reshape(*vector.shape[:-1], dim, dim)
 
-    assert matrixDim in [2, 3], "matrix must be a either (...,2,2) or (...,3,3) array."
 
-    dim = 3 if matrixDim == 2 else 6
-
-    if isinstance(matrix, FeArray):
-        vector = FeArray.zeros(*matrix.shape[:2], dim)
-    elif isinstance(matrix, np.ndarray):
-        vector = np.zeros((*matrix.shape[:2], dim))
-    else:
-        raise ValueError("matrix must be either a FeArray or a np.ndarray.")
-
-    if dim == 3:
-        # [x, y, xy]
-        vector[..., 0] = matrix[..., 0, 0]  # x
-        vector[..., 1] = matrix[..., 1, 1]  # y
-        vector[..., 2] = matrix[..., 0, 1] * coef  # xy
-
-    else:
-        # [x, y, z, yz, xz, xy]
-        vector[..., 0] = matrix[..., 0, 0]  # x
-        vector[..., 1] = matrix[..., 1, 1]  # y
-        vector[..., 2] = matrix[..., 2, 2]  # z
-        vector[..., 3] = matrix[..., 1, 2] * coef  # yz
-        vector[..., 4] = matrix[..., 0, 2] * coef  # xz
-        vector[..., 5] = matrix[..., 0, 1] * coef  # xy
-
-    return vector
+def Matrix_to_Vector(matrix: _types.FloatArray) -> FeArray.FeArrayALike:
+    """(…, 2, 2) or (…, 3, 3) matrix → Kelvin (…, 3) or (…, 6) vector of its symmetric part."""
+    dim = matrix.shape[-1]
+    return matrix.reshape(*matrix.shape[:-2], dim * dim) @ _Basis(dim).T
 
 
 def Tensor_to_Kelvin(
     A: _types.FloatArray, orderA: int | None = None
-) -> _types.FloatArray:
+) -> FeArray.FeArrayALike:
     """Order-2 (…, 3, 3) or order-4 (…, 3, 3, 3, 3) tensor → Kelvin–Mandel (…, 6) or (…, 6, 6); ``orderA`` inferred when None."""
-
-    shapeA = A.shape
-
     if orderA is None:
-        tensorShape = shapeA[2:] if isinstance(A, FeArray) else shapeA
-        assert (
-            np.std(tensorShape) == 0
-        ), "Must have the same number of indices in all dimensions."
-        orderA = len(tensorShape)
-
-    # for xx, yy, zz, yz, xz, zy
-    e = np.array([[0, 5, 4], [5, 1, 3], [4, 3, 2]])
-
-    def kron(a, b):
-        return 1 if a == b else 0
-
+        orderA = len(A.shape[2:] if isinstance(A, FeArray) else A.shape)
+    if A.shape[-orderA:] != (3,) * orderA:
+        raise ValueError(f"A must be a (…, {', '.join('3' * orderA)}) tensor.")
     if orderA == 2:
-        # Aij -> AI
-        assert shapeA[-2:] == (3, 3), "Must be a (3,3) array"
-
-        A_I = np.zeros((*shapeA[:-2], 6))
-
-        def add(i: int, j: int) -> None:  # type: ignore
-            A_I[..., e[i, j]] = np.sqrt(2 - kron(i, j)) * A[..., i, j]
-
-        [add(i, j) for i in range(3) for j in range(3)]  # type: ignore [func-returns-value]
-
-        res = A_I
-
-    elif orderA == 4:
-        # Aijkl -> AIJ
-        assert shapeA[-4:] == (3, 3, 3, 3), "Must be a (3,3,3,3) array"
-
-        A_IJ = np.zeros((*shapeA[:-4], 6, 6))
-
-        def add(i: int, j: int, k: int, l: int) -> None:  # type: ignore [misc]
-            A_IJ[..., e[i, j], e[k, l]] = (
-                np.sqrt((2 - kron(i, j)) * (2 - kron(k, l))) * A[..., i, j, k, l]
-            )
-
-        [
-            add(i, j, k, l)  # type: ignore [call-arg, func-returns-value]
-            for i in range(3)
-            for j in range(3)
-            for k in range(3)
-            for l in range(3)
-        ]
-
-        res = A_IJ
-
-    else:
-        raise Exception("Not implemented.")
-
-    if isinstance(A, FeArray):
-        res = FeArray.asfearray(res)
-
-    return res
+        return Matrix_to_Vector(A)
+    if orderA == 4:
+        basis = _Basis(3)
+        return basis @ A.reshape(*A.shape[:-4], 9, 9) @ basis.T
+    raise ValueError("A must be an order 2 or 4 tensor.")
 
 
 def Normalise_axes(
@@ -235,13 +138,10 @@ def Get_Pmat(axis_1: _types.FloatArray, axis_2: _types.FloatArray, useMandel=Tru
     if dim == 2:
         p11, p12 = axis_1
         p21, p22 = axis_2
-    elif dim == 3:
-        axis_3 = axes[2]
+    else:
         p11, p12, p13 = axis_1
         p21, p22, p23 = axis_2
-        p31, p32, p33 = axis_3
-    else:
-        raise TypeError("dim error")
+        p31, p32, p33 = axes[2]
 
     # p[i, k] = axis_k[i]
     p = np.swapaxes(axes, 0, 1)
@@ -255,7 +155,7 @@ def Get_Pmat(axis_1: _types.FloatArray, axis_2: _types.FloatArray, useMandel=Tru
 
         D2 = np.array([[p11 * p22 + p21 * p12]])
 
-    elif dim == 3:
+    else:
         A = np.array(
             [
                 [p21 * p31, p11 * p31, p11 * p21],
@@ -281,11 +181,10 @@ def Get_Pmat(axis_1: _types.FloatArray, axis_2: _types.FloatArray, useMandel=Tru
         )
 
     if useMandel:
-        cM = np.sqrt(2)
         Pmat = np.concatenate(
             (
-                np.concatenate((D1, cM * A), axis=1),
-                np.concatenate((cM * B, D2), axis=1),
+                np.concatenate((D1, R2 * A), axis=1),
+                np.concatenate((R2 * B, D2), axis=1),
             ),
             axis=0,
         )
