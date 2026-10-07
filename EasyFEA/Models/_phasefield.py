@@ -211,7 +211,7 @@ class PhaseField(_IModel):
         text += f"\n\n{type(self).__name__} :"
         text += f"\nsplit : {self.split}"
         text += f"\nregularization : {self.regularization}"
-        text += f"\nGc : {self.Gc:.4e}"
+        text += f"\nGc : {self.Gc}"
         text += f"\nl0 : {self.l0:.4e}"
         return text
 

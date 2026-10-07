@@ -390,6 +390,28 @@ class TestLinearElastic:
         assert np.linalg.norm(sqrtS @ sqrtS - S) / np.linalg.norm(S) < 1e-12
         assert np.linalg.norm(sqrtC @ sqrtS - np.eye(6)) < 1e-12
 
+    @pytest.mark.parametrize("shape", [(), (11,), (11, 4)])
+    def test_str_heterogeneous(self, shape: tuple):
+        """Printing a material works whatever the shape of its parameters."""
+        E = np.full(shape, 210e3)
+        for material in (
+            Isotropic(2, E=E, v=0.3),
+            TransverselyIsotropic(2, El=E, Et=800, Gl=500, vl=0.3, vt=0.4),
+            Orthotropic(
+                3,
+                E,
+                800,
+                500,
+                200,
+                300,
+                400,
+                0.3,
+                0.25,
+                0.4,
+            ),
+        ):
+            assert str(E) in str(material)
+
     def test_getPmat(self):
 
         Ne = 10

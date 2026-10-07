@@ -269,7 +269,7 @@ class Isotropic(_Elastic):
 
     def __str__(self) -> str:
         text = f"{type(self).__name__}:"
-        text += f"\nE = {self.E:.2e}, v = {self.v}"
+        text += f"\nE = {self.E}, v = {self.v}"
         if self.dim == 2:
             text += f"\nplaneStress = {self.planeStress}"
             text += f"\nthickness = {self.thickness:.2e}"
@@ -451,7 +451,7 @@ class TransverselyIsotropic(_Elastic):
 
     def __str__(self) -> str:
         text = f"{type(self).__name__}:"
-        text += f"\nEl = {self.El:.2e}, Et = {self.Et:.2e}, Gl = {self.Gl:.2e}"
+        text += f"\nEl = {self.El}, Et = {self.Et}, Gl = {self.Gl}"
         text += f"\nvl = {self.vl}, vt = {self.vt}"
         text += f"\naxis_l = {np.array_str(self.axis_l, precision=3)}"
         text += f"\naxis_t = {np.array_str(self.axis_t, precision=3)}"
@@ -699,15 +699,15 @@ class Orthotropic(_Elastic):
 
     def __str__(self) -> str:
         text = f"{type(self).__name__}:"
-        text += f"\nE1 = {self.E1:.2e}"
-        text += f"\nE2 = {self.E2:.2e}"
-        text += f"\nE3 = {self.E3:.2e}"
-        text += f"\nG23 = {self.G23:.2e}"
-        text += f"\nG13 = {self.G13:.2e}"
-        text += f"\nG12 = {self.G12:.2e}"
-        text += f"\nv23 = {self.v23:.2e}"
-        text += f"\nv13 = {self.v13:.2e}"
-        text += f"\nv12 = {self.v12:.2e}"
+        text += f"\nE1 = {self.E1}"
+        text += f"\nE2 = {self.E2}"
+        text += f"\nE3 = {self.E3}"
+        text += f"\nG23 = {self.G23}"
+        text += f"\nG13 = {self.G13}"
+        text += f"\nG12 = {self.G12}"
+        text += f"\nv23 = {self.v23}"
+        text += f"\nv13 = {self.v13}"
+        text += f"\nv12 = {self.v12}"
         text += f"\naxis_1 = {np.array_str(self.axis_1, precision=3)}"
         text += f"\naxis_2 = {np.array_str(self.axis_1, precision=3)}"
         if self.dim == 2:
