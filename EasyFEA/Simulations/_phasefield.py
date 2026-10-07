@@ -645,9 +645,6 @@ class PhaseField(_Simu):
         if result in ["Wdef"]:
             return self._Calc_Psi_Elas()
 
-        elif result == "Wdef_e":
-            values = self._Calc_Psi_Elas(returnScalar=False)
-
         elif result == "Psi_Crack":
             return self._Calc_Psi_Crack()
 
