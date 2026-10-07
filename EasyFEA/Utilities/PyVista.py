@@ -205,7 +205,7 @@ def Plot(
             cmap=cmap,
             n_colors=nColors,
             clim=clim,
-            scalar_bar_args=scalar_bar_args,
+            scalar_bar_args=scalar_bar_args,  # type: ignore [arg-type]
             **kwargs,
         )
 
@@ -352,7 +352,7 @@ def Plot_Nodes(
 
     if showId:
         myLabels: list[str] = [f"{node}" for node in nodes]
-        pvData["myLabels"] = myLabels  # type: ignore [assignment]
+        pvData["myLabels"] = myLabels  # type: ignore [type-var]
         plotter.add_point_labels(
             pvData, "myLabels", point_color=color, render_points_as_spheres=True
         )
@@ -449,7 +449,7 @@ def Plot_Elements(
             centers = np.mean(coord[groupElem.connect[elements]], axis=1)
             pvData = pv.PolyData(centers)
             myLabels = [f"{element}" for element in elements]
-            pvData["myLabels"] = myLabels  # type: ignore [assignment]
+            pvData["myLabels"] = myLabels  # type: ignore [type-var]
             plotter.add_point_labels(
                 pvData, "myLabels", point_color="k", render_points_as_spheres=True
             )
@@ -513,8 +513,8 @@ def Plot_Arrows(
 
     magnitude = mesh._Get_realistic_vector_magnitude(magnitudeCoef)
     plotter.add_arrows(
-        coord[nodes],
-        vectors,
+        coord[nodes],  # type: ignore [arg-type]
+        vectors,  # type: ignore [arg-type]
         magnitude,
         opacity=alpha,
         color=color,
@@ -654,7 +654,7 @@ def Plot_BoundaryConditions(
             else:
                 # here the arrow will end at the node coordinates
                 plotter.add_arrows(
-                    start - vector * factor, vector, factor, label=label, color=color
+                    start - vector * factor, vector, factor, label=label, color=color  # type: ignore [arg-type]
                 )
 
             if True in [direction in unknowns_rot for direction in unknowns]:
@@ -668,7 +668,7 @@ def Plot_BoundaryConditions(
                 else:
                     # here the arrow will end at the node coordinates
                     plotter.add_arrows(
-                        start, vector, factor / 2, label=label, color=color
+                        start, vector, factor / 2, label=label, color=color  # type: ignore [arg-type]
                     )
 
     if len(boundaryConditions) > 0:
@@ -780,12 +780,12 @@ def Plot_Tags(
                 else:
                     center = np.mean(center_e[elements], axis=0)
                 plotter.add_point_labels(
-                    center.reshape(1, 3), [tag_e], always_visible=True
+                    center.reshape(1, 3), [tag_e], always_visible=True  # type: ignore [arg-type]
                 )
 
     tic.Tac("PyVista", "Plot_Tags")
 
-    plotter.add_legend()
+    plotter.add_legend()  # type: ignore [call-arg]
 
     return plotter
 
@@ -1043,8 +1043,8 @@ def _setCameraPosition(
         # sensible clipping range from it; aspect ratio is preserved (VTK cannot
         # stretch axes independently), so the non-limiting axis shows a bit extra.
         if inDim == 2:
-            plotter.enable_parallel_projection()
-        plotter.reset_camera(bounds=bounds)
+            plotter.enable_parallel_projection()  # type: ignore [call-arg]
+        plotter.reset_camera(bounds=bounds)  # type: ignore [call-arg]
 
 
 @requires_pyvista
@@ -1093,15 +1093,15 @@ def _pvGeom(geom) -> pv.DataSet | list[pv.DataSet]:
 
 @_pvGeom.register
 def _(line: Geoms.Line):
-    return pv.Line(line.pt1.coord, line.pt2.coord)
+    return pv.Line(line.pt1.coord, line.pt2.coord)  # type: ignore [arg-type]
 
 
 @_pvGeom.register
 def _(circleArc: Geoms.CircleArc):
     return pv.CircularArc(
-        pointa=circleArc.pt1.coord,
-        pointb=circleArc.pt2.coord,
-        center=circleArc.center.coord,
+        pointa=circleArc.pt1.coord,  # type: ignore [arg-type]
+        pointb=circleArc.pt2.coord,  # type: ignore [arg-type]
+        center=circleArc.center.coord,  # type: ignore [arg-type]
         negative=circleArc.coef == -1,
     )
 
@@ -1122,12 +1122,12 @@ def _(geom: Geoms.Domain):
 @_pvGeom.register
 def _(geom: Geoms.Circle):
     arc1 = pv.CircularArc(
-        pointa=geom.pt1.coord, pointb=geom.pt3.coord, center=geom.center.coord
+        pointa=geom.pt1.coord, pointb=geom.pt3.coord, center=geom.center.coord  # type: ignore [arg-type]
     )
     arc2 = pv.CircularArc(
-        pointa=geom.pt1.coord,
-        pointb=geom.pt3.coord,
-        center=geom.center.coord,
+        pointa=geom.pt1.coord,  # type: ignore [arg-type]
+        pointb=geom.pt3.coord,  # type: ignore [arg-type]
+        center=geom.center.coord,  # type: ignore [arg-type]
         negative=True,
     )
     return [arc1, arc2]
