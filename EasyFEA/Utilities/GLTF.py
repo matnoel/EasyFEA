@@ -316,7 +316,7 @@ def Save_simu(
     updatedMesh = simu.Nmesh > 1
     reconstructSurface = len(mesh.Get_list_groupElem(2)) == 0
     if not updatedMesh:
-        list_mesh = Surface_reconstruction(mesh) if reconstructSurface else mesh
+        staticMesh = Surface_reconstruction(mesh) if reconstructSurface else mesh
 
     if simu is None:
         Terminal.MyPrintError("Must give a simulation.")
@@ -328,27 +328,26 @@ def Save_simu(
     for result in results:
 
         # init list
-        list_displacementMatrix: list[np.ndarray] = [None] * N
-        list_nodesValues_n: list[np.ndarray] = [None] * N
-        if updatedMesh:
-            list_mesh: list[Mesh] = [None] * N
+        list_displacementMatrix: list[np.ndarray] = []
+        list_nodesValues_n: list[np.ndarray] = []
+        list_mesh: list[Mesh] = []
 
         # activates the first iteration
         simu.Set_Iter(0, resetAll=True)
 
         # get values
-        for i, iter in enumerate(iterations):
+        for iter in iterations:
             simu.Set_Iter(iter)
             if updatedMesh:
-                list_mesh[i] = (
+                list_mesh.append(
                     Surface_reconstruction(simu.mesh)
                     if reconstructSurface
                     else simu.mesh
                 )
-            list_displacementMatrix[i] = (
+            list_displacementMatrix.append(
                 deformFactor * simu.Results_displacement_matrix()
             )
-            list_nodesValues_n[i] = simu.Result(result).reshape(simu.mesh.Nn, -1)
+            list_nodesValues_n.append(simu.Result(result).reshape(simu.mesh.Nn, -1))
 
         if N > 1:
             list_displacementMatrix.append(list_displacementMatrix[0])
@@ -366,7 +365,7 @@ def Save_simu(
         # save each dofs
         for d in range(dof_n):
             Save_mesh(
-                mesh=list_mesh,
+                mesh=list_mesh if updatedMesh else staticMesh,
                 folder=folder,
                 filename=f"{result}{unknowns[d]}",
                 list_displacementMatrix=list_displacementMatrix,
@@ -379,7 +378,7 @@ def Save_simu(
 
         if dof_n > 1:
             Save_mesh(
-                mesh=list_mesh,
+                mesh=list_mesh if updatedMesh else staticMesh,
                 folder=folder,
                 filename=f"{result}_norm",
                 list_displacementMatrix=list_displacementMatrix,
@@ -395,7 +394,7 @@ def Save_simu(
 @rank0_only
 @requires_pygltflib
 def Save_mesh(
-    mesh: Mesh,
+    mesh: Mesh | list[Mesh],
     folder: str,
     filename: str = "mesh",
     list_displacementMatrix: list[np.ndarray] = [],
@@ -431,11 +430,8 @@ def Save_mesh(
     """
 
     updatedMesh = isinstance(mesh, list)
-    if updatedMesh:
-        list_mesh = mesh
-        mesh = list_mesh[0]
-    else:
-        list_mesh = [mesh]
+    list_mesh = mesh if isinstance(mesh, list) else [mesh]
+    mesh = list_mesh[0]
 
     assert mesh.dim >= 2
 
