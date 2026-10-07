@@ -198,7 +198,7 @@ class Mesher:
             # If occ is used, checks whether objects have already been synchronized.
             ents1 = factory.getEntities()  # type: ignore
             ents2 = gmsh.model.getEntities()
-            if len(ents1) is not len(ents2):  # type: ignore
+            if len(ents1) != len(ents2):  # type: ignore
                 # Entities are not up to date
                 factory.synchronize()
         else:
