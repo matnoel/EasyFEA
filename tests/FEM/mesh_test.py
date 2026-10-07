@@ -491,3 +491,11 @@ class TestMeshMerge:
                 assert {tuple(sorted(e)) for e in tagged} == {
                     tuple(sorted(e)) for e in expected
                 }
+
+
+def test_Get_normals_rejects_an_out_of_range_node():
+    domain = Domain((0, 0), (1, 1), 0.5)
+    mesh = domain.Mesh_2D([], ElemType.QUAD4, isOrganised=True)
+
+    with pytest.raises(AssertionError):
+        mesh.Get_normals(np.array([mesh.Nn]))

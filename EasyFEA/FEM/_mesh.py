@@ -581,7 +581,7 @@ class Mesh(Observable):
         if nodes is None:
             nodes = self.nodes
 
-        assert nodes.max() <= self.Nn
+        assert nodes.max() < self.Nn
 
         dim = self.dim
         list_normal = []
