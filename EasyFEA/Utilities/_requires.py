@@ -4,6 +4,15 @@
 # EasyFEA is distributed under the terms of the GNU General Public License v3, see LICENSE.txt and CREDITS.md for more information.
 
 from functools import wraps
+from importlib.util import find_spec
+
+
+def _Is_available(module: str) -> bool:
+    """Whether `module` can be imported, without importing it."""
+    try:
+        return find_spec(module) is not None
+    except (ImportError, ValueError):
+        return False
 
 
 def Create_requires_decorator(*modules: str, libraries: list[str] = None):
@@ -15,11 +24,7 @@ def Create_requires_decorator(*modules: str, libraries: list[str] = None):
         A decorator that raises an ImportError if the modules are not available.
     """
 
-    try:
-        [__import__(module) for module in modules]
-        can_use_modules = True
-    except ImportError:
-        can_use_modules = False
+    can_use_modules = all(_Is_available(module) for module in modules)
 
     if libraries is None:
         libraries = modules

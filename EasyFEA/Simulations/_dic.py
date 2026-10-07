@@ -13,17 +13,12 @@ import pickle
 # utilities
 from ..Utilities import Tic, Folder, Terminal, _types
 from ..Utilities._observers import Observable, _IObserver
-from ..Utilities._requires import Create_requires_decorator
+from ..Utilities._requires import Create_requires_decorator, _Is_available
 
 # fem
 from ..FEM import Mesh, BoundaryCondition, FeArray, MatrixType
 
-try:
-    import cv2
-
-    CAN_USE_CV2 = True
-except ImportError:
-    CAN_USE_CV2 = False
+CAN_USE_CV2 = _Is_available("cv2")
 requires_cv2 = Create_requires_decorator("cv2", libraries=["opencv-python"])
 
 
@@ -373,6 +368,8 @@ class DIC(_IObserver):
         self, img1: _types.FloatArray, img2: _types.FloatArray
     ) -> _types.FloatArray:
         """Use open cv to calculate displacements between images."""
+
+        import cv2
 
         # get the optical flow
         DIS = cv2.DISOpticalFlow_create()  # type: ignore
