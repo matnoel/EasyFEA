@@ -433,10 +433,8 @@ class Kinematics:
         dI1dC = np.array([1, 1, 1, 0, 0, 0])
 
         Ne, nPg = self._GetDims()[:2]
-        return _kelvin_mandel.Reduce(
-            FeArray.broadcast(dI1dC, Ne, nPg, tensor_shape=dI1dC.shape),
-            self.dim,
-            rank=1,
+        return _kelvin_mandel.Reduce_vector(
+            FeArray.broadcast(dI1dC, Ne, nPg, tensor_shape=dI1dC.shape), self.dim
         )
 
     def Compute_d2I1dC(self) -> FeArray.FeArrayALike:
@@ -448,7 +446,7 @@ class Kinematics:
             d2I1dC of shape (d, d), where `d = 1, 3, 6` depending on whether the solution dimension is `1D`, `2D`, or `3D`.
         """
 
-        return _kelvin_mandel.Reduce(FeArray.zeros(1, 1, 6, 6), self.dim)
+        return _kelvin_mandel.Reduce_matrix(FeArray.zeros(1, 1, 6, 6), self.dim)
 
     # -------------------------------------
     # Compute I2
@@ -495,7 +493,7 @@ class Kinematics:
         dI2dC_e_pg[:, :, 4] = coef * cxz
         dI2dC_e_pg[:, :, 5] = coef * cxy
 
-        return _kelvin_mandel.Reduce(dI2dC_e_pg, self.dim, rank=1)
+        return _kelvin_mandel.Reduce_vector(dI2dC_e_pg, self.dim)
 
     def Compute_d2I2dC(self) -> FeArray.FeArrayALike:
         """Computes d2I2dC(u)
@@ -518,7 +516,7 @@ class Kinematics:
         )
 
         Ne, nPg = self._GetDims()[:2]
-        return _kelvin_mandel.Reduce(
+        return _kelvin_mandel.Reduce_matrix(
             FeArray.broadcast(d2I2dC, Ne, nPg, tensor_shape=d2I2dC.shape), self.dim
         )
 
@@ -573,7 +571,7 @@ class Kinematics:
         dI3dC_e_pg[:, :, 4] = coef * (cxy * cyz - cxz * cyy)
         dI3dC_e_pg[:, :, 5] = coef * (-cxy * czz + cxz * cyz)
 
-        return _kelvin_mandel.Reduce(dI3dC_e_pg, self.dim, rank=1)
+        return _kelvin_mandel.Reduce_vector(dI3dC_e_pg, self.dim)
 
     @cache_computed_values
     def Compute_d2I3dC(self) -> FeArray.FeArrayALike:
@@ -608,7 +606,7 @@ class Kinematics:
         d2I3dC_e_pg[:, :, 3, 5] = d2I3dC_e_pg[:, :, 5, 3] = cxz
         d2I3dC_e_pg[:, :, 4, 5] = d2I3dC_e_pg[:, :, 5, 4] = cyz
 
-        return _kelvin_mandel.Reduce(d2I3dC_e_pg, self.dim)
+        return _kelvin_mandel.Reduce_matrix(d2I3dC_e_pg, self.dim)
 
     # -------------------------------------
     # Compute Anisotropic Invariants
@@ -679,7 +677,7 @@ class Kinematics:
         firstDerivatives[:, :, 4] = coef * (T1x * T2z + T1z * T2x)
         firstDerivatives[:, :, 5] = coef * (T1x * T2y + T1y * T2x)
 
-        return _kelvin_mandel.Reduce(firstDerivatives, self.dim, rank=1)
+        return _kelvin_mandel.Reduce_vector(firstDerivatives, self.dim)
 
     # -------------------------------------
     # Compute I4
@@ -730,7 +728,7 @@ class Kinematics:
             d2I4dC of shape (d, d), where `d = 1, 3, 6` depending on whether the solution dimension is `1D`, `2D`, or `3D`.
         """
 
-        return _kelvin_mandel.Reduce(FeArray.zeros(1, 1, 6, 6), self.dim)
+        return _kelvin_mandel.Reduce_matrix(FeArray.zeros(1, 1, 6, 6), self.dim)
 
     # -------------------------------------
     # Compute I6

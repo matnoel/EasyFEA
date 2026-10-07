@@ -252,7 +252,7 @@ def GonzalezStressTensor(
     # shares s̄'s basis; the √2 shear factor makes s̄:ΔE = s̄·Δe a plain FeArray dot.
     E_n = Matrix_to_Vector(kinematics_n.Compute_GreenLagrange())
     E_np1 = Matrix_to_Vector(kinematics_np1.Compute_GreenLagrange())
-    dE = _kelvin_mandel.Reduce(E_np1 - E_n, kinematics_mid.dim, rank=1)
+    dE = _kelvin_mandel.Reduce_vector(E_np1 - E_n, kinematics_mid.dim)
 
     # numerator N = ΔW − s̄·Δe
     N = (

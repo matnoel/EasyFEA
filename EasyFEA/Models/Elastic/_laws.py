@@ -84,10 +84,10 @@ class _Elastic(_IModel, ABC):
                 C = C3
                 S = np.linalg.inv(C)
             elif self.planeStress:
-                S = _kelvin_mandel.Reduce(np.linalg.inv(C3), 2)
+                S = _kelvin_mandel.Reduce_matrix(np.linalg.inv(C3), 2)
                 C = np.linalg.inv(S)
             else:
-                C = _kelvin_mandel.Reduce(C3, 2)
+                C = _kelvin_mandel.Reduce_matrix(C3, 2)
                 S = np.linalg.inv(C)
         return C3, C, S
 
@@ -152,7 +152,7 @@ class _Elastic(_IModel, ABC):
         """The 2 first axes of the material frame, (…, 3) each."""
         return np.array([1.0, 0, 0]), np.array([0, 1.0, 0])
 
-    def _Frame_fields(self) -> list[FeArray.FeArrayALike]:
+    def _Unit_axes(self) -> list[FeArray.FeArrayALike]:
         """The 3 unit frame axes: (3,) each, or (Ne, nPg, 3) FeArrays, (Ne, 3) held at one point."""
         axis_1, axis_2 = _kelvin_mandel.Normalise_axes(*self._Axes())
         axes = [axis_1, axis_2, np.cross(axis_1, axis_2)]
@@ -410,7 +410,7 @@ class TransverselyIsotropic(_Elastic):
         c4 = 2 * Gt
         c5 = 2 * Gl
 
-        n = self._Frame_fields()[0]
+        n = self._Unit_axes()[0]
         p = TensorProd(n, n)
         q = np.eye(3) - p
 
@@ -506,7 +506,7 @@ class Orthotropic(_Elastic):
             Poisson's ratio for transverse strain along the axis_2 when stressed along the axis_1.
         axis_1 : _types.Coords, optional
             Axis 1, by default np.array([1,0,0])
-        axis_t : _types.Coords, optional
+        axis_2 : _types.Coords, optional
             Axis 2, by default np.array([0,1,0])
         planeStress : bool, optional
             uses plane stress assumption, by default True
@@ -541,74 +541,15 @@ class Orthotropic(_Elastic):
     def _Axes(self) -> tuple[_types.FloatArray, _types.FloatArray]:
         return self.axis_1, self.axis_2
 
-    def __get_params(self) -> list[float | _types.FloatArray]:
-        """Returns E1, E2, E3, G23, G13, G12, v23, v13, v12"""
-        E1 = self.E1
-        E2 = self.E2
-        E3 = self.E3
-        G23 = self.G23
-        G13 = self.G13
-        G12 = self.G12
-        v23 = self.v23
-        v13 = self.v13
-        v12 = self.v12
-        return [E1, E2, E3, G23, G13, G12, v23, v13, v12]
-
-    def __get_cij_denominator(self) -> float | _types.FloatArray:
-        """Returns c11, c22, c33, c23, c13, c12 denominator"""
-        E1, E2, E3, _, _, _, v23, v13, v12 = self.__get_params()
-        return (
-            -E1 * E2
-            + E1 * E3 * v23**2
-            + E2**2 * v12**2
-            + 2 * E2 * E3 * v12 * v13 * v23
-            + E2 * E3 * v13**2
-        )
-
-    @property
-    def _c11(self) -> float | _types.FloatArray:
-        E1, E2, E3, _, _, _, v23, _, _ = self.__get_params()
-        return E1**2 * (-E2 + E3 * v23**2) / self.__get_cij_denominator()
-
-    @property
-    def _c22(self) -> float | _types.FloatArray:
-        E1, E2, E3, _, _, _, _, v13, _ = self.__get_params()
-        return E2**2 * (-E1 + E3 * v13**2) / self.__get_cij_denominator()
-
-    @property
-    def _c33(self) -> float | _types.FloatArray:
-        E1, E2, E3, _, _, _, _, _, v12 = self.__get_params()
-        return E2 * E3 * (-E1 + E2 * v12**2) / self.__get_cij_denominator()
-
-    @property
-    def _c44(self) -> float | _types.FloatArray:
-        return 2 * self.G23
-
-    @property
-    def _c55(self) -> float | _types.FloatArray:
-        return 2 * self.G13
-
-    @property
-    def _c66(self) -> float | _types.FloatArray:
-        return 2 * self.G12
-
-    @property
-    def _c23(self) -> float | _types.FloatArray:
-        E1, E2, E3, _, _, _, v23, v13, v12 = self.__get_params()
-        return -E2 * E3 * (E1 * v23 + E2 * v12 * v13) / self.__get_cij_denominator()
-
-    @property
-    def _c13(self) -> float | _types.FloatArray:
-        E1, E2, E3, _, _, _, v23, v13, v12 = self.__get_params()
-        return -E1 * E2 * E3 * (v12 * v23 + v13) / self.__get_cij_denominator()
-
-    @property
-    def _c12(self) -> float | _types.FloatArray:
-        E1, E2, E3, _, _, _, v23, v13, v12 = self.__get_params()
-        return -E1 * E2 * (E2 * v12 + E3 * v13 * v23) / self.__get_cij_denominator()
-
     def _Material_C(self) -> _types.FloatArray:
-        E1, E2, E3, _, _, _, v23, v13, v12 = self.__get_params()
+        E1, E2, E3, v23, v13, v12 = (
+            self.E1,
+            self.E2,
+            self.E3,
+            self.v23,
+            self.v13,
+            self.v12,
+        )
 
         bounds = {
             "|v23| < sqrt(E2 / E3)": np.abs(v23) < np.sqrt(E2 / E3),
@@ -619,22 +560,36 @@ class Orthotropic(_Elastic):
             if not np.all(holds):
                 raise ValueError(f"Orthotropic moduli must satisfy {bound}.")
 
+        d = (
+            -E1 * E2
+            + E1 * E3 * v23**2
+            + E2**2 * v12**2
+            + 2 * E2 * E3 * v12 * v13 * v23
+            + E2 * E3 * v13**2
+        )
+        c11 = E1**2 * (-E2 + E3 * v23**2) / d
+        c22 = E2**2 * (-E1 + E3 * v13**2) / d
+        c33 = E2 * E3 * (-E1 + E2 * v12**2) / d
+        c23 = -E2 * E3 * (E1 * v23 + E2 * v12 * v13) / d
+        c13 = -E1 * E2 * E3 * (v12 * v23 + v13) / d
+        c12 = -E1 * E2 * (E2 * v12 + E3 * v13 * v23) / d
+
         # axes (1, 2, 3)
         return Heterogeneous_Array(
             [
-                [self._c11, self._c12, self._c13, 0, 0, 0],
-                [self._c12, self._c22, self._c23, 0, 0, 0],
-                [self._c13, self._c23, self._c33, 0, 0, 0],
-                [0, 0, 0, self._c44, 0, 0],
-                [0, 0, 0, 0, self._c55, 0],
-                [0, 0, 0, 0, 0, self._c66],
+                [c11, c12, c13, 0, 0, 0],
+                [c12, c22, c23, 0, 0, 0],
+                [c13, c23, c33, 0, 0, 0],
+                [0, 0, 0, 2 * self.G23, 0, 0],
+                [0, 0, 0, 0, 2 * self.G13, 0],
+                [0, 0, 0, 0, 0, 2 * self.G12],
             ]
         )
 
     def Walpole_Decomposition(self) -> tuple[_types.FloatArray, _types.FloatArray]:
         # see section 3.6: https://doi.org/10.1007/s10659-012-9396-z
 
-        a, b, c = self._Frame_fields()
+        a, b, c = self._Unit_axes()
 
         def tensor_prods(v1, v2, v3, v4):
             return TensorProd(TensorProd(v1, v2), TensorProd(v3, v4))
@@ -662,17 +617,9 @@ class Orthotropic(_Elastic):
             tensor_prods(a, a, b, b) + tensor_prods(b, b, a, a)
         )
 
-        ci = [
-            self._c11,
-            self._c22,
-            self._c33,
-            self._c44,
-            self._c55,
-            self._c66,
-            self._c23,
-            self._c13,
-            self._c12,
-        ]
+        C = self._Material_C()
+        ij = [(0, 0), (1, 1), (2, 2), (3, 3), (4, 4), (5, 5), (1, 2), (0, 2), (0, 1)]
+        ci = [C[..., i, j] for i, j in ij]
         Ei = [E11, E22, E33, E44, E55, E66, E23, E13, E12]
         return self._Walpole(ci, Ei)
 

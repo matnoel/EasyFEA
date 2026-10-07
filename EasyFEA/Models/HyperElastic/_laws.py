@@ -93,7 +93,7 @@ class _HyperElastic(_IModel, ABC):
             # a rank-0 field, so FeArray._align pads it to (Ne, nPg, 1) against __TxT's (Ne, nPg, 6)
             magnitude = FeArray.asfearray(magnitude)
 
-        return _kelvin_mandel.Reduce(magnitude * self.__TxT, kinematics.dim, rank=1)
+        return _kelvin_mandel.Reduce_vector(magnitude * self.__TxT, kinematics.dim)
 
     # Model
     @staticmethod
@@ -964,12 +964,12 @@ def HyperElasticPotential(
         return W_field(Kelvin_C(kinematics), *aux)
 
     def Compute_dWde(kinematics: Kinematics, *aux) -> FeArray.FeArrayALike:
-        return _kelvin_mandel.Reduce(
-            2 * dW_field(Kelvin_C(kinematics), *aux), kinematics.dim, rank=1
+        return _kelvin_mandel.Reduce_vector(
+            2 * dW_field(Kelvin_C(kinematics), *aux), kinematics.dim
         )
 
     def Compute_d2Wde(kinematics: Kinematics, *aux) -> FeArray.FeArrayALike:
-        return _kelvin_mandel.Reduce(
+        return _kelvin_mandel.Reduce_matrix(
             4 * d2W_field(Kelvin_C(kinematics), *aux), kinematics.dim
         )
 

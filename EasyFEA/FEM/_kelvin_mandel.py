@@ -58,11 +58,14 @@ def From_Voigt(C: _types.FloatArray) -> _types.FloatArray:
     return C * np.outer(w, w)
 
 
-def Reduce(x: _types.AnyArray, dim: int, rank: int = 2) -> FeArray.FeArrayALike:
-    """The ``dim`` components of a (…, 6) Kelvin vector (``rank=1``) or (…, 6, 6) matrix (``rank=2``)."""
+def Reduce_vector(x: _types.AnyArray, dim: int) -> FeArray.FeArrayALike:
+    """The ``dim`` components of a (…, 6) Kelvin vector."""
+    return x[..., IDX[dim]]
+
+
+def Reduce_matrix(x: _types.AnyArray, dim: int) -> FeArray.FeArrayALike:
+    """The ``dim`` components of a (…, 6, 6) Kelvin matrix."""
     idx = IDX[dim]
-    if rank == 1:
-        return x[..., idx]
     return x[..., idx, :][..., idx]
 
 

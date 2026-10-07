@@ -13,7 +13,7 @@ from typing import Callable
 import numpy as np
 
 from ..FEM._linalg import FeArray
-from ..FEM._kelvin_mandel import BASIS as _KELVIN_BASIS
+from ..FEM import _kelvin_mandel
 from ..Utilities._requires import Create_requires_decorator
 
 try:
@@ -37,7 +37,7 @@ def Kelvin_to_tensor(vec):
 
     Differentiating through this gives a ``(6, 6)`` hessian already in Kelvin notation, not a ``(3, 3, 3, 3)`` to project.
     """
-    return jnp.einsum("I,Iij->ij", vec, _KELVIN_BASIS)
+    return jnp.einsum("I,Iij->ij", vec, _kelvin_mandel.BASIS)
 
 
 @requires_jax

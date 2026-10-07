@@ -238,7 +238,7 @@ def test_kelvin_to_tensor_inverts_the_shipped_projection(kinematics: Kinematics)
 
 def test_kelvin_basis_is_orthonormal():
     """``B_I : B_J = delta_IJ``."""
-    basis = _autodiff._KELVIN_BASIS
+    basis = _kelvin_mandel.BASIS
     gram = np.einsum("Iij,Jij->IJ", basis, basis)
 
     assert _rel(gram, np.eye(6)) < TOL

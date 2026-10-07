@@ -63,10 +63,9 @@ def __Result_e_pg(field_e_pg: FeArray.FeArrayALike, result: str) -> _types.Float
         isinstance(field_e_pg, FeArray) and field_e_pg._ndim == 1
     ), "must be a vector FeArray"
     values = _kelvin_mandel.Components(np.asarray(field_e_pg))
-    name = next((name for name in values if name in result), None)
-    if name is not None:
-        return values[name]
-    if "vm" in result:
+    if result in values:
+        return values[result]
+    if result == "vm":
         xx, yy, zz, yz, xz, xy = [
             values.get(name, 0.0) for name in _kelvin_mandel.ORDER
         ]

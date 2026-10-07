@@ -25,7 +25,7 @@ def _Rotate_2D(C_voigt2D: np.ndarray, axis1: np.ndarray, axis2: np.ndarray):
     C[np.ix_(idx, idx)] = _kelvin_mandel.From_Voigt(C_voigt2D)
     C = Apply_Pmat(Get_Pmat(axis1, axis2), C)
     w = _kelvin_mandel.Weights(2)
-    return _kelvin_mandel.Reduce(C, 2) / np.outer(w, w)
+    return _kelvin_mandel.Reduce_matrix(C, 2) / np.outer(w, w)
 
 
 @pytest.fixture
