@@ -631,30 +631,7 @@ class HyperElastic(_Simu):
     def Results_Iter_Summary(
         self,
     ) -> tuple[list[int], list[tuple[str, _types.FloatArray]]]:
-        list_label_values = []
-
-        iterations = list(range(self.Niter))
-        results = [self.Get_results(i) for i in iterations]
-
-        iter["newtonIter"] = self.__newtonIter
-        iter["timeIter"] = self.__timeIter
-
-        newtonIter, timeIter, list_norm_r = zip(
-            *(
-                (
-                    result["convIter"],
-                    result["timeIter"],
-                )
-                for result in results
-            )
-        )
-
-        list_label_values = [
-            ("newtonIter", np.array(newtonIter)),
-            ("timeIter", np.array(timeIter)),
-        ]
-
-        return iterations, list_label_values
+        return super().Results_Iter_Summary()
 
     def Results_dict_Energy(self):
         return super().Results_dict_Energy()
