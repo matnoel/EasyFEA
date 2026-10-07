@@ -43,7 +43,7 @@ def _CheckIsPositive(value: _types.Number | _types.Numbers) -> None:
     if isinstance(value, (int, float)):
         assert value >= 0.0, errorText
     elif isinstance(value, Iterable):
-        assert np.all(value >= 0.0), errorText
+        assert np.all(np.asarray(value) >= 0.0), errorText
     else:
         raise TypeError("Unknown type.")
 
@@ -65,7 +65,7 @@ def _CheckIsNegative(value: float | Iterable) -> None:
     if isinstance(value, (int, float)):
         assert value <= 0.0, errorText
     elif isinstance(value, Iterable):
-        assert np.all(value <= 0.0), errorText
+        assert np.all(np.asarray(value) <= 0.0), errorText
     else:
         raise TypeError("Unknown type.")
 
