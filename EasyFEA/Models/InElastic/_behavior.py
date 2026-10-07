@@ -133,7 +133,7 @@ class _Behavior(_IModel, _IObserver):
     Internals: ClassVar[type] = _NoInternals
     """The internal variables, a NamedTuple whose defaults are the virgin material."""
 
-    Externals: ClassVar[type] = _NoExternals
+    Externals: ClassVar[type[NamedTuple]] = _NoExternals
     """The external variables, a NamedTuple with no defaults whose fields ``Update`` and ``Stress`` read as keywords at the end of the step."""
 
     _tol: float = _params.PositiveScalarParameter()

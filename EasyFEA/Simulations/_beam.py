@@ -416,7 +416,7 @@ class Beam(_Simu):
         area_e_pg = FeArray.zeros(*wJ_e_pg.shape[:2])
 
         for beam in self.structure.beams:
-            elements = mesh.Elements_Tags([beam.name])
+            elements = mesh.Elements_Tags(beam.name)
 
             area_e_pg[elements] = beam.area
 
@@ -443,7 +443,7 @@ class Beam(_Simu):
 
         area_e_pg = FeArray.zeros(*wJ_e_pg.shape[:2])
         for beam in self.structure.beams:
-            elements = mesh.Elements_Tags([beam.name])
+            elements = mesh.Elements_Tags(beam.name)
             area_e_pg[elements] = beam.area
 
         center = (rho_e_p * area_e_pg * wJ_e_pg * coordo_e_p / mass).sum(axis=(0, 1))

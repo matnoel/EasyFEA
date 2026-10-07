@@ -100,7 +100,7 @@ class _Elastic(_IModel, ABC):
             array.shape[-2:] == shape and array.ndim <= 4
         ), f"With dim = {self.dim} array must be a {shape}, (Ne, *{shape}) or (Ne, nPg, *{shape}) matrix"
         self.__C = array
-        self.__sqrt_C = None  # dont remove
+        self.__sqrt_C: _types.FloatArray | None = None  # dont remove
 
     @property
     def isHeterogeneous(self) -> bool:
@@ -127,7 +127,7 @@ class _Elastic(_IModel, ABC):
             array.shape[-2:] == shape and array.ndim <= 4
         ), f"With dim = {self.dim} array must be a {shape}, (Ne, *{shape}) or (Ne, nPg, *{shape}) matrix"
         self.__S = array
-        self.__sqrt_S = None  # dont remove
+        self.__sqrt_S: _types.FloatArray | None = None  # dont remove
 
     def Compute_Sigma(self, kinematics: "Kinematics") -> FeArray.FeArrayALike:
         """Stress ``σ = C : ε`` in Kelvin-Mandel form, shape (Ne, nPg, 3 or 6)."""
@@ -170,8 +170,8 @@ class _Elastic(_IModel, ABC):
             assert lam.min() > 0, "C must be positive definite"
             sqrt_lam = np.sqrt(lam)[..., np.newaxis, :]
             Qt = np.swapaxes(Q, -2, -1)
-            self.__sqrt_C = (Q * sqrt_lam) @ Qt  # type: ignore [assignment]
-            self.__sqrt_S = (Q / sqrt_lam) @ Qt  # type: ignore [assignment]
+            self.__sqrt_C = (Q * sqrt_lam) @ Qt
+            self.__sqrt_S = (Q / sqrt_lam) @ Qt
 
         return self.__sqrt_C.copy(), self.__sqrt_S.copy()
 

@@ -339,7 +339,7 @@ class _Beam(_IModel):
         simu = Simulations.WeakForms(section, weakForms, verbosity=False)
         # Pin one DOF to remove the rigid mode (Neumann-only problem is singular).
         # Doesn't affect uᵀ·f because the source ∫_S s dS = 0 on a centered section.
-        simu.add_dirichlet([0], [0.0], ["u"])
+        simu.add_dirichlet(np.array([0]), [0.0], ["u"])
         simu.Solve()
 
         # uᵀ·f  ≡  ∫_S s · φ dS  ≡  ∫_S |∇φ|² dS  (energy identity)

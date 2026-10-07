@@ -323,7 +323,7 @@ def Project_Kelvin(
 
 
 def __Result_in_Strain_or_Stress_field(
-    field_e_pg: FeArray, result: str, coef=np.sqrt(2)
+    field_e_pg: FeArray.FeArrayALike, result: str, coef=np.sqrt(2)
 ) -> _types.FloatArray:
     """Extracts a specific result from a 2D or 3D strain or stress field.
 

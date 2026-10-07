@@ -235,13 +235,13 @@ class VectorParameter(_Parameter):
 
 class InstanceParameter(_Parameter):
 
-    def __init__(self, check_functions: list[Callable] = []):
+    def __init__(self, check_functions: list[Callable | partialmethod] = []):
         error = "check_functions must be a list of function."
         assert isinstance(check_functions, Iterable), error
         for function in check_functions:
             # fmt: off
             assert (
-                isinstance(function, Callable) or
+                callable(function) or
                 isinstance(function, partialmethod)
             ), error
             # fmt: on
