@@ -7,6 +7,8 @@
 
 import sys
 from enum import Enum
+from functools import cache
+from types import ModuleType
 import numpy as np
 from scipy import sparse, optimize
 import scipy.sparse.linalg as sla
@@ -40,18 +42,24 @@ try:
 except ModuleNotFoundError:
     CAN_USE_PYPARDISO = False
 
-try:
-    import petsc4py
 
-    # must precede `from petsc4py import PETSc`, which would initialize PETSc with an empty command line
-    petsc4py.init([sys.argv[0], "-options_left", "no", *sys.argv[1:]], comm=MPI_COMM)
+@cache
+def _Get_PETSc() -> ModuleType | None:
+    """Returns the initialized `petsc4py.PETSc` module, or None if petsc4py is unusable."""
+    try:
+        import petsc4py
 
-    from petsc4py import PETSc
+        # must precede `from petsc4py import PETSc`, which would initialize PETSc with an empty command line
+        petsc4py.init(
+            [sys.argv[0], "-options_left", "no", *sys.argv[1:]], comm=MPI_COMM
+        )
 
-    CAN_USE_PETSC = True
+        from petsc4py import PETSc
 
-except Exception:
-    CAN_USE_PETSC = False
+        return PETSc
+
+    except Exception:
+        return None
 
 
 class AlgoType(str, Enum):
@@ -280,7 +288,11 @@ def _Solve_Axb(
             and pcType in {"lu", "cholesky"}
             and solverType != "petsc"
         )
-        if simu.solver == SolverType.petsc and CAN_USE_PETSC and _petsc_is_direct:
+        if (
+            simu.solver == SolverType.petsc
+            and _petsc_is_direct
+            and _Get_PETSc() is not None
+        ):
             solver = SolverType.petsc
         else:
             solver = SolverType.pypardiso if CAN_USE_PYPARDISO else SolverType.scipy
@@ -303,7 +315,7 @@ def _Solve_Axb(
     if CAN_USE_PYPARDISO and solver == SolverType.pypardiso:
         x = pypardiso.spsolve(A, b.toarray())
 
-    elif CAN_USE_PETSC and solver == SolverType.petsc:
+    elif solver == SolverType.petsc and _Get_PETSc() is not None:
 
         # get petsc4py options
         kspType, pcType, solverType = simu._Solver_Get_PETSc4Py_Options(problemType)
@@ -693,7 +705,10 @@ def _PETSc(
 
     assert A.ndim == 2 and A.shape[0] == A.shape[1], "A must be a square matrix"
 
-    matrix = PETSc.Mat()  # type: ignore [attr-defined]
+    PETSc = _Get_PETSc()
+    assert PETSc is not None, "petsc4py is not available"
+
+    matrix = PETSc.Mat()
 
     # set values
     # https://petsc.org/release/petsc4py/reference/petsc4py.PETSc.Mat.html#petsc4py.PETSc.Mat.createAIJ
@@ -712,7 +727,7 @@ def _PETSc(
     if len(x0) > 0:
         x.array = x0
 
-    ksp = PETSc.KSP().create()  # type: ignore [attr-defined]
+    ksp = PETSc.KSP().create()
     ksp.setOperators(matrix)
     ksp.setType(kspType)
 
@@ -731,7 +746,7 @@ def _PETSc(
     # https://gitlab.com/petsc/petsc/-/work_items/1309
     PETSc.garbage_cleanup()
 
-    return x.array, ksp.is_converged  # type: ignore [return-value]
+    return x.array, ksp.is_converged
 
 
 def _PETSc_MPI(
@@ -784,6 +799,9 @@ def _PETSc_MPI(
     assert MPI_SIZE > 1
     assert A.ndim == 2 and A.shape[0] == A.shape[1], "A must be a square matrix"
 
+    PETSc = _Get_PETSc()
+    assert PETSc is not None, "petsc4py is not available"
+
     Ndof = A.shape[0]
     Ndof_r = ownedDofs.size
 
@@ -798,8 +816,8 @@ def _PETSc_MPI(
         mapping[petscOrdering] = np.arange(Ndof)
 
     # https://petsc.org/release/manual/mat/#matrices
-    matrix = PETSc.Mat()  # type: ignore [attr-defined]
-    matrix.create(comm=MPI_COMM)  # type: ignore [arg-type]
+    matrix = PETSc.Mat()
+    matrix.create(comm=MPI_COMM)
     matrix.setType("mpiaij")
     # https://petsc.org/release/petsc4py/reference/petsc4py.PETSc.Mat.html#petsc4py.PETSc.Mat.setSizes
     matrix.setSizes(((Ndof_r, Ndof), (Ndof_r, Ndof)))
@@ -820,7 +838,7 @@ def _PETSc_MPI(
         A_owned.indptr,
         A_owned.indices,
         A_owned.data,
-        PETSc.InsertMode.ADD_VALUES,  # type: ignore [arg-type]
+        PETSc.InsertMode.ADD_VALUES,
     )
     matrix.assemble()
 
@@ -834,7 +852,7 @@ def _PETSc_MPI(
         x.array[:] = x0[ownedDofs]
 
     # KSP
-    ksp = PETSc.KSP().create(comm=MPI_COMM)  # type: ignore [attr-defined, arg-type]
+    ksp = PETSc.KSP().create(comm=MPI_COMM)
     ksp.setOperators(matrix)
     ksp.setType(kspType)
     pc = ksp.getPC()

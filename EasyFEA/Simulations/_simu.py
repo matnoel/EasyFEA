@@ -10,7 +10,7 @@ from typing import Any
 import numpy as np
 from scipy import sparse
 import textwrap
-from functools import singledispatch
+from functools import cache, singledispatch
 
 from ..__about__ import __version__
 
@@ -47,22 +47,20 @@ from .Solvers import (
     SolverType,
     ResolType,
     AlgoType,
-    CAN_USE_PETSC,
     CAN_USE_PYPARDISO,
+    _Get_PETSc,
 )
-
-if CAN_USE_PETSC:
-    from petsc4py import PETSc
-
-    PETSC_HAS_SUPERLU_DIST = PETSc.Sys.hasExternalPackage("superlu_dist")
-    PETSC_HAS_MUMPS = PETSc.Sys.hasExternalPackage("mumps")
-else:
-    PETSC_HAS_SUPERLU_DIST = False
-    PETSC_HAS_MUMPS = False
 
 if MPI_SIZE > 1:
     error = "You must install petsc4py and mpi4py in order to run EasyFEA in parallel."
-    assert CAN_USE_MPI and CAN_USE_PETSC, error
+    assert CAN_USE_MPI and _Get_PETSc() is not None, error
+
+
+@cache
+def _PETSc_Has(package: str) -> bool:
+    """Whether petsc4py is usable and its PETSc build ships `package`."""
+    PETSc = _Get_PETSc()
+    return PETSc is not None and PETSc.Sys.hasExternalPackage(package)
 
 
 # ----------------------------------------------
@@ -668,7 +666,7 @@ class _Simu(_IObserver, _params.Updatable, ABC):
             self.solver = SolverType.petsc
         elif CAN_USE_PYPARDISO:
             self.solver = SolverType.pypardiso
-        elif CAN_USE_PETSC:
+        elif _Get_PETSc() is not None:
             self.solver = SolverType.petsc
         else:
             self.solver = SolverType.scipy
@@ -687,9 +685,9 @@ class _Simu(_IObserver, _params.Updatable, ABC):
                 kspType, pcType, solverType = "cg", "gamg", "petsc"
             else:
                 # Vector problems
-                if PETSC_HAS_SUPERLU_DIST:
+                if _PETSc_Has("superlu_dist"):
                     kspType, pcType, solverType = "preonly", "lu", "superlu_dist"
-                elif PETSC_HAS_MUMPS:
+                elif _PETSc_Has("mumps"):
                     kspType, pcType, solverType = "preonly", "lu", "mumps"
                 elif MPI_SIZE == 1:
                     # No external direct solver: built-in LU (serial only).
@@ -2187,14 +2185,14 @@ class _Simu(_IObserver, _params.Updatable, ABC):
                 )
 
         # ── External package availability ─────────────────────────────────────
-        if CAN_USE_PETSC:
-            if solverType != "petsc" and not PETSc.Sys.hasExternalPackage(solverType):  # type: ignore[name-defined]
+        if _Get_PETSc() is not None:
+            if solverType != "petsc" and not _PETSc_Has(solverType):
                 raise ValueError(
                     f"solverType='{solverType}' is not available in this PETSc build. "
                     "Check your PETSc installation or use solverType='petsc'."
                 )
             _external_pc = {"hypre", "ml"}
-            if pcType in _external_pc and not PETSc.Sys.hasExternalPackage(pcType):  # type: ignore[name-defined]
+            if pcType in _external_pc and not _PETSc_Has(pcType):
                 raise ValueError(
                     f"pcType='{pcType}' requires the '{pcType}' package but it is not "
                     "available in this PETSc build. "
