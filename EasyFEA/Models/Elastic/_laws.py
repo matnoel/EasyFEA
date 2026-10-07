@@ -1148,4 +1148,6 @@ class Anisotropic(_Elastic):
         return self.__axis2.copy()
 
     def Walpole_Decomposition(self) -> tuple[_types.FloatArray, _types.FloatArray]:
-        return super().Walpole_Decomposition()
+        raise NotImplementedError(
+            "A general anisotropic C has no Walpole decomposition."
+        )

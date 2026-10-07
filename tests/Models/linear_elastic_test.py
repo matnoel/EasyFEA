@@ -180,6 +180,12 @@ class TestLinearElastic:
 
         np.testing.assert_allclose(aniso.C, C_kelvin, atol=1e-6)
 
+    def test_Anisot_has_no_Walpole_Decomposition(self):
+        aniso = Anisotropic(2, Isotropic(2).C, False)
+
+        with pytest.raises(NotImplementedError):
+            aniso.Walpole_Decomposition()
+
     def test_Elastic_IsotTrans(self):
 
         El = 11580
