@@ -22,6 +22,7 @@ class Points(_Geom):
 
     __NInstance = 0
 
+    @staticmethod
     def _Init_Ninstance():
         Points.__NInstance = 0
 
@@ -152,5 +153,4 @@ class Points(_Geom):
     def length(self) -> float:
         coord = self.coord
         length = np.linalg.norm(coord[1:] - coord[:-1], axis=1)
-        length = np.sum(length)
-        return length
+        return float(np.sum(length))

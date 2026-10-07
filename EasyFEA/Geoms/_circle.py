@@ -27,6 +27,7 @@ class Circle(_Geom):
 
     __NInstance = 0
 
+    @staticmethod
     def _Init_Ninstance():
         Circle.__NInstance = 0
 
@@ -223,6 +224,7 @@ class CircleArc(_Geom):
 
     __NInstance = 0
 
+    @staticmethod
     def _Init_Ninstance():
         CircleArc.__NInstance = 0
 

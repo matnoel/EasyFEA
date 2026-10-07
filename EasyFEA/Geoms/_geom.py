@@ -187,8 +187,7 @@ class _Geom(ABC):
         obj = self.copy() if copy else self
         for p in obj.__points:
             p.Translate(dx, dy, dz)
-        if copy:
-            return obj
+        return obj if copy else None
 
     def Rotate(
         self,
@@ -221,8 +220,7 @@ class _Geom(ABC):
         dec = newCoord - oldCoord
         for p, point in enumerate(obj.points):
             point.Translate(*dec[p])
-        if copy:
-            return obj
+        return obj if copy else None
 
     def Symmetry(
         self,
@@ -252,8 +250,7 @@ class _Geom(ABC):
         dec = newCoord - oldCoord
         for p, pt in enumerate(obj.points):
             pt.Translate(*dec[p])
-        if copy:
-            return obj
+        return obj if copy else None
 
     def Mesh_1D(
         self,
@@ -281,7 +278,7 @@ class _Geom(ABC):
 
         mesher = Mesher()
         mesh = mesher.Mesh_1D(
-            self,
+            [self],
             elemType=elemType,
             additionalPoints=additionalPoints,
             path=path,

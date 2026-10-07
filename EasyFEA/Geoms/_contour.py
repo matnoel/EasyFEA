@@ -26,6 +26,7 @@ class Contour(_Geom):
 
     __NInstance = 0
 
+    @staticmethod
     def _Init_Ninstance():
         Contour.__NInstance = 0
 

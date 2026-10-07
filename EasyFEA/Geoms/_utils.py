@@ -6,7 +6,7 @@
 import numpy as np
 import copy
 from scipy.optimize import minimize
-from collections.abc import Iterable
+from collections.abc import Collection
 from typing import Union
 
 from ..Utilities import _types, _params
@@ -193,7 +193,7 @@ def _(coords: Point):
 
 
 @AsPoint.register
-def _(coords: Iterable):
+def _(coords: Collection):
     assert len(coords) <= 3
     return Point(*AsCoords(coords))
 
@@ -214,7 +214,7 @@ def _(value: Point):
 
 
 @AsCoords.register
-def _(value: Iterable):
+def _(value: Collection):
     val = np.asarray(value, dtype=float)
     if len(val.shape) == 2:
         assert val.shape[-1] <= 3, "must be 3d vector or 3d vectors"
@@ -240,9 +240,9 @@ def Normalize(array: _types.Coords) -> _types.FloatArray:
         norm = 1 if norm == 0 else norm
         return array / norm
     elif array.ndim == 2:
-        norm = np.linalg.norm(array, axis=1)
-        norm[norm == 0] = 1
-        return np.einsum("ij,i->ij", array, 1 / norm, optimize="optimal")
+        norms = np.linalg.norm(array, axis=1)
+        norms[norms == 0] = 1
+        return np.einsum("ij,i->ij", array, 1 / norms, optimize="optimal")
     else:
         raise Exception("The array is the wrong size")
 

@@ -17,6 +17,7 @@ class Line(_Geom):
 
     __NInstance = 0
 
+    @staticmethod
     def _Init_Ninstance():
         Line.__NInstance = 0
 
