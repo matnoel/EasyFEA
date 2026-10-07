@@ -12,6 +12,8 @@ whereas ``newmark`` drifts by orders of magnitude more — observed here only th
 the public simulation interface (solve loop + energy results).
 """
 
+import warnings
+
 import numpy as np
 import pytest
 
@@ -330,3 +332,19 @@ def test_active_stress_accepts_a_field():
     with pytest.raises(AssertionError):
         material.active_stress = np.ones((Ne + 1, nPg))
         material.Compute_active_stress(kinematics)
+
+
+def test_newton_accepts_a_zero_first_residual():
+    """An unloaded solve starts at equilibrium: the relative norm must not divide by zero."""
+    domain = Domain((0, 0), (1, 1), 0.5)
+    mesh = domain.Mesh_2D([], ElemType.QUAD4, isOrganised=True)
+    nodes0 = mesh.Nodes_Conditions(lambda x, y, z: x == 0)
+    mat = Models.HyperElastic.NeoHookean(2, K=1e3)
+    simu = Simulations.HyperElastic(mesh, mat, verbosity=False)
+    simu.add_dirichlet(nodes0, [0, 0], simu.Get_unknowns())
+
+    with warnings.catch_warnings():
+        warnings.simplefilter("error", RuntimeWarning)
+        u = simu.Solve()
+
+    assert np.all(u == 0)

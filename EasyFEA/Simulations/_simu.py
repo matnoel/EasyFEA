@@ -1757,7 +1757,7 @@ class _Simu(_IObserver, _params.Updatable, ABC):
             delta_u, norm = Solve_simu(self, problemType)
             assert isinstance(norm, float)
             list_norm.append(norm)
-            relNorm = norm / list_norm[0]
+            relNorm = norm / list_norm[0] if list_norm[0] > 0 else 0.0
 
             if MPI_RANK == 0:
                 print(
