@@ -671,37 +671,11 @@ class _Simu(_IObserver, _params.Updatable, ABC):
         else:
             self.solver = SolverType.scipy
 
-        # Set solver petsc4py options with best available defaults for all problems.
+        # petsc4py options; unset problem types get their defaults on first read.
         self.__dict_solver_petsc4py_options: dict[
             ProblemType,
             tuple[str, str, str],
         ] = {}
-        for problemType in self.Get_problemTypes():
-            dof_n = self.Get_dof_n(problemType)
-            if dof_n == 1:
-                # Scalar problems
-                # cg+gamg: works in serial and MPI, no external packages needed.
-                # Good default for scalar SPD problems
-                kspType, pcType, solverType = "cg", "gamg", "petsc"
-            else:
-                # Vector problems
-                if _PETSc_Has("superlu_dist"):
-                    kspType, pcType, solverType = "preonly", "lu", "superlu_dist"
-                elif _PETSc_Has("mumps"):
-                    kspType, pcType, solverType = "preonly", "lu", "mumps"
-                elif MPI_SIZE == 1:
-                    # No external direct solver: built-in LU (serial only).
-                    kspType, pcType, solverType = "preonly", "lu", "petsc"
-                else:
-                    # MPI context without any parallel direct solver: iterative fallback.
-                    kspType, pcType, solverType = "cg", "gamg", "petsc"
-            # set petsc4py options
-            self._Solver_Set_PETSc4Py_Options(
-                kspType=kspType,
-                pcType=pcType,
-                solverType=solverType,
-                problemType=problemType,
-            )
 
         # Initialize solutions and boundary conditions
         self.__Init_Sols_n()
@@ -2185,13 +2159,13 @@ class _Simu(_IObserver, _params.Updatable, ABC):
                 )
 
         # ── External package availability ─────────────────────────────────────
-        if _Get_PETSc() is not None:
+        _external_pc = {"hypre", "ml"}
+        if (solverType != "petsc" or pcType in _external_pc) and _Get_PETSc():
             if solverType != "petsc" and not _PETSc_Has(solverType):
                 raise ValueError(
                     f"solverType='{solverType}' is not available in this PETSc build. "
                     "Check your PETSc installation or use solverType='petsc'."
                 )
-            _external_pc = {"hypre", "ml"}
             if pcType in _external_pc and not _PETSc_Has(pcType):
                 raise ValueError(
                     f"pcType='{pcType}' requires the '{pcType}' package but it is not "
@@ -2217,7 +2191,33 @@ class _Simu(_IObserver, _params.Updatable, ABC):
 
         problemType = self.problemType if problemType is None else problemType
 
+        if problemType not in self.__dict_solver_petsc4py_options:
+            self._Solver_Set_PETSc4Py_Options(
+                *self.__Default_PETSc4Py_Options(problemType),
+                problemType=problemType,
+            )
+
         return self.__dict_solver_petsc4py_options[problemType]
+
+    def __Default_PETSc4Py_Options(
+        self, problemType: ProblemType
+    ) -> tuple[str, str, str]:
+        """Best available (kspType, pcType, solverType) for the problem type."""
+        if self.Get_dof_n(problemType) == 1:
+            # Scalar problems
+            # cg+gamg: works in serial and MPI, no external packages needed.
+            # Good default for scalar SPD problems
+            return "cg", "gamg", "petsc"
+        # Vector problems
+        if _PETSc_Has("superlu_dist"):
+            return "preonly", "lu", "superlu_dist"
+        if _PETSc_Has("mumps"):
+            return "preonly", "lu", "mumps"
+        if MPI_SIZE == 1:
+            # No external direct solver: built-in LU (serial only).
+            return "preonly", "lu", "petsc"
+        # MPI context without any parallel direct solver: iterative fallback.
+        return "cg", "gamg", "petsc"
 
     def Get_dofs(self, problemType: ProblemType = None):
         """Returns (owned) dofs associated with the problem type."""

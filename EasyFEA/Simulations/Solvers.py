@@ -278,24 +278,19 @@ def _Solve_Axb(
         # Lagrange multipliers yield a saddle-point system: iterative KSP methods diverge.
         # Keep PETSc only when configured as a direct solver (preonly + lu/cholesky
         # backed by mumps, superlu_dist, or petsc in serial). Otherwise fall back.
-        kspType, pcType, solverType = simu._Solver_Get_PETSc4Py_Options(problemType)
-        # Built-in PETSc LU (solverType="petsc") uses SeqAIJ which requires a
-        # non-zero diagonal — saddle-point matrices from Lagrange multipliers violate
-        # this. External solvers (mumps, superlu_dist, …) use fill-in reordering
-        # (AMD/METIS) and handle zero-diagonal rows correctly.
-        _petsc_is_direct = (
-            kspType == "preonly"
-            and pcType in {"lu", "cholesky"}
-            and solverType != "petsc"
-        )
-        if (
-            simu.solver == SolverType.petsc
-            and _petsc_is_direct
-            and _Get_PETSc() is not None
-        ):
-            solver = SolverType.petsc
-        else:
-            solver = SolverType.pypardiso if CAN_USE_PYPARDISO else SolverType.scipy
+        solver = SolverType.pypardiso if CAN_USE_PYPARDISO else SolverType.scipy
+        if simu.solver == SolverType.petsc and _Get_PETSc() is not None:
+            kspType, pcType, solverType = simu._Solver_Get_PETSc4Py_Options(problemType)
+            # Built-in PETSc LU (solverType="petsc") uses SeqAIJ which requires a
+            # non-zero diagonal — saddle-point matrices from Lagrange multipliers violate
+            # this. External solvers (mumps, superlu_dist, …) use fill-in reordering
+            # (AMD/METIS) and handle zero-diagonal rows correctly.
+            if (
+                kspType == "preonly"
+                and pcType in {"lu", "cholesky"}
+                and solverType != "petsc"
+            ):
+                solver = SolverType.petsc
     else:
         solver = simu.solver
 
