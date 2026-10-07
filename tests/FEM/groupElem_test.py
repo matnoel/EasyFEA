@@ -130,3 +130,15 @@ def test_point_has_no_high_order_derivatives(name: str):
     )
 
     assert getattr(groupElem, name)(MatrixType.rigi) is None
+
+
+@pytest.mark.parametrize("name", ["Get_Elements_Tag", "Get_Nodes_Tag"])
+def test_unknown_tag_raises(name: str):
+    groupElem = GroupElemFactory.Create(
+        ElemType.SEG2, np.array([[0, 1]]), np.array([[0.0, 0, 0], [1, 0, 0]])
+    )
+    groupElem.Set_Tag(np.array([0, 1]), "L0")
+
+    assert getattr(groupElem, name)("L0").size > 0
+    with pytest.raises(KeyError, match="L1"):
+        getattr(groupElem, name)("L1")

@@ -521,7 +521,7 @@ def _EasyFEA_to_Meshio(
         elements_tags = groupElem._dict_elements_tags
         for tag, val in dict_tags_converter.items():
             assert isinstance(val, int), "dict_tags_converter values must be integers."
-            # elements, read from the group directly: Get_Elements_Tag prints for every miss
+            # elements, read from the group directly: Get_Elements_Tag raises on a miss
             elements = elements_tags.get(tag)
             if elements is not None:
                 element_tags[elements] = int(val)
