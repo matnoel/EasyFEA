@@ -2304,38 +2304,42 @@ class Mesher:
         return connect, elementTags
 
     def __Get_rank_elements(
-        self, gmshId: int, gmshElements: np.ndarray, Nproc: int
+        self, gmshId: int, dim: int, gmshElements: np.ndarray, Nproc: int
     ) -> list[_types.IntArray]:
-        """Sorted connect rows of `gmshId` held by each partition, from the gmsh partition entities."""
+        """Sorted connect rows of `gmshId` (of dimension `dim`) held by each partition, from the gmsh partition entities."""
 
-        # get type's dim
-        dim = gmsh.model.mesh.getElementProperties(gmshId)[1]
-
-        # gmshElements is the pre-partition snapshot of element tags aligned with
-        # connect rows; map_elements gives the connect row for each tag.
+        # gmshElements is the pre-partition snapshot of element tags aligned with connect rows; map_elements gives the connect row for each tag.
         map_elements = np.full(gmshElements.max() + 1, -1, dtype=int)
         map_elements[gmshElements] = np.arange(gmshElements.size)
 
-        # pre-seed all ranks so a rank that owns no entity of this type ends up
-        # with an empty per-rank GroupElem instead of triggering KeyError downstream
-        dict_rank_elements: dict[int, set[int]] = {r: set() for r in range(Nproc)}
+        # pre-seed all ranks so a rank that owns no entity of this type ends up with an empty per-rank GroupElem instead of triggering KeyError downstream
+        rankElementSets: dict[int, set[int]] = {r: set() for r in range(Nproc)}
         for ent_dim, tag in gmsh.model.getEntities(dim):
             ranks = gmsh.model.getPartitions(ent_dim, tag) - 1  # starts at 0
             if len(ranks) == 0:
                 continue
             entityTags = gmsh.model.mesh.getElementsByType(gmshId, tag=tag)[0] - 1
-            # drop partition-interface ghost elements that have no row in
-            # the pre-partition connect (tag out of map_elements range, or
-            # map_elements == -1)
+            # drop partition-interface ghost elements that have no row in the pre-partition connect (tag out of map_elements range, or map_elements == -1)
             entityTags = entityTags[entityTags < map_elements.size]
             idx = map_elements[entityTags]
             idx = idx[idx >= 0]
             for rank in ranks:
-                dict_rank_elements[rank].update(idx)
+                rankElementSets[rank].update(idx)
 
-        return [
-            np.array(sorted(dict_rank_elements[r]), dtype=int) for r in range(Nproc)
-        ]
+        return [np.array(sorted(rankElementSets[r]), dtype=int) for r in range(Nproc)]
+
+    @staticmethod
+    def __Get_node_owner(
+        mainGroups: list[tuple[_types.IntArray, list[_types.IntArray]]],
+        Ncoords: int,
+    ) -> _types.IntArray:
+        """Owning rank of each node: the lowest rank whose main-dimension elements use it, -1 for a node no main-dimension element uses (it carries no dof)."""
+        nodeOwner = np.full(Ncoords, -1, dtype=int)
+        for connect, rankElements in mainGroups:
+            for rank, idx_r in enumerate(rankElements):
+                nodes = np.unique(connect[idx_r])
+                nodeOwner[nodes[nodeOwner[nodes] < 0]] = rank
+        return nodeOwner
 
     def __Get_partitioned_groupElems(
         self,
@@ -2352,8 +2356,7 @@ class Mesher:
         list_rank_groupElem: list[_GroupElem] = []
 
         for rank, idx_r in enumerate(rankElements):
-            # assembly keeps the owned rows only, so every element touching an
-            # owned node must be local, whichever rank holds it
+            # assembly keeps the owned rows only, so every element touching an owned node must be local, whichever rank holds it
             others = np.setdiff1d(elements, idx_r, assume_unique=True)
             ghost_idx = others[(nodeOwner[connect[others]] == rank).any(axis=1)]
             all_idx = np.union1d(idx_r, ghost_idx)
@@ -2403,21 +2406,23 @@ class Mesher:
             assert Nproc <= Nelems, f"Nproc must be less than or equal to {Nelems}!"
             gmsh.model.mesh.partition(Nproc)
             tic.Tac("Mesh", "gmsh.model.mesh.partition", self.__verbosity)
-            dict_rankElements = {
-                gmshId: self.__Get_rank_elements(gmshId, dict_connect[gmshId][1], Nproc)
+            dict_dim = {
+                gmshId: gmsh.model.mesh.getElementProperties(gmshId)[1]
                 for gmshId in elementTypes
             }
-            # a node goes to the first rank whose main-dimension elements use it, so the
-            # owned nodes of a rank are always among its main-dimension groups' nodes
-            nodeOwner = np.full(coordinates.shape[0], -1, dtype=int)
-            for gmshId in elementTypes:
-                if gmsh.model.mesh.getElementProperties(gmshId)[1] != meshDim:
-                    continue
-                connect = dict_connect[gmshId][0]
-                for rank, idx_r in enumerate(dict_rankElements[gmshId]):
-                    nodes = np.unique(connect[idx_r])
-                    nodes = nodes[nodeOwner[nodes] < 0]
-                    nodeOwner[nodes] = rank
+            rankElements = {
+                gmshId: self.__Get_rank_elements(gmshId, dict_dim[gmshId], tags, Nproc)
+                for gmshId, (_, tags) in dict_connect.items()
+            }
+            # ownership comes from the main-dimension elements only: a lower-dimension element must not give a rank a node none of its volume elements uses
+            nodeOwner = self.__Get_node_owner(
+                [
+                    (connect, rankElements[gmshId])
+                    for gmshId, (connect, _) in dict_connect.items()
+                    if dict_dim[gmshId] == meshDim
+                ],
+                coordinates.shape[0],
+            )
 
         list_dict_groupElem: list[dict[ElemType, _GroupElem]] = [
             {} for _ in range(Nproc)
@@ -2430,7 +2435,7 @@ class Mesher:
                 groupElems = self.__Get_partitioned_groupElems(
                     gmshId,
                     connect,
-                    dict_rankElements[gmshId],
+                    rankElements[gmshId],
                     coordinates,
                     nodeOwner,
                 )
