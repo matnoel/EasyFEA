@@ -2303,32 +2303,21 @@ class Mesher:
 
         return connect, elementTags
 
-    def __Get_partitioned_groupElems(
-        self,
-        gmshId: int,
-        connect: np.ndarray,
-        gmshElements: np.ndarray,
-        coordinates: np.ndarray,
-        dict_rank_nodes: dict[int, set[int]],
-    ) -> list["_GroupElem"]:
-        """Splits the elements of `gmshId` into one `_GroupElem` per partition. The partition count comes from `dict_rank_nodes`, which is not tied to MPI_SIZE — see `_Mesh_Get_Meshes`."""
-
-        Nproc = len(dict_rank_nodes)
+    def __Get_rank_elements(
+        self, gmshId: int, gmshElements: np.ndarray, Nproc: int
+    ) -> list[_types.IntArray]:
+        """Sorted connect rows of `gmshId` held by each partition, from the gmsh partition entities."""
 
         # get type's dim
         dim = gmsh.model.mesh.getElementProperties(gmshId)[1]
-
-        # get elements data
-        Ne = connect.shape[0]
 
         # gmshElements is the pre-partition snapshot of element tags aligned with
         # connect rows; map_elements gives the connect row for each tag.
         map_elements = np.full(gmshElements.max() + 1, -1, dtype=int)
         map_elements[gmshElements] = np.arange(gmshElements.size)
 
-        # get elements for each rank — pre-seed all ranks so a rank that owns
-        # no entity of this type ends up with an empty per-rank GroupElem
-        # instead of triggering KeyError downstream
+        # pre-seed all ranks so a rank that owns no entity of this type ends up
+        # with an empty per-rank GroupElem instead of triggering KeyError downstream
         dict_rank_elements: dict[int, set[int]] = {r: set() for r in range(Nproc)}
         for ent_dim, tag in gmsh.model.getEntities(dim):
             ranks = gmsh.model.getPartitions(ent_dim, tag) - 1  # starts at 0
@@ -2344,52 +2333,33 @@ class Mesher:
             for rank in ranks:
                 dict_rank_elements[rank].update(idx)
 
+        return [
+            np.array(sorted(dict_rank_elements[r]), dtype=int) for r in range(Nproc)
+        ]
+
+    def __Get_partitioned_groupElems(
+        self,
+        gmshId: int,
+        connect: np.ndarray,
+        rankElements: list[_types.IntArray],
+        coordinates: np.ndarray,
+        nodeOwner: _types.IntArray,
+    ) -> list["_GroupElem"]:
+        """Splits the elements of `gmshId` into one `_GroupElem` per partition: its own elements plus, as ghosts, every other element touching a node it owns."""
+
+        elements = np.arange(connect.shape[0], dtype=int)
+
         list_rank_groupElem: list[_GroupElem] = []
 
-        Nn: int = 0
-        elements = np.arange(Ne, dtype=int)
-
-        for rank in range(Nproc):
-            # get owned elements and their connectivity
-            idx_r = np.array(list(dict_rank_elements[rank]), dtype=int)
-            connect_r = connect[idx_r]
-            # get (non-ghost) nodes from owned elements only
-            # Build set union directly instead of loop
-            otherRankNodes = set().union(
-                *(dict_rank_nodes[r] for r in range(Nproc) if r != rank)
-            )
-            # add (non-ghost) nodes
-            nodes = set(connect_r.ravel()) - otherRankNodes
-            dict_rank_nodes[rank].update(nodes)
-            Nn += len(nodes)
-            # find ghost elements
-            # Convert to array once and reuse
-            nodes_arr = np.array(list(nodes), dtype=int)
-            ghost_idx: set[int] = set()
-            for other_rank in range(Nproc):
-                if other_rank == rank:
-                    continue
-                other_idx = dict_rank_elements.get(other_rank)
-                if not other_idx:
-                    continue
-                # Convert to array once
-                other_idx_arr = np.array(list(other_idx), dtype=int)
-                other_connect = connect[other_idx_arr]
-                # Use isin (not deprecated)
-                mask = np.isin(other_connect, nodes_arr).any(axis=1)
-                ghost_idx.update(other_idx_arr[mask])
-            # build full connectivity: owned elements + ghost elements
-            # Use np.unique for combined sorting (faster than sorted(set))
-            all_idx = np.unique(
-                np.concatenate([idx_r, np.array(list(ghost_idx), dtype=int)])
-            )
-            connect_r_full = connect[all_idx]
-            # create groupElem with owned + ghost elements
-            groupElem = GroupElemFactory._Create(gmshId, connect_r_full, coordinates)
-            groupElem._Set_partitioned_data(
-                elements[idx_r], nodes_arr, rank, elements[list(ghost_idx)]
-            )
-            # append the created groupElem
+        for rank, idx_r in enumerate(rankElements):
+            # assembly keeps the owned rows only, so every element touching an
+            # owned node must be local, whichever rank holds it
+            others = np.setdiff1d(elements, idx_r, assume_unique=True)
+            ghost_idx = others[(nodeOwner[connect[others]] == rank).any(axis=1)]
+            all_idx = np.union1d(idx_r, ghost_idx)
+            groupElem = GroupElemFactory._Create(gmshId, connect[all_idx], coordinates)
+            nodes = groupElem.nodes[nodeOwner[groupElem.nodes] == rank]
+            groupElem._Set_partitioned_data(idx_r, nodes, rank, ghost_idx)
             list_rank_groupElem.append(groupElem)
 
         # return all rank GroupElems so rank 0 can scatter them
@@ -2433,18 +2403,36 @@ class Mesher:
             assert Nproc <= Nelems, f"Nproc must be less than or equal to {Nelems}!"
             gmsh.model.mesh.partition(Nproc)
             tic.Tac("Mesh", "gmsh.model.mesh.partition", self.__verbosity)
-            dict_rank_nodes: dict[int, set[int]] = {r: set() for r in range(Nproc)}
+            dict_rankElements = {
+                gmshId: self.__Get_rank_elements(gmshId, dict_connect[gmshId][1], Nproc)
+                for gmshId in elementTypes
+            }
+            # a node goes to the first rank whose main-dimension elements use it, so the
+            # owned nodes of a rank are always among its main-dimension groups' nodes
+            nodeOwner = np.full(coordinates.shape[0], -1, dtype=int)
+            for gmshId in elementTypes:
+                if gmsh.model.mesh.getElementProperties(gmshId)[1] != meshDim:
+                    continue
+                connect = dict_connect[gmshId][0]
+                for rank, idx_r in enumerate(dict_rankElements[gmshId]):
+                    nodes = np.unique(connect[idx_r])
+                    nodes = nodes[nodeOwner[nodes] < 0]
+                    nodeOwner[nodes] = rank
 
         list_dict_groupElem: list[dict[ElemType, _GroupElem]] = [
             {} for _ in range(Nproc)
         ]
 
         for gmshId in elementTypes:
-            connect, elementTags = dict_connect[gmshId]
+            connect, _ = dict_connect[gmshId]
 
             if isPartitioned:
                 groupElems = self.__Get_partitioned_groupElems(
-                    gmshId, connect, elementTags, coordinates, dict_rank_nodes
+                    gmshId,
+                    connect,
+                    dict_rankElements[gmshId],
+                    coordinates,
+                    nodeOwner,
                 )
             else:
                 # Note that each group of elements contains all coordinates.
