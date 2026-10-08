@@ -24,6 +24,7 @@ from ..Utilities._mpi import (
     MPI_SIZE,
     Concatenate_array,
     Sync_dofsValues,
+    Reduce_sum,
 )
 
 if CAN_USE_MPI:
@@ -415,9 +416,6 @@ def Solve_simu(
         ordering = Concatenate_array(dofs)
         x = Sync_dofsValues(x, dofs, ordering=ordering)
 
-        if rhsNorm is not None:
-            rhsNorm = MPI_COMM.allreduce(rhsNorm, op=MPI.SUM)
-
         if resolution == ResolType.r2:
             lagrange = Sync_dofsValues(lagrange, dofs, ordering=ordering)
 
@@ -491,6 +489,14 @@ def __Solver_1_mpi_indices(
     return uniqueUnknown, ownedDofs, mapping
 
 
+def __Residual_norm(b_owned: sparse.csr_matrix) -> float:
+    """Residual norm summed over ranks; raises on NaN/Inf"""
+    rhsNorm = Reduce_sum(sla.norm(b_owned))
+    if not np.isfinite(rhsNorm):
+        raise FloatingPointError("The residual has NaN or Inf entries.")
+    return rhsNorm
+
+
 def __Solver_1(
     simu: "_Simu", problemType: "ProblemType"
 ) -> tuple[_types.FloatArray, float | None]:
@@ -531,6 +537,9 @@ def __Solver_1(
     lb, ub = simu.Get_lb_ub(problemType)
 
     bi -= Aic @ xc
+    if simu.isNonLinear:
+        rhsNorm = __Residual_norm(bi[ownedDofs] if MPI_SIZE > 1 else bi)
+
     xi = _Solve_Axb(
         simu, problemType, Aii, bi, x0, lb, ub, ResolType.r1, ownedDofs, mapping
     )
@@ -540,9 +549,7 @@ def __Solver_1(
     x[dofsUnknown] = xi
 
     if simu.isNonLinear:
-        if MPI_SIZE > 1:
-            bi = bi[ownedDofs]
-        return x, sla.norm(bi)
+        return x, rhsNorm
     else:
         return x, None
 
@@ -625,19 +632,23 @@ def __Solver_3(simu: "_Simu", problemType: "ProblemType"):
     b = simu._Solver_Apply_Neumann(problemType)
     A, b = simu._Solver_Apply_Dirichlet(problemType, b, ResolType.r3)
 
+    if simu.isNonLinear:
+        b_owned = b
+        if MPI_SIZE > 1:
+            nodes = simu.mesh._Get_mpi_owned_nodes()
+            dofs = simu.Bc_dofs_nodes(
+                nodes, simu.Get_unknowns(problemType), problemType
+            )
+            b_owned = b[dofs]
+        rhsNorm = __Residual_norm(b_owned)
+
     # Solving the penalized matrix system
     x0 = simu.Get_x0(problemType)
     lb, ub = simu.Get_lb_ub(problemType)
     x = _Solve_Axb(simu, problemType, A, b, x0, lb, ub, ResolType.r3)
 
     if simu.isNonLinear:
-        if MPI_SIZE > 1:
-            nodes = simu.mesh._Get_mpi_owned_nodes()
-            dofs = simu.Bc_dofs_nodes(
-                nodes, simu.Get_unknowns(problemType), problemType
-            )
-            b = b[dofs]
-        return x, sla.norm(b)
+        return x, rhsNorm
     else:
         return x, None
 
