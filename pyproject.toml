@@ -54,6 +54,7 @@ include = ["EasyFEA", "EasyFEA.*"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
+addopts = "-n auto"
 
 [tool.mypy]
 python_version = "3.11"
