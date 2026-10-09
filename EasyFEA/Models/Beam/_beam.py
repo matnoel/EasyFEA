@@ -20,9 +20,6 @@ from ...FEM.Elems._beam import _Timoshenko, _EulerBernoulli
 if TYPE_CHECKING:
     from ...FEM import Mesh, _GroupElem, Kinematics
 
-# simulations / models — used by _shear_kappa (Saint-Venant Poisson solve)
-from ... import Models, Simulations
-
 # materials
 from .._utils import _IModel, _Format_parameter
 from ...Utilities import _params, _types, Tic
@@ -334,6 +331,8 @@ class _Beam(_IModel):
         def linear(v: Field):
             x, y, _ = v.Get_coords()
             return (y if axis == "y" else x) * v
+
+        from ... import Models, Simulations
 
         weakForms = Models.WeakForms(field, computeK=bilinear, computeF=linear)
         simu = Simulations.WeakForms(section, weakForms, verbosity=False)
