@@ -22,6 +22,7 @@ from ._utils import (
     _Flatten_geoms,
     _Check_kwargs,
     _Gauss_points_averaged,
+    _View_box,
 )
 from .. import Geoms
 
@@ -245,7 +246,13 @@ def Plot(
         **kwargs,
     )
 
-    _Annotate(plotter, inDim, title, showGrid, bounds)
+    _Annotate(
+        plotter,
+        inDim,
+        title,
+        showGrid,
+        bounds,
+    )
 
     tic.Tac("PyVista_Interface", "Plot")
 
@@ -420,7 +427,13 @@ def Plot_Nodes(
             return
 
     if plotter is None:
-        plotter = Plot(obj, None, deformFactor, style="wireframe", color="k")
+        plotter = Plot(
+            obj,
+            None,
+            deformFactor,
+            style="wireframe",
+            color="k",
+        )
 
     pvData = pv.PolyData(coord)  # type: ignore [arg-type]
 
@@ -444,7 +457,13 @@ def Plot_Nodes(
             render_points_as_spheres=True,
         )
 
-    _Annotate(plotter, inDim, title, showGrid, bounds)
+    _Annotate(
+        plotter,
+        inDim,
+        title,
+        showGrid,
+        bounds,
+    )
 
     return plotter
 
@@ -560,7 +579,13 @@ def Plot_Elements(
                 pvData, "myLabels", point_color="k", render_points_as_spheres=True
             )
 
-    _Annotate(plotter, inDim, title, showGrid, bounds)
+    _Annotate(
+        plotter,
+        inDim,
+        title,
+        showGrid,
+        bounds,
+    )
 
     return plotter
 
@@ -694,8 +719,21 @@ def Plot_BoundaryConditions(
     boundaryConditions.extend(displays)
 
     if plotter is None:
-        plotter = Plot_Elements(simu, None, 1, deformFactor=deformFactor, color="k")
-        Plot(simu, None, deformFactor, alpha=alpha, color="gray", plotter=plotter)
+        plotter = Plot_Elements(
+            simu,
+            None,
+            1,
+            deformFactor=deformFactor,
+            color="k",
+        )
+        Plot(
+            simu,
+            None,
+            deformFactor,
+            alpha=alpha,
+            color="gray",
+            plotter=plotter,
+        )
 
     colors = tab10_colors * np.ceil(len(boundaryConditions) / 10).astype(int)
 
@@ -814,7 +852,13 @@ def Plot_BoundaryConditions(
     if plotLegend and len(boundaryConditions) > 0:
         plotter.add_legend(bcolor="white", face="o")  # type: ignore [call-arg]
 
-    _Annotate(plotter, inDim, title, showGrid, bounds)
+    _Annotate(
+        plotter,
+        inDim,
+        title,
+        showGrid,
+        bounds,
+    )
 
     tic.Tac("PyVista_Interface", "Plot_BoundaryConditions")
 
@@ -887,7 +931,13 @@ def Plot_Tags(
     if plotter is None:
         plotter = _Plotter()
 
-    Plot(obj, None, deformFactor, alpha=0.1, plotter=plotter)
+    Plot(
+        obj,
+        None,
+        deformFactor,
+        alpha=0.1,
+        plotter=plotter,
+    )
 
     if useColorCycler:
         colorIterator = iter(tab10_colors * np.ceil(np.sum(nTtags) / 10).astype(int))
@@ -942,7 +992,13 @@ def Plot_Tags(
     if plotLegend:
         plotter.add_legend()  # type: ignore [call-arg]
 
-    _Annotate(plotter, inDim, title, showGrid, bounds)
+    _Annotate(
+        plotter,
+        inDim,
+        title,
+        showGrid,
+        bounds,
+    )
 
     return plotter
 
@@ -1027,7 +1083,13 @@ def Plot_Geoms(
     if plotLegend:
         plotter.add_legend(bcolor="white", face="o")  # type: ignore [call-arg]
 
-    _Annotate(plotter, 3, title, showGrid, bounds)
+    _Annotate(
+        plotter,
+        3,
+        title,
+        showGrid,
+        bounds,
+    )
 
     return plotter
 
@@ -1092,8 +1154,15 @@ def Movie_simu(
     def DoAnim(plotter, i):
         simu.Set_Iter(iterations[i])
         Plot(simu, result, deformFactor, coef, nodeValues, plotter=plotter, **kwargs)
+        plotter.add_title(f"{result} {iterations[i]:d}/{Niter - 1:d}")
 
-    Movie_func(DoAnim, iterations.size, folder, filename, fps=fps)
+    Movie_func(
+        DoAnim,
+        iterations.size,
+        folder,
+        filename,
+        fps=fps,
+    )
 
 
 @rank0_only
@@ -1202,7 +1271,7 @@ def _Annotate(
     if bounds is not None:
         if inDim == 2:
             plotter.enable_parallel_projection()  # type: ignore [call-arg]
-        plotter.reset_camera(bounds=bounds)  # type: ignore [call-arg]
+        plotter.reset_camera(bounds=_View_box(bounds).ravel())  # type: ignore [call-arg]
     else:
         plotter.reset_camera()  # type: ignore [call-arg]
 

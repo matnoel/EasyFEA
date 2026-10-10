@@ -91,7 +91,13 @@ if __name__ == "__main__":
 
     Matplotlib.Plot(simu, "ux", nColors=10)
     Matplotlib.Plot(simu, "uy", nColors=10)
-    Matplotlib.Plot(simu, "Svm", nColors=10, nodeValues=False, plotMesh=True)
+    Matplotlib.Plot(
+        simu,
+        "Svm",
+        nColors=10,
+        nodeValues=False,
+        plotMesh=True,
+    )
 
     print(simu)
 

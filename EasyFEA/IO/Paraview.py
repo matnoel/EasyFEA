@@ -83,19 +83,16 @@ def Save_simu(
     if MPI_SIZE > 1:
         MPI_COMM.Barrier()  # ensure folder exists before all ranks proceed
 
-    additionalNodesField = results
-    additionalElementsField = elementFields
-
     nodeFields, elementFields = simu.Results_nodeFields_elementFields(details)
 
     [
         nodeFields.append(n)  # type: ignore [func-returns-value]
-        for n in additionalNodesField
+        for n in results
         if simu._Results_Check_Available(n) and n not in nodeFields
     ]
     [
         elementFields.append(e)  # type: ignore [func-returns-value]
-        for e in additionalElementsField
+        for e in elementFields
         if simu._Results_Check_Available(e) and e not in elementFields
     ]
 

@@ -447,7 +447,6 @@ def Save_mesh(
 
     if useBinary is False:
         raise ValueError("Only binary glb files are written.")
-    filename = name
     list_displacementMatrix = list_displacementMatrix or []
     list_nodesValues_n = list_nodesValues_n or []
 
@@ -482,7 +481,7 @@ def Save_mesh(
             vMin=vMin,
             vMax=vMax,
             folder=folder,
-            filename=f"colorbar_{filename}",
+            filename=f"colorbar_{name}",
             cmap=cmap,
         )
 
@@ -673,10 +672,10 @@ def Save_mesh(
         gltf.animations.append(anim)
 
     # save
-    filename = Folder.Join(folder, f"{filename}.glb", mkdir=True)
-    gltf.save_binary(filename)
+    path = Folder.Join(folder, f"{name}.glb", mkdir=True)
+    gltf.save_binary(path)
 
-    return filename
+    return path
 
 
 def _write_file(file: str, content: str) -> str:

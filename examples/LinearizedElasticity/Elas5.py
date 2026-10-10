@@ -118,7 +118,12 @@ if __name__ == "__main__":
     Matplotlib.Plot(simu, "ux", nColors=10, nodeValues=True)
     Matplotlib.Plot(simu, "uy", nColors=10, nodeValues=True)
     Matplotlib.Plot(
-        simu, "Svm", nColors=10, nodeValues=True, deformFactor=factorDef, plotMesh=True
+        simu,
+        "Svm",
+        nColors=10,
+        nodeValues=True,
+        deformFactor=factorDef,
+        plotMesh=True,
     )
 
     print(simu)

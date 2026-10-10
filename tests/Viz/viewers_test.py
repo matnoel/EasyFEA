@@ -43,6 +43,14 @@ class TestFraming:
         assert ax.get_xlim() == (0, 5)
         plt.close("all")
 
+    def test_2D_bounds_take_four_values(self):
+        contour = Domain((0, 0), (10, 10), 2.0)
+        mesh = contour.Mesh_2D()
+        ax = Matplotlib.Plot_Mesh(mesh, bounds=(0, 5, 0, 5))
+        assert ax.get_xlim() == (0, 5)
+        plt.close("all")
+        PyVista.Plot_Mesh(mesh, bounds=(0, 5, 0, 5)).close()
+
     def test_pyvista_view_covers_both(self, far_meshes):
         meshBig, meshSmall = far_meshes
         plotter = PyVista.Plot_Mesh(meshBig)

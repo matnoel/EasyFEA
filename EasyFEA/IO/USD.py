@@ -238,7 +238,6 @@ def Save_mesh(
 
     if useBinary is False:
         raise ValueError("usdz files are binary only.")
-    filename = name
     list_displacementMatrix = list_displacementMatrix or []
     list_nodesValues_n = list_nodesValues_n or []
 
@@ -272,12 +271,12 @@ def Save_mesh(
             vMin=vMin,
             vMax=vMax,
             folder=folder,
-            filename=f"colorbar_{filename}",
+            filename=f"colorbar_{name}",
             cmap=cmap,
         )
 
     # init stage
-    usdcFile = Folder.Join(folder, f"{filename}.usdc")
+    usdcFile = Folder.Join(folder, f"{name}.usdc")
     stage = Usd.Stage.CreateNew(usdcFile)
     stage.SetTimeCodesPerSecond(fps)
     stage.SetStartTimeCode(0)
@@ -465,7 +464,7 @@ def Save_mesh(
 
     stage.GetRootLayer().Save()
 
-    usdzFile = Folder.Join(folder, f"{filename}.usdz")
+    usdzFile = Folder.Join(folder, f"{name}.usdz")
     UsdUtils.CreateNewUsdzPackage(usdcFile, usdzFile)
 
     return usdzFile

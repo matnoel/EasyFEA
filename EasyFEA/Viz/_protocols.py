@@ -3,9 +3,7 @@
 # This file is part of the EasyFEA project.
 # EasyFEA is distributed under the terms of the GNU General Public License v3, see LICENSE.txt and CREDITS.md for more information.
 
-"""What a viewer module can do; mypy checks the claims at the bottom.\n
-Defaults are the backend's (`...`); the drawing target (`ax`, `plotter`) and backend extras stay outside.
-"""
+"""What a viewer module can do, with each backend's defaults (`...`); mypy checks the claims at the bottom."""
 
 from __future__ import annotations
 from typing import TYPE_CHECKING, Any, Callable, Protocol

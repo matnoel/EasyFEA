@@ -118,12 +118,7 @@ simu.Save_Iter()
 # ----------------------------------------------
 # Results
 # ----------------------------------------------
-plotter = PyVista.Plot(
-    simu,
-    "T",
-    nColors=11,
-    verticalColorbar=False,
-)
+plotter = PyVista.Plot(simu, "T", nColors=11, verticalColorbar=False)
 plotter.show()
 
 for i in range(2):

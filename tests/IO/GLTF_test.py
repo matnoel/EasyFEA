@@ -93,12 +93,7 @@ class TestGLTF:
 
                 filename = mesh.elemType + "_plotMesh" if plotMesh else mesh.elemType
 
-                glbFile = IO.GLTF.Save_mesh(
-                    mesh,
-                    folder,
-                    filename,
-                    plotMesh=plotMesh,
-                )
+                glbFile = IO.GLTF.Save_mesh(mesh, folder, filename, plotMesh=plotMesh)
 
                 gltf = GLTF2().load(glbFile)
 
@@ -113,10 +108,7 @@ class TestGLTF:
             frames = get_frames(mesh)
 
             glbFile = IO.GLTF.Save_mesh(
-                mesh,
-                folder,
-                mesh.elemType,
-                list_displacementMatrix=frames,
+                mesh, folder, mesh.elemType, list_displacementMatrix=frames
             )
 
             gltf = GLTF2().load(glbFile)
@@ -192,7 +184,11 @@ class TestGLTF:
             simu = get_simu(mesh)
 
             saved = IO.GLTF.Save_simu(
-                simu, folder, results=["uy"], fps=1, openWebBrowser=False
+                simu,
+                folder,
+                results=["uy"],
+                fps=1,
+                openWebBrowser=False,
             )
 
             assert saved == folder

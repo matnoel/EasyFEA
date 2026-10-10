@@ -84,11 +84,27 @@ if __name__ == "__main__":
 
     pltr = PyVista._Plotter(shape=(3, 1))
 
-    PyVista.Plot(simu, "uy", plotMesh=True, plotter=pltr, verticalColorbar=False)
+    PyVista.Plot(
+        simu,
+        "uy",
+        plotMesh=True,
+        plotter=pltr,
+        verticalColorbar=False,
+    )
     pltr.subplot(1, 0)
-    PyVista.Plot(simu, "uz", plotMesh=True, plotter=pltr, verticalColorbar=False)
+    PyVista.Plot(
+        simu,
+        "uz",
+        plotMesh=True,
+        plotter=pltr,
+        verticalColorbar=False,
+    )
     pltr.subplot(2, 0)
     PyVista.Plot(
-        simu, "displacement_norm", plotMesh=True, plotter=pltr, verticalColorbar=False
+        simu,
+        "displacement_norm",
+        plotMesh=True,
+        plotter=pltr,
+        verticalColorbar=False,
     )
     pltr.show()

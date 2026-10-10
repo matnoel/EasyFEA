@@ -73,3 +73,15 @@ class TestVizir:
                 local_coords
             )
             assert test < 1e-12
+
+
+def test_save_simu_needs_a_type_per_result(tmp_path):
+    from EasyFEA import Models, Simulations
+    from EasyFEA.Geoms import Domain
+
+    contour = Domain((0, 0), (1, 1), 0.5)
+    mesh = contour.Mesh_2D()
+    simu = Simulations.Elastic(mesh, Models.Elastic.Isotropic(2))
+
+    with pytest.raises(ValueError, match="types"):
+        IO.Vizir.Save_simu(simu, str(tmp_path), results=["ux"])

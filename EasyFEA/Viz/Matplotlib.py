@@ -21,6 +21,7 @@ from ._utils import (
     _Flatten_geoms,
     _Check_kwargs,
     _Union_bounds,
+    _View_box,
     _Gauss_points_averaged,
 )
 
@@ -204,7 +205,7 @@ def Plot(
     verticalColorbar: bool = True,
     color: str | None = None,
     edgecolor: str = "black",
-    linewidth: float | None = 0.5,
+    linewidth: float | None = None,
     alpha: float = 1.0,
     plotMesh: bool = False,
     plotNodes: bool = False,
@@ -255,7 +256,7 @@ def Plot(
     edgecolor : str, optional
         Color used to plot the mesh, by default 'black'
     linewidth : float, optional
-        line width, by default 0.5
+        line width, by default None (0.5, or 1.5 for colored lines)
     alpha : float, optional
         face transparency, by default 1.0
     plotMesh : bool, optional
@@ -325,6 +326,8 @@ def Plot(
 
     # surface dimension actually displayed (3D meshes show their 2D skin)
     surfDim = 2 if (inDim == 3 and dimElem == 3) else dimElem
+    edgeWidth = 0.5 if linewidth is None else linewidth
+    fieldWidth = (1.5 if surfDim == 1 else 0.5) if linewidth is None else linewidth
 
     if result is not None:
         # Get values and colorbar properties
@@ -360,7 +363,8 @@ def Plot(
                 norm=norm,
                 cmap=cmap,
                 edgecolor=edge,
-                linewidth=1.5 if surfDim == 1 else 0.5,
+                linewidth=fieldWidth,
+                alpha=alpha,
                 label=label,
                 **kwargs,
             )
@@ -377,7 +381,7 @@ def Plot(
                 surfDim,
                 facecolors=color,
                 edgecolor=edgecolor if plotMesh else None,
-                linewidth=linewidth,
+                linewidth=edgeWidth,
                 alpha=alpha,
                 label=label,
                 **kwargs,
@@ -393,7 +397,12 @@ def Plot(
         elif plotMesh and hasResult:
             # mesh for 2D elements are lines / segments (dimElem=1 for LineCollection)
             __Add_Collection(
-                ax, vertices, inDim, 1, edgecolor=edgecolor, linewidth=linewidth
+                ax,
+                vertices,
+                inDim,
+                1,
+                edgecolor=edgecolor,
+                linewidth=edgeWidth,
             )
 
         if hasResult and nodeValues:
@@ -413,6 +422,7 @@ def Plot(
                 cmap=cmap,
                 vmin=values.min(),
                 vmax=values.max(),
+                alpha=alpha,
                 **kwargs,
             )
         elif hasResult:
@@ -425,7 +435,8 @@ def Plot(
                 array=values,
                 norm=norm,
                 cmap=cmap,
-                linewidth=1.5 if surfDim == 1 else 0.5,
+                linewidth=fieldWidth,
+                alpha=alpha,
                 clim=(vmin, vmax),
                 label=label,
                 **kwargs,
@@ -439,7 +450,7 @@ def Plot(
                 surfDim,
                 facecolors=color,
                 edgecolor=edgecolor if plotMesh else None,
-                linewidth=linewidth,
+                linewidth=edgeWidth,
                 alpha=alpha,
                 label=label,
                 **kwargs,
@@ -466,7 +477,11 @@ def Plot(
         else:
             cax = None
         colorbar = plt.colorbar(
-            pc, ax=ax, cax=cax, ticks=ticks, orientation=orientation
+            pc,
+            ax=ax,
+            cax=cax,
+            ticks=ticks,
+            orientation=orientation,
         )
         colorbar.set_label(colorbarTitle)
 
@@ -668,7 +683,13 @@ def Plot_Mesh(
         if mesh.dim == 1:
             # 1D meshes display their nodes
             markCoord = coord if ax.name == "3d" else coord[:, :2]
-            ax.plot(*markCoord.T, c="black", lw=linewidth, marker=".", ls="")
+            ax.plot(
+                *markCoord.T,
+                c="black",
+                lw=linewidth,
+                marker=".",
+                ls="",
+            )
     else:
         # Deformed mesh: overlay the deformed (red) over the undeformed wireframe, both built
         # with the same _Get_vertices / _Add_Collection helpers used by Plot. The element
@@ -681,23 +702,49 @@ def Plot_Mesh(
         vertices = __Get_vertices(mesh, coord, inDim, mesh.dim)
 
         __Add_Collection(
-            ax, verticesDef, inDim, 1, edgecolor="red", linewidth=linewidth, label=label
+            ax,
+            verticesDef,
+            inDim,
+            1,
+            edgecolor="red",
+            linewidth=linewidth,
+            label=label,
         )
         __Add_Collection(
-            ax, vertices, inDim, 1, edgecolor=edgecolor, linewidth=linewidth
+            ax,
+            vertices,
+            inDim,
+            1,
+            edgecolor=edgecolor,
+            linewidth=linewidth,
         )
 
         if mesh.dim == 1 or plotNodes:
             # undeformed nodes in black, deformed in red
             markCoord = coord if inDim == 3 else coord[:, :2]
             markDef = coordDef if inDim == 3 else coordDef[:, :2]
-            ax.plot(*markCoord.T, c="black", ms=nodeSize, marker=".", ls="")
-            ax.plot(*markDef.T, c="red", ms=nodeSize, marker=".", ls="")
+            ax.plot(
+                *markCoord.T,
+                c="black",
+                ms=nodeSize,
+                marker=".",
+                ls="",
+            )
+            ax.plot(
+                *markDef.T,
+                c="red",
+                ms=nodeSize,
+                marker=".",
+                ls="",
+            )
 
-        _Fit_view(ax, np.concatenate((coord, coordDef)), bounds)
-
-        if showGrid:
-            ax.grid(True)
+        _Annotate(
+            ax,
+            np.concatenate((coord, coordDef)),
+            "",
+            showGrid,
+            bounds,
+        )
 
     tic.Tac("Matplotlib", "Plot_Mesh")
 
@@ -817,14 +864,16 @@ def Plot_Nodes(
         zorder=2.5,
     )
     if showId:
-        [ax.text(*coord[node, :inDim].T, str(node), c=color) for node in nodes]  # type: ignore [call-arg]
+        for node in nodes:
+            ax.text(*coord[node, :inDim].T, str(node), c=color)  # type: ignore [call-arg]
 
-    _Fit_view(ax, coord[nodes], bounds)
-
-    if title != "":
-        ax.set_title(title)
-    if showGrid:
-        ax.grid(True)
+    _Annotate(
+        ax,
+        coord[nodes],
+        title,
+        showGrid,
+        bounds,
+    )
 
     tic.Tac("Matplotlib", "Plot_Nodes")
 
@@ -979,12 +1028,13 @@ def Plot_Elements(
                 ls="",
                 zorder=2.5,
             )
-        _Fit_view(ax, coord[drawnNodes], bounds)
-
-    if title != "":
-        ax.set_title(title)
-    if showGrid:
-        ax.grid(True)
+        _Annotate(
+            ax,
+            coord[drawnNodes],
+            title,
+            showGrid,
+            bounds,
+        )
 
     return ax
 
@@ -1059,7 +1109,14 @@ def Plot_BoundaryConditions(
     if ax is None:
         ax = Plot_Elements(simu, dimElem=1, color="k", deformFactor=deformFactor)
         if alpha > 0:
-            Plot(simu, None, deformFactor, color="gray", alpha=alpha, ax=ax)
+            Plot(
+                simu,
+                None,
+                deformFactor,
+                color="gray",
+                alpha=alpha,
+                ax=ax,
+            )
 
     plotDim = np.max([simu.mesh.inDim, 2])
 
@@ -1108,16 +1165,23 @@ def Plot_BoundaryConditions(
             points = coord[:, :plotDim].mean(0, keepdims=True)
         else:
             points = coord[nodes, :plotDim]
-        ax.plot(*points.T, marker=marker, ms=nodeSize, label=label, zorder=2.5, ls="")
+        ax.plot(
+            *points.T,
+            marker=marker,
+            ms=nodeSize,
+            label=label,
+            zorder=2.5,
+            ls="",
+        )
 
-    _Fit_view(ax, coord, bounds)
-
-    if title != "":
-        ax.set_title(title)
-    if showGrid:
-        ax.grid(True)
-    if plotLegend:
-        ax.legend()
+    _Annotate(
+        ax,
+        coord,
+        title,
+        showGrid,
+        bounds,
+        plotLegend,
+    )
 
     tic.Tac("Matplotlib", "Plot_BoundaryConditions")
 
@@ -1152,6 +1216,7 @@ def Plot_Geoms(
 
     from ..Geoms import Point
 
+    drawn: list[_types.FloatArray] = []
     for geom in _Flatten_geoms(geoms):
         if isinstance(geom, Point):
             continue
@@ -1173,19 +1238,27 @@ def Plot_Geoms(
             alpha=alpha,
         )
         if plotPoints:
-            ax.plot(*points[:, :inDim].T, ls="", marker=".", c="black", alpha=alpha)
-
-        _Fit_view(ax, lines, bounds)
+            ax.plot(
+                *points[:, :inDim].T,
+                ls="",
+                marker=".",
+                c="black",
+                alpha=alpha,
+            )
+        drawn.append(lines)
 
     if ax is None:
         ax = Init_Axes(2)
+        drawn.append(np.zeros((1, 3)))
 
-    if title != "":
-        ax.set_title(title)
-    if showGrid:
-        ax.grid(True)
-    if plotLegend:
-        ax.legend()
+    _Annotate(
+        ax,
+        np.concatenate(drawn),
+        title,
+        showGrid,
+        bounds,
+        plotLegend,
+    )
 
     return ax
 
@@ -1258,7 +1331,14 @@ def Plot_Tags(
     ax, inDim = __Get_axis(ax, inDim)
     inDim = np.max([inDim, 2])
 
-    Plot(obj, None, deformFactor, color="gray", alpha=0.1, ax=ax)
+    Plot(
+        obj,
+        None,
+        deformFactor,
+        color="gray",
+        alpha=0.1,
+        ax=ax,
+    )
 
     colors = plt.get_cmap("tab10").colors  # type: ignore [attr-defined]
     colorIterator = iter(colors * np.ceil(np.sum(nTtags) / len(colors)).astype(int))
@@ -1337,14 +1417,14 @@ def Plot_Tags(
             if showId:
                 ax.text(*center[:inDim], tag_e, zorder=25)  # type: ignore [arg-type, call-arg]
 
-    _Fit_view(ax, coord, bounds)
-
-    if title != "":
-        ax.set_title(title)
-    if showGrid:
-        ax.grid(True)
-    if plotLegend:
-        ax.legend()
+    _Annotate(
+        ax,
+        coord,
+        title,
+        showGrid,
+        bounds,
+        plotLegend,
+    )
 
     tic.Tac("Matplotlib", "Plot_Tags")
 
@@ -1742,7 +1822,14 @@ def Movie_simu(
         )
         ax.set_title(f"{result} {iterations[i]:d}/{Niter - 1:d}")
 
-    Movie_func(DoAnim, iterations.size, folder, filename, fps=fps, fig=fig)
+    Movie_func(
+        DoAnim,
+        iterations.size,
+        folder,
+        filename,
+        fps=fps,
+        fig=fig,
+    )
 
 
 @rank0_only
@@ -1949,7 +2036,7 @@ def _Fit_view(
     """Frames `ax` on everything drawn in it so far, `coord` included, or on the fixed `bounds`."""
     is3D = ax.name == "3d"
     if bounds is not None:
-        lims = np.reshape(np.asarray(bounds, dtype=float), (-1, 2))
+        lims = _View_box(bounds)
         ax.set_xlim(*lims[0])
         ax.set_ylim(*lims[1])
         if is3D:
@@ -1965,3 +2052,22 @@ def _Fit_view(
     else:
         ax.autoscale()
         ax.axis("equal")
+
+
+@requires_matplotlib
+def _Annotate(
+    ax: Axes,
+    coord: _types.FloatArray,
+    title: str = "",
+    showGrid: bool = False,
+    bounds: _types.Numbers | None = None,
+    plotLegend: bool = False,
+) -> None:
+    """Frames the view (see `_Fit_view`), then adds the title, grid and legend."""
+    _Fit_view(ax, coord, bounds)
+    if title != "":
+        ax.set_title(title)
+    if showGrid:
+        ax.grid(True)
+    if plotLegend:
+        ax.legend()

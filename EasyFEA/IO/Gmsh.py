@@ -228,7 +228,13 @@ def Save_simu(
     }
 
     Niter = simu.Niter
-    iterations = np.linspace(0, Niter - 1, min(Niter, N), endpoint=True, dtype=int)
+    iterations = np.linspace(
+        0,
+        Niter - 1,
+        min(Niter, N),
+        endpoint=True,
+        dtype=int,
+    )
 
     # activates the first iteration
     simu.Set_Iter(0, resetAll=True)

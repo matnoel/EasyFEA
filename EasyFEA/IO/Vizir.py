@@ -393,6 +393,9 @@ def Save_simu(
 
     # assert isinstance(simu, "_Simu")
 
+    if len(types) != len(results):
+        raise ValueError("types must give one solution type per result.")
+
     # sample the results
     Niter = simu.Niter
     if N is None:
@@ -400,7 +403,7 @@ def Save_simu(
     N = np.min([Niter, N])
 
     # init sols files and make checks
-    for result, type in zip(results, types, strict=True):  # type: ignore [call-overload]
+    for result, type in zip(results, types):
         with open(Folder.Join(folder, f"{result}.sols", mkdir=True), "w") as file:
             # do nothing
             pass

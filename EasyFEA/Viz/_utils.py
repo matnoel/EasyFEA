@@ -75,6 +75,16 @@ def _Union_bounds(
     return box
 
 
+def _View_box(bounds: _types.Numbers) -> _types.FloatArray:
+    """`bounds` as (3, 2) limits; a 2D box (xmin, xmax, ymin, ymax) gets z in (0, 0)."""
+    lims = np.asarray(bounds, dtype=float).ravel()
+    if lims.size == 4:
+        lims = np.append(lims, [0.0, 0.0])
+    if lims.size != 6:
+        raise ValueError("bounds must be (xmin, xmax, ymin, ymax[, zmin, zmax]).")
+    return lims.reshape(3, 2)
+
+
 def _Gauss_points_averaged(
     mesh: Mesh, result: str | _types.AnyArray | dict | None
 ) -> str | _types.AnyArray | None:
