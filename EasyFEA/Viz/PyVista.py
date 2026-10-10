@@ -1142,7 +1142,7 @@ def Movie_func(
         func(plotter, i)
 
         # the view no longer moves: frames stay comparable
-        setattr(plotter, __frozen_view_arg, True)
+        setattr(plotter, _FROZEN_VIEW, True)
 
         plotter.write_frame()
 
@@ -1163,14 +1163,15 @@ def Movie_func(
 # ----------------------------------------------
 
 
-__update_camera_arg = "_need_to_update_camera_position"
-__frozen_view_arg = "_easyfea_frozen_view"
+# view state kept on the plotter
+_UPDATE_CAMERA = "_easyfea_update_camera"
+_FROZEN_VIEW = "_easyfea_frozen_view"
 
 
 @requires_pyvista
 def _Plotter(off_screen=False, add_axes=True, shape=(1, 1), linkViews=True):
     plotter = pv.Plotter(off_screen=pv.OFF_SCREEN, shape=shape)
-    setattr(plotter, __update_camera_arg, True)
+    setattr(plotter, _UPDATE_CAMERA, True)
     if add_axes:
         plotter.add_axes()
     if linkViews:
@@ -1192,12 +1193,12 @@ def _Annotate(
         plotter.add_title(title)
     if showGrid:
         plotter.show_grid()  # type: ignore [call-arg]
-    if getattr(plotter, __frozen_view_arg, False):
+    if getattr(plotter, _FROZEN_VIEW, False):
         return
-    if getattr(plotter, __update_camera_arg, False):
+    if getattr(plotter, _UPDATE_CAMERA, False):
         # orientation, once per plotter
         _setCameraPosition(plotter, inDim)
-        setattr(plotter, __update_camera_arg, False)
+        setattr(plotter, _UPDATE_CAMERA, False)
     if bounds is not None:
         if inDim == 2:
             plotter.enable_parallel_projection()  # type: ignore [call-arg]

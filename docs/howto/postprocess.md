@@ -60,18 +60,18 @@ Matplotlib.Plot(simu, "Svm", plotMesh=True, nColors=11)
 Matplotlib and PyVista share their function names and options, so a call switches viewer
 by changing the module. The shared options:
 
-| Group      | Options                                                                                     |
-| ---------- | ------------------------------------------------------------------------------------------- |
-| Object     | `deformFactor` (`0` = undeformed)                                                           |
-| Field      | `result`, `coef` (e.g. unit conversion), `nodeValues` (`False` for element-constant)        |
-| Colorbar   | `cmap`, `nColors`, `clim=(min, max)`, `colorbarTitle`, `plotColorbar`, `verticalColorbar`   |
-| Style      | `color`, `edgecolor`, `linewidth`, `alpha`, `plotMesh`, `plotNodes`, `nodeSize`             |
-| Annotation | `title`, `label`, `showId`, `showGrid`, `plotLegend`, `bounds=(xmin, xmax, ..., zmax)`      |
+| Group      | Options                                                                                   |
+| ---------- | ----------------------------------------------------------------------------------------- |
+| Object     | `deformFactor` (`0` = undeformed)                                                         |
+| Field      | `result`, `coef` (e.g. unit conversion), `nodeValues` (`False` for element-constant)      |
+| Colorbar   | `cmap`, `nColors`, `clim=(min, max)`, `colorbarTitle`, `plotColorbar`, `verticalColorbar` |
+| Style      | `color`, `edgecolor`, `linewidth`, `alpha`, `plotMesh`, `plotNodes`, `nodeSize`           |
+| Annotation | `title`, `label`, `showId`, `showGrid`, `plotLegend`, `bounds=(xmin, xmax, ..., zmax)`    |
 
 The view covers everything drawn in the figure; `bounds` fixes it instead. Draw into an
-existing figure with `ax=` (Matplotlib) or `plotter=` (PyVista). Other keywords go to the
-backend's draw call, except its own spelling of a shared option (`lw`, `line_width`, ...),
-which raises `ValueError`. `Matplotlib.Plot` also saves the figure with `folder` /
+existing figure with `ax=` (Matplotlib) or `plotter=` (PyVista). Other keywords go to
+the backend's draw call, except its own spelling of a shared option (`lw`, `line_width`,
+...), which raises `ValueError`. `Matplotlib.Plot` also saves the figure with `folder` /
 `filename`.
 
 ### Plot the mesh

@@ -15,6 +15,7 @@ from ..Utilities._mpi import rank0_only
 from ..Utilities.Terminal import MyPrint, MyPrintError
 from ..IO._utils import _Init_obj, _Get_values
 from ._utils import tab10_colors as tab10_colors  # public
+from ._utils import tab20_colors as tab20_colors  # public
 from ._utils import (
     PlotOptions,
     _Flatten_geoms,
@@ -48,16 +49,6 @@ except ImportError:
 requires_matplotlib = Create_requires_decorator("matplotlib")
 
 # Ideas: https://www.python-graph-gallery.com/
-
-# fmt: off
-# tab20_colors = [colors.rgb2hex(color) for color in plt.get_cmap("tab20").colors] 
-tab20_colors = [
-    "#1f77b4","#aec7e8","#ff7f0e","#ffbb78","#2ca02c",
-    "#98df8a","#d62728","#ff9896","#9467bd","#c5b0d5",
-    "#8c564b","#c49c94","#e377c2","#f7b6d2","#7f7f7f",
-    "#c7c7c7","#bcbd22","#dbdb8d","#17becf","#9edae5",
-]
-# fmt: on
 
 
 # ----------------------------------------------
@@ -1821,6 +1812,9 @@ def Movie_func(
 # Functions
 # ----------------------------------------------
 
+# view state kept on the axes
+_DRAWN_BOUNDS = "_easyfea_drawn_bounds"
+
 
 @rank0_only
 @requires_matplotlib
@@ -1946,9 +1940,6 @@ def _Axis_equal_3D(ax: Axes3D, coord: _types.FloatArray) -> None:
     ax.set_ylim([ymid - maxRange, ymid + maxRange])
     ax.set_zlim([zmid - maxRange, zmid + maxRange])
     ax.set_box_aspect([1, 1, 1])
-
-
-_DRAWN_BOUNDS = "_easyfea_drawn_bounds"
 
 
 @requires_matplotlib
