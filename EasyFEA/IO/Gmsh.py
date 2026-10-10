@@ -116,7 +116,7 @@ def Load_mesh(gmshMesh: str) -> Mesh:
 @requires_matplotlib
 def Save_simu(
     simu: _Simu,
-    results: list[str] = [],
+    results: list[str] | None = None,
     details: bool = False,
     edgeColor: str = "black",
     plotMesh: bool = True,
@@ -146,7 +146,7 @@ def Save_simu(
         opens the gmsh window, by default False
     """
 
-    assert isinstance(results, list), "results must be a list"
+    results = [] if results is None else list(results)
 
     # get mesh informations
     mesh = simu.mesh

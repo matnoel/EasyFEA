@@ -4,6 +4,7 @@
 # EasyFEA is distributed under the terms of the GNU General Public License v3, see LICENSE.txt and CREDITS.md for more information.
 
 import numpy as np
+import pytest
 
 from EasyFEA import ElemType, Mesh
 from EasyFEA.Geoms import Domain, Point
@@ -97,9 +98,6 @@ class TestGmsh:
         from EasyFEA.Geoms import Points
 
         contour = Points([(0, 0, 0), (1, 0, 0), (1, 1, 1), (0, 1, 0)])
-        try:
+        with pytest.raises(MeshError) as error:
             contour.Mesh_2D()
-        except MeshError as error:
-            assert error.geoms == [contour]
-        else:
-            raise AssertionError("a non-planar contour must not mesh")
+        assert error.value.geoms == [contour]

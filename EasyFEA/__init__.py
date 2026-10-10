@@ -15,7 +15,7 @@ from .__about__ import __version__
 if TYPE_CHECKING:
     from .Viz import Matplotlib, PyVista
 
-_LAZY_VIEWERS = ("Matplotlib", "PyVista")  # pyplot 188 ms, pyvista 151 ms
+_LAZY_VIEWERS = ("Matplotlib", "PyVista")
 
 
 def __getattr__(name: str):

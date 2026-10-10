@@ -70,10 +70,7 @@ _F = TypeVar("_F", bound=Callable[..., Mesh])
 
 
 def _raises_mesh_error(func: _F) -> _F:
-    """Decorator turning a failure of a meshing method into a MeshError, see `Mesher._Raise_mesh_error`.
-
-    It covers entity building as well as generation, because gmsh raises just as often while the entities are built (a non-planar contour fails in `addPlaneSurface`) as while the mesh is generated. It stops at `_Mesh_Generate`: once gmsh has produced a mesh the geometry was accepted, so a later failure comes from converting that mesh (e.g. an element type EasyFEA does not implement) and blaming the geoms would only mislead.
-    """
+    """Decorator turning a failure of a meshing method into a MeshError, see `Mesher._Raise_mesh_error`."""
 
     @wraps(func)
     def wrapper(*args, **kwargs) -> Mesh:

@@ -16,6 +16,7 @@ from functools import singledispatch
 from ..Utilities import Folder, Terminal, Tic, _types
 from ..IO._utils import _Init_obj, _Get_values
 from ..IO import PyVista as _pvIO
+from ._utils import _Flatten_geoms
 from .. import Geoms
 
 # fem
@@ -829,7 +830,7 @@ def Plot_Geoms(
 
     from . import Matplotlib
 
-    geoms = Matplotlib._Flatten_geoms(geoms)  # type: ignore [assignment]
+    geoms = _Flatten_geoms(geoms)  # type: ignore [assignment]
 
     if plotter is None:
         plotter = _Plotter()

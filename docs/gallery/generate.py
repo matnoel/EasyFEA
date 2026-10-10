@@ -9,7 +9,8 @@ os.environ["PYVISTA_OFF_SCREEN"] = "true"
 os.environ["MPLBACKEND"] = "Agg"
 
 from EasyFEA import Folder, Mesh, IO
-from EasyFEA.Simulations._simu import _Init_obj, Load_Simu
+from EasyFEA.IO._utils import _Init_obj
+from EasyFEA.Simulations import Load_Simu
 
 docsDir = Folder.Dir(__file__, 2)
 examplesDir = Folder.Join(Folder.Dir(docsDir), "examples")

@@ -17,7 +17,8 @@ This document describes the changes made to the project.
 - Meshes and geometries no longer draw: `Geom.Plot` and `Geom.Plot_Geoms` become
   `Matplotlib.Plot_Geoms`, `Mesh.Get_Paired_Nodes` loses `plot` (the drawing is
   `Plot_Paired_Nodes` in the `Homog1` example), `Mesher.Save_simu` becomes
-  `IO.Gmsh.Save_simu` and `Tic.Plot_History` becomes `Matplotlib.Plot_Tic_History`.
+  `IO.Gmsh.Save_simu` (with its own `openGmsh`) and `Tic.Plot_History` becomes
+  `Matplotlib.Plot_Tic_History`.
 - `Matplotlib.Plot_Geoms` and `PyVista.Plot_Geoms` take `*geoms`, each a geom or a list
   of geoms, so their options are keyword-only (**breaking** for a positional `ax`).
 - A failed meshing no longer opens a window: the `MeshError` carries the geometries in

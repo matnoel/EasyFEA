@@ -14,6 +14,7 @@ from ..Utilities import Folder, Tic, _types
 from ..Utilities._mpi import rank0_only
 from ..Utilities.Terminal import MyPrint, MyPrintError
 from ..IO._utils import _Init_obj, _Get_values
+from ._utils import _Flatten_geoms
 
 if TYPE_CHECKING:
     from ..Simulations._simu import _Simu
@@ -959,11 +960,6 @@ def Plot_BoundaryConditions(simu, ax: Axes | None = None) -> Axes:
     return ax
 
 
-def _Flatten_geoms(geoms: tuple) -> list[_Geom]:
-    """Unpacks the lists among `geoms`."""
-    return [g for geom in geoms for g in (geom if isinstance(geom, list) else [geom])]
-
-
 @requires_matplotlib
 def Plot_Geoms(
     *geoms: _Geom | list[_Geom],
@@ -1001,10 +997,7 @@ def Plot_Geoms(
         inDim = 3 if ax.name == "3d" else 2
         label = geom.name if name == "" else name
 
-        if color != "":
-            ax.plot(*lines[:, :inDim].T, color=color, label=label, lw=lw, ls=ls)
-        else:
-            ax.plot(*lines[:, :inDim].T, label=label, lw=lw, ls=ls)
+        ax.plot(*lines[:, :inDim].T, color=color or None, label=label, lw=lw, ls=ls)
         if plotPoints:
             ax.plot(*points[:, :inDim].T, ls="", marker=".", c="black")
 
@@ -1015,10 +1008,13 @@ def Plot_Geoms(
         else:
             ax.axis("equal")
 
-    if plotLegend:
-        ax.legend()  # type: ignore [union-attr]
+    if ax is None:
+        ax = Init_Axes(2)
 
-    return ax  # type: ignore [return-value]
+    if plotLegend:
+        ax.legend()
+
+    return ax
 
 
 @requires_matplotlib
