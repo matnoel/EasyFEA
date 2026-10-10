@@ -4,12 +4,18 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "easyfea"
-version = "6.0.0"
+version = "7.0.0"
 description = "User-friendly Python library that simplifies finite element analysis."
 authors = [{ name = "Matthieu Noel", email = "noel.mat@proton.me" }]
 readme = "README.md"
 requires-python = ">=3.10"
-keywords = ["finite-element-analysis", "phase-field", "python", "easy", "fem"]
+keywords = [
+    "finite-element-analysis",
+    "phase-field",
+    "python",
+    "easy",
+    "fem"
+]
 license = { file = "LICENSE.txt" }
 classifiers = [
     "Intended Audience :: Science/Research",
@@ -31,7 +37,12 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
-dev = ["mypy", "pytest", "pytest-xdist", "jax"]
+dev = [
+    "mypy",
+    "pytest",
+    "pytest-xdist",
+    "jax",
+]
 # pinned so CI and every machine format alike
 lint = [
     "black==26.5.1",
@@ -40,8 +51,17 @@ lint = [
     "mdformat-myst==0.3.0",
     "import-linter==2.15",
 ]
-viz = ["matplotlib", "pyvista"]
-io = ["imageio", "imageio[ffmpeg]", "meshio", "pygltflib", "usd-core"]
+viz = [
+    "matplotlib",
+    "pyvista",
+]
+io = [
+    "imageio",
+    "imageio[ffmpeg]",
+    "meshio",
+    "pygltflib",
+    "usd-core",
+]
 jax = ["jax"]
 
 [project.urls]
@@ -70,17 +90,31 @@ disable_error_code = [
 
 [[tool.mypy.overrides]]
 # the protocol claims report as [assignment]
-module = ["EasyFEA.IO._protocols", "EasyFEA.Viz._protocols"]
+module = [
+    "EasyFEA.IO._protocols",
+    "EasyFEA.Viz._protocols",
+]
 enable_error_code = ["assignment"]
 
 [tool.ruff]
 # no target-version: inferred from requires-python, so ruff never proposes syntax 3.10 cannot run
-include = ["pyproject.toml", "EasyFEA/**/*.py", "examples/**/*.py"]
+include = [
+    "pyproject.toml",
+    "EasyFEA/**/*.py",
+    "examples/**/*.py",
+]
 
 [tool.ruff.lint]
 # pinned, so a ruff release cannot silently enable hundreds of new rules
-select = ["E4", "E7", "E9", "F", "UP007", "UP045"]
-ignore = ["E731", "E741", "F402"]
+select = [
+    "E4", "E7", "E9",
+    "F",
+    "UP007", "UP045",
+]
+ignore = [
+    "E731", "E741",
+    "F402",
+]
 
 [tool.ruff.lint.per-file-ignores]
 # imports must follow module-level setup (BUILDING_GALLERY, requires_* decorators)
@@ -99,7 +133,15 @@ exclude_type_checking_imports = true
 name = "Layers"
 type = "layers"
 containers = ["EasyFEA"]
-layers = ["Viz", "IO", "Simulations", "Models", "FEM", "Geoms", "Utilities"]
+layers = [
+    "Viz",
+    "IO",
+    "Simulations",
+    "Models",
+    "FEM",
+    "Geoms",
+    "Utilities",
+]
 ignore_imports = [
     "EasyFEA.Geoms._geom -> EasyFEA.FEM._mesher",
     "EasyFEA.Geoms._geom -> EasyFEA.FEM._utils",
