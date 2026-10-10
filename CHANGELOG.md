@@ -2,30 +2,36 @@
 
 This document describes the changes made to the project.
 
-## Unreleased
+## 7.0.0 (October 10, 2026):
+
+7.0.0 breaks the API in many places, and no aliases are kept. Read the **breaking**
+items before upgrading.
+
+### Package layout and import time
 
 - Front-ends leave `Utilities` (**breaking**, no alias): the viewers `Matplotlib` and
   `PyVista` move to `EasyFEA.Viz`, file formats to `EasyFEA.IO`, one module per format
   family (`Gmsh`, `Medit`, `Ensight`, `PyVista`, `Paraview`, `Vizir`, `USD`, `GLTF`).
   `from EasyFEA import Matplotlib, PyVista, IO` keeps working; `Paraview`, `Vizir`,
   `USD` and `GLTF` are read as `IO.Paraview`, ... and no longer imported from the root
-  or `EasyFEA.Utilities`. `import EasyFEA` loads neither pyplot nor pyvista.
+  or `EasyFEA.Utilities`. `import EasyFEA` loads neither pyplot nor pyvista (issue #67).
 - `MeshIO` is removed: `Gmsh_to_EasyFEA`/`EasyFEA_to_Gmsh` become
   `IO.Gmsh.Load_mesh`/`Save_mesh`, likewise for Medit and Ensight; the PyVista
   conversions and `Surface_reconstruction` move to `IO.PyVista`. The node-order tables
-  are renamed `_GMSH_` to `_EASYFEA_` (`DICT_EASYFEA_TO_VTK_INDEXES`, ...).
+  are renamed `_GMSH_` to `_EASYFEA_` (`DICT_EASYFEA_TO_VTK_INDEXES`, ...) (issue #67).
 - Meshes and geometries no longer draw: `Geom.Plot` and `Geom.Plot_Geoms` become
   `Matplotlib.Plot_Geoms`, `Mesh.Get_Paired_Nodes` loses `plot` (the drawing is
   `Plot_Paired_Nodes` in the `Homog1` example), `Mesher.Save_simu` becomes
   `IO.Gmsh.Save_simu` (with its own `openGmsh`) and `Tic.Plot_History` becomes
-  `Matplotlib.Plot_Tic_History`.
+  `Matplotlib.Plot_Tic_History` (issue #67).
 - `Matplotlib.Plot_Geoms` and `PyVista.Plot_Geoms` take `*geoms`, each a geom or a list
-  of geoms, so their options are keyword-only (**breaking** for a positional `ax`).
+  of geoms, so their options are keyword-only (**breaking** for a positional `ax`)
+  (issue #67).
 - A failed meshing no longer opens a window: the `MeshError` carries the geometries in
-  `.geoms`, to draw with `PyVista.Plot_Geoms(error.geoms)`.
+  `.geoms`, to draw with `PyVista.Plot_Geoms(error.geoms)` (issue #67).
 - `EasyFEA.BUILDING_GALLERY` is replaced by the `EASYFEA_BUILDING_GALLERY` environment
   variable, read at call time: the flag set by `docs/conf.py` used to be read too early
-  to take effect.
+  to take effect (issue #67).
 - IO formats share one signature per capability (**breaking**), checked by mypy against
   the `MeshSaver`, `MeshLoader` and `SimuSaver` protocols:
   `Save_mesh(mesh, folder, name, *, useBinary=None)`, `Load_mesh(path)` and
@@ -34,7 +40,7 @@ This document describes the changes made to the project.
   `nodeFields` becomes `results`; USD and GLTF `Save_mesh` take `name` instead of
   `filename`; `Gmsh.Save_simu` requires `folder`, samples `N` iterations and spells
   `edgecolor`. `useBinary=None` keeps each format's default, an unsupported value raises
-  `ValueError` (Ensight is text only, USD and GLTF binary only).
+  `ValueError` (Ensight is text only, USD and GLTF binary only) (issue #68).
 - `Matplotlib` and `PyVista` share one signature per function (**breaking**), checked by
   mypy against the `Viewer` protocol: `Plot`, `Plot_Mesh`, `Plot_Nodes`,
   `Plot_Elements`, `Plot_BoundaryConditions`, `Plot_Tags`, `Plot_Geoms`, `Movie_simu`,
@@ -47,13 +53,89 @@ This document describes the changes made to the project.
   `verticalColobar`, `show_grid`, `point_size`, `useLegend` (now `showId`, inverted),
   `Plot_Geoms(line_width=)`. After the leading arguments, options are keyword-only; `ax`
   and `plotter` stay backend options. `Matplotlib.Movie_func(func, N, folder, ...)`
-  takes `fig` as an optional keyword; both `Movie_func` take `fps`.
+  takes `fig` as an optional keyword; both `Movie_func` take `fps` (issue #68).
 - The view covers everything drawn in a figure: a second `Plot_*` on the same `ax` or
   `plotter` no longer shrinks a 3D Matplotlib view to its own object, and PyVista refits
   its camera. `bounds=(xmin, xmax, ymin, ymax, zmin, zmax)` fixes the view; a PyVista
-  movie keeps the view of its first frame.
+  movie keeps the view of its first frame (issue #68).
 - `Plot`'s extra keywords reach the backend's draw call, but its own spelling of a
-  shared option (`lw`, `line_width`, `n_colors`, ...) raises `ValueError`.
+  shared option (`lw`, `line_width`, `n_colors`, ...) raises `ValueError` (issue #68).
+- `import EasyFEA` takes about 0.2 s instead of 0.9 s: pyplot, pyvista, pxr, petsc4py,
+  meshio and scipy.optimize load on first use. Optional dependencies are detected with
+  `importlib.util.find_spec`, without importing them (issue #66).
+
+### Constitutive laws
+
+- `FEM.Kinematics(groupElem, displacement, matrixType)` replaces `HyperElasticState`
+  (**breaking**). Every law reads the strain measures it needs from it, computed once
+  and cached: elastic `Compute_Sigma(kinematics)` and `Compute_Psi(kinematics)` replace
+  `Calc_Epsilon_e_pg`, `Calc_Sigma_e_pg` and `Calc_Psi_e_pg`; phase field
+  `Compute_Sigma(kinematics, d)`, `Compute_C(kinematics, d)` and
+  `Compute_psi(kinematics)` replace `Calc_Sigma_e_pg`, `Calc_C` and `Calc_psi_e_pg`;
+  hyperelastic `Compute_W`, `Compute_dWde` and `Compute_d2Wde` take a `Kinematics`;
+  inelastic behaviors `Integrate(kinematics, z, dt)`; beams `Compute_Epsilon`,
+  `Compute_InternalForces` and `Compute_Sigma(kinematics)`. A simulation's strain or
+  stress is an `FeArray` on a single element group, `{groupElem: FeArray}` on several
+  (issue #63).
+- Elastic laws write only their 3D material-frame Kelvin `C` (**breaking**): `_Elastic`
+  rotates it, reads Voigt input, applies the 2D hypotheses, inverts and caches. `C` and
+  `S` are read-only, `Set_C` loses `update_S`, `Anisotropic` loses `axis1`/`axis2`, and
+  the transversely isotropic and orthotropic axes are settable parameters. 3D
+  `Anisotropic` honours `useVoigtNotation`, and a 2D `Anisotropic` with out-of-plane
+  axes no longer gives a silently wrong `C`; `Anisotropic.Walpole_Decomposition` raises
+  (issue #65).
+- The Kelvin–Mandel helpers live in one module (**breaking**): `Models` keeps only
+  `Get_Pmat` and `Apply_Pmat`. `KelvinMandel_Matrix`, `Project_vector_to_matrix`,
+  `Project_matrix_to_vector`, `Project_Kelvin`, `Result_strain_or_stress_field_e` and
+  `Reshape_variable` are removed (issue #65).
+- Heterogeneous parameters on meshes with several element groups: one model per group,
+  each in its own `Term(..., groupElem=g)` (see the how-to *Create models*) (issue #62).
+- `print(model)` lists the declared parameters, including heterogeneous ones.
+  `HyperElastic.Available_Laws` lists `CiarletGeymonat` and `HolzapfelOgden`. Beam `E`
+  and `v`, and the per-branch parameters of `Maxwell` and `Chaboche`, reject arrays.
+
+### Finite element arrays
+
+- One lift, `FeArray.broadcast(value, Ne, nPg, tensor_shape)` (**breaking**):
+  `tensor_shape` is required, and a shape that does not fit raises instead of being
+  guessed. `asfearray(x, True)`, `FeArray(x, broadcastFeArrays=True)` and
+  `Models.Reshape_variable` are removed (issue #64).
+- A plain array in `@` or `TensorProd` with an `FeArray` is a constant tensor at every
+  point (it used to raise, or silently sum over Gauss points when `nPg == n`). Integer
+  indexing on the element or Gauss axis returns a plain `ndarray`; `Norm()` without
+  `axis` reduces over the tensor axes only (issue #64).
+
+### Fixes
+
+- `Get_Elements_Tag` and `Get_Nodes_Tag` raise `KeyError` on an unknown tag instead of
+  returning an empty array (**breaking**).
+- Newton solves the `problemType` it was given, tolerates a zero first residual, raises
+  on a NaN or infinite residual (superlu_dist used to crash) and on non-convergence
+  under `python -O`.
+- MPI partition: nodes are owned through main-dimension elements only, and ghosts come
+  from every element touching an owned node.
+- Phase field: the psi+ history is stored per element group on mixed meshes;
+  `lsq_linear` is chosen in the damage solve; the unlisted `Wdef_e` result that crashed
+  is dropped.
+- `Mesh.Merge` keeps element and node tags; the `Mesh.coord` setter notifies observers;
+  `Get_Nodes_Point` falls back on a distance tolerance; `Get_normals` rejects node index
+  `Nn`.
+- Paraview reads `Ne` from each iteration's mesh; GLTF and USD `Save_simu` check they
+  were given a simulation; PyVista rotation arrows are drawn and normalised; the time
+  unit is right at exact boundaries (60 s, 1 h).
+- Type annotations across the package, and mypy now sees through the `requires_*` and
+  `rank0_only` decorators.
+
+### Development
+
+- `make lint` runs import-linter (pinned in the `lint` extra): a `layers` contract in
+  `pyproject.toml` fails on a new upward import between
+  `Viz > IO > Simulations > Models > FEM > Geoms > Utilities`; its `ignore_imports` (3
+  left) may only shrink (issue #66).
+- Tests run in parallel by default (`pytest -n auto`); the `dev` extra adds
+  pytest-xdist.
+
+**Full Changelog:** https://github.com/matnoel/EasyFEA/compare/v6.0.0...v7.0.0
 
 ## 6.0.0 (October 1, 2026):
 
