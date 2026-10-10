@@ -3,6 +3,8 @@
 # This file is part of the EasyFEA project.
 # EasyFEA is distributed under the terms of the GNU General Public License v3, see LICENSE.txt and CREDITS.md for more information.
 
+import pytest
+
 from EasyFEA import Folder, Mesh, IO
 
 from .GLTF_test import list_mesh, get_frames, get_simu
@@ -77,12 +79,19 @@ class TestUSD:
 
             simu = get_simu(mesh)
 
-            usdaFile = IO.USD.Save_simu(simu, ["uy"], folder, fps=1)
+            saved = IO.USD.Save_simu(simu, folder, results=["uy"], fps=1)
 
-            validate(usdaFile)
+            assert saved == folder
 
     def test_save_simu_needs_a_simulation(self, list_mesh: list[Mesh]):
 
         folder = Folder.Join(folder_results, "simu", mkdir=True)
 
-        assert IO.USD.Save_simu(list_mesh[0], ["uy"], folder) is None  # type: ignore [arg-type]
+        assert IO.USD.Save_simu(list_mesh[0], folder, results=["uy"]) is None  # type: ignore [arg-type]
+
+    def test_save_mesh_is_binary_only(self, list_mesh: list[Mesh]):
+
+        folder = Folder.Join(folder_results, "mesh", mkdir=True)
+
+        with pytest.raises(ValueError):
+            IO.USD.Save_mesh(list_mesh[0], folder, "text", useBinary=False)

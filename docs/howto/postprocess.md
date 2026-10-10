@@ -214,9 +214,7 @@ visualization tool developed by INRIA:
 ```python
 from EasyFEA import IO
 
-command = IO.Vizir.Save_simu(
-    simu, results=["uy", "Svm"], types=[1, 1], folder=folder_save
-)
+command = IO.Vizir.Save_simu(simu, folder_save, results=["uy", "Svm"], types=[1, 1])
 print(command)  # prints the vizir command to run for visualization
 ```
 
@@ -232,7 +230,7 @@ there was exported with this function.
 ```python
 from EasyFEA import IO
 
-IO.GLTF.Save_simu(simu, ["uy", "Svm"], folder_save)
+IO.GLTF.Save_simu(simu, folder_save, results=["uy", "Svm"])
 ```
 
 To export a mesh without simulation results, use {py:func}`~EasyFEA.IO.GLTF.Save_mesh`.
@@ -253,7 +251,7 @@ compatible with Omniverse, USD Composer, and other DCC tools:
 ```python
 from EasyFEA import IO
 
-IO.USD.Save_simu(simu, ["uy", "Svm"], folder_save)
+IO.USD.Save_simu(simu, folder_save, results=["uy", "Svm"])
 ```
 
 ______________________________________________________________________

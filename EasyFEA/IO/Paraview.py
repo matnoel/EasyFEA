@@ -6,7 +6,7 @@
 """This module allows you to save a simulation's results on Paraview (https://www.paraview.org/)."""
 
 import numpy as np
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Sequence
 
 # utilities
 from ..Utilities import Terminal, Folder, Tic
@@ -29,10 +29,11 @@ def Save_simu(
     simu: "_Simu",
     folder: str,
     N: int = 200,
+    *,
+    results: Sequence[str] = (),
     details: bool = False,
-    nodeFields: list[str] = [],
-    elementFields: list[str] = [],
-):
+    elementFields: Sequence[str] = (),
+) -> str:
     """Generates the paraview (.pvd and .vtu/.pvtu files) with a simu.
 
     Parameters
@@ -43,12 +44,17 @@ def Save_simu(
         folder in which we will create the Paraview folder
     N : int, optional
         Maximal number of iterations displayed, by default 200
+    results: Sequence[str], optional
+        node fields saved on top of the default ones, by default ()
     details: bool, optional
         details of nodesField and elementsField used in the .vtu
-    nodeFields: list, optional
-        Additional nodeFields, by default []
-    elementFields: list, optional
-        Additional elementFields, by default []
+    elementFields: Sequence[str], optional
+        element fields saved on top of the default ones, by default ()
+
+    Returns
+    -------
+    str
+        Path to the .pvd file.
     """
 
     print("\n")
@@ -77,7 +83,7 @@ def Save_simu(
     if MPI_SIZE > 1:
         MPI_COMM.Barrier()  # ensure folder exists before all ranks proceed
 
-    additionalNodesField = nodeFields
+    additionalNodesField = results
     additionalElementsField = elementFields
 
     nodeFields, elementFields = simu.Results_nodeFields_elementFields(details)
@@ -138,10 +144,13 @@ def Save_simu(
 
     tic = Tic()
 
+    pvdFile = Folder.os.path.join(folder, "simulation")
     if MPI_RANK == 0:
-        __Make_pvd(Folder.os.path.join(folder, "simulation"), pvFiles)
+        __Make_pvd(pvdFile, pvFiles)
 
     tic.Tac("Paraview", "Make pvd", False)
+
+    return pvdFile + ".pvd"
 
 
 def _Save_mesh(

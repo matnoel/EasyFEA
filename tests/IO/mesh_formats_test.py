@@ -251,6 +251,28 @@ def test_gmsh_save_simu_writes_pos(tmp_path):
     simu.Solve()
     simu.Save_Iter()
 
-    IO.Gmsh.Save_simu(simu, ["ux"], folder=str(tmp_path))
+    path = IO.Gmsh.Save_simu(simu, str(tmp_path), results=["ux"])
 
+    assert path == str(tmp_path / "simu.pos")
     assert (tmp_path / "simu.pos").exists()
+
+
+def test_ensight_save_mesh_is_text_only(tmp_path):
+    from EasyFEA.Geoms import Domain
+
+    contour = Domain((0, 0), (1, 1), 0.5)
+    mesh = contour.Mesh_2D()
+
+    with pytest.raises(ValueError):
+        IO.Ensight.Save_mesh(mesh, str(tmp_path), "mesh", useBinary=True)
+
+
+def test_medit_save_mesh_binary(tmp_path):
+    from EasyFEA.Geoms import Domain
+
+    contour = Domain((0, 0), (1, 1), 0.5)
+    mesh = contour.Mesh_2D()
+
+    path = IO.Medit.Save_mesh(mesh, str(tmp_path), "mesh", useBinary=True)
+
+    assert path.endswith(".meshb")

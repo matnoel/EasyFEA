@@ -142,12 +142,12 @@ def _Ensight_to_Meshio(geoFile: str) -> Mesh:
     return meshioMesh
 
 
-def Load_mesh(geoFile: str) -> Mesh:
+def Load_mesh(path: str) -> Mesh:
     """Converts Ensight mesh to EasyFEA format.
 
     Parameters
     ----------
-    geoFile : str
+    path : str
         Path to the Ensight geo file.
 
     Returns
@@ -156,7 +156,7 @@ def Load_mesh(geoFile: str) -> Mesh:
         Converted EasyFEA mesh object.
     """
 
-    with open(geoFile, "r") as file:
+    with open(path, "r") as file:
         lines = file.readlines()
 
     dict_ensightType_data: dict[str, dict[str, _types.IntArray]] = {}
@@ -254,8 +254,10 @@ def Load_mesh(geoFile: str) -> Mesh:
     return mesh
 
 
-def Save_mesh(mesh: Mesh, folder: str, name: str) -> str:
-    """Converts EasyFEA mesh to Gmsh format.
+def Save_mesh(
+    mesh: Mesh, folder: str, name: str, *, useBinary: bool | None = None
+) -> str:
+    """Converts EasyFEA mesh to Ensight format.
 
     Parameters
     ----------
@@ -265,6 +267,8 @@ def Save_mesh(mesh: Mesh, folder: str, name: str) -> str:
         Directory to save the Ensight .geo file.
     name : str
         The name of the Ensight .geo file, without the extension.
+    useBinary : bool, optional
+        Text only: True raises ValueError, by default None.
 
     Returns
     -------
@@ -273,6 +277,8 @@ def Save_mesh(mesh: Mesh, folder: str, name: str) -> str:
     """
 
     assert isinstance(mesh, Mesh), "mesh must be a EasyFEA mesh!"
+    if useBinary:
+        raise ValueError("Ensight .geo files are written as text only.")
 
     filename = Folder.Join(folder, f"{name}.geo", mkdir=True)
 

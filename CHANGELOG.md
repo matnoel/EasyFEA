@@ -26,6 +26,15 @@ This document describes the changes made to the project.
 - `EasyFEA.BUILDING_GALLERY` is replaced by the `EASYFEA_BUILDING_GALLERY` environment
   variable, read at call time: the flag set by `docs/conf.py` used to be read too early
   to take effect.
+- IO formats share one signature per capability (**breaking**), checked by mypy against
+  the `MeshSaver`, `MeshLoader` and `SimuSaver` protocols:
+  `Save_mesh(mesh, folder, name, *, useBinary=None)`, `Load_mesh(path)` and
+  `Save_simu(simu, folder, N, *, results=())`, which returns what it wrote (the `.pvd`,
+  `simu.pos`, the folder of `.glb`/`.usdz` files, or the `vizir4` command). Paraview's
+  `nodeFields` becomes `results`; USD and GLTF `Save_mesh` take `name` instead of
+  `filename`; `Gmsh.Save_simu` requires `folder`, samples `N` iterations and spells
+  `edgecolor`. `useBinary=None` keeps each format's default, an unsupported value raises
+  `ValueError` (Ensight is text only, USD and GLTF binary only).
 
 ## 6.0.0 (October 1, 2026):
 

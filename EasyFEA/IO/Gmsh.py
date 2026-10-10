@@ -7,7 +7,7 @@
 
 from __future__ import annotations
 import sys
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Sequence
 import gmsh
 import numpy as np
 
@@ -29,7 +29,9 @@ requires_matplotlib = Create_requires_decorator("matplotlib")
 
 
 @requires_meshio
-def Save_mesh(mesh: Mesh, folder: str, name: str, useBinary=False) -> str:
+def Save_mesh(
+    mesh: Mesh, folder: str, name: str, *, useBinary: bool | None = None
+) -> str:
     """Converts EasyFEA mesh to Gmsh format.
 
     Parameters
@@ -41,7 +43,7 @@ def Save_mesh(mesh: Mesh, folder: str, name: str, useBinary=False) -> str:
     name : str
         The name of the Gmsh file, without the extension.
     useBinary : bool, optional
-        Whether to save as binary (default is False).
+        Whether to save as binary, by default None (text).
 
     Returns
     -------
@@ -76,18 +78,18 @@ def Save_mesh(mesh: Mesh, folder: str, name: str, useBinary=False) -> str:
 
     Terminal.MyPrint(f"\nCreation of: {filename}", "green")
 
-    meshio.gmsh.write(filename, meshioMesh, "2.2", useBinary)
+    meshio.gmsh.write(filename, meshioMesh, "2.2", bool(useBinary))
     # Error with 4.1
 
     return filename
 
 
 @requires_meshio
-def Load_mesh(gmshMesh: str) -> Mesh:
+def Load_mesh(path: str) -> Mesh:
     """Converts Gmsh mesh to EasyFEA format.
 
     Args:
-        gmshMesh (str): Path to the Gmsh mesh file.
+        path (str): Path to the Gmsh mesh file.
 
     Returns:
         Mesh: Converted EasyFEA mesh object.
@@ -100,11 +102,11 @@ def Load_mesh(gmshMesh: str) -> Mesh:
 
     import meshio
 
-    meshioMesh: meshio.Mesh = meshio.gmsh.read(gmshMesh)
+    meshioMesh: meshio.Mesh = meshio.gmsh.read(path)
 
     if len(meshioMesh.cells) == 0:
         Terminal.MyPrintError(
-            f"The gmsh mesh:\n {gmshMesh}\n does not contain any elements!"
+            f"The gmsh mesh:\n {path}\n does not contain any elements!"
         )
         return None  # type: ignore [return-value]
 
@@ -116,37 +118,50 @@ def Load_mesh(gmshMesh: str) -> Mesh:
 @requires_matplotlib
 def Save_simu(
     simu: _Simu,
-    results: list[str] | None = None,
+    folder: str,
+    N: int = 200,
+    *,
+    results: Sequence[str] = (),
     details: bool = False,
-    edgeColor: str = "black",
+    edgecolor: str = "black",
     plotMesh: bool = True,
     showAxes: bool = False,
-    folder: str = "",
     openGmsh: bool = False,
-) -> None:
+) -> str:
     """Save the simulation in gmsh.pos format using gmsh.view
 
     Parameters
     ----------
     simu : _Simu
         simulation
-    results : list[str], optional
-        list of result you want to plot, by default []
+    folder : str
+        folder used to save the simu.pos file
+    N : int, optional
+        Maximal number of iterations saved, by default 200
+    results : Sequence[str], optional
+        results saved on top of the default ones, by default ()
     details : bool, optional
         get default result values with details or not see `simu.Results_nodesField_elementsField(details)`, by default False
-    edgeColor : str, optional
+    edgecolor : str, optional
         color used to plot the edges, by default 'black'
     plotMesh : bool, optional
         plot the mesh, by default True
     showAxes : bool, optional
         show the axes, by default False
-    folder : str, optional
-        folder used to save .pos file, by default ""
     openGmsh : bool, optional
         opens the gmsh window, by default False
+
+    Returns
+    -------
+    str
+        Path to the simu.pos file.
     """
 
-    results = [] if results is None else list(results)
+    results = list(results)
+    path = Folder.Join(folder, "simu.pos", mkdir=True)
+    if Folder.os.path.exists(path):
+        # each view is appended to the file
+        Folder.os.remove(path)
 
     # get mesh informations
     mesh = simu.mesh
@@ -160,7 +175,7 @@ def Save_simu(
 
     def getColor(c: str):
         """transform matplotlib color to rgb"""
-        rgb = np.asarray(to_rgb(edgeColor)) * 255
+        rgb = np.asarray(to_rgb(c)) * 255
         rgb = np.asarray(rgb, dtype=int)
         return rgb
 
@@ -183,7 +198,7 @@ def Save_simu(
         "PYRA": "Y",
     }
 
-    colorElems = getColor(edgeColor)
+    colorElems = getColor(edgecolor)
 
     # one static block per element group of the main dimension; this lets meshes that mix element types (e.g. QUAD4 + TRI3) be exported into a single gmsh view through several addListData calls.
     group_blocks = []
@@ -212,10 +227,13 @@ def Save_simu(
         result: [] for result in results
     }
 
+    Niter = simu.Niter
+    iterations = np.linspace(0, Niter - 1, min(Niter, N), endpoint=True, dtype=int)
+
     # activates the first iteration
     simu.Set_Iter(0, resetAll=True)
 
-    for i in range(simu.Niter):
+    for i in iterations:
         simu.Set_Iter(i)
         for result in results:
             dict_results[result].append(
@@ -261,8 +279,7 @@ def Save_simu(
             res = np.concatenate((elements_e, values_e), axis=1)
             gmsh.view.addListData(view, "S" + gmshType, Ne, res.ravel())
 
-        if folder != "":
-            gmsh.view.write(view, Folder.Join(folder, "simu.pos", mkdir=True), True)
+        gmsh.view.write(view, path, True)
 
         return view
 
@@ -290,3 +307,5 @@ def Save_simu(
         gmsh.fltk.run()
 
     gmsh.finalize()
+
+    return path

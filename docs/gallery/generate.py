@@ -145,8 +145,8 @@ def PlotHomog(item: Item, dict_globals: dict[str], variables: list[str], kwargs)
 
     IO.GLTF.Save_simu(
         simu,
-        ["displacement"],
-        folder=item._outputFolder,
+        item._outputFolder,
+        results=["displacement"],
         deformFactor=0.3,
         plotMesh=True,
         N=N,

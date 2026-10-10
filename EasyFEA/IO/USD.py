@@ -6,7 +6,7 @@
 """Module providing an interface with Universal Scene Description Format (USD) using usd-core (https://pypi.org/project/usd-core/)."""
 
 from __future__ import annotations
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Sequence
 
 import numpy as np
 
@@ -30,28 +30,29 @@ requires_pxr = Create_requires_decorator("pxr", libraries=["usd-core"])
 @requires_pxr
 def Save_simu(
     simu: _Simu,
-    results: list[str],
     folder: str,
     N: int = 50,
+    *,
+    results: Sequence[str] = (),
     deformFactor=1.0,
     plotMesh=False,
     cmap: str = "jet",
     fps: int = 30,
     unit: float = 1.0,
     smoothAnimation: bool = True,
-) -> None:
-    """Saves the simulation's results as usdz files.
+) -> str | None:
+    """Saves the simulation's results as usdz files, one per result component.
 
     Parameters
     ----------
     simu : _Simu
         simulation
-    results : list[str]
-        results that you want to plot
     folder : str
-        folder where you want to save the video
+        folder where you want to save the usdz files
     N : int, optional
-        Maximal number of iterations displayed, by default 200
+        Maximal number of iterations displayed, by default 50
+    results : Sequence[str], optional
+        results that you want to plot, by default ()
     deformFactor : float, optional
         Factor used to display the deformed solution (0 means no deformations), default 0.0
     plotMesh : bool, optional
@@ -69,13 +70,18 @@ def Save_simu(
         If True, smooth interpolation on Preview but no animation on Keynote.
         If False, frame-by-frame animation on Previewer and Keynote.
         Default True.
+
+    Returns
+    -------
+    str | None
+        The folder holding the usdz files, None if `simu` is not a simulation.
     """
 
     simu, mesh, _, _ = _Init_obj(simu)  # type: ignore [assignment]
 
     if simu is None:
         Terminal.MyPrintError("Must give a simulation.")
-        return
+        return None
 
     updatedMesh = simu.Nmesh > 1
     reconstructSurface = len(mesh.Get_list_groupElem(2)) == 0
@@ -120,9 +126,9 @@ def Save_simu(
         # save each dofs
         for d in range(dof_n):
             Save_mesh(
-                mesh=list_mesh if updatedMesh else staticMesh,
-                folder=folder,
-                filename=f"{result}{unknowns[d]}",
+                list_mesh if updatedMesh else staticMesh,
+                folder,
+                f"{result}{unknowns[d]}",
                 list_displacementMatrix=list_displacementMatrix,
                 list_nodesValues_n=[
                     nodesValues_n[:, d] for nodesValues_n in list_nodesValues_n
@@ -136,9 +142,9 @@ def Save_simu(
 
         if dof_n > 1:
             Save_mesh(
-                mesh=list_mesh if updatedMesh else staticMesh,
-                folder=folder,
-                filename=f"{result}_norm",
+                list_mesh if updatedMesh else staticMesh,
+                folder,
+                f"{result}_norm",
                 list_displacementMatrix=list_displacementMatrix,
                 list_nodesValues_n=list_nodesValues_n,
                 plotMesh=plotMesh,
@@ -147,6 +153,8 @@ def Save_simu(
                 unit=unit,
                 smoothAnimation=smoothAnimation,
             )
+
+    return folder
 
 
 def _get_triangles(mesh: Mesh) -> np.ndarray:
@@ -177,9 +185,11 @@ def _get_lines(mesh: Mesh) -> np.ndarray:
 def Save_mesh(
     mesh: Mesh | list[Mesh],
     folder: str,
-    filename: str = "mesh",
-    list_displacementMatrix: list[np.ndarray] = [],
-    list_nodesValues_n: list[np.ndarray] = [],
+    name: str = "mesh",
+    *,
+    useBinary: bool | None = None,
+    list_displacementMatrix: list[np.ndarray] | None = None,
+    list_nodesValues_n: list[np.ndarray] | None = None,
     plotMesh=False,
     cmap: str = "jet",
     fps: int = 30,
@@ -194,12 +204,14 @@ def Save_mesh(
         The mesh
     folder : str
         The directory where the results will be saved.
-    filename : str, optional
-        The name of the solution file, by default "mesh"
+    name : str, optional
+        The name of the usdz file, without the extension, by default "mesh"
+    useBinary : bool, optional
+        usdz is binary only: False raises ValueError, by default None
     list_displacementMatrix : list[np.ndarray], optional
-        List of displacement matrix, by default []
+        List of displacement matrix, by default None
     list_nodesValues_n : list[np.ndarray], optional
-        List of node values for colors, by default []
+        List of node values for colors, by default None
     plotMesh : bool, optional
         If True, wrong camera zoom in Keynote.
         If False, good camera zoom in Keynote.
@@ -223,6 +235,12 @@ def Save_mesh(
     """
 
     from pxr import Usd, UsdGeom, Gf, UsdUtils, Vt
+
+    if useBinary is False:
+        raise ValueError("usdz files are binary only.")
+    filename = name
+    list_displacementMatrix = list_displacementMatrix or []
+    list_nodesValues_n = list_nodesValues_n or []
 
     updatedMesh = isinstance(mesh, list)
     list_mesh = mesh if isinstance(mesh, list) else [mesh]

@@ -94,9 +94,9 @@ class TestGLTF:
                 filename = mesh.elemType + "_plotMesh" if plotMesh else mesh.elemType
 
                 glbFile = IO.GLTF.Save_mesh(
-                    mesh=mesh,
-                    folder=folder,
-                    filename=filename,
+                    mesh,
+                    folder,
+                    filename,
                     plotMesh=plotMesh,
                 )
 
@@ -113,9 +113,9 @@ class TestGLTF:
             frames = get_frames(mesh)
 
             glbFile = IO.GLTF.Save_mesh(
-                mesh=mesh,
-                folder=folder,
-                filename=mesh.elemType,
+                mesh,
+                folder,
+                mesh.elemType,
                 list_displacementMatrix=frames,
             )
 
@@ -133,9 +133,9 @@ class TestGLTF:
 
             # norm
             glbFile = IO.GLTF.Save_mesh(
-                mesh=mesh,
-                folder=folder,
-                filename=mesh.elemType,
+                mesh,
+                folder,
+                mesh.elemType,
                 list_displacementMatrix=frames,
                 list_nodesValues_n=frames,
             )
@@ -144,9 +144,9 @@ class TestGLTF:
 
             # x
             glbFile = IO.GLTF.Save_mesh(
-                mesh=mesh,
-                folder=folder,
-                filename=mesh.elemType,
+                mesh,
+                folder,
+                mesh.elemType,
                 list_displacementMatrix=frames,
                 list_nodesValues_n=[frame[:, 0] for frame in frames],
             )
@@ -174,9 +174,9 @@ class TestGLTF:
 
             # x
             glbFile = IO.GLTF.Save_mesh(
-                mesh=mesh,
-                folder=folder,
-                filename=mesh.elemType + "_ux",
+                mesh,
+                folder,
+                mesh.elemType + "_ux",
                 list_displacementMatrix=[],
                 list_nodesValues_n=[frame[:, 0] for frame in frames],
             )
@@ -191,16 +191,21 @@ class TestGLTF:
 
             simu = get_simu(mesh)
 
-            IO.GLTF.Save_simu(
-                simu=simu,
-                results=["uy"],
-                folder=folder,
-                fps=1,
-                openWebBrowser=False,
+            saved = IO.GLTF.Save_simu(
+                simu, folder, results=["uy"], fps=1, openWebBrowser=False
             )
+
+            assert saved == folder
 
     def test_save_simu_needs_a_simulation(self, list_mesh: list[Mesh]):
 
         folder = Folder.Join(folder_results, "simu", mkdir=True)
 
-        assert IO.GLTF.Save_simu(list_mesh[0], ["uy"], folder) is None  # type: ignore [arg-type]
+        assert IO.GLTF.Save_simu(list_mesh[0], folder, results=["uy"]) is None  # type: ignore [arg-type]
+
+    def test_save_mesh_is_binary_only(self, list_mesh: list[Mesh]):
+
+        folder = Folder.Join(folder_results, "mesh", mkdir=True)
+
+        with pytest.raises(ValueError):
+            IO.GLTF.Save_mesh(list_mesh[0], folder, "text", useBinary=False)

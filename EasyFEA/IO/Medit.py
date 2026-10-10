@@ -15,8 +15,9 @@ def Save_mesh(
     mesh: Mesh,
     folder: str,
     name: str,
-    dict_tags_converter: dict[str, int] = {},
-    useBinary=False,
+    *,
+    useBinary: bool | None = None,
+    dict_tags_converter: dict[str, int] | None = None,
 ) -> str:
     """Converts EasyFEA mesh to Medit format.
 
@@ -28,10 +29,10 @@ def Save_mesh(
         Directory to save the Medit file.
     name : str
         The name of the Medit file, without the extension.
-    dict_tags_converter : dict[str, int], optional
-        Dictionary converting string tags to integers (default is {}).
     useBinary : bool, optional
-        Whether to save as binary (default is False).
+        Whether to save as binary (.meshb), by default None (text, .mesh).
+    dict_tags_converter : dict[str, int], optional
+        Dictionary converting string tags to integers, by default None.
 
     Returns
     -------
@@ -48,7 +49,7 @@ def Save_mesh(
 
     assert isinstance(mesh, Mesh), "mesh must be a EasyFEA mesh!"
 
-    meshioMesh = _EasyFEA_to_Meshio(mesh, dict_tags_converter)
+    meshioMesh = _EasyFEA_to_Meshio(mesh, dict_tags_converter or {})
 
     extension = "meshb" if useBinary else "mesh"
     filename = Folder.Join(folder, f"{name}.{extension}", mkdir=True)
@@ -60,12 +61,12 @@ def Save_mesh(
 
 
 @requires_meshio
-def Load_mesh(meditMesh: str) -> Mesh:
+def Load_mesh(path: str) -> Mesh:
     """Converts Medit mesh to EasyFEA format.
 
     Parameters
     ----------
-    meditMesh : str
+    path : str
         Path to the Medit mesh file.
 
     Returns
@@ -81,12 +82,12 @@ def Load_mesh(meditMesh: str) -> Mesh:
 
     import meshio
 
-    meshioMesh = meshio.medit.read(meditMesh)
+    meshioMesh = meshio.medit.read(path)
     # Please note that your python's meshio must come from https://github.com/matnoel/meshio/tree/medit_higher_order_elements
 
     if len(meshioMesh.cells) == 0:
         Terminal.MyPrintError(
-            f"The medit mesh:\n {meditMesh}\n does not contain any elements!"
+            f"The medit mesh:\n {path}\n does not contain any elements!"
         )
         return None  # type: ignore [return-value]
 

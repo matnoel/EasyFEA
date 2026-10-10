@@ -5,7 +5,7 @@
 
 """Module providing functions used to save FEM-solutions for vizir (https://pyamg.saclay.inria.fr/vizir4.html)."""
 
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Sequence
 import numpy as np
 import io
 
@@ -364,10 +364,11 @@ def _Write_solution_file(
 @rank0_only
 def Save_simu(
     simu: "_Simu",
-    results: list[str],
-    types: list[int],
     folder: str,
     N: int | None = None,
+    *,
+    results: Sequence[str] = (),
+    types: Sequence[int] = (),
 ) -> str:
     """Saves simulation results to files and prepares a command for visualization.
 
@@ -375,14 +376,14 @@ def Save_simu(
     ----------
     simu : _Simu
         The simulation object containing the results to be saved.
-    results : list[str]
-        A list of result names to be saved.
-    types : list[int]
-        A list of types corresponding to each result.
     folder : str
         The directory where the results will be saved.
     N : int | None, optional
         The number of iterations to sample from the simulation. If None, all iterations are used.
+    results : Sequence[str], optional
+        A list of result names to be saved.
+    types : Sequence[int], optional
+        A list of types corresponding to each result.
 
     Returns
     -------

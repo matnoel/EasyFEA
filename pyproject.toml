@@ -68,6 +68,11 @@ disable_error_code = [
     "assignment",
 ]
 
+[[tool.mypy.overrides]]
+# the protocol claims report as [assignment]
+module = ["EasyFEA.IO", "EasyFEA.Viz"]
+enable_error_code = ["assignment"]
+
 [tool.ruff]
 # no target-version: inferred from requires-python, so ruff never proposes syntax 3.10 cannot run
 include = ["pyproject.toml", "EasyFEA/**/*.py", "examples/**/*.py"]
