@@ -19,6 +19,7 @@ if TYPE_CHECKING:
     from ..Simulations._simu import _Simu
     from ..FEM._mesh import Mesh
     from ..FEM._group_elem import _GroupElem
+    from ..Geoms._geom import _Geom
 
 from ..Utilities._requires import Create_requires_decorator
 
@@ -956,6 +957,63 @@ def Plot_BoundaryConditions(simu, ax: Axes | None = None) -> Axes:
     tic.Tac("Matplotlib", "Plot_BoundaryConditions")
 
     return ax
+
+
+@requires_matplotlib
+def Plot_Geoms(
+    geoms: _Geom | list[_Geom],
+    ax: Axes | None = None,
+    color: str = "",
+    name: str = "",
+    lw: _types.Number | None = None,
+    ls: str | None = None,
+    plotPoints: bool = True,
+    plotLegend: bool = True,
+) -> Axes:
+    """Plots geometric objects on the same axis; `name` labels them (by default each geom's own name).
+
+    Examples
+    --------
+    >>> from EasyFEA import Matplotlib
+    >>> from EasyFEA.Geoms import Domain, Circle
+    >>> ax = Matplotlib.Plot_Geoms([Domain((0, 0), (1, 1)), Circle((0.5, 0.5), 0.2)])
+    """
+
+    from ..Geoms import Point
+
+    geoms = geoms if isinstance(geoms, list) else [geoms]
+
+    for geom in geoms:
+        if isinstance(geom, Point):
+            continue
+
+        lines, points = geom.Get_coord_for_plot()
+
+        if ax is None:
+            ax = Init_Axes(2 if np.abs(lines[:, 2].max()) == 0 else 3)
+            ax.grid()
+
+        inDim = 3 if ax.name == "3d" else 2
+        label = geom.name if name == "" else name
+
+        if color != "":
+            ax.plot(*lines[:, :inDim].T, color=color, label=label, lw=lw, ls=ls)
+        else:
+            ax.plot(*lines[:, :inDim].T, label=label, lw=lw, ls=ls)
+        if plotPoints:
+            ax.plot(*points[:, :inDim].T, ls="", marker=".", c="black")
+
+        if inDim == 3:
+            xlim, ylim, zlim = ax.get_xlim(), ax.get_ylim(), ax.get_zlim()  # type: ignore [union-attr]
+            oldBounds = np.array([xlim, ylim, zlim]).T
+            _Axis_equal_3D(ax, np.concatenate((lines, oldBounds), 0))  # type: ignore [arg-type]
+        else:
+            ax.axis("equal")
+
+    if plotLegend:
+        ax.legend()  # type: ignore [union-attr]
+
+    return ax  # type: ignore [return-value]
 
 
 @requires_matplotlib

@@ -9,7 +9,6 @@ This module handles geometric objects (_Geom) to facilitate the creation of mesh
 
 import sys
 import os
-import textwrap
 import gmsh
 import numpy as np
 from typing import (
@@ -50,7 +49,6 @@ from ._mesh import Mesh, ElemType
 if TYPE_CHECKING:
     # materials
     from ..Models.Beam._beam import _Beam
-    from ..Simulations._simu import _Simu
 
 # types
 GeomCompatible: TypeAlias = _Geom | Circle | Domain | Points | Contour
@@ -60,17 +58,21 @@ RefineCompatible: TypeAlias = Domain | Circle | str
 
 
 class MeshError(Exception):
-    """Raised when gmsh fails to generate the mesh. The geom objects that were fed to the mesher are named in the message, and drawn in a window when `_Can_show_geoms()` allows it."""
+    """Raised when gmsh fails to mesh; `.geoms` holds the geom objects fed to the mesher, e.g. for `PyVista.Plot_Geoms(error.geoms)`."""
+
+    def __init__(self, message: str, geoms: list):
+        super().__init__(message)
+        self.geoms = geoms
 
 
 # bound to the callable rather than a ParamSpec, which needs Python 3.10
 _F = TypeVar("_F", bound=Callable[..., Mesh])
 
 
-def _shows_geoms_on_error(func: _F) -> _F:
-    """Decorator drawing the geometry when a meshing method fails, see `Mesher._Show_geoms`.
+def _raises_mesh_error(func: _F) -> _F:
+    """Decorator turning a failure of a meshing method into a MeshError, see `Mesher._Raise_mesh_error`.
 
-    It covers entity building as well as generation, because gmsh raises just as often while the entities are built (a non-planar contour fails in `addPlaneSurface`) as while the mesh is generated. It stops at `_Mesh_Generate`: once gmsh has produced a mesh the geometry was accepted, so a later failure comes from converting that mesh (e.g. an element type EasyFEA does not implement) and drawing the geoms would only mislead.
+    It covers entity building as well as generation, because gmsh raises just as often while the entities are built (a non-planar contour fails in `addPlaneSurface`) as while the mesh is generated. It stops at `_Mesh_Generate`: once gmsh has produced a mesh the geometry was accepted, so a later failure comes from converting that mesh (e.g. an element type EasyFEA does not implement) and blaming the geoms would only mislead.
     """
 
     @wraps(func)
@@ -83,7 +85,7 @@ def _shows_geoms_on_error(func: _F) -> _F:
         except Exception as error:
             if mesher._isMeshed:
                 raise  # not a geometry failure
-            mesher._Show_geoms(error)
+            mesher._Raise_mesh_error(error)
 
     return wrapper  # type: ignore[return-value]
 
@@ -113,20 +115,6 @@ def _Group_opposite_sides(list_lines: Iterable[list[int]]) -> dict[int, int]:
                 parent[rootI] = rootJ
 
     return {line: Find(line) for lines in list_lines for line in lines}
-
-
-def _Can_show_geoms() -> bool:
-    """True when a geometry window may be opened, i.e. when there is someone to close it.
-
-    Every other context would hang: a non-root mpi rank, the documentation gallery build, and a pytest run.
-    """
-    from ..Utilities.Folder import _Is_building_gallery
-
-    return (
-        MPI_RANK == 0
-        and not _Is_building_gallery()
-        and "PYTEST_CURRENT_TEST" not in os.environ
-    )
 
 
 class Mesher:
@@ -174,7 +162,7 @@ class Mesher:
     def _Init_gmsh(self, factory: str = "occ") -> None:
         """Initializes gmsh."""
         self._geoms: list[_Geom | Point] = []
-        """geom objects consumed since the last initialization, drawn when meshing fails"""
+        """geom objects consumed since the last initialization, carried by the MeshError when meshing fails"""
         self._isMeshed = False
         """True once gmsh has generated the mesh, after which a failure is no longer a geometry problem"""
         if not gmsh.isInitialized():
@@ -1478,7 +1466,7 @@ class Mesher:
 
         return crackLines, crackSurfaces, openPoints, openLines
 
-    @_shows_geoms_on_error
+    @_raises_mesh_error
     def Mesh_1D(
         self,
         lines: ContourCompatible | Contour | list,
@@ -1609,7 +1597,7 @@ class Mesher:
 
         return hollowLoops, filledLoops
 
-    @_shows_geoms_on_error
+    @_raises_mesh_error
     def Mesh_2D(
         self,
         contour: GeomCompatible,
@@ -1689,7 +1677,7 @@ class Mesher:
 
         return self._Mesh_Get_Mesh()
 
-    @_shows_geoms_on_error
+    @_raises_mesh_error
     def Mesh_Extrude(
         self,
         contour: GeomCompatible,
@@ -1788,7 +1776,7 @@ class Mesher:
 
         return self._Mesh_Get_Mesh()
 
-    @_shows_geoms_on_error
+    @_raises_mesh_error
     def Mesh_Revolve(
         self,
         contour: GeomCompatible,
@@ -2100,36 +2088,14 @@ class Mesher:
         gmsh.option.setNumber("Mesh.RecombinationAlgorithm", 1)
         gmsh.option.setNumber("Mesh.SubdivisionAlgorithm", 0)
 
-    def _Show_geoms(self, error: Exception) -> NoReturn:
-        """Draws the geom objects that were fed to the mesher, then raises a MeshError naming them.
-
-        The window is only opened when `_Can_show_geoms()` allows it, but the MeshError is raised either way so a failure is never swallowed.
-        """
+    def _Raise_mesh_error(self, error: Exception) -> NoReturn:
+        """Raises a MeshError naming the geom objects that were fed to the mesher."""
 
         names = ", ".join(geom.name for geom in self._geoms)
         message = str(error) or type(error).__name__
 
-        if _Can_show_geoms():
-            try:
-                from ..Viz import PyVista
-
-                # the grid gives the coordinates needed to locate the faulty geom
-                plotter = PyVista.Plot_Geoms(self._geoms, show_grid=True)
-                plotter.add_title("Meshing failed", color="red")
-                # upper_left is the only corner left free by the legend, the
-                # orientation widget and the grid labels
-                plotter.add_text(
-                    textwrap.fill(message, 40),
-                    position="upper_left",
-                    color="red",
-                    font_size=10,
-                )
-                plotter.show()
-            except Exception as plotError:
-                Terminal.MyPrintError(f"Could not draw the geometry: {plotError}")
-
         raise MeshError(
-            f"gmsh could not mesh the geometry ({names}): {message}"
+            f"gmsh could not mesh the geometry ({names}): {message}", self._geoms
         ) from error
 
     def _Mesh_Generate(
@@ -2525,176 +2491,3 @@ class Mesher:
             Mesh(dict_groupElem, self.__verbosity)
             for dict_groupElem in list_dict_groupElem
         ]
-
-    def Save_simu(
-        self,
-        simu: "_Simu",
-        results: list[str] = [],
-        details: bool = False,
-        edgeColor: str = "black",
-        plotMesh: bool = True,
-        showAxes: bool = False,
-        folder: str = "",
-    ) -> None:
-        """Save the simulation in gmsh.pos format using gmsh.view
-
-        Parameters
-        ----------
-        simu : _Simu
-            simulation
-        results : list[str], optional
-            list of result you want to plot, by default []
-        details : bool, optional
-            get default result values with details or not see `simu.Results_nodesField_elementsField(details)`, by default False
-        edgeColor : str, optional
-            color used to plot the edges, by default 'black'
-        plotMesh : bool, optional
-            plot the mesh, by default True
-        showAxes : bool, optional
-            show the axes, by default False
-        folder : str, optional
-            folder used to save .pos file, by default ""
-        """
-
-        assert isinstance(results, list), "results must be a list"
-
-        # get mesh informations
-        mesh = simu.mesh
-
-        self._Init_gmsh()
-
-        from ..Viz import Matplotlib
-
-        @Matplotlib.requires_matplotlib
-        def getColor(c: str):
-            """transform matplotlib color to rgb"""
-            rgb = np.asarray(Matplotlib.colors.to_rgb(edgeColor)) * 255  # type: ignore
-            rgb = np.asarray(rgb, dtype=int)
-            return rgb
-
-        def reshape(values: _types.FloatArray, connect_e: _types.IntArray):
-            """reshape nodal values to get them at the corners of the elements"""
-            values_n: _types.FloatArray = np.reshape(values, (mesh.Nn, -1))
-            values_e = values_n[connect_e]
-            if len(values_e.shape) == 3:
-                values_e = np.transpose(values_e, (0, 2, 1))
-            return values_e.reshape((connect_e.shape[0], -1))
-
-        gmshTopo = {
-            "POINT": "P",
-            "SEG": "L",
-            "TRI": "T",
-            "QUAD": "Q",
-            "TETRA": "S",
-            "HEXA": "H",
-            "PRISM": "I",
-            "PYRA": "Y",
-        }
-
-        colorElems = getColor(edgeColor)
-
-        # one static block per element group of the main dimension; this lets meshes that mix element types (e.g. QUAD4 + TRI3) be exported into a single gmsh view through several addListData calls.
-        group_blocks = []
-        for groupElem in mesh.Get_list_groupElem(mesh.dim):
-            # quadratic elements are exported with their corner nodes only
-            nbCorners = groupElem.Nvertex
-            connect_e = groupElem.connect[:, :nbCorners]
-            group_blocks.append(
-                (
-                    groupElem.Ne,
-                    connect_e,
-                    gmshTopo[groupElem.elemType.topology],
-                    reshape(mesh.coord, connect_e),  # corner coordinates
-                )
-            )
-
-        # get nodes and elements field to plot
-        nodesField, elementsField = simu.Results_nodeFields_elementFields(details)
-        [
-            results.append(result)  # type: ignore [func-returns-value]
-            for result in (nodesField + elementsField)
-            if result not in results
-        ]
-
-        dict_results: dict[str, list[_types.FloatArray]] = {
-            result: [] for result in results
-        }
-
-        # activates the first iteration
-        simu.Set_Iter(0, resetAll=True)
-
-        for i in range(simu.Niter):
-            simu.Set_Iter(i)
-            for result in results:
-                dict_results[result].append(
-                    np.asarray(simu.Result(result))
-                )  # raw nodal field
-
-        def AddView(name: str, list_values: list[_types.FloatArray]):
-            """Add a view; list_values holds one nodal field per iteration."""
-
-            if name == "displacement_matrix_0":
-                name = "ux"
-            elif name == "displacement_matrix_1":
-                name = "uy"
-            elif name == "displacement_matrix_2":
-                name = "uz"
-
-            view = gmsh.view.add(name)
-
-            gmsh.view.option.setNumber(view, "IntervalsType", 3)
-            # (1: iso, 2: continuous, 3: discrete, 4: numeric)
-            gmsh.view.option.setNumber(view, "NbIso", 10)
-
-            if plotMesh:
-                gmsh.view.option.setNumber(view, "ShowElement", 1)
-
-            if showAxes:
-                gmsh.view.option.setNumber(view, "Axes", 1)
-                # (0: none, 1: simple axes, 2: box, 3: full grid, 4: open grid, 5: ruler)
-
-            gmsh.view.option.setColor(view, "Lines", *colorElems)
-            gmsh.view.option.setColor(view, "Triangles", *colorElems)
-            gmsh.view.option.setColor(view, "Quadrangles", *colorElems)
-            gmsh.view.option.setColor(view, "Tetrahedra", *colorElems)
-            gmsh.view.option.setColor(view, "Hexahedra", *colorElems)
-            gmsh.view.option.setColor(view, "Pyramids", *colorElems)
-            gmsh.view.option.setColor(view, "Prisms", *colorElems)
-
-            # one scalar data block per element group (time steps stacked along axis 1)
-            for Ne, connect_e, gmshType, elements_e in group_blocks:
-                values_e = np.concatenate(
-                    [reshape(values, connect_e) for values in list_values], axis=1
-                )
-                res = np.concatenate((elements_e, values_e), axis=1)
-                gmsh.view.addListData(view, "S" + gmshType, Ne, res.ravel())
-
-            if folder != "":
-                gmsh.view.write(view, Folder.Join(folder, "simu.pos", mkdir=True), True)
-
-            return view
-
-        for result, list_values in dict_results.items():
-            nIter = len(list_values)
-
-            if nIter == 0:
-                continue
-
-            dof_n = np.reshape(list_values[0], (mesh.Nn, -1)).shape[1]
-
-            if dof_n == 1:
-                AddView(result, list_values)
-            else:
-                [
-                    AddView(
-                        result + f"_{n}",
-                        [np.reshape(v, (mesh.Nn, -1))[:, n] for v in list_values],
-                    )
-                    for n in range(dof_n)
-                ]
-
-        # Launch the GUI to see the results:
-        if "-nopopup" not in sys.argv and self.__openGmsh:
-            gmsh.fltk.run()
-
-        gmsh.finalize()

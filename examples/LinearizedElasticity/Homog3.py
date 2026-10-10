@@ -18,7 +18,7 @@ import numpy as np
 from EasyFEA import Terminal, Matplotlib, Models, Geoms, ElemType, Simulations
 from EasyFEA.FEM import FeArray, MatrixType
 
-from Homog1 import Compute_ukl
+from Homog1 import Compute_ukl, Plot_Paired_Nodes
 
 if __name__ == "__main__":
     Terminal.Clear()
@@ -138,7 +138,7 @@ if __name__ == "__main__":
 
     if usePBC:
         nodes_kubc = mesh_RVE.Nodes_Tags(["P0", "P1", "P2", "P3"])
-        paired_nodes = mesh_RVE.Get_Paired_Nodes(nodes_kubc, True)
+        paired_nodes = Plot_Paired_Nodes(mesh_RVE, nodes_kubc)
     else:
         nodes_kubc = mesh_RVE.Nodes_Tags(["L0", "L1", "L2", "L3"])
         paired_nodes = None

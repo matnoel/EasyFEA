@@ -91,8 +91,8 @@ if __name__ == "__main__":
     circle2 = Circle(Point(t2, L / 2 - t2), diam, clD)
 
     if plotGeom:
-        ax = contour.Plot()
-        contour.Plot_Geoms([circle1, circle2], ax=ax)
+        ax = Matplotlib.Plot_Geoms(contour)
+        Matplotlib.Plot_Geoms([circle1, circle2], ax=ax)
 
     # ----------------------------------------------
     # Mesh
@@ -105,7 +105,7 @@ if __name__ == "__main__":
     )
 
     if plotGeom:
-        refineGeom.Plot(ax=ax)
+        Matplotlib.Plot_Geoms(refineGeom, ax=ax)
 
     if dim == 2:
         crack = Line(
@@ -133,7 +133,7 @@ if __name__ == "__main__":
         cracks = [crack]
 
         if plotGeom:
-            crack.Plot(ax=ax)
+            Matplotlib.Plot_Geoms(crack, ax=ax)
 
         mesh = contour.Mesh_Extrude(
             [circle1, circle2],

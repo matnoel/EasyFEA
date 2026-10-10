@@ -8,7 +8,7 @@ import pytest
 import matplotlib.pyplot as plt
 import numpy as np
 
-from EasyFEA import Mesher
+from EasyFEA import Mesher, Matplotlib
 from EasyFEA.Geoms import _Geom, Point, Line, Circle, CircleArc, Points, Domain, Contour
 
 
@@ -61,30 +61,30 @@ class TestGeoms:
 
         for geom in geoms:
 
-            ax = geom.Plot()
+            ax = Matplotlib.Plot_Geoms(geom)
 
             geom.Translate(*dec)
 
-            geom.Plot(ax)
+            Matplotlib.Plot_Geoms(geom, ax)
 
             geom.Rotate(90)
-            geom.Plot(ax)
+            Matplotlib.Plot_Geoms(geom, ax)
 
             geom.Rotate(90, direction=(1, 0, 0))
-            geom.Plot(ax)
+            Matplotlib.Plot_Geoms(geom, ax)
 
             cop = geom.copy()
             cop.Translate(-10)
-            cop.Plot(ax)
+            Matplotlib.Plot_Geoms(cop, ax)
 
             cop.Symmetry()
-            cop.Plot(ax)
+            Matplotlib.Plot_Geoms(cop, ax)
 
             cop.Symmetry(cop.points[0], (0, 0, 1))
-            cop.Plot(ax)
+            Matplotlib.Plot_Geoms(cop, ax)
 
             cop.Symmetry(n=(0, np.cos(180 / 6), np.sin(180 / 6)))
-            cop.Plot(ax)
+            Matplotlib.Plot_Geoms(cop, ax)
 
             ax.legend()
 

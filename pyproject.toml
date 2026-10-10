@@ -96,11 +96,7 @@ type = "layers"
 containers = ["EasyFEA"]
 layers = ["Viz", "IO", "Simulations", "Models", "FEM", "Geoms", "Utilities"]
 ignore_imports = [
-    "EasyFEA.FEM._mesh -> EasyFEA.Viz.Matplotlib",
-    "EasyFEA.FEM._mesher -> EasyFEA.Viz.Matplotlib",
-    "EasyFEA.FEM._mesher -> EasyFEA.Viz.PyVista",
     "EasyFEA.Geoms._geom -> EasyFEA.FEM._mesher",
     "EasyFEA.Geoms._geom -> EasyFEA.FEM._utils",
-    "EasyFEA.Geoms._geom -> EasyFEA.Viz.Matplotlib",
     "EasyFEA.Models.Beam._beam -> EasyFEA.Simulations",
 ]

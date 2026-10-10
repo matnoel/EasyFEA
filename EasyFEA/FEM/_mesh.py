@@ -970,18 +970,13 @@ class Mesh(Observable):
 
         return interpolated_values_n
 
-    def Get_Paired_Nodes(
-        self, corners: _types.FloatArray, plot=False
-    ) -> _types.IntArray:
+    def Get_Paired_Nodes(self, corners: _types.FloatArray) -> _types.IntArray:
         """Get the paired nodes used to construct periodic boundary conditions.
 
         Parameters
         ----------
         corners : _types.FloatArray
             Either nodes or nodes coordinates.
-
-        plot : bool, optional
-            Set whether to plot the link between nodes; defaults to False.
 
         Returns
         -------
@@ -1052,45 +1047,6 @@ class Mesh(Observable):
         ), "Edges must contain the same number of nodes."
 
         paired_nodes = np.array([nodes1, nodes2]).T
-
-        if plot:
-            from ..Viz import Matplotlib
-
-            inDim = self.inDim
-
-            ax = Matplotlib.Plot_Mesh(
-                self, alpha=0, title="Periodic boundary conditions"
-            )
-
-            # nEdges = np.min([len(nNodes)//2, nEdges])
-
-            start = 0
-
-            for edge in range(len(nNodes)):
-                start += 0 if edge == 0 else nNodes[edge - 1]
-
-                edge_node = paired_nodes[start : start + nNodes[edge]]
-
-                lines = coordo[edge_node, :inDim]
-                if inDim == 3:
-                    pc = ax.scatter(
-                        lines[:, :, 0],
-                        lines[:, :, 1],
-                        lines[:, :, 2],
-                        label=f"edges{edge}",
-                    )
-                    ax.add_collection3d(  # type: ignore [union-attr]
-                        Matplotlib.Line3DCollection(lines, edgecolor=pc.get_edgecolor())
-                    )
-                else:
-                    pc = ax.scatter(
-                        lines[:, :, 0], lines[:, :, 1], label=f"edges{edge}"
-                    )
-                    ax.add_collection(
-                        Matplotlib.LineCollection(lines, edgecolor=pc.get_edgecolor())  # type: ignore [arg-type]
-                    )
-
-            ax.legend()
 
         return paired_nodes
 

@@ -235,3 +235,22 @@ class TestMeshFormats:
             newMesh = IO.Ensight.Load_mesh(ensightMesh)
 
             check_mesh(mesh, newMesh)
+
+
+def test_gmsh_save_simu_writes_pos(tmp_path):
+    from EasyFEA import Models, Simulations
+    from EasyFEA.Geoms import Domain
+
+    contour = Domain((0, 0), (1, 1), 0.5)
+    mesh = contour.Mesh_2D()
+    simu = Simulations.Elastic(mesh, Models.Elastic.Isotropic(2))
+    nodesLeft = mesh.Nodes_Conditions(lambda x, y, z: x == 0)
+    nodesRight = mesh.Nodes_Conditions(lambda x, y, z: x == 1)
+    simu.add_dirichlet(nodesLeft, [0, 0], ["x", "y"])
+    simu.add_dirichlet(nodesRight, [0.1], ["x"])
+    simu.Solve()
+    simu.Save_Iter()
+
+    IO.Gmsh.Save_simu(simu, ["ux"], folder=str(tmp_path))
+
+    assert (tmp_path / "simu.pos").exists()

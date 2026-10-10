@@ -19,7 +19,7 @@ from EasyFEA import Terminal, Matplotlib, Models, ElemType, Simulations
 from EasyFEA.Geoms import Point, Points, Line
 from EasyFEA.FEM import FeArray, MatrixType
 
-from Homog1 import Compute_ukl
+from Homog1 import Compute_ukl, Plot_Paired_Nodes
 
 if __name__ == "__main__":
     Terminal.Clear()
@@ -205,7 +205,7 @@ if __name__ == "__main__":
 
     if usePBC:
         nodes_kubc = mesh.Nodes_Point(corners)
-        paired_nodes = mesh.Get_Paired_Nodes(nodes_kubc, True)
+        paired_nodes = Plot_Paired_Nodes(mesh, nodes_kubc)
     else:
         nodes_kubc = mesh.Nodes_Tags([f"L{i}" for i in range(6)])
         paired_nodes = None

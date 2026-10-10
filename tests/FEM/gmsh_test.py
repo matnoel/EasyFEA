@@ -91,3 +91,15 @@ class TestGmsh:
             coef_recombine = 1 if elemType.startswith(("QUAD", "HEXA")) else 2
             coef_dim = 1 if dim == 2 else 2
             assert Ne == 4 * coef_recombine * coef_dim
+
+    def test_mesh_error_carries_geoms(self):
+        from EasyFEA.FEM._mesher import MeshError
+        from EasyFEA.Geoms import Points
+
+        contour = Points([(0, 0, 0), (1, 0, 0), (1, 1, 1), (0, 1, 0)])
+        try:
+            contour.Mesh_2D()
+        except MeshError as error:
+            assert error.geoms == [contour]
+        else:
+            raise AssertionError("a non-planar contour must not mesh")

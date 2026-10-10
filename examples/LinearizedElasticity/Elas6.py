@@ -63,7 +63,7 @@ if __name__ == "__main__":
     section = Points([p1, p2, p3, p4, p5, p6, p7, p8, p9, p10, p11, p12], e / 1)
     meshSection = section.Mesh_2D()
 
-    section.Get_Contour().Plot()
+    Matplotlib.Plot_Geoms(section.Get_Contour())
 
     section.Rotate(-90, direction=(0, 1))
 

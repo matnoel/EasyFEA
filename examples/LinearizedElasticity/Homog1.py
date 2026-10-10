@@ -15,6 +15,7 @@ Section 4.7 with corrected values on page 89 (Erratum).
 # sphinx_gallery_thumbnail_number = -1
 
 import matplotlib.pyplot as plt
+from matplotlib.collections import LineCollection
 import numpy as np
 
 from EasyFEA import Terminal, Matplotlib, Models, ElemType, Simulations
@@ -86,6 +87,34 @@ def Compute_ukl(
     return ukl
 
 
+def Plot_Paired_Nodes(mesh, corners: np.ndarray) -> np.ndarray:
+    """Draws the periodic node pairs, one colour per edge, and returns them."""
+
+    paired_nodes = mesh.Get_Paired_Nodes(corners)
+
+    corners = np.asarray(corners)
+    if corners.ndim == 1:
+        corners = mesh.coord[corners]
+
+    ax = Matplotlib.Plot_Mesh(mesh, alpha=0, title="Periodic boundary conditions")
+
+    for edge in range(len(corners) // 2):
+        # the pairs whose first node lies on this edge
+        line = corners[edge + 1] - corners[edge]
+        vect = mesh.coord[paired_nodes[:, 0]] - corners[edge]
+        distance = np.linalg.norm(np.cross(vect, line / np.linalg.norm(line)), axis=1)
+        lines = mesh.coord[paired_nodes[distance < 1e-12], :2]
+        if lines.size == 0:
+            continue
+
+        pc = ax.scatter(lines[:, :, 0], lines[:, :, 1], label=f"edges{edge}")
+        ax.add_collection(LineCollection(lines, edgecolor=pc.get_edgecolor()))
+
+    ax.legend()
+
+    return paired_nodes
+
+
 if __name__ == "__main__":
     Terminal.Clear()
 
@@ -120,7 +149,7 @@ if __name__ == "__main__":
 
     if usePBC:
         nodes_kubc = mesh.Nodes_Tags(["P0", "P1", "P2", "P3"])
-        paired_nodes = mesh.Get_Paired_Nodes(nodes_kubc, True)
+        paired_nodes = Plot_Paired_Nodes(mesh, nodes_kubc)
     else:
         nodes_kubc = mesh.Nodes_Tags(["L0", "L1", "L2", "L3"])
         paired_nodes = None
