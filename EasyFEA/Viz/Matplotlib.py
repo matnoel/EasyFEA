@@ -6,7 +6,7 @@
 """Module containing functions used to display simulations and meshes with matplotlib (https://matplotlib.org/)."""
 
 from __future__ import annotations
-from typing import Callable, TYPE_CHECKING, Any, TypeAlias
+from typing import Callable, TYPE_CHECKING, Any, Sequence, TypeAlias
 import numpy as np
 import re
 
@@ -1406,9 +1406,9 @@ def Plot_Tic_History(folder="", details=False) -> None:
 @requires_matplotlib
 def _Plot_Bar(
     ax: plt.Axes,
-    categories: list[str],
-    times: list[float],
-    reps: list[int],
+    categories: Sequence[str] | _types.AnyArray,
+    times: Sequence[float] | _types.AnyArray,
+    reps: Sequence[int] | _types.AnyArray,
     title: str,
 ) -> None:
     ax.xaxis.set_tick_params(labelbottom=False, labeltop=True, length=0)

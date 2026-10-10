@@ -39,7 +39,7 @@ def MyPrint(
     italic=False,
     underLine=False,
     end: str = "",
-) -> str:
+) -> str | None:
     dct = dict(map(lambda item: (item.name, item.value), __Colors))
 
     if color not in dct:
@@ -67,7 +67,7 @@ def MyPrint(
         return formatedText
 
 
-def MyPrintError(text: str) -> str:
+def MyPrintError(text: str) -> str | None:
     return MyPrint(text, "red")
 
 

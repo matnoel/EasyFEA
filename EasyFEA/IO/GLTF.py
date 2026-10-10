@@ -1112,7 +1112,7 @@ def Open(path: str):
         Path to a glb/gltf file or a directory containing glb/gltf files.
     """
 
-    htmlFile, modelViewerDir = Create_html(path)
+    htmlFile, modelViewerDir = Create_html(path)  # type: ignore [misc]
 
     # define http root
     httpRoot = Folder.os.path.commonpath([htmlFile, modelViewerDir])

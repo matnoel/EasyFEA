@@ -368,7 +368,7 @@ def Plot_Nodes(
 @requires_pyvista
 def Plot_Elements(
     obj: _Simu | Mesh,
-    nodes: _types.IntArray = [],
+    nodes: _types.IntArray | None = None,
     dimElem: int | None = None,
     showId=False,
     deformFactor=0.0,
@@ -422,7 +422,7 @@ def Plot_Elements(
 
     for groupElem in mesh.Get_list_groupElem(dimElem):
         # get the elements associated with the nodes
-        if len(nodes) > 0:
+        if nodes is not None and len(nodes) > 0:
             elements = groupElem.Get_Elements_Nodes(nodes)
         else:
             elements = np.arange(groupElem.Ne)
@@ -568,7 +568,7 @@ def Plot_BoundaryConditions(
     boundaryConditions.extend(displays)
 
     if plotter is None:
-        plotter = Plot_Elements(simu, [], 1, False, deformFactor, color="k")
+        plotter = Plot_Elements(simu, None, 1, False, deformFactor, color="k")
         Plot(simu, alpha=0.1, color="gray", plotter=plotter)
         plotter.add_title("Boundary conditions")
 
@@ -1092,7 +1092,6 @@ def _pvMesh(
     return unstructuredGrid
 
 
-@requires_pyvista
 @singledispatch
 def _pvGeom(geom) -> pv.DataSet | list[pv.DataSet]:
     Terminal.MyPrintError(
