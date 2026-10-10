@@ -10,6 +10,7 @@ import platform
 from enum import Enum
 
 from ._mpi import rank0_only, _UNDER_MPIRUN
+from .Folder import _Is_building_gallery
 
 
 class __Colors(str, Enum):
@@ -90,9 +91,7 @@ def Section(text: str, verbosity=True) -> str:
 
 def Clear() -> None:
     """Clears the terminal."""
-    from .. import BUILDING_GALLERY
-
-    if not BUILDING_GALLERY:
+    if not _Is_building_gallery():
         syst = platform.system()
         if syst in ["Linux", "Darwin"]:
             os.system("clear")

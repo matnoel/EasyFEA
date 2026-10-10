@@ -9,7 +9,6 @@ import os
 import inspect
 from pathlib import Path
 
-from .. import BUILDING_GALLERY
 from ._mpi import MPI_SIZE, MPI_RANK
 
 
@@ -49,9 +48,14 @@ def Join(*args: str, mkdir=False) -> str:
     return path
 
 
+def _Is_building_gallery() -> bool:
+    """True while sphinx-gallery builds the docs: `docs/conf.py` sets `EASYFEA_BUILDING_GALLERY`."""
+    return os.environ.get("EASYFEA_BUILDING_GALLERY", "").lower() in ("1", "true")
+
+
 def __Get_pythonScript():
     stack = inspect.stack()
-    if BUILDING_GALLERY:
+    if _Is_building_gallery():
         # In Sphinx Gallery, Python scripts are parsed with `py_source_parser.py`
         # See: https://github.com/sphinx-gallery/sphinx-gallery/blob/master/sphinx_gallery/py_source_parser.py
         # The parsed code is executed by the `execute_code_block` function

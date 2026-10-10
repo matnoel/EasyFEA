@@ -282,6 +282,6 @@ if __name__ == "__main__":
     Tic.Resume()
 
     if doSimu:
-        Tic.Plot_History(folder_save, False)
+        Matplotlib.Plot_Tic_History(folder_save, False)
 
     plt.show()

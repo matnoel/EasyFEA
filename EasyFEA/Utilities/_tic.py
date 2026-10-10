@@ -8,13 +8,10 @@
 from __future__ import annotations
 import time
 
-from ._requires import Create_requires_decorator
 from ._mpi import MPI_RANK, CAN_USE_MPI
 
 if CAN_USE_MPI:
     from mpi4py import MPI
-
-requires_matplotlib = Create_requires_decorator("matplotlib")
 
 
 class Tic:
@@ -109,17 +106,6 @@ class Tic:
         return resume
 
     @staticmethod
-    @requires_matplotlib
-    def Plot_History(folder="", details=False) -> None:
-        """Plots history.
-
-        Parameters
-        ----------
-        folder : str, optional
-            save folder, by default ""
-        details : bool, optional
-            History details, by default False
-        """
-        from . import Matplotlib
-
-        Matplotlib._Plot_Tic_History(Tic.__History, folder, details)
+    def Get_History() -> dict[str, dict[str, list]]:
+        """Returns the history as `{category: {text: [total_time, count]}}`."""
+        return Tic.__History

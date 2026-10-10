@@ -96,12 +96,9 @@ type = "layers"
 containers = ["EasyFEA"]
 layers = ["Simulations", "Models", "FEM", "Geoms", "Utilities"]
 ignore_imports = [
-    "EasyFEA.FEM._boundary_conditions -> EasyFEA",
-    "EasyFEA.FEM._mesher -> EasyFEA",
     "EasyFEA.Geoms._geom -> EasyFEA.FEM._mesher",
     "EasyFEA.Geoms._geom -> EasyFEA.FEM._utils",
     "EasyFEA.Models.Beam._beam -> EasyFEA.Simulations",
-    "EasyFEA.Utilities.Folder -> EasyFEA",
     "EasyFEA.Utilities.GLTF -> EasyFEA.Simulations._simu",
     "EasyFEA.Utilities.Matplotlib -> EasyFEA.Simulations._simu",
     "EasyFEA.Utilities.MeshIO -> EasyFEA.FEM._group_elem",
@@ -111,7 +108,6 @@ ignore_imports = [
     "EasyFEA.Utilities.PyVista -> EasyFEA.FEM",
     "EasyFEA.Utilities.PyVista -> EasyFEA.Geoms",
     "EasyFEA.Utilities.PyVista -> EasyFEA.Simulations._simu",
-    "EasyFEA.Utilities.Terminal -> EasyFEA",
     "EasyFEA.Utilities.USD -> EasyFEA.Simulations._simu",
     "EasyFEA.Utilities.Vizir -> EasyFEA.FEM._group_elem",
     "EasyFEA.Utilities.Vizir -> EasyFEA.FEM._utils",

@@ -9,7 +9,7 @@ from typing import TYPE_CHECKING
 
 import numpy as np
 
-from ..Utilities import _types
+from ..Utilities import _types, Terminal
 
 if TYPE_CHECKING:
     from ..Simulations._problem_type import ProblemType
@@ -187,8 +187,6 @@ class BoundaryCondition:
 
         for d, direction in enumerate(unknowns):
             if direction not in availableUnknowns:
-                from EasyFEA import Terminal
-
                 Terminal.MyPrintError(
                     f"direction ({direction}) must be in {availableUnknowns}."
                 )

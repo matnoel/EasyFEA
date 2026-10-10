@@ -118,3 +118,12 @@ class TestRankDir:
     def test_serial_string_unchanged(self):
         result = Folder.Rank_Dir("/some/path")
         assert result == "/some/path"
+
+
+class TestBuildingGallery:
+
+    def test_read_at_call_time(self, monkeypatch):
+        monkeypatch.delenv("EASYFEA_BUILDING_GALLERY", raising=False)
+        assert not Folder._Is_building_gallery()
+        monkeypatch.setenv("EASYFEA_BUILDING_GALLERY", "true")
+        assert Folder._Is_building_gallery()

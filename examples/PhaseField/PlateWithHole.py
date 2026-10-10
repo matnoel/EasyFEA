@@ -18,7 +18,6 @@ from EasyFEA import (
     Matplotlib,
     Folder,
     Models,
-    Tic,
     ElemType,
     Simulations,
     PyVista,
@@ -266,6 +265,6 @@ if __name__ == "__main__":
         PyVista.Movie_func(Func, iterations.size, folder_save, "damage.gif")
 
     if doSimu:
-        Tic.Plot_History(folder_save, details=False)
+        Matplotlib.Plot_Tic_History(folder_save, details=False)
 
     plt.show()

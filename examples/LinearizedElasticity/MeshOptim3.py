@@ -20,7 +20,6 @@ from EasyFEA import (
     Matplotlib,
     Folder,
     Models,
-    Tic,
     ElemType,
     Mesh,
     Simulations,
@@ -200,5 +199,5 @@ if __name__ == "__main__":
 
         PyVista.Movie_func(func, simu.Niter, folder, "letterWeigher.gif")
 
-    Tic.Plot_History()
+    Matplotlib.Plot_Tic_History()
     plt.show()

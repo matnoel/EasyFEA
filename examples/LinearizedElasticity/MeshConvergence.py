@@ -243,7 +243,7 @@ if __name__ == "__main__":
     Tic.Resume()
 
     # Display the computation time history
-    # Tic.Plot_History(folder)
+    # Matplotlib.Plot_Tic_History(folder)
 
     # Show all plots
     plt.show()

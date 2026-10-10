@@ -1298,11 +1298,10 @@ def Plot_Iter_Summary(simu, folder="", iterMin=None, iterMax=None) -> None:
 
 @rank0_only
 @requires_matplotlib
-def _Plot_Tic_History(
-    history: dict[str, dict[str, list]], folder="", details=False
-) -> None:
-    """Plots a `Tic` history (`{category: {text: [total_time, count]}}`)."""
+def Plot_Tic_History(folder="", details=False) -> None:
+    """Plots the `Tic` history, per category and, with `details`, per subcategory."""
 
+    history = Tic.Get_History()
     if history == {}:
         return
 

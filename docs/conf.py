@@ -160,8 +160,7 @@ pyvista.set_plot_theme("document")
 # necessary when building the sphinx gallery
 pyvista.BUILDING_GALLERY = True
 os.environ["PYVISTA_BUILDING_GALLERY"] = "true"
-
-EasyFEA.BUILDING_GALLERY = True
+os.environ["EASYFEA_BUILDING_GALLERY"] = "true"
 
 
 def natural_sort_key(s):

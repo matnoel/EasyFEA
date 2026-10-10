@@ -120,11 +120,11 @@ def _Can_show_geoms() -> bool:
 
     Every other context would hang: a non-root mpi rank, the documentation gallery build, and a pytest run.
     """
-    from .. import BUILDING_GALLERY
+    from ..Utilities.Folder import _Is_building_gallery
 
     return (
         MPI_RANK == 0
-        and not BUILDING_GALLERY
+        and not _Is_building_gallery()
         and "PYTEST_CURRENT_TEST" not in os.environ
     )
 
