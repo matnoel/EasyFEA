@@ -1054,7 +1054,7 @@ class Mesh(Observable):
         paired_nodes = np.array([nodes1, nodes2]).T
 
         if plot:
-            from ..Utilities import Matplotlib
+            from ..Viz import Matplotlib
 
             inDim = self.inDim
 

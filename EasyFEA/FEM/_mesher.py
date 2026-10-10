@@ -2111,7 +2111,7 @@ class Mesher:
 
         if _Can_show_geoms():
             try:
-                from ..Utilities import PyVista
+                from ..Viz import PyVista
 
                 # the grid gives the coordinates needed to locate the faulty geom
                 plotter = PyVista.Plot_Geoms(self._geoms, show_grid=True)
@@ -2563,7 +2563,7 @@ class Mesher:
 
         self._Init_gmsh()
 
-        from ..Utilities import Matplotlib
+        from ..Viz import Matplotlib
 
         @Matplotlib.requires_matplotlib
         def getColor(c: str):

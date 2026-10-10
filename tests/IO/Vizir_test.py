@@ -8,7 +8,7 @@ from typing import Callable
 import pytest
 import numpy as np
 
-from EasyFEA import Mesher, ElemType, Mesh, Vizir
+from EasyFEA import Mesher, ElemType, Mesh, IO
 
 L = 2
 H = 1
@@ -59,7 +59,7 @@ class TestVizir:
 
             if elemType.startswith(("SEG", "TETRA", "TRI")):
 
-                barycentric_coords = Vizir._Get_BaryCentric_Coordinates(groupElem)
+                barycentric_coords = IO.Vizir._Get_BaryCentric_Coordinates(groupElem)
 
                 verif_coords = np.zeros_like(groupElem.Get_Local_Coords())
                 for i, coefs in enumerate(barycentric_coords):

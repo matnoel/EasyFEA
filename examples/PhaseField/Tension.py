@@ -22,7 +22,7 @@ from EasyFEA import (
     ElemType,
     Simulations,
     PyVista,
-    Paraview,
+    IO,
 )
 from EasyFEA.Geoms import Point, Points, Domain, Line, Contour
 
@@ -264,7 +264,7 @@ if __name__ == "__main__":
         Matplotlib.Plot_Energy(simu, N=400, folder=folder_save)
 
     if makeParaview:
-        Paraview.Save_simu(simu, folder_save, 400)
+        IO.Paraview.Save_simu(simu, folder_save, 400)
 
     if makeMovie:
         simu.Set_Iter(-1)

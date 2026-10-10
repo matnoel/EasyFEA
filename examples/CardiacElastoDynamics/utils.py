@@ -17,13 +17,13 @@ try:
     import h5py
 except ModuleNotFoundError:
     raise Exception("h5py must be installed!")
+import meshio
 
 from EasyFEA import (
     AlgoType,
     Folder,
     MatrixType,
     Mesher,
-    MeshIO,
     Models,
     PyVista,
     Simulations,
@@ -135,9 +135,9 @@ def _fibers_from_vtu(
     fibers_n = np.zeros((groupElem3D.Ncoords, 3))
     sheets_n = np.zeros_like(fibers_n)
     fiberFile = Folder.Join(path, "fiber.vtu")
-    fibers_n[nodes] = MeshIO.meshio.vtu.read(fiberFile).point_data["f0"][nodes]
+    fibers_n[nodes] = meshio.vtu.read(fiberFile).point_data["f0"][nodes]
     sheetFile = Folder.Join(path, "sheet.vtu")
-    sheets_n[nodes] = MeshIO.meshio.vtu.read(sheetFile).point_data["s0"][nodes]
+    sheets_n[nodes] = meshio.vtu.read(sheetFile).point_data["s0"][nodes]
 
     fibers_e_pg = mesh.groupElem.Interpolate_e_pg(fibers_n, matrixType)
     sheets_e_pg = mesh.groupElem.Interpolate_e_pg(sheets_n, matrixType)
@@ -250,7 +250,7 @@ def Get_config_ellipsoid(
 # --------------------------------------------
 
 
-def __Dolfin_xdmf_to_meshio(xdmfFile: str) -> MeshIO.meshio.Mesh:
+def __Dolfin_xdmf_to_meshio(xdmfFile: str) -> meshio.Mesh:
     """Convert a dolfin-written XDMF biventricular mesh to meshio."""
 
     h5File = os.path.splitext(xdmfFile)[0] + ".h5"
@@ -271,7 +271,7 @@ def __Dolfin_xdmf_to_meshio(xdmfFile: str) -> MeshIO.meshio.Mesh:
         "gmsh:geometrical": [triTags, volTags],
     }
 
-    return MeshIO.meshio.Mesh(points, cells, cell_data=cell_data)
+    return meshio.Mesh(points, cells, cell_data=cell_data)
 
 
 def Get_biventricular(
@@ -300,7 +300,7 @@ def Get_biventricular(
         if not all(Folder.Exists(f) for f in (gmshFile, fiberFile, sheetFile)):
             print(f"Building gmsh mesh from dolfin XDMF: {gmshFile}")
             meshioMesh = __Dolfin_xdmf_to_meshio(xdmfFile)
-            MeshIO.meshio.write(gmshFile, meshioMesh, file_format="gmsh22")
+            meshio.write(gmshFile, meshioMesh, file_format="gmsh22")
 
             dataVtk = PyVista.pv.read(dataFile)
 

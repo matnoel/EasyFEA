@@ -8,7 +8,7 @@ from typing import Callable
 import numpy as np
 import pytest
 
-from EasyFEA import Folder, ElemType, Mesh, MeshIO
+from EasyFEA import Folder, ElemType, Mesh, IO
 from EasyFEA.Geoms import Line
 
 folder_results = Folder.Results_Dir()
@@ -90,13 +90,13 @@ def check_tags(mesh1: Mesh, mesh2: Mesh):
         ), f"elements of {tag} differ"
 
 
-class TestMeshIO:
+class TestMeshFormats:
 
     def test_mesh_reconstruction(self, meshes: list[Mesh]):
 
         for mesh in meshes:
 
-            newMesh = MeshIO.Surface_reconstruction(mesh)
+            newMesh = IO.PyVista.Surface_reconstruction(mesh)
 
             # check surface reconstruction
 
@@ -112,8 +112,8 @@ class TestMeshIO:
 
         for mesh in meshes:
 
-            meshio = MeshIO._EasyFEA_to_Meshio(mesh)
-            newMesh = MeshIO._Meshio_to_EasyFEA(meshio)
+            meshio = IO._meshio._EasyFEA_to_Meshio(mesh)
+            newMesh = IO._meshio._Meshio_to_EasyFEA(meshio)
 
             check_mesh(mesh, newMesh)
             # named sets carry the tags, so this pair loses nothing
@@ -128,7 +128,7 @@ class TestMeshIO:
             for groupElem in mesh.dict_groupElem.values():
                 groupElem.Set_Tag(nodes, "endocardium")
 
-            newMesh = MeshIO._Meshio_to_EasyFEA(MeshIO._EasyFEA_to_Meshio(mesh))
+            newMesh = IO._meshio._Meshio_to_EasyFEA(IO._meshio._EasyFEA_to_Meshio(mesh))
 
             assert "endocardium" in get_tags(newMesh)
             check_tags(mesh, newMesh)
@@ -137,8 +137,8 @@ class TestMeshIO:
 
         for mesh in meshes:
 
-            filename = MeshIO.EasyFEA_to_Gmsh(mesh, folder_results, mesh.elemType.name)
-            newMesh = MeshIO.Gmsh_to_EasyFEA(filename)
+            filename = IO.Gmsh.Save_mesh(mesh, folder_results, mesh.elemType.name)
+            newMesh = IO.Gmsh.Load_mesh(filename)
 
             check_mesh(mesh, newMesh)
             # the tags Mesher creates claim disjoint elements, so every one of them fits in the
@@ -155,8 +155,8 @@ class TestMeshIO:
             for groupElem in groupElems:
                 groupElem.Set_Tag(nodes, "endocardium")
 
-            filename = MeshIO.EasyFEA_to_Gmsh(mesh, folder_results, mesh.elemType.name)
-            newMesh = MeshIO.Gmsh_to_EasyFEA(filename)
+            filename = IO.Gmsh.Save_mesh(mesh, folder_results, mesh.elemType.name)
+            newMesh = IO.Gmsh.Load_mesh(filename)
 
             assert "endocardium" in get_tags(newMesh)
 
@@ -169,11 +169,11 @@ class TestMeshIO:
             np.array([[0.0, 0, 0], [1, 0, 0], [1, 1, 0], [0, 1, 0]]),
             [("triangle", np.array([[0, 1, 2], [0, 2, 3]]))],
         )
-        mesh = MeshIO._Meshio_to_EasyFEA(meshioMesh)
+        mesh = IO._meshio._Meshio_to_EasyFEA(meshioMesh)
         assert get_tags(mesh) == []
 
-        filename = MeshIO.EasyFEA_to_Medit(mesh, folder_results, "tagless")
-        assert get_tags(MeshIO.Medit_to_EasyFEA(filename)) == []
+        filename = IO.Medit.Save_mesh(mesh, folder_results, "tagless")
+        assert get_tags(IO.Medit.Load_mesh(filename)) == []
 
     def test_imported_tags_keep_their_elements(self):
         """The middle triangle's nodes all belong to its neighbours' tag, which must not take it."""
@@ -190,7 +190,7 @@ class TestMeshIO:
             points, [("triangle", triangles)], cell_data={"medit:ref": [refs]}
         )
 
-        mesh = MeshIO._Meshio_to_EasyFEA(meshioMesh)
+        mesh = IO._meshio._Meshio_to_EasyFEA(meshioMesh)
 
         assert np.array_equal(np.sort(mesh.Elements_Tags("S1")), [0, 2])
         assert np.array_equal(mesh.Elements_Tags("S2"), [1])
@@ -207,8 +207,8 @@ class TestMeshIO:
             if mesh.elemType in ["QUAD8", "HEXA20", "PRISM15"]:
                 continue
 
-            filename = MeshIO.EasyFEA_to_Medit(mesh, folder_results, mesh.elemType.name)
-            newMesh = MeshIO.Medit_to_EasyFEA(filename)
+            filename = IO.Medit.Save_mesh(mesh, folder_results, mesh.elemType.name)
+            newMesh = IO.Medit.Load_mesh(filename)
 
             check_mesh(mesh, newMesh)
 
@@ -219,8 +219,8 @@ class TestMeshIO:
             if mesh.groupElem.order >= 2:
                 continue
 
-            pyVistaMesh = MeshIO.EasyFEA_to_PyVista(mesh)
-            newMesh = MeshIO.PyVista_to_EasyFEA(pyVistaMesh)
+            pyVistaMesh = IO.PyVista.EasyFEA_to_PyVista(mesh)
+            newMesh = IO.PyVista.PyVista_to_EasyFEA(pyVistaMesh)
 
             check_mesh(mesh, newMesh)
 
@@ -228,12 +228,10 @@ class TestMeshIO:
 
         for mesh in meshes:
 
-            if mesh.elemType not in MeshIO.DICT_ELEMTYPE_TO_ENSIGHT:
+            if mesh.elemType not in IO.Ensight.DICT_ELEMTYPE_TO_ENSIGHT:
                 continue
 
-            ensightMesh = MeshIO.EasyFEA_to_Ensight(
-                mesh, folder_results, mesh.elemType.name
-            )
-            newMesh = MeshIO.Ensight_to_EasyFEA(ensightMesh)
+            ensightMesh = IO.Ensight.Save_mesh(mesh, folder_results, mesh.elemType.name)
+            newMesh = IO.Ensight.Load_mesh(ensightMesh)
 
             check_mesh(mesh, newMesh)

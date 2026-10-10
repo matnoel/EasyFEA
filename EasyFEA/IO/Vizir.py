@@ -13,6 +13,7 @@ from ..Utilities import Folder, _types
 from ..Utilities._mpi import rank0_only
 from ..FEM._group_elem import GroupElemFactory
 from ..FEM._utils import ElemType
+from . import Medit
 
 from ..Geoms._utils import (
     _Get_BaryCentric_Coordinates_In_Triangle,
@@ -389,8 +390,6 @@ def Save_simu(
         A command string for visualizing the saved results using vizir.
     """
 
-    from . import MeshIO
-
     # assert isinstance(simu, "_Simu")
 
     # sample the results
@@ -435,7 +434,7 @@ def Save_simu(
                 file.write(solution_file + "\n")
 
     # save the mesh in Medit format
-    mesh_file = MeshIO.EasyFEA_to_Medit(simu.mesh, folder, "mesh")
+    mesh_file = Medit.Save_mesh(simu.mesh, folder, "mesh")
 
     sols_files = " ".join([f"{Folder.Join(folder, result)}.sols" for result in results])
     command = f"vizir4 -in {mesh_file} -sols {sols_files}"

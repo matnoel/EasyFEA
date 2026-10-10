@@ -9,11 +9,13 @@ import numpy as np
 from typing import TYPE_CHECKING
 
 # utilities
-from . import Terminal, Folder, Tic
-from ._mpi import MPI_SIZE, MPI_RANK, MPI_COMM
+from ..Utilities import Terminal, Folder, Tic
+from ..Utilities._mpi import MPI_SIZE, MPI_RANK, MPI_COMM
 
 from ..Utilities import _types
 from ..FEM._kelvin_mandel import VTK_ORDER
+from ._vtk import DICT_EASYFEA_TO_VTK_INDEXES, DICT_ELEMTYPE_TO_VTK
+from ._utils import _Init_obj
 
 if TYPE_CHECKING:
     from ..Simulations._simu import _Simu
@@ -49,11 +51,9 @@ def Save_simu(
         Additional elementFields, by default []
     """
 
-    from . import Matplotlib
-
     print("\n")
 
-    simu = Matplotlib._Init_obj(simu)[0]  # type: ignore
+    simu = _Init_obj(simu)[0]  # type: ignore
 
     if MPI_SIZE > 1 and simu.isGathered:
         raise Exception(
@@ -225,8 +225,6 @@ def __Make_vtu(
     """Generates the .vtu file for this rank and, when MPI_SIZE > 1, the .pvtu
     descriptor (rank 0 only). Returns the path to reference in the .pvd."""
 
-    from .MeshIO import DICT_GMSH_TO_VTK_INDEXES, DICT_ELEMTYPE_TO_VTK
-
     rank_folder = Folder.Rank_Dir(folder)
 
     Folder.os.makedirs(rank_folder, exist_ok=True)
@@ -254,8 +252,8 @@ def __Make_vtu(
         nPe = groupElem.nPe
 
         # reorder gmsh idx to vtk indexes
-        if elemType in DICT_GMSH_TO_VTK_INDEXES:
-            vtkIndexes = DICT_GMSH_TO_VTK_INDEXES[elemType]
+        if elemType in DICT_EASYFEA_TO_VTK_INDEXES:
+            vtkIndexes = DICT_EASYFEA_TO_VTK_INDEXES[elemType]
         else:
             vtkIndexes = np.arange(nPe).tolist()
         # map global node ids to the shared local numbering (equivalent to groupElem._global_to_local_nodes since mesh.nodes is sorted)

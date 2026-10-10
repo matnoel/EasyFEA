@@ -20,7 +20,7 @@ This example comes from:
 
 import numpy as np
 
-from EasyFEA import Terminal, Folder, Models, ElemType, Simulations, PyVista, Paraview
+from EasyFEA import Terminal, Folder, Models, ElemType, Simulations, PyVista, IO
 from EasyFEA.Geoms import Points, Point, Circle
 
 if __name__ == "__main__":
@@ -152,6 +152,6 @@ if __name__ == "__main__":
         )
 
     if makeParaview:
-        Paraview.Save_simu(
+        IO.Paraview.Save_simu(
             simu, folder, elementFields=["Svm", "Stress", "Strain", "Wdef_e"]
         )

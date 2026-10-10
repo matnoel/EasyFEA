@@ -15,7 +15,7 @@ Conduct 3d homogenization on a periodic mesh generated with `microgen <https://m
 import matplotlib.pyplot as plt
 import numpy as np
 
-from EasyFEA import Terminal, Folder, Models, Simulations, MeshIO, PyVista
+from EasyFEA import Terminal, Folder, Models, Simulations, IO, PyVista
 from EasyFEA.FEM import FeArray, MatrixType
 
 from Homog4 import Compute_ukl, Get_nodes, Get_pairedNodes
@@ -40,7 +40,7 @@ if __name__ == "__main__":
     # ----------------------------------------------
 
     gmshFile = Folder.Join(meshes_dir, "octet_truss.msh")
-    mesh = MeshIO.Gmsh_to_EasyFEA(gmshFile)
+    mesh = IO.Gmsh.Load_mesh(gmshFile)
     mesh.Translate(*-mesh.center)  # center mesh on 0,0,0
 
     plotter = PyVista.Plot_Mesh(mesh)

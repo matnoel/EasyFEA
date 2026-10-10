@@ -22,8 +22,8 @@ from EasyFEA import (
     Tic,
     ElemType,
     Simulations,
-    Paraview,
     PyVista,
+    IO,
 )
 from EasyFEA.Geoms import Point, Points, Domain, Line, Contour
 
@@ -261,7 +261,7 @@ if __name__ == "__main__":
         Matplotlib.Save_fig(folder_save, "mesh", transparent=True)
 
     if makeParaview:
-        Paraview.Save_simu(simu, folder_save, 400)
+        IO.Paraview.Save_simu(simu, folder_save, 400)
 
     if makeMovie:
         simu.Set_Iter(-1)

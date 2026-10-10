@@ -315,7 +315,7 @@ def _Solve_Axb(
         # get petsc4py options
         kspType, pcType, solverType = simu._Solver_Get_PETSc4Py_Options(problemType)
 
-        # from ..Utilities import Matplotlib
+        # from ..Viz import Matplotlib
         # # print(f"rank {MPI_RANK}: orphanNodes = {mesh.orphanNodes}")
         # ax = Matplotlib.Init_Axes(2)
         # ax.grid()

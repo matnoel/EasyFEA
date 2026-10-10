@@ -21,7 +21,7 @@ from EasyFEA import (
     ElemType,
     Simulations,
     PyVista,
-    Paraview,
+    IO,
 )
 from EasyFEA.Geoms import Domain, Circle
 
@@ -249,7 +249,7 @@ if __name__ == "__main__":
         Matplotlib.Plot_Mesh(simu.mesh)
 
     if makeParaview:
-        Paraview.Save_simu(simu, folder_save)
+        IO.Paraview.Save_simu(simu, folder_save)
 
     if makeMovie:
         simu.Set_Iter(-1)

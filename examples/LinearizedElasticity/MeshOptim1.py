@@ -23,8 +23,8 @@ from EasyFEA import (
     ElemType,
     Mesh,
     Simulations,
-    Paraview,
     PyVista,
+    IO,
 )
 from EasyFEA.Geoms import Point, Points
 from EasyFEA.FEM import Calc_projector
@@ -151,7 +151,7 @@ if __name__ == "__main__":
         )
 
     if makeParaview:
-        Paraview.Save_simu(simu, folder, nodeFields=["ZZ1_e"])
+        IO.Paraview.Save_simu(simu, folder, nodeFields=["ZZ1_e"])
 
     if makeMovie:
 

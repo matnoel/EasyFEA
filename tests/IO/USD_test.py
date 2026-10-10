@@ -3,7 +3,7 @@
 # This file is part of the EasyFEA project.
 # EasyFEA is distributed under the terms of the GNU General Public License v3, see LICENSE.txt and CREDITS.md for more information.
 
-from EasyFEA import Folder, Mesh, USD
+from EasyFEA import Folder, Mesh, IO
 
 from .GLTF_test import list_mesh, get_frames, get_simu
 
@@ -23,7 +23,7 @@ class TestUSD:
 
         for mesh in list_mesh:
 
-            usdaFile = USD.Save_mesh(mesh, folder, mesh.elemType)
+            usdaFile = IO.USD.Save_mesh(mesh, folder, mesh.elemType)
 
             validate(usdaFile)
 
@@ -35,7 +35,7 @@ class TestUSD:
 
             frames = get_frames(mesh)
 
-            usdaFile = USD.Save_mesh(
+            usdaFile = IO.USD.Save_mesh(
                 mesh, folder, mesh.elemType, list_displacementMatrix=frames
             )
 
@@ -50,7 +50,7 @@ class TestUSD:
             frames = get_frames(mesh)
 
             # norm
-            usdaFile = USD.Save_mesh(
+            usdaFile = IO.USD.Save_mesh(
                 mesh,
                 folder,
                 mesh.elemType,
@@ -60,7 +60,7 @@ class TestUSD:
             validate(usdaFile)
 
             # x
-            usdaFile = USD.Save_mesh(
+            usdaFile = IO.USD.Save_mesh(
                 mesh,
                 folder,
                 mesh.elemType,
@@ -77,7 +77,7 @@ class TestUSD:
 
             simu = get_simu(mesh)
 
-            usdaFile = USD.Save_simu(simu, ["uy"], folder, fps=1)
+            usdaFile = IO.USD.Save_simu(simu, ["uy"], folder, fps=1)
 
             validate(usdaFile)
 
@@ -85,4 +85,4 @@ class TestUSD:
 
         folder = Folder.Join(folder_results, "simu", mkdir=True)
 
-        assert USD.Save_simu(list_mesh[0], ["uy"], folder) is None  # type: ignore [arg-type]
+        assert IO.USD.Save_simu(list_mesh[0], ["uy"], folder) is None  # type: ignore [arg-type]

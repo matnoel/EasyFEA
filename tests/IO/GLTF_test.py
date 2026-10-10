@@ -18,7 +18,7 @@ pytestmark = pytest.mark.filterwarnings(
     "ignore:pygltf.utils.validator is a provisional function:UserWarning"
 )
 
-from EasyFEA import Folder, ElemType, Mesh, GLTF, Models, Simulations
+from EasyFEA import Folder, ElemType, Mesh, Models, Simulations, IO
 from EasyFEA.Geoms import Domain, Circle, Rotate, Translate
 
 folder_results = Folder.Results_Dir()
@@ -93,7 +93,7 @@ class TestGLTF:
 
                 filename = mesh.elemType + "_plotMesh" if plotMesh else mesh.elemType
 
-                glbFile = GLTF.Save_mesh(
+                glbFile = IO.GLTF.Save_mesh(
                     mesh=mesh,
                     folder=folder,
                     filename=filename,
@@ -112,7 +112,7 @@ class TestGLTF:
 
             frames = get_frames(mesh)
 
-            glbFile = GLTF.Save_mesh(
+            glbFile = IO.GLTF.Save_mesh(
                 mesh=mesh,
                 folder=folder,
                 filename=mesh.elemType,
@@ -132,7 +132,7 @@ class TestGLTF:
             frames = get_frames(mesh)
 
             # norm
-            glbFile = GLTF.Save_mesh(
+            glbFile = IO.GLTF.Save_mesh(
                 mesh=mesh,
                 folder=folder,
                 filename=mesh.elemType,
@@ -143,7 +143,7 @@ class TestGLTF:
             validate(gltf)
 
             # x
-            glbFile = GLTF.Save_mesh(
+            glbFile = IO.GLTF.Save_mesh(
                 mesh=mesh,
                 folder=folder,
                 filename=mesh.elemType,
@@ -162,7 +162,7 @@ class TestGLTF:
             frames = get_frames(mesh)
 
             # norm
-            glbFile = GLTF.Save_mesh(
+            glbFile = IO.GLTF.Save_mesh(
                 mesh,
                 folder,
                 mesh.elemType,
@@ -173,7 +173,7 @@ class TestGLTF:
             validate(gltf)
 
             # x
-            glbFile = GLTF.Save_mesh(
+            glbFile = IO.GLTF.Save_mesh(
                 mesh=mesh,
                 folder=folder,
                 filename=mesh.elemType + "_ux",
@@ -191,7 +191,7 @@ class TestGLTF:
 
             simu = get_simu(mesh)
 
-            GLTF.Save_simu(
+            IO.GLTF.Save_simu(
                 simu=simu,
                 results=["uy"],
                 folder=folder,
@@ -203,4 +203,4 @@ class TestGLTF:
 
         folder = Folder.Join(folder_results, "simu", mkdir=True)
 
-        assert GLTF.Save_simu(list_mesh[0], ["uy"], folder) is None  # type: ignore [arg-type]
+        assert IO.GLTF.Save_simu(list_mesh[0], ["uy"], folder) is None  # type: ignore [arg-type]

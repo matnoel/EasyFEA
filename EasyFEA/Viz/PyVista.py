@@ -13,9 +13,9 @@ import numpy as np
 from functools import singledispatch
 
 # utilities
-from . import Terminal
-from ..Simulations._simu import _Init_obj, _Get_values
-from . import Folder, Tic, _types
+from ..Utilities import Folder, Terminal, Tic, _types
+from ..IO._utils import _Init_obj, _Get_values
+from ..IO import PyVista as _pvIO
 from .. import Geoms
 
 # fem
@@ -26,8 +26,8 @@ if TYPE_CHECKING:
     from ..FEM._mesh import Mesh
     from ..FEM._group_elem import _GroupElem
 
-from ._requires import Create_requires_decorator
-from ._mpi import rank0_only
+from ..Utilities._requires import Create_requires_decorator
+from ..Utilities._mpi import rank0_only
 
 try:
     import pyvista as pv
@@ -128,7 +128,7 @@ def Plot(
     --------
     Von Mises stress in MPa (elastic simulation):
 
-    >>> from EasyFEA.Utilities import PyVista
+    >>> from EasyFEA import PyVista
     >>> plotter = PyVista.Plot(simu, result="Svm", coef=1e-6, colorbarTitle="σ_vm [MPa]")
     >>> plotter.show()
 
@@ -260,7 +260,7 @@ def Plot_Mesh(
     --------
     Undeformed mesh:
 
-    >>> from EasyFEA.Utilities import PyVista
+    >>> from EasyFEA import PyVista
     >>> plotter = PyVista.Plot_Mesh(mesh)
     >>> plotter.show()
 
@@ -717,7 +717,7 @@ def Plot_Tags(
         The pyvista plotter
     """
 
-    from . import Matplotlib, MeshIO
+    from . import Matplotlib
 
     tic = Tic()
 
@@ -760,7 +760,7 @@ def Plot_Tags(
             if len(elements) == 0:
                 continue
 
-            grid = MeshIO._GroupElem_to_PyVista(groupElem, elements)
+            grid = _pvIO._GroupElem_to_PyVista(groupElem, elements)
 
             if useColorCycler:
                 color = next(colorIterator)
@@ -1068,12 +1068,12 @@ def _pvMesh(
 ) -> pv.UnstructuredGrid:
     """Creates the pyvista mesh from obj (_Simu, Mesh and _GroupElem objects)"""
 
-    from . import Matplotlib, MeshIO
+    from . import Matplotlib
 
     simu, mesh, coord, __ = _Init_obj(obj, deformFactor)
     result = Matplotlib._Gauss_points_averaged(mesh, result)
 
-    unstructuredGrid = MeshIO.EasyFEA_to_PyVista(mesh, coord, useAllElements=False)
+    unstructuredGrid = _pvIO.EasyFEA_to_PyVista(mesh, coord, useAllElements=False)
 
     values = _Get_values(simu, mesh, result, nodeValues)  # type: ignore [arg-type]
 

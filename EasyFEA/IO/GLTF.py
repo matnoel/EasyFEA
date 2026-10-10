@@ -19,53 +19,56 @@ import webbrowser
 
 import numpy as np
 
-from ._requires import Create_requires_decorator
-from ._mpi import rank0_only
-from ..Simulations._simu import _Init_obj
+from ..Utilities._requires import Create_requires_decorator
+from ..Utilities._mpi import rank0_only
+from ._utils import _Init_obj
+from ._colors import _Get_colors_for_values, _Save_colorbar
+from .PyVista import Surface_reconstruction
 
-from . import Folder, Terminal
+from ..Utilities import Folder, Terminal
 
 if TYPE_CHECKING:
+    import pygltflib
     from ..FEM._mesh import Mesh
     from ..Simulations import _Simu
 
-try:
-    import pygltflib
 
-    class Type(str, Enum):
-        # https://github.com/KhronosGroup/glTF/blob/main/specification/2.0/Specification.adoc#3622-accessor-data-types
-        SCALAR = pygltflib.SCALAR
-        VEC2 = pygltflib.VEC2
-        VEC3 = pygltflib.VEC3
-        VEC4 = pygltflib.VEC4
-        MAT2 = pygltflib.MAT2
-        MAT3 = pygltflib.MAT3
-        MAT4 = pygltflib.MAT4
+class Type(str, Enum):
+    # https://github.com/KhronosGroup/glTF/blob/main/specification/2.0/Specification.adoc#3622-accessor-data-types
+    SCALAR = "SCALAR"
+    VEC2 = "VEC2"
+    VEC3 = "VEC3"
+    VEC4 = "VEC4"
+    MAT2 = "MAT2"
+    MAT3 = "MAT3"
+    MAT4 = "MAT4"
 
-    class Component(int, Enum):
-        # https://github.com/KhronosGroup/glTF/blob/main/specification/2.0/Specification.adoc#3622-accessor-data-types
-        SIGNED_BYTE = 5120
-        UNSIGNED_BYTE = 5121
-        SIGNED_SHORT = 5122
-        UNSIGNED_SHORT = 5123
-        UNSIGNED_INT = 5125
-        FLOAT = 5126
 
-    class StructFormat(str, Enum):
-        # https://docs.python.org/3/library/struct.html#format-characters
-        # SIGNED_BYTE = 5120
-        # UNSIGNED_BYTE = 5121
-        SIGNED_SHORT = "h"
-        UNSIGNED_SHORT = "H"
-        UNSIGNED_INT = "I"
-        FLOAT = "f"
+class Component(int, Enum):
+    # https://github.com/KhronosGroup/glTF/blob/main/specification/2.0/Specification.adoc#3622-accessor-data-types
+    SIGNED_BYTE = 5120
+    UNSIGNED_BYTE = 5121
+    SIGNED_SHORT = 5122
+    UNSIGNED_SHORT = 5123
+    UNSIGNED_INT = 5125
+    FLOAT = 5126
 
-    class Target(int, Enum):
-        ARRAY_BUFFER = pygltflib.ARRAY_BUFFER
-        ELEMENT_ARRAY_BUFFER = pygltflib.ELEMENT_ARRAY_BUFFER
 
-except ImportError:
-    pass
+class StructFormat(str, Enum):
+    # https://docs.python.org/3/library/struct.html#format-characters
+    # SIGNED_BYTE = 5120
+    # UNSIGNED_BYTE = 5121
+    SIGNED_SHORT = "h"
+    UNSIGNED_SHORT = "H"
+    UNSIGNED_INT = "I"
+    FLOAT = "f"
+
+
+class Target(int, Enum):
+    ARRAY_BUFFER = 34962
+    ELEMENT_ARRAY_BUFFER = 34963
+
+
 requires_pygltflib = Create_requires_decorator("pygltflib")
 
 
@@ -130,6 +133,9 @@ class Data:
         target : Target, optional
             target (e.g. ARRAY_BUFFER or ELEMENT_ARRAY_BUFFER), by default None
         """
+
+        import pygltflib
+
         self._data = data
         self._count = count
         self._type = type
@@ -310,8 +316,6 @@ def Save_simu(
         The path to the created glb file.
     """
 
-    from .MeshIO import Surface_reconstruction
-
     simu, mesh, _, _ = _Init_obj(simu)  # type: ignore [assignment]
 
     if simu is None:
@@ -430,7 +434,7 @@ def Save_mesh(
         The path to the created glb file.
     """
 
-    from . import Matplotlib
+    import pygltflib
 
     updatedMesh = isinstance(mesh, list)
     list_mesh = mesh if isinstance(mesh, list) else [mesh]
@@ -459,7 +463,7 @@ def Save_mesh(
         else:
             vMin, vMax = np.min(list_nodesValues), np.max(list_nodesValues)
 
-        Matplotlib._Save_colorbar(
+        _Save_colorbar(
             vMin=vMin,
             vMax=vMax,
             folder=folder,
@@ -555,7 +559,7 @@ def Save_mesh(
 
         # get colors
         if Nvalues > 0:
-            colors = Matplotlib._Get_colors_for_values(
+            colors = _Get_colors_for_values(
                 list_nodesValues[i], vMax=vMax, vMin=vMin, cmap=cmap
             )
             data_colors = Data(
@@ -930,6 +934,8 @@ def Create_html(
     allowAninationButton=True,
     allowColorbar=True,
 ):
+
+    import pygltflib
 
     isDir = Folder.os.path.isdir(path)
 

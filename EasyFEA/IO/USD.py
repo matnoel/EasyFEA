@@ -10,11 +10,14 @@ from typing import TYPE_CHECKING
 
 import numpy as np
 
-from ._requires import Create_requires_decorator
-from ._mpi import rank0_only
-from ..Simulations._simu import _Init_obj
+from ..Utilities._requires import Create_requires_decorator
+from ..Utilities._mpi import rank0_only
+from ._utils import _Init_obj
+from ._colors import _Get_colors_for_values, _Save_colorbar
+from .PyVista import Surface_reconstruction
+from .GLTF import _get_list_nodesValues
 
-from . import Folder, Terminal
+from ..Utilities import Folder, Terminal
 
 if TYPE_CHECKING:
     from ..FEM._mesh import Mesh
@@ -67,8 +70,6 @@ def Save_simu(
         If False, frame-by-frame animation on Previewer and Keynote.
         Default True.
     """
-
-    from .MeshIO import Surface_reconstruction
 
     simu, mesh, _, _ = _Init_obj(simu)  # type: ignore [assignment]
 
@@ -221,9 +222,6 @@ def Save_mesh(
         The path to the created usdz file.
     """
 
-    from . import Matplotlib
-    from .GLTF import _get_list_nodesValues
-
     from pxr import Usd, UsdGeom, Gf, UsdUtils, Vt
 
     updatedMesh = isinstance(mesh, list)
@@ -252,7 +250,7 @@ def Save_mesh(
             vMax = np.max([np.max(v) for v in list_nodesValues])
         else:
             vMin, vMax = np.min(list_nodesValues), np.max(list_nodesValues)
-        Matplotlib._Save_colorbar(
+        _Save_colorbar(
             vMin=vMin,
             vMax=vMax,
             folder=folder,
@@ -366,7 +364,7 @@ def Save_mesh(
 
             # colors
             if Nvalues > 0:
-                colors = Matplotlib._Get_colors_for_values(
+                colors = _Get_colors_for_values(
                     list_nodesValues[i], vMax=vMax, vMin=vMin, cmap=cmap
                 ).astype(np.float32)
             else:
@@ -425,7 +423,7 @@ def Save_mesh(
 
             # colors
             if Nvalues > 0:
-                colors = Matplotlib._Get_colors_for_values(
+                colors = _Get_colors_for_values(
                     list_nodesValues[i], vMax=vMax, vMin=vMin, cmap=cmap
                 ).astype(np.float32)
             else:

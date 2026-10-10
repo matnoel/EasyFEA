@@ -21,7 +21,7 @@ from EasyFEA import (
     Tic,
     ElemType,
     Simulations,
-    Paraview,
+    IO,
 )
 from EasyFEA.Geoms import Domain, Point
 
@@ -236,7 +236,7 @@ if __name__ == "__main__":
 
     if makeParaview:
         # Generate Paraview files for visualization
-        Paraview.Save_simu(simu, folder, details=True)
+        IO.Paraview.Save_simu(simu, folder, details=True)
 
     # Show the total computation time
     print()

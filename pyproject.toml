@@ -94,22 +94,13 @@ exclude_type_checking_imports = true
 name = "Layers"
 type = "layers"
 containers = ["EasyFEA"]
-layers = ["Simulations", "Models", "FEM", "Geoms", "Utilities"]
+layers = ["Viz", "IO", "Simulations", "Models", "FEM", "Geoms", "Utilities"]
 ignore_imports = [
+    "EasyFEA.FEM._mesh -> EasyFEA.Viz.Matplotlib",
+    "EasyFEA.FEM._mesher -> EasyFEA.Viz.Matplotlib",
+    "EasyFEA.FEM._mesher -> EasyFEA.Viz.PyVista",
     "EasyFEA.Geoms._geom -> EasyFEA.FEM._mesher",
     "EasyFEA.Geoms._geom -> EasyFEA.FEM._utils",
+    "EasyFEA.Geoms._geom -> EasyFEA.Viz.Matplotlib",
     "EasyFEA.Models.Beam._beam -> EasyFEA.Simulations",
-    "EasyFEA.Utilities.GLTF -> EasyFEA.Simulations._simu",
-    "EasyFEA.Utilities.Matplotlib -> EasyFEA.Simulations._simu",
-    "EasyFEA.Utilities.MeshIO -> EasyFEA.FEM._group_elem",
-    "EasyFEA.Utilities.MeshIO -> EasyFEA.FEM._mesh",
-    "EasyFEA.Utilities.MeshIO -> EasyFEA.FEM._utils",
-    "EasyFEA.Utilities.Paraview -> EasyFEA.FEM._kelvin_mandel",
-    "EasyFEA.Utilities.PyVista -> EasyFEA.FEM",
-    "EasyFEA.Utilities.PyVista -> EasyFEA.Geoms",
-    "EasyFEA.Utilities.PyVista -> EasyFEA.Simulations._simu",
-    "EasyFEA.Utilities.USD -> EasyFEA.Simulations._simu",
-    "EasyFEA.Utilities.Vizir -> EasyFEA.FEM._group_elem",
-    "EasyFEA.Utilities.Vizir -> EasyFEA.FEM._utils",
-    "EasyFEA.Utilities.Vizir -> EasyFEA.Geoms._utils",
 ]

@@ -20,8 +20,8 @@ from EasyFEA import (
     Models,
     ElemType,
     Simulations,
-    Paraview,
     PyVista,
+    IO,
 )
 from EasyFEA.Geoms import Point, Points, Domain, Circle
 
@@ -250,6 +250,6 @@ if __name__ == "__main__":
         PyVista.Movie_func(Func, iterations.size, folder_save, "damage.gif")
 
     if makeParaview:
-        Paraview.Save_simu(simu, folder_save)
+        IO.Paraview.Save_simu(simu, folder_save)
 
     plt.show()

@@ -20,7 +20,7 @@ from EasyFEA import (
     ElemType,
     Simulations,
     PyVista,
-    Paraview,
+    IO,
 )
 from EasyFEA.Geoms import Domain
 
@@ -113,7 +113,7 @@ if __name__ == "__main__":
     Matplotlib.Plot_BoundaryConditions(simu)
 
     if makeParaview:
-        Paraview.Save_simu(simu, folder)
+        IO.Paraview.Save_simu(simu, folder)
 
     if makeMovie:
         PyVista.Movie_simu(

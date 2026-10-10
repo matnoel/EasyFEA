@@ -19,8 +19,8 @@ from EasyFEA import (
     Models,
     Mesher,
     Simulations,
-    Paraview,
     PyVista,
+    IO,
 )
 from EasyFEA.Geoms import Domain, Line
 
@@ -109,7 +109,7 @@ if __name__ == "__main__":
     Matplotlib.Plot_BoundaryConditions(simu)
 
     if makeParaview:
-        Paraview.Save_simu(simu, folder)
+        IO.Paraview.Save_simu(simu, folder)
 
     deform = 10
     if makeMovie:

@@ -508,7 +508,7 @@ class _Geom(ABC):
             The axis with the plotted geometry.
         """
 
-        from ..Utilities.Matplotlib import Init_Axes, _Axis_equal_3D
+        from ..Viz.Matplotlib import Init_Axes, _Axis_equal_3D
 
         lines, points = self.Get_coord_for_plot()
 

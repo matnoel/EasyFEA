@@ -6,39 +6,24 @@
 import importlib
 from typing import TYPE_CHECKING
 
-# utilities
-from .Utilities import Terminal, Folder, Tic, _LAZY_FRONT_ENDS
-
-# fem
+from .Utilities import Terminal, Folder, Tic
 from .FEM import Mesher, ElemType, Mesh, MatrixType
-
-# version
+from . import Models, Simulations, IO
+from .Simulations.Solvers import SolverType, AlgoType
 from .__about__ import __version__
 
 if TYPE_CHECKING:
-    from .Utilities import Matplotlib, Paraview, PyVista, Vizir, MeshIO, GLTF, USD
-    from . import Models, Simulations
-    from .Simulations.Solvers import SolverType, AlgoType
+    from .Viz import Matplotlib, PyVista
 
-_LAZY_MODULES = {
-    **{name: f".Utilities.{name}" for name in _LAZY_FRONT_ENDS},
-    "Models": ".Models",
-    "Simulations": ".Simulations",
-}
-_LAZY_ATTRIBUTES = {
-    "SolverType": ".Simulations.Solvers",
-    "AlgoType": ".Simulations.Solvers",
-}
+_LAZY_VIEWERS = ("Matplotlib", "PyVista")  # pyplot 188 ms, pyvista 151 ms
 
 
 def __getattr__(name: str):
-    """Front-ends, Models, Simulations and solver enums imported on first access (PEP 562)."""
-    if name in _LAZY_MODULES:
-        return importlib.import_module(_LAZY_MODULES[name], __name__)
-    if name in _LAZY_ATTRIBUTES:
-        return getattr(importlib.import_module(_LAZY_ATTRIBUTES[name], __name__), name)
+    """Viewers imported on first access (PEP 562)."""
+    if name in _LAZY_VIEWERS:
+        return importlib.import_module(f".Viz.{name}", __name__)
     raise AttributeError(f"module {__name__!r} has no attribute {name!r}")
 
 
 def __dir__():
-    return sorted(set(globals()) | set(_LAZY_MODULES) | set(_LAZY_ATTRIBUTES))
+    return sorted(set(globals()) | set(_LAZY_VIEWERS))
