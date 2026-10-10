@@ -40,9 +40,9 @@ lint = [
     "mdformat-myst==0.3.0",
     "import-linter==2.15",
 ]
-io = ["imageio", "imageio[ffmpeg]", "meshio"]
+viz = ["matplotlib", "pyvista"]
+io = ["imageio", "imageio[ffmpeg]", "meshio", "pygltflib", "usd-core"]
 jax = ["jax"]
-viz = ["matplotlib", "pyvista", "pygltflib", "usd-core"]
 
 [project.urls]
 Documentation = "https://easyfea.readthedocs.io/en/latest/"

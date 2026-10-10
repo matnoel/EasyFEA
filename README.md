@@ -154,16 +154,16 @@ pip install EasyFEA[viz,io,jax]
 - `viz`:
   - [`matplotlib`](https://pypi.org/project/matplotlib/) - Plotting package.
   - [`pyvista`](https://pypi.org/project/pyvista/) - Plotting package.
-  - [`pygltflib`](https://pypi.org/project/pygltflib/) - Python library for reading,
-    writing and managing 3D objects in the Khronos Group gltf and gltf2 formats.
-  - [`usd-core`](https://pypi.org/project/usd-core/) - Pixar's Universal Scene
-    Description.
 - `io`:
   - [`imageio`](https://pypi.org/project/imageio/) and
     [`imageio-ffmpeg`](https://pypi.org/project/imageio-ffmpeg/) - Library for reading
     and writing a wide range of image, video, scientific, and volumetric data formats.
   - [`meshio`](https://github.com/matnoel/meshio/tree/medit_higher_order_elements) - I/O
     for many mesh formats.
+  - [`pygltflib`](https://pypi.org/project/pygltflib/) - Python library for reading,
+    writing and managing 3D objects in the Khronos Group gltf and gltf2 formats.
+  - [`usd-core`](https://pypi.org/project/usd-core/) - Pixar's Universal Scene
+    Description.
 - `jax`:
   - [`jax`](https://pypi.org/project/jax/) - Automatic differentiation, required by
     hyperelastic laws derived from their energy and by inelastic behaviors.
