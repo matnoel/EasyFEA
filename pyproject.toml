@@ -70,7 +70,7 @@ disable_error_code = [
 
 [[tool.mypy.overrides]]
 # the protocol claims report as [assignment]
-module = ["EasyFEA.IO", "EasyFEA.Viz"]
+module = ["EasyFEA.IO._protocols", "EasyFEA.Viz._protocols"]
 enable_error_code = ["assignment"]
 
 [tool.ruff]

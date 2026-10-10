@@ -14,9 +14,17 @@ from ..Utilities import Folder, Tic, _types
 from ..Utilities._mpi import rank0_only
 from ..Utilities.Terminal import MyPrint, MyPrintError
 from ..IO._utils import _Init_obj, _Get_values
-from ._utils import _Flatten_geoms
+from ._utils import tab10_colors as tab10_colors  # public
+from ._utils import (
+    PlotOptions,
+    _Flatten_geoms,
+    _Check_kwargs,
+    _Union_bounds,
+    _Gauss_points_averaged,
+)
 
 if TYPE_CHECKING:
+    from typing import Unpack
     from ..Simulations._simu import _Simu
     from ..FEM._mesh import Mesh
     from ..FEM._group_elem import _GroupElem
@@ -42,11 +50,6 @@ requires_matplotlib = Create_requires_decorator("matplotlib")
 # Ideas: https://www.python-graph-gallery.com/
 
 # fmt: off
-# tab10_colors = [colors.rgb2hex(color) for color in plt.get_cmap("tab10").colors] 
-tab10_colors = [
-    "#1f77b4","#ff7f0e","#2ca02c","#d62728","#9467bd",
-    "#8c564b","#e377c2","#7f7f7f","#bcbd22","#17becf"
-]
 # tab20_colors = [colors.rgb2hex(color) for color in plt.get_cmap("tab20").colors] 
 tab20_colors = [
     "#1f77b4","#aec7e8","#ff7f0e","#ffbb78","#2ca02c",
@@ -119,10 +122,12 @@ def __Add_Collection(
     cmap: str | None = None,
     facecolors=None,
     edgecolor=None,
-    lw: float = 0.5,
+    linewidth: float | None = 0.5,
     alpha: float = 1.0,
-    zorder: float = None,
+    zorder: float | None = None,
     clim: tuple | None = None,
+    label: str | None = None,
+    **kwargs,
 ):
     """Builds and adds the matplotlib collection matching ``inDim`` × ``dimElem`` to ``ax``.\n
     This is the matplotlib analogue of ``pyvista.Plotter.add_mesh``. Returns the collection.
@@ -136,7 +141,7 @@ def __Add_Collection(
     else:
         Coll = Poly3DCollection if is3D else PolyCollection
 
-    params: dict[str, Any] = {"lw": lw}
+    params: dict[str, Any] = {"lw": linewidth, "label": label, **kwargs}
     if zorder is not None:
         params["zorder"] = zorder
     if cmap is not None:
@@ -182,23 +187,14 @@ def _Node_to_element_values(
     return np.asarray(elementValues)
 
 
-def _Gauss_points_averaged(
-    mesh: Mesh, result: str | _types.AnyArray | dict | None
-) -> str | _types.AnyArray | None:
-    """An ``(Ne, nPg)`` array, or ``{_GroupElem: scalar | (Ne_g,) | (Ne_g, nPg)}`` flattened in ``Get_list_groupElem(dim)`` order, as ``(Ne,)`` with the Gauss points averaged; any other ``result`` as is."""
-    if isinstance(result, np.ndarray) and result.ndim == 2 and len(result) == mesh.Ne:
-        return result.mean(1)
-    if not isinstance(result, dict):
-        return result
-    values = []
-    for groupElem in mesh.Get_list_groupElem(mesh.dim):
-        if groupElem not in result:
-            raise KeyError(f"no value given for the {groupElem.elemType} group")
-        value = np.asarray(result[groupElem], dtype=float)
-        if value.ndim == 2:
-            value = value.mean(1)
-        values.append(np.broadcast_to(value, (groupElem.Ne,)))
-    return np.concatenate(values)
+# matplotlib spellings of our options, refused in **kwargs
+_KWARGS_ALIASES: dict[str, tuple[str, ...]] = {
+    "color": ("c", "facecolor", "facecolors", "fc"),
+    "edgecolor": ("edgecolors", "ec"),
+    "linewidth": ("lw", "linewidths"),
+    "nColors": ("levels", "norm"),
+    "clim": ("vmin", "vmax"),
+}
 
 
 @requires_matplotlib
@@ -208,20 +204,29 @@ def Plot(
     deformFactor: _types.Number = 0.0,
     coef: _types.Number = 1.0,
     nodeValues: bool = True,
-    color=None,
-    plotMesh: bool = False,
-    edgecolor: str = "black",
-    lw: float = 0.5,
-    alpha: float = 1.0,
+    *,
     cmap: str = "jet",
-    ncolors: int = 256,
-    clim=(None, None),
+    nColors: int = 256,
+    clim: tuple[float, float] | None = None,
+    colorbarTitle: str | None = None,
+    plotColorbar: bool = True,
+    verticalColorbar: bool = True,
+    color: str | None = None,
+    edgecolor: str = "black",
+    linewidth: float | None = 0.5,
+    alpha: float = 1.0,
+    plotMesh: bool = False,
+    plotNodes: bool = False,
+    nodeSize: float | None = None,
+    title: str = "",
+    label: str | None = None,
+    showGrid: bool = False,
+    bounds: _types.Numbers | None = None,
     ax: Axes | None = None,
     colorbarIsClose: bool = False,
-    colorbarLabel: str = "",
-    title: str = "",
     folder: str = "",
     filename: str = "",
+    **kwargs,
 ) -> Axes:
     """Plots an object (simulation, mesh or group of elements) with matplotlib.
 
@@ -241,35 +246,51 @@ def Plot(
         coef to apply to the solution, by default 1.0
     nodeValues : bool, optional
         displays result to nodes otherwise displays it to elements, by default True
+    cmap : str, optional
+        the color map used near the figure, by default "jet" \\n
+        ["jet", "seismic", "binary", "viridis"] -> https://matplotlib.org/stable/tutorials/colors/colormaps.html
+    nColors : int, optional
+        number of colors for colorbar, by default 256
+    clim : sequence[float], optional
+        Two item color bar range for scalars. Defaults to minimum and maximum of scalars array. Example: (-1, 2), by default None
+    colorbarTitle : str, optional
+        colorbar title, by default None
+    plotColorbar : bool, optional
+        displays the colorbar, by default True
+    verticalColorbar : bool, optional
+        color bar is vertical, by default True
     color : str, optional
         solid color used when ``result`` is None, by default None
-    plotMesh : bool, optional
-        displays mesh edges, by default False
     edgecolor : str, optional
         Color used to plot the mesh, by default 'black'
-    lw : float, optional
+    linewidth : float, optional
         line width, by default 0.5
     alpha : float, optional
         face transparency, by default 1.0
-    cmap : str, optional
-        the color map used near the figure, by default "jet" \n
-        ["jet", "seismic", "binary", "viridis"] -> https://matplotlib.org/stable/tutorials/colors/colormaps.html
-    ncolors : int, optional
-        number of colors for colorbar, by default 256
-    clim : sequence[float], optional
-        Two item color bar range for scalars. Defaults to minimum and maximum of scalars array. Example: (-1, 2), by default (None, None)
+    plotMesh : bool, optional
+        displays mesh edges, by default False
+    plotNodes : bool, optional
+        displays the nodes, by default False
+    nodeSize : float, optional
+        node marker size, by default None
+    title : str, optional
+        figure title, by default "" (the result's name)
+    label : str, optional
+        legend label, by default None
+    showGrid : bool, optional
+        shows the grid, by default False
+    bounds : sequence[float], optional
+        fixed view box (xmin, xmax, ymin, ymax, zmin, zmax), by default None (fits everything drawn)
     ax : axis, optional
         Axis to use, by default None
     colorbarIsClose : bool, optional
         color bar is displayed close to the figure, by default False
-    colorbarLabel : str, optional
-        colorbar label, by default ""
-    title : str, optional
-        figure title, by default ""
     folder : str, optional
         save folder, by default "".
     filename : str, optional
         filename, by default ""
+    **kwargs:
+        Everything matplotlib's collection (or ``tricontourf``) accepts, our options excepted
 
     Returns
     -------
@@ -280,7 +301,7 @@ def Plot(
     Von Mises stress in MPa (elastic simulation):
 
     >>> from EasyFEA import Matplotlib
-    >>> Matplotlib.Plot(simu, "Svm", coef=1e-6, colorbarLabel="σ_vm [MPa]")
+    >>> Matplotlib.Plot(simu, "Svm", coef=1e-6, colorbarTitle="σ_vm [MPa]")
     >>> Matplotlib.plt.show()
 
     Mesh only (no scalar field):
@@ -289,11 +310,15 @@ def Plot(
     >>> Matplotlib.plt.show()
     """
 
+    _Check_kwargs(kwargs, _KWARGS_ALIASES)
+
     tic = Tic()
 
     simu, mesh, coordDef, inDim = _Init_obj(obj, deformFactor)  # type: ignore
     dimElem = mesh.dim  # Dimension of displayed elements
     result = _Gauss_points_averaged(mesh, result)
+    clim = (None, None) if clim is None else clim  # type: ignore [assignment]
+    colorbarTitle = "" if colorbarTitle is None else colorbarTitle
 
     hasResult = result is not None
 
@@ -314,7 +339,7 @@ def Plot(
         # Get values and colorbar properties
         values = _Get_values(simu, mesh, result, nodeValues) * coef
         ticks, levels, norm, vmin, vmax = __Get_colorbar_properties(
-            clim, result, values, ncolors
+            clim, result, values, nColors  # type: ignore [arg-type]
         )
     else:
         values = None  # type: ignore [assignment]
@@ -322,6 +347,7 @@ def Plot(
 
     vertices = __Get_vertices(mesh, coordDef, inDim, dimElem)
 
+    pc = None
     if inDim == 3:
 
         if surfDim == 1 and plotMesh:
@@ -343,14 +369,14 @@ def Plot(
                 norm=norm,
                 cmap=cmap,
                 edgecolor=edge,
-                lw=1.5 if surfDim == 1 else 0.5,
+                linewidth=1.5 if surfDim == 1 else 0.5,
+                label=label,
+                **kwargs,
             )
             pc.set_clim(
                 np.min([elementValues.min(), vmin]),
                 np.max([elementValues.max(), vmax]),
             )
-            colorbar = plt.colorbar(pc, ax=ax, ticks=ticks)
-            colorbar.set_label(colorbarLabel)
         else:
             # solid color
             __Add_Collection(
@@ -360,11 +386,11 @@ def Plot(
                 surfDim,
                 facecolors=color,
                 edgecolor=edgecolor if plotMesh else None,
-                lw=lw,
+                linewidth=linewidth,
                 alpha=alpha,
+                label=label,
+                **kwargs,
             )
-
-        _Axis_equal_3D(ax, coordDef)
 
     else:
 
@@ -375,7 +401,9 @@ def Plot(
             ax.plot(*coordDef[:, :2].T, c=edgecolor, lw=0.1, marker=".", ls="")
         elif plotMesh and hasResult:
             # mesh for 2D elements are lines / segments (dimElem=1 for LineCollection)
-            __Add_Collection(ax, vertices, inDim, 1, edgecolor=edgecolor, lw=0.5)
+            __Add_Collection(
+                ax, vertices, inDim, 1, edgecolor=edgecolor, linewidth=linewidth
+            )
 
         if hasResult and nodeValues:
             # smooth nodal field: matplotlib has no collection equivalent -> tricontourf
@@ -394,6 +422,7 @@ def Plot(
                 cmap=cmap,
                 vmin=values.min(),
                 vmax=values.max(),
+                **kwargs,
             )
         elif hasResult:
             # element values
@@ -405,8 +434,10 @@ def Plot(
                 array=values,
                 norm=norm,
                 cmap=cmap,
-                lw=1.5 if surfDim == 1 else 0.5,
+                linewidth=1.5 if surfDim == 1 else 0.5,
                 clim=(vmin, vmax),
+                label=label,
+                **kwargs,
             )
         else:
             # solid color (edges live on the face collection, matching Plot_Mesh / _Plot_obj)
@@ -417,27 +448,45 @@ def Plot(
                 surfDim,
                 facecolors=color,
                 edgecolor=edgecolor if plotMesh else None,
-                lw=lw,
+                linewidth=linewidth,
                 alpha=alpha,
+                label=label,
+                **kwargs,
             )
 
-        ax.autoscale()
-        ax.axis("equal")
+    if plotNodes:
+        ax.plot(
+            *coordDef[:, :inDim].T,
+            c=edgecolor,
+            marker=".",
+            ms=nodeSize,
+            ls="",
+            zorder=2.5,
+        )
 
-        if hasResult:
-            if colorbarIsClose:
-                divider = make_axes_locatable(ax)
-                cax = divider.append_axes("right", size="10%", pad=0.1)
-            else:
-                cax = None
-            colorbar = plt.colorbar(pc, ax=ax, cax=cax, ticks=ticks)
-            colorbar.set_label(colorbarLabel)
+    _Fit_view(ax, coordDef, bounds)
+
+    if hasResult and plotColorbar and pc is not None:
+        orientation = "vertical" if verticalColorbar else "horizontal"
+        if colorbarIsClose and inDim < 3:
+            divider = make_axes_locatable(ax)
+            side = "right" if verticalColorbar else "bottom"
+            cax = divider.append_axes(side, size="10%", pad=0.1)
+        else:
+            cax = None
+        colorbar = plt.colorbar(
+            pc, ax=ax, cax=cax, ticks=ticks, orientation=orientation
+        )
+        colorbar.set_label(colorbarTitle)
 
     # Title
     if title == "" and isinstance(result, str):
         ax.set_title(rf"${__Get_latex_title(result, nodeValues)}$")
     elif title != "":
         ax.set_title(title)
+
+    if showGrid:
+        ax.grid(True)
 
     tic.Tac("Matplotlib", "Plot")
 
@@ -472,7 +521,7 @@ def __Get_colorbar_properties(
     clim: tuple[int, int],
     result: str | np.ndarray,
     values: np.ndarray,
-    ncolors: int,
+    nColors: int,
 ):
     """Returns ticks, levels, norm"""
     min, max = clim
@@ -486,12 +535,12 @@ def __Get_colorbar_properties(
             max = np.max(values) + 1e-12 if max is None else max
             min = np.min(values) - 1e-12 if min is None else min
             ticks = np.linspace(min, max, 11)
-        levels = np.linspace(min, max, ncolors)
+        levels = np.linspace(min, max, nColors)
     else:
         ticks = np.linspace(min, max, 11)
-        levels = np.linspace(min, max, ncolors)
+        levels = np.linspace(min, max, nColors)
 
-    if ncolors != 256:
+    if nColors != 256:
         norm = colors.BoundaryNorm(boundaries=levels, ncolors=256)
     else:
         norm = None
@@ -527,15 +576,22 @@ def __Get_latex_title(result, nodeValues=True) -> str:
 def Plot_Mesh(
     obj: _Simu | Mesh,
     deformFactor: float = 0.0,
-    alpha: float = 1.0,
-    facecolors: str = "c",
+    *,
+    color: str | None = "c",
     edgecolor: str = "black",
-    lw: float = 0.5,
+    linewidth: float | None = 0.5,
+    alpha: float = 1.0,
+    plotMesh: bool = True,
+    plotNodes: bool = False,
+    nodeSize: float | None = None,
+    title: str = "",
+    label: str | None = None,
+    showGrid: bool = False,
+    bounds: _types.Numbers | None = None,
     ax: Axes | None = None,
     folder: str = "",
-    title: str = "",
 ) -> Axes:
-    """Plots the mesh.
+    """Plots the mesh, over the undeformed one in red when deformed.
 
     Parameters
     ----------
@@ -543,20 +599,32 @@ def Plot_Mesh(
         object containing the mesh
     deformFactor : float, optional
         Factor used to display the deformed solution (0 means no deformations), default 0.0
+    color : str, optional
+        face color, default 'c' (cyan)
+    edgecolor : str, optional
+        edgecolor, default 'black'
+    linewidth : float, optional
+        line width, default 0.5
     alpha : float, optional
         face transparency, default 1.0
-    facecolors: str, optional
-        facecolors, default 'c' (cyan)
-    edgecolor: str, optional
-        edgecolor, default 'black'
-    lw: float, optional
-        line width, default 0.5
-    ax: Axes, optional
+    plotMesh : bool, optional
+        displays the edges, default True
+    plotNodes : bool, optional
+        displays the nodes, default False
+    nodeSize : float, optional
+        node marker size, default None
+    title : str, optional
+        figure title, by default "" (the mesh's description)
+    label : str, optional
+        legend label, by default None
+    showGrid : bool, optional
+        shows the grid, by default False
+    bounds : sequence[float], optional
+        fixed view box (xmin, xmax, ymin, ymax, zmin, zmax), by default None (fits everything drawn)
+    ax : Axes, optional
         Axis to use, default None
     folder : str, optional
         save folder, default "".
-    title: str, optional
-        figure title, by default ""
 
     Returns
     -------
@@ -572,7 +640,7 @@ def Plot_Mesh(
 
     Deformed mesh, semi-transparent faces:
 
-    >>> Matplotlib.Plot_Mesh(simu, deformFactor=50, facecolors="white", alpha=0.5)
+    >>> Matplotlib.Plot_Mesh(simu, deformFactor=50, color="white", alpha=0.5)
     >>> plt.show()
     """
 
@@ -593,18 +661,23 @@ def Plot_Mesh(
         # Undeformed mesh: the common case routes through the shared Plot core.
         ax = Plot(
             obj,
-            color=facecolors,
-            plotMesh=True,
+            color=color,
+            plotMesh=plotMesh,
             edgecolor=edgecolor,
-            lw=lw,
+            linewidth=linewidth,
             alpha=alpha,
-            ax=ax,
+            plotNodes=plotNodes,
+            nodeSize=nodeSize,
             title=title,
+            label=label,
+            showGrid=showGrid,
+            bounds=bounds,
+            ax=ax,
         )
         if mesh.dim == 1:
             # 1D meshes display their nodes
             markCoord = coord if ax.name == "3d" else coord[:, :2]
-            ax.plot(*markCoord.T, c="black", lw=lw, marker=".", ls="")
+            ax.plot(*markCoord.T, c="black", lw=linewidth, marker=".", ls="")
     else:
         # Deformed mesh: overlay the deformed (red) over the undeformed wireframe, both built
         # with the same _Get_vertices / _Add_Collection helpers used by Plot. The element
@@ -616,21 +689,24 @@ def Plot_Mesh(
         verticesDef = __Get_vertices(mesh, coordDef, inDim, mesh.dim)
         vertices = __Get_vertices(mesh, coord, inDim, mesh.dim)
 
-        __Add_Collection(ax, verticesDef, inDim, 1, edgecolor="red", lw=lw)
-        __Add_Collection(ax, vertices, inDim, 1, edgecolor=edgecolor, lw=lw)
+        __Add_Collection(
+            ax, verticesDef, inDim, 1, edgecolor="red", linewidth=linewidth, label=label
+        )
+        __Add_Collection(
+            ax, vertices, inDim, 1, edgecolor=edgecolor, linewidth=linewidth
+        )
 
-        if mesh.dim == 1:
-            # 1D meshes display their nodes (undeformed in black, deformed in red)
+        if mesh.dim == 1 or plotNodes:
+            # undeformed nodes in black, deformed in red
             markCoord = coord if inDim == 3 else coord[:, :2]
             markDef = coordDef if inDim == 3 else coordDef[:, :2]
-            ax.plot(*markCoord.T, c="black", lw=lw, marker=".", ls="")
-            ax.plot(*markDef.T, c="red", lw=lw, marker=".", ls="")
+            ax.plot(*markCoord.T, c="black", ms=nodeSize, marker=".", ls="")
+            ax.plot(*markDef.T, c="red", ms=nodeSize, marker=".", ls="")
 
-        if inDim == 3:
-            _Axis_equal_3D(ax, coordDef)  # type: ignore
-        else:
-            ax.autoscale()
-            ax.axis("equal")
+        _Fit_view(ax, np.concatenate((coord, coordDef)), bounds)
+
+        if showGrid:
+            ax.grid(True)
 
     tic.Tac("Matplotlib", "Plot_Mesh")
 
@@ -672,10 +748,18 @@ def _Plot_obj(
 def Plot_Nodes(
     obj,
     nodes: _types.IntArray | None = None,
-    showId=False,
-    marker=".",
-    color="red",
+    showId: bool = False,
+    *,
+    deformFactor: float = 0.0,
+    color: str | None = "red",
+    alpha: float = 1.0,
+    nodeSize: float | None = None,
+    title: str = "",
+    label: str | None = None,
+    showGrid: bool = False,
+    bounds: _types.Numbers | None = None,
     ax: Axes | None = None,
+    marker: str = ".",
 ) -> Axes:
     """Plots the mesh's nodes.
 
@@ -684,15 +768,29 @@ def Plot_Nodes(
     obj : _Simu | Mesh | _GroupElem
         object containing the mesh
     nodes : _types.IntArray, optional
-        nodes to display, default []
+        nodes to display, default None (all)
     showId : bool, optional
         display numbers, default False
+    deformFactor : float, optional
+        Factor used to display the deformed solution (0 means no deformations), default 0.0
+    color : str, optional
+        color, default 'red'
+    alpha : float, optional
+        transparency, default 1.0
+    nodeSize : float, optional
+        marker size, default None
+    title : str, optional
+        figure title, by default ""
+    label : str, optional
+        legend label, by default None
+    showGrid : bool, optional
+        shows the grid, by default False
+    bounds : sequence[float], optional
+        fixed view box (xmin, xmax, ymin, ymax, zmin, zmax), by default None (fits everything drawn)
+    ax : Axes, optional
+        Axis to use, default None
     marker : str, optional
         marker type (matplotlib.markers), default '.'
-    color: str, optional
-        color, default 'red'
-    ax : Axes, optional
-        Axis to use, default None, default None
 
     Returns
     -------
@@ -701,13 +799,13 @@ def Plot_Nodes(
 
     tic = Tic()
 
-    _, mesh, coord, inDim = _Init_obj(obj)
+    _, mesh, coord, inDim = _Init_obj(obj, deformFactor)
 
     if ax is None:
         ax = Init_Axes(inDim)
-        ax.set_title("")
     else:
         inDim = 3 if ax.name == "3d" else inDim
+    inDim = max(inDim, 2)
 
     if nodes is None:
         nodes = mesh.nodes
@@ -717,16 +815,25 @@ def Plot_Nodes(
     if nodes.size == 0:
         return ax
 
-    if inDim == 2:
-        ax.plot(*coord[nodes, :2].T, ls="", marker=marker, c=color, zorder=2.5)
-        if showId:
-            [ax.text(*coord[node, :2].T, str(node), c=color) for node in nodes]  # type: ignore [call-arg]
-        ax.axis("equal")
-    elif inDim == 3:
-        ax.plot(*coord[nodes].T, ls="", marker=marker, c=color, zorder=2.5)
-        if showId:
-            [ax.text(*coord[node].T, str(node), c=color) for node in nodes]  # type: ignore [call-arg]
-        _Axis_equal_3D(ax, coord)
+    ax.plot(
+        *coord[nodes, :inDim].T,
+        ls="",
+        marker=marker,
+        c=color,
+        ms=nodeSize,
+        alpha=alpha,
+        label=label,
+        zorder=2.5,
+    )
+    if showId:
+        [ax.text(*coord[node, :inDim].T, str(node), c=color) for node in nodes]  # type: ignore [call-arg]
+
+    _Fit_view(ax, coord[nodes], bounds)
+
+    if title != "":
+        ax.set_title(title)
+    if showGrid:
+        ax.grid(True)
 
     tic.Tac("Matplotlib", "Plot_Nodes")
 
@@ -736,12 +843,22 @@ def Plot_Nodes(
 @requires_matplotlib
 def Plot_Elements(
     obj,
-    nodes=[],
+    nodes: _types.IntArray | None = None,
     dimElem: int | None = None,
-    showId=False,
-    alpha=1.0,
-    color="red",
-    edgecolor="black",
+    showId: bool = False,
+    *,
+    deformFactor: float = 0.0,
+    color: str | None = "red",
+    edgecolor: str = "black",
+    linewidth: float | None = None,
+    alpha: float = 1.0,
+    plotMesh: bool = True,
+    plotNodes: bool = False,
+    nodeSize: float | None = None,
+    title: str = "",
+    label: str | None = None,
+    showGrid: bool = False,
+    bounds: _types.Numbers | None = None,
     ax: Axes | None = None,
 ) -> Axes:
     """Plots the mesh's elements corresponding to the given nodes.
@@ -750,18 +867,36 @@ def Plot_Elements(
     ----------
     obj : _Simu | Mesh | _GroupElem
         object containing the mesh
-    nodes : list, optional
-        node numbers, by default []
+    nodes : _types.IntArray, optional
+        node numbers, by default None (all elements)
     dimElem : int, optional
         dimension of elements, by default None
     showId : bool, optional
         display numbers, by default False
-    alpha : float, optional
-        transparency of faces, by default 1.0
+    deformFactor : float, optional
+        Factor used to display the deformed solution (0 means no deformations), default 0.0
     color : str, optional
-        color used to display faces, by default 'red
+        color used to display faces, by default 'red'
     edgecolor : str, optional
         color used to display segments, by default 'black'
+    linewidth : float, optional
+        line width, by default None (1 for lines, 0.5 for edges)
+    alpha : float, optional
+        transparency of faces, by default 1.0
+    plotMesh : bool, optional
+        displays the edges, by default True
+    plotNodes : bool, optional
+        displays the elements' nodes, by default False
+    nodeSize : float, optional
+        node marker size, by default None
+    title : str, optional
+        figure title, by default ""
+    label : str, optional
+        legend label, by default None
+    showGrid : bool, optional
+        shows the grid, by default False
+    bounds : sequence[float], optional
+        fixed view box (xmin, xmax, ymin, ymax, zmin, zmax), by default None (fits everything drawn)
     ax : Axes, optional
         Axis to use, default None
 
@@ -772,7 +907,7 @@ def Plot_Elements(
 
     tic = Tic()
 
-    _, mesh, coord, inDim = _Init_obj(obj)
+    _, mesh, coord, inDim = _Init_obj(obj, deformFactor)
 
     if dimElem is None:
         dimElem = 2 if inDim == 3 else mesh.dim
@@ -786,10 +921,11 @@ def Plot_Elements(
     if len(list_groupElem) == 0:
         return None  # type: ignore
 
+    drawn: list[_types.IntArray] = []
     # for each group elem
     for groupElem in list_groupElem:
         # get the elements associated with the nodes
-        if len(nodes) > 0:
+        if nodes is not None and len(nodes) > 0:
             elements = groupElem.Get_Elements_Nodes(nodes)
         else:
             elements = np.arange(groupElem.Ne)
@@ -801,24 +937,29 @@ def Plot_Elements(
         if groupElem.dim == 1:
             # 1D elements
             idx = groupElem.segments.ravel().tolist()
-            # get params
-            params = {"edgecolor": color, "lw": 1, "zorder": 2}
+            params: dict[str, Any] = {
+                "edgecolor": color,
+                "linewidth": 1 if linewidth is None else linewidth,
+                "zorder": 2,
+            }
         else:
             # 2D elements
             idx = groupElem.surfaces.ravel().tolist()
-            # get params
             params = {
                 "facecolors": color,
-                "edgecolor": edgecolor,
-                "lw": 0.5,
+                "edgecolor": edgecolor if plotMesh else None,
+                "linewidth": 0.5 if linewidth is None else linewidth,
                 "alpha": alpha,
                 "zorder": 2,
             }
+        if len(drawn) == 0:
+            params["label"] = label
 
         # Construct the vertices coordinates
         connect_e = groupElem.connect  # connect
         vertices_e = coord[connect_e[:, idx], :plotDim]
         vertices = vertices_e[elements]
+        drawn.append(connect_e[elements].ravel())
 
         # center coordinates for each elements
         center_e = np.mean(vertices_e, axis=1)
@@ -836,22 +977,60 @@ def Plot_Elements(
 
     tic.Tac("Matplotlib", "Plot_Elements")
 
-    if plotDim < 3:
-        ax.axis("equal")
-    else:
-        _Axis_equal_3D(ax, coord)
+    if len(drawn) > 0:
+        drawnNodes = np.unique(np.concatenate(drawn))
+        if plotNodes:
+            ax.plot(
+                *coord[drawnNodes, :plotDim].T,
+                c=edgecolor,
+                marker=".",
+                ms=nodeSize,
+                ls="",
+                zorder=2.5,
+            )
+        _Fit_view(ax, coord[drawnNodes], bounds)
+
+    if title != "":
+        ax.set_title(title)
+    if showGrid:
+        ax.grid(True)
 
     return ax
 
 
 @requires_matplotlib
-def Plot_BoundaryConditions(simu, ax: Axes | None = None) -> Axes:
+def Plot_BoundaryConditions(
+    simu,
+    *,
+    deformFactor: float = 0.0,
+    alpha: float = 0.0,
+    nodeSize: float | None = None,
+    title: str = "Boundary conditions",
+    showGrid: bool = False,
+    plotLegend: bool = True,
+    bounds: _types.Numbers | None = None,
+    ax: Axes | None = None,
+) -> Axes:
     """Plots simulation's boundary conditions.
 
     Parameters
     ----------
     simu : _Simu
         simulation
+    deformFactor : float, optional
+        Factor used to display the deformed solution (0 means no deformations), default 0.0
+    alpha : float, optional
+        transparency of the mesh's faces drawn underneath, default 0.0 (edges only)
+    nodeSize : float, optional
+        marker size, default None
+    title : str, optional
+        figure title, by default "Boundary conditions"
+    showGrid : bool, optional
+        shows the grid, by default False
+    plotLegend : bool, optional
+        displays the legend, by default True
+    bounds : sequence[float], optional
+        fixed view box (xmin, xmax, ymin, ymax, zmin, zmax), by default None (fits everything drawn)
     ax : Axes, optional
         Axis to use, default None
 
@@ -874,7 +1053,7 @@ def Plot_BoundaryConditions(simu, ax: Axes | None = None) -> Axes:
 
     tic = Tic()
 
-    simu, _, coord, _ = _Init_obj(simu)
+    simu, _, coord, _ = _Init_obj(simu, deformFactor)
 
     # get Dirichlet and Neumann boundary conditions
     dirchlets = simu.Bc_Dirichlet
@@ -887,8 +1066,9 @@ def Plot_BoundaryConditions(simu, ax: Axes | None = None) -> Axes:
     BoundaryConditions.extend(displays)
 
     if ax is None:
-        ax = Plot_Elements(simu.mesh, dimElem=1, color="k")
-        ax.set_title("Boundary conditions")
+        ax = Plot_Elements(simu, dimElem=1, color="k", deformFactor=deformFactor)
+        if alpha > 0:
+            Plot(simu, None, deformFactor, color="gray", alpha=alpha, ax=ax)
 
     plotDim = np.max([simu.mesh.inDim, 2])
 
@@ -931,29 +1111,22 @@ def Plot_BoundaryConditions(simu, ax: Axes | None = None) -> Axes:
 
         # Title
         unknowns_str = str(unknowns).replace("'", "")
-        title = f"{description} {unknowns_str}"
+        label = f"{description} {unknowns_str}"
 
-        lw = 0
         if len(nodes) == simu.mesh.Nn:
-            ax.plot(
-                *coord[:, :plotDim].mean(0).T,
-                marker=marker,
-                lw=lw * 5,
-                label=title,
-                zorder=2.5,
-                ls="",
-            )
+            points = coord[:, :plotDim].mean(0, keepdims=True)
         else:
-            ax.plot(
-                *coord[nodes, :plotDim].T,
-                marker=marker,
-                lw=lw,
-                label=title,
-                zorder=2.5,
-                ls="",
-            )
+            points = coord[nodes, :plotDim]
+        ax.plot(*points.T, marker=marker, ms=nodeSize, label=label, zorder=2.5, ls="")
 
-    ax.legend()
+    _Fit_view(ax, coord, bounds)
+
+    if title != "":
+        ax.set_title(title)
+    if showGrid:
+        ax.grid(True)
+    if plotLegend:
+        ax.legend()
 
     tic.Tac("Matplotlib", "Plot_BoundaryConditions")
 
@@ -963,15 +1136,19 @@ def Plot_BoundaryConditions(simu, ax: Axes | None = None) -> Axes:
 @requires_matplotlib
 def Plot_Geoms(
     *geoms: _Geom | list[_Geom],
+    color: str | None = None,
+    linewidth: _types.Number | None = None,
+    alpha: float = 1.0,
+    title: str = "",
+    label: str | None = None,
+    showGrid: bool = True,
+    plotLegend: bool = True,
+    bounds: _types.Numbers | None = None,
     ax: Axes | None = None,
-    color: str = "",
-    name: str = "",
-    lw: _types.Number | None = None,
     ls: str | None = None,
     plotPoints: bool = True,
-    plotLegend: bool = True,
 ) -> Axes:
-    """Plots geometric objects, or lists of them, on the same axis; `name` labels them (by default each geom's own name).
+    """Plots geometric objects, or lists of them, on the same axis; `label` replaces each geom's name.
 
     Examples
     --------
@@ -992,25 +1169,30 @@ def Plot_Geoms(
 
         if ax is None:
             ax = Init_Axes(2 if np.abs(lines[:, 2].max()) == 0 else 3)
-            ax.grid()
 
         inDim = 3 if ax.name == "3d" else 2
-        label = geom.name if name == "" else name
+        name = geom.name if label is None else label
 
-        ax.plot(*lines[:, :inDim].T, color=color or None, label=label, lw=lw, ls=ls)
+        ax.plot(
+            *lines[:, :inDim].T,
+            color=color,
+            label=name,
+            lw=linewidth,
+            ls=ls,
+            alpha=alpha,
+        )
         if plotPoints:
-            ax.plot(*points[:, :inDim].T, ls="", marker=".", c="black")
+            ax.plot(*points[:, :inDim].T, ls="", marker=".", c="black", alpha=alpha)
 
-        if inDim == 3:
-            xlim, ylim, zlim = ax.get_xlim(), ax.get_ylim(), ax.get_zlim()  # type: ignore [union-attr]
-            oldBounds = np.array([xlim, ylim, zlim]).T
-            _Axis_equal_3D(ax, np.concatenate((lines, oldBounds), 0))  # type: ignore [arg-type]
-        else:
-            ax.axis("equal")
+        _Fit_view(ax, lines, bounds)
 
     if ax is None:
         ax = Init_Axes(2)
 
+    if title != "":
+        ax.set_title(title)
+    if showGrid:
+        ax.grid(True)
     if plotLegend:
         ax.legend()
 
@@ -1020,11 +1202,18 @@ def Plot_Geoms(
 @requires_matplotlib
 def Plot_Tags(
     obj,
-    showId=True,
-    folder="",
-    alpha=1.0,
-    useColorCycler=False,
+    *,
+    deformFactor: float = 0.0,
+    alpha: float = 1.0,
+    linewidth: float | None = None,
+    title: str = "",
+    showId: bool = True,
+    showGrid: bool = False,
+    plotLegend: bool = False,
+    useColorCycler: bool = False,
+    bounds: _types.Numbers | None = None,
     ax: Axes | None = None,
+    folder: str = "",
 ) -> Axes:
     """Plots the mesh's elements tags (from 2d elements to points) but do not plot the 3d elements tags.
 
@@ -1032,16 +1221,28 @@ def Plot_Tags(
     ----------
     obj : _Simu | Mesh | _GroupElem
         object containing the mesh
-    showId : bool, optional
-        shows tags, by default True
-    folder : str, optional
-        saves folder, by default ""
+    deformFactor : float, optional
+        Factor used to display the deformed solution (0 means no deformations), default 0.0
     alpha : float, optional
         transparency, by default 1.0
+    linewidth : float, optional
+        width of the tagged lines, by default None (1.5)
+    title : str, optional
+        figure title, by default ""
+    showId : bool, optional
+        writes the tags, by default True
+    showGrid : bool, optional
+        shows the grid, by default False
+    plotLegend : bool, optional
+        displays the legend, by default False (the tag under the mouse shows in the toolbar)
     useColorCycler : bool, optional
         whether to use color cycler, by default False
+    bounds : sequence[float], optional
+        fixed view box (xmin, xmax, ymin, ymax, zmin, zmax), by default None (fits everything drawn)
     ax : Axes, optional
         Axis to use, default None
+    folder : str, optional
+        saves folder, by default ""
 
     Returns
     -------
@@ -1050,7 +1251,7 @@ def Plot_Tags(
 
     tic = Tic()
 
-    _, mesh, coord, inDim = _Init_obj(obj)
+    _, mesh, coord, inDim = _Init_obj(obj, deformFactor)
 
     # check if there is available tags in the mesh
     nTtags = [
@@ -1066,7 +1267,7 @@ def Plot_Tags(
     ax, inDim = __Get_axis(ax, inDim)
     inDim = np.max([inDim, 2])
 
-    _Plot_obj(mesh, alpha=0.1, color="gray", ax=ax)
+    Plot(obj, None, deformFactor, color="gray", alpha=0.1, ax=ax)
 
     colors = plt.get_cmap("tab10").colors  # type: ignore [attr-defined]
     colorIterator = iter(colors * np.ceil(np.sum(nTtags) / len(colors)).astype(int))
@@ -1086,9 +1287,6 @@ def Plot_Tags(
         vertices_e = coord[groupElem.connect[:, idx], :inDim]
 
         for tag_e in tags_e:
-            if "nodes" in tag_e:
-                pass
-
             nodes = groupElem.Get_Nodes_Tag(tag_e)
             elements = groupElem.Get_Elements_Tag(tag_e)
             if len(elements) == 0 or len(nodes) == 0:
@@ -1120,27 +1318,42 @@ def Plot_Tags(
             elif dim == 1:
                 # plot lines
                 pc = __Add_Collection(
-                    ax, vertices, inDim, 1, edgecolor="black", lw=1.5, alpha=1
+                    ax,
+                    vertices,
+                    inDim,
+                    1,
+                    edgecolor="black",
+                    linewidth=1.5 if linewidth is None else linewidth,
+                    alpha=1,
+                    label=tag_e,
                 )
-                pc.set_label(tag_e)
                 collections.append(pc)
 
             elif dim == 2:
                 # plot surfaces
                 pc = __Add_Collection(
-                    ax, vertices, inDim, 2, facecolors=color, lw=0, alpha=alpha
+                    ax,
+                    vertices,
+                    inDim,
+                    2,
+                    facecolors=color,
+                    linewidth=0,
+                    alpha=alpha,
+                    label=tag_e,
                 )
-                pc.set_label(tag_e)
                 collections.append(pc)
 
             if showId:
                 ax.text(*center[:inDim], tag_e, zorder=25)  # type: ignore [arg-type, call-arg]
 
-        if inDim == 3:
-            _Axis_equal_3D(ax, coord)
-        else:
-            ax.autoscale()
-            ax.axis("equal")
+    _Fit_view(ax, coord, bounds)
+
+    if title != "":
+        ax.set_title(title)
+    if showGrid:
+        ax.grid(True)
+    if plotLegend:
+        ax.legend()
 
     tic.Tac("Matplotlib", "Plot_Tags")
 
@@ -1467,19 +1680,18 @@ def _Plot_Bar(
 # ----------------------------------------------
 @rank0_only
 @requires_matplotlib
-def Movie_Simu(
+def Movie_simu(
     simu,
     result: str,
     folder: str,
-    filename="video.gif",
+    filename: str = "video.gif",
     N: int = 200,
-    deformFactor=0.0,
-    coef=1.0,
-    nodeValues=True,
-    plotMesh=False,
-    edgecolor="black",
-    fps=30,
-    **kwargs,
+    deformFactor: float = 0.0,
+    coef: float = 1.0,
+    nodeValues: bool = True,
+    *,
+    fps: int = 30,
+    **kwargs: Unpack[PlotOptions],
 ) -> None:
     """Generates a movie from a simulation's result.
 
@@ -1501,12 +1713,10 @@ def Movie_Simu(
         Coef to apply to the solution, by default 1.0
     nodeValues : bool, optional
         Displays result to nodes otherwise displays it to elements, by default True
-    plotMesh : bool, optional
-        Plot the mesh, by default False
-    edgecolor : str, optional
-        Color used to plot the mesh, by default 'black'
     fps : int, optional
         frames per second, by default 30
+    **kwargs:
+        `Plot` options, e.g. `plotMesh`, `clim` or `bounds`
     """
 
     simu, _, _, inDim = _Init_obj(simu)
@@ -1533,41 +1743,38 @@ def Movie_Simu(
         Plot(
             simu,
             result,
-            deformFactor=deformFactor,
-            coef=coef,
-            nodeValues=nodeValues,
-            plotMesh=plotMesh,
-            edgecolor=edgecolor,
+            deformFactor,
+            coef,
+            nodeValues,
             ax=ax,
             **kwargs,
         )
         ax.set_title(f"{result} {iterations[i]:d}/{Niter - 1:d}")
 
-    Movie_func(DoAnim, fig, iterations.size, folder, filename, fps)
+    Movie_func(DoAnim, iterations.size, folder, filename, fps=fps, fig=fig)
 
 
 @rank0_only
 @requires_matplotlib
 def Movie_func(
-    func: Callable[[plt.Figure, int], None],
-    fig: plt.Figure | Any,
+    func: Callable[[plt.Figure], None] | Callable[[plt.Figure, int], None],
     N: int,
     folder: str,
-    filename="video.gif",
-    fps=30,
-    dpi=200,
-    show=True,
-):
-    """Generates the movie for the specified function.\n
+    filename: str = "video.gif",
+    *,
+    fps: int = 30,
+    fig: plt.Figure | Any | None = None,
+    dpi: int = 200,
+    show: bool = True,
+) -> None:
+    """Generates the movie for the specified function.\\n
     This function will peform a loop in range(N).
 
     Parameters
     ----------
     func : Callable[[plt.Figure, int], None]
-        The function that will use in first argument the plotter and in second argument the iter step such that.\n
+        The function that will use in first argument the figure and in second argument the iter step such that.\\n
         def func(fig, i) -> None
-    fig : Figure
-        Figure used to make the video
     N : int
         number of iteration
     folder : str
@@ -1576,11 +1783,16 @@ def Movie_func(
         filename of the video with the extension (eg. .gif, .mp4), by default 'video.gif'
     fps : int, optional
         frames per second, by default 30
+    fig : Figure, optional
+        Figure used to make the video, by default None (a new one)
     dpi: int, optional
         Dots per Inch, by default 200
     show: bool, optional
         shows the movie, by default True
     """
+
+    if fig is None:
+        fig = plt.figure()
 
     # Name of the video in the folder where the folder is communicated
     filename = Folder.Join(folder, filename, mkdir=True)
@@ -1589,7 +1801,7 @@ def Movie_func(
     with writer.saving(fig, filename, dpi):  # type: ignore [arg-type]
         tic = Tic()
         for i in range(N):
-            func(fig, i)  # type: ignore [arg-type]
+            func(fig, i)  # type: ignore [call-arg]
 
             if show:
                 plt.pause(1e-12)
@@ -1601,7 +1813,7 @@ def Movie_func(
             iteration = i + 1
             rmTime = Tic.Get_Remaining_Time(iteration, N, time)
 
-            iteration = str(iteration).zfill(len(str(N)))
+            iteration = str(iteration).zfill(len(str(N)))  # type: ignore [assignment]
             MyPrint(f"Generate movie {iteration}/{N} {rmTime}    ", end="\r")
 
 
@@ -1734,3 +1946,31 @@ def _Axis_equal_3D(ax: Axes3D, coord: _types.FloatArray) -> None:
     ax.set_ylim([ymid - maxRange, ymid + maxRange])
     ax.set_zlim([zmid - maxRange, zmid + maxRange])
     ax.set_box_aspect([1, 1, 1])
+
+
+_DRAWN_BOUNDS = "_easyfea_drawn_bounds"
+
+
+@requires_matplotlib
+def _Fit_view(
+    ax: Axes, coord: _types.FloatArray, bounds: _types.Numbers | None = None
+) -> None:
+    """Frames `ax` on everything drawn in it so far, `coord` included, or on the fixed `bounds`."""
+    is3D = ax.name == "3d"
+    if bounds is not None:
+        lims = np.reshape(np.asarray(bounds, dtype=float), (-1, 2))
+        ax.set_xlim(*lims[0])
+        ax.set_ylim(*lims[1])
+        if is3D:
+            ax.set_zlim(*lims[2])  # type: ignore [union-attr]
+            ax.set_box_aspect([1, 1, 1])  # type: ignore [arg-type]
+        else:
+            ax.set_aspect("equal", adjustable="box")
+    elif is3D:
+        # 3D axes do not autoscale on collections: keep the union on the axes
+        drawn = _Union_bounds(getattr(ax, _DRAWN_BOUNDS, None), coord)
+        setattr(ax, _DRAWN_BOUNDS, drawn)
+        _Axis_equal_3D(ax, drawn)  # type: ignore [arg-type]
+    else:
+        ax.autoscale()
+        ax.axis("equal")

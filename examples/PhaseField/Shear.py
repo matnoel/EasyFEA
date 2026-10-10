@@ -241,7 +241,7 @@ if __name__ == "__main__":
         plotMesh=False,
         folder=folder_save,
         filename="damage",
-        ncolors=25,
+        nColors=25,
     )
     Matplotlib.Plot_Mesh(simu)
     Matplotlib.Plot_Iter_Summary(simu, folder_save, None, None)
@@ -255,7 +255,7 @@ if __name__ == "__main__":
     Matplotlib.Save_fig(folder_save, "force-displacement")
 
     if plotMesh:
-        ax = Matplotlib.Plot_Mesh(simu.mesh, lw=0.3, facecolors="white")
+        ax = Matplotlib.Plot_Mesh(simu.mesh, linewidth=0.3, color="white")
         ax.axis("off")
         ax.set_title("")
         Matplotlib.Save_fig(folder_save, "mesh", transparent=True)

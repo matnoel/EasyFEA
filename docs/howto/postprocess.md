@@ -54,20 +54,25 @@ result visualization.
 from EasyFEA import Matplotlib
 
 Matplotlib.Plot(simu, "uy")
-Matplotlib.Plot(simu, "Svm", plotMesh=True, ncolors=11)
+Matplotlib.Plot(simu, "Svm", plotMesh=True, nColors=11)
 ```
 
-Key options:
+Matplotlib and PyVista share their function names and options, so a call switches viewer
+by changing the module. The shared options:
 
-| Parameter             | Description                                                  |
-| --------------------- | ------------------------------------------------------------ |
-| `deformFactor`        | Scale factor to display deformed geometry (`0` = undeformed) |
-| `nodeValues`          | `True` for nodal interpolation, `False` for element-constant |
-| `plotMesh`            | Overlay the mesh edges                                       |
-| `ncolors`             | Number of discrete color levels in the colorbar              |
-| `clim`                | Fix colorbar range, e.g. `clim=(0, 1)`                       |
-| `coef`                | Multiply the result by a constant (e.g. unit conversion)     |
-| `folder` / `filename` | Save the figure to disk                                      |
+| Group      | Options                                                                                     |
+| ---------- | ------------------------------------------------------------------------------------------- |
+| Object     | `deformFactor` (`0` = undeformed)                                                           |
+| Field      | `result`, `coef` (e.g. unit conversion), `nodeValues` (`False` for element-constant)        |
+| Colorbar   | `cmap`, `nColors`, `clim=(min, max)`, `colorbarTitle`, `plotColorbar`, `verticalColorbar`   |
+| Style      | `color`, `edgecolor`, `linewidth`, `alpha`, `plotMesh`, `plotNodes`, `nodeSize`             |
+| Annotation | `title`, `label`, `showId`, `showGrid`, `plotLegend`, `bounds=(xmin, xmax, ..., zmax)`      |
+
+The view covers everything drawn in the figure; `bounds` fixes it instead. Draw into an
+existing figure with `ax=` (Matplotlib) or `plotter=` (PyVista). Other keywords go to the
+backend's draw call, except its own spelling of a shared option (`lw`, `line_width`, ...),
+which raises `ValueError`. `Matplotlib.Plot` also saves the figure with `folder` /
+`filename`.
 
 ### Plot the mesh
 
@@ -114,11 +119,11 @@ Matplotlib.Save_fig(folder_save, "my_figure")
 
 ### Create an animation
 
-{py:func}`~EasyFEA.Viz.Matplotlib.Movie_Simu` generates an animation directly from a
+{py:func}`~EasyFEA.Viz.Matplotlib.Movie_simu` generates an animation directly from a
 named result field:
 
 ```python
-Matplotlib.Movie_Simu(simu, "uy", folder=folder_save, filename="animation.gif")
+Matplotlib.Movie_simu(simu, "uy", folder=folder_save, filename="animation.gif")
 ```
 
 For custom frame content, use {py:func}`~EasyFEA.Viz.Matplotlib.Movie_func` with a
@@ -129,7 +134,6 @@ user-defined function. The function receives the matplotlib figure and the frame
 import numpy as np
 
 iterations = np.arange(0, simu.Niter, max(1, simu.Niter // 20))
-fig = Matplotlib.Init_Axes()
 
 def Func(fig, i):
     fig.clear()
@@ -137,7 +141,7 @@ def Func(fig, i):
     simu.Set_Iter(iterations[i])
     Matplotlib.Plot(simu, "uy", ax=ax)
 
-Matplotlib.Movie_func(Func, fig, iterations.size, folder_save, "animation.gif")
+Matplotlib.Movie_func(Func, iterations.size, folder_save, "animation.gif")
 ```
 
 ______________________________________________________________________

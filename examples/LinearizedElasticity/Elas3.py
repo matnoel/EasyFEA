@@ -81,6 +81,6 @@ if __name__ == "__main__":
 
     Matplotlib.Plot_Mesh(simu, h / 10 / np.abs(sol.max()))
     Matplotlib.Plot_BoundaryConditions(simu)
-    Matplotlib.Plot(simu, "Svm", nodeValues=True, coef=1 / coef, ncolors=20)
+    Matplotlib.Plot(simu, "Svm", nodeValues=True, coef=1 / coef, nColors=20)
 
     plt.show()

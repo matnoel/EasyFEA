@@ -115,10 +115,10 @@ if __name__ == "__main__":
 
     Matplotlib.Plot_Mesh(simu, deformFactor=factorDef)
     Matplotlib.Plot_BoundaryConditions(simu)
-    Matplotlib.Plot(simu, "ux", ncolors=10, nodeValues=True)
-    Matplotlib.Plot(simu, "uy", ncolors=10, nodeValues=True)
+    Matplotlib.Plot(simu, "ux", nColors=10, nodeValues=True)
+    Matplotlib.Plot(simu, "uy", nColors=10, nodeValues=True)
     Matplotlib.Plot(
-        simu, "Svm", ncolors=10, nodeValues=True, deformFactor=factorDef, plotMesh=True
+        simu, "Svm", nColors=10, nodeValues=True, deformFactor=factorDef, plotMesh=True
     )
 
     print(simu)

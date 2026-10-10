@@ -35,6 +35,25 @@ This document describes the changes made to the project.
   `filename`; `Gmsh.Save_simu` requires `folder`, samples `N` iterations and spells
   `edgecolor`. `useBinary=None` keeps each format's default, an unsupported value raises
   `ValueError` (Ensight is text only, USD and GLTF binary only).
+- `Matplotlib` and `PyVista` share one signature per function (**breaking**), checked by
+  mypy against the `Viewer` protocol: `Plot`, `Plot_Mesh`, `Plot_Nodes`, `Plot_Elements`,
+  `Plot_BoundaryConditions`, `Plot_Tags`, `Plot_Geoms`, `Movie_simu`, `Movie_func`. One
+  spelling per option, grouped as object (`deformFactor`), field (`result`, `coef`,
+  `nodeValues`), colorbar (`cmap`, `nColors`, `clim`, `colorbarTitle`, `plotColorbar`,
+  `verticalColorbar`), style (`color`, `edgecolor`, `linewidth`, `alpha`, `plotMesh`,
+  `plotNodes`, `nodeSize`) and annotation (`title`, `label`, `showId`, `showGrid`,
+  `plotLegend`, `bounds`). Renamed: Matplotlib `lw`, `ncolors`, `colorbarLabel`,
+  `facecolors`, `Movie_Simu`, `Plot_Geoms(name=)`; PyVista `verticalColobar`,
+  `show_grid`, `point_size`, `useLegend` (now `showId`, inverted),
+  `Plot_Geoms(line_width=)`. After the leading arguments, options are keyword-only; `ax`
+  and `plotter` stay backend options. `Matplotlib.Movie_func(func, N, folder, ...)` takes
+  `fig` as an optional keyword; both `Movie_func` take `fps`.
+- The view covers everything drawn in a figure: a second `Plot_*` on the same `ax` or
+  `plotter` no longer shrinks a 3D Matplotlib view to its own object, and PyVista refits
+  its camera. `bounds=(xmin, xmax, ymin, ymax, zmin, zmax)` fixes the view; a PyVista
+  movie keeps the view of its first frame.
+- `Plot`'s extra keywords reach the backend's draw call, but its own spelling of a shared
+  option (`lw`, `line_width`, `n_colors`, ...) raises `ValueError`.
 
 ## 6.0.0 (October 1, 2026):
 

@@ -3,7 +3,7 @@
 # This file is part of the EasyFEA project.
 # EasyFEA is distributed under the terms of the GNU General Public License v3, see LICENSE.txt and CREDITS.md for more information.
 
-"""What a format module can do; mypy checks each claim in `IO/__init__.py`."""
+"""What a format module can do; mypy checks the claims at the bottom."""
 
 from __future__ import annotations
 from typing import TYPE_CHECKING, Protocol, Sequence
@@ -33,3 +33,24 @@ class SimuSaver(Protocol):
     ) -> str | None:
         """Writes the saved iterations (at most `N`); returns what was written."""
         ...
+
+
+if TYPE_CHECKING:
+    # here, outside the IO import cycle, where mypy knows the decorated functions
+    from . import Gmsh, Medit, Ensight, Paraview, Vizir, USD, GLTF
+
+    _gmsh_saver: MeshSaver = Gmsh
+    _medit_saver: MeshSaver = Medit
+    _ensight_saver: MeshSaver = Ensight
+    _usd_saver: MeshSaver = USD
+    _gltf_saver: MeshSaver = GLTF
+
+    _gmsh_loader: MeshLoader = Gmsh
+    _medit_loader: MeshLoader = Medit
+    _ensight_loader: MeshLoader = Ensight
+
+    _gmsh_simu: SimuSaver = Gmsh
+    _paraview_simu: SimuSaver = Paraview
+    _vizir_simu: SimuSaver = Vizir
+    _usd_simu: SimuSaver = USD
+    _gltf_simu: SimuSaver = GLTF

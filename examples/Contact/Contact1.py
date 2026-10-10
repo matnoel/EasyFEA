@@ -223,7 +223,7 @@ if __name__ == "__main__":
         def Plot_Iter(plotter: PyVista.pv.Plotter, n):
             simu.Set_Iter(n)
             PyVista.Plot(
-                simu, result, 1, color="k", nColors=10, show_grid=True, plotter=plotter
+                simu, result, 1, color="k", nColors=10, showGrid=True, plotter=plotter
             )
             PyVista.Plot(list_indeter[n], color="gray", plotter=plotter)
             PyVista.Plot_Elements(

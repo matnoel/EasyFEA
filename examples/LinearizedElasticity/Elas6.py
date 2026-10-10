@@ -136,12 +136,12 @@ if __name__ == "__main__":
         nColors=20,
         plotMesh=True,
         plotter=plotter,
-        verticalColobar=False,
+        verticalColorbar=False,
     )
     PyVista.Plot_BoundaryConditions(simu, plotter=plotter)
     plotter.subplot(1, 0)
     PyVista.Plot(
-        simu, "uy", coef=1 / coef, nColors=20, plotter=plotter, verticalColobar=False
+        simu, "uy", coef=1 / coef, nColors=20, plotter=plotter, verticalColorbar=False
     )
     plotter.show()
 

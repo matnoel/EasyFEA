@@ -122,7 +122,7 @@ plotter = PyVista.Plot(
     simu,
     "T",
     nColors=11,
-    verticalColobar=False,
+    verticalColorbar=False,
 )
 plotter.show()
 
@@ -133,6 +133,6 @@ for i in range(2):
         "uy",
         deformFactor=1000,
         nColors=11,
-        verticalColobar=False,
+        verticalColorbar=False,
     )
     plotter.show()

@@ -107,7 +107,7 @@ if __name__ == "__main__":
     def Plot_Iter(plotter, n):
         simu.Set_Iter(n)
         PyVista.Plot(
-            simu, result, 1, color="k", nColors=21, show_grid=True, plotter=plotter
+            simu, result, 1, color="k", nColors=21, showGrid=True, plotter=plotter
         )
         PyVista.Plot(block, color="gray", alpha=0.4, plotter=plotter)
         PyVista.Plot_Elements(block, color="k", dimElem=1, linewidth=2, plotter=plotter)

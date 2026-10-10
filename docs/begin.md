@@ -89,7 +89,7 @@ and visualizing the results is straightforward.
     Matplotlib.Plot_Mesh(simu, deformFactor=10)
     Matplotlib.Plot_BoundaryConditions(simu)
     Matplotlib.Plot(simu, "uy", plotMesh=True)
-    Matplotlib.Plot(simu, "Svm", plotMesh=True, ncolors=11)
+    Matplotlib.Plot(simu, "Svm", plotMesh=True, nColors=11)
 ```
 
 ______________________________________________________________________

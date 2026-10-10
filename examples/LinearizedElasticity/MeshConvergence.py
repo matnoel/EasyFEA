@@ -232,7 +232,7 @@ if __name__ == "__main__":
     Matplotlib.Save_fig(folder, "Time")
 
     # Plot the von Mises stress result using 20 color levels
-    Matplotlib.Plot(simu, "Svm", ncolors=20)
+    Matplotlib.Plot(simu, "Svm", nColors=20)
 
     if makeParaview:
         # Generate Paraview files for visualization

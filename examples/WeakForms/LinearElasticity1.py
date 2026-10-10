@@ -107,6 +107,6 @@ if __name__ == "__main__":
 
     Svm_e = field.Evaluate_e(von_mises_stress, simu.u)
 
-    Matplotlib.Plot(simu, Svm_e, plotMesh=True, ncolors=11)
+    Matplotlib.Plot(simu, Svm_e, plotMesh=True, nColors=11)
 
     plt.show()
