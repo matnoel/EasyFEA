@@ -68,11 +68,11 @@ if __name__ == "__main__":
     x1, y1 = 423, 814
     meshSize = (x1 - x0) / 10
     contour = Domain((x0, y0), (x1, y1), meshSize)
-    Matplotlib.Plot_Geoms(contour, ax)
+    Matplotlib.Plot_Geoms(contour, ax=ax)
 
     xC, yC, radius = DIC.Get_Circle(imgRef, 30.0, [(150, 350), (350, 500)])
     circle = Circle((xC, yC), 2 * radius, meshSize)
-    Matplotlib.Plot_Geoms(circle, ax)
+    Matplotlib.Plot_Geoms(circle, ax=ax)
 
     mesh = contour.Mesh_2D([circle])
 

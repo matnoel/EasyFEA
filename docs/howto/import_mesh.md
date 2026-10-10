@@ -5,8 +5,8 @@
 A **mesh** can be loaded from an external file instead of being generated from geometry.
 All import paths return a {py:class}`~EasyFEA.FEM.Mesh` that can be used directly in any
 simulation ({py:class}`~EasyFEA.Simulations._Simu`). Import utilities are available in
-the {py:class}`~EasyFEA.FEM.Mesher` class and in the {py:mod}`EasyFEA.Utilities.MeshIO`
-namespace.
+the {py:class}`~EasyFEA.FEM.Mesher` class and in {py:mod}`EasyFEA.IO`, one module per
+format.
 
 When a mesh file contains **physical groups** (named regions, boundaries), EasyFEA
 preserves them as **tags**. Tags are the primary way to identify node and element sets
@@ -50,9 +50,8 @@ entities, which lets you retrieve node sets by tag afterwards:
 mesh = mesher.Mesh_Import_mesh("path/to/mesh.msh", setPhysicalGroups=True)
 ```
 
-After importing, use {py:func}`EasyFEA.Utilities.Matplotlib.Plot_Tags` or
-{py:func}`EasyFEA.Utilities.PyVista.Plot_Tags` to visualize the available tags on the
-mesh:
+After importing, use {py:func}`EasyFEA.Viz.Matplotlib.Plot_Tags` or
+{py:func}`EasyFEA.Viz.PyVista.Plot_Tags` to visualize the available tags on the mesh:
 
 ```python
 Matplotlib.Plot_Tags(mesh)
@@ -82,39 +81,38 @@ ______________________________________________________________________
 ## From a meshio-compatible format
 
 ```{note}
-The `MeshIO` module requires the `io` optional dependency:
+The meshio-based formats (`IO.Gmsh`, `IO.Medit`) require the `io` optional dependency:
 
 ~~~bash
 pip install EasyFEA[io]
 ~~~
 ```
 
-Use {py:func}`~EasyFEA.Utilities.MeshIO.Gmsh_to_EasyFEA` after loading with `meshio`
-directly, or use the dedicated converters:
+Each format module has a `Load_mesh` function:
 
 ```python
-from EasyFEA.Utilities import MeshIO
+from EasyFEA import IO
 
 # From a Medit .mesh file
-mesh = MeshIO.Medit_to_EasyFEA("path/to/mesh.mesh")
+mesh = IO.Medit.Load_mesh("path/to/mesh.mesh")
 
 # From a Gmsh .msh file (alternative to Mesher.Mesh_Import_mesh)
-mesh = MeshIO.Gmsh_to_EasyFEA("path/to/mesh.msh")
+mesh = IO.Gmsh.Load_mesh("path/to/mesh.msh")
 ```
 
 ______________________________________________________________________
 
 ## From PyVista
 
-Use {py:func}`~EasyFEA.Utilities.MeshIO.PyVista_to_EasyFEA` to convert a PyVista
+Use {py:func}`~EasyFEA.IO.PyVista.PyVista_to_EasyFEA` to convert a PyVista
 `UnstructuredGrid` or `MultiBlock`:
 
 ```python
 import pyvista as pv
-from EasyFEA.Utilities import MeshIO
+from EasyFEA import IO
 
 pv_mesh = pv.read("path/to/mesh.vtk")
-mesh = MeshIO.PyVista_to_EasyFEA(pv_mesh)
+mesh = IO.PyVista.PyVista_to_EasyFEA(pv_mesh)
 ```
 
 ______________________________________________________________________
@@ -122,9 +120,9 @@ ______________________________________________________________________
 ## From an Ensight file
 
 ```python
-from EasyFEA.Utilities import MeshIO
+from EasyFEA import IO
 
-mesh = MeshIO.Ensight_to_EasyFEA("path/to/mesh.geo")
+mesh = IO.Ensight.Load_mesh("path/to/mesh.geo")
 ```
 
 ______________________________________________________________________
@@ -134,19 +132,19 @@ ______________________________________________________________________
 EasyFEA meshes can also be exported to external formats for use in other tools:
 
 ```python
-from EasyFEA.Utilities import MeshIO
+from EasyFEA import IO
 
 # To Gmsh .msh
-MeshIO.EasyFEA_to_Gmsh(mesh, folder="output/", name="mesh")
+IO.Gmsh.Save_mesh(mesh, folder="output/", name="mesh")
 
 # To Medit .mesh
-MeshIO.EasyFEA_to_Medit(mesh, folder="output/", name="mesh")
+IO.Medit.Save_mesh(mesh, folder="output/", name="mesh")
 
 # To Ensight .geo
-MeshIO.EasyFEA_to_Ensight(mesh, folder="output/", name="mesh")
+IO.Ensight.Save_mesh(mesh, folder="output/", name="mesh")
 
 # To PyVista UnstructuredGrid
-pv_mesh = MeshIO.EasyFEA_to_PyVista(mesh)
+pv_mesh = IO.PyVista.EasyFEA_to_PyVista(mesh)
 ```
 
 ______________________________________________________________________
@@ -178,7 +176,7 @@ ______________________________________________________________________
 To combine several meshes into one (e.g. assemblies with multiple parts):
 
 ```python
-merged = MeshIO.Merge([mesh1, mesh2, mesh3])
+merged = Mesh.Merge([mesh1, mesh2, mesh3])
 ```
 
 Set `constructUniqueElements=False` to skip deduplication of shared elements if the

@@ -199,7 +199,11 @@ place**; use `copy=True` to preserve the original.
     contour4 = contour3.Symmetry(point=(0, 0), n=(0, 1, 0), copy=True)
 
     ax = Matplotlib.Plot_Geoms(
-        [contour1, contour2, contour3, contour4], plotPoints=False
+        contour1,
+        contour2,
+        contour3,
+        contour4,
+        plotPoints=False,
     )
     ax.legend(["original", "translated", "rotated", "symmetry"])
 ```

@@ -23,7 +23,7 @@ The most commonly used modules in EasyFEA are:
 
 ```{eval-rst}
 .. autosummary::
-    ~EasyFEA.Utilities.Matplotlib
+    ~EasyFEA.Viz.Matplotlib
     ~EasyFEA.FEM.ElemType
     ~EasyFEA.Models
     ~EasyFEA.Simulations

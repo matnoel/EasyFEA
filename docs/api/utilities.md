@@ -1,27 +1,34 @@
 (utilities)=
 
-# Utilities
+# Utilities, Viz and IO
 
-The {py:mod}`EasyFEA.Utilities` module provides essential tools for post-processing.
+Once `simu.Solve()` has run, {py:mod}`EasyFEA.Viz` draws the results,
+{py:mod}`EasyFEA.IO` reads and writes meshes and simulations, and
+{py:mod}`EasyFEA.Utilities` holds the helpers every layer uses (console, folders,
+timing).
 
-In the simulation workflow, `Utilities` is the **final step**: once `simu.Solve()` has
-run, these tools visualize results, export to external formats, and manage files.
-{py:mod}`~EasyFEA.Utilities.Matplotlib` and {py:mod}`~EasyFEA.Utilities.PyVista` cover
-interactive visualization; {py:mod}`~EasyFEA.Utilities.Terminal` provides console
-helpers; {py:mod}`~EasyFEA.Utilities.Paraview`, {py:mod}`~EasyFEA.Utilities.GLTF`, and
-{py:mod}`~EasyFEA.Utilities.USD` handle external export.
+- {py:mod}`~EasyFEA.Viz.Matplotlib` and {py:mod}`~EasyFEA.Viz.PyVista` are the two
+  viewers: `from EasyFEA import Matplotlib, PyVista`.
+- {py:mod}`EasyFEA.IO` has one module per format family, read as
+  `IO.Gmsh.Load_mesh(...)`: {py:mod}`~EasyFEA.IO.Gmsh`, {py:mod}`~EasyFEA.IO.Medit`,
+  {py:mod}`~EasyFEA.IO.Ensight`, {py:mod}`~EasyFEA.IO.PyVista`,
+  {py:mod}`~EasyFEA.IO.Paraview`, {py:mod}`~EasyFEA.IO.Vizir`, {py:mod}`~EasyFEA.IO.USD`
+  and {py:mod}`~EasyFEA.IO.GLTF`.
 
 ```{eval-rst}
 .. autosummary::
-    ~EasyFEA.Utilities.Matplotlib
+    ~EasyFEA.Viz.Matplotlib
+    ~EasyFEA.Viz.PyVista
+    ~EasyFEA.IO.Gmsh
+    ~EasyFEA.IO.Medit
+    ~EasyFEA.IO.Ensight
+    ~EasyFEA.IO.PyVista
+    ~EasyFEA.IO.Paraview
+    ~EasyFEA.IO.Vizir
+    ~EasyFEA.IO.USD
+    ~EasyFEA.IO.GLTF
     ~EasyFEA.Utilities.Terminal
     ~EasyFEA.Utilities.Folder
-    ~EasyFEA.Utilities.MeshIO
-    ~EasyFEA.Utilities.Paraview
-    ~EasyFEA.Utilities.PyVista
-    ~EasyFEA.Utilities.Vizir
-    ~EasyFEA.Utilities.USD
-    ~EasyFEA.Utilities.GLTF
 ```
 
 ```{seealso}
@@ -29,18 +36,31 @@ helpers; {py:mod}`~EasyFEA.Utilities.Paraview`, {py:mod}`~EasyFEA.Utilities.GLTF
 - {ref}`howto-import-mesh`
 ```
 
+## Viz API
+
+```{eval-rst}
+.. automodule:: EasyFEA.Viz.Matplotlib
+.. automodule:: EasyFEA.Viz.PyVista
+```
+
+## IO API
+
+```{eval-rst}
+.. automodule:: EasyFEA.IO.Gmsh
+.. automodule:: EasyFEA.IO.Medit
+.. automodule:: EasyFEA.IO.Ensight
+.. automodule:: EasyFEA.IO.PyVista
+.. automodule:: EasyFEA.IO.Paraview
+.. automodule:: EasyFEA.IO.Vizir
+.. automodule:: EasyFEA.IO.USD
+.. automodule:: EasyFEA.IO.GLTF
+```
+
 ## Utilities API
 
 ```{eval-rst}
 .. automodule:: EasyFEA.Utilities
     :imported-members:
-.. automodule:: EasyFEA.Utilities.Matplotlib
 .. automodule:: EasyFEA.Utilities.Terminal
 .. automodule:: EasyFEA.Utilities.Folder
-.. automodule:: EasyFEA.Utilities.MeshIO
-.. automodule:: EasyFEA.Utilities.Paraview
-.. automodule:: EasyFEA.Utilities.PyVista
-.. automodule:: EasyFEA.Utilities.Vizir
-.. automodule:: EasyFEA.Utilities.USD
-.. automodule:: EasyFEA.Utilities.GLTF
 ```

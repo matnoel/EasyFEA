@@ -8,7 +8,7 @@ import shutil
 os.environ["PYVISTA_OFF_SCREEN"] = "true"
 os.environ["MPLBACKEND"] = "Agg"
 
-from EasyFEA import Folder, GLTF, Mesh
+from EasyFEA import Folder, Mesh, IO
 from EasyFEA.Simulations._simu import _Init_obj, Load_Simu
 
 docsDir = Folder.Dir(__file__, 2)
@@ -64,7 +64,7 @@ class Item:
         else:
             defaultResult = None
 
-        htmlFile, _ = GLTF.Create_html(
+        htmlFile, _ = IO.GLTF.Create_html(
             path=self._outputFolder,
             modelViewerDir=modelViewer,
             defaultResult=defaultResult,
@@ -80,14 +80,14 @@ def PlotMesh(
     item: Item, dict_globals: dict[str], variables: list[str], kwargs: dict
 ) -> str:
     mesh = dict_globals[variables[0]]
-    GLTF.Save_mesh(mesh, folder=item._outputFolder, plotMesh=True, **kwargs)
+    IO.GLTF.Save_mesh(mesh, folder=item._outputFolder, plotMesh=True, **kwargs)
 
 
 def PlotMeshQuality(
     item: Item, dict_globals: dict[str], variables: list[str], kwargs: dict
 ) -> str:
     mesh: Mesh = dict_globals[variables[0]]
-    GLTF.Save_mesh(
+    IO.GLTF.Save_mesh(
         mesh,
         folder=item._outputFolder,
         list_nodesValues_n=[mesh.Get_Quality(nodeValues=True)],
@@ -115,7 +115,7 @@ def PlotSimu(
     if "N" not in kwargs.keys():
         kwargs["N"] = 20
 
-    GLTF.Save_simu(simu, folder=item._outputFolder, **kwargs)
+    IO.GLTF.Save_simu(simu, folder=item._outputFolder, **kwargs)
 
 
 def PlotOptimTopo(
@@ -127,7 +127,7 @@ def PlotOptimTopo(
 
     list_nodesValues_n = [mesh.Get_Node_Values(p_e) for p_e in list_p_e]
 
-    GLTF.Save_mesh(
+    IO.GLTF.Save_mesh(
         mesh,
         folder=item._outputFolder,
         list_nodesValues_n=list_nodesValues_n,
@@ -142,7 +142,7 @@ def PlotHomog(item: Item, dict_globals: dict[str], variables: list[str], kwargs)
 
     N = simu.Niter + 1
 
-    GLTF.Save_simu(
+    IO.GLTF.Save_simu(
         simu,
         ["displacement"],
         folder=item._outputFolder,
@@ -203,7 +203,7 @@ def main(list_item: list[Item], replace=False):
     ```
 """
 
-    GLTF._write_file(indexFile, content)
+    IO.GLTF._write_file(indexFile, content)
 
 
 if __name__ == "__main__":

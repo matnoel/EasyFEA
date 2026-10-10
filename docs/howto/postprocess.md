@@ -2,21 +2,21 @@
 
 # Post-process simulation results
 
-**Post-processing** tools visualize and export simulation results. They are accessible
-in the {py:mod}`EasyFEA.Utilities` namespace: {py:mod}`~EasyFEA.Utilities.Matplotlib`
-for static matplotlib figures, {py:mod}`~EasyFEA.Utilities.PyVista` for interactive 3D
-views, and {py:mod}`~EasyFEA.Utilities.Paraview` / {py:mod}`~EasyFEA.Utilities.Vizir` /
-{py:mod}`~EasyFEA.Utilities.GLTF` / {py:mod}`~EasyFEA.Utilities.USD` for external
-export.
+**Post-processing** tools visualize and export simulation results. The viewers live in
+{py:mod}`EasyFEA.Viz`: {py:mod}`~EasyFEA.Viz.Matplotlib` for static matplotlib figures
+and {py:mod}`~EasyFEA.Viz.PyVista` for interactive 3D views. Exports live in
+{py:mod}`EasyFEA.IO`: {py:mod}`~EasyFEA.IO.Paraview` / {py:mod}`~EasyFEA.IO.Vizir` /
+{py:mod}`~EasyFEA.IO.GLTF` / {py:mod}`~EasyFEA.IO.USD` / {py:mod}`~EasyFEA.IO.Gmsh`.
 
 ```{eval-rst}
 .. autosummary::
-    ~EasyFEA.Utilities.Matplotlib
-    ~EasyFEA.Utilities.PyVista
-    ~EasyFEA.Utilities.Paraview
-    ~EasyFEA.Utilities.Vizir
-    ~EasyFEA.Utilities.USD
-    ~EasyFEA.Utilities.GLTF
+    ~EasyFEA.Viz.Matplotlib
+    ~EasyFEA.Viz.PyVista
+    ~EasyFEA.IO.Paraview
+    ~EasyFEA.IO.Vizir
+    ~EasyFEA.IO.USD
+    ~EasyFEA.IO.GLTF
+    ~EasyFEA.IO.Gmsh
 ```
 
 ______________________________________________________________________
@@ -43,12 +43,12 @@ ______________________________________________________________________
 
 ## Plot with matplotlib (Matplotlib)
 
-{py:mod}`~EasyFEA.Utilities.Matplotlib` uses matplotlib and is the primary tool for 2D
-and 3D result visualization.
+{py:mod}`~EasyFEA.Viz.Matplotlib` uses matplotlib and is the primary tool for 2D and 3D
+result visualization.
 
 ### Plot a scalar field
 
-{py:func}`~EasyFEA.Utilities.Matplotlib.Plot` plots any result field on the mesh:
+{py:func}`~EasyFEA.Viz.Matplotlib.Plot` plots any result field on the mesh:
 
 ```python
 from EasyFEA import Matplotlib
@@ -71,7 +71,7 @@ Key options:
 
 ### Plot the mesh
 
-{py:func}`~EasyFEA.Utilities.Matplotlib.Plot_Mesh` plots the mesh:
+{py:func}`~EasyFEA.Viz.Matplotlib.Plot_Mesh` plots the mesh:
 
 ```python
 Matplotlib.Plot_Mesh(simu)                   # current state
@@ -81,8 +81,8 @@ Matplotlib.Plot_Mesh(mesh)                   # mesh object directly
 
 ### Plot boundary conditions
 
-{py:func}`~EasyFEA.Utilities.Matplotlib.Plot_BoundaryConditions` visualizes the applied
-loads and constraints:
+{py:func}`~EasyFEA.Viz.Matplotlib.Plot_BoundaryConditions` visualizes the applied loads
+and constraints:
 
 ```python
 Matplotlib.Plot_BoundaryConditions(simu)
@@ -90,8 +90,8 @@ Matplotlib.Plot_BoundaryConditions(simu)
 
 ### Plot tags
 
-{py:func}`~EasyFEA.Utilities.Matplotlib.Plot_Tags` shows the physical groups and tags
-defined on the mesh:
+{py:func}`~EasyFEA.Viz.Matplotlib.Plot_Tags` shows the physical groups and tags defined
+on the mesh:
 
 ```python
 Matplotlib.Plot_Tags(mesh)
@@ -106,8 +106,7 @@ Matplotlib.Plot_Iter_Summary(simu, folder=folder_save)
 
 ### Save a figure
 
-{py:func}`~EasyFEA.Utilities.Matplotlib.Save_fig` saves the current matplotlib figure to
-disk:
+{py:func}`~EasyFEA.Viz.Matplotlib.Save_fig` saves the current matplotlib figure to disk:
 
 ```python
 Matplotlib.Save_fig(folder_save, "my_figure")
@@ -115,14 +114,14 @@ Matplotlib.Save_fig(folder_save, "my_figure")
 
 ### Create an animation
 
-{py:func}`~EasyFEA.Utilities.Matplotlib.Movie_Simu` generates an animation directly from
-a named result field:
+{py:func}`~EasyFEA.Viz.Matplotlib.Movie_Simu` generates an animation directly from a
+named result field:
 
 ```python
 Matplotlib.Movie_Simu(simu, "uy", folder=folder_save, filename="animation.gif")
 ```
 
-For custom frame content, use {py:func}`~EasyFEA.Utilities.Matplotlib.Movie_func` with a
+For custom frame content, use {py:func}`~EasyFEA.Viz.Matplotlib.Movie_func` with a
 user-defined function. The function receives the matplotlib figure and the frame index
 `i`:
 
@@ -145,11 +144,10 @@ ______________________________________________________________________
 
 ## Interactive 3D visualization (PyVista)
 
-{py:mod}`~EasyFEA.Utilities.PyVista` provides interactive 3D rendering powered by
+{py:mod}`~EasyFEA.Viz.PyVista` provides interactive 3D rendering powered by
 [PyVista](https://pyvista.org).
 
-{py:func}`~EasyFEA.Utilities.PyVista.Plot` renders a result field in an interactive
-window:
+{py:func}`~EasyFEA.Viz.PyVista.Plot` renders a result field in an interactive window:
 
 ```python
 from EasyFEA import PyVista
@@ -163,14 +161,14 @@ PyVista.Plot_Tags(simu)
 
 ### Create an animation
 
-{py:func}`~EasyFEA.Utilities.PyVista.Movie_simu` generates an animation directly from a
-named result field:
+{py:func}`~EasyFEA.Viz.PyVista.Movie_simu` generates an animation directly from a named
+result field:
 
 ```python
 PyVista.Movie_simu(simu, "uy", folder=folder_save, filename="animation.gif")
 ```
 
-For custom frame content, use {py:func}`~EasyFEA.Utilities.PyVista.Movie_func` with a
+For custom frame content, use {py:func}`~EasyFEA.Viz.PyVista.Movie_func` with a
 user-defined function. The function receives the PyVista plotter and the frame index
 `i`:
 
@@ -190,13 +188,13 @@ ______________________________________________________________________
 
 ## Export to ParaView
 
-{py:func}`~EasyFEA.Utilities.Paraview.Save_simu` generates a `.pvd` timeline and `.vtu`
-files that ParaView reads directly:
+{py:func}`~EasyFEA.IO.Paraview.Save_simu` generates a `.pvd` timeline and `.vtu` files
+that ParaView reads directly:
 
 ```python
-from EasyFEA import Paraview
+from EasyFEA import IO
 
-Paraview.Save_simu(simu, folder_save, N=200)
+IO.Paraview.Save_simu(simu, folder_save, N=200)
 ```
 
 `N` controls the maximum number of iterations exported — EasyFEA selects up to `N`
@@ -209,14 +207,16 @@ ______________________________________________________________________
 
 ## Export to Vizir
 
-{py:func}`~EasyFEA.Utilities.Vizir.Save_simu` exports results to the
+{py:func}`~EasyFEA.IO.Vizir.Save_simu` exports results to the
 [Vizir](https://pyamg.saclay.inria.fr/vizir4.html) format, a high-order FEM
 visualization tool developed by INRIA:
 
 ```python
-from EasyFEA import Vizir
+from EasyFEA import IO
 
-command = Vizir.Save_simu(simu, results=["uy", "Svm"], types=[1, 1], folder=folder_save)
+command = IO.Vizir.Save_simu(
+    simu, results=["uy", "Svm"], types=[1, 1], folder=folder_save
+)
 print(command)  # prints the vizir command to run for visualization
 ```
 
@@ -224,36 +224,36 @@ ______________________________________________________________________
 
 ## Export to glTF (web / interactive gallery)
 
-{py:func}`~EasyFEA.Utilities.GLTF.Save_simu` exports results as a
+{py:func}`~EasyFEA.IO.GLTF.Save_simu` exports results as a
 [glTF](https://www.khronos.org/gltf/) file for use in web-based 3D viewers. This is the
 format used to generate the interactive {doc}`../gallery/index` — each model displayed
 there was exported with this function.
 
 ```python
-from EasyFEA import GLTF
+from EasyFEA import IO
 
-GLTF.Save_simu(simu, ["uy", "Svm"], folder_save)
+IO.GLTF.Save_simu(simu, ["uy", "Svm"], folder_save)
 ```
 
-To export a mesh without simulation results, use
-{py:func}`~EasyFEA.Utilities.GLTF.Save_mesh`. It also accepts optional displacement
-matrices and nodal value arrays for custom animations:
+To export a mesh without simulation results, use {py:func}`~EasyFEA.IO.GLTF.Save_mesh`.
+It also accepts optional displacement matrices and nodal value arrays for custom
+animations:
 
 ```python
-GLTF.Save_mesh(mesh, folder_save)
+IO.GLTF.Save_mesh(mesh, folder_save)
 ```
 
 ______________________________________________________________________
 
 ## Export to USD (Pixar Universal Scene Description)
 
-{py:func}`~EasyFEA.Utilities.USD.Save_simu` exports to the [USD](https://openusd.org)
-format, compatible with Omniverse, USD Composer, and other DCC tools:
+{py:func}`~EasyFEA.IO.USD.Save_simu` exports to the [USD](https://openusd.org) format,
+compatible with Omniverse, USD Composer, and other DCC tools:
 
 ```python
-from EasyFEA import USD
+from EasyFEA import IO
 
-USD.Save_simu(simu, ["uy", "Svm"], folder_save)
+IO.USD.Save_simu(simu, ["uy", "Svm"], folder_save)
 ```
 
 ______________________________________________________________________

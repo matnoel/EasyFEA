@@ -2,6 +2,30 @@
 
 This document describes the changes made to the project.
 
+## Unreleased
+
+- Front-ends leave `Utilities` (**breaking**, no alias): the viewers `Matplotlib` and
+  `PyVista` move to `EasyFEA.Viz`, file formats to `EasyFEA.IO`, one module per format
+  family (`Gmsh`, `Medit`, `Ensight`, `PyVista`, `Paraview`, `Vizir`, `USD`, `GLTF`).
+  `from EasyFEA import Matplotlib, PyVista, IO` keeps working; `Paraview`, `Vizir`,
+  `USD` and `GLTF` are read as `IO.Paraview`, ... and no longer imported from the root
+  or `EasyFEA.Utilities`. `import EasyFEA` loads neither pyplot nor pyvista.
+- `MeshIO` is removed: `Gmsh_to_EasyFEA`/`EasyFEA_to_Gmsh` become
+  `IO.Gmsh.Load_mesh`/`Save_mesh`, likewise for Medit and Ensight; the PyVista
+  conversions and `Surface_reconstruction` move to `IO.PyVista`. The node-order tables
+  are renamed `_GMSH_` to `_EASYFEA_` (`DICT_EASYFEA_TO_VTK_INDEXES`, ...).
+- Meshes and geometries no longer draw: `Geom.Plot` and `Geom.Plot_Geoms` become
+  `Matplotlib.Plot_Geoms`, `Mesh.Get_Paired_Nodes` loses `plot` (the drawing is
+  `Plot_Paired_Nodes` in the `Homog1` example), `Mesher.Save_simu` becomes
+  `IO.Gmsh.Save_simu` and `Tic.Plot_History` becomes `Matplotlib.Plot_Tic_History`.
+- `Matplotlib.Plot_Geoms` and `PyVista.Plot_Geoms` take `*geoms`, each a geom or a list
+  of geoms, so their options are keyword-only (**breaking** for a positional `ax`).
+- A failed meshing no longer opens a window: the `MeshError` carries the geometries in
+  `.geoms`, to draw with `PyVista.Plot_Geoms(error.geoms)`.
+- `EasyFEA.BUILDING_GALLERY` is replaced by the `EASYFEA_BUILDING_GALLERY` environment
+  variable, read at call time: the flag set by `docs/conf.py` used to be read too early
+  to take effect.
+
 ## 6.0.0 (October 1, 2026):
 
 - Inelastic materials are written on a contract (**breaking**): a

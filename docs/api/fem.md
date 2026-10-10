@@ -55,13 +55,13 @@ functions for mesh generation:
   around an axis.
 - {py:meth}`~EasyFEA.FEM.Mesher.Mesh_Import_part`: Imports a CAD part (e.g., .stp) to
   create a mesh.
-- {py:meth}`~EasyFEA.FEM.Mesher.Mesh_Import_mesh`: Imports an existing Gmsh mesh.
-  EasyFEA is also linked to meshio and can be used through the following functions:
-- {py:meth}`~EasyFEA.Utilities.MeshIO.Medit_to_EasyFEA`: Imports a Medit mesh.
-- {py:meth}`~EasyFEA.Utilities.MeshIO.Gmsh_to_EasyFEA`: Imports a Gmsh mesh.
-- {py:meth}`~EasyFEA.Utilities.MeshIO.PyVista_to_EasyFEA`: Imports a PyVista mesh
+- {py:meth}`~EasyFEA.FEM.Mesher.Mesh_Import_mesh`: Imports an existing Gmsh mesh. Other
+  formats are read by {py:mod}`EasyFEA.IO`:
+- {py:func}`~EasyFEA.IO.Medit.Load_mesh`: Imports a Medit mesh.
+- {py:func}`~EasyFEA.IO.Gmsh.Load_mesh`: Imports a Gmsh mesh.
+- {py:func}`~EasyFEA.IO.PyVista.PyVista_to_EasyFEA`: Imports a PyVista mesh
   (UnstructuredGrid or MultiBlock).
-- {py:meth}`~EasyFEA.Utilities.MeshIO.Ensight_to_EasyFEA`: Imports an EnSight mesh.
+- {py:func}`~EasyFEA.IO.Ensight.Load_mesh`: Imports an EnSight mesh.
 
 ```{seealso}
 - {ref}`howto-geom`

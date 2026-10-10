@@ -65,26 +65,26 @@ class TestGeoms:
 
             geom.Translate(*dec)
 
-            Matplotlib.Plot_Geoms(geom, ax)
+            Matplotlib.Plot_Geoms(geom, ax=ax)
 
             geom.Rotate(90)
-            Matplotlib.Plot_Geoms(geom, ax)
+            Matplotlib.Plot_Geoms(geom, ax=ax)
 
             geom.Rotate(90, direction=(1, 0, 0))
-            Matplotlib.Plot_Geoms(geom, ax)
+            Matplotlib.Plot_Geoms(geom, ax=ax)
 
             cop = geom.copy()
             cop.Translate(-10)
-            Matplotlib.Plot_Geoms(cop, ax)
+            Matplotlib.Plot_Geoms(cop, ax=ax)
 
             cop.Symmetry()
-            Matplotlib.Plot_Geoms(cop, ax)
+            Matplotlib.Plot_Geoms(cop, ax=ax)
 
             cop.Symmetry(cop.points[0], (0, 0, 1))
-            Matplotlib.Plot_Geoms(cop, ax)
+            Matplotlib.Plot_Geoms(cop, ax=ax)
 
             cop.Symmetry(n=(0, np.cos(180 / 6), np.sin(180 / 6)))
-            Matplotlib.Plot_Geoms(cop, ax)
+            Matplotlib.Plot_Geoms(cop, ax=ax)
 
             ax.legend()
 

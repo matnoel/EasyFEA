@@ -959,9 +959,14 @@ def Plot_BoundaryConditions(simu, ax: Axes | None = None) -> Axes:
     return ax
 
 
+def _Flatten_geoms(geoms: tuple) -> list[_Geom]:
+    """Unpacks the lists among `geoms`."""
+    return [g for geom in geoms for g in (geom if isinstance(geom, list) else [geom])]
+
+
 @requires_matplotlib
 def Plot_Geoms(
-    geoms: _Geom | list[_Geom],
+    *geoms: _Geom | list[_Geom],
     ax: Axes | None = None,
     color: str = "",
     name: str = "",
@@ -970,20 +975,20 @@ def Plot_Geoms(
     plotPoints: bool = True,
     plotLegend: bool = True,
 ) -> Axes:
-    """Plots geometric objects on the same axis; `name` labels them (by default each geom's own name).
+    """Plots geometric objects, or lists of them, on the same axis; `name` labels them (by default each geom's own name).
 
     Examples
     --------
     >>> from EasyFEA import Matplotlib
     >>> from EasyFEA.Geoms import Domain, Circle
-    >>> ax = Matplotlib.Plot_Geoms([Domain((0, 0), (1, 1)), Circle((0.5, 0.5), 0.2)])
+    >>> domain = Domain((0, 0), (1, 1))
+    >>> circle = Circle((0.5, 0.5), 0.2)
+    >>> ax = Matplotlib.Plot_Geoms(domain, circle)
     """
 
     from ..Geoms import Point
 
-    geoms = geoms if isinstance(geoms, list) else [geoms]
-
-    for geom in geoms:
+    for geom in _Flatten_geoms(geoms):
         if isinstance(geom, Point):
             continue
 

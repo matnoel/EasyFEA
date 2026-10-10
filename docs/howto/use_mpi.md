@@ -251,23 +251,23 @@ deadlocking non-root ranks.
 
 ### Export to ParaView
 
-{py:func}`~EasyFEA.Utilities.Paraview.Save_simu` supports fully parallel export. Each
-rank writes its own `.vtu` piece; rank 0 additionally writes the `.pvtu` parallel
-descriptor and the `.pvd` timeline. ParaView reads the `.pvd` and assembles all pieces
+{py:func}`~EasyFEA.IO.Paraview.Save_simu` supports fully parallel export. Each rank
+writes its own `.vtu` piece; rank 0 additionally writes the `.pvtu` parallel descriptor
+and the `.pvd` timeline. ParaView reads the `.pvd` and assembles all pieces
 automatically.
 
 ```python
-from EasyFEA import Paraview
+from EasyFEA import IO
 
 # Call directly after the solve loop — do NOT call _Gather() first.
-Paraview.Save_simu(simu, folder, N=200)
+IO.Paraview.Save_simu(simu, folder, N=200)
 ```
 
 ```{warning}
-Do **not** call {py:meth}`~EasyFEA.Simulations._Simu._Gather` before {py:func}`~EasyFEA.Utilities.Paraview.Save_simu` in MPI mode.
+Do **not** call {py:meth}`~EasyFEA.Simulations._Simu._Gather` before {py:func}`~EasyFEA.IO.Paraview.Save_simu` in MPI mode.
 After `_Gather`, rank 0 holds the full global mesh while other ranks still hold their partitions.
-{py:func}`~EasyFEA.Utilities.Paraview.Save_simu` would then write the full mesh once (rank 0) and each partition again (other ranks), producing duplicate elements and corrupted fields in ParaView.
-{py:func}`~EasyFEA.Utilities.Paraview.Save_simu` raises an exception if `simu.isGathered` is `True` to prevent this.
+{py:func}`~EasyFEA.IO.Paraview.Save_simu` would then write the full mesh once (rank 0) and each partition again (other ranks), producing duplicate elements and corrupted fields in ParaView.
+{py:func}`~EasyFEA.IO.Paraview.Save_simu` raises an exception if `simu.isGathered` is `True` to prevent this.
 ```
 
 ______________________________________________________________________

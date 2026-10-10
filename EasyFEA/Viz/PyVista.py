@@ -800,7 +800,7 @@ def Plot_Tags(
 
 @requires_pyvista
 def Plot_Geoms(
-    geoms: list,
+    *geoms: Geoms._Geom | list[Geoms._Geom],
     line_width=2,
     plotLegend=True,
     plotter: pv.Plotter | None = None,
@@ -810,8 +810,8 @@ def Plot_Geoms(
 
     Parameters
     ----------
-    geoms : list[_Geom]
-        list of geom object
+    *geoms : _Geom | list[_Geom]
+        geom objects, or lists of them
     plotLegend : bool,
         plot the legend, by default True
     line_width : float, optional
@@ -829,13 +829,10 @@ def Plot_Geoms(
 
     from . import Matplotlib
 
-    if not isinstance(geoms, list):
-        geoms = [geoms]
+    geoms = Matplotlib._Flatten_geoms(geoms)  # type: ignore [assignment]
 
     if plotter is None:
         plotter = _Plotter()
-
-    geoms: list[Geoms._Geom] = geoms  # type: ignore [no-redef]
 
     if "color" not in kwargs:
         colors = Matplotlib.tab10_colors
