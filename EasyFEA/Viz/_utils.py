@@ -52,6 +52,13 @@ class PlotOptions(TypedDict, total=False):
     bounds: _types.Numbers | None
 
 
+def _Movie_fps(filename: str, fps: int | None) -> int:
+    """`fps`, or the default: 10 for a gif, 24 for a movie."""
+    if fps is not None:
+        return fps
+    return 10 if filename.endswith(".gif") else 24
+
+
 def _Flatten_geoms(geoms: tuple) -> list[_Geom]:
     """Unpacks the lists among `geoms`."""
     return [g for geom in geoms for g in (geom if isinstance(geom, list) else [geom])]

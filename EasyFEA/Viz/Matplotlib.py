@@ -23,6 +23,7 @@ from ._utils import (
     _Union_bounds,
     _View_box,
     _Gauss_points_averaged,
+    _Movie_fps,
 )
 
 if TYPE_CHECKING:
@@ -1761,7 +1762,7 @@ def Movie_simu(
     coef: float = 1.0,
     nodeValues: bool = True,
     *,
-    fps: int = 30,
+    fps: int | None = None,
     **kwargs: Unpack[PlotOptions],
 ) -> None:
     """Generates a movie from a simulation's result.
@@ -1785,7 +1786,7 @@ def Movie_simu(
     nodeValues : bool, optional
         Displays result to nodes otherwise displays it to elements, by default True
     fps : int, optional
-        frames per second, by default 30
+        frames per second, by default 10 for a gif, 24 for a movie
     **kwargs:
         `Plot` options, e.g. `plotMesh`, `clim` or `bounds`
     """
@@ -1840,7 +1841,7 @@ def Movie_func(
     folder: str,
     filename: str = "video.gif",
     *,
-    fps: int = 30,
+    fps: int | None = None,
     fig: plt.Figure | Any | None = None,
     dpi: int = 200,
     show: bool = True,
@@ -1860,7 +1861,7 @@ def Movie_func(
     filename : str, optional
         filename of the video with the extension (eg. .gif, .mp4), by default 'video.gif'
     fps : int, optional
-        frames per second, by default 30
+        frames per second, by default 10 for a gif, 24 for a movie
     fig : Figure, optional
         Figure used to make the video, by default None (a new one)
     dpi: int, optional
@@ -1875,7 +1876,7 @@ def Movie_func(
     # Name of the video in the folder where the folder is communicated
     filename = Folder.Join(folder, filename, mkdir=True)
 
-    writer = animation.FFMpegWriter(fps)
+    writer = animation.FFMpegWriter(_Movie_fps(filename, fps))
     with writer.saving(fig, filename, dpi):  # type: ignore [arg-type]
         tic = Tic()
         for i in range(N):

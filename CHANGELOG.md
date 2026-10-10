@@ -53,7 +53,8 @@ items before upgrading.
   `verticalColobar`, `show_grid`, `point_size`, `useLegend` (now `showId`, inverted),
   `Plot_Geoms(line_width=)`. After the leading arguments, options are keyword-only; `ax`
   and `plotter` stay backend options. `Matplotlib.Movie_func(func, N, folder, ...)`
-  takes `fig` as an optional keyword; both `Movie_func` take `fps` (issue #68).
+  takes `fig` as an optional keyword; both `Movie_simu` and `Movie_func` take `fps`, by
+  default 10 for a gif and 24 for a movie (Matplotlib used 30) (issue #68).
 - The view covers everything drawn in a figure: a second `Plot_*` on the same `ax` or
   `plotter` no longer shrinks a 3D Matplotlib view to its own object, and PyVista refits
   its camera. `bounds=(xmin, xmax, ymin, ymax, zmin, zmax)` fixes the view; a PyVista

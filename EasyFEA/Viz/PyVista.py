@@ -23,6 +23,7 @@ from ._utils import (
     _Check_kwargs,
     _Gauss_points_averaged,
     _View_box,
+    _Movie_fps,
 )
 from .. import Geoms
 
@@ -1109,7 +1110,7 @@ def Movie_simu(
     coef: float = 1.0,
     nodeValues: bool = True,
     *,
-    fps: int = 30,
+    fps: int | None = None,
     **kwargs: Unpack[PlotOptions],
 ) -> None:
     """Generates a movie from a simulation's result.
@@ -1133,7 +1134,7 @@ def Movie_simu(
     nodeValues : bool, optional
         Displays result to nodes otherwise displays it to elements, by default True
     fps : int, optional
-        frames per second, by default 30
+        frames per second, by default 10 for a gif, 24 for a movie
     **kwargs:
         `Plot` options, e.g. `plotMesh`, `clim` or `bounds`
     """
@@ -1173,7 +1174,7 @@ def Movie_func(
     folder: str,
     filename: str = "video.gif",
     *,
-    fps: int = 30,
+    fps: int | None = None,
 ) -> None:
     """Generates the movie for the specified function.\\n
     This function will peform a loop in range(N); the view of the first frame is kept for the others.
@@ -1190,7 +1191,7 @@ def Movie_func(
     filename : str, optional
         filename of the video with the extension (gif, mp4), by default 'video.gif'
     fps : int, optional
-        frames per second, by default 30
+        frames per second, by default 10 for a gif, 24 for a movie
     """
 
     plotter = _Plotter(True)
@@ -1198,9 +1199,9 @@ def Movie_func(
     filename = Folder.Join(folder, filename, mkdir=True)
 
     if ".gif" in filename:
-        plotter.open_gif(filename, fps=fps)
+        plotter.open_gif(filename, fps=_Movie_fps(filename, fps))
     else:
-        plotter.open_movie(filename, framerate=fps)
+        plotter.open_movie(filename, framerate=_Movie_fps(filename, fps))
 
     tic = Tic()
     print()

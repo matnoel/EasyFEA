@@ -164,7 +164,7 @@ class Viewer(Protocol):
         coef: float = ...,
         nodeValues: bool = ...,
         *,
-        fps: int = ...,
+        fps: int | None = ...,
         **kwargs: Unpack[PlotOptions],
     ) -> None:
         """Movie of `result` over at most `N` saved iterations."""
@@ -177,7 +177,7 @@ class Viewer(Protocol):
         folder: str,
         filename: str = ...,
         *,
-        fps: int = ...,
+        fps: int | None = ...,
     ) -> None:
         """Movie of `func(scene, i)` for `i` in `range(N)`."""
         ...
