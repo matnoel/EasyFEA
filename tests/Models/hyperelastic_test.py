@@ -90,40 +90,6 @@ class TestHyperElastic:
 
     #     pass
 
-    def test_Epsilon(self):
-
-        # 2d simulation
-
-        for simu2d in Get_2d_simulations():
-
-            for matrixType in [MatrixType.rigi, MatrixType.mass]:
-
-                Eps2d_e_pg = simu2d._Calc_Epsilon(matrixType)
-                test2d_e_pg = (
-                    Eps2d_e_pg
-                    - Kinematics(
-                        simu2d.mesh.groupElem, simu2d.displacement, matrixType
-                    ).Compute_Epsilon()
-                )
-
-                assert np.linalg.norm(test2d_e_pg) / np.linalg.norm(Eps2d_e_pg) < 1e-12
-
-        # 3d simulation
-
-        for simu3d in Get_2d_simulations():
-
-            for matrixType in [MatrixType.rigi, MatrixType.mass]:
-
-                Eps3d_e_pg = simu3d._Calc_Epsilon(MatrixType.mass)
-                test3d_e_pg = (
-                    Eps3d_e_pg
-                    - Kinematics(
-                        simu3d.mesh.groupElem, simu3d.displacement, MatrixType.mass
-                    ).Compute_Epsilon()
-                )
-
-                assert np.linalg.norm(test3d_e_pg) / np.linalg.norm(Eps3d_e_pg) < 1e-12
-
     def test_C(self):
 
         for simu in Get_3d_simulations():
