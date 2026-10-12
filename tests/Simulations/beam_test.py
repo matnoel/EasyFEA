@@ -274,6 +274,37 @@ def test_axial_bar_under_tip_force_and_own_weight(elemType: ElemType, beamDim: i
     assert rel_error(simu.Result("N", nodeValues=False), exact.N(x_e)) < TOL
 
 
+IY = _reference.rect_Iz(H, B)
+STRAIN_FORCE_STIFFNESS = [
+    (1, "ux'", "N", E * B * H),
+    (2, "ux'", "N", E * B * H),
+    (2, "rz'", "Mz", EI),
+    (3, "ux'", "N", E * B * H),
+    (3, "rx'", "Mx", E / (2 * (1 + v)) * (_reference.rect_Iz(B, H) + IY)),
+    (3, "ry'", "My", E * IY),
+    (3, "rz'", "Mz", EI),
+]
+
+
+@pytest.mark.parametrize(
+    "beamDim, strain, force, stiffness",
+    STRAIN_FORCE_STIFFNESS,
+    ids=[f"{dim}D {strain}" for dim, strain, *_ in STRAIN_FORCE_STIFFNESS],
+)
+def test_a_generalized_strain_is_its_internal_force_over_the_stiffness(
+    beamDim: int, strain: str, force: str, stiffness: float
+):
+    simu = _beam(ElemType.SEG3, beamDim, L_EB)
+    _cantilever(simu, L_EB)
+    nodesTip = simu.mesh.Nodes_Point(Point(x=L_EB))
+    simu.add_neumann(nodesTip, [F] * simu.Get_dof_n(), simu.Get_unknowns())
+    simu.Solve()
+
+    expected = simu.Result(force, nodeValues=False) / stiffness
+    assert np.abs(expected).max() > 0
+    assert rel_error(simu.Result(strain, nodeValues=False), expected) < TOL
+
+
 @pytest.mark.parametrize("useTimoshenko", [False, True], ids=["EB", "Timoshenko"])
 @pytest.mark.parametrize("elemType", ELEM_TYPES)
 def test_welded_l_frame_tip_displacement(elemType: ElemType, useTimoshenko: bool):

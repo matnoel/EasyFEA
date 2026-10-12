@@ -32,6 +32,14 @@ from ._simu import _Simu, SolverType
 from ._terms import Term
 from ._problem_type import ProblemType
 
+# component layouts of BeamStructure.Compute_Epsilon / Compute_Sigma, keyed by dof_n
+_STRAINS = {1: ["ux'"], 3: ["ux'", "rz'"], 6: ["ux'", "rx'", "ry'", "rz'"]}
+_STRESSES = {
+    1: ["Sxx"],
+    3: ["Sxx", "Syy", "Sxy"],
+    6: ["Sxx", "Syy", "Szz", "Syz", "Sxz", "Sxy"],
+}
+
 
 class Beam(_Simu):
     """Structural beam/frame simulation (Euler-Bernoulli or Timoshenko).
@@ -506,7 +514,7 @@ class Beam(_Simu):
             options.extend(["N", "Ty", "Tz", "Mx", "My", "Mz"])
             options.extend(["Sxx", "Syy", "Szz", "Syz", "Sxz", "Sxy"])
 
-        options.extend(["Srain", "Stress"])
+        options.extend(["Strain", "Stress"])
 
         return options
 
@@ -589,16 +597,18 @@ class Beam(_Simu):
                 values = forces_np[:, :, index].mean(axis=1)  # (Ne,) element means
 
         elif result in ["Sxx", "Syy", "Szz", "Syz", "Sxz", "Sxy"]:
-            Sigma_e = self._Calc_Sigma().mean(1)
-            index = self._indexResult(result)
-            values = Sigma_e[:, index]
+            Sigma_e = np.asarray(self._Calc_Sigma()).mean(1)
+            values = Sigma_e[:, _STRESSES[dof_n].index(result)]
+
+        elif result == "Stress":
+            values = np.asarray(self._Calc_Sigma()).mean(1)
 
         elif result in ["ux'", "rx'", "ry'", "rz'"]:
-            coef = 1 if result == "Exx" else 1 / 2
+            Epsilon_e = np.asarray(self._Calc_Epsilon()).mean(1)
+            values = Epsilon_e[:, _STRAINS[dof_n].index(result)]
 
-            Epsilon_e = self._Calc_Epsilon().mean(1)
-            index = self._indexResult(result)
-            values = Epsilon_e[:, index] * coef
+        elif result == "Strain":
+            values = np.asarray(self._Calc_Epsilon()).mean(1)
 
         else:
             Terminal.MyPrintError(f"The result '{result}' is not implemented yet.")
