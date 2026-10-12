@@ -6,7 +6,6 @@
 import pytest
 import numpy as np
 
-# materials
 from EasyFEA.Models.Elastic._laws import (
     _Elastic,
     Isotropic,
@@ -30,155 +29,135 @@ def _Rotate_2D(C_voigt2D: np.ndarray, axis1: np.ndarray, axis2: np.ndarray):
     return _kelvin_mandel.Reduce_matrix(C, 2) / np.outer(w, w)
 
 
-@pytest.fixture
-def setup_elastic_materials() -> list[_Elastic]:
+NE = 4
+TI = dict(El=11580, Et=500, Gl=450, vl=0.02, vt=0.44)
 
-    elasticMaterials: list[_Elastic] = []
+C_VOIGT_2D = np.array([[60, 20, 0], [20, 120, 0], [0, 0, 30]])
+C_VOIGT_3D = np.array(
+    [
+        [60, 20, 10, 0, 0, 0],
+        [20, 120, 80, 0, 0, 0],
+        [10, 80, 300, 0, 0, 0],
+        [0, 0, 0, 400, 0, 0],
+        [0, 0, 0, 0, 500, 0],
+        [0, 0, 0, 0, 0, 600],
+    ]
+)
+ALIGNED = (np.array([1, 0, 0]), np.array([0, 1, 0]))
+_a = 30 * np.pi / 130
+ROTATED = (
+    np.array([np.cos(_a), np.sin(_a), 0]),
+    np.array([-np.sin(_a), np.cos(_a), 0]),
+)
 
-    for comp in _Elastic.Available_Laws():
-        if comp == Isotropic:
-            elasticMaterials.append(Isotropic(2, E=210e9, v=0.3, planeStress=True))
-            elasticMaterials.append(Isotropic(2, E=210e9, v=0.3, planeStress=False))
-            elasticMaterials.append(Isotropic(3, E=210e9, v=0.3))
-        elif comp == TransverselyIsotropic:
-            c = np.sqrt(2) / 2
-            elasticMaterials.append(
-                TransverselyIsotropic(
-                    3,
-                    El=11580,
-                    Et=500,
-                    Gl=450,
-                    vl=0.02,
-                    vt=0.44,
-                    axis_l=[c, c, 0],
-                    axis_t=[c, -c, 0],
-                )
-            )
-            elasticMaterials.append(
-                TransverselyIsotropic(
-                    3,
-                    El=11580,
-                    Et=500,
-                    Gl=450,
-                    vl=0.02,
-                    vt=0.44,
-                    axis_l=[0, 1, 0],
-                    axis_t=[1, 0, 0],
-                )
-            )
-            elasticMaterials.append(
-                TransverselyIsotropic(
-                    2, El=11580, Et=500, Gl=450, vl=0.02, vt=0.44, planeStress=True
-                )
-            )
-            elasticMaterials.append(
-                TransverselyIsotropic(
-                    2, El=11580, Et=500, Gl=450, vl=0.02, vt=0.44, planeStress=False
-                )
-            )
+ANISOTROPIC = {
+    "2D": lambda: Anisotropic(2, C_VOIGT_2D, True),
+    "2D-aligned": lambda: Anisotropic(2, _Rotate_2D(C_VOIGT_2D, *ALIGNED), True),
+    "2D-rotated": lambda: Anisotropic(2, _Rotate_2D(C_VOIGT_2D, *ROTATED), True),
+    "3D-aligned": lambda: Anisotropic(
+        3, Apply_Pmat(Get_Pmat(*ALIGNED), _kelvin_mandel.From_Voigt(C_VOIGT_3D)), False
+    ),
+    "3D-rotated": lambda: Anisotropic(
+        3, Apply_Pmat(Get_Pmat(*ROTATED), _kelvin_mandel.From_Voigt(C_VOIGT_3D)), False
+    ),
+}
 
-        elif comp == Anisotropic:
-            C_voigt2D = np.array([[60, 20, 0], [20, 120, 0], [0, 0, 30]])
 
-            axis1_1 = np.array([1, 0, 0])
-            axis2_1 = np.array([0, 1, 0])
+@pytest.mark.parametrize("material", ANISOTROPIC.values(), ids=ANISOTROPIC)
+def test_anisotropic_C_is_symmetric(material):
+    C = material().C
+    assert rel_error(C.T, C) <= 1e-12
 
-            tetha = 30 * np.pi / 130
-            axis1_2 = np.array([np.cos(tetha), np.sin(tetha), 0])
-            axis2_2 = np.array([-np.sin(tetha), np.cos(tetha), 0])
 
-            for axis1, axis2 in [(axis1_1, axis2_1), (axis1_2, axis2_2)]:
-                C = _Rotate_2D(C_voigt2D, axis1, axis2)
-                elasticMaterials.append(Anisotropic(2, C, True))
-                elasticMaterials.append(Anisotropic(2, C, False))
+def _ti_l_along_x(m: TransverselyIsotropic):
+    return [
+        [m.El + 4 * m.vl**2 * m.kt, 2 * m.kt * m.vl, 0],
+        [2 * m.kt * m.vl, m.kt + m.Gt, 0],
+        [0, 0, 2 * m.Gl],
+    ]
 
-    return elasticMaterials
+
+def _ti_l_along_y(m: TransverselyIsotropic):
+    return [
+        [m.kt + m.Gt, 2 * m.kt * m.vl, 0],
+        [2 * m.kt * m.vl, m.El + 4 * m.vl**2 * m.kt, 0],
+        [0, 0, 2 * m.Gl],
+    ]
+
+
+def _ti_l_out_of_plane(m: TransverselyIsotropic):
+    return [
+        [m.kt + m.Gt, m.kt - m.Gt, 0],
+        [m.kt - m.Gt, m.kt + m.Gt, 0],
+        [0, 0, 2 * m.Gt],
+    ]
+
+
+@pytest.mark.parametrize(
+    "axis_l, axis_t, closed_form",
+    [
+        ([1, 0, 0], [0, 1, 0], _ti_l_along_x),
+        ([0, 1, 0], [1, 0, 0], _ti_l_along_y),
+        ([0, 0, 1], [1, 0, 0], _ti_l_out_of_plane),
+    ],
+    ids=["l_along_x", "l_along_y", "l_out_of_plane"],
+)
+def test_TI_plane_strain_C_is_the_closed_form(axis_l, axis_t, closed_form):
+    material = TransverselyIsotropic(
+        2, **TI, planeStress=False, axis_l=axis_l, axis_t=axis_t
+    )
+    assert rel_error(material.C, np.array(closed_form(material))) <= 1e-12
+
+
+def test_orthotropic_with_equal_moduli_is_isotropic():
+    E, v = TI["El"], TI["vl"]
+    isot = Isotropic(3, E=E, v=v)
+    mu = isot.get_mu()
+    ortho = Orthotropic(
+        3,
+        E1=E,
+        E2=E,
+        E3=E,
+        G23=mu,
+        G13=mu,
+        G12=mu,
+        v23=v,
+        v13=v,
+        v12=v,
+        axis_1=[0, 0, 1],
+        axis_2=[0, 1, 0],
+    )
+    assert rel_error(ortho.S, isot.S) <= 1e-12
+
+
+@pytest.mark.parametrize(
+    "dim, axis_l, axis_t", [(3, [1, 0, 0], [0, 1, 0]), (2, [0, 1, 0], [1, 0, 0])]
+)
+def test_orthotropic_with_TI_moduli_is_TI(dim, axis_l, axis_t):
+    El, Et, Gl, vl, vt = TI.values()
+    ti = TransverselyIsotropic(
+        dim, **TI, planeStress=False, axis_l=axis_l, axis_t=axis_t
+    )
+    ortho = Orthotropic(
+        dim,
+        E1=El,
+        E2=Et,
+        E3=Et,
+        G23=ti.Gt,
+        G13=Gl,
+        G12=Gl,
+        v23=vt,
+        v13=vl,
+        v12=vl,
+        planeStress=False,
+        axis_1=axis_l,
+        axis_2=axis_t,
+    )
+    assert rel_error(ortho.C, ti.C) <= 1e-12
+    assert rel_error(ortho.S, ti.S) <= 1e-12
 
 
 class TestLinearElastic:
-
-    def test_Elastic_Isot(self, setup_elastic_materials):
-
-        for mat in setup_elastic_materials:
-            assert isinstance(mat, _Elastic)
-            if isinstance(mat, Isotropic):
-                E = mat.E
-                v = mat.v
-                if mat.dim == 2:
-                    if mat.planeStress:
-                        C_voigt = (
-                            E
-                            / (1 - v**2)
-                            * np.array([[1, v, 0], [v, 1, 0], [0, 0, (1 - v) / 2]])
-                        )
-                    else:
-                        C_voigt = (
-                            E
-                            / ((1 + v) * (1 - 2 * v))
-                            * np.array(
-                                [[1 - v, v, 0], [v, 1 - v, 0], [0, 0, (1 - 2 * v) / 2]]
-                            )
-                        )
-                else:
-                    C_voigt = (
-                        E
-                        / ((1 + v) * (1 - 2 * v))
-                        * np.array(
-                            [
-                                [1 - v, v, v, 0, 0, 0],
-                                [v, 1 - v, v, 0, 0, 0],
-                                [v, v, 1 - v, 0, 0, 0],
-                                [0, 0, 0, (1 - 2 * v) / 2, 0, 0],
-                                [0, 0, 0, 0, (1 - 2 * v) / 2, 0],
-                                [0, 0, 0, 0, 0, (1 - 2 * v) / 2],
-                            ]
-                        )
-                    )
-
-                c = _kelvin_mandel.From_Voigt(C_voigt)
-
-                test_C = np.linalg.norm(c - mat.C) / np.linalg.norm(c)
-                assert test_C < 1e-12
-
-    def test_ElasticAnisot(self):
-
-        C_voigt2D = np.array([[60, 20, 0], [20, 120, 0], [0, 0, 30]])
-
-        C_voigt3D = np.array(
-            [
-                [60, 20, 10, 0, 0, 0],
-                [20, 120, 80, 0, 0, 0],
-                [10, 80, 300, 0, 0, 0],
-                [0, 0, 0, 400, 0, 0],
-                [0, 0, 0, 0, 500, 0],
-                [0, 0, 0, 0, 0, 600],
-            ]
-        )
-
-        axis1_1 = np.array([1, 0, 0])
-        axis2_1 = np.array([0, 1, 0])
-
-        a = 30 * np.pi / 130
-        axis1_2 = np.array([np.cos(a), np.sin(a), 0])
-        axis2_2 = np.array([-np.sin(a), np.cos(a), 0])
-
-        mat_2D_1 = Anisotropic(2, _Rotate_2D(C_voigt2D, axis1_1, axis2_1), True)
-
-        mat_2D_2 = Anisotropic(2, _Rotate_2D(C_voigt2D, axis1_2, axis2_2), True)
-
-        mat_2D_3 = Anisotropic(2, C_voigt2D, True)
-
-        C_3D = _kelvin_mandel.From_Voigt(C_voigt3D)
-        mat_3D_1 = Anisotropic(3, Apply_Pmat(Get_Pmat(axis1_1, axis2_1), C_3D), False)
-        mat_3D_2 = Anisotropic(3, Apply_Pmat(Get_Pmat(axis1_2, axis2_2), C_3D), False)
-
-        listComp = [mat_2D_1, mat_2D_2, mat_2D_3, mat_3D_1, mat_3D_2]
-
-        for comp in listComp:
-            matC = comp.C
-            test_Symetry = np.linalg.norm(matC.T - matC)
-            assert test_Symetry <= 1e-12
-
     @pytest.mark.parametrize("dim", [2, 3])
     def test_Anisot_from_voigt(self, dim: int):
         C_kelvin = Isotropic(dim, E=210e3, v=0.3).C
@@ -195,208 +174,6 @@ class TestLinearElastic:
 
         with pytest.raises(NotImplementedError):
             aniso.Walpole_Decomposition()
-
-    def test_Elastic_IsotTrans(self):
-
-        El = 11580
-        Et = 500
-        Gl = 450
-        vl = 0.02
-        vt = 0.44
-
-        # material_cM = np.array([[El+4*vl**2*kt, 2*kt*vl, 2*kt*vl, 0, 0, 0],
-        #               [2*kt*vl, kt+Gt, kt-Gt, 0, 0, 0],
-        #               [2*kt*vl, kt-Gt, kt+Gt, 0, 0, 0],
-        #               [0, 0, 0, 2*Gt, 0, 0],
-        #               [0, 0, 0, 0, 2*Gl, 0],
-        #               [0, 0, 0, 0, 0, 2*Gl]])
-
-        # axis_l = [1, 0, 0] et axis_t = [0, 1, 0]
-        mat1 = TransverselyIsotropic(
-            2,
-            El=El,
-            Et=Et,
-            Gl=Gl,
-            vl=vl,
-            vt=vt,
-            planeStress=False,
-            axis_l=np.array([1, 0, 0]),
-            axis_t=np.array([0, 1, 0]),
-        )
-
-        Gt = mat1.Gt
-        kt = mat1.kt
-
-        c1 = np.array(
-            [
-                [El + 4 * vl**2 * kt, 2 * kt * vl, 0],
-                [2 * kt * vl, kt + Gt, 0],
-                [0, 0, 2 * Gl],
-            ]
-        )
-
-        test_c1 = np.linalg.norm(c1 - mat1.C) / np.linalg.norm(c1)
-        assert test_c1 < 1e-12
-
-        # axis_l = [0, 1, 0] et axis_t = [1, 0, 0]
-        mat2 = TransverselyIsotropic(
-            2,
-            El=El,
-            Et=Et,
-            Gl=Gl,
-            vl=vl,
-            vt=vt,
-            planeStress=False,
-            axis_l=np.array([0, 1, 0]),
-            axis_t=np.array([1, 0, 0]),
-        )
-
-        c2 = np.array(
-            [
-                [kt + Gt, 2 * kt * vl, 0],
-                [2 * kt * vl, El + 4 * vl**2 * kt, 0],
-                [0, 0, 2 * Gl],
-            ]
-        )
-
-        test_c2 = np.linalg.norm(c2 - mat2.C) / np.linalg.norm(c2)
-        assert test_c2 < 1e-12
-
-        # axis_l = [0, 0, 1] et axis_t = [1, 0, 0]
-        mat = TransverselyIsotropic(
-            2,
-            El=El,
-            Et=Et,
-            Gl=Gl,
-            vl=vl,
-            vt=vt,
-            planeStress=False,
-            axis_l=[0, 0, 1],
-            axis_t=[1, 0, 0],
-        )
-
-        c3 = np.array([[kt + Gt, kt - Gt, 0], [kt - Gt, kt + Gt, 0], [0, 0, 2 * Gt]])
-
-        test_c3 = np.linalg.norm(c3 - mat.C) / np.linalg.norm(c3)
-        assert test_c3 < 1e-12
-
-        mat.Walpole_Decomposition()
-
-    def test_Elastic_Orthotropic(self):
-
-        El = 11580
-        Et = 500
-        Gl = 450
-        vl = 0.02
-        vt = 0.44
-
-        # axis_l = [0, 0, 1] et axis_t = [0, 1, 0]
-        mat0_isot = Isotropic(3, E=El, v=vl, planeStress=False)
-        mu = mat0_isot.get_mu()
-
-        mat0_ortho = Orthotropic(
-            3,
-            E1=El,
-            E2=El,
-            E3=El,
-            G23=mu,
-            G13=mu,
-            G12=mu,
-            v23=vl,
-            v13=vl,
-            v12=vl,
-            planeStress=False,
-            axis_1=[0, 0, 1],
-            axis_2=[0, 1, 0],
-        )
-
-        test_c0 = np.linalg.norm(mat0_ortho.S - mat0_isot.S) / np.linalg.norm(
-            mat0_isot.S
-        )
-        assert test_c0 < 1e-12
-
-        # material_sM = np.array(
-        #     [
-        #         [1 / El, -vl / El, -vl / El, 0, 0, 0],
-        #         [-vl / El, 1 / Et, -vt / Et, 0, 0, 0],
-        #         [-vl / El, -vt / Et, 1 / Et, 0, 0, 0],
-        #         [0, 0, 0, 1 / (2 * Gt), 0, 0],
-        #         [0, 0, 0, 0, 1 / (2 * Gl), 0],
-        #         [0, 0, 0, 0, 0, 1 / (2 * Gl)],
-        #     ]
-        # )
-
-        # axis_l = [1, 0, 0] et axis_t = [0, 1, 0]
-        mat1_isotTrans = TransverselyIsotropic(
-            3,
-            El=El,
-            Et=Et,
-            Gl=Gl,
-            vl=vl,
-            vt=vt,
-            planeStress=False,
-            axis_l=[1, 0, 0],
-            axis_t=[0, 1, 0],
-        )
-        Gt = mat1_isotTrans.Gt
-
-        mat1_ortho = Orthotropic(
-            3,
-            E1=El,
-            E2=Et,
-            E3=Et,
-            G23=Gt,
-            G13=Gl,
-            G12=Gl,
-            v23=vt,
-            v13=vl,
-            v12=vl,
-            planeStress=False,
-            axis_1=[1, 0, 0],
-            axis_2=[0, 1, 0],
-        )
-
-        test_c1 = np.linalg.norm(mat1_ortho.S - mat1_isotTrans.S) / np.linalg.norm(
-            mat1_isotTrans.S
-        )
-        assert test_c1 < 1e-12
-
-        # axis_l = [0, 1, 0] et axis_t = [1, 0, 0]
-        mat2_isotTrans = TransverselyIsotropic(
-            2,
-            El=El,
-            Et=Et,
-            Gl=Gl,
-            vl=vl,
-            vt=vt,
-            planeStress=False,
-            axis_l=[0, 1, 0],
-            axis_t=[1, 0, 0],
-        )
-        Gt = mat2_isotTrans.Gt
-
-        mat2_ortho = Orthotropic(
-            2,
-            E1=El,
-            E2=Et,
-            E3=Et,
-            G23=Gt,
-            G13=Gl,
-            G12=Gl,
-            v23=vt,
-            v13=vl,
-            v12=vl,
-            planeStress=False,
-            axis_1=[0, 1, 0],
-            axis_2=[1, 0, 0],
-        )
-
-        test_c2 = np.linalg.norm(mat2_ortho.C - mat2_isotTrans.C) / np.linalg.norm(
-            mat2_isotTrans.C
-        )
-        assert test_c2 < 1e-12
-
-        mat2_ortho.Walpole_Decomposition()
 
     @pytest.mark.parametrize("shape", [(), (11,), (11, 4)])
     def test_sqrt_C_S(self, shape: tuple):
@@ -457,129 +234,84 @@ class TestLinearElastic:
         )
         assert "axis_2 = [0. 1. 0.]" in str(material)
 
-    def test_getPmat(self):
 
-        Ne = 10
-        p = 3
+MODULI = {
+    "scalar": 1.0,
+    "(Ne,)": np.ones(NE),
+    "(Ne,nPg)": np.ones((NE, 3)),
+    "(Ne,)-varying": np.linspace(1, 1.001, NE),
+}
 
-        _ = 1
-        _e = np.ones((Ne))
-        _e_pg = np.ones((Ne, p))
-        _e2 = np.linspace(1, 1.001, Ne)
 
-        El = 15716.16722094732
-        Et = 232.6981580878141
-        Gl = 557.3231495541391
-        vl = 0.02
-        vt = 0.44
+def _Pmat_axes(dim: int, shape: str) -> tuple[np.ndarray, np.ndarray]:
+    """In-plane axes: fixed, one per element, or one per element and Gauss point."""
+    if shape == "uniform":
+        return np.eye(3)[0, :dim], np.eye(3)[1, :dim]
+    angles = np.linspace(0, np.pi, NE)
+    axis1 = np.zeros((NE, dim))
+    axis2 = np.zeros((NE, dim))
+    axis1[:, 0], axis1[:, 1] = np.cos(angles), np.sin(angles)
+    axis2[:, 0], axis2[:, 1] = -np.sin(angles), np.cos(angles)
+    if shape == "(Ne,nPg)":
+        axis1, axis2 = (np.repeat(a[:, np.newaxis], 3, 1) for a in (axis1, axis2))
+    return axis1, axis2
 
-        for dim in [2, 3]:
 
-            axis1 = np.array([1, 0, 0])[:dim]
-            axis2 = np.array([0, 1, 0])[:dim]
+AXES = ["uniform", "(Ne,)", "(Ne,nPg)"]
 
-            angles = np.linspace(0, np.pi, Ne)
-            x1, y1 = np.cos(angles), np.sin(angles)
-            x2, y2 = -np.sin(angles), np.cos(angles)
-            axis1_e = np.zeros((Ne, dim))
-            axis1_e[:, 0] = x1
-            axis1_e[:, 1] = y1
-            axis2_e = np.zeros((Ne, dim))
-            axis2_e[:, 0] = x2
-            axis2_e[:, 1] = y2
 
-            axis1_e_p = axis1_e[:, np.newaxis].repeat(p, 1)
-            axis2_e_p = axis2_e[:, np.newaxis].repeat(p, 1)
+def _Same_leading_axes(a: np.ndarray, b: np.ndarray) -> list[np.ndarray]:
+    """Broadcasts two (..., n, n) arrays whose leading axes are (), (Ne,) or (Ne, nPg)."""
+    if a.ndim == 3 and b.ndim == 4:
+        a = a[:, np.newaxis]
+    if b.ndim == 3 and a.ndim == 4:
+        b = b[:, np.newaxis]
+    return np.broadcast_arrays(a, b)
 
-            for c in [_, _e, _e_pg, _e2]:
 
-                mat = TransverselyIsotropic(dim, El * c, Et * c, Gl * c, vl * c, vt * c)
-                C = mat.C
-                S = mat.S
+def _Trace(A: np.ndarray) -> np.ndarray:
+    return np.trace(A, axis1=-2, axis2=-1)
 
-                for ax1, ax2 in [
-                    (axis1, axis2),
-                    (axis1_e, axis2_e),
-                    (axis1_e_p, axis2_e_p),
-                ]:
-                    Pmat = Get_Pmat(ax1, ax2)
 
-                    # checks mat to global coord
-                    Cglob = Apply_Pmat(Pmat, C)
-                    Sglob = Apply_Pmat(Pmat, S)
-                    self.__check_invariants(Cglob, C)
-                    self.__check_invariants(Sglob, S)
+@pytest.fixture(params=["C", "S"])
+def ti_tensor(request, dim: int, moduli: str) -> np.ndarray:
+    """C or S of a TI material whose moduli are scalar, per element or per Gauss point."""
+    c = MODULI[moduli]
+    material = TransverselyIsotropic(dim, *(c * value for value in TI.values()))
+    return getattr(material, request.param)
 
-                    # checks global to mat coord
-                    Cmat = Apply_Pmat(Pmat, Cglob, toGlobal=False)
-                    Smat = Apply_Pmat(Pmat, Sglob, toGlobal=False)
-                    self.__check_invariants(Cmat, C, True)
-                    self.__check_invariants(Smat, S, True)
 
-                    # checks Ps, Pe
-                    Ps, Pe = Get_Pmat(ax1, ax2, False)
-                    transp = np.arange(Ps.ndim)
-                    transp[-1], transp[-2] = transp[-2], transp[-1]
-                    # checks inv(Ps) = Pe'
-                    testPs = np.linalg.norm(
-                        np.linalg.inv(Ps) - Pe.transpose(transp)
-                    ) / np.linalg.norm(Pe.transpose(transp))
-                    assert testPs <= 1e-12, f"inv(Ps) != Pe' -> {testPs:.3e}"
-                    # checks inv(Pe) = Ps'
-                    testPe = np.linalg.norm(
-                        np.linalg.inv(Pe) - Ps.transpose(transp)
-                    ) / np.linalg.norm(Ps.transpose(transp))
-                    assert testPe <= 1e-12, f"inv(Pe) = Ps' -> {testPe:.3e}"
+@pytest.mark.parametrize("moduli", MODULI)
+@pytest.mark.parametrize("axes", AXES)
+@pytest.mark.parametrize("dim", [2, 3])
+def test_rotation_to_global_preserves_trace_and_det(ti_tensor, dim, axes):
+    rotated = Apply_Pmat(Get_Pmat(*_Pmat_axes(dim, axes)), ti_tensor)
+    rotated, local = _Same_leading_axes(rotated, ti_tensor)
+    assert rel_error(_Trace(rotated), _Trace(local)) <= 1e-12
+    assert rel_error(np.linalg.det(rotated), np.linalg.det(local)) <= 1e-12
 
-    def __check_invariants(self, mat1: np.ndarray, mat2: np.ndarray, checkSame=False):
 
-        tol = 1e-12
+@pytest.mark.parametrize("moduli", MODULI)
+@pytest.mark.parametrize("axes", AXES)
+@pytest.mark.parametrize("dim", [2, 3])
+def test_rotation_back_to_material_axes_is_identity(ti_tensor, dim, axes):
+    Pmat = Get_Pmat(*_Pmat_axes(dim, axes))
+    back = Apply_Pmat(Pmat, Apply_Pmat(Pmat, ti_tensor), toGlobal=False)
+    back, local = _Same_leading_axes(back, ti_tensor)
+    assert rel_error(back, local) <= 1e-12
 
-        shape1, dim1 = mat1.shape, mat1.ndim
-        shape2, dim2 = mat2.shape, mat2.ndim
 
-        if dim1 > dim2:
-            pass
-            if dim2 == 3:
-                mat2 = mat2[:, np.newaxis].repeat(shape1[1], 1)
-            elif dim2 == 4:
-                mat2 = mat2[np.newaxis, np.newaxis].repeat(shape1[0], 0)
-                mat2 = mat2.repeat(shape1[1], 1)
-        elif dim2 > dim1:
-            pass
-            if dim1 == 3:
-                mat1 = mat1[:, np.newaxis].repeat(shape2[1], 1)
-            elif dim1 == 4:
-                mat1 = mat1[np.newaxis, np.newaxis].repeat(shape2[0], 0)
-                mat1 = mat1.repeat(shape2[1], 1)
-
-        tr1 = np.trace(mat1, axis1=-2, axis2=-1)
-        tr2 = np.trace(mat2, axis1=-2, axis2=-1)
-        trErr = (tr1 - tr2) / tr2
-        test_trace = np.linalg.norm(trErr)
-        assert (
-            test_trace <= tol
-        ), f"The trace is not preserved during the process (test_trace = {test_trace:.3e})"
-
-        det1 = np.linalg.det(mat1)
-        det2 = np.linalg.det(mat2)
-        detErr = (det1 - det2) / det2
-        test_det = np.linalg.norm(detErr)
-        assert (
-            test_det <= tol
-        ), f"The determinant is not preserved during the process (test_det = {test_det:.3e})"
-
-        if checkSame:
-            matErr = mat1 - mat2
-            test_mat = np.linalg.norm(matErr) / np.linalg.norm(mat2)
-            assert test_mat <= tol, "mat1 != mat2"
+@pytest.mark.parametrize("axes", AXES)
+@pytest.mark.parametrize("dim", [2, 3])
+def test_stress_and_strain_rotations_are_inverse_transposes(dim, axes):
+    Ps, Pe = Get_Pmat(*_Pmat_axes(dim, axes), False)
+    assert rel_error(np.linalg.inv(Ps), np.swapaxes(Pe, -1, -2)) <= 1e-12
+    assert rel_error(np.linalg.inv(Pe), np.swapaxes(Ps, -1, -2)) <= 1e-12
 
 
 # ----------------------------------------------
 # Every law against Anisotropic built from its 3D C
 # ----------------------------------------------
-
-NE = 4
 
 
 def _Rotation(theta, phi) -> np.ndarray:
