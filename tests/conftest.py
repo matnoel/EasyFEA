@@ -8,7 +8,7 @@ from typing import Callable
 import pytest
 import numpy as np
 
-from EasyFEA import ElemType, Mesh
+from EasyFEA import ElemType, Mesh, Mesher
 from EasyFEA.Geoms import Points, Point, Circle, Line
 
 L = 2
@@ -75,20 +75,32 @@ def box_mesh(elemType: ElemType) -> Mesh:
     return _make_mesh_3D(elemType=elemType, isOrganised=True)
 
 
+ALL_ELEMTYPES = ElemType.Get_1D() + ElemType.Get_2D() + ElemType.Get_3D()
+
+
+def elemType_mesh_of(elemType: ElemType, mesher: Mesher | None = None) -> Mesh:
+    """Organised L line, L×H rectangle or L×H×L box of `elemType`; pass `mesher` to swap one of its steps."""
+    mesher = mesher or Mesher()
+    meshSize = H / 3
+    if elemType in ElemType.Get_1D():
+        line = Line(Point(), Point(L, 0), meshSize)
+        return mesher.Mesh_1D(line, elemType)
+    contour = Points([(0, 0), (L, 0), (L, H), (0, H)], meshSize)
+    if elemType in ElemType.Get_2D():
+        return mesher.Mesh_2D(contour, [], elemType, isOrganised=True)
+    return mesher.Mesh_Extrude(contour, [], [0, 0, -L], [3], elemType, isOrganised=True)
+
+
+@pytest.fixture(scope="session", params=ALL_ELEMTYPES, ids=str)
+def elemType_mesh(request) -> Mesh:
+    """`elemType_mesh_of` for every 1D, 2D and 3D element type. Session-scoped: mutate only a `mesh.copy()`."""
+    return elemType_mesh_of(request.param)
+
+
 @pytest.fixture(scope="session")
 def all_elemType_meshes() -> list[Mesh]:
-    """One organised mesh per 1D, 2D and 3D element type."""
-    line = Line(Point(), Point(1, 0), H / 3)
-    meshes = [line.Mesh_1D(elemType) for elemType in ElemType.Get_1D()]
-    meshes += [
-        _make_mesh_2D(elemType=elemType, isOrganised=True)
-        for elemType in ElemType.Get_2D()
-    ]
-    meshes += [
-        _make_mesh_3D(elemType=elemType, B=L, isOrganised=True)
-        for elemType in ElemType.Get_3D()
-    ]
-    return meshes
+    """`elemType_mesh_of` for every 1D, 2D and 3D element type, as one list."""
+    return [elemType_mesh_of(elemType) for elemType in ALL_ELEMTYPES]
 
 
 @pytest.fixture(scope="session")

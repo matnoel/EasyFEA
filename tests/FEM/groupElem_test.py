@@ -11,39 +11,28 @@ import numpy as np
 from EasyFEA import ElemType, Mesh, MatrixType
 from EasyFEA.FEM._group_elem import GroupElemFactory
 
-L = 2
-H = 1
+from _numerics import rel_error
 
 
-class TestGroupElem:
+def test_nodes_per_element_count_every_entity(elemType_mesh: Mesh):
+    groupElem = elemType_mesh.groupElem
 
-    def test_nPe(self, all_elemType_meshes: list[Mesh]):
+    assert groupElem.nPe == (
+        groupElem.Nvertex + groupElem.Nedge + groupElem.Nface + groupElem.Nvolume
+    )
 
-        for mesh in all_elemType_meshes:
 
-            groupElem = mesh.groupElem
+def test_shape_functions_are_the_kronecker_delta_at_the_nodes(elemType_mesh: Mesh):
+    """N_i(ξ_j) = δ_ij on the reference element."""
+    groupElem = elemType_mesh.groupElem
+    shapeFunctions = groupElem._N()
+    localCoords = groupElem.Get_Local_Coords()
 
-            assert groupElem.nPe == (
-                groupElem.Nvertex
-                + groupElem.Nedge
-                + groupElem.Nface
-                + groupElem.Nvolume
-            )
+    values = np.array(
+        [[N[0](*coords) for coords in localCoords] for N in shapeFunctions]
+    )
 
-    def test_shape_fucntion(self, all_elemType_meshes: list[Mesh]):
-
-        for mesh in all_elemType_meshes:
-
-            groupElem = mesh.groupElem
-
-            shape_functions = groupElem._N()
-
-            local_coords = groupElem.Get_Local_Coords()
-
-            for shape_function, coords in zip(shape_functions, local_coords):
-
-                eval = shape_function[0](*coords)
-                assert np.abs(1 - eval) < 1e-12
+    assert rel_error(values, np.eye(groupElem.nPe)) < 1e-12
 
 
 def test_globalElements_is_sorted(make_mesh_2D: Callable[..., Mesh]):

@@ -8,24 +8,18 @@
 import numpy as np
 import pytest
 
-from EasyFEA import Mesher, ElemType, Mesh
-from EasyFEA.Geoms import Domain, Point
+from EasyFEA import ElemType, Mesher, Mesh
+
+from conftest import ALL_ELEMTYPES, elemType_mesh_of
 
 NPROCS = [2, 3, 5]
 
 
-def Get_partitions(Nproc: int, meshSize: float = 1.0) -> list[Mesh]:
-    """Meshes a domain and returns its `Nproc` partitions."""
-
+def Get_partitions(elemType: ElemType, Nproc: int) -> list[Mesh]:
+    """The `Nproc` pieces of `elemType_mesh_of(elemType)`: the public meshing call, its last step swapped for `_Mesh_Get_Meshes`."""
     mesher = Mesher()
-    domain = Domain(Point(), Point(10, 10), meshSize)
-
-    mesher._Init_gmsh("occ")
-    mesher._Surfaces(domain, [])
-    mesher._Set_PhysicalGroups()
-    mesher._Mesh_Generate(2, ElemType.TRI3)
-
-    return mesher._Mesh_Get_Meshes(Nproc)
+    mesher._Mesh_Get_Mesh = lambda coef=1.0: mesher._Mesh_Get_Meshes(Nproc, coef)
+    return elemType_mesh_of(elemType, mesher)
 
 
 def Get_partitioned_data(meshes: list[Mesh]) -> list[tuple]:
@@ -33,10 +27,15 @@ def Get_partitioned_data(meshes: list[Mesh]) -> list[tuple]:
     return [mesh.groupElem._Get_partitioned_data() for mesh in meshes]
 
 
+@pytest.fixture(scope="module", params=ALL_ELEMTYPES, ids=str)
+def partitionedType(request) -> ElemType:
+    return request.param
+
+
 @pytest.fixture(scope="module")
-def partitions() -> dict[int, list[Mesh]]:
+def partitions(partitionedType: ElemType) -> dict[int, list[Mesh]]:
     # Nproc == 1 is the unpartitioned mesh, used as the reference to split against
-    return {Nproc: Get_partitions(Nproc) for Nproc in [1] + NPROCS}
+    return {Nproc: Get_partitions(partitionedType, Nproc) for Nproc in [1] + NPROCS}
 
 
 @pytest.mark.parametrize("Nproc", NPROCS)
@@ -106,11 +105,11 @@ def test_no_empty_partition(partitions, Nproc: int):
 
 
 @pytest.mark.parametrize("Nproc", NPROCS)
-def test_partition_is_reproducible(partitions, Nproc: int):
+def test_partition_is_reproducible(partitionedType: ElemType, partitions, Nproc: int):
     """The same input gives the same split twice."""
 
     data = Get_partitioned_data(partitions[Nproc])
-    again = Get_partitioned_data(Get_partitions(Nproc))
+    again = Get_partitioned_data(Get_partitions(partitionedType, Nproc))
 
     for (_, elements, ghosts, nodes, _), (_, elements2, ghosts2, nodes2, _) in zip(
         data, again
