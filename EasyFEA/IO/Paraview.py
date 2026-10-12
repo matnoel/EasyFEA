@@ -83,20 +83,13 @@ def Save_simu(
     if MPI_SIZE > 1:
         MPI_COMM.Barrier()  # ensure folder exists before all ranks proceed
 
-    nodeFields, elementFields = simu.Results_nodeFields_elementFields(details)
+    defaultNodeFields, defaultElementFields = simu.Results_nodeFields_elementFields(
+        details
+    )
+    savedNodeFields = list(dict.fromkeys([*defaultNodeFields, *results]))
+    savedElementFields = list(dict.fromkeys([*defaultElementFields, *elementFields]))
 
-    [
-        nodeFields.append(n)  # type: ignore [func-returns-value]
-        for n in results
-        if simu._Results_Check_Available(n) and n not in nodeFields
-    ]
-    [
-        elementFields.append(e)  # type: ignore [func-returns-value]
-        for e in elementFields
-        if simu._Results_Check_Available(e) and e not in elementFields
-    ]
-
-    if len(nodeFields) == 0 and len(elementFields) == 0:
+    if len(savedNodeFields) == 0 and len(savedElementFields) == 0:
         Terminal.MyPrintError(
             "The simulation has no solution fields to display in paraview."
         )
@@ -113,7 +106,7 @@ def Save_simu(
 
         # get nodeResults
         nodeResults: dict[str, _types.AnyArray] = {}
-        for nodeField in nodeFields:
+        for nodeField in savedNodeFields:
             array = simu.Result(nodeField, True)
             nodeField = nodeField.removesuffix("_matrix")
             nodeResults[nodeField] = array
@@ -121,7 +114,7 @@ def Save_simu(
         # get elementResults, on the mesh of this iteration
         Ne = simu.mesh.Ne
         elementResults: dict[str, _types.AnyArray] = {}
-        for elementField in elementFields:
+        for elementField in savedElementFields:
             array = simu.Result(elementField, False)
             if meshDim == 3 and array.size / Ne == 6:
                 array = array.reshape(Ne, -1)[:, VTK_ORDER]
