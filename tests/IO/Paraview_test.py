@@ -80,3 +80,11 @@ def test_default_fields_are_kept_alongside_requested_ones(
 
     assert set(vtu.point_data.keys()) == {"displacement", "ux"}
     assert set(vtu.cell_data.keys()) == {"Svm", "Stress", "Exx"}
+
+
+@pytest.mark.parametrize("option", ["results", "elementFields"])
+def test_unavailable_requested_field_raises_naming_it(
+    simu: Simulations.Elastic, tmp_path, option: str
+):
+    with pytest.raises(ValueError, match="notAField"):
+        IO.Paraview.Save_simu(simu, str(tmp_path), **{option: ["notAField"]})

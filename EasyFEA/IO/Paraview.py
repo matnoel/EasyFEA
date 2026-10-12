@@ -61,6 +61,13 @@ def Save_simu(
 
     simu = _Init_obj(simu)[0]  # type: ignore
 
+    availableResults = simu.Results_Available()
+    unavailable = [f for f in (*results, *elementFields) if f not in availableResults]
+    if unavailable:
+        raise ValueError(
+            f"Save_simu: {unavailable} not available, must be in {availableResults}"
+        )
+
     if MPI_SIZE > 1 and simu.isGathered:
         raise Exception(
             "Save_simu: simu.isGathered must be False on all ranks when MPI_SIZE > 1. "
