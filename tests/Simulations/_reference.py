@@ -25,6 +25,13 @@ def bar_stress(E: float, L: float, ud: float) -> float:
     return E * ud / L
 
 
+def homogeneous_damage(psiP: float, Gc: float, l0: float, regularization: str) -> float:
+    """Uniform phase-field damage driven by a uniform history `psiP`: the gradient term vanishes, leaving d = f / r."""
+    if regularization == "AT1":
+        return max(2 * psiP - 3 * Gc / (8 * l0), 0.0) / (2 * psiP)
+    return 2 * psiP / (2 * psiP + Gc / l0)
+
+
 SYMMETRY_PLANES = {
     "x": lambda x, y, z: x == 0,
     "y": lambda x, y, z: y == 0,
