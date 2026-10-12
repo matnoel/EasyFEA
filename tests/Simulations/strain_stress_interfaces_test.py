@@ -25,14 +25,25 @@ E, v = 210e3, 0.3
 STRAIN = 1e-4  # below the plastic yield strain 250 / E
 
 
-def _domain() -> Domain:
-    return Domain(Point(0, 0), Point(L, H), H / 2)
+def _tri3() -> Mesh:
+    domain = Domain(Point(0, 0), Point(L, H), H / 2)
+    return domain.Mesh_2D([], ElemType.TRI3)
+
+
+def _quad4_tri3() -> Mesh:
+    domain = Domain(Point(0, 0), Point(L, H), H / 2)
+    return domain.Mesh_2D([], ElemType.QUAD4)
+
+
+def _hexa8_prism6() -> Mesh:
+    domain = Domain(Point(0, 0), Point(L, H), H / 2)
+    return domain.Mesh_Extrude([], [0, 0, H], [2], ElemType.HEXA8)
 
 
 MESHES: dict[str, Callable[[], Mesh]] = {
-    "TRI3": lambda: _domain().Mesh_2D([], ElemType.TRI3),
-    "QUAD4+TRI3": lambda: _domain().Mesh_2D([], ElemType.QUAD4),
-    "HEXA8+PRISM6": lambda: _domain().Mesh_Extrude([], [0, 0, H], [2], ElemType.HEXA8),
+    "TRI3": _tri3,
+    "QUAD4+TRI3": _quad4_tri3,
+    "HEXA8+PRISM6": _hexa8_prism6,
 }
 
 
@@ -41,7 +52,13 @@ def _elastic(dim: int) -> Models.Elastic.Isotropic:
 
 
 def _phasefield(mesh: Mesh) -> Simulations.PhaseField:
-    pfm = Models.PhaseField(_elastic(mesh.dim), "Amor", "AT2", 1, 1)
+    pfm = Models.PhaseField(
+        _elastic(mesh.dim),
+        "Amor",
+        "AT2",
+        1,
+        1,
+    )
     simu = Simulations.PhaseField(mesh, pfm)
     # direct: the default cg + gamg stops at ~1e-5
     simu._Solver_Set_PETSc4Py_Options(
@@ -50,15 +67,20 @@ def _phasefield(mesh: Mesh) -> Simulations.PhaseField:
     return simu
 
 
+def _direct(simu: Simulations._Simu) -> Simulations._Simu:
+    simu.solver = SolverType.scipy  # petsc's iterative default stops at ~1e-6
+    return simu
+
+
 def _inelastic(mesh: Mesh) -> Simulations.InElastic:
     behavior = Plasticity(_elastic(mesh.dim), VonMises(250), Linear(1e3))
-    return Simulations.InElastic(mesh, behavior)
+    return _direct(Simulations.InElastic(mesh, behavior))
 
 
 def _hyperelastic(mesh: Mesh) -> Simulations.HyperElastic:
     """Saint-Venant-Kirchhoff: the bar reaches a homogeneous state with Syy = 0."""
     material = Models.HyperElastic.SaintVenantKirchhoff(mesh.dim, lmbda=1e5, mu=8e4)
-    return Simulations.HyperElastic(mesh, material)
+    return _direct(Simulations.HyperElastic(mesh, material))
 
 
 class Kind(NamedTuple):
@@ -73,14 +95,26 @@ class Kind(NamedTuple):
 
 KINDS = {
     "elastic": Kind(
-        lambda mesh: Simulations.Elastic(mesh, _elastic(mesh.dim)),
+        lambda mesh: _direct(Simulations.Elastic(mesh, _elastic(mesh.dim))),
         "_Calc_Epsilon",
         "_Calc_Sigma",
         STRAIN,
         E * STRAIN,
     ),
-    "phasefield": Kind(_phasefield, "_Calc_Epsilon", "_Calc_Sigma", STRAIN, E * STRAIN),
-    "inelastic": Kind(_inelastic, "_Calc_Epsilon", "_Calc_Sigma", STRAIN, E * STRAIN),
+    "phasefield": Kind(
+        _phasefield,
+        "_Calc_Epsilon",
+        "_Calc_Sigma",
+        STRAIN,
+        E * STRAIN,
+    ),
+    "inelastic": Kind(
+        _inelastic,
+        "_Calc_Epsilon",
+        "_Calc_Sigma",
+        STRAIN,
+        E * STRAIN,
+    ),
     "hyperelastic": Kind(
         _hyperelastic,
         "_Calc_GreenLagrange",
@@ -93,8 +127,6 @@ KINDS = {
 
 def _pulled(kind: Kind, mesh: Mesh) -> Simulations._Simu:
     simu = kind.build(mesh)
-    if not isinstance(simu, Simulations.PhaseField):
-        simu.solver = SolverType.scipy
     _reference.pull_bar(simu, STRAIN * L)
     simu.Solve()
     return simu
@@ -146,7 +178,13 @@ def _cantilever() -> tuple[Simulations.Beam, np.ndarray]:
     domain = Domain(Point(-5, -5), Point(5, 5))
     section = domain.Mesh_2D([], ElemType.QUAD4)
     line = Line(Point(), Point(L), L / 10)
-    beam = Models.Beam.Isotropic(2, line, section, E, v)
+    beam = Models.Beam.Isotropic(
+        2,
+        line,
+        section,
+        E,
+        v,
+    )
     mesh = Mesher().Mesh_Beams([beam], elemType=ElemType.SEG2)
     simu = Simulations.Beam(mesh, Models.Beam.BeamStructure([beam]))
     nodesClamped = mesh.Nodes_Point(Point())

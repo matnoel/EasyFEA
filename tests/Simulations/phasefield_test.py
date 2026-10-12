@@ -29,7 +29,13 @@ def _pull(simu: Simulations.PhaseField) -> np.ndarray:
 def _pulled_twice(mesh: Mesh, split: str, regularization: str):
     """Returns the simulation and the history of the first step, which drives the second step's damage."""
     material = Models.Elastic.Isotropic(mesh.dim, E, v, planeStress=True)
-    pfm = Models.PhaseField(material, split, regularization, GC, L0)
+    pfm = Models.PhaseField(
+        material,
+        split,
+        regularization,
+        GC,
+        L0,
+    )
     simu = Simulations.PhaseField(mesh, pfm)
     # direct: the default cg + gamg stops at ~1e-5
     simu._Solver_Set_PETSc4Py_Options(
@@ -65,7 +71,13 @@ def test_an_unsplit_bar_damages_under_its_elastic_energy(box_mesh: Mesh):
     assert rel_error(psiP, E * STRAIN**2 / 2) < 1e-10
     expected = _reference.homogeneous_damage(E * STRAIN**2 / 2, GC, L0, "AT2")
     assert rel_error(simu.damage, expected) < 1e-10
-    u = _reference.bar_displacement(box_mesh.coord, L, STRAIN * L, v, box_mesh.dim)
+    u = _reference.bar_displacement(
+        box_mesh.coord,
+        L,
+        STRAIN * L,
+        v,
+        box_mesh.dim,
+    )
     assert rel_error(simu.displacement, u.ravel()) < 1e-10
 
 
@@ -96,7 +108,13 @@ CHANGES = {
 def test_a_model_change_flags_the_simulation_for_reassembly(change):
     domain = Domain((0, 0), (1, 1))
     mesh = domain.Mesh_2D()
-    pfm = Models.PhaseField(Models.Elastic.Isotropic(2), "He", "AT1", 1, 0.01)
+    pfm = Models.PhaseField(
+        Models.Elastic.Isotropic(2),
+        "He",
+        "AT1",
+        1,
+        0.01,
+    )
     simu = Simulations.PhaseField(mesh, pfm)
     simu.Get_K_C_M_F("elastic")
     assert simu.needUpdate, "clean only once both problems are assembled"
@@ -110,21 +128,26 @@ def test_a_model_change_flags_the_simulation_for_reassembly(change):
 
 def test_each_group_keeps_its_history_after_unloading():
     """On a mixed QUAD4 + TRI3 mesh."""
-    domain = Domain((0, 0), (120, 13), 13 / 2)
+    length, height = 120.0, 13.0
+    domain = Domain((0, 0), (length, height), height / 2)
     mesh = domain.Mesh_2D([], ElemType.QUAD4)
     assert len(mesh.Get_list_groupElem()) == 2
-
     material = Models.Elastic.Isotropic(2, E=210000, v=0.3)
-    pfm = Models.PhaseField(material, "Miehe", "AT2", 2700, 13)
+    pfm = Models.PhaseField(
+        material,
+        "Miehe",
+        "AT2",
+        2700,
+        height,
+    )
     simu = Simulations.PhaseField(mesh, pfm)
-
-    nodes_0 = mesh.Nodes_Conditions(lambda x, y, z: x == 0)
-    nodes_a = mesh.Nodes_Conditions(lambda x, y, z: x == 120)
+    nodesClamped = mesh.Nodes_Conditions(lambda x, y, z: x == 0)
+    nodesPulled = mesh.Nodes_Conditions(lambda x, y, z: x == length)
 
     def load(ud: float) -> np.ndarray:
         simu.Bc_Init()
-        simu.add_dirichlet(nodes_0, [0, 0], ["x", "y"])
-        simu.add_dirichlet(nodes_a, [ud], ["x"])
+        simu.add_dirichlet(nodesClamped, [0, 0], ["x", "y"])
+        simu.add_dirichlet(nodesPulled, [ud], ["x"])
         simu.Solve()
         simu.Save_Iter()
         return simu.Result("psiP", nodeValues=False)
@@ -133,14 +156,20 @@ def test_each_group_keeps_its_history_after_unloading():
     unloaded = load(0.0)
 
     assert np.all(loaded > 0)
-    np.testing.assert_allclose(unloaded, loaded)
+    assert rel_error(unloaded, loaded) < 1e-7
 
 
 def test_get_lb_ub_keeps_the_solver():
     domain = Domain((0, 0), (1, 1))
     mesh = domain.Mesh_2D()
     material = Models.Elastic.Isotropic(2)
-    pfm = Models.PhaseField(material, "He", "AT1", 1, 0.1)
+    pfm = Models.PhaseField(
+        material,
+        "He",
+        "AT1",
+        1,
+        0.1,
+    )
     pfm.solver = pfm.SolverType.BoundConstrain
     simu = Simulations.PhaseField(mesh, pfm)
     solver = simu.solver

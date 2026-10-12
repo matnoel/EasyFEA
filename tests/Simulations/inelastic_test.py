@@ -79,7 +79,15 @@ def _pull(simu, mesh: Mesh, u: float = 1.0) -> None:
 
 def _relax(mesh: Mesh, nstep: int, planeStress: bool = True):
     behavior = Maxwell(
-        Isotropic(2, E=E, v=nu, planeStress=planeStress, thickness=H), G, TAU
+        Isotropic(
+            2,
+            E=E,
+            v=nu,
+            planeStress=planeStress,
+            thickness=H,
+        ),
+        G,
+        TAU,
     )
     simu = Simulations.InElastic(mesh, behavior)
     simu.dt = DT
@@ -92,10 +100,26 @@ def _relax(mesh: Mesh, nstep: int, planeStress: bool = True):
 @pytest.mark.parametrize("planeStress", [False, True])
 def test_2d_matches_elastic(mesh2D: Mesh, planeStress: bool):
     simu = Simulations.InElastic(
-        mesh2D, Linear(Isotropic(2, E=E, v=nu, planeStress=planeStress, thickness=H))
+        mesh2D,
+        Linear(
+            Isotropic(
+                2,
+                E=E,
+                v=nu,
+                planeStress=planeStress,
+                thickness=H,
+            )
+        ),
     )
     ref = Simulations.Elastic(
-        mesh2D, Isotropic(2, E=E, v=nu, planeStress=planeStress, thickness=H)
+        mesh2D,
+        Isotropic(
+            2,
+            E=E,
+            v=nu,
+            planeStress=planeStress,
+            thickness=H,
+        ),
     )
     _pull(simu, mesh2D)
     _pull(ref, mesh2D)
@@ -184,7 +208,16 @@ def test_stepping_on_from_a_restored_iteration_reproduces_the_history(mesh2D: Me
 def test_no_internal_variable_saves_none(mesh2D: Mesh):
     """Plane strain, since plane stress keeps eps_zz."""
     simu = Simulations.InElastic(
-        mesh2D, Linear(Isotropic(2, E=E, v=nu, planeStress=False, thickness=H))
+        mesh2D,
+        Linear(
+            Isotropic(
+                2,
+                E=E,
+                v=nu,
+                planeStress=False,
+                thickness=H,
+            )
+        ),
     )
     _pull(simu, mesh2D)
     simu.Save_Iter()
@@ -286,7 +319,16 @@ def test_a_second_solve_under_the_same_load_is_one_more_step(mesh3D: Mesh):
 def test_an_unconverged_solve_commits_nothing(mesh2D: Mesh):
     """On the clamped plate: the uniaxial bar converges in one iteration whatever the load."""
     simu = Simulations.InElastic(
-        mesh2D, _plastic(Isotropic(2, E=E, v=nu, planeStress=False, thickness=H))
+        mesh2D,
+        _plastic(
+            Isotropic(
+                2,
+                E=E,
+                v=nu,
+                planeStress=False,
+                thickness=H,
+            )
+        ),
     )
     _pull(simu, mesh2D, 0.5)
     p = simu.Result("p", nodeValues=False)
@@ -307,7 +349,16 @@ def test_internal_variables_do_not_follow_a_mesh_change(
     mesh2D: Mesh, size: float, elemType: ElemType
 ):
     simu = Simulations.InElastic(
-        mesh2D, _plastic(Isotropic(2, E=E, v=nu, planeStress=False, thickness=H))
+        mesh2D,
+        _plastic(
+            Isotropic(
+                2,
+                E=E,
+                v=nu,
+                planeStress=False,
+                thickness=H,
+            )
+        ),
     )
     _pull(simu, mesh2D)
     newMesh = Domain(Point(0, 0), Point(L, H), size).Mesh_2D([], elemType)
@@ -319,7 +370,16 @@ def test_internal_variables_do_not_follow_a_mesh_change(
 
 def test_internal_variables_follow_the_same_mesh(mesh2D: Mesh):
     simu = Simulations.InElastic(
-        mesh2D, _plastic(Isotropic(2, E=E, v=nu, planeStress=False, thickness=H))
+        mesh2D,
+        _plastic(
+            Isotropic(
+                2,
+                E=E,
+                v=nu,
+                planeStress=False,
+                thickness=H,
+            )
+        ),
     )
     _pull(simu, mesh2D, 0.5)
     p = simu.Result("p", nodeValues=False)
@@ -334,7 +394,15 @@ def test_every_assembly_integrates_from_the_last_committed_state(
     mesh2D: Mesh, monkeypatch
 ):
     """The internal state z handed to the behavior is the one the last Solve committed, never a Newton iterate's."""
-    behavior = _plastic(Isotropic(2, E=E, v=nu, planeStress=False, thickness=H))
+    behavior = _plastic(
+        Isotropic(
+            2,
+            E=E,
+            v=nu,
+            planeStress=False,
+            thickness=H,
+        )
+    )
     simu = Simulations.InElastic(mesh2D, behavior)
     nGroups = len(mesh2D.Get_list_groupElem(2))
 
@@ -373,7 +441,16 @@ def test_every_assembly_integrates_from_the_last_committed_state(
 def test_plane_stress_plastic_plate_matches_a_material_point(mesh2D: Mesh):
     """Uniaxial stress, sigma_zz held at zero by the eps_zz solve."""
     simu = Simulations.InElastic(
-        mesh2D, _plastic(Isotropic(2, E=E, v=nu, planeStress=True, thickness=H))
+        mesh2D,
+        _plastic(
+            Isotropic(
+                2,
+                E=E,
+                v=nu,
+                planeStress=True,
+                thickness=H,
+            )
+        ),
     )
     path = np.linspace(1, 5, 5) * SIGMA_Y / E
     sxx, p = [], []
@@ -410,7 +487,15 @@ class ThermoElastic(_Behavior):
 def _thermo(mesh: Mesh, planeStress: bool = False):
     return Simulations.InElastic(
         mesh,
-        ThermoElastic(Isotropic(2, E=E, v=nu, planeStress=planeStress, thickness=H)),
+        ThermoElastic(
+            Isotropic(
+                2,
+                E=E,
+                v=nu,
+                planeStress=planeStress,
+                thickness=H,
+            )
+        ),
     )
 
 

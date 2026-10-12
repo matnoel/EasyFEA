@@ -29,7 +29,13 @@ def test_bar_in_tension_is_solved_exactly(box_mesh: Mesh):
     simu = _pulled_bar(box_mesh)
     L = box_mesh.coord[:, 0].max()
 
-    expected = _reference.bar_displacement(box_mesh.coord, L, UD, v, box_mesh.dim)
+    expected = _reference.bar_displacement(
+        box_mesh.coord,
+        L,
+        UD,
+        v,
+        box_mesh.dim,
+    )
     assert rel_error(simu.displacement, expected.ravel()) < 1e-10
     Sxx = simu.Result("Sxx", nodeValues=False)
     assert rel_error(Sxx, _reference.bar_stress(E, L, UD)) < 1e-10
@@ -60,7 +66,14 @@ def _isotropic() -> Models.Elastic.Isotropic:
 
 
 def _transversely_isotropic() -> Models.Elastic.TransverselyIsotropic:
-    return Models.Elastic.TransverselyIsotropic(2, El=10, Et=10, Gl=10, vl=0.1, vt=0.1)
+    return Models.Elastic.TransverselyIsotropic(
+        2,
+        El=10,
+        Et=10,
+        Gl=10,
+        vl=0.1,
+        vt=0.1,
+    )
 
 
 def _anisotropic() -> Models.Elastic.Anisotropic:
