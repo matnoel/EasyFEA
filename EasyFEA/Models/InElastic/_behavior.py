@@ -433,16 +433,49 @@ class _Behavior(_IModel, _IObserver):
 # ----------------------------------------------
 
 
+class PointUpdate(NamedTuple):
+    """What :meth:`MaterialPoint.Update` returns, in the model dimension."""
+
+    stress: np.ndarray
+    tangent: np.ndarray
+    internals: dict[str, np.ndarray]
+
+
 class MaterialPoint:
-    """Runs a 3D :class:`_Behavior` at one point: each component is strain-driven by its history, or stress-driven to a target (zero by default) by a Newton on the free strains."""
+    """Drives a :class:`_Behavior` at one point: one strain-driven :meth:`Update`, or a 3D :meth:`Run` where each component is strain-driven by its history, or stress-driven to a target (zero by default) by a Newton on the free strains."""
 
     _tol: float = 1e-9
     _maxIter: int = 50
 
     def __init__(self, behavior: _Behavior):
         assert isinstance(behavior, _Behavior), "behavior must be a _Behavior"
-        assert behavior.dim == 3, "a material point runs the 3D behavior"
         self.behavior = behavior
+
+    def Update(
+        self,
+        strain: np.ndarray,
+        internals: dict[str, np.ndarray] | None = None,
+        dt: float = 0.0,
+        **external,
+    ) -> PointUpdate:
+        """Stress, consistent tangent and new internals at the Kelvin-Mandel ``strain``, from ``internals`` at the last converged step (virgin by default)."""
+        strain = np.asarray(strain, dtype=float)
+        size = len(_kelvin_mandel.IDX[self.behavior.dim])
+        assert strain.shape == (size,), f"strain must be ({size},), got {strain.shape}"
+        z_e_pg = None
+        if internals is not None:
+            z_e_pg = {
+                name: FeArray.asfearray(np.asarray(v, dtype=float)[None, None])
+                for name, v in internals.items()
+            }
+        sig, C_alg, z = self.behavior._Integrate(
+            strain[None, None], z_e_pg, dt, **external
+        )
+        return PointUpdate(
+            np.asarray(sig)[0, 0],
+            np.asarray(C_alg)[0, 0],
+            {name: np.asarray(v)[0, 0] for name, v in z.items()},
+        )
 
     def Run(
         self,
@@ -452,6 +485,7 @@ class MaterialPoint:
         external: dict[str, np.ndarray] | None = None,
     ) -> dict[str, np.ndarray]:
         """``strain`` and ``stress`` as ``(nstep, 6)``, plus one ``(nstep, ...)`` entry per internal variable; each ``external`` is ``(nstep,)``."""
+        assert self.behavior.dim == 3, "a material point runs the 3D behavior"
         assert strain, "at least one component must be strain-controlled"
         driven = {
             _kelvin_mandel.INDEX[k]: np.asarray(v, dtype=float)
@@ -468,7 +502,7 @@ class MaterialPoint:
         external = {k: np.asarray(v, dtype=float) for k, v in (external or {}).items()}
 
         eps = np.zeros(6)
-        z = self.behavior.Virgin_internals_e_pg(1, 1)
+        z = None
         strains, stresses, states = [], [], []
         for k in range(len(next(iter(driven.values())))):
             for i, path in driven.items():
@@ -477,11 +511,7 @@ class MaterialPoint:
             external_k = {name: v[k] for name, v in external.items()}
 
             for _ in range(self._maxIter):
-                sig_e_pg, C_e_pg, zNew = self.behavior._Integrate(
-                    eps[None, None], z, dt, **external_k
-                )
-                # one point, read back as plain vectors
-                sig, C_alg = np.asarray(sig_e_pg)[0, 0], np.asarray(C_e_pg)[0, 0]
+                sig, C_alg, zNew = self.Update(eps, z, dt, **external_k)
                 r = sig[free] - target
                 if not free or np.max(np.abs(r)) < self._tol:
                     break
@@ -492,9 +522,9 @@ class MaterialPoint:
             z = zNew
             strains.append(eps.copy())
             stresses.append(sig)
-            states.append({name: np.asarray(v)[0, 0] for name, v in z.items()})
+            states.append(z)
 
         out = {"strain": np.array(strains), "stress": np.array(stresses)}
-        for name in z:
+        for name in states[0]:
             out[name] = np.array([state[name] for state in states])
         return out

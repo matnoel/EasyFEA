@@ -304,6 +304,40 @@ def test_behavior_survives_a_pickle_round_trip():
 # ----------------------------------------------
 
 
+def test_material_point_update_gives_plain_arrays_at_one_point():
+    stress, tangent, internals = MaterialPoint(Damage(_elastic())).Update(EPS)
+
+    assert np.allclose(stress, 0.9 * C @ EPS) and np.allclose(tangent, 0.9 * C)
+    assert not isinstance(stress, FeArray) and stress.shape == (6,)
+    assert np.allclose(internals["eps_old"], EPS) and internals["d"] == 0.1
+
+
+def test_material_point_update_continues_from_the_given_internals():
+    point = MaterialPoint(Damage(_elastic()))
+    internals = point.Update(EPS).internals
+
+    assert np.isclose(point.Update(EPS, internals).internals["d"], 0.2)
+
+
+@pytest.mark.parametrize("planeStress", [False, True])
+def test_material_point_update_runs_a_2d_behavior(planeStress: bool):
+    eps = EPS[[0, 1, 5]]
+    update = MaterialPoint(Linear(_elastic(2, planeStress=planeStress))).Update(eps)
+
+    ref = Isotropic(2, E=E, v=nu, planeStress=planeStress).C
+    assert np.allclose(update.stress, ref @ eps) and np.allclose(update.tangent, ref)
+
+
+def test_material_point_update_refuses_a_strain_of_the_wrong_size():
+    with pytest.raises(AssertionError, match="strain"):
+        MaterialPoint(Linear(_elastic(2))).Update(EPS)
+
+
+def test_material_point_run_stays_3d():
+    with pytest.raises(AssertionError, match="3D"):
+        MaterialPoint(Linear(_elastic(2))).Run(strain={"xx": np.zeros(1)})
+
+
 def test_material_point_solves_uniaxial_stress():
     """eps_xx driven, everything else free: sig_xx = E eps_xx and the lateral strain is -nu eps_xx."""
     res = MaterialPoint(Linear(_elastic())).Run(strain={"xx": np.array([1e-3, 2e-3])})
