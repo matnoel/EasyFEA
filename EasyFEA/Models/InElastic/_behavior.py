@@ -525,6 +525,7 @@ class MaterialPoint:
             states.append(z)
 
         out = {"strain": np.array(strains), "stress": np.array(stresses)}
-        for name in states[0]:
+        names = self.behavior.Virgin_internals_e_pg(1, 1) if z is None else z
+        for name in names:
             out[name] = np.array([state[name] for state in states])
         return out

@@ -11,16 +11,14 @@ import pytest
 from EasyFEA import ElemType
 from EasyFEA.FEM import Kinematics
 from EasyFEA.Geoms import Domain
-from EasyFEA.Models.InElastic import MaterialPoint
-from EasyFEA.Models.InElastic._behavior import PointUpdate
-
-from _numerics import rel_error
+from EasyFEA.Models.InElastic import MaterialPoint, PointUpdate
 
 # fully populated and non-symmetric, so no component of ε or F is trivially zero
 GRAD_U = np.array([[0.02, -0.01, 0.03], [0.015, -0.025, 0.01], [-0.02, 0.005, 0.04]])
 
 
 TANGENT_RTOL = 1e-6
+"""Per entry, plus an absolute floor of TANGENT_RTOL·1e-3 of the largest entry for the vanishing ones."""
 
 
 def assert_consistent_tangent(
@@ -42,7 +40,8 @@ def assert_consistent_tangent(
             for d in np.eye(strain.size) * h
         ]
     )
-    assert rel_error(update.tangent, C_fd) < TANGENT_RTOL
+    floor = 1e-3 * TANGENT_RTOL * np.abs(C_fd).max()
+    assert np.allclose(update.tangent, C_fd, rtol=TANGENT_RTOL, atol=floor)
     return update
 
 

@@ -292,7 +292,7 @@ def test_material_point_update_gives_plain_arrays_at_one_point():
 
     assert np.allclose(stress, 0.9 * C @ EPS) and np.allclose(tangent, 0.9 * C)
     assert not isinstance(stress, FeArray) and stress.shape == (6,)
-    assert np.allclose(internals["eps_old"], EPS) and internals["d"] == 0.1
+    assert np.allclose(internals["eps_old"], EPS) and np.isclose(internals["d"], 0.1)
 
 
 def test_material_point_update_continues_from_the_given_internals():

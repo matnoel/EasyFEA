@@ -8,6 +8,7 @@
 from ._behavior import (
     _Behavior,
     MaterialPoint,
+    PointUpdate,
     Newton,
     Trace,
     Deviator,
