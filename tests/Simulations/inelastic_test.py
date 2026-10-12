@@ -24,6 +24,8 @@ from EasyFEA.Models.InElastic import (
 from EasyFEA.Models.InElastic.IsotropicHardening import Linear as LinearHardening
 from EasyFEA.Models.InElastic.Yield import VonMises
 
+from _numerics import rel_error
+
 pytest.importorskip("jax")
 
 L, H = 120.0, 13.0
@@ -73,10 +75,6 @@ def _pull(simu, mesh: Mesh, u: float = 1.0) -> None:
     simu.Solve()
 
 
-def _rel(a, b) -> float:
-    return float(np.linalg.norm(a - b) / np.linalg.norm(b))
-
-
 def _relax(mesh: Mesh, nstep: int, planeStress: bool = True):
     behavior = Maxwell(
         Isotropic(2, E=E, v=nu, planeStress=planeStress, thickness=H), G, TAU
@@ -100,8 +98,8 @@ def test_2d_matches_elastic(mesh2D: Mesh, planeStress: bool):
     _pull(simu, mesh2D)
     _pull(ref, mesh2D)
 
-    assert _rel(simu.displacement, ref.displacement) < 1e-12
-    assert _rel(simu.Result("Svm"), ref.Result("Svm")) < 1e-12
+    assert rel_error(simu.displacement, ref.displacement) < 1e-12
+    assert rel_error(simu.Result("Svm"), ref.Result("Svm")) < 1e-12
 
 
 def test_a_heterogeneous_elastic_model_matches_elastic():
@@ -116,8 +114,8 @@ def test_a_heterogeneous_elastic_model_matches_elastic():
     _pull(simu, mesh)
     _pull(ref, mesh)
 
-    assert _rel(simu.displacement, ref.displacement) < 1e-12
-    assert _rel(simu.Result("Svm"), ref.Result("Svm")) < 1e-12
+    assert rel_error(simu.displacement, ref.displacement) < 1e-12
+    assert rel_error(simu.Result("Svm"), ref.Result("Svm")) < 1e-12
 
 
 def test_3d_matches_elastic(mesh3D: Mesh):
@@ -126,7 +124,7 @@ def test_3d_matches_elastic(mesh3D: Mesh):
     _pull(simu, mesh3D)
     _pull(ref, mesh3D)
 
-    assert _rel(simu.displacement, ref.displacement) < 1e-12
+    assert rel_error(simu.displacement, ref.displacement) < 1e-12
 
 
 @pytest.mark.parametrize("planeStress", [False, True])

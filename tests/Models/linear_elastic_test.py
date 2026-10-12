@@ -17,6 +17,8 @@ from EasyFEA.Models.Elastic._laws import (
 from EasyFEA.FEM import _kelvin_mandel
 from EasyFEA.FEM._kelvin_mandel import Get_Pmat, Apply_Pmat
 
+from _numerics import rel_error
+
 
 def _Rotate_2D(C_voigt2D: np.ndarray, axis1: np.ndarray, axis2: np.ndarray):
     """In-plane rotation of a 2D Voigt C, through its 3D Kelvin–Mandel lift."""
@@ -658,11 +660,6 @@ def _Cases(dims=(2, 3)):
                         )
 
 
-def _Assert_close(actual: np.ndarray, expected: np.ndarray):
-    assert actual.shape == expected.shape
-    assert np.abs(actual - expected).max() <= 1e-12 * np.abs(expected).max()
-
-
 class TestElasticPipeline:
 
     @pytest.mark.parametrize("law, dim, planeStress, axes, E", list(_Cases()))
@@ -674,8 +671,8 @@ class TestElasticPipeline:
         aniso = Anisotropic(dim, material._Get_C_3D() / np.outer(w, w), True)
         aniso.planeStress = material.planeStress
 
-        _Assert_close(aniso.C, material.C)
-        _Assert_close(aniso.S, material.S)
+        assert rel_error(aniso.C, material.C) <= 1e-12
+        assert rel_error(aniso.S, material.S) <= 1e-12
 
     @pytest.mark.parametrize("law, dim, planeStress, axes, E", list(_Cases((2,))))
     def test_2d_law_is_anisotropic_of_its_2d_C(self, law, dim, planeStress, axes, E):
@@ -685,8 +682,8 @@ class TestElasticPipeline:
         w = _kelvin_mandel.Weights(2)
         aniso = Anisotropic(2, material.C / np.outer(w, w), True)
 
-        _Assert_close(aniso.C, material.C)
-        _Assert_close(aniso.S, material.S)
+        assert rel_error(aniso.C, material.C) <= 1e-12
+        assert rel_error(aniso.S, material.S) <= 1e-12
 
     def test_a_C_cannot_be_assigned(self):
         aniso = Anisotropic(3, Isotropic(3).C, False)
@@ -695,9 +692,9 @@ class TestElasticPipeline:
 
     def test_a_6x6_C_takes_plane_stress_in_2d(self):
         aniso = Anisotropic(2, Isotropic(3).C, False)
-        _Assert_close(aniso.C, Isotropic(2, planeStress=False).C)
+        assert rel_error(aniso.C, Isotropic(2, planeStress=False).C) <= 1e-12
         aniso.planeStress = True
-        _Assert_close(aniso.C, Isotropic(2, planeStress=True).C)
+        assert rel_error(aniso.C, Isotropic(2, planeStress=True).C) <= 1e-12
 
     def test_a_3x3_C_is_2d_only(self):
         C = Isotropic(2, planeStress=False).C
@@ -734,20 +731,24 @@ class TestElasticPipeline:
             planeStress=planeStress,
         )
         C = np.broadcast_to(iso.C, ti.C.shape)
-        _Assert_close(ti.C, C)
+        assert rel_error(ti.C, C) <= 1e-12
 
     @pytest.mark.parametrize("law", [TransverselyIsotropic, Orthotropic])
     def test_walpole_sums_to_C_at_every_point(self, law):
         material = _Law(law, 3, False, "(Ne,3)", 1.0)
         ci, Ei = material.Walpole_Decomposition()
         assert Ei.shape == (len(ci), NE, 6, 6)
-        _Assert_close(np.einsum("k,k...->...", ci, Ei), material._Get_C_3D())
+        assert (
+            rel_error(np.einsum("k,k...->...", ci, Ei), material._Get_C_3D()) <= 1e-12
+        )
 
     @pytest.mark.parametrize("law", [TransverselyIsotropic, Orthotropic])
     def test_walpole_with_heterogeneous_moduli(self, law):
         material = _Law(law, 3, False, "none", np.linspace(1, 2, NE))
         ci, Ei = material.Walpole_Decomposition()
-        _Assert_close(np.tensordot(ci, Ei, axes=(0, 0)), material._Get_C_3D())
+        assert (
+            rel_error(np.tensordot(ci, Ei, axes=(0, 0)), material._Get_C_3D()) <= 1e-12
+        )
 
     def test_axes_per_gauss_point(self):
         axis1, axis2 = _Axes("(Ne,3)")
@@ -755,7 +756,7 @@ class TestElasticPipeline:
         axis1_p, axis2_p = [np.repeat(a[:, np.newaxis], nPg, 1) for a in (axis1, axis2)]
         ti = TransverselyIsotropic(3, 11580, 500, 450, 0.02, 0.44, axis1, axis2)
         ti_p = TransverselyIsotropic(3, 11580, 500, 450, 0.02, 0.44, axis1_p, axis2_p)
-        _Assert_close(ti_p.C, np.repeat(ti.C[:, np.newaxis], nPg, 1))
+        assert rel_error(ti_p.C, np.repeat(ti.C[:, np.newaxis], nPg, 1)) <= 1e-12
 
     def test_axes_not_perpendicular_raise(self):
         with pytest.raises(ValueError, match="perpendicular"):
@@ -770,7 +771,7 @@ class TestElasticPipeline:
         )
         ti.C
         ti.axis_l, ti.axis_t = np.array([0.0, 1, 0]), np.array([1.0, 0, 0])
-        _Assert_close(ti.C, ti_r.C)
+        assert rel_error(ti.C, ti_r.C) <= 1e-12
 
     def test_orthotropic_bounds_raise(self):
         material = Orthotropic(3, 1, 100, 1, 1, 1, 1, 0.3, 0.3, 0.3)
@@ -801,7 +802,10 @@ def test_isotropic_C_is_the_closed_form(dim, planeStress, E):
         ref = E0 / (1 - v**2) * np.array([[1, v, 0], [v, 1, 0], [0, 0, 1 - v]])
     else:
         ref = np.array([[l3 + 2 * mu, l3, 0], [l3, l3 + 2 * mu, 0], [0, 0, 2 * mu]])
-    _Assert_close(
-        Isotropic(dim, E, v, planeStress).C,
-        np.broadcast_to(ref, (*np.shape(E), *ref.shape)),
+    assert (
+        rel_error(
+            Isotropic(dim, E, v, planeStress).C,
+            np.broadcast_to(ref, (*np.shape(E), *ref.shape)),
+        )
+        <= 1e-12
     )

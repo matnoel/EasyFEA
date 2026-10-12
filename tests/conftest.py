@@ -61,6 +61,36 @@ def make_mesh_3D() -> MakeMesh3D:
     return _make_mesh_3D
 
 
+@pytest.fixture(params=ElemType.Get_2D() + ElemType.Get_3D(), ids=str)
+def elemType(request) -> ElemType:
+    """Every 2D and 3D element type, so `dim` follows from it."""
+    return request.param
+
+
+@pytest.fixture
+def box_mesh(elemType: ElemType) -> Mesh:
+    """Organised L×H rectangle or L×H×B box (z in [-B, 0]) of `elemType`."""
+    if elemType in ElemType.Get_2D():
+        return _make_mesh_2D(elemType=elemType, isOrganised=True)
+    return _make_mesh_3D(elemType=elemType, isOrganised=True)
+
+
+@pytest.fixture(scope="session")
+def all_elemType_meshes() -> list[Mesh]:
+    """One organised mesh per 1D, 2D and 3D element type."""
+    line = Line(Point(), Point(1, 0), H / 3)
+    meshes = [line.Mesh_1D(elemType) for elemType in ElemType.Get_1D()]
+    meshes += [
+        _make_mesh_2D(elemType=elemType, isOrganised=True)
+        for elemType in ElemType.Get_2D()
+    ]
+    meshes += [
+        _make_mesh_3D(elemType=elemType, B=L, isOrganised=True)
+        for elemType in ElemType.Get_3D()
+    ]
+    return meshes
+
+
 @pytest.fixture(scope="session")
 def cracked_meshes_2D() -> list[Mesh]:
     """One mesh per 2D element type for each geometry variant: plain, organised, hollow-circle inclusion, filled-circle inclusion, closed crack, open crack."""

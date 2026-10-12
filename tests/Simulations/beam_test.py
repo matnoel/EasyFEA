@@ -11,6 +11,15 @@ import pytest
 from EasyFEA import Matplotlib, Models, Simulations, Mesher, ElemType
 from EasyFEA.Geoms import Domain, Point, Line
 
+from ._reference import (
+    cantilever_tip,
+    cantilever_distributed,
+    fixed_fixed,
+    rect_Iz,
+    simply_supported,
+    simply_supported_distributed,
+)
+
 TOL = (
     1e-7  # Single tolerance for all quantities (uy, rz, Mz_gp, Ty, N, ...).
     # The bottleneck is floating-point accumulation in high-degree shape function evaluation,
@@ -32,109 +41,6 @@ def _close_plots():
 
 def _rect_section(mesher: Mesher, b: float, h: float):
     return mesher.Mesh_2D(Domain(Point(-b / 2, -h / 2), Point(b / 2, h / 2)))
-
-
-def _fixed_fixed_analytical(a: float, L: float, F: float, E: float, Iz: float):
-    """Fixed-fixed beam with point force F at x=a (Macaulay formulation).
-
-    Returns callables uy_x, Mz_x, Ty_x and support reactions Ra, Rb.
-    Sign convention: F negative = downward; Mz positive = sagging.
-    """
-    b = L - a
-    Ra = -F * b**2 * (3 * a + b) / L**3  # upward reaction at x=0
-    Rb = -F * a**2 * (a + 3 * b) / L**3  # upward reaction at x=L
-    Ma = F * a * b**2 / L**2  # fixed-end moment at x=0
-
-    def uy_x(x):
-        x = np.asarray(x, dtype=float)
-        macaulay = np.where(x > a, (x - a) ** 3 / 6, 0.0)
-        return (Ma / 2 * x**2 + Ra / 6 * x**3 + F * macaulay) / (E * Iz)
-
-    def Mz_x(x):
-        x = np.asarray(x, dtype=float)
-        return np.where(x <= a, Ma + Ra * x, Ma + Ra * x + F * (x - a))
-
-    def Ty_x(x):
-        x = np.asarray(x, dtype=float)
-        return np.where(x < a, -Ra, Rb)
-
-    return uy_x, Mz_x, Ty_x, Ra, Rb
-
-
-def _simply_supported_analytical(a: float, L: float, F: float, E: float, Iz: float):
-    """Simply supported beam (pinned at x=0, roller at x=L) with point force F at x=a.
-
-    Returns callables uy_x, Mz_x, Ty_x and support reactions Ra, Rb.
-    Sign convention: F negative = downward; Mz positive = sagging.
-    """
-    Ra = -F * (L - a) / L  # upward reaction at x=0
-    Rb = -F * a / L  # upward reaction at x=L
-    # EI·uy = Ra·x³/6 + F·⟨x-a⟩³/6 + C1·x  (no fixed-end moment)
-    # C1 from uy(L) = 0:
-    C1 = -(Ra * L**2 / 6 + F * (L - a) ** 3 / (6 * L))
-
-    def uy_x(x):
-        x = np.asarray(x, dtype=float)
-        macaulay = np.where(x > a, (x - a) ** 3 / 6, 0.0)
-        return (Ra / 6 * x**3 + F * macaulay + C1 * x) / (E * Iz)
-
-    def Mz_x(x):
-        x = np.asarray(x, dtype=float)
-        return np.where(x <= a, Ra * x, Ra * x + F * (x - a))
-
-    def Ty_x(x):
-        x = np.asarray(x, dtype=float)
-        return np.where(x < a, -Ra, Rb)
-
-    return uy_x, Mz_x, Ty_x, Ra, Rb
-
-
-def _cantilever_distrib_analytical(L: float, q: float, E: float, Iz: float):
-    """Cantilever (clamped at x=0, free at x=L) with uniform distributed load q in y.
-
-    Returns callables uy_x, rz_x, Mz_x, Ty_x.
-    Sign convention: q negative = downward; Mz positive = sagging.
-    """
-
-    def uy_x(x):
-        x = np.asarray(x, dtype=float)
-        return q * x**2 * (6 * L**2 - 4 * L * x + x**2) / (24 * E * Iz)
-
-    def rz_x(x):
-        x = np.asarray(x, dtype=float)
-        return q * (x**3 / 6 - L * x**2 / 2 + L**2 * x / 2) / (E * Iz)
-
-    def Mz_x(x):
-        x = np.asarray(x, dtype=float)
-        return q * (x - L) ** 2 / 2
-
-    def Ty_x(x):
-        x = np.asarray(x, dtype=float)
-        return q * (L - x)
-
-    return uy_x, rz_x, Mz_x, Ty_x
-
-
-def _simply_supported_distrib_analytical(L: float, q: float, E: float, Iz: float):
-    """Simply supported beam with uniform distributed load q in y.
-
-    Returns callables uy_x, Mz_x, Ty_x.
-    Sign convention: q negative = downward; Mz positive = sagging.
-    """
-
-    def uy_x(x):
-        x = np.asarray(x, dtype=float)
-        return q * x * (L**3 - 2 * L * x**2 + x**3) / (24 * E * Iz)
-
-    def Mz_x(x):
-        x = np.asarray(x, dtype=float)
-        return q * x * (x - L) / 2
-
-    def Ty_x(x):
-        x = np.asarray(x, dtype=float)
-        return q * (L / 2 - x)
-
-    return uy_x, Mz_x, Ty_x
 
 
 # -------------------------------------------------------
@@ -207,7 +113,7 @@ def test_cantilever_tip(elemType: str, beamDim: int):
     b, h = 13.0, 13.0
     E, v = 210000.0, 0.3
     F = -800.0  # tip force in y (negative = downward)
-    Iz = b * h**3 / 12
+    Iz = rect_Iz(b, h)
 
     mesher = Mesher()
     section = _rect_section(mesher, b, h)
@@ -234,21 +140,17 @@ def test_cantilever_tip(elemType: str, beamDim: int):
     x_e = x_n[mesh.connect].mean(1)
 
     # uy
-    uy_x = (
-        lambda x: F * (L * np.asarray(x) ** 2 / 2 - np.asarray(x) ** 3 / 6) / (E * Iz)
-    )
+    uy_x, rz_x, Mz_x, _ = cantilever_tip(L, F, E * Iz)
     uy_fe = simu.Result("uy", nodeValues=True)
     err_uy = np.abs(uy_x(x_n) - uy_fe).max() / np.abs(uy_x(L))
     assert err_uy <= TOL, f"uy error {err_uy:.2e}"
 
     # rz
-    rz_x = lambda x: F / (E * Iz) * (L * np.asarray(x) - np.asarray(x) ** 2 / 2)
     rz_fe = simu.Result("rz", nodeValues=True)
     err_rz = np.abs(rz_x(x_n) - rz_fe).max() / np.abs(rz_x(L))
     assert err_rz <= TOL, f"rz error {err_rz:.2e}"
 
     # Mz: exact Mz is piecewise linear — element means are exact up to TOL
-    Mz_x = lambda x: F * (L - np.asarray(x))
     Mz_fe = simu.Result("Mz", nodeValues=False)  # (Ne,)
     err_Mz = np.abs(Mz_x(x_e) - Mz_fe).max() / np.abs(Mz_x(x_e)).max()
     assert err_Mz <= TOL, f"Mz error {err_Mz:.2e}"
@@ -275,7 +177,7 @@ def test_cantilever_distrib(elemType: str, beamDim: int):
     b, h = 13.0, 13.0
     E, v = 210000.0, 0.3
     q = -10.0  # uniform load in y (negative = downward, N/mm)
-    Iz = b * h**3 / 12
+    Iz = rect_Iz(b, h)
 
     mesher = Mesher()
     section = _rect_section(mesher, b, h)
@@ -297,7 +199,7 @@ def test_cantilever_distrib(elemType: str, beamDim: int):
     x_n = mesh.coord[:, 0]
     x_e = x_n[mesh.connect].mean(1)
 
-    uy_x, rz_x, Mz_x, Ty_x = _cantilever_distrib_analytical(L, q, E, Iz)
+    uy_x, rz_x, Mz_x, Ty_x = cantilever_distributed(L, q, E * Iz)
 
     # uy
     uy_fe = simu.Result("uy", nodeValues=True)
@@ -332,7 +234,7 @@ def test_biencastre(elemType: str, beamDim: int, a_frac: float):
     E, v = 210000.0, 0.3
     F = -800.0  # point force in y (negative = downward)
     a = L * a_frac  # load position
-    Iz = b * h**3 / 12
+    Iz = rect_Iz(b, h)
 
     mesher = Mesher()
     section = _rect_section(mesher, b, h)
@@ -359,7 +261,7 @@ def test_biencastre(elemType: str, beamDim: int, a_frac: float):
     x_n = mesh.coord[:, 0]
     x_e = x_n[mesh.connect].mean(1)
 
-    uy_x, Mz_x, Ty_x, Ra, Rb = _fixed_fixed_analytical(a, L, F, E, Iz)
+    uy_x, _, Mz_x, Ty_x = fixed_fixed(L, a, F, E * Iz)
 
     # uy
     uy_fe = simu.Result("uy", nodeValues=True)
@@ -373,7 +275,7 @@ def test_biencastre(elemType: str, beamDim: int, a_frac: float):
 
     # Ty
     Ty_fe = simu.Result("Ty", nodeValues=False)
-    err_Ty = np.abs(Ty_x(x_e) - Ty_fe).max() / max(Ra, Rb)
+    err_Ty = np.abs(Ty_x(x_e) - Ty_fe).max() / abs(F)
     assert err_Ty <= TOL, f"Ty error {err_Ty:.2e}"
 
 
@@ -391,7 +293,7 @@ def test_simply_supported_tip(elemType: str, beamDim: int, a_frac: float):
     E, v = 210000.0, 0.3
     F = -800.0  # point force in y (negative = downward)
     a = L * a_frac  # load position
-    Iz = b * h**3 / 12
+    Iz = rect_Iz(b, h)
 
     mesher = Mesher()
     section = _rect_section(mesher, b, h)
@@ -420,7 +322,7 @@ def test_simply_supported_tip(elemType: str, beamDim: int, a_frac: float):
     x_n = mesh.coord[:, 0]
     x_e = x_n[mesh.connect].mean(1)
 
-    uy_x, Mz_x, Ty_x, Ra, Rb = _simply_supported_analytical(a, L, F, E, Iz)
+    uy_x, _, Mz_x, Ty_x = simply_supported(L, a, F, E * Iz)
 
     # uy
     uy_fe = simu.Result("uy", nodeValues=True)
@@ -434,7 +336,7 @@ def test_simply_supported_tip(elemType: str, beamDim: int, a_frac: float):
 
     # Ty
     Ty_fe = simu.Result("Ty", nodeValues=False)
-    err_Ty = np.abs(Ty_x(x_e) - Ty_fe).max() / max(Ra, Rb)
+    err_Ty = np.abs(Ty_x(x_e) - Ty_fe).max() / abs(F)
     assert err_Ty <= TOL, f"Ty error {err_Ty:.2e}"
 
     Matplotlib.Plot_BoundaryConditions(simu)
@@ -453,7 +355,7 @@ def test_simply_supported_distrib(elemType: str, beamDim: int):
     b, h = 13.0, 13.0
     E, v = 210000.0, 0.3
     q = -10.0  # uniform load in y (negative = downward, N/mm)
-    Iz = b * h**3 / 12
+    Iz = rect_Iz(b, h)
 
     mesher = Mesher()
     section = _rect_section(mesher, b, h)
@@ -479,7 +381,7 @@ def test_simply_supported_distrib(elemType: str, beamDim: int):
     x_n = mesh.coord[:, 0]
     x_e = x_n[mesh.connect].mean(1)
 
-    uy_x, Mz_x, Ty_x = _simply_supported_distrib_analytical(L, q, E, Iz)
+    uy_x, _, Mz_x, Ty_x = simply_supported_distributed(L, q, E * Iz)
 
     # uy
     uy_fe = simu.Result("uy", nodeValues=True)
@@ -559,7 +461,7 @@ def test_timoshenko_cantilever_tip(elemType: str, beamDim: int):
     b, h = 13.0, 13.0
     E, v = 210000.0, 0.3
     F = -800.0  # tip force in y (negative = downward)
-    Iz = b * h**3 / 12
+    Iz = rect_Iz(b, h)
     A = b * h
     tol = TOLS_TIP[elemType]
 
@@ -628,7 +530,7 @@ def test_timoshenko_cantilever_tip_beam2_example():
     b, h = 13.0, 13.0
     E, v = 210000.0, 0.3
     F = -800.0
-    Iz = b * h**3 / 12
+    Iz = rect_Iz(b, h)
     A = b * h
 
     mesher = Mesher()
@@ -706,7 +608,7 @@ def test_timoshenko_cantilever_distrib(elemType: str, beamDim: int):
     b, h = 13.0, 13.0
     E, v = 210000.0, 0.3
     q = -10.0  # uniform load in y (negative = downward, N/mm)
-    Iz = b * h**3 / 12
+    Iz = rect_Iz(b, h)
     A = b * h
     tol = TOLS_DISTRIB[elemType]
 
@@ -731,7 +633,7 @@ def test_timoshenko_cantilever_distrib(elemType: str, beamDim: int):
     x_n = mesh.coord[:, 0]
     x_e = x_n[mesh.connect].mean(1)
 
-    uy_EB_x, rz_x, Mz_x, Ty_x = _cantilever_distrib_analytical(L, q, E, Iz)
+    uy_EB_x, rz_x, Mz_x, Ty_x = cantilever_distributed(L, q, E * Iz)
 
     # uy: EB bending + shear term q·x·(2L-x)/(2·kGA)
     uy_x = lambda x: uy_EB_x(x) + q * np.asarray(x) * (2 * L - np.asarray(x)) / (
@@ -772,7 +674,7 @@ def test_timoshenko_simply_supported(elemType: str, beamDim: int):
     b, h = 13.0, 13.0
     E, v = 210000.0, 0.3
     q = -10.0  # uniform load in y (negative = downward, N/mm)
-    Iz = b * h**3 / 12
+    Iz = rect_Iz(b, h)
     A = b * h
     tol = TOLS_DISTRIB[elemType]
 
@@ -805,7 +707,7 @@ def test_timoshenko_simply_supported(elemType: str, beamDim: int):
     x_n = mesh.coord[:, 0]
     x_e = x_n[mesh.connect].mean(1)
 
-    uy_EB_x, Mz_x, Ty_x = _simply_supported_distrib_analytical(L, q, E, Iz)
+    uy_EB_x, _, Mz_x, Ty_x = simply_supported_distributed(L, q, E * Iz)
 
     # uy: EB bending + shear term q·x·(L-x)/(2·kGA)
     uy_x = lambda x: uy_EB_x(x) + q * np.asarray(x) * (L - np.asarray(x)) / (2 * kGA)
@@ -963,7 +865,7 @@ def test_L_frame(elemType: str, useTimoshenko: bool):
     E, v = 210e9, 0.3
     F = 1000.0
     A = b * h
-    Iz = b * h**3 / 12
+    Iz = rect_Iz(b, h)
 
     mesher = Mesher()
     section = _rect_section(mesher, b, h)

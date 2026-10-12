@@ -14,13 +14,11 @@ from EasyFEA.FEM._linalg import FeArray
 from EasyFEA import ElemType, Mesh, Models, Simulations
 from EasyFEA.Geoms import Points, Circle, Point, Domain
 
+from _numerics import rel_error
+
 L = 2
 H = 1
 B = 1
-
-
-def equal(val1, val2, tol=1e-11):
-    assert np.abs(val1 - val2) / np.abs(val2) < tol
 
 
 def __move_meshes(list_mesh: list[Mesh]):
@@ -187,7 +185,7 @@ class TestMesh:
                 contour.Mesh_2D([], elemType, isOrganised=isOrganised)
             )
             # 1D normals point inward on a counterclockwise contour
-            equal(-_Get_enclosed_measure(mesh), mesh.area, 1e-13)
+            assert rel_error(-_Get_enclosed_measure(mesh), mesh.area) < 1e-13
 
     @pytest.mark.parametrize("elemType", ElemType.Get_3D())
     @pytest.mark.parametrize("isOrganised", [True, False])
@@ -201,7 +199,7 @@ class TestMesh:
                     [], extrude, [3], elemType, isOrganised=isOrganised
                 )
             )
-            equal(_Get_enclosed_measure(mesh), mesh.volume, 1e-13)
+            assert rel_error(_Get_enclosed_measure(mesh), mesh.volume) < 1e-13
 
     @pytest.mark.parametrize("elemType", ElemType.Get_3D())
     @pytest.mark.parametrize("extrude", [(0, 0, B), (0, 0, -B)])
@@ -216,7 +214,7 @@ class TestMesh:
                 }
             )
             assert surface.dim == 2
-            equal(_Get_enclosed_measure(surface), mesh.volume, 1e-13)
+            assert rel_error(_Get_enclosed_measure(surface), mesh.volume) < 1e-13
 
     def test_load(self, plain_meshes_3D: list[Mesh]):
 
@@ -317,7 +315,7 @@ class TestMesh:
         stretch(meshRef)
         simuRef = Simulations.Elastic(meshRef, mat)
 
-        equal(solve(mesh, simu), solve(meshRef, simuRef), 1e-12)
+        assert rel_error(solve(mesh, simu), solve(meshRef, simuRef)) < 1e-12
 
 
 def _no_duplicate_coords(mesh: Mesh, atol: float = 1e-12) -> bool:

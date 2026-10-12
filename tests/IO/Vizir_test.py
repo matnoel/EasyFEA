@@ -3,54 +3,21 @@
 # This file is part of the EasyFEA project.
 # EasyFEA is distributed under the terms of the GNU General Public License v3, see LICENSE.txt and CREDITS.md for more information.
 
-from typing import Callable
 
 import pytest
 import numpy as np
 
-from EasyFEA import Mesher, ElemType, Mesh, IO
+from EasyFEA import Mesh, IO
 
 L = 2
 H = 1
 
 
-@pytest.fixture
-def meshes(
-    make_mesh_2D: Callable[..., Mesh], make_mesh_3D: Callable[..., Mesh]
-) -> list[Mesh]:
-
-    meshes: list[Mesh] = []
-
-    # 1d meshes
-    for elemType in ElemType.Get_1D():
-
-        mesher = Mesher()
-        factory = mesher._factory
-
-        p1 = factory.addPoint(0, 0, 0)
-        p2 = factory.addPoint(1, 0, 0)
-        factory.addLine(p1, p2)
-
-        mesher._Mesh_Generate(1, elemType)
-
-        meshes.append(mesher._Mesh_Get_Mesh())
-
-    # 2d meshes
-    for elemType in ElemType.Get_2D():
-        meshes.append(make_mesh_2D(elemType=elemType, isOrganised=True))
-
-    # 3d meshes
-    for elemType in ElemType.Get_3D():
-        meshes.append(make_mesh_3D(elemType=elemType, B=L, isOrganised=True))
-
-    return meshes
-
-
 class TestVizir:
 
-    def test_barycentric_coordinates(self, meshes: list[Mesh]):
+    def test_barycentric_coordinates(self, all_elemType_meshes: list[Mesh]):
 
-        for mesh in meshes:
+        for mesh in all_elemType_meshes:
 
             groupElem = mesh.groupElem
             elemType = groupElem.elemType

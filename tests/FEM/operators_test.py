@@ -18,6 +18,8 @@ from EasyFEA import ElemType, MatrixType, Models
 from EasyFEA.Geoms import Domain
 from EasyFEA.FEM import Operators, FeArray, Kinematics
 
+from _numerics import rel_error
+
 # Every element type, for the two cheap (non-FD) assembly-identity checks below
 # (test_residual_equals_C_times_v, test_discrete_gradient_directionality) — full
 # coverage costs nothing there. The FD-tangent checks use REPR_ELEMS instead.
@@ -95,12 +97,6 @@ def _fd_tangent(force_fn, u, asse, eps=1e-6):
     return K_fd
 
 
-def _assert_matches(K_ana, K_fd, tol=1e-6, msg=""):
-    err = np.abs(K_ana - K_fd).max()
-    scale = np.abs(K_fd).max()
-    assert err / scale < tol, f"{msg}: rel err {err / scale:.2e}"
-
-
 # ----------------------------------------------------------------------------
 # SecondPiolaKirchhoffStressTensor
 # ----------------------------------------------------------------------------
@@ -138,7 +134,7 @@ class TestSecondPiolaKirchhoff:
         kin = Kinematics(ge, u, MatrixType.rigi)
         K_ana, _ = Operators.NonLinear.SecondPiolaKirchhoffStressTensor(mat, kin)
         K_fd = _fd_tangent(self._residual_fn(ge, mat), u, asse)
-        _assert_matches(K_ana, K_fd, msg=elemType.name)
+        assert rel_error(K_ana, K_fd) < 1e-6, elemType.name
 
     @pytest.mark.parametrize("law", LAWS)
     def test_tangent_vs_finite_difference_laws(self, law):
@@ -155,7 +151,7 @@ class TestSecondPiolaKirchhoff:
             kin = Kinematics(ge, u, MatrixType.rigi)
             K_ana, _ = Operators.NonLinear.SecondPiolaKirchhoffStressTensor(mat, kin)
             K_fd = _fd_tangent(self._residual_fn(ge, mat), u, asse)
-            _assert_matches(K_ana, K_fd, msg=f"{law}/{elemType.name}")
+            assert rel_error(K_ana, K_fd) < 1e-6, f"{law}/{elemType.name}"
 
     def test_tangent_is_symmetric(self):
         """A hyperelastic (conservative) tangent without follower loads is symmetric."""
@@ -220,7 +216,7 @@ class TestActiveStress:
         kin = Kinematics(ge, u, MatrixType.rigi)
         Kgeo, _ = Operators.NonLinear.ActiveStressTensor(mat, kin)
         K_fd = _fd_tangent(self._residual_fn(ge, mat), u, asse)
-        _assert_matches(Kgeo, K_fd, msg=elemType.name)
+        assert rel_error(Kgeo, K_fd) < 1e-6, elemType.name
 
     def test_stays_out_of_the_constitutive_stress(self):
         """``Compute_dWde`` must stay ``∂(Compute_W)/∂e``, active stress or not.
@@ -329,7 +325,7 @@ class TestKelvinVoigt:
         kin = Kinematics(ge, u, MatrixType.rigi)
         Kgeo, _, _ = Operators.NonLinear.KelvinVoigtDamping(mat, kin, v)
         K_fd = _fd_tangent(Fvisco, u, asse)
-        _assert_matches(Kgeo, K_fd, msg=elemType.name)
+        assert rel_error(Kgeo, K_fd) < 1e-6, elemType.name
 
     @pytest.mark.parametrize("dim, elemType", ELEMS, ids=ELEM_IDS)
     def test_residual_equals_C_times_v(self, dim, elemType):
@@ -485,7 +481,7 @@ class TestGonzalez:
         )
         K_fd = _fd_tangent(self._residual_fn(ge, mat, u_n), u_np1, asse)
         # operator returns K for coefK = 0.5, so the true Jacobian ∂R/∂u_{n+1} = ½·K
-        _assert_matches(0.5 * K_ana, K_fd, msg=f"{law}/{elemType.name}")
+        assert rel_error(0.5 * K_ana, K_fd) < 1e-6, f"{law}/{elemType.name}"
 
     @pytest.mark.parametrize("dim, elemType", REPR_ELEMS, ids=REPR_ELEM_IDS)
     def test_tangent_vs_finite_difference(self, dim, elemType):

@@ -11,6 +11,8 @@ from EasyFEA.Geoms import Domain, Point
 from EasyFEA.Geoms import Rotate
 from EasyFEA import Matplotlib as Matplotlib
 
+from _numerics import rel_error
+
 
 class TestGmsh:
 
@@ -23,25 +25,17 @@ class TestGmsh:
 
         def testSameMesh(mesh1: Mesh, mesh2: Mesh) -> None:
 
-            testSame(mesh1.dim, mesh2.dim)
-            testSame(mesh1.Nn, mesh2.Nn)
-            testSame(mesh1.Ne, mesh2.Ne)
+            assert mesh1.dim == mesh2.dim
+            assert mesh1.Nn == mesh2.Nn
+            assert mesh1.Ne == mesh2.Ne
 
-            testSame(mesh1.length, mesh2.length)  # same length
-            testSame(mesh1.area, mesh2.area)  # same area
+            assert rel_error(mesh1.length, mesh2.length) <= 1e-12
+            assert rel_error(mesh1.area, mesh2.area) <= 1e-12
             if mesh1.dim == 2:
                 assert mesh1.volume is None
                 assert mesh2.volume is None
             else:
-                testSame(mesh1.volume, mesh2.volume)  # same volume
-
-        def testSame(val1, val2) -> None:
-            """Test if the values are the same"""
-            if isinstance(val1, np.ndarray) and isinstance(val2, np.ndarray):
-                test = np.linalg.norm(val1 - val2) / np.linalg.norm(val2)
-            else:
-                test = np.abs((val1 - val2) / val2)
-            assert test <= 1e-12
+                assert rel_error(mesh1.volume, mesh2.volume) <= 1e-12
 
         for mesh in meshes:
 
@@ -49,20 +43,20 @@ class TestGmsh:
             meshTranslate = mesh.copy()
             dec = np.random.rand(3)
             meshTranslate.Translate(*dec)
-            testSame(meshTranslate.center, mesh.center + dec)  # same center
+            assert rel_error(meshTranslate.center, mesh.center + dec) <= 1e-12
             testSameMesh(meshTranslate, mesh)
 
             # Rotate
             rot = np.random.rand() * 360
             meshRotate = mesh.copy()
-            newCenter = Rotate(mesh.center, rot, mesh.center, (1, 0))
+            newCenter = Rotate(mesh.center, rot, mesh.center, (1, 0))[0]
             meshRotate.Rotate(rot, meshRotate.center, (1, 0))
-            testSame(meshRotate.center, newCenter)  # same center
+            assert rel_error(meshRotate.center, newCenter) <= 1e-12
             testSameMesh(meshRotate, mesh)
             axis = (1, 3, -1)
-            newCenter = Rotate(newCenter, rot, newCenter, axis)
+            newCenter = Rotate(newCenter, rot, newCenter, axis)[0]
             meshRotate.Rotate(rot, meshRotate.center, axis)
-            testSame(meshRotate.center, newCenter)  # same center
+            assert rel_error(meshRotate.center, newCenter) <= 1e-12
             testSameMesh(meshRotate, mesh)
 
     def test_mesh_isOrganised(self):

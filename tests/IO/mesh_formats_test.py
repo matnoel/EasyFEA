@@ -3,42 +3,18 @@
 # This file is part of the EasyFEA project.
 # EasyFEA is distributed under the terms of the GNU General Public License v3, see LICENSE.txt and CREDITS.md for more information.
 
-from typing import Callable
 
 import numpy as np
 import pytest
 
-from EasyFEA import Folder, ElemType, Mesh, IO
-from EasyFEA.Geoms import Line
+from EasyFEA import Folder, Mesh, IO
+
+from _numerics import rel_error
 
 folder_results = Folder.Results_Dir()
 
 L = 2
 H = 1
-
-
-@pytest.fixture
-def meshes(
-    make_mesh_2D: Callable[..., Mesh], make_mesh_3D: Callable[..., Mesh]
-) -> list[Mesh]:
-
-    meshSize = H / 3
-    meshes: list[Mesh] = []
-
-    # 1d meshes
-    line = Line((0, 0), (1, 0), meshSize)
-    for elemType in ElemType.Get_1D():
-        meshes.append(line.Mesh_1D(elemType))
-
-    # 2d meshes
-    for elemType in ElemType.Get_2D():
-        meshes.append(make_mesh_2D(elemType=elemType, isOrganised=True))
-
-    # 3d meshes
-    for elemType in ElemType.Get_3D():
-        meshes.append(make_mesh_3D(elemType=elemType, B=L, isOrganised=True))
-
-    return meshes
 
 
 def check_mesh(mesh1: Mesh, mesh2: Mesh):
@@ -47,16 +23,13 @@ def check_mesh(mesh1: Mesh, mesh2: Mesh):
     assert mesh1.Nn == mesh2.Nn
 
     if mesh1.dim >= 1:
-        diff_length = mesh1.length - mesh2.length
-        assert diff_length < 1e-12
+        assert rel_error(mesh1.length, mesh2.length) < 1e-12
 
     if mesh1.dim >= 2:
-        diff_area = mesh1.area - mesh2.area
-        assert diff_area < 1e-12
+        assert rel_error(mesh1.area, mesh2.area) < 1e-12
 
     if mesh1.dim >= 3:
-        diff_volume = mesh1.volume - mesh2.volume
-        assert diff_volume < 1e-12
+        assert rel_error(mesh1.volume, mesh2.volume) < 1e-12
 
 
 def get_tags(mesh: Mesh) -> list[str]:
@@ -92,9 +65,9 @@ def check_tags(mesh1: Mesh, mesh2: Mesh):
 
 class TestMeshFormats:
 
-    def test_mesh_reconstruction(self, meshes: list[Mesh]):
+    def test_mesh_reconstruction(self, all_elemType_meshes: list[Mesh]):
 
-        for mesh in meshes:
+        for mesh in all_elemType_meshes:
 
             newMesh = IO.PyVista.Surface_reconstruction(mesh)
 
@@ -108,9 +81,9 @@ class TestMeshFormats:
 
             check_mesh(mesh, newMesh)
 
-    def test_easyfea_to_meshio(self, meshes: list[Mesh]):
+    def test_easyfea_to_meshio(self, all_elemType_meshes: list[Mesh]):
 
-        for mesh in meshes:
+        for mesh in all_elemType_meshes:
 
             meshio = IO._meshio._EasyFEA_to_Meshio(mesh)
             newMesh = IO._meshio._Meshio_to_EasyFEA(meshio)
@@ -119,10 +92,12 @@ class TestMeshFormats:
             # named sets carry the tags, so this pair loses nothing
             check_tags(mesh, newMesh)
 
-    def test_easyfea_to_meshio_keeps_a_named_tag(self, meshes: list[Mesh]):
+    def test_easyfea_to_meshio_keeps_a_named_tag(self, all_elemType_meshes: list[Mesh]):
         """A tag that is not P{i}, L{i}, S{i} or V{i} used to raise, its digits being stripped."""
 
-        for mesh in meshes:
+        for mesh in all_elemType_meshes:
+
+            mesh = mesh.copy()  # the meshes are shared across the session
 
             nodes = mesh.Nodes_Conditions(lambda x, y, z: x == 0)
             for groupElem in mesh.dict_groupElem.values():
@@ -133,9 +108,9 @@ class TestMeshFormats:
             assert "endocardium" in get_tags(newMesh)
             check_tags(mesh, newMesh)
 
-    def test_easyfea_to_gmsh(self, meshes: list[Mesh]):
+    def test_easyfea_to_gmsh(self, all_elemType_meshes: list[Mesh]):
 
-        for mesh in meshes:
+        for mesh in all_elemType_meshes:
 
             filename = IO.Gmsh.Save_mesh(mesh, folder_results, mesh.elemType.name)
             newMesh = IO.Gmsh.Load_mesh(filename)
@@ -145,10 +120,12 @@ class TestMeshFormats:
             # single reference gmsh stores per element
             check_tags(mesh, newMesh)
 
-    def test_easyfea_to_gmsh_keeps_a_named_tag(self, meshes: list[Mesh]):
+    def test_easyfea_to_gmsh_keeps_a_named_tag(self, all_elemType_meshes: list[Mesh]):
         """$PhysicalNames carries the name, so it comes back instead of a S{ref} placeholder."""
 
-        for mesh in meshes:
+        for mesh in all_elemType_meshes:
+
+            mesh = mesh.copy()  # the meshes are shared across the session
 
             groupElems = mesh.Get_list_groupElem(max(mesh.dim - 1, 0))
             nodes = mesh.Nodes_Conditions(lambda x, y, z: x == 0)
@@ -200,9 +177,9 @@ class TestMeshFormats:
         with pytest.raises(Exception):
             mesh.groupElem.Set_Tag(mesh.Nodes_Tags("S1"), "bad", np.array([3]))
 
-    def test_easyfea_to_medit(self, meshes: list[Mesh]):
+    def test_easyfea_to_medit(self, all_elemType_meshes: list[Mesh]):
 
-        for mesh in meshes:
+        for mesh in all_elemType_meshes:
 
             if mesh.elemType in ["QUAD8", "HEXA20", "PRISM15"]:
                 continue
@@ -212,9 +189,9 @@ class TestMeshFormats:
 
             check_mesh(mesh, newMesh)
 
-    def test_easyfea_to_pyvista(self, meshes: list[Mesh]):
+    def test_easyfea_to_pyvista(self, all_elemType_meshes: list[Mesh]):
 
-        for mesh in meshes:
+        for mesh in all_elemType_meshes:
 
             if mesh.groupElem.order >= 2:
                 continue
@@ -224,9 +201,9 @@ class TestMeshFormats:
 
             check_mesh(mesh, newMesh)
 
-    def test_easyfea_to_ensight(self, meshes: list[Mesh]):
+    def test_easyfea_to_ensight(self, all_elemType_meshes: list[Mesh]):
 
-        for mesh in meshes:
+        for mesh in all_elemType_meshes:
 
             if mesh.elemType not in IO.Ensight.DICT_ELEMTYPE_TO_ENSIGHT:
                 continue

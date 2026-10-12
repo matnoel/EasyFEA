@@ -6,14 +6,7 @@
 from EasyFEA.FEM import FeArray
 import numpy as np
 
-
-def _check_arrays(array1, array2):
-    if isinstance(array1, FeArray):
-        array1 = np.asarray(array1)
-    if isinstance(array2, FeArray):
-        array2 = np.asarray(array2)
-    norm_diff = np.linalg.norm(array1 - array2)
-    assert norm_diff < 1e-12
+from _numerics import rel_error
 
 
 def _check_ValueError(func):
@@ -52,7 +45,7 @@ def _check_operation(
             excepted = reshaped1 / reshaped2
         else:
             raise Exception("unknown operator")
-        _check_arrays(computed, excepted)
+        assert rel_error(computed, excepted) < 1e-12
     except ValueError:
         if willTriggerError:
             pass
@@ -179,10 +172,18 @@ class TestFeArray:
 
         scalar_e_pg, vector_e_pg, matrix_e_pg, tensor_e_pg = FeArrays()
 
-        _check_arrays(scalar_e_pg.T, scalar_e_pg)
-        _check_arrays(vector_e_pg.T, vector_e_pg)
-        _check_arrays(matrix_e_pg.T, matrix_e_pg.transpose((0, 1, 3, 2)))
-        _check_arrays(tensor_e_pg.T, tensor_e_pg.transpose((0, 1, 5, 4, 3, 2)))
+        assert rel_error(scalar_e_pg.T, scalar_e_pg) < 1e-12
+        assert rel_error(vector_e_pg.T, vector_e_pg) < 1e-12
+        assert (
+            rel_error(matrix_e_pg.T, matrix_e_pg.transpose((0, 1, 3, 2)), scale=1.0)
+            < 1e-12
+        )
+        assert (
+            rel_error(
+                tensor_e_pg.T, tensor_e_pg.transpose((0, 1, 5, 4, 3, 2)), scale=1.0
+            )
+            < 1e-12
+        )
 
     def test_dot(self):
 
@@ -191,51 +192,87 @@ class TestFeArray:
         # Avoid testing scalars, as this holds no significance.
 
         # i i
-        _check_arrays(
-            vector_e_pg.dot(vector_e_pg),
-            np.einsum("...i,...i->...", vector_e_pg, vector_e_pg),
+        assert (
+            rel_error(
+                vector_e_pg.dot(vector_e_pg),
+                np.einsum("...i,...i->...", vector_e_pg, vector_e_pg),
+                scale=1.0,
+            )
+            < 1e-12
         )
         # i ij
-        _check_arrays(
-            vector_e_pg.dot(matrix_e_pg),
-            np.einsum("...i,...ij->...j", vector_e_pg, matrix_e_pg),
+        assert (
+            rel_error(
+                vector_e_pg.dot(matrix_e_pg),
+                np.einsum("...i,...ij->...j", vector_e_pg, matrix_e_pg),
+                scale=1.0,
+            )
+            < 1e-12
         )
         # i ijkl
-        _check_arrays(
-            vector_e_pg.dot(tensor_e_pg),
-            np.einsum("...i,...ijkl->...jkl", vector_e_pg, tensor_e_pg),
+        assert (
+            rel_error(
+                vector_e_pg.dot(tensor_e_pg),
+                np.einsum("...i,...ijkl->...jkl", vector_e_pg, tensor_e_pg),
+                scale=1.0,
+            )
+            < 1e-12
         )
 
         # ij j
-        _check_arrays(
-            matrix_e_pg.T.dot(vector_e_pg),
-            np.einsum("...ji,...j->...i", matrix_e_pg, vector_e_pg),
+        assert (
+            rel_error(
+                matrix_e_pg.T.dot(vector_e_pg),
+                np.einsum("...ji,...j->...i", matrix_e_pg, vector_e_pg),
+                scale=1.0,
+            )
+            < 1e-12
         )
         # ij jk
-        _check_arrays(
-            matrix_e_pg.T.dot(matrix_e_pg),
-            np.einsum("...ji,...jk->...ik", matrix_e_pg, matrix_e_pg),
+        assert (
+            rel_error(
+                matrix_e_pg.T.dot(matrix_e_pg),
+                np.einsum("...ji,...jk->...ik", matrix_e_pg, matrix_e_pg),
+                scale=1.0,
+            )
+            < 1e-12
         )
         # ij jklm
-        _check_arrays(
-            matrix_e_pg.T.dot(tensor_e_pg),
-            np.einsum("...ji,...jklm->...iklm", matrix_e_pg, tensor_e_pg),
+        assert (
+            rel_error(
+                matrix_e_pg.T.dot(tensor_e_pg),
+                np.einsum("...ji,...jklm->...iklm", matrix_e_pg, tensor_e_pg),
+                scale=1.0,
+            )
+            < 1e-12
         )
 
         # ijkl l
-        _check_arrays(
-            tensor_e_pg.dot(vector_e_pg),
-            np.einsum("...ijkl,...l->...ijk", tensor_e_pg, vector_e_pg),
+        assert (
+            rel_error(
+                tensor_e_pg.dot(vector_e_pg),
+                np.einsum("...ijkl,...l->...ijk", tensor_e_pg, vector_e_pg),
+                scale=1.0,
+            )
+            < 1e-12
         )
         # ijkl lm
-        _check_arrays(
-            tensor_e_pg.dot(matrix_e_pg),
-            np.einsum("...ijkl,...lm->...ijkm", tensor_e_pg, matrix_e_pg),
+        assert (
+            rel_error(
+                tensor_e_pg.dot(matrix_e_pg),
+                np.einsum("...ijkl,...lm->...ijkm", tensor_e_pg, matrix_e_pg),
+                scale=1.0,
+            )
+            < 1e-12
         )
         # ijkl lmno
-        _check_arrays(
-            tensor_e_pg.dot(tensor_e_pg),
-            np.einsum("...ijkl,...lmno->...ijkmno", tensor_e_pg, tensor_e_pg),
+        assert (
+            rel_error(
+                tensor_e_pg.dot(tensor_e_pg),
+                np.einsum("...ijkl,...lmno->...ijkmno", tensor_e_pg, tensor_e_pg),
+                scale=1.0,
+            )
+            < 1e-12
         )
 
     def test_matmul(self):
@@ -245,51 +282,87 @@ class TestFeArray:
         # Avoid testing scalars, as this holds no significance.
 
         # i i
-        _check_arrays(
-            vector_e_pg @ vector_e_pg,
-            np.einsum("...i,...i->...", vector_e_pg, vector_e_pg),
+        assert (
+            rel_error(
+                vector_e_pg @ vector_e_pg,
+                np.einsum("...i,...i->...", vector_e_pg, vector_e_pg),
+                scale=1.0,
+            )
+            < 1e-12
         )
         # i ij
-        _check_arrays(
-            vector_e_pg @ matrix_e_pg,
-            np.einsum("...i,...ij->...j", vector_e_pg, matrix_e_pg),
+        assert (
+            rel_error(
+                vector_e_pg @ matrix_e_pg,
+                np.einsum("...i,...ij->...j", vector_e_pg, matrix_e_pg),
+                scale=1.0,
+            )
+            < 1e-12
         )
         # i ijkl
-        _check_arrays(
-            vector_e_pg @ tensor_e_pg,
-            np.einsum("...i,...ijkl->...jkl", vector_e_pg, tensor_e_pg),
+        assert (
+            rel_error(
+                vector_e_pg @ tensor_e_pg,
+                np.einsum("...i,...ijkl->...jkl", vector_e_pg, tensor_e_pg),
+                scale=1.0,
+            )
+            < 1e-12
         )
 
         # ij j
-        _check_arrays(
-            matrix_e_pg.T @ vector_e_pg,
-            np.einsum("...ji,...j->...i", matrix_e_pg, vector_e_pg),
+        assert (
+            rel_error(
+                matrix_e_pg.T @ vector_e_pg,
+                np.einsum("...ji,...j->...i", matrix_e_pg, vector_e_pg),
+                scale=1.0,
+            )
+            < 1e-12
         )
         # ij jk
-        _check_arrays(
-            matrix_e_pg.T @ matrix_e_pg,
-            np.einsum("...ji,...jk->...ik", matrix_e_pg, matrix_e_pg),
+        assert (
+            rel_error(
+                matrix_e_pg.T @ matrix_e_pg,
+                np.einsum("...ji,...jk->...ik", matrix_e_pg, matrix_e_pg),
+                scale=1.0,
+            )
+            < 1e-12
         )
         # ij jklm
-        _check_arrays(
-            matrix_e_pg.T @ tensor_e_pg,
-            np.einsum("...ji,...jklm->...iklm", matrix_e_pg, tensor_e_pg),
+        assert (
+            rel_error(
+                matrix_e_pg.T @ tensor_e_pg,
+                np.einsum("...ji,...jklm->...iklm", matrix_e_pg, tensor_e_pg),
+                scale=1.0,
+            )
+            < 1e-12
         )
 
         # ijkl l
-        _check_arrays(
-            tensor_e_pg @ vector_e_pg,
-            np.einsum("...ijkl,...l->...ijk", tensor_e_pg, vector_e_pg),
+        assert (
+            rel_error(
+                tensor_e_pg @ vector_e_pg,
+                np.einsum("...ijkl,...l->...ijk", tensor_e_pg, vector_e_pg),
+                scale=1.0,
+            )
+            < 1e-12
         )
         # ijkl lm
-        _check_arrays(
-            tensor_e_pg @ matrix_e_pg,
-            np.einsum("...ijkl,...lm->...ijkm", tensor_e_pg, matrix_e_pg),
+        assert (
+            rel_error(
+                tensor_e_pg @ matrix_e_pg,
+                np.einsum("...ijkl,...lm->...ijkm", tensor_e_pg, matrix_e_pg),
+                scale=1.0,
+            )
+            < 1e-12
         )
         # ijkl lmno
-        _check_arrays(
-            tensor_e_pg @ tensor_e_pg,
-            np.einsum("...ijkl,...lmno->...ijkmno", tensor_e_pg, tensor_e_pg),
+        assert (
+            rel_error(
+                tensor_e_pg @ tensor_e_pg,
+                np.einsum("...ijkl,...lmno->...ijkmno", tensor_e_pg, tensor_e_pg),
+                scale=1.0,
+            )
+            < 1e-12
         )
 
     def test_ddot(self):
@@ -308,25 +381,41 @@ class TestFeArray:
         # ij i
         _check_ValueError(lambda: matrix_e_pg.ddot(vector_e_pg))
         # ij ij
-        _check_arrays(
-            matrix_e_pg.ddot(matrix_e_pg),
-            np.einsum("...ij,...ij->...", matrix_e_pg, matrix_e_pg),
+        assert (
+            rel_error(
+                matrix_e_pg.ddot(matrix_e_pg),
+                np.einsum("...ij,...ij->...", matrix_e_pg, matrix_e_pg),
+                scale=1.0,
+            )
+            < 1e-12
         )
         # ij ijkl
-        _check_arrays(
-            matrix_e_pg.ddot(tensor_e_pg),
-            np.einsum("...ij,...ijkl->...kl", matrix_e_pg, tensor_e_pg),
+        assert (
+            rel_error(
+                matrix_e_pg.ddot(tensor_e_pg),
+                np.einsum("...ij,...ijkl->...kl", matrix_e_pg, tensor_e_pg),
+                scale=1.0,
+            )
+            < 1e-12
         )
 
         # ijkl l
         _check_ValueError(lambda: tensor_e_pg.ddot(vector_e_pg))  # wrong dimensions
         # ijkl kl
-        _check_arrays(
-            tensor_e_pg.ddot(matrix_e_pg),
-            np.einsum("...ijkl,...kl->...ij", tensor_e_pg, matrix_e_pg),
+        assert (
+            rel_error(
+                tensor_e_pg.ddot(matrix_e_pg),
+                np.einsum("...ijkl,...kl->...ij", tensor_e_pg, matrix_e_pg),
+                scale=1.0,
+            )
+            < 1e-12
         )
         # ijkl lmno
-        _check_arrays(
-            tensor_e_pg.ddot(tensor_e_pg),
-            np.einsum("...ijkl,...klmn->...ijmn", tensor_e_pg, tensor_e_pg),
+        assert (
+            rel_error(
+                tensor_e_pg.ddot(tensor_e_pg),
+                np.einsum("...ijkl,...klmn->...ijmn", tensor_e_pg, tensor_e_pg),
+                scale=1.0,
+            )
+            < 1e-12
         )

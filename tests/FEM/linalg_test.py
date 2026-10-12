@@ -8,6 +8,8 @@ import numpy as np
 
 from EasyFEA.FEM._linalg import FeArray, Transpose, Trace, Det, Inv, TensorProd, Norm
 
+from _numerics import rel_error
+
 
 @pytest.fixture
 def setup_matrices() -> list[np.ndarray]:
@@ -25,51 +27,42 @@ def setup_matrices() -> list[np.ndarray]:
     return list_Mat
 
 
-def Check(mat: np.ndarray, matVerif: np.ndarray):
-
-    diff = mat - matVerif
-
-    test = np.linalg.norm(diff) / np.linalg.norm(matVerif)
-
-    assert test < 1e-12
-
-
 class TestLinalg:
 
     def test_Tranpose(self, setup_matrices):
 
         mat0, mat1, mat2, mat3, mat4, mat5, mat6 = setup_matrices
 
-        Check(Transpose(mat0), mat0)
-        Check(Transpose(mat1), mat1)
-        Check(Transpose(mat2), mat2)
-        Check(Transpose(mat3), np.transpose(mat3, (0, 1, 3, 2)))
-        Check(Transpose(mat4), np.transpose(mat4, (0, 1, 3, 2)))
-        Check(Transpose(mat5), np.transpose(mat5, (0, 1, 3, 2)))
-        Check(Transpose(mat6), np.transpose(mat6, (0, 1, 2, 4, 3)))
+        assert rel_error(Transpose(mat0), mat0) < 1e-12
+        assert rel_error(Transpose(mat1), mat1) < 1e-12
+        assert rel_error(Transpose(mat2), mat2) < 1e-12
+        assert rel_error(Transpose(mat3), np.transpose(mat3, (0, 1, 3, 2))) < 1e-12
+        assert rel_error(Transpose(mat4), np.transpose(mat4, (0, 1, 3, 2))) < 1e-12
+        assert rel_error(Transpose(mat5), np.transpose(mat5, (0, 1, 3, 2))) < 1e-12
+        assert rel_error(Transpose(mat6), np.transpose(mat6, (0, 1, 2, 4, 3))) < 1e-12
 
     def test_Trace(self, setup_matrices):
 
         _, mat1, mat2, mat3, mat4, mat5, mat6 = setup_matrices
 
-        Check(Trace(mat1), np.trace(mat1, axis1=-2, axis2=-1))
-        Check(Trace(mat2), np.trace(mat2, axis1=-2, axis2=-1))
-        Check(Trace(mat3), np.trace(mat3, axis1=-2, axis2=-1))
-        Check(Trace(mat4), np.trace(mat4, axis1=-2, axis2=-1))
-        Check(Trace(mat5), np.trace(mat5, axis1=-2, axis2=-1))
-        Check(Trace(mat6), np.trace(mat6, axis1=-2, axis2=-1))
+        assert rel_error(Trace(mat1), np.trace(mat1, axis1=-2, axis2=-1)) < 1e-12
+        assert rel_error(Trace(mat2), np.trace(mat2, axis1=-2, axis2=-1)) < 1e-12
+        assert rel_error(Trace(mat3), np.trace(mat3, axis1=-2, axis2=-1)) < 1e-12
+        assert rel_error(Trace(mat4), np.trace(mat4, axis1=-2, axis2=-1)) < 1e-12
+        assert rel_error(Trace(mat5), np.trace(mat5, axis1=-2, axis2=-1)) < 1e-12
+        assert rel_error(Trace(mat6), np.trace(mat6, axis1=-2, axis2=-1)) < 1e-12
 
     def test_Det(self, setup_matrices):
 
         mat0, mat1, mat2, mat3, mat4, mat5, mat6 = setup_matrices
 
-        Check(Det(mat0), mat0[0, 0])
-        Check(Det(mat1), np.linalg.det(mat1))
-        Check(Det(mat2), np.linalg.det(mat2))
-        Check(Det(mat3), np.linalg.det(mat3))
-        Check(Det(mat4), np.linalg.det(mat4))
-        Check(Det(mat5), np.linalg.det(mat5))
-        Check(Det(mat6), np.linalg.det(mat6))
+        assert rel_error(Det(mat0), mat0[0, 0]) < 1e-12
+        assert rel_error(Det(mat1), np.linalg.det(mat1)) < 1e-12
+        assert rel_error(Det(mat2), np.linalg.det(mat2)) < 1e-12
+        assert rel_error(Det(mat3), np.linalg.det(mat3)) < 1e-12
+        assert rel_error(Det(mat4), np.linalg.det(mat4)) < 1e-12
+        assert rel_error(Det(mat5), np.linalg.det(mat5)) < 1e-12
+        assert rel_error(Det(mat6), np.linalg.det(mat6)) < 1e-12
 
     def test_Inv(self, setup_matrices):
 
@@ -79,11 +72,11 @@ class TestLinalg:
 
         mat4 = np.array([[4, 3, 8], [6, 2, 5], [1, 5, 9]])
 
-        Check(Inv(mat0), 1 / mat0)
-        Check(Inv(mat1), np.linalg.inv(mat1))
-        Check(Inv(mat2), np.linalg.inv(mat2))
-        Check(Inv(mat3), np.linalg.inv(mat3))
-        Check(Inv(mat4), np.linalg.inv(mat4))
+        assert rel_error(Inv(mat0), 1 / mat0) < 1e-12
+        assert rel_error(Inv(mat1), np.linalg.inv(mat1)) < 1e-12
+        assert rel_error(Inv(mat2), np.linalg.inv(mat2)) < 1e-12
+        assert rel_error(Inv(mat3), np.linalg.inv(mat3)) < 1e-12
+        assert rel_error(Inv(mat4), np.linalg.inv(mat4)) < 1e-12
 
 
 def test_a_plain_array_is_always_a_constant_tensor():
@@ -126,9 +119,12 @@ def test_a_field_is_never_re_read_from_a_shape_coincidence():
     assert (scalar * np.ones(N)).shape == (N, N, N)
     assert (scalar * np.ones((N, N))).shape == (N, N, N, N)
     assert (scalar * matrix).shape == (N, N, N, N)
-    Check(
-        np.asarray(scalar * matrix),
-        np.asarray(matrix) * np.asarray(scalar)[..., None, None],
+    assert (
+        rel_error(
+            np.asarray(scalar * matrix),
+            np.asarray(matrix) * np.asarray(scalar)[..., None, None],
+        )
+        < 1e-12
     )
 
 
@@ -142,9 +138,12 @@ def test_field_ranks_pad_and_constants_right_align():
     assert (scalar * 2.0).shape == (N, N)
 
     # value, not just shape: the vector scales each row of the matrix
-    Check(
-        np.asarray(matrix * vector),
-        np.asarray(matrix) * np.asarray(vector)[:, :, None, :],
+    assert (
+        rel_error(
+            np.asarray(matrix * vector),
+            np.asarray(matrix) * np.asarray(vector)[:, :, None, :],
+        )
+        < 1e-12
     )
 
 
@@ -154,9 +153,12 @@ def test_the_rank_rule_holds_even_when_every_dimension_collides():
 
     # a constant (N, N) tensor is shaped exactly like the scalar field and is still a constant
     assert (scalar * np.ones((N, N))).shape == (N, N, N, N)
-    Check(
-        np.asarray(scalar * np.ones((N, N))),
-        np.asarray(scalar)[..., None, None] * np.ones((N, N)),
+    assert (
+        rel_error(
+            np.asarray(scalar * np.ones((N, N))),
+            np.asarray(scalar)[..., None, None] * np.ones((N, N)),
+        )
+        < 1e-12
     )
 
     # and saying "field" gives the elementwise answer instead
@@ -231,7 +233,12 @@ def test_out_and_where_do_not_recurse():
 
     got = np.zeros_like(matrix)
     np.multiply(matrix, scalar, out=got)
-    Check(np.asarray(got), np.asarray(matrix) * np.asarray(scalar)[:, :, None, None])
+    assert (
+        rel_error(
+            np.asarray(got), np.asarray(matrix) * np.asarray(scalar)[:, :, None, None]
+        )
+        < 1e-12
+    )
 
     safe = np.divide(1.0, scalar, out=np.zeros_like(scalar), where=scalar > 0.5)
     assert isinstance(safe, FeArray) and safe.shape == (N, N)
@@ -240,8 +247,11 @@ def test_out_and_where_do_not_recurse():
 def test_reflected_operands_agree():
     scalar, _, matrix = _fields()
 
-    Check(np.asarray(np.eye(N) * matrix), np.asarray(matrix * np.eye(N)))
-    Check(np.asarray(2.0 * scalar), np.asarray(scalar * 2.0))
+    assert (
+        rel_error(np.asarray(np.eye(N) * matrix), np.asarray(matrix * np.eye(N)))
+        < 1e-12
+    )
+    assert rel_error(np.asarray(2.0 * scalar), np.asarray(scalar * 2.0)) < 1e-12
 
 
 def test_an_array_without_fe_axes_cannot_become_one():
@@ -292,9 +302,14 @@ def test_a_plain_matrix_applies_at_every_point(nPg: int):
 
     Ru = R @ u
     assert isinstance(Ru, FeArray) and Ru.shape == (5, nPg, 3)
-    Check(np.asarray(Ru), np.einsum("ij,epj->epi", R, np.asarray(u)))
-    Check(np.asarray(R @ M), np.einsum("ij,epjk->epik", R, np.asarray(M)))
-    Check(np.asarray(u @ R), np.einsum("epi,ij->epj", np.asarray(u), R))
+    assert rel_error(np.asarray(Ru), np.einsum("ij,epj->epi", R, np.asarray(u))) < 1e-12
+    assert (
+        rel_error(np.asarray(R @ M), np.einsum("ij,epjk->epik", R, np.asarray(M)))
+        < 1e-12
+    )
+    assert (
+        rel_error(np.asarray(u @ R), np.einsum("epi,ij->epj", np.asarray(u), R)) < 1e-12
+    )
 
 
 @pytest.mark.parametrize("nPg", [4, 3], ids=["nPg!=n", "nPg==n"])
@@ -305,8 +320,13 @@ def test_tensor_product_with_a_plain_operand(nPg: int):
 
     au = TensorProd(a, u)
     assert isinstance(au, FeArray) and au.shape == (5, nPg, 3, 3)
-    Check(np.asarray(au), np.einsum("i,epj->epij", a, np.asarray(u)))
-    Check(np.asarray(TensorProd(u, a)), np.einsum("epi,j->epij", np.asarray(u), a))
+    assert rel_error(np.asarray(au), np.einsum("i,epj->epij", a, np.asarray(u))) < 1e-12
+    assert (
+        rel_error(
+            np.asarray(TensorProd(u, a)), np.einsum("epi,j->epij", np.asarray(u), a)
+        )
+        < 1e-12
+    )
 
 
 def test_norm_reduces_over_tensor_axes_only():
@@ -316,6 +336,8 @@ def test_norm_reduces_over_tensor_axes_only():
         res = Norm(x)
         assert isinstance(res, FeArray) and res.shape == (5, 4), t
         expected = np.sqrt((np.asarray(x) ** 2).reshape(5, 4, -1).sum(-1))
-        Check(np.asarray(res), expected)
+        assert rel_error(np.asarray(res), expected) < 1e-12
     scalar = FeArray.asfearray(-rng.random((5, 4)))
-    Check(np.asarray(Norm(scalar, ord=2)), np.abs(np.asarray(scalar)))
+    assert (
+        rel_error(np.asarray(Norm(scalar, ord=2)), np.abs(np.asarray(scalar))) < 1e-12
+    )

@@ -24,6 +24,8 @@ from EasyFEA.Models import _autodiff
 from EasyFEA.Models.HyperElastic import HyperElasticPotential
 from EasyFEA.FEM import Kinematics
 
+from _numerics import rel_error
+
 jax = pytest.importorskip("jax")
 jnp = jax.numpy
 
@@ -31,11 +33,6 @@ _autodiff.Enable_x64()
 
 # every comparison below sits between 1e-16 and 1e-14; 1e-12 leaves two orders of margin
 TOL = 1e-12
-
-
-def _rel(a, b) -> float:
-    a, b = np.asarray(a), np.asarray(b)
-    return float(np.linalg.norm(a - b) / np.linalg.norm(b))
 
 
 def _kinematics(dim: int) -> Kinematics:
@@ -194,9 +191,9 @@ def test_potential_derivatives_match_autodiff(law: str, dim: int):
     material = Material(dim)
     W, dWde, d2Wde = HyperElasticPotential(W_point, in_axes)
 
-    assert _rel(W(kinematics, *aux), material.Compute_W(kinematics)) < TOL
-    assert _rel(dWde(kinematics, *aux), material.Compute_dWde(kinematics)) < TOL
-    assert _rel(d2Wde(kinematics, *aux), material.Compute_d2Wde(kinematics)) < TOL
+    assert rel_error(W(kinematics, *aux), material.Compute_W(kinematics)) < TOL
+    assert rel_error(dWde(kinematics, *aux), material.Compute_dWde(kinematics)) < TOL
+    assert rel_error(d2Wde(kinematics, *aux), material.Compute_d2Wde(kinematics)) < TOL
 
 
 def test_holzapfel_ogden_accepts_fibre_fields(kinematics: Kinematics):
@@ -210,13 +207,17 @@ def test_holzapfel_ogden_accepts_fibre_fields(kinematics: Kinematics):
     W, dWde, d2Wde = HyperElasticPotential(_holzapfel_ogden, 0)
     material = Models.HyperElastic.HolzapfelOgden(3, T1=T1_e_pg, T2=T2_e_pg, **HO)
 
-    assert _rel(W(kinematics, T1_e_pg, T2_e_pg), material.Compute_W(kinematics)) < TOL
     assert (
-        _rel(dWde(kinematics, T1_e_pg, T2_e_pg), material.Compute_dWde(kinematics))
+        rel_error(W(kinematics, T1_e_pg, T2_e_pg), material.Compute_W(kinematics)) < TOL
+    )
+    assert (
+        rel_error(dWde(kinematics, T1_e_pg, T2_e_pg), material.Compute_dWde(kinematics))
         < TOL
     )
     assert (
-        _rel(d2Wde(kinematics, T1_e_pg, T2_e_pg), material.Compute_d2Wde(kinematics))
+        rel_error(
+            d2Wde(kinematics, T1_e_pg, T2_e_pg), material.Compute_d2Wde(kinematics)
+        )
         < TOL
     )
 
@@ -233,7 +234,7 @@ def test_kelvin_to_tensor_inverts_the_shipped_projection(kinematics: Kinematics)
         _kelvin_mandel.Matrix_to_Vector(C_e_pg)
     )
 
-    assert _rel(rebuilt, C_e_pg) < TOL
+    assert rel_error(rebuilt, C_e_pg) < TOL
 
 
 def test_kelvin_basis_is_orthonormal():
@@ -241,7 +242,7 @@ def test_kelvin_basis_is_orthonormal():
     basis = _kelvin_mandel.BASIS
     gram = np.einsum("Iij,Jij->IJ", basis, basis)
 
-    assert _rel(gram, np.eye(6)) < TOL
+    assert rel_error(gram, np.eye(6)) < TOL
 
 
 def test_vmap_returns_fearray_fields(kinematics: Kinematics):
@@ -259,7 +260,7 @@ def test_vmap_maps_auxiliary_fields():
     out = _autodiff.Vmap_e_pg(lambda a, b: jnp.dot(a, b))(x, y)
 
     assert out.shape == (4, 3)
-    assert _rel(out, np.sum(x * y, axis=-1)) < TOL
+    assert rel_error(out, np.sum(x * y, axis=-1)) < TOL
 
 
 def test_vmap_shares_unmapped_arguments():
@@ -269,7 +270,7 @@ def test_vmap_shares_unmapped_arguments():
     out = _autodiff.Vmap_e_pg(lambda a, b: jnp.dot(a, b), (0, None))(x, t)
 
     assert out.shape == (4, 3)
-    assert _rel(out, np.sum(x * t, axis=-1)) < TOL
+    assert rel_error(out, np.sum(x * t, axis=-1)) < TOL
 
 
 # ----------------------------------------------
@@ -292,7 +293,7 @@ def test_autodiff_law_solves_like_the_shipped_one():
     autodiff = Models.HyperElastic.AutoDiff(3, _ciarlet_geymonat)
     shipped = Models.HyperElastic.CiarletGeymonat(3, K1=K1, K2=K2, K=K)
 
-    assert _rel(_Solve(autodiff), _Solve(shipped)) < 1e-10
+    assert rel_error(_Solve(autodiff), _Solve(shipped)) < 1e-10
 
 
 def test_autodiff_law_carries_per_gauss_point_fields(kinematics: Kinematics):
@@ -306,12 +307,15 @@ def test_autodiff_law_carries_per_gauss_point_fields(kinematics: Kinematics):
     autodiff = Models.HyperElastic.AutoDiff(3, _holzapfel_ogden, (T1_e_pg, T2_e_pg))
     shipped = Models.HyperElastic.HolzapfelOgden(3, T1=T1_e_pg, T2=T2_e_pg, **HO)
 
-    assert _rel(autodiff.Compute_W(kinematics), shipped.Compute_W(kinematics)) < TOL
     assert (
-        _rel(autodiff.Compute_dWde(kinematics), shipped.Compute_dWde(kinematics)) < TOL
+        rel_error(autodiff.Compute_W(kinematics), shipped.Compute_W(kinematics)) < TOL
     )
     assert (
-        _rel(autodiff.Compute_d2Wde(kinematics), shipped.Compute_d2Wde(kinematics))
+        rel_error(autodiff.Compute_dWde(kinematics), shipped.Compute_dWde(kinematics))
+        < TOL
+    )
+    assert (
+        rel_error(autodiff.Compute_d2Wde(kinematics), shipped.Compute_d2Wde(kinematics))
         < TOL
     )
 
@@ -321,9 +325,14 @@ def test_autodiff_law_survives_a_pickle_round_trip(kinematics: Kinematics):
     law = Models.HyperElastic.AutoDiff(3, _ciarlet_geymonat)
     reloaded = pickle.loads(pickle.dumps(law))
 
-    assert _rel(reloaded.Compute_W(kinematics), law.Compute_W(kinematics)) < TOL
-    assert _rel(reloaded.Compute_dWde(kinematics), law.Compute_dWde(kinematics)) < TOL
-    assert _rel(reloaded.Compute_d2Wde(kinematics), law.Compute_d2Wde(kinematics)) < TOL
+    assert rel_error(reloaded.Compute_W(kinematics), law.Compute_W(kinematics)) < TOL
+    assert (
+        rel_error(reloaded.Compute_dWde(kinematics), law.Compute_dWde(kinematics)) < TOL
+    )
+    assert (
+        rel_error(reloaded.Compute_d2Wde(kinematics), law.Compute_d2Wde(kinematics))
+        < TOL
+    )
 
 
 def test_importing_easyfea_does_not_pull_jax():
