@@ -23,25 +23,12 @@ from _numerics import rel_error
 # Every element type, for the two cheap (non-FD) assembly-identity checks below
 # (test_residual_equals_C_times_v, test_discrete_gradient_directionality) — full
 # coverage costs nothing there. The FD-tangent checks use REPR_ELEMS instead.
-ELEMS = [
-    (2, ElemType.TRI3),
-    (2, ElemType.QUAD4),
-    (2, ElemType.TRI6),
-    (2, ElemType.QUAD8),
-    (3, ElemType.TETRA4),
-    (3, ElemType.TETRA10),
-    (3, ElemType.PRISM6),
-    (3, ElemType.PRISM15),
-    (3, ElemType.PRISM18),
-    (3, ElemType.HEXA8),
-    (3, ElemType.HEXA20),
-    (3, ElemType.HEXA27),
-]
+ELEMS = [(2, e) for e in ElemType.Get_2D()] + [(3, e) for e in ElemType.Get_3D()]
 ELEM_IDS = [e.name for _, e in ELEMS]
 
 # A representative 2D/3D pair for the finite-difference tangent checks: shape
 # functions, Jacobian and dof map are shared plumbing already covered per element
-# type elsewhere (groupElem_test.py::test_shape_fucntion, mesh_test.py's
+# type elsewhere (groupElem_test.py's shape functions, mesh_test.py's
 # area/volume/test_construct_matrix), so an FD check here only needs to prove the
 # operator's own tensor contraction, which has no per-element-type branch.
 REPR_ELEMS = [(2, ElemType.QUAD4), (3, ElemType.HEXA8)]
@@ -97,6 +84,58 @@ def _fd_tangent(force_fn, u, asse, eps=1e-6):
     return K_fd
 
 
+def _pk2_residual(ge, mat):
+    def residual(u_):
+        kin = Kinematics(ge, u_, MatrixType.rigi)
+        _, R = Operators.NonLinear.SecondPiolaKirchhoffStressTensor(mat, kin)
+        return R
+
+    return residual
+
+
+def _active_residual(ge, mat):
+    def residual(u_):
+        kin = Kinematics(ge, u_, MatrixType.rigi)
+        _, R = Operators.NonLinear.ActiveStressTensor(mat, kin)
+        return R
+
+    return residual
+
+
+def _gonzalez_kinematics(ge, u_n, u_np1):
+    return (
+        Kinematics(ge, u_n, MatrixType.rigi),
+        Kinematics(ge, (u_n + u_np1) / 2, MatrixType.rigi),
+        Kinematics(ge, u_np1, MatrixType.rigi),
+    )
+
+
+def _gonzalez_residual(ge, mat, u_n):
+    """``R(u_{n+1})`` with ``u_n`` fixed and ``ū = (u_n+u_{n+1})/2`` — for FD in ``u_{n+1}``."""
+
+    def residual(u_np1_):
+        _, R = Operators.NonLinear.GonzalezStressTensor(
+            mat, *_gonzalez_kinematics(ge, u_n, u_np1_)
+        )
+        return R
+
+    return residual
+
+
+ACTIVE_STRESS = 0.5
+
+
+def _material_with_fibers(dim, ge, tau=ACTIVE_STRESS):
+    """Saint-Venant-Kirchhoff with unit fibers along x and an active stress ``tau``."""
+    mat = _material(dim, "SaintVenantKirchhoff")
+    nPg = ge.Get_N_pg(MatrixType.rigi).shape[0]
+    T = np.zeros((ge.Ne, nPg, 3))
+    T[..., 0] = 1.0  # fibers along x
+    mat.Set_active_stress_vec(FeArray.asfearray(T))
+    mat.active_stress = tau
+    return mat
+
+
 # ----------------------------------------------------------------------------
 # SecondPiolaKirchhoffStressTensor
 # ----------------------------------------------------------------------------
@@ -111,60 +150,38 @@ class TestSecondPiolaKirchhoff:
     invisible to simulation tests; check it directly against finite differences.
     """
 
-    @staticmethod
-    def _residual_fn(ge, mat):
-        def residual(u_):
-            kin = Kinematics(ge, u_, MatrixType.rigi)
-            _, R = Operators.NonLinear.SecondPiolaKirchhoffStressTensor(mat, kin)
-            return R
-
-        return residual
-
+    @pytest.mark.parametrize("law", LAWS)
     @pytest.mark.parametrize("dim, elemType", REPR_ELEMS, ids=REPR_ELEM_IDS)
-    def test_tangent_vs_finite_difference(self, dim, elemType):
-        """Tangent matches FD, representative dims (Saint-Venant-Kirchhoff)."""
-        rng = np.random.default_rng(2)
+    def test_tangent_vs_finite_difference(self, dim, elemType, law):
+        """Each constitutive law's ``Compute_d2Wde`` is consistent with ``Compute_dWde``."""
+        rng = np.random.default_rng(3)
         mesh = _mesh(dim, elemType)
-        mat = _material(dim, "SaintVenantKirchhoff")
+        mat = _material(dim, law)
         ge = mesh.groupElem
 
-        u = rng.standard_normal(mesh.Nn * dim) * 0.03  # small strains: det(F) > 0
+        u = rng.standard_normal(mesh.Nn * dim) * 0.02
         asse = ge.Get_assembly_e(dim)
 
         kin = Kinematics(ge, u, MatrixType.rigi)
         K_ana, _ = Operators.NonLinear.SecondPiolaKirchhoffStressTensor(mat, kin)
-        K_fd = _fd_tangent(self._residual_fn(ge, mat), u, asse)
-        assert rel_error(K_ana, K_fd) < 1e-6, elemType.name
+        K_fd = _fd_tangent(_pk2_residual(ge, mat), u, asse)
+        assert rel_error(K_ana, K_fd) < 1e-6
 
-    @pytest.mark.parametrize("law", LAWS)
-    def test_tangent_vs_finite_difference_laws(self, law):
-        """Each constitutive law's ``Compute_d2Wde`` is consistent with ``Compute_dWde``."""
-        rng = np.random.default_rng(3)
-        for dim, elemType in [(2, ElemType.QUAD4), (3, ElemType.HEXA8)]:
-            mesh = _mesh(dim, elemType)
-            mat = _material(dim, law)
-            ge = mesh.groupElem
-
-            u = rng.standard_normal(mesh.Nn * dim) * 0.02
-            asse = ge.Get_assembly_e(dim)
-
-            kin = Kinematics(ge, u, MatrixType.rigi)
-            K_ana, _ = Operators.NonLinear.SecondPiolaKirchhoffStressTensor(mat, kin)
-            K_fd = _fd_tangent(self._residual_fn(ge, mat), u, asse)
-            assert rel_error(K_ana, K_fd) < 1e-6, f"{law}/{elemType.name}"
-
-    def test_tangent_is_symmetric(self):
+    @pytest.mark.parametrize(
+        "dim, elemType",
+        [(2, ElemType.QUAD8), (3, ElemType.HEXA8)],
+        ids=["QUAD8", "HEXA8"],
+    )
+    def test_tangent_is_symmetric(self, dim, elemType):
         """A hyperelastic (conservative) tangent without follower loads is symmetric."""
         rng = np.random.default_rng(5)
-        for dim, elemType in [(2, ElemType.QUAD8), (3, ElemType.HEXA8)]:
-            mesh = _mesh(dim, elemType)
-            mat = _material(dim, "SaintVenantKirchhoff")
-            ge = mesh.groupElem
-            u = rng.standard_normal(mesh.Nn * dim) * 0.03
-            kin = Kinematics(ge, u, MatrixType.rigi)
-            K, _ = Operators.NonLinear.SecondPiolaKirchhoffStressTensor(mat, kin)
-            asym = np.abs(K - K.transpose(0, 2, 1)).max()
-            assert asym / np.abs(K).max() < 1e-10, f"{elemType.name}: asym {asym:.2e}"
+        mesh = _mesh(dim, elemType)
+        mat = _material(dim, "SaintVenantKirchhoff")
+        ge = mesh.groupElem
+        u = rng.standard_normal(mesh.Nn * dim) * 0.03
+        kin = Kinematics(ge, u, MatrixType.rigi)
+        K, _ = Operators.NonLinear.SecondPiolaKirchhoffStressTensor(mat, kin)
+        assert rel_error(K, K.transpose(0, 2, 1)) < 1e-10
 
 
 # ----------------------------------------------------------------------------
@@ -180,42 +197,20 @@ class TestActiveStress:
     constitutive stress so that ``Compute_dWde`` remains ``∂(Compute_W)/∂e``.
     """
 
-    TAU = 0.5
-
-    @staticmethod
-    def _material_with_fibers(dim, ge, tau=TAU):
-        """Saint-Venant-Kirchhoff with unit fibers along x and an active stress ``tau``."""
-        mat = _material(dim, "SaintVenantKirchhoff")
-        nPg = ge.Get_N_pg(MatrixType.rigi).shape[0]
-        T = np.zeros((ge.Ne, nPg, 3))
-        T[..., 0] = 1.0  # fibers along x
-        mat.Set_active_stress_vec(FeArray.asfearray(T))
-        mat.active_stress = tau
-        return mat
-
-    @staticmethod
-    def _residual_fn(ge, mat):
-        def residual(u_):
-            kin = Kinematics(ge, u_, MatrixType.rigi)
-            _, R = Operators.NonLinear.ActiveStressTensor(mat, kin)
-            return R
-
-        return residual
-
     @pytest.mark.parametrize("dim, elemType", REPR_ELEMS, ids=REPR_ELEM_IDS)
     def test_geometric_tangent_vs_finite_difference(self, dim, elemType):
         """``Kgeo`` equals ``∂R/∂u`` — the whole tangent, since ``∂Σ_act/∂e = 0``."""
         rng = np.random.default_rng(6)
         mesh = _mesh(dim, elemType)
         ge = mesh.groupElem
-        mat = self._material_with_fibers(dim, ge)
+        mat = _material_with_fibers(dim, ge)
 
         u = rng.standard_normal(mesh.Nn * dim) * 0.02
         asse = ge.Get_assembly_e(dim)
 
         kin = Kinematics(ge, u, MatrixType.rigi)
         Kgeo, _ = Operators.NonLinear.ActiveStressTensor(mat, kin)
-        K_fd = _fd_tangent(self._residual_fn(ge, mat), u, asse)
+        K_fd = _fd_tangent(_active_residual(ge, mat), u, asse)
         assert rel_error(Kgeo, K_fd) < 1e-6, elemType.name
 
     def test_stays_out_of_the_constitutive_stress(self):
@@ -233,7 +228,7 @@ class TestActiveStress:
         u = rng.standard_normal(mesh.Nn * dim) * 0.02
         kin = Kinematics(ge, u, MatrixType.rigi)
 
-        mat = self._material_with_fibers(dim, ge)
+        mat = _material_with_fibers(dim, ge)
         S_active = mat.Compute_dWde(kin)
         mat.active_stress = 0.0
         S_inert = mat.Compute_dWde(kin)
@@ -253,7 +248,7 @@ class TestActiveStress:
         mesh = _mesh(3, ElemType.HEXA8)
         ge = mesh.groupElem
         mat = _material(3, "SaintVenantKirchhoff")
-        mat.active_stress = self.TAU  # but no Set_active_stress_vec
+        mat.active_stress = ACTIVE_STRESS  # but no Set_active_stress_vec
         kin = Kinematics(ge, np.zeros(mesh.Nn * 3), MatrixType.rigi)
         with pytest.raises(AssertionError):
             Operators.NonLinear.ActiveStressTensor(mat, kin)
@@ -366,27 +361,65 @@ class TestKelvinVoigt:
         # BᵀB ⇒ each element matrix has no negative eigenvalues
         assert np.linalg.eigvalsh(C).min() > -1e-9 * np.abs(C).max()
 
-    def test_inactive_returns_none(self):
+    @pytest.mark.parametrize(
+        "eta, hasVelocity",
+        [(0.0, True), (0.7, False)],
+        ids=["no viscosity", "no velocity"],
+    )
+    def test_inactive_returns_none(self, eta: float, hasVelocity: bool):
         """No viscosity (``eta == 0``) or no velocity ⇒ ``(None, None, None)``."""
-        dim, elemType = 2, ElemType.QUAD4
-        mesh = _mesh(dim, elemType)
-        ge = mesh.groupElem
+        dim = 2
+        mesh = _mesh(dim, ElemType.QUAD4)
         n = mesh.Nn * dim
-        kin = Kinematics(ge, np.zeros(n), MatrixType.rigi)
+        kin = Kinematics(mesh.groupElem, np.zeros(n), MatrixType.rigi)
+        mat = _material(dim, "SaintVenantKirchhoff")
+        mat.eta = eta
+        v = np.zeros(n) if hasVelocity else None
 
-        mat = _material(dim, "SaintVenantKirchhoff")  # eta defaults to 0
-        assert Operators.NonLinear.KelvinVoigtDamping(mat, kin, np.zeros(n)) == (
-            None,
-            None,
-            None,
-        )
+        assert Operators.NonLinear.KelvinVoigtDamping(mat, kin, v) == (None, None, None)
 
-        mat.eta = 0.7  # viscous, but no velocity passed
-        assert Operators.NonLinear.KelvinVoigtDamping(mat, kin, None) == (
-            None,
-            None,
-            None,
-        )
+
+def _check_directionality(dim, elemType, law, seed):
+    rng = np.random.default_rng(seed)
+    mesh = _mesh(dim, elemType)
+    mat = _material(dim, law)
+    groupElem = mesh.groupElem
+
+    u_n = rng.standard_normal(mesh.Nn * dim) * 0.02
+    u_np1 = u_n + rng.standard_normal(mesh.Nn * dim) * 0.02  # Δe·Δe ≫ ε₀
+    asse = groupElem.Get_assembly_e(dim)
+
+    kin_n, kin_mid, kin_np1 = _gonzalez_kinematics(groupElem, u_n, u_np1)
+    _, R = Operators.NonLinear.GonzalezStressTensor(mat, kin_n, kin_mid, kin_np1)
+
+    # internal work R·Δu, assembled over the interleaved element dofs
+    du_e = (u_np1 - u_n)[asse]  # (Ne, ndof_e), same layout as R
+    internal_work = float(np.einsum("ei,ei->", R, du_e))
+
+    # ΔW = ∫ (W(u_{n+1}) − W(u_n)) dΩ — independent of the operator's assembly
+    wJ = groupElem.Get_weightedJacobian_e_pg(MatrixType.rigi)
+    dW = np.sum(wJ * (mat.Compute_W(kin_np1) - mat.Compute_W(kin_n)))
+
+    assert (
+        abs(internal_work - dW) / abs(dW) < 1e-9
+    ), f"{law}/{elemType.name}: R·Δu={internal_work:.6e} vs ΔW={dW:.6e}"
+
+
+def _check_tangent(dim, elemType, law, seed):
+    rng = np.random.default_rng(seed)
+    mesh = _mesh(dim, elemType)
+    mat = _material(dim, law)
+    ge = mesh.groupElem
+
+    u_n = rng.standard_normal(mesh.Nn * dim) * 0.02
+    u_np1 = u_n + rng.standard_normal(mesh.Nn * dim) * 0.02  # Δe·Δe ≫ ε₀
+    asse = ge.Get_assembly_e(dim)
+
+    kin_n, kin_mid, kin_np1 = _gonzalez_kinematics(ge, u_n, u_np1)
+    K_ana, _ = Operators.NonLinear.GonzalezStressTensor(mat, kin_n, kin_mid, kin_np1)
+    K_fd = _fd_tangent(_gonzalez_residual(ge, mat, u_n), u_np1, asse)
+    # operator returns K for coefK = 0.5, so the true Jacobian ∂R/∂u_{n+1} = ½·K
+    assert rel_error(0.5 * K_ana, K_fd) < 1e-6, f"{law}/{elemType.name}"
 
 
 # ----------------------------------------------------------------------------
@@ -406,96 +439,26 @@ class TestGonzalez:
     ``midpoint``), so the true Jacobian is ``½·K``.
     """
 
-    @staticmethod
-    def _kinematics(ge, u_n, u_np1):
-        return (
-            Kinematics(ge, u_n, MatrixType.rigi),
-            Kinematics(ge, (u_n + u_np1) / 2, MatrixType.rigi),
-            Kinematics(ge, u_np1, MatrixType.rigi),
-        )
-
-    def _check_directionality(self, dim, elemType, law, seed):
-        rng = np.random.default_rng(seed)
-        mesh = _mesh(dim, elemType)
-        mat = _material(dim, law)
-        groupElem = mesh.groupElem
-
-        u_n = rng.standard_normal(mesh.Nn * dim) * 0.02
-        u_np1 = u_n + rng.standard_normal(mesh.Nn * dim) * 0.02  # Δe·Δe ≫ ε₀
-        asse = groupElem.Get_assembly_e(dim)
-
-        kin_n, kin_mid, kin_np1 = self._kinematics(groupElem, u_n, u_np1)
-        _, R = Operators.NonLinear.GonzalezStressTensor(mat, kin_n, kin_mid, kin_np1)
-
-        # internal work R·Δu, assembled over the interleaved element dofs
-        du_e = (u_np1 - u_n)[asse]  # (Ne, ndof_e), same layout as R
-        internal_work = float(np.einsum("ei,ei->", R, du_e))
-
-        # ΔW = ∫ (W(u_{n+1}) − W(u_n)) dΩ — independent of the operator's assembly
-        wJ = groupElem.Get_weightedJacobian_e_pg(MatrixType.rigi)
-        dW = np.sum(wJ * (mat.Compute_W(kin_np1) - mat.Compute_W(kin_n)))
-
-        assert (
-            abs(internal_work - dW) / abs(dW) < 1e-9
-        ), f"{law}/{elemType.name}: R·Δu={internal_work:.6e} vs ΔW={dW:.6e}"
-
     @pytest.mark.parametrize("dim, elemType", ELEMS, ids=ELEM_IDS)
     def test_discrete_gradient_directionality(self, dim, elemType):
         """``R·Δu == ΔW`` across element shapes / orders (Saint-Venant-Kirchhoff)."""
-        self._check_directionality(dim, elemType, "SaintVenantKirchhoff", seed=7)
+        _check_directionality(dim, elemType, "SaintVenantKirchhoff", seed=7)
 
     @pytest.mark.parametrize("law", LAWS)
-    def test_discrete_gradient_directionality_laws(self, law):
-        """``R·Δu == ΔW`` for every constitutive law (energy conservation is law-agnostic)."""
-        for dim, elemType in [(2, ElemType.QUAD4), (3, ElemType.HEXA8)]:
-            self._check_directionality(dim, elemType, law, seed=8)
-
-    @staticmethod
-    def _residual_fn(ge, mat, u_n):
-        """``R(u_{n+1})`` with ``u_n`` fixed and ``ū = (u_n+u_{n+1})/2`` — for FD in ``u_{n+1}``."""
-
-        def residual(u_np1_):
-            kin_n = Kinematics(ge, u_n, MatrixType.rigi)
-            kin_mid = Kinematics(ge, (u_n + u_np1_) / 2, MatrixType.rigi)
-            kin_np1 = Kinematics(ge, u_np1_, MatrixType.rigi)
-            _, R = Operators.NonLinear.GonzalezStressTensor(
-                mat, kin_n, kin_mid, kin_np1
-            )
-            return R
-
-        return residual
-
-    def _check_tangent(self, dim, elemType, law, seed):
-        rng = np.random.default_rng(seed)
-        mesh = _mesh(dim, elemType)
-        mat = _material(dim, law)
-        ge = mesh.groupElem
-
-        u_n = rng.standard_normal(mesh.Nn * dim) * 0.02
-        u_np1 = u_n + rng.standard_normal(mesh.Nn * dim) * 0.02  # Δe·Δe ≫ ε₀
-        asse = ge.Get_assembly_e(dim)
-
-        kin_n, kin_mid, kin_np1 = self._kinematics(ge, u_n, u_np1)
-        K_ana, _ = Operators.NonLinear.GonzalezStressTensor(
-            mat, kin_n, kin_mid, kin_np1
-        )
-        K_fd = _fd_tangent(self._residual_fn(ge, mat, u_n), u_np1, asse)
-        # operator returns K for coefK = 0.5, so the true Jacobian ∂R/∂u_{n+1} = ½·K
-        assert rel_error(0.5 * K_ana, K_fd) < 1e-6, f"{law}/{elemType.name}"
-
     @pytest.mark.parametrize("dim, elemType", REPR_ELEMS, ids=REPR_ELEM_IDS)
-    def test_tangent_vs_finite_difference(self, dim, elemType):
-        """``½·K == ∂R/∂u_{n+1}`` (FD), representative dims (Saint-Venant-Kirchhoff)."""
-        self._check_tangent(dim, elemType, "SaintVenantKirchhoff", seed=9)
+    def test_discrete_gradient_directionality_laws(self, dim, elemType, law):
+        """``R·Δu == ΔW`` for every constitutive law (energy conservation is law-agnostic)."""
+        _check_directionality(dim, elemType, law, seed=8)
 
     @pytest.mark.parametrize("law", LAWS)
-    def test_tangent_vs_finite_difference_laws(self, law):
-        """The consistent discrete-gradient tangent holds for every constitutive law."""
-        for dim, elemType in [(2, ElemType.QUAD4), (3, ElemType.HEXA8)]:
-            self._check_tangent(dim, elemType, law, seed=10)
+    @pytest.mark.parametrize("dim, elemType", REPR_ELEMS, ids=REPR_ELEM_IDS)
+    def test_tangent_vs_finite_difference(self, dim, elemType, law):
+        """``½·K == ∂R/∂u_{n+1}`` (FD): the consistent discrete-gradient tangent holds for every constitutive law."""
+        _check_tangent(dim, elemType, law, seed=10)
 
     @pytest.mark.parametrize("law", LAWS)
-    def test_tangent_flag_leaves_residual_untouched(self, law):
+    @pytest.mark.parametrize("dim, elemType", REPR_ELEMS, ids=REPR_ELEM_IDS)
+    def test_tangent_flag_leaves_residual_untouched(self, dim, elemType, law):
         """``useConsistentTangent`` may only change ``K`` — never the residual.
 
         Energy conservation is carried entirely by the residual (the discrete gradient),
@@ -504,26 +467,17 @@ class TestGonzalez:
         cheap-tangent path perturbed ``R``, the scheme would silently stop conserving.
         """
         rng = np.random.default_rng(11)
-        for dim, elemType in [(2, ElemType.QUAD4), (3, ElemType.HEXA8)]:
-            mesh = _mesh(dim, elemType)
-            mat = _material(dim, law)
-            ge = mesh.groupElem
+        mesh = _mesh(dim, elemType)
+        mat = _material(dim, law)
+        ge = mesh.groupElem
 
-            u_n = rng.standard_normal(mesh.Nn * dim) * 0.02
-            u_np1 = u_n + rng.standard_normal(mesh.Nn * dim) * 0.02  # Δe·Δe ≫ ε₀
-            kin_n, kin_mid, kin_np1 = self._kinematics(ge, u_n, u_np1)
+        u_n = rng.standard_normal(mesh.Nn * dim) * 0.02
+        u_np1 = u_n + rng.standard_normal(mesh.Nn * dim) * 0.02  # Δe·Δe ≫ ε₀
+        kinematics = _gonzalez_kinematics(ge, u_n, u_np1)
 
-            K_con, R_con = Operators.NonLinear.GonzalezStressTensor(
-                mat, kin_n, kin_mid, kin_np1, True
-            )
-            K_apx, R_apx = Operators.NonLinear.GonzalezStressTensor(
-                mat, kin_n, kin_mid, kin_np1, False
-            )
+        K_con, R_con = Operators.NonLinear.GonzalezStressTensor(mat, *kinematics, True)
+        K_apx, R_apx = Operators.NonLinear.GonzalezStressTensor(mat, *kinematics, False)
 
-            assert np.array_equal(
-                np.asarray(R_con), np.asarray(R_apx)
-            ), f"{law}/{elemType.name}: residual must not depend on useConsistentTangent"
-            # and the flag must actually do something to the tangent
-            assert not np.allclose(
-                np.asarray(K_con), np.asarray(K_apx)
-            ), f"{law}/{elemType.name}: the two tangents should differ"
+        assert np.array_equal(np.asarray(R_con), np.asarray(R_apx))
+        # and the flag must actually do something to the tangent
+        assert not np.allclose(np.asarray(K_con), np.asarray(K_apx))
