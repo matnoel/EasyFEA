@@ -70,10 +70,10 @@ def test_points_rotates_exactly():
 def test_nodes_domain_selects_nodes():
     """Covers Get_Nodes_Domain, which asserted on the wrong type and so always raised."""
 
-    mesh = Domain(Point(), Point(4, 3), meshSize=1.0).Mesh_2D(
-        [], ElemType.QUAD4, isOrganised=True
-    )
-    nodes = mesh.Nodes_Domain(Domain(Point(), Point(1, 1)))
+    contour = Domain(Point(), Point(4, 3), meshSize=1.0)
+    mesh = contour.Mesh_2D([], ElemType.QUAD4, isOrganised=True)
+    corner = Domain(Point(), Point(1, 1))
+    nodes = mesh.Nodes_Domain(corner)
 
     assert nodes.size == 4
     assert np.all(mesh.coord[nodes][:, 0] <= 1 + 1e-12)
@@ -84,9 +84,8 @@ def test_domain_refines():
     """refineGeoms goes through Domain, which is what maps to gmsh's Box field."""
 
     contour = Domain(Point(), Point(4, 4), meshSize=1.0)
-    refined = contour.Mesh_2D(
-        [], ElemType.TRI3, refineGeoms=[Domain(Point(), Point(1, 1), 0.25)]
-    )
+    refineZone = Domain(Point(), Point(1, 1), 0.25)
+    refined = contour.Mesh_2D([], ElemType.TRI3, refineGeoms=[refineZone])
     coarse = contour.Mesh_2D([], ElemType.TRI3)
 
     assert refined.Ne > coarse.Ne

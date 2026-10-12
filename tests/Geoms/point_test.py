@@ -4,123 +4,108 @@
 # EasyFEA is distributed under the terms of the GNU General Public License v3, see LICENSE.txt and CREDITS.md for more information.
 
 import pytest
-import matplotlib.pyplot as plt
-import numpy as np
 
-from EasyFEA.Geoms import _Geom, Point, Line, Circle, CircleArc, Points, Domain, Contour
+from EasyFEA.Geoms import Point
+
+ONES = [1, 1.0, [1, 1, 1], (1, 1, 1), Point(1, 1, 1)]
 
 
-class TestPoint:
+def test_setting_coord_keeps_isOpen_and_r():
+    point = Point(1, 1, 1, isOpen=True, r=2)
+    point.coord = (1, 3, 4)
 
-    def test_point_properties(self):
+    assert point.Check((1, 3, 4))
+    assert point.isOpen
+    assert point.r == 2
 
-        point = Point(1, 1, 1, isOpen=True, r=2)
 
-        point.coord = (1, 3, 4)
-        assert point.isOpen == True
-        assert point.r == 2
+def test_copy_is_a_new_point_with_the_same_attributes():
+    point = Point(1, 3, 4, isOpen=True, r=2)
+    copy = point.copy()
 
-        copy = point.copy()
-        assert copy.isOpen == True
-        assert copy.r == 2
+    assert copy is not point
+    assert copy.Check(point)
+    assert copy.isOpen
+    assert copy.r == 2
 
-        new = copy + 2
-        assert new.Check((3, 5, 6))
 
-        new = copy + (0, 0, 1)
-        assert new.Check((1, 3, 5))
+@pytest.mark.parametrize("value", ONES, ids=repr)
+def test_add(value):
+    assert (Point(0, 0, 0) + value).Check((1, 1, 1))
 
-    def test_point_operations(self):
-        """test on points"""
 
-        # operations + and -
-        p0 = Point(0, 0, 0)
+@pytest.mark.parametrize("value", ONES, ids=repr)
+def test_subtract(value):
+    assert (Point(1, 1, 1) - value).Check((0, 0, 0))
 
-        for val in [1, 1.0, [1, 1, 1], (1, 1, 1), Point(1, 1, 1)]:
-            # + and -
-            p1: Point = p0 + val
-            assert p1.Check([1] * 3)
 
-            p2: Point = p1 - val
-            assert p2.Check([0] * 3)
+@pytest.mark.parametrize(
+    "operation, expected",
+    [
+        (lambda p: p * 2, (4, 8, 12)),
+        (lambda p: p * [1, 2, 3], (2, 8, 18)),
+        (lambda p: p / 2, (1, 2, 3)),
+        (lambda p: p // 4, (0, 1, 1)),
+    ],
+    ids=["times scalar", "times vector", "divide", "floor divide"],
+)
+def test_arithmetic_is_componentwise(operation, expected):
+    assert operation(Point(2, 4, 6)).Check(expected)
 
-        # operations *, / and //
-        p3 = Point(1, 1, 1)
 
-        p4 = p3 * 2
-        assert p4.Check([2] * 3)
+@pytest.mark.parametrize(
+    "axis, expected", [("x", (7, 2, 3)), ("y", (1, 7, 3)), ("z", (1, 2, 7))]
+)
+def test_setting_one_component_leaves_the_others(axis: str, expected):
+    point = Point(1, 2, 3)
+    setattr(point, axis, 7)
 
-        p5 = p4 / 2
-        assert p5.Check([1] * 3)
+    assert point.Check(expected)
 
-        p6 = p4 // 2
-        assert p6.Check([1] * 3)
 
-        p7 = p3 * [1, 2, 3]
-        assert p7.Check([1, 2, 3])
+def test_translate():
+    point = Point()
+    point.Translate(-1, 2)
 
-        # new coord
-        p3.coord = [0, 0.4, 0.5]
-        assert p3.Check([0, 0.4, 0.5])
+    assert point.Check((-1, 2, 0))
 
-        # new coord
-        p3.x = 1
-        assert p3.Check([1, 0.4, 0.5])
-        p3.y = 2.0
-        assert p3.Check([1, 2.0, 0.5])
-        p3.z = -1
-        assert p3.Check([1, 2.0, -1])
 
-        # copy
-        pC1 = Point()
-        pC2 = pC1.copy()
-        assert pC1 is not pC2
+@pytest.mark.parametrize(
+    "start, theta, center, direction, expected",
+    [
+        ((1, 0, 0), 90, (0, 0, 0), (0, 0, 1), (0, 1, 0)),
+        ((0, 1, 0), -90, (0, 0, 0), (0, 0, 1), (1, 0, 0)),
+        ((1, 0, 0), 180, (0, 0, 0), (0, 0, 1), (-1, 0, 0)),
+        ((1, 0, 0), 90, (0, 0, 0), (0, -1, 0), (0, 0, 1)),
+        ((0, 0, 1), 90, (0, 0, 0), (1, 0, 0), (0, -1, 0)),
+        ((1, 0, 0), 180, (0, 0, 0), (1, 0, 1), (0, 0, 1)),
+        ((1, 0, 0), 90, (-1, 0, 0), (0, -1, 0), (-1, 0, 2)),
+    ],
+)
+def test_rotate(start, theta: float, center, direction, expected):
+    point = Point(*start)
+    point.Rotate(theta, center, direction)
 
-        # translate
-        pT1 = Point()
-        pT1.Translate(-1, 2)
-        assert pT1.Check((-1, 2, 0))
+    assert point.Check(expected)
 
-        # rotate
-        pR1 = Point(1)
 
-        pR1.Rotate(90, (0, 0, 0), (0, 0, 1))
-        assert pR1.Check((0, 1, 0))
+@pytest.mark.parametrize(
+    "start, n, expected",
+    [
+        ((1, 1, 0), (0, 1, 0), (1, -1, 0)),
+        ((1, 1, 0), (-1, 0, 0), (-1, 1, 0)),
+        ((-1, -1, 0), (1, 1, 0), (1, 1, 0)),
+    ],
+)
+def test_symmetry_through_a_plane(start, n, expected):
+    point = Point(*start)
+    point.Symmetry((0, 0, 0), n)
 
-        pR1.Rotate(-90, (0, 0, 0), (0, 0, 1))
-        assert pR1.Check((1, 0, 0))
+    assert point.Check(expected)
 
-        pR1.Rotate(180, (0, 0, 0), (0, 0, 1))
-        assert pR1.Check((-1, 0, 0))
 
-        pR1.Rotate(-180, (0, 0, 0), (0, 0, 1))
-        assert pR1.Check((1, 0, 0))
+def test_symmetry_through_a_shifted_plane():
+    point = Point(3, 1, 0)
+    point.Symmetry((1, 0, 0), (1, 0, 0))
 
-        pR1.Rotate(90, (0, 0, 0), (0, -1, 0))
-        assert pR1.Check((0, 0, 1))
-
-        pR1.Rotate(90, (0, 0, 0), (1, 0, 0))
-        assert pR1.Check((0, -1, 0))
-
-        pR2 = Point(1)
-        pR2.Rotate(180, (0, 0, 0), (1, 0, 1))
-        assert pR2.Check((0, 0, 1))
-
-        pR3 = Point(1)
-        pR3.Rotate(90, (-1, 0, 0), (0, -1, 0))
-        assert pR3.Check((-1, 0, 2))
-
-        # symmetry
-        pS1 = Point(1, 1)
-
-        pS1.Symmetry((0, 0, 0), (0, 1, 0))
-        assert pS1.Check((1, -1, 0))
-
-        pS1.Symmetry((0, 0, 0), (1, 0, 0))
-        assert pS1.Check((-1, -1, 0))
-
-        pS1.Symmetry((0, 0, 0), (1, 1, 0))
-        assert pS1.Check((1, 1, 0))
-
-        pS1.Symmetry((0, 0, 0), (-1, 0, 0))
-        assert pS1.Check((-1, 1, 0))
+    assert point.Check((-1, 1, 0))

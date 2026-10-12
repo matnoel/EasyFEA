@@ -4,91 +4,100 @@
 # EasyFEA is distributed under the terms of the GNU General Public License v3, see LICENSE.txt and CREDITS.md for more information.
 
 import inspect
+from typing import Callable
+
 import pytest
-import matplotlib.pyplot as plt
 import numpy as np
 
-from EasyFEA import Mesher, Matplotlib
+from EasyFEA import Mesher
 from EasyFEA.Geoms import _Geom, Point, Line, Circle, CircleArc, Points, Domain, Contour
 
+from _numerics import rel_error
 
-class TestGeoms:
 
-    def test_move_and_plot_geom_objects(self):
+def _sine() -> Points:
+    x = np.linspace(0, 5, 10)
+    return Points([Point(xi, yi) for xi, yi in zip(x, np.sin(x))])
 
-        line = Line(Point(), Point(5, 1))
 
-        x = np.linspace(0, 5, 10)
-        y = np.sin(x)
+def _arc_contour() -> Contour:
+    bottom = Line(Point(), Point(5, 0))
+    arc = CircleArc(Point(5), Point(-5), P=Point(0, 5))
+    back = Line(Point(-5), Point())
+    return Contour([bottom, arc, back])
 
-        points = Points([Point(x[i], y[i]) for i in range(x.size)])
 
-        domain = Domain(Point(), Point(1, 1, 1))
+def _rounded_contour() -> Contour:
+    corners = Points([Point(), Point(5, 0), Point(5, 5, r=2), Point(0, 5, r=-3)])
+    return corners.Get_Contour()
 
-        circle = Circle(Point(), 5, n=(1, 1, 1))
 
-        circleArc = CircleArc(Point(3, 1, 3), Point(-3, 1, 3), center=Point(0, 1))
+GEOMS: dict[str, Callable[[], _Geom]] = {
+    "Line": lambda: Line(Point(), Point(5, 1)),
+    "Points": _sine,
+    "Domain": lambda: Domain(Point(), Point(1, 1, 1)),
+    "Circle": lambda: Circle(Point(), 5, n=(1, 1, 1)),
+    "CircleArc": lambda: CircleArc(Point(3, 1, 3), Point(-3, 1, 3), center=Point(0, 1)),
+    "Contour": _arc_contour,
+    "rounded Contour": _rounded_contour,
+}
 
-        circleArc2 = CircleArc(Point(3, 1, 3), Point(-3, 1, 3), R=3)
+# (copying transform, its closed form on the (N, 3) point coordinates)
+TRANSFORMS: dict[str, tuple[Callable, Callable]] = {
+    "translate": (
+        lambda g: g.Translate(1, 2, 3, copy=True),
+        lambda c: c + (1, 2, 3),
+    ),
+    "rotate about z": (
+        lambda g: g.Rotate(90, copy=True),
+        lambda c: np.stack([-c[:, 1], c[:, 0], c[:, 2]], axis=1),
+    ),
+    "rotate about a shifted x axis": (
+        lambda g: g.Rotate(90, (0, 1, 0), (1, 0, 0), copy=True),
+        lambda c: np.stack([c[:, 0], 1 - c[:, 2], c[:, 1] - 1], axis=1),
+    ),
+    "symmetry through xy": (
+        lambda g: g.Symmetry(n=(0, 0, 1), copy=True),
+        lambda c: c * (1, 1, -1),
+    ),
+    "symmetry through x = 1": (
+        lambda g: g.Symmetry((1, 0, 0), (1, 0, 0), copy=True),
+        lambda c: c * (-1, 1, 1) + (2, 0, 0),
+    ),
+}
 
-        assert circleArc.center.Check(circleArc2.center)
 
-        contour1 = Contour(
-            [
-                Line(Point(), Point(5, 0)),
-                CircleArc(Point(5), Point(-5), P=Point(0, 5)),
-                Line(Point(-5), Point()),
-            ]
-        )
+@pytest.fixture(params=GEOMS, ids=str)
+def geom(request) -> _Geom:
+    return GEOMS[request.param]()
 
-        assert contour1.geoms[1].center.Check((0, 0, 0))
 
-        points2 = Points([Point(), Point(5, 0), Point(5, 5, r=2), Point(0, 5, r=-3)])
-        contour2 = points2.Get_Contour()
+@pytest.fixture(params=TRANSFORMS, ids=str)
+def transform(request) -> tuple[Callable, Callable]:
+    return TRANSFORMS[request.param]
 
-        dec = (10, 0, 0)
 
-        geoms: list[_Geom] = [
-            line,
-            points,
-            domain,
-            circle,
-            circleArc,
-            contour1,
-            points2,
-            contour2,
-        ]
+def test_transform_moves_every_point_to_its_closed_form(geom: _Geom, transform):
+    apply, closedForm = transform
+    expected = closedForm(geom.coord)
 
-        for geom in geoms:
+    assert rel_error(apply(geom).coord, expected) < 1e-12
 
-            ax = Matplotlib.Plot_Geoms(geom)
 
-            geom.Translate(*dec)
+def test_copying_transform_leaves_the_original(geom: _Geom, transform):
+    apply, _ = transform
+    before = geom.coord.copy()
+    apply(geom)
 
-            Matplotlib.Plot_Geoms(geom, ax=ax)
+    assert np.array_equal(geom.coord, before)
 
-            geom.Rotate(90)
-            Matplotlib.Plot_Geoms(geom, ax=ax)
 
-            geom.Rotate(90, direction=(1, 0, 0))
-            Matplotlib.Plot_Geoms(geom, ax=ax)
+def test_in_place_transform_matches_the_copy(geom: _Geom):
+    moved = geom.Rotate(90, (0, 1, 0), (1, 0, 0), copy=True)
+    result = geom.Rotate(90, (0, 1, 0), (1, 0, 0))
 
-            cop = geom.copy()
-            cop.Translate(-10)
-            Matplotlib.Plot_Geoms(cop, ax=ax)
-
-            cop.Symmetry()
-            Matplotlib.Plot_Geoms(cop, ax=ax)
-
-            cop.Symmetry(cop.points[0], (0, 0, 1))
-            Matplotlib.Plot_Geoms(cop, ax=ax)
-
-            cop.Symmetry(n=(0, np.cos(180 / 6), np.sin(180 / 6)))
-            Matplotlib.Plot_Geoms(cop, ax=ax)
-
-            ax.legend()
-
-        plt.close("all")
+    assert result is None
+    assert np.array_equal(geom.coord, moved.coord)
 
 
 @pytest.mark.parametrize("name", ["Mesh_1D", "Mesh_2D", "Mesh_Extrude", "Mesh_Revolve"])

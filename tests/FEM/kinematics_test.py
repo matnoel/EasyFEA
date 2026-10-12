@@ -13,7 +13,8 @@ from EasyFEA.Geoms import Domain
 
 @pytest.fixture
 def kinematics() -> Kinematics:
-    mesh = Domain((0, 0), (1, 1), 0.5).Mesh_2D([], ElemType.QUAD4)
+    contour = Domain((0, 0), (1, 1), 0.5)
+    mesh = contour.Mesh_2D([], ElemType.QUAD4)
     u = np.random.default_rng(0).standard_normal(mesh.Nn * 2) * 1e-2
     return Kinematics(mesh.groupElem, u)
 
