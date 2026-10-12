@@ -366,10 +366,9 @@ def _Pull_block(material) -> np.ndarray:
 
 def test_autodiff_law_solves_like_the_shipped_one():
     """An ``AutoDiff`` law drives a simulation to the same answer as the hand-written equivalent."""
-    jnp = pytest.importorskip("jax").numpy
-    from EasyFEA.Models import _autodiff
-
-    _autodiff.Enable_x64()
+    jax = pytest.importorskip("jax")
+    jax.config.update("jax_enable_x64", True)
+    jnp = jax.numpy
     K, K1, K2 = 200.0, 30.0, 8.0
 
     def ciarlet_geymonat(C):

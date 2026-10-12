@@ -10,16 +10,14 @@ import pytest
 
 from EasyFEA.FEM import Kinematics
 
-from _numerics import rel_error
-from .conftest import GRAD_U, KELVIN_BASIS, affine_kinematics, kelvin
+from .conftest import F_3D, KELVIN_BASIS, affine_kinematics, at_every_point, kelvin
 
 TOL = 1e-12
 
 T4 = np.array([0.0, 1.0, 0.0])
 T6 = np.array([1.0, 1.0, 0.0]) / np.sqrt(2)
 
-F = np.eye(3) + GRAD_U
-C = F.T @ F
+C = F_3D.T @ F_3D
 
 
 def _hessian_I3(C: np.ndarray) -> np.ndarray:
@@ -69,35 +67,29 @@ SECOND_DERIVATIVES = {
 
 @pytest.fixture(scope="module")
 def kinematics() -> Kinematics:
-    """3D affine kinematics, whose F is `F` above."""
+    """3D affine kinematics, whose F is `F_3D`."""
     return affine_kinematics(3).kinematics
 
 
-def _at_every_point(actual, expected: np.ndarray) -> float:
-    actual = np.asarray(actual)
-    scale = None if np.any(expected) else 1.0
-    return rel_error(actual, np.broadcast_to(expected, actual.shape), scale)
-
-
 def test_C_is_FtF(kinematics: Kinematics):
-    assert _at_every_point(kinematics.Compute_C(), C) < TOL
+    assert at_every_point(kinematics.Compute_C(), C) < TOL
 
 
 def test_green_lagrange_is_half_C_minus_identity(kinematics: Kinematics):
     E = kinematics.Compute_GreenLagrange()
-    assert _at_every_point(E, (C - np.eye(3)) / 2) < TOL
+    assert at_every_point(E, (C - np.eye(3)) / 2) < TOL
 
 
 @pytest.mark.parametrize("compute, expected", INVARIANTS.values(), ids=INVARIANTS)
 def test_invariant_is_the_closed_form(kinematics: Kinematics, compute, expected):
-    assert _at_every_point(compute(kinematics), expected) < TOL
+    assert at_every_point(compute(kinematics), expected) < TOL
 
 
 @pytest.mark.parametrize(
     "compute, expected", FIRST_DERIVATIVES.values(), ids=FIRST_DERIVATIVES
 )
 def test_first_derivative_is_the_closed_form(kinematics: Kinematics, compute, expected):
-    assert _at_every_point(compute(kinematics), expected) < TOL
+    assert at_every_point(compute(kinematics), expected) < TOL
 
 
 @pytest.mark.parametrize(
@@ -106,4 +98,4 @@ def test_first_derivative_is_the_closed_form(kinematics: Kinematics, compute, ex
 def test_second_derivative_is_the_closed_form(
     kinematics: Kinematics, compute, expected
 ):
-    assert _at_every_point(compute(kinematics), expected) < TOL
+    assert at_every_point(compute(kinematics), expected) < TOL

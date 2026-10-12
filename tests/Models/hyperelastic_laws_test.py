@@ -9,16 +9,14 @@ import pytest
 from EasyFEA import Models
 from EasyFEA.FEM import Kinematics
 
-from _numerics import rel_error
-from .conftest import GRAD_U, affine_kinematics, kelvin
+from .conftest import F_3D, affine_kinematics, at_every_point, kelvin
 
 TOL = 1e-12
 
 LMBDA, MU = 121153.0, 80769.0
 
-F = np.eye(3) + GRAD_U
-E = (F.T @ F - np.eye(3)) / 2
-I = kelvin(np.eye(3))
+E = (F_3D.T @ F_3D - np.eye(3)) / 2
+I_KELVIN = kelvin(np.eye(3))
 
 SVK = Models.HyperElastic.SaintVenantKirchhoff(3, LMBDA, MU)
 
@@ -31,19 +29,17 @@ def kinematics() -> Kinematics:
 
 def test_svk_W_is_its_closed_form(kinematics: Kinematics):
     W = LMBDA / 2 * np.trace(E) ** 2 + MU * np.trace(E @ E)
-    assert rel_error(SVK.Compute_W(kinematics), W) < TOL
+    assert at_every_point(SVK.Compute_W(kinematics), W) < TOL
 
 
 def test_svk_dWde_is_its_closed_form(kinematics: Kinematics):
-    dW = LMBDA * np.trace(E) * I + 2 * MU * kelvin(E)
-    actual = np.asarray(SVK.Compute_dWde(kinematics))
-    assert rel_error(actual, np.broadcast_to(dW, actual.shape)) < TOL
+    dW = LMBDA * np.trace(E) * I_KELVIN + 2 * MU * kelvin(E)
+    assert at_every_point(SVK.Compute_dWde(kinematics), dW) < TOL
 
 
 def test_svk_d2Wde_is_its_closed_form(kinematics: Kinematics):
-    d2W = LMBDA * np.outer(I, I) + 2 * MU * np.eye(6)
-    actual = np.asarray(SVK.Compute_d2Wde(kinematics))
-    assert rel_error(actual, np.broadcast_to(d2W, actual.shape)) < TOL
+    d2W = LMBDA * np.outer(I_KELVIN, I_KELVIN) + 2 * MU * np.eye(6)
+    assert at_every_point(SVK.Compute_d2Wde(kinematics), d2W) < TOL
 
 
 def test_Available_Laws_lists_every_shipped_law():

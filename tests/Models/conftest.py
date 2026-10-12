@@ -13,8 +13,12 @@ from EasyFEA.FEM import Kinematics
 from EasyFEA.Geoms import Domain
 from EasyFEA.Models.InElastic import MaterialPoint, PointUpdate
 
+from _numerics import rel_error
+
 # fully populated and non-symmetric, so no component of ε or F is trivially zero
 GRAD_U = np.array([[0.02, -0.01, 0.03], [0.015, -0.025, 0.01], [-0.02, 0.005, 0.04]])
+F_3D = np.eye(3) + GRAD_U
+"""F of the 3D `affine_kinematics`."""
 
 
 R2 = np.sqrt(2)
@@ -34,6 +38,13 @@ KELVIN_BASIS = np.array(
 def kelvin(A: np.ndarray) -> np.ndarray:
     """(6,) Kelvin-Mandel vector of the symmetric part of a 3×3 tensor."""
     return np.einsum("kij,ij->k", KELVIN_BASIS, A)
+
+
+def at_every_point(actual, expected: np.ndarray) -> float:
+    """`rel_error` of a (Ne, nPg, ...) field against one point value; absolute where `expected` vanishes."""
+    actual = np.asarray(actual)
+    scale = None if np.any(expected) else 1.0
+    return rel_error(actual, np.broadcast_to(expected, actual.shape), scale)
 
 
 TANGENT_RTOL = 1e-6
@@ -72,8 +83,8 @@ class AffineKinematics(NamedTuple):
     F: np.ndarray
 
 
-def affine_kinematics(dim: int, Ne: int = 1) -> AffineKinematics:
-    """`Ne` QUAD4 / HEXA8 unit elements in a row, displaced by the affine `u = GRAD_U[:dim, :dim]·x`."""
+def affine_kinematics(dim: int, Ne: int = 1, scale: float = 1.0) -> AffineKinematics:
+    """`Ne` QUAD4 / HEXA8 unit elements in a row, displaced by the affine `u = scale·GRAD_U[:dim, :dim]·x`."""
     domain = Domain((0, 0), (Ne, 1), 1.0)
     if dim == 2:
         mesh = domain.Mesh_2D([], ElemType.QUAD4, isOrganised=True)
@@ -86,7 +97,7 @@ def affine_kinematics(dim: int, Ne: int = 1) -> AffineKinematics:
             isOrganised=True,
         )
     G = np.zeros((3, 3))
-    G[:dim, :dim] = GRAD_U[:dim, :dim]
+    G[:dim, :dim] = scale * GRAD_U[:dim, :dim]
     u = mesh.coord[:, :dim] @ G[:dim, :dim].T
 
     epsilon = kelvin(G)

@@ -6,7 +6,7 @@
 import pytest
 import numpy as np
 
-from EasyFEA.Models.Elastic._laws import (
+from EasyFEA.Models.Elastic import (
     _Elastic,
     Isotropic,
     TransverselyIsotropic,
@@ -134,7 +134,7 @@ def test_orthotropic_with_equal_moduli_is_isotropic():
     "dim, axis_l, axis_t", [(3, [1, 0, 0], [0, 1, 0]), (2, [0, 1, 0], [1, 0, 0])]
 )
 def test_orthotropic_with_TI_moduli_is_TI(dim, axis_l, axis_t):
-    El, Et, Gl, vl, vt = TI.values()
+    El, Et, Gl, vl, vt = (TI[k] for k in ("El", "Et", "Gl", "vl", "vt"))
     ti = TransverselyIsotropic(
         dim, **TI, planeStress=False, axis_l=axis_l, axis_t=axis_t
     )
@@ -159,7 +159,7 @@ def test_orthotropic_with_TI_moduli_is_TI(dim, axis_l, axis_t):
 
 class TestLinearElastic:
     @pytest.mark.parametrize("dim", [2, 3])
-    def test_Anisot_from_voigt(self, dim: int):
+    def test_anisotropic_from_voigt_is_the_kelvin_C(self, dim: int):
         C_kelvin = Isotropic(dim, E=210e3, v=0.3).C
         kelvinScale = np.ones(C_kelvin.shape[0])
         kelvinScale[dim:] = np.sqrt(2)
@@ -176,12 +176,8 @@ class TestLinearElastic:
             aniso.Walpole_Decomposition()
 
     @pytest.mark.parametrize("shape", [(), (11,), (11, 4)])
-    def test_sqrt_C_S(self, shape: tuple):
-        """The square root squares back, however many leading axes C carries.
-
-        (11, 4) is material properties given per Gauss point, which the old implementation
-        refused outright.
-        """
+    def test_sqrt_C_and_S_square_back(self, shape: tuple):
+        """Whatever the leading axes of C, (11, 4) being properties per Gauss point."""
         n = int(np.prod(shape))
         E = 210e9 if shape == () else np.linspace(200e9, 220e9, n).reshape(shape)
         material = Isotropic(3, E=E, v=0.3)
@@ -194,15 +190,12 @@ class TestLinearElastic:
         assert np.linalg.norm(sqrtS @ sqrtS - S) / np.linalg.norm(S) < 1e-12
         assert np.linalg.norm(sqrtC @ sqrtS - np.eye(6)) < 1e-12
 
-    @pytest.mark.parametrize("shape", [(), (11,), (11, 4)])
-    def test_str_heterogeneous(self, shape: tuple):
-        """Printing a material works whatever the shape of its parameters; a field prints as its shape and range."""
-        E = np.full(shape, 210e3)
-        expected = "2.1e+05" if shape == () else f"{shape} in [2.1e+05, 2.1e+05]"
-        for material in (
-            Isotropic(2, E=E, v=0.3),
-            TransverselyIsotropic(2, El=E, Et=800, Gl=500, vl=0.3, vt=0.4),
-            Orthotropic(
+    @pytest.mark.parametrize(
+        "law",
+        [
+            lambda E: Isotropic(2, E=E, v=0.3),
+            lambda E: TransverselyIsotropic(2, El=E, Et=800, Gl=500, vl=0.3, vt=0.4),
+            lambda E: Orthotropic(
                 3,
                 E,
                 800,
@@ -214,8 +207,14 @@ class TestLinearElastic:
                 0.25,
                 0.4,
             ),
-        ):
-            assert f"= {expected}\n" in str(material)
+        ],
+        ids=["Isotropic", "TransverselyIsotropic", "Orthotropic"],
+    )
+    @pytest.mark.parametrize("shape", [(), (11,), (11, 4)])
+    def test_str_prints_a_field_as_its_shape_and_range(self, law, shape: tuple):
+        E = np.full(shape, 210e3)
+        expected = "2.1e+05" if shape == () else f"{shape} in [2.1e+05, 2.1e+05]"
+        assert f"= {expected}\n" in str(law(E))
 
     def test_str_prints_both_axes(self):
         material = Orthotropic(
@@ -277,7 +276,7 @@ def _Trace(A: np.ndarray) -> np.ndarray:
 def ti_tensor(request, dim: int, moduli: str) -> np.ndarray:
     """C or S of a TI material whose moduli are scalar, per element or per Gauss point."""
     c = MODULI[moduli]
-    material = TransverselyIsotropic(dim, *(c * value for value in TI.values()))
+    material = TransverselyIsotropic(dim, **{k: c * v for k, v in TI.items()})
     return getattr(material, request.param)
 
 
