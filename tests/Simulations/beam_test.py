@@ -3,957 +3,359 @@
 # This file is part of the EasyFEA project.
 # EasyFEA is distributed under the terms of the GNU General Public License v3, see LICENSE.txt and CREDITS.md for more information.
 
-import matplotlib
-import matplotlib.pyplot as plt
+from typing import NamedTuple
+
 import numpy as np
 import pytest
 
-from EasyFEA import Matplotlib, Models, Simulations, Mesher, ElemType
-from EasyFEA.Geoms import Domain, Point, Line
+from EasyFEA import ElemType, Mesh, Mesher, Models, Simulations
+from EasyFEA.Geoms import Circle, Domain, Line, Point
 
-from ._reference import (
-    cantilever_tip,
-    cantilever_distributed,
-    fixed_fixed,
-    rect_Iz,
-    simply_supported,
-    simply_supported_distributed,
-)
+from _numerics import rel_error
+from . import _reference
 
-TOL = (
-    1e-7  # Single tolerance for all quantities (uy, rz, Mz_gp, Ty, N, ...).
-    # The bottleneck is floating-point accumulation in high-degree shape function evaluation,
-    # not the quantity type. Observed floors: SEG2 ~1e-13, SEG3 ~2e-11, SEG4 ~5e-11, SEG5 ~3e-9.
-    # 1e-7 gives comfortable headroom above the worst case (SEG5).
-)
+# Floor is round-off in high-degree shape functions: SEG2 ~1e-13 ... SEG5 ~3e-9.
+TOL = 1e-7
 ELEM_TYPES = ElemType.Get_1D()
 
-matplotlib.use("Agg")
-
-# -------------------------------------------------------
-# Helpers
-# -------------------------------------------------------
-
-
-def _close_plots():
-    plt.close("all")
+E, v = 210000.0, 0.3
+B = H = 13.0
+F, Q = -800.0, -10.0  # point and distributed loads in y, downward
+EI = E * _reference.rect_Iz(B, H)
+KAPPA = 5 / 6
+KGA = KAPPA * E / (2 * (1 + v)) * B * H
 
 
-def _rect_section(mesher: Mesher, b: float, h: float):
-    return mesher.Mesh_2D(Domain(Point(-b / 2, -h / 2), Point(b / 2, h / 2)))
+def _section(b: float = B, h: float = H, elemType: ElemType = ElemType.TRI3) -> Mesh:
+    domain = Domain(Point(-b / 2, -h / 2), Point(b / 2, h / 2))
+    return domain.Mesh_2D([], elemType)
 
 
-# -------------------------------------------------------
-# Traction: axial bar with tip load and body force
-# -------------------------------------------------------
+def _beam(
+    elemType: ElemType,
+    beamDim: int,
+    length: float,
+    loadPoint: float | None = None,
+    useTimoshenko: bool = False,
+) -> Simulations.Beam:
+    """A straight beam along x in `length / 10` elements, with a node at `loadPoint`."""
+    line = Line(Point(), Point(x=length), length / 10)
+    beam = Models.Beam.Isotropic(beamDim, line, _section(), E, v)
+    beam._ky = beam._kz = KAPPA
+    additionalPoints = [] if loadPoint is None else [Point(x=loadPoint)]
+    mesh = Mesher().Mesh_Beams(
+        [beam], additionalPoints=additionalPoints, elemType=elemType
+    )
+    structure = Models.Beam.BeamStructure([beam])
+    return Simulations.Beam(mesh, structure, useTimoshenko=useTimoshenko)
+
+
+def _clamp(simu: Simulations.Beam, x: float) -> None:
+    nodesClamped = simu.mesh.Nodes_Point(Point(x=x))
+    simu.add_dirichlet(nodesClamped, [0] * simu.Get_dof_n(), simu.Get_unknowns())
+
+
+def _pin_and_roll(simu: Simulations.Beam, length: float) -> None:
+    """Pinned at x=0, roller at x=`length`; in 3D, torsion held at the pin."""
+    nodesPinned = simu.mesh.Nodes_Point(Point())
+    nodesRoller = simu.mesh.Nodes_Point(Point(x=length))
+    if "z" not in simu.Get_unknowns():
+        simu.add_dirichlet(nodesPinned, [0, 0], ["x", "y"])
+        simu.add_dirichlet(nodesRoller, [0], ["y"])
+    else:
+        simu.add_dirichlet(nodesPinned, [0, 0, 0, 0], ["x", "y", "z", "rx"])
+        simu.add_dirichlet(nodesRoller, [0, 0], ["y", "z"])
+
+
+class Case(NamedTuple):
+    """A loaded beam: its closed form, supports, and the point load position (None: distributed)."""
+
+    fields: _reference.BeamFields
+    supports: str
+    loadPoint: float | None
+
+
+def _cases(length: float) -> dict[str, Case]:
+    a, b = length / 2, 0.8 * length
+    return {
+        "cantilever tip": Case(
+            _reference.cantilever_tip(length, F, EI), "cantilever", length
+        ),
+        "cantilever distributed": Case(
+            _reference.cantilever_distributed(length, Q, EI), "cantilever", None
+        ),
+        "simply supported symmetric": Case(
+            _reference.simply_supported(length, a, F, EI), "simply supported", a
+        ),
+        "simply supported eccentric": Case(
+            _reference.simply_supported(length, b, F, EI), "simply supported", b
+        ),
+        "simply supported distributed": Case(
+            _reference.simply_supported_distributed(length, Q, EI),
+            "simply supported",
+            None,
+        ),
+        "fixed-fixed symmetric": Case(
+            _reference.fixed_fixed(length, a, F, EI), "fixed-fixed", a
+        ),
+        "fixed-fixed eccentric": Case(
+            _reference.fixed_fixed(length, b, F, EI), "fixed-fixed", b
+        ),
+    }
+
+
+def _solve(
+    case: Case,
+    elemType: ElemType,
+    beamDim: int,
+    length: float,
+    useTimoshenko: bool = False,
+) -> Simulations.Beam:
+    simu = _beam(elemType, beamDim, length, case.loadPoint, useTimoshenko)
+    if case.supports == "cantilever":
+        _clamp(simu, 0.0)
+    elif case.supports == "simply supported":
+        _pin_and_roll(simu, length)
+    else:
+        _clamp(simu, 0.0)
+        _clamp(simu, length)
+    if case.loadPoint is None:
+        simu.add_lineLoad(simu.mesh.nodes, [Q], ["y"])
+    else:
+        nodesLoaded = simu.mesh.Nodes_Point(Point(x=case.loadPoint))
+        simu.add_neumann(nodesLoaded, [F], ["y"])
+    simu.Solve()
+    return simu
+
+
+def _x_nodes_and_centers(mesh: Mesh) -> tuple[np.ndarray, np.ndarray]:
+    x_n = mesh.coord[:, 0]
+    return x_n, x_n[mesh.connect].mean(1)
+
+
+L_EB = 120.0
+EB_CASES = _cases(L_EB)
+
+
+@pytest.mark.parametrize("beamDim", [2, 3])
+@pytest.mark.parametrize("elemType", ELEM_TYPES)
+@pytest.mark.parametrize("case", EB_CASES.values(), ids=EB_CASES.keys())
+def test_euler_bernoulli_beam_matches_its_closed_form(
+    case: Case, elemType: ElemType, beamDim: int
+):
+    """Nodal uy and rz are exact; so are the element shear forces and, under a point load, the piecewise-linear moment."""
+    simu = _solve(case, elemType, beamDim, L_EB)
+    x_n, x_e = _x_nodes_and_centers(simu.mesh)
+    exact = case.fields
+
+    assert rel_error(simu.Result("uy"), exact.uy(x_n)) < TOL
+    assert rel_error(simu.Result("rz"), exact.rz(x_n)) < TOL
+    assert rel_error(simu.Result("Ty", nodeValues=False), exact.Ty(x_e)) < TOL
+    if case.loadPoint is not None:
+        assert rel_error(simu.Result("Mz", nodeValues=False), exact.Mz(x_e)) < TOL
+
+
+# Stocky (L/h ≈ 1.5), so the shear deflection is ~33 % of the bending one. Selective
+# reduced integration: exact once the Lagrange degree reaches that of uy (cubic for a
+# tip load, quartic when distributed), O(h²) on SEG2.
+L_TIMOSHENKO = 20.0
+TIMOSHENKO_CASES = {
+    name: _cases(L_TIMOSHENKO)[name]
+    for name in (
+        "cantilever tip",
+        "cantilever distributed",
+        "simply supported distributed",
+    )
+}
+TOLS_TIP = {"SEG2": 2e-3, "SEG3": 1e-11, "SEG4": 1e-11, "SEG5": 1e-11}
+TOLS_DISTRIBUTED = {"SEG2": 1e-2, "SEG3": 1e-5, "SEG4": 1e-6, "SEG5": 1e-11}
+
+
+@pytest.mark.parametrize("beamDim", [2, 3])
+@pytest.mark.parametrize("elemType", ELEM_TYPES)
+@pytest.mark.parametrize("case", TIMOSHENKO_CASES.values(), ids=TIMOSHENKO_CASES.keys())
+def test_timoshenko_beam_adds_the_shear_deflection(
+    case: Case, elemType: ElemType, beamDim: int
+):
+    simu = _solve(case, elemType, beamDim, L_TIMOSHENKO, useTimoshenko=True)
+    x_n, x_e = _x_nodes_and_centers(simu.mesh)
+    exact = _reference.timoshenko(case.fields, KGA)
+    tols = TOLS_TIP if case.loadPoint is not None else TOLS_DISTRIBUTED
+    tol = tols[str(elemType)]
+
+    assert rel_error(simu.Result("uy"), exact.uy(x_n)) < tol
+    if case.supports == "cantilever":
+        assert rel_error(simu.Result("rz"), exact.rz(x_n)) < tol
+    assert rel_error(simu.Result("Ty", nodeValues=False), exact.Ty(x_e)) < tol
+    if case.loadPoint is not None:
+        assert rel_error(simu.Result("Mz", nodeValues=False), exact.Mz(x_e)) < TOL
+
+
+def test_slender_timoshenko_cantilever_on_a_tri6_section():
+    """As `examples/Beam/Beam2.py`: shear correction computed from the TRI6 section, SEG3 exact for the cubic deflection."""
+    line = Line(Point(), Point(x=L_EB), L_EB / 10)
+    section = _section(elemType=ElemType.TRI6)
+    beam = Models.Beam.Isotropic(2, line, section, E, v)
+    kGA = beam._ky * E / (2 * (1 + v)) * B * H
+    mesh = Mesher().Mesh_Beams([beam], elemType=ElemType.SEG3)
+    simu = Simulations.Beam(mesh, Models.Beam.BeamStructure([beam]), useTimoshenko=True)
+    _clamp(simu, 0.0)
+    nodesTip = mesh.Nodes_Point(Point(x=L_EB))
+    simu.add_neumann(nodesTip, [F], ["y"])
+    simu.Solve()
+
+    x_n, x_e = _x_nodes_and_centers(mesh)
+    exact = _reference.timoshenko(_reference.cantilever_tip(L_EB, F, EI), kGA)
+    assert rel_error(simu.Result("uy"), exact.uy(x_n)) < 1e-9
+    assert rel_error(simu.Result("rz"), exact.rz(x_n)) < 1e-9
+    assert rel_error(simu.Result("Mz", nodeValues=False), exact.Mz(x_e)) < TOL
+    assert rel_error(simu.Result("Ty", nodeValues=False), exact.Ty(x_e)) < TOL
 
 
 @pytest.mark.parametrize("beamDim", [1, 2, 3])
 @pytest.mark.parametrize("elemType", ELEM_TYPES)
-def test_traction(elemType: str, beamDim: int):
-    L, nL = 10.0, 10
-    b, h = 0.1, 0.1
-    E, v, ro, g = 200000e6, 0.3, 7800.0, 10.0
-    P = 5000.0  # tip force in x (positive = tension)
-    q = ro * g * b * h  # distributed axial body force (N/m)
-
-    mesher = Mesher()
-    section = _rect_section(mesher, b, h)
-    A = section.area
-
-    assert abs(A - b * h) <= 1e-12
-
-    point1, point2 = Point(), Point(x=L)
-    line = Line(point1, point2, L / nL)
-    beam = Models.Beam.Isotropic(beamDim, line, section, E, v)
-
-    mesh = mesher.Mesh_Beams([beam], elemType=elemType)
-    structure = Models.Beam.BeamStructure([beam])
-    simu = Simulations.Beam(mesh, structure, verbosity=False)
-
-    simu.rho = ro
-    expected_mass = L * b * h * ro
-    assert abs(simu.mass - expected_mass) / expected_mass <= 1e-12
-
-    simu.add_dirichlet(
-        mesh.Nodes_Point(point1), [0] * simu.Get_dof_n(), simu.Get_unknowns()
-    )
-    simu.add_lineLoad(mesh.Nodes_Line(line), [q], ["x"])
-    simu.add_neumann(mesh.Nodes_Point(point2), [P], ["x"])
+def test_axial_bar_under_tip_force_and_own_weight(elemType: ElemType, beamDim: int):
+    length, b, h = 10.0, 0.1, 0.1
+    E_steel, rho, g = 200e9, 7800.0, 10.0
+    P = 5000.0
+    q = rho * g * b * h
+    line = Line(Point(), Point(x=length), length / 10)
+    beam = Models.Beam.Isotropic(beamDim, line, _section(b, h), E_steel, v)
+    mesh = Mesher().Mesh_Beams([beam], elemType=elemType)
+    simu = Simulations.Beam(mesh, Models.Beam.BeamStructure([beam]))
+    simu.rho = rho
+    _clamp(simu, 0.0)
+    nodesLine = mesh.Nodes_Line(line)
+    nodesTip = mesh.Nodes_Point(Point(x=length))
+    simu.add_lineLoad(nodesLine, [q], ["x"])
+    simu.add_neumann(nodesTip, [P], ["x"])
     simu.Solve()
 
-    x_n = mesh.coord[:, 0]
-    x_e = x_n[mesh.connect].mean(1)
-
-    # ux
-    ux_x = lambda x: P * x / (E * A) + ro * g * x / (2 * E) * (2 * L - x)
-    ux_fe = simu.Result("ux", nodeValues=True)
-    err_ux = np.abs(ux_x(x_n) - ux_fe).max() / np.abs(ux_x(L))
-    assert err_ux <= TOL, f"ux error {err_ux:.2e}"
-
-    # N
-    N_x = lambda x: P + q * (L - x)
-    N_fe = simu.Result("N", nodeValues=False)
-    err_N = np.abs(N_x(x_e) - N_fe).max() / np.abs(N_x(x_e)).max()
-    assert err_N <= TOL, f"N error {err_N:.2e}"
-
-    Matplotlib.Plot_BoundaryConditions(simu)
-    _close_plots()
+    x_n, x_e = _x_nodes_and_centers(mesh)
+    exact = _reference.axial_bar(length, P, q, E_steel * b * h)
+    assert rel_error(simu.mass, length * b * h * rho) < 1e-12
+    assert rel_error(simu.Result("ux"), exact.ux(x_n)) < TOL
+    assert rel_error(simu.Result("N", nodeValues=False), exact.N(x_e)) < TOL
 
 
-# -------------------------------------------------------
-# Cantilever with tip load (dim >= 2)
-# -------------------------------------------------------
-
-
-@pytest.mark.parametrize("beamDim", [2, 3])
+@pytest.mark.parametrize("useTimoshenko", [False, True], ids=["EB", "Timoshenko"])
 @pytest.mark.parametrize("elemType", ELEM_TYPES)
-def test_cantilever_tip(elemType: str, beamDim: int):
-    L, nL = 120.0, 10
-    b, h = 13.0, 13.0
-    E, v = 210000.0, 0.3
-    F = -800.0  # tip force in y (negative = downward)
-    Iz = rect_Iz(b, h)
+def test_welded_l_frame_tip_displacement(elemType: ElemType, useTimoshenko: bool):
+    """Clamped at the origin, welded at (L, 0), pushed in +x at (L, L).
 
-    mesher = Mesher()
-    section = _rect_section(mesher, b, h)
-
-    assert abs(section.area - b * h) <= 1e-12
-
-    point1, point2 = Point(), Point(x=L)
-    line = Line(point1, point2, L / nL)
-    beam = Models.Beam.Isotropic(beamDim, line, section, E, v)
-
-    assert abs(beam.Iz - Iz) <= 1e-12
-
-    mesh = mesher.Mesh_Beams([beam], elemType=elemType)
-    structure = Models.Beam.BeamStructure([beam])
-    simu = Simulations.Beam(mesh, structure, verbosity=False)
-
-    simu.add_dirichlet(
-        mesh.Nodes_Point(point1), [0] * simu.Get_dof_n(), simu.Get_unknowns()
-    )
-    simu.add_neumann(mesh.Nodes_Point(point2), [F], ["y"])
-    simu.Solve()
-
-    x_n = mesh.coord[:, 0]
-    x_e = x_n[mesh.connect].mean(1)
-
-    # uy
-    uy_x, rz_x, Mz_x, _ = cantilever_tip(L, F, E * Iz)
-    uy_fe = simu.Result("uy", nodeValues=True)
-    err_uy = np.abs(uy_x(x_n) - uy_fe).max() / np.abs(uy_x(L))
-    assert err_uy <= TOL, f"uy error {err_uy:.2e}"
-
-    # rz
-    rz_fe = simu.Result("rz", nodeValues=True)
-    err_rz = np.abs(rz_x(x_n) - rz_fe).max() / np.abs(rz_x(L))
-    assert err_rz <= TOL, f"rz error {err_rz:.2e}"
-
-    # Mz: exact Mz is piecewise linear — element means are exact up to TOL
-    Mz_fe = simu.Result("Mz", nodeValues=False)  # (Ne,)
-    err_Mz = np.abs(Mz_x(x_e) - Mz_fe).max() / np.abs(Mz_x(x_e)).max()
-    assert err_Mz <= TOL, f"Mz error {err_Mz:.2e}"
-
-    # Ty = F (constant)
-    Ty_fe = simu.Result("Ty", nodeValues=False)
-    err_Ty = np.abs(F - Ty_fe).max() / np.abs(F)
-    assert err_Ty <= TOL, f"Ty error {err_Ty:.2e}"
-
-    Matplotlib.Plot_Mesh(simu, deformFactor=10)
-    Matplotlib.Plot(simu, "uy", plotMesh=False)
-    _close_plots()
-
-
-# -------------------------------------------------------
-# Cantilever with uniform distributed load (dim >= 2)
-# -------------------------------------------------------
-
-
-@pytest.mark.parametrize("beamDim", [2, 3])
-@pytest.mark.parametrize("elemType", ELEM_TYPES)
-def test_cantilever_distrib(elemType: str, beamDim: int):
-    L, nL = 120.0, 10
-    b, h = 13.0, 13.0
-    E, v = 210000.0, 0.3
-    q = -10.0  # uniform load in y (negative = downward, N/mm)
-    Iz = rect_Iz(b, h)
-
-    mesher = Mesher()
-    section = _rect_section(mesher, b, h)
-
-    point1, point2 = Point(), Point(x=L)
-    line = Line(point1, point2, L / nL)
-    beam = Models.Beam.Isotropic(beamDim, line, section, E, v)
-
-    mesh = mesher.Mesh_Beams([beam], elemType=elemType)
-    structure = Models.Beam.BeamStructure([beam])
-    simu = Simulations.Beam(mesh, structure, verbosity=False)
-
-    simu.add_dirichlet(
-        mesh.Nodes_Point(point1), [0] * simu.Get_dof_n(), simu.Get_unknowns()
-    )
-    simu.add_lineLoad(mesh.nodes, [q], ["y"])
-    simu.Solve()
-
-    x_n = mesh.coord[:, 0]
-    x_e = x_n[mesh.connect].mean(1)
-
-    uy_x, rz_x, Mz_x, Ty_x = cantilever_distributed(L, q, E * Iz)
-
-    # uy
-    uy_fe = simu.Result("uy", nodeValues=True)
-    err_uy = np.abs(uy_x(x_n) - uy_fe).max() / np.abs(uy_x(L))
-    assert err_uy <= TOL, f"uy error {err_uy:.2e}"
-
-    # rz
-    rz_fe = simu.Result("rz", nodeValues=True)
-    err_rz = np.abs(rz_x(x_n) - rz_fe).max() / np.abs(rz_x(L))
-    assert err_rz <= TOL, f"rz error {err_rz:.2e}"
-
-    # Mz: element means are O(h^2) under distributed load — check shape only
-    assert simu.Result("Mz", nodeValues=False).shape == (mesh.Ne,)
-
-    # Ty: compared at element centers (constant per element from -dMz/dx)
-    Ty_fe = simu.Result("Ty", nodeValues=False)
-    err_Ty = np.abs(Ty_x(x_e) - Ty_fe).max() / np.abs(Ty_x(x_e)).max()
-    assert err_Ty <= TOL, f"Ty error {err_Ty:.2e}"
-
-
-# -------------------------------------------------------
-# Fixed-fixed beam with point load, symmetric and eccentric (dim >= 2)
-# -------------------------------------------------------
-
-
-@pytest.mark.parametrize("a_frac", [0.5, 0.8], ids=["symmetric", "eccentric"])
-@pytest.mark.parametrize("beamDim", [2, 3])
-@pytest.mark.parametrize("elemType", ELEM_TYPES)
-def test_biencastre(elemType: str, beamDim: int, a_frac: float):
-    L, nL = 120.0, 10
-    b, h = 13.0, 13.0
-    E, v = 210000.0, 0.3
-    F = -800.0  # point force in y (negative = downward)
-    a = L * a_frac  # load position
-    Iz = rect_Iz(b, h)
-
-    mesher = Mesher()
-    section = _rect_section(mesher, b, h)
-
-    point1 = Point()
-    point_load = Point(x=a)
-    point3 = Point(x=L)
-    line = Line(point1, point3, L / nL)
-    beam = Models.Beam.Isotropic(beamDim, line, section, E, v)
-
-    mesh = mesher.Mesh_Beams([beam], additionalPoints=[point_load], elemType=elemType)
-    structure = Models.Beam.BeamStructure([beam])
-    simu = Simulations.Beam(mesh, structure, verbosity=False)
-
-    simu.add_dirichlet(
-        mesh.Nodes_Point(point1), [0] * simu.Get_dof_n(), simu.Get_unknowns()
-    )
-    simu.add_dirichlet(
-        mesh.Nodes_Point(point3), [0] * simu.Get_dof_n(), simu.Get_unknowns()
-    )
-    simu.add_neumann(mesh.Nodes_Point(point_load), [F], ["y"])
-    simu.Solve()
-
-    x_n = mesh.coord[:, 0]
-    x_e = x_n[mesh.connect].mean(1)
-
-    uy_x, _, Mz_x, Ty_x = fixed_fixed(L, a, F, E * Iz)
-
-    # uy
-    uy_fe = simu.Result("uy", nodeValues=True)
-    err_uy = np.abs(uy_x(x_n) - uy_fe).max() / np.abs(uy_x(a))
-    assert err_uy <= TOL, f"uy error {err_uy:.2e}"
-
-    # Mz: exact Mz is piecewise linear — element means are exact up to TOL
-    Mz_fe = simu.Result("Mz", nodeValues=False)  # (Ne,)
-    err_Mz = np.abs(Mz_x(x_e) - Mz_fe).max() / np.abs(Mz_x(x_e)).max()
-    assert err_Mz <= TOL, f"Mz error {err_Mz:.2e}"
-
-    # Ty
-    Ty_fe = simu.Result("Ty", nodeValues=False)
-    err_Ty = np.abs(Ty_x(x_e) - Ty_fe).max() / abs(F)
-    assert err_Ty <= TOL, f"Ty error {err_Ty:.2e}"
-
-
-# -------------------------------------------------------
-# Simply supported beam (pinned-roller) with point load (dim >= 2)
-# -------------------------------------------------------
-
-
-@pytest.mark.parametrize("a_frac", [0.5, 0.8], ids=["symmetric", "eccentric"])
-@pytest.mark.parametrize("beamDim", [2, 3])
-@pytest.mark.parametrize("elemType", ELEM_TYPES)
-def test_simply_supported_tip(elemType: str, beamDim: int, a_frac: float):
-    L, nL = 120.0, 10
-    b, h = 13.0, 13.0
-    E, v = 210000.0, 0.3
-    F = -800.0  # point force in y (negative = downward)
-    a = L * a_frac  # load position
-    Iz = rect_Iz(b, h)
-
-    mesher = Mesher()
-    section = _rect_section(mesher, b, h)
-
-    point1 = Point()
-    point_load = Point(x=a)
-    point3 = Point(x=L)
-    line = Line(point1, point3, L / nL)
-    beam = Models.Beam.Isotropic(beamDim, line, section, E, v)
-
-    mesh = mesher.Mesh_Beams([beam], additionalPoints=[point_load], elemType=elemType)
-    structure = Models.Beam.BeamStructure([beam])
-    simu = Simulations.Beam(mesh, structure, verbosity=False)
-
-    # pinned at x=0: fix all translations; roller at x=L: fix transverse translations
-    if beamDim == 2:
-        simu.add_dirichlet(mesh.Nodes_Point(point1), [0, 0], ["x", "y"])
-        simu.add_dirichlet(mesh.Nodes_Point(point3), [0], ["y"])
-    elif beamDim == 3:
-        simu.add_dirichlet(mesh.Nodes_Point(point1), [0, 0, 0], ["x", "y", "z"])
-        simu.add_dirichlet(mesh.Nodes_Point(point3), [0, 0], ["y", "z"])
-
-    simu.add_neumann(mesh.Nodes_Point(point_load), [F], ["y"])
-    simu.Solve()
-
-    x_n = mesh.coord[:, 0]
-    x_e = x_n[mesh.connect].mean(1)
-
-    uy_x, _, Mz_x, Ty_x = simply_supported(L, a, F, E * Iz)
-
-    # uy
-    uy_fe = simu.Result("uy", nodeValues=True)
-    err_uy = np.abs(uy_x(x_n) - uy_fe).max() / np.abs(uy_x(a))
-    assert err_uy <= TOL, f"uy error {err_uy:.2e}"
-
-    # Mz: exact Mz is piecewise linear — element means are exact up to TOL
-    Mz_fe = simu.Result("Mz", nodeValues=False)  # (Ne,)
-    err_Mz = np.abs(Mz_x(x_e) - Mz_fe).max() / np.abs(Mz_x(x_e)).max()
-    assert err_Mz <= TOL, f"Mz error {err_Mz:.2e}"
-
-    # Ty
-    Ty_fe = simu.Result("Ty", nodeValues=False)
-    err_Ty = np.abs(Ty_x(x_e) - Ty_fe).max() / abs(F)
-    assert err_Ty <= TOL, f"Ty error {err_Ty:.2e}"
-
-    Matplotlib.Plot_BoundaryConditions(simu)
-    _close_plots()
-
-
-# -------------------------------------------------------
-# Simply supported beam with uniform distributed load (dim >= 2)
-# -------------------------------------------------------
-
-
-@pytest.mark.parametrize("beamDim", [2, 3])
-@pytest.mark.parametrize("elemType", ELEM_TYPES)
-def test_simply_supported_distrib(elemType: str, beamDim: int):
-    L, nL = 120.0, 10
-    b, h = 13.0, 13.0
-    E, v = 210000.0, 0.3
-    q = -10.0  # uniform load in y (negative = downward, N/mm)
-    Iz = rect_Iz(b, h)
-
-    mesher = Mesher()
-    section = _rect_section(mesher, b, h)
-
-    point1, point3 = Point(), Point(x=L)
-    line = Line(point1, point3, L / nL)
-    beam = Models.Beam.Isotropic(beamDim, line, section, E, v)
-
-    mesh = mesher.Mesh_Beams([beam], elemType=elemType)
-    structure = Models.Beam.BeamStructure([beam])
-    simu = Simulations.Beam(mesh, structure, verbosity=False)
-
-    if beamDim == 2:
-        simu.add_dirichlet(mesh.Nodes_Point(point1), [0, 0], ["x", "y"])
-        simu.add_dirichlet(mesh.Nodes_Point(point3), [0], ["y"])
-    elif beamDim == 3:
-        simu.add_dirichlet(mesh.Nodes_Point(point1), [0, 0, 0], ["x", "y", "z"])
-        simu.add_dirichlet(mesh.Nodes_Point(point3), [0, 0], ["y", "z"])
-
-    simu.add_lineLoad(mesh.nodes, [q], ["y"])
-    simu.Solve()
-
-    x_n = mesh.coord[:, 0]
-    x_e = x_n[mesh.connect].mean(1)
-
-    uy_x, _, Mz_x, Ty_x = simply_supported_distributed(L, q, E * Iz)
-
-    # uy
-    uy_fe = simu.Result("uy", nodeValues=True)
-    err_uy = np.abs(uy_x(x_n) - uy_fe).max() / np.abs(uy_x(L / 2))
-    assert err_uy <= TOL, f"uy error {err_uy:.2e}"
-
-    # Mz: element means are O(h^2) under distributed load — check shape only
-    assert simu.Result("Mz", nodeValues=False).shape == (mesh.Ne,)
-
-    # Ty: compared at element centers (constant per element from -dMz/dx)
-    Ty_fe = simu.Result("Ty", nodeValues=False)
-    err_Ty = np.abs(Ty_x(x_e) - Ty_fe).max() / np.abs(Ty_x(x_e)).max()
-    assert err_Ty <= TOL, f"Ty error {err_Ty:.2e}"
-
-
-# -------------------------------------------------------
-# Timoshenko beams (shear-deformable)
-# -------------------------------------------------------
-
-
-def _timoshenko_kGA(
-    beam: Models.Beam.Isotropic, E: float, v: float, A: float, axis: str = "y"
-) -> float:
-    """Effective shear stiffness kGA — reads the shear correction factor
-    straight from ``beam._ky`` / ``beam._kz`` (same values the simulation
-    uses in Get_D).  Defaults are the Cowper-ν=0 values from
-    _Get_shear_kappa: ≈ 5/6 for a rectangle, ≈ 6/7 for a circle.
+    The horizontal beam carries a constant moment -F·L; the vertical one bends as a cantilever on a base rotating by -F·L²/EI. At the tip: ux = F·L/EA + 4·F·L³/(3·EI) (+ F·L/kGA), |uy| = F·L³/(2·EI).
     """
-    mu = E / (2 * (1 + v))
-    k = beam._ky if axis == "y" else beam._kz
-    return k * mu * A
-
-
-# Per-element tolerance / mesh size for the Timoshenko tests.
-# With selective reduced integration, the bending/torsion/axial terms are
-# integrated exactly for any polynomial Mz the element can represent, so the
-# only error source is whether the Lagrange degree (n-1) can represent the
-# exact transverse displacement v.
-#
-#   exact v shape       | SEG2 (P¹)  | SEG3 (P²)  | SEG4 (P³)  | SEG5 (P⁴)
-#   --------------------+------------+------------+------------+----------
-#   cubic   (tip load)  | O(h²)      | exact      | exact      | exact
-#   quartic (distrib q) | O(h²)      | O(h⁴)      | O(h⁵)      | exact
-#
-# At nL=10, SEG2 gives ~1.2e-3 error, SEG3 ~1.5e-6 (distrib), SEG4 ~1.1e-7,
-# SEG5 machine precision.  TOLS_TIP / TOLS_DISTRIB lock these in.
-
-TOLS_TIP = {"SEG2": 2e-3, "SEG3": 1e-11, "SEG4": 1e-11, "SEG5": 1e-11}
-TOLS_DISTRIB = {"SEG2": 1e-2, "SEG3": 1e-5, "SEG4": 1e-6, "SEG5": 1e-11}
-
-
-@pytest.mark.parametrize("beamDim", [2, 3])
-@pytest.mark.parametrize("elemType", ELEM_TYPES)
-def test_timoshenko_cantilever_tip(elemType: str, beamDim: int):
-    """Timoshenko cantilever with tip load — all element types.
-
-    Uses a stocky beam (L/h ≈ 1.5) so the shear term F·x/(kGA) is ~33 % of the
-    bending term — large enough that using the EB formula would fail the tolerance.
-
-    Pure-Lagrange + selective reduced integration on the shear term (Hughes 1987;
-    Bathe 2006) eliminates shear locking.  The exact tip-load v is cubic, so:
-
-      elemType | v degree | exact? | nL=10 max-node err
-      ---------+----------+--------+--------------------
-      SEG2     | 1        | no     | 1.88e-3   (O(h²) convergence)
-      SEG3     | 2        | yes    | ~1e-14   (machine precision)
-      SEG4     | 3        | yes    | ~1e-14
-      SEG5     | 4        | yes    | ~1e-14
-
-    Analytical solution (exact for Timoshenko beam theory):
-        uy(x) = F·(L·x²/2 - x³/6)/(E·Iz)  +  F·x/(kGA)   ← shear adds F·x/(kGA)
-        rz(x) = F·(L·x - x²/2)/(E·Iz)                      ← θ only, same as EB
-        Mz(x) = F·(L - x)                                   ← same as EB
-        Ty(x) = F                                            ← constant from γ
-    """
-    L, nL = 20.0, 10
-    b, h = 13.0, 13.0
-    E, v = 210000.0, 0.3
-    F = -800.0  # tip force in y (negative = downward)
-    Iz = rect_Iz(b, h)
-    A = b * h
-    tol = TOLS_TIP[elemType]
-
-    mesher = Mesher()
-    section = _rect_section(mesher, b, h)
-
-    point1, point2 = Point(), Point(x=L)
-    line = Line(point1, point2, L / nL)
-    beam = Models.Beam.Isotropic(beamDim, line, section, E, v)
-    kGA = _timoshenko_kGA(beam, E, v, A)
-
-    mesh = mesher.Mesh_Beams([beam], elemType=elemType)
-    structure = Models.Beam.BeamStructure([beam])
-    simu = Simulations.Beam(mesh, structure, useTimoshenko=True, verbosity=False)
-
-    simu.add_dirichlet(
-        mesh.Nodes_Point(point1), [0] * simu.Get_dof_n(), simu.Get_unknowns()
+    length, b, h = 10.0, 0.5, 0.5
+    E_steel, force = 210e9, 1000.0
+    A, EI_frame = b * h, E_steel * _reference.rect_Iz(b, h)
+    kGA = KAPPA * E_steel / (2 * (1 + v)) * A
+    section = _section(b, h)
+    line1 = Line(Point(), Point(length, 0), length / 10)
+    line2 = Line(Point(length, 0), Point(length, length), length / 10)
+    beams = [
+        Models.Beam.Isotropic(2, line, section, E_steel, v) for line in (line1, line2)
+    ]
+    for beam in beams:
+        beam._ky = KAPPA
+    mesh = Mesher().Mesh_Beams(beams, elemType=elemType)
+    simu = Simulations.Beam(
+        mesh, Models.Beam.BeamStructure(beams), useTimoshenko=useTimoshenko
     )
-    simu.add_neumann(mesh.Nodes_Point(point2), [F], ["y"])
+    nodesClamped = mesh.Nodes_Point(Point())
+    nodesCorner = mesh.Nodes_Point(Point(length, 0))
+    nodesTip = mesh.Nodes_Point(Point(length, length))
+    simu.add_dirichlet(nodesClamped, [0, 0, 0], ["x", "y", "rz"])
+    simu.add_connection_fixed(nodesCorner)
+    simu.add_neumann(nodesTip, [force], ["x"])
     simu.Solve()
 
-    x_n = mesh.coord[:, 0]
-    x_e = x_n[mesh.connect].mean(1)
-
-    # uy: bending + shear contribution
-    uy_x = lambda x: (
-        F * (L * np.asarray(x) ** 2 / 2 - np.asarray(x) ** 3 / 6) / (E * Iz)
-        + F * np.asarray(x) / kGA
-    )
-    uy_fe = simu.Result("uy", nodeValues=True)
-    err_uy = np.abs(uy_x(x_n) - uy_fe).max() / np.abs(uy_x(L))
-    assert err_uy <= tol, f"uy error {err_uy:.2e} (tol {tol:.0e})"
-
-    # rz: bending rotation θ only (independent DOF — does NOT include shear slope)
-    rz_x = lambda x: F / (E * Iz) * (L * np.asarray(x) - np.asarray(x) ** 2 / 2)
-    rz_fe = simu.Result("rz", nodeValues=True)
-    err_rz = np.abs(rz_x(x_n) - rz_fe).max() / np.abs(rz_x(L))
-    assert err_rz <= tol, f"rz error {err_rz:.2e} (tol {tol:.0e})"
-
-    # Mz: piecewise linear — element means exact
-    Mz_x = lambda x: F * (L - np.asarray(x))
-    Mz_fe = simu.Result("Mz", nodeValues=False)  # (Ne,)
-    err_Mz = np.abs(Mz_x(x_e) - Mz_fe).max() / np.abs(Mz_x(x_e)).max()
-    assert err_Mz <= TOL, f"Mz error {err_Mz:.2e}"
-
-    # Ty: primary result from shear strain γ = v' - θ — constant.
-    # Evaluated at the reduced Gauss points where γ is physical.
-    Ty_fe = simu.Result("Ty", nodeValues=False)
-    err_Ty = np.abs(F - Ty_fe).max() / np.abs(F)
-    assert err_Ty <= TOL, f"Ty error {err_Ty:.2e}"
+    shear = force * length / kGA if useTimoshenko else 0.0
+    ux = force * length / (E_steel * A) + 4 * force * length**3 / (3 * EI_frame)
+    uy = force * length**3 / (2 * EI_frame)
+    # SEG2's linear deflection converges in O(h²); SEG3+ are exact
+    tol = 1e-3 if elemType == "SEG2" else 1e-8
+    assert rel_error(simu.Result("ux")[nodesTip], ux + shear) < tol
+    assert rel_error(np.abs(simu.Result("uy")[nodesTip]), uy) < tol
 
 
-def test_timoshenko_cantilever_tip_beam2_example():
-    """Regression test mirroring ``examples/Beam/Beam2.py`` exactly:
-
-      - 2D Timoshenko cantilever
-      - slender geometry (L = 120, b = h = 13 → L/h ≈ 9.2)
-      - TRI6 section (quadratic — matches the example's choice and our
-        recommendation for accurate _Get_shear_kappa)
-      - SEG3 beam (cubic v → exact for tip-load deflection)
-      - nL = 10
-
-    Catches regressions that affect the slender / TRI6 path specifically.
-    """
-    L, nL = 120.0, 10
-    b, h = 13.0, 13.0
-    E, v = 210000.0, 0.3
-    F = -800.0
-    Iz = rect_Iz(b, h)
-    A = b * h
-
-    mesher = Mesher()
-    # TRI6 section (matches Beam2.py); domain at (0, 0)-(b, h) as in the example
-    section = mesher.Mesh_2D(Domain(Point(0, 0), Point(b, h)), elemType=ElemType.TRI6)
-
-    p1, p2 = Point(0, 0), Point(L, 0)
-    line = Line(p1, p2, L / nL)
-    beam = Models.Beam.Isotropic(2, line, section, E, v)
-    kGA = _timoshenko_kGA(beam, E, v, A)  # uses beam._ky (matches the simulation)
-
-    mesh = mesher.Mesh_Beams([beam], elemType=ElemType.SEG3)
-    structure = Models.Beam.BeamStructure([beam])
-    simu = Simulations.Beam(mesh, structure, useTimoshenko=True, verbosity=False)
-
-    simu.add_dirichlet(
-        mesh.Nodes_Point(p1), [0] * simu.Get_dof_n(), simu.Get_unknowns()
-    )
-    simu.add_neumann(mesh.Nodes_Point(p2), [F], ["y"])
-    simu.Solve()
-
-    x_n = mesh.coord[:, 0]
-    x_e = x_n[mesh.connect].mean(1)
-
-    uy_x = lambda x: (
-        F * (L * np.asarray(x) ** 2 / 2 - np.asarray(x) ** 3 / 6) / (E * Iz)
-        + F * np.asarray(x) / kGA
-    )
-    rz_x = lambda x: F / (E * Iz) * (L * np.asarray(x) - np.asarray(x) ** 2 / 2)
-    Mz_x = lambda x: F * (L - np.asarray(x))
-
-    uy_fe = simu.Result("uy", nodeValues=True)
-    rz_fe = simu.Result("rz", nodeValues=True)
-    Mz_fe = simu.Result("Mz", nodeValues=False)
-    Ty_fe = simu.Result("Ty", nodeValues=False)
-
-    # SEG3 + cubic-exact v + consistent kGA → all four checks are essentially
-    # exact.  Tolerance 1e-9 accommodates the small FP accumulation noise from
-    # the larger L (120) and the TRI6 Poisson solve, while still catching any
-    # algorithmic regression.
-    tol = 1e-9
-
-    err_uy = np.abs(uy_x(x_n) - uy_fe).max() / np.abs(uy_x(L))
-    err_rz = np.abs(rz_x(x_n) - rz_fe).max() / np.abs(rz_x(L))
-    err_Mz = np.abs(Mz_x(x_e) - Mz_fe).max() / np.abs(Mz_x(x_e)).max()
-    err_Ty = np.abs(F - Ty_fe).max() / np.abs(F)
-
-    assert err_uy <= tol, f"uy error {err_uy:.2e} (tol {tol:.0e})"
-    assert err_rz <= tol, f"rz error {err_rz:.2e} (tol {tol:.0e})"
-    assert err_Mz <= TOL, f"Mz error {err_Mz:.2e}"
-    assert err_Ty <= TOL, f"Ty error {err_Ty:.2e}"
-
-
-@pytest.mark.parametrize("beamDim", [2, 3])
-@pytest.mark.parametrize("elemType", ELEM_TYPES)
-def test_timoshenko_cantilever_distrib(elemType: str, beamDim: int):
-    """Timoshenko cantilever with uniform distributed load — all element types.
-
-    Pure-Lagrange + selective reduced integration.  The exact v is quartic.
-
-      elemType | v degree | exact? | nL=10 max-node err
-      ---------+----------+--------+--------------------
-      SEG2     | 1        | no     | 1.16e-3   (O(h²))
-      SEG3     | 2        | no     | 1.45e-6   (O(h⁴))
-      SEG4     | 3        | no     | 1.14e-7   (O(h⁵))
-      SEG5     | 4        | yes    | ~1e-13   (machine precision)
-
-    Analytical solution (exact for Timoshenko beam theory):
-        uy(x) = q·x²·(6L²-4Lx+x²)/(24EIz)  +  q·x·(2L-x)/(2·kGA)
-        rz(x) = q·(x³/6 - L·x²/2 + L²·x/2)/(EIz)   ← same ODE as EB
-        Mz(x) = q·(x-L)²/2
-        Ty(x) = q·(L-x)
-    """
-    L, nL = 20.0, 10
-    b, h = 13.0, 13.0
-    E, v = 210000.0, 0.3
-    q = -10.0  # uniform load in y (negative = downward, N/mm)
-    Iz = rect_Iz(b, h)
-    A = b * h
-    tol = TOLS_DISTRIB[elemType]
-
-    mesher = Mesher()
-    section = _rect_section(mesher, b, h)
-
-    point1, point2 = Point(), Point(x=L)
-    line = Line(point1, point2, L / nL)
-    beam = Models.Beam.Isotropic(beamDim, line, section, E, v)
-    kGA = _timoshenko_kGA(beam, E, v, A)
-
-    mesh = mesher.Mesh_Beams([beam], elemType=elemType)
-    structure = Models.Beam.BeamStructure([beam])
-    simu = Simulations.Beam(mesh, structure, useTimoshenko=True, verbosity=False)
-
-    simu.add_dirichlet(
-        mesh.Nodes_Point(point1), [0] * simu.Get_dof_n(), simu.Get_unknowns()
-    )
-    simu.add_lineLoad(mesh.nodes, [q], ["y"])
-    simu.Solve()
-
-    x_n = mesh.coord[:, 0]
-    x_e = x_n[mesh.connect].mean(1)
-
-    uy_EB_x, rz_x, Mz_x, Ty_x = cantilever_distributed(L, q, E * Iz)
-
-    # uy: EB bending + shear term q·x·(2L-x)/(2·kGA)
-    uy_x = lambda x: uy_EB_x(x) + q * np.asarray(x) * (2 * L - np.asarray(x)) / (
-        2 * kGA
-    )
-    uy_fe = simu.Result("uy", nodeValues=True)
-    err_uy = np.abs(uy_x(x_n) - uy_fe).max() / np.abs(uy_x(L))
-    assert err_uy <= tol, f"uy error {err_uy:.2e} (tol {tol:.0e})"
-
-    # rz: bending rotation θ only — same ODE as EB, same analytical formula
-    rz_fe = simu.Result("rz", nodeValues=True)
-    err_rz = np.abs(rz_x(x_n) - rz_fe).max() / np.abs(rz_x(L))
-    assert err_rz <= tol, f"rz error {err_rz:.2e} (tol {tol:.0e})"
-
-    # Mz: element means are O(h^2) under distributed load — check shape only
-    assert simu.Result("Mz", nodeValues=False).shape == (mesh.Ne,)
-
-    # Ty: linear — element means at reduced Gauss points capture this accurately.
-    Ty_fe = simu.Result("Ty", nodeValues=False)
-    err_Ty = np.abs(Ty_x(x_e) - Ty_fe).max() / np.abs(Ty_x(x_e)).max()
-    assert err_Ty <= tol, f"Ty error {err_Ty:.2e} (tol {tol:.0e})"
-
-
-@pytest.mark.parametrize("beamDim", [2, 3])
-@pytest.mark.parametrize("elemType", ELEM_TYPES)
-def test_timoshenko_simply_supported(elemType: str, beamDim: int):
-    """Timoshenko simply supported beam with uniform distributed load — all element types.
-
-    Same exact v degree = 4 as test_timoshenko_cantilever_distrib; convergence
-    table is the same — see TOLS_DISTRIB.
-
-    Analytical solution (exact for Timoshenko beam theory):
-        uy(x) = q·x·(L³-2Lx²+x³)/(24EIz)  +  q·x·(L-x)/(2·kGA)
-        Mz(x) = q·x·(x-L)/2
-        Ty(x) = q·(L/2-x)
-    """
-    L, nL = 20.0, 10
-    b, h = 13.0, 13.0
-    E, v = 210000.0, 0.3
-    q = -10.0  # uniform load in y (negative = downward, N/mm)
-    Iz = rect_Iz(b, h)
-    A = b * h
-    tol = TOLS_DISTRIB[elemType]
-
-    mesher = Mesher()
-    section = _rect_section(mesher, b, h)
-
-    point1, point3 = Point(), Point(x=L)
-    line = Line(point1, point3, L / nL)
-    beam = Models.Beam.Isotropic(beamDim, line, section, E, v)
-    kGA = _timoshenko_kGA(beam, E, v, A)
-
-    mesh = mesher.Mesh_Beams([beam], elemType=elemType)
-    structure = Models.Beam.BeamStructure([beam])
-    simu = Simulations.Beam(mesh, structure, useTimoshenko=True, verbosity=False)
-
-    if beamDim == 2:
-        simu.add_dirichlet(mesh.Nodes_Point(point1), [0, 0], ["x", "y"])
-        simu.add_dirichlet(mesh.Nodes_Point(point3), [0], ["y"])
-    elif beamDim == 3:
-        # rx must be pinned somewhere — pure-Lagrange Timoshenko leaves the
-        # torsion field with a free rigid-body mode otherwise (no torsion load).
-        simu.add_dirichlet(
-            mesh.Nodes_Point(point1), [0, 0, 0, 0], ["x", "y", "z", "rx"]
-        )
-        simu.add_dirichlet(mesh.Nodes_Point(point3), [0, 0], ["y", "z"])
-
-    simu.add_lineLoad(mesh.nodes, [q], ["y"])
-    simu.Solve()
-
-    x_n = mesh.coord[:, 0]
-    x_e = x_n[mesh.connect].mean(1)
-
-    uy_EB_x, _, Mz_x, Ty_x = simply_supported_distributed(L, q, E * Iz)
-
-    # uy: EB bending + shear term q·x·(L-x)/(2·kGA)
-    uy_x = lambda x: uy_EB_x(x) + q * np.asarray(x) * (L - np.asarray(x)) / (2 * kGA)
-    uy_fe = simu.Result("uy", nodeValues=True)
-    err_uy = np.abs(uy_x(x_n) - uy_fe).max() / np.abs(uy_x(L / 2))
-    assert err_uy <= tol, f"uy error {err_uy:.2e} (tol {tol:.0e})"
-
-    # Mz: element means are O(h^2) under distributed load — check shape only
-    assert simu.Result("Mz", nodeValues=False).shape == (mesh.Ne,)
-
-    # Ty: linear — element means at reduced Gauss points are exact.
-    Ty_fe = simu.Result("Ty", nodeValues=False)
-    err_Ty = np.abs(Ty_x(x_e) - Ty_fe).max() / np.abs(Ty_x(x_e)).max()
-    assert err_Ty <= tol, f"Ty error {err_Ty:.2e} (tol {tol:.0e})"
-
-
-# -------------------------------------------------------
-# Saint-Venant shear correction factor — section geometry
-# -------------------------------------------------------
-#
-# The dedicated _Get_shear_kappa tests use TRI6 sections (quadratic — what the
-# code's own warning recommends).  φ is a cubic polynomial in (x, y) for
-# rectangles / circles, and TRI6 captures it with O(h³) error → ~1e-5 at the
-# default meshing, so we can assert a tight 1e-4 tolerance.
-#
-# The TRI3 path is exercised implicitly by every test_timoshenko_* test
-# (those use _rect_section, which defaults to TRI3) — no need for a dedicated
-# TRI3 case here.
+# Saint-Venant shear correction from the section: TRI6 captures the cubic warping
+# function to O(h³), ~1e-5 at these sizes.
 
 
 @pytest.mark.parametrize(
-    "b,h",
+    "b, h",
     [(10.0, 10.0), (10.0, 30.0), (30.0, 10.0), (2.0, 20.0)],
     ids=["square", "tall", "wide", "thin-tall"],
 )
-def test_shear_kappa_rectangle(b: float, h: float):
-    """Saint-Venant Poisson k for a rectangular cross-section converges to 5/6
-    (same as the canonical Timoshenko shear coefficient — Cowper-ν=0)."""
-    from EasyFEA.Geoms import Line
+@pytest.mark.parametrize("axis", ["y", "z"])
+def test_rectangle_shear_correction_is_five_sixths(b: float, h: float, axis: str):
+    domain = Domain((-b / 2, -h / 2), (b / 2, h / 2), meshSize=min(b, h) / 10)
+    section = domain.Mesh_2D([], ElemType.TRI6)
+    beam = Models.Beam.Isotropic(2, Line((0, 0), (10, 0), 1), section, 210e9, 0.3)
 
-    mesher = Mesher()
-    section = mesher.Mesh_2D(
-        Domain((-b / 2, -h / 2), (b / 2, h / 2), meshSize=min(b, h) / 10),
-        [],
-        ElemType.TRI6,
-    )
-    line = Line((0, 0), (10, 0), 1)
-    beam = Models.Beam.Isotropic(2, line, section, 210e9, 0.3)
-
-    k_expected = 5 / 6
-    tol = 1e-4
-    ky = beam._Get_shear_correction_factor("y")
-    kz = beam._Get_shear_correction_factor("z")
-    err_y = abs(ky - k_expected) / k_expected
-    err_z = abs(kz - k_expected) / k_expected
-    assert err_y <= tol, f"ky={ky:.6f} err {err_y:.2e} (tol {tol:.0e})"
-    assert err_z <= tol, f"kz={kz:.6f} err {err_z:.2e} (tol {tol:.0e})"
+    assert rel_error(beam._Get_shear_correction_factor(axis), 5 / 6) < 1e-4
 
 
 @pytest.mark.parametrize("diam", [5.0, 10.0, 20.0])
-def test_shear_kappa_circle(diam: float):
-    """Saint-Venant Poisson k for a circular section converges to 6/7
-    (Cowper-ν=0; pure Jouravski's 9/10 misses the 2-D shear distribution)."""
-    from EasyFEA.Geoms import Circle, Line
+@pytest.mark.parametrize("axis", ["y", "z"])
+def test_circle_shear_correction_is_six_sevenths(diam: float, axis: str):
+    circle = Circle(Point(), diam=diam, meshSize=diam / 30)
+    section = circle.Mesh_2D([], ElemType.TRI6)
+    beam = Models.Beam.Isotropic(2, Line((0, 0), (10, 0), 1), section, 210e9, 0.3)
 
-    mesher = Mesher()
-    section = mesher.Mesh_2D(
-        Circle(Point(), diam=diam, meshSize=diam / 30), [], ElemType.TRI6
-    )
-    line = Line(Point(0, 0), Point(x=10), 1)
-    beam = Models.Beam.Isotropic(2, line, section, 210e9, 0.3)
-
-    k_expected = 6 / 7
-    tol = 1e-4
-    ky = beam._Get_shear_correction_factor("y")
-    kz = beam._Get_shear_correction_factor("z")
-    err_y = abs(ky - k_expected) / k_expected
-    err_z = abs(kz - k_expected) / k_expected
-    assert err_y <= tol, f"ky={ky:.6f} err {err_y:.2e} (tol {tol:.0e})"
-    assert err_z <= tol, f"kz={kz:.6f} err {err_z:.2e} (tol {tol:.0e})"
+    assert rel_error(beam._Get_shear_correction_factor(axis), 6 / 7) < 1e-4
 
 
-def test_shear_kappa_convergence():
-    """Refining the section mesh drives the Saint-Venant k error toward zero."""
-    from EasyFEA.Geoms import Line
-
-    mesher = Mesher()
-    line = Line(Point(0, 0), Point(x=10), 1)
-    k_expected = 5 / 6
-
+def test_shear_correction_converges_with_the_section_mesh():
+    line = Line(Point(), Point(x=10), 1)
     errors = []
     for meshSize in [2.0, 1.0, 0.5, 0.25]:
-        section = mesher.Mesh_2D(Domain(Point(-5, -5), Point(5, 5), meshSize=meshSize))
-        beam = Models.Beam.Isotropic(2, line, section, 210e9, 0.3)
-        errors.append(
-            abs(beam._Get_shear_correction_factor("y") - k_expected) / k_expected
-        )
+        domain = Domain(Point(-5, -5), Point(5, 5), meshSize=meshSize)
+        beam = Models.Beam.Isotropic(2, line, domain.Mesh_2D(), 210e9, 0.3)
+        errors.append(rel_error(beam._Get_shear_correction_factor("y"), 5 / 6))
 
-    # error should decrease (or already be at machine precision)
-    for fine, coarse in zip(errors[1:], errors[:-1]):
-        assert fine <= coarse + 1e-12, f"non-monotonic convergence: {errors}"
-    assert errors[-1] <= 5e-4, f"finest error {errors[-1]:.2e} too large; got {errors}"
+    assert all(fine <= coarse + 1e-12 for fine, coarse in zip(errors[1:], errors))
+    assert errors[-1] <= 5e-4
 
 
-def test_shear_kappa_axis_error():
-    """_Get_shear_kappa raises on invalid axis."""
-    from EasyFEA.Geoms import Line
-
-    mesher = Mesher()
-    section = _rect_section(mesher, 10.0, 10.0)
+def test_shear_correction_rejects_the_beam_axis():
     beam = Models.Beam.Isotropic(
-        2, Line(Point(0, 0), Point(x=10), 1), section, 210e9, 0.3
+        2, Line(Point(), Point(x=10), 1), _section(10.0, 10.0), 210e9, 0.3
     )
     with pytest.raises(ValueError):
         beam._Get_shear_correction_factor("x")
 
 
-# -------------------------------------------------------
-# Frame / projection test: L-shape (axis-aligned beams + rigid joint)
-# -------------------------------------------------------
+CHANGES = {
+    "E": lambda beam, section: setattr(beam, "E", 2 * beam.E),
+    "v": lambda beam, section: setattr(beam, "v", 0.4),
+    "section": lambda beam, section: setattr(beam, "section", section),
+}
 
 
-@pytest.mark.parametrize("useTimoshenko", [False, True], ids=["EB", "Timoshenko"])
-@pytest.mark.parametrize("elemType", ELEM_TYPES)
-def test_L_frame(elemType: str, useTimoshenko: bool):
-    """Two-beam L-frame with rigid joint, clamped at origin, horizontal tip
-    force at the corner — exercises BeamStructure's projection matrix and the
-    add_connection_fixed Lagrange constraint.
-
-    Geometry:                           Loading:
-            F → o (L, L)                F in +x at (L, L)
-                |
-                | beam 2 (vertical)
-                |
-        o-------o (L, 0)                rigid joint at (L, 0)
-        ^ clamp
-        (0, 0)
-
-    Analytical solution:
-      Beam 1 (horizontal): inherits constant moment Mz = -F·L from beam 2's
-      tip force; tip x deflection F·L/EA (axial), tip rotation -F·L²/EI,
-      tip y deflection ±F·L³/(2EI) (sign depends on moment-sign convention,
-      compared as magnitude).
-
-      Beam 2 (vertical, cantilever from base): tip x deflection from bending
-      F·L³/(3EI), plus rigid-body x translation from base rotation -rz·L =
-      F·L³/EI, plus Timoshenko shear F·L/(kGA).
-
-      Total at (L, L):
-        ux = F·L/EA + 4·F·L³/(3·EI) + (F·L/kGA if Timoshenko else 0)
-        |uy| = F·L³/(2·EI)
-    """
-    L = 10.0
-    b, h = 0.5, 0.5
-    E, v = 210e9, 0.3
-    F = 1000.0
-    A = b * h
-    Iz = rect_Iz(b, h)
-
-    mesher = Mesher()
-    section = _rect_section(mesher, b, h)
-    line1 = Line(Point(0, 0), Point(L, 0), L / 10)
-    line2 = Line(Point(L, 0), Point(L, L), L / 10)
-    beam1 = Models.Beam.Isotropic(2, line1, section, E, v)
-    beam2 = Models.Beam.Isotropic(2, line2, section, E, v)
-    kGA = _timoshenko_kGA(beam2, E, v, A)
-
-    mesh = mesher.Mesh_Beams([beam1, beam2], elemType=elemType)
-    structure = Models.Beam.BeamStructure([beam1, beam2])
-    simu = Simulations.Beam(
-        mesh, structure, useTimoshenko=useTimoshenko, verbosity=False
-    )
-    clamp = simu.mesh.Nodes_Point(Point(0, 0))
-    corner = simu.mesh.Nodes_Point(Point(L, 0))
-    tip = simu.mesh.Nodes_Point(Point(L, L))
-
-    simu.add_dirichlet(clamp, [0, 0, 0], ["x", "y", "rz"])
-    simu.add_connection_fixed(corner)  # weld the two beams at the corner
-    simu.add_neumann(tip, [F], ["x"])
-    simu.Solve()
-
-    ux_tip = simu.Result("ux", nodeValues=True)[tip][0]
-    uy_tip = simu.Result("uy", nodeValues=True)[tip][0]
-
-    shear_term = F * L / kGA if useTimoshenko else 0.0
-    ux_ex = F * L / (E * A) + 4 * F * L**3 / (3 * E * Iz) + shear_term
-    uy_ex_mag = F * L**3 / (2 * E * Iz)
-
-    # SEG2 has linear v → O(h²) convergence; SEG3+ exact for this load case.
-    tol = 1e-3 if elemType == "SEG2" else 1e-8
-
-    err_ux = abs(ux_tip - ux_ex) / abs(ux_ex)
-    err_uy = abs(abs(uy_tip) - uy_ex_mag) / uy_ex_mag
-    assert err_ux <= tol, f"ux error {err_ux:.2e} (tol {tol:.0e})"
-    assert err_uy <= tol, f"|uy| error {err_uy:.2e} (tol {tol:.0e})"
-
-
-# -------------------------------------------------------
-# Material update triggers simulation reassembly
-# -------------------------------------------------------
-
-
-def test_update_beam():
-    """Modifications to Beam material properties must mark the simulation as needing update."""
-
-    def assert_needs_update(simu: Simulations._Simu) -> None:
-        assert simu.needUpdate
-        simu.Need_Update(False)
-
-    mesher = Mesher()
-    sect1 = mesher.Mesh_2D(Domain(Point(), Point(0.01, 0.01)))
-    sect2 = sect1.copy()
-    sect2.Rotate(30, sect2.center)
-    sect3 = sect2.copy()
-    sect3.Rotate(30, sect3.center)
-
-    beam1 = Models.Beam.Isotropic(2, Line(Point(), Point(5)), sect1, 210e9, v=0.1)
-    beam2 = Models.Beam.Isotropic(2, Line(Point(5), Point(10)), sect2, 210e9, v=0.1)
-    beams = [beam1, beam2]
-
-    structure = Models.Beam.BeamStructure(beams)
-    mesh = mesher.Mesh_Beams(beams)
-    simu = Simulations.Beam(mesh, structure)
-
+@pytest.mark.parametrize("change", CHANGES.values(), ids=CHANGES.keys())
+@pytest.mark.parametrize("which", [0, 1], ids=["first beam", "second beam"])
+def test_a_beam_change_flags_the_simulation_for_reassembly(change, which: int):
+    section = _section(0.01, 0.01)
+    rotated = section.copy()
+    rotated.Rotate(30, rotated.center)
+    beams = [
+        Models.Beam.Isotropic(2, Line(Point(), Point(5)), section, 210e9, v=0.1),
+        Models.Beam.Isotropic(2, Line(Point(5), Point(10)), section, 210e9, v=0.1),
+    ]
+    mesh = Mesher().Mesh_Beams(beams)
+    simu = Simulations.Beam(mesh, Models.Beam.BeamStructure(beams))
     simu.Get_K_C_M_F()
-    assert not simu.needUpdate  # assembling clears the flag
+    assert not simu.needUpdate
 
-    for beam in beams:
-        beam.E *= 2
-        assert_needs_update(simu)
-        beam.v = 0.4
-        assert_needs_update(simu)
-        beam.section = sect3
-        assert_needs_update(simu)
+    change(beams[which], rotated)
+
+    assert simu.needUpdate
 
 
 @pytest.mark.parametrize("E, v", [(np.full(3, 210e9), 0.3), (210e9, np.full(3, 0.3))])
 def test_beam_parameters_are_scalar(E, v):
-    section = _rect_section(Mesher(), 0.1, 0.1)
     line = Line(Point(), Point(x=1.0), 0.1)
 
     with pytest.raises(AssertionError, match="scalar"):
-        Models.Beam.Isotropic(
-            2,
-            line,
-            section,
-            E,
-            v,
-        )
+        Models.Beam.Isotropic(2, line, _section(0.1, 0.1), E, v)

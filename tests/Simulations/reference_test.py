@@ -44,3 +44,18 @@ def test_beam_moment_is_the_curvature(beam: _reference.BeamFields):
 @pytest.mark.parametrize("beam", BEAMS.values(), ids=BEAMS.keys())
 def test_beam_shear_is_minus_the_moment_slope(beam: _reference.BeamFields):
     assert rel_error(beam.Ty(X), -_derivative(beam.Mz, X)) < 1e-6
+
+
+KGA = 5 / 6 * 80e3 * 13.0**2
+DETERMINATE = [
+    "cantilever_tip",
+    "cantilever_distributed",
+    "simply_supported_distributed",
+]
+
+
+@pytest.mark.parametrize("name", DETERMINATE)
+def test_timoshenko_shear_strain_is_the_shear_force_over_kGA(name: str):
+    beam = _reference.timoshenko(BEAMS[name], KGA)
+    gamma = _derivative(beam.uy, X) - beam.rz(X)
+    assert rel_error(gamma, beam.Ty(X) / KGA) < 1e-6

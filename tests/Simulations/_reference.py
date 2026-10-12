@@ -134,3 +134,28 @@ def fixed_fixed(L: float, a: float, F: float, EI: float) -> BeamFields:
         Mz=lambda x: Ma + Ra * x + F * _macaulay(x, a, 1),
         Ty=lambda x: np.where(x < a, -Ra, Rb),
     )
+
+
+def timoshenko(fields: BeamFields, kGA: float) -> BeamFields:
+    """Adds the shear deflection ∫Ty/kGA to a statically determinate Euler-Bernoulli beam clamped or pinned at x=0; rz is the section rotation, unchanged."""
+    return BeamFields(
+        uy=lambda x: fields.uy(x) + (fields.Mz(0.0) - fields.Mz(x)) / kGA,
+        rz=fields.rz,
+        Mz=fields.Mz,
+        Ty=fields.Ty,
+    )
+
+
+class AxialFields(NamedTuple):
+    """Axial displacement and normal force along x."""
+
+    ux: Field
+    N: Field
+
+
+def axial_bar(L: float, P: float, q: float, EA: float) -> AxialFields:
+    """Clamped at x=0, axial force P at x=L, uniform axial load q."""
+    return AxialFields(
+        ux=lambda x: (P * x + q * x * (2 * L - x) / 2) / EA,
+        N=lambda x: P + q * (L - x),
+    )
