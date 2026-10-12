@@ -17,6 +17,25 @@ from EasyFEA.Models.InElastic import MaterialPoint, PointUpdate
 GRAD_U = np.array([[0.02, -0.01, 0.03], [0.015, -0.025, 0.01], [-0.02, 0.005, 0.04]])
 
 
+R2 = np.sqrt(2)
+KELVIN_BASIS = np.array(
+    [
+        [[1, 0, 0], [0, 0, 0], [0, 0, 0]],
+        [[0, 0, 0], [0, 1, 0], [0, 0, 0]],
+        [[0, 0, 0], [0, 0, 0], [0, 0, 1]],
+        [[0, 0, 0], [0, 0, 1 / R2], [0, 1 / R2, 0]],
+        [[0, 0, 1 / R2], [0, 0, 0], [1 / R2, 0, 0]],
+        [[0, 1 / R2, 0], [1 / R2, 0, 0], [0, 0, 0]],
+    ]
+)
+"""Orthonormal basis of symmetric 3×3 tensors, in Kelvin-Mandel order `[xx, yy, zz, yz, xz, xy]`."""
+
+
+def kelvin(A: np.ndarray) -> np.ndarray:
+    """(6,) Kelvin-Mandel vector of the symmetric part of a 3×3 tensor."""
+    return np.einsum("kij,ij->k", KELVIN_BASIS, A)
+
+
 TANGENT_RTOL = 1e-6
 """Per entry, plus an absolute floor of TANGENT_RTOL·1e-3 of the largest entry for the vanishing ones."""
 
@@ -70,14 +89,9 @@ def affine_kinematics(dim: int, Ne: int = 1) -> AffineKinematics:
     G[:dim, :dim] = GRAD_U[:dim, :dim]
     u = mesh.coord[:, :dim] @ G[:dim, :dim].T
 
-    eps = (G + G.T) / 2
-    r2 = np.sqrt(2)
+    epsilon = kelvin(G)
     if dim == 2:
-        epsilon = np.array([eps[0, 0], eps[1, 1], r2 * eps[0, 1]])
-    else:
-        epsilon = np.array(
-            [*np.diag(eps), r2 * eps[1, 2], r2 * eps[0, 2], r2 * eps[0, 1]]
-        )
+        epsilon = epsilon[[0, 1, 5]]
     return AffineKinematics(
         Kinematics(mesh.groupElem, u.ravel()), epsilon, np.eye(3) + G
     )

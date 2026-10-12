@@ -3,553 +3,107 @@
 # This file is part of the EasyFEA project.
 # EasyFEA is distributed under the terms of the GNU General Public License v3, see LICENSE.txt and CREDITS.md for more information.
 
+"""Kinematics invariants of C = FᵀF and their derivatives in C, against closed forms under an affine u."""
+
 import numpy as np
+import pytest
 
-from EasyFEA import ElemType, MatrixType, Models, Simulations, SolverType
 from EasyFEA.FEM import Kinematics
-from EasyFEA.Geoms import Domain
-from EasyFEA.FEM._linalg import Trace, Det, Inv, TensorProd
-from EasyFEA.FEM._linalg import FeArray
-from EasyFEA.FEM._kelvin_mandel import Tensor_to_Kelvin
 
+from _numerics import rel_error
+from .conftest import GRAD_U, KELVIN_BASIS, affine_kinematics, kelvin
 
-def Get_2d_simulations(ud=1e-6) -> list[Simulations.Elastic]:
+TOL = 1e-12
 
-    L = 120  # mm
-    h = 13
-    meshSize = h / 1
+T4 = np.array([0.0, 1.0, 0.0])
+T6 = np.array([1.0, 1.0, 0.0]) / np.sqrt(2)
 
-    contour = Domain((0, 0), (L, h), meshSize)
+F = np.eye(3) + GRAD_U
+C = F.T @ F
 
-    simulations = []
 
-    for elemType in ElemType.Get_2D():
+def _hessian_I3(C: np.ndarray) -> np.ndarray:
+    """Kelvin Hessian of det(C) by central differences of its gradient det(C)·C⁻¹, exact as it is quadratic."""
+    h = 1e-3
+    c = kelvin(C)
 
-        mesh = contour.Mesh_2D([], elemType)
-        simu = Simulations.Elastic(mesh, Models.Elastic.Isotropic(2))
-        simu.solver = SolverType.scipy
+    def grad(c):
+        C = np.einsum("k,kij->ij", c, KELVIN_BASIS)
+        return kelvin(np.linalg.det(C) * np.linalg.inv(C))
 
-        simu.add_dirichlet(
-            mesh.Nodes_Conditions(lambda x, y, z: x == 0), [0, 0], simu.Get_unknowns()
-        )
-        simu.add_dirichlet(mesh.Nodes_Conditions(lambda x, y, z: x == L), [ud], ["x"])
-        simu.Solve()
+    return np.column_stack(
+        [(grad(c + d) - grad(c - d)) / (2 * h) for d in np.eye(6) * h]
+    )
 
-        simulations.append(simu)
 
-    return simulations
+INVARIANTS = {
+    "I1": (Kinematics.Compute_I1, np.trace(C)),
+    "I2": (Kinematics.Compute_I2, (np.trace(C) ** 2 - np.trace(C @ C)) / 2),
+    "I3": (Kinematics.Compute_I3, np.linalg.det(C)),
+    "I4": (lambda k: k.Compute_I4(T4), T4 @ C @ T4),
+    "I6": (lambda k: k.Compute_I6(T6), T6 @ C @ T6),
+    "I8": (lambda k: k.Compute_I8(T6, T4), T6 @ C @ T4),
+}
 
+FIRST_DERIVATIVES = {
+    "dI1dC": (Kinematics.Compute_dI1dC, kelvin(np.eye(3))),
+    "dI2dC": (Kinematics.Compute_dI2dC, kelvin(np.trace(C) * np.eye(3) - C)),
+    "dI3dC": (Kinematics.Compute_dI3dC, kelvin(np.linalg.det(C) * np.linalg.inv(C))),
+    "dI4dC": (lambda k: k.Compute_dI4dC(T4), kelvin(np.outer(T4, T4))),
+    "dI6dC": (lambda k: k.Compute_dI6dC(T6), kelvin(np.outer(T6, T6))),
+    "dI8dC": (lambda k: k.Compute_dI8dC(T6, T4), kelvin(np.outer(T6, T4))),
+}
 
-def Get_3d_simulations(ud=1e-6) -> list[Simulations.Elastic]:
+SECOND_DERIVATIVES = {
+    "d2I1dC": (Kinematics.Compute_d2I1dC, np.zeros((6, 6))),
+    "d2I2dC": (
+        Kinematics.Compute_d2I2dC,
+        np.outer(kelvin(np.eye(3)), kelvin(np.eye(3))) - np.eye(6),
+    ),
+    "d2I3dC": (Kinematics.Compute_d2I3dC, _hessian_I3(C)),
+    "d2I4dC": (Kinematics.Compute_d2I4dC, np.zeros((6, 6))),
+    "d2I6dC": (Kinematics.Compute_d2I6dC, np.zeros((6, 6))),
+    "d2I8dC": (Kinematics.Compute_d2I8dC, np.zeros((6, 6))),
+}
 
-    L = 120  # mm
-    h = 13
-    meshSize = h / 1
 
-    contour = Domain((0, 0), (L, h), meshSize)
+@pytest.fixture(scope="module")
+def kinematics() -> Kinematics:
+    """3D affine kinematics, whose F is `F` above."""
+    return affine_kinematics(3).kinematics
 
-    simulations = []
 
-    for elemType in ElemType.Get_3D():
+def _at_every_point(actual, expected: np.ndarray) -> float:
+    actual = np.asarray(actual)
+    scale = None if np.any(expected) else 1.0
+    return rel_error(actual, np.broadcast_to(expected, actual.shape), scale)
 
-        mesh = contour.Mesh_Extrude([], [0, 0, h], [h / meshSize], elemType)
-        simu = Simulations.Elastic(mesh, Models.Elastic.Isotropic(3))
-        simu.solver = SolverType.scipy
 
-        simu.add_dirichlet(
-            mesh.Nodes_Conditions(lambda x, y, z: x == 0),
-            [0, 0, 0],
-            simu.Get_unknowns(),
-        )
-        simu.add_dirichlet(mesh.Nodes_Conditions(lambda x, y, z: x == L), [ud], ["x"])
-        simu.Solve()
+def test_C_is_FtF(kinematics: Kinematics):
+    assert _at_every_point(kinematics.Compute_C(), C) < TOL
 
-        simulations.append(simu)
 
-    return simulations
+def test_green_lagrange_is_half_C_minus_identity(kinematics: Kinematics):
+    E = kinematics.Compute_GreenLagrange()
+    assert _at_every_point(E, (C - np.eye(3)) / 2) < TOL
 
 
-def Get_C_components(simu: Simulations.Elastic, matrixType=MatrixType.rigi):
+@pytest.mark.parametrize("compute, expected", INVARIANTS.values(), ids=INVARIANTS)
+def test_invariant_is_the_closed_form(kinematics: Kinematics, compute, expected):
+    assert _at_every_point(compute(kinematics), expected) < TOL
 
-    return Kinematics(simu.mesh.groupElem, simu.displacement, matrixType)._Compute_C()
 
+@pytest.mark.parametrize(
+    "compute, expected", FIRST_DERIVATIVES.values(), ids=FIRST_DERIVATIVES
+)
+def test_first_derivative_is_the_closed_form(kinematics: Kinematics, compute, expected):
+    assert _at_every_point(compute(kinematics), expected) < TOL
 
-class TestHyperElastic:
 
-    # def test_D_e_pg(self):
-
-    #     L = 120 #mm
-    #     h = 13
-    #     meshSize = h/3
-
-    #     contour = Domain((0,0), (L, h), meshSize)
-
-    #     mesh = contour.Mesh_2D([], ElemType.TRI3)
-
-    #     PyVista.Plot_Mesh(mesh).show()
-
-    #     pass
-
-    def test_C(self):
-
-        for simu in Get_3d_simulations():
-
-            for matrixType in [MatrixType.rigi, MatrixType.mass]:
-
-                cxx, cxy, cxz, cyx, cyy, cyz, czx, czy, czz = Get_C_components(
-                    simu, matrixType
-                )
-
-                assert np.linalg.norm(cxy - cyx) / np.linalg.norm(cxy) < 1e-12
-
-                assert np.linalg.norm(cxz - czx) / np.linalg.norm(cxz) < 1e-12
-
-                assert np.linalg.norm(cyz - czy) / np.linalg.norm(cyz) < 1e-12
-
-    def test_Epsilon_vs_GreenLagrange(self):
-
-        for simu in Get_3d_simulations():
-
-            for matrixType in [MatrixType.rigi, MatrixType.mass]:
-
-                u = simu.displacement
-                Epsilon_e_pg = simu._Calc_Epsilon(matrixType)
-
-                e_e_pg = Tensor_to_Kelvin(
-                    Kinematics(
-                        simu.mesh.groupElem, u, matrixType
-                    ).Compute_GreenLagrange(),
-                    2,
-                )
-
-                diff_eps = e_e_pg - Epsilon_e_pg
-
-                assert np.linalg.norm(diff_eps) < 1e-12
-
-    # --------------------------------------------------------------------------
-    # I1
-    # --------------------------------------------------------------------------
-
-    def test_I1(self):
-
-        for simu in Get_3d_simulations():
-
-            for matrixType in [MatrixType.rigi, MatrixType.mass]:
-
-                kinematics = Kinematics(
-                    simu.mesh.groupElem, simu.displacement, matrixType
-                )
-
-                C_e_pg = kinematics.Compute_C()
-                I1 = kinematics.Compute_I1()
-
-                assert np.linalg.norm(I1 - Trace(C_e_pg)) / np.linalg.norm(I1) < 1e-12
-
-    def test_dI1dC(self):
-
-        for simu in Get_3d_simulations():
-
-            for matrixType in [MatrixType.rigi, MatrixType.mass]:
-
-                kinematics = Kinematics(
-                    simu.mesh.groupElem, simu.displacement, matrixType
-                )
-
-                dI1dC = kinematics.Compute_dI1dC()
-
-                dI1dC_v = Tensor_to_Kelvin(np.eye(3), 2)
-
-                assert np.linalg.norm(dI1dC - dI1dC_v) / np.linalg.norm(dI1dC) < 1e-12
-
-    def test_d2I1dC(self):
-
-        for simu in Get_3d_simulations():
-
-            for matrixType in [MatrixType.rigi, MatrixType.mass]:
-
-                kinematics = Kinematics(
-                    simu.mesh.groupElem, simu.displacement, matrixType
-                )
-
-                d2I1dC = kinematics.Compute_d2I1dC()
-
-                d2I1dC_v = np.zeros((6, 6))
-
-                assert np.linalg.norm(d2I1dC - d2I1dC_v) < 1e-12
-
-    # --------------------------------------------------------------------------
-    # I2
-    # --------------------------------------------------------------------------
-
-    def test_I2(self):
-
-        for simu in Get_3d_simulations():
-
-            for matrixType in [MatrixType.rigi, MatrixType.mass]:
-
-                kinematics = Kinematics(
-                    simu.mesh.groupElem, simu.displacement, matrixType
-                )
-
-                C_e_pg = kinematics.Compute_C()
-
-                I2 = kinematics.Compute_I2()
-
-                I2_v = 1 / 2 * (Trace(C_e_pg) ** 2 - Trace(C_e_pg @ C_e_pg))
-
-                assert np.linalg.norm(I2 - I2_v) / np.linalg.norm(I2) < 1e-12
-
-    def test_dI2dC(self):
-
-        for simu in Get_3d_simulations():
-
-            for matrixType in [MatrixType.rigi, MatrixType.mass]:
-
-                kinematics = Kinematics(
-                    simu.mesh.groupElem, simu.displacement, matrixType
-                )
-
-                dI2dC = kinematics.Compute_dI2dC()
-
-                C_e_pg = kinematics.Compute_C()
-
-                I1_e_pg = kinematics.Compute_I1()
-                C_e_pg = kinematics.Compute_C()
-
-                # I1 * Id - C
-                dI2dC_v = (I1_e_pg * np.eye(3)) - C_e_pg
-                dI2dC_v = Tensor_to_Kelvin(dI2dC_v, 2)
-
-                assert np.linalg.norm(dI2dC - dI2dC_v) / np.linalg.norm(dI2dC) < 1e-12
-
-    def test_d2I2dC(self):
-
-        for simu in Get_3d_simulations():
-
-            for matrixType in [MatrixType.rigi, MatrixType.mass]:
-
-                kinematics = Kinematics(
-                    simu.mesh.groupElem, simu.displacement, matrixType
-                )
-
-                d2I2dC = kinematics.Compute_d2I2dC()
-
-                vect1 = np.array([1, 1, 1, 0, 0, 0])
-                Id_order2 = TensorProd(vect1, vect1)
-
-                # Id_order4 = np.eye(6)
-                # same as
-                vect2 = np.eye(3)
-                Id_order4 = Tensor_to_Kelvin(TensorProd(vect2, vect2, True))
-
-                d2I2dC_v = Id_order2 - Id_order4
-
-                assert (
-                    np.linalg.norm(d2I2dC - d2I2dC_v) / np.linalg.norm(d2I2dC) < 1e-12
-                )
-
-    # --------------------------------------------------------------------------
-    # I3
-    # --------------------------------------------------------------------------
-
-    def test_I3(self):
-
-        for simu in Get_3d_simulations():
-
-            for matrixType in [MatrixType.rigi, MatrixType.mass]:
-
-                kinematics = Kinematics(
-                    simu.mesh.groupElem, simu.displacement, matrixType
-                )
-
-                C_e_pg = kinematics.Compute_C()
-
-                I3 = kinematics.Compute_I3()
-
-                assert np.linalg.norm(I3 - Det(C_e_pg)) / np.linalg.norm(I3) < 1e-12
-
-    def test_dI3dC(self):
-
-        for simu in Get_3d_simulations():
-
-            for matrixType in [MatrixType.rigi, MatrixType.mass]:
-
-                kinematics = Kinematics(
-                    simu.mesh.groupElem, simu.displacement, matrixType
-                )
-
-                dI3dC = kinematics.Compute_dI3dC()
-
-                I3_e_pg = kinematics.Compute_I3()
-                C_e_pg = kinematics.Compute_C()
-
-                dI3dC_v = I3_e_pg * Inv(C_e_pg)
-                dI3dC_v = Tensor_to_Kelvin(dI3dC_v, 2)
-
-                assert np.linalg.norm(dI3dC - dI3dC_v) / np.linalg.norm(dI3dC) < 1e-12
-
-    def test_d2I3dC(self):
-
-        for simu in Get_3d_simulations():
-
-            for matrixType in [MatrixType.rigi, MatrixType.mass]:
-
-                kinematics = Kinematics(
-                    simu.mesh.groupElem, simu.displacement, matrixType
-                )
-
-                d2I3dC = kinematics.Compute_d2I3dC()
-
-                C_e_pg = kinematics.Compute_C()
-                invC_e_pg = Inv(C_e_pg)
-                I3_e_pg = kinematics.Compute_I3()
-
-                p1_e_pg = np.einsum(
-                    "...ij,...kl->...ijkl", I3_e_pg * invC_e_pg, invC_e_pg
-                )
-                p2_e_pg = I3_e_pg * TensorProd(invC_e_pg, invC_e_pg, True, 2)
-
-                d2I3dC_v = Tensor_to_Kelvin(p1_e_pg - p2_e_pg, orderA=4)
-
-                assert (
-                    np.linalg.norm(d2I3dC - d2I3dC_v) / np.linalg.norm(d2I3dC) < 1e-12
-                )
-
-    # --------------------------------------------------------------------------
-    # I4
-    # --------------------------------------------------------------------------
-
-    def test_I4(self):
-
-        for simu in Get_3d_simulations():
-
-            for matrixType in [MatrixType.rigi, MatrixType.mass]:
-
-                kinematics = Kinematics(
-                    simu.mesh.groupElem, simu.displacement, matrixType
-                )
-
-                C_e_pg = kinematics.Compute_C()
-
-                T = np.array([0, 1, 0])
-
-                I4 = kinematics.Compute_I4(T)
-
-                I4_v = FeArray.asfearray(
-                    np.einsum("...i,...ij,...j->...", T, C_e_pg, T, optimize="optimal")
-                )
-
-                assert np.linalg.norm(I4 - I4_v) / np.linalg.norm(I4_v) < 1e-12
-
-    def __anisotropic_invariants_first_derivatives(T1: np.ndarray, T2: np.ndarray):
-
-        T1 = T1.astype(float) / np.linalg.norm(T1)
-        T2 = T2.astype(float) / np.linalg.norm(T2)
-
-        first_derivatives = np.zeros(6)
-
-        compute = lambda mat: np.einsum("...i,...ij,...j", T1, np.array(mat), T2)
-
-        # fmt: off
-        first_derivatives[0] = compute([
-            [1, 0, 0],
-            [0, 0, 0],
-            [0, 0, 0]
-        ])
-        first_derivatives[1] = compute([
-            [0, 0, 0],
-            [0, 1, 0],
-            [0, 0, 0]
-        ])
-        first_derivatives[2] = compute([
-            [0, 0, 0],
-            [0, 0, 0],
-            [0, 0, 1]
-        ])
-        first_derivatives[3] = np.sqrt(2)/2 * compute([
-            [0, 0, 0],
-            [0, 0, 1],
-            [0, 1, 0]
-        ])
-        first_derivatives[4] = np.sqrt(2)/2 * compute([
-            [0, 0, 1],
-            [0, 0, 0],
-            [1, 0, 0]
-        ])
-        first_derivatives[5] = np.sqrt(2)/2 * compute([
-            [0, 1, 0],
-            [1, 0, 0],
-            [0, 0, 0]
-        ])
-        # fmt: on
-
-        return first_derivatives
-
-    def test_dI4dC(self):
-
-        for simu in Get_3d_simulations():
-
-            for matrixType in [MatrixType.rigi, MatrixType.mass]:
-
-                kinematics = Kinematics(
-                    simu.mesh.groupElem, simu.displacement, matrixType
-                )
-
-                T = np.array([0, 1, 0])
-
-                dI4dC = kinematics.Compute_dI4dC(T)
-
-                dI4dC_v = TestHyperElastic.__anisotropic_invariants_first_derivatives(
-                    T, T
-                )
-
-                assert np.linalg.norm(dI4dC - dI4dC_v) / np.linalg.norm(dI4dC_v) < 1e-12
-
-    def test_d2I4dC(self):
-
-        for simu in Get_3d_simulations():
-
-            for matrixType in [MatrixType.rigi, MatrixType.mass]:
-
-                kinematics = Kinematics(
-                    simu.mesh.groupElem, simu.displacement, matrixType
-                )
-
-                d2I4dC = kinematics.Compute_d2I4dC()
-
-                d2I4dC_v = np.zeros((6, 6))
-
-                assert np.linalg.norm(d2I4dC - d2I4dC_v) < 1e-12
-
-    # --------------------------------------------------------------------------
-    # I6
-    # --------------------------------------------------------------------------
-
-    def test_I6(self):
-
-        for simu in Get_3d_simulations():
-
-            for matrixType in [MatrixType.rigi, MatrixType.mass]:
-
-                kinematics = Kinematics(
-                    simu.mesh.groupElem, simu.displacement, matrixType
-                )
-
-                C_e_pg = kinematics.Compute_C()
-
-                T = np.array([1, 1, 0])
-                T = T.astype(float) / np.linalg.norm(T)
-
-                I6 = kinematics.Compute_I6(T)
-
-                I6_v = FeArray.asfearray(
-                    np.einsum("...i,...ij,...j->...", T, C_e_pg, T, optimize="optimal")
-                )
-
-                assert np.linalg.norm(I6 - I6_v) / np.linalg.norm(I6_v) < 1e-12
-
-    def test_dI6dC(self):
-
-        for simu in Get_3d_simulations():
-
-            for matrixType in [MatrixType.rigi, MatrixType.mass]:
-
-                kinematics = Kinematics(
-                    simu.mesh.groupElem, simu.displacement, matrixType
-                )
-
-                T = np.array([1, 1, 0])
-                T = T.astype(float) / np.linalg.norm(T)
-
-                dI6dC = kinematics.Compute_dI6dC(T)
-
-                dI6dC_v = TestHyperElastic.__anisotropic_invariants_first_derivatives(
-                    T, T
-                )
-
-                assert np.linalg.norm(dI6dC - dI6dC_v) / np.linalg.norm(dI6dC_v) < 1e-12
-
-    def test_d2I6dC(self):
-
-        for simu in Get_3d_simulations():
-
-            for matrixType in [MatrixType.rigi, MatrixType.mass]:
-
-                kinematics = Kinematics(
-                    simu.mesh.groupElem, simu.displacement, matrixType
-                )
-
-                d2I6dC = kinematics.Compute_d2I6dC()
-
-                d2I6dC_v = np.zeros((6, 6))
-
-                assert np.linalg.norm(d2I6dC - d2I6dC_v) < 1e-12
-
-    # --------------------------------------------------------------------------
-    # I8
-    # --------------------------------------------------------------------------
-
-    def test_I8(self):
-
-        for simu in Get_3d_simulations():
-
-            for matrixType in [MatrixType.rigi, MatrixType.mass]:
-
-                kinematics = Kinematics(
-                    simu.mesh.groupElem, simu.displacement, matrixType
-                )
-
-                C_e_pg = kinematics.Compute_C()
-
-                T1 = np.array([1, 1, 0])
-                T1 = T1.astype(float) / np.linalg.norm(T1)
-                T2 = np.array([0, 1, 0])
-
-                I8 = kinematics.Compute_I8(T1, T2)
-
-                I8_v = FeArray.asfearray(
-                    np.einsum(
-                        "...i,...ij,...j->...", T1, C_e_pg, T2, optimize="optimal"
-                    )
-                )
-
-                assert np.linalg.norm(I8 - I8_v) / np.linalg.norm(I8_v) < 1e-12
-
-    def test_dI8dC(self):
-
-        for simu in Get_3d_simulations():
-
-            for matrixType in [MatrixType.rigi, MatrixType.mass]:
-
-                kinematics = Kinematics(
-                    simu.mesh.groupElem, simu.displacement, matrixType
-                )
-
-                T1 = np.array([1, 1, 0])
-                T1 = T1.astype(float) / np.linalg.norm(T1)
-                T2 = np.array([0, 1, 0])
-                T2 = T2.astype(float) / np.linalg.norm(T2)
-
-                dI8dC = kinematics.Compute_dI8dC(T1, T2)
-
-                dI8dC_v = TestHyperElastic.__anisotropic_invariants_first_derivatives(
-                    T1, T2
-                )
-
-                assert np.linalg.norm(dI8dC - dI8dC_v) / np.linalg.norm(dI8dC_v) < 1e-12
-
-    def test_d2I8dC(self):
-
-        for simu in Get_3d_simulations():
-
-            for matrixType in [MatrixType.rigi, MatrixType.mass]:
-
-                kinematics = Kinematics(
-                    simu.mesh.groupElem, simu.displacement, matrixType
-                )
-
-                d2I8dC = kinematics.Compute_d2I8dC()
-
-                d2I8dC_v = np.zeros((6, 6))
-
-                assert np.linalg.norm(d2I8dC - d2I8dC_v) < 1e-12
+@pytest.mark.parametrize(
+    "compute, expected", SECOND_DERIVATIVES.values(), ids=SECOND_DERIVATIVES
+)
+def test_second_derivative_is_the_closed_form(
+    kinematics: Kinematics, compute, expected
+):
+    assert _at_every_point(compute(kinematics), expected) < TOL
