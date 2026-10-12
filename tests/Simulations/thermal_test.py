@@ -40,8 +40,10 @@ def test_a_steady_slab_stays_steady_under_the_parabolic_scheme(box_mesh: Mesh):
 
     simu.Solver_Set_Parabolic_Algorithm(dt=0.1)
     simu.Solve()
+    simu.Save_Iter()
 
-    assert rel_error(simu.thermal, steady) < 1e-10
+    assert rel_error(simu.Result("thermal"), steady) < 1e-10
+    assert rel_error(simu.Result("thermalDot"), 0.0, scale=TL - T0) < 1e-10
 
 
 CHANGES = {
