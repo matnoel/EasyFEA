@@ -25,6 +25,7 @@ from EasyFEA.Models.InElastic.IsotropicHardening import Linear as LinearHardenin
 from EasyFEA.Models.InElastic.Yield import VonMises
 
 from _numerics import rel_error
+from . import _reference
 
 pytest.importorskip("jax")
 
@@ -69,9 +70,10 @@ def mesh3D():
 def _pull(simu, mesh: Mesh, u: float = 1.0) -> None:
     """Clamped at x=0, pulled at x=L."""
     simu.Bc_Init()
-    nodes0 = mesh.Nodes_Conditions(lambda x, y, z: x == 0)
-    simu.add_dirichlet(nodes0, [0] * mesh.dim, simu.Get_unknowns())
-    simu.add_dirichlet(mesh.Nodes_Conditions(lambda x, y, z: x == L), [u], ["x"])
+    nodesClamped = mesh.Nodes_Conditions(lambda x, y, z: x == 0)
+    nodesPulled = mesh.Nodes_Conditions(lambda x, y, z: x == L)
+    simu.add_dirichlet(nodesClamped, [0] * mesh.dim, simu.Get_unknowns())
+    simu.add_dirichlet(nodesPulled, [u], ["x"])
     simu.Solve()
 
 
@@ -207,19 +209,10 @@ def test_simulation_survives_save_and_load(mesh2D: Mesh, tmp_path):
 SIGMA_Y, HM = 250.0, 2000.0
 
 
-def _pull_bar(simu, mesh: Mesh, eps_xx: float, save: bool = True) -> None:
-    """Statically determinate: x fixed on the face, y and z pinned on one edge each, so the stress stays uniaxial."""
+def _pull_bar(simu, eps_xx: float, save: bool = True) -> None:
+    """On symmetry rollers, so the stress stays uniaxial."""
     simu.Bc_Init()
-    simu.add_dirichlet(mesh.Nodes_Conditions(lambda x, y, z: x == 0), [0], ["x"])
-    simu.add_dirichlet(
-        mesh.Nodes_Conditions(lambda x, y, z: (x == 0) & (y == 0)), [0], ["y"]
-    )
-    simu.add_dirichlet(
-        mesh.Nodes_Conditions(lambda x, y, z: (x == 0) & (z == 0)), [0], ["z"]
-    )
-    simu.add_dirichlet(
-        mesh.Nodes_Conditions(lambda x, y, z: x == L), [eps_xx * L], ["x"]
-    )
+    _reference.pull_bar(simu, eps_xx * L)
     simu.Solve()
     if save:
         simu.Save_Iter()
@@ -235,7 +228,7 @@ def test_plastic_bar_matches_the_closed_form(mesh3D: Mesh, save: bool):
     simu = Simulations.InElastic(mesh3D, _plastic())
     eps_target = 5 * SIGMA_Y / E
     for eps_xx in np.linspace(eps_target / 10, eps_target, 10):
-        _pull_bar(simu, mesh3D, eps_xx, save)
+        _pull_bar(simu, eps_xx, save)
 
     expected = E * (SIGMA_Y + HM * eps_target) / (E + HM)
     assert np.allclose(simu.Result("Sxx", nodeValues=False), expected, rtol=1e-9)
@@ -251,7 +244,7 @@ def test_norton_relaxes_through_the_simulation(mesh3D: Mesh):
     simu.dt = 1.0
     history = []
     for _ in range(6):
-        _pull_bar(simu, mesh3D, 5 * SIGMA_Y / E)
+        _pull_bar(simu, 5 * SIGMA_Y / E)
         history.append(float(np.mean(simu.Result("Sxx", nodeValues=False))))
 
     assert history[-1] < history[0]
@@ -267,9 +260,9 @@ def test_a_second_solve_under_the_same_load_is_one_more_step(mesh3D: Mesh):
     """Rate-independent: nothing more flows. Viscous: one more dt of relaxation, as at a material point."""
     eps_xx = 5 * SIGMA_Y / E
     plastic = Simulations.InElastic(mesh3D, _plastic())
-    _pull_bar(plastic, mesh3D, eps_xx, save=False)
+    _pull_bar(plastic, eps_xx, save=False)
     p = plastic.Result("p", nodeValues=False)
-    _pull_bar(plastic, mesh3D, eps_xx, save=False)
+    _pull_bar(plastic, eps_xx, save=False)
 
     assert np.all(p > 0)
     assert np.allclose(plastic.Result("p", nodeValues=False), p, rtol=1e-12)
@@ -279,7 +272,7 @@ def test_a_second_solve_under_the_same_load_is_one_more_step(mesh3D: Mesh):
     viscous.dt = DT
     sxx = []
     for _ in range(2):
-        _pull_bar(viscous, mesh3D, eps_xx, save=False)
+        _pull_bar(viscous, eps_xx, save=False)
         sxx.append(viscous.Result("Sxx", nodeValues=False))
     ref = MaterialPoint(Maxwell(ELASTIC, 0.5, 1.0)).Run(
         strain={"xx": np.full(2, eps_xx)}, dt=DT
@@ -378,22 +371,14 @@ def test_every_assembly_integrates_from_the_last_committed_state(
 
 
 def test_plane_stress_plastic_plate_matches_a_material_point(mesh2D: Mesh):
-    """Statically determinate, so the plate is in uniaxial stress, sigma_zz held at zero by the eps_zz solve."""
+    """Uniaxial stress, sigma_zz held at zero by the eps_zz solve."""
     simu = Simulations.InElastic(
         mesh2D, _plastic(Isotropic(2, E=E, v=nu, planeStress=True, thickness=H))
     )
     path = np.linspace(1, 5, 5) * SIGMA_Y / E
     sxx, p = [], []
     for eps_xx in path:
-        simu.Bc_Init()
-        simu.add_dirichlet(mesh2D.Nodes_Conditions(lambda x, y, z: x == 0), [0], ["x"])
-        simu.add_dirichlet(
-            mesh2D.Nodes_Conditions(lambda x, y, z: (x == 0) & (y == 0)), [0], ["y"]
-        )
-        simu.add_dirichlet(
-            mesh2D.Nodes_Conditions(lambda x, y, z: x == L), [eps_xx * L], ["x"]
-        )
-        simu.Solve()
+        _pull_bar(simu, eps_xx, save=False)
         sxx.append(simu.Result("Sxx", nodeValues=False))
         p.append(simu.Result("p", nodeValues=False))
     ref = MaterialPoint(_plastic()).Run(strain={"xx": path})
@@ -429,13 +414,10 @@ def _thermo(mesh: Mesh, planeStress: bool = False):
     )
 
 
-def _heat(simu, mesh: Mesh) -> None:
-    """Free to expand: x fixed on x=0, y at the origin."""
+def _heat(simu) -> None:
+    """Free to expand on symmetry rollers."""
     simu.Bc_Init()
-    simu.add_dirichlet(mesh.Nodes_Conditions(lambda x, y, z: x == 0), [0], ["x"])
-    simu.add_dirichlet(
-        mesh.Nodes_Conditions(lambda x, y, z: (x == 0) & (y == 0)), [0], ["y"]
-    )
+    _reference.add_bar_supports(simu)
     simu.Solve()
 
 
@@ -451,8 +433,8 @@ def test_a_scalar_external_variable_is_a_uniform_nodal_field(mesh2D: Mesh):
     scalar, nodal = _thermo(mesh2D), _thermo(mesh2D)
     scalar.Set_external(T=20.0)
     nodal.Set_external(T=np.full(mesh2D.Nn, 20.0))
-    _heat(scalar, mesh2D)
-    _heat(nodal, mesh2D)
+    _heat(scalar)
+    _heat(nodal)
 
     assert np.allclose(scalar.displacement, nodal.displacement, rtol=1e-12)
     assert np.allclose(scalar.Result("T"), 20.0)
@@ -464,7 +446,7 @@ def test_uniform_heating_expands_freely(mesh2D: Mesh, planeStress: bool):
     T = 20.0
     simu = _thermo(mesh2D, planeStress)
     simu.Set_external(T=T)
-    _heat(simu, mesh2D)
+    _heat(simu)
 
     eps = ALPHA * T * (1 if planeStress else 1 + nu)
     assert np.isclose(simu.Result("ux").max(), eps * L, rtol=1e-10)
@@ -499,14 +481,14 @@ def test_external_variables_do_not_follow_a_mesh_change(mesh2D: Mesh, meshFine: 
     simu.mesh = meshFine
 
     with pytest.raises(AssertionError, match="mesh change"):
-        _heat(simu, meshFine)
+        _heat(simu)
 
 
 def test_external_variables_are_saved_with_each_iteration(mesh2D: Mesh, tmp_path):
     simu = _thermo(mesh2D)
     for T in (10.0, 20.0):
         simu.Set_external(T=T)
-        _heat(simu, mesh2D)
+        _heat(simu)
         simu.Save_Iter()
     simu.Save(str(tmp_path))
     loaded = Simulations.Load_Simu(str(tmp_path))
