@@ -27,9 +27,15 @@ def _arc_contour() -> Contour:
     return Contour([bottom, arc, back])
 
 
+def _rounded_corners() -> Points:
+    return Points([Point(), Point(5, 0), Point(5, 5, r=2), Point(0, 5, r=-3)])
+
+
 def _rounded_contour() -> Contour:
-    corners = Points([Point(), Point(5, 0), Point(5, 5, r=2), Point(0, 5, r=-3)])
-    return corners.Get_Contour()
+    return _rounded_corners().Get_Contour()
+
+
+OBLIQUE = np.array([0, np.cos(np.pi / 6), np.sin(np.pi / 6)])
 
 
 GEOMS: dict[str, Callable[[], _Geom]] = {
@@ -39,6 +45,7 @@ GEOMS: dict[str, Callable[[], _Geom]] = {
     "Circle": lambda: Circle(Point(), 5, n=(1, 1, 1)),
     "CircleArc": lambda: CircleArc(Point(3, 1, 3), Point(-3, 1, 3), center=Point(0, 1)),
     "Contour": _arc_contour,
+    "rounded Points": _rounded_corners,
     "rounded Contour": _rounded_contour,
 }
 
@@ -55,6 +62,14 @@ TRANSFORMS: dict[str, tuple[Callable, Callable]] = {
     "rotate about a shifted x axis": (
         lambda g: g.Rotate(90, (0, 1, 0), (1, 0, 0), copy=True),
         lambda c: np.stack([c[:, 0], 1 - c[:, 2], c[:, 1] - 1], axis=1),
+    ),
+    "default symmetry": (
+        lambda g: g.Symmetry(copy=True),
+        lambda c: c * (-1, 1, 1),
+    ),
+    "symmetry through an oblique plane": (
+        lambda g: g.Symmetry(n=OBLIQUE, copy=True),
+        lambda c: c - 2 * np.outer(c @ OBLIQUE, OBLIQUE),
     ),
     "symmetry through xy": (
         lambda g: g.Symmetry(n=(0, 0, 1), copy=True),

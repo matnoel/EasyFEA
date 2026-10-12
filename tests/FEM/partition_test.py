@@ -9,17 +9,36 @@ import numpy as np
 import pytest
 
 from EasyFEA import ElemType, Mesher, Mesh
-
-from conftest import ALL_ELEMTYPES, elemType_mesh_of
+from EasyFEA.Geoms import Domain, Line, Point
 
 NPROCS = [2, 3, 5]
+SIZE = 10.0
 
 
 def Get_partitions(elemType: ElemType, Nproc: int) -> list[Mesh]:
-    """The `Nproc` pieces of `elemType_mesh_of(elemType)`: the public meshing call, its last step swapped for `_Mesh_Get_Meshes`."""
+    """`Nproc` pieces of a SIZE-long line, SIZE-wide square or slab of `elemType`, built on the private Mesher steps."""
     mesher = Mesher()
-    mesher._Mesh_Get_Mesh = lambda coef=1.0: mesher._Mesh_Get_Meshes(Nproc, coef)
-    return elemType_mesh_of(elemType, mesher)
+    mesher._Init_gmsh("occ")
+
+    if elemType in ElemType.Get_1D():
+        dim, meshSize = 1, 1.0
+        line = Line(Point(), Point(SIZE, 0), meshSize)
+        p1 = mesher._factory.addPoint(*line.pt1.coord, meshSize=meshSize)
+        p2 = mesher._factory.addPoint(*line.pt2.coord, meshSize=meshSize)
+        mesher._Create_Lines(line, p1, p2)
+    else:
+        dim = 2 if elemType in ElemType.Get_2D() else 3
+        meshSize = 1.0 if dim == 2 else 2.0
+        contour = Domain(Point(), Point(SIZE, SIZE), meshSize)
+        mesher._Surfaces(contour, [])
+        mesher._Organise_Surfaces(elemType, True, meshSize)
+        if dim == 3:
+            surfaces = [entity[1] for entity in mesher._factory.getEntities(2)]
+            mesher._Extrude(surfaces, (0, 0, 2 * meshSize), elemType, [2])
+
+    mesher._Set_PhysicalGroups()
+    mesher._Mesh_Generate(dim, elemType)
+    return mesher._Mesh_Get_Meshes(Nproc)
 
 
 def Get_partitioned_data(meshes: list[Mesh]) -> list[tuple]:
@@ -27,7 +46,11 @@ def Get_partitioned_data(meshes: list[Mesh]) -> list[tuple]:
     return [mesh.groupElem._Get_partitioned_data() for mesh in meshes]
 
 
-@pytest.fixture(scope="module", params=ALL_ELEMTYPES, ids=str)
+@pytest.fixture(
+    scope="module",
+    params=ElemType.Get_1D() + ElemType.Get_2D() + ElemType.Get_3D(),
+    ids=str,
+)
 def partitionedType(request) -> ElemType:
     return request.param
 

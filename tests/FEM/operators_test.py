@@ -11,6 +11,8 @@ wrong answer. They are validated here in isolation: the analytic tangents are
 checked against central finite differences of the element force they linearize.
 """
 
+from typing import Callable
+
 import numpy as np
 import pytest
 
@@ -23,8 +25,10 @@ from _numerics import rel_error
 # Every element type, for the two cheap (non-FD) assembly-identity checks below
 # (test_residual_equals_C_times_v, test_discrete_gradient_directionality) — full
 # coverage costs nothing there. The FD-tangent checks use REPR_ELEMS instead.
-ELEMS = [(2, e) for e in ElemType.Get_2D()] + [(3, e) for e in ElemType.Get_3D()]
-ELEM_IDS = [e.name for _, e in ELEMS]
+ELEMS = [(2, elemType) for elemType in ElemType.Get_2D()] + [
+    (3, elemType) for elemType in ElemType.Get_3D()
+]
+ELEM_IDS = [elemType.name for _, elemType in ELEMS]
 
 # A representative 2D/3D pair for the finite-difference tangent checks: shape
 # functions, Jacobian and dof map are shared plumbing already covered per element
@@ -84,19 +88,11 @@ def _fd_tangent(force_fn, u, asse, eps=1e-6):
     return K_fd
 
 
-def _pk2_residual(ge, mat):
+def _residual(operator: Callable, ge, mat) -> Callable:
+    """``u ↦ R`` of a ``(K, R) = operator(mat, kinematics)`` operator."""
+
     def residual(u_):
-        kin = Kinematics(ge, u_, MatrixType.rigi)
-        _, R = Operators.NonLinear.SecondPiolaKirchhoffStressTensor(mat, kin)
-        return R
-
-    return residual
-
-
-def _active_residual(ge, mat):
-    def residual(u_):
-        kin = Kinematics(ge, u_, MatrixType.rigi)
-        _, R = Operators.NonLinear.ActiveStressTensor(mat, kin)
+        _, R = operator(mat, Kinematics(ge, u_, MatrixType.rigi))
         return R
 
     return residual
@@ -130,7 +126,7 @@ def _material_with_fibers(dim, ge, tau=ACTIVE_STRESS):
     mat = _material(dim, "SaintVenantKirchhoff")
     nPg = ge.Get_N_pg(MatrixType.rigi).shape[0]
     T = np.zeros((ge.Ne, nPg, 3))
-    T[..., 0] = 1.0  # fibers along x
+    T[..., 0] = 1.0
     mat.Set_active_stress_vec(FeArray.asfearray(T))
     mat.active_stress = tau
     return mat
@@ -164,7 +160,11 @@ class TestSecondPiolaKirchhoff:
 
         kin = Kinematics(ge, u, MatrixType.rigi)
         K_ana, _ = Operators.NonLinear.SecondPiolaKirchhoffStressTensor(mat, kin)
-        K_fd = _fd_tangent(_pk2_residual(ge, mat), u, asse)
+        K_fd = _fd_tangent(
+            _residual(Operators.NonLinear.SecondPiolaKirchhoffStressTensor, ge, mat),
+            u,
+            asse,
+        )
         assert rel_error(K_ana, K_fd) < 1e-6
 
     @pytest.mark.parametrize(
@@ -210,7 +210,9 @@ class TestActiveStress:
 
         kin = Kinematics(ge, u, MatrixType.rigi)
         Kgeo, _ = Operators.NonLinear.ActiveStressTensor(mat, kin)
-        K_fd = _fd_tangent(_active_residual(ge, mat), u, asse)
+        K_fd = _fd_tangent(
+            _residual(Operators.NonLinear.ActiveStressTensor, ge, mat), u, asse
+        )
         assert rel_error(Kgeo, K_fd) < 1e-6, elemType.name
 
     def test_stays_out_of_the_constitutive_stress(self):
@@ -379,17 +381,20 @@ class TestKelvinVoigt:
         assert Operators.NonLinear.KelvinVoigtDamping(mat, kin, v) == (None, None, None)
 
 
-def _check_directionality(dim, elemType, law, seed):
+def _gonzalez_step(dim, elemType, law, seed):
+    """``(ge, mat, u_n, u_{n+1})`` of one random step with ``Δe·Δe ≫ ε₀``."""
     rng = np.random.default_rng(seed)
     mesh = _mesh(dim, elemType)
-    mat = _material(dim, law)
-    groupElem = mesh.groupElem
-
     u_n = rng.standard_normal(mesh.Nn * dim) * 0.02
-    u_np1 = u_n + rng.standard_normal(mesh.Nn * dim) * 0.02  # Δe·Δe ≫ ε₀
-    asse = groupElem.Get_assembly_e(dim)
+    u_np1 = u_n + rng.standard_normal(mesh.Nn * dim) * 0.02
+    return mesh.groupElem, _material(dim, law), u_n, u_np1
 
-    kin_n, kin_mid, kin_np1 = _gonzalez_kinematics(groupElem, u_n, u_np1)
+
+def _check_directionality(dim, elemType, law, seed):
+    ge, mat, u_n, u_np1 = _gonzalez_step(dim, elemType, law, seed)
+    asse = ge.Get_assembly_e(dim)
+
+    kin_n, kin_mid, kin_np1 = _gonzalez_kinematics(ge, u_n, u_np1)
     _, R = Operators.NonLinear.GonzalezStressTensor(mat, kin_n, kin_mid, kin_np1)
 
     # internal work R·Δu, assembled over the interleaved element dofs
@@ -397,7 +402,7 @@ def _check_directionality(dim, elemType, law, seed):
     internal_work = float(np.einsum("ei,ei->", R, du_e))
 
     # ΔW = ∫ (W(u_{n+1}) − W(u_n)) dΩ — independent of the operator's assembly
-    wJ = groupElem.Get_weightedJacobian_e_pg(MatrixType.rigi)
+    wJ = ge.Get_weightedJacobian_e_pg(MatrixType.rigi)
     dW = np.sum(wJ * (mat.Compute_W(kin_np1) - mat.Compute_W(kin_n)))
 
     assert (
@@ -406,13 +411,7 @@ def _check_directionality(dim, elemType, law, seed):
 
 
 def _check_tangent(dim, elemType, law, seed):
-    rng = np.random.default_rng(seed)
-    mesh = _mesh(dim, elemType)
-    mat = _material(dim, law)
-    ge = mesh.groupElem
-
-    u_n = rng.standard_normal(mesh.Nn * dim) * 0.02
-    u_np1 = u_n + rng.standard_normal(mesh.Nn * dim) * 0.02  # Δe·Δe ≫ ε₀
+    ge, mat, u_n, u_np1 = _gonzalez_step(dim, elemType, law, seed)
     asse = ge.Get_assembly_e(dim)
 
     kin_n, kin_mid, kin_np1 = _gonzalez_kinematics(ge, u_n, u_np1)
@@ -466,18 +465,11 @@ class TestGonzalez:
         differ only in Newton's convergence rate. If a future optimisation of the
         cheap-tangent path perturbed ``R``, the scheme would silently stop conserving.
         """
-        rng = np.random.default_rng(11)
-        mesh = _mesh(dim, elemType)
-        mat = _material(dim, law)
-        ge = mesh.groupElem
-
-        u_n = rng.standard_normal(mesh.Nn * dim) * 0.02
-        u_np1 = u_n + rng.standard_normal(mesh.Nn * dim) * 0.02  # Δe·Δe ≫ ε₀
+        ge, mat, u_n, u_np1 = _gonzalez_step(dim, elemType, law, seed=11)
         kinematics = _gonzalez_kinematics(ge, u_n, u_np1)
 
         K_con, R_con = Operators.NonLinear.GonzalezStressTensor(mat, *kinematics, True)
         K_apx, R_apx = Operators.NonLinear.GonzalezStressTensor(mat, *kinematics, False)
 
         assert np.array_equal(np.asarray(R_con), np.asarray(R_apx))
-        # and the flag must actually do something to the tangent
         assert not np.allclose(np.asarray(K_con), np.asarray(K_apx))

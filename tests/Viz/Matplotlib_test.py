@@ -5,8 +5,10 @@
 
 import matplotlib.pyplot as plt
 import numpy as np
+import pytest
 
 from EasyFEA import ElemType, Folder, Mesh, Mesher, Matplotlib
+from EasyFEA.Geoms import Circle, CircleArc, Domain, Line, Point, Points
 
 
 class TestMatplotlib:
@@ -63,3 +65,30 @@ class TestMatplotlib:
             plt.close()
 
         # plt.show()
+
+
+def _rounded_corners() -> Points:
+    return Points([Point(), Point(5, 0), Point(5, 5, r=2), Point(0, 5, r=-3)])
+
+
+@pytest.mark.parametrize(
+    "makeGeom",
+    [
+        lambda: Line(Point(), Point(5, 1)),
+        lambda: Domain(Point(), Point(1, 1, 1)),
+        lambda: Circle(Point(), 5, n=(1, 1, 1)),
+        lambda: CircleArc(Point(3, 1, 3), Point(-3, 1, 3), center=Point(0, 1)),
+        _rounded_corners,
+        lambda: _rounded_corners().Get_Contour(),
+    ],
+    ids=["Line", "Domain", "Circle", "CircleArc", "Points", "Contour"],
+)
+def test_Plot_Geoms_draws_on_the_given_axes(makeGeom):
+    geom = makeGeom()
+    ax = Matplotlib.Plot_Geoms(geom)
+    nLines = len(ax.lines)
+
+    moved = geom.Translate(10, copy=True)
+    assert Matplotlib.Plot_Geoms(moved, ax=ax) is ax
+    assert len(ax.lines) > nLines
+    plt.close("all")

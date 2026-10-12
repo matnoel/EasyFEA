@@ -8,7 +8,7 @@ from typing import Callable
 import pytest
 import numpy as np
 
-from EasyFEA import ElemType, Mesh, Mesher
+from EasyFEA import ElemType, Mesh
 from EasyFEA.Geoms import Points, Point, Circle, Line
 
 L = 2
@@ -78,17 +78,14 @@ def box_mesh(elemType: ElemType) -> Mesh:
 ALL_ELEMTYPES = ElemType.Get_1D() + ElemType.Get_2D() + ElemType.Get_3D()
 
 
-def elemType_mesh_of(elemType: ElemType, mesher: Mesher | None = None) -> Mesh:
-    """Organised L line, L×H rectangle or L×H×L box of `elemType`; pass `mesher` to swap one of its steps."""
-    mesher = mesher or Mesher()
-    meshSize = H / 3
+def elemType_mesh_of(elemType: ElemType) -> Mesh:
+    """Organised unit line, L×H rectangle or L×H×L box of `elemType`."""
     if elemType in ElemType.Get_1D():
-        line = Line(Point(), Point(L, 0), meshSize)
-        return mesher.Mesh_1D(line, elemType)
-    contour = Points([(0, 0), (L, 0), (L, H), (0, H)], meshSize)
+        line = Line(Point(), Point(1, 0), H / 3)
+        return line.Mesh_1D(elemType)
     if elemType in ElemType.Get_2D():
-        return mesher.Mesh_2D(contour, [], elemType, isOrganised=True)
-    return mesher.Mesh_Extrude(contour, [], [0, 0, -L], [3], elemType, isOrganised=True)
+        return _make_mesh_2D(elemType=elemType, isOrganised=True)
+    return _make_mesh_3D(elemType=elemType, B=L, isOrganised=True)
 
 
 @pytest.fixture(scope="session", params=ALL_ELEMTYPES, ids=str)
