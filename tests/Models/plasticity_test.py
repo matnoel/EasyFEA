@@ -15,7 +15,7 @@ from EasyFEA.Models.InElastic import Chaboche, MaterialPoint, Norton, Plasticity
 from EasyFEA.Models.InElastic.IsotropicHardening import Linear, Perfect, Swift, Voce
 from EasyFEA.Models.InElastic.Yield import DruckerPrager, Hill, VonMises
 
-from .conftest import one_point_field, point_value
+from .conftest import assert_consistent_tangent
 
 pytest.importorskip("jax")
 _autodiff.Enable_x64()
@@ -26,25 +26,10 @@ EPS_Y = SIGMA_Y / E
 ELASTIC = Isotropic(3, E=E, v=nu)
 
 
-def _central_difference(behavior, eps, z=None, dt: float = 0.0, h: float = 1e-9):
-    C_fd = np.zeros((eps.size, eps.size))
-    for j, d in enumerate(np.eye(eps.size) * h):
-        sigP = point_value(behavior._Integrate(one_point_field(eps + d), z, dt)[0])
-        sigM = point_value(behavior._Integrate(one_point_field(eps - d), z, dt)[0])
-        C_fd[:, j] = (sigP - sigM) / (2 * h)
-    return C_fd
-
-
 def _assert_tangent(behavior, eps, z=None, dt: float = 0.0):
-    """C_alg == dsigma/deps by central differences, at a point that really flows."""
-    _, C_alg, zNew = behavior._Integrate(one_point_field(eps), z, dt)
-    assert point_value(zNew["p"]).max() > 0.0
-    assert np.allclose(
-        point_value(C_alg),
-        _central_difference(behavior, eps, z, dt),
-        rtol=1e-5,
-        atol=1e-2,
-    )
+    """The consistent tangent, at a point that really flows."""
+    update = assert_consistent_tangent(MaterialPoint(behavior), eps, z, dt)
+    assert update.internals["p"] > 0.0
 
 
 EPS = np.array([3e-3, -5e-4, -5e-4, 1e-4, -2e-4, 3e-4])
@@ -155,20 +140,20 @@ EPS_2D = np.array([4e-3, -1e-3, 5e-4])
 def test_plane_stress_holds_sigma_zz_at_zero_once_flowing():
     """The 3D behavior at the solved eps_zz gives back the 2D stress and sig_zz = 0."""
     plane = Plasticity(Isotropic(2, E=E, v=nu), VonMises(SIGMA_Y), Linear(H))
-    sig2, _, z = plane._Integrate(one_point_field(EPS_2D))
-    assert point_value(z["p"]) > 0.0
+    sig2, _, z = MaterialPoint(plane).Update(EPS_2D)
+    assert z["p"] > 0.0
 
     eps6 = np.zeros(6)
     eps6[[0, 1, 5]] = EPS_2D
-    eps6[2] = point_value(z["eps_zz"])
-    sig6 = point_value(
-        Plasticity(ELASTIC, VonMises(SIGMA_Y), Linear(H))._Integrate(
-            one_point_field(eps6)
-        )[0]
+    eps6[2] = z["eps_zz"]
+    sig6 = (
+        MaterialPoint(Plasticity(ELASTIC, VonMises(SIGMA_Y), Linear(H)))
+        .Update(eps6)
+        .stress
     )
 
     assert abs(sig6[2]) < 1e-9 * SIGMA_Y
-    assert np.allclose(sig6[[0, 1, 5]], point_value(sig2), rtol=1e-12)
+    assert np.allclose(sig6[[0, 1, 5]], sig2, rtol=1e-12)
 
 
 @pytest.mark.parametrize("planeStress", [False, True])
@@ -182,12 +167,13 @@ def test_2d_plastic_tangent_matches_central_difference(planeStress: bool):
 def test_plane_stress_flows_from_a_committed_plastic_state():
     """Reloading from a plastic state: eps_zz starts from the committed one, flows may switch between its iterates."""
     behavior = Plasticity(Isotropic(2, E=E, v=nu), VonMises(SIGMA_Y), Voce(Q, B))
-    _, _, z = behavior._Integrate(one_point_field(EPS_2D))
+    point = MaterialPoint(behavior)
+    z = point.Update(EPS_2D).internals
     _assert_tangent(behavior, 1.2 * EPS_2D, z)
     # unloading from it is elastic
-    _, C_alg, zNew = behavior._Integrate(one_point_field(0.9 * EPS_2D), z)
-    assert np.allclose(point_value(zNew["p"]), point_value(z["p"]), rtol=0, atol=1e-14)
-    assert np.allclose(point_value(C_alg), Isotropic(2, E=E, v=nu, planeStress=True).C)
+    _, C_alg, zNew = point.Update(0.9 * EPS_2D, z)
+    assert np.allclose(zNew["p"], z["p"], rtol=0, atol=1e-14)
+    assert np.allclose(C_alg, Isotropic(2, E=E, v=nu, planeStress=True).C)
 
 
 def _norton(A: float, n: float = 1.0, hardening=Linear(H)) -> Norton:
@@ -196,16 +182,15 @@ def _norton(A: float, n: float = 1.0, hardening=Linear(H)) -> Norton:
 
 def test_changing_a_parameter_rebuilds_the_kernel():
     behavior = Norton(ELASTIC, VonMises(SIGMA_Y), A=1.0, n=3.0, sigma_0=100.0)
-    sig = point_value(behavior._Integrate(one_point_field(EPS), dt=1.0)[0])
+    point = MaterialPoint(behavior)
+    sig = point.Update(EPS, dt=1.0).stress
 
     behavior.A = 100.0
-    sigA = point_value(behavior._Integrate(one_point_field(EPS), dt=1.0)[0])
+    sigA = point.Update(EPS, dt=1.0).stress
     assert not np.allclose(sigA, sig)
 
     behavior.surface = VonMises(2 * SIGMA_Y)
-    assert not np.allclose(
-        point_value(behavior._Integrate(one_point_field(EPS), dt=1.0)[0]), sigA
-    )
+    assert not np.allclose(point.Update(EPS, dt=1.0).stress, sigA)
 
 
 def test_norton_parameters_must_be_strictly_positive():
@@ -215,7 +200,7 @@ def test_norton_parameters_must_be_strictly_positive():
 
 def test_norton_needs_a_time_increment():
     with pytest.raises(AssertionError, match="positive time increment"):
-        _norton(1e-3)._Integrate(one_point_field(EPS), dt=0.0)
+        MaterialPoint(_norton(1e-3)).Update(EPS, dt=0.0)
 
 
 def test_norton_relaxes_onto_the_rate_independent_answer():
@@ -239,11 +224,11 @@ def test_norton_creeps_at_its_rate_under_held_stress():
 
 
 def test_fast_norton_is_rate_independent():
-    sig_visc = point_value(_norton(1e8)._Integrate(one_point_field(EPS), dt=1.0)[0])
-    sig_plas = point_value(
-        Plasticity(ELASTIC, VonMises(SIGMA_Y), Linear(H))._Integrate(
-            one_point_field(EPS)
-        )[0]
+    sig_visc = MaterialPoint(_norton(1e8)).Update(EPS, dt=1.0).stress
+    sig_plas = (
+        MaterialPoint(Plasticity(ELASTIC, VonMises(SIGMA_Y), Linear(H)))
+        .Update(EPS)
+        .stress
     )
 
     assert np.allclose(sig_visc, sig_plas, rtol=1e-6)

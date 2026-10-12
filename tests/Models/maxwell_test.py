@@ -10,9 +10,9 @@ import pytest
 
 from EasyFEA.Models import _autodiff
 from EasyFEA.Models.Elastic._laws import Isotropic
-from EasyFEA.Models.InElastic import Maxwell
+from EasyFEA.Models.InElastic import MaterialPoint, Maxwell
 
-from .conftest import one_point_field, point_value
+from .conftest import assert_consistent_tangent
 
 pytest.importorskip("jax")
 _autodiff.Enable_x64()
@@ -30,25 +30,10 @@ def _hold(
     nstep: int,
     dt: float,
 ) -> np.ndarray:
-    z = None
+    point, z = MaterialPoint(behavior), None
     for _ in range(nstep):
-        sig, _, z = behavior._Integrate(one_point_field(eps), z, dt)
-    return point_value(sig)
-
-
-def _central_difference(
-    behavior: Maxwell,
-    eps,
-    z,
-    dt: float,
-    h: float = 1e-9,
-):
-    C_fd = np.zeros((eps.size, eps.size))
-    for j, d in enumerate(np.eye(eps.size) * h):
-        sigP = point_value(behavior._Integrate(one_point_field(eps + d), z, dt)[0])
-        sigM = point_value(behavior._Integrate(one_point_field(eps - d), z, dt)[0])
-        C_fd[:, j] = (sigP - sigM) / (2 * h)
-    return C_fd
+        sig, _, z = point.Update(eps, z, dt)
+    return sig
 
 
 def test_state_is_sized_by_the_branches():
@@ -72,10 +57,10 @@ def test_a_field_is_not_taken_for_branches():
 
 def test_glassy_response_is_the_full_stiffness():
     """dt = 0: the dashpots are rigid."""
-    sig, C_alg, _ = Maxwell(ELASTIC, 0.3, 1.0)._Integrate(one_point_field(EPS), dt=0.0)
+    sig, C_alg, _ = MaterialPoint(Maxwell(ELASTIC, 0.3, 1.0)).Update(EPS, dt=0.0)
 
-    assert np.allclose(point_value(sig), C @ EPS)
-    assert np.allclose(point_value(C_alg), C)
+    assert np.allclose(sig, C @ EPS)
+    assert np.allclose(C_alg, C)
 
 
 def test_relaxation_matches_the_backward_euler_closed_form():
@@ -93,19 +78,14 @@ def test_fully_relaxed_response_is_the_equilibrium_stiffness():
 
 @pytest.mark.parametrize("planeStress", [False, True])
 def test_2d_tangent_matches_central_difference(planeStress: bool):
-    behavior = Maxwell(Isotropic(2, E=E, v=nu, planeStress=planeStress), G, TAU)
+    point = MaterialPoint(
+        Maxwell(Isotropic(2, E=E, v=nu, planeStress=planeStress), G, TAU)
+    )
     eps = EPS[[0, 1, 5]]
-    _, _, z = behavior._Integrate(
-        one_point_field(eps), dt=0.5
-    )  # a history, so eps_v is not zero
+    z = point.Update(eps, dt=0.5).internals  # a history, so eps_v is not zero
 
-    C_alg = point_value(behavior._Integrate(one_point_field(2 * eps), z, 0.5)[1])
-
-    assert np.allclose(C_alg, _central_difference(behavior, 2 * eps, z, 0.5), rtol=1e-6)
+    assert_consistent_tangent(point, 2 * eps, z, 0.5)
 
 
 def test_tangent_matches_central_difference():
-    behavior = Maxwell(ELASTIC, G, TAU)
-    C_alg = point_value(behavior._Integrate(one_point_field(EPS), dt=5.0)[1])
-
-    assert np.allclose(C_alg, _central_difference(behavior, EPS, None, 5.0), rtol=1e-6)
+    assert_consistent_tangent(MaterialPoint(Maxwell(ELASTIC, G, TAU)), EPS, dt=5.0)

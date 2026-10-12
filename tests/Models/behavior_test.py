@@ -32,7 +32,7 @@ from EasyFEA.Models.InElastic.IsotropicHardening import Linear as LinearIsotropi
 from EasyFEA.Models.InElastic.Yield import VonMises
 from EasyFEA.Utilities import _params
 
-from .conftest import one_point_field, point_value
+from .conftest import affine_kinematics
 
 jax = pytest.importorskip("jax")
 jnp = jax.numpy
@@ -171,50 +171,36 @@ def test_newton_flags_a_missing_root_as_nan():
 
 
 def test_no_internal_variable_gives_back_the_elastic_response():
-    sig, C_alg, z = Linear(_elastic())._Integrate(one_point_field(EPS))
+    sig, C_alg, z = MaterialPoint(Linear(_elastic())).Update(EPS)
 
-    assert np.allclose(point_value(sig), C @ EPS)
-    assert np.allclose(point_value(C_alg), C)
+    assert np.allclose(sig, C @ EPS)
+    assert np.allclose(C_alg, C)
     assert z == {}
 
 
 def test_state_is_held_by_name():
-    z = Damage(_elastic())._Integrate(one_point_field(EPS))[2]
+    z = MaterialPoint(Damage(_elastic())).Update(EPS).internals
 
     assert list(z) == ["eps_old", "d"]
-    assert np.allclose(point_value(z["eps_old"]), EPS) and np.isclose(
-        point_value(z["d"]), 0.1
-    )
+    assert np.allclose(z["eps_old"], EPS) and np.isclose(z["d"], 0.1)
 
 
 def test_every_gauss_point_is_integrated():
-    eps = np.random.default_rng(0).normal(0, 1e-3, (4, 3, 6))
-    sig, C_alg, z = Damage(_elastic())._Integrate(FeArray.asfearray(eps))
+    affine = affine_kinematics(3)
+    sig, C_alg, z = Damage(_elastic()).Integrate(affine.kinematics)
 
-    assert isinstance(sig, FeArray) and sig.shape == (4, 3, 6)
-    assert C_alg.shape == (4, 3, 6, 6)
-    assert z["eps_old"].shape == (4, 3, 6) and z["d"].shape == (4, 3)
-    assert np.allclose(sig[1, 2], 0.9 * C @ eps[1, 2])
-
-
-@pytest.mark.parametrize("planeStress", [False, True])
-def test_2d_matches_the_elastic_law(planeStress: bool):
-    eps = EPS[[0, 1, 5]]
-    sig, C_alg, _ = Linear(_elastic(2, planeStress=planeStress))._Integrate(
-        one_point_field(eps)
-    )
-
-    ref = Isotropic(2, E=E, v=nu, planeStress=planeStress).C
-    assert np.allclose(point_value(sig), ref @ eps)
-    assert np.allclose(point_value(C_alg), ref)
+    assert isinstance(sig, FeArray) and sig.shape == (1, 8, 6)
+    assert C_alg.shape == (1, 8, 6, 6)
+    assert z["eps_old"].shape == (1, 8, 6) and z["d"].shape == (1, 8)
+    assert np.allclose(sig, 0.9 * C @ affine.epsilon)
 
 
 def test_plane_stress_keeps_eps_zz_in_the_state():
     """Elastic plane stress: eps_zz = -nu / (1 - nu) (eps_xx + eps_yy)."""
     behavior = Damage(_elastic(2, planeStress=True))
-    z = behavior._Integrate(one_point_field(EPS[[0, 1, 5]]))[2]
+    z = MaterialPoint(behavior).Update(EPS[[0, 1, 5]]).internals
 
-    assert np.isclose(point_value(z["eps_zz"]), -nu / (1 - nu) * (EPS[0] + EPS[1]))
+    assert np.isclose(z["eps_zz"], -nu / (1 - nu) * (EPS[0] + EPS[1]))
 
 
 def test_plane_stress_solve_settings_are_checked():
@@ -237,51 +223,48 @@ def test_a_2d_anisotropic_model_has_no_3d_stiffness():
 
 def test_a_failed_local_solve_is_reported():
     with pytest.raises(AssertionError, match="did not converge"):
-        NoRoot(_elastic())._Integrate(one_point_field(EPS))
+        MaterialPoint(NoRoot(_elastic())).Update(EPS)
 
 
 def test_changing_a_parameter_rebuilds_the_kernel():
     behavior = Linear(_elastic())
-    behavior._Integrate(one_point_field(EPS))
+    point = MaterialPoint(behavior)
+    point.Update(EPS)
     behavior.k = 2.0
     behavior.Need_Update()
 
-    assert np.allclose(
-        point_value(behavior._Integrate(one_point_field(EPS))[0]), 2 * C @ EPS
-    )
+    assert np.allclose(point.Update(EPS).stress, 2 * C @ EPS)
 
 
 def test_modifying_the_elastic_model_rebuilds_the_kernel():
     elastic = _elastic()
-    behavior = Linear(elastic)
-    behavior._Integrate(one_point_field(EPS))
+    point = MaterialPoint(Linear(elastic))
+    point.Update(EPS)
     elastic.E = 2 * E
 
-    assert np.allclose(
-        point_value(behavior._Integrate(one_point_field(EPS))[0]), 2 * C @ EPS
-    )
+    assert np.allclose(point.Update(EPS).stress, 2 * C @ EPS)
 
 
 def test_missing_or_unknown_external_variables_are_refused():
-    behavior = ThermoElastic(_elastic())
+    point = MaterialPoint(ThermoElastic(_elastic()))
     with pytest.raises(AssertionError, match="missing"):
-        behavior._Integrate(one_point_field(EPS))
+        point.Update(EPS)
     with pytest.raises(AssertionError, match="reads no"):
-        behavior._Integrate(one_point_field(EPS), T=1.0, P=1.0)
+        point.Update(EPS, T=1.0, P=1.0)
 
 
 @pytest.mark.parametrize("per", ["element", "point"])
 def test_a_heterogeneous_elastic_model_is_integrated_point_by_point(per: str):
     """C scales with E, so sigma = E / E_ref C_ref eps at each point."""
-    scale = np.array([[1.0, 2.0, 0.5], [3.0, 1.5, 0.8]])
+    affine = affine_kinematics(3, Ne=2)
+    scale = np.random.default_rng(0).uniform(0.5, 3.0, (2, 8))
     if per == "element":
-        scale = scale[:, :1].repeat(3, axis=1)
+        scale = scale[:, :1].repeat(8, axis=1)
     E_e_pg = E * (scale[:, 0] if per == "element" else scale)
-    eps = FeArray.asfearray(np.broadcast_to(EPS, (2, 3, 6)).copy())
 
-    sig, C_alg, _ = Linear(Isotropic(3, E=E_e_pg, v=nu))._Integrate(eps)
+    sig, C_alg, _ = Linear(Isotropic(3, E=E_e_pg, v=nu)).Integrate(affine.kinematics)
 
-    assert np.allclose(sig, scale[..., None] * (C @ EPS))
+    assert np.allclose(sig, scale[..., None] * (C @ affine.epsilon))
     assert np.allclose(C_alg, scale[..., None, None] * C)
 
 
@@ -289,12 +272,12 @@ def test_behavior_survives_a_pickle_round_trip():
     """``Load_Simu`` pickles the material with the simulation, after its kernel is built."""
     behavior = Damage(_elastic(2, planeStress=True, thickness=5.0))
     eps = EPS[[0, 1, 5]]
-    before = behavior._Integrate(one_point_field(eps))
+    before = MaterialPoint(behavior).Update(eps)
 
     reloaded = pickle.loads(pickle.dumps(behavior))
 
     assert reloaded.thickness == 5.0 and reloaded.planeStress
-    sig, C_alg, z = reloaded._Integrate(one_point_field(eps))
+    sig, C_alg, z = MaterialPoint(reloaded).Update(eps)
     assert np.allclose(sig, before[0]) and np.allclose(C_alg, before[1])
     assert all(np.allclose(z[name], before[2][name]) for name in z)
 

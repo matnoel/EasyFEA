@@ -10,21 +10,40 @@ import pytest
 
 from EasyFEA import ElemType
 from EasyFEA.FEM import Kinematics
-from EasyFEA.FEM._linalg import FeArray
 from EasyFEA.Geoms import Domain
+from EasyFEA.Models.InElastic import MaterialPoint
+from EasyFEA.Models.InElastic._behavior import PointUpdate
+
+from _numerics import rel_error
 
 # fully populated and non-symmetric, so no component of ε or F is trivially zero
 GRAD_U = np.array([[0.02, -0.01, 0.03], [0.015, -0.025, 0.01], [-0.02, 0.005, 0.04]])
 
 
-def one_point_field(vec) -> FeArray.FeArrayALike:
-    """A (1, 1, ...) field holding one value."""
-    return FeArray.asfearray(np.asarray(vec, dtype=float)[np.newaxis, np.newaxis])
+TANGENT_RTOL = 1e-6
 
 
-def point_value(field) -> np.ndarray:
-    """The value a (1, 1, ...) field holds."""
-    return np.asarray(field)[0, 0]
+def assert_consistent_tangent(
+    point: MaterialPoint,
+    strain: np.ndarray,
+    internals: dict[str, np.ndarray] | None = None,
+    dt: float = 0.0,
+    h: float = 1e-9,
+) -> PointUpdate:
+    """Asserts the tangent of `point.Update` at `strain` is its stress derivative by central differences; returns that update."""
+    update = point.Update(strain, internals, dt)
+    C_fd = np.column_stack(
+        [
+            (
+                point.Update(strain + d, internals, dt).stress
+                - point.Update(strain - d, internals, dt).stress
+            )
+            / (2 * h)
+            for d in np.eye(strain.size) * h
+        ]
+    )
+    assert rel_error(update.tangent, C_fd) < TANGENT_RTOL
+    return update
 
 
 class AffineKinematics(NamedTuple):
@@ -35,9 +54,9 @@ class AffineKinematics(NamedTuple):
     F: np.ndarray
 
 
-def affine_kinematics(dim: int) -> AffineKinematics:
-    """One QUAD4 / HEXA8 unit element displaced by the affine `u = GRAD_U[:dim, :dim]·x`."""
-    domain = Domain((0, 0), (1, 1), 1.0)
+def affine_kinematics(dim: int, Ne: int = 1) -> AffineKinematics:
+    """`Ne` QUAD4 / HEXA8 unit elements in a row, displaced by the affine `u = GRAD_U[:dim, :dim]·x`."""
+    domain = Domain((0, 0), (Ne, 1), 1.0)
     if dim == 2:
         mesh = domain.Mesh_2D([], ElemType.QUAD4, isOrganised=True)
     else:
