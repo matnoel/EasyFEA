@@ -16,7 +16,7 @@ import sys
 import numpy as np
 import pytest
 
-from EasyFEA import ElemType, MatrixType, Models, Simulations
+from EasyFEA import ElemType, MatrixType, Models
 from EasyFEA.FEM._linalg import FeArray
 from EasyFEA.FEM import _kelvin_mandel
 from EasyFEA.Geoms import Domain, Line
@@ -276,24 +276,6 @@ def test_vmap_shares_unmapped_arguments():
 # ----------------------------------------------
 # The AutoDiff law
 # ----------------------------------------------
-
-
-def _Solve(material) -> np.ndarray:
-    """Stretches a HEXA8 block along z and returns the converged displacement."""
-    domain = Domain((0, 0), (1, 1), meshSize=0.5)
-    mesh = domain.Mesh_Extrude([], [0, 0, 1], [2], ElemType.HEXA8)
-    simu = Simulations.HyperElastic(mesh, material)
-    simu.add_dirichlet(mesh.Nodes_Conditions(lambda x, y, z: z == 0), [0] * 3, ["x", "y", "z"])  # fmt: skip
-    simu.add_dirichlet(mesh.Nodes_Conditions(lambda x, y, z: z == 1), [0.05], ["z"])
-    return simu.Solve()
-
-
-def test_autodiff_law_solves_like_the_shipped_one():
-    """An ``AutoDiff`` law drives a simulation to the same answer as the hand-written equivalent."""
-    autodiff = Models.HyperElastic.AutoDiff(3, _ciarlet_geymonat)
-    shipped = Models.HyperElastic.CiarletGeymonat(3, K1=K1, K2=K2, K=K)
-
-    assert rel_error(_Solve(autodiff), _Solve(shipped)) < 1e-10
 
 
 def test_autodiff_law_carries_per_gauss_point_fields(kinematics: Kinematics):

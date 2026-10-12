@@ -3,129 +3,78 @@
 # This file is part of the EasyFEA project.
 # EasyFEA is distributed under the terms of the GNU General Public License v3, see LICENSE.txt and CREDITS.md for more information.
 
-import pytest
+"""Every phase-field split decomposes the elastic stiffness and energy, under an affine u."""
+
 import numpy as np
+import pytest
 
-from EasyFEA import Geoms, Simulations, SolverType
-
-# materials
+from EasyFEA.FEM import FeArray
 from EasyFEA.Models.Elastic import (
     _Elastic,
     Isotropic,
     TransverselyIsotropic,
     Anisotropic,
 )
-from EasyFEA.Models._phasefield import PhaseField
-from EasyFEA.FEM._linalg import FeArray, Norm
-from EasyFEA.FEM import Kinematics, MatrixType
+from EasyFEA.Models import PhaseField
+
+from _numerics import rel_error
+from .conftest import affine_kinematics
+
+TOL = 1e-12
+
+C_ORTHO = np.array([[60, 20, 0], [20, 120, 0], [0, 0, 30]])
+C_COUPLED = np.array([[60, 20, 5], [20, 120, 10], [5, 10, 30]])
+TI = dict(El=11580, Et=500, Gl=450, vl=0.02, vt=0.44)
+c = np.sqrt(2) / 2
+
+MATERIALS = {
+    "Isot-2D-stress": lambda: Isotropic(2, E=210e9, v=0.3, planeStress=True),
+    "Isot-2D-strain": lambda: Isotropic(2, E=210e9, v=0.3, planeStress=False),
+    "Isot-3D": lambda: Isotropic(3, E=210e9, v=0.3),
+    "TI-3D-rotated": lambda: TransverselyIsotropic(
+        3, **TI, axis_l=[c, c, 0], axis_t=[c, -c, 0]
+    ),
+    "TI-3D-l_along_y": lambda: TransverselyIsotropic(
+        3, **TI, axis_l=[0, 1, 0], axis_t=[1, 0, 0]
+    ),
+    "TI-2D-stress": lambda: TransverselyIsotropic(2, **TI, planeStress=True),
+    "TI-2D-strain": lambda: TransverselyIsotropic(2, **TI, planeStress=False),
+    "Anisot-2D-voigt": lambda: Anisotropic(2, C_ORTHO, True),
+    "Anisot-2D-kelvin": lambda: Anisotropic(2, C_ORTHO, False),
+    "Anisot-2D-coupled": lambda: Anisotropic(2, C_COUPLED, True),
+}
+
+ISOTROPIC_ONLY = [
+    PhaseField.SplitType.Amor,
+    PhaseField.SplitType.Miehe,
+    PhaseField.SplitType.Stress,
+]
 
 
-from .linear_elastic_test import setup_elastic_materials
+def _Cases():
+    for name, material in MATERIALS.items():
+        for split in PhaseField.Get_splits():
+            if not name.startswith("Isot") and split in ISOTROPIC_ONLY:
+                continue
+            yield pytest.param((material, split), id=f"{name}-{split}")
 
 
-@pytest.fixture
-def setup_pfm_materials(setup_elastic_materials) -> list[PhaseField]:
-
-    splits = PhaseField.Get_splits()
-    regularizations = PhaseField.Get_regularizations()
-    phaseFieldModels: list[PhaseField] = []
-
-    splits_Isot = [
-        PhaseField.SplitType.Amor,
-        PhaseField.SplitType.Miehe,
-        PhaseField.SplitType.Stress,
-    ]
-
-    for c in setup_elastic_materials:
-        for s in splits:
-            for r in regularizations:
-
-                if (
-                    isinstance(c, TransverselyIsotropic) or isinstance(c, Anisotropic)
-                ) and s in splits_Isot:
-                    continue
-
-                pfm = PhaseField(c, s, r, 1, 1)
-                phaseFieldModels.append(pfm)
-
-    return phaseFieldModels
+@pytest.fixture(params=list(_Cases()))
+def pfm(request) -> PhaseField:
+    material, split = request.param
+    return PhaseField(material(), split, PhaseField.ReguType.AT2, 1, 1)
 
 
-class TestPhaseField:
+def test_split_stiffnesses_sum_to_C(pfm: PhaseField):
+    kinematics = affine_kinematics(pfm.dim).kinematics
+    cP, cM = pfm._Split_C(kinematics, verif=True)
+    C = FeArray.broadcast(pfm.material.C, *cP.shape[:2], tensor_shape=cP.shape[2:])
+    assert rel_error(cP + cM, C) < TOL
 
-    def __kinematics(self, dim) -> Kinematics:
 
-        mat = Isotropic(dim)
-
-        L = 200
-        H = 100
-        domain = Geoms.Domain(Geoms.Point(), Geoms.Point(L, H))
-        circle = Geoms.Circle(Geoms.Point(L / 2, H / 2), H / 3)
-
-        if dim == 2:
-            mesh = domain.Mesh_2D([circle], "TRI3")
-        else:
-            mesh = domain.Mesh_Extrude([circle], [0, 0, H / 3], [4], "PRISM6")
-
-        simu = Simulations.Elastic(mesh, mat)
-        simu.solver = SolverType.scipy
-
-        simu.add_dirichlet(
-            mesh.Nodes_Conditions(lambda x, y, z: x == 0),
-            [0] * simu.Get_dof_n(),
-            simu.Get_unknowns(),
-        )
-        simu.add_dirichlet(
-            mesh.Nodes_Conditions(lambda x, y, z: x == L),
-            [L * 1e-4, -L * 1e-4],
-            ["x", "y"],
-        )
-        u = simu.Solve()
-
-        return Kinematics(mesh.groupElem, u, MatrixType.mass)
-
-    def test_split_phaseField(self, setup_pfm_materials):
-
-        print()
-
-        phaseFieldModels: list[PhaseField] = setup_pfm_materials
-
-        kinematics2D = self.__kinematics(2)
-        kinematics3D = self.__kinematics(3)
-
-        for pfm in phaseFieldModels:
-
-            mat: _Elastic = pfm.material
-
-            config = f"{type(mat).__name__} {mat.simplification} {pfm.split} {pfm.regularization}"
-            print(config)
-
-            kinematics = kinematics2D if mat.dim == 2 else kinematics3D
-            Epsilon_e_pg = kinematics.Compute_Epsilon()
-
-            Ne, nPg, nS = Epsilon_e_pg.shape
-            C_e_pg = FeArray.broadcast(mat.C, Ne, nPg, tensor_shape=(nS, nS))
-            cP_e_pg, cM_e_pg = pfm._Split_C(kinematics, verif=True)
-            # stress
-            Sig_e_pg = C_e_pg @ Epsilon_e_pg
-            SigP = cP_e_pg @ Epsilon_e_pg
-            SigM = cM_e_pg @ Epsilon_e_pg
-
-            # Check that C_e_pg = cP + cM
-            diff_C = C_e_pg - (cP_e_pg + cM_e_pg)
-            test_C = Norm(diff_C, axis=(-2, -1)) / Norm(C_e_pg, axis=(-2, -1))
-            assert np.max(test_C) < 1e-12, f"test_C = {np.max(test_C):.3e}"
-
-            # Check that Sig_e_pg = SigP + SigM
-            diff_Sig = Sig_e_pg - (SigP + SigM)
-            test_Sig = Norm(diff_Sig, axis=-1) / Norm(Sig_e_pg, axis=-1)
-            if np.min(Norm(Sig_e_pg, axis=-1)) > 0:
-                assert np.max(test_Sig) < 1e-12, f"test_Sig = {np.max(test_Sig):.3e}"
-
-            # Check that psi = psiP + psiM
-            psi = 1 / 2 * (Sig_e_pg @ Epsilon_e_pg).sum((0, 1))
-            psi_P = 1 / 2 * (SigP @ Epsilon_e_pg).sum((0, 1))
-            psi_M = 1 / 2 * (SigM @ Epsilon_e_pg).sum((0, 1))
-            test_psi = np.abs(psi - (psi_P + psi_M)) / psi
-            if psi > 0:
-                assert test_psi < 1e-12, f"test_psi = {test_psi:.3e}"
+def test_split_energies_sum_to_the_elastic_energy(pfm: PhaseField):
+    affine = affine_kinematics(pfm.dim)
+    psiP, psiM = pfm.Compute_psi(affine.kinematics)
+    material: _Elastic = pfm.material
+    psi = affine.epsilon @ material.C @ affine.epsilon / 2
+    assert rel_error(psiP + psiM, psi) < TOL

@@ -22,6 +22,8 @@ from EasyFEA.Geoms import Domain
 from EasyFEA.FEM import FeArray, MatrixType, Operators
 from EasyFEA.FEM import Kinematics
 
+from _numerics import rel_error
+
 
 class TestGonzalezEnergyConservation:
     """A cantilever is statically deflected, then released and integrated with no
@@ -348,3 +350,35 @@ def test_newton_accepts_a_zero_first_residual():
         u = simu.Solve()
 
     assert np.all(u == 0)
+
+
+def _Pull_block(material) -> np.ndarray:
+    """Stretches a HEXA8 block along z and returns the converged displacement."""
+    domain = Domain((0, 0), (1, 1), meshSize=0.5)
+    mesh = domain.Mesh_Extrude([], [0, 0, 1], [2], ElemType.HEXA8)
+    simu = Simulations.HyperElastic(mesh, material)
+    nodesBottom = mesh.Nodes_Conditions(lambda x, y, z: z == 0)
+    nodesTop = mesh.Nodes_Conditions(lambda x, y, z: z == 1)
+    simu.add_dirichlet(nodesBottom, [0] * 3, ["x", "y", "z"])
+    simu.add_dirichlet(nodesTop, [0.05], ["z"])
+    return simu.Solve()
+
+
+def test_autodiff_law_solves_like_the_shipped_one():
+    """An ``AutoDiff`` law drives a simulation to the same answer as the hand-written equivalent."""
+    jnp = pytest.importorskip("jax").numpy
+    from EasyFEA.Models import _autodiff
+
+    _autodiff.Enable_x64()
+    K, K1, K2 = 200.0, 30.0, 8.0
+
+    def ciarlet_geymonat(C):
+        I1, I3 = jnp.trace(C), jnp.linalg.det(C)
+        I2 = (I1**2 - jnp.trace(C @ C)) / 2
+        J1, J2, J = I1 * I3 ** (-1 / 3), I2 * I3 ** (-2 / 3), jnp.sqrt(I3)
+        return K1 * (J1 - 3) + K2 * (J2 - 3) + K * (J - 1 - jnp.log(J))
+
+    autodiff = Models.HyperElastic.AutoDiff(3, ciarlet_geymonat)
+    shipped = Models.HyperElastic.CiarletGeymonat(3, K1=K1, K2=K2, K=K)
+
+    assert rel_error(_Pull_block(autodiff), _Pull_block(shipped)) < 1e-10

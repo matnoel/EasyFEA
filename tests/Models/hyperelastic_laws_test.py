@@ -3,77 +3,47 @@
 # This file is part of the EasyFEA project.
 # EasyFEA is distributed under the terms of the GNU General Public License v3, see LICENSE.txt and CREDITS.md for more information.
 
-import pytest
 import numpy as np
+import pytest
 
-from EasyFEA import ElemType, FEM, Models, Simulations
-from EasyFEA.FEM._linalg import Trace, TensorProd
-from EasyFEA.FEM._kelvin_mandel import Tensor_to_Kelvin
-from EasyFEA.Geoms import Domain
+from EasyFEA import Models
+from EasyFEA.FEM import Kinematics
 
+from _numerics import rel_error
+from .conftest import GRAD_U, affine_kinematics, kelvin
 
-@pytest.fixture
-def simuIsot():
+TOL = 1e-12
 
-    L = 120
-    h = 13
-    meshSize = h / 3
+LMBDA, MU = 121153.0, 80769.0
 
-    contour = Domain((0, 0), (L, h), h / 3)
+F = np.eye(3) + GRAD_U
+E = (F.T @ F - np.eye(3)) / 2
+I = kelvin(np.eye(3))
 
-    mesh = contour.Mesh_Extrude([], [0, 0, h], [h / meshSize], ElemType.TETRA4)
-    nodesX0 = mesh.Nodes_Conditions(lambda x, y, z: x == 0)
-    nodesXL = mesh.Nodes_Conditions(lambda x, y, z: x == L)
-
-    matIsot = Models.Elastic.Isotropic(3)
-    simuIsot = Simulations.Elastic(mesh, matIsot)
-
-    simuIsot.add_dirichlet(nodesX0, [0, 0, 0], simuIsot.Get_unknowns())
-    simuIsot.add_dirichlet(nodesXL, [1], ["x"])
-
-    simuIsot.Solve()
-
-    return simuIsot
+SVK = Models.HyperElastic.SaintVenantKirchhoff(3, LMBDA, MU)
 
 
-class TestSaintVenantKirchhoff:
+@pytest.fixture(scope="module")
+def kinematics() -> Kinematics:
+    """3D affine kinematics, whose Green-Lagrange strain is `E` above."""
+    return affine_kinematics(3).kinematics
 
-    def test_chain_rule(self, simuIsot: Simulations.Elastic):
 
-        matIsot: Models.Elastic.Isotropic = simuIsot.material
-        mesh = simuIsot.mesh
-        u = simuIsot.displacement
+def test_svk_W_is_its_closed_form(kinematics: Kinematics):
+    W = LMBDA / 2 * np.trace(E) ** 2 + MU * np.trace(E @ E)
+    assert rel_error(SVK.Compute_W(kinematics), W) < TOL
 
-        matrixType = "rigi"
 
-        mat = Models.HyperElastic.SaintVenantKirchhoff(
-            3, matIsot.get_lambda(), matIsot.get_mu()
-        )
+def test_svk_dWde_is_its_closed_form(kinematics: Kinematics):
+    dW = LMBDA * np.trace(E) * I + 2 * MU * kelvin(E)
+    actual = np.asarray(SVK.Compute_dWde(kinematics))
+    assert rel_error(actual, np.broadcast_to(dW, actual.shape)) < TOL
 
-        kinematics = FEM.Kinematics(mesh.groupElem, u, matrixType)
 
-        # test W
-        E = kinematics.Compute_GreenLagrange()
-        # W_hyper = 1/2 * mat.lmbda * Trace(E)**2 + mat.mu * E.ddot(E)
-        W_hyper = 1 / 2 * mat.lmbda * Trace(E) ** 2 + mat.mu * Trace(E @ E)
-        W_e_pg = mat.Compute_W(kinematics)
-        diff_w = W_hyper - W_e_pg
-        assert np.linalg.norm(diff_w) / np.linalg.norm(W_hyper) < 1e-11
-
-        # test dW
-        I = np.array([1, 1, 1, 0, 0, 0])
-        dW_hyper = mat.lmbda * Trace(E) * I + 2 * mat.mu * Tensor_to_Kelvin(E, 2)
-        dW_e_pg = mat.Compute_dWde(kinematics)
-        diff_dW = dW_hyper - dW_e_pg
-        assert np.linalg.norm(diff_dW) / np.linalg.norm(dW_hyper) < 1e-11
-
-        # test d2W
-        d2W_hyper = mat.lmbda * TensorProd(I, I) + 2 * mat.mu * Tensor_to_Kelvin(
-            TensorProd(np.eye(3), np.eye(3), symmetric=True)
-        )
-        d2W_e_pg = mat.Compute_d2Wde(kinematics)
-        diff_d2W = d2W_hyper - d2W_e_pg
-        assert np.linalg.norm(diff_d2W) / np.linalg.norm(d2W_hyper) < 1e-11
+def test_svk_d2Wde_is_its_closed_form(kinematics: Kinematics):
+    d2W = LMBDA * np.outer(I, I) + 2 * MU * np.eye(6)
+    actual = np.asarray(SVK.Compute_d2Wde(kinematics))
+    assert rel_error(actual, np.broadcast_to(d2W, actual.shape)) < TOL
 
 
 def test_Available_Laws_lists_every_shipped_law():
