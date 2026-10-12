@@ -25,6 +25,30 @@ def bar_stress(E: float, L: float, ud: float) -> float:
     return E * ud / L
 
 
+SYMMETRY_PLANES = {
+    "x": lambda x, y, z: x == 0,
+    "y": lambda x, y, z: y == 0,
+    "z": lambda x, y, z: z == 0,
+}
+
+
+def add_bar_supports(simu) -> None:
+    """Rollers on the x=0, y=0 (and z=0) planes: the bar expands freely, so any homogeneous state is exact."""
+    mesh = simu.mesh
+    for unknown in ("x", "y", "z")[: mesh.dim]:
+        nodesSymmetry = mesh.Nodes_Conditions(SYMMETRY_PLANES[unknown])
+        simu.add_dirichlet(nodesSymmetry, [0], [unknown])
+
+
+def pull_bar(simu, ud: float) -> None:
+    """Supports of `add_bar_supports`, and ux = `ud` on the far end x=L."""
+    mesh = simu.mesh
+    L = mesh.coord[:, 0].max()
+    add_bar_supports(simu)
+    nodesPulled = mesh.Nodes_Conditions(lambda x, y, z: x == L)
+    simu.add_dirichlet(nodesPulled, [ud], ["x"])
+
+
 def slab_temperature(x: np.ndarray, L: float, T0: float, TL: float) -> np.ndarray:
     """Steady temperature of a slab held at T0 on x=0 and TL on x=L, insulated elsewhere."""
     return T0 + (TL - T0) * x / L

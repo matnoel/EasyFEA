@@ -3,66 +3,62 @@
 # This file is part of the EasyFEA project.
 # EasyFEA is distributed under the terms of the GNU General Public License v3, see LICENSE.txt and CREDITS.md for more information.
 
-import matplotlib.pyplot as plt
+import pytest
 
-from EasyFEA import Matplotlib, Models, Simulations, ElemType
-from EasyFEA.Geoms import Domain, Circle, Point
+from EasyFEA import Mesh, Models, Simulations, SolverType
+from EasyFEA.Geoms import Domain, Point
+
+from _numerics import rel_error
+from . import _reference
+
+T0, TL = 10.0, 40.0
 
 
-class TestThermal:
+def _heated_slab(mesh: Mesh) -> Simulations.Thermal:
+    L = mesh.coord[:, 0].max()
+    simu = Simulations.Thermal(mesh, Models.Thermal(k=1.0, c=1.0))
+    simu.solver = SolverType.scipy  # direct: petsc's iterative default stops at ~1e-6
+    nodesX0 = mesh.Nodes_Conditions(lambda x, y, z: x == 0)
+    nodesXL = mesh.Nodes_Conditions(lambda x, y, z: x == L)
+    simu.add_dirichlet(nodesX0, [T0], ["t"])
+    simu.add_dirichlet(nodesXL, [TL], ["t"])
+    simu.Solve()
+    return simu
 
-    def test_Thermal(self):
 
-        a = 1
+def test_heat_slab_is_solved_exactly(box_mesh: Mesh):
+    simu = _heated_slab(box_mesh)
+    L = box_mesh.coord[:, 0].max()
 
-        domain = Domain(Point(0, 0), Point(a, a), a / 10)
-        inclusions = [Circle(Point(a / 2, a / 2), a / 3, a / 10)]
+    expected = _reference.slab_temperature(box_mesh.coord[:, 0], L, T0, TL)
+    assert rel_error(simu.thermal, expected) < 1e-10
 
-        doMesh2D = lambda elemType: domain.Mesh_2D(inclusions, elemType)
-        doMesh3D = lambda elemType: domain.Mesh_Extrude(
-            inclusions, [0, 0, -a], [3], elemType
-        )
 
-        listMesh = [doMesh2D(elemType) for elemType in ElemType.Get_2D()]
-        [listMesh.append(doMesh3D(elemType)) for elemType in ElemType.Get_3D()]
+def test_a_steady_slab_stays_steady_under_the_parabolic_scheme(box_mesh: Mesh):
+    simu = _heated_slab(box_mesh)
+    steady = simu.thermal.copy()
 
-        self.thermalSimulation = []
+    simu.Solver_Set_Parabolic_Algorithm(dt=0.1)
+    simu.Solve()
 
-        for mesh in listMesh:
+    assert rel_error(simu.thermal, steady) < 1e-10
 
-            thermalModel = Models.Thermal(k=1, c=1, thickness=a)
 
-            simu = Simulations.Thermal(mesh, thermalModel)
+CHANGES = {
+    "k": lambda thermal: setattr(thermal, "k", 2 * thermal.k),
+    "c": lambda thermal: setattr(thermal, "c", 0.2 * thermal.c),
+}
 
-            nodesX0 = mesh.Nodes_Conditions(lambda x, y, z: x == 0)
-            nodesXa = mesh.Nodes_Conditions(lambda x, y, z: x == a)
 
-            simu.add_dirichlet(nodesX0, [0], ["t"])
-            simu.add_dirichlet(nodesXa, [40], ["t"])
-            simu.Solve()
-            simu.Save_Iter()
+@pytest.mark.parametrize("change", CHANGES.values(), ids=CHANGES.keys())
+def test_a_material_change_flags_the_simulation_for_reassembly(change):
+    domain = Domain(Point(), Point(1, 1))
+    mesh = domain.Mesh_2D()
+    thermal = Models.Thermal(1, 1)
+    simu = Simulations.Thermal(mesh, thermal)
+    simu.Get_K_C_M_F()
+    assert not simu.needUpdate
 
-            ax = Matplotlib.Plot(simu, "thermal", nodeValues=True, plotMesh=True)
-            # plt.pause(1e-12)
-            plt.close(ax.figure)
+    change(thermal)
 
-    def test_Update_Thermal(self):
-        """Function use to check that modifications on thermal material activate the update of the simulation"""
-
-        def DoTest(simu: Simulations._Simu) -> None:
-            assert simu.needUpdate  # should trigger the event
-            simu.Need_Update(False)  # init
-
-        mesh = Domain(Point(), Point(1, 1)).Mesh_2D()
-
-        thermal = Models.Thermal(1, 1)
-        # k, c
-
-        simu = Simulations.Thermal(mesh, thermal)
-        simu.Get_K_C_M_F()
-        assert not simu.needUpdate
-        # check that need update is now set to false once Get_K_C_M_F() get called
-        thermal.k *= 2
-        DoTest(simu)
-        thermal.c *= 0.2
-        DoTest(simu)
+    assert simu.needUpdate
