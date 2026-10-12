@@ -25,6 +25,47 @@ from EasyFEA.FEM import Kinematics
 from _numerics import rel_error
 
 
+def _free_vibration_drift(
+    algo: AlgoType,
+    stress: Simulations.HyperElastic.StressType | None = None,
+    **stressOptions,
+) -> float:
+    """max ``|KE + W - E0| / E0`` of a deflected NeoHookean cantilever released into free vibration.
+
+    Loose ``absTol``: gonzalez's residual has a ~1e-9 round-off floor from the ΔW − s̄·Δe cancellation.
+    """
+    L, h, dt, nStep = 60.0, 10.0, 0.05, 50
+    domain = Domain((0, 0), (L, h), h / 2)
+    mesh = domain.Mesh_2D([], ElemType.QUAD4, isOrganised=True)
+    nodesClamped = mesh.Nodes_Conditions(lambda x, y, z: x == 0)
+    nodesTip = mesh.Nodes_Conditions(lambda x, y, z: x == L)
+    mat = Models.HyperElastic.NeoHookean(2, K=5.0e4)
+    simu = Simulations.HyperElastic(mesh, mat, absTol=1e-4, verbosity=False)
+
+    simu.add_dirichlet(nodesClamped, [0, 0], simu.Get_unknowns())
+    simu.add_dirichlet(nodesTip, [-h / 3], ["y"])
+    simu.Solve()
+    simu.Save_Iter()
+
+    simu.Bc_Init()
+    simu.Solver_Set_Hyperbolic_Algorithm(dt, algo=algo)
+    if stress is not None:
+        simu.Solver_Set_Stress(stress, **stressOptions)
+    simu.add_dirichlet(nodesClamped, [0, 0], simu.Get_unknowns())
+
+    energies = [simu.Result("W")]  # at rest: KE = 0
+    M = None
+    for _ in range(nStep):
+        simu.Solve()
+        simu.Save_Iter()
+        if M is None:
+            _, _, M, _ = simu.Get_K_C_M_F()  # constant mass
+        energies.append(simu.Calc_Energy(M, simu.speed) + simu.Result("W"))
+
+    E = np.array(energies)
+    return float(np.abs(E - E[0]).max() / abs(E[0]))
+
+
 class TestGonzalezEnergyConservation:
     """A cantilever is statically deflected, then released and integrated with no
     external load and no viscosity, so the only forces are internal (hyperelastic) +
@@ -32,63 +73,19 @@ class TestGonzalezEnergyConservation:
     round-off; ``newmark`` drifts by orders of magnitude more.
     """
 
-    L, h = 60.0, 10.0
-    dt, nStep = 0.05, 50
-
-    def _energy_drift(self, algo, gonzalez: bool = False) -> float:
-        L, h = self.L, self.h
-        mesh = Domain((0, 0), (L, h), h / 2).Mesh_2D(
-            [], ElemType.QUAD4, isOrganised=True
-        )
-        n0 = mesh.Nodes_Conditions(lambda x, y, z: x == 0)
-        nL = mesh.Nodes_Conditions(lambda x, y, z: x == L)
-
-        # NeoHookean (genuinely nonlinear): Saint-Venant-Kirchhoff's energy is quadratic,
-        # so the midpoint rule is already near-conservative there — a weak showcase.
-        mat = Models.HyperElastic.NeoHookean(2, K=5.0e4)
-        # gonzalez's discrete-gradient residual has a round-off floor (~1e-9 relative to
-        # the force scale) from the ΔW − s̄·Δe cancellation → a relative-appropriate
-        # (looser absolute) Newton tolerance, as in the FreeFEM reference.
-        simu = Simulations.HyperElastic(mesh, mat, absTol=1e-4, verbosity=False)
-
-        # static preload: clamp x=0, pull the tip down
-        simu.add_dirichlet(n0, [0, 0], simu.Get_unknowns())
-        simu.add_dirichlet(nL, [-h / 3], ["y"])
-        simu.Solve()
-        simu.Save_Iter()
-
-        # release the tip (keep the clamp) → free vibration
-        simu.Bc_Init()
-        simu.Solver_Set_Hyperbolic_Algorithm(self.dt, algo=algo)
-        if gonzalez:
-            simu.Solver_Set_Stress(simu.StressType.gonzalez)
-        simu.add_dirichlet(n0, [0, 0], simu.Get_unknowns())
-
-        pt = simu.problemType
-        energies = [float(simu._Calc_W())]  # t=0: at rest, KE = 0
-        M = None
-        for _ in range(self.nStep):
-            simu.Solve()
-            simu.Save_Iter()
-            if M is None:
-                _, _, M, _ = simu.Get_K_C_M_F(
-                    pt
-                )  # constant mass, assembled after step 1
-            v = simu._Get_v_n(pt)
-            energies.append(0.5 * float(v @ (M @ v)) + float(simu._Calc_W()))
-
-        E = np.array(energies)
-        return float(np.abs(E - E[0]).max() / abs(E[0]))
-
     def test_gonzalez_conserves_energy(self):
         """``gonzalez`` keeps KE + W constant to ~round-off over the run."""
-        drift = self._energy_drift(AlgoType.midpoint, gonzalez=True)
+        drift = _free_vibration_drift(
+            AlgoType.midpoint, Simulations.HyperElastic.StressType.gonzalez
+        )
         assert drift < 1e-6, f"gonzalez energy drift {drift:.2e} (should be ~round-off)"
 
     def test_gonzalez_beats_newmark(self):
         """``newmark`` drifts; ``gonzalez`` drift is orders of magnitude smaller."""
-        gonzalez = self._energy_drift(AlgoType.midpoint, gonzalez=True)
-        newmark = self._energy_drift(AlgoType.newmark)
+        gonzalez = _free_vibration_drift(
+            AlgoType.midpoint, Simulations.HyperElastic.StressType.gonzalez
+        )
+        newmark = _free_vibration_drift(AlgoType.newmark)
         assert newmark > 1e-3, f"newmark should drift measurably; got {newmark:.2e}"
         assert (
             gonzalez < newmark / 100
@@ -189,49 +186,18 @@ class TestQuadratureEnergyConservation:
     (~1e-2). Exercised end to end through the public ``Solver_Set_Stress`` / ``Solve`` interface.
     """
 
-    L, h = 60.0, 10.0
-    dt, nStep = 0.05, 50
-
-    def _drift(self, **stress) -> float:
-        """max ``|KE + W - E0| / E0`` over a released free vibration using the quadrature stress."""
-        L, h = self.L, self.h
-        mesh = Domain((0, 0), (L, h), h / 2).Mesh_2D(
-            [], ElemType.QUAD4, isOrganised=True
-        )
-        n0 = mesh.Nodes_Conditions(lambda x, y, z: x == 0)
-        nL = mesh.Nodes_Conditions(lambda x, y, z: x == L)
-        mat = Models.HyperElastic.NeoHookean(2, K=5.0e4)
-        simu = Simulations.HyperElastic(mesh, mat, absTol=1e-4, verbosity=False)
-
-        # static preload: clamp x=0, pull the tip down
-        simu.add_dirichlet(n0, [0, 0], simu.Get_unknowns())
-        simu.add_dirichlet(nL, [-h / 3], ["y"])
-        simu.Solve()
-        simu.Save_Iter()
-
-        # release the tip → free vibration with the chosen quadrature rule
-        simu.Bc_Init()
-        simu.Solver_Set_Hyperbolic_Algorithm(self.dt, algo=AlgoType.midpoint)
-        simu.Solver_Set_Stress(simu.StressType.quadrature, **stress)
-        simu.add_dirichlet(n0, [0, 0], simu.Get_unknowns())
-
-        pt = simu.problemType
-        energies = [float(simu._Calc_W())]  # t=0: at rest, KE = 0
-        M = None
-        for _ in range(self.nStep):
-            simu.Solve()
-            simu.Save_Iter()
-            if M is None:
-                _, _, M, _ = simu.Get_K_C_M_F(pt)  # constant mass
-            v = simu._Get_v_n(pt)
-            energies.append(0.5 * float(v @ (M @ v)) + float(simu._Calc_W()))
-        E = np.array(energies)
-        return float(np.abs(E - E[0]).max() / abs(E[0]))
-
     def test_energyTol_controls_energy_drift(self):
         """Tightening ``energyTol`` conserves ``KE + W`` markedly better."""
-        loose = self._drift(energyTol=1e-2)
-        tight = self._drift(energyTol=1e-8)
+        loose = _free_vibration_drift(
+            AlgoType.midpoint,
+            Simulations.HyperElastic.StressType.quadrature,
+            energyTol=1e-2,
+        )
+        tight = _free_vibration_drift(
+            AlgoType.midpoint,
+            Simulations.HyperElastic.StressType.quadrature,
+            energyTol=1e-8,
+        )
         assert (
             tight < loose / 100
         ), f"tighter energyTol should conserve energy far better: loose={loose:.1e}, tight={tight:.1e}"
@@ -249,7 +215,7 @@ class TestKelvinVoigtWiring:
     operator itself is checked in ``tests/FEM/operators_test.py``.
     """
 
-    def test_residual_enters_F_e_once(self):
+    def test_residual_enters_F_e_once(self, monkeypatch):
         L, h = 60.0, 10.0
         eta = 100.0
         rng = np.random.default_rng(4)
@@ -270,7 +236,9 @@ class TestKelvinVoigtWiring:
             rng.standard_normal(n) * 0.5,
         )
         u_np1 = rng.standard_normal(n) * 0.05
-        simu._Simu__Solver_Set_Newton_Raphson_current_solution(u_np1)
+        monkeypatch.setattr(
+            simu, "_Solver_Get_Newton_Raphson_current_solution", lambda: u_np1
+        )
 
         groupElem = mesh.groupElem
         F_visco = simu._Construct_local_matrix_system(pt)[groupElem][3]
