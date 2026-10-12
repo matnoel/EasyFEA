@@ -8,6 +8,7 @@ import pytest
 from EasyFEA.Geoms import Point
 
 ONES = [1, 1.0, [1, 1, 1], (1, 1, 1), Point(1, 1, 1)]
+ONES_IDS = ["int", "float", "list", "tuple", "Point"]
 
 
 def test_setting_coord_keeps_isOpen_and_r():
@@ -29,12 +30,12 @@ def test_copy_is_a_new_point_with_the_same_attributes():
     assert copy.r == 2
 
 
-@pytest.mark.parametrize("value", ONES, ids=repr)
+@pytest.mark.parametrize("value", ONES, ids=ONES_IDS)
 def test_add(value):
     assert (Point(0, 0, 0) + value).Check((1, 1, 1))
 
 
-@pytest.mark.parametrize("value", ONES, ids=repr)
+@pytest.mark.parametrize("value", ONES, ids=ONES_IDS)
 def test_subtract(value):
     assert (Point(1, 1, 1) - value).Check((0, 0, 0))
 
