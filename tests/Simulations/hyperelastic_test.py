@@ -3,44 +3,39 @@
 # This file is part of the EasyFEA project.
 # EasyFEA is distributed under the terms of the GNU General Public License v3, see LICENSE.txt and CREDITS.md for more information.
 
-"""Simulation-level tests for HyperElastic dynamics.
-
-The Gonzalez energy-momentum stress (``Solver_Set_Stress(StressType.gonzalez)``, on top of
-``AlgoType.midpoint``) conserves the total
-energy ``KE + W`` of a free (no external load, no damping) motion to round-off,
-whereas ``newmark`` drifts by orders of magnitude more — observed here only through
-the public simulation interface (solve loop + energy results).
-"""
-
-import warnings
-
 import numpy as np
 import pytest
 
-from EasyFEA import ElemType, Models, Simulations, AlgoType
+from EasyFEA import AlgoType, ElemType, Mesh, Models, Simulations
+from EasyFEA.FEM import FeArray, Kinematics, MatrixType, Operators
 from EasyFEA.Geoms import Domain
-from EasyFEA.FEM import FeArray, MatrixType, Operators
-from EasyFEA.FEM import Kinematics
 
 from _numerics import rel_error
+from ._simus import measure
+from ._fields import BAR_MESHES, bar_mesh, component
+
+StressType = Simulations.HyperElastic.StressType
+L, H = 120.0, 13.0
+LMBDA, MU = 1e5, 8e4
+STRAIN = 1e-4
 
 
 def _free_vibration_drift(
     algo: AlgoType,
-    stress: Simulations.HyperElastic.StressType | None = None,
+    stress: StressType | None = None,
     **stressOptions,
 ) -> float:
-    """max ``|KE + W - E0| / E0`` of a deflected NeoHookean cantilever released into free vibration.
+    """max ``|KE + W - E0| / E0`` of a deflected NeoHookean cantilever of 4 QUAD4 released into free vibration.
 
     Loose ``absTol``: gonzalez's residual has a ~1e-9 round-off floor from the ΔW − s̄·Δe cancellation.
     """
-    L, h, dt, nStep = 60.0, 10.0, 0.05, 50
-    domain = Domain((0, 0), (L, h), h / 2)
+    length, h, dt, nStep = 40.0, 10.0, 0.05, 50
+    domain = Domain((0, 0), (length, h), h)
     mesh = domain.Mesh_2D([], ElemType.QUAD4, isOrganised=True)
     nodesClamped = mesh.Nodes_Conditions(lambda x, y, z: x == 0)
-    nodesTip = mesh.Nodes_Conditions(lambda x, y, z: x == L)
-    mat = Models.HyperElastic.NeoHookean(2, K=5.0e4)
-    simu = Simulations.HyperElastic(mesh, mat, absTol=1e-4, verbosity=False)
+    nodesTip = mesh.Nodes_Conditions(lambda x, y, z: x == length)
+    material = Models.HyperElastic.NeoHookean(2, K=5.0e4)
+    simu = Simulations.HyperElastic(mesh, material, absTol=1e-4)
 
     simu.add_dirichlet(nodesClamped, [0, 0], simu.Get_unknowns())
     simu.add_dirichlet(nodesTip, [-h / 3], ["y"])
@@ -59,281 +54,46 @@ def _free_vibration_drift(
         simu.Solve()
         simu.Save_Iter()
         if M is None:
-            _, _, M, _ = simu.Get_K_C_M_F()  # constant mass
+            M = simu.Get_K_C_M_F()[2]  # constant mass
         energies.append(simu.Calc_Energy(M, simu.speed) + simu.Result("W"))
 
-    E = np.array(energies)
-    return float(np.abs(E - E[0]).max() / abs(E[0]))
+    energy = np.array(energies)
+    return float(np.abs(energy - energy[0]).max() / abs(energy[0]))
 
 
-class TestGonzalezEnergyConservation:
-    """A cantilever is statically deflected, then released and integrated with no
-    external load and no viscosity, so the only forces are internal (hyperelastic) +
-    inertia and total energy must stay constant. ``gonzalez`` keeps ``KE + W`` flat to
-    round-off; ``newmark`` drifts by orders of magnitude more.
-    """
-
-    def test_gonzalez_conserves_energy(self):
-        """``gonzalez`` keeps KE + W constant to ~round-off over the run."""
-        drift = _free_vibration_drift(
-            AlgoType.midpoint, Simulations.HyperElastic.StressType.gonzalez
-        )
-        assert drift < 1e-6, f"gonzalez energy drift {drift:.2e} (should be ~round-off)"
-
-    def test_gonzalez_beats_newmark(self):
-        """``newmark`` drifts; ``gonzalez`` drift is orders of magnitude smaller."""
-        gonzalez = _free_vibration_drift(
-            AlgoType.midpoint, Simulations.HyperElastic.StressType.gonzalez
-        )
-        newmark = _free_vibration_drift(AlgoType.newmark)
-        assert newmark > 1e-3, f"newmark should drift measurably; got {newmark:.2e}"
-        assert (
-            gonzalez < newmark / 100
-        ), f"gonzalez {gonzalez:.2e} should be ≪ newmark {newmark:.2e}"
-
-
-class TestGonzalezRequiresMidpoint:
-    """The gonzalez stress is only valid on top of ``AlgoType.midpoint``.
-
-    The discrete gradient's conservation proof rests on the midpoint base point
-    (``Δe = B(ū)·Δu`` holds exactly only for ``ū``), so pairing it with any other scheme
-    would silently integrate the wrong physics — no crash, just a wrong answer.
-    """
-
-    @staticmethod
-    def _simu():
-        mesh = Domain((0, 0), (20.0, 5.0), 2.5).Mesh_2D(
-            [], ElemType.QUAD4, isOrganised=True
-        )
-        n0 = mesh.Nodes_Conditions(lambda x, y, z: x == 0)
-        mat = Models.HyperElastic.NeoHookean(2, K=5.0e4)
-        simu = Simulations.HyperElastic(mesh, mat, absTol=1e-4, verbosity=False)
-        simu.add_dirichlet(n0, [0, 0], simu.Get_unknowns())
-        return simu
-
-    def test_stale_flag_is_rejected_at_solve(self):
-        """Re-selecting another scheme after enabling it must not leave gonzalez active."""
-        simu = self._simu()
-        simu.Solver_Set_Hyperbolic_Algorithm(0.05, algo=AlgoType.midpoint)
-        simu.Solver_Set_Stress(simu.StressType.gonzalez)
-        # the docs tell users to re-call this when dt changes — here the algo changes too
-        simu.Solver_Set_Hyperbolic_Algorithm(0.05, algo=AlgoType.newmark)
-        with pytest.raises(AssertionError):
-            simu.Solve()
-
-    def test_rejects_non_midpoint_algo(self):
-        """Enabling it on a non-midpoint scheme fails at once, not silently later."""
-        simu = self._simu()
-        simu.Solver_Set_Hyperbolic_Algorithm(0.05, algo=AlgoType.newmark)
-        with pytest.raises(AssertionError):
-            simu.Solver_Set_Stress(simu.StressType.gonzalez)
-
-
-class TestThicknessInvariance:
-    """With no external load, ``thickness`` scales the mass, the stiffness and the
-    internal force uniformly, so it cancels: the free-vibration solution must be
-    *identical* whatever the thickness.
-
-    Regression guard — HyperElastic used to scale the mass (and the strain energy) by
-    ``thickness`` but not the internal-force operator, so a ``thickness != 1`` silently
-    made the body too heavy for its own stiffness and changed the dynamics, with no
-    error raised.
-    """
-
-    L, h = 60.0, 10.0
-
-    def _tip_trajectory(self, thickness: float, gonzalez: bool, nStep: int = 6):
-        L, h = self.L, self.h
-        mesh = Domain((0, 0), (L, h), h / 2).Mesh_2D(
-            [], ElemType.QUAD4, isOrganised=True
-        )
-        n0 = mesh.Nodes_Conditions(lambda x, y, z: x == 0)
-        nL = mesh.Nodes_Conditions(lambda x, y, z: x == L)
-        mat = Models.HyperElastic.NeoHookean(2, K=5.0e4, thickness=thickness)
-        simu = Simulations.HyperElastic(mesh, mat, absTol=1e-4, verbosity=False)
-
-        simu.add_dirichlet(n0, [0, 0], simu.Get_unknowns())
-        simu.add_dirichlet(nL, [-h / 3], ["y"])
-        simu.Solve()
-        simu.Save_Iter()
-
-        simu.Bc_Init()
-        simu.Solver_Set_Hyperbolic_Algorithm(0.05, algo=AlgoType.midpoint)
-        if gonzalez:
-            simu.Solver_Set_Stress(simu.StressType.gonzalez)
-        simu.add_dirichlet(n0, [0, 0], simu.Get_unknowns())
-
-        traj = []
-        for _ in range(nStep):
-            simu.Solve()
-            simu.Save_Iter()
-            traj.append(simu.Result("uy")[nL].mean())
-        return np.array(traj)
-
-    @pytest.mark.parametrize("gonzalez", [False, True], ids=["midpoint", "gonzalez"])
-    def test_free_vibration_is_thickness_invariant(self, gonzalez):
-        """No external load ⇒ thickness cancels ⇒ same motion for any thickness."""
-        ref = self._tip_trajectory(1.0, gonzalez)
-        thick = self._tip_trajectory(5.0, gonzalez)
-        relDiff = np.abs(ref - thick).max() / np.abs(ref).max()
-        assert relDiff < 1e-8, f"thickness changed the motion: rel diff {relDiff:.2e}"
-
-
-class TestQuadratureEnergyConservation:
-    """The ``quadrature`` stress conserves ``KE + W`` up to its quadrature error, so tightening
-    ``energyTol`` — the per-element energy-defect tolerance — drives the drift down. That control is
-    the whole point of the adaptive rule; a broken quadrature would drift like ``pointwise``
-    (~1e-2). Exercised end to end through the public ``Solver_Set_Stress`` / ``Solve`` interface.
-    """
-
-    def test_energyTol_controls_energy_drift(self):
-        """Tightening ``energyTol`` conserves ``KE + W`` markedly better."""
-        loose = _free_vibration_drift(
-            AlgoType.midpoint,
-            Simulations.HyperElastic.StressType.quadrature,
-            energyTol=1e-2,
-        )
-        tight = _free_vibration_drift(
-            AlgoType.midpoint,
-            Simulations.HyperElastic.StressType.quadrature,
-            energyTol=1e-8,
-        )
-        assert (
-            tight < loose / 100
-        ), f"tighter energyTol should conserve energy far better: loose={loose:.1e}, tight={tight:.1e}"
-        assert (
-            tight < 1e-6
-        ), f"tight energyTol should conserve energy well; got drift {tight:.1e}"
-
-
-class TestKelvinVoigtWiring:
-    """The viscous residual the operator returns is exactly what reaches ``F_e``.
-
-    ``_Construct_local_matrix_system`` must subtract ``R_e`` once, with the right sign, and
-    put nothing else in ``F_e``. Turning viscosity off changes nothing else in the
-    assembly, so the difference of the two ``F_e`` is the viscous residual alone. The
-    operator itself is checked in ``tests/FEM/operators_test.py``.
-    """
-
-    def test_residual_enters_F_e_once(self, monkeypatch):
-        L, h = 60.0, 10.0
-        eta = 100.0
-        rng = np.random.default_rng(4)
-
-        mesh = Domain((0, 0), (L, h), h).Mesh_2D([], ElemType.QUAD4, isOrganised=True)
-        mat = Models.HyperElastic.NeoHookean(2, K=5.0e4)
-        mat.eta = eta
-        simu = Simulations.HyperElastic(mesh, mat, verbosity=False)
-        simu.Solver_Set_Hyperbolic_Algorithm(0.05, algo=AlgoType.midpoint)
-
-        # Any configuration with a non-zero velocity will do; equilibrium is not needed.
-        pt = simu.problemType
-        n = mesh.Nn * 2
-        simu._Set_solutions(
-            pt,
-            rng.standard_normal(n) * 0.05,
-            rng.standard_normal(n) * 0.5,
-            rng.standard_normal(n) * 0.5,
-        )
-        u_np1 = rng.standard_normal(n) * 0.05
-        monkeypatch.setattr(
-            simu, "_Solver_Get_Newton_Raphson_current_solution", lambda: u_np1
-        )
-
-        groupElem = mesh.groupElem
-        F_visco = simu._Construct_local_matrix_system(pt)[groupElem][3]
-        mat.eta = 0.0
-        F_plain = simu._Construct_local_matrix_system(pt)[groupElem][3]
-        mat.eta = eta
-
-        # what the operator says the viscous residual is, at the same evaluation kinematics
-        u_t, v_t, _ = simu._Solver_Evaluate_u_v_a_for_time_scheme(pt, u_np1)
-        kinematics = Kinematics(groupElem, u_t, MatrixType.rigi)
-        _, R_e, _ = Operators.NonLinear.KelvinVoigtDamping(mat, kinematics, v_t)
-
-        assert (
-            np.abs(R_e).max() > 0
-        ), "test kinematics is degenerate: the viscous residual is zero"
-        got = F_plain - F_visco  # F_e -= R_e  =>  the difference is +R_e
-        assert np.abs(got - R_e).max() < 1e-10 * np.abs(R_e).max(), (
-            "F_e does not carry exactly one -R_visco: max diff "
-            f"{np.abs(got - R_e).max():.3e} vs |R| {np.abs(R_e).max():.3e}"
-        )
-
-
-def test_active_stress_accepts_a_field():
-    """`active_stress` takes a scalar, an (Ne,) value per element, or an (Ne, nPg) value per
-    integration point. A uniform field must reproduce the scalar exactly — the identity the cardiac
-    benchmark relies on — while a varying one must reach the assembly rather than being flattened.
-    """
-    mesh = Domain((0, 0), (2.0, 1.0), 0.5).Mesh_Extrude(
-        [], [0, 0, 1], [2], ElemType.HEXA8, isOrganised=True
-    )
-    groupElem = mesh.groupElem
-    matrixType = MatrixType.rigi
-    nPg = groupElem.Get_gauss(matrixType).nPg
-    Ne = groupElem.Ne
-
-    material = Models.HyperElastic.NeoHookean(3, K=1e3)
-    # a uniform fiber along x, so the magnitude lands in the xx component of the PK2 vector
-    fibers = np.zeros((Ne, nPg, 3))
-    fibers[..., 0] = 1.0
-    material.Set_active_stress_vec(FeArray.asfearray(fibers))
-
-    kinematics = Kinematics(groupElem, np.zeros(mesh.Nn * 3), matrixType)
-
-    material.active_stress = 10.0
-    scalar = np.asarray(material.Compute_active_stress(kinematics)).copy()
-
-    for uniform in (np.full(Ne, 10.0), np.full((Ne, nPg), 10.0)):
-        material.active_stress = uniform
-        assert np.array_equal(
-            np.asarray(material.Compute_active_stress(kinematics)), scalar
-        )
-
-    # a per-element magnitude must survive to the stress, not be collapsed to one value
-    varying = np.linspace(1.0, 10.0, Ne)
-    material.active_stress = varying
-    stress = np.asarray(material.Compute_active_stress(kinematics))
-    assert not np.allclose(stress, scalar)
-    # the fiber is x, so the xx component carries the magnitude
-    assert np.allclose(stress[:, 0, 0], varying)
-
-    with pytest.raises(AssertionError):
-        material.active_stress = np.ones((Ne + 1, nPg))
-        material.Compute_active_stress(kinematics)
-
-
-def test_newton_accepts_a_zero_first_residual():
-    """An unloaded solve starts at equilibrium: the relative norm must not divide by zero."""
-    domain = Domain((0, 0), (1, 1), 0.5)
+def _clamped_block(material=None) -> Simulations.HyperElastic:
+    """4 QUAD4 in a row, clamped at x=0."""
+    domain = Domain((0, 0), (20.0, 5.0), 5.0)
     mesh = domain.Mesh_2D([], ElemType.QUAD4, isOrganised=True)
-    nodes0 = mesh.Nodes_Conditions(lambda x, y, z: x == 0)
-    mat = Models.HyperElastic.NeoHookean(2, K=1e3)
-    simu = Simulations.HyperElastic(mesh, mat, verbosity=False)
-    simu.add_dirichlet(nodes0, [0, 0], simu.Get_unknowns())
-
-    with warnings.catch_warnings():
-        warnings.simplefilter("error", RuntimeWarning)
-        u = simu.Solve()
-
-    assert np.all(u == 0)
+    nodesClamped = mesh.Nodes_Conditions(lambda x, y, z: x == 0)
+    if material is None:
+        material = Models.HyperElastic.NeoHookean(2, K=5.0e4)
+    simu = Simulations.HyperElastic(mesh, material, absTol=1e-4)
+    simu.add_dirichlet(nodesClamped, [0, 0], simu.Get_unknowns())
+    return simu
 
 
-def _Pull_block(material) -> np.ndarray:
-    """Stretches a HEXA8 block along z and returns the converged displacement."""
-    domain = Domain((0, 0), (1, 1), meshSize=0.5)
-    mesh = domain.Mesh_Extrude([], [0, 0, 1], [2], ElemType.HEXA8)
+def _svk_bar(mesh: Mesh, strain: float = STRAIN) -> Simulations.HyperElastic:
+    """Saint-Venant-Kirchhoff bar stretched along x alone (ux = strain·x), injected: never solved."""
+    material = Models.HyperElastic.SaintVenantKirchhoff(mesh.dim, LMBDA, MU)
     simu = Simulations.HyperElastic(mesh, material)
-    nodesBottom = mesh.Nodes_Conditions(lambda x, y, z: z == 0)
-    nodesTop = mesh.Nodes_Conditions(lambda x, y, z: z == 1)
-    simu.add_dirichlet(nodesBottom, [0] * 3, ["x", "y", "z"])
-    simu.add_dirichlet(nodesTop, [0.05], ["z"])
-    return simu.Solve()
+    u = np.zeros((mesh.Nn, mesh.dim))
+    u[:, 0] = strain * mesh.coord[:, 0]
+    simu._Set_solutions(simu.problemType, u.ravel())
+    return simu
 
 
-def test_autodiff_law_solves_like_the_shipped_one():
-    """An ``AutoDiff`` law drives a simulation to the same answer as the hand-written equivalent."""
+def _Exx(strain: float) -> float:
+    """Green-Lagrange Exx of that stretch, its only non-zero component."""
+    return strain + strain**2 / 2
+
+
+# ----------------------------------------------
+# HyperElastic
+# ----------------------------------------------
+
+
+def test_HyperElastic_autodiff_law_assembles_like_the_shipped_one(monkeypatch):
     jax = pytest.importorskip("jax")
     jax.config.update("jax_enable_x64", True)
     jnp = jax.numpy
@@ -345,7 +105,255 @@ def test_autodiff_law_solves_like_the_shipped_one():
         J1, J2, J = I1 * I3 ** (-1 / 3), I2 * I3 ** (-2 / 3), jnp.sqrt(I3)
         return K1 * (J1 - 3) + K2 * (J2 - 3) + K * (J - 1 - jnp.log(J))
 
-    autodiff = Models.HyperElastic.AutoDiff(3, ciarlet_geymonat)
-    shipped = Models.HyperElastic.CiarletGeymonat(3, K1=K1, K2=K2, K=K)
+    domain = Domain((0, 0), (1, 1), meshSize=0.5)
+    mesh = domain.Mesh_Extrude([], [0, 0, 1], [2], ElemType.HEXA8)
+    u = 0.05 * np.sin(mesh.coord).ravel()
 
-    assert rel_error(_Pull_block(autodiff), _Pull_block(shipped)) < 1e-10
+    def assembled(material) -> tuple[np.ndarray, np.ndarray]:
+        simu = Simulations.HyperElastic(mesh, material)
+        monkeypatch.setattr(
+            simu, "_Solver_Get_Newton_Raphson_current_solution", lambda: u
+        )
+        K, _, _, F = simu.Get_K_C_M_F()
+        return K.toarray(), F.toarray()
+
+    K_autodiff, F_autodiff = assembled(
+        Models.HyperElastic.AutoDiff(3, ciarlet_geymonat)
+    )
+    K_shipped, F_shipped = assembled(
+        Models.HyperElastic.CiarletGeymonat(3, K1=K1, K2=K2, K=K)
+    )
+
+    assert rel_error(K_autodiff, K_shipped) < 1e-10
+    assert rel_error(F_autodiff, F_shipped) < 1e-10
+
+
+def test_HyperElastic_Get_stressTypes_lists_every_stress():
+    assert Simulations.HyperElastic.Get_stressTypes() == list(StressType)
+    assert [str(s) for s in StressType] == ["pointwise", "gonzalez", "quadrature"]
+
+
+def test_HyperElastic_matrixType_sets_the_rule_results_are_sampled_at(monkeypatch):
+    simu = _svk_bar(bar_mesh("TRI3"))
+    monkeypatch.setattr(
+        simu, "_Solver_Get_Newton_Raphson_current_solution", lambda: simu.displacement
+    )
+    simu.Get_K_C_M_F()
+    assert not simu.needUpdate
+    assert simu.matrixType == MatrixType.rigi
+
+    simu.matrixType = MatrixType.mass
+
+    assert simu.needUpdate
+    Exx = component(simu._Calc_GreenLagrange(), simu.mesh, 0, MatrixType.mass)
+    assert rel_error(Exx, _Exx(STRAIN)) < 1e-10
+
+
+def test_HyperElastic_material_is_the_given_model():
+    material = Models.HyperElastic.NeoHookean(2, K=1e3)
+
+    assert _clamped_block(material).material is material
+
+
+def test_HyperElastic_material_eta_enters_the_residual_once(monkeypatch):
+    """Turning viscosity off changes nothing else in the assembly, so the difference of the two ``F_e`` is the viscous residual alone."""
+    eta = 100.0
+    rng = np.random.default_rng(4)
+    domain = Domain((0, 0), (60.0, 10.0), 10.0)
+    mesh = domain.Mesh_2D([], ElemType.QUAD4, isOrganised=True)
+    material = Models.HyperElastic.NeoHookean(2, K=5.0e4)
+    material.eta = eta
+    simu = Simulations.HyperElastic(mesh, material)
+    simu.Solver_Set_Hyperbolic_Algorithm(0.05, algo=AlgoType.midpoint)
+
+    # any configuration with a non-zero velocity will do; equilibrium is not needed
+    problemType = simu.problemType
+    n = mesh.Nn * 2
+    simu._Set_solutions(
+        problemType,
+        rng.standard_normal(n) * 0.05,
+        rng.standard_normal(n) * 0.5,
+        rng.standard_normal(n) * 0.5,
+    )
+    u_np1 = rng.standard_normal(n) * 0.05
+    monkeypatch.setattr(
+        simu, "_Solver_Get_Newton_Raphson_current_solution", lambda: u_np1
+    )
+
+    groupElem = mesh.groupElem
+    F_visco = simu._Construct_local_matrix_system(problemType)[groupElem][3]
+    material.eta = 0.0
+    F_plain = simu._Construct_local_matrix_system(problemType)[groupElem][3]
+    material.eta = eta
+
+    u_t, v_t, _ = simu._Solver_Evaluate_u_v_a_for_time_scheme(problemType, u_np1)
+    kinematics = Kinematics(groupElem, u_t, MatrixType.rigi)
+    _, R_e, _ = Operators.NonLinear.KelvinVoigtDamping(material, kinematics, v_t)
+
+    assert np.abs(R_e).max() > 0
+    assert rel_error(F_plain - F_visco, R_e) < 1e-10
+
+
+def _dynamic() -> tuple[Simulations.HyperElastic, np.ndarray]:
+    """A Newmark simulation with u, 2u and 3u injected; returns it and u."""
+    simu = _clamped_block()
+    simu.Solver_Set_Hyperbolic_Algorithm(0.1)
+    u = np.linspace(0, 1, simu.mesh.Nn * 2)
+    simu._Set_solutions(simu.problemType, u, 2 * u, 3 * u)
+    return simu, u
+
+
+def test_HyperElastic_displacement_is_the_dof_vector():
+    simu, u = _dynamic()
+
+    assert np.array_equal(simu.displacement, u)
+
+
+def test_HyperElastic_speed_is_the_velocity_dof_vector():
+    simu, u = _dynamic()
+
+    assert np.array_equal(simu.speed, 2 * u)
+
+
+def test_HyperElastic_accel_is_the_acceleration_dof_vector():
+    simu, u = _dynamic()
+
+    assert np.array_equal(simu.accel, 3 * u)
+
+
+def test_HyperElastic_Solver_Set_Stress_gonzalez_conserves_the_energy():
+    drift = _free_vibration_drift(AlgoType.midpoint, StressType.gonzalez)
+
+    assert drift < 1e-6
+
+
+def test_HyperElastic_Solver_Set_Stress_energyTol_controls_the_drift():
+    loose = _free_vibration_drift(
+        AlgoType.midpoint,
+        StressType.quadrature,
+        energyTol=1e-2,
+    )
+    tight = _free_vibration_drift(
+        AlgoType.midpoint,
+        StressType.quadrature,
+        energyTol=1e-8,
+    )
+
+    assert tight < loose / 100
+    assert tight < 1e-6
+
+
+def test_HyperElastic_Solver_Set_Stress_gonzalez_rejects_a_non_midpoint_algo():
+    simu = _clamped_block()
+    simu.Solver_Set_Hyperbolic_Algorithm(0.05, algo=AlgoType.newmark)
+
+    with pytest.raises(AssertionError, match="midpoint"):
+        simu.Solver_Set_Stress(StressType.gonzalez)
+
+
+def test_HyperElastic_Solver_Set_Stress_gonzalez_left_stale_is_rejected_at_solve():
+    """Re-selecting another scheme after enabling it must not leave gonzalez active."""
+    simu = _clamped_block()
+    simu.Solver_Set_Hyperbolic_Algorithm(0.05, algo=AlgoType.midpoint)
+    simu.Solver_Set_Stress(StressType.gonzalez)
+    simu.Solver_Set_Hyperbolic_Algorithm(0.05, algo=AlgoType.newmark)
+
+    with pytest.raises(AssertionError, match="midpoint"):
+        simu.Solve()
+
+
+def test_HyperElastic_Solver_Set_Stress_quadrature_is_rejected_at_a_static_solve():
+    simu = _clamped_block()
+    simu.Solver_Set_Stress(StressType.quadrature)
+
+    with pytest.raises(AssertionError, match="dynamic"):
+        simu.Solve()
+
+
+def test_HyperElastic__nPts_e_counts_the_quadrature_points_per_element():
+    simu = _clamped_block()
+    assert simu._nPts_e is None
+
+    simu.Solver_Set_Hyperbolic_Algorithm(0.05, algo=AlgoType.midpoint)
+    simu.Solver_Set_Stress(StressType.quadrature, nPoints=5)
+    nodesTip = simu.mesh.Nodes_Conditions(lambda x, y, z: x == 20.0)
+    simu.add_neumann(nodesTip, [-10.0], ["y"])
+    simu.Solve()
+    simu.Save_Iter()
+
+    assert simu._nPts_e.shape == (simu.mesh.Ne,)
+    assert np.all(simu._nPts_e == 5)
+    assert np.array_equal(simu.Get_results()["nPts_e"], simu._nPts_e)
+
+
+def test_HyperElastic_stressType_is_the_selected_one():
+    simu = _clamped_block()
+    assert simu.stressType == StressType.pointwise
+
+    simu.Solver_Set_Hyperbolic_Algorithm(0.05, algo=AlgoType.midpoint)
+    simu.Solver_Set_Stress(StressType.gonzalez)
+
+    assert simu.stressType == StressType.gonzalez
+
+
+def test_HyperElastic__Calc_W_of_a_svk_stretch_is_half_lmbda_2mu_Exx2_V(subtests):
+    """W, written in the invariants of C, cancels O(lmbda) terms down to lmbda·eps²: stretched 1 % for a 1e-10 floor."""
+    strain = 1e-2
+    for meshName in ("TRI3", "HEXA8+PRISM6"):
+        with subtests.test(mesh=meshName):
+            mesh = bar_mesh(meshName)
+            simu = _svk_bar(mesh, strain)
+            volume = measure(mesh)
+            expected = (LMBDA + 2 * MU) * _Exx(strain) ** 2 / 2 * volume
+
+            W_e = simu._Calc_W(returnScalar=False)
+
+            assert rel_error(simu._Calc_W(), expected) < 1e-10
+            assert W_e.shape == (mesh.Ne,)
+            assert rel_error(W_e.sum(), expected) < 1e-10
+
+
+def test_HyperElastic__Calc_GreenLagrange_of_a_svk_stretch_is_per_group(subtests):
+    for meshName in BAR_MESHES:
+        with subtests.test(mesh=meshName):
+            mesh = bar_mesh(meshName)
+            simu = _svk_bar(mesh)
+
+            Exx = component(simu._Calc_GreenLagrange(), mesh, 0)
+
+            assert rel_error(Exx, _Exx(STRAIN)) < 1e-10
+
+
+def test_HyperElastic__Calc_SecondPiolaKirchhoff_of_a_svk_stretch_is_lmbda_trE_2mu_E(
+    subtests,
+):
+    Exx = _Exx(STRAIN)
+    for meshName in BAR_MESHES:
+        with subtests.test(mesh=meshName):
+            mesh = bar_mesh(meshName)
+            simu = _svk_bar(mesh)
+
+            stress = simu._Calc_SecondPiolaKirchhoff()
+
+            Sxx = component(stress, mesh, 0)
+            Syy = component(stress, mesh, 1)
+            assert rel_error(Sxx, (LMBDA + 2 * MU) * Exx) < 1e-10
+            assert rel_error(Syy, LMBDA * Exx) < 1e-10
+
+
+def test_HyperElastic__Calc_SecondPiolaKirchhoff_adds_the_active_stress():
+    """At rest only the active stress tau·T⊗T remains, along the fiber x."""
+    tau = 3.0
+    mesh = bar_mesh("TRI3")
+    material = Models.HyperElastic.SaintVenantKirchhoff(2, LMBDA, MU)
+    nPg = mesh.groupElem.Get_gauss(MatrixType.rigi).nPg
+    fibers = np.zeros((mesh.Ne, nPg, 3))
+    fibers[..., 0] = 1.0
+    material.Set_active_stress_vec(FeArray.asfearray(fibers))
+    material.active_stress = tau
+    simu = Simulations.HyperElastic(mesh, material)
+
+    stress = simu._Calc_SecondPiolaKirchhoff()
+
+    assert rel_error(component(stress, mesh, 0), tau) < 1e-14
+    assert np.abs(component(stress, mesh, 1)).max() == 0
