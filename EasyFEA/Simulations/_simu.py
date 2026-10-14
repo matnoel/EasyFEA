@@ -727,7 +727,7 @@ class _Simu(_IObserver, _params.Updatable, ABC):
             coord_e_pg = groupElem.Get_GaussCoordinates_e_pg(matrixType)
             wJ_e_pg = groupElem.Get_weightedJacobian_e_pg(matrixType)
             rho_e_pg = FeArray.broadcast(self.rho, *wJ_e_pg.shape, tensor_shape=())
-            contrib = (rho_e_pg * wJ_e_pg * coord_e_pg / mass).sum()
+            contrib = (rho_e_pg * wJ_e_pg * coord_e_pg / mass).sum(axis=(0, 1))
             if self.dim == 2:
                 contrib *= self.model.thickness
             center += contrib
