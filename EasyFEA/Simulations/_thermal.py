@@ -106,6 +106,11 @@ class Thermal(_Simu):
         [d(ti)/dt, ....]"""
         return self._Get_v_n(self.problemType)
 
+    @property
+    def thickness(self) -> float:
+        """The model's thickness on a 2D mesh, 1 otherwise: a thermal model has no dimension of its own, so it is keyed on the mesh, as the surface and volume loads are."""
+        return self.thermalModel.thickness if self.mesh.dim == 2 else 1.0
+
     def Get_x0(self, problemType=None):
         if self.thermal.size != self.mesh.Nn:
             return np.zeros(self.mesh.Nn)
