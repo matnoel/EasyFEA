@@ -194,8 +194,8 @@ class LinearForm(_Form):
 
         # get values
         values = self.Integrate_e(field=field).ravel()
-        rows = groupElem.Get_rows_e(dof_n).ravel()
-        columns = np.ones_like(rows)
+        rows = groupElem.Get_assembly_e(dof_n).ravel()
+        columns = np.zeros_like(rows)
 
         # get shape
         Ndof = groupElem.Ncoords * dof_n
