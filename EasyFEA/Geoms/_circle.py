@@ -266,7 +266,7 @@ class CircleArc(_Geom):
         isOpen : bool, optional
             arc can be opened, by default False
         coef: int, optional
-            Change direction, by default 1 or -1
+            Change direction, by default 1 or -1. Ignored with P: the arc goes through P
         """
 
         pt1 = AsPoint(pt1)
@@ -303,6 +303,9 @@ class CircleArc(_Geom):
         k = np.array([0, 0, 1])
         if np.linalg.norm(np.cross(i1, i2)) <= 1e-12:
             vect = Normalize(i2 - i1)
+            if P is not None:
+                # a half arc lies in the plane holding P
+                k = Normalize(np.cross(vect, AsCoords(P) - center.coord))
             i = np.cross(k, vect)
         else:
             i = Normalize((i1 + i2) / 2)
@@ -313,6 +316,11 @@ class CircleArc(_Geom):
 
         # midpoint coordinates
         _params._CheckIsInIntervalcc(coef, -1, 1)
+        if P is not None:
+            # P lies on the minor arc iff it is within half the span of its midpoint
+            halfSpan = Angle_Between(i1, i2) / 2
+            toP = AsCoords(P) - center.coord
+            coef = 1 if toP @ mat[:, 0] >= r1**2 * (np.cos(halfSpan) - 1e-12) else -1
         pt3 = center.coord + mat @ [coef * r1, 0, 0]
 
         self.coef = coef
