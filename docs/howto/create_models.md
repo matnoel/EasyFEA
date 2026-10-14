@@ -207,7 +207,6 @@ import jax
 from EasyFEA.Models.InElastic import (
     _Behavior, Newton, Von_Mises_stress, ZERO_TENSOR, ZERO_SCALAR,
 )
-from EasyFEA.Utilities import _params
 
 class LinearHardening(_Behavior):
     """Von Mises plasticity with linear isotropic hardening."""
@@ -215,9 +214,6 @@ class LinearHardening(_Behavior):
     class Internals(NamedTuple):
         eps_p: jax.Array = ZERO_TENSOR  # plastic strain
         p: jax.Array = ZERO_SCALAR      # accumulated plastic strain
-
-    sigma_y: float = _params.PositiveScalarParameter()
-    H: float = _params.PositiveScalarParameter()
 
     def __init__(self, elastic, sigma_y, H):
         super().__init__(elastic)
@@ -252,8 +248,8 @@ This one matches {py:class}`~EasyFEA.Models.InElastic.Plasticity` with
   mesh and no solver:
   `MaterialPoint(LinearHardening(Isotropic(3, E=210e3, v=0.3), 250.0, 1e3)).Run(strain={"xx": path})`,
   with a 3D elastic model.
-- **Parameters** declared with `_params` (here `PositiveScalarParameter`) are checked
-  when set, and setting one, like modifying the elastic model, rebuilds the kernel.
+- **Parameters** are plain attributes: after changing one, call `Need_Update()` to
+  rebuild the kernel; modifying the elastic model does it for you.
 - **External variables**, such as a temperature, are declared like the internal ones, as
   the fields of a `NamedTuple` `Externals`, and read as keywords by `Update` and
   `Stress`. They have no defaults: a reference value, such as the temperature at which
