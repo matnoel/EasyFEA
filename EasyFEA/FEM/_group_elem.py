@@ -2062,7 +2062,7 @@ class _GroupElem(ABC):
             matrixType = MatrixType.mass
             jacobian_e_pg = self.Get_jacobian_e_pg(matrixType, absoluteValues=False)
             invF_e_pg = self.Get_invF_e_pg(matrixType)
-            dN_tild = self._dN()
+            N_tild = self._N()
             xiOrigin = self.origin  # origin of the reference element (ξ0,η0)
 
             # Check whether iterative resolution is required
@@ -2121,12 +2121,10 @@ class _GroupElem(ABC):
 
                 else:
                     # This is the most time-consuming method.
-                    # We need to construct the Jacobian matrices here.
+                    # Solves x(ξ) = Σ N_i(ξ) x_i = xP for ξ.
                     def Eval(xi: _types.FloatArray, xP: _types.FloatArray):
-                        dN = _GroupElem._Eval_Functions(dN_tild, xi.reshape(1, -1))
-                        F = dN[0] @ coordElemBase[:, :dim]  # jacobian matrix [J]
-                        J = x0 + (xi - xiOrigin) @ F - xP  # cost function
-                        return J
+                        N = _GroupElem._Eval_Functions(N_tild, xi.reshape(1, -1))
+                        return N[0, 0] @ coordElemBase[:, :dim] - xP
 
                     from scipy.optimize import least_squares
 
