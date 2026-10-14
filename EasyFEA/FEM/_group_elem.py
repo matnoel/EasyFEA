@@ -1513,7 +1513,7 @@ class _GroupElem(ABC):
         # It is possible that the nodes entered do not belong to the group
         if connect_n_e.shape[0] <= nodes.max():  # type: ignore
             # Remove all excess nodes
-            nodes = nodes[nodes < self.Nn]
+            nodes = nodes[nodes < connect_n_e.shape[0]]
 
         columns = connect_n_e[nodes].nonzero()[1]
 
