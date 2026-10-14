@@ -1253,23 +1253,14 @@ class Mesh(Observable):
         nodes = np.arange(Nn)
         coord_n = self.coord
 
-        # get rows cols and values
-        rows_cols_values = np.array(
-            [
-                (
-                    np.ones(detectedNodes.size, dtype=int) * i,
-                    detectedNodes,
-                    np.ones(detectedNodes.size, dtype=int) * 1 / detectedNodes.size,
-                    # distance_n[detectedNodes] / distance_n[detectedNodes].sum(),
-                )
-                for i in range(Nn)
-                if (distance_n := np.linalg.norm(coord_n[i] - coord_n, axis=-1)).any()
-                if (detectedNodes := nodes[distance_n < radius + 1e-12]).any()
-            ],
-            dtype=object,
-        )
-
-        rows, cols, values = rows_cols_values.reshape(-1, 3).T
+        # each node averages the nodes within the radius, itself included
+        rows, cols, values = [], [], []
+        for i in range(Nn):
+            distance_n = np.linalg.norm(coord_n[i] - coord_n, axis=-1)
+            detectedNodes = nodes[distance_n < radius + 1e-12]
+            rows.append(np.full(detectedNodes.size, i))
+            cols.append(detectedNodes)
+            values.append(np.full(detectedNodes.size, 1 / detectedNodes.size))
 
         projector = sp.csr_matrix(
             (np.concatenate(values), (np.concatenate(rows), np.concatenate(cols))),
