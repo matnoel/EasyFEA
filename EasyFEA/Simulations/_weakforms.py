@@ -263,14 +263,14 @@ class WeakForms(_Simu):
             values = self.v
 
         elif result in ["vx", "vy", "vz"]:
-            values_n = self.u.reshape(Nn, -1)
+            values_n = self.v.reshape(Nn, -1)
             values = values_n[:, self.__indexResult(result)]
 
         elif result == "a":
             values = self.a
 
         elif result in ["ax", "ay", "az"]:
-            values_n = self.u.reshape(Nn, -1)
+            values_n = self.a.reshape(Nn, -1)
             values = values_n[:, self.__indexResult(result)]
 
         elif result == "displacement_matrix":
