@@ -9,7 +9,7 @@ from typing import TYPE_CHECKING
 
 import numpy as np
 
-from ..Utilities import _types, Terminal
+from ..Utilities import _types
 
 if TYPE_CHECKING:
     from ..Simulations._problem_type import ProblemType
@@ -187,10 +187,9 @@ class BoundaryCondition:
 
         for d, direction in enumerate(unknowns):
             if direction not in availableUnknowns:
-                Terminal.MyPrintError(
+                raise ValueError(
                     f"direction ({direction}) must be in {availableUnknowns}."
                 )
-                continue
 
             idx = availableUnknowns.index(direction)
 
