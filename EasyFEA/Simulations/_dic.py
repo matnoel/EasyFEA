@@ -180,6 +180,15 @@ class DIC(_IObserver):
         )
         # mean_pixels = np.mean([connectPixel[e].size for e in range(mesh.Ne)])
 
+        # A pixel on an edge whose node coordinates are off an integer by round-off is found in both
+        # elements, but its reference coordinates are those of the last one visited, the highest index:
+        # it is kept there alone, so the pixel shape functions stay a partition of unity.
+        assigned = np.zeros(coordPixel.shape[0], dtype=bool)
+        for e in reversed(range(connectPixel.shape[0])):
+            pixels_e = np.asarray(connectPixel[e], dtype=int)
+            connectPixel[e] = pixels_e[~assigned[pixels_e]]
+            assigned[pixels_e] = True
+
         self.__connectPixel = connectPixel
         """connectivity matrix linking the pixels used for each element."""
         self.__coordPixelInElem: _types.FloatArray = coordPixelInElem  # type: ignore
