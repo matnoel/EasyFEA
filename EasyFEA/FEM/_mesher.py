@@ -244,36 +244,17 @@ class Mesher:
         if isinstance(p2, Point):
             p2 = factory.addPoint(*p2.coord)
 
+        p3 = factory.addPoint(*circleArc.pt3.coord, meshSize=circleArc.meshSize)
+
+        if factory == gmsh.model.occ:
+            lines = [factory.addCircleArc(p1, p3, p2, center=False)]
+            factory.remove([(0, p3)])
+            return lines
+
+        # geo arcs take the shorter way round, so the arc is split at its midpoint pt3;
+        # the center they reference cannot be removed and stays a lone node
         pC = factory.addPoint(*circleArc.center.coord, meshSize=circleArc.meshSize)
-        p3 = factory.addPoint(*circleArc.pt3.coord)
-
-        lines = []
-
-        if np.abs(circleArc.angle) > np.pi:
-            line1 = factory.addCircleArc(p1, pC, p3)
-            line2 = factory.addCircleArc(p3, pC, p2)
-
-            lines.extend([line1, line2])
-        else:
-            if factory == gmsh.model.occ:
-                line = factory.addCircleArc(p1, p3, p2, center=False)
-            else:
-                n = circleArc.n
-                line = factory.addCircleArc(
-                    p1,
-                    pC,
-                    p2,
-                    nx=n[0],  # type: ignore[index]
-                    ny=n[1],  # type: ignore[index]
-                    nz=n[2],  # type: ignore[index]
-                )
-
-            lines.append(line)
-
-        factory.remove([(0, pC)])
-        factory.remove([(0, p3)])
-
-        return lines
+        return [factory.addCircleArc(p1, pC, p3), factory.addCircleArc(p3, pC, p2)]
 
     @_Create_Lines.register(Points)
     def __Lines_From_Points(self, points: Points, p1, p2):
