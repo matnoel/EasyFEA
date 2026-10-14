@@ -12,6 +12,7 @@ from ._mesh import Mesh, Load_Mesh, Calc_projector, Mesh_Optim
 from ._mesher import Mesher
 from ._utils import ElemType, MatrixType
 from ._kinematics import Kinematics
+from ._kelvin_mandel import Get_Pmat, Apply_Pmat
 
 # must be after the import of FeArray, _GroupElem, MatrixType
 from ._field import Field, Sym_Grad
