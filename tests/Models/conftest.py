@@ -6,38 +6,18 @@
 from typing import NamedTuple
 
 import numpy as np
-import pytest
 
 from EasyFEA import ElemType
 from EasyFEA.FEM import Kinematics
 from EasyFEA.Geoms import Domain
 from EasyFEA.Models.InElastic import MaterialPoint, PointUpdate
 
-from _numerics import rel_error
+from _numerics import affine, assert_tangent_matches_fd, mandel, rel_error
 
 # fully populated and non-symmetric, so no component of ε or F is trivially zero
 GRAD_U = np.array([[0.02, -0.01, 0.03], [0.015, -0.025, 0.01], [-0.02, 0.005, 0.04]])
 F_3D = np.eye(3) + GRAD_U
 """F of the 3D `affine_kinematics`."""
-
-
-R2 = np.sqrt(2)
-KELVIN_BASIS = np.array(
-    [
-        [[1, 0, 0], [0, 0, 0], [0, 0, 0]],
-        [[0, 0, 0], [0, 1, 0], [0, 0, 0]],
-        [[0, 0, 0], [0, 0, 0], [0, 0, 1]],
-        [[0, 0, 0], [0, 0, 1 / R2], [0, 1 / R2, 0]],
-        [[0, 0, 1 / R2], [0, 0, 0], [1 / R2, 0, 0]],
-        [[0, 1 / R2, 0], [1 / R2, 0, 0], [0, 0, 0]],
-    ]
-)
-"""Orthonormal basis of symmetric 3×3 tensors, in Kelvin-Mandel order `[xx, yy, zz, yz, xz, xy]`."""
-
-
-def kelvin(A: np.ndarray) -> np.ndarray:
-    """(6,) Kelvin-Mandel vector of the symmetric part of a 3×3 tensor."""
-    return np.einsum("kij,ij->k", KELVIN_BASIS, A)
 
 
 def at_every_point(actual, expected: np.ndarray) -> float:
@@ -47,31 +27,20 @@ def at_every_point(actual, expected: np.ndarray) -> float:
     return rel_error(actual, np.broadcast_to(expected, actual.shape), scale)
 
 
-TANGENT_RTOL = 1e-6
-"""Per entry, plus an absolute floor of TANGENT_RTOL·1e-3 of the largest entry for the vanishing ones."""
-
-
-def assert_consistent_tangent(
+def assert_point_tangent_matches_fd(
     point: MaterialPoint,
     strain: np.ndarray,
     internals: dict[str, np.ndarray] | None = None,
     dt: float = 0.0,
-    h: float = 1e-9,
 ) -> PointUpdate:
-    """Asserts the tangent of `point.Update` at `strain` is its stress derivative by central differences; returns that update."""
+    """Asserts the tangent of `point.Update` at `strain` is its stress derivative by `assert_tangent_matches_fd`; returns that update."""
     update = point.Update(strain, internals, dt)
-    C_fd = np.column_stack(
-        [
-            (
-                point.Update(strain + d, internals, dt).stress
-                - point.Update(strain - d, internals, dt).stress
-            )
-            / (2 * h)
-            for d in np.eye(strain.size) * h
-        ]
+    assert_tangent_matches_fd(
+        lambda e: point.Update(e, internals, dt).stress[None],
+        strain,
+        update.tangent[None],
+        np.arange(strain.size)[None],
     )
-    floor = 1e-3 * TANGENT_RTOL * np.abs(C_fd).max()
-    assert np.allclose(update.tangent, C_fd, rtol=TANGENT_RTOL, atol=floor)
     return update
 
 
@@ -98,17 +67,7 @@ def affine_kinematics(dim: int, Ne: int = 1, scale: float = 1.0) -> AffineKinema
         )
     G = np.zeros((3, 3))
     G[:dim, :dim] = scale * GRAD_U[:dim, :dim]
-    u = mesh.coord[:, :dim] @ G[:dim, :dim].T
-
-    epsilon = kelvin(G)
-    if dim == 2:
-        epsilon = epsilon[[0, 1, 5]]
+    u = affine(mesh.coord, G[:dim, :dim])
     return AffineKinematics(
-        Kinematics(mesh.groupElem, u.ravel()), epsilon, np.eye(3) + G
+        Kinematics(mesh.groupElem, u), mandel(G, dim), np.eye(3) + G
     )
-
-
-@pytest.fixture(params=[2, 3], ids=["2D", "3D"])
-def affine(request) -> AffineKinematics:
-    """`affine_kinematics` in 2D and 3D."""
-    return affine_kinematics(request.param)

@@ -8,14 +8,13 @@
 import numpy as np
 import pytest
 
-from EasyFEA.Models import _autodiff
-from EasyFEA.Models.Elastic._laws import Isotropic
+from EasyFEA.Models.Elastic import Isotropic
 from EasyFEA.Models.InElastic import MaterialPoint, Maxwell
 
-from .conftest import assert_consistent_tangent
+from ..conftest import assert_point_tangent_matches_fd
 
-pytest.importorskip("jax")
-_autodiff.Enable_x64()
+jax = pytest.importorskip("jax")
+jax.config.update("jax_enable_x64", True)
 
 E, nu = 210000.0, 0.3
 EPS = np.array([1e-3, -2e-4, 3e-4, 1e-4, -5e-5, 2e-4])
@@ -36,7 +35,7 @@ def _hold(
     return sig
 
 
-def test_state_is_sized_by_the_branches():
+def test_Maxwell_state_is_sized_by_the_branches():
     behavior = Maxwell(ELASTIC, G, TAU)
 
     assert behavior.Virgin_internals().eps_v.shape == (2, 6)
@@ -45,17 +44,17 @@ def test_state_is_sized_by_the_branches():
     assert behavior.Virgin_internals_e_pg(2, 6)["eps_v"].shape == (2, 6, 2, 6)
 
 
-def test_fractions_must_leave_an_equilibrium_spring():
+def test_Maxwell_fractions_must_leave_an_equilibrium_spring():
     with pytest.raises(AssertionError, match="sum to less than 1"):
         Maxwell(ELASTIC, [0.6, 0.4], [1.0, 2.0])
 
 
-def test_a_field_is_not_taken_for_branches():
+def test_Maxwell_rejects_a_field_for_branches():
     with pytest.raises(AssertionError, match="one g and one tau per branch"):
         Maxwell(ELASTIC, np.full((5, 4), 0.01), np.ones((5, 4)))
 
 
-def test_glassy_response_is_the_full_stiffness():
+def test_Maxwell_glassy_response_is_the_full_stiffness():
     """dt = 0: the dashpots are rigid."""
     sig, C_alg, _ = MaterialPoint(Maxwell(ELASTIC, 0.3, 1.0)).Update(EPS, dt=0.0)
 
@@ -63,7 +62,7 @@ def test_glassy_response_is_the_full_stiffness():
     assert np.allclose(C_alg, C)
 
 
-def test_relaxation_matches_the_backward_euler_closed_form():
+def test_Maxwell_relaxation_matches_the_backward_euler_closed_form():
     """sigma_n = C:eps [(1 - sum g) + sum g (1 + dt/tau)^-n] for a held strain."""
     g, tau, dt, nstep = np.array(G), np.array(TAU), 0.25, 12
     sig = _hold(Maxwell(ELASTIC, g, tau), EPS, nstep, dt)
@@ -72,20 +71,23 @@ def test_relaxation_matches_the_backward_euler_closed_form():
     assert np.allclose(sig, factor * C @ EPS, rtol=1e-12)
 
 
-def test_fully_relaxed_response_is_the_equilibrium_stiffness():
+def test_Maxwell_fully_relaxed_response_is_the_equilibrium_stiffness():
     assert np.allclose(_hold(Maxwell(ELASTIC, 0.3, 1.0), EPS, 200, 1.0), 0.7 * C @ EPS)
 
 
-@pytest.mark.parametrize("planeStress", [False, True])
-def test_2d_tangent_matches_central_difference(planeStress: bool):
-    point = MaterialPoint(
-        Maxwell(Isotropic(2, E=E, v=nu, planeStress=planeStress), G, TAU)
+def test_Maxwell_2d_tangent_matches_finite_differences(subtests):
+    for planeStress in (False, True):
+        with subtests.test(planeStress=planeStress):
+            point = MaterialPoint(
+                Maxwell(Isotropic(2, E=E, v=nu, planeStress=planeStress), G, TAU)
+            )
+            eps = EPS[[0, 1, 5]]
+            z = point.Update(eps, dt=0.5).internals  # a history, so eps_v is not zero
+
+            assert_point_tangent_matches_fd(point, 2 * eps, z, 0.5)
+
+
+def test_Maxwell_tangent_matches_finite_differences():
+    assert_point_tangent_matches_fd(
+        MaterialPoint(Maxwell(ELASTIC, G, TAU)), EPS, dt=5.0
     )
-    eps = EPS[[0, 1, 5]]
-    z = point.Update(eps, dt=0.5).internals  # a history, so eps_v is not zero
-
-    assert_consistent_tangent(point, 2 * eps, z, 0.5)
-
-
-def test_tangent_matches_central_difference():
-    assert_consistent_tangent(MaterialPoint(Maxwell(ELASTIC, G, TAU)), EPS, dt=5.0)
