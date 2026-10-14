@@ -786,7 +786,8 @@ class PhaseField(_IModel):
             )
 
             # Lode's angle such that 0 <= theta <= pi/3
-            theta = 1 / 3 * np.arccos(arg)
+            # a double eigenvalue puts arg at ±1 up to round-off
+            theta = 1 / 3 * np.arccos(np.clip(arg, -1, 1))
 
             # -------------------------------------
             # Init eigenvalues an eigenprojectors for case 4

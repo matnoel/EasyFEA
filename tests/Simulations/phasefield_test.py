@@ -81,10 +81,6 @@ def test_an_unsplit_bar_damages_under_its_elastic_energy(box_mesh: Mesh):
     assert rel_error(simu.displacement, u.ravel()) < 1e-10
 
 
-@pytest.mark.xfail(
-    strict=True,
-    reason="Miehe's 3D Lode angle takes arccos of a round-off |arg| > 1 when two strain eigenvalues are equal",
-)
 def test_a_uniaxial_3d_strain_has_a_finite_miehe_stress(make_mesh_3D):
     mesh = make_mesh_3D(elemType=ElemType.HEXA8, isOrganised=True)
     simu, _ = _pulled_twice(mesh, "Miehe", "AT2")
