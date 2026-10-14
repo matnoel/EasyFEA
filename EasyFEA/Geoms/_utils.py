@@ -536,20 +536,8 @@ def Angle_Between(a: _types.AnyArray, b: _types.AnyArray) -> float:
         f"{ida},{idb}->{id}", Normalize(a), Normalize(b), optimize="optimal"
     )
 
-    if np.max(np.abs(proj)) == 1:
-        # a and b are colinear
-        if id == "n":
-            colinear = proj == 1
-            angle = np.ones_like(proj) * np.pi
-            angle[colinear] = 0
-        else:
-            angle = 0 if proj == 1 else np.pi
-
-    else:
-        norm_a = np.linalg.norm(a, axis=-1)
-        norm_b = np.linalg.norm(b, axis=-1)
-        proj = np.einsum(f"{ida},{idb}->{id}", a, b, optimize="optimal")
-        angle = np.arccos(proj / (norm_a * norm_b))
+    # clipped: round-off can push a colinear projection past 1
+    angle = np.arccos(np.clip(proj, -1, 1))
 
     return angle
 
