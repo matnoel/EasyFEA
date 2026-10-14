@@ -128,7 +128,7 @@ class Field:
         return self() @ other
 
     def __rmatmul__(self, other) -> FeArray.FeArrayALike:
-        return self.__matmul__(other)
+        return other @ self()
 
     def __add__(self, other) -> FeArray.FeArrayALike:
         return self() + other
@@ -140,13 +140,13 @@ class Field:
         return self() - other
 
     def __rsub__(self, other) -> FeArray.FeArrayALike:
-        return self.__sub__(other)
+        return other - self()
 
     def __truediv__(self, other) -> FeArray.FeArrayALike:
         return self() / other
 
     def __rtruediv__(self, other) -> FeArray.FeArrayALike:
-        return self.__truediv__(other)
+        return other / self()
 
     def __call__(self) -> FeArray.FeArrayALike:
         """Returns the field as a (Ne, nPg, dof_n) finite element array: the active shape function on the active dof, or the interpolated values while evaluated."""
