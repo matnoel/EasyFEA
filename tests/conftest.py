@@ -192,32 +192,3 @@ def cracked_meshes_3D() -> list[Mesh]:
         meshes.extend([mesh1, mesh2, mesh3])
 
     return meshes
-
-
-@pytest.fixture(params=ElemType.Get_2D() + ElemType.Get_3D(), ids=str)
-def elemType(request) -> ElemType:
-    """Every 2D and 3D element type, so `dim` follows from it."""
-    return request.param
-
-
-@pytest.fixture
-def box_mesh(elemType: ElemType) -> Mesh:
-    """Organised L×H rectangle or L×H×B box (z in [-B, 0]) of `elemType`."""
-    if elemType in ElemType.Get_2D():
-        return _make_mesh_2D(elemType=elemType, isOrganised=True)
-    return _make_mesh_3D(elemType=elemType, isOrganised=True)
-
-
-ALL_ELEMTYPES = ElemType.Get_1D() + ElemType.Get_2D() + ElemType.Get_3D()
-
-
-@pytest.fixture(scope="session", params=ALL_ELEMTYPES, ids=str)
-def elemType_mesh(request) -> Mesh:
-    """`elemType_mesh_of` for every 1D, 2D and 3D element type. Session-scoped: mutate only a `mesh.copy()`."""
-    return elemType_mesh_of(request.param)
-
-
-@pytest.fixture(scope="session")
-def all_elemType_meshes() -> list[Mesh]:
-    """`elemType_mesh_of` for every 1D, 2D and 3D element type, as one list."""
-    return [elemType_mesh_of(elemType) for elemType in ALL_ELEMTYPES]
