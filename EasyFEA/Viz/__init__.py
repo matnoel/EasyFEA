@@ -3,4 +3,6 @@
 # This file is part of the EasyFEA project.
 # EasyFEA is distributed under the terms of the GNU General Public License v3, see LICENSE.txt and CREDITS.md for more information.
 
-"""Viewers: `Matplotlib` and `PyVista`, both implementing `_protocols.Viewer`."""
+"""Viewers: `Matplotlib` and `PyVista`, both implementing `Viewer`."""
+
+from ._protocols import Viewer
