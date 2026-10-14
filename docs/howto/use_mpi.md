@@ -200,7 +200,7 @@ error. {py:mod}`EasyFEA.Utilities._mpi` provides the reductions, all of which ar
 identity in serial, so the script is written once and runs under any number of ranks:
 
 ```python
-from EasyFEA.Utilities._mpi import Reduce_sum, Reduce_min, Reduce_max, Allgather
+from EasyFEA.Utilities import Reduce_sum, Reduce_min, Reduce_max, Allgather
 
 volume = Reduce_sum(vol_e[elements].sum())   # an integral over the mesh
 minDetF = Reduce_min(np.linalg.det(F_e_pg).min())

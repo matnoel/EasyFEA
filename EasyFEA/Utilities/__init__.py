@@ -3,8 +3,18 @@
 # This file is part of the EasyFEA project.
 # EasyFEA is distributed under the terms of the GNU General Public License v3, see LICENSE.txt and CREDITS.md for more information.
 
+from ._mpi import (
+    MPI_RANK,
+    MPI_SIZE,
+    rank0_only,
+    Reduce_sum,
+    Reduce_min,
+    Reduce_max,
+    Allgather,
+)
 from ._observers import Observable, _IObserver
 from ._params import (
+    Updatable,
     _CheckIsPositive,
     _CheckIsNegative,
     _CheckIsInIntervalcc,
