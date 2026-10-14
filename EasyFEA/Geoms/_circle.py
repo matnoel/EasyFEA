@@ -232,7 +232,7 @@ class CircleArc(_Geom):
         self,
         pt1: Point.PointALike,
         pt2: Point.PointALike,
-        center: Point | None = None,
+        center: Point.PointALike | None = None,
         R: _types.Number | None = None,
         P: _types.Coords | None = None,
         meshSize: _types.Number = 0.0,
@@ -255,7 +255,7 @@ class CircleArc(_Geom):
             ending point
         R: _types.Number, optional
             radius of the arc circle, by default None
-        center: Point, optional
+        center: Point | Coords, optional
             center of circular arc, by default None
         P: _types.Coords, optional
             a point belonging to the circle, by default None
