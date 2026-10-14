@@ -3,55 +3,72 @@
 # This file is part of the EasyFEA project.
 # EasyFEA is distributed under the terms of the GNU General Public License v3, see LICENSE.txt and CREDITS.md for more information.
 
-"""Parameter names of the protocols, which mypy does not check: positional names, and keywords a `**kwargs` would swallow."""
+from EasyFEA import Matplotlib, PyVista
+from EasyFEA.Viz import Viewer
 
-import inspect
+from _signatures import assert_spelled_as
 
-import pytest
-
-from EasyFEA import IO, Matplotlib, PyVista
-from EasyFEA.IO._protocols import MeshSaver, MeshLoader, SimuSaver
-from EasyFEA.Viz._protocols import Viewer
-
-CLAIMS = [
-    (Viewer, Matplotlib),
-    (Viewer, PyVista),
-    (MeshSaver, IO.Gmsh),
-    (MeshSaver, IO.Medit),
-    (MeshSaver, IO.Ensight),
-    (MeshSaver, IO.USD),
-    (MeshSaver, IO.GLTF),
-    (MeshLoader, IO.Gmsh),
-    (MeshLoader, IO.Medit),
-    (MeshLoader, IO.Ensight),
-    (SimuSaver, IO.Gmsh),
-    (SimuSaver, IO.Paraview),
-    (SimuSaver, IO.Vizir),
-    (SimuSaver, IO.USD),
-    (SimuSaver, IO.GLTF),
-]
-
-VARIADIC = (inspect.Parameter.VAR_POSITIONAL, inspect.Parameter.VAR_KEYWORD)
+VIEWERS = (Matplotlib, PyVista)
 
 
-def _named(func) -> list[tuple[str, inspect._ParameterKind]]:
-    params = inspect.signature(func).parameters.values()
-    return [(p.name, p.kind) for p in params if p.kind not in VARIADIC]
+def test_Viewer_is_implemented_by_both_viewers(subtests):
+    members = [name for name in vars(Viewer) if not name.startswith("_")]
+    for module in VIEWERS:
+        with subtests.test(module=module.__name__):
+            assert all(callable(getattr(module, name, None)) for name in members)
 
 
-@pytest.mark.parametrize(
-    "protocol, module", CLAIMS, ids=[f"{p.__name__}-{m.__name__}" for p, m in CLAIMS]
-)
-def test_parameters_are_spelled_as_the_protocol(protocol, module):
-    for member in [name for name in vars(protocol) if not name.startswith("_")]:
-        expected = _named(getattr(protocol, member))[1:]  # without self
-        got = dict(_named(getattr(module, member)))
-        positional = [
-            n for n, k in _named(getattr(module, member)) if k != k.KEYWORD_ONLY
-        ]
-        for i, (name, kind) in enumerate(expected):
-            assert name in got, f"{module.__name__}.{member} lacks '{name}'"
-            if kind != kind.KEYWORD_ONLY:
-                assert (
-                    positional[i] == name
-                ), f"{module.__name__}.{member}: '{name}' at {i}"
+def test_Viewer_Plot_is_spelled_alike_by_both_viewers(subtests):
+    for module in VIEWERS:
+        with subtests.test(module=module.__name__):
+            assert_spelled_as(Viewer.Plot, module.Plot)
+
+
+def test_Viewer_Plot_Mesh_is_spelled_alike_by_both_viewers(subtests):
+    for module in VIEWERS:
+        with subtests.test(module=module.__name__):
+            assert_spelled_as(Viewer.Plot_Mesh, module.Plot_Mesh)
+
+
+def test_Viewer_Plot_Nodes_is_spelled_alike_by_both_viewers(subtests):
+    for module in VIEWERS:
+        with subtests.test(module=module.__name__):
+            assert_spelled_as(Viewer.Plot_Nodes, module.Plot_Nodes)
+
+
+def test_Viewer_Plot_Elements_is_spelled_alike_by_both_viewers(subtests):
+    for module in VIEWERS:
+        with subtests.test(module=module.__name__):
+            assert_spelled_as(Viewer.Plot_Elements, module.Plot_Elements)
+
+
+def test_Viewer_Plot_BoundaryConditions_is_spelled_alike_by_both_viewers(subtests):
+    for module in VIEWERS:
+        with subtests.test(module=module.__name__):
+            assert_spelled_as(
+                Viewer.Plot_BoundaryConditions, module.Plot_BoundaryConditions
+            )
+
+
+def test_Viewer_Plot_Tags_is_spelled_alike_by_both_viewers(subtests):
+    for module in VIEWERS:
+        with subtests.test(module=module.__name__):
+            assert_spelled_as(Viewer.Plot_Tags, module.Plot_Tags)
+
+
+def test_Viewer_Plot_Geoms_is_spelled_alike_by_both_viewers(subtests):
+    for module in VIEWERS:
+        with subtests.test(module=module.__name__):
+            assert_spelled_as(Viewer.Plot_Geoms, module.Plot_Geoms)
+
+
+def test_Viewer_Movie_simu_is_spelled_alike_by_both_viewers(subtests):
+    for module in VIEWERS:
+        with subtests.test(module=module.__name__):
+            assert_spelled_as(Viewer.Movie_simu, module.Movie_simu)
+
+
+def test_Viewer_Movie_func_is_spelled_alike_by_both_viewers(subtests):
+    for module in VIEWERS:
+        with subtests.test(module=module.__name__):
+            assert_spelled_as(Viewer.Movie_func, module.Movie_func)
