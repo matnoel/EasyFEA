@@ -323,7 +323,7 @@ class Beam(_Simu):
         nodes : _types.IntArray
             nodes
         unknowns : list, optional
-            unknowns, by default ['']
+            3D only: the rotations left free, by default none, which shares every rotation
         description : str, optional
             description, by default "Hinged"
         """
@@ -335,14 +335,10 @@ class Beam(_Simu):
         elif beamModel.dim == 2:
             unknowns = ["x", "y"]
         elif beamModel.dim == 3:
-            unknowns = ["x", "y", "z"]
-            if unknowns != [""]:
-                # We will block rotation ddls that are not in unknowns.
-                unknowns_rot = ["rx", "ry", "rz"]
-                for dir in unknowns:
-                    if dir in unknowns_rot.copy():
-                        unknowns_rot.remove(dir)
-                unknowns.extend(unknowns_rot)
+            free = set(unknowns)
+            unknowns = ["x", "y", "z"] + [
+                r for r in ["rx", "ry", "rz"] if r not in free
+            ]
 
         description = f"Connection {description}"
 
