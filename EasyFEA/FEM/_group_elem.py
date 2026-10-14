@@ -759,7 +759,7 @@ class _GroupElem(ABC):
 
         WARNING
         -------
-        When adding new 3D elements, ensure that the resulting surface normals point outward the element.
+        When adding new 3D elements, ensure that the resulting surface normals point outward from the element.
         """
 
     @property

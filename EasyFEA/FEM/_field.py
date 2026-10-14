@@ -18,8 +18,8 @@ class Field:
     """Field class."""
 
     _isFeField = True
-    __mesh: Mesh
     """marks the class for :mod:`._fearray`, which cannot import it without a cycle"""
+    __mesh: Mesh
     __array_ufunc__ = None
     """numpy operands defer to the reflected operators (``A @ field``)"""
 
@@ -124,7 +124,7 @@ class Field:
         return self() * other
 
     def __rmul__(self, other) -> FeArray.FeArrayALike:
-        return self.__mul__(other)
+        return other * self()
 
     def __matmul__(self, other) -> FeArray.FeArrayALike:
         return self() @ other
@@ -136,7 +136,7 @@ class Field:
         return self() + other
 
     def __radd__(self, other) -> FeArray.FeArrayALike:
-        return self.__add__(other)
+        return other + self()
 
     def __sub__(self, other) -> FeArray.FeArrayALike:
         return self() - other
@@ -151,7 +151,7 @@ class Field:
         return other / self()
 
     def __call__(self) -> FeArray.FeArrayALike:
-        """Returns the field as a (Ne, nPg, dof_n) finite element array: the active shape function on the active dof, or the interpolated values while evaluated."""
+        """(Ne, nPg, dof_n) FeArray: the active shape function, or the interpolated values while evaluated."""
         if self.__is_currently_evaluated:
             return self.Interpolate(self._Get_dofsValues())
 
