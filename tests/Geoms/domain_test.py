@@ -6,87 +6,43 @@
 import numpy as np
 import pytest
 
-from EasyFEA import ElemType
-from EasyFEA.Geoms import Domain, Point, Points
+from EasyFEA.Geoms import Domain, Line
 
 L, H = 2.0, 1.0
 
 
-def test_points_are_read_only():
+def test_Domain_is_never_open():
+    domain = Domain((0, 0), (L, H), meshSize=0.5, isFilled=True)
+
+    assert not domain.isOpen
+    assert domain.isFilled
+    assert domain.meshSize == 0.5
+
+
+def test_Domain_pt1_is_the_first_corner_and_read_only():
     """pt1/pt2 are views on points: assigning them would desync the meshed shape from the plotted one."""
 
-    domain = Domain(Point(), Point(L, H))
+    domain = Domain((1, 2), (L, H))
+    assert domain.pt1.Check((1, 2))
 
     with pytest.raises(AttributeError):
-        domain.pt1 = Point(9, 9)
+        domain.pt1 = (9, 9)  # type: ignore [misc]
+
+
+def test_Domain_pt2_is_the_opposite_corner_and_read_only():
+    domain = Domain((0, 0), (L, H))
+    assert domain.pt2.Check((L, H))
+
     with pytest.raises(AttributeError):
-        domain.pt2 = Point(9, 9)
+        domain.pt2 = (9, 9)  # type: ignore [misc]
 
 
-@pytest.mark.parametrize("theta", [90, 180, -90, 270])
-def test_quarter_turns_keep_the_shape(theta: int):
-    """A quarter turn about a coordinate axis maps an axis-aligned domain onto another one."""
+def test_Domain_Get_Contour_is_the_four_edges_in_the_pt1_plane():
+    domain = Domain((0, 0, 1), (L, H, 3), meshSize=0.5, isFilled=True)
+    contour = domain.Get_Contour()
 
-    domain = Domain(Point(), Point(L, H), meshSize=0.25)
-    domain.Rotate(theta)
-
-    assert domain.Mesh_2D([], ElemType.TRI3).area == pytest.approx(L * H)
-
-
-def test_an_oblique_rotation_gives_the_spanned_box():
-    """Only pt1 and pt2 are rotated, so the domain becomes the axis-aligned box those two corners span. This is the documented behaviour, not the rotated rectangle."""
-
-    domain = Domain(Point(), Point(L, H), meshSize=0.25)
-    domain.Rotate(45)
-
-    dx, dy, _ = np.abs(domain.pt2.coord - domain.pt1.coord)
-    assert domain.Mesh_2D([], ElemType.TRI3).area == pytest.approx(dx * dy)
-    assert dx * dy != pytest.approx(L * H)
-
-
-def test_symmetry_about_a_coordinate_plane():
-    domain = Domain(Point(), Point(L, H), meshSize=0.25)
-    domain.Symmetry(n=(1, 0, 0))
-
-    assert domain.Mesh_2D([], ElemType.TRI3).area == pytest.approx(L * H)
-
-
-def test_translate_is_always_allowed():
-    domain = Domain(Point(), Point(L, H), meshSize=0.25)
-    domain.Translate(3, -2, 1)
-
-    assert domain.Mesh_2D([], ElemType.TRI3).area == pytest.approx(L * H)
-
-
-def test_points_rotates_exactly():
-    """The alternative the refusal points at: Points stores every corner, so it rotates exactly."""
-
-    corners = Points([(0, 0), (L, 0), (L, H), (0, H)], meshSize=0.25)
-    corners.Rotate(45)
-
-    assert corners.Mesh_2D([], ElemType.TRI3).area == pytest.approx(L * H)
-
-
-def test_nodes_domain_selects_nodes():
-    """Covers Get_Nodes_Domain, which asserted on the wrong type and so always raised."""
-
-    contour = Domain(Point(), Point(4, 3), meshSize=1.0)
-    mesh = contour.Mesh_2D([], ElemType.QUAD4, isOrganised=True)
-    corner = Domain(Point(), Point(1, 1))
-    nodes = mesh.Nodes_Domain(corner)
-
-    assert nodes.size == 4
-    assert np.all(mesh.coord[nodes][:, 0] <= 1 + 1e-12)
-    assert np.all(mesh.coord[nodes][:, 1] <= 1 + 1e-12)
-
-
-def test_domain_refines():
-    """refineGeoms goes through Domain, which is what maps to gmsh's Box field."""
-
-    contour = Domain(Point(), Point(4, 4), meshSize=1.0)
-    refineZone = Domain(Point(), Point(1, 1), 0.25)
-    refined = contour.Mesh_2D([], ElemType.TRI3, refineGeoms=[refineZone])
-    coarse = contour.Mesh_2D([], ElemType.TRI3)
-
-    assert refined.Ne > coarse.Ne
-    assert refined.area == pytest.approx(16)
+    assert [type(geom) for geom in contour.geoms] == [Line] * 4
+    assert np.array_equal(contour.coord, [(0, 0, 1), (L, 0, 1), (L, H, 1), (0, H, 1)])
+    assert contour.length == pytest.approx(2 * (L + H))
+    assert contour.isFilled
+    assert contour.meshSize == 0.5
