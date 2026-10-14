@@ -1509,7 +1509,7 @@ def Plot_Energy(
         ecart = np.abs(Niter - len(load))
         if ecart != 0:
             Niter -= ecart
-    N = np.max([Niter, N])
+    N = np.min([Niter, N])
     iterations = np.linspace(0, Niter - 1, N, endpoint=True, dtype=int)
 
     list_dict_energy: list[dict[str, float]] = []
@@ -1543,7 +1543,7 @@ def Plot_Energy(
         nrows += 1
     if pltLoad:
         nrows += 1
-    axs: list[Axes] = plt.subplots(nrows, 1, sharex=True)[1]
+    axs: list[Axes] = plt.subplots(nrows, 1, sharex=True, squeeze=False)[1][:, 0]
 
     iter_rows = iter(np.arange(nrows))
     row: int = next(iter_rows)
@@ -1607,6 +1607,10 @@ def Plot_Iter_Summary(simu, folder="", iterMin=None, iterMax=None) -> None:
     # Recover simulation results
     iterations, list_label_values = simu.Results_Iter_Summary()
 
+    if len(list_label_values) == 0:
+        print("This simulation has no iteration summary.")
+        return
+
     if iterMax is None:
         iterMax = np.max(iterations)
 
@@ -1623,7 +1627,7 @@ def Plot_Iter_Summary(simu, folder="", iterMin=None, iterMax=None) -> None:
 
     nbGraph = len(list_label_values)
 
-    axs: list[Axes] = plt.subplots(nrows=nbGraph, sharex=True)[1]
+    axs: list[Axes] = plt.subplots(nrows=nbGraph, sharex=True, squeeze=False)[1][:, 0]
 
     for ax, label_values in zip(axs, list_label_values):
         ax.grid()
