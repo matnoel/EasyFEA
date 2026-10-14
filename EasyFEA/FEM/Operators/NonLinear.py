@@ -331,7 +331,7 @@ def __clenshaw_curtis(nPoints: int) -> tuple[tuple[float, ...], tuple[float, ...
     return tuple(nodes), tuple(0.5 * w[::-1])
 
 
-class _StrainPathKinematics(Kinematics):
+class __StrainPathKinematics(Kinematics):
     """A point of the segment ``C(s) = C_n + s (C_{n+1} - C_n)`` — the strain path integrated by :func:`TimeQuadratureStressTensor`.
 
     No displacement field produces such a strain, so only the constitutive response is defined: a law reads a kinematics through the invariants ``I1…I8``, which all descend from :meth:`Compute_C`. The kinematic quantities raise.
@@ -362,7 +362,7 @@ class _StrainPathKinematics(Kinematics):
         self.__C_e_pg = C_n + s * (kinematics_np1.Compute_C() - C_n)
 
     @classmethod
-    def _sliced(cls, template: Kinematics, C_e_pg) -> "_StrainPathKinematics":
+    def _sliced(cls, template: Kinematics, C_e_pg) -> Kinematics:
         """Holder over an explicit ``C_e_pg`` (typically an element subset of a path kinematics). ``template`` lends its group / displacement / matrixType — used only for the scalar ``dim`` — while ``Ne``/``nPg`` come from ``C_e_pg``."""
         obj = cls.__new__(cls)
         Kinematics.__init__(
@@ -400,7 +400,7 @@ def __AdaptiveTimeQuadratureStressTensor(
 ) -> tuple[FeArray.FeArrayALike, FeArray.FeArrayALike, np.ndarray]:
     r"""Per-element adaptive strain-path quadrature — the ``tol``-driven path of :func:`TimeQuadratureStressTensor`.
 
-    Each element refines along the nested chain ``1, 3, 5, 9, …`` (capped at ``maxPoints``) until *its own* integrated energy defect is within ``tol`` — ``Σ_p V_(ep) |S:Δe − ΔW| ≤ tol · Σ_p V_(ep) |ΔW|``, ``V_(ep)`` the Gauss-point volume — then freezes, so points are spent only where the step is nonlinear. The defect is the quadrature error of the exact identity ``S:Δe = ΔW`` (``ΔW`` known from the endpoints), so the test is absolute; taking ``|·|`` before summing bounds the element's real energy drift and is safe against Gauss-point sign cancellation. Only still-active elements are evaluated at each level (via :meth:`_StrainPathKinematics._sliced`), so cost tracks the hard elements. Returns ``(dWde_quad, d2Wde_quad, nPts_e)``, each row carrying its element's accepted rule and point count.
+    Each element refines along the nested chain ``1, 3, 5, 9, …`` (capped at ``maxPoints``) until *its own* integrated energy defect is within ``tol`` — ``Σ_p V_(ep) |S:Δe − ΔW| ≤ tol · Σ_p V_(ep) |ΔW|``, ``V_(ep)`` the Gauss-point volume — then freezes, so points are spent only where the step is nonlinear. The defect is the quadrature error of the exact identity ``S:Δe = ΔW`` (``ΔW`` known from the endpoints), so the test is absolute; taking ``|·|`` before summing bounds the element's real energy drift and is safe against Gauss-point sign cancellation. Only still-active elements are evaluated at each level (via :meth:`__StrainPathKinematics._sliced`), so cost tracks the hard elements. Returns ``(dWde_quad, d2Wde_quad, nPts_e)``, each row carrying its element's accepted rule and point count.
     """
     groupElem = (
         kinematics_n.groupElem
@@ -423,7 +423,7 @@ def __AdaptiveTimeQuadratureStressTensor(
     def at(
         s, e
     ):  # constitutive-kinematics holder at strain-path point s, restricted to elements e
-        return _StrainPathKinematics._sliced(kinematics_n, (C_n + s * dC)[e])
+        return __StrainPathKinematics._sliced(kinematics_n, (C_n + s * dC)[e])
 
     dWde_quad = FeArray.zeros(Ne, nPg, ncomp)
     d2Wde_quad = FeArray.zeros(Ne, nPg, ncomp, ncomp)
@@ -544,7 +544,7 @@ def TimeQuadratureStressTensor(
             elif s == 1.0:
                 kinematics = kinematics_np1
             else:
-                kinematics = _StrainPathKinematics(kinematics_n, kinematics_np1, s)
+                kinematics = __StrainPathKinematics(kinematics_n, kinematics_np1, s)
             dWde_quad += w * material.Compute_dWde(kinematics)
             if s != 0.0:
                 d2Wde_quad += (w * s / coefK) * material.Compute_d2Wde(kinematics)
