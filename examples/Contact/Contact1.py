@@ -23,10 +23,9 @@ The contact pressure is obtained directly from the penalty contact as ``p = Îµâ‚
 import numpy as np
 import matplotlib.pyplot as plt
 
-from EasyFEA.FEM._linalg import FeArray
 from EasyFEA import Terminal, Folder, Models, ElemType, Mesh, PyVista
 from EasyFEA.Geoms import Domain, Points, Circle
-from EasyFEA.FEM import MatrixType
+from EasyFEA.FEM import MatrixType, FeArray
 
 from _utils import RigidContact
 

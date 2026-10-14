@@ -17,7 +17,7 @@ import numpy as np
 import pytest
 
 from EasyFEA import ElemType, MatrixType, Models
-from EasyFEA.FEM._linalg import FeArray
+from EasyFEA.FEM import FeArray
 from EasyFEA.FEM import _kelvin_mandel
 from EasyFEA.Geoms import Domain, Line
 from EasyFEA.Models import _autodiff

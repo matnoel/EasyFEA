@@ -14,7 +14,7 @@ from .._group_elem import _GroupElem
 from ...Utilities import _types
 
 # fem
-from .._linalg import FeArray  # , Trace, Transpose, Det, Inv
+from .._fearray import FeArray  # , Trace, Transpose, Det, Inv
 from .._mesh import Mesh
 from . import _seg
 

@@ -6,7 +6,7 @@
 from typing import Callable
 
 from ..Utilities import Folder, _types
-from ..FEM._linalg import FeArray
+from ..FEM._fearray import FeArray
 from ..FEM import _kelvin_mandel
 
 import numpy as np

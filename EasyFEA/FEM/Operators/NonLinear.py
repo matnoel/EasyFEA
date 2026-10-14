@@ -8,7 +8,7 @@ from typing import TYPE_CHECKING
 
 import numpy as np
 
-from .._linalg import FeArray
+from .._fearray import FeArray
 from .._utils import MatrixType
 from .. import _kelvin_mandel
 from .._kelvin_mandel import Matrix_to_Vector, Vector_to_Matrix

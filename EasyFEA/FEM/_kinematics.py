@@ -9,7 +9,7 @@ import numpy as np
 
 from ._utils import MatrixType
 from ._group_elem import _GroupElem
-from ._linalg import FeArray, Transpose, Det
+from ._fearray import FeArray, Transpose, Det
 from . import _kelvin_mandel
 from ..Utilities import _types, _params
 from ..Utilities._cache import cache_computed_values

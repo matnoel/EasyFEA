@@ -7,7 +7,7 @@
 import numpy as np
 import pytest
 
-from EasyFEA.FEM._linalg import FeArray
+from EasyFEA.FEM import FeArray
 
 # (value, tensor shape, accepted, meaning): value "" is a float, "fe:..." a FeArray;
 # meaning "full" (constant or already per point), "e" per element, "pg" per point (the hole), None ill-formed

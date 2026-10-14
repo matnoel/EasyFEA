@@ -13,7 +13,7 @@ import numpy as np
 
 from .._utils import _IModel
 from ..Elastic._laws import _Elastic
-from ...FEM._linalg import FeArray
+from ...FEM._fearray import FeArray
 from ...FEM import _kelvin_mandel
 from ...Utilities import _params, Tic
 from ...Utilities._observers import _IObserver, Observable

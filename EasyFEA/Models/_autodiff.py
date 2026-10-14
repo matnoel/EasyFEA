@@ -12,7 +12,7 @@ from typing import Callable
 
 import numpy as np
 
-from ..FEM._linalg import FeArray
+from ..FEM._fearray import FeArray
 from ..FEM import _kelvin_mandel
 from ..Utilities._requires import Create_requires_decorator
 

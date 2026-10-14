@@ -10,7 +10,7 @@ import numpy as np
 from scipy.spatial import cKDTree
 
 from EasyFEA.FEM._utils import MatrixType
-from EasyFEA.FEM._linalg import FeArray
+from EasyFEA.FEM import FeArray
 from EasyFEA import ElemType, Mesh, Models, Simulations
 from EasyFEA.Geoms import Points, Circle, Point, Domain
 

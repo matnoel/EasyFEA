@@ -7,8 +7,7 @@
 import numpy as np
 
 from EasyFEA import Simulations
-from EasyFEA.FEM import Operators, Mesh, MatrixType, _GroupElem
-from EasyFEA.FEM._linalg import FeArray
+from EasyFEA.FEM import Operators, Mesh, MatrixType, _GroupElem, FeArray
 from EasyFEA.Utilities import _params, _types
 from EasyFEA.Simulations import Term
 

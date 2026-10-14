@@ -24,8 +24,7 @@ import numpy as np
 
 from EasyFEA import Terminal, Models, ElemType, MatrixType
 from EasyFEA.Models._autodiff import Enable_x64
-from EasyFEA.FEM import Kinematics
-from EasyFEA.FEM._linalg import FeArray
+from EasyFEA.FEM import Kinematics, FeArray
 from EasyFEA.Geoms import Domain, Point
 
 try:

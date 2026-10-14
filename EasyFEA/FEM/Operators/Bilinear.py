@@ -7,7 +7,7 @@ from typing import TYPE_CHECKING
 
 import numpy as np
 
-from .._linalg import FeArray, TensorProd
+from .._fearray import FeArray, TensorProd
 from .._utils import MatrixType
 from ...Utilities import _types
 

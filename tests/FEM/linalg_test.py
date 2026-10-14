@@ -6,7 +6,7 @@
 import pytest
 import numpy as np
 
-from EasyFEA.FEM._linalg import FeArray, Transpose, Trace, Det, Inv, TensorProd, Norm
+from EasyFEA.FEM import FeArray, Transpose, Trace, Det, Inv, TensorProd, Norm
 
 from _numerics import rel_error
 

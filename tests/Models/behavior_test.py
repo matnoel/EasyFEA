@@ -13,7 +13,7 @@ from typing import NamedTuple
 import numpy as np
 import pytest
 
-from EasyFEA.FEM._linalg import FeArray
+from EasyFEA.FEM import FeArray
 from EasyFEA.Models import _autodiff
 from EasyFEA.Models.Elastic._laws import Anisotropic, Isotropic, _Elastic
 from EasyFEA.Models.InElastic import (

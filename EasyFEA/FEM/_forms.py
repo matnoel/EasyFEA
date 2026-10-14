@@ -11,7 +11,7 @@ import numpy as np
 from scipy.sparse import csr_matrix
 
 # from fem
-from ._linalg import FeArray
+from ._fearray import FeArray
 
 if TYPE_CHECKING:
     from ._field import Field

@@ -23,7 +23,7 @@ from typing import Callable
 
 # fem
 from ._gauss import Gauss
-from ._linalg import FeArray, Trace, Transpose, Det, Inv, Normalize
+from ._fearray import FeArray, Trace, Transpose, Det, Inv, Normalize
 
 # utils
 from ._utils import ElemType, MatrixType

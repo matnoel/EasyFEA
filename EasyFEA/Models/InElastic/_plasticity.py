@@ -9,7 +9,7 @@ from typing import TYPE_CHECKING, Any, NamedTuple, Sequence
 import numpy as np
 
 from ..Elastic._laws import _Elastic
-from ...FEM._linalg import FeArray
+from ...FEM._fearray import FeArray
 from ...Utilities import _params
 from ._behavior import ZERO_SCALAR, ZERO_TENSOR, _Behavior, Newton
 from .IsotropicHardening import Hardening, Perfect

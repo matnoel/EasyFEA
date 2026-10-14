@@ -17,7 +17,7 @@ from ...Geoms import AsCoords
 from .._utils import _IModel, _Format_parameter, Heterogeneous_Array
 from ...FEM import _kelvin_mandel
 from ...Utilities import _params, _types
-from ...FEM._linalg import TensorProd, FeArray
+from ...FEM._fearray import TensorProd, FeArray
 
 if TYPE_CHECKING:
     from ...FEM import Kinematics

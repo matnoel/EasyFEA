@@ -34,7 +34,7 @@ from ..FEM import (
     LagrangeCondition,
     MatrixType,
 )
-from ..FEM._linalg import FeArray
+from ..FEM._fearray import FeArray
 
 # materials
 from ..Models import _IModel

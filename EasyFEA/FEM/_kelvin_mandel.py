@@ -7,7 +7,7 @@
 
 import numpy as np
 
-from ._linalg import FeArray
+from ._fearray import FeArray
 from ..Utilities import _types
 
 ORDER = ("xx", "yy", "zz", "yz", "xz", "xy")

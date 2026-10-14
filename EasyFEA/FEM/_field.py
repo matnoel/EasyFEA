@@ -19,7 +19,7 @@ class Field:
 
     _isFeField = True
     __mesh: Mesh
-    """marks the class for :mod:`._linalg`, which cannot import it without a cycle"""
+    """marks the class for :mod:`._fearray`, which cannot import it without a cycle"""
 
     def __init__(
         self,
