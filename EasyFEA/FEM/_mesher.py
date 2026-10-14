@@ -800,7 +800,7 @@ class Mesher:
 
         self._Synchronize()  # mandatory
 
-        entities = np.asarray(self._factory.getEntities(), dtype=int)  # type: ignore
+        entities = np.asarray(gmsh.model.getEntities(), dtype=int)
 
         if entities.size == 0:
             return
