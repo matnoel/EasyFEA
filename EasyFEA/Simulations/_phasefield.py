@@ -112,6 +112,9 @@ class PhaseField(_Simu):
 
         self.__resumeLoading = ""
         self.__resumeIter = ""
+        self.__Niter = 0
+        self.__convIter = 0.0
+        self.__timeIter = 0.0
 
         self.__displacement_solver = self.solver
 
