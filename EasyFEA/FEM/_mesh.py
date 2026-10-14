@@ -64,11 +64,9 @@ class Mesh(Observable):
         self.__dict_groupElem = dict_groupElem
 
         self.__dim = -1
-        self.__inDim = -1
         # Set the default element group.
         for groupElem in dict_groupElem.values():
             self.__dim = max(self.__dim, groupElem.dim)
-            self.__inDim = max(self.__inDim, groupElem.inDim)
 
         self.__verbosity = verbosity
         """the mesh can write in the terminal"""
@@ -184,10 +182,10 @@ class Mesh(Observable):
         return self.__dim
 
     @property
-    def inDim(self):
-        """dimension in which the mesh lies.\n
+    def inDim(self) -> int:
+        """dimension in which the mesh lies, read from the current coordinates.\n
         A 2D mesh can be oriented in a 3D space."""
-        return self.__inDim
+        return max(groupElem.inDim for groupElem in self.dict_groupElem.values())
 
     def _Get_realistic_vector_magnitude(self, coef=0.1) -> float:
         """Returns a realistic vector magnitude based on the mesh size.
