@@ -20,6 +20,8 @@ class Field:
     _isFeField = True
     __mesh: Mesh
     """marks the class for :mod:`._fearray`, which cannot import it without a cycle"""
+    __array_ufunc__ = None
+    """numpy operands defer to the reflected operators (``A @ field``)"""
 
     def __init__(
         self,
