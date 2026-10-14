@@ -574,10 +574,20 @@ class DIC(_IObserver):
         """Saves the dic analysis in folder as 'filename.pickle'."""
         path_dic = Folder.Join(folder, f"{filename}.pickle", mkdir=True)
         with open(path_dic, "wb") as file:
-            # don't remove
-            self.__Op_LU = None
-            self._M_reg_LU = None
             pickle.dump(self, file)
+
+    def __getstate__(self) -> dict:
+        # SuperLU factorizations can be neither pickled nor deep-copied (a mesh copy carries its observers)
+        state = self.__dict__.copy()
+        state["_DIC__Op_LU"] = None
+        state["_M_reg_LU"] = None
+        return state
+
+    def __setstate__(self, state: dict) -> None:
+        self.__dict__.update(state)
+        Op: sparse.csr_matrix = self._N_x @ self._N_x.T + self._N_y @ self._N_y.T
+        self.__Op_LU = splu(Op.tocsc())
+        self._M_reg_LU = splu(self._M_reg.tocsc())
 
     # tools
 
