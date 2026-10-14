@@ -85,7 +85,7 @@ class Beam(_Simu):
             model = BeamStructure([model])
         elif isinstance(model, Iterable):
             # changes the beam model as a beam structure
-            model = BeamStructure(*model)
+            model = BeamStructure(list(model))
 
         assert isinstance(
             model, BeamStructure
