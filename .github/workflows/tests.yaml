@@ -48,4 +48,38 @@ jobs:
           uv pip install --system .[dev,io,viz]
       
       - name: Run tests
+        if: ${{ !(matrix.os == 'ubuntu-latest' && matrix.python-version == '3.13') }}
         run: uv run pytest
+
+      - name: Run tests with coverage
+        if: ${{ matrix.os == 'ubuntu-latest' && matrix.python-version == '3.13' }}
+        run: uv run pytest --cov --cov-report=term-missing:skip-covered
+
+  run-tests-mpi:
+    name: Test MPI
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: "3.13"
+
+      - name: Install system dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libglu1-mesa libopenmpi-dev openmpi-bin
+
+      - name: Install dependencies
+        run: |
+          uv pip install --system "meshio @ git+https://github.com/matnoel/meshio.git@medit_higher_order_elements"
+          uv pip install --system .[dev,io,viz] mpi4py
+
+      - name: Run MPI tests
+        run: make test-mpi

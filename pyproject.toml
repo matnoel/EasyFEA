@@ -39,8 +39,9 @@ dependencies = [
 [project.optional-dependencies]
 dev = [
     "mypy",
-    "pytest",
+    "pytest>=9",
     "pytest-xdist",
+    "pytest-cov",
     "jax",
 ]
 # pinned so CI and every machine format alike
@@ -76,6 +77,26 @@ include = ["EasyFEA", "EasyFEA.*"]
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 addopts = "-n auto"
+markers = ["mpi: runs under `make test-mpi`, skipped otherwise"]
+filterwarnings = [
+    "ignore::DeprecationWarning:vtkmodules.util.numpy_support",
+    # subprocess execs right after forking, so JAX's deadlock warning does not apply
+    "ignore:os\\.fork\\(\\) was called:RuntimeWarning:subprocess",
+]
+
+[tool.coverage.run]
+branch = true
+source = ["EasyFEA"]
+
+[tool.coverage.report]
+fail_under = 74
+exclude_also = [
+    "if TYPE_CHECKING:",
+    "raise NotImplementedError",
+    "@abstractmethod",
+    # MPI-only
+    "if MPI_SIZE > 1",
+]
 
 [tool.mypy]
 python_version = "3.11"
