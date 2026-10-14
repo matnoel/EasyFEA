@@ -2014,7 +2014,9 @@ class Mesher:
                 continue
 
             else:
-                print("refineGeoms must be of type Domain, Circle, str(.pos file)")
+                raise TypeError(
+                    "refineGeoms must be of type Domain, Circle, str(.pos file)"
+                )
 
             fields.append(field)  # type: ignore
 
