@@ -3,13 +3,31 @@
 # This file is part of the EasyFEA project.
 # EasyFEA is distributed under the terms of the GNU General Public License v3, see LICENSE.txt and CREDITS.md for more information.
 
+import functools
+import os
 from typing import Callable
 
 import pytest
 import numpy as np
 
 from EasyFEA import ElemType, Mesh
+from EasyFEA.Utilities import MPI_SIZE
 from EasyFEA.Geoms import Points, Point, Circle, Line
+
+# no figure window: matplotlib and pyvista read these on first use
+os.environ["MPLBACKEND"] = "Agg"
+os.environ["PYVISTA_OFF_SCREEN"] = "true"
+
+
+def pytest_collection_modifyitems(items: list[pytest.Item]) -> None:
+    """`mpi` tests run only under `mpirun` (`make test-mpi`)."""
+    if MPI_SIZE > 1:
+        return
+    skip = pytest.mark.skip(reason="needs make test-mpi")
+    for item in items:
+        if "mpi" in item.keywords:
+            item.add_marker(skip)
+
 
 L = 2
 H = 1
@@ -55,49 +73,42 @@ def make_mesh_2D() -> MakeMesh2D:
     return _make_mesh_2D
 
 
+def _unit_square(
+    meshSize: float = 1 / 3,
+    elemType: ElemType = ElemType.QUAD4,
+    isOrganised: bool = True,
+    x0: float = 0.0,
+) -> Mesh:
+    contour = Points([(x0, 0), (x0 + 1, 0), (x0 + 1, 1), (x0, 1)], meshSize)
+    return contour.Mesh_2D([], elemType, isOrganised=isOrganised)
+
+
+@pytest.fixture(scope="session")
+def unit_square() -> MakeMesh2D:
+    """Factory: the square [x0, x0 + 1] × [0, 1], an organised QUAD4 mesh by default."""
+    return _unit_square
+
+
 @pytest.fixture
 def make_mesh_3D() -> MakeMesh3D:
     """Factory: build an extruded 3D mesh. `contour = Points(...)` under the hood, per element type / geometry variant needed."""
     return _make_mesh_3D
 
 
-@pytest.fixture(params=ElemType.Get_2D() + ElemType.Get_3D(), ids=str)
-def elemType(request) -> ElemType:
-    """Every 2D and 3D element type, so `dim` follows from it."""
-    return request.param
-
-
-@pytest.fixture
-def box_mesh(elemType: ElemType) -> Mesh:
-    """Organised L×H rectangle or L×H×B box (z in [-B, 0]) of `elemType`."""
-    if elemType in ElemType.Get_2D():
-        return _make_mesh_2D(elemType=elemType, isOrganised=True)
-    return _make_mesh_3D(elemType=elemType, isOrganised=True)
-
-
-ALL_ELEMTYPES = ElemType.Get_1D() + ElemType.Get_2D() + ElemType.Get_3D()
-
-
 def elemType_mesh_of(elemType: ElemType) -> Mesh:
     """Organised unit line, L×H rectangle or L×H×L box of `elemType`."""
     if elemType in ElemType.Get_1D():
-        line = Line(Point(), Point(1, 0), H / 3)
+        line = Line((0, 0), (1, 0), H / 3)
         return line.Mesh_1D(elemType)
     if elemType in ElemType.Get_2D():
         return _make_mesh_2D(elemType=elemType, isOrganised=True)
     return _make_mesh_3D(elemType=elemType, B=L, isOrganised=True)
 
 
-@pytest.fixture(scope="session", params=ALL_ELEMTYPES, ids=str)
-def elemType_mesh(request) -> Mesh:
-    """`elemType_mesh_of` for every 1D, 2D and 3D element type. Session-scoped: mutate only a `mesh.copy()`."""
-    return elemType_mesh_of(request.param)
-
-
 @pytest.fixture(scope="session")
-def all_elemType_meshes() -> list[Mesh]:
-    """`elemType_mesh_of` for every 1D, 2D and 3D element type, as one list."""
-    return [elemType_mesh_of(elemType) for elemType in ALL_ELEMTYPES]
+def mesh_of() -> Callable[[ElemType], Mesh]:
+    """`elemType_mesh_of`, built once per element type. Session-scoped: mutate only a `mesh.copy()`."""
+    return functools.cache(elemType_mesh_of)
 
 
 @pytest.fixture(scope="session")
@@ -181,3 +192,32 @@ def cracked_meshes_3D() -> list[Mesh]:
         meshes.extend([mesh1, mesh2, mesh3])
 
     return meshes
+
+
+@pytest.fixture(params=ElemType.Get_2D() + ElemType.Get_3D(), ids=str)
+def elemType(request) -> ElemType:
+    """Every 2D and 3D element type, so `dim` follows from it."""
+    return request.param
+
+
+@pytest.fixture
+def box_mesh(elemType: ElemType) -> Mesh:
+    """Organised L×H rectangle or L×H×B box (z in [-B, 0]) of `elemType`."""
+    if elemType in ElemType.Get_2D():
+        return _make_mesh_2D(elemType=elemType, isOrganised=True)
+    return _make_mesh_3D(elemType=elemType, isOrganised=True)
+
+
+ALL_ELEMTYPES = ElemType.Get_1D() + ElemType.Get_2D() + ElemType.Get_3D()
+
+
+@pytest.fixture(scope="session", params=ALL_ELEMTYPES, ids=str)
+def elemType_mesh(request) -> Mesh:
+    """`elemType_mesh_of` for every 1D, 2D and 3D element type. Session-scoped: mutate only a `mesh.copy()`."""
+    return elemType_mesh_of(request.param)
+
+
+@pytest.fixture(scope="session")
+def all_elemType_meshes() -> list[Mesh]:
+    """`elemType_mesh_of` for every 1D, 2D and 3D element type, as one list."""
+    return [elemType_mesh_of(elemType) for elemType in ALL_ELEMTYPES]
