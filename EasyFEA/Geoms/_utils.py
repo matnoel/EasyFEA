@@ -217,7 +217,8 @@ def _(value: Collection):
     val = np.asarray(value, dtype=float)
     if val.ndim >= 2:
         assert val.shape[-1] <= 3, "must be 3d vector or 3d vectors"
-        coords = val
+        coords = np.zeros((*val.shape[:-1], 3))
+        coords[..., : val.shape[-1]] = val
     else:
         coords = np.zeros(3)
         assert val.size <= 3, "must not exceed size 3"
