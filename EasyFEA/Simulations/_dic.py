@@ -7,7 +7,7 @@
 
 import numpy as np
 from scipy import sparse
-from scipy.sparse.linalg import splu
+from scipy.sparse.linalg import SuperLU, splu
 import pickle
 
 # utilities
@@ -180,9 +180,7 @@ class DIC(_IObserver):
         )
         # mean_pixels = np.mean([connectPixel[e].size for e in range(mesh.Ne)])
 
-        # A pixel on an edge whose node coordinates are off an integer by round-off is found in both
-        # elements, but its reference coordinates are those of the last one visited, the highest index:
-        # it is kept there alone, so the pixel shape functions stay a partition of unity.
+        # a pixel found in two elements keeps the reference coordinates of the last visited, the highest index: kept there alone
         assigned = np.zeros(coordPixel.shape[0], dtype=bool)
         for e in reversed(range(connectPixel.shape[0])):
             pixels_e = np.asarray(connectPixel[e], dtype=int)
@@ -577,11 +575,10 @@ class DIC(_IObserver):
             pickle.dump(self, file)
 
     def __getstate__(self) -> dict:
-        # SuperLU factorizations can be neither pickled nor deep-copied (a mesh copy carries its observers)
-        state = self.__dict__.copy()
-        state["_DIC__Op_LU"] = None
-        state["_M_reg_LU"] = None
-        return state
+        # SuperLU can be neither pickled nor deep-copied, and a mesh copy carries its observers
+        return {
+            k: None if isinstance(v, SuperLU) else v for k, v in self.__dict__.items()
+        }
 
     def __setstate__(self, state: dict) -> None:
         self.__dict__.update(state)
