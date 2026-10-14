@@ -10,30 +10,9 @@ import numpy as np
 import pytest
 import pyvista as pv
 
-from EasyFEA import ElemType, Models, Simulations, IO
+from EasyFEA import Simulations, IO
 
-L = 2
-H = 1
-LOADS = (10.0, 20.0, 30.0)
-
-
-@pytest.fixture
-def simu(make_mesh_2D) -> Simulations.Elastic:
-    """A 2D bar in tension, solved and saved once per load."""
-    mesh = make_mesh_2D(L=L, H=H, elemType=ElemType.QUAD4, isOrganised=True)
-    material = Models.Elastic.Isotropic(dim=2, E=210000, v=0.3)
-    simu = Simulations.Elastic(mesh, material)
-
-    nodesLeft = mesh.Nodes_Conditions(lambda x, y, z: x == 0)
-    nodesRight = mesh.Nodes_Conditions(lambda x, y, z: x == L)
-    for load in LOADS:
-        simu.Bc_Init()
-        simu.add_dirichlet(nodesLeft, [0, 0], ["x", "y"])
-        simu.add_surfLoad(nodesRight, [load], ["x"])
-        simu.Solve()
-        simu.Save_Iter()
-
-    return simu
+from Simulations._simus import LOADS
 
 
 def read_steps(pvdFile: str) -> list[pv.UnstructuredGrid]:
@@ -43,37 +22,30 @@ def read_steps(pvdFile: str) -> list[pv.UnstructuredGrid]:
     return [pv.read(folder / dataSet.attrib["file"]) for dataSet in dataSets]
 
 
-def test_requested_element_field_is_written(simu: Simulations.Elastic, tmp_path):
-    pvdFile = IO.Paraview.Save_simu(simu, str(tmp_path), elementFields=["Exx"])
-
-    vtu = read_steps(pvdFile)[-1]
-
-    assert "Exx" in vtu.cell_data
-
-
-def test_node_and_element_fields_round_trip_every_iteration(
-    simu: Simulations.Elastic, tmp_path
+def test_Save_simu_round_trips_node_and_element_fields_every_iteration(
+    bar_simu: Simulations.Elastic, tmp_path
 ):
     pvdFile = IO.Paraview.Save_simu(
-        simu, str(tmp_path), results=["ux"], elementFields=["Exx"]
+        bar_simu, str(tmp_path), results=["ux"], elementFields=["Exx"]
     )
 
     steps = read_steps(pvdFile)
 
+    assert pvdFile == str(tmp_path / "Paraview" / "simulation.pvd")
     assert len(steps) == len(LOADS)
     for i, vtu in enumerate(steps):
-        simu.Set_Iter(i)
-        np.testing.assert_allclose(vtu.point_data["ux"], simu.Result("ux"))
+        bar_simu.Set_Iter(i)
+        np.testing.assert_allclose(vtu.point_data["ux"], bar_simu.Result("ux"))
         np.testing.assert_allclose(
-            vtu.cell_data["Exx"], simu.Result("Exx", nodeValues=False)
+            vtu.cell_data["Exx"], bar_simu.Result("Exx", nodeValues=False)
         )
 
 
-def test_default_fields_are_kept_alongside_requested_ones(
-    simu: Simulations.Elastic, tmp_path
+def test_Save_simu_keeps_the_default_fields_alongside_requested_ones(
+    bar_simu: Simulations.Elastic, tmp_path
 ):
     pvdFile = IO.Paraview.Save_simu(
-        simu, str(tmp_path), results=["ux"], elementFields=["Exx"]
+        bar_simu, str(tmp_path), results=["ux"], elementFields=["Exx"]
     )
 
     vtu = read_steps(pvdFile)[-1]
@@ -82,9 +54,49 @@ def test_default_fields_are_kept_alongside_requested_ones(
     assert set(vtu.cell_data.keys()) == {"Svm", "Stress", "Exx"}
 
 
-@pytest.mark.parametrize("option", ["results", "elementFields"])
-def test_unavailable_requested_field_raises_naming_it(
-    simu: Simulations.Elastic, tmp_path, option: str
+def test_Save_simu_samples_at_most_N_iterations_first_and_last_included(
+    bar_simu: Simulations.Elastic, tmp_path
+):
+    pvdFile = IO.Paraview.Save_simu(bar_simu, str(tmp_path), N=2, results=["ux"])
+
+    steps = read_steps(pvdFile)
+
+    assert len(steps) == 2
+    for vtu, i in zip(steps, [0, len(LOADS) - 1]):
+        bar_simu.Set_Iter(i)
+        np.testing.assert_allclose(vtu.point_data["ux"], bar_simu.Result("ux"))
+
+
+def test_Save_simu_raises_naming_an_unavailable_field(
+    bar_simu: Simulations.Elastic, tmp_path
 ):
     with pytest.raises(ValueError, match="notAField"):
-        IO.Paraview.Save_simu(simu, str(tmp_path), **{option: ["notAField"]})
+        IO.Paraview.Save_simu(bar_simu, str(tmp_path), results=["notAField"])
+    with pytest.raises(ValueError, match="notAField"):
+        IO.Paraview.Save_simu(bar_simu, str(tmp_path), elementFields=["notAField"])
+
+
+def test_Save_mesh_writes_one_step_per_given_field_value(make_mesh_2D, tmp_path):
+    mesh = make_mesh_2D()
+    nodeValues = [mesh.coord[:, 0] * i for i in range(3)]
+    elementValues = [np.arange(mesh.Ne) * float(i) for i in range(3)]
+
+    IO.Paraview._Save_mesh(
+        mesh,
+        str(tmp_path),
+        3,
+        {"x": nodeValues},
+        {"e": elementValues},
+    )
+
+    steps = read_steps(str(tmp_path / "Paraview" / "simulation.pvd"))
+    assert len(steps) == 3
+    for vtu, values_n, values_e in zip(steps, nodeValues, elementValues):
+        np.testing.assert_allclose(vtu.points, mesh.coord)
+        np.testing.assert_allclose(vtu.point_data["x"], values_n)
+        np.testing.assert_allclose(vtu.cell_data["e"], values_e)
+
+
+def test_CalcOffset_adds_the_header_and_the_data_bytes():
+    assert IO.Paraview.CalcOffset(0, 3, 4) == 16
+    assert IO.Paraview.CalcOffset(10, 3, 8) == 38
