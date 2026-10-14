@@ -429,36 +429,27 @@ def Circle_Triangle(p1, p2, p3) -> _types.FloatArray:
 def Circle_Coords(
     coord: _types.AnyArray, R: float, n: _types.Coords
 ) -> _types.FloatArray:
-    """Returns center from coordinates a radius and and a vector normal to the circle.\n
-    return center
-    """
+    """Returns the center of the radius `R` circle through the two points, seeing them counterclockwise around `n` over the shorter arc."""
 
     R = np.abs(R)
 
     coord = np.reshape(coord, (-1, 3))
 
-    assert coord.shape[0] >= 2, "must give at least 2 points"
+    assert coord.shape[0] == 2, "must give 2 points"
 
-    n = AsCoords(n)
+    p1, p2 = coord
+    halfChord = np.linalg.norm(p2 - p1) / 2
 
-    p0 = np.mean(coord, 0)
+    assert halfChord <= R * (1 + 1e-12), "R must be at least half the chord"
 
-    def eval(v):
-        x, y, z = v
-        f = np.linalg.norm(np.linalg.norm(coord - v, axis=1) - R**2)
-        return f
+    toCenter = np.cross(AsCoords(n), p2 - p1)
 
-    # point must belong to the plane
-    def eqPlane(v):
-        return v @ n
+    assert np.linalg.norm(toCenter) > 0, "n must not be parallel to the chord"
 
-    cons = {"type": "eq", "fun": eqPlane}
-    from scipy.optimize import minimize
-
-    res = minimize(eval, p0, constraints=cons, tol=1e-12)
-
-    assert res.success, "the center has not been found"
-    center: _types.AnyArray = res.x
+    toCenter = Normalize(toCenter)
+    center: _types.FloatArray = (p1 + p2) / 2 + np.sqrt(
+        max(R**2 - halfChord**2, 0)
+    ) * toCenter
 
     return center
 

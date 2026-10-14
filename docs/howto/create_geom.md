@@ -103,7 +103,7 @@ Three construction modes are available:
     from EasyFEA.Geoms import CircleArc
 
     # from two end points and a radius
-    arc = CircleArc((1, 0), (0, 1), R=0.5)
+    arc = CircleArc((1, 0), (0, 1), R=1)
     Matplotlib.Plot_Geoms(arc)
 ```
 
