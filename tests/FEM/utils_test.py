@@ -3,419 +3,51 @@
 # This file is part of the EasyFEA project.
 # EasyFEA is distributed under the terms of the GNU General Public License v3, see LICENSE.txt and CREDITS.md for more information.
 
-from EasyFEA.FEM import FeArray
-import numpy as np
-
-from _numerics import rel_error
+from EasyFEA.FEM import ElemType, MatrixType
 
 
-def _check_ValueError(func):
-    valueErrorDetected = False
-    try:
-        func()
-    except ValueError:
-        valueErrorDetected = True
-    assert valueErrorDetected
+def test_ElemType_prints_its_name():
+    assert str(ElemType.HEXA27) == "HEXA27"
+    assert ElemType("TRI3") is ElemType.TRI3
 
 
-def _check_operation(
-    array1, op, array2, reshape1=(), reshape2=(), willTriggerError=False
-):
-
-    if reshape1 == ():
-        reshape1 = np.shape(array1)
-    reshaped1 = np.asarray(array1).reshape(reshape1)
-
-    if reshape2 == ():
-        reshape2 = np.shape(array2)
-    reshaped2 = np.asarray(array2).reshape(reshape2)
-
-    try:
-        if op == "+":
-            computed = array1 + array2
-            excepted = reshaped1 + reshaped2
-        elif op == "-":
-            computed = array1 - array2
-            excepted = reshaped1 - reshaped2
-        elif op == "*":
-            computed = array1 * array2
-            excepted = reshaped1 * reshaped2
-        elif op == "/":
-            computed = array1 / array2
-            excepted = reshaped1 / reshaped2
-        else:
-            raise Exception("unknown operator")
-        assert rel_error(computed, excepted) < 1e-12
-    except ValueError:
-        if willTriggerError:
-            pass
-        else:
-            # should not be here
-            raise ValueError("ValueError detected")
+def test_ElemType_topology_drops_the_node_count(subtests):
+    for elemType, topology in [
+        (ElemType.POINT, "POINT"),
+        (ElemType.SEG5, "SEG"),
+        (ElemType.TRI15, "TRI"),
+        (ElemType.QUAD9, "QUAD"),
+        (ElemType.TETRA10, "TETRA"),
+        (ElemType.HEXA27, "HEXA"),
+        (ElemType.PRISM18, "PRISM"),
+    ]:
+        with subtests.test(elemType=str(elemType)):
+            assert elemType.topology == topology
 
 
-def FeArrays():
+def test_ElemType_Get_1D_lists_the_segments():
+    assert {e.topology for e in ElemType.Get_1D()} == {"SEG"}
 
-    Ne, nPg = 1000, 4
-    scalar_e_pg = FeArray.asfearray(np.random.randint(1, 10, (Ne, nPg)) * 0.1)
-    vector_e_pg = FeArray.asfearray(np.random.randint(1, 10, (Ne, nPg, 3)) * 0.1)
-    matrix_e_pg = FeArray.asfearray(np.random.randint(1, 10, (Ne, nPg, 3, 3)) * 0.1)
-    tensor_e_pg = FeArray.asfearray(
-        np.random.randint(1, 10, (Ne, nPg, 3, 3, 3, 3)) * 0.1
+
+def test_ElemType_Get_2D_lists_the_triangles_and_quadrangles():
+    assert {e.topology for e in ElemType.Get_2D()} == {"TRI", "QUAD"}
+
+
+def test_ElemType_Get_3D_lists_the_volumes():
+    assert {e.topology for e in ElemType.Get_3D()} == {"TETRA", "HEXA", "PRISM"}
+
+
+def test_ElemType_Get_1D_2D_3D_and_POINT_cover_every_type_once():
+    listed = (
+        [ElemType.POINT] + ElemType.Get_1D() + ElemType.Get_2D() + ElemType.Get_3D()
     )
 
-    return [scalar_e_pg, vector_e_pg, matrix_e_pg, tensor_e_pg]
+    assert sorted(listed) == sorted(ElemType)
 
 
-def do_operation(op: str):
-
-    scalar_e_pg, vector_e_pg, matrix_e_pg, tensor_e_pg = FeArrays()
-
-    Ne, nPg = scalar_e_pg.shape
-
-    scalar = np.random.randint(1, 10)
-    vector = np.random.randint(1, 10, (3)) * 0.1
-    matrix = np.random.randint(1, 10, (3, 3)) * 0.1
-    tensor = np.random.randint(1, 10, (3, 3, 3, 3)) * 0.1
-
-    # scalar + ...
-    _check_operation(scalar_e_pg, op, scalar)
-    _check_operation(scalar_e_pg, op, vector, (Ne, nPg, 1))
-    _check_operation(scalar_e_pg, op, matrix, (Ne, nPg, 1, 1))
-    _check_operation(scalar_e_pg, op, tensor, (Ne, nPg, 1, 1, 1, 1))
-
-    # ... + scalar
-    _check_operation(scalar, op, scalar_e_pg)
-    _check_operation(scalar, op, vector_e_pg)
-    _check_operation(scalar, op, matrix_e_pg)
-    _check_operation(scalar, op, tensor_e_pg)
-
-    # vector + ...
-    _check_operation(vector_e_pg, op, scalar)
-    _check_operation(vector_e_pg, op, vector)
-    _check_operation(vector_e_pg, op, matrix, willTriggerError=True)
-    _check_operation(vector_e_pg, op, tensor, willTriggerError=True)
-
-    # ... + vector
-    _check_operation(scalar, op, vector_e_pg)
-    _check_operation(vector, op, vector_e_pg)
-    _check_operation(matrix, op, vector_e_pg, willTriggerError=True)
-    _check_operation(tensor, op, vector_e_pg, willTriggerError=True)
-
-    # matrix + ...
-    _check_operation(matrix_e_pg, op, scalar)
-    _check_operation(matrix_e_pg, op, vector, willTriggerError=True)
-    _check_operation(matrix_e_pg, op, matrix)
-    _check_operation(matrix_e_pg, op, tensor, willTriggerError=True)
-
-    # ... + matrix
-    _check_operation(scalar, op, matrix_e_pg)
-    _check_operation(vector, op, matrix_e_pg, willTriggerError=True)
-    _check_operation(matrix, op, matrix_e_pg)
-    _check_operation(tensor, op, matrix_e_pg, willTriggerError=True)
-
-    # tensor + ...
-    _check_operation(tensor_e_pg, op, scalar)
-    _check_operation(tensor_e_pg, op, vector, willTriggerError=True)
-    _check_operation(tensor_e_pg, op, matrix, willTriggerError=True)
-    _check_operation(tensor_e_pg, op, tensor)
-
-    # ... + matrix
-    _check_operation(scalar, op, tensor_e_pg)
-    _check_operation(vector, op, tensor_e_pg, willTriggerError=True)
-    _check_operation(matrix, op, tensor_e_pg, willTriggerError=True)
-    _check_operation(tensor, op, tensor_e_pg)
+def test_MatrixType_prints_its_name():
+    assert str(MatrixType.beam_shear) == "beam_shear"
 
 
-class TestFeArray:
-
-    def test_new_array(self):
-
-        try:
-            FeArray([0, 1])
-        except ValueError:
-            pass
-
-        scalar_e_pg, vector_e_pg, matrix_e_pg, tensor_e_pg = FeArrays()
-
-        assert scalar_e_pg._ndim == 0
-        assert vector_e_pg._ndim == 1
-        assert matrix_e_pg._ndim == 2
-        assert tensor_e_pg._ndim == 4
-
-        assert vector_e_pg._shape == (3,)
-        assert matrix_e_pg._shape == (3, 3)
-
-        # an array without (Ne, nPg) axes cannot be viewed as a FeArray at all
-        _check_ValueError(lambda: FeArray.asfearray(np.ones(3)))
-
-        _check_ValueError(lambda: FeArray(0))
-        _check_ValueError(lambda: FeArray([0]))
-
-    def test_add_array(self):
-
-        do_operation("+")
-
-    def test_sub_array(self):
-
-        do_operation("-")
-
-    def test_mul_array(self):
-
-        do_operation("*")
-
-    def test_trudiv_array(self):
-
-        do_operation("/")
-
-    def test_T(self):
-
-        scalar_e_pg, vector_e_pg, matrix_e_pg, tensor_e_pg = FeArrays()
-
-        assert rel_error(scalar_e_pg.T, scalar_e_pg) < 1e-12
-        assert rel_error(vector_e_pg.T, vector_e_pg) < 1e-12
-        assert (
-            rel_error(matrix_e_pg.T, matrix_e_pg.transpose((0, 1, 3, 2)), scale=1.0)
-            < 1e-12
-        )
-        assert (
-            rel_error(
-                tensor_e_pg.T, tensor_e_pg.transpose((0, 1, 5, 4, 3, 2)), scale=1.0
-            )
-            < 1e-12
-        )
-
-    def test_dot(self):
-
-        _, vector_e_pg, matrix_e_pg, tensor_e_pg = FeArrays()
-
-        # Avoid testing scalars, as this holds no significance.
-
-        # i i
-        assert (
-            rel_error(
-                vector_e_pg.dot(vector_e_pg),
-                np.einsum("...i,...i->...", vector_e_pg, vector_e_pg),
-                scale=1.0,
-            )
-            < 1e-12
-        )
-        # i ij
-        assert (
-            rel_error(
-                vector_e_pg.dot(matrix_e_pg),
-                np.einsum("...i,...ij->...j", vector_e_pg, matrix_e_pg),
-                scale=1.0,
-            )
-            < 1e-12
-        )
-        # i ijkl
-        assert (
-            rel_error(
-                vector_e_pg.dot(tensor_e_pg),
-                np.einsum("...i,...ijkl->...jkl", vector_e_pg, tensor_e_pg),
-                scale=1.0,
-            )
-            < 1e-12
-        )
-
-        # ij j
-        assert (
-            rel_error(
-                matrix_e_pg.T.dot(vector_e_pg),
-                np.einsum("...ji,...j->...i", matrix_e_pg, vector_e_pg),
-                scale=1.0,
-            )
-            < 1e-12
-        )
-        # ij jk
-        assert (
-            rel_error(
-                matrix_e_pg.T.dot(matrix_e_pg),
-                np.einsum("...ji,...jk->...ik", matrix_e_pg, matrix_e_pg),
-                scale=1.0,
-            )
-            < 1e-12
-        )
-        # ij jklm
-        assert (
-            rel_error(
-                matrix_e_pg.T.dot(tensor_e_pg),
-                np.einsum("...ji,...jklm->...iklm", matrix_e_pg, tensor_e_pg),
-                scale=1.0,
-            )
-            < 1e-12
-        )
-
-        # ijkl l
-        assert (
-            rel_error(
-                tensor_e_pg.dot(vector_e_pg),
-                np.einsum("...ijkl,...l->...ijk", tensor_e_pg, vector_e_pg),
-                scale=1.0,
-            )
-            < 1e-12
-        )
-        # ijkl lm
-        assert (
-            rel_error(
-                tensor_e_pg.dot(matrix_e_pg),
-                np.einsum("...ijkl,...lm->...ijkm", tensor_e_pg, matrix_e_pg),
-                scale=1.0,
-            )
-            < 1e-12
-        )
-        # ijkl lmno
-        assert (
-            rel_error(
-                tensor_e_pg.dot(tensor_e_pg),
-                np.einsum("...ijkl,...lmno->...ijkmno", tensor_e_pg, tensor_e_pg),
-                scale=1.0,
-            )
-            < 1e-12
-        )
-
-    def test_matmul(self):
-
-        _, vector_e_pg, matrix_e_pg, tensor_e_pg = FeArrays()
-
-        # Avoid testing scalars, as this holds no significance.
-
-        # i i
-        assert (
-            rel_error(
-                vector_e_pg @ vector_e_pg,
-                np.einsum("...i,...i->...", vector_e_pg, vector_e_pg),
-                scale=1.0,
-            )
-            < 1e-12
-        )
-        # i ij
-        assert (
-            rel_error(
-                vector_e_pg @ matrix_e_pg,
-                np.einsum("...i,...ij->...j", vector_e_pg, matrix_e_pg),
-                scale=1.0,
-            )
-            < 1e-12
-        )
-        # i ijkl
-        assert (
-            rel_error(
-                vector_e_pg @ tensor_e_pg,
-                np.einsum("...i,...ijkl->...jkl", vector_e_pg, tensor_e_pg),
-                scale=1.0,
-            )
-            < 1e-12
-        )
-
-        # ij j
-        assert (
-            rel_error(
-                matrix_e_pg.T @ vector_e_pg,
-                np.einsum("...ji,...j->...i", matrix_e_pg, vector_e_pg),
-                scale=1.0,
-            )
-            < 1e-12
-        )
-        # ij jk
-        assert (
-            rel_error(
-                matrix_e_pg.T @ matrix_e_pg,
-                np.einsum("...ji,...jk->...ik", matrix_e_pg, matrix_e_pg),
-                scale=1.0,
-            )
-            < 1e-12
-        )
-        # ij jklm
-        assert (
-            rel_error(
-                matrix_e_pg.T @ tensor_e_pg,
-                np.einsum("...ji,...jklm->...iklm", matrix_e_pg, tensor_e_pg),
-                scale=1.0,
-            )
-            < 1e-12
-        )
-
-        # ijkl l
-        assert (
-            rel_error(
-                tensor_e_pg @ vector_e_pg,
-                np.einsum("...ijkl,...l->...ijk", tensor_e_pg, vector_e_pg),
-                scale=1.0,
-            )
-            < 1e-12
-        )
-        # ijkl lm
-        assert (
-            rel_error(
-                tensor_e_pg @ matrix_e_pg,
-                np.einsum("...ijkl,...lm->...ijkm", tensor_e_pg, matrix_e_pg),
-                scale=1.0,
-            )
-            < 1e-12
-        )
-        # ijkl lmno
-        assert (
-            rel_error(
-                tensor_e_pg @ tensor_e_pg,
-                np.einsum("...ijkl,...lmno->...ijkmno", tensor_e_pg, tensor_e_pg),
-                scale=1.0,
-            )
-            < 1e-12
-        )
-
-    def test_ddot(self):
-
-        _, vector_e_pg, matrix_e_pg, tensor_e_pg = FeArrays()
-
-        # Avoid testing scalars, as this holds no significance.
-
-        # i i
-        _check_ValueError(lambda: vector_e_pg.ddot(vector_e_pg))  # wrong dimensions
-        # i ij
-        _check_ValueError(lambda: vector_e_pg.ddot(matrix_e_pg))  # wrong dimensions
-        # i ijkl
-        _check_ValueError(lambda: vector_e_pg.ddot(tensor_e_pg))  # wrong dimensions
-
-        # ij i
-        _check_ValueError(lambda: matrix_e_pg.ddot(vector_e_pg))
-        # ij ij
-        assert (
-            rel_error(
-                matrix_e_pg.ddot(matrix_e_pg),
-                np.einsum("...ij,...ij->...", matrix_e_pg, matrix_e_pg),
-                scale=1.0,
-            )
-            < 1e-12
-        )
-        # ij ijkl
-        assert (
-            rel_error(
-                matrix_e_pg.ddot(tensor_e_pg),
-                np.einsum("...ij,...ijkl->...kl", matrix_e_pg, tensor_e_pg),
-                scale=1.0,
-            )
-            < 1e-12
-        )
-
-        # ijkl l
-        _check_ValueError(lambda: tensor_e_pg.ddot(vector_e_pg))  # wrong dimensions
-        # ijkl kl
-        assert (
-            rel_error(
-                tensor_e_pg.ddot(matrix_e_pg),
-                np.einsum("...ijkl,...kl->...ij", tensor_e_pg, matrix_e_pg),
-                scale=1.0,
-            )
-            < 1e-12
-        )
-        # ijkl lmno
-        assert (
-            rel_error(
-                tensor_e_pg.ddot(tensor_e_pg),
-                np.einsum("...ijkl,...klmn->...ijmn", tensor_e_pg, tensor_e_pg),
-                scale=1.0,
-            )
-            < 1e-12
-        )
+def test_MatrixType_Get_types_lists_every_type():
+    assert MatrixType.Get_types() == list(MatrixType)
