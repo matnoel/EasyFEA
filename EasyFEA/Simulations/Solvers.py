@@ -370,8 +370,8 @@ def _Solve_Axb(
     elif solver == SolverType.gmres:
         x, output = sla.gmres(A, b.toarray(), x0, maxiter=None)
 
-    elif solver == "lgmres":
-        x, output = sla.lgmres(A, b.toarray(), x0, maxiter=None)
+    elif solver == SolverType.lgmres:
+        x, output = sla.lgmres(A, b.toarray(), x0)
 
     elif solver == SolverType.lsq_linear:
         # constrained minimization
