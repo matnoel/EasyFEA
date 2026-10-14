@@ -149,10 +149,21 @@ class Field:
         return self.__truediv__(other)
 
     def __call__(self) -> FeArray.FeArrayALike:
-        """Returns the field as a finite element array."""
+        """Returns the field as a (Ne, nPg, dof_n) finite element array: the active shape function on the active dof, or the interpolated values while evaluated."""
+        if self.__is_currently_evaluated:
+            return self.Interpolate(self._Get_dofsValues())
+
         node = self._Get_current_active_node()
         N_pg = self.groupElem.Get_N_pg(self.__matrixType)
-        return FeArray.from_pg(N_pg[..., node], self.groupElem.Ne)
+        N_e_pg = FeArray.from_pg(N_pg[..., node], self.groupElem.Ne)
+
+        if self.__dof_n == 1:
+            return N_e_pg
+
+        Ne, nPg = N_e_pg.shape[:2]
+        values = FeArray.zeros(Ne, nPg, self.__dof_n, dtype=float)
+        values[..., self._Get_current_active_dof()] = N_e_pg[..., 0]
+        return values
 
     def dot(self, other):
         return self().dot(other)
