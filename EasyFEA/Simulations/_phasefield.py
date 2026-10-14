@@ -111,6 +111,7 @@ class PhaseField(_Simu):
         self.phaseFieldModel.material._Add_observer(self)
 
         self.__resumeLoading = ""
+        self.__resumeIter = ""
 
         self.__displacement_solver = self.solver
 
