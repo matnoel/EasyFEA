@@ -1068,7 +1068,7 @@ def Plot_Geoms(
         if dataSet is None:
             continue
 
-        name = geom.name if label is None else label  # type: ignore [union-attr]
+        name = getattr(geom, "name", None) if label is None else label
         dataSets = dataSet if isinstance(dataSet, list) else [dataSet]
         for d, data in enumerate(dataSets):
             Plot(
@@ -1240,7 +1240,7 @@ _FROZEN_VIEW = "_easyfea_frozen_view"
 
 @requires_pyvista
 def _Plotter(off_screen=False, add_axes=True, shape=(1, 1), linkViews=True):
-    plotter = pv.Plotter(off_screen=pv.OFF_SCREEN, shape=shape)
+    plotter = pv.Plotter(off_screen=off_screen or pv.OFF_SCREEN, shape=shape)
     setattr(plotter, _UPDATE_CAMERA, True)
     if add_axes:
         plotter.add_axes()
@@ -1355,7 +1355,7 @@ def _pvMesh(
 
     if clipAxis is not None:
         clipCenter = mesh.center if clipCenter is None else clipCenter
-        unstructuredGrid = unstructuredGrid.clip(clipAxis, clipCenter)
+        unstructuredGrid = unstructuredGrid.clip(clipAxis, origin=clipCenter)
 
     return unstructuredGrid
 
