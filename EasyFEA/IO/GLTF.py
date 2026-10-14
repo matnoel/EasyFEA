@@ -187,9 +187,9 @@ class Data:
                     byteLength=byteLength,
                     target=target,
                 )
-                for offset in offsets
+                for offset in offsets[:-1]
             ]
-            Data.__offset += offsets[-1]
+            Data.__offset = offsets[-1]
 
             self._bufferViews_index = [Data.__NbufferViews + i for i in range(Ndata)]
 
