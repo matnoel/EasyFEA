@@ -1349,6 +1349,7 @@ def Load_Mesh(path: str) -> Mesh:
 def Calc_projector(
     oldMesh: Mesh,
     newMesh: Mesh,
+    extrapolate=True,
 ) -> sp.csr_matrix:
     """Get the matrix used to project the solution from the old mesh to the new mesh such that:\n
     newU = proj * oldU\n
@@ -1362,6 +1363,8 @@ def Calc_projector(
         old mesh
     newMesh : Mesh
         new mesh
+    extrapolate : bool, optional
+        interpolate new nodes outside the old mesh in the old element of nearest center, by default True. False leaves their rows empty (value 0).
 
     Returns
     -------
@@ -1400,6 +1403,26 @@ def Calc_projector(
         remaining = remaining[~found]
 
     tic.Tac("Mesh", "Mapping between meshes", False)
+
+    if extrapolate and remaining.size > 0:
+        centers = [
+            oldMesh.coord[groupElem.connect].mean(1) for groupElem in list_groupElem
+        ]
+        group_e = np.concatenate(
+            [np.full(c.shape[0], g) for g, c in enumerate(centers)]
+        )
+        element_e = np.concatenate([np.arange(c.shape[0]) for c in centers])
+        nearest = cKDTree(np.concatenate(centers)).query(coord[remaining])[1]
+        for g, groupElem in enumerate(list_groupElem):
+            inGroup = group_e[nearest] == g
+            nodes, elements = remaining[inGroup], element_e[nearest[inGroup]]
+            xi_n = groupElem._Get_xi(coord[nodes], elements)
+            failed = ~np.isfinite(xi_n).all(1)
+            if failed.any():
+                raise ValueError(
+                    f"Cannot extrapolate {failed.sum()} new nodes outside the old mesh: no ξ in their nearest old element (Newton did not converge). The old mesh may be too coarse or too curved there."
+                )
+            Add(groupElem, nodes, elements, xi_n)
 
     proj = sp.csr_matrix(
         (np.concatenate(values), (np.concatenate(lines), np.concatenate(columns))),
