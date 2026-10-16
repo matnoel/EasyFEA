@@ -1383,15 +1383,25 @@ def _pvEdges(mesh: Mesh, points: _types.FloatArray) -> pv.PolyData | None:
     nPoly = max(loops.shape[1] for loops in list_loops)
     loops = np.concatenate(
         [
-            np.pad(loops, ((0, 0), (0, nPoly - loops.shape[1])), mode="edge")
+            np.pad(
+                loops,
+                ((0, 0), (0, nPoly - loops.shape[1])),
+                mode="edge",
+            )
             for loops in list_loops
         ]
     )
 
     if mesh.dim == 3:
-        # a face shared by two elements is inside
+        # a face shared by two elements is inside; faces compare by their distinct nodes,
+        # as the padding differs ([a, b, c, c] for a tetra, [a, b, c, a] for a prism)
+        keys = np.sort(loops, axis=1)
+        keys[:, 1:][np.diff(keys, axis=1) == 0] = -1
         _, inverse, counts = np.unique(
-            np.sort(loops, axis=1), axis=0, return_inverse=True, return_counts=True
+            np.sort(keys, axis=1),
+            axis=0,
+            return_inverse=True,
+            return_counts=True,
         )
         loops = loops[counts[inverse.ravel()] == 1]
 

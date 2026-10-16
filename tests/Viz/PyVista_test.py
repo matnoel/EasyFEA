@@ -147,6 +147,24 @@ def test_Plot_plotMesh_draws_each_element_outline_not_the_vtk_edges(subtests, me
                 )
 
 
+def test_Plot_plotMesh_hides_the_face_between_a_tetra_and_a_prism():
+    # a prism (nodes 0-5) and a tetra (3, 4, 5, 6) on its top triangle
+    coord = np.array(
+        [[0, 0, 0], [1, 0, 0], [0, 1, 0], [0, 0, 1], [1, 0, 1], [0, 1, 1], [0, 0, 2]],
+        dtype=float,
+    )
+    prism = GroupElemFactory.Create(
+        ElemType.PRISM6, np.array([[0, 1, 2, 3, 4, 5]]), coord
+    )
+    tetra = GroupElemFactory.Create(ElemType.TETRA4, np.array([[3, 4, 5, 6]]), coord)
+    mesh = Mesh({ElemType.PRISM6: prism, ElemType.TETRA4: tetra})
+
+    plotter = PyVista.Plot(mesh, plotMesh=True)
+
+    (edges,) = _meshes(plotter, pv.PolyData)
+    assert edges.n_lines == 5 + 4 - 2
+
+
 def test_Plot_plotMesh_keeps_the_vtk_edges_of_a_pyvista_dataset():
     plotter = PyVista.Plot(pv.Sphere(), plotMesh=True)
 
