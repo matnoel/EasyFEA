@@ -186,14 +186,13 @@ if __name__ == "__main__":
         ]
         evalCoords = np.array(coords)
 
-        evalElements = simu.mesh.groupElem._Get_nearby_elements(evalCoords)
-        # print(evalElements)
+        elements, _ = simu.mesh.groupElem._Get_containing_elements(evalCoords)
 
         values = np.empty((Niter, len(coords), 3))
         for i in range(Niter):
             simu.Set_Iter(i)
             values[i] = simu.mesh.Evaluate_dofsValues_at_coordinates(
-                evalCoords, simu.displacement, evalElements
+                evalCoords, simu.displacement, elements
             )
 
         times = times[:Niter]
