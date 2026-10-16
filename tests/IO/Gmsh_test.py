@@ -8,8 +8,8 @@ import numpy as np
 
 from EasyFEA import ElemType, Simulations, IO
 
-from Simulations._simus import LOADS
-from ._meshes import check_mesh, check_tags, get_tags
+from Simulations._simus import LOADS, pulled_bar
+from ._meshes import L, H, check_mesh, check_tags, get_tags
 
 
 def test_Save_mesh_round_trips_through_Load_mesh_with_its_tags(
@@ -62,20 +62,26 @@ def test_Load_mesh_returns_None_for_a_file_without_elements(tmp_path):
     assert IO.Gmsh.Load_mesh(str(path)) is None
 
 
-def read_views(path: str) -> dict[str, tuple[int, np.ndarray]]:
-    """{view name: (time steps, list data of the view's single element block)}."""
+def read_views(path: str) -> tuple[list[int], dict[str, np.ndarray]]:
+    """(gmsh element types of the mesh, {view name: nodal values (steps, Nn)})."""
     gmsh.initialize()
     gmsh.option.setNumber("General.Verbosity", 0)
     gmsh.open(path)
+    elementTypes = list(gmsh.model.mesh.getElementTypes())
     views = {}
     for tag in gmsh.view.getTags():
         index = gmsh.view.getIndex(tag)
         name = gmsh.option.getString(f"View[{index}].Name")
         nSteps = int(gmsh.option.getNumber(f"View[{index}].NbTimeStep"))
-        _, _, data = gmsh.view.getListData(tag)
-        views[name] = (nSteps, np.asarray(data[0]))
+        steps = []
+        for step in range(nSteps):
+            _, nodeTags, data, _, _ = gmsh.view.getHomogeneousModelData(tag, step)
+            values = np.empty(len(nodeTags))
+            values[np.asarray(nodeTags) - 1] = data
+            steps.append(values)
+        views[name] = np.asarray(steps)
     gmsh.finalize()
-    return views
+    return elementTypes, views
 
 
 def test_Save_simu_writes_one_view_per_component_and_default_field(
@@ -83,8 +89,8 @@ def test_Save_simu_writes_one_view_per_component_and_default_field(
 ):
     path = IO.Gmsh.Save_simu(bar_simu, str(tmp_path), results=["ux"])
 
-    assert path == str(tmp_path / "simu.pos")
-    views = read_views(path)
+    assert path == str(tmp_path / "simu.msh")
+    _, views = read_views(path)
     assert set(views) == {
         "ux",
         "displacement_0",
@@ -94,24 +100,47 @@ def test_Save_simu_writes_one_view_per_component_and_default_field(
         "Stress_1",
         "Stress_2",
     }
-    assert {nSteps for nSteps, _ in views.values()} == {len(LOADS)}
+    assert {len(values) for values in views.values()} == {len(LOADS)}
 
 
-def test_Save_simu_stores_the_corner_values_of_every_iteration(
+def test_Save_simu_stores_the_nodal_values_of_every_iteration(
     bar_simu: Simulations.Elastic, tmp_path
 ):
-    mesh = bar_simu.mesh
-    nCorners = mesh.groupElem.Nvertex
-
     path = IO.Gmsh.Save_simu(bar_simu, str(tmp_path), results=["ux"])
 
-    _, data = read_views(path)["ux"]
-    # per element: x, y, z of each corner, then the corner values of each step
-    data = data.reshape(mesh.Ne, -1)[:, 3 * nCorners :].reshape(mesh.Ne, -1, nCorners)
-    corners = mesh.connect[:, :nCorners]
+    _, views = read_views(path)
     for i in range(len(LOADS)):
         bar_simu.Set_Iter(i)
-        np.testing.assert_allclose(data[:, i], bar_simu.Result("ux")[corners])
+        np.testing.assert_allclose(views["ux"][i], bar_simu.Result("ux"))
+
+
+def test_Save_simu_keeps_every_node_of_a_high_order_mesh(make_mesh_2D, tmp_path):
+    mesh = make_mesh_2D(L=L, H=H, elemType=ElemType.QUAD9, isOrganised=True)
+    simu = pulled_bar(mesh)
+
+    path = IO.Gmsh.Save_simu(simu, str(tmp_path), results=["ux"])
+
+    elementTypes, views = read_views(path)
+    assert elementTypes == [mesh.groupElem.gmshId]
+    simu.Set_Iter(len(LOADS) - 1)
+    np.testing.assert_allclose(views["ux"][-1], simu.Result("ux"))
+
+
+def test_Save_simu_reopens_with_curved_edges_and_high_order_views(
+    make_mesh_2D, tmp_path
+):
+    mesh = make_mesh_2D(L=L, H=H, elemType=ElemType.QUAD9, isOrganised=True)
+
+    path = IO.Gmsh.Save_simu(pulled_bar(mesh), str(tmp_path), results=["ux"])
+
+    gmsh.initialize()
+    gmsh.option.setNumber("General.Verbosity", 0)
+    gmsh.open(path)
+    assert gmsh.option.getNumber("Mesh.SurfaceEdges") == 1
+    assert gmsh.option.getNumber("View[0].ShowElement") == 0
+    assert gmsh.option.getNumber("View[0].AdaptVisualizationGrid") == 1
+    assert gmsh.option.getNumber("View[0].MaxRecursionLevel") == 2
+    gmsh.finalize()
 
 
 def test_Save_simu_samples_at_most_N_iterations(
@@ -119,5 +148,5 @@ def test_Save_simu_samples_at_most_N_iterations(
 ):
     path = IO.Gmsh.Save_simu(bar_simu, str(tmp_path), N=2, results=["ux"])
 
-    nSteps, _ = read_views(path)["ux"]
-    assert nSteps == 2
+    _, views = read_views(path)
+    assert len(views["ux"]) == 2

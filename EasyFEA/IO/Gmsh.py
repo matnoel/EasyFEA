@@ -128,14 +128,14 @@ def Save_simu(
     showAxes: bool = False,
     openGmsh: bool = False,
 ) -> str:
-    """Save the simulation in gmsh.pos format using gmsh.view
+    """Save the simulation in gmsh.msh format: the mesh, then one nodal view per result, high-order elements included.
 
     Parameters
     ----------
     simu : _Simu
         simulation
     folder : str
-        folder used to save the simu.pos file
+        folder used to save the simu.msh file
     N : int, optional
         Maximal number of iterations saved, by default 200
     results : Sequence[str], optional
@@ -154,11 +154,11 @@ def Save_simu(
     Returns
     -------
     str
-        Path to the simu.pos file.
+        Path to the simu.msh file.
     """
 
     results = list(results)
-    path = Folder.Join(folder, "simu.pos", mkdir=True)
+    path = Folder.Join(folder, "simu.msh", mkdir=True)
     if Folder.os.path.exists(path):
         # each view is appended to the file
         Folder.os.remove(path)
@@ -171,7 +171,6 @@ def Save_simu(
     if not gmsh.isInitialized():
         gmsh.initialize()
     gmsh.option.setNumber("General.Verbosity", 0)
-    gmsh.model.add("model")
 
     def getColor(c: str):
         """transform matplotlib color to rgb"""
@@ -179,41 +178,33 @@ def Save_simu(
         rgb = np.asarray(rgb, dtype=int)
         return rgb
 
-    def reshape(values: _types.FloatArray, connect_e: _types.IntArray):
-        """reshape nodal values to get them at the corners of the elements"""
-        values_n: _types.FloatArray = np.reshape(values, (mesh.Nn, -1))
-        values_e = values_n[connect_e]
-        if len(values_e.shape) == 3:
-            values_e = np.transpose(values_e, (0, 2, 1))
-        return values_e.reshape((connect_e.shape[0], -1))
-
-    gmshTopo = {
-        "POINT": "P",
-        "SEG": "L",
-        "TRI": "T",
-        "QUAD": "Q",
-        "TETRA": "S",
-        "HEXA": "H",
-        "PRISM": "I",
-        "PYRA": "Y",
-    }
-
     colorElems = getColor(edgecolor)
 
-    # one static block per element group of the main dimension; this lets meshes that mix element types (e.g. QUAD4 + TRI3) be exported into a single gmsh view through several addListData calls.
-    group_blocks = []
+    # the views hold nodal data on this model, so high-order elements keep all their nodes
+    model = "simu"
+    gmsh.model.add(model)
+    entity = gmsh.model.addDiscreteEntity(mesh.dim)
+    nodeTags = np.arange(1, mesh.Nn + 1)
+    gmsh.model.mesh.addNodes(mesh.dim, entity, nodeTags, mesh.coord.ravel())
     for groupElem in mesh.Get_list_groupElem(mesh.dim):
-        # quadratic elements are exported with their corner nodes only
-        nbCorners = groupElem.Nvertex
-        connect_e = groupElem.connect[:, :nbCorners]
-        group_blocks.append(
-            (
-                groupElem.Ne,
-                connect_e,
-                gmshTopo[groupElem.elemType.topology],
-                reshape(mesh.coord, connect_e),  # corner coordinates
-            )
+        gmsh.model.mesh.addElementsByType(
+            entity, groupElem.gmshId, [], (groupElem.connect + 1).ravel()
         )
+    # the mesh draws the edges, curved for high-order elements; the views only the fields
+    gmsh.option.setNumber("Mesh.SurfaceEdges", int(plotMesh))
+    gmsh.option.setNumber("Mesh.VolumeEdges", int(plotMesh))
+    gmsh.option.setNumber("Mesh.NumSubEdges", 8)
+    gmsh.option.setNumber("Mesh.ColorCarousel", 0)
+    for elements in (
+        "Lines",
+        "Triangles",
+        "Quadrangles",
+        "Tetrahedra",
+        "Hexahedra",
+        "Pyramids",
+        "Prisms",
+    ):
+        gmsh.option.setColor(f"Mesh.{elements}", *colorElems)
 
     # get nodes and elements field to plot
     nodesField, elementsField = simu.Results_nodeFields_elementFields(details)
@@ -262,29 +253,24 @@ def Save_simu(
         # (1: iso, 2: continuous, 3: discrete, 4: numeric)
         gmsh.view.option.setNumber(view, "NbIso", 10)
 
-        if plotMesh:
-            gmsh.view.option.setNumber(view, "ShowElement", 1)
+        if mesh.groupElem.order > 1:
+            # draws high-order fields with their own interpolation, not linearly
+            gmsh.view.option.setNumber(view, "AdaptVisualizationGrid", 1)
+            gmsh.view.option.setNumber(view, "MaxRecursionLevel", mesh.groupElem.order)
 
         if showAxes:
             gmsh.view.option.setNumber(view, "Axes", 1)
             # (0: none, 1: simple axes, 2: box, 3: full grid, 4: open grid, 5: ruler)
 
-        gmsh.view.option.setColor(view, "Lines", *colorElems)
-        gmsh.view.option.setColor(view, "Triangles", *colorElems)
-        gmsh.view.option.setColor(view, "Quadrangles", *colorElems)
-        gmsh.view.option.setColor(view, "Tetrahedra", *colorElems)
-        gmsh.view.option.setColor(view, "Hexahedra", *colorElems)
-        gmsh.view.option.setColor(view, "Pyramids", *colorElems)
-        gmsh.view.option.setColor(view, "Prisms", *colorElems)
-
-        # one scalar data block per element group (time steps stacked along axis 1)
-        for Ne, connect_e, gmshType, elements_e in group_blocks:
-            values_e = np.concatenate(
-                [reshape(values, connect_e) for values in list_values], axis=1
+        for step, values in enumerate(list_values):
+            gmsh.view.addHomogeneousModelData(
+                view, step, model, "NodeData", nodeTags, values, time=step
             )
-            res = np.concatenate((elements_e, values_e), axis=1)
-            gmsh.view.addListData(view, "S" + gmshType, Ne, res.ravel())
 
+        # the mesh is written with the first view only
+        gmsh.option.setNumber(
+            "PostProcessing.SaveMesh", int(not Folder.os.path.exists(path))
+        )
         gmsh.view.write(view, path, True)
 
         return view
@@ -307,6 +293,9 @@ def Save_simu(
                 )
                 for n in range(dof_n)
             ]
+
+    # gmsh reads simu.msh.opt when it opens simu.msh, so the views keep their options
+    gmsh.write(path + ".opt")
 
     # Launch the GUI to see the results:
     if "-nopopup" not in sys.argv and openGmsh:
