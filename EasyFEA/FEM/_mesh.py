@@ -923,29 +923,14 @@ class Mesh(Observable):
 
         # Several element groups can share the main dimension (e.g. QUAD4 + TRI3); a query coordinate is interpolated with the first group whose element contains it.
         for groupElem in self.Get_list_groupElem(self.dim):
-            # detect elements containing the coordinates for this group
-            _, detectedElements_e, connect_e_n, coordInElem_n = groupElem.Get_Mapping(
-                coordinates_n, elements, needCoordinates=True
+            elements_n, coordInElem_n = groupElem._Get_containing_elements(
+                coordinates_n, elements
             )
-
-            # Get the owning element for each coordinate in this group.
-            # Note: A coordinate may belong to multiple elements, but only one will be selected.
-            elements_n = np.array([None] * Nn)
-            # Don't remove [::-1], it must start at the end !
-            for element, connect in zip(detectedElements_e[::-1], connect_e_n[::-1]):
-                for node in connect:
-                    if elements_n[node] is None:
-                        elements_n[node] = element
-
-            # interpolate coordinates detected here (Get_Mapping already filters by
-            # geometric containment) and not yet assigned to a previous group
-            # `!= None` is elementwise here, not an identity test
-            mask = remaining & (elements_n != None)  # noqa: E711
+            mask = remaining & (elements_n >= 0)
             if not mask.any():
                 continue
-            assert coordInElem_n is not None
             mask_idx = np.flatnonzero(mask)
-            found_elements = elements_n[mask].astype(int)
+            found_elements = elements_n[mask]
 
             # get dofs values for each detected element as a (m, nPe, dof_n) array
             rows_e = groupElem.Get_assembly_e(dof_n)
@@ -1361,10 +1346,15 @@ def Load_Mesh(path: str) -> Mesh:
     return mesh
 
 
-def Calc_projector(oldMesh: Mesh, newMesh: Mesh) -> sp.csr_matrix:
+def Calc_projector(
+    oldMesh: Mesh,
+    newMesh: Mesh,
+) -> sp.csr_matrix:
     """Get the matrix used to project the solution from the old mesh to the new mesh such that:\n
     newU = proj * oldU\n
     (newNn) = (newNn x oldNn) (oldNn)\n
+
+    Each new node is interpolated in one old element containing it, searched in every old group of the main dimension.
 
     Parameters
     ----------
@@ -1372,6 +1362,7 @@ def Calc_projector(oldMesh: Mesh, newMesh: Mesh) -> sp.csr_matrix:
         old mesh
     newMesh : Mesh
         new mesh
+
     Returns
     -------
     sp.csr_matrix
@@ -1381,103 +1372,40 @@ def Calc_projector(oldMesh: Mesh, newMesh: Mesh) -> sp.csr_matrix:
 
     tic = Tic()
 
-    distoredMesh = np.max(np.abs(1.0 - oldMesh.Get_Quality("jacobian"))) > 1e-12
-    if distoredMesh:
-        Terminal.MyPrintError(
-            "WARNING: distorted elements have been detected in the mesh.\nThey may lead to projection errors!"
-        )
-    detectedNodes, detectedElements_e, connect_e_n, coordo_n = (
-        oldMesh.groupElem.Get_Mapping(newMesh.coord, needCoordinates=True)
-    )
-    # - detectedNodes : The nodes that have been identified within the detected elements with shape=(Nn,).
-    # - detectedElements_e : The elements in which the nodes have been detected with shape=(Ne,).
-    # - connect_e_n : The connectivity matrix that includes the nodes identified in each element with shape=(Ne, ?).
-    #     The "?" indicates that the array may have varying dimensions along axis=1.
-    # - coordInElem_n : The coordinates of the identified nodes, expressed in the reference element's (ξ,η,ζ) coordinate system.
-    #     This is applicable only if needCoordinates is set to True.
+    coord = newMesh.coord
+    list_groupElem = oldMesh.Get_list_groupElem()
+
+    lines: list[_types.IntArray] = []
+    columns: list[_types.IntArray] = []
+    values: list[_types.FloatArray] = []
+
+    def Add(
+        groupElem: "_GroupElem",
+        nodes: _types.IntArray,
+        elements: _types.IntArray,
+        xi_n: _types.FloatArray,
+    ):
+        phi_n_nPe = groupElem._Eval_Functions(groupElem._N(), xi_n)[:, 0]
+        lines.append(np.repeat(nodes, groupElem.nPe))
+        columns.append(groupElem.connect[elements].ravel())
+        values.append(phi_n_nPe.ravel())
+
+    remaining = np.arange(newMesh.Nn)
+    for groupElem in list_groupElem:
+        if remaining.size == 0:
+            break
+        elem_n, xi_n = groupElem._Get_containing_elements(coord[remaining])
+        found = elem_n >= 0
+        Add(groupElem, remaining[found], elem_n[found], xi_n[found])
+        remaining = remaining[~found]
 
     tic.Tac("Mesh", "Mapping between meshes", False)
 
-    # Evaluation of shape functions
-    Ntild = oldMesh.groupElem._N()
-    nPe = oldMesh.groupElem.nPe
-    phi_n_nPe = np.zeros(
-        (coordo_n.shape[0], nPe)  # type: ignore [union-attr]
-    )  # functions evaluated at identified coordinates
-    for n in range(nPe):
-        # *coordo_n.T give a list for every direction *(xis, etas, ..)
-        phi_n_nPe[:, n] = Ntild[n, 0](*coordo_n.T)  # type: ignore [union-attr]
-
-    # Check that the sum of the shape functions is 1
-    testSum1 = (np.sum(phi_n_nPe) - phi_n_nPe.size) / phi_n_nPe.size <= 1e-12
-    assert testSum1
-
-    # Here we detect whether nodes appear more than once
-    #   I don't know how to modify this function because np.unique can take a long time.
-    counts = np.unique(detectedNodes, return_counts=True)[1]
-    nodesSup1 = np.where(counts > 1)[0]
-    # nodesSup1 are nodes that have been detected several times.
-    if nodesSup1.size > 0:
-        # divide the shape function values by the number of appearances.
-        # Its like doing an average on shapes functions
-        phi_n_nPe[nodesSup1] = np.einsum(
-            "ni,n->ni", phi_n_nPe[nodesSup1], 1 / counts[nodesSup1], optimize="optimal"
-        )
-
-    # Builds the projector
-    # This projector is a hollow matrix of dimension (newMesh.Nn, oldMesh.Nn)
-    connect_e = oldMesh.connect
-    lines: list[int] = []
-    columns: list[int] = []
-    values: list[float] = []
-
-    def FuncExtend_Proj(element: int, nodes: _types.IntArray):
-        values.extend(np.ravel(phi_n_nPe[nodes]))
-        lines.extend(np.repeat(nodes, nPe))
-        columns.extend(np.asarray(list(connect_e[element]) * nodes.size))
-
-    [
-        FuncExtend_Proj(element, np.asarray(connect))
-        for element, connect in zip(detectedElements_e, connect_e_n)
-    ]
-
     proj = sp.csr_matrix(
-        (values, (lines, columns)), (newMesh.Nn, oldMesh.Nn), dtype=float
+        (np.concatenate(values), (np.concatenate(lines), np.concatenate(columns))),
+        (newMesh.Nn, oldMesh.Nn),
+        dtype=float,
     )
-
-    # Here we'll impose the exact values of overlapping nodes (which have the same coordinate) on the nodes.
-    proj = proj.tolil()
-
-    # get back the corners to link nodes
-    # here we assume that the points are identical
-    newCorners = newMesh.Get_list_groupElem(0)[0].nodes
-    oldCorners = oldMesh.Get_list_groupElem(0)[0].nodes
-    # link nodes
-    for newNode, oldNode in zip(newCorners, oldCorners):
-        proj[newNode, :] = 0
-        proj[newNode, oldNode] = 1
-
-    nodesExact = np.where((phi_n_nPe >= 1 - 1e-12) & (phi_n_nPe <= 1 + 1e-12))[0]
-    # nodesExact nodes exact are nodes for which a shape function has detected 1.
-    #   (nodes detected in an mesh corner).
-
-    nodesExact = list(set(nodesExact) - set(newCorners))  # type: ignore [assignment]
-
-    for node in nodesExact:
-        oldNode = oldMesh.groupElem._Get_nearby_nodes(newMesh.coord[node])
-        # oldNode = oldMesh.Nodes_Point(Point(*newMesh.coord[node]))
-        if oldNode.size == 0:
-            continue
-        proj[node, :] = 0
-        proj[node, oldNode] = 1
-
-    # from EasyFEA import Matplotlib
-    # dim = oldMesh.dim
-    # ax = Matplotlib.Plot_Mesh(oldMesh)
-    # ax.scatter(*newMesh.coord[nodesSup1,:dim].T,label='sup1')
-    # ax.scatter(*newMesh.coord[newCorners,:dim].T,label='corners')
-    # ax.scatter(*newMesh.coord[nodesExact,:dim].T,label='exact')
-    # ax.legend()
 
     tic.Tac("Mesh", "Projector construction", False)
 

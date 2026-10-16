@@ -17,6 +17,7 @@ For instance, a TRI3 mesh uses POINT, SEG2 and TRI3 elements."""
 # Factory
 
 from abc import ABC, abstractmethod
+import itertools
 from scipy import sparse, spatial
 import numpy as np
 from typing import Callable
@@ -941,15 +942,10 @@ class _GroupElem(ABC):
 
         evalFunctions = np.zeros((nPg, nF, nPe))
 
-        # for each points
-        for p in range(nPg):
-            # for each functions
-            for n, function_nPe in enumerate(functions):
-                # for each dimension
-                for f in range(nF):
-                    # appy the function
-                    evalFunctions[p, f, n] = function_nPe[f](*gaussPoints[p])  # type: ignore [index]
-                    # * means take all the coordinates
+        # each function at every point at once, constants broadcast
+        for n, function_nPe in enumerate(functions):
+            for f in range(nF):
+                evalFunctions[:, f, n] = function_nPe[f](*gaussPoints.T)  # type: ignore [index]
 
         return evalFunctions
 
@@ -1779,192 +1775,11 @@ class _GroupElem(ABC):
     def Get_pointsInElem(
         self, coordinates_n: _types.NumberArray, elem: int
     ) -> _types.IntArray:
-        """Returns the indexes of the coordinates contained in the element.
-
-        Parameters
-        ----------
-        coordinates_n : _types.FloatArray
-            coordinates (n, 3)
-        elem : int
-            element
-
-        Returns
-        -------
-        _types.IntArray
-            indexes of coordinates contained in element
-        """
-
-        if coordinates_n.size == 0:
-            return np.array([])
-
-        dim = self.__dim
-        connect = self._global_to_local_nodes[self.connect]
-
-        tol = 1e-12
-
-        if dim == 0:
-            coord = self.coord[connect[elem, 0]]
-
-            idx = np.where(
-                (coordinates_n[:, 0] == coord[0])
-                & (coordinates_n[:, 1] == coord[1])
-                & (coordinates_n[:, 2] == coord[2])
-            )[0]
-
-            return idx
-
-        elif dim == 1:
-            coord = self.coord
-
-            p1 = connect[elem, 0]
-            p2 = connect[elem, 1]
-
-            # vector between the points of the segment
-            vect = coord[p2] - coord[p1]
-            length = np.linalg.norm(vect)
-            vect = vect / length
-
-            # vector starting from the first point of the element
-            p_n = coordinates_n - coord[p1]
-
-            cross_n = np.cross(vect, p_n, axisa=0, axisb=1)
-            norm_n = np.linalg.norm(cross_n, axis=1)
-
-            dot_n = p_n @ vect
-
-            idx = np.where((norm_n <= tol) & (dot_n >= -tol) & (dot_n <= length + tol))[
-                0
-            ]
-
-            return idx
-
-        elif dim == 2:
-            # coordinates_n (n,3)
-            # points n
-            # corners i [1, nPe]
-
-            coord = self.coord
-            contour = self.surfaces.ravel().tolist()[:-1]
-            nPe = len(contour)
-            connect_e = connect[elem, contour]
-            corners_i = coord[connect_e]
-
-            # Vectors e_i for edge segments (nPe, 3)
-            indexReord = np.append(np.arange(1, nPe), 0)
-            e_i = coord[connect_e[indexReord]] - corners_i
-            e_i = np.einsum(
-                "id,i->id", e_i, 1 / np.linalg.norm(e_i, axis=1), optimize="optimal"
-            )
-
-            # normal vector to element face
-            n_i = np.cross(e_i[0], -e_i[-1])
-
-            # (n, i, 3)
-            coordinates_n_i = coordinates_n[:, np.newaxis].repeat(nPe, 1)
-
-            # Construct p vectors from corners
-            p_n_i = coordinates_n_i - corners_i
-
-            cross_n_i = np.cross(e_i, p_n_i, axisa=1, axisb=2)
-            test_n_i = cross_n_i @ n_i >= -tol
-            # Return the index of nodes around the element that meet all conditions
-            test_n = np.sum(test_n_i, 1)
-            idx = np.where(test_n == nPe)[0]
-
-            return idx
-
-        elif dim == 3:
-            surfaces = self.surfaces
-            coord = self.coord[connect[elem]]
-
-            if self.elemType.startswith("PRISM"):
-                surfaces = np.array(  # type: ignore [type-var]
-                    [
-                        surfaces[0, :],  # type: ignore [call-overload]
-                        surfaces[1, :],  # type: ignore [call-overload]
-                        surfaces[2, :],  # type: ignore [call-overload]
-                        surfaces[3, :-1],  # type: ignore [call-overload]
-                        surfaces[4, :-1],  # type: ignore [call-overload]
-                    ],
-                    dtype=object,
-                )
-            Nface = surfaces.shape[0]  # type: ignore [attr-defined]
-
-            p0_f = [surface[0] for surface in surfaces]
-            p1_f = [surface[1] for surface in surfaces]
-            p2_f = [surface[-1] for surface in surfaces]
-
-            i_f = Normalize(coord[p1_f] - coord[p0_f])
-
-            j_f = Normalize(coord[p2_f] - coord[p0_f])
-
-            n_f = Normalize(np.cross(i_f, j_f, 1, 1))
-
-            coordinates_n_i = coordinates_n[:, np.newaxis].repeat(Nface, 1)
-
-            v_f = coordinates_n_i - coord[p0_f]
-
-            t_f = np.einsum("nfi,fi->nf", v_f, n_f, optimize="optimal") <= tol
-
-            filtre = np.sum(t_f, 1)
-
-            idx = np.where(filtre == Nface)[0]
-
-            return idx
-
-        else:
-            raise ValueError("unknown dimensio")
-
-    def _Get_nearby_nodes(self, coordinates_n: _types.NumberArray) -> _types.IntArray:
-        """Get nearby nodes.
-
-        Parameters
-        ----------
-        coordinates_n : _types.FloatArray
-            coordinates (n, 3) array
-
-        Returns
-        -------
-        _types.IntArray
-            nearby nodes
-        """
-
-        _params._CheckIsVector(coordinates_n)
-
-        #  Build a KDTree once for all nodes
-        tree = spatial.KDTree(self.coord)
-
-        # Find the index of the closest node for each coordinate
-        _, closest_node_indices = tree.query(coordinates_n, k=1)
-
-        # Retrieve the closest nodes
-        closest_nodes = self.nodes[closest_node_indices]
-
-        return closest_nodes
-
-    def _Get_nearby_elements(
-        self, coordinates_n: _types.NumberArray
-    ) -> _types.IntArray:
-        """Get nearby elements.
-
-        Parameters
-        ----------
-        coordinates_n : _types.FloatArray
-            coordinates (n, 3) array
-
-        Returns
-        -------
-        _types.IntArray
-            nearby elements
-        """
-        # Retrieve the closest nodes
-        closest_nodes = self._Get_nearby_nodes(coordinates_n)
-
-        # Retrieve the elements associated with these nodes
-        all_elements = self.Get_Elements_Nodes(closest_nodes, exclusively=False)
-        unique_elements = np.unique(all_elements)
-
-        return unique_elements
+        """Indexes of the coordinates (n, 3) contained in the element."""
+        coordinates_n = np.asarray(coordinates_n, dtype=float).reshape(-1, 3)
+        elements_n = np.full(coordinates_n.shape[0], elem)
+        refDistance_n = self.__Get_refDistance(coordinates_n, elements_n)[0]
+        return np.flatnonzero(refDistance_n >= -1e-10)
 
     def Get_Mapping(
         self,
@@ -1987,222 +1802,243 @@ class _GroupElem(ABC):
             - connect_e_n : The connectivity matrix that includes the nodes identified in each element with shape=(Ne, ?).
                 The "?" indicates that the array may have varying dimensions along axis=1.
             - coordInElem_n : The coordinates of the identified nodes, expressed in the reference element's (ξ, η, ζ) coordinate system.
-                This is applicable only if needCoordinates is set to True.
+                This is applicable only if needCoordinates is set to True. A node in several elements takes its ξ in the most inside one.
         """
 
         _params._CheckIsVector(coordinates_n)
 
-        if elements_e is None:
-            elements_e = self._Get_nearby_elements(coordinates_n)
+        # (node, element) pairs, _p = per pair
+        nodes_p, elements_p, xi_p, refDistance_p = self._Get_all_containing_elements(
+            coordinates_n, elements_e
+        )
 
-        return self._Get_Mapping(coordinates_n, elements_e, needCoordinates)
-
-    def _Get_Mapping(
-        self,
-        coordinates_n: _types.NumberArray,
-        elements_e: _types.IntArray,
-        needCoordinates=False,
-    ) -> tuple[
-        _types.IntArray,
-        _types.IntArray,
-        _types.IntArray,
-        _types.FloatArray | None,
-    ]:
-        """Locates coordinates within elements.
-
-        Returns
-        -------
-
-            - detectedNodes : The nodes that have been identified within the detected elements with shape=(Nn,).
-            - detectedElements_e : The elements in which the nodes have been detected with shape=(Ne,).
-            - connect_e_n : The connectivity matrix that includes the nodes identified in each element with shape=(Ne, ?).
-                The "?" indicates that the array may have varying dimensions along axis=1.
-            - coordInElem_n : The coordinates of the identified nodes, expressed in the reference element's (ξ, η, ζ) coordinate system.
-                This is applicable only if needCoordinates is set to True.
-        """
-
-        dim = self.dim
-        Ne = self.Ne
-        # translate global node ids to local rows of self.coord (needed under MPI,
-        # no-op otherwise)
-        connect = self._global_to_local_nodes[self.connect]
-        coord = self.coord
-
-        # Initialize lists
-        detectedNodes = np.full(coordinates_n.shape[0], None)
-        # Elements where nodes have been identified
-        detectedElements_e = np.full(Ne, None)
-        # connectivity matrix containing the nodes used by the elements
-        connect_e_n = np.full(Ne, None, dtype=object)
-
-        # Calculate the number of times a coordinate appears
-        dims = np.max(coordinates_n, 0) - np.min(coordinates_n, 0) + 1
-        # here dims is a 3d array used in __Get_coordoNear to check if coordinates_n comes from an image/grid
-        # If the coordinates come from an image/grid, the _Get_coordoNear function will be faster.
+        # group the pairs by element: each element gets its nodes
+        order_p = np.lexsort((nodes_p, elements_p))
+        detectedElements_e, start_e = np.unique(elements_p[order_p], return_index=True)
+        connect_e_n = np.empty(detectedElements_e.size, dtype=object)  # (Ne, ?)
+        for e, nodes in enumerate(np.split(nodes_p[order_p], start_e[1:])):
+            connect_e_n[e] = nodes
 
         if needCoordinates:
-            # Here we want to know the coordinates of the nodes in
-            # the reference element's (ξ,η) coordinate system.
-            coordInElem_n = np.full(coordinates_n[:, :dim].shape, np.inf, dtype=float)
-            # Use `np.inf` here to ensure that all coordinates are detected.
-
-            # get coordinates in the reference element
-            # get groupElem datas
-            inDim = self.inDim
-            # basis transformation matrix for each element
-            sysCoord_e = self._Get_sysCoord_e()
-            # This matrix can be used to project points with (x, y, z) coordinates into the element's (i, j, k) coordinate system.
-            matrixType = MatrixType.mass
-            jacobian_e_pg = self.Get_jacobian_e_pg(matrixType, absoluteValues=False)
-            invJ_e_pg = self._Get_invJ_e_pg(matrixType)
-            N_tild = self._N()
-            xiOrigin = self.origin  # origin of the reference element (ξ0,η0)
-
-            # Check whether iterative resolution is required
-            # calculate the ratio between jacob max and min to detect if the element is distorted
-            diff_e = jacobian_e_pg.max(1) / jacobian_e_pg.min(1)
-            error_e = np.abs(1 - diff_e)  # a perfect element has an error max <= 1e-12
-            # A distorted element exhibits a maximum error greater than zero.
-            useIterative_e = error_e > 1e-12
+            # ξ in the most inside element: sort by node, then by decreasing refDistance
+            order_p = np.lexsort((-refDistance_p, nodes_p))
+            best_n = order_p[np.unique(nodes_p[order_p], return_index=True)[1]]
+            coordInElem_n = np.full((len(coordinates_n), self.dim), np.inf)
+            coordInElem_n[nodes_p[best_n]] = xi_p[best_n]
         else:
             coordInElem_n = None
 
-        for e in elements_e:
-            # get element's node coordinates (x, y, z)
-            coordElem = coord[connect[e]]
+        return np.unique(nodes_p), detectedElements_e, connect_e_n, coordInElem_n
 
-            # Retrieve indexes in coordinates_n that are within the element's bounds
-            idxNearElem = self._Get_coord_Near(coordinates_n, coordElem, dims)
-
-            # Return the index of idxNearElem that satisfies all the specified conditions.
-            idxInElem = self.Get_pointsInElem(coordinates_n[idxNearElem], e)
-
-            if idxInElem.size == 0:
-                # here no nodes have been detected in the element
-                continue
-
-            # Nodes contained within element e.
-            nodesInElement = idxNearElem[idxInElem]
-
-            # Save de detected nodes elements and connectivity matrix
-            detectedNodes[nodesInElement] = nodesInElement
-            detectedElements_e[e] = e
-            connect_e_n[e] = nodesInElement
-
-            if needCoordinates:
-                # Inverse mapping is required here,
-                # i.e., to determine the position in the reference element (ξ, η) from the physical coordinates (x, y).
-                # This is particularly relevant for elements with multiple integration points (e.g., QUAD4, TRI6, TRI10, ..),
-                # i.e., all elements that can be distorted and have a Jacobian ratio different from 1.
-
-                # Project (x, y, z) coordinates into the element's (i, j, k) coordinate system if dim != inDim.
-                # its the case when a 2D mesh is in 3D space
-                coordElemBase = coordElem.copy()
-                coordinatesBase_n = coordinates_n[nodesInElement].copy()
-                if dim != inDim:
-                    coordElemBase = coordElemBase @ sysCoord_e[e]
-                    coordinatesBase_n = coordinatesBase_n @ sysCoord_e[e]
-
-                # Origin of the element in (x, y, z) coordinates.
-                x0 = coordElemBase[0, :dim]
-                # Coordinates of the n points in (x, y, z).
-                xP_n = coordinatesBase_n[:, :dim]
-
-                if not useIterative_e[e]:
-                    # The fastest method, available only for undistorted meshes.
-                    xiP = xiOrigin + (xP_n - x0) @ invJ_e_pg[e, 0]
-
-                else:
-                    # This is the most time-consuming method.
-                    # Solves x(ξ) = Σ N_i(ξ) x_i = xP for ξ.
-                    def Eval(xi: _types.FloatArray, xP: _types.FloatArray):
-                        N = _GroupElem._Eval_Functions(N_tild, xi.reshape(1, -1))
-                        return N[0, 0] @ coordElemBase[:, :dim] - xP
-
-                    from scipy.optimize import least_squares
-
-                    xiP = []
-                    for xP in xP_n:
-                        res = least_squares(Eval, 0 * xP, args=(xP,))
-                        xiP.append(res.x)
-
-                # xiP are the n coordinates of the n points in (ξ, η, ζ).
-                coordInElem_n[nodesInElement, :] = np.asarray(xiP)  # type: ignore
-
-        # both arrays are object arrays pre-filled with None, so the comparison is
-        # elementwise; np.not_equal says so without tripping E711
-        mask_n = np.not_equal(detectedNodes, None)  # type: ignore [call-overload]
-        detectedNodes = detectedNodes[mask_n].astype(int)
-
-        mask_e = np.not_equal(detectedElements_e, None)  # type: ignore [call-overload]
-        detectedElements_e = detectedElements_e[mask_e].astype(int)
-        connect_e_n = connect_e_n[mask_e]
-
-        return detectedNodes, detectedElements_e, connect_e_n, coordInElem_n
-
-    def _Get_coord_Near(
+    def _Get_containing_elements(
         self,
         coordinates_n: _types.NumberArray,
-        coordElem: _types.FloatArray,
-        dims: _types.FloatArray,
-    ) -> _types.IntArray:
-        """Get indexes in coordinates_n that are within the coordElem's bounds.
+        elements_e: _types.IntArray | None = None,
+        keep: (
+            Callable[[_types.IntArray, _types.IntArray], _types.BoolArray] | None
+        ) = None,
+    ) -> tuple[_types.IntArray, _types.FloatArray]:
+        """Element (-1 if none) and ξ (inf if none) of each node, in its most inside element; keep(nodes_p, elements_p) filters the (node, element) pairs."""
 
-        Parameters
-        ----------
-        coordinates_n : _types.FloatArray
-            coordinates to check
-        coordElem : _types.FloatArray
-            element's bounds
-        dims : _types.FloatArray
-            (nX, nY, nZ) = np.max(coordinates_n, 0) - np.min(coordinates_n, 0) + 1
+        # (node, element) pairs, _p = per pair
+        nodes_p, elements_p, xi_p, refDistance_p = self._Get_all_containing_elements(
+            coordinates_n, elements_e
+        )
+        if keep is not None:
+            keep_p = keep(nodes_p, elements_p)
+            nodes_p, elements_p = nodes_p[keep_p], elements_p[keep_p]
+            xi_p, refDistance_p = xi_p[keep_p], refDistance_p[keep_p]
 
-        Returns
-        -------
-        _types.IntArray
-            indexes in element's bounds.
-        """
+        # sort by node, then by decreasing refDistance: the first pair of each node is the best
+        order_p = np.lexsort((-refDistance_p, nodes_p))
+        best_n = order_p[np.unique(nodes_p[order_p], return_index=True)[1]]
+        Nn = len(coordinates_n)
+        element_n = np.full(Nn, -1)  # (Nn,)
+        xi_n = np.full((Nn, self.dim), np.inf)  # (Nn, dim)
+        element_n[nodes_p[best_n]] = elements_p[best_n]
+        xi_n[nodes_p[best_n]] = xi_p[best_n]
+        return element_n, xi_n
 
-        nX, nY, nZ = dims
+    def _Get_all_containing_elements(
+        self,
+        coordinates_n: _types.NumberArray,
+        elements_e: _types.IntArray | None = None,
+        chunk: int = 200_000,
+    ) -> tuple[_types.IntArray, _types.IntArray, _types.FloatArray, _types.FloatArray]:
+        """Every (node, element, ξ, refDistance) with the node inside the element; candidates from a ball query on element bounding spheres."""
 
-        # If all the coordinates appear the same number of times and the coordinates are of type int, we are on a grid/image.
-        testShape = nX * nY - coordinates_n.shape[0] == 0
-        coordinatesInImage = coordinates_n.dtype == int and testShape and nZ == 1
+        coordinates_n = np.asarray(coordinates_n, dtype=float)  # (Nn, 3)
+        elements_e = self.elements if elements_e is None else np.asarray(elements_e)
+        Nn = coordinates_n.shape[0]
+        empty = (
+            np.empty(0, dtype=int),
+            np.empty(0, dtype=int),
+            np.empty((0, self.dim)),
+            np.empty(0),
+        )
+        if elements_e.size == 0 or Nn == 0:
+            return empty
 
-        if coordinatesInImage:
-            # here coordinates_n are pixels
+        # bounding sphere of each element
+        connect = self._global_to_local_nodes[self.connect]
+        coordElem_e = self.coord[connect[elements_e]]  # (Ne, nPe, 3)
+        center_e = coordElem_e.mean(1)  # (Ne, 3)
+        radius_e = np.linalg.norm(coordElem_e - center_e[:, None], axis=2).max(1)
+        radius_e *= 1 + 1e-8  # (Ne,)
+        tree = spatial.cKDTree(coordinates_n)
 
-            xe = np.arange(
-                np.floor(coordElem[:, 0].min()),
-                np.ceil(coordElem[:, 0].max()),
-                dtype=int,
+        # elements by chunks of about `chunk` (node, element) pairs, to bound the memory
+        count_e = tree.query_ball_point(
+            center_e, radius_e, workers=-1, return_length=True
+        )
+        chunk_e = np.cumsum(count_e) // chunk
+        starts = np.flatnonzero(np.diff(chunk_e)) + 1
+
+        # _p = per (node, element) pair
+        containing = [empty]
+        for iElem in np.split(np.arange(elements_e.size), starts):
+            # nodes in each element's own sphere, one list per element
+            near_e = tree.query_ball_point(center_e[iElem], radius_e[iElem], workers=-1)
+            # flattened into pairs
+            elements_p = np.repeat(elements_e[iElem], count_e[iElem])
+            nodes_p = np.fromiter(
+                itertools.chain.from_iterable(near_e), int, count_e[iElem].sum()
             )
-            ye = np.arange(
-                np.floor(coordElem[:, 1].min()),
-                np.ceil(coordElem[:, 1].max()),
-                dtype=int,
+            # node inside the element
+            refDistance_p, xi_p = self.__Get_refDistance(
+                coordinates_n[nodes_p], elements_p
             )
-            Xe, Ye = np.meshgrid(xe, ye)
+            inside_p = refDistance_p >= -1e-10
+            containing.append(
+                (
+                    nodes_p[inside_p],
+                    elements_p[inside_p],
+                    xi_p[inside_p],
+                    refDistance_p[inside_p],
+                )
+            )
 
-            grid_elements_coordinates = np.concatenate(([Ye.ravel()], [Xe.ravel()]))
-            idx = np.asarray(np.ravel_multi_index(grid_elements_coordinates, (nY, nX)))
-            # if something goes wrong, check that the mesh is correctly positioned in the image
+        return tuple(np.concatenate(c) for c in zip(*containing))  # type: ignore [return-value]
 
-        else:
-            xn, yn, zn = coordinates_n.T
-            xe, ye, ze = coordElem.T
-            tol = 1e-12
+    def __Get_refDistance(
+        self, coordinates_n: _types.FloatArray, elements_n: _types.IntArray
+    ) -> tuple[_types.FloatArray, _types.FloatArray]:
+        """(refDistance, ξ) of each node in its element: how far ξ is inside the reference element, > 0 inside, 0 on a side, < 0 outside; -inf off a 0D, 1D or 2D element."""
 
-            idx = np.where(
-                (xn >= np.min(xe) - tol)
-                & (xn <= np.max(xe) + tol)
-                & (yn >= np.min(ye) - tol)
-                & (yn <= np.max(ye) + tol)
-                & (zn >= np.min(ze) - tol)
-                & (zn <= np.max(ze) + tol)
-            )[0].astype(np.uint64)
+        xi_n = self._Get_xi(coordinates_n, elements_n)  # (Nn, dim)
 
-        return idx
+        # SEG, QUAD, HEXA: 1 - max|ξ|; TRI, TETRA: smallest barycentric coordinate
+        topology = self.topology
+        with np.errstate(invalid="ignore"):
+            if self.dim == 0:
+                refDistance_n = np.zeros(xi_n.shape[0])
+            elif topology in ("TRI", "TETRA"):
+                # ξ_i ≥ 0 and Σ ξ_i ≤ 1
+                refDistance_n = np.minimum(xi_n.min(1), 1 - xi_n.sum(1))
+            elif topology == "PRISM":
+                # triangle in (ξ, η), [-1, 1] in ζ
+                tri_n = xi_n[:, :2]
+                refDistance_n = np.minimum.reduce(
+                    [tri_n.min(1), 1 - tri_n.sum(1), 1 - np.abs(xi_n[:, 2])]
+                )
+            else:  # SEG, QUAD, HEXA: [-1, 1]^dim
+                refDistance_n = 1 - np.abs(xi_n).max(1)
+        refDistance_n[~np.isfinite(refDistance_n)] = -np.inf  # (Nn,)
+
+        # a surface (line, point) in a higher dim space: ξ only gives the projection, check the distance
+        if self.dim < 3 and coordinates_n.shape[0] > 0:
+            connect = self._global_to_local_nodes[self.connect]
+            coordElem_n = self.coord[connect[elements_n]]  # (Nn, nPe, 3)
+            with np.errstate(all="ignore"):
+                if self.dim == 0:
+                    x_n = coordElem_n[:, 0]
+                else:
+                    N_n = self._Eval_Functions(self._N(), xi_n)[:, 0]  # (Nn, nPe)
+                    x_n = np.einsum("np,npd->nd", N_n, coordElem_n)  # x(ξ) (Nn, 3)
+                distance_n = np.linalg.norm(x_n - coordinates_n, axis=1)
+                size_n = np.ptp(coordElem_n, 1).max(1)
+                refDistance_n[~(distance_n <= 1e-10 * size_n)] = -np.inf
+
+        return refDistance_n, xi_n
+
+    def _Get_xi(
+        self, coordinates_n: _types.NumberArray, elements_n: _types.IntArray
+    ) -> _types.FloatArray:
+        """(ξ, η, ζ) of each node in its element by inverse mapping, outside the reference element if the node is outside, inf if Newton fails."""
+
+        dim = self.dim
+        coordinates_n = np.asarray(coordinates_n, dtype=float)  # (Nn, 3)
+        Nn = coordinates_n.shape[0]
+        if dim == 0 or Nn == 0:
+            return np.zeros((Nn, dim))
+
+        connect = self._global_to_local_nodes[self.connect]
+        coordElem_n = self.coord[connect[elements_n]]  # (Nn, nPe, 3)
+        x_n = coordinates_n
+        if dim != self.inDim:
+            # element's (i, j, k) coordinate system (2D mesh in 3D space)
+            sysCoord_n = self._Get_sysCoord_e()[elements_n]  # (Nn, 3, 3)
+            coordElem_n = coordElem_n @ sysCoord_n
+            x_n = np.einsum("nd,ndj->nj", x_n, sysCoord_n)
+        coordElem_n = coordElem_n[..., :dim]  # (Nn, nPe, dim)
+        x_n = x_n[:, :dim]  # (Nn, dim)
+
+        # a distorted element (jacobian not constant) needs an iterative inverse mapping
+        matrixType = MatrixType.mass
+        jacobian_e_pg = self.Get_jacobian_e_pg(matrixType, False)  # (Ne, nPg)
+        distorted_e = np.abs(1 - jacobian_e_pg.max(1) / jacobian_e_pg.min(1)) > 1e-12
+        iterative_n = distorted_e[elements_n]  # (Nn,)
+        affine_n = ~iterative_n
+
+        # affine: ξ = ξ_0 + (x - x_0) F⁻¹
+        xi_n = np.empty((Nn, dim))
+        invJ_n = self._Get_invJ_e_pg(matrixType)[
+            elements_n[affine_n], 0
+        ]  # (Na, dim, dim)
+        x0 = np.asarray(self.origin, dtype=float)
+        xi_n[affine_n] = x0 + np.einsum(
+            "nd,ndj->nj", x_n[affine_n] - coordElem_n[affine_n, 0], invJ_n
+        )
+        if not iterative_n.any():
+            return xi_n
+
+        # iterative: Newton on x(ξ) = Σ N_i(ξ) x_i = x, from the reference element's center
+        # _i = per iterative node, inf where it does not converge
+        coordElem_i = coordElem_n[iterative_n]  # (Ni, nPe, dim)
+        x_i = x_n[iterative_n]  # (Ni, dim)
+        N, dN = self._N(), self._dN()
+        Ni = x_i.shape[0]
+        xi_i = np.tile(self.Get_Local_Coords().mean(0), (Ni, 1))  # (Ni, dim)
+        active_i = np.ones(Ni, dtype=bool)
+        with np.errstate(all="ignore"):
+            for _ in range(20):
+                # _a = per active node
+                nodes_a = np.flatnonzero(active_i)
+                if nodes_a.size == 0:
+                    break
+                xi_a = xi_i[nodes_a]
+                coordElem_a = coordElem_i[nodes_a]  # (Na, nPe, dim)
+                N_a = self._Eval_Functions(N, xi_a)[:, 0]  # (Na, nPe)
+                dN_a = self._Eval_Functions(dN, xi_a)  # (Na, dim, nPe)
+                residual_a = np.einsum("np,npd->nd", N_a, coordElem_a) - x_i[nodes_a]
+                # Jᵀ[d, k] = ∂x_d/∂ξ_k (Na, dim, dim)
+                Jt_a = np.einsum("nkp,npd->ndk", dN_a, coordElem_a)
+                regular_a = np.isfinite(Jt_a).all((1, 2)) & (
+                    np.abs(np.linalg.det(Jt_a)) > 0
+                )
+                # Jᵀ δ = -r
+                delta_a = np.full_like(xi_a, np.inf)
+                delta_a[regular_a] = np.linalg.solve(
+                    Jt_a[regular_a], -residual_a[regular_a, :, None]
+                )[..., 0]
+                xi_i[nodes_a] = xi_a + delta_a
+                # stops once converged or diverged
+                active_i[nodes_a] = ~(np.abs(delta_a).max(1) <= 1e-12)
+                active_i[nodes_a[~np.isfinite(delta_a).all(1)]] = False
+        xi_i[active_i | ~np.isfinite(xi_i).all(1)] = np.inf
+        xi_n[iterative_n] = xi_i
+
+        return xi_n
 
 
 # --------------------------------------------------------------------------------------------

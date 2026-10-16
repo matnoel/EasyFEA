@@ -1438,18 +1438,6 @@ def test_GroupElem_Get_pointsInElem_finds_the_centroid_but_not_a_far_point(subte
             assert groupElem.Get_pointsInElem(np.empty((0, 3)), 0).size == 0
 
 
-def test_GroupElem__Get_nearby_nodes_are_the_closest_ones(grid: Mesh):
-    nodes = grid.groupElem._Get_nearby_nodes(np.array([[0.1, 0.1, 0], [3.8, 2.9, 0]]))
-
-    assert np.array_equal(grid.coord[nodes], [[0, 0, 0], [4, 3, 0]])
-
-
-def test_GroupElem__Get_nearby_elements_touch_the_closest_node(grid: Mesh):
-    elements = grid.groupElem._Get_nearby_elements(np.array([[2.1, 0.9, 0]]))
-
-    assert elements.size == 4
-
-
 def _gauss_points(mesh: Mesh) -> tuple[_GroupElem, np.ndarray, np.ndarray]:
     """Interior points of each element: its mass rule, or 8 points for prisms, whose 6-point rule sits on the edges."""
     groupElem = _main(mesh)
@@ -1482,7 +1470,7 @@ def test_GroupElem_Get_Mapping_finds_each_gauss_point_in_its_element(
             assert rel_error(coordInElem, expected, scale=1.0) < 1e-8
 
 
-def test_GroupElem__Get_Mapping_on_given_elements_of_a_distorted_mesh():
+def test_GroupElem_Get_Mapping_on_given_elements_of_a_distorted_mesh():
     """Distorted elements take the iterative inverse mapping."""
     contour = Domain((0, 0), (2, 2), 1.0)
     mesh = contour.Mesh_2D([], ElemType.QUAD4, isOrganised=True)
@@ -1491,7 +1479,7 @@ def test_GroupElem__Get_Mapping_on_given_elements_of_a_distorted_mesh():
     mesh.coord = coord
     groupElem, points, xi_pg = _gauss_points(mesh)
 
-    nodes, elements, _, coordInElem = groupElem._Get_Mapping(
+    nodes, elements, _, coordInElem = groupElem.Get_Mapping(
         points, np.array([0]), needCoordinates=True
     )
 
@@ -1501,27 +1489,83 @@ def test_GroupElem__Get_Mapping_on_given_elements_of_a_distorted_mesh():
     assert np.all(np.isinf(coordInElem[4:]))
 
 
-def test_GroupElem__Get_coord_Near_keeps_the_points_in_the_bounding_box():
-    groupElem = reference_element(ElemType.QUAD4)
-    coordElem = groupElem.coord
-    points = np.array([[0.5, 0.5, 0], [2, 0, 0], [-1, 1, 0]])
+def test_GroupElem__Get_xi_inverts_the_mapping_of_every_element(
+    mesh_of: MeshOf, subtests
+):
+    for elemType in ALL:
+        with subtests.test(elemType=str(elemType)):
+            groupElem, points, xi_pg = _gauss_points(mesh_of(elemType))
+            elements_n = groupElem.elements.repeat(xi_pg.shape[0])
 
-    idx = groupElem._Get_coord_Near(points, coordElem, np.ptp(points, 0) + 1)
+            xi_n = groupElem._Get_xi(points, elements_n)
 
-    assert np.array_equal(idx, [0, 2])
+            expected = np.tile(xi_pg, (groupElem.Ne, 1))
+            assert rel_error(xi_n, expected, scale=1.0) < 1e-8
 
 
-def test_GroupElem__Get_coord_Near_on_an_image_reads_the_pixel_grid():
-    """Integer coordinates of a full nX × nY grid: the pixels under the element's box."""
-    groupElem = reference_element(ElemType.QUAD4, b=(2, 2, 0))
-    Y, X = np.mgrid[0:5, 0:6]
-    pixels = np.stack([X.ravel(), Y.ravel(), np.zeros(X.size, dtype=int)], 1)
+def test_GroupElem__Get_xi_solves_a_bilinear_element():
+    coord = np.array([[0, 0, 0], [2, 0, 0], [3, 2, 0], [0, 1, 0]], dtype=float)
+    groupElem = GroupElemFactory.Create(ElemType.QUAD4, np.array([[0, 1, 2, 3]]), coord)
+    xi = np.array([[0.3, -0.4]])
+    x = _GroupElem._Eval_Functions(groupElem._N(), xi)[:, 0] @ coord
 
-    idx = groupElem._Get_coord_Near(pixels, groupElem.coord, np.ptp(pixels, 0) + 1)
+    assert rel_error(groupElem._Get_xi(x, np.array([0])), xi, scale=1.0) < 1e-12
 
-    assert {tuple(p) for p in pixels[idx, :2]} == {
-        (x, y) for x in (1, 2) for y in (1, 2)
-    }
+
+def test_GroupElem_Get_pointsInElem_includes_the_boundary(subtests):
+    for elemType in ALL:
+        with subtests.test(elemType=str(elemType)):
+            groupElem = reference_element(elemType)
+            corner = groupElem.coord[groupElem.connect[0, 0]]
+            points = np.array([corner, groupElem.center, corner - 0.5])
+
+            assert np.array_equal(groupElem.Get_pointsInElem(points, 0), [0, 1])
+
+
+def test_GroupElem_Get_pointsInElem_needs_the_point_on_a_lower_dimensional_element():
+    segment = _segments([[0, 0, 0], [2, 0, 0]])
+    points = np.array([[1, 0, 0], [1, 1e-3, 0], [3, 0, 0]], dtype=float)
+
+    assert np.array_equal(segment.Get_pointsInElem(points, 0), [0])
+
+
+def test_GroupElem__Get_all_containing_elements_lists_a_point_on_a_shared_edge_in_both_elements(
+    grid: Mesh,
+):
+    points = np.array([[1, 0.5, 0], [10, 10, 0]], dtype=float)
+
+    nodes, elements, xi, refDistance = grid.groupElem._Get_all_containing_elements(
+        points
+    )
+
+    assert np.array_equal(nodes, [0, 0])
+    assert np.unique(elements).size == 2
+    assert np.allclose(refDistance, 0) and xi.shape == (2, 2)
+
+
+def test_GroupElem__Get_containing_elements_keeps_the_most_inside_element():
+    """Overlapping segments [0, 2] and [1, 3]: x = 1.2 is deeper in the first."""
+    coord = np.array([[0, 0, 0], [2, 0, 0], [1, 0, 0], [3, 0, 0]], dtype=float)
+    groupElem = GroupElemFactory.Create(
+        ElemType.SEG2, np.array([[0, 1], [2, 3]]), coord
+    )
+    points = np.array([[1.2, 0, 0]])
+
+    assert groupElem._Get_containing_elements(points)[0][0] == 0
+    keep = lambda nodes_p, elements_p: elements_p == 1  # noqa: E731
+    assert groupElem._Get_containing_elements(points, keep=keep)[0][0] == 1
+
+
+def test_GroupElem__Get_containing_elements_finds_the_element_and_its_xi(grid: Mesh):
+    groupElem = grid.groupElem
+    points = np.array([[1.2, 0.5, 0], [10, 10, 0]])
+
+    elem_n, xi_n = groupElem._Get_containing_elements(points)
+
+    assert groupElem.Get_pointsInElem(points[:1], elem_n[0]).size == 1
+    N = _GroupElem._Eval_Functions(groupElem._N(), xi_n[:1])[0, 0]
+    assert rel_error(N @ grid.coord[groupElem.connect[elem_n[0]]], points[0]) < 1e-12
+    assert elem_n[1] == -1 and np.all(np.isinf(xi_n[1]))
 
 
 # ----------------------------------------------------------------------------

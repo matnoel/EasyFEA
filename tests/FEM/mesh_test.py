@@ -586,15 +586,16 @@ def test_Calc_projector_needs_meshes_of_one_dimension(grid: Mesh):
         Calc_projector(grid, _slab())
 
 
-def test_Calc_projector_warns_on_distorted_elements(grid: Mesh, capsys):
+def test_Calc_projector_carries_affine_fields_through_distorted_elements(grid: Mesh):
     distorted = grid.copy()
     coord = distorted.coord
     coord[distorted.Nodes_Point((1, 1)), :2] = [1.2, 0.9]
     distorted.coord = coord
+    a = np.array([1.0, -2.0, 0])
 
-    Calc_projector(distorted, grid)
+    projected = Calc_projector(distorted, grid) @ (distorted.coord @ a + 3)
 
-    assert "distorted" in capsys.readouterr().out
+    assert rel_error(projected, grid.coord @ a + 3) < 1e-8
 
 
 def _DoMesh(refine: str | None) -> Mesh:

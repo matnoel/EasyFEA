@@ -174,18 +174,24 @@ class DIC(_IObserver):
         # get pixels' coordinates
         coordPixel = self._Get_coords(imgRef)
 
-        # get pixels used in elements with their coordinates
-        pixels, _, connectPixel, coordPixelInElem = mesh.groupElem.Get_Mapping(
-            coordPixel, needCoordinates=True
-        )
-        # mean_pixels = np.mean([connectPixel[e].size for e in range(mesh.Ne)])
+        # pixels used in elements, each in a single element, with their coordinates
+        # an element holds its pixels on [min, max) along each axis
+        groupElem = mesh.groupElem
+        max_e = np.ceil(mesh.coord[groupElem.connect].max(1))  # (Ne, 3)
+        element_n, coordPixelInElem = groupElem._Get_containing_elements(
+            coordPixel,
+            keep=lambda pixels_p, elements_p: (
+                coordPixel[pixels_p, :2] < max_e[elements_p, :2]
+            ).all(1),
+        )  # (Npixel,), (Npixel, 2)
 
-        # a pixel found in two elements keeps the reference coordinates of the last visited, the highest index: kept there alone
-        assigned = np.zeros(coordPixel.shape[0], dtype=bool)
-        for e in reversed(range(connectPixel.shape[0])):
-            pixels_e = np.asarray(connectPixel[e], dtype=int)
-            connectPixel[e] = pixels_e[~assigned[pixels_e]]
-            assigned[pixels_e] = True
+        # group the pixels by element
+        pixels = np.flatnonzero(element_n >= 0)
+        order = pixels[np.argsort(element_n[pixels], kind="stable")]
+        start_e = np.searchsorted(element_n[order], np.arange(mesh.Ne + 1))
+        connectPixel = np.empty(mesh.Ne, dtype=object)  # (Ne, ?)
+        for e in range(mesh.Ne):
+            connectPixel[e] = order[start_e[e] : start_e[e + 1]]
 
         self.__connectPixel = connectPixel
         """connectivity matrix linking the pixels used for each element."""
