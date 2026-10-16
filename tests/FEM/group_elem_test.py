@@ -835,18 +835,18 @@ def _affine(elemType: ElemType) -> tuple[_GroupElem, np.ndarray]:
     return reference_element(elemType, A, b=(1, 2, 0)), A[:dim, :dim]
 
 
-def test_GroupElem_Get_F_e_pg_is_the_transposed_affine_map(subtests):
+def test_GroupElem__Get_J_e_pg_is_the_transposed_affine_map(subtests):
     for elemType in ALL:
         with subtests.test(elemType=str(elemType)):
             groupElem, A = _affine(elemType)
 
-            F_e_pg = groupElem.Get_F_e_pg(MatrixType.rigi)
+            J_e_pg = groupElem._Get_J_e_pg(MatrixType.rigi)
 
-            expected = np.broadcast_to(A.T, F_e_pg.shape)
-            assert rel_error(np.asarray(F_e_pg), expected) < 1e-12
+            expected = np.broadcast_to(A.T, J_e_pg.shape)
+            assert rel_error(np.asarray(J_e_pg), expected) < 1e-12
 
 
-def test_GroupElem_Get_F_e_pg_of_a_face_in_space_keeps_its_area(subtests):
+def test_GroupElem__Get_J_e_pg_of_a_face_in_space_keeps_its_area(subtests):
     """A unit-jacobian face rotated out of the plane."""
     c, s = np.cos(0.3), np.sin(0.3)
     R = np.array([[1, 0], [0, c], [0, s]])
@@ -860,15 +860,15 @@ def test_GroupElem_Get_F_e_pg_of_a_face_in_space_keeps_its_area(subtests):
             assert rel_error(np.asarray(jacobian_e_pg), 1.0) < 1e-12
 
 
-def test_GroupElem_Get_F_e_pg_of_a_point_is_none():
+def test_GroupElem__Get_J_e_pg_of_a_point_is_none():
     groupElem = GroupElemFactory.Create(
         ElemType.POINT, np.array([[0]]), np.zeros((1, 3))
     )
 
-    assert groupElem.Get_F_e_pg(MatrixType.rigi) is None
+    assert groupElem._Get_J_e_pg(MatrixType.rigi) is None
     assert groupElem.Get_jacobian_e_pg(MatrixType.rigi) is None
     assert groupElem.Get_weightedJacobian_e_pg(MatrixType.rigi) is None
-    assert groupElem.Get_invF_e_pg(MatrixType.rigi) is None
+    assert groupElem._Get_invJ_e_pg(MatrixType.rigi) is None
 
 
 def test_GroupElem_Get_jacobian_e_pg_is_the_determinant_of_the_map(subtests):
@@ -898,15 +898,15 @@ def test_GroupElem_Get_weightedJacobian_e_pg_sums_to_the_measure(
             assert rel_error(wJ_e_pg.sum(), MEASURES[groupElem.dim]) < 1e-12
 
 
-def test_GroupElem_Get_invF_e_pg_inverts_F(subtests):
+def test_GroupElem__Get_invJ_e_pg_inverts_J(subtests):
     for elemType in ALL:
         with subtests.test(elemType=str(elemType)):
             groupElem, A = _affine(elemType)
 
-            invF_e_pg = groupElem.Get_invF_e_pg(MatrixType.rigi)
+            invJ_e_pg = groupElem._Get_invJ_e_pg(MatrixType.rigi)
 
-            expected = np.broadcast_to(np.linalg.inv(A.T), invF_e_pg.shape)
-            assert rel_error(np.asarray(invF_e_pg), expected) < 1e-12
+            expected = np.broadcast_to(np.linalg.inv(A.T), invJ_e_pg.shape)
+            assert rel_error(np.asarray(invJ_e_pg), expected) < 1e-12
 
 
 # ----------------------------------------------------------------------------

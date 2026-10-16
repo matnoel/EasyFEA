@@ -501,7 +501,7 @@ class _GroupElem(ABC):
     ) -> FeArray:
         """Returns the normals for each elements and gauss points (Ne, nPg, 3).
 
-        With ``normalize=False`` the vectors are returned as computed, i.e. as the cross product of the surface tangents: their norm is then the surface jacobian, so ``weight_pg * normals`` is the area-weighted normal ``wJ_e_pg * normals_e_pg``. On the configuration selected by ``displacementMatrix`` this is the only route to a deformed surface measure, since ``Get_weightedJacobian_e_pg`` reaches the coordinates through the cached ``Get_jacobian_e_pg`` / ``Get_F_e_pg`` and only ever knows the reference configuration.
+        With ``normalize=False`` the vectors are returned as computed, i.e. as the cross product of the surface tangents: their norm is then the surface jacobian, so ``weight_pg * normals`` is the area-weighted normal ``wJ_e_pg * normals_e_pg``. On the configuration selected by ``displacementMatrix`` this is the only route to a deformed surface measure, since ``Get_weightedJacobian_e_pg`` reaches the coordinates through the cached ``Get_jacobian_e_pg`` / ``_Get_J_e_pg`` and only ever knows the reference configuration.
         """
 
         dim = self.dim
@@ -833,10 +833,8 @@ class _GroupElem(ABC):
     # --------------------------------------------------------------------------------------------
 
     @cache_computed_values
-    def Get_F_e_pg(self, matrixType: MatrixType) -> FeArray.FeArrayALike:
-        """Returns the transposed Jacobian matrix.\n
-        This matrix describes the transformation of the (ξ, η, ζ) axes from the reference element to the (x, y, z) coordinate system of the actual element.\n
-        """
+    def _Get_J_e_pg(self, matrixType: MatrixType) -> FeArray.FeArrayALike:
+        """Jacobian matrix, one row per reference axis: ``J[k, d] = ∂x_d/∂ξ_k``, in the element frame for a line or face in space."""
         if self.dim == 0:
             return None  # type: ignore [return-value]
 
@@ -867,23 +865,21 @@ class _GroupElem(ABC):
         dN_pg = self.Get_dN_pg(matrixType)
 
         # (nPg, dim, nPe) @ (Ne, 1, nPe, dim) -> (Ne, nPg, dim, dim)
-        F_e_pg = FeArray.asfearray(dN_pg @ rebased_coord_e[:, None])
+        J_e_pg = FeArray.asfearray(dN_pg @ rebased_coord_e[:, None])
 
-        return F_e_pg
+        return J_e_pg
 
     @cache_computed_values
     def Get_jacobian_e_pg(
         self, matrixType: MatrixType, absoluteValues=True
     ) -> FeArray.FeArrayALike:
-        """Returns the jacobians.\n
-        variation in size (length, area or volume) between the reference element and the actual element
-        """
+        """Jacobian ``det J``: actual over reference length, area or volume."""
         if self.dim == 0:
             return None  # type: ignore [return-value]
 
-        F_e_pg = self.Get_F_e_pg(matrixType)
+        J_e_pg = self._Get_J_e_pg(matrixType)
 
-        jacobian_e_pg = Det(F_e_pg)
+        jacobian_e_pg = Det(J_e_pg)
 
         if absoluteValues:
             jacobian_e_pg = np.abs(jacobian_e_pg)
@@ -903,19 +899,16 @@ class _GroupElem(ABC):
         return FeArray.asfearray(wJ_e_pg)
 
     @cache_computed_values
-    def Get_invF_e_pg(self, matrixType: MatrixType) -> FeArray.FeArrayALike:
-        """Returns the inverse of the transposed Jacobian matrix.\n
-        Used to obtain the derivative of the dN_e_pg shape functions in the actual element
-        dN_e_pg = invF_e_pg • dN_pg
-        """
+    def _Get_invJ_e_pg(self, matrixType: MatrixType) -> FeArray.FeArrayALike:
+        """Inverse jacobian matrix: ``dN_e_pg = invJ_e_pg @ dN_pg``."""
         if self.dim == 0:
             return None  # type: ignore [return-value]
 
-        F_e_pg = self.Get_F_e_pg(matrixType)
+        J_e_pg = self._Get_J_e_pg(matrixType)
 
-        invF_e_pg = Inv(F_e_pg)
+        invJ_e_pg = Inv(J_e_pg)
 
-        return invF_e_pg
+        return invJ_e_pg
 
     # --------------------------------------------------------------------------------------------
     # Finite element shape functions
@@ -1097,11 +1090,11 @@ class _GroupElem(ABC):
         Shape: ``(Ne, nPg, dim, nPe)``.
         """
 
-        invF_e_pg = self.Get_invF_e_pg(matrixType)
+        invJ_e_pg = self._Get_invJ_e_pg(matrixType)
 
         dN_pg = self.Get_dN_pg(matrixType)
         # Derivation of shape functions in the (x, y, z) coordinates
-        dN_e_pg = invF_e_pg @ FeArray.from_pg(dN_pg, invF_e_pg.shape[0])
+        dN_e_pg = invJ_e_pg @ FeArray.from_pg(dN_pg, invJ_e_pg.shape[0])
 
         return dN_e_pg
 
@@ -1135,10 +1128,10 @@ class _GroupElem(ABC):
         Shape: ``(Ne, nPg, dim, nPe)``.
         """
 
-        invF_e_pg = self.Get_invF_e_pg(matrixType)
+        invJ_e_pg = self._Get_invJ_e_pg(matrixType)
 
         ddN_pg = self.Get_ddN_pg(matrixType)
-        ddN_e_pg = invF_e_pg @ invF_e_pg @ FeArray.from_pg(ddN_pg, invF_e_pg.shape[0])
+        ddN_e_pg = invJ_e_pg @ invJ_e_pg @ FeArray.from_pg(ddN_pg, invJ_e_pg.shape[0])
 
         return ddN_e_pg
 
@@ -2061,7 +2054,7 @@ class _GroupElem(ABC):
             # This matrix can be used to project points with (x, y, z) coordinates into the element's (i, j, k) coordinate system.
             matrixType = MatrixType.mass
             jacobian_e_pg = self.Get_jacobian_e_pg(matrixType, absoluteValues=False)
-            invF_e_pg = self.Get_invF_e_pg(matrixType)
+            invJ_e_pg = self._Get_invJ_e_pg(matrixType)
             N_tild = self._N()
             xiOrigin = self.origin  # origin of the reference element (ξ0,η0)
 
@@ -2117,7 +2110,7 @@ class _GroupElem(ABC):
 
                 if not useIterative_e[e]:
                     # The fastest method, available only for undistorted meshes.
-                    xiP = xiOrigin + (xP_n - x0) @ invF_e_pg[e, 0]
+                    xiP = xiOrigin + (xP_n - x0) @ invJ_e_pg[e, 0]
 
                 else:
                     # This is the most time-consuming method.
