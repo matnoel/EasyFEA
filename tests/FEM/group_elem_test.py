@@ -1512,6 +1512,19 @@ def test_GroupElem__Get_xi_solves_a_bilinear_element():
     assert rel_error(groupElem._Get_xi(x, np.array([0])), xi, scale=1.0) < 1e-12
 
 
+def test_GroupElem__Get_xi_solves_a_curved_element_with_a_constant_jacobian():
+    # x = ξ + 0.4 η², y = η: det J = 1 everywhere, yet the map is not affine
+    local = reference_element(ElemType.TRI6).coord[:, :2]
+    coord = np.column_stack(
+        [local[:, 0] + 0.4 * local[:, 1] ** 2, local[:, 1], 0 * local[:, 0]]
+    )
+    groupElem = GroupElemFactory.Create(ElemType.TRI6, np.arange(6)[None], coord)
+    xi = np.array([[0.2, 0.6]])
+    x = _GroupElem._Eval_Functions(groupElem._N(), xi)[:, 0] @ coord
+
+    assert rel_error(groupElem._Get_xi(x, np.array([0])), xi, scale=1.0) < 1e-12
+
+
 def test_GroupElem_Get_pointsInElem_includes_the_boundary(subtests):
     for elemType in ALL:
         with subtests.test(elemType=str(elemType)):

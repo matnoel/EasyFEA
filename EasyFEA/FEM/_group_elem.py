@@ -1972,39 +1972,47 @@ class _GroupElem(ABC):
         if dim == 0 or Nn == 0:
             return np.zeros((Nn, dim))
 
+        # _u = per element queried, elements_u[inverse_n] = elements_n
+        elements_u, inverse_n = np.unique(elements_n, return_inverse=True)
         connect = self._global_to_local_nodes[self.connect]
-        coordElem_n = self.coord[connect[elements_n]]  # (Nn, nPe, 3)
+        coordElem_u = self.coord[connect[elements_u]]  # (Nu, nPe, 3)
         x_n = coordinates_n
         if dim != self.inDim:
             # element's (i, j, k) coordinate system (2D mesh in 3D space)
-            sysCoord_n = self._Get_sysCoord_e()[elements_n]  # (Nn, 3, 3)
-            coordElem_n = coordElem_n @ sysCoord_n
-            x_n = np.einsum("nd,ndj->nj", x_n, sysCoord_n)
-        coordElem_n = coordElem_n[..., :dim]  # (Nn, nPe, dim)
+            sysCoord_u = self._Get_sysCoord_e()[elements_u]  # (Nu, 3, 3)
+            coordElem_u = coordElem_u @ sysCoord_u
+            x_n = np.einsum("nd,ndj->nj", x_n, sysCoord_u[inverse_n])
+        coordElem_u = coordElem_u[..., :dim]  # (Nu, nPe, dim)
         x_n = x_n[:, :dim]  # (Nn, dim)
 
-        # a distorted element (jacobian not constant) needs an iterative inverse mapping
-        matrixType = MatrixType.mass
-        jacobian_e_pg = self.Get_jacobian_e_pg(matrixType, False)  # (Ne, nPg)
-        distorted_e = np.abs(1 - jacobian_e_pg.max(1) / jacobian_e_pg.min(1)) > 1e-12
-        iterative_n = distorted_e[elements_n]  # (Nn,)
-        affine_n = ~iterative_n
+        # affine element: x = ξ J + b, i.e. [ξ_i, 1] [J; b] = x_i at every node
+        # L = [ξ_i, 1] (nPe, dim+1)
+        L = np.column_stack([self.Get_Local_Coords(), np.ones(self.nPe)])
+        invL = np.linalg.pinv(L)  # (dim+1, nPe)
+        # part of the node coordinates that no affine map gives: (I - L L⁺) x_i
+        nonAffine_u = (np.eye(self.nPe) - L @ invL) @ coordElem_u  # (Nu, nPe, dim)
+        size_u = np.ptp(coordElem_u, axis=1).max(1)  # (Nu,)
+        affine_u = np.abs(nonAffine_u).max((1, 2)) <= 1e-12 * size_u
+        affine_n = affine_u[inverse_n]
+        iterative_n = ~affine_n
 
-        # affine: ξ = ξ_0 + (x - x_0) F⁻¹
+        # affine: [J; b] = L⁺ x_i, then ξ = (x - b) J⁻¹
+        Jb_u = invL @ coordElem_u  # (Nu, dim+1, dim)
+        J_u, b_u = Jb_u[:, :dim], Jb_u[:, dim]  # (Nu, dim, dim), (Nu, dim)
+        invJ_u = np.full_like(J_u, np.nan)
+        invJ_u[affine_u] = np.linalg.inv(J_u[affine_u])
         xi_n = np.empty((Nn, dim))
-        invJ_n = self._Get_invJ_e_pg(matrixType)[
-            elements_n[affine_n], 0
-        ]  # (Na, dim, dim)
-        x0 = np.asarray(self.origin, dtype=float)
-        xi_n[affine_n] = x0 + np.einsum(
-            "nd,ndj->nj", x_n[affine_n] - coordElem_n[affine_n, 0], invJ_n
+        xi_n[affine_n] = np.einsum(
+            "nd,ndk->nk",
+            x_n[affine_n] - b_u[inverse_n[affine_n]],
+            invJ_u[inverse_n[affine_n]],
         )
         if not iterative_n.any():
             return xi_n
 
         # iterative: Newton on x(ξ) = Σ N_i(ξ) x_i = x, from the reference element's center
         # _i = per iterative node, inf where it does not converge
-        coordElem_i = coordElem_n[iterative_n]  # (Ni, nPe, dim)
+        coordElem_i = coordElem_u[inverse_n[iterative_n]]  # (Ni, nPe, dim)
         x_i = x_n[iterative_n]  # (Ni, dim)
         N, dN = self._N(), self._dN()
         Ni = x_i.shape[0]
