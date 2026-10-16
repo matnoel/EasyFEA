@@ -187,6 +187,7 @@ def Plot(
     tic = Tic()
 
     # initilize the obj to construct the grid
+    edges = None  # element outlines drawn instead of vtk's edges, which split high-order cells
     if isinstance(obj, (pv.MultiBlock, pv.PolyData, pv.UnstructuredGrid)):
         inDim = 3
         pvMesh = obj
@@ -195,6 +196,8 @@ def Plot(
     else:
         pvMesh = _pvMesh(obj, result, deformFactor, nodeValues)
         inDim = _Init_obj(obj)[-1]
+        if plotMesh:
+            edges = _pvEdges(_Init_obj(obj)[1], pvMesh.points)
 
     if pvMesh is None:
         # something do not work during the grid creation≠
@@ -227,11 +230,11 @@ def Plot(
     if scalar_bar_kwargs is not None:
         scalar_bar_args.update(scalar_bar_kwargs)
 
-    plotter.add_mesh(
+    actor = plotter.add_mesh(
         pvMesh,
         scalars=name,
         color=color,
-        show_edges=plotMesh,
+        show_edges=plotMesh and edges is None,
         edge_color=edgecolor,
         line_width=linewidth,
         show_vertices=plotNodes,
@@ -246,6 +249,12 @@ def Plot(
         label=label,
         **kwargs,
     )
+
+    if edges is not None:
+        # pushes the faces back so that the outlines lying on them stay visible
+        actor.mapper.SetResolveCoincidentTopologyToPolygonOffset()
+        actor.mapper.SetRelativeCoincidentTopologyPolygonOffsetParameters(1, 1)
+        plotter.add_mesh(edges, color=edgecolor, line_width=linewidth)
 
     _Annotate(
         plotter,
@@ -1358,6 +1367,40 @@ def _pvMesh(
         unstructuredGrid = unstructuredGrid.clip(clipAxis, origin=clipCenter)
 
     return unstructuredGrid
+
+
+def _pvEdges(mesh: Mesh, points: _types.FloatArray) -> pv.PolyData | None:
+    """Element outlines through their mid-side nodes: every element in 2D, the boundary faces in 3D; None for a line mesh."""
+
+    if mesh.dim < 2:
+        return None
+
+    # (Nf, nPoly) contour loops, padded with their first node to one length
+    list_loops = []
+    for groupElem in mesh.Get_list_groupElem(mesh.dim):
+        surfaces = groupElem.surfaces  # (nFace, nPoly)
+        list_loops.append(groupElem.connect[:, surfaces].reshape(-1, surfaces.shape[1]))
+    nPoly = max(loops.shape[1] for loops in list_loops)
+    loops = np.concatenate(
+        [
+            np.pad(loops, ((0, 0), (0, nPoly - loops.shape[1])), mode="edge")
+            for loops in list_loops
+        ]
+    )
+
+    if mesh.dim == 3:
+        # a face shared by two elements is inside
+        _, inverse, counts = np.unique(
+            np.sort(loops, axis=1), axis=0, return_inverse=True, return_counts=True
+        )
+        loops = loops[counts[inverse.ravel()] == 1]
+
+    # closed polylines: [nPoly + 1, i0, ..., i_nPoly-1, i0]
+    lines = np.column_stack(
+        [np.full(len(loops), nPoly + 1), loops, loops[:, 0]]
+    ).ravel()
+
+    return pv.PolyData(points, lines=lines)
 
 
 @singledispatch

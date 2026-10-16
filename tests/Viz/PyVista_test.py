@@ -107,13 +107,51 @@ def test_Plot_without_result_draws_solid_edged_faces(bar_simu):
         title="mesh",
     )
 
-    (grid,) = _meshes(plotter)
+    (grid,) = _meshes(plotter, pv.UnstructuredGrid)
+    (edges,) = _meshes(plotter, pv.PolyData)
     prop = _actor(plotter, grid).prop
     assert grid.n_cells == bar_simu.mesh.Ne
     assert prop.color == pv.Color("red")
-    assert prop.show_edges and prop.opacity == 0.5 and prop.line_width == 3
+    assert prop.opacity == 0.5
+    assert _actor(plotter, edges).prop.line_width == 3
     assert _has_title(plotter)
     assert len(plotter.scalar_bars) == 0
+
+
+def test_Plot_plotMesh_draws_each_element_outline_not_the_vtk_edges(subtests, mesh_of):
+    # loops per element: 1 in 2D; in 3D, only the boundary faces
+    for elemType in (ElemType.TRI6, ElemType.QUAD8, ElemType.TETRA10, ElemType.HEXA8):
+        with subtests.test(elemType=elemType):
+            mesh = mesh_of(elemType)
+            groupElem = mesh.groupElem
+
+            plotter = PyVista.Plot(mesh, plotMesh=True)
+
+            (grid,) = _meshes(plotter, pv.UnstructuredGrid)
+            (edges,) = _meshes(plotter, pv.PolyData)
+            assert not _actor(plotter, grid).prop.show_edges
+            # every loop goes through all the nodes of its face, mid-side nodes included
+            nPoly = groupElem.surfaces.shape[1]
+            assert (
+                edges.lines.reshape(-1, nPoly + 2)[:, 0].tolist()
+                == [nPoly + 1] * edges.n_lines
+            )
+            if mesh.dim == 2:
+                assert edges.n_lines == mesh.Ne
+            else:
+                assert (
+                    edges.n_lines
+                    == grid.extract_surface(
+                        nonlinear_subdivision=0, algorithm="dataset_surface"
+                    ).n_cells
+                )
+
+
+def test_Plot_plotMesh_keeps_the_vtk_edges_of_a_pyvista_dataset():
+    plotter = PyVista.Plot(pv.Sphere(), plotMesh=True)
+
+    (sphere,) = _meshes(plotter)
+    assert _actor(plotter, sphere).prop.show_edges
 
 
 def test_Plot_colors_a_pyvista_dataset_by_its_named_array():
@@ -175,7 +213,7 @@ def test_Plot_Mesh_draws_one_cell_per_element(subtests, mesh_of):
 
             plotter = PyVista.Plot_Mesh(mesh)
 
-            (grid,) = _meshes(plotter)
+            (grid,) = _meshes(plotter, pv.UnstructuredGrid)
             assert grid.n_cells == mesh.Ne
             assert _actor(plotter, grid).prop.color == pv.Color("cyan")
 
@@ -185,8 +223,10 @@ def test_Plot_Mesh_draws_the_deformed_mesh(bar_simu):
 
     plotter = PyVista.Plot_Mesh(bar_simu, deformFactor=10)
 
-    (grid,) = _meshes(plotter)
+    (grid,) = _meshes(plotter, pv.UnstructuredGrid)
+    (edges,) = _meshes(plotter, pv.PolyData)
     assert np.isclose(grid.bounds[1], L + 10 * ux.max())
+    assert np.isclose(edges.bounds[1], grid.bounds[1])
 
 
 def test_Plot_Mesh_view_covers_every_mesh_drawn():
