@@ -40,13 +40,10 @@ jobs:
         if: runner.os == 'Linux'
         run: |
           sudo apt-get update
-          sudo apt-get install -y libglu1-mesa xvfb
+          sudo apt-get install -y libglu1-mesa
 
-      - name: Start a virtual display (Ubuntu)
-        if: runner.os == 'Linux'
-        run: |
-          Xvfb :99 -screen 0 1024x768x24 &
-          echo "DISPLAY=:99" >> $GITHUB_ENV
+      - name: Set up a headless display, so PyVista movies render
+        uses: pyvista/setup-headless-display-action@v5
       
       - name: Install dependencies
         run: |
