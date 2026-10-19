@@ -3,9 +3,12 @@
 # This file is part of the EasyFEA project.
 # EasyFEA is distributed under the terms of the GNU General Public License v3, see LICENSE.txt and CREDITS.md for more information.
 
-import numpy as np
+import importlib.util
 
-from EasyFEA import ElemType, Mesh, Models, Simulations
+import numpy as np
+import pytest
+
+from EasyFEA import ElemType, Mesh, Models, Simulations, SolverType
 from EasyFEA.Geoms import Domain
 
 from _numerics import rel_error
@@ -126,3 +129,32 @@ def test_Thermal_thermalModel_change_flags_reassembly(
             assert_change_flags_reassembly(
                 simu, lambda: setattr(model, name, factor * getattr(model, name))
             )
+
+
+def test_Thermal_every_solver_gives_the_slab_temperature(subtests):
+    """Direct solvers to round-off, iterative ones to their default tolerance. On 2 QUAD4."""
+    mesh = Domain((0, 0), (L, H), H).Mesh_2D([], ElemType.QUAD4, isOrganised=True)
+    nodesX0 = mesh.Nodes_Conditions(lambda x, y, z: x == 0)
+    nodesXL = mesh.Nodes_Conditions(lambda x, y, z: x == L)
+    expected = _reference.slab_temperature(mesh.coord[:, 0], L, T0, TL)
+    solvers = {
+        SolverType.petsc: (1e-4, "petsc4py"),
+        SolverType.pypardiso: (1e-12, "pypardiso"),
+        SolverType.scipy: (1e-12, None),
+        SolverType.cg: (1e-4, None),
+        SolverType.bicg: (1e-4, None),
+        SolverType.gmres: (1e-4, None),
+        SolverType.lgmres: (1e-4, None),
+    }
+    for solver, (tol, module) in solvers.items():
+        with subtests.test(solver=str(solver)):
+            if module is not None and importlib.util.find_spec(module) is None:
+                pytest.skip(f"{module} not installed")
+            simu = Simulations.Thermal(mesh, Models.Thermal(1.0, 1.0))
+            simu.solver = solver
+            simu.add_dirichlet(nodesX0, [T0], ["t"])
+            simu.add_dirichlet(nodesXL, [TL], ["t"])
+
+            simu.Solve()
+
+            assert rel_error(simu.thermal, expected) < tol
