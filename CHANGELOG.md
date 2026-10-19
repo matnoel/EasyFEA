@@ -2,6 +2,79 @@
 
 This document describes the changes made to the project.
 
+## 7.1.0 (October 19, 2026):
+
+### Point location and projection
+
+- Point location is vectorized: candidate elements from bounding spheres, reference
+  coordinates by an exact inverse map for affine elements (nodes fit `x = ξ J + b`) or
+  Newton otherwise, and a point shared by several elements goes to the one it is deepest
+  in. Used by `Calc_projector`, `Evaluate_dofsValues_at_coordinates` and DIC (LV mesh
+  `Calc_projector`: 28 s → 0.36 s). Curved and distorted elements invert the
+  isoparametric map, not its linearization.
+- `Calc_projector` extrapolates new nodes outside the old mesh by default
+  (`extrapolate=True`), raises when a node gets no reference coordinates, and loses
+  `linkCorners`.
+- `GroupElem.Get_F_e_pg` and `Get_invF_e_pg` become the private `_Get_J_e_pg` and
+  `_Get_invJ_e_pg`, `J[k, d] = ∂x_d/∂ξ_k`. `_Get_nearby_nodes`,
+  `_Get_nearby_elements` and `_Get_Mapping` are removed.
+
+### Visualization and IO
+
+- `IO.Gmsh.Save_simu` writes `simu.msh` (+ `simu.msh.opt`) instead of `simu.pos`:
+  nodal model views on every node, high-order elements drawn curved.
+- `PyVista.Plot(plotMesh=True)` draws each element outline through its mid-side nodes
+  (boundary faces only in 3D), as Matplotlib does, instead of VTK's subdivided edges.
+- `IO.Paraview.Save_simu` honours `elementFields` and raises `ValueError` on an
+  unavailable requested field.
+- `IO.GLTF`: a list of arrays gets one buffer view per array.
+
+### API
+
+- `Models.InElastic`: `MaterialPoint.Update` runs one strain-driven step at one point,
+  in 2D or 3D.
+- Exported: the protocols `IO.MeshSaver`, `IO.MeshLoader`, `IO.SimuSaver` and
+  `Viz.Viewer`; `FEM.Get_Pmat`, `FEM.Apply_Pmat`, `Models.InElastic.PointUpdate`; in
+  `Utilities`, the MPI reductions, `rank0_only`, `MPI_RANK`, `MPI_SIZE`, `Updatable`.
+
+### Fixes
+
+- FEM: `LinearForm.Assemble` assembles the element vectors (it failed on any mesh);
+  `Field` puts the shape function on the active dof, so vector forms no longer couple
+  components; `Field` reflected `-`, `/` and `@` keep the operand order;
+  `Calc_regulation_projector` keeps every node's row; `_GroupElem.surfaces` normals point
+  outward; `TRI15.triangles` drops a duplicated triangle; `Get_Elements_Nodes` drops only
+  the nodes beyond the mesh; `Get_dofs_nodes` raises on an unknown direction;
+  `Mesh.inDim` is read from the current coordinates.
+- Mesher: geo `CircleArc` major arcs no longer take the minor way; physical groups work
+  with the geo factory; an unknown `refineGeom` type raises `TypeError`.
+- Geoms: `CircleArc` with `P` goes through `P`; `Circle_Coords` rejects `R` below half
+  the chord; `Angle_Between` handles one colinear row; `AsCoords` pads 2D rows.
+- Models: Miehe's Lode angle no longer gives NaN on a double eigenvalue.
+- Simulations: Beam `add_connection_hinged` in 3D frees the given rotations, a list of
+  beams builds its structure; PhaseField `Result('uz')` reads z, `str()`, `Save` and
+  `Save_Iter` work before any iteration; WeakForms `Result('vx')`/`('ax')` read v and a;
+  Thermal 2D matrices scale with the thickness; `SolverType.lgmres` no longer passes
+  `maxiter=None`; DIC keeps a pixel in the element its reference coordinates come from
+  and rebuilds its factorizations after load or copy; `_Simu.center` sums over elements
+  and Gauss points.
+- IO: text files are written as UTF-8, so the GLTF viewer no longer fails on Windows.
+- MPI: `import EasyFEA` under `mpirun` no longer needs petsc4py; creating a simulation
+  in parallel raises `ModuleNotFoundError` without it.
+- Viz: PyVista `_Plotter` honours `off_screen`, `Plot_Geoms` draws a `Point`;
+  Matplotlib `Plot_Energy` and `Plot_Iter_Summary` handle one-row figures and empty
+  summaries.
+
+### Development
+
+- Test suite rewritten on the user-facing API (issues #69, #70): shared fixtures and
+  exact references, parametrized cases and subtests, no plots.
+- CI: branch-coverage gate (`fail_under = 74`) on the installed package; `mpi`-marked
+  tests run by `make test-mpi` in their own job; a headless display on Ubuntu and
+  Windows, so PyVista movies render.
+
+**Full Changelog:** https://github.com/matnoel/EasyFEA/compare/v7.0.0...v7.1.0
+
 ## 7.0.0 (October 10, 2026):
 
 7.0.0 breaks the API in many places, and no aliases are kept. Read the **breaking**
