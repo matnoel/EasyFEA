@@ -104,10 +104,21 @@ def test_CircleArc_center_R_and_P_build_the_same_arc():
         ((1, 0), (-1, 0), (0, -1), (0, -1)),
         ((1, 0), (0, 1), (S, S), (S, S)),
         ((1, 0), (0, 1), (-1, 0), (-S, -S)),
+        ((3, 0), (0, 3), (3 * S, 3 * S), (3 * S, 3 * S)),
+        ((3, 0), (0, 3), (-3, 0), (-3 * S, -3 * S)),
         ((1, 0, 0), (-1, 0, 0), (0, 0, 1), (0, 0, 1)),
         ((0, 0, 1), (0, 0, -1), (1, 0, 0), (1, 0, 0)),
     ],
-    ids=["upper half", "lower half", "minor", "major", "xz half", "chord along z"],
+    ids=[
+        "upper half",
+        "lower half",
+        "minor",
+        "major",
+        "minor R=3",
+        "major R=3",
+        "xz half",
+        "chord along z",
+    ],
 )
 def test_CircleArc_goes_through_P(pt1, pt2, P, expected):
     assert CircleArc(pt1, pt2, P=P).pt3.Check(expected)

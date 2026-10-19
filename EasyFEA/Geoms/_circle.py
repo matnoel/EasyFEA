@@ -320,7 +320,7 @@ class CircleArc(_Geom):
             # P lies on the minor arc iff it is within half the span of its midpoint
             halfSpan = Angle_Between(i1, i2) / 2
             toP = AsCoords(P) - center.coord
-            coef = 1 if toP @ mat[:, 0] >= r1**2 * (np.cos(halfSpan) - 1e-12) else -1
+            coef = 1 if toP @ mat[:, 0] >= r1 * (np.cos(halfSpan) - 1e-12) else -1
         pt3 = center.coord + mat @ [coef * r1, 0, 0]
 
         self.coef = coef
