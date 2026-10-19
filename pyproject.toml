@@ -86,7 +86,11 @@ filterwarnings = [
 
 [tool.coverage.run]
 branch = true
-source = ["EasyFEA"]
+source_pkgs = ["EasyFEA"]
+
+[tool.coverage.paths]
+# CI imports the installed package: report it as the repo files
+source = ["EasyFEA/", "*/site-packages/EasyFEA/"]
 
 [tool.coverage.report]
 fail_under = 74
