@@ -16,13 +16,13 @@ This document describes the changes made to the project.
   (`extrapolate=True`), raises when a node gets no reference coordinates, and loses
   `linkCorners`.
 - `GroupElem.Get_F_e_pg` and `Get_invF_e_pg` become the private `_Get_J_e_pg` and
-  `_Get_invJ_e_pg`, `J[k, d] = ∂x_d/∂ξ_k`. `_Get_nearby_nodes`,
-  `_Get_nearby_elements` and `_Get_Mapping` are removed.
+  `_Get_invJ_e_pg`, `J[k, d] = ∂x_d/∂ξ_k`. `_Get_nearby_nodes`, `_Get_nearby_elements`
+  and `_Get_Mapping` are removed.
 
 ### Visualization and IO
 
-- `IO.Gmsh.Save_simu` writes `simu.msh` (+ `simu.msh.opt`) instead of `simu.pos`:
-  nodal model views on every node, high-order elements drawn curved.
+- `IO.Gmsh.Save_simu` writes `simu.msh` (+ `simu.msh.opt`) instead of `simu.pos`: nodal
+  model views on every node, high-order elements drawn curved.
 - `PyVista.Plot(plotMesh=True)` draws each element outline through its mid-side nodes
   (boundary faces only in 3D), as Matplotlib does, instead of VTK's subdivided edges.
 - `IO.Paraview.Save_simu` honours `elementFields` and raises `ValueError` on an
@@ -42,9 +42,9 @@ This document describes the changes made to the project.
 - FEM: `LinearForm.Assemble` assembles the element vectors (it failed on any mesh);
   `Field` puts the shape function on the active dof, so vector forms no longer couple
   components; `Field` reflected `-`, `/` and `@` keep the operand order;
-  `Calc_regulation_projector` keeps every node's row; `_GroupElem.surfaces` normals point
-  outward; `TRI15.triangles` drops a duplicated triangle; `Get_Elements_Nodes` drops only
-  the nodes beyond the mesh; `Get_dofs_nodes` raises on an unknown direction;
+  `Calc_regulation_projector` keeps every node's row; `_GroupElem.surfaces` normals
+  point outward; `TRI15.triangles` drops a duplicated triangle; `Get_Elements_Nodes`
+  drops only the nodes beyond the mesh; `Get_dofs_nodes` raises on an unknown direction;
   `Mesh.inDim` is read from the current coordinates.
 - Mesher: geo `CircleArc` major arcs no longer take the minor way; physical groups work
   with the geo factory; an unknown `refineGeom` type raises `TypeError`.
@@ -61,9 +61,8 @@ This document describes the changes made to the project.
 - IO: text files are written as UTF-8, so the GLTF viewer no longer fails on Windows.
 - MPI: `import EasyFEA` under `mpirun` no longer needs petsc4py; creating a simulation
   in parallel raises `ModuleNotFoundError` without it.
-- Viz: PyVista `_Plotter` honours `off_screen`, `Plot_Geoms` draws a `Point`;
-  Matplotlib `Plot_Energy` and `Plot_Iter_Summary` handle one-row figures and empty
-  summaries.
+- Viz: PyVista `_Plotter` honours `off_screen`, `Plot_Geoms` draws a `Point`; Matplotlib
+  `Plot_Energy` and `Plot_Iter_Summary` handle one-row figures and empty summaries.
 
 ### Development
 
