@@ -264,7 +264,7 @@ def Plot(
         bounds,
     )
 
-    tic.Tac("PyVista_Interface", "Plot")
+    tic.Tac("PyVista", "Plot")
 
     return plotter
 
@@ -870,7 +870,7 @@ def Plot_BoundaryConditions(
         bounds,
     )
 
-    tic.Tac("PyVista_Interface", "Plot_BoundaryConditions")
+    tic.Tac("PyVista", "Plot_BoundaryConditions")
 
     return plotter
 
@@ -1225,7 +1225,7 @@ def Movie_func(
 
         plotter.write_frame()
 
-        time = tic.Tac("PyVista_Interface", "Movie_func", False)
+        time = tic.Tac("PyVista", "Movie_func", False)
 
         iteration = i + 1
         rmTime = Tic.Get_Remaining_Time(iteration, N, time)
