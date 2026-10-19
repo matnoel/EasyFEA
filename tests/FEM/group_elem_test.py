@@ -1581,6 +1581,16 @@ def test_GroupElem__Get_containing_elements_finds_the_element_and_its_xi(grid: M
     assert elem_n[1] == -1 and np.all(np.isinf(xi_n[1]))
 
 
+def test_GroupElem__Get_containing_elements_raises_on_an_unknown_topology(
+    grid: Mesh, monkeypatch: pytest.MonkeyPatch
+):
+    groupElem = grid.groupElem
+    monkeypatch.setattr(type(groupElem), "topology", property(lambda self: "PYRA"))
+
+    with pytest.raises(ValueError, match="PYRA"):
+        groupElem._Get_containing_elements(np.array([[1.2, 0.5, 0]]))
+
+
 # ----------------------------------------------------------------------------
 # factory
 # ----------------------------------------------------------------------------

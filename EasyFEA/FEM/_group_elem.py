@@ -1925,12 +1925,14 @@ class _GroupElem(ABC):
     ) -> tuple[_types.FloatArray, _types.FloatArray]:
         """(refDistance, ξ) of each node in its element: how far ξ is inside the reference element, > 0 inside, 0 on a side, < 0 outside; -inf off a 0D, 1D or 2D element."""
 
+        topology = self.topology
+        if topology not in ("POINT", "SEG", "QUAD", "HEXA", "TRI", "TETRA", "PRISM"):
+            raise ValueError(f"refDistance not implemented for {topology}.")
+
         xi_n = self._Get_xi(coordinates_n, elements_n)  # (Nn, dim)
 
-        # SEG, QUAD, HEXA: 1 - max|ξ|; TRI, TETRA: smallest barycentric coordinate
-        topology = self.topology
         with np.errstate(invalid="ignore"):
-            if self.dim == 0:
+            if topology == "POINT":
                 refDistance_n = np.zeros(xi_n.shape[0])
             elif topology in ("TRI", "TETRA"):
                 # ξ_i ≥ 0 and Σ ξ_i ≤ 1
