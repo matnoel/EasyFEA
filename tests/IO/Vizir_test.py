@@ -58,7 +58,7 @@ def test_Get_empty_groupElem_gives_the_element_of_the_requested_order(
 
 def read_solution(path: str, keyword: str, nRows: int, nHeader: int = 3) -> np.ndarray:
     """The `nRows` value rows after `keyword` and its `nHeader` lines (count, type, order)."""
-    lines = Path(path).read_text().splitlines()
+    lines = Path(path).read_text(encoding="utf-8").splitlines()
     start = lines.index(keyword) + 1 + nHeader
     return np.loadtxt(lines[start : start + nRows], ndmin=2)
 
@@ -122,7 +122,11 @@ def test_Write_solution_file_writes_the_warp_vector_and_its_factor(
 
     values = read_solution(path, "SolAtVertices", mesh.Nn, 2)
     np.testing.assert_allclose(values, warp)
-    assert (tmp_path / "default.vizir").read_text().split() == ["WarpVec", "1", "5.0"]
+    assert (tmp_path / "default.vizir").read_text(encoding="utf-8").split() == [
+        "WarpVec",
+        "1",
+        "5.0",
+    ]
 
 
 def test_Write_solution_file_rejects_an_unknown_solution_type(make_mesh_2D, tmp_path):
@@ -152,7 +156,7 @@ def test_Save_simu_lists_one_solution_file_per_iteration(
     assert command == f"vizir4 -in {meshFile} -sols {sols[0]} {sols[1]}"
     assert meshFile.exists()
     for result, solsFile in zip(["ux", "displacement"], sols):
-        assert solsFile.read_text().split() == [
+        assert solsFile.read_text(encoding="utf-8").split() == [
             str(tmp_path / f"{result}.{i}.sol") for i in range(len(LOADS))
         ]
 
@@ -162,7 +166,7 @@ def test_Save_simu_samples_at_most_N_iterations(
 ):
     IO.Vizir.Save_simu(bar_simu, str(tmp_path), N=2, results=["ux"], types=[1])
 
-    assert (tmp_path / "ux.sols").read_text().split() == [
+    assert (tmp_path / "ux.sols").read_text(encoding="utf-8").split() == [
         str(tmp_path / f"ux.{i}.sol") for i in (0, len(LOADS) - 1)
     ]
 

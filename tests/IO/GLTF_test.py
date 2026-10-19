@@ -218,7 +218,7 @@ def test_write_file_dedents_and_strips(tmp_path):
     path = str(tmp_path / "file.txt")
 
     assert IO.GLTF._write_file(path, "\n    a\n      b\n    ") == path
-    with open(path) as file:
+    with open(path, encoding="utf-8") as file:
         assert file.read() == "a\n  b"
 
 
@@ -261,7 +261,7 @@ def test_Create_html_on_a_folder_selects_between_its_glb_files(make_mesh_2D, tmp
 
     htmlFile, modelViewerDir = IO.GLTF.Create_html(str(tmp_path), defaultResult="uy")
 
-    with open(htmlFile) as file:
+    with open(htmlFile, encoding="utf-8") as file:
         html = file.read()
     assert htmlFile == str(tmp_path / f"{tmp_path.name}.html")
     assert 'src="uy.glb"' in html
@@ -286,7 +286,7 @@ def test_Create_html_on_a_file_shows_that_file_alone(make_mesh_2D, tmp_path):
 
     htmlFile, _ = IO.GLTF.Create_html(path)
 
-    with open(htmlFile) as file:
+    with open(htmlFile, encoding="utf-8") as file:
         html = file.read()
     assert htmlFile == str(tmp_path / "b.html")
     assert 'src="b.glb"' in html

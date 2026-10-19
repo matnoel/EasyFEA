@@ -774,7 +774,7 @@ def test_Mesher_Create_posFile_writes_a_scalar_view(tmp_path):
     path = Mesher().Create_posFile(coord, np.ones(3), str(tmp_path), "size")
 
     assert path.endswith("size.pos")
-    with open(path) as file:
+    with open(path, encoding="utf-8") as file:
         assert "scalar points" in file.read()
 
 
@@ -821,7 +821,7 @@ def test_Mesher__Mesh_Refine_refines_the_background(tmp_path, subtests):
 
 def test_Mesher__Mesh_Refine_skips_what_it_cannot_read(tmp_path, capsys):
     text = tmp_path / "size.txt"
-    text.write_text("")
+    text.write_text("", encoding="utf-8")
 
     Ne = _refined_Ne([None, str(tmp_path / "missing.pos"), str(text)])
 

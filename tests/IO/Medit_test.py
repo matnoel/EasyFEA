@@ -80,6 +80,8 @@ def test_Load_mesh_keeps_each_reference_on_its_own_elements(tmp_path):
 
 def test_Load_mesh_returns_None_for_a_file_without_elements(tmp_path):
     path = tmp_path / "empty.mesh"
-    path.write_text("MeshVersionFormatted 2\nDimension 3\nVertices\n0\nEnd\n")
+    path.write_text(
+        "MeshVersionFormatted 2\nDimension 3\nVertices\n0\nEnd\n", encoding="utf-8"
+    )
 
     assert IO.Medit.Load_mesh(str(path)) is None

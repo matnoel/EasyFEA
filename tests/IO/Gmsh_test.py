@@ -56,7 +56,8 @@ def test_Load_mesh_returns_None_for_a_file_without_elements(tmp_path):
     path = tmp_path / "empty.msh"
     path.write_text(
         "$MeshFormat\n2.2 0 8\n$EndMeshFormat\n$Nodes\n1\n1 0 0 0\n$EndNodes\n"
-        "$Elements\n0\n$EndElements\n"
+        "$Elements\n0\n$EndElements\n",
+        encoding="utf-8",
     )
 
     assert IO.Gmsh.Load_mesh(str(path)) is None
