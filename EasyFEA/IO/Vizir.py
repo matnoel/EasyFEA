@@ -319,13 +319,15 @@ def _Write_solution_file(
     if warpVector_n is not None:
         if warpVector_n.ndim == 2:
 
-            with open(Folder.Join(Folder.Dir(folder), "default.vizir"), "w") as f:
+            with open(
+                Folder.Join(Folder.Dir(folder), "default.vizir"), "w", encoding="utf-8"
+            ) as f:
                 # write WarpVec
                 f.write(f"WarpVec\n1\n{deformFactor}\n\n")
 
     Nn = mesh.coord.shape[0]
 
-    with open(solutionFile, "w") as f:
+    with open(solutionFile, "w", encoding="utf-8") as f:
         # write first lines
         f.write("MeshVersionFormatted 2\n")
         f.write("Dimension 3\n\n")  # the mesh is always in a 3d space
@@ -404,7 +406,9 @@ def Save_simu(
 
     # init sols files and make checks
     for result, type in zip(results, types):
-        with open(Folder.Join(folder, f"{result}.sols", mkdir=True), "w") as file:
+        with open(
+            Folder.Join(folder, f"{result}.sols", mkdir=True), "w", encoding="utf-8"
+        ) as file:
             # do nothing
             pass
         assert type in SOLUTION_TYPES
@@ -420,7 +424,9 @@ def Save_simu(
             assembly_e = simu.mesh.Get_assembly_e(dof_n)
 
             # init sols file
-            with open(Folder.Join(folder, f"{result}.sols"), "a") as file:
+            with open(
+                Folder.Join(folder, f"{result}.sols"), "a", encoding="utf-8"
+            ) as file:
                 filename = f"{result}.{i}"
 
                 # save the solution

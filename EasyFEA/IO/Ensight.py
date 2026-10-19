@@ -100,7 +100,7 @@ def _Ensight_to_PyVista(geoFile: str) -> pv.MultiBlock:
     folder = Folder.Dir(geoFile)
     name = Folder.os.path.basename(geoFile).split(".geo")[0]
     caseFile = Folder.Join(folder, f"{name}.case")
-    with open(caseFile, "w") as f:
+    with open(caseFile, "w", encoding="utf-8") as f:
         f.write("FORMAT\n")
         f.write("type: ensight\n")
         f.write("GEOMETRY\n")
@@ -156,7 +156,7 @@ def Load_mesh(path: str) -> Mesh:
         Converted EasyFEA mesh object.
     """
 
-    with open(path, "r") as file:
+    with open(path, "r", encoding="utf-8") as file:
         lines = file.readlines()
 
     dict_ensightType_data: dict[str, dict[str, _types.IntArray]] = {}
@@ -300,7 +300,7 @@ def Save_mesh(
     # offset to ensure that parts starts at 0
     offset = 1 if parts.min() == 0 else 0
 
-    with open(filename, "w") as file:
+    with open(filename, "w", encoding="utf-8") as file:
 
         file.write("Geometry ensight6 file\n")
         file.write(f"{name}\n")

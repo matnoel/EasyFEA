@@ -679,7 +679,7 @@ def Save_mesh(
 
 
 def _write_file(file: str, content: str) -> str:
-    with open(file, "w") as f:
+    with open(file, "w", encoding="utf-8") as f:
         f.write(textwrap.dedent(content).strip())
     return file
 

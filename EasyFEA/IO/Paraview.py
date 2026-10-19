@@ -297,7 +297,7 @@ def __Make_vtu(
 
     endian_paraview = "LittleEndian"  # 'LittleEndian' 'BigEndian'
 
-    with open(filename, "w") as file:
+    with open(filename, "w", encoding="utf-8") as file:
         file.write('<?xml version="1.0" ?>\n')
         file.write(
             f'<VTKFile type="UnstructuredGrid" version="0.1" byte_order="{endian_paraview}">\n'
@@ -444,7 +444,7 @@ def __Make_vtu(
         __WriteBinary(types.size, "uint32", file)
         __WriteBinary(types, "int8", file)
 
-    with open(filename, "a") as file:
+    with open(filename, "a", encoding="utf-8") as file:
         file.write("\n\t</AppendedData>\n")
         file.write("</VTKFile> \n")
 
@@ -482,7 +482,7 @@ def __Make_pvd(filename: str, pvFiles: list[str] = []):
 
     dir = Folder.Dir(filename)
 
-    with open(filename, "w") as file:
+    with open(filename, "w", encoding="utf-8") as file:
         file.write('<?xml version="1.0" ?>\n')
         file.write(
             f'<VTKFile type="Collection" version="0.1" byte_order="{endian_paraview}">\n'
@@ -516,7 +516,7 @@ def __Make_pvtu(
     pvtu_filename = filename + ".pvtu"
     dir = Folder.Dir(pvtu_filename)
 
-    with open(pvtu_filename, "w") as file:
+    with open(pvtu_filename, "w", encoding="utf-8") as file:
         file.write('<?xml version="1.0" ?>\n')
         file.write(
             f'<VTKFile type="PUnstructuredGrid" version="0.1" byte_order="{endian_paraview}">\n'
