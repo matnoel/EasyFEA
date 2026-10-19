@@ -19,7 +19,6 @@ from ..Utilities import Folder, Terminal, Tic, _params, _types
 from ..Utilities._cache import cache_computed_values, clear_cached_computed_values
 from ..Utilities._observers import Observable, _IObserver
 from ..Utilities._mpi import (
-    CAN_USE_MPI,
     MPI_SIZE,
     MPI_RANK,
     Reduce_sum,
@@ -50,10 +49,6 @@ from .Solvers import (
     CAN_USE_PYPARDISO,
     _Get_PETSc,
 )
-
-if MPI_SIZE > 1:
-    error = "You must install petsc4py and mpi4py in order to run EasyFEA in parallel."
-    assert CAN_USE_MPI and _Get_PETSc() is not None, error
 
 
 @cache
@@ -663,6 +658,10 @@ class _Simu(_IObserver, _params.Updatable, ABC):
 
         # Solver used
         if MPI_SIZE > 1:
+            if _Get_PETSc() is None:
+                raise ModuleNotFoundError(
+                    "You must install petsc4py in order to run a simulation in parallel."
+                )
             self.solver = SolverType.petsc
         elif CAN_USE_PYPARDISO:
             self.solver = SolverType.pypardiso

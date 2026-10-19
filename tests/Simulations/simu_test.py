@@ -789,6 +789,15 @@ def test_Simu_Assembly_is_what_Get_K_C_M_F_returns():
         assert (matrix != expected).nnz == 0
 
 
+def test_Simu_in_parallel_requires_petsc4py(monkeypatch: pytest.MonkeyPatch):
+    _simu = importlib.import_module("EasyFEA.Simulations._simu")
+    monkeypatch.setattr(_simu, "MPI_SIZE", 2)
+    monkeypatch.setattr(_simu, "_Get_PETSc", lambda: None)
+
+    with pytest.raises(ModuleNotFoundError, match="petsc4py"):
+        _thermal()
+
+
 def test_Simu_solver_keeps_its_value_on_an_unknown_one():
     simu = _thermal()
 
