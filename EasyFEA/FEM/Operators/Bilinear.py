@@ -12,7 +12,7 @@ from .._utils import MatrixType
 from ...Utilities import _types
 
 from ..Elems._beam import _Timoshenko, _EulerBernoulli
-from ._utils import einsum, Restrict, Scatter
+from ._utils import einsum, Repeat, Restrict, Scatter
 
 if TYPE_CHECKING:
     from .._group_elem import _GroupElem
@@ -22,10 +22,14 @@ if TYPE_CHECKING:
 def GradUGradV(
     groupElem: "_GroupElem",
     coef: _types.Number | FeArray.FeArrayALike = 1.0,
+    dof_n: int = 1,
     elements: _types.IntArray | None = None,
     matrixType: MatrixType = MatrixType.rigi,
 ) -> np.ndarray:
-    """``∫_Ω coef · ∇u · ∇v dΩ`` — returns ``(Ne, nPe, nPe)``.
+    """``∫_Ω coef · ∇u · ∇v dΩ`` — returns ``(Ne, nPe·dof_n, nPe·dof_n)``.
+
+    ``dof_n=1`` for scalar fields (thermal, phase-field);
+    ``dof_n>1`` for vector fields: the scalar block on each component, no coupling.
 
     ``coef`` may be scalar, ``(Ne,)`` or ``(Ne, nPg)``;
     broadcast via :meth:`FeArray.broadcast` (stride view, no copy).
@@ -38,7 +42,7 @@ def GradUGradV(
     coef = FeArray.broadcast(coef, Ne, nPg, tensor_shape=())
     coef, mat_e_pg, dN_e_pg = Restrict(elements, coef, mat_e_pg, dN_e_pg)
     values_e = einsum("epij,epjk->eik", coef * mat_e_pg, dN_e_pg)
-    return Scatter(values_e, Ne, elements)
+    return Scatter(Repeat(values_e, dof_n), Ne, elements)
 
 
 def UV(

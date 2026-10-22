@@ -38,3 +38,14 @@ def Scatter(
     out = np.zeros((Ne, *values_e.shape[1:]), dtype=values_e.dtype)
     out[elements] = values_e
     return out
+
+
+def Repeat(values_e: np.ndarray, dof_n: int) -> np.ndarray:
+    """The scalar `(Ne, nPe, nPe)` block on each of `dof_n` uncoupled components: `(Ne, nPe·dof_n, nPe·dof_n)`, dofs node-major."""
+    if dof_n == 1:
+        return values_e
+    Ne, nPe = values_e.shape[:2]
+    out = np.zeros((Ne, nPe, dof_n, nPe, dof_n), dtype=values_e.dtype)
+    for c in range(dof_n):
+        out[:, :, c, :, c] = values_e
+    return out.reshape(Ne, nPe * dof_n, nPe * dof_n)

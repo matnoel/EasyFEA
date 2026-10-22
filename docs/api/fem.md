@@ -87,7 +87,8 @@ functions.
 - {py:func}`~EasyFEA.FEM.Operators.Bilinear.UV` — $\int_\Omega c \, u \, v \, \dO$
   (mass).
 - {py:func}`~EasyFEA.FEM.Operators.Bilinear.GradUGradV` —
-  $\int_\Omega c \, \grad u \cdot \grad v \, \dO$ (diffusion / Laplacian).
+  $\int_\Omega c \, \grad u \cdot \grad v \, \dO$ (diffusion / Laplacian; `dof_n` for a
+  vector field).
 - {py:func}`~EasyFEA.FEM.Operators.Bilinear.GradU_A_GradV` —
   $\int_\Omega c \, \grad u \cdot \Abf \cdot \grad v \, \dO$ (anisotropic diffusion).
 - {py:func}`~EasyFEA.FEM.Operators.Bilinear.LinearizedElasticity` —

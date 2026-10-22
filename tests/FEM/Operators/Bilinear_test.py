@@ -85,6 +85,19 @@ def test_UV_per_element_coefficient_and_restriction(mesh_of: MeshOf, subtests):
             assert not np.any(np.delete(M_e, elements, axis=0))
 
 
+def test_dof_n_repeats_the_scalar_block(mesh_of: MeshOf, subtests):
+    """dof_n = 3: the scalar block on each component, zero between components."""
+    groupElem = mesh_of(ElemType.TETRA4).groupElem
+    for operator in [Bilinear.UV, Bilinear.GradUGradV]:
+        with subtests.test(operator=operator.__name__):
+            scalar = operator(groupElem)
+            vector = operator(groupElem, dof_n=3)
+            for c in range(3):
+                for d in range(3):
+                    expected = scalar if c == d else np.zeros_like(scalar)
+                    assert np.array_equal(vector[:, c::3, d::3], expected)
+
+
 def test_LinearizedElasticity_energy_of_an_affine_displacement(
     mesh_of: MeshOf, subtests
 ):
