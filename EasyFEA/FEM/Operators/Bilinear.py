@@ -55,16 +55,21 @@ def UV(
     """``∫_Ω coef · u · v dΩ`` — returns ``(Ne, nPe·dof_n, nPe·dof_n)``.
 
     ``dof_n=1`` for scalar fields (thermal, phase-field);
-    ``dof_n=dim`` for vector fields (elastic dynamics).
+    ``dof_n=dim`` for vector fields (elastic dynamics): the scalar block on each component.
 
     ``coef`` may be scalar, ``(Ne,)`` or ``(Ne, nPg)``;
     broadcast via :meth:`FeArray.broadcast` (stride view, no copy).
+
+    ``elements`` restricts the integral to those elements of ``groupElem``; the result stays full-group, exact zero outside.
     """
-    mat_e_pg = groupElem.Get_ReactionPart_e_pg(matrixType, dof_n)
-    Ne, nPg = mat_e_pg.shape[:2]
+    wJ_e_pg = groupElem.Get_weightedJacobian_e_pg(matrixType)
+    N_pg = groupElem.Get_N_pg(matrixType)
+    Ne, nPg = wJ_e_pg.shape[:2]
     coef = FeArray.broadcast(coef, Ne, nPg, tensor_shape=())
-    coef, mat_e_pg = Restrict(elements, coef, mat_e_pg)
-    return Scatter((coef * mat_e_pg).integrate(), Ne, elements)
+    coef, wJ_e_pg = Restrict(elements, coef, wJ_e_pg)
+    # N is the same on every element: one (Ne, nPg) @ (nPg, nPe²) product
+    values_e = einsum("ep,pki,pkj->eij", coef * wJ_e_pg, N_pg, N_pg)
+    return Scatter(Repeat(values_e, dof_n), Ne, elements)
 
 
 def LinearizedElasticity(

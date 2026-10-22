@@ -98,6 +98,22 @@ def test_dof_n_repeats_the_scalar_block(mesh_of: MeshOf, subtests):
                     assert np.array_equal(vector[:, c::3, d::3], expected)
 
 
+def test_UV_mass_of_an_affine_field_on_quadratic_elements(mesh_of: MeshOf, subtests):
+    """f = x − 2y + z/2: fᵀ M f = ∫ f² dΩ."""
+    for elemType in [ElemType.TETRA10, ElemType.HEXA27, ElemType.PRISM18]:
+        with subtests.test(elemType=str(elemType)):
+            mesh = mesh_of(elemType)
+            groupElem = mesh.groupElem
+            f = affine(mesh.coord, [1.0, -2.0, 0.5])
+
+            M_e = Bilinear.UV(groupElem)
+
+            expected = groupElem.Integrate_e(
+                lambda x, y, z: (x - 2 * y + 0.5 * z) ** 2
+            ).sum()
+            assert rel_error(quadratic_form(groupElem, M_e, f), expected) < 1e-12
+
+
 def test_LinearizedElasticity_energy_of_an_affine_displacement(
     mesh_of: MeshOf, subtests
 ):
