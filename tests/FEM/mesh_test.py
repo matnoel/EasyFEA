@@ -494,6 +494,7 @@ def test_Mesh_Get_Paired_Nodes_from_corner_nodes(grid: Mesh):
 def test_Mesh_Get_meshSize_is_the_cell_size(grid: Mesh, mixed: Mesh):
     assert np.allclose(grid.Get_meshSize(), 1)
     assert np.allclose(grid.Get_meshSize(doMean=False), np.ones((grid.Ne, 4)))
+    assert np.allclose(_grid(ElemType.QUAD9).Get_meshSize(), 1)
     assert mixed.Get_meshSize().size == mixed.Ne
     with pytest.raises(Exception, match="several groups|ragged"):
         mixed.Get_meshSize(doMean=False)
