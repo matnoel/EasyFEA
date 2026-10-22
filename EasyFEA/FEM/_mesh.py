@@ -1041,10 +1041,8 @@ class Mesh(Observable):
         # indexes to access segments of each element
         segments_e = groupElem.connect[:, groupElem.segments]
 
-        # for each element (e), calculate the length of each segment (s)
-        return np.linalg.norm(
-            coord[segments_e[:, :, 1]] - coord[segments_e[:, :, 0]], axis=2
-        )
+        # for each element (e), the length of each segment (s) along its nodes, mid-edge ones included
+        return np.linalg.norm(np.diff(coord[segments_e], axis=2), axis=3).sum(axis=2)
 
     def Get_meshSize(self, doMean=True) -> _types.FloatArray:
         """Returns the mesh size of the mesh.\n
