@@ -16,7 +16,7 @@ For instance, a TRI3 mesh uses POINT, SEG2 and TRI3 elements."""
 # Nodes & Elements
 # Factory
 
-from abc import ABC, abstractmethod
+import functools
 import itertools
 from scipy import sparse, spatial
 import numpy as np
@@ -24,7 +24,9 @@ from typing import Callable
 
 # fem
 from ._gauss import Gauss
-from ._fearray import FeArray, Trace, Transpose, Det, Inv, Normalize
+from ._fearray import FeArray
+from ._mapping import _Mapping
+from ._reference_element import _ReferenceElement
 
 # utils
 from ._utils import ElemType, MatrixType
@@ -38,8 +40,8 @@ from ..Utilities import _types, _params
 from ..Utilities._cache import cache_computed_values, clear_cached_computed_values
 
 
-class _GroupElem(ABC):
-    """The `_GroupElem` base class, from which all element types inherit."""
+class _GroupElem:
+    """A group of elements of one `ElemType`, over its reference element."""
 
     def __init__(
         self,
@@ -61,18 +63,9 @@ class _GroupElem(ABC):
 
         self.__gmshId = gmshId
 
-        elemType, nPe, dim, order, Nvertex, Nedge, Nface, Nvolume = (
-            GroupElemFactory.Get_ElemInFos(gmshId)
-        )
-
-        self.__elemType = elemType
-        self.__nPe = nPe
-        self.__dim = dim
-        self.__order = order
-        self.__Nvertex = Nvertex
-        self.__Nedge = Nedge
-        self.__Nface = Nface
-        self.__Nvolume = Nvolume
+        elemType = GroupElemFactory.Get_ElemInFos(gmshId)[0]
+        self.__referenceElement = GroupElemFactory._Get_reference_element(elemType)
+        nPe = self.nPe
 
         # Elements
         if connect.size != 0:  # connect can be empty
@@ -117,6 +110,22 @@ class _GroupElem(ABC):
         # Dictionaries for each matrix type
         clear_cached_computed_values(self)
 
+    @property
+    @cache_computed_values
+    def __mapping(self) -> _Mapping:
+        """geometry map, rebuilt with the coordinates"""
+        return _Mapping(self)
+
+    def __setstate__(self, state: dict) -> None:
+        """Loads older pickles too, which hold the elemType instead of the reference element."""
+        if "_GroupElem__elemType" in state:
+            state = state.copy()
+            elemType = state.pop("_GroupElem__elemType")
+            state["_GroupElem__referenceElement"] = (
+                GroupElemFactory._Get_reference_element(elemType)
+            )
+        self.__dict__.update(state)
+
     # --------------------------------------------------------------------------------------------
     # Properties
     # --------------------------------------------------------------------------------------------
@@ -129,27 +138,27 @@ class _GroupElem(ABC):
     @property
     def elemType(self) -> ElemType:
         """element type"""
-        return self.__elemType
+        return self.__referenceElement.elemType
 
     @property
     def topology(self) -> str:
         """element topology"""
-        return "".join(char for char in self.__elemType if not char.isdigit())
+        return self.__referenceElement.topology
 
     @property
     def nPe(self) -> int:
         """nodes per element"""
-        return self.__nPe
+        return self.__referenceElement.nPe
 
     @property
     def dim(self) -> int:
         """element dimension"""
-        return self.__dim
+        return self.__referenceElement.dim
 
     @property
     def order(self) -> int:
         """element order"""
-        return self.__order
+        return self.__referenceElement.order
 
     @property
     def inDim(self) -> int:
@@ -297,22 +306,22 @@ class _GroupElem(ABC):
     @property
     def Nvertex(self) -> int:
         """number of vertex nodes per element"""
-        return self.__Nvertex
+        return self.__referenceElement.Nvertex
 
     @property
     def Nedge(self) -> int:
         """number of edge nodes per element"""
-        return self.__Nedge
+        return self.__referenceElement.Nedge
 
     @property
     def Nface(self) -> int:
         """number of face nodes per element"""
-        return self.__Nface
+        return self.__referenceElement.Nface
 
     @property
     def Nvolume(self) -> int:
         """number of volume nodes per element"""
-        return self.__Nvolume
+        return self.__referenceElement.Nvolume
 
     @property
     def connect(self) -> _types.IntArray:
@@ -410,89 +419,7 @@ class _GroupElem(ABC):
         This matrix can be used to project points with (x, y, z) coordinates into the element's (i, j, k) coordinate system.\n
         coord_e * sysCoord_e -> coordinates in element's (i, j, k) coordinate system.
         """
-
-        coord = self.coord
-        connect = self._global_to_local_nodes[self.connect]
-        if displacementMatrix is not None:
-            displacementMatrix = np.asarray(displacementMatrix, dtype=float)
-            shape = (self.Ncoords, 3)
-            assert (
-                displacementMatrix.shape == shape
-            ), f"displacmentMatrix must be of shape {shape}"
-            coord += displacementMatrix[self.nodes]
-
-        if self.dim in [0, 3]:
-            sysCoord_e = np.eye(3)
-            sysCoord_e = sysCoord_e[np.newaxis, :].repeat(self.Ne, axis=0)
-
-        elif self.dim in [1, 2]:
-            # 2D lines or elements
-
-            if self.dim == 2:
-                # Ensure outward-facing normals for all mesh faces.
-                connect = connect[:, self.faces]
-
-            points1 = coord[connect[:, 0]]
-            points2 = coord[connect[:, 1]]
-
-            i = Normalize(points2 - points1)
-
-            if self.dim == 1:
-                # Segments
-
-                e1 = np.array([1, 0, 0])[np.newaxis, :].repeat(i.shape[0], axis=0)
-                e2 = np.array([0, 1, 0])[np.newaxis, :].repeat(i.shape[0], axis=0)
-                e3 = np.array([0, 0, 1])[np.newaxis, :].repeat(i.shape[0], axis=0)
-
-                if self.inDim == 1:
-                    j = e2
-                    k = e3
-
-                elif self.inDim == 2:
-                    j = np.cross((0, 0, 1), i)
-                    k = np.cross(i, j, axis=1)
-
-                elif self.inDim == 3:
-                    j = np.cross(i, e1, axis=1)
-
-                    rep2 = np.where(np.linalg.norm(j, axis=1) < 1e-12)
-                    rep1 = np.setdiff1d(range(i.shape[0]), rep2)
-
-                    k1 = j.copy()
-                    j1 = np.cross(k1, i, axis=1)
-
-                    j2 = np.cross(e2, i, axis=1)
-                    k2 = np.cross(i, j2, axis=1)
-
-                    j = np.zeros_like(i)
-                    j[rep1] = j1[rep1]
-                    j[rep2] = j2[rep2]
-                    j = Normalize(j)
-
-                    k = np.zeros_like(i, dtype=float)
-                    k[rep1] = k1[rep1]
-                    k[rep2] = k2[rep2]
-                    k = Normalize(k)
-
-            else:
-                if "TRI" in self.elemType:
-                    points3 = coord[connect[:, 2]]
-                elif "QUAD" in self.elemType:
-                    points3 = coord[connect[:, 3]]
-                else:
-                    raise TypeError("unknown type")
-
-                j = Normalize(points3 - points1)
-                k = Normalize(np.cross(i, j, axis=1))
-                j = Normalize(np.cross(k, i, axis=1))
-
-            sysCoord_e = np.zeros((self.Ne, 3, 3), dtype=float)
-
-            sysCoord_e[:, :, 0] = i
-            sysCoord_e[:, :, 1] = j
-            sysCoord_e[:, :, 2] = k
-
-        return sysCoord_e
+        return self.__mapping.Get_frame_e(displacementMatrix)
 
     def Get_normals_e_pg(
         self,
@@ -504,39 +431,9 @@ class _GroupElem(ABC):
 
         With ``normalize=False`` the vectors are returned as computed, i.e. as the cross product of the surface tangents: their norm is then the surface jacobian, so ``weight_pg * normals`` is the area-weighted normal ``wJ_e_pg * normals_e_pg``. On the configuration selected by ``displacementMatrix`` this is the only route to a deformed surface measure, since ``Get_weightedJacobian_e_pg`` reaches the coordinates through the cached ``Get_jacobian_e_pg`` / ``_Get_J_e_pg`` and only ever knows the reference configuration.
         """
-
-        dim = self.dim
-        assert dim in [1, 2], "You can't compute normals for 0D or 3D elements."
-
-        # get coords as a (Ne, nPe, 3) array
-        coord = self.coord
-        connect = self._global_to_local_nodes[self.connect]
-        if displacementMatrix is not None:
-            displacementMatrix = np.asarray(displacementMatrix, dtype=float)
-            shape = (self.Ncoords, 3)
-            assert (
-                displacementMatrix.shape == shape
-            ), f"displacmentMatrix must be of shape {shape}"
-            coord += displacementMatrix[self.nodes]
-        coord_e = coord[connect]
-
-        # get the first derivatives of the shape functions as a (nPg, dim, nPe) array
-        dN_pg = self.Get_dN_pg(matrixType)
-        dNdr_pg = dN_pg[:, 0]
-
-        dxdr_e_pg = np.einsum("pn,end->epd", dNdr_pg, coord_e, optimize="optimal")
-
-        if dim == 1:
-            normals_e_pg = np.cross((0, 0, 1), dxdr_e_pg)
-        else:
-            dNds_pg = dN_pg[:, 1]
-            dxds_e_pg = np.einsum("pn,end->epd", dNds_pg, coord_e, optimize="optimal")
-            normals_e_pg = np.cross(dxdr_e_pg, dxds_e_pg)
-
-        if normalize:
-            normals_e_pg = Normalize(normals_e_pg)
-
-        return FeArray.asfearray(normals_e_pg)
+        return self.__mapping.Get_normals_e_pg(
+            matrixType, displacementMatrix, normalize
+        )
 
     def _Get_gap_and_normal(
         self,
@@ -703,74 +600,38 @@ class _GroupElem(ABC):
         return center
 
     @property
-    @abstractmethod
     def origin(self) -> list[int]:
         """reference element origin coordinates"""
-        return [0]
+        return self.__referenceElement.origin
 
     @property
-    @abstractmethod
     def triangles(self) -> list[int]:
         """list of index used to form the triangles of an element that will be used for the 2D trisurf function"""
+        return self.__referenceElement.triangles
 
     @property
-    def segments(self) -> _types.IntArray:  # type: ignore [return]
+    def segments(self) -> _types.IntArray:
         """array of indices used to construct segments (for display purposes)."""
-        nPe = 2 + self.order - 1
-        if self.__dim == 1:
-            segments = np.zeros((1, nPe), dtype=int)
-            segments[0, 0] = 0
-            segments[0, -1] = 1
-            if nPe > 2:
-                vertices_on_seg = np.arange(
-                    segments.max() + 1, segments.max() + 1 + self.order - 1
-                )
-                segments[0, 1 : nPe - 1] = vertices_on_seg
-
-            return segments
-        elif self.__dim == 2:
-            segments = np.zeros((self.Nvertex, nPe), dtype=int)
-            segments[:, 0] = np.arange(self.Nvertex)
-            segments[:, -1] = np.append(np.arange(1, self.Nvertex, 1), 0)
-
-            if nPe > 2:
-                for i in range(self.Nvertex):
-                    vertices_on_seg = np.arange(
-                        segments.max() + 1, segments.max() + 1 + self.order - 1
-                    )
-                    segments[i, 1 : nPe - 1] = vertices_on_seg
-
-            return segments
-        elif self.__dim == 3:
-            raise Exception("Needs to be defined for 3D element groups.")
+        return self.__referenceElement.segments
 
     @property
     def edges(self) -> _types.IntArray:
         """array of indices used to form the element edges (for FEM purposes)."""
-        segments = self.segments
-        idx = np.arange(segments.shape[1])
-        order = [0, -1] + idx[1:-1].tolist()
-        edges = segments[:, order]
-        return edges
+        return self.__referenceElement.edges
 
     @property
-    @abstractmethod
     def surfaces(self) -> _types.IntArray:
-        """array of indices used to form the contour of the surfaces that make up the element (for display purposes).
-
-        WARNING
-        -------
-        When adding new 3D elements, ensure that the resulting surface normals point outward from the element.
-        """
+        """array of indices used to form the contour of the surfaces that make up the element (for display purposes)."""
+        return self.__referenceElement.surfaces
 
     @property
-    @abstractmethod
     def faces(self) -> _types.IntArray:
         """array of indices used to form the element faces (for FEM purposes)."""
+        return self.__referenceElement.faces
 
-    @abstractmethod
     def Get_Local_Coords(self) -> _types.FloatArray:
         """Get local ξ, η, ζ coordinates as a (nPe, dim) numpy array"""
+        return self.__referenceElement.Get_Local_Coords()
 
     # --------------------------------------------------------------------------------------------
     # Gauss
@@ -778,11 +639,11 @@ class _GroupElem(ABC):
 
     def Get_gauss(self, matrixType: MatrixType) -> Gauss:
         """Returns integration points according to the matrix type."""
-        return Gauss(self.elemType, matrixType)
+        return self.__referenceElement.Get_gauss(matrixType)
 
     def Get_weight_pg(self, matrixType: MatrixType) -> _types.FloatArray:
         """Returns integration point weights according to the matrix type."""
-        return Gauss(self.elemType, matrixType).weights
+        return self.__referenceElement.Get_weight_pg(matrixType)
 
     def Get_GaussCoordinates_e_pg(
         self,
@@ -794,31 +655,7 @@ class _GroupElem(ABC):
 
         With ``displacementMatrix`` the coordinates are evaluated on the deformed configuration, as in :meth:`Get_normals_e_pg`. This is the supported way to reach a deformed configuration: mutating ``mesh.coord`` in place does not propagate here, because each group holds its own local copy of the coordinates (see the ``coord`` setter).
         """
-
-        N_pg = self.Get_N_pg(matrixType)
-
-        # retrieve node coordinates
-        coord = self.coord
-        connect = self._global_to_local_nodes[self.connect]
-
-        if displacementMatrix is not None:
-            displacementMatrix = np.asarray(displacementMatrix, dtype=float)
-            shape = (self.Ncoords, 3)
-            assert (
-                displacementMatrix.shape == shape
-            ), f"displacmentMatrix must be of shape {shape}"
-            coord += displacementMatrix[self.nodes]
-
-        # nodes coordinates for each element
-        if elements.size == 0:
-            coord_e = coord[connect]
-        else:
-            coord_e = coord[connect[elements]]
-
-        # localize coordinates on Gauss points
-        coordo_e_p = np.einsum("pin,end->epd", N_pg, coord_e, optimize="optimal")
-
-        return FeArray.asfearray(coordo_e_p)
+        return self.__mapping.Get_x_e_pg(matrixType, elements, displacementMatrix)
 
     def Interpolate_e_pg(
         self, sol: _types.FloatArray, matrixType=MatrixType.rigi
@@ -833,59 +670,15 @@ class _GroupElem(ABC):
     # Isoparametric elements
     # --------------------------------------------------------------------------------------------
 
-    @cache_computed_values
     def _Get_J_e_pg(self, matrixType: MatrixType) -> FeArray.FeArrayALike:
         """Jacobian matrix, one row per reference axis: ``J[k, d] = ∂x_d/∂ξ_k``, in the element frame for a line or face in space."""
-        if self.dim == 0:
-            return None  # type: ignore [return-value]
+        return self.__mapping.Get_J_e_pg(matrixType)
 
-        connect = self._global_to_local_nodes[self.connect]
-        coord_e = self.coord[connect]
-        # Node coordinates in the (X, Y, Z) coordinate system of each element
-
-        rebased_coord_e = coord_e.copy()
-        if self.dim != self.inDim:
-            P_e = self._Get_sysCoord_e()  # transformation matrix for each element
-            # matrix used to project element's points with (x, y, z) coordinates
-            # into the (X, Y, Z) coordinate system.
-
-            # check whether P_e is orthogonal
-            isOrth_e = Trace(Transpose(P_e) @ P_e) == 3
-
-            # (x, y, z) = (X, Y, Z) * P_e  <==>  aj = bi Pij
-            rebased_coord_e[isOrth_e] = coord_e[isOrth_e] @ P_e[isOrth_e]
-
-            # (x, y, z) = (X, Y, Z) * P_e^(-T)  <==>  aj = bi inv(P)ji
-            rebased_coord_e[~isOrth_e] = coord_e[~isOrth_e] @ Transpose(
-                Inv(P_e[~isOrth_e])
-            )
-
-        rebased_coord_e = rebased_coord_e[:, :, : self.dim]
-        # (Ne, nPe, dim)
-
-        dN_pg = self.Get_dN_pg(matrixType)
-
-        # (nPg, dim, nPe) @ (Ne, 1, nPe, dim) -> (Ne, nPg, dim, dim)
-        J_e_pg = FeArray.asfearray(dN_pg @ rebased_coord_e[:, None])
-
-        return J_e_pg
-
-    @cache_computed_values
     def Get_jacobian_e_pg(
         self, matrixType: MatrixType, absoluteValues=True
     ) -> FeArray.FeArrayALike:
-        """Jacobian ``det J``: actual over reference length, area or volume."""
-        if self.dim == 0:
-            return None  # type: ignore [return-value]
-
-        J_e_pg = self._Get_J_e_pg(matrixType)
-
-        jacobian_e_pg = Det(J_e_pg)
-
-        if absoluteValues:
-            jacobian_e_pg = np.abs(jacobian_e_pg)
-
-        return jacobian_e_pg
+        """Jacobian ``det J``: actual over reference length, area or volume; √det(T Tᵀ) of the tangents T = ∂x/∂ξ for a line or face in space."""
+        return self.__mapping.Get_jacobian_e_pg(matrixType, absoluteValues)
 
     def Get_weightedJacobian_e_pg(self, matrixType: MatrixType) -> FeArray.FeArrayALike:
         """Returns the jacobian_e_pg * weight_pg."""
@@ -899,84 +692,25 @@ class _GroupElem(ABC):
 
         return FeArray.asfearray(wJ_e_pg)
 
-    @cache_computed_values
     def _Get_invJ_e_pg(self, matrixType: MatrixType) -> FeArray.FeArrayALike:
         """Inverse jacobian matrix: ``dN_e_pg = invJ_e_pg @ dN_pg``."""
-        if self.dim == 0:
-            return None  # type: ignore [return-value]
-
-        J_e_pg = self._Get_J_e_pg(matrixType)
-
-        invJ_e_pg = Inv(J_e_pg)
-
-        return invJ_e_pg
+        return self.__mapping.Get_invJ_e_pg(matrixType)
 
     # --------------------------------------------------------------------------------------------
     # Finite element shape functions
     # --------------------------------------------------------------------------------------------
 
-    @staticmethod
-    def _Eval_Functions(
-        functions: _types.FloatArray, gaussPoints: _types.FloatArray
-    ) -> _types.FloatArray:
-        """Evaluates functions at coordinates.\n
-        Use this function to evaluate shape functions.
-
-        Parameters
-        ----------
-        functions : _types.FloatArray
-            functions to evaluate, (nPe, dim)
-        gaussPoints : _types.FloatArray
-            gauss coordinates where functions will be evaluated (nPg, dim).\n
-            Be careful dim must be consistent with function arguments
-
-        Returns
-        -------
-        _types.FloatArray
-            Evaluated functions (nPg, dim, nPe)
-        """
-
-        nPg = gaussPoints.shape[0]
-        nPe = functions.shape[0]
-        nF = functions.shape[1]
-
-        evalFunctions = np.zeros((nPg, nF, nPe))
-
-        # each function at every point at once, constants broadcast
-        for n, function_nPe in enumerate(functions):
-            for f in range(nF):
-                evalFunctions[:, f, n] = function_nPe[f](*gaussPoints.T)  # type: ignore [index]
-
-        return evalFunctions
+    _Eval_Functions = staticmethod(_ReferenceElement._Eval_Functions)
 
     def _Init_Functions(self, order: int) -> _types.FloatArray:
         """Initializes functions to be evaluated at Gauss points."""
-        if self.dim == 1 and self.order < order:
-            functions = np.array([lambda x: 0] * self.nPe)
-        elif self.dim == 2 and self.order < order:
-            functions = np.array([lambda xi, η: 0, lambda xi, η: 0] * self.nPe)
-        elif self.dim == 3 and self.order < order:
-            functions = np.array(
-                [lambda x, y, z: 0, lambda x, y, z: 0, lambda x, y, z: 0] * self.nPe
-            )
-        else:
-            raise TypeError("unknwown dim")
-        functions = np.reshape(functions, (self.nPe, -1))
-        return functions
+        return self.__referenceElement._Init_Functions(order)
 
     # N
 
-    @abstractmethod
     def _N(self) -> _types.FloatArray:
-        """Shape functions in (ξ, η, ζ) reference coordinates.
-
-        ```
-        [ N₁ ]
-        [ ⋮  ]
-        [ Nₙ ]
-        ```
-        Shape: ``(nPe, 1)``.
-        """
+        """Shape functions in (ξ, η, ζ) reference coordinates, ``(nPe, 1)``."""
+        return self.__referenceElement._N()
 
     def Get_N_pg(self, matrixType: MatrixType) -> _types.FloatArray:
         """Shape functions evaluated at Gauss points in (ξ, η, ζ).
@@ -986,14 +720,7 @@ class _GroupElem(ABC):
         ```
         Shape: ``(nPg, 1, nPe)``.
         """
-        if self.dim == 0:
-            return None  # type: ignore [return-value]
-
-        N = self._N()
-        gauss = self.Get_gauss(matrixType)
-        N_pg = _GroupElem._Eval_Functions(N, gauss.coord)
-
-        return N_pg
+        return self.__referenceElement.Get_N_pg(matrixType)
 
     def Get_N_pg_rep(self, matrixType: MatrixType, repeat=1) -> _types.FloatArray:
         """Shape functions arranged in a block-diagonal matrix of width ``repeat``.
@@ -1038,18 +765,9 @@ class _GroupElem(ABC):
 
     # dN
 
-    @abstractmethod
     def _dN(self) -> _types.FloatArray:
-        """First derivatives of the shape functions in (ξ, η, ζ).
-
-        ```
-        [ N₁,ξ  N₁,η  N₁,ζ ]
-        [  ⋮     ⋮     ⋮   ]
-        [ Nₙ,ξ  Nₙ,η  Nₙ,ζ ]
-        ```
-        Shape: ``(nPe, dim)``.
-        """
-        return self._Init_Functions(1)
+        """First derivatives of the shape functions in (ξ, η, ζ), ``(nPe, dim)``."""
+        return self.__referenceElement._dN()
 
     def Get_dN_pg(self, matrixType: MatrixType) -> _types.FloatArray:
         """First derivatives of the shape functions, evaluated at Gauss points in (ξ, η, ζ).
@@ -1061,15 +779,7 @@ class _GroupElem(ABC):
         ```
         Shape: ``(nPg, dim, nPe)``.
         """
-        if self.dim == 0:
-            return None  # type: ignore [return-value]
-
-        dN = self._dN()
-
-        gauss = self.Get_gauss(matrixType)
-        dN_pg = _GroupElem._Eval_Functions(dN, gauss.coord)
-
-        return dN_pg
+        return self.__referenceElement.Get_dN_pg(matrixType)
 
     @cache_computed_values
     def Get_dN_e_pg(self, matrixType: MatrixType) -> FeArray.FeArrayALike:
@@ -1096,20 +806,10 @@ class _GroupElem(ABC):
 
     # ddN
 
-    @abstractmethod
     def _ddN(self) -> _types.FloatArray:
-        """Second derivatives of the shape functions in (ξ, η, ζ).
+        """Second derivatives of the shape functions in (ξ, η, ζ), ``(nPe, dim)``."""
+        return self.__referenceElement._ddN()
 
-        ```
-        [ N₁,ξξ  N₁,ηη  N₁,ζζ ]
-        [  ⋮      ⋮      ⋮    ]
-        [ Nₙ,ξξ  Nₙ,ηη  Nₙ,ζζ ]
-        ```
-        Shape: ``(nPe, dim)``.
-        """
-        return self._Init_Functions(2)
-
-    @cache_computed_values
     def Get_ddN_e_pg(self, matrixType: MatrixType) -> FeArray.FeArrayALike:
         """Second derivatives of the shape functions in physical (x, y, z) coordinates.
 
@@ -1119,17 +819,11 @@ class _GroupElem(ABC):
         [ N₁,zz  ⋯  Nₙ,zz ]
         ```
 
-        Obtained from :meth:`Get_ddN_pg` via the (squared) inverse Jacobian.
+        Chain rule on the full reference Hessian, mixed derivatives and curvature ∂²x/∂ξ² included.
 
         Shape: ``(Ne, nPg, dim, nPe)``.
         """
-
-        invJ_e_pg = self._Get_invJ_e_pg(matrixType)
-
-        ddN_pg = self.Get_ddN_pg(matrixType)
-        ddN_e_pg = invJ_e_pg @ invJ_e_pg @ FeArray.from_pg(ddN_pg, invJ_e_pg.shape[0])
-
-        return ddN_e_pg
+        return self.__mapping.Get_ddN_e_pg(matrixType)
 
     def Get_ddN_pg(self, matrixType: MatrixType) -> _types.FloatArray:
         """Second derivatives of the shape functions, evaluated at Gauss points in (ξ, η, ζ).
@@ -1141,30 +835,13 @@ class _GroupElem(ABC):
         ```
         Shape: ``(nPg, dim, nPe)``.
         """
-        if self.dim == 0:
-            return None  # type: ignore [return-value]
-
-        ddN = self._ddN()
-
-        gauss = self.Get_gauss(matrixType)
-        ddN_pg = _GroupElem._Eval_Functions(ddN, gauss.coord)
-
-        return ddN_pg
+        return self.__referenceElement.Get_ddN_pg(matrixType)
 
     # dddN
 
-    @abstractmethod
     def _dddN(self) -> _types.FloatArray:
-        """Third derivatives of the shape functions in (ξ, η, ζ).
-
-        ```
-        [ N₁,ξξξ  N₁,ηηη  N₁,ζζζ ]
-        [  ⋮       ⋮       ⋮     ]
-        [ Nₙ,ξξξ  Nₙ,ηηη  Nₙ,ζζζ ]
-        ```
-        Shape: ``(nPe, dim)``.
-        """
-        return self._Init_Functions(3)
+        """Third derivatives of the shape functions in (ξ, η, ζ), ``(nPe, dim)``."""
+        return self.__referenceElement._dddN()
 
     def Get_dddN_pg(self, matrixType: MatrixType) -> _types.FloatArray:
         """Third derivatives of the shape functions, evaluated at Gauss points in (ξ, η, ζ).
@@ -1176,30 +853,13 @@ class _GroupElem(ABC):
         ```
         Shape: ``(nPg, dim, nPe)``.
         """
-        if self.dim == 0:
-            return None  # type: ignore [return-value]
-
-        dddN = self._dddN()
-
-        gauss = self.Get_gauss(matrixType)
-        dddN_pg = _GroupElem._Eval_Functions(dddN, gauss.coord)
-
-        return dddN_pg
+        return self.__referenceElement.Get_dddN_pg(matrixType)
 
     # ddddN
 
-    @abstractmethod
     def _ddddN(self) -> _types.FloatArray:
-        """Fourth derivatives of the shape functions in (ξ, η, ζ).
-
-        ```
-        [ N₁,ξξξξ  N₁,ηηηη  N₁,ζζζζ ]
-        [  ⋮        ⋮        ⋮      ]
-        [ Nₙ,ξξξξ  Nₙ,ηηηη  Nₙ,ζζζζ ]
-        ```
-        Shape: ``(nPe, dim)``.
-        """
-        return self._Init_Functions(4)
+        """Fourth derivatives of the shape functions in (ξ, η, ζ), ``(nPe, dim)``."""
+        return self.__referenceElement._ddddN()
 
     def Get_ddddN_pg(self, matrixType: MatrixType) -> _types.FloatArray:
         """Fourth derivatives of the shape functions, evaluated at Gauss points in (ξ, η, ζ).
@@ -1211,15 +871,7 @@ class _GroupElem(ABC):
         ```
         Shape: ``(nPg, dim, nPe)``.
         """
-        if self.dim == 0:
-            return None  # type: ignore [return-value]
-
-        ddddN = self._ddddN()
-
-        gauss = self.Get_gauss(matrixType)
-        ddddN_pg = _GroupElem._Eval_Functions(ddddN, gauss.coord)
-
-        return ddddN_pg
+        return self.__referenceElement.Get_ddddN_pg(matrixType)
 
     # --------------------------------------------------------------------------------------------
     # Finite element matrices
@@ -1776,9 +1428,11 @@ class _GroupElem(ABC):
         self, coordinates_n: _types.NumberArray, elem: int
     ) -> _types.IntArray:
         """Indexes of the coordinates (n, 3) contained in the element."""
-        coordinates_n = np.asarray(coordinates_n, dtype=float).reshape(-1, 3)
-        elements_n = np.full(coordinates_n.shape[0], elem)
-        refDistance_n = self.__Get_refDistance(coordinates_n, elements_n)[0]
+        coord_n: _types.FloatArray = np.asarray(coordinates_n, dtype=float).reshape(
+            -1, 3
+        )
+        elements_n = np.full(coord_n.shape[0], elem)
+        refDistance_n = self.__Get_refDistance(coord_n, elements_n)[0]
         return np.flatnonzero(refDistance_n >= -1e-10)
 
     def Get_Mapping(
@@ -1895,7 +1549,7 @@ class _GroupElem(ABC):
         starts = np.flatnonzero(np.diff(chunk_e)) + 1
 
         # _p = per (node, element) pair
-        containing = [empty]
+        containing: list[tuple[_types.AnyArray, ...]] = [empty]
         for iElem in np.split(np.arange(elements_e.size), starts):
             # nodes in each element's own sphere, one list per element
             near_e = tree.query_ball_point(center_e[iElem], radius_e[iElem], workers=-1)
@@ -1930,21 +1584,7 @@ class _GroupElem(ABC):
             raise ValueError(f"refDistance not implemented for {topology}.")
 
         xi_n = self._Get_xi(coordinates_n, elements_n)  # (Nn, dim)
-
-        with np.errstate(invalid="ignore"):
-            if topology == "POINT":
-                refDistance_n = np.zeros(xi_n.shape[0])
-            elif topology in ("TRI", "TETRA"):
-                # ξ_i ≥ 0 and Σ ξ_i ≤ 1
-                refDistance_n = np.minimum(xi_n.min(1), 1 - xi_n.sum(1))
-            elif topology == "PRISM":
-                # triangle in (ξ, η), [-1, 1] in ζ
-                tri_n = xi_n[:, :2]
-                refDistance_n = np.minimum.reduce(
-                    [tri_n.min(1), 1 - tri_n.sum(1), 1 - np.abs(xi_n[:, 2])]
-                )
-            else:  # SEG, QUAD, HEXA: [-1, 1]^dim
-                refDistance_n = 1 - np.abs(xi_n).max(1)
+        refDistance_n = self.__referenceElement.Get_refDistance(xi_n)
         refDistance_n[~np.isfinite(refDistance_n)] = -np.inf  # (Nn,)
 
         # a surface (line, point) in a higher dim space: ξ only gives the projection, check the distance
@@ -1952,11 +1592,7 @@ class _GroupElem(ABC):
             connect = self._global_to_local_nodes[self.connect]
             coordElem_n = self.coord[connect[elements_n]]  # (Nn, nPe, 3)
             with np.errstate(all="ignore"):
-                if self.dim == 0:
-                    x_n = coordElem_n[:, 0]
-                else:
-                    N_n = self._Eval_Functions(self._N(), xi_n)[:, 0]  # (Nn, nPe)
-                    x_n = np.einsum("np,npd->nd", N_n, coordElem_n)  # x(ξ) (Nn, 3)
+                x_n = self.__mapping.Get_x_n(xi_n, elements_n)  # x(ξ) (Nn, 3)
                 distance_n = np.linalg.norm(x_n - coordinates_n, axis=1)
                 size_n = np.ptp(coordElem_n, 1).max(1)
                 refDistance_n[~(distance_n <= 1e-10 * size_n)] = -np.inf
@@ -1966,89 +1602,8 @@ class _GroupElem(ABC):
     def _Get_xi(
         self, coordinates_n: _types.NumberArray, elements_n: _types.IntArray
     ) -> _types.FloatArray:
-        """(ξ, η, ζ) of each node in its element by inverse mapping, outside the reference element if the node is outside, inf if Newton fails."""
-
-        dim = self.dim
-        coordinates_n = np.asarray(coordinates_n, dtype=float)  # (Nn, 3)
-        Nn = coordinates_n.shape[0]
-        if dim == 0 or Nn == 0:
-            return np.zeros((Nn, dim))
-
-        # _u = per element queried, elements_u[inverse_n] = elements_n
-        elements_u, inverse_n = np.unique(elements_n, return_inverse=True)
-        connect = self._global_to_local_nodes[self.connect]
-        coordElem_u = self.coord[connect[elements_u]]  # (Nu, nPe, 3)
-        x_n = coordinates_n
-        if dim != self.inDim:
-            # element's (i, j, k) coordinate system (2D mesh in 3D space)
-            sysCoord_u = self._Get_sysCoord_e()[elements_u]  # (Nu, 3, 3)
-            coordElem_u = coordElem_u @ sysCoord_u
-            x_n = np.einsum("nd,ndj->nj", x_n, sysCoord_u[inverse_n])
-        coordElem_u = coordElem_u[..., :dim]  # (Nu, nPe, dim)
-        x_n = x_n[:, :dim]  # (Nn, dim)
-
-        # affine element: x = ξ J + b, i.e. [ξ_i, 1] [J; b] = x_i at every node
-        # L = [ξ_i, 1] (nPe, dim+1)
-        L = np.column_stack([self.Get_Local_Coords(), np.ones(self.nPe)])
-        invL = np.linalg.pinv(L)  # (dim+1, nPe)
-        # part of the node coordinates that no affine map gives: (I - L L⁺) x_i
-        nonAffine_u = (np.eye(self.nPe) - L @ invL) @ coordElem_u  # (Nu, nPe, dim)
-        size_u = np.ptp(coordElem_u, axis=1).max(1)  # (Nu,)
-        affine_u = np.abs(nonAffine_u).max((1, 2)) <= 1e-12 * size_u
-        affine_n = affine_u[inverse_n]
-        iterative_n = ~affine_n
-
-        # affine: [J; b] = L⁺ x_i, then ξ = (x - b) J⁻¹
-        Jb_u = invL @ coordElem_u  # (Nu, dim+1, dim)
-        J_u, b_u = Jb_u[:, :dim], Jb_u[:, dim]  # (Nu, dim, dim), (Nu, dim)
-        invJ_u = np.full_like(J_u, np.nan)
-        invJ_u[affine_u] = np.linalg.inv(J_u[affine_u])
-        xi_n = np.empty((Nn, dim))
-        xi_n[affine_n] = np.einsum(
-            "nd,ndk->nk",
-            x_n[affine_n] - b_u[inverse_n[affine_n]],
-            invJ_u[inverse_n[affine_n]],
-        )
-        if not iterative_n.any():
-            return xi_n
-
-        # iterative: Newton on x(ξ) = Σ N_i(ξ) x_i = x, from the reference element's center
-        # _i = per iterative node, inf where it does not converge
-        coordElem_i = coordElem_u[inverse_n[iterative_n]]  # (Ni, nPe, dim)
-        x_i = x_n[iterative_n]  # (Ni, dim)
-        N, dN = self._N(), self._dN()
-        Ni = x_i.shape[0]
-        xi_i = np.tile(self.Get_Local_Coords().mean(0), (Ni, 1))  # (Ni, dim)
-        active_i = np.ones(Ni, dtype=bool)
-        with np.errstate(all="ignore"):
-            for _ in range(20):
-                # _a = per active node
-                nodes_a = np.flatnonzero(active_i)
-                if nodes_a.size == 0:
-                    break
-                xi_a = xi_i[nodes_a]
-                coordElem_a = coordElem_i[nodes_a]  # (Na, nPe, dim)
-                N_a = self._Eval_Functions(N, xi_a)[:, 0]  # (Na, nPe)
-                dN_a = self._Eval_Functions(dN, xi_a)  # (Na, dim, nPe)
-                residual_a = np.einsum("np,npd->nd", N_a, coordElem_a) - x_i[nodes_a]
-                # Jᵀ[d, k] = ∂x_d/∂ξ_k (Na, dim, dim)
-                Jt_a = np.einsum("nkp,npd->ndk", dN_a, coordElem_a)
-                regular_a = np.isfinite(Jt_a).all((1, 2)) & (
-                    np.abs(np.linalg.det(Jt_a)) > 0
-                )
-                # Jᵀ δ = -r
-                delta_a = np.full_like(xi_a, np.inf)
-                delta_a[regular_a] = np.linalg.solve(
-                    Jt_a[regular_a], -residual_a[regular_a, :, None]
-                )[..., 0]
-                xi_i[nodes_a] = xi_a + delta_a
-                # stops once converged or diverged
-                active_i[nodes_a] = ~(np.abs(delta_a).max(1) <= 1e-12)
-                active_i[nodes_a[~np.isfinite(delta_a).all(1)]] = False
-        xi_i[active_i | ~np.isfinite(xi_i).all(1)] = np.inf
-        xi_n[iterative_n] = xi_i
-
-        return xi_n
+        """(ξ, η, ζ) of each node in its element by inverse mapping, outside the reference element if the node is outside, inf if Newton fails; the closest point for a line or face in space."""
+        return self.__mapping.Get_xi(coordinates_n, elements_n)
 
 
 # --------------------------------------------------------------------------------------------
@@ -2132,6 +1687,36 @@ class GroupElemFactory:
         ElemType.PRISM15: Elems.PRISM15,
         ElemType.PRISM18: Elems.PRISM18,
     }
+
+    _REFERENCE_ELEMENTS: dict[ElemType, type[_ReferenceElement]] = {
+        ElemType.POINT: Elems._point._POINT,
+        ElemType.SEG2: Elems._seg._SEG2,
+        ElemType.SEG3: Elems._seg._SEG3,
+        ElemType.SEG4: Elems._seg._SEG4,
+        ElemType.SEG5: Elems._seg._SEG5,
+        ElemType.TRI3: Elems._tri._TRI3,
+        ElemType.TRI6: Elems._tri._TRI6,
+        ElemType.TRI10: Elems._tri._TRI10,
+        ElemType.TRI15: Elems._tri._TRI15,
+        ElemType.QUAD4: Elems._quad._QUAD4,
+        ElemType.QUAD8: Elems._quad._QUAD8,
+        ElemType.QUAD9: Elems._quad._QUAD9,
+        ElemType.TETRA4: Elems._tetra._TETRA4,
+        ElemType.TETRA10: Elems._tetra._TETRA10,
+        ElemType.HEXA8: Elems._hexa._HEXA8,
+        ElemType.HEXA20: Elems._hexa._HEXA20,
+        ElemType.HEXA27: Elems._hexa._HEXA27,
+        ElemType.PRISM6: Elems._prism._PRISM6,
+        ElemType.PRISM15: Elems._prism._PRISM15,
+        ElemType.PRISM18: Elems._prism._PRISM18,
+    }
+
+    @staticmethod
+    @functools.cache
+    def _Get_reference_element(elemType: ElemType) -> _ReferenceElement:
+        """The one reference element of elemType."""
+        _, *infos = GroupElemFactory.DICT_ELEMTYPE[elemType]
+        return GroupElemFactory._REFERENCE_ELEMENTS[elemType](elemType, *infos)
 
     @staticmethod
     def _Create(

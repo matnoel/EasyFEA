@@ -8,10 +8,11 @@
 import numpy as np
 
 from .._group_elem import _GroupElem
+from .._reference_element import _ReferenceElement
 from ...Utilities import _types
 
 
-class TETRA4(_GroupElem):
+class _TETRA4(_ReferenceElement):
     #                    v
     #                  .
     #                ,/
@@ -30,11 +31,6 @@ class TETRA4(_GroupElem):
     #              `3
     #                 `\.
     #                    ` w
-
-    def __init__(
-        self, gmshId: int, connect: _types.IntArray, coordinates: _types.FloatArray
-    ):
-        super().__init__(gmshId, connect, coordinates)
 
     @property
     def origin(self) -> list[int]:
@@ -104,7 +100,7 @@ class TETRA4(_GroupElem):
         return super()._ddddN()
 
 
-class TETRA10(_GroupElem):
+class _TETRA10(_ReferenceElement):
     #                    v
     #                  .
     #                ,/
@@ -123,11 +119,6 @@ class TETRA10(_GroupElem):
     #              `3
     #                 `\.
     #                    ` w
-
-    def __init__(
-        self, gmshId: int, connect: _types.IntArray, coordinates: _types.FloatArray
-    ):
-        super().__init__(gmshId, connect, coordinates)
 
     @property
     def origin(self) -> list[int]:
@@ -244,3 +235,11 @@ class TETRA10(_GroupElem):
 
     def _ddddN(self) -> _types.FloatArray:
         return super()._ddddN()
+
+
+class TETRA4(_GroupElem):
+    """TETRA4 elements, over `_TETRA4`."""
+
+
+class TETRA10(_GroupElem):
+    """TETRA10 elements, over `_TETRA10`."""

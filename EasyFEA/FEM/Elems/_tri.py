@@ -8,10 +8,12 @@
 import numpy as np
 
 from .._group_elem import _GroupElem
+from .._reference_element import _ReferenceElement
+from .._utils import MatrixType
 from ...Utilities import _types
 
 
-class TRI3(_GroupElem):
+class _TRI3(_ReferenceElement):
     # v
     # ^
     # |
@@ -22,11 +24,6 @@ class TRI3(_GroupElem):
     # |      `\
     # |        `\
     # 0----------1 --> u
-
-    def __init__(
-        self, gmshId: int, connect: _types.IntArray, coordinates: _types.FloatArray
-    ):
-        super().__init__(gmshId, connect, coordinates)
 
     @property
     def origin(self) -> list[int]:
@@ -78,7 +75,7 @@ class TRI3(_GroupElem):
         return super()._ddddN()
 
 
-class TRI6(_GroupElem):
+class _TRI6(_ReferenceElement):
     # v
     # ^
     # |
@@ -89,11 +86,6 @@ class TRI6(_GroupElem):
     # |      `\
     # |        `\
     # 0----3-----1 --> u
-
-    def __init__(
-        self, gmshId: int, connect: _types.IntArray, coordinates: _types.FloatArray
-    ):
-        super().__init__(gmshId, connect, coordinates)
 
     @property
     def origin(self) -> list[int]:
@@ -165,7 +157,7 @@ class TRI6(_GroupElem):
         return super()._ddddN()
 
 
-class TRI10(_GroupElem):
+class _TRI10(_ReferenceElement):
     # v
     # ^
     # |
@@ -177,10 +169,7 @@ class TRI10(_GroupElem):
     # |         \
     # 0---3---4---1 --> u
 
-    def __init__(
-        self, gmshId: int, connect: _types.IntArray, coordinates: _types.FloatArray
-    ):
-        super().__init__(gmshId, connect, coordinates)
+    _reducedOrders = {MatrixType.mass: 4}
 
     @property
     def origin(self) -> list[int]:
@@ -379,7 +368,7 @@ class TRI10(_GroupElem):
         return super()._ddddN()
 
 
-class TRI15(_GroupElem):
+class _TRI15(_ReferenceElement):
     # v
     # 2
     # | \
@@ -391,10 +380,7 @@ class TRI15(_GroupElem):
     # |             \
     # 0---3---4---5---1
 
-    def __init__(
-        self, gmshId: int, connect: _types.IntArray, coordinates: _types.FloatArray
-    ):
-        super().__init__(gmshId, connect, coordinates)
+    _reducedOrders = {MatrixType.mass: 6}
 
     @property
     def origin(self) -> list[int]:
@@ -849,3 +835,19 @@ class TRI15(_GroupElem):
         )
 
         return ddddN
+
+
+class TRI3(_GroupElem):
+    """TRI3 elements, over `_TRI3`."""
+
+
+class TRI6(_GroupElem):
+    """TRI6 elements, over `_TRI6`."""
+
+
+class TRI10(_GroupElem):
+    """TRI10 elements, over `_TRI10`."""
+
+
+class TRI15(_GroupElem):
+    """TRI15 elements, over `_TRI15`."""

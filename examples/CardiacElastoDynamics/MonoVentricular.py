@@ -60,7 +60,7 @@ if __name__ == "__main__":
 
     matrixType = MatrixType.rigi
     # matrixType = MatrixType.mass
-    # matrixType = 15
+    # matrixType = MatrixType.Order(5)  # 15 points on TETRA4
 
     results_dir = Folder.Join(RESULTS_DIR, config.name, meshName)
 

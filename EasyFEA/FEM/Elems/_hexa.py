@@ -8,10 +8,11 @@
 import numpy as np
 
 from .._group_elem import _GroupElem
+from .._reference_element import _ReferenceElement
 from ...Utilities import _types
 
 
-class HEXA8(_GroupElem):
+class _HEXA8(_ReferenceElement):
     #        v
     # 3----------2
     # |\     ^   |\
@@ -24,11 +25,6 @@ class HEXA8(_GroupElem):
     #   \ |     \  \ |
     #    \|      w  \|
     #     4----------5
-
-    def __init__(
-        self, gmshId: int, connect: _types.IntArray, coordinates: _types.FloatArray
-    ):
-        super().__init__(gmshId, connect, coordinates)
 
     @property
     def origin(self) -> list[int]:
@@ -153,7 +149,7 @@ class HEXA8(_GroupElem):
         return super()._ddddN()
 
 
-class HEXA20(_GroupElem):
+class _HEXA20(_ReferenceElement):
     #        v
     # 3----13----2
     # |\     ^   |\
@@ -166,11 +162,6 @@ class HEXA20(_GroupElem):
     #  10 |     \  12|
     #    \|      w  \|
     #     4----16----5
-
-    def __init__(
-        self, gmshId: int, connect: _types.IntArray, coordinates: _types.FloatArray
-    ):
-        super().__init__(gmshId, connect, coordinates)
 
     @property
     def origin(self) -> list[int]:
@@ -784,7 +775,7 @@ class HEXA20(_GroupElem):
         return super()._ddddN()
 
 
-class HEXA27(_GroupElem):
+class _HEXA27(_ReferenceElement):
     #
     # 3----13----2
     # |\         |\
@@ -797,11 +788,6 @@ class HEXA27(_GroupElem):
     #  10 |  21    12|
     #    \|         \|
     #     4----16----5
-
-    def __init__(
-        self, gmshId: int, connect: _types.IntArray, coordinates: _types.FloatArray
-    ):
-        super().__init__(gmshId, connect, coordinates)
 
     @property
     def origin(self) -> list[int]:
@@ -1383,3 +1369,15 @@ class HEXA27(_GroupElem):
 
     def _ddddN(self) -> _types.FloatArray:
         return super()._ddddN()
+
+
+class HEXA8(_GroupElem):
+    """HEXA8 elements, over `_HEXA8`."""
+
+
+class HEXA20(_GroupElem):
+    """HEXA20 elements, over `_HEXA20`."""
+
+
+class HEXA27(_GroupElem):
+    """HEXA27 elements, over `_HEXA27`."""

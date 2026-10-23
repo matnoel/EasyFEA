@@ -909,6 +909,56 @@ def test_GroupElem__Get_invJ_e_pg_inverts_J(subtests):
             assert rel_error(np.asarray(invJ_e_pg), expected) < 1e-12
 
 
+def _curved(elemType: ElemType, phi: Callable) -> _GroupElem:
+    """One `elemType` element whose nodes are `phi(ξ)`, ξ its reference coordinates as a (nPe, dim) array."""
+    xi = reference_element(elemType).Get_Local_Coords()
+    connect = np.arange(xi.shape[0])[np.newaxis]
+    return GroupElemFactory.Create(elemType, connect, phi(xi))
+
+
+def test_GroupElem_Get_jacobian_e_pg_of_a_curved_line_or_face_is_its_metric(subtests):
+    """x = (ξ, a(1 - ξ²), 0): |∂x/∂ξ| = √(1 + 4a²ξ²); x = (ξ, η, c(ξ² + η²)): √(1 + 4c²(ξ² + η²))."""
+    a = c = 0.3
+    for elemType in ElemType.Get_1D() + ElemType.Get_2D():
+        if reference_element(elemType).order < 2:
+            continue
+        with subtests.test(elemType=str(elemType)):
+            if elemType in ElemType.Get_1D():
+                groupElem = _curved(
+                    elemType,
+                    lambda xi: np.column_stack(
+                        [xi[:, 0], a * (1 - xi[:, 0] ** 2), 0 * xi[:, 0]]
+                    ),
+                )
+                xi_pg = groupElem.Get_gauss(MatrixType.rigi).coord
+                expected = np.sqrt(1 + 4 * a**2 * xi_pg[:, 0] ** 2)
+            else:
+                groupElem = _curved(
+                    elemType,
+                    lambda xi: np.column_stack([xi, c * (xi**2).sum(1)]),
+                )
+                xi_pg = groupElem.Get_gauss(MatrixType.rigi).coord
+                expected = np.sqrt(1 + 4 * c**2 * (xi_pg**2).sum(1))
+
+            jacobian_e_pg = groupElem.Get_jacobian_e_pg(MatrixType.rigi)
+
+            assert groupElem.dim < groupElem.inDim
+            assert rel_error(np.asarray(jacobian_e_pg)[0], expected) < 1e-12
+
+
+def test_GroupElem_Get_weightedJacobian_e_pg_of_a_circle_converges_at_order_four():
+    """The SEG3 boundary of a TRI6 disc: |Σ wJ - 2π| drops ~16× per halving."""
+    errors = []
+    for meshSize in [0.4, 0.2]:
+        circle = Circle((0, 0), 2, meshSize)
+        mesh = circle.Mesh_2D([], ElemType.TRI6)
+        boundary = mesh.Get_list_groupElem(1)[0]
+        wJ_e_pg = boundary.Get_weightedJacobian_e_pg(MatrixType.mass)
+        errors.append(abs(wJ_e_pg.sum() - 2 * np.pi))
+
+    assert errors[0] / errors[1] > 12
+
+
 # ----------------------------------------------------------------------------
 # shape functions
 # ----------------------------------------------------------------------------
@@ -1039,6 +1089,51 @@ def test_GroupElem_Get_ddN_e_pg_differentiates_a_square_twice(subtests):
             expected[0] = 2
             expected = np.broadcast_to(expected, values.shape)
             assert rel_error(values, expected, scale=2.0) < 1e-10
+
+
+def test_GroupElem_Get_ddN_e_pg_differentiates_a_square_on_a_rotated_element(subtests):
+    """∂²(x²)/∂x² = 2 once the reference axes are rotated, which needs the mixed derivatives."""
+    for elemType in ElemType.Get_2D() + ElemType.Get_3D():
+        if reference_element(elemType).order < 2:
+            continue
+        with subtests.test(elemType=str(elemType)):
+            dim = reference_element(elemType).dim
+            cos, sin = np.cos(0.5), np.sin(0.5)
+            R = np.array([[cos, -sin, 0], [sin, cos, 0], [0, 0, 1]])
+            groupElem = reference_element(elemType, 2 * R[:, :dim], (1, 2, 0))
+            x_n = groupElem.coord[:, 0]
+
+            ddN_e_pg = groupElem.Get_ddN_e_pg(MatrixType.mass)
+
+            values = np.asarray(ddN_e_pg) @ x_n**2
+            expected = np.zeros(dim)
+            expected[0] = 2
+            expected = np.broadcast_to(expected, values.shape)
+            assert rel_error(values, expected, scale=2.0) < 1e-10
+
+
+def test_GroupElem_Get_ddN_e_pg_of_the_coordinates_vanishes_on_a_curved_element(
+    subtests,
+):
+    """x interpolates itself on a curved element, so ∂²x/∂x² = 0 once the curvature term ∂²x/∂ξ² is in."""
+    for elemType in ALL:
+        if reference_element(elemType).order < 2:
+            continue
+        with subtests.test(elemType=str(elemType)):
+            dim = reference_element(elemType).dim
+            A = AFFINE[dim]
+
+            def phi(xi: np.ndarray) -> np.ndarray:
+                x = xi @ A.T
+                x[:, 0] += 0.2 * xi[:, 0] * xi[:, -1] + 0.1 * xi[:, 0] ** 2
+                return x
+
+            groupElem = _curved(elemType, phi)
+
+            ddN_e_pg = groupElem.Get_ddN_e_pg(MatrixType.mass)
+
+            values = np.asarray(ddN_e_pg) @ groupElem.coord[:, :dim]
+            assert np.abs(values).max() < 1e-10
 
 
 def test_GroupElem__dddN_sums_to_zero_at_the_nodes():
@@ -1441,8 +1536,10 @@ def test_GroupElem_Get_pointsInElem_finds_the_centroid_but_not_a_far_point(subte
 def _gauss_points(mesh: Mesh) -> tuple[_GroupElem, np.ndarray, np.ndarray]:
     """Interior points of each element: its mass rule, or 8 points for prisms, whose 6-point rule sits on the edges."""
     groupElem = _main(mesh)
-    nPg = 8 if groupElem.topology == "PRISM" else MatrixType.mass
-    xi_pg = Gauss(groupElem.elemType, nPg).coord  # type: ignore [arg-type]
+    matrixType = (
+        MatrixType.Order(3) if groupElem.topology == "PRISM" else MatrixType.mass
+    )
+    xi_pg = Gauss(groupElem.elemType, matrixType).coord  # type: ignore [arg-type]
     N_pg = _GroupElem._Eval_Functions(groupElem._N(), xi_pg)[:, 0]
     x_e_pg = np.einsum("pn,end->epd", N_pg, mesh.coord[groupElem.connect])
     return groupElem, x_e_pg.reshape(-1, 3), xi_pg
@@ -1523,6 +1620,45 @@ def test_GroupElem__Get_xi_solves_a_curved_element_with_a_constant_jacobian():
     x = _GroupElem._Eval_Functions(groupElem._N(), xi)[:, 0] @ coord
 
     assert rel_error(groupElem._Get_xi(x, np.array([0])), xi, scale=1.0) < 1e-12
+
+
+def test_GroupElem__Get_xi_solves_a_curved_tetrahedron():
+    groupElem = _curved(
+        ElemType.TETRA10,
+        lambda xi: xi
+        + 0.2 * np.column_stack([xi[:, 1] * xi[:, 2], xi[:, 0] ** 2, 0 * xi[:, 0]]),
+    )
+    xi = np.array([[0.2, 0.3, 0.1]])
+    x = _GroupElem._Eval_Functions(groupElem._N(), xi)[:, 0] @ groupElem.coord
+
+    assert rel_error(groupElem._Get_xi(x, np.array([0])), xi, scale=1.0) < 1e-12
+
+
+def test_GroupElem__Get_xi_projects_on_a_curved_line_or_face(subtests):
+    """A point off a curved element in space, along its normal at ξ, gives back ξ: the closest point, not a projection on the chord."""
+    a = 0.3
+    for elemType, phi, xi, normal in [
+        (
+            ElemType.SEG3,
+            lambda xi: np.column_stack(
+                [xi[:, 0], a * (1 - xi[:, 0] ** 2), 0 * xi[:, 0]]
+            ),
+            np.array([[0.3]]),
+            np.array([2 * a * 0.3, 1, 0]),
+        ),
+        (
+            ElemType.TRI6,
+            lambda xi: np.column_stack([xi, a * (xi**2).sum(1)]),
+            np.array([[0.2, 0.6]]),
+            np.array([-2 * a * 0.2, -2 * a * 0.6, 1]),
+        ),
+    ]:
+        with subtests.test(elemType=str(elemType)):
+            groupElem = _curved(elemType, phi)
+            x = _GroupElem._Eval_Functions(groupElem._N(), xi)[:, 0] @ groupElem.coord
+            x += 0.05 * normal / np.linalg.norm(normal)
+
+            assert rel_error(groupElem._Get_xi(x, np.array([0])), xi, scale=1.0) < 1e-12
 
 
 def test_GroupElem_Get_pointsInElem_includes_the_boundary(subtests):

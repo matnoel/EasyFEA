@@ -3,6 +3,7 @@
 # This file is part of the EasyFEA project.
 # EasyFEA is distributed under the terms of the GNU General Public License v3, see LICENSE.txt and CREDITS.md for more information.
 
+from dataclasses import dataclass
 from enum import Enum
 
 
@@ -80,11 +81,11 @@ class MatrixType(str, Enum):
     """Order used for integration over elements, which determines the number of integration points."""
 
     rigi = "rigi"
-    """int_Ω dN • dN dΩ type"""
+    """int_Ω dN • dN dΩ type, order 2(k-1), 2k per direction on QUAD, HEXA and PRISM"""
     mass = "mass"
-    """int_Ω N • N dΩ type"""
+    """int_Ω N • N dΩ type, order 2k"""
     beam = "beam"
-    """int_Ω ddNv • ddNv dΩ type"""
+    """int_Ω ddNv • ddNv dΩ type, order 2(2k-1) (Hermite of degree 2k+1), segments only"""
     beam_shear = "beam_shear"
     """Reduced integration order for the Timoshenko shear term (n-1 Gauss points for SEGn). Selective reduced integration is the standard cure for shear locking in Lagrange Timoshenko beams (Hughes 1987; Bathe 2006)."""
 
@@ -99,3 +100,33 @@ class MatrixType(str, Enum):
             MatrixType.beam,
             MatrixType.beam_shear,
         ]
+
+    @staticmethod
+    def Order(n: int) -> "_Order":
+        """Explicit integration order n (per direction on QUAD, HEXA and PRISM), in place of a matrix type."""
+        return _Order(n)
+
+    def _Get_order(self, order: int, topology: str) -> int:
+        """Integration order on an element of `order` and `topology`."""
+        if self == MatrixType.mass:
+            return 2 * order
+        if self == MatrixType.rigi:
+            # a derivative lowers the degree only along its own direction of a tensor basis
+            isTensor = topology in ("QUAD", "HEXA", "PRISM")
+            return 2 * order if isTensor else 2 * (order - 1)
+        if topology != "SEG":
+            raise ValueError(f"{self} is only defined on segments.")
+        if self == MatrixType.beam:
+            return 2 * (2 * order - 1)
+        return 2 * (order - 1)
+
+
+@dataclass(frozen=True)
+class _Order:
+    """An explicit integration order, from `MatrixType.Order`."""
+
+    order: int
+
+    def _Get_order(self, order: int, topology: str) -> int:
+        """The explicit order, whatever the element."""
+        return self.order

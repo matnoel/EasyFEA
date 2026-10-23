@@ -8,12 +8,21 @@
 import numpy as np
 
 # utils
-from ._utils import ElemType, MatrixType
+from ._utils import ElemType, MatrixType, _Order
 from ..Utilities import _types
 
 
 class Gauss:
     """Gauss quadrature."""
+
+    __orders = {
+        "TRI": ((1, 1), (3, 2), (6, 4), (7, 5), (12, 6)),
+        "QUAD": ((4, 3), (9, 5)),
+        "TETRA": ((1, 1), (4, 2), (5, 3), (15, 5)),
+        "HEXA": ((8, 3), (27, 5)),
+        "PRISM": ((6, 2), (8, 3), (21, 5)),
+    }
+    """(nPg, exact order) of each rule per topology, per direction on QUAD, HEXA and PRISM"""
 
     def __init__(self, elemType: ElemType, matrixType: MatrixType):
         """Creates integration points.
@@ -23,13 +32,11 @@ class Gauss:
         elemType : ElemType
             element type.
         matrixType : MatrixType
-            matrix type (e.g [MatrixType.rigi, MatrixType.mass, MatrixType.beam])
+            matrix type (e.g [MatrixType.rigi, MatrixType.mass, MatrixType.beam]) or MatrixType.Order(n)
         """
 
-        if isinstance(matrixType, (MatrixType, str)):
+        if isinstance(matrixType, (MatrixType, str, _Order)):
             coord, weights = Gauss.Gauss_factory(elemType, matrixType)
-        elif isinstance(matrixType, int):
-            coord, weights = Gauss._Gauss_factory_nPg(elemType, matrixType)
         else:
             raise NotImplementedError
 
@@ -54,7 +61,7 @@ class Gauss:
     @staticmethod
     def _Triangle(nPg: int) -> tuple[_types.Numbers, _types.Numbers, _types.Numbers]:
         """available [1, 3, 6, 7, 12]\n
-        order = [1, 2, 3, 4, 5]"""
+        order = [1, 2, 4, 5, 6]"""
         if nPg == 1:
             ksis = [1 / 3]
             etas = [1 / 3]
@@ -110,7 +117,7 @@ class Gauss:
     @staticmethod
     def _Quadrangle(nPg: int) -> tuple[_types.Numbers, _types.Numbers, _types.Numbers]:
         """available [4, 9]\n
-        order = [1, 2]"""
+        order per axis = [3, 5]"""
         if nPg == 4:
             a = 1 / np.sqrt(3)
             ksis = [-a, a, a, -a]
@@ -365,147 +372,22 @@ class Gauss:
         elemType: ElemType, matrixType: MatrixType
     ) -> tuple[_types.FloatArray, _types.FloatArray]:
         """Returns the integration points and weights based on the element and matrix type."""
+        from ._group_elem import GroupElemFactory
 
-        assert matrixType in MatrixType.Get_types()
+        referenceElement = GroupElemFactory._Get_reference_element(elemType)
+        nPg = Gauss._Get_nPg(elemType.topology, referenceElement._Get_order(matrixType))
 
-        # TODO create a function to calculate the order directly?
+        return Gauss._Gauss_factory_nPg(elemType, nPg)
 
-        if elemType == ElemType.SEG2:
-            if matrixType == MatrixType.rigi:
-                nPg = 1
-            elif matrixType in [MatrixType.mass, MatrixType.beam]:
-                nPg = 2
-            elif matrixType == MatrixType.beam_shear:
-                nPg = 1  # reduced (n-1)
-            else:
-                raise ValueError("unknown matrixType")
-            x, weights = np.polynomial.legendre.leggauss(nPg)
-
-        elif elemType == ElemType.SEG3:
-            if matrixType == MatrixType.rigi:
-                nPg = 1
-            elif matrixType == MatrixType.mass:
-                nPg = 3
-            elif matrixType == MatrixType.beam:
-                nPg = 4
-            elif matrixType == MatrixType.beam_shear:
-                nPg = 2  # reduced (n-1)
-            else:
-                raise ValueError("unknown matrixType")
-            x, weights = np.polynomial.legendre.leggauss(nPg)
-
-        elif elemType == ElemType.SEG4:
-            if matrixType == MatrixType.rigi:
-                nPg = 2
-            elif matrixType == MatrixType.mass:
-                nPg = 4
-            elif matrixType == MatrixType.beam:
-                nPg = 6
-            elif matrixType == MatrixType.beam_shear:
-                nPg = 3  # reduced (n-1)
-            else:
-                raise ValueError("unknown matrixType")
-            x, weights = np.polynomial.legendre.leggauss(nPg)
-
-        elif elemType == ElemType.SEG5:
-            if matrixType == MatrixType.rigi:
-                nPg = 4
-            elif matrixType == MatrixType.mass:
-                nPg = 5
-            elif matrixType == MatrixType.beam:
-                nPg = 8
-            elif matrixType == MatrixType.beam_shear:
-                nPg = 4  # reduced (n-1)
-            else:
-                raise ValueError("unknown matrixType")
-            x, weights = np.polynomial.legendre.leggauss(nPg)
-
-        elif elemType == ElemType.TRI3:
-            if matrixType == MatrixType.rigi:
-                nPg = 1
-            elif matrixType == MatrixType.mass:
-                nPg = 3
-            else:
-                raise ValueError("unknown matrixType")
-            xis, etas, weights = Gauss._Triangle(nPg)  # type: ignore [assignment]
-
-        elif elemType == ElemType.TRI6:
-            if matrixType == MatrixType.rigi:
-                nPg = 3
-            elif matrixType == MatrixType.mass:
-                nPg = 6
-            else:
-                raise ValueError("unknown matrixType")
-            xis, etas, weights = Gauss._Triangle(nPg)  # type: ignore [assignment]
-
-        elif elemType == ElemType.TRI10:
-            nPg = 6
-            xis, etas, weights = Gauss._Triangle(nPg)  # type: ignore [assignment]
-
-        elif elemType == ElemType.TRI15:
-            nPg = 12
-            xis, etas, weights = Gauss._Triangle(nPg)  # type: ignore [assignment]
-
-        elif elemType == ElemType.QUAD4:
-            nPg = 4
-            xis, etas, weights = Gauss._Quadrangle(nPg)  # type: ignore [assignment]
-
-        elif elemType == ElemType.QUAD8:
-            if matrixType == MatrixType.rigi:
-                nPg = 4
-            elif matrixType == MatrixType.mass:
-                nPg = 9
-            else:
-                raise ValueError("unknown matrixType")
-            xis, etas, weights = Gauss._Quadrangle(nPg)  # type: ignore [assignment]
-        elif elemType == ElemType.QUAD9:
-            nPg = 9
-            xis, etas, weights = Gauss._Quadrangle(nPg)  # type: ignore [assignment]
-
-        elif elemType == ElemType.TETRA4:
-            if matrixType == MatrixType.rigi:
-                nPg = 1
-            elif matrixType == MatrixType.mass:
-                nPg = 4
-            else:
-                raise ValueError("unknown matrixType")
-            x, y, z, weights = Gauss._Tetrahedron(nPg)  # type: ignore [assignment]
-
-        elif elemType == ElemType.TETRA10:
-            nPg = 4
-            x, y, z, weights = Gauss._Tetrahedron(nPg)  # type: ignore [assignment]
-
-        elif elemType == ElemType.HEXA8:
-            nPg = 8
-            x, y, z, weights = Gauss._Hexahedron(nPg)  # type: ignore [assignment]
-
-        elif elemType in (ElemType.HEXA20, ElemType.HEXA27):
-            nPg = 27
-            x, y, z, weights = Gauss._Hexahedron(nPg)  # type: ignore [assignment]
-
-        elif elemType in (ElemType.PRISM6, ElemType.PRISM15):
-            nPg = 6
-            x, y, z, weights = Gauss._Prism(nPg)  # type: ignore [assignment]
-
-        elif elemType == ElemType.PRISM18:
-            nPg = 21
-            x, y, z, weights = Gauss._Prism(nPg)  # type: ignore [assignment]
-
-        else:
-            raise NotImplementedError(f"Element {elemType} not implemented.")
-
-        if elemType in ElemType.Get_1D():
-            coord = np.asarray([x]).T.reshape((nPg, 1))  # type: ignore
-        elif elemType in ElemType.Get_2D():
-            coord = np.asarray([xis, etas]).T.reshape((nPg, 2))  # type: ignore
-        elif elemType in ElemType.Get_3D():
-            coord = np.asarray([x, y, z]).T.reshape((nPg, 3))  # type: ignore
-        else:
-            raise ValueError("Unknown element type")
-
-        weights = np.asarray(weights).reshape(nPg)
-
-        return coord, weights
+    @staticmethod
+    def _Get_nPg(topology: str, order: int) -> int:
+        """Number of points of the smallest rule on topology exact at order."""
+        if topology == "SEG":
+            return order // 2 + 1  # Gauss-Legendre, exact at 2 nPg - 1
+        for nPg, exact in Gauss.__orders.get(topology, ()):
+            if exact >= order:
+                return nPg
+        raise NotImplementedError(f"No {topology} rule exact at order {order}.")
 
     @staticmethod
     def _Gauss_factory_nPg(

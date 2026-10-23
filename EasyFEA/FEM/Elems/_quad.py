@@ -8,10 +8,12 @@
 import numpy as np
 
 from .._group_elem import _GroupElem
+from .._reference_element import _ReferenceElement
+from .._utils import MatrixType
 from ...Utilities import _types
 
 
-class QUAD4(_GroupElem):
+class _QUAD4(_ReferenceElement):
     #       v
     #       ^
     #       |
@@ -22,11 +24,6 @@ class QUAD4(_GroupElem):
     # |           |
     # |           |
     # 0-----------1
-
-    def __init__(
-        self, gmshId: int, connect: _types.IntArray, coordinates: _types.FloatArray
-    ):
-        super().__init__(gmshId, connect, coordinates)
 
     @property
     def origin(self) -> list[int]:
@@ -83,7 +80,7 @@ class QUAD4(_GroupElem):
         return super()._ddddN()
 
 
-class QUAD8(_GroupElem):
+class _QUAD8(_ReferenceElement):
     #       v
     #       ^
     #       |
@@ -95,10 +92,7 @@ class QUAD8(_GroupElem):
     # |           |
     # 0-----4-----1
 
-    def __init__(
-        self, gmshId: int, connect: _types.IntArray, coordinates: _types.FloatArray
-    ):
-        super().__init__(gmshId, connect, coordinates)
+    _reducedOrders = {MatrixType.rigi: 3}
 
     @property
     def origin(self) -> list[int]:
@@ -202,7 +196,7 @@ class QUAD8(_GroupElem):
         return super()._ddddN()
 
 
-class QUAD9(_GroupElem):
+class _QUAD9(_ReferenceElement):
     #       v
     #       ^
     #       |
@@ -213,11 +207,6 @@ class QUAD9(_GroupElem):
     # |           |
     # |           |
     # 0-----4-----1
-
-    def __init__(
-        self, gmshId: int, connect: _types.IntArray, coordinates: _types.FloatArray
-    ):
-        super().__init__(gmshId, connect, coordinates)
 
     @property
     def origin(self) -> list[int]:
@@ -327,3 +316,15 @@ class QUAD9(_GroupElem):
 
     def _ddddN(self) -> _types.FloatArray:
         return super()._ddddN()
+
+
+class QUAD4(_GroupElem):
+    """QUAD4 elements, over `_QUAD4`."""
+
+
+class QUAD8(_GroupElem):
+    """QUAD8 elements, over `_QUAD8`."""
+
+
+class QUAD9(_GroupElem):
+    """QUAD9 elements, over `_QUAD9`."""

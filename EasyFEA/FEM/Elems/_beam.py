@@ -5,7 +5,7 @@
 
 """Beam element module."""
 
-from abc import abstractmethod
+from abc import ABC, abstractmethod
 from typing import TYPE_CHECKING
 
 import numpy as np
@@ -29,7 +29,7 @@ if TYPE_CHECKING:
 # --------------------------------------------
 
 
-class _EulerBernoulli(_GroupElem):
+class _EulerBernoulli(_GroupElem, ABC):
     """Euler-Bernoulli beam element.
 
     Kinematic assumption: plane sections remain perpendicular to the beam axis.

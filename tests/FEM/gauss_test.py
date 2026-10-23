@@ -210,17 +210,17 @@ def test_Gauss_Gauss_factory_rejects_a_point():
         Gauss.Gauss_factory(ElemType.POINT, MatrixType.rigi)
 
 
-def test_Gauss__Gauss_factory_nPg_takes_the_requested_number_of_points(subtests):
-    for elemType, nPg in [
-        (ElemType.SEG3, 7),
-        (ElemType.TRI6, 12),
-        (ElemType.QUAD4, 9),
-        (ElemType.TETRA4, 15),
-        (ElemType.HEXA8, 27),
-        (ElemType.PRISM6, 21),
+def test_Gauss_Order_takes_the_smallest_exact_rule(subtests):
+    for elemType, order, nPg in [
+        (ElemType.SEG3, 13, 7),
+        (ElemType.TRI6, 6, 12),
+        (ElemType.QUAD4, 5, 9),
+        (ElemType.TETRA4, 5, 15),
+        (ElemType.HEXA8, 5, 27),
+        (ElemType.PRISM6, 5, 21),
     ]:
         with subtests.test(elemType=str(elemType)):
-            gauss = Gauss(elemType, nPg)  # type: ignore [arg-type]
+            gauss = Gauss(elemType, MatrixType.Order(order))  # type: ignore [arg-type]
 
             assert gauss.nPg == nPg == gauss.coord.shape[0]
             measure = REFERENCE_MEASURES[elemType.topology]

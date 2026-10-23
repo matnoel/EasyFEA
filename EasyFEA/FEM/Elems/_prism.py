@@ -8,10 +8,12 @@
 import numpy as np
 
 from .._group_elem import _GroupElem
+from .._reference_element import _ReferenceElement
+from .._utils import MatrixType
 from ...Utilities import _types
 
 
-class PRISM6(_GroupElem):
+class _PRISM6(_ReferenceElement):
     #            w
     #            ^
     #            |
@@ -30,11 +32,6 @@ class PRISM6(_GroupElem):
     #     |  ,/     `\  |
     #     |,/         `\|
     #     1-------------2
-
-    def __init__(
-        self, gmshId: int, connect: _types.IntArray, coordinates: _types.FloatArray
-    ):
-        super().__init__(gmshId, connect, coordinates)
 
     @property
     def origin(self) -> list[int]:
@@ -136,7 +133,7 @@ class PRISM6(_GroupElem):
         return super()._ddddN()
 
 
-class PRISM15(_GroupElem):
+class _PRISM15(_ReferenceElement):
     #            w
     #            ^
     #            |
@@ -156,10 +153,7 @@ class PRISM15(_GroupElem):
     #     |,/         `\|
     #     1------9------2
 
-    def __init__(
-        self, gmshId: int, connect: _types.IntArray, coordinates: _types.FloatArray
-    ):
-        super().__init__(gmshId, connect, coordinates)
+    _reducedOrders = {MatrixType.rigi: 2, MatrixType.mass: 2}
 
     @property
     def origin(self) -> list[int]:
@@ -397,7 +391,7 @@ class PRISM15(_GroupElem):
         return super()._ddddN()
 
 
-class PRISM18(_GroupElem):
+class _PRISM18(_ReferenceElement):
     #            w
     #            ^
     #            |
@@ -416,11 +410,6 @@ class PRISM18(_GroupElem):
     #     |  ,6     `7  |
     #     |,/         `\|
     #     1------9------2
-
-    def __init__(
-        self, gmshId: int, connect: _types.IntArray, coordinates: _types.FloatArray
-    ):
-        super().__init__(gmshId, connect, coordinates)
 
     @property
     def origin(self) -> list[int]:
@@ -766,3 +755,15 @@ class PRISM18(_GroupElem):
 
     def _ddddN(self) -> _types.FloatArray:
         return super()._ddddN()
+
+
+class PRISM6(_GroupElem):
+    """PRISM6 elements, over `_PRISM6`."""
+
+
+class PRISM15(_GroupElem):
+    """PRISM15 elements, over `_PRISM15`."""
+
+
+class PRISM18(_GroupElem):
+    """PRISM18 elements, over `_PRISM18`."""

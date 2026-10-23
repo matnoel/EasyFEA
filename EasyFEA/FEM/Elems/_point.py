@@ -8,15 +8,11 @@
 import numpy as np
 
 from .._group_elem import _GroupElem
+from .._reference_element import _ReferenceElement
 from ...Utilities import _types
 
 
-class POINT(_GroupElem):
-    def __init__(
-        self, gmshId: int, connect: _types.IntArray, coordinates: _types.FloatArray
-    ):
-        super().__init__(gmshId, connect, coordinates)
-
+class _POINT(_ReferenceElement):
     @property
     def origin(self) -> list[int]:
         return super().origin
@@ -50,3 +46,7 @@ class POINT(_GroupElem):
 
     def _ddddN(self) -> _types.FloatArray:
         return None  # type: ignore [return-value]
+
+
+class POINT(_GroupElem):
+    """POINT elements, over `_POINT`."""

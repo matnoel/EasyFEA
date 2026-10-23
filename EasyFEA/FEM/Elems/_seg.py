@@ -8,20 +8,17 @@
 import numpy as np
 
 from .._group_elem import _GroupElem
+from .._reference_element import _ReferenceElement
+from .._utils import MatrixType
 from ...Utilities import _types
 
 
-class SEG2(_GroupElem):
+class _SEG2(_ReferenceElement):
     #      v
     #      ^
     #      |
     #      |
     # 0----+----1 --> u
-
-    def __init__(
-        self, gmshId: int, connect: _types.IntArray, coordinates: _types.FloatArray
-    ):
-        super().__init__(gmshId, connect, coordinates)
 
     @property
     def origin(self) -> list[int]:
@@ -70,17 +67,12 @@ class SEG2(_GroupElem):
         return super()._ddddN()
 
 
-class SEG3(_GroupElem):
+class _SEG3(_ReferenceElement):
     #      v
     #      ^
     #      |
     #      |
     # 0----2----1 --> u
-
-    def __init__(
-        self, gmshId: int, connect: _types.IntArray, coordinates: _types.FloatArray
-    ):
-        super().__init__(gmshId, connect, coordinates)
 
     @property
     def origin(self) -> list[int]:
@@ -137,17 +129,14 @@ class SEG3(_GroupElem):
         return super()._ddddN()
 
 
-class SEG4(_GroupElem):
+class _SEG4(_ReferenceElement):
     #       v
     #       ^
     #       |
     #       |
     # 0---2-+-3---1 --> u
 
-    def __init__(
-        self, gmshId: int, connect: _types.IntArray, coordinates: _types.FloatArray
-    ):
-        super().__init__(gmshId, connect, coordinates)
+    _reducedOrders = {MatrixType.rigi: 3}
 
     @property
     def origin(self) -> list[int]:
@@ -214,17 +203,12 @@ class SEG4(_GroupElem):
         return super()._ddddN()
 
 
-class SEG5(_GroupElem):
+class _SEG5(_ReferenceElement):
     #        v
     #        ^
     #        |
     #        |
     #  0--2--3--4--1 --> u
-
-    def __init__(
-        self, gmshId: int, connect: _types.IntArray, coordinates: _types.FloatArray
-    ):
-        super().__init__(gmshId, connect, coordinates)
 
     @property
     def origin(self) -> list[int]:
@@ -301,3 +285,19 @@ class SEG5(_GroupElem):
         ddddN = np.array([ddddN1, ddddN2, ddddN3, ddddN4, ddddN5])
 
         return ddddN
+
+
+class SEG2(_GroupElem):
+    """SEG2 elements, over `_SEG2`."""
+
+
+class SEG3(_GroupElem):
+    """SEG3 elements, over `_SEG3`."""
+
+
+class SEG4(_GroupElem):
+    """SEG4 elements, over `_SEG4`."""
+
+
+class SEG5(_GroupElem):
+    """SEG5 elements, over `_SEG5`."""
