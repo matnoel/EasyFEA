@@ -30,6 +30,8 @@ class WeakForms(_Simu):
     Assembles and solves a user-defined variational problem given directly as weak-form terms (bilinear and linear operators over the mesh), rather than a fixed physics. Supports static, transient and dynamic time schemes for linear or nonlinear (Newton-Raphson) problems — useful for custom PDEs and rapid prototyping.
     """
 
+    problemType = ProblemType("weakForm")
+
     def __init__(
         self,
         mesh: "Mesh",
@@ -90,9 +92,6 @@ class WeakForms(_Simu):
         nodesField = ["u", "v", "a"]
         elementsField: list[str] = []
         return nodesField, elementsField
-
-    def Get_problemTypes(self) -> list[ProblemType]:
-        return [ProblemType("weakForm")]
 
     @property
     def weakForms(self) -> Models.WeakForms:
@@ -155,6 +154,9 @@ class WeakForms(_Simu):
         values_e = form.Integrate_e(field)
         tic.Tac("Matrix", "Integrate the weak form.", self._verbosity)
         return values_e
+
+    def _Get_dof_names(self) -> dict[str, ProblemType]:
+        return dict.fromkeys(("u", "v", "a"), self.problemType)
 
     def Save_Iter(self, iter=None):
 
@@ -250,28 +252,30 @@ class WeakForms(_Simu):
 
         # begin cases ----------------------------------------------------
 
-        Nn = self.mesh.Nn
+        # node values (Nn, dof_n) of u, v and a, through the space
+        space = self._Get_FunctionSpace()
+        dof_n = self.Get_dof_n()
+        u_n = space.Get_nodeValues(self.u, dof_n)
+        v_n = space.Get_nodeValues(self.v, dof_n)
+        a_n = space.Get_nodeValues(self.a, dof_n)
 
         if result == "u":
-            values = self.u
+            values = u_n.ravel()
 
         elif result in ["ux", "uy", "uz"]:
-            values_n = self.u.reshape(Nn, -1)
-            values = values_n[:, self.__indexResult(result)]
+            values = u_n[:, self.__indexResult(result)]
 
         elif result == "v":
-            values = self.v
+            values = v_n.ravel()
 
         elif result in ["vx", "vy", "vz"]:
-            values_n = self.v.reshape(Nn, -1)
-            values = values_n[:, self.__indexResult(result)]
+            values = v_n[:, self.__indexResult(result)]
 
         elif result == "a":
-            values = self.a
+            values = a_n.ravel()
 
         elif result in ["ax", "ay", "az"]:
-            values_n = self.a.reshape(Nn, -1)
-            values = values_n[:, self.__indexResult(result)]
+            values = a_n[:, self.__indexResult(result)]
 
         elif result == "displacement_matrix":
             values = self.Results_displacement_matrix()
@@ -301,7 +305,7 @@ class WeakForms(_Simu):
         if dof_n == 1:
             pass
         elif 1 < dof_n <= 3:
-            coord = self.u.reshape((Nn, -1))
+            coord = self._Get_FunctionSpace().Get_nodeValues(self.u, dof_n)
             dim = coord.shape[1]
             displacement_matrix[:, :dim] = coord
         else:

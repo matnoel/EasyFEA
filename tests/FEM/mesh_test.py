@@ -8,6 +8,7 @@ import pytest
 import numpy as np
 from scipy.spatial import cKDTree
 
+from EasyFEA import Models, Simulations
 from EasyFEA.FEM import (
     ElemType,
     MatrixType,
@@ -766,3 +767,225 @@ def test_Mesh_Merge_tags_follow_the_kept_duplicates(unit_square, subtests):
             mergedGroup = merged.dict_groupElem[elemType]
             assert mergedGroup.elementTags == groupElem.elementTags
             assert _tagged_elements(mergedGroup) == _tagged_elements(groupElem)
+
+
+# ----------------------------------------------------------------------------
+# function spaces
+# ----------------------------------------------------------------------------
+
+ELASTIC = Simulations.Elastic.problemType
+
+
+def _box(elemType: ElemType, z0: float = 0.0) -> Mesh:
+    """Unit box of 2 × 2 × 2 cells from z0."""
+    contour = Domain((0, 0, z0), (1, 1, z0), 0.5)
+    return contour.Mesh_Extrude([], (0, 0, 1), [2], elemType, isOrganised=True)
+
+
+def _tets_under_prisms(tetra: ElemType, prism: ElemType) -> Mesh:
+    return Mesh.Merge([_box(tetra), _box(prism, 1.0)])
+
+
+def _quads_beside_tris(quad: ElemType, tri: ElemType) -> Mesh:
+    left = Domain((0, 0), (1, 1), 0.25)
+    right = Domain((1, 0), (2, 1), 0.25)
+    quads = left.Mesh_2D([], quad, isOrganised=True)
+    tris = right.Mesh_2D([], tri)
+    return Mesh.Merge([quads, tris])
+
+
+def _elastic(mesh: Mesh) -> Simulations.Elastic:
+    return Simulations.Elastic(mesh, Models.Elastic.Isotropic(3))
+
+
+def _assert_same_numbering(mesh: Mesh, other: Mesh) -> None:
+    space = mesh._Get_FunctionSpace(ELASTIC)
+    otherSpace = other._Get_FunctionSpace(ELASTIC)
+    assert space.Npoints == otherSpace.Npoints
+    for elemType, groupElem in mesh.dict_groupElem.items():
+        otherGroup = other.dict_groupElem[elemType]
+        assert np.array_equal(
+            space.Get_connect(groupElem), otherSpace.Get_connect(otherGroup)
+        )
+
+
+def test_Mesh__With_FunctionSpace_returns_a_new_mesh_leaving_the_original():
+    mesh = _box(ElemType.TETRA4)
+    simu = _elastic(mesh)
+    space = mesh._Get_FunctionSpace(ELASTIC)
+    K = simu.Get_K_C_M_F()[0]
+
+    meshP2 = mesh._With_FunctionSpace(ELASTIC, 2)
+    meshP2.Translate(1.0)
+
+    assert meshP2 is not mesh and meshP2.observers == []
+    assert mesh._Get_FunctionSpace(ELASTIC) is space and space.Npoints == mesh.Nn
+    assert np.array_equal(mesh.coord, _box(ElemType.TETRA4).coord)
+    simu.Need_Update()
+    assert simu.mesh is mesh and (simu.Get_K_C_M_F()[0] != K).nnz == 0
+
+
+def test_Mesh__With_FunctionSpace_is_the_complete_partner_of_each_group(
+    subtests,
+):
+    """Its points are those of the mesh of that order, one at each place in every element: one per node, interface edge and face included."""
+    cases = {
+        "TETRA4+PRISM6": (
+            _tets_under_prisms(ElemType.TETRA4, ElemType.PRISM6),
+            _tets_under_prisms(ElemType.TETRA10, ElemType.PRISM18),
+            2,
+        ),
+        "HEXA8": (_box(ElemType.HEXA8), _box(ElemType.HEXA27), 2),
+        "QUAD4+TRI3": (
+            _quads_beside_tris(ElemType.QUAD4, ElemType.TRI3),
+            _quads_beside_tris(ElemType.QUAD9, ElemType.TRI6),
+            2,
+        ),
+        "QUAD9+TRI3": (
+            _quads_beside_tris(ElemType.QUAD9, ElemType.TRI3),
+            _quads_beside_tris(ElemType.QUAD9, ElemType.TRI6),
+            2,
+        ),
+        "QUAD8": (_grid(ElemType.QUAD8), _grid(ElemType.QUAD9), 2),
+        "TRI3 order 3": (_grid(ElemType.TRI3), _grid(ElemType.TRI10), 3),
+        "TRI3 order 4": (_grid(ElemType.TRI3), _grid(ElemType.TRI15), 4),
+    }
+    for name, (mesh, raised, order) in cases.items():
+        with subtests.test(mesh=name):
+            meshPk = mesh._With_FunctionSpace(ELASTIC, order)
+            space = meshPk._Get_FunctionSpace(ELASTIC)
+            partners = {g.elemType.topology: g for g in raised.dict_groupElem.values()}
+
+            points, places = [], []
+            for groupElem in meshPk.Get_list_groupElem():
+                if groupElem.dim == 0:
+                    continue
+                partner = partners[groupElem.elemType.topology]
+                connect = space.Get_connect(groupElem)
+                assert connect.shape == partner.connect.shape
+                # where each point sits: the geometry's map at the partner's reference nodes
+                xi = partner.Get_Local_Coords()
+                N = groupElem._Eval_Functions(groupElem._N(), xi)[:, 0]
+                points.append(connect.ravel())
+                places.append((N @ meshPk.coord[groupElem.connect]).reshape(-1, 3))
+            distance, nodes = cKDTree(raised.coord).query(np.vstack(places))
+            pairs = np.unique(np.column_stack([np.concatenate(points), nodes]), axis=0)
+
+            assert distance.max() < 1e-12
+            assert space.Npoints == raised.Nn == pairs.shape[0]
+            assert (
+                np.unique(pairs[:, 0]).size == np.unique(pairs[:, 1]).size == raised.Nn
+            )
+
+
+def test_Mesh__With_FunctionSpace_keeps_the_geometry_nodes_it_holds(subtests):
+    """A partner node at a geometry node's place is that node: QUAD8, 2 appends the centres only; TETRA10, 1 keeps the vertices only."""
+    quad8 = _grid(ElemType.QUAD8)
+    cases = {
+        "QUAD8, 2": (quad8, 2, quad8.Nn + quad8.Ne),
+        "TETRA10, 1": (_box(ElemType.TETRA10), 1, _box(ElemType.TETRA4).Nn),
+    }
+    for name, (mesh, order, Npoints) in cases.items():
+        with subtests.test(mesh=name):
+            meshPk = mesh._With_FunctionSpace(ELASTIC, order)
+            space = meshPk._Get_FunctionSpace(ELASTIC)
+
+            assert space.Npoints == Npoints
+            for groupElem in meshPk.dict_groupElem.values():
+                connect = space.Get_connect(groupElem)
+                n = min(connect.shape[1], groupElem.nPe)
+                assert np.array_equal(connect[:, :n], groupElem.connect[:, :n])
+
+
+def test_Mesh__With_FunctionSpace_raises_on_an_order_it_cannot_build():
+    tetra = _box(ElemType.TETRA4)
+
+    with pytest.raises(ValueError, match="order 3"):
+        tetra._With_FunctionSpace(ELASTIC, 3)
+    with pytest.raises(ValueError, match="order 0"):
+        tetra._With_FunctionSpace(ELASTIC, 0)
+
+
+def test_Mesh__With_FunctionSpace_P2_on_TETRA4_numbers_as_a_straight_TETRA10():
+    """Same DOFs per element once each point is relabelled to the TETRA10 node at its place; the nodes first, then the appended points Nn + k."""
+    mesh = _box(ElemType.TETRA4)
+    tetra10 = _box(ElemType.TETRA10)
+    meshP2 = mesh._With_FunctionSpace(ELASTIC, 2)
+    space = meshP2._Get_FunctionSpace(ELASTIC)
+    groupElem = meshP2.groupElem
+    connect = space.Get_connect(groupElem)
+
+    # points of a straight element: the linear map at the TETRA10 reference nodes
+    xi = tetra10.groupElem.Get_Local_Coords()
+    N = np.column_stack([1 - xi.sum(1), xi])
+    coord = np.empty((space.Npoints, 3))
+    coord[connect] = N @ meshP2.coord[groupElem.connect]
+    distance, relabel = cKDTree(tetra10.coord).query(coord)
+    centers = cKDTree(tetra10.coord[tetra10.connect].mean(1))
+    _, elements = centers.query(mesh.coord[mesh.connect].mean(1))
+    dofs = (relabel[:, None] * 3 + np.arange(3)).ravel()
+
+    assert distance.max() < 1e-12 and np.unique(relabel).size == tetra10.Nn
+    assert _elastic(meshP2).displacement.size == _elastic(tetra10).displacement.size
+    assert np.array_equal(
+        dofs[space.Get_assembly_e(groupElem, 3)],
+        tetra10.groupElem.Get_assembly_e(3)[elements],
+    )
+    assert np.array_equal(connect[:, :4], groupElem.connect)
+    assert np.array_equal(np.unique(connect[:, 4:]), np.arange(mesh.Nn, space.Npoints))
+    assert np.array_equal(space.Get_dofs(np.arange(mesh.Nn), 3), np.arange(mesh.Nn * 3))
+
+
+def test_Mesh__With_FunctionSpace_choice_survives_Save_Load_Mesh_and_a_mesh_swap(
+    tmp_path, subtests
+):
+    meshP2 = _tets_under_prisms(ElemType.TETRA4, ElemType.PRISM6)._With_FunctionSpace(
+        ELASTIC, 2
+    )
+
+    with subtests.test("Load_Mesh"):
+        loaded = Load_Mesh(meshP2.Save(str(tmp_path), "meshP2"))
+
+        _assert_same_numbering(loaded, meshP2)
+
+    with subtests.test("simu.mesh"):
+        simu = _elastic(meshP2)
+        simu.folder = str(tmp_path / "run")
+        simu.Save_Iter()
+        simu.mesh = _box(ElemType.TETRA4)
+        simu.Save_Iter()
+        simu.Save(simu.folder)
+
+        reloaded = Simulations.Load_Simu(simu.folder)
+        reloaded.Set_Iter(0)
+
+        _assert_same_numbering(reloaded.mesh, meshP2)
+        assert reloaded.displacement.size == simu.Get_results(0)["displacement"].size
+
+
+def test_Mesh_coordinate_changes_leave_the_numbering(subtests):
+    changes = {
+        "Translate": lambda mesh: mesh.Translate(1.0, 2.0),
+        "Rotate": lambda mesh: mesh.Rotate(30.0),
+        "Symmetry": lambda mesh: mesh.Symmetry(),
+        "coord": lambda mesh: setattr(mesh, "coord", mesh.coord * 2),
+    }
+    for name, change in changes.items():
+        with subtests.test(change=name):
+            meshP2 = _box(ElemType.TETRA4)._With_FunctionSpace(ELASTIC, 2)
+            space = meshP2._Get_FunctionSpace(ELASTIC)
+            before = meshP2.copy()
+
+            change(meshP2)
+
+            assert meshP2._Get_FunctionSpace(ELASTIC) is space
+            _assert_same_numbering(meshP2, before)
+
+
+def test_Mesh_simulations_on_one_mesh_share_its_space():
+    meshP2 = _box(ElemType.TETRA4)._With_FunctionSpace(ELASTIC, 2)
+
+    first, second = _elastic(meshP2), _elastic(meshP2)
+
+    assert first._Get_FunctionSpace() is second._Get_FunctionSpace()
+    assert first._Get_FunctionSpace() is meshP2._Get_FunctionSpace(ELASTIC)

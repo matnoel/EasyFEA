@@ -420,9 +420,8 @@ def Solve_simu(
         # Sync_dofsValues gathers each rank's owned slice via Allgatherv and
         # scatters back to EasyFEA-global positions; `ordering` is shared
         # between the x and lagrange syncs to avoid a duplicate collective.
-        nodes = simu.mesh._Get_mpi_owned_nodes()
-        dofs = simu.Bc_dofs_nodes(nodes, simu.Get_unknowns(problemType), problemType)
-        ordering = Concatenate_array(dofs)
+        dofs = simu.Get_dofs(problemType)
+        ordering = __Get_global_dof_ordering(simu, problemType)
         x = Sync_dofsValues(x, dofs, ordering=ordering)
 
         if resolution == ResolType.r2:
@@ -464,11 +463,13 @@ def __Get_global_dof_ordering(
 ) -> _types.IntArray:
     """Rank-contiguous global DOF ordering induced by the MPI partition: ``ordering[i]`` is the DOF at global position ``i``, with rank 0's owned DOFs first, then rank 1's, etc.
 
-    The owned nodes are gathered (a single ``Allgatherv``) and expanded to DOFs via the canonical node->DOF conversion (`Bc_dofs_nodes`). Useful wherever a consistent global DOF numbering across ranks is needed (e.g. mapping local DOFs to a contiguous PETSc index space).
+    The points the function space gives each rank are gathered (a single ``Allgatherv``) and expanded to DOFs via the canonical point->DOF conversion (`Bc_dofs_nodes`). Useful wherever a consistent global DOF numbering across ranks is needed (e.g. mapping local DOFs to a contiguous PETSc index space).
     """
-    ownedNodes = simu.mesh._Get_mpi_owned_nodes()
-    nodeOrdering = Concatenate_array(ownedNodes)
-    return simu.Bc_dofs_nodes(nodeOrdering, simu.Get_unknowns(problemType), problemType)
+    ownedPoints = simu._Get_FunctionSpace(problemType).ownedPoints
+    pointOrdering = Concatenate_array(ownedPoints)
+    return simu.Bc_dofs_nodes(
+        pointOrdering, simu.Get_unknowns(problemType), problemType
+    )
 
 
 def __Solver_1_mpi_indices(
@@ -566,7 +567,7 @@ def __Solver_1(
 def __Solver_2(simu: "_Simu", problemType: "ProblemType"):
     # Lagrange multiplier method
 
-    size = simu.mesh.Nn * simu.Get_dof_n(problemType)
+    size = simu._Get_FunctionSpace(problemType).Npoints * simu.Get_dof_n(problemType)
 
     # Build the penalized matrix system
     b = simu._Solver_Apply_Neumann(problemType)
@@ -644,11 +645,7 @@ def __Solver_3(simu: "_Simu", problemType: "ProblemType"):
     if simu.isNonLinear:
         b_owned = b
         if MPI_SIZE > 1:
-            nodes = simu.mesh._Get_mpi_owned_nodes()
-            dofs = simu.Bc_dofs_nodes(
-                nodes, simu.Get_unknowns(problemType), problemType
-            )
-            b_owned = b[dofs]
+            b_owned = b[simu.Get_dofs(problemType)]
         rhsNorm = __Residual_norm(b_owned)
 
     # Solving the penalized matrix system

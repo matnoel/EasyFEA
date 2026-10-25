@@ -1125,7 +1125,8 @@ def Plot_BoundaryConditions(
         dofsValues = bc.dofsValues
         unknowns = bc.unknowns
         nDir = len(unknowns)
-        nodes = list(set(list(bc.nodes)))
+        # the geometry nodes: a non-isoparametric space adds points the mesh has no node for
+        nodes = [node for node in set(list(bc.nodes)) if node < simu.mesh.Nn]
         description = bc.description
 
         marker = "."

@@ -25,6 +25,7 @@ from typing import Callable
 # fem
 from ._gauss import Gauss
 from ._fearray import FeArray
+from ._function_space import _FunctionSpace
 from ._mapping import _Mapping
 from ._reference_element import _ReferenceElement
 
@@ -115,6 +116,23 @@ class _GroupElem:
     def __mapping(self) -> _Mapping:
         """geometry map, rebuilt with the coordinates"""
         return _Mapping(self)
+
+    @property
+    @cache_computed_values
+    def __spheres(self) -> tuple[_types.FloatArray, _types.FloatArray]:
+        """bounding sphere of each element, centers (Ne, 3) and radii (Ne,), rebuilt with the coordinates"""
+        connect = self._global_to_local_nodes[self.connect]
+        coordElem_e = self.coord[connect]  # (Ne, nPe, 3)
+        center_e = coordElem_e.mean(1)  # (Ne, 3)
+        radius_e = np.linalg.norm(coordElem_e - center_e[:, None], axis=2).max(1)
+        radius_e *= 1 + 1e-8  # (Ne,)
+        return center_e, radius_e
+
+    @property
+    @cache_computed_values
+    def __centers(self) -> spatial.cKDTree:
+        """tree on the element centers, rebuilt with the coordinates"""
+        return spatial.cKDTree(self.__spheres[0])
 
     def __setstate__(self, state: dict) -> None:
         """Loads older pickles too, which hold the elemType instead of the reference element."""
@@ -235,7 +253,7 @@ class _GroupElem:
         assert ghostElements.size <= Ne
         # get nodes and ghost nodes
         nodes = np.sort(np.asarray(nodes, dtype=int))
-        ghostNodes = np.sort(np.asarray(list(set(self.nodes) - set(nodes)), dtype=int))
+        ghostNodes = np.setdiff1d(self.nodes, nodes, assume_unique=True)
 
         self.__partitionned_data = (rank, elements, ghostElements, nodes, ghostNodes)
 
@@ -377,38 +395,15 @@ class _GroupElem:
 
         assert connect.ndim, "connect must be an (Ne, nPe) array of int"
 
-        Ne, nPe = connect.shape
-        ndof = dof_n * nPe
-
-        assembly = np.zeros((Ne, ndof), dtype=np.int64)
-
-        for d in range(dof_n):
-            columns = np.arange(d, ndof, dof_n)
-            assembly[:, columns] = np.array(connect) * dof_n + d
-
-        return assembly
+        return _FunctionSpace._Get_dofs(connect, dof_n)
 
     def Get_rows_e(self, dof_n: int) -> _types.IntArray:
         """Returns the row indices used to assemble local matrices into the global matrix."""
-        assembly_e = self.Get_assembly_e(dof_n)
-        nPe = self.nPe
-        Ne = self.Ne
-        # each (ndof, ndof) local matrix flattens to ndof*ndof entries (ndof = nPe*dof_n);
-        # the explicit width keeps reshape valid for empty groups (Ne == 0, MPI).
-        ndof2 = (nPe * dof_n) ** 2
-        rowsVector_e = np.repeat(assembly_e, nPe * dof_n).reshape((Ne, ndof2))
-        return rowsVector_e
+        return _FunctionSpace._Get_rows_e(self.Get_assembly_e(dof_n))
 
     def Get_columns_e(self, dof_n: int) -> _types.IntArray:
         """Returns the column indices used to assemble local matrices into the global matrix."""
-        assembly_e = self.Get_assembly_e(dof_n)
-        nPe = self.nPe
-        Ne = self.Ne
-        ndof2 = (nPe * dof_n) ** 2
-        columnsVector_e = np.repeat(assembly_e, nPe * dof_n, axis=0).reshape(
-            (Ne, ndof2)
-        )
-        return columnsVector_e
+        return _FunctionSpace._Get_columns_e(self.Get_assembly_e(dof_n))
 
     def _Get_sysCoord_e(self, displacementMatrix: _types.AnyArray | None = None):
         """Get the basis transformation matrix (Ne, 3, 3).\n
@@ -1534,11 +1529,18 @@ class _GroupElem:
             return empty
 
         # bounding sphere of each element
-        connect = self._global_to_local_nodes[self.connect]
-        coordElem_e = self.coord[connect[elements_e]]  # (Ne, nPe, 3)
-        center_e = coordElem_e.mean(1)  # (Ne, 3)
-        radius_e = np.linalg.norm(coordElem_e - center_e[:, None], axis=2).max(1)
-        radius_e *= 1 + 1e-8  # (Ne,)
+        center_e, radius_e = self.__spheres
+        if 100 * Nn < elements_e.size:
+            # few nodes (probes): only the elements centered within the largest radius of a node, in their order
+            near_n = self.__centers.query_ball_point(
+                coordinates_n, radius_e[elements_e].max()
+            )
+            near = np.zeros(center_e.shape[0], dtype=bool)
+            near[list(itertools.chain.from_iterable(near_n))] = True
+            elements_e = elements_e[near[elements_e]]
+            if elements_e.size == 0:
+                return empty
+        center_e, radius_e = center_e[elements_e], radius_e[elements_e]
         tree = spatial.cKDTree(coordinates_n)
 
         # elements by chunks of about `chunk` (node, element) pairs, to bound the memory

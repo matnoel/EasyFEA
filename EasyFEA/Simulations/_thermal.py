@@ -50,6 +50,8 @@ class Thermal(_Simu):
 
     """
 
+    problemType = ProblemType("thermal")
+
     def __init__(
         self, mesh: "Mesh", model: Models.Thermal, folder: str = "", verbosity=False
     ):
@@ -86,9 +88,6 @@ class Thermal(_Simu):
         elementsField: list[str] = []
         return nodesField, elementsField
 
-    def Get_problemTypes(self) -> list[ProblemType]:
-        return [ProblemType("thermal")]
-
     @property
     def thermalModel(self) -> Models.Thermal:
         """Thermal simulation model."""
@@ -112,8 +111,9 @@ class Thermal(_Simu):
         return self.thermalModel.thickness if self.mesh.dim == 2 else 1.0
 
     def Get_x0(self, problemType=None):
-        if self.thermal.size != self.mesh.Nn:
-            return np.zeros(self.mesh.Nn)
+        size = self._Get_FunctionSpace().Npoints
+        if self.thermal.size != size:
+            return np.zeros(size)
         else:
             return self.thermal
 
@@ -134,6 +134,9 @@ class Thermal(_Simu):
                 constant=True,
             ),
         ]
+
+    def _Get_dof_names(self) -> dict[str, ProblemType]:
+        return dict.fromkeys(("thermal", "thermalDot"), self.problemType)
 
     def Save_Iter(self, iter=None):
 
@@ -180,11 +183,16 @@ class Thermal(_Simu):
 
         # begin cases ----------------------------------------------------
 
+        # node values (Nn,) of the temperature and its rate, through the space
+        space = self._Get_FunctionSpace()
+        t_n = space.Get_nodeValues(self.thermal, 1).ravel()
+        tDot_n = space.Get_nodeValues(self.thermalDot, 1).ravel()
+
         if result == "thermal":
-            values = self.thermal
+            values = t_n
 
         elif result == "thermalDot":
-            values = self.thermalDot
+            values = tDot_n
 
         elif result == "displacement_matrix":
             values = self.Results_displacement_matrix()

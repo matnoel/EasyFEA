@@ -34,6 +34,8 @@ class InElastic(_Simu):
     __EXTERNAL_KEY = "external"
     """Prefix of the saved iteration entries holding the external variables, one per name."""
 
+    problemType = ProblemType("inelastic")
+
     def __init__(
         self,
         mesh: "Mesh",
@@ -97,15 +99,13 @@ class InElastic(_Simu):
     def Get_unknowns(self, problemType=None) -> list[str]:
         return {2: ["x", "y"], 3: ["x", "y", "z"]}[self.dim]
 
-    def Get_problemTypes(self) -> list[ProblemType]:
-        return [ProblemType("inelastic")]
-
     def Get_dof_n(self, problemType=None) -> int:
         return self.dim
 
     def Get_x0(self, problemType=None):
-        if self.displacement.size != self.mesh.Nn * self.dim:
-            return np.zeros(self.mesh.Nn * self.dim)
+        size = self._Get_FunctionSpace().Npoints * self.dim
+        if self.displacement.size != size:
+            return np.zeros(size)
         return self.displacement
 
     def Results_nodeFields_elementFields(
@@ -218,6 +218,9 @@ class InElastic(_Simu):
     # Iterations
     # --------------------------------------------------------------------------
 
+    def _Get_dof_names(self) -> dict[str, ProblemType]:
+        return {"displacement": self.problemType}
+
     def Save_Iter(self, iter=None):
         external = self.__Solved_external()
         # so that every saved iteration can give its stress back
@@ -293,17 +296,17 @@ class InElastic(_Simu):
         if not self._Results_Check_Available(result):
             return None  # type: ignore[return-value]
 
-        Nn = self.mesh.Nn
-        u = self.displacement
+        # node values of the displacement (Nn, dim), through the space
+        u_n = self._Get_FunctionSpace().Get_nodeValues(self.displacement, self.dim)
 
         if result in ["ux", "uy", "uz"]:
-            values = u.reshape(Nn, -1)[:, {"x": 0, "y": 1, "z": 2}[result[-1]]]
+            values = u_n[:, {"x": 0, "y": 1, "z": 2}[result[-1]]]
 
         elif result == "displacement":
-            values = u
+            values = u_n.ravel()
 
         elif result == "displacement_norm":
-            values = np.linalg.norm(u.reshape(Nn, -1), axis=1)
+            values = np.linalg.norm(u_n, axis=1)
 
         elif result == "displacement_matrix":
             values = self.Results_displacement_matrix()
@@ -348,5 +351,6 @@ class InElastic(_Simu):
     def Results_displacement_matrix(self) -> _types.FloatArray:
         Nn = self.mesh.Nn
         matrix = np.zeros((Nn, 3))
-        matrix[:, : self.dim] = self.displacement.reshape((Nn, -1))
+        space = self._Get_FunctionSpace()
+        matrix[:, : self.dim] = space.Get_nodeValues(self.displacement, self.dim)
         return matrix

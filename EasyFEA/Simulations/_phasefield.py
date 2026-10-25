@@ -81,6 +81,8 @@ class PhaseField(_Simu):
         damage = ProblemType("damage")
         elastic = ProblemType("elastic")
 
+    problemType = ProblemTypes.damage
+
     def __init__(
         self, mesh: Mesh, model: Models.PhaseField, folder: str = "", verbosity=False
     ):
@@ -291,13 +293,16 @@ class PhaseField(_Simu):
 
     def Get_x0(self, problemType=None):
         if problemType == self.ProblemTypes.damage:
-            if self.damage.size != self.mesh.Nn:
-                return np.zeros(self.mesh.Nn)
+            size = self._Get_FunctionSpace(problemType).Npoints
+            if self.damage.size != size:
+                return np.zeros(size)
             else:
                 return self.damage
         elif problemType in [self.ProblemTypes.elastic, None]:
-            if self.displacement.size != self.mesh.Nn * self.dim:
-                return np.zeros(self.mesh.Nn * self.dim)
+            space = self._Get_FunctionSpace(self.ProblemTypes.elastic)
+            size = space.Npoints * self.dim
+            if self.displacement.size != size:
+                return np.zeros(size)
             else:
                 return self.displacement
 
@@ -480,8 +485,10 @@ class PhaseField(_Simu):
         u = self.displacement
         d = self.damage
 
-        testu = isinstance(u, np.ndarray) and (u.shape[0] == self.mesh.Nn * self.dim)
-        testd = isinstance(d, np.ndarray) and (d.shape[0] == self.mesh.Nn)
+        Nu = self._Get_FunctionSpace(self.ProblemTypes.elastic).Npoints * self.dim
+        Nd = self._Get_FunctionSpace(self.ProblemTypes.damage).Npoints
+        testu = isinstance(u, np.ndarray) and (u.shape[0] == Nu)
+        testd = isinstance(d, np.ndarray) and (d.shape[0] == Nd)
 
         assert testu or testd, "Dimension problem."
 
@@ -560,6 +567,12 @@ class PhaseField(_Simu):
         if MPI_SIZE > 1:
             detected = MPI_COMM.allreduce(detected, op=MPI.LOR)
         return detected
+
+    def _Get_dof_names(self) -> dict[str, ProblemType]:
+        return {
+            "displacement": self.ProblemTypes.elastic,
+            "damage": self.ProblemTypes.damage,
+        }
 
     def Save_Iter(self, iter=None):
 
@@ -643,7 +656,11 @@ class PhaseField(_Simu):
 
         # begin cases ----------------------------------------------------
 
-        Nn = self.mesh.Nn
+        # node values of the displacement (Nn, dim) and the damage (Nn,), through their spaces
+        spaceU = self._Get_FunctionSpace(self.ProblemTypes.elastic)
+        spaceD = self._Get_FunctionSpace(self.ProblemTypes.damage)
+        u_n = spaceU.Get_nodeValues(self.displacement, self.dim)
+        d_n = spaceD.Get_nodeValues(self.damage, 1).ravel()
 
         values = None
 
@@ -664,18 +681,16 @@ class PhaseField(_Simu):
             )
 
         elif result == "damage":
-            values = self.damage  # type: ignore [assignment]
+            values = d_n
 
         elif result in ["ux", "uy", "uz"]:
-            values_n = self.displacement.reshape(Nn, -1)
-            values = values_n[:, self.__indexResult(result)]  # type: ignore [assignment]
+            values = u_n[:, self.__indexResult(result)]  # type: ignore [assignment]
 
         elif result == "displacement":
-            values = self.displacement  # type: ignore [assignment]
+            values = u_n.ravel()
 
         elif result == "displacement_norm":
-            val_n = self.displacement.reshape(Nn, -1)
-            values = np.linalg.norm(val_n, axis=1)
+            values = np.linalg.norm(u_n, axis=1)
 
         elif result == "displacement_matrix":
             values = self.Results_displacement_matrix()  # type: ignore [assignment]
@@ -898,7 +913,8 @@ class PhaseField(_Simu):
 
     def Results_displacement_matrix(self) -> _types.FloatArray:
         Nn = self.mesh.Nn
-        coord = self.displacement.reshape((Nn, -1))
+        space = self._Get_FunctionSpace(self.ProblemTypes.elastic)
+        coord = space.Get_nodeValues(self.displacement, self.dim)
         dim = coord.shape[1]
 
         if dim == 1:

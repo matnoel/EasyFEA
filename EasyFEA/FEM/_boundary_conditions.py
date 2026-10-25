@@ -9,6 +9,8 @@ from typing import TYPE_CHECKING
 
 import numpy as np
 
+from ._function_space import _FunctionSpace
+
 from ..Utilities import _types
 
 if TYPE_CHECKING:
@@ -180,22 +182,18 @@ class BoundaryCondition:
         """
 
         nodes = np.asarray(nodes, dtype=int).ravel()
-        dim = len(availableUnknowns)
-        nDir = len(unknowns)
+        components = BoundaryCondition._Get_components(availableUnknowns, unknowns)
+        return _FunctionSpace._Get_dofs(nodes, len(availableUnknowns), components)
 
-        dofs_d = np.zeros((nodes.size, nDir), dtype=int)
-
-        for d, direction in enumerate(unknowns):
+    @staticmethod
+    def _Get_components(availableUnknowns: list[str], unknowns: list[str]) -> list[int]:
+        """Component index of each unknown in ``availableUnknowns``."""
+        for direction in unknowns:
             if direction not in availableUnknowns:
                 raise ValueError(
                     f"direction ({direction}) must be in {availableUnknowns}."
                 )
-
-            idx = availableUnknowns.index(direction)
-
-            dofs_d[:, d] = nodes * dim + idx
-
-        return dofs_d.ravel()
+        return [availableUnknowns.index(direction) for direction in unknowns]
 
 
 class LagrangeCondition(BoundaryCondition):

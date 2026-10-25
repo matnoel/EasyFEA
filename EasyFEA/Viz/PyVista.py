@@ -758,17 +758,20 @@ def Plot_BoundaryConditions(
         nDir = len(unknowns)
 
         availableUnknowns = simu.Get_unknowns(problemType)
-        nDof = mesh.Nn * simu.Get_dof_n(problemType)
+        dof_n = simu.Get_dof_n(problemType)
+        nDof = simu._Get_FunctionSpace(problemType).Npoints * dof_n
 
         # label
         unknowns_str = str(unknowns).replace("'", "")
         label = f"{description} {unknowns_str}"
 
+        # the geometry nodes: a non-isoparametric space adds points the mesh has no node for
         nodes = np.asarray(list(set(nodes)), dtype=int)
+        nodes = nodes[nodes < mesh.Nn]
 
         unknowns_rot = ["rx", "ry", "rz"]
 
-        if nDof == mesh.Nn:
+        if dof_n == 1:
             # plot points
             plotter.add_mesh(
                 pv.PolyData(coord[nodes]),  # type: ignore [arg-type]

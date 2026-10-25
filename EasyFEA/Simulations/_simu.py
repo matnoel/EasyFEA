@@ -34,6 +34,7 @@ from ..FEM import (
     MatrixType,
 )
 from ..FEM._fearray import FeArray
+from ..FEM._function_space import _FunctionSpace
 
 # materials
 from ..Models import _IModel
@@ -76,12 +77,10 @@ class _Simu(_IObserver, _params.Updatable, ABC):
     The ThermalSimuclass is relatively simple and can serve as a good starting point.\n
     See `simulations/_thermal.py` for more details.
 
-    To use the interface/inheritance, 13 methods need to be defined.
+    To use the interface/inheritance, 12 methods and the class attribute ``problemType`` need to be defined (``Get_problemTypes`` too when there are several).
 
     General:
     --------
-
-        - def Get_problemTypes(self) -> list[ProblemType]:
 
         - def Get_unknowns(self, problemType=None) -> list[str]:
 
@@ -132,10 +131,13 @@ class _Simu(_IObserver, _params.Updatable, ABC):
     # Abstract method
     # ----------------------------------------------
 
-    @abstractmethod
+    problemType: ProblemType
+    """the simulation's default problem type (the first one it declares), set on the class so that it is known before any instance, e.g. ``mesh._With_FunctionSpace(Simulations.Elastic.problemType, 2)``"""
+
     def Get_problemTypes(self) -> list[ProblemType]:
         """Returns the problem types available through the simulation."""
         # A PhaseField simulation involves solving 2 problems. An elastic and a damage problem.
+        return [self.problemType]
 
     @abstractmethod
     def Get_unknowns(self, problemType: ProblemType = None) -> list[str]:
@@ -145,11 +147,23 @@ class _Simu(_IObserver, _params.Updatable, ABC):
     def Get_dof_n(self, problemType: ProblemType | None = None) -> int:
         """Returns the number of degrees of freedom per node."""
 
-    def __Get_Ndof(self, problemType: ProblemType = None) -> int:
-        """Returns the total number of degrees of freedom (including Lagrange multiplier DOFs)."""
-        return self.mesh.Nn * self.Get_dof_n(problemType) + self._Bc_Lagrange_dim(
+    def _Get_FunctionSpace(
+        self, problemType: ProblemType | None = None
+    ) -> _FunctionSpace:
+        """Function space of the problem type's field, held by the mesh."""
+        if problemType is None:
+            problemType = self.problemType
+        return self.mesh._Get_FunctionSpace(problemType)
+
+    def __Get_size(self, problemType: ProblemType | None = None) -> int:
+        """Returns the number of degrees of freedom of the problem type's field (Lagrange multiplier DOFs excluded)."""
+        return self._Get_FunctionSpace(problemType).Npoints * self.Get_dof_n(
             problemType
         )
+
+    def __Get_Ndof(self, problemType: ProblemType = None) -> int:
+        """Returns the total number of degrees of freedom (including Lagrange multiplier DOFs)."""
+        return self.__Get_size(problemType) + self._Bc_Lagrange_dim(problemType)
 
     # Solvers
     def Get_K_C_M_F(
@@ -256,7 +270,7 @@ class _Simu(_IObserver, _params.Updatable, ABC):
     @abstractmethod
     def Get_x0(self, problemType: ProblemType | None = None) -> _types.FloatArray:
         """Returns the solution from the previous iteration."""
-        size = self.mesh.Nn * self.Get_dof_n(problemType)
+        size = self.__Get_size(problemType)
         return np.zeros(size)
 
     @abstractmethod
@@ -339,39 +353,39 @@ class _Simu(_IObserver, _params.Updatable, ABC):
         self.__Niter += 1
 
     __LOCAL_DOFS_KEY = "__mpiLocalDofKeys"
-    """Names of the entries stored as local-dof slices, recorded in the pickle by :meth:`__Reduce_iter_to_local`."""
+    """Names of the entries stored as local-dof slices, with their problem type, recorded in the pickle by :meth:`__Reduce_iter_to_local`."""
+
+    __LOCAL_SLICES_KEY = "__mpiLocalSlices"
+    """DOFs the slices of a pickle cover, per problem type. Stored with them so restoring never depends on what the mesh became afterwards — `_Gather` replaces the partition with the global mesh, and a slice written before it must still be placed correctly."""
 
     __LOCAL_NODES_KEY = "__mpiLocalNodes"
-    """Nodes the slices of a pickle cover. Stored with them so restoring never depends on what the mesh became afterwards — `_Gather` replaces the partition with the global mesh, and a slice written before it must still be placed correctly."""
+    """Nodes the slices cover, in the pickles written before they recorded their DOFs."""
 
     def __Local_dofs(
         self, problemType: ProblemType, nodes: _types.IntArray = None
     ) -> _types.IntArray:
-        """Dofs carried by `nodes`, by default the nodes of this rank's partition, ghosts included.
+        """Dofs carried by `nodes`, by default the points of this rank's partition, ghosts included.
 
-        Node ids are global in the partitioned and the gathered view alike, and this maps them to dofs from the ids and `dof_n` alone, so the same call places a slice correctly on either side of a `_Gather`.
+        Point ids are global in the partitioned and the gathered view alike, and this maps them to dofs from the ids and `dof_n` alone, so the same call places a slice correctly on either side of a `_Gather`.
         """
         if nodes is None:
-            nodes = self.mesh.nodes
+            nodes = self._Get_FunctionSpace(problemType).localPoints
 
         return self.Bc_dofs_nodes(nodes, self.Get_unknowns(problemType), problemType)
 
-    def __Dof_sized_keys(self, iter: dict[str, Any]) -> dict[str, ProblemType]:
+    def _Get_dof_names(self) -> dict[str, ProblemType]:
+        """`Save_Iter` entries that are full dof vectors, by name, with the problem type sizing each; any other entry is stored whole."""
+        return {}
+
+    def __Dof_keys(self, iter: dict[str, Any]) -> dict[str, ProblemType]:
         """Entries of an iteration dict that are full dof vectors, mapped to the problem type sizing them.
 
-        The solver allgathers the solution, so every rank ends the step holding the same dof vector — storing them whole writes the same bytes ``MPI_SIZE`` times. Identification is by length, as in :meth:`Results_Reshape_values`.
-
-        Mapping *per entry* is what lets one dict hold several problems: a phase-field iteration stores ``damage`` at ``dof_n = 1`` beside ``displacement`` at ``dof_n = dim``, and each is sliced and restored with its own. Two problem types of equal ``dof_n`` (1D phase-field) collapse into one entry here, harmlessly — the dof of a node is ``node * dof_n + component``, so equal ``dof_n`` means identical indices whichever type is recorded.
+        The solver allgathers the solution, so every rank ends the step holding the same dof vector — storing them whole writes the same bytes ``MPI_SIZE`` times. Identification is by name (:meth:`_Get_dof_names`), never by length: an element array can have the length of a dof vector.
         """
-        sizes = {
-            self.mesh.Nn * self.Get_dof_n(problemType): problemType
-            for problemType in self.Get_problemTypes()
-        }
-
         return {
-            key: sizes[value.size]
-            for key, value in iter.items()
-            if isinstance(value, np.ndarray) and value.size in sizes
+            key: problemType
+            for key, problemType in self._Get_dof_names().items()
+            if isinstance(iter.get(key), np.ndarray)
         }
 
     def __Reduce_iter_to_local(self, iter: dict[str, Any]) -> dict[str, Any]:
@@ -384,22 +398,24 @@ class _Simu(_IObserver, _params.Updatable, ABC):
         if MPI_SIZE == 1:
             return iter
 
-        keys = self.__Dof_sized_keys(iter)
-
-        nodes = self.mesh.nodes
+        keys = self.__Dof_keys(iter)
+        dofs = {
+            problemType: self.__Local_dofs(problemType)
+            for problemType in set(keys.values())
+        }
 
         iter = iter.copy()
         for key, problemType in keys.items():
-            iter[key] = iter[key][self.__Local_dofs(problemType, nodes)]
+            iter[key] = iter[key][dofs[problemType]]
         iter[_Simu.__LOCAL_DOFS_KEY] = keys
-        iter[_Simu.__LOCAL_NODES_KEY] = nodes
+        iter[_Simu.__LOCAL_SLICES_KEY] = dofs
 
         return iter
 
     def __Restore_iter_from_local(self, parts: list[dict[str, Any]]) -> dict[str, Any]:
         """Rebuilds the dof vectors that :meth:`__Reduce_iter_to_local` sliced, back to full length so global dof indexing keeps working.
 
-        Each part is placed by the nodes *it* recorded, never by the current mesh: after a `_Gather` the mesh is the global one while the slice still covers a single partition. Given every rank's part, the merge therefore reconstructs the whole field; given one, the dofs outside that partition come back as zero — and they are never read, since a rank derives everything from integrals over its own elements, which reach no further than its ghost layer.
+        Each part is placed by the dofs *it* recorded, never by the current mesh: after a `_Gather` the mesh is the global one while the slice still covers a single partition. Given every rank's part, the merge therefore reconstructs the whole field; given one, the dofs outside that partition come back as zero — and they are never read, since a rank derives everything from integrals over its own elements, which reach no further than its ghost layer.
         """
         keys = parts[0].get(_Simu.__LOCAL_DOFS_KEY)
 
@@ -408,7 +424,8 @@ class _Simu(_IObserver, _params.Updatable, ABC):
 
         merged = parts[0].copy()
         merged.pop(_Simu.__LOCAL_DOFS_KEY)
-        merged.pop(_Simu.__LOCAL_NODES_KEY)
+        merged.pop(_Simu.__LOCAL_SLICES_KEY, None)
+        merged.pop(_Simu.__LOCAL_NODES_KEY, None)
 
         if len(parts) > 1:
             # element-sized entries would need each rank's `_globalElements` to merge, which is not
@@ -424,9 +441,12 @@ class _Simu(_IObserver, _params.Updatable, ABC):
             )
 
         for key, problemType in keys.items():
-            full = np.zeros(self.mesh.Nn * self.Get_dof_n(problemType))
+            full = np.zeros(self.__Get_size(problemType))
             for part in parts:
-                dofs = self.__Local_dofs(problemType, part[_Simu.__LOCAL_NODES_KEY])
+                if _Simu.__LOCAL_SLICES_KEY in part:
+                    dofs = part[_Simu.__LOCAL_SLICES_KEY][problemType]
+                else:
+                    dofs = self.__Local_dofs(problemType, part[_Simu.__LOCAL_NODES_KEY])
                 full[dofs] = part[key]
             merged[key] = full
 
@@ -447,7 +467,8 @@ class _Simu(_IObserver, _params.Updatable, ABC):
                 parts.append(pickle.load(f))
 
         assert all(
-            _Simu.__LOCAL_NODES_KEY in part for part in parts
+            _Simu.__LOCAL_SLICES_KEY in part or _Simu.__LOCAL_NODES_KEY in part
+            for part in parts
         ), "these results predate the self-describing format and cannot be merged after a _Gather"
 
         return parts
@@ -763,7 +784,7 @@ class _Simu(_IObserver, _params.Updatable, ABC):
         self.__dict_v_n = {}
         self.__dict_a_n = {}
         for problemType in self.Get_problemTypes():
-            size = self.mesh.Nn * self.Get_dof_n(problemType)
+            size = self.__Get_size(problemType)
             vectInit = np.zeros(size, dtype=float)
             self.__dict_u_n[problemType] = vectInit
             self.__dict_v_n[problemType] = vectInit
@@ -774,7 +795,7 @@ class _Simu(_IObserver, _params.Updatable, ABC):
     ) -> None:
         """Checks that the solution has the right size."""
         self.__Check_problemTypes(problemType)
-        size = self.mesh.Nn * self.Get_dof_n(problemType)
+        size = self.__Get_size(problemType)
         assert values.shape[0] == size, f"Must be size {size}"
 
     def _Get_u_n(
@@ -836,11 +857,6 @@ class _Simu(_IObserver, _params.Updatable, ABC):
         return np.array([]), np.array([])
 
     # Properties
-    @property
-    def problemType(self) -> ProblemType:
-        """Get the simulation's default problem type (the first one it declares)."""
-        return self.Get_problemTypes()[0]
-
     @property
     def algo(self) -> AlgoType:
         r"""The algorithm used to solve the problem.
@@ -982,6 +998,7 @@ class _Simu(_IObserver, _params.Updatable, ABC):
     def __Assemble_csr(
         self,
         dict_group_data: dict["_GroupElem", np.ndarray | None],
+        space: _FunctionSpace,
         dof_n: int,
         Ndof: int,
         isMatrix: bool = True,
@@ -996,7 +1013,7 @@ class _Simu(_IObserver, _params.Updatable, ABC):
         precomputed map lets every later assembly do the summation with a single ``np.bincount``, skipping
         scipy's repeated sort-and-sum-duplicates.
 
-        The map is cached per ``(dof_n, isMatrix, Ndof, contributing groups)``. The contributing groups are
+        The map is cached per ``(space, dof_n, isMatrix, Ndof, contributing groups)``. The contributing groups are
         part of the key because a simulation may feed different group sets to different slots — in the
         cardiac benchmark the surface group contributes to K, C and F but leaves M ``None``, so K and M have
         genuinely different patterns.
@@ -1009,6 +1026,8 @@ class _Simu(_IObserver, _params.Updatable, ABC):
         ----------
         dict_group_data : dict[_GroupElem, FeArray]
             Per-group local arrays, keyed by element group. Empty dict returns an empty CSR.
+        space : _FunctionSpace
+            Function space numbering the element DOFs.
         dof_n : int
             Number of DOFs per node.
         Ndof : int
@@ -1035,7 +1054,9 @@ class _Simu(_IObserver, _params.Updatable, ABC):
 
         # The reduction map (which CSR slot each element entry feeds) is cached per key; it depends only on
         # connectivity, so a Newton loop / time stepping reuses it and only the values below change.
-        inv, indices, indptr, nnz = self.__Get_csr_map(dof_n, isMatrix, Ndof, groups)
+        inv, indices, indptr, nnz = self.__Get_csr_map(
+            space, dof_n, isMatrix, Ndof, groups
+        )
         assert data.size == inv.size, f"Not enough data to fill a {shape} CSR."
 
         # Sum every element entry into its slot with one bincount. `bincount` is real-only, so a complex
@@ -1053,13 +1074,13 @@ class _Simu(_IObserver, _params.Updatable, ABC):
         return matrix
 
     @cache_computed_values
-    def __Get_csr_map(self, dof_n, isMatrix, Ndof, groups):
+    def __Get_csr_map(self, space, dof_n, isMatrix, Ndof, groups):
         """Reduction map from element entries to global CSR slots for one assembly key.
 
         Returns ``(inv, indices, indptr, nnz)``: ``inv[k]`` is the CSR-data slot that element entry ``k``
         feeds, and ``(indices, indptr, nnz)`` is scipy's canonical pattern. Depends only on connectivity, so
-        ``@cache_computed_values`` (keyed on ``dof_n, isMatrix, Ndof, groups``) reuses it across every
-        assembly of a key and rebuilds it when the groups / Ndof / dof_n change or the mesh is reset. ``inv``
+        ``@cache_computed_values`` (keyed on ``space, dof_n, isMatrix, Ndof, groups``) reuses it across every
+        assembly of a key and rebuilds it when the space / groups / Ndof / dof_n change or the mesh is reset. ``inv``
         is the single largest cached array; int32 halves it and is safe since slots are bounded by nnz < 2^31.
         """
         shape = (Ndof, Ndof) if isMatrix else (Ndof, 1)
@@ -1067,10 +1088,10 @@ class _Simu(_IObserver, _params.Updatable, ABC):
         list_rows, list_cols = [], []
         for groupElem in groups:
             if isMatrix:
-                list_rows.append(groupElem.Get_rows_e(dof_n).ravel())
-                list_cols.append(groupElem.Get_columns_e(dof_n).ravel())
+                list_rows.append(space.Get_rows_e(groupElem, dof_n).ravel())
+                list_cols.append(space.Get_columns_e(groupElem, dof_n).ravel())
             else:
-                r = groupElem.Get_assembly_e(dof_n).ravel()
+                r = space.Get_assembly_e(groupElem, dof_n).ravel()
                 list_rows.append(r)
                 list_cols.append(np.zeros_like(r))
         rows = np.concatenate(list_rows)
@@ -1100,6 +1121,7 @@ class _Simu(_IObserver, _params.Updatable, ABC):
         sparse.csr_matrix, sparse.csr_matrix, sparse.csr_matrix, sparse.csr_matrix
     ]:
         r"""Assemble the matrix system :math:`\Krm \, \mathrm{u} + \Crm \, \vrm + \Mrm \, \arm = \Frm` for the given problemType."""
+        space = self._Get_FunctionSpace(problemType)
         dof_n = self.Get_dof_n(problemType)
         Ndof = self.__Get_Ndof(problemType)
 
@@ -1115,22 +1137,38 @@ class _Simu(_IObserver, _params.Updatable, ABC):
         )
 
         K = self.__Assemble_csr(
-            {g: KCMF[0] for g, KCMF in dict_KCMF.items()}, dof_n, Ndof, True
+            {g: KCMF[0] for g, KCMF in dict_KCMF.items()},
+            space,
+            dof_n,
+            Ndof,
+            True,
         )
         tic.Tac("Matrix", f"Assemble the K matrix ({problemType}).", self._verbosity)
 
         C = self.__Assemble_csr(
-            {g: KCMF[1] for g, KCMF in dict_KCMF.items()}, dof_n, Ndof, True
+            {g: KCMF[1] for g, KCMF in dict_KCMF.items()},
+            space,
+            dof_n,
+            Ndof,
+            True,
         )
         tic.Tac("Matrix", f"Assemble the C matrix ({problemType}).", self._verbosity)
 
         M = self.__Assemble_csr(
-            {g: KCMF[2] for g, KCMF in dict_KCMF.items()}, dof_n, Ndof, True
+            {g: KCMF[2] for g, KCMF in dict_KCMF.items()},
+            space,
+            dof_n,
+            Ndof,
+            True,
         )
         tic.Tac("Matrix", f"Assemble the M matrix ({problemType}).", self._verbosity)
 
         F = self.__Assemble_csr(
-            {g: KCMF[3] for g, KCMF in dict_KCMF.items()}, dof_n, Ndof, False
+            {g: KCMF[3] for g, KCMF in dict_KCMF.items()},
+            space,
+            dof_n,
+            Ndof,
+            False,
         )
         tic.Tac("Matrix", f"Assemble the F vector ({problemType}).", self._verbosity)
 
@@ -1964,12 +2002,13 @@ class _Simu(_IObserver, _params.Updatable, ABC):
             The x matrix after resizing or b matrix if resolution == ResolType.r3.
         """
         dofs = self.Bc_dofs_Dirichlet(problemType)
-        size = self.mesh.Nn * self.Get_dof_n(problemType)
+        size = self.__Get_size(problemType)
 
         if len(self.mesh.orphanNodes) > 0:
-            # add 1.0 to orphan dofs — orphan rows are zero, so addition sets the diagonal
+            # add 1.0 to orphan dofs — orphan rows are zero, so addition sets the diagonal; only the orphans carrying a DOF (under MPI the nodes off this rank, TETRA10 mid nodes under P1 among them), no element closing over them
+            orphans = np.asarray(self.mesh.orphanNodes, dtype=int)
             orphanDofs = self.Bc_dofs_nodes(
-                np.asarray(self.mesh.orphanNodes, dtype=int),
+                self._Get_FunctionSpace(problemType).Get_points(orphans),
                 self.Get_unknowns(problemType),
                 problemType,
             )
@@ -2221,15 +2260,12 @@ class _Simu(_IObserver, _params.Updatable, ABC):
     def Get_dofs(self, problemType: ProblemType = None):
         """Returns (owned) dofs associated with the problem type."""
 
-        if MPI_SIZE > 1:
-            nodes = self.mesh._Get_mpi_owned_nodes()
-        else:
-            nodes = self.mesh.nodes
-
         if problemType is None:
             problemType = self.problemType
 
-        return self.Bc_dofs_nodes(nodes, self.Get_unknowns(problemType), problemType)
+        points = self._Get_FunctionSpace(problemType).ownedPoints
+
+        return self.Bc_dofs_nodes(points, self.Get_unknowns(problemType), problemType)
 
     # ----------------------------------------------
     # Boundary conditions
@@ -2296,7 +2332,7 @@ class _Simu(_IObserver, _params.Updatable, ABC):
             problemType = self.problemType
         dofs = self.Bc_dofs_Dirichlet(problemType)
         dofsValues = self.Bc_values_Dirichlet(problemType)
-        size = self.mesh.Nn * self.Get_dof_n(problemType)
+        size = self.__Get_size(problemType)
         csr_vector = sparse.csr_matrix(
             (dofsValues, (dofs, np.zeros_like(dofs))), shape=(size, 1)
         )
@@ -2309,7 +2345,7 @@ class _Simu(_IObserver, _params.Updatable, ABC):
             problemType = self.problemType
         dofs = self.Bc_dofs_Neumann(problemType)
         dofsValues = self.Bc_values_Neumann(problemType)
-        size = self.mesh.Nn * self.Get_dof_n(problemType)
+        size = self.__Get_size(problemType)
         csr_vector = sparse.csr_matrix(
             (dofsValues, (dofs, np.zeros_like(dofs))), shape=(size, 1)
         )
@@ -2347,7 +2383,7 @@ class _Simu(_IObserver, _params.Updatable, ABC):
         tic = Tic()
 
         # Build unknown and known dofs
-        nDof = self.mesh.Nn * self.Get_dof_n(problemType)
+        nDof = self.__Get_size(problemType)
         dofsKnown = np.asarray(self.Bc_dofs_Dirichlet(problemType), dtype=int)
         mask = np.ones(nDof, dtype=bool)
         mask[dofsKnown] = False  # handles duplicates implicitly
@@ -2395,8 +2431,11 @@ class _Simu(_IObserver, _params.Updatable, ABC):
         self.__Check_problemTypes(problemType)
 
         availableUnknowns = self.Get_unknowns(problemType)
+        components = BoundaryCondition._Get_components(availableUnknowns, unknowns)
 
-        return BoundaryCondition.Get_dofs_nodes(availableUnknowns, nodes, unknowns)
+        return self._Get_FunctionSpace(problemType).Get_dofs(
+            nodes, len(availableUnknowns), components
+        )
 
     def __Bc_evaluate(
         self, coord: _types.FloatArray, values, option="nodes"
@@ -2497,23 +2536,35 @@ class _Simu(_IObserver, _params.Updatable, ABC):
         assert len(nodes) > 0, "Empty node list"
         nodes = np.asarray(nodes)
 
-        Nn = nodes.shape[0]
-        coord = self.mesh.coord
-        coordo_n = coord[nodes]
+        # the selected points carrying a DOF, in their order, then those the element closure adds (Np,); which of the given nodes are kept (nNodes,)
+        space = self._Get_FunctionSpace(problemType)
+        points = space.Get_points(nodes)
+        kept = np.isin(nodes, points)
+        if points.size == 0:
+            raise ValueError(f"No selected node carries a {problemType} DOF.")
+        coordo_n = space.coord[points]
 
-        # initialize the value vector for each nodes
-        dofsValues_dir = np.zeros((Nn, len(unknowns)))
+        # initialize the value vector for each point
+        dofsValues_dir = np.zeros((points.size, len(unknowns)))
 
         for d, _ in enumerate(unknowns):
-            eval_n = self.__Bc_evaluate(coordo_n, values[d], option="nodes")
+            value = values[d]
+            # a value per node covers the kept nodes only
+            if not callable(value) and np.size(value) > 1:
+                if points.size > np.count_nonzero(kept):
+                    raise ValueError(
+                        "The element closure adds points the value array does not cover: pass a function of (x, y, z)."
+                    )
+                value = np.asarray(value)[kept]
+            eval_n = self.__Bc_evaluate(coordo_n, value, option="nodes")
             dofsValues_dir[:, d] = eval_n.ravel()
 
         dofsValues = dofsValues_dir.ravel()
 
-        dofs = self.Bc_dofs_nodes(nodes, unknowns, problemType)
+        dofs = self.Bc_dofs_nodes(points, unknowns, problemType)
 
         self._Bc_Add_Dirichlet(
-            problemType, nodes, dofsValues, dofs, unknowns, description
+            problemType, points, dofsValues, dofs, unknowns, description
         )
 
     def add_neumann(

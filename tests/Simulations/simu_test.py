@@ -13,7 +13,7 @@ import numpy as np
 import pytest
 
 from EasyFEA import AlgoType, ElemType, Mesh, Mesher, Models, Simulations, SolverType
-from EasyFEA.FEM import Field, LagrangeCondition
+from EasyFEA.FEM import Field, GroupElemFactory, LagrangeCondition
 from EasyFEA.Geoms import Domain, Line
 
 from _numerics import rel_error
@@ -484,6 +484,31 @@ def test_Simu_Set_Iter_restores_speed_and_accel_of_a_dynamic_step():
     simu.Set_Iter(0)
 
     assert np.array_equal(simu.speed, speed) and np.array_equal(simu.accel, accel)
+
+
+def test_Simu_Set_Iter_restores_by_name_an_entry_as_long_as_a_field(
+    tmp_path, monkeypatch: pytest.MonkeyPatch
+):
+    """Stored per rank, the dof vectors are cut to the rank's nodes, found by name: an element array of their length stays whole."""
+    bar = _bar()
+    # two orphan nodes, outside every rank's nodes: a field of 12 dofs beside 4 elements × 3
+    coord = np.vstack([bar.coord, [[9, 9, 0], [9, 8, 0]]])
+    groupElem = GroupElemFactory.Create(ElemType.QUAD4, bar.connect, coord)
+    mesh = Mesh({ElemType.QUAD4: groupElem})
+    simu = Simulations.Thermal(mesh, Models.Thermal(1, 1), folder=str(tmp_path))
+    thermal = np.arange(mesh.Nn) + 1.0
+    simu._Set_solutions(simu.problemType, thermal)
+    flux_e = np.ones((mesh.Ne, 3))
+    _simu = importlib.import_module("EasyFEA.Simulations._simu")
+    with monkeypatch.context() as patch:
+        patch.setattr(_simu, "MPI_SIZE", 2)
+        simu.Save_Iter({"flux_e": flux_e})
+
+    results = simu.Set_Iter(0)
+
+    assert np.array_equal(results["flux_e"], flux_e)
+    assert np.array_equal(simu.thermal[mesh.nodes], thermal[mesh.nodes])
+    assert np.array_equal(simu.thermal[mesh.orphanNodes], [0, 0])
 
 
 def test_Simu_Results_Available_include_the_displacement_matrix(subtests):

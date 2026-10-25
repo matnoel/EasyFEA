@@ -50,6 +50,8 @@ class Elastic(_Simu):
     The implemented elastic laws are available :ref:`here <models-elastic>`.
     """
 
+    problemType = ProblemType("elastic")
+
     def __init__(
         self, mesh: "Mesh", model: _Elastic, folder: str = "", verbosity=False
     ):
@@ -88,9 +90,6 @@ class Elastic(_Simu):
     def Get_unknowns(self, problemType=None) -> list[str]:
         dict_unknowns = {2: ["x", "y"], 3: ["x", "y", "z"]}
         return dict_unknowns[self.dim]
-
-    def Get_problemTypes(self) -> list[ProblemType]:
-        return [ProblemType("elastic")]
 
     def Get_dof_n(self, problemType=None) -> int:
         return self.dim
@@ -153,10 +152,14 @@ class Elastic(_Simu):
         self.Need_Update()
 
     def Get_x0(self, problemType=None):
-        if self.displacement.size != self.mesh.Nn * self.dim:
-            return np.zeros(self.mesh.Nn * self.dim)
+        size = self._Get_FunctionSpace().Npoints * self.dim
+        if self.displacement.size != size:
+            return np.zeros(size)
         else:
             return self.displacement
+
+    def _Get_dof_names(self) -> dict[str, ProblemType]:
+        return dict.fromkeys(("displacement", "speed", "accel"), self.problemType)
 
     def Save_Iter(self, iter=None):
 
@@ -232,45 +235,43 @@ class Elastic(_Simu):
 
         # begin cases ----------------------------------------------------
 
-        Nn = self.mesh.Nn
+        # node values (Nn, dim) of the displacement, speed and acceleration, through the space
+        space = self._Get_FunctionSpace()
+        u_n = space.Get_nodeValues(self.displacement, self.dim)
+        v_n = space.Get_nodeValues(self.speed, self.dim)
+        a_n = space.Get_nodeValues(self.accel, self.dim)
 
         values = None
 
         if result in ["ux", "uy", "uz"]:
-            values_n = self.displacement.reshape(Nn, -1)
-            values = values_n[:, self.__indexResult(result)]
+            values = u_n[:, self.__indexResult(result)]
 
         elif result == "displacement":
-            values = self.displacement
+            values = u_n.ravel()
 
         elif result == "displacement_norm":
-            val_n = self.displacement.reshape(Nn, -1)
-            values = np.linalg.norm(val_n, axis=1)
+            values = np.linalg.norm(u_n, axis=1)
 
         elif result == "displacement_matrix":
             values = self.Results_displacement_matrix()
 
         elif result in ["vx", "vy", "vz"]:
-            values_n = self.speed.reshape(Nn, -1)
-            values = values_n[:, self.__indexResult(result)]
+            values = v_n[:, self.__indexResult(result)]
 
         elif result == "speed":
-            values = self.speed
+            values = v_n.ravel()
 
         elif result == "speed_norm":
-            val_n = self.speed.reshape(Nn, -1)
-            values = np.linalg.norm(val_n, axis=1)
+            values = np.linalg.norm(v_n, axis=1)
 
         elif result in ["ax", "ay", "az"]:
-            values_n = self.accel.reshape(Nn, -1)
-            values = values_n[:, self.__indexResult(result)]
+            values = a_n[:, self.__indexResult(result)]
 
         elif result == "accel":
-            values = self.accel
+            values = a_n.ravel()
 
         elif result == "accel_norm":
-            val_n = self.accel.reshape(Nn, -1)
-            values = np.linalg.norm(val_n, axis=1)
+            values = np.linalg.norm(a_n, axis=1)
 
         elif result in ["Wdef"]:
             return self._Calc_Psi_Elas()
@@ -476,7 +477,7 @@ class Elastic(_Simu):
 
     def Results_displacement_matrix(self) -> _types.FloatArray:
         Nn = self.mesh.Nn
-        coord = self.displacement.reshape((Nn, -1))
+        coord = self._Get_FunctionSpace().Get_nodeValues(self.displacement, self.dim)
         dim = coord.shape[1]
 
         displacement_matrix = np.zeros((Nn, 3))

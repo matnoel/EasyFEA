@@ -14,7 +14,7 @@ A hexahedral mesh (HEXA8) uses :\n
 
 import copy
 import pickle
-from typing import Callable, TYPE_CHECKING
+from typing import Any, Callable, TYPE_CHECKING
 
 import numpy as np
 import scipy.sparse as sp
@@ -25,12 +25,15 @@ from scipy.sparse.csgraph import connected_components
 from ..Utilities import Terminal, Folder, Tic, _types
 from ..Utilities._observers import Observable
 from ..Utilities._mpi import MPI_COMM, MPI_SIZE, MPI_RANK
+from ..Utilities._cache import cache_computed_values, cached_computed_values
 
 # fem
 from ._utils import ElemType, MatrixType
+from ._function_space import _FunctionSpace
 
 if TYPE_CHECKING:
     from ._group_elem import _GroupElem
+    from ..Simulations._problem_type import ProblemType
 
 # others
 if TYPE_CHECKING:
@@ -71,6 +74,9 @@ class Mesh(Observable):
         self.__verbosity = verbosity
         """the mesh can write in the terminal"""
 
+        self.__dict_functionSpace: dict["ProblemType", _FunctionSpace] = {}
+        """space of each problem type not isoparametric, on the complete Lagrange elements set by `_With_FunctionSpace`"""
+
         if self.__verbosity:
             print(self)
 
@@ -86,6 +92,13 @@ class Mesh(Observable):
             Terminal.MyPrintError(
                 "WARNING: Orphan nodes have been detected in the mesh (stored in mesh.orphanNodes)."
             )
+
+    def __setstate__(self, state: dict) -> None:
+        """Loads older pickles too, which hold no function space; cached spaces are rebuilt, since older ones own every point."""
+        self.__dict__.update({"_Mesh__dict_functionSpace": {}, **state})
+        cache = cached_computed_values(self)
+        for key in [key for key in cache if key[0] == "_Get_FunctionSpace"]:
+            del cache[key]
 
     def _ResetMatrix(self) -> None:
         """Resets matrices for each groupElem"""
@@ -352,9 +365,7 @@ class Mesh(Observable):
         """
         oldCoord = self.coord
         newCoord = oldCoord + np.array([dx, dy, dz])
-        for groupElem in self.dict_groupElem.values():
-            groupElem.coord = newCoord
-        self._Notify("The mesh has been modified")
+        self.coord = newCoord
 
     def Rotate(
         self,
@@ -375,9 +386,7 @@ class Mesh(Observable):
         """
         oldCoord = self.coord
         newCoord = Rotate(oldCoord, theta, center, direction)
-        for groupElem in self.dict_groupElem.values():
-            groupElem.coord = newCoord
-        self._Notify("The mesh has been modified")
+        self.coord = newCoord
 
     def Symmetry(
         self,
@@ -395,9 +404,7 @@ class Mesh(Observable):
         """
         oldCoord = self.coord
         newCoord = Symmetry(oldCoord, point, n)
-        for groupElem in self.dict_groupElem.values():
-            groupElem.coord = newCoord
-        self._Notify("The mesh has been modified")
+        self.coord = newCoord
 
     @property
     def nodes(self) -> _types.IntArray:
@@ -443,6 +450,9 @@ class Mesh(Observable):
     def coord(self, coord: _types.FloatArray) -> None:
         for groupElem in self.dict_groupElem.values():
             groupElem.coord = coord
+        # the points of the spaces move with the geometry, their numbering stays
+        for space in self.__dict_functionSpace.values():
+            space._Update_coord()
         self._Notify("The mesh has been modified")
 
     @property
@@ -510,7 +520,10 @@ class Mesh(Observable):
                 dict_gathered[elemType] = gathered_ge
 
         if MPI_RANK == 0:
-            return Mesh(dict_gathered, self.__verbosity)
+            mesh = Mesh(dict_gathered, self.__verbosity)
+            for problemType, order in self.__Get_orders().items():
+                mesh.__Set_FunctionSpace(problemType, order)
+            return mesh
         return None
 
     @property
@@ -534,6 +547,43 @@ class Mesh(Observable):
     def Get_assembly_e(self, dof_n: int) -> _types.IntArray:
         """Returns assembly matrix for specified dof_n (Ne, nPe*dof_n)"""
         return self.groupElem.Get_assembly_e(dof_n)
+
+    @cache_computed_values
+    def _Get_FunctionSpace(self, problemType: "ProblemType") -> _FunctionSpace:
+        """Function space of ``problemType``: the one `_With_FunctionSpace` chose, else isoparametric, built on first request."""
+        if problemType in self.__dict_functionSpace:
+            return self.__dict_functionSpace[problemType]
+        nodes = self.nodes
+        owned = self._Get_mpi_owned_nodes() if MPI_SIZE > 1 else nodes
+        groups = {groupElem: groupElem for groupElem in self.dict_groupElem.values()}
+        return _FunctionSpace(np.arange(self.Nn), owned, nodes, groups)
+
+    def _With_FunctionSpace(self, problemType: "ProblemType", order: int) -> "Mesh":
+        """New mesh on which ``problemType`` lives on the complete Lagrange elements of ``order`` (TETRA4 + PRISM6, 2 → TETRA10 + PRISM18; QUAD8, 2 → QUAD9); geometry copied, observers and caches not. Collective on a partitioned mesh."""
+        # the copies start with an empty cache instead of a copy of these
+        memo: dict[int, Any] = {
+            id(cached_computed_values(groupElem)): {}
+            for groupElem in self.__dict_groupElem.values()
+        }
+        mesh = Mesh(copy.deepcopy(self.__dict_groupElem, memo), self.__verbosity)
+        mesh.__dict_functionSpace = copy.deepcopy(self.__dict_functionSpace, memo)
+        mesh.__Set_FunctionSpace(problemType, order)
+        return mesh
+
+    def __Set_FunctionSpace(self, problemType: "ProblemType", order: int) -> None:
+        """Puts ``problemType`` on the complete Lagrange elements of ``order``, or back on the groups (iso) when they are those."""
+        space = _FunctionSpace._Create_partner_groups(self, order)
+        if space is None:
+            self.__dict_functionSpace.pop(problemType, None)
+        else:
+            self.__dict_functionSpace[problemType] = space
+
+    def __Get_orders(self) -> dict["ProblemType", int]:
+        """Order of each problem type's space not isoparametric, from which it is rebuilt on another mesh of the same groups."""
+        return {
+            problemType: space.order
+            for problemType, space in self.__dict_functionSpace.items()
+        }
 
     @property
     def length(self) -> float:
@@ -630,7 +680,19 @@ class Mesh(Observable):
 
     # Nodes recovery
 
-    def Nodes_Conditions(self, func) -> _types.IntArray:
+    def __Get_selection_groups(
+        self, problemType: "ProblemType | None"
+    ) -> list["_GroupElem"]:
+        """Main-dimension groups to select on: the geometry's, or those ``problemType``'s space puts on them, whose nodes are point ids."""
+        list_groupElem = self.Get_list_groupElem(self.dim)
+        if problemType is None:
+            return list_groupElem
+        space = self._Get_FunctionSpace(problemType)
+        return [space.Get_groupElem(groupElem) for groupElem in list_groupElem]
+
+    def Nodes_Conditions(
+        self, func, problemType: "ProblemType | None" = None
+    ) -> _types.IntArray:
         """Returns nodes that meet the specified conditions.
 
         Parameters
@@ -642,13 +704,15 @@ class Mesh(Observable):
             \t lambda x, y, z: (x < 40) & (x > 20) & (y<10) \n
             \t lambda x, y, z: (x == 40) | (x == 50) \n
             \t lambda x, y, z: x >= 0
+        problemType : ProblemType, optional
+            selects the points of this problem type's space instead of the geometry nodes, by default None
 
         Returns
         -------
         _types.IntArray
-            nodes that meet the specified conditions.
+            nodes (or point ids) that meet the specified conditions.
         """
-        list_groupElem = self.Get_list_groupElem(self.dim)
+        list_groupElem = self.__Get_selection_groups(problemType)
         if len(list_groupElem) == 1:
             return list_groupElem[0].Get_Nodes_Conditions(func)
         nodes: set[int] = set()
@@ -656,7 +720,9 @@ class Mesh(Observable):
             nodes.update(groupElem.Get_Nodes_Conditions(func).tolist())
         return np.array(sorted(nodes), dtype=int)
 
-    def Nodes_Point(self, *points: Point.PointALike) -> _types.IntArray:
+    def Nodes_Point(
+        self, *points: Point.PointALike, problemType: "ProblemType | None" = None
+    ) -> _types.IntArray:
         """Returns nodes on the point(s)."""
         nodes: set[int] = set()
 
@@ -667,11 +733,13 @@ class Mesh(Observable):
         ]
 
         for point in points:
-            for groupElem in self.Get_list_groupElem(self.dim):
+            for groupElem in self.__Get_selection_groups(problemType):
                 nodes = nodes.union(groupElem.Get_Nodes_Point(point))
         return np.asarray(list(nodes), dtype=int)
 
-    def Nodes_Line(self, *lines: "Line") -> _types.IntArray:
+    def Nodes_Line(
+        self, *lines: "Line", problemType: "ProblemType | None" = None
+    ) -> _types.IntArray:
         """Returns the nodes on the line(s)."""
         nodes: set[int] = set()
 
@@ -682,11 +750,13 @@ class Mesh(Observable):
         ]
 
         for line in lines:
-            for groupElem in self.Get_list_groupElem(self.dim):
+            for groupElem in self.__Get_selection_groups(problemType):
                 nodes = nodes.union(groupElem.Get_Nodes_Line(line))
         return np.asarray(list(nodes), dtype=int)
 
-    def Nodes_Domain(self, *domains: "Domain") -> _types.IntArray:
+    def Nodes_Domain(
+        self, *domains: "Domain", problemType: "ProblemType | None" = None
+    ) -> _types.IntArray:
         """Returns nodes in the domain(s)."""
         nodes: set[int] = set()
 
@@ -697,11 +767,16 @@ class Mesh(Observable):
         ]
 
         for domain in domains:
-            for groupElem in self.Get_list_groupElem(self.dim):
+            for groupElem in self.__Get_selection_groups(problemType):
                 nodes = nodes.union(groupElem.Get_Nodes_Domain(domain))
         return np.asarray(list(nodes), dtype=int)
 
-    def Nodes_Circle(self, *circles: "Circle", onlyOnEdge=True) -> _types.IntArray:
+    def Nodes_Circle(
+        self,
+        *circles: "Circle",
+        onlyOnEdge=True,
+        problemType: "ProblemType | None" = None,
+    ) -> _types.IntArray:
         """Returns the nodes in the circle(s)."""
         nodes: set[int] = set()
 
@@ -712,12 +787,16 @@ class Mesh(Observable):
         ]
 
         for circle in circles:
-            for groupElem in self.Get_list_groupElem(self.dim):
+            for groupElem in self.__Get_selection_groups(problemType):
                 nodes = nodes.union(groupElem.Get_Nodes_Circle(circle, onlyOnEdge))
         return np.asarray(list(nodes), dtype=int)
 
     def Nodes_Cylinder(
-        self, *circles: "Circle", direction=[0, 0, 1], onlyOnEdge=False
+        self,
+        *circles: "Circle",
+        direction=[0, 0, 1],
+        onlyOnEdge=False,
+        problemType: "ProblemType | None" = None,
     ) -> _types.IntArray:
         """Returns the nodes in the cylinder."""
         nodes: set[int] = set()
@@ -729,7 +808,7 @@ class Mesh(Observable):
         ]
 
         for circle in circles:
-            for groupElem in self.Get_list_groupElem(self.dim):
+            for groupElem in self.__Get_selection_groups(problemType):
                 nodes = nodes.union(
                     groupElem.Get_Nodes_Cylinder(circle, direction, onlyOnEdge)
                 )
@@ -762,8 +841,10 @@ class Mesh(Observable):
 
         return elements
 
-    def Nodes_Tags(self, *tags: str) -> _types.IntArray:
-        """Returns nodes associated with the tags."""
+    def Nodes_Tags(
+        self, *tags: str, problemType: "ProblemType | None" = None
+    ) -> _types.IntArray:
+        """Returns nodes associated with the tags, or with ``problemType`` the points of its space on them (the tagged nodes carrying a DOF, then the points on the edges, faces and cells they close)."""
         list_node: list[int] = []
 
         tags = [
@@ -792,7 +873,9 @@ class Mesh(Observable):
         # make sure that that the list is unique
         nodes = np.asarray(list(set(list_node)), dtype=int)
 
-        return nodes
+        if problemType is None:
+            return nodes
+        return self._Get_FunctionSpace(problemType).Get_points(nodes)
 
     def Elements_Tags(self, *tags: str) -> _types.IntArray:
         """Returns elements associated with the tag."""
@@ -890,31 +973,19 @@ class Mesh(Observable):
         self,
         coordinates_n: _types.FloatArray,
         dofsValues: _types.FloatArray,
-        elements: _types.IntArray | None = None,
+        problemType: "ProblemType | None" = None,
     ) -> _types.FloatArray:
-        """Evaluates dofsValues with shape (Nn*dof_n, ) at the specified coordinates.
+        """Values (Ncoordinates, dof_n) at ``coordinates_n`` (Ncoordinates, 3) of the DOF vector ``dofsValues`` (Npoints*dof_n,) of ``problemType``'s space (None: isoparametric, (Nn*dof_n,)), located in the geometry, evaluated with the space's shape functions; zero rows outside the elements."""
 
-        Parameters
-        ----------
-        coordinates_n : _types.FloatArray
-            coordinates that must be a (Nnodes, 3) array.
-        dofsValues : _types.FloatArray
-            dofs values that must be a (Nn * dof_n) array.
-        elements : _types.IntArray | None, optional
-            elements that may contain the specified coordinates to speed up evaluation, by default None
-
-        Returns
-        -------
-        _types.FloatArray
-            The interpolated values as a (Nnodes, dof_n) array.
-        """
-
-        Ncoords = self.Nn
-
+        # the space of the field, None when isoparametric
+        space = None if problemType is None else self._Get_FunctionSpace(problemType)
+        Npoints = self.Nn if space is None else space.Npoints
         assert (
-            dofsValues.size % Ncoords == 0 and dofsValues.ndim == 1
-        ), "dofsValues must be a (Nn * dof_n, ) array."
-        dof_n = dofsValues.size // Ncoords
+            dofsValues.size % Npoints == 0 and dofsValues.ndim == 1
+        ), "dofsValues must be a (Npoints * dof_n, ) array."
+        dof_n = dofsValues.size // Npoints
+        # the values of each point (Npoints, dof_n)
+        values = dofsValues.reshape(-1, dof_n)
 
         Nn = coordinates_n.shape[0]
         interpolated_values_n = np.zeros((Nn, dof_n), dtype=float)
@@ -923,8 +994,9 @@ class Mesh(Observable):
 
         # Several element groups can share the main dimension (e.g. QUAD4 + TRI3); a query coordinate is interpolated with the first group whose element contains it.
         for groupElem in self.Get_list_groupElem(self.dim):
+            # element and ξ of each coordinate by the geometry mapping (Nn,), (Nn, dim)
             elements_n, coordInElem_n = groupElem._Get_containing_elements(
-                coordinates_n, elements
+                coordinates_n
             )
             mask = remaining & (elements_n >= 0)
             if not mask.any():
@@ -932,15 +1004,18 @@ class Mesh(Observable):
             mask_idx = np.flatnonzero(mask)
             found_elements = elements_n[mask]
 
+            # the space's element on this group and the point rows of the detected elements (m, nPe)
+            partner = groupElem if space is None else space.Get_groupElem(groupElem)
+            rows = partner.connect[found_elements]
+            if space is not None:
+                rows = space.Get_dofs(rows, 1).reshape(rows.shape)
+
             # get dofs values for each detected element as a (m, nPe, dof_n) array
-            rows_e = groupElem.Get_assembly_e(dof_n)
-            dofsValues_n = dofsValues[rows_e[found_elements]].reshape(
-                mask_idx.size, groupElem.nPe, dof_n
-            )
+            dofsValues_n = values[rows]
 
             # get the evaluated shape functions as a (m, nPe) array
-            evaluated_shape_functions = groupElem._Eval_Functions(
-                groupElem._N(), coordInElem_n[mask]
+            evaluated_shape_functions = partner._Eval_Functions(
+                partner._N(), coordInElem_n[mask]
             )[:, 0]
 
             interpolated_values_n[mask_idx] = np.einsum(
@@ -1272,6 +1347,7 @@ class Mesh(Observable):
 
         # create dict_groupElem_data
         coordinates = self.coord
+        orders = self.__Get_orders()
         dict_groupElem_data: dict[ElemType, tuple] = {}
         for elemType, groupElem in self.dict_groupElem.items():
             # GroupElemFactory.Create data: elemType, connect, coordinates
@@ -1286,6 +1362,7 @@ class Mesh(Observable):
                 createData,
                 partitionedData,
                 dict_nodes_tags,
+                orders,
             )
 
         with open(path_mesh, "wb") as file:
@@ -1320,6 +1397,7 @@ def Load_Mesh(path: str) -> Mesh:
         dict_groupElem_data: dict[ElemType, tuple] = pickle.load(file)
 
     dict_groupElem: dict[ElemType, _GroupElem] = {}
+    orders: dict["ProblemType", int] = {}
 
     for elemType, data in dict_groupElem_data.items():
         # create the group of element
@@ -1336,10 +1414,14 @@ def Load_Mesh(path: str) -> Mesh:
         dict_nodes_tags = data[2]
         for tag, nodes in dict_nodes_tags.items():
             groupElem.Set_Tag(nodes, tag)
+        # older files hold no function space
+        orders.update(data[3] if len(data) > 3 else {})
 
         dict_groupElem[elemType] = groupElem
 
     mesh = Mesh(dict_groupElem=dict_groupElem)
+    for problemType, order in orders.items():
+        mesh = mesh._With_FunctionSpace(problemType, order)
 
     return mesh
 

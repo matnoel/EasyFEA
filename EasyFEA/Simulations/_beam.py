@@ -51,6 +51,8 @@ class Beam(_Simu):
 
     # TODO: add math
 
+    problemType = ProblemType("beam")
+
     def __init__(
         self,
         mesh: "Mesh",
@@ -133,9 +135,6 @@ class Beam(_Simu):
             6: ["x", "y", "z", "rx", "ry", "rz"],
         }
         return dict_unknowns[self.structure.dof_n]
-
-    def Get_problemTypes(self) -> list[ProblemType]:
-        return [ProblemType("beam")]
 
     @property
     def structure(self) -> BeamStructure:
@@ -231,6 +230,7 @@ class Beam(_Simu):
         wJ_e_pg = groupElem.Get_weightedJacobian_e_pg(matrixType)[elements]
         N_e_pg = groupElem.Get_beam_N_e_pg(beamStructure)[elements]
         N_lag_pg = groupElem.Get_N_pg(matrixType)[:, 0, :]
+        space = self._Get_FunctionSpace(problemType)
 
         # Ne * dof_n * nPe DOFs per element (Hermitian N couples force and moment DOFs)
         dofsValues_u = np.zeros((Ne * dof_n * nPe, len(herm_unknowns)))
@@ -258,7 +258,7 @@ class Beam(_Simu):
                 optimize="optimal",
             )
             dofsValues_u[:, u] = np.sum(values_e_pg, axis=1).ravel()
-            dofs_u[:, u] = groupElem._Get_assembly_e(connect, dof_n).ravel()
+            dofs_u[:, u] = space.Get_assembly_e(groupElem, dof_n)[elements].ravel()
 
         self._Bc_Add_Neumann(
             problemType,
@@ -459,10 +459,14 @@ class Beam(_Simu):
         return center
 
     def Get_x0(self, problemType=None):
-        if self.displacement.size != self.mesh.Nn * self.Get_dof_n(problemType):
-            return np.zeros(self.mesh.Nn * self.Get_dof_n(problemType))
+        size = self._Get_FunctionSpace().Npoints * self.Get_dof_n(problemType)
+        if self.displacement.size != size:
+            return np.zeros(size)
         else:
             return self.displacement
+
+    def _Get_dof_names(self) -> dict[str, ProblemType]:
+        return {"displacement": self.problemType}
 
     def Save_Iter(self, iter=None):
 
@@ -525,17 +529,18 @@ class Beam(_Simu):
 
         # begin cases ----------------------------------------------------
 
+        # node values (Nn, dof_n) of the displacement, through the space
         dof_n = self.structure.dof_n
-        Nn = self.mesh.Nn
-        dofs = Nn * dof_n
+        space = self._Get_FunctionSpace()
+        dofs = space.Npoints * dof_n
+        u_n = space.Get_nodeValues(self.displacement, dof_n)
 
         if result in ["ux", "uy", "uz", "rx", "ry", "rz"]:
-            values_n = self.displacement.reshape(Nn, -1)
             index = self._indexResult(result)
-            values = values_n[:, index]
+            values = u_n[:, index]
 
         elif result == "displacement":
-            values = self.displacement
+            values = u_n.ravel()
 
         elif result == "displacement_norm":
             values = np.linalg.norm(self.Results_displacement_matrix(), axis=1)
@@ -548,7 +553,7 @@ class Beam(_Simu):
             Kglob = Kbeam.tocsr()[:dofs].tocsc()[:, :dofs]
             force = Kglob @ self.displacement
 
-            force_n = force.reshape(self.mesh.Nn, -1)
+            force_n = space.Get_nodeValues(force, dof_n)
             index = self._indexResult(result)
             values = force_n[:, index]
 
@@ -683,7 +688,8 @@ class Beam(_Simu):
     def Results_displacement_matrix(self) -> _types.FloatArray:
         Nn = self.mesh.Nn
         dof_n = self.Get_dof_n(self.problemType)
-        displacementRedim = self.displacement.reshape(Nn, -1)
+        space = self._Get_FunctionSpace()
+        displacementRedim = space.Get_nodeValues(self.displacement, dof_n)
 
         coordo = np.zeros((Nn, 3))
 
