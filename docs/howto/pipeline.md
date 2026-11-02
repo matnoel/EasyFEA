@@ -92,8 +92,6 @@ iterate. Assembly is then the same two moves for each of them, whatever the phys
 | Operator                                                                     | Contributes                                                                                                                                             |
 | ---------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | {py:func}`~EasyFEA.FEM.Operators.NonLinear.SecondPiolaKirchhoffStressTensor` | consistent tangent (material + geometric) and internal residual $\int \Brm^\top \boldsymbol{\Sigma} \, \dO$                                             |
-| {py:func}`~EasyFEA.FEM.Operators.NonLinear.GonzalezStressTensor`             | the same pair, from an energy-conserving discrete gradient                                                                                              |
-| {py:func}`~EasyFEA.FEM.Operators.NonLinear.TimeQuadratureStressTensor`       | the same pair, from a strain-path average (also reports the quadrature point count used)                                                                |
 | {py:func}`~EasyFEA.FEM.Operators.NonLinear.ActiveStressTensor`               | fiber active stress $\tau \, (\hat{\Tb} \otimes \hat{\Tb})$ — geometric tangent and residual, no material tangent                                       |
 | {py:func}`~EasyFEA.FEM.Operators.NonLinear.KelvinVoigtDamping`               | viscous stress $\boldsymbol{\Sigma}_{\text{visco}} = \eta \dot{\Erm}$ — configuration tangent and residual, plus the damping matrix for the $\Crm$ slot |
 | {py:func}`~EasyFEA.FEM.Operators.NonLinear.FollowingPressure`                | pressure tracking the deformed normal — non-symmetric tangent and follower load                                                                         |
@@ -158,10 +156,8 @@ Three criteria, any one of which is enough:
 The defaults are {py:class}`~EasyFEA.Simulations.HyperElastic`'s and are set per
 simulation. `absTol` compares a force in the model's own units, so it is
 scale-dependent: on a large or stiff model it may never fire and `relTol` does the work.
-`incTol` is the backstop for a residual that stalls on a floor —
-{py:func}`~EasyFEA.FEM.Operators.NonLinear.GonzalezStressTensor` has one, from the
-cancellation in its $\Delta W - \bar{\Srm} : \Delta \erm$ term. Exhausting `maxIter`
-raises an `AssertionError`: a partially converged result is never returned.
+`incTol` is the backstop for a residual that stalls on a round-off floor. Exhausting
+`maxIter` raises an `AssertionError`: a partially converged result is never returned.
 
 ```{note}
 Convergence is tested on the residual at the iterate *before* `u += delta_u`, so on exit `u` has taken one more step than the last reported norm describes. The returned solution is slightly better than the printed value suggests.

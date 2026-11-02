@@ -364,7 +364,7 @@ def test_HyperElastic_Compute_active_stress_needs_a_direction(kinematics):
 
 
 def test_HyperElastic_Compute_dWde_ignores_the_active_stress(kinematics):
-    """Compute_dWde stays dW/de: an active term would do no work in a discrete gradient."""
+    """Compute_dWde stays dW/de."""
     assert np.array_equal(
         _active(kinematics).Compute_dWde(kinematics),
         SaintVenantKirchhoff(3, LMBDA, MU).Compute_dWde(kinematics),

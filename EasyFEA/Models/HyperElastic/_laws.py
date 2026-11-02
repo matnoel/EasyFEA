@@ -137,8 +137,7 @@ class _HyperElastic(_IModel, ABC):
         ``η·ė``, active stress ``τ·(T̂⊗T̂)`` — must never be added here; they have
         their own operators (:func:`Operators.NonLinear.KelvinVoigtDamping`,
         :func:`Operators.NonLinear.ActiveStressTensor`). Breaking the invariant
-        silently corrupts every energy-based algorithm, e.g. the discrete gradient
-        of :func:`Operators.NonLinear.GonzalezStressTensor`.
+        silently corrupts every energy-based algorithm.
 
         Returns
         -------

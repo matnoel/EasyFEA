@@ -2,6 +2,12 @@
 
 This document describes the changes made to the project.
 
+## Unreleased
+
+- Removed `NonLinear.GonzalezStressTensor` and `NonLinear.TimeQuadratureStressTensor`, with
+  `HyperElastic.StressType` and `Solver_Set_Stress`: `HyperElastic` samples the stress
+  pointwise.
+
 ## 7.1.0 (October 19, 2026):
 
 ### Point location and projection

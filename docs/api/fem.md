@@ -122,13 +122,7 @@ when a damping matrix comes too. The derivation of each is in its docstring, bel
 
 - {py:func}`~EasyFEA.FEM.Operators.NonLinear.SecondPiolaKirchhoffStressTensor` —
   $\int \Brm^\top \boldsymbol{\Sigma} \, \dO$ with its consistent tangent (material +
-  geometric). The default stress; energy drifts.
-- {py:func}`~EasyFEA.FEM.Operators.NonLinear.GonzalezStressTensor` — the same for the
-  energy-momentum discrete gradient $\hat{\Srm} = \bar{\Srm} + \alpha \, \Delta \eb$:
-  conserves $\mathrm{KE} + W$ for any stored energy, midpoint scheme only.
-- {py:func}`~EasyFEA.FEM.Operators.NonLinear.TimeQuadratureStressTensor` — the PK2
-  averaged along the step's strain path (Clenshaw-Curtis, fixed `nPoints` or per-element
-  refinement via `energyTol`): conserving up to the quadrature error.
+  geometric).
 - {py:func}`~EasyFEA.FEM.Operators.NonLinear.ActiveStressTensor` — active fiber stress
   $\tau \, \hat{\Tb} \otimes \hat{\Tb}$; strain-independent, so it carries a geometric
   tangent only.

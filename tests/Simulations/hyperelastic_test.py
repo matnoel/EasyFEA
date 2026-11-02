@@ -14,51 +14,9 @@ from _numerics import rel_error
 from ._simus import measure
 from ._fields import BAR_MESHES, bar_mesh, component
 
-StressType = Simulations.HyperElastic.StressType
 L, H = 120.0, 13.0
 LMBDA, MU = 1e5, 8e4
 STRAIN = 1e-4
-
-
-def _free_vibration_drift(
-    algo: AlgoType,
-    stress: StressType | None = None,
-    **stressOptions,
-) -> float:
-    """max ``|KE + W - E0| / E0`` of a deflected NeoHookean cantilever of 4 QUAD4 released into free vibration.
-
-    Loose ``absTol``: gonzalez's residual has a ~1e-9 round-off floor from the ΔW − s̄·Δe cancellation.
-    """
-    length, h, dt, nStep = 40.0, 10.0, 0.05, 50
-    domain = Domain((0, 0), (length, h), h)
-    mesh = domain.Mesh_2D([], ElemType.QUAD4, isOrganised=True)
-    nodesClamped = mesh.Nodes_Conditions(lambda x, y, z: x == 0)
-    nodesTip = mesh.Nodes_Conditions(lambda x, y, z: x == length)
-    material = Models.HyperElastic.NeoHookean(2, K=5.0e4)
-    simu = Simulations.HyperElastic(mesh, material, absTol=1e-4)
-
-    simu.add_dirichlet(nodesClamped, [0, 0], simu.Get_unknowns())
-    simu.add_dirichlet(nodesTip, [-h / 3], ["y"])
-    simu.Solve()
-    simu.Save_Iter()
-
-    simu.Bc_Init()
-    simu.Solver_Set_Hyperbolic_Algorithm(dt, algo=algo)
-    if stress is not None:
-        simu.Solver_Set_Stress(stress, **stressOptions)
-    simu.add_dirichlet(nodesClamped, [0, 0], simu.Get_unknowns())
-
-    energies = [simu.Result("W")]  # at rest: KE = 0
-    M = None
-    for _ in range(nStep):
-        simu.Solve()
-        simu.Save_Iter()
-        if M is None:
-            M = simu.Get_K_C_M_F()[2]  # constant mass
-        energies.append(simu.Calc_Energy(M, simu.speed) + simu.Result("W"))
-
-    energy = np.array(energies)
-    return float(np.abs(energy - energy[0]).max() / abs(energy[0]))
 
 
 def _clamped_block(material=None) -> Simulations.HyperElastic:
@@ -126,11 +84,6 @@ def test_HyperElastic_autodiff_law_assembles_like_the_shipped_one(monkeypatch):
 
     assert rel_error(K_autodiff, K_shipped) < 1e-10
     assert rel_error(F_autodiff, F_shipped) < 1e-10
-
-
-def test_HyperElastic_Get_stressTypes_lists_every_stress():
-    assert Simulations.HyperElastic.Get_stressTypes() == list(StressType)
-    assert [str(s) for s in StressType] == ["pointwise", "gonzalez", "quadrature"]
 
 
 def test_HyperElastic_matrixType_sets_the_rule_results_are_sampled_at(monkeypatch):
@@ -219,81 +172,6 @@ def test_HyperElastic_accel_is_the_acceleration_dof_vector():
     simu, u = _dynamic()
 
     assert np.array_equal(simu.accel, 3 * u)
-
-
-def test_HyperElastic_Solver_Set_Stress_gonzalez_conserves_the_energy():
-    drift = _free_vibration_drift(AlgoType.midpoint, StressType.gonzalez)
-
-    assert drift < 1e-6
-
-
-def test_HyperElastic_Solver_Set_Stress_energyTol_controls_the_drift():
-    loose = _free_vibration_drift(
-        AlgoType.midpoint,
-        StressType.quadrature,
-        energyTol=1e-2,
-    )
-    tight = _free_vibration_drift(
-        AlgoType.midpoint,
-        StressType.quadrature,
-        energyTol=1e-8,
-    )
-
-    assert tight < loose / 100
-    assert tight < 1e-6
-
-
-def test_HyperElastic_Solver_Set_Stress_gonzalez_rejects_a_non_midpoint_algo():
-    simu = _clamped_block()
-    simu.Solver_Set_Hyperbolic_Algorithm(0.05, algo=AlgoType.newmark)
-
-    with pytest.raises(AssertionError, match="midpoint"):
-        simu.Solver_Set_Stress(StressType.gonzalez)
-
-
-def test_HyperElastic_Solver_Set_Stress_gonzalez_left_stale_is_rejected_at_solve():
-    """Re-selecting another scheme after enabling it must not leave gonzalez active."""
-    simu = _clamped_block()
-    simu.Solver_Set_Hyperbolic_Algorithm(0.05, algo=AlgoType.midpoint)
-    simu.Solver_Set_Stress(StressType.gonzalez)
-    simu.Solver_Set_Hyperbolic_Algorithm(0.05, algo=AlgoType.newmark)
-
-    with pytest.raises(AssertionError, match="midpoint"):
-        simu.Solve()
-
-
-def test_HyperElastic_Solver_Set_Stress_quadrature_is_rejected_at_a_static_solve():
-    simu = _clamped_block()
-    simu.Solver_Set_Stress(StressType.quadrature)
-
-    with pytest.raises(AssertionError, match="dynamic"):
-        simu.Solve()
-
-
-def test_HyperElastic__nPts_e_counts_the_quadrature_points_per_element():
-    simu = _clamped_block()
-    assert simu._nPts_e is None
-
-    simu.Solver_Set_Hyperbolic_Algorithm(0.05, algo=AlgoType.midpoint)
-    simu.Solver_Set_Stress(StressType.quadrature, nPoints=5)
-    nodesTip = simu.mesh.Nodes_Conditions(lambda x, y, z: x == 20.0)
-    simu.add_neumann(nodesTip, [-10.0], ["y"])
-    simu.Solve()
-    simu.Save_Iter()
-
-    assert simu._nPts_e.shape == (simu.mesh.Ne,)
-    assert np.all(simu._nPts_e == 5)
-    assert np.array_equal(simu.Get_results()["nPts_e"], simu._nPts_e)
-
-
-def test_HyperElastic_stressType_is_the_selected_one():
-    simu = _clamped_block()
-    assert simu.stressType == StressType.pointwise
-
-    simu.Solver_Set_Hyperbolic_Algorithm(0.05, algo=AlgoType.midpoint)
-    simu.Solver_Set_Stress(StressType.gonzalez)
-
-    assert simu.stressType == StressType.gonzalez
 
 
 def test_HyperElastic__Calc_W_of_a_svk_stretch_is_half_lmbda_2mu_Exx2_V(subtests):
