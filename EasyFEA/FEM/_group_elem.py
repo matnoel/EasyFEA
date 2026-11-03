@@ -134,16 +134,6 @@ class _GroupElem:
         """tree on the element centers, rebuilt with the coordinates"""
         return spatial.cKDTree(self.__spheres[0])
 
-    def __setstate__(self, state: dict) -> None:
-        """Loads older pickles too, which hold the elemType instead of the reference element."""
-        if "_GroupElem__elemType" in state:
-            state = state.copy()
-            elemType = state.pop("_GroupElem__elemType")
-            state["_GroupElem__referenceElement"] = (
-                GroupElemFactory._Get_reference_element(elemType)
-            )
-        self.__dict__.update(state)
-
     # --------------------------------------------------------------------------------------------
     # Properties
     # --------------------------------------------------------------------------------------------

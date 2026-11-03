@@ -93,13 +93,6 @@ class Mesh(Observable):
                 "WARNING: Orphan nodes have been detected in the mesh (stored in mesh.orphanNodes)."
             )
 
-    def __setstate__(self, state: dict) -> None:
-        """Loads older pickles too, which hold no function space; cached spaces are rebuilt, since older ones own every point."""
-        self.__dict__.update({"_Mesh__dict_functionSpace": {}, **state})
-        cache = cached_computed_values(self)
-        for key in [key for key in cache if key[0] == "_Get_FunctionSpace"]:
-            del cache[key]
-
     def _ResetMatrix(self) -> None:
         """Resets matrices for each groupElem"""
         [groupElem._InitMatrix() for groupElem in self.Get_list_groupElem()]  # type: ignore [func-returns-value]
@@ -1414,8 +1407,7 @@ def Load_Mesh(path: str) -> Mesh:
         dict_nodes_tags = data[2]
         for tag, nodes in dict_nodes_tags.items():
             groupElem.Set_Tag(nodes, tag)
-        # older files hold no function space
-        orders.update(data[3] if len(data) > 3 else {})
+        orders.update(data[3])
 
         dict_groupElem[elemType] = groupElem
 

@@ -361,9 +361,6 @@ class _Simu(_IObserver, _params.Updatable, ABC):
     __LOCAL_SLICES_KEY = "__mpiLocalSlices"
     """DOFs the slices of a pickle cover, per problem type. Stored with them so restoring never depends on what the mesh became afterwards — `_Gather` replaces the partition with the global mesh, and a slice written before it must still be placed correctly."""
 
-    __LOCAL_NODES_KEY = "__mpiLocalNodes"
-    """Nodes the slices cover, in the pickles written before they recorded their DOFs."""
-
     def __Local_dofs(
         self, problemType: ProblemType, nodes: _types.IntArray = None
     ) -> _types.IntArray:
@@ -427,8 +424,7 @@ class _Simu(_IObserver, _params.Updatable, ABC):
 
         merged = parts[0].copy()
         merged.pop(_Simu.__LOCAL_DOFS_KEY)
-        merged.pop(_Simu.__LOCAL_SLICES_KEY, None)
-        merged.pop(_Simu.__LOCAL_NODES_KEY, None)
+        merged.pop(_Simu.__LOCAL_SLICES_KEY)
 
         if len(parts) > 1:
             # element-sized entries would need each rank's `_globalElements` to merge, which is not
@@ -446,11 +442,7 @@ class _Simu(_IObserver, _params.Updatable, ABC):
         for key, problemType in keys.items():
             full = np.zeros(self.__Get_size(problemType))
             for part in parts:
-                if _Simu.__LOCAL_SLICES_KEY in part:
-                    dofs = part[_Simu.__LOCAL_SLICES_KEY][problemType]
-                else:
-                    dofs = self.__Local_dofs(problemType, part[_Simu.__LOCAL_NODES_KEY])
-                full[dofs] = part[key]
+                full[part[_Simu.__LOCAL_SLICES_KEY][problemType]] = part[key]
             merged[key] = full
 
         return merged
@@ -468,11 +460,6 @@ class _Simu(_IObserver, _params.Updatable, ABC):
         for rank in range(MPI_SIZE):
             with open(path.replace(f"_rank{MPI_RANK}", f"_rank{rank}"), "rb") as f:
                 parts.append(pickle.load(f))
-
-        assert all(
-            _Simu.__LOCAL_SLICES_KEY in part or _Simu.__LOCAL_NODES_KEY in part
-            for part in parts
-        ), "these results predate the self-describing format and cannot be merged after a _Gather"
 
         return parts
 

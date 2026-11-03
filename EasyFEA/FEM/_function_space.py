@@ -43,20 +43,6 @@ class _FunctionSpace:
             rows.flags.writeable = False
             self.__rows = rows
 
-    def __setstate__(self, state: dict) -> None:
-        """Loads older pickles too, which hold an isoparametric space alone, or no owned and local points."""
-        points = np.arange(state["_FunctionSpace__Npoints"])
-        self.__dict__.update(
-            {
-                "_FunctionSpace__dict_groupElem": None,
-                "_FunctionSpace__rows": None,
-                "_FunctionSpace__supports": {},
-                "_FunctionSpace__ownedPoints": points,
-                "_FunctionSpace__localPoints": points,
-                **state,
-            }
-        )
-
     @property
     def Npoints(self) -> int:
         """number of points carrying a DOF (the mesh nodes when isoparametric)"""
@@ -111,8 +97,6 @@ class _FunctionSpace:
 
     def Get_groupElem(self, groupElem: "_GroupElem") -> "_GroupElem":
         """Group this space puts on the elements of ``groupElem`` (the group itself when isoparametric), whose nodes are point ids."""
-        if self.__dict_groupElem is None:
-            return groupElem
         return self.__dict_groupElem[groupElem]
 
     def Get_rule(self, groupElem: "_GroupElem", matrixType: MatrixType) -> _Order:
