@@ -447,6 +447,15 @@ def test_Kinematics_Compute_I4_takes_a_direction_per_element(
             case.assert_everywhere(I4, t @ case.C @ t)
 
 
+def test_Kinematics_Compute_I4_rejects_a_direction_sampled_at_another_rule():
+    mesh = _mesh(3)
+    kinematics = Kinematics(mesh.groupElem, np.zeros(3 * mesh.Nn), MatrixType.rigi)
+    T = mesh.groupElem.Interpolate_e_pg(np.tile(T1, mesh.Nn), MatrixType.Order(1))
+
+    with pytest.raises(ValueError, match="integration rule"):
+        kinematics.Compute_I4(T)
+
+
 def test_Kinematics_Compute_dI4dC_is_T_outer_T(cases: list[Case], subtests):
     for case in cases:
         with subtests.test(dim=case.dim):

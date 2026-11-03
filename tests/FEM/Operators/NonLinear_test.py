@@ -9,6 +9,7 @@ import pytest
 import numpy as np
 
 from EasyFEA.FEM import ElemType, MatrixType, FeArray, Kinematics, Operators
+from EasyFEA.Geoms import Circle
 
 # the operators integrate a hyperelastic law, and laws live in Models (rule 7 exception)
 from EasyFEA.Models.HyperElastic import NeoHookean
@@ -22,7 +23,7 @@ from _numerics import (
     mandel,
     rel_error,
 )
-from ._reference import assert_restricts, element_mesh
+from ._reference import assembled, assert_restricts, element_mesh, p2_faces
 
 NonLinear = Operators.NonLinear
 
@@ -261,6 +262,51 @@ def test_FollowingPressure_without_pressure_or_elements_is_zero(faces):
         NonLinear.FollowingPressure(groupElem, u, 2.0, np.array([], dtype=int)),
     ]:
         assert not np.any(K) and not np.any(R)
+
+
+def test_FollowingPressure_with_P2_u_on_TRI3_tangent_matches_finite_differences():
+    groupElem, _, _ = p2_faces()
+    u = np.random.default_rng(4).standard_normal(groupElem.Ncoords * 3) * 0.02
+
+    def pressure(u_):
+        return NonLinear.FollowingPressure(groupElem, u_, 2.0)
+
+    assert_operator_tangent_matches_fd(pressure, u, groupElem, tol=1e-7)
+
+
+def test_FollowingPressure_on_a_curved_TRI6_tangent_matches_finite_differences():
+    circle = Circle((0, 0), 2.0, 0.6)
+    mesh = circle.Mesh_Extrude([], (0, 0, 0.5), [2], ElemType.TETRA10)
+    groupElem = mesh.Get_list_groupElem(2)[0]
+    u = np.random.default_rng(4).standard_normal(mesh.Nn * 3) * 0.02
+
+    def pressure(u_):
+        return NonLinear.FollowingPressure(groupElem, u_, 2.0)
+
+    assert_operator_tangent_matches_fd(pressure, u, groupElem, tol=1e-7)
+
+
+def test_FollowingPressure_with_P2_u_on_a_closed_surface_has_no_resultant():
+    groupElem, _, _ = p2_faces()
+    u = np.random.default_rng(4).standard_normal(groupElem.Ncoords * 3) * 0.02
+
+    _, R = NonLinear.FollowingPressure(groupElem, u, 2.0)
+
+    assert np.abs(R.reshape(groupElem.Ne, -1, 3).sum((0, 1))).max() < 1e-12
+
+
+def test_FollowingPressure_with_P2_u_on_TRI3_is_the_straight_TRI6():
+    groupElem, isoElem, dofs = p2_faces()
+    u_iso = np.random.default_rng(4).standard_normal(isoElem.Ncoords * 3) * 0.02
+    size = isoElem.Ncoords * 3
+
+    K, R = NonLinear.FollowingPressure(groupElem, u_iso[dofs], 2.0)
+    K_iso, R_iso = NonLinear.FollowingPressure(isoElem, u_iso, 2.0)
+
+    R_iso = assembled(isoElem, R_iso, size)[dofs]
+    K_iso = assembled(isoElem, K_iso, size)[dofs][:, dofs]
+    assert rel_error(assembled(groupElem, R, size), R_iso) < 1e-12
+    assert rel_error(assembled(groupElem, K, size), K_iso) < 1e-12
 
 
 # ----------------------------------------------------------------------------

@@ -1232,6 +1232,134 @@ def test_Simu_Get_dofs_are_every_dof_in_serial():
 # ----------------------------------------------
 
 
+ELASTIC = Simulations.Elastic.problemType
+
+
+def _elastic_box(elemType: ElemType, order: int | None = None) -> Simulations.Elastic:
+    """Elastic unit box of 2 × 2 × 2 cells, P`order` u if given."""
+    contour = Domain((0, 0, 0), (1, 1, 0), 0.5)
+    mesh = contour.Mesh_Extrude(
+        [],
+        (0, 0, 1),
+        [2],
+        elemType,
+        isOrganised=True,
+    )
+    if order is not None:
+        mesh = mesh._With_FunctionSpace(ELASTIC, order)
+    return Simulations.Elastic(mesh, Models.Elastic.Isotropic(3))
+
+
+def _load_vector(simu: Simulations._Simu) -> np.ndarray:
+    """The Neumann conditions as one vector over the DOFs."""
+    return np.bincount(
+        simu.Bc_dofs_Neumann(simu.problemType),
+        simu.Bc_values_Neumann(simu.problemType),
+        minlength=simu.displacement.size,
+    )
+
+
+def _dofs_of_iso(simu: Simulations._Simu, iso: Simulations._Simu) -> np.ndarray:
+    """DOFs of `iso` at the points of `simu`'s space, in `simu`'s order."""
+    coord = simu.mesh._Get_FunctionSpace(simu.problemType).Get_mesh().coord
+    rows = np.argmin(np.linalg.norm(coord[:, None] - iso.mesh.coord, axis=2), axis=1)
+    return (rows[:, None] * 3 + np.arange(3)).ravel()
+
+
+def test_Simu_loads_integrate_with_the_space_of_the_field(subtests):
+    # P2 on TETRA4 is the straight TETRA10: same load vector, whatever the load
+    def isRight(x, y, z):
+        return x == 1
+
+    def isAll(x, y, z):
+        return x >= 0
+
+    def isEdge(x, y, z):
+        return (x == 1) & (y == 1)
+
+    cases = {
+        "volume": (
+            isAll,
+            lambda s, n: s.add_volumeLoad(n, [lambda x, y, z: 1 + x * y], ["z"]),
+        ),
+        "surface": (isRight, lambda s, n: s.add_surfLoad(n, [2.0], ["y"])),
+        "surface function": (
+            isRight,
+            lambda s, n: s.add_surfLoad(n, [lambda x, y, z: y * z], ["y"]),
+        ),
+        "line": (isEdge, lambda s, n: s.add_lineLoad(n, [3.0], ["x"])),
+        "pressure": (isRight, lambda s, n: s.add_pressureLoad(n, 0.5)),
+    }
+    for name, (select, load) in cases.items():
+        with subtests.test(name):
+            simu = _elastic_box(ElemType.TETRA4, 2)
+            iso = _elastic_box(ElemType.TETRA10)
+            load(simu, simu.mesh.Nodes_Conditions(select))
+            load(iso, iso.mesh.Nodes_Conditions(select))
+
+            F, F_iso = _load_vector(simu), _load_vector(iso)[_dofs_of_iso(simu, iso)]
+
+            assert np.abs(F_iso).max() > 0
+            assert rel_error(F, F_iso) < 1e-12
+
+
+def test_Simu_a_node_wise_load_is_interpolated_onto_the_points_of_the_space():
+    def isRight(x, y, z):
+        return x == 1
+
+    simu = _elastic_box(ElemType.TETRA4, 2)
+    iso = _elastic_box(ElemType.TETRA10)
+    nodes = simu.mesh.Nodes_Conditions(isRight)
+    nodesIso = iso.mesh.Nodes_Conditions(isRight)
+
+    # linear in y: the mid-edge values on TETRA10's nodes are the means of its vertices'
+    simu.add_surfLoad(nodes, [1 + simu.mesh.coord[nodes, 1]], ["y"])
+    iso.add_surfLoad(nodesIso, [1 + iso.mesh.coord[nodesIso, 1]], ["y"])
+
+    F, F_iso = _load_vector(simu), _load_vector(iso)[_dofs_of_iso(simu, iso)]
+    assert rel_error(F, F_iso) < 1e-12
+
+
+def test_Simu_a_uniform_load_on_P2_triangles_sits_on_the_mid_edge_points():
+    simu = _elastic_box(ElemType.TETRA4, 2)
+    nodesRight = simu.mesh.Nodes_Conditions(lambda x, y, z: x == 1)
+
+    simu.add_surfLoad(nodesRight, [2.0], ["y"])
+
+    F = _load_vector(simu).reshape(-1, 3)
+    Nn = simu.mesh.Nn
+    assert np.abs(F[nodesRight, 1]).max() < 1e-14
+    assert F[Nn:, 1].sum() == pytest.approx(2.0)
+
+
+def test_Simu_load_on_a_rank_holding_no_element_of_the_selection_adds_nothing(
+    monkeypatch,
+):
+    simu = _elastic_box(ElemType.TETRA4, 2)
+    groupElem = simu.mesh.Get_list_groupElem(2)[0]
+    # one vertex: selected on this rank, no complete face over it
+    nodes = groupElem.connect[0, :1]
+    _simu = importlib.import_module("EasyFEA.Simulations._simu")
+    monkeypatch.setattr(_simu, "MPI_SIZE", 2)
+
+    simu.add_surfLoad(nodes, [2.0], ["y"])
+
+    assert simu.Bc_dofs_Neumann(simu.problemType).size == 0
+
+
+def test_Simu_loads_of_P1_on_a_straight_TETRA10_are_the_TETRA4():
+    def isRight(x, y, z):
+        return x == 1
+
+    simu = _elastic_box(ElemType.TETRA10, 1)
+    iso = _elastic_box(ElemType.TETRA4)
+    simu.add_surfLoad(simu.mesh.Nodes_Conditions(isRight), [2.0], ["y"])
+    iso.add_surfLoad(iso.mesh.Nodes_Conditions(isRight), [2.0], ["y"])
+
+    F, F_iso = _load_vector(simu), _load_vector(iso)[_dofs_of_iso(simu, iso)]
+    assert rel_error(F, F_iso) < 1e-12
+
+
 def _tie(simu: Simulations._Simu, nodes: np.ndarray, unknown: str) -> LagrangeCondition:
     """u(nodes[0]) - u(nodes[1]) = 0."""
     dofs = simu.Bc_dofs_nodes(nodes, [unknown])

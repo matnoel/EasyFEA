@@ -11,7 +11,7 @@ import numpy as np
 
 from ..Utilities import _types
 from ..Utilities._mpi import MPI_RANK, MPI_SIZE, Concatenate_array, Reduce_sum
-from ._utils import ElemType
+from ._utils import ElemType, MatrixType, _Order
 
 if TYPE_CHECKING:
     from ._group_elem import _GroupElem
@@ -115,6 +115,15 @@ class _FunctionSpace:
             return groupElem
         return self.__dict_groupElem[groupElem]
 
+    def Get_rule(self, groupElem: "_GroupElem", matrixType: MatrixType) -> _Order:
+        """Integration rule of ``matrixType`` on this space's elements of ``groupElem`` (rigi, P2 on TETRA4: TETRA10's 4 points, not TETRA4's 1), as an explicit order, so that data sampled on the geometry at it lands where the field's terms integrate."""
+        # local: `_group_elem` imports this module at its top
+        from ._group_elem import GroupElemFactory
+
+        elemType = self.Get_groupElem(groupElem).elemType
+        referenceElement = GroupElemFactory._Get_reference_element(elemType)
+        return MatrixType.Order(referenceElement._Get_order(matrixType))
+
     def Get_connect(self, groupElem: "_GroupElem") -> _types.IntArray:
         """Point ids of each element (Ne, nPe), in the layout of the group's element in this space."""
         return self.Get_groupElem(groupElem).connect
@@ -166,6 +175,18 @@ class _FunctionSpace:
                 rows = self.__Get_rows(partner.connect)
                 nodeValues[groupElem.connect] = N @ values[rows]
         return nodeValues
+
+    def Get_pointValues(
+        self, dofsValues: _types.FloatArray, dof_n: int
+    ) -> _types.FloatArray:
+        """DOF vector ``dofsValues`` indexed by point id, the layout `Kinematics` reads through a partner's connect: itself unless super-parametric, where the nodes without a DOF hold 0."""
+        if self.__rows is None:
+            return dofsValues
+        Ncoords = max(group.Ncoords for group in self.__dict_groupElem.values())
+        values = np.zeros(Ncoords * dof_n)
+        points = np.flatnonzero(self.__rows >= 0)
+        values[_FunctionSpace._Get_dofs(points, dof_n)] = dofsValues
+        return values
 
     def Get_mesh(self) -> "Mesh":
         """Space mesh: the partner groups over the points, numbered as the DOF rows, so that a DOF vector reshaped (Npoints, dof_n) is its node field (TETRA4, 2 → TETRA10 cells; TETRA10, 1 → TETRA4); built on each call, so it follows the geometry; under MPI this rank's elements, ghosts included."""

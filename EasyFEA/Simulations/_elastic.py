@@ -328,13 +328,14 @@ class Elastic(_Simu):
 
         tic = Tic()
 
-        sol_u = self.displacement
         thickness = self.material.thickness if self.dim == 2 else 1
 
         # strain and elastic energy density psi = 1/2 Sig : Eps, group by group
         # (each main-dimension group may have its own element type / number of Gauss points)
+        space = self._Get_FunctionSpace()
+        sol_u = space.Get_pointValues(self.displacement, self.dim)
         list_kinematics = [
-            Kinematics(groupElem, sol_u, matrixType)
+            Kinematics(space.Get_groupElem(groupElem), sol_u, matrixType)
             for groupElem in self.mesh.Get_list_groupElem(self.dim)
         ]
         list_psi_e_pg = [self.material.Compute_Psi(kin) for kin in list_kinematics]
@@ -404,9 +405,11 @@ class Elastic(_Simu):
         self, matrixType: MatrixType = MatrixType.rigi
     ) -> FeArray.FeArrayALike | dict:
         """Strain (Ne, pg, 3 or 6): an ``FeArray`` on one group, ``{groupElem: FeArray}`` on several."""
+        space = self._Get_FunctionSpace()
+        u = space.Get_pointValues(self.displacement, self.dim)
         return _Field_per_groupElem(
             lambda groupElem: Kinematics(
-                groupElem, self.displacement, matrixType
+                space.Get_groupElem(groupElem), u, matrixType
             ).Compute_Epsilon(),
             self.mesh.Get_list_groupElem(),
         )
@@ -415,9 +418,11 @@ class Elastic(_Simu):
         self, matrixType: MatrixType = MatrixType.rigi
     ) -> FeArray.FeArrayALike | dict:
         """Stress (Ne, pg, 3 or 6): an ``FeArray`` on one group, ``{groupElem: FeArray}`` on several."""
+        space = self._Get_FunctionSpace()
+        u = space.Get_pointValues(self.displacement, self.dim)
         return _Field_per_groupElem(
             lambda groupElem: self.material.Compute_Sigma(
-                Kinematics(groupElem, self.displacement, matrixType)
+                Kinematics(space.Get_groupElem(groupElem), u, matrixType)
             ),
             self.mesh.Get_list_groupElem(),
         )

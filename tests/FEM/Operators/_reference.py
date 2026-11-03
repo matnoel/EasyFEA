@@ -9,8 +9,11 @@ from typing import Callable
 
 import numpy as np
 
-from EasyFEA.FEM import ElemType, Mesh
+from EasyFEA.FEM import ElemType, Mesh, _GroupElem
 from EasyFEA.Geoms import Domain
+
+# a field's space is chosen per problem type, which only Simulations names (rule 7 exception)
+from EasyFEA import Simulations
 
 from _numerics import rel_error
 
@@ -28,3 +31,34 @@ def assert_restricts(operator: Callable, elements: np.ndarray) -> None:
     full, restricted = operator(None), operator(elements)
     assert rel_error(restricted[elements], full[elements]) < 1e-14
     assert not np.any(np.delete(restricted, elements, axis=0))
+
+
+HYPERELASTIC = Simulations.HyperElastic.problemType
+
+
+def p2_faces() -> tuple[_GroupElem, _GroupElem, np.ndarray]:
+    """Surface group of P2 u on a 2-layer TETRA4 cube (TRI6 over the space's points), that of the straight TETRA10 cube, and the DOF (dof_n = 3) of the second at each DOF of the first."""
+    mesh = element_mesh(3, ElemType.TETRA4, layers=2)
+    meshP2 = mesh._With_FunctionSpace(HYPERELASTIC, 2)
+    space = meshP2._Get_FunctionSpace(HYPERELASTIC)
+    faces = space.Get_groupElem(meshP2.Get_list_groupElem(2)[0])
+    iso = element_mesh(3, ElemType.TETRA10, layers=2)
+    distance = np.linalg.norm(space.coord[:, None] - iso.coord, axis=2)
+    rows = np.argmin(distance, axis=1)
+    return (
+        faces,
+        iso.Get_list_groupElem(2)[0],
+        (rows[:, None] * 3 + np.arange(3)).ravel(),
+    )
+
+
+def assembled(groupElem: _GroupElem, A_e: np.ndarray, size: int) -> np.ndarray:
+    """Element vectors (Ne, ndof) or matrices (Ne, ndof, ndof) summed into a global (size,) or (size, size) array."""
+    dofs = groupElem.Get_assembly_e(A_e.shape[-1] // groupElem.nPe)
+    if A_e.ndim == 2:
+        out = np.zeros(size)
+        np.add.at(out, dofs, A_e)
+    else:
+        out = np.zeros((size, size))
+        np.add.at(out, (dofs[:, :, None], dofs[:, None, :]), A_e)
+    return out

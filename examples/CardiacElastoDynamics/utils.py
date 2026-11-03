@@ -123,6 +123,12 @@ def __Compute_fiber_directions(
     return f0, s0, n0
 
 
+def _Get_rule(mesh: Mesh, matrixType: MatrixType) -> MatrixType:
+    """Rule the displacement integrates `matrixType` at on the volume group (rigi, P2 on TETRA4: TETRA10's 4 points), valid on the geometry too: fibres sampled at it land on the term's points."""
+    space = mesh._Get_FunctionSpace(Simulations.HyperElastic.problemType)
+    return space.Get_rule(mesh.Get_list_groupElem(3)[0], matrixType)
+
+
 def _fibers_from_vtu(
     mesh: Mesh,
     path: str,
@@ -174,10 +180,12 @@ def Get_config_ellipsoid(
     path: str,
     matrixType: MatrixType = MatrixType.rigi,
     fiberSource: Literal["vtu", "analytic"] = "vtu",
+    order: int = 1,
     plotMesh=False,
     plotTags=False,
     plotFibers=False,
 ) -> tuple[Mesh, FeArray, FeArray]:
+    """TETRA4 ellipsoid with its tags, the displacement on the Lagrange elements of `order` (2: TETRA10 over the TETRA4 geometry), and the fibers/sheets at the rule it integrates `matrixType` at."""
 
     # Mesh -------------------------
 
@@ -200,7 +208,10 @@ def Get_config_ellipsoid(
     if plotTags:
         PyVista.Plot_Tags(mesh, useColorCycler=True).show()
 
+    mesh = mesh._With_FunctionSpace(Simulations.HyperElastic.problemType, order)
+
     # fiber + sheet on the Gauss points -------------------------
+    matrixType = _Get_rule(mesh, matrixType)
     if fiberSource == "vtu":
         fibers_e_pg, sheets_e_pg = _fibers_from_vtu(mesh, path, matrixType)
     elif fiberSource == "analytic":
@@ -562,7 +573,7 @@ class _Ventricle(Simulations.HyperElastic):
 
     The springs `α·u + β·u̇ = 0` hold the heart in place without clamping it: isotropic on the basal surface (`top`), normal-direction on the epicardium (`epi`). Each is integrated once on the reference surface and scaled into `K` and `C`.
 
-    `matrixType` must be the integration rule the fibers were sampled at.
+    `matrixType` must be the one the fibers were sampled with: both integrate at the displacement's rule (`_Get_rule`).
     """
 
     alpha_top = _params.PositiveScalarParameter()
@@ -583,7 +594,7 @@ class _Ventricle(Simulations.HyperElastic):
         beta_epi: float = 5e3,
     ):
         super().__init__(mesh, material, folder=folder)
-        self.matrixType = matrixType
+        self.matrixType = _Get_rule(mesh, matrixType)
         self.Solver_Set_Hyperbolic_Algorithm(dt, algo=AlgoType.midpoint)
         self.rho = 1000
         self.alpha_top, self.alpha_epi = alpha_top, alpha_epi

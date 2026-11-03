@@ -235,3 +235,48 @@ def test_HyperElastic__Calc_SecondPiolaKirchhoff_adds_the_active_stress():
 
     assert rel_error(component(stress, mesh, 0), tau) < 1e-14
     assert np.abs(component(stress, mesh, 1)).max() == 0
+
+
+# ----------------------------------------------------------------------------
+# function spaces: the field's space against the geometry
+# ----------------------------------------------------------------------------
+
+HYPERELASTIC = Simulations.HyperElastic.problemType
+
+
+def _stretched_box(elemType: ElemType, order: int | None = None):
+    """NeoHookean unit box of 2 × 2 × 2 cells, clamped at x = 0 and pulled unevenly at x = 1, P`order` u if given."""
+    contour = Domain((0, 0, 0), (1, 1, 0), 0.5)
+    mesh = contour.Mesh_Extrude(
+        [],
+        (0, 0, 1),
+        [2],
+        elemType,
+        isOrganised=True,
+    )
+    if order is not None:
+        mesh = mesh._With_FunctionSpace(HYPERELASTIC, order)
+    simu = Simulations.HyperElastic(mesh, Models.HyperElastic.NeoHookean(3, K=1.0))
+    nodesLeft = mesh.Nodes_Conditions(lambda x, y, z: x == 0)
+    nodesRight = mesh.Nodes_Conditions(lambda x, y, z: x == 1)
+    simu.add_dirichlet(nodesLeft, [0, 0, 0], ["x", "y", "z"])
+    simu.add_dirichlet(nodesRight, [lambda x, y, z: 0.05 * (1 + y * z)], ["x"])
+    simu.Solve()
+    return simu
+
+
+def test_HyperElastic_P2_on_TETRA4_is_the_straight_TETRA10():
+    simu = _stretched_box(ElemType.TETRA4, 2)
+    iso = _stretched_box(ElemType.TETRA10)
+    # DOFs of iso at the points of simu's space, in simu's order
+    coord = simu.mesh._Get_FunctionSpace(HYPERELASTIC).Get_mesh().coord
+    rows = np.argmin(np.linalg.norm(coord[:, None] - iso.mesh.coord, axis=2), axis=1)
+    dofs = (rows[:, None] * 3 + np.arange(3)).ravel()
+
+    K, K_iso = simu.Get_K_C_M_F()[0], iso.Get_K_C_M_F()[0][dofs][:, dofs]
+
+    assert rel_error(K.toarray(), K_iso.toarray()) < 1e-12
+    assert rel_error(simu.displacement, iso.displacement[dofs]) < 1e-12
+    Svm = simu.Result("Svm", nodeValues=False)
+    assert rel_error(Svm, iso.Result("Svm", nodeValues=False)) < 1e-12
+    assert rel_error(simu._Calc_W(), iso._Calc_W()) < 1e-12

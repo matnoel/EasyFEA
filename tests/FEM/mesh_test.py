@@ -982,6 +982,34 @@ def test_Mesh_coordinate_changes_leave_the_numbering(subtests):
             _assert_same_numbering(meshP2, before)
 
 
+def test_Mesh__Get_FunctionSpace_rule_samples_the_geometry_where_the_field_integrates(
+    subtests,
+):
+    """P2 on TETRA4 + PRISM6 integrates rigi on TETRA10 + PRISM18: data sampled on the geometry at the space's rule lands on those points."""
+    mesh = _tets_under_prisms(ElemType.TETRA4, ElemType.PRISM6)
+    for order in (1, 2):
+        meshPk = mesh._With_FunctionSpace(ELASTIC, order)
+        space = meshPk._Get_FunctionSpace(ELASTIC)
+        for groupElem in meshPk.Get_list_groupElem(3):
+            for matrixType in (MatrixType.rigi, MatrixType.mass):
+                with subtests.test(
+                    order=order, elemType=groupElem.elemType, matrixType=matrixType
+                ):
+                    rule = space.Get_rule(groupElem, matrixType)
+                    partner = space.Get_groupElem(groupElem)
+
+                    sampled = groupElem.Get_GaussCoordinates_e_pg(rule)
+                    integrated = partner.Get_GaussCoordinates_e_pg(matrixType)
+
+                    assert sampled.shape == integrated.shape
+                    assert rel_error(sampled, integrated) < 1e-14
+
+    meshP2 = mesh._With_FunctionSpace(ELASTIC, 2)
+    tetra = meshP2.dict_groupElem[ElemType.TETRA4]
+    rule = meshP2._Get_FunctionSpace(ELASTIC).Get_rule(tetra, MatrixType.rigi)
+    assert tetra.Get_gauss(rule).nPg == 4
+
+
 def test_Mesh_simulations_on_one_mesh_share_its_space():
     meshP2 = _box(ElemType.TETRA4)._With_FunctionSpace(ELASTIC, 2)
 

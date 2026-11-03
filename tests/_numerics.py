@@ -29,8 +29,9 @@ def assert_tangent_matches_fd(
     tangent: np.ndarray,
     assembly: np.ndarray,
     eps: float = 1e-6,
+    tol: float = FD_TOL,
 ) -> None:
-    """`tangent` (Ne, ndof, ndof) is ∂residual/∂u by central differences; `residual(u)` gives (Ne, ndof), `assembly` (Ne, ndof) the global dof of each element column."""
+    """`tangent` (Ne, ndof, ndof) is ∂residual/∂u by central differences, to `tol`; `residual(u)` gives (Ne, ndof), `assembly` (Ne, ndof) the global dof of each element column."""
     fd = np.zeros_like(tangent, dtype=float)
     for dof in np.unique(assembly):
         du = np.zeros_like(u, dtype=float)
@@ -38,7 +39,7 @@ def assert_tangent_matches_fd(
         diff = (residual(u + du) - residual(u - du)) / (2 * eps)
         for e, j in zip(*np.nonzero(assembly == dof)):
             fd[e, :, j] = diff[e]
-    assert rel_error(tangent, fd) < FD_TOL
+    assert rel_error(tangent, fd) < tol
 
 
 G3 = np.array([[0.1, 0.2, -0.05], [0.03, -0.1, 0.07], [0.02, 0.05, 0.15]])
@@ -110,8 +111,15 @@ def assert_operator_tangent_matches_fd(
     u: np.ndarray,
     groupElem,
     coefK: float = 1.0,
+    tol: float = FD_TOL,
 ) -> None:
     """`operator(u)` returns `(K, R, …)`: `coefK · K` is ∂R/∂u at `u`, by `assert_tangent_matches_fd`."""
     K = operator(u)[0]
     assembly = groupElem.Get_assembly_e(K.shape[-1] // groupElem.nPe)
-    assert_tangent_matches_fd(lambda u_: operator(u_)[1], u, coefK * K, assembly)
+    assert_tangent_matches_fd(
+        lambda u_: operator(u_)[1],
+        u,
+        coefK * K,
+        assembly,
+        tol=tol,
+    )

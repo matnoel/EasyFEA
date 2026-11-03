@@ -2874,14 +2874,16 @@ class _Simu(_IObserver, _params.Updatable, ABC):
         values: list,
         unknowns: list[str],
     ) -> tuple[_types.FloatArray, _types.IntArray, _types.IntArray]:
-        """Integrates on elements for the specified dimension.
-        return dofsValues, dofs, nodesUsedByElements"""
+        """Integrates on the elements of the specified dimension, with the problem type's space (TRI3 → TRI6 under P2).
+        return dofsValues, dofs, pointsUsedByElements"""
 
         list_dofsValues: list = [np.array([])]
         list_dofs: list = [np.array([], dtype=int)]
         list_nodesUsed: list = [np.array([], dtype=int)]
         # nodes != Nodes dont remove
         Nn = self.mesh.Nn
+
+        space = self._Get_FunctionSpace(problemType)
 
         # For each group element
         for groupElem in self.mesh.Get_list_groupElem(dim):
@@ -2890,18 +2892,20 @@ class _Simu(_IObserver, _params.Updatable, ABC):
             if elements.shape[0] == 0:
                 continue
             connect = groupElem.connect[elements]
+            spaceGroup = space.Get_groupElem(groupElem)
+            points = spaceGroup.connect[elements]
             Ne = elements.shape[0]
-            list_nodesUsed.append(connect.ravel())
+            list_nodesUsed.append(points.ravel())
 
             # Get the coordinates of the Gauss points if you need to devaluate the function
             matrixType = MatrixType.mass
-            coord_e_p = groupElem.Get_GaussCoordinates_e_pg(matrixType, elements)
+            coord_e_p = spaceGroup.Get_GaussCoordinates_e_pg(matrixType, elements)
 
-            N_pg = groupElem.Get_N_pg(matrixType)
-            wJ_e_pg = groupElem.Get_weightedJacobian_e_pg(matrixType)[elements]
+            N_pg = spaceGroup.Get_N_pg(matrixType)
+            wJ_e_pg = spaceGroup.Get_weightedJacobian_e_pg(matrixType)[elements]
 
-            # initialize the matrix of values for each node used by the elements and each gauss point (Ne*nPe, dir)
-            dofsValues_u = np.zeros((Ne * groupElem.nPe, len(unknowns)))
+            # initialize the matrix of values for each point used by the elements and each gauss point (Ne*nPe, dir)
+            dofsValues_u = np.zeros((Ne * spaceGroup.nPe, len(unknowns)))
             # initialize the dofs vector
             dofs_u = np.zeros_like(dofsValues_u, dtype=int)
 
@@ -2920,6 +2924,11 @@ class _Simu(_IObserver, _params.Updatable, ABC):
                     eval_n = np.zeros(Nn, dtype=float)
                     eval_n[nodes] = values[u]
                     eval_e = eval_n[connect]  # (Ne, nPe)
+                    if spaceGroup is not groupElem:
+                        # the node values interpolated at the space's points (Ne, nPe space)
+                        xi = spaceGroup.Get_Local_Coords()
+                        N = groupElem._Eval_Functions(groupElem._N(), xi)[:, 0]
+                        eval_e = eval_e @ N.T
                     # integrate the elements (Ne, nPg, nPe)
                     values_e_p = np.einsum(
                         "ep,en,pin->epn", wJ_e_pg, eval_e, N_pg, optimize="optimal"
@@ -2928,7 +2937,7 @@ class _Simu(_IObserver, _params.Updatable, ABC):
                 # set calculated (sum on integration points) values and dofs
                 dofsValues_u[:, u] = np.sum(values_e_p, axis=1).ravel()
                 dofs_u[:, u] = self.Bc_dofs_nodes(
-                    connect.ravel(), [unknown], problemType
+                    points.ravel(), [unknown], problemType
                 )
 
             list_dofsValues.append(dofsValues_u.ravel())
@@ -2936,9 +2945,9 @@ class _Simu(_IObserver, _params.Updatable, ABC):
 
         dofsValues = np.concatenate(list_dofsValues)
         dofs = np.concatenate(list_dofs).astype(int)
-        nodesUsedByElements = np.concatenate(list_nodesUsed).astype(int)
+        pointsUsedByElements = np.concatenate(list_nodesUsed).astype(int)
 
-        return dofsValues, dofs, nodesUsedByElements
+        return dofsValues, dofs, pointsUsedByElements
 
     def __Bc_lineLoad(
         self,
@@ -3097,6 +3106,10 @@ class _Simu(_IObserver, _params.Updatable, ABC):
         """Adds Neumann's boundary conditions.\n
         If a neumann condition is already applied to the dof, the condition will not be taken into account for the dof.
         """
+
+        # selected nodes on this rank, but no complete element of the selection
+        if MPI_SIZE > 1 and len(dofs) == 0:
+            return
 
         tic = Tic()
 

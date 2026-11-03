@@ -18,6 +18,7 @@ if TYPE_CHECKING:
     from typing import Concatenate
 
     from ..FEM import Mesh, _GroupElem
+    from ..FEM._function_space import _FunctionSpace
     from ._simu import _Simu
     from ._problem_type import ProblemType
 
@@ -190,7 +191,12 @@ class Term:
     # Reuse across the per-assembly rebuild of the list
     # ----------------------------------------------
 
-    def _Cached(self, simu: "_Simu", groupElem: "_GroupElem") -> Any:
+    def _Cached(
+        self,
+        simu: "_Simu",
+        groupElem: "_GroupElem",
+        spaceGroup: "_GroupElem | None" = None,
+    ) -> Any:
         """Unscaled contribution of a ``constant=True`` term on one group, kept with `simu`'s cached computed values (so a mesh change drops it) and reused by the term declared the same way, and by its :py:meth:`Scaled` copies, while the argument values are unchanged. ``u`` is deliberately unavailable: a term that needs it is not constant, and fails loudly on the missing argument rather than silently freeze the first iterate."""
         key = (
             self.__fn,
@@ -208,7 +214,10 @@ class Term:
             or hit[0].keys() != kwargs.keys()
             or not all(_Same(v, kwargs[n]) for n, v in hit[0].items())
         ):
-            hit = cache[key] = (copy.deepcopy(kwargs), self._Evaluate(groupElem))
+            hit = cache[key] = (
+                copy.deepcopy(kwargs),
+                self._Evaluate(groupElem, spaceGroup=spaceGroup),
+            )
         return hit[1]
 
     # ----------------------------------------------
@@ -235,15 +244,18 @@ class Term:
         return None if self.__tag is None else groupElem.Get_Elements_Tag(self.__tag)
 
     def _Evaluate(
-        self, groupElem: "_GroupElem", u: _types.FloatArray | None = None
+        self,
+        groupElem: "_GroupElem",
+        u: _types.FloatArray | None = None,
+        spaceGroup: "_GroupElem | None" = None,
     ) -> Any:
-        """Calls the operator on one group, injecting the arguments it declares and the caller left out."""
+        """Calls the operator on `spaceGroup`, the group the field's space puts on `groupElem`'s elements (`groupElem` itself when isoparametric), injecting the arguments it declares and the caller left out."""
         values = {"u": u, "elements": self._Get_elements(groupElem)}
         kwargs = dict(self.__kwargs)
         for name in self.__injectable:
             if name not in kwargs and values[name] is not None:
                 kwargs[name] = values[name]
-        return self.__fn(groupElem, **kwargs)
+        return self.__fn(groupElem if spaceGroup is None else spaceGroup, **kwargs)
 
 
 def Fold_terms(
@@ -266,6 +278,7 @@ def Fold_terms(
     dof_n = simu.Get_dof_n(problemType)
     isNonLinear = simu.isNonLinear
 
+    space = simu._Get_FunctionSpace(problemType)
     u_t, v_t, a_t = simu.Get_u_v_a(problemType)
     fields = {"u": u_t, "v": v_t, "a": a_t}
 
@@ -274,11 +287,13 @@ def Fold_terms(
 
     for term in terms:
         for groupElem in term._Get_groups(mesh):
+            # operators see the field's own group: P2 u on TETRA4 integrates on TETRA10
+            spaceGroup = space.Get_groupElem(groupElem)
 
             if term.constant:
-                contributions = term._Cached(simu, groupElem)
+                contributions = term._Cached(simu, groupElem, spaceGroup)
             else:
-                contributions = term._Evaluate(groupElem, u_t)
+                contributions = term._Evaluate(groupElem, u_t, spaceGroup)
             if not isinstance(contributions, tuple):
                 contributions = (contributions,)
             if len(contributions) != len(term.slots):
@@ -306,7 +321,14 @@ def Fold_terms(
 
             # from `own`, never the accumulated slot: two terms may fill one slot on one group
             if isNonLinear and len(term.slots) == 1:
-                residual = _Residual(term, groupElem, own, fields, dof_n)
+                residual = _Residual(
+                    term,
+                    groupElem,
+                    own,
+                    fields,
+                    space,
+                    dof_n,
+                )
                 if residual is not None:
                     slots[3] = residual if slots[3] is None else slots[3] + residual
 
@@ -335,9 +357,10 @@ def _Residual(
     groupElem: "_GroupElem",
     matrix_e: np.ndarray | None,
     fields: dict[str, _types.FloatArray | None],
+    space: "_FunctionSpace",
     dof_n: int,
 ) -> np.ndarray | None:
-    """``-A_e · x_t`` for a single-slot term, where `x_t` is the field that slot multiplies.
+    """``-A_e · x_t`` for a single-slot term, where `x_t` is the field that slot multiplies, gathered on `groupElem`'s DOFs in `space`.
 
     Sound because a single slot means the contribution is linear in that field, so the product *is* the residual. Returns None when the slot carries no matrix (an ``F`` term) or when the field does not exist under the active time scheme (no velocity in a static problem).
     """
@@ -350,6 +373,6 @@ def _Residual(
     if x_t is None:
         return None
 
-    x_e = groupElem.Locates_sol_e(x_t, dof_n)
+    x_e = x_t[space.Get_assembly_e(groupElem, dof_n)]
 
     return -np.einsum("eij,ej->ei", matrix_e, x_e, optimize=True)

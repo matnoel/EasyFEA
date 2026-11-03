@@ -624,6 +624,11 @@ class Kinematics:
         """
         _params._CheckIsVector(T)
         Ne, nPg, dim = self._GetDims()
+        if isinstance(T, FeArray) and T.ndim == 3 and T.shape[1] != nPg:
+            raise ValueError(
+                f"The direction is given at {T.shape[1]} points per element, the term integrates at {nPg}: "
+                "sample it at the integration rule of the field's space, `mesh._Get_FunctionSpace(problemType).Get_rule(groupElem, matrixType)`."
+            )
         T = FeArray.broadcast(T, Ne, nPg, tensor_shape=(3,)).astype(float)
 
         Tx, Ty, Tz = T[..., 0], T[..., 1], T[..., 2]

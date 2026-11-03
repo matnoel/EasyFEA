@@ -203,6 +203,7 @@ class HyperElastic(_Simu):
 
     def __Kinematics(self, groupElem: _GroupElem, u: _types.FloatArray) -> Kinematics:
         """Hyperelastic kinematics of `groupElem` at `u`, guarded against an inverted element."""
+        u = self._Get_FunctionSpace().Get_pointValues(u, self.dim)
         kinematics = Kinematics(groupElem, u, self.matrixType)
         assert kinematics.Compute_J().min() > 0, "det(F) < 0 - reduce load steps"
         return kinematics
@@ -227,6 +228,7 @@ class HyperElastic(_Simu):
         self, groupElem: _GroupElem, u: _types.FloatArray, v_t: _types.FloatArray
     ) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
         """Kelvin–Voigt viscosity: configuration tangent, damping matrix, viscous residual."""
+        v_t = self._Get_FunctionSpace().Get_pointValues(v_t, self.dim)
         return Operators.NonLinear.KelvinVoigtDamping(
             self.material, self.__Kinematics(groupElem, u), v_t
         )
@@ -426,9 +428,12 @@ class HyperElastic(_Simu):
         # strain energy density W integrated group by group (each main-dimension
         # group may have its own element type / number of Gauss points)
         list_W = []
+        space = self._Get_FunctionSpace()
+        u = space.Get_pointValues(self.displacement, self.dim)
         for groupElem in self.mesh.Get_list_groupElem(self.dim):
-            kinematics = Kinematics(groupElem, self.displacement, matrixType)
-            wJ_e_pg = groupElem.Get_weightedJacobian_e_pg(matrixType)
+            spaceGroup = space.Get_groupElem(groupElem)
+            kinematics = Kinematics(spaceGroup, u, matrixType)
+            wJ_e_pg = spaceGroup.Get_weightedJacobian_e_pg(matrixType)
             W_e_pg = wJ_e_pg * self.material.Compute_W(kinematics)
             list_W.append(thickness * W_e_pg.integrate())
 
@@ -442,10 +447,12 @@ class HyperElastic(_Simu):
         """Green-Lagrange strain in Kelvin-Mandel form, at ``self.matrixType`` by default: an ``FeArray`` on one group, ``{groupElem: FeArray}`` on several."""
         if matrixType is None:
             matrixType = self.matrixType
+        space = self._Get_FunctionSpace()
+        u = space.Get_pointValues(self.displacement, self.dim)
         return _Field_per_groupElem(
             lambda groupElem: Tensor_to_Kelvin(
                 Kinematics(
-                    groupElem, self.displacement, matrixType
+                    space.Get_groupElem(groupElem), u, matrixType
                 ).Compute_GreenLagrange(),
                 2,
             ),
@@ -459,8 +466,11 @@ class HyperElastic(_Simu):
         if matrixType is None:
             matrixType = self.matrixType
 
+        space = self._Get_FunctionSpace()
+        u = space.Get_pointValues(self.displacement, self.dim)
+
         def S_e_pg(groupElem: _GroupElem) -> FeArray.FeArrayALike:
-            kinematics = Kinematics(groupElem, self.displacement, matrixType)
+            kinematics = Kinematics(space.Get_groupElem(groupElem), u, matrixType)
             # reported as one field, even though the two are assembled by separate operators
             S_e_pg = self.material.Compute_dWde(kinematics)
             if np.any(self.material.active_stress != 0.0):

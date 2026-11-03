@@ -277,6 +277,40 @@ def test_Fold_terms_gives_a_single_slot_term_its_residual_when_nonlinear(
     assert np.allclose(F_e, -np.einsum("eij,ej->ei", K_e, u_e))
 
 
+def test_Fold_terms_hands_operators_the_group_of_the_field_space():
+    domain = Domain((0, 0), (1, 1))
+    mesh = domain.Mesh_2D([], ElemType.TRI3)
+    meshP2 = mesh._With_FunctionSpace(Simulations.Thermal.problemType, 2)
+    simu = Simulations.Thermal(meshP2, Models.Thermal(1, 1))
+    groupElem = meshP2.groupElem
+
+    K_e = Fold_terms(simu, [Term("K", One_array)])[groupElem][0]
+
+    assert K_e.shape == (groupElem.Ne, 6, 6)
+
+
+def test_Fold_terms_gives_a_single_slot_term_its_residual_on_the_field_space(
+    monkeypatch,
+):
+    domain = Domain((0, 0), (1, 1))
+    mesh = domain.Mesh_2D([], ElemType.TRI6)
+    meshP1 = mesh._With_FunctionSpace(Simulations.WeakForms.problemType, 1)
+    simu = Simulations.WeakForms(meshP1, laplacian(meshP1), isNonLinear=True)
+    space = meshP1._Get_FunctionSpace(Simulations.WeakForms.problemType)
+    # the vertices only: fewer DOFs than nodes
+    u = np.arange(space.Npoints, dtype=float)
+    monkeypatch.setattr(simu, "_Solver_Get_Newton_Raphson_current_solution", lambda: u)
+    groupElem = meshP1.groupElem
+
+    terms = [Term("K", Operators.Bilinear.GradUGradV)]
+    K_e, _, _, F_e = Fold_terms(simu, terms)[groupElem]
+
+    u_e = u[space.Get_assembly_e(groupElem, 1)]
+    assert space.Npoints < meshP1.Nn
+    assert np.abs(F_e).max() > 0
+    assert np.allclose(F_e, -np.einsum("eij,ej->ei", K_e, u_e))
+
+
 # ----------------------------------------------
 # A simulation extended by its terms
 # ----------------------------------------------

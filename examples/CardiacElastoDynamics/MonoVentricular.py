@@ -62,6 +62,9 @@ if __name__ == "__main__":
     # matrixType = MatrixType.mass
     # matrixType = MatrixType.Order(5)  # 15 points on TETRA4
 
+    order = 1
+    # order = 2  # P2 displacement on the TETRA4 geometry
+
     results_dir = Folder.Join(RESULTS_DIR, config.name, meshName)
 
     doSimu = True
@@ -81,7 +84,7 @@ if __name__ == "__main__":
     stresses = Get_stresses(times)
     pressures = Get_pressures(times)
 
-    results_dir += f"_dt{dt}_{fiberSource}_{matrixType}"
+    results_dir += f"_dt{dt}_{fiberSource}_{matrixType}_P{order}"
 
     if plotGraph:
         ax = Matplotlib.Init_Axes()
@@ -115,6 +118,7 @@ if __name__ == "__main__":
             Folder.Join(DATA_DIR, meshName),
             matrixType=matrixType,
             fiberSource=fiberSource,
+            order=order,
             plotMesh=False,
             plotTags=False,
             plotFibers=False,
@@ -173,7 +177,7 @@ if __name__ == "__main__":
         for i in range(Niter):
             simu.Set_Iter(i)
             values[i] = simu.mesh.Evaluate_dofsValues_at_coordinates(
-                evalCoords, simu.displacement
+                evalCoords, simu.displacement, simu.problemType
             )
 
         times = times[:Niter]
@@ -202,12 +206,13 @@ if __name__ == "__main__":
 
     if saveParticles and simu.isGathered:
 
-        # per-iteration deformed volume
+        # per-iteration deformed volume, on the displacement's own elements (TETRA10 cells for P2)
+        deformed = simu.mesh._Get_FunctionSpace(simu.problemType).Get_mesh()
+        coord = deformed.coord
         volumes = np.empty(Niter)
         for i in range(Niter):
             simu.Set_Iter(i)
-            deformed = simu.mesh.copy()
-            deformed.coord += simu.displacement.reshape(-1, 3)
+            deformed.coord = coord + simu.displacement.reshape(-1, 3)
             volumes[i] = deformed.volume
 
         dict_particles = {

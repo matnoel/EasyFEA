@@ -9,7 +9,7 @@ import numpy as np
 import pytest
 
 from EasyFEA import AlgoType, ElemType, Mesh, Models, Simulations
-from EasyFEA.Geoms import Domain
+from EasyFEA.Geoms import Circle, Domain
 
 from _numerics import rel_error
 from . import _reference
@@ -301,3 +301,109 @@ def test_Mesh_Optim_ZZ1_rejects_another_simulation(tmp_path):
 
     with pytest.raises(AssertionError, match="Displacement simulation"):
         Simulations.Mesh_Optim_ZZ1(DoSimu, str(tmp_path))
+
+
+# ----------------------------------------------------------------------------
+# function spaces: the field's space against the geometry
+# ----------------------------------------------------------------------------
+
+ELASTIC = Simulations.Elastic.problemType
+G = np.array([[1e-3, 2e-3, 0.0], [0.0, -1e-3, 3e-3], [1e-3, 0.0, 2e-3]])
+"""An affine displacement u = G x for the patch tests."""
+
+
+def _box(elemType: ElemType) -> Mesh:
+    """Unit box of 2 × 2 × 2 cells: one interior node."""
+    contour = Domain((0, 0, 0), (1, 1, 0), 0.5)
+    return contour.Mesh_Extrude(
+        [],
+        (0, 0, 1),
+        [2],
+        elemType,
+        isOrganised=True,
+    )
+
+
+def _cylinder(elemType: ElemType) -> Mesh:
+    """Unit radius, height 0.5: curved sides on a quadratic geometry."""
+    circle = Circle((0, 0), 2.0, 0.6)
+    return circle.Mesh_Extrude([], (0, 0, 0.5), [2], elemType)
+
+
+def _stretched(mesh: Mesh) -> Simulations.Elastic:
+    """Clamped at x = 0, pulled unevenly at x = 1."""
+    simu = Simulations.Elastic(mesh, Models.Elastic.Isotropic(3, E=1.0, v=0.3))
+    nodesLeft = mesh.Nodes_Conditions(lambda x, y, z: x == 0)
+    nodesRight = mesh.Nodes_Conditions(lambda x, y, z: x == 1)
+    simu.add_dirichlet(nodesLeft, [0, 0, 0], ["x", "y", "z"])
+    simu.add_dirichlet(nodesRight, [lambda x, y, z: 0.02 * (1 + y * z)], ["x"])
+    simu.Solve()
+    return simu
+
+
+def _dofs_at(simu: Simulations.Elastic, other: Simulations.Elastic) -> np.ndarray:
+    """DOFs of `other` at the points of `simu`'s space, in `simu`'s DOF order."""
+    coord = simu.mesh._Get_FunctionSpace(ELASTIC).Get_mesh().coord
+    otherCoord = other.mesh._Get_FunctionSpace(ELASTIC).Get_mesh().coord
+    rows = np.argmin(np.linalg.norm(coord[:, None] - otherCoord, axis=2), axis=1)
+    return (rows[:, None] * 3 + np.arange(3)).ravel()
+
+
+def _patch_error(mesh: Mesh, isBoundary: Callable) -> float:
+    """Relative error of the solution when u = G x is imposed on the points `isBoundary` selects."""
+    simu = Simulations.Elastic(mesh, Models.Elastic.Isotropic(3, E=1.0, v=0.3))
+    nodesBoundary = mesh.Nodes_Conditions(isBoundary, problemType=ELASTIC)
+    for d, unknown in enumerate("xyz"):
+        simu.add_dirichlet(
+            nodesBoundary, [lambda x, y, z, d=d: G[d] @ [x, y, z]], [unknown]
+        )
+    simu.Solve()
+    coord = mesh._Get_FunctionSpace(ELASTIC).Get_mesh().coord
+    return rel_error(simu.displacement, (coord @ G.T).ravel())
+
+
+def _on_box(x, y, z):
+    return (x == 0) | (x == 1) | (y == 0) | (y == 1) | (z == 0) | (z == 1)
+
+
+def _on_cylinder(x, y, z):
+    return np.isclose(np.hypot(x, y), 1.0, atol=1e-8) | (z == 0) | (z == 0.5)
+
+
+def test_Elastic_P2_on_TETRA4_is_the_straight_TETRA10():
+    simu = _stretched(_box(ElemType.TETRA4)._With_FunctionSpace(ELASTIC, 2))
+    iso = _stretched(_box(ElemType.TETRA10))
+    dofs = _dofs_at(simu, iso)
+
+    K, K_iso = simu.Get_K_C_M_F()[0], iso.Get_K_C_M_F()[0][dofs][:, dofs]
+
+    assert rel_error(K.toarray(), K_iso.toarray()) < 1e-12
+    assert rel_error(simu.displacement, iso.displacement[dofs]) < 1e-12
+    Svm = simu.Result("Svm", nodeValues=False)
+    assert rel_error(Svm, iso.Result("Svm", nodeValues=False)) < 1e-12
+
+
+def test_Elastic_P1_on_a_straight_TETRA10_is_the_TETRA4():
+    simu = _stretched(_box(ElemType.TETRA10)._With_FunctionSpace(ELASTIC, 1))
+    iso = _stretched(_box(ElemType.TETRA4))
+    dofs = _dofs_at(simu, iso)
+
+    K, K_iso = simu.Get_K_C_M_F()[0], iso.Get_K_C_M_F()[0][dofs][:, dofs]
+
+    # the partner TETRA4 group integrates as the TETRA4 mesh does
+    assert np.array_equal(K.toarray(), K_iso.toarray())
+    assert np.array_equal(simu.displacement, iso.displacement[dofs])
+
+
+def test_Elastic_patch_test_holds_iso_and_P2_on_TETRA4(subtests):
+    for name, mesh, isBoundary in [
+        ("TETRA4", _box(ElemType.TETRA4), _on_box),
+        (
+            "P2 on TETRA4",
+            _box(ElemType.TETRA4)._With_FunctionSpace(ELASTIC, 2),
+            _on_box,
+        ),
+        ("curved TETRA10", _cylinder(ElemType.TETRA10), _on_cylinder),
+    ]:
+        with subtests.test(name):
+            assert _patch_error(mesh, isBoundary) < 1e-10

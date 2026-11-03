@@ -334,7 +334,7 @@ def FollowingPressure(
     u: np.ndarray,
     pressure: float | np.ndarray,
     elements: np.ndarray | None = None,
-    matrixType: "MatrixType" = MatrixType.rigi,
+    matrixType: "MatrixType" = MatrixType.mass,
 ) -> tuple[np.ndarray, np.ndarray]:
     r"""Follower-pressure contribution on a 2D surface group in a 3D mesh.
 

@@ -18,7 +18,7 @@ from EasyFEA import Models, Simulations
 
 from _numerics import G3, affine, isotropic_stiffness, mandel, quadratic_form, rel_error
 from .._reference import MEASURES, MeshOf
-from ._reference import assert_restricts
+from ._reference import assembled, assert_restricts, p2_faces
 
 Bilinear = Operators.Bilinear
 
@@ -160,6 +160,20 @@ def test_MassAlongNormal_weighs_only_the_normal_component():
     assert_restricts(
         lambda e: Bilinear.MassAlongNormal(groupElem, 3.0, e), np.array([0])
     )
+
+
+def test_UV_and_MassAlongNormal_with_P2_u_on_TRI3_are_the_straight_TRI6(subtests):
+    groupElem, isoElem, dofs = p2_faces()
+    size = isoElem.Ncoords * 3
+
+    for name, operator in [
+        ("UV", functools.partial(Bilinear.UV, coef=3.0, dof_n=3)),
+        ("MassAlongNormal", functools.partial(Bilinear.MassAlongNormal, coef=3.0)),
+    ]:
+        with subtests.test(name):
+            K = assembled(groupElem, operator(groupElem), size)
+            K_iso = assembled(isoElem, operator(isoElem), size)[dofs][:, dofs]
+            assert rel_error(K, K_iso) < 1e-12
 
 
 def test_GradU_A_GradV_energy_of_an_affine_field(mesh_of: MeshOf, subtests):
