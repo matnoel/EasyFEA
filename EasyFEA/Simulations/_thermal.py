@@ -114,7 +114,7 @@ class Thermal(_Simu):
         return self.thermalModel.thickness if self.mesh.dim == 2 else 1.0
 
     def Get_x0(self, problemType=None):
-        size = self._Get_FunctionSpace().Npoints
+        size = self._Get_FunctionSpace().Nn
         if self.thermal.size != size:
             return np.zeros(size)
         else:
@@ -188,8 +188,8 @@ class Thermal(_Simu):
 
         # node values (Nn,) of the temperature and its rate, through the space
         space = self._Get_FunctionSpace()
-        t_n = space.Get_nodeValues(self.thermal, 1).ravel()
-        tDot_n = space.Get_nodeValues(self.thermalDot, 1).ravel()
+        t_n = space.Get_meshValues(self.thermal, 1).ravel()
+        tDot_n = space.Get_meshValues(self.thermalDot, 1).ravel()
 
         if result == "thermal":
             values = t_n

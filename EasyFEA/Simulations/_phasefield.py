@@ -234,14 +234,14 @@ class PhaseField(_Simu):
 
     def Get_x0(self, problemType=None):
         if problemType == self.D:
-            size = self._Get_FunctionSpace(problemType).Npoints
+            size = self._Get_FunctionSpace(problemType).Nn
             if self.damage.size != size:
                 return np.zeros(size)
             else:
                 return self.damage
         elif problemType in [self.U, None]:
             space = self._Get_FunctionSpace(self.U)
-            size = space.Npoints * self.dim
+            size = space.Nn * self.dim
             if self.displacement.size != size:
                 return np.zeros(size)
             else:
@@ -426,8 +426,8 @@ class PhaseField(_Simu):
         u = self.displacement
         d = self.damage
 
-        Nu = self._Get_FunctionSpace(self.U).Npoints * self.dim
-        Nd = self._Get_FunctionSpace(self.D).Npoints
+        Nu = self._Get_FunctionSpace(self.U).Nn * self.dim
+        Nd = self._Get_FunctionSpace(self.D).Nn
         testu = isinstance(u, np.ndarray) and (u.shape[0] == Nu)
         testd = isinstance(d, np.ndarray) and (d.shape[0] == Nd)
 
@@ -598,8 +598,8 @@ class PhaseField(_Simu):
         # node values of the displacement (Nn, dim) and the damage (Nn,), through their spaces
         spaceU = self._Get_FunctionSpace(self.U)
         spaceD = self._Get_FunctionSpace(self.D)
-        u_n = spaceU.Get_nodeValues(self.displacement, self.dim)
-        d_n = spaceD.Get_nodeValues(self.damage, 1).ravel()
+        u_n = spaceU.Get_meshValues(self.displacement, self.dim)
+        d_n = spaceD.Get_meshValues(self.damage, 1).ravel()
 
         values = None
 
@@ -849,7 +849,7 @@ class PhaseField(_Simu):
     def Results_displacement_matrix(self) -> _types.FloatArray:
         Nn = self.mesh.Nn
         space = self._Get_FunctionSpace(self.U)
-        coord = space.Get_nodeValues(self.displacement, self.dim)
+        coord = space.Get_meshValues(self.displacement, self.dim)
         dim = coord.shape[1]
 
         if dim == 1:

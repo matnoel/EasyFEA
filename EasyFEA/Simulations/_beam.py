@@ -462,7 +462,7 @@ class Beam(_Simu):
         return center
 
     def Get_x0(self, problemType=None):
-        size = self._Get_FunctionSpace().Npoints * self.Get_dof_n(problemType)
+        size = self._Get_FunctionSpace().Nn * self.Get_dof_n(problemType)
         if self.displacement.size != size:
             return np.zeros(size)
         else:
@@ -535,8 +535,8 @@ class Beam(_Simu):
         # node values (Nn, dof_n) of the displacement, through the space
         dof_n = self.structure.dof_n
         space = self._Get_FunctionSpace()
-        dofs = space.Npoints * dof_n
-        u_n = space.Get_nodeValues(self.displacement, dof_n)
+        dofs = space.Nn * dof_n
+        u_n = space.Get_meshValues(self.displacement, dof_n)
 
         if result in ["ux", "uy", "uz", "rx", "ry", "rz"]:
             index = self._indexResult(result)
@@ -556,7 +556,7 @@ class Beam(_Simu):
             Kglob = Kbeam.tocsr()[:dofs].tocsc()[:, :dofs]
             force = Kglob @ self.displacement
 
-            force_n = space.Get_nodeValues(force, dof_n)
+            force_n = space.Get_meshValues(force, dof_n)
             index = self._indexResult(result)
             values = force_n[:, index]
 
@@ -692,7 +692,7 @@ class Beam(_Simu):
         Nn = self.mesh.Nn
         dof_n = self.Get_dof_n(self.problemType)
         space = self._Get_FunctionSpace()
-        displacementRedim = space.Get_nodeValues(self.displacement, dof_n)
+        displacementRedim = space.Get_meshValues(self.displacement, dof_n)
 
         coordo = np.zeros((Nn, 3))
 

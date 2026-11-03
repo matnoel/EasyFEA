@@ -258,9 +258,9 @@ class WeakForms(_Simu):
         # node values (Nn, dof_n) of u, v and a, through the space
         space = self._Get_FunctionSpace()
         dof_n = self.Get_dof_n()
-        u_n = space.Get_nodeValues(self.u, dof_n)
-        v_n = space.Get_nodeValues(self.v, dof_n)
-        a_n = space.Get_nodeValues(self.a, dof_n)
+        u_n = space.Get_meshValues(self.u, dof_n)
+        v_n = space.Get_meshValues(self.v, dof_n)
+        a_n = space.Get_meshValues(self.a, dof_n)
 
         if result == "u":
             values = u_n.ravel()
@@ -308,7 +308,7 @@ class WeakForms(_Simu):
         if dof_n == 1:
             pass
         elif 1 < dof_n <= 3:
-            coord = self._Get_FunctionSpace().Get_nodeValues(self.u, dof_n)
+            coord = self._Get_FunctionSpace().Get_meshValues(self.u, dof_n)
             dim = coord.shape[1]
             displacement_matrix[:, :dim] = coord
         else:

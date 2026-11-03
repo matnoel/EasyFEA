@@ -160,7 +160,7 @@ class _Simu(_IObserver, _params.Updatable, ABC):
 
     def __Get_size(self, problemType: ProblemType | None = None) -> int:
         """Returns the number of degrees of freedom of the problem type's field (Lagrange multiplier DOFs excluded)."""
-        return self._Get_FunctionSpace(problemType).Npoints * self.Get_dof_n(
+        return self._Get_FunctionSpace(problemType).Nn * self.Get_dof_n(
             problemType
         )
 
@@ -367,12 +367,12 @@ class _Simu(_IObserver, _params.Updatable, ABC):
     def __Local_dofs(
         self, problemType: ProblemType, nodes: _types.IntArray = None
     ) -> _types.IntArray:
-        """Dofs carried by `nodes`, by default the points of this rank's partition, ghosts included.
+        """Dofs carried by `nodes`, by default the nodes of this rank's partition, ghosts included.
 
-        Point ids are global in the partitioned and the gathered view alike, and this maps them to dofs from the ids and `dof_n` alone, so the same call places a slice correctly on either side of a `_Gather`.
+        Node ids are global in the partitioned and the gathered view alike, and this maps them to dofs from the ids and `dof_n` alone, so the same call places a slice correctly on either side of a `_Gather`.
         """
         if nodes is None:
-            nodes = self._Get_FunctionSpace(problemType).localPoints
+            nodes = self._Get_FunctionSpace(problemType).localNodes
 
         return self.Bc_dofs_nodes(nodes, self.Get_unknowns(problemType), problemType)
 
@@ -2012,7 +2012,7 @@ class _Simu(_IObserver, _params.Updatable, ABC):
             # add 1.0 to orphan dofs — orphan rows are zero, so addition sets the diagonal; only the orphans carrying a DOF (under MPI the nodes off this rank, TETRA10 mid nodes under P1 among them), no element closing over them
             orphans = np.asarray(self.mesh.orphanNodes, dtype=int)
             orphanDofs = self.Bc_dofs_nodes(
-                self._Get_FunctionSpace(problemType).Get_points(orphans),
+                self._Get_FunctionSpace(problemType).Get_nodes(orphans),
                 self.Get_unknowns(problemType),
                 problemType,
             )
@@ -2267,9 +2267,11 @@ class _Simu(_IObserver, _params.Updatable, ABC):
         if problemType is None:
             problemType = self.problemType
 
-        points = self._Get_FunctionSpace(problemType).ownedPoints
+        ownedNodes = self._Get_FunctionSpace(problemType).ownedNodes
 
-        return self.Bc_dofs_nodes(points, self.Get_unknowns(problemType), problemType)
+        return self.Bc_dofs_nodes(
+            ownedNodes, self.Get_unknowns(problemType), problemType
+        )
 
     # ----------------------------------------------
     # Boundary conditions
@@ -2540,24 +2542,24 @@ class _Simu(_IObserver, _params.Updatable, ABC):
         assert len(nodes) > 0, "Empty node list"
         nodes = np.asarray(nodes)
 
-        # the selected points carrying a DOF, in their order, then those the element closure adds (Np,); which of the given nodes are kept (nNodes,)
+        # the selected nodes carrying a DOF, in their order, then those the element closure adds (Np,); which of the given nodes are kept (nNodes,)
         space = self._Get_FunctionSpace(problemType)
-        points = space.Get_points(nodes)
-        kept = np.isin(nodes, points)
-        if points.size == 0:
+        spaceNodes = space.Get_nodes(nodes)
+        kept = np.isin(nodes, spaceNodes)
+        if spaceNodes.size == 0:
             raise ValueError(f"No selected node carries a {problemType} DOF.")
-        coordo_n = space.coord[points]
+        coordo_n = space.coord[spaceNodes]
 
-        # initialize the value vector for each point
-        dofsValues_dir = np.zeros((points.size, len(unknowns)))
+        # initialize the value vector for each node
+        dofsValues_dir = np.zeros((spaceNodes.size, len(unknowns)))
 
         for d, _ in enumerate(unknowns):
             value = values[d]
             # a value per node covers the kept nodes only
             if not callable(value) and np.size(value) > 1:
-                if points.size > np.count_nonzero(kept):
+                if spaceNodes.size > np.count_nonzero(kept):
                     raise ValueError(
-                        "The element closure adds points the value array does not cover: pass a function of (x, y, z)."
+                        "The element closure adds nodes the value array does not cover: pass a function of (x, y, z)."
                     )
                 value = np.asarray(value)[kept]
             eval_n = self.__Bc_evaluate(coordo_n, value, option="nodes")
@@ -2565,10 +2567,10 @@ class _Simu(_IObserver, _params.Updatable, ABC):
 
         dofsValues = dofsValues_dir.ravel()
 
-        dofs = self.Bc_dofs_nodes(points, unknowns, problemType)
+        dofs = self.Bc_dofs_nodes(spaceNodes, unknowns, problemType)
 
         self._Bc_Add_Dirichlet(
-            problemType, points, dofsValues, dofs, unknowns, description
+            problemType, spaceNodes, dofsValues, dofs, unknowns, description
         )
 
     def add_neumann(
@@ -2897,11 +2899,11 @@ class _Simu(_IObserver, _params.Updatable, ABC):
                 continue
             connect = groupElem.connect[elements]
             spaceGroup = space.Get_groupElem(groupElem)
-            points = spaceGroup.connect[elements]
+            spaceNodes = spaceGroup.connect[elements]
             Ne = elements.shape[0]
-            list_nodesUsed.append(points.ravel())
+            list_nodesUsed.append(spaceNodes.ravel())
 
-            # Get the coordinates of the Gauss points if you need to devaluate the function
+            # Get the coordinates of the Gauss spaceNodes if you need to devaluate the function
             matrixType = MatrixType.mass
             coord_e_p = spaceGroup.Get_GaussCoordinates_e_pg(matrixType, elements)
 
@@ -2916,7 +2918,7 @@ class _Simu(_IObserver, _params.Updatable, ABC):
             # Integrated for all unknowns
             for u, unknown in enumerate(unknowns):
                 if isinstance(values[u], (int, float)) or callable(values[u]):
-                    # evaluate on gauss points (Ne, nPg)
+                    # evaluate on gauss spaceNodes (Ne, nPg)
                     eval_e_p = self.__Bc_evaluate(coord_e_p, values[u], option="gauss")
                     # integrate the elements (Ne, nPg, nPe)
                     values_e_p = np.einsum(
@@ -2929,7 +2931,7 @@ class _Simu(_IObserver, _params.Updatable, ABC):
                     eval_n[nodes] = values[u]
                     eval_e = eval_n[connect]  # (Ne, nPe)
                     if spaceGroup is not groupElem:
-                        # the node values interpolated at the space's points (Ne, nPe space)
+                        # the node values interpolated at the space's nodes (Ne, nPe space)
                         xi = spaceGroup.Get_Local_Coords()
                         N = groupElem._Eval_Functions(groupElem._N(), xi)[:, 0]
                         eval_e = eval_e @ N.T
@@ -2938,10 +2940,10 @@ class _Simu(_IObserver, _params.Updatable, ABC):
                         "ep,en,pin->epn", wJ_e_pg, eval_e, N_pg, optimize="optimal"
                     )
 
-                # set calculated (sum on integration points) values and dofs
+                # set calculated (sum on integration spaceNodes) values and dofs
                 dofsValues_u[:, u] = np.sum(values_e_p, axis=1).ravel()
                 dofs_u[:, u] = self.Bc_dofs_nodes(
-                    points.ravel(), [unknown], problemType
+                    spaceNodes.ravel(), [unknown], problemType
                 )
 
             list_dofsValues.append(dofsValues_u.ravel())

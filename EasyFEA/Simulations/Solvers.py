@@ -465,10 +465,10 @@ def __Get_global_dof_ordering(
 
     The points the function space gives each rank are gathered (a single ``Allgatherv``) and expanded to DOFs via the canonical point->DOF conversion (`Bc_dofs_nodes`). Useful wherever a consistent global DOF numbering across ranks is needed (e.g. mapping local DOFs to a contiguous PETSc index space).
     """
-    ownedPoints = simu._Get_FunctionSpace(problemType).ownedPoints
-    pointOrdering = Concatenate_array(ownedPoints)
+    ownedNodes = simu._Get_FunctionSpace(problemType).ownedNodes
+    nodeOrdering = Concatenate_array(ownedNodes)
     return simu.Bc_dofs_nodes(
-        pointOrdering, simu.Get_unknowns(problemType), problemType
+        nodeOrdering, simu.Get_unknowns(problemType), problemType
     )
 
 
@@ -567,7 +567,7 @@ def __Solver_1(
 def __Solver_2(simu: "_Simu", problemType: "ProblemType"):
     # Lagrange multiplier method
 
-    size = simu._Get_FunctionSpace(problemType).Npoints * simu.Get_dof_n(problemType)
+    size = simu._Get_FunctionSpace(problemType).Nn * simu.Get_dof_n(problemType)
 
     # Build the penalized matrix system
     b = simu._Solver_Apply_Neumann(problemType)

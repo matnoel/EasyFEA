@@ -443,7 +443,7 @@ class Mesh(Observable):
     def coord(self, coord: _types.FloatArray) -> None:
         for groupElem in self.dict_groupElem.values():
             groupElem.coord = coord
-        # the points of the spaces move with the geometry, their numbering stays
+        # the added nodes of the spaces move with the geometry, their numbering stays
         for space in self.__dict_functionSpace.values():
             space._Update_coord()
         self._Notify("The mesh has been modified")
@@ -676,7 +676,7 @@ class Mesh(Observable):
     def __Get_selection_groups(
         self, problemType: "ProblemType | None"
     ) -> list["_GroupElem"]:
-        """Main-dimension groups to select on: the geometry's, or those ``problemType``'s space puts on them, whose nodes are point ids."""
+        """Main-dimension groups to select on: the geometry's, or those ``problemType``'s space puts on them, whose nodes are the space's."""
         list_groupElem = self.Get_list_groupElem(self.dim)
         if problemType is None:
             return list_groupElem
@@ -698,12 +698,12 @@ class Mesh(Observable):
             \t lambda x, y, z: (x == 40) | (x == 50) \n
             \t lambda x, y, z: x >= 0
         problemType : ProblemType, optional
-            selects the points of this problem type's space instead of the geometry nodes, by default None
+            selects the nodes of this problem type's space instead of the geometry's, by default None
 
         Returns
         -------
         _types.IntArray
-            nodes (or point ids) that meet the specified conditions.
+            nodes (of its space, with ``problemType``) that meet the specified conditions.
         """
         list_groupElem = self.__Get_selection_groups(problemType)
         if len(list_groupElem) == 1:
@@ -837,7 +837,7 @@ class Mesh(Observable):
     def Nodes_Tags(
         self, *tags: str, problemType: "ProblemType | None" = None
     ) -> _types.IntArray:
-        """Returns nodes associated with the tags, or with ``problemType`` the points of its space on them (the tagged nodes carrying a DOF, then the points on the edges, faces and cells they close)."""
+        """Returns nodes associated with the tags, or with ``problemType`` the nodes of its space on them (the tagged nodes carrying a DOF, then the points on the edges, faces and cells they close)."""
         list_node: list[int] = []
 
         tags = [
@@ -868,7 +868,7 @@ class Mesh(Observable):
 
         if problemType is None:
             return nodes
-        return self._Get_FunctionSpace(problemType).Get_points(nodes)
+        return self._Get_FunctionSpace(problemType).Get_nodes(nodes)
 
     def Elements_Tags(self, *tags: str) -> _types.IntArray:
         """Returns elements associated with the tag."""
@@ -968,16 +968,16 @@ class Mesh(Observable):
         dofsValues: _types.FloatArray,
         problemType: "ProblemType | None" = None,
     ) -> _types.FloatArray:
-        """Values (Ncoordinates, dof_n) at ``coordinates_n`` (Ncoordinates, 3) of the DOF vector ``dofsValues`` (Npoints*dof_n,) of ``problemType``'s space (None: isoparametric, (Nn*dof_n,)), located in the geometry, evaluated with the space's shape functions; zero rows outside the elements."""
+        """Values (Ncoordinates, dof_n) at ``coordinates_n`` (Ncoordinates, 3) of the DOF vector ``dofsValues`` (Nn*dof_n,) of ``problemType``'s space (None: isoparametric, (Nn*dof_n,)), located in the geometry, evaluated with the space's shape functions; zero rows outside the elements."""
 
         # the space of the field, None when isoparametric
         space = None if problemType is None else self._Get_FunctionSpace(problemType)
-        Npoints = self.Nn if space is None else space.Npoints
+        Nn = self.Nn if space is None else space.Nn
         assert (
-            dofsValues.size % Npoints == 0 and dofsValues.ndim == 1
-        ), "dofsValues must be a (Npoints * dof_n, ) array."
-        dof_n = dofsValues.size // Npoints
-        # the values of each point (Npoints, dof_n)
+            dofsValues.size % Nn == 0 and dofsValues.ndim == 1
+        ), "dofsValues must be a (Nn * dof_n, ) array."
+        dof_n = dofsValues.size // Nn
+        # the values of each node (Nn, dof_n)
         values = dofsValues.reshape(-1, dof_n)
 
         Nn = coordinates_n.shape[0]
@@ -997,7 +997,7 @@ class Mesh(Observable):
             mask_idx = np.flatnonzero(mask)
             found_elements = elements_n[mask]
 
-            # the space's element on this group and the point rows of the detected elements (m, nPe)
+            # the space's element on this group and the node rows of the detected elements (m, nPe)
             partner = groupElem if space is None else space.Get_groupElem(groupElem)
             rows = partner.connect[found_elements]
             if space is not None:

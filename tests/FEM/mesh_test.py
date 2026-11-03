@@ -801,7 +801,7 @@ def _elastic(mesh: Mesh) -> Simulations.Elastic:
 def _assert_same_numbering(mesh: Mesh, other: Mesh) -> None:
     space = mesh._Get_FunctionSpace(ELASTIC)
     otherSpace = other._Get_FunctionSpace(ELASTIC)
-    assert space.Npoints == otherSpace.Npoints
+    assert space.Nn == otherSpace.Nn
     for elemType, groupElem in mesh.dict_groupElem.items():
         otherGroup = other.dict_groupElem[elemType]
         assert np.array_equal(
@@ -819,7 +819,7 @@ def test_Mesh__With_FunctionSpace_returns_a_new_mesh_leaving_the_original():
     meshP2.Translate(1.0)
 
     assert meshP2 is not mesh and meshP2.observers == []
-    assert mesh._Get_FunctionSpace(ELASTIC) is space and space.Npoints == mesh.Nn
+    assert mesh._Get_FunctionSpace(ELASTIC) is space and space.Nn == mesh.Nn
     assert np.array_equal(mesh.coord, _box(ElemType.TETRA4).coord)
     simu.Need_Update()
     assert simu.mesh is mesh and (simu.Get_K_C_M_F()[0] != K).nnz == 0
@@ -872,7 +872,7 @@ def test_Mesh__With_FunctionSpace_is_the_complete_partner_of_each_group(
             pairs = np.unique(np.column_stack([np.concatenate(points), nodes]), axis=0)
 
             assert distance.max() < 1e-12
-            assert space.Npoints == raised.Nn == pairs.shape[0]
+            assert space.Nn == raised.Nn == pairs.shape[0]
             assert (
                 np.unique(pairs[:, 0]).size == np.unique(pairs[:, 1]).size == raised.Nn
             )
@@ -885,12 +885,12 @@ def test_Mesh__With_FunctionSpace_keeps_the_geometry_nodes_it_holds(subtests):
         "QUAD8, 2": (quad8, 2, quad8.Nn + quad8.Ne),
         "TETRA10, 1": (_box(ElemType.TETRA10), 1, _box(ElemType.TETRA4).Nn),
     }
-    for name, (mesh, order, Npoints) in cases.items():
+    for name, (mesh, order, Nn) in cases.items():
         with subtests.test(mesh=name):
             meshPk = mesh._With_FunctionSpace(ELASTIC, order)
             space = meshPk._Get_FunctionSpace(ELASTIC)
 
-            assert space.Npoints == Npoints
+            assert space.Nn == Nn
             for groupElem in meshPk.dict_groupElem.values():
                 connect = space.Get_connect(groupElem)
                 n = min(connect.shape[1], groupElem.nPe)
@@ -918,7 +918,7 @@ def test_Mesh__With_FunctionSpace_P2_on_TETRA4_numbers_as_a_straight_TETRA10():
     # points of a straight element: the linear map at the TETRA10 reference nodes
     xi = tetra10.groupElem.Get_Local_Coords()
     N = np.column_stack([1 - xi.sum(1), xi])
-    coord = np.empty((space.Npoints, 3))
+    coord = np.empty((space.Nn, 3))
     coord[connect] = N @ meshP2.coord[groupElem.connect]
     distance, relabel = cKDTree(tetra10.coord).query(coord)
     centers = cKDTree(tetra10.coord[tetra10.connect].mean(1))
@@ -932,7 +932,7 @@ def test_Mesh__With_FunctionSpace_P2_on_TETRA4_numbers_as_a_straight_TETRA10():
         tetra10.groupElem.Get_assembly_e(3)[elements],
     )
     assert np.array_equal(connect[:, :4], groupElem.connect)
-    assert np.array_equal(np.unique(connect[:, 4:]), np.arange(mesh.Nn, space.Npoints))
+    assert np.array_equal(np.unique(connect[:, 4:]), np.arange(mesh.Nn, space.Nn))
     assert np.array_equal(space.Get_dofs(np.arange(mesh.Nn), 3), np.arange(mesh.Nn * 3))
 
 

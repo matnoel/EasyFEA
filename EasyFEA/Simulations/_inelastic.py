@@ -106,7 +106,7 @@ class InElastic(_Simu):
         return self.dim
 
     def Get_x0(self, problemType=None):
-        size = self._Get_FunctionSpace().Npoints * self.dim
+        size = self._Get_FunctionSpace().Nn * self.dim
         if self.displacement.size != size:
             return np.zeros(size)
         return self.displacement
@@ -300,7 +300,7 @@ class InElastic(_Simu):
             return None  # type: ignore[return-value]
 
         # node values of the displacement (Nn, dim), through the space
-        u_n = self._Get_FunctionSpace().Get_nodeValues(self.displacement, self.dim)
+        u_n = self._Get_FunctionSpace().Get_meshValues(self.displacement, self.dim)
 
         if result in ["ux", "uy", "uz"]:
             values = u_n[:, {"x": 0, "y": 1, "z": 2}[result[-1]]]
@@ -355,5 +355,5 @@ class InElastic(_Simu):
         Nn = self.mesh.Nn
         matrix = np.zeros((Nn, 3))
         space = self._Get_FunctionSpace()
-        matrix[:, : self.dim] = space.Get_nodeValues(self.displacement, self.dim)
+        matrix[:, : self.dim] = space.Get_meshValues(self.displacement, self.dim)
         return matrix

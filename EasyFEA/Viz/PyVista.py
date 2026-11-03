@@ -759,7 +759,7 @@ def Plot_BoundaryConditions(
 
         availableUnknowns = simu.Get_unknowns(problemType)
         dof_n = simu.Get_dof_n(problemType)
-        nDof = simu._Get_FunctionSpace(problemType).Npoints * dof_n
+        nDof = simu._Get_FunctionSpace(problemType).Nn * dof_n
 
         # label
         unknowns_str = str(unknowns).replace("'", "")

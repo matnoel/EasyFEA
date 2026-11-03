@@ -307,7 +307,7 @@ def test_Fold_terms_gives_a_single_slot_term_its_residual_on_the_field_space(
     simu = Simulations.WeakForms(meshP1, laplacian(meshP1), isNonLinear=True)
     space = meshP1._Get_FunctionSpace(Simulations.WeakForms.problemType)
     # the vertices only: fewer DOFs than nodes
-    u = np.arange(space.Npoints, dtype=float)
+    u = np.arange(space.Nn, dtype=float)
     monkeypatch.setattr(simu, "_Solver_Get_Newton_Raphson_current_solution", lambda: u)
     groupElem = meshP1.groupElem
 
@@ -316,7 +316,7 @@ def test_Fold_terms_gives_a_single_slot_term_its_residual_on_the_field_space(
     K_e, _, _, F_e = Fold_terms(simu, terms)[(pt, pt)][groupElem]
 
     u_e = u[space.Get_assembly_e(groupElem, 1)]
-    assert space.Npoints < meshP1.Nn
+    assert space.Nn < meshP1.Nn
     assert np.abs(F_e).max() > 0
     assert np.allclose(F_e, -np.einsum("eij,ej->ei", K_e, u_e))
 

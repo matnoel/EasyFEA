@@ -155,7 +155,7 @@ class Elastic(_Simu):
         self.Need_Update()
 
     def Get_x0(self, problemType=None):
-        size = self._Get_FunctionSpace().Npoints * self.dim
+        size = self._Get_FunctionSpace().Nn * self.dim
         if self.displacement.size != size:
             return np.zeros(size)
         else:
@@ -240,9 +240,9 @@ class Elastic(_Simu):
 
         # node values (Nn, dim) of the displacement, speed and acceleration, through the space
         space = self._Get_FunctionSpace()
-        u_n = space.Get_nodeValues(self.displacement, self.dim)
-        v_n = space.Get_nodeValues(self.speed, self.dim)
-        a_n = space.Get_nodeValues(self.accel, self.dim)
+        u_n = space.Get_meshValues(self.displacement, self.dim)
+        v_n = space.Get_meshValues(self.speed, self.dim)
+        a_n = space.Get_meshValues(self.accel, self.dim)
 
         values = None
 
@@ -336,7 +336,7 @@ class Elastic(_Simu):
         # strain and elastic energy density psi = 1/2 Sig : Eps, group by group
         # (each main-dimension group may have its own element type / number of Gauss points)
         space = self._Get_FunctionSpace()
-        sol_u = space.Get_pointValues(self.displacement, self.dim)
+        sol_u = space.Get_nodeValues(self.displacement, self.dim)
         list_kinematics = [
             Kinematics(space.Get_groupElem(groupElem), sol_u, matrixType)
             for groupElem in self.mesh.Get_list_groupElem(self.dim)
@@ -409,7 +409,7 @@ class Elastic(_Simu):
     ) -> FeArray.FeArrayALike | dict:
         """Strain (Ne, pg, 3 or 6): an ``FeArray`` on one group, ``{groupElem: FeArray}`` on several."""
         space = self._Get_FunctionSpace()
-        u = space.Get_pointValues(self.displacement, self.dim)
+        u = space.Get_nodeValues(self.displacement, self.dim)
         return _Field_per_groupElem(
             lambda groupElem: Kinematics(
                 space.Get_groupElem(groupElem), u, matrixType
@@ -422,7 +422,7 @@ class Elastic(_Simu):
     ) -> FeArray.FeArrayALike | dict:
         """Stress (Ne, pg, 3 or 6): an ``FeArray`` on one group, ``{groupElem: FeArray}`` on several."""
         space = self._Get_FunctionSpace()
-        u = space.Get_pointValues(self.displacement, self.dim)
+        u = space.Get_nodeValues(self.displacement, self.dim)
         return _Field_per_groupElem(
             lambda groupElem: self.material.Compute_Sigma(
                 Kinematics(space.Get_groupElem(groupElem), u, matrixType)
@@ -485,7 +485,7 @@ class Elastic(_Simu):
 
     def Results_displacement_matrix(self) -> _types.FloatArray:
         Nn = self.mesh.Nn
-        coord = self._Get_FunctionSpace().Get_nodeValues(self.displacement, self.dim)
+        coord = self._Get_FunctionSpace().Get_meshValues(self.displacement, self.dim)
         dim = coord.shape[1]
 
         displacement_matrix = np.zeros((Nn, 3))

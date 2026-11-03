@@ -206,7 +206,7 @@ class HyperElastic(_Simu):
 
     def __Kinematics(self, groupElem: _GroupElem, u: _types.FloatArray) -> Kinematics:
         """Hyperelastic kinematics of `groupElem` at `u`, guarded against an inverted element."""
-        u = self._Get_FunctionSpace().Get_pointValues(u, self.dim)
+        u = self._Get_FunctionSpace().Get_nodeValues(u, self.dim)
         kinematics = Kinematics(groupElem, u, self.matrixType)
         assert kinematics.Compute_J().min() > 0, "det(F) < 0 - reduce load steps"
         return kinematics
@@ -231,7 +231,7 @@ class HyperElastic(_Simu):
         self, groupElem: _GroupElem, u: _types.FloatArray, v_t: _types.FloatArray
     ) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
         """Kelvin–Voigt viscosity: configuration tangent, damping matrix, viscous residual."""
-        v_t = self._Get_FunctionSpace().Get_pointValues(v_t, self.dim)
+        v_t = self._Get_FunctionSpace().Get_nodeValues(v_t, self.dim)
         return Operators.NonLinear.KelvinVoigtDamping(
             self.material, self.__Kinematics(groupElem, u), v_t
         )
@@ -343,9 +343,9 @@ class HyperElastic(_Simu):
 
         # node values (Nn, dim) of the displacement, speed and acceleration, through the space
         space = self._Get_FunctionSpace()
-        u_n = space.Get_nodeValues(self.displacement, self.dim)
-        v_n = space.Get_nodeValues(self.speed, self.dim)
-        a_n = space.Get_nodeValues(self.accel, self.dim)
+        u_n = space.Get_meshValues(self.displacement, self.dim)
+        v_n = space.Get_meshValues(self.speed, self.dim)
+        a_n = space.Get_meshValues(self.accel, self.dim)
 
         values = None
 
@@ -432,7 +432,7 @@ class HyperElastic(_Simu):
         # group may have its own element type / number of Gauss points)
         list_W = []
         space = self._Get_FunctionSpace()
-        u = space.Get_pointValues(self.displacement, self.dim)
+        u = space.Get_nodeValues(self.displacement, self.dim)
         for groupElem in self.mesh.Get_list_groupElem(self.dim):
             spaceGroup = space.Get_groupElem(groupElem)
             kinematics = Kinematics(spaceGroup, u, matrixType)
@@ -451,7 +451,7 @@ class HyperElastic(_Simu):
         if matrixType is None:
             matrixType = self.matrixType
         space = self._Get_FunctionSpace()
-        u = space.Get_pointValues(self.displacement, self.dim)
+        u = space.Get_nodeValues(self.displacement, self.dim)
         return _Field_per_groupElem(
             lambda groupElem: Tensor_to_Kelvin(
                 Kinematics(
@@ -470,7 +470,7 @@ class HyperElastic(_Simu):
             matrixType = self.matrixType
 
         space = self._Get_FunctionSpace()
-        u = space.Get_pointValues(self.displacement, self.dim)
+        u = space.Get_nodeValues(self.displacement, self.dim)
 
         def S_e_pg(groupElem: _GroupElem) -> FeArray.FeArrayALike:
             kinematics = Kinematics(space.Get_groupElem(groupElem), u, matrixType)
@@ -492,7 +492,7 @@ class HyperElastic(_Simu):
 
     def Results_displacement_matrix(self) -> _types.FloatArray:
         Nn = self.mesh.Nn
-        coord = self._Get_FunctionSpace().Get_nodeValues(self.displacement, self.dim)
+        coord = self._Get_FunctionSpace().Get_meshValues(self.displacement, self.dim)
         dim = coord.shape[1]
 
         displacement_matrix = np.zeros((Nn, 3))
