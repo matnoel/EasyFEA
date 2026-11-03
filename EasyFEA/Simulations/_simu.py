@@ -41,7 +41,7 @@ from ..Models import _IModel
 
 # simu
 from ._problem_type import ProblemType
-from ._terms import Term, Fold_terms
+from ._terms import Term, Fold_terms, _LocalSystem
 from .Solvers import (
     Solve_simu,
     SolverType,
@@ -289,19 +289,8 @@ class _Simu(_IObserver, _params.Updatable, ABC):
         """
         return []
 
-    def _Construct_local_matrix_system(self, problemType) -> dict[
-        tuple[ProblemType, ProblemType],
-        dict[
-            _GroupElem,
-            tuple[
-                np.ndarray | None,
-                np.ndarray | None,
-                np.ndarray | None,
-                np.ndarray | None,
-            ],
-        ],
-    ]:
-        r"""Construct the local matrix system :math:`\Krm \, \mathrm{u} + \Crm \, \vrm + \Mrm \, \arm = \Frm` of the given problem's equation, returned per block and per contributing group of elements `{(rows, cols): {groupElem: (K_e, C_e, M_e, F_e)}}`; rows are always `problemType`.
+    def _Construct_local_matrix_system(self, problemType) -> _LocalSystem:
+        r"""Construct the local matrix system :math:`\Krm \, \mathrm{u} + \Crm \, \vrm + \Mrm \, \arm = \Frm` of the given problem's equation, returned per slot, per block and per contributing group of elements `{"K": {(rows, cols): {groupElem: K_e}}, "C": ..., "M": ..., "F": {rows: {groupElem: F_e}}}`; rows are always `problemType`.
 
         Folds :py:meth:`Get_terms` for this problem. Override it only for a simulation whose assembly is not expressible as a term list — a monolithic mixed formulation, say — in which case :py:meth:`Get_terms` returns ``[]``.
 
@@ -990,7 +979,8 @@ class _Simu(_IObserver, _params.Updatable, ABC):
     def __Assemble_csr(
         self,
         dict_block_data: dict[
-            tuple[ProblemType, ProblemType], dict["_GroupElem", np.ndarray | None]
+            tuple[ProblemType, ProblemType] | ProblemType,
+            dict["_GroupElem", np.ndarray],
         ],
         layout: tuple[tuple[ProblemType, _FunctionSpace, int, int], ...],
         Ndof: int,
@@ -1008,7 +998,7 @@ class _Simu(_IObserver, _params.Updatable, ABC):
 
         The map is cached per ``(layout, isMatrix, Ndof, contributing groups of each block)``. The contributing groups are
         part of the key because a simulation may feed different group sets to different slots — in the
-        cardiac benchmark the surface group contributes to K, C and F but leaves M ``None``, so K and M have
+        cardiac benchmark the surface group contributes to K, C and F but not to M, so K and M have
         genuinely different patterns.
 
         Reuse is exact to floating-point round-off (~1e-16 relative), not bit-identical to a fresh scipy
@@ -1017,8 +1007,8 @@ class _Simu(_IObserver, _params.Updatable, ABC):
 
         Parameters
         ----------
-        dict_block_data : dict[tuple[ProblemType, ProblemType], dict[_GroupElem, FeArray]]
-            Per-block ``(rows, cols)``, per-group local arrays. Empty dict returns an empty CSR.
+        dict_block_data : dict[tuple[ProblemType, ProblemType] | ProblemType, dict[_GroupElem, FeArray]]
+            Per-block ``(rows, cols)`` (``rows`` for a vector), per-group local arrays. Empty dict returns an empty CSR.
         layout : tuple[tuple[ProblemType, _FunctionSpace, int, int], ...]
             ``(problemType, space, dof_n, offset)`` of each field of the system, its DOFs from `offset` on.
         Ndof : int
@@ -1031,12 +1021,7 @@ class _Simu(_IObserver, _params.Updatable, ABC):
 
         # Fixing the block and group order here keeps `data` aligned with the map built from them.
         contributing = tuple(
-            (block, groups)
-            for block, groups in (
-                (block, tuple(g for g, X_e in groups.items() if X_e is not None))
-                for block, groups in dict_block_data.items()
-            )
-            if groups
+            (block, tuple(groups)) for block, groups in dict_block_data.items()
         )
         if not contributing:
             return sparse.csr_matrix(shape)
@@ -1085,10 +1070,14 @@ class _Simu(_IObserver, _params.Updatable, ABC):
         is the single largest cached array; int32 halves it and is safe since slots are bounded by nnz < 2^31.
         """
         shape = (Ndof, Ndof) if isMatrix else (Ndof, 1)
-        byField = {pt: (space, dof_n, offset) for pt, space, dof_n, offset in layout}
+        byField = {
+            problemType: (functionSpace, dof_n, offset)
+            for problemType, functionSpace, dof_n, offset in layout
+        }
 
         list_rows, list_cols = [], []
-        for (r, c), groups in contributing:
+        for block, groups in contributing:
+            r, c = block if isMatrix else (block, block)
             space_r, dof_n_r, offset_r = byField[r]
             space_c, dof_n_c, offset_c = byField[c]
             for groupElem in groups:
@@ -1142,38 +1131,55 @@ class _Simu(_IObserver, _params.Updatable, ABC):
         # fields side by side in the given order, every Lagrange DOF after them
         layout = []
         offset = 0
-        for pt in problemTypes:
-            layout.append((pt, self._Get_FunctionSpace(pt), self.Get_dof_n(pt), offset))
-            offset += self.__Get_size(pt)
-        Ndof = offset + sum(self._Bc_Lagrange_dim(pt) for pt in problemTypes)
+        for problemType in problemTypes:
+            layout.append(
+                (
+                    problemType,
+                    self._Get_FunctionSpace(problemType),
+                    self.Get_dof_n(problemType),
+                    offset,
+                )
+            )
+            offset += self.__Get_size(problemType)
+        Ndof = offset + sum(
+            self._Bc_Lagrange_dim(problemType) for problemType in problemTypes
+        )
+
+        fields = ", ".join(problemTypes)
 
         tic = Tic()
 
-        # {(rows, cols): {groupElem: (K_e, C_e, M_e, F_e)}}
-        local = {}
-        for pt in problemTypes:
-            for (rows, cols), groups in self._Construct_local_matrix_system(pt).items():
+        local: _LocalSystem = {"K": {}, "C": {}, "M": {}, "F": {}}
+        for problemType in problemTypes:
+            for slot, blocks in self._Construct_local_matrix_system(
+                problemType
+            ).items():
+                local[slot].update(blocks)
+
+        for slot in "KCM":
+            for rows, cols in local[slot]:
                 if cols not in problemTypes:
-                    names = ", ".join(str(p) for p in (*problemTypes, cols))
                     raise ValueError(
-                        f"{rows}'s equation couples to {cols}: assemble ({names})."
+                        f"{rows}'s equation couples to {cols}: assemble ({fields}, {cols})."
                     )
-                local[(rows, cols)] = groups
 
         tic.Tac(
             "Matrix",
-            f"Construct the local matrix system ({problemType}).",
+            f"Construct the local matrix system ({fields}).",
             self._verbosity,
         )
 
         assembled = []
-        for i, name in enumerate(("K matrix", "C matrix", "M matrix", "F vector")):
-            data = {
-                block: {g: KCMF[i] for g, KCMF in groups.items()}
-                for block, groups in local.items()
-            }
-            assembled.append(self.__Assemble_csr(data, tuple(layout), Ndof, i < 3))
-            tic.Tac("Matrix", f"Assemble the {name} ({problemType}).", self._verbosity)
+        for slot, name in (
+            ("K", "K matrix"),
+            ("C", "C matrix"),
+            ("M", "M matrix"),
+            ("F", "F vector"),
+        ):
+            assembled.append(
+                self.__Assemble_csr(local[slot], tuple(layout), Ndof, slot != "F")
+            )
+            tic.Tac("Matrix", f"Assemble the {name} ({fields}).", self._verbosity)
         K, C, M, F = assembled
 
         return K, C, M, F

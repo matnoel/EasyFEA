@@ -399,13 +399,14 @@ def test_Simu__Construct_local_matrix_system_has_one_entry_per_group():
     simu = Simulations.Elastic(mesh, Models.Elastic.Isotropic(2))
 
     pt = simu.problemType
-    local = simu._Construct_local_matrix_system(pt)[(pt, pt)]
+    local = simu._Construct_local_matrix_system(pt)
+    Ks, Ms = local["K"][(pt, pt)], local["M"][(pt, pt)]
 
-    assert list(local) == mesh.Get_list_groupElem(2)
-    for groupElem, (K_e, C_e, M_e, F_e) in local.items():
+    assert list(Ks) == list(Ms) == mesh.Get_list_groupElem(2)
+    for groupElem in Ks:
         n = groupElem.nPe * 2
-        assert K_e.shape == M_e.shape == (groupElem.Ne, n, n)
-        assert C_e is None and F_e is None
+        assert Ks[groupElem].shape == Ms[groupElem].shape == (groupElem.Ne, n, n)
+    assert not local["C"] and not local["F"]
 
 
 def test_Simu_Save_Iter_pins_memory_or_disk_per_entry(tmp_path):

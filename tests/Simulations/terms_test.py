@@ -246,7 +246,7 @@ def test_Fold_terms_sums_tagged_masses_to_the_whole_one():
 
     def Mass(*tags: str) -> float:
         terms = [Term("M", Operators.Bilinear.UV, tag=tag) for tag in tags]
-        return Fold_terms(simu, terms)[(pt, pt)][groupElem][2].sum()
+        return Fold_terms(simu, terms)["M"][(pt, pt)][groupElem].sum()
 
     assert np.isclose(Mass("S0", "S1"), Mass(None))
     assert np.isclose(Mass(None), mesh.area)
@@ -259,9 +259,9 @@ def test_Fold_terms_sends_an_internal_force_to_F_negated():
         return One_array(groupElem), np.ones((groupElem.Ne, groupElem.nPe))
 
     pt = simu.problemType
-    K_e, _, _, F_e = Fold_terms(simu, [Term("KR", Force)])[(pt, pt)][
-        simu.mesh.groupElem
-    ]
+    local = Fold_terms(simu, [Term("KR", Force)])
+    K_e = local["K"][(pt, pt)][simu.mesh.groupElem]
+    F_e = local["F"][pt][simu.mesh.groupElem]
 
     assert np.all(F_e == -1.0)
     assert np.all(K_e == 0.0)
@@ -273,12 +273,15 @@ def test_Fold_terms_gives_a_single_slot_term_its_residual_when_nonlinear(
     mesh = Simu().mesh
     simu = Simulations.WeakForms(mesh, laplacian(mesh), isNonLinear=True)
     u = np.arange(mesh.Nn, dtype=float)
-    monkeypatch.setattr(simu, "_Solver_Get_Newton_Raphson_current_solution", lambda: u)
+    monkeypatch.setattr(
+        simu, "_Solver_Get_Newton_Raphson_current_solution", lambda problemType=None: u
+    )
     groupElem = mesh.groupElem
 
     terms = [Term("K", Operators.Bilinear.GradUGradV)]
     pt = simu.problemType
-    K_e, _, _, F_e = Fold_terms(simu, terms)[(pt, pt)][groupElem]
+    local = Fold_terms(simu, terms)
+    K_e, F_e = local["K"][(pt, pt)][groupElem], local["F"][pt][groupElem]
 
     u_e = groupElem.Locates_sol_e(u, 1)
     assert np.abs(F_e).max() > 0
@@ -293,7 +296,7 @@ def test_Fold_terms_hands_operators_the_group_of_the_field_space():
     groupElem = meshP2.groupElem
 
     pt = simu.problemType
-    K_e = Fold_terms(simu, [Term("K", One_array)])[(pt, pt)][groupElem][0]
+    K_e = Fold_terms(simu, [Term("K", One_array)])["K"][(pt, pt)][groupElem]
 
     assert K_e.shape == (groupElem.Ne, 6, 6)
 
@@ -308,12 +311,15 @@ def test_Fold_terms_gives_a_single_slot_term_its_residual_on_the_field_space(
     space = meshP1._Get_FunctionSpace(Simulations.WeakForms.problemType)
     # the vertices only: fewer DOFs than nodes
     u = np.arange(space.Nn, dtype=float)
-    monkeypatch.setattr(simu, "_Solver_Get_Newton_Raphson_current_solution", lambda: u)
+    monkeypatch.setattr(
+        simu, "_Solver_Get_Newton_Raphson_current_solution", lambda problemType=None: u
+    )
     groupElem = meshP1.groupElem
 
     terms = [Term("K", Operators.Bilinear.GradUGradV)]
     pt = simu.problemType
-    K_e, _, _, F_e = Fold_terms(simu, terms)[(pt, pt)][groupElem]
+    local = Fold_terms(simu, terms)
+    K_e, F_e = local["K"][(pt, pt)][groupElem], local["F"][pt][groupElem]
 
     u_e = u[space.Get_assembly_e(groupElem, 1)]
     assert space.Nn < meshP1.Nn
@@ -342,7 +348,7 @@ def test_Fold_terms_keys_a_diagonal_fold_by_its_problem_type():
 
     local = Fold_terms(simu, [Term("K", One_array)])
 
-    assert list(local) == [(pt, pt)]
+    assert list(local["K"]) == [(pt, pt)]
 
 
 def test_Fold_terms_routes_each_array_to_its_block():
@@ -355,20 +361,23 @@ def test_Fold_terms_routes_each_array_to_its_block():
     term = Term("KRK", Spanning, problemTypes=((D, D), D, (D, U)))
     local = Fold_terms(simu, [term], D)
 
-    assert list(local) == [(D, D), (D, U)]
-    K_dd, _, _, F_d = local[(D, D)][groupElem]
-    assert np.all(K_dd == 0.0) and np.all(F_d == -1.0)
-    K_du, C_du, M_du, F_du = local[(D, U)][groupElem]
-    assert np.array_equal(K_du, coupling(groupElem))
-    assert C_du is None and M_du is None and F_du is None
+    assert list(local["K"]) == [(D, D), (D, U)]
+    assert list(local["F"]) == [D]
+    assert np.all(local["K"][(D, D)][groupElem] == 0.0)
+    assert np.all(local["F"][D][groupElem] == -1.0)
+    assert np.array_equal(local["K"][(D, U)][groupElem], coupling(groupElem))
+    assert not local["C"] and not local["M"]
 
 
-def test_Fold_terms_rejects_a_term_of_another_equation():
+def test_Fold_terms_places_a_term_in_the_rows_it_declares():
     simu = coupled_phasefield()
     term = Term("K", coupling, problemTypes=((D, U),))
+    groupElem = simu.mesh.groupElem
 
-    with pytest.raises(ValueError, match="Get_terms"):
-        Fold_terms(simu, [term], U)
+    local = Fold_terms(simu, [term], U)
+
+    assert np.array_equal(local["K"][(D, U)][groupElem], coupling(groupElem))
+    assert set(local["F"]) <= {D}
 
 
 def test_Fold_terms_rejects_a_swapped_block():
@@ -411,10 +420,10 @@ def test_Fold_terms_gives_a_single_slot_block_term_the_residual_of_its_column_fi
 
     local = Fold_terms(simu, [Term("K", coupling, problemTypes=((D, U),))], D)
 
-    K_du, _, _, F_du = local[(D, U)][groupElem]
-    F_d = local[(D, D)][groupElem][3]
+    K_du = local["K"][(D, U)][groupElem]
+    F_d = local["F"][D][groupElem]
     u_e = groupElem.Locates_sol_e(x[U], 2)
-    assert F_du is None
+    assert list(local["F"]) == [D]
     assert np.abs(F_d).max() > 0
     assert np.allclose(F_d, -np.einsum("eij,ej->ei", K_du, u_e))
 
@@ -424,7 +433,7 @@ def test_Term_Scaled_keeps_its_blocks():
     groupElem = simu.mesh.groupElem
     term = Term("K", coupling, problemTypes=((D, U),)).Scaled(2.0)
 
-    K_du = Fold_terms(simu, [term], D)[(D, U)][groupElem][0]
+    K_du = Fold_terms(simu, [term], D)["K"][(D, U)][groupElem]
 
     assert np.array_equal(K_du, 2.0 * coupling(groupElem))
 
