@@ -51,7 +51,10 @@ class Beam(_Simu):
 
     # TODO: add math
 
-    problemType = ProblemType("beam")
+    U = ProblemType("beam")
+    """the displacement and rotation problem"""
+
+    problemTypes = (U,)
 
     def __init__(
         self,

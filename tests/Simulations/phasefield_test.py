@@ -45,8 +45,8 @@ def _simu(
         v,
         mesh.dim,
     )
-    simu._Set_solutions(simu.ProblemTypes.elastic, u.ravel())
-    simu._Set_solutions(simu.ProblemTypes.damage, np.full(mesh.Nn, d))
+    simu._Set_solutions(simu.U, u.ravel())
+    simu._Set_solutions(simu.D, np.full(mesh.Nn, d))
     return simu
 
 
@@ -61,7 +61,7 @@ def test_PhaseField_uniform_history_drives_a_uniform_damage(subtests, make_mesh_
     for regularization in Models.PhaseField.ReguType:
         with subtests.test(regularization=str(regularization)):
             simu = _simu(mesh, regularization=regularization)
-            Kd, _, _, Fd = simu.Get_K_C_M_F(simu.ProblemTypes.damage)
+            Kd, _, _, Fd = simu.Get_K_C_M_F(simu.D)
 
             d = _reference.homogeneous_damage(psiP, GC, L0, regularization)
             residual = Kd @ np.full(mesh.Nn, d) - Fd.toarray().ravel()

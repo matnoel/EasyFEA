@@ -125,7 +125,7 @@ def __Compute_fiber_directions(
 
 def _Get_rule(mesh: Mesh, matrixType: MatrixType) -> MatrixType:
     """Rule the displacement integrates `matrixType` at on the volume group (rigi, P2 on TETRA4: TETRA10's 4 points), valid on the geometry too: fibres sampled at it land on the term's points."""
-    space = mesh._Get_FunctionSpace(Simulations.HyperElastic.problemType)
+    space = mesh._Get_FunctionSpace(Simulations.HyperElastic.U)
     return space.Get_rule(mesh.Get_list_groupElem(3)[0], matrixType)
 
 
@@ -208,7 +208,7 @@ def Get_config_ellipsoid(
     if plotTags:
         PyVista.Plot_Tags(mesh, useColorCycler=True).show()
 
-    mesh = mesh._With_FunctionSpace(Simulations.HyperElastic.problemType, order)
+    mesh = mesh._With_FunctionSpace(Simulations.HyperElastic.U, order)
 
     # fiber + sheet on the Gauss points -------------------------
     matrixType = _Get_rule(mesh, matrixType)

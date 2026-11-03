@@ -50,7 +50,10 @@ class Elastic(_Simu):
     The implemented elastic laws are available :ref:`here <models-elastic>`.
     """
 
-    problemType = ProblemType("elastic")
+    U = ProblemType("elastic")
+    """the displacement problem"""
+
+    problemTypes = (U,)
 
     def __init__(
         self, mesh: "Mesh", model: _Elastic, folder: str = "", verbosity=False

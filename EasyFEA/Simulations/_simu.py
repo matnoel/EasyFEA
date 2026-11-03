@@ -77,7 +77,7 @@ class _Simu(_IObserver, _params.Updatable, ABC):
     The ThermalSimuclass is relatively simple and can serve as a good starting point.\n
     See `simulations/_thermal.py` for more details.
 
-    To use the interface/inheritance, 12 methods and the class attribute ``problemType`` need to be defined (``Get_problemTypes`` too when there are several).
+    To use the interface/inheritance, 12 methods and the class attribute ``problemTypes`` need to be defined.
 
     General:
     --------
@@ -131,13 +131,16 @@ class _Simu(_IObserver, _params.Updatable, ABC):
     # Abstract method
     # ----------------------------------------------
 
-    problemType: ProblemType
-    """the simulation's default problem type (the first one it declares), set on the class so that it is known before any instance, e.g. ``mesh._With_FunctionSpace(Simulations.Elastic.problemType, 2)``"""
+    problemTypes: tuple[ProblemType, ...]
+    """the problems the simulation solves, set on the class so that they are known before any instance; the first is its default"""
 
-    def Get_problemTypes(self) -> list[ProblemType]:
-        """Returns the problem types available through the simulation."""
-        # A PhaseField simulation involves solving 2 problems. An elastic and a damage problem.
-        return [self.problemType]
+    problemType: ProblemType
+    """the simulation's default problem type, the first of ``problemTypes``"""
+
+    def __init_subclass__(cls, **kwargs) -> None:
+        super().__init_subclass__(**kwargs)
+        if "problemTypes" in cls.__dict__:
+            cls.problemType = cls.problemTypes[0]
 
     @abstractmethod
     def Get_unknowns(self, problemType: ProblemType = None) -> list[str]:
@@ -174,7 +177,7 @@ class _Simu(_IObserver, _params.Updatable, ABC):
         r"""Returns the assembled matrices of :math:`\Krm \, \mathrm{u} + \Crm \, \vrm + \Mrm \, \arm = \Frm` for the given problem."""
 
         error = "You must define your own `Get_K_C_M_F` function in your simulation to construct the system matrix, since multiple problem types have been detected. For reference, see the `Get_K_C_M_F` function in `simulations._phasefield`."
-        assert len(self.Get_problemTypes()) == 1, error
+        assert len(self.problemTypes) == 1, error
 
         if self.needUpdate:
             self.__K, self.__C, self.__M, self.__F = self.Assembly(problemType)
@@ -560,8 +563,8 @@ class _Simu(_IObserver, _params.Updatable, ABC):
     def __Check_problemTypes(self, problemType: ProblemType) -> None:
         """Checks whether this type of problem is available through the simulation."""
         assert (
-            problemType in self.Get_problemTypes()
-        ), f"This type of problem is not available in this simulation ({self.Get_problemTypes()})"
+            problemType in self.problemTypes
+        ), f"This type of problem is not available in this simulation ({self.problemTypes})"
 
     def _Check_dim_mesh_material(self) -> None:
         """Checks that the material dim matches the mesh dim."""
@@ -588,7 +591,7 @@ class _Simu(_IObserver, _params.Updatable, ABC):
         text += "\n\nsolver:"
 
         if self.solver == SolverType.petsc:
-            problemTypes = self.Get_problemTypes()
+            problemTypes = self.problemTypes
             for problemType in problemTypes:
                 kspType, pcType, solverType = self._Solver_Get_PETSc4Py_Options(
                     problemType
@@ -773,7 +776,7 @@ class _Simu(_IObserver, _params.Updatable, ABC):
         self.__dict_u_n = {}
         self.__dict_v_n = {}
         self.__dict_a_n = {}
-        for problemType in self.Get_problemTypes():
+        for problemType in self.problemTypes:
             size = self.__Get_size(problemType)
             vectInit = np.zeros(size, dtype=float)
             self.__dict_u_n[problemType] = vectInit
@@ -861,8 +864,7 @@ class _Simu(_IObserver, _params.Updatable, ABC):
     @property
     def inDim(self) -> int:
         list_dof_n = [
-            min(self.Get_dof_n(problemType), 3)
-            for problemType in self.Get_problemTypes()
+            min(self.Get_dof_n(problemType), 3) for problemType in self.problemTypes
         ]
         inDim = np.max([self.mesh.inDim, *list_dof_n])
         return inDim
@@ -1741,8 +1743,8 @@ class _Simu(_IObserver, _params.Updatable, ABC):
         if problemType is None:
             problemType = self.problemType
         else:
-            error = f"{problemType} must be in {self.Get_problemTypes()}."
-            assert problemType in self.Get_problemTypes(), error
+            error = f"{problemType} must be in {self.problemTypes}."
+            assert problemType in self.problemTypes, error
 
         tic = Tic()
 
@@ -2215,7 +2217,7 @@ class _Simu(_IObserver, _params.Updatable, ABC):
 
         # ── Store ─────────────────────────────────────────────────────────────
         list_problemTypes = (
-            self.Get_problemTypes() if problemType is None else [problemType]
+            self.problemTypes if problemType is None else [problemType]
         )
         for problemType in list_problemTypes:
             self.__dict_solver_petsc4py_options[problemType] = (

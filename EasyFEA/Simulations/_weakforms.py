@@ -30,7 +30,10 @@ class WeakForms(_Simu):
     Assembles and solves a user-defined variational problem given directly as weak-form terms (bilinear and linear operators over the mesh), rather than a fixed physics. Supports static, transient and dynamic time schemes for linear or nonlinear (Newton-Raphson) problems — useful for custom PDEs and rapid prototyping.
     """
 
-    problemType = ProblemType("weakForm")
+    U = ProblemType("weakForm")
+    """the field's problem"""
+
+    problemTypes = (U,)
 
     def __init__(
         self,

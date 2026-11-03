@@ -169,7 +169,7 @@ def _smooth(simu: Simulations._Simu, problemType: str, scale: float) -> np.ndarr
 
 def _inject(simu: Simulations._Simu) -> Simulations._Simu:
     """A smooth u, 2u, 3u on every problem, damage in [0.1, 0.2]: a state no solve gave."""
-    for problemType in simu.Get_problemTypes():
+    for problemType in simu.problemTypes:
         u = _smooth(simu, problemType, 0.1 if problemType == "damage" else 1e-3)
         simu._Set_solutions(problemType, u, 2 * u, 3 * u)
     return simu
@@ -211,7 +211,7 @@ def test_Simu_describes_its_petsc_options():
 
     text = str(simu)
 
-    for problemType in simu.Get_problemTypes():
+    for problemType in simu.problemTypes:
         kspType, pcType, solverType = simu._Solver_Get_PETSc4Py_Options(problemType)
         assert f"({problemType}) {kspType}, {pcType}, {solverType}" in text
 
@@ -221,7 +221,7 @@ PROBLEM_TYPES = {
     "HyperElastic": ["hyperelastic"],
     "InElastic": ["inelastic"],
     "Thermal": ["thermal"],
-    "PhaseField": ["damage", "elastic"],
+    "PhaseField": ["elastic", "damage"],
     "Beam": ["beam"],
     "WeakForms": ["weakForm"],
 }
@@ -231,10 +231,10 @@ def _kind(name: str) -> str:
     return name.split()[0]
 
 
-def test_Simu_Get_problemTypes_names_each_problem_solved(subtests):
+def test_Simu_problemTypes_names_each_problem_solved(subtests):
     for name, make in SIMULATIONS.items():
         with subtests.test(simulation=name):
-            assert make().Get_problemTypes() == PROBLEM_TYPES[_kind(name)]
+            assert list(make().problemTypes) == PROBLEM_TYPES[_kind(name)]
 
 
 UNKNOWNS = {
@@ -283,7 +283,7 @@ def test_Simu_Get_dof_n_counts_the_unknowns(subtests):
     for name, make in SIMULATIONS.items():
         with subtests.test(simulation=name):
             simu = make()
-            for problemType in simu.Get_problemTypes():
+            for problemType in simu.problemTypes:
                 dof_n = simu.Get_dof_n(problemType)
                 assert dof_n == len(simu.Get_unknowns(problemType))
 
@@ -703,11 +703,11 @@ def test_Simu__Get_a_n_as_a_column_covers_the_lagrange_rows():
 
 def test_Simu_Get_lb_ub_bounds_only_a_bound_constrained_damage():
     simu = _phasefield()
-    assert [b.size for b in simu.Get_lb_ub(simu.ProblemTypes.damage)] == [0, 0]
+    assert [b.size for b in simu.Get_lb_ub(simu.D)] == [0, 0]
     simu.phaseFieldModel.solver = simu.phaseFieldModel.SolverType.BoundConstrain
     solver = simu.solver
 
-    lb, ub = simu.Get_lb_ub(simu.ProblemTypes.damage)
+    lb, ub = simu.Get_lb_ub(simu.D)
 
     assert lb.size == ub.size == simu.mesh.Nn and np.all(ub == 1)
     assert simu.solver == solver
@@ -817,8 +817,8 @@ def test_Simu_Assembly_is_what_Get_K_C_M_F_returns():
 
 
 def test_Simu_Assembly_over_two_fields_places_each_block_at_its_offsets():
-    U = Simulations.PhaseField.ProblemTypes.elastic
-    D = Simulations.PhaseField.ProblemTypes.damage
+    U = Simulations.PhaseField.U
+    D = Simulations.PhaseField.D
     simu = coupled_phasefield(Simulations.Term("K", coupling, problemTypes=((D, U),)))
     mesh = simu.mesh
     groupElem = mesh.groupElem
@@ -845,8 +845,8 @@ def test_Simu_Assembly_over_two_fields_places_each_block_at_its_offsets():
 
 
 def test_Simu_Assembly_raises_on_a_block_outside_its_fields():
-    U = Simulations.PhaseField.ProblemTypes.elastic
-    D = Simulations.PhaseField.ProblemTypes.damage
+    U = Simulations.PhaseField.U
+    D = Simulations.PhaseField.D
     simu = coupled_phasefield(Simulations.Term("K", coupling, problemTypes=((D, U),)))
 
     with pytest.raises(ValueError, match="couples to"):
@@ -1150,7 +1150,7 @@ def test_Simu__Set_solutions_sets_the_given_fields_only():
 def test_Simu__Solver_Solve_problemType_solves_one_problem():
     simu = _phasefield()
 
-    u = simu._Solver_Solve_problemType(simu.ProblemTypes.elastic)
+    u = simu._Solver_Solve_problemType(simu.U)
 
     assert np.abs(u).max() > 0 and np.array_equal(u, simu.displacement)
     assert np.all(simu.damage == 0)

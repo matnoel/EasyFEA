@@ -34,7 +34,10 @@ class InElastic(_Simu):
     __EXTERNAL_KEY = "external"
     """Prefix of the saved iteration entries holding the external variables, one per name."""
 
-    problemType = ProblemType("inelastic")
+    U = ProblemType("inelastic")
+    """the displacement problem"""
+
+    problemTypes = (U,)
 
     def __init__(
         self,

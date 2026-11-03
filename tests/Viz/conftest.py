@@ -46,8 +46,8 @@ def phasefield_simu(make_mesh_2D) -> Simulations.PhaseField:
     for d_max in (0.5, 1.0):
         u = np.zeros((mesh.Nn, 2))
         u[:, 0] = 0.01 * x
-        simu._Set_solutions(simu.ProblemTypes.elastic, u.ravel())
-        simu._Set_solutions(simu.ProblemTypes.damage, d_max * x / L)
+        simu._Set_solutions(simu.U, u.ravel())
+        simu._Set_solutions(simu.D, d_max * x / L)
         simu.Save_Iter()
     return simu
 

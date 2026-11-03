@@ -77,7 +77,7 @@ if __name__ == "__main__":
     
         ud += inc0 if simu.damage.max() < 0.6 else inc1
 
-        simu.add_dirichlet(nodes_circle, [0], ['d'], "damage")
+        simu.add_dirichlet(nodes_circle, [0], ['d'], simu.D)
         simu.add_dirichlet(nodes_y0, [0]*dim, simu.Get_dofs())
         simu.add_dirichlet(nodes_load, [ud], ['y'])
     """
@@ -177,14 +177,14 @@ if __name__ == "__main__":
 
             # update boundary conditions
             simu.Bc_Init()
-            simu.add_dirichlet(nodes_circle, [0], ["d"], "damage")
+            simu.add_dirichlet(nodes_circle, [0], ["d"], simu.D)
             simu.add_dirichlet(nodes_y0, [0] * dim, simu.Get_unknowns())
             simu.add_dirichlet(nodes_load, [ud], ["y"])
 
             # solve
             u, d, convergence = simu.Solve(tolConv, 500, convOption)
             # calc load
-            f = np.sum(simu.Calc_Reaction(dofsY_load, "elastic"))
+            f = np.sum(simu.Calc_Reaction(dofsY_load))
 
             # saves load and displacement
             list_ud.append(ud)

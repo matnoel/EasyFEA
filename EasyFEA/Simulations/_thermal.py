@@ -50,7 +50,10 @@ class Thermal(_Simu):
 
     """
 
-    problemType = ProblemType("thermal")
+    T = ProblemType("thermal")
+    """the temperature problem"""
+
+    problemTypes = (T,)
 
     def __init__(
         self, mesh: "Mesh", model: Models.Thermal, folder: str = "", verbosity=False

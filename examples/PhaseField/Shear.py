@@ -172,7 +172,7 @@ if __name__ == "__main__":
         for iter, dep in enumerate(loadings):
 
             if not openCrack:
-                simu.add_dirichlet(nodes_crack, [1], ["d"], problemType="damage")
+                simu.add_dirichlet(nodes_crack, [1], ["d"], simu.D)
             simu.add_dirichlet(nodes_left, [0], ["y"])
             simu.add_dirichlet(nodes_right, [0], ["y"])
             simu.add_dirichlet(nodes_upper, [dep, 0], ["x", "y"])
@@ -182,7 +182,7 @@ if __name__ == "__main__":
         def Loading(dep):
             simu.Bc_Init()
             if not openCrack:
-                simu.add_dirichlet(nodes_crack, [1], ["d"], problemType="damage")
+                simu.add_dirichlet(nodes_crack, [1], ["d"], simu.D)
             simu.add_dirichlet(nodes_left, [0], ["y"])
             simu.add_dirichlet(nodes_right, [0], ["y"])
             simu.add_dirichlet(nodes_upper, [dep, 0], ["x", "y"])
@@ -211,7 +211,7 @@ if __name__ == "__main__":
             if not converg:
                 break
 
-            f = np.sum(simu.Calc_Reaction(dofsX_upper, problemType="elastic"))
+            f = np.sum(simu.Calc_Reaction(dofsX_upper))
             list_dep.append(dep)
             list_f.append(f)
 

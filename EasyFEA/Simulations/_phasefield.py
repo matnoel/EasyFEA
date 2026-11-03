@@ -3,7 +3,6 @@
 # This file is part of the EasyFEA project.
 # EasyFEA is distributed under the terms of the GNU General Public License v3, see LICENSE.txt and CREDITS.md for more information.
 
-from enum import Enum
 import numpy as np
 from scipy import sparse
 
@@ -77,11 +76,13 @@ class PhaseField(_Simu):
     See section 3.1. of https://univ-eiffel.hal.science/hal-05115523 for additional mathematical details.
     """
 
-    class ProblemTypes(ProblemType, Enum):
-        damage = ProblemType("damage")
-        elastic = ProblemType("elastic")
+    U = ProblemType("elastic")
+    """the displacement problem"""
 
-    problemType = ProblemTypes.damage
+    D = ProblemType("damage")
+    """the damage problem"""
+
+    problemTypes = (U, D)
 
     def __init__(
         self, mesh: Mesh, model: Models.PhaseField, folder: str = "", verbosity=False
@@ -124,7 +125,7 @@ class PhaseField(_Simu):
             "cg",
             "gamg",
             "petsc",
-            self.ProblemTypes.elastic,
+            self.U,
         )
 
     def Results_nodeFields_elementFields(
@@ -138,21 +139,18 @@ class PhaseField(_Simu):
         return nodesField, elementsField
 
     def Get_unknowns(self, problemType=None) -> list[str]:
-        if problemType == self.ProblemTypes.damage:
+        if problemType == self.D:
             return ["d"]
-        elif problemType in [self.ProblemTypes.elastic, None]:
+        elif problemType in [self.U, None]:
             _dict_unknowns = {2: ["x", "y"], 3: ["x", "y", "z"]}
             return _dict_unknowns[self.dim]
         else:
             raise ValueError("problem error")
 
-    def Get_problemTypes(self) -> list[ProblemType]:
-        return [self.ProblemTypes.damage, self.ProblemTypes.elastic]
-
     def Get_lb_ub(
         self, problemType: ProblemType
     ) -> tuple[_types.FloatArray, _types.FloatArray]:
-        if problemType == self.ProblemTypes.damage:
+        if problemType == self.D:
             solver = self.phaseFieldModel.solver
             if solver == Models.PhaseField.SolverType.BoundConstrain:
                 lb = self.damage
@@ -166,9 +164,9 @@ class PhaseField(_Simu):
         return lb, ub
 
     def Get_dof_n(self, problemType=None) -> int:
-        if problemType == self.ProblemTypes.damage:
+        if problemType == self.D:
             return 1
-        elif problemType in [self.ProblemTypes.elastic, None]:
+        elif problemType in [self.U, None]:
             return self.dim
         else:
             raise ValueError("problem error")
@@ -183,70 +181,13 @@ class PhaseField(_Simu):
         """Displacement vector field.\n
         2D [uxi, uyi, ...]\n
         3D [uxi, uyi, uzi, ...]"""
-        return self._Get_u_n(self.ProblemTypes.elastic)
+        return self._Get_u_n(self.U)
 
     @property
     def damage(self) -> _types.FloatArray:
         """Damage scalar field.\n
         [di, ...]"""
-        return self._Get_u_n(self.ProblemTypes.damage)
-
-    def Bc_dofs_nodes(
-        self,
-        nodes: _types.IntArray,
-        unknowns: list[str],
-        problemType=ProblemTypes.elastic,
-    ) -> _types.IntArray:
-        return super().Bc_dofs_nodes(nodes, unknowns, problemType)
-
-    def add_dirichlet(
-        self,
-        nodes: _types.IntArray,
-        values: list,
-        unknowns: list[str],
-        problemType=ProblemTypes.elastic,
-        description="",
-    ):
-        return super().add_dirichlet(nodes, values, unknowns, problemType, description)
-
-    def add_lineLoad(
-        self,
-        nodes: _types.IntArray,
-        values: list,
-        unknowns: list[str],
-        problemType=ProblemTypes.elastic,
-        description="",
-    ):
-        return super().add_lineLoad(nodes, values, unknowns, problemType, description)
-
-    def add_surfLoad(
-        self,
-        nodes: _types.IntArray,
-        values: list,
-        unknowns: list[str],
-        problemType=ProblemTypes.elastic,
-        description="",
-    ):
-        return super().add_surfLoad(nodes, values, unknowns, problemType, description)
-
-    def add_pressureLoad(
-        self,
-        nodes: _types.IntArray,
-        magnitude: float,
-        problemType=ProblemTypes.elastic,
-        description="",
-    ) -> None:
-        return super().add_pressureLoad(nodes, magnitude, problemType, description)
-
-    def add_neumann(
-        self,
-        nodes: _types.IntArray,
-        values: list,
-        unknowns: list[str],
-        problemType=ProblemTypes.elastic,
-        description="",
-    ):
-        return super().add_neumann(nodes, values, unknowns, problemType, description)
+        return self._Get_u_n(self.D)
 
     def Get_K_C_M_F(
         self, problemType=None
@@ -254,19 +195,19 @@ class PhaseField(_Simu):
         sparse.csr_matrix, sparse.csr_matrix, sparse.csr_matrix, sparse.csr_matrix
     ]:
         if problemType is None:
-            problemType = self.ProblemTypes.elastic
+            problemType = self.U
 
         # here always update to the last state
-        if problemType == self.ProblemTypes.elastic:
+        if problemType == self.U:
             if not self.__updatedDisplacement:  # type: ignore [has-type]
-                self.__Ku, _, _, _ = self.Assembly(self.ProblemTypes.elastic)
+                self.__Ku, _, _, _ = self.Assembly(self.U)
                 self.__updatedDisplacement = True
             initcsr = sparse.csr_matrix(self.__Ku.shape)
             initvec = sparse.csr_matrix((self.__Ku.shape[0], 1))
             return self.__Ku.copy(), initcsr, initcsr, initvec
         else:
             if not self.__updatedDamage:  # type: ignore [has-type]
-                self.__Kd, _, _, self.__Fd = self.Assembly(self.ProblemTypes.damage)
+                self.__Kd, _, _, self.__Fd = self.Assembly(self.D)
                 self.__updatedDamage = True
             initcsr = sparse.csr_matrix(self.__Kd.shape)
             return self.__Kd.copy(), initcsr, initcsr, self.__Fd.copy()
@@ -292,14 +233,14 @@ class PhaseField(_Simu):
         """The matrix system associated with the displacement problem is updated."""
 
     def Get_x0(self, problemType=None):
-        if problemType == self.ProblemTypes.damage:
+        if problemType == self.D:
             size = self._Get_FunctionSpace(problemType).Npoints
             if self.damage.size != size:
                 return np.zeros(size)
             else:
                 return self.damage
-        elif problemType in [self.ProblemTypes.elastic, None]:
-            space = self._Get_FunctionSpace(self.ProblemTypes.elastic)
+        elif problemType in [self.U, None]:
+            space = self._Get_FunctionSpace(self.U)
             size = space.Npoints * self.dim
             if self.displacement.size != size:
                 return np.zeros(size)
@@ -346,7 +287,7 @@ class PhaseField(_Simu):
         solver = self.phaseFieldModel.solver
 
         if convOption == 2:
-            fu = self._Solver_Apply_Neumann(self.ProblemTypes.elastic).toarray().ravel()
+            fu = self._Solver_Apply_Neumann(self.U).toarray().ravel()
             # A vector of zeros when no external body and surface forces are applied.
 
         tic = Tic()
@@ -441,9 +382,9 @@ class PhaseField(_Simu):
 
     def Get_terms(self, problemType=None) -> list[Term]:
         """One term per problem: the damaged stiffness for the elastic problem, the damage operator for the other. The two are solved in turn, never together."""
-        if problemType == self.ProblemTypes.elastic:
+        if problemType == self.U:
             return [Term("K", self.__Damaged_stiffness)]
-        elif problemType == self.ProblemTypes.damage:
+        elif problemType == self.D:
             return [Term("KF", self.__Damage)]
         else:
             raise NotImplementedError
@@ -471,7 +412,7 @@ class PhaseField(_Simu):
         """Computes the displacement field."""
 
         self.solver = self.__displacement_solver
-        self._Solver_Solve_problemType(self.ProblemTypes.elastic)
+        self._Solver_Solve_problemType(self.U)
 
         return self.displacement
 
@@ -485,8 +426,8 @@ class PhaseField(_Simu):
         u = self.displacement
         d = self.damage
 
-        Nu = self._Get_FunctionSpace(self.ProblemTypes.elastic).Npoints * self.dim
-        Nd = self._Get_FunctionSpace(self.ProblemTypes.damage).Npoints
+        Nu = self._Get_FunctionSpace(self.U).Npoints * self.dim
+        Nd = self._Get_FunctionSpace(self.D).Npoints
         testu = isinstance(u, np.ndarray) and (u.shape[0] == Nu)
         testd = isinstance(d, np.ndarray) and (d.shape[0] == Nd)
 
@@ -533,7 +474,7 @@ class PhaseField(_Simu):
 
         if self.phaseFieldModel.solver == Models.PhaseField.SolverType.BoundConstrain:
             self.solver = SolverType.lsq_linear
-        self._Solver_Solve_problemType(self.ProblemTypes.damage)
+        self._Solver_Solve_problemType(self.D)
 
         return self.damage
 
@@ -570,8 +511,8 @@ class PhaseField(_Simu):
 
     def _Get_dof_names(self) -> dict[str, ProblemType]:
         return {
-            "displacement": self.ProblemTypes.elastic,
-            "damage": self.ProblemTypes.damage,
+            "displacement": self.U,
+            "damage": self.D,
         }
 
     def Save_Iter(self, iter=None):
@@ -599,11 +540,9 @@ class PhaseField(_Simu):
         if results is None:
             return
 
-        damageType = self.ProblemTypes.damage
-        self._Set_solutions(damageType, results[damageType])
+        self._Set_solutions(self.D, results[self.D])
 
-        displacementType = self.ProblemTypes.elastic
-        self._Set_solutions(displacementType, results["displacement"])
+        self._Set_solutions(self.U, results["displacement"])
 
         # damage and displacement field will change thats why we need to update the assembled matrices
         self.__updatedDamage = False
@@ -657,8 +596,8 @@ class PhaseField(_Simu):
         # begin cases ----------------------------------------------------
 
         # node values of the displacement (Nn, dim) and the damage (Nn,), through their spaces
-        spaceU = self._Get_FunctionSpace(self.ProblemTypes.elastic)
-        spaceD = self._Get_FunctionSpace(self.ProblemTypes.damage)
+        spaceU = self._Get_FunctionSpace(self.U)
+        spaceD = self._Get_FunctionSpace(self.D)
         u_n = spaceU.Get_nodeValues(self.displacement, self.dim)
         d_n = spaceD.Get_nodeValues(self.damage, 1).ravel()
 
@@ -728,7 +667,7 @@ class PhaseField(_Simu):
         """Computes of the kinematically admissible damaged deformation energy.\n
         Psi_Elas = 1/2 int_Ω Sig : Eps dΩ"""
 
-        Ku = self.Get_K_C_M_F(self.ProblemTypes.elastic)[0]
+        Ku = self.Get_K_C_M_F(self.U)[0]
 
         tic = Tic()
 
@@ -740,9 +679,7 @@ class PhaseField(_Simu):
         else:
             with np.errstate(divide="ignore", over="ignore", invalid="ignore"):
                 # the degraded stiffness can overflow where the damage saturates
-                Psi_Elas = self.Calc_Energy(
-                    Ku, u, self.Get_dofs(problemType=self.ProblemTypes.elastic)
-                )
+                Psi_Elas = self.Calc_Energy(Ku, u, self.Get_dofs(problemType=self.U))
 
         tic.Tac("PostProcessing", "Calc Psi Elas", False)
 
@@ -751,7 +688,7 @@ class PhaseField(_Simu):
     def _Calc_Psi_Crack(self) -> float:
         """Computes crack's energy."""
 
-        Kd = self.Get_K_C_M_F(self.ProblemTypes.damage)[0]
+        Kd = self.Get_K_C_M_F(self.D)[0]
 
         tic = Tic()
 
@@ -760,9 +697,7 @@ class PhaseField(_Simu):
             Psi_Crack = 0
         else:
             with np.errstate(divide="ignore", over="ignore", invalid="ignore"):
-                Psi_Crack = self.Calc_Energy(
-                    Kd, d, self.Get_dofs(problemType=self.ProblemTypes.damage)
-                )
+                Psi_Crack = self.Calc_Energy(Kd, d, self.Get_dofs(problemType=self.D))
 
         tic.Tac("PostProcessing", "Calc Psi Crack", False)
 
@@ -778,7 +713,7 @@ class PhaseField(_Simu):
         if np.linalg.norm(u_n) == 0 or np.linalg.norm(f_n) == 0:
             Psi_Ext = 0
         else:
-            dofs = self.Get_dofs(problemType=self.ProblemTypes.elastic)
+            dofs = self.Get_dofs(problemType=self.U)
             with np.errstate(divide="ignore", over="ignore", invalid="ignore"):
                 # no operator and no 1/2, so this one is a plain reduction rather than Calc_Energy
                 Psi_Ext = Reduce_sum(u_n[dofs] @ f_n[dofs])
@@ -913,7 +848,7 @@ class PhaseField(_Simu):
 
     def Results_displacement_matrix(self) -> _types.FloatArray:
         Nn = self.mesh.Nn
-        space = self._Get_FunctionSpace(self.ProblemTypes.elastic)
+        space = self._Get_FunctionSpace(self.U)
         coord = space.Get_nodeValues(self.displacement, self.dim)
         dim = coord.shape[1]
 

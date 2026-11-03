@@ -173,7 +173,7 @@ if __name__ == "__main__":
         
         while True:
             if not openCrack:
-                simu.add_dirichlet(nodes_crack, [1], ["d"], problemType="damage")
+                simu.add_dirichlet(nodes_crack, [1], ["d"], simu.D)
             simu.add_dirichlet(nodes_upper, [0, dep], ["x", "y"])
             simu.add_dirichlet(nodes_lower, [0], ["y"])
         """
@@ -181,7 +181,7 @@ if __name__ == "__main__":
         def Loading(dep):
             simu.Bc_Init()
             if not openCrack:
-                simu.add_dirichlet(nodes_crack, [1], ["d"], problemType="damage")
+                simu.add_dirichlet(nodes_crack, [1], ["d"], simu.D)
             if dim == 2:
                 simu.add_dirichlet(nodes_upper, [0, dep], ["x", "y"])
             elif dim == 3:
@@ -215,7 +215,7 @@ if __name__ == "__main__":
             if not converg:
                 break
 
-            f = np.sum(simu.Calc_Reaction(dofsY_upper, "elastic"))
+            f = np.sum(simu.Calc_Reaction(dofsY_upper))
             list_dep.append(dep)
             list_f.append(f)
 

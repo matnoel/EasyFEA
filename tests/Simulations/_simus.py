@@ -64,7 +64,7 @@ def coupled_phasefield(
     class Coupled(Simulations.PhaseField):
         def Get_terms(self, problemType=None):
             terms = super().Get_terms(problemType)
-            if problemType == self.ProblemTypes.damage:
+            if problemType == self.D:
                 terms = terms + list(damageTerms)
             return terms
 

@@ -15,8 +15,8 @@ from EasyFEA.Simulations import Fold_terms, ProblemType, Term
 
 from ._simus import coupled_phasefield, coupling, laplacian
 
-U = Simulations.PhaseField.ProblemTypes.elastic
-D = Simulations.PhaseField.ProblemTypes.damage
+U = Simulations.PhaseField.U
+D = Simulations.PhaseField.D
 
 
 def Operator(groupElem, elements=None):
