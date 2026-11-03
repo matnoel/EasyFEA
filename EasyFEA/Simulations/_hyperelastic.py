@@ -326,7 +326,7 @@ class HyperElastic(_Simu):
 
         results.extend(["Svm", "Piola-Kirchhoff", "Evm", "Green-Lagrange"])
 
-        results.extend(["W", "W_e"])
+        results.extend(["W", "W_e", "J"])
 
         return results
 
@@ -384,6 +384,9 @@ class HyperElastic(_Simu):
 
         elif result == "W_e":
             values = self._Calc_W(False)
+
+        elif result == "J":
+            values = self._Calc_J()
 
         elif result in ["Green-Lagrange", "Piola-Kirchhoff"] or (
             ("S" in result or "E" in result) and ("_norm" not in result)
@@ -443,6 +446,21 @@ class HyperElastic(_Simu):
         W_e = np.concatenate(list_W)
 
         return float(W_e.sum()) if returnScalar else W_e
+
+    def _Calc_J(self, matrixType: MatrixType | None = None) -> _types.FloatArray:
+        """Mean of det(F) on each element (Ne,), at ``self.matrixType`` by default."""
+        if matrixType is None:
+            matrixType = self.matrixType
+        space = self._Get_FunctionSpace()
+        u = space.Get_nodeValues(self.displacement, self.dim)
+        return np.concatenate(
+            [
+                Kinematics(space.Get_groupElem(groupElem), u, matrixType)
+                .Compute_J()
+                .mean(1)
+                for groupElem in self.mesh.Get_list_groupElem()
+            ]
+        )
 
     def _Calc_GreenLagrange(
         self, matrixType: MatrixType | None = None
