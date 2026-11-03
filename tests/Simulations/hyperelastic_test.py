@@ -134,9 +134,13 @@ def test_HyperElastic_material_eta_enters_the_residual_once(monkeypatch):
     )
 
     groupElem = mesh.groupElem
-    F_visco = simu._Construct_local_matrix_system(problemType)[groupElem][3]
+    F_visco = simu._Construct_local_matrix_system(problemType)[
+        (problemType, problemType)
+    ][groupElem][3]
     material.eta = 0.0
-    F_plain = simu._Construct_local_matrix_system(problemType)[groupElem][3]
+    F_plain = simu._Construct_local_matrix_system(problemType)[
+        (problemType, problemType)
+    ][groupElem][3]
     material.eta = eta
 
     u_t, v_t, _ = simu._Solver_Evaluate_u_v_a_for_time_scheme(problemType, u_np1)

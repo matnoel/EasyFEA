@@ -287,15 +287,18 @@ class _Simu(_IObserver, _params.Updatable, ABC):
         return []
 
     def _Construct_local_matrix_system(self, problemType) -> dict[
-        _GroupElem,
-        tuple[
-            np.ndarray | None,
-            np.ndarray | None,
-            np.ndarray | None,
-            np.ndarray | None,
+        tuple[ProblemType, ProblemType],
+        dict[
+            _GroupElem,
+            tuple[
+                np.ndarray | None,
+                np.ndarray | None,
+                np.ndarray | None,
+                np.ndarray | None,
+            ],
         ],
     ]:
-        r"""Construct the local matrix system :math:`\Krm \, \mathrm{u} + \Crm \, \vrm + \Mrm \, \arm = \Frm` for the given problem, returned per contributing group of elements `{groupElem: (K_e, C_e, M_e, F_e)}`.
+        r"""Construct the local matrix system :math:`\Krm \, \mathrm{u} + \Crm \, \vrm + \Mrm \, \arm = \Frm` of the given problem's equation, returned per block and per contributing group of elements `{(rows, cols): {groupElem: (K_e, C_e, M_e, F_e)}}`; rows are always `problemType`.
 
         Folds :py:meth:`Get_terms` for this problem. Override it only for a simulation whose assembly is not expressible as a term list — a monolithic mixed formulation, say — in which case :py:meth:`Get_terms` returns ``[]``.
 
@@ -997,13 +1000,14 @@ class _Simu(_IObserver, _params.Updatable, ABC):
 
     def __Assemble_csr(
         self,
-        dict_group_data: dict["_GroupElem", np.ndarray | None],
-        space: _FunctionSpace,
-        dof_n: int,
+        dict_block_data: dict[
+            tuple[ProblemType, ProblemType], dict["_GroupElem", np.ndarray | None]
+        ],
+        layout: tuple[tuple[ProblemType, _FunctionSpace, int, int], ...],
         Ndof: int,
         isMatrix: bool = True,
     ) -> sparse.csr_matrix:
-        """Scatter per-group local element matrices/vectors into a global CSR.
+        """Scatter per-block, per-group local element matrices/vectors into one global CSR.
 
         A finite-element matrix has far more element-level entries than stored coefficients — each shared
         node makes several element contributions land on the same ``(row, col)`` — so assembly is
@@ -1013,7 +1017,7 @@ class _Simu(_IObserver, _params.Updatable, ABC):
         precomputed map lets every later assembly do the summation with a single ``np.bincount``, skipping
         scipy's repeated sort-and-sum-duplicates.
 
-        The map is cached per ``(space, dof_n, isMatrix, Ndof, contributing groups)``. The contributing groups are
+        The map is cached per ``(layout, isMatrix, Ndof, contributing groups of each block)``. The contributing groups are
         part of the key because a simulation may feed different group sets to different slots — in the
         cardiac benchmark the surface group contributes to K, C and F but leaves M ``None``, so K and M have
         genuinely different patterns.
@@ -1024,12 +1028,10 @@ class _Simu(_IObserver, _params.Updatable, ABC):
 
         Parameters
         ----------
-        dict_group_data : dict[_GroupElem, FeArray]
-            Per-group local arrays, keyed by element group. Empty dict returns an empty CSR.
-        space : _FunctionSpace
-            Function space numbering the element DOFs.
-        dof_n : int
-            Number of DOFs per node.
+        dict_block_data : dict[tuple[ProblemType, ProblemType], dict[_GroupElem, FeArray]]
+            Per-block ``(rows, cols)``, per-group local arrays. Empty dict returns an empty CSR.
+        layout : tuple[tuple[ProblemType, _FunctionSpace, int, int], ...]
+            ``(problemType, space, dof_n, offset)`` of each field of the system, its DOFs from `offset` on.
         Ndof : int
             Total number of degrees of freedom (including Lagrange multiplier DOFs).
         isMatrix bool, optional
@@ -1038,15 +1040,25 @@ class _Simu(_IObserver, _params.Updatable, ABC):
 
         shape = (Ndof, Ndof) if isMatrix else (Ndof, 1)
 
-        if not dict_group_data:
+        # Fixing the block and group order here keeps `data` aligned with the map built from them.
+        contributing = tuple(
+            (block, groups)
+            for block, groups in (
+                (block, tuple(g for g, X_e in groups.items() if X_e is not None))
+                for block, groups in dict_block_data.items()
+            )
+            if groups
+        )
+        if not contributing:
             return sparse.csr_matrix(shape)
 
-        # Fixing the group order here keeps `data` aligned with the map built from these same groups.
-        groups = tuple(g for g, X_e in dict_group_data.items() if X_e is not None)
-        if not groups:
-            return sparse.csr_matrix(shape)
-
-        data = np.concatenate([dict_group_data[g].ravel() for g in groups])
+        data = np.concatenate(
+            [
+                dict_block_data[block][g].ravel()
+                for block, groups in contributing
+                for g in groups
+            ]
+        )
 
         # An MPI rank may own no element of any contributing group.
         if data.size == 0:
@@ -1055,7 +1067,7 @@ class _Simu(_IObserver, _params.Updatable, ABC):
         # The reduction map (which CSR slot each element entry feeds) is cached per key; it depends only on
         # connectivity, so a Newton loop / time stepping reuses it and only the values below change.
         inv, indices, indptr, nnz = self.__Get_csr_map(
-            space, dof_n, isMatrix, Ndof, groups
+            layout, isMatrix, Ndof, contributing
         )
         assert data.size == inv.size, f"Not enough data to fill a {shape} CSR."
 
@@ -1074,26 +1086,35 @@ class _Simu(_IObserver, _params.Updatable, ABC):
         return matrix
 
     @cache_computed_values
-    def __Get_csr_map(self, space, dof_n, isMatrix, Ndof, groups):
+    def __Get_csr_map(self, layout, isMatrix, Ndof, contributing):
         """Reduction map from element entries to global CSR slots for one assembly key.
 
         Returns ``(inv, indices, indptr, nnz)``: ``inv[k]`` is the CSR-data slot that element entry ``k``
         feeds, and ``(indices, indptr, nnz)`` is scipy's canonical pattern. Depends only on connectivity, so
-        ``@cache_computed_values`` (keyed on ``space, dof_n, isMatrix, Ndof, groups``) reuses it across every
-        assembly of a key and rebuilds it when the space / groups / Ndof / dof_n change or the mesh is reset. ``inv``
+        ``@cache_computed_values`` (keyed on ``layout, isMatrix, Ndof, contributing``) reuses it across every
+        assembly of a key and rebuilds it when the spaces / groups / Ndof / dof_n change or the mesh is reset. ``inv``
         is the single largest cached array; int32 halves it and is safe since slots are bounded by nnz < 2^31.
         """
         shape = (Ndof, Ndof) if isMatrix else (Ndof, 1)
+        byField = {pt: (space, dof_n, offset) for pt, space, dof_n, offset in layout}
 
         list_rows, list_cols = [], []
-        for groupElem in groups:
-            if isMatrix:
-                list_rows.append(space.Get_rows_e(groupElem, dof_n).ravel())
-                list_cols.append(space.Get_columns_e(groupElem, dof_n).ravel())
-            else:
-                r = space.Get_assembly_e(groupElem, dof_n).ravel()
-                list_rows.append(r)
-                list_cols.append(np.zeros_like(r))
+        for (r, c), groups in contributing:
+            space_r, dof_n_r, offset_r = byField[r]
+            space_c, dof_n_c, offset_c = byField[c]
+            for groupElem in groups:
+                rows_e = space_r.Get_assembly_e(groupElem, dof_n_r) + offset_r
+                if isMatrix:
+                    cols_e = space_c.Get_assembly_e(groupElem, dof_n_c) + offset_c
+                    list_rows.append(
+                        _FunctionSpace._Get_rows_e(rows_e, cols_e.shape[1]).ravel()
+                    )
+                    list_cols.append(
+                        _FunctionSpace._Get_columns_e(cols_e, rows_e.shape[1]).ravel()
+                    )
+                else:
+                    list_rows.append(rows_e.ravel())
+                    list_cols.append(np.zeros(rows_e.size, dtype=rows_e.dtype))
         rows = np.concatenate(list_rows)
         cols = np.concatenate(list_cols)
 
@@ -1116,19 +1137,39 @@ class _Simu(_IObserver, _params.Updatable, ABC):
         return inv, matrix.indices, matrix.indptr, matrix.nnz
 
     def Assembly(
-        self, problemType: ProblemType
+        self, problemType: ProblemType | tuple[ProblemType, ...] | None = None
     ) -> tuple[
         sparse.csr_matrix, sparse.csr_matrix, sparse.csr_matrix, sparse.csr_matrix
     ]:
-        r"""Assemble the matrix system :math:`\Krm \, \mathrm{u} + \Crm \, \vrm + \Mrm \, \arm = \Frm` for the given problemType."""
-        space = self._Get_FunctionSpace(problemType)
-        dof_n = self.Get_dof_n(problemType)
-        Ndof = self.__Get_Ndof(problemType)
+        r"""Assemble the matrix system :math:`\Krm \, \mathrm{u} + \Crm \, \vrm + \Mrm \, \arm = \Frm` of a problem type, or of several as one system ``[u | p | Lagrange]``. Raises on a block coupling to a field outside `problemType`."""
+        if problemType is None:
+            problemType = self.problemType
+        problemTypes = (
+            (problemType,) if isinstance(problemType, str) else tuple(problemType)
+        )
+        if len(set(problemTypes)) < len(problemTypes):
+            raise ValueError(f"A field is given twice in {problemTypes}.")
+
+        # fields side by side in the given order, every Lagrange DOF after them
+        layout = []
+        offset = 0
+        for pt in problemTypes:
+            layout.append((pt, self._Get_FunctionSpace(pt), self.Get_dof_n(pt), offset))
+            offset += self.__Get_size(pt)
+        Ndof = offset + sum(self._Bc_Lagrange_dim(pt) for pt in problemTypes)
 
         tic = Tic()
 
-        # {groupElem: (K_e, C_e, M_e, F_e)}
-        dict_KCMF = self._Construct_local_matrix_system(problemType)
+        # {(rows, cols): {groupElem: (K_e, C_e, M_e, F_e)}}
+        local = {}
+        for pt in problemTypes:
+            for (rows, cols), groups in self._Construct_local_matrix_system(pt).items():
+                if cols not in problemTypes:
+                    names = ", ".join(str(p) for p in (*problemTypes, cols))
+                    raise ValueError(
+                        f"{rows}'s equation couples to {cols}: assemble ({names})."
+                    )
+                local[(rows, cols)] = groups
 
         tic.Tac(
             "Matrix",
@@ -1136,41 +1177,15 @@ class _Simu(_IObserver, _params.Updatable, ABC):
             self._verbosity,
         )
 
-        K = self.__Assemble_csr(
-            {g: KCMF[0] for g, KCMF in dict_KCMF.items()},
-            space,
-            dof_n,
-            Ndof,
-            True,
-        )
-        tic.Tac("Matrix", f"Assemble the K matrix ({problemType}).", self._verbosity)
-
-        C = self.__Assemble_csr(
-            {g: KCMF[1] for g, KCMF in dict_KCMF.items()},
-            space,
-            dof_n,
-            Ndof,
-            True,
-        )
-        tic.Tac("Matrix", f"Assemble the C matrix ({problemType}).", self._verbosity)
-
-        M = self.__Assemble_csr(
-            {g: KCMF[2] for g, KCMF in dict_KCMF.items()},
-            space,
-            dof_n,
-            Ndof,
-            True,
-        )
-        tic.Tac("Matrix", f"Assemble the M matrix ({problemType}).", self._verbosity)
-
-        F = self.__Assemble_csr(
-            {g: KCMF[3] for g, KCMF in dict_KCMF.items()},
-            space,
-            dof_n,
-            Ndof,
-            False,
-        )
-        tic.Tac("Matrix", f"Assemble the F vector ({problemType}).", self._verbosity)
+        assembled = []
+        for i, name in enumerate(("K matrix", "C matrix", "M matrix", "F vector")):
+            data = {
+                block: {g: KCMF[i] for g, KCMF in groups.items()}
+                for block, groups in local.items()
+            }
+            assembled.append(self.__Assemble_csr(data, tuple(layout), Ndof, i < 3))
+            tic.Tac("Matrix", f"Assemble the {name} ({problemType}).", self._verbosity)
+        K, C, M, F = assembled
 
         return K, C, M, F
 

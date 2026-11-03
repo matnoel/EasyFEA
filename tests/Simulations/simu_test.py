@@ -11,6 +11,7 @@ from typing import Callable
 
 import numpy as np
 import pytest
+from scipy import sparse
 
 from EasyFEA import AlgoType, ElemType, Mesh, Mesher, Models, Simulations, SolverType
 from EasyFEA.FEM import Field, GroupElemFactory, LagrangeCondition
@@ -18,7 +19,7 @@ from EasyFEA.Geoms import Domain, Line
 
 from _numerics import rel_error
 from . import _reference
-from ._simus import laplacian, laplacian_form
+from ._simus import coupled_phasefield, coupling, laplacian, laplacian_form
 
 L, H, B = 2.0, 0.5, 1.0
 E, v = 210e3, 0.3
@@ -397,7 +398,8 @@ def test_Simu__Construct_local_matrix_system_has_one_entry_per_group():
     mesh = domain.Mesh_2D([], ElemType.QUAD4)
     simu = Simulations.Elastic(mesh, Models.Elastic.Isotropic(2))
 
-    local = simu._Construct_local_matrix_system(simu.problemType)
+    pt = simu.problemType
+    local = simu._Construct_local_matrix_system(pt)[(pt, pt)]
 
     assert list(local) == mesh.Get_list_groupElem(2)
     for groupElem, (K_e, C_e, M_e, F_e) in local.items():
@@ -812,6 +814,51 @@ def test_Simu_Assembly_is_what_Get_K_C_M_F_returns():
 
     for matrix, expected in zip(assembled, simu.Get_K_C_M_F()):
         assert (matrix != expected).nnz == 0
+
+
+def test_Simu_Assembly_over_two_fields_places_each_block_at_its_offsets():
+    U = Simulations.PhaseField.ProblemTypes.elastic
+    D = Simulations.PhaseField.ProblemTypes.damage
+    simu = coupled_phasefield(Simulations.Term("K", coupling, problemTypes=((D, U),)))
+    mesh = simu.mesh
+    groupElem = mesh.groupElem
+    Nu, Nd = 2 * mesh.Nn, mesh.Nn
+    K_u, _, _, F_u = simu.Assembly(U)
+    K_d, _, _, F_d = coupled_phasefield(mesh=mesh).Assembly(D)
+
+    K, C, M, F = simu.Assembly((U, D))
+
+    rows = np.broadcast_to(
+        groupElem.Get_assembly_e(1)[:, :, None], coupling(groupElem).shape
+    )
+    cols = np.broadcast_to(groupElem.Get_assembly_e(2)[:, None, :], rows.shape)
+    K_du = sparse.coo_matrix(
+        (coupling(groupElem).ravel(), (rows.ravel(), cols.ravel())), shape=(Nd, Nu)
+    )
+    dense = K.toarray()
+    assert K.shape == C.shape == M.shape == (Nu + Nd, Nu + Nd)
+    assert np.allclose(dense[:Nu, :Nu], K_u.toarray())
+    assert np.allclose(dense[Nu:, Nu:], K_d.toarray())
+    assert np.allclose(dense[Nu:, :Nu], K_du.toarray())
+    assert not dense[:Nu, Nu:].any()
+    assert np.allclose(F.toarray(), sparse.vstack([F_u, F_d]).toarray())
+
+
+def test_Simu_Assembly_raises_on_a_block_outside_its_fields():
+    U = Simulations.PhaseField.ProblemTypes.elastic
+    D = Simulations.PhaseField.ProblemTypes.damage
+    simu = coupled_phasefield(Simulations.Term("K", coupling, problemTypes=((D, U),)))
+
+    with pytest.raises(ValueError, match="couples to"):
+        simu.Assembly(D)
+
+
+def test_Simu_Assembly_rejects_a_field_given_twice():
+    simu = _elastic_bar()
+    pt = simu.problemType
+
+    with pytest.raises(ValueError, match="twice"):
+        simu.Assembly((pt, pt))
 
 
 def test_Simu_in_parallel_requires_petsc4py(monkeypatch: pytest.MonkeyPatch):

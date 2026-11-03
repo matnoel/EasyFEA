@@ -227,14 +227,6 @@ class _FunctionSpace:
             self.__Get_rows(self.Get_connect(groupElem)), dof_n
         )
 
-    def Get_rows_e(self, groupElem: "_GroupElem", dof_n: int) -> _types.IntArray:
-        """Row of each local matrix entry (Ne, (nPe*dof_n)²)."""
-        return _FunctionSpace._Get_rows_e(self.Get_assembly_e(groupElem, dof_n))
-
-    def Get_columns_e(self, groupElem: "_GroupElem", dof_n: int) -> _types.IntArray:
-        """Column of each local matrix entry (Ne, (nPe*dof_n)²)."""
-        return _FunctionSpace._Get_columns_e(self.Get_assembly_e(groupElem, dof_n))
-
     def Get_dofs(
         self,
         points: _types.IntArray,
@@ -436,13 +428,19 @@ class _FunctionSpace:
         return dofs.reshape(*points.shape[:-1], points.shape[-1] * d.size)
 
     @staticmethod
-    def _Get_rows_e(assembly_e: _types.IntArray) -> _types.IntArray:
-        """Row of each local matrix entry from the element DOFs (Ne, ndof)."""
-        Ne, ndof = assembly_e.shape
-        return np.repeat(assembly_e, ndof).reshape((Ne, ndof**2))
+    def _Get_rows_e(
+        assembly_e: _types.IntArray, ncols: int | None = None
+    ) -> _types.IntArray:
+        """Row of each local matrix entry from the row DOFs (Ne, nrows), `ncols` columns wide (square by default)."""
+        Ne, nrows = assembly_e.shape
+        ncols = nrows if ncols is None else ncols
+        return np.repeat(assembly_e, ncols).reshape((Ne, nrows * ncols))
 
     @staticmethod
-    def _Get_columns_e(assembly_e: _types.IntArray) -> _types.IntArray:
-        """Column of each local matrix entry from the element DOFs (Ne, ndof)."""
-        Ne, ndof = assembly_e.shape
-        return np.repeat(assembly_e, ndof, axis=0).reshape((Ne, ndof**2))
+    def _Get_columns_e(
+        assembly_e: _types.IntArray, nrows: int | None = None
+    ) -> _types.IntArray:
+        """Column of each local matrix entry from the column DOFs (Ne, ncols), `nrows` rows tall (square by default)."""
+        Ne, ncols = assembly_e.shape
+        nrows = ncols if nrows is None else nrows
+        return np.repeat(assembly_e, nrows, axis=0).reshape((Ne, nrows * ncols))

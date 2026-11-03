@@ -3,7 +3,7 @@
 # This file is part of the EasyFEA project.
 # EasyFEA is distributed under the terms of the GNU General Public License v3, see LICENSE.txt and CREDITS.md for more information.
 
-r"""Declarative description of a simulation's local matrix system: a list of :class:`Term`, folded into ``{groupElem: (K_e, C_e, M_e, F_e)}`` by :func:`Fold_terms`."""
+r"""Declarative description of a simulation's local matrix system: a list of :class:`Term`, folded into ``{(rows, cols): {groupElem: (K_e, C_e, M_e, F_e)}}`` by :func:`Fold_terms`."""
 
 import copy
 import inspect
@@ -27,6 +27,9 @@ if TYPE_CHECKING:
 else:
     # Concatenate reached typing in 3.10
     _Operator = Callable[..., Any]
+
+_Block = tuple["ProblemType", "ProblemType"]
+"""``(rows, cols)``: the field a contribution tests, and the field it is differentiated by."""
 
 
 _SLOTS = "KCMFR"
@@ -61,7 +64,7 @@ def _Same(a: Any, b: Any) -> bool:
 class Term:
     r"""One operator, declared: where its arrays go, what it integrates over, what it is called with.
 
-    Evaluating a term on one element group yields one **contribution** per slot — the arrays :func:`Fold_terms` accumulates into ``{groupElem: (K_e, C_e, M_e, F_e)}``, the local form of :math:`\Krm \, \mathrm{u} + \Crm \, \vrm + \Mrm \, \arm = \Frm`.
+    Evaluating a term on one element group yields one **contribution** per slot — the arrays :func:`Fold_terms` accumulates into ``{(rows, cols): {groupElem: (K_e, C_e, M_e, F_e)}}``, the local form of :math:`\Krm \, \mathrm{u} + \Crm \, \vrm + \Mrm \, \arm = \Frm`.
 
     ``slots`` names where the returned arrays go — one letter of ``KCMFR`` per array, in order, so an operator returning two arrays takes exactly two letters. Slots *route* arrays; they never copy one into several, so ``"KC"`` on an operator returning a single matrix is an error, not a request to damp with the stiffness::
 
@@ -69,6 +72,12 @@ class Term:
         Term("KR", self.__Stress)                # R is an *internal* force: F -= R
 
     ``fn`` is called as ``fn(groupElem, **kwargs)``, so any operator whose first positional argument is a ``_GroupElem`` can be named directly. Anything needing per-group work — a hyperelastic state, a contact projection — is a named method of the simulation with the same shape.
+
+    ``problemTypes`` places each array in a block of a system over several fields, one entry per slot: a ``(rows, cols)`` pair for a matrix, the rows alone for a vector, None for the folded problem's own diagonal (the default)::
+
+        Term("KRK", self.__PressureStress, problemTypes=((u, u), u, (u, p)))
+
+    A term spanning several fields is handed the geometry's group and no ``u``: it reaches each field's space and values itself.
     """
 
     def __init__(
@@ -81,6 +90,7 @@ class Term:
         tag: str | None = None,
         groupElem: "_GroupElem | None" = None,
         constant: bool = False,
+        problemTypes: tuple["_Block | ProblemType | None", ...] | None = None,
         **kwargs,
     ):
         """Declares one term.
@@ -99,6 +109,8 @@ class Term:
             Restricts the term to this element group of the simulation's mesh, so a mixed mesh can carry one model per group.
         constant : bool, optional
             Declares the contribution independent of the solution, so it is built once and reused across Newton iterations and time steps while its arguments are unchanged. `fn` must then read nothing but its arguments, so it cannot be a bound method. Defaults to False.
+        problemTypes : tuple, optional
+            Block of each returned array, one entry per slot: ``(rows, cols)`` for a matrix, ``rows`` for a vector, None for the folded problem's diagonal. Defaults to the diagonal for every slot.
         **kwargs
             Passed on to ``fn``. ``u`` and ``elements`` are supplied by the fold when ``fn`` declares them and they are left out here.
         """
@@ -115,6 +127,25 @@ class Term:
                 f"{getattr(fn, '__name__', fn)} takes no `elements` argument, so tag={tag!r} "
                 "would be silently ignored on the elements it selects."
             )
+
+        if problemTypes is None:
+            problemTypes = (None,) * len(slots)
+        if len(problemTypes) != len(slots):
+            raise ValueError(
+                f"problemTypes must give one per slot: {len(slots)} for {slots!r}, got "
+                f"{len(problemTypes)}."
+            )
+        # None stays the folded problem's diagonal, resolved per fold
+        blocks: list[_Block | None] = []
+        for slot, block in zip(slots, problemTypes):
+            if block is not None and not isinstance(block, tuple):
+                block = (block, block)
+            if block is not None and _SLOT_RANK[slot] != 3 and block[0] != block[1]:
+                raise ValueError(
+                    f"slot {slot!r} takes a vector: give it its rows' problem type, not the "
+                    f"pair {block}."
+                )
+            blocks.append(block)
 
         if groupElem is not None and dim not in (None, groupElem.dim):
             raise ValueError(
@@ -133,6 +164,7 @@ class Term:
         self.__tag = tag
         self.__groupElem = groupElem
         self.__constant = constant
+        self.__problemTypes = tuple(blocks)
 
         # resolved once, not per group per Newton iteration
         self.__injectable = tuple(n for n in parameters[1:] if n in _INJECTABLE)
@@ -155,7 +187,12 @@ class Term:
             if self.__groupElem is None
             else f", groupElem={self.__groupElem.elemType}"
         )
-        return f"Term({''.join(self.__slots)!r}, {name}{tag}{group})"
+        blocks = (
+            ""
+            if all(b is None for b in self.__problemTypes)
+            else f", problemTypes={self.__problemTypes}"
+        )
+        return f"Term({''.join(self.__slots)!r}, {name}{tag}{group}{blocks})"
 
     @property
     def slots(self) -> tuple[str, ...]:
@@ -181,6 +218,7 @@ class Term:
             tag=self.__tag,
             groupElem=self.__groupElem,
             constant=self.__constant,
+            problemTypes=self.__problemTypes,
             **self.__kwargs,
         )
         term.__scale = self.__scale * coef
@@ -196,8 +234,9 @@ class Term:
         simu: "_Simu",
         groupElem: "_GroupElem",
         spaceGroup: "_GroupElem | None" = None,
+        blocks: tuple[_Block, ...] | None = None,
     ) -> Any:
-        """Unscaled contribution of a ``constant=True`` term on one group, kept with `simu`'s cached computed values (so a mesh change drops it) and reused by the term declared the same way, and by its :py:meth:`Scaled` copies, while the argument values are unchanged. ``u`` is deliberately unavailable: a term that needs it is not constant, and fails loudly on the missing argument rather than silently freeze the first iterate."""
+        """Unscaled contribution of a ``constant=True`` term on one group and `blocks`, kept with `simu`'s cached computed values (so a mesh change drops it) and reused by the term declared the same way, and by its :py:meth:`Scaled` copies, while the argument values are unchanged. ``u`` is deliberately unavailable: a term that needs it is not constant, and fails loudly on the missing argument rather than silently freeze the first iterate."""
         key = (
             self.__fn,
             self.__declared,
@@ -205,6 +244,7 @@ class Term:
             self.__tag,
             self.__groupElem,
             groupElem,
+            blocks,
         )
         kwargs = self.__kwargs
         cache = cached_computed_values(simu)
@@ -239,6 +279,20 @@ class Term:
             return groups
         return [g for g in groups if self.__tag in g.elementTags]
 
+    def _Get_blocks(self, problemType: "ProblemType") -> tuple[_Block, ...]:
+        """``(rows, cols)`` of each slot in `problemType`'s fold — a vector's cols are its rows. Raises when a slot tests another field: a term belongs to the equation of its rows."""
+        blocks = []
+        for block in self.__problemTypes:
+            if block is None:
+                block = (problemType, problemType)
+            if block[0] != problemType:
+                raise ValueError(
+                    f"{self!r} tests {block[0]}, not {problemType}: declare it in "
+                    f"Get_terms({block[0]}), the equation of its rows."
+                )
+            blocks.append(block)
+        return tuple(blocks)
+
     def _Get_elements(self, groupElem: "_GroupElem") -> _types.IntArray | None:
         """Element indices this term is restricted to within `groupElem`, or None."""
         return None if self.__tag is None else groupElem.Get_Elements_Tag(self.__tag)
@@ -262,12 +316,12 @@ def Fold_terms(
     simu: "_Simu",
     terms: list[Term],
     problemType: "ProblemType | None" = None,
-) -> dict["_GroupElem", tuple]:
-    r"""Folds `terms` into the local matrix system ``{groupElem: (K_e, C_e, M_e, F_e)}``.
+) -> dict[_Block, dict["_GroupElem", tuple]]:
+    r"""Folds `terms`, `problemType`'s equation, into the local matrix system ``{(rows, cols): {groupElem: (K_e, C_e, M_e, F_e)}}``; ``F_e`` only on the diagonal block.
 
     Contributions **accumulate**: several terms may target one group, and each fills only the slots it declares. Every contribution is scaled by :py:attr:`_Simu.thickness`, so operators stay free of simulation-level geometry.
 
-    In a nonlinear simulation a **single-slot** term also contributes its own residual — :math:`-\Krm_e \, \mathrm{u}_t`, :math:`-\Crm_e \, \vrm_t`, :math:`-\Mrm_e \, \arm_t`. A single slot means the contribution is linear in its field, so that product *is* its residual. Multi-slot terms return their own force and are never given one.
+    In a nonlinear simulation a **single-slot** term also contributes its own residual — :math:`-\Krm_e \, \mathrm{u}_t`, :math:`-\Crm_e \, \vrm_t`, :math:`-\Mrm_e \, \arm_t`, with the field of its columns, into its rows' ``F``. A single slot means the contribution is linear in its field, so that product *is* its residual. Multi-slot terms return their own force and are never given one.
     """
 
     if problemType is None:
@@ -275,25 +329,51 @@ def Fold_terms(
 
     mesh = simu.mesh
     thickness = simu.thickness
-    dof_n = simu.Get_dof_n(problemType)
     isNonLinear = simu.isNonLinear
+    diagonal = (problemType, problemType)
 
     space = simu._Get_FunctionSpace(problemType)
+    spaces = {problemType: (space, simu.Get_dof_n(problemType))}
     u_t, v_t, a_t = simu.Get_u_v_a(problemType)
-    fields = {"u": u_t, "v": v_t, "a": a_t}
+    iterates = {problemType: {"u": u_t, "v": v_t, "a": a_t}}
+
+    def Space(pt: "ProblemType") -> tuple["_FunctionSpace", int]:
+        if pt not in spaces:
+            spaces[pt] = (simu._Get_FunctionSpace(pt), simu.Get_dof_n(pt))
+        return spaces[pt]
+
+    def Iterates(pt: "ProblemType") -> dict[str, _types.FloatArray | None]:
+        if pt not in iterates:
+            u, v, a = simu.Get_u_v_a(pt)
+            iterates[pt] = {"u": u, "v": v, "a": a}
+        return iterates[pt]
+
+    def Width(pt: "ProblemType", groupElem: "_GroupElem") -> int:
+        """DOFs of `pt`'s field on one element of `groupElem`, the width of its assembly map."""
+        space, dof_n = Space(pt)
+        return space.Get_connect(groupElem).shape[1] * dof_n
 
     index = {"K": 0, "C": 1, "M": 2, "F": 3}  # slot name -> index in (K, C, M, F)
-    out: dict[_GroupElem, list] = {}
+    out: dict[_Block, dict[_GroupElem, list]] = {}
+
+    def Entry(block: _Block, groupElem: "_GroupElem") -> list:
+        return out.setdefault(block, {}).setdefault(groupElem, [None] * 4)
 
     for term in terms:
+        blocks = term._Get_blocks(problemType)
+        isDiagonal = all(block == diagonal for block in blocks)
+
         for groupElem in term._Get_groups(mesh):
-            # operators see the field's own group: P2 u on TETRA4 integrates on TETRA10
-            spaceGroup = space.Get_groupElem(groupElem)
+            # operators see the field's own group: P2 u on TETRA4 integrates on TETRA10;
+            # a term spanning fields gets the geometry and reaches each space itself
+            spaceGroup = space.Get_groupElem(groupElem) if isDiagonal else groupElem
 
             if term.constant:
-                contributions = term._Cached(simu, groupElem, spaceGroup)
+                contributions = term._Cached(simu, groupElem, spaceGroup, blocks)
             else:
-                contributions = term._Evaluate(groupElem, u_t, spaceGroup)
+                contributions = term._Evaluate(
+                    groupElem, u_t if isDiagonal else None, spaceGroup
+                )
             if not isinstance(contributions, tuple):
                 contributions = (contributions,)
             if len(contributions) != len(term.slots):
@@ -303,13 +383,21 @@ def Fold_terms(
                     "arrays, they do not copy one into several."
                 )
 
-            slots = out.setdefault(groupElem, [None, None, None, None])
+            entries = {block: Entry(block, groupElem) for block in blocks}
             own = None  # this term's own matrix contribution, for its residual
 
-            for slot, contribution in zip(term.slots, contributions):
+            for slot, block, contribution in zip(term.slots, blocks, contributions):
                 if contribution is None:
                     continue
                 _Check_rank(term, slot, contribution)
+                _Check_shape(
+                    term,
+                    slot,
+                    block,
+                    contribution,
+                    groupElem,
+                    Width,
+                )
                 # always allocates, so a cached `constant=True` array is never written into
                 contribution = thickness * term.scale * contribution
                 if slot == "R":  # an internal force opposes the right-hand side
@@ -317,22 +405,27 @@ def Fold_terms(
                 else:
                     own = contribution
                 i = index[slot]
-                slots[i] = contribution if slots[i] is None else slots[i] + contribution
+                entry = entries[block]
+                entry[i] = contribution if entry[i] is None else entry[i] + contribution
 
             # from `own`, never the accumulated slot: two terms may fill one slot on one group
             if isNonLinear and len(term.slots) == 1:
+                cols = blocks[0][1]
                 residual = _Residual(
                     term,
                     groupElem,
                     own,
-                    fields,
-                    space,
-                    dof_n,
+                    Iterates(cols),
+                    *Space(cols),
                 )
                 if residual is not None:
-                    slots[3] = residual if slots[3] is None else slots[3] + residual
+                    entry = Entry(diagonal, groupElem)
+                    entry[3] = residual if entry[3] is None else entry[3] + residual
 
-    return {groupElem: tuple(slots) for groupElem, slots in out.items()}
+    return {
+        block: {groupElem: tuple(entry) for groupElem, entry in groups.items()}
+        for block, groups in out.items()
+    }
 
 
 _SLOT_RANK = {"K": 3, "C": 3, "M": 3, "F": 2, "R": 2}
@@ -349,6 +442,26 @@ def _Check_rank(term: Term, slot: str, contribution: Any) -> None:
         f"{term!r} sent a {np.ndim(contribution)}-D {np.shape(contribution)} array to slot "
         f"{slot!r}, which takes a {kind}. Slot letters are positional — one per returned array, "
         "in the order the operator returns them."
+    )
+
+
+def _Check_shape(
+    term: Term,
+    slot: str,
+    block: _Block,
+    contribution: Any,
+    groupElem: "_GroupElem",
+    Width: Callable[["ProblemType", "_GroupElem"], int],
+) -> None:
+    """Rejects a contribution not shaped by its block's spaces on `groupElem`: ``(Ne, n_rows, n_cols)`` for a matrix, ``(Ne, n_rows)`` for a vector — a swapped ``(rows, cols)`` pair fails here."""
+    fields = block[: _SLOT_RANK[slot] - 1]
+    shape = (groupElem.Ne, *(Width(pt, groupElem) for pt in fields))
+    if np.shape(contribution) == shape:
+        return
+    raise ValueError(
+        f"{term!r} sent a {np.shape(contribution)} array to slot {slot!r} of block "
+        f"{block}, which takes {shape}: rows from {block[0]}'s space, columns from "
+        f"{block[1]}'s."
     )
 
 

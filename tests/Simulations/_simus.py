@@ -5,8 +5,11 @@
 
 """Simulations shared by these tests and by IO and Viz, which save and draw them."""
 
-from EasyFEA import Mesh, Models, Simulations
+import numpy as np
+
+from EasyFEA import ElemType, Mesh, Models, Simulations
 from EasyFEA.FEM import BiLinearForm, Field
+from EasyFEA.Geoms import Domain
 
 from . import _reference
 
@@ -51,3 +54,28 @@ def laplacian(mesh: Mesh, dof_n: int = 1) -> Models.WeakForms:
 def measure(mesh: Mesh) -> float:
     """Area in 2D, volume in 3D."""
     return mesh.area if mesh.dim == 2 else mesh.volume
+
+
+def coupled_phasefield(
+    *damageTerms: Simulations.Term, mesh: Mesh | None = None
+) -> Simulations.PhaseField:
+    """PhaseField whose damage equation also folds `damageTerms`: two fields of different dof_n, so a block between them is rectangular."""
+
+    class Coupled(Simulations.PhaseField):
+        def Get_terms(self, problemType=None):
+            terms = super().Get_terms(problemType)
+            if problemType == self.ProblemTypes.damage:
+                terms = terms + list(damageTerms)
+            return terms
+
+    if mesh is None:
+        domain = Domain((0, 0), (1, 1), 0.5)
+        mesh = domain.Mesh_2D([], ElemType.TRI3)
+    pfm = Models.PhaseField(Models.Elastic.Isotropic(2), "He", "AT1", 1, 0.01)
+    return Coupled(mesh, pfm)
+
+
+def coupling(groupElem) -> np.ndarray:
+    """A (damage, elastic) block on an isoparametric 2D group: nPe rows, 2·nPe columns, each entry distinct."""
+    Ne, nPe = groupElem.Ne, groupElem.nPe
+    return np.arange(Ne * nPe * 2 * nPe, dtype=float).reshape(Ne, nPe, 2 * nPe)
