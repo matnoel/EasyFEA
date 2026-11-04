@@ -21,9 +21,8 @@ if TYPE_CHECKING:
 # Shared block-assembly kinematics
 # ----------------------------------------------------------------------------
 # These helpers back both the hyperelastic and Kelvin–Voigt operators: the
-# block gradient / strain-displacement operator, the geometric-tangent stress
-# block, and the (xi,...,xn,yi,...) → (xi,yi,zi,...) dof permutation are the
-# same machinery regardless of which stress drives them.
+# block gradient / strain-displacement operator and the geometric-tangent stress
+# block are the same machinery regardless of which stress drives them.
 
 
 from ._utils import einsum
@@ -36,7 +35,7 @@ def __block_grad_B(
 ) -> tuple["FeArray", "FeArray"]:
     """Block gradient operator ``grad`` and ``B = De(u)·grad``.
 
-    ``grad`` maps nodal dofs (laid out ``xi,...,xn,yi,...,yn,...``) to the flat displacement gradient; ``B`` is the nonlinear (Green-Lagrange) strain- displacement operator. Shared by :func:`SecondPiolaKirchhoffStressTensor` and :func:`KelvinVoigtDamping`.
+    ``grad`` maps nodal dofs (laid out ``xi,yi,zi,...,xn,yn,zn``) to the flat displacement gradient; ``B`` is the nonlinear (Green-Lagrange) strain- displacement operator. Shared by :func:`SecondPiolaKirchhoffStressTensor` and :func:`KelvinVoigtDamping`.
 
     Within one assembly the same ``kinematics`` is handed to both operators, so the
     result is memoized **on the kinematics object** (not in any module-level
@@ -59,7 +58,7 @@ def __block_grad_B(
 
     grad_e_pg = FeArray.zeros(Ne, nPg, nCols, dim * nPe)
     rows = np.arange(nCols).reshape((dim, dim))
-    cols = np.arange(dim * nPe).reshape(dN_e_pg._shape)
+    cols = np.arange(dim * nPe).reshape(nPe, dim).T
     for i in range(dim):
         grad_e_pg._assemble(rows[i], cols[i], value=dN_e_pg)
 
@@ -69,53 +68,28 @@ def __block_grad_B(
     return result
 
 
-def __geometric_tangent(
+def __add_geometric_tangent(
+    K_e: np.ndarray,
     wJ_e_pg: FeArray.FeArrayALike,
     kinematics: "Kinematics",
     dWde_e_pg: FeArray.FeArrayALike,
-) -> np.ndarray:
-    r"""Geometric (initial-stress) tangent ``∫ gradᵀ · Sig · grad dΩ``.
-
-    Returned in component-major (``xi,...,xn,yi,...,yn,...``) layout to match the material tangent before the shared reorder.
+) -> None:
+    r"""Adds the geometric (initial-stress) tangent ``∫ gradᵀ · Sig · grad dΩ`` to `K_e`, in place.
 
     Exploits the block structure ``Sig = I_dim ⊗ dWde``: with ``dWde`` the ``dim×dim`` PK2 (from the Kelvin-Mandel vector) and ``dN`` the cartesian shape-function gradients, the dense ``gradᵀ·Sig·grad`` collapses to a block-diagonal Kronecker product::
 
         g   = ∫ dNᵀ · dWde · dN dΩ            (Ne, nPe, nPe)
         Kgeo = g ⊗ I_dim                     (Ne, dim·nPe, dim·nPe)
 
-    i.e. ``Kgeo[j·nPe+a, k·nPe+b] = δ_{jk} · g[a,b]``. This avoids building the dense ``(Ne, nPg, dim², dim²)`` ``Sig`` and the ``dim²``-wide contraction.
+    i.e. ``Kgeo[a·dim+j, b·dim+k] = δ_{jk} · g[a,b]``. This avoids building the dense ``(Ne, nPg, dim², dim²)`` ``Sig`` and the ``dim²``-wide contraction.
     """
     groupElem = kinematics.groupElem
-    Ne, dim, nPe = groupElem.Ne, groupElem.dim, groupElem.nPe
+    dim = groupElem.dim
     sig_e_pg = Vector_to_Matrix(dWde_e_pg)  # (Ne, nPg, dim, dim)
     dN_e_pg = groupElem.Get_dN_e_pg(kinematics.matrixType)  # (Ne, nPg, dim, nPe)
     g_e = einsum("ep,epab,epac,epcd->ebd", wJ_e_pg, dN_e_pg, sig_e_pg, dN_e_pg)
-    return einsum("eab,jk->ejakb", g_e, np.eye(dim)).reshape(Ne, dim * nPe, dim * nPe)
-
-
-def __reorder(dim: int, nPe: int) -> np.ndarray:
-    """Permutation from ``(xi,...,xn,yi,...,yn,...)`` to ``(xi,yi,zi,...,xn,yn,zn)``."""
-    return np.arange(0, nPe * dim).reshape(-1, nPe).T.ravel()
-
-
-def __reorder_dofs(dim: int, nPe: int, *arrays: np.ndarray) -> tuple[np.ndarray, ...]:
-    """Reorder local arrays from component-major to interleaved dof layout.
-
-    Applies the :func:`__reorder` permutation — ``(xi,...,xn,yi,...,yn,...)`` → ``(xi,yi,zi,...,xn,yn,zn)`` — to each local array by its rank: a vector ``(Ne, nPe·dim)`` (residual / force) or a matrix ``(Ne, nPe·dim, nPe·dim)`` (tangent / mass / damping). Returns the reordered arrays in the given order, so every nonlinear operator shares this one permutation site instead of open-coding the fancy indexing.
-    """
-    perm = __reorder(dim, nPe)
-    ri, rj = perm[:, None], perm[None, :]
-    reordered: list[np.ndarray] = []
-    for array in arrays:
-        if array.ndim == 2:  # (Ne, ndof) vector
-            reordered.append(array[:, perm])
-        elif array.ndim == 3:  # (Ne, ndof, ndof) matrix
-            reordered.append(array[:, ri, rj])
-        else:
-            raise ValueError(
-                f"each array must be (Ne, ndof) or (Ne, ndof, ndof); got ndim {array.ndim}."
-            )
-    return tuple(reordered)
+    for j in range(dim):
+        K_e[:, j::dim, j::dim] += g_e
 
 
 def __second_piola_block(
@@ -129,13 +103,13 @@ def __second_piola_block(
         R_e     = ∫ Bᵀ · dWde dΩ
         K_block = ∫ Bᵀ · d2Wde · B dΩ  +  ∫ gradᵀ (I ⊗ dWde) grad dΩ
 
-    Both component-major (``xi,...,xn,yi,...``), before the shared reorder. The fused einsum contracts the strain and Gauss-point axes in one pass, avoiding the per-Gauss ``(Ne, nPg, ndof, ndof)`` intermediate a chained ``Bᵀ @ d2Wde @ B`` would build (summation order differs from the matmul chain, so results match only to ~1e-14 relative).
+    Both in ``(xi,yi,zi,...,xn,yn,zn)``. The fused einsum contracts the strain and Gauss-point axes in one pass, avoiding the per-Gauss ``(Ne, nPg, ndof, ndof)`` intermediate a chained ``Bᵀ @ d2Wde @ B`` would build (summation order differs from the matmul chain, so results match only to ~1e-14 relative).
     """
     _, B_e_pg = __block_grad_B(kinematics)
-    A_lin = einsum("ep,epji,epjk,epkl->eil", wJ_e_pg, B_e_pg, d2Wde_e_pg, B_e_pg)
-    A_geo = __geometric_tangent(wJ_e_pg, kinematics, dWde_e_pg)
+    K_e = einsum("ep,epji,epjk,epkl->eil", wJ_e_pg, B_e_pg, d2Wde_e_pg, B_e_pg)
+    __add_geometric_tangent(K_e, wJ_e_pg, kinematics, dWde_e_pg)
     residual_e = einsum("ep,epi,epij->ej", wJ_e_pg, dWde_e_pg, B_e_pg)
-    return A_lin + A_geo, residual_e
+    return K_e, residual_e
 
 
 def SecondPiolaKirchhoffStressTensor(
@@ -180,18 +154,13 @@ def SecondPiolaKirchhoffStressTensor(
     groupElem = kinematics.groupElem
     matrixType = kinematics.matrixType
     wJ_e_pg = groupElem.Get_weightedJacobian_e_pg(matrixType)
-    nPe = groupElem.nPe
-    dim = groupElem.dim
 
-    tangent_e, residual_e = __second_piola_block(
+    return __second_piola_block(
         wJ_e_pg,
         kinematics,
         material.Compute_dWde(kinematics),
         material.Compute_d2Wde(kinematics),
     )
-
-    K_e, R_e = __reorder_dofs(dim, nPe, tangent_e, residual_e)
-    return K_e, R_e
 
 
 def ActiveStressTensor(
@@ -219,7 +188,7 @@ def ActiveStressTensor(
     Returns
     -------
     tuple
-        ``(None, None)`` when ``material.active_stress`` is nowhere non-zero. Otherwise ``Kgeo_e`` of shape ``(Ne, nPe·dim, nPe·dim)`` and ``R_e`` of shape ``(Ne, nPe·dim)``, reordered to ``(xi, yi, zi, ..., xn, yn, zn)``.
+        ``(None, None)`` when ``material.active_stress`` is nowhere non-zero. Otherwise ``Kgeo_e`` of shape ``(Ne, nPe·dim, nPe·dim)`` and ``R_e`` of shape ``(Ne, nPe·dim)``, in ``(xi, yi, zi, ..., xn, yn, zn)``.
     """
     # `np.all` rather than `== 0.0`: the magnitude may be an (Ne, nPg) field, and a partly-active
     # body still has to be assembled
@@ -228,16 +197,15 @@ def ActiveStressTensor(
 
     groupElem = kinematics.groupElem
     wJ_e_pg = groupElem.Get_weightedJacobian_e_pg(kinematics.matrixType)
-    nPe = groupElem.nPe
-    dim = groupElem.dim
+    ndof = groupElem.nPe * groupElem.dim
 
     sig_e_pg = material.Compute_active_stress(kinematics)
 
     _, B_e_pg = __block_grad_B(kinematics)
-    residual_e = einsum("ep,epi,epij->ej", wJ_e_pg, sig_e_pg, B_e_pg)
-    Kgeo_e = __geometric_tangent(wJ_e_pg, kinematics, sig_e_pg)
+    R_e = einsum("ep,epi,epij->ej", wJ_e_pg, sig_e_pg, B_e_pg)
+    K_e = np.zeros((groupElem.Ne, ndof, ndof))
+    __add_geometric_tangent(K_e, wJ_e_pg, kinematics, sig_e_pg)
 
-    K_e, R_e = __reorder_dofs(dim, nPe, Kgeo_e, residual_e)
     return K_e, R_e
 
 
@@ -289,14 +257,15 @@ def MixedIncompressibility(
     ) / J_e_pg
     p_e_pg = pGroupElem.Interpolate_e_pg(p_n, matrixType)
 
-    tangent_e, residual_e = __second_piola_block(
-        wJ_e_pg, kinematics, -p_e_pg * dJdE_e_pg, -p_e_pg * d2JdE_e_pg
+    K_uu, R_u = __second_piola_block(
+        wJ_e_pg,
+        kinematics,
+        -p_e_pg * dJdE_e_pg,
+        -p_e_pg * d2JdE_e_pg,
     )
-    K_uu, R_u = __reorder_dofs(groupElem.dim, groupElem.nPe, tangent_e, residual_e)
 
     _, B_e_pg = __block_grad_B(kinematics)
     K_up = -einsum("ep,epji,epj,pk->eik", wJ_e_pg, B_e_pg, dJdE_e_pg, N_pg)
-    K_up = K_up[:, __reorder(groupElem.dim, groupElem.nPe)]
     R_p = einsum("ep,ep,pk->ek", wJ_e_pg, 1 - J_e_pg, N_pg)
     return K_uu, R_u, K_up, K_up.transpose(0, 2, 1), R_p
 
@@ -334,7 +303,7 @@ def KelvinVoigtDamping(
     -------
     tuple
         (None, None, None) when material.eta == 0 or velocity is None. Kgeo_e and C_e
-        are (Ne, nPe·dim, nPe·dim) and R_e is (Ne, nPe·dim), all reordered to
+        are (Ne, nPe·dim, nPe·dim) and R_e is (Ne, nPe·dim), all in
         (xi, yi, zi, ..., xn, yn, zn).
     """
     if material.eta == 0.0 or velocity is None:
@@ -343,8 +312,6 @@ def KelvinVoigtDamping(
     groupElem = kinematics.groupElem
     matrixType = kinematics.matrixType
     wJ_e_pg = groupElem.Get_weightedJacobian_e_pg(matrixType)
-    nPe = groupElem.nPe
-    dim = groupElem.dim
 
     grad_e_pg, B_e_pg = __block_grad_B(kinematics)
     Beta_e_pg = kinematics.Compute_Deta(velocity) @ grad_e_pg
@@ -355,15 +322,13 @@ def KelvinVoigtDamping(
     C_e = material.eta * einsum(subscripts, wJ_e_pg, B_e_pg, B_e_pg)
 
     # viscous residual ∫ Bᵀ Σ_visco — same contraction as the active stress
-    residual_e = einsum("ep,epji,epj->ei", wJ_e_pg, B_e_pg, sig_e_pg)
+    R_e = einsum("ep,epji,epj->ei", wJ_e_pg, B_e_pg, sig_e_pg)
 
     # configuration tangent ∂(C·v)/∂u = geometric (∫ gradᵀ Sig grad) + material-like
     # (η ∫ Bᵀ (∂Ė/∂u)) pieces
-    A_mat = material.eta * einsum(subscripts, wJ_e_pg, B_e_pg, Beta_e_pg)
-    A_geo = __geometric_tangent(wJ_e_pg, kinematics, sig_e_pg)
-    Kgeo_e = A_mat + A_geo
+    K_e = material.eta * einsum(subscripts, wJ_e_pg, B_e_pg, Beta_e_pg)
+    __add_geometric_tangent(K_e, wJ_e_pg, kinematics, sig_e_pg)
 
-    K_e, R_e, C_e = __reorder_dofs(dim, nPe, Kgeo_e, residual_e, C_e)
     return K_e, R_e, C_e
 
 
@@ -450,7 +415,7 @@ def FollowingPressure(
     dxds_e_pg = einsum("pn,enc->epc", dNs_pg, x_e)  # (Ne_a, nPg, 3)
     n_e_pg = np.cross(dxdr_e_pg, dxds_e_pg)  # area-weighted deformed normal
 
-    # F[e, i, c] = Σ_p w·p · φ_i · n_c   (component-major, then reorder)
+    # F[e, i, c] = Σ_p w·p · φ_i · n_c
     factor = weights[None, :] * pressure  # (1, nPg)
     F_active = einsum("ep,pn,epc->enc", factor, N_pg, n_e_pg).reshape(
         Ne_a, dim * nPe
@@ -468,12 +433,9 @@ def FollowingPressure(
     S_a = __skew(dxdr_e_pg)  # S(a),  shape (Ne_a, nPg, 3, 3)
     S_b = __skew(dxds_e_pg)  # S(b),  shape (Ne_a, nPg, 3, 3)
     K_active = (
-        einsum("ep,epcd,pi,pj->ecidj", factor, S_a, N_pg, dNs_pg)
-        - einsum("ep,epcd,pi,pj->ecidj", factor, S_b, N_pg, dNr_pg)
+        einsum("ep,epcd,pi,pj->eicjd", factor, S_a, N_pg, dNs_pg)
+        - einsum("ep,epcd,pi,pj->eicjd", factor, S_b, N_pg, dNr_pg)
     ).reshape(Ne_a, dim * nPe, dim * nPe)
-
-    # component-major → interleaved (xi, yi, zi, ...)
-    (K_active,) = __reorder_dofs(dim, nPe, K_active)
 
     K_e[active] = -K_active
     R_e[active] = -F_active  # internal force: the assembly subtracts it
