@@ -2843,7 +2843,9 @@ class _Simu(_IObserver, _params.Updatable, ABC):
 
         self.__Check_problemTypes(problemType)
 
-        dofsValues, dofs = self.__Bc_pointLoad(problemType, nodes, values, unknowns)
+        dofsValues, dofs, nodes = self.__Bc_pointLoad(
+            problemType, nodes, values, unknowns
+        )
 
         self._Bc_Add_Neumann(
             problemType, nodes, dofsValues, dofs, unknowns, description
@@ -3079,26 +3081,34 @@ class _Simu(_IObserver, _params.Updatable, ABC):
         nodes: _types.IntArray,
         values: list,
         unknowns: list,
-    ) -> tuple[_types.FloatArray, _types.IntArray]:
-        """Adds a point load."""
+    ) -> tuple[_types.FloatArray, _types.IntArray, _types.IntArray]:
+        """Adds a point load shared between the selected nodes carrying a DOF.
+        return dofsValues, dofs, those nodes"""
 
-        Nn = nodes.shape[0]
-        coord = self.mesh.coord
-        coord_n = coord[nodes]
+        nodes = np.asarray(nodes)
+        space = self._Get_FunctionSpace(problemType)
+        spaceNodes = space.Get_dof_nodes(nodes)
+        if spaceNodes.size == 0:
+            raise ValueError(f"No selected node carries a {problemType} DOF.")
+        kept = np.isin(nodes, spaceNodes)
+        coord_n = space.coord[spaceNodes]
 
         # initialize the value vector for each node (Nn, Ndof)
-        values_n_d = np.zeros((Nn, len(unknowns)))
+        values_n_d = np.zeros((spaceNodes.size, len(unknowns)))
 
         for i in range(len(unknowns)):
-            eval_n = self.__Bc_evaluate(coord_n, values[i], option="nodes")
-            eval_n /= len(nodes)
+            value = values[i]
+            if not callable(value) and np.size(value) > 1:
+                value = np.asarray(value)[kept]
+            eval_n = self.__Bc_evaluate(coord_n, value, option="nodes")
+            eval_n /= spaceNodes.size
             values_n_d[:, i] = eval_n.ravel()
 
         dofsValues = values_n_d.ravel()
 
-        dofs = self.Bc_dofs_nodes(nodes, unknowns, problemType)
+        dofs = self.Bc_dofs_nodes(spaceNodes, unknowns, problemType)
 
-        return dofsValues, dofs
+        return dofsValues, dofs, spaceNodes
 
     def __Bc_Integration_Dim(
         self,
@@ -3157,7 +3167,11 @@ class _Simu(_IObserver, _params.Updatable, ABC):
                 else:
                     # evaluate on nodes
                     eval_n = np.zeros(Nn, dtype=float)
-                    eval_n[nodes] = values[u]
+                    # the nodes off the geometry are interpolated below
+                    onGeometry = np.asarray(nodes) < Nn
+                    eval_n[np.asarray(nodes)[onGeometry]] = np.broadcast_to(
+                        values[u], onGeometry.shape
+                    )[onGeometry]
                     eval_e = eval_n[connect]  # (Ne, nPe)
                     if spaceGroup is not groupElem:
                         # the node values interpolated at the space's nodes (Ne, nPe space)

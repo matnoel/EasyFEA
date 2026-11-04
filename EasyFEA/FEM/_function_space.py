@@ -119,14 +119,18 @@ class _FunctionSpace:
         """Node ids of each element (Ne, nPe), in the layout of the group's element in this space."""
         return self.__dict_groupElem[groupElem].connect
 
-    def Get_nodes(self, ids: _types.IntArray) -> _types.IntArray:
-        """The ``ids`` carrying a DOF, in their order (TETRA10 mid nodes under P1 skipped), then every node on an edge, face or cell whose vertices ``ids`` all hold (element closure: the chord midpoint a circle predicate misses)."""
+    def Get_dof_nodes(self, ids: _types.IntArray) -> _types.IntArray:
+        """The ``ids`` carrying a DOF, in their order (TETRA10 mid nodes under P1 skipped)."""
         ids = np.asarray(ids).ravel()
-        # the ids carrying a DOF (nIds,)
-        if self.__rows is not None:
-            hasDof = ids < self.__rows.size
-            hasDof[hasDof] = self.__rows[ids[hasDof]] >= 0
-            ids = ids[hasDof]
+        if self.__rows is None:
+            return ids[ids < self.__Nn]
+        hasDof = ids < self.__rows.size
+        hasDof[hasDof] = self.__rows[ids[hasDof]] >= 0
+        return ids[hasDof]
+
+    def Get_nodes(self, ids: _types.IntArray) -> _types.IntArray:
+        """`Get_dof_nodes` of ``ids``, then every node on an edge, face or cell whose vertices they all hold (element closure: the chord midpoint a circle predicate misses)."""
+        ids = self.Get_dof_nodes(ids)
         groups = self.__dict_groupElem
         selected = np.zeros(max(group.Ncoords for group in groups.values()), bool)
         selected[ids] = True
@@ -191,7 +195,9 @@ class _FunctionSpace:
 
         # the node coordinates in row order (Nn, 3), the nodes no group reaches left out (super-parametric)
         coord = self.coord
-        if self.__rows is not None:
+        if self.__rows is None:
+            coord = coord[: self.__Nn]
+        else:
             coord = coord[np.flatnonzero(self.__rows >= 0)]
         # the partner connects in rows, by element type (Ne, nPe)
         connects: dict[ElemType, list[_types.IntArray]] = {}
