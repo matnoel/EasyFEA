@@ -76,7 +76,7 @@ class PhaseField(_Simu):
     See section 3.1. of https://univ-eiffel.hal.science/hal-05115523 for additional mathematical details.
     """
 
-    U = ProblemType("elastic")
+    U = ProblemType("displacement")
     """the displacement problem"""
 
     D = ProblemType("damage")

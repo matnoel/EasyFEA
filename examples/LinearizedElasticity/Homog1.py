@@ -57,7 +57,7 @@ def Compute_ukl(
                 dofs = simu.Bc_dofs_nodes(nodes, [direction])
 
                 condition = LagrangeCondition(
-                    "elastic", nodes, dofs, [direction], [values[d]], [1, -1]
+                    simu.U, nodes, dofs, [direction], [values[d]], [1, -1]
                 )
                 simu._Bc_Add_Lagrange(condition)
 
@@ -68,7 +68,7 @@ def Compute_ukl(
             # sum d_i / Nn = 0
             dofs = simu.Bc_dofs_nodes(nodes, [direction])
             condition = LagrangeCondition(
-                "elastic", nodes, dofs, [direction], [0], [vect]
+                simu.U, nodes, dofs, [direction], [0], [vect]
             )
             simu._Bc_Add_Lagrange(condition)
 

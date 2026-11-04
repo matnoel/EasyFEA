@@ -51,7 +51,7 @@ class Beam(_Simu):
 
     # TODO: add math
 
-    U = ProblemType("beam")
+    U = ProblemType("displacement")
     """the displacement and rotation problem"""
 
     problemTypes = (U,)

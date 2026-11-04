@@ -67,7 +67,7 @@ class HyperElastic(_Simu):
     The implemented hyperelastic laws are available :ref:`here <models-hyperelastic>` and were constructed by the :ref:`ComputeHyperelasticLaws` script.
     """
 
-    U = ProblemType("hyperelastic")
+    U = ProblemType("displacement")
     """the displacement problem"""
 
     problemTypes = (U,)

@@ -50,7 +50,7 @@ class Elastic(_Simu):
     The implemented elastic laws are available :ref:`here <models-elastic>`.
     """
 
-    U = ProblemType("elastic")
+    U = ProblemType("displacement")
     """the displacement problem"""
 
     problemTypes = (U,)

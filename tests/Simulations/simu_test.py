@@ -225,12 +225,12 @@ def test_Simu_describes_its_petsc_options():
 
 
 PROBLEM_TYPES = {
-    "Elastic": ["elastic"],
-    "HyperElastic": ["hyperelastic"],
-    "InElastic": ["inelastic"],
+    "Elastic": ["displacement"],
+    "HyperElastic": ["displacement"],
+    "InElastic": ["displacement"],
     "Thermal": ["thermal"],
-    "PhaseField": ["elastic", "damage"],
-    "Beam": ["beam"],
+    "PhaseField": ["displacement", "damage"],
+    "Beam": ["displacement"],
     "WeakForms": ["weakForm"],
 }
 
@@ -724,7 +724,7 @@ def test_Simu_Get_lb_ub_bounds_only_a_bound_constrained_damage():
 
 
 def test_Simu_problemType_is_the_first_problem_type():
-    assert _elastic_bar().problemType == "elastic"
+    assert _elastic_bar().problemType == "displacement"
 
 
 def test_Simu_algo_follows_the_solver_setters():
@@ -1269,7 +1269,7 @@ def test_Simu__Solver_Set_PETSc4Py_Options_sets_one_or_every_problem():
     simu._Solver_Set_PETSc4Py_Options("gmres", "bjacobi")
     simu._Solver_Set_PETSc4Py_Options("preonly", "lu", problemType="damage")
 
-    assert simu._Solver_Get_PETSc4Py_Options("elastic") == ("gmres", "bjacobi", "petsc")
+    assert simu._Solver_Get_PETSc4Py_Options("displacement") == ("gmres", "bjacobi", "petsc")
     assert simu._Solver_Get_PETSc4Py_Options("damage") == ("preonly", "lu", "petsc")
 
 
@@ -1281,7 +1281,7 @@ def test_Simu__Solver_Get_PETSc4Py_Options_defaults_per_problem_size():
 def test_Simu_Get_dofs_are_every_dof_in_serial():
     simu = _phasefield()
 
-    assert np.array_equal(simu.Get_dofs("elastic"), np.arange(simu.mesh.Nn * 2))
+    assert np.array_equal(simu.Get_dofs("displacement"), np.arange(simu.mesh.Nn * 2))
     assert np.array_equal(simu.Get_dofs("damage"), np.arange(simu.mesh.Nn))
 
 

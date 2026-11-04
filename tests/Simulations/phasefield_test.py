@@ -153,7 +153,7 @@ def test_PhaseField_needUpdate_until_both_problems_are_assembled(make_mesh_2D):
     pfm = Models.PhaseField(Models.Elastic.Isotropic(2), "He", "AT1", 1, 0.01)
     simu = Simulations.PhaseField(make_mesh_2D(), pfm)
 
-    simu.Get_K_C_M_F("elastic")
+    simu.Get_K_C_M_F("displacement")
     assert simu.needUpdate
     simu.Get_K_C_M_F("damage")
     assert not simu.needUpdate

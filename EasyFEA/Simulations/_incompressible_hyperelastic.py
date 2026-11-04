@@ -41,7 +41,7 @@ class IncompressibleHyperElastic(_Simu):
     The simulation works on a copy of the given mesh that carries p's space, ``simu.mesh``: node ids are the same, moves of the given mesh do not reach it. For P2 u on a linear mesh, ``mesh._With_FunctionSpace(IncompressibleHyperElastic.U, order=2)`` first.
     """
 
-    U = ProblemType("hyperelastic")
+    U = ProblemType("displacement")
     """the displacement problem"""
 
     P = ProblemType("pressure")
