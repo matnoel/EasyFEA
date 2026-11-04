@@ -420,6 +420,9 @@ def Fold_terms(
                 if residual is not None:
                     Add("F", blocks[0][0], groupElem, residual)
 
+            # not held through the next term's evaluation
+            del contributions, contribution, own
+
     return out
 
 

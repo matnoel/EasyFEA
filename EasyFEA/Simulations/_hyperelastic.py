@@ -176,20 +176,14 @@ class HyperElastic(_Simu):
     def Get_terms(self, problemType=None) -> list[Term]:
         r"""Terms of ``A(u)·Δu = -R(u)`` with ``A = coefK·K + coefC·C + coefM·M``.
 
-        The elastic tangent and internal force come as one ``"KR"`` term; the active fiber stress and the Kelvin–Voigt viscosity add their own; the mass matrix is a plain ``"M"`` whose residual :math:`-\Mrm_e \, \arm_t` the fold supplies. The ``R`` slot throughout: these operators return the **internal** force, which reaches the right-hand side negated.
+        The elastic, active fiber and Kelvin–Voigt stresses come as one ``"KRC"`` term, on one kinematics; the mass matrix is a plain ``"M"`` whose residual :math:`-\Mrm_e \, \arm_t` the fold supplies. The ``R`` slot: these operators return the **internal** force, which reaches the right-hand side negated.
         """
         if problemType is None:
             problemType = self.problemType
 
         _, v_t, _ = self.Get_u_v_a(problemType)
 
-        terms = [Term("KR", self.__Stress)]
-
-        if np.any(self.material.active_stress != 0.0):
-            terms.append(Term("KR", self.__ActiveStress))
-
-        if self.material.eta != 0 and v_t is not None:
-            terms.append(Term("KRC", self.__Viscosity, v_t=v_t))
+        terms = [Term("KRC", self.__Stress, v_t=v_t)]
 
         if self.algo in AlgoType.Get_Hyperbolic_Types():
             terms.append(
@@ -204,37 +198,42 @@ class HyperElastic(_Simu):
 
         return terms
 
-    def __Kinematics(self, groupElem: _GroupElem, u: _types.FloatArray) -> Kinematics:
-        """Hyperelastic kinematics of `groupElem` at `u`, guarded against an inverted element."""
-        u = self._Get_FunctionSpace().Get_nodeValues(u, self.dim)
-        kinematics = Kinematics(groupElem, u, self.matrixType)
-        assert kinematics.Compute_J().min() > 0, "det(F) < 0 - reduce load steps"
-        return kinematics
-
     def __Stress(
-        self, groupElem: _GroupElem, u: _types.FloatArray
-    ) -> tuple[np.ndarray, np.ndarray]:
-        """Elastic tangent and internal force at the time scheme's evaluation displacement `u`."""
-        return Operators.NonLinear.SecondPiolaKirchhoffStressTensor(
-            self.material, self.__Kinematics(groupElem, u)
+        self,
+        groupElem: _GroupElem,
+        u: _types.FloatArray,
+        v_t: _types.FloatArray | None,
+    ) -> tuple[np.ndarray, np.ndarray, np.ndarray | None]:
+        """Tangent, internal force and damping of the elastic, active and viscous stresses at the time scheme's evaluation displacement `u`, guarded against an inverted element."""
+        material = self.material
+        space = self._Get_FunctionSpace()
+        kinematics = Kinematics(
+            groupElem,
+            space.Get_nodeValues(u, self.dim),
+            self.matrixType,
         )
+        assert kinematics.Compute_J().min() > 0, "det(F) < 0 - reduce load steps"
 
-    def __ActiveStress(
-        self, groupElem: _GroupElem, u: _types.FloatArray
-    ) -> tuple[np.ndarray, np.ndarray]:
-        """Active fiber stress τ·(T̂⊗T̂): internal force + geometric tangent, no material tangent."""
-        return Operators.NonLinear.ActiveStressTensor(
-            self.material, self.__Kinematics(groupElem, u)
+        K_e, R_e = Operators.NonLinear.SecondPiolaKirchhoffStressTensor(
+            material, kinematics
         )
+        C_e = None
 
-    def __Viscosity(
-        self, groupElem: _GroupElem, u: _types.FloatArray, v_t: _types.FloatArray
-    ) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
-        """Kelvin–Voigt viscosity: configuration tangent, damping matrix, viscous residual."""
-        v_t = self._Get_FunctionSpace().Get_nodeValues(v_t, self.dim)
-        return Operators.NonLinear.KelvinVoigtDamping(
-            self.material, self.__Kinematics(groupElem, u), v_t
-        )
+        if np.any(material.active_stress != 0.0):
+            K_a, R_a = Operators.NonLinear.ActiveStressTensor(material, kinematics)
+            K_e += K_a
+            R_e += R_a
+
+        if material.eta != 0 and v_t is not None:
+            K_v, R_v, C_e = Operators.NonLinear.KelvinVoigtDamping(
+                material,
+                kinematics,
+                space.Get_nodeValues(v_t, self.dim),
+            )
+            K_e += K_v
+            R_e += R_v
+
+        return K_e, R_e, C_e
 
     # --------------------------------------------------------------------------
     # Iterations
