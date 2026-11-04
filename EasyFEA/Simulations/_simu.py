@@ -367,7 +367,9 @@ class _Simu(_IObserver, _params.Updatable, ABC):
         """
         return []
 
-    def _Construct_local_matrix_system(self, problemType) -> _LocalSystem:
+    def _Construct_local_matrix_system(
+        self, problemType: ProblemType | None
+    ) -> _LocalSystem:
         r"""Construct the local matrix system :math:`\Krm \, \mathrm{u} + \Crm \, \vrm + \Mrm \, \arm = \Frm` of the given problem's equation, returned per slot, per block and per contributing group of elements `{"K": {(rows, cols): {groupElem: K_e}}, "C": ..., "M": ..., "F": {rows: {groupElem: F_e}}}`; a term may fill the rows of another field of the monolithic problem.
 
         Folds :py:meth:`Get_terms` for this problem. Override it only for a simulation whose assembly is not expressible as a term list, in which case :py:meth:`Get_terms` returns ``[]``.
@@ -1072,24 +1074,9 @@ class _Simu(_IObserver, _params.Updatable, ABC):
         Ndof: int,
         isMatrix: bool = True,
     ) -> sparse.csr_matrix:
-        """Scatter per-block, per-group local element matrices/vectors into one global CSR.
+        """Scatter per-block, per-group local element matrices/vectors into one global CSR; scipy builds the pattern on the first assembly, a cached map then sums each later one with ``np.bincount`` (exact to round-off, not bit-identical).
 
-        A finite-element matrix has far more element-level entries than stored coefficients — each shared
-        node makes several element contributions land on the same ``(row, col)`` — so assembly is
-        fundamentally "sum every contribution into its slot". The element→DOF coordinates depend only on
-        connectivity, so across a Newton loop or time stepping they never change; only the values do. This
-        method exploits that: scipy builds and owns the sparsity pattern on the first assembly, and a small
-        precomputed map lets every later assembly do the summation with a single ``np.bincount``, skipping
-        scipy's repeated sort-and-sum-duplicates.
-
-        The map is cached per ``(layout, isMatrix, Ndof, contributing groups of each block)``. The contributing groups are
-        part of the key because a simulation may feed different group sets to different slots — in the
-        cardiac benchmark the surface group contributes to K, C and F but not to M, so K and M have
-        genuinely different patterns.
-
-        Reuse is exact to floating-point round-off (~1e-16 relative), not bit-identical to a fresh scipy
-        build, because ``bincount`` sums each slot's contributions in a different order than scipy's
-        coo->csr does.
+        The map's key holds the contributing groups of each block: a simulation may feed different groups to different slots (the cardiac surface group contributes to K, C and F, not M).
 
         Parameters
         ----------
@@ -2588,8 +2575,7 @@ class _Simu(_IObserver, _params.Updatable, ABC):
         # Build unknown and known dofs
         nDof = self.__Get_size(problemType)
         dofsKnown = np.asarray(
-            self.__Compose(problemType, self.Bc_dofs_Dirichlet, isDofs=True),
-            dtype=int,
+            self.__Compose(problemType, self.Bc_dofs_Dirichlet, isDofs=True), dtype=int
         )
         mask = np.ones(nDof, dtype=bool)
         mask[dofsKnown] = False  # handles duplicates implicitly
@@ -2705,7 +2691,7 @@ class _Simu(_IObserver, _params.Updatable, ABC):
         return values_eval
 
     @staticmethod
-    def __Bc_values_on(value, kept: _types.BoolArray):
+    def __Bc_values_on(value: Any, kept: _types.BoolArray) -> Any:
         """The values of a per-node array on the ``kept`` nodes (a function or a constant as is); another size raises."""
         if callable(value) or np.size(value) == 1:
             return value

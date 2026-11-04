@@ -538,7 +538,6 @@ class Beam(_Simu):
 
         # begin cases ----------------------------------------------------
 
-        # node values (Nn, dof_n) of the displacement, through the space
         dof_n = self.structure.dof_n
         space = self._Get_FunctionSpace()
         dofs = space.Nn * dof_n

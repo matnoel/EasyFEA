@@ -403,9 +403,7 @@ class PhaseField(_Simu):
         spaceU = self._Get_FunctionSpace(self.U)
         spaceD = self._Get_FunctionSpace(self.D)
         kinematics = Kinematics(
-            groupElem,
-            spaceU.Get_nodeValues(self.displacement, self.dim),
-            matrixType,
+            groupElem, spaceU.Get_nodeValues(self.displacement, self.dim), matrixType
         )
         c_e_pg = phaseFieldModel.Compute_C(
             kinematics, spaceD.Get_nodeValues(self.damage, 1)
@@ -449,9 +447,7 @@ class PhaseField(_Simu):
         # here the mass term is important otherwise we under-integrate
         space = self._Get_FunctionSpace(self.U)
         kinematics = Kinematics(
-            groupElem,
-            space.Get_nodeValues(u, self.dim),
-            MatrixType.mass,
+            groupElem, space.Get_nodeValues(u, self.dim), MatrixType.mass
         )
 
         # Compute the elastic energy densities.

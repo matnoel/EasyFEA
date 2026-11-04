@@ -110,12 +110,7 @@ def _laws_of_K() -> dict:
         "MooneyRivlin": lambda K_: MooneyRivlin(3, K1, K2, K_),
         "CiarletGeymonat": lambda K_: CiarletGeymonat(3, K1, K2, K_),
         "SaintVenantKirchhoff": lambda K_: SaintVenantKirchhoff(3, LMBDA, MU, K_),
-        "HolzapfelOgden": lambda K_: HolzapfelOgden(
-            3,
-            **{**HO, "K": K_},
-            T1=T1,
-            T2=T2,
-        ),
+        "HolzapfelOgden": lambda K_: HolzapfelOgden(3, **{**HO, "K": K_}, T1=T1, T2=T2),
     }
 
 
@@ -134,10 +129,10 @@ def test_HyperElastic_K_held_as_a_field_is_each_point_own_law(
             field = law(K_)
             for compute in ("Compute_W", "Compute_dWde", "Compute_d2Wde"):
                 with subtests.test(f"{name} {shape} {compute}"):
-                    actual = np.asarray(getattr(field, compute)(atPoints))
+                    actual = getattr(field, compute)(atPoints)
                     for e, pg in ((0, 0), (0, nPg - 1), (Ne - 1, 0)):
                         K_point = float(K_e_pg[e, pg] if K_ is K_e_pg else K_e[e])
-                        expected = np.asarray(getattr(law(K_point), compute)(atPoints))
+                        expected = getattr(law(K_point), compute)(atPoints)
                         assert np.array_equal(actual[e, pg], expected[e, pg])
 
 

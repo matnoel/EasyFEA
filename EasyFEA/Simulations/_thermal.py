@@ -186,7 +186,6 @@ class Thermal(_Simu):
 
         # begin cases ----------------------------------------------------
 
-        # node values (Nn,) of the temperature and its rate, through the space
         space = self._Get_FunctionSpace()
         t_n = space.Get_meshValues(self.thermal, 1).ravel()
         tDot_n = space.Get_meshValues(self.thermalDot, 1).ravel()

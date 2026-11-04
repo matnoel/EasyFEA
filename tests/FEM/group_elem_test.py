@@ -934,8 +934,7 @@ def test_GroupElem_Get_jacobian_e_pg_of_a_curved_line_or_face_is_its_metric(subt
                 expected = np.sqrt(1 + 4 * a**2 * xi_pg[:, 0] ** 2)
             else:
                 groupElem = _curved(
-                    elemType,
-                    lambda xi: np.column_stack([xi, c * (xi**2).sum(1)]),
+                    elemType, lambda xi: np.column_stack([xi, c * (xi**2).sum(1)])
                 )
                 xi_pg = groupElem.Get_gauss(MatrixType.rigi).coord
                 expected = np.sqrt(1 + 4 * c**2 * (xi_pg**2).sum(1))
@@ -943,7 +942,7 @@ def test_GroupElem_Get_jacobian_e_pg_of_a_curved_line_or_face_is_its_metric(subt
             jacobian_e_pg = groupElem.Get_jacobian_e_pg(MatrixType.rigi)
 
             assert groupElem.dim < groupElem.inDim
-            assert rel_error(np.asarray(jacobian_e_pg)[0], expected) < 1e-12
+            assert rel_error(jacobian_e_pg[0], expected) < 1e-12
 
 
 def test_GroupElem_Get_weightedJacobian_e_pg_of_a_circle_converges_at_order_four():
@@ -1084,7 +1083,7 @@ def test_GroupElem_Get_ddN_e_pg_differentiates_a_square_twice(subtests):
 
             ddN_e_pg = groupElem.Get_ddN_e_pg(MatrixType.mass)
 
-            values = np.asarray(ddN_e_pg) @ x_n**2
+            values = ddN_e_pg @ x_n**2
             expected = np.zeros(dim)
             expected[0] = 2
             expected = np.broadcast_to(expected, values.shape)
@@ -1105,7 +1104,7 @@ def test_GroupElem_Get_ddN_e_pg_differentiates_a_square_on_a_rotated_element(sub
 
             ddN_e_pg = groupElem.Get_ddN_e_pg(MatrixType.mass)
 
-            values = np.asarray(ddN_e_pg) @ x_n**2
+            values = ddN_e_pg @ x_n**2
             expected = np.zeros(dim)
             expected[0] = 2
             expected = np.broadcast_to(expected, values.shape)
@@ -1132,7 +1131,7 @@ def test_GroupElem_Get_ddN_e_pg_of_the_coordinates_vanishes_on_a_curved_element(
 
             ddN_e_pg = groupElem.Get_ddN_e_pg(MatrixType.mass)
 
-            values = np.asarray(ddN_e_pg) @ groupElem.coord[:, :dim]
+            values = ddN_e_pg @ groupElem.coord[:, :dim]
             assert np.abs(values).max() < 1e-10
 
 

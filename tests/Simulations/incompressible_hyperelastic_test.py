@@ -12,7 +12,7 @@ from scipy import linalg, sparse
 
 from EasyFEA import ElemType, Mesh, Models, Simulations
 from EasyFEA.FEM import GroupElemFactory, Kinematics, MatrixType, Operators
-from EasyFEA.Geoms import Domain
+from EasyFEA.Geoms import Domain, Points
 
 from _numerics import rel_error
 from ._simus import PRESSURE, incompressible
@@ -431,8 +431,8 @@ def test_IncompressibleHyperElastic_Save_Iter_stores_p_by_name(subtests, tmp_pat
         with subtests.test(folder=folder):
             simu = incompressible(_square(ElemType.TRI6))
             simu.folder = folder
-            _uniaxial_stretch(simu)
-            simu.Solve()
+            simu._Set_solutions(U, np.full(simu.displacement.size, 0.1))
+            simu._Set_solutions(PRESSURE, np.full(simu.pressure.size, 2.0))
             simu.Save_Iter()
             first_u, first_p = simu.displacement, simu.pressure
 
@@ -449,12 +449,17 @@ def test_IncompressibleHyperElastic_Save_Iter_stores_p_by_name(subtests, tmp_pat
 def test_IncompressibleHyperElastic_P2_on_TETRA4_is_the_straight_TETRA10_under_loads(
     subtests,
 ):
+    def prism(elemType: ElemType) -> Mesh:
+        """One triangular prism, 3 tetrahedra."""
+        contour = Points([(0, 0), (1, 0), (0, 1)], 2)
+        return contour.Mesh_Extrude([], [0, 0, 1], [1], elemType)
+
     def solved(mesh: Mesh, load) -> Simulations.IncompressibleHyperElastic:
         simu = incompressible(mesh)
-        nodesLeft = simu.mesh.Nodes_Conditions(lambda x, y, z: x == 0, problemType=U)
-        nodesRight = simu.mesh.Nodes_Conditions(lambda x, y, z: x == 1, problemType=U)
-        simu.add_dirichlet(nodesLeft, [0, 0, 0], ["x", "y", "z"])
-        load(simu, nodesRight)
+        nodesFixed = simu.mesh.Nodes_Conditions(lambda x, y, z: x == 0, problemType=U)
+        nodesLoaded = simu.mesh.Nodes_Conditions(lambda x, y, z: y == 0, problemType=U)
+        simu.add_dirichlet(nodesFixed, [0, 0, 0], ["x", "y", "z"])
+        load(simu, nodesLoaded)
         simu.Solve()
         return simu
 
@@ -463,8 +468,8 @@ def test_IncompressibleHyperElastic_P2_on_TETRA4_is_the_straight_TETRA10_under_l
         ("pressure", lambda simu, nodes: simu.add_pressureLoad(nodes, 0.05)),
     ):
         with subtests.test(name):
-            simu = solved(_cube(ElemType.TETRA4, 2)._With_FunctionSpace(U, 2), load)
-            iso = solved(_cube(ElemType.TETRA10, 2), load)
+            simu = solved(prism(ElemType.TETRA4)._With_FunctionSpace(U, 2), load)
+            iso = solved(prism(ElemType.TETRA10), load)
             coord = simu._Get_FunctionSpace(U).Get_mesh().coord
             rows = np.argmin(
                 np.linalg.norm(coord[:, None] - iso.mesh.coord, axis=2), axis=1
@@ -594,10 +599,7 @@ def _inf_sup(
             (nu, nu),
         )
         M = M + _scatter(
-            Operators.Bilinear.UV(pGroup),
-            assembly_p,
-            assembly_p,
-            (np_, np_),
+            Operators.Bilinear.UV(pGroup), assembly_p, assembly_p, (np_, np_)
         )
 
     free = np.flatnonzero(~np.repeat(isClamped(space_u.coord), dim))
@@ -758,7 +760,7 @@ def test_IncompressibleHyperElastic_Svm_of_a_pure_pressure_is_zero():
 
 @pytest.mark.mpi
 def test_IncompressibleHyperElastic_Solve_under_mpi_is_the_exact_stretch():
-    simu = incompressible(_square(ElemType.TRI6, 4), K_LAW)
+    simu = incompressible(_square(ElemType.QUAD9), K_LAW)
     mesh = simu.mesh
     nodesLeft = mesh.Nodes_Conditions(lambda x, y, z: x == 0)
     nodesBottom = mesh.Nodes_Conditions(lambda x, y, z: y == 0)

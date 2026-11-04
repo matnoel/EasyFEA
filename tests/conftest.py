@@ -12,7 +12,7 @@ import numpy as np
 
 from EasyFEA import ElemType, Mesh
 from EasyFEA.Utilities import MPI_SIZE
-from EasyFEA.Geoms import Points, Point, Circle, Line
+from EasyFEA.Geoms import Domain, Points, Point, Circle, Line
 
 # no figure window: matplotlib and pyvista read these on first use
 os.environ["MPLBACKEND"] = "Agg"
@@ -87,6 +87,23 @@ def _unit_square(
 def unit_square() -> MakeMesh2D:
     """Factory: the square [x0, x0 + 1] × [0, 1], an organised QUAD4 mesh by default."""
     return _unit_square
+
+
+def _unit_box(elemType: ElemType, z0: float = 0.0) -> Mesh:
+    contour = Domain((0, 0, z0), (1, 1, z0), 0.5)
+    return contour.Mesh_Extrude(
+        [],
+        (0, 0, 1),
+        [2],
+        elemType,
+        isOrganised=True,
+    )
+
+
+@pytest.fixture(scope="session")
+def unit_box() -> MakeMesh3D:
+    """Factory: the box [0, 1]² × [z0, z0 + 1] of 2 × 2 × 2 cells, one interior node."""
+    return _unit_box
 
 
 @pytest.fixture

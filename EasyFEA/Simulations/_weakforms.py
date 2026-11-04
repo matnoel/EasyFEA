@@ -272,7 +272,6 @@ class WeakForms(_Simu):
 
         # begin cases ----------------------------------------------------
 
-        # node values (Nn, dof_n) of u, v and a, through the space
         space = self._Get_FunctionSpace()
         dof_n = self.Get_dof_n()
         u_n = space.Get_meshValues(self.u, dof_n)

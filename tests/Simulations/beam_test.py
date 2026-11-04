@@ -408,7 +408,13 @@ def test_Beam_accepts_a_beam_or_a_list_of_beams():
 
 def test_Beam_rejects_a_non_isoparametric_space():
     line = Line((0, 0), (L_EB, 0), L_EB / 10)
-    beam = Models.Beam.Isotropic(2, line, _section(), E, v)
+    beam = Models.Beam.Isotropic(
+        2,
+        line,
+        _section(),
+        E,
+        v,
+    )
     mesh = Mesher().Mesh_Beams([beam], ElemType.SEG2)
     meshP2 = mesh._With_FunctionSpace(Simulations.Beam.U, 2)
 

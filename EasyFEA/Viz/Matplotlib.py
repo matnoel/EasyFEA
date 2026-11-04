@@ -1195,7 +1195,13 @@ def Plot_BoundaryConditions(
         else:
             factor = simu.mesh._Get_realistic_vector_magnitude(0.1)
             arrows = vector * factor
-            tails = _Get_arrow_tails(simu, bc, nodes, points, arrows)
+            tails = _Get_arrow_tails(
+                simu,
+                bc,
+                nodes,
+                points,
+                arrows,
+            )
         # no points: the legend's entry, whose color the arrows take
         (line,) = ax.plot(
             *np.empty((0, plotDim)).T,

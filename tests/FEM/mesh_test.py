@@ -19,8 +19,7 @@ from EasyFEA.FEM import (
     Mesh_Optim,
 )
 from EasyFEA.Geoms import Points, Circle, Domain, Line, Rotate
-from EasyFEA.Utilities import _IObserver, Observable
-from EasyFEA.Utilities._mpi import Concatenate_array
+from EasyFEA.Utilities import _IObserver, Allgather, Observable
 
 from _numerics import rel_error
 
@@ -777,20 +776,8 @@ def test_Mesh_Merge_tags_follow_the_kept_duplicates(unit_square, subtests):
 ELASTIC = Simulations.Elastic.problemType
 
 
-def _box(elemType: ElemType, z0: float = 0.0) -> Mesh:
-    """Unit box of 2 × 2 × 2 cells from z0."""
-    contour = Domain((0, 0, z0), (1, 1, z0), 0.5)
-    return contour.Mesh_Extrude(
-        [],
-        (0, 0, 1),
-        [2],
-        elemType,
-        isOrganised=True,
-    )
-
-
-def _tets_under_prisms(tetra: ElemType, prism: ElemType) -> Mesh:
-    return Mesh.Merge([_box(tetra), _box(prism, 1.0)])
+def _tets_under_prisms(unit_box, tetra: ElemType, prism: ElemType) -> Mesh:
+    return Mesh.Merge([unit_box(tetra), unit_box(prism, 1.0)])
 
 
 def _quads_beside_tris(quad: ElemType, tri: ElemType) -> Mesh:
@@ -816,8 +803,8 @@ def _assert_same_numbering(mesh: Mesh, other: Mesh) -> None:
         )
 
 
-def test_Mesh__With_FunctionSpace_returns_a_new_mesh_leaving_the_original():
-    mesh = _box(ElemType.TETRA4)
+def test_Mesh__With_FunctionSpace_returns_a_new_mesh_leaving_the_original(unit_box):
+    mesh = unit_box(ElemType.TETRA4)
     simu = _elastic(mesh)
     space = mesh._Get_FunctionSpace(ELASTIC)
     K = simu.Get_K_C_M_F()[0]
@@ -827,22 +814,23 @@ def test_Mesh__With_FunctionSpace_returns_a_new_mesh_leaving_the_original():
 
     assert meshP2 is not mesh and meshP2.observers == []
     assert mesh._Get_FunctionSpace(ELASTIC) is space and space.Nn == mesh.Nn
-    assert np.array_equal(mesh.coord, _box(ElemType.TETRA4).coord)
+    assert np.array_equal(mesh.coord, unit_box(ElemType.TETRA4).coord)
     simu.Need_Update()
     assert simu.mesh is mesh and (simu.Get_K_C_M_F()[0] != K).nnz == 0
 
 
 def test_Mesh__With_FunctionSpace_is_the_complete_partner_of_each_group(
+    unit_box,
     subtests,
 ):
     """Its points are those of the mesh of that order, one at each place in every element: one per node, interface edge and face included."""
     cases = {
         "TETRA4+PRISM6": (
-            _tets_under_prisms(ElemType.TETRA4, ElemType.PRISM6),
-            _tets_under_prisms(ElemType.TETRA10, ElemType.PRISM18),
+            _tets_under_prisms(unit_box, ElemType.TETRA4, ElemType.PRISM6),
+            _tets_under_prisms(unit_box, ElemType.TETRA10, ElemType.PRISM18),
             2,
         ),
-        "HEXA8": (_box(ElemType.HEXA8), _box(ElemType.HEXA27), 2),
+        "HEXA8": (unit_box(ElemType.HEXA8), unit_box(ElemType.HEXA27), 2),
         "QUAD4+TRI3": (
             _quads_beside_tris(ElemType.QUAD4, ElemType.TRI3),
             _quads_beside_tris(ElemType.QUAD9, ElemType.TRI6),
@@ -885,12 +873,12 @@ def test_Mesh__With_FunctionSpace_is_the_complete_partner_of_each_group(
             )
 
 
-def test_Mesh__With_FunctionSpace_keeps_the_geometry_nodes_it_holds(subtests):
+def test_Mesh__With_FunctionSpace_keeps_the_geometry_nodes_it_holds(unit_box, subtests):
     """A partner node at a geometry node's place is that node: QUAD8, 2 appends the centres only; TETRA10, 1 keeps the vertices only."""
     quad8 = _grid(ElemType.QUAD8)
     cases = {
         "QUAD8, 2": (quad8, 2, quad8.Nn + quad8.Ne),
-        "TETRA10, 1": (_box(ElemType.TETRA10), 1, _box(ElemType.TETRA4).Nn),
+        "TETRA10, 1": (unit_box(ElemType.TETRA10), 1, unit_box(ElemType.TETRA4).Nn),
     }
     for name, (mesh, order, Nn) in cases.items():
         with subtests.test(mesh=name):
@@ -904,8 +892,8 @@ def test_Mesh__With_FunctionSpace_keeps_the_geometry_nodes_it_holds(subtests):
                 assert np.array_equal(connect[:, :n], groupElem.connect[:, :n])
 
 
-def test_Mesh__With_FunctionSpace_raises_on_an_order_it_cannot_build():
-    tetra = _box(ElemType.TETRA4)
+def test_Mesh__With_FunctionSpace_raises_on_an_order_it_cannot_build(unit_box):
+    tetra = unit_box(ElemType.TETRA4)
 
     with pytest.raises(ValueError, match="order 3"):
         tetra._With_FunctionSpace(ELASTIC, 3)
@@ -913,10 +901,10 @@ def test_Mesh__With_FunctionSpace_raises_on_an_order_it_cannot_build():
         tetra._With_FunctionSpace(ELASTIC, 0)
 
 
-def test_Mesh__With_FunctionSpace_P2_on_TETRA4_numbers_as_a_straight_TETRA10():
+def test_Mesh__With_FunctionSpace_P2_on_TETRA4_numbers_as_a_straight_TETRA10(unit_box):
     """Same DOFs per element once each point is relabelled to the TETRA10 node at its place; the nodes first, then the appended points Nn + k."""
-    mesh = _box(ElemType.TETRA4)
-    tetra10 = _box(ElemType.TETRA10)
+    mesh = unit_box(ElemType.TETRA4)
+    tetra10 = unit_box(ElemType.TETRA10)
     meshP2 = mesh._With_FunctionSpace(ELASTIC, 2)
     space = meshP2._Get_FunctionSpace(ELASTIC)
     groupElem = meshP2.groupElem
@@ -944,11 +932,11 @@ def test_Mesh__With_FunctionSpace_P2_on_TETRA4_numbers_as_a_straight_TETRA10():
 
 
 def test_Mesh__With_FunctionSpace_choice_survives_Save_Load_Mesh_and_a_mesh_swap(
-    tmp_path, subtests
+    unit_box, tmp_path, subtests
 ):
-    meshP2 = _tets_under_prisms(ElemType.TETRA4, ElemType.PRISM6)._With_FunctionSpace(
-        ELASTIC, 2
-    )
+    meshP2 = _tets_under_prisms(
+        unit_box, ElemType.TETRA4, ElemType.PRISM6
+    )._With_FunctionSpace(ELASTIC, 2)
 
     with subtests.test("Load_Mesh"):
         loaded = Load_Mesh(meshP2.Save(str(tmp_path), "meshP2"))
@@ -959,7 +947,7 @@ def test_Mesh__With_FunctionSpace_choice_survives_Save_Load_Mesh_and_a_mesh_swap
         simu = _elastic(meshP2)
         simu.folder = str(tmp_path / "run")
         simu.Save_Iter()
-        simu.mesh = _box(ElemType.TETRA4)
+        simu.mesh = unit_box(ElemType.TETRA4)
         simu.Save_Iter()
         simu.Save(simu.folder)
 
@@ -970,7 +958,7 @@ def test_Mesh__With_FunctionSpace_choice_survives_Save_Load_Mesh_and_a_mesh_swap
         assert reloaded.displacement.size == simu.Get_results(0)["displacement"].size
 
 
-def test_Mesh_coordinate_changes_leave_the_numbering(subtests):
+def test_Mesh_coordinate_changes_leave_the_numbering(unit_box, subtests):
     changes = {
         "Translate": lambda mesh: mesh.Translate(1.0, 2.0),
         "Rotate": lambda mesh: mesh.Rotate(30.0),
@@ -979,7 +967,7 @@ def test_Mesh_coordinate_changes_leave_the_numbering(subtests):
     }
     for name, change in changes.items():
         with subtests.test(change=name):
-            meshP2 = _box(ElemType.TETRA4)._With_FunctionSpace(ELASTIC, 2)
+            meshP2 = unit_box(ElemType.TETRA4)._With_FunctionSpace(ELASTIC, 2)
             space = meshP2._Get_FunctionSpace(ELASTIC)
             before = meshP2.copy()
 
@@ -990,10 +978,11 @@ def test_Mesh_coordinate_changes_leave_the_numbering(subtests):
 
 
 def test_Mesh__Get_FunctionSpace_rule_samples_the_geometry_where_the_field_integrates(
+    unit_box,
     subtests,
 ):
     """P2 on TETRA4 + PRISM6 integrates rigi on TETRA10 + PRISM18: data sampled on the geometry at the space's rule lands on those points."""
-    mesh = _tets_under_prisms(ElemType.TETRA4, ElemType.PRISM6)
+    mesh = _tets_under_prisms(unit_box, ElemType.TETRA4, ElemType.PRISM6)
     for order in (1, 2):
         meshPk = mesh._With_FunctionSpace(ELASTIC, order)
         space = meshPk._Get_FunctionSpace(ELASTIC)
@@ -1039,8 +1028,8 @@ def test_Mesh__Get_FunctionSpace_Get_dof_nodes_skips_the_nodes_without_a_DOF(sub
     assert simu.Bc_dofs_Dirichlet(ELASTIC).size == 4
 
 
-def test_Mesh_simulations_on_one_mesh_share_its_space():
-    meshP2 = _box(ElemType.TETRA4)._With_FunctionSpace(ELASTIC, 2)
+def test_Mesh_simulations_on_one_mesh_share_its_space(unit_box):
+    meshP2 = unit_box(ElemType.TETRA4)._With_FunctionSpace(ELASTIC, 2)
 
     first, second = _elastic(meshP2), _elastic(meshP2)
 
@@ -1230,7 +1219,7 @@ def _held(space, nodes: np.ndarray) -> set[tuple]:
 def _assert_all_ranks_hold(space, nodes: np.ndarray, expected: np.ndarray) -> None:
     """Every rank holds the ``expected`` coordinates; agreed across ranks first, so that one rank failing does not leave the others waiting."""
     gap = _held(space, nodes) ^ {tuple(row) for row in np.round(expected, 9).tolist()}
-    assert Concatenate_array(np.array([len(gap)])).max() == 0
+    assert max(Allgather(len(gap))) == 0
 
 
 @pytest.mark.mpi
@@ -1245,7 +1234,7 @@ def test_Mesh_Nodes_Tags_problemType_under_mpi_holds_the_nodes_of_this_rank():
         nodes = mesh.Nodes_Tags(tag, problemType=ELASTIC)
         # the plane the tag lies in, from every rank's nodes it holds
         held = nodes[np.isin(nodes, space.localNodes)]
-        coord = Concatenate_array(space.coord[held].ravel()).reshape(-1, 3)
+        coord = np.concatenate(Allgather(space.coord[held]))
         axis = int(np.argmin(np.ptp(coord, axis=0)))
         expected = local[local[:, axis] == coord[0, axis]]
         _assert_all_ranks_hold(space, nodes, expected)

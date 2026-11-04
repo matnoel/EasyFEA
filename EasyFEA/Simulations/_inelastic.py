@@ -305,7 +305,6 @@ class InElastic(_Simu):
         if not self._Results_Check_Available(result):
             return None  # type: ignore[return-value]
 
-        # node values of the displacement (Nn, dim), through the space
         u_n = self._Get_FunctionSpace().Get_meshValues(self.displacement, self.dim)
 
         if result in ["ux", "uy", "uz"]:

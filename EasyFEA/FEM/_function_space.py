@@ -5,7 +5,7 @@
 """Function space module.\n
 The nodes a scalar field lives on, and their DOFs ``node * dof_n + d``."""
 
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Iterable
 
 import numpy as np
 
@@ -190,7 +190,7 @@ class _FunctionSpace:
                     )
 
     @staticmethod
-    def __Is_partitioned(groups) -> bool:
+    def __Is_partitioned(groups: Iterable["_GroupElem"]) -> bool:
         """Whether a mesh's groups are numbered by all its ranks together, each holding the serial ids; a gathered one (rank partition set by `_Gather`, on rank 0 alone) by itself."""
         return MPI_SIZE > 1 and all(
             groupElem._rankPartition is None for groupElem in groups
@@ -451,10 +451,7 @@ class _FunctionSpace:
         main = [partners[g].nodes for g in mesh.Get_list_groupElem()]
         localNodes = np.unique(np.concatenate(main))
         space = _FunctionSpace(
-            spaceNodes,
-            spaceNodes[isMine[spaceNodes]],
-            localNodes,
-            partners,
+            spaceNodes, spaceNodes[isMine[spaceNodes]], localNodes, partners
         )
         space._Update_coord()
         space._Update_tags()

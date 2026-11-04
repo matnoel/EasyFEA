@@ -238,7 +238,6 @@ class Elastic(_Simu):
 
         # begin cases ----------------------------------------------------
 
-        # node values (Nn, dim) of the displacement, speed and acceleration, through the space
         space = self._Get_FunctionSpace()
         u_n = space.Get_meshValues(self.displacement, self.dim)
         v_n = space.Get_meshValues(self.speed, self.dim)

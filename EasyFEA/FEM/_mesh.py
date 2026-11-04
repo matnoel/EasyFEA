@@ -1015,7 +1015,6 @@ class Mesh(Observable):
     ) -> _types.FloatArray:
         """Values (Ncoordinates, dof_n) at ``coordinates_n`` (Ncoordinates, 3) of the DOF vector ``dofsValues`` (Nn*dof_n,) of ``problemType``'s space (None: isoparametric, (Nn*dof_n,)), located in the geometry, evaluated with the space's shape functions; zero rows outside the elements."""
 
-        # the space of the field, None when isoparametric
         space = None if problemType is None else self._Get_FunctionSpace(problemType)
         Nn = self.Nn if space is None else space.Nn
         assert (

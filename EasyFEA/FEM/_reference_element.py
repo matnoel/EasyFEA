@@ -20,9 +20,6 @@ from ..Utilities._cache import cache_computed_values
 class _ReferenceElement(ABC):
     """The `_ReferenceElement` base class, from which every element type inherits; one instance per `ElemType`, from `GroupElemFactory._Get_reference_element`."""
 
-    mapKind = "identity"
-    """how the basis maps to an element: H1 identity (covariant J⁻ᵀ for H(curl), contravariant J/det J for H(div) are not built)"""
-
     _reducedOrders: dict[MatrixType, int] = {}
     """integration orders below the matrix type's rule, kept from the former rule table"""
 
@@ -64,7 +61,7 @@ class _ReferenceElement(ABC):
     @property
     def topology(self) -> str:
         """element topology"""
-        return "".join(char for char in self.__elemType if not char.isdigit())
+        return self.__elemType.topology
 
     @property
     def nPe(self) -> int:
@@ -222,22 +219,7 @@ class _ReferenceElement(ABC):
     def _Eval_Functions(
         functions: _types.FloatArray, gaussPoints: _types.FloatArray
     ) -> _types.FloatArray:
-        """Evaluates functions at coordinates.\n
-        Use this function to evaluate shape functions.
-
-        Parameters
-        ----------
-        functions : _types.FloatArray
-            functions to evaluate, (nPe, dim)
-        gaussPoints : _types.FloatArray
-            gauss coordinates where functions will be evaluated (nPg, dim).\n
-            Be careful dim must be consistent with function arguments
-
-        Returns
-        -------
-        _types.FloatArray
-            Evaluated functions (nPg, dim, nPe)
-        """
+        """Evaluates ``functions`` (nPe, dim) at ``gaussPoints`` (nPg, dim), giving (nPg, dim, nPe)."""
 
         nPg = gaussPoints.shape[0]
         nPe = functions.shape[0]

@@ -526,7 +526,10 @@ def test_Plot_BoundaryConditions_draws_the_nodes_a_space_adds():
     nodesRight = mesh.Nodes_Conditions(lambda x, y, z: x == 1, problemType=U)
     simu.add_dirichlet(nodesLeft, [0.1, 0], ["x", "y"])
     simu.add_dirichlet(nodesRight, [0, 0], ["x", "y"])
-    simu.Solve()
+    space = mesh._Get_FunctionSpace(U)
+    u_n = np.zeros((space.Nn, 2))
+    u_n[:, 0] = 0.1 * (1 - space.coord[:, 0])
+    simu._Set_solutions(U, u_n.ravel())
 
     ax = Matplotlib.Plot_BoundaryConditions(simu)
     (ends,) = _arrow_ends(ax)

@@ -175,8 +175,6 @@ class _HyperElastic(_IModel, ABC):
 
 class NeoHookean(_HyperElastic):
 
-    _volumetricParameters = ()
-
     K: float | _types.FloatArray = _params.PositiveParameter()
     """Shear coefficient"""
 
@@ -995,8 +993,6 @@ class AutoDiff(_HyperElastic):
 
     An opaque ``W`` declares no bulk term, so an incompressible simulation cannot check it: write ``W`` without one.
     """
-
-    _volumetricParameters = ()
 
     def __init__(
         self,

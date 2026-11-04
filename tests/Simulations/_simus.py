@@ -71,7 +71,13 @@ def coupled_phasefield(
     if mesh is None:
         domain = Domain((0, 0), (1, 1), 0.5)
         mesh = domain.Mesh_2D([], ElemType.TRI3)
-    pfm = Models.PhaseField(Models.Elastic.Isotropic(2), "He", "AT1", 1, 0.01)
+    pfm = Models.PhaseField(
+        Models.Elastic.Isotropic(2),
+        "He",
+        "AT1",
+        1,
+        0.01,
+    )
     return Coupled(mesh, pfm)
 
 

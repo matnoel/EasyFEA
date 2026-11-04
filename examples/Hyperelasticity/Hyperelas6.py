@@ -80,6 +80,18 @@ if __name__ == "__main__":
     print(simu)
 
     PyVista.Plot_BoundaryConditions(simu).show()
-    PyVista.Plot(simu, "p", 1, plotMesh=True, nodeValues=False).show()
-    PyVista.Plot(simu, "J", 1, plotMesh=True, nodeValues=True).show()
+    PyVista.Plot(
+        simu,
+        "p",
+        1,
+        plotMesh=True,
+        nodeValues=False,
+    ).show()
+    PyVista.Plot(
+        simu,
+        "J",
+        1,
+        plotMesh=True,
+        nodeValues=True,
+    ).show()
     PyVista.Plot(simu, "uy", 1, plotMesh=True).show()

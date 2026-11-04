@@ -348,18 +348,6 @@ G = np.array([[1e-3, 2e-3, 0.0], [0.0, -1e-3, 3e-3], [1e-3, 0.0, 2e-3]])
 """An affine displacement u = G x for the patch tests."""
 
 
-def _box(elemType: ElemType) -> Mesh:
-    """Unit box of 2 × 2 × 2 cells: one interior node."""
-    contour = Domain((0, 0, 0), (1, 1, 0), 0.5)
-    return contour.Mesh_Extrude(
-        [],
-        (0, 0, 1),
-        [2],
-        elemType,
-        isOrganised=True,
-    )
-
-
 def _cylinder(elemType: ElemType) -> Mesh:
     """Unit radius, height 0.5: curved sides on a quadratic geometry."""
     circle = Circle((0, 0), 2.0, 0.6)
@@ -405,9 +393,9 @@ def _on_cylinder(x, y, z):
     return np.isclose(np.hypot(x, y), 1.0, atol=1e-8) | (z == 0) | (z == 0.5)
 
 
-def test_Elastic_P2_on_TETRA4_is_the_straight_TETRA10():
-    simu = _stretched(_box(ElemType.TETRA4)._With_FunctionSpace(ELASTIC, 2))
-    iso = _stretched(_box(ElemType.TETRA10))
+def test_Elastic_P2_on_TETRA4_is_the_straight_TETRA10(unit_box):
+    simu = _stretched(unit_box(ElemType.TETRA4)._With_FunctionSpace(ELASTIC, 2))
+    iso = _stretched(unit_box(ElemType.TETRA10))
     dofs = _dofs_at(simu, iso)
 
     K, K_iso = simu.Get_K_C_M_F()[0], iso.Get_K_C_M_F()[0][dofs][:, dofs]
@@ -417,9 +405,9 @@ def test_Elastic_P2_on_TETRA4_is_the_straight_TETRA10():
     assert rel_error(Svm, iso.Result("Svm", nodeValues=False)) < 1e-12
 
 
-def test_Elastic_P1_on_a_straight_TETRA10_is_the_TETRA4():
-    simu = _stretched(_box(ElemType.TETRA10)._With_FunctionSpace(ELASTIC, 1))
-    iso = _stretched(_box(ElemType.TETRA4))
+def test_Elastic_P1_on_a_straight_TETRA10_is_the_TETRA4(unit_box):
+    simu = _stretched(unit_box(ElemType.TETRA10)._With_FunctionSpace(ELASTIC, 1))
+    iso = _stretched(unit_box(ElemType.TETRA4))
     dofs = _dofs_at(simu, iso)
 
     K, K_iso = simu.Get_K_C_M_F()[0], iso.Get_K_C_M_F()[0][dofs][:, dofs]
@@ -428,12 +416,12 @@ def test_Elastic_P1_on_a_straight_TETRA10_is_the_TETRA4():
     assert np.array_equal(K.toarray(), K_iso.toarray())
 
 
-def test_Elastic_patch_test_holds_iso_and_P2_on_TETRA4(subtests):
+def test_Elastic_patch_test_holds_iso_and_P2_on_TETRA4(unit_box, subtests):
     for name, mesh, isBoundary in [
-        ("TETRA4", _box(ElemType.TETRA4), _on_box),
+        ("TETRA4", unit_box(ElemType.TETRA4), _on_box),
         (
             "P2 on TETRA4",
-            _box(ElemType.TETRA4)._With_FunctionSpace(ELASTIC, 2),
+            unit_box(ElemType.TETRA4)._With_FunctionSpace(ELASTIC, 2),
             _on_box,
         ),
         ("curved TETRA10", _cylinder(ElemType.TETRA10), _on_cylinder),

@@ -72,15 +72,7 @@ def __add_geometric_tangent(
     kinematics: "Kinematics",
     dWde_e_pg: FeArray.FeArrayALike,
 ) -> None:
-    r"""Adds the geometric (initial-stress) tangent ``∫ gradᵀ · Sig · grad dΩ`` to `K_e`, in place.
-
-    Exploits the block structure ``Sig = I_dim ⊗ dWde``: with ``dWde`` the ``dim×dim`` PK2 (from the Kelvin-Mandel vector) and ``dN`` the cartesian shape-function gradients, the dense ``gradᵀ·Sig·grad`` collapses to a block-diagonal Kronecker product::
-
-        g   = ∫ dNᵀ · dWde · dN dΩ            (Ne, nPe, nPe)
-        Kgeo = g ⊗ I_dim                     (Ne, dim·nPe, dim·nPe)
-
-    i.e. ``Kgeo[a·dim+j, b·dim+k] = δ_{jk} · g[a,b]``. This avoids building the dense ``(Ne, nPg, dim², dim²)`` ``Sig`` and the ``dim²``-wide contraction.
-    """
+    r"""Adds the geometric tangent ``∫ gradᵀ · Sig · grad dΩ`` to `K_e` in place, block-diagonal since ``Sig = I_dim ⊗ dWde``."""
     groupElem = kinematics.groupElem
     dim = groupElem.dim
     sig_e_pg = Vector_to_Matrix(dWde_e_pg)  # (Ne, nPg, dim, dim)

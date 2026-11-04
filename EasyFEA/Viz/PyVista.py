@@ -800,7 +800,13 @@ def Plot_BoundaryConditions(
                 vectorRot = np.mean(vectorRot, 0)
                 tails = start - vector * factor
             else:
-                tails = _Get_arrow_tails(simu, bc, nodes, start, vector * factor)
+                tails = _Get_arrow_tails(
+                    simu,
+                    bc,
+                    nodes,
+                    start,
+                    vector * factor,
+                )
 
             # plot vector
             if not isVector:

@@ -1295,9 +1295,9 @@ def test_Simu_Get_dofs_are_every_dof_in_serial():
 
 
 def _incompressible_square() -> Simulations.HyperElastic:
-    """u/p on a 4×4 organised TRI6 unit square."""
-    contour = Domain((0, 0), (1, 1), 0.25)
-    mesh = contour.Mesh_2D([], ElemType.TRI6, isOrganised=True)
+    """u/p on a 2×2 organised QUAD9 unit square."""
+    contour = Domain((0, 0), (1, 1), 0.5)
+    mesh = contour.Mesh_2D([], ElemType.QUAD9, isOrganised=True)
     return incompressible(mesh)
 
 

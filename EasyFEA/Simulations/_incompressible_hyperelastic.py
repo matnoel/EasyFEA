@@ -3,7 +3,7 @@
 # This file is part of the EasyFEA project.
 # EasyFEA is distributed under the terms of the GNU General Public License v3, see LICENSE.txt and CREDITS.md for more information
 
-from typing import TYPE_CHECKING
+from typing import Any
 
 import numpy as np
 from scipy import sparse
@@ -18,14 +18,12 @@ from ..FEM import (
     _GroupElem,
 )
 from ..FEM._kelvin_mandel import Tensor_to_Kelvin
+from ..Models.HyperElastic._laws import _HyperElastic
 from ..Utilities import _types
 from ._problem_type import ProblemType
 from ._simu import _Simu
 from ._terms import Term
 from ._utils import Result_strain_or_stress_field_e, _Field_per_groupElem
-
-if TYPE_CHECKING:
-    from ..Models.HyperElastic._laws import _HyperElastic
 
 
 class IncompressibleHyperElastic(_Simu):
@@ -52,7 +50,7 @@ class IncompressibleHyperElastic(_Simu):
     def __init__(
         self,
         mesh: Mesh,
-        model: "_HyperElastic",
+        model: _HyperElastic,
         folder: str = "",
         absTol: float = 1e-6,
         relTol: float = 1e-10,
@@ -61,6 +59,8 @@ class IncompressibleHyperElastic(_Simu):
         verbosity: bool = False,
     ):
         """Creates an incompressible simulation; ``matrixType`` defaults to ``MatrixType.mass``, ``rigi`` integrating the coupling too low on curved tetrahedra to keep the constant p a mode."""
+        if not isinstance(model, _HyperElastic):
+            raise TypeError("model must be a hyperelastic law.")
         for name in model._volumetricParameters:
             if np.any(getattr(model, name) != 0):
                 raise ValueError(
@@ -123,12 +123,12 @@ class IncompressibleHyperElastic(_Simu):
     def _Get_monolithic_problems(self) -> list[tuple[ProblemType, ...]]:
         return [(self.U, self.P)]
 
-    def Get_unknowns(self, problemType=None) -> list[str]:
+    def Get_unknowns(self, problemType: ProblemType | None = None) -> list[str]:
         if problemType == self.P:
             return ["p"]
         return ["x", "y", "z"][: self.dim]
 
-    def Get_dof_n(self, problemType=None) -> int:
+    def Get_dof_n(self, problemType: ProblemType | None = None) -> int:
         return 1 if problemType == self.P else self.dim
 
     @property
@@ -142,7 +142,7 @@ class IncompressibleHyperElastic(_Simu):
         self.Need_Update()
 
     @property
-    def material(self) -> "_HyperElastic":
+    def material(self) -> _HyperElastic:
         """hyperelastic material"""
         return self.model  # type: ignore [return-value]
 
@@ -158,11 +158,11 @@ class IncompressibleHyperElastic(_Simu):
 
     def add_dirichlet(
         self,
-        nodes,
-        values,
-        unknowns,
-        problemType=None,
-        description="",
+        nodes: _types.IntArray,
+        values: list,
+        unknowns: list[str],
+        problemType: ProblemType | None = None,
+        description: str = "",
     ) -> None:
         if problemType == self.P or "p" in unknowns:
             raise ValueError("p is computed: apply a load or a displacement.")
@@ -178,7 +178,7 @@ class IncompressibleHyperElastic(_Simu):
     # Solve
     # --------------------------------------------------------------------------
 
-    def Get_x0(self, problemType=None):
+    def Get_x0(self, problemType: ProblemType | None = None) -> _types.FloatArray:
         return self.pressure if problemType == self.P else self.displacement
 
     def Assembly(
@@ -192,7 +192,7 @@ class IncompressibleHyperElastic(_Simu):
             raise ValueError(f"{p}'s equation couples to {u}: assemble ({p}, {u}).")
         return super().Assembly(problemType)
 
-    def Get_terms(self, problemType=None) -> list[Term]:
+    def Get_terms(self, problemType: ProblemType | None = None) -> list[Term]:
         u, p = self.U, self.P
         # the constraint's term carries p's equation too
         if problemType == p:
@@ -253,13 +253,13 @@ class IncompressibleHyperElastic(_Simu):
     def _Get_dof_names(self) -> dict[str, ProblemType]:
         return {"displacement": self.U, "pressure": self.P}
 
-    def Save_Iter(self, iter=None):
+    def Save_Iter(self, iter: dict[str, Any] | None = None) -> None:
         iter = {} if iter is None else iter
         iter["displacement"] = self.displacement
         iter["pressure"] = self.pressure
         return super().Save_Iter(iter)
 
-    def Set_Iter(self, iter=-1, resetAll=False):
+    def Set_Iter(self, iter: int = -1, resetAll: bool = False) -> dict:
         results = super().Set_Iter(iter, resetAll)
         if results is not None:
             self._Set_solutions(self.U, results["displacement"])
@@ -419,6 +419,8 @@ class IncompressibleHyperElastic(_Simu):
         matrix[:, : self.dim] = values
         return matrix
 
-    def Results_nodeFields_elementFields(self, details=False):
+    def Results_nodeFields_elementFields(
+        self, details: bool = False
+    ) -> tuple[list[str], list[str]]:
         elementsField = ["Green-Lagrange"] if details else []
         return ["displacement", "p"], [*elementsField, "Piola-Kirchhoff"]
