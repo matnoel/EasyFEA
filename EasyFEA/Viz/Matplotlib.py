@@ -13,10 +13,12 @@ import re
 from ..Utilities import Folder, Tic, _types
 from ..Utilities._mpi import rank0_only
 from ..Utilities.Terminal import MyPrint, MyPrintError
-from ..IO._utils import _Init_obj, _Get_values
+from ..IO._utils import _Init_obj, _Get_values, _Get_space_coord
 from ._utils import tab10_colors as tab10_colors  # public
 from ._utils import tab20_colors as tab20_colors  # public
 from ._utils import (
+    _Get_arrow_tails,
+    _Get_bc_vectors,
     PlotOptions,
     _Flatten_geoms,
     _Check_kwargs,
@@ -1053,7 +1055,7 @@ def Plot_BoundaryConditions(
     bounds: _types.Numbers | None = None,
     ax: Axes | None = None,
 ) -> Axes:
-    """Plots simulation's boundary conditions.
+    """Plots simulation's boundary conditions: for a non-zero value, scaled by the largest, an arrow outside the material, starting on the node when it points out of it and ending there otherwise; a marker for a zero value.
 
     Parameters
     ----------
@@ -1125,8 +1127,10 @@ def Plot_BoundaryConditions(
         dofsValues = bc.dofsValues
         unknowns = bc.unknowns
         nDir = len(unknowns)
-        # the geometry nodes: a non-isoparametric space adds points the mesh has no node for
-        nodes = [node for node in set(list(bc.nodes)) if node < simu.mesh.Nn]
+        # every node, those a non-isoparametric space adds included
+        nodes = np.asarray(list(set(bc.nodes)), dtype=int)
+        bcCoord = _Get_space_coord(simu, bc.problemType, coord, deformFactor)
+        nAll = simu._Get_FunctionSpace(bc.problemType).Nn
         description = bc.description
 
         marker = "."
@@ -1163,17 +1167,60 @@ def Plot_BoundaryConditions(
         unknowns_str = str(unknowns).replace("'", "")
         label = f"{description} {unknowns_str}"
 
-        if len(nodes) == simu.mesh.Nn:
-            points = coord[:, :plotDim].mean(0, keepdims=True)
+        isOnEveryNode = len(nodes) == nAll
+        if isOnEveryNode:
+            points = bcCoord[:, :plotDim].mean(0, keepdims=True)
         else:
-            points = coord[nodes, :plotDim]
-        ax.plot(
-            *points.T,
+            points = bcCoord[nodes, :plotDim]
+
+        vector = np.zeros_like(points)
+        if marker != "o":
+            vector = _Get_bc_vectors(simu, bc, nodes)[0][:, :plotDim]
+        if not vector.any():
+            ax.plot(
+                *points.T,
+                marker=marker,
+                ms=nodeSize,
+                label=label,
+                zorder=2.5,
+                ls="",
+            )
+            continue
+
+        # one arrow for a condition on every node
+        if isOnEveryNode:
+            factor = simu.mesh._Get_realistic_vector_magnitude(0.5)
+            arrows = vector.mean(0, keepdims=True) * factor
+            tails = points - arrows
+        else:
+            factor = simu.mesh._Get_realistic_vector_magnitude(0.1)
+            arrows = vector * factor
+            tails = _Get_arrow_tails(simu, bc, nodes, points, arrows)
+        # no points: the legend's entry, whose color the arrows take
+        (line,) = ax.plot(
+            *np.empty((0, plotDim)).T,
             marker=marker,
             ms=nodeSize,
             label=label,
-            zorder=2.5,
             ls="",
+        )
+        kwargs: dict[str, Any] = {"arrow_length_ratio": 0.15}
+        if plotDim == 2:
+            kwargs = {
+                "angles": "xy",
+                "scale_units": "xy",
+                "scale": 1,
+                "width": 0.004,
+                "headwidth": 3.5,
+                "headlength": 4,
+                "headaxislength": 3.5,
+            }
+        ax.quiver(
+            *tails.T,
+            *arrows.T,
+            color=line.get_color(),
+            zorder=2.5,
+            **kwargs,
         )
 
     _Annotate(

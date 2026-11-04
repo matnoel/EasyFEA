@@ -367,7 +367,7 @@ def test_Plot_Arrows_needs_one_vector_per_node(bar_simu):
 # ----------------------------------------------
 # Plot_BoundaryConditions
 # ----------------------------------------------
-def test_Plot_BoundaryConditions_ends_each_load_arrow_on_its_nodes(bar_simu):
+def test_Plot_BoundaryConditions_starts_an_outward_load_arrow_on_its_nodes(bar_simu):
     plotter = PyVista.Plot_BoundaryConditions(bar_simu, title="bar")
 
     *_, clamp, load = _meshes(plotter, pv.PolyData)
@@ -375,8 +375,8 @@ def test_Plot_BoundaryConditions_ends_each_load_arrow_on_its_nodes(bar_simu):
     assert np.allclose(
         np.sort(clamp.points[:, 1]), np.sort(bar_simu.mesh.coord[nodesLeft, 1])
     )
-    assert np.isclose(load.bounds[1], L)
-    assert load.bounds[0] < L
+    assert np.isclose(load.bounds[0], L)
+    assert load.bounds[1] > L
     assert _n_legend(plotter) == 2
 
 

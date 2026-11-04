@@ -8,15 +8,16 @@ https://docs.pyvista.org/api/plotting/plotting.html"""
 
 from __future__ import annotations
 from typing import Callable, TYPE_CHECKING, Any, Iterable
-from scipy.sparse import csr_matrix
 import numpy as np
 from functools import singledispatch
 
 # utilities
 from ..Utilities import Folder, Terminal, Tic, _types
-from ..IO._utils import _Init_obj, _Get_values
+from ..IO._utils import _Init_obj, _Get_values, _Get_space_coord
 from ..IO import PyVista as _pvIO
 from ._utils import (
+    _Get_arrow_tails,
+    _Get_bc_vectors,
     tab10_colors,
     PlotOptions,
     _Flatten_geoms,
@@ -750,14 +751,12 @@ def Plot_BoundaryConditions(
     for bc, color in zip(boundaryConditions, colors):
 
         problemType = bc.problemType
-        dofsValues = bc.dofsValues
         unknowns = bc.unknowns
         dofs = bc.dofs
         nodes = bc.nodes
         description = bc.description
         nDir = len(unknowns)
 
-        availableUnknowns = simu.Get_unknowns(problemType)
         dof_n = simu.Get_dof_n(problemType)
         nDof = simu._Get_FunctionSpace(problemType).Nn * dof_n
 
@@ -765,16 +764,16 @@ def Plot_BoundaryConditions(
         unknowns_str = str(unknowns).replace("'", "")
         label = f"{description} {unknowns_str}"
 
-        # the geometry nodes: a non-isoparametric space adds points the mesh has no node for
+        # every node, those a non-isoparametric space adds included
         nodes = np.asarray(list(set(nodes)), dtype=int)
-        nodes = nodes[nodes < mesh.Nn]
+        bcCoord = _Get_space_coord(simu, problemType, coord, deformFactor)
 
         unknowns_rot = ["rx", "ry", "rz"]
 
         if dof_n == 1:
             # plot points
             plotter.add_mesh(
-                pv.PolyData(coord[nodes]),  # type: ignore [arg-type]
+                pv.PolyData(bcCoord[nodes]),  # type: ignore [arg-type]
                 render_points_as_spheres=False,
                 point_size=nodeSize,
                 label=label,
@@ -785,48 +784,28 @@ def Plot_BoundaryConditions(
             # will try to display as an arrow
             # if dofsValues are null, will display as points
 
-            summedValues = csr_matrix(
-                (dofsValues, (dofs, np.zeros_like(dofs))), (nDof, 1)
-            )
-            dofsValues = summedValues.toarray()
-
-            # here I want to build two display vectors (translation and rotation)
-            start = coord[nodes]
-            vector = np.zeros_like(start)
-            vectorRot = np.zeros_like(start)
-
-            for d, direction in enumerate(unknowns):
-                lines = simu.Bc_dofs_nodes(nodes, [direction], problemType)
-                values = np.ravel(dofsValues[lines])
-                if direction in unknowns_rot:
-                    idx = unknowns_rot.index(direction)
-                    vectorRot[:, idx] = values
-                else:
-                    idx = availableUnknowns.index(direction)
-                    vector[:, idx] = values
-
-            normVector = np.linalg.norm(vector, axis=1).max()
-            if normVector > 0:
-                vector = vector / normVector
-
-            normVectorRot = np.linalg.norm(vectorRot, axis=1).max()
-            if normVectorRot > 0:
-                vectorRot = vectorRot / normVectorRot
+            # two display vectors (translation and rotation)
+            start = bcCoord[nodes]
+            vector, vectorRot = _Get_bc_vectors(simu, bc, nodes)
+            isVector, isVectorRot = vector.any(), vectorRot.any()
 
             factor = mesh._Get_realistic_vector_magnitude(0.1)
 
-            if dofs.size / nDir > simu.mesh.Nn:
+            if dofs.size / nDir > nDof / dof_n:
                 # values are applied on every nodes of the mesh
                 # the plot only one arrow
                 factor = mesh._Get_realistic_vector_magnitude(0.5)
                 start = mesh.center
                 vector = np.mean(vector, 0)
                 vectorRot = np.mean(vectorRot, 0)
+                tails = start - vector * factor
+            else:
+                tails = _Get_arrow_tails(simu, bc, nodes, start, vector * factor)
 
             # plot vector
-            if normVector == 0:
+            if not isVector:
                 # vector is a matrix of zeros
-                pvData = pv.PolyData(coord[nodes])  # type: ignore [arg-type]
+                pvData = pv.PolyData(bcCoord[nodes])  # type: ignore [arg-type]
                 plotter.add_mesh(
                     pvData,
                     render_points_as_spheres=True,
@@ -835,16 +814,15 @@ def Plot_BoundaryConditions(
                     color=color,
                 )
             else:
-                # here the arrow will end at the node coordinates
                 plotter.add_arrows(
-                    start - vector * factor, vector, factor, label=label, color=color  # type: ignore [arg-type]
+                    tails, vector, factor, label=label, color=color  # type: ignore [arg-type]
                 )
 
             if True in [direction in unknowns_rot for direction in unknowns]:
                 # plot vectorRot
-                if normVectorRot == 0:
+                if not isVectorRot:
                     # vectorRot is a matrix of zeros
-                    pvData = pv.PolyData(coord[nodes])  # type: ignore [arg-type]
+                    pvData = pv.PolyData(bcCoord[nodes])  # type: ignore [arg-type]
                     plotter.add_mesh(
                         pvData,
                         render_points_as_spheres=True,

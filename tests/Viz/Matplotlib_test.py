@@ -8,6 +8,7 @@ import numpy as np
 import pytest
 from matplotlib import animation, colors
 from matplotlib.collections import LineCollection, PolyCollection
+from matplotlib.quiver import Quiver
 from mpl_toolkits.mplot3d.art3d import Poly3DCollection
 from PIL import Image
 
@@ -506,6 +507,39 @@ def _markers(ax) -> dict[str, str]:
     return {line.get_label(): line.get_marker() for line in ax.lines}
 
 
+def _arrow_ends(ax) -> list[np.ndarray]:
+    """Where the arrows of each `ax.quiver` end, one array per call."""
+    return [
+        np.column_stack([quiver.X + quiver.U, quiver.Y + quiver.V])
+        for quiver in _drawn(ax, Quiver)
+    ]
+
+
+def test_Plot_BoundaryConditions_draws_the_nodes_a_space_adds():
+    U = Simulations.Elastic.U
+    domain = Domain((0, 0), (1, 1), 1.0)
+    mesh = domain.Mesh_2D([], ElemType.QUAD4, isOrganised=True)._With_FunctionSpace(
+        U, 2
+    )
+    simu = Simulations.Elastic(mesh, Models.Elastic.Isotropic(2))
+    nodesLeft = mesh.Nodes_Conditions(lambda x, y, z: x == 0, problemType=U)
+    nodesRight = mesh.Nodes_Conditions(lambda x, y, z: x == 1, problemType=U)
+    simu.add_dirichlet(nodesLeft, [0.1, 0], ["x", "y"])
+    simu.add_dirichlet(nodesRight, [0, 0], ["x", "y"])
+    simu.Solve()
+
+    ax = Matplotlib.Plot_BoundaryConditions(simu)
+    (ends,) = _arrow_ends(ax)
+    assert np.allclose(ends[:, 0], 0)
+    assert sorted(ends[:, 1].tolist()) == [0, 0.5, 1]
+
+    # each moves by its own displacement, the mid node too
+    ax = Matplotlib.Plot_BoundaryConditions(simu, deformFactor=2.0)
+    (ends,) = _arrow_ends(ax)
+    assert np.allclose(ends[:, 0], 0.2)
+    assert sorted(ends[:, 1].tolist()) == [0, 0.5, 1]
+
+
 def test_Plot_BoundaryConditions_marks_each_condition_by_its_direction(bar_simu):
     mesh = bar_simu.mesh
     nodesLeft = mesh.Nodes_Conditions(lambda x, y, z: x == 0)
@@ -544,7 +578,7 @@ def test_Plot_BoundaryConditions_marks_z_and_3D_conditions(bar_simu_3D):
     assert _markers(ax) == {"Dirichlet a [x, y, z]": "s", "Neumann b [z]": "d"}
 
 
-def test_Plot_BoundaryConditions_marks_a_load_on_every_node_at_the_centroid(
+def test_Plot_BoundaryConditions_draws_one_arrow_for_a_load_on_every_node(
     bar_simu,
 ):
     mesh = bar_simu.mesh
@@ -553,8 +587,8 @@ def test_Plot_BoundaryConditions_marks_a_load_on_every_node_at_the_centroid(
 
     ax = Matplotlib.Plot_BoundaryConditions(bar_simu, alpha=0.5)
 
-    (line,) = ax.lines
-    assert np.allclose(_line_points(line), [[L / 2, H / 2]])
+    (ends,) = _arrow_ends(ax)
+    assert np.allclose(ends, [[L / 2, H / 2]])
     assert len(_drawn(ax, PolyCollection)) == 1
 
 

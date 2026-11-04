@@ -11,7 +11,27 @@ import numpy as np
 
 from ..Utilities import _types
 from ..FEM import Mesh, _GroupElem
-from ..Simulations._simu import _Simu
+from ..Simulations._simu import ProblemType, _Simu
+
+
+def _Get_space_coord(
+    simu: "_Simu",
+    problemType: "ProblemType",
+    coord: _types.FloatArray,
+    deformFactor: float = 0.0,
+) -> _types.FloatArray:
+    """Coordinates of every node of ``problemType``'s space, deformed as ``coord``, the mesh's from `_Init_obj`: the nodes the space adds move with the displacement at them."""
+    spaceCoord = simu._Get_FunctionSpace(problemType).coord.copy()
+    Nn = coord.shape[0]
+    spaceCoord[:Nn] = coord
+    field = simu.problemType
+    dof_n = simu.Get_dof_n(field)
+    if deformFactor != 0 and spaceCoord.shape[0] > Nn and dof_n == simu.dim:
+        u = simu._Get_FunctionSpace(field).Get_nodeValues(simu._Get_u_n(field), dof_n)
+        u_n = u.reshape(-1, dof_n)
+        added = np.arange(Nn, min(spaceCoord.shape[0], u_n.shape[0]))
+        spaceCoord[added, :dof_n] += u_n[added] * np.abs(deformFactor)
+    return spaceCoord
 
 
 @singledispatch
