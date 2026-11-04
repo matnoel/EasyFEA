@@ -338,8 +338,8 @@ class Elastic(_Simu):
         space = self._Get_FunctionSpace()
         sol_u = space.Get_nodeValues(self.displacement, self.dim)
         list_kinematics = [
-            Kinematics(space.Get_groupElem(groupElem), sol_u, matrixType)
-            for groupElem in self.mesh.Get_list_groupElem(self.dim)
+            Kinematics(groupElem, sol_u, matrixType)
+            for groupElem in space.Get_list_groupElem(self.dim)
         ]
         list_psi_e_pg = [self.material.Compute_Psi(kin) for kin in list_kinematics]
 
@@ -411,10 +411,8 @@ class Elastic(_Simu):
         space = self._Get_FunctionSpace()
         u = space.Get_nodeValues(self.displacement, self.dim)
         return _Field_per_groupElem(
-            lambda groupElem: Kinematics(
-                space.Get_groupElem(groupElem), u, matrixType
-            ).Compute_Epsilon(),
-            self.mesh.Get_list_groupElem(),
+            lambda groupElem: Kinematics(groupElem, u, matrixType).Compute_Epsilon(),
+            space.Get_list_groupElem(),
         )
 
     def _Calc_Sigma(
@@ -425,9 +423,9 @@ class Elastic(_Simu):
         u = space.Get_nodeValues(self.displacement, self.dim)
         return _Field_per_groupElem(
             lambda groupElem: self.material.Compute_Sigma(
-                Kinematics(space.Get_groupElem(groupElem), u, matrixType)
+                Kinematics(groupElem, u, matrixType)
             ),
-            self.mesh.Get_list_groupElem(),
+            space.Get_list_groupElem(),
         )
 
     def __indexResult(self, result: str) -> int:
@@ -485,7 +483,8 @@ class Elastic(_Simu):
 
     def Results_displacement_matrix(self) -> _types.FloatArray:
         Nn = self.mesh.Nn
-        coord = self._Get_FunctionSpace().Get_meshValues(self.displacement, self.dim)
+        space = self._Get_FunctionSpace()
+        coord = space.Get_meshValues(self.displacement, self.dim)
         dim = coord.shape[1]
 
         displacement_matrix = np.zeros((Nn, 3))

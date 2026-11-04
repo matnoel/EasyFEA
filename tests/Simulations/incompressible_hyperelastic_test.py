@@ -82,7 +82,7 @@ def test_IncompressibleHyperElastic_puts_p_on_the_vertices_of_u_elements(subtest
             groupElem = simu.mesh.Get_list_groupElem(simu.dim)[0]
             vertices = groupElem.connect[:, : groupElem.Nvertex]
 
-            assert space.Get_groupElem(groupElem).elemType == pressureElem
+            assert space.Get_list_groupElem(simu.dim)[0].elemType == pressureElem
             assert simu.pressure.shape == (np.unique(vertices).size,)
             assert simu._Get_monolithic_problems() == [(U, PRESSURE)]
 
@@ -580,17 +580,21 @@ def _inf_sup(
     K_pu = _assembled(simu, np.zeros(nu + np_))[0][nu:, :nu]
     H1 = sparse.csr_matrix((nu, nu))
     M = sparse.csr_matrix((np_, np_))
-    for groupElem in mesh.Get_list_groupElem(dim):
+    for groupElem, uGroup, pGroup in zip(
+        mesh.Get_list_groupElem(dim),
+        space_u.Get_list_groupElem(dim),
+        space_p.Get_list_groupElem(dim),
+    ):
         assembly_u = space_u.Get_assembly_e(groupElem, dim)
         assembly_p = space_p.Get_assembly_e(groupElem, 1)
         H1 = H1 + _scatter(
-            Operators.Bilinear.GradUGradV(space_u.Get_groupElem(groupElem), dof_n=dim),
+            Operators.Bilinear.GradUGradV(uGroup, dof_n=dim),
             assembly_u,
             assembly_u,
             (nu, nu),
         )
         M = M + _scatter(
-            Operators.Bilinear.UV(space_p.Get_groupElem(groupElem)),
+            Operators.Bilinear.UV(pGroup),
             assembly_p,
             assembly_p,
             (np_, np_),

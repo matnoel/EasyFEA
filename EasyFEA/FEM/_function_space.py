@@ -95,22 +95,29 @@ class _FunctionSpace:
             if partner is not groupElem:
                 partner.coord = coord
 
-    def Get_groupElem(self, groupElem: "_GroupElem") -> "_GroupElem":
-        """Group this space puts on the elements of ``groupElem`` (the group itself when isoparametric), whose nodes are node ids."""
-        return self.__dict_groupElem[groupElem]
+    def Get_list_groupElem(self, dim: int | None = None) -> list["_GroupElem"]:
+        """Groups this space puts on the mesh's groups of dimension ``dim`` (the main one by default), in the order of `Mesh.Get_list_groupElem`: the group itself when isoparametric, whose nodes are node ids."""
+        groups = self.__dict_groupElem
+        if dim is None:
+            dim = max(groupElem.dim for groupElem in groups)
+        return [
+            partner
+            for groupElem, partner in reversed(groups.items())
+            if groupElem.dim == dim
+        ]
 
-    def Get_rule(self, groupElem: "_GroupElem", matrixType: MatrixType) -> _Order:
-        """Integration rule of ``matrixType`` on this space's elements of ``groupElem`` (rigi, P2 on TETRA4: TETRA10's 4 nodes, not TETRA4's 1), as an explicit order, so that data sampled on the geometry at it lands where the field's terms integrate."""
+    @staticmethod
+    def Get_rule(groupElem: "_GroupElem", matrixType: MatrixType) -> _Order:
+        """Integration rule of ``matrixType`` on ``groupElem``, a group of a space (rigi, P2 on TETRA4: TETRA10's 4 nodes, not TETRA4's 1), as an explicit order, so that data sampled on the geometry at it lands where the field's terms integrate."""
         # local: `_group_elem` imports this module at its top
         from ._group_elem import GroupElemFactory
 
-        elemType = self.Get_groupElem(groupElem).elemType
-        referenceElement = GroupElemFactory._Get_reference_element(elemType)
+        referenceElement = GroupElemFactory._Get_reference_element(groupElem.elemType)
         return MatrixType.Order(referenceElement._Get_order(matrixType))
 
     def Get_connect(self, groupElem: "_GroupElem") -> _types.IntArray:
         """Node ids of each element (Ne, nPe), in the layout of the group's element in this space."""
-        return self.Get_groupElem(groupElem).connect
+        return self.__dict_groupElem[groupElem].connect
 
     def Get_nodes(self, ids: _types.IntArray) -> _types.IntArray:
         """The ``ids`` carrying a DOF, in their order (TETRA10 mid nodes under P1 skipped), then every node on an edge, face or cell whose vertices ``ids`` all hold (element closure: the chord midpoint a circle predicate misses)."""

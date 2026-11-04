@@ -75,7 +75,7 @@ def coupled_phasefield(
     return Coupled(mesh, pfm)
 
 
-def coupling(groupElem) -> np.ndarray:
+def coupling(groupElem, *fieldGroups) -> np.ndarray:
     """A (damage, elastic) block on an isoparametric 2D group: nPe rows, 2·nPe columns, each entry distinct."""
     Ne, nPe = groupElem.Ne, groupElem.nPe
     return np.arange(Ne * nPe * 2 * nPe, dtype=float).reshape(Ne, nPe, 2 * nPe)

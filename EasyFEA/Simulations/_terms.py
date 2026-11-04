@@ -80,7 +80,7 @@ class Term:
 
         Term("KRKKR", self.__MixedIncompressibility, problemTypes=((u, u), u, (u, p), (p, u), p))
 
-    A term spanning several fields is handed the geometry's group and no ``u``: it reaches each field's space and values itself.
+    A term spanning several fields is handed one group per field, in the order its blocks name them, and no ``u``: it reaches each field's values itself.
     """
 
     def __init__(
@@ -236,7 +236,7 @@ class Term:
         self,
         simu: "_Simu",
         groupElem: "_GroupElem",
-        spaceGroup: "_GroupElem | None" = None,
+        spaceGroups: list["_GroupElem"] | None = None,
         blocks: tuple[_Block, ...] | None = None,
     ) -> Any:
         """Unscaled contribution of a ``constant=True`` term on one group and `blocks`, kept with `simu`'s cached computed values (so a mesh change drops it) and reused by the term declared the same way, and by its :py:meth:`Scaled` copies, while the argument values are unchanged. ``u`` is deliberately unavailable: a term that needs it is not constant, and fails loudly on the missing argument rather than silently freeze the first iterate."""
@@ -259,7 +259,7 @@ class Term:
         ):
             hit = cache[key] = (
                 copy.deepcopy(kwargs),
-                self._Evaluate(groupElem, spaceGroup=spaceGroup),
+                self._Evaluate(groupElem, spaceGroups=spaceGroups),
             )
         return hit[1]
 
@@ -282,6 +282,23 @@ class Term:
             return groups
         return [g for g in groups if self.__tag in g.elementTags]
 
+    def _Get_field_groups(
+        self, simu: "_Simu", fields: tuple["ProblemType", ...]
+    ) -> list[tuple["_GroupElem", ...]]:
+        """Each of :py:meth:`_Get_groups`, followed by the group of each of `fields` on its elements."""
+        groups = self._Get_groups(simu.mesh)
+        lists = [
+            simu._Get_FunctionSpace(field).Get_list_groupElem(self.__dim)
+            for field in fields
+        ]
+        return [
+            (groupElem, *spaceGroups)
+            for groupElem, *spaceGroups in zip(
+                simu.mesh.Get_list_groupElem(self.__dim), *lists
+            )
+            if any(groupElem is group for group in groups)
+        ]
+
     def _Get_blocks(self, problemType: "ProblemType") -> tuple[_Block, ...]:
         """``(rows, cols)`` of each slot in `problemType`'s fold, a vector's cols being its rows."""
         return tuple(
@@ -297,15 +314,15 @@ class Term:
         self,
         groupElem: "_GroupElem",
         u: _types.FloatArray | None = None,
-        spaceGroup: "_GroupElem | None" = None,
+        spaceGroups: list["_GroupElem"] | None = None,
     ) -> Any:
-        """Calls the operator on `spaceGroup`, the group the field's space puts on `groupElem`'s elements (`groupElem` itself when isoparametric), injecting the arguments it declares and the caller left out."""
+        """Calls the operator on `spaceGroups`, the group of each field on `groupElem`'s elements (`groupElem` itself by default), injecting the arguments it declares and the caller left out."""
         values = {"u": u, "elements": self._Get_elements(groupElem)}
         kwargs = dict(self.__kwargs)
         for name in self.__injectable:
             if name not in kwargs and values[name] is not None:
                 kwargs[name] = values[name]
-        return self.__fn(groupElem if spaceGroup is None else spaceGroup, **kwargs)
+        return self.__fn(*(spaceGroups or (groupElem,)), **kwargs)
 
 
 def Fold_terms(
@@ -323,12 +340,10 @@ def Fold_terms(
     if problemType is None:
         problemType = simu.problemType
 
-    mesh = simu.mesh
     thickness = simu.thickness
     isNonLinear = simu.isNonLinear
     diagonal = (problemType, problemType)
 
-    space = simu._Get_FunctionSpace(problemType)
     iterates: dict["ProblemType", dict[str, _types.FloatArray | None]] = {}
 
     def Iterates(problemType: "ProblemType") -> dict[str, _types.FloatArray | None]:
@@ -355,17 +370,15 @@ def Fold_terms(
     for term in terms:
         blocks = term._Get_blocks(problemType)
         isDiagonal = all(block == diagonal for block in blocks)
+        fields = tuple(dict.fromkeys(field for block in blocks for field in block))
 
-        for groupElem in term._Get_groups(mesh):
-            # operators see the field's own group: P2 u on TETRA4 integrates on TETRA10;
-            # a term spanning fields gets the geometry and reaches each space itself
-            spaceGroup = space.Get_groupElem(groupElem) if isDiagonal else groupElem
-
+        # operators see each field's own group: P2 u on TETRA4 integrates on TETRA10
+        for groupElem, *spaceGroups in term._Get_field_groups(simu, fields):
             if term.constant:
-                contributions = term._Cached(simu, groupElem, spaceGroup, blocks)
+                contributions = term._Cached(simu, groupElem, spaceGroups, blocks)
             else:
                 contributions = term._Evaluate(
-                    groupElem, u_t if isDiagonal else None, spaceGroup
+                    groupElem, u_t if isDiagonal else None, spaceGroups
                 )
             if not isinstance(contributions, tuple):
                 contributions = (contributions,)
@@ -440,7 +453,7 @@ def _Check_shape(
     shape = (
         groupElem.Ne,
         *(
-            simu._Get_FunctionSpace(field).Get_groupElem(groupElem).nPe
+            simu._Get_FunctionSpace(field).Get_connect(groupElem).shape[1]
             * simu.Get_dof_n(field)
             for field in fields
         ),

@@ -551,6 +551,16 @@ class Mesh(Observable):
         groups = {groupElem: groupElem for groupElem in self.dict_groupElem.values()}
         return _FunctionSpace(np.arange(self.Nn), owned, nodes, groups)
 
+    def _Get_lists_groupElem(self, dim: int) -> list[list["_GroupElem"]]:
+        """The mesh's groups of dimension ``dim``, then those of each space not isoparametric, every list in the same order."""
+        return [
+            self.Get_list_groupElem(dim),
+            *(
+                space.Get_list_groupElem(dim)
+                for space in self.__dict_functionSpace.values()
+            ),
+        ]
+
     def _With_FunctionSpace(self, problemType: "ProblemType", order: int) -> "Mesh":
         """New mesh on which ``problemType`` lives on the complete Lagrange elements of ``order`` (TETRA4 + PRISM6, 2 → TETRA10 + PRISM18; QUAD8, 2 → QUAD9); geometry copied, observers and caches not. Collective on a partitioned mesh."""
         # the copies start with an empty cache instead of a copy of these
@@ -677,11 +687,9 @@ class Mesh(Observable):
         self, problemType: "ProblemType | None"
     ) -> list["_GroupElem"]:
         """Main-dimension groups to select on: the geometry's, or those ``problemType``'s space puts on them, whose nodes are the space's."""
-        list_groupElem = self.Get_list_groupElem(self.dim)
         if problemType is None:
-            return list_groupElem
-        space = self._Get_FunctionSpace(problemType)
-        return [space.Get_groupElem(groupElem) for groupElem in list_groupElem]
+            return self.Get_list_groupElem(self.dim)
+        return self._Get_FunctionSpace(problemType).Get_list_groupElem(self.dim)
 
     def Nodes_Conditions(
         self, func, problemType: "ProblemType | None" = None
@@ -986,7 +994,9 @@ class Mesh(Observable):
         remaining = np.ones(Nn, dtype=bool)
 
         # Several element groups can share the main dimension (e.g. QUAD4 + TRI3); a query coordinate is interpolated with the first group whose element contains it.
-        for groupElem in self.Get_list_groupElem(self.dim):
+        groups = self.Get_list_groupElem(self.dim)
+        partners = groups if space is None else space.Get_list_groupElem(self.dim)
+        for groupElem, partner in zip(groups, partners):
             # element and ξ of each coordinate by the geometry mapping (Nn,), (Nn, dim)
             elements_n, coordInElem_n = groupElem._Get_containing_elements(
                 coordinates_n
@@ -997,8 +1007,7 @@ class Mesh(Observable):
             mask_idx = np.flatnonzero(mask)
             found_elements = elements_n[mask]
 
-            # the space's element on this group and the node rows of the detected elements (m, nPe)
-            partner = groupElem if space is None else space.Get_groupElem(groupElem)
+            # the node rows of the detected elements on the space's group (m, nPe)
             rows = partner.connect[found_elements]
             if space is not None:
                 rows = space.Get_dofs(rows, 1).reshape(rows.shape)

@@ -636,7 +636,7 @@ class Kinematics:
         if isinstance(T, FeArray) and T.ndim == 3 and T.shape[1] != nPg:
             raise ValueError(
                 f"The direction is given at {T.shape[1]} points per element, the term integrates at {nPg}: "
-                "sample it at the integration rule of the field's space, `mesh._Get_FunctionSpace(problemType).Get_rule(groupElem, matrixType)`."
+                "sample it at the integration rule of the field's space, `space.Get_rule(space.Get_list_groupElem()[0], matrixType)`."
             )
         T = self.Get_parameter_e_pg(T, tensor_shape=(3,)).astype(float)
 

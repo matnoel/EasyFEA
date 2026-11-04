@@ -126,7 +126,7 @@ def __Compute_fiber_directions(
 def _Get_rule(mesh: Mesh, matrixType: MatrixType) -> MatrixType:
     """Rule the displacement integrates `matrixType` at on the volume group (rigi, P2 on TETRA4: TETRA10's 4 points), valid on the geometry too: fibres sampled at it land on the term's points."""
     space = mesh._Get_FunctionSpace(Simulations.HyperElastic.U)
-    return space.Get_rule(mesh.Get_list_groupElem(3)[0], matrixType)
+    return space.Get_rule(space.Get_list_groupElem(3)[0], matrixType)
 
 
 def _fibers_from_vtu(

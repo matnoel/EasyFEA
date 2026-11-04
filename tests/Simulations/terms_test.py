@@ -355,7 +355,7 @@ def test_Fold_terms_routes_each_array_to_its_block():
     simu = coupled_phasefield()
     groupElem = simu.mesh.groupElem
 
-    def Spanning(groupElem):
+    def Spanning(groupElem, uGroup):
         return One_array(groupElem), One_vector(groupElem) + 1, coupling(groupElem)
 
     term = Term("KRK", Spanning, problemTypes=((D, D), D, (D, U)))
@@ -383,28 +383,29 @@ def test_Fold_terms_places_a_term_in_the_rows_it_declares():
 def test_Fold_terms_rejects_a_swapped_block():
     simu = coupled_phasefield()
 
-    def Swapped(groupElem):
+    def Swapped(groupElem, uGroup):
         return np.swapaxes(coupling(groupElem), 1, 2)
 
     with pytest.raises(ValueError, match="rows"):
         Fold_terms(simu, [Term("K", Swapped, problemTypes=((D, U),))], D)
 
 
-def test_Fold_terms_hands_a_spanning_term_the_geometry_group_and_no_u():
+def test_Fold_terms_hands_a_spanning_term_one_group_per_field_and_no_u():
     domain = Domain((0, 0), (1, 1), 0.5)
     mesh = domain.Mesh_2D([], ElemType.TRI3)
     meshP2 = mesh._With_FunctionSpace(D, 2)
     simu = coupled_phasefield(mesh=meshP2)
     seen = {}
 
-    def Spy(groupElem, u=None):
-        seen["group"], seen["u"] = groupElem, u
+    def Spy(dGroup, uGroup, u=None):
+        seen["groups"], seen["u"] = (dGroup, uGroup), u
         # P2 damage rows, P1 displacement columns
-        return np.zeros((groupElem.Ne, 6, 6))
+        return np.zeros((dGroup.Ne, 6, 6))
 
     Fold_terms(simu, [Term("K", Spy, problemTypes=((D, U),))], D)
 
-    assert seen["group"] is meshP2.groupElem
+    assert seen["groups"][0] is meshP2._Get_FunctionSpace(D).Get_list_groupElem()[0]
+    assert seen["groups"][1] is meshP2.groupElem
     assert seen["u"] is None
 
 

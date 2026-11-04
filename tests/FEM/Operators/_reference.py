@@ -41,7 +41,7 @@ def p2_faces() -> tuple[_GroupElem, _GroupElem, np.ndarray]:
     mesh = element_mesh(3, ElemType.TETRA4, layers=2)
     meshP2 = mesh._With_FunctionSpace(HYPERELASTIC, 2)
     space = meshP2._Get_FunctionSpace(HYPERELASTIC)
-    faces = space.Get_groupElem(meshP2.Get_list_groupElem(2)[0])
+    faces = space.Get_list_groupElem(2)[0]
     iso = element_mesh(3, ElemType.TETRA10, layers=2)
     distance = np.linalg.norm(space.coord[:, None] - iso.coord, axis=2)
     rows = np.argmin(distance, axis=1)
@@ -80,8 +80,8 @@ def up_groups(
     space_u = mesh._Get_FunctionSpace(HYPERELASTIC)
     space_p = mesh._Get_FunctionSpace(PRESSURE)
     return (
-        space_u.Get_groupElem(groupElem),
-        space_p.Get_groupElem(groupElem),
+        space_u.Get_list_groupElem()[0],
+        space_p.Get_list_groupElem()[0],
         space_u.Get_assembly_e(groupElem, dim),
         space_p.Get_assembly_e(groupElem, 1),
     )

@@ -990,13 +990,14 @@ def test_Mesh__Get_FunctionSpace_rule_samples_the_geometry_where_the_field_integ
     for order in (1, 2):
         meshPk = mesh._With_FunctionSpace(ELASTIC, order)
         space = meshPk._Get_FunctionSpace(ELASTIC)
-        for groupElem in meshPk.Get_list_groupElem(3):
+        for groupElem, partner in zip(
+            meshPk.Get_list_groupElem(3), space.Get_list_groupElem(3)
+        ):
             for matrixType in (MatrixType.rigi, MatrixType.mass):
                 with subtests.test(
                     order=order, elemType=groupElem.elemType, matrixType=matrixType
                 ):
-                    rule = space.Get_rule(groupElem, matrixType)
-                    partner = space.Get_groupElem(groupElem)
+                    rule = space.Get_rule(partner, matrixType)
 
                     sampled = groupElem.Get_GaussCoordinates_e_pg(rule)
                     integrated = partner.Get_GaussCoordinates_e_pg(matrixType)
@@ -1006,7 +1007,9 @@ def test_Mesh__Get_FunctionSpace_rule_samples_the_geometry_where_the_field_integ
 
     meshP2 = mesh._With_FunctionSpace(ELASTIC, 2)
     tetra = meshP2.dict_groupElem[ElemType.TETRA4]
-    rule = meshP2._Get_FunctionSpace(ELASTIC).Get_rule(tetra, MatrixType.rigi)
+    partners = meshP2._Get_FunctionSpace(ELASTIC).Get_list_groupElem(3)
+    partner = next(g for g in partners if g.elemType == ElemType.TETRA10)
+    rule = meshP2._Get_FunctionSpace(ELASTIC).Get_rule(partner, MatrixType.rigi)
     assert tetra.Get_gauss(rule).nPg == 4
 
 

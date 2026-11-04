@@ -436,10 +436,9 @@ class HyperElastic(_Simu):
         list_W = []
         space = self._Get_FunctionSpace()
         u = space.Get_nodeValues(self.displacement, self.dim)
-        for groupElem in self.mesh.Get_list_groupElem(self.dim):
-            spaceGroup = space.Get_groupElem(groupElem)
-            kinematics = Kinematics(spaceGroup, u, matrixType)
-            wJ_e_pg = spaceGroup.Get_weightedJacobian_e_pg(matrixType)
+        for groupElem in space.Get_list_groupElem(self.dim):
+            kinematics = Kinematics(groupElem, u, matrixType)
+            wJ_e_pg = groupElem.Get_weightedJacobian_e_pg(matrixType)
             W_e_pg = wJ_e_pg * self.material.Compute_W(kinematics)
             list_W.append(thickness * W_e_pg.integrate())
 
@@ -455,10 +454,8 @@ class HyperElastic(_Simu):
         u = space.Get_nodeValues(self.displacement, self.dim)
         return np.concatenate(
             [
-                Kinematics(space.Get_groupElem(groupElem), u, matrixType)
-                .Compute_J()
-                .mean(1)
-                for groupElem in self.mesh.Get_list_groupElem()
+                Kinematics(groupElem, u, matrixType).Compute_J().mean(1)
+                for groupElem in space.Get_list_groupElem()
             ]
         )
 
@@ -472,12 +469,10 @@ class HyperElastic(_Simu):
         u = space.Get_nodeValues(self.displacement, self.dim)
         return _Field_per_groupElem(
             lambda groupElem: Tensor_to_Kelvin(
-                Kinematics(
-                    space.Get_groupElem(groupElem), u, matrixType
-                ).Compute_GreenLagrange(),
+                Kinematics(groupElem, u, matrixType).Compute_GreenLagrange(),
                 2,
             ),
-            self.mesh.Get_list_groupElem(),
+            space.Get_list_groupElem(),
         )
 
     def _Calc_SecondPiolaKirchhoff(
@@ -491,14 +486,14 @@ class HyperElastic(_Simu):
         u = space.Get_nodeValues(self.displacement, self.dim)
 
         def S_e_pg(groupElem: _GroupElem) -> FeArray.FeArrayALike:
-            kinematics = Kinematics(space.Get_groupElem(groupElem), u, matrixType)
+            kinematics = Kinematics(groupElem, u, matrixType)
             # reported as one field, even though the two are assembled by separate operators
             S_e_pg = self.material.Compute_dWde(kinematics)
             if np.any(self.material.active_stress != 0.0):
                 S_e_pg = S_e_pg + self.material.Compute_active_stress(kinematics)
             return S_e_pg
 
-        return _Field_per_groupElem(S_e_pg, self.mesh.Get_list_groupElem())
+        return _Field_per_groupElem(S_e_pg, space.Get_list_groupElem())
 
     def Results_Iter_Summary(
         self,

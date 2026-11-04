@@ -95,16 +95,18 @@ def _View_box(bounds: _types.Numbers) -> _types.FloatArray:
 def _Gauss_points_averaged(
     mesh: Mesh, result: str | _types.AnyArray | dict | None
 ) -> str | _types.AnyArray | None:
-    """An ``(Ne, nPg)`` array, or ``{_GroupElem: scalar | (Ne_g,) | (Ne_g, nPg)}`` flattened in ``Get_list_groupElem(dim)`` order, as ``(Ne,)`` with the Gauss points averaged; any other ``result`` as is."""
+    """An ``(Ne, nPg)`` array, or ``{_GroupElem: scalar | (Ne_g,) | (Ne_g, nPg)}``, keyed by the mesh's groups or a field's, flattened in ``Get_list_groupElem(dim)`` order, as ``(Ne,)`` with the Gauss points averaged; any other ``result`` as is."""
     if isinstance(result, np.ndarray) and result.ndim == 2 and len(result) == mesh.Ne:
         return result.mean(1)
     if not isinstance(result, dict):
         return result
     values = []
-    for groupElem in mesh.Get_list_groupElem(mesh.dim):
-        if groupElem not in result:
+    for groups in zip(*mesh._Get_lists_groupElem(mesh.dim)):
+        groupElem = groups[0]
+        key = next((group for group in groups if group in result), None)
+        if key is None:
             raise KeyError(f"no value given for the {groupElem.elemType} group")
-        value = np.asarray(result[groupElem], dtype=float)
+        value = np.asarray(result[key], dtype=float)
         if value.ndim == 2:
             value = value.mean(1)
         values.append(np.broadcast_to(value, (groupElem.Ne,)))

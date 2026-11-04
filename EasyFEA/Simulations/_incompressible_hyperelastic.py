@@ -90,12 +90,17 @@ class IncompressibleHyperElastic(_Simu):
 
     def __With_pressure_space(self, mesh: Mesh) -> Mesh:
         """New mesh with p on the vertices of `mesh`'s main-dimension elements; raises when u has no stable pressure space or p already has another one."""
-        if mesh.dim == 1:
+        dim = mesh.dim
+        if dim == 1:
             raise ValueError("u/p needs a 2D or 3D mesh: J = 1 makes a 1D mesh rigid.")
         space_u = mesh._Get_FunctionSpace(self.U)
         space_p = mesh._Get_FunctionSpace(self.P)
-        for groupElem in mesh.Get_list_groupElem(mesh.dim):
-            elemType = space_u.Get_groupElem(groupElem).elemType
+        for groupElem, uGroup, pGroup in zip(
+            mesh.Get_list_groupElem(dim),
+            space_u.Get_list_groupElem(dim),
+            space_p.Get_list_groupElem(dim),
+        ):
+            elemType = uGroup.elemType
             if elemType not in (
                 ElemType.TRI6,
                 ElemType.QUAD9,
@@ -107,7 +112,6 @@ class IncompressibleHyperElastic(_Simu):
                     f"no stable pressure space for u on {elemType}; use "
                     "mesh._With_FunctionSpace(Simulations.IncompressibleHyperElastic.U, order=2)."
                 )
-            pGroup = space_p.Get_groupElem(groupElem)
             if pGroup is not groupElem and pGroup.order != 1:
                 raise ValueError(
                     f"The mesh carries another pressure space, {pGroup.elemType}: "
@@ -214,10 +218,10 @@ class IncompressibleHyperElastic(_Simu):
     def __Kinematics(
         self, groupElem: _GroupElem, u: _types.FloatArray, matrixType: MatrixType
     ) -> Kinematics:
-        """Kinematics of `groupElem`'s elements on u's space, at the explicit rule p is sampled at too."""
-        space = self._Get_FunctionSpace(self.U)
-        rule = space.Get_rule(groupElem, matrixType)
-        return Kinematics(space.Get_groupElem(groupElem), u, rule)  # type: ignore [arg-type]
+        """Kinematics of u's group `groupElem`, at the explicit rule p is sampled at too."""
+        space_u = self._Get_FunctionSpace(self.U)
+        rule = space_u.Get_rule(groupElem, matrixType)
+        return Kinematics(groupElem, u, rule)  # type: ignore [arg-type]
 
     def __Current_kinematics(self, groupElem: _GroupElem) -> Kinematics:
         """:meth:`__Kinematics` at the current Newton solution."""
@@ -235,14 +239,14 @@ class IncompressibleHyperElastic(_Simu):
         )
 
     def __MixedIncompressibility(
-        self, groupElem: _GroupElem
+        self, groupElem: _GroupElem, pGroup: _GroupElem
     ) -> tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
         """``∫ p (1 − J) dΩ``: both equations' tangents and residuals."""
         space = self._Get_FunctionSpace(self.P)
         p = self._Solver_Get_Newton_Raphson_current_solution(self.P)
         return Operators.NonLinear.MixedIncompressibility(
             self.__Current_kinematics(groupElem),
-            space.Get_groupElem(groupElem),
+            pGroup,
             space.Get_nodeValues(p, 1),
         )
 
@@ -303,8 +307,8 @@ class IncompressibleHyperElastic(_Simu):
         if not self._Results_Check_Available(result):
             return None  # type: ignore [return-value]
 
-        space = self._Get_FunctionSpace(self.U)
-        u_n = space.Get_meshValues(self.displacement, self.dim)
+        space_u = self._Get_FunctionSpace(self.U)
+        u_n = space_u.Get_meshValues(self.displacement, self.dim)
 
         if result == "p":
             space_p = self._Get_FunctionSpace(self.P)
@@ -350,13 +354,11 @@ class IncompressibleHyperElastic(_Simu):
 
     def _Calc_W(self, returnScalar=True, matrixType=MatrixType.rigi):
         r"""Hyperelastic strain energy :math:`\int_{\Omega_0} W \, \dO`, a float, or per element (Ne,)."""
-        space = self._Get_FunctionSpace(self.U)
         list_W = []
-        for groupElem in self.mesh.Get_list_groupElem():
+        space_u = self._Get_FunctionSpace(self.U)
+        for groupElem in space_u.Get_list_groupElem():
             kinematics = self.__Solved_kinematics(groupElem, matrixType)
-            wJ_e_pg = space.Get_groupElem(groupElem).Get_weightedJacobian_e_pg(
-                matrixType
-            )
+            wJ_e_pg = groupElem.Get_weightedJacobian_e_pg(matrixType)
             W_e_pg = wJ_e_pg * self.material.Compute_W(kinematics)
             list_W.append(self.thickness * W_e_pg.integrate())
         W_e = np.concatenate(list_W)
@@ -364,10 +366,11 @@ class IncompressibleHyperElastic(_Simu):
 
     def _Calc_J(self, matrixType: MatrixType | None = None) -> _types.FloatArray:
         """Mean of det(F) on each element (Ne,), at ``self.matrixType`` by default."""
+        space_u = self._Get_FunctionSpace(self.U)
         return np.concatenate(
             [
                 self.__Solved_kinematics(groupElem, matrixType).Compute_J().mean(1)
-                for groupElem in self.mesh.Get_list_groupElem()
+                for groupElem in space_u.Get_list_groupElem()
             ]
         )
 
@@ -375,29 +378,33 @@ class IncompressibleHyperElastic(_Simu):
         self, matrixType: MatrixType | None = None
     ) -> FeArray.FeArrayALike | dict:
         """Green-Lagrange strain in Kelvin-Mandel form, at ``self.matrixType`` by default: an ``FeArray`` on one group, ``{groupElem: FeArray}`` on several."""
+        space_u = self._Get_FunctionSpace(self.U)
         return _Field_per_groupElem(
             lambda groupElem: Tensor_to_Kelvin(
                 self.__Solved_kinematics(groupElem, matrixType).Compute_GreenLagrange(),
                 2,
             ),
-            self.mesh.Get_list_groupElem(),
+            space_u.Get_list_groupElem(),
         )
 
     def _Calc_SecondPiolaKirchhoff(
         self, matrixType: MatrixType | None = None
     ) -> FeArray.FeArrayALike | dict:
         """Total second Piola-Kirchhoff stress ``∂W/∂e − p J C⁻¹``, at ``self.matrixType`` by default: an ``FeArray`` on one group, ``{groupElem: FeArray}`` on several."""
-        space = self._Get_FunctionSpace(self.P)
+        space_u = self._Get_FunctionSpace(self.U)
+        space_p = self._Get_FunctionSpace(self.P)
+        list_groupElem = space_u.Get_list_groupElem()
+        pGroups = dict(zip(list_groupElem, space_p.Get_list_groupElem()))
 
         def S_e_pg(groupElem: _GroupElem) -> FeArray.FeArrayALike:
             kinematics = self.__Solved_kinematics(groupElem, matrixType)
-            p_e_pg = space.Get_groupElem(groupElem).Interpolate_e_pg(
-                space.Get_nodeValues(self.pressure, 1), kinematics.matrixType
+            p_e_pg = pGroups[groupElem].Interpolate_e_pg(
+                space_p.Get_nodeValues(self.pressure, 1), kinematics.matrixType
             )
             dJdE_e_pg = kinematics.Compute_dI3dC() / kinematics.Compute_J()
             return self.material.Compute_dWde(kinematics) - p_e_pg * dJdE_e_pg
 
-        return _Field_per_groupElem(S_e_pg, self.mesh.Get_list_groupElem())
+        return _Field_per_groupElem(S_e_pg, list_groupElem)
 
     def Results_Iter_Summary(
         self,
@@ -408,9 +415,8 @@ class IncompressibleHyperElastic(_Simu):
         return super().Results_dict_Energy()
 
     def Results_displacement_matrix(self) -> _types.FloatArray:
-        values = self._Get_FunctionSpace(self.U).Get_meshValues(
-            self.displacement, self.dim
-        )
+        space_u = self._Get_FunctionSpace(self.U)
+        values = space_u.Get_meshValues(self.displacement, self.dim)
         matrix = np.zeros((self.mesh.Nn, 3))
         matrix[:, : self.dim] = values
         return matrix

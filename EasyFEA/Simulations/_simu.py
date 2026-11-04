@@ -1752,9 +1752,12 @@ class _Simu(_IObserver, _params.Updatable, ABC):
         """Shifts a field pinned at one node to zero mean, ``∫ field dΩ = 0``, in place in the problem's vector `x`."""
         space = self._Get_FunctionSpace(field)
         weights = np.zeros(space.Nn)
-        for groupElem in self.mesh.Get_list_groupElem(self.mesh.dim):
+        dim = self.mesh.dim
+        for groupElem, spaceGroup in zip(
+            self.mesh.Get_list_groupElem(dim), space.Get_list_groupElem(dim)
+        ):
             # ∫ N_i dΩ of each node
-            V_e = Operators.Linear.V(space.Get_groupElem(groupElem))
+            V_e = Operators.Linear.V(spaceGroup)
             np.add.at(weights, space.Get_assembly_e(groupElem, 1), V_e)
         start = self.__Get_offsets(problem)[problem.index(field)]
         values = x[start : start + space.Nn]
@@ -3106,13 +3109,14 @@ class _Simu(_IObserver, _params.Updatable, ABC):
         space = self._Get_FunctionSpace(problemType)
 
         # For each group element
-        for groupElem in self.mesh.Get_list_groupElem(dim):
+        for groupElem, spaceGroup in zip(
+            self.mesh.Get_list_groupElem(dim), space.Get_list_groupElem(dim)
+        ):
             # Retrieve elements that exclusively use nodes
             elements = groupElem.Get_Elements_Nodes(nodes, exclusively=True)
             if elements.shape[0] == 0:
                 continue
             connect = groupElem.connect[elements]
-            spaceGroup = space.Get_groupElem(groupElem)
             spaceNodes = spaceGroup.connect[elements]
             Ne = elements.shape[0]
             list_nodesUsed.append(spaceNodes.ravel())
