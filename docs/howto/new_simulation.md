@@ -18,6 +18,7 @@ simulation classes that cover the vast majority of common problems:
 | {py:class}`~EasyFEA.Simulations.Beam` | Euler–Bernoulli and Timoshenko beams |
 | {py:class}`~EasyFEA.Simulations.DIC` | Digital Image Correlation |
 | {py:class}`~EasyFEA.Simulations.HyperElastic` | Hyperelasticity (static, dynamic) |
+| {py:class}`~EasyFEA.Simulations.IncompressibleHyperElastic` | Perfectly incompressible hyperelasticity, `[u \| p]` (static) |
 
 If your physics is not listed above, consider
 [opening an issue](https://github.com/matnoel/EasyFEA/issues) to propose it
@@ -193,13 +194,13 @@ from EasyFEA.Simulations import _Simu, ProblemType, Term
 
 class MySimulation(_Simu):
 
+    U = ProblemType("my_problem")
+    problemTypes = (U,)  # the first is the default, `problemType`
+
     def __init__(self, mesh, model, folder="", verbosity=False):
         super().__init__(mesh, model, folder, verbosity)
 
     # --- problem definition ---
-
-    def Get_problemTypes(self) -> list[ProblemType]:
-        ...
 
     def Get_unknowns(self, problemType=None) -> list[str]:
         ...
@@ -288,6 +289,17 @@ once and reused across Newton iterations and time steps, until one of its argume
 changes. So a constant term must get everything it reads through its arguments — a plain
 operator such as `Bilinear.UV` with `coef=self.rho`, never a bound method, which `Term`
 refuses.
+
+To inspect what the fold built, read it by slot, then block, then element group:
+
+```python
+local = simu._Construct_local_matrix_system(problemType)
+K_e = local["K"][(rows, cols)][groupElem]
+F_e = local["F"][rows][groupElem]
+```
+
+`rows` and `cols` are both `problemType` unless the term's `problemTypes` says
+otherwise, and a slot no term fills is empty.
 
 ```{warning}
 A **non-linear** problem needs no special handling here: put the tangent in `K`

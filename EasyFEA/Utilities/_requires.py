@@ -7,7 +7,7 @@ from functools import wraps
 from importlib.util import find_spec
 from typing import Callable, ParamSpec, TypeVar
 
-P = ParamSpec("P")
+Params = ParamSpec("Params")
 R = TypeVar("R")
 
 
@@ -21,7 +21,7 @@ def _Is_available(module: str) -> bool:
 
 def Create_requires_decorator(
     *modules: str, libraries: list[str] | None = None
-) -> Callable[[Callable[P, R]], Callable[P, R]]:
+) -> Callable[[Callable[Params, R]], Callable[Params, R]]:
     """Creates a decorator that checks if modules are available before executing a function.
 
     Returns
@@ -46,9 +46,9 @@ def Create_requires_decorator(
             error += f"\nPlease install it with: pip install {install} command."
         return error
 
-    def decorator(func: Callable[P, R]) -> Callable[P, R]:
+    def decorator(func: Callable[Params, R]) -> Callable[Params, R]:
         @wraps(func)
-        def wrapper(*args: P.args, **kwargs: P.kwargs) -> R:
+        def wrapper(*args: Params.args, **kwargs: Params.kwargs) -> R:
             if not can_use_modules:
                 raise ImportError(__get_error(func))
             return func(*args, **kwargs)

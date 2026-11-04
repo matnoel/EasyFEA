@@ -30,7 +30,7 @@ class IncompressibleHyperElastic(_Simu):
     r"""Perfectly incompressible hyperelastic simulation: displacement and pressure solved by one Newton over ``[u | p]``, on the Taylor–Hood pair derived from u's space (TRI6/TRI3, QUAD9/QUAD4, TETRA10/TETRA4, HEXA27/HEXA8, PRISM18/PRISM6), static, with a direct solver.
 
     .. math::
-        \Sbm = \dpartial{W}{\eb} - p \, J \, \Cb^{-1}, \qquad \int_{\Omega_0} q \, (1 - J) \, \dO = 0 \quad \forall \, q
+        \Sb = \dpartial{W}{\eb} - p \, J \, \Cb^{-1}, \qquad \int_{\Omega_0} q \, (1 - J) \, \dO = 0 \quad \forall \, q
 
     :math:`p` is a Lagrange multiplier, positive in compression; it is the hydrostatic pressure only with a decoupled law. It is computed, never prescribed: when the whole boundary has prescribed normal displacement its constant mode is pinned and it has zero mean.
 

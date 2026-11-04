@@ -11,7 +11,7 @@ import numpy as np
 from functools import wraps
 from typing import Callable
 
-from ._requires import Create_requires_decorator, P, R
+from ._requires import Create_requires_decorator, Params, R
 
 # MPI launchers (mpirun, srun, mpiexec, …) set at least one of these env vars.
 # Only import mpi4py when actually running under an MPI launcher to avoid
@@ -52,7 +52,7 @@ else:
 requires_mpi = Create_requires_decorator("mpi4py")
 
 
-def rank0_only(func: Callable[P, R]) -> Callable[P, R | None]:
+def rank0_only(func: Callable[Params, R]) -> Callable[Params, R | None]:
     """Decorator: only rank 0 executes the function. Non-root ranks return `None`.
 
     Use on file-output and visualization functions (Matplotlib, GLTF, USD, Vizir)
@@ -60,7 +60,7 @@ def rank0_only(func: Callable[P, R]) -> Callable[P, R | None]:
     """
 
     @wraps(func)
-    def wrapper(*args: P.args, **kwargs: P.kwargs) -> R | None:
+    def wrapper(*args: Params.args, **kwargs: Params.kwargs) -> R | None:
         if MPI_RANK == 0:
             return func(*args, **kwargs)
         return None

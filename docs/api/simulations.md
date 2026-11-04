@@ -16,6 +16,9 @@ With this module, you can construct:
 
 - Linear elastic simulations with {py:class}`~EasyFEA.Simulations.Elastic`.
 - Nonlinear hyperelastic simulations with {py:class}`~EasyFEA.Simulations.HyperElastic`.
+- Perfectly incompressible hyperelastic simulations, solved for displacement and
+  pressure, with {py:class}`~EasyFEA.Simulations.IncompressibleHyperElastic` (see
+  {ref}`simulations-incompressible`).
 - Small-strain materials whose stress depends on the history of strain — plasticity,
   viscoplasticity and viscoelasticity — with {py:class}`~EasyFEA.Simulations.InElastic`
   (see {ref}`simulations-inelastic`).
@@ -122,10 +125,84 @@ External variables a behavior declares, such as a temperature, are given by
 `simu.Set_external(T=thermal.thermal)`, and kept until changed; a converged `Solve`
 commits them with the internal variables, so results read those of the last step.
 
+The displacement can use another order than the mesh (see {ref}`howto-function-spaces`):
+the internal variables then live at the Gauss points of the displacement's elements.
+
 ```{seealso}
 - {ref}`easyfea-examples-inelasticity`
 - {ref}`Inelastic models <models-inelastic>` — the shipped behaviors
 - {ref}`howto-models-inelastic-own`
+```
+
+(simulations-incompressible)=
+
+### IncompressibleHyperElastic
+
+{py:class}`~EasyFEA.Simulations.IncompressibleHyperElastic` enforces $J = 1$ exactly:
+one Newton solves the displacement $\ub$ and the pressure $p$ together, as one system
+`[u | p]`.
+
+$$
+\Sb = \dpartial{W}{\eb} - p \, J \, \Cb^{-1}, \qquad
+\int_{\Omega_0} q \, (1 - J) \, \dO = 0 \quad \forall \, q
+$$
+
+$p$ is a Lagrange multiplier, positive in compression. It is the hydrostatic pressure
+only with a decoupled law. It is computed, never prescribed, so
+{py:func}`~EasyFEA.Simulations._Simu.add_dirichlet` on it raises.
+
+When the whole boundary has prescribed normal displacement, nothing sets the level of
+$p$: the simulation pins its constant mode, then shifts $p$ to zero mean. That mean is
+taken on the straight sides of the elements, so on a curved mesh $p$, and the total
+stress through it, are off by a constant that shrinks as the mesh is refined. $\ub$ and
+$J$ are not affected.
+
+The pressure space comes from the displacement's elements, on their vertices:
+
+| $\ub$ | TRI6 | QUAD9 | TETRA10 | HEXA27 | PRISM18 |
+| ----- | ---- | ----- | ------- | ------ | ------- |
+| $p$   | TRI3 | QUAD4 | TETRA4  | HEXA8  | PRISM6  |
+
+Any other displacement element raises. On a linear mesh, raise the displacement's order
+first (see {ref}`howto-function-spaces`):
+
+```python
+from EasyFEA import ElemType, Models, Simulations
+from EasyFEA.Geoms import Domain
+
+contour = Domain((0, 0), (1, 1), 0.1)
+mesh = contour.Mesh_2D([], ElemType.QUAD4, isOrganised=True)
+meshQ2 = mesh._With_FunctionSpace(Simulations.IncompressibleHyperElastic.U, 2)
+
+# here K is a shear coefficient, not a bulk modulus: the pressure enforces J = 1
+material = Models.HyperElastic.NeoHookean(2, K=0.5)
+simu = Simulations.IncompressibleHyperElastic(meshQ2, material)
+
+U = Simulations.IncompressibleHyperElastic.U
+nodesLeft = meshQ2.Nodes_Conditions(lambda x, y, z: x == 0, problemType=U)
+nodesRight = meshQ2.Nodes_Conditions(lambda x, y, z: x == 1, problemType=U)
+simu.add_dirichlet(nodesLeft, [0, 0], ["x", "y"])
+simu.add_surfLoad(nodesRight, [0.01], ["y"])
+simu.Solve()
+
+p_n = simu.Result("p")  # at the nodes
+J_e = simu.Result("J", nodeValues=False)  # on the elements
+```
+
+- A law with a non-zero bulk term is refused, because it locks against the pressure: set
+  its bulk modulus `K` to 0. `NeoHookean` has none: its `K` is a shear coefficient. A
+  viscosity or an active stress is refused too: the simulation is static and elastic.
+- The system is a saddle point, so it needs a direct solver: iterative solvers raise.
+  Under MPI it defaults to PETSc with MUMPS (see {ref}`howto-mpi`).
+- The simulation works on a copy of the given mesh that carries the pressure space,
+  `simu.mesh`: node ids are the same, but moving the given mesh does not reach it.
+- `simu.pressure` is the vector of pressure DOFs. `simu.U` and `simu.P` name the two
+  problem types, and `simu.Assembly((simu.U, simu.P))` assembles the coupled system; one
+  field alone raises.
+
+```{seealso}
+- {ref}`easyfea-examples-hyperelasticity` — `Hyperelas5` and `Hyperelas6`
+- {ref}`howto-function-spaces`
 ```
 
 ## How to Create New Simulations in EasyFEA?

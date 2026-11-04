@@ -565,7 +565,7 @@ class Mesh(Observable):
         ]
 
     def _With_FunctionSpace(self, problemType: "ProblemType", order: int) -> "Mesh":
-        """New mesh on which ``problemType`` lives on the complete Lagrange elements of ``order`` (TETRA4 + PRISM6, 2 → TETRA10 + PRISM18; QUAD8, 2 → QUAD9); geometry copied, observers and caches not. Collective on a partitioned mesh."""
+        """New mesh on which ``problemType`` lives on the complete Lagrange elements of ``order`` (TETRA4 + PRISM6, 2 → TETRA10 + PRISM18; QUAD8, 2 → QUAD9); below the geometry's order, the field integrates on the chord; geometry copied, observers and caches not. Collective on a partitioned mesh."""
         # the copies start with an empty cache instead of a copy of these
         memo: dict[int, Any] = {
             id(cached_computed_values(groupElem)): {}

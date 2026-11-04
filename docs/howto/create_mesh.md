@@ -155,3 +155,146 @@ ______________________________________________________________________
 
 The types of isoparametric geometric elements that can be used to discretize the domain
 are available in the {py:class}`~EasyFEA.FEM.ElemType` class.
+
+(howto-function-spaces)=
+
+## Non-isoparametric fields
+
+By default a field uses the mesh's elements: it is isoparametric.
+`Mesh._With_FunctionSpace` returns a new mesh on which one field uses the complete
+Lagrange elements of another order, on the same geometry. "P2 on TRI3" below means a
+quadratic field on a linear mesh, "P1 on TRI6" the opposite.
+
+```python
+from EasyFEA import ElemType, Models, Simulations
+from EasyFEA.Geoms import Domain
+
+contour = Domain((0, 0), (1, 1), 0.1)
+mesh = contour.Mesh_2D([], ElemType.TRI3)
+# u on TRI6, the geometry on TRI3
+meshP2 = mesh._With_FunctionSpace(Simulations.Elastic.U, 2)
+
+material = Models.Elastic.Isotropic(2, E=210000, v=0.3)
+simu = Simulations.Elastic(meshP2, material)
+```
+
+The space belongs to one field. The displacement is one problem type in every
+simulation: `Simulations.InElastic.U` is `Simulations.Elastic.U`. Other fields have
+their own, such as `Simulations.Thermal.T`: a space set for `T` leaves the displacement
+isoparametric, without an error.
+
+### Select the nodes of a field
+
+On a non-isoparametric space, pass `problemType=` to the `Nodes_*` functions:
+
+```python
+U = Simulations.Elastic.U
+nodesClamped = meshP2.Nodes_Conditions(lambda x, y, z: x == 0, problemType=U)
+simu.add_dirichlet(nodesClamped, [0, 0], ["x", "y"])
+```
+
+Without it they select the geometry's nodes. Under P2 on TRI3 the nodes the space adds
+are then left out and, in a Dirichlet condition, stay free. The first such selection
+prints a warning. The figures select `x <= 0.5` both ways:
+
+```{eval-rst}
+.. jupyter-execute::
+
+    from EasyFEA import Matplotlib, ElemType, Simulations
+    from EasyFEA.Geoms import Domain
+
+    U = Simulations.Elastic.U
+    domain = Domain((0, 0), (1, 1), meshSize=0.25)
+    mesh = domain.Mesh_2D([], ElemType.TRI3)._With_FunctionSpace(U, 2)
+    meshU = mesh._Get_FunctionSpace(U).Get_mesh()
+
+    nodes = mesh.Nodes_Conditions(lambda x, y, z: x <= 0.5)
+    ax = Matplotlib.Plot_Mesh(mesh, alpha=0)
+    Matplotlib.Plot_Nodes(meshU, nodes, title="without problemType", ax=ax)
+
+    nodes = mesh.Nodes_Conditions(lambda x, y, z: x <= 0.5, problemType=U)
+    ax = Matplotlib.Plot_Mesh(mesh, alpha=0)
+    Matplotlib.Plot_Nodes(meshU, nodes, title="with problemType", ax=ax)
+```
+
+Two things to know about a selection made with `problemType=`:
+
+- Its ids can go past `mesh.Nn`, so `mesh.coord[nodes]` raises `IndexError`. Read the
+  coordinates with `mesh._Get_FunctionSpace(U).coord[nodes]`.
+- It can serve another field: a condition skips the nodes that carry none of that
+  field's DOFs.
+
+### Curved boundaries
+
+With P2 on TRI3 an edge stays straight, so its mid-edge node lies on the chord, not on
+the circle, and a test on the radius misses it. So when a space adds nodes,
+`Nodes_Conditions`, `Nodes_Circle` and `Nodes_Cylinder` with `problemType=` also take
+every node of a boundary edge or face whose vertices are all selected. On a partitioned
+mesh these calls are then collective under MPI: make them on every rank.
+
+The figure selects the outer radius of a thick cylinder, mid-edge nodes included:
+
+```{eval-rst}
+.. jupyter-execute::
+
+    import numpy as np
+    from EasyFEA import Matplotlib, ElemType, Simulations
+    from EasyFEA.Geoms import Point, Points
+
+    a, b = 100.0, 200.0  # inner and outer radius
+    meshSize = (b - a) / 3
+    # r > 0 rounds the corner (b, b), r < 0 cuts an arc centred on the origin
+    contour = Points(
+        [
+            Point(0, 0, r=-a),
+            (b, 0),
+            Point(b, b, r=b),
+            (0, b),
+        ],
+        meshSize,
+    ).Get_Contour()
+
+    U = Simulations.Elastic.U
+    mesh = contour.Mesh_2D([], ElemType.TRI3)._With_FunctionSpace(U, 2)
+
+    meshU = mesh._Get_FunctionSpace(U).Get_mesh()
+    nodes = mesh.Nodes_Conditions(
+        lambda x, y, z: np.isclose(np.hypot(x, y), b), problemType=U
+    )
+    ax = Matplotlib.Plot_Mesh(mesh, alpha=0)
+    Matplotlib.Plot_Geoms(
+        contour,
+        ax=ax,
+        plotPoints=False,
+        plotLegend=False,
+        showGrid=False,
+    )
+    Matplotlib.Plot_Nodes(meshU, nodes, title="the rim", ax=ax)
+```
+
+This rule only looks at vertices, so one call spanning two faces can take an edge
+between them: selecting the top and bottom of a strip one element thick also takes its
+end sides' mid-edge nodes ({ref}`see the figure <howto-check-selection>`). To avoid
+this, select one face per call, or by tag: here `mesh.Nodes_Tags("L2", problemType=U)`
+takes exactly the nodes of the outer arc. Check what was picked with
+{py:func}`~EasyFEA.Viz.Matplotlib.Plot_BoundaryConditions`, which draws every selected
+node.
+
+The geometry does not change, which sets the limits on a curved boundary:
+
+- Above the geometry's order (P2 on TRI3), edges stay straight. To follow the curve,
+  mesh with quadratic elements instead (TRI6).
+- Below it (P1 on TRI6), the field integrates on the chord, loads included.
+
+### Limits
+
+These do not support another order:
+
+| Feature                                                          | With a non-isoparametric displacement        |
+| ---------------------------------------------------------------- | -------------------------------------------- |
+| {py:class}`~EasyFEA.Simulations.Beam`                            | raises at construction: it rebuilds the mesh |
+| External variables of {py:class}`~EasyFEA.Simulations.InElastic` | raises: they are set on the mesh's nodes     |
+
+{py:class}`~EasyFEA.Simulations.PhaseField` needs one order for both fields: give
+`Simulations.PhaseField.U` and `Simulations.PhaseField.D` the same, or
+{py:func}`~EasyFEA.Simulations.PhaseField.Solve` raises.
