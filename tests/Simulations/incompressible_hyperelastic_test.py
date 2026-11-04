@@ -315,10 +315,10 @@ def _uniaxial_stretch(simu: Simulations.IncompressibleHyperElastic) -> None:
     """Rollers on the x, y (and z) = 0 sides, the x = max side pulled to `STRETCH` times the length, the others free."""
     mesh = simu.mesh
     length = mesh.coord[:, 0].max()
-    nodesPulled = mesh.Nodes_Conditions(lambda x, y, z: x == length)
+    nodesPulled = mesh.Nodes_Conditions(lambda x, y, z: x == length, problemType=U)
     simu.add_dirichlet(nodesPulled, [(STRETCH - 1) * length], ["x"])
     for index, unknown in enumerate(simu.Get_unknowns()):
-        nodes = mesh.Nodes_Conditions(lambda *xyz: xyz[index] == 0)
+        nodes = mesh.Nodes_Conditions(lambda *xyz: xyz[index] == 0, problemType=U)
         simu.add_dirichlet(nodes, [0], [unknown])
 
 
@@ -451,8 +451,8 @@ def test_IncompressibleHyperElastic_P2_on_TETRA4_is_the_straight_TETRA10_under_l
 ):
     def solved(mesh: Mesh, load) -> Simulations.IncompressibleHyperElastic:
         simu = incompressible(mesh)
-        nodesLeft = simu.mesh.Nodes_Conditions(lambda x, y, z: x == 0)
-        nodesRight = simu.mesh.Nodes_Conditions(lambda x, y, z: x == 1)
+        nodesLeft = simu.mesh.Nodes_Conditions(lambda x, y, z: x == 0, problemType=U)
+        nodesRight = simu.mesh.Nodes_Conditions(lambda x, y, z: x == 1, problemType=U)
         simu.add_dirichlet(nodesLeft, [0, 0, 0], ["x", "y", "z"])
         load(simu, nodesRight)
         simu.Solve()

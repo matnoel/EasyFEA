@@ -20,6 +20,7 @@ from EasyFEA.FEM import (
 )
 from EasyFEA.Geoms import Points, Circle, Domain, Line, Rotate
 from EasyFEA.Utilities import _IObserver, Observable
+from EasyFEA.Utilities._mpi import Concatenate_array
 
 from _numerics import rel_error
 
@@ -1045,3 +1046,219 @@ def test_Mesh_simulations_on_one_mesh_share_its_space():
 
     assert first._Get_FunctionSpace() is second._Get_FunctionSpace()
     assert first._Get_FunctionSpace() is meshP2._Get_FunctionSpace(ELASTIC)
+
+
+# ----------------------------------------------
+# Selection on a function space
+# ----------------------------------------------
+
+
+def _space_square(elemType: ElemType, order: int) -> Mesh:
+    domain = Domain((0, 0), (1, 1), 0.25)
+    return domain.Mesh_2D([], elemType)._With_FunctionSpace(ELASTIC, order)
+
+
+def _space_ring() -> tuple[Mesh, Circle, Circle]:
+    """P2 on TRI3, one element through the wall."""
+    outer = Circle((0, 0), 2.0, 0.25)
+    inner = Circle((0, 0), 1.5, 0.25)
+    return (
+        outer.Mesh_2D([inner], ElemType.TRI3)._With_FunctionSpace(ELASTIC, 2),
+        outer,
+        inner,
+    )
+
+
+def _space_cylinder() -> tuple[Mesh, Circle]:
+    base = Circle((0, 0), 1.0, 0.2)
+    mesh = base.Mesh_Extrude([], (0, 0, 1), [4], ElemType.TETRA4)
+    return mesh._With_FunctionSpace(ELASTIC, 2), base
+
+
+def _on_radius(radius: float):
+    return lambda x, y, z: np.isclose(np.hypot(x, y), radius, atol=1e-8)
+
+
+def _nodes_of_elements_on(mesh: Mesh, condition) -> set[int]:
+    """Every node of the elements one dimension below the mesh whose vertices all meet ``condition``."""
+    space = mesh._Get_FunctionSpace(ELASTIC)
+    nodes: set[int] = set()
+    for partner in space.Get_list_groupElem(mesh.dim - 1):
+        vertices = space.coord[partner.connect[:, : partner.Nvertex]]
+        isOn = condition(*vertices.transpose(2, 0, 1)).all(axis=1)
+        nodes.update(partner.connect[isOn].ravel().tolist())
+    return nodes
+
+
+def test_Mesh_Nodes_Conditions_problemType_selects_a_region_with_its_mid_nodes():
+    mesh = _space_square(ElemType.TRI3, 2)
+    coord = mesh._Get_FunctionSpace(ELASTIC).coord
+
+    nodes = mesh.Nodes_Conditions(lambda x, y, z: x <= 0.5, problemType=ELASTIC)
+    vertices = mesh.Nodes_Conditions(lambda x, y, z: x <= 0.5)
+
+    assert set(nodes.tolist()) == set(np.flatnonzero(coord[:, 0] <= 0.5).tolist())
+    assert vertices.max() < mesh.Nn < nodes.max()
+
+
+def test_Mesh_Nodes_problemType_close_a_curved_boundary_over_its_elements(subtests):
+    ring, outer, inner = _space_ring()
+    onRing = lambda x, y, z: _on_radius(1.0)(x, y, z) | _on_radius(0.75)(x, y, z)
+    cylinder, base = _space_cylinder()
+    lateral = _on_radius(0.5)
+    for name, mesh, nodes, condition in (
+        (
+            "Conditions, bore and rim in one call",
+            ring,
+            ring.Nodes_Conditions(onRing, problemType=ELASTIC),
+            onRing,
+        ),
+        ("Circle", ring, ring.Nodes_Circle(outer, inner, problemType=ELASTIC), onRing),
+        (
+            "Conditions, cylinder",
+            cylinder,
+            cylinder.Nodes_Conditions(lateral, problemType=ELASTIC),
+            lateral,
+        ),
+        (
+            "Cylinder",
+            cylinder,
+            cylinder.Nodes_Cylinder(base, onlyOnEdge=True, problemType=ELASTIC),
+            lateral,
+        ),
+    ):
+        with subtests.test(name):
+            # exactly these: no mid node inside the wall
+            assert set(nodes.tolist()) == _nodes_of_elements_on(mesh, condition)
+
+
+def test_Mesh_Nodes_Conditions_problemType_takes_a_side_a_call_spans_two_faces_over():
+    domain = Domain((0, 0), (3, 1), 1.0)
+    mesh = domain.Mesh_2D([], ElemType.TRI3)._With_FunctionSpace(ELASTIC, 2)
+    coord = mesh._Get_FunctionSpace(ELASTIC).coord
+    onBoth = mesh.Nodes_Conditions(
+        lambda x, y, z: (y == 0) | (y == 1), problemType=ELASTIC
+    )
+    onBottom = mesh.Nodes_Conditions(lambda x, y, z: y == 0, problemType=ELASTIC)
+    onTop = mesh.Nodes_Conditions(lambda x, y, z: y == 1, problemType=ELASTIC)
+
+    assert np.count_nonzero(coord[onBoth, 1] == 0.5) == 2
+    assert np.count_nonzero(coord[onBottom, 1] == 0.5) == 0
+    assert np.count_nonzero(coord[onTop, 1] == 0.5) == 0
+
+
+def test_Mesh_Nodes_Conditions_problemType_does_not_close_a_space_adding_no_node(
+    subtests,
+):
+    domain = Domain((0, 0), (3, 1), 1.0)
+    iso = domain.Mesh_2D([], ElemType.TRI6)
+    for name, mesh in (
+        ("iso", iso),
+        ("P1 on TRI6", iso._With_FunctionSpace(ELASTIC, 1)),
+    ):
+        with subtests.test(name):
+            nodes = mesh.Nodes_Conditions(
+                lambda x, y, z: (y == 0) | (y == 1), problemType=ELASTIC
+            )
+            coord = mesh._Get_FunctionSpace(ELASTIC).coord
+            assert np.all(np.isin(coord[nodes, 1], (0, 1)))
+
+
+def test_Mesh_Nodes_warn_once_on_the_geometry_of_a_space_adding_nodes(capsys, subtests):
+    def isLeft(x, y, z):
+        return x == 0
+
+    def warned() -> bool:
+        return "problemType=" in capsys.readouterr().out
+
+    with subtests.test("Nodes_Conditions, once"):
+        mesh = _space_square(ElemType.TRI3, 2)
+        mesh.Nodes_Conditions(isLeft)
+        assert warned()
+        mesh.Nodes_Conditions(isLeft)
+        assert not warned()
+    with subtests.test("Nodes_Tags"):
+        mesh = _space_square(ElemType.TRI3, 2)
+        mesh.Nodes_Tags("L0")
+        assert warned()
+    with subtests.test("with problemType, none"):
+        mesh = _space_square(ElemType.TRI3, 2)
+        mesh.Nodes_Conditions(isLeft, problemType=ELASTIC)
+        mesh.Nodes_Tags("L0", problemType=ELASTIC)
+        assert not warned()
+    with subtests.test("a space adding no node, none"):
+        _space_square(ElemType.TRI6, 1).Nodes_Conditions(isLeft)
+        assert not warned()
+
+
+def test_Mesh_Nodes_Tags_problemType_holds_every_node_of_the_tagged_elements(subtests):
+    mesh, _, _ = _space_ring()
+    group = mesh.Get_list_groupElem(1)[0]
+    partner = mesh._Get_FunctionSpace(ELASTIC).Get_list_groupElem(1)[0]
+    for tag in group.elementTags:
+        with subtests.test(tag):
+            nodes = mesh.Nodes_Tags(tag, problemType=ELASTIC)
+            expected = partner.connect[group.Get_Elements_Tag(tag)]
+            assert set(nodes.tolist()) == set(expected.ravel().tolist())
+    with subtests.test("all, no mid node inside the wall"):
+        nodes = mesh.Nodes_Tags(*group.elementTags, problemType=ELASTIC)
+        assert set(nodes.tolist()) == set(partner.connect.ravel().tolist())
+
+
+def test_Mesh_Set_Tag_on_a_space_reaches_its_mid_nodes():
+    mesh = _space_square(ElemType.TRI3, 2)
+    coord = mesh._Get_FunctionSpace(ELASTIC).coord
+    nodesLeft = mesh.Nodes_Conditions(lambda x, y, z: x == 0)
+
+    mesh.Set_Tag(nodesLeft, "left")
+
+    nodes = mesh.Nodes_Tags("left", problemType=ELASTIC)
+    assert set(nodes.tolist()) == set(np.flatnonzero(coord[:, 0] == 0).tolist())
+
+
+# ----------------------------------------------
+# Selection on a function space, MPI
+# ----------------------------------------------
+
+
+def _held(space, nodes: np.ndarray) -> set[tuple]:
+    """Coordinates of the ``nodes`` this rank holds."""
+    held = nodes[np.isin(nodes, space.localNodes)]
+    return {tuple(row) for row in np.round(space.coord[held], 9).tolist()}
+
+
+def _assert_all_ranks_hold(space, nodes: np.ndarray, expected: np.ndarray) -> None:
+    """Every rank holds the ``expected`` coordinates; agreed across ranks first, so that one rank failing does not leave the others waiting."""
+    gap = _held(space, nodes) ^ {tuple(row) for row in np.round(expected, 9).tolist()}
+    assert Concatenate_array(np.array([len(gap)])).max() == 0
+
+
+@pytest.mark.mpi
+def test_Mesh_Nodes_Tags_problemType_under_mpi_holds_the_nodes_of_this_rank():
+    """A rank can hold a mid node through a cell without the tagged face it sits on."""
+    domain = Domain((0, 0), (1, 1), 0.25)
+    mesh = domain.Mesh_Extrude([], (0, 0, 1), [4], ElemType.TETRA4)
+    mesh = mesh._With_FunctionSpace(ELASTIC, 2)
+    space = mesh._Get_FunctionSpace(ELASTIC)
+    local = space.coord[space.localNodes]
+    for tag in ("S0", "S1", "S2", "S3", "S4", "S5"):
+        nodes = mesh.Nodes_Tags(tag, problemType=ELASTIC)
+        # the plane the tag lies in, from every rank's nodes it holds
+        held = nodes[np.isin(nodes, space.localNodes)]
+        coord = Concatenate_array(space.coord[held].ravel()).reshape(-1, 3)
+        axis = int(np.argmin(np.ptp(coord, axis=0)))
+        expected = local[local[:, axis] == coord[0, axis]]
+        _assert_all_ranks_hold(space, nodes, expected)
+
+
+@pytest.mark.mpi
+def test_Mesh_Nodes_Conditions_problemType_under_mpi_closes_the_nodes_of_this_rank():
+    mesh, _ = _space_cylinder()
+    space = mesh._Get_FunctionSpace(ELASTIC)
+    local = space.coord[space.localNodes]
+
+    nodes = mesh.Nodes_Conditions(_on_radius(0.5), problemType=ELASTIC)
+
+    # on the circle or its chords, whose sagitta is below this
+    expected = local[np.hypot(local[:, 0], local[:, 1]) > 0.5 - 0.02]
+    _assert_all_ranks_hold(space, nodes, expected)

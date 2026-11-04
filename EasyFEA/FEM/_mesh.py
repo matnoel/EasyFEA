@@ -74,6 +74,9 @@ class Mesh(Observable):
         self.__verbosity = verbosity
         """the mesh can write in the terminal"""
 
+        self.__hasWarnedSelection = False
+        """`Nodes_*` already warned about the nodes the geometry misses"""
+
         self.__dict_functionSpace: dict["ProblemType", _FunctionSpace] = {}
         """space of each problem type not isoparametric, on the complete Lagrange elements set by `_With_FunctionSpace`"""
 
@@ -688,8 +691,28 @@ class Mesh(Observable):
     ) -> list["_GroupElem"]:
         """Main-dimension groups to select on: the geometry's, or those ``problemType``'s space puts on them, whose nodes are the space's."""
         if problemType is None:
+            self.__Warn_selection()
             return self.Get_list_groupElem(self.dim)
         return self._Get_FunctionSpace(problemType).Get_list_groupElem(self.dim)
+
+    def __Warn_selection(self) -> None:
+        """Warns once when a space has nodes a selection on the geometry misses."""
+        if not self.__hasWarnedSelection and any(
+            space.Ncoords > self.Nn for space in self.__dict_functionSpace.values()
+        ):
+            self.__hasWarnedSelection = True
+            Terminal.MyPrintError(
+                "WARNING: Nodes_* selected the geometry's nodes, but a function space adds nodes to this mesh: give problemType= to select them too, or they stay out of the selection."
+            )
+
+    def __Close_selection(
+        self, nodes: _types.IntArray, problemType: "ProblemType | None"
+    ) -> _types.IntArray:
+        """The selection on ``problemType``'s space, closed over the lower-dimension elements it fully selects when that space adds nodes; collective then on a partitioned mesh."""
+        space = self.__dict_functionSpace.get(problemType)  # type: ignore [arg-type]
+        if space is None or space.Ncoords <= self.Nn:
+            return nodes
+        return space._Close_selection(nodes)
 
     def Nodes_Conditions(
         self, func, problemType: "ProblemType | None" = None
@@ -706,7 +729,7 @@ class Mesh(Observable):
             \t lambda x, y, z: (x == 40) | (x == 50) \n
             \t lambda x, y, z: x >= 0
         problemType : ProblemType, optional
-            selects the nodes of this problem type's space instead of the geometry's, by default None
+            selects the nodes of this problem type's space instead of the geometry's, with those of the edges and faces whose vertices all meet the conditions, by default None
 
         Returns
         -------
@@ -715,11 +738,14 @@ class Mesh(Observable):
         """
         list_groupElem = self.__Get_selection_groups(problemType)
         if len(list_groupElem) == 1:
-            return list_groupElem[0].Get_Nodes_Conditions(func)
-        nodes: set[int] = set()
+            nodes = list_groupElem[0].Get_Nodes_Conditions(func)
+            return self.__Close_selection(nodes, problemType)
+        allNodes: set[int] = set()
         for groupElem in list_groupElem:
-            nodes.update(groupElem.Get_Nodes_Conditions(func).tolist())
-        return np.array(sorted(nodes), dtype=int)
+            allNodes.update(groupElem.Get_Nodes_Conditions(func).tolist())
+        return self.__Close_selection(
+            np.array(sorted(allNodes), dtype=int), problemType
+        )
 
     def Nodes_Point(
         self, *points: Point.PointALike, problemType: "ProblemType | None" = None
@@ -790,7 +816,7 @@ class Mesh(Observable):
         for circle in circles:
             for groupElem in self.__Get_selection_groups(problemType):
                 nodes = nodes.union(groupElem.Get_Nodes_Circle(circle, onlyOnEdge))
-        return np.asarray(list(nodes), dtype=int)
+        return self.__Close_selection(np.asarray(list(nodes), dtype=int), problemType)
 
     def Nodes_Cylinder(
         self,
@@ -813,7 +839,7 @@ class Mesh(Observable):
                 nodes = nodes.union(
                     groupElem.Get_Nodes_Cylinder(circle, direction, onlyOnEdge)
                 )
-        return np.asarray(list(nodes), dtype=int)
+        return self.__Close_selection(np.asarray(list(nodes), dtype=int), problemType)
 
     def Elements_Nodes(
         self, nodes: _types.IntArray, exclusively=True, neighborLayer: int = 1
@@ -845,7 +871,7 @@ class Mesh(Observable):
     def Nodes_Tags(
         self, *tags: str, problemType: "ProblemType | None" = None
     ) -> _types.IntArray:
-        """Returns nodes associated with the tags, or with ``problemType`` the nodes of its space on them (the tagged nodes carrying a DOF, then the points on the edges, faces and cells they close)."""
+        """Returns nodes associated with the tags, or with ``problemType`` the nodes of its space on them."""
         list_node: list[int] = []
 
         tags = [
@@ -854,9 +880,18 @@ class Mesh(Observable):
             for nested_tag in (tag if isinstance(tag, list) else [tag])
         ]
 
+        list_groupElem = list(self.dict_groupElem.values())
+        if problemType is None:
+            self.__Warn_selection()
+        else:
+            # after the geometry's, which a rank holding no node of a tag still knows
+            space = self._Get_FunctionSpace(problemType)
+            for dim in range(self.dim + 1):
+                list_groupElem.extend(space.Get_list_groupElem(dim))
+
         # get dictionnary linking tags to nodes
         dict_nodes = {}
-        for groupElem in self.dict_groupElem.values():
+        for groupElem in list_groupElem:
             for tag, nodes in groupElem._dict_nodes_tags.items():
                 if tag not in dict_nodes:
                     dict_nodes[tag] = nodes
@@ -876,7 +911,7 @@ class Mesh(Observable):
 
         if problemType is None:
             return nodes
-        return self._Get_FunctionSpace(problemType).Get_nodes(nodes)
+        return space.Get_dof_nodes(nodes)
 
     def Elements_Tags(self, *tags: str) -> _types.IntArray:
         """Returns elements associated with the tag."""
@@ -910,6 +945,8 @@ class Mesh(Observable):
             if groupElem.dim == 0:
                 continue
             groupElem.Set_Tag(nodes, tag)
+        for space in self.__dict_functionSpace.values():
+            space._Update_tags()
 
     def Locates_sol_e(
         self, sol: _types.FloatArray, dof_n: int | None = None

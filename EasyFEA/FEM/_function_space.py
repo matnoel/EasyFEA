@@ -10,7 +10,13 @@ from typing import TYPE_CHECKING
 import numpy as np
 
 from ..Utilities import _types
-from ..Utilities._mpi import MPI_RANK, MPI_SIZE, Concatenate_array, Reduce_sum
+from ..Utilities._mpi import (
+    MPI_RANK,
+    MPI_SIZE,
+    Allgather,
+    Concatenate_array,
+    Reduce_sum,
+)
 from ._utils import ElemType, MatrixType, _Order
 
 if TYPE_CHECKING:
@@ -27,11 +33,9 @@ class _FunctionSpace:
         ownedNodes: _types.IntArray,
         localNodes: _types.IntArray,
         dict_groupElem: dict["_GroupElem", "_GroupElem"],
-        supports: dict["_GroupElem", list[tuple]] | None = None,
     ):
-        """Over ``nodes``, the sorted ids carrying a DOF, on the group mapped to each mesh group (whose connect holds the node ids), the group itself when isoparametric; ``supports`` gives, per main-dimension group, its partner columns off the vertices and the vertex columns of the entity each sits on."""
+        """Over ``nodes``, the sorted ids carrying a DOF, on the group mapped to each mesh group (whose connect holds the node ids), the group itself when isoparametric."""
         self.__dict_groupElem = dict_groupElem
-        self.__supports = {} if supports is None else supports
         self.__Nn = nodes.size
         self.__ownedNodes = ownedNodes
         self.__localNodes = localNodes
@@ -47,6 +51,11 @@ class _FunctionSpace:
     def Nn(self) -> int:
         """number of nodes carrying a DOF (the mesh nodes when isoparametric)"""
         return self.__Nn
+
+    @property
+    def Ncoords(self) -> int:
+        """number of node ids, the mesh nodes then the nodes this space adds; above ``Nn`` when some carry no DOF"""
+        return max(group.Ncoords for group in self.__dict_groupElem.values())
 
     @property
     def ownedNodes(self) -> _types.IntArray:
@@ -67,7 +76,7 @@ class _FunctionSpace:
     def coord(self) -> _types.FloatArray:
         """node coordinates (Nn + added nodes, 3), indexed by node id: the mesh nodes, then the added nodes; under MPI zero rows off this rank, as `Mesh.coord`"""
         groups = self.__dict_groupElem
-        coord = np.zeros((max(group.Ncoords for group in groups.values()), 3))
+        coord = np.zeros((self.Ncoords, 3))
         for groupElem in [*groups, *groups.values()]:
             coord[groupElem.nodes] = groupElem.coord
         return coord
@@ -76,7 +85,7 @@ class _FunctionSpace:
         """Moves the added nodes with the geometry, from each group's own mapping (curved for TRI6 → 3); the numbering stays."""
         groups = self.__dict_groupElem
         # this rank's mesh nodes (Ncoords, 3), and which rows they fill (Ncoords,)
-        coord = np.zeros((max(group.Ncoords for group in groups.values()), 3))
+        coord = np.zeros((self.Ncoords, 3))
         known = np.zeros(coord.shape[0], dtype=bool)
         for groupElem in groups:
             coord[groupElem.nodes] = groupElem.coord
@@ -128,21 +137,64 @@ class _FunctionSpace:
         hasDof[hasDof] = self.__rows[ids[hasDof]] >= 0
         return ids[hasDof]
 
-    def Get_nodes(self, ids: _types.IntArray) -> _types.IntArray:
-        """`Get_dof_nodes` of ``ids``, then every node on an edge, face or cell whose vertices they all hold (element closure: the chord midpoint a circle predicate misses)."""
-        ids = self.Get_dof_nodes(ids)
+    def _Close_selection(self, nodes: _types.IntArray) -> _types.IntArray:
+        """``nodes``, then the nodes of every lower-dimension element whose vertices the selection of all ranks holds (the chord midpoint a test on a curved face misses); collective on a partitioned mesh."""
         groups = self.__dict_groupElem
-        selected = np.zeros(max(group.Ncoords for group in groups.values()), bool)
-        selected[ids] = True
-        # the nodes whose support vertices are all selected, read on the main-dimension elements, which every rank holding a node has (nAdded,)
-        closure = [np.empty(0, dtype=int)]
-        for groupElem, items in self.__supports.items():
-            connect = groups[groupElem].connect
-            for columns, support in items:
-                closed = selected[groupElem.connect[:, support]].all(axis=2)
-                closure.append(connect[:, columns][closed])
-        added = np.unique(np.concatenate(closure))
-        return np.concatenate([ids, added[~selected[added]]])
+        mainDim = max(groupElem.dim for groupElem in groups)
+        partitioned = _FunctionSpace.__Is_partitioned(groups)
+        nodes = nodes.astype(np.int64)
+        selected = np.zeros(self.Ncoords, bool)
+        selected[Concatenate_array(nodes) if partitioned else nodes] = True
+        closure = [np.empty(0, np.int64)]
+        for groupElem, partner in groups.items():
+            if 0 < groupElem.dim < mainDim:
+                closed = selected[partner.connect[:, : partner.Nvertex]].all(axis=1)
+                closure.append(partner.connect[closed, partner.Nvertex :].ravel())
+        added = np.unique(np.concatenate(closure, dtype=np.int64))
+        # a rank can hold a node without the face it sits on
+        if partitioned:
+            added = np.unique(Concatenate_array(added))
+            added = added[np.isin(added, self.__localNodes)]
+        return np.concatenate([nodes, added[~selected[added]]])
+
+    def _Update_tags(self) -> None:
+        """Tags each partner like its group: the tagged nodes and every node of the tagged elements it holds, gathered since a rank can hold a node through a cell without the face it sits on; collective on a partitioned mesh."""
+        groups = {
+            groupElem: partner
+            for groupElem, partner in self.__dict_groupElem.items()
+            if groupElem.dim > 0
+        }
+        # this rank's nodes of each tag
+        dict_nodes: dict[str, list[_types.IntArray]] = {}
+        for groupElem, partner in groups.items():
+            elements = groupElem._dict_elements_tags
+            for tag, nodes in groupElem._dict_nodes_tags.items():
+                dict_nodes.setdefault(tag, []).append(nodes)
+                if tag in elements:
+                    dict_nodes[tag].append(partner.connect[elements[tag]].ravel())
+        partitioned = _FunctionSpace.__Is_partitioned(groups)
+        tags = list(dict_nodes)
+        if partitioned:
+            tags = sorted(set().union(*Allgather(tags)))
+        for tag in tags:
+            nodes = np.concatenate(
+                [np.empty(0, np.int64), *dict_nodes.get(tag, [])], dtype=np.int64
+            )
+            nodes = np.unique(Concatenate_array(nodes) if partitioned else nodes)
+            for groupElem, partner in groups.items():
+                if partner is not groupElem:
+                    partner.Set_Tag(
+                        nodes[np.isin(nodes, partner.nodes)],
+                        tag,
+                        groupElem._dict_elements_tags.get(tag, np.empty(0, int)),
+                    )
+
+    @staticmethod
+    def __Is_partitioned(groups) -> bool:
+        """Whether a mesh's groups are numbered by all its ranks together, each holding the serial ids; a gathered one (rank partition set by `_Gather`, on rank 0 alone) by itself."""
+        return MPI_SIZE > 1 and all(
+            groupElem._rankPartition is None for groupElem in groups
+        )
 
     def Get_meshValues(
         self, dofsValues: _types.FloatArray, dof_n: int
@@ -175,10 +227,9 @@ class _FunctionSpace:
         self, dofsValues: _types.FloatArray, dof_n: int
     ) -> _types.FloatArray:
         """DOF vector ``dofsValues`` indexed by node id, the layout `Kinematics` reads through a partner's connect: itself when every node carries a DOF, else the nodes without one hold 0."""
-        Ncoords = max(group.Ncoords for group in self.__dict_groupElem.values())
-        if dofsValues.size == Ncoords * dof_n:
+        if dofsValues.size == self.Ncoords * dof_n:
             return dofsValues
-        values = np.zeros(Ncoords * dof_n)
+        values = np.zeros(self.Ncoords * dof_n)
         nodes = (
             np.arange(self.__Nn)
             if self.__rows is None
@@ -253,11 +304,7 @@ class _FunctionSpace:
         scale = order**3
         base = Nn * (scale + 1)
         limit = (np.iinfo(np.int64).max - base) // base
-        # a partitioned mesh is numbered by all its ranks together, so that each holds the serial ids; a gathered one (rank partition set by `_Gather`, on rank 0 alone) by itself
-        partitioned = MPI_SIZE > 1 and all(
-            groupElem._rankPartition is None
-            for groupElem in mesh.dict_groupElem.values()
-        )
+        partitioned = _FunctionSpace.__Is_partitioned(mesh.dict_groupElem.values())
 
         def gather(array: np.ndarray) -> np.ndarray:
             """Every rank's ``array`` end to end on a partitioned mesh, ``array`` itself otherwise."""
@@ -276,8 +323,6 @@ class _FunctionSpace:
         dict_connect: dict["_GroupElem", tuple[ElemType, _types.IntArray]] = {}
         # support size -> one tuple per group: (its partner connect, the partner columns of that size (nCol,), their rows (Ne*nCol, size), whether this rank owns them (Ne, nCol))
         bySize: dict[int, list[tuple]] = {}
-        # main-dimension group -> one tuple per support size: (its partner columns (nCol,), their support vertex columns (nCol, size)), for the element closure of `Get_nodes`
-        supports: dict["_GroupElem", list[tuple]] = {}
 
         for groupElem in mesh.dict_groupElem.values():
             if groupElem.dim == 0:
@@ -337,10 +382,6 @@ class _FunctionSpace:
                 bySize.setdefault(size, []).append(
                     (connect, offVertex[columns], rows, mine)
                 )
-                if groupElem.dim == mesh.dim:
-                    supports.setdefault(groupElem, []).append(
-                        (offVertex[columns], support)
-                    )
 
         # 5. the ids, one support size at a time over all groups and ranks: each row folded into one int64 key; equal keys are one node, the geometry node holding it or else Nn + k in the serial key order
         NnSpace = Nn
@@ -414,9 +455,9 @@ class _FunctionSpace:
             spaceNodes[isMine[spaceNodes]],
             localNodes,
             partners,
-            supports,
         )
         space._Update_coord()
+        space._Update_tags()
         return space
 
     @staticmethod

@@ -1269,7 +1269,11 @@ def test_Simu__Solver_Set_PETSc4Py_Options_sets_one_or_every_problem():
     simu._Solver_Set_PETSc4Py_Options("gmres", "bjacobi")
     simu._Solver_Set_PETSc4Py_Options("preonly", "lu", problemType="damage")
 
-    assert simu._Solver_Get_PETSc4Py_Options("displacement") == ("gmres", "bjacobi", "petsc")
+    assert simu._Solver_Get_PETSc4Py_Options("displacement") == (
+        "gmres",
+        "bjacobi",
+        "petsc",
+    )
     assert simu._Solver_Get_PETSc4Py_Options("damage") == ("preonly", "lu", "petsc")
 
 
@@ -2023,3 +2027,32 @@ def test_Load_Simu_restores_the_saved_results(tmp_path):
 def test_Load_Simu_rejects_a_missing_simulation(tmp_path):
     with pytest.raises(AssertionError, match="cannot be found"):
         Simulations.Load_Simu(str(tmp_path))
+
+
+def test_Simu_add_pressureLoad_on_a_selection_of_the_space_is_on_the_geometry():
+    simu = _elastic_box(ElemType.TETRA4, 2)
+    nodes = simu.mesh.Nodes_Conditions(lambda x, y, z: x == 1)
+    nodesSpace = simu.mesh.Nodes_Conditions(lambda x, y, z: x == 1, problemType=ELASTIC)
+    assert nodesSpace.size > nodes.size
+
+    simu.add_pressureLoad(nodes, 2.0)
+    F = _load_vector(simu)
+    simu.Bc_Init()
+    simu.add_pressureLoad(nodesSpace, 2.0)
+
+    assert np.abs(_load_vector(simu) - F).max() < 1e-14
+
+
+def test_Simu_add_dirichlet_skips_the_nodes_another_field_s_space_adds():
+    domain = Domain((0, 0), (1, 1), 0.5)
+    mesh = domain.Mesh_2D([], ElemType.TRI3)
+    nodesGeometry = mesh.Nodes_Tags("L0")
+    mesh = mesh._With_FunctionSpace(ELASTIC, 2)
+    nodes = mesh.Nodes_Tags("L0", problemType=ELASTIC)
+    assert nodes.size > nodesGeometry.size
+
+    simu = Simulations.Thermal(mesh, Models.Thermal(k=1.0, c=0.0))
+    simu.add_dirichlet(nodes, [1.0], ["t"])
+
+    held = simu.Bc_Dirichlet[0].nodes
+    assert np.array_equal(np.sort(held), np.sort(nodesGeometry))

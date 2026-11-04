@@ -385,13 +385,11 @@ def _dofs_at(simu: Simulations.Elastic, other: Simulations.Elastic) -> np.ndarra
 
 
 def _patch_error(mesh: Mesh, isBoundary: Callable) -> float:
-    """Relative residual of u = G x on the DOFs off the nodes `isBoundary` selects, closure included."""
+    """Relative residual of u = G x on the DOFs off the nodes `isBoundary` selects."""
     simu = Simulations.Elastic(mesh, Models.Elastic.Isotropic(3, E=1.0, v=0.3))
     space = mesh._Get_FunctionSpace(ELASTIC)
     nodesBoundary = mesh.Nodes_Conditions(isBoundary, problemType=ELASTIC)
-    dofsBoundary = simu.Bc_dofs_nodes(
-        space.Get_nodes(nodesBoundary), ["x", "y", "z"], ELASTIC
-    )
+    dofsBoundary = simu.Bc_dofs_nodes(nodesBoundary, ["x", "y", "z"], ELASTIC)
     u = (space.Get_mesh().coord @ G.T).ravel()
     K = simu.Get_K_C_M_F()[0]
     free = np.setdiff1d(np.arange(u.size), dofsBoundary)

@@ -217,8 +217,8 @@ def Get_config_ellipsoid(
     elif fiberSource == "analytic":
         fibers_e_pg, sheets_e_pg = _fibers_analytic(
             mesh,
-            mesh.Nodes_Tags("endo"),
-            mesh.Nodes_Tags("epi"),
+            mesh.Nodes_Tags("endo", problemType=Simulations.HyperElastic.U),
+            mesh.Nodes_Tags("epi", problemType=Simulations.HyperElastic.U),
             matrixType,
         )
     else:

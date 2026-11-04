@@ -668,8 +668,9 @@ def _past_yield(mesh: Mesh) -> Simulations.InElastic:
     """A unit square clamped at x=0, pulled past yield at x=1 in 3 saved steps."""
     elastic = Models.Elastic.Isotropic(2, E, nu, planeStress=False)
     simu = Simulations.InElastic(mesh, _plastic(elastic))
-    nodesClamped = mesh.Nodes_Conditions(lambda x, y, z: x == 0)
-    nodesPulled = mesh.Nodes_Conditions(lambda x, y, z: x == 1)
+    U = Simulations.InElastic.U
+    nodesClamped = mesh.Nodes_Conditions(lambda x, y, z: x == 0, problemType=U)
+    nodesPulled = mesh.Nodes_Conditions(lambda x, y, z: x == 1, problemType=U)
     for u in np.array([1, 3, 6]) * SIGMA_Y / E:
         simu.Bc_Init()
         simu.add_dirichlet(nodesClamped, [0, 0], ["x", "y"])

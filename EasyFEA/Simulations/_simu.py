@@ -448,10 +448,7 @@ class _Simu(_IObserver, _params.Updatable, ABC):
         return {}
 
     def __Dof_keys(self, iter: dict[str, Any]) -> dict[str, ProblemType]:
-        """Entries of an iteration dict that are full dof vectors, mapped to the problem type sizing them.
-
-        The solver allgathers the solution, so every rank ends the step holding the same dof vector — storing them whole writes the same bytes ``MPI_SIZE`` times. Identification is by name (:meth:`_Get_dof_names`), never by length: an element array can have the length of a dof vector.
-        """
+        """Entries of an iteration dict that are full dof vectors, by name (an element array can have their length), mapped to the problem type sizing them."""
         return {
             key: problemType
             for key, problemType in self._Get_dof_names().items()
@@ -1151,10 +1148,10 @@ class _Simu(_IObserver, _params.Updatable, ABC):
     @cache_computed_values
     def __Get_csr_map(
         self,
-        layout: list[tuple[ProblemType, _FunctionSpace, int, int]],
+        layout: tuple[tuple[ProblemType, _FunctionSpace, int, int], ...],
         isMatrix: bool,
         Ndof: int,
-        contributing: list,
+        contributing: tuple,
     ) -> tuple[np.ndarray, np.ndarray, np.ndarray, int]:
         """Reduction map from element entries to global CSR slots for one assembly key.
 
@@ -1257,6 +1254,11 @@ class _Simu(_IObserver, _params.Updatable, ABC):
                     raise ValueError(
                         f"{rows}'s equation couples to {cols}: assemble ({fields}, {cols})."
                     )
+        for rows in (*local["F"], *(block[0] for s in "KCM" for block in local[s])):
+            if rows not in problemTypes:
+                raise ValueError(
+                    f"A term fills {rows}'s equation: assemble ({fields}, {rows})."
+                )
 
         tic.Tac(
             "Matrix",
@@ -2185,12 +2187,12 @@ class _Simu(_IObserver, _params.Updatable, ABC):
         size = self.__Get_size(problemType)
 
         if len(self.mesh.orphanNodes) > 0:
-            # add 1.0 to orphan dofs — orphan rows are zero, so addition sets the diagonal; only the orphans carrying a DOF (under MPI the nodes off this rank, TETRA10 mid nodes under P1 among them), no element closing over them
+            # add 1.0 to orphan dofs — orphan rows are zero, so addition sets the diagonal; only the orphans carrying a DOF (under MPI the nodes off this rank, TETRA10 mid nodes under P1 among them)
             orphans = np.asarray(self.mesh.orphanNodes, dtype=int)
             orphanDofs = self.__Compose(
                 problemType,
                 lambda field: self.Bc_dofs_nodes(
-                    self._Get_FunctionSpace(field).Get_nodes(orphans),
+                    self._Get_FunctionSpace(field).Get_dof_nodes(orphans),
                     self.Get_unknowns(field),
                     field,
                 ),
@@ -2451,7 +2453,9 @@ class _Simu(_IObserver, _params.Updatable, ABC):
         # MPI context without any parallel direct solver: iterative fallback.
         return "cg", "gamg", "petsc"
 
-    def Get_dofs(self, problemType: ProblemType | tuple[ProblemType, ...] = None):
+    def Get_dofs(
+        self, problemType: ProblemType | tuple[ProblemType, ...] | None = None
+    ) -> _types.IntArray:
         """Returns (owned) dofs associated with the problem type, or with a monolithic problem's fields end to end."""
 
         if problemType is None:
@@ -2700,6 +2704,17 @@ class _Simu(_IObserver, _params.Updatable, ABC):
 
         return values_eval
 
+    @staticmethod
+    def __Bc_values_on(value, kept: _types.BoolArray):
+        """The values of a per-node array on the ``kept`` nodes (a function or a constant as is); another size raises."""
+        if callable(value) or np.size(value) == 1:
+            return value
+        if np.size(value) != kept.size:
+            raise ValueError(
+                f"{np.size(value)} values for {kept.size} nodes: pass a function of (x, y, z)."
+            )
+        return np.asarray(value)[kept]
+
     def __Bc_check_inputs(self, nodes, values, unknowns) -> bool:
         """Validates inputs shared by all add_* boundary condition methods.
 
@@ -2718,7 +2733,7 @@ class _Simu(_IObserver, _params.Updatable, ABC):
         nodes: _types.IntArray,
         values: list,
         unknowns: list[str],
-        problemType: ProblemType = None,
+        problemType: ProblemType | None = None,
         description="",
     ) -> None:
         """Adds Dirichlet's boundary conditions.
@@ -2765,9 +2780,9 @@ class _Simu(_IObserver, _params.Updatable, ABC):
         assert len(nodes) > 0, "Empty node list"
         nodes = np.asarray(nodes)
 
-        # the selected nodes carrying a DOF, in their order, then those the element closure adds (Np,); which of the given nodes are kept (nNodes,)
+        # the selected nodes carrying a DOF, in their order (Np,); which of the given nodes are kept (nNodes,)
         space = self._Get_FunctionSpace(problemType)
-        spaceNodes = space.Get_nodes(nodes)
+        spaceNodes = space.Get_dof_nodes(nodes)
         kept = np.isin(nodes, spaceNodes)
         if spaceNodes.size == 0:
             raise ValueError(f"No selected node carries a {problemType} DOF.")
@@ -2777,14 +2792,7 @@ class _Simu(_IObserver, _params.Updatable, ABC):
         dofsValues_dir = np.zeros((spaceNodes.size, len(unknowns)))
 
         for d, _ in enumerate(unknowns):
-            value = values[d]
-            # a value per node covers the kept nodes only
-            if not callable(value) and np.size(value) > 1:
-                if spaceNodes.size > np.count_nonzero(kept):
-                    raise ValueError(
-                        "The element closure adds nodes the value array does not cover: pass a function of (x, y, z)."
-                    )
-                value = np.asarray(value)[kept]
+            value = self.__Bc_values_on(values[d], kept)
             eval_n = self.__Bc_evaluate(coordo_n, value, option="nodes")
             dofsValues_dir[:, d] = eval_n.ravel()
 
@@ -3097,9 +3105,7 @@ class _Simu(_IObserver, _params.Updatable, ABC):
         values_n_d = np.zeros((spaceNodes.size, len(unknowns)))
 
         for i in range(len(unknowns)):
-            value = values[i]
-            if not callable(value) and np.size(value) > 1:
-                value = np.asarray(value)[kept]
+            value = self.__Bc_values_on(values[i], kept)
             eval_n = self.__Bc_evaluate(coord_n, value, option="nodes")
             eval_n /= spaceNodes.size
             values_n_d[:, i] = eval_n.ravel()
@@ -3110,6 +3116,14 @@ class _Simu(_IObserver, _params.Updatable, ABC):
 
         return dofsValues, dofs, spaceNodes
 
+    @staticmethod
+    def __Bc_elements(
+        groupElem: "_GroupElem", spaceGroup: "_GroupElem", nodes: _types.IntArray
+    ) -> _types.IntArray:
+        """Elements whose nodes the selection holds, on the group with the fewest: a space's selection misses a TRI6's mid nodes under P1, a geometry's a TRI3's added nodes under P2."""
+        group = min(groupElem, spaceGroup, key=lambda group: group.nPe)
+        return group.Get_Elements_Nodes(nodes, exclusively=True)
+
     def __Bc_Integration_Dim(
         self,
         dim: int,
@@ -3119,7 +3133,7 @@ class _Simu(_IObserver, _params.Updatable, ABC):
         unknowns: list[str],
     ) -> tuple[_types.FloatArray, _types.IntArray, _types.IntArray]:
         """Integrates on the elements of the specified dimension, with the problem type's space (TRI3 → TRI6 under P2).
-        return dofsValues, dofs, pointsUsedByElements"""
+        return dofsValues, dofs, nodesUsedByElements"""
 
         list_dofsValues: list = [np.array([])]
         list_dofs: list = [np.array([], dtype=int)]
@@ -3133,8 +3147,7 @@ class _Simu(_IObserver, _params.Updatable, ABC):
         for groupElem, spaceGroup in zip(
             self.mesh.Get_list_groupElem(dim), space.Get_list_groupElem(dim)
         ):
-            # Retrieve elements that exclusively use nodes
-            elements = groupElem.Get_Elements_Nodes(nodes, exclusively=True)
+            elements = self.__Bc_elements(groupElem, spaceGroup, nodes)
             if elements.shape[0] == 0:
                 continue
             connect = groupElem.connect[elements]
@@ -3142,7 +3155,7 @@ class _Simu(_IObserver, _params.Updatable, ABC):
             Ne = elements.shape[0]
             list_nodesUsed.append(spaceNodes.ravel())
 
-            # Get the coordinates of the Gauss spaceNodes if you need to devaluate the function
+            # Get the coordinates of the Gauss points if you need to devaluate the function
             matrixType = MatrixType.mass
             coord_e_p = spaceGroup.Get_GaussCoordinates_e_pg(matrixType, elements)
 
@@ -3157,7 +3170,7 @@ class _Simu(_IObserver, _params.Updatable, ABC):
             # Integrated for all unknowns
             for u, unknown in enumerate(unknowns):
                 if isinstance(values[u], (int, float)) or callable(values[u]):
-                    # evaluate on gauss spaceNodes (Ne, nPg)
+                    # evaluate on gauss points (Ne, nPg)
                     eval_e_p = self.__Bc_evaluate(coord_e_p, values[u], option="gauss")
                     # integrate the elements (Ne, nPg, nPe)
                     values_e_p = np.einsum(
@@ -3169,9 +3182,9 @@ class _Simu(_IObserver, _params.Updatable, ABC):
                     eval_n = np.zeros(Nn, dtype=float)
                     # the nodes off the geometry are interpolated below
                     onGeometry = np.asarray(nodes) < Nn
-                    eval_n[np.asarray(nodes)[onGeometry]] = np.broadcast_to(
-                        values[u], onGeometry.shape
-                    )[onGeometry]
+                    eval_n[np.asarray(nodes)[onGeometry]] = self.__Bc_values_on(
+                        values[u], onGeometry
+                    )
                     eval_e = eval_n[connect]  # (Ne, nPe)
                     if spaceGroup is not groupElem:
                         # the node values interpolated at the space's nodes (Ne, nPe space)
@@ -3183,7 +3196,7 @@ class _Simu(_IObserver, _params.Updatable, ABC):
                         "ep,en,pin->epn", wJ_e_pg, eval_e, N_pg, optimize="optimal"
                     )
 
-                # set calculated (sum on integration spaceNodes) values and dofs
+                # set calculated (sum on integration points) values and dofs
                 dofsValues_u[:, u] = np.sum(values_e_p, axis=1).ravel()
                 dofs_u[:, u] = self.Bc_dofs_nodes(
                     spaceNodes.ravel(), [unknown], problemType
@@ -3194,9 +3207,9 @@ class _Simu(_IObserver, _params.Updatable, ABC):
 
         dofsValues = np.concatenate(list_dofsValues)
         dofs = np.concatenate(list_dofs).astype(int)
-        pointsUsedByElements = np.concatenate(list_nodesUsed).astype(int)
+        nodesUsedByElements = np.concatenate(list_nodesUsed).astype(int)
 
-        return dofsValues, dofs, pointsUsedByElements
+        return dofsValues, dofs, nodesUsedByElements
 
     def __Bc_lineLoad(
         self,
@@ -3286,11 +3299,27 @@ class _Simu(_IObserver, _params.Updatable, ABC):
         # -------------------
         # Method 1
         # -------------------
-        normals, nodes = mesh.Get_normals(nodes)
+        # the normals live on the geometry's nodes of the selected elements
+        space = self._Get_FunctionSpace(problemType)
+        geometryNodes = np.unique(
+            np.concatenate(
+                [
+                    groupElem.connect[
+                        self.__Bc_elements(groupElem, spaceGroup, nodes)
+                    ].ravel()
+                    for groupElem, spaceGroup in zip(
+                        mesh.Get_list_groupElem(dim - 1),
+                        space.Get_list_groupElem(dim - 1),
+                    )
+                ]
+            )
+        )
+        unknowns = self.Get_unknowns(problemType)[:inDim]
+        if geometryNodes.size == 0:
+            return np.array([]), np.array([], dtype=int), np.array([], dtype=int)
+        normals, nodes = mesh.Get_normals(geometryNodes)
 
         values = [val * magnitude for val in normals[:, :inDim].T]
-
-        unknowns = self.Get_unknowns(problemType)[:inDim]
 
         dofsValues, dofs, nodes = self.__Bc_Integration_Dim(
             dim - 1,
@@ -3357,8 +3386,10 @@ class _Simu(_IObserver, _params.Updatable, ABC):
         """
 
         # selected nodes on this rank, but no complete element of the selection
-        if MPI_SIZE > 1 and len(dofs) == 0:
-            return
+        if len(dofs) == 0:
+            if MPI_SIZE > 1:
+                return
+            raise ValueError(f"No {problemType} element lies in the selection.")
 
         tic = Tic()
 
