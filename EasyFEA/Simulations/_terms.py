@@ -352,7 +352,11 @@ def Fold_terms(
             iterates[problemType] = {"u": u, "v": v, "a": a}
         return iterates[problemType]
 
-    u_t = Iterates(problemType)["u"]
+    # by node id, as an operator reads it through its group's connect
+    u_t = simu._Get_FunctionSpace(problemType).Get_nodeValues(
+        Iterates(problemType)["u"],  # type: ignore [arg-type]
+        simu.Get_dof_n(problemType),
+    )
 
     out: _LocalSystem = {"K": {}, "C": {}, "M": {}, "F": {}}
 

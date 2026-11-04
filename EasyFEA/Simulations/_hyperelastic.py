@@ -207,11 +207,7 @@ class HyperElastic(_Simu):
         """Tangent, internal force and damping of the elastic, active and viscous stresses at the time scheme's evaluation displacement `u`, guarded against an inverted element."""
         material = self.material
         space = self._Get_FunctionSpace()
-        kinematics = Kinematics(
-            groupElem,
-            space.Get_nodeValues(u, self.dim),
-            self.matrixType,
-        )
+        kinematics = Kinematics(groupElem, u, self.matrixType)
         assert kinematics.Compute_J().min() > 0, "det(F) < 0 - reduce load steps"
 
         K_e, R_e = Operators.NonLinear.SecondPiolaKirchhoffStressTensor(
