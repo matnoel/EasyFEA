@@ -337,19 +337,22 @@ class _Mapping:
         dN_e_pg = groupElem.Get_dN_e_pg(matrixType)  # (Ne, nPg, dim, nPe)
         hessian_pg = self.__Get_hessian_pg(matrixType)  # (nPg, dim, dim, nPe)
 
-        # ∂²x_m/∂ξ_k∂ξ_l (Ne, nPg, dim, dim, dim)
+        # kl on one axis, so that stacked matmuls do the contractions, the fastest measured (nPg, dim², nPe)
+        Ne, nPg, dim = groupElem.Ne, hessian_pg.shape[0], groupElem.dim
+        hessian_pg = hessian_pg.reshape(nPg, dim * dim, -1)
+
+        # ∂²x_m/∂ξ_k∂ξ_l (Ne, nPg, dim², dim)
         coord_e = self.__Get_frame_coord_e()
-        ddx_e_pg = np.einsum("pkln,enm->epklm", hessian_pg, coord_e)
-        # N,kl - N,m ∂²x_m/∂ξ_k∂ξ_l
-        hessian_e_pg = FeArray.from_pg(hessian_pg, groupElem.Ne) - np.einsum(
-            "epmn,epklm->epkln", dN_e_pg, ddx_e_pg
-        )
-        # N,aa = invJ_ak invJ_al (...)_kl
-        ddN_e_pg = np.einsum(
-            "epak,epal,epkln->epan", invJ_e_pg, invJ_e_pg, hessian_e_pg
+        ddx_e_pg = FeArray.asfearray(hessian_pg @ coord_e[:, None])
+        # N,kl - ∂²x_m/∂ξ_k∂ξ_l N,m (Ne, nPg, dim², nPe)
+        hessian_e_pg = FeArray.from_pg(hessian_pg, Ne) - ddx_e_pg @ dN_e_pg
+        # invJ_ak invJ_al (Ne, nPg, dim, dim²)
+        invJ2_e_pg = (invJ_e_pg[..., None] * invJ_e_pg[..., None, :]).reshape(
+            Ne, nPg, dim, dim * dim
         )
 
-        return FeArray.asfearray(ddN_e_pg)
+        # N,aa = invJ_ak invJ_al (...)_kl
+        return invJ2_e_pg @ hessian_e_pg
 
     # --------------------------------------------------------------------------------------------
     # Inverse map
