@@ -13,7 +13,7 @@ lint:
 	lint-imports
 	mdformat --check $(MD)
 
-MPI_TESTS = tests/Utilities
+MPI_TESTS = tests/Utilities tests/Simulations/incompressible_hyperelastic_test.py
 
 test-mpi:
 	mpirun -n 2 pytest -m mpi -n0 -p no:cacheprovider $(MPI_TESTS)

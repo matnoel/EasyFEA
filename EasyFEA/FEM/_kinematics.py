@@ -83,6 +83,15 @@ class Kinematics:
         nPg = self.__groupElem.Get_N_pg(self.__matrixType).shape[0]
         return (Ne, nPg, dim)
 
+    def Get_parameter_e_pg(
+        self,
+        value: float | _types.FloatArray,
+        tensor_shape: tuple[int, ...] = (),
+    ) -> FeArray.FeArrayALike:
+        """Model parameter at the integration points, ``(Ne, nPg, *tensor_shape)``: a 0-d scalar stays a float, else its lead is ``()``, ``(Ne,)`` or ``(Ne, nPg)``."""
+        Ne, nPg, _ = self._GetDims()
+        return FeArray.broadcast(value, Ne, nPg, tensor_shape=tensor_shape)
+
     @cache_computed_values
     def Compute_GradU(self) -> FeArray.FeArrayALike:
         """Displacement gradient ``∇u`` at the Gauss points, padded to ``3×3``, shape ``(Ne, nPg, 3, 3)``."""
@@ -623,13 +632,13 @@ class Kinematics:
         the entries above ``dim`` zeroed.
         """
         _params._CheckIsVector(T)
-        Ne, nPg, dim = self._GetDims()
+        _, nPg, dim = self._GetDims()
         if isinstance(T, FeArray) and T.ndim == 3 and T.shape[1] != nPg:
             raise ValueError(
                 f"The direction is given at {T.shape[1]} points per element, the term integrates at {nPg}: "
                 "sample it at the integration rule of the field's space, `mesh._Get_FunctionSpace(problemType).Get_rule(groupElem, matrixType)`."
             )
-        T = FeArray.broadcast(T, Ne, nPg, tensor_shape=(3,)).astype(float)
+        T = self.Get_parameter_e_pg(T, tensor_shape=(3,)).astype(float)
 
         Tx, Ty, Tz = T[..., 0], T[..., 1], T[..., 2]
 

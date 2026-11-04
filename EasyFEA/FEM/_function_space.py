@@ -163,12 +163,16 @@ class _FunctionSpace:
     def Get_nodeValues(
         self, dofsValues: _types.FloatArray, dof_n: int
     ) -> _types.FloatArray:
-        """DOF vector ``dofsValues`` indexed by node id, the layout `Kinematics` reads through a partner's connect: itself unless super-parametric, where the nodes without a DOF hold 0."""
-        if self.__rows is None:
-            return dofsValues
+        """DOF vector ``dofsValues`` indexed by node id, the layout `Kinematics` reads through a partner's connect: itself when every node carries a DOF, else the nodes without one hold 0."""
         Ncoords = max(group.Ncoords for group in self.__dict_groupElem.values())
+        if dofsValues.size == Ncoords * dof_n:
+            return dofsValues
         values = np.zeros(Ncoords * dof_n)
-        nodes = np.flatnonzero(self.__rows >= 0)
+        nodes = (
+            np.arange(self.__Nn)
+            if self.__rows is None
+            else np.flatnonzero(self.__rows >= 0)
+        )
         values[_FunctionSpace._Get_dofs(nodes, dof_n)] = dofsValues
         return values
 

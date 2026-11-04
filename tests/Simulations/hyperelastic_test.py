@@ -70,7 +70,9 @@ def test_HyperElastic_autodiff_law_assembles_like_the_shipped_one(monkeypatch):
     def assembled(material) -> tuple[np.ndarray, np.ndarray]:
         simu = Simulations.HyperElastic(mesh, material)
         monkeypatch.setattr(
-            simu, "_Solver_Get_Newton_Raphson_current_solution", lambda: u
+            simu,
+            "_Solver_Get_Newton_Raphson_current_solution",
+            lambda problemType=None: u,
         )
         K, _, _, F = simu.Get_K_C_M_F()
         return K.toarray(), F.toarray()
@@ -89,7 +91,9 @@ def test_HyperElastic_autodiff_law_assembles_like_the_shipped_one(monkeypatch):
 def test_HyperElastic_matrixType_sets_the_rule_results_are_sampled_at(monkeypatch):
     simu = _svk_bar(bar_mesh("TRI3"))
     monkeypatch.setattr(
-        simu, "_Solver_Get_Newton_Raphson_current_solution", lambda: simu.displacement
+        simu,
+        "_Solver_Get_Newton_Raphson_current_solution",
+        lambda problemType=None: simu.displacement,
     )
     simu.Get_K_C_M_F()
     assert not simu.needUpdate
@@ -130,7 +134,9 @@ def test_HyperElastic_material_eta_enters_the_residual_once(monkeypatch):
     )
     u_np1 = rng.standard_normal(n) * 0.05
     monkeypatch.setattr(
-        simu, "_Solver_Get_Newton_Raphson_current_solution", lambda: u_np1
+        simu,
+        "_Solver_Get_Newton_Raphson_current_solution",
+        lambda problemType=None: u_np1,
     )
 
     groupElem = mesh.groupElem
@@ -284,3 +290,27 @@ def test_HyperElastic_P2_on_TETRA4_is_the_straight_TETRA10():
     Svm = simu.Result("Svm", nodeValues=False)
     assert rel_error(Svm, iso.Result("Svm", nodeValues=False)) < 1e-12
     assert rel_error(simu._Calc_W(), iso._Calc_W()) < 1e-12
+
+
+def test_HyperElastic_K_per_element_reaches_the_assembly(subtests, monkeypatch):
+    domain = Domain((0, 0), (2, 1), 1)
+    mesh = domain.Mesh_2D([], ElemType.QUAD4, isOrganised=True)
+    u = 0.1 * mesh.coord[:, :2].ravel() ** 2
+
+    def tangent(K: float | np.ndarray) -> np.ndarray:
+        simu = Simulations.HyperElastic(mesh, Models.HyperElastic.NeoHookean(2, K))
+        monkeypatch.setattr(
+            simu,
+            "_Solver_Get_Newton_Raphson_current_solution",
+            lambda problemType=None: u,
+        )
+        return simu.Get_K_C_M_F()[0].toarray()
+
+    with subtests.test("a uniform array is the scalar"):
+        assert np.array_equal(tangent(np.array([3.0, 3.0])), tangent(3.0))
+    with subtests.test("linear in each element's K"):
+        expected = 3.0 * tangent(np.array([1.0, 0.0]))
+        expected += 5.0 * tangent(np.array([0.0, 1.0]))
+        assert rel_error(tangent(np.array([3.0, 5.0])), expected) < 1e-14
+    with subtests.test("two different elements"):
+        assert rel_error(tangent(np.array([3.0, 5.0])), tangent(3.0)) > 0.1

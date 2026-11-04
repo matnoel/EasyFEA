@@ -62,3 +62,26 @@ def assembled(groupElem: _GroupElem, A_e: np.ndarray, size: int) -> np.ndarray:
         out = np.zeros((size, size))
         np.add.at(out, (dofs[:, :, None], dofs[:, None, :]), A_e)
     return out
+
+
+PRESSURE = Simulations.ProblemType("pressure")
+
+
+def up_groups(
+    dim: int, elemType: ElemType, order: int | None = None
+) -> tuple[_GroupElem, _GroupElem, np.ndarray, np.ndarray]:
+    """u's and p's groups on one organised element mesh, and their DOFs (dof_n = dim, 1): Taylor–Hood, p on the vertices of `elemType`, or, given `order`, u at that order over a linear `elemType` and p on its nodes."""
+    mesh = element_mesh(dim, elemType)
+    if order is None:
+        mesh = mesh._With_FunctionSpace(PRESSURE, 1)
+    else:
+        mesh = mesh._With_FunctionSpace(HYPERELASTIC, order)
+    groupElem = mesh.groupElem
+    space_u = mesh._Get_FunctionSpace(HYPERELASTIC)
+    space_p = mesh._Get_FunctionSpace(PRESSURE)
+    return (
+        space_u.Get_groupElem(groupElem),
+        space_p.Get_groupElem(groupElem),
+        space_u.Get_assembly_e(groupElem, dim),
+        space_p.Get_assembly_e(groupElem, 1),
+    )

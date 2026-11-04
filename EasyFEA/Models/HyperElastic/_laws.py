@@ -26,8 +26,11 @@ from ...Utilities import _params, _types
 
 class _HyperElastic(_IModel, ABC):
     """HyperElastic material.\n
-    `NeoHookean`, `MooneyRivlin`, `SaintVenantKirchhoff` and `HolzapfelOgden` inherit from `_HyperElas` class.
+    `NeoHookean`, `MooneyRivlin`, `SaintVenantKirchhoff` and `HolzapfelOgden` inherit from `_HyperElas` class. Their `K` is a scalar, or an ``(Ne,)`` or ``(Ne, nPg)`` array.
     """
+
+    _volumetricParameters: tuple[str, ...] = ()
+    """names of the parameters scaling the law's bulk term, which an incompressible simulation requires to be zero"""
 
     dim: float = _params.ParameterInValues([1, 2, 3])
 
@@ -109,7 +112,7 @@ class _HyperElastic(_IModel, ABC):
 
     @property
     def isHeterogeneous(self) -> bool:
-        return False
+        return np.ndim(getattr(self, "K", 0.0)) > 0
 
     @abstractmethod
     def Compute_W(self, kinematics: Kinematics) -> FeArray:
@@ -172,8 +175,10 @@ class _HyperElastic(_IModel, ABC):
 
 class NeoHookean(_HyperElastic):
 
-    K: float = _params.PositiveScalarParameter()
-    """Bulk modulus"""
+    _volumetricParameters = ()
+
+    K: float | _types.FloatArray = _params.PositiveParameter()
+    """Shear coefficient"""
 
     def __init__(self, dim: int, K: float | _types.FloatArray, thickness=1.0):
         """Creates an Neo-Hookean material.
@@ -183,7 +188,7 @@ class NeoHookean(_HyperElastic):
         dim : int
             dimension (e.g 2 or 3)
         K : float|_types.FloatArray
-            Bulk modulus
+            Shear coefficient
         thickness : float, optional
             thickness, by default 1.0
         """
@@ -193,7 +198,7 @@ class NeoHookean(_HyperElastic):
         self.K = K
 
     def Compute_W(self, kinematics: Kinematics) -> FeArray:
-        K = self.K
+        K = kinematics.Get_parameter_e_pg(self.K)
 
         I1 = kinematics.Compute_I1()
         I3 = kinematics.Compute_I3()
@@ -203,7 +208,7 @@ class NeoHookean(_HyperElastic):
         return W
 
     def Compute_dWde(self, kinematics: Kinematics) -> FeArray:
-        K = self.K
+        K = kinematics.Get_parameter_e_pg(self.K)
 
         I1 = kinematics.Compute_I1()
         I3 = kinematics.Compute_I3()
@@ -220,7 +225,7 @@ class NeoHookean(_HyperElastic):
         return dW
 
     def Compute_d2Wde(self, kinematics: Kinematics) -> FeArray:
-        K = self.K
+        K = kinematics.Get_parameter_e_pg(self.K)
 
         I1 = kinematics.Compute_I1()
         I3 = kinematics.Compute_I3()
@@ -252,13 +257,15 @@ class NeoHookean(_HyperElastic):
 
 class MooneyRivlin(_HyperElastic):
 
+    _volumetricParameters = ("K",)
+
     K1: float = _params.PositiveScalarParameter()
     """Kappa1"""
 
     K2: float = _params.PositiveScalarParameter()
     """Kappa2"""
 
-    K: float = _params.PositiveScalarParameter()
+    K: float | _types.FloatArray = _params.PositiveParameter()
     """Bulk modulus"""
 
     def __init__(
@@ -292,7 +299,7 @@ class MooneyRivlin(_HyperElastic):
         self.K = K
 
     def Compute_W(self, kinematics: Kinematics) -> FeArray:
-        K = self.K
+        K = kinematics.Get_parameter_e_pg(self.K)
         K1 = self.K1
         K2 = self.K2
 
@@ -309,7 +316,7 @@ class MooneyRivlin(_HyperElastic):
         return W
 
     def Compute_dWde(self, kinematics: Kinematics) -> FeArray:
-        K = self.K
+        K = kinematics.Get_parameter_e_pg(self.K)
         K1 = self.K1
         K2 = self.K2
 
@@ -334,7 +341,7 @@ class MooneyRivlin(_HyperElastic):
         return dW
 
     def Compute_d2Wde(self, kinematics: Kinematics) -> FeArray:
-        K = self.K
+        K = kinematics.Get_parameter_e_pg(self.K)
         K1 = self.K1
         K2 = self.K2
 
@@ -386,13 +393,15 @@ class MooneyRivlin(_HyperElastic):
 
 class CiarletGeymonat(_HyperElastic):
 
+    _volumetricParameters = ("K",)
+
     K1: float = _params.PositiveScalarParameter()
     """Kappa1"""
 
     K2: float = _params.PositiveScalarParameter()
     """Kappa2"""
 
-    K: float = _params.PositiveScalarParameter()
+    K: float | _types.FloatArray = _params.PositiveParameter()
     """Bulk modulus"""
 
     def __init__(
@@ -426,7 +435,7 @@ class CiarletGeymonat(_HyperElastic):
         self.K = K
 
     def Compute_W(self, kinematics: Kinematics) -> FeArray:
-        K = self.K
+        K = kinematics.Get_parameter_e_pg(self.K)
         K1 = self.K1
         K2 = self.K2
 
@@ -443,7 +452,7 @@ class CiarletGeymonat(_HyperElastic):
         return W
 
     def Compute_dWde(self, kinematics: Kinematics) -> FeArray:
-        K = self.K
+        K = kinematics.Get_parameter_e_pg(self.K)
         K1 = self.K1
         K2 = self.K2
 
@@ -468,7 +477,7 @@ class CiarletGeymonat(_HyperElastic):
         return dW
 
     def Compute_d2Wde(self, kinematics: Kinematics) -> FeArray:
-        K = self.K
+        K = kinematics.Get_parameter_e_pg(self.K)
         K1 = self.K1
         K2 = self.K2
 
@@ -519,13 +528,15 @@ class CiarletGeymonat(_HyperElastic):
 
 class SaintVenantKirchhoff(_HyperElastic):
 
+    _volumetricParameters = ("K",)
+
     lmbda: float = _params.ScalarParameter()
-    """Lame's first parameter"""
+    """Lame's first parameter; penalises J − 1 as a bulk term does, though an incompressible simulation accepts it"""
 
     mu: float = _params.PositiveScalarParameter()
     """Shear modulus"""
 
-    K: float = _params.PositiveScalarParameter()
+    K: float | _types.FloatArray = _params.PositiveParameter()
     """Bulk modulus"""
 
     def __init__(
@@ -543,7 +554,7 @@ class SaintVenantKirchhoff(_HyperElastic):
         dim : int
             dimension (e.g 2 or 3)
         lmbda : float|_types.FloatArray
-            Lame's first parameter
+            Lame's first parameter; penalises J − 1 as a bulk term does, though an incompressible simulation accepts it
         mu : float|_types.FloatArray
             Shear modulus
         K : float|_types.FloatArray, optional
@@ -559,7 +570,7 @@ class SaintVenantKirchhoff(_HyperElastic):
     def Compute_W(self, kinematics: Kinematics) -> FeArray:
         lmbda = self.lmbda
         mu = self.mu
-        K = self.K
+        K = kinematics.Get_parameter_e_pg(self.K)
 
         I1 = kinematics.Compute_I1()
         I2 = kinematics.Compute_I2()
@@ -579,7 +590,7 @@ class SaintVenantKirchhoff(_HyperElastic):
     def Compute_dWde(self, kinematics: Kinematics) -> FeArray:
         lmbda = self.lmbda
         mu = self.mu
-        K = self.K
+        K = kinematics.Get_parameter_e_pg(self.K)
 
         I1 = kinematics.Compute_I1()
         I3 = kinematics.Compute_I3()
@@ -599,7 +610,7 @@ class SaintVenantKirchhoff(_HyperElastic):
     def Compute_d2Wde(self, kinematics: Kinematics) -> FeArray:
         lmbda = self.lmbda
         mu = self.mu
-        K = self.K
+        K = kinematics.Get_parameter_e_pg(self.K)
 
         I1 = kinematics.Compute_I1()
         I3 = kinematics.Compute_I3()
@@ -632,6 +643,8 @@ class SaintVenantKirchhoff(_HyperElastic):
 
 class HolzapfelOgden(_HyperElastic):
 
+    _volumetricParameters = ("K",)
+
     C0: float = _params.PositiveScalarParameter()
     C1: float = _params.PositiveScalarParameter()
     C2: float = _params.PositiveScalarParameter()
@@ -641,7 +654,7 @@ class HolzapfelOgden(_HyperElastic):
     C6: float = _params.PositiveScalarParameter()
     C7: float = _params.PositiveScalarParameter()
 
-    K: float = _params.PositiveScalarParameter()
+    K: float | _types.FloatArray = _params.PositiveParameter()
     """Bulk modulus"""
 
     Mu1: float = _params.PositiveScalarParameter()
@@ -653,7 +666,7 @@ class HolzapfelOgden(_HyperElastic):
     """direction(s) 2, used for the invariants I6 and I8"""
 
     __ks: float = _params.PositiveScalarParameter()
-    """A positive constant used in the incompressibility penalty term, as proposed in http://dx.doi.org/10.1016/0045-7825(94)90051-5."""
+    """Fibre sigmoid switch: sharpness of ``1 / (1 + exp(−ks (I − 1)))``, which turns a fibre off in compression; not an incompressibility penalty."""
 
     def __init__(
         self,
@@ -666,7 +679,7 @@ class HolzapfelOgden(_HyperElastic):
         C5: float,
         C6: float,
         C7: float,
-        K: float,
+        K: float | _types.FloatArray,
         Mu1: float,
         Mu2: float,
         T1: _types.FloatArray,
@@ -696,7 +709,7 @@ class HolzapfelOgden(_HyperElastic):
             C6
         C7 : float
             C7
-        K : float
+        K : float|_types.FloatArray
             bulk modulus
         Mu1 : float
             Mu1
@@ -709,7 +722,7 @@ class HolzapfelOgden(_HyperElastic):
         Mu2 : float
             Mu2
         ks : float, optional
-            A positive constant used in the incompressibility penalty term.
+            Fibre sigmoid switch: sharpness of ``1 / (1 + exp(−ks (I − 1)))``, which turns a fibre off in compression; not an incompressibility penalty.
         thickness : float, optional
             thickness, by default 1.0
         """
@@ -743,7 +756,7 @@ class HolzapfelOgden(_HyperElastic):
         C5 = self.C5
         C6 = self.C6
         C7 = self.C7
-        K = self.K
+        K = kinematics.Get_parameter_e_pg(self.K)
         Mu1 = self.Mu1
         Mu2 = self.Mu2
         T1 = self.T1
@@ -778,7 +791,7 @@ class HolzapfelOgden(_HyperElastic):
         C5 = self.C5
         C6 = self.C6
         C7 = self.C7
-        K = self.K
+        K = kinematics.Get_parameter_e_pg(self.K)
         Mu1 = self.Mu1
         Mu2 = self.Mu2
         T1 = self.T1
@@ -842,7 +855,7 @@ class HolzapfelOgden(_HyperElastic):
         C5 = self.C5
         C6 = self.C6
         C7 = self.C7
-        K = self.K
+        K = kinematics.Get_parameter_e_pg(self.K)
         Mu1 = self.Mu1
         Mu2 = self.Mu2
         T1 = self.T1
@@ -979,7 +992,11 @@ class AutoDiff(_HyperElastic):
     """A law declared as a potential ``W(C)``, differentiated by jax.
 
     Needs ``pip install easyfea[jax]``. Runs a potential EasyFEA does not ship, with no derivative written by hand.
+
+    An opaque ``W`` declares no bulk term, so an incompressible simulation cannot check it: write ``W`` without one.
     """
+
+    _volumetricParameters = ()
 
     def __init__(
         self,

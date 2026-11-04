@@ -7,7 +7,7 @@ from typing import TYPE_CHECKING
 
 import numpy as np
 
-from .._fearray import FeArray
+from .._fearray import FeArray, TensorProd
 from .._utils import MatrixType
 from .._kelvin_mandel import Vector_to_Matrix
 from .._kinematics import Kinematics
@@ -241,6 +241,66 @@ def ActiveStressTensor(
     return K_e, R_e
 
 
+def MixedIncompressibility(
+    kinematics: "Kinematics",
+    pGroupElem: "_GroupElem",
+    p_n: np.ndarray,
+) -> tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
+    r"""Tangents and residuals of the constraint ``∫ p (1 - J) dΩ`` of an incompressible u/p formulation.
+
+    With p > 0 in compression and ``S_p = -p J C⁻¹``::
+
+        K_uu = -∫ Bᵀ p ∂²J/∂E² B dΩ  +  ∫ gradᵀ (I ⊗ S_p) grad dΩ
+        R_u  = ∫ Bᵀ S_p dΩ
+        K_up = -∫ Bᵀ ∂J/∂E N_p dΩ
+        K_pu = K_upᵀ
+        R_p  = ∫ N_pᵀ (1 - J) dΩ
+
+    Parameters
+    ----------
+    kinematics
+        Hyperelastic kinematics, at an explicit rule, ``MatrixType.Order(n)``, that both groups share.
+    pGroupElem
+        p's group.
+    p_n
+        Pressure by node id of ``pGroupElem``.
+
+    Returns
+    -------
+    tuple
+        ``(K_uu, R_u, K_up, K_pu, R_p)``, u's DOFs in ``(xi, yi, zi, ..., xn, yn, zn)``, p's in ``pGroupElem``'s node order.
+    """
+    groupElem = kinematics.groupElem
+    matrixType = kinematics.matrixType
+    wJ_e_pg = groupElem.Get_weightedJacobian_e_pg(matrixType)
+    N_pg = pGroupElem.Get_N_pg(matrixType)[:, 0]
+    if N_pg.shape[0] != wJ_e_pg.shape[1]:
+        raise ValueError(
+            f"p's {pGroupElem.elemType} has {N_pg.shape[0]} points at "
+            f"{matrixType}, u's {groupElem.elemType} {wJ_e_pg.shape[1]}: build the "
+            "kinematics at an explicit rule, MatrixType.Order(n), that both share."
+        )
+
+    J_e_pg = kinematics.Compute_J()
+    # ∂J/∂I3 = 1/(2J), ∂I3/∂E = 2 ∂I3/∂C
+    dJdE_e_pg = kinematics.Compute_dI3dC() / J_e_pg
+    d2JdE_e_pg = (
+        2 * kinematics.Compute_d2I3dC() - TensorProd(dJdE_e_pg, dJdE_e_pg)
+    ) / J_e_pg
+    p_e_pg = pGroupElem.Interpolate_e_pg(p_n, matrixType)
+
+    tangent_e, residual_e = __second_piola_block(
+        wJ_e_pg, kinematics, -p_e_pg * dJdE_e_pg, -p_e_pg * d2JdE_e_pg
+    )
+    K_uu, R_u = __reorder_dofs(groupElem.dim, groupElem.nPe, tangent_e, residual_e)
+
+    _, B_e_pg = __block_grad_B(kinematics)
+    K_up = -einsum("ep,epji,epj,pk->eik", wJ_e_pg, B_e_pg, dJdE_e_pg, N_pg)
+    K_up = K_up[:, __reorder(groupElem.dim, groupElem.nPe)]
+    R_p = einsum("ep,ep,pk->ek", wJ_e_pg, 1 - J_e_pg, N_pg)
+    return K_uu, R_u, K_up, K_up.transpose(0, 2, 1), R_p
+
+
 def KelvinVoigtDamping(
     material: "_HyperElastic",
     kinematics: "Kinematics",
@@ -397,14 +457,14 @@ def FollowingPressure(
     )  # (xi, yi, zi, ...)
 
     # Chain rule on n = a × b (with a = ∂x/∂r, b = ∂x/∂s) gives, at each Gauss point, the 3×3 matrix
-    #     ∂n / ∂u_{j, :} = ∂φ_j/∂s · S(a)  −  ∂φ_j/∂r · S(b)
+    #     ∂n / ∂u_{j, :} = ∂φ_j/∂s · S(a)  -  ∂φ_j/∂r · S(b)
     # where S(v) is the skew-symmetric "cross-product" matrix:
     #     S(v) = | 0    −v_2   v_1 |     so that  S(v) · w = v × w.
     #            | v_2   0    −v_0 |
     #            |−v_1   v_0   0   |
     # The local tangent is then a Kronecker product over components × nodes:
-    #     K_e_pg  =  factor · [ S(a) ⊗ (φ ⊗ ∂φ/∂sᵀ)  −  S(b) ⊗ (φ ⊗ ∂φ/∂rᵀ) ]
-    # i.e. block (c_a, c_b) carries S(a)[c_a,c_b]·φ_iᵀ∂φ_j/∂s − S(b)[c_a,c_b]·φ_iᵀ∂φ_j/∂r.
+    #     K_e_pg  =  factor · [ S(a) ⊗ (φ ⊗ ∂φ/∂sᵀ)  -  S(b) ⊗ (φ ⊗ ∂φ/∂rᵀ) ]
+    # i.e. block (c_a, c_b) carries S(a)[c_a,c_b]·φ_iᵀ∂φ_j/∂s - S(b)[c_a,c_b]·φ_iᵀ∂φ_j/∂r.
     S_a = __skew(dxdr_e_pg)  # S(a),  shape (Ne_a, nPg, 3, 3)
     S_b = __skew(dxds_e_pg)  # S(b),  shape (Ne_a, nPg, 3, 3)
     K_active = (

@@ -225,7 +225,7 @@ class SolverType(str, Enum):
 
 def _Solve_Axb(
     simu: "_Simu",
-    problemType: "ProblemType",
+    problemType: "ProblemType | tuple[ProblemType, ...]",
     A: sparse.csr_matrix,
     b: sparse.csr_matrix,
     x0: _types.FloatArray,
@@ -241,8 +241,8 @@ def _Solve_Axb(
     ----------
     simu : Simu
         Simulation
-    problemType : ProblemType
-        Specify the problemType because a simulation can have several physcal models (such as a damage simulation).
+    problemType : ProblemType | tuple[ProblemType, ...]
+        Specify the problemType because a simulation can have several physcal models (such as a damage simulation); a tuple for a monolithic problem's fields.
     A : sparse.csr_matrix
         matrix A
     b : sparse.csr_matrix
@@ -293,6 +293,8 @@ def _Solve_Axb(
                 solver = SolverType.petsc
     else:
         solver = simu.solver
+        if isinstance(problemType, tuple) and __Has_zero_diagonal(A, ownedDofs):
+            __Check_saddle_point_solver(simu, problemType)
 
     # import matplotlib.pyplot as plt
     # plt.figure()
@@ -396,8 +398,42 @@ def _Solve_Axb(
     return np.array(x)
 
 
+def __Has_zero_diagonal(
+    A: sparse.csr_matrix, ownedDofs: _types.IntArray | None
+) -> bool:
+    """Whether a row of `A` has no diagonal entry, on any rank (a saddle point); only owned rows are complete under MPI."""
+    diagonal = A.diagonal()
+    if ownedDofs is not None:
+        diagonal = diagonal[ownedDofs]
+    return Reduce_sum(int(np.count_nonzero(diagonal == 0))) > 0
+
+
+def __Check_saddle_point_solver(
+    simu: "_Simu", problem: "tuple[ProblemType, ...]"
+) -> None:
+    """Rejects a solver that cannot factor a saddle point: a direct one only, PETSc's LU through an external package (Mumps under MPI)."""
+    solver = simu.solver
+    if solver in (SolverType.pypardiso, SolverType.scipy) and MPI_SIZE == 1:
+        return
+    if solver == SolverType.petsc:
+        kspType, pcType, solverType = simu._Solver_Get_PETSc4Py_Options(problem)
+        external = solverType == "mumps" if MPI_SIZE > 1 else solverType != "petsc"
+        if kspType == "preonly" and pcType == "lu" and external:
+            return
+        solver = f"petsc ({kspType}, {pcType}, {solverType})"
+    names = ", ".join(problem)
+    accepted = (
+        "petsc with preonly, lu, mumps"
+        if MPI_SIZE > 1
+        else "pypardiso, scipy or petsc with preonly, lu and an external package (mumps)"
+    )
+    raise ValueError(
+        f"({names}) is a saddle point (a zero diagonal block), which only a direct solver factors: use {accepted}, not {solver}."
+    )
+
+
 def Solve_simu(
-    simu: "_Simu", problemType: "ProblemType"
+    simu: "_Simu", problemType: "ProblemType | tuple[ProblemType, ...]"
 ) -> tuple[_types.FloatArray, _types.FloatArray | None | float]:
     """Solving the simulation's problem according to the resolution type."""
 
@@ -407,6 +443,8 @@ def Solve_simu(
     if resolution == ResolType.r1:
         x, rhsNorm = __Solver_1(simu, problemType)
     elif resolution == ResolType.r2:
+        # a monolithic problem refuses Lagrange conditions before solving
+        assert not isinstance(problemType, tuple)
         x, lagrange = __Solver_2(simu, problemType)
     elif resolution == ResolType.r3:
         x, rhsNorm = __Solver_3(simu, problemType)
@@ -459,21 +497,23 @@ def __Get_unique_dofs(dofs: _types.IntArray, Ndof: int = None) -> _types.IntArra
 
 
 def __Get_global_dof_ordering(
-    simu: "_Simu", problemType: "ProblemType"
+    simu: "_Simu", problemType: "ProblemType | tuple[ProblemType, ...]"
 ) -> _types.IntArray:
     """Rank-contiguous global DOF ordering induced by the MPI partition: ``ordering[i]`` is the DOF at global position ``i``, with rank 0's owned DOFs first, then rank 1's, etc.
 
-    The points the function space gives each rank are gathered (a single ``Allgatherv``) and expanded to DOFs via the canonical point->DOF conversion (`Bc_dofs_nodes`). Useful wherever a consistent global DOF numbering across ranks is needed (e.g. mapping local DOFs to a contiguous PETSc index space).
+    The nodes the function space gives each rank are gathered (a single ``Allgatherv``) and expanded to DOFs via the canonical node->DOF conversion (`Bc_dofs_nodes`). Useful wherever a consistent global DOF numbering across ranks is needed (e.g. mapping local DOFs to a contiguous PETSc index space). A monolithic problem's fields are composed per rank: rank 0's u then p, then rank 1's, etc.
     """
+    if isinstance(problemType, tuple):
+        return Concatenate_array(simu.Get_dofs(problemType))
     ownedNodes = simu._Get_FunctionSpace(problemType).ownedNodes
     nodeOrdering = Concatenate_array(ownedNodes)
-    return simu.Bc_dofs_nodes(
-        nodeOrdering, simu.Get_unknowns(problemType), problemType
-    )
+    return simu.Bc_dofs_nodes(nodeOrdering, simu.Get_unknowns(problemType), problemType)
 
 
 def __Solver_1_mpi_indices(
-    simu: "_Simu", problemType: "ProblemType", dofsUnknown: _types.IntArray
+    simu: "_Simu",
+    problemType: "ProblemType | tuple[ProblemType, ...]",
+    dofsUnknown: _types.IntArray,
 ) -> tuple[_types.IntArray, _types.IntArray, _types.IntArray]:
     """Builds (global unique unknown DOFs, ownedDofs, mapping) for the r1 reduced system.
 
@@ -508,7 +548,7 @@ def __Residual_norm(b_owned: sparse.csr_matrix) -> float:
 
 
 def __Solver_1(
-    simu: "_Simu", problemType: "ProblemType"
+    simu: "_Simu", problemType: "ProblemType | tuple[ProblemType, ...]"
 ) -> tuple[_types.FloatArray, float | None]:
     # --       --  --  --   --  --
     # | Aii Aic |  | xi |   | bi |
@@ -541,10 +581,10 @@ def __Solver_1(
 
     tic.Tac("Solver", f"System-built ({problemType})", simu._verbosity)
 
-    x0 = simu.Get_x0(problemType)
+    x0 = simu._Solver_Get_x0(problemType)
     x0 = x0[dofsUnknown]
 
-    lb, ub = simu.Get_lb_ub(problemType)
+    lb, ub = simu._Solver_Get_lb_ub(problemType)
 
     bi -= Aic @ xc
     if simu.isNonLinear:
@@ -630,7 +670,7 @@ def __Solver_2(simu: "_Simu", problemType: "ProblemType"):
     return sol, lagrange
 
 
-def __Solver_3(simu: "_Simu", problemType: "ProblemType"):
+def __Solver_3(simu: "_Simu", problemType: "ProblemType | tuple[ProblemType, ...]"):
     # Resolution using the penalty method
 
     # This method does not give preference to dirichlet conditions over neumann conditions.
@@ -649,8 +689,8 @@ def __Solver_3(simu: "_Simu", problemType: "ProblemType"):
         rhsNorm = __Residual_norm(b_owned)
 
     # Solving the penalized matrix system
-    x0 = simu.Get_x0(problemType)
-    lb, ub = simu.Get_lb_ub(problemType)
+    x0 = simu._Solver_Get_x0(problemType)
+    lb, ub = simu._Solver_Get_lb_ub(problemType)
     x = _Solve_Axb(simu, problemType, A, b, x0, lb, ub, ResolType.r3)
 
     if simu.isNonLinear:
@@ -852,6 +892,10 @@ def _PETSc_MPI(
     pc = ksp.getPC()
     pc.setType(pcType)
     pc.setFactorSolverType(solverType)
+    options = PETSc.Options()
+    if solverType == "mumps" and not options.hasName("mat_mumps_icntl_20"):
+        # centralised right-hand side: PETSc's default, distributed (10), silently gave wrong solutions with Mumps 5.8.2
+        options.setValue("mat_mumps_icntl_20", 0)
     ksp.setFromOptions()
 
     ksp.solve(rhs, x)

@@ -16,7 +16,7 @@ from EasyFEA.FEM import GroupElemFactory
 from EasyFEA.Geoms import Circle, CircleArc, Domain, Line, Point
 
 from Geoms._shapes import rounded_corners
-from Simulations._simus import LOADS
+from Simulations._simus import LOADS, PRESSURE, incompressible
 
 from ._simus import L, H, element_tags, far_meshes
 
@@ -76,6 +76,19 @@ def test_Plot_contours_a_nodal_result_over_its_whole_range(bar_simu):
     levels = ax.collections[-1].levels
     assert levels.size == 11
     assert levels[0] <= ux.min() and levels[-1] >= ux.max()
+
+
+def test_Plot_contours_the_pressure_on_the_cells_of_a_compact_space():
+    contour = Domain((0, 0), (1, 1), 0.5)
+    mesh = contour.Mesh_2D([], ElemType.TRI6, isOrganised=True)
+    simu = incompressible(mesh)
+    space = simu._Get_FunctionSpace(PRESSURE)
+    simu._Set_solutions(PRESSURE, space.coord[space.ownedNodes, 0])
+
+    ax = Matplotlib.Plot(simu, "p", nColors=11)
+
+    levels = ax.collections[-1].levels
+    assert levels[0] <= 0 and levels[-1] >= 1
 
 
 def test_Plot_nColors_splits_the_colorbar_into_as_many_levels(bar_simu):

@@ -79,3 +79,14 @@ def coupling(groupElem) -> np.ndarray:
     """A (damage, elastic) block on an isoparametric 2D group: nPe rows, 2·nPe columns, each entry distinct."""
     Ne, nPe = groupElem.Ne, groupElem.nPe
     return np.arange(Ne * nPe * 2 * nPe, dtype=float).reshape(Ne, nPe, 2 * nPe)
+
+
+PRESSURE = Simulations.IncompressibleHyperElastic.P
+
+
+def incompressible(
+    mesh: Mesh, K: float = 1.0
+) -> Simulations.IncompressibleHyperElastic:
+    """NeoHookean (`K` = μ/2) u/p simulation of `mesh`."""
+    material = Models.HyperElastic.NeoHookean(mesh.dim, K)
+    return Simulations.IncompressibleHyperElastic(mesh, material)

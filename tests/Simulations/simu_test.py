@@ -16,10 +16,19 @@ from scipy import sparse
 from EasyFEA import AlgoType, ElemType, Mesh, Mesher, Models, Simulations, SolverType
 from EasyFEA.FEM import Field, GroupElemFactory, LagrangeCondition
 from EasyFEA.Geoms import Domain, Line
+from EasyFEA.Simulations._simu import _PETSc_Has
+from EasyFEA.Simulations.Solvers import CAN_USE_PYPARDISO, _Get_PETSc
 
 from _numerics import rel_error
 from . import _reference
-from ._simus import coupled_phasefield, coupling, laplacian, laplacian_form
+from ._simus import (
+    PRESSURE,
+    coupled_phasefield,
+    coupling,
+    incompressible,
+    laplacian,
+    laplacian_form,
+)
 
 L, H, B = 2.0, 0.5, 1.0
 E, v = 210e3, 0.3
@@ -1005,7 +1014,9 @@ def test_Simu_Get_u_v_a_evaluates_the_newton_iterate_at_the_scheme_point(
     simu.Solver_Set_Hyperbolic_Algorithm(0.1, AlgoType.midpoint)
     u_n, v_n, a_n, u_np1 = _states(simu)
     monkeypatch.setattr(
-        simu, "_Solver_Get_Newton_Raphson_current_solution", lambda: u_np1
+        simu,
+        "_Solver_Get_Newton_Raphson_current_solution",
+        lambda problemType=None: u_np1,
     )
 
     u_t, _, _ = simu.Get_u_v_a()
@@ -1273,6 +1284,142 @@ def test_Simu_Get_dofs_are_every_dof_in_serial():
 
     assert np.array_equal(simu.Get_dofs("elastic"), np.arange(simu.mesh.Nn * 2))
     assert np.array_equal(simu.Get_dofs("damage"), np.arange(simu.mesh.Nn))
+
+
+# ----------------------------------------------
+# Monolithic problems
+# ----------------------------------------------
+
+
+def _incompressible_square() -> Simulations.HyperElastic:
+    """u/p on a 4×4 organised TRI6 unit square."""
+    contour = Domain((0, 0), (1, 1), 0.25)
+    mesh = contour.Mesh_2D([], ElemType.TRI6, isOrganised=True)
+    return incompressible(mesh)
+
+
+def _stretch(simu: Simulations.HyperElastic, stretch: float) -> None:
+    """Rollers on the left and bottom, the right side pulled to x = `stretch`, the top free."""
+    mesh = simu.mesh
+    nodesLeft = mesh.Nodes_Conditions(lambda x, y, z: x == 0)
+    nodesBottom = mesh.Nodes_Conditions(lambda x, y, z: y == 0)
+    nodesRight = mesh.Nodes_Conditions(lambda x, y, z: x == 1)
+    simu.add_dirichlet(nodesLeft, [0], ["x"])
+    simu.add_dirichlet(nodesBottom, [0], ["y"])
+    simu.add_dirichlet(nodesRight, [stretch - 1], ["x"])
+
+
+def _direct_solvers() -> list[SolverType]:
+    """The solvers a saddle point accepts that this environment has."""
+    solvers = [SolverType.scipy]
+    if CAN_USE_PYPARDISO:
+        solvers.append(SolverType.pypardiso)
+    if _Get_PETSc() is not None and _PETSc_Has("mumps"):
+        solvers.append(SolverType.petsc)
+    return solvers
+
+
+def test_Simu__Get_monolithic_problems_is_one_per_problem_type(subtests):
+    for name, simu in (("Elastic", _elastic_bar()), ("PhaseField", _phasefield())):
+        with subtests.test(name):
+            expected = [(problemType,) for problemType in simu.problemTypes]
+            assert simu._Get_monolithic_problems() == expected
+
+
+def test_Simu__Get_monolithic_problem_holds_the_problem_type():
+    simu = _incompressible_square()
+    U = simu.problemType
+
+    assert simu._Get_monolithic_problem() == (U, PRESSURE)
+    assert simu._Get_monolithic_problem(PRESSURE) == (U, PRESSURE)
+    assert _phasefield()._Get_monolithic_problem("damage") == "damage"
+    with pytest.raises(ValueError, match="not a problem"):
+        simu._Get_monolithic_problem((PRESSURE, U))
+
+
+def test_Simu_Solve_runs_one_newton_over_coupled_fields(subtests):
+    # plane-strain incompressible stretch λ: u = ((λ−1)x, (1/λ−1)y); S = 2K(I − I1/3 C⁻¹) − pC⁻¹, S_yy = 0 at the free top
+    stretch = 1.1
+    I1 = stretch**2 + stretch**-2 + 1
+    for solver in _direct_solvers():
+        with subtests.test(str(solver)):
+            simu = _incompressible_square()
+            simu.solver = solver
+            _stretch(simu, stretch)
+
+            u = simu.Solve()
+
+            coord = simu.mesh.coord
+            p = simu._Get_u_n(PRESSURE)
+            expected = np.column_stack(
+                [(stretch - 1) * coord[:, 0], (1 / stretch - 1) * coord[:, 1]]
+            )
+            assert np.array_equal(u, simu.displacement)
+            assert np.abs(u - expected.ravel()).max() < 1e-12
+            assert np.abs(p - 2 * (stretch**-2 - I1 / 3)).max() < 1e-12
+            assert simu.Get_K_C_M_F()[0].shape == (u.size + p.size,) * 2
+
+
+def test_Simu_Solve_pins_a_field_left_free_up_to_a_constant(subtests):
+    # clamped boundary under the weight −g: u = 0, ∇p = f ⇒ p = g(1/2 − y) at zero mean
+    g = 2.0
+    for solver in _direct_solvers():
+        with subtests.test(str(solver)):
+            simu = _incompressible_square()
+            simu.solver = solver
+            mesh = simu.mesh
+            nodesBoundary = mesh.Nodes_Conditions(
+                lambda x, y, z: (x == 0) | (x == 1) | (y == 0) | (y == 1)
+            )
+            nodesAll = mesh.Nodes_Conditions(lambda x, y, z: x >= 0)
+            simu.add_dirichlet(nodesBoundary, [0, 0], ["x", "y"])
+            simu.add_volumeLoad(nodesAll, [-g], ["y"])
+
+            u = simu.Solve()
+
+            space = mesh._Get_FunctionSpace(PRESSURE)
+            y = space.coord[space.ownedNodes, 1]
+            assert np.abs(u).max() < 1e-12
+            assert np.abs(simu._Get_u_n(PRESSURE) - g * (0.5 - y)).max() < 1e-12
+
+
+def test_Simu_Solve_of_a_saddle_point_rejects_an_iterative_solver(subtests):
+    iterative = [SolverType.cg, SolverType.bicg, SolverType.gmres, SolverType.lgmres]
+    for solver in iterative:
+        with subtests.test(str(solver)):
+            simu = _incompressible_square()
+            simu.solver = solver
+            _stretch(simu, 1.1)
+            with pytest.raises(ValueError, match="saddle point"):
+                simu.Solve()
+
+    if _Get_PETSc() is not None:
+        with subtests.test("petsc cg"):
+            simu = _incompressible_square()
+            simu.solver = SolverType.petsc
+            simu._Solver_Set_PETSc4Py_Options("cg", "gamg")
+            _stretch(simu, 1.1)
+            with pytest.raises(ValueError, match="saddle point"):
+                simu.Solve()
+
+
+def test_Simu_Solve_of_coupled_fields_requires_the_elliptic_algorithm():
+    simu = _incompressible_square()
+    _stretch(simu, 1.1)
+    simu.Solver_Set_Hyperbolic_Algorithm(0.1)
+
+    with pytest.raises(NotImplementedError, match="elliptic"):
+        simu.Solve()
+
+
+def test_Simu_Solve_of_coupled_fields_rejects_lagrange_conditions():
+    simu = _incompressible_square()
+    _stretch(simu, 1.1)
+    nodesTied = simu.mesh.Nodes_Conditions(lambda x, y, z: (y == 1) & (x != 0.5))
+    simu._Bc_Add_Lagrange(_tie(simu, nodesTied[:2], "y"))
+
+    with pytest.raises(NotImplementedError, match="Lagrange"):
+        simu.Solve()
 
 
 # ----------------------------------------------

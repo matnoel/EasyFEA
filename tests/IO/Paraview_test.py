@@ -10,9 +10,10 @@ import numpy as np
 import pytest
 import pyvista as pv
 
-from EasyFEA import Simulations, IO
+from EasyFEA import ElemType, Simulations, IO
+from EasyFEA.Geoms import Domain
 
-from Simulations._simus import LOADS
+from Simulations._simus import LOADS, incompressible
 
 
 def read_steps(pvdFile: str) -> list[pv.UnstructuredGrid]:
@@ -100,3 +101,24 @@ def test_Save_mesh_writes_one_step_per_given_field_value(make_mesh_2D, tmp_path)
 def test_CalcOffset_adds_the_header_and_the_data_bytes():
     assert IO.Paraview.CalcOffset(0, 3, 4) == 16
     assert IO.Paraview.CalcOffset(10, 3, 8) == 38
+
+
+def test_Save_simu_exports_the_pressure_on_the_cells_of_a_compact_space(tmp_path):
+    contour = Domain((0, 0), (1, 1), 0.5)
+    mesh = contour.Mesh_2D([], ElemType.TRI6, isOrganised=True)
+    simu = incompressible(mesh)
+    nodesRight = simu.mesh.Nodes_Conditions(lambda x, y, z: x == 1)
+    nodesLeft = simu.mesh.Nodes_Conditions(lambda x, y, z: x == 0)
+    nodesBottom = simu.mesh.Nodes_Conditions(lambda x, y, z: y == 0)
+    simu.add_dirichlet(nodesRight, [0.1], ["x"])
+    simu.add_dirichlet(nodesLeft, [0], ["x"])
+    simu.add_dirichlet(nodesBottom, [0], ["y"])
+    simu.Solve()
+    simu.Save_Iter()
+
+    pvdFile = IO.Paraview.Save_simu(simu, str(tmp_path))
+
+    vtu = read_steps(pvdFile)[0]
+    assert vtu.point_data["p"].shape == (simu.mesh.Nn,)
+    np.testing.assert_allclose(vtu.point_data["p"], simu.Result("p"))
+    assert np.isfinite(vtu.cell_data["Piola-Kirchhoff"]).all()

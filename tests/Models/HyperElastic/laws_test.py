@@ -103,6 +103,70 @@ def test_HyperElastic_starts_undamped_and_passive():
     assert (SVK.eta, SVK.active_stress) == (0.0, 0.0)
 
 
+def _laws_of_K() -> dict:
+    """Each law that has a `K`, as a function of it."""
+    return {
+        "NeoHookean": lambda K_: NeoHookean(3, K_),
+        "MooneyRivlin": lambda K_: MooneyRivlin(3, K1, K2, K_),
+        "CiarletGeymonat": lambda K_: CiarletGeymonat(3, K1, K2, K_),
+        "SaintVenantKirchhoff": lambda K_: SaintVenantKirchhoff(3, LMBDA, MU, K_),
+        "HolzapfelOgden": lambda K_: HolzapfelOgden(
+            3,
+            **{**HO, "K": K_},
+            T1=T1,
+            T2=T2,
+        ),
+    }
+
+
+def test_HyperElastic_K_held_as_a_field_is_each_point_own_law(
+    kinematics: Kinematics, subtests
+):
+    # TETRA4 at mass: 4 points per element, so per element and per point differ
+    atPoints = Kinematics(
+        kinematics.groupElem, kinematics.displacement, MatrixType.mass
+    )
+    Ne, nPg = atPoints.Compute_I1().shape
+    K_e = 100.0 * np.arange(1, Ne + 1)
+    K_e_pg = K_e[:, None] + np.arange(nPg)
+    for name, law in _laws_of_K().items():
+        for shape, K_ in (("(Ne,)", K_e), ("(Ne, nPg)", K_e_pg)):
+            field = law(K_)
+            for compute in ("Compute_W", "Compute_dWde", "Compute_d2Wde"):
+                with subtests.test(f"{name} {shape} {compute}"):
+                    actual = np.asarray(getattr(field, compute)(atPoints))
+                    for e, pg in ((0, 0), (0, nPg - 1), (Ne - 1, 0)):
+                        K_point = float(K_e_pg[e, pg] if K_ is K_e_pg else K_e[e])
+                        expected = np.asarray(getattr(law(K_point), compute)(atPoints))
+                        assert np.array_equal(actual[e, pg], expected[e, pg])
+
+
+def test_HyperElastic_K_field_of_another_shape_raises_at_the_computation(
+    kinematics: Kinematics, subtests
+):
+    Ne = kinematics.Compute_I1().shape[0]
+    for name, law in _laws_of_K().items():
+        with subtests.test(name):
+            with pytest.raises(ValueError, match="leading axes"):
+                law(np.ones(Ne + 1)).Compute_W(kinematics)
+            with pytest.raises(ValueError, match="leading axes"):
+                law(np.ones((Ne, 1, 2))).Compute_W(kinematics)
+
+
+def test_HyperElastic_K_refuses_a_negative_entry(subtests):
+    for name, law in _laws_of_K().items():
+        with subtests.test(name):
+            with pytest.raises(AssertionError, match=">= 0"):
+                law(np.array([1.0, -1.0]))
+
+
+def test_HyperElastic_isHeterogeneous_follows_K(subtests):
+    for name, law in _laws_of_K().items():
+        with subtests.test(name):
+            assert not law(2.0).isHeterogeneous
+            assert law(np.array([1.0, 2.0])).isHeterogeneous
+
+
 def test_HyperElastic_Available_Laws_lists_every_shipped_law():
     """Every concrete law except AutoDiff, which runs a potential the user supplies."""
     assert _HyperElastic.Available_Laws() == [

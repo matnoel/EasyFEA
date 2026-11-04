@@ -19,11 +19,18 @@ from _numerics import (
     H3,
     affine,
     assert_operator_tangent_matches_fd,
+    assert_tangent_matches_fd,
     element_dot,
     mandel,
     rel_error,
 )
-from ._reference import assembled, assert_restricts, element_mesh, p2_faces
+from ._reference import (
+    assembled,
+    assert_restricts,
+    element_mesh,
+    p2_faces,
+    up_groups,
+)
 
 NonLinear = Operators.NonLinear
 
@@ -378,3 +385,85 @@ def test_PenaltyContact_restricted_to_elements(edges):
     assert_restricts(
         lambda elements: _contact(groupElem, u, elements=elements)[1], hit[:1]
     )
+
+
+# ----------------------------------------------
+# MixedIncompressibility
+# ----------------------------------------------
+
+UP_PAIRS = {
+    "TRI6": (2, ElemType.TRI6, None),
+    "QUAD9": (2, ElemType.QUAD9, None),
+    "TETRA10": (3, ElemType.TETRA10, None),
+    "HEXA27": (3, ElemType.HEXA27, None),
+    "PRISM18": (3, ElemType.PRISM18, None),
+    "P2 on TETRA4": (3, ElemType.TETRA4, 2),
+}
+"""Taylor–Hood pairs, (dim, elemType, order of u over a linear elemType)."""
+
+UP_RULE = MatrixType.Order(4)
+
+
+def _incompressibility(uGroup, pGroup, assembly_p, u, p):
+    p_n = np.zeros(pGroup.Ncoords)
+    p_n[pGroup.connect] = p[assembly_p]
+    return NonLinear.MixedIncompressibility(Kinematics(uGroup, u, UP_RULE), pGroup, p_n)
+
+
+def test_MixedIncompressibility_blocks_match_fd(subtests):
+    for name, (dim, elemType, order) in UP_PAIRS.items():
+        with subtests.test(name):
+            uGroup, pGroup, assembly_u, assembly_p = up_groups(dim, elemType, order)
+            rng = np.random.default_rng(0)
+            u = rng.standard_normal(assembly_u.max() + 1) * 0.02
+            p = rng.standard_normal(assembly_p.max() + 1)
+
+            K_uu, _, K_up, K_pu, _ = _incompressibility(
+                uGroup, pGroup, assembly_p, u, p
+            )
+
+            def R_u(u_, p_):
+                return _incompressibility(uGroup, pGroup, assembly_p, u_, p_)[1]
+
+            def R_p(u_):
+                return _incompressibility(uGroup, pGroup, assembly_p, u_, p)[4]
+
+            assert_tangent_matches_fd(
+                lambda u_: R_u(u_, p), u, K_uu, assembly_u, tol=1e-7
+            )
+            assert_tangent_matches_fd(
+                lambda p_: R_u(u, p_), p, K_up, assembly_p, tol=1e-7
+            )
+            assert_tangent_matches_fd(R_p, u, K_pu, assembly_u, tol=1e-7)
+            assert np.array_equal(K_pu, K_up.transpose(0, 2, 1))
+
+
+def test_MixedIncompressibility_of_a_uniform_pressure_resists_a_dilation():
+    # at u = 0, S_p = −p I: p > 0 does −p·tr(G)·volume of work on u = G x
+    uGroup, pGroup, assembly_u, assembly_p = up_groups(3, ElemType.TETRA10)
+    u = np.zeros(assembly_u.max() + 1)
+    p = np.full(assembly_p.max() + 1, 2.0)
+
+    R_u = _incompressibility(uGroup, pGroup, assembly_p, u, p)[1]
+
+    work = element_dot(uGroup, R_u, affine(uGroup.coord, G3))
+    assert rel_error(work, -2.0 * np.trace(G3)) < 1e-12
+
+
+def test_MixedIncompressibility_residual_is_the_volume_lost():
+    uGroup, pGroup, assembly_u, assembly_p = up_groups(3, ElemType.HEXA27)
+    eps = 0.01
+    u = affine(uGroup.coord, eps * np.eye(3))
+    p = np.zeros(assembly_p.max() + 1)
+
+    R_p = _incompressibility(uGroup, pGroup, assembly_p, u, p)[4]
+
+    assert rel_error(R_p.sum(), 1 - (1 + eps) ** 3) < 1e-12
+
+
+def test_MixedIncompressibility_rejects_a_rule_p_does_not_share():
+    uGroup, pGroup, assembly_u, _ = up_groups(3, ElemType.TETRA10)
+    kinematics = Kinematics(uGroup, np.zeros(assembly_u.max() + 1), MatrixType.rigi)
+
+    with pytest.raises(ValueError, match="Order"):
+        NonLinear.MixedIncompressibility(kinematics, pGroup, np.zeros(pGroup.Ncoords))
