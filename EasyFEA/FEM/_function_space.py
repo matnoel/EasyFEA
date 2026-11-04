@@ -239,7 +239,7 @@ class _FunctionSpace:
         # local: `_group_elem` imports this module at its top
         from ._group_elem import GroupElemFactory
 
-        # idea: a node off the geometry nodes is identified by its linear vertex function values keyed by global vertex id ({1: 2/3, 2: 1/3} on edge 1-2 at P3), the same in every element holding it; unlike xyz, it is exact and keeps the two lips of an open crack apart
+        # a node off the geometry nodes is keyed by its linear vertex function values per global vertex id ({1: 2/3, 2: 1/3} on edge 1-2 at P3), the same in every element holding it
         if order < 1:
             raise ValueError(f"No Lagrange element of order {order}.")
         Nn = mesh.Nn
@@ -404,7 +404,11 @@ class _FunctionSpace:
         main = [partners[g].nodes for g in mesh.Get_list_groupElem()]
         localNodes = np.unique(np.concatenate(main))
         space = _FunctionSpace(
-            spaceNodes, spaceNodes[isMine[spaceNodes]], localNodes, partners, supports
+            spaceNodes,
+            spaceNodes[isMine[spaceNodes]],
+            localNodes,
+            partners,
+            supports,
         )
         space._Update_coord()
         return space

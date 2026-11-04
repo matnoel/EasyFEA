@@ -333,15 +333,17 @@ class _Mapping:
         """Physical second derivatives ``N,xx N,yy N,zz`` (Ne, nPg, dim, nPe), with the mixed reference derivatives and the curvature term ∂²x/∂ξ²."""
         groupElem = self.__groupElem
 
-        invJ_e_pg = np.asarray(self.Get_invJ_e_pg(matrixType))  # (Ne, nPg, dim, dim)
-        dN_e_pg = invJ_e_pg @ groupElem.Get_dN_pg(matrixType)  # (Ne, nPg, dim, nPe)
+        invJ_e_pg = self.Get_invJ_e_pg(matrixType)  # (Ne, nPg, dim, dim)
+        dN_e_pg = groupElem.Get_dN_e_pg(matrixType)  # (Ne, nPg, dim, nPe)
         hessian_pg = self.__Get_hessian_pg(matrixType)  # (nPg, dim, dim, nPe)
 
         # ∂²x_m/∂ξ_k∂ξ_l (Ne, nPg, dim, dim, dim)
         coord_e = self.__Get_frame_coord_e()
         ddx_e_pg = np.einsum("pkln,enm->epklm", hessian_pg, coord_e)
         # N,kl - N,m ∂²x_m/∂ξ_k∂ξ_l
-        hessian_e_pg = hessian_pg - np.einsum("epmn,epklm->epkln", dN_e_pg, ddx_e_pg)
+        hessian_e_pg = FeArray.from_pg(hessian_pg, groupElem.Ne) - np.einsum(
+            "epmn,epklm->epkln", dN_e_pg, ddx_e_pg
+        )
         # N,aa = invJ_ak invJ_al (...)_kl
         ddN_e_pg = np.einsum(
             "epak,epal,epkln->epan", invJ_e_pg, invJ_e_pg, hessian_e_pg

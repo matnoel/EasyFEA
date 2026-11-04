@@ -16,7 +16,6 @@ from scipy import sparse
 from EasyFEA import AlgoType, ElemType, Mesh, Mesher, Models, Simulations, SolverType
 from EasyFEA.FEM import Field, GroupElemFactory, LagrangeCondition
 from EasyFEA.Geoms import Domain, Line
-from EasyFEA.Simulations._simu import _PETSc_Has
 from EasyFEA.Simulations.Solvers import CAN_USE_PYPARDISO, _Get_PETSc
 
 from _numerics import rel_error
@@ -1314,7 +1313,8 @@ def _direct_solvers() -> list[SolverType]:
     solvers = [SolverType.scipy]
     if CAN_USE_PYPARDISO:
         solvers.append(SolverType.pypardiso)
-    if _Get_PETSc() is not None and _PETSc_Has("mumps"):
+    PETSc = _Get_PETSc()
+    if PETSc is not None and PETSc.Sys.hasExternalPackage("mumps"):
         solvers.append(SolverType.petsc)
     return solvers
 
@@ -1548,8 +1548,10 @@ def test_Simu_loads_of_P1_on_a_straight_TETRA10_are_the_TETRA4():
 
     simu = _elastic_box(ElemType.TETRA10, 1)
     iso = _elastic_box(ElemType.TETRA4)
-    simu.add_surfLoad(simu.mesh.Nodes_Conditions(isRight), [2.0], ["y"])
-    iso.add_surfLoad(iso.mesh.Nodes_Conditions(isRight), [2.0], ["y"])
+    nodesRight = simu.mesh.Nodes_Conditions(isRight)
+    nodesRightIso = iso.mesh.Nodes_Conditions(isRight)
+    simu.add_surfLoad(nodesRight, [2.0], ["y"])
+    iso.add_surfLoad(nodesRightIso, [2.0], ["y"])
 
     F, F_iso = _load_vector(simu), _load_vector(iso)[_dofs_of_iso(simu, iso)]
     assert rel_error(F, F_iso) < 1e-12

@@ -795,7 +795,7 @@ class Mesh(Observable):
     def Nodes_Cylinder(
         self,
         *circles: "Circle",
-        direction=[0, 0, 1],
+        direction: _types.Coords = (0, 0, 1),
         onlyOnEdge=False,
         problemType: "ProblemType | None" = None,
     ) -> _types.IntArray:

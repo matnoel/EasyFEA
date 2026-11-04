@@ -779,7 +779,13 @@ ELASTIC = Simulations.Elastic.problemType
 def _box(elemType: ElemType, z0: float = 0.0) -> Mesh:
     """Unit box of 2 × 2 × 2 cells from z0."""
     contour = Domain((0, 0, z0), (1, 1, z0), 0.5)
-    return contour.Mesh_Extrude([], (0, 0, 1), [2], elemType, isOrganised=True)
+    return contour.Mesh_Extrude(
+        [],
+        (0, 0, 1),
+        [2],
+        elemType,
+        isOrganised=True,
+    )
 
 
 def _tets_under_prisms(tetra: ElemType, prism: ElemType) -> Mesh:

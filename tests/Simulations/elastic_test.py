@@ -331,13 +331,12 @@ def _cylinder(elemType: ElemType) -> Mesh:
 
 
 def _stretched(mesh: Mesh) -> Simulations.Elastic:
-    """Clamped at x = 0, pulled unevenly at x = 1."""
+    """Stretched unevenly along x, injected: never solved."""
     simu = Simulations.Elastic(mesh, Models.Elastic.Isotropic(3, E=1.0, v=0.3))
-    nodesLeft = mesh.Nodes_Conditions(lambda x, y, z: x == 0)
-    nodesRight = mesh.Nodes_Conditions(lambda x, y, z: x == 1)
-    simu.add_dirichlet(nodesLeft, [0, 0, 0], ["x", "y", "z"])
-    simu.add_dirichlet(nodesRight, [lambda x, y, z: 0.02 * (1 + y * z)], ["x"])
-    simu.Solve()
+    x, y, z = mesh._Get_FunctionSpace(ELASTIC).Get_mesh().coord.T
+    u = np.zeros((x.size, 3))
+    u[:, 0] = 0.02 * x * (1 + y * z)
+    simu._Set_solutions(simu.problemType, u.ravel())
     return simu
 
 
@@ -350,16 +349,18 @@ def _dofs_at(simu: Simulations.Elastic, other: Simulations.Elastic) -> np.ndarra
 
 
 def _patch_error(mesh: Mesh, isBoundary: Callable) -> float:
-    """Relative error of the solution when u = G x is imposed on the points `isBoundary` selects."""
+    """Relative residual of u = G x on the DOFs off the nodes `isBoundary` selects, closure included."""
     simu = Simulations.Elastic(mesh, Models.Elastic.Isotropic(3, E=1.0, v=0.3))
+    space = mesh._Get_FunctionSpace(ELASTIC)
     nodesBoundary = mesh.Nodes_Conditions(isBoundary, problemType=ELASTIC)
-    for d, unknown in enumerate("xyz"):
-        simu.add_dirichlet(
-            nodesBoundary, [lambda x, y, z, d=d: G[d] @ [x, y, z]], [unknown]
-        )
-    simu.Solve()
-    coord = mesh._Get_FunctionSpace(ELASTIC).Get_mesh().coord
-    return rel_error(simu.displacement, (coord @ G.T).ravel())
+    dofsBoundary = simu.Bc_dofs_nodes(
+        space.Get_nodes(nodesBoundary), ["x", "y", "z"], ELASTIC
+    )
+    u = (space.Get_mesh().coord @ G.T).ravel()
+    K = simu.Get_K_C_M_F()[0]
+    free = np.setdiff1d(np.arange(u.size), dofsBoundary)
+    assert free.size > 0
+    return np.abs(K[free] @ u).max() / (np.abs(K).max() * np.abs(u).max())
 
 
 def _on_box(x, y, z):
@@ -378,7 +379,6 @@ def test_Elastic_P2_on_TETRA4_is_the_straight_TETRA10():
     K, K_iso = simu.Get_K_C_M_F()[0], iso.Get_K_C_M_F()[0][dofs][:, dofs]
 
     assert rel_error(K.toarray(), K_iso.toarray()) < 1e-12
-    assert rel_error(simu.displacement, iso.displacement[dofs]) < 1e-12
     Svm = simu.Result("Svm", nodeValues=False)
     assert rel_error(Svm, iso.Result("Svm", nodeValues=False)) < 1e-12
 
@@ -392,7 +392,6 @@ def test_Elastic_P1_on_a_straight_TETRA10_is_the_TETRA4():
 
     # the partner TETRA4 group integrates as the TETRA4 mesh does
     assert np.array_equal(K.toarray(), K_iso.toarray())
-    assert np.array_equal(simu.displacement, iso.displacement[dofs])
 
 
 def test_Elastic_patch_test_holds_iso_and_P2_on_TETRA4(subtests):

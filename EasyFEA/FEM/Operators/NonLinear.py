@@ -20,9 +20,7 @@ if TYPE_CHECKING:
 # ----------------------------------------------------------------------------
 # Shared block-assembly kinematics
 # ----------------------------------------------------------------------------
-# These helpers back both the hyperelastic and Kelvin–Voigt operators: the
-# block gradient / strain-displacement operator and the geometric-tangent stress
-# block are the same machinery regardless of which stress drives them.
+# These helpers back both the hyperelastic and Kelvin–Voigt operators: the block gradient / strain-displacement operator and the geometric-tangent stress block are the same machinery regardless of which stress drives them.
 
 
 from ._utils import einsum
@@ -103,10 +101,16 @@ def __second_piola_block(
         R_e     = ∫ Bᵀ · dWde dΩ
         K_block = ∫ Bᵀ · d2Wde · B dΩ  +  ∫ gradᵀ (I ⊗ dWde) grad dΩ
 
-    Both in ``(xi,yi,zi,...,xn,yn,zn)``. The fused einsum contracts the strain and Gauss-point axes in one pass, avoiding the per-Gauss ``(Ne, nPg, ndof, ndof)`` intermediate a chained ``Bᵀ @ d2Wde @ B`` would build (summation order differs from the matmul chain, so results match only to ~1e-14 relative).
+    Both in ``(xi,yi,zi,...,xn,yn,zn)``.
     """
     _, B_e_pg = __block_grad_B(kinematics)
-    K_e = einsum("ep,epji,epjk,epkl->eil", wJ_e_pg, B_e_pg, d2Wde_e_pg, B_e_pg)
+    K_e = einsum(
+        "ep,epji,epjk,epkl->eil",
+        wJ_e_pg,
+        B_e_pg,
+        d2Wde_e_pg,
+        B_e_pg,
+    )
     __add_geometric_tangent(K_e, wJ_e_pg, kinematics, dWde_e_pg)
     residual_e = einsum("ep,epi,epij->ej", wJ_e_pg, dWde_e_pg, B_e_pg)
     return K_e, residual_e
@@ -224,19 +228,7 @@ def MixedIncompressibility(
         K_pu = K_upᵀ
         R_p  = ∫ N_pᵀ (1 - J) dΩ
 
-    Parameters
-    ----------
-    kinematics
-        Hyperelastic kinematics, at an explicit rule, ``MatrixType.Order(n)``, that both groups share.
-    pGroupElem
-        p's group.
-    p_n
-        Pressure by node id of ``pGroupElem``.
-
-    Returns
-    -------
-    tuple
-        ``(K_uu, R_u, K_up, K_pu, R_p)``, u's DOFs in ``(xi, yi, zi, ..., xn, yn, zn)``, p's in ``pGroupElem``'s node order.
+    ``kinematics`` at an explicit rule, ``MatrixType.Order(n)``, both groups share; ``p_n`` by node id of ``pGroupElem``; returns ``(K_uu, R_u, K_up, K_pu, R_p)``, u's DOFs in ``(xi, yi, zi, ..., xn, yn, zn)``, p's in ``pGroupElem``'s node order.
     """
     groupElem = kinematics.groupElem
     matrixType = kinematics.matrixType
@@ -258,14 +250,17 @@ def MixedIncompressibility(
     p_e_pg = pGroupElem.Interpolate_e_pg(p_n, matrixType)
 
     K_uu, R_u = __second_piola_block(
-        wJ_e_pg,
-        kinematics,
-        -p_e_pg * dJdE_e_pg,
-        -p_e_pg * d2JdE_e_pg,
+        wJ_e_pg, kinematics, -p_e_pg * dJdE_e_pg, -p_e_pg * d2JdE_e_pg
     )
 
     _, B_e_pg = __block_grad_B(kinematics)
-    K_up = -einsum("ep,epji,epj,pk->eik", wJ_e_pg, B_e_pg, dJdE_e_pg, N_pg)
+    K_up = -einsum(
+        "ep,epji,epj,pk->eik",
+        wJ_e_pg,
+        B_e_pg,
+        dJdE_e_pg,
+        N_pg,
+    )
     R_p = einsum("ep,ep,pk->ek", wJ_e_pg, 1 - J_e_pg, N_pg)
     return K_uu, R_u, K_up, K_up.transpose(0, 2, 1), R_p
 
@@ -433,8 +428,20 @@ def FollowingPressure(
     S_a = __skew(dxdr_e_pg)  # S(a),  shape (Ne_a, nPg, 3, 3)
     S_b = __skew(dxds_e_pg)  # S(b),  shape (Ne_a, nPg, 3, 3)
     K_active = (
-        einsum("ep,epcd,pi,pj->eicjd", factor, S_a, N_pg, dNs_pg)
-        - einsum("ep,epcd,pi,pj->eicjd", factor, S_b, N_pg, dNr_pg)
+        einsum(
+            "ep,epcd,pi,pj->eicjd",
+            factor,
+            S_a,
+            N_pg,
+            dNs_pg,
+        )
+        - einsum(
+            "ep,epcd,pi,pj->eicjd",
+            factor,
+            S_b,
+            N_pg,
+            dNr_pg,
+        )
     ).reshape(Ne_a, dim * nPe, dim * nPe)
 
     K_e[active] = -K_active

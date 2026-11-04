@@ -691,7 +691,7 @@ def test_IncompressibleHyperElastic_tets_beside_prisms_are_stable_under_one_clam
             assert abs(beta / expected - 1) < 0.06
 
 
-def test_equal_order_QUAD4_is_the_inf_sup_negative_control():
+def test_IncompressibleHyperElastic_equal_order_QUAD4_is_the_inf_sup_negative_control():
     mesh = _square(ElemType.QUAD4, 4)
     groupElem = mesh.groupElem
     assembly_u = groupElem.Get_assembly_e(2)

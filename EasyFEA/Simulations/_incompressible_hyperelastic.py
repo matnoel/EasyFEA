@@ -72,10 +72,7 @@ class IncompressibleHyperElastic(_Simu):
             )
         super().__init__(mesh, model, folder, verbosity)
         self._Solver_Set_Newton_Raphson_Algorithm(
-            absTol=absTol,
-            relTol=relTol,
-            incTol=incTol,
-            maxIter=maxIter,
+            absTol=absTol, relTol=relTol, incTol=incTol, maxIter=maxIter
         )
         self.matrixType = MatrixType.mass
 
@@ -245,9 +242,7 @@ class IncompressibleHyperElastic(_Simu):
         space = self._Get_FunctionSpace(self.P)
         p = self._Solver_Get_Newton_Raphson_current_solution(self.P)
         return Operators.NonLinear.MixedIncompressibility(
-            self.__Current_kinematics(groupElem),
-            pGroup,
-            space.Get_nodeValues(p, 1),
+            self.__Current_kinematics(groupElem), pGroup, space.Get_nodeValues(p, 1)
         )
 
     # --------------------------------------------------------------------------
@@ -352,14 +347,16 @@ class IncompressibleHyperElastic(_Simu):
             groupElem, self.displacement, matrixType or self.matrixType
         )
 
-    def _Calc_W(self, returnScalar=True, matrixType=MatrixType.rigi):
+    def _Calc_W(
+        self, returnScalar: bool = True, matrixType: MatrixType = MatrixType.rigi
+    ) -> float | np.ndarray:
         r"""Hyperelastic strain energy :math:`\int_{\Omega_0} W \, \dO`, a float, or per element (Ne,)."""
         list_W = []
         space_u = self._Get_FunctionSpace(self.U)
         for groupElem in space_u.Get_list_groupElem():
             kinematics = self.__Solved_kinematics(groupElem, matrixType)
             wJ_e_pg = groupElem.Get_weightedJacobian_e_pg(matrixType)
-            W_e_pg = wJ_e_pg * self.material.Compute_W(kinematics)
+            W_e_pg: FeArray = wJ_e_pg * self.material.Compute_W(kinematics)
             list_W.append(self.thickness * W_e_pg.integrate())
         W_e = np.concatenate(list_W)
         return float(W_e.sum()) if returnScalar else W_e

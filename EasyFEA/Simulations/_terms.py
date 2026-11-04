@@ -395,7 +395,14 @@ def Fold_terms(
                 if contribution is None:
                     continue
                 _Check_rank(term, slot, contribution)
-                _Check_shape(term, slot, block, contribution, groupElem, simu)
+                _Check_shape(
+                    term,
+                    slot,
+                    block,
+                    contribution,
+                    groupElem,
+                    simu,
+                )
                 # always allocates, so a cached `constant=True` array is never written into
                 contribution = thickness * term.scale * contribution
                 if slot == "R":  # an internal force opposes the right-hand side

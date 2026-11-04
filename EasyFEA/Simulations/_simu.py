@@ -6,7 +6,7 @@
 from abc import ABC, abstractmethod
 import pickle
 from datetime import datetime
-from typing import Any
+from typing import Any, Callable
 import numpy as np
 from scipy import sparse
 import textwrap
@@ -178,7 +178,7 @@ class _Simu(_IObserver, _params.Updatable, ABC):
     def __Compose(
         self,
         problem: ProblemType | tuple[ProblemType, ...],
-        get,
+        get: Callable[[ProblemType], np.ndarray],
         isDofs: bool = False,
     ) -> np.ndarray:
         """`get(problemType)` of each field end to end, DOF ids shifted to the field's offset when `isDofs`; `get(problem)` itself for a problem type solved alone."""
@@ -1149,7 +1149,13 @@ class _Simu(_IObserver, _params.Updatable, ABC):
         return matrix
 
     @cache_computed_values
-    def __Get_csr_map(self, layout, isMatrix, Ndof, contributing):
+    def __Get_csr_map(
+        self,
+        layout: list[tuple[ProblemType, _FunctionSpace, int, int]],
+        isMatrix: bool,
+        Ndof: int,
+        contributing: list,
+    ) -> tuple[np.ndarray, np.ndarray, np.ndarray, int]:
         """Reduction map from element entries to global CSR slots for one assembly key.
 
         Returns ``(inv, indices, indptr, nnz)``: ``inv[k]`` is the CSR-data slot that element entry ``k``
@@ -2787,7 +2793,12 @@ class _Simu(_IObserver, _params.Updatable, ABC):
         dofs = self.Bc_dofs_nodes(spaceNodes, unknowns, problemType)
 
         self._Bc_Add_Dirichlet(
-            problemType, spaceNodes, dofsValues, dofs, unknowns, description
+            problemType,
+            spaceNodes,
+            dofsValues,
+            dofs,
+            unknowns,
+            description,
         )
 
     def add_neumann(

@@ -226,9 +226,7 @@ class HyperElastic(_Simu):
 
         if material.eta != 0 and v_t is not None:
             K_v, R_v, C_e = Operators.NonLinear.KelvinVoigtDamping(
-                material,
-                kinematics,
-                space.Get_nodeValues(v_t, self.dim),
+                material, kinematics, space.Get_nodeValues(v_t, self.dim)
             )
             K_e += K_v
             R_e += R_v

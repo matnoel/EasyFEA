@@ -419,22 +419,52 @@ def test_MixedIncompressibility_blocks_match_fd(subtests):
             p = rng.standard_normal(assembly_p.max() + 1)
 
             K_uu, _, K_up, K_pu, _ = _incompressibility(
-                uGroup, pGroup, assembly_p, u, p
+                uGroup,
+                pGroup,
+                assembly_p,
+                u,
+                p,
             )
 
             def R_u(u_, p_):
-                return _incompressibility(uGroup, pGroup, assembly_p, u_, p_)[1]
+                return _incompressibility(
+                    uGroup,
+                    pGroup,
+                    assembly_p,
+                    u_,
+                    p_,
+                )[1]
 
             def R_p(u_):
-                return _incompressibility(uGroup, pGroup, assembly_p, u_, p)[4]
+                return _incompressibility(
+                    uGroup,
+                    pGroup,
+                    assembly_p,
+                    u_,
+                    p,
+                )[4]
 
             assert_tangent_matches_fd(
-                lambda u_: R_u(u_, p), u, K_uu, assembly_u, tol=1e-7
+                lambda u_: R_u(u_, p),
+                u,
+                K_uu,
+                assembly_u,
+                tol=1e-7,
             )
             assert_tangent_matches_fd(
-                lambda p_: R_u(u, p_), p, K_up, assembly_p, tol=1e-7
+                lambda p_: R_u(u, p_),
+                p,
+                K_up,
+                assembly_p,
+                tol=1e-7,
             )
-            assert_tangent_matches_fd(R_p, u, K_pu, assembly_u, tol=1e-7)
+            assert_tangent_matches_fd(
+                R_p,
+                u,
+                K_pu,
+                assembly_u,
+                tol=1e-7,
+            )
             assert np.array_equal(K_pu, K_up.transpose(0, 2, 1))
 
 
@@ -444,7 +474,13 @@ def test_MixedIncompressibility_of_a_uniform_pressure_resists_a_dilation():
     u = np.zeros(assembly_u.max() + 1)
     p = np.full(assembly_p.max() + 1, 2.0)
 
-    R_u = _incompressibility(uGroup, pGroup, assembly_p, u, p)[1]
+    R_u = _incompressibility(
+        uGroup,
+        pGroup,
+        assembly_p,
+        u,
+        p,
+    )[1]
 
     work = element_dot(uGroup, R_u, affine(uGroup.coord, G3))
     assert rel_error(work, -2.0 * np.trace(G3)) < 1e-12
@@ -456,7 +492,13 @@ def test_MixedIncompressibility_residual_is_the_volume_lost():
     u = affine(uGroup.coord, eps * np.eye(3))
     p = np.zeros(assembly_p.max() + 1)
 
-    R_p = _incompressibility(uGroup, pGroup, assembly_p, u, p)[4]
+    R_p = _incompressibility(
+        uGroup,
+        pGroup,
+        assembly_p,
+        u,
+        p,
+    )[4]
 
     assert rel_error(R_p.sum(), 1 - (1 + eps) ** 3) < 1e-12
 
