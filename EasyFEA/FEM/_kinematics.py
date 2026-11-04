@@ -24,6 +24,9 @@ class Kinematics:
         Ncoords = groupElem.Ncoords
         errorDim = "wrong displacement field dimension"
         assert isinstance(u, np.ndarray) and u.size % Ncoords == 0, errorDim
+        # values per node a displacement can have: beams on lines, a face may sit in 3D
+        dof_n = {1: (1, 2, 3, 6), 2: (2, 3), 3: (3,)}[groupElem.dim]
+        assert u.size // Ncoords in dof_n, errorDim
 
     def __init__(
         self,

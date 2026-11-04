@@ -240,6 +240,42 @@ def test_Elastic__Calc_ZZ1_of_a_uniform_stress_is_zero(make_mesh_2D):
     assert np.abs(error_e).max() < 1e-10
 
 
+def test_Elastic__Calc_ZZ1_on_a_space_is_the_straight_mesh(subtests, make_mesh_2D):
+    """Smoothed on the field's nodes: P2 on QUAD4 is the QUAD9, P1 on QUAD9 the QUAD4."""
+
+    def varying(mesh: Mesh) -> Simulations.Elastic:
+        simu = Simulations.Elastic(mesh, Models.Elastic.Isotropic(2, E, v))
+        x, y, _ = mesh._Get_FunctionSpace(simu.U).Get_mesh().coord.T
+        u = UD * np.column_stack([x * (1 + y), -v * x * y])
+        simu._Set_solutions(simu.U, u.ravel())
+        return simu
+
+    U = Simulations.Elastic.U
+    quad4 = make_mesh_2D(elemType=ElemType.QUAD4, isOrganised=True)
+    quad9 = make_mesh_2D(elemType=ElemType.QUAD9, isOrganised=True)
+    for name, mesh, iso in (
+        ("P2 on QUAD4", quad4._With_FunctionSpace(U, 2), quad9),
+        ("P1 on QUAD9", quad9._With_FunctionSpace(U, 1), quad4),
+    ):
+        with subtests.test(name):
+            simu, simuIso = varying(mesh), varying(iso)
+
+            error, error_e = simu._Calc_ZZ1()
+            errorIso, error_e_iso = simuIso._Calc_ZZ1()
+
+            assert error > 1e-6
+            assert rel_error(error, errorIso) < 1e-10
+            assert error_e.shape == (mesh.Ne,)
+            assert rel_error(error_e, error_e_iso) < 1e-10
+            assert (
+                rel_error(
+                    simu._Calc_Psi_Elas(smoothedStress=True),
+                    simuIso._Calc_Psi_Elas(smoothedStress=True),
+                )
+                < 1e-10
+            )
+
+
 def test_Elastic__Calc_Epsilon_is_per_group_and_uniaxial(subtests):
     for meshName in BAR_MESHES:
         with subtests.test(mesh=meshName):

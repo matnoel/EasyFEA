@@ -218,7 +218,8 @@ class IncompressibleHyperElastic(_Simu):
         """Kinematics of u's group `groupElem`, at the explicit rule p is sampled at too."""
         space_u = self._Get_FunctionSpace(self.U)
         rule = space_u.Get_rule(groupElem, matrixType)
-        return Kinematics(groupElem, u, rule)  # type: ignore [arg-type]
+        u_n = space_u.Get_nodeValues(u, self.dim)
+        return Kinematics(groupElem, u_n, rule)  # type: ignore [arg-type]
 
     def __Current_kinematics(self, groupElem: _GroupElem) -> Kinematics:
         """:meth:`__Kinematics` at the current Newton solution."""

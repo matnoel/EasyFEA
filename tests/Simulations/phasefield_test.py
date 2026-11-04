@@ -37,16 +37,17 @@ def _simu(
         L0,
     )
     simu = Simulations.PhaseField(mesh, pfm)
-    length = mesh.coord[:, 0].max()
+    coord = mesh._Get_FunctionSpace(simu.U).Get_mesh().coord
+    length = coord[:, 0].max()
     u = _reference.bar_displacement(
-        mesh.coord,
+        coord,
         length,
         strain * length,
         v,
         mesh.dim,
     )
     simu._Set_solutions(simu.U, u.ravel())
-    simu._Set_solutions(simu.D, np.full(mesh.Nn, d))
+    simu._Set_solutions(simu.D, np.full(mesh._Get_FunctionSpace(simu.D).Nn, d))
     return simu
 
 
@@ -189,6 +190,73 @@ def test_PhaseField__Calc_Psi_Crack_of_a_uniform_damage_has_no_gradient_term(
     r = GC / L0 + E * STRAIN**2
 
     assert rel_error(simu._Calc_Psi_Crack(), r * d**2 / 2 * measure(mesh)) < 1e-12
+
+
+def _one_order(mesh: Mesh, order: int) -> Mesh:
+    """u and d at `order` on `mesh`."""
+    U, D = Simulations.PhaseField.U, Simulations.PhaseField.D
+    return mesh._With_FunctionSpace(U, order)._With_FunctionSpace(D, order)
+
+
+def test_PhaseField_on_spaces_of_one_order_matches_the_bar(subtests, make_mesh_2D):
+    d = 0.3
+    psi = E * STRAIN**2 / 2
+    r = GC / L0 + E * STRAIN**2
+    for name, elemType, order in (
+        ("Q2 on QUAD4", ElemType.QUAD4, 2),
+        ("Q1 on QUAD9", ElemType.QUAD9, 1),
+    ):
+        with subtests.test(name):
+            mesh = make_mesh_2D(elemType=elemType, isOrganised=True)
+            mesh = _one_order(mesh, order)
+            simu = _simu(mesh, d=d)
+            area = measure(mesh)
+
+            Sxx = simu.Result("Sxx", nodeValues=False)
+            damage = simu.Result("damage")
+
+            assert rel_error(Sxx, (1 - d) ** 2 * E * STRAIN) < 1e-9
+            assert damage.shape == (mesh.Nn,)
+            assert rel_error(damage, d) < 1e-12
+            assert rel_error(simu._Calc_Psi_Elas(), (1 - d) ** 2 * psi * area) < 1e-9
+            assert rel_error(simu._Calc_Psi_Crack(), r * d**2 / 2 * area) < 1e-12
+            assert simu.Detect_Damage(mesh.nodes, threshold=0.2)
+
+
+def test_PhaseField_Q2_on_QUAD4_is_the_straight_QUAD9(make_mesh_2D):
+    """u and d varying in space: the damage system matches node by node."""
+
+    def varying(mesh: Mesh) -> Simulations.PhaseField:
+        simu = _simu(mesh)
+        x, y, _ = mesh._Get_FunctionSpace(simu.U).Get_mesh().coord.T
+        X, Y = x / x.max(), y / y.max()
+        u = STRAIN * np.column_stack([x * (1 + Y), -v * y * X])
+        simu._Set_solutions(simu.U, u.ravel())
+        simu._Set_solutions(simu.D, 0.3 * X)
+        return simu
+
+    simu = varying(_one_order(_quad4(make_mesh_2D), 2))
+    iso = varying(make_mesh_2D(elemType=ElemType.QUAD9, isOrganised=True))
+    coord = simu.mesh._Get_FunctionSpace(simu.D).Get_mesh().coord
+    rows = np.argmin(np.linalg.norm(coord[:, None] - iso.mesh.coord, axis=2), axis=1)
+
+    Kd, _, _, Fd = simu.Get_K_C_M_F(simu.D)
+    Kd_iso, _, _, Fd_iso = iso.Get_K_C_M_F(iso.D)
+
+    assert rel_error(Kd.toarray(), Kd_iso[rows][:, rows].toarray()) < 1e-12
+    assert rel_error(Fd.toarray(), Fd_iso[rows].toarray()) < 1e-12
+    assert rel_error(simu._Calc_Psi_Elas(), iso._Calc_Psi_Elas()) < 1e-12
+    assert rel_error(simu._Calc_Psi_Crack(), iso._Calc_Psi_Crack()) < 1e-12
+    Sxx, Sxx_iso = (s.Result("Sxx", nodeValues=False) for s in (simu, iso))
+    assert rel_error(Sxx, Sxx_iso) < 1e-12
+
+
+def test_PhaseField_Solve_raises_when_u_and_d_differ_in_order(make_mesh_2D):
+    mesh = _quad4(make_mesh_2D)._With_FunctionSpace(Simulations.PhaseField.U, 2)
+    simu = _simu(mesh)
+
+    with pytest.raises(ValueError, match="one order"):
+        simu.Solve()
 
 
 def test_PhaseField__Calc_Psi_Ext_is_the_work_of_the_given_forces(make_mesh_2D):

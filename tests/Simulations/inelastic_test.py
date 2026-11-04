@@ -659,6 +659,52 @@ def test_InElastic__Calc_Sigma_is_per_group_and_uniaxial(subtests):
             assert rel_error(component(stress, mesh, 1), 0.0, scale=Sxx) < 1e-10
 
 
+def _one_element(elemType: ElemType) -> Mesh:
+    domain = Domain((0, 0), (1, 1), 1.0)
+    return domain.Mesh_2D([], elemType, isOrganised=True)
+
+
+def _past_yield(mesh: Mesh) -> Simulations.InElastic:
+    """A unit square clamped at x=0, pulled past yield at x=1 in 3 saved steps."""
+    elastic = Models.Elastic.Isotropic(2, E, nu, planeStress=False)
+    simu = Simulations.InElastic(mesh, _plastic(elastic))
+    nodesClamped = mesh.Nodes_Conditions(lambda x, y, z: x == 0)
+    nodesPulled = mesh.Nodes_Conditions(lambda x, y, z: x == 1)
+    for u in np.array([1, 3, 6]) * SIGMA_Y / E:
+        simu.Bc_Init()
+        simu.add_dirichlet(nodesClamped, [0, 0], ["x", "y"])
+        simu.add_dirichlet(nodesPulled, [u], ["x"])
+        simu.Solve()
+        simu.Save_Iter()
+    return simu
+
+
+def test_InElastic_on_a_space_is_the_straight_mesh(subtests):
+    """The history is committed on the space's groups: solved on 1 element."""
+    U = Simulations.InElastic.U
+    for name, elemType, order, elemTypeIso in (
+        ("P2 on QUAD4", ElemType.QUAD4, 2, ElemType.QUAD9),
+        ("P1 on QUAD9", ElemType.QUAD9, 1, ElemType.QUAD4),
+    ):
+        with subtests.test(name):
+            mesh = _one_element(elemType)._With_FunctionSpace(U, order)
+            simu, iso = _past_yield(mesh), _past_yield(_one_element(elemTypeIso))
+            coord = mesh._Get_FunctionSpace(U).Get_mesh().coord
+            rows = np.linalg.norm(coord[:, None] - iso.mesh.coord, axis=2)
+            rows = np.argmin(rows, axis=1)
+
+            u = simu.displacement.reshape(-1, 2)
+            p = simu.Result("p", nodeValues=False)
+            pIso = iso.Result("p", nodeValues=False)
+
+            assert np.max(pIso) > 0
+            assert rel_error(u, iso.displacement.reshape(-1, 2)[rows]) < 1e-10
+            assert rel_error(p, pIso) < 1e-10
+            Sxx, SxxIso = (s.Result("Sxx", nodeValues=False) for s in (simu, iso))
+            assert rel_error(Sxx, SxxIso) < 1e-10
+            assert simu.Result("ux").shape == (mesh.Nn,)
+
+
 def test_InElastic__Calc_Sigma_lives_at_the_rigi_points(mesh2D: Mesh):
     simu = Simulations.InElastic(mesh2D, _plastic(Isotropic(2, E=E, v=nu)))
 

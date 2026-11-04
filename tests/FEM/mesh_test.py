@@ -1019,6 +1019,25 @@ def test_Mesh__Get_FunctionSpace_rule_samples_the_geometry_where_the_field_integ
     assert tetra.Get_gauss(rule).nPg == 4
 
 
+def test_Mesh__Get_FunctionSpace_Get_dof_nodes_skips_the_nodes_without_a_DOF(subtests):
+    """P1 on a QUAD9 numbers its vertices first, so no row table holds the mid nodes."""
+    contour = Domain((0, 0), (1, 1), 1.0)
+    mesh = contour.Mesh_2D([], ElemType.QUAD9, isOrganised=True)
+    meshP1 = mesh._With_FunctionSpace(ELASTIC, 1)
+    space = meshP1._Get_FunctionSpace(ELASTIC)
+    vertices = mesh.groupElem.connect[:, : mesh.groupElem.Nvertex].ravel()
+    for name, ids, expected in (
+        ("every node", mesh.nodes, np.sort(vertices)),
+        ("mid nodes only", np.setdiff1d(mesh.nodes, vertices), []),
+    ):
+        with subtests.test(name):
+            assert np.array_equal(space.Get_dof_nodes(ids), expected)
+    simu = Simulations.Elastic(meshP1, Models.Elastic.Isotropic(2))
+    nodesLeft = meshP1.Nodes_Conditions(lambda x, y, z: x == 0)
+    simu.add_dirichlet(nodesLeft, [0, 0], ["x", "y"])
+    assert simu.Bc_dofs_Dirichlet(ELASTIC).size == 4
+
+
 def test_Mesh_simulations_on_one_mesh_share_its_space():
     meshP2 = _box(ElemType.TETRA4)._With_FunctionSpace(ELASTIC, 2)
 

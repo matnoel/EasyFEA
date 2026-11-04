@@ -12,7 +12,7 @@ from ..Utilities import Terminal, Tic, _types
 # fem
 if TYPE_CHECKING:
     from ..FEM import Mesh
-from ..FEM import _GroupElem, _Form
+from ..FEM import Field, _GroupElem, _Form
 
 # models
 from .. import Models
@@ -131,6 +131,13 @@ class WeakForms(_Simu):
         """
         weakForms = self.weakForms
 
+        partners = self.__Get_partners()
+        groupElem = weakForms.field.groupElem
+        if not any(groupElem is group for pair in partners.items() for group in pair):
+            raise ValueError(
+                "The field is not on a group of the simulation's mesh: create it from this mesh, after _With_FunctionSpace."
+            )
+
         forms = {
             "K": weakForms.computeK,
             "C": weakForms.computeC,
@@ -144,14 +151,24 @@ class WeakForms(_Simu):
             if form is not None
         ]
 
-    def __Integrate(self, groupElem: _GroupElem, form: _Form) -> np.ndarray | None:
-        """Integrates one weak form over a group.
+    def __Get_partners(self) -> dict[_GroupElem, _GroupElem]:
+        """The group the field's space puts on each main-dimension group of the mesh."""
+        dim = self.mesh.dim
+        space = self._Get_FunctionSpace()
+        return dict(
+            zip(self.mesh.Get_list_groupElem(dim), space.Get_list_groupElem(dim))
+        )
 
-        The form is written against ``weakForms.field``, which is bound to one element group, so any other group of the same dimension contributes nothing — returning None rather than repeating the same values, which is what a mesh carrying several groups of one dimension (PRISM18 + HEXA27) would otherwise get.
+    def __Integrate(self, groupElem: _GroupElem, form: _Form) -> np.ndarray | None:
+        """Integrates one weak form over a group of the field's space, None on a group other than the field's (PRISM18 + HEXA27 would repeat the same values).
+
+        ``weakForms.field`` stands for its group's elements in the space: on a mesh group of a non-isoparametric space, the form runs on a field of the partner.
         """
         field = self.weakForms.field
         if groupElem is not field.groupElem:
-            return None
+            if self.__Get_partners().get(field.groupElem) is not groupElem:
+                return None
+            field = Field(groupElem, field.dof_n, field.matrixType)
 
         tic = Tic()
         values_e = form.Integrate_e(field)

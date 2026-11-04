@@ -279,6 +279,11 @@ class PhaseField(_Simu):
 
         assert tolConv > 0 and tolConv <= 1, "tolConv must be between 0 and 1."
         assert maxIter > 1, "Must be > 1."
+        spaceU = self._Get_FunctionSpace(self.U)
+        if spaceU.order != self._Get_FunctionSpace(self.D).order:
+            raise ValueError(
+                "The displacement and the damage need one order: give PhaseField.U and PhaseField.D the same."
+            )
 
         Niter = 0
         converged = False
@@ -395,8 +400,16 @@ class PhaseField(_Simu):
         matrixType = MatrixType.rigi
         phaseFieldModel = self.phaseFieldModel
 
-        kinematics = Kinematics(groupElem, self.displacement, matrixType)
-        c_e_pg = phaseFieldModel.Compute_C(kinematics, self.damage)
+        spaceU = self._Get_FunctionSpace(self.U)
+        spaceD = self._Get_FunctionSpace(self.D)
+        kinematics = Kinematics(
+            groupElem,
+            spaceU.Get_nodeValues(self.displacement, self.dim),
+            matrixType,
+        )
+        c_e_pg = phaseFieldModel.Compute_C(
+            kinematics, spaceD.Get_nodeValues(self.damage, 1)
+        )
 
         tic = Tic()
 
@@ -434,7 +447,12 @@ class PhaseField(_Simu):
         assert testu or testd, "Dimension problem."
 
         # here the mass term is important otherwise we under-integrate
-        kinematics = Kinematics(groupElem, u, MatrixType.mass)
+        space = self._Get_FunctionSpace(self.U)
+        kinematics = Kinematics(
+            groupElem,
+            space.Get_nodeValues(u, self.dim),
+            MatrixType.mass,
+        )
 
         # Compute the elastic energy densities.
         psiP_e_pg, _ = phaseFieldModel.Compute_psi(kinematics)
@@ -503,7 +521,8 @@ class PhaseField(_Simu):
         ...     if nDetect == 10:
         ...         break
         """
-        d_nodes = self.damage[nodes]
+        space = self._Get_FunctionSpace(self.D)
+        d_nodes = space.Get_nodeValues(self.damage, 1)[nodes]
         detected = bool(d_nodes.size > 0 and np.any(d_nodes >= threshold))
         if MPI_SIZE > 1:
             detected = MPI_COMM.allreduce(detected, op=MPI.LOR)
@@ -556,7 +575,7 @@ class PhaseField(_Simu):
             self.__old_psiP_e_pg = {}
             self.__old_psiP_e_pg = {
                 groupElem: self.__Calc_psiPlus_e_pg(groupElem)
-                for groupElem in self.mesh.Get_list_groupElem()
+                for groupElem in self._Get_FunctionSpace(self.D).Get_list_groupElem()
             }
 
         return results
@@ -615,7 +634,7 @@ class PhaseField(_Simu):
             values = np.concatenate(
                 [
                     np.asarray(self.__Calc_psiPlus_e_pg(groupElem)).mean(1)
-                    for groupElem in self.mesh.Get_list_groupElem()
+                    for groupElem in spaceD.Get_list_groupElem()
                 ]
             )
 
@@ -726,22 +745,30 @@ class PhaseField(_Simu):
         self, matrixType: MatrixType = MatrixType.rigi
     ) -> FeArray.FeArrayALike | dict:
         """Strain (Ne, pg, 3 or 6): an ``FeArray`` on one group, ``{groupElem: FeArray}`` on several."""
+        space = self._Get_FunctionSpace(self.U)
         return _Field_per_groupElem(
             lambda groupElem: Kinematics(
-                groupElem, self.displacement, matrixType
+                groupElem, space.Get_nodeValues(self.displacement, self.dim), matrixType
             ).Compute_Epsilon(),
-            self.mesh.Get_list_groupElem(),
+            space.Get_list_groupElem(),
         )
 
     def _Calc_Sigma(
         self, matrixType: MatrixType = MatrixType.rigi
     ) -> FeArray.FeArrayALike | dict:
         """Damaged stress ``g(d)·σ⁺ + σ⁻`` (Ne, pg, 3 or 6): an ``FeArray`` on one group, ``{groupElem: FeArray}`` on several."""
+        spaceU = self._Get_FunctionSpace(self.U)
+        spaceD = self._Get_FunctionSpace(self.D)
         return _Field_per_groupElem(
             lambda groupElem: self.phaseFieldModel.Compute_Sigma(
-                Kinematics(groupElem, self.displacement, matrixType), self.damage
+                Kinematics(
+                    groupElem,
+                    spaceU.Get_nodeValues(self.displacement, self.dim),
+                    matrixType,
+                ),
+                spaceD.Get_nodeValues(self.damage, 1),
             ),
-            self.mesh.Get_list_groupElem(),
+            spaceU.Get_list_groupElem(),
         )
 
     def Results_Set_Bc_Summary(self, config: str):

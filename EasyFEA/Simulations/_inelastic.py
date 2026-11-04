@@ -122,7 +122,11 @@ class InElastic(_Simu):
     # --------------------------------------------------------------------------
 
     def __Groups(self) -> list[_GroupElem]:
-        return self.mesh.Get_list_groupElem(self.dim)
+        """The groups of the displacement's space, which the fold hands `__Assemble` and the internal variables live on."""
+        return self._Get_FunctionSpace().Get_list_groupElem(self.dim)
+
+    def __Node_values(self, u: _types.FloatArray) -> _types.FloatArray:
+        return self._Get_FunctionSpace().Get_nodeValues(u, self.dim)
 
     def __Internal_e_pg(self, groupElem: _GroupElem) -> dict[str, FeArray]:
         """The internal variables committed at the last converged solve, virgin before any."""
@@ -157,7 +161,7 @@ class InElastic(_Simu):
         self, u: _types.FloatArray, groupElem: _GroupElem
     ) -> tuple[FeArray, FeArray, dict[str, FeArray]]:
         return self.material.Integrate(
-            Kinematics(groupElem, u),
+            Kinematics(groupElem, self.__Node_values(u)),
             self.__Internal_e_pg(groupElem),
             self.__dt,
             **self.__External_e_pg(groupElem, self.__external),
@@ -169,7 +173,7 @@ class InElastic(_Simu):
         """Strain (Ne, pg, 3 or 6): an ``FeArray`` on one group, ``{groupElem: FeArray}`` on several."""
         return _Field_per_groupElem(
             lambda groupElem: Kinematics(
-                groupElem, self.displacement, matrixType
+                groupElem, self.__Node_values(self.displacement), matrixType
             ).Compute_Epsilon(),
             self.__Groups(),
         )
@@ -183,7 +187,9 @@ class InElastic(_Simu):
         ), "the internal state lives at the rigi points"
         return _Field_per_groupElem(
             lambda groupElem: self.material.Compute_Sigma(
-                Kinematics(groupElem, self.displacement, matrixType),
+                Kinematics(
+                    groupElem, self.__Node_values(self.displacement), matrixType
+                ),
                 self.__Internal_e_pg(groupElem),
                 **self.__External_e_pg(groupElem, self.__Solved_external()),
             ),

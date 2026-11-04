@@ -406,6 +406,16 @@ def test_Beam_accepts_a_beam_or_a_list_of_beams():
         assert simu.structure.beams == [beam]
 
 
+def test_Beam_rejects_a_non_isoparametric_space():
+    line = Line((0, 0), (L_EB, 0), L_EB / 10)
+    beam = Models.Beam.Isotropic(2, line, _section(), E, v)
+    mesh = Mesher().Mesh_Beams([beam], ElemType.SEG2)
+    meshP2 = mesh._With_FunctionSpace(Simulations.Beam.U, 2)
+
+    with pytest.raises(ValueError, match="rebuilds the mesh"):
+        Simulations.Beam(meshP2, beam)
+
+
 LINE_LOADS = [(1, "x", False), (2, "y", False), (3, "z", False)]
 LINE_LOADS += [(2, "y", True), (3, "z", True)]  # no shear in 1D
 

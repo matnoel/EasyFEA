@@ -518,3 +518,20 @@ def test_Kinematics_Compute_d2I8dC_is_zero(cases: list[Case], subtests):
     for case in cases:
         with subtests.test(dim=case.dim):
             assert not np.any(case.kinematics.Compute_d2I8dC())
+
+
+def test_Kinematics_refuses_a_size_no_displacement_has(subtests):
+    """Values per node: beams on lines, 2 or 3 on a face, 3 in a volume."""
+    for dim, accepted, refused in (
+        (1, (1, 2, 3, 6), (4, 5)),
+        (2, (2, 3), (1, 4, 6)),
+        (3, (3,), (1, 2, 4, 6)),
+    ):
+        groupElem = _mesh(dim).groupElem
+        for dof_n in accepted:
+            with subtests.test(dim=dim, dof_n=dof_n):
+                Kinematics(groupElem, np.zeros(groupElem.Ncoords * dof_n))
+        for dof_n in refused:
+            with subtests.test(dim=dim, dof_n=dof_n):
+                with pytest.raises(AssertionError, match="displacement field"):
+                    Kinematics(groupElem, np.zeros(groupElem.Ncoords * dof_n))

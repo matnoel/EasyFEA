@@ -96,6 +96,12 @@ class Beam(_Simu):
             model, BeamStructure
         ), "model must be a beam model, a list of beam or a beam structure"
 
+        partners = mesh._Get_FunctionSpace(self.U).Get_list_groupElem()
+        if any(p is not g for g, p in zip(mesh.Get_list_groupElem(), partners)):
+            raise ValueError(
+                "A beam uses the mesh's elements: it rebuilds the mesh, which would drop this space."
+            )
+
         self.useTimoshenko = useTimoshenko
         if useTimoshenko:
             mesh = _Construct_Timoshenko_mesh(mesh)

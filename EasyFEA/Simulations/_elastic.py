@@ -344,15 +344,17 @@ class Elastic(_Simu):
         list_psi_e_pg = [self.material.Compute_Psi(kin) for kin in list_kinematics]
 
         if smoothedStress:
-            # ZZ1: rebuild psi from the element stresses averaged at the nodes, then projected back onto the Gauss points.
-            Sigma_n = self.mesh.Get_Node_Values(
-                np.concatenate(
-                    [
-                        np.mean(self.material.Compute_Sigma(kin), 1)
-                        for kin in list_kinematics
-                    ]
-                )
-            )
+            # ZZ1: rebuild psi from the element stresses averaged at the field's nodes, then projected back onto the Gauss points.
+            Sigma_e = [
+                np.mean(self.material.Compute_Sigma(kin), 1) for kin in list_kinematics
+            ]
+            Ncoords = max(kin.groupElem.Ncoords for kin in list_kinematics)
+            Sigma_n = np.zeros((Ncoords, Sigma_e[0].shape[1]))
+            elements_n = np.zeros(Ncoords)
+            for kin, values_e in zip(list_kinematics, Sigma_e):
+                np.add.at(Sigma_n, kin.groupElem.connect, values_e[:, None])
+                np.add.at(elements_n, kin.groupElem.connect, 1)
+            Sigma_n[elements_n > 0] /= elements_n[elements_n > 0, None]
             list_psi_e_pg = [
                 0.5
                 * FeArray.asfearray(
