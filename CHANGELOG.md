@@ -2,7 +2,9 @@
 
 This document describes the changes made to the project.
 
-## Unreleased
+## 7.2.0 (November 5, 2026):
+
+### Function spaces and incompressible hyperelasticity
 
 - `Simulations.IncompressibleHyperElastic`: static, perfectly incompressible
   hyperelasticity, displacement and pressure solved together on a Taylor–Hood pair; the
@@ -16,6 +18,10 @@ This document describes the changes made to the project.
 - `Mesh.Nodes_*(..., problemType=)` selects a field's nodes on such a space, and
   `Plot_BoundaryConditions` draws them. Without it the selection stays on the geometry,
   with a warning the first time a space adds nodes (issue #71).
+- `HyperElastic.Result("J")`: the mean of `det(F)` on each element (issue #71).
+
+### Visualization
+
 - `Matplotlib.Plot_BoundaryConditions` draws a non-zero value as an arrow, as `PyVista`
   does; a zero value stays a marker. In both viewers an arrow stays outside the
   material: it starts on its node when it points out of the material, and ends there
@@ -27,6 +33,9 @@ This document describes the changes made to the project.
   Removed `plotLegend`, the names being on the tags (issue #71).
 - `PyVista.Plot_BoundaryConditions` draws a scalar condition on every node once, as
   Matplotlib does (issue #71).
+
+### API
+
 - Removed `NonLinear.GonzalezStressTensor` and `NonLinear.TimeQuadratureStressTensor`,
   with `HyperElastic.StressType` and `Solver_Set_Stress`: `HyperElastic` samples the
   stress pointwise.
@@ -36,13 +45,14 @@ This document describes the changes made to the project.
 - Saves written by earlier versions (`Load_Simu`, `Load_Mesh`) are not supported: rerun
   them (issue #71).
 - A simulation declares the class attribute `problemTypes`, whose first entry is its
-  `problemType`; it replaces `Get_problemTypes()`. `IncompressibleHyperElastic.P`
-  replaces `pressureType`. `U` names the displacement problem of every simulation (`T`
-  on `Thermal`), one `ProblemType("displacement")` for all but `WeakForms` (issue #71).
-- `HyperElastic.Result("J")`: the mean of `det(F)` on each element (issue #71).
+  `problemType`; it replaces `Get_problemTypes()`. `U` names the displacement problem of
+  every simulation (`T` on `Thermal`), one `ProblemType("displacement")` for all but
+  `WeakForms` (issue #71).
 - `Fold_terms` and `_Construct_local_matrix_system` return the local system by slot:
   `{"K": {(rows, cols): {groupElem: K_e}}, "C": ..., "M": ..., "F": {rows: {groupElem: F_e}}}`
   (issue #71).
+
+**Full Changelog:** https://github.com/matnoel/EasyFEA/compare/v7.1.0...v7.2.0
 
 ## 7.1.0 (October 19, 2026):
 
