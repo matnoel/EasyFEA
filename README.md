@@ -22,7 +22,8 @@ analysis that you can conduct using EasyFEA:
 01. [Linear elastic simulations](https://easyfea.readthedocs.io/en/stable/examples/LinearizedElasticity/index.html):
     `static`, `dynamic`, `homogenization` and `mesh optimization`.
 02. [Hyperelastic simulations](https://easyfea.readthedocs.io/en/stable/examples/Hyperelasticity/index.html):
-    `static` and `dynamic` in the `Lagrangian` framework..
+    `compressible` (`static` and `dynamic`) and `incompressible` (`static`) in the
+    `Lagrangian` framework.
 03. [Inelastic simulations](https://easyfea.readthedocs.io/en/stable/examples/Inelasticity/index.html):
     small-strain `plasticity`, `viscoplasticity` and `viscoelasticity`, assembled from a
     yield surface, hardening, a back-stress, a rate law and Maxwell branches.

@@ -4,8 +4,10 @@ This document describes the changes made to the project.
 
 ## Unreleased
 
-- `Simulations.IncompressibleHyperElastic`: perfectly incompressible hyperelasticity,
-  displacement and pressure solved together on a Taylor–Hood pair (issue #71).
+- `Simulations.IncompressibleHyperElastic`: static, perfectly incompressible
+  hyperelasticity, displacement and pressure solved together on a Taylor–Hood pair; the
+  README and the documentation now list `compressible` and `incompressible` hyperelastic
+  simulations (issue #71).
 - `Mesh._With_FunctionSpace(problemType, order)`: a field on other elements than the
   geometry's. Not with `Beam`, which raises, or the external variables of `InElastic`
   (issue #71).

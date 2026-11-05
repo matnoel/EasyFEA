@@ -11,8 +11,9 @@ analysis that you can conduct using EasyFEA:
 
 01. {doc}`Linear elastic simulations <examples/LinearizedElasticity/index>`: `static`,
     `dynamic`, `homogenization` and `mesh optimization`.
-02. {doc}`Hyperelastic simulations <examples/Hyperelasticity/index>`: `static` and
-    `dynamic` in the `Lagrangian` framework.
+02. {doc}`Hyperelastic simulations <examples/Hyperelasticity/index>`: `compressible`
+    (`static` and `dynamic`) and `incompressible` (`static`) in the `Lagrangian`
+    framework.
 03. {doc}`Inelastic simulations <examples/Inelasticity/index>`: small-strain
     `plasticity`, `viscoplasticity` and `viscoelasticity`, from shipped behaviors or one
     written at a single point in `jax.numpy`.
