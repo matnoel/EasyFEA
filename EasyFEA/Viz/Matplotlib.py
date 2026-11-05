@@ -19,6 +19,7 @@ from ._utils import tab20_colors as tab20_colors  # public
 from ._utils import (
     _Get_arrow_tails,
     _Get_bc_vectors,
+    _Get_tags_to_draw,
     PlotOptions,
     _Flatten_geoms,
     _Check_kwargs,
@@ -43,6 +44,7 @@ try:
     import matplotlib.pyplot as plt
     from mpl_toolkits.mplot3d import Axes3D
     from matplotlib.collections import PolyCollection, LineCollection
+    from matplotlib.patheffects import withStroke
     from mpl_toolkits.mplot3d.art3d import Poly3DCollection, Line3DCollection
     from mpl_toolkits.axes_grid1 import make_axes_locatable  # use to do colorbarIsClose
     from matplotlib import animation
@@ -106,6 +108,17 @@ def __Get_vertices(
 
 
 @requires_matplotlib
+def __Get_outer_faces(
+    groupElem: _GroupElem, connect: _types.IntArray
+) -> _types.IntArray:
+    """The display faces, as node ids, that only one of these volume elements holds."""
+    faces = connect[:, groupElem.surfaces].reshape(-1, groupElem.surfaces.shape[1])
+    _, inverse, counts = np.unique(
+        np.sort(faces, axis=1), axis=0, return_inverse=True, return_counts=True
+    )
+    return faces[counts[inverse.ravel()] == 1]
+
+
 def __Add_Collection(
     ax: Axes,
     vertices: _types.FloatArray,
@@ -1328,13 +1341,13 @@ def Plot_Tags(
     title: str = "",
     showId: bool = True,
     showGrid: bool = False,
-    plotLegend: bool = False,
     useColorCycler: bool = False,
+    dimElems: list[int] | None = None,
     bounds: _types.Numbers | None = None,
     ax: Axes | None = None,
     folder: str = "",
 ) -> Axes:
-    """Plots the mesh's elements tags (from 2d elements to points) but do not plot the 3d elements tags.
+    """Plots the mesh's elements tags, from volumes to points; the tag under the mouse shows in the toolbar.
 
     Parameters
     ----------
@@ -1343,7 +1356,7 @@ def Plot_Tags(
     deformFactor : float, optional
         Factor used to display the deformed solution (0 means no deformations), default 0.0
     alpha : float, optional
-        transparency, by default 1.0
+        opacity of the surfaces and volumes, times 0.3 in 3D or with useColorCycler, by default 1.0
     linewidth : float, optional
         width of the tagged lines, by default None (1.5)
     title : str, optional
@@ -1352,10 +1365,10 @@ def Plot_Tags(
         writes the tags, by default True
     showGrid : bool, optional
         shows the grid, by default False
-    plotLegend : bool, optional
-        displays the legend, by default False (the tag under the mouse shows in the toolbar)
     useColorCycler : bool, optional
-        whether to use color cycler, by default False
+        the highest surfaces or volumes drawn and their names loop on a color cycler, by default False
+    dimElems : list[int], optional
+        the dimensions to draw and name, the lines always being drawn, by default None (the mesh's two highest)
     bounds : sequence[float], optional
         fixed view box (xmin, xmax, ymin, ymax, zmin, zmax), by default None (fits everything drawn)
     ax : Axes, optional
@@ -1385,6 +1398,9 @@ def Plot_Tags(
 
     ax, inDim = __Get_axis(ax, inDim)
     inDim = np.max([inDim, 2])
+    if inDim == 3:
+        # keeps the names above the surfaces, which 3D axes otherwise sort by depth
+        ax.computed_zorder = False  # type: ignore [union-attr]
 
     Plot(
         obj,
@@ -1395,82 +1411,71 @@ def Plot_Tags(
         ax=ax,
     )
 
-    colors = plt.get_cmap("tab10").colors  # type: ignore [attr-defined]
-    colorIterator = iter(colors * np.ceil(np.sum(nTtags) / len(colors)).astype(int))
-
     # List of collections during creation
     collections = []
-    for groupElem in mesh.dict_groupElem.values():
-        # Tags available by element group
-        tags_e = groupElem.elementTags
+    for tag in _Get_tags_to_draw(
+        mesh,
+        coord,
+        alpha,
+        useColorCycler,
+        dimElems,
+    ):
+        groupElem, connect = tag.groupElem, tag.groupElem.connect[tag.elements]
         dim = groupElem.dim
-        center_e = np.mean(coord[groupElem.connect], axis=1)  # center of each elements
 
-        if groupElem.dim == 1:
-            idx = groupElem.segments[0]
+        if dim == 0:
+            # plot points
+            points = ax.scatter(
+                *coord[tag.nodes, :inDim].T,
+                color=tag.color,
+                s=20,  # type: ignore [misc]
+                zorder=3,
+                label=tag.name,
+                lw=1,
+            )
+            collections.append(points)
+        elif dim == 1:
+            # plot lines
+            pc = __Add_Collection(
+                ax,
+                coord[connect[:, groupElem.segments[0]], :inDim],
+                inDim,
+                1,
+                edgecolor=tag.color,
+                linewidth=1.5 if linewidth is None else linewidth,
+                alpha=1,
+                label=tag.name,
+            )
+            collections.append(pc)
         else:
-            idx = groupElem.surfaces.ravel().tolist()
-        vertices_e = coord[groupElem.connect[:, idx], :inDim]
+            # plot surfaces, and the outer faces of a volume
+            faces = connect[:, groupElem.surfaces.ravel()]
+            pc = __Add_Collection(
+                ax,
+                coord[
+                    faces if dim == 2 else __Get_outer_faces(groupElem, connect), :inDim
+                ],
+                inDim,
+                2,
+                facecolors=tag.color,
+                linewidth=0,
+                alpha=tag.opacity,
+                label=tag.name,
+            )
+            collections.append(pc)
 
-        for tag_e in tags_e:
-            nodes = groupElem.Get_Nodes_Tag(tag_e)
-            elements = groupElem.Get_Elements_Tag(tag_e)
-            if len(elements) == 0 or len(nodes) == 0:
-                continue
-
-            vertices = vertices_e[elements]
-
-            # Assign color
-            if useColorCycler:
-                color = next(colorIterator)
-            elif groupElem.dim in [0, 1]:
-                color = "black"
-            else:
-                color = "tab:cyan"
-
-            center = np.mean(center_e[elements], axis=0)
-
-            if dim == 0:
-                # plot points
-                points = ax.scatter(
-                    *coord[nodes, :inDim].T,
-                    c="black",  # type: ignore [misc]
-                    marker=".",
-                    zorder=2,
-                    label=tag_e,
-                    lw=2,
-                )
-                collections.append(points)
-            elif dim == 1:
-                # plot lines
-                pc = __Add_Collection(
-                    ax,
-                    vertices,
-                    inDim,
-                    1,
-                    edgecolor="black",
-                    linewidth=1.5 if linewidth is None else linewidth,
-                    alpha=1,
-                    label=tag_e,
-                )
-                collections.append(pc)
-
-            elif dim == 2:
-                # plot surfaces
-                pc = __Add_Collection(
-                    ax,
-                    vertices,
-                    inDim,
-                    2,
-                    facecolors=color,
-                    linewidth=0,
-                    alpha=alpha,
-                    label=tag_e,
-                )
-                collections.append(pc)
-
-            if showId:
-                ax.text(*center[:inDim], tag_e, zorder=25)  # type: ignore [arg-type, call-arg]
+        if showId and tag.namePosition is not None:
+            # a point's name stays beside its marker, the others sit on their tag
+            ax.text(  # type: ignore [call-arg]
+                *tag.namePosition[:inDim],
+                tag.name,  # type: ignore [arg-type]
+                zorder=25,
+                color=tag.nameColor,
+                ha="left" if dim == 0 else "center",
+                va="bottom" if dim == 0 else "center",
+                clip_on=bounds is not None,
+                path_effects=[withStroke(linewidth=3, foreground="white")],
+            )
 
     _Annotate(
         ax,
@@ -1478,7 +1483,6 @@ def Plot_Tags(
         title,
         showGrid,
         bounds,
-        plotLegend,
     )
 
     tic.Tac("Matplotlib", "Plot_Tags")

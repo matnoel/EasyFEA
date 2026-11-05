@@ -432,9 +432,10 @@ def test_Plot_Tags_draws_and_labels_each_tag(subtests, mesh_of):
         with subtests.test(elemType=elemType):
             mesh = mesh_of(elemType)
 
-            plotter = PyVista.Plot_Tags(mesh, title="tags", showGrid=True)
+            plotter = PyVista.Plot_Tags(
+                mesh, title="tags", showGrid=True, dimElems=list(range(mesh.dim + 1))
+            )
 
-            assert _n_legend(plotter) == len(element_tags(mesh))
             assert len(_meshes(plotter, pv.UnstructuredGrid)) == 1 + len(
                 element_tags(mesh)
             )
@@ -443,13 +444,11 @@ def test_Plot_Tags_draws_and_labels_each_tag(subtests, mesh_of):
 def test_Plot_Tags_useColorCycler_colors_each_tag_from_tab10(make_mesh_2D):
     mesh = make_mesh_2D(elemType=ElemType.QUAD4)
 
-    plotter = PyVista.Plot_Tags(
-        mesh, useColorCycler=True, showId=False, plotLegend=False
-    )
+    plotter = PyVista.Plot_Tags(mesh, useColorCycler=True, showId=False)
 
     tagged = _meshes(plotter, pv.UnstructuredGrid)[1:]
     colors = {_actor(plotter, grid).prop.color.hex_rgb for grid in tagged}
-    assert colors <= set(PyVista.tab10_colors)
+    assert colors - {"#000000"} <= set(PyVista.tab10_colors)
     assert _n_legend(plotter) == 0
 
 

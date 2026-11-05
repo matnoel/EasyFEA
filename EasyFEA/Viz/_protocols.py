@@ -131,11 +131,11 @@ class Viewer(Protocol):
         title: str = ...,
         showId: bool = ...,
         showGrid: bool = ...,
-        plotLegend: bool = ...,
         useColorCycler: bool = ...,
+        dimElems: list[int] | None = ...,
         bounds: _types.Numbers | None = ...,
     ) -> Any:
-        """Draws the tagged elements (up to 2D), `showId` writing the tags."""
+        """Draws the tagged elements of `dimElems`, by default the mesh's two highest dimensions, and the lines, `showId` writing the tags of `dimElems`."""
         ...
 
     def Plot_Geoms(

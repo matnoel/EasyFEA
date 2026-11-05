@@ -58,8 +58,11 @@ optional inclusions (holes, filled regions), cracks, and local refinement.
     domain = Domain((0, 0), (100, 20), meshSize=5.0)
     mesh = domain.Mesh_2D([], ElemType.TRI3)
     Matplotlib.Plot_Mesh(mesh)
-    Matplotlib.Plot_Tags(mesh)
+    Matplotlib.Plot_Tags(mesh, useColorCycler=True)
 ```
+
+{py:func}`~EasyFEA.Viz.Matplotlib.Plot_Tags` names the surface and lines of the mesh,
+which can then {ref}`select nodes <howto-import-mesh-tags>`.
 
 ### Rectangle with a circular hole
 
@@ -276,9 +279,17 @@ This rule only looks at vertices, so one call spanning two faces can take an edg
 between them: selecting the top and bottom of a strip one element thick also takes its
 end sides' mid-edge nodes ({ref}`see the figure <howto-check-selection>`). To avoid
 this, select one face per call, or by tag: here `mesh.Nodes_Tags("L2", problemType=U)`
-takes exactly the nodes of the outer arc. Check what was picked with
-{py:func}`~EasyFEA.Viz.Matplotlib.Plot_BoundaryConditions`, which draws every selected
-node.
+takes exactly the nodes of the outer arc. {py:func}`~EasyFEA.Viz.Matplotlib.Plot_Tags`
+shows that name:
+
+```{eval-rst}
+.. jupyter-execute::
+
+    Matplotlib.Plot_Tags(mesh, useColorCycler=True)
+```
+
+Check what was picked with {py:func}`~EasyFEA.Viz.Matplotlib.Plot_BoundaryConditions`,
+which draws every selected node.
 
 The geometry does not change, which sets the limits on a curved boundary:
 

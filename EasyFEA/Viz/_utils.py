@@ -6,10 +6,11 @@
 """Helpers shared by the viewers."""
 
 from __future__ import annotations
-from typing import TYPE_CHECKING, Any, TypedDict
+from typing import TYPE_CHECKING, Any, NamedTuple, TypedDict
 
 import numpy as np
 from scipy.sparse import csr_matrix
+from scipy.spatial import cKDTree
 
 from ..FEM._utils import MatrixType
 
@@ -112,6 +113,88 @@ def _Get_outward_face_normals(
     sign_e[nHolder_e != 1] = 0
 
     return normal_e * sign_e[:, None]
+
+
+class _Tag(NamedTuple):
+    """A tag as the viewers draw it; ``namePosition`` is None for a line drawn without its name."""
+
+    groupElem: _GroupElem
+    name: str
+    elements: _types.IntArray
+    nodes: _types.IntArray
+    color: str
+    opacity: float
+    namePosition: _types.FloatArray | None
+    nameColor: str
+
+
+def _Get_tag_name_positions(
+    mesh: Mesh, groupElem: _GroupElem, coord: _types.FloatArray
+) -> dict[str, _types.FloatArray]:
+    """Where each tag's name goes, on its elements: furthest from the lower dimension's nodes for a surface, nearest the mean for a line."""
+    lowerGroups = (
+        mesh.Get_list_groupElem(groupElem.dim - 1) if groupElem.dim > 1 else []
+    )
+    tree = None
+    if len(lowerGroups) > 0:
+        tree = cKDTree(
+            coord[np.unique(np.hstack([g.connect.ravel() for g in lowerGroups]))]
+        )
+
+    center_e = np.mean(coord[groupElem.connect], axis=1)
+    positions = {}
+    for tag in groupElem.elementTags:
+        elements = groupElem.Get_Elements_Tag(tag)
+        if elements.size == 0:
+            continue
+        if tree is None:
+            nodes = np.unique(groupElem.connect[elements])
+            spots = np.vstack((center_e[elements], coord[nodes]))
+            index = np.argmin(np.linalg.norm(spots - spots.mean(axis=0), axis=1))
+        else:
+            spots = center_e[elements]
+            index = np.argmax(tree.query(spots)[0])
+        positions[tag] = spots[index]
+    return positions
+
+
+def _Get_tags_to_draw(
+    mesh: Mesh,
+    coord: _types.FloatArray,
+    alpha: float,
+    useColorCycler: bool,
+    dimElems: list[int] | None,
+) -> list[_Tag]:
+    """The tags of ``dimElems``, by default the mesh's two highest dimensions, plus the lines without their names, with their style: dark points and lines, with the cycler the highest surfaces or volumes drawn loop on the colors, see-through surfaces in 3D."""
+    dims = [mesh.dim, mesh.dim - 1] if dimElems is None else dimElems
+    surfaceOpacity = alpha * 0.3 if mesh.inDim == 3 or useColorCycler else alpha
+    colorIndex = 0
+
+    tags = []
+    for groupElem in mesh.dict_groupElem.values():
+        dim = groupElem.dim
+        if dim not in dims and dim != 1:
+            continue
+        positions = _Get_tag_name_positions(mesh, groupElem, coord)
+        for name, position in positions.items():
+            color = "black" if dim < 2 else "#d9d9d3"
+            nameColor = "black"
+            if useColorCycler and dim >= 2 and dim == max(dims):
+                color = nameColor = tab10_colors[colorIndex % len(tab10_colors)]
+                colorIndex += 1
+            tags.append(
+                _Tag(
+                    groupElem,
+                    name,
+                    groupElem.Get_Elements_Tag(name),
+                    groupElem.Get_Nodes_Tag(name),
+                    color,
+                    surfaceOpacity,
+                    position if dim in dims else None,
+                    nameColor,
+                )
+            )
+    return tags
 
 
 def _Get_arrow_tails(

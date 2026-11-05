@@ -18,6 +18,7 @@ from ..IO import PyVista as _pvIO
 from ._utils import (
     _Get_arrow_tails,
     _Get_bc_vectors,
+    _Get_tags_to_draw,
     tab10_colors,
     PlotOptions,
     _Flatten_geoms,
@@ -771,9 +772,12 @@ def Plot_BoundaryConditions(
         unknowns_rot = ["rx", "ry", "rz"]
 
         if dof_n == 1:
-            # plot points
+            # plot points, only one for a condition on every node
+            isOnEveryNode = len(nodes) == nDof
             plotter.add_mesh(
-                pv.PolyData(bcCoord[nodes]),  # type: ignore [arg-type]
+                pv.PolyData(  # type: ignore [arg-type]
+                    bcCoord.mean(0, keepdims=True) if isOnEveryNode else bcCoord[nodes]
+                ),
                 render_points_as_spheres=False,
                 point_size=nodeSize,
                 label=label,
@@ -872,12 +876,12 @@ def Plot_Tags(
     title: str = "",
     showId: bool = True,
     showGrid: bool = False,
-    plotLegend: bool = True,
     useColorCycler: bool = False,
+    dimElems: list[int] | None = None,
     bounds: _types.Numbers | None = None,
     plotter: pv.Plotter | None = None,
 ) -> pv.Plotter:
-    """Plots the mesh's elements tags (from 2d elements to points) but do not plot the 3d elements tags.
+    """Plots the mesh's elements tags, from volumes to points.
 
     Parameters
     ----------
@@ -885,20 +889,20 @@ def Plot_Tags(
         object containing the mesh
     deformFactor : float, optional
         Factor used to display the deformed solution (0 means no deformations), default 0.0
-    alpha : float | str | ndarray, optional
-        Opacity of the mesh, by default 1.0
+    alpha : float, optional
+        opacity of the surfaces and volumes, times 0.3 in 3D or with useColorCycler, by default 1.0
     linewidth : float, optional
-        width of the tagged lines, by default None (2)
+        width of the tagged lines, by default None (3)
     title : str, optional
         title, by default ""
     showId : bool, optional
         writes the tags, by default True
     showGrid : bool, optional
         Show the grid, by default False
-    plotLegend : bool, optional
-        displays the legend, by default True
     useColorCycler : bool, optional
-        whether to use color cycler, by default False
+        the highest surfaces or volumes drawn and their names loop on a color cycler, by default False
+    dimElems : list[int], optional
+        the dimensions to draw and name, the lines always being drawn, by default None (the mesh's two highest)
     bounds : sequence[float], optional
         fixed view box (xmin, xmax, ymin, ymax, zmin, zmax), by default None (fits everything drawn)
     plotter : pv.Plotter, optional
@@ -936,58 +940,55 @@ def Plot_Tags(
         plotter=plotter,
     )
 
-    if useColorCycler:
-        colorIterator = iter(tab10_colors * np.ceil(np.sum(nTtags) / 10).astype(int))
+    for tag in _Get_tags_to_draw(
+        mesh,
+        coord,
+        alpha,
+        useColorCycler,
+        dimElems,
+    ):
+        dim = tag.groupElem.dim
+        cellType, connect = _pvIO._Get_pyvista_cell(tag.groupElem)
+        grid = pv.UnstructuredGrid({cellType: connect[tag.elements]}, coord)
 
-    for groupElem in mesh.dict_groupElem.values():
+        if dim == 0:
+            plotter.add_mesh(
+                grid, color=tag.color, render_points_as_spheres=True, point_size=8
+            )
+        elif dim == 1:
+            plotter.add_mesh(
+                grid,
+                color=tag.color,
+                line_width=3 if linewidth is None else linewidth,
+                render_lines_as_tubes=True,
+            )
+        else:
+            plotter.add_mesh(
+                grid,
+                color=tag.color,
+                opacity=tag.opacity,
+                ambient=0.7,
+                diffuse=0.3,
+            )
 
-        # groupElem's data
-        tags_e = groupElem.elementTags
-        dim = groupElem.dim
-        center_e = np.mean(coord[groupElem.connect], axis=1)  # center of each elements
-        cellType, connect = _pvIO._Get_pyvista_cell(groupElem)
-
-        for tag_e in tags_e:
-            # get nodes and elements
-            nodes = groupElem.Get_Nodes_Tag(tag_e)
-            elements = groupElem.Get_Elements_Tag(tag_e)
-            if len(elements) == 0:
-                continue
-
-            grid = pv.UnstructuredGrid({cellType: connect[elements]}, coord)
-
-            if useColorCycler:
-                color = next(colorIterator)
-            else:
-                color = "k" if dim in [0, 1] else "c"
-
-            kwargs = {
-                "color": color,
-                "label": tag_e,
-            }
-
-            if dim == 0:
-                plotter.add_mesh(grid, render_points_as_spheres=True, **kwargs)
-            elif dim == 1:
-                lw = 2 if linewidth is None else linewidth
-                plotter.add_mesh(grid, line_width=lw, **kwargs)
-            else:
-                plotter.add_mesh(grid, opacity=alpha, **kwargs)
-
-            if showId:
-                # add tags
-                if dim == 0:
-                    center = np.mean(coord[nodes], axis=0)
-                else:
-                    center = np.mean(center_e[elements], axis=0)
-                plotter.add_point_labels(
-                    center.reshape(1, 3), [tag_e], always_visible=True  # type: ignore [arg-type]
-                )
+        if showId and tag.namePosition is not None:
+            # a point's name stays beside its marker, the others sit on their tag
+            plotter.add_point_labels(
+                tag.namePosition.reshape(1, 3),  # type: ignore [arg-type]
+                [tag.name],  # type: ignore [arg-type]
+                always_visible=True,
+                show_points=False,
+                font_size=16,
+                bold=False,
+                text_color=tag.nameColor,
+                shape=None,
+                background_color="white",
+                background_opacity=0.85,
+                justification_horizontal="left" if dim == 0 else "center",
+                justification_vertical="bottom" if dim == 0 else "center",
+            )
 
     tic.Tac("PyVista", "Plot_Tags")
-
-    if plotLegend:
-        plotter.add_legend()  # type: ignore [call-arg]
 
     _Annotate(
         plotter,

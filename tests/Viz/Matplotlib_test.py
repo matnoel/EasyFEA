@@ -667,7 +667,7 @@ def test_Plot_Tags_writes_each_tag(subtests, mesh_of):
         with subtests.test(elemType=elemType):
             mesh = mesh_of(elemType)
 
-            ax = Matplotlib.Plot_Tags(mesh)
+            ax = Matplotlib.Plot_Tags(mesh, dimElems=list(range(mesh.dim + 1)))
 
             assert sorted(_texts(ax)) == sorted(element_tags(mesh))
 
@@ -678,8 +678,8 @@ def test_Plot_Tags_useColorCycler_colors_the_surfaces_from_tab10(make_mesh_2D):
     ax = Matplotlib.Plot_Tags(mesh, useColorCycler=True, showId=False)
 
     surfaces = [pc for pc in _drawn(ax, PolyCollection) if pc.get_label() == "S0"]
-    tab10 = [colors.to_rgba(c) for c in plt.get_cmap("tab10").colors]
-    assert tuple(surfaces[0].get_facecolor()[0]) in tab10
+    tab10 = [colors.to_rgb(c) for c in plt.get_cmap("tab10").colors]
+    assert tuple(surfaces[0].get_facecolor()[0][:3]) in tab10
     assert len(ax.texts) == 0
 
 
