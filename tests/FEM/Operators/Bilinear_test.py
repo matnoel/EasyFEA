@@ -85,7 +85,7 @@ def test_UV_per_element_coefficient_and_restriction(mesh_of: MeshOf, subtests):
             assert not np.any(np.delete(M_e, elements, axis=0))
 
 
-def test_dof_n_repeats_the_scalar_block(mesh_of: MeshOf, subtests):
+def test_UV_and_GradUGradV_dof_n_repeats_the_scalar_block(mesh_of: MeshOf, subtests):
     """dof_n = 3: the scalar block on each component, zero between components."""
     groupElem = mesh_of(ElemType.TETRA4).groupElem
     for operator in [Bilinear.UV, Bilinear.GradUGradV]:

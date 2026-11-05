@@ -3,7 +3,7 @@
 # This file is part of the EasyFEA project.
 # EasyFEA is distributed under the terms of the GNU General Public License v3, see LICENSE.txt and CREDITS.md for more information.
 
-from EasyFEA import AlgoType
+from EasyFEA import AlgoType, SolverType
 
 
 def test_AlgoType_prints_its_name():
@@ -20,3 +20,7 @@ def test_AlgoType_Get_Hyperbolic_and_Parabolic_Types_adds_parabolic():
     timeDependent = AlgoType.Get_Hyperbolic_and_Parabolic_Types()
 
     assert set(timeDependent) == set(AlgoType) - {AlgoType.elliptic}
+
+
+def test_SolverType_prints_its_name():
+    assert [str(solver) for solver in SolverType] == [s.value for s in SolverType]

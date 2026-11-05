@@ -1323,6 +1323,61 @@ def _direct_solvers() -> list[SolverType]:
     return solvers
 
 
+def test_Simu__Get_FunctionSpace_is_the_space_of_the_problem_type():
+    simu = _incompressible_square()
+    mesh = simu.mesh
+
+    assert simu._Get_FunctionSpace(PRESSURE) is mesh._Get_FunctionSpace(PRESSURE)
+    assert simu._Get_FunctionSpace(PRESSURE).Nn == 9
+    assert simu._Get_FunctionSpace().Nn == mesh.Nn == 25
+
+
+def test_Simu__Solver_Get_x0_puts_the_fields_end_to_end():
+    simu = _incompressible_square()
+    U = simu.problemType
+    simu._Set_solutions(U, np.arange(simu.displacement.size, dtype=float))
+    simu._Set_solutions(PRESSURE, np.full(simu.pressure.size, 7.0))
+
+    x0 = simu._Solver_Get_x0((U, PRESSURE))
+
+    assert np.array_equal(simu._Solver_Get_x0(U), simu.displacement)
+    assert np.array_equal(x0, np.concatenate([simu.displacement, simu.pressure]))
+
+
+def test_Simu__Solver_Get_lb_ub_puts_the_fields_end_to_end():
+    simu = _phasefield()
+    simu.phaseFieldModel.solver = Models.PhaseField.SolverType.BoundConstrain
+
+    lb_D, ub_D = simu._Solver_Get_lb_ub(simu.D)
+    lb, ub = simu._Solver_Get_lb_ub((simu.U, simu.D))
+
+    assert simu._Solver_Get_lb_ub(simu.U)[0].size == 0
+    assert np.array_equal(lb_D, simu.damage)
+    assert np.array_equal(ub_D, np.ones(simu.mesh.Nn))
+    assert np.array_equal(lb, lb_D) and np.array_equal(ub, ub_D)
+
+
+def test_Simu__Get_dof_names_are_the_saved_dof_vectors(subtests):
+    for name, simu in (
+        ("Elastic", _elastic_bar()),
+        ("Thermal", _thermal()),
+        ("PhaseField", _phasefield()),
+        ("u/p", _incompressible_square()),
+    ):
+        with subtests.test(name):
+            dofNames = simu._Get_dof_names()
+            simu.Save_Iter()
+            results = simu.Get_results()
+            saved = [key for key in dofNames if key in results]
+
+            assert saved
+            for key in saved:
+                problemType = dofNames[key]
+                Ndof = simu.mesh._Get_FunctionSpace(problemType).Nn
+                Ndof *= simu.Get_dof_n(problemType)
+                assert results[key].size == Ndof
+
+
 def test_Simu__Get_monolithic_problems_is_one_per_problem_type(subtests):
     for name, simu in (("Elastic", _elastic_bar()), ("PhaseField", _phasefield())):
         with subtests.test(name):

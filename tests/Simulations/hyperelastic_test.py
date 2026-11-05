@@ -201,6 +201,30 @@ def test_HyperElastic__Calc_W_of_a_svk_stretch_is_half_lmbda_2mu_Exx2_V(subtests
             assert rel_error(W_e.sum(), expected) < 1e-10
 
 
+def test_HyperElastic__Calc_J_of_a_stretch_is_the_volume_ratio(subtests):
+    strain = 1e-2
+    for meshName in ("TRI3", "HEXA8+PRISM6"):
+        with subtests.test(mesh=meshName):
+            mesh = bar_mesh(meshName)
+            simu = _svk_bar(mesh, strain)
+
+            J_e = simu._Calc_J()
+
+            assert J_e.shape == (mesh.Ne,)
+            assert np.abs(J_e - (1 + strain)).max() < 1e-12
+            assert np.abs(simu._Calc_J(MatrixType.mass) - J_e).max() < 1e-12
+    with subtests.test(mesh="P2 on TRI3"):
+        mesh = bar_mesh("TRI3")._With_FunctionSpace(HYPERELASTIC, 2)
+        material = Models.HyperElastic.SaintVenantKirchhoff(2, LMBDA, MU)
+        simu = Simulations.HyperElastic(mesh, material)
+        coord = simu._Get_FunctionSpace().coord
+        u = np.zeros((coord.shape[0], 2))
+        u[:, 0] = strain * coord[:, 0]
+        simu._Set_solutions(simu.problemType, u.ravel())
+
+        assert np.abs(simu._Calc_J() - (1 + strain)).max() < 1e-12
+
+
 def test_HyperElastic__Calc_GreenLagrange_of_a_svk_stretch_is_per_group(subtests):
     for meshName in BAR_MESHES:
         with subtests.test(mesh=meshName):

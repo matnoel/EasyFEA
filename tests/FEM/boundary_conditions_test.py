@@ -123,3 +123,12 @@ def test_LagrangeCondition_lagrangeCoefs_are_a_copy():
     bc.lagrangeCoefs[:] = 0
 
     assert np.array_equal(bc.lagrangeCoefs, [1, -1])
+
+
+def test_BoundaryCondition__Get_components_indexes_the_unknowns():
+    assert BoundaryCondition._Get_components(UNKNOWNS, ["z", "x"]) == [2, 0]
+
+
+def test_BoundaryCondition__Get_components_rejects_an_unknown_direction():
+    with pytest.raises(ValueError, match="direction"):
+        BoundaryCondition._Get_components(UNKNOWNS, ["t"])

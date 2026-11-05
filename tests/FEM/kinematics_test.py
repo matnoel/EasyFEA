@@ -105,6 +105,27 @@ def test_Kinematics_displacement_is_the_given_field(cases: list[Case], subtests)
             )
 
 
+def test_Kinematics_Get_parameter_e_pg_holds_the_value_at_the_integration_points(
+    cases: list[Case], subtests
+):
+    for case in cases:
+        Ne = case.mesh.Ne
+        nPg = case.mesh.groupElem.Get_gauss(MatrixType.rigi).nPg
+        get = case.kinematics.Get_parameter_e_pg
+        with subtests.test("a scalar stays a float", dim=case.dim):
+            assert get(2.0) == 2.0 and isinstance(get(2.0), float)
+        with subtests.test("per element", dim=case.dim):
+            values = get(np.arange(Ne, dtype=float))
+            assert values.shape == (Ne, nPg)
+            assert np.array_equal(values[:, -1], np.arange(Ne))
+        with subtests.test("a constant tensor", dim=case.dim):
+            values = get(np.eye(3), tensor_shape=(3, 3))
+            assert values.shape == (Ne, nPg, 3, 3)
+        with subtests.test("any other shape raises", dim=case.dim):
+            with pytest.raises(ValueError):
+                get(np.zeros(Ne + 1))
+
+
 def test_Kinematics_matrixType_is_read_only(cases: list[Case], subtests):
     for case in cases:
         with subtests.test(dim=case.dim):

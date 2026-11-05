@@ -147,8 +147,8 @@ def test_Plot_plotMesh_draws_each_element_outline_not_the_vtk_edges(subtests, me
                 )
 
 
-def test_Plot_plotMesh_hides_the_face_between_a_tetra_and_a_prism():
-    # a prism (nodes 0-5) and a tetra (3, 4, 5, 6) on its top triangle
+def _tetra_on_prism() -> Mesh:
+    """A prism (nodes 0-5) and a tetra (3, 4, 5, 6) on its top triangle."""
     coord = np.array(
         [[0, 0, 0], [1, 0, 0], [0, 1, 0], [0, 0, 1], [1, 0, 1], [0, 1, 1], [0, 0, 2]],
         dtype=float,
@@ -157,9 +157,11 @@ def test_Plot_plotMesh_hides_the_face_between_a_tetra_and_a_prism():
         ElemType.PRISM6, np.array([[0, 1, 2, 3, 4, 5]]), coord
     )
     tetra = GroupElemFactory.Create(ElemType.TETRA4, np.array([[3, 4, 5, 6]]), coord)
-    mesh = Mesh({ElemType.PRISM6: prism, ElemType.TETRA4: tetra})
+    return Mesh({ElemType.PRISM6: prism, ElemType.TETRA4: tetra})
 
-    plotter = PyVista.Plot(mesh, plotMesh=True)
+
+def test_Plot_plotMesh_hides_the_face_between_a_tetra_and_a_prism():
+    plotter = PyVista.Plot(_tetra_on_prism(), plotMesh=True)
 
     (edges,) = _meshes(plotter, pv.PolyData)
     assert edges.n_lines == 5 + 4 - 2
@@ -640,6 +642,40 @@ def test_pvMesh_clipAxis_keeps_the_half_behind_the_center(bar_simu):
     grid = PyVista._pvMesh(bar_simu.mesh, clipAxis="x")
 
     assert np.isclose(grid.bounds[1], L / 2)
+
+
+# ----------------------------------------------
+# _pvEdges
+# ----------------------------------------------
+def test_pvEdges_outlines_each_element_through_its_mid_side_nodes():
+    domain = Domain((0, 0), (2, 1), 1)
+    mesh = domain.Mesh_2D([], ElemType.QUAD9, isOrganised=True)
+
+    edges = PyVista._pvEdges(mesh, mesh.coord)
+
+    # closed loops: [count, nodes..., first node]
+    loops = edges.lines.reshape(mesh.Ne, -1)
+    assert np.all(loops[:, 0] == loops.shape[1] - 1)
+    assert np.array_equal(loops[:, 1], loops[:, -1])
+    for loop, connect in zip(loops, mesh.connect):
+        assert set(loop[1:]) == set(connect[:8])
+
+
+def test_pvEdges_keeps_the_boundary_faces_of_a_volume(subtests):
+    domain = Domain((0, 0), (2, 1), 1)
+    hexas = domain.Mesh_Extrude([], (0, 0, 1), [1], ElemType.HEXA8, isOrganised=True)
+    for name, mesh, nFaces in (
+        ("HEXA8", hexas, 2 * 6 - 2),
+        ("PRISM6+TETRA4, padded differently", _tetra_on_prism(), 5 + 4 - 2),
+    ):
+        with subtests.test(name):
+            assert PyVista._pvEdges(mesh, mesh.coord).n_lines == nFaces
+
+
+def test_pvEdges_of_a_line_mesh_is_none(mesh_of):
+    mesh = mesh_of(ElemType.SEG2)
+
+    assert PyVista._pvEdges(mesh, mesh.coord) is None
 
 
 # ----------------------------------------------

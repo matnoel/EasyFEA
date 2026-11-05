@@ -13,7 +13,7 @@ from EasyFEA.FEM import Operators
 from EasyFEA.Geoms import Circle, Domain
 from EasyFEA.Simulations import Fold_terms, ProblemType, Term
 
-from ._simus import coupled_phasefield, coupling, laplacian
+from ._simus import PRESSURE, coupled_phasefield, coupling, incompressible, laplacian
 
 U = Simulations.PhaseField.U
 D = Simulations.PhaseField.D
@@ -152,6 +152,31 @@ def test_Term__Get_groups_rejects_a_group_of_another_mesh():
 
     with pytest.raises(ValueError, match="not a group"):
         term._Get_groups(_inclusion_mesh())
+
+
+def test_Term__Get_field_groups_follows_each_group_with_those_of_the_fields():
+    domain = Domain((0, 0), (1, 1), 0.5)
+    simu = incompressible(domain.Mesh_2D([], ElemType.QUAD9, isOrganised=True))
+    groupElem = simu.mesh.groupElem
+
+    [(group, pGroup)] = Term("K", Operator)._Get_field_groups(simu, (PRESSURE,))
+    assert group is groupElem and pGroup.elemType == ElemType.QUAD4
+
+    [(group, pGroup)] = Term("K", Operator, dim=1)._Get_field_groups(simu, (PRESSURE,))
+    assert group.elemType == ElemType.SEG3 and pGroup.elemType == ElemType.SEG2
+
+    assert Term("K", Operator)._Get_field_groups(simu, ()) == [(groupElem,)]
+    assert Term("K", Operator, tag="missing")._Get_field_groups(simu, (PRESSURE,)) == []
+
+
+def test_Term__Get_blocks_resolves_a_free_slot_to_the_folded_problem():
+    assert Term("KR", Two_arrays)._Get_blocks(U) == ((U, U), (U, U))
+
+    term = Term("KR", Two_arrays, problemTypes=((U, D), None))
+    assert term._Get_blocks(D) == ((U, D), (D, D))
+
+    term = Term("R", One_vector, problemTypes=(D,))
+    assert term._Get_blocks(U) == ((D, D),)
 
 
 def test_Term__Get_elements_is_the_tagged_subset():

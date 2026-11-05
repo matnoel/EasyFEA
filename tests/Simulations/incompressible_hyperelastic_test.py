@@ -15,7 +15,7 @@ from EasyFEA.FEM import GroupElemFactory, Kinematics, MatrixType, Operators
 from EasyFEA.Geoms import Domain, Points
 
 from _numerics import rel_error
-from ._simus import PRESSURE, incompressible
+from ._simus import PRESSURE, incompressible, measure
 
 U = Simulations.HyperElastic.problemType
 
@@ -754,12 +754,141 @@ def test_IncompressibleHyperElastic_Svm_of_a_pure_pressure_is_zero():
 
 
 # ----------------------------------------------
+# Accessors and fields, on an injected state
+# ----------------------------------------------
+
+
+def _at_exact_stretch(
+    build: Callable[[], Mesh],
+) -> Simulations.IncompressibleHyperElastic:
+    """`incompressible` of `build()`, u and p injected at the free uniaxial state: never solved."""
+    simu = incompressible(build(), K_LAW)
+    p = _exact_stretch(simu.dim)[1]
+    simu._Set_solutions(U, _exact_stretch_u(simu))
+    simu._Set_solutions(PRESSURE, np.full(simu.pressure.size, p))
+    return simu
+
+
+def _per_group(field) -> list:
+    return list(field.values()) if isinstance(field, dict) else [field]
+
+
+def test_IncompressibleHyperElastic_matrixType_defaults_to_mass_and_asks_for_an_update():
+    simu = incompressible(_square(ElemType.TRI6))
+    assert simu.matrixType == MatrixType.mass
+
+    simu.Need_Update(False)
+    simu.matrixType = MatrixType.rigi
+
+    assert simu.matrixType == MatrixType.rigi
+    assert simu.needUpdate
+
+
+def test_IncompressibleHyperElastic_material_is_the_given_law():
+    material = Models.HyperElastic.NeoHookean(2, K_LAW)
+
+    simu = Simulations.IncompressibleHyperElastic(_square(ElemType.TRI6), material)
+
+    assert simu.material is material
+
+
+def test_IncompressibleHyperElastic_displacement_is_on_u_space():
+    simu = _at_exact_stretch(PAIRS["P2 on TETRA4"])
+
+    assert simu.displacement.size == 3 * simu._Get_FunctionSpace(U).coord.shape[0]
+    assert np.array_equal(simu.displacement, _exact_stretch_u(simu))
+
+
+def test_IncompressibleHyperElastic_pressure_is_one_per_vertex(subtests):
+    for name, build, vertices in (
+        ("TRI6", PAIRS["TRI6"], 9),
+        ("QUAD9", PAIRS["QUAD9"], 9),
+        ("HEXA27", PAIRS["HEXA27"], 27),
+    ):
+        with subtests.test(name):
+            simu = _at_exact_stretch(build)
+            assert simu.pressure.size == vertices
+            assert np.all(simu.pressure == _exact_stretch(simu.dim)[1])
+
+
+def test_IncompressibleHyperElastic__Calc_W_of_the_stretch_is_K_I1_minus_3_V(subtests):
+    for name in ("QUAD9", "TRI6+QUAD9", "P2 on TETRA4"):
+        with subtests.test(name):
+            simu = _at_exact_stretch(PAIRS[name])
+            t = _exact_stretch(simu.dim)[0]
+            I1 = STRETCH**2 + t**2 + (1 if simu.dim == 2 else t**2)
+            expected = K_LAW * (I1 - 3) * measure(simu.mesh)
+
+            W_e = simu._Calc_W(returnScalar=False)
+
+            assert rel_error(simu._Calc_W(), expected) < 1e-10
+            assert W_e.shape == (simu.mesh.Ne,)
+            assert rel_error(W_e.sum(), expected) < 1e-10
+
+
+def test_IncompressibleHyperElastic__Calc_J_of_the_stretch_is_one(subtests):
+    for name in ("QUAD9", "TRI6+QUAD9", "P2 on TETRA4"):
+        with subtests.test(name):
+            simu = _at_exact_stretch(PAIRS[name])
+
+            J_e = simu._Calc_J()
+
+            assert J_e.shape == (simu.mesh.Ne,)
+            assert np.abs(J_e - 1).max() < 1e-10
+            assert np.abs(simu._Calc_J(MatrixType.rigi) - 1).max() < 1e-10
+
+
+def test_IncompressibleHyperElastic__Calc_GreenLagrange_of_the_stretch(subtests):
+    t = _exact_stretch(2)[0]
+    Exx, Eyy = (STRETCH**2 - 1) / 2, (t**2 - 1) / 2
+    for name, nGroups in (("QUAD9", 1), ("TRI6+QUAD9", 2)):
+        with subtests.test(name):
+            simu = _at_exact_stretch(PAIRS[name])
+
+            fields = _per_group(simu._Calc_GreenLagrange())
+
+            assert len(fields) == nGroups
+            for E_e_pg in fields:
+                assert np.abs(E_e_pg[..., 0] - Exx).max() < 1e-10
+                assert np.abs(E_e_pg[..., 1] - Eyy).max() < 1e-10
+                assert np.abs(E_e_pg[..., 2]).max() < 1e-10
+    with subtests.test("at the given rule"):
+        simu = _at_exact_stretch(PAIRS["TRI6"])
+        groupElem = simu.mesh.groupElem
+        for matrixType in (MatrixType.rigi, MatrixType.mass):
+            nPg = groupElem.Get_gauss(matrixType).nPg
+            assert simu._Calc_GreenLagrange(matrixType).shape[1] == nPg
+
+
+def test_IncompressibleHyperElastic__Calc_SecondPiolaKirchhoff_of_the_stretch(subtests):
+    Sxx = _exact_stretch(2)[2]
+    for name, nGroups in (("QUAD9", 1), ("TRI6+QUAD9", 2)):
+        with subtests.test(name):
+            simu = _at_exact_stretch(PAIRS[name])
+
+            fields = _per_group(simu._Calc_SecondPiolaKirchhoff())
+
+            assert len(fields) == nGroups
+            for S_e_pg in fields:
+                assert np.abs(S_e_pg[..., 0] - Sxx).max() < 1e-10
+                assert np.abs(S_e_pg[..., 1]).max() < 1e-10
+                assert np.abs(S_e_pg[..., 2]).max() < 1e-10
+    with subtests.test("at the given rule"):
+        simu = _at_exact_stretch(PAIRS["TRI6"])
+        groupElem = simu.mesh.groupElem
+        for matrixType in (MatrixType.rigi, MatrixType.mass):
+            nPg = groupElem.Get_gauss(matrixType).nPg
+            assert simu._Calc_SecondPiolaKirchhoff(matrixType).shape[1] == nPg
+
+
+# ----------------------------------------------
 # MPI
 # ----------------------------------------------
 
 
 @pytest.mark.mpi
 def test_IncompressibleHyperElastic_Solve_under_mpi_is_the_exact_stretch():
+    pytest.importorskip("petsc4py")
     simu = incompressible(_square(ElemType.QUAD9), K_LAW)
     mesh = simu.mesh
     nodesLeft = mesh.Nodes_Conditions(lambda x, y, z: x == 0)

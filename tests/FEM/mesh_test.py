@@ -600,6 +600,61 @@ def test_Calc_projector_carries_affine_fields_through_distorted_elements(grid: M
     assert rel_error(projected, grid.coord @ a + 3) < 1e-8
 
 
+def _long_box(elemType: ElemType, meshSize: float) -> Mesh:
+    """120 × 13 × 13: gmsh leaves prisms in its HEXA8 extrusion."""
+    domain = Domain((0, 0), (120.0, 13.0), meshSize)
+    return domain.Mesh_Extrude([], [0, 0, 13.0], [3], elemType)
+
+
+def _affine_3D(coord: np.ndarray) -> np.ndarray:
+    return coord @ np.array([1.0, -2.0, 3.0]) + 0.5
+
+
+def test_Calc_projector_of_a_mesh_on_itself_is_the_identity():
+    mesh = _long_box(ElemType.TETRA4, 13.0 / 2)
+    projector = Calc_projector(mesh, mesh)
+    np.testing.assert_allclose(projector.toarray(), np.eye(mesh.Nn), atol=1e-12)
+
+
+def test_Calc_projector_carries_an_affine_field_between_unrelated_volumes():
+    old = _long_box(ElemType.TETRA4, 13.0 / 2)
+    new = _long_box(ElemType.TETRA4, 13.0 / 3)
+    projector = Calc_projector(old, new)
+    np.testing.assert_allclose(projector @ _affine_3D(old.coord), _affine_3D(new.coord))
+
+
+def test_Calc_projector_carries_an_affine_field_from_a_mixed_mesh():
+    old = _long_box(ElemType.HEXA8, 13.0 / 2)
+    assert len(old.Get_list_groupElem()) == 2  # HEXA8 + PRISM6
+    new = _long_box(ElemType.TETRA4, 13.0 / 3)
+    projector = Calc_projector(old, new)
+    np.testing.assert_allclose(projector @ _affine_3D(old.coord), _affine_3D(new.coord))
+
+
+def test_Calc_projector_extrapolates_nodes_outside_the_old_mesh_on_request():
+    old = _long_box(ElemType.TETRA4, 13.0 / 2)
+    new = _long_box(ElemType.TETRA4, 13.0 / 3)
+    new.Translate(dx=0.1)  # nodes at x = 120 leave the old mesh
+    outside = np.isclose(new.coord[:, 0], 120.1)
+
+    projector = Calc_projector(old, new, extrapolate=False)
+    assert projector[outside].nnz == 0
+
+    projector = Calc_projector(old, new)
+    np.testing.assert_allclose(projector @ _affine_3D(old.coord), _affine_3D(new.coord))
+
+
+def test_Calc_projector_raises_when_extrapolation_finds_no_xi():
+    """Around a coarse curved QUAD9 disk, Newton finds no ξ for some outside nodes."""
+    oldDisk = Circle((0, 0), 2.0, 2.0)
+    old = oldDisk.Mesh_2D([], ElemType.QUAD9)
+    newDisk = Circle((0, 0), 2.2, 0.5)
+    new = newDisk.Mesh_2D([], ElemType.TRI3)
+
+    with pytest.raises(ValueError, match="Newton did not converge"):
+        Calc_projector(old, new)
+
+
 def _DoMesh(refine: str | None) -> Mesh:
     contour = Domain((0, 0), (1, 1), 0.3)
     return contour.Mesh_2D([], ElemType.TRI3, refineGeoms=[refine] if refine else [])
@@ -801,6 +856,24 @@ def _assert_same_numbering(mesh: Mesh, other: Mesh) -> None:
         assert np.array_equal(
             space.Get_connect(groupElem), otherSpace.Get_connect(otherGroup)
         )
+
+
+def test_Mesh__Get_lists_groupElem_holds_the_mesh_then_each_space(
+    grid: Mesh, mixed: Mesh
+):
+    assert grid._Get_lists_groupElem(2) == [grid.Get_list_groupElem(2)]
+
+    mesh = mixed._With_FunctionSpace(ELASTIC, 2)
+    lists = mesh._Get_lists_groupElem(2)
+
+    assert lists == [
+        mesh.Get_list_groupElem(2),
+        mesh._Get_FunctionSpace(ELASTIC).Get_list_groupElem(2),
+    ]
+    assert [[group.elemType for group in groups] for groups in lists] == [
+        [ElemType.TRI3, ElemType.QUAD4],
+        [ElemType.TRI6, ElemType.QUAD9],
+    ]
 
 
 def test_Mesh__With_FunctionSpace_returns_a_new_mesh_leaving_the_original(unit_box):
@@ -1090,7 +1163,9 @@ def test_Mesh_Nodes_Conditions_problemType_selects_a_region_with_its_mid_nodes()
     assert vertices.max() < mesh.Nn < nodes.max()
 
 
-def test_Mesh_Nodes_problemType_close_a_curved_boundary_over_its_elements(subtests):
+def test_Mesh_Nodes_Conditions_Circle_and_Cylinder_problemType_close_a_curved_boundary_over_its_elements(
+    subtests,
+):
     ring, outer, inner = _space_ring()
     onRing = lambda x, y, z: _on_radius(1.0)(x, y, z) | _on_radius(0.75)(x, y, z)
     cylinder, base = _space_cylinder()
@@ -1153,7 +1228,9 @@ def test_Mesh_Nodes_Conditions_problemType_does_not_close_a_space_adding_no_node
             assert np.all(np.isin(coord[nodes, 1], (0, 1)))
 
 
-def test_Mesh_Nodes_warn_once_on_the_geometry_of_a_space_adding_nodes(capsys, subtests):
+def test_Mesh_Nodes_Conditions_and_Tags_warn_once_on_the_geometry_of_a_space_adding_nodes(
+    capsys, subtests
+):
     def isLeft(x, y, z):
         return x == 0
 

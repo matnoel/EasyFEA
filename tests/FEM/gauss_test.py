@@ -230,3 +230,24 @@ def test_Gauss_Order_takes_the_smallest_exact_rule(subtests):
 def test_Gauss__Gauss_factory_nPg_rejects_a_point():
     with pytest.raises(NotImplementedError):
         Gauss._Gauss_factory_nPg(ElemType.POINT, 1)
+
+
+def test_Gauss__Get_nPg_is_the_smallest_rule_exact_at_the_order(subtests):
+    for topology, order, nPg in [
+        ("SEG", 5, 3),
+        ("SEG", 6, 4),
+        ("TRI", 3, 6),
+        ("QUAD", 3, 4),
+        ("TETRA", 4, 15),
+        ("HEXA", 4, 27),
+        ("PRISM", 1, 6),
+    ]:
+        with subtests.test(topology=topology, order=order):
+            assert Gauss._Get_nPg(topology, order) == nPg
+
+
+def test_Gauss__Get_nPg_raises_without_a_rule(subtests):
+    for topology, order in [("TRI", 7), ("POINT", 1)]:
+        with subtests.test(topology=topology):
+            with pytest.raises(NotImplementedError, match=topology):
+                Gauss._Get_nPg(topology, order)

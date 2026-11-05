@@ -1770,3 +1770,12 @@ def test_GroupElemFactory__Get_2d_element_types_are_the_faces_of_the_mesh(subtes
 def test_GroupElemFactory__Get_2d_element_types_needs_a_volume():
     with pytest.raises(AssertionError):
         GroupElemFactory._Get_2d_element_types(ElemType.TRI3)
+
+
+def test_GroupElemFactory__Get_reference_element_is_one_per_type(subtests):
+    for elemType in ALL:
+        with subtests.test(elemType=str(elemType)):
+            element = GroupElemFactory._Get_reference_element(elemType)
+
+            assert element.elemType == elemType
+            assert element is GroupElemFactory._Get_reference_element(elemType)
