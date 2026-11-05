@@ -5,40 +5,42 @@ This document describes the changes made to the project.
 ## Unreleased
 
 - `Simulations.IncompressibleHyperElastic`: perfectly incompressible hyperelasticity,
-  displacement and pressure solved together on a Taylor–Hood pair.
+  displacement and pressure solved together on a Taylor–Hood pair (issue #71).
 - `Mesh._With_FunctionSpace(problemType, order)`: a field on other elements than the
-  geometry's. Not with `Beam`, which raises, or the external variables of `InElastic`.
+  geometry's. Not with `Beam`, which raises, or the external variables of `InElastic`
+  (issue #71).
 - `Simulations.WeakForms` runs on such a space: a `Field` on a group of the mesh stands
-  for its elements in the space, and a `Field` of another mesh raises.
+  for its elements in the space, and a `Field` of another mesh raises (issue #71).
 - `Mesh.Nodes_*(..., problemType=)` selects a field's nodes on such a space, and
   `Plot_BoundaryConditions` draws them. Without it the selection stays on the geometry,
-  with a warning the first time a space adds nodes.
+  with a warning the first time a space adds nodes (issue #71).
 - `Matplotlib.Plot_BoundaryConditions` draws a non-zero value as an arrow, as `PyVista`
   does; a zero value stays a marker. In both viewers an arrow stays outside the
   material: it starts on its node when it points out of the material, and ends there
-  otherwise.
+  otherwise (issue #71).
 - `Plot_Tags` writes each name on its tag, in both viewers, with see-through surfaces in
   3D. It names the mesh's two highest dimensions by default, `dimElems` picks others,
   and lines are always drawn. With `useColorCycler=True` only the highest surfaces or
   volumes drawn and their names take the colors. `Matplotlib.Plot_Tags` draws volumes.
-  Removed `plotLegend`, the names being on the tags.
+  Removed `plotLegend`, the names being on the tags (issue #71).
 - `PyVista.Plot_BoundaryConditions` draws a scalar condition on every node once, as
-  Matplotlib does.
+  Matplotlib does (issue #71).
 - Removed `NonLinear.GonzalezStressTensor` and `NonLinear.TimeQuadratureStressTensor`,
   with `HyperElastic.StressType` and `Solver_Set_Stress`: `HyperElastic` samples the
   stress pointwise.
 - `PhaseField.U` and `PhaseField.D` replace `PhaseField.ProblemTypes`;
   `PhaseField.problemType` is now `U`, so `add_*`, `Calc_Reaction` and `Get_dofs`
-  default to the displacement problem, `add_volumeLoad` included.
+  default to the displacement problem, `add_volumeLoad` included (issue #71).
 - Saves written by earlier versions (`Load_Simu`, `Load_Mesh`) are not supported: rerun
-  them.
+  them (issue #71).
 - A simulation declares the class attribute `problemTypes`, whose first entry is its
   `problemType`; it replaces `Get_problemTypes()`. `IncompressibleHyperElastic.P`
   replaces `pressureType`. `U` names the displacement problem of every simulation (`T`
-  on `Thermal`), one `ProblemType("displacement")` for all but `WeakForms`.
-- `HyperElastic.Result("J")`: the mean of `det(F)` on each element.
+  on `Thermal`), one `ProblemType("displacement")` for all but `WeakForms` (issue #71).
+- `HyperElastic.Result("J")`: the mean of `det(F)` on each element (issue #71).
 - `Fold_terms` and `_Construct_local_matrix_system` return the local system by slot:
-  `{"K": {(rows, cols): {groupElem: K_e}}, "C": ..., "M": ..., "F": {rows: {groupElem: F_e}}}`.
+  `{"K": {(rows, cols): {groupElem: K_e}}, "C": ..., "M": ..., "F": {rows: {groupElem: F_e}}}`
+  (issue #71).
 
 ## 7.1.0 (October 19, 2026):
 
