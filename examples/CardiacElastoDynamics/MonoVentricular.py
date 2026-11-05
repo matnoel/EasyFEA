@@ -42,7 +42,6 @@ class Config(str, Enum):
 
 
 if __name__ == "__main__":
-
     Terminal.Clear()
 
     # ----------------------------------------------
@@ -109,7 +108,6 @@ if __name__ == "__main__":
         pressures *= 0
 
     if doSimu:
-
         # ----------------------------------------------
         # Mesh, fibers and sheets
         # ----------------------------------------------
@@ -168,7 +166,6 @@ if __name__ == "__main__":
     simu._Gather()
 
     if plotParticles and simu.isGathered:
-
         coords = [(0.025, 0.03, 0), (0, 0.03, 0)]
         evalCoords = np.array(coords)
 
@@ -184,9 +181,7 @@ if __name__ == "__main__":
         axs = Matplotlib.plt.subplots(3, 2, sharex=True)[1]
 
         for p, (particle, coord) in enumerate(zip(["p0", "p1"], coords)):
-
             for c, component in enumerate(["x", "y", "z"]):
-
                 ax: Matplotlib.plt.Axes = axs[c, p]
 
                 ax.grid()
@@ -205,7 +200,6 @@ if __name__ == "__main__":
         Matplotlib.Save_fig(results_dir, "particles")
 
     if saveParticles and simu.isGathered:
-
         # per-iteration deformed volume, on the displacement's own elements (TETRA10 cells for P2)
         deformed = simu.mesh._Get_FunctionSpace(simu.problemType).Get_mesh()
         coord = deformed.coord

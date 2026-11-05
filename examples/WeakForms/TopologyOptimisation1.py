@@ -21,7 +21,6 @@ from EasyFEA.FEM import FeArray, Field, BiLinearForm, Sym_Grad, Trace
 from EasyFEA.Geoms import Domain
 
 if __name__ == "__main__":
-
     Terminal.Clear()
 
     # ----------------------------------------------
@@ -222,7 +221,7 @@ if __name__ == "__main__":
             simu.Set_Iter(iter)
             thresh = get_thresh(list_p_e[iter])
             plotter.add_title(
-                f"{str(iter+1).zfill(len(str(iterMax)))}/{len(list_compliance)}"
+                f"{str(iter + 1).zfill(len(str(iterMax)))}/{len(list_compliance)}"
             )
             PyVista.Plot(thresh, color="k", plotter=plotter)
 

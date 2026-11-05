@@ -177,9 +177,9 @@ class PhaseField(_IModel):
             matrix characterizing the weak anisotropy in the crack surface density function.
         """
 
-        assert isinstance(
-            material, _Elastic
-        ), "Must be a displacement model (ElasIsot, ElasIsotTrans, ElasAnisot)"
+        assert isinstance(material, _Elastic), (
+            "Must be a displacement model (ElasIsot, ElasIsotTrans, ElasAnisot)"
+        )
         # Material object cannot be changed by another _Elas object
         self.__material = material
 
@@ -413,9 +413,9 @@ class PhaseField(_IModel):
         """[Amor 2009] DOI : 10.1016/j.jmps.2009.04.011"""
 
         material = self.__material
-        assert isinstance(
-            material, Isotropic
-        ), "Implemented only for ElasIsot material."
+        assert isinstance(material, Isotropic), (
+            "Implemented only for ElasIsot material."
+        )
 
         Epsilon_e_pg = kinematics.Compute_Epsilon()
 
@@ -478,9 +478,9 @@ class PhaseField(_IModel):
         if self.split == self.SplitType.Miehe:
             # [Miehe 2010] DOI : 10.1016/j.cma.2010.04.011
 
-            assert isinstance(
-                material, Isotropic
-            ), "Implemented only for ElasIsot material"
+            assert isinstance(material, Isotropic), (
+                "Implemented only for ElasIsot material"
+            )
 
             # Compute Rp and Rm
             Rp_e_pg, Rm_e_pg = self.__Rp_Rm(Epsilon_e_pg)
@@ -949,9 +949,9 @@ class PhaseField(_IModel):
             if valnum.max() > 0:
                 diff_val = eigs_e_pg - valnum
                 test_val = Norm(diff_val, axis=-1) / Norm(valnum, axis=-1)
-                assert (
-                    np.max(test_val) < 1e-12
-                ), f"Error in eigenvalues ({np.max(test_val):.3e})."
+                assert np.max(test_val) < 1e-12, (
+                    f"Error in eigenvalues ({np.max(test_val):.3e})."
+                )
 
             def Checks_is_close(values1, values2):
                 error = (

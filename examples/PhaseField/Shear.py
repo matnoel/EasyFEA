@@ -28,7 +28,6 @@ from EasyFEA import (
 from EasyFEA.Geoms import Point, Points, Domain, Line, Contour
 
 if __name__ == "__main__":
-
     Terminal.Clear()
 
     # ----------------------------------------------

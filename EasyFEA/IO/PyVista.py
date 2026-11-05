@@ -51,7 +51,6 @@ def Surface_reconstruction(mesh: Mesh) -> Mesh:
     # groups is then created twice, just like a face shared by two elements of the same
     # group, and is recognized as an interior one below.
     for groupElem in mesh.Get_list_groupElem(mesh.dim):
-
         connectivity = groupElem.connect
 
         # get faces to access nodes in connectivity
@@ -60,7 +59,6 @@ def Surface_reconstruction(mesh: Mesh) -> Mesh:
 
         # loop over each indices
         for face in faces:
-
             # get connect for the idx
             connect = connectivity[:, face]
             allConnect.extend(connect.copy())
@@ -93,7 +91,6 @@ def Surface_reconstruction(mesh: Mesh) -> Mesh:
 
     # create new elements 2d elements
     for elemType in dict.fromkeys(elemTypes):
-
         # get connect
         nPe = GroupElemFactory.DICT_ELEMTYPE[elemType][1]
         connect = np.asarray(

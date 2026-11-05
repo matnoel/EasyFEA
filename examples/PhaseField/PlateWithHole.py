@@ -26,7 +26,6 @@ from EasyFEA import (
 from EasyFEA.Geoms import Domain, Circle
 
 if __name__ == "__main__":
-
     # ----------------------------------------------
     # Configuration
     # ----------------------------------------------

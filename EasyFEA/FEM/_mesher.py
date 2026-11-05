@@ -297,7 +297,6 @@ class Mesher:
         openLines: list[int] = []
 
         for i, geom in enumerate(contour.geoms):
-
             if i == 0:
                 p1 = factory.addPoint(*geom.pt1.coord, meshSize=geom.meshSize)
                 firstPoint = p1  # type: ignore
@@ -414,9 +413,9 @@ class Mesher:
         """
 
         assert isinstance(contour, _Geom), "The contour must be a geometric object."
-        assert isinstance(
-            inclusions, Iterable
-        ), "inclusions must be a list of geometric objects."
+        assert isinstance(inclusions, Iterable), (
+            "inclusions must be a list of geometric objects."
+        )
 
         self._geoms.append(contour)
         self._geoms.extend(inclusions)
@@ -499,9 +498,9 @@ class Mesher:
             surfaces
         """
 
-        assert isinstance(
-            surfaces, Iterable
-        ), "surfaces must be a list of geometric objects."
+        assert isinstance(surfaces, Iterable), (
+            "surfaces must be a list of geometric objects."
+        )
 
         assert dim >= 2
 
@@ -1362,9 +1361,9 @@ class Mesher:
         returns crackLines, crackSurfaces, openPoints, openLines
         """
 
-        assert isinstance(
-            cracks, Iterable
-        ), "cracks must be a list of geometric objects."
+        assert isinstance(cracks, Iterable), (
+            "cracks must be a list of geometric objects."
+        )
 
         self._geoms.extend(cracks)
 
@@ -1384,7 +1383,6 @@ class Mesher:
         entities_2D = []
 
         for crack in cracks:
-
             (
                 surfaces,
                 lines,
@@ -1478,9 +1476,9 @@ class Mesher:
         geoms: list[ContourCompatible] = []
         for line in lines:
             geoms.extend(line.geoms if isinstance(line, Contour) else [line])
-        assert all(
-            isinstance(geom, (Line, CircleArc, Points)) for geom in geoms
-        ), "lines must be Line, CircleArc, Points or Contour objects."
+        assert all(isinstance(geom, (Line, CircleArc, Points)) for geom in geoms), (
+            "lines must be Line, CircleArc, Points or Contour objects."
+        )
 
         self._Init_gmsh()
         self.__CheckType(1, elemType)
@@ -1893,9 +1891,9 @@ class Mesher:
         assert isinstance(coord, np.ndarray), "Must be a numpy array"
         assert coord.shape[1] == 3, "Must be of dimension (n, 3)"
 
-        assert (
-            values.shape[0] == coord.shape[0]
-        ), "values and coordo must be get the same number of lines"
+        assert values.shape[0] == coord.shape[0], (
+            "values and coordo must be get the same number of lines"
+        )
 
         data = np.append(coord, values.reshape(-1, 1), axis=1)
 
@@ -1937,9 +1935,9 @@ class Mesher:
         # See t10.py in the gmsh tutorials
         # https://gitlab.onelab.info/gmsh/gmsh/blob/master/tutorials/python/t10.py
 
-        assert isinstance(
-            refineGeoms, Iterable
-        ), "refineGeoms must be a list of geometric objects."
+        assert isinstance(refineGeoms, Iterable), (
+            "refineGeoms must be a list of geometric objects."
+        )
 
         if refineGeoms is None or len(refineGeoms) == 0:
             return

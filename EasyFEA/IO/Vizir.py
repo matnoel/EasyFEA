@@ -233,9 +233,9 @@ def __Write_HOSolAt_Solution(
 
     # assembly_e informations
     Ne = assembly_e.shape[0]
-    assert (
-        assembly_e.ndim == 2 and Ne == groupElem.Ne
-    ), "assembly_e must be a (Ne, nPe*dof_n) array"
+    assert assembly_e.ndim == 2 and Ne == groupElem.Ne, (
+        "assembly_e must be a (Ne, nPe*dof_n) array"
+    )
 
     # get dofsValues as a (Ne, nPe*dof_n) array
     dofsValues_e = dofsValues[assembly_e]
@@ -318,7 +318,6 @@ def _Write_solution_file(
 
     if warpVector_n is not None:
         if warpVector_n.ndim == 2:
-
             with open(
                 Folder.Join(Folder.Dir(folder), "default.vizir"), "w", encoding="utf-8"
             ) as f:
@@ -334,9 +333,9 @@ def _Write_solution_file(
 
         if warpVector_n is not None:
             # write SolAtVertices
-            assert (
-                warpVector_n.shape[0] == Nn and warpVector_n.ndim == 2
-            ), "nodesValues must be a (Nn, ...) array"
+            assert warpVector_n.shape[0] == Nn and warpVector_n.ndim == 2, (
+                "nodesValues must be a (Nn, ...) array"
+            )
             assert warpVector_n.shape[1] <= 3
             nodesValues_type = 1 if warpVector_n.shape[1] == 1 else 2
             f.write(f"SolAtVertices\n{Nn}\n1 {nodesValues_type}\n")

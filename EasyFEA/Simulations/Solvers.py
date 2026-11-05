@@ -313,7 +313,6 @@ def _Solve_Axb(
         x = pypardiso.spsolve(A, b.toarray())
 
     elif solver == SolverType.petsc and _Get_PETSc() is not None:
-
         # get petsc4py options
         kspType, pcType, solverType = simu._Solver_Get_PETSc4Py_Options(problemType)
 

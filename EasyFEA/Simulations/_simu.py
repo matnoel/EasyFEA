@@ -628,16 +628,16 @@ class _Simu(_IObserver, _params.Updatable, ABC):
 
     def __Check_problemTypes(self, problemType: ProblemType) -> None:
         """Checks whether this type of problem is available through the simulation."""
-        assert (
-            problemType in self.problemTypes
-        ), f"This type of problem is not available in this simulation ({self.problemTypes})"
+        assert problemType in self.problemTypes, (
+            f"This type of problem is not available in this simulation ({self.problemTypes})"
+        )
 
     def _Check_dim_mesh_material(self) -> None:
         """Checks that the material dim matches the mesh dim."""
         dim = self.__model.dim
-        assert (
-            dim == self.__mesh.dim and dim == self.__mesh.inDim
-        ), "Material and mesh must share the same dimensions and belong to the same space."
+        assert dim == self.__mesh.dim and dim == self.__mesh.inDim, (
+            "Material and mesh must share the same dimensions and belong to the same space."
+        )
 
     def __str__(self) -> str:
         """Returns a string representation of the simulation.
@@ -1382,9 +1382,9 @@ class _Simu(_IObserver, _params.Updatable, ABC):
 
         types = AlgoType.Get_Hyperbolic_Types()
         assert algo in types, f"algo must be in {types}"
-        assert not (
-            algo == AlgoType.euler_explicit and self.isNonLinear
-        ), "euler_explicit is only supported for linear simulations."
+        assert not (algo == AlgoType.euler_explicit and self.isNonLinear), (
+            "euler_explicit is only supported for linear simulations."
+        )
         self.__algo = algo
 
         assert dt > 0, "Time increment must be > 0"
@@ -1407,9 +1407,9 @@ class _Simu(_IObserver, _params.Updatable, ABC):
 
     def __Solver_Get_Hyperbolic_Params(self) -> tuple[float, float, float, float]:
         """Returns (dt, beta, gamma, alpha) hyperbolic scheme properties."""
-        assert (
-            self.algo in AlgoType.Get_Hyperbolic_Types()
-        ), "the current algo is not hyperbolic type."
+        assert self.algo in AlgoType.Get_Hyperbolic_Types(), (
+            "the current algo is not hyperbolic type."
+        )
 
         return self.__hyperbolicParams
 
@@ -1473,7 +1473,6 @@ class _Simu(_IObserver, _params.Updatable, ABC):
             dt, beta, gamma, alpha = self.__Solver_Get_Hyperbolic_Params()
 
         if self.algo == AlgoType.newmark:
-
             ut_np1 = u_n + dt * v_n + dt**2 / 2 * (1 - 2 * beta) * a_n
             vt_np1 = v_n + dt * (1 - gamma) * a_n
 
@@ -1482,7 +1481,6 @@ class _Simu(_IObserver, _params.Updatable, ABC):
             v_t = vt_np1 + gamma * dt * a_t
 
         elif self.algo == AlgoType.hht:
-
             a_np1 = (
                 1 / (beta * dt**2) * (u_np1 - u_n - dt * v_n)
                 + (1 - 1 / (2 * beta)) * a_n
@@ -1494,7 +1492,6 @@ class _Simu(_IObserver, _params.Updatable, ABC):
             a_t = (1 - alpha) * a_np1 + alpha * a_n
 
         elif self.algo == AlgoType.midpoint:
-
             v_np1 = 2 / dt * (u_np1 - u_n) - v_n
             a_np1 = 2 / dt * (v_np1 - v_n) - a_n
 
@@ -1516,7 +1513,6 @@ class _Simu(_IObserver, _params.Updatable, ABC):
             a_t = a_np1
 
         elif self.algo == AlgoType.parabolic:
-
             # get parabolic properties
             dt, alpha = self.__Solver_Get_Parabolic_Params()
 
@@ -1528,7 +1524,6 @@ class _Simu(_IObserver, _params.Updatable, ABC):
             a_t = None  # no accel vector for parabolic problems.
 
         elif self.algo == AlgoType.euler_implicit:
-
             dt = self.__Solver_Get_Hyperbolic_Params()[0]
             v_np1 = (u_np1 - u_n) / dt
             a_np1 = (v_np1 - v_n) / dt  # backward-Euler acceleration
@@ -1857,9 +1852,9 @@ class _Simu(_IObserver, _params.Updatable, ABC):
         self, problem: ProblemType | tuple[ProblemType, ...], solution: np.ndarray
     ) -> None:
         """Sets the current newton raphson solution of the problem, its fields end to end."""
-        assert (
-            self.isNonLinear
-        ), "You can't use this function if the simulation is linear."
+        assert self.isNonLinear, (
+            "You can't use this function if the simulation is linear."
+        )
         self.__current_newton_raphson_problem = problem
         self.__current_newton_raphson_solution = solution
 
@@ -1867,9 +1862,9 @@ class _Simu(_IObserver, _params.Updatable, ABC):
         self, problemType: ProblemType | None = None
     ) -> np.ndarray:
         """Returns the current newton raphson solution of the problem type's field (default the simulation's), a view into the problem's vector."""
-        assert (
-            self.isNonLinear
-        ), "You can't use this function if the simulation is linear."
+        assert self.isNonLinear, (
+            "You can't use this function if the simulation is linear."
+        )
         solution = self.__current_newton_raphson_solution
         problem = self.__current_newton_raphson_problem
         if not isinstance(problem, tuple):
@@ -1920,7 +1915,6 @@ class _Simu(_IObserver, _params.Updatable, ABC):
         absTol, relTol, incTol, maxIter = self.__Solver_Get_Newton_Raphson_Params()
 
         while not converged and newtonIter < maxIter:
-
             newtonIter += 1
             # we must update the matrix system at each newton iteration.
             self.Need_Update()
@@ -2585,9 +2579,9 @@ class _Simu(_IObserver, _params.Updatable, ABC):
         dofsUnknown = np.where(mask)[0]
 
         test = dofsKnown.size + dofsUnknown.size
-        assert (
-            test == nDof
-        ), f"Problem under conditions dofsKnown + dofsUnknown - nDof = {test - nDof}"
+        assert test == nDof, (
+            f"Problem under conditions dofsKnown + dofsUnknown - nDof = {test - nDof}"
+        )
 
         tic.Tac("Solver", f"Get dofs ({problemType})", self._verbosity)
 
@@ -2709,9 +2703,9 @@ class _Simu(_IObserver, _params.Updatable, ABC):
         """
         if len(nodes) == 0 or len(values) == 0:
             return False
-        assert len(values) == len(
-            unknowns
-        ), f"len(values)={len(values)} must equal len(unknowns)={len(unknowns)}."
+        assert len(values) == len(unknowns), (
+            f"len(values)={len(values)} must equal len(unknowns)={len(unknowns)}."
+        )
         return True
 
     def add_dirichlet(
@@ -3611,9 +3605,9 @@ def Load_Simu(folder: str, filename: str = "simulation", gather=False) -> _Simu:
 
     suffix = f"_rank{MPI_RANK}" if MPI_SIZE > 1 else ""
     path_simu = Folder.Join(folder, f"{filename}{suffix}.pickle")
-    assert Folder.Exists(
-        path_simu
-    ), f"The file {filename}{suffix}.pickle cannot be found."
+    assert Folder.Exists(path_simu), (
+        f"The file {filename}{suffix}.pickle cannot be found."
+    )
 
     try:
         with open(path_simu, "rb") as file:

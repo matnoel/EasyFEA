@@ -159,7 +159,6 @@ def Get_pairedNodes(
 
     # get paired nodes
     for i, (nodes1, nodes2) in enumerate(list_tuple_nodes):
-
         # sort nodes
         sorted_nodes2 = np.zeros_like(nodes1)
         coord = mesh.coord
@@ -178,7 +177,7 @@ def Get_pairedNodes(
                 ).reshape(-1, 3),
                 color="k",
             )
-            plotter.add_title(f"paired nodes along {['x','y','z'][i]} axis.")
+            plotter.add_title(f"paired nodes along {['x', 'y', 'z'][i]} axis.")
             plotter.show()
 
         # set new paired nodes
@@ -348,7 +347,7 @@ if __name__ == "__main__":
     for i in range(6):
         formatted_array += "\n"
         for j in range(6):
-            formatted_array += f"{C_hom[i,j]:10.3e} "
+            formatted_array += f"{C_hom[i, j]:10.3e} "
 
     print("C_hom =", formatted_array)
 

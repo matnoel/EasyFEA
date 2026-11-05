@@ -452,9 +452,9 @@ class DIC(_IObserver):
         self.__Test_img(img)
         imgRef = self.__Get_imgRef(imgRef)
         diff = img - imgRef
-        assert (
-            np.linalg.norm(diff) != 0
-        ), "imgRef and img are identical; you must provide different images."
+        assert np.linalg.norm(diff) != 0, (
+            "imgRef and img are identical; you must provide different images."
+        )
 
         # initial displacement vector
         if u0 is None:
@@ -463,9 +463,9 @@ class DIC(_IObserver):
             else:
                 u0 = np.zeros(self.__mesh.Nn * 2, dtype=float)
         else:
-            assert (
-                u0.size == self.__mesh.Nn * 2
-            ), "u0 must be a vector of dimension (2*Nn, 1)"
+            assert u0.size == self.__mesh.Nn * 2, (
+                "u0 must be a vector of dimension (2*Nn, 1)"
+            )
         u = u0.copy()
 
         # get pixels' coordinates
@@ -565,9 +565,9 @@ class DIC(_IObserver):
     ) -> tuple[_types.FloatArray, _types.FloatArray]:
         """Computes pixel displacements based on the finite element displacement field."""
 
-        assert (
-            u.size == self.__mesh.Nn * 2
-        ), f"The displacement vector field has the wrong size. It must be of size {self.__mesh.Nn * 2}"
+        assert u.size == self.__mesh.Nn * 2, (
+            f"The displacement vector field has the wrong size. It must be of size {self.__mesh.Nn * 2}"
+        )
 
         ux_p = u @ self._N_x
         uy_p = u @ self._N_y

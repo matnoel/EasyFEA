@@ -78,9 +78,9 @@ class _HyperElastic(_IModel, ABC):
 
         The direction is registered in 3D once and for all, so the kinematics — which knows the solution dimension — supplies the slice (in `2D` the out-of-plane fiber component drops out, as it does for the elastic stress under plane strain).
         """
-        assert (
-            self.__TxT is not None
-        ), "active_stress is set but its direction is not — call Set_active_stress_vec(T) first."
+        assert self.__TxT is not None, (
+            "active_stress is set but its direction is not — call Set_active_stress_vec(T) first."
+        )
 
         magnitude = self.active_stress
 
@@ -174,7 +174,6 @@ class _HyperElastic(_IModel, ABC):
 
 
 class NeoHookean(_HyperElastic):
-
     K: float | _types.FloatArray = _params.PositiveParameter()
     """Shear coefficient"""
 
@@ -254,7 +253,6 @@ class NeoHookean(_HyperElastic):
 
 
 class MooneyRivlin(_HyperElastic):
-
     _volumetricParameters = ("K",)
 
     K1: float = _params.PositiveScalarParameter()
@@ -390,7 +388,6 @@ class MooneyRivlin(_HyperElastic):
 
 
 class CiarletGeymonat(_HyperElastic):
-
     _volumetricParameters = ("K",)
 
     K1: float = _params.PositiveScalarParameter()
@@ -525,7 +522,6 @@ class CiarletGeymonat(_HyperElastic):
 
 
 class SaintVenantKirchhoff(_HyperElastic):
-
     _volumetricParameters = ("K",)
 
     lmbda: float = _params.ScalarParameter()
@@ -640,7 +636,6 @@ class SaintVenantKirchhoff(_HyperElastic):
 
 
 class HolzapfelOgden(_HyperElastic):
-
     _volumetricParameters = ("K",)
 
     C0: float = _params.PositiveScalarParameter()

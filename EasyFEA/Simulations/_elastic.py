@@ -534,9 +534,9 @@ def Mesh_Optim_ZZ1(
 
         # perform the simulation
         simu = DoSimu(optimGeom)  # type: ignore [arg-type]
-        assert isinstance(
-            simu, Elastic
-        ), "DoSimu function must return a Displacement simulation"
+        assert isinstance(simu, Elastic), (
+            "DoSimu function must return a Displacement simulation"
+        )
         # get the current mesh
         mesh = simu.mesh
 

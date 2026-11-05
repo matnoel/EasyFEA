@@ -1624,8 +1624,10 @@ def test_GroupElem__Get_xi_solves_a_curved_element_with_a_constant_jacobian():
 def test_GroupElem__Get_xi_solves_a_curved_tetrahedron():
     groupElem = _curved(
         ElemType.TETRA10,
-        lambda xi: xi
-        + 0.2 * np.column_stack([xi[:, 1] * xi[:, 2], xi[:, 0] ** 2, 0 * xi[:, 0]]),
+        lambda xi: (
+            xi
+            + 0.2 * np.column_stack([xi[:, 1] * xi[:, 2], xi[:, 0] ** 2, 0 * xi[:, 0]])
+        ),
     )
     xi = np.array([[0.2, 0.3, 0.1]])
     x = _GroupElem._Eval_Functions(groupElem._N(), xi)[:, 0] @ groupElem.coord

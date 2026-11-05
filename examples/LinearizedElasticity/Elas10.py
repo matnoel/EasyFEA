@@ -102,7 +102,6 @@ if __name__ == "__main__":
     # Time loop
     t = 0
     while t <= tMax:
-
         simu.Bc_Init()
 
         # Set displacement boundary conditions

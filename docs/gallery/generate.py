@@ -23,7 +23,6 @@ galleryDir = Folder.Join(htmlDir, "gallery")
 
 
 class Item:
-
     def __init__(
         self,
         script: str,
@@ -185,7 +184,6 @@ def main(list_item: list[Item], replace=False):
 """
 
     for htmlFile, item in zip(list_htmlFile, list_item):
-
         htmlPath = Folder.os.path.relpath(htmlFile, galleryDir)
         scriptPath = Folder.Join(htmlDir, "examples", item._script)
         scriptPath = Folder.os.path.relpath(
@@ -208,7 +206,6 @@ def main(list_item: list[Item], replace=False):
 
 
 if __name__ == "__main__":
-
     useMesh = {"plotMesh": True}
 
     list_item = [

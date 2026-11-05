@@ -240,8 +240,9 @@ class _PRISM15(_ReferenceElement):
         dN1 = [
             lambda r, s, t: -(t - 1) * (r + s - 1) - (t - 1) * (2 * r + 2 * s + t) / 2,
             lambda r, s, t: -(t - 1) * (r + s - 1) - (t - 1) * (2 * r + 2 * s + t) / 2,
-            lambda r, s, t: -(t - 1) * (r + s - 1) / 2
-            - (r + s - 1) * (2 * r + 2 * s + t) / 2,
+            lambda r, s, t: (
+                -(t - 1) * (r + s - 1) / 2 - (r + s - 1) * (2 * r + 2 * s + t) / 2
+            ),
         ]
         dN2 = [
             lambda r, s, t: -r * (t - 1) - (t - 1) * (2 * r - t - 2) / 2,
@@ -256,8 +257,9 @@ class _PRISM15(_ReferenceElement):
         dN4 = [
             lambda r, s, t: (t + 1) * (r + s - 1) + (t + 1) * (2 * r + 2 * s - t) / 2,
             lambda r, s, t: (t + 1) * (r + s - 1) + (t + 1) * (2 * r + 2 * s - t) / 2,
-            lambda r, s, t: -(t + 1) * (r + s - 1) / 2
-            + (r + s - 1) * (2 * r + 2 * s - t) / 2,
+            lambda r, s, t: (
+                -(t + 1) * (r + s - 1) / 2 + (r + s - 1) * (2 * r + 2 * s - t) / 2
+            ),
         ]
         dN5 = [
             lambda r, s, t: r * (t + 1) + (t + 1) * (2 * r + t - 2) / 2,
@@ -515,12 +517,16 @@ class _PRISM18(_ReferenceElement):
 
     def _dN(self) -> _types.FloatArray:
         dN1 = [
-            lambda r, s, t: t * (t - 1) * (r + s - 1)
-            + t * (t - 1) * (2 * r + 2 * s - 1) / 2,
-            lambda r, s, t: t * (t - 1) * (r + s - 1)
-            + t * (t - 1) * (2 * r + 2 * s - 1) / 2,
-            lambda r, s, t: t * (r + s - 1) * (2 * r + 2 * s - 1) / 2
-            + (t - 1) * (r + s - 1) * (2 * r + 2 * s - 1) / 2,
+            lambda r, s, t: (
+                t * (t - 1) * (r + s - 1) + t * (t - 1) * (2 * r + 2 * s - 1) / 2
+            ),
+            lambda r, s, t: (
+                t * (t - 1) * (r + s - 1) + t * (t - 1) * (2 * r + 2 * s - 1) / 2
+            ),
+            lambda r, s, t: (
+                t * (r + s - 1) * (2 * r + 2 * s - 1) / 2
+                + (t - 1) * (r + s - 1) * (2 * r + 2 * s - 1) / 2
+            ),
         ]
         dN2 = [
             lambda r, s, t: r * t * (t - 1) + t * (2 * r - 1) * (t - 1) / 2,
@@ -533,12 +539,16 @@ class _PRISM18(_ReferenceElement):
             lambda r, s, t: s * t * (2 * s - 1) / 2 + s * (2 * s - 1) * (t - 1) / 2,
         ]
         dN4 = [
-            lambda r, s, t: t * (t + 1) * (r + s - 1)
-            + t * (t + 1) * (2 * r + 2 * s - 1) / 2,
-            lambda r, s, t: t * (t + 1) * (r + s - 1)
-            + t * (t + 1) * (2 * r + 2 * s - 1) / 2,
-            lambda r, s, t: t * (r + s - 1) * (2 * r + 2 * s - 1) / 2
-            + (t + 1) * (r + s - 1) * (2 * r + 2 * s - 1) / 2,
+            lambda r, s, t: (
+                t * (t + 1) * (r + s - 1) + t * (t + 1) * (2 * r + 2 * s - 1) / 2
+            ),
+            lambda r, s, t: (
+                t * (t + 1) * (r + s - 1) + t * (t + 1) * (2 * r + 2 * s - 1) / 2
+            ),
+            lambda r, s, t: (
+                t * (r + s - 1) * (2 * r + 2 * s - 1) / 2
+                + (t + 1) * (r + s - 1) * (2 * r + 2 * s - 1) / 2
+            ),
         ]
         dN5 = [
             lambda r, s, t: r * t * (t + 1) + t * (2 * r - 1) * (t + 1) / 2,
@@ -561,12 +571,18 @@ class _PRISM18(_ReferenceElement):
             lambda r, s, t: -2 * s * t * (r + s - 1) - 2 * s * (t - 1) * (r + s - 1),
         ]
         dN9 = [
-            lambda r, s, t: -2 * (t - 1) * (t + 1) * (r + s - 1)
-            - (t - 1) * (t + 1) * (2 * r + 2 * s - 1),
-            lambda r, s, t: -2 * (t - 1) * (t + 1) * (r + s - 1)
-            - (t - 1) * (t + 1) * (2 * r + 2 * s - 1),
-            lambda r, s, t: -(t - 1) * (r + s - 1) * (2 * r + 2 * s - 1)
-            - (t + 1) * (r + s - 1) * (2 * r + 2 * s - 1),
+            lambda r, s, t: (
+                -2 * (t - 1) * (t + 1) * (r + s - 1)
+                - (t - 1) * (t + 1) * (2 * r + 2 * s - 1)
+            ),
+            lambda r, s, t: (
+                -2 * (t - 1) * (t + 1) * (r + s - 1)
+                - (t - 1) * (t + 1) * (2 * r + 2 * s - 1)
+            ),
+            lambda r, s, t: (
+                -(t - 1) * (r + s - 1) * (2 * r + 2 * s - 1)
+                - (t + 1) * (r + s - 1) * (2 * r + 2 * s - 1)
+            ),
         ]
         dN10 = [
             lambda r, s, t: 2 * s * t * (t - 1),
@@ -574,15 +590,17 @@ class _PRISM18(_ReferenceElement):
             lambda r, s, t: 2 * r * s * t + 2 * r * s * (t - 1),
         ]
         dN11 = [
-            lambda r, s, t: -2 * r * (t - 1) * (t + 1)
-            - (2 * r - 1) * (t - 1) * (t + 1),
+            lambda r, s, t: (
+                -2 * r * (t - 1) * (t + 1) - (2 * r - 1) * (t - 1) * (t + 1)
+            ),
             lambda r, s, t: 0,
             lambda r, s, t: -r * (2 * r - 1) * (t - 1) - r * (2 * r - 1) * (t + 1),
         ]
         dN12 = [
             lambda r, s, t: 0,
-            lambda r, s, t: -2 * s * (t - 1) * (t + 1)
-            - (2 * s - 1) * (t - 1) * (t + 1),
+            lambda r, s, t: (
+                -2 * s * (t - 1) * (t + 1) - (2 * s - 1) * (t - 1) * (t + 1)
+            ),
             lambda r, s, t: -s * (2 * s - 1) * (t - 1) - s * (2 * s - 1) * (t + 1),
         ]
         dN13 = [
@@ -601,18 +619,22 @@ class _PRISM18(_ReferenceElement):
             lambda r, s, t: 2 * r * s * t + 2 * r * s * (t + 1),
         ]
         dN16 = [
-            lambda r, s, t: 4 * r * (t - 1) * (t + 1)
-            + 4 * (t - 1) * (t + 1) * (r + s - 1),
+            lambda r, s, t: (
+                4 * r * (t - 1) * (t + 1) + 4 * (t - 1) * (t + 1) * (r + s - 1)
+            ),
             lambda r, s, t: 4 * r * (t - 1) * (t + 1),
-            lambda r, s, t: 4 * r * (t - 1) * (r + s - 1)
-            + 4 * r * (t + 1) * (r + s - 1),
+            lambda r, s, t: (
+                4 * r * (t - 1) * (r + s - 1) + 4 * r * (t + 1) * (r + s - 1)
+            ),
         ]
         dN17 = [
             lambda r, s, t: 4 * s * (t - 1) * (t + 1),
-            lambda r, s, t: 4 * s * (t - 1) * (t + 1)
-            + 4 * (t - 1) * (t + 1) * (r + s - 1),
-            lambda r, s, t: 4 * s * (t - 1) * (r + s - 1)
-            + 4 * s * (t + 1) * (r + s - 1),
+            lambda r, s, t: (
+                4 * s * (t - 1) * (t + 1) + 4 * (t - 1) * (t + 1) * (r + s - 1)
+            ),
+            lambda r, s, t: (
+                4 * s * (t - 1) * (r + s - 1) + 4 * s * (t + 1) * (r + s - 1)
+            ),
         ]
         dN18 = [
             lambda r, s, t: -4 * s * (t - 1) * (t + 1),

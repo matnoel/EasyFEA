@@ -61,9 +61,9 @@ class Swift:
     eps0: float = 1e-4
 
     def __post_init__(self):
-        assert (
-            self.K > 0 and 0 < self.n < 1 and self.eps0 > 0
-        ), "need K > 0, 0 < n < 1, eps0 > 0"
+        assert self.K > 0 and 0 < self.n < 1 and self.eps0 > 0, (
+            "need K > 0, 0 < n < 1, eps0 > 0"
+        )
 
     def __call__(self, p: "Array") -> "Array":
         return self.K * ((self.eps0 + p) ** self.n - self.eps0**self.n)

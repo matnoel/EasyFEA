@@ -92,9 +92,9 @@ class Beam(_Simu):
             # changes the beam model as a beam structure
             model = BeamStructure(list(model))
 
-        assert isinstance(
-            model, BeamStructure
-        ), "model must be a beam model, a list of beam or a beam structure"
+        assert isinstance(model, BeamStructure), (
+            "model must be a beam model, a list of beam or a beam structure"
+        )
 
         partners = mesh._Get_FunctionSpace(self.U).Get_list_groupElem()
         if any(p is not g for g, p in zip(mesh.Get_list_groupElem(), partners)):

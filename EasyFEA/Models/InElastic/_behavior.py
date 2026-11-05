@@ -149,9 +149,9 @@ class _Behavior(_IModel, _IObserver):
     def __init__(self, elastic: _Elastic):
         """``dim``, ``planeStress`` and ``thickness`` are the elastic model's."""
         assert isinstance(elastic, _Elastic), "elastic must be an elastic model"
-        assert (
-            not self.Externals._field_defaults
-        ), "an external variable has no default: a reference value is a parameter"
+        assert not self.Externals._field_defaults, (
+            "an external variable has no default: a reference value is a parameter"
+        )
         elastic._Add_observer(self)
         self.__elastic = elastic
         self._tol = 1e-10
@@ -495,9 +495,9 @@ class MaterialPoint:
             _kelvin_mandel.INDEX[k]: np.asarray(v, dtype=float)
             for k, v in (stress or {}).items()
         }
-        assert not (
-            set(driven) & set(targets)
-        ), "a component is either strain- or stress-driven"
+        assert not (set(driven) & set(targets)), (
+            "a component is either strain- or stress-driven"
+        )
         free = [i for i in range(6) if i not in driven]
         external = {k: np.asarray(v, dtype=float) for k, v in (external or {}).items()}
 

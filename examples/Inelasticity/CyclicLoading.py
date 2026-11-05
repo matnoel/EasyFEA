@@ -115,9 +115,9 @@ print(f"  {'exact, for kinematic':22s} {2 * sigma_y:8.1f} MPa")
 
 # the Bauschinger effect: with a back-stress, reverse yielding comes earlier
 for label in (Laws.Prager, Laws.ArmstrongFrederick):
-    assert Elastic_span(runs[label]) < Elastic_span(
-        runs[Laws.Isotropic]
-    ), f"{label} lost the Bauschinger effect"
+    assert Elastic_span(runs[label]) < Elastic_span(runs[Laws.Isotropic]), (
+        f"{label} lost the Bauschinger effect"
+    )
 
 ax.set_xlabel("axial strain [%]")
 ax.set_ylabel(r"$\sigma_{xx}$ [MPa]")

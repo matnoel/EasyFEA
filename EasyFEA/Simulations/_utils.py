@@ -59,9 +59,9 @@ def _Field_per_groupElem(
 
 def __Result_e_pg(field_e_pg: FeArray.FeArrayALike, result: str) -> _types.FloatArray:
     """(Ne, nPg, …) ``result`` of a Kelvin–Mandel strain or stress field: a component, ``vm``, or the whole field."""
-    assert (
-        isinstance(field_e_pg, FeArray) and field_e_pg._ndim == 1
-    ), "must be a vector FeArray"
+    assert isinstance(field_e_pg, FeArray) and field_e_pg._ndim == 1, (
+        "must be a vector FeArray"
+    )
     values = _kelvin_mandel.Components(np.asarray(field_e_pg))
     if result in values:
         return values[result]

@@ -54,9 +54,9 @@ class RigidContact(Simulations.Elastic):
         )
 
         contactGroups = indenter.Get_list_groupElem(indenter.dim - 1)
-        assert (
-            len(contactGroups) > 0
-        ), f"the indenter has no {indenter.dim - 1}D group to project onto."
+        assert len(contactGroups) > 0, (
+            f"the indenter has no {indenter.dim - 1}D group to project onto."
+        )
 
         contributions = []
         for contactGroup in contactGroups:

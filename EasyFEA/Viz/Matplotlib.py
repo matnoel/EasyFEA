@@ -349,7 +349,10 @@ def Plot(
         # Get values and colorbar properties
         values = _Get_values(simu, mesh, result, nodeValues) * coef
         ticks, levels, norm, vmin, vmax = __Get_colorbar_properties(
-            clim, result, values, nColors  # type: ignore [arg-type]
+            clim,
+            result,
+            values,
+            nColors,  # type: ignore [arg-type]
         )
     else:
         values = None  # type: ignore [assignment]
@@ -359,7 +362,6 @@ def Plot(
 
     pc = None
     if inDim == 3:
-
         if surfDim == 1 and plotMesh:
             ax.plot(*coordDef.T, c=edgecolor, lw=0.1, marker=".", ls="")
 
@@ -404,7 +406,6 @@ def Plot(
             )
 
     else:
-
         # Plot the mesh edges (for a scalar field, edges are a dedicated collection drawn
         # underneath, matching the historical scalar-field behavior)
         if plotMesh and mesh.dim == 1:

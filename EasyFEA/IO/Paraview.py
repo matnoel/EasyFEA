@@ -311,9 +311,9 @@ def __Make_vtu(
         list_values_n: list[_types.FloatArray] = []
         nodeFields_meta: dict[str, int] = {}
         for nodeField, nodeValues in nodeResults.items():
-            assert isinstance(
-                nodeValues, np.ndarray
-            ), "nodeValues must be a numpy array."
+            assert isinstance(nodeValues, np.ndarray), (
+                "nodeValues must be a numpy array."
+            )
 
             dof_n = nodeValues.size // Ncoords
 
@@ -352,9 +352,9 @@ def __Make_vtu(
         list_values_e: list[_types.FloatArray] = []
         elementFields_meta: dict[str, int] = {}
         for elementField, elementValues in elementResults.items():
-            assert isinstance(
-                elementValues, np.ndarray
-            ), "elementValues must be a numpy array."
+            assert isinstance(elementValues, np.ndarray), (
+                "elementValues must be a numpy array."
+            )
 
             list_values_e.append(elementValues.ravel())
 
@@ -467,7 +467,6 @@ def __Make_vtu(
             return ""
 
     else:
-
         return filename
 
 

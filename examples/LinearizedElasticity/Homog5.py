@@ -148,7 +148,7 @@ if __name__ == "__main__":
     for i in range(6):
         formatted_array += "\n"
         for j in range(6):
-            formatted_array += f"{C_hom[i,j]:10.3e} "
+            formatted_array += f"{C_hom[i, j]:10.3e} "
 
     print("C_hom =", formatted_array)
 

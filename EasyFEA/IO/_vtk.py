@@ -129,29 +129,106 @@ DICT_EASYFEA_TO_VTK_INDEXES: dict[ElemType, list[int]] = {
     # https://dev.pyvista.org/api/examples/_autosummary/pyvista.examples.cells.quadratichexahedron#pyvista.examples.cells.QuadraticHexahedron
     # fmt: off
     ElemType.HEXA20: [
-        0, 1, 2, 3, 4, 5, 6, 7,  # vertices
-        8, 11, 13, 9, 16, 18, 19, 17, 10, 12, 14, 15 # edges
-    ],    
-    # https://dev.pyvista.org/api/examples/_autosummary/pyvista.examples.cells.triquadratichexahedron#pyvista.examples.cells.TriQuadraticHexahedron    
+        0,
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7,  # vertices
+        8,
+        11,
+        13,
+        9,
+        16,
+        18,
+        19,
+        17,
+        10,
+        12,
+        14,
+        15,  # edges
+    ],
+    # https://dev.pyvista.org/api/examples/_autosummary/pyvista.examples.cells.triquadratichexahedron#pyvista.examples.cells.TriQuadraticHexahedron
     ElemType.HEXA27: [
-        0, 1, 2, 3, 4, 5, 6, 7,  # vertices
-        8, 11, 13, 9, 16, 18, 19, 17, 10, 12, 14, 15,  # edges
-        22, 23, 21, 24, 20, 25,  # faces
-        26  # volumes
+        0,
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7,  # vertices
+        8,
+        11,
+        13,
+        9,
+        16,
+        18,
+        19,
+        17,
+        10,
+        12,
+        14,
+        15,  # edges
+        22,
+        23,
+        21,
+        24,
+        20,
+        25,  # faces
+        26,  # volumes
     ],
     ElemType.PRISM15: [
-        0, 1, 2, 3, 4, 5, # vertices
-        6, 9, 7, 12, 14, 13, 8, 10, 11 # edges
+        0,
+        1,
+        2,
+        3,
+        4,
+        5,  # vertices
+        6,
+        9,
+        7,
+        12,
+        14,
+        13,
+        8,
+        10,
+        11,  # edges
     ],
     ElemType.PRISM18: [
-        0, 1, 2, 3, 4, 5, # vertices
-        6, 9, 7, 12, 14, 13, 8, 10, 11, # edges
-        15, 17, 16 # faces
+        0,
+        1,
+        2,
+        3,
+        4,
+        5,  # vertices
+        6,
+        9,
+        7,
+        12,
+        14,
+        13,
+        8,
+        10,
+        11,  # edges
+        15,
+        17,
+        16,  # faces
     ],
     # nodes 8 and 9 are switch
     ElemType.TETRA10: [
-        0, 1, 2, 3, # vertices
-        4, 5, 6, 7, 9, 8 # faces
+        0,
+        1,
+        2,
+        3,  # vertices
+        4,
+        5,
+        6,
+        7,
+        9,
+        8,  # faces
     ],
     # fmt: on
 }

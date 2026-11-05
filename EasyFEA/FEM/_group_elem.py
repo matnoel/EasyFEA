@@ -70,9 +70,9 @@ class _GroupElem:
 
         # Elements
         if connect.size != 0:  # connect can be empty
-            assert (
-                connect.ndim == 2 and connect.shape[1] == nPe
-            ), "connect must be a (Ne, nPe) array."
+            assert connect.ndim == 2 and connect.shape[1] == nPe, (
+                "connect must be a (Ne, nPe) array."
+            )
         self.__connect = connect
         self.__connect_n_e: sparse.csr_matrix = None
 
@@ -452,9 +452,9 @@ class _GroupElem:
             outward unit normal at the nearest surface sample, shape ``(Ne, nPg, 3)``.
         """
         assert self.dim in [1, 2], "only defined for 1D/2D surface groups."
-        assert (
-            isinstance(x_e_pg, FeArray) and x_e_pg.shape[-1] == 3
-        ), "coordinates must be a (Ne, nPg, 3) FeArray."
+        assert isinstance(x_e_pg, FeArray) and x_e_pg.shape[-1] == 3, (
+            "coordinates must be a (Ne, nPg, 3) FeArray."
+        )
 
         if elements is None:
             elements = np.arange(self.Ne)
@@ -1610,26 +1610,26 @@ class GroupElemFactory:
     DICT_GMSH_DATA: dict[int, tuple[ElemType, int, int, int, int, int, int, int]] = {
         #  key: ElemType, nPe, dim, order,  Nvertex, Nedge, Nface, Nvolume
         # fmt: off
-        15: (ElemType.POINT, 1, 0, 0,       0, 0, 0, 0),
-        1: (ElemType.SEG2, 2, 1, 1,         2, 0, 0, 0),
-        8: (ElemType.SEG3, 3, 1, 2,         2, 1, 0, 0),
-        26: (ElemType.SEG4, 4, 1, 3,        2, 2, 0, 0),
-        27: (ElemType.SEG5, 5, 1, 4,        2, 3, 0, 0),
-        2: (ElemType.TRI3, 3, 2, 1,         3, 0, 0, 0),
-        9: (ElemType.TRI6, 6, 2, 2,         3, 3, 0, 0),
-        21: (ElemType.TRI10, 10, 2, 3,      3, 6, 1, 0),
-        23: (ElemType.TRI15, 15, 2, 4,      3, 9, 3, 0),
-        3: (ElemType.QUAD4, 4, 2, 1,        4, 0, 0, 0),
-        16: (ElemType.QUAD8, 8, 2, 2,       4, 4, 0, 0),
-        10: (ElemType.QUAD9, 9, 2, 2,       4, 4, 1, 0),
-        4: (ElemType.TETRA4, 4, 3, 1,       4, 0, 0, 0),
-        11: (ElemType.TETRA10, 10, 3, 2,    4, 6, 0, 0),
-        5: (ElemType.HEXA8, 8, 3, 1,        8, 0, 0, 0),
-        17: (ElemType.HEXA20, 20, 3, 2,     8, 12, 0, 0),
-        12: (ElemType.HEXA27, 27, 3, 2,     8, 12, 6, 1),
-        6: (ElemType.PRISM6, 6, 3, 1,       6, 0, 0, 0),
-        18: (ElemType.PRISM15, 15, 3, 2,    6, 9, 0, 0),
-        13: (ElemType.PRISM18, 18, 3, 2,    6, 9, 3, 0),
+        15: (ElemType.POINT, 1, 0, 0, 0, 0, 0, 0),
+        1: (ElemType.SEG2, 2, 1, 1, 2, 0, 0, 0),
+        8: (ElemType.SEG3, 3, 1, 2, 2, 1, 0, 0),
+        26: (ElemType.SEG4, 4, 1, 3, 2, 2, 0, 0),
+        27: (ElemType.SEG5, 5, 1, 4, 2, 3, 0, 0),
+        2: (ElemType.TRI3, 3, 2, 1, 3, 0, 0, 0),
+        9: (ElemType.TRI6, 6, 2, 2, 3, 3, 0, 0),
+        21: (ElemType.TRI10, 10, 2, 3, 3, 6, 1, 0),
+        23: (ElemType.TRI15, 15, 2, 4, 3, 9, 3, 0),
+        3: (ElemType.QUAD4, 4, 2, 1, 4, 0, 0, 0),
+        16: (ElemType.QUAD8, 8, 2, 2, 4, 4, 0, 0),
+        10: (ElemType.QUAD9, 9, 2, 2, 4, 4, 1, 0),
+        4: (ElemType.TETRA4, 4, 3, 1, 4, 0, 0, 0),
+        11: (ElemType.TETRA10, 10, 3, 2, 4, 6, 0, 0),
+        5: (ElemType.HEXA8, 8, 3, 1, 8, 0, 0, 0),
+        17: (ElemType.HEXA20, 20, 3, 2, 8, 12, 0, 0),
+        12: (ElemType.HEXA27, 27, 3, 2, 8, 12, 6, 1),
+        6: (ElemType.PRISM6, 6, 3, 1, 6, 0, 0, 0),
+        18: (ElemType.PRISM15, 15, 3, 2, 6, 9, 0, 0),
+        13: (ElemType.PRISM18, 18, 3, 2, 6, 9, 3, 0),
         # 7: (ElemType.PYRA5, 5, 3, 1,        5, 0, 0, 0),
         # 19: (ElemType.PYRA13, 13, 3, 2,     5, 8, 0, 0),
         # 14: (ElemType.PYRA14, 14, 3, 2,     5, 8, 1, 0),

@@ -750,7 +750,6 @@ def Plot_BoundaryConditions(
     colors = tab10_colors * np.ceil(len(boundaryConditions) / 10).astype(int)
 
     for bc, color in zip(boundaryConditions, colors):
-
         problemType = bc.problemType
         unknowns = bc.unknowns
         dofs = bc.dofs
@@ -825,7 +824,11 @@ def Plot_BoundaryConditions(
                 )
             else:
                 plotter.add_arrows(
-                    tails, vector, factor, label=label, color=color  # type: ignore [arg-type]
+                    tails,
+                    vector,
+                    factor,
+                    label=label,
+                    color=color,  # type: ignore [arg-type]
                 )
 
             if True in [direction in unknowns_rot for direction in unknowns]:
@@ -1059,7 +1062,6 @@ def Plot_Geoms(
         colors = iter([color] * len(geoms))
 
     for geom, geomColor in zip(geoms, colors):
-
         dataSet = _pvGeom(geom)
 
         if dataSet is None:
@@ -1440,7 +1442,9 @@ def _(geom: Geoms.Domain):
 @_pvGeom.register
 def _(geom: Geoms.Circle):
     arc1 = pv.CircularArc(
-        pointa=geom.pt1.coord, pointb=geom.pt3.coord, center=geom.center.coord  # type: ignore [arg-type]
+        pointa=geom.pt1.coord,
+        pointb=geom.pt3.coord,
+        center=geom.center.coord,  # type: ignore [arg-type]
     )
     arc2 = pv.CircularArc(
         pointa=geom.pt1.coord,  # type: ignore [arg-type]

@@ -61,9 +61,9 @@ class Mesh(Observable):
 
         assert len(dict_groupElem) > 0, "dict_groupElem is empty."
         # all groups must share the same global node numbering (one common Ncoords)
-        assert (
-            len({groupElem.Ncoords for groupElem in dict_groupElem.values()}) == 1
-        ), "All element groups must share the same coordinates (common Ncoords)."
+        assert len({groupElem.Ncoords for groupElem in dict_groupElem.values()}) == 1, (
+            "All element groups must share the same coordinates (common Ncoords)."
+        )
         self.__dict_groupElem = dict_groupElem
 
         self.__dim = -1
@@ -1017,9 +1017,9 @@ class Mesh(Observable):
 
         space = None if problemType is None else self._Get_FunctionSpace(problemType)
         Nn = self.Nn if space is None else space.Nn
-        assert (
-            dofsValues.size % Nn == 0 and dofsValues.ndim == 1
-        ), "dofsValues must be a (Nn * dof_n, ) array."
+        assert dofsValues.size % Nn == 0 and dofsValues.ndim == 1, (
+            "dofsValues must be a (Nn * dof_n, ) array."
+        )
         dof_n = dofsValues.size // Nn
         # the values of each node (Nn, dof_n)
         values = dofsValues.reshape(-1, dof_n)
@@ -1138,9 +1138,9 @@ class Mesh(Observable):
 
         assert len(nodes1) != 0 and len(nodes2) != 0, "No nodes detected"
 
-        assert len(nodes1) == len(
-            nodes2
-        ), "Edges must contain the same number of nodes."
+        assert len(nodes1) == len(nodes2), (
+            "Edges must contain the same number of nodes."
+        )
 
         paired_nodes = np.array([nodes1, nodes2]).T
 

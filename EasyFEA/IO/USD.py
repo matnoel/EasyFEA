@@ -93,7 +93,6 @@ def Save_simu(
     iterations = np.linspace(0, Niter - 1, N, endpoint=True, dtype=int)
 
     for result in results:
-
         # init list
         list_displacementMatrix: list[np.ndarray] = []
         list_nodesValues_n: list[np.ndarray] = []
@@ -292,7 +291,6 @@ def Save_mesh(
 
     # ========== SMOOTH ANIMATION MODE ==========
     if smoothAnimation:
-
         meshPrim = UsdGeom.Mesh.Define(stage, "/Mesh")
         meshPrim.CreateDoubleSidedAttr(True)
 
@@ -391,9 +389,7 @@ def Save_mesh(
 
     # ========== SLIDESHOW ANIMATION MODE ==========
     else:
-
         for i in range(Niter):
-
             if updatedMesh:
                 mesh = list_mesh[i]
                 triangles = _get_triangles(mesh)

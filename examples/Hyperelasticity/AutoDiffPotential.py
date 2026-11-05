@@ -139,9 +139,21 @@ if __name__ == "__main__":
     LAWS = (
         (NeoHookean, Models.HyperElastic.NeoHookean(3, K=K), ()),
         (MooneyRivlin, Models.HyperElastic.MooneyRivlin(3, K1=K1, K2=K2, K=K), ()),
-        (CiarletGeymonat, Models.HyperElastic.CiarletGeymonat(3, K1=K1, K2=K2, K=K), ()),
-        (SaintVenantKirchhoff, Models.HyperElastic.SaintVenantKirchhoff(3, lmbda=lmbda, mu=mu, K=K), ()),  # fmt: skip
-        (HolzapfelOgden, Models.HyperElastic.HolzapfelOgden(3, T1=T1, T2=T2, **HO), (T1, T2)),  # fmt: skip
+        (
+            CiarletGeymonat,
+            Models.HyperElastic.CiarletGeymonat(3, K1=K1, K2=K2, K=K),
+            (),
+        ),
+        (
+            SaintVenantKirchhoff,
+            Models.HyperElastic.SaintVenantKirchhoff(3, lmbda=lmbda, mu=mu, K=K),
+            (),
+        ),  # fmt: skip
+        (
+            HolzapfelOgden,
+            Models.HyperElastic.HolzapfelOgden(3, T1=T1, T2=T2, **HO),
+            (T1, T2),
+        ),  # fmt: skip
     )
 
     print(f"{'law':24s}{'W':>12s}{'dWde':>12s}{'d2Wde':>12s}")

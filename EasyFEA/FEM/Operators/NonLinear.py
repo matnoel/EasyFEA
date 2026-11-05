@@ -481,12 +481,12 @@ def PenaltyContact(
         Integration scheme for the surface integral; ``gap_e_pg`` / ``normal_e_pg`` must be sampled with the same one, by default ``MatrixType.mass``.
     """
     assert groupElem.dim in [1, 2], "groupElem must be a 1D or 2D boundary group."
-    assert isinstance(gap_e_pg, FeArray) and isinstance(
-        normal_e_pg, FeArray
-    ), "gap_e_pg and normal_e_pg must be FeArrays."
-    assert (
-        gap_e_pg.shape[1] == normal_e_pg.shape[1]
-    ), "gap_e_pg and normal_e_pg must share the same nPg."
+    assert isinstance(gap_e_pg, FeArray) and isinstance(normal_e_pg, FeArray), (
+        "gap_e_pg and normal_e_pg must be FeArrays."
+    )
+    assert gap_e_pg.shape[1] == normal_e_pg.shape[1], (
+        "gap_e_pg and normal_e_pg must share the same nPg."
+    )
 
     dim = groupElem.inDim  # ambient (world) dimension
     Ne, nPe = groupElem.Ne, groupElem.nPe
@@ -508,9 +508,9 @@ def PenaltyContact(
     # surface integration measure and shape functions
     wJ_e_pg = groupElem.Get_weightedJacobian_e_pg(matrixType)[active]  # (Ne_a, nPg)
     N_pg = groupElem.Get_N_pg(matrixType)[:, 0, :]  # (nPg, nPe)
-    assert (
-        gap_e_pg.shape[1] == wJ_e_pg.shape[1]
-    ), "gap_e_pg / normal_e_pg must be sampled at the `matrixType` Gauss points."
+    assert gap_e_pg.shape[1] == wJ_e_pg.shape[1], (
+        "gap_e_pg / normal_e_pg must be sampled at the `matrixType` Gauss points."
+    )
 
     # precomputed gap / outward normal, restricted to the candidate elements
     gap_e_pg = gap_e_pg[active]  # (Ne_a, nPg)

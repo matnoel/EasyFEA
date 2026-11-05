@@ -132,7 +132,9 @@ class FeArray(np.ndarray):
             (
                 0
                 if k is None or k is Ellipsis
-                else k.ndim if isinstance(k, np.ndarray) and k.dtype.kind == "b" else 1
+                else k.ndim
+                if isinstance(k, np.ndarray) and k.dtype.kind == "b"
+                else 1
             )
             for k in key
         ]

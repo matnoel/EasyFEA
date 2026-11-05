@@ -577,7 +577,9 @@ def test_FeArray_broadcast_is_right_or_raises(subtests):
                     v = (
                         v[:, None]
                         if meaning == "e"
-                        else v[None] if meaning == "pg" else v
+                        else v[None]
+                        if meaning == "pg"
+                        else v
                     )
                     expected = np.broadcast_to(v, (Ne, nPg, *t))
                     assert np.array_equal(

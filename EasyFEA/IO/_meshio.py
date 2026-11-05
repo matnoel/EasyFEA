@@ -183,7 +183,6 @@ def _EasyFEA_to_Meshio(
 
     # loop over the group elem in the mesh
     for groupElem in groupElems:
-
         elemType = groupElem.elemType
 
         # get meshio type
@@ -284,7 +283,6 @@ def _Meshio_to_EasyFEA(meshioMesh: meshio.Mesh) -> Mesh:
     coordinates[:, :dim] = meshioMesh.points
 
     for meshioType, connect in meshioMesh.cells_dict.items():
-
         # get associated elemType
         elemType = DICT_MESHIO_TO_ELEMTYPE[meshioType]
 

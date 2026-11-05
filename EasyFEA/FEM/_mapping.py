@@ -40,9 +40,9 @@ class _Mapping:
         groupElem = self.__groupElem
         displacementMatrix = np.asarray(displacementMatrix, dtype=float)
         shape = (groupElem.Ncoords, 3)
-        assert (
-            displacementMatrix.shape == shape
-        ), f"displacmentMatrix must be of shape {shape}"
+        assert displacementMatrix.shape == shape, (
+            f"displacmentMatrix must be of shape {shape}"
+        )
         coord = groupElem.coord + displacementMatrix[groupElem.nodes]
         return coord[groupElem._global_to_local_nodes[groupElem.connect]]
 

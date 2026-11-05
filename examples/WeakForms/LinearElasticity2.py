@@ -113,7 +113,6 @@ if __name__ == "__main__":
     simu.add_dirichlet(nodesX0, [0] * dim, simu.Get_unknowns())
 
     while time <= Tmax:
-
         time += dt
 
         simu.Solve()

@@ -295,7 +295,9 @@ def _stretched_box(elemType: ElemType, order: int | None = None):
     u = np.zeros((x.size, 3))
     u[:, 0] = 0.05 * x * (1 + y * z)
     simu._Set_solutions(simu.problemType, u.ravel())
-    simu._Solver_Get_Newton_Raphson_current_solution = lambda problemType=None: u.ravel()  # type: ignore [method-assign]
+    simu._Solver_Get_Newton_Raphson_current_solution = lambda problemType=None: (
+        u.ravel()
+    )  # type: ignore [method-assign]
     return simu
 
 

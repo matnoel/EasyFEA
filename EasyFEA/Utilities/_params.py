@@ -107,13 +107,12 @@ def _CheckIsInValues(value, values: Iterable) -> None:
 def _CheckIsVector(value) -> None:
     """Checks whether the value is a (..., 3) numpy array."""
     errorText = "value must be a (3,), (Ne, 3) or (Ne, nPg, 3) array"
-    assert (
-        isinstance(value, np.ndarray) and value.shape[-1] == 3 and value.ndim <= 3
-    ), errorText
+    assert isinstance(value, np.ndarray) and value.shape[-1] == 3 and value.ndim <= 3, (
+        errorText
+    )
 
 
 class Updatable(ABC):
-
     @abstractmethod
     def Need_Update(self, value=True) -> None:
         """Indicates whether the object needs to be updated."""
@@ -130,7 +129,6 @@ class Updatable(ABC):
 
 
 class _Parameter:
-
     def __set_name__(self, owner, name):
         self.__name = name
 
@@ -234,7 +232,6 @@ class VectorParameter(_Parameter):
 
 
 class InstanceParameter(_Parameter):
-
     def __init__(self, check_functions: list[Callable | partialmethod] = []):
         error = "check_functions must be a list of function."
         assert isinstance(check_functions, Iterable), error

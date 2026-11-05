@@ -347,9 +347,9 @@ def _assert_matches_mesher(name: str) -> None:
 
     doc = getattr(_Geom, name).__doc__
     for param in geomParams:
-        assert (
-            f"{param.name} :" in doc
-        ), f"_Geom.{name}: '{param.name}' is undocumented."
+        assert f"{param.name} :" in doc, (
+            f"_Geom.{name}: '{param.name}' is undocumented."
+        )
 
 
 def test_Geom_Mesh_1D_takes_the_Mesher_arguments():

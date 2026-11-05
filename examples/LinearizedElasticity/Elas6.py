@@ -97,7 +97,7 @@ if __name__ == "__main__":
         simu_beam.Get_unknowns(),
     )
     simu_beam.add_neumann(
-        mesh_beam.Nodes_Conditions(lambda x, y, z: (x == 0)), [-load], ["y"]
+        mesh_beam.Nodes_Conditions(lambda x, y, z: x == 0), [-load], ["y"]
     )
     simu_beam.Solve()
 

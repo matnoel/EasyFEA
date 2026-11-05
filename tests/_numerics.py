@@ -11,9 +11,9 @@ import numpy as np
 def rel_error(actual, expected, scale: float | None = None) -> float:
     """Largest |actual - expected| over `scale` (default: largest |expected|); pass `scale` where `expected` may vanish. Shapes must match unless `expected` is a scalar."""
     actual, expected = np.asarray(actual), np.asarray(expected)
-    assert (
-        expected.ndim == 0 or actual.shape == expected.shape
-    ), f"shape {actual.shape} != expected {expected.shape}"
+    assert expected.ndim == 0 or actual.shape == expected.shape, (
+        f"shape {actual.shape} != expected {expected.shape}"
+    )
     if scale is None:
         scale = float(np.abs(expected).max())
     return float(np.abs(actual - expected).max() / scale)

@@ -213,9 +213,9 @@ def Apply_Pmat(
 ) -> _types.FloatArray:
     """``P M Pᵀ`` (material → global) or ``Pᵀ M P`` (``toGlobal=False``), P a Kelvin–Mandel ``Get_Pmat``; leading axes of P and M may differ (``()``, ``(Ne,)``, ``(Ne, nPg)``)."""
     assert isinstance(M, np.ndarray), "Matrix must be an array"
-    assert (
-        M.shape[-2:] == P.shape[-2:]
-    ), "Must give an matrix of shape (e,dim,dim) or (e,p,dim,dim) or (dim,dim)"
+    assert M.shape[-2:] == P.shape[-2:], (
+        "Must give an matrix of shape (e,dim,dim) or (e,p,dim,dim) or (dim,dim)"
+    )
 
     # Get P indices
     pDim = P.ndim

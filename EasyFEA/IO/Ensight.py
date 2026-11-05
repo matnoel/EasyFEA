@@ -57,16 +57,55 @@ DICT_EASYFEA_TO_ENSIGHT_INDEXES: dict[ElemType, list[int]] = {
     ElemType.SEG3: [0, 2, 1],
     # nodes 8 and 9 are switch
     ElemType.TETRA10: [
-        0, 1, 2, 3, # vertices
-        4, 5, 6, 7, 9, 8 # edges
+        0,
+        1,
+        2,
+        3,  # vertices
+        4,
+        5,
+        6,
+        7,
+        9,
+        8,  # edges
     ],
     ElemType.PRISM15: [
-        0, 1, 2, 3, 4, 5, # vertices
-        6, 8, 12, 7, 13, 14, 9, 11, 10 # edges
+        0,
+        1,
+        2,
+        3,
+        4,
+        5,  # vertices
+        6,
+        8,
+        12,
+        7,
+        13,
+        14,
+        9,
+        11,
+        10,  # edges
     ],
     ElemType.HEXA20: [
-        0, 1, 2, 3, 4, 5, 6, 7,  # vertices
-        8, 11, 16, 9, 17, 10, 18, 19, 12, 15, 13, 14 # edges
+        0,
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7,  # vertices
+        8,
+        11,
+        16,
+        9,
+        17,
+        10,
+        18,
+        19,
+        12,
+        15,
+        13,
+        14,  # edges
     ],
     # fmt: on
 }
@@ -163,7 +202,6 @@ def Load_mesh(path: str) -> Mesh:
 
     index = 0
     while index < len(lines):
-
         line = lines[index].strip()
 
         if line == "coordinates":
@@ -186,7 +224,6 @@ def Load_mesh(path: str) -> Mesh:
             index += 1 + Nn  # don't change
 
         elif line.startswith("part"):
-
             # get description
             index += 1
             description = lines[index].strip()
@@ -221,7 +258,6 @@ def Load_mesh(path: str) -> Mesh:
     # create groups of elements
     dict_groupElem: dict[ElemType, _GroupElem] = {}
     for ensight, dict_data in dict_ensightType_data.items():
-
         elemType = DICT_ENSIGHT_TO_ELEMTYPE[ensight]
 
         # import connect
@@ -288,7 +324,7 @@ def Save_mesh(
     parts = np.unique([value for value in dict_tags_converter.values()])
 
     def get_line(number: int, pos: int = 8):
-        return f"{' '*(pos-len(str(number)))}{number}"
+        return f"{' ' * (pos - len(str(number)))}{number}"
 
     # get tags with groupElem and elements
     dict_tags = {
@@ -301,7 +337,6 @@ def Save_mesh(
     offset = 1 if parts.min() == 0 else 0
 
     with open(filename, "w", encoding="utf-8") as file:
-
         file.write("Geometry ensight6 file\n")
         file.write(f"{name}\n")
         file.write("node id assign\n")
@@ -311,14 +346,12 @@ def Save_mesh(
         np.savetxt(file, mesh.coord, fmt="%12.5e", delimiter="")
 
         for part in parts:
-
             for tag, (groupElem, elements) in dict_tags.items():
-
                 if dict_tags_converter[tag] != part:
                     continue
 
                 # write part (starts at 1)
-                file.write(f"part{get_line(part+offset)}\n")
+                file.write(f"part{get_line(part + offset)}\n")
                 # write description
                 file.write(f"{groupElem.topology}_subdomain {tag}\n")
                 # write ensight name

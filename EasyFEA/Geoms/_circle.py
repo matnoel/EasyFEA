@@ -290,9 +290,9 @@ class CircleArc(_Geom):
 
         r1 = np.linalg.norm((pt1 - center).coord)
         r2 = np.linalg.norm((pt2 - center).coord)
-        assert (
-            r1 - r2
-        ) ** 2 / r2**2 <= 1e-12, "The given center doesn't have the right coordinates. If the center coordinate is difficult to identify, you can give:\n - the radius R with the vector normal to the circle n\n - another point belonging to the circle."
+        assert (r1 - r2) ** 2 / r2**2 <= 1e-12, (
+            "The given center doesn't have the right coordinates. If the center coordinate is difficult to identify, you can give:\n - the radius R with the vector normal to the circle n\n - another point belonging to the circle."
+        )
 
         # Here we'll create an intermediate point, because in gmsh, circular arcs are limited to an pi angle.
 

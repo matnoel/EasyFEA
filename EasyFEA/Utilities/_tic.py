@@ -15,7 +15,6 @@ if CAN_USE_MPI:
 
 
 class Tic:
-
     __get_time = MPI.Wtime if CAN_USE_MPI else time.perf_counter
 
     def __init__(self):

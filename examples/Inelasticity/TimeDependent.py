@@ -122,9 +122,9 @@ for A in (1e-3, 1e-2, 1e-1):
     print(
         f"Norton A = {A:<6g} ends at {sig[-1]:7.3f}, rate-independent {rateIndependent:7.3f}"
     )
-    assert (
-        abs(sig[-1] - rateIndependent) < 1e-6
-    ), "relaxation missed the rate-independent limit"
+    assert abs(sig[-1] - rateIndependent) < 1e-6, (
+        "relaxation missed the rate-independent limit"
+    )
 
 ax.axhline(rateIndependent, ls=":", c="k", lw=0.8)
 ax.text(time[-1], rateIndependent, "rate-independent limit ", ha="right", va="top")
@@ -163,9 +163,9 @@ for held in (1.2 * sigma_y, 1.4 * sigma_y):
     exact = A * (held - sigma_y) / sigma_y
     rate = np.diff(eps) / dt
     print(f"creep at {held:5.0f} MPa: rate {rate.mean():.6e}, exact {exact:.6e}")
-    assert (
-        np.max(np.abs(rate - exact)) < 1e-12
-    ), "creep is not stationary at the Norton rate"
+    assert np.max(np.abs(rate - exact)) < 1e-12, (
+        "creep is not stationary at the Norton rate"
+    )
 
 ax.set_xlabel("time")
 ax.set_ylabel("axial strain [%]")

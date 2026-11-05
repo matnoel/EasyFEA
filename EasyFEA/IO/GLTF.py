@@ -152,7 +152,6 @@ class Data:
         # - get buffer views index
 
         if isinstance(data, np.ndarray):
-
             bufferData = self.__get_buffer_data(data)
             byteLength = len(bufferData)
 
@@ -332,7 +331,6 @@ def Save_simu(
     iterations = np.linspace(0, Niter - 1, N, endpoint=True, dtype=int)
 
     for result in results:
-
         # init list
         list_displacementMatrix: list[np.ndarray] = []
         list_nodesValues_n: list[np.ndarray] = []
@@ -499,7 +497,6 @@ def Save_mesh(
         channels: list[pygltflib.AnimationChannel] = []
 
     for i in range(Niter):
-
         if updatedMesh:
             mesh = list_mesh[i]
 

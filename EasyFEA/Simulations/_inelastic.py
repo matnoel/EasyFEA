@@ -82,9 +82,9 @@ class InElastic(_Simu):
         """Sets external variables for the next solves, each a scalar or a ``(Nn,)`` nodal field on this mesh, e.g. ``T=thermal.thermal``; results show them once solved."""
         Nn = self.mesh.Nn
         for name, v in values.items():
-            assert (
-                name in self.material.externalNames
-            ), f"{type(self.material).__name__} reads no '{name}'"
+            assert name in self.material.externalNames, (
+                f"{type(self.material).__name__} reads no '{name}'"
+            )
             v = np.asarray(v, dtype=float)
             v = np.full(Nn, float(v)) if v.ndim == 0 else v.copy()
             assert v.shape == (Nn,), f"'{name}' must be a scalar or a (Nn,) array"
@@ -135,9 +135,9 @@ class InElastic(_Simu):
             return self.material.Virgin_internals_e_pg(groupElem.Ne, nPg)
         internal = self.__internal.get(groupElem)
         # they could be projected onto the new mesh instead
-        assert (
-            internal is not None
-        ), "the internal variables cannot follow a mesh change"
+        assert internal is not None, (
+            "the internal variables cannot follow a mesh change"
+        )
         return internal
 
     def __Solved_external(self) -> dict[str, _types.FloatArray]:
@@ -149,9 +149,9 @@ class InElastic(_Simu):
     ) -> dict[str, FeArray.FeArrayALike]:
         """The nodal ``external``, interpolated at the Gauss points."""
         # they could be interpolated onto the new mesh instead
-        assert all(
-            v.size == groupElem.Ncoords for v in external.values()
-        ), "the external variables cannot follow a mesh change - set them again"
+        assert all(v.size == groupElem.Ncoords for v in external.values()), (
+            "the external variables cannot follow a mesh change - set them again"
+        )
         return {
             name: groupElem.Interpolate_e_pg(v, MatrixType.rigi)
             for name, v in external.items()
@@ -182,9 +182,9 @@ class InElastic(_Simu):
         self, matrixType: MatrixType = MatrixType.rigi
     ) -> FeArray.FeArrayALike | dict:
         """Stress (Ne, pg, 3 or 6) under the committed internal state: an ``FeArray`` on one group, ``{groupElem: FeArray}`` on several."""
-        assert (
-            matrixType == MatrixType.rigi
-        ), "the internal state lives at the rigi points"
+        assert matrixType == MatrixType.rigi, (
+            "the internal state lives at the rigi points"
+        )
         return _Field_per_groupElem(
             lambda groupElem: self.material.Compute_Sigma(
                 Kinematics(

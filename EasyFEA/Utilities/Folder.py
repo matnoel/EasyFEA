@@ -77,9 +77,9 @@ def __Get_pythonScript():
                         "sphinx_gallery may change over time; look out for `execute_script` or `execute_code_block` functions."
                     )
         # make sure that the file is detected
-        assert (
-            pythonScript is not None
-        ), "`execute_code_block` function was not detected"
+        assert pythonScript is not None, (
+            "`execute_code_block` function was not detected"
+        )
 
     else:
         pythonScript = stack[2].filename
@@ -100,9 +100,9 @@ def Results_Dir() -> str:
     path = Path(pythonScript)
     assert path.exists(), f"{pythonScript} does not exist."
     assert path.is_file(), f"{pythonScript} must be a file."
-    assert (
-        Join(EASYFEA_DIR, "EasyFEA") not in pythonScript
-    ), "You cannot write results in the src directory; therefore, you should not use this function in the src files."
+    assert Join(EASYFEA_DIR, "EasyFEA") not in pythonScript, (
+        "You cannot write results in the src directory; therefore, you should not use this function in the src files."
+    )
 
     return Join(Dir(pythonScript), "results", path.stem)
 

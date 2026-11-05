@@ -34,7 +34,6 @@ def Plot(simu: Elastic, result: str, img=None, title="", plotMesh=True):
 
 
 if __name__ == "__main__":
-
     # ----------------------------------------------
     # Config
     # ----------------------------------------------
@@ -90,7 +89,6 @@ if __name__ == "__main__":
     simu = Elastic(mesh, Models.Elastic.Isotropic(2, E=1, v=0.3))
 
     for image in images[1:]:
-
         imgStr = image.removeprefix(imagesDir)
         print(f"\n {imgStr}")
         img = np.asarray(Image.open(image), dtype=int)

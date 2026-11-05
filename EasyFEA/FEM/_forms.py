@@ -75,14 +75,12 @@ class BiLinearForm(_Form):
 
         # loop over u dofs
         for i in dofs:
-
             # activate node and dof for u
             u._Set_current_active_node(nodes[i])
             u._Set_current_active_dof(i % dof_n)
 
             # loop over v dofs
             for j in dofs:
-
                 # activate node and dof for v
                 v._Set_current_active_node(nodes[j])
                 v._Set_current_active_dof(j % dof_n)
@@ -158,7 +156,6 @@ class LinearForm(_Form):
 
         # loop over u dofs
         for i in dofs:
-
             # activate node and dof for v
             v._Set_current_active_node(nodes[i])
             v._Set_current_active_dof(i % dof_n)

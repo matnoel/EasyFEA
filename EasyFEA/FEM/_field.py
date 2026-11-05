@@ -115,9 +115,9 @@ class Field:
 
     def _Set_dofsValues(self, values: _types.FloatArray):
         Ndof = self.groupElem.Ncoords * self.__dof_n
-        assert (
-            values.ndim == 1 and values.size == Ndof
-        ), f"must be a ({Ndof},) array but is a {values.shape} array."
+        assert values.ndim == 1 and values.size == Ndof, (
+            f"must be a ({Ndof},) array but is a {values.shape} array."
+        )
         self.__dofsValues = values
 
     def __mul__(self, other) -> FeArray.FeArrayALike:

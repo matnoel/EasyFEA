@@ -147,9 +147,9 @@ def BeamBending(
     :func:`BeamShear` to get the full Timoshenko stiffness, or call
     :func:`BeamStiffness` directly.
     """
-    assert isinstance(
-        groupElem, (_EulerBernoulli, _Timoshenko)
-    ), "groupElem must be a beam element group."
+    assert isinstance(groupElem, (_EulerBernoulli, _Timoshenko)), (
+        "groupElem must be a beam element group."
+    )
 
     matrixType = MatrixType.beam
     wJ_e_pg = groupElem.Get_weightedJacobian_e_pg(matrixType)
@@ -180,9 +180,9 @@ def BeamShear(
     the non-shear rows of ``D`` zeroed. This is the selective-reduced-
     integration cure for Timoshenko shear locking.
     """
-    assert isinstance(
-        groupElem, (_EulerBernoulli, _Timoshenko)
-    ), "groupElem must be a beam element group."
+    assert isinstance(groupElem, (_EulerBernoulli, _Timoshenko)), (
+        "groupElem must be a beam element group."
+    )
 
     dof_n = beamStructure.dof_n
     Ne = groupElem.Ne
@@ -216,9 +216,9 @@ def BeamStiffness(
     Gauss) + shear (reduced Gauss) via :func:`BeamBending` and
     :func:`BeamShear` to defeat shear locking.
     """
-    assert isinstance(
-        groupElem, (_EulerBernoulli, _Timoshenko)
-    ), "groupElem must be a beam element group."
+    assert isinstance(groupElem, (_EulerBernoulli, _Timoshenko)), (
+        "groupElem must be a beam element group."
+    )
 
     dim = beamStructure.dim
     if dim != 1 and isinstance(groupElem, _Timoshenko):
@@ -246,9 +246,9 @@ def BeamMass(
     ``rho`` of the simulation; may be scalar, ``(Ne,)`` or
     ``(Ne, nPg)`` — broadcast via :meth:`FeArray.broadcast`.
     """
-    assert isinstance(
-        groupElem, (_EulerBernoulli, _Timoshenko)
-    ), "groupElem must be a beam element group."
+    assert isinstance(groupElem, (_EulerBernoulli, _Timoshenko)), (
+        "groupElem must be a beam element group."
+    )
 
     matrixType = MatrixType.beam
     wJ_e_pg = groupElem.Get_weightedJacobian_e_pg(matrixType)
