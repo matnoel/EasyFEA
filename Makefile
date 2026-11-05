@@ -3,12 +3,12 @@ MD = $(shell git ls-files '*.md')
 .PHONY: format lint test-mpi
 
 format:
-	black .
 	ruff check --fix .
+	ruff format .
 	mdformat $(MD)
 
 lint:
-	black --check .
+	ruff format --check .
 	ruff check .
 	lint-imports
 	mdformat --check $(MD)
