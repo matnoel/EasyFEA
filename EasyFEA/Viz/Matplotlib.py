@@ -1134,7 +1134,7 @@ def Plot_BoundaryConditions(
                 ax=ax,
             )
 
-    plotDim = np.max([simu.mesh.inDim, 2])
+    plotDim = 3 if ax.name == "3d" else 2
 
     for bc in BoundaryConditions:
         dofsValues = bc.dofsValues

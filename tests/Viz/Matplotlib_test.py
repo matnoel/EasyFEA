@@ -12,7 +12,7 @@ from matplotlib.quiver import Quiver
 from mpl_toolkits.mplot3d.art3d import Poly3DCollection
 from PIL import Image
 
-from EasyFEA import ElemType, Matplotlib, Mesh, Models, Simulations, Tic
+from EasyFEA import ElemType, Matplotlib, Mesh, Mesher, Models, Simulations, Tic
 from EasyFEA.FEM import GroupElemFactory
 from EasyFEA.Geoms import Circle, CircleArc, Domain, Line, Point
 
@@ -611,6 +611,22 @@ def test_Plot_BoundaryConditions_marks_a_beam_connection_with_a_dot(frame_simu):
 
     markers = _markers(ax)
     assert markers["Connection Hinged [x, y]"] == "o"
+
+
+def test_Plot_BoundaryConditions_draws_the_z_load_of_a_3D_beam_in_a_plane():
+    # planar geometry, 3D axes
+    domain = Domain((-0.1, -0.1), (0.1, 0.1))
+    section = domain.Mesh_2D([], ElemType.TRI3)
+    beam = Models.Beam.Isotropic(3, Line((0, 0), (0, L), L), section, 210e3, 0.3)
+    mesh = Mesher().Mesh_Beams([beam])
+    simu = Simulations.Beam(mesh, Models.Beam.BeamStructure([beam]))
+    simu.add_neumann(mesh.Nodes_Point((0, L)), [-1.0, 1.0], ["y", "z"])
+
+    ax = Matplotlib.Plot_BoundaryConditions(simu)
+
+    assert ax.name == "3d"
+    arrows = np.asarray(ax.collections[-1]._segments3d)
+    assert np.ptp(arrows[..., 2]) > 0
 
 
 # ----------------------------------------------
