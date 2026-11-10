@@ -487,6 +487,10 @@ class PhaseField(_Simu):
         """Computes the damage field."""
 
         if self.phaseFieldModel.solver == Models.PhaseField.SolverType.BoundConstrain:
+            if MPI_SIZE > 1:
+                raise NotImplementedError(
+                    "BoundConstrain bounds the damage with lsq_linear, which is serial: use History or HistoryDamage under MPI."
+                )
             self.solver = SolverType.lsq_linear
         self._Solver_Solve_problemType(self.D)
 
