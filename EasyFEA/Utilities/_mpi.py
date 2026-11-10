@@ -24,7 +24,8 @@ _MPI_LAUNCHER_VARS = [
 ]
 _UNDER_MPIRUN = any(os.environ.get(v) for v in _MPI_LAUNCHER_VARS)
 
-if _UNDER_MPIRUN:
+# EASYFEA_MPI=off: every rank runs its own serial simulation, e.g. a parameter sweep the script spreads with mpi4py
+if _UNDER_MPIRUN and os.environ.get("EASYFEA_MPI", "").lower() != "off":
     try:
         from mpi4py import MPI
 

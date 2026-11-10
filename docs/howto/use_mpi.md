@@ -105,6 +105,28 @@ default) and use `simu.Results_Set_Iteration_Summary(...)` to control progress
 reporting.
 ```
 
+### Run independent simulations
+
+To run several serial simulations at once, one per rank (a parameter sweep), set
+`EASYFEA_MPI=off`. EasyFEA then ignores the launcher: no partition, any solver, and the
+script spreads the cases over the ranks with `mpi4py` itself:
+
+```python
+from mpi4py import MPI
+
+comm = MPI.COMM_WORLD
+for E in list_E[comm.Get_rank() :: comm.Get_size()]:
+    simu = Simulations.Elastic(mesh, Models.Elastic.Isotropic(3, E=E, v=0.3))
+    ...
+    simu.Save(f"results/E{E}")
+```
+
+```bash
+EASYFEA_MPI=off mpirun -n 4 python my_sweep.py
+```
+
+Each rank writes the files of a serial run: give each case its own folder.
+
 ______________________________________________________________________
 
 ## How parallelism works in EasyFEA
