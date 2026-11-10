@@ -1252,12 +1252,16 @@ class _Simu(_IObserver, _params.Updatable, ABC):
     @solver.setter
     def solver(self, value: str):
         solvers = list(SolverType)
-        if value in solvers:
-            self.__solver = value
-        else:
+        if value not in solvers:
             Terminal.MyPrintError(
                 f"The solver {value} cannot be used. The solver must be in {solvers}"
             )
+        elif MPI_SIZE > 1 and value != SolverType.petsc:
+            raise ValueError(
+                f"Only petsc solves a system distributed over the ranks, not {value}."
+            )
+        else:
+            self.__solver = value
 
     def Solver_Set_Elliptic_Algorithm(self) -> None:
         r"""Sets the algorithm's resolution properties for an elliptic problem.

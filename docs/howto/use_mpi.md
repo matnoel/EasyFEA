@@ -274,8 +274,8 @@ ______________________________________________________________________
 
 ## Known limitations
 
-- **Serial-only solvers.** The `scipy` and `pypardiso` solvers are not available in MPI
-  mode. `petsc4py` is the only supported solver when `MPI_SIZE > 1`.
+- **Serial-only solvers.** Setting any solver other than `petsc` raises in MPI mode.
+  `petsc4py` is the only supported solver when `MPI_SIZE > 1`.
 
 - **Beam simulations.** {py:class}`~EasyFEA.Simulations.Beam` simulations are not yet
   supported in MPI mode. The {py:class}`~EasyFEA.Models.Beam.Isotropic` material
