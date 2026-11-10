@@ -91,8 +91,8 @@ class BiLinearForm(_Form):
                 # sum on gauss points
                 values_e = (values_e_pg * dX_e_pg).integrate()
 
-                # add data
-                data[:, i, j] = values_e
+                # rows are test functions (v), columns trial functions (u)
+                data[:, j, i] = values_e
 
         return data
 
