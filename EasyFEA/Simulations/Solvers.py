@@ -542,8 +542,8 @@ def __Solver_1_mpi_indices(
 
 
 def __Residual_norm(b_owned: _types.FloatArray) -> float:
-    """Residual norm summed over ranks; raises on NaN/Inf"""
-    rhsNorm = Reduce_sum(np.linalg.norm(b_owned))
+    """Residual 2-norm over all ranks, the root of the summed squares; raises on NaN/Inf"""
+    rhsNorm = float(np.sqrt(Reduce_sum(np.linalg.norm(b_owned) ** 2)))
     if not np.isfinite(rhsNorm):
         raise FloatingPointError("The residual has NaN or Inf entries.")
     return rhsNorm
