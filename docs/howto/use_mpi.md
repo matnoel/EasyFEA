@@ -142,11 +142,11 @@ The parallel execution proceeds as follows for each solve:
 
 1. Each rank assembles only its owned (and ghost) elements into their global sparse
    matrices (K, C, M) and load vector (F).
-2. PETSc solves the distributed system $\Arm \, \xrm = \brm$ using a Krylov method
-   (default: CG with GAMG preconditioner).
+2. PETSc solves the distributed system $\Arm \, \xrm = \brm$ with the solver set per
+   problem (see {ref}`mpi-tune-solver`).
 3. An `Allgatherv` of each rank's owned DOFs reconstructs the full solution vector on
-   **every** rank. Consequently, all ranks hold the same, complete
-   DOF result after each solve.
+   **every** rank. Consequently, all ranks hold the same, complete DOF result after each
+   solve.
 
 The partition data for each element group ({py:class}`~EasyFEA.FEM._GroupElem`) can be
 inspected via {py:meth}`~EasyFEA.FEM._GroupElem._Get_partitioned_data`.
@@ -156,8 +156,8 @@ inspected via {py:meth}`~EasyFEA.FEM._GroupElem._Get_partitioned_data`.
 {py:meth}`~EasyFEA.Simulations._Simu.Save_Iter` stores only the primary unknowns per
 iteration (e.g. displacement for elastic simulations, displacement and damage for
 phase-field). Derived quantities such as stress and strain are not stored — they are
-recomputed on demand by `Result()`. Because all ranks hold the same DOF vector after the
-solve, only rank 0 writes the result file.
+recomputed on demand by `Result()`. With a folder, each rank writes its own file
+(`results{i}_rank{N}.pickle`): element-sized fields describe the rank's own partition.
 
 Iteration results are kept in **memory** by default. To write them to **disk** and
 prevent memory issues, provide a folder at construction time or set it afterward:
@@ -193,9 +193,11 @@ ______________________________________________________________________
 
 ## Tune the linear solver
 
-The default solver (`cg` + `gamg`) is a good general-purpose choice for both serial and
-parallel execution. For large meshes or specific problem types, it can be tuned via the
-advanced method {py:meth}`~EasyFEA.Simulations._Simu._Solver_Set_PETSc4Py_Options`.
+The default depends on the problem: `cg` + `gamg` for a scalar one, a direct LU
+(`superlu_dist`, else `mumps`) for a vector one, `cg` + `gamg` again when no parallel
+direct solver is installed. For large meshes or specific problem types, it can be tuned
+via the advanced method
+{py:meth}`~EasyFEA.Simulations._Simu._Solver_Set_PETSc4Py_Options`.
 
 A direct factorization is requested with `kspType="preonly"` and `pcType="lu"`, the
 factorization itself being performed by `solverType`. MUMPS and SuperLU_DIST both run
