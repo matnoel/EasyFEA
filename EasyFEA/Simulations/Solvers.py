@@ -256,7 +256,7 @@ def _Solve_Axb(
     ownedDofs : _types.IntArray, optional
         Indices (into A/b) owned by this rank, by defaut None.Must be disjoint across ranks and together cover all N rows
     mapping : _types.IntArray, optional
-        index in A/b -> PETSc global column index, by default None. When provided (built locally from the cached full-space ordering), `_PETSc_MPI` skips the per-solve Allgather; left None for the r3 fallback.
+        index in A/b -> PETSc global column index, by default None. When None under MPI, built here from the global DOF ordering (one Allgatherv per solve, not cached).
 
     Returns
     -------
@@ -335,9 +335,8 @@ def _Solve_Axb(
                     ownedDofs = np.where(np.isin(dofsUnknown, dofs))[0]
                 elif resol == ResolType.r3:
                     # Full penalized system: owned DOFs in PETSc order + the
-                    # DOF->PETSc mapping, both from the cached global DOF ordering.
-                    # No collective at all (no reduction, so no Allreduce; mapping
-                    # is local, so no Allgather).
+                    # DOF->PETSc mapping, both from the global DOF ordering
+                    # (one Allgatherv, rebuilt every solve).
                     fullOrdering = __Get_global_dof_ordering(simu, problemType)
                     isOwned = np.zeros(fullOrdering.size, dtype=bool)
                     isOwned[dofs] = True
@@ -807,7 +806,7 @@ def _PETSc_MPI(
         Indices (into A/b) owned by this rank. Must be disjoint across ranks and
         together cover all N rows.
     mapping : _types.IntArray, optional
-        index in A/b -> PETSc global column index, by default None. When None it is rebuilt here via an Allgather (r3 fallback); the r1 path passes it in precomputed to avoid the per-solve collective.
+        index in A/b -> PETSc global column index, by default None. When None it is rebuilt here via an Allgather; `_Solve_Axb` always passes it, built from the global DOF ordering.
     kspType : str, optional
         PETSc Krylov method, by default "cg"
         e.g. 'cg', 'bicg', 'gmres', 'bcgs', 'groppcg', ...\n
@@ -839,10 +838,9 @@ def _PETSc_MPI(
     Ndof_r = ownedDofs.size
 
     # mapping: index in A/b → PETSc global column index.
-    # Normally supplied by the caller (built locally from the cached full-space
-    # ordering — no collective). Only the r3 fallback leaves it None, in which
-    # case we rebuild it here via an Allgather (petscOrdering: rank-0 ownedDofs
-    # first, rank-1 next, …).
+    # Normally supplied by the caller (from the global DOF ordering, one
+    # Allgatherv). When None, rebuilt here via an Allgather (petscOrdering:
+    # rank-0 ownedDofs first, rank-1 next, …).
     if mapping is None:
         petscOrdering = Concatenate_array(ownedDofs)
         mapping = np.empty(Ndof, dtype=int)
@@ -900,7 +898,7 @@ def _PETSc_MPI(
     ksp.solve(rhs, x)
 
     # Build partial solution vector: owned DOFs filled, non-owned stay 0.
-    # Allreduce (SUM) across ranks is done in _Solver_Update_solutions.
+    # Solve_simu gathers the owned slices of every rank (Sync_dofsValues, Allgatherv).
     dofsValues = np.zeros(Ndof, dtype=float)
     dofsValues[ownedDofs] = x.array
 

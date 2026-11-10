@@ -120,8 +120,8 @@ The parallel execution proceeds as follows for each solve:
    matrices (K, C, M) and load vector (F).
 2. PETSc solves the distributed system $\Arm \, \xrm = \brm$ using a Krylov method
    (default: CG with GAMG preconditioner).
-3. An `Allreduce` over the disjoint owned DOF sets of each rank reconstructs the full
-   solution vector on **every** rank. Consequently, all ranks hold the same, complete
+3. An `Allgatherv` of each rank's owned DOFs reconstructs the full solution vector on
+   **every** rank. Consequently, all ranks hold the same, complete
    DOF result after each solve.
 
 The partition data for each element group ({py:class}`~EasyFEA.FEM._GroupElem`) can be
