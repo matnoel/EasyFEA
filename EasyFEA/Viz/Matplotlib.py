@@ -1551,6 +1551,11 @@ def Plot_Energy(
 
     simu = _Init_obj(simu)[0]  # type: ignore [assignment]
 
+    if not simu.isGathered:
+        raise ValueError(
+            "Under MPI, Plot_Energy needs the gathered simulation: call `simu._Gather()` first."
+        )
+
     # First we check whether the simulation can calculate energies
     if len(simu.Results_dict_Energy()) == 0:
         print("This simulation don't calculate energies.")

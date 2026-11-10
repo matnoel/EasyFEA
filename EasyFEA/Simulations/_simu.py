@@ -280,7 +280,8 @@ class _Simu(_IObserver, _params.Updatable, ABC):
         if dofs is None:
             dofs = self.Get_dofs()
 
-        return Reduce_sum(0.5 * x[dofs] @ (A[dofs] @ x))
+        energy = 0.5 * x[dofs] @ (A[dofs] @ x)
+        return energy if self.isGathered else Reduce_sum(energy)
 
     def Calc_Reaction(
         self, dofs: _types.IntArray = None, problemType: ProblemType = None
@@ -293,7 +294,7 @@ class _Simu(_IObserver, _params.Updatable, ABC):
         Returns
         -------
         np.ndarray
-            Serial: the values at `dofs`, shape `(len(dofs),)`.
+            Serial or gathered: the values at `dofs`, shape `(len(dofs),)`.
             MPI: the full `(Ndof,)` vector, zero away from `dofs`.
 
             The shapes differ deliberately. `dofs` is normally built from `Nodes_Conditions` or a node
@@ -327,10 +328,10 @@ class _Simu(_IObserver, _params.Updatable, ABC):
             reaction[dofs] += C[dofs] @ self._Get_v_n(problemType)
             reaction[dofs] += M[dofs] @ self._Get_a_n(problemType)
 
-        if MPI_SIZE > 1:
-            return Reduce_sum(reaction)
-        else:
+        if self.isGathered:
             return reaction[dofs]
+        else:
+            return Reduce_sum(reaction)
 
     @abstractmethod
     def Get_x0(self, problemType: ProblemType | None = None) -> _types.FloatArray:
@@ -1674,6 +1675,11 @@ class _Simu(_IObserver, _params.Updatable, ABC):
     ) -> _types.FloatArray:
         """Solves the monolithic problem holding `problemType`.\n
         It is recommended to call the resolution via the Solve() function."""
+
+        if MPI_SIZE > 1 and self.isGathered:
+            raise RuntimeError(
+                "Under MPI, Solve needs a partitioned mesh: mesh under mpirun, or load one saved partitioned, and solve before `_Gather`."
+            )
 
         problem = self._Get_monolithic_problem(problemType)
         if isinstance(problem, tuple):

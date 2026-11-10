@@ -524,7 +524,7 @@ class PhaseField(_Simu):
         space = self._Get_FunctionSpace(self.D)
         d_nodes = space.Get_nodeValues(self.damage, 1)[nodes]
         detected = bool(d_nodes.size > 0 and np.any(d_nodes >= threshold))
-        if MPI_SIZE > 1:
+        if not self.isGathered:
             detected = MPI_COMM.allreduce(detected, op=MPI.LOR)
         return detected
 
@@ -735,7 +735,9 @@ class PhaseField(_Simu):
             dofs = self.Get_dofs(problemType=self.U)
             with np.errstate(divide="ignore", over="ignore", invalid="ignore"):
                 # no operator and no 1/2, so this one is a plain reduction rather than Calc_Energy
-                Psi_Ext = Reduce_sum(u_n[dofs] @ f_n[dofs])
+                Psi_Ext = float(u_n[dofs] @ f_n[dofs])
+                if not self.isGathered:
+                    Psi_Ext = Reduce_sum(Psi_Ext)
 
         tic.Tac("PostProcessing", "Calc Psi Ext", False)
 
