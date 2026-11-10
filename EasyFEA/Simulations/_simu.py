@@ -2144,8 +2144,10 @@ class _Simu(_IObserver, _params.Updatable, ABC):
         dofs = self.__Compose(problemType, self.Bc_dofs_Dirichlet, isDofs=True)
         size = self.__Get_size(problemType)
 
-        if len(self.mesh.orphanNodes) > 0:
-            # add 1.0 to orphan dofs — orphan rows are zero, so addition sets the diagonal; only the orphans carrying a DOF (under MPI the nodes off this rank, TETRA10 mid nodes under P1 among them)
+        # PETSc under MPI reads only the owned rows, and a rank never owns a node its elements miss
+        skipOrphans = MPI_SIZE > 1 and self.solver == SolverType.petsc
+        if len(self.mesh.orphanNodes) > 0 and not skipOrphans:
+            # add 1.0 to orphan dofs — orphan rows are zero, so addition sets the diagonal; only the orphans carrying a DOF (TETRA10 mid nodes under P1 skipped)
             orphans = np.asarray(self.mesh.orphanNodes, dtype=int)
             orphanDofs = self.__Compose(
                 problemType,
