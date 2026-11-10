@@ -79,8 +79,10 @@ Any EasyFEA script runs in parallel without modification. Use `mpirun` (or `mpie
 with the desired number of processes:
 
 ```bash
-mpirun -n 4 python my_simulation.py
+mpirun -n 4 python -m mpi4py my_simulation.py
 ```
+
+`-m mpi4py` aborts every rank when one raises, instead of leaving the others blocked.
 
 `mpirun`, `mpi4py` and PETSc must come from the same MPI. Launching processes with the
 `mpirun` of another one aborts with
