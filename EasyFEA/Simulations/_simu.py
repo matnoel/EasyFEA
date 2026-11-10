@@ -863,18 +863,10 @@ class _Simu(_IObserver, _params.Updatable, ABC):
         assert values.shape[0] == size, f"Must be size {size}"
 
     def _Get_u_n(
-        self,
-        problemType: ProblemType | tuple[ProblemType, ...],
-        asCsrMatrix: bool = False,
-    ) -> _types.FloatArray | sparse.csr_matrix:
+        self, problemType: ProblemType | tuple[ProblemType, ...]
+    ) -> _types.FloatArray:
         """Returns the solution associated with the given problem, its fields end to end."""
-        arr = self.__Compose(problemType, self.__dict_u_n.__getitem__).copy()
-        if not asCsrMatrix:
-            return arr
-        Ndof = self.__Get_Ndof(problemType)
-        rows = np.arange(arr.size, dtype=int)
-        cols = np.zeros_like(rows)
-        return sparse.csr_matrix((arr, (rows, cols)), shape=(Ndof, 1))
+        return self.__Compose(problemType, self.__dict_u_n.__getitem__).copy()
 
     def __Set_u_n(self, problemType: ProblemType, values: _types.FloatArray) -> None:
         """Sets the solution associated with the given problem."""
@@ -882,18 +874,10 @@ class _Simu(_IObserver, _params.Updatable, ABC):
         self.__dict_u_n[problemType] = values
 
     def _Get_v_n(
-        self,
-        problemType: ProblemType | tuple[ProblemType, ...],
-        asCsrMatrix: bool = False,
-    ) -> _types.FloatArray | sparse.csr_matrix:
+        self, problemType: ProblemType | tuple[ProblemType, ...]
+    ) -> _types.FloatArray:
         """Returns the speed solution associated with the given problem, its fields end to end."""
-        arr = self.__Compose(problemType, self.__dict_v_n.__getitem__).copy()
-        if not asCsrMatrix:
-            return arr
-        Ndof = self.__Get_Ndof(problemType)
-        rows = np.arange(arr.size, dtype=int)
-        cols = np.zeros_like(rows)
-        return sparse.csr_matrix((arr, (rows, cols)), shape=(Ndof, 1))
+        return self.__Compose(problemType, self.__dict_v_n.__getitem__).copy()
 
     def __Set_v_n(self, problemType: ProblemType, values: _types.FloatArray) -> None:
         """Sets the speed solution associated with the given problem."""
@@ -901,18 +885,10 @@ class _Simu(_IObserver, _params.Updatable, ABC):
         self.__dict_v_n[problemType] = values
 
     def _Get_a_n(
-        self,
-        problemType: ProblemType | tuple[ProblemType, ...],
-        asCsrMatrix: bool = False,
-    ) -> _types.FloatArray | sparse.csr_matrix:
+        self, problemType: ProblemType | tuple[ProblemType, ...]
+    ) -> _types.FloatArray:
         """Returns the acceleration solution associated with the given problem, its fields end to end."""
-        arr = self.__Compose(problemType, self.__dict_a_n.__getitem__).copy()
-        if not asCsrMatrix:
-            return arr
-        Ndof = self.__Get_Ndof(problemType)
-        rows = np.arange(arr.size, dtype=int)
-        cols = np.zeros_like(rows)
-        return sparse.csr_matrix((arr, (rows, cols)), shape=(Ndof, 1))
+        return self.__Compose(problemType, self.__dict_a_n.__getitem__).copy()
 
     def __Set_a_n(self, problemType: ProblemType, values: _types.FloatArray) -> None:
         """Sets the acceleration solution associated with the given problem."""
@@ -1950,7 +1926,7 @@ class _Simu(_IObserver, _params.Updatable, ABC):
 
     def _Solver_Apply_Neumann(
         self, problemType: ProblemType | tuple[ProblemType, ...]
-    ) -> sparse.csr_matrix:
+    ) -> _types.FloatArray:
         """Fill in the Neumann boundary conditions by constructing b from A x = b.
 
         Parameters
@@ -1960,8 +1936,8 @@ class _Simu(_IObserver, _params.Updatable, ABC):
 
         Returns
         -------
-        sparse.csr_matrix
-            The b vector as a csr_matrix.
+        _types.FloatArray
+            The b vector (Ndof,), Lagrange rows included.
         """
 
         algo = self.algo
@@ -1969,20 +1945,21 @@ class _Simu(_IObserver, _params.Updatable, ABC):
         dofsValues = self.__Compose(problemType, self.Bc_values_Neumann)
         Ndof = self.__Get_Ndof(problemType)
 
-        b = sparse.csr_matrix(
-            (dofsValues, (dofs, np.zeros(len(dofs)))), shape=(Ndof, 1)
-        )
-
         K, C, M, F = self.Get_K_C_M_F(problemType)
 
         tic = Tic()
 
-        if algo is not AlgoType.elliptic:
-            u_n = self._Get_u_n(problemType, asCsrMatrix=True)
-            v_n = self._Get_v_n(problemType, asCsrMatrix=True)
-            a_n = self._Get_a_n(problemType, asCsrMatrix=True)
+        b = np.zeros(Ndof, dtype=np.result_type(F.dtype, K.dtype, float))
+        np.add.at(b, np.asarray(dofs, dtype=int), dofsValues)
+        b += F.toarray().ravel()
 
-        b += F
+        if algo is not AlgoType.elliptic:
+            # zero on the Lagrange rows
+            u_n, v_n, a_n = np.zeros((3, Ndof), dtype=b.dtype)
+            size = self.__Get_size(problemType)
+            u_n[:size] = self._Get_u_n(problemType)
+            v_n[:size] = self._Get_v_n(problemType)
+            a_n[:size] = self._Get_a_n(problemType)
 
         if self.isNonLinear:
             # The unknown is Δu and `F` is the complete residual -R(u), so b is already
@@ -2080,24 +2057,24 @@ class _Simu(_IObserver, _params.Updatable, ABC):
     def _Solver_Apply_Dirichlet(
         self,
         problemType: ProblemType | tuple[ProblemType, ...],
-        b: sparse.csr_matrix,
+        b: _types.FloatArray,
         resolution: ResolType,
-    ) -> tuple[sparse.csr_matrix, sparse.csr_matrix]:
+    ) -> tuple[sparse.csr_matrix, _types.FloatArray]:
         """Fill in the Dirichlet conditions by constructing A and x from A x = b.
 
         Parameters
         ----------
         problemType : ProblemType | tuple[ProblemType, ...]
             The type of problem, or a monolithic problem's fields.
-        b : sparse.csr_matrix
-            The b matrix.
+        b : _types.FloatArray
+            The b vector.
         resolution : ResolutionType
             The resolution type.
 
         Returns
         -------
-        tuple[sparse.csr_matrix, sparse.csr_matrix]
-            The A and x matrices.
+        tuple[sparse.csr_matrix, _types.FloatArray]
+            A, and x (the b vector for r3).
         """
 
         algo = self.algo
@@ -2139,7 +2116,7 @@ class _Simu(_IObserver, _params.Updatable, ABC):
         problemType: ProblemType | tuple[ProblemType, ...],
         resolution: ResolType,
         A: sparse.csr_matrix,
-        b: sparse.csr_matrix,
+        b: _types.FloatArray,
         dofsValues: _types.FloatArray,
     ):
         """Resizes the matrix system according to known degrees of freedom and resolution type.
@@ -2152,8 +2129,8 @@ class _Simu(_IObserver, _params.Updatable, ABC):
             The resolution type.
         A : sparse.csr_matrix
             The A matrix.
-        b : sparse.csr_matrix
-            The b matrix.
+        b : _types.FloatArray
+            The b vector.
         dofsValues : _types.FloatArray
             The values of known degrees of freedom.
 
@@ -2161,8 +2138,8 @@ class _Simu(_IObserver, _params.Updatable, ABC):
         -------
         sparse.csr_matrix
             The A matrix after resizing.
-        sparse.csr_matrix
-            The x matrix after resizing or b matrix if resolution == ResolType.r3.
+        _types.FloatArray
+            x, the known values at their dofs and 0 elsewhere, or b if resolution == ResolType.r3.
         """
         dofs = self.__Compose(problemType, self.Bc_dofs_Dirichlet, isDofs=True)
         size = self.__Get_size(problemType)
@@ -2187,11 +2164,8 @@ class _Simu(_IObserver, _params.Updatable, ABC):
 
         if resolution in [ResolType.r1, ResolType.r2]:
             # Here we return the solution with the known ddls
-            x = sparse.csr_matrix(
-                (dofsValues, (dofs, np.zeros_like(dofs))),
-                shape=(size, 1),
-                dtype=np.float64,
-            )
+            x = np.zeros(size, dtype=np.result_type(dofsValues, float))
+            np.add.at(x, np.asarray(dofs, dtype=int), dofsValues)
 
             return A, x
 
@@ -2205,9 +2179,8 @@ class _Simu(_IObserver, _params.Updatable, ABC):
             A = A + sparse.diags(diag, format="csr")
             A.eliminate_zeros()
 
-            b_arr = np.asarray(b.todense()).ravel()
-            b_arr[dofs] = dofsValues
-            b = sparse.csr_matrix(b_arr[:, np.newaxis])
+            b = b.copy()
+            b[dofs] = dofsValues
 
             return A, b
 

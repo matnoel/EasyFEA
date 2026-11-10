@@ -682,34 +682,6 @@ def test_Simu_Niter_counts_the_saved_iterations():
     assert simu.Niter == 3
 
 
-def _assert_column_covers_the_lagrange_rows(field: str) -> None:
-    """`field` as a CSR column is the dof vector, padded by one row per multiplier."""
-    simu = _beam(2)
-    nodes = simu.mesh.Nodes_Point((9, 0), (10, 0))
-    simu._Bc_Add_Lagrange(_tie(simu, nodes, "x"))
-    _inject(simu)
-    getter = getattr(simu, field)
-
-    values = getter(simu.problemType)
-    column = getter(simu.problemType, asCsrMatrix=True)
-
-    assert column.shape == (values.size + simu._Bc_Lagrange_dim(), 1)
-    assert values.any()
-    assert np.array_equal(column.toarray()[: values.size, 0], values)
-
-
-def test_Simu__Get_u_n_as_a_column_covers_the_lagrange_rows():
-    _assert_column_covers_the_lagrange_rows("_Get_u_n")
-
-
-def test_Simu__Get_v_n_as_a_column_covers_the_lagrange_rows():
-    _assert_column_covers_the_lagrange_rows("_Get_v_n")
-
-
-def test_Simu__Get_a_n_as_a_column_covers_the_lagrange_rows():
-    _assert_column_covers_the_lagrange_rows("_Get_a_n")
-
-
 def test_Simu_Get_lb_ub_bounds_only_a_bound_constrained_damage():
     simu = _phasefield()
     assert [b.size for b in simu.Get_lb_ub(simu.D)] == [0, 0]
@@ -1232,8 +1204,8 @@ def test_Simu__Solver_Apply_Neumann_is_the_load_when_static():
 
     b = simu._Solver_Apply_Neumann(simu.problemType)
 
-    assert b.shape == (simu.mesh.Nn * 2, 1)
-    assert np.array_equal(b.toarray().ravel(), simu.Bc_vector_Neumann())
+    assert b.shape == (simu.mesh.Nn * 2,)
+    assert np.array_equal(b, simu.Bc_vector_Neumann())
 
 
 def test_Simu__Solver_Apply_Dirichlet_holds_the_known_values():
@@ -1243,7 +1215,7 @@ def test_Simu__Solver_Apply_Dirichlet_holds_the_known_values():
     A, x = simu._Solver_Apply_Dirichlet(simu.problemType, b, "r1")
 
     assert (A != simu.Get_K_C_M_F()[0]).nnz == 0
-    assert np.array_equal(x.toarray().ravel(), simu.Bc_vector_Dirichlet())
+    assert np.array_equal(x, simu.Bc_vector_Dirichlet())
 
 
 INVALID_PETSC = {

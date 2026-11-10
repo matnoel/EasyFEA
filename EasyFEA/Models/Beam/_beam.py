@@ -343,8 +343,8 @@ class _Beam(_IModel):
 
         # uᵀ·f  ≡  ∫_S s · φ dS  ≡  ∫_S |∇φ|² dS  (energy identity)
         f = simu.Get_K_C_M_F()[3]
-        u = simu._Get_u_n(simu.problemType, asCsrMatrix=True)
-        integral = (u.T @ f)[0, 0]
+        u = simu._Get_u_n(simu.problemType)
+        integral = (f.T @ u).item()
         kappa = bending_inertia**2 / (section.area * integral)
         return kappa
 

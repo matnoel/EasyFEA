@@ -292,7 +292,7 @@ class PhaseField(_Simu):
         solver = self.phaseFieldModel.solver
 
         if convOption == 2:
-            fu = self._Solver_Apply_Neumann(self.U).toarray().ravel()
+            fu = self._Solver_Apply_Neumann(self.U)
             # A vector of zeros when no external body and surface forces are applied.
 
         tic = Tic()

@@ -227,7 +227,7 @@ def _Solve_Axb(
     simu: "_Simu",
     problemType: "ProblemType | tuple[ProblemType, ...]",
     A: sparse.csr_matrix,
-    b: sparse.csr_matrix,
+    b: _types.FloatArray,
     x0: _types.FloatArray,
     lb: _types.AnyArray | _types.Numbers,
     ub: _types.AnyArray | _types.Numbers,
@@ -245,8 +245,8 @@ def _Solve_Axb(
         Specify the problemType because a simulation can have several physcal models (such as a damage simulation); a tuple for a monolithic problem's fields.
     A : sparse.csr_matrix
         matrix A
-    b : sparse.csr_matrix
-        vector b
+    b : _types.FloatArray
+        vector b (N,)
     x0 : _types.FloatArray
         initial solution for iterative solvers
     lb : _types.AnyArra | _types.Numbers
@@ -267,8 +267,7 @@ def _Solve_Axb(
     if not isinstance(A, sparse.csr_matrix):
         A = sparse.csr_matrix(A)
 
-    if not isinstance(b, sparse.csr_matrix):
-        b = sparse.csr_matrix(b)
+    b = np.asarray(b).ravel()
 
     if len(simu.Bc_Lagrange) > 0:
         if MPI_SIZE > 1:
@@ -310,7 +309,7 @@ def _Solve_Axb(
     tic = Tic()
 
     if CAN_USE_PYPARDISO and solver == SolverType.pypardiso:
-        x = pypardiso.spsolve(A, b.toarray())
+        x = pypardiso.spsolve(A, b)
 
     elif solver == SolverType.petsc and _Get_PETSc() is not None:
         # get petsc4py options
@@ -362,16 +361,16 @@ def _Solve_Axb(
         x = sla.spsolve(A, b)
 
     elif solver == SolverType.cg:
-        x, output = sla.cg(A, b.toarray(), x0, maxiter=None)
+        x, output = sla.cg(A, b, x0, maxiter=None)
 
     elif solver == SolverType.bicg:
-        x, output = sla.bicg(A, b.toarray(), x0, maxiter=None)
+        x, output = sla.bicg(A, b, x0, maxiter=None)
 
     elif solver == SolverType.gmres:
-        x, output = sla.gmres(A, b.toarray(), x0, maxiter=None)
+        x, output = sla.gmres(A, b, x0, maxiter=None)
 
     elif solver == SolverType.lgmres:
-        x, output = sla.lgmres(A, b.toarray(), x0)
+        x, output = sla.lgmres(A, b, x0)
 
     elif solver == SolverType.lsq_linear:
         # constrained minimization
@@ -380,7 +379,12 @@ def _Solve_Axb(
         from scipy.optimize import lsq_linear
 
         x = lsq_linear(
-            A, b.toarray().ravel(), bounds=(lb, ub), tol=1e-10, method="trf", verbose=0
+            A,
+            b,
+            bounds=(lb, ub),
+            tol=1e-10,
+            method="trf",
+            verbose=0,
         )
         x = x["x"]
 
@@ -537,9 +541,9 @@ def __Solver_1_mpi_indices(
     return uniqueUnknown, ownedDofs, mapping
 
 
-def __Residual_norm(b_owned: sparse.csr_matrix) -> float:
+def __Residual_norm(b_owned: _types.FloatArray) -> float:
     """Residual norm summed over ranks; raises on NaN/Inf"""
-    rhsNorm = Reduce_sum(sla.norm(b_owned))
+    rhsNorm = Reduce_sum(np.linalg.norm(b_owned))
     if not np.isfinite(rhsNorm):
         raise FloatingPointError("The residual has NaN or Inf entries.")
     return rhsNorm
@@ -574,8 +578,8 @@ def __Solver_1(
     Ai = A[dofsUnknown, :].tocsc()
     Aii = Ai[:, dofsUnknown]
     Aic = Ai[:, dofsKnown]
-    bi = b[dofsUnknown, 0]
-    xc = x[dofsKnown, 0]
+    bi = b[dofsUnknown]
+    xc = x[dofsKnown]
 
     tic.Tac("Solver", f"System-built ({problemType})", simu._verbosity)
 
@@ -593,7 +597,6 @@ def __Solver_1(
     )
 
     # apply result to global vector
-    x = x.toarray().reshape(x.shape[0])
     x[dofsUnknown] = xi
 
     if simu.isNonLinear:
@@ -616,7 +619,6 @@ def __Solver_2(simu: "_Simu", problemType: "ProblemType"):
 
     # set to lil matrix because its faster
     A = A.tolil()
-    b = b.tolil()
 
     dofs_Dirichlet = simu.Bc_dofs_Dirichlet(problemType)
     values_Dirichlet = simu.Bc_values_Dirichlet(problemType)
@@ -659,7 +661,7 @@ def __Solver_2(simu: "_Simu", problemType: "ProblemType"):
 
     tic.Tac("Solver", f"Lagrange ({problemType}) Coupling", simu._verbosity)
 
-    x = _Solve_Axb(simu, problemType, A.tocsr(), b.tocsr(), x0, [], [], ResolType.r2)
+    x = _Solve_Axb(simu, problemType, A.tocsr(), b, x0, [], [], ResolType.r2)
 
     # We don't send back reaction forces
     sol = x[:size]
@@ -699,7 +701,7 @@ def __Solver_3(simu: "_Simu", problemType: "ProblemType | tuple[ProblemType, ...
 
 def _PETSc(
     A: sparse.csr_matrix,
-    b: sparse.csr_matrix,
+    b: _types.FloatArray,
     x0: _types.FloatArray,
     kspType: str = "cg",
     pcType: str = "none",
@@ -712,8 +714,8 @@ def _PETSc(
     ----------
     A : sparse.csr_matrix
         sparse matrix (N, N)
-    b : sparse.csr_matrix
-        sparse vector (N, 1)
+    b : _types.FloatArray
+        vector (N,)
     x0 : _types.FloatArray
         initial guess (N)
     kspType : str, optional
@@ -747,12 +749,8 @@ def _PETSc(
     csr = (A.indptr, A.indices, A.data)
     matrix.createAIJ(A.shape, csr=csr)
 
-    # get rhs values
-    rows, _, values = sparse.find(b)
-
-    # set rhs values
     rhs = matrix.createVecLeft()
-    rhs.array[rows] = values
+    rhs.array[:] = b
 
     # set x values
     x = matrix.createVecRight()
@@ -783,7 +781,7 @@ def _PETSc(
 
 def _PETSc_MPI(
     A: sparse.csr_matrix,
-    b: sparse.csr_matrix,
+    b: _types.FloatArray,
     x0: _types.FloatArray,
     ownedDofs: _types.IntArray,
     mapping: _types.IntArray | None = None,
@@ -798,8 +796,8 @@ def _PETSc_MPI(
     ----------
     A : sparse.csr_matrix
         Square sparse matrix (N, N). For r1: reduced system (Aii). For r3: full penalized system.
-    b : sparse.csr_matrix
-        Right-hand side (N, 1).
+    b : _types.FloatArray
+        Right-hand side (N,).
     x0 : _types.FloatArray
         Initial guess (N,).
     ownedDofs : _types.IntArray
@@ -875,7 +873,7 @@ def _PETSc_MPI(
 
     # rhs
     rhs = matrix.createVecLeft()
-    rhs.array[:] = b.toarray().ravel()[ownedDofs]
+    rhs.array[:] = b[ownedDofs]
 
     # initial guess
     x = matrix.createVecRight()
