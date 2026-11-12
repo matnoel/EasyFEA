@@ -34,7 +34,6 @@ from ..FEM import (
     MatrixType,
     Operators,
 )
-from ..FEM._fearray import FeArray
 from ..FEM._function_space import _FunctionSpace
 
 # materials
@@ -737,8 +736,6 @@ class _Simu(_IObserver, _params.Updatable, ABC):
         """System type during simulation."""
         # a simulation is by default linear
 
-        self.__isGathered = MPI_SIZE == 1
-
         self.__pinnedFields: set[ProblemType] = set()
         """Fields of the last solve pinned at one node, a constant being all its equations left free."""
 
@@ -778,50 +775,32 @@ class _Simu(_IObserver, _params.Updatable, ABC):
     rho = _params.PositiveParameter()
     """mass density"""
 
+    def __Get_moments(self) -> _types.FloatArray:
+        """Mass, then its first moment along x, y, z. MPI: collective unless gathered."""
+        moments = self.mesh._Sum_on_ownedElements_e(
+            [
+                groupElem._Get_moments_e(self.rho)
+                for groupElem in self.mesh.Get_list_groupElem()
+            ]
+        )
+        return moments * self.model.thickness if self.dim == 2 else moments
+
     @property
     def mass(self) -> float:
+        """Mass of the simulated body. MPI: collective unless gathered."""
         if self.dim == 1:
             return None  # type: ignore [return-value]
-
-        matrixType = MatrixType.mass
-
-        mass = 0.0
-        for groupElem in self.mesh.Get_list_groupElem(self.dim):
-            wJ_e_pg = groupElem.Get_weightedJacobian_e_pg(matrixType)
-            rho_e_pg = FeArray.broadcast(self.rho, *wJ_e_pg.shape, tensor_shape=())
-            mass += (rho_e_pg * wJ_e_pg).sum().astype(float)
-
-        if self.dim == 2:
-            mass *= self.model.thickness
-
-        return mass  # type: ignore
+        return float(self.__Get_moments()[0])
 
     @property
     def center(self) -> _types.FloatArray:
-        """Center of mass / barycenter / inertia center"""
+        """Center of mass / barycenter / inertia center. MPI: collective unless gathered."""
 
         if self.dim == 1:
             return None  # type: ignore [return-value]
 
-        matrixType = MatrixType.mass
-
-        mass = self.mass
-
-        center = np.zeros(3, dtype=float)
-        for groupElem in self.mesh.Get_list_groupElem(self.dim):
-            coord_e_pg = groupElem.Get_GaussCoordinates_e_pg(matrixType)
-            wJ_e_pg = groupElem.Get_weightedJacobian_e_pg(matrixType)
-            rho_e_pg = FeArray.broadcast(self.rho, *wJ_e_pg.shape, tensor_shape=())
-            contrib = (rho_e_pg * wJ_e_pg * coord_e_pg / mass).sum(axis=(0, 1))
-            if self.dim == 2:
-                contrib *= self.model.thickness
-            center += contrib
-
-        if not isinstance(self.rho, np.ndarray):
-            diff = np.linalg.norm(center - self.mesh.center) / np.linalg.norm(center)
-            assert diff <= 1e-12
-
-        return center
+        moments = self.__Get_moments()
+        return moments[1:] / moments[0]
 
     # ----------------------------------------------
     # Solutions
@@ -961,7 +940,7 @@ class _Simu(_IObserver, _params.Updatable, ABC):
     @property
     def isGathered(self) -> bool:
         """Whether the simulation holds the complete global mesh."""
-        return self.__isGathered
+        return not self.mesh.isPartitioned
 
     def _Gather(self):
         """Gathers mesh partitions from all MPI ranks onto `root` rank.
@@ -990,7 +969,6 @@ class _Simu(_IObserver, _params.Updatable, ABC):
             # partition and no longer apply.
             clear_cached_computed_values(self)
             self.Need_Update()
-            self.__isGathered = True
 
     @property
     def dim(self) -> int:

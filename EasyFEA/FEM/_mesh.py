@@ -14,7 +14,7 @@ A hexahedral mesh (HEXA8) uses :\n
 
 import copy
 import pickle
-from typing import Any, Callable, TYPE_CHECKING
+from typing import Any, Callable, Sequence, TYPE_CHECKING
 
 import numpy as np
 import scipy.sparse as sp
@@ -24,7 +24,7 @@ from scipy.sparse.csgraph import connected_components
 # utilities
 from ..Utilities import Terminal, Folder, Tic, _types
 from ..Utilities._observers import Observable
-from ..Utilities._mpi import MPI_COMM, MPI_SIZE, MPI_RANK
+from ..Utilities._mpi import MPI_COMM, MPI_SIZE, MPI_RANK, Reduce_sum
 from ..Utilities._cache import cache_computed_values, cached_computed_values
 
 # fem
@@ -592,37 +592,57 @@ class Mesh(Observable):
         }
 
     @property
+    def isPartitioned(self) -> bool:
+        """Whether the ranks share this mesh; False when this rank holds it whole (serial, gathered)."""
+        return next(iter(self.__dict_groupElem.values())).isPartitioned
+
+    def _Sum_on_ownedElements_e(
+        self, list_values_e: Sequence[_types.FloatArray], dim: int | None = None
+    ) -> _types.FloatArray:
+        """Sum of one (Ne, ...) array per group of dimension `dim`, each element counted once over the ranks. MPI: collective unless gathered."""
+        local: _types.FloatArray = np.zeros(())
+        for groupElem, values_e in zip(
+            self.Get_list_groupElem(dim), list_values_e, strict=True
+        ):
+            local = local + groupElem._Sum_on_ownedElements_e(values_e)
+        return Reduce_sum(local) if self.isPartitioned else local
+
+    def __Get_measure(self, dim: int) -> float:
+        """Length, area or volume of the groups of dimension `dim`."""
+        list_measure_e = [
+            groupElem.measure_e for groupElem in self.Get_list_groupElem(dim)
+        ]
+        return float(self._Sum_on_ownedElements_e(list_measure_e, dim))
+
+    @property
     def length(self) -> float:
-        """total length of the mesh."""
+        """total length of the mesh. MPI: collective unless gathered."""
         if self.dim < 1:
             return None  # type: ignore [return-value]
-        return np.sum([groupElem.length for groupElem in self.Get_list_groupElem(1)])
+        return self.__Get_measure(1)
 
     @property
     def area(self) -> float:
-        """total area of the mesh."""
+        """total area of the mesh. MPI: collective unless gathered."""
         if self.dim < 2:
             return None  # type: ignore [return-value]
-        return np.sum([groupElem.area for groupElem in self.Get_list_groupElem(2)])
+        return self.__Get_measure(2)
 
     @property
     def volume(self) -> float:
-        """total volume of the mesh."""
+        """total volume of the mesh. MPI: collective unless gathered."""
         if self.dim != 3:
             return None  # type: ignore [return-value]
-        return np.sum([groupElem.volume for groupElem in self.Get_list_groupElem(3)])
+        return self.__Get_measure(3)
 
     @property
     def center(self) -> _types.FloatArray:
-        """center of mass / barycenter / inertia center"""
-        list_groupElem = self.Get_list_groupElem(self.dim)
-        if len(list_groupElem) == 1:
-            return list_groupElem[0].center
-        # length/area/volume weighted average of the per-group centers
-        measure = ("length", "area", "volume")[self.dim - 1]
-        centers = [groupElem.center for groupElem in list_groupElem]
-        weights = [getattr(groupElem, measure) for groupElem in list_groupElem]
-        return np.average(centers, axis=0, weights=weights)
+        """center of mass / barycenter / inertia center. MPI: of this rank's partition, ghosts included."""
+        moments = sum(
+            groupElem._Get_moments_e().sum(axis=0)
+            for groupElem in self.Get_list_groupElem()
+        )
+        return moments[1:] / moments[0]  # type: ignore [index]
 
     def Get_normals(
         self,
@@ -1390,9 +1410,10 @@ class Mesh(Observable):
         for elemType, groupElem in self.dict_groupElem.items():
             # GroupElemFactory.Create data: elemType, connect, coordinates
             createData = (groupElem.connect, coordinates)
-            # Partitionned data: elements, nodes, rank, ghostElements
+            # Partitionned data: elements, nodes, rank, ghostElements, isPartitioned
             rank, elements, ghostElements, nodes, _ = groupElem._Get_partitioned_data()
-            partitionedData = (elements, nodes, rank, ghostElements)
+            isPartitioned = groupElem.isPartitioned
+            partitionedData = (elements, nodes, rank, ghostElements, isPartitioned)
             # nodes tags
             dict_nodes_tags = groupElem._dict_nodes_tags
             # append data
@@ -1444,9 +1465,16 @@ def Load_Mesh(path: str) -> Mesh:
             elemType=elemType, connect=connect, coordinates=coordinates
         )
         # set partitioned data
-        elements, nodes, rank, ghostElements = data[1]
+        partitionedData = data[1]
+        elements, nodes, rank, ghostElements = partitionedData[:4]
+        # files saved before isPartitioned load whole
+        isPartitioned = len(partitionedData) > 4 and partitionedData[4]
         groupElem._Set_partitioned_data(
-            elements=elements, nodes=nodes, rank=rank, ghostElements=ghostElements
+            elements=elements,
+            nodes=nodes,
+            rank=rank,
+            ghostElements=ghostElements,
+            isPartitioned=isPartitioned,
         )
         # append tags
         dict_nodes_tags = data[2]

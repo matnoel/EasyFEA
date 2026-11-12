@@ -9,7 +9,7 @@ from scipy import sparse
 # utilities
 from ..Utilities import Terminal, Folder, Tic, _types
 from ..Utilities._observers import Observable
-from ..Utilities._mpi import CAN_USE_MPI, MPI_SIZE, MPI_COMM, Reduce_sum
+from ..Utilities._mpi import MPI_SIZE, Reduce_sum
 
 # fem
 from ..FEM import Mesh, MatrixType, FeArray, Kinematics, Operators, _GroupElem
@@ -23,9 +23,6 @@ from ._utils import Result_strain_or_stress_field_e, _Field_per_groupElem
 from ._simu import _Simu, SolverType
 from ._terms import Term
 from ._problem_type import ProblemType
-
-if CAN_USE_MPI:
-    from mpi4py import MPI
 
 
 class PhaseField(_Simu):
@@ -523,10 +520,8 @@ class PhaseField(_Simu):
         """
         space = self._Get_FunctionSpace(self.D)
         d_nodes = space.Get_nodeValues(self.damage, 1)[nodes]
-        detected = bool(d_nodes.size > 0 and np.any(d_nodes >= threshold))
-        if not self.isGathered:
-            detected = MPI_COMM.allreduce(detected, op=MPI.LOR)
-        return detected
+        detected = int(d_nodes.size > 0 and np.any(d_nodes >= threshold))
+        return bool(detected if self.isGathered else Reduce_sum(detected))
 
     def _Get_dof_names(self) -> dict[str, ProblemType]:
         return {

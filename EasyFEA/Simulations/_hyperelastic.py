@@ -434,9 +434,9 @@ class HyperElastic(_Simu):
             W_e_pg = wJ_e_pg * self.material.Compute_W(kinematics)
             list_W.append(thickness * W_e_pg.integrate())
 
-        W_e = np.concatenate(list_W)
-
-        return float(W_e.sum()) if returnScalar else W_e
+        if not returnScalar:
+            return np.concatenate(list_W)
+        return float(self.mesh._Sum_on_ownedElements_e(list_W))
 
     def _Calc_J(self, matrixType: MatrixType | None = None) -> _types.FloatArray:
         """Mean of det(F) on each element (Ne,), at ``self.matrixType`` by default."""

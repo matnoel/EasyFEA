@@ -368,20 +368,20 @@ class Elastic(_Simu):
             ]
 
         # integrate the energy density over each group: Wdef_e = int psi dOmega
-        Wdef_e = np.concatenate(
-            [
-                (
-                    thickness
-                    * kin.groupElem.Get_weightedJacobian_e_pg(matrixType)
-                    * list_psi_e_pg[i]
-                ).sum(1)
-                for i, kin in enumerate(list_kinematics)
-            ]
-        )
+        list_Wdef_e = [
+            (
+                thickness
+                * kin.groupElem.Get_weightedJacobian_e_pg(matrixType)
+                * list_psi_e_pg[i]
+            ).sum(1)
+            for i, kin in enumerate(list_kinematics)
+        ]
 
         tic.Tac("PostProcessing", "Calc Psi Elas", False)
 
-        return float(Wdef_e.sum()) if returnScalar else Wdef_e
+        if not returnScalar:
+            return np.concatenate(list_Wdef_e)
+        return float(self.mesh._Sum_on_ownedElements_e(list_Wdef_e))
 
     def _Calc_ZZ1(self) -> tuple[float, _types.FloatArray]:
         """Computes the ZZ1 error.\n

@@ -2306,7 +2306,13 @@ class Mesher:
             all_idx = np.union1d(idx_r, ghost_idx)
             groupElem = GroupElemFactory._Create(gmshId, connect[all_idx], coordinates)
             nodes = groupElem.nodes[nodeOwner[groupElem.nodes] == rank]
-            groupElem._Set_partitioned_data(idx_r, nodes, rank, ghost_idx)
+            groupElem._Set_partitioned_data(
+                elements=idx_r,
+                nodes=nodes,
+                rank=rank,
+                ghostElements=ghost_idx,
+                isPartitioned=True,
+            )
             list_rank_groupElem.append(groupElem)
 
         # return all rank GroupElems so rank 0 can scatter them

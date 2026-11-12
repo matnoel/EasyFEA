@@ -211,8 +211,9 @@ class _GroupElem:
         nodes: _types.IntArray,
         rank: int = 0,
         ghostElements: _types.IntArray = [],
+        isPartitioned: bool = False,
     ) -> None:
-        """Sets the partitioned data used in mpi.
+        """Sets the partitioned data used in mpi; `isPartitioned` when the ranks share the mesh, not when this rank holds it whole.
 
         Parameters
         ----------
@@ -246,6 +247,20 @@ class _GroupElem:
         ghostNodes = np.setdiff1d(self.nodes, nodes, assume_unique=True)
 
         self.__partitionned_data = (rank, elements, ghostElements, nodes, ghostNodes)
+        self.__isPartitioned = isPartitioned
+
+    @property
+    def isPartitioned(self) -> bool:
+        """Whether the ranks share this group's mesh; False when this rank holds it whole (serial, gathered)."""
+        return self.__isPartitioned
+
+    def _Sum_on_ownedElements_e(self, values_e: _types.FloatArray) -> _types.FloatArray:
+        """Sum of per-element values (Ne, ...) over this rank's owned elements, ghosts skipped."""
+        values_e = np.asarray(values_e)
+        if not self.__isPartitioned:
+            return values_e.sum(axis=0)
+        _, elements, _, _, _ = self.__partitionned_data
+        return values_e[np.isin(self._globalElements, elements)].sum(axis=0)
 
     def _Get_partitioned_data(
         self,
@@ -524,12 +539,16 @@ class _GroupElem:
         return values_e
 
     @property
+    def measure_e(self) -> _types.FloatArray:
+        """length, area or volume covered by each element"""
+        return self.Integrate_e(lambda x, y, z: 1, MatrixType.rigi)
+
+    @property
     def length_e(self) -> _types.FloatArray:
         """length covered by each element"""
         if self.dim != 1:
             return None  # type: ignore [return-value]
-        length_e = self.Integrate_e(lambda x, y, z: 1, MatrixType.rigi)
-        return length_e
+        return self.measure_e
 
     @property
     def length(self) -> float:
@@ -543,8 +562,7 @@ class _GroupElem:
         """area covered by each element"""
         if self.dim != 2:
             return None  # type: ignore [return-value]
-        area_e = self.Integrate_e(lambda x, y, z: 1, MatrixType.rigi)
-        return area_e
+        return self.measure_e
 
     @property
     def area(self) -> float:
@@ -558,8 +576,7 @@ class _GroupElem:
         """volume covered by each element"""
         if self.dim != 3:
             return None  # type: ignore [return-value]
-        volume_e = self.Integrate_e(lambda x, y, z: 1, MatrixType.rigi)
-        return volume_e
+        return self.measure_e
 
     @property
     def volume(self) -> float:
@@ -664,6 +681,13 @@ class _GroupElem:
     ) -> FeArray.FeArrayALike:
         """Jacobian ``det J``: actual over reference length, area or volume; √det(T Tᵀ) of the tangents T = ∂x/∂ξ for a line or face in space."""
         return self.__mapping.Get_jacobian_e_pg(matrixType, absoluteValues)
+
+    def _Get_moments_e(self, rho: float | _types.FloatArray = 1.0) -> _types.FloatArray:
+        """Per element (Ne, 4): the integral of rho, then of rho times x, y and z."""
+        wJ_e_pg = self.Get_weightedJacobian_e_pg(MatrixType.mass)
+        m_e_pg = FeArray.broadcast(rho, *wJ_e_pg.shape, tensor_shape=()) * wJ_e_pg
+        coord_e_pg = self.Get_GaussCoordinates_e_pg(MatrixType.mass)
+        return np.column_stack([m_e_pg.sum(axis=1), (m_e_pg * coord_e_pg).sum(axis=1)])
 
     def Get_weightedJacobian_e_pg(self, matrixType: MatrixType) -> FeArray.FeArrayALike:
         """Returns the jacobian_e_pg * weight_pg."""
