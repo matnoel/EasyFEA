@@ -61,6 +61,8 @@ jobs:
   run-tests-mpi:
     name: Test MPI
     runs-on: ubuntu-latest
+    env:
+      PETSC_CONFIGURE_OPTIONS: --with-debugging=0 --download-mumps --download-scalapack --download-parmetis --download-metis --download-superlu_dist
 
     steps:
       - name: Checkout code
@@ -77,12 +79,25 @@ jobs:
       - name: Install system dependencies
         run: |
           sudo apt-get update
-          sudo apt-get install -y libglu1-mesa libopenmpi-dev openmpi-bin
+          sudo apt-get install -y libglu1-mesa libopenmpi-dev openmpi-bin gfortran
 
       - name: Install dependencies
         run: |
           uv pip install --system "meshio @ git+https://github.com/matnoel/meshio.git@medit_higher_order_elements"
           uv pip install --system .[dev,io,viz] mpi4py
+
+      - name: Cache the petsc and petsc4py wheels, built from source
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/pip
+          key: petsc-${{ runner.os }}-py3.13-${{ env.PETSC_CONFIGURE_OPTIONS }}
+
+      - name: Install petsc and petsc4py
+        run: |
+          python -m pip install "cython<3.3" setuptools numpy
+          python -m pip install petsc
+          python -m pip install --no-build-isolation petsc4py
+          python -c "from petsc4py import PETSc; print(PETSc.Sys.getVersion())"
 
       - name: Run MPI tests
         run: make test-mpi
