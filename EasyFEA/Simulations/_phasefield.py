@@ -691,9 +691,9 @@ class PhaseField(_Simu):
         tic = Tic()
 
         u = self.displacement
-        # every rank holds the same solution, so they all take the same branch and the reduction
-        # inside Calc_Energy stays collective
-        if np.linalg.norm(u) == 0:
+        # reduced so every rank takes the same branch: Calc_Energy is collective
+        norm2 = u @ u if self.isGathered else Reduce_sum(u @ u)
+        if norm2 == 0:
             Psi_Elas = 0
         else:
             with np.errstate(divide="ignore", over="ignore", invalid="ignore"):
@@ -712,11 +712,8 @@ class PhaseField(_Simu):
         tic = Tic()
 
         d = self.damage
-        if np.linalg.norm(d) == 0:
-            Psi_Crack = 0
-        else:
-            with np.errstate(divide="ignore", over="ignore", invalid="ignore"):
-                Psi_Crack = self.Calc_Energy(Kd, d, self.Get_dofs(problemType=self.D))
+        with np.errstate(divide="ignore", over="ignore", invalid="ignore"):
+            Psi_Crack = self.Calc_Energy(Kd, d, self.Get_dofs(problemType=self.D))
 
         tic.Tac("PostProcessing", "Calc Psi Crack", False)
 
@@ -729,15 +726,12 @@ class PhaseField(_Simu):
 
         u_n = self.displacement
         assert u_n.shape == f_n.shape, f"f_n must be a {u_n.shape} array."
-        if np.linalg.norm(u_n) == 0 or np.linalg.norm(f_n) == 0:
-            Psi_Ext = 0
-        else:
-            dofs = self.Get_dofs(problemType=self.U)
-            with np.errstate(divide="ignore", over="ignore", invalid="ignore"):
-                # no operator and no 1/2, so this one is a plain reduction rather than Calc_Energy
-                Psi_Ext = float(u_n[dofs] @ f_n[dofs])
-                if not self.isGathered:
-                    Psi_Ext = Reduce_sum(Psi_Ext)
+        dofs = self.Get_dofs(problemType=self.U)
+        with np.errstate(divide="ignore", over="ignore", invalid="ignore"):
+            # no operator and no 1/2, so this one is a plain reduction rather than Calc_Energy
+            Psi_Ext = float(u_n[dofs] @ f_n[dofs])
+            if not self.isGathered:
+                Psi_Ext = Reduce_sum(Psi_Ext)
 
         tic.Tac("PostProcessing", "Calc Psi Ext", False)
 
