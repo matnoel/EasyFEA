@@ -201,13 +201,13 @@ class PhaseField(_Simu):
                 self.__updatedDisplacement = True
             initcsr = sparse.csr_matrix(self.__Ku.shape)
             initvec = sparse.csr_matrix((self.__Ku.shape[0], 1))
-            return self.__Ku.copy(), initcsr, initcsr, initvec
+            return self.__Ku, initcsr, initcsr, initvec
         else:
             if not self.__updatedDamage:  # type: ignore [has-type]
                 self.__Kd, _, _, self.__Fd = self.Assembly(self.D)
                 self.__updatedDamage = True
             initcsr = sparse.csr_matrix(self.__Kd.shape)
-            return self.__Kd.copy(), initcsr, initcsr, self.__Fd.copy()
+            return self.__Kd, initcsr, initcsr, self.__Fd
 
     def _Update(self, observable: Observable, event: str) -> None:
         if isinstance(observable, _IModel):

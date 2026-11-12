@@ -233,7 +233,7 @@ class _Simu(_IObserver, _params.Updatable, ABC):
     ) -> tuple[
         sparse.csr_matrix, sparse.csr_matrix, sparse.csr_matrix, sparse.csr_matrix
     ]:
-        r"""Returns the assembled matrices of :math:`\Krm \, \mathrm{u} + \Crm \, \vrm + \Mrm \, \arm = \Frm` for the monolithic problem holding `problemType`."""
+        r"""Returns the assembled matrices of :math:`\Krm \, \mathrm{u} + \Crm \, \vrm + \Mrm \, \arm = \Frm` for the monolithic problem holding `problemType`, not copies: never write into them."""
 
         error = "You must define your own `Get_K_C_M_F` function in your simulation to construct the system matrix, since multiple problems have been detected. For reference, see the `Get_K_C_M_F` function in `simulations._phasefield`."
         assert len(self._Get_monolithic_problems()) == 1, error
@@ -244,7 +244,7 @@ class _Simu(_IObserver, _params.Updatable, ABC):
             )
             self.Need_Update(False)
 
-        return self.__K.copy(), self.__C.copy(), self.__M.copy(), self.__F.copy()
+        return self.__K, self.__C, self.__M, self.__F
 
     def Calc_Energy(
         self,
@@ -2077,7 +2077,14 @@ class _Simu(_IObserver, _params.Updatable, ABC):
             A = K
         else:
             coefK, coefC, coefM = self._Solver_Get_K_C_M_coefs_for_time_scheme()
-            A = coefK * K + coefC * C + coefM * M
+            if all(X.nnz == 0 or X.indptr is K.indptr for X in (C, M)):
+                # one assembly pattern: summed on the values
+                A = coefK * K
+                for coef, X in ((coefC, C), (coefM, M)):
+                    if X.nnz:
+                        A.data += coef * X.data
+            else:
+                A = coefK * K + coefC * C + coefM * M
 
         tic.Tac("Solver", f"Construct A ({problemType}, {algo})", self._verbosity)
 
@@ -2160,7 +2167,8 @@ class _Simu(_IObserver, _params.Updatable, ABC):
             return A, x
 
         elif resolution == ResolType.r3:
-            # Zero constrained rows directly in CSR data
+            # Zero constrained rows on a copy: A may be the assembled K
+            A = A.copy()
             row_of_data = np.repeat(np.arange(A.shape[0]), np.diff(A.indptr))
             A.data[np.isin(row_of_data, dofs)] = 0.0
             # Set diagonal to 1

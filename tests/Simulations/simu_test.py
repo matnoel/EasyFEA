@@ -307,14 +307,13 @@ def test_Simu_Get_K_C_M_F_of_conduction_conserves_constants_and_heat():
     assert M.nnz == 0 and F.nnz == 0
 
 
-def test_Simu_Get_K_C_M_F_clears_the_update_flag_and_returns_copies():
+def test_Simu_Get_K_C_M_F_clears_the_update_flag_and_returns_the_assembled_matrices():
     simu = _thermal()
 
     K = simu.Get_K_C_M_F()[0]
-    K.data[:] = 0
 
     assert not simu.needUpdate
-    assert simu.Get_K_C_M_F()[0].nnz > 0 and simu.Get_K_C_M_F()[0].data.any()
+    assert simu.Get_K_C_M_F()[0] is K
 
 
 def test_Simu_Calc_Energy_of_the_stiffness_is_the_strain_energy():
