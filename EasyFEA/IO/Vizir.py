@@ -8,6 +8,7 @@
 from typing import TYPE_CHECKING, Iterator, Sequence
 from contextlib import contextmanager
 import numpy as np
+import scipy.sparse as sp
 import io
 
 from ..Utilities import Folder, _types
@@ -264,6 +265,56 @@ def __Write_HOSolAt_Solution(
     file.write("\n")
 
 
+def _Get_values_per_group(
+    mesh: "Mesh", values_e: _types.FloatArray, dim: int
+) -> dict["_GroupElem", _types.FloatArray]:
+    """Returns the (Ne, i) values of each group of dimension dim from the (Ne, i) values of the main-dimension elements, given in Get_list_groupElem() order.
+
+    A lower-dimension element takes the mean of the main-dimension elements holding all its nodes: a boundary face, the value of its single element.
+    """
+
+    groupElems = mesh.Get_list_groupElem()
+    splits = np.cumsum([groupElem.Ne for groupElem in groupElems])[:-1]
+
+    if dim == mesh.dim:
+        return dict(zip(groupElems, np.split(values_e, splits)))
+
+    connect_n_e = mesh.Get_connect_n_e()
+
+    values_per_group: dict["_GroupElem", _types.FloatArray] = {}
+    for groupElem in mesh.Get_list_groupElem(dim):
+        counts = (groupElem.Get_connect_n_e().T @ connect_n_e).tocoo()
+        isParent = counts.data == groupElem.nPe
+        parents = sp.csr_matrix(
+            (np.ones(isParent.sum()), (counts.row[isParent], counts.col[isParent])),
+            shape=counts.shape,
+        )
+        Nparents = np.asarray(parents.sum(axis=1)).reshape(-1, 1)
+        values_per_group[groupElem] = (parents @ values_e) / np.maximum(Nparents, 1)
+
+    return values_per_group
+
+
+def __Write_HOSolAt_Constant(
+    file: io.TextIOWrapper,
+    groupElem: "_GroupElem",
+    values_e: _types.FloatArray,
+    type: int,
+) -> None:
+    """Writes the (Ne, dof_n) values constant over each element of the group, as a degree 0 HOSolAt: unlike SolAt, it also reaches second-order elements."""
+
+    Ne = groupElem.Ne
+
+    if values_e.shape[1] == 2:
+        # vizir reads 3 components
+        values_e = np.concat((values_e, np.zeros((Ne, 1))), axis=1)
+
+    keyword = __Get_vizir_HOSolAt_key(groupElem)
+    file.write(f"\n{keyword}{groupElem.order}\n{Ne}\n1 {type}\n0 1\n")
+    np.savetxt(file, values_e)
+    file.write("\n")
+
+
 SOLUTION_TYPES = [1, 2]
 
 
@@ -379,6 +430,56 @@ def _Write_solution_file(
                 assembly_e = groupElem._Get_assembly_e(sol_connect, dof_n)
 
             __Write_HOSolAt_Solution(f, groupElem, dofsValues, assembly_e, type, order)
+
+    return f.name
+
+
+def _Write_element_solution_file(
+    mesh: "Mesh",
+    values_e: _types.FloatArray,
+    type: int,
+    folder: str,
+    filename: str,
+    warpVector_n: _types.FloatArray | None = None,
+    deformFactor: float = 1.0,
+) -> str:
+    """Writes a solution file for values constant over each element.
+
+    Parameters
+    ----------
+    mesh : Mesh
+        The mesh object for which the solution is being written.
+    values_e : _types.FloatArray
+        (Ne, dof_n) values of the main-dimension elements, in Get_list_groupElem() order.
+    type : int
+        The type of solution being written.
+    folder : str
+        The directory where the solution file will be saved.
+    filename : str
+        The name of the solution file.
+    warpVector_n : _types.FloatArray | None, optional
+        Warp vector values for mesh deformation.
+    deformFactor : float, optional
+        Deformation factor for the warp vector, default is 1.0.
+
+    Returns
+    -------
+    str
+        The path to the created solution file.
+    """
+
+    dof_n = __Get_dof_n(mesh, type)
+    if values_e.size != mesh.Ne * dof_n:
+        raise ValueError(
+            f"values_e must hold {mesh.Ne * dof_n} values, one per element and component, not {values_e.size}."
+        )
+    values_e = values_e.reshape(mesh.Ne, dof_n)
+
+    with __Open_solution_file(mesh, folder, filename, warpVector_n, deformFactor) as f:
+        # vizir draws the surfaces from their own solution, and the volumes on cut planes
+        for dim in sorted({2, mesh.dim}):
+            for groupElem, values in _Get_values_per_group(mesh, values_e, dim).items():
+                __Write_HOSolAt_Constant(f, groupElem, values, type)
 
     return f.name
 
