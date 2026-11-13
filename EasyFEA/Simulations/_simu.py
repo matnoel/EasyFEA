@@ -1073,14 +1073,10 @@ class _Simu(_IObserver, _params.Updatable, ABC):
         )
         assert data.size == inv.size, f"Not enough data to fill a {shape} CSR."
 
-        # Sum every element entry into its slot with one bincount. `bincount` is real-only, so a complex
-        # system is summed as its real and imaginary parts — still one pass each, still the rare path.
         if np.iscomplexobj(data):
-            csr_data = np.bincount(
-                inv, weights=data.real, minlength=nnz
-            ) + 1j * np.bincount(inv, weights=data.imag, minlength=nnz)
-        else:
-            csr_data = np.bincount(inv, weights=data, minlength=nnz)
+            raise TypeError("Complex systems are not supported.")
+        # Sum every element entry into its slot with one bincount.
+        csr_data = np.bincount(inv, weights=data, minlength=nnz)
 
         matrix = sparse.csr_matrix((csr_data, indices, indptr), shape=shape)
         # Canonical by construction (scipy sorted the pattern): lets Solvers skip its canonical fixup.
@@ -1937,7 +1933,7 @@ class _Simu(_IObserver, _params.Updatable, ABC):
 
         tic = Tic()
 
-        b = np.zeros(Ndof, dtype=np.result_type(F.dtype, K.dtype, float))
+        b = np.zeros(Ndof, dtype=float)
         np.add.at(b, np.asarray(dofs, dtype=int), dofsValues)
         b += F.toarray().ravel()
 
@@ -2161,7 +2157,7 @@ class _Simu(_IObserver, _params.Updatable, ABC):
 
         if resolution in [ResolType.r1, ResolType.r2]:
             # Here we return the solution with the known ddls
-            x = np.zeros(size, dtype=np.result_type(dofsValues, float))
+            x = np.zeros(size, dtype=float)
             np.add.at(x, np.asarray(dofs, dtype=int), dofsValues)
 
             return A, x
