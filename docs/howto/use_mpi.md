@@ -23,11 +23,11 @@ ______________________________________________________________________
 [`petsc`](https://pypi.org/project/petsc/) and
 [`petsc4py`](https://pypi.org/project/petsc4py/) are published as source only, so both
 are compiled during the install — a few minutes. They are built against the MPI
-installed on the machine, which must provide `mpicc` and `mpifort`:
+installed on the machine, which must provide `mpicc` and `mpifort`, and need a BLAS and LAPACK:
 
 ```bash
 brew install open-mpi              # macOS
-sudo apt install libopenmpi-dev    # Debian, Ubuntu
+sudo apt install libopenmpi-dev libopenblas-dev liblapack-dev    # Debian, Ubuntu
 module load openmpi                # cluster, where the site MPI is the one to use
 ```
 
