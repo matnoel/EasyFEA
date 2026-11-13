@@ -7,16 +7,16 @@ This document describes the changes made to the project.
 ### MPI
 
 - Elastic, Newmark and Newton solved over the ranks match the serial solve. A solver
-  other than `petsc` raises, as do `PhaseField` `BoundConstrain` (`lsq_linear` is serial)
-  and the `Solve` of a gathered simulation; `Plot_Energy` needs a gathered one.
+  other than `petsc` raises, as do `PhaseField` `BoundConstrain` (`lsq_linear` is
+  serial) and the `Solve` of a gathered simulation; `Plot_Energy` needs a gathered one.
 - `EASYFEA_MPI=off` runs one serial simulation per rank, writing one results file per
   rank.
 - The Newton residual norm over the ranks is the root of the summed squares. Under PETSc
   no orphan diagonal is written: it reads only the owned rows.
-- `Mesh` element sums (mass, center) count each element once over the ranks; groups store
-  `isPartitioned` and `Mesh.center` is the rank's.
-- `PhaseField` energies take their zero shortcut on a reduced value, so a disk `Set_Iter`
-  no longer hangs.
+- `Mesh` element sums (mass, center) count each element once over the ranks; groups
+  store `isPartitioned` and `Mesh.center` is the rank's.
+- `PhaseField` energies take their zero shortcut on a reduced value, so a disk
+  `Set_Iter` no longer hangs.
 - `print(simu)` prints on rank 0 only and never communicates: partitioned results are
   rank 0's, under a warning.
 - `use_mpi.md` launches with `python -m mpi4py`, so an uncaught exception aborts every
