@@ -5,7 +5,8 @@
 
 """Module providing functions used to save FEM-solutions for vizir (https://pyamg.saclay.inria.fr/vizir4.html)."""
 
-from typing import TYPE_CHECKING, Sequence
+from typing import TYPE_CHECKING, Iterator, Sequence
+from contextlib import contextmanager
 import numpy as np
 import io
 
@@ -266,6 +267,61 @@ def __Write_HOSolAt_Solution(
 SOLUTION_TYPES = [1, 2]
 
 
+def __Get_dof_n(mesh: "Mesh", type: int) -> int:
+    """Returns the number of components of a solution type."""
+
+    if type == 1:
+        return 1
+    elif type == 2:
+        return mesh.inDim
+    else:
+        raise TypeError("type error")
+
+
+@contextmanager
+def __Open_solution_file(
+    mesh: "Mesh",
+    folder: str,
+    filename: str,
+    warpVector_n: _types.FloatArray | None,
+    deformFactor: float,
+) -> Iterator[io.TextIOWrapper]:
+    """Opens the solution file folder/filename.sol with its header and warp vector written, and ends it on exit."""
+
+    # init solution file
+    solutionFile = Folder.Join(folder, f"{filename}.sol", mkdir=True)
+
+    if warpVector_n is not None:
+        if warpVector_n.ndim == 2:
+            with open(
+                Folder.Join(Folder.Dir(folder), "default.vizir"), "w", encoding="utf-8"
+            ) as f:
+                # write WarpVec
+                f.write(f"WarpVec\n1\n{deformFactor}\n\n")
+
+    Nn = mesh.coord.shape[0]
+
+    with open(solutionFile, "w", encoding="utf-8") as f:
+        # write first lines
+        f.write("MeshVersionFormatted 2\n")
+        f.write("Dimension 3\n\n")  # the mesh is always in a 3d space
+
+        if warpVector_n is not None:
+            # write SolAtVertices
+            assert warpVector_n.shape[0] == Nn and warpVector_n.ndim == 2, (
+                "nodesValues must be a (Nn, ...) array"
+            )
+            assert warpVector_n.shape[1] <= 3
+            nodesValues_type = 1 if warpVector_n.shape[1] == 1 else 2
+            f.write(f"SolAtVertices\n{Nn}\n1 {nodesValues_type}\n")
+            np.savetxt(f, warpVector_n)
+            f.write("\n")
+
+        yield f
+
+        f.write("End\n")
+
+
 def _Write_solution_file(
     mesh: "Mesh",
     dofsValues: _types.FloatArray,
@@ -306,42 +362,9 @@ def _Write_solution_file(
         The path to the created solution file.
     """
 
-    # init solution file
-    solutionFile = Folder.Join(folder, f"{filename}.sol", mkdir=True)
+    dof_n = __Get_dof_n(mesh, type)
 
-    if type == 1:
-        dof_n = 1
-    elif type == 2:
-        dof_n = mesh.inDim
-    else:
-        raise TypeError("type error")
-
-    if warpVector_n is not None:
-        if warpVector_n.ndim == 2:
-            with open(
-                Folder.Join(Folder.Dir(folder), "default.vizir"), "w", encoding="utf-8"
-            ) as f:
-                # write WarpVec
-                f.write(f"WarpVec\n1\n{deformFactor}\n\n")
-
-    Nn = mesh.coord.shape[0]
-
-    with open(solutionFile, "w", encoding="utf-8") as f:
-        # write first lines
-        f.write("MeshVersionFormatted 2\n")
-        f.write("Dimension 3\n\n")  # the mesh is always in a 3d space
-
-        if warpVector_n is not None:
-            # write SolAtVertices
-            assert warpVector_n.shape[0] == Nn and warpVector_n.ndim == 2, (
-                "nodesValues must be a (Nn, ...) array"
-            )
-            assert warpVector_n.shape[1] <= 3
-            nodesValues_type = 1 if warpVector_n.shape[1] == 1 else 2
-            f.write(f"SolAtVertices\n{Nn}\n1 {nodesValues_type}\n")
-            np.savetxt(f, warpVector_n)
-            f.write("\n")
-
+    with __Open_solution_file(mesh, folder, filename, warpVector_n, deformFactor) as f:
         for groupElem in mesh.Get_list_groupElem(2):
             __Write_HOSolAt_Element(f, groupElem, order)
 
@@ -357,9 +380,7 @@ def _Write_solution_file(
 
             __Write_HOSolAt_Solution(f, groupElem, dofsValues, assembly_e, type, order)
 
-        f.write("End\n")
-
-    return solutionFile
+    return f.name
 
 
 @rank0_only
