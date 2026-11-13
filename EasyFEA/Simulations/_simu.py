@@ -640,13 +640,10 @@ class _Simu(_IObserver, _params.Updatable, ABC):
         )
 
     def __str__(self) -> str:
-        """Returns a string representation of the simulation.
+        """Returns a string representation of the simulation; "" off rank 0."""
 
-        Returns
-        -------
-        str
-            A string containing information about the simulation.
-        """
+        if MPI_RANK != 0:
+            return ""
 
         text = Terminal.Section("Mesh", False)
         text += "\n" + str(self.mesh)  # type: ignore
@@ -671,11 +668,19 @@ class _Simu(_IObserver, _params.Updatable, ABC):
         else:
             text += str(self.solver)
 
-        text += Terminal.Section("Boundary Conditions", False)
-        text += "\n" + textwrap.dedent(self.Results_Get_Bc_Summary())  # type: ignore
+        results = self.Results_Get_Iteration_Summary()
+        if results and not self.isGathered:
+            warning = "Warning: values of rank 0's partition, ghosts included. For the whole mesh: simu._Gather() or Save(..., gather=True)."
+            results = warning + "\n" + textwrap.dedent(results)
 
-        text += Terminal.Section("Results", False)
-        text += "\n" + textwrap.dedent(self.Results_Get_Iteration_Summary())  # type: ignore
+        # a section left unspecified by the simulation is dropped
+        for title, summary in (
+            ("Boundary Conditions", self.Results_Get_Bc_Summary()),
+            ("Results", results),
+        ):
+            if summary:
+                text += Terminal.Section(title, False)
+                text += "\n" + textwrap.dedent(summary)
 
         text += Terminal.Section("TicTac", False)
 
@@ -3420,15 +3425,15 @@ class _Simu(_IObserver, _params.Updatable, ABC):
         Terminal.MyPrint(text, end=end)
 
     def Results_Get_Iteration_Summary(self) -> str:
-        """Returns the iteration's summary."""
-        return "Unspecified."
+        """Returns the iteration's summary, empty when the simulation specifies none."""
+        return ""
 
     def Results_Set_Bc_Summary(self) -> None:
         """Sets the simulation loading summary."""
 
     def Results_Get_Bc_Summary(self) -> str:
-        """Returns the simulation loading summary."""
-        return "Unspecified."
+        """Returns the simulation loading summary, empty when the simulation specifies none."""
+        return ""
 
     def Results_Reshape_values(
         self, values: _types.FloatArray, nodeValues: bool

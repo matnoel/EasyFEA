@@ -1967,8 +1967,8 @@ def test_Simu_Results_Set_Iteration_Summary_prints_it(capsys):
     assert "step 1" in capsys.readouterr().out
 
 
-def test_Simu_Results_Get_Iteration_Summary_is_unspecified_by_default():
-    assert _thermal().Results_Get_Iteration_Summary() == "Unspecified."
+def test_Simu_Results_Get_Iteration_Summary_is_empty_by_default():
+    assert _thermal().Results_Get_Iteration_Summary() == ""
 
 
 def test_Simu_Results_Get_Iteration_Summary_of_PhaseField_reports_the_step(capsys):
@@ -1989,11 +1989,11 @@ def test_Simu_Results_Set_Bc_Summary_is_kept_by_PhaseField():
     assert simu.Results_Get_Bc_Summary() == "pulled"
 
 
-def test_Simu_Results_Get_Bc_Summary_is_unspecified_by_default():
+def test_Simu_Results_Get_Bc_Summary_is_empty_by_default():
     simu = _thermal()
     simu.Results_Set_Bc_Summary()
 
-    assert simu.Results_Get_Bc_Summary() == "Unspecified."
+    assert simu.Results_Get_Bc_Summary() == ""
 
 
 def test_Simu_Results_Reshape_values_moves_values_between_nodes_and_elements():

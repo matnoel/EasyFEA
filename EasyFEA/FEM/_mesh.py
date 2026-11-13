@@ -106,18 +106,11 @@ class Mesh(Observable):
         list_elemType = [groupElem.elemType for groupElem in list_groupElem]
         text = f"elemType: {'+'.join(list_elemType)}"
 
-        list_Ne = [""] * len(list_elemType)
-
-        for i, groupElem in enumerate(list_groupElem):
-            if MPI_SIZE > 1:
-                _, elements, ghostElements, _, _ = groupElem._Get_partitioned_data()
-                # an MPI rank may own no element of this group -> empty array
-                Ne = elements.size + ghostElements.size
-            else:
-                Ne = groupElem.Ne
-            list_Ne[i] = str(Ne)
-
-        text += f"\nNe: {'+'.join(list_Ne)}"
+        list_Ne = [str(groupElem.Ne) for groupElem in list_groupElem]
+        onRank = (
+            "" if not self.isPartitioned else f" (rank {MPI_RANK}, ghosts included)"
+        )
+        text += f"\nNe{onRank}: {'+'.join(list_Ne)}"
         text += f"\nNn: {self.Nn}"
         return text
 

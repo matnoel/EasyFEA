@@ -453,7 +453,8 @@ class Elastic(_Simu):
         if not self._Results_Check_Available("Wdef"):
             return None  # type: ignore [return-value]
 
-        Wdef = self.Result("Wdef")
+        # this rank's elements alone: the summary is printed by rank 0 only
+        Wdef = self.Result("Wdef_e", nodeValues=False).sum()  # type: ignore [union-attr]
         summary += f"\nW def = {Wdef:.2f}"
 
         Svm = self.Result("Svm", nodeValues=False)
