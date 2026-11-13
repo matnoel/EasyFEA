@@ -2,6 +2,51 @@
 
 This document describes the changes made to the project.
 
+## 7.3.0 (November 13, 2026):
+
+### MPI
+
+- Elastic, Newmark and Newton solved over the ranks match the serial solve. A solver
+  other than `petsc` raises, as do `PhaseField` `BoundConstrain` (`lsq_linear` is serial)
+  and the `Solve` of a gathered simulation; `Plot_Energy` needs a gathered one.
+- `EASYFEA_MPI=off` runs one serial simulation per rank, writing one results file per
+  rank.
+- The Newton residual norm over the ranks is the root of the summed squares. Under PETSc
+  no orphan diagonal is written: it reads only the owned rows.
+- `Mesh` element sums (mass, center) count each element once over the ranks; groups store
+  `isPartitioned` and `Mesh.center` is the rank's.
+- `PhaseField` energies take their zero shortcut on a reduced value, so a disk `Set_Iter`
+  no longer hangs.
+- `print(simu)` prints on rank 0 only and never communicates: partitioned results are
+  rank 0's, under a warning.
+- `use_mpi.md` launches with `python -m mpi4py`, so an uncaught exception aborts every
+  rank.
+
+### Visualization
+
+- `Vizir._Write_element_solution_file`: values constant over each element, written as a
+  degree 0 `HOSolAt`. Every dim-2 group takes the mean of the main-dimension elements
+  holding all its nodes, so a boundary face gets its element's value; main-dimension
+  groups too on a 3D mesh.
+- `Vizir` opens a solution file through one context manager writing its header, warp
+  vector and end.
+
+### API
+
+- `Simu.Get_K_C_M_F` returns the assembled matrices, not copies; the time-scheme `A` is
+  summed on the values when `C` and `M` share `K`'s pattern.
+- Assembling a complex system raises: `b` and `x` are real ndarrays; the CSR column and
+  `asCsrMatrix` are gone.
+- `BiLinearForm` rows are test functions, columns trial functions.
+
+### Development
+
+- CI: the MPI job installs BLAS and LAPACK and builds `petsc` and `petsc4py` with `uv`,
+  cached, so the solves run.
+- `ruff format` replaces `black`.
+
+**Full Changelog:** https://github.com/matnoel/EasyFEA/compare/v7.2.0...v7.3.0
+
 ## 7.2.0 (November 5, 2026):
 
 ### Function spaces and incompressible hyperelasticity
