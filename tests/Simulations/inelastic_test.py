@@ -203,6 +203,31 @@ def test_InElastic_stepping_on_from_a_restored_iteration_reproduces_the_history(
     assert np.allclose(simu.Result("Sxx", nodeValues=False), last, rtol=1e-12)
 
 
+def test_InElastic_writing_into_the_live_state_leaves_the_saved_iteration_alone(
+    mesh2D: Mesh,
+):
+    simu = _thermo(mesh2D, planeStress=True)
+    simu.Set_external(T=10.0)
+    _pull(simu, mesh2D, 0.0)
+    simu.Save_Iter()
+    saved = {k: np.array(v) for k, v in simu.Get_results(0).items() if "/" in k}
+
+    assert saved
+
+    for restore in (False, True):
+        if restore:
+            simu.Set_Iter(0)
+        for internal in simu._variables.internals.values():
+            for v in internal.values():
+                v[:] = np.nan
+        for v in simu._variables.externals.values():
+            v[:] = np.nan
+
+        for key, v in simu.Get_results(0).items():
+            if key in saved:
+                assert np.array_equal(v, saved[key]), (key, restore)
+
+
 def test_InElastic_without_internal_variables_saves_none(mesh2D: Mesh):
     """Plane strain, since plane stress keeps eps_zz."""
     simu = Simulations.InElastic(
@@ -533,7 +558,7 @@ def test_InElastic_external_is_for_the_next_solve_results_for_the_last(mesh2D: M
 
 
 def test_InElastic_Save_Iter_needs_the_external_variables(mesh2D: Mesh):
-    with pytest.raises(AssertionError, match="before saving"):
+    with pytest.raises(AssertionError, match="with Set_external before"):
         _thermo(mesh2D).Save_Iter()
 
 

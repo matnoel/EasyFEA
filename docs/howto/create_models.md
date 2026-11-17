@@ -254,7 +254,7 @@ This one matches {py:class}`~EasyFEA.Models.InElastic.Plasticity` with
   the fields of a `NamedTuple` `Externals`, and read as keywords by `Update` and
   `Stress`. They have no defaults: a reference value, such as the temperature at which
   there is no thermal strain, is a parameter. The simulation sets them with
-  {py:func}`~EasyFEA.Simulations.InElastic.Set_external` (see
+  {py:func}`~EasyFEA.Simulations._Simu.Set_external` (see
   {ref}`sphx_glr_examples_Inelasticity_ThermoElasticity.py`).
 - **An internal state sized by the instance**, such as one strain per Maxwell branch:
   override {py:func}`~EasyFEA.Models.InElastic._Behavior.Virgin_internals`.

@@ -113,7 +113,7 @@ subtracts the overstress its creep rate sustains from $r_f$, and
 adds one row per back-stress. A point on the surface flows, so that it gets the loading
 tangent whatever the roundoff in $f$.
 
-A converged {py:func}`~EasyFEA.Simulations.InElastic.Solve` is a step: it commits the
+A converged {py:func}`~EasyFEA.Simulations._Simu.Solve` is a step: it commits the
 internal variables, which the next step integrates from and results read, the stress
 being `Stress` at the committed ones. {py:func}`~EasyFEA.Simulations._Simu.Save_Iter`
 only records them, so it can be skipped on some steps;
@@ -121,7 +121,7 @@ only records them, so it can be skipped on some steps;
 compiled on the first step, which costs about a second.
 
 External variables a behavior declares, such as a temperature, are given by
-{py:func}`~EasyFEA.Simulations.InElastic.Set_external` as scalars or nodal fields, e.g.
+{py:func}`~EasyFEA.Simulations._Simu.Set_external` as scalars or nodal fields, e.g.
 `simu.Set_external(T=thermal.thermal)`, and kept until changed; a converged `Solve`
 commits them with the internal variables, so results read those of the last step.
 

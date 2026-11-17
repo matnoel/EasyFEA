@@ -11,7 +11,6 @@ from ..Utilities import Terminal, Tic, _types
 
 if TYPE_CHECKING:
     from ..FEM import Mesh
-from ..FEM._utils import ElemType
 from ..FEM import MatrixType, FeArray, Kinematics, Operators, _GroupElem
 
 from ._utils import Result_strain_or_stress_field_e, _Field_per_groupElem
@@ -27,12 +26,6 @@ class InElastic(_Simu):
 
     A converged :meth:`Solve` is a step: it commits the internal variables, which the next step integrates from and :meth:`Result` reads; :meth:`Save_Iter` only records them.
     """
-
-    __INTERNAL_KEY = "internal"
-    """Prefix of the saved iteration entries holding the internal variables, one per group and variable."""
-
-    __EXTERNAL_KEY = "external"
-    """Prefix of the saved iteration entries holding the external variables, one per name."""
 
     U = ProblemType("displacement")
     """the displacement problem"""
@@ -57,12 +50,6 @@ class InElastic(_Simu):
         self._Solver_Set_Newton_Raphson_Algorithm(absTol, relTol, incTol, maxIter)
 
         self.__dt = 0.0
-        # per group, at the last converged Solve; empty before any
-        self.__internal: dict[_GroupElem, dict[str, FeArray]] = {}
-        # nodal, by name, for the next Solve
-        self.__external: dict[str, _types.FloatArray] = {}
-        # those of the last converged Solve
-        self.__solvedExternal: dict[str, _types.FloatArray] = {}
 
     @property
     def dt(self) -> float:
@@ -75,21 +62,8 @@ class InElastic(_Simu):
         self.__dt = value
 
     @property
-    def external(self) -> dict[str, _types.FloatArray]:
-        """The nodal external variables the next steps see, by name; set them with :meth:`Set_external`."""
-        return {name: v.copy() for name, v in self.__external.items()}
-
-    def Set_external(self, **values: float | _types.FloatArray) -> None:
-        """Sets external variables for the next solves, each a scalar or a ``(Nn,)`` nodal field on this mesh, e.g. ``T=thermal.thermal``; results show them once solved."""
-        Nn = self.mesh.Nn
-        for name, v in values.items():
-            assert name in self.material.externalNames, (
-                f"{type(self.material).__name__} reads no '{name}'"
-            )
-            v = np.asarray(v, dtype=float)
-            v = np.full(Nn, float(v)) if v.ndim == 0 else v.copy()
-            assert v.shape == (Nn,), f"'{name}' must be a scalar or a (Nn,) array"
-            self.__external[name] = v
+    def _externalNames(self) -> tuple[str, ...]:
+        return self.material.externalNames
 
     @property
     def material(self) -> _Behavior:
@@ -131,19 +105,19 @@ class InElastic(_Simu):
 
     def __Internal_e_pg(self, groupElem: _GroupElem) -> dict[str, FeArray]:
         """The internal variables committed at the last converged solve, virgin before any."""
-        if not self.__internal:
+        internals = self._variables.internals
+        if not internals:
             nPg = groupElem.Get_gauss(MatrixType.rigi).nPg
             return self.material.Virgin_internals_e_pg(groupElem.Ne, nPg)
-        internal = self.__internal.get(groupElem)
+        internal = internals.get(groupElem)
         # they could be projected onto the new mesh instead
         assert internal is not None, (
             "the internal variables cannot follow a mesh change"
         )
         return internal
 
-    def __Solved_external(self) -> dict[str, _types.FloatArray]:
-        """The external variables of the last converged solve, the current ones before any."""
-        return self.__solvedExternal if self.__internal else self.__external
+    def __Solved_externals(self) -> dict[str, _types.FloatArray]:
+        return self._variables.Solved_externals(self._externalNames)
 
     def __External_e_pg(
         self, groupElem: _GroupElem, external: dict[str, _types.FloatArray]
@@ -165,7 +139,7 @@ class InElastic(_Simu):
             Kinematics(groupElem, self.__Node_values(u)),
             self.__Internal_e_pg(groupElem),
             self.__dt,
-            **self.__External_e_pg(groupElem, self.__external),
+            **self.__External_e_pg(groupElem, self._variables.nextExternals),
         )
 
     def _Calc_Epsilon(
@@ -192,17 +166,13 @@ class InElastic(_Simu):
                     groupElem, self.__Node_values(self.displacement), matrixType
                 ),
                 self.__Internal_e_pg(groupElem),
-                **self.__External_e_pg(groupElem, self.__Solved_external()),
+                **self.__External_e_pg(groupElem, self.__Solved_externals()),
             ),
             self.__Groups(),
         )
 
-    def Solve(self) -> _types.FloatArray:
-        """Solves one step and commits its internal variables; Newton asserts before committing if it does not converge."""
-        u = super().Solve()
-        self.__internal = {g: self.__Integrate(u, g)[2] for g in self.__Groups()}
-        self.__solvedExternal = dict(self.__external)
-        return u
+    def _Trial_internals(self) -> dict[_GroupElem, dict[str, FeArray]]:
+        return {g: self.__Integrate(self.displacement, g)[2] for g in self.__Groups()}
 
     def Get_terms(self, problemType=None) -> list[Term]:
         """One term: the tangent ``∫BᵀC_alg B`` and the internal force ``∫Bᵀσ``."""
@@ -223,54 +193,6 @@ class InElastic(_Simu):
         )
         tic.Tac("Matrix", f"Construct K_e and R_e ({groupElem.elemType})", False)
         return K_e, R_e
-
-    # --------------------------------------------------------------------------
-    # Iterations
-    # --------------------------------------------------------------------------
-
-    def _Get_dof_names(self) -> dict[str, ProblemType]:
-        return {"displacement": self.problemType}
-
-    def Save_Iter(self, iter=None):
-        external = self.__Solved_external()
-        # so that every saved iteration can give its stress back
-        missing = set(self.material.externalNames) - set(external)
-        assert not missing, f"set {sorted(missing)} with Set_external before saving"
-        if iter is None:
-            iter = {}
-        iter["displacement"] = self.displacement
-        # flat, so that each is seen as an element field
-        for groupElem, internal in self.__internal.items():
-            for name, v in internal.items():
-                key = f"{InElastic.__INTERNAL_KEY}/{groupElem.elemType.value}/{name}"
-                iter[key] = v
-        for name, v in external.items():
-            iter[f"{InElastic.__EXTERNAL_KEY}/{name}"] = v
-
-        return super().Save_Iter(iter)
-
-    def Set_Iter(self, iter: int = -1, resetAll=False) -> dict:
-        results = super().Set_Iter(iter)
-        if results is None:
-            return results
-
-        u = results["displacement"]
-        self._Set_solutions(self.problemType, u, np.zeros_like(u), np.zeros_like(u))
-        # the groups of the iteration's mesh, which super().Set_Iter restored
-        groups = {g.elemType: g for g in self.__Groups()}
-        internal: dict[_GroupElem, dict[str, FeArray]] = {}
-        external: dict[str, _types.FloatArray] = {}
-        for key, v in results.items():
-            prefix, _, rest = key.partition("/")
-            if prefix == InElastic.__INTERNAL_KEY:
-                elemType, name = rest.split("/")
-                internal.setdefault(groups[ElemType(elemType)], {})[name] = v
-            elif prefix == InElastic.__EXTERNAL_KEY:
-                external[rest] = v
-        self.__internal = internal
-        self.__external = external
-        self.__solvedExternal = dict(external)
-        return results
 
     # --------------------------------------------------------------------------
     # Results
@@ -321,11 +243,7 @@ class InElastic(_Simu):
             values = self.Results_displacement_matrix()
 
         elif result in self.material.externalNames:
-            external = self.__Solved_external()
-            if result not in external:
-                Terminal.MyPrintError(f"'{result}' is not set, see Set_external.")
-                return None  # type: ignore[return-value]
-            values = external[result]
+            values = self.__Solved_externals()[result]
 
         elif result in self.__Scalar_states():
             values = np.concatenate(
