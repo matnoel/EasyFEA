@@ -82,6 +82,8 @@ class PhaseField(_Simu):
     problemTypes = (U, D)
     dofFields = {U: ("displacement",), D: ("damage",)}
 
+    __historyMatrixType = MatrixType.mass
+    """quadrature of psi+ and of the history field H, shared by the damage reaction and source that read them; mass, otherwise they are under-integrated"""
 
     def __init__(
         self, mesh: Mesh, model: Models.PhaseField, folder: str = "", verbosity=False
@@ -103,20 +105,13 @@ class PhaseField(_Simu):
         assert isinstance(model, Models.PhaseField), "model must be a phase field model"
         super().__init__(mesh, model, folder, verbosity)
 
-        # Init internal variable
-        self.__psiP_e_pg: dict[_GroupElem, FeArray] = {}
-        # old positive elastic energy density psiPlus(e, pg) to use the miehe history field
-        self.__old_psiP_e_pg: dict[_GroupElem, FeArray.FeArrayALike] = {}
-
         self.Need_Update()
 
         self.phaseFieldModel.material._Add_observer(self)
 
         self.__resumeLoading = ""
         self.__resumeIter = ""
-        self.__Niter = 0
-        self.__convIter = 0.0
-        self.__timeIter = 0.0
+        self._Iter_Record(Niter=0, timeIter=0.0, convIter=0.0, damageMax=0.0)
 
         self.__displacement_solver = self.solver
 
@@ -273,7 +268,7 @@ class PhaseField(_Simu):
             such that:\n
             - u_np1: displacement vector field\n
             - d_np1: damage scalar field\n
-            - converged: the solution has converged\n
+            - converged: the solution has converged, and only then is the history field committed\n
         """
 
         assert tolConv > 0 and tolConv <= 1, "tolConv must be between 0 and 1."
@@ -371,14 +366,19 @@ class PhaseField(_Simu):
 
         timeIter = tic.Tac("Resolution phase field", "Phase Field iteration", False)
 
+        if converged:
+            self._Commit_Internal_and_External_states()
+
         # save solve config
         self.__tolConv = tolConv
         self.__convOption = convOption
         self.__maxIter = maxIter
-        # save iter parameters
-        self.__Niter = Niter
-        self.__convIter = convIter
-        self.__timeIter = timeIter
+        self._Iter_Record(
+            Niter=Niter,
+            timeIter=timeIter,
+            convIter=convIter,
+            damageMax=float(self.damage.max()),
+        )
 
         return u_np1, d_np1, converged
 
@@ -428,8 +428,8 @@ class PhaseField(_Simu):
 
     # ------------------------------------------- Damage problem -------------------------------------------
 
-    def __Calc_psiPlus_e_pg(self, groupElem: "_GroupElem") -> FeArray.FeArrayALike:
-        """Computes the positive energy density psi^+ (e, p)."""
+    def __Calc_psiPlus_e_pg(self, groupElem: _GroupElem) -> FeArray:
+        """Positive energy density psi^+ (e, p) of the current displacement on `groupElem`, a group of the displacement's space."""
 
         phaseFieldModel = self.phaseFieldModel
 
@@ -443,24 +443,46 @@ class PhaseField(_Simu):
 
         assert testu or testd, "Dimension problem."
 
-        # here the mass term is important otherwise we under-integrate
         space = self._Get_FunctionSpace(self.U)
         kinematics = Kinematics(
-            groupElem, space.Get_nodeValues(u, self.dim), MatrixType.mass
+            groupElem, space.Get_nodeValues(u, self.dim), self.__historyMatrixType
         )
 
         # Compute the elastic energy densities.
         psiP_e_pg, _ = phaseFieldModel.Compute_psi(kinematics)
 
-        if phaseFieldModel.solver == "History":
-            old_psiP_e_pg = self.__old_psiP_e_pg.get(groupElem)
-            # skipped when there is no history yet or the mesh has changed
-            if old_psiP_e_pg is not None and old_psiP_e_pg.shape == psiP_e_pg.shape:
-                psiP_e_pg = np.maximum(psiP_e_pg, old_psiP_e_pg)
+        return psiP_e_pg
 
-        self.__psiP_e_pg[groupElem] = psiP_e_pg
+    def __Calc_H_e_pg(self, groupElem: _GroupElem) -> FeArray:
+        """Damage driving energy on `groupElem` of the displacement's space: psi^+, with the History solver its running max with the committed history field H."""
+        psiP_e_pg = self.__Calc_psiPlus_e_pg(groupElem)
+        if self.phaseFieldModel.solver != Models.PhaseField.SolverType.History:
+            return psiP_e_pg
+        # none before the first solve, nor on a new mesh's groups
+        H_e_pg = self._variables.internals.get(groupElem, {}).get("H")
+        if H_e_pg is None:
+            return psiP_e_pg
+        return np.maximum(psiP_e_pg, H_e_pg)  # type: ignore [return-value]
 
-        return self.__psiP_e_pg[groupElem]
+    def __Displacement_groups(self) -> list[_GroupElem]:
+        return self._Get_FunctionSpace(self.U).Get_list_groupElem()
+
+    def __Displacement_group_facing(self, groupElem: _GroupElem) -> _GroupElem:
+        """The displacement's group facing `groupElem` of the damage's space: u and d share one order, their groups pair up in order."""
+        groupsD = self._Get_FunctionSpace(self.D).Get_list_groupElem()
+        for groupD, groupU in zip(groupsD, self.__Displacement_groups()):
+            if groupD is groupElem:
+                return groupU
+        raise ValueError(f"no displacement group faces the {groupElem.elemType} group")
+
+    def _Trial_internals(self) -> dict[_GroupElem, dict[str, FeArray]]:
+        """The history field H per group of the displacement's space, with the History solver."""
+        if self.phaseFieldModel.solver != Models.PhaseField.SolverType.History:
+            return {}
+        return {
+            groupElem: {"H": self.__Calc_H_e_pg(groupElem)}
+            for groupElem in self.__Displacement_groups()
+        }
 
     def __Damage(self, groupElem: _GroupElem) -> tuple[np.ndarray, np.ndarray]:
         """Damage operator ``(K_e, F_e)``: reaction + diffusion against the positive energy source.
@@ -470,13 +492,18 @@ class PhaseField(_Simu):
 
         pfm = self.phaseFieldModel
 
-        PsiP_e_pg = self.__Calc_psiPlus_e_pg(groupElem)
+        PsiP_e_pg = self.__Calc_H_e_pg(self.__Displacement_group_facing(groupElem))
 
         tic = Tic()
 
-        reaction_e = Operators.Bilinear.UV(groupElem, pfm.Get_r_e_pg(PsiP_e_pg))
+        matrixType = self.__historyMatrixType
+        reaction_e = Operators.Bilinear.UV(
+            groupElem, pfm.Get_r_e_pg(PsiP_e_pg), matrixType=matrixType
+        )
         diffusion_e = Operators.Bilinear.GradU_A_GradV(groupElem, pfm.A, pfm.k)
-        source_e = Operators.Linear.V(groupElem, pfm.Get_f_e_pg(PsiP_e_pg))
+        source_e = Operators.Linear.V(
+            groupElem, pfm.Get_f_e_pg(PsiP_e_pg), matrixType=matrixType
+        )
 
         tic.Tac("Matrix", "Construct Kd_e and Fd_e", self._verbosity)
 
@@ -525,57 +552,8 @@ class PhaseField(_Simu):
         detected = int(d_nodes.size > 0 and np.any(d_nodes >= threshold))
         return bool(detected if self.isGathered else Reduce_sum(detected))
 
-    def _Get_dof_names(self) -> dict[str, ProblemType]:
-        return {
-            "displacement": self.U,
-            "damage": self.D,
-        }
-
-    def Save_Iter(self, iter=None):
-
-        if iter is None:
-            iter = {}
-
-        # convergence informations
-        iter["Niter"] = self.__Niter
-        iter["timeIter"] = self.__timeIter
-        iter["convIter"] = self.__convIter
-
-        if self.phaseFieldModel.solver == self.phaseFieldModel.SolverType.History:
-            # update old history field for next resolution
-            self.__old_psiP_e_pg = dict(self.__psiP_e_pg)
-
-        iter["displacement"] = self.displacement
-        iter["damage"] = self.damage
-
-        return super().Save_Iter(iter)
-
-    def Set_Iter(self, iter: int = -1, resetAll=False) -> dict:
-        results = super().Set_Iter(iter)
-
-        if results is None:
-            return
-
-        self._Set_solutions(self.D, results[self.D])
-
-        self._Set_solutions(self.U, results["displacement"])
-
-        # damage and displacement field will change thats why we need to update the assembled matrices
-        self.__updatedDamage = False
-        self.__updatedDisplacement = False
-
-        if (
-            resetAll
-            and self.phaseFieldModel.solver == self.phaseFieldModel.SolverType.History
-        ):
-            # emptied first so the rebuild ignores the history of later iterations
-            self.__old_psiP_e_pg = {}
-            self.__old_psiP_e_pg = {
-                groupElem: self.__Calc_psiPlus_e_pg(groupElem)
-                for groupElem in self._Get_FunctionSpace(self.D).Get_list_groupElem()
-            }
-
-        return results
+    def _Iter_Restored(self) -> None:
+        self.Need_Update()
 
     def Results_Available(self) -> list[str]:
         results = []
@@ -630,8 +608,8 @@ class PhaseField(_Simu):
             # Get_Node_Values on meshes carrying several element groups
             values = np.concatenate(
                 [
-                    np.asarray(self.__Calc_psiPlus_e_pg(groupElem)).mean(1)
-                    for groupElem in spaceD.Get_list_groupElem()
+                    np.asarray(self.__Calc_H_e_pg(groupElem)).mean(1)
+                    for groupElem in self.__Displacement_groups()
                 ]
             )
 
@@ -793,9 +771,10 @@ class PhaseField(_Simu):
 
         d = self.damage
 
-        Niter = self.__Niter
-        dincMax = self.__convIter
-        timeIter = self.__timeIter
+        convergence = self._variables.record
+        Niter = convergence["Niter"]
+        dincMax = convergence["convIter"]
+        timeIter = convergence["timeIter"]
 
         min_d = d.min()
         max_d = d.max()
@@ -843,17 +822,17 @@ class PhaseField(_Simu):
         list_label_values = []
 
         iterations = list(range(self.Niter))
-        results = [self.Get_results(i) for i in iterations]
+        scalars = [self._Get_results_scalars(i) for i in iterations]
 
         damageMaxIter, convIter, Niter, timeIter = zip(
             *(
                 (
-                    np.max(result["damage"]),
-                    result["convIter"],
-                    result["Niter"],
-                    result["timeIter"],
+                    scalar["damageMax"],
+                    scalar["convIter"],
+                    scalar["Niter"],
+                    scalar["timeIter"],
                 )
-                for result in results
+                for scalar in scalars
             )
         )
 

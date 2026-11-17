@@ -766,6 +766,37 @@ def test_Simu_Results_Iter_Summary_of_PhaseField_follows_each_iteration():
     assert damage[1] == simu.damage.max()
 
 
+def test_Simu_Save_Iter_of_PhaseField_stores_the_max_of_the_damage_it_saves():
+    simu = _phasefield()
+    for _ in range(2):
+        simu.Solve()
+        simu.Save_Iter()
+    simu.Set_Iter(0)
+    simu.Save_Iter()
+
+    damage = [simu.Get_results(i)["damage"] for i in range(simu.Niter)]
+    assert damage[1].max() != damage[0].max()
+    for i, d in enumerate(damage):
+        assert simu.Get_results(i)["damageMax"] == d.max()
+
+
+def test_Simu_Results_Iter_Summary_of_a_folder_run_reads_no_result_file(tmp_path):
+    simu = _phasefield()
+    simu.folder = str(tmp_path)
+    for _ in range(2):
+        simu.Solve()
+        simu.Save_Iter()
+    iterations, labelValues = simu.Results_Iter_Summary()
+
+    shutil.rmtree(os.path.join(simu.folder, "Results"))
+
+    assert simu.Results_Iter_Summary()[0] == iterations
+    for (label, values), (_, expected) in zip(
+        simu.Results_Iter_Summary()[1], labelValues
+    ):
+        assert np.array_equal(values, expected), label
+
+
 def test_Simu_Results_dict_Energy_per_simulation():
     elastic = _injected("Elastic")
     phasefield = _injected("PhaseField")

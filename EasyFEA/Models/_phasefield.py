@@ -316,9 +316,7 @@ class PhaseField(_IModel):
             raise TypeError("regu error")
         return c_w
 
-    def Compute_psi(
-        self, kinematics: "Kinematics"
-    ) -> tuple[FeArray.FeArrayALike, FeArray.FeArrayALike]:
+    def Compute_psi(self, kinematics: "Kinematics") -> tuple[FeArray, FeArray]:
         """Undegraded elastic energy densities ``(ψ⁺, ψ⁻)`` with ``ψ± = 1/2 σ± : ε``, shape (Ne, nPg)."""
 
         Epsilon_e_pg = kinematics.Compute_Epsilon()

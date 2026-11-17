@@ -4,6 +4,7 @@
 # EasyFEA is distributed under the terms of the GNU General Public License v3, see LICENSE.txt and CREDITS.md for more information.
 
 import os
+from typing import Callable
 
 import numpy as np
 import pytest
@@ -334,3 +335,65 @@ def test_PhaseField_Folder_omits_the_defaults(tmp_path):
     )
 
     assert path == os.path.join(str(tmp_path), "He_AT1 nL=2.50")
+
+
+UNLOADED = [1, 3, 2, 1]
+"""Bar end displacements at its bottom, in units of `L0`: loaded then unloaded, so that the history field outlives psi+."""
+
+
+def _pulled_steps(
+    simu: Simulations.PhaseField,
+    loads: list[float],
+    save: Callable[[int], bool] = lambda step: True,
+    between: Callable[[Simulations.PhaseField], object] = lambda simu: None,
+) -> None:
+    """Pulls the bar end to each of `loads`, twice as far at its top, converged on d alone; calls `between` after each solve and saves the steps `save` picks."""
+    mesh = simu.mesh
+    length, height = mesh.coord[:, :2].max(0)
+    nodesPulled = mesh.Nodes_Conditions(lambda x, y, z: x == length)
+    for step, ud in enumerate(loads):
+        simu.Bc_Init()
+        _reference.add_bar_supports(simu)
+        simu.add_dirichlet(
+            nodesPulled, [lambda x, y, z: ud * L0 * (1 + y / height)], ["x"]
+        )
+        simu.Solve(tolConv=1e-6, convOption=0)
+        between(simu)
+        if save(step):
+            simu.Save_Iter()
+
+
+def _two_groups() -> Simulations.PhaseField:
+    material = Models.Elastic.Isotropic(2, E, v, planeStress=True)
+    pfm = Models.PhaseField(material, "Bourdin", "AT2", GC, L0)
+    return Simulations.PhaseField(bar_mesh("QUAD4+TRI3"), pfm)
+
+
+def test_PhaseField_history_of_every_group_survives_unloading_and_Set_Iter():
+    simu = _two_groups()
+    _pulled_steps(simu, UNLOADED)
+    history = [simu.Result("psiP", nodeValues=False, iter=i) for i in range(4)]
+
+    assert len(simu.mesh.Get_list_groupElem()) == 2
+    assert np.all(history[0] > 0)
+    assert np.all(history[1] >= history[0]) and np.any(history[1] > history[0])
+    assert np.array_equal(history[2], history[1])
+    assert np.array_equal(history[3], history[1])
+
+
+def test_PhaseField_saving_every_step_or_once_gives_the_same_damage():
+    everyStep, once = _two_groups(), _two_groups()
+
+    _pulled_steps(everyStep, UNLOADED)
+    _pulled_steps(once, UNLOADED, save=lambda step: step == len(UNLOADED) - 1)
+
+    assert np.array_equal(once.damage, everyStep.damage)
+
+
+def test_PhaseField_Result_psiP_between_steps_leaves_the_next_step_alone():
+    looked, unlooked = _two_groups(), _two_groups()
+
+    _pulled_steps(looked, UNLOADED, between=lambda simu: simu.Result("psiP"))
+    _pulled_steps(unlooked, UNLOADED)
+
+    assert np.array_equal(looked.damage, unlooked.damage)
