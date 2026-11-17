@@ -1581,8 +1581,7 @@ def Plot_Energy(
     if plotSolMax:
         listSolMax: list[float] = []
 
-    # activate the first iteration
-    simu.Set_Iter(0, resetAll=True)
+    simu.Set_Iter(0)
 
     for i, iteration in enumerate(iterations):
         # Update simulation at iteration i
@@ -1872,8 +1871,7 @@ def Movie_simu(
     ax = Init_Axes(inDim)
     fig = ax.figure
 
-    # activate the first iteration
-    simu.Set_Iter(0, resetAll=True)
+    simu.Set_Iter(0)
 
     def DoAnim(fig: plt.Figure, i):  # type: ignore
         simu.Set_Iter(iterations[i])

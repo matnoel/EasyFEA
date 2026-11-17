@@ -227,8 +227,7 @@ def Save_simu(
         dtype=int,
     )
 
-    # activates the first iteration
-    simu.Set_Iter(0, resetAll=True)
+    simu.Set_Iter(0)
 
     for i in iterations:
         simu.Set_Iter(i)

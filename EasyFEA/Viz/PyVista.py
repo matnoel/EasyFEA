@@ -1148,8 +1148,7 @@ def Movie_simu(
     N = np.min([Niter, N])
     iterations = np.linspace(0, Niter - 1, N, endpoint=True, dtype=int)
 
-    # activates the first iteration
-    simu.Set_Iter(0, resetAll=True)
+    simu.Set_Iter(0)
 
     def DoAnim(plotter, i):
         simu.Set_Iter(iterations[i])

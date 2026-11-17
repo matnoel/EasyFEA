@@ -336,8 +336,7 @@ def Save_simu(
         list_nodesValues_n: list[np.ndarray] = []
         list_mesh: list[Mesh] = []
 
-        # activates the first iteration
-        simu.Set_Iter(0, resetAll=True)
+        simu.Set_Iter(0)
 
         # get values
         for iter in iterations:

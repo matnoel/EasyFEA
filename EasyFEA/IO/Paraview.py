@@ -101,8 +101,7 @@ def Save_simu(
             "The simulation has no solution fields to display in paraview."
         )
 
-    # activate the first iteration
-    simu.Set_Iter(0, resetAll=True)
+    simu.Set_Iter(0)
 
     pvFiles: list[str] = []
     times = []
