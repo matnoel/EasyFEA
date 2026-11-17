@@ -1328,7 +1328,7 @@ def test_Simu__Solver_Get_lb_ub_puts_the_fields_end_to_end():
     assert np.array_equal(lb, lb_D) and np.array_equal(ub, ub_D)
 
 
-def test_Simu__Get_dof_names_are_the_saved_dof_vectors(subtests):
+def test_Simu_dofFields_are_the_saved_dof_vectors(subtests):
     for name, simu in (
         ("Elastic", _elastic_bar()),
         ("Thermal", _thermal()),
@@ -1336,17 +1336,16 @@ def test_Simu__Get_dof_names_are_the_saved_dof_vectors(subtests):
         ("u/p", _incompressible_square()),
     ):
         with subtests.test(name):
-            dofNames = simu._Get_dof_names()
             simu.Save_Iter()
             results = simu.Get_results()
-            saved = [key for key in dofNames if key in results]
 
-            assert saved
-            for key in saved:
-                problemType = dofNames[key]
+            for problemType, names in simu.dofFields.items():
+                saved = [key for key in names if key in results]
+                assert saved
                 Ndof = simu.mesh._Get_FunctionSpace(problemType).Nn
                 Ndof *= simu.Get_dof_n(problemType)
-                assert results[key].size == Ndof
+                for key in saved:
+                    assert results[key].size == Ndof
 
 
 def test_Simu__Get_monolithic_problems_is_one_per_problem_type(subtests):

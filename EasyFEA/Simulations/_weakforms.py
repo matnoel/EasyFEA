@@ -34,6 +34,7 @@ class WeakForms(_Simu):
     """the field's problem"""
 
     problemTypes = (U,)
+    dofFields = {U: ("u", "v", "a")}
 
     def __init__(
         self,

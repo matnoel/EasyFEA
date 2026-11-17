@@ -55,6 +55,7 @@ class Beam(_Simu):
     """the displacement and rotation problem"""
 
     problemTypes = (U,)
+    dofFields = {U: ("displacement", "speed", "accel")}
 
     def __init__(
         self,

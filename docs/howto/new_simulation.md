@@ -196,6 +196,7 @@ class MySimulation(_Simu):
 
     U = ProblemType("my_problem")
     problemTypes = (U,)  # the first is the default, `problemType`
+    dofFields = {U: ("u", "v", "a")}  # see below
 
     def __init__(self, mesh, model, folder="", verbosity=False):
         super().__init__(mesh, model, folder, verbosity)
@@ -244,6 +245,23 @@ class MySimulation(_Simu):
     def Results_nodeFields_elementFields(self, details=False):
         ...
 ```
+
+### Declaring `problemTypes` and `dofFields`
+
+`problemTypes` lists the problems the simulation solves, the first being its default
+`problemType`. `dofFields` names, for each of them, its fields in a saved iteration, by
+role: u, then v (velocity) and a (acceleration) when the simulation has them:
+
+```python
+problemTypes = (U,)
+dofFields = {U: ("displacement", "speed", "accel")}
+```
+
+`Save_Iter` stores the roles the algorithm integrates (u when elliptic, u and v when
+parabolic, u, v and a when hyperbolic) and `Set_Iter` restores them, a role not saved as
+zero: neither is yours to write. A problem without time derivatives declares u alone,
+e.g. `{U: ("displacement",), P: ("pressure",)}`. The names are the keys of
+`simu.Get_results(i)`.
 
 ### Implementing `Get_terms`
 

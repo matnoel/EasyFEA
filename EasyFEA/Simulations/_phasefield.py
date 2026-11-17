@@ -80,6 +80,8 @@ class PhaseField(_Simu):
     """the damage problem"""
 
     problemTypes = (U, D)
+    dofFields = {U: ("displacement",), D: ("damage",)}
+
 
     def __init__(
         self, mesh: Mesh, model: Models.PhaseField, folder: str = "", verbosity=False

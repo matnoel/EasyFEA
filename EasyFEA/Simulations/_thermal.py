@@ -54,6 +54,7 @@ class Thermal(_Simu):
     """the temperature problem"""
 
     problemTypes = (T,)
+    dofFields = {T: ("thermal", "thermalDot")}
 
     def __init__(
         self, mesh: "Mesh", model: Models.Thermal, folder: str = "", verbosity=False

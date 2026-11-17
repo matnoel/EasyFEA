@@ -84,6 +84,10 @@ class _Simu(_IObserver, _params.Updatable, ABC):
     General:
     --------
 
+        - problemTypes = (U,)
+
+        The problems the simulation solves, the first being its default ``problemType``.
+
         - def Get_unknowns(self, problemType=None) -> list[str]:
 
         - def Get_dof_n(self, problemType=None) -> int:
@@ -138,6 +142,9 @@ class _Simu(_IObserver, _params.Updatable, ABC):
 
     problemType: ProblemType
     """the simulation's default problem type, the first of ``problemTypes``"""
+
+    dofFields: dict[ProblemType, tuple[str, ...]]
+    """each problem type's dof fields as named in a saved iteration, by role: u, then v and a when the simulation has them"""
 
     def __init_subclass__(cls, **kwargs) -> None:
         super().__init_subclass__(**kwargs)

@@ -71,6 +71,7 @@ class HyperElastic(_Simu):
     """the displacement problem"""
 
     problemTypes = (U,)
+    dofFields = {U: ("displacement", "speed", "accel")}
 
     def __init__(
         self,

@@ -46,6 +46,7 @@ class IncompressibleHyperElastic(_Simu):
     """the pressure problem, on the vertices of every main-dimension element"""
 
     problemTypes = (U, P)
+    dofFields = {U: ("displacement",), P: ("pressure",)}
 
     def __init__(
         self,

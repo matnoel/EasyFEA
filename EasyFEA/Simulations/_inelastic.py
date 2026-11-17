@@ -38,6 +38,7 @@ class InElastic(_Simu):
     """the displacement problem"""
 
     problemTypes = (U,)
+    dofFields = {U: ("displacement",)}
 
     def __init__(
         self,

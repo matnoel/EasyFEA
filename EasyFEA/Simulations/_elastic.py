@@ -54,6 +54,7 @@ class Elastic(_Simu):
     """the displacement problem"""
 
     problemTypes = (U,)
+    dofFields = {U: ("displacement", "speed", "accel")}
 
     def __init__(
         self, mesh: "Mesh", model: _Elastic, folder: str = "", verbosity=False
