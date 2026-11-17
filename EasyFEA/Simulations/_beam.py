@@ -506,15 +506,9 @@ class Beam(_Simu):
 
         return options
 
-    def Result(
-        self, result: str, nodeValues: bool = True, iter: int | None = None
+    def _Result(
+        self, result: str, nodeValues: bool = True
     ) -> _types.FloatArray | float:
-        if iter is not None:
-            self.Set_Iter(iter)
-
-        if not self._Results_Check_Available(result):
-            return None  # type: ignore [return-value]
-
         # begin cases ----------------------------------------------------
 
         dof_n = self.structure.dof_n

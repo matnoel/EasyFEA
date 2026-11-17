@@ -5,9 +5,10 @@
 
 from abc import ABC, abstractmethod
 import pickle
+from contextlib import contextmanager
 from dataclasses import replace
 from datetime import datetime
-from typing import Any, Callable
+from typing import Any, Callable, Iterator
 import numpy as np
 from scipy import sparse
 import textwrap
@@ -124,7 +125,7 @@ class _Simu(_IObserver, _params.Updatable, ABC):
 
         - def Results_Available(self) -> list[str]:
 
-        - def Result(self, result: str, nodeValues=True, iter=None) -> float | _types.FloatArray:
+        - def _Result(self, result: str, nodeValues=True) -> float | _types.FloatArray:
 
         - def Results_Iter_Summary(self) -> tuple[list[int], list[tuple[str, _types.FloatArray]]]:
 
@@ -134,7 +135,7 @@ class _Simu(_IObserver, _params.Updatable, ABC):
 
         - def Results_nodeFields_elementFields(self, details=False) -> tuple[list[str], list[str]]:
 
-        These functions are used to process the results.
+        These functions are used to process the results. `_Result` reads the current state only: the base `Result` checks the name and reads a past iteration inside `_Reading`.
     """
 
     __indexMesh: int
@@ -438,6 +439,16 @@ class _Simu(_IObserver, _params.Updatable, ABC):
         self.__Restore(iteration)
         return _iterations.Flat(iteration)
 
+    @contextmanager
+    def _Reading(self) -> Iterator[None]:
+        """Binds every attribute back on exit, so that a `Set_Iter` inside only reads; exact as long as nothing is written in place."""
+        live = dict(self.__dict__)
+        try:
+            yield
+        finally:
+            self.__dict__.clear()
+            self.__dict__.update(live)
+
     def _Iter_Restored(self) -> None:
         """Called by `Set_Iter` once a saved iteration is restored, to drop what the subclass derived from the state before; nothing by default."""
 
@@ -470,11 +481,10 @@ class _Simu(_IObserver, _params.Updatable, ABC):
     def Results_Available(self) -> list[str]:
         """Returns a list of available results in the simulation."""
 
-    @abstractmethod
     def Result(
-        self, option: str, nodeValues=True, iter=None
+        self, result: str, nodeValues: bool = True, iter: int | None = None
     ) -> _types.FloatArray | float:
-        """Returns the result. Use Results_Available() to know the available results.
+        """Returns the result. Use Results_Available() to know the available results; at ``iter``, read with the simulation put back where it was.
 
         Examples
         --------
@@ -494,6 +504,21 @@ class _Simu(_IObserver, _params.Updatable, ABC):
 
         >>> u5 = simu.Result("displacement_norm", iter=5)
         """
+        if iter is not None:
+            with self._Reading():
+                self.Set_Iter(iter)
+                return self.Result(result, nodeValues)
+
+        if not self._Results_Check_Available(result):
+            return None  # type: ignore [return-value]
+
+        return self._Result(result, nodeValues)
+
+    @abstractmethod
+    def _Result(
+        self, result: str, nodeValues: bool = True
+    ) -> _types.FloatArray | float:
+        """The available `result` of the current state, at nodes or elements."""
 
     @abstractmethod
     def Results_Iter_Summary(
@@ -761,7 +786,7 @@ class _Simu(_IObserver, _params.Updatable, ABC):
     def __Set_u_n(self, problemType: ProblemType, values: _types.FloatArray) -> None:
         """Sets the solution associated with the given problem."""
         self.__Check_New_Sol_Values(problemType, values)
-        self.__dict_u_n[problemType] = values
+        self.__dict_u_n = {**self.__dict_u_n, problemType: values}
 
     def _Get_v_n(
         self, problemType: ProblemType | tuple[ProblemType, ...]
@@ -772,7 +797,7 @@ class _Simu(_IObserver, _params.Updatable, ABC):
     def __Set_v_n(self, problemType: ProblemType, values: _types.FloatArray) -> None:
         """Sets the speed solution associated with the given problem."""
         self.__Check_New_Sol_Values(problemType, values)
-        self.__dict_v_n[problemType] = values
+        self.__dict_v_n = {**self.__dict_v_n, problemType: values}
 
     def _Get_a_n(
         self, problemType: ProblemType | tuple[ProblemType, ...]
@@ -783,7 +808,7 @@ class _Simu(_IObserver, _params.Updatable, ABC):
     def __Set_a_n(self, problemType: ProblemType, values: _types.FloatArray) -> None:
         """Sets the acceleration solution associated with the given problem."""
         self.__Check_New_Sol_Values(problemType, values)
-        self.__dict_a_n[problemType] = values
+        self.__dict_a_n = {**self.__dict_a_n, problemType: values}
 
     # This method is overloaded in PhaseFieldSimu
     def Get_lb_ub(

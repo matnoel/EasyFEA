@@ -741,6 +741,62 @@ def test_Simu_Result_at_an_iteration_reads_that_iteration():
     assert np.array_equal(simu.Result("thermal", iter=1), simu.thermal)
 
 
+def _saved_twice(name: str) -> Simulations._Simu:
+    """Iterations 0 and 1 saved with the injected state times 1 and 2, then times 3 live, unsaved."""
+    simu = SIMULATIONS[name]()
+    for scale in (1, 2, 3):
+        for problemType in simu.problemTypes:
+            u = scale * _smooth(
+                simu, problemType, 0.1 if problemType == "damage" else 1e-3
+            )
+            simu._Set_solutions(problemType, u, 2 * u, 3 * u)
+        if scale < 3:
+            simu.Save_Iter()
+    return simu
+
+
+def _every_result(simu: Simulations._Simu) -> dict[tuple[str, bool], np.ndarray]:
+    return {
+        (result, nodeValues): np.asarray(simu.Result(result, nodeValues))
+        for result in simu.Results_Available()
+        for nodeValues in (True, False)
+    }
+
+
+def _assert_same_results(actual: dict, expected: dict) -> None:
+    assert actual.keys() == expected.keys()
+    for key, value in expected.items():
+        assert np.array_equal(actual[key], value, equal_nan=True), key
+
+
+def test_Simu_Result_at_an_iteration_leaves_the_simulation_where_it_is(subtests):
+    for name in SIMULATIONS:
+        with subtests.test(simulation=name):
+            simu = _saved_twice(name)
+            live, liveResults = _u_v_a(simu), _every_result(simu)
+
+            read = [
+                {key: np.asarray(simu.Result(*key, iter=i)) for key in liveResults}
+                for i in range(simu.Niter)
+            ]
+
+            for problemType, roles in live.items():
+                for before, after in zip(roles, _u_v_a(simu)[problemType]):
+                    assert np.array_equal(before, after)
+            _assert_same_results(_every_result(simu), liveResults)
+            for i, values in enumerate(read):
+                simu.Set_Iter(i)
+                _assert_same_results(values, _every_result(simu))
+
+
+def test_Simu_Result_at_two_iterations_subtract():
+    simu = _saved_twice("Elastic")
+
+    difference = simu.Result("ux", iter=1) - simu.Result("ux", iter=0)
+
+    assert np.array_equal(difference, simu.Result("ux", iter=0))
+
+
 def test_Simu_Results_Iter_Summary_is_empty_by_default():
     assert _injected("Elastic").Results_Iter_Summary() == ([], [])
 

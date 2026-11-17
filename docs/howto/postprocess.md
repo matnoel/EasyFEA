@@ -37,6 +37,7 @@ A scalar or vector field can then be retrieved as a NumPy array via
 ```python
 uy  = simu.Result("uy")                        # nodal values, shape (Nn,)
 Svm = simu.Result("Svm", nodeValues=False)     # element values, shape (Ne,)
+uy0 = simu.Result("uy", iter=0)                # saved iteration 0, simu left as it is
 ```
 
 ______________________________________________________________________

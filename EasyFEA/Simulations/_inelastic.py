@@ -216,18 +216,9 @@ class InElastic(_Simu):
         results.extend(self.material.externalNames)
         return results
 
-    def Result(
-        self,
-        result: str,
-        nodeValues: bool = True,
-        iter: int | None = None,
+    def _Result(
+        self, result: str, nodeValues: bool = True
     ) -> _types.FloatArray | float:
-        if iter is not None:
-            self.Set_Iter(iter)
-
-        if not self._Results_Check_Available(result):
-            return None  # type: ignore[return-value]
-
         u_n = self._Get_FunctionSpace().Get_meshValues(self.displacement, self.dim)
 
         if result in ["ux", "uy", "uz"]:

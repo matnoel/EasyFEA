@@ -222,7 +222,7 @@ class MySimulation(_Simu):
     def Results_Available(self) -> list[str]:
         ...
 
-    def Result(self, result: str, nodeValues=True, iter=None):
+    def _Result(self, result: str, nodeValues=True):
         ...
 
     def Results_Iter_Summary(self):
@@ -295,6 +295,13 @@ marks its assembled matrices stale.
 The scalars of a saved iteration (the record, `indexMesh`) are written with it and kept
 in memory too: `Results_Iter_Summary` reads them with `_Get_results_scalars(i)`, which
 opens no result file; PhaseField records `damageMax` for its summary.
+
+### Reading a past iteration
+
+`_Result` reads the current state only. `Result` checks the name and, given `iter`,
+reads inside `_Reading()`: `Set_Iter` moves the simulation, and on exit every attribute
+is bound back to what it was. Rebind any state the subclass derives (`self.__K = ...`),
+never write it in place: an in-place write outlives the read.
 
 ### Implementing `Get_terms`
 

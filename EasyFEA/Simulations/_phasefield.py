@@ -578,15 +578,9 @@ class PhaseField(_Simu):
 
         return results
 
-    def Result(
-        self, result: str, nodeValues: bool = True, iter: int | None = None
+    def _Result(
+        self, result: str, nodeValues: bool = True
     ) -> _types.FloatArray | float | None:
-        if iter is not None:
-            self.Set_Iter(iter)
-
-        if not self._Results_Check_Available(result):
-            return None  # type: ignore [return-value]
-
         # begin cases ----------------------------------------------------
 
         # node values of the displacement (Nn, dim) and the damage (Nn,), through their spaces

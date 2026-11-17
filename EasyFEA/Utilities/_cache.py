@@ -50,7 +50,7 @@ def cached_computed_values(self) -> dict:
 
 
 def clear_cached_computed_values(self):
-    "Clears the cached computed values"
+    "Clears the cached computed values by rebinding them, leaving a shallow copy's untouched"
     __check_class(self)
     if hasattr(self, CACH_NAME):
-        getattr(self, CACH_NAME).clear()
+        setattr(self, CACH_NAME, {})

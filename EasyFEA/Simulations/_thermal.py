@@ -143,15 +143,9 @@ class Thermal(_Simu):
         options.extend(["thermal", "thermalDot", "displacement_matrix"])
         return options
 
-    def Result(
-        self, result: str, nodeValues: bool = True, iter: int | None = None
+    def _Result(
+        self, result: str, nodeValues: bool = True
     ) -> _types.FloatArray | float:
-        if iter is not None:
-            self.Set_Iter(iter)
-
-        if not self._Results_Check_Available(result):
-            return None  # type: ignore [return-value]
-
         # begin cases ----------------------------------------------------
 
         space = self._Get_FunctionSpace()
