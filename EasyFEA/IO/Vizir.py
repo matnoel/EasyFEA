@@ -534,38 +534,39 @@ def Save_simu(
             pass
         assert type in SOLUTION_TYPES
 
-    for i in np.linspace(0, Niter - 1, N, endpoint=True, dtype=int):
-        # Update simulation iteration
-        simu.Set_Iter(i)
+    with simu._Iter_Visit():
+        for i in np.linspace(0, Niter - 1, N, endpoint=True, dtype=int):
+            # Update simulation iteration
+            simu.Set_Iter(i)
 
-        for result, type in zip(results, types):
-            # get dofsValues
-            dofsValues = simu.Result(result, nodeValues=True).ravel()
-            dof_n = dofsValues.size // simu.mesh.Nn
-            assembly_e = simu.mesh.Get_assembly_e(dof_n)
+            for result, type in zip(results, types):
+                # get dofsValues
+                dofsValues = simu.Result(result, nodeValues=True).ravel()
+                dof_n = dofsValues.size // simu.mesh.Nn
+                assembly_e = simu.mesh.Get_assembly_e(dof_n)
 
-            # init sols file
-            with open(
-                Folder.Join(folder, f"{result}.sols"), "a", encoding="utf-8"
-            ) as file:
-                filename = f"{result}.{i}"
+                # init sols file
+                with open(
+                    Folder.Join(folder, f"{result}.sols"), "a", encoding="utf-8"
+                ) as file:
+                    filename = f"{result}.{i}"
 
-                # save the solution
-                solution_file = _Write_solution_file(
-                    simu.mesh,
-                    dofsValues,  # type: ignore [arg-type]
-                    assembly_e,
-                    type,
-                    simu.mesh.groupElem.order,
-                    folder,
-                    filename,
-                    simu.Results_displacement_matrix()[:, : simu.mesh.inDim],
-                    100,
-                )
-                file.write(solution_file + "\n")
+                    # save the solution
+                    solution_file = _Write_solution_file(
+                        simu.mesh,
+                        dofsValues,  # type: ignore [arg-type]
+                        assembly_e,
+                        type,
+                        simu.mesh.groupElem.order,
+                        folder,
+                        filename,
+                        simu.Results_displacement_matrix()[:, : simu.mesh.inDim],
+                        100,
+                    )
+                    file.write(solution_file + "\n")
 
-    # save the mesh in Medit format
-    mesh_file = Medit.Save_mesh(simu.mesh, folder, "mesh")
+        # save the mesh in Medit format
+        mesh_file = Medit.Save_mesh(simu.mesh, folder, "mesh")
 
     sols_files = " ".join([f"{Folder.Join(folder, result)}.sols" for result in results])
     command = f"vizir4 -in {mesh_file} -sols {sols_files}"

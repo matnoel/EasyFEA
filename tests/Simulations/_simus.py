@@ -96,3 +96,33 @@ def incompressible(
     """NeoHookean (`K` = μ/2) u/p simulation of `mesh`."""
     material = Models.HyperElastic.NeoHookean(mesh.dim, K)
     return Simulations.IncompressibleHyperElastic(mesh, material)
+
+
+def moved_on(simu: Simulations._Simu) -> Simulations._Simu:
+    """`simu` past its last saved iteration: twice its u, v = 2u, a = 3u, unsaved."""
+    u = 2 * simu._Get_u_n(simu.problemType)
+    simu._Set_solutions(simu.problemType, u, 2 * u, 3 * u)
+    return simu
+
+
+def live_state(simu: Simulations._Simu) -> dict[tuple, np.ndarray]:
+    """u, v, a of every problem and every result, at nodes and elements."""
+    state = {
+        (problemType, role): np.copy(get(problemType))
+        for problemType in simu.problemTypes
+        for role, get in (
+            ("u", simu._Get_u_n),
+            ("v", simu._Get_v_n),
+            ("a", simu._Get_a_n),
+        )
+    }
+    for result in simu.Results_Available():
+        for nodeValues in (True, False):
+            state[(result, nodeValues)] = np.asarray(simu.Result(result, nodeValues))
+    return state
+
+
+def assert_same_state(actual: dict, expected: dict) -> None:
+    assert actual.keys() == expected.keys()
+    for key, value in expected.items():
+        assert np.array_equal(actual[key], value, equal_nan=True), key

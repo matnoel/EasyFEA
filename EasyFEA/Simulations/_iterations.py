@@ -35,7 +35,7 @@ Entry = Iteration | tuple[dict[str, Any], str, str]
 
 @dataclass(frozen=True)
 class Variables:
-    """A simulation's internal and external variables and record, rebound on any change so that `_Reading` binds them back."""
+    """A simulation's internal and external variables and record, rebound on any change so that `_Iter_Visit` binds them back."""
 
     internals: dict[_GroupElem, dict[str, FeArray]] = field(default_factory=dict)
     """Internal variables by group, then name, committed at the last converged solve; none before any."""

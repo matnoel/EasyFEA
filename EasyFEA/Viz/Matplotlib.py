@@ -1581,23 +1581,22 @@ def Plot_Energy(
     if plotSolMax:
         listSolMax: list[float] = []
 
-    simu.Set_Iter(0)
+    with simu._Iter_Visit():
+        for i, iteration in enumerate(iterations):
+            # Update simulation at iteration i
+            simu.Set_Iter(iteration)
 
-    for i, iteration in enumerate(iterations):
-        # Update simulation at iteration i
-        simu.Set_Iter(iteration)
+            if plotSolMax:
+                listSolMax.append(simu._Get_u_n(simu.problemType).max())  # type: ignore
 
-        if plotSolMax:
-            listSolMax.append(simu._Get_u_n(simu.problemType).max())  # type: ignore
+            list_dict_energy.append(simu.Results_dict_Energy())
 
-        list_dict_energy.append(simu.Results_dict_Energy())
+            time = tic.Tac("PostProcessing", "Calc Energy", False)
+            times.append(time)
 
-        time = tic.Tac("PostProcessing", "Calc Energy", False)
-        times.append(time)
+            rmTime = Tic.Get_Remaining_Time(i, iterations.size - 1, time)
 
-        rmTime = Tic.Get_Remaining_Time(i, iterations.size - 1, time)
-
-        print(f"Calc Energy {i}/{iterations.size - 1} {rmTime}     ", end="\r")
+            print(f"Calc Energy {i}/{iterations.size - 1} {rmTime}     ", end="\r")
     print("\n")
 
     # Figure construction
@@ -1871,8 +1870,6 @@ def Movie_simu(
     ax = Init_Axes(inDim)
     fig = ax.figure
 
-    simu.Set_Iter(0)
-
     def DoAnim(fig: plt.Figure, i):  # type: ignore
         simu.Set_Iter(iterations[i])
         ax = fig.axes[0]
@@ -1889,14 +1886,15 @@ def Movie_simu(
         )
         ax.set_title(f"{result} {iterations[i]:d}/{Niter - 1:d}")
 
-    Movie_func(
-        DoAnim,
-        iterations.size,
-        folder,
-        filename,
-        fps=fps,
-        fig=fig,
-    )
+    with simu._Iter_Visit():
+        Movie_func(
+            DoAnim,
+            iterations.size,
+            folder,
+            filename,
+            fps=fps,
+            fig=fig,
+        )
 
 
 @rank0_only

@@ -3,10 +3,14 @@
 # This file is part of the EasyFEA project.
 # EasyFEA is distributed under the terms of the GNU General Public License v3, see LICENSE.txt and CREDITS.md for more information.
 
+import pytest
+from matplotlib import animation
+
 from EasyFEA import Matplotlib, PyVista
 from EasyFEA.Viz import Viewer
 
 from _signatures import assert_spelled_as
+from Simulations._simus import assert_same_state, live_state, moved_on
 
 VIEWERS = (Matplotlib, PyVista)
 
@@ -72,3 +76,19 @@ def test_Viewer_Movie_func_is_spelled_alike_by_both_viewers(subtests):
     for module in VIEWERS:
         with subtests.test(module=module.__name__):
             assert_spelled_as(Viewer.Movie_func, module.Movie_func)
+
+
+@pytest.mark.filterwarnings("ignore:FigureCanvasAgg is non-interactive")
+def test_Viewer_Movie_simu_leaves_the_simulation_where_it_is(
+    bar_simu, tmp_path, subtests
+):
+    simu = moved_on(bar_simu)
+    live = live_state(simu)
+    for module in VIEWERS:
+        with subtests.test(module=module.__name__):
+            if module is Matplotlib and not animation.FFMpegWriter.isAvailable():
+                pytest.skip("needs ffmpeg")
+
+            module.Movie_simu(simu, "ux", str(tmp_path / module.__name__))
+
+            assert_same_state(live_state(simu), live)

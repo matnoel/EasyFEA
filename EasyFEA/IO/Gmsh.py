@@ -227,14 +227,13 @@ def Save_simu(
         dtype=int,
     )
 
-    simu.Set_Iter(0)
-
-    for i in iterations:
-        simu.Set_Iter(i)
-        for result in results:
-            dict_results[result].append(
-                np.asarray(simu.Result(result))
-            )  # raw nodal field
+    with simu._Iter_Visit():
+        for i in iterations:
+            simu.Set_Iter(i)
+            for result in results:
+                dict_results[result].append(
+                    np.asarray(simu.Result(result))
+                )  # raw nodal field
 
     def AddView(name: str, list_values: list[_types.FloatArray]):
         """Add a view; list_values holds one nodal field per iteration."""

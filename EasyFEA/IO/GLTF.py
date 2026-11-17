@@ -336,21 +336,20 @@ def Save_simu(
         list_nodesValues_n: list[np.ndarray] = []
         list_mesh: list[Mesh] = []
 
-        simu.Set_Iter(0)
-
         # get values
-        for iter in iterations:
-            simu.Set_Iter(iter)
-            if updatedMesh:
-                list_mesh.append(
-                    Surface_reconstruction(simu.mesh)
-                    if reconstructSurface
-                    else simu.mesh
+        with simu._Iter_Visit():
+            for iter in iterations:
+                simu.Set_Iter(iter)
+                if updatedMesh:
+                    list_mesh.append(
+                        Surface_reconstruction(simu.mesh)
+                        if reconstructSurface
+                        else simu.mesh
+                    )
+                list_displacementMatrix.append(
+                    deformFactor * simu.Results_displacement_matrix()
                 )
-            list_displacementMatrix.append(
-                deformFactor * simu.Results_displacement_matrix()
-            )
-            list_nodesValues_n.append(simu.Result(result).reshape(simu.mesh.Nn, -1))
+                list_nodesValues_n.append(simu.Result(result).reshape(simu.mesh.Nn, -1))
 
         if N > 1:
             list_displacementMatrix.append(list_displacementMatrix[0])

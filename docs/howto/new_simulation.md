@@ -299,9 +299,9 @@ opens no result file; PhaseField records `damageMax` for its summary.
 ### Reading a past iteration
 
 `_Result` reads the current state only. `Result` checks the name and, given `iter`,
-reads inside `_Reading()`: `Set_Iter` moves the simulation, and on exit every attribute
-is bound back to what it was. Rebind any state the subclass derives (`self.__K = ...`),
-never write it in place: an in-place write outlives the read.
+reads inside `_Iter_Visit()`: `Set_Iter` moves the simulation, and on exit every
+attribute is bound back to what it was. Rebind any state the subclass derives
+(`self.__K = ...`), never write it in place: an in-place write outlives the read.
 
 ### Implementing `Get_terms`
 

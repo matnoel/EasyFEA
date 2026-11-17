@@ -17,7 +17,14 @@ from EasyFEA.FEM import GroupElemFactory
 from EasyFEA.Geoms import Circle, CircleArc, Domain, Line, Point
 
 from Geoms._shapes import rounded_corners
-from Simulations._simus import LOADS, PRESSURE, incompressible
+from Simulations._simus import (
+    LOADS,
+    PRESSURE,
+    assert_same_state,
+    incompressible,
+    live_state,
+    moved_on,
+)
 
 from ._simus import L, H, element_tags, far_meshes
 
@@ -753,6 +760,15 @@ def test_Plot_Energy_adds_the_max_solution_and_the_load(bar_simu, tmp_path):
     assert np.allclose(axEnergy.lines[0].get_xdata(), displacement)
     assert np.allclose(axLoad.lines[0].get_ydata(), load * 1e-3)
     assert (tmp_path / "Energy.pdf").is_file()
+
+
+def test_Plot_Energy_leaves_the_simulation_where_it_is(bar_simu):
+    simu = moved_on(bar_simu)
+    live = live_state(simu)
+
+    Matplotlib.Plot_Energy(simu)
+
+    assert_same_state(live_state(simu), live)
 
 
 def test_Plot_Energy_draws_nothing_for_a_simulation_without_energy(bar_simu):

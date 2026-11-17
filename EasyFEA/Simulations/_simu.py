@@ -135,7 +135,7 @@ class _Simu(_IObserver, _params.Updatable, ABC):
 
         - def Results_nodeFields_elementFields(self, details=False) -> tuple[list[str], list[str]]:
 
-        These functions are used to process the results. `_Result` reads the current state only: the base `Result` checks the name and reads a past iteration inside `_Reading`.
+        These functions are used to process the results. `_Result` reads the current state only: the base `Result` checks the name and reads a past iteration inside `_Iter_Visit`.
     """
 
     __indexMesh: int
@@ -440,7 +440,7 @@ class _Simu(_IObserver, _params.Updatable, ABC):
         return _iterations.Flat(iteration)
 
     @contextmanager
-    def _Reading(self) -> Iterator[None]:
+    def _Iter_Visit(self) -> Iterator[None]:
         """Binds every attribute back on exit, so that a `Set_Iter` inside only reads; exact as long as nothing is written in place."""
         live = dict(self.__dict__)
         try:
@@ -505,7 +505,7 @@ class _Simu(_IObserver, _params.Updatable, ABC):
         >>> u5 = simu.Result("displacement_norm", iter=5)
         """
         if iter is not None:
-            with self._Reading():
+            with self._Iter_Visit():
                 self.Set_Iter(iter)
                 return self.Result(result, nodeValues)
 

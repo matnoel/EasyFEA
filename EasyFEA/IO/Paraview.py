@@ -101,40 +101,43 @@ def Save_simu(
             "The simulation has no solution fields to display in paraview."
         )
 
-    simu.Set_Iter(0)
-
     pvFiles: list[str] = []
     times = []
     tic = Tic()
 
-    for i, iter in enumerate(iterations):
-        simu.Set_Iter(iter)
+    with simu._Iter_Visit():
+        for i, iter in enumerate(iterations):
+            simu.Set_Iter(iter)
 
-        # get nodeResults
-        nodeResults: dict[str, _types.AnyArray] = {}
-        for nodeField in savedNodeFields:
-            array = simu.Result(nodeField, True)
-            nodeField = nodeField.removesuffix("_matrix")
-            nodeResults[nodeField] = array
+            # get nodeResults
+            nodeResults: dict[str, _types.AnyArray] = {}
+            for nodeField in savedNodeFields:
+                array = simu.Result(nodeField, True)
+                nodeField = nodeField.removesuffix("_matrix")
+                nodeResults[nodeField] = array
 
-        # get elementResults, on the mesh of this iteration
-        Ne = simu.mesh.Ne
-        elementResults: dict[str, _types.AnyArray] = {}
-        for elementField in savedElementFields:
-            array = simu.Result(elementField, False)
-            if meshDim == 3 and array.size / Ne == 6:
-                array = array.reshape(Ne, -1)[:, VTK_ORDER]
-            elementResults[elementField] = array
+            # get elementResults, on the mesh of this iteration
+            Ne = simu.mesh.Ne
+            elementResults: dict[str, _types.AnyArray] = {}
+            for elementField in savedElementFields:
+                array = simu.Result(elementField, False)
+                if meshDim == 3 and array.size / Ne == 6:
+                    array = array.reshape(Ne, -1)[:, VTK_ORDER]
+                elementResults[elementField] = array
 
-        pvFiles.append(__Make_vtu(simu.mesh, folder, iter, nodeResults, elementResults))
+            pvFiles.append(
+                __Make_vtu(simu.mesh, folder, iter, nodeResults, elementResults)
+            )
 
-        times.append(tic.Tac("Paraview", "Make vtu", False))
+            times.append(tic.Tac("Paraview", "Make vtu", False))
 
-        iteration = i + 1
-        rmTime = Tic.Get_Remaining_Time(iteration, N, times[-1])
+            iteration = i + 1
+            rmTime = Tic.Get_Remaining_Time(iteration, N, times[-1])
 
-        iteration = str(iteration).zfill(len(str(N)))
-        Terminal.MyPrint(f"Generate paraview {iteration}/{N} {rmTime}     ", end="\r")
+            iteration = str(iteration).zfill(len(str(N)))
+            Terminal.MyPrint(
+                f"Generate paraview {iteration}/{N} {rmTime}     ", end="\r"
+            )
 
     print("\n")
 

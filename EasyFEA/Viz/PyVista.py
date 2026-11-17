@@ -1148,20 +1148,19 @@ def Movie_simu(
     N = np.min([Niter, N])
     iterations = np.linspace(0, Niter - 1, N, endpoint=True, dtype=int)
 
-    simu.Set_Iter(0)
-
     def DoAnim(plotter, i):
         simu.Set_Iter(iterations[i])
         Plot(simu, result, deformFactor, coef, nodeValues, plotter=plotter, **kwargs)
         plotter.add_title(f"{result} {iterations[i]:d}/{Niter - 1:d}")
 
-    Movie_func(
-        DoAnim,
-        iterations.size,
-        folder,
-        filename,
-        fps=fps,
-    )
+    with simu._Iter_Visit():
+        Movie_func(
+            DoAnim,
+            iterations.size,
+            folder,
+            filename,
+            fps=fps,
+        )
 
 
 @rank0_only
