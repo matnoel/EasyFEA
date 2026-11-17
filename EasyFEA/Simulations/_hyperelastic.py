@@ -231,48 +231,6 @@ class HyperElastic(_Simu):
         return K_e, R_e, C_e
 
     # --------------------------------------------------------------------------
-    # Iterations
-    # --------------------------------------------------------------------------
-
-    def _Get_dof_names(self) -> dict[str, ProblemType]:
-        return dict.fromkeys(("displacement", "speed", "accel"), self.problemType)
-
-    def Save_Iter(self, iter=None):
-
-        if iter is None:
-            iter = {}
-
-        iter["displacement"] = self.displacement
-        if self.algo in AlgoType.Get_Hyperbolic_Types():
-            iter["speed"] = self._Get_v_n(self.problemType)
-            iter["accel"] = self._Get_a_n(self.problemType)
-
-        return super().Save_Iter(iter)
-
-    def Set_Iter(self, iter=-1, resetAll=False):
-        results = super().Set_Iter(iter)
-
-        if results is None:
-            return
-
-        u = results["displacement"]
-
-        if (
-            self.algo in AlgoType.Get_Hyperbolic_Types()
-            and "speed" in results
-            and "accel" in results
-        ):
-            v = results["speed"]
-            a = results["accel"]
-        else:
-            v = np.zeros_like(u)
-            a = np.zeros_like(u)
-
-        self._Set_solutions(self.problemType, u, v, a)
-
-        return results
-
-    # --------------------------------------------------------------------------
     # Results
     # --------------------------------------------------------------------------
 

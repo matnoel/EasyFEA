@@ -162,44 +162,6 @@ class Elastic(_Simu):
         else:
             return self.displacement
 
-    def _Get_dof_names(self) -> dict[str, ProblemType]:
-        return dict.fromkeys(("displacement", "speed", "accel"), self.problemType)
-
-    def Save_Iter(self, iter=None):
-
-        if iter is None:
-            iter = {}
-
-        iter["displacement"] = self.displacement
-        if self.algo in AlgoType.Get_Hyperbolic_Types():
-            iter["speed"] = self.speed
-            iter["accel"] = self.accel
-
-        return super().Save_Iter(iter)
-
-    def Set_Iter(self, iter: int = -1, resetAll=False) -> dict:
-        results = super().Set_Iter(iter)
-
-        if results is None:
-            return
-
-        u = results["displacement"]
-
-        if (
-            self.algo in AlgoType.Get_Hyperbolic_Types()
-            and "speed" in results
-            and "accel" in results
-        ):
-            v = results["speed"]
-            a = results["accel"]
-        else:
-            v = np.zeros_like(u)
-            a = np.zeros_like(u)
-
-        self._Set_solutions(self.problemType, u, v, a)
-
-        return results
-
     def Results_Available(self) -> list[str]:
         results = []
         dim = self.dim

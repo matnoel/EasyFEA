@@ -3,7 +3,6 @@
 # This file is part of the EasyFEA project.
 # EasyFEA is distributed under the terms of the GNU General Public License v3, see LICENSE.txt and CREDITS.md for more information
 
-from typing import Any
 
 import numpy as np
 from scipy import sparse
@@ -246,26 +245,6 @@ class IncompressibleHyperElastic(_Simu):
         return Operators.NonLinear.MixedIncompressibility(
             self.__Current_kinematics(groupElem), pGroup, space.Get_nodeValues(p, 1)
         )
-
-    # --------------------------------------------------------------------------
-    # Iterations
-    # --------------------------------------------------------------------------
-
-    def _Get_dof_names(self) -> dict[str, ProblemType]:
-        return {"displacement": self.U, "pressure": self.P}
-
-    def Save_Iter(self, iter: dict[str, Any] | None = None) -> None:
-        iter = {} if iter is None else iter
-        iter["displacement"] = self.displacement
-        iter["pressure"] = self.pressure
-        return super().Save_Iter(iter)
-
-    def Set_Iter(self, iter: int = -1, resetAll: bool = False) -> dict:
-        results = super().Set_Iter(iter, resetAll)
-        if results is not None:
-            self._Set_solutions(self.U, results["displacement"])
-            self._Set_solutions(self.P, results["pressure"])
-        return results
 
     # --------------------------------------------------------------------------
     # Results

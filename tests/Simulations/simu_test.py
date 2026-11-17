@@ -7,6 +7,7 @@
 
 import importlib.util
 import os
+import shutil
 from typing import Callable
 
 import numpy as np
@@ -14,7 +15,7 @@ import pytest
 from scipy import sparse
 
 from EasyFEA import AlgoType, ElemType, Mesh, Mesher, Models, Simulations, SolverType
-from EasyFEA.FEM import Field, GroupElemFactory, LagrangeCondition
+from EasyFEA.FEM import Field, LagrangeCondition
 from EasyFEA.Geoms import Domain, Line
 from EasyFEA.Simulations.Solvers import CAN_USE_PYPARDISO, _Get_PETSc
 
@@ -140,9 +141,11 @@ def _beam(dim: int, useTimoshenko: bool = False) -> Simulations.Beam:
     return simu
 
 
-def _weakforms() -> Simulations.WeakForms:
+def _weakforms(hyperbolic: bool = False) -> Simulations.WeakForms:
     mesh = _bar()
     simu = Simulations.WeakForms(mesh, laplacian(mesh))
+    if hyperbolic:
+        simu.Solver_Set_Hyperbolic_Algorithm(0.1)
     _heat(simu, simu.Get_unknowns())
     return simu
 
@@ -440,6 +443,82 @@ def test_Simu_Save_Iter_writes_to_the_folder_given_at_construction(tmp_path):
     assert os.path.isfile(os.path.join(folder, "Results", "results0.pickle"))
 
 
+def _saved_iterations(simu: Simulations._Simu) -> list[dict]:
+    return [simu.Get_results(i) for i in range(simu.Niter)]
+
+
+def _assert_same_iterations(actual: list[dict], expected: list[dict]) -> None:
+    assert len(actual) == len(expected)
+    for a, e in zip(actual, expected):
+        assert a.keys() == e.keys()
+        for key in e:
+            assert np.array_equal(a[key], e[key])
+
+
+def test_Simu_Load_Simu_reads_a_moved_run(tmp_path):
+    simu = _hyperelastic(True)
+    simu.folder = str(tmp_path / "cluster")
+    for _ in range(3):
+        simu.Solve()
+        simu.Save_Iter()
+    saved = _saved_iterations(simu)
+    simu.Save(simu.folder)
+    folder = str(tmp_path / "laptop")
+    shutil.move(simu.folder, folder)
+
+    simu = Simulations.Load_Simu(folder)
+
+    assert simu.folder == folder
+    _assert_same_iterations(_saved_iterations(simu), saved)
+    simu.Solve()
+    simu.Save_Iter()
+    assert os.path.isfile(os.path.join(folder, "Results", "results3.pickle"))
+
+
+def test_Simu_Load_Simu_reads_a_moved_run_saved_under_another_spelling(
+    tmp_path, monkeypatch: pytest.MonkeyPatch
+):
+    """Written in the relative folder `cluster`, saved in the absolute one."""
+    monkeypatch.chdir(tmp_path)
+    simu = _injected("Elastic")
+    simu.folder = "cluster"
+    simu.Save_Iter()
+    saved = _saved_iterations(simu)
+    simu.Save(str(tmp_path / "cluster"))
+    folder = str(tmp_path / "laptop")
+    shutil.move("cluster", folder)
+
+    simu = Simulations.Load_Simu(folder)
+
+    _assert_same_iterations(_saved_iterations(simu), saved)
+
+
+def test_Simu_Get_results_of_a_folder_run_is_a_copy_of_its_scalars(tmp_path):
+    simu = _injected("Elastic")
+    simu.folder = str(tmp_path)
+    simu.Save_Iter({"loads": [1.0]})
+
+    simu.Get_results(0)["loads"].append(2.0)
+
+    assert simu.Get_results(0)["loads"] == [1.0]
+
+
+def test_Simu_folder_changed_mid_run_keeps_earlier_iterations_readable(tmp_path):
+    simu = _injected("Elastic hyperbolic")
+    simu.folder = str(tmp_path / "first")
+    simu.Save_Iter({"load": 1.0})
+    simu.folder = ""
+    simu.Save_Iter({"load": 2.0})
+    simu.folder = str(tmp_path / "second")
+    simu.Save_Iter({"load": 3.0})
+    saved = _saved_iterations(simu)
+
+    simu.folder = ""
+
+    _assert_same_iterations(_saved_iterations(simu), saved)
+    assert [results["load"] for results in saved] == [1.0, 2.0, 3.0]
+
+
 def test_Simu_Save_Iter_records_the_newton_convergence():
     simu = _hyperelastic(False)
     simu.Solve()
@@ -448,6 +527,21 @@ def test_Simu_Save_Iter_records_the_newton_convergence():
 
     results = simu.Get_results()
     assert results["newtonIter"] == len(results["list_norm_r"]) > 0
+
+
+def test_Simu_Set_Iter_restores_what_its_iteration_recorded():
+    simu = _hyperelastic(False)
+    for _ in range(2):
+        simu.Solve()
+        simu.Save_Iter()
+
+    simu.Set_Iter(0)
+    simu.Save_Iter()
+
+    first, second, restored = (simu.Get_results(i) for i in range(3))
+    assert second["newtonIter"] != first["newtonIter"]
+    assert restored["newtonIter"] == first["newtonIter"]
+    assert restored["list_norm_r"] == first["list_norm_r"]
 
 
 def test_Simu_Get_results_is_a_copy_of_a_saved_iteration():
@@ -496,29 +590,122 @@ def test_Simu_Set_Iter_restores_speed_and_accel_of_a_dynamic_step():
     assert np.array_equal(simu.speed, speed) and np.array_equal(simu.accel, accel)
 
 
-def test_Simu_Set_Iter_restores_by_name_an_entry_as_long_as_a_field(
-    tmp_path, monkeypatch: pytest.MonkeyPatch
-):
-    """Stored per rank, the dof vectors are cut to the rank's nodes, found by name: an element array of their length stays whole."""
-    bar = _bar()
-    # two orphan nodes, outside every rank's nodes: a field of 12 dofs beside 4 elements × 3
-    coord = np.vstack([bar.coord, [[9, 9, 0], [9, 8, 0]]])
-    groupElem = GroupElemFactory.Create(ElemType.QUAD4, bar.connect, coord)
-    mesh = Mesh({ElemType.QUAD4: groupElem})
-    simu = Simulations.Thermal(mesh, Models.Thermal(1, 1), folder=str(tmp_path))
-    thermal = np.arange(mesh.Nn) + 1.0
-    simu._Set_solutions(simu.problemType, thermal)
-    flux_e = np.ones((mesh.Ne, 3))
-    _simu = importlib.import_module("EasyFEA.Simulations._simu")
-    with monkeypatch.context() as patch:
-        patch.setattr(_simu, "MPI_SIZE", 2)
-        simu.Save_Iter({"flux_e": flux_e})
+NEWTON_KEYS = {"newtonIter", "timeIter", "list_norm_r"}
 
-    results = simu.Set_Iter(0)
+SAVED_KEYS = {
+    "Elastic": {"displacement"},
+    "Elastic hyperbolic": {"displacement", "speed", "accel"},
+    "HyperElastic": {"displacement"} | NEWTON_KEYS,
+    "HyperElastic hyperbolic": {"displacement", "speed", "accel"} | NEWTON_KEYS,
+    "Thermal": {"thermal"},
+    "Thermal parabolic": {"thermal", "thermalDot"},
+    "PhaseField": {
+        "displacement",
+        "damage",
+        "Niter",
+        "timeIter",
+        "convIter",
+        "damageMax",
+    },
+    "Beam 1D": {"displacement"},
+    "Beam 2D": {"displacement"},
+    "Beam 3D": {"displacement"},
+    "Beam 2D Timoshenko": {"displacement"},
+    "Beam 3D Timoshenko": {"displacement"},
+    "WeakForms": {"u"},
+    "WeakForms hyperbolic": {"u", "v", "a"},
+    "InElastic": {"displacement"} | NEWTON_KEYS,
+    "IncompressibleHyperElastic": {"displacement", "pressure"} | NEWTON_KEYS,
+}
+"""`Get_results` keys of each simulation, saved before any solve, internal and external variables aside."""
 
-    assert np.array_equal(results["flux_e"], flux_e)
-    assert np.array_equal(simu.thermal[mesh.nodes], thermal[mesh.nodes])
-    assert np.array_equal(simu.thermal[mesh.orphanNodes], [0, 0])
+
+EVERY_SIMULATION = {
+    **SIMULATIONS,
+    "WeakForms hyperbolic": lambda: _weakforms(hyperbolic=True),
+    "IncompressibleHyperElastic": lambda: _incompressible_square(),
+}
+
+
+def test_Simu_Get_results_keeps_the_key_names_of_each_simulation(subtests):
+    for name, make in EVERY_SIMULATION.items():
+        with subtests.test(simulation=name):
+            simu = make()
+            simu.Save_Iter()
+
+            keys = {
+                key
+                for key in simu.Get_results()
+                if not key.startswith(("internal/", "external/"))
+            }
+            assert keys == SAVED_KEYS[name] | {"indexMesh"}
+
+
+ALGORITHMS: dict[str, tuple[int, Callable[[Simulations._Simu], None]]] = {
+    "elliptic": (1, lambda simu: simu.Solver_Set_Elliptic_Algorithm()),
+    "parabolic": (2, lambda simu: simu.Solver_Set_Parabolic_Algorithm(0.1)),
+    "hyperbolic": (3, lambda simu: simu.Solver_Set_Hyperbolic_Algorithm(0.1)),
+}
+"""Number of roles (u, v, a) each algorithm integrates, and how to set it."""
+
+
+def _u_v_a(simu: Simulations._Simu) -> dict[str, tuple[np.ndarray, ...]]:
+    return {
+        problemType: (
+            simu._Get_u_n(problemType),
+            simu._Get_v_n(problemType),
+            simu._Get_a_n(problemType),
+        )
+        for problemType in simu.problemTypes
+    }
+
+
+def _set_u_v_a(simu: Simulations._Simu, seed: int) -> dict[str, tuple[np.ndarray, ...]]:
+    """Distinct random u, v, a on every problem."""
+    rng = np.random.default_rng(seed)
+    for problemType in simu.problemTypes:
+        n = simu._Get_u_n(problemType).size
+        simu._Set_solutions(problemType, *rng.standard_normal((3, n)))
+    return _u_v_a(simu)
+
+
+def test_Simu_Set_Iter_restores_the_roles_its_algorithm_saves(subtests):
+    """u always, v from parabolic on, a from hyperbolic on, as far as declared; every other role as zero."""
+    for name, make in EVERY_SIMULATION.items():
+        for algo, (nRoles, setAlgo) in ALGORITHMS.items():
+            with subtests.test(simulation=name, algo=algo):
+                simu = make()
+                setAlgo(simu)
+                saved = _set_u_v_a(simu, 0)
+                simu.Save_Iter()
+                _set_u_v_a(simu, 1)
+
+                simu.Set_Iter(0)
+
+                restored = _u_v_a(simu)
+                for problemType, names in simu.dofFields.items():
+                    kept = min(nRoles, len(names))
+                    for role, (value, live) in enumerate(
+                        zip(saved[problemType], restored[problemType])
+                    ):
+                        expected = value if role < kept else np.zeros_like(value)
+                        assert np.array_equal(live, expected), (problemType, role)
+
+
+def test_Simu_Set_Iter_shares_no_array_with_the_saved_iteration():
+    """In memory, `Set_Iter` copies the saved arrays: a write into either leaves the other as it was."""
+    simu = _elastic_bar(dynamic=True)
+    _set_u_v_a(simu, 0)
+    simu.Save_Iter()
+    simu.Set_Iter(0)
+    live = _u_v_a(simu)
+
+    for value in simu.Get_results(0).values():
+        if isinstance(value, np.ndarray):
+            value[:] = np.nan
+
+    for before, after in zip(live[simu.problemType], _u_v_a(simu)[simu.problemType]):
+        assert np.array_equal(before, after)
 
 
 def test_Simu_Results_Available_include_the_displacement_matrix(subtests):

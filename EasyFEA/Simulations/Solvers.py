@@ -165,6 +165,13 @@ class AlgoType(str, Enum):
     def __str__(self) -> str:
         return self.name
 
+    @property
+    def nRoles(self) -> int:
+        """How many of u, v and a the algorithm integrates."""
+        if self in AlgoType.Get_Hyperbolic_Types():
+            return 3
+        return 2 if self == AlgoType.parabolic else 1
+
     @staticmethod
     def Get_Hyperbolic_Types() -> list[str]:
         return [

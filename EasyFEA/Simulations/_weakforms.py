@@ -20,7 +20,6 @@ from .. import Models
 # simu
 from ._simu import _Simu
 from ._terms import Term
-from .Solvers import AlgoType
 from ._problem_type import ProblemType
 
 
@@ -175,57 +174,6 @@ class WeakForms(_Simu):
         values_e = form.Integrate_e(field)
         tic.Tac("Matrix", "Integrate the weak form.", self._verbosity)
         return values_e
-
-    def _Get_dof_names(self) -> dict[str, ProblemType]:
-        return dict.fromkeys(("u", "v", "a"), self.problemType)
-
-    def Save_Iter(self, iter=None):
-
-        if iter is None:
-            iter = {}
-
-        if self.algo == AlgoType.elliptic:
-            iter["u"] = self.u
-
-        elif self.algo == AlgoType.parabolic:
-            iter["u"] = self.u
-            iter["v"] = self.v
-
-        elif self.algo in AlgoType.Get_Hyperbolic_Types():
-            iter["u"] = self.u
-            iter["v"] = self.v
-            iter["a"] = self.a
-
-        else:
-            raise TypeError("Unknown algo type.")
-
-        super().Save_Iter(iter)
-
-    def Set_Iter(self, iter: int = -1, resetAll=False) -> dict:
-        results = super().Set_Iter(iter)
-
-        if results is None:
-            return
-
-        if self.algo == AlgoType.elliptic:
-            u = results["u"]
-            self._Set_solutions(self.problemType, u)
-
-        elif self.algo == AlgoType.parabolic:
-            u = results["u"]
-            v = results["v"]
-            self._Set_solutions(self.problemType, u, v)
-
-        elif self.algo in AlgoType.Get_Hyperbolic_Types():
-            u = results["u"]
-            v = results["v"]
-            a = results["a"]
-            self._Set_solutions(self.problemType, u, v, a)
-
-        else:
-            raise TypeError("Unknown algo type.")
-
-        return results
 
     def Results_Available(self) -> list[str]:
         options = []

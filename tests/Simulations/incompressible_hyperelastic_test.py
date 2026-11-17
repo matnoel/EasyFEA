@@ -443,7 +443,7 @@ def test_IncompressibleHyperElastic_Save_Iter_stores_p_by_name(subtests, tmp_pat
             assert np.array_equal(simu.displacement, first_u)
             assert np.array_equal(simu.pressure, first_p)
             assert np.abs(simu.Result("p", iter=1) - (first_p[0] + 1.0)).max() < 1e-10
-            assert np.array_equal(simu.pressure, first_p + 1.0)
+            assert np.array_equal(simu.pressure, first_p)
 
 
 def test_IncompressibleHyperElastic_P2_on_TETRA4_is_the_straight_TETRA10_under_loads(

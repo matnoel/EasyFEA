@@ -20,7 +20,6 @@ from .. import Models
 # simu
 from ._simu import _Simu
 from ._terms import Term
-from .Solvers import AlgoType
 from ._problem_type import ProblemType
 
 
@@ -138,38 +137,6 @@ class Thermal(_Simu):
                 constant=True,
             ),
         ]
-
-    def _Get_dof_names(self) -> dict[str, ProblemType]:
-        return dict.fromkeys(("thermal", "thermalDot"), self.problemType)
-
-    def Save_Iter(self, iter=None):
-
-        if iter is None:
-            iter = {}
-
-        iter["thermal"] = self.thermal
-
-        if self.algo == AlgoType.parabolic:
-            iter["thermalDot"] = self.thermalDot
-
-        return super().Save_Iter(iter)
-
-    def Set_Iter(self, iter: int = -1, resetAll=False) -> dict:
-        results = super().Set_Iter(iter)
-
-        if results is None:
-            return
-
-        u = results["thermal"]
-
-        if self.algo == AlgoType.parabolic and "thermalDot" in results:
-            v = results["thermalDot"]
-        else:
-            v = np.zeros_like(u)
-
-        self._Set_solutions(self.problemType, u, v)
-
-        return results
 
     def Results_Available(self) -> list[str]:
         options = []

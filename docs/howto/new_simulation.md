@@ -217,14 +217,6 @@ class MySimulation(_Simu):
     def Get_terms(self, problemType=None) -> list[Term]:
         ...
 
-    # --- iteration management ---
-
-    def Save_Iter(self, iter=None):
-        ...
-
-    def Set_Iter(self, iter=-1, resetAll=False):
-        ...
-
     # --- post-processing ---
 
     def Results_Available(self) -> list[str]:
@@ -262,6 +254,47 @@ parabolic, u, v and a when hyperbolic) and `Set_Iter` restores them, a role not 
 zero: neither is yours to write. A problem without time derivatives declares u alone,
 e.g. `{U: ("displacement",), P: ("pressure",)}`. The names are the keys of
 `simu.Get_results(i)`.
+
+### Internal and external variables
+
+A simulation whose state is more than its dof fields declares it, and `_Simu` saves,
+restores and commits it:
+
+```python
+def _Trial_internals(self) -> dict[_GroupElem, dict[str, FeArray]]:
+    # PhaseField: the history field H, the running max of psi+ with the committed H
+    internals = {}
+    for groupElem in self._Get_FunctionSpace().Get_list_groupElem():
+        psiP = self.__Calc_psiPlus_e_pg(groupElem)  # of the current displacement
+        H = self._variables.internals.get(groupElem, {}).get("H")  # none before a commit
+        internals[groupElem] = {"H": psiP if H is None else np.maximum(psiP, H)}
+    return internals
+
+@property
+def _externalNames(self) -> tuple[str, ...]:
+    # e.g. a temperature, given by simu.Set_external(T=...) and read as self.external
+    return ("T",)
+```
+
+At the end of a converged `Solve`, `_Commit_Internal_and_External_states()` makes the
+trial internal variables and the external variables set the committed
+`self._variables.internals` and `.externals`, which the next solve integrates from and
+results read; a `Solve` override calls `_Commit_Internal_and_External_states()` once
+converged. `Save_Iter` stores the committed ones, by kind, beside the dof fields and the
+scalars (`simu.Get_results(i)` shows them as `internal/<elemType>/<name>` and
+`external/<name>`), `Set_Iter` restores copies, then calls `_Iter_Restored()`, to
+override for anything derived from the previous state.
+
+Key the internal variables by the groups of the default problem's space, on which
+`Set_Iter` restores them. {py:class}`~EasyFEA.Simulations.PhaseField` is the full
+example: beside the `_Trial_internals` above, its staggered `Solve` records its loop
+with `_Iter_Record(...)`, stored by the next `Save_Iter` and restored by `Set_Iter`, and
+calls `_Commit_Internal_and_External_states()` once converged; its `_Iter_Restored()`
+marks its assembled matrices stale.
+
+The scalars of a saved iteration (the record, `indexMesh`) are written with it and kept
+in memory too: `Results_Iter_Summary` reads them with `_Get_results_scalars(i)`, which
+opens no result file; PhaseField records `damageMax` for its summary.
 
 ### Implementing `Get_terms`
 

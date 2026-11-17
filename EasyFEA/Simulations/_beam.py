@@ -475,28 +475,6 @@ class Beam(_Simu):
         else:
             return self.displacement
 
-    def _Get_dof_names(self) -> dict[str, ProblemType]:
-        return {"displacement": self.problemType}
-
-    def Save_Iter(self, iter=None):
-
-        if iter is None:
-            iter = {}
-
-        iter["displacement"] = self.displacement
-
-        return super().Save_Iter(iter)
-
-    def Set_Iter(self, iter: int = -1, resetAll=False) -> dict:
-        results = super().Set_Iter(iter)
-
-        if results is None:
-            return
-
-        self._Set_solutions(self.problemType, results["displacement"])
-
-        return results
-
     def Results_Available(self) -> list[str]:
         options = []
         dof_n = self.Get_dof_n(self.problemType)

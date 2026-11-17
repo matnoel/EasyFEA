@@ -5,6 +5,7 @@
 
 from abc import ABC, abstractmethod
 import pickle
+from dataclasses import replace
 from datetime import datetime
 from typing import Any, Callable
 import numpy as np
@@ -29,6 +30,7 @@ from ..FEM import (
     Mesh,
     Load_Mesh,
     _GroupElem,
+    FeArray,
     BoundaryCondition,
     LagrangeCondition,
     MatrixType,
@@ -41,6 +43,7 @@ from ..Models import _IModel
 
 # simu
 from ._problem_type import ProblemType
+from . import _iterations
 from ._terms import Term, Fold_terms, _LocalSystem
 from .Solvers import (
     Solve_simu,
@@ -79,7 +82,7 @@ class _Simu(_IObserver, _params.Updatable, ABC):
     The Thermal class is relatively simple and can serve as a good starting point.\n
     See `Simulations/_thermal.py` for more details.
 
-    To use the interface/inheritance, 12 methods and the class attribute ``problemTypes`` need to be defined.
+    To use the interface/inheritance, 10 methods and the class attributes ``problemTypes`` and ``dofFields`` need to be defined.
 
     General:
     --------
@@ -106,11 +109,15 @@ class _Simu(_IObserver, _params.Updatable, ABC):
     Iterations:
     -----------
 
-        - def Save_Iter(self, iter: dict[str, Any] | None=None) -> None:
+        - dofFields = {U: ("displacement", "speed", "accel")}
 
-        - def Set_Iter(self, iter=-1, resetAll=False) -> dict:
+        The names of each problem type's fields in a saved iteration, by role: u, then v and a when the simulation has them. `Save_Iter` stores the roles the algorithm integrates (elliptic u, parabolic u and v, hyperbolic u, v and a), `Set_Iter` restores them, a role not saved as zero. The names are the keys of `Get_results`.
 
-        These functions are used to save or load iterations.
+        - def _Trial_internals(self) -> dict[_GroupElem, dict[str, FeArray]]:
+
+        - _externalNames
+
+        Optional, none by default: the internal variables per group the current solution reaches, and the names of the external variables `Set_external` accepts. `_Commit_Internal_and_External_states` makes the trial internal variables and the external variables set the committed ones of `_variables` at the end of a converged `Solve`; `Save_Iter` stores the committed ones, `Set_Iter` restores copies, then calls `_Iter_Restored`.
 
     Results:
     --------
@@ -132,6 +139,8 @@ class _Simu(_IObserver, _params.Updatable, ABC):
 
     __indexMesh: int
     __mesh: Mesh
+    __list_results: list[_iterations.Entry]
+    __variables: _iterations.Variables
 
     # ----------------------------------------------
     # Abstract method
@@ -391,181 +400,69 @@ class _Simu(_IObserver, _params.Updatable, ABC):
 
     # Iterations
 
-    @abstractmethod
-    def Save_Iter(self, iter: dict[str, Any] | None = None):
-        """Saves iteration results in _results or in the specified simu.folder.
-
-        ``iter`` defaults to ``None`` (not ``{}``): a mutable default like ``{}``
-        is created once and shared by every call, so subclass overrides that write
-        into it (e.g. ``iter["speed"] = ...``) would leak keys across calls and
-        across simulations in the same process. We always start from a fresh dict
-        here — ``{}`` when nothing is passed, otherwise a copy of the caller's dict
-        so the original is never mutated.
-        """
-
-        iter = {} if iter is None else iter.copy()
-
-        iter["indexMesh"] = self.__indexMesh
-        # mesh identifier at this iteration
-
-        if self.__isNonLinear:
-            # convergence informations
-            iter["newtonIter"] = self.__newtonIter
-            iter["timeIter"] = self.__timeIter
-            iter["list_norm_r"] = self.__list_norm_r
-
-        # Unified history: `__list_results[i]` is either the iteration dict (in-memory) or the path to a pickle on disk. Folder mode is pinned per entry at write time, so subsequent changes to `self.folder` don't desync older entries.
-        if self.folder == "":
-            self.__list_results.append(iter)
-        else:
-            # One file per rank, like `Save` / `Load_Simu`: an iteration dict may hold element-sized
-            # fields, which describe the rank's own partition, so rank 0's copy alone would hand every
-            # other rank an array of the wrong length on the way back in.
-            suffix = f"_rank{MPI_RANK}" if MPI_SIZE > 1 else ""
-            path = Folder.Join(
-                self.folder,
-                "Results",
-                f"results{self.Niter}{suffix}.pickle",
-                mkdir=True,
-            )
-            with open(path, "wb") as f:
-                pickle.dump(self.__Reduce_iter_to_local(iter), f)
-            self.__list_results.append(path)
-
+    def Save_Iter(self, iter: dict[str, Any] | None = None) -> None:
+        """Saves the current state as a new iteration, in memory or in `folder`, with the entries of `iter` (never mutated) as scalars; an array among them raises."""
+        extras = {} if iter is None else iter
+        arrays = [k for k, v in extras.items() if isinstance(v, np.ndarray)]
+        assert not arrays, (
+            f"Save_Iter stores no user arrays ({arrays}): declare them as the simulation's dof fields, internal or external variables"
+        )
+        nRoles = AlgoType(self.algo).nRoles
+        getters = (self._Get_u_n, self._Get_v_n, self._Get_a_n)
+        dofs = {
+            name: get(problemType)
+            for problemType, names in self.dofFields.items()
+            for name, get in zip(names[:nRoles], getters)
+        }
+        scalars = {**extras, "indexMesh": self.__indexMesh}
+        snapshot = self.__variables.Snapshot(scalars, dofs, self._externalNames)
+        _iterations.Append(self.__list_results, snapshot, self.folder)
         self.__Niter += 1
 
-    __LOCAL_DOFS_KEY = "__mpiLocalDofKeys"
-    """Names of the entries stored as local-dof slices, with their problem type, recorded in the pickle by :meth:`__Reduce_iter_to_local`."""
-
-    __LOCAL_SLICES_KEY = "__mpiLocalSlices"
-    """DOFs the slices of a pickle cover, per problem type. Stored with them so restoring never depends on what the mesh became afterwards — `_Gather` replaces the partition with the global mesh, and a slice written before it must still be placed correctly."""
-
-    def __Local_dofs(
-        self, problemType: ProblemType, nodes: _types.IntArray = None
-    ) -> _types.IntArray:
-        """Dofs carried by `nodes`, by default the nodes of this rank's partition, ghosts included.
-
-        Node ids are global in the partitioned and the gathered view alike, and this maps them to dofs from the ids and `dof_n` alone, so the same call places a slice correctly on either side of a `_Gather`.
-        """
-        if nodes is None:
-            nodes = self._Get_FunctionSpace(problemType).localNodes
-
-        return self.Bc_dofs_nodes(nodes, self.Get_unknowns(problemType), problemType)
-
-    def _Get_dof_names(self) -> dict[str, ProblemType]:
-        """`Save_Iter` entries that are full dof vectors, by name, with the problem type sizing each; any other entry is stored whole."""
-        return {}
-
-    def __Dof_keys(self, iter: dict[str, Any]) -> dict[str, ProblemType]:
-        """Entries of an iteration dict that are full dof vectors, by name (an element array can have their length), mapped to the problem type sizing them."""
-        return {
-            key: problemType
-            for key, problemType in self._Get_dof_names().items()
-            if isinstance(iter.get(key), np.ndarray)
-        }
-
-    def __Reduce_iter_to_local(self, iter: dict[str, Any]) -> dict[str, Any]:
-        """Replaces the full dof vectors of `iter` by the slice carried by this rank's nodes, so the per-rank files stop duplicating the whole vector on every rank.
-
-        Owned *and* ghost, not owned alone: a rank reads a solution back to evaluate it over its own elements, and the ghost layer is exactly what those elements need beyond what the rank owns. Keeping it is what lets the read stay local — reducing to the owned dofs would save the ghost layer's worth of disk and cost an ``Allgatherv`` on every read.
-
-        Element-sized entries are left whole: they already describe this rank alone.
-        """
-        if MPI_SIZE == 1:
-            return iter
-
-        keys = self.__Dof_keys(iter)
-        dofs = {
-            problemType: self.__Local_dofs(problemType)
-            for problemType in set(keys.values())
-        }
-
-        iter = iter.copy()
-        for key, problemType in keys.items():
-            iter[key] = iter[key][dofs[problemType]]
-        iter[_Simu.__LOCAL_DOFS_KEY] = keys
-        iter[_Simu.__LOCAL_SLICES_KEY] = dofs
-
-        return iter
-
-    def __Restore_iter_from_local(self, parts: list[dict[str, Any]]) -> dict[str, Any]:
-        """Rebuilds the dof vectors that :meth:`__Reduce_iter_to_local` sliced, back to full length so global dof indexing keeps working.
-
-        Each part is placed by the dofs *it* recorded, never by the current mesh: after a `_Gather` the mesh is the global one while the slice still covers a single partition. Given every rank's part, the merge therefore reconstructs the whole field; given one, the dofs outside that partition come back as zero — and they are never read, since a rank derives everything from integrals over its own elements, which reach no further than its ghost layer.
-        """
-        keys = parts[0].get(_Simu.__LOCAL_DOFS_KEY)
-
-        if not keys:
-            return parts[0]
-
-        merged = parts[0].copy()
-        merged.pop(_Simu.__LOCAL_DOFS_KEY)
-        merged.pop(_Simu.__LOCAL_SLICES_KEY)
-
-        if len(parts) > 1:
-            # element-sized entries would need each rank's `_globalElements` to merge, which is not
-            # stored; better to say so than to hand back rank 0's partition as if it were the mesh
-            perElement = [
-                key
-                for key, value in merged.items()
-                if isinstance(value, np.ndarray) and key not in keys
-            ]
-            assert not perElement, (
-                f"{perElement} are stored per element, so they cannot be reassembled after a _Gather. "
-                "Read them before gathering, or keep the results in memory (folder='')."
-            )
-
-        for key, problemType in keys.items():
-            full = np.zeros(self.__Get_size(problemType))
-            for part in parts:
-                full[part[_Simu.__LOCAL_SLICES_KEY][problemType]] = part[key]
-            merged[key] = full
-
-        return merged
-
-    def __Read_iter_parts(self, path: str) -> list[dict[str, Any]]:
-        """The pickles making up one stored iteration: this rank's alone, or every rank's once gathered.
-
-        After `_Gather` rank 0 owns the global mesh, so its own partition's slice is only a fraction of the field it is now expected to serve; the other ranks' files hold the rest.
-        """
-        if not self.isGathered or MPI_SIZE == 1:
-            with open(path, "rb") as f:
-                return [pickle.load(f)]
-
-        parts = []
-        for rank in range(MPI_SIZE):
-            with open(path.replace(f"_rank{MPI_RANK}", f"_rank{rank}"), "rb") as f:
-                parts.append(pickle.load(f))
-
-        return parts
-
     def Get_results(self, iter: int = -1) -> dict:
-        """Return the iteration dict at index ``iter``, loading from disk if the entry is a pickle path. Pure read — no mutation of simulation state (use :meth:`Set_Iter` for that), and no collective under MPI."""
-        iter = int(iter)
-        if iter < 0:
-            iter += self.Niter
-        assert 0 <= iter < self.Niter, f"`iter` must be in [0, {self.Niter})"
-        entry = self.__list_results[iter]
-        if isinstance(entry, str):
-            return self.__Restore_iter_from_local(self.__Read_iter_parts(entry))
-        return entry.copy()
+        """Return the iteration dict at index ``iter``, under flat keys (dof field names, ``internal/<elemType>/<name>``, ``external/<name>``, scalars), loading from disk if pickled. Pure read — no mutation of simulation state (use :meth:`Set_Iter` for that), and no collective under MPI."""
+        iteration = _iterations.Get(
+            self.__list_results, iter, self.folder, self.isGathered
+        )
+        return _iterations.Flat(iteration)
 
-    @abstractmethod
-    def Set_Iter(self, iter: int = -1, resetAll=False) -> dict:
-        """Sets the simulation to the specified iteration (the last one by default) and then reset (or not) the internal variables.
+    def _Get_results_scalars(self, iter: int = -1) -> dict[str, Any]:
+        """The scalars of the saved iteration `iter`, from memory."""
+        return _iterations.Get_scalars(self.__list_results, iter)
 
-        Examples
-        --------
-        Returns the results dictionary.
-        """
-        results = self.Get_results(iter)
+    def Set_Iter(self, iter: int = -1) -> dict:
+        """Sets the simulation to the saved iteration `iter` (the last by default) and returns its entries, as `Get_results`."""
+        iteration = _iterations.Get(
+            self.__list_results, iter, self.folder, self.isGathered
+        )
+        self.__Restore(iteration)
+        return _iterations.Flat(iteration)
 
-        indexMesh = results["indexMesh"]
+    def _Iter_Restored(self) -> None:
+        """Called by `Set_Iter` once a saved iteration is restored, to drop what the subclass derived from the state before; nothing by default."""
+
+    def __Restore(self, iteration: _iterations.Iteration) -> None:
+        """Sets the simulation to copies of the saved `iteration`, a dof field it lacks to zero."""
+        indexMesh = iteration["scalars"]["indexMesh"]
         if indexMesh != self.__indexMesh:
             self.__indexMesh = indexMesh
             self.__Update_mesh(indexMesh)
 
-        return results
+        dofs = iteration["dofs"]
+        for problemType, names in self.dofFields.items():
+            size = self.__Get_size(problemType)
+            u, v, a = (
+                np.array(dofs[name], dtype=float) if name in dofs else np.zeros(size)
+                for name in (*names, None, None)[:3]
+            )
+            self._Set_solutions(problemType, u, v, a)
+
+        groups = {
+            groupElem.elemType.value: groupElem
+            for groupElem in self._Get_FunctionSpace().Get_list_groupElem(self.dim)
+        }
+        self.__variables = self.__variables.Restored(iteration, groups)
+        self._Iter_Restored()
 
     # Results
 
@@ -724,8 +621,9 @@ class _Simu(_IObserver, _params.Updatable, ABC):
         """Simulation dimension."""
 
         self.__Niter = 0
-        self.__list_results: list[dict | str] = []
-        """Dictionary list containing the results."""
+        self.__list_results = []
+        """Saved iterations, see :data:`_iterations.Entry`."""
+        self.__variables = _iterations.Variables()
 
         # Fill in the first mesh
         self.__NindexMesh: int = -1
@@ -1600,9 +1498,7 @@ class _Simu(_IObserver, _params.Updatable, ABC):
 
         self.__newtonRaphsonParams = (absTol, relTol, incTol, maxIter)
 
-        self.__newtonIter = None
-        self.__timeIter = None
-        self.__list_norm_r = None
+        self._Iter_Record(newtonIter=None, timeIter=None, list_norm_r=None)
 
     def __Solver_Get_Newton_Raphson_Params(self) -> tuple[float, float, float, int]:
         """Returns (absTol, relTol, incTol, maxIter) Newton Raphson properties."""
@@ -1627,7 +1523,51 @@ class _Simu(_IObserver, _params.Updatable, ABC):
         for problem in self._Get_monolithic_problems():
             self._Solver_Solve_problemType(problem)
 
+        self._Commit_Internal_and_External_states()
+
         return self._Get_u_n(self.problemType)
+
+    @property
+    def _variables(self) -> _iterations.Variables:
+        """The internal and external variables, and the record of the next saved iteration."""
+        return self.__variables
+
+    @property
+    def _externalNames(self) -> tuple[str, ...]:
+        """Names of the external variables the simulation reads; none by default."""
+        return ()
+
+    @property
+    def external(self) -> dict[str, _types.FloatArray]:
+        """The nodal external variables the next solves see, by name; set them with :meth:`Set_external`."""
+        return {name: v.copy() for name, v in self.__variables.nextExternals.items()}
+
+    def Set_external(self, **values: float | _types.FloatArray) -> None:
+        """Sets external variables for the next solves, each a scalar or a ``(Nn,)`` nodal field on this mesh, e.g. ``T=thermal.thermal``; results show them once solved."""
+        Nn = self.mesh.Nn
+        for name, v in values.items():
+            assert name in self._externalNames, (
+                f"{type(self.model).__name__} reads no '{name}'"
+            )
+            v = np.asarray(v, dtype=float)
+            v = np.full(Nn, float(v)) if v.ndim == 0 else v.copy()
+            assert v.shape == (Nn,), f"'{name}' must be a scalar or a (Nn,) array"
+            nextExternals = {**self.__variables.nextExternals, name: v}
+            self.__variables = replace(self.__variables, nextExternals=nextExternals)
+
+    def _Iter_Record(self, **entries: Any) -> None:
+        """Replaces the entries `Save_Iter` stores with the next iteration (a loop's convergence); `Set_Iter` restores those of its iteration."""
+        self.__variables = replace(self.__variables, record=entries)
+
+    def _Trial_internals(self) -> dict[_GroupElem, dict[str, FeArray]]:
+        """Internal variables per group reached from the committed ones by the current state; none by default."""
+        return {}
+
+    def _Commit_Internal_and_External_states(self) -> None:
+        """Makes the trial internal variables and the external variables set the committed ones, at the end of a converged solve."""
+        self.__variables = self.__variables.Committed(
+            self._Trial_internals(), self._externalNames
+        )
 
     def _Set_solutions(
         self,
@@ -1676,9 +1616,9 @@ class _Simu(_IObserver, _params.Updatable, ABC):
             u, newtonIter, timeIter, list_norm_r = self._Solver_Solve_Newton_Raphson(
                 problem
             )
-            self.__newtonIter = newtonIter
-            self.__timeIter = timeIter
-            self.__list_norm_r = list_norm_r
+            self._Iter_Record(
+                newtonIter=newtonIter, timeIter=timeIter, list_norm_r=list_norm_r
+            )
         else:
             u, _ = Solve_simu(self, problem)
 
@@ -3594,6 +3534,8 @@ def Load_Simu(folder: str, filename: str = "simulation", gather=False) -> _Simu:
     except EOFError:
         Terminal.MyPrintError(f"The file:\n{path_simu}\nis empty or corrupted.")
         return None  # type: ignore [return-value]
+
+    simu.folder = folder
 
     if gather:
         simu._Gather()
