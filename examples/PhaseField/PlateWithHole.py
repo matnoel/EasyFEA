@@ -185,7 +185,7 @@ if __name__ == "__main__":
             if not convergence:
                 break
 
-            f = np.sum(simu.Calc_Reaction(dofsY_upper))
+            f = simu.Calc_Resultant(dofsY_upper)
             simu.Results_Set_Iteration_Summary(iter, ud * unit, unitU, ud / u_max, True)
 
             if simu.Detect_Damage(nodes_edges, 1):

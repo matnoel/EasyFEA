@@ -334,7 +334,7 @@ def test_Simu_Calc_Energy_of_the_stiffness_is_the_strain_energy():
 def _reaction_at_x_L(simu: Simulations._Simu, unknown: str) -> float:
     nodes = simu.mesh.Nodes_Conditions(lambda x, y, z: x == L)
     dofs = simu.Bc_dofs_nodes(nodes, [unknown])
-    return float(np.sum(simu.Calc_Reaction(dofs)))
+    return simu.Calc_Resultant(dofs)
 
 
 def test_Simu_Calc_Reaction_balances_the_pulled_end():
@@ -375,6 +375,15 @@ def test_Simu_Calc_Reaction_of_all_dofs_sums_to_zero_without_loads():
 
     assert reaction.shape == (simu.mesh.Nn * 2,)
     assert abs(reaction.sum()) < 1e-10 * np.abs(reaction).max()
+
+
+def test_Simu_Calc_Resultant_is_the_sum_of_Calc_Reaction():
+    simu = _elastic_bar()
+    simu.Solve()
+    nodes = simu.mesh.Nodes_Conditions(lambda x, y, z: x == L)
+    dofs = simu.Bc_dofs_nodes(nodes, ["x"])
+
+    assert simu.Calc_Resultant(dofs) == np.sum(simu.Calc_Reaction(dofs))
 
 
 def test_Simu_Calc_Reaction_is_not_implemented_when_nonlinear():

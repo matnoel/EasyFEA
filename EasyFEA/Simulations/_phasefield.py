@@ -550,7 +550,7 @@ class PhaseField(_Simu):
         space = self._Get_FunctionSpace(self.D)
         d_nodes = space.Get_nodeValues(self.damage, 1)[nodes]
         detected = int(d_nodes.size > 0 and np.any(d_nodes >= threshold))
-        return bool(detected if self.isGathered else Reduce_sum(detected))
+        return bool(Reduce_sum(detected, self.mesh.comm))
 
     def _Iter_Restored(self) -> None:
         self.Need_Update()
@@ -660,14 +660,15 @@ class PhaseField(_Simu):
         tic = Tic()
 
         u = self.displacement
+        dofs = self.Get_dofs(problemType=self.U)
         # reduced so every rank takes the same branch: Calc_Energy is collective
-        norm2 = u @ u if self.isGathered else Reduce_sum(u @ u)
+        norm2 = Reduce_sum(u[dofs] @ u[dofs], self.mesh.comm)
         if norm2 == 0:
             Psi_Elas = 0
         else:
             with np.errstate(divide="ignore", over="ignore", invalid="ignore"):
                 # the degraded stiffness can overflow where the damage saturates
-                Psi_Elas = self.Calc_Energy(Ku, u, self.Get_dofs(problemType=self.U))
+                Psi_Elas = self.Calc_Energy(Ku, u, dofs)
 
         tic.Tac("PostProcessing", "Calc Psi Elas", False)
 
@@ -698,9 +699,7 @@ class PhaseField(_Simu):
         dofs = self.Get_dofs(problemType=self.U)
         with np.errstate(divide="ignore", over="ignore", invalid="ignore"):
             # no operator and no 1/2, so this one is a plain reduction rather than Calc_Energy
-            Psi_Ext = float(u_n[dofs] @ f_n[dofs])
-            if not self.isGathered:
-                Psi_Ext = Reduce_sum(Psi_Ext)
+            Psi_Ext = Reduce_sum(float(u_n[dofs] @ f_n[dofs]), self.mesh.comm)
 
         tic.Tac("PostProcessing", "Calc Psi Ext", False)
 

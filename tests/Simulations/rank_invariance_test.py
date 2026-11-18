@@ -14,6 +14,7 @@ import pytest
 
 from EasyFEA import ElemType, Models, Simulations
 from EasyFEA.Geoms import Circle, Domain
+from EasyFEA.Utilities import Allgather
 
 
 def _plate_with_hole(elemType: ElemType):
@@ -29,6 +30,11 @@ def _clamped_and_pulled(simu, pull: list[float], unknowns: list[str]):
     nodesPulled = mesh.Nodes_Conditions(lambda x, y, z: x == 2)
     simu.add_dirichlet(nodesClamped, [0, 0], ["x", "y"])
     simu.add_dirichlet(nodesPulled, pull, unknowns)
+
+
+def _pulled_dofs(simu, unknown: str):
+    nodesPulled = simu.mesh.Nodes_Conditions(lambda x, y, z: x == 2)
+    return simu.Bc_dofs_nodes(nodesPulled, [unknown])
 
 
 def _elastic() -> Simulations.Elastic:
@@ -65,8 +71,21 @@ def _newton() -> Simulations.HyperElastic:
 _CASES = {"elastic": _elastic, "newmark": _newmark, "newton": _newton}
 
 
-def _serial(case: str) -> np.ndarray:
-    """Coordinates then displacement per node, from `case` solved serially in a child process."""
+def _scalars(simu) -> np.ndarray:
+    """Every scalar a script reads, the same on every rank."""
+    scalars = list(simu.Results_dict_Energy().values())
+    if isinstance(simu, Simulations.HyperElastic):
+        return np.array([*scalars, simu.Result("W")])
+    K = simu.Get_K_C_M_F(simu.problemType)[0]
+    u = simu.displacement
+    scalars += [simu.Calc_Resultant(_pulled_dofs(simu, u_)) for u_ in ("x", "y")]
+    scalars.append(simu.Calc_Energy(K, u, simu.Get_dofs(simu.problemType)))
+    scalars.append(simu.Result("Wdef"))
+    return np.array(scalars, dtype=float)
+
+
+def _serial(case: str) -> dict[str, np.ndarray]:
+    """Coordinates then displacement per node, and the scalars, from `case` solved serially in a child process."""
     env = {
         k: v
         for k, v in os.environ.items()
@@ -74,9 +93,10 @@ def _serial(case: str) -> np.ndarray:
     }
     env["EASYFEA_MPI"] = "off"
     with tempfile.TemporaryDirectory() as folder:
-        path = os.path.join(folder, "serial.npy")
+        path = os.path.join(folder, "serial.npz")
         subprocess.run([sys.executable, __file__, case, path], env=env, check=True)
-        return np.load(path)
+        with np.load(path) as data:
+            return dict(data)
 
 
 @pytest.mark.mpi
@@ -87,15 +107,20 @@ def test_Solve_over_the_ranks_matches_the_serial_solve(case):
     nodes = simu.mesh._Get_mpi_owned_nodes()
     coord = simu.mesh.coord[nodes, :2]
     u = simu.displacement.reshape(-1, 2)[nodes]
+    scalars = _scalars(simu)
 
     serial = _serial(case)
 
-    np.testing.assert_array_equal(serial[nodes, :2], coord)
-    uSerial = serial[nodes, 2:]
-    assert np.abs(u - uSerial).max() < 1e-6 * np.abs(serial[:, 2:]).max()
+    np.testing.assert_array_equal(serial["nodes"][nodes, :2], coord)
+    uSerial = serial["nodes"][nodes, 2:]
+    assert np.abs(u - uSerial).max() < 1e-6 * np.abs(serial["nodes"][:, 2:]).max()
+    for scalarsRank in Allgather(scalars, simu.mesh.comm):
+        np.testing.assert_array_equal(scalarsRank, scalars)
+    np.testing.assert_allclose(scalars, serial["scalars"], rtol=1e-6, atol=1e-12)
 
 
 if __name__ == "__main__":
     case, path = sys.argv[1:]
     simu = _CASES[case]()
-    np.save(path, np.hstack([simu.mesh.coord[:, :2], simu.displacement.reshape(-1, 2)]))
+    nodes = np.hstack([simu.mesh.coord[:, :2], simu.displacement.reshape(-1, 2)])
+    np.savez(path, nodes=nodes, scalars=_scalars(simu))

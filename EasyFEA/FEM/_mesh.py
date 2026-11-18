@@ -589,16 +589,21 @@ class Mesh(Observable):
         """Whether the ranks share this mesh; False when this rank holds it whole (serial, gathered)."""
         return next(iter(self.__dict_groupElem.values())).isPartitioned
 
+    @property
+    def comm(self):
+        """Communicator of the ranks sharing this mesh, None when this rank holds it whole: reduce with `Reduce_sum(value, mesh.comm)`."""
+        return MPI_COMM if self.isPartitioned else None
+
     def _Sum_on_ownedElements_e(
         self, list_values_e: Sequence[_types.FloatArray], dim: int | None = None
     ) -> _types.FloatArray:
-        """Sum of one (Ne, ...) array per group of dimension `dim`, each element counted once over the ranks. MPI: collective unless gathered."""
+        """Sum of one (Ne, ...) array per group of dimension `dim`, each element counted once over the ranks; collective on `comm`."""
         local: _types.FloatArray = np.zeros(())
         for groupElem, values_e in zip(
             self.Get_list_groupElem(dim), list_values_e, strict=True
         ):
             local = local + groupElem._Sum_on_ownedElements_e(values_e)
-        return Reduce_sum(local) if self.isPartitioned else local
+        return Reduce_sum(local, self.comm)
 
     def __Get_measure(self, dim: int) -> float:
         """Length, area or volume of the groups of dimension `dim`."""
@@ -609,21 +614,21 @@ class Mesh(Observable):
 
     @property
     def length(self) -> float:
-        """total length of the mesh. MPI: collective unless gathered."""
+        """total length of the mesh. Collective on `comm`."""
         if self.dim < 1:
             return None  # type: ignore [return-value]
         return self.__Get_measure(1)
 
     @property
     def area(self) -> float:
-        """total area of the mesh. MPI: collective unless gathered."""
+        """total area of the mesh. Collective on `comm`."""
         if self.dim < 2:
             return None  # type: ignore [return-value]
         return self.__Get_measure(2)
 
     @property
     def volume(self) -> float:
-        """total volume of the mesh. MPI: collective unless gathered."""
+        """total volume of the mesh. Collective on `comm`."""
         if self.dim != 3:
             return None  # type: ignore [return-value]
         return self.__Get_measure(3)

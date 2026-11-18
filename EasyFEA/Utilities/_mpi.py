@@ -71,58 +71,45 @@ def rank0_only(func: Callable[Params, R]) -> Callable[Params, R | None]:
 
 # Reductions
 # ----------
-# A partitioned run computes every integral, extremum and count over the rank's own slice, so a
-# result is only global once it has been reduced. These wrappers are the identity in serial, which
-# lets a script be written once and run under any number of ranks: no `if MPI_SIZE > 1` guard at the
-# call site, and no `import mpi4py` in code that may run without it.
+# A partitioned run computes every integral, extremum and count over the rank's own rows, so a result is only global once reduced over the mesh's communicator: `Reduce_sum(value, mesh.comm)`. `comm` is None when the rank holds the mesh whole (serial, gathered, loaded), and then nothing is reduced, so a script is written once for any number of ranks.
 #
-# All four are collective: every rank must call them, in the same order.
+# Collective on `comm`: every rank of it must call them, in the same order.
 
 
-def Reduce_sum(value):
-    """Sum of `value` over the ranks. Accepts scalars and arrays -- the sum is elementwise."""
+def Reduce_sum(value, comm):
+    """Sum of `value` over the ranks of `comm`, elementwise for arrays; `value` itself when `comm` is None."""
 
-    if MPI_SIZE == 1:
+    if comm is None:
         return value
 
-    return MPI_COMM.allreduce(value, op=MPI.SUM)
+    return comm.allreduce(value, op=MPI.SUM)
 
 
-def Reduce_min(value: float) -> float:
-    """Smallest `value` over the ranks.
+def Reduce_min(value: float, comm) -> float:
+    """Smallest `value` over the ranks of `comm`; scalars only, a rank with nothing to contribute passes `np.inf`."""
 
-    Scalars only. A rank with nothing to contribute passes `np.inf`, so an empty local slice cannot
-    win the reduction (the alternative, a default of `0.0`, is how a partition-local `max` over a node
-    tag silently returns the coordinate of a node nobody owns).
-    """
-
-    if MPI_SIZE == 1:
+    if comm is None:
         return value
 
-    return MPI_COMM.allreduce(value, op=MPI.MIN)
+    return comm.allreduce(value, op=MPI.MIN)
 
 
-def Reduce_max(value: float) -> float:
-    """Largest `value` over the ranks. Scalars only; see :func:`Reduce_min` on empty slices, with `-np.inf`."""
+def Reduce_max(value: float, comm) -> float:
+    """Largest `value` over the ranks of `comm`; scalars only, a rank with nothing to contribute passes `-np.inf`."""
 
-    if MPI_SIZE == 1:
+    if comm is None:
         return value
 
-    return MPI_COMM.allreduce(value, op=MPI.MAX)
+    return comm.allreduce(value, op=MPI.MAX)
 
 
-def Allgather(value) -> list:
-    """Every rank's `value`, in rank order.
+def Allgather(value, comm) -> list:
+    """Every rank's `value` in rank order, `[value]` when `comm` is None; reduce locally first and gather the candidate, never the raw data."""
 
-    For reductions that are not one of the scalar operations above -- picking the node of smallest z,
-    say, where the answer is the whole coordinate triple and not the z that selected it. The cost is
-    one contribution per rank, so reduce locally first and gather the candidate, never the raw data.
-    """
-
-    if MPI_SIZE == 1:
+    if comm is None:
         return [value]
 
-    return MPI_COMM.allgather(value)
+    return comm.allgather(value)
 
 
 @requires_mpi

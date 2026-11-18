@@ -299,7 +299,9 @@ def _Solve_Axb(
                 solver = SolverType.petsc
     else:
         solver = simu.solver
-        if isinstance(problemType, tuple) and __Has_zero_diagonal(A, ownedDofs):
+        if isinstance(problemType, tuple) and __Has_zero_diagonal(
+            A, ownedDofs, simu.mesh.comm
+        ):
             __Check_saddle_point_solver(simu, problemType)
 
     # import matplotlib.pyplot as plt
@@ -408,13 +410,13 @@ def _Solve_Axb(
 
 
 def __Has_zero_diagonal(
-    A: sparse.csr_matrix, ownedDofs: _types.IntArray | None
+    A: sparse.csr_matrix, ownedDofs: _types.IntArray | None, comm
 ) -> bool:
     """Whether a row of `A` has no diagonal entry, on any rank (a saddle point); only owned rows are complete under MPI."""
     diagonal = A.diagonal()
     if ownedDofs is not None:
         diagonal = diagonal[ownedDofs]
-    return Reduce_sum(int(np.count_nonzero(diagonal == 0))) > 0
+    return Reduce_sum(int(np.count_nonzero(diagonal == 0)), comm) > 0
 
 
 def __Check_saddle_point_solver(
@@ -548,9 +550,9 @@ def __Solver_1_mpi_indices(
     return uniqueUnknown, ownedDofs, mapping
 
 
-def __Residual_norm(b_owned: _types.FloatArray) -> float:
-    """Residual 2-norm over all ranks, the root of the summed squares; raises on NaN/Inf"""
-    rhsNorm = float(np.sqrt(Reduce_sum(np.linalg.norm(b_owned) ** 2)))
+def __Residual_norm(b_owned: _types.FloatArray, comm) -> float:
+    """Residual 2-norm over the ranks of `comm`, the root of the summed squares; raises on NaN/Inf"""
+    rhsNorm = float(np.sqrt(Reduce_sum(np.linalg.norm(b_owned) ** 2, comm)))
     if not np.isfinite(rhsNorm):
         raise FloatingPointError("The residual has NaN or Inf entries.")
     return rhsNorm
@@ -597,7 +599,7 @@ def __Solver_1(
 
     bi -= Aic @ xc
     if simu.isNonLinear:
-        rhsNorm = __Residual_norm(bi[ownedDofs] if MPI_SIZE > 1 else bi)
+        rhsNorm = __Residual_norm(bi[ownedDofs] if MPI_SIZE > 1 else bi, simu.mesh.comm)
 
     xi = _Solve_Axb(
         simu, problemType, Aii, bi, x0, lb, ub, ResolType.r1, ownedDofs, mapping
@@ -693,7 +695,7 @@ def __Solver_3(simu: "_Simu", problemType: "ProblemType | tuple[ProblemType, ...
         b_owned = b
         if MPI_SIZE > 1:
             b_owned = b[simu.Get_dofs(problemType)]
-        rhsNorm = __Residual_norm(b_owned)
+        rhsNorm = __Residual_norm(b_owned, simu.mesh.comm)
 
     # Solving the penalized matrix system
     x0 = simu._Solver_Get_x0(problemType)

@@ -11,6 +11,7 @@ import numpy as np
 
 from ..Utilities import _types
 from ..Utilities._mpi import (
+    MPI_COMM,
     MPI_RANK,
     MPI_SIZE,
     Allgather,
@@ -175,7 +176,7 @@ class _FunctionSpace:
         partitioned = _FunctionSpace.__Is_partitioned(groups)
         tags = list(dict_nodes)
         if partitioned:
-            tags = sorted(set().union(*Allgather(tags)))
+            tags = sorted(set().union(*Allgather(tags, MPI_COMM)))
         for tag in tags:
             nodes = np.concatenate(
                 [np.empty(0, np.int64), *dict_nodes.get(tag, [])], dtype=np.int64
@@ -314,7 +315,7 @@ class _FunctionSpace:
         owner = np.zeros((2, Nn), dtype=np.int64)
         owner[:, mesh._Get_mpi_owned_nodes()] = [[MPI_RANK], [1]]
         if partitioned:
-            owner = Reduce_sum(owner)
+            owner = Reduce_sum(owner, MPI_COMM)
         assert owner[1].max(initial=0) <= 1, "Nodes owned by several ranks."
         owner = owner[0]
         # mesh group -> its partner group, returned

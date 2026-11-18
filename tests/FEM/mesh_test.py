@@ -1293,10 +1293,12 @@ def _held(space, nodes: np.ndarray) -> set[tuple]:
     return {tuple(row) for row in np.round(space.coord[held], 9).tolist()}
 
 
-def _assert_all_ranks_hold(space, nodes: np.ndarray, expected: np.ndarray) -> None:
+def _assert_all_ranks_hold(
+    mesh: Mesh, space, nodes: np.ndarray, expected: np.ndarray
+) -> None:
     """Every rank holds the ``expected`` coordinates; agreed across ranks first, so that one rank failing does not leave the others waiting."""
     gap = _held(space, nodes) ^ {tuple(row) for row in np.round(expected, 9).tolist()}
-    assert max(Allgather(len(gap))) == 0
+    assert max(Allgather(len(gap), mesh.comm)) == 0
 
 
 @pytest.mark.mpi
@@ -1311,10 +1313,10 @@ def test_Mesh_Nodes_Tags_problemType_under_mpi_holds_the_nodes_of_this_rank():
         nodes = mesh.Nodes_Tags(tag, problemType=ELASTIC)
         # the plane the tag lies in, from every rank's nodes it holds
         held = nodes[np.isin(nodes, space.localNodes)]
-        coord = np.concatenate(Allgather(space.coord[held]))
+        coord = np.concatenate(Allgather(space.coord[held], mesh.comm))
         axis = int(np.argmin(np.ptp(coord, axis=0)))
         expected = local[local[:, axis] == coord[0, axis]]
-        _assert_all_ranks_hold(space, nodes, expected)
+        _assert_all_ranks_hold(mesh, space, nodes, expected)
 
 
 @pytest.mark.mpi
@@ -1327,4 +1329,4 @@ def test_Mesh_Nodes_Conditions_problemType_under_mpi_closes_the_nodes_of_this_ra
 
     # on the circle or its chords, whose sagitta is below this
     expected = local[np.hypot(local[:, 0], local[:, 1]) > 0.5 - 0.02]
-    _assert_all_ranks_hold(space, nodes, expected)
+    _assert_all_ranks_hold(mesh, space, nodes, expected)

@@ -274,7 +274,7 @@ class _Simu(_IObserver, _params.Updatable, ABC):
         Under MPI a rank assembles its owned *and* ghost elements, so `A` is complete only on the rows
         of the dofs the rank owns. Restricting the quadratic form to those rows makes the ranks'
         contributions disjoint, so they sum to the global energy — the same argument
-        :meth:`Calc_Reaction` uses for `K[dofs] @ u`. Taking the form over all rows instead would
+        :meth:`Calc_Resultant` uses for `K[dofs] @ u`. Taking the form over all rows instead would
         count the ghost layer once per rank sharing it.
 
         Parameters
@@ -297,28 +297,31 @@ class _Simu(_IObserver, _params.Updatable, ABC):
             dofs = self.Get_dofs()
 
         energy = 0.5 * x[dofs] @ (A[dofs] @ x)
-        return energy if self.isGathered else Reduce_sum(energy)
+        return Reduce_sum(energy, self.mesh.comm)
+
+    def __Get_reaction(
+        self, dofs: _types.IntArray, problemType: ProblemType
+    ) -> _types.FloatArray:
+        """Internal force at `dofs`, complete on owned dofs only."""
+        K, C, M, _ = self.Get_K_C_M_F(problemType)
+        reaction = K[dofs] @ self._Get_u_n(problemType)
+        if self.algo == AlgoType.parabolic:
+            reaction += C[dofs] @ self._Get_v_n(problemType)
+        elif self.algo in AlgoType.Get_Hyperbolic_Types():
+            reaction += C[dofs] @ self._Get_v_n(problemType)
+            reaction += M[dofs] @ self._Get_a_n(problemType)
+        return reaction
+
+    def __Get_owned(
+        self, dofs: _types.IntArray, problemType: ProblemType
+    ) -> _types.IntArray:
+        """The dofs of `dofs` this rank owns, in their order."""
+        return dofs[np.isin(dofs, self.Get_dofs(problemType))]
 
     def Calc_Reaction(
         self, dofs: _types.IntArray = None, problemType: ProblemType = None
     ) -> np.ndarray:
-        """Resultant internal force at nodes, `K[dofs] @ u` plus the terms the time scheme brings in:
-        `+ C[dofs] @ v` for a parabolic algo, `+ C[dofs] @ v + M[dofs] @ a` for a hyperbolic one.
-        `F` is *not* subtracted, so this equals the reaction proper only where no load is applied —
-        which is the usual case at a Dirichlet boundary.
-
-        Returns
-        -------
-        np.ndarray
-            Serial or gathered: the values at `dofs`, shape `(len(dofs),)`.
-            MPI: the full `(Ndof,)` vector, zero away from `dofs`.
-
-            The shapes differ deliberately. `dofs` is normally built from `Nodes_Conditions` or a node
-            tag, which under MPI yields *this rank's* nodes only, so no single rank holds the whole
-            boundary. Returning the reduced full vector is what makes the idiomatic
-            `np.sum(simu.Calc_Reaction(dofs))` the resultant over the entire boundary on every rank,
-            rather than one rank's share of it. Reach for a specific dof by index, never by position.
-        """
+        """Internal force at `dofs` (all by default), `K[dofs] @ u`, `+ C[dofs] @ v` (parabolic), `+ C[dofs] @ v + M[dofs] @ a` (hyperbolic): `F` is not subtracted, so the reaction proper where no load is applied. Under MPI the rank's rows of `dofs`; their sum over the ranks is `Calc_Resultant`."""
 
         if self.isNonLinear:
             raise NotImplementedError
@@ -326,28 +329,32 @@ class _Simu(_IObserver, _params.Updatable, ABC):
         if problemType is None:
             problemType = self.problemType
 
-        ownedDofs = self.Get_dofs(problemType)
-
+        size = self.Get_K_C_M_F(problemType)[0].shape[0]
         if dofs is None:
-            dofs = ownedDofs
-        else:
-            dofs = dofs[np.isin(dofs, ownedDofs)]
+            dofs = np.arange(size)
 
-        K, C, M, _ = self.Get_K_C_M_F(problemType)
+        owned = self.__Get_owned(dofs, problemType)
+        reaction = np.zeros(size, dtype=float)
+        reaction[owned] = self.__Get_reaction(owned, problemType)
+        # a ghost row from its owner; whole-size until the mesh is local
+        reaction = Reduce_sum(reaction, self.mesh.comm)
 
-        reaction = np.zeros(K.shape[0], dtype=float)
+        return reaction[dofs]
 
-        reaction[dofs] = K[dofs] @ self._Get_u_n(problemType)
-        if self.algo == AlgoType.parabolic:
-            reaction[dofs] += C[dofs] @ self._Get_v_n(problemType)
-        elif self.algo in AlgoType.Get_Hyperbolic_Types():
-            reaction[dofs] += C[dofs] @ self._Get_v_n(problemType)
-            reaction[dofs] += M[dofs] @ self._Get_a_n(problemType)
+    def Calc_Resultant(
+        self, dofs: _types.IntArray, problemType: ProblemType = None
+    ) -> float:
+        """Resultant of the internal force over `dofs`, each dof counted once over the ranks: the sum of `Calc_Reaction(dofs)` in serial; identical on every rank, collective on `mesh.comm`."""
 
-        if self.isGathered:
-            return reaction[dofs]
-        else:
-            return Reduce_sum(reaction)
+        if self.isNonLinear:
+            raise NotImplementedError
+
+        if problemType is None:
+            problemType = self.problemType
+
+        owned = self.__Get_owned(dofs, problemType)
+        resultant = float(np.sum(self.__Get_reaction(owned, problemType)))
+        return Reduce_sum(resultant, self.mesh.comm)
 
     @abstractmethod
     def Get_x0(self, problemType: ProblemType | None = None) -> _types.FloatArray:
@@ -711,7 +718,7 @@ class _Simu(_IObserver, _params.Updatable, ABC):
     """mass density"""
 
     def __Get_moments(self) -> _types.FloatArray:
-        """Mass, then its first moment along x, y, z. MPI: collective unless gathered."""
+        """Mass, then its first moment along x, y, z. Collective on `mesh.comm`."""
         moments = self.mesh._Sum_on_ownedElements_e(
             [
                 groupElem._Get_moments_e(self.rho)
@@ -722,14 +729,14 @@ class _Simu(_IObserver, _params.Updatable, ABC):
 
     @property
     def mass(self) -> float:
-        """Mass of the simulated body. MPI: collective unless gathered."""
+        """Mass of the simulated body. Collective on `mesh.comm`."""
         if self.dim == 1:
             return None  # type: ignore [return-value]
         return float(self.__Get_moments()[0])
 
     @property
     def center(self) -> _types.FloatArray:
-        """Center of mass / barycenter / inertia center. MPI: collective unless gathered."""
+        """Center of mass / barycenter / inertia center. Collective on `mesh.comm`."""
 
         if self.dim == 1:
             return None  # type: ignore [return-value]
@@ -1689,8 +1696,9 @@ class _Simu(_IObserver, _params.Updatable, ABC):
         start = self.__Get_offsets(problem)[problem.index(field)]
         values = x[start : start + space.Nn]
         owned = self.Get_dofs(field)
-        mean = Reduce_sum(weights[owned] @ values[owned]) / Reduce_sum(
-            weights[owned].sum()
+        comm = self.mesh.comm
+        mean = Reduce_sum(weights[owned] @ values[owned], comm) / Reduce_sum(
+            weights[owned].sum(), comm
         )
         values -= mean
 
@@ -2539,6 +2547,7 @@ class _Simu(_IObserver, _params.Updatable, ABC):
         owned = np.zeros(K.shape[0], dtype=bool)
         owned[self.Get_dofs(problem)] = True
         pinned = []
+        comm = self.mesh.comm
         for field, start in zip(problem, self.__Get_offsets(problem)):
             if self.Get_dof_n(field) != 1:
                 continue
@@ -2546,11 +2555,11 @@ class _Simu(_IObserver, _params.Updatable, ABC):
             isField[start : start + self.__Get_size(field)] = True
             # rows complete only where owned under MPI
             K_c = K[:, isField]
-            if Reduce_sum(abs(K_c[owned & isField]).sum()) > 0:
+            if Reduce_sum(abs(K_c[owned & isField]).sum(), comm) > 0:
                 continue
             K_rc = K_c[owned & free & ~isField]
-            constant = Reduce_sum(np.sum((K_rc @ np.ones(K_rc.shape[1])) ** 2))
-            scale = Reduce_sum(K_rc.multiply(K_rc).sum())
+            constant = Reduce_sum(np.sum((K_rc @ np.ones(K_rc.shape[1])) ** 2), comm)
+            scale = Reduce_sum(K_rc.multiply(K_rc).sum(), comm)
             if constant <= (1e-10) ** 2 * scale:
                 pinned.append(start)
                 self.__pinnedFields.add(field)

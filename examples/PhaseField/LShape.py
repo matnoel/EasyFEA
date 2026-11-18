@@ -184,7 +184,7 @@ if __name__ == "__main__":
             # solve
             u, d, convergence = simu.Solve(tolConv, 500, convOption)
             # calc load
-            f = np.sum(simu.Calc_Reaction(dofsY_load))
+            f = simu.Calc_Resultant(dofsY_load)
 
             # saves load and displacement
             list_ud.append(ud)

@@ -2,6 +2,17 @@
 
 This document describes the changes made to the project.
 
+## Unreleased
+
+### MPI
+
+- `Reduce_sum`, `Reduce_min`, `Reduce_max` and `Allgather` take a required `comm`:
+  `Reduce_sum(value, mesh.comm)`, `None` reduces nothing. `mesh.comm` is the ranks'
+  communicator on a partitioned mesh, `None` otherwise (serial, gathered).
+- `Simu.Calc_Resultant(dofs)`: the resultant of the internal force over `dofs`,
+  identical on every rank. `Calc_Reaction(dofs)` returns the rows of `dofs` under MPI as
+  in serial, so `np.sum(Calc_Reaction(dofs))` is the rank's share: use `Calc_Resultant`.
+
 ## 7.3.0 (November 13, 2026):
 
 ### MPI

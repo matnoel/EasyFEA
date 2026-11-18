@@ -223,14 +223,16 @@ ______________________________________________________________________
 The solve is handled for you, but **anything your script computes itself is
 partition-local until you reduce it**. A `.sum()` over elements, a `.min()` over Gauss
 points, a `.max()` over a node tag: each returns this rank's share, silently and without
-error. {py:mod}`EasyFEA.Utilities._mpi` provides the reductions, all of which are the
-identity in serial, so the script is written once and runs under any number of ranks:
+error. {py:mod}`EasyFEA.Utilities._mpi` provides the reductions over the mesh's
+communicator `mesh.comm`, which is `None` when the rank holds the mesh whole (serial,
+gathered, loaded) and then nothing is reduced, so the script is written once and runs
+under any number of ranks:
 
 ```python
 from EasyFEA.Utilities import Reduce_sum, Reduce_min, Reduce_max, Allgather
 
-volume = Reduce_sum(vol_e[elements].sum())   # an integral over the mesh
-minDetF = Reduce_min(np.linalg.det(F_e_pg).min())
+volume = Reduce_sum(vol_e[elements].sum(), mesh.comm)   # an integral over the mesh
+minDetF = Reduce_min(np.linalg.det(F_e_pg).min(), mesh.comm)
 ```
 
 Two traps worth knowing:
@@ -244,11 +246,13 @@ Two traps worth knowing:
   not `abs(global.sum())`.
 
 For an energy, {py:meth}`~EasyFEA.Simulations._Simu.Calc_Energy` does this correctly
-already:
+already, and {py:meth}`~EasyFEA.Simulations._Simu.Calc_Resultant` for the force on a
+boundary; {py:meth}`~EasyFEA.Simulations._Simu.Calc_Reaction` gives the rank's rows:
 
 ```python
 K, _, M, _ = simu.Get_K_C_M_F()
 energy = simu.Calc_Energy(K, u) + simu.Calc_Energy(M, v)
+force = simu.Calc_Resultant(dofsUpper)   # not np.sum(simu.Calc_Reaction(dofsUpper))
 ```
 
 Reductions that are not a scalar operation go through `Allgather` — reduce locally
@@ -256,7 +260,9 @@ first, then gather one candidate per rank, never the raw data:
 
 ```python
 coord = mesh.groupElem.coord                 # dense, this rank's nodes, no empty rows
-apex = min(Allgather(coord[np.argmin(coord[:, 2])]), key=lambda point: point[2])
+apex = min(
+    Allgather(coord[np.argmin(coord[:, 2])], mesh.comm), key=lambda point: point[2]
+)
 ```
 
 ### Plotting and in-memory post-processing
