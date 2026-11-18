@@ -230,7 +230,7 @@ def _GroupElem_to_PyVista(
     assert isinstance(groupElem, _GroupElem), "groupElem must be a group of elements!"
 
     cellType, connect = _Get_pyvista_cell(groupElem)
-    connect = groupElem._global_to_local_nodes[connect]
+    connect = groupElem._nodesIdx[connect]
 
     if isinstance(elements, np.ndarray):
         assert elements.min() >= 0

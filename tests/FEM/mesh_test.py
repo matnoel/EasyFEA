@@ -1400,3 +1400,17 @@ def test_Mesh_under_mpi_Get_Meshes_pieces_never_communicate():
             piece._With_FunctionSpace(ELASTIC, 2)
             assert piece.area > 0
         assert abs(sum(piece.area for piece in pieces) - 1) < 1e-12
+
+
+@pytest.mark.mpi
+def test_Mesh_under_mpi_space_groups_take_their_group_partition():
+    mesh = _square()._With_FunctionSpace(ELASTIC, 2)
+    space = mesh._Get_FunctionSpace(ELASTIC)
+
+    for groupElem, spaceGroup in zip(
+        mesh.Get_list_groupElem(), space.Get_list_groupElem()
+    ):
+        assert spaceGroup.isPartitioned and spaceGroup.rank == groupElem.rank
+        assert np.array_equal(spaceGroup._ownedElements, groupElem._ownedElements)
+        owned = spaceGroup._globalNodes[spaceGroup._nodeOwners == spaceGroup.rank]
+        assert np.array_equal(owned, space.ownedNodes)

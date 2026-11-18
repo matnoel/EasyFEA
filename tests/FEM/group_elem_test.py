@@ -151,6 +151,23 @@ def test_GroupElem_nodes_are_the_used_ones_sorted():
     assert groupElem.nodes.size == 2 and groupElem.Nn == 5
 
 
+def test_GroupElem__nodesIdx_gives_the_coord_row_of_each_node():
+    connect = np.array([[4, 2]])
+    groupElem = GroupElemFactory.Create(ElemType.SEG2, connect, np.zeros((5, 3)))
+
+    assert np.array_equal(groupElem._nodesIdx[[2, 4]], [0, 1])
+
+
+def test_GroupElem__nodesIdx_is_read_only():
+    groupElem = _segments([(0, 0, 0), (1, 0, 0), (2, 0, 0)])
+
+    with pytest.raises(AttributeError):
+        groupElem._nodesIdx = np.arange(3)  # type: ignore [misc]
+    for group in (groupElem, pickle.loads(pickle.dumps(groupElem))):
+        with pytest.raises(ValueError):
+            group._nodesIdx[0] = 1
+
+
 def test_GroupElem_elements_are_the_connect_rows():
     groupElem = _segments([(0, 0, 0), (1, 0, 0), (2, 0, 0)])
 
@@ -1507,9 +1524,7 @@ def test_GroupElem_Get_Elements_Tag_gives_the_tagged_elements(grid: Mesh):
     elements = edges.Get_Elements_Tag("L0")
 
     assert elements.size == 4
-    assert np.all(
-        edges.coord[edges._global_to_local_nodes[edges.connect[elements]], 1] == 0
-    )
+    assert np.all(edges.coord[edges._nodesIdx[edges.connect[elements]], 1] == 0)
 
 
 def test_GroupElem_Get_Nodes_Tag_gives_the_tagged_nodes(grid: Mesh):

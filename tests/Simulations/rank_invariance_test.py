@@ -71,6 +71,13 @@ def _newton() -> Simulations.HyperElastic:
 _CASES = {"elastic": _elastic, "newmark": _newmark, "newton": _newton}
 
 
+def _space_coord(order: int) -> np.ndarray:
+    """Coordinates of every node id of the displacement on the order `order` elements of a TRI3 mesh, zero where this rank holds none."""
+    mesh = _plate_with_hole(ElemType.TRI3)
+    mesh = mesh._With_FunctionSpace(Simulations.Elastic.problemType, order)
+    return mesh._Get_FunctionSpace(Simulations.Elastic.problemType).coord
+
+
 def _scalars(simu) -> np.ndarray:
     """Every scalar a script reads, the same on every rank."""
     scalars = list(simu.Results_dict_Energy().values())
@@ -100,6 +107,22 @@ def _serial(case: str) -> dict[str, np.ndarray]:
 
 
 @pytest.mark.mpi
+@pytest.mark.parametrize("order", [2, 3])
+def test_added_nodes_over_the_ranks_have_the_serial_ids(order):
+    mesh = _plate_with_hole(ElemType.TRI3)
+    mesh = mesh._With_FunctionSpace(Simulations.Elastic.problemType, order)
+    space = mesh._Get_FunctionSpace(Simulations.Elastic.problemType)
+    held = space.localNodes
+
+    serial = _serial(f"space{order}")["coord"]
+
+    assert space.Ncoords == serial.shape[0]
+    np.testing.assert_allclose(space.coord[held], serial[held], rtol=0, atol=1e-12)
+    owned = np.concatenate(Allgather(space.ownedNodes, mesh.comm))
+    assert np.array_equal(np.sort(owned), np.arange(serial.shape[0]))
+
+
+@pytest.mark.mpi
 @pytest.mark.parametrize("case", _CASES)
 def test_Solve_over_the_ranks_matches_the_serial_solve(case):
     pytest.importorskip("petsc4py")
@@ -121,6 +144,9 @@ def test_Solve_over_the_ranks_matches_the_serial_solve(case):
 
 if __name__ == "__main__":
     case, path = sys.argv[1:]
+    if case.startswith("space"):
+        np.savez(path, coord=_space_coord(int(case[5:])))
+        sys.exit()
     simu = _CASES[case]()
     nodes = np.hstack([simu.mesh.coord[:, :2], simu.displacement.reshape(-1, 2)])
     np.savez(path, nodes=nodes, scalars=_scalars(simu))

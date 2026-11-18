@@ -84,18 +84,16 @@ class _GroupElem:
 
         # Nodes
         nodes = np.unique(connect.ravel()).astype(int)
-        Ncoords = coordinates.shape[0]
+        Nn = coordinates.shape[0]
         if nodes.size != 0:
-            error = f"Nodes {nodes[nodes > Ncoords]} has not corresponding entry in the coordinates array."
-            assert nodes.max() + 1 <= Ncoords, error
+            error = f"Nodes {nodes[nodes > Nn]} has not corresponding entry in the coordinates array."
+            assert nodes.max() + 1 <= Nn, error
         self.__nodes = nodes
-        self.__Nn = Ncoords
+        self.__Nn = Nn
         self.__coord = coordinates[nodes]
 
-        # Map global nodes to local nodes
-        # Global nodes correspond to the node positions in global coordinates, and local nodes correspond to the local positions in self.coord.
-        self._global_to_local_nodes = np.empty(Ncoords, dtype=int)
-        self._global_to_local_nodes[nodes] = np.arange(nodes.size, dtype=int)
+        self.__nodesIdx = np.empty(Nn, dtype=int)
+        self.__nodesIdx[nodes] = np.arange(nodes.size, dtype=int)
 
         # serial until the Mesher partitions it
         self._Set_partition(None, None, None, None)
@@ -120,7 +118,7 @@ class _GroupElem:
     @cache_computed_values
     def __spheres(self) -> tuple[_types.FloatArray, _types.FloatArray]:
         """bounding sphere of each element, centers (Ne, 3) and radii (Ne,), rebuilt with the coordinates"""
-        connect = self._global_to_local_nodes[self.connect]
+        connect = self._nodesIdx[self.connect]
         coordElem_e = self.coord[connect]  # (Ne, nPe, 3)
         center_e = coordElem_e.mean(1)  # (Ne, 3)
         radius_e = np.linalg.norm(coordElem_e - center_e[:, None], axis=2).max(1)
@@ -195,6 +193,11 @@ class _GroupElem:
         return self.__connect.shape[0]
 
     @property
+    def _nodesIdx(self) -> _types.IntArray:
+        """Index of each node in the group's own `coord` (Nn,), read-only; meaningless for a node the group does not use. `coord[_nodesIdx[connect]]` are the coordinates of each element's nodes."""
+        return self.__nodesIdx
+
+    @property
     def nodes(self) -> _types.IntArray:
         """nodes used by the element group. Node 'n' is on line 'n' in global coordinates"""
         return self.__nodes.copy()
@@ -229,8 +232,8 @@ class _GroupElem:
         self.__Lock_shared()
 
     def __Lock_shared(self) -> None:
-        """The rank-wide node arrays are shared by every group: read-only."""
-        for array in (self.__globalNodes, self.__nodeOwners):
+        """Read-only: `_nodesIdx`, and the rank-wide node arrays shared by every group."""
+        for array in (self.__nodesIdx, self.__globalNodes, self.__nodeOwners):
             if array is not None:
                 array.flags.writeable = False
 
@@ -1593,7 +1596,7 @@ class _GroupElem:
 
         # a surface (line, point) in a higher dim space: ξ only gives the projection, check the distance
         if self.dim < 3 and coordinates_n.shape[0] > 0:
-            connect = self._global_to_local_nodes[self.connect]
+            connect = self._nodesIdx[self.connect]
             coordElem_n = self.coord[connect[elements_n]]  # (Nn, nPe, 3)
             with np.errstate(all="ignore"):
                 x_n = self.__mapping.Get_x_n(xi_n, elements_n)  # x(ξ) (Nn, 3)

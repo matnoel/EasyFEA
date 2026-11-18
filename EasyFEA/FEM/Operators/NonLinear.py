@@ -392,7 +392,7 @@ def FollowingPressure(
 
     # Deformed node coordinates x = X + u (Ne_a, nPe, 3)
     connect = groupElem.connect
-    connect_local = groupElem._global_to_local_nodes[connect]
+    connect_local = groupElem._nodesIdx[connect]
     X_e = groupElem.coord[connect_local][active]
     u_e = u.reshape(-1, dim)[connect][active]
     x_e = X_e + u_e

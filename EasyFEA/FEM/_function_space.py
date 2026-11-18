@@ -13,8 +13,8 @@ from ..Utilities import _types
 from ..Utilities._mpi import (
     MPI_COMM,
     Allgather,
+    Reduce_max,
     Concatenate_array,
-    Reduce_sum,
 )
 from ._utils import ElemType, MatrixType, _Order
 
@@ -299,24 +299,26 @@ class _FunctionSpace:
         if order < 1:
             raise ValueError(f"No Lagrange element of order {order}.")
         Nn = mesh.Nn
-        # these values are multiples of 1/order per direction, so integers once multiplied by `scale`; `base` and `limit` bound the int64 keys of step 5
+        # these values are multiples of 1/order per direction, so integers once multiplied by `scale`
         scale = order**3
-        base = Nn * (scale + 1)
-        limit = (np.iinfo(np.int64).max - base) // base
         partitioned = mesh.isPartitioned
+        comm = mesh.comm
 
         def gather(array: np.ndarray) -> np.ndarray:
             """Every rank's ``array`` end to end on a partitioned mesh, ``array`` itself otherwise."""
             return Concatenate_array(array) if partitioned else array
 
-        # owner rank of each node (Nn,), and how many ranks own it, summed over the ranks: one at most when the owned nodes partition the nodes
-        owner = np.zeros((2, Nn), dtype=np.int64)
-        rank = next(iter(mesh.dict_groupElem.values())).rank
-        owner[:, mesh._Get_mpi_owned_nodes()] = [[rank], [1]]
-        if partitioned:
-            owner = Reduce_sum(owner, mesh.comm)
-        assert owner[1].max(initial=0) <= 1, "Nodes owned by several ranks."
-        owner = owner[0]
+        # owner rank of each node this rank holds (Nn,), from the partition
+        first = next(iter(mesh.dict_groupElem.values()))
+        rank = first.rank
+        if first._nodeOwners is None:
+            owner = np.full(Nn, rank, dtype=np.int64)
+        else:
+            owner = np.full(Nn, -1, dtype=np.int64)
+            owner[first._globalNodes] = first._nodeOwners
+        # rows of step 4 are bucketed on their lowest vertex, below this bound
+        globalMax = Reduce_max(int(mesh.globalNodes.max(initial=-1)), comm)
+        bound = (int(globalMax) + 1) * (scale + 1)
         # mesh group -> its partner group, returned
         partners: dict["_GroupElem", "_GroupElem"] = {}
         # mesh group -> (partner elemType, partner connect (Ne, nPe), filled in step 5)
@@ -344,8 +346,9 @@ class _FunctionSpace:
             # geometry node ids (Ne, nPe geometry), partner local coordinates (nPe, dim) and the elements this rank owns (Ne,)
             nodes = groupElem.connect.astype(np.int64)
             xi = partner.Get_Local_Coords()
-            isOwned = np.zeros(groupElem.Ne, dtype=bool)
-            isOwned[groupElem._ownedElements] = True
+            elementOwners = groupElem._elementOwners
+            if elementOwners is None:
+                elementOwners = np.full(groupElem.Ne, rank, dtype=np.int64)
 
             # 2. the partner connect (Ne, nPe): the node id where a partner node sits on a geometry node (vertices, QUAD8 mid nodes), -1 elsewhere until step 5
             connect = np.full((groupElem.Ne, partner.nPe), -1, dtype=np.int64)
@@ -373,65 +376,45 @@ class _FunctionSpace:
                 rows = vertices * (scale + 1) + scale
                 rows -= np.take_along_axis(weights[columns], support, 1)
                 rows = np.sort(rows, axis=2).reshape(-1, size)
-                # this rank owns a cell node if it owns the element, any other (added or a QUAD8 mid node) if it is the lowest owner of the support vertices: then it holds every element containing the node, as a ghost at least (Ne, nCol)
+                # a cell node is owned by its element's owner, any other (added or a QUAD8 mid node) by the lowest owner of the support vertices, which holds every element containing the node, as a ghost at least (Ne, nCol)
                 if groupElem.dim == mesh.dim and size == partner.Nvertex:
-                    mine = np.repeat(isOwned[:, None], columns.size, axis=1)
+                    owners = np.repeat(elementOwners[:, None], columns.size, axis=1)
                 else:
-                    mine = owner[vertices].min(axis=2) == rank
+                    owners = owner[vertices].min(axis=2)
                 bySize.setdefault(size, []).append(
-                    (connect, offVertex[columns], rows, mine)
+                    (connect, offVertex[columns], rows, owners)
                 )
 
-        # 5. the ids, one support size at a time over all groups and ranks: each row folded into one int64 key; equal keys are one node, the geometry node holding it or else Nn + k in the serial key order
+        # 5. the ids, one support size at a time over all groups and ranks: equal rows are one node, the geometry node holding it or else Nn + k in the serial row order
         NnSpace = Nn
         # the support sizes of every rank, so that all run the same collectives
-        for size in np.unique(gather(np.array(list(bySize), dtype=np.int64))):
+        sizes = sorted(set().union(*Allgather(set(bySize), comm)))
+        for size in sizes:
             items = bySize.get(size, [])
-            # the rows of every group (nRows, size), folded into one key each (nRows,), below `bound`; past `limit`, keys are first ranked among every rank's keys, on the bound so that all ranks rank together
             table = np.vstack(
                 [np.empty((0, size), np.int64)] + [rows for _, _, rows, _ in items]
             )
-            key, bound = table[:, 0], base
-            for column in table.T[1:]:
-                if bound > limit:
-                    ranked = np.unique(gather(np.unique(key)))
-                    key, bound = np.searchsorted(ranked, key), ranked.size
-                    assert bound <= limit, "Too many nodes for int64 keys."
-                key = key * base + column
-                bound *= base
-            # every rank's distinct keys (Nkeys,), in the serial order, and the key of each row there (nRows,)
-            keys, ids = np.unique(key, return_inverse=True)
-            allKeys = np.unique(gather(keys))
-            ids = np.searchsorted(allKeys, keys)[ids]
             # the geometry node each row's connect entry already holds, -1 if none (nRows,)
             held = np.concatenate(
                 [np.empty(0, np.int64)]
                 + [c[:, columns].ravel() for c, columns, _, _ in items]
             )
-            # the node id of each key (Nkeys,): the geometry node holding it on any rank, else a new id NnSpace + k
-            keyNode = np.full(allKeys.size, -1, dtype=np.int64)
-            keyNode[ids[held >= 0]] = held[held >= 0]
-            # then every rank's held keys: a rank holding the node but not the node knows neither (TRI3 beside a QUAD9 of another rank)
-            isHeld = np.flatnonzero(keyNode >= 0)
-            keyNode[np.searchsorted(allKeys, gather(allKeys[isHeld]))] = gather(
-                keyNode[isHeld]
-            )
-            added = keyNode < 0
-            keyNode[added] = NnSpace + np.arange(np.count_nonzero(added))
-            NnSpace += np.count_nonzero(added)
+            ids, added = _FunctionSpace.__Number_rows(table, held, NnSpace, bound, comm)
+            NnSpace += added
             # each group's rows are the slice [start, end) of the table
             start = 0
             for connect, columns, rows, _ in items:
                 end = start + rows.shape[0]
-                connect[:, columns] = keyNode[ids[start:end]].reshape(-1, columns.size)
+                connect[:, columns] = ids[start:end].reshape(-1, columns.size)
                 start = end
 
-        # 6. the nodes this rank owns (NnSpace,): the mesh nodes by their owner, then the nodes of step 4
-        isMine = np.zeros(NnSpace, dtype=bool)
-        isMine[:Nn] = owner == rank
+        # 6. the owner of each node this rank holds (NnSpace,): the mesh nodes by their owner, then the nodes of step 4
+        spaceOwner = np.full(NnSpace, -1, dtype=np.int64)
+        spaceOwner[:Nn] = owner
         for items in bySize.values():
-            for connect, columns, _, mine in items:
-                isMine[connect[:, columns]] = mine
+            for connect, columns, _, owners in items:
+                spaceOwner[connect[:, columns]] = owners
+        isMine = spaceOwner == rank
         # 7. the partner groups, or the group itself when it already is its partner; their coordinates are set by `_Update_coord`
         for groupElem, (elemType, connect) in dict_connect.items():
             if elemType == groupElem.elemType:
@@ -440,8 +423,22 @@ class _FunctionSpace:
                 partners[groupElem] = GroupElemFactory.Create(
                     elemType, connect, np.zeros((NnSpace, 3))
                 )
-        # 8. the nodes carrying a DOF (NnSpace minus the nodes no partner reaches on any rank: TETRA10, 1 → the mid nodes), those this rank owns and those of its main-dimension elements
+        # the space's nodes this rank holds, sorted: its partition, shared by the new partners, which take their group's elements
         reached = np.unique(np.concatenate([g.nodes for g in partners.values()]))
+        if first._nodeOwners is not None:
+            reachedOwners = spaceOwner[reached]
+            for groupElem, spaceGroup in partners.items():
+                if spaceGroup is groupElem:
+                    continue
+                spaceGroup._Set_partition(
+                    groupElem._globalElements,
+                    groupElem._elementOwners,
+                    reached,
+                    reachedOwners,
+                    rank,
+                )
+                spaceGroup.isPartitioned = groupElem.isPartitioned
+        # 8. the nodes carrying a DOF (NnSpace minus the nodes no partner reaches on any rank: TETRA10, 1 → the mid nodes), those this rank owns and those of its main-dimension elements
         spaceNodes = np.concatenate(
             [np.unique(gather(reached[reached < Nn])), np.arange(Nn, NnSpace)]
         )
@@ -455,6 +452,57 @@ class _FunctionSpace:
         space._Update_coord()
         space._Update_tags()
         return space
+
+    @staticmethod
+    def __Number_rows(
+        rows: _types.IntArray,
+        held: _types.IntArray,
+        start: int,
+        bound: int,
+        comm,
+    ) -> tuple[_types.IntArray, int]:
+        """Id of each row (nRows, size), equal rows over the ranks being one node: the geometry node holding it on any rank (`held`, -1 if none), else `start + k` in the rows' order over the ranks, the serial ids at any rank count; and how many ids were added. Rows sorted on a rank bucketed by their first column, below `bound`, so that the duplicates of a node meet."""
+        unique, inverse = np.unique(rows, axis=0, return_inverse=True)
+        inverse = inverse.ravel()
+        heldUnique = np.full(unique.shape[0], -1, dtype=np.int64)
+        np.maximum.at(heldUnique, inverse, held)
+        if comm is None:
+            return _FunctionSpace.__Number_bucket(unique, heldUnique, start)[
+                inverse
+            ], int(np.count_nonzero(heldUnique < 0))
+
+        size = comm.Get_size()
+        bucket = unique[:, 0] * size // bound
+        order = np.argsort(bucket, kind="stable")
+        splits = np.cumsum(np.bincount(bucket, minlength=size))[:-1]
+        received = comm.alltoall(np.split(unique[order], splits))
+        receivedHeld = comm.alltoall(np.split(heldUnique[order], splits))
+        mine = np.vstack([np.empty((0, rows.shape[1]), np.int64), *received])
+        mineHeld = np.concatenate([np.empty(0, np.int64), *receivedHeld])
+        # this bucket's rows, deduplicated over the ranks; held by any rank
+        bucketRows, bucketInverse = np.unique(mine, axis=0, return_inverse=True)
+        bucketInverse = bucketInverse.ravel()
+        bucketHeld = np.full(bucketRows.shape[0], -1, dtype=np.int64)
+        np.maximum.at(bucketHeld, bucketInverse, mineHeld)
+        # buckets in rank order are in row order: the lower buckets' added ids first
+        added = int(np.count_nonzero(bucketHeld < 0))
+        offset = comm.exscan(added) or 0
+        ids = _FunctionSpace.__Number_bucket(bucketRows, bucketHeld, start + offset)
+        sent = np.cumsum([array.shape[0] for array in received])[:-1]
+        back = comm.alltoall(np.split(ids[bucketInverse], sent))
+        idsUnique = np.empty(unique.shape[0], dtype=np.int64)
+        idsUnique[order] = np.concatenate([np.empty(0, np.int64), *back])
+        return idsUnique[inverse], comm.allreduce(added)
+
+    @staticmethod
+    def __Number_bucket(
+        rows: _types.IntArray, held: _types.IntArray, start: int
+    ) -> _types.IntArray:
+        """Id of each distinct sorted row: its held geometry node, else `start + k` in row order."""
+        ids = held.copy()
+        isAdded = held < 0
+        ids[isAdded] = start + np.arange(np.count_nonzero(isAdded))
+        return ids
 
     @staticmethod
     def _Get_dofs(

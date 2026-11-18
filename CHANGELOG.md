@@ -19,6 +19,7 @@ This document describes the changes made to the project.
   pieces never communicate under mpirun. `_rankPartition` is gone.
 - `_GroupElem.Ncoords` renamed `Nn`, the size of the node numbering; the group's own
   node count is `nodes.size`.
+- `_GroupElem._global_to_local_nodes` renamed `_nodesIdx`, a read-only property.
 
 ## 7.3.0 (November 13, 2026):
 

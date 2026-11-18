@@ -263,7 +263,7 @@ def __Make_vtu(
             vtkIndexes = DICT_EASYFEA_TO_VTK_INDEXES[elemType]
         else:
             vtkIndexes = np.arange(nPe).tolist()
-        # map global node ids to the shared local numbering (equivalent to groupElem._global_to_local_nodes since mesh.nodes is sorted)
+        # map global node ids to the shared local numbering (equivalent to groupElem._nodesIdx since mesh.nodes is sorted)
         connect_e = np.searchsorted(nodes, groupElem.connect[:, vtkIndexes])
         list_connect.append(connect_e.ravel())
         list_types.append(

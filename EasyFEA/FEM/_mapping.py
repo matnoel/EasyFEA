@@ -29,7 +29,7 @@ class _Mapping:
     def __Get_reference_coord_e(self) -> _types.FloatArray:
         """Node coordinates of each element (Ne, nPe, 3)."""
         groupElem = self.__groupElem
-        return groupElem.coord[groupElem._global_to_local_nodes[groupElem.connect]]
+        return groupElem.coord[groupElem._nodesIdx[groupElem.connect]]
 
     def __Get_coord_e(
         self, displacementMatrix: _types.AnyArray | None = None
@@ -44,7 +44,7 @@ class _Mapping:
             f"displacmentMatrix must be of shape {shape}"
         )
         coord = groupElem.coord + displacementMatrix[groupElem.nodes]
-        return coord[groupElem._global_to_local_nodes[groupElem.connect]]
+        return coord[groupElem._nodesIdx[groupElem.connect]]
 
     # --------------------------------------------------------------------------------------------
     # Element frame and normals
